@@ -206,6 +206,7 @@ static struct scsi_host_template ahci_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
+	.eh_timed_out		= ata_scsi_timed_out,
 	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
@@ -506,6 +507,15 @@ static unsigned int ahci_dev_classify(struct ata_port *ap)
 	return ata_dev_classify(&tf);
 }
 
+static void ahci_fill_cmd_slot(struct ata_port *ap, u32 opts)
+{
+	struct ahci_port_priv *pp = ap->private_data;
+	pp->cmd_slot[0].opts = cpu_to_le32(opts);
+	pp->cmd_slot[0].status = 0;
+	pp->cmd_slot[0].tbl_addr = cpu_to_le32(pp->cmd_tbl_dma & 0xffffffff);
+	pp->cmd_slot[0].tbl_addr_hi = cpu_to_le32((pp->cmd_tbl_dma >> 16) >> 16);
+}
+
 static void ahci_phy_reset(struct ata_port *ap)
 {
 	void __iomem *port_mmio = (void __iomem *) ap->ioaddr.cmd_addr;
@@ -584,42 +594,35 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ahci_port_priv *pp = ap->private_data;
+	int is_atapi = is_atapi_taskfile(&qc->tf);
 	u32 opts;
 	const u32 cmd_fis_len = 5; /* five dwords */
 	unsigned int n_elem;
-
-	/*
-	 * Fill in command slot information (currently only one slot,
-	 * slot 0, is currently since we don't do queueing)
-	 */
-
-	opts = cmd_fis_len;
-	if (qc->tf.flags & ATA_TFLAG_WRITE)
-		opts |= AHCI_CMD_WRITE;
-	if (is_atapi_taskfile(&qc->tf))
-		opts |= AHCI_CMD_ATAPI;
-
-	pp->cmd_slot[0].opts = cpu_to_le32(opts);
-	pp->cmd_slot[0].status = 0;
-	pp->cmd_slot[0].tbl_addr = cpu_to_le32(pp->cmd_tbl_dma & 0xffffffff);
-	pp->cmd_slot[0].tbl_addr_hi = cpu_to_le32((pp->cmd_tbl_dma >> 16) >> 16);
 
 	/*
 	 * Fill in command table information.  First, the header,
 	 * a SATA Register - Host to Device command FIS.
 	 */
 	ata_tf_to_fis(&qc->tf, pp->cmd_tbl, 0);
-	if (opts & AHCI_CMD_ATAPI) {
+	if (is_atapi) {
 		memset(pp->cmd_tbl + AHCI_CMD_TBL_CDB, 0, 32);
 		memcpy(pp->cmd_tbl + AHCI_CMD_TBL_CDB, qc->cdb, ap->cdb_len);
 	}
 
-	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
-		return;
+	n_elem = 0;
+	if (qc->flags & ATA_QCFLAG_DMAMAP)
+		n_elem = ahci_fill_sg(qc);
 
-	n_elem = ahci_fill_sg(qc);
+	/*
+	 * Fill in command slot information.
+	 */
+	opts = cmd_fis_len | n_elem << 16;
+	if (qc->tf.flags & ATA_TFLAG_WRITE)
+		opts |= AHCI_CMD_WRITE;
+	if (is_atapi)
+		opts |= AHCI_CMD_ATAPI;
 
-	pp->cmd_slot[0].opts |= cpu_to_le32(n_elem << 16);
+	ahci_fill_cmd_slot(ap, opts);
 }
 
 static void ahci_restart_port(struct ata_port *ap, u32 irq_stat)
@@ -676,19 +679,13 @@ static void ahci_eng_timeout(struct ata_port *ap)
 
 	spin_lock_irqsave(&host_set->lock, flags);
 
+	ahci_restart_port(ap, readl(port_mmio + PORT_IRQ_STAT));
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	if (!qc) {
-		printk(KERN_ERR "ata%u: BUG: timeout without command\n",
-		       ap->id);
-	} else {
-		ahci_restart_port(ap, readl(port_mmio + PORT_IRQ_STAT));
-		qc->err_mask |= AC_ERR_TIMEOUT;
-	}
+	qc->err_mask |= AC_ERR_TIMEOUT;
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
 
-	if (qc)
-		ata_eh_qc_complete(qc);
+	ata_eh_qc_complete(qc);
 }
 
 static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)

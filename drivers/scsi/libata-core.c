@@ -3702,20 +3702,10 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 
 void ata_eng_timeout(struct ata_port *ap)
 {
-	struct ata_queued_cmd *qc;
-
 	DPRINTK("ENTER\n");
 
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	if (qc)
-		ata_qc_timeout(qc);
-	else {
-		printk(KERN_ERR "ata%u: BUG: timeout without command\n",
-		       ap->id);
-		goto out;
-	}
+	ata_qc_timeout(ata_qc_from_tag(ap, ap->active_tag));
 
-out:
 	DPRINTK("EXIT\n");
 }
 
@@ -3798,19 +3788,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 	}
 }
 
-/**
- *	ata_qc_complete - Complete an active ATA command
- *	@qc: Command to complete
- *	@err_mask: ATA Status register contents
- *
- *	Indicate to the mid and upper layers that an ATA
- *	command has completed, with either an ok or not-ok status.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-
-void ata_qc_complete(struct ata_queued_cmd *qc)
+inline void __ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	assert(qc != NULL);	/* ata_qc_from_tag _might_ return NULL */
 	assert(qc->flags & ATA_QCFLAG_ACTIVE);
@@ -3826,6 +3804,25 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 
 	/* call completion callback */
 	qc->complete_fn(qc);
+}
+
+/**
+ *	ata_qc_complete - Complete an active ATA command
+ *	@qc: Command to complete
+ *	@err_mask: ATA Status register contents
+ *
+ *	Indicate to the mid and upper layers that an ATA
+ *	command has completed, with either an ok or not-ok status.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
+void ata_qc_complete(struct ata_queued_cmd *qc)
+{
+	if (unlikely(qc->flags & ATA_QCFLAG_EH_SCHEDULED))
+		return;
+
+	__ata_qc_complete(qc);
 }
 
 static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
@@ -5183,6 +5180,7 @@ EXPORT_SYMBOL_GPL(ata_ratelimit);
 EXPORT_SYMBOL_GPL(ata_busy_sleep);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
+EXPORT_SYMBOL_GPL(ata_scsi_timed_out);
 EXPORT_SYMBOL_GPL(ata_scsi_error);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 EXPORT_SYMBOL_GPL(ata_scsi_release);
