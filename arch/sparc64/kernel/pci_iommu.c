@@ -219,7 +219,7 @@ static inline void iommu_free_ctx(struct pci_iommu *iommu, int ctx)
  * DMA for PCI device PDEV.  Return non-NULL cpu-side address if
  * successful and set *DMA_ADDRP to the PCI side dma address.
  */
-void *pci_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp)
+static void *pci_4u_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp)
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
@@ -267,7 +267,7 @@ void *pci_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_ad
 }
 
 /* Free and unmap a consistent DMA translation. */
-void pci_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_t dvma)
+static void pci_4u_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_t dvma)
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
@@ -294,7 +294,7 @@ void pci_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_
 /* Map a single buffer at PTR of SZ bytes for PCI DMA
  * in streaming mode.
  */
-dma_addr_t pci_map_single(struct pci_dev *pdev, void *ptr, size_t sz, int direction)
+static dma_addr_t pci_4u_map_single(struct pci_dev *pdev, void *ptr, size_t sz, int direction)
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
@@ -415,7 +415,7 @@ do_flush_sync:
 }
 
 /* Unmap a single streaming mode DMA translation. */
-void pci_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
+static void pci_4u_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
@@ -548,7 +548,7 @@ static inline void fill_sg(iopte_t *iopte, struct scatterlist *sg,
  * When making changes here, inspect the assembly output. I was having
  * hard time to kepp this routine out of using stack slots for holding variables.
  */
-int pci_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
+static int pci_4u_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
@@ -635,7 +635,7 @@ bad_no_ctx:
 }
 
 /* Unmap a set of streaming mode DMA translations. */
-void pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
+static void pci_4u_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
@@ -695,7 +695,7 @@ void pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, 
 /* Make physical memory consistent for a single
  * streaming mode DMA translation after a transfer.
  */
-void pci_dma_sync_single_for_cpu(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
+static void pci_4u_dma_sync_single_for_cpu(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
@@ -735,7 +735,7 @@ void pci_dma_sync_single_for_cpu(struct pci_dev *pdev, dma_addr_t bus_addr, size
 /* Make physical memory consistent for a set of streaming
  * mode DMA translations after a transfer.
  */
-void pci_dma_sync_sg_for_cpu(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
+static void pci_4u_dma_sync_sg_for_cpu(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
@@ -775,6 +775,17 @@ void pci_dma_sync_sg_for_cpu(struct pci_dev *pdev, struct scatterlist *sglist, i
 
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
+
+struct pci_iommu_ops pci_sun4u_iommu_ops = {
+	.alloc_consistent		= pci_4u_alloc_consistent,
+	.free_consistent		= pci_4u_free_consistent,
+	.map_single			= pci_4u_map_single,
+	.unmap_single			= pci_4u_unmap_single,
+	.map_sg				= pci_4u_map_sg,
+	.unmap_sg			= pci_4u_unmap_sg,
+	.dma_sync_single_for_cpu	= pci_4u_dma_sync_single_for_cpu,
+	.dma_sync_sg_for_cpu		= pci_4u_dma_sync_sg_for_cpu,
+};
 
 static void ali_sound_dma_hack(struct pci_dev *pdev, int set_bit)
 {
