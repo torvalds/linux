@@ -68,7 +68,6 @@ struct net_bridge_port
 	/* STP */
 	u8				priority;
 	u8				state;
-	u8				deleted;
 	u16				port_no;
 	unsigned char			topology_change_ack;
 	unsigned char			config_pending;
@@ -233,9 +232,8 @@ extern void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent);
 
 #ifdef CONFIG_SYSFS
 /* br_sysfs_if.c */
+extern struct sysfs_ops brport_sysfs_ops;
 extern int br_sysfs_addif(struct net_bridge_port *p);
-extern void br_sysfs_removeif(struct net_bridge_port *p);
-extern void br_sysfs_freeif(struct net_bridge_port *p);
 
 /* br_sysfs_br.c */
 extern int br_sysfs_addbr(struct net_device *dev);
@@ -244,8 +242,6 @@ extern void br_sysfs_delbr(struct net_device *dev);
 #else
 
 #define br_sysfs_addif(p)	(0)
-#define br_sysfs_removeif(p)	do { } while(0)
-#define br_sysfs_freeif(p)	kfree(p)
 #define br_sysfs_addbr(dev)	(0)
 #define br_sysfs_delbr(dev)	do { } while(0)
 #endif /* CONFIG_SYSFS */
