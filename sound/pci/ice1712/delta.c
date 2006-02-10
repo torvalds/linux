@@ -393,6 +393,37 @@ static void delta_setup_spdif(struct snd_ice1712 *ice, int rate)
 	snd_ice1712_delta_cs8403_spdif_write(ice, tmp);
 }
 
+int snd_ice1712_delta1010lt_wordclock_status_info(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}
+
+int snd_ice1712_delta1010lt_wordclock_status_get(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_value *ucontrol)
+{
+	char reg = 0x10; // cs8427 receiver error register
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+
+	if (snd_i2c_sendbytes(ice->cs8427, &reg, 1) != 1)
+		snd_printk(KERN_ERR "unable to send register 0x%x byte to CS8427\n", reg);
+	snd_i2c_readbytes(ice->cs8427, &reg, 1);
+	ucontrol->value.integer.value[0] = (reg ? 0 : 1);
+	return 0;
+}
+
+static struct snd_kcontrol_new snd_ice1712_delta1010lt_wordclock_status __devinitdata =
+{
+	.access =	(SNDRV_CTL_ELEM_ACCESS_READ),
+	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name =         "Word Clock Status",
+	.info =		snd_ice1712_delta1010lt_wordclock_status_info,
+	.get =		snd_ice1712_delta1010lt_wordclock_status_get,
+};
 
 /*
  * initialize the chips on M-Audio cards
@@ -622,7 +653,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 static struct snd_kcontrol_new snd_ice1712_delta1010_wordclock_select __devinitdata =
 ICE1712_GPIO(SNDRV_CTL_ELEM_IFACE_MIXER, "Word Clock Sync", 0, ICE1712_DELTA_WORD_CLOCK_SELECT, 1, 0);
 static struct snd_kcontrol_new snd_ice1712_delta1010lt_wordclock_select __devinitdata =
-ICE1712_GPIO(SNDRV_CTL_ELEM_IFACE_MIXER, "Word Clock Sync", 0, ICE1712_DELTA_1010LT_WORDCLOCK, 1, 0);
+ICE1712_GPIO(SNDRV_CTL_ELEM_IFACE_MIXER, "Word Clock Sync", 0, ICE1712_DELTA_1010LT_WORDCLOCK, 0, 0);
 static struct snd_kcontrol_new snd_ice1712_delta1010_wordclock_status __devinitdata =
 ICE1712_GPIO(SNDRV_CTL_ELEM_IFACE_MIXER, "Word Clock Status", 0, ICE1712_DELTA_WORD_CLOCK_STATUS, 1, SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE);
 static struct snd_kcontrol_new snd_ice1712_deltadio2496_spdif_in_select __devinitdata =
@@ -653,6 +684,9 @@ static int __devinit snd_ice1712_delta_add_controls(struct snd_ice1712 *ice)
 		break;
 	case ICE1712_SUBDEVICE_DELTA1010LT:
 		err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_delta1010lt_wordclock_select, ice));
+		if (err < 0)
+			return err;
+		err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_ice1712_delta1010lt_wordclock_status, ice));
 		if (err < 0)
 			return err;
 		break;
