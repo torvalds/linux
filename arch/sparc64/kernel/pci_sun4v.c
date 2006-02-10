@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/percpu.h>
 
 #include <asm/pbm.h>
 #include <asm/iommu.h>
@@ -23,39 +24,481 @@
 
 #include "pci_sun4v.h"
 
+#define PGLIST_NENTS	2048
+
+struct sun4v_pglist {
+	u64	pglist[PGLIST_NENTS];
+};
+
+static DEFINE_PER_CPU(struct sun4v_pglist, iommu_pglists);
+
+static long pci_arena_alloc(struct pci_iommu_arena *arena, unsigned long npages)
+{
+	unsigned long n, i, start, end, limit;
+	int pass;
+
+	limit = arena->limit;
+	start = arena->hint;
+	pass = 0;
+
+again:
+	n = find_next_zero_bit(arena->map, limit, start);
+	end = n + npages;
+	if (unlikely(end >= limit)) {
+		if (likely(pass < 1)) {
+			limit = start;
+			start = 0;
+			pass++;
+			goto again;
+		} else {
+			/* Scanned the whole thing, give up. */
+			return -1;
+		}
+	}
+
+	for (i = n; i < end; i++) {
+		if (test_bit(i, arena->map)) {
+			start = i + 1;
+			goto again;
+		}
+	}
+
+	for (i = n; i < end; i++)
+		__set_bit(i, arena->map);
+
+	arena->hint = end;
+
+	return n;
+}
+
+static void pci_arena_free(struct pci_iommu_arena *arena, unsigned long base, unsigned long npages)
+{
+	unsigned long i;
+
+	for (i = base; i < (base + npages); i++)
+		__clear_bit(i, arena->map);
+}
+
 static void *pci_4v_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp)
 {
-	return NULL;
+	struct pcidev_cookie *pcp;
+	struct pci_iommu *iommu;
+	unsigned long devhandle, flags, order, first_page, npages, n;
+	void *ret;
+	long entry;
+	u64 *pglist;
+	int cpu;
+
+	size = IO_PAGE_ALIGN(size);
+	order = get_order(size);
+	if (order >= MAX_ORDER)
+		return NULL;
+
+	npages = size >> IO_PAGE_SHIFT;
+	if (npages > PGLIST_NENTS)
+		return NULL;
+
+	first_page = __get_free_pages(GFP_ATOMIC, order);
+	if (first_page == 0UL)
+		return NULL;
+	memset((char *)first_page, 0, PAGE_SIZE << order);
+
+	pcp = pdev->sysdata;
+	devhandle = pcp->pbm->devhandle;
+	iommu = pcp->pbm->iommu;
+
+	spin_lock_irqsave(&iommu->lock, flags);
+	entry = pci_arena_alloc(&iommu->arena, npages);
+	spin_unlock_irqrestore(&iommu->lock, flags);
+
+	if (unlikely(entry < 0L)) {
+		free_pages(first_page, order);
+		return NULL;
+	}
+
+	*dma_addrp = (iommu->page_table_map_base +
+		      (entry << IO_PAGE_SHIFT));
+	ret = (void *) first_page;
+	first_page = __pa(first_page);
+
+	cpu = get_cpu();
+
+	pglist = &__get_cpu_var(iommu_pglists).pglist[0];
+	for (n = 0; n < npages; n++)
+		pglist[n] = first_page + (n * PAGE_SIZE);
+
+	do {
+		unsigned long num;
+
+		num = pci_sun4v_iommu_map(devhandle, HV_PCI_TSBID(0, entry),
+					  npages,
+					  (HV_PCI_MAP_ATTR_READ |
+					   HV_PCI_MAP_ATTR_WRITE),
+					  __pa(pglist));
+		entry += num;
+		npages -= num;
+		pglist += num;
+	} while (npages != 0);
+
+	put_cpu();
+
+	return ret;
 }
 
 static void pci_4v_free_consistent(struct pci_dev *pdev, size_t size, void *cpu, dma_addr_t dvma)
 {
+	struct pcidev_cookie *pcp;
+	struct pci_iommu *iommu;
+	unsigned long flags, order, npages, entry, devhandle;
+
+	npages = IO_PAGE_ALIGN(size) >> IO_PAGE_SHIFT;
+	pcp = pdev->sysdata;
+	iommu = pcp->pbm->iommu;
+	devhandle = pcp->pbm->devhandle;
+	entry = ((dvma - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
+
+	spin_lock_irqsave(&iommu->lock, flags);
+
+	pci_arena_free(&iommu->arena, entry, npages);
+
+	do {
+		unsigned long num;
+
+		num = pci_sun4v_iommu_demap(devhandle, HV_PCI_TSBID(0, entry),
+					    npages);
+		entry += num;
+		npages -= num;
+	} while (npages != 0);
+
+	spin_unlock_irqrestore(&iommu->lock, flags);
+
+	order = get_order(size);
+	if (order < 10)
+		free_pages((unsigned long)cpu, order);
 }
 
 static dma_addr_t pci_4v_map_single(struct pci_dev *pdev, void *ptr, size_t sz, int direction)
 {
-	return 0;
+	struct pcidev_cookie *pcp;
+	struct pci_iommu *iommu;
+	unsigned long flags, npages, oaddr;
+	unsigned long i, base_paddr, devhandle;
+	u32 bus_addr, ret;
+	unsigned long prot;
+	long entry;
+	u64 *pglist;
+	int cpu;
+
+	pcp = pdev->sysdata;
+	iommu = pcp->pbm->iommu;
+	devhandle = pcp->pbm->devhandle;
+
+	if (unlikely(direction == PCI_DMA_NONE))
+		goto bad;
+
+	oaddr = (unsigned long)ptr;
+	npages = IO_PAGE_ALIGN(oaddr + sz) - (oaddr & IO_PAGE_MASK);
+	npages >>= IO_PAGE_SHIFT;
+	if (unlikely(npages > PGLIST_NENTS))
+		goto bad;
+
+	spin_lock_irqsave(&iommu->lock, flags);
+	entry = pci_arena_alloc(&iommu->arena, npages);
+	spin_unlock_irqrestore(&iommu->lock, flags);
+
+	if (unlikely(entry < 0L))
+		goto bad;
+
+	bus_addr = (iommu->page_table_map_base +
+		    (entry << IO_PAGE_SHIFT));
+	ret = bus_addr | (oaddr & ~IO_PAGE_MASK);
+	base_paddr = __pa(oaddr & IO_PAGE_MASK);
+	prot = HV_PCI_MAP_ATTR_READ;
+	if (direction != PCI_DMA_TODEVICE)
+		prot |= HV_PCI_MAP_ATTR_WRITE;
+
+	cpu = get_cpu();
+
+	pglist = &__get_cpu_var(iommu_pglists).pglist[0];
+	for (i = 0; i < npages; i++, base_paddr += IO_PAGE_SIZE)
+		pglist[i] = base_paddr;
+
+	do {
+		unsigned long num;
+
+		num = pci_sun4v_iommu_map(devhandle, HV_PCI_TSBID(0, entry),
+					  npages, prot,
+					  __pa(pglist));
+		entry += num;
+		npages -= num;
+		pglist += num;
+	} while (npages != 0);
+
+	put_cpu();
+
+	return ret;
+
+bad:
+	if (printk_ratelimit())
+		WARN_ON(1);
+	return PCI_DMA_ERROR_CODE;
 }
 
 static void pci_4v_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
+	struct pcidev_cookie *pcp;
+	struct pci_iommu *iommu;
+	unsigned long flags, npages, devhandle;
+	long entry;
+
+	if (unlikely(direction == PCI_DMA_NONE)) {
+		if (printk_ratelimit())
+			WARN_ON(1);
+		return;
+	}
+
+	pcp = pdev->sysdata;
+	iommu = pcp->pbm->iommu;
+	devhandle = pcp->pbm->devhandle;
+
+	npages = IO_PAGE_ALIGN(bus_addr + sz) - (bus_addr & IO_PAGE_MASK);
+	npages >>= IO_PAGE_SHIFT;
+	bus_addr &= IO_PAGE_MASK;
+
+	spin_lock_irqsave(&iommu->lock, flags);
+
+	entry = (bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT;
+	pci_arena_free(&iommu->arena, entry, npages);
+
+	do {
+		unsigned long num;
+
+		num = pci_sun4v_iommu_demap(devhandle, HV_PCI_TSBID(0, entry),
+					    npages);
+		entry += num;
+		npages -= num;
+	} while (npages != 0);
+
+	spin_unlock_irqrestore(&iommu->lock, flags);
+}
+
+#define SG_ENT_PHYS_ADDRESS(SG)	\
+	(__pa(page_address((SG)->page)) + (SG)->offset)
+
+static inline void fill_sg(long entry, unsigned long devhandle,
+			   struct scatterlist *sg,
+			   int nused, int nelems, unsigned long prot)
+{
+	struct scatterlist *dma_sg = sg;
+	struct scatterlist *sg_end = sg + nelems;
+	int i, cpu, pglist_ent;
+	u64 *pglist;
+
+	cpu = get_cpu();
+	pglist = &__get_cpu_var(iommu_pglists).pglist[0];
+	pglist_ent = 0;
+	for (i = 0; i < nused; i++) {
+		unsigned long pteval = ~0UL;
+		u32 dma_npages;
+
+		dma_npages = ((dma_sg->dma_address & (IO_PAGE_SIZE - 1UL)) +
+			      dma_sg->dma_length +
+			      ((IO_PAGE_SIZE - 1UL))) >> IO_PAGE_SHIFT;
+		do {
+			unsigned long offset;
+			signed int len;
+
+			/* If we are here, we know we have at least one
+			 * more page to map.  So walk forward until we
+			 * hit a page crossing, and begin creating new
+			 * mappings from that spot.
+			 */
+			for (;;) {
+				unsigned long tmp;
+
+				tmp = SG_ENT_PHYS_ADDRESS(sg);
+				len = sg->length;
+				if (((tmp ^ pteval) >> IO_PAGE_SHIFT) != 0UL) {
+					pteval = tmp & IO_PAGE_MASK;
+					offset = tmp & (IO_PAGE_SIZE - 1UL);
+					break;
+				}
+				if (((tmp ^ (tmp + len - 1UL)) >> IO_PAGE_SHIFT) != 0UL) {
+					pteval = (tmp + IO_PAGE_SIZE) & IO_PAGE_MASK;
+					offset = 0UL;
+					len -= (IO_PAGE_SIZE - (tmp & (IO_PAGE_SIZE - 1UL)));
+					break;
+				}
+				sg++;
+			}
+
+			pteval = (pteval & IOPTE_PAGE);
+			while (len > 0) {
+				pglist[pglist_ent++] = pteval;
+				pteval += IO_PAGE_SIZE;
+				len -= (IO_PAGE_SIZE - offset);
+				offset = 0;
+				dma_npages--;
+			}
+
+			pteval = (pteval & IOPTE_PAGE) + len;
+			sg++;
+
+			/* Skip over any tail mappings we've fully mapped,
+			 * adjusting pteval along the way.  Stop when we
+			 * detect a page crossing event.
+			 */
+			while (sg < sg_end &&
+			       (pteval << (64 - IO_PAGE_SHIFT)) != 0UL &&
+			       (pteval == SG_ENT_PHYS_ADDRESS(sg)) &&
+			       ((pteval ^
+				 (SG_ENT_PHYS_ADDRESS(sg) + sg->length - 1UL)) >> IO_PAGE_SHIFT) == 0UL) {
+				pteval += sg->length;
+				sg++;
+			}
+			if ((pteval << (64 - IO_PAGE_SHIFT)) == 0UL)
+				pteval = ~0UL;
+		} while (dma_npages != 0);
+		dma_sg++;
+	}
+
+	BUG_ON(pglist_ent == 0);
+
+	do {
+		unsigned long num;
+
+		num = pci_sun4v_iommu_demap(devhandle, HV_PCI_TSBID(0, entry),
+					    pglist_ent);
+		entry += num;
+		pglist_ent -= num;
+	} while (pglist_ent != 0);
+
+	put_cpu();
 }
 
 static int pci_4v_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
-	return nelems;
+	struct pcidev_cookie *pcp;
+	struct pci_iommu *iommu;
+	unsigned long flags, npages, prot, devhandle;
+	u32 dma_base;
+	struct scatterlist *sgtmp;
+	long entry;
+	int used;
+
+	/* Fast path single entry scatterlists. */
+	if (nelems == 1) {
+		sglist->dma_address =
+			pci_4v_map_single(pdev,
+					  (page_address(sglist->page) + sglist->offset),
+					  sglist->length, direction);
+		if (unlikely(sglist->dma_address == PCI_DMA_ERROR_CODE))
+			return 0;
+		sglist->dma_length = sglist->length;
+		return 1;
+	}
+
+	pcp = pdev->sysdata;
+	iommu = pcp->pbm->iommu;
+	devhandle = pcp->pbm->devhandle;
+	
+	if (unlikely(direction == PCI_DMA_NONE))
+		goto bad;
+
+	/* Step 1: Prepare scatter list. */
+	npages = prepare_sg(sglist, nelems);
+	if (unlikely(npages > PGLIST_NENTS))
+		goto bad;
+
+	/* Step 2: Allocate a cluster and context, if necessary. */
+	spin_lock_irqsave(&iommu->lock, flags);
+	entry = pci_arena_alloc(&iommu->arena, npages);
+	spin_unlock_irqrestore(&iommu->lock, flags);
+
+	if (unlikely(entry < 0L))
+		goto bad;
+
+	dma_base = iommu->page_table_map_base +
+		(entry << IO_PAGE_SHIFT);
+
+	/* Step 3: Normalize DMA addresses. */
+	used = nelems;
+
+	sgtmp = sglist;
+	while (used && sgtmp->dma_length) {
+		sgtmp->dma_address += dma_base;
+		sgtmp++;
+		used--;
+	}
+	used = nelems - used;
+
+	/* Step 4: Create the mappings. */
+	prot = HV_PCI_MAP_ATTR_READ;
+	if (direction != PCI_DMA_TODEVICE)
+		prot |= HV_PCI_MAP_ATTR_WRITE;
+
+	fill_sg(entry, devhandle, sglist, used, nelems, prot);
+
+	return used;
+
+bad:
+	if (printk_ratelimit())
+		WARN_ON(1);
+	return 0;
 }
 
 static void pci_4v_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
+	struct pcidev_cookie *pcp;
+	struct pci_iommu *iommu;
+	unsigned long flags, i, npages, devhandle;
+	long entry;
+	u32 bus_addr;
+
+	if (unlikely(direction == PCI_DMA_NONE)) {
+		if (printk_ratelimit())
+			WARN_ON(1);
+	}
+
+	pcp = pdev->sysdata;
+	iommu = pcp->pbm->iommu;
+	devhandle = pcp->pbm->devhandle;
+	
+	bus_addr = sglist->dma_address & IO_PAGE_MASK;
+
+	for (i = 1; i < nelems; i++)
+		if (sglist[i].dma_length == 0)
+			break;
+	i--;
+	npages = (IO_PAGE_ALIGN(sglist[i].dma_address + sglist[i].dma_length) -
+		  bus_addr) >> IO_PAGE_SHIFT;
+
+	entry = ((bus_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT);
+
+	spin_lock_irqsave(&iommu->lock, flags);
+
+	pci_arena_free(&iommu->arena, entry, npages);
+
+	do {
+		unsigned long num;
+
+		num = pci_sun4v_iommu_demap(devhandle, HV_PCI_TSBID(0, entry),
+					    npages);
+		entry += num;
+		npages -= num;
+	} while (npages != 0);
+
+	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
 static void pci_4v_dma_sync_single_for_cpu(struct pci_dev *pdev, dma_addr_t bus_addr, size_t sz, int direction)
 {
+	/* Nothing to do... */
 }
 
 static void pci_4v_dma_sync_sg_for_cpu(struct pci_dev *pdev, struct scatterlist *sglist, int nelems, int direction)
 {
+	/* Nothing to do... */
 }
 
 struct pci_iommu_ops pci_sun4v_iommu_ops = {
@@ -264,9 +707,83 @@ static void pbm_register_toplevel_resources(struct pci_controller_info *p,
 				    &pbm->mem_space);
 }
 
+static void probe_existing_entries(struct pci_pbm_info *pbm,
+				   struct pci_iommu *iommu)
+{
+	struct pci_iommu_arena *arena = &iommu->arena;
+	unsigned long i, devhandle;
+
+	devhandle = pbm->devhandle;
+	for (i = 0; i < arena->limit; i++) {
+		unsigned long ret, io_attrs, ra;
+
+		ret = pci_sun4v_iommu_getmap(devhandle,
+					     HV_PCI_TSBID(0, i),
+					     &io_attrs, &ra);
+		if (ret == HV_EOK)
+			__set_bit(i, arena->map);
+	}
+}
+
 static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 {
-	/* XXX Implement me! XXX */
+	struct pci_iommu *iommu = pbm->iommu;
+	unsigned long num_tsb_entries, sz;
+	u32 vdma[2], dma_mask, dma_offset;
+	int err, tsbsize;
+
+	err = prom_getproperty(pbm->prom_node, "virtual-dma",
+			       (char *)&vdma[0], sizeof(vdma));
+	if (err == 0 || err == -1) {
+		/* No property, use default values. */
+		vdma[0] = 0x80000000;
+		vdma[1] = 0x80000000;
+	}
+
+	dma_mask = vdma[0];
+	switch (vdma[1]) {
+		case 0x20000000:
+			dma_mask |= 0x1fffffff;
+			tsbsize = 64;
+			break;
+
+		case 0x40000000:
+			dma_mask |= 0x3fffffff;
+			tsbsize = 128;
+			break;
+
+		case 0x80000000:
+			dma_mask |= 0x7fffffff;
+			tsbsize = 128;
+			break;
+
+		default:
+			prom_printf("PCI-SUN4V: strange virtual-dma size.\n");
+			prom_halt();
+	};
+
+	num_tsb_entries = tsbsize / sizeof(iopte_t);
+
+	dma_offset = vdma[0];
+
+	/* Setup initial software IOMMU state. */
+	spin_lock_init(&iommu->lock);
+	iommu->ctx_lowest_free = 1;
+	iommu->page_table_map_base = dma_offset;
+	iommu->dma_addr_mask = dma_mask;
+
+	/* Allocate and initialize the free area map.  */
+	sz = num_tsb_entries / 8;
+	sz = (sz + 7UL) & ~7UL;
+	iommu->arena.map = kmalloc(sz, GFP_KERNEL);
+	if (!iommu->arena.map) {
+		prom_printf("PCI_IOMMU: Error, kmalloc(arena.map) failed.\n");
+		prom_halt();
+	}
+	memset(iommu->arena.map, 0, sz);
+	iommu->arena.limit = num_tsb_entries;
+
+	probe_existing_entries(pbm, iommu);
 }
 
 static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node)

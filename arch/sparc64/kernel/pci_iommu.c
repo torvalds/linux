@@ -562,9 +562,9 @@ static int pci_4u_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int n
 	/* Fast path single entry scatterlists. */
 	if (nelems == 1) {
 		sglist->dma_address =
-			pci_map_single(pdev,
-				       (page_address(sglist->page) + sglist->offset),
-				       sglist->length, direction);
+			pci_4u_map_single(pdev,
+					  (page_address(sglist->page) + sglist->offset),
+					  sglist->length, direction);
 		if (unlikely(sglist->dma_address == PCI_DMA_ERROR_CODE))
 			return 0;
 		sglist->dma_length = sglist->length;
