@@ -4,6 +4,7 @@
 #include <linux/config.h>
 #include <asm/page.h>
 #include <asm/const.h>
+#include <asm/hypervisor.h>
 
 /*
  * For the 8k pagesize kernel, use only 10 hw context bits to optimize some
@@ -101,13 +102,14 @@ extern void __tsb_insert(unsigned long ent, unsigned long tag, unsigned long pte
 extern void tsb_flush(unsigned long ent, unsigned long tag);
 
 typedef struct {
-	unsigned long	sparc64_ctx_val;
-	struct tsb	*tsb;
-	unsigned long	tsb_rss_limit;
-	unsigned long	tsb_nentries;
-	unsigned long	tsb_reg_val;
-	unsigned long	tsb_map_vaddr;
-	unsigned long	tsb_map_pte;
+	unsigned long		sparc64_ctx_val;
+	struct tsb		*tsb;
+	unsigned long		tsb_rss_limit;
+	unsigned long		tsb_nentries;
+	unsigned long		tsb_reg_val;
+	unsigned long		tsb_map_vaddr;
+	unsigned long		tsb_map_pte;
+	struct hv_tsb_descr	tsb_descr;
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */

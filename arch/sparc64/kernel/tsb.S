@@ -4,6 +4,7 @@
  */
 
 #include <asm/tsb.h>
+#include <asm/hypervisor.h>
 
 	.text
 	.align	32
@@ -233,6 +234,7 @@ tsb_flush:
 	 * %o1:	TSB register value
 	 * %o2:	TSB virtual address
 	 * %o3:	TSB mapping locked PTE
+	 * %o4:	Hypervisor TSB descriptor physical address
 	 *
 	 * We have to run this whole thing with interrupts
 	 * disabled so that the current cpu doesn't change
@@ -251,30 +253,40 @@ __tsb_context_switch:
 	add	%g2, %g1, %g2
 	stx	%o0, [%g2 + TRAP_PER_CPU_PGD_PADDR]
 
-661:	mov	TSB_REG, %g1
-	stxa	%o1, [%g1] ASI_DMMU
-	.section .sun4v_2insn_patch, "ax"
-	.word	661b
-	mov	SCRATCHPAD_UTSBREG1, %g1
-	stxa	%o1, [%g1] ASI_SCRATCHPAD
-	.previous
-
-	membar	#Sync
-
-661:	stxa	%o1, [%g1] ASI_IMMU
-	membar	#Sync
-	.section .sun4v_2insn_patch, "ax"
-	.word	661b
-	nop
-	nop
-	.previous
-
-	brz	%o2, 9f
+	sethi	%hi(tlb_type), %g1
+	lduw	[%g1 + %lo(tlb_type)], %g1
+	cmp	%g1, 3
+	bne,pt	%icc, 1f
 	 nop
 
-	sethi	%hi(sparc64_highest_unlocked_tlb_ent), %o4
+	/* Hypervisor TSB switch. */
+	mov	SCRATCHPAD_UTSBREG1, %g1
+	stxa	%o1, [%g1] ASI_SCRATCHPAD
+	mov	-1, %g2
+	mov	SCRATCHPAD_UTSBREG2, %g1
+	stxa	%g2, [%g1] ASI_SCRATCHPAD
+
+	mov	HV_FAST_MMU_TSB_CTXNON0, %o0
+	mov	1, %o1
+	mov	%o4, %o2
+	ta	HV_FAST_TRAP
+
+	ba,pt	%xcc, 9f
+	 nop
+
+	/* SUN4U TSB switch.  */
+1:	mov	TSB_REG, %g1
+	stxa	%o1, [%g1] ASI_DMMU
+	membar	#Sync
+	stxa	%o1, [%g1] ASI_IMMU
+	membar	#Sync
+
+2:	brz	%o2, 9f
+	 nop
+
+	sethi	%hi(sparc64_highest_unlocked_tlb_ent), %g2
 	mov	TLB_TAG_ACCESS, %g1
-	lduw	[%o4 + %lo(sparc64_highest_unlocked_tlb_ent)], %g2
+	lduw	[%g2 + %lo(sparc64_highest_unlocked_tlb_ent)], %g2
 	stxa	%o2, [%g1] ASI_DMMU
 	membar	#Sync
 	sllx	%g2, 3, %g2

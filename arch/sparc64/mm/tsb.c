@@ -149,7 +149,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 		BUG();
 	};
 
-	if (tlb_type == cheetah_plus) {
+	if (tlb_type == cheetah_plus || tlb_type == hypervisor) {
 		/* Physical mapping, no locked TLB entry for TSB.  */
 		tsb_reg |= tsb_paddr;
 
@@ -166,6 +166,52 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 		mm->context.tsb_map_pte = tte;
 	}
 
+	/* Setup the Hypervisor TSB descriptor.  */
+	if (tlb_type == hypervisor) {
+		struct hv_tsb_descr *hp = &mm->context.tsb_descr;
+
+		switch (PAGE_SIZE) {
+		case 8192:
+		default:
+			hp->pgsz_idx = HV_PGSZ_IDX_8K;
+			break;
+
+		case 64 * 1024:
+			hp->pgsz_idx = HV_PGSZ_IDX_64K;
+			break;
+
+		case 512 * 1024:
+			hp->pgsz_idx = HV_PGSZ_IDX_512K;
+			break;
+
+		case 4 * 1024 * 1024:
+			hp->pgsz_idx = HV_PGSZ_IDX_4MB;
+			break;
+		};
+		hp->assoc = 1;
+		hp->num_ttes = tsb_bytes / 16;
+		hp->ctx_idx = 0;
+		switch (PAGE_SIZE) {
+		case 8192:
+		default:
+			hp->pgsz_mask = HV_PGSZ_MASK_8K;
+			break;
+
+		case 64 * 1024:
+			hp->pgsz_mask = HV_PGSZ_MASK_64K;
+			break;
+
+		case 512 * 1024:
+			hp->pgsz_mask = HV_PGSZ_MASK_512K;
+			break;
+
+		case 4 * 1024 * 1024:
+			hp->pgsz_mask = HV_PGSZ_MASK_4MB;
+			break;
+		};
+		hp->tsb_base = tsb_paddr;
+		hp->resv = 0;
+	}
 }
 
 /* The page tables are locked against modifications while this

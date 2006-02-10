@@ -22,14 +22,18 @@ extern void get_new_mmu_context(struct mm_struct *mm);
 extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 extern void destroy_context(struct mm_struct *mm);
 
-extern void __tsb_context_switch(unsigned long pgd_pa, unsigned long tsb_reg,
-				 unsigned long tsb_vaddr, unsigned long tsb_pte);
+extern void __tsb_context_switch(unsigned long pgd_pa,
+				 unsigned long tsb_reg,
+				 unsigned long tsb_vaddr,
+				 unsigned long tsb_pte,
+				 unsigned long tsb_descr_pa);
 
 static inline void tsb_context_switch(struct mm_struct *mm)
 {
 	__tsb_context_switch(__pa(mm->pgd), mm->context.tsb_reg_val,
 			     mm->context.tsb_map_vaddr,
-			     mm->context.tsb_map_pte);
+			     mm->context.tsb_map_pte,
+			     __pa(&mm->context.tsb_descr));
 }
 
 extern void tsb_grow(struct mm_struct *mm, unsigned long mm_rss, gfp_t gfp_flags);
