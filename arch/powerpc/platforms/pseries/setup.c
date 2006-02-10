@@ -263,48 +263,44 @@ static int __init pSeries_init_panel(void)
 arch_initcall(pSeries_init_panel);
 
 
-/* Build up the ppc64_firmware_features bitmask field
- * using contents of device-tree/ibm,hypertas-functions.
- * Ultimately this functionality may be moved into prom.c prom_init().
+/* Build up the firmware features bitmask using the contents of
+ * device-tree/ibm,hypertas-functions.  Ultimately this functionality may
+ * be moved into prom.c prom_init().
  */
 static void __init fw_feature_init(void)
 {
-	struct device_node * dn;
-	char * hypertas;
-	unsigned int len;
+	struct device_node *dn;
+	char *hypertas, *s;
+	int len, i;
 
 	DBG(" -> fw_feature_init()\n");
 
-	ppc64_firmware_features = 0;
 	dn = of_find_node_by_path("/rtas");
 	if (dn == NULL) {
-		printk(KERN_ERR "WARNING ! Cannot find RTAS in device-tree !\n");
-		goto no_rtas;
+		printk(KERN_ERR "WARNING! Cannot find RTAS in device-tree!\n");
+		goto out;
 	}
 
 	hypertas = get_property(dn, "ibm,hypertas-functions", &len);
-	if (hypertas) {
-		while (len > 0){
-			int i, hypertas_len;
+	if (hypertas == NULL)
+		goto out;
+
+	for (s = hypertas; s < hypertas + len; s += strlen(s) + 1) {
+		for (i = 0; i < FIRMWARE_MAX_FEATURES; i++) {
 			/* check value against table of strings */
-			for(i=0; i < FIRMWARE_MAX_FEATURES ;i++) {
-				if ((firmware_features_table[i].name) &&
-				    (strcmp(firmware_features_table[i].name,hypertas))==0) {
-					/* we have a match */
-					ppc64_firmware_features |= 
-						(firmware_features_table[i].val);
-					break;
-				} 
-			}
-			hypertas_len = strlen(hypertas);
-			len -= hypertas_len +1;
-			hypertas+= hypertas_len +1;
+			if (!firmware_features_table[i].name ||
+			    strcmp(firmware_features_table[i].name, s))
+				continue;
+
+			/* we have a match */
+			ppc64_firmware_features |=
+				firmware_features_table[i].val;
+			break;
 		}
 	}
 
+out:
 	of_node_put(dn);
-no_rtas:
-
 	DBG(" <- fw_feature_init()\n");
 }
 
