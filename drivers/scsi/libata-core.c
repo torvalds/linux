@@ -2018,8 +2018,6 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
  */
 int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 {
-	u32 serror;
-
 	DPRINTK("ENTER\n");
 
 	/* Issue phy wake/reset */
@@ -2033,10 +2031,6 @@ int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 
 	/* Bring phy back */
 	sata_phy_resume(ap);
-
-	/* Clear SError */
-	serror = scr_read(ap, SCR_ERROR);
-	scr_write(ap, SCR_ERROR, serror);
 
 	/* TODO: phy layer with polling, timeouts, etc. */
 	if (!sata_dev_present(ap)) {
