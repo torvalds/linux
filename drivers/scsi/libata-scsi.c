@@ -717,6 +717,47 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 }
 
 /**
+ *	ata_scsi_timed_out - SCSI layer time out callback
+ *	@cmd: timed out SCSI command
+ *
+ *	Handles SCSI layer timeout.  We race with normal completion of
+ *	the qc for @cmd.  If the qc is already gone, we lose and let
+ *	the scsi command finish (EH_HANDLED).  Otherwise, the qc has
+ *	timed out and EH should be invoked.  Prevent ata_qc_complete()
+ *	from finishing it by setting EH_SCHEDULED and return
+ *	EH_NOT_HANDLED.
+ *
+ *	LOCKING:
+ *	Called from timer context
+ *
+ *	RETURNS:
+ *	EH_HANDLED or EH_NOT_HANDLED
+ */
+enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
+{
+	struct Scsi_Host *host = cmd->device->host;
+	struct ata_port *ap = (struct ata_port *) &host->hostdata[0];
+	unsigned long flags;
+	struct ata_queued_cmd *qc;
+	enum scsi_eh_timer_return ret = EH_HANDLED;
+
+	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	if (qc) {
+		assert(qc->scsicmd == cmd);
+		qc->flags |= ATA_QCFLAG_EH_SCHEDULED;
+		qc->err_mask |= AC_ERR_TIMEOUT;
+		ret = EH_NOT_HANDLED;
+	}
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	DPRINTK("EXIT, ret=%d\n", ret);
+	return ret;
+}
+
+/**
  *	ata_scsi_error - SCSI layer error handler callback
  *	@host: SCSI host on which error occurred
  *
