@@ -437,6 +437,9 @@ recover_from_read_error(slidx_table_t *slidx,
 	 *    the process not have any locks of kernel.
 	 */
 
+	/* Is minstate valid? */
+	if (!peidx_bottom(peidx) || !(peidx_bottom(peidx)->valid.minstate))
+		return 0;
 	psr1 =(struct ia64_psr *)&(peidx_minstate_area(peidx)->pmsa_ipsr);
 
 	/*

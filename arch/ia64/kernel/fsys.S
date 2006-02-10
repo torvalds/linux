@@ -878,31 +878,8 @@ fsyscall_table:
 	data8 0				// timer_delete
 	data8 0				// clock_settime
 	data8 fsys_clock_gettime	// clock_gettime
-	data8 0				// clock_getres		// 1255
-	data8 0				// clock_nanosleep
-	data8 0				// fstatfs64
-	data8 0				// statfs64
-	data8 0
-	data8 0							// 1260
-	data8 0
-	data8 0				// mq_open
-	data8 0				// mq_unlink
-	data8 0				// mq_timedsend
-	data8 0				// mq_timedreceive	// 1265
-	data8 0				// mq_notify
-	data8 0				// mq_getsetattr
-	data8 0				// kexec_load
-	data8 0
-	data8 0							// 1270
-	data8 0
-	data8 0
-	data8 0
-	data8 0
-	data8 0							// 1275
-	data8 0
-	data8 0
-	data8 0
-	data8 0
-	data8 0							// 1280
+	#define __NR_syscall_last	1255
+
+	.space 8*(NR_syscalls + 1024 - __NR_syscall_last), 0
 
 	.org fsyscall_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
