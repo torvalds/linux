@@ -101,11 +101,11 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 		jfs_inode->mode2 |= IDIRECTORY;
 		jfs_inode->mode2 &= ~JFS_DIRSYNC_FL;
 	}
-	else if (S_ISLNK(mode))
-		jfs_inode->mode2 &=
-			~(JFS_IMMUTABLE_FL|JFS_APPEND_FL);
-	else
+	else {
 		jfs_inode->mode2 |= INLINEEA | ISPARSE;
+		if (S_ISLNK(mode))
+			jfs_inode->mode2 &= ~(JFS_IMMUTABLE_FL|JFS_APPEND_FL);
+	}
 	jfs_inode->mode2 |= mode;
 
 	inode->i_blksize = sb->s_blocksize;
