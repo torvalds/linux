@@ -169,6 +169,7 @@ enum {
 	ATA_QCFLAG_SG		= (1 << 3), /* have s/g table? */
 	ATA_QCFLAG_SINGLE	= (1 << 4), /* no s/g, just a single buffer */
 	ATA_QCFLAG_DMAMAP	= ATA_QCFLAG_SG | ATA_QCFLAG_SINGLE,
+	ATA_QCFLAG_EH_SCHEDULED = (1 << 5), /* EH scheduled */
 
 	/* various lengths of time */
 	ATA_TMOUT_EDD		= 5 * HZ,	/* heuristic */

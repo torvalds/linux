@@ -770,7 +770,7 @@ static void __ata_eh_qc_complete(struct ata_queued_cmd *qc)
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	qc->scsidone = ata_eh_scsidone;
-	ata_qc_complete(qc);
+	__ata_qc_complete(qc);
 	assert(!ata_tag_valid(qc->tag));
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
