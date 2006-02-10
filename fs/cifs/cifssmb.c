@@ -198,10 +198,11 @@ small_smb_init_no_tcon(int smb_command, int wct, struct cifsSesInfo *ses,
 	if(rc)
 		return rc;
 
+	buffer = (struct smb_hdr *)*request_buf;
 	buffer->Mid = GetNextMid(ses->server);
 	if (ses->capabilities & CAP_UNICODE)
 		buffer->Flags2 |= SMBFLG2_UNICODE;
-	if (ses->capabilities & CAP_STATUS32) {
+	if (ses->capabilities & CAP_STATUS32)
 		buffer->Flags2 |= SMBFLG2_ERR_STATUS;
 
 	/* uid, tid can stay at zero as set in header assemble */
