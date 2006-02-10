@@ -136,6 +136,11 @@ void prom_set_trap_table(unsigned long tba)
 	p1275_cmd("SUNW,set-trap-table", P1275_INOUT(1, 0), tba);
 }
 
+void prom_set_trap_table_sun4v(unsigned long tba, unsigned long mmfsa)
+{
+	p1275_cmd("SUNW,set-trap-table", P1275_INOUT(2, 0), tba, mmfsa);
+}
+
 int prom_get_mmu_ihandle(void)
 {
 	int node, ret;

@@ -389,10 +389,35 @@ after_lock_tlb:
 	or		%o1, PSTATE_IE, %o1
 	wrpr		%o1, 0, %pstate
 
-	call		prom_set_trap_table
+	sethi		%hi(is_sun4v), %o0
+	lduw		[%o0 + %lo(is_sun4v)], %o0
+	brz,pt		%o0, 1f
+	 nop
+
+	TRAP_LOAD_TRAP_BLOCK(%g2, %g3)
+	add		%g2, TRAP_PER_CPU_FAULT_INFO, %g2
+	stxa		%g2, [%g0] ASI_SCRATCHPAD
+
+	/* Compute physical address:
+	 *
+	 * paddr = kern_base + (mmfsa_vaddr - KERNBASE)
+	 */
+	sethi		%hi(KERNBASE), %g3
+	sub		%g2, %g3, %g2
+	sethi		%hi(kern_base), %g3
+	ldx		[%g3 + %lo(kern_base)], %g3
+	add		%g2, %g3, %o1
+
+	call		prom_set_trap_table_sun4v
 	 sethi		%hi(sparc64_ttable_tl0), %o0
 
-	call		smp_callin
+	ba,pt		%xcc, 2f
+	 nop
+
+1:	call		prom_set_trap_table
+	 sethi		%hi(sparc64_ttable_tl0), %o0
+
+2:	call		smp_callin
 	 nop
 	call		cpu_idle
 	 mov		0, %o0

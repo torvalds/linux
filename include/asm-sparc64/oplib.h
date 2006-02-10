@@ -338,6 +338,7 @@ int cpu_find_by_mid(int mid, int *prom_node);
 
 /* Client interface level routines. */
 extern void prom_set_trap_table(unsigned long tba);
+extern void prom_set_trap_table_sun4v(unsigned long tba, unsigned long mmfsa);
 
 extern long p1275_cmd(const char *, long, ...);
 				   

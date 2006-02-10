@@ -22,11 +22,8 @@ sun4v_cpu_mondo:
 	 nop
 
 	/* Get &trap_block[smp_processor_id()] into %g3.  */
-	__GET_CPUID(%g1)
-	sethi	%hi(trap_block), %g3
-	sllx	%g1, TRAP_BLOCK_SZ_SHIFT, %g7
-	or	%g3, %lo(trap_block), %g3
-	add	%g3, %g7, %g3
+	ldxa	[%g0] ASI_SCRATCHPAD, %g3
+	sub	%g3, TRAP_PER_CPU_FAULT_INFO, %g3
 
 	/* Get CPU mondo queue base phys address into %g7.  */
 	ldx	[%g3 + TRAP_PER_CPU_CPU_MONDO_PA], %g7
@@ -74,11 +71,8 @@ sun4v_dev_mondo:
 	 nop
 
 	/* Get &trap_block[smp_processor_id()] into %g3.  */
-	__GET_CPUID(%g1)
-	sethi	%hi(trap_block), %g3
-	sllx	%g1, TRAP_BLOCK_SZ_SHIFT, %g7
-	or	%g3, %lo(trap_block), %g3
-	add	%g3, %g7, %g3
+	ldxa	[%g0] ASI_SCRATCHPAD, %g3
+	sub	%g3, TRAP_PER_CPU_FAULT_INFO, %g3
 
 	/* Get DEV mondo queue base phys address into %g5.  */
 	ldx	[%g3 + TRAP_PER_CPU_DEV_MONDO_PA], %g5
@@ -143,11 +137,8 @@ sun4v_res_mondo:
 	 nop
 
 	/* Get &trap_block[smp_processor_id()] into %g3.  */
-	__GET_CPUID(%g1)
-	sethi	%hi(trap_block), %g3
-	sllx	%g1, TRAP_BLOCK_SZ_SHIFT, %g7
-	or	%g3, %lo(trap_block), %g3
-	add	%g3, %g7, %g3
+	ldxa	[%g0] ASI_SCRATCHPAD, %g3
+	sub	%g3, TRAP_PER_CPU_FAULT_INFO, %g3
 
 	/* Get RES mondo queue base phys address into %g5.  */
 	ldx	[%g3 + TRAP_PER_CPU_RESUM_MONDO_PA], %g5
@@ -251,11 +242,8 @@ sun4v_nonres_mondo:
 	 nop
 
 	/* Get &trap_block[smp_processor_id()] into %g3.  */
-	__GET_CPUID(%g1)
-	sethi	%hi(trap_block), %g3
-	sllx	%g1, TRAP_BLOCK_SZ_SHIFT, %g7
-	or	%g3, %lo(trap_block), %g3
-	add	%g3, %g7, %g3
+	ldxa	[%g0] ASI_SCRATCHPAD, %g3
+	sub	%g3, TRAP_PER_CPU_FAULT_INFO, %g3
 
 	/* Get RES mondo queue base phys address into %g5.  */
 	ldx	[%g3 + TRAP_PER_CPU_NONRESUM_MONDO_PA], %g5

@@ -7,26 +7,20 @@
 	.align	32
 
 sun4v_itlb_miss:
-	/* Load CPU ID into %g3.  */
-	mov	SCRATCHPAD_CPUID, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g3
+	/* Load MMU Miss base into %g2.  */
+	ldxa	[%g0] ASI_SCRATCHPAD, %g3
 	
 	/* Load UTSB reg into %g1.  */
-	ldxa	[%g1 + %g1] ASI_SCRATCHPAD, %g1
-
-	/* Load &trap_block[smp_processor_id()] into %g2.  */
-	sethi	%hi(trap_block), %g2
-	or	%g2, %lo(trap_block), %g2
-	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
-	add	%g2, %g3, %g2
+	mov	SCRATCHPAD_UTSBREG1, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g1
 
 	/* Create a TAG TARGET, "(vaddr>>22) | (ctx << 48)", in %g6.
 	 * Branch if kernel TLB miss.  The kernel TSB and user TSB miss
 	 * code wants the missing virtual address in %g4, so that value
 	 * cannot be modified through the entirety of this handler.
 	 */
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_ADDR_OFFSET], %g4
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_CTX_OFFSET], %g5
+	ldx	[%g2 + HV_FAULT_I_ADDR_OFFSET], %g4
+	ldx	[%g2 + HV_FAULT_I_CTX_OFFSET], %g5
 	srlx	%g4, 22, %g3
 	sllx	%g5, 48, %g6
 	or	%g6, %g3, %g6
@@ -90,26 +84,20 @@ sun4v_itlb_load:
 	retry
 
 sun4v_dtlb_miss:
-	/* Load CPU ID into %g3.  */
-	mov	SCRATCHPAD_CPUID, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g3
+	/* Load MMU Miss base into %g2.  */
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
 	
 	/* Load UTSB reg into %g1.  */
+	mov	SCRATCHPAD_UTSBREG1, %g1
 	ldxa	[%g1 + %g1] ASI_SCRATCHPAD, %g1
-
-	/* Load &trap_block[smp_processor_id()] into %g2.  */
-	sethi	%hi(trap_block), %g2
-	or	%g2, %lo(trap_block), %g2
-	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
-	add	%g2, %g3, %g2
 
 	/* Create a TAG TARGET, "(vaddr>>22) | (ctx << 48)", in %g6.
 	 * Branch if kernel TLB miss.  The kernel TSB and user TSB miss
 	 * code wants the missing virtual address in %g4, so that value
 	 * cannot be modified through the entirety of this handler.
 	 */
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5
 	srlx	%g4, 22, %g3
 	sllx	%g5, 48, %g6
 	or	%g6, %g3, %g6
@@ -169,17 +157,10 @@ sun4v_dtlb_load:
 	retry
 
 sun4v_dtlb_prot:
-	/* Load CPU ID into %g3.  */
-	mov	SCRATCHPAD_CPUID, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g3
+	/* Load MMU Miss base into %g2.  */
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
 	
-	/* Load &trap_block[smp_processor_id()] into %g2.  */
-	sethi	%hi(trap_block), %g2
-	or	%g2, %lo(trap_block), %g2
-	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
-	add	%g2, %g3, %g2
-
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g5
+	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g5
 	rdpr	%tl, %g1
 	cmp	%g1, 1
 	bgu,pn		%xcc, winfix_trampoline
@@ -187,35 +168,17 @@ sun4v_dtlb_prot:
 	ba,pt		%xcc, sparc64_realfault_common
 	 mov		FAULT_CODE_DTLB | FAULT_CODE_WRITE, %g4
 
-	/* Called from trap table with &trap_block[smp_processor_id()] in
-	 * %g5 and SCRATCHPAD_UTSBREG1 contents in %g1.
+	/* Called from trap table with TAG TARGET placed into
+	 * %g6 and SCRATCHPAD_UTSBREG1 contents in %g1.
 	 */
 sun4v_itsb_miss:
-	ldx	[%g5 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_ADDR_OFFSET], %g4
-	ldx	[%g5 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_CTX_OFFSET], %g5
-
-	srlx	%g4, 22, %g7
-	sllx	%g5, 48, %g6
-	or	%g6, %g7, %g6
-	brz,pn	%g5, kvmap_itlb_4v
-	 nop
-
 	ba,pt	%xcc, sun4v_tsb_miss_common
 	 mov	FAULT_CODE_ITLB, %g3
 
-	/* Called from trap table with &trap_block[smp_processor_id()] in
-	 * %g5 and SCRATCHPAD_UTSBREG1 contents in %g1.
+	/* Called from trap table with TAG TARGET placed into
+	 * %g6 and SCRATCHPAD_UTSBREG1 contents in %g1.
 	 */
 sun4v_dtsb_miss:
-	ldx	[%g5 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
-	ldx	[%g5 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
-
-	srlx	%g4, 22, %g7
-	sllx	%g5, 48, %g6
-	or	%g6, %g7, %g6
-	brz,pn	%g5, kvmap_dtlb_4v
-	 nop
-
 	mov	FAULT_CODE_DTLB, %g3
 
 	/* Create TSB pointer into %g1.  This is something like:
@@ -239,15 +202,10 @@ sun4v_tsb_miss_common:
 
 	/* Instruction Access Exception, tl0. */
 sun4v_iacc:
-	mov	SCRATCHPAD_CPUID, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g3
-	sethi	%hi(trap_block), %g2
-	or	%g2, %lo(trap_block), %g2
-	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
-	add	%g2, %g3, %g2
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_TYPE_OFFSET], %g3
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_ADDR_OFFSET], %g4
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_CTX_OFFSET], %g5
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	ldx	[%g2 + HV_FAULT_I_TYPE_OFFSET], %g3
+	ldx	[%g2 + HV_FAULT_I_ADDR_OFFSET], %g4
+	ldx	[%g2 + HV_FAULT_I_CTX_OFFSET], %g5
 	sllx	%g3, 16, %g3
 	or	%g5, %g3, %g5
 	ba,pt	%xcc, etrap
@@ -260,15 +218,10 @@ sun4v_iacc:
 
 	/* Instruction Access Exception, tl1. */
 sun4v_iacc_tl1:
-	mov	SCRATCHPAD_CPUID, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g3
-	sethi	%hi(trap_block), %g2
-	or	%g2, %lo(trap_block), %g2
-	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
-	add	%g2, %g3, %g2
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_TYPE_OFFSET], %g3
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_ADDR_OFFSET], %g4
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_CTX_OFFSET], %g5
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	ldx	[%g2 + HV_FAULT_I_TYPE_OFFSET], %g3
+	ldx	[%g2 + HV_FAULT_I_ADDR_OFFSET], %g4
+	ldx	[%g2 + HV_FAULT_I_CTX_OFFSET], %g5
 	sllx	%g3, 16, %g3
 	or	%g5, %g3, %g5
 	ba,pt	%xcc, etraptl1
@@ -281,15 +234,10 @@ sun4v_iacc_tl1:
 
 	/* Data Access Exception, tl0. */
 sun4v_dacc:
-	mov	SCRATCHPAD_CPUID, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g3
-	sethi	%hi(trap_block), %g2
-	or	%g2, %lo(trap_block), %g2
-	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
-	add	%g2, %g3, %g2
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_TYPE_OFFSET], %g3
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	ldx	[%g2 + HV_FAULT_D_TYPE_OFFSET], %g3
+	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5
 	sllx	%g3, 16, %g3
 	or	%g5, %g3, %g5
 	ba,pt	%xcc, etrap
@@ -302,15 +250,10 @@ sun4v_dacc:
 
 	/* Data Access Exception, tl1. */
 sun4v_dacc_tl1:
-	mov	SCRATCHPAD_CPUID, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g3
-	sethi	%hi(trap_block), %g2
-	or	%g2, %lo(trap_block), %g2
-	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
-	add	%g2, %g3, %g2
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_TYPE_OFFSET], %g3
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	ldx	[%g2 + HV_FAULT_D_TYPE_OFFSET], %g3
+	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5
 	sllx	%g3, 16, %g3
 	or	%g5, %g3, %g5
 	ba,pt	%xcc, etraptl1
@@ -323,15 +266,10 @@ sun4v_dacc_tl1:
 
 	/* Memory Address Unaligned.  */
 sun4v_mna:
-	mov	SCRATCHPAD_CPUID, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g3
-	sethi	%hi(trap_block), %g2
-	or	%g2, %lo(trap_block), %g2
-	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
-	add	%g2, %g3, %g2
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
 	mov	HV_FAULT_TYPE_UNALIGNED, %g3
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5
 	sllx	%g3, 16, %g3
 	or	%g5, %g3, %g5
 
@@ -359,15 +297,10 @@ sun4v_privact:
 
 	/* Unaligned ldd float, tl0. */
 sun4v_lddfmna:
-	mov	SCRATCHPAD_CPUID, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g3
-	sethi	%hi(trap_block), %g2
-	or	%g2, %lo(trap_block), %g2
-	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
-	add	%g2, %g3, %g2
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_TYPE_OFFSET], %g3
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	ldx	[%g2 + HV_FAULT_D_TYPE_OFFSET], %g3
+	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5
 	sllx	%g3, 16, %g3
 	or	%g5, %g3, %g5
 	ba,pt	%xcc, etrap
@@ -380,15 +313,10 @@ sun4v_lddfmna:
 
 	/* Unaligned std float, tl0. */
 sun4v_stdfmna:
-	mov	SCRATCHPAD_CPUID, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g3
-	sethi	%hi(trap_block), %g2
-	or	%g2, %lo(trap_block), %g2
-	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
-	add	%g2, %g3, %g2
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_TYPE_OFFSET], %g3
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
-	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	ldx	[%g2 + HV_FAULT_D_TYPE_OFFSET], %g3
+	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5
 	sllx	%g3, 16, %g3
 	or	%g5, %g3, %g5
 	ba,pt	%xcc, etrap

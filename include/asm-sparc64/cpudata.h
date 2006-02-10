@@ -156,13 +156,16 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 	nop;						\
 	.previous;
 
-/* Clobbers TMP, current address space PGD phys address into DEST.  */
-#define TRAP_LOAD_PGD_PHYS(DEST, TMP)		\
+#define TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
 	__GET_CPUID(TMP)			\
 	sethi	%hi(trap_block), DEST;		\
 	sllx	TMP, TRAP_BLOCK_SZ_SHIFT, TMP;	\
 	or	DEST, %lo(trap_block), DEST;	\
 	add	DEST, TMP, DEST;		\
+
+/* Clobbers TMP, current address space PGD phys address into DEST.  */
+#define TRAP_LOAD_PGD_PHYS(DEST, TMP)		\
+	TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
 	ldx	[DEST + TRAP_PER_CPU_PGD_PADDR], DEST;
 
 /* Clobbers TMP, loads local processor's IRQ work area into DEST.  */
@@ -175,11 +178,8 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 
 /* Clobbers TMP, loads DEST with current thread info pointer.  */
 #define TRAP_LOAD_THREAD_REG(DEST, TMP)		\
-	__GET_CPUID(TMP)			\
-	sethi	%hi(trap_block), DEST;		\
-	sllx	TMP, TRAP_BLOCK_SZ_SHIFT, TMP;	\
-	or	DEST, %lo(trap_block), DEST;	\
-	ldx	[DEST + TMP], DEST;
+	TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
+	ldx	[DEST + TRAP_PER_CPU_THREAD], DEST;
 
 /* Given the current thread info pointer in THR, load the per-cpu
  * area base of the current processor into DEST.  REG1, REG2, and REG3 are
@@ -201,13 +201,13 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 
 #else
 
-#define __GET_CPUID(REG)				\
-	mov	0, REG;
+#define TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
+	sethi	%hi(trap_block), DEST;		\
+	or	DEST, %lo(trap_block), DEST;	\
 
 /* Uniprocessor versions, we know the cpuid is zero.  */
 #define TRAP_LOAD_PGD_PHYS(DEST, TMP)		\
-	sethi	%hi(trap_block), DEST;		\
-	or	DEST, %lo(trap_block), DEST;	\
+	TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
 	ldx	[DEST + TRAP_PER_CPU_PGD_PADDR], DEST;
 
 #define TRAP_LOAD_IRQ_WORK(DEST, TMP)		\
@@ -215,8 +215,8 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 	or	DEST, %lo(__irq_work), DEST;
 
 #define TRAP_LOAD_THREAD_REG(DEST, TMP)		\
-	sethi	%hi(trap_block), DEST;		\
-	ldx	[DEST + %lo(trap_block)], DEST;
+	TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
+	ldx	[DEST + TRAP_PER_CPU_THREAD], DEST;
 
 /* No per-cpu areas on uniprocessor, so no need to load DEST.  */
 #define LOAD_PER_CPU_BASE(DEST, THR, REG1, REG2, REG3)
