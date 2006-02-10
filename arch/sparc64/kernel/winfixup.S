@@ -109,16 +109,23 @@ winfix_mna:
 	done
 
 fill_fixup_mna:
-	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	rdpr	%tstate, %g1
 	and	%g1, TSTATE_CWP, %g1
 	wrpr	%g1, %cwp
 	ba,pt	%xcc, etrap
 	 rd	%pc, %g7
-	mov	%l4, %o2
-	mov	%l5, %o1
-	call	mem_address_unaligned
+	sethi	%hi(tlb_type), %g1
+	mov	%l4, %o1
+	lduw	[%g1 + %lo(tlb_type)], %g1
+	mov	%l5, %o2
+	cmp	%g1, 3
+	bne,pt	%icc, 1f
 	 add	%sp, PTREGS_OFF, %o0
+	call	sun4v_mna
+	 nop
+	ba,a,pt	%xcc, rtrap_clr_l6
+1:	call	mem_address_unaligned
+	 nop
 	ba,a,pt	%xcc, rtrap_clr_l6
 
 winfix_dax:
@@ -128,14 +135,21 @@ winfix_dax:
 	done
 
 fill_fixup_dax:
-	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	rdpr	%tstate, %g1
 	and	%g1, TSTATE_CWP, %g1
 	wrpr	%g1, %cwp
 	ba,pt	%xcc, etrap
 	 rd	%pc, %g7
+	sethi	%hi(tlb_type), %g1
 	mov	%l4, %o1
+	lduw	[%g1 + %lo(tlb_type)], %g1
 	mov	%l5, %o2
-	call	spitfire_data_access_exception
+	cmp	%g1, 3
+	bne,pt	%icc, 1f
 	 add	%sp, PTREGS_OFF, %o0
+	call	sun4v_data_access_exception
+	 nop
+	ba,a,pt	%xcc, rtrap_clr_l6
+1:	call	spitfire_data_access_exception
+	 nop
 	ba,a,pt	%xcc, rtrap_clr_l6

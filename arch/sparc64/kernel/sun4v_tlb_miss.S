@@ -237,6 +237,167 @@ sun4v_tsb_miss_common:
 	ba,pt	%xcc, tsb_miss_page_table_walk
 	 add	%g1, %g2, %g1
 
+	/* Instruction Access Exception, tl0. */
+sun4v_iacc:
+	mov	SCRATCHPAD_CPUID, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g3
+	sethi	%hi(trap_block), %g2
+	or	%g2, %lo(trap_block), %g2
+	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
+	add	%g2, %g3, %g2
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_TYPE_OFFSET], %g3
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_ADDR_OFFSET], %g4
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_CTX_OFFSET], %g5
+	sllx	%g3, 16, %g3
+	or	%g5, %g3, %g5
+	ba,pt	%xcc, etrap
+	 rd	%pc, %g7
+	mov	%l4, %o1
+	mov	%l5, %o2
+	call	sun4v_insn_access_exception
+	 add	%sp, PTREGS_OFF, %o0
+	ba,a,pt	%xcc, rtrap_clr_l6
+
+	/* Instruction Access Exception, tl1. */
+sun4v_iacc_tl1:
+	mov	SCRATCHPAD_CPUID, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g3
+	sethi	%hi(trap_block), %g2
+	or	%g2, %lo(trap_block), %g2
+	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
+	add	%g2, %g3, %g2
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_TYPE_OFFSET], %g3
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_ADDR_OFFSET], %g4
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_I_CTX_OFFSET], %g5
+	sllx	%g3, 16, %g3
+	or	%g5, %g3, %g5
+	ba,pt	%xcc, etraptl1
+	 rd	%pc, %g7
+	mov	%l4, %o1
+	mov	%l5, %o2
+	call	sun4v_insn_access_exception_tl1
+	 add	%sp, PTREGS_OFF, %o0
+	ba,a,pt	%xcc, rtrap_clr_l6
+
+	/* Data Access Exception, tl0. */
+sun4v_dacc:
+	mov	SCRATCHPAD_CPUID, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g3
+	sethi	%hi(trap_block), %g2
+	or	%g2, %lo(trap_block), %g2
+	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
+	add	%g2, %g3, %g2
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_TYPE_OFFSET], %g3
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	sllx	%g3, 16, %g3
+	or	%g5, %g3, %g5
+	ba,pt	%xcc, etrap
+	 rd	%pc, %g7
+	mov	%l4, %o1
+	mov	%l5, %o2
+	call	sun4v_data_access_exception
+	 add	%sp, PTREGS_OFF, %o0
+	ba,a,pt	%xcc, rtrap_clr_l6
+
+	/* Data Access Exception, tl1. */
+sun4v_dacc_tl1:
+	mov	SCRATCHPAD_CPUID, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g3
+	sethi	%hi(trap_block), %g2
+	or	%g2, %lo(trap_block), %g2
+	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
+	add	%g2, %g3, %g2
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_TYPE_OFFSET], %g3
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	sllx	%g3, 16, %g3
+	or	%g5, %g3, %g5
+	ba,pt	%xcc, etraptl1
+	 rd	%pc, %g7
+	mov	%l4, %o1
+	mov	%l5, %o2
+	call	sun4v_data_access_exception_tl1
+	 add	%sp, PTREGS_OFF, %o0
+	ba,a,pt	%xcc, rtrap_clr_l6
+
+	/* Memory Address Unaligned.  */
+sun4v_mna:
+	mov	SCRATCHPAD_CPUID, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g3
+	sethi	%hi(trap_block), %g2
+	or	%g2, %lo(trap_block), %g2
+	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
+	add	%g2, %g3, %g2
+	mov	HV_FAULT_TYPE_UNALIGNED, %g3
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	sllx	%g3, 16, %g3
+	or	%g5, %g3, %g5
+
+	/* Window fixup? */
+	rdpr	%tl, %g2
+	cmp	%g2, 1
+	bgu,pn	%icc, winfix_mna
+	 rdpr	%tpc, %g3
+
+	ba,pt	%xcc, etrap
+	 rd	%pc, %g7
+	mov	%l4, %o1
+	mov	%l5, %o2
+	call	sun4v_mna
+	 add	%sp, PTREGS_OFF, %o0
+	ba,a,pt	%xcc, rtrap_clr_l6
+
+	/* Privileged Action.  */
+sun4v_privact:
+	ba,pt	%xcc, etrap
+	 rd	%pc, %g7
+	call	do_privact
+	 add	%sp, PTREGS_OFF, %o0
+	ba,a,pt	%xcc, rtrap_clr_l6
+
+	/* Unaligned ldd float, tl0. */
+sun4v_lddfmna:
+	mov	SCRATCHPAD_CPUID, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g3
+	sethi	%hi(trap_block), %g2
+	or	%g2, %lo(trap_block), %g2
+	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
+	add	%g2, %g3, %g2
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_TYPE_OFFSET], %g3
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	sllx	%g3, 16, %g3
+	or	%g5, %g3, %g5
+	ba,pt	%xcc, etrap
+	 rd	%pc, %g7
+	mov	%l4, %o1
+	mov	%l5, %o2
+	call	handle_lddfmna
+	 add	%sp, PTREGS_OFF, %o0
+	ba,a,pt	%xcc, rtrap_clr_l6
+
+	/* Unaligned std float, tl0. */
+sun4v_stdfmna:
+	mov	SCRATCHPAD_CPUID, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g3
+	sethi	%hi(trap_block), %g2
+	or	%g2, %lo(trap_block), %g2
+	sllx	%g3, TRAP_BLOCK_SZ_SHIFT, %g3
+	add	%g2, %g3, %g2
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_TYPE_OFFSET], %g3
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_ADDR_OFFSET], %g4
+	ldx	[%g2 + TRAP_PER_CPU_FAULT_INFO + HV_FAULT_D_CTX_OFFSET], %g5
+	sllx	%g3, 16, %g3
+	or	%g5, %g3, %g5
+	ba,pt	%xcc, etrap
+	 rd	%pc, %g7
+	mov	%l4, %o1
+	mov	%l5, %o2
+	call	handle_stdfmna
+	 add	%sp, PTREGS_OFF, %o0
+	ba,a,pt	%xcc, rtrap_clr_l6
 
 #define BRANCH_ALWAYS	0x10680000
 #define NOP		0x01000000
@@ -265,6 +426,15 @@ sun4v_patch_tlb_handlers:
 	SUN4V_DO_PATCH(tl1_damiss, sun4v_dtlb_miss)
 	SUN4V_DO_PATCH(tl0_daprot, sun4v_dtlb_prot)
 	SUN4V_DO_PATCH(tl1_daprot, sun4v_dtlb_prot)
+	SUN4V_DO_PATCH(tl0_iax, sun4v_iacc)
+	SUN4V_DO_PATCH(tl1_iax, sun4v_iacc_tl1)
+	SUN4V_DO_PATCH(tl0_dax, sun4v_dacc)
+	SUN4V_DO_PATCH(tl1_dax, sun4v_dacc_tl1)
+	SUN4V_DO_PATCH(tl0_mna, sun4v_mna)
+	SUN4V_DO_PATCH(tl1_mna, sun4v_mna)
+	SUN4V_DO_PATCH(tl0_lddfmna, sun4v_lddfmna)
+	SUN4V_DO_PATCH(tl0_stdfmna, sun4v_stdfmna)
+	SUN4V_DO_PATCH(tl0_privact, sun4v_privact)
 	retl
 	 nop
 	.size	sun4v_patch_tlb_handlers,.-sun4v_patch_tlb_handlers

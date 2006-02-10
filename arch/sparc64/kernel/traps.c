@@ -180,6 +180,45 @@ void spitfire_insn_access_exception_tl1(struct pt_regs *regs, unsigned long sfsr
 	spitfire_insn_access_exception(regs, sfsr, sfar);
 }
 
+void sun4v_insn_access_exception(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+{
+	unsigned short type = (type_ctx >> 16);
+	unsigned short ctx  = (type_ctx & 0xffff);
+	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "instruction access exception", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	if (regs->tstate & TSTATE_PRIV) {
+		printk("sun4v_insn_access_exception: ADDR[%016lx] "
+		       "CTX[%04x] TYPE[%04x], going.\n",
+		       addr, ctx, type);
+		die_if_kernel("Iax", regs);
+	}
+
+	if (test_thread_flag(TIF_32BIT)) {
+		regs->tpc &= 0xffffffff;
+		regs->tnpc &= 0xffffffff;
+	}
+	info.si_signo = SIGSEGV;
+	info.si_errno = 0;
+	info.si_code = SEGV_MAPERR;
+	info.si_addr = (void __user *) addr;
+	info.si_trapno = 0;
+	force_sig_info(SIGSEGV, &info, current);
+}
+
+void sun4v_insn_access_exception_tl1(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+{
+	if (notify_die(DIE_TRAP_TL1, "instruction access exception tl1", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
+	sun4v_insn_access_exception(regs, addr, type_ctx);
+}
+
 void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
 	siginfo_t info;
@@ -226,6 +265,45 @@ void spitfire_data_access_exception_tl1(struct pt_regs *regs, unsigned long sfsr
 
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	spitfire_data_access_exception(regs, sfsr, sfar);
+}
+
+void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+{
+	unsigned short type = (type_ctx >> 16);
+	unsigned short ctx  = (type_ctx & 0xffff);
+	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "data access exception", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	if (regs->tstate & TSTATE_PRIV) {
+		printk("sun4v_data_access_exception: ADDR[%016lx] "
+		       "CTX[%04x] TYPE[%04x], going.\n",
+		       addr, ctx, type);
+		die_if_kernel("Iax", regs);
+	}
+
+	if (test_thread_flag(TIF_32BIT)) {
+		regs->tpc &= 0xffffffff;
+		regs->tnpc &= 0xffffffff;
+	}
+	info.si_signo = SIGSEGV;
+	info.si_errno = 0;
+	info.si_code = SEGV_MAPERR;
+	info.si_addr = (void __user *) addr;
+	info.si_trapno = 0;
+	force_sig_info(SIGSEGV, &info, current);
+}
+
+void sun4v_data_access_exception_tl1(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+{
+	if (notify_die(DIE_TRAP_TL1, "data access exception tl1", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
+	sun4v_data_access_exception(regs, addr, type_ctx);
 }
 
 #ifdef CONFIG_PCI
@@ -2150,6 +2228,8 @@ void do_illegal_instruction(struct pt_regs *regs)
 	force_sig_info(SIGILL, &info, current);
 }
 
+extern void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn);
+
 void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr)
 {
 	siginfo_t info;
@@ -2159,19 +2239,33 @@ void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned lo
 		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
-		extern void kernel_unaligned_trap(struct pt_regs *regs,
-						  unsigned int insn, 
-						  unsigned long sfar,
-						  unsigned long sfsr);
-
-		kernel_unaligned_trap(regs, *((unsigned int *)regs->tpc),
-				      sfar, sfsr);
+		kernel_unaligned_trap(regs, *((unsigned int *)regs->tpc));
 		return;
 	}
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRALN;
 	info.si_addr = (void __user *)sfar;
+	info.si_trapno = 0;
+	force_sig_info(SIGBUS, &info, current);
+}
+
+void sun4v_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+{
+	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "memory address unaligned", regs,
+		       0, 0x34, SIGSEGV) == NOTIFY_STOP)
+		return;
+
+	if (regs->tstate & TSTATE_PRIV) {
+		kernel_unaligned_trap(regs, *((unsigned int *)regs->tpc));
+		return;
+	}
+	info.si_signo = SIGBUS;
+	info.si_errno = 0;
+	info.si_code = BUS_ADRALN;
+	info.si_addr = (void __user *) addr;
 	info.si_trapno = 0;
 	force_sig_info(SIGBUS, &info, current);
 }
