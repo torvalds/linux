@@ -485,10 +485,19 @@ static int sil24_softreset(struct ata_port *ap, int verbose,
 	return 0;
 }
 
+static int sil24_hardreset(struct ata_port *ap, int verbose,
+			   unsigned int *class)
+{
+	unsigned int dummy_class;
+
+	/* sil24 doesn't report device signature after hard reset */
+	return sata_std_hardreset(ap, verbose, &dummy_class);
+}
+
 static int sil24_probe_reset(struct ata_port *ap, unsigned int *classes)
 {
 	return ata_drive_probe_reset(ap, ata_std_probeinit,
-				     sil24_softreset, NULL,
+				     sil24_softreset, sil24_hardreset,
 				     ata_std_postreset, classes);
 }
 
