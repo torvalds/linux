@@ -904,8 +904,8 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 
 	DPRINTK("ENTER, host %u, dev %u\n", ap->id, device);
 
-	assert (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ATAPI ||
-		dev->class == ATA_DEV_NONE);
+	WARN_ON(dev->class != ATA_DEV_ATA && dev->class != ATA_DEV_ATAPI &&
+		dev->class != ATA_DEV_NONE);
 
 	ata_dev_select(ap, device, 1, 1); /* select device 0/1 */
 
@@ -2301,7 +2301,7 @@ static unsigned int ata_get_mode_mask(const struct ata_port *ap, int shift)
 	master = &ap->device[0];
 	slave = &ap->device[1];
 
-	assert (ata_dev_present(master) || ata_dev_present(slave));
+	WARN_ON(!ata_dev_present(master) && !ata_dev_present(slave));
 
 	if (shift == ATA_SHIFT_UDMA) {
 		mask = ap->udma_mask;
@@ -2547,11 +2547,11 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 	int dir = qc->dma_dir;
 	void *pad_buf = NULL;
 
-	assert(qc->flags & ATA_QCFLAG_DMAMAP);
-	assert(sg != NULL);
+	WARN_ON(!(qc->flags & ATA_QCFLAG_DMAMAP));
+	WARN_ON(sg == NULL);
 
 	if (qc->flags & ATA_QCFLAG_SINGLE)
-		assert(qc->n_elem == 1);
+		WARN_ON(qc->n_elem != 1);
 
 	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
 
@@ -2606,8 +2606,8 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
 	struct scatterlist *sg;
 	unsigned int idx;
 
-	assert(qc->__sg != NULL);
-	assert(qc->n_elem > 0);
+	WARN_ON(qc->__sg == NULL);
+	WARN_ON(qc->n_elem == 0);
 
 	idx = 0;
 	ata_for_each_sg(sg, qc) {
@@ -2759,7 +2759,7 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 		void *pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
 		struct scatterlist *psg = &qc->pad_sgent;
 
-		assert(qc->dev->class == ATA_DEV_ATAPI);
+		WARN_ON(qc->dev->class != ATA_DEV_ATAPI);
 
 		memset(pad_buf, 0, ATA_DMA_PAD_SZ);
 
@@ -2821,7 +2821,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 	int n_elem, pre_n_elem, dir, trim_sg = 0;
 
 	VPRINTK("ENTER, ata%u\n", ap->id);
-	assert(qc->flags & ATA_QCFLAG_SG);
+	WARN_ON(!(qc->flags & ATA_QCFLAG_SG));
 
 	/* we must lengthen transfers to end on a 32-bit boundary */
 	qc->pad_len = lsg->length & 3;
@@ -2830,7 +2830,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 		struct scatterlist *psg = &qc->pad_sgent;
 		unsigned int offset;
 
-		assert(qc->dev->class == ATA_DEV_ATAPI);
+		WARN_ON(qc->dev->class != ATA_DEV_ATAPI);
 
 		memset(pad_buf, 0, ATA_DMA_PAD_SZ);
 
@@ -2924,7 +2924,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	unsigned int reg_state = HSM_ST_UNKNOWN;
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
+	WARN_ON(qc == NULL);
 
 	switch (ap->hsm_task_state) {
 	case HSM_ST:
@@ -2992,7 +2992,7 @@ static int ata_pio_complete (struct ata_port *ap)
 	}
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
+	WARN_ON(qc == NULL);
 
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
@@ -3003,7 +3003,7 @@ static int ata_pio_complete (struct ata_port *ap)
 
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	assert(qc->err_mask == 0);
+	WARN_ON(qc->err_mask);
 	ata_poll_qc_complete(qc);
 
 	/* another command may start at this point */
@@ -3360,7 +3360,7 @@ static void ata_pio_block(struct ata_port *ap)
 	}
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
+	WARN_ON(qc == NULL);
 
 	/* check error */
 	if (status & (ATA_ERR | ATA_DF)) {
@@ -3397,12 +3397,12 @@ static void ata_pio_error(struct ata_port *ap)
 	printk(KERN_WARNING "ata%u: PIO error\n", ap->id);
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
+	WARN_ON(qc == NULL);
 
 	/* make sure qc->err_mask is available to 
 	 * know what's wrong and recover
 	 */
-	assert(qc->err_mask);
+	WARN_ON(qc->err_mask == 0);
 
 	ap->hsm_task_state = HSM_ST_IDLE;
 
@@ -3609,7 +3609,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	unsigned int tag;
 
-	assert(qc != NULL);	/* ata_qc_from_tag _might_ return NULL */
+	WARN_ON(qc == NULL);	/* ata_qc_from_tag _might_ return NULL */
 
 	qc->flags = 0;
 	tag = qc->tag;
@@ -3623,8 +3623,8 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 
 void __ata_qc_complete(struct ata_queued_cmd *qc)
 {
-	assert(qc != NULL);	/* ata_qc_from_tag _might_ return NULL */
-	assert(qc->flags & ATA_QCFLAG_ACTIVE);
+	WARN_ON(qc == NULL);	/* ata_qc_from_tag _might_ return NULL */
+	WARN_ON(!(qc->flags & ATA_QCFLAG_ACTIVE));
 
 	if (likely(qc->flags & ATA_QCFLAG_DMAMAP))
 		ata_sg_clean(qc);
@@ -4155,8 +4155,8 @@ static void atapi_packet_task(void *_data)
 	u8 status;
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
-	assert(qc->flags & ATA_QCFLAG_ACTIVE);
+	WARN_ON(qc == NULL);
+	WARN_ON(!(qc->flags & ATA_QCFLAG_ACTIVE));
 
 	/* sleep-wait for BSY to clear */
 	DPRINTK("busy wait\n");
@@ -4174,7 +4174,7 @@ static void atapi_packet_task(void *_data)
 
 	/* send SCSI cdb */
 	DPRINTK("send cdb\n");
-	assert(ap->cdb_len >= 12);
+	WARN_ON(ap->cdb_len < 12);
 
 	if (qc->tf.protocol == ATA_PROT_ATAPI_DMA ||
 	    qc->tf.protocol == ATA_PROT_ATAPI_NODATA) {

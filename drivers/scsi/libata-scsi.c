@@ -553,7 +553,7 @@ void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 	/*
 	 * Read the controller registers.
 	 */
-	assert(NULL != qc->ap->ops->tf_read);
+	WARN_ON(qc->ap->ops->tf_read == NULL);
 	qc->ap->ops->tf_read(qc->ap, tf);
 
 	/*
@@ -628,7 +628,7 @@ void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
 	/*
 	 * Read the controller registers.
 	 */
-	assert(NULL != qc->ap->ops->tf_read);
+	WARN_ON(qc->ap->ops->tf_read == NULL);
 	qc->ap->ops->tf_read(qc->ap, tf);
 
 	/*
@@ -746,7 +746,7 @@ enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	if (qc) {
-		assert(qc->scsicmd == cmd);
+		WARN_ON(qc->scsicmd != cmd);
 		qc->flags |= ATA_QCFLAG_EH_SCHEDULED;
 		qc->err_mask |= AC_ERR_TIMEOUT;
 		ret = EH_NOT_HANDLED;
@@ -780,14 +780,14 @@ int ata_scsi_error(struct Scsi_Host *host)
 	ap = (struct ata_port *) &host->hostdata[0];
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
-	assert(!(ap->flags & ATA_FLAG_IN_EH));
+	WARN_ON(ap->flags & ATA_FLAG_IN_EH);
 	ap->flags |= ATA_FLAG_IN_EH;
-	assert(ata_qc_from_tag(ap, ap->active_tag) != NULL);
+	WARN_ON(ata_qc_from_tag(ap, ap->active_tag) == NULL);
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	ap->ops->eng_timeout(ap);
 
-	assert(host->host_failed == 0 && list_empty(&host->eh_cmd_q));
+	WARN_ON(host->host_failed || !list_empty(&host->eh_cmd_q));
 
 	scsi_eh_flush_done_q(&ap->eh_done_q);
 
@@ -813,7 +813,7 @@ static void __ata_eh_qc_complete(struct ata_queued_cmd *qc)
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	qc->scsidone = ata_eh_scsidone;
 	__ata_qc_complete(qc);
-	assert(!ata_tag_valid(qc->tag));
+	WARN_ON(ata_tag_valid(qc->tag));
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	scsi_eh_finish_cmd(scmd, &ap->eh_done_q);
