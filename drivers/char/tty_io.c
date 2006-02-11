@@ -268,6 +268,8 @@ static struct tty_buffer *tty_buffer_alloc(size_t size)
 	p->size = size;
 	p->next = NULL;
 	p->active = 0;
+	p->commit = 0;
+	p->read = 0;
 	p->char_buf_ptr = (char *)(p->data);
 	p->flag_buf_ptr = (unsigned char *)p->char_buf_ptr + size;
 /* 	printk("Flip create %p\n", p); */
@@ -298,6 +300,8 @@ static struct tty_buffer *tty_buffer_find(struct tty_struct *tty, size_t size)
 			*tbh = t->next;
 			t->next = NULL;
 			t->used = 0;
+			t->commit = 0;
+			t->read = 0;
 			/* DEBUG ONLY */
 			memset(t->data, '*', size);
 /* 			printk("Flip recycle %p\n", t); */
@@ -335,6 +339,7 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 			if (b != NULL) {
 				b->next = n;
 				b->active = 0;
+				b->commit = b->used;
 			} else
 				tty->buf.head = n;
 			tty->buf.tail = n;
@@ -2752,6 +2757,9 @@ static void flush_to_ldisc(void *private_)
 	unsigned long 	flags;
 	struct tty_ldisc *disc;
 	struct tty_buffer *tbuf;
+	int count;
+	char *char_buf;
+	unsigned char *flag_buf;
 
 	disc = tty_ldisc_ref(tty);
 	if (disc == NULL)	/*  !TTY_LDISC */
@@ -2765,16 +2773,20 @@ static void flush_to_ldisc(void *private_)
 		goto out;
 	}
 	spin_lock_irqsave(&tty->buf.lock, flags);
-	while((tbuf = tty->buf.head) != NULL && !tbuf->active) {
+	while((tbuf = tty->buf.head) != NULL) {
+		while ((count = tbuf->commit - tbuf->read) != 0) {
+			char_buf = tbuf->char_buf_ptr + tbuf->read;
+			flag_buf = tbuf->flag_buf_ptr + tbuf->read;
+			tbuf->read += count;
+			spin_unlock_irqrestore(&tty->buf.lock, flags);
+			disc->receive_buf(tty, char_buf, flag_buf, count);
+			spin_lock_irqsave(&tty->buf.lock, flags);
+		}
+		if (tbuf->active)
+			break;
 		tty->buf.head = tbuf->next;
 		if (tty->buf.head == NULL)
 			tty->buf.tail = NULL;
-		spin_unlock_irqrestore(&tty->buf.lock, flags);
-		/* printk("Process buffer %p for %d\n", tbuf, tbuf->used); */
-		disc->receive_buf(tty, tbuf->char_buf_ptr,
-				       tbuf->flag_buf_ptr,
-				       tbuf->used);
-		spin_lock_irqsave(&tty->buf.lock, flags);
 		tty_buffer_free(tty, tbuf);
 	}
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
@@ -2871,8 +2883,10 @@ void tty_flip_buffer_push(struct tty_struct *tty)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&tty->buf.lock, flags);
-	if (tty->buf.tail != NULL)
+	if (tty->buf.tail != NULL) {
 		tty->buf.tail->active = 0;
+		tty->buf.tail->commit = tty->buf.tail->used;
+	}
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 
 	if (tty->low_latency)

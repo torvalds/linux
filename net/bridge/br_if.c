@@ -79,9 +79,14 @@ static int port_cost(struct net_device *dev)
  */
 static void port_carrier_check(void *arg)
 {
-	struct net_bridge_port *p = arg;
+	struct net_device *dev = arg;
+	struct net_bridge_port *p;
 
 	rtnl_lock();
+	p = dev->br_port;
+	if (!p)
+		goto done;
+
 	if (netif_carrier_ok(p->dev)) {
 		u32 cost = port_cost(p->dev);
 
@@ -97,19 +102,33 @@ static void port_carrier_check(void *arg)
 			br_stp_disable_port(p);
 		spin_unlock_bh(&p->br->lock);
 	}
+done:
 	rtnl_unlock();
 }
+
+static void release_nbp(struct kobject *kobj)
+{
+	struct net_bridge_port *p
+		= container_of(kobj, struct net_bridge_port, kobj);
+	kfree(p);
+}
+
+static struct kobj_type brport_ktype = {
+#ifdef CONFIG_SYSFS
+	.sysfs_ops = &brport_sysfs_ops,
+#endif
+	.release = release_nbp,
+};
 
 static void destroy_nbp(struct net_bridge_port *p)
 {
 	struct net_device *dev = p->dev;
 
-	dev->br_port = NULL;
 	p->br = NULL;
 	p->dev = NULL;
 	dev_put(dev);
 
-	br_sysfs_freeif(p);
+	kobject_put(&p->kobj);
 }
 
 static void destroy_nbp_rcu(struct rcu_head *head)
@@ -133,23 +152,23 @@ static void del_nbp(struct net_bridge_port *p)
 	struct net_bridge *br = p->br;
 	struct net_device *dev = p->dev;
 
-	/* Race between RTNL notify and RCU callback */
-	if (p->deleted)
-		return;
+	sysfs_remove_link(&br->ifobj, dev->name);
 
 	dev_set_promiscuity(dev, -1);
 
 	cancel_delayed_work(&p->carrier_check);
-	flush_scheduled_work();
 
 	spin_lock_bh(&br->lock);
 	br_stp_disable_port(p);
-	p->deleted = 1;
 	spin_unlock_bh(&br->lock);
 
 	br_fdb_delete_by_port(br, p);
 
 	list_del_rcu(&p->list);
+
+	rcu_assign_pointer(dev->br_port, NULL);
+
+	kobject_del(&p->kobj);
 
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
@@ -160,7 +179,6 @@ static void del_br(struct net_bridge *br)
 	struct net_bridge_port *p, *n;
 
 	list_for_each_entry_safe(p, n, &br->port_list, list) {
-		br_sysfs_removeif(p);
 		del_nbp(p);
 	}
 
@@ -254,12 +272,16 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->dev = dev;
 	p->path_cost = port_cost(dev);
  	p->priority = 0x8000 >> BR_PORT_BITS;
-	dev->br_port = p;
 	p->port_no = index;
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
-	INIT_WORK(&p->carrier_check, port_carrier_check, p);
+	INIT_WORK(&p->carrier_check, port_carrier_check, dev);
 	kobject_init(&p->kobj);
+
+	kobject_set_name(&p->kobj, SYSFS_BRIDGE_PORT_ATTR);
+	p->kobj.ktype = &brport_ktype;
+	p->kobj.parent = &(dev->class_dev.kobj);
+	p->kobj.kset = NULL;
 
 	return p;
 }
@@ -388,30 +410,43 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (dev->br_port != NULL)
 		return -EBUSY;
 
-	if (IS_ERR(p = new_nbp(br, dev)))
+	p = new_nbp(br, dev);
+	if (IS_ERR(p))
 		return PTR_ERR(p);
 
- 	if ((err = br_fdb_insert(br, p, dev->dev_addr)))
-		destroy_nbp(p);
- 
-	else if ((err = br_sysfs_addif(p)))
-		del_nbp(p);
-	else {
-		dev_set_promiscuity(dev, 1);
+	err = kobject_add(&p->kobj);
+	if (err)
+		goto err0;
 
-		list_add_rcu(&p->list, &br->port_list);
+ 	err = br_fdb_insert(br, p, dev->dev_addr);
+	if (err)
+		goto err1;
 
-		spin_lock_bh(&br->lock);
-		br_stp_recalculate_bridge_id(br);
-		br_features_recompute(br);
-		if ((br->dev->flags & IFF_UP) 
-		    && (dev->flags & IFF_UP) && netif_carrier_ok(dev))
-			br_stp_enable_port(p);
-		spin_unlock_bh(&br->lock);
+	err = br_sysfs_addif(p);
+	if (err)
+		goto err2;
 
-		dev_set_mtu(br->dev, br_min_mtu(br));
-	}
+	rcu_assign_pointer(dev->br_port, p);
+	dev_set_promiscuity(dev, 1);
 
+	list_add_rcu(&p->list, &br->port_list);
+
+	spin_lock_bh(&br->lock);
+	br_stp_recalculate_bridge_id(br);
+	br_features_recompute(br);
+	schedule_delayed_work(&p->carrier_check, BR_PORT_DEBOUNCE);
+	spin_unlock_bh(&br->lock);
+
+	dev_set_mtu(br->dev, br_min_mtu(br));
+	kobject_uevent(&p->kobj, KOBJ_ADD);
+
+	return 0;
+err2:
+	br_fdb_delete_by_port(br, p);
+err1:
+	kobject_del(&p->kobj);
+err0:
+	kobject_put(&p->kobj);
 	return err;
 }
 
@@ -423,7 +458,6 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	if (!p || p->br != br) 
 		return -EINVAL;
 
-	br_sysfs_removeif(p);
 	del_nbp(p);
 
 	spin_lock_bh(&br->lock);

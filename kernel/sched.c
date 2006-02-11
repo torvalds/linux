@@ -215,7 +215,6 @@ struct runqueue {
 	 */
 	unsigned long nr_running;
 #ifdef CONFIG_SMP
-	unsigned long prio_bias;
 	unsigned long cpu_load[3];
 #endif
 	unsigned long long nr_switches;
@@ -669,68 +668,13 @@ static int effective_prio(task_t *p)
 	return prio;
 }
 
-#ifdef CONFIG_SMP
-static inline void inc_prio_bias(runqueue_t *rq, int prio)
-{
-	rq->prio_bias += MAX_PRIO - prio;
-}
-
-static inline void dec_prio_bias(runqueue_t *rq, int prio)
-{
-	rq->prio_bias -= MAX_PRIO - prio;
-}
-
-static inline void inc_nr_running(task_t *p, runqueue_t *rq)
-{
-	rq->nr_running++;
-	if (rt_task(p)) {
-		if (p != rq->migration_thread)
-			/*
-			 * The migration thread does the actual balancing. Do
-			 * not bias by its priority as the ultra high priority
-			 * will skew balancing adversely.
-			 */
-			inc_prio_bias(rq, p->prio);
-	} else
-		inc_prio_bias(rq, p->static_prio);
-}
-
-static inline void dec_nr_running(task_t *p, runqueue_t *rq)
-{
-	rq->nr_running--;
-	if (rt_task(p)) {
-		if (p != rq->migration_thread)
-			dec_prio_bias(rq, p->prio);
-	} else
-		dec_prio_bias(rq, p->static_prio);
-}
-#else
-static inline void inc_prio_bias(runqueue_t *rq, int prio)
-{
-}
-
-static inline void dec_prio_bias(runqueue_t *rq, int prio)
-{
-}
-
-static inline void inc_nr_running(task_t *p, runqueue_t *rq)
-{
-	rq->nr_running++;
-}
-
-static inline void dec_nr_running(task_t *p, runqueue_t *rq)
-{
-	rq->nr_running--;
-}
-#endif
-
 /*
  * __activate_task - move a task to the runqueue.
  */
 static inline void __activate_task(task_t *p, runqueue_t *rq)
 {
 	enqueue_task(p, rq->active);
-	inc_nr_running(p, rq);
+	rq->nr_running++;
 }
 
 /*
@@ -739,7 +683,7 @@ static inline void __activate_task(task_t *p, runqueue_t *rq)
 static inline void __activate_idle_task(task_t *p, runqueue_t *rq)
 {
 	enqueue_task_head(p, rq->active);
-	inc_nr_running(p, rq);
+	rq->nr_running++;
 }
 
 static int recalc_task_prio(task_t *p, unsigned long long now)
@@ -863,7 +807,7 @@ static void activate_task(task_t *p, runqueue_t *rq, int local)
  */
 static void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
-	dec_nr_running(p, rq);
+	rq->nr_running--;
 	dequeue_task(p, p->array);
 	p->array = NULL;
 }
@@ -1007,61 +951,27 @@ void kick_process(task_t *p)
  * We want to under-estimate the load of migration sources, to
  * balance conservatively.
  */
-static unsigned long __source_load(int cpu, int type, enum idle_type idle)
-{
-	runqueue_t *rq = cpu_rq(cpu);
-	unsigned long running = rq->nr_running;
-	unsigned long source_load, cpu_load = rq->cpu_load[type-1],
-		load_now = running * SCHED_LOAD_SCALE;
-
-	if (type == 0)
-		source_load = load_now;
-	else
-		source_load = min(cpu_load, load_now);
-
-	if (running > 1 || (idle == NOT_IDLE && running))
-		/*
-		 * If we are busy rebalancing the load is biased by
-		 * priority to create 'nice' support across cpus. When
-		 * idle rebalancing we should only bias the source_load if
-		 * there is more than one task running on that queue to
-		 * prevent idle rebalance from trying to pull tasks from a
-		 * queue with only one running task.
-		 */
-		source_load = source_load * rq->prio_bias / running;
-
-	return source_load;
-}
-
 static inline unsigned long source_load(int cpu, int type)
 {
-	return __source_load(cpu, type, NOT_IDLE);
+	runqueue_t *rq = cpu_rq(cpu);
+	unsigned long load_now = rq->nr_running * SCHED_LOAD_SCALE;
+	if (type == 0)
+		return load_now;
+
+	return min(rq->cpu_load[type-1], load_now);
 }
 
 /*
  * Return a high guess at the load of a migration-target cpu
  */
-static inline unsigned long __target_load(int cpu, int type, enum idle_type idle)
-{
-	runqueue_t *rq = cpu_rq(cpu);
-	unsigned long running = rq->nr_running;
-	unsigned long target_load, cpu_load = rq->cpu_load[type-1],
-		load_now = running * SCHED_LOAD_SCALE;
-
-	if (type == 0)
-		target_load = load_now;
-	else
-		target_load = max(cpu_load, load_now);
-
-	if (running > 1 || (idle == NOT_IDLE && running))
-		target_load = target_load * rq->prio_bias / running;
-
-	return target_load;
-}
-
 static inline unsigned long target_load(int cpu, int type)
 {
-	return __target_load(cpu, type, NOT_IDLE);
+	runqueue_t *rq = cpu_rq(cpu);
+	unsigned long load_now = rq->nr_running * SCHED_LOAD_SCALE;
+	if (type == 0)
+		return load_now;
+
+	return max(rq->cpu_load[type-1], load_now);
 }
 
 /*
@@ -1530,7 +1440,7 @@ void fastcall wake_up_new_task(task_t *p, unsigned long clone_flags)
 				list_add_tail(&p->run_list, &current->run_list);
 				p->array = current->array;
 				p->array->nr_active++;
-				inc_nr_running(p, rq);
+				rq->nr_running++;
 			}
 			set_need_resched();
 		} else
@@ -1875,9 +1785,9 @@ void pull_task(runqueue_t *src_rq, prio_array_t *src_array, task_t *p,
 	       runqueue_t *this_rq, prio_array_t *this_array, int this_cpu)
 {
 	dequeue_task(p, src_array);
-	dec_nr_running(p, src_rq);
+	src_rq->nr_running--;
 	set_task_cpu(p, this_cpu);
-	inc_nr_running(p, this_rq);
+	this_rq->nr_running++;
 	enqueue_task(p, this_array);
 	p->timestamp = (p->timestamp - src_rq->timestamp_last_tick)
 				+ this_rq->timestamp_last_tick;
@@ -2056,9 +1966,9 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 
 			/* Bias balancing toward cpus of our domain */
 			if (local_group)
-				load = __target_load(i, load_idx, idle);
+				load = target_load(i, load_idx);
 			else
-				load = __source_load(i, load_idx, idle);
+				load = source_load(i, load_idx);
 
 			avg_load += load;
 		}
@@ -2171,7 +2081,7 @@ static runqueue_t *find_busiest_queue(struct sched_group *group,
 	int i;
 
 	for_each_cpu_mask(i, group->cpumask) {
-		load = __source_load(i, 0, idle);
+		load = source_load(i, 0);
 
 		if (load > max_load) {
 			max_load = load;
@@ -3571,10 +3481,8 @@ void set_user_nice(task_t *p, long nice)
 		goto out_unlock;
 	}
 	array = p->array;
-	if (array) {
+	if (array)
 		dequeue_task(p, array);
-		dec_prio_bias(rq, p->static_prio);
-	}
 
 	old_prio = p->prio;
 	new_prio = NICE_TO_PRIO(nice);
@@ -3584,7 +3492,6 @@ void set_user_nice(task_t *p, long nice)
 
 	if (array) {
 		enqueue_task(p, array);
-		inc_prio_bias(rq, p->static_prio);
 		/*
 		 * If the task increased its priority or is running and
 		 * lowered its priority, then reschedule its CPU:
