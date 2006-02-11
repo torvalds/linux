@@ -632,7 +632,7 @@ static int swap_page(struct page *page)
 	struct address_space *mapping = page_mapping(page);
 
 	if (page_mapped(page) && mapping)
-		if (try_to_unmap(page, 0) != SWAP_SUCCESS)
+		if (try_to_unmap(page, 1) != SWAP_SUCCESS)
 			goto unlock_retry;
 
 	if (PageDirty(page)) {
@@ -839,7 +839,7 @@ EXPORT_SYMBOL(migrate_page);
  * pages are swapped out.
  *
  * The function returns after 10 attempts or if no pages
- * are movable anymore because t has become empty
+ * are movable anymore because to has become empty
  * or no retryable pages exist anymore.
  *
  * Return: Number of pages not migrated when "to" ran empty.
@@ -928,12 +928,21 @@ redo:
 			goto unlock_both;
 
 		if (mapping->a_ops->migratepage) {
+			/*
+			 * Most pages have a mapping and most filesystems
+			 * should provide a migration function. Anonymous
+			 * pages are part of swap space which also has its
+			 * own migration function. This is the most common
+			 * path for page migration.
+			 */
 			rc = mapping->a_ops->migratepage(newpage, page);
 			goto unlock_both;
                 }
 
 		/*
-		 * Trigger writeout if page is dirty
+		 * Default handling if a filesystem does not provide
+		 * a migration function. We can only migrate clean
+		 * pages so try to write out any dirty pages first.
 		 */
 		if (PageDirty(page)) {
 			switch (pageout(page, mapping)) {
@@ -949,9 +958,10 @@ redo:
 				; /* try to migrate the page below */
 			}
                 }
+
 		/*
-		 * If we have no buffer or can release the buffer
-		 * then do a simple migration.
+		 * Buffers are managed in a filesystem specific way.
+		 * We must have no buffers or drop them.
 		 */
 		if (!page_has_buffers(page) ||
 		    try_to_release_page(page, GFP_KERNEL)) {
@@ -966,6 +976,11 @@ redo:
 		 * swap them out.
 		 */
 		if (pass > 4) {
+			/*
+			 * Persistently unable to drop buffers..... As a
+			 * measure of last resort we fall back to
+			 * swap_page().
+			 */
 			unlock_page(newpage);
 			newpage = NULL;
 			rc = swap_page(page);

@@ -696,7 +696,7 @@ irnet_daddr_to_dname(irnet_socket *	self)
 	{
 	  /* Yes !!! Get it.. */
 	  strlcpy(self->rname, discoveries[i].info, sizeof(self->rname));
-	  self->rname[NICKNAME_MAX_LEN + 1] = '\0';
+	  self->rname[sizeof(self->rname) - 1] = '\0';
 	  DEBUG(IRDA_SERV_INFO, "Device 0x%08x is in fact ``%s''.\n",
 		self->daddr, self->rname);
 	  kfree(discoveries);

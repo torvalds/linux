@@ -6,6 +6,7 @@
 #include <linux/list.h>
 #include <linux/linkage.h>
 #include <linux/compat.h>
+#include <linux/ioport.h>
 #include <asm/kexec.h>
 
 /* Verify architecture specific macros are defined */

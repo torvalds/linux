@@ -62,16 +62,6 @@
 
 #define BPRINTK(fmt, args...) if (ap->flags & ATA_FLAG_DEBUGMSG) printk(KERN_ERR "%s: " fmt, __FUNCTION__, ## args)
 
-#ifdef ATA_NDEBUG
-#define assert(expr)
-#else
-#define assert(expr) \
-        if(unlikely(!(expr))) {                                   \
-        printk(KERN_ERR "Assertion failed! %s,%s,%s,line=%d\n", \
-        #expr,__FILE__,__FUNCTION__,__LINE__);          \
-        }
-#endif
-
 /* NEW: debug levels */
 #define HAVE_LIBATA_MSG 1
 
@@ -559,7 +549,7 @@ extern void ata_bmdma_start (struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
 extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
-extern void ata_qc_complete(struct ata_queued_cmd *qc);
+extern void __ata_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eng_timeout(struct ata_port *ap);
 extern void ata_scsi_simulate(struct ata_port *ap, struct ata_device *dev,
 			      struct scsi_cmnd *cmd,
@@ -759,6 +749,24 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	ata_tf_init(qc->ap, &qc->tf, qc->dev->devno);
 }
 
+/**
+ *	ata_qc_complete - Complete an active ATA command
+ *	@qc: Command to complete
+ *	@err_mask: ATA Status register contents
+ *
+ *	Indicate to the mid and upper layers that an ATA
+ *	command has completed, with either an ok or not-ok status.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host_set lock)
+ */
+static inline void ata_qc_complete(struct ata_queued_cmd *qc)
+{
+	if (unlikely(qc->flags & ATA_QCFLAG_EH_SCHEDULED))
+		return;
+
+	__ata_qc_complete(qc);
+}
 
 /**
  *	ata_irq_on - Enable interrupts on a port.

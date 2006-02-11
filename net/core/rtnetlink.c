@@ -455,7 +455,7 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 	if (!skb)
 		return;
 
-	if (rtnetlink_fill_ifinfo(skb, dev, type, current->pid, 0, change, 0) < 0) {
+	if (rtnetlink_fill_ifinfo(skb, dev, type, 0, 0, change, 0) < 0) {
 		kfree_skb(skb);
 		return;
 	}

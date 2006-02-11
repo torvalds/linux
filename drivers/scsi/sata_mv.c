@@ -632,8 +632,8 @@ static void mv_irq_clear(struct ata_port *ap)
  *      @base: port base address
  *      @pp: port private data
  *
- *      Verify the local cache of the eDMA state is accurate with an
- *      assert.
+ *      Verify the local cache of the eDMA state is accurate with a
+ *      WARN_ON.
  *
  *      LOCKING:
  *      Inherited from caller.
@@ -644,15 +644,15 @@ static void mv_start_dma(void __iomem *base, struct mv_port_priv *pp)
 		writelfl(EDMA_EN, base + EDMA_CMD_OFS);
 		pp->pp_flags |= MV_PP_FLAG_EDMA_EN;
 	}
-	assert(EDMA_EN & readl(base + EDMA_CMD_OFS));
+	WARN_ON(!(EDMA_EN & readl(base + EDMA_CMD_OFS)));
 }
 
 /**
  *      mv_stop_dma - Disable eDMA engine
  *      @ap: ATA channel to manipulate
  *
- *      Verify the local cache of the eDMA state is accurate with an
- *      assert.
+ *      Verify the local cache of the eDMA state is accurate with a
+ *      WARN_ON.
  *
  *      LOCKING:
  *      Inherited from caller.
@@ -670,7 +670,7 @@ static void mv_stop_dma(struct ata_port *ap)
 		writelfl(EDMA_DS, port_mmio + EDMA_CMD_OFS);
 		pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
 	} else {
-		assert(!(EDMA_EN & readl(port_mmio + EDMA_CMD_OFS)));
+		WARN_ON(EDMA_EN & readl(port_mmio + EDMA_CMD_OFS));
   	}
 
 	/* now properly wait for the eDMA to stop */
@@ -1061,15 +1061,15 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 		return;
 
 	/* the req producer index should be the same as we remember it */
-	assert(((readl(mv_ap_base(qc->ap) + EDMA_REQ_Q_IN_PTR_OFS) >>
-		 EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) ==
-	       pp->req_producer);
+	WARN_ON(((readl(mv_ap_base(qc->ap) + EDMA_REQ_Q_IN_PTR_OFS) >>
+		  EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
+		pp->req_producer);
 
 	/* Fill in command request block
 	 */
 	if (!(qc->tf.flags & ATA_TFLAG_WRITE))
 		flags |= CRQB_FLAG_READ;
-	assert(MV_MAX_Q_DEPTH > qc->tag);
+	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
 
 	pp->crqb[pp->req_producer].sg_addr =
@@ -1152,16 +1152,16 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 		return;
 
 	/* the req producer index should be the same as we remember it */
-	assert(((readl(mv_ap_base(qc->ap) + EDMA_REQ_Q_IN_PTR_OFS) >>
-		 EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) ==
-	       pp->req_producer);
+	WARN_ON(((readl(mv_ap_base(qc->ap) + EDMA_REQ_Q_IN_PTR_OFS) >>
+		  EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
+		pp->req_producer);
 
 	/* Fill in Gen IIE command request block
 	 */
 	if (!(qc->tf.flags & ATA_TFLAG_WRITE))
 		flags |= CRQB_FLAG_READ;
 
-	assert(MV_MAX_Q_DEPTH > qc->tag);
+	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
 
 	crqb = (struct mv_crqb_iie *) &pp->crqb[pp->req_producer];
@@ -1226,12 +1226,12 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 	in_ptr = readl(port_mmio + EDMA_REQ_Q_IN_PTR_OFS);
 
 	/* the req producer index should be the same as we remember it */
-	assert(((in_ptr >> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) ==
-	       pp->req_producer);
+	WARN_ON(((in_ptr >> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
+		pp->req_producer);
 	/* until we do queuing, the queue should be empty at this point */
-	assert(((in_ptr >> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) ==
-	       ((readl(port_mmio + EDMA_REQ_Q_OUT_PTR_OFS) >>
-		 EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK));
+	WARN_ON(((in_ptr >> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
+		((readl(port_mmio + EDMA_REQ_Q_OUT_PTR_OFS) >>
+		  EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK));
 
 	mv_inc_q_index(&pp->req_producer);	/* now incr producer index */
 
@@ -1251,7 +1251,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
  *
  *      This routine is for use when the port is in DMA mode, when it
  *      will be using the CRPB (command response block) method of
- *      returning command completion information.  We assert indices
+ *      returning command completion information.  We check indices
  *      are good, grab status, and bump the response consumer index to
  *      prove that we're up to date.
  *
@@ -1267,16 +1267,16 @@ static u8 mv_get_crpb_status(struct ata_port *ap)
 	out_ptr = readl(port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
 
 	/* the response consumer index should be the same as we remember it */
-	assert(((out_ptr >> EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) ==
-	       pp->rsp_consumer);
+	WARN_ON(((out_ptr >> EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
+		pp->rsp_consumer);
 
 	/* increment our consumer index... */
 	pp->rsp_consumer = mv_inc_q_index(&pp->rsp_consumer);
 
 	/* and, until we do NCQ, there should only be 1 CRPB waiting */
-	assert(((readl(port_mmio + EDMA_RSP_Q_IN_PTR_OFS) >>
-		 EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) ==
-	       pp->rsp_consumer);
+	WARN_ON(((readl(port_mmio + EDMA_RSP_Q_IN_PTR_OFS) >>
+		  EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) !=
+		pp->rsp_consumer);
 
 	/* write out our inc'd consumer index so EDMA knows we're caught up */
 	out_ptr &= EDMA_RSP_Q_BASE_LO_MASK;

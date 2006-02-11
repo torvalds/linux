@@ -897,8 +897,8 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 
 	DPRINTK("ENTER, host %u, dev %u\n", ap->id, device);
 
-	assert (dev->class == ATA_DEV_ATA || dev->class == ATA_DEV_ATAPI ||
-		dev->class == ATA_DEV_NONE);
+	WARN_ON(dev->class != ATA_DEV_ATA && dev->class != ATA_DEV_ATAPI &&
+		dev->class != ATA_DEV_NONE);
 
 	ata_dev_select(ap, device, 1, 1); /* select device 0/1 */
 
@@ -1926,11 +1926,20 @@ static int sata_phy_resume(struct ata_port *ap)
  *
  *	@ap is about to be probed.  Initialize it.  This function is
  *	to be used as standard callback for ata_drive_probe_reset().
+ *
+ *	NOTE!!! Do not use this function as probeinit if a low level
+ *	driver implements only hardreset.  Just pass NULL as probeinit
+ *	in that case.  Using this function is probably okay but doing
+ *	so makes reset sequence different from the original
+ *	->phy_reset implementation and Jeff nervous.  :-P
  */
 extern void ata_std_probeinit(struct ata_port *ap)
 {
-	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read)
+	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read) {
 		sata_phy_resume(ap);
+		if (sata_dev_present(ap))
+			ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
+	}
 }
 
 /**
@@ -1956,19 +1965,16 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
 
 	DPRINTK("ENTER\n");
 
+	if (ap->ops->scr_read && !sata_dev_present(ap)) {
+		classes[0] = ATA_DEV_NONE;
+		goto out;
+	}
+
 	/* determine if device 0/1 are present */
 	if (ata_devchk(ap, 0))
 		devmask |= (1 << 0);
 	if (slave_possible && ata_devchk(ap, 1))
 		devmask |= (1 << 1);
-
-	/* devchk reports device presence without actual device on
-	 * most SATA controllers.  Check SStatus and turn devmask off
-	 * if link is offline.  Note that we should continue resetting
-	 * even when it seems like there's no device.
-	 */
-	if (ap->ops->scr_read && !sata_dev_present(ap))
-		devmask = 0;
 
 	/* select device 0 again */
 	ap->ops->dev_select(ap, 0);
@@ -1991,6 +1997,7 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
 	if (slave_possible && err != 0x81)
 		classes[1] = ata_dev_try_classify(ap, 1, &err);
 
+ out:
 	DPRINTK("EXIT, classes[0]=%u [1]=%u\n", classes[0], classes[1]);
 	return 0;
 }
@@ -2013,8 +2020,6 @@ int ata_std_softreset(struct ata_port *ap, int verbose, unsigned int *classes)
  */
 int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 {
-	u32 serror;
-
 	DPRINTK("ENTER\n");
 
 	/* Issue phy wake/reset */
@@ -2028,10 +2033,6 @@ int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 
 	/* Bring phy back */
 	sata_phy_resume(ap);
-
-	/* Clear SError */
-	serror = scr_read(ap, SCR_ERROR);
-	scr_write(ap, SCR_ERROR, serror);
 
 	/* TODO: phy layer with polling, timeouts, etc. */
 	if (!sata_dev_present(ap)) {
@@ -2048,6 +2049,8 @@ int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
 			DPRINTK("EXIT, device not ready\n");
 		return -EIO;
 	}
+
+	ap->ops->dev_select(ap, 0);	/* probably unnecessary */
 
 	*class = ata_dev_try_classify(ap, 0, NULL);
 
@@ -2083,11 +2086,9 @@ void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 	if (ap->cbl == ATA_CBL_SATA)
 		sata_print_link_status(ap);
 
-	/* bail out if no device is present */
-	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
-		DPRINTK("EXIT, no device\n");
-		return;
-	}
+	/* re-enable interrupts */
+	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
+		ata_irq_on(ap);
 
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)
@@ -2095,9 +2096,19 @@ void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 	if (classes[1] != ATA_DEV_NONE)
 		ap->ops->dev_select(ap, 0);
 
-	/* re-enable interrupts & set up device control */
-	if (ap->ioaddr.ctl_addr)	/* FIXME: hack. create a hook instead */
-		ata_irq_on(ap);
+	/* bail out if no device is present */
+	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
+		DPRINTK("EXIT, no device\n");
+		return;
+	}
+
+	/* set up device control */
+	if (ap->ioaddr.ctl_addr) {
+		if (ap->flags & ATA_FLAG_MMIO)
+			writeb(ap->ctl, (void __iomem *) ap->ioaddr.ctl_addr);
+		else
+			outb(ap->ctl, ap->ioaddr.ctl_addr);
+	}
 
 	DPRINTK("EXIT\n");
 }
@@ -2292,7 +2303,7 @@ static unsigned int ata_get_mode_mask(const struct ata_port *ap, int shift)
 	master = &ap->device[0];
 	slave = &ap->device[1];
 
-	assert (ata_dev_present(master) || ata_dev_present(slave));
+	WARN_ON(!ata_dev_present(master) && !ata_dev_present(slave));
 
 	if (shift == ATA_SHIFT_UDMA) {
 		mask = ap->udma_mask;
@@ -2538,11 +2549,11 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 	int dir = qc->dma_dir;
 	void *pad_buf = NULL;
 
-	assert(qc->flags & ATA_QCFLAG_DMAMAP);
-	assert(sg != NULL);
+	WARN_ON(!(qc->flags & ATA_QCFLAG_DMAMAP));
+	WARN_ON(sg == NULL);
 
 	if (qc->flags & ATA_QCFLAG_SINGLE)
-		assert(qc->n_elem == 1);
+		WARN_ON(qc->n_elem != 1);
 
 	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
 
@@ -2597,8 +2608,8 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
 	struct scatterlist *sg;
 	unsigned int idx;
 
-	assert(qc->__sg != NULL);
-	assert(qc->n_elem > 0);
+	WARN_ON(qc->__sg == NULL);
+	WARN_ON(qc->n_elem == 0);
 
 	idx = 0;
 	ata_for_each_sg(sg, qc) {
@@ -2750,7 +2761,7 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 		void *pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
 		struct scatterlist *psg = &qc->pad_sgent;
 
-		assert(qc->dev->class == ATA_DEV_ATAPI);
+		WARN_ON(qc->dev->class != ATA_DEV_ATAPI);
 
 		memset(pad_buf, 0, ATA_DMA_PAD_SZ);
 
@@ -2812,7 +2823,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 	int n_elem, pre_n_elem, dir, trim_sg = 0;
 
 	VPRINTK("ENTER, ata%u\n", ap->id);
-	assert(qc->flags & ATA_QCFLAG_SG);
+	WARN_ON(!(qc->flags & ATA_QCFLAG_SG));
 
 	/* we must lengthen transfers to end on a 32-bit boundary */
 	qc->pad_len = lsg->length & 3;
@@ -2821,7 +2832,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 		struct scatterlist *psg = &qc->pad_sgent;
 		unsigned int offset;
 
-		assert(qc->dev->class == ATA_DEV_ATAPI);
+		WARN_ON(qc->dev->class != ATA_DEV_ATAPI);
 
 		memset(pad_buf, 0, ATA_DMA_PAD_SZ);
 
@@ -2914,7 +2925,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	unsigned int reg_state = HSM_ST_UNKNOWN;
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
+	WARN_ON(qc == NULL);
 
 	switch (ap->hsm_task_state) {
 	case HSM_ST:
@@ -2983,7 +2994,7 @@ static int ata_pio_complete (struct ata_port *ap)
 	}
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
+	WARN_ON(qc == NULL);
 
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
@@ -2994,7 +3005,7 @@ static int ata_pio_complete (struct ata_port *ap)
 
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	assert(qc->err_mask == 0);
+	WARN_ON(qc->err_mask);
 	ata_poll_qc_complete(qc);
 
 	/* another command may start at this point */
@@ -3517,7 +3528,7 @@ static void ata_pio_block(struct ata_port *ap)
 	}
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
+	WARN_ON(qc == NULL);
 
 	/* check error */
 	if (status & (ATA_ERR | ATA_DF)) {
@@ -3554,7 +3565,7 @@ static void ata_pio_error(struct ata_port *ap)
 	struct ata_queued_cmd *qc;
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
+	WARN_ON(qc == NULL);
 
 	if (qc->tf.command != ATA_CMD_PACKET)
 		printk(KERN_WARNING "ata%u: PIO error\n", ap->id);
@@ -3562,7 +3573,7 @@ static void ata_pio_error(struct ata_port *ap)
 	/* make sure qc->err_mask is available to 
 	 * know what's wrong and recover
 	 */
-	assert(qc->err_mask);
+	WARN_ON(qc->err_mask == 0);
 
 	ap->hsm_task_state = HSM_ST_IDLE;
 
@@ -3776,7 +3787,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	unsigned int tag;
 
-	assert(qc != NULL);	/* ata_qc_from_tag _might_ return NULL */
+	WARN_ON(qc == NULL);	/* ata_qc_from_tag _might_ return NULL */
 
 	qc->flags = 0;
 	tag = qc->tag;
@@ -3788,10 +3799,10 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 	}
 }
 
-inline void __ata_qc_complete(struct ata_queued_cmd *qc)
+void __ata_qc_complete(struct ata_queued_cmd *qc)
 {
-	assert(qc != NULL);	/* ata_qc_from_tag _might_ return NULL */
-	assert(qc->flags & ATA_QCFLAG_ACTIVE);
+	WARN_ON(qc == NULL);	/* ata_qc_from_tag _might_ return NULL */
+	WARN_ON(!(qc->flags & ATA_QCFLAG_ACTIVE));
 
 	if (likely(qc->flags & ATA_QCFLAG_DMAMAP))
 		ata_sg_clean(qc);
@@ -3804,25 +3815,6 @@ inline void __ata_qc_complete(struct ata_queued_cmd *qc)
 
 	/* call completion callback */
 	qc->complete_fn(qc);
-}
-
-/**
- *	ata_qc_complete - Complete an active ATA command
- *	@qc: Command to complete
- *	@err_mask: ATA Status register contents
- *
- *	Indicate to the mid and upper layers that an ATA
- *	command has completed, with either an ok or not-ok status.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-void ata_qc_complete(struct ata_queued_cmd *qc)
-{
-	if (unlikely(qc->flags & ATA_QCFLAG_EH_SCHEDULED))
-		return;
-
-	__ata_qc_complete(qc);
 }
 
 static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
@@ -5143,7 +5135,7 @@ EXPORT_SYMBOL_GPL(ata_device_add);
 EXPORT_SYMBOL_GPL(ata_host_set_remove);
 EXPORT_SYMBOL_GPL(ata_sg_init);
 EXPORT_SYMBOL_GPL(ata_sg_init_one);
-EXPORT_SYMBOL_GPL(ata_qc_complete);
+EXPORT_SYMBOL_GPL(__ata_qc_complete);
 EXPORT_SYMBOL_GPL(ata_qc_issue_prot);
 EXPORT_SYMBOL_GPL(ata_eng_timeout);
 EXPORT_SYMBOL_GPL(ata_tf_load);

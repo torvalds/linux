@@ -249,7 +249,7 @@ static u8 sil24_check_status(struct ata_port *ap);
 static u32 sil24_scr_read(struct ata_port *ap, unsigned sc_reg);
 static void sil24_scr_write(struct ata_port *ap, unsigned sc_reg, u32 val);
 static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
-static void sil24_phy_reset(struct ata_port *ap);
+static int sil24_probe_reset(struct ata_port *ap, unsigned int *classes);
 static void sil24_qc_prep(struct ata_queued_cmd *qc);
 static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
 static void sil24_irq_clear(struct ata_port *ap);
@@ -306,7 +306,7 @@ static const struct ata_port_operations sil24_ops = {
 
 	.tf_read		= sil24_tf_read,
 
-	.phy_reset		= sil24_phy_reset,
+	.probe_reset		= sil24_probe_reset,
 
 	.qc_prep		= sil24_qc_prep,
 	.qc_issue		= sil24_qc_issue,
@@ -336,8 +336,8 @@ static struct ata_port_info sil24_port_info[] = {
 	{
 		.sht		= &sil24_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  ATA_FLAG_PIO_DMA | SIL24_NPORTS2FLAG(4),
+				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
+				  SIL24_NPORTS2FLAG(4),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -347,8 +347,8 @@ static struct ata_port_info sil24_port_info[] = {
 	{
 		.sht		= &sil24_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  ATA_FLAG_PIO_DMA | SIL24_NPORTS2FLAG(2),
+				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
+				  SIL24_NPORTS2FLAG(2),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -358,8 +358,8 @@ static struct ata_port_info sil24_port_info[] = {
 	{
 		.sht		= &sil24_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  ATA_FLAG_PIO_DMA | SIL24_NPORTS2FLAG(1),
+				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
+				  SIL24_NPORTS2FLAG(1),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -428,7 +428,8 @@ static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	*tf = pp->tf;
 }
 
-static int sil24_issue_SRST(struct ata_port *ap)
+static int sil24_softreset(struct ata_port *ap, int verbose,
+			   unsigned int *class)
 {
 	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
 	struct sil24_port_priv *pp = ap->private_data;
@@ -436,6 +437,8 @@ static int sil24_issue_SRST(struct ata_port *ap)
 	dma_addr_t paddr = pp->cmd_block_dma;
 	u32 irq_enable, irq_stat;
 	int cnt;
+
+	DPRINTK("ENTER\n");
 
 	/* temporarily turn off IRQs during SRST */
 	irq_enable = readl(port + PORT_IRQ_ENABLE_SET);
@@ -466,30 +469,36 @@ static int sil24_issue_SRST(struct ata_port *ap)
 	/* restore IRQs */
 	writel(irq_enable, port + PORT_IRQ_ENABLE_SET);
 
-	if (!(irq_stat & PORT_IRQ_COMPLETE))
-		return -1;
+	if (sata_dev_present(ap)) {
+		if (!(irq_stat & PORT_IRQ_COMPLETE)) {
+			DPRINTK("EXIT, srst failed\n");
+			return -EIO;
+		}
 
-	/* update TF */
-	sil24_update_tf(ap);
+		sil24_update_tf(ap);
+		*class = ata_dev_classify(&pp->tf);
+	}
+	if (*class == ATA_DEV_UNKNOWN)
+		*class = ATA_DEV_NONE;
+
+	DPRINTK("EXIT, class=%u\n", *class);
 	return 0;
 }
 
-static void sil24_phy_reset(struct ata_port *ap)
+static int sil24_hardreset(struct ata_port *ap, int verbose,
+			   unsigned int *class)
 {
-	struct sil24_port_priv *pp = ap->private_data;
+	unsigned int dummy_class;
 
-	__sata_phy_reset(ap);
-	if (ap->flags & ATA_FLAG_PORT_DISABLED)
-		return;
+	/* sil24 doesn't report device signature after hard reset */
+	return sata_std_hardreset(ap, verbose, &dummy_class);
+}
 
-	if (sil24_issue_SRST(ap) < 0) {
-		printk(KERN_ERR DRV_NAME
-		       " ata%u: SRST failed, disabling port\n", ap->id);
-		ap->ops->port_disable(ap);
-		return;
-	}
-
-	ap->device->class = ata_dev_classify(&pp->tf);
+static int sil24_probe_reset(struct ata_port *ap, unsigned int *classes)
+{
+	return ata_drive_probe_reset(ap, ata_std_probeinit,
+				     sil24_softreset, sil24_hardreset,
+				     ata_std_postreset, classes);
 }
 
 static inline void sil24_fill_sg(struct ata_queued_cmd *qc,

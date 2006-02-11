@@ -461,7 +461,7 @@ static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 	unsigned int i, idx, total_len = 0, sgt_len;
 	u32 *buf = (u32 *) &pp->dimm_buf[PDC_DIMM_HEADER_SZ];
 
-	assert(qc->flags & ATA_QCFLAG_DMAMAP);
+	WARN_ON(!(qc->flags & ATA_QCFLAG_DMAMAP));
 
 	VPRINTK("ata%u: ENTER\n", ap->id);
 
