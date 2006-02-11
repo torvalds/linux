@@ -3226,7 +3226,7 @@ static void ata_pio_sectors(struct ata_queued_cmd *qc)
 		/* READ/WRITE MULTIPLE */
 		unsigned int nsect;
 
-		assert(qc->dev->multi_count);
+		WARN_ON(qc->dev->multi_count == 0);
 
 		nsect = min(qc->nsect - qc->cursect, qc->dev->multi_count);
 		while (nsect--)
@@ -3251,7 +3251,7 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
 {
 	/* send SCSI cdb */
 	DPRINTK("send cdb\n");
-	assert(ap->cdb_len >= 12);
+	WARN_ON(ap->cdb_len < 12);
 
 	ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
 	ata_altstatus(ap); /* flush */
@@ -3298,8 +3298,8 @@ static int ata_pio_first_block(struct ata_port *ap)
 	int has_next;
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
-	assert(qc->flags & ATA_QCFLAG_ACTIVE);
+	WARN_ON(qc == NULL);
+	WARN_ON((qc->flags & ATA_QCFLAG_ACTIVE) == 0);
 
 	/* if polling, we will stay in the work queue after sending the data.
 	 * otherwise, interrupt handler takes over after sending the data.
@@ -3945,7 +3945,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		break;
 
 	case ATA_PROT_DMA:
-		assert(!(qc->tf.flags & ATA_TFLAG_POLLING));
+		WARN_ON(qc->tf.flags & ATA_TFLAG_POLLING);
 
 		ap->ops->tf_load(ap, &qc->tf);	 /* load tf registers */
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
@@ -3997,7 +3997,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
-		assert(!(qc->tf.flags & ATA_TFLAG_POLLING));
+		WARN_ON(qc->tf.flags & ATA_TFLAG_POLLING);
 
 		ap->ops->tf_load(ap, &qc->tf);	 /* load tf registers */
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
@@ -4415,7 +4415,7 @@ fsm_start:
 		/* make sure qc->err_mask is available to 
 		 * know what's wrong and recover
 		 */
-		assert(qc->err_mask);
+		WARN_ON(qc->err_mask == 0);
 
 		ap->hsm_task_state = HSM_ST_IDLE;
 		ata_qc_complete(qc);
