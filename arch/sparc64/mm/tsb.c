@@ -231,7 +231,13 @@ static void copy_tsb(struct tsb *old_tsb, unsigned long old_size,
 		register unsigned long pte asm("o5");
 		unsigned long v, hash;
 
-		if (tlb_type == cheetah_plus) {
+		if (tlb_type == hypervisor) {
+			__asm__ __volatile__(
+				"ldda [%2] %3, %0"
+				: "=r" (tag), "=r" (pte)
+				: "r" (__pa(&old_tsb[i])),
+				  "i" (ASI_QUAD_LDD_PHYS_4V));
+		} else if (tlb_type == cheetah_plus) {
 			__asm__ __volatile__(
 				"ldda [%2] %3, %0"
 				: "=r" (tag), "=r" (pte)
@@ -267,7 +273,8 @@ static void copy_tsb(struct tsb *old_tsb, unsigned long old_size,
 		v |= (i & (512UL - 1UL)) << 13UL;
 
 		hash = tsb_hash(v, new_nentries);
-		if (tlb_type == cheetah_plus) {
+		if (tlb_type == cheetah_plus ||
+		    tlb_type == hypervisor) {
 			__asm__ __volatile__(
 				"stxa	%0, [%1] %2\n\t"
 				"stxa	%3, [%4] %2"
