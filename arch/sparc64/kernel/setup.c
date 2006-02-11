@@ -583,7 +583,7 @@ static void __init sun4v_patch(void)
 		wmb();
 		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
 
-		*(unsigned int *) (addr +  3) = p2->insns[1];
+		*(unsigned int *) (addr +  4) = p2->insns[1];
 		wmb();
 		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
 
