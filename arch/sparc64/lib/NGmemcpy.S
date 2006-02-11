@@ -5,11 +5,15 @@
 
 #ifdef __KERNEL__
 #include <asm/asi.h>
+#include <asm/thread_info.h>
 #define GLOBAL_SPARE	%g7
-#define RESTORE_ASI	wr	%g0, ASI_AIUS, %asi
+#define RESTORE_ASI(TMP)	\
+	ldub	[%g6 + TI_CURRENT_DS], TMP;  \
+	wr	TMP, 0x0, %asi;
 #else
 #define GLOBAL_SPARE	%g5
-#define RESTORE_ASI
+#define RESTORE_ASI(TMP)	\
+	wr	%g0, ASI_PNF, %asi
 #endif
 
 #ifndef STORE_ASI
@@ -246,7 +250,7 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	/* %o2 contains any final bytes still needed to be copied
 	 * over. If anything is left, we copy it one byte at a time.
 	 */
-	RESTORE_ASI
+	RESTORE_ASI(%o3)
 	brz,pt		%o2, 85f
 	 sub		%o0, %o1, %o3
 	ba,a,pt		%XCC, 90f

@@ -37,4 +37,4 @@
 	 nop
 #endif
 
-#include "U3memcpy.S"
+#include "NGmemcpy.S"
