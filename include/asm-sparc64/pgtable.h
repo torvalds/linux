@@ -438,6 +438,7 @@ extern unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
 
 extern void pgtable_cache_init(void);
 extern void sun4v_register_fault_status(void);
+extern void sun4v_ktsb_register(void);
 
 #endif /* !(__ASSEMBLY__) */
 

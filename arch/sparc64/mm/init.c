@@ -1109,6 +1109,69 @@ static void __init tsb_phys_patch(void)
 	}
 }
 
+/* Don't mark as init, we give this to the Hypervisor.  */
+static struct hv_tsb_descr ktsb_descr[2];
+extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
+
+static void __init sun4v_ktsb_init(void)
+{
+	unsigned long ktsb_pa;
+
+	ktsb_pa = kern_base + ((unsigned long)&swapper_tsb[0] - KERNBASE);
+
+	switch (PAGE_SIZE) {
+	case 8 * 1024:
+	default:
+		ktsb_descr[0].pgsz_idx = HV_PGSZ_IDX_8K;
+		ktsb_descr[0].pgsz_mask = HV_PGSZ_MASK_8K;
+		break;
+
+	case 64 * 1024:
+		ktsb_descr[0].pgsz_idx = HV_PGSZ_IDX_64K;
+		ktsb_descr[0].pgsz_mask = HV_PGSZ_MASK_64K;
+		break;
+
+	case 512 * 1024:
+		ktsb_descr[0].pgsz_idx = HV_PGSZ_IDX_512K;
+		ktsb_descr[0].pgsz_mask = HV_PGSZ_MASK_512K;
+		break;
+
+	case 4 * 1024 * 1024:
+		ktsb_descr[0].pgsz_idx = HV_PGSZ_IDX_4MB;
+		ktsb_descr[0].pgsz_mask = HV_PGSZ_MASK_4MB;
+		break;
+	};
+
+	ktsb_descr[0].assoc = 0;
+	ktsb_descr[0].num_ttes = KERNEL_TSB_NENTRIES;
+	ktsb_descr[0].ctx_idx = 0;
+	ktsb_descr[0].tsb_base = ktsb_pa;
+	ktsb_descr[0].resv = 0;
+
+	/* XXX When we have a kernel large page size TSB, describe
+	 * XXX it in ktsb_descr[1] here.
+	 */
+}
+
+void __cpuinit sun4v_ktsb_register(void)
+{
+	register unsigned long func asm("%o5");
+	register unsigned long arg0 asm("%o0");
+	register unsigned long arg1 asm("%o1");
+	unsigned long pa;
+
+	pa = kern_base + ((unsigned long)&ktsb_descr[0] - KERNBASE);
+
+	func = HV_FAST_MMU_TSB_CTX0;
+	/* XXX set arg0 to 2 when we use ktsb_descr[1], see above XXX */
+	arg0 = 1;
+	arg1 = pa;
+	__asm__ __volatile__("ta	%6"
+			     : "=&r" (func), "=&r" (arg0), "=&r" (arg1)
+			     : "0" (func), "1" (arg0), "2" (arg1),
+			       "i" (HV_FAST_TRAP));
+}
+
 /* paging_init() sets up the page tables */
 
 extern void cheetah_ecache_flush_init(void);
@@ -1129,8 +1192,10 @@ void __init paging_init(void)
 	    tlb_type == hypervisor)
 		tsb_phys_patch();
 
-	if (tlb_type == hypervisor)
+	if (tlb_type == hypervisor) {
 		sun4v_patch_tlb_handlers();
+		sun4v_ktsb_init();
+	}
 
 	/* Find available physical memory... */
 	read_obp_memory("available", &pavail[0], &pavail_ents);
@@ -1170,6 +1235,9 @@ void __init paging_init(void)
 	setup_tba();
 
 	__flush_tlb_all();
+
+	if (tlb_type == hypervisor)
+		sun4v_ktsb_register();
 
 	/* Setup bootmem... */
 	pages_avail = 0;
