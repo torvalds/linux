@@ -152,11 +152,6 @@ typedef u32 scsi_lun_t;
 #define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	100
 #define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	7
 
-/* Retry 5 times every 2 second, then every minute */
-#define ZFCP_EXCHANGE_PORT_DATA_SHORT_RETRIES	5
-#define ZFCP_EXCHANGE_PORT_DATA_SHORT_SLEEP	200
-#define ZFCP_EXCHANGE_PORT_DATA_LONG_SLEEP	6000
-
 /* timeout value for "default timer" for fsf requests */
 #define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ);
 
