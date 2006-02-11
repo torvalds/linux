@@ -96,7 +96,7 @@ sun4v_dtlb_miss:
 	
 	/* Load UTSB reg into %g1.  */
 	mov	SCRATCHPAD_UTSBREG1, %g1
-	ldxa	[%g1 + %g1] ASI_SCRATCHPAD, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g1
 
 	LOAD_DTLB_INFO(%g2, %g4, %g5)
 	COMPUTE_TAG_TARGET(%g6, %g4, %g5, %g3, kvmap_dtlb_4v)
@@ -149,14 +149,19 @@ sun4v_dtlb_prot:
 	 * SCRATCHPAD_MMU_MISS contents in %g2.
 	 */
 sun4v_itsb_miss:
-	ba,pt	%xcc, sun4v_tsb_miss_common
+	mov	SCRATCHPAD_UTSBREG1, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g1
+	brz,pn	%g5, kvmap_itlb_4v
 	 mov	FAULT_CODE_ITLB, %g3
 
 	/* Called from trap table with TAG TARGET placed into
 	 * %g6 and SCRATCHPAD_UTSBREG1 contents in %g1.
 	 */
 sun4v_dtsb_miss:
-	mov	FAULT_CODE_DTLB, %g3
+	mov	SCRATCHPAD_UTSBREG1, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g1
+	brz,pn	%g5, kvmap_dtlb_4v
+	 mov	FAULT_CODE_DTLB, %g3
 
 	/* Create TSB pointer into %g1.  This is something like:
 	 *
@@ -312,7 +317,8 @@ sun4v_stdfmna:
 	or	%g2, %lo(OLD), %g2; \
 	sub	%g1, %g2, %g1; \
 	sethi	%hi(BRANCH_ALWAYS), %g3; \
-	srl	%g1, 2, %g1; \
+	sll	%g1, 11, %g1; \
+	srl	%g1, 11 + 2, %g1; \
 	or	%g3, %lo(BRANCH_ALWAYS), %g3; \
 	or	%g3, %g1, %g3; \
 	stw	%g3, [%g2]; \

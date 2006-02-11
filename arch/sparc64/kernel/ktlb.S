@@ -48,7 +48,7 @@ kvmap_itlb_tsb_miss:
 kvmap_itlb_vmalloc_addr:
 	KERN_PGTABLE_WALK(%g4, %g5, %g2, kvmap_itlb_longpath)
 
-	KTSB_LOCK_TAG(%g1, %g2, %g4)
+	KTSB_LOCK_TAG(%g1, %g2, %g7)
 
 	/* Load and check PTE.  */
 	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
@@ -60,8 +60,29 @@ kvmap_itlb_vmalloc_addr:
 	/* fallthrough to TLB load */
 
 kvmap_itlb_load:
-	stxa		%g5, [%g0] ASI_ITLB_DATA_IN	! Reload TLB
+
+661:	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
 	retry
+	.section	.sun4v_2insn_patch, "ax"
+	.word		661b
+	nop
+	nop
+	.previous
+
+	/* For sun4v the ASI_ITLB_DATA_IN store and the retry
+	 * instruction get nop'd out and we get here to branch
+	 * to the sun4v tlb load code.  The registers are setup
+	 * as follows:
+	 *
+	 * %g4: vaddr
+	 * %g5: PTE
+	 * %g6:	TAG
+	 *
+	 * The sun4v TLB load wants the PTE in %g3 so we fix that
+	 * up here.
+	 */
+	ba,pt		%xcc, sun4v_itlb_load
+	 mov		%g5, %g3
 
 kvmap_itlb_longpath:
 
@@ -80,7 +101,7 @@ kvmap_itlb_longpath:
 kvmap_itlb_obp:
 	OBP_TRANS_LOOKUP(%g4, %g5, %g2, %g3, kvmap_itlb_longpath)
 
-	KTSB_LOCK_TAG(%g1, %g2, %g4)
+	KTSB_LOCK_TAG(%g1, %g2, %g7)
 
 	KTSB_WRITE(%g1, %g5, %g6)
 
@@ -90,7 +111,7 @@ kvmap_itlb_obp:
 kvmap_dtlb_obp:
 	OBP_TRANS_LOOKUP(%g4, %g5, %g2, %g3, kvmap_dtlb_longpath)
 
-	KTSB_LOCK_TAG(%g1, %g2, %g4)
+	KTSB_LOCK_TAG(%g1, %g2, %g7)
 
 	KTSB_WRITE(%g1, %g5, %g6)
 
@@ -129,7 +150,7 @@ kvmap_linear_patch:
 kvmap_dtlb_vmalloc_addr:
 	KERN_PGTABLE_WALK(%g4, %g5, %g2, kvmap_dtlb_longpath)
 
-	KTSB_LOCK_TAG(%g1, %g2, %g4)
+	KTSB_LOCK_TAG(%g1, %g2, %g7)
 
 	/* Load and check PTE.  */
 	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
@@ -141,8 +162,29 @@ kvmap_dtlb_vmalloc_addr:
 	/* fallthrough to TLB load */
 
 kvmap_dtlb_load:
-	stxa		%g5, [%g0] ASI_DTLB_DATA_IN	! Reload TLB
+
+661:	stxa		%g5, [%g0] ASI_DTLB_DATA_IN	! Reload TLB
 	retry
+	.section	.sun4v_2insn_patch, "ax"
+	.word		661b
+	nop
+	nop
+	.previous
+
+	/* For sun4v the ASI_DTLB_DATA_IN store and the retry
+	 * instruction get nop'd out and we get here to branch
+	 * to the sun4v tlb load code.  The registers are setup
+	 * as follows:
+	 *
+	 * %g4: vaddr
+	 * %g5: PTE
+	 * %g6:	TAG
+	 *
+	 * The sun4v TLB load wants the PTE in %g3 so we fix that
+	 * up here.
+	 */
+	ba,pt		%xcc, sun4v_dtlb_load
+	 mov		%g5, %g3
 
 kvmap_dtlb_nonlinear:
 	/* Catch kernel NULL pointer derefs.  */
@@ -185,10 +227,17 @@ kvmap_dtlb_longpath:
 	nop
 	.previous
 
-	rdpr	%tl, %g4
-	cmp	%g4, 1
-	mov	TLB_TAG_ACCESS, %g4
+	rdpr	%tl, %g3
+	cmp	%g3, 1
+
+661:	mov	TLB_TAG_ACCESS, %g4
 	ldxa	[%g4] ASI_DMMU, %g5
+	.section .sun4v_2insn_patch, "ax"
+	.word	661b
+	mov	%g4, %g5
+	nop
+	.previous
+
 	be,pt	%xcc, sparc64_realfault_common
 	 mov	FAULT_CODE_DTLB, %g4
 	ba,pt	%xcc, winfix_trampoline

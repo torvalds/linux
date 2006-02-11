@@ -186,19 +186,19 @@
 	ldx	[%g2 + HV_FAULT_I_CTX_OFFSET], %g5;	\
 	srlx	%g4, 22, %g7;				\
 	sllx	%g5, 48, %g6;				\
-	brz,pn	%g5, kvmap_itlb_4v;			\
+	ba,pt	%xcc, sun4v_itsb_miss;			\
 	 or	%g6, %g7, %g6;				\
-	ba,a,pt	%xcc, sun4v_itsb_miss;
+	nop;
 
-#define SUN4V_DTSB_MISS				\
+#define SUN4V_DTSB_MISS					\
 	ldxa	[%g0] ASI_SCRATCHPAD, %g2;		\
 	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g4;	\
 	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5;	\
 	srlx	%g4, 22, %g7;				\
 	sllx	%g5, 48, %g6;				\
-	brz,pn	%g5, kvmap_dtlb_4v;			\
+	ba,pt	%xcc, sun4v_dtsb_miss;			\
 	 or	%g6, %g7, %g6;				\
-	ba,a,pt	%xcc, sun4v_dtsb_miss;
+	nop;
 
 /* Before touching these macros, you owe it to yourself to go and
  * see how arch/sparc64/kernel/winfixup.S works... -DaveM
