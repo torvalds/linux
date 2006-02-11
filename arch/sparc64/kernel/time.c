@@ -683,6 +683,48 @@ static void __init set_system_time(void)
 	}
 }
 
+/* davem suggests we keep this within the 4M locked kernel image */
+static u32 starfire_get_time(void)
+{
+	static char obp_gettod[32];
+	static u32 unix_tod;
+
+	sprintf(obp_gettod, "h# %08x unix-gettod",
+		(unsigned int) (long) &unix_tod);
+	prom_feval(obp_gettod);
+
+	return unix_tod;
+}
+
+static u32 hypervisor_get_time(void)
+{
+	register unsigned long func asm("%o5");
+	register unsigned long arg0 asm("%o0");
+	register unsigned long arg1 asm("%o1");
+	int retries = 10000;
+
+retry:
+	func = HV_FAST_TOD_GET;
+	arg0 = 0;
+	arg1 = 0;
+	__asm__ __volatile__("ta	%6"
+			     : "=&r" (func), "=&r" (arg0), "=&r" (arg1)
+			     : "0" (func), "1" (arg0), "2" (arg1),
+			       "i" (HV_FAST_TRAP));
+	if (arg0 == HV_EOK)
+		return arg1;
+	if (arg0 == HV_EWOULDBLOCK) {
+		if (--retries > 0) {
+			udelay(100);
+			goto retry;
+		}
+		printk(KERN_WARNING "SUN4V: tod_get() timed out.\n");
+		return 0;
+	}
+	printk(KERN_WARNING "SUN4V: tod_get() not supported.\n");
+	return 0;
+}
+
 void __init clock_probe(void)
 {
 	struct linux_prom_registers clk_reg[2];
@@ -702,14 +744,14 @@ void __init clock_probe(void)
 
 
 	if (this_is_starfire) {
-		/* davem suggests we keep this within the 4M locked kernel image */
-		static char obp_gettod[256];
-		static u32 unix_tod;
-
-		sprintf(obp_gettod, "h# %08x unix-gettod",
-			(unsigned int) (long) &unix_tod);
-		prom_feval(obp_gettod);
-		xtime.tv_sec = unix_tod;
+		xtime.tv_sec = starfire_get_time();
+		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+		set_normalized_timespec(&wall_to_monotonic,
+		                        -xtime.tv_sec, -xtime.tv_nsec);
+		return;
+	}
+	if (tlb_type == hypervisor) {
+		xtime.tv_sec = hypervisor_get_time();
 		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
 		set_normalized_timespec(&wall_to_monotonic,
 		                        -xtime.tv_sec, -xtime.tv_nsec);
