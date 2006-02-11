@@ -714,7 +714,7 @@ static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	ci = readl(port_mmio + PORT_CMD_ISSUE);
 	if (likely((ci & 0x1) == 0)) {
 		if (qc) {
-			assert(qc->err_mask == 0);
+			WARN_ON(qc->err_mask);
 			ata_qc_complete(qc);
 			qc = NULL;
 		}

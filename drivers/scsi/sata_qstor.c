@@ -277,8 +277,8 @@ static unsigned int qs_fill_sg(struct ata_queued_cmd *qc)
 	unsigned int nelem;
 	u8 *prd = pp->pkt + QS_CPB_BYTES;
 
-	assert(qc->__sg != NULL);
-	assert(qc->n_elem > 0);
+	WARN_ON(qc->__sg == NULL);
+	WARN_ON(qc->n_elem == 0);
 
 	nelem = 0;
 	ata_for_each_sg(sg, qc) {
