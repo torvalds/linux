@@ -25,26 +25,24 @@
 	 */
 tsb_miss_dtlb:
 	mov		TLB_TAG_ACCESS, %g4
-	ldxa		[%g4] ASI_DMMU, %g4
 	ba,pt		%xcc, tsb_miss_page_table_walk
-	 nop
+	 ldxa		[%g4] ASI_DMMU, %g4
 
 tsb_miss_itlb:
 	mov		TLB_TAG_ACCESS, %g4
-	ldxa		[%g4] ASI_IMMU, %g4
 	ba,pt		%xcc, tsb_miss_page_table_walk
-	 nop
+	 ldxa		[%g4] ASI_IMMU, %g4
 
-	/* The sun4v TLB miss handlers jump directly here instead
-	 * of tsb_miss_{d,i}tlb with registers setup as follows:
-	 *
-	 * %g4:	missing virtual address
-	 * %g1:	TSB entry address loaded
-	 * %g6:	TAG TARGET ((vaddr >> 22) | (ctx << 48))
+	/* At this point we have:
+	 * %g4 --	missing virtual address
+	 * %g1 --	TSB entry address
+	 * %g6 --	TAG TARGET ((vaddr >> 22) | (ctx << 48))
 	 */
 tsb_miss_page_table_walk:
 	TRAP_LOAD_PGD_PHYS(%g7, %g5)
 
+	/* And now we have the PGD base physical address in %g7.  */
+tsb_miss_page_table_walk_sun4v_fastpath:
 	USER_PGTABLE_WALK_TL1(%g4, %g7, %g5, %g2, tsb_do_fault)
 
 tsb_reload:

@@ -6,48 +6,55 @@
 	.text
 	.align	32
 
-sun4v_itlb_miss:
-	/* Load MMU Miss base into %g2.  */
-	ldxa	[%g0] ASI_SCRATCHPAD, %g3
-	
-	/* Load UTSB reg into %g1.  */
-	mov	SCRATCHPAD_UTSBREG1, %g1
-	ldxa	[%g1] ASI_SCRATCHPAD, %g1
+	/* Load ITLB fault information into VADDR and CTX, using BASE.  */
+#define LOAD_ITLB_INFO(BASE, VADDR, CTX) \
+	ldx	[BASE + HV_FAULT_I_ADDR_OFFSET], VADDR; \
+	ldx	[BASE + HV_FAULT_I_CTX_OFFSET], CTX;
 
-	/* Create a TAG TARGET, "(vaddr>>22) | (ctx << 48)", in %g6.
-	 * Branch if kernel TLB miss.  The kernel TSB and user TSB miss
-	 * code wants the missing virtual address in %g4, so that value
-	 * cannot be modified through the entirety of this handler.
+	/* Load DTLB fault information into VADDR and CTX, using BASE.  */
+#define LOAD_DTLB_INFO(BASE, VADDR, CTX) \
+	ldx	[BASE + HV_FAULT_D_ADDR_OFFSET], VADDR; \
+	ldx	[BASE + HV_FAULT_D_CTX_OFFSET], CTX;
+
+	/* DEST = (CTX << 48) | (VADDR >> 22)
+	 *
+	 * Branch to ZERO_CTX_LABEL is context is zero.
 	 */
-	ldx	[%g2 + HV_FAULT_I_ADDR_OFFSET], %g4
-	ldx	[%g2 + HV_FAULT_I_CTX_OFFSET], %g5
-	srlx	%g4, 22, %g3
-	sllx	%g5, 48, %g6
-	or	%g6, %g3, %g6
-	brz,pn	%g5, kvmap_itlb_4v
-	 nop
+#define	COMPUTE_TAG_TARGET(DEST, VADDR, CTX, TMP, ZERO_CTX_LABEL) \
+	srlx	VADDR, 22, TMP; \
+	sllx	CTX, 48, DEST; \
+	brz,pn	CTX, ZERO_CTX_LABEL; \
+	 or	DEST, TMP, DEST;
 
 	/* Create TSB pointer.  This is something like:
 	 *
 	 * index_mask = (512 << (tsb_reg & 0x7UL)) - 1UL;
 	 * tsb_base = tsb_reg & ~0x7UL;
-	 */
-	and	%g1, 0x7, %g3
-	andn	%g1, 0x7, %g1
-	mov	512, %g7
-	sllx	%g7, %g3, %g7
-	sub	%g7, 1, %g7
-
-	/* TSB index mask is in %g7, tsb base is in %g1.  Compute
-	 * the TSB entry pointer into %g1:
-	 *
 	 * tsb_index = ((vaddr >> PAGE_SHIFT) & tsb_mask);
 	 * tsb_ptr = tsb_base + (tsb_index * 16);
 	 */
-	srlx	%g4, PAGE_SHIFT, %g3
-	and	%g3, %g7, %g3
-	sllx	%g3, 4, %g3
-	add	%g1, %g3, %g1
+#define COMPUTE_TSB_PTR(TSB_PTR, VADDR, TMP1, TMP2)	\
+	and	TSB_PTR, 0x7, TMP1;			\
+	mov	512, TMP2;				\
+	andn	TSB_PTR, 0x7, TSB_PTR;			\
+	sllx	TMP2, TMP1, TMP2;			\
+	srlx	VADDR, PAGE_SHIFT, TMP1;		\
+	sub	TMP2, 1, TMP2;				\
+	and	TMP1, TMP2, TMP1;			\
+	sllx	TMP1, 4, TMP1;				\
+	add	TSB_PTR, TMP1, TSB_PTR;
+
+sun4v_itlb_miss:
+	/* Load MMU Miss base into %g2.  */
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	
+	/* Load UTSB reg into %g1.  */
+	mov	SCRATCHPAD_UTSBREG1, %g1
+	ldxa	[%g1] ASI_SCRATCHPAD, %g1
+
+	LOAD_ITLB_INFO(%g2, %g4, %g5)
+	COMPUTE_TAG_TARGET(%g6, %g4, %g5, %g3, kvmap_itlb_4v)
+	COMPUTE_TSB_PTR(%g1, %g4, %g3, %g7)
 
 	/* Load TSB tag/pte into %g2/%g3 and compare the tag.  */
 	ldda	[%g1] ASI_QUAD_LDD_PHYS, %g2
@@ -91,40 +98,9 @@ sun4v_dtlb_miss:
 	mov	SCRATCHPAD_UTSBREG1, %g1
 	ldxa	[%g1 + %g1] ASI_SCRATCHPAD, %g1
 
-	/* Create a TAG TARGET, "(vaddr>>22) | (ctx << 48)", in %g6.
-	 * Branch if kernel TLB miss.  The kernel TSB and user TSB miss
-	 * code wants the missing virtual address in %g4, so that value
-	 * cannot be modified through the entirety of this handler.
-	 */
-	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g4
-	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5
-	srlx	%g4, 22, %g3
-	sllx	%g5, 48, %g6
-	or	%g6, %g3, %g6
-	brz,pn	%g5, kvmap_dtlb_4v
-	 nop
-
-	/* Create TSB pointer.  This is something like:
-	 *
-	 * index_mask = (512 << (tsb_reg & 0x7UL)) - 1UL;
-	 * tsb_base = tsb_reg & ~0x7UL;
-	 */
-	and	%g1, 0x7, %g3
-	andn	%g1, 0x7, %g1
-	mov	512, %g7
-	sllx	%g7, %g3, %g7
-	sub	%g7, 1, %g7
-
-	/* TSB index mask is in %g7, tsb base is in %g1.  Compute
-	 * the TSB entry pointer into %g1:
-	 *
-	 * tsb_index = ((vaddr >> PAGE_SHIFT) & tsb_mask);
-	 * tsb_ptr = tsb_base + (tsb_index * 16);
-	 */
-	srlx	%g4, PAGE_SHIFT, %g3
-	and	%g3, %g7, %g3
-	sllx	%g3, 4, %g3
-	add	%g1, %g3, %g1
+	LOAD_DTLB_INFO(%g2, %g4, %g5)
+	COMPUTE_TAG_TARGET(%g6, %g4, %g5, %g3, kvmap_dtlb_4v)
+	COMPUTE_TSB_PTR(%g1, %g4, %g3, %g7)
 
 	/* Load TSB tag/pte into %g2/%g3 and compare the tag.  */
 	ldda	[%g1] ASI_QUAD_LDD_PHYS, %g2
@@ -169,7 +145,8 @@ sun4v_dtlb_prot:
 	 mov		FAULT_CODE_DTLB | FAULT_CODE_WRITE, %g4
 
 	/* Called from trap table with TAG TARGET placed into
-	 * %g6 and SCRATCHPAD_UTSBREG1 contents in %g1.
+	 * %g6, SCRATCHPAD_UTSBREG1 contents in %g1, and
+	 * SCRATCHPAD_MMU_MISS contents in %g2.
 	 */
 sun4v_itsb_miss:
 	ba,pt	%xcc, sun4v_tsb_miss_common
@@ -189,16 +166,15 @@ sun4v_dtsb_miss:
 	 * tsb_ptr = tsb_base + (tsb_index * 16);
 	 */
 sun4v_tsb_miss_common:
-	and	%g1, 0x7, %g2
-	andn	%g1, 0x7, %g1
-	mov	512, %g7
-	sllx	%g7, %g2, %g7
-	sub	%g7, 1, %g7
-	srlx	%g4, PAGE_SHIFT, %g2
-	and	%g2, %g7, %g2
-	sllx	%g2, 4, %g2
-	ba,pt	%xcc, tsb_miss_page_table_walk
-	 add	%g1, %g2, %g1
+	COMPUTE_TSB_PTR(%g1, %g4, %g5, %g7)
+
+	/* Branch directly to page table lookup.  We have SCRATCHPAD_MMU_MISS
+	 * still in %g2, so it's quite trivial to get at the PGD PHYS value
+	 * so we can preload it into %g7.
+	 */
+	sub	%g2, TRAP_PER_CPU_FAULT_INFO, %g2
+	ba,pt	%xcc, tsb_miss_page_table_walk_sun4v_fastpath
+	 ldx	[%g2 + TRAP_PER_CPU_PGD_PADDR], %g7
 
 	/* Instruction Access Exception, tl0. */
 sun4v_iacc:
