@@ -424,11 +424,7 @@ struct zfcp_scsi_dbf_record {
 	u32 fsf_seqno;
 	u64 fsf_issued;
 	union {
-		struct {
-			u64 fsf_reqid;
-			u32 fsf_seqno;
-			u64 fsf_issued;
-		} new_fsf_req;
+		u64 old_fsf_reqid;
 		struct {
 			u8 rsp_validity;
 			u8 rsp_scsi_status;

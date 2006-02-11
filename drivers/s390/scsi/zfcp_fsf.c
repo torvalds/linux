@@ -4211,11 +4211,11 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
 	ZFCP_LOG_DEBUG("scpnt->result =0x%x\n", scpnt->result);
 
 	if (scpnt->result != 0)
-		zfcp_scsi_dbf_event_result("erro", 3, fsf_req->adapter, scpnt);
+		zfcp_scsi_dbf_event_result("erro", 3, fsf_req->adapter, scpnt, fsf_req);
 	else if (scpnt->retries > 0)
-		zfcp_scsi_dbf_event_result("retr", 4, fsf_req->adapter, scpnt);
+		zfcp_scsi_dbf_event_result("retr", 4, fsf_req->adapter, scpnt, fsf_req);
 	else
-		zfcp_scsi_dbf_event_result("norm", 6, fsf_req->adapter, scpnt);
+		zfcp_scsi_dbf_event_result("norm", 6, fsf_req->adapter, scpnt, fsf_req);
 
 	/* cleanup pointer (need this especially for abort) */
 	scpnt->host_scribble = NULL;
