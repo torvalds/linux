@@ -3415,6 +3415,8 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 						"(adapter %s, wwpn=0x%016Lx)\n",
 						zfcp_get_busid_by_port(port),
 						port->wwpn);
+			else
+				scsi_flush_work(adapter->scsi_host);
 		}
 		zfcp_port_put(port);
 		break;
