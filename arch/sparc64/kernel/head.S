@@ -123,7 +123,7 @@ prom_map_name:
 prom_unmap_name:
 	.asciz	"unmap"
 prom_sun4v_name:
-	.asciz	"SUNW,sun4v"
+	.asciz	"sun4v"
 	.align	4
 prom_root_compatible:
 	.skip	64
@@ -300,7 +300,7 @@ sparc64_boot_after_remap:
 	or	%g1, %lo(prom_root_compatible), %g1
 	sethi	%hi(prom_sun4v_name), %g7
 	or	%g7, %lo(prom_sun4v_name), %g7
-	mov	10, %g3
+	mov	5, %g3
 1:	ldub	[%g7], %g2
 	ldub	[%g1], %g4
 	cmp	%g2, %g4
@@ -380,28 +380,33 @@ jump_to_sun4u_init:
 	 nop
 
 sun4u_init:
+	BRANCH_IF_SUN4V(g1, sun4v_init)
+
 	/* Set ctx 0 */
 	mov		PRIMARY_CONTEXT, %g7
-
-661:	stxa		%g0, [%g7] ASI_DMMU
-	.section	.sun4v_1insn_patch, "ax"
-	.word		661b
-	stxa		%g0, [%g7] ASI_MMU
-	.previous
-
+	stxa		%g0, [%g7] ASI_DMMU
 	membar		#Sync
 
 	mov		SECONDARY_CONTEXT, %g7
-
-661:	stxa		%g0, [%g7] ASI_DMMU
-	.section	.sun4v_1insn_patch, "ax"
-	.word		661b
-	stxa		%g0, [%g7] ASI_MMU
-	.previous
-
+	stxa		%g0, [%g7] ASI_DMMU
 	membar	#Sync
 
-	BRANCH_IF_SUN4V(g1, niagara_tlb_fixup)
+	ba,pt		%xcc, sun4u_continue
+	 nop
+
+sun4v_init:
+	/* Set ctx 0 */
+	mov		PRIMARY_CONTEXT, %g7
+	stxa		%g0, [%g7] ASI_MMU
+	membar		#Sync
+
+	mov		SECONDARY_CONTEXT, %g7
+	stxa		%g0, [%g7] ASI_MMU
+	membar		#Sync
+	ba,pt		%xcc, niagara_tlb_fixup
+	 nop
+
+sun4u_continue:
 	BRANCH_IF_ANY_CHEETAH(g1, g7, cheetah_tlb_fixup)
 
 	ba,pt	%xcc, spitfire_tlb_fixup
