@@ -507,9 +507,8 @@ static unsigned int ahci_dev_classify(struct ata_port *ap)
 	return ata_dev_classify(&tf);
 }
 
-static void ahci_fill_cmd_slot(struct ata_port *ap, u32 opts)
+static void ahci_fill_cmd_slot(struct ahci_port_priv *pp, u32 opts)
 {
-	struct ahci_port_priv *pp = ap->private_data;
 	pp->cmd_slot[0].opts = cpu_to_le32(opts);
 	pp->cmd_slot[0].status = 0;
 	pp->cmd_slot[0].tbl_addr = cpu_to_le32(pp->cmd_tbl_dma & 0xffffffff);
@@ -622,7 +621,7 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 	if (is_atapi)
 		opts |= AHCI_CMD_ATAPI;
 
-	ahci_fill_cmd_slot(ap, opts);
+	ahci_fill_cmd_slot(pp, opts);
 }
 
 static void ahci_restart_port(struct ata_port *ap, u32 irq_stat)
