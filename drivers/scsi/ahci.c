@@ -617,7 +617,8 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 	ata_tf_to_fis(&qc->tf, pp->cmd_tbl, 0);
 	if (is_atapi) {
 		memset(pp->cmd_tbl + AHCI_CMD_TBL_CDB, 0, 32);
-		memcpy(pp->cmd_tbl + AHCI_CMD_TBL_CDB, qc->cdb, ap->cdb_len);
+		memcpy(pp->cmd_tbl + AHCI_CMD_TBL_CDB, qc->cdb,
+		       qc->dev->cdb_len);
 	}
 
 	n_elem = 0;

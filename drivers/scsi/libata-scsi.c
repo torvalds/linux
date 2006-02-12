@@ -2146,7 +2146,7 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	ata_sg_init_one(qc, cmd->sense_buffer, sizeof(cmd->sense_buffer));
 	qc->dma_dir = DMA_FROM_DEVICE;
 
-	memset(&qc->cdb, 0, ap->cdb_len);
+	memset(&qc->cdb, 0, qc->dev->cdb_len);
 	qc->cdb[0] = REQUEST_SENSE;
 	qc->cdb[4] = SCSI_SENSE_BUFFERSIZE;
 
@@ -2248,7 +2248,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, const u8 *scsicmd)
 		if (ata_check_atapi_dma(qc))
 			using_pio = 1;
 
-	memcpy(&qc->cdb, scsicmd, qc->ap->cdb_len);
+	memcpy(&qc->cdb, scsicmd, dev->cdb_len);
 
 	qc->complete_fn = atapi_qc_complete;
 

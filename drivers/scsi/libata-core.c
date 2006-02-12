@@ -931,7 +931,7 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 	unsigned int using_edd;
 	struct ata_taskfile tf;
 	unsigned int err_mask;
-	int rc;
+	int i, rc;
 
 	if (!ata_dev_present(dev)) {
 		DPRINTK("ENTER/EXIT (host %u, dev %u) -- nodev\n",
@@ -1087,7 +1087,7 @@ retry:
 
 		}
 
-		ap->host->max_cmd_len = 16;
+		dev->cdb_len = 16;
 	}
 
 	/* ATAPI-specific feature tests */
@@ -1100,14 +1100,19 @@ retry:
 			printk(KERN_WARNING "ata%u: unsupported CDB len\n", ap->id);
 			goto err_out_nosup;
 		}
-		ap->cdb_len = (unsigned int) rc;
-		ap->host->max_cmd_len = (unsigned char) ap->cdb_len;
+		dev->cdb_len = (unsigned int) rc;
 
 		/* print device info to dmesg */
 		printk(KERN_INFO "ata%u: dev %u ATAPI, max %s\n",
 		       ap->id, device,
 		       ata_mode_string(xfer_modes));
 	}
+
+	ap->host->max_cmd_len = 0;
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		ap->host->max_cmd_len = max_t(unsigned int,
+					      ap->host->max_cmd_len,
+					      ap->device[i].cdb_len);
 
 	DPRINTK("EXIT, drv_stat = 0x%x\n", ata_chk_status(ap));
 	return;
@@ -4203,7 +4208,7 @@ static void atapi_packet_task(void *_data)
 
 	/* send SCSI cdb */
 	DPRINTK("send cdb\n");
-	WARN_ON(ap->cdb_len < 12);
+	WARN_ON(qc->dev->cdb_len < 12);
 
 	if (qc->tf.protocol == ATA_PROT_ATAPI_DMA ||
 	    qc->tf.protocol == ATA_PROT_ATAPI_NODATA) {
@@ -4217,12 +4222,12 @@ static void atapi_packet_task(void *_data)
 		 */
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 		ap->flags &= ~ATA_FLAG_NOINTR;
-		ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
+		ata_data_xfer(ap, qc->cdb, qc->dev->cdb_len, 1);
 		if (qc->tf.protocol == ATA_PROT_ATAPI_DMA)
 			ap->ops->bmdma_start(qc);	/* initiate bmdma */
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
 	} else {
-		ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
+		ata_data_xfer(ap, qc->cdb, qc->dev->cdb_len, 1);
 
 		/* PIO commands are handled by polling */
 		ap->hsm_task_state = HSM_ST;

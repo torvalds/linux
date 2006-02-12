@@ -348,6 +348,7 @@ struct ata_device {
 
 	unsigned int		multi_count;	/* sectors count for
 						   READ/WRITE MULTIPLE */
+	unsigned int		cdb_len;
 
 	/* for CHS addressing */
 	u16			cylinders;	/* Number of cylinders */
@@ -377,7 +378,6 @@ struct ata_port {
 	unsigned int		mwdma_mask;
 	unsigned int		udma_mask;
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
-	unsigned int		cdb_len;
 
 	struct ata_device	device[ATA_MAX_DEVICES];
 
