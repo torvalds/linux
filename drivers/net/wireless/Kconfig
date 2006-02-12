@@ -204,7 +204,7 @@ config IPW2200
 	  In order to use this driver, you will need a firmware image for it.
           You can obtain the firmware from
 	  <http://ipw2200.sf.net/>.  See the above referenced README.ipw2200 
-	  for information on where to install the firmare images.
+	  for information on where to install the firmware images.
 
           You will also very likely need the Wireless Tools in order to
           configure your card:
@@ -262,7 +262,7 @@ config AIRO
 	  PCI 802.11 wireless cards.
 	  It supports the new 802.11b cards from Cisco (Cisco 34X, Cisco 35X
 	  - with or without encryption) as well as card before the Cisco
-	  aquisition (Aironet 4500, Aironet 4800, Aironet 4800B).
+	  acquisition (Aironet 4500, Aironet 4800, Aironet 4800B).
 
 	  This driver support both the standard Linux Wireless Extensions
 	  and Cisco proprietary API, so both the Linux Wireless Tools and the
@@ -411,7 +411,7 @@ config AIRO_CS
 	  driver part of the Linux Pcmcia package.
 	  It supports the new 802.11b cards from Cisco (Cisco 34X, Cisco 35X
 	  - with or without encryption) as well as card before the Cisco
-	  aquisition (Aironet 4500, Aironet 4800, Aironet 4800B). It also
+	  acquisition (Aironet 4500, Aironet 4800, Aironet 4800B). It also
 	  supports OEM of Cisco such as the DELL TrueMobile 4800 and Xircom
 	  802.11b cards.
 
