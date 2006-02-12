@@ -1121,9 +1121,10 @@ err_out:
 }
 
 
-static inline u8 ata_dev_knobble(const struct ata_port *ap)
+static inline u8 ata_dev_knobble(const struct ata_port *ap,
+				 struct ata_device *dev)
 {
-	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(ap->device->id)));
+	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
 }
 
 /**
@@ -1137,9 +1138,9 @@ static inline u8 ata_dev_knobble(const struct ata_port *ap)
 void ata_dev_config(struct ata_port *ap, unsigned int i)
 {
 	/* limit bridge transfers to udma5, 200 sectors */
-	if (ata_dev_knobble(ap)) {
+	if (ata_dev_knobble(ap, &ap->device[i])) {
 		printk(KERN_INFO "ata%u(%u): applying bridge limits\n",
-			ap->id, ap->device->devno);
+		       ap->id, i);
 		ap->udma_mask &= ATA_UDMA5;
 		ap->host->max_sectors = ATA_MAX_SECTORS;
 		ap->host->hostt->max_sectors = ATA_MAX_SECTORS;
