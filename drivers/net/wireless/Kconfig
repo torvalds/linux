@@ -309,7 +309,10 @@ config APPLE_AIRPORT
 	  Say Y here to support the Airport 802.11b wireless Ethernet hardware
 	  built into the Macintosh iBook and other recent PowerPC-based
 	  Macintosh machines. This is essentially a Lucent Orinoco card with 
-	  a non-standard interface
+	  a non-standard interface.
+
+	  This driver does not support the Airport Extreme (802.11b/g). Use
+	  the BCM43xx driver for Airport Extreme cards.
 
 config PLX_HERMES
 	tristate "Hermes in PLX9052 based PCI adaptor support (Netgear MA301 etc.)"
