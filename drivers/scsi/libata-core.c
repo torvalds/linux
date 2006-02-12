@@ -927,7 +927,6 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 {
 	struct ata_device *dev = &ap->device[device];
 	unsigned int major_version;
-	u16 tmp;
 	unsigned long xfer_modes;
 	unsigned int using_edd;
 	struct ata_taskfile tf;
@@ -1030,10 +1029,7 @@ retry:
 			goto err_out_nosup;
 
 		/* get major version */
-		tmp = dev->id[ATA_ID_MAJOR_VER];
-		for (major_version = 14; major_version >= 1; major_version--)
-			if (tmp & (1 << major_version))
-				break;
+		major_version = ata_id_major_version(dev->id);
 
 		/*
 		 * The exact sequence expected by certain pre-ATA4 drives is:

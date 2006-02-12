@@ -267,6 +267,16 @@ struct ata_taskfile {
 	  ((u64) (id)[(n) + 1] << 16) |	\
 	  ((u64) (id)[(n) + 0]) )
 
+static inline unsigned int ata_id_major_version(const u16 *id)
+{
+	unsigned int mver;
+
+	for (mver = 14; mver >= 1; mver--)
+		if (id[ATA_ID_MAJOR_VER] & (1 << mver))
+			break;
+	return mver;
+}
+
 static inline int ata_id_current_chs_valid(const u16 *id)
 {
 	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command 
