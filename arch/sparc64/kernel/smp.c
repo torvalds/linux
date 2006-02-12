@@ -591,7 +591,7 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 				       "2" (arg1), "3" (arg2),
 				       "i" (HV_FAST_TRAP)
 				     : "memory");
-		if (likely(func == HV_EOK))
+		if (likely(arg0 == HV_EOK))
 			break;
 
 		if (unlikely(++retries > 100)) {
@@ -644,7 +644,7 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 					       "2" (arg1), "3" (arg2),
 					       "i" (HV_FAST_TRAP)
 					     : "memory");
-			if (likely(func == HV_EOK))
+			if (likely(arg0 == HV_EOK))
 				break;
 
 			if (unlikely(++retries > 100)) {

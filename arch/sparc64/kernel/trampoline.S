@@ -367,7 +367,7 @@ after_lock_tlb:
 	 nop
 
 	call		sun4v_init_mondo_queues
-	 nop
+	 mov		0, %o0
 
 1:	call		init_cur_cpu_trap
 	 nop
