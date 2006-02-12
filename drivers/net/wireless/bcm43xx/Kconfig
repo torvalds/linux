@@ -52,6 +52,11 @@ config BCM43XX_PIO_MODE
 	  Only include Programmed I/O (PIO).
 	  This reduces the size of the driver module, by omitting the DMA code.
 	  Please note that PIO transfers are slow (compared to DMA).
+
+	  Also note that not all devices of the 43xx series support PIO.
+	  The 4306 (Apple Airport Extreme and others) supports PIO, while
+	  the 4318 is known to _not_ support PIO.
+
 	  Only use PIO, if DMA does not work for you.
 
 endchoice
