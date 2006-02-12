@@ -1614,9 +1614,7 @@ scan:
 			sc.nr_reclaimed = 0;
 			sc.priority = priority;
 			sc.swap_cluster_max = nr_pages? nr_pages : SWAP_CLUSTER_MAX;
-			atomic_inc(&zone->reclaim_in_progress);
 			shrink_zone(zone, &sc);
-			atomic_dec(&zone->reclaim_in_progress);
 			reclaim_state->reclaimed_slab = 0;
 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
 						lru_pages);
