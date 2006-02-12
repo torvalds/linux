@@ -111,12 +111,12 @@ struct bcm43xx_txhdr {
 
 struct sk_buff;
 
-void FASTCALL(bcm43xx_generate_txhdr(struct bcm43xx_private *bcm,
-				     struct bcm43xx_txhdr *txhdr,
-				     const unsigned char *fragment_data,
-				     const unsigned int fragment_len,
-				     const int is_first_fragment,
-				     const u16 cookie));
+void bcm43xx_generate_txhdr(struct bcm43xx_private *bcm,
+			    struct bcm43xx_txhdr *txhdr,
+			    const unsigned char *fragment_data,
+			    const unsigned int fragment_len,
+			    const int is_first_fragment,
+			    const u16 cookie);
 
 /* RX header as received from the hardware. */
 struct bcm43xx_rxhdr {
@@ -244,9 +244,9 @@ int bcm43xx_is_valid_channel(struct bcm43xx_private *bcm,
 void bcm43xx_tsf_read(struct bcm43xx_private *bcm, u64 *tsf);
 void bcm43xx_tsf_write(struct bcm43xx_private *bcm, u64 tsf);
 
-int FASTCALL(bcm43xx_rx(struct bcm43xx_private *bcm,
-			struct sk_buff *skb,
-			struct bcm43xx_rxhdr *rxhdr));
+int bcm43xx_rx(struct bcm43xx_private *bcm,
+	       struct sk_buff *skb,
+	       struct bcm43xx_rxhdr *rxhdr);
 
 void bcm43xx_set_iwmode(struct bcm43xx_private *bcm,
 			int iw_mode);

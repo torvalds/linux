@@ -19,16 +19,17 @@
 
 #define PFX				KBUILD_MODNAME ": "
 
-#define BCM43xx_SWITCH_CORE_MAX_RETRIES	10
+#define BCM43xx_SWITCH_CORE_MAX_RETRIES	50
 #define BCM43xx_IRQWAIT_MAX_RETRIES	50
 
 #define BCM43xx_IO_SIZE			8192
-#define BCM43xx_REG_ACTIVE_CORE		0x80
 
-/* Interrupt Control PCI Configuration Register. (Only on PCI cores with rev >= 6) */
-#define BCM43xx_PCICFG_ICR		0x94
+/* Active Core PCI Configuration Register. */
+#define BCM43xx_PCICFG_ACTIVE_CORE	0x80
 /* SPROM control register. */
 #define BCM43xx_PCICFG_SPROMCTL		0x88
+/* Interrupt Control PCI Configuration Register. (Only on PCI cores with rev >= 6) */
+#define BCM43xx_PCICFG_ICR		0x94
 
 /* MMIO offsets */
 #define BCM43xx_MMIO_DMA1_REASON	0x20
