@@ -15,7 +15,7 @@ The project page is http://bcm43xx.berlios.de/
 Requirements
 ------------
 
-1)	Linux Kernel 2.6.15 or later
+1)	Linux Kernel 2.6.16 or later
 	http://www.kernel.org/
 
 	You may want to configure your kernel with:
