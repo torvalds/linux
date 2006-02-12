@@ -927,7 +927,6 @@ static void __exit pcwd_cleanup_module(void)
 {
 	if (pcwd_private.io_addr)
 		pcwatchdog_exit();
-	return;
 }
 
 module_init(pcwd_init_module);
