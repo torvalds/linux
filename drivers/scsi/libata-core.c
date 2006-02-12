@@ -651,41 +651,41 @@ void ata_dev_select(struct ata_port *ap, unsigned int device,
 
 /**
  *	ata_dump_id - IDENTIFY DEVICE info debugging output
- *	@dev: Device whose IDENTIFY DEVICE page we will dump
+ *	@id: IDENTIFY DEVICE page to dump
  *
- *	Dump selected 16-bit words from a detected device's
- *	IDENTIFY PAGE page.
+ *	Dump selected 16-bit words from the given IDENTIFY DEVICE
+ *	page.
  *
  *	LOCKING:
  *	caller.
  */
 
-static inline void ata_dump_id(const struct ata_device *dev)
+static inline void ata_dump_id(const u16 *id)
 {
 	DPRINTK("49==0x%04x  "
 		"53==0x%04x  "
 		"63==0x%04x  "
 		"64==0x%04x  "
 		"75==0x%04x  \n",
-		dev->id[49],
-		dev->id[53],
-		dev->id[63],
-		dev->id[64],
-		dev->id[75]);
+		id[49],
+		id[53],
+		id[63],
+		id[64],
+		id[75]);
 	DPRINTK("80==0x%04x  "
 		"81==0x%04x  "
 		"82==0x%04x  "
 		"83==0x%04x  "
 		"84==0x%04x  \n",
-		dev->id[80],
-		dev->id[81],
-		dev->id[82],
-		dev->id[83],
-		dev->id[84]);
+		id[80],
+		id[81],
+		id[82],
+		id[83],
+		id[84]);
 	DPRINTK("88==0x%04x  "
 		"93==0x%04x\n",
-		dev->id[88],
-		dev->id[93]);
+		id[88],
+		id[93]);
 }
 
 /*
@@ -1019,7 +1019,7 @@ retry:
 	if (!xfer_modes)
 		xfer_modes = ata_pio_modes(dev);
 
-	ata_dump_id(dev);
+	ata_dump_id(dev->id);
 
 	/* ATA-specific feature tests */
 	if (dev->class == ATA_DEV_ATA) {
@@ -2510,7 +2510,7 @@ static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
 
 	swap_buf_le16(dev->id, ATA_ID_WORDS);
 
-	ata_dump_id(dev);
+	ata_dump_id(dev->id);
 
 	DPRINTK("EXIT\n");
 
