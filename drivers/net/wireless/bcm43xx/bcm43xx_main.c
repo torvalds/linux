@@ -2939,7 +2939,7 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 			core->phy->minlowsigpos[1] = 0;
 			spin_lock_init(&core->phy->lock);
 			core->radio = &bcm->radio[i];
-			core->radio->interfmode = BCM43xx_RADIO_INTERFMODE_AUTOWLAN;
+			core->radio->interfmode = BCM43xx_RADIO_INTERFMODE_NONE;
 			core->radio->channel = 0xFF;
 			core->radio->initial_channel = 0xFF;
 			core->radio->lofcal = 0xFFFF;
@@ -3261,144 +3261,104 @@ static void bcm43xx_softmac_init(struct bcm43xx_private *bcm)
 	ieee80211softmac_start(bcm->net_dev);
 }
 
-static void bcm43xx_periodic_work0_handler(void *d)
+static void bcm43xx_periodic_every120sec(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_private *bcm = d;
-	unsigned long flags;
-	//TODO: unsigned int aci_average;
+	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
 
-	spin_lock_irqsave(&bcm->lock, flags);
+	if (phy->type != BCM43xx_PHYTYPE_G || phy->rev < 2)
+		return;
 
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_G) {
-		//FIXME: aci_average = bcm43xx_update_aci_average(bcm);
-		if (bcm->current_core->radio->aci_enable && bcm->current_core->radio->aci_wlan_automatic) {
-			bcm43xx_mac_suspend(bcm);
-			if (!bcm->current_core->radio->aci_enable &&
-			    1 /*FIXME: We are not scanning? */) {
-				/*FIXME: First add bcm43xx_update_aci_average() before
-				 * uncommenting this: */
-				//if (bcm43xx_radio_aci_scan)
-				//	bcm43xx_radio_set_interference_mitigation(bcm,
-				//	                                          BCM43xx_RADIO_INTERFMODE_MANUALWLAN);
-			} else if (1/*FIXME*/) {
-				//if ((aci_average > 1000) && !(bcm43xx_radio_aci_scan(bcm)))
-				//	bcm43xx_radio_set_interference_mitigation(bcm,
-				//	                                          BCM43xx_RADIO_INTERFMODE_MANUALWLAN);
-			}
-			bcm43xx_mac_enable(bcm);
-		} else if  (bcm->current_core->radio->interfmode == BCM43xx_RADIO_INTERFMODE_NONWLAN) {
-			if (bcm->current_core->phy->rev == 1) {
-				//FIXME: implement rev1 workaround
-			}
-		}
-	}
-	bcm43xx_phy_xmitpower(bcm); //FIXME: unless scanning?
-	//TODO for APHY (temperature?)
-
-	if (likely(!bcm->shutting_down)) {
-		queue_delayed_work(bcm->workqueue, &bcm->periodic_work0,
-				   BCM43xx_PERIODIC_0_DELAY);
-	}
-	spin_unlock_irqrestore(&bcm->lock, flags);
+	bcm43xx_mac_suspend(bcm);
+	bcm43xx_phy_lo_g_measure(bcm);
+	bcm43xx_mac_enable(bcm);
 }
 
-static void bcm43xx_periodic_work1_handler(void *d)
+static void bcm43xx_periodic_every60sec(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_private *bcm = d;
-	unsigned long flags;
-
-	spin_lock_irqsave(&bcm->lock, flags);
-
 	bcm43xx_phy_lo_mark_all_unused(bcm);
 	if (bcm->sprom.boardflags & BCM43xx_BFL_RSSI) {
 		bcm43xx_mac_suspend(bcm);
 		bcm43xx_calc_nrssi_slope(bcm);
 		bcm43xx_mac_enable(bcm);
 	}
-
-	if (likely(!bcm->shutting_down)) {
-		queue_delayed_work(bcm->workqueue, &bcm->periodic_work1,
-				   BCM43xx_PERIODIC_1_DELAY);
-	}
-	spin_unlock_irqrestore(&bcm->lock, flags);
 }
 
-static void bcm43xx_periodic_work2_handler(void *d)
+static void bcm43xx_periodic_every30sec(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_private *bcm = d;
-	unsigned long flags;
-
-	spin_lock_irqsave(&bcm->lock, flags);
-
-	assert(bcm->current_core->phy->type == BCM43xx_PHYTYPE_G);
-	assert(bcm->current_core->phy->rev >= 2);
-
-	bcm43xx_mac_suspend(bcm);
-	bcm43xx_phy_lo_g_measure(bcm);
-	bcm43xx_mac_enable(bcm);
-
-	if (likely(!bcm->shutting_down)) {
-		queue_delayed_work(bcm->workqueue, &bcm->periodic_work2,
-				   BCM43xx_PERIODIC_2_DELAY);
-	}
-	spin_unlock_irqrestore(&bcm->lock, flags);
-}
-
-static void bcm43xx_periodic_work3_handler(void *d)
-{
-	struct bcm43xx_private *bcm = d;
-	unsigned long flags;
-
-	spin_lock_irqsave(&bcm->lock, flags);
-
 	/* Update device statistics. */
 	bcm43xx_calculate_link_quality(bcm);
+}
 
-	if (likely(!bcm->shutting_down)) {
-		queue_delayed_work(bcm->workqueue, &bcm->periodic_work3,
-				   BCM43xx_PERIODIC_3_DELAY);
+static void bcm43xx_periodic_every15sec(struct bcm43xx_private *bcm)
+{
+	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+
+	if (phy->type == BCM43xx_PHYTYPE_G) {
+		//TODO: update_aci_moving_average
+		if (radio->aci_enable && radio->aci_wlan_automatic) {
+			bcm43xx_mac_suspend(bcm);
+			if (!radio->aci_enable && 1 /*TODO: not scanning? */) {
+				if (0 /*TODO: bunch of conditions*/) {
+					bcm43xx_radio_set_interference_mitigation(bcm,
+										  BCM43xx_RADIO_INTERFMODE_MANUALWLAN);
+				}
+			} else if (1/*TODO*/) {
+				/*
+				if ((aci_average > 1000) && !(bcm43xx_radio_aci_scan(bcm))) {
+					bcm43xx_radio_set_interference_mitigation(bcm,
+										  BCM43xx_RADIO_INTERFMODE_NONE);
+				}
+				*/
+			}
+			bcm43xx_mac_enable(bcm);
+		} else if (radio->interfmode == BCM43xx_RADIO_INTERFMODE_NONWLAN &&
+			   phy->rev == 1) {
+			//TODO: implement rev1 workaround
+		}
 	}
+	bcm43xx_phy_xmitpower(bcm); //FIXME: unless scanning?
+	//TODO for APHY (temperature?)
+}
+
+static void bcm43xx_periodic_task_handler(unsigned long d)
+{
+	struct bcm43xx_private *bcm = (struct bcm43xx_private *)d;
+	unsigned long flags;
+	unsigned int state;
+
+	spin_lock_irqsave(&bcm->lock, flags);
+
+	assert(bcm->initialized);
+	state = bcm->periodic_state;
+	if (state % 8 == 0)
+		bcm43xx_periodic_every120sec(bcm);
+	if (state % 4 == 0)
+		bcm43xx_periodic_every60sec(bcm);
+	if (state % 2 == 0)
+		bcm43xx_periodic_every30sec(bcm);
+	bcm43xx_periodic_every15sec(bcm);
+	bcm->periodic_state = state + 1;
+
+	mod_timer(&bcm->periodic_tasks, jiffies + (HZ * 15));
+
 	spin_unlock_irqrestore(&bcm->lock, flags);
 }
 
-/* Delete all periodic tasks and make
- * sure they are not running any longer
- */
 static void bcm43xx_periodic_tasks_delete(struct bcm43xx_private *bcm)
 {
-	cancel_delayed_work(&bcm->periodic_work0);
-	cancel_delayed_work(&bcm->periodic_work1);
-	cancel_delayed_work(&bcm->periodic_work2);
-	cancel_delayed_work(&bcm->periodic_work3);
-	flush_workqueue(bcm->workqueue);
+	del_timer_sync(&bcm->periodic_tasks);
 }
 
-/* Setup all periodic tasks. */
 static void bcm43xx_periodic_tasks_setup(struct bcm43xx_private *bcm)
 {
-	INIT_WORK(&bcm->periodic_work0, bcm43xx_periodic_work0_handler, bcm);
-	INIT_WORK(&bcm->periodic_work1, bcm43xx_periodic_work1_handler, bcm);
-	INIT_WORK(&bcm->periodic_work2, bcm43xx_periodic_work2_handler, bcm);
-	INIT_WORK(&bcm->periodic_work3, bcm43xx_periodic_work3_handler, bcm);
+	struct timer_list *timer = &(bcm->periodic_tasks);
 
-	/* Periodic task 0: Delay ~15sec */
-	queue_delayed_work(bcm->workqueue, &bcm->periodic_work0,
-			   BCM43xx_PERIODIC_0_DELAY);
-
-	/* Periodic task 1: Delay ~60sec */
-	queue_delayed_work(bcm->workqueue, &bcm->periodic_work1,
-			   BCM43xx_PERIODIC_1_DELAY);
-
-	/* Periodic task 2: Delay ~120sec */
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_G &&
-	    bcm->current_core->phy->rev >= 2) {
-		queue_delayed_work(bcm->workqueue, &bcm->periodic_work2,
-				   BCM43xx_PERIODIC_2_DELAY);
-	}
-
-	/* Periodic task 3: Delay ~30sec */
-	queue_delayed_work(bcm->workqueue, &bcm->periodic_work3,
-			   BCM43xx_PERIODIC_3_DELAY);
+	setup_timer(timer,
+		    bcm43xx_periodic_task_handler,
+		    (unsigned long)bcm);
+	timer->expires = jiffies;
+	add_timer(timer);
 }
 
 static void bcm43xx_security_init(struct bcm43xx_private *bcm)
@@ -3414,12 +3374,12 @@ static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 	int i, err;
 	unsigned long flags;
 
+	bcm43xx_periodic_tasks_delete(bcm);
+
 	spin_lock_irqsave(&bcm->lock, flags);
 	bcm->initialized = 0;
 	bcm->shutting_down = 1;
 	spin_unlock_irqrestore(&bcm->lock, flags);
-
-	bcm43xx_periodic_tasks_delete(bcm);
 
 	for (i = 0; i < BCM43xx_MAX_80211_CORES; i++) {
 		if (!(bcm->core_80211[i].flags & BCM43xx_COREFLAG_AVAILABLE))
@@ -4163,13 +4123,11 @@ static int bcm43xx_net_stop(struct net_device *net_dev)
 
 static int bcm43xx_init_private(struct bcm43xx_private *bcm,
 				struct net_device *net_dev,
-				struct pci_dev *pci_dev,
-				struct workqueue_struct *wq)
+				struct pci_dev *pci_dev)
 {
 	bcm->ieee = netdev_priv(net_dev);
 	bcm->softmac = ieee80211_priv(net_dev);
 	bcm->softmac->set_channel = bcm43xx_ieee80211_set_chan;
-	bcm->workqueue = wq;
 
 #ifdef DEBUG_ENABLE_MMIO_PRINT
 	bcm43xx_mmioprint_initial(bcm, 1);
@@ -4226,7 +4184,6 @@ static int __devinit bcm43xx_init_one(struct pci_dev *pdev,
 {
 	struct net_device *net_dev;
 	struct bcm43xx_private *bcm;
-	struct workqueue_struct *wq;
 	int err;
 
 #ifdef CONFIG_BCM947XX
@@ -4265,20 +4222,15 @@ static int __devinit bcm43xx_init_one(struct pci_dev *pdev,
 	/* initialize the bcm43xx_private struct */
 	bcm = bcm43xx_priv(net_dev);
 	memset(bcm, 0, sizeof(*bcm));
-	wq = create_workqueue(KBUILD_MODNAME "_wq");
-	if (!wq) {
-		err = -ENOMEM;
-		goto err_free_netdev;
-	}
-	err = bcm43xx_init_private(bcm, net_dev, pdev, wq);
+	err = bcm43xx_init_private(bcm, net_dev, pdev);
 	if (err)
-		goto err_destroy_wq;
+		goto err_free_netdev;
 
 	pci_set_drvdata(pdev, net_dev);
 
 	err = bcm43xx_attach_board(bcm);
 	if (err)
-		goto err_destroy_wq;
+		goto err_free_netdev;
 
 	err = register_netdev(net_dev);
 	if (err) {
@@ -4296,8 +4248,6 @@ out:
 
 err_detach_board:
 	bcm43xx_detach_board(bcm);
-err_destroy_wq:
-	destroy_workqueue(wq);
 err_free_netdev:
 	free_ieee80211softmac(net_dev);
 	goto out;
@@ -4312,7 +4262,6 @@ static void __devexit bcm43xx_remove_one(struct pci_dev *pdev)
 	unregister_netdev(net_dev);
 	bcm43xx_detach_board(bcm);
 	assert(bcm->ucode == NULL);
-	destroy_workqueue(bcm->workqueue);
 	free_ieee80211softmac(net_dev);
 }
 
@@ -4324,7 +4273,6 @@ static void bcm43xx_chip_reset(void *_bcm)
 	struct bcm43xx_private *bcm = _bcm;
 	struct net_device *net_dev = bcm->net_dev;
 	struct pci_dev *pci_dev = bcm->pci_dev;
-	struct workqueue_struct *wq = bcm->workqueue;
 	int err;
 	int was_initialized = bcm->initialized;
 
@@ -4336,7 +4284,7 @@ static void bcm43xx_chip_reset(void *_bcm)
 		bcm43xx_free_board(bcm);
 	bcm->firmware_norelease = 0;
 	bcm43xx_detach_board(bcm);
-	err = bcm43xx_init_private(bcm, net_dev, pci_dev, wq);
+	err = bcm43xx_init_private(bcm, net_dev, pci_dev);
 	if (err)
 		goto failure;
 	err = bcm43xx_attach_board(bcm);
@@ -4364,7 +4312,7 @@ void bcm43xx_controller_restart(struct bcm43xx_private *bcm, const char *reason)
 	bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
 	printk(KERN_ERR PFX "Controller RESET (%s) ...\n", reason);
 	INIT_WORK(&bcm->restart_work, bcm43xx_chip_reset, bcm);
-	queue_work(bcm->workqueue, &bcm->restart_work);
+	schedule_work(&bcm->restart_work);
 }
 
 #ifdef CONFIG_PM

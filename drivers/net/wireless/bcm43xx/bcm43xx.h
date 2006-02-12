@@ -418,7 +418,6 @@ enum {
 
 struct net_device;
 struct pci_dev;
-struct workqueue_struct;
 struct bcm43xx_dmaring;
 struct bcm43xx_pioqueue;
 
@@ -706,18 +705,10 @@ struct bcm43xx_private {
 
 	/* Interrupt Service Routine tasklet (bottom-half) */
 	struct tasklet_struct isr_tasklet;
-	/* Custom driver work queue. */
-	struct workqueue_struct *workqueue;
 
 	/* Periodic tasks */
-	struct work_struct periodic_work0;
-#define BCM43xx_PERIODIC_0_DELAY		(HZ * 15)
-	struct work_struct periodic_work1;
-#define BCM43xx_PERIODIC_1_DELAY		((HZ * 60) + HZ / 2)
-	struct work_struct periodic_work2;
-#define BCM43xx_PERIODIC_2_DELAY		((HZ * 120) + HZ)
-	struct work_struct periodic_work3;
-#define BCM43xx_PERIODIC_3_DELAY		((HZ * 30) + HZ / 5)
+	struct timer_list periodic_tasks;
+	unsigned int periodic_state;
 
 	struct work_struct restart_work;
 
