@@ -75,7 +75,8 @@ NGclear_user_page:	/* %o0=dest, %o1=vaddr */
 	or	%g2, %lo(OLD), %g2; \
 	sub	%g1, %g2, %g1; \
 	sethi	%hi(BRANCH_ALWAYS), %g3; \
-	srl	%g1, 2, %g1; \
+	sll	%g1, 11, %g1; \
+	srl	%g1, 11 + 2, %g1; \
 	or	%g3, %lo(BRANCH_ALWAYS), %g3; \
 	or	%g3, %g1, %g3; \
 	stw	%g3, [%g2]; \
