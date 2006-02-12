@@ -1943,7 +1943,7 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 			bcm43xx_pio_rx(bcm->current_core->pio->queue0);
 		else
 			bcm43xx_dma_rx(bcm->current_core->dma->rx_ring0);
-		activity = 1;
+		/* We intentionally don't set "activity" to 1, here. */
 	}
 	if (dma_reason[3] & BCM43xx_DMAIRQ_RX_DONE) {
 		if (likely(bcm->current_core->rev < 5)) {

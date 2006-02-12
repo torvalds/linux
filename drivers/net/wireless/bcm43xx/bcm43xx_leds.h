@@ -16,7 +16,7 @@ struct bcm43xx_led {
 #define bcm43xx_led_index(led)	((int)((led) - (led)->bcm->leds))
 
 /* Delay between state changes when blinking in jiffies */
-#define BCM43xx_LEDBLINK_SLOW		(HZ / 2)
+#define BCM43xx_LEDBLINK_SLOW		(HZ / 1)
 #define BCM43xx_LEDBLINK_MEDIUM		(HZ / 4)
 #define BCM43xx_LEDBLINK_FAST		(HZ / 8)
 
@@ -37,6 +37,15 @@ enum { /* LED behaviour values */
 	BCM43xx_LED_WEIRD,//FIXME
 	BCM43xx_LED_ASSOC,
 	BCM43xx_LED_INACTIVE,
+
+	/* Behaviour values for testing.
+	 * With these values it is easier to figure out
+	 * the real behaviour of leds, in case the SPROM
+	 * is missing information.
+	 */
+	BCM43xx_LED_TEST_BLINKSLOW,
+	BCM43xx_LED_TEST_BLINKMEDIUM,
+	BCM43xx_LED_TEST_BLINKFAST,
 };
 
 int bcm43xx_leds_init(struct bcm43xx_private *bcm);

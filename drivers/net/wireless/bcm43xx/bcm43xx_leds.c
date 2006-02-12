@@ -35,12 +35,13 @@ static void bcm43xx_led_changestate(struct bcm43xx_led *led)
 {
 	struct bcm43xx_private *bcm = led->bcm;
 	const int index = bcm43xx_led_index(led);
+	const u16 mask = (1 << index);
 	u16 ledctl;
 
 	assert(index >= 0 && index < BCM43xx_NR_LEDS);
 	assert(led->blink_interval);
 	ledctl = bcm43xx_read16(bcm, BCM43xx_MMIO_GPIO_CONTROL);
-	__change_bit(index, (unsigned long *)(&ledctl));
+	ledctl = (ledctl & mask) ? (ledctl & ~mask) : (ledctl | mask);
 	bcm43xx_write16(bcm, BCM43xx_MMIO_GPIO_CONTROL, ledctl);
 }
 
@@ -61,6 +62,8 @@ static void bcm43xx_led_blink(unsigned long d)
 static void bcm43xx_led_blink_start(struct bcm43xx_led *led,
 				    unsigned long interval)
 {
+	if (led->blink_interval)
+		return;
 	led->blink_interval = interval;
 	bcm43xx_led_changestate(led);
 	led->blink_timer.expires = jiffies + interval;
@@ -91,6 +94,39 @@ static void bcm43xx_led_blink_stop(struct bcm43xx_led *led, int sync)
 	bcm43xx_write16(bcm, BCM43xx_MMIO_GPIO_CONTROL, ledctl);
 }
 
+static void bcm43xx_led_init_hardcoded(struct bcm43xx_private *bcm,
+				       struct bcm43xx_led *led,
+				       int led_index)
+{
+	/* This function is called, if the behaviour (and activelow)
+	 * information for a LED is missing in the SPROM.
+	 * We hardcode the behaviour values for various devices here.
+	 * Note that the BCM43xx_LED_TEST_XXX behaviour values can
+	 * be used to figure out which led is mapped to which index.
+	 */
+
+	switch (led_index) {
+	case 0:
+		led->behaviour = BCM43xx_LED_ACTIVITY;
+		if (bcm->board_vendor == PCI_VENDOR_ID_COMPAQ)
+			led->behaviour = BCM43xx_LED_RADIO_ALL;
+		break;
+	case 1:
+		led->behaviour = BCM43xx_LED_RADIO_B;
+		if (bcm->board_vendor == PCI_VENDOR_ID_ASUSTEK)
+			led->behaviour = BCM43xx_LED_ASSOC;
+		break;
+	case 2:
+		led->behaviour = BCM43xx_LED_RADIO_A;
+		break;
+	case 3:
+		led->behaviour = BCM43xx_LED_OFF;
+		break;
+	default:
+		assert(0);
+	}
+}
+
 int bcm43xx_leds_init(struct bcm43xx_private *bcm)
 {
 	struct bcm43xx_led *led;
@@ -105,31 +141,12 @@ int bcm43xx_leds_init(struct bcm43xx_private *bcm)
 	for (i = 0; i < BCM43xx_NR_LEDS; i++) {
 		led = &(bcm->leds[i]);
 		led->bcm = bcm;
-		init_timer(&led->blink_timer);
-		led->blink_timer.data = (unsigned long)led;
-		led->blink_timer.function = bcm43xx_led_blink;
+		setup_timer(&led->blink_timer,
+			    bcm43xx_led_blink,
+			    (unsigned long)led);
 
 		if (sprom[i] == 0xFF) {
-			/* SPROM information not set. */
-			switch (i) {
-			case 0:
-				if (bcm->board_vendor == PCI_VENDOR_ID_COMPAQ)
-					led->behaviour = BCM43xx_LED_RADIO_ALL;
-				else
-					led->behaviour = BCM43xx_LED_ACTIVITY;
-				break;
-			case 1:
-				led->behaviour = BCM43xx_LED_RADIO_B;
-				break;
-			case 2:
-				led->behaviour = BCM43xx_LED_RADIO_A;
-				break;
-			case 3:
-				led->behaviour = BCM43xx_LED_OFF;
-				break;
-			default:
-				assert(0);
-			}
+			bcm43xx_led_init_hardcoded(bcm, led, i);
 		} else {
 			led->behaviour = sprom[i] & BCM43xx_LED_BEHAVIOUR;
 			led->activelow = !!(sprom[i] & BCM43xx_LED_ACTIVELOW);
@@ -157,19 +174,19 @@ void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity)
 	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
 	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
 	const int transferring = (jiffies - bcm->stats.last_tx) < BCM43xx_LED_XFER_THRES;
-	int i, turn_on = 0;
+	int i, turn_on;
 	unsigned long interval = 0;
 	u16 ledctl;
 
 	ledctl = bcm43xx_read16(bcm, BCM43xx_MMIO_GPIO_CONTROL);
 	for (i = 0; i < BCM43xx_NR_LEDS; i++) {
 		led = &(bcm->leds[i]);
-		if (led->behaviour == BCM43xx_LED_INACTIVE)
-			continue;
 
+		turn_on = 0;
 		switch (led->behaviour) {
+		case BCM43xx_LED_INACTIVE:
+			continue;
 		case BCM43xx_LED_OFF:
-			turn_on = 0;
 			break;
 		case BCM43xx_LED_ON:
 			turn_on = 1;
@@ -189,7 +206,6 @@ void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity)
 				    phy->type == BCM43xx_PHYTYPE_G));
 			break;
 		case BCM43xx_LED_MODE_BG:
-			turn_on = 0;
 			if (phy->type == BCM43xx_PHYTYPE_G &&
 			    1/*FIXME: using G rates.*/)
 				turn_on = 1;
@@ -222,12 +238,22 @@ void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity)
 			continue;
 		case BCM43xx_LED_WEIRD:
 			//TODO
-			turn_on = 0;
 			break;
 		case BCM43xx_LED_ASSOC:
-			if (1/*TODO: associated*/)
+			if (bcm->softmac->associated)
 				turn_on = 1;
 			break;
+#ifdef CONFIG_BCM43XX_DEBUG
+		case BCM43xx_LED_TEST_BLINKSLOW:
+			bcm43xx_led_blink_start(led, BCM43xx_LEDBLINK_SLOW);
+			continue;
+		case BCM43xx_LED_TEST_BLINKMEDIUM:
+			bcm43xx_led_blink_start(led, BCM43xx_LEDBLINK_MEDIUM);
+			continue;
+		case BCM43xx_LED_TEST_BLINKFAST:
+			bcm43xx_led_blink_start(led, BCM43xx_LEDBLINK_FAST);
+			continue;
+#endif /* CONFIG_BCM43XX_DEBUG */
 		default:
 			assert(0);
 		};
