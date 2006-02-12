@@ -158,6 +158,13 @@ static struct {				/* this is private data for each ISA-PC watchdog card */
 } pcwd_private;
 
 /* module parameters */
+#define QUIET	0	/* Default */
+#define VERBOSE	1	/* Verbose */
+#define DEBUG	2	/* print fancy stuff too */
+static int debug = QUIET;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "Debug level: 0=Quiet, 1=Verbose, 2=Debug (default=0)");
+
 #define WATCHDOG_HEARTBEAT 60		/* 60 sec default heartbeat */
 static int heartbeat = WATCHDOG_HEARTBEAT;
 module_param(heartbeat, int, 0);
@@ -177,6 +184,10 @@ static int send_isa_command(int cmd)
 	int control_status;
 	int port0, last_port0;	/* Double read for stabilising */
 
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "sending following data cmd=0x%02x\n",
+			cmd);
+
 	/* The WCMD bit must be 1 and the command is only 4 bits in size */
 	control_status = (cmd & 0x0F) | WD_WCMD;
 	outb_p(control_status, pcwd_private.io_addr + 2);
@@ -192,6 +203,10 @@ static int send_isa_command(int cmd)
 
 		udelay (250);
 	}
+
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "received following data for cmd=0x%02x: port0=0x%02x last_port0=0x%02x\n",
+			cmd, port0, last_port0);
 
 	return port0;
 }
@@ -219,6 +234,10 @@ static int set_command_mode(void)
 	spin_unlock(&pcwd_private.io_lock);
 	pcwd_private.command_mode = found;
 
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "command_mode=%d\n",
+				pcwd_private.command_mode);
+
 	return(found);
 }
 
@@ -231,6 +250,10 @@ static void unset_command_mode(void)
 	spin_unlock(&pcwd_private.io_lock);
 
 	pcwd_private.command_mode = 0;
+
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "command_mode=%d\n",
+				pcwd_private.command_mode);
 }
 
 static inline void pcwd_check_temperature_support(void)
@@ -360,6 +383,10 @@ static int pcwd_start(void)
 			return -EIO;
 		}
 	}
+
+	if (debug >= VERBOSE)
+		printk(KERN_DEBUG PFX "Watchdog started\n");
+
 	return 0;
 }
 
@@ -384,6 +411,10 @@ static int pcwd_stop(void)
 			return -EIO;
 		}
 	}
+
+	if (debug >= VERBOSE)
+		printk(KERN_DEBUG PFX "Watchdog stopped\n");
+
 	return 0;
 }
 
@@ -391,6 +422,10 @@ static int pcwd_keepalive(void)
 {
 	/* user land ping */
 	pcwd_private.next_heartbeat = jiffies + (heartbeat * HZ);
+
+	if (debug >= DEBUG)
+		printk(KERN_DEBUG PFX "Watchdog keepalive signal send\n");
+
 	return 0;
 }
 
@@ -400,6 +435,11 @@ static int pcwd_set_heartbeat(int t)
 		return -EINVAL;
 
 	heartbeat = t;
+
+	if (debug >= VERBOSE)
+		printk(KERN_DEBUG PFX "New heartbeat: %d\n",
+		       heartbeat);
+
 	return 0;
 }
 
@@ -458,7 +498,16 @@ static int pcwd_clear_status(void)
 	if (pcwd_private.revision == PCWD_REVISION_C) {
 		spin_lock(&pcwd_private.io_lock);
 
+		if (debug >= VERBOSE)
+			printk(KERN_INFO PFX "clearing watchdog trip status\n");
+
 		control_status = inb_p(pcwd_private.io_addr + 1);
+
+		if (debug >= DEBUG) {
+			printk(KERN_DEBUG PFX "status was: 0x%02x\n", control_status);
+			printk(KERN_DEBUG PFX "sending: 0x%02x\n",
+				(control_status & WD_REVC_R2DS));
+		}
 
 		/* clear reset status & Keep Relay 2 disable state as it is */
 		outb_p((control_status & WD_REVC_R2DS), pcwd_private.io_addr + 1);
@@ -485,6 +534,11 @@ static int pcwd_get_temperature(int *temperature)
 	spin_lock(&pcwd_private.io_lock);
 	*temperature = ((inb(pcwd_private.io_addr)) * 9 / 5) + 32;
 	spin_unlock(&pcwd_private.io_lock);
+
+	if (debug >= DEBUG) {
+		printk(KERN_DEBUG PFX "temperature is: %d F\n",
+			*temperature);
+	}
 
 	return 0;
 }
@@ -604,6 +658,8 @@ static ssize_t pcwd_write(struct file *file, const char __user *buf, size_t len,
 static int pcwd_open(struct inode *inode, struct file *file)
 {
 	if (!atomic_dec_and_test(&open_allowed) ) {
+		if (debug >= VERBOSE)
+			printk(KERN_ERR PFX "Attempt to open already opened device.\n");
 		atomic_inc( &open_allowed );
 		return -EBUSY;
 	}
