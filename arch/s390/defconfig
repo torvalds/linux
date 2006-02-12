@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16-rc1
-# Thu Jan 19 10:58:53 2006
+# Linux kernel version: 2.6.16-rc2
+# Wed Feb  8 10:44:39 2006
 #
 CONFIG_MMU=y
 CONFIG_RWSEM_XCHGADD_ALGORITHM=y
@@ -12,7 +12,6 @@ CONFIG_S390=y
 # Code maturity level options
 #
 CONFIG_EXPERIMENTAL=y
-CONFIG_CLEAN_COMPILE=y
 CONFIG_LOCK_KERNEL=y
 CONFIG_INIT_ENV_ARG_LIMIT=32
 
@@ -154,6 +153,7 @@ CONFIG_NET=y
 #
 # Networking options
 #
+# CONFIG_NETDEBUG is not set
 CONFIG_PACKET=y
 # CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
@@ -607,6 +607,7 @@ CONFIG_MSDOS_PARTITION=y
 # Instrumentation Support
 #
 # CONFIG_PROFILING is not set
+# CONFIG_STATISTICS is not set
 
 #
 # Kernel hacking
@@ -624,7 +625,7 @@ CONFIG_DEBUG_MUTEXES=y
 # CONFIG_DEBUG_SPINLOCK_SLEEP is not set
 # CONFIG_DEBUG_KOBJECT is not set
 # CONFIG_DEBUG_INFO is not set
-# CONFIG_DEBUG_FS is not set
+CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_VM is not set
 CONFIG_FORCED_INLINING=y
 # CONFIG_RCU_TORTURE_TEST is not set
