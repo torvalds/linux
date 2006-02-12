@@ -6,9 +6,10 @@
 	 nop					! Delay slot (fill me)
 	TSB_LOAD_QUAD(%g1, %g4)			! Load TSB entry
 	cmp	%g4, %g6			! Compare TAG
-	sethi	%hi(_PAGE_EXEC), %g4		! Setup exec check
+	sethi	%hi(PAGE_EXEC), %g4		! Setup exec check
 
 /* ITLB ** ICACHE line 2: TSB compare and TLB load	*/
+	ldx	[%g4 + %lo(PAGE_EXEC)], %g4
 	bne,pn	%xcc, tsb_miss_itlb		! Miss
 	 mov	FAULT_CODE_ITLB, %g3
 	andcc	%g5, %g4, %g0			! Executable?
@@ -16,7 +17,6 @@
 	 nop					! Delay slot, fill me
 	stxa	%g5, [%g0] ASI_ITLB_DATA_IN	! Load TLB
 	retry					! Trap done
-	nop
 
 /* ITLB ** ICACHE line 3: 				*/
 	nop

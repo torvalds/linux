@@ -6,6 +6,7 @@
  */
  
 #include <linux/config.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -118,6 +119,7 @@ unsigned long phys_base __read_mostly;
 unsigned long kern_base __read_mostly;
 unsigned long kern_size __read_mostly;
 unsigned long pfn_base __read_mostly;
+unsigned long kern_linear_pte_xor __read_mostly;
 
 /* get_new_mmu_context() uses "cache + 1".  */
 DEFINE_SPINLOCK(ctx_alloc_lock);
@@ -255,6 +257,9 @@ static inline void tsb_insert(struct tsb *ent, unsigned long tag, unsigned long 
 
 	__tsb_insert(tsb_addr, tag, pte);
 }
+
+unsigned long _PAGE_ALL_SZ_BITS __read_mostly;
+unsigned long _PAGE_SZBITS __read_mostly;
 
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
@@ -398,38 +403,8 @@ struct linux_prom_translation {
 struct linux_prom_translation prom_trans[512] __read_mostly;
 unsigned int prom_trans_ents __read_mostly;
 
-extern unsigned long prom_boot_page;
-extern void prom_remap(unsigned long physpage, unsigned long virtpage, int mmu_ihandle);
-extern int prom_get_mmu_ihandle(void);
-extern void register_prom_callbacks(void);
-
 /* Exported for SMP bootup purposes. */
 unsigned long kern_locked_tte_data;
-
-/*
- * Translate PROM's mapping we capture at boot time into physical address.
- * The second parameter is only set from prom_callback() invocations.
- */
-unsigned long prom_virt_to_phys(unsigned long promva, int *error)
-{
-	int i;
-
-	for (i = 0; i < prom_trans_ents; i++) {
-		struct linux_prom_translation *p = &prom_trans[i];
-
-		if (promva >= p->virt &&
-		    promva < (p->virt + p->size)) {
-			unsigned long base = p->data & _PAGE_PADDR;
-
-			if (error)
-				*error = 0;
-			return base + (promva & (8192 - 1));
-		}
-	}
-	if (error)
-		*error = 1;
-	return 0UL;
-}
 
 /* The obp translations are saved based on 8k pagesize, since obp can
  * use a mixture of pagesizes. Misses to the LOW_OBP_ADDRESS ->
@@ -537,6 +512,8 @@ static void __init hypervisor_tlb_lock(unsigned long vaddr,
 			       "3" (arg2), "4" (arg3));
 }
 
+static unsigned long kern_large_tte(unsigned long paddr);
+
 static void __init remap_kernel(void)
 {
 	unsigned long phys_page, tte_vaddr, tte_data;
@@ -544,9 +521,7 @@ static void __init remap_kernel(void)
 
 	tte_vaddr = (unsigned long) KERNBASE;
 	phys_page = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
-	tte_data = (phys_page | (_PAGE_VALID | _PAGE_SZ4MB |
-				 _PAGE_CP | _PAGE_CV | _PAGE_P |
-				 _PAGE_L | _PAGE_W));
+	tte_data = kern_large_tte(phys_page);
 
 	kern_locked_tte_data = tte_data;
 
@@ -591,10 +566,6 @@ static void __init inherit_prom_mappings(void)
 	prom_printf("Remapping the kernel... ");
 	remap_kernel();
 	prom_printf("done.\n");
-
-	prom_printf("Registering callbacks... ");
-	register_prom_callbacks();
-	prom_printf("done.\n");
 }
 
 void prom_world(int enter)
@@ -630,63 +601,6 @@ void __flush_dcache_range(unsigned long start, unsigned long end)
 	}
 }
 #endif /* DCACHE_ALIASING_POSSIBLE */
-
-/* If not locked, zap it. */
-void __flush_tlb_all(void)
-{
-	unsigned long pstate;
-	int i;
-
-	__asm__ __volatile__("flushw\n\t"
-			     "rdpr	%%pstate, %0\n\t"
-			     "wrpr	%0, %1, %%pstate"
-			     : "=r" (pstate)
-			     : "i" (PSTATE_IE));
-	if (tlb_type == spitfire) {
-		for (i = 0; i < 64; i++) {
-			/* Spitfire Errata #32 workaround */
-			/* NOTE: Always runs on spitfire, so no
-			 *       cheetah+ page size encodings.
-			 */
-			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-					     "flush	%%g6"
-					     : /* No outputs */
-					     : "r" (0),
-					     "r" (PRIMARY_CONTEXT), "i" (ASI_DMMU));
-
-			if (!(spitfire_get_dtlb_data(i) & _PAGE_L)) {
-				__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
-						     "membar #Sync"
-						     : /* no outputs */
-						     : "r" (TLB_TAG_ACCESS), "i" (ASI_DMMU));
-				spitfire_put_dtlb_data(i, 0x0UL);
-			}
-
-			/* Spitfire Errata #32 workaround */
-			/* NOTE: Always runs on spitfire, so no
-			 *       cheetah+ page size encodings.
-			 */
-			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-					     "flush	%%g6"
-					     : /* No outputs */
-					     : "r" (0),
-					     "r" (PRIMARY_CONTEXT), "i" (ASI_DMMU));
-
-			if (!(spitfire_get_itlb_data(i) & _PAGE_L)) {
-				__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
-						     "membar #Sync"
-						     : /* no outputs */
-						     : "r" (TLB_TAG_ACCESS), "i" (ASI_IMMU));
-				spitfire_put_itlb_data(i, 0x0UL);
-			}
-		}
-	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		cheetah_flush_dtlb_all();
-		cheetah_flush_itlb_all();
-	}
-	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
-			     : : "r" (pstate));
-}
 
 /* Caller does TLB context flushing on local CPU if necessary.
  * The caller also ensures that CTX_VALID(mm->context) is false.
@@ -1180,6 +1094,9 @@ extern void sun4v_patch_tlb_handlers(void);
 static unsigned long last_valid_pfn;
 pgd_t swapper_pg_dir[2048];
 
+static void sun4u_pgprot_init(void);
+static void sun4v_pgprot_init(void);
+
 void __init paging_init(void)
 {
 	unsigned long end_pfn, pages_avail, shift;
@@ -1187,6 +1104,11 @@ void __init paging_init(void)
 
 	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
 	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
+
+	if (tlb_type == hypervisor)
+		sun4v_pgprot_init();
+	else
+		sun4u_pgprot_init();
 
 	if (tlb_type == cheetah_plus ||
 	    tlb_type == hypervisor)
@@ -1411,3 +1333,596 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 	}
 }
 #endif
+
+/* SUN4U pte bits... */
+#define _PAGE_SZ4MB_4U	  0x6000000000000000 /* 4MB Page               */
+#define _PAGE_SZ512K_4U	  0x4000000000000000 /* 512K Page              */
+#define _PAGE_SZ64K_4U	  0x2000000000000000 /* 64K Page               */
+#define _PAGE_SZ8K_4U	  0x0000000000000000 /* 8K Page                */
+#define _PAGE_NFO_4U	  0x1000000000000000 /* No Fault Only          */
+#define _PAGE_IE_4U	  0x0800000000000000 /* Invert Endianness      */
+#define _PAGE_SOFT2_4U	  0x07FC000000000000 /* Software bits, set 2   */
+#define _PAGE_RES1_4U	  0x0002000000000000 /* Reserved               */
+#define _PAGE_SZ32MB_4U	  0x0001000000000000 /* (Panther) 32MB page    */
+#define _PAGE_SZ256MB_4U  0x2001000000000000 /* (Panther) 256MB page   */
+#define _PAGE_SN_4U	  0x0000800000000000 /* (Cheetah) Snoop        */
+#define _PAGE_RES2_4U	  0x0000780000000000 /* Reserved               */
+#define _PAGE_PADDR_4U	  0x000007FFFFFFE000 /* (Cheetah) paddr[42:13] */
+#define _PAGE_SOFT_4U	  0x0000000000001F80 /* Software bits:         */
+#define _PAGE_EXEC_4U	  0x0000000000001000 /* Executable SW bit      */
+#define _PAGE_MODIFIED_4U 0x0000000000000800 /* Modified (dirty)       */
+#define _PAGE_FILE_4U	  0x0000000000000800 /* Pagecache page         */
+#define _PAGE_ACCESSED_4U 0x0000000000000400 /* Accessed (ref'd)       */
+#define _PAGE_READ_4U	  0x0000000000000200 /* Readable SW Bit        */
+#define _PAGE_WRITE_4U	  0x0000000000000100 /* Writable SW Bit        */
+#define _PAGE_PRESENT_4U  0x0000000000000080 /* Present                */
+#define _PAGE_L_4U	  0x0000000000000040 /* Locked TTE             */
+#define _PAGE_CP_4U	  0x0000000000000020 /* Cacheable in P-Cache   */
+#define _PAGE_CV_4U	  0x0000000000000010 /* Cacheable in V-Cache   */
+#define _PAGE_E_4U	  0x0000000000000008 /* side-Effect            */
+#define _PAGE_P_4U	  0x0000000000000004 /* Privileged Page        */
+#define _PAGE_W_4U	  0x0000000000000002 /* Writable               */
+
+/* SUN4V pte bits... */
+#define _PAGE_NFO_4V	  0x4000000000000000 /* No Fault Only          */
+#define _PAGE_SOFT2_4V	  0x3F00000000000000 /* Software bits, set 2   */
+#define _PAGE_MODIFIED_4V 0x2000000000000000 /* Modified (dirty)       */
+#define _PAGE_ACCESSED_4V 0x1000000000000000 /* Accessed (ref'd)       */
+#define _PAGE_READ_4V	  0x0800000000000000 /* Readable SW Bit        */
+#define _PAGE_WRITE_4V	  0x0400000000000000 /* Writable SW Bit        */
+#define _PAGE_PADDR_4V	  0x00FFFFFFFFFFE000 /* paddr[55:13]           */
+#define _PAGE_IE_4V	  0x0000000000001000 /* Invert Endianness      */
+#define _PAGE_E_4V	  0x0000000000000800 /* side-Effect            */
+#define _PAGE_CP_4V	  0x0000000000000400 /* Cacheable in P-Cache   */
+#define _PAGE_CV_4V	  0x0000000000000200 /* Cacheable in V-Cache   */
+#define _PAGE_P_4V	  0x0000000000000100 /* Privileged Page        */
+#define _PAGE_EXEC_4V	  0x0000000000000080 /* Executable Page        */
+#define _PAGE_W_4V	  0x0000000000000040 /* Writable               */
+#define _PAGE_SOFT_4V	  0x0000000000000030 /* Software bits          */
+#define _PAGE_FILE_4V	  0x0000000000000020 /* Pagecache page         */
+#define _PAGE_PRESENT_4V  0x0000000000000010 /* Present                */
+#define _PAGE_RESV_4V	  0x0000000000000008 /* Reserved               */
+#define _PAGE_SZ16GB_4V	  0x0000000000000007 /* 16GB Page              */
+#define _PAGE_SZ2GB_4V	  0x0000000000000006 /* 2GB Page               */
+#define _PAGE_SZ256MB_4V  0x0000000000000005 /* 256MB Page             */
+#define _PAGE_SZ32MB_4V	  0x0000000000000004 /* 32MB Page              */
+#define _PAGE_SZ4MB_4V	  0x0000000000000003 /* 4MB Page               */
+#define _PAGE_SZ512K_4V	  0x0000000000000002 /* 512K Page              */
+#define _PAGE_SZ64K_4V	  0x0000000000000001 /* 64K Page               */
+#define _PAGE_SZ8K_4V	  0x0000000000000000 /* 8K Page                */
+
+#if PAGE_SHIFT == 13
+#define _PAGE_SZBITS_4U	_PAGE_SZ8K_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ8K_4V
+#elif PAGE_SHIFT == 16
+#define _PAGE_SZBITS_4U	_PAGE_SZ64K_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ64K_4V
+#elif PAGE_SHIFT == 19
+#define _PAGE_SZBITS_4U	_PAGE_SZ512K_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ512K_4V
+#elif PAGE_SHIFT == 22
+#define _PAGE_SZBITS_4U	_PAGE_SZ4MB_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ4MB_4V
+#else
+#error Wrong PAGE_SHIFT specified
+#endif
+
+#if defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
+#define _PAGE_SZHUGE_4U	_PAGE_SZ4MB_4U
+#define _PAGE_SZHUGE_4V	_PAGE_SZ4MB_4V
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
+#define _PAGE_SZHUGE_4U	_PAGE_SZ512K_4U
+#define _PAGE_SZHUGE_4V	_PAGE_SZ512K_4V
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
+#define _PAGE_SZHUGE_4U	_PAGE_SZ64K_4U
+#define _PAGE_SZHUGE_4V	_PAGE_SZ64K_4V
+#endif
+
+#define _PAGE_CACHE_4U	(_PAGE_CP_4U | _PAGE_CV_4U)
+#define _PAGE_CACHE_4V	(_PAGE_CP_4V | _PAGE_CV_4V)
+#define __DIRTY_BITS_4U	 (_PAGE_MODIFIED_4U | _PAGE_WRITE_4U | _PAGE_W_4U)
+#define __DIRTY_BITS_4V	 (_PAGE_MODIFIED_4V | _PAGE_WRITE_4V | _PAGE_W_4V)
+#define __ACCESS_BITS_4U (_PAGE_ACCESSED_4U | _PAGE_READ_4U | _PAGE_R)
+#define __ACCESS_BITS_4V (_PAGE_ACCESSED_4V | _PAGE_READ_4V | _PAGE_R)
+
+pgprot_t PAGE_KERNEL __read_mostly;
+EXPORT_SYMBOL(PAGE_KERNEL);
+
+pgprot_t PAGE_KERNEL_LOCKED __read_mostly;
+pgprot_t PAGE_COPY __read_mostly;
+pgprot_t PAGE_EXEC __read_mostly;
+unsigned long pg_iobits __read_mostly;
+
+unsigned long _PAGE_IE __read_mostly;
+unsigned long _PAGE_E __read_mostly;
+unsigned long _PAGE_CACHE __read_mostly;
+
+static void prot_init_common(unsigned long page_none,
+			     unsigned long page_shared,
+			     unsigned long page_copy,
+			     unsigned long page_readonly,
+			     unsigned long page_exec_bit)
+{
+	PAGE_COPY = __pgprot(page_copy);
+
+	protection_map[0x0] = __pgprot(page_none);
+	protection_map[0x1] = __pgprot(page_readonly & ~page_exec_bit);
+	protection_map[0x2] = __pgprot(page_copy & ~page_exec_bit);
+	protection_map[0x3] = __pgprot(page_copy & ~page_exec_bit);
+	protection_map[0x4] = __pgprot(page_readonly);
+	protection_map[0x5] = __pgprot(page_readonly);
+	protection_map[0x6] = __pgprot(page_copy);
+	protection_map[0x7] = __pgprot(page_copy);
+	protection_map[0x8] = __pgprot(page_none);
+	protection_map[0x9] = __pgprot(page_readonly & ~page_exec_bit);
+	protection_map[0xa] = __pgprot(page_shared & ~page_exec_bit);
+	protection_map[0xb] = __pgprot(page_shared & ~page_exec_bit);
+	protection_map[0xc] = __pgprot(page_readonly);
+	protection_map[0xd] = __pgprot(page_readonly);
+	protection_map[0xe] = __pgprot(page_shared);
+	protection_map[0xf] = __pgprot(page_shared);
+}
+
+static void __init sun4u_pgprot_init(void)
+{
+	unsigned long page_none, page_shared, page_copy, page_readonly;
+	unsigned long page_exec_bit;
+
+	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4U | _PAGE_VALID |
+				_PAGE_CACHE_4U | _PAGE_P_4U |
+				__ACCESS_BITS_4U | __DIRTY_BITS_4U |
+				_PAGE_EXEC_4U);
+	PAGE_KERNEL_LOCKED = __pgprot (_PAGE_PRESENT_4U | _PAGE_VALID |
+				       _PAGE_CACHE_4U | _PAGE_P_4U |
+				       __ACCESS_BITS_4U | __DIRTY_BITS_4U |
+				       _PAGE_EXEC_4U | _PAGE_L_4U);
+	PAGE_EXEC = __pgprot(_PAGE_EXEC_4U);
+
+	_PAGE_IE = _PAGE_IE_4U;
+	_PAGE_E = _PAGE_E_4U;
+	_PAGE_CACHE = _PAGE_CACHE_4U;
+
+	pg_iobits = (_PAGE_VALID | _PAGE_PRESENT_4U | __DIRTY_BITS_4U |
+		     __ACCESS_BITS_4U | _PAGE_E_4U);
+
+	kern_linear_pte_xor = (_PAGE_VALID | _PAGE_SZ4MB_4U) ^
+		0xfffff80000000000;
+	kern_linear_pte_xor |= (_PAGE_CP_4U | _PAGE_CV_4U |
+				_PAGE_P_4U | _PAGE_W_4U);
+
+	_PAGE_SZBITS = _PAGE_SZBITS_4U;
+	_PAGE_ALL_SZ_BITS =  (_PAGE_SZ4MB_4U | _PAGE_SZ512K_4U |
+			      _PAGE_SZ64K_4U | _PAGE_SZ8K_4U |
+			      _PAGE_SZ32MB_4U | _PAGE_SZ256MB_4U);
+
+
+	page_none = _PAGE_PRESENT_4U | _PAGE_ACCESSED_4U | _PAGE_CACHE_4U;
+	page_shared = (_PAGE_VALID | _PAGE_PRESENT_4U | _PAGE_CACHE_4U |
+		       __ACCESS_BITS_4U | _PAGE_WRITE_4U | _PAGE_EXEC_4U);
+	page_copy   = (_PAGE_VALID | _PAGE_PRESENT_4U | _PAGE_CACHE_4U |
+		       __ACCESS_BITS_4U | _PAGE_EXEC_4U);
+	page_readonly   = (_PAGE_VALID | _PAGE_PRESENT_4U | _PAGE_CACHE_4U |
+			   __ACCESS_BITS_4U | _PAGE_EXEC_4U);
+
+	page_exec_bit = _PAGE_EXEC_4U;
+
+	prot_init_common(page_none, page_shared, page_copy, page_readonly,
+			 page_exec_bit);
+}
+
+static void __init sun4v_pgprot_init(void)
+{
+	unsigned long page_none, page_shared, page_copy, page_readonly;
+	unsigned long page_exec_bit;
+
+	PAGE_KERNEL = __pgprot (_PAGE_PRESENT_4V | _PAGE_VALID |
+				_PAGE_CACHE_4V | _PAGE_P_4V |
+				__ACCESS_BITS_4V | __DIRTY_BITS_4V |
+				_PAGE_EXEC_4V);
+	PAGE_KERNEL_LOCKED = PAGE_KERNEL;
+	PAGE_EXEC = __pgprot(_PAGE_EXEC_4V);
+
+	_PAGE_IE = _PAGE_IE_4V;
+	_PAGE_E = _PAGE_E_4V;
+	_PAGE_CACHE = _PAGE_CACHE_4V;
+
+	kern_linear_pte_xor = (_PAGE_VALID | _PAGE_SZ4MB_4V) ^
+		0xfffff80000000000;
+	kern_linear_pte_xor |= (_PAGE_CP_4V | _PAGE_CV_4V |
+				_PAGE_P_4V | _PAGE_W_4V);
+
+	pg_iobits = (_PAGE_VALID | _PAGE_PRESENT_4V | __DIRTY_BITS_4V |
+		     __ACCESS_BITS_4V | _PAGE_E_4V);
+
+	_PAGE_SZBITS = _PAGE_SZBITS_4V;
+	_PAGE_ALL_SZ_BITS = (_PAGE_SZ16GB_4V | _PAGE_SZ2GB_4V |
+			     _PAGE_SZ256MB_4V | _PAGE_SZ32MB_4V |
+			     _PAGE_SZ4MB_4V | _PAGE_SZ512K_4V |
+			     _PAGE_SZ64K_4V | _PAGE_SZ8K_4V);
+
+	page_none = _PAGE_PRESENT_4V | _PAGE_ACCESSED_4V | _PAGE_CACHE_4V;
+	page_shared = (_PAGE_VALID | _PAGE_PRESENT_4V | _PAGE_CACHE_4V |
+		       __ACCESS_BITS_4V | _PAGE_WRITE_4V | _PAGE_EXEC_4V);
+	page_copy   = (_PAGE_VALID | _PAGE_PRESENT_4V | _PAGE_CACHE_4V |
+		       __ACCESS_BITS_4V | _PAGE_EXEC_4V);
+	page_readonly = (_PAGE_VALID | _PAGE_PRESENT_4V | _PAGE_CACHE_4V |
+			 __ACCESS_BITS_4V | _PAGE_EXEC_4V);
+
+	page_exec_bit = _PAGE_EXEC_4V;
+
+	prot_init_common(page_none, page_shared, page_copy, page_readonly,
+			 page_exec_bit);
+}
+
+unsigned long pte_sz_bits(unsigned long sz)
+{
+	if (tlb_type == hypervisor) {
+		switch (sz) {
+		case 8 * 1024:
+		default:
+			return _PAGE_SZ8K_4V;
+		case 64 * 1024:
+			return _PAGE_SZ64K_4V;
+		case 512 * 1024:
+			return _PAGE_SZ512K_4V;
+		case 4 * 1024 * 1024:
+			return _PAGE_SZ4MB_4V;
+		};
+	} else {
+		switch (sz) {
+		case 8 * 1024:
+		default:
+			return _PAGE_SZ8K_4U;
+		case 64 * 1024:
+			return _PAGE_SZ64K_4U;
+		case 512 * 1024:
+			return _PAGE_SZ512K_4U;
+		case 4 * 1024 * 1024:
+			return _PAGE_SZ4MB_4U;
+		};
+	}
+}
+
+pte_t mk_pte_io(unsigned long page, pgprot_t prot, int space, unsigned long page_size)
+{
+	pte_t pte;
+	if (tlb_type == hypervisor) {
+		pte_val(pte) = (((page) | pgprot_val(prot) | _PAGE_E_4V) &
+				~(unsigned long)_PAGE_CACHE_4V);
+	} else {
+		pte_val(pte) = (((page) | pgprot_val(prot) | _PAGE_E_4U) &
+				~(unsigned long)_PAGE_CACHE_4U);
+	}
+	pte_val(pte) |= (((unsigned long)space) << 32);
+	pte_val(pte) |= pte_sz_bits(page_size);
+	return pte;
+}
+
+unsigned long pte_present(pte_t pte)
+{
+	return (pte_val(pte) &
+		((tlb_type == hypervisor) ?
+		 _PAGE_PRESENT_4V : _PAGE_PRESENT_4U));
+}
+
+unsigned long pte_file(pte_t pte)
+{
+	return (pte_val(pte) &
+		((tlb_type == hypervisor) ?
+		 _PAGE_FILE_4V : _PAGE_FILE_4U));
+}
+
+unsigned long pte_read(pte_t pte)
+{
+	return (pte_val(pte) &
+		((tlb_type == hypervisor) ?
+		 _PAGE_READ_4V : _PAGE_READ_4U));
+}
+
+unsigned long pte_exec(pte_t pte)
+{
+	return (pte_val(pte) &
+		((tlb_type == hypervisor) ?
+		 _PAGE_EXEC_4V : _PAGE_EXEC_4U));
+}
+
+unsigned long pte_write(pte_t pte)
+{
+	return (pte_val(pte) &
+		((tlb_type == hypervisor) ?
+		 _PAGE_WRITE_4V : _PAGE_WRITE_4U));
+}
+
+unsigned long pte_dirty(pte_t pte)
+{
+	return (pte_val(pte) &
+		((tlb_type == hypervisor) ?
+		 _PAGE_MODIFIED_4V : _PAGE_MODIFIED_4U));
+}
+
+unsigned long pte_young(pte_t pte)
+{
+	return (pte_val(pte) &
+		((tlb_type == hypervisor) ?
+		 _PAGE_ACCESSED_4V : _PAGE_ACCESSED_4U));
+}
+
+pte_t pte_wrprotect(pte_t pte)
+{
+	unsigned long mask = _PAGE_WRITE_4U | _PAGE_W_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_WRITE_4V | _PAGE_W_4V;
+
+	return __pte(pte_val(pte) & ~mask);
+}
+
+pte_t pte_rdprotect(pte_t pte)
+{
+	unsigned long mask = _PAGE_R | _PAGE_READ_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_R | _PAGE_READ_4V;
+
+	return __pte(pte_val(pte) & ~mask);
+}
+
+pte_t pte_mkclean(pte_t pte)
+{
+	unsigned long mask = _PAGE_MODIFIED_4U | _PAGE_W_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_MODIFIED_4V | _PAGE_W_4V;
+
+	return __pte(pte_val(pte) & ~mask);
+}
+
+pte_t pte_mkold(pte_t pte)
+{
+	unsigned long mask = _PAGE_R | _PAGE_ACCESSED_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_R | _PAGE_ACCESSED_4V;
+
+	return __pte(pte_val(pte) & ~mask);
+}
+
+pte_t pte_mkyoung(pte_t pte)
+{
+	unsigned long mask = _PAGE_R | _PAGE_ACCESSED_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_R | _PAGE_ACCESSED_4V;
+
+	return __pte(pte_val(pte) | mask);
+}
+
+pte_t pte_mkwrite(pte_t pte)
+{
+	unsigned long mask = _PAGE_WRITE_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_WRITE_4V;
+
+	return __pte(pte_val(pte) | mask);
+}
+
+pte_t pte_mkdirty(pte_t pte)
+{
+	unsigned long mask = _PAGE_MODIFIED_4U | _PAGE_W_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_MODIFIED_4V | _PAGE_W_4V;
+
+	return __pte(pte_val(pte) | mask);
+}
+
+pte_t pte_mkhuge(pte_t pte)
+{
+	unsigned long mask = _PAGE_SZHUGE_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_SZHUGE_4V;
+
+	return __pte(pte_val(pte) | mask);
+}
+
+pte_t pgoff_to_pte(unsigned long off)
+{
+	unsigned long bit = _PAGE_FILE_4U;
+
+	if (tlb_type == hypervisor)
+		bit = _PAGE_FILE_4V;
+
+	return __pte((off << PAGE_SHIFT) | bit);
+}
+
+pgprot_t pgprot_noncached(pgprot_t prot)
+{
+	unsigned long val = pgprot_val(prot);
+	unsigned long off = _PAGE_CP_4U | _PAGE_CV_4U;
+	unsigned long on = _PAGE_E_4U;
+
+	if (tlb_type == hypervisor) {
+		off = _PAGE_CP_4V | _PAGE_CV_4V;
+		on = _PAGE_E_4V;
+	}
+
+	return __pgprot((val & ~off) | on);
+}
+
+pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
+{
+	unsigned long sz_bits = _PAGE_SZBITS_4U;
+
+	if (tlb_type == hypervisor)
+		sz_bits = _PAGE_SZBITS_4V;
+
+	return __pte((pfn << PAGE_SHIFT) | pgprot_val(prot) | sz_bits);
+}
+
+unsigned long pte_pfn(pte_t pte)
+{
+	unsigned long mask = _PAGE_PADDR_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_PADDR_4V;
+
+	return (pte_val(pte) & mask) >> PAGE_SHIFT;
+}
+
+pte_t pte_modify(pte_t orig_pte, pgprot_t new_prot)
+{
+	unsigned long preserve_mask;
+	unsigned long val;
+
+	preserve_mask = (_PAGE_PADDR_4U |
+			 _PAGE_MODIFIED_4U |
+			 _PAGE_ACCESSED_4U |
+			 _PAGE_CP_4U |
+			 _PAGE_CV_4U |
+			 _PAGE_E_4U |
+			 _PAGE_PRESENT_4U |
+			 _PAGE_SZBITS_4U);
+	if (tlb_type == hypervisor)
+		preserve_mask = (_PAGE_PADDR_4V |
+				 _PAGE_MODIFIED_4V |
+				 _PAGE_ACCESSED_4V |
+				 _PAGE_CP_4V |
+				 _PAGE_CV_4V |
+				 _PAGE_E_4V |
+				 _PAGE_PRESENT_4V |
+				 _PAGE_SZBITS_4V);
+
+	val = (pte_val(orig_pte) & preserve_mask);
+
+	return __pte(val | (pgprot_val(new_prot) & ~preserve_mask));
+}
+
+static unsigned long kern_large_tte(unsigned long paddr)
+{
+	unsigned long val;
+
+	val = (_PAGE_VALID | _PAGE_SZ4MB_4U |
+	       _PAGE_CP_4U | _PAGE_CV_4U | _PAGE_P_4U |
+	       _PAGE_EXEC_4U | _PAGE_L_4U | _PAGE_W_4U);
+	if (tlb_type == hypervisor)
+		val = (_PAGE_VALID | _PAGE_SZ4MB_4V |
+		       _PAGE_CP_4V | _PAGE_CV_4V | _PAGE_P_4V |
+		       _PAGE_EXEC_4V | _PAGE_W_4V);
+
+	return val | paddr;
+}
+
+/*
+ * Translate PROM's mapping we capture at boot time into physical address.
+ * The second parameter is only set from prom_callback() invocations.
+ */
+unsigned long prom_virt_to_phys(unsigned long promva, int *error)
+{
+	unsigned long mask;
+	int i;
+
+	mask = _PAGE_PADDR_4U;
+	if (tlb_type == hypervisor)
+		mask = _PAGE_PADDR_4V;
+
+	for (i = 0; i < prom_trans_ents; i++) {
+		struct linux_prom_translation *p = &prom_trans[i];
+
+		if (promva >= p->virt &&
+		    promva < (p->virt + p->size)) {
+			unsigned long base = p->data & mask;
+
+			if (error)
+				*error = 0;
+			return base + (promva & (8192 - 1));
+		}
+	}
+	if (error)
+		*error = 1;
+	return 0UL;
+}
+
+/* XXX We should kill off this ugly thing at so me point. XXX */
+unsigned long sun4u_get_pte(unsigned long addr)
+{
+	pgd_t *pgdp;
+	pud_t *pudp;
+	pmd_t *pmdp;
+	pte_t *ptep;
+	unsigned long mask = _PAGE_PADDR_4U;
+
+	if (tlb_type == hypervisor)
+		mask = _PAGE_PADDR_4V;
+
+	if (addr >= PAGE_OFFSET)
+		return addr & mask;
+
+	if ((addr >= LOW_OBP_ADDRESS) && (addr < HI_OBP_ADDRESS))
+		return prom_virt_to_phys(addr, NULL);
+
+	pgdp = pgd_offset_k(addr);
+	pudp = pud_offset(pgdp, addr);
+	pmdp = pmd_offset(pudp, addr);
+	ptep = pte_offset_kernel(pmdp, addr);
+
+	return pte_val(*ptep) & mask;
+}
+
+/* If not locked, zap it. */
+void __flush_tlb_all(void)
+{
+	unsigned long pstate;
+	int i;
+
+	__asm__ __volatile__("flushw\n\t"
+			     "rdpr	%%pstate, %0\n\t"
+			     "wrpr	%0, %1, %%pstate"
+			     : "=r" (pstate)
+			     : "i" (PSTATE_IE));
+	if (tlb_type == spitfire) {
+		for (i = 0; i < 64; i++) {
+			/* Spitfire Errata #32 workaround */
+			/* NOTE: Always runs on spitfire, so no
+			 *       cheetah+ page size encodings.
+			 */
+			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
+					     "flush	%%g6"
+					     : /* No outputs */
+					     : "r" (0),
+					     "r" (PRIMARY_CONTEXT), "i" (ASI_DMMU));
+
+			if (!(spitfire_get_dtlb_data(i) & _PAGE_L_4U)) {
+				__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
+						     "membar #Sync"
+						     : /* no outputs */
+						     : "r" (TLB_TAG_ACCESS), "i" (ASI_DMMU));
+				spitfire_put_dtlb_data(i, 0x0UL);
+			}
+
+			/* Spitfire Errata #32 workaround */
+			/* NOTE: Always runs on spitfire, so no
+			 *       cheetah+ page size encodings.
+			 */
+			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
+					     "flush	%%g6"
+					     : /* No outputs */
+					     : "r" (0),
+					     "r" (PRIMARY_CONTEXT), "i" (ASI_DMMU));
+
+			if (!(spitfire_get_itlb_data(i) & _PAGE_L_4U)) {
+				__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
+						     "membar #Sync"
+						     : /* no outputs */
+						     : "r" (TLB_TAG_ACCESS), "i" (ASI_IMMU));
+				spitfire_put_itlb_data(i, 0x0UL);
+			}
+		}
+	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+		cheetah_flush_dtlb_all();
+		cheetah_flush_itlb_all();
+	}
+	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
+			     : : "r" (pstate));
+}

@@ -131,16 +131,8 @@ kvmap_dtlb_4v:
 	brgez,pn	%g4, kvmap_dtlb_nonlinear
 	 nop
 
-#define KERN_HIGHBITS	((_PAGE_VALID|_PAGE_SZ4MB)^0xfffff80000000000)
-#define KERN_LOWBITS	(_PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W)
-
-	sethi		%uhi(KERN_HIGHBITS), %g2
-	or		%g2, %ulo(KERN_HIGHBITS), %g2
-	sllx		%g2, 32, %g2
-	or		%g2, KERN_LOWBITS, %g2
-
-#undef KERN_HIGHBITS
-#undef KERN_LOWBITS
+	sethi		%hi(kern_linear_pte_xor), %g2
+	ldx		[%g2 + %lo(kern_linear_pte_xor)], %g2
 
 	.globl		kvmap_linear_patch
 kvmap_linear_patch:

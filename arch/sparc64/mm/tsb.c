@@ -85,8 +85,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 	mm->context.tsb_nentries = tsb_bytes / sizeof(struct tsb);
 
 	base = TSBMAP_BASE;
-	tte = (_PAGE_VALID | _PAGE_L | _PAGE_CP |
-	       _PAGE_CV    | _PAGE_P | _PAGE_W);
+	tte = pgprot_val(PAGE_KERNEL_LOCKED);
 	tsb_paddr = __pa(mm->context.tsb);
 	BUG_ON(tsb_paddr & (tsb_bytes - 1UL));
 
@@ -99,55 +98,48 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 #ifdef DCACHE_ALIASING_POSSIBLE
 		base += (tsb_paddr & 8192);
 #endif
-		tte |= _PAGE_SZ8K;
 		page_sz = 8192;
 		break;
 
 	case 8192 << 1:
 		tsb_reg = 0x1UL;
-		tte |= _PAGE_SZ64K;
 		page_sz = 64 * 1024;
 		break;
 
 	case 8192 << 2:
 		tsb_reg = 0x2UL;
-		tte |= _PAGE_SZ64K;
 		page_sz = 64 * 1024;
 		break;
 
 	case 8192 << 3:
 		tsb_reg = 0x3UL;
-		tte |= _PAGE_SZ64K;
 		page_sz = 64 * 1024;
 		break;
 
 	case 8192 << 4:
 		tsb_reg = 0x4UL;
-		tte |= _PAGE_SZ512K;
 		page_sz = 512 * 1024;
 		break;
 
 	case 8192 << 5:
 		tsb_reg = 0x5UL;
-		tte |= _PAGE_SZ512K;
 		page_sz = 512 * 1024;
 		break;
 
 	case 8192 << 6:
 		tsb_reg = 0x6UL;
-		tte |= _PAGE_SZ512K;
 		page_sz = 512 * 1024;
 		break;
 
 	case 8192 << 7:
 		tsb_reg = 0x7UL;
-		tte |= _PAGE_SZ4MB;
 		page_sz = 4 * 1024 * 1024;
 		break;
 
 	default:
 		BUG();
 	};
+	tte |= pte_sz_bits(page_sz);
 
 	if (tlb_type == cheetah_plus || tlb_type == hypervisor) {
 		/* Physical mapping, no locked TLB entry for TSB.  */

@@ -56,10 +56,11 @@ tsb_reload:
 	/* If it is larger than the base page size, don't
 	 * bother putting it into the TSB.
 	 */
-	srlx		%g5, 32, %g2
-	sethi		%hi(_PAGE_ALL_SZ_BITS >> 32), %g7
-	and		%g2, %g7, %g2
-	sethi		%hi(_PAGE_SZBITS >> 32), %g7
+	sethi		%hi(_PAGE_ALL_SZ_BITS), %g7
+	ldx		[%g7 + %lo(_PAGE_ALL_SZ_BITS)], %g7
+	and		%g5, %g7, %g2
+	sethi		%hi(_PAGE_SZBITS), %g7
+	ldx		[%g7 + %lo(_PAGE_SZBITS)], %g7
 	cmp		%g2, %g7
 	bne,a,pn	%xcc, tsb_tlb_reload
 	 TSB_STORE(%g1, %g0)
