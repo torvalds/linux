@@ -405,6 +405,11 @@ static int __init set_preferred_console(void)
 		serial_console = 2;
 	} else if (idev == PROMDEV_IRSC && odev == PROMDEV_ORSC) {
 		serial_console = 3;
+	} else if (idev == PROMDEV_IVCONS && odev == PROMDEV_OVCONS) {
+		/* sunhv_console_init() doesn't check the serial_console
+		 * value anyways...
+		 */
+		serial_console = 4;
 	} else {
 		prom_printf("Inconsistent console: "
 			    "input %d, output %d\n",
