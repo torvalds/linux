@@ -1147,9 +1147,7 @@ void ata_dev_config(struct ata_port *ap, unsigned int i)
 		printk(KERN_INFO "ata%u(%u): applying bridge limits\n",
 		       ap->id, i);
 		ap->udma_mask &= ATA_UDMA5;
-		ap->host->max_sectors = ATA_MAX_SECTORS;
-		ap->host->hostt->max_sectors = ATA_MAX_SECTORS;
-		ap->device[i].flags |= ATA_DFLAG_LOCK_SECTORS;
+		ap->device[i].max_sectors = ATA_MAX_SECTORS;
 	}
 
 	if (ap->ops->dev_config)

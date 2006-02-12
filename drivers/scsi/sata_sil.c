@@ -354,9 +354,7 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 	     (quirks & SIL_QUIRK_MOD15WRITE))) {
 		printk(KERN_INFO "ata%u(%u): applying Seagate errata fix (mod15write workaround)\n",
 		       ap->id, dev->devno);
-		ap->host->max_sectors = 15;
-		ap->host->hostt->max_sectors = 15;
-		dev->flags |= ATA_DFLAG_LOCK_SECTORS;
+		dev->max_sectors = 15;
 		return;
 	}
 
