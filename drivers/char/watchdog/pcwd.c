@@ -66,8 +66,6 @@
 #include <linux/fs.h>		/* For file operations */
 #include <linux/ioport.h>	/* For io-port access */
 #include <linux/spinlock.h>	/* For spin_lock/spin_unlock/... */
-#include <linux/sched.h>	/* TASK_INTERRUPTIBLE, set_current_state() and friends */
-#include <linux/slab.h>		/* For kmalloc */
 
 #include <asm/uaccess.h>	/* For copy_to_user/put_user/... */
 #include <asm/io.h>		/* For inb/outb/... */
@@ -126,9 +124,14 @@
 #define CMD_ISA_VERSION_HUNDRETH	0x03
 #define CMD_ISA_VERSION_MINOR		0x04
 #define CMD_ISA_SWITCH_SETTINGS		0x05
+#define CMD_ISA_RESET_PC		0x06
+#define CMD_ISA_ARM_0			0x07
+#define CMD_ISA_ARM_30			0x08
+#define CMD_ISA_ARM_60			0x09
 #define CMD_ISA_DELAY_TIME_2SECS	0x0A
 #define CMD_ISA_DELAY_TIME_4SECS	0x0B
 #define CMD_ISA_DELAY_TIME_8SECS	0x0C
+#define CMD_ISA_RESET_RELAYS		0x0D
 
 /*
  * We are using an kernel timer to do the pinging of the watchdog
@@ -473,6 +476,7 @@ static int pcwd_get_status(int *status)
 			if (temp_panic) {
 				printk (KERN_INFO PFX "Temperature overheat trip!\n");
 				kernel_power_off();
+				/* or should we just do a: panic(PFX "Temperature overheat trip!\n"); */
 			}
 		}
 	} else {
@@ -484,6 +488,7 @@ static int pcwd_get_status(int *status)
 			if (temp_panic) {
 				printk (KERN_INFO PFX "Temperature overheat trip!\n");
 				kernel_power_off();
+				/* or should we just do a: panic(PFX "Temperature overheat trip!\n"); */
 			}
 		}
 	}
@@ -983,6 +988,8 @@ static void __exit pcwd_cleanup_module(void)
 {
 	if (pcwd_private.io_addr)
 		pcwatchdog_exit();
+
+	printk(KERN_INFO PFX "Watchdog Module Unloaded.\n");
 }
 
 module_init(pcwd_init_module);
