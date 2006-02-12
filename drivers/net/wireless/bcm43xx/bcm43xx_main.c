@@ -62,10 +62,15 @@ MODULE_LICENSE("GPL");
 extern char *nvram_get(char *name);
 #endif
 
-/* Module parameters */
+#if defined(CONFIG_BCM43XX_DMA) && defined(CONFIG_BCM43XX_PIO)
 static int modparam_pio;
 module_param_named(pio, modparam_pio, int, 0444);
 MODULE_PARM_DESC(pio, "enable(1) / disable(0) PIO mode");
+#elif defined(CONFIG_BCM43XX_DMA)
+# define modparam_pio	0
+#elif defined(CONFIG_BCM43XX_PIO)
+# define modparam_pio	1
+#endif
 
 static int modparam_bad_frames_preempt;
 module_param_named(bad_frames_preempt, modparam_bad_frames_preempt, int, 0444);
@@ -1528,7 +1533,8 @@ void bcm43xx_wireless_core_reset(struct bcm43xx_private *bcm, int connect_phy)
 {
 	u32 flags = 0x00040000;
 
-	if ((bcm43xx_core_enabled(bcm)) && (!bcm->pio_mode)) {
+	if ((bcm43xx_core_enabled(bcm)) &&
+	    !bcm43xx_using_pio(bcm)) {
 //FIXME: Do we _really_ want #ifndef CONFIG_BCM947XX here?
 #ifndef CONFIG_BCM947XX
 		/* reset all used DMA controllers. */
@@ -1635,7 +1641,7 @@ static inline void handle_irq_transmit_status(struct bcm43xx_private *bcm)
 		}
 		//TODO: There are more (unknown) flags to test. see bcm43xx_main.h
 
-		if (bcm->pio_mode)
+		if (bcm43xx_using_pio(bcm))
 			bcm43xx_pio_handle_xmitstatus(bcm, &stat);
 		else
 			bcm43xx_dma_handle_xmitstatus(bcm, &stat);
@@ -1933,7 +1939,7 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 	assert(!(dma_reason[1] & BCM43xx_DMAIRQ_RX_DONE));
 	assert(!(dma_reason[2] & BCM43xx_DMAIRQ_RX_DONE));
 	if (dma_reason[0] & BCM43xx_DMAIRQ_RX_DONE) {
-		if (bcm->pio_mode)
+		if (bcm43xx_using_pio(bcm))
 			bcm43xx_pio_rx(bcm->current_core->pio->queue0);
 		else
 			bcm43xx_dma_rx(bcm->current_core->dma->rx_ring0);
@@ -1941,7 +1947,7 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 	}
 	if (dma_reason[3] & BCM43xx_DMAIRQ_RX_DONE) {
 		if (likely(bcm->current_core->rev < 5)) {
-			if (bcm->pio_mode)
+			if (bcm43xx_using_pio(bcm))
 				bcm43xx_pio_rx(bcm->current_core->pio->queue3);
 			else
 				bcm43xx_dma_rx(bcm->current_core->dma->rx_ring1);
@@ -1999,7 +2005,7 @@ void bcm43xx_interrupt_ack(struct bcm43xx_private *bcm,
 	bcm->dma_reason[3] = bcm43xx_read32(bcm, BCM43xx_MMIO_DMA4_REASON)
 			     & 0x0001dc00;
 
-	if ((bcm->pio_mode) &&
+	if (bcm43xx_using_pio(bcm) &&
 	    (bcm->current_core->rev < 3) &&
 	    (!(reason & BCM43xx_IRQ_PIO_WORKAROUND))) {
 		/* Apply a PIO specific workaround to the dma_reasons */
@@ -2624,7 +2630,7 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 	value32 |= 0x100000; //FIXME: What's this? Is this correct?
 	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD, value32);
 
-	if (bcm->pio_mode) {
+	if (bcm43xx_using_pio(bcm)) {
 		bcm43xx_write32(bcm, 0x0210, 0x00000100);
 		bcm43xx_write32(bcm, 0x0230, 0x00000100);
 		bcm43xx_write32(bcm, 0x0250, 0x00000100);
@@ -3123,15 +3129,12 @@ static int bcm43xx_wireless_core_init(struct bcm43xx_private *bcm)
 	if (bcm->current_core->rev >= 5)
 		bcm43xx_write16(bcm, 0x043C, 0x000C);
 
-	if (!bcm->pio_mode) {
-		err = bcm43xx_dma_init(bcm);
-		if (err)
-			goto err_chip_cleanup;
-	} else {
+	if (bcm43xx_using_pio(bcm))
 		err = bcm43xx_pio_init(bcm);
-		if (err)
-			goto err_chip_cleanup;
-	}
+	else
+		err = bcm43xx_dma_init(bcm);
+	if (err)
+		goto err_chip_cleanup;
 	bcm43xx_write16(bcm, 0x0612, 0x0050);
 	bcm43xx_shm_write16(bcm, BCM43xx_SHM_SHARED, 0x0416, 0x0050);
 	bcm43xx_shm_write16(bcm, BCM43xx_SHM_SHARED, 0x0414, 0x01F4);
@@ -4001,8 +4004,8 @@ static inline int bcm43xx_tx(struct bcm43xx_private *bcm,
 {
 	int err = -ENODEV;
 
-	if (bcm->pio_mode)
-		err = bcm43xx_pio_transfer_txb(bcm, txb);
+	if (bcm43xx_using_pio(bcm))
+		err = bcm43xx_pio_tx(bcm, txb);
 	else
 		err = bcm43xx_dma_tx(bcm, txb);
 
@@ -4158,10 +4161,10 @@ static int bcm43xx_net_stop(struct net_device *net_dev)
 	return 0;
 }
 
-static void bcm43xx_init_private(struct bcm43xx_private *bcm,
-				 struct net_device *net_dev,
-				 struct pci_dev *pci_dev,
-				 struct workqueue_struct *wq)
+static int bcm43xx_init_private(struct bcm43xx_private *bcm,
+				struct net_device *net_dev,
+				struct pci_dev *pci_dev,
+				struct workqueue_struct *wq)
 {
 	bcm->ieee = netdev_priv(net_dev);
 	bcm->softmac = ieee80211_priv(net_dev);
@@ -4190,13 +4193,17 @@ static void bcm43xx_init_private(struct bcm43xx_private *bcm,
 		     (unsigned long)bcm);
 	tasklet_disable_nosync(&bcm->isr_tasklet);
 	if (modparam_pio) {
-		bcm->pio_mode = 1;
+		bcm->__using_pio = 1;
 	} else {
-		if (pci_set_dma_mask(pci_dev, DMA_30BIT_MASK) == 0) {
-			bcm->pio_mode = 0;
-		} else {
+		if (pci_set_dma_mask(pci_dev, DMA_30BIT_MASK)) {
+#ifdef CONFIG_BCM43XX_PIO
 			printk(KERN_WARNING PFX "DMA not supported. Falling back to PIO.\n");
-			bcm->pio_mode = 1;
+			bcm->__using_pio = 1;
+#else
+			printk(KERN_ERR PFX "FATAL: DMA not supported and PIO not configured. "
+					    "Recompile the driver with PIO support, please.\n");
+			return -ENODEV;
+#endif /* CONFIG_BCM43XX_PIO */
 		}
 	}
 	bcm->rts_threshold = BCM43xx_DEFAULT_RTS_THRESHOLD;
@@ -4210,6 +4217,8 @@ static void bcm43xx_init_private(struct bcm43xx_private *bcm,
 	bcm->ieee->tx_headroom = sizeof(struct bcm43xx_txhdr);
 	bcm->ieee->set_security = bcm43xx_ieee80211_set_security;
 	bcm->ieee->hard_start_xmit = bcm43xx_ieee80211_hard_start_xmit;
+
+	return 0;
 }
 
 static int __devinit bcm43xx_init_one(struct pci_dev *pdev,
@@ -4261,7 +4270,9 @@ static int __devinit bcm43xx_init_one(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err_free_netdev;
 	}
-	bcm43xx_init_private(bcm, net_dev, pdev, wq);
+	err = bcm43xx_init_private(bcm, net_dev, pdev, wq);
+	if (err)
+		goto err_destroy_wq;
 
 	pci_set_drvdata(pdev, net_dev);
 
@@ -4325,7 +4336,9 @@ static void bcm43xx_chip_reset(void *_bcm)
 		bcm43xx_free_board(bcm);
 	bcm->firmware_norelease = 0;
 	bcm43xx_detach_board(bcm);
-	bcm43xx_init_private(bcm, net_dev, pci_dev, wq);
+	err = bcm43xx_init_private(bcm, net_dev, pci_dev, wq);
+	if (err)
+		goto failure;
 	err = bcm43xx_attach_board(bcm);
 	if (err)
 		goto failure;

@@ -3,9 +3,8 @@
 
 #include "bcm43xx.h"
 
+#include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <linux/skbuff.h>
 
 
@@ -32,6 +31,10 @@
 #define BCM43xx_PIO_MAXTXPACKETS	256
 
 
+
+#ifdef CONFIG_BCM43XX_PIO
+
+
 struct bcm43xx_pioqueue;
 struct bcm43xx_xmitstatus;
 
@@ -44,13 +47,14 @@ struct bcm43xx_pio_txpacket {
 	u16 xmitted_octets;
 };
 
-#define pio_txpacket_getindex(packet) ((int)((packet) - (packet)->queue->__tx_packets_cache)) 
+#define pio_txpacket_getindex(packet) ((int)((packet) - (packet)->queue->tx_packets_cache)) 
 
 struct bcm43xx_pioqueue {
 	struct bcm43xx_private *bcm;
 	u16 mmio_base;
 
-	u8 tx_suspended:1;
+	u8 tx_suspended:1,
+	   need_workarounds:1; /* Workarounds needed for core.rev < 3 */
 
 	/* Adjusted size of the device internal TX buffer. */
 	u16 tx_devq_size;
@@ -62,6 +66,7 @@ struct bcm43xx_pioqueue {
 	 * be taken on incoming TX requests.
 	 */
 	struct list_head txfree;
+	unsigned int nr_txfree;
 	/* Packets on the txqueue are queued,
 	 * but not completely written to the chip, yet.
 	 */
@@ -70,19 +75,64 @@ struct bcm43xx_pioqueue {
 	 * posted to the device. We are waiting for the txstatus.
 	 */
 	struct list_head txrunning;
-	/* Locking of the TX queues and the accounting. */
-	spinlock_t txlock;
-	struct work_struct txwork;
-	struct bcm43xx_pio_txpacket __tx_packets_cache[BCM43xx_PIO_MAXTXPACKETS];
+	/* Total number or packets sent.
+	 * (This counter can obviously wrap).
+	 */
+	unsigned int nr_tx_packets;
+	struct tasklet_struct txtask;
+	struct bcm43xx_pio_txpacket tx_packets_cache[BCM43xx_PIO_MAXTXPACKETS];
 };
+
+static inline
+u16 bcm43xx_pio_read(struct bcm43xx_pioqueue *queue,
+		     u16 offset)
+{
+	return bcm43xx_read16(queue->bcm, queue->mmio_base + offset);
+}
+
+static inline
+void bcm43xx_pio_write(struct bcm43xx_pioqueue *queue,
+		       u16 offset, u16 value)
+{
+	bcm43xx_write16(queue->bcm, queue->mmio_base + offset, value);
+}
+
 
 int bcm43xx_pio_init(struct bcm43xx_private *bcm);
 void bcm43xx_pio_free(struct bcm43xx_private *bcm);
 
-int FASTCALL(bcm43xx_pio_transfer_txb(struct bcm43xx_private *bcm,
-				      struct ieee80211_txb *txb));
-void FASTCALL(bcm43xx_pio_handle_xmitstatus(struct bcm43xx_private *bcm,
-					    struct bcm43xx_xmitstatus *status));
+int bcm43xx_pio_tx(struct bcm43xx_private *bcm,
+		   struct ieee80211_txb *txb);
+void bcm43xx_pio_handle_xmitstatus(struct bcm43xx_private *bcm,
+				   struct bcm43xx_xmitstatus *status);
+void bcm43xx_pio_rx(struct bcm43xx_pioqueue *queue);
 
-void FASTCALL(bcm43xx_pio_rx(struct bcm43xx_pioqueue *queue));
+#else /* CONFIG_BCM43XX_PIO */
+
+static inline
+int bcm43xx_pio_init(struct bcm43xx_private *bcm)
+{
+	return 0;
+}
+static inline
+void bcm43xx_pio_free(struct bcm43xx_private *bcm)
+{
+}
+static inline
+int bcm43xx_pio_tx(struct bcm43xx_private *bcm,
+		   struct ieee80211_txb *txb)
+{
+	return 0;
+}
+static inline
+void bcm43xx_pio_handle_xmitstatus(struct bcm43xx_private *bcm,
+				   struct bcm43xx_xmitstatus *status)
+{
+}
+static inline
+void bcm43xx_pio_rx(struct bcm43xx_pioqueue *queue)
+{
+}
+
+#endif /* CONFIG_BCM43XX_PIO */
 #endif /* BCM43xx_PIO_H_ */

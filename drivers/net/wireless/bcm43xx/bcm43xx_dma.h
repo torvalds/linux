@@ -94,6 +94,10 @@
 #define BCM43xx_TXRESUME_PERCENT	50
 
 
+
+#ifdef CONFIG_BCM43XX_DMA
+
+
 struct sk_buff;
 struct bcm43xx_private;
 struct bcm43xx_xmitstatus;
@@ -172,4 +176,46 @@ int bcm43xx_dma_tx(struct bcm43xx_private *bcm,
 		   struct ieee80211_txb *txb);
 void bcm43xx_dma_rx(struct bcm43xx_dmaring *ring);
 
+
+#else /* CONFIG_BCM43XX_DMA */
+
+
+static inline
+int bcm43xx_dma_init(struct bcm43xx_private *bcm)
+{
+	return 0;
+}
+static inline
+void bcm43xx_dma_free(struct bcm43xx_private *bcm)
+{
+}
+static inline
+int bcm43xx_dmacontroller_rx_reset(struct bcm43xx_private *bcm,
+				   u16 dmacontroller_mmio_base)
+{
+	return 0;
+}
+static inline
+int bcm43xx_dmacontroller_tx_reset(struct bcm43xx_private *bcm,
+				   u16 dmacontroller_mmio_base)
+{
+	return 0;
+}
+static inline
+int bcm43xx_dma_tx(struct bcm43xx_private *bcm,
+		   struct ieee80211_txb *txb)
+{
+	return 0;
+}
+static inline
+void bcm43xx_dma_handle_xmitstatus(struct bcm43xx_private *bcm,
+				   struct bcm43xx_xmitstatus *status)
+{
+}
+static inline
+void bcm43xx_dma_rx(struct bcm43xx_dmaring *ring)
+{
+}
+
+#endif /* CONFIG_BCM43XX_DMA */
 #endif /* BCM43xx_DMA_H_ */

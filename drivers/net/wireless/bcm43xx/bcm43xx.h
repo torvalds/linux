@@ -639,7 +639,7 @@ struct bcm43xx_private {
 	u32 initialized:1,		/* init_board() succeed */
 	    was_initialized:1,		/* for PCI suspend/resume. */
 	    shutting_down:1,		/* free_board() in progress */
-	    pio_mode:1,			/* PIO (if true), or DMA (if false) used. */
+	    __using_pio:1,		/* Internal, use bcm43xx_using_pio(). */
 	    bad_frames_preempt:1,	/* Use "Bad Frames Preemption" (default off) */
 	    reg124_set_0x4:1,		/* Some variable to keep track of IRQ stuff. */
 	    powersaving:1,		/* TRUE if we are in PowerSaving mode. FALSE otherwise. */
@@ -748,6 +748,33 @@ struct bcm43xx_private * bcm43xx_priv(struct net_device *dev)
 {
 	return ieee80211softmac_priv(dev);
 }
+
+
+/* Helper function, which returns a boolean.
+ * TRUE, if PIO is used; FALSE, if DMA is used.
+ */
+#if defined(CONFIG_BCM43XX_DMA) && defined(CONFIG_BCM43XX_PIO)
+static inline
+int bcm43xx_using_pio(struct bcm43xx_private *bcm)
+{
+	return bcm->__using_pio;
+}
+#elif defined(CONFIG_BCM43XX_DMA)
+static inline
+int bcm43xx_using_pio(struct bcm43xx_private *bcm)
+{
+	return 0;
+}
+#elif defined(CONFIG_BCM43XX_PIO)
+static inline
+int bcm43xx_using_pio(struct bcm43xx_private *bcm)
+{
+	return 1;
+}
+#else
+# error "Using neither DMA nor PIO? Confused..."
+#endif
+
 
 static inline
 int bcm43xx_num_80211_cores(struct bcm43xx_private *bcm)
