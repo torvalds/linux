@@ -310,7 +310,7 @@ void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents, int di
 
 	for (i = 0; i < nents; i++) {
 		struct scatterlist *s = &sg[i];
-		if (!s->dma_length || !s->length)
+		if (!s->dma_length)
 			break;
 		dma_unmap_single(dev, s->dma_address, s->dma_length, dir);
 	}
@@ -364,7 +364,6 @@ static int __dma_map_cont(struct scatterlist *sg, int start, int stopat,
 		
 		BUG_ON(i > start && s->offset);
 		if (i == start) {
-			*sout = *s; 
 			sout->dma_address = iommu_bus_base;
 			sout->dma_address += iommu_page*PAGE_SIZE + s->offset;
 			sout->dma_length = s->length;
@@ -379,7 +378,7 @@ static int __dma_map_cont(struct scatterlist *sg, int start, int stopat,
 			SET_LEAK(iommu_page);
 			addr += PAGE_SIZE;
 			iommu_page++;
-	} 
+		}
 	} 
 	BUG_ON(iommu_page - iommu_start != pages);	
 	return 0;
@@ -391,7 +390,6 @@ static inline int dma_map_cont(struct scatterlist *sg, int start, int stopat,
 {
 	if (!need) { 
 		BUG_ON(stopat - start != 1);
-		*sout = sg[start]; 
 		sout->dma_length = sg[start].length; 
 		return 0;
 	} 
