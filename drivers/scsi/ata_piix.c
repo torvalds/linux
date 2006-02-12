@@ -415,9 +415,6 @@ static int piix_sata_probe (struct ata_port *ap)
 	int orig_mask, mask, i;
 	u8 pcs;
 
-	mask = (PIIX_PORT_PRESENT << ap->hard_port_no) |
-	       (PIIX_PORT_ENABLED << ap->hard_port_no);
-
 	pci_read_config_byte(pdev, ICH5_PCS, &pcs);
 	orig_mask = (int) pcs & 0xff;
 
