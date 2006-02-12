@@ -639,9 +639,9 @@ static void pci_sun4v_resource_adjust(struct pci_dev *pdev,
  */
 static void pci_sun4v_determine_mem_io_space(struct pci_pbm_info *pbm)
 {
-	int i, saw_cfg, saw_mem, saw_io;
+	int i, saw_mem, saw_io;
 
-	saw_cfg = saw_mem = saw_io = 0;
+	saw_mem = saw_io = 0;
 	for (i = 0; i < pbm->num_pbm_ranges; i++) {
 		struct linux_prom_pci_ranges *pr = &pbm->pbm_ranges[i];
 		unsigned long a;
@@ -652,12 +652,6 @@ static void pci_sun4v_determine_mem_io_space(struct pci_pbm_info *pbm)
 		     ((unsigned long)pr->parent_phys_lo  <<  0UL));
 
 		switch (type) {
-		case 0:
-			/* PCI config space, 16MB */
-			pbm->config_space = a;
-			saw_cfg = 1;
-			break;
-
 		case 1:
 			/* 16-bit IO space, 16MB */
 			pbm->io_space.start = a;
@@ -679,19 +673,15 @@ static void pci_sun4v_determine_mem_io_space(struct pci_pbm_info *pbm)
 		};
 	}
 
-	if (!saw_cfg || !saw_io || !saw_mem) {
+	if (!saw_io || !saw_mem) {
 		prom_printf("%s: Fatal error, missing %s PBM range.\n",
 			    pbm->name,
-			    ((!saw_cfg ?
-			      "CFG" :
-			      (!saw_io ?
-			       "IO" : "MEM"))));
+			    (!saw_io ? "IO" : "MEM"));
 		prom_halt();
 	}
 
-	printk("%s: PCI CFG[%lx] IO[%lx] MEM[%lx]\n",
+	printk("%s: PCI IO[%lx] MEM[%lx]\n",
 	       pbm->name,
-	       pbm->config_space,
 	       pbm->io_space.start,
 	       pbm->mem_space.start);
 }
