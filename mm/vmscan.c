@@ -443,6 +443,10 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 		BUG_ON(PageActive(page));
 
 		sc->nr_scanned++;
+
+		if (!sc->may_swap && page_mapped(page))
+			goto keep_locked;
+
 		/* Double the slab pressure for mapped and swapcache pages */
 		if (page_mapped(page) || PageSwapCache(page))
 			sc->nr_scanned++;
@@ -1231,7 +1235,7 @@ refill_inactive_zone(struct zone *zone, struct scan_control *sc)
 	 * Now use this metric to decide whether to start moving mapped memory
 	 * onto the inactive list.
 	 */
-	if (swap_tendency >= 100)
+	if (swap_tendency >= 100 && sc->may_swap)
 		reclaim_mapped = 1;
 
 	while (!list_empty(&l_hold)) {
