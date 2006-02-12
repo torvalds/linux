@@ -548,6 +548,21 @@ void ata_dev_id_c_string(const u16 *id, unsigned char *s,
 	*p = '\0';
 }
 
+static u64 ata_id_n_sectors(const u16 *id)
+{
+	if (ata_id_has_lba(id)) {
+		if (ata_id_has_lba48(id))
+			return ata_id_u64(id, 100);
+		else
+			return ata_id_u32(id, 60);
+	} else {
+		if (ata_id_current_chs_valid(id))
+			return ata_id_u32(id, 57);
+		else
+			return id[1] * id[3] * id[6];
+	}
+}
+
 /**
  *	ata_noop_dev_select - Select device 0/1 on ATA bus
  *	@ap: ATA channel to manipulate
@@ -1009,6 +1024,8 @@ retry:
 
 	/* ATA-specific feature tests */
 	if (dev->class == ATA_DEV_ATA) {
+		dev->n_sectors = ata_id_n_sectors(dev->id);
+
 		if (!ata_id_is_ata(dev->id))	/* sanity check */
 			goto err_out_nosup;
 
@@ -1038,12 +1055,8 @@ retry:
 		if (ata_id_has_lba(dev->id)) {
 			dev->flags |= ATA_DFLAG_LBA;
 
-			if (ata_id_has_lba48(dev->id)) {
+			if (ata_id_has_lba48(dev->id))
 				dev->flags |= ATA_DFLAG_LBA48;
-				dev->n_sectors = ata_id_u64(dev->id, 100);
-			} else {
-				dev->n_sectors = ata_id_u32(dev->id, 60);
-			}
 
 			/* print device info to dmesg */
 			printk(KERN_INFO "ata%u: dev %u ATA-%d, max %s, %Lu sectors:%s\n",
@@ -1059,15 +1072,12 @@ retry:
 			dev->cylinders	= dev->id[1];
 			dev->heads	= dev->id[3];
 			dev->sectors	= dev->id[6];
-			dev->n_sectors	= dev->cylinders * dev->heads * dev->sectors;
 
 			if (ata_id_current_chs_valid(dev->id)) {
 				/* Current CHS translation is valid. */
 				dev->cylinders = dev->id[54];
 				dev->heads     = dev->id[55];
 				dev->sectors   = dev->id[56];
-				
-				dev->n_sectors = ata_id_u32(dev->id, 57);
 			}
 
 			/* print device info to dmesg */
