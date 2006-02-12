@@ -193,16 +193,22 @@ struct sparc64_tick_ops *tick_ops __read_mostly = &tick_operations;
 
 static void stick_init_tick(unsigned long offset)
 {
-	tick_disable_protection();
+	/* Writes to the %tick and %stick register are not
+	 * allowed on sun4v.  The Hypervisor controls that
+	 * bit, per-strand.
+	 */
+	if (tlb_type != hypervisor) {
+		tick_disable_protection();
 
-	/* Let the user get at STICK too. */
-	__asm__ __volatile__(
-	"	rd	%%asr24, %%g2\n"
-	"	andn	%%g2, %0, %%g2\n"
-	"	wr	%%g2, 0, %%asr24"
-	: /* no outputs */
-	: "r" (TICK_PRIV_BIT)
-	: "g1", "g2");
+		/* Let the user get at STICK too. */
+		__asm__ __volatile__(
+		"	rd	%%asr24, %%g2\n"
+		"	andn	%%g2, %0, %%g2\n"
+		"	wr	%%g2, 0, %%asr24"
+		: /* no outputs */
+		: "r" (TICK_PRIV_BIT)
+		: "g1", "g2");
+	}
 
 	__asm__ __volatile__(
 	"	rd	%%asr24, %%g1\n"
