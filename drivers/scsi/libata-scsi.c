@@ -1806,15 +1806,12 @@ static int ata_dev_supports_fua(u16 *id)
 	if (!ata_id_has_fua(id))
 		return 0;
 
-	model[40] = '\0';
-	fw[8] = '\0';
+	ata_dev_id_c_string(id, model, ATA_ID_PROD_OFS, sizeof(model));
+	ata_dev_id_c_string(id, fw, ATA_ID_FW_REV_OFS, sizeof(fw));
 
-	ata_dev_id_string(id, model, ATA_ID_PROD_OFS, sizeof(model) - 1);
-	ata_dev_id_string(id, fw, ATA_ID_FW_REV_OFS, sizeof(fw) - 1);
-
-	if (strncmp(model, "Maxtor", 6))
+	if (strcmp(model, "Maxtor"))
 		return 1;
-	if (strncmp(fw, "BANC1G10", 8))
+	if (strcmp(fw, "BANC1G10"))
 		return 1;
 
 	return 0; /* blacklisted */

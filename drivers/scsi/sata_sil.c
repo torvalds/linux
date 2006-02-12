@@ -337,22 +337,13 @@ static void sil_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 {
 	unsigned int n, quirks = 0;
-	unsigned char model_num[40];
-	const char *s;
-	unsigned int len;
+	unsigned char model_num[41];
 
-	ata_dev_id_string(dev->id, model_num, ATA_ID_PROD_OFS,
-			  sizeof(model_num));
-	s = &model_num[0];
-	len = strnlen(s, sizeof(model_num));
-
-	/* ATAPI specifies that empty space is blank-filled; remove blanks */
-	while ((len > 0) && (s[len - 1] == ' '))
-		len--;
+	ata_dev_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS,
+			    sizeof(model_num));
 
 	for (n = 0; sil_blacklist[n].product; n++)
-		if (!memcmp(sil_blacklist[n].product, s,
-			    strlen(sil_blacklist[n].product))) {
+		if (!strcmp(sil_blacklist[n].product, model_num)) {
 			quirks = sil_blacklist[n].quirk;
 			break;
 		}
@@ -372,7 +363,7 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 	/* limit to udma5 */
 	if (quirks & SIL_QUIRK_UDMA5MAX) {
 		printk(KERN_INFO "ata%u(%u): applying Maxtor errata fix %s\n",
-		       ap->id, dev->devno, s);
+		       ap->id, dev->devno, model_num);
 		ap->udma_mask &= ATA_UDMA5;
 		return;
 	}

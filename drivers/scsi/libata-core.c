@@ -2301,24 +2301,14 @@ static const char * const ata_dma_blacklist [] = {
 
 static int ata_dma_blacklisted(const struct ata_device *dev)
 {
-	unsigned char model_num[40];
-	char *s;
-	unsigned int len;
+	unsigned char model_num[41];
 	int i;
 
-	ata_dev_id_string(dev->id, model_num, ATA_ID_PROD_OFS,
-			  sizeof(model_num));
-	s = &model_num[0];
-	len = strnlen(s, sizeof(model_num));
-
-	/* ATAPI specifies that empty space is blank-filled; remove blanks */
-	while ((len > 0) && (s[len - 1] == ' ')) {
-		len--;
-		s[len] = 0;
-	}
+	ata_dev_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS,
+			    sizeof(model_num));
 
 	for (i = 0; i < ARRAY_SIZE(ata_dma_blacklist); i++)
-		if (!strncmp(ata_dma_blacklist[i], s, len))
+		if (!strcmp(ata_dma_blacklist[i], model_num))
 			return 1;
 
 	return 0;
