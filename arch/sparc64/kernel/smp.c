@@ -1278,7 +1278,11 @@ int __devinit __cpu_up(unsigned int cpu)
 		if (!cpu_isset(cpu, cpu_online_map)) {
 			ret = -ENODEV;
 		} else {
-			smp_synchronize_one_tick(cpu);
+			/* On SUN4V, writes to %tick and %stick are
+			 * not allowed.
+			 */
+			if (tlb_type != hypervisor)
+				smp_synchronize_one_tick(cpu);
 		}
 	}
 	return ret;
