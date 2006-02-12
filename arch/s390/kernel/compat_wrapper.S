@@ -1602,3 +1602,8 @@ compat_sys_ppoll_wrapper:
 	llgtr	%r5,%r5			# const sigset_t *
 	llgfr	%r6,%r6			# size_t
 	jg	compat_sys_ppoll
+
+	.globl sys_unshare_wrapper
+sys_unshare_wrapper:
+	llgfr	%r2,%r2			# unsigned long
+	jg	sys_unshare

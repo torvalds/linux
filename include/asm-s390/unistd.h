@@ -295,8 +295,9 @@
 #define __NR_faccessat		300
 #define __NR_pselect6		301
 #define __NR_ppoll		302
+#define __NR_unshare		303
 
-#define NR_syscalls 303
+#define NR_syscalls 304
 
 /* 
  * There are some system calls that are not present on 64 bit, some

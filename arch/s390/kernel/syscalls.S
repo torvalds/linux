@@ -311,3 +311,4 @@ SYSCALL(sys_fchmodat,sys_fchmodat,sys_fchmodat_wrapper)
 SYSCALL(sys_faccessat,sys_faccessat,sys_faccessat_wrapper)	/* 300 */
 SYSCALL(sys_pselect6,sys_pselect6,compat_sys_pselect6_wrapper)
 SYSCALL(sys_ppoll,sys_ppoll,compat_sys_ppoll_wrapper)
+SYSCALL(sys_unshare,sys_unshare,sys_unshare_wrapper)
