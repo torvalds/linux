@@ -939,7 +939,8 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 		return;
 	}
 
-	if (ap->flags & (ATA_FLAG_SRST | ATA_FLAG_SATA_RESET))
+	if (ap->ops->probe_reset ||
+	    ap->flags & (ATA_FLAG_SRST | ATA_FLAG_SATA_RESET))
 		using_edd = 0;
 	else
 		using_edd = 1;
