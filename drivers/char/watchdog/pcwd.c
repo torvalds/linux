@@ -146,6 +146,7 @@ static atomic_t open_allowed = ATOMIC_INIT(1);
 static char expect_close;
 static int temp_panic;
 static struct {				/* this is private data for each ISA-PC watchdog card */
+	char fw_ver_str[6];		/* The cards firmware version */
 	int revision;			/* The card's revision */
 	int supports_temp;		/* Wether or not the card has a temperature device */
 	int command_mode;		/* Wether or not the card is in command mode */
@@ -238,27 +239,22 @@ static inline void pcwd_check_temperature_support(void)
 		pcwd_private.supports_temp = 1;
 }
 
-static inline char *get_firmware(void)
+static inline void pcwd_get_firmware(void)
 {
 	int one, ten, hund, minor;
-	char *ret;
 
-	ret = kmalloc(6, GFP_KERNEL);
-	if(ret == NULL)
-		return NULL;
+	sprintf(pcwd_private.fw_ver_str, "ERROR");
 
 	if (set_command_mode()) {
 		one = send_isa_command(CMD_ISA_VERSION_INTEGER);
 		ten = send_isa_command(CMD_ISA_VERSION_TENTH);
 		hund = send_isa_command(CMD_ISA_VERSION_HUNDRETH);
 		minor = send_isa_command(CMD_ISA_VERSION_MINOR);
-		sprintf(ret, "%c.%c%c%c", one, ten, hund, minor);
+		sprintf(pcwd_private.fw_ver_str, "%c.%c%c%c", one, ten, hund, minor);
 	}
-	else
-		sprintf(ret, "ERROR");
-
 	unset_command_mode();
-	return(ret);
+
+	return;
 }
 
 static inline int pcwd_get_option_switches(void)
@@ -276,17 +272,15 @@ static inline int pcwd_get_option_switches(void)
 
 static void pcwd_show_card_info(void)
 {
-	char *firmware;
 	int option_switches;
 
 	/* Get some extra info from the hardware (in command/debug/diag mode) */
 	if (pcwd_private.revision == PCWD_REVISION_A)
 		printk(KERN_INFO PFX "ISA-PC Watchdog (REV.A) detected at port 0x%04x\n", pcwd_private.io_addr);
 	else if (pcwd_private.revision == PCWD_REVISION_C) {
-		firmware = get_firmware();
+		pcwd_get_firmware();
 		printk(KERN_INFO PFX "ISA-PC Watchdog (REV.C) detected at port 0x%04x (Firmware version: %s)\n",
-			pcwd_private.io_addr, firmware);
-		kfree(firmware);
+			pcwd_private.io_addr, pcwd_private.fw_ver_str);
 		option_switches = pcwd_get_option_switches();
 		printk(KERN_INFO PFX "Option switches (0x%02x): Temperature Reset Enable=%s, Power On Delay=%s\n",
 			option_switches,
