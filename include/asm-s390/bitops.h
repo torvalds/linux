@@ -518,8 +518,8 @@ static inline int __test_bit(unsigned long nr, const volatile unsigned long *ptr
 
 static inline int 
 __constant_test_bit(unsigned long nr, const volatile unsigned long *addr) {
-    return ((((volatile char *) addr)
-	    [(nr^(__BITOPS_WORDSIZE-8))>>3] & (1<<(nr&7)))) != 0;
+    return (((volatile char *) addr)
+	    [(nr^(__BITOPS_WORDSIZE-8))>>3] & (1<<(nr&7))) != 0;
 }
 
 #define test_bit(nr,addr) \
