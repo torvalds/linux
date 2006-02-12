@@ -73,8 +73,8 @@
 #include <asm/io.h>		/* For inb/outb/... */
 
 /* Module and version information */
-#define WATCHDOG_VERSION "1.16"
-#define WATCHDOG_DATE "03 Jan 2006"
+#define WATCHDOG_VERSION "1.17"
+#define WATCHDOG_DATE "12 Feb 2006"
 #define WATCHDOG_DRIVER_NAME "ISA-PC Watchdog"
 #define WATCHDOG_NAME "pcwd"
 #define PFX WATCHDOG_NAME ": "
@@ -96,15 +96,19 @@
  * PCI-PC Watchdog card.
 */
 /* Port 1 : Control Status #1 for the PC Watchdog card, revision A. */
-#define WD_WDRST                0x01	/* Previously reset state */
-#define WD_T110                 0x02	/* Temperature overheat sense */
-#define WD_HRTBT                0x04	/* Heartbeat sense */
-#define WD_RLY2                 0x08	/* External relay triggered */
-#define WD_SRLY2                0x80	/* Software external relay triggered */
+#define WD_WDRST		0x01	/* Previously reset state */
+#define WD_T110			0x02	/* Temperature overheat sense */
+#define WD_HRTBT		0x04	/* Heartbeat sense */
+#define WD_RLY2			0x08	/* External relay triggered */
+#define WD_SRLY2		0x80	/* Software external relay triggered */
 /* Port 1 : Control Status #1 for the PC Watchdog card, revision C. */
-#define WD_REVC_WTRP            0x01	/* Watchdog Trip status */
-#define WD_REVC_HRBT            0x02	/* Watchdog Heartbeat */
-#define WD_REVC_TTRP            0x04	/* Temperature Trip status */
+#define WD_REVC_WTRP		0x01	/* Watchdog Trip status */
+#define WD_REVC_HRBT		0x02	/* Watchdog Heartbeat */
+#define WD_REVC_TTRP		0x04	/* Temperature Trip status */
+#define WD_REVC_RL2A		0x08	/* Relay 2 activated by on-board processor */
+#define WD_REVC_RL1A		0x10	/* Relay 1 active */
+#define WD_REVC_R2DS		0x40	/* Relay 2 disable */
+#define WD_REVC_RLY2		0x80	/* Relay 2 activated? */
 /* Port 2 : Control Status #2 */
 #define WD_WDIS			0x10	/* Watchdog Disabled */
 #define WD_ENTP			0x20	/* Watchdog Enable Temperature Trip */
@@ -407,7 +411,7 @@ static int pcwd_set_heartbeat(int t)
 
 static int pcwd_get_status(int *status)
 {
-	int card_status;
+	int control_status;
 
 	*status=0;
 	spin_lock(&pcwd_private.io_lock);
@@ -415,22 +419,22 @@ static int pcwd_get_status(int *status)
 		/* Rev A cards return status information from
 		 * the base register, which is used for the
 		 * temperature in other cards. */
-		card_status = inb(pcwd_private.io_addr);
+		control_status = inb(pcwd_private.io_addr);
 	else {
 		/* Rev C cards return card status in the base
 		 * address + 1 register. And use different bits
 		 * to indicate a card initiated reset, and an
 		 * over-temperature condition. And the reboot
 		 * status can be reset. */
-		card_status = inb(pcwd_private.io_addr + 1);
+		control_status = inb(pcwd_private.io_addr + 1);
 	}
 	spin_unlock(&pcwd_private.io_lock);
 
 	if (pcwd_private.revision == PCWD_REVISION_A) {
-		if (card_status & WD_WDRST)
+		if (control_status & WD_WDRST)
 			*status |= WDIOF_CARDRESET;
 
-		if (card_status & WD_T110) {
+		if (control_status & WD_T110) {
 			*status |= WDIOF_OVERHEAT;
 			if (temp_panic) {
 				printk (KERN_INFO PFX "Temperature overheat trip!\n");
@@ -438,10 +442,10 @@ static int pcwd_get_status(int *status)
 			}
 		}
 	} else {
-		if (card_status & WD_REVC_WTRP)
+		if (control_status & WD_REVC_WTRP)
 			*status |= WDIOF_CARDRESET;
 
-		if (card_status & WD_REVC_TTRP) {
+		if (control_status & WD_REVC_TTRP) {
 			*status |= WDIOF_OVERHEAT;
 			if (temp_panic) {
 				printk (KERN_INFO PFX "Temperature overheat trip!\n");
@@ -455,9 +459,16 @@ static int pcwd_get_status(int *status)
 
 static int pcwd_clear_status(void)
 {
+	int control_status;
+
 	if (pcwd_private.revision == PCWD_REVISION_C) {
 		spin_lock(&pcwd_private.io_lock);
-		outb_p(0x00, pcwd_private.io_addr + 1); /* clear reset status */
+
+		control_status = inb_p(pcwd_private.io_addr + 1);
+
+		/* clear reset status & Keep Relay 2 disable state as it is */
+		outb_p((control_status & WD_REVC_R2DS), pcwd_private.io_addr + 1);
+
 		spin_unlock(&pcwd_private.io_lock);
 	}
 	return 0;
