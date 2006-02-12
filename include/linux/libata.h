@@ -540,6 +540,8 @@ extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 extern unsigned int ata_dev_classify(const struct ata_taskfile *tf);
 extern void ata_dev_id_string(const u16 *id, unsigned char *s,
 			      unsigned int ofs, unsigned int len);
+extern void ata_dev_id_c_string(const u16 *id, unsigned char *s,
+				unsigned int ofs, unsigned int len);
 extern void ata_dev_config(struct ata_port *ap, unsigned int i);
 extern void ata_bmdma_setup (struct ata_queued_cmd *qc);
 extern void ata_bmdma_start (struct ata_queued_cmd *qc);

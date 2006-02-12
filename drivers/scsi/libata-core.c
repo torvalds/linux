@@ -519,6 +519,34 @@ void ata_dev_id_string(const u16 *id, unsigned char *s,
 	}
 }
 
+/**
+ *	ata_dev_id_c_string - Convert IDENTIFY DEVICE page into C string
+ *	@id: IDENTIFY DEVICE results we will examine
+ *	@s: string into which data is output
+ *	@ofs: offset into identify device page
+ *	@len: length of string to return. must be an odd number.
+ *
+ *	This function is identical to ata_dev_id_string except that it
+ *	trims trailing spaces and terminates the resulting string with
+ *	null.  @len must be actual maximum length (even number) + 1.
+ *
+ *	LOCKING:
+ *	caller.
+ */
+void ata_dev_id_c_string(const u16 *id, unsigned char *s,
+			 unsigned int ofs, unsigned int len)
+{
+	unsigned char *p;
+
+	WARN_ON(!(len & 1));
+
+	ata_dev_id_string(id, s, ofs, len - 1);
+
+	p = s + strnlen(s, len - 1);
+	while (p > s && p[-1] == ' ')
+		p--;
+	*p = '\0';
+}
 
 /**
  *	ata_noop_dev_select - Select device 0/1 on ATA bus
@@ -4905,6 +4933,7 @@ EXPORT_SYMBOL_GPL(ata_scsi_release);
 EXPORT_SYMBOL_GPL(ata_host_intr);
 EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_dev_id_string);
+EXPORT_SYMBOL_GPL(ata_dev_id_c_string);
 EXPORT_SYMBOL_GPL(ata_dev_config);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 EXPORT_SYMBOL_GPL(ata_eh_qc_complete);
