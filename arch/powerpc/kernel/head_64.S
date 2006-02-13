@@ -319,7 +319,6 @@ exception_marker:
 label##_pSeries:					\
 	HMT_MEDIUM;					\
 	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
-	RUNLATCH_ON(r13);				\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
 
 #define STD_EXCEPTION_ISERIES(n, label, area)		\
@@ -327,7 +326,6 @@ label##_pSeries:					\
 label##_iSeries:					\
 	HMT_MEDIUM;					\
 	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
-	RUNLATCH_ON(r13);				\
 	EXCEPTION_PROLOG_ISERIES_1(area);		\
 	EXCEPTION_PROLOG_ISERIES_2;			\
 	b	label##_common
@@ -337,7 +335,6 @@ label##_iSeries:					\
 label##_iSeries:							\
 	HMT_MEDIUM;							\
 	mtspr	SPRN_SPRG1,r13;		/* save r13 */			\
-	RUNLATCH_ON(r13);						\
 	EXCEPTION_PROLOG_ISERIES_1(PACA_EXGEN);				\
 	lbz	r10,PACAPROCENABLED(r13);				\
 	cmpwi	0,r10,0;						\
@@ -390,6 +387,7 @@ label##_common:						\
 label##_common:						\
 	EXCEPTION_PROLOG_COMMON(trap, PACA_EXGEN);	\
 	DISABLE_INTS;					\
+	bl	.ppc64_runlatch_on;			\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;		\
 	bl	hdlr;					\
 	b	.ret_from_except_lite
@@ -407,7 +405,6 @@ __start_interrupts:
 _machine_check_pSeries:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
-	RUNLATCH_ON(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
 	. = 0x300
@@ -434,7 +431,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 data_access_slb_pSeries:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13
-	RUNLATCH_ON(r13)
 	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
@@ -460,7 +456,6 @@ data_access_slb_pSeries:
 instruction_access_slb_pSeries:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13
-	RUNLATCH_ON(r13)
 	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
@@ -491,7 +486,6 @@ instruction_access_slb_pSeries:
 	.globl	system_call_pSeries
 system_call_pSeries:
 	HMT_MEDIUM
-	RUNLATCH_ON(r9)
 	mr	r9,r13
 	mfmsr	r10
 	mfspr	r13,SPRN_SPRG3
@@ -575,7 +569,6 @@ slb_miss_user_pseries:
 system_reset_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
-	RUNLATCH_ON(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
 
 	.globl machine_check_fwnmi
@@ -583,7 +576,6 @@ system_reset_fwnmi:
 machine_check_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
-	RUNLATCH_ON(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
 #ifdef CONFIG_PPC_ISERIES
@@ -894,7 +886,6 @@ unrecov_fer:
 	.align	7
 	.globl data_access_common
 data_access_common:
-	RUNLATCH_ON(r10)		/* It wont fit in the 0x300 handler */
 	mfspr	r10,SPRN_DAR
 	std	r10,PACA_EXGEN+EX_DAR(r13)
 	mfspr	r10,SPRN_DSISR
@@ -1042,6 +1033,7 @@ hardware_interrupt_common:
 	EXCEPTION_PROLOG_COMMON(0x500, PACA_EXGEN)
 hardware_interrupt_entry:
 	DISABLE_INTS
+	bl	.ppc64_runlatch_on
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_IRQ
 	b	.ret_from_except_lite

@@ -648,6 +648,7 @@ static void yield_shared_processor(void)
 	 * here and let the timer_interrupt code sort out the actual time.
 	 */
 	get_lppaca()->int_dword.fields.decr_int = 1;
+	ppc64_runlatch_on();
 	process_iSeries_events();
 }
 

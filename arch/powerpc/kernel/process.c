@@ -888,3 +888,35 @@ void dump_stack(void)
 	show_stack(current, NULL);
 }
 EXPORT_SYMBOL(dump_stack);
+
+#ifdef CONFIG_PPC64
+void ppc64_runlatch_on(void)
+{
+	unsigned long ctrl;
+
+	if (cpu_has_feature(CPU_FTR_CTRL) && !test_thread_flag(TIF_RUNLATCH)) {
+		HMT_medium();
+
+		ctrl = mfspr(SPRN_CTRLF);
+		ctrl |= CTRL_RUNLATCH;
+		mtspr(SPRN_CTRLT, ctrl);
+
+		set_thread_flag(TIF_RUNLATCH);
+	}
+}
+
+void ppc64_runlatch_off(void)
+{
+	unsigned long ctrl;
+
+	if (cpu_has_feature(CPU_FTR_CTRL) && test_thread_flag(TIF_RUNLATCH)) {
+		HMT_medium();
+
+		clear_thread_flag(TIF_RUNLATCH);
+
+		ctrl = mfspr(SPRN_CTRLF);
+		ctrl &= ~CTRL_RUNLATCH;
+		mtspr(SPRN_CTRLT, ctrl);
+	}
+}
+#endif
