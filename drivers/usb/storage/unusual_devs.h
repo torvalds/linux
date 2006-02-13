@@ -106,6 +106,13 @@ UNUSUAL_DEV(  0x0411, 0x001c, 0x0113, 0x0113,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
 
+/* Reported by Christian Leber <christian@leber.de> */
+UNUSUAL_DEV(  0x0419, 0xaaf5, 0x0100, 0x0100,
+		"TrekStor",
+		"i.Beat 115 2.0",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_NOT_LOCKABLE ),
+
 /* Reported by Stefan Werner <dustbln@gmx.de> */
 UNUSUAL_DEV(  0x0419, 0xaaf6, 0x0100, 0x0100,
 		"TrekStor",
