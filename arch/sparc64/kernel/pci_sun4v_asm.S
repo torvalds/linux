@@ -6,18 +6,6 @@
 #include <asm/hypervisor.h>
 
 	/* %o0: devhandle
-	 * %o1:	devino
-	 *
-	 * returns %o0: sysino
-	 */
-	.globl	pci_sun4v_devino_to_sysino
-pci_sun4v_devino_to_sysino:
-	mov	HV_FAST_INTR_DEVINO2SYSINO, %o5
-	ta	HV_FAST_TRAP
-	retl
-	 mov	%o1, %o0
-
-	/* %o0: devhandle
 	 * %o1:	tsbid
 	 * %o2:	num ttes
 	 * %o3:	io_attributes

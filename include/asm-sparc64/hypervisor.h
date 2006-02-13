@@ -1203,6 +1203,11 @@ struct hv_trap_trace_entry {
  */
 #define HV_FAST_INTR_DEVINO2SYSINO	0xa0
 
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
+					    unsigned long devino);
+#endif
+
 /* intr_getenabled()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_GETENABLED

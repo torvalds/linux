@@ -1695,3 +1695,15 @@ hard_smp_processor_id:
 	retl
 	 nop
 #endif
+
+	/* %o0: devhandle
+	 * %o1:	devino
+	 *
+	 * returns %o0: sysino
+	 */
+	.globl	pci_sun4v_devino_to_sysino
+sun4v_devino_to_sysino:
+	mov	HV_FAST_INTR_DEVINO2SYSINO, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 mov	%o1, %o0
