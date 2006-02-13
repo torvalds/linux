@@ -378,7 +378,7 @@ struct gfs2_ail {
 struct gfs2_jdesc {
 	struct list_head jd_list;
 
-	struct gfs2_inode *jd_inode;
+	struct inode *jd_inode;
 	unsigned int jd_jid;
 	int jd_dirty;
 

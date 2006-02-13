@@ -49,7 +49,7 @@
 static int gfs2_create(struct inode *dir, struct dentry *dentry,
 		       int mode, struct nameidata *nd)
 {
-	struct gfs2_inode *dip = get_v2ip(dir), *ip;
+	struct gfs2_inode *dip = get_v2ip(dir);
 	struct gfs2_sbd *sdp = dip->i_sbd;
 	struct gfs2_holder ghs[2];
 	struct inode *inode;
@@ -61,9 +61,8 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
 	for (;;) {
-		error = gfs2_createi(ghs, &dentry->d_name, S_IFREG | mode);
-		if (!error) {
-			ip = get_gl2ip(ghs[1].gh_gl);
+		inode = gfs2_createi(ghs, &dentry->d_name, S_IFREG | mode);
+		if (!IS_ERR(inode)) {
 			gfs2_trans_end(sdp);
 			if (dip->i_alloc.al_rgd)
 				gfs2_inplace_release(dip);
@@ -71,13 +70,13 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 			gfs2_alloc_put(dip);
 			gfs2_glock_dq_uninit_m(2, ghs);
 			break;
-		} else if (error != -EEXIST ||
+		} else if (PTR_ERR(inode) != -EEXIST ||
 			   (nd->intent.open.flags & O_EXCL)) {
 			gfs2_holder_uninit(ghs);
-			return error;
+			return PTR_ERR(inode);
 		}
 
-		error = gfs2_lookupi(dip, &dentry->d_name, 0, &ip);
+		error = gfs2_lookupi(dir, &dentry->d_name, 0, &inode);
 		if (!error) {
 			new = 0;
 			gfs2_holder_uninit(ghs);
@@ -87,12 +86,6 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 			return error;
 		}
 	}
-
-	inode = gfs2_ip2v(ip);
-	gfs2_inode_put(ip);
-
-	if (!inode)
-		return -ENOMEM;
 
 	d_instantiate(dentry, inode);
 	if (new)
@@ -115,7 +108,7 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 				  struct nameidata *nd)
 {
-	struct gfs2_inode *dip = get_v2ip(dir), *ip;
+	struct gfs2_inode *dip = get_v2ip(dir);
 	struct gfs2_sbd *sdp = dip->i_sbd;
 	struct inode *inode = NULL;
 	int error;
@@ -125,14 +118,8 @@ static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 	if (!sdp->sd_args.ar_localcaching)
 		dentry->d_op = &gfs2_dops;
 
-	error = gfs2_lookupi(dip, &dentry->d_name, 0, &ip);
-	if (!error) {
-		inode = gfs2_ip2v(ip);
-		gfs2_inode_put(ip);
-		if (!inode)
-			return ERR_PTR(-ENOMEM);
-
-	} else if (error != -ENOENT)
+	error = gfs2_lookupi(dir, &dentry->d_name, 0, &inode);
+	if (error && error != -ENOENT)
 		return ERR_PTR(error);
 
 	if (inode)
@@ -367,10 +354,10 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
-	error = gfs2_createi(ghs, &dentry->d_name, S_IFLNK | S_IRWXUGO);
-	if (error) {
+	inode = gfs2_createi(ghs, &dentry->d_name, S_IFLNK | S_IRWXUGO);
+	if (IS_ERR(inode)) {
 		gfs2_holder_uninit(ghs);
-		return error;
+		return PTR_ERR(inode);
 	}
 
 	ip = get_gl2ip(ghs[1].gh_gl);
@@ -393,12 +380,6 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 	gfs2_alloc_put(dip);
 
 	gfs2_glock_dq_uninit_m(2, ghs);
-
-	inode = gfs2_ip2v(ip);
-	gfs2_inode_put(ip);
-
-	if (!inode)
-		return -ENOMEM;
 
 	d_instantiate(dentry, inode);
 	mark_inode_dirty(inode);
@@ -428,10 +409,10 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
-	error = gfs2_createi(ghs, &dentry->d_name, S_IFDIR | mode);
-	if (error) {
+	inode = gfs2_createi(ghs, &dentry->d_name, S_IFDIR | mode);
+	if (IS_ERR(inode)) {
 		gfs2_holder_uninit(ghs);
-		return error;
+		return PTR_ERR(inode);
 	}
 
 	ip = get_gl2ip(ghs[1].gh_gl);
@@ -480,12 +461,6 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	gfs2_alloc_put(dip);
 
 	gfs2_glock_dq_uninit_m(2, ghs);
-
-	inode = gfs2_ip2v(ip);
-	gfs2_inode_put(ip);
-
-	if (!inode)
-		return -ENOMEM;
 
 	d_instantiate(dentry, inode);
 	mark_inode_dirty(inode);
@@ -598,10 +573,10 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
-	error = gfs2_createi(ghs, &dentry->d_name, mode);
-	if (error) {
+	inode = gfs2_createi(ghs, &dentry->d_name, mode);
+	if (IS_ERR(inode)) {
 		gfs2_holder_uninit(ghs);
-		return error;
+		return PTR_ERR(inode);
 	}
 
 	ip = get_gl2ip(ghs[1].gh_gl);
@@ -623,12 +598,6 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	gfs2_alloc_put(dip);
 
 	gfs2_glock_dq_uninit_m(2, ghs);
-
-	inode = gfs2_ip2v(ip);
-	gfs2_inode_put(ip);
-
-	if (!inode)
-		return -ENOMEM;
 
 	d_instantiate(dentry, inode);
 	mark_inode_dirty(inode);

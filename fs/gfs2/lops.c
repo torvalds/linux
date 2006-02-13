@@ -177,7 +177,7 @@ static void buf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 static void buf_lo_before_scan(struct gfs2_jdesc *jd,
 			       struct gfs2_log_header *head, int pass)
 {
-	struct gfs2_sbd *sdp = jd->jd_inode->i_sbd;
+	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
 
 	if (pass != 0)
 		return;
@@ -190,8 +190,8 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 				struct gfs2_log_descriptor *ld, __be64 *ptr,
 				int pass)
 {
-	struct gfs2_sbd *sdp = jd->jd_inode->i_sbd;
-	struct gfs2_glock *gl = jd->jd_inode->i_gl;
+	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
+	struct gfs2_glock *gl = get_v2ip(jd->jd_inode)->i_gl;
 	unsigned int blks = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh_log, *bh_ip;
 	uint64_t blkno;
@@ -236,16 +236,16 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 
 static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
-	struct gfs2_sbd *sdp = jd->jd_inode->i_sbd;
+	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
 
 	if (error) {
-		gfs2_meta_sync(jd->jd_inode->i_gl, DIO_START | DIO_WAIT);
+		gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl, DIO_START | DIO_WAIT);
 		return;
 	}
 	if (pass != 1)
 		return;
 
-	gfs2_meta_sync(jd->jd_inode->i_gl, DIO_START | DIO_WAIT);
+	gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl, DIO_START | DIO_WAIT);
 
 	fs_info(sdp, "jid=%u: Replayed %u of %u blocks\n",
 	        jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);
@@ -320,7 +320,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 static void revoke_lo_before_scan(struct gfs2_jdesc *jd,
 				  struct gfs2_log_header *head, int pass)
 {
-	struct gfs2_sbd *sdp = jd->jd_inode->i_sbd;
+	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
 
 	if (pass != 0)
 		return;
@@ -333,7 +333,7 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 				   struct gfs2_log_descriptor *ld, __be64 *ptr,
 				   int pass)
 {
-	struct gfs2_sbd *sdp = jd->jd_inode->i_sbd;
+	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
 	unsigned int blks = be32_to_cpu(ld->ld_length);
 	unsigned int revokes = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh;
@@ -379,7 +379,7 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 
 static void revoke_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
-	struct gfs2_sbd *sdp = jd->jd_inode->i_sbd;
+	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
 
 	if (error) {
 		gfs2_revoke_clean(sdp);
@@ -458,8 +458,6 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 		gfs2_trans_add_gl(bd->bd_gl);
 		list_add(&bd->bd_list_tr, &tr->tr_list_buf);
 		gfs2_pin(sdp, bd->bd_bh);
-	} else {
-		clear_buffer_pinned(bd->bd_bh);
 	}
 	gfs2_log_lock(sdp);
 	if (ip->i_di.di_flags & GFS2_DIF_JDATA)
@@ -630,8 +628,8 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 				    struct gfs2_log_descriptor *ld,
 				    __be64 *ptr, int pass)
 {
-	struct gfs2_sbd *sdp = jd->jd_inode->i_sbd;
-	struct gfs2_glock *gl = jd->jd_inode->i_gl;
+	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
+	struct gfs2_glock *gl = get_v2ip(jd->jd_inode)->i_gl;
 	unsigned int blks = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh_log, *bh_ip;
 	uint64_t blkno;
@@ -680,17 +678,17 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 
 static void databuf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
-	struct gfs2_sbd *sdp = jd->jd_inode->i_sbd;
+	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
 
 	if (error) {
-		gfs2_meta_sync(jd->jd_inode->i_gl, DIO_START | DIO_WAIT);
+		gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl, DIO_START | DIO_WAIT);
 		return;
 	}
 	if (pass != 1)
 		return;
 
 	/* data sync? */
-	gfs2_meta_sync(jd->jd_inode->i_gl, DIO_START | DIO_WAIT);
+	gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl, DIO_START | DIO_WAIT);
 
 	fs_info(sdp, "jid=%u: Replayed %u of %u data blocks\n",
 		jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);

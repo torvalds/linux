@@ -169,22 +169,15 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 {
 	struct gfs2_inode *dip = get_v2ip(child->d_inode);
 	struct qstr dotdot = { .name = "..", .len = 2 };
-	struct gfs2_inode *ip;
 	struct inode *inode;
 	struct dentry *dentry;
 	int error;
 
 	atomic_inc(&dip->i_sbd->sd_ops_export);
 
-	error = gfs2_lookupi(dip, &dotdot, 1, &ip);
+	error = gfs2_lookupi(child->d_inode, &dotdot, 1, &inode);
 	if (error)
 		return ERR_PTR(error);
-
-	inode = gfs2_ip2v(ip);
-	gfs2_inode_put(ip);
-
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
 
 	dentry = d_alloc_anon(inode);
 	if (!dentry) {

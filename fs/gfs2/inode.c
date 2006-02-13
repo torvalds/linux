@@ -711,24 +711,28 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
  * Returns: errno
  */
 
-int gfs2_lookupi(struct gfs2_inode *dip, struct qstr *name, int is_root,
-		 struct gfs2_inode **ipp)
+int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
+		 struct inode **inodep)
 {
+	struct gfs2_inode *ipp;
+	struct gfs2_inode *dip = get_v2ip(dir);
 	struct gfs2_sbd *sdp = dip->i_sbd;
 	struct gfs2_holder d_gh;
 	struct gfs2_inum inum;
 	unsigned int type;
 	struct gfs2_glock *gl;
-	int error;
+	int error = 0;
+
+	*inodep = NULL;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return -ENAMETOOLONG;
 
 	if (gfs2_filecmp(name, ".", 1) ||
-	    (gfs2_filecmp(name, "..", 2) && dip == get_v2ip(sdp->sd_root_dir))) {
+	    (gfs2_filecmp(name, "..", 2) && dir == sdp->sd_root_dir)) {
 		gfs2_inode_hold(dip);
-		*ipp = dip;
-		return 0;
+		ipp = dip;
+		goto done;
 	}
 
 	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
@@ -750,15 +754,21 @@ int gfs2_lookupi(struct gfs2_inode *dip, struct qstr *name, int is_root,
 	if (error)
 		goto out;
 
-	error = gfs2_inode_get(gl, &inum, CREATE, ipp);
+	error = gfs2_inode_get(gl, &inum, CREATE, &ipp);
 	if (!error)
-		gfs2_inode_min_init(*ipp, type);
+		gfs2_inode_min_init(ipp, type);
 
 	gfs2_glock_put(gl);
 
- out:
+out:
 	gfs2_glock_dq_uninit(&d_gh);
-
+done:
+	if (error == 0) {
+		*inodep = gfs2_ip2v(ipp);
+		if (!*inodep)
+			error = -ENOMEM;
+		gfs2_inode_put(ipp);
+	}
 	return error;
 }
 
@@ -1171,15 +1181,16 @@ static int link_dinode(struct gfs2_inode *dip, struct qstr *name,
  * @ghs[0] is an initialized holder for the directory
  * @ghs[1] is the holder for the inode lock
  *
- * If the return value is 0, the glocks on both the directory and the new
+ * If the return value is not NULL, the glocks on both the directory and the new
  * file are held.  A transaction has been started and an inplace reservation
  * is held, as well.
  *
- * Returns: errno
+ * Returns: An inode
  */
 
-int gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode)
+struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode)
 {
+	struct inode *inode;
 	struct gfs2_inode *dip = get_gl2ip(ghs->gh_gl);
 	struct gfs2_sbd *sdp = dip->i_sbd;
 	struct gfs2_unlinked *ul;
@@ -1187,11 +1198,11 @@ int gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode)
 	int error;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
-		return -ENAMETOOLONG;
+		return ERR_PTR(-ENAMETOOLONG);
 
 	error = gfs2_unlinked_get(sdp, &ul);
 	if (error)
-		return error;
+		return ERR_PTR(error);
 
 	gfs2_holder_reinit(LM_ST_EXCLUSIVE, 0, ghs);
 	error = gfs2_glock_nq(ghs);
@@ -1220,7 +1231,7 @@ int gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode)
 					  ghs + 1);
 		if (error) {
 			gfs2_unlinked_put(sdp, ul);
-			return error;
+			return ERR_PTR(error);
 		}
 
 		gfs2_holder_reinit(LM_ST_EXCLUSIVE, 0, ghs);
@@ -1228,7 +1239,7 @@ int gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode)
 		if (error) {
 			gfs2_glock_dq_uninit(ghs + 1);
 			gfs2_unlinked_put(sdp, ul);
-			return error;
+			return ERR_PTR(error);
 		}
 
 		error = create_ok(dip, name, mode);
@@ -1266,7 +1277,11 @@ int gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode)
 
 	gfs2_unlinked_put(sdp, ul);
 
-	return 0;
+	inode = gfs2_ip2v(ip);
+	gfs2_inode_put(ip);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+	return inode;
 
  fail_iput:
 	gfs2_inode_put(ip);
@@ -1280,7 +1295,7 @@ int gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode)
  fail:
 	gfs2_unlinked_put(sdp, ul);
 
-	return error;
+	return ERR_PTR(error);
 }
 
 /**
@@ -1445,7 +1460,8 @@ int gfs2_unlink_ok(struct gfs2_inode *dip, struct qstr *name,
 int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 {
 	struct gfs2_sbd *sdp = this->i_sbd;
-	struct gfs2_inode *tmp;
+	struct inode *dir = to->i_vnode;
+	struct inode *tmp;
 	struct qstr dotdot;
 	int error = 0;
 
@@ -1453,27 +1469,27 @@ int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 	dotdot.name = "..";
 	dotdot.len = 2;
 
-	gfs2_inode_hold(to);
+	igrab(dir);
 
 	for (;;) {
-		if (to == this) {
+		if (dir == this->i_vnode) {
 			error = -EINVAL;
 			break;
 		}
-		if (to == get_v2ip(sdp->sd_root_dir)) {
+		if (dir == sdp->sd_root_dir) {
 			error = 0;
 			break;
 		}
 
-		error = gfs2_lookupi(to, &dotdot, 1, &tmp);
+		error = gfs2_lookupi(dir, &dotdot, 1, &tmp);
 		if (error)
 			break;
 
-		gfs2_inode_put(to);
-		to = tmp;
+		iput(dir);
+		dir = tmp;
 	}
 
-	gfs2_inode_put(to);
+	iput(dir);
 
 	return error;
 }

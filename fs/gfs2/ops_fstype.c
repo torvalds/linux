@@ -360,6 +360,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 		goto out_rooti;
 	}
 
+	igrab(inode);
 	sb->s_root = d_alloc_root(inode);
 	if (!sb->s_root) {
 		fs_err(sdp, "can't get root dentry\n");
@@ -434,7 +435,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 			goto fail_jindex;
 		}
 
-		error = gfs2_glock_nq_init(sdp->sd_jdesc->jd_inode->i_gl,
+		error = gfs2_glock_nq_init(get_v2ip(sdp->sd_jdesc->jd_inode)->i_gl,
 					   LM_ST_SHARED,
 					   LM_FLAG_NOEXP | GL_EXACT,
 					   &sdp->sd_jinode_gh);

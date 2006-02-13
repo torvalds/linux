@@ -27,17 +27,17 @@
 int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 			   struct buffer_head **bh)
 {
-	struct gfs2_glock *gl = jd->jd_inode->i_gl;
+	struct gfs2_glock *gl = get_v2ip(jd->jd_inode)->i_gl;
 	int new = 0;
 	uint64_t dblock;
 	uint32_t extlen;
 	int error;
 
-	error = gfs2_block_map(jd->jd_inode, blk, &new, &dblock, &extlen);
+	error = gfs2_block_map(get_v2ip(jd->jd_inode), blk, &new, &dblock, &extlen);
 	if (error)
 		return error;
 	if (!dblock) {
-		gfs2_consist_inode(jd->jd_inode);
+		gfs2_consist_inode(get_v2ip(jd->jd_inode));
 		return -EIO;
 	}
 
@@ -184,7 +184,7 @@ static int find_good_lh(struct gfs2_jdesc *jd, unsigned int *blk,
 			*blk = 0;
 
 		if (*blk == orig_blk) {
-			gfs2_consist_inode(jd->jd_inode);
+			gfs2_consist_inode(get_v2ip(jd->jd_inode));
 			return -EIO;
 		}
 	}
@@ -218,7 +218,7 @@ static int jhead_scan(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 			continue;
 
 		if (lh.lh_sequence == head->lh_sequence) {
-			gfs2_consist_inode(jd->jd_inode);
+			gfs2_consist_inode(get_v2ip(jd->jd_inode));
 			return -EIO;
 		}
 		if (lh.lh_sequence < head->lh_sequence)
@@ -294,7 +294,7 @@ int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 static int foreach_descriptor(struct gfs2_jdesc *jd, unsigned int start,
 			      unsigned int end, int pass)
 {
-	struct gfs2_sbd *sdp = jd->jd_inode->i_sbd;
+	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
 	struct buffer_head *bh;
 	struct gfs2_log_descriptor *ld;
 	int error = 0;
@@ -323,7 +323,7 @@ static int foreach_descriptor(struct gfs2_jdesc *jd, unsigned int start,
 				continue;
 			}
 			if (error == 1) {
-				gfs2_consist_inode(jd->jd_inode);
+				gfs2_consist_inode(get_v2ip(jd->jd_inode));
 				error = -EIO;
 			}
 			brelse(bh);
@@ -360,7 +360,7 @@ static int foreach_descriptor(struct gfs2_jdesc *jd, unsigned int start,
 
 static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 {
-	struct gfs2_inode *ip = jd->jd_inode;
+	struct gfs2_inode *ip = get_v2ip(jd->jd_inode);
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	unsigned int lblock;
 	int new = 0;
@@ -419,7 +419,7 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 
 int gfs2_recover_journal(struct gfs2_jdesc *jd, int wait)
 {
-	struct gfs2_sbd *sdp = jd->jd_inode->i_sbd;
+	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
 	struct gfs2_log_header head;
 	struct gfs2_holder j_gh, ji_gh, t_gh;
 	unsigned long t;
@@ -449,7 +449,7 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd, int wait)
 		goto fail;
 	};
 
-	error = gfs2_glock_nq_init(jd->jd_inode->i_gl, LM_ST_SHARED,
+	error = gfs2_glock_nq_init(get_v2ip(jd->jd_inode)->i_gl, LM_ST_SHARED,
 				   LM_FLAG_NOEXP, &ji_gh);
 	if (error)
 		goto fail_gunlock_j;

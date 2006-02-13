@@ -572,7 +572,7 @@ static void do_qc(struct gfs2_quota_data *qd, int64_t change)
 static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 			     int64_t change, struct gfs2_quota_data *qd)
 {
-	struct inode *inode = gfs2_ip2v(ip);
+	struct inode *inode = ip->i_vnode;
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long index = loc >> PAGE_CACHE_SHIFT;
 	unsigned offset = loc & (PAGE_CACHE_SHIFT - 1);

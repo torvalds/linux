@@ -305,7 +305,7 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 		if (!jd)
 			break;
 
-		error = gfs2_lookupi(dip, &name, 1, &jd->jd_inode);
+		error = gfs2_lookupi(sdp->sd_jindex, &name, 1, &jd->jd_inode);
 		if (error) {
 			kfree(jd);
 			break;
@@ -342,7 +342,7 @@ void gfs2_jindex_free(struct gfs2_sbd *sdp)
 	while (!list_empty(&list)) {
 		jd = list_entry(list.next, struct gfs2_jdesc, jd_list);
 		list_del(&jd->jd_list);
-		gfs2_inode_put(jd->jd_inode);
+		iput(jd->jd_inode);
 		kfree(jd);
 	}
 }
@@ -411,7 +411,7 @@ struct gfs2_jdesc *gfs2_jdesc_find_dirty(struct gfs2_sbd *sdp)
 
 int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 {
-	struct gfs2_inode *ip = jd->jd_inode;
+	struct gfs2_inode *ip = get_v2ip(jd->jd_inode);
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	int ar;
 	int error;
@@ -462,7 +462,7 @@ int gfs2_lookup_master_dir(struct gfs2_sbd *sdp)
 
 int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 {
-	struct gfs2_glock *j_gl = sdp->sd_jdesc->jd_inode->i_gl;
+	struct gfs2_glock *j_gl = get_v2ip(sdp->sd_jdesc->jd_inode)->i_gl;
 	struct gfs2_holder t_gh;
 	struct gfs2_log_header head;
 	int error;
@@ -472,7 +472,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	if (error)
 		return error;
 
-	gfs2_meta_cache_flush(sdp->sd_jdesc->jd_inode);
+	gfs2_meta_cache_flush(get_v2ip(sdp->sd_jdesc->jd_inode));
 	j_gl->gl_ops->go_inval(j_gl, DIO_METADATA | DIO_DATA);
 
 	error = gfs2_find_jhead(sdp->sd_jdesc, &head);
@@ -854,7 +854,7 @@ int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp, struct gfs2_holder *t_gh)
 			error = -ENOMEM;
 			goto out;
 		}
-		error = gfs2_glock_nq_init(jd->jd_inode->i_gl, LM_ST_SHARED, 0,
+		error = gfs2_glock_nq_init(get_v2ip(jd->jd_inode)->i_gl, LM_ST_SHARED, 0,
 					   &lfcc->gh);
 		if (error) {
 			kfree(lfcc);

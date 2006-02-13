@@ -358,13 +358,13 @@ static void trans_go_xmote_th(struct gfs2_glock *gl, unsigned int state,
 static void trans_go_xmote_bh(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_glock *j_gl = sdp->sd_jdesc->jd_inode->i_gl;
+	struct gfs2_glock *j_gl = get_v2ip(sdp->sd_jdesc->jd_inode)->i_gl;
 	struct gfs2_log_header head;
 	int error;
 
 	if (gl->gl_state != LM_ST_UNLOCKED &&
 	    test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
-		gfs2_meta_cache_flush(sdp->sd_jdesc->jd_inode);
+		gfs2_meta_cache_flush(get_v2ip(sdp->sd_jdesc->jd_inode));
 		j_gl->gl_ops->go_inval(j_gl, DIO_METADATA | DIO_DATA);
 
 		error = gfs2_find_jhead(sdp->sd_jdesc, &head);

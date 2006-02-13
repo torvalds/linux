@@ -44,9 +44,9 @@ void gfs2_inode_destroy(struct gfs2_inode *ip);
 int gfs2_inode_dealloc(struct gfs2_sbd *sdp, struct gfs2_unlinked *ul);
 
 int gfs2_change_nlink(struct gfs2_inode *ip, int diff);
-int gfs2_lookupi(struct gfs2_inode *dip, struct qstr *name, int is_root,
-		 struct gfs2_inode **ipp);
-int gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode);
+int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
+		 struct inode **ipp);
+struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode);
 int gfs2_unlinki(struct gfs2_inode *dip, struct qstr *name,
 		 struct gfs2_inode *ip, struct gfs2_unlinked *ul);
 int gfs2_rmdiri(struct gfs2_inode *dip, struct qstr *name,
@@ -68,19 +68,12 @@ int gfs2_repermission(struct inode *inode, int mask, struct nameidata *nd);
 static inline int gfs2_lookup_simple(struct inode *dip, char *name,
 				     struct inode **ipp)
 {
-	struct gfs2_inode *ip;
 	struct qstr qstr;
 	int err;
 	memset(&qstr, 0, sizeof(struct qstr));
 	qstr.name = name;
 	qstr.len = strlen(name);
-	err = gfs2_lookupi(get_v2ip(dip), &qstr, 1, &ip);
-	if (err == 0) {
-		*ipp = gfs2_ip2v(ip);
-		gfs2_inode_put(ip);
-		if (*ipp == NULL)
-			err = -ENOMEM;
-	}
+	err = gfs2_lookupi(dip, &qstr, 1, ipp);
 	return err;
 }
 
