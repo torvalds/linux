@@ -51,7 +51,7 @@
 struct ltfirmware
 {
         unsigned int length;
-        unsigned char * data;
+        const unsigned char *data;
 };
 
 #define DAYNA 1
