@@ -134,6 +134,14 @@ UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
  		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
 #endif
 
+/* Patch submitted by Daniel Drake <dsd@gentoo.org>
+ * Device reports nonsense bInterfaceProtocol 6 when connected over USB2 */
+UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
+		"Neuros Audio",
+		"USB 2.0 HD 2.5",
+		US_SC_DEVICE, US_PR_BULK, NULL,
+		US_FL_NEED_OVERRIDE ),
+
 /*
  * Pete Zaitcev <zaitcev@yahoo.com>, from Patrick C. F. Ernzer, bz#162559.
  * The key does not actually break, but it returns zero sense which
@@ -144,13 +152,16 @@ UNUSUAL_DEV(  0x0457, 0x0150, 0x0100, 0x0100,
 		"USB Mass Storage Device",
 		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
 
-/* Patch submitted by Daniel Drake <dsd@gentoo.org>
- * Device reports nonsense bInterfaceProtocol 6 when connected over USB2 */
-UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
-		"Neuros Audio",
-		"USB 2.0 HD 2.5",
-		US_SC_DEVICE, US_PR_BULK, NULL,
-		US_FL_NEED_OVERRIDE ),
+/*
+* Bohdan Linda <bohdan.linda@gmail.com>
+* 1GB USB sticks MyFlash High Speed. I have restricted
+* the revision to my model only
+*/
+UNUSUAL_DEV(  0x0457, 0x0151, 0x0100, 0x0100,
+                "USB 2.0",
+                "Flash Disk",
+                US_SC_DEVICE, US_PR_DEVICE, NULL,
+                US_FL_NOT_LOCKABLE ),
 
 UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
 		"Rio",
