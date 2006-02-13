@@ -1221,6 +1221,10 @@ extern unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
  */
 #define HV_FAST_INTR_GETENABLED		0xa1
 
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_intr_getenabled(unsigned long sysino);
+#endif
+
 /* intr_setenabled()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_SETENABLED
@@ -1233,6 +1237,10 @@ extern unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
  */
 #define HV_FAST_INTR_SETENABLED		0xa2
 
+#ifndef __ASSEMBLY__
+extern void sun4v_intr_setenabled(unsigned long sysino, unsigned long intr_enabled);
+#endif
+
 /* intr_getstate()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_GETSTATE
@@ -1244,6 +1252,10 @@ extern unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
  * Returns current state of the interrupt defined by the given sysino.
  */
 #define HV_FAST_INTR_GETSTATE		0xa3
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_intr_getstate(unsigned long sysino);
+#endif
 
 /* intr_setstate()
  * TRAP:	HV_FAST_TRAP
@@ -1261,6 +1273,10 @@ extern unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
  */
 #define HV_FAST_INTR_SETSTATE		0xa4
 
+#ifndef __ASSEMBLY__
+extern void sun4v_intr_setstate(unsigned long sysino, unsigned long intr_state);
+#endif
+
 /* intr_gettarget()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_GETTARGET
@@ -1275,6 +1291,10 @@ extern unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
  */
 #define HV_FAST_INTR_GETTARGET		0xa5
 
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_intr_gettarget(unsigned long sysino);
+#endif
+
 /* intr_settarget()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_INTR_SETTARGET
@@ -1287,6 +1307,10 @@ extern unsigned long sun4v_devino_to_sysino(unsigned long devhandle,
  * Set the target CPU for the interrupt defined by the given sysino.
  */
 #define HV_FAST_INTR_SETTARGET		0xa6
+
+#ifndef __ASSEMBLY__
+extern void sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
+#endif
 
 /* PCI IO services.
  *

@@ -1701,9 +1701,73 @@ hard_smp_processor_id:
 	 *
 	 * returns %o0: sysino
 	 */
-	.globl	pci_sun4v_devino_to_sysino
+	.globl	sun4v_devino_to_sysino
 sun4v_devino_to_sysino:
 	mov	HV_FAST_INTR_DEVINO2SYSINO, %o5
 	ta	HV_FAST_TRAP
 	retl
 	 mov	%o1, %o0
+
+	/* %o0: sysino
+	 *
+	 * returns %o0: intr_enabled (HV_INTR_{DISABLED,ENABLED})
+	 */
+	.globl	sun4v_intr_getenabled
+sun4v_intr_getenabled:
+	mov	HV_FAST_INTR_GETENABLED, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 mov	%o1, %o0
+
+	/* %o0: sysino
+	 * %o1: intr_enabled (HV_INTR_{DISABLED,ENABLED})
+	 */
+	.globl	sun4v_intr_setenabled
+sun4v_intr_setenabled:
+	mov	HV_FAST_INTR_SETENABLED, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+
+	/* %o0: sysino
+	 *
+	 * returns %o0: intr_state (HV_INTR_STATE_*)
+	 */
+	.globl	sun4v_intr_getstate
+sun4v_intr_getstate:
+	mov	HV_FAST_INTR_GETSTATE, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 mov	%o1, %o0
+
+	/* %o0: sysino
+	 * %o1: intr_state (HV_INTR_STATE_*)
+	 */
+	.globl	sun4v_intr_setstate
+sun4v_intr_setstate:
+	mov	HV_FAST_INTR_SETSTATE, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+
+	/* %o0: sysino
+	 *
+	 * returns %o0: cpuid
+	 */
+	.globl	sun4v_intr_gettarget
+sun4v_intr_gettarget:
+	mov	HV_FAST_INTR_GETTARGET, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 mov	%o1, %o0
+
+	/* %o0: sysino
+	 * %o1: cpuid
+	 */
+	.globl	sun4v_intr_settarget
+sun4v_intr_settarget:
+	mov	HV_FAST_INTR_SETTARGET, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+
