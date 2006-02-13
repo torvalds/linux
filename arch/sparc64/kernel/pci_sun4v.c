@@ -514,19 +514,31 @@ struct pci_iommu_ops pci_sun4v_iommu_ops = {
 
 /* SUN4V PCI configuration space accessors. */
 
+static inline int pci_sun4v_out_of_range(struct pci_pbm_info *pbm, unsigned int bus)
+{
+	if (bus < pbm->pci_first_busno ||
+	    bus > pbm->pci_last_busno)
+		return 1;
+	return 0;
+}
+
 static int pci_sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 				  int where, int size, u32 *value)
 {
 	struct pci_pbm_info *pbm = bus_dev->sysdata;
-	unsigned long devhandle = pbm->devhandle;
+	u32 devhandle = pbm->devhandle;
 	unsigned int bus = bus_dev->number;
 	unsigned int device = PCI_SLOT(devfn);
 	unsigned int func = PCI_FUNC(devfn);
 	unsigned long ret;
 
-	ret = pci_sun4v_config_get(devhandle,
-				   HV_PCI_DEVICE_BUILD(bus, device, func),
-				   where, size);
+	if (pci_sun4v_out_of_range(pbm, bus)) {
+		ret = ~0UL;
+	} else {
+		ret = pci_sun4v_config_get(devhandle,
+				HV_PCI_DEVICE_BUILD(bus, device, func),
+				where, size);
+	}
 	switch (size) {
 	case 1:
 		*value = ret & 0xff;
@@ -547,16 +559,19 @@ static int pci_sun4v_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 				   int where, int size, u32 value)
 {
 	struct pci_pbm_info *pbm = bus_dev->sysdata;
-	unsigned long devhandle = pbm->devhandle;
+	u32 devhandle = pbm->devhandle;
 	unsigned int bus = bus_dev->number;
 	unsigned int device = PCI_SLOT(devfn);
 	unsigned int func = PCI_FUNC(devfn);
 	unsigned long ret;
 
-	ret = pci_sun4v_config_put(devhandle,
-				   HV_PCI_DEVICE_BUILD(bus, device, func),
-				   where, size, value);
-
+	if (pci_sun4v_out_of_range(pbm, bus)) {
+		/* Do nothing. */
+	} else {
+		ret = pci_sun4v_config_put(devhandle,
+				HV_PCI_DEVICE_BUILD(bus, device, func),
+				where, size, value);
+	}
 	return PCIBIOS_SUCCESSFUL;
 }
 
