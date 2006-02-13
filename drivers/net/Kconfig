@@ -2020,8 +2020,8 @@ config SIS190
 	  will be called sis190.  This is recommended.
 
 config SKGE
-	tristate "New SysKonnect GigaEthernet support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "New SysKonnect GigaEthernet support"
+	depends on PCI
 	select CRC32
 	---help---
 	  This driver support the Marvell Yukon or SysKonnect SK-98xx/SK-95xx
