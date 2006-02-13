@@ -91,8 +91,92 @@
 #endif /* !(__ASSEMBLY__) */
 
 /* PTE bits which are the same in SUN4U and SUN4V format.  */
-#define _PAGE_VALID	0x8000000000000000 /* Valid TTE              */
-#define _PAGE_R	  	0x8000000000000000 /* Keep ref bit up to date*/
+#define _PAGE_VALID	  _AC(0x8000000000000000,UL) /* Valid TTE            */
+#define _PAGE_R	  	  _AC(0x8000000000000000,UL) /* Keep ref bit uptodate*/
+
+/* SUN4U pte bits... */
+#define _PAGE_SZ4MB_4U	  _AC(0x6000000000000000,UL) /* 4MB Page             */
+#define _PAGE_SZ512K_4U	  _AC(0x4000000000000000,UL) /* 512K Page            */
+#define _PAGE_SZ64K_4U	  _AC(0x2000000000000000,UL) /* 64K Page             */
+#define _PAGE_SZ8K_4U	  _AC(0x0000000000000000,UL) /* 8K Page              */
+#define _PAGE_NFO_4U	  _AC(0x1000000000000000,UL) /* No Fault Only        */
+#define _PAGE_IE_4U	  _AC(0x0800000000000000,UL) /* Invert Endianness    */
+#define _PAGE_SOFT2_4U	  _AC(0x07FC000000000000,UL) /* Software bits, set 2 */
+#define _PAGE_RES1_4U	  _AC(0x0002000000000000,UL) /* Reserved             */
+#define _PAGE_SZ32MB_4U	  _AC(0x0001000000000000,UL) /* (Panther) 32MB page  */
+#define _PAGE_SZ256MB_4U  _AC(0x2001000000000000,UL) /* (Panther) 256MB page */
+#define _PAGE_SN_4U	  _AC(0x0000800000000000,UL) /* (Cheetah) Snoop      */
+#define _PAGE_RES2_4U	  _AC(0x0000780000000000,UL) /* Reserved             */
+#define _PAGE_PADDR_4U	  _AC(0x000007FFFFFFE000,UL) /* (Cheetah) pa[42:13]  */
+#define _PAGE_SOFT_4U	  _AC(0x0000000000001F80,UL) /* Software bits:       */
+#define _PAGE_EXEC_4U	  _AC(0x0000000000001000,UL) /* Executable SW bit    */
+#define _PAGE_MODIFIED_4U _AC(0x0000000000000800,UL) /* Modified (dirty)     */
+#define _PAGE_FILE_4U	  _AC(0x0000000000000800,UL) /* Pagecache page       */
+#define _PAGE_ACCESSED_4U _AC(0x0000000000000400,UL) /* Accessed (ref'd)     */
+#define _PAGE_READ_4U	  _AC(0x0000000000000200,UL) /* Readable SW Bit      */
+#define _PAGE_WRITE_4U	  _AC(0x0000000000000100,UL) /* Writable SW Bit      */
+#define _PAGE_PRESENT_4U  _AC(0x0000000000000080,UL) /* Present              */
+#define _PAGE_L_4U	  _AC(0x0000000000000040,UL) /* Locked TTE           */
+#define _PAGE_CP_4U	  _AC(0x0000000000000020,UL) /* Cacheable in P-Cache */
+#define _PAGE_CV_4U	  _AC(0x0000000000000010,UL) /* Cacheable in V-Cache */
+#define _PAGE_E_4U	  _AC(0x0000000000000008,UL) /* side-Effect          */
+#define _PAGE_P_4U	  _AC(0x0000000000000004,UL) /* Privileged Page      */
+#define _PAGE_W_4U	  _AC(0x0000000000000002,UL) /* Writable             */
+
+/* SUN4V pte bits... */
+#define _PAGE_NFO_4V	  _AC(0x4000000000000000,UL) /* No Fault Only        */
+#define _PAGE_SOFT2_4V	  _AC(0x3F00000000000000,UL) /* Software bits, set 2 */
+#define _PAGE_MODIFIED_4V _AC(0x2000000000000000,UL) /* Modified (dirty)     */
+#define _PAGE_ACCESSED_4V _AC(0x1000000000000000,UL) /* Accessed (ref'd)     */
+#define _PAGE_READ_4V	  _AC(0x0800000000000000,UL) /* Readable SW Bit      */
+#define _PAGE_WRITE_4V	  _AC(0x0400000000000000,UL) /* Writable SW Bit      */
+#define _PAGE_PADDR_4V	  _AC(0x00FFFFFFFFFFE000,UL) /* paddr[55:13]         */
+#define _PAGE_IE_4V	  _AC(0x0000000000001000,UL) /* Invert Endianness    */
+#define _PAGE_E_4V	  _AC(0x0000000000000800,UL) /* side-Effect          */
+#define _PAGE_CP_4V	  _AC(0x0000000000000400,UL) /* Cacheable in P-Cache */
+#define _PAGE_CV_4V	  _AC(0x0000000000000200,UL) /* Cacheable in V-Cache */
+#define _PAGE_P_4V	  _AC(0x0000000000000100,UL) /* Privileged Page      */
+#define _PAGE_EXEC_4V	  _AC(0x0000000000000080,UL) /* Executable Page      */
+#define _PAGE_W_4V	  _AC(0x0000000000000040,UL) /* Writable             */
+#define _PAGE_SOFT_4V	  _AC(0x0000000000000030,UL) /* Software bits        */
+#define _PAGE_FILE_4V	  _AC(0x0000000000000020,UL) /* Pagecache page       */
+#define _PAGE_PRESENT_4V  _AC(0x0000000000000010,UL) /* Present              */
+#define _PAGE_RESV_4V	  _AC(0x0000000000000008,UL) /* Reserved             */
+#define _PAGE_SZ16GB_4V	  _AC(0x0000000000000007,UL) /* 16GB Page            */
+#define _PAGE_SZ2GB_4V	  _AC(0x0000000000000006,UL) /* 2GB Page             */
+#define _PAGE_SZ256MB_4V  _AC(0x0000000000000005,UL) /* 256MB Page           */
+#define _PAGE_SZ32MB_4V	  _AC(0x0000000000000004,UL) /* 32MB Page            */
+#define _PAGE_SZ4MB_4V	  _AC(0x0000000000000003,UL) /* 4MB Page             */
+#define _PAGE_SZ512K_4V	  _AC(0x0000000000000002,UL) /* 512K Page            */
+#define _PAGE_SZ64K_4V	  _AC(0x0000000000000001,UL) /* 64K Page             */
+#define _PAGE_SZ8K_4V	  _AC(0x0000000000000000,UL) /* 8K Page              */
+
+#if PAGE_SHIFT == 13
+#define _PAGE_SZBITS_4U	_PAGE_SZ8K_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ8K_4V
+#elif PAGE_SHIFT == 16
+#define _PAGE_SZBITS_4U	_PAGE_SZ64K_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ64K_4V
+#elif PAGE_SHIFT == 19
+#define _PAGE_SZBITS_4U	_PAGE_SZ512K_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ512K_4V
+#elif PAGE_SHIFT == 22
+#define _PAGE_SZBITS_4U	_PAGE_SZ4MB_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ4MB_4V
+#else
+#error Wrong PAGE_SHIFT specified
+#endif
+
+#if defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
+#define _PAGE_SZHUGE_4U	_PAGE_SZ4MB_4U
+#define _PAGE_SZHUGE_4V	_PAGE_SZ4MB_4V
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
+#define _PAGE_SZHUGE_4U	_PAGE_SZ512K_4U
+#define _PAGE_SZHUGE_4V	_PAGE_SZ512K_4V
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
+#define _PAGE_SZHUGE_4U	_PAGE_SZ64K_4U
+#define _PAGE_SZHUGE_4V	_PAGE_SZ64K_4V
+#endif
 
 /* These are actually filled in at boot time by sun4{u,v}_pgprot_init() */
 #define __P000	__pgprot(0)
