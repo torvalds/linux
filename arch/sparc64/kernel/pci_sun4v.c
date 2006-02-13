@@ -916,8 +916,10 @@ void sun4v_pci_init(int node, char *model_name)
 		       &p->pbm_A :
 		       &p->pbm_B);
 
-		if (pbm->devhandle == (devhandle ^ 0x40))
+		if (pbm->devhandle == (devhandle ^ 0x40)) {
 			pci_sun4v_pbm_init(p, node, devhandle);
+			return;
+		}
 	}
 
 	p = kmalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
@@ -961,7 +963,4 @@ void sun4v_pci_init(int node, char *model_name)
 	pci_memspace_mask = 0x7fffffffUL;
 
 	pci_sun4v_pbm_init(p, node, devhandle);
-
-	prom_printf("sun4v_pci_init: Implement me.\n");
-	prom_halt();
 }
