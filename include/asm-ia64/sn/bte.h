@@ -46,7 +46,7 @@
 #define BTES_PER_NODE (is_shub2() ? 4 : 2)
 #define MAX_BTES_PER_NODE 4
 
-#define BTE2OFF_CTRL	(0)
+#define BTE2OFF_CTRL	0
 #define BTE2OFF_SRC	(SH2_BT_ENG_SRC_ADDR_0 - SH2_BT_ENG_CSR_0)
 #define BTE2OFF_DEST	(SH2_BT_ENG_DEST_ADDR_0 - SH2_BT_ENG_CSR_0)
 #define BTE2OFF_NOTIFY	(SH2_BT_ENG_NOTIF_ADDR_0 - SH2_BT_ENG_CSR_0)
@@ -75,11 +75,11 @@
 		: base + (BTEOFF_NOTIFY/8))
 
 /* Define hardware modes */
-#define BTE_NOTIFY (IBCT_NOTIFY)
+#define BTE_NOTIFY IBCT_NOTIFY
 #define BTE_NORMAL BTE_NOTIFY
 #define BTE_ZERO_FILL (BTE_NOTIFY | IBCT_ZFIL_MODE)
 /* Use a reserved bit to let the caller specify a wait for any BTE */
-#define BTE_WACQUIRE (0x4000)
+#define BTE_WACQUIRE 0x4000
 /* Use the BTE on the node with the destination memory */
 #define BTE_USE_DEST (BTE_WACQUIRE << 1)
 /* Use any available BTE interface on any node for the transfer */
