@@ -139,7 +139,7 @@ _GLOBAL(__secondary_hold)
 	ori	r24,r24,MSR_RI
 	mtmsrd	r24			/* RI on */
 
-	/* Grab our linux cpu number */
+	/* Grab our physical cpu number */
 	mr	r24,r3
 
 	/* Tell the master cpu we're here */
@@ -153,11 +153,7 @@ _GLOBAL(__secondary_hold)
 	cmpdi	0,r4,1
 	bne	100b
 
-#ifdef CONFIG_HMT
-	SET_REG_IMMEDIATE(r4, .hmt_init)
-	mtctr	r4
-	bctr
-#elif defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
+#if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
 	LOAD_REG_IMMEDIATE(r4, .pSeries_secondary_smp_init)
 	mtctr	r4
 	mr	r3,r24
@@ -1808,22 +1804,6 @@ _STATIC(start_here_multiplatform)
 	ori	r6,r6,MSR_RI
 	mtmsrd	r6			/* RI on */
 
-#ifdef CONFIG_HMT
-	/* Start up the second thread on cpu 0 */
-	mfspr	r3,SPRN_PVR
-	srwi	r3,r3,16
-	cmpwi	r3,0x34			/* Pulsar  */
-	beq	90f
-	cmpwi	r3,0x36			/* Icestar */
-	beq	90f
-	cmpwi	r3,0x37			/* SStar   */
-	beq	90f
-	b	91f			/* HMT not supported */
-90:	li	r3,0
-	bl	.hmt_start_secondary
-91:
-#endif
-
 	/* The following gets the stack and TOC set up with the regs */
 	/* pointing to the real addr of the kernel stack.  This is   */
 	/* all done to support the C function call below which sets  */
@@ -1937,77 +1917,8 @@ _STATIC(start_here_common)
 
 	bl .start_kernel
 
-_GLOBAL(hmt_init)
-#ifdef CONFIG_HMT
-	LOAD_REG_IMMEDIATE(r5, hmt_thread_data)
-	mfspr	r7,SPRN_PVR
-	srwi	r7,r7,16
-	cmpwi	r7,0x34			/* Pulsar  */
-	beq	90f
-	cmpwi	r7,0x36			/* Icestar */
-	beq	91f
-	cmpwi	r7,0x37			/* SStar   */
-	beq	91f
-	b	101f
-90:	mfspr	r6,SPRN_PIR
-	andi.	r6,r6,0x1f
-	b	92f
-91:	mfspr	r6,SPRN_PIR
-	andi.	r6,r6,0x3ff
-92:	sldi	r4,r24,3
-	stwx	r6,r5,r4
-	bl	.hmt_start_secondary
-	b	101f
-
-__hmt_secondary_hold:
-	LOAD_REG_IMMEDIATE(r5, hmt_thread_data)
-	clrldi	r5,r5,4
-	li	r7,0
-	mfspr	r6,SPRN_PIR
-	mfspr	r8,SPRN_PVR
-	srwi	r8,r8,16
-	cmpwi	r8,0x34
-	bne	93f
-	andi.	r6,r6,0x1f
-	b	103f
-93:	andi.	r6,r6,0x3f
-
-103:	lwzx	r8,r5,r7
-	cmpw	r8,r6
-	beq	104f
-	addi	r7,r7,8
-	b	103b
-
-104:	addi	r7,r7,4
-	lwzx	r9,r5,r7
-	mr	r24,r9
-101:
-#endif
-	mr	r3,r24
-	b	.pSeries_secondary_smp_init
-
-#ifdef CONFIG_HMT
-_GLOBAL(hmt_start_secondary)
-	LOAD_REG_IMMEDIATE(r4,__hmt_secondary_hold)
-	clrldi	r4,r4,4
-	mtspr	SPRN_NIADORM, r4
-	mfspr	r4, SPRN_MSRDORM
-	li	r5, -65
-	and	r4, r4, r5
-	mtspr	SPRN_MSRDORM, r4
-	lis	r4,0xffef
-	ori	r4,r4,0x7403
-	mtspr	SPRN_TSC, r4
-	li	r4,0x1f4
-	mtspr	SPRN_TST, r4
-	mfspr	r4, SPRN_HID0
-	ori	r4, r4, 0x1
-	mtspr	SPRN_HID0, r4
-	mfspr	r4, SPRN_CTRLF
-	oris	r4, r4, 0x40
-	mtspr	SPRN_CTRLT, r4
-	blr
-#endif
+	/* Not reached */
+	BUG_OPCODE
 
 /*
  * We put a few things here that have to be page-aligned.
