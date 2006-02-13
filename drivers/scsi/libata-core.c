@@ -3282,9 +3282,9 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
 {
 	/* send SCSI cdb */
 	DPRINTK("send cdb\n");
-	WARN_ON(ap->cdb_len < 12);
+	WARN_ON(qc->dev->cdb_len < 12);
 
-	ata_data_xfer(ap, qc->cdb, ap->cdb_len, 1);
+	ata_data_xfer(ap, qc->cdb, qc->dev->cdb_len, 1);
 	ata_altstatus(ap); /* flush */
 
 	switch (qc->tf.protocol) {
