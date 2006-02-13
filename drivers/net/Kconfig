@@ -2082,7 +2082,6 @@ config SK98LIN
 	    - Allied Telesyn AT-2971SX Gigabit Ethernet Adapter
 	    - Allied Telesyn AT-2971T Gigabit Ethernet Adapter
 	    - Belkin Gigabit Desktop Card 10/100/1000Base-T Adapter, Copper RJ-45
-	    - DGE-530T Gigabit Ethernet Adapter
 	    - EG1032 v2 Instant Gigabit Network Adapter
 	    - EG1064 v2 Instant Gigabit Network Adapter
 	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Abit)
