@@ -1098,6 +1098,13 @@ UNUSUAL_DEV(  0x0dda, 0x0301, 0x0012, 0x0012,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Jim McCloskey <mcclosk@ucsc.edu> */
+UNUSUAL_DEV( 0x0e21, 0x0520, 0x0100, 0x0100,
+		"Cowon Systems",
+		"iAUDIO M5",
+		US_SC_DEVICE, US_PR_BULK, NULL,
+		0 ),
+
 /* Submitted by Antoine Mairesse <antoine.mairesse@free.fr> */
 UNUSUAL_DEV( 0x0ed1, 0x6660, 0x0100, 0x0300,
 		"USB",
