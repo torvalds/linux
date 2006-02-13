@@ -776,22 +776,22 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	probe_existing_entries(pbm, iommu);
 }
 
-static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node)
+static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, unsigned int devhandle)
 {
 	struct pci_pbm_info *pbm;
-	struct linux_prom64_registers regs;
 	unsigned int busrange[2];
-	int err;
+	int err, i;
 
-	/* XXX */
-	pbm = &p->pbm_A;
+	if (devhandle & 0x40)
+		pbm = &p->pbm_B;
+	else
+		pbm = &p->pbm_A;
 
 	pbm->parent = p;
 	pbm->prom_node = prom_node;
 	pbm->pci_first_slot = 1;
 
-	prom_getproperty(prom_node, "reg", (char *)&regs, sizeof(regs));
-	pbm->devhandle = (regs.phys_addr >> 32UL) & 0x0fffffff;
+	pbm->devhandle = devhandle;
 
 	sprintf(pbm->name, "SUN4V-PCI%d PBM%c",
 		p->index, (pbm == &p->pbm_A ? 'A' : 'B'));
@@ -812,6 +812,12 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node)
 
 	pbm->num_pbm_ranges =
 		(err / sizeof(struct linux_prom_pci_ranges));
+
+	/* Mask out the top 8 bits of the ranges, leaving the real
+	 * physical address.
+	 */
+	for (i = 0; i < pbm->num_pbm_ranges; i++)
+		pbm->pbm_ranges[i].parent_phys_hi &= 0x0fffffff;
 
 	pci_sun4v_determine_mem_io_space(pbm);
 	pbm_register_toplevel_resources(p, pbm);
@@ -851,6 +857,25 @@ void sun4v_pci_init(int node, char *model_name)
 {
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
+	struct linux_prom64_registers regs;
+	unsigned int devhandle;
+
+	prom_getproperty(node, "reg", (char *)&regs, sizeof(regs));
+	devhandle = (regs.phys_addr >> 32UL) & 0x0fffffff;;
+
+	for (p = pci_controller_root; p; p = p->next) {
+		struct pci_pbm_info *pbm;
+
+		if (p->pbm_A.prom_node && p->pbm_B.prom_node)
+			continue;
+
+		pbm = (p->pbm_A.prom_node ?
+		       &p->pbm_A :
+		       &p->pbm_B);
+
+		if (pbm->devhandle == (devhandle ^ 0x40))
+			pci_sun4v_pbm_init(p, node, devhandle);
+	}
 
 	p = kmalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
 	if (!p) {
@@ -892,7 +917,7 @@ void sun4v_pci_init(int node, char *model_name)
 	 */
 	pci_memspace_mask = 0x7fffffffUL;
 
-	pci_sun4v_pbm_init(p, node);
+	pci_sun4v_pbm_init(p, node, devhandle);
 
 	prom_printf("sun4v_pci_init: Implement me.\n");
 	prom_halt();
