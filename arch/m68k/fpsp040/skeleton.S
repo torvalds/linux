@@ -30,9 +30,8 @@
 |		Copyright (C) Motorola, Inc. 1990
 |			All Rights Reserved
 |
-|	THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF MOTOROLA
-|	The copyright notice above does not evidence any
-|	actual or intended publication of such source code.
+|       For details on the license for this file, please see the
+|       file, README, in this same directory.
 
 |
 |	Modified for Linux-1.3.x by Jes Sorensen (jds@kom.auc.dk)
