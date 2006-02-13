@@ -486,7 +486,7 @@ ata_dev_try_classify(struct ata_port *ap, unsigned int device, u8 *r_err)
 }
 
 /**
- *	ata_dev_id_string - Convert IDENTIFY DEVICE page into string
+ *	ata_id_string - Convert IDENTIFY DEVICE page into string
  *	@id: IDENTIFY DEVICE results we will examine
  *	@s: string into which data is output
  *	@ofs: offset into identify device page
@@ -500,8 +500,8 @@ ata_dev_try_classify(struct ata_port *ap, unsigned int device, u8 *r_err)
  *	caller.
  */
 
-void ata_dev_id_string(const u16 *id, unsigned char *s,
-		       unsigned int ofs, unsigned int len)
+void ata_id_string(const u16 *id, unsigned char *s,
+		   unsigned int ofs, unsigned int len)
 {
 	unsigned int c;
 
@@ -520,27 +520,27 @@ void ata_dev_id_string(const u16 *id, unsigned char *s,
 }
 
 /**
- *	ata_dev_id_c_string - Convert IDENTIFY DEVICE page into C string
+ *	ata_id_c_string - Convert IDENTIFY DEVICE page into C string
  *	@id: IDENTIFY DEVICE results we will examine
  *	@s: string into which data is output
  *	@ofs: offset into identify device page
  *	@len: length of string to return. must be an odd number.
  *
- *	This function is identical to ata_dev_id_string except that it
+ *	This function is identical to ata_id_string except that it
  *	trims trailing spaces and terminates the resulting string with
  *	null.  @len must be actual maximum length (even number) + 1.
  *
  *	LOCKING:
  *	caller.
  */
-void ata_dev_id_c_string(const u16 *id, unsigned char *s,
-			 unsigned int ofs, unsigned int len)
+void ata_id_c_string(const u16 *id, unsigned char *s,
+		     unsigned int ofs, unsigned int len)
 {
 	unsigned char *p;
 
 	WARN_ON(!(len & 1));
 
-	ata_dev_id_string(id, s, ofs, len - 1);
+	ata_id_string(id, s, ofs, len - 1);
 
 	p = s + strnlen(s, len - 1);
 	while (p > s && p[-1] == ' ')
@@ -2315,8 +2315,7 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
 	unsigned char model_num[41];
 	int i;
 
-	ata_dev_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS,
-			    sizeof(model_num));
+	ata_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS, sizeof(model_num));
 
 	for (i = 0; i < ARRAY_SIZE(ata_dma_blacklist); i++)
 		if (!strcmp(ata_dma_blacklist[i], model_num))
@@ -4934,8 +4933,8 @@ EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 EXPORT_SYMBOL_GPL(ata_scsi_release);
 EXPORT_SYMBOL_GPL(ata_host_intr);
 EXPORT_SYMBOL_GPL(ata_dev_classify);
-EXPORT_SYMBOL_GPL(ata_dev_id_string);
-EXPORT_SYMBOL_GPL(ata_dev_id_c_string);
+EXPORT_SYMBOL_GPL(ata_id_string);
+EXPORT_SYMBOL_GPL(ata_id_c_string);
 EXPORT_SYMBOL_GPL(ata_dev_config);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 EXPORT_SYMBOL_GPL(ata_eh_qc_complete);

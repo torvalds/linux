@@ -1567,8 +1567,8 @@ unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
 
 	if (buflen > 35) {
 		memcpy(&rbuf[8], "ATA     ", 8);
-		ata_dev_id_string(args->id, &rbuf[16], ATA_ID_PROD_OFS, 16);
-		ata_dev_id_string(args->id, &rbuf[32], ATA_ID_FW_REV_OFS, 4);
+		ata_id_string(args->id, &rbuf[16], ATA_ID_PROD_OFS, 16);
+		ata_id_string(args->id, &rbuf[32], ATA_ID_FW_REV_OFS, 4);
 		if (rbuf[32] == 0 || rbuf[32] == ' ')
 			memcpy(&rbuf[32], "n/a ", 4);
 	}
@@ -1642,8 +1642,8 @@ unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
 	memcpy(rbuf, hdr, sizeof(hdr));
 
 	if (buflen > (ATA_SERNO_LEN + 4 - 1))
-		ata_dev_id_string(args->id, (unsigned char *) &rbuf[4],
-				  ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
+		ata_id_string(args->id, (unsigned char *) &rbuf[4],
+			      ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
 
 	return 0;
 }
@@ -1806,8 +1806,8 @@ static int ata_dev_supports_fua(u16 *id)
 	if (!ata_id_has_fua(id))
 		return 0;
 
-	ata_dev_id_c_string(id, model, ATA_ID_PROD_OFS, sizeof(model));
-	ata_dev_id_c_string(id, fw, ATA_ID_FW_REV_OFS, sizeof(fw));
+	ata_id_c_string(id, model, ATA_ID_PROD_OFS, sizeof(model));
+	ata_id_c_string(id, fw, ATA_ID_FW_REV_OFS, sizeof(fw));
 
 	if (strcmp(model, "Maxtor"))
 		return 1;
