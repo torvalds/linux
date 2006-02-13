@@ -566,9 +566,50 @@ static struct pci_ops pci_sun4v_ops = {
 };
 
 
+static void pbm_scan_bus(struct pci_controller_info *p,
+			 struct pci_pbm_info *pbm)
+{
+	struct pcidev_cookie *cookie = kmalloc(sizeof(*cookie), GFP_KERNEL);
+
+	if (!cookie) {
+		prom_printf("%s: Critical allocation failure.\n", pbm->name);
+		prom_halt();
+	}
+
+	/* All we care about is the PBM. */
+	memset(cookie, 0, sizeof(*cookie));
+	cookie->pbm = pbm;
+
+	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno,
+				    p->pci_ops,
+				    pbm);
+	pci_fixup_host_bridge_self(pbm->pci_bus);
+	pbm->pci_bus->self->sysdata = cookie;
+
+	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm, pbm->prom_node);
+	pci_record_assignments(pbm, pbm->pci_bus);
+	pci_assign_unassigned(pbm, pbm->pci_bus);
+	pci_fixup_irq(pbm, pbm->pci_bus);
+	pci_determine_66mhz_disposition(pbm, pbm->pci_bus);
+	pci_setup_busmastering(pbm, pbm->pci_bus);
+}
+
 static void pci_sun4v_scan_bus(struct pci_controller_info *p)
 {
-	/* XXX Implement me! XXX */
+	if (p->pbm_A.prom_node) {
+		p->pbm_A.is_66mhz_capable =
+			prom_getbool(p->pbm_A.prom_node, "66mhz-capable");
+
+		pbm_scan_bus(p, &p->pbm_A);
+	}
+	if (p->pbm_B.prom_node) {
+		p->pbm_B.is_66mhz_capable =
+			prom_getbool(p->pbm_B.prom_node, "66mhz-capable");
+
+		pbm_scan_bus(p, &p->pbm_B);
+	}
+
+	/* XXX register error interrupt handlers XXX */
 }
 
 static unsigned int pci_sun4v_irq_build(struct pci_pbm_info *pbm,
@@ -579,7 +620,6 @@ static unsigned int pci_sun4v_irq_build(struct pci_pbm_info *pbm,
 	return 0;
 }
 
-/* XXX correct? XXX */
 static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)
 {
 	struct pcidev_cookie *pcp = pdev->sysdata;
@@ -598,6 +638,7 @@ static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)
 		return;
 	}
 
+	/* XXX 64-bit MEM handling is not %100 correct... XXX */
 	is_64bit = 0;
 	if (res->flags & IORESOURCE_IO)
 		root = &pbm->io_space;
@@ -625,7 +666,6 @@ static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)
 		pci_write_config_dword(pdev, where + 4, 0);
 }
 
-/* XXX correct? XXX */
 static void pci_sun4v_resource_adjust(struct pci_dev *pdev,
 				      struct resource *res,
 				      struct resource *root)
@@ -667,6 +707,9 @@ static void pci_sun4v_determine_mem_io_space(struct pci_pbm_info *pbm)
 			pbm->mem_space.flags = IORESOURCE_MEM;
 			saw_mem = 1;
 			break;
+
+		case 3:
+			/* XXX 64-bit MEM handling XXX */
 
 		default:
 			break;
