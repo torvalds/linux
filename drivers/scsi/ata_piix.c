@@ -185,7 +185,6 @@ static struct scsi_host_template piix_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
@@ -414,9 +413,6 @@ static int piix_sata_probe (struct ata_port *ap)
 	int combined = (ap->flags & ATA_FLAG_SLAVE_POSS);
 	int orig_mask, mask, i;
 	u8 pcs;
-
-	mask = (PIIX_PORT_PRESENT << ap->hard_port_no) |
-	       (PIIX_PORT_ENABLED << ap->hard_port_no);
 
 	pci_read_config_byte(pdev, ICH5_PCS, &pcs);
 	orig_mask = (int) pcs & 0xff;

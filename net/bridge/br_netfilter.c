@@ -805,7 +805,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 print_error:
 	if (skb->dev != NULL) {
 		printk("[%s]", skb->dev->name);
-		if (has_bridge_parent(skb->dev))
+		if (bridge_parent(skb->dev))
 			printk("[%s]", bridge_parent(skb->dev)->name);
 	}
 	printk(" head:%p, raw:%p, data:%p\n", skb->head, skb->mac.raw,

@@ -285,7 +285,6 @@ static struct scsi_host_template sil24_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= LIBATA_MAX_PRD,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
@@ -371,7 +370,7 @@ static void sil24_dev_config(struct ata_port *ap, struct ata_device *dev)
 {
 	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
 
-	if (ap->cdb_len == 16)
+	if (dev->cdb_len == 16)
 		writel(PORT_CS_CDB16, port + PORT_CTRL_STAT);
 	else
 		writel(PORT_CS_CDB16, port + PORT_CTRL_CLR);
@@ -543,7 +542,7 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 		prb = &cb->atapi.prb;
 		sge = cb->atapi.sge;
 		memset(cb->atapi.cdb, 0, 32);
-		memcpy(cb->atapi.cdb, qc->cdb, ap->cdb_len);
+		memcpy(cb->atapi.cdb, qc->cdb, qc->dev->cdb_len);
 
 		if (qc->tf.protocol != ATA_PROT_ATAPI_NODATA) {
 			if (qc->tf.flags & ATA_TFLAG_WRITE)

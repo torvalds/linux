@@ -211,7 +211,6 @@ static struct scsi_host_template ahci_sht = {
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
 	.sg_tablesize		= AHCI_MAX_SG,
-	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= AHCI_USE_CLUSTERING,
@@ -617,7 +616,8 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 	ata_tf_to_fis(&qc->tf, pp->cmd_tbl, 0);
 	if (is_atapi) {
 		memset(pp->cmd_tbl + AHCI_CMD_TBL_CDB, 0, 32);
-		memcpy(pp->cmd_tbl + AHCI_CMD_TBL_CDB, qc->cdb, ap->cdb_len);
+		memcpy(pp->cmd_tbl + AHCI_CMD_TBL_CDB, qc->cdb,
+		       qc->dev->cdb_len);
 	}
 
 	n_elem = 0;

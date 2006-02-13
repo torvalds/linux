@@ -520,6 +520,49 @@ void ata_dev_id_string(const u16 *id, unsigned char *s,
 	}
 }
 
+/**
+ *	ata_dev_id_c_string - Convert IDENTIFY DEVICE page into C string
+ *	@id: IDENTIFY DEVICE results we will examine
+ *	@s: string into which data is output
+ *	@ofs: offset into identify device page
+ *	@len: length of string to return. must be an odd number.
+ *
+ *	This function is identical to ata_dev_id_string except that it
+ *	trims trailing spaces and terminates the resulting string with
+ *	null.  @len must be actual maximum length (even number) + 1.
+ *
+ *	LOCKING:
+ *	caller.
+ */
+void ata_dev_id_c_string(const u16 *id, unsigned char *s,
+			 unsigned int ofs, unsigned int len)
+{
+	unsigned char *p;
+
+	WARN_ON(!(len & 1));
+
+	ata_dev_id_string(id, s, ofs, len - 1);
+
+	p = s + strnlen(s, len - 1);
+	while (p > s && p[-1] == ' ')
+		p--;
+	*p = '\0';
+}
+
+static u64 ata_id_n_sectors(const u16 *id)
+{
+	if (ata_id_has_lba(id)) {
+		if (ata_id_has_lba48(id))
+			return ata_id_u64(id, 100);
+		else
+			return ata_id_u32(id, 60);
+	} else {
+		if (ata_id_current_chs_valid(id))
+			return ata_id_u32(id, 57);
+		else
+			return id[1] * id[3] * id[6];
+	}
+}
 
 /**
  *	ata_noop_dev_select - Select device 0/1 on ATA bus
@@ -609,41 +652,41 @@ void ata_dev_select(struct ata_port *ap, unsigned int device,
 
 /**
  *	ata_dump_id - IDENTIFY DEVICE info debugging output
- *	@dev: Device whose IDENTIFY DEVICE page we will dump
+ *	@id: IDENTIFY DEVICE page to dump
  *
- *	Dump selected 16-bit words from a detected device's
- *	IDENTIFY PAGE page.
+ *	Dump selected 16-bit words from the given IDENTIFY DEVICE
+ *	page.
  *
  *	LOCKING:
  *	caller.
  */
 
-static inline void ata_dump_id(const struct ata_device *dev)
+static inline void ata_dump_id(const u16 *id)
 {
 	DPRINTK("49==0x%04x  "
 		"53==0x%04x  "
 		"63==0x%04x  "
 		"64==0x%04x  "
 		"75==0x%04x  \n",
-		dev->id[49],
-		dev->id[53],
-		dev->id[63],
-		dev->id[64],
-		dev->id[75]);
+		id[49],
+		id[53],
+		id[63],
+		id[64],
+		id[75]);
 	DPRINTK("80==0x%04x  "
 		"81==0x%04x  "
 		"82==0x%04x  "
 		"83==0x%04x  "
 		"84==0x%04x  \n",
-		dev->id[80],
-		dev->id[81],
-		dev->id[82],
-		dev->id[83],
-		dev->id[84]);
+		id[80],
+		id[81],
+		id[82],
+		id[83],
+		id[84]);
 	DPRINTK("88==0x%04x  "
 		"93==0x%04x\n",
-		dev->id[88],
-		dev->id[93]);
+		id[88],
+		id[93]);
 }
 
 /*
@@ -877,12 +920,11 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 {
 	struct ata_device *dev = &ap->device[device];
 	unsigned int major_version;
-	u16 tmp;
 	unsigned long xfer_modes;
 	unsigned int using_edd;
 	struct ata_taskfile tf;
 	unsigned int err_mask;
-	int rc;
+	int i, rc;
 
 	if (!ata_dev_present(dev)) {
 		DPRINTK("ENTER/EXIT (host %u, dev %u) -- nodev\n",
@@ -890,7 +932,8 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 		return;
 	}
 
-	if (ap->flags & (ATA_FLAG_SRST | ATA_FLAG_SATA_RESET))
+	if (ap->ops->probe_reset ||
+	    ap->flags & (ATA_FLAG_SRST | ATA_FLAG_SATA_RESET))
 		using_edd = 0;
 	else
 		using_edd = 1;
@@ -970,18 +1013,17 @@ retry:
 	if (!xfer_modes)
 		xfer_modes = ata_pio_modes(dev);
 
-	ata_dump_id(dev);
+	ata_dump_id(dev->id);
 
 	/* ATA-specific feature tests */
 	if (dev->class == ATA_DEV_ATA) {
+		dev->n_sectors = ata_id_n_sectors(dev->id);
+
 		if (!ata_id_is_ata(dev->id))	/* sanity check */
 			goto err_out_nosup;
 
 		/* get major version */
-		tmp = dev->id[ATA_ID_MAJOR_VER];
-		for (major_version = 14; major_version >= 1; major_version--)
-			if (tmp & (1 << major_version))
-				break;
+		major_version = ata_id_major_version(dev->id);
 
 		/*
 		 * The exact sequence expected by certain pre-ATA4 drives is:
@@ -1003,12 +1045,8 @@ retry:
 		if (ata_id_has_lba(dev->id)) {
 			dev->flags |= ATA_DFLAG_LBA;
 
-			if (ata_id_has_lba48(dev->id)) {
+			if (ata_id_has_lba48(dev->id))
 				dev->flags |= ATA_DFLAG_LBA48;
-				dev->n_sectors = ata_id_u64(dev->id, 100);
-			} else {
-				dev->n_sectors = ata_id_u32(dev->id, 60);
-			}
 
 			/* print device info to dmesg */
 			printk(KERN_INFO "ata%u: dev %u ATA-%d, max %s, %Lu sectors:%s\n",
@@ -1024,15 +1062,12 @@ retry:
 			dev->cylinders	= dev->id[1];
 			dev->heads	= dev->id[3];
 			dev->sectors	= dev->id[6];
-			dev->n_sectors	= dev->cylinders * dev->heads * dev->sectors;
 
 			if (ata_id_current_chs_valid(dev->id)) {
 				/* Current CHS translation is valid. */
 				dev->cylinders = dev->id[54];
 				dev->heads     = dev->id[55];
 				dev->sectors   = dev->id[56];
-				
-				dev->n_sectors = ata_id_u32(dev->id, 57);
 			}
 
 			/* print device info to dmesg */
@@ -1051,7 +1086,6 @@ retry:
 				ap->id, device, dev->multi_count);
 		}
 
-		ap->host->max_cmd_len = 16;
 	}
 
 	/* ATAPI-specific feature tests */
@@ -1064,8 +1098,7 @@ retry:
 			printk(KERN_WARNING "ata%u: unsupported CDB len\n", ap->id);
 			goto err_out_nosup;
 		}
-		ap->cdb_len = (unsigned int) rc;
-		ap->host->max_cmd_len = (unsigned char) ap->cdb_len;
+		dev->cdb_len = (unsigned int) rc;
 
 		if (ata_id_cdb_intr(dev->id))
 			dev->flags |= ATA_DFLAG_CDB_INTR;
@@ -1075,6 +1108,12 @@ retry:
 		       ap->id, device,
 		       ata_mode_string(xfer_modes));
 	}
+
+	ap->host->max_cmd_len = 0;
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		ap->host->max_cmd_len = max_t(unsigned int,
+					      ap->host->max_cmd_len,
+					      ap->device[i].cdb_len);
 
 	DPRINTK("EXIT, drv_stat = 0x%x\n", ata_chk_status(ap));
 	return;
@@ -1088,9 +1127,10 @@ err_out:
 }
 
 
-static inline u8 ata_dev_knobble(const struct ata_port *ap)
+static inline u8 ata_dev_knobble(const struct ata_port *ap,
+				 struct ata_device *dev)
 {
-	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(ap->device->id)));
+	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
 }
 
 /**
@@ -1104,13 +1144,11 @@ static inline u8 ata_dev_knobble(const struct ata_port *ap)
 void ata_dev_config(struct ata_port *ap, unsigned int i)
 {
 	/* limit bridge transfers to udma5, 200 sectors */
-	if (ata_dev_knobble(ap)) {
+	if (ata_dev_knobble(ap, &ap->device[i])) {
 		printk(KERN_INFO "ata%u(%u): applying bridge limits\n",
-			ap->id, ap->device->devno);
+		       ap->id, i);
 		ap->udma_mask &= ATA_UDMA5;
-		ap->host->max_sectors = ATA_MAX_SECTORS;
-		ap->host->hostt->max_sectors = ATA_MAX_SECTORS;
-		ap->device[i].flags |= ATA_DFLAG_LOCK_SECTORS;
+		ap->device[i].max_sectors = ATA_MAX_SECTORS;
 	}
 
 	if (ap->ops->dev_config)
@@ -1144,8 +1182,11 @@ static int ata_bus_probe(struct ata_port *ap)
 
 		rc = ap->ops->probe_reset(ap, classes);
 		if (rc == 0) {
-			for (i = 0; i < ATA_MAX_DEVICES; i++)
+			for (i = 0; i < ATA_MAX_DEVICES; i++) {
+				if (classes[i] == ATA_DEV_UNKNOWN)
+					classes[i] = ATA_DEV_NONE;
 				ap->device[i].class = classes[i];
+			}
 		} else {
 			printk(KERN_ERR "ata%u: probe reset failed, "
 			       "disabling port\n", ap->id);
@@ -2272,24 +2313,14 @@ static const char * const ata_dma_blacklist [] = {
 
 static int ata_dma_blacklisted(const struct ata_device *dev)
 {
-	unsigned char model_num[40];
-	char *s;
-	unsigned int len;
+	unsigned char model_num[41];
 	int i;
 
-	ata_dev_id_string(dev->id, model_num, ATA_ID_PROD_OFS,
-			  sizeof(model_num));
-	s = &model_num[0];
-	len = strnlen(s, sizeof(model_num));
-
-	/* ATAPI specifies that empty space is blank-filled; remove blanks */
-	while ((len > 0) && (s[len - 1] == ' ')) {
-		len--;
-		s[len] = 0;
-	}
+	ata_dev_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS,
+			    sizeof(model_num));
 
 	for (i = 0; i < ARRAY_SIZE(ata_dma_blacklist); i++)
-		if (!strncmp(ata_dma_blacklist[i], s, len))
+		if (!strcmp(ata_dma_blacklist[i], model_num))
 			return 1;
 
 	return 0;
@@ -2485,7 +2516,7 @@ static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
 
 	swap_buf_le16(dev->id, ATA_ID_WORDS);
 
-	ata_dump_id(dev);
+	ata_dump_id(dev->id);
 
 	DPRINTK("EXIT\n");
 
@@ -5179,6 +5210,7 @@ EXPORT_SYMBOL_GPL(ata_scsi_release);
 EXPORT_SYMBOL_GPL(ata_host_intr);
 EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_dev_id_string);
+EXPORT_SYMBOL_GPL(ata_dev_id_c_string);
 EXPORT_SYMBOL_GPL(ata_dev_config);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 EXPORT_SYMBOL_GPL(ata_eh_qc_complete);

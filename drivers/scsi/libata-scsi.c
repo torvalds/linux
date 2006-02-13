@@ -684,23 +684,23 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 	if (sdev->id < ATA_MAX_DEVICES) {
 		struct ata_port *ap;
 		struct ata_device *dev;
+		unsigned int max_sectors;
 
 		ap = (struct ata_port *) &sdev->host->hostdata[0];
 		dev = &ap->device[sdev->id];
 
-		/* TODO: 1024 is an arbitrary number, not the
+		/* TODO: 2048 is an arbitrary number, not the
 		 * hardware maximum.  This should be increased to
 		 * 65534 when Jens Axboe's patch for dynamically
 		 * determining max_sectors is merged.
 		 */
-		if ((dev->flags & ATA_DFLAG_LBA48) &&
-		    ((dev->flags & ATA_DFLAG_LOCK_SECTORS) == 0)) {
-			/*
-			 * do not overwrite sdev->host->max_sectors, since
-			 * other drives on this host may not support LBA48
-			 */
-			blk_queue_max_sectors(sdev->request_queue, 2048);
-		}
+		max_sectors = ATA_MAX_SECTORS;
+		if (dev->flags & ATA_DFLAG_LBA48)
+			max_sectors = 2048;
+		if (dev->max_sectors)
+			max_sectors = dev->max_sectors;
+
+		blk_queue_max_sectors(sdev->request_queue, max_sectors);
 
 		/*
 		 * SATA DMA transfers must be multiples of 4 byte, so
@@ -1806,15 +1806,12 @@ static int ata_dev_supports_fua(u16 *id)
 	if (!ata_id_has_fua(id))
 		return 0;
 
-	model[40] = '\0';
-	fw[8] = '\0';
+	ata_dev_id_c_string(id, model, ATA_ID_PROD_OFS, sizeof(model));
+	ata_dev_id_c_string(id, fw, ATA_ID_FW_REV_OFS, sizeof(fw));
 
-	ata_dev_id_string(id, model, ATA_ID_PROD_OFS, sizeof(model) - 1);
-	ata_dev_id_string(id, fw, ATA_ID_FW_REV_OFS, sizeof(fw) - 1);
-
-	if (strncmp(model, "Maxtor", 6))
+	if (strcmp(model, "Maxtor"))
 		return 1;
-	if (strncmp(fw, "BANC1G10", 8))
+	if (strcmp(fw, "BANC1G10"))
 		return 1;
 
 	return 0; /* blacklisted */
@@ -2149,7 +2146,7 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	ata_sg_init_one(qc, cmd->sense_buffer, sizeof(cmd->sense_buffer));
 	qc->dma_dir = DMA_FROM_DEVICE;
 
-	memset(&qc->cdb, 0, ap->cdb_len);
+	memset(&qc->cdb, 0, qc->dev->cdb_len);
 	qc->cdb[0] = REQUEST_SENSE;
 	qc->cdb[4] = SCSI_SENSE_BUFFERSIZE;
 
@@ -2251,7 +2248,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, const u8 *scsicmd)
 		if (ata_check_atapi_dma(qc))
 			using_pio = 1;
 
-	memcpy(&qc->cdb, scsicmd, qc->ap->cdb_len);
+	memcpy(&qc->cdb, scsicmd, dev->cdb_len);
 
 	qc->complete_fn = atapi_qc_complete;
 

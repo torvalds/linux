@@ -8,6 +8,8 @@
 #ifndef _ASM_S390_SETUP_H
 #define _ASM_S390_SETUP_H
 
+#ifdef __KERNEL__
+
 #include <asm/types.h>
 
 #define PARMAREA		0x10400
@@ -114,7 +116,7 @@ extern u16 ipl_devno;
 				 IPL_PARMBLOCK_ORIGIN)
 #define IPL_PARMBLOCK_SIZE	(IPL_PARMBLOCK_START->hdr.length)
 
-#else 
+#else /* __ASSEMBLY__ */
 
 #ifndef __s390x__
 #define IPL_DEVICE        0x10404
@@ -127,6 +129,6 @@ extern u16 ipl_devno;
 #endif /* __s390x__ */
 #define COMMAND_LINE      0x10480
 
-#endif
-
-#endif
+#endif /* __ASSEMBLY__ */
+#endif /* __KERNEL__ */
+#endif /* _ASM_S390_SETUP_H */

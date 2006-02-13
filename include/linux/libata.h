@@ -122,9 +122,8 @@ enum {
 	/* struct ata_device stuff */
 	ATA_DFLAG_LBA48		= (1 << 0), /* device supports LBA48 */
 	ATA_DFLAG_PIO		= (1 << 1), /* device currently in PIO mode */
-	ATA_DFLAG_LOCK_SECTORS	= (1 << 2), /* don't adjust max_sectors */
-	ATA_DFLAG_LBA		= (1 << 3), /* device supports LBA */
-	ATA_DFLAG_CDB_INTR	= (1 << 4), /* device asserts INTRQ when ready for CDB */
+	ATA_DFLAG_LBA		= (1 << 2), /* device supports LBA */
+	ATA_DFLAG_CDB_INTR	= (1 << 3), /* device asserts INTRQ when ready for CDB */
 
 	ATA_DEV_UNKNOWN		= 0,	/* unknown device */
 	ATA_DEV_ATA		= 1,	/* ATA device */
@@ -353,6 +352,8 @@ struct ata_device {
 
 	unsigned int		multi_count;	/* sectors count for
 						   READ/WRITE MULTIPLE */
+	unsigned int		max_sectors;	/* per-device max sectors */
+	unsigned int		cdb_len;
 
 	/* for CHS addressing */
 	u16			cylinders;	/* Number of cylinders */
@@ -382,7 +383,6 @@ struct ata_port {
 	unsigned int		mwdma_mask;
 	unsigned int		udma_mask;
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
-	unsigned int		cdb_len;
 
 	struct ata_device	device[ATA_MAX_DEVICES];
 
@@ -543,6 +543,8 @@ extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 extern unsigned int ata_dev_classify(const struct ata_taskfile *tf);
 extern void ata_dev_id_string(const u16 *id, unsigned char *s,
 			      unsigned int ofs, unsigned int len);
+extern void ata_dev_id_c_string(const u16 *id, unsigned char *s,
+				unsigned int ofs, unsigned int len);
 extern void ata_dev_config(struct ata_port *ap, unsigned int i);
 extern void ata_bmdma_setup (struct ata_queued_cmd *qc);
 extern void ata_bmdma_start (struct ata_queued_cmd *qc);
