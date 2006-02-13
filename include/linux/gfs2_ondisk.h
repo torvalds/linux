@@ -1,11 +1,11 @@
 /*
- * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
- */
+* Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
+* Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+*
+* This copyrighted material is made available to anyone wishing to use,
+* modify, copy, or redistribute it subject to the terms and conditions
+* of the GNU General Public License v.2.
+*/
 
 #ifndef __GFS2_ONDISK_DOT_H__
 #define __GFS2_ONDISK_DOT_H__
@@ -34,14 +34,14 @@
 #define GFS2_FORMAT_LH		800
 #define GFS2_FORMAT_LD		900
 #define GFS2_FORMAT_LB		1000
-#define GFS2_FORMAT_EA		1100
-#define GFS2_FORMAT_ED		1200
+#define GFS2_FORMAT_EA		1600
+#define GFS2_FORMAT_ED		1700
 #define GFS2_FORMAT_UT		1300
 #define GFS2_FORMAT_QC		1400
 /* These are format numbers for entities contained in files */
-#define GFS2_FORMAT_RI		1500
-#define GFS2_FORMAT_DE		1600
-#define GFS2_FORMAT_QU		1700
+#define GFS2_FORMAT_RI		1100
+#define GFS2_FORMAT_DE		1200
+#define GFS2_FORMAT_QU		1500
 /* These are part of the superblock */
 #define GFS2_FORMAT_FS		1801
 #define GFS2_FORMAT_MULTI	1900
@@ -74,9 +74,9 @@ struct gfs2_inum {
 #define GFS2_METATYPE_JD	7
 #define GFS2_METATYPE_LH	8
 #define GFS2_METATYPE_LD	9
-#define GFS2_METATYPE_LB	10
-#define GFS2_METATYPE_EA	11
-#define GFS2_METATYPE_ED	12
+#define GFS2_METATYPE_LB	12
+#define GFS2_METATYPE_EA	10
+#define GFS2_METATYPE_ED	11
 #define GFS2_METATYPE_UT	13
 #define GFS2_METATYPE_QC	14
 
@@ -181,6 +181,7 @@ struct gfs2_quota {
 	__be64 qu_limit;
 	__be64 qu_warn;
 	__be64 qu_value;
+	__u8 qu_reserved[64];
 };
 
 /*
@@ -260,11 +261,10 @@ struct gfs2_dinode {
 struct gfs2_dirent {
 	struct gfs2_inum de_inum;
 	__be32 de_hash;
-	__be32 de_rec_len;
-	__u8 de_name_len;
-	__u8 de_type;
-	__u16 __pad1;
-	__u32 __pad2;
+	__be16 de_rec_len;
+	__be16 de_name_len;
+	__be16 de_type;
+	__u8 __pad[14];
 };
 
 /*
@@ -279,7 +279,7 @@ struct gfs2_leaf {
 	__be32 lf_dirent_format;	/* Format of the dirents */
 	__be64 lf_next;			/* Next leaf, if overflow */
 
-	__u8 lf_reserved[32];
+	__u8 lf_reserved[64];
 };
 
 /*

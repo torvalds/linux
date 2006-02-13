@@ -397,11 +397,11 @@ static int dirent_next(struct gfs2_inode *dip, struct buffer_head *bh,
 {
 	struct gfs2_dirent *tmp, *cur;
 	char *bh_end;
-	uint32_t cur_rec_len;
+	uint16_t cur_rec_len;
 
 	cur = *dent;
 	bh_end = bh->b_data + bh->b_size;
-	cur_rec_len = be32_to_cpu(cur->de_rec_len);
+	cur_rec_len = be16_to_cpu(cur->de_rec_len);
 
 	if ((char *)cur + cur_rec_len >= bh_end) {
 		if ((char *)cur + cur_rec_len > bh_end) {
@@ -413,7 +413,7 @@ static int dirent_next(struct gfs2_inode *dip, struct buffer_head *bh,
 
 	tmp = (struct gfs2_dirent *)((char *)cur + cur_rec_len);
 
-	if ((char *)tmp + be32_to_cpu(tmp->de_rec_len) > bh_end) {
+	if ((char *)tmp + be16_to_cpu(tmp->de_rec_len) > bh_end) {
 		gfs2_consist_inode(dip);
 		return -EIO;
 	}
@@ -440,7 +440,7 @@ static int dirent_next(struct gfs2_inode *dip, struct buffer_head *bh,
 static void dirent_del(struct gfs2_inode *dip, struct buffer_head *bh,
 		       struct gfs2_dirent *prev, struct gfs2_dirent *cur)
 {
-	uint32_t cur_rec_len, prev_rec_len;
+	uint16_t cur_rec_len, prev_rec_len;
 
 	if (!cur->de_inum.no_addr) {
 		gfs2_consist_inode(dip);
@@ -460,8 +460,8 @@ static void dirent_del(struct gfs2_inode *dip, struct buffer_head *bh,
 
 	/*  Combine this dentry with the previous one.  */
 
-	prev_rec_len = be32_to_cpu(prev->de_rec_len);
-	cur_rec_len = be32_to_cpu(cur->de_rec_len);
+	prev_rec_len = be16_to_cpu(prev->de_rec_len);
+	cur_rec_len = be16_to_cpu(cur->de_rec_len);
 
 	if ((char *)prev + prev_rec_len != (char *)cur)
 		gfs2_consist_inode(dip);
@@ -469,7 +469,7 @@ static void dirent_del(struct gfs2_inode *dip, struct buffer_head *bh,
 		gfs2_consist_inode(dip);
 
 	prev_rec_len += cur_rec_len;
-	prev->de_rec_len = cpu_to_be32(prev_rec_len);
+	prev->de_rec_len = cpu_to_be16(prev_rec_len);
 }
 
 /**
@@ -513,7 +513,7 @@ int gfs2_dirent_alloc(struct gfs2_inode *dip, struct buffer_head *bh,
 		gfs2_trans_add_bh(dip->i_gl, bh, 1);
 
 		dent->de_rec_len = bh->b_size - offset;
-		dent->de_rec_len = cpu_to_be32(dent->de_rec_len);
+		dent->de_rec_len = cpu_to_be16(dent->de_rec_len);
 		dent->de_name_len = name_len;
 
 		*dent_out = dent;
@@ -521,9 +521,10 @@ int gfs2_dirent_alloc(struct gfs2_inode *dip, struct buffer_head *bh,
 	}
 
 	do {
-		uint32_t cur_rec_len, cur_name_len;
+		uint16_t cur_rec_len;
+		uint32_t cur_name_len;
 
-		cur_rec_len = be32_to_cpu(dent->de_rec_len);
+		cur_rec_len = be16_to_cpu(dent->de_rec_len);
 		cur_name_len = dent->de_name_len;
 
 		if ((!dent->de_inum.no_addr && cur_rec_len >= rec_len) ||
@@ -536,11 +537,11 @@ int gfs2_dirent_alloc(struct gfs2_inode *dip, struct buffer_head *bh,
 				memset(new, 0, sizeof(struct gfs2_dirent));
 
 				new->de_rec_len = cur_rec_len - GFS2_DIRENT_SIZE(cur_name_len);
-				new->de_rec_len = cpu_to_be32(new->de_rec_len);
+				new->de_rec_len = cpu_to_be16(new->de_rec_len);
 				new->de_name_len = name_len;
 
-				dent->de_rec_len = cur_rec_len - be32_to_cpu(new->de_rec_len);
-				dent->de_rec_len = cpu_to_be32(dent->de_rec_len);
+				dent->de_rec_len = cur_rec_len - be16_to_cpu(new->de_rec_len);
+				dent->de_rec_len = cpu_to_be16(dent->de_rec_len);
 
 				*dent_out = new;
 				return 0;
@@ -589,9 +590,10 @@ static int dirent_fits(struct gfs2_inode *dip, struct buffer_head *bh,
 		return 1;
 
 	do {
-		uint32_t cur_rec_len, cur_name_len;
+		uint16_t cur_rec_len;
+		uint32_t cur_name_len;
 
-		cur_rec_len = be32_to_cpu(dent->de_rec_len);
+		cur_rec_len = be16_to_cpu(dent->de_rec_len);
 		cur_name_len = dent->de_name_len;
 
 		if ((!dent->de_inum.no_addr && cur_rec_len >= rec_len) ||
@@ -832,10 +834,10 @@ static int dir_make_exhash(struct gfs2_inode *dip)
 	/*  Adjust the last dirent's record length
 	   (Remember that dent still points to the last entry.)  */
 
-	dent->de_rec_len = be32_to_cpu(dent->de_rec_len) +
+	dent->de_rec_len = be16_to_cpu(dent->de_rec_len) +
 		sizeof(struct gfs2_dinode) -
 		sizeof(struct gfs2_leaf);
-	dent->de_rec_len = cpu_to_be32(dent->de_rec_len);
+	dent->de_rec_len = cpu_to_be16(dent->de_rec_len);
 
 	brelse(bh);
 
