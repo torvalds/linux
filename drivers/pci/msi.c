@@ -703,6 +703,9 @@ int pci_enable_msi(struct pci_dev* dev)
 	if (dev->no_msi)
 		return status;
 
+	if (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
+		return -EINVAL;
+
 	temp = dev->irq;
 
 	status = msi_init();

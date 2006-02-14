@@ -95,6 +95,11 @@ enum pci_channel_state {
 	pci_channel_io_perm_failure = (__force pci_channel_state_t) 3,
 };
 
+typedef unsigned short __bitwise pci_bus_flags_t;
+enum pci_bus_flags {
+	PCI_BUS_FLAGS_NO_MSI = (pci_bus_flags_t) 1,
+};
+
 /*
  * The pci_dev structure is used to describe PCI devices.
  */
@@ -203,7 +208,7 @@ struct pci_bus {
 	char		name[48];
 
 	unsigned short  bridge_ctl;	/* manage NO_ISA/FBB/et al behaviors */
-	unsigned short  pad2;
+	pci_bus_flags_t bus_flags;	/* Inherited by child busses */
 	struct device		*bridge;
 	struct class_device	class_dev;
 	struct bin_attribute	*legacy_io; /* legacy I/O for this bus */
