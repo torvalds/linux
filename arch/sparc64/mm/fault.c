@@ -91,12 +91,13 @@ static void __kprobes unhandled_fault(unsigned long address,
 	die_if_kernel("Oops", regs);
 }
 
-static void bad_kernel_pc(struct pt_regs *regs)
+static void bad_kernel_pc(struct pt_regs *regs, unsigned long vaddr)
 {
 	unsigned long *ksp;
 
 	printk(KERN_CRIT "OOPS: Bogus kernel PC [%016lx] in fault handler\n",
 	       regs->tpc);
+	printk(KERN_CRIT "OOPS: Fault was to vaddr[%lx]\n", vaddr);
 	__asm__("mov %%sp, %0" : "=r" (ksp));
 	show_stack(current, ksp);
 	unhandled_fault(regs->tpc, current, regs);
@@ -280,7 +281,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		    (tpc >= MODULES_VADDR && tpc < MODULES_END)) {
 			/* Valid, no problems... */
 		} else {
-			bad_kernel_pc(regs);
+			bad_kernel_pc(regs, address);
 			return;
 		}
 	}
