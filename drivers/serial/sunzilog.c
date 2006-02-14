@@ -1390,7 +1390,6 @@ static struct console sunzilog_console = {
 	.index	=	-1,
 	.data   =	&sunzilog_reg,
 };
-#define SUNZILOG_CONSOLE	(&sunzilog_console)
 
 static int __init sunzilog_console_init(void)
 {
@@ -1413,8 +1412,31 @@ static int __init sunzilog_console_init(void)
 	register_console(&sunzilog_console);
 	return 0;
 }
+
+static inline struct console *SUNZILOG_CONSOLE(void)
+{
+	int i;
+
+	if (con_is_present())
+		return NULL;
+
+	for (i = 0; i < NUM_CHANNELS; i++) {
+		int this_minor = sunzilog_reg.minor + i;
+
+		if ((this_minor - 64) == (serial_console - 1))
+			break;
+	}
+	if (i == NUM_CHANNELS)
+		return NULL;
+
+	sunzilog_console.index = i;
+	sunzilog_port_table[i].flags |= SUNZILOG_FLAG_IS_CONS;
+
+	return &sunzilog_console;
+}
+
 #else
-#define SUNZILOG_CONSOLE	(NULL)
+#define SUNZILOG_CONSOLE()	(NULL)
 #define sunzilog_console_init() do { } while (0)
 #endif
 
@@ -1666,14 +1688,14 @@ static int __init sunzilog_ports_init(void)
 	}
 		
 	sunzilog_reg.nr = uart_count;
-	sunzilog_reg.cons = SUNZILOG_CONSOLE;
-
 	sunzilog_reg.minor = sunserial_current_minor;
-	sunserial_current_minor += uart_count;
 
 	ret = uart_register_driver(&sunzilog_reg);
 	if (ret == 0) {
-		sunzilog_console_init();
+		sunzilog_reg.cons = SUNZILOG_CONSOLE();
+
+		sunserial_current_minor += uart_count;
+
 		for (i = 0; i < NUM_CHANNELS; i++) {
 			struct uart_sunzilog_port *up = &sunzilog_port_table[i];
 

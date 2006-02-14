@@ -1464,18 +1464,17 @@ static struct console sunsu_cons = {
 	.index	=	-1,
 	.data	=	&sunsu_reg,
 };
-#define SUNSU_CONSOLE	(&sunsu_cons)
 
 /*
  *	Register console.
  */
 
-static int __init sunsu_serial_console_init(void)
+static inline struct console *SUNSU_CONSOLE(void)
 {
 	int i;
 
 	if (con_is_present())
-		return 0;
+		return NULL;
 
 	for (i = 0; i < UART_NR; i++) {
 		int this_minor = sunsu_reg.minor + i;
@@ -1484,16 +1483,16 @@ static int __init sunsu_serial_console_init(void)
 			break;
 	}
 	if (i == UART_NR)
-		return 0;
+		return NULL;
 	if (sunsu_ports[i].port_node == 0)
-		return 0;
+		return NULL;
 
 	sunsu_cons.index = i;
-	register_console(&sunsu_cons);
-	return 0;
+
+	return &sunsu_cons;
 }
 #else
-#define SUNSU_CONSOLE			(NULL)
+#define SUNSU_CONSOLE()			(NULL)
 #define sunsu_serial_console_init()	do { } while (0)
 #endif
 
@@ -1523,16 +1522,17 @@ static int __init sunsu_serial_init(void)
 	}
 
 	sunsu_reg.minor = sunserial_current_minor;
-	sunserial_current_minor += instance;
 
 	sunsu_reg.nr = instance;
-	sunsu_reg.cons = SUNSU_CONSOLE;
 
 	ret = uart_register_driver(&sunsu_reg);
 	if (ret < 0)
 		return ret;
 
-	sunsu_serial_console_init();
+	sunserial_current_minor += instance;
+
+	sunsu_reg.cons = SUNSU_CONSOLE();
+
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_sunsu_port *up = &sunsu_ports[i];
 
