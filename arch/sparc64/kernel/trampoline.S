@@ -17,6 +17,7 @@
 #include <asm/thread_info.h>
 #include <asm/mmu.h>
 #include <asm/hypervisor.h>
+#include <asm/cpudata.h>
 
 	.data
 	.align	8
