@@ -111,6 +111,7 @@ extern void disable_irq(unsigned int);
 #define disable_irq_nosync disable_irq
 extern void enable_irq(unsigned int);
 extern unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long imap);
+extern unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsigned char flags);
 extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
 
 static __inline__ void set_softint(unsigned long bits)

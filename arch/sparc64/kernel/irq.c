@@ -303,6 +303,38 @@ out:
 	return __irq(bucket);
 }
 
+unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsigned char flags)
+{
+	struct ino_bucket *bucket;
+	unsigned long sysino;
+
+	sysino = sun4v_devino_to_sysino(devhandle, devino);
+
+	printk(KERN_INFO "sun4v_irq: Mapping ( devh[%08x] devino[%08x] ) "
+	       "--> sysino[%016lx]\n", devhandle, devino, sysino);
+
+	bucket = &ivector_table[sysino];
+
+	/* Catch accidental accesses to these things.  IMAP/ICLR handling
+	 * is done by hypervisor calls on sun4v platforms, not by direct
+	 * register accesses.
+	 */
+	bucket->imap = ~0UL;
+	bucket->iclr = ~0UL;
+
+	bucket->pil = pil;
+	bucket->flags = flags;
+
+	bucket->irq_info = kmalloc(sizeof(struct irq_desc), GFP_ATOMIC);
+	if (!bucket->irq_info) {
+		prom_printf("IRQ: Error, kmalloc(irq_desc) failed.\n");
+		prom_halt();
+	}
+	memset(bucket->irq_info, 0, sizeof(struct irq_desc));
+
+	return __irq(bucket);
+}
+
 static void atomic_bucket_insert(struct ino_bucket *bucket)
 {
 	unsigned long pstate;

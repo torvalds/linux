@@ -644,17 +644,10 @@ static void pci_sun4v_scan_bus(struct pci_controller_info *p)
 
 static unsigned int pci_sun4v_irq_build(struct pci_pbm_info *pbm,
 					struct pci_dev *pdev,
-					unsigned int ino)
+					unsigned int devino)
 {
-	struct ino_bucket *bucket;
-	unsigned long sysino;
 	u32 devhandle = pbm->devhandle;
 	int pil;
-
-	sysino = sun4v_devino_to_sysino(devhandle, ino);
-
-	printk(KERN_INFO "pci_irq_buld: Mapping ( devh[%08x] ino[%08x] ) "
-	       "--> sysino[%016lx]\n", devhandle, ino, sysino);
 
 	pil = 4;
 	if (pdev) {
@@ -685,26 +678,7 @@ static unsigned int pci_sun4v_irq_build(struct pci_pbm_info *pbm,
 	}
 	BUG_ON(PIL_RESERVED(pil));
 
-	bucket = &ivector_table[sysino];
-
-	/* Catch accidental accesses to these things.  IMAP/ICLR handling
-	 * is done by hypervisor calls on sun4v platforms, not by direct
-	 * register accesses.
-	 */
-	bucket->imap = ~0UL;
-	bucket->iclr = ~0UL;
-
-	bucket->pil = pil;
-	bucket->flags = IBF_PCI;
-
-	bucket->irq_info = kmalloc(sizeof(struct irq_desc), GFP_ATOMIC);
-	if (!bucket->irq_info) {
-		prom_printf("IRQ: Error, kmalloc(irq_desc) failed.\n");
-		prom_halt();
-	}
-	memset(bucket->irq_info, 0, sizeof(struct irq_desc));
-
-	return __irq(bucket);
+	return sun4v_build_irq(devhandle, devino, pil, IBF_PCI);
 }
 
 static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)
