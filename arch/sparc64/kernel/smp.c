@@ -122,10 +122,8 @@ void __init smp_callin(void)
 
 	__local_per_cpu_offset = __per_cpu_offset(cpuid);
 
-	if (tlb_type == hypervisor) {
-		sun4v_register_fault_status();
+	if (tlb_type == hypervisor)
 		sun4v_ktsb_register();
-	}
 
 	__flush_tlb_all();
 
