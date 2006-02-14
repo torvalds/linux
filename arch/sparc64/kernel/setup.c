@@ -410,6 +410,7 @@ static int __init set_preferred_console(void)
 		 * value anyways...
 		 */
 		serial_console = 4;
+		return add_preferred_console("ttyHV", 0, NULL);
 	} else {
 		prom_printf("Inconsistent console: "
 			    "input %d, output %d\n",

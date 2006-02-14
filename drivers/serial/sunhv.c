@@ -360,7 +360,7 @@ static struct uart_port *sunhv_port;
 static inline void sunhv_console_putchar(struct uart_port *port, char c)
 {
 	unsigned long flags;
-	int limit = 10000;
+	int limit = 1000000;
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -368,6 +368,7 @@ static inline void sunhv_console_putchar(struct uart_port *port, char c)
 		long status = hypervisor_con_putchar(c);
 		if (status == HV_EOK)
 			break;
+		udelay(2);
 	}
 
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -385,28 +386,23 @@ static void sunhv_console_write(struct console *con, const char *s, unsigned n)
 	}
 }
 
-static int sunhv_console_setup(struct console *con, char *options)
-{
-	return 0;
-}
-
 static struct console sunhv_console = {
-	.name	=	"ttyS",
+	.name	=	"ttyHV",
 	.write	=	sunhv_console_write,
 	.device	=	uart_console_device,
-	.setup	=	sunhv_console_setup,
 	.flags	=	CON_PRINTBUFFER,
 	.index	=	-1,
 	.data	=	&sunhv_reg,
 };
 
-static void __init sunhv_console_init(void)
+static inline struct console *SUNHV_CONSOLE(void)
 {
 	if (con_is_present())
-		return;
+		return NULL;
 
 	sunhv_console.index = 0;
-	register_console(&sunhv_console);
+
+	return &sunhv_console;
 }
 
 static int __init hv_console_compatible(char *buf, int len)
@@ -496,7 +492,6 @@ static int __init sunhv_init(void)
 
 	sunhv_reg.minor = sunserial_current_minor;
 	sunhv_reg.nr = 1;
-	sunhv_reg.cons = &sunhv_console;
 
 	ret = uart_register_driver(&sunhv_reg);
 	if (ret < 0) {
@@ -506,11 +501,11 @@ static int __init sunhv_init(void)
 		return ret;
 	}
 
-	sunhv_port = port;
-
 	sunserial_current_minor += 1;
 
-	sunhv_console_init();
+	sunhv_reg.cons = SUNHV_CONSOLE();
+
+	sunhv_port = port;
 
 	uart_add_one_port(&sunhv_reg, port);
 
