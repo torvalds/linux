@@ -152,7 +152,10 @@ void enable_irq(unsigned int irq)
 	preempt_disable();
 
 	if (tlb_type == hypervisor) {
-		/* XXX SUN4V: implement me... XXX */
+		int cpu = hard_smp_processor_id();
+
+		sun4v_intr_settarget(irq, cpu);
+		sun4v_intr_setenabled(irq, HV_INTR_ENABLED);
 	} else {
 		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 			unsigned long ver;
@@ -210,16 +213,20 @@ void disable_irq(unsigned int irq)
 
 	imap = bucket->imap;
 	if (imap != 0UL) {
-		u32 tmp;
+		if (tlb_type == hypervisor) {
+			sun4v_intr_setenabled(irq, HV_INTR_DISABLED);
+		} else {
+			u32 tmp;
 
-		/* NOTE: We do not want to futz with the IRQ clear registers
-		 *       and move the state to IDLE, the SCSI code does call
-		 *       disable_irq() to assure atomicity in the queue cmd
-		 *       SCSI adapter driver code.  Thus we'd lose interrupts.
-		 */
-		tmp = upa_readl(imap);
-		tmp &= ~IMAP_VALID;
-		upa_writel(tmp, imap);
+			/* NOTE: We do not want to futz with the IRQ clear registers
+			 *       and move the state to IDLE, the SCSI code does call
+			 *       disable_irq() to assure atomicity in the queue cmd
+			 *       SCSI adapter driver code.  Thus we'd lose interrupts.
+			 */
+			tmp = upa_readl(imap);
+			tmp &= ~IMAP_VALID;
+			upa_writel(tmp, imap);
+		}
 	}
 }
 
@@ -256,6 +263,8 @@ unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long 
 		}
 		return __irq(&pil0_dummy_bucket);
 	}
+
+	BUG_ON(tlb_type == hypervisor);
 
 	/* RULE: Both must be specified in all other cases. */
 	if (iclr == 0UL || imap == 0UL) {
@@ -633,10 +642,16 @@ static void process_bucket(int irq, struct ino_bucket *bp, struct pt_regs *regs)
 			break;
 	}
 	if (bp->pil != 0) {
-		upa_writel(ICLR_IDLE, bp->iclr);
-		/* Test and add entropy */
-		if (random & SA_SAMPLE_RANDOM)
-			add_interrupt_randomness(irq);
+		if (tlb_type == hypervisor) {
+			unsigned int irq = __irq(bp);
+
+			sun4v_intr_setstate(irq, HV_INTR_STATE_IDLE);
+		} else {
+			upa_writel(ICLR_IDLE, bp->iclr);
+			/* Test and add entropy */
+			if (random & SA_SAMPLE_RANDOM)
+				add_interrupt_randomness(irq);
+		}
 	}
 out:
 	bp->flags &= ~IBF_INPROGRESS;
@@ -769,24 +784,32 @@ static int retarget_one_irq(struct irqaction *p, int goal_cpu)
 {
 	struct ino_bucket *bucket = get_ino_in_irqaction(p) + ivector_table;
 	unsigned long imap = bucket->imap;
-	unsigned int tid;
 
 	while (!cpu_online(goal_cpu)) {
 		if (++goal_cpu >= NR_CPUS)
 			goal_cpu = 0;
 	}
 
-	if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		tid = goal_cpu << 26;
-		tid &= IMAP_AID_SAFARI;
-	} else if (this_is_starfire == 0) {
-		tid = goal_cpu << 26;
-		tid &= IMAP_TID_UPA;
+	if (tlb_type == hypervisor) {
+		unsigned int irq = __irq(bucket);
+
+		sun4v_intr_settarget(irq, goal_cpu);
+		sun4v_intr_setenabled(irq, HV_INTR_ENABLED);
 	} else {
-		tid = (starfire_translate(imap, goal_cpu) << 26);
-		tid &= IMAP_TID_UPA;
+		unsigned int tid;
+
+		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+			tid = goal_cpu << 26;
+			tid &= IMAP_AID_SAFARI;
+		} else if (this_is_starfire == 0) {
+			tid = goal_cpu << 26;
+			tid &= IMAP_TID_UPA;
+		} else {
+			tid = (starfire_translate(imap, goal_cpu) << 26);
+			tid &= IMAP_TID_UPA;
+		}
+		upa_writel(tid | IMAP_VALID, imap);
 	}
-	upa_writel(tid | IMAP_VALID, imap);
 
 	do {
 		if (++goal_cpu >= NR_CPUS)
