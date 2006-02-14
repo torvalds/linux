@@ -2435,7 +2435,8 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 		 * The door gets locked when the device is opened, so we
 		 * have to unlock it or else the eject command fails.
 		 */
-		pkt_lock_door(pd, 0);
+		if (pd->refcnt == 1)
+			pkt_lock_door(pd, 0);
 		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	default:
