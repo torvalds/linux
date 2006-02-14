@@ -996,6 +996,106 @@ err_up:
 	return ret;
 }
 
+ssize_t ib_uverbs_query_qp(struct ib_uverbs_file *file,
+			   const char __user *buf, int in_len,
+			   int out_len)
+{
+	struct ib_uverbs_query_qp      cmd;
+	struct ib_uverbs_query_qp_resp resp;
+	struct ib_qp                   *qp;
+	struct ib_qp_attr              *attr;
+	struct ib_qp_init_attr         *init_attr;
+	int                            ret;
+
+	if (copy_from_user(&cmd, buf, sizeof cmd))
+		return -EFAULT;
+
+	attr      = kmalloc(sizeof *attr, GFP_KERNEL);
+	init_attr = kmalloc(sizeof *init_attr, GFP_KERNEL);
+	if (!attr || !init_attr) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	mutex_lock(&ib_uverbs_idr_mutex);
+
+	qp = idr_find(&ib_uverbs_qp_idr, cmd.qp_handle);
+	if (qp && qp->uobject->context == file->ucontext)
+		ret = ib_query_qp(qp, attr, cmd.attr_mask, init_attr);
+	else
+		ret = -EINVAL;
+
+	mutex_unlock(&ib_uverbs_idr_mutex);
+
+	if (ret)
+		goto out;
+
+	memset(&resp, 0, sizeof resp);
+
+	resp.qp_state               = attr->qp_state;
+	resp.cur_qp_state           = attr->cur_qp_state;
+	resp.path_mtu               = attr->path_mtu;
+	resp.path_mig_state         = attr->path_mig_state;
+	resp.qkey                   = attr->qkey;
+	resp.rq_psn                 = attr->rq_psn;
+	resp.sq_psn                 = attr->sq_psn;
+	resp.dest_qp_num            = attr->dest_qp_num;
+	resp.qp_access_flags        = attr->qp_access_flags;
+	resp.pkey_index             = attr->pkey_index;
+	resp.alt_pkey_index         = attr->alt_pkey_index;
+	resp.en_sqd_async_notify    = attr->en_sqd_async_notify;
+	resp.max_rd_atomic          = attr->max_rd_atomic;
+	resp.max_dest_rd_atomic     = attr->max_dest_rd_atomic;
+	resp.min_rnr_timer          = attr->min_rnr_timer;
+	resp.port_num               = attr->port_num;
+	resp.timeout                = attr->timeout;
+	resp.retry_cnt              = attr->retry_cnt;
+	resp.rnr_retry              = attr->rnr_retry;
+	resp.alt_port_num           = attr->alt_port_num;
+	resp.alt_timeout            = attr->alt_timeout;
+
+	memcpy(resp.dest.dgid, attr->ah_attr.grh.dgid.raw, 16);
+	resp.dest.flow_label        = attr->ah_attr.grh.flow_label;
+	resp.dest.sgid_index        = attr->ah_attr.grh.sgid_index;
+	resp.dest.hop_limit         = attr->ah_attr.grh.hop_limit;
+	resp.dest.traffic_class     = attr->ah_attr.grh.traffic_class;
+	resp.dest.dlid              = attr->ah_attr.dlid;
+	resp.dest.sl                = attr->ah_attr.sl;
+	resp.dest.src_path_bits     = attr->ah_attr.src_path_bits;
+	resp.dest.static_rate       = attr->ah_attr.static_rate;
+	resp.dest.is_global         = !!(attr->ah_attr.ah_flags & IB_AH_GRH);
+	resp.dest.port_num          = attr->ah_attr.port_num;
+
+	memcpy(resp.alt_dest.dgid, attr->alt_ah_attr.grh.dgid.raw, 16);
+	resp.alt_dest.flow_label    = attr->alt_ah_attr.grh.flow_label;
+	resp.alt_dest.sgid_index    = attr->alt_ah_attr.grh.sgid_index;
+	resp.alt_dest.hop_limit     = attr->alt_ah_attr.grh.hop_limit;
+	resp.alt_dest.traffic_class = attr->alt_ah_attr.grh.traffic_class;
+	resp.alt_dest.dlid          = attr->alt_ah_attr.dlid;
+	resp.alt_dest.sl            = attr->alt_ah_attr.sl;
+	resp.alt_dest.src_path_bits = attr->alt_ah_attr.src_path_bits;
+	resp.alt_dest.static_rate   = attr->alt_ah_attr.static_rate;
+	resp.alt_dest.is_global     = !!(attr->alt_ah_attr.ah_flags & IB_AH_GRH);
+	resp.alt_dest.port_num      = attr->alt_ah_attr.port_num;
+
+	resp.max_send_wr            = init_attr->cap.max_send_wr;
+	resp.max_recv_wr            = init_attr->cap.max_recv_wr;
+	resp.max_send_sge           = init_attr->cap.max_send_sge;
+	resp.max_recv_sge           = init_attr->cap.max_recv_sge;
+	resp.max_inline_data        = init_attr->cap.max_inline_data;
+	resp.sq_sig_all             = !!init_attr->sq_sig_type;
+
+	if (copy_to_user((void __user *) (unsigned long) cmd.response,
+			 &resp, sizeof resp))
+		ret = -EFAULT;
+
+out:
+	kfree(attr);
+	kfree(init_attr);
+
+	return ret ? ret : in_len;
+}
+
 ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 			    const char __user *buf, int in_len,
 			    int out_len)

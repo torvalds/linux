@@ -370,6 +370,47 @@ struct ib_uverbs_qp_dest {
 	__u8  port_num;
 };
 
+struct ib_uverbs_query_qp {
+	__u64 response;
+	__u32 qp_handle;
+	__u32 attr_mask;
+	__u64 driver_data[0];
+};
+
+struct ib_uverbs_query_qp_resp {
+	struct ib_uverbs_qp_dest dest;
+	struct ib_uverbs_qp_dest alt_dest;
+	__u32 max_send_wr;
+	__u32 max_recv_wr;
+	__u32 max_send_sge;
+	__u32 max_recv_sge;
+	__u32 max_inline_data;
+	__u32 qkey;
+	__u32 rq_psn;
+	__u32 sq_psn;
+	__u32 dest_qp_num;
+	__u32 qp_access_flags;
+	__u16 pkey_index;
+	__u16 alt_pkey_index;
+	__u8  qp_state;
+	__u8  cur_qp_state;
+	__u8  path_mtu;
+	__u8  path_mig_state;
+	__u8  en_sqd_async_notify;
+	__u8  max_rd_atomic;
+	__u8  max_dest_rd_atomic;
+	__u8  min_rnr_timer;
+	__u8  port_num;
+	__u8  timeout;
+	__u8  retry_cnt;
+	__u8  rnr_retry;
+	__u8  alt_port_num;
+	__u8  alt_timeout;
+	__u8  sq_sig_all;
+	__u8  reserved[5];
+	__u64 driver_data[0];
+};
+
 struct ib_uverbs_modify_qp {
 	struct ib_uverbs_qp_dest dest;
 	struct ib_uverbs_qp_dest alt_dest;
