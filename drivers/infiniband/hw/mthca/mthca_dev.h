@@ -479,6 +479,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq);
 int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		     enum ib_srq_attr_mask attr_mask);
+int mthca_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
 void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 		     enum ib_event_type event_type);
 void mthca_free_srq_wqe(struct mthca_srq *srq, u32 wqe_addr);
@@ -489,6 +490,8 @@ int mthca_arbel_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *wr,
 
 void mthca_qp_event(struct mthca_dev *dev, u32 qpn,
 		    enum ib_event_type event_type);
+int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_mask,
+		   struct ib_qp_init_attr *qp_init_attr);
 int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask);
 int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			  struct ib_send_wr **bad_wr);

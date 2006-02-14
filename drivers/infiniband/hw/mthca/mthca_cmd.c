@@ -1560,6 +1560,13 @@ int mthca_HW2SW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 			     CMD_TIME_CLASS_A, status);
 }
 
+int mthca_QUERY_SRQ(struct mthca_dev *dev, u32 num,
+		    struct mthca_mailbox *mailbox, u8 *status)
+{
+	return mthca_cmd_box(dev, 0, mailbox->dma, num, 0,
+			     CMD_QUERY_SRQ, CMD_TIME_CLASS_A, status);
+}
+
 int mthca_ARM_SRQ(struct mthca_dev *dev, int srq_num, int limit, u8 *status)
 {
 	return mthca_cmd(dev, limit, srq_num, 0, CMD_ARM_SRQ,

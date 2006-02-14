@@ -360,6 +360,38 @@ int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 	return 0;
 }
 
+int mthca_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
+{
+	struct mthca_dev *dev = to_mdev(ibsrq->device);
+	struct mthca_srq *srq = to_msrq(ibsrq);
+	struct mthca_mailbox *mailbox;
+	struct mthca_arbel_srq_context *arbel_ctx;
+	u8 status;
+	int err;
+
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	err = mthca_QUERY_SRQ(dev, srq->srqn, mailbox, &status);
+	if (err)
+		goto out;
+
+	if (mthca_is_memfree(dev)) {
+		arbel_ctx = mailbox->buf;
+		srq_attr->srq_limit = arbel_ctx->limit_watermark;
+	} else
+		srq_attr->srq_limit = 0;
+
+	srq_attr->max_wr  = srq->max;
+	srq_attr->max_sge = srq->max_gs;
+
+out:
+	mthca_free_mailbox(dev, mailbox);
+
+	return err;
+}
+
 void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 		     enum ib_event_type event_type)
 {

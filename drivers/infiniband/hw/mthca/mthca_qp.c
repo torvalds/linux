@@ -348,6 +348,141 @@ static __be32 get_hw_access_flags(struct mthca_qp *qp, struct ib_qp_attr *attr,
 	return cpu_to_be32(hw_access_flags);
 }
 
+static inline enum ib_qp_state to_ib_qp_state(int mthca_state)
+{
+	switch (mthca_state) {
+	case MTHCA_QP_STATE_RST:      return IB_QPS_RESET;
+	case MTHCA_QP_STATE_INIT:     return IB_QPS_INIT;
+	case MTHCA_QP_STATE_RTR:      return IB_QPS_RTR;
+	case MTHCA_QP_STATE_RTS:      return IB_QPS_RTS;
+	case MTHCA_QP_STATE_DRAINING:
+	case MTHCA_QP_STATE_SQD:      return IB_QPS_SQD;
+	case MTHCA_QP_STATE_SQE:      return IB_QPS_SQE;
+	case MTHCA_QP_STATE_ERR:      return IB_QPS_ERR;
+	default:                      return -1;
+	}
+}
+
+static inline enum ib_mig_state to_ib_mig_state(int mthca_mig_state)
+{
+	switch (mthca_mig_state) {
+	case 0:  return IB_MIG_ARMED;
+	case 1:  return IB_MIG_REARM;
+	case 3:  return IB_MIG_MIGRATED;
+	default: return -1;
+	}
+}
+
+static int to_ib_qp_access_flags(int mthca_flags)
+{
+	int ib_flags = 0;
+
+	if (mthca_flags & MTHCA_QP_BIT_RRE)
+		ib_flags |= IB_ACCESS_REMOTE_READ;
+	if (mthca_flags & MTHCA_QP_BIT_RWE)
+		ib_flags |= IB_ACCESS_REMOTE_WRITE;
+	if (mthca_flags & MTHCA_QP_BIT_RAE)
+		ib_flags |= IB_ACCESS_REMOTE_ATOMIC;
+
+	return ib_flags;
+}
+
+static void to_ib_ah_attr(struct mthca_dev *dev, struct ib_ah_attr *ib_ah_attr,
+				struct mthca_qp_path *path)
+{
+	memset(ib_ah_attr, 0, sizeof *path);
+	ib_ah_attr->port_num 	  = (be32_to_cpu(path->port_pkey) >> 24) & 0x3;
+	ib_ah_attr->dlid     	  = be16_to_cpu(path->rlid);
+	ib_ah_attr->sl       	  = be32_to_cpu(path->sl_tclass_flowlabel) >> 28;
+	ib_ah_attr->src_path_bits = path->g_mylmc & 0x7f;
+	ib_ah_attr->static_rate   = path->static_rate & 0x7;
+	ib_ah_attr->ah_flags      = (path->g_mylmc & (1 << 7)) ? IB_AH_GRH : 0;
+	if (ib_ah_attr->ah_flags) {
+		ib_ah_attr->grh.sgid_index = path->mgid_index & (dev->limits.gid_table_len - 1);
+		ib_ah_attr->grh.hop_limit  = path->hop_limit;
+		ib_ah_attr->grh.traffic_class =
+			(be32_to_cpu(path->sl_tclass_flowlabel) >> 20) & 0xff;
+		ib_ah_attr->grh.flow_label =
+			be32_to_cpu(path->sl_tclass_flowlabel) & 0xfffff;
+		memcpy(ib_ah_attr->grh.dgid.raw,
+			path->rgid, sizeof ib_ah_attr->grh.dgid.raw);
+	}
+}
+
+int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_mask,
+		   struct ib_qp_init_attr *qp_init_attr)
+{
+	struct mthca_dev *dev = to_mdev(ibqp->device);
+	struct mthca_qp *qp = to_mqp(ibqp);
+	int err;
+	struct mthca_mailbox *mailbox;
+	struct mthca_qp_param *qp_param;
+	struct mthca_qp_context *context;
+	int mthca_state;
+	u8 status;
+
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	err = mthca_QUERY_QP(dev, qp->qpn, 0, mailbox, &status);
+	if (err)
+		goto out;
+	if (status) {
+		mthca_warn(dev, "QUERY_QP returned status %02x\n", status);
+		err = -EINVAL;
+		goto out;
+	}
+
+	qp_param    = mailbox->buf;
+	context     = &qp_param->context;
+	mthca_state = be32_to_cpu(context->flags) >> 28;
+
+	qp_attr->qp_state 	     = to_ib_qp_state(mthca_state);
+	qp_attr->cur_qp_state 	     = qp_attr->qp_state;
+	qp_attr->path_mtu 	     = context->mtu_msgmax >> 5;
+	qp_attr->path_mig_state      =
+		to_ib_mig_state((be32_to_cpu(context->flags) >> 11) & 0x3);
+	qp_attr->qkey 		     = be32_to_cpu(context->qkey);
+	qp_attr->rq_psn 	     = be32_to_cpu(context->rnr_nextrecvpsn) & 0xffffff;
+	qp_attr->sq_psn 	     = be32_to_cpu(context->next_send_psn) & 0xffffff;
+	qp_attr->dest_qp_num 	     = be32_to_cpu(context->remote_qpn) & 0xffffff;
+	qp_attr->qp_access_flags     =
+		to_ib_qp_access_flags(be32_to_cpu(context->params2));
+	qp_attr->cap.max_send_wr     = qp->sq.max;
+	qp_attr->cap.max_recv_wr     = qp->rq.max;
+	qp_attr->cap.max_send_sge    = qp->sq.max_gs;
+	qp_attr->cap.max_recv_sge    = qp->rq.max_gs;
+	qp_attr->cap.max_inline_data = qp->max_inline_data;
+
+	to_ib_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
+	to_ib_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
+
+	qp_attr->pkey_index     = be32_to_cpu(context->pri_path.port_pkey) & 0x7f;
+	qp_attr->alt_pkey_index = be32_to_cpu(context->alt_path.port_pkey) & 0x7f;
+
+	/* qp_attr->en_sqd_async_notify is only applicable in modify qp */
+	qp_attr->sq_draining = mthca_state == MTHCA_QP_STATE_DRAINING;
+
+	qp_attr->max_rd_atomic = 1 << ((be32_to_cpu(context->params1) >> 21) & 0x7);
+
+	qp_attr->max_dest_rd_atomic =
+		1 << ((be32_to_cpu(context->params2) >> 21) & 0x7);
+	qp_attr->min_rnr_timer 	    =
+		(be32_to_cpu(context->rnr_nextrecvpsn) >> 24) & 0x1f;
+	qp_attr->port_num 	    = qp_attr->ah_attr.port_num;
+	qp_attr->timeout 	    = context->pri_path.ackto >> 3;
+	qp_attr->retry_cnt 	    = (be32_to_cpu(context->params1) >> 16) & 0x7;
+	qp_attr->rnr_retry 	    = context->pri_path.rnr_retry >> 5;
+	qp_attr->alt_port_num 	    = qp_attr->alt_ah_attr.port_num;
+	qp_attr->alt_timeout 	    = context->alt_path.ackto >> 3;
+	qp_init_attr->cap 	    = qp_attr->cap;
+
+out:
+	mthca_free_mailbox(dev, mailbox);
+	return err;
+}
+
 static void mthca_path_set(struct ib_ah_attr *ah, struct mthca_qp_path *path)
 {
 	path->g_mylmc     = ah->src_path_bits & 0x7f;

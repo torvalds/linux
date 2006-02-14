@@ -305,6 +305,8 @@ int mthca_SW2HW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int srq_num, u8 *status);
 int mthca_HW2SW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int srq_num, u8 *status);
+int mthca_QUERY_SRQ(struct mthca_dev *dev, u32 num,
+		    struct mthca_mailbox *mailbox, u8 *status);
 int mthca_ARM_SRQ(struct mthca_dev *dev, int srq_num, int limit, u8 *status);
 int mthca_MODIFY_QP(struct mthca_dev *dev, enum ib_qp_state cur,
 		    enum ib_qp_state next, u32 num, int is_ee,
