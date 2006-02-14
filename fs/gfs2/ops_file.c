@@ -176,16 +176,16 @@ static ssize_t __gfs2_file_aio_read(struct kiocb *iocb,
 		 * If any segment has a negative length, or the cumulative
 		 * length ever wraps negative then return -EINVAL.
 		 */
-	count += iv->iov_len;
-	if (unlikely((ssize_t)(count|iv->iov_len) < 0))
-		return -EINVAL;
-	if (access_ok(VERIFY_WRITE, iv->iov_base, iv->iov_len))
-		continue;
-	if (seg == 0)
-		return -EFAULT;
-	nr_segs = seg;
-	count -= iv->iov_len;   /* This segment is no good */
-	break;
+		count += iv->iov_len;
+		if (unlikely((ssize_t)(count|iv->iov_len) < 0))
+			return -EINVAL;
+		if (access_ok(VERIFY_WRITE, iv->iov_base, iv->iov_len))
+			continue;
+		if (seg == 0)
+			return -EFAULT;
+		nr_segs = seg;
+		count -= iv->iov_len;   /* This segment is no good */
+		break;
 	}
 
 	/* coalesce the iovecs and go direct-to-BIO for O_DIRECT */
@@ -204,10 +204,14 @@ static ssize_t __gfs2_file_aio_read(struct kiocb *iocb,
 		retval = gfs2_glock_nq_m_atime(1, &gh);
 		if (retval)
 			goto out;
-
+		if (gfs2_is_stuffed(ip)) {
+			gfs2_glock_dq_m(1, &gh);
+			gfs2_holder_uninit(&gh);
+			goto fallback_to_normal;
+		}
 		size = i_size_read(inode);
 		if (pos < size) {
-			 retval = gfs2_direct_IO_read(iocb, iov, pos, nr_segs);
+			retval = gfs2_direct_IO_read(iocb, iov, pos, nr_segs);
 			if (retval > 0 && !is_sync_kiocb(iocb))
 				retval = -EIOCBQUEUED;
 			if (retval > 0)
@@ -219,6 +223,7 @@ static ssize_t __gfs2_file_aio_read(struct kiocb *iocb,
 		goto out;
 	}
 
+fallback_to_normal:
 	retval = 0;
 	if (count) {
 		for (seg = 0; seg < nr_segs; seg++) {

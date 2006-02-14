@@ -14,6 +14,7 @@
 #include <linux/buffer_head.h>
 #include <linux/pagemap.h>
 #include <linux/mpage.h>
+#include <linux/fs.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
@@ -555,30 +556,73 @@ static int gfs2_invalidatepage(struct page *page, unsigned long offset)
 	return ret;
 }
 
-static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
-			  loff_t offset, unsigned long nr_segs)
+static ssize_t gfs2_direct_IO_write(struct kiocb *iocb, const struct iovec *iov,
+				    loff_t offset, unsigned long nr_segs)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_holder gh;
+	int rv;
+
+	/*
+	 * Shared lock, even though its write, since we do no allocation
+	 * on this path. All we need change is atime.
+	 */
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
+	rv = gfs2_glock_nq_m_atime(1, &gh);
+	if (rv)
+		goto out;
+
+	/*
+	 * Should we return an error here? I can't see that O_DIRECT for
+	 * a journaled file makes any sense. For now we'll silently fall
+	 * back to buffered I/O, likewise we do the same for stuffed
+	 * files since they are (a) small and (b) unaligned.
+	 */
+	if (gfs2_is_jdata(ip))
+		goto out;
+
+	if (gfs2_is_stuffed(ip))
+		goto out;
+
+	rv = __blockdev_direct_IO(WRITE, iocb, inode, inode->i_sb->s_bdev,
+				  iov, offset, nr_segs, get_blocks_noalloc,
+				  NULL, DIO_OWN_LOCKING);
+out:
+	gfs2_glock_dq_m(1, &gh);
+	gfs2_holder_uninit(&gh);
+
+	return rv;
+}
+
+/**
+ * gfs2_direct_IO
+ *
+ * This is called with a shared lock already held for the read path.
+ * Currently, no locks are held when the write path is called.
+ */
+static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
+			      const struct iovec *iov, loff_t offset,
+			      unsigned long nr_segs)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct gfs2_inode *ip = get_v2ip(inode);
 	struct gfs2_sbd *sdp = ip->i_sbd;
-	get_blocks_t *gb = get_blocks;
 
 	atomic_inc(&sdp->sd_ops_address);
 
-	if (gfs2_is_jdata(ip))
+	if (rw == WRITE)
+		return gfs2_direct_IO_write(iocb, iov, offset, nr_segs);
+
+	if (gfs2_assert_warn(sdp, gfs2_glock_is_locked_by_me(ip->i_gl)) ||
+	    gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
 		return -EINVAL;
 
-	if (rw == WRITE) {
-		return -EOPNOTSUPP; /* for now */
-	} else {
-		if (gfs2_assert_warn(sdp, gfs2_glock_is_locked_by_me(ip->i_gl)) ||
-		    gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
-			return -EINVAL;
-	}
-
-	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				  offset, nr_segs, gb, NULL);
+	return __blockdev_direct_IO(READ, iocb, inode, inode->i_sb->s_bdev, iov,
+			 	    offset, nr_segs, get_blocks, NULL,
+				    DIO_OWN_LOCKING);
 }
 
 struct address_space_operations gfs2_file_aops = {
