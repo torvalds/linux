@@ -152,10 +152,11 @@ void enable_irq(unsigned int irq)
 	preempt_disable();
 
 	if (tlb_type == hypervisor) {
+		unsigned int ino = __irq_ino(irq);
 		int cpu = hard_smp_processor_id();
 
-		sun4v_intr_settarget(irq, cpu);
-		sun4v_intr_setenabled(irq, HV_INTR_ENABLED);
+		sun4v_intr_settarget(ino, cpu);
+		sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
 	} else {
 		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 			unsigned long ver;
@@ -214,7 +215,9 @@ void disable_irq(unsigned int irq)
 	imap = bucket->imap;
 	if (imap != 0UL) {
 		if (tlb_type == hypervisor) {
-			sun4v_intr_setenabled(irq, HV_INTR_DISABLED);
+			unsigned int ino = __irq_ino(irq);
+
+			sun4v_intr_setenabled(ino, HV_INTR_DISABLED);
 		} else {
 			u32 tmp;
 
@@ -643,9 +646,9 @@ static void process_bucket(int irq, struct ino_bucket *bp, struct pt_regs *regs)
 	}
 	if (bp->pil != 0) {
 		if (tlb_type == hypervisor) {
-			unsigned int irq = __irq(bp);
+			unsigned int ino = __irq_ino(bp);
 
-			sun4v_intr_setstate(irq, HV_INTR_STATE_IDLE);
+			sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
 		} else {
 			upa_writel(ICLR_IDLE, bp->iclr);
 			/* Test and add entropy */
@@ -791,10 +794,10 @@ static int retarget_one_irq(struct irqaction *p, int goal_cpu)
 	}
 
 	if (tlb_type == hypervisor) {
-		unsigned int irq = __irq(bucket);
+		unsigned int ino = __irq_ino(bucket);
 
-		sun4v_intr_settarget(irq, goal_cpu);
-		sun4v_intr_setenabled(irq, HV_INTR_ENABLED);
+		sun4v_intr_settarget(ino, goal_cpu);
+		sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
 	} else {
 		unsigned int tid;
 
