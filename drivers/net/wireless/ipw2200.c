@@ -10364,6 +10364,9 @@ static int ipw_config(struct ipw_priv *priv)
  * not intended for resale of the above mentioned Intel adapters has
  * not been tested.
  *
+ * Remember to update the table in README.ipw2200 when changing this
+ * table.
+ *
  */
 static const struct ieee80211_geo ipw_geos[] = {
 	{			/* Restricted */
@@ -10661,9 +10664,6 @@ static int ipw_up(struct ipw_priv *priv)
 			IPW_WARNING("Could not set geography.");
 			return 0;
 		}
-
-		IPW_DEBUG_INFO("Geography %03d [%s] detected.\n",
-			       j, priv->ieee->geo.name);
 
 		if (priv->status & STATUS_RF_KILL_SW) {
 			IPW_WARNING("Radio disabled by module parameter.\n");
@@ -10985,6 +10985,12 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		IPW_ERROR("failed to register network device\n");
 		goto out_remove_sysfs;
 	}
+
+	printk(KERN_INFO DRV_NAME ": Detected geography %s (%d 802.11bg "
+	       "channels, %d 802.11a channels)\n",
+	       priv->ieee->geo.name, priv->ieee->geo.bg_channels,
+	       priv->ieee->geo.a_channels);
+
 	return 0;
 
       out_remove_sysfs:
