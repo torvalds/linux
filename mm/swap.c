@@ -40,7 +40,7 @@ static void put_compound_page(struct page *page)
 	if (put_page_testzero(page)) {
 		void (*dtor)(struct page *page);
 
-		dtor = (void (*)(struct page *))page[1].mapping;
+		dtor = (void (*)(struct page *))page[1].lru.next;
 		(*dtor)(page);
 	}
 }
