@@ -538,6 +538,12 @@ static int pci_sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 		ret = pci_sun4v_config_get(devhandle,
 				HV_PCI_DEVICE_BUILD(bus, device, func),
 				where, size);
+#if 0
+		printk("read_pci_cfg: devh[%x] device[%08x] where[%x] sz[%d] "
+		       "== [%016lx]\n",
+		       devhandle, HV_PCI_DEVICE_BUILD(bus, device, func),
+		       where, size, ret);
+#endif
 	}
 	switch (size) {
 	case 1:
@@ -571,6 +577,12 @@ static int pci_sun4v_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 		ret = pci_sun4v_config_put(devhandle,
 				HV_PCI_DEVICE_BUILD(bus, device, func),
 				where, size, value);
+#if 0
+		printk("write_pci_cfg: devh[%x] device[%08x] where[%x] sz[%d] "
+		       "val[%08x] == [%016lx]\n",
+		       devhandle, HV_PCI_DEVICE_BUILD(bus, device, func),
+		       where, size, value, ret);
+#endif
 	}
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -598,10 +610,13 @@ static void pbm_scan_bus(struct pci_controller_info *p,
 	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno,
 				    p->pci_ops,
 				    pbm);
+#if 0
 	pci_fixup_host_bridge_self(pbm->pci_bus);
 	pbm->pci_bus->self->sysdata = cookie;
+#endif
 
-	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm, pbm->prom_node);
+	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm,
+				prom_getchild(pbm->prom_node));
 	pci_record_assignments(pbm, pbm->pci_bus);
 	pci_assign_unassigned(pbm, pbm->pci_bus);
 	pci_fixup_irq(pbm, pbm->pci_bus);
@@ -631,8 +646,65 @@ static unsigned int pci_sun4v_irq_build(struct pci_pbm_info *pbm,
 					struct pci_dev *pdev,
 					unsigned int ino)
 {
-	/* XXX Implement me! XXX */
-	return 0;
+	struct ino_bucket *bucket;
+	unsigned long sysino;
+	u32 devhandle = pbm->devhandle;
+	int pil;
+
+	sysino = sun4v_devino_to_sysino(devhandle, ino);
+
+	printk(KERN_INFO "pci_irq_buld: Mapping ( devh[%08x] ino[%08x] ) "
+	       "--> sysino[%016lx]\n", devhandle, ino, sysino);
+
+	pil = 4;
+	if (pdev) {
+		switch ((pdev->class >> 16) & 0xff) {
+		case PCI_BASE_CLASS_STORAGE:
+			pil = 4;
+			break;
+
+		case PCI_BASE_CLASS_NETWORK:
+			pil = 6;
+			break;
+
+		case PCI_BASE_CLASS_DISPLAY:
+			pil = 9;
+			break;
+
+		case PCI_BASE_CLASS_MULTIMEDIA:
+		case PCI_BASE_CLASS_MEMORY:
+		case PCI_BASE_CLASS_BRIDGE:
+		case PCI_BASE_CLASS_SERIAL:
+			pil = 10;
+			break;
+
+		default:
+			pil = 4;
+			break;
+		};
+	}
+	BUG_ON(PIL_RESERVED(pil));
+
+	bucket = &ivector_table[sysino];
+
+	/* Catch accidental accesses to these things.  IMAP/ICLR handling
+	 * is done by hypervisor calls on sun4v platforms, not by direct
+	 * register accesses.
+	 */
+	bucket->imap = ~0UL;
+	bucket->iclr = ~0UL;
+
+	bucket->pil = pil;
+	bucket->flags = IBF_PCI;
+
+	bucket->irq_info = kmalloc(sizeof(struct irq_desc), GFP_ATOMIC);
+	if (!bucket->irq_info) {
+		prom_printf("IRQ: Error, kmalloc(irq_desc) failed.\n");
+		prom_halt();
+	}
+	memset(bucket->irq_info, 0, sizeof(struct irq_desc));
+
+	return __irq(bucket);
 }
 
 static void pci_sun4v_base_address_update(struct pci_dev *pdev, int resource)
@@ -834,10 +906,35 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	probe_existing_entries(pbm, iommu);
 }
 
+/* Don't get this from the root nexus, get it from the "pci@0" node below.  */
+static void pci_sun4v_get_bus_range(struct pci_pbm_info *pbm)
+{
+	unsigned int busrange[2];
+	int prom_node = pbm->prom_node;
+	int err;
+
+	prom_node = prom_getchild(prom_node);
+	if (prom_node == 0) {
+		prom_printf("%s: Fatal error, no child OBP node.\n", pbm->name);
+		prom_halt();
+	}
+
+	err = prom_getproperty(prom_node, "bus-range",
+			       (char *)&busrange[0],
+			       sizeof(busrange));
+	if (err == 0 || err == -1) {
+		prom_printf("%s: Fatal error, no bus-range.\n", pbm->name);
+		prom_halt();
+	}
+
+	pbm->pci_first_busno = busrange[0];
+	pbm->pci_last_busno = busrange[1];
+
+}
+
 static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, unsigned int devhandle)
 {
 	struct pci_pbm_info *pbm;
-	unsigned int busrange[2];
 	int err, i;
 
 	if (devhandle & 0x40)
@@ -898,16 +995,7 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, uns
 		memset(&pbm->pbm_intmask, 0, sizeof(pbm->pbm_intmask));
 	}
 
-	err = prom_getproperty(prom_node, "bus-range",
-			       (char *)&busrange[0],
-			       sizeof(busrange));
-	if (err == 0 || err == -1) {
-		prom_printf("%s: Fatal error, no bus-range.\n", pbm->name);
-		prom_halt();
-	}
-	pbm->pci_first_busno = busrange[0];
-	pbm->pci_last_busno = busrange[1];
-
+	pci_sun4v_get_bus_range(pbm);
 	pci_sun4v_iommu_init(pbm);
 }
 
