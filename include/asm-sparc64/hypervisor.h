@@ -912,7 +912,7 @@ struct hv_fault_status {
  * ARG0:	character
  * RET0:	status
  * ERRORS:	EINVAL		Illegal character
- *		EWOULDBLOCK	Output buffer currentl full, would block
+ *		EWOULDBLOCK	Output buffer currently full, would block
  *
  * Send a character to the console device.  Only character values
  * between 0 and 255 may be used.  Values outside this range are
