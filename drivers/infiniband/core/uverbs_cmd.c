@@ -1134,8 +1134,8 @@ out:
 }
 
 ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
-                            const char __user *buf, int in_len,
-                            int out_len)
+			    const char __user *buf, int in_len,
+			    int out_len)
 {
 	struct ib_uverbs_post_send      cmd;
 	struct ib_uverbs_post_send_resp resp;
@@ -1363,8 +1363,8 @@ err:
 }
 
 ssize_t ib_uverbs_post_recv(struct ib_uverbs_file *file,
-                            const char __user *buf, int in_len,
-                            int out_len)
+			    const char __user *buf, int in_len,
+			    int out_len)
 {
 	struct ib_uverbs_post_recv      cmd;
 	struct ib_uverbs_post_recv_resp resp;
@@ -1414,8 +1414,8 @@ out:
 }
 
 ssize_t ib_uverbs_post_srq_recv(struct ib_uverbs_file *file,
-                            const char __user *buf, int in_len,
-                            int out_len)
+				const char __user *buf, int in_len,
+				int out_len)
 {
 	struct ib_uverbs_post_srq_recv      cmd;
 	struct ib_uverbs_post_srq_recv_resp resp;

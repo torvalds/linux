@@ -462,7 +462,6 @@ void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
 	ib_uverbs_async_handler(uobj->uverbs_file, uobj->uobject.user_handle,
 				event->event, &uobj->async_list,
 				&uobj->async_events_reported);
-				
 }
 
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr)

@@ -426,7 +426,7 @@ struct ib_uverbs_sge {
 };
 
 struct ib_uverbs_send_wr {
-	__u64 wr_id; 
+	__u64 wr_id;
 	__u32 num_sge;
 	__u32 opcode;
 	__u32 send_flags;
@@ -500,7 +500,7 @@ struct ib_uverbs_post_srq_recv_resp {
 
 struct ib_uverbs_global_route {
 	__u8  dgid[16];
-	__u32 flow_label;    
+	__u32 flow_label;
 	__u8  sgid_index;
 	__u8  hop_limit;
 	__u8  traffic_class;
