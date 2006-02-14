@@ -260,4 +260,5 @@ void CalcNTLMv2_response(const struct cifsSesInfo * ses,char * v2_session_respon
 /*	hmac_md5_update(v2_session_response+16)client thing,8,&context); */ /* BB fix */
 
 	hmac_md5_final(v2_session_response,&context);
+	cifs_dump_mem("v2_sess_rsp: ", v2_session_response, 32); /* BB removeme BB */
 }

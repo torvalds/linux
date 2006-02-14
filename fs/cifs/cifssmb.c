@@ -186,15 +186,17 @@ small_smb_init(int smb_command, int wct, struct cifsTconInfo *tcon,
                 cifs_stats_inc(&tcon->num_smbs_sent);
 
 	return rc;
-}  
+}
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL  
 int
-small_smb_init_no_tcon(int smb_command, int wct, struct cifsSesInfo *ses,
-		       void **request_buf)
+small_smb_init_no_tc(const int smb_command, const int wct, 
+		     struct cifsSesInfo *ses, void **request_buf)
 {
 	int rc;
 	struct smb_hdr * buffer;
 
-	rc = small_smb_init(smb_command, wct, 0, request_buf);
+	rc = small_smb_init(smb_command, wct, NULL, request_buf);
 	if(rc)
 		return rc;
 
@@ -212,7 +214,7 @@ small_smb_init_no_tcon(int smb_command, int wct, struct cifsSesInfo *ses,
 
 	return rc;
 }
-
+#endif  /* CONFIG_CIFS_EXPERIMENTAL */
 
 /* If the return code is zero, this function must fill in request_buf pointer */
 static int

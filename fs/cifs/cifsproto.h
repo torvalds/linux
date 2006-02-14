@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsproto.h
  *
- *   Copyright (c) International Business Machines  Corp., 2002,2005
+ *   Copyright (c) International Business Machines  Corp., 2002,2006
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -64,8 +64,14 @@ extern int map_smb_to_linux_error(struct smb_hdr *smb);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    const struct cifsTconInfo *, int /* length of
 			    fixed section (word count) in two byte units */);
-extern int small_smb_init_no_tc(int smb_cmd, int wct, struct cifsSesInfo *ses,
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
+				struct cifsSesInfo *ses,
 				void ** request_buf);
+extern int CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
+			     const int stage, int * pNTLMv2_flg,
+			     const struct nls_table *nls_cp);
+#endif
 extern __u16 GetNextMid(struct TCP_Server_Info *server);
 extern struct oplock_q_entry * AllocOplockQEntry(struct inode *, u16, 
 						 struct cifsTconInfo *);

@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/connect.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2005
+ *   Copyright (C) International Business Machines  Corp., 2002,2006
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -2816,7 +2816,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 		}
 	} else {
 		cERROR(1,
-		       (" Invalid Word count %d: ",
+		       (" Invalid Word count %d:",
 			smb_buffer_response->WordCount));
 		rc = -EIO;
 	}
@@ -3433,7 +3433,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 		if (extended_security
 				&& (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
 				&& (pSesInfo->server->secType == NTLMSSP)) {
-			cFYI(1, ("New style sesssetup "));
+			cFYI(1, ("New style sesssetup"));
 			rc = CIFSSpnegoSessSetup(xid, pSesInfo,
 				NULL /* security blob */, 
 				0 /* blob length */,
@@ -3441,7 +3441,7 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 		} else if (extended_security
 			   && (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
 			   && (pSesInfo->server->secType == RawNTLMSSP)) {
-			cFYI(1, ("NTLMSSP sesssetup "));
+			cFYI(1, ("NTLMSSP sesssetup"));
 			rc = CIFSNTLMSSPNegotiateSessSetup(xid,
 						pSesInfo,
 						&ntlmv2_flag,
