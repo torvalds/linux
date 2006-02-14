@@ -7895,7 +7895,8 @@ static void ipw_rx(struct ipw_priv *priv)
 					     le16_to_cpu(pkt->u.frame.length));
 
 				if (le16_to_cpu(pkt->u.frame.length) <
-				    frame_hdr_len(header)) {
+				    ieee80211_get_hdrlen(le16_to_cpu(
+						    header->frame_ctl))) {
 					IPW_DEBUG_DROP
 					    ("Received packet is too small. "
 					     "Dropping.\n");

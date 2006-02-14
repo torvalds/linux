@@ -1907,27 +1907,4 @@ struct ipw_cmd_log {
 
 #define IPW_MAX_CONFIG_RETRIES 10
 
-static inline u32 frame_hdr_len(struct ieee80211_hdr_4addr *hdr)
-{
-	u32 retval;
-	u16 fc;
-
-	retval = sizeof(struct ieee80211_hdr_3addr);
-	fc = le16_to_cpu(hdr->frame_ctl);
-
-	/*
-	 * Function     ToDS    FromDS
-	 * IBSS         0       0
-	 * To AP        1       0
-	 * From AP      0       1
-	 * WDS (bridge) 1       1
-	 *
-	 * Only WDS frames use Address4 among them. --YZ
-	 */
-	if (!(fc & IEEE80211_FCTL_TODS) || !(fc & IEEE80211_FCTL_FROMDS))
-		retval -= ETH_ALEN;
-
-	return retval;
-}
-
 #endif				/* __ipw2200_h__ */
