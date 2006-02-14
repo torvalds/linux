@@ -24,10 +24,10 @@
 
 #include "pci_sun4v.h"
 
-#define PGLIST_NENTS	2048
+#define PGLIST_NENTS	(PAGE_SIZE / sizeof(u64))
 
 struct sun4v_pglist {
-	u64	pglist[PGLIST_NENTS];
+	u64	*pglist;
 };
 
 static DEFINE_PER_CPU(struct sun4v_pglist, iommu_pglists);
@@ -83,10 +83,11 @@ static void *pci_4v_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
-	unsigned long devhandle, flags, order, first_page, npages, n;
+	unsigned long flags, order, first_page, npages, n;
 	void *ret;
 	long entry;
 	u64 *pglist;
+	u32 devhandle;
 	int cpu;
 
 	size = IO_PAGE_ALIGN(size);
@@ -123,7 +124,7 @@ static void *pci_4v_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr
 
 	cpu = get_cpu();
 
-	pglist = &__get_cpu_var(iommu_pglists).pglist[0];
+	pglist = __get_cpu_var(iommu_pglists).pglist;
 	for (n = 0; n < npages; n++)
 		pglist[n] = first_page + (n * PAGE_SIZE);
 
@@ -149,7 +150,8 @@ static void pci_4v_free_consistent(struct pci_dev *pdev, size_t size, void *cpu,
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
-	unsigned long flags, order, npages, entry, devhandle;
+	unsigned long flags, order, npages, entry;
+	u32 devhandle;
 
 	npages = IO_PAGE_ALIGN(size) >> IO_PAGE_SHIFT;
 	pcp = pdev->sysdata;
@@ -182,8 +184,8 @@ static dma_addr_t pci_4v_map_single(struct pci_dev *pdev, void *ptr, size_t sz, 
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
 	unsigned long flags, npages, oaddr;
-	unsigned long i, base_paddr, devhandle;
-	u32 bus_addr, ret;
+	unsigned long i, base_paddr;
+	u32 devhandle, bus_addr, ret;
 	unsigned long prot;
 	long entry;
 	u64 *pglist;
@@ -219,7 +221,7 @@ static dma_addr_t pci_4v_map_single(struct pci_dev *pdev, void *ptr, size_t sz, 
 
 	cpu = get_cpu();
 
-	pglist = &__get_cpu_var(iommu_pglists).pglist[0];
+	pglist = __get_cpu_var(iommu_pglists).pglist;
 	for (i = 0; i < npages; i++, base_paddr += IO_PAGE_SIZE)
 		pglist[i] = base_paddr;
 
@@ -248,8 +250,9 @@ static void pci_4v_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
-	unsigned long flags, npages, devhandle;
+	unsigned long flags, npages;
 	long entry;
+	u32 devhandle;
 
 	if (unlikely(direction == PCI_DMA_NONE)) {
 		if (printk_ratelimit())
@@ -285,7 +288,7 @@ static void pci_4v_unmap_single(struct pci_dev *pdev, dma_addr_t bus_addr, size_
 #define SG_ENT_PHYS_ADDRESS(SG)	\
 	(__pa(page_address((SG)->page)) + (SG)->offset)
 
-static inline void fill_sg(long entry, unsigned long devhandle,
+static inline void fill_sg(long entry, u32 devhandle,
 			   struct scatterlist *sg,
 			   int nused, int nelems, unsigned long prot)
 {
@@ -295,7 +298,7 @@ static inline void fill_sg(long entry, unsigned long devhandle,
 	u64 *pglist;
 
 	cpu = get_cpu();
-	pglist = &__get_cpu_var(iommu_pglists).pglist[0];
+	pglist = __get_cpu_var(iommu_pglists).pglist;
 	pglist_ent = 0;
 	for (i = 0; i < nused; i++) {
 		unsigned long pteval = ~0UL;
@@ -380,8 +383,8 @@ static int pci_4v_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int n
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
-	unsigned long flags, npages, prot, devhandle;
-	u32 dma_base;
+	unsigned long flags, npages, prot;
+	u32 devhandle, dma_base;
 	struct scatterlist *sgtmp;
 	long entry;
 	int used;
@@ -451,9 +454,9 @@ static void pci_4v_unmap_sg(struct pci_dev *pdev, struct scatterlist *sglist, in
 {
 	struct pcidev_cookie *pcp;
 	struct pci_iommu *iommu;
-	unsigned long flags, i, npages, devhandle;
+	unsigned long flags, i, npages;
 	long entry;
-	u32 bus_addr;
+	u32 devhandle, bus_addr;
 
 	if (unlikely(direction == PCI_DMA_NONE)) {
 		if (printk_ratelimit())
@@ -805,7 +808,8 @@ static void probe_existing_entries(struct pci_pbm_info *pbm,
 				   struct pci_iommu *iommu)
 {
 	struct pci_iommu_arena *arena = &iommu->arena;
-	unsigned long i, devhandle;
+	unsigned long i;
+	u32 devhandle;
 
 	devhandle = pbm->devhandle;
 	for (i = 0; i < arena->limit; i++) {
@@ -906,7 +910,7 @@ static void pci_sun4v_get_bus_range(struct pci_pbm_info *pbm)
 
 }
 
-static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, unsigned int devhandle)
+static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, u32 devhandle)
 {
 	struct pci_pbm_info *pbm;
 	int err, i;
@@ -978,7 +982,8 @@ void sun4v_pci_init(int node, char *model_name)
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
 	struct linux_prom64_registers regs;
-	unsigned int devhandle;
+	u32 devhandle;
+	int i;
 
 	prom_getproperty(node, "reg", (char *)&regs, sizeof(regs));
 	devhandle = (regs.phys_addr >> 32UL) & 0x0fffffff;
@@ -999,26 +1004,32 @@ void sun4v_pci_init(int node, char *model_name)
 		}
 	}
 
-	p = kmalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p) {
-		prom_printf("SUN4V_PCI: Fatal memory allocation error.\n");
-		prom_halt();
+	for (i = 0; i < NR_CPUS; i++) {
+		unsigned long page = get_zeroed_page(GFP_ATOMIC);
+
+		if (!page)
+			goto fatal_memory_error;
+
+		per_cpu(iommu_pglists, i).pglist = (u64 *) page;
 	}
+
+	p = kmalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
+	if (!p)
+		goto fatal_memory_error;
+
 	memset(p, 0, sizeof(*p));
 
 	iommu = kmalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
-	if (!iommu) {
-		prom_printf("SCHIZO: Fatal memory allocation error.\n");
-		prom_halt();
-	}
+	if (!iommu)
+		goto fatal_memory_error;
+
 	memset(iommu, 0, sizeof(*iommu));
 	p->pbm_A.iommu = iommu;
 
 	iommu = kmalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
-	if (!iommu) {
-		prom_printf("SCHIZO: Fatal memory allocation error.\n");
-		prom_halt();
-	}
+	if (!iommu)
+		goto fatal_memory_error;
+
 	memset(iommu, 0, sizeof(*iommu));
 	p->pbm_B.iommu = iommu;
 
@@ -1040,4 +1051,9 @@ void sun4v_pci_init(int node, char *model_name)
 	pci_memspace_mask = 0x7fffffffUL;
 
 	pci_sun4v_pbm_init(p, node, devhandle);
+	return;
+
+fatal_memory_error:
+	prom_printf("SUN4V_PCI: Fatal memory allocation error.\n");
+	prom_halt();
 }
