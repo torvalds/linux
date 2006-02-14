@@ -9648,11 +9648,6 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 	u16 remaining_bytes;
 	int fc;
 
-	/* If there isn't room in the queue, we return busy and let the
-	 * network stack requeue the packet for us */
-	if (ipw_queue_space(q) < q->high_mark)
-		return NETDEV_TX_BUSY;
-
 	switch (priv->ieee->iw_mode) {
 	case IW_MODE_ADHOC:
 		hdr_len = IEEE80211_3ADDR_LEN;
@@ -9817,6 +9812,9 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 	/* kick DMA */
 	q->first_empty = ipw_queue_inc_wrap(q->first_empty, q->n_bd);
 	ipw_write32(priv, q->reg_w, q->first_empty);
+
+	if (ipw_queue_space(q) < q->high_mark)
+		netif_stop_queue(priv->net_dev);
 
 	return NETDEV_TX_OK;
 
