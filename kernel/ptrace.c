@@ -242,8 +242,7 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 		if (write) {
 			copy_to_user_page(vma, page, addr,
 					  maddr + offset, buf, bytes);
-			if (!PageCompound(page))
-				set_page_dirty_lock(page);
+			set_page_dirty_lock(page);
 		} else {
 			copy_from_user_page(vma, page, addr,
 					    buf, maddr + offset, bytes);
