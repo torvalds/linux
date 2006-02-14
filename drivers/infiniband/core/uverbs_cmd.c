@@ -2,6 +2,7 @@
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
+ * Copyright (c) 2006 Mellanox Technologies.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -1920,6 +1921,49 @@ ssize_t ib_uverbs_modify_srq(struct ib_uverbs_file *file,
 out:
 	mutex_unlock(&ib_uverbs_idr_mutex);
 
+	return ret ? ret : in_len;
+}
+
+ssize_t ib_uverbs_query_srq(struct ib_uverbs_file *file,
+			    const char __user *buf,
+			    int in_len, int out_len)
+{
+	struct ib_uverbs_query_srq      cmd;
+	struct ib_uverbs_query_srq_resp resp;
+	struct ib_srq_attr              attr;
+	struct ib_srq                   *srq;
+	int                             ret;
+
+	if (out_len < sizeof resp)
+		return -ENOSPC;
+
+	if (copy_from_user(&cmd, buf, sizeof cmd))
+		return -EFAULT;
+
+	mutex_lock(&ib_uverbs_idr_mutex);
+
+	srq = idr_find(&ib_uverbs_srq_idr, cmd.srq_handle);
+	if (srq && srq->uobject->context == file->ucontext)
+		ret = ib_query_srq(srq, &attr);
+	else
+		ret = -EINVAL;
+
+	mutex_unlock(&ib_uverbs_idr_mutex);
+
+	if (ret)
+		goto out;
+
+	memset(&resp, 0, sizeof resp);
+
+	resp.max_wr    = attr.max_wr;
+	resp.max_sge   = attr.max_sge;
+	resp.srq_limit = attr.srq_limit;
+
+	if (copy_to_user((void __user *) (unsigned long) cmd.response,
+			 &resp, sizeof resp))
+		ret = -EFAULT;
+
+out:
 	return ret ? ret : in_len;
 }
 

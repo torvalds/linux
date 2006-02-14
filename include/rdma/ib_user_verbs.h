@@ -2,6 +2,7 @@
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
+ * Copyright (c) 2006 Mellanox Technologies.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -611,6 +612,20 @@ struct ib_uverbs_modify_srq {
 	__u32 max_wr;
 	__u32 srq_limit;
 	__u64 driver_data[0];
+};
+
+struct ib_uverbs_query_srq {
+	__u64 response;
+	__u32 srq_handle;
+	__u32 reserved;
+	__u64 driver_data[0];
+};
+
+struct ib_uverbs_query_srq_resp {
+	__u32 max_wr;
+	__u32 max_sge;
+	__u32 srq_limit;
+	__u32 reserved;
 };
 
 struct ib_uverbs_destroy_srq {
