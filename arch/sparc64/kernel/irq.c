@@ -154,9 +154,16 @@ void enable_irq(unsigned int irq)
 	if (tlb_type == hypervisor) {
 		unsigned int ino = __irq_ino(irq);
 		int cpu = hard_smp_processor_id();
+		int err;
 
-		sun4v_intr_settarget(ino, cpu);
+		err = sun4v_intr_settarget(ino, cpu);
+		if (err != HV_EOK)
+			printk("sun4v_intr_settarget(%x,%d): err(%d)\n",
+			       ino, cpu, err);
 		sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
+		if (err != HV_EOK)
+			printk("sun4v_intr_setenabled(%x): err(%d)\n",
+			       ino, err);
 	} else {
 		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 			unsigned long ver;
@@ -216,8 +223,12 @@ void disable_irq(unsigned int irq)
 	if (imap != 0UL) {
 		if (tlb_type == hypervisor) {
 			unsigned int ino = __irq_ino(irq);
+			int err;
 
-			sun4v_intr_setenabled(ino, HV_INTR_DISABLED);
+			err = sun4v_intr_setenabled(ino, HV_INTR_DISABLED);
+			if (err != HV_EOK)
+				printk("sun4v_intr_setenabled(%x): "
+				       "err(%d)\n", ino, err);
 		} else {
 			u32 tmp;
 
@@ -647,8 +658,12 @@ static void process_bucket(int irq, struct ino_bucket *bp, struct pt_regs *regs)
 	if (bp->pil != 0) {
 		if (tlb_type == hypervisor) {
 			unsigned int ino = __irq_ino(bp);
+			int err;
 
-			sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
+			err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
+			if (err != HV_EOK)
+				printk("sun4v_intr_setstate(%x): "
+				       "err(%d)\n", ino, err);
 		} else {
 			upa_writel(ICLR_IDLE, bp->iclr);
 			/* Test and add entropy */

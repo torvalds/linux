@@ -1238,7 +1238,7 @@ extern unsigned long sun4v_intr_getenabled(unsigned long sysino);
 #define HV_FAST_INTR_SETENABLED		0xa2
 
 #ifndef __ASSEMBLY__
-extern void sun4v_intr_setenabled(unsigned long sysino, unsigned long intr_enabled);
+extern unsigned long sun4v_intr_setenabled(unsigned long sysino, unsigned long intr_enabled);
 #endif
 
 /* intr_getstate()
@@ -1274,7 +1274,7 @@ extern unsigned long sun4v_intr_getstate(unsigned long sysino);
 #define HV_FAST_INTR_SETSTATE		0xa4
 
 #ifndef __ASSEMBLY__
-extern void sun4v_intr_setstate(unsigned long sysino, unsigned long intr_state);
+extern unsigned long sun4v_intr_setstate(unsigned long sysino, unsigned long intr_state);
 #endif
 
 /* intr_gettarget()
@@ -1309,7 +1309,7 @@ extern unsigned long sun4v_intr_gettarget(unsigned long sysino);
 #define HV_FAST_INTR_SETTARGET		0xa6
 
 #ifndef __ASSEMBLY__
-extern void sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
+extern unsigned long sun4v_intr_settarget(unsigned long sysino, unsigned long cpuid);
 #endif
 
 /* PCI IO services.
