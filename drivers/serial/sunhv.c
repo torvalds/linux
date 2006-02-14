@@ -20,6 +20,8 @@
 
 #include <asm/hypervisor.h>
 #include <asm/spitfire.h>
+#include <asm/vdev.h>
+#include <asm/irq.h>
 
 #if defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -407,12 +409,70 @@ static void __init sunhv_console_init(void)
 	register_console(&sunhv_console);
 }
 
+static int __init hv_console_compatible(char *buf, int len)
+{
+	while (len) {
+		int this_len;
+
+		if (!strcmp(buf, "qcn"))
+			return 1;
+
+		this_len = strlen(buf) + 1;
+
+		buf += this_len;
+		len -= this_len;
+	}
+
+	return 0;
+}
+
+static unsigned int __init get_interrupt(void)
+{
+	const char *cons_str = "console";
+	const char *compat_str = "compatible";
+	int node = prom_getchild(sun4v_vdev_root);
+	unsigned int irq;
+	char buf[64];
+	int err, len;
+
+	node = prom_searchsiblings(node, cons_str);
+	if (!node)
+		return 0;
+
+	len = prom_getproplen(node, compat_str);
+	if (len == 0 || len == -1)
+		return 0;
+
+	err = prom_getproperty(node, compat_str, buf, 64);
+	if (err == -1)
+		return 0;
+
+	if (!hv_console_compatible(buf, len))
+		return 0;
+
+	/* Ok, the this is the OBP node for the sun4v hypervisor
+	 * console device.  Decode the interrupt.
+	 */
+	err = prom_getproperty(node, "interrupts",
+			       (char *) &irq, sizeof(irq));
+	if (err == -1)
+		return 0;
+
+	return sun4v_build_irq(sun4v_vdev_devhandle, irq, 4, 0);
+}
+
+static u32 sunhv_irq;
+
 static int __init sunhv_init(void)
 {
 	struct uart_port *port;
 	int ret;
 
 	if (tlb_type != hypervisor)
+		return -ENODEV;
+
+	sunhv_irq = get_interrupt();
+	if (!sunhv_irq)
 		return -ENODEV;
 
 	port = kmalloc(sizeof(struct uart_port), GFP_KERNEL);
@@ -424,14 +484,15 @@ static int __init sunhv_init(void)
 	port->type = PORT_SUNHV;
 	port->uartclk = ( 29491200 / 16 ); /* arbitrary */
 
-	/* XXX Get interrupt. XXX */
-	if (request_irq(0 /* XXX */, sunhv_interrupt,
+	if (request_irq(sunhv_irq, sunhv_interrupt,
 			SA_SHIRQ, "serial(sunhv)", port)) {
-		printk("sunhv: Cannot get IRQ %x\n",
-		       0 /* XXX */);
+		printk("sunhv: Cannot get IRQ %x\n", sunhv_irq);
 		kfree(port);
 		return -ENODEV;
 	}
+
+	printk("SUNHV: SUN4V virtual console, IRQ[%08x]\n",
+	       sunhv_irq);
 
 	sunhv_reg.minor = sunserial_current_minor;
 	sunhv_reg.nr = 1;
@@ -439,7 +500,7 @@ static int __init sunhv_init(void)
 
 	ret = uart_register_driver(&sunhv_reg);
 	if (ret < 0) {
-		free_irq(0 /* XXX */, up);
+		free_irq(sunhv_irq, up);
 		kfree(port);
 
 		return ret;
@@ -463,7 +524,7 @@ static void __exit sunhv_exit(void)
 	BUG_ON(!port);
 
 	uart_remove_one_port(&sunhv_reg, port);
-	free_irq(0 /* XXX */, port);
+	free_irq(sunhv_irq, port);
 
 	sunserial_current_minor -= 1;
 
