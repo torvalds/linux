@@ -40,8 +40,84 @@ do {									\
 
 /*
  * interrupt flag manipulation
+ * - use virtual interrupt management since touching the PSR is slow
+ *   - ICC2.Z: T if interrupts virtually disabled
+ *   - ICC2.C: F if interrupts really disabled
+ * - if Z==1 upon interrupt:
+ *   - C is set to 0
+ *   - interrupts are really disabled
+ *   - entry.S returns immediately
+ * - uses TIHI (TRAP if Z==0 && C==0) #2 to really reenable interrupts
+ *   - if taken, the trap:
+ *     - sets ICC2.C
+ *     - enables interrupts
  */
-#define local_irq_disable()				\
+#define local_irq_disable()					\
+do {								\
+	/* set Z flag, but don't change the C flag */		\
+	asm volatile("	andcc	gr0,gr0,gr0,icc2	\n"	\
+		     :						\
+		     :						\
+		     : "memory", "icc2"				\
+		     );						\
+} while(0)
+
+#define local_irq_enable()					\
+do {								\
+	/* clear Z flag and then test the C flag */		\
+	asm volatile("  oricc	gr0,#1,gr0,icc2		\n"	\
+		     "	tihi	icc2,gr0,#2		\n"	\
+		     :						\
+		     :						\
+		     : "memory", "icc2"				\
+		     );						\
+} while(0)
+
+#define local_save_flags(flags)					\
+do {								\
+	typecheck(unsigned long, flags);			\
+	asm volatile("movsg ccr,%0"				\
+		     : "=r"(flags)				\
+		     :						\
+		     : "memory");				\
+								\
+	/* shift ICC2.Z to bit 0 */				\
+	flags >>= 26;						\
+								\
+	/* make flags 1 if interrupts disabled, 0 otherwise */	\
+	flags &= 1UL;						\
+} while(0)
+
+#define irqs_disabled() \
+	({unsigned long flags; local_save_flags(flags); flags; })
+
+#define	local_irq_save(flags)			\
+do {						\
+	typecheck(unsigned long, flags);	\
+	local_save_flags(flags);		\
+	local_irq_disable();			\
+} while(0)
+
+#define	local_irq_restore(flags)					\
+do {									\
+	typecheck(unsigned long, flags);				\
+									\
+	/* load the Z flag by turning 1 if disabled into 0 if disabled	\
+	 * and thus setting the Z flag but not the C flag */		\
+	asm volatile("  xoricc	%0,#1,gr0,icc2		\n"		\
+		     /* then test Z=0 and C=0 */			\
+		     "	tihi	icc2,gr0,#2		\n"		\
+		     :							\
+		     : "r"(flags)					\
+		     : "memory", "icc2"					\
+		     );							\
+									\
+} while(0)
+
+/*
+ * real interrupt flag manipulation
+ */
+#define __local_irq_disable()				\
 do {							\
 	unsigned long psr;				\
 	asm volatile("	movsg	psr,%0		\n"	\
@@ -53,7 +129,7 @@ do {							\
 		     : "memory");			\
 } while(0)
 
-#define local_irq_enable()				\
+#define __local_irq_enable()				\
 do {							\
 	unsigned long psr;				\
 	asm volatile("	movsg	psr,%0		\n"	\
@@ -64,7 +140,7 @@ do {							\
 		     : "memory");			\
 } while(0)
 
-#define local_save_flags(flags)			\
+#define __local_save_flags(flags)		\
 do {						\
 	typecheck(unsigned long, flags);	\
 	asm("movsg psr,%0"			\
@@ -73,7 +149,7 @@ do {						\
 	    : "memory");			\
 } while(0)
 
-#define	local_irq_save(flags)				\
+#define	__local_irq_save(flags)				\
 do {							\
 	unsigned long npsr;				\
 	typecheck(unsigned long, flags);		\
@@ -86,7 +162,7 @@ do {							\
 		     : "memory");			\
 } while(0)
 
-#define	local_irq_restore(flags)			\
+#define	__local_irq_restore(flags)			\
 do {							\
 	typecheck(unsigned long, flags);		\
 	asm volatile("	movgs	%0,psr		\n"	\
@@ -95,7 +171,7 @@ do {							\
 		     : "memory");			\
 } while(0)
 
-#define irqs_disabled() \
+#define __irqs_disabled() \
 	((__get_PSR() & PSR_PIL) >= PSR_PIL_14)
 
 /*
