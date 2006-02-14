@@ -55,6 +55,8 @@
 #define MADV_DONTNEED	0x4		/* discard these pages */
 #define MADV_FREE	0x5		/* (Solaris) contents can be freed */
 #define MADV_REMOVE	0x6		/* remove these pages & resources */
+#define MADV_DONTFORK	0x30		/* dont inherit across fork */
+#define MADV_DOFORK	0x31		/* do inherit across fork */
 
 /* compatibility flags */
 #define MAP_ANON	MAP_ANONYMOUS
