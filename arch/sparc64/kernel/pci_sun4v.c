@@ -981,7 +981,7 @@ void sun4v_pci_init(int node, char *model_name)
 	unsigned int devhandle;
 
 	prom_getproperty(node, "reg", (char *)&regs, sizeof(regs));
-	devhandle = (regs.phys_addr >> 32UL) & 0x0fffffff;;
+	devhandle = (regs.phys_addr >> 32UL) & 0x0fffffff;
 
 	for (p = pci_controller_root; p; p = p->next) {
 		struct pci_pbm_info *pbm;
