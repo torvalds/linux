@@ -703,16 +703,18 @@ static void __init pdev_fixup_irq(struct pci_dev *pdev)
 		return;
 	}
 
-	/* Fully specified already? */
-	if (((prom_irq & PCI_IRQ_IGN) >> 6) == portid) {
-		pdev->irq = p->irq_build(pbm, pdev, prom_irq);
-		goto have_irq;
-	}
+	if (tlb_type != hypervisor) {
+		/* Fully specified already? */
+		if (((prom_irq & PCI_IRQ_IGN) >> 6) == portid) {
+			pdev->irq = p->irq_build(pbm, pdev, prom_irq);
+			goto have_irq;
+		}
 
-	/* An onboard device? (bit 5 set) */
-	if ((prom_irq & PCI_IRQ_INO) & 0x20) {
-		pdev->irq = p->irq_build(pbm, pdev, (portid << 6 | prom_irq));
-		goto have_irq;
+		/* An onboard device? (bit 5 set) */
+		if ((prom_irq & PCI_IRQ_INO) & 0x20) {
+			pdev->irq = p->irq_build(pbm, pdev, (portid << 6 | prom_irq));
+			goto have_irq;
+		}
 	}
 
 	/* Can we find a matching entry in the interrupt-map? */
