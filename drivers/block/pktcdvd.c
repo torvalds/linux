@@ -1548,7 +1548,7 @@ static int pkt_good_disc(struct pktcdvd_device *pd, disc_information *di)
 		case 0x12: /* DVD-RAM */
 			return 0;
 		default:
-			printk("pktcdvd: Wrong disc profile (%x)\n", pd->mmc3_profile);
+			VPRINTK("pktcdvd: Wrong disc profile (%x)\n", pd->mmc3_profile);
 			return 1;
 	}
 
@@ -1894,7 +1894,7 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 	unsigned int write_speed, media_write_speed, read_speed;
 
 	if ((ret = pkt_probe_settings(pd))) {
-		DPRINTK("pktcdvd: %s failed probe\n", pd->name);
+		VPRINTK("pktcdvd: %s failed probe\n", pd->name);
 		return -EIO;
 	}
 
@@ -2440,7 +2440,7 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 		return blkdev_ioctl(pd->bdev->bd_inode, file, cmd, arg);
 
 	default:
-		printk("pktcdvd: Unknown ioctl for %s (%x)\n", pd->name, cmd);
+		VPRINTK("pktcdvd: Unknown ioctl for %s (%x)\n", pd->name, cmd);
 		return -ENOTTY;
 	}
 
