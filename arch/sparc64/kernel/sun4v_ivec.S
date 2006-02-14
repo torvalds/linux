@@ -98,10 +98,7 @@ sun4v_dev_mondo:
 	membar	#Sync
 
 	/* Get &__irq_work[smp_processor_id()] into %g1.  */
-	sethi	%hi(__irq_work), %g4
-	sllx	%g1, 6, %g1
-	or	%g4, %lo(__irq_work), %g4
-	add	%g4, %g1, %g1
+	TRAP_LOAD_IRQ_WORK(%g1, %g4)
 
 	/* Get &ivector_table[IVEC] into %g4.  */
 	sethi	%hi(ivector_table), %g4
