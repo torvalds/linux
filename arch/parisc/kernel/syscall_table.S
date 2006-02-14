@@ -385,7 +385,7 @@
 	ENTRY_SAME(mknodat)
 	ENTRY_SAME(fchownat)
 	ENTRY_COMP(futimesat)
-	ENTRY_COMP(newfstatat)		/* 280 */
+	ENTRY_SAME(fstatat64)		/* 280 */
 	ENTRY_SAME(unlinkat)
 	ENTRY_SAME(renameat)
 	ENTRY_SAME(linkat)
