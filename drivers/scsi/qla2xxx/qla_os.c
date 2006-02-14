@@ -8,8 +8,8 @@
 
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
+#include <linux/kthread.h>
 
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>
@@ -1307,8 +1307,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->brd_info = brd_info;
 	sprintf(ha->host_str, "%s_%ld", ha->brd_info->drv_name, ha->host_no);
 
-	ha->dpc_pid = -1;
-
 	/* Configure PCI I/O space */
 	ret = qla2x00_iospace_config(ha);
 	if (ret)
@@ -1449,9 +1447,6 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	 */
 	spin_lock_init(&ha->mbx_reg_lock);
 
-	init_completion(&ha->dpc_inited);
-	init_completion(&ha->dpc_exited);
-
 	qla2x00_config_dma_addressing(ha);
 	if (qla2x00_mem_alloc(ha)) {
 		qla_printk(KERN_WARNING, ha,
@@ -1478,16 +1473,14 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	/*
 	 * Startup the kernel thread for this host adapter
 	 */
-	ha->dpc_should_die = 0;
-	ha->dpc_pid = kernel_thread(qla2x00_do_dpc, ha, 0);
-	if (ha->dpc_pid < 0) {
+	ha->dpc_thread = kthread_create(qla2x00_do_dpc, ha,
+			"%s_dpc", ha->host_str);
+	if (IS_ERR(ha->dpc_thread)) {
 		qla_printk(KERN_WARNING, ha,
 		    "Unable to start DPC thread!\n");
-
-		ret = -ENODEV;
+		ret = PTR_ERR(ha->dpc_thread);
 		goto probe_failed;
 	}
-	wait_for_completion(&ha->dpc_inited);
 
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
@@ -1621,8 +1614,6 @@ EXPORT_SYMBOL_GPL(qla2x00_remove_one);
 static void
 qla2x00_free_device(scsi_qla_host_t *ha)
 {
-	int ret;
-
 	/* Abort any outstanding IO descriptors. */
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha))
 		qla2x00_cancel_io_descriptors(ha);
@@ -1632,18 +1623,15 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 		qla2x00_stop_timer(ha);
 
 	/* Kill the kernel thread for this host */
-	if (ha->dpc_pid >= 0) {
-		ha->dpc_should_die = 1;
-		wmb();
-		ret = kill_proc(ha->dpc_pid, SIGHUP, 1);
-		if (ret) {
-			qla_printk(KERN_ERR, ha,
-			    "Unable to signal DPC thread -- (%d)\n", ret);
+	if (ha->dpc_thread) {
+		struct task_struct *t = ha->dpc_thread;
 
-			/* TODO: SOMETHING MORE??? */
-		} else {
-			wait_for_completion(&ha->dpc_exited);
-		}
+		/*
+		 * qla2xxx_wake_dpc checks for ->dpc_thread
+		 * so we need to zero it out.
+		 */
+		ha->dpc_thread = NULL;
+		kthread_stop(t);
 	}
 
 	/* Stop currently executing firmware. */
@@ -1775,8 +1763,8 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha, int defer)
 		atomic_set(&fcport->state, FCS_DEVICE_LOST);
 	}
 
-	if (defer && ha->dpc_wait && !ha->dpc_active)
-		up(ha->dpc_wait);
+	if (defer)
+		qla2xxx_wake_dpc(ha);
 }
 
 /*
@@ -1993,18 +1981,12 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 {
 	struct list_head	*fcpl, *fcptemp;
 	fc_port_t	*fcport;
-	unsigned int	wtime;/* max wait time if mbx cmd is busy. */
 
 	if (ha == NULL) {
 		/* error */
 		DEBUG2(printk("%s(): ERROR invalid ha pointer.\n", __func__));
 		return;
 	}
-
-	/* Make sure all other threads are stopped. */
-	wtime = 60 * 1000;
-	while (ha->dpc_wait && wtime)
-		wtime = msleep_interruptible(wtime);
 
 	/* free ioctl memory */
 	qla2x00_free_ioctl_mem(ha);
@@ -2156,7 +2138,6 @@ qla2x00_free_sp_pool( scsi_qla_host_t *ha)
 static int
 qla2x00_do_dpc(void *data)
 {
-	DECLARE_MUTEX_LOCKED(sem);
 	scsi_qla_host_t *ha;
 	fc_port_t	*fcport;
 	uint8_t		status;
@@ -2164,32 +2145,19 @@ qla2x00_do_dpc(void *data)
 
 	ha = (scsi_qla_host_t *)data;
 
-	lock_kernel();
-
-	daemonize("%s_dpc", ha->host_str);
-	allow_signal(SIGHUP);
-
-	ha->dpc_wait = &sem;
-
 	set_user_nice(current, -20);
 
-	unlock_kernel();
-
-	complete(&ha->dpc_inited);
-
-	while (1) {
+	while (!kthread_should_stop()) {
 		DEBUG3(printk("qla2x00: DPC handler sleeping\n"));
 
-		if (down_interruptible(&sem))
-			break;
-
-		if (ha->dpc_should_die)
-			break;
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+		__set_current_state(TASK_RUNNING);
 
 		DEBUG3(printk("qla2x00: DPC handler waking up\n"));
 
 		/* Initialization not yet finished. Don't do anything yet. */
-		if (!ha->flags.init_done || ha->dpc_active)
+		if (!ha->flags.init_done)
 			continue;
 
 		DEBUG3(printk("scsi(%ld): DPC handler\n", ha->host_no));
@@ -2356,10 +2324,16 @@ qla2x00_do_dpc(void *data)
 	/*
 	 * Make sure that nobody tries to wake us up again.
 	 */
-	ha->dpc_wait = NULL;
 	ha->dpc_active = 0;
 
-	complete_and_exit(&ha->dpc_exited, 0);
+	return 0;
+}
+
+void
+qla2xxx_wake_dpc(scsi_qla_host_t *ha)
+{
+	if (ha->dpc_thread)
+		wake_up_process(ha->dpc_thread);
 }
 
 /*
@@ -2540,11 +2514,8 @@ qla2x00_timer(scsi_qla_host_t *ha)
 	    test_bit(LOGIN_RETRY_NEEDED, &ha->dpc_flags) ||
 	    test_bit(RESET_MARKER_NEEDED, &ha->dpc_flags) ||
 	    test_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags) ||
-	    test_bit(RELOGIN_NEEDED, &ha->dpc_flags)) &&
-	    ha->dpc_wait && !ha->dpc_active) {
-
-		up(ha->dpc_wait);
-	}
+	    test_bit(RELOGIN_NEEDED, &ha->dpc_flags)))
+		qla2xxx_wake_dpc(ha);
 
 	qla2x00_restart_timer(ha, WATCH_INTERVAL);
 }

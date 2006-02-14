@@ -838,9 +838,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		qla_printk(KERN_WARNING, ha, "Status Entry invalid handle.\n");
 
 		set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-		if (ha->dpc_wait && !ha->dpc_active)
-			up(ha->dpc_wait);
-
+		qla2xxx_wake_dpc(ha);
 		return;
 	}
 	cp = sp->cmd;
@@ -1271,8 +1269,7 @@ qla2x00_error_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		    "Error entry - invalid handle\n");
 
 		set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-		if (ha->dpc_wait && !ha->dpc_active)
-			up(ha->dpc_wait);
+		qla2xxx_wake_dpc(ha);
 	}
 }
 

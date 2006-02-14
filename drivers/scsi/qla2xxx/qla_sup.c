@@ -1354,7 +1354,7 @@ qla2x00_resume_hba(struct scsi_qla_host *ha)
 	/* Resume HBA. */
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 	set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-	up(ha->dpc_wait);
+	qla2xxx_wake_dpc(ha);
 	qla2x00_wait_for_hba_online(ha);
 	scsi_unblock_requests(ha->host);
 }
@@ -1652,7 +1652,7 @@ qla24xx_write_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 	/* Resume HBA -- RISC reset needed. */
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 	set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-	up(ha->dpc_wait);
+	qla2xxx_wake_dpc(ha);
 	qla2x00_wait_for_hba_online(ha);
 	scsi_unblock_requests(ha->host);
 
