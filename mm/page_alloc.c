@@ -56,6 +56,7 @@ long nr_swap_pages;
 int percpu_pagelist_fraction;
 
 static void fastcall free_hot_cold_page(struct page *page, int cold);
+static void __free_pages_ok(struct page *page, unsigned int order);
 
 /*
  * results with 256, 32 in the lowmem_reserve sysctl:
@@ -173,12 +174,18 @@ static void bad_page(struct page *page)
  * put_page() function.  Its ->lru.prev holds the order of allocation.
  * This usage means that zero-order pages may not be compound.
  */
+
+static void free_compound_page(struct page *page)
+{
+	__free_pages_ok(page, (unsigned long)page[1].lru.prev);
+}
+
 static void prep_compound_page(struct page *page, unsigned long order)
 {
 	int i;
 	int nr_pages = 1 << order;
 
-	page[1].lru.next = NULL;			/* set dtor */
+	page[1].lru.next = (void *)free_compound_page;	/* set dtor */
 	page[1].lru.prev = (void *)order;
 	for (i = 0; i < nr_pages; i++) {
 		struct page *p = page + i;
