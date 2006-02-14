@@ -232,13 +232,8 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 	unsigned long paddr = pfn << PAGE_SHIFT;
 	unsigned long sz_bits;
 
-	BUILD_BUG_ON(!__builtin_constant_p(_PAGE_SZBITS_4U) ||
-		     !__builtin_constant_p(_PAGE_SZBITS_4V));
-
 	sz_bits = 0UL;
 	if (_PAGE_SZBITS_4U != 0UL || _PAGE_SZBITS_4V != 0UL) {
-		BUILD_BUG_ON((_PAGE_SZBITS_4U & ~(0xfffffc0000000000UL)) ||
-			     (_PAGE_SZBITS_4V & ~(0x0000000000000fffUL)));
 		__asm__ __volatile__(
 		"\n661:	sethi		%uhi(%1), %0\n"
 		"	sllx		%0, 32, %0\n"
@@ -257,10 +252,6 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 /* This one can be done with two shifts.  */
 static inline unsigned long pte_pfn(pte_t pte)
 {
-	const unsigned long pte_paddr_shl_sun4u = 21;
-	const unsigned long pte_paddr_shr_sun4u = 21 + PAGE_SHIFT;
-	const unsigned long pte_paddr_shl_sun4v =  8;
-	const unsigned long pte_paddr_shr_sun4v =  8 + PAGE_SHIFT;
 	unsigned long ret;
 
 	__asm__ __volatile__(
@@ -273,8 +264,8 @@ static inline unsigned long pte_pfn(pte_t pte)
 	"	.previous\n"
 	: "=r" (ret)
 	: "r" (pte_val(pte)),
-	  "i" (pte_paddr_shl_sun4u), "i" (pte_paddr_shr_sun4u),
-	  "i" (pte_paddr_shl_sun4v), "i" (pte_paddr_shr_sun4v));
+	  "i" (21), "i" (21 + PAGE_SHIFT),
+	  "i" (8), "i" (8 + PAGE_SHIFT));
 
 	return ret;
 }
@@ -282,22 +273,6 @@ static inline unsigned long pte_pfn(pte_t pte)
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
 {
-	const unsigned long preserve_mask_sun4u = (_PAGE_PADDR_4U |
-						   _PAGE_MODIFIED_4U |
-						   _PAGE_ACCESSED_4U |
-						   _PAGE_CP_4U |
-						   _PAGE_CV_4U |
-						   _PAGE_E_4U |
-						   _PAGE_PRESENT_4U |
-						   _PAGE_SZBITS_4U);
-	const unsigned long preserve_mask_sun4v = (_PAGE_PADDR_4V |
-						   _PAGE_MODIFIED_4V |
-						   _PAGE_ACCESSED_4V |
-						   _PAGE_CP_4V |
-						   _PAGE_CV_4V |
-						   _PAGE_E_4V |
-						   _PAGE_PRESENT_4V |
-						   _PAGE_SZBITS_4V);
 	unsigned long mask, tmp;
 
 	/* SUN4U: 0x600307ffffffecb8 (negated == 0x9ffcf80000001347)
@@ -329,7 +304,12 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
 	"	or		%0, %1, %0\n"
 	"	.previous\n"
 	: "=r" (mask), "=r" (tmp)
-	: "i" (preserve_mask_sun4u), "i" (preserve_mask_sun4v));
+	: "i" (_PAGE_PADDR_4U | _PAGE_MODIFIED_4U | _PAGE_ACCESSED_4U |
+	       _PAGE_CP_4U | _PAGE_CV_4U | _PAGE_E_4U | _PAGE_PRESENT_4U |
+	       _PAGE_SZBITS_4U),
+	  "i" (_PAGE_PADDR_4V | _PAGE_MODIFIED_4V | _PAGE_ACCESSED_4V |
+	       _PAGE_CP_4V | _PAGE_CV_4V | _PAGE_E_4V | _PAGE_PRESENT_4V |
+	       _PAGE_SZBITS_4V));
 
 	return __pte((pte_val(pte) & mask) | (pgprot_val(prot) & ~mask));
 }
@@ -337,9 +317,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
 static inline pte_t pgoff_to_pte(unsigned long off)
 {
 	off <<= PAGE_SHIFT;
-
-	BUILD_BUG_ON((_PAGE_FILE_4U & ~0xfffUL) ||
-		     (_PAGE_FILE_4V & ~0xfffUL));
 
 	__asm__ __volatile__(
 	"\n661:	or		%0, %2, %0\n"
@@ -356,9 +333,6 @@ static inline pte_t pgoff_to_pte(unsigned long off)
 static inline pgprot_t pgprot_noncached(pgprot_t prot)
 {
 	unsigned long val = pgprot_val(prot);
-
-	BUILD_BUG_ON(((_PAGE_CP_4U | _PAGE_CP_4U | _PAGE_E_4U) & ~(0xfffUL)) ||
-		     ((_PAGE_CP_4V | _PAGE_CP_4V | _PAGE_E_4V) & ~(0xfffUL)));
 
 	__asm__ __volatile__(
 	"\n661:	andn		%0, %2, %0\n"
@@ -382,12 +356,7 @@ static inline pgprot_t pgprot_noncached(pgprot_t prot)
 
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_SZHUGE_4U;
-	const unsigned long mask_4v = _PAGE_SZHUGE_4V;
 	unsigned long mask;
-
-	BUILD_BUG_ON((mask_4u & ~(0xfffffc0000000000UL)) ||
-		     (mask_4v & ~(0xfffUL)));
 
 	__asm__ __volatile__(
 	"\n661:	sethi		%%uhi(%1), %0\n"
@@ -398,19 +367,14 @@ static inline pte_t pte_mkhuge(pte_t pte)
 	"	nop\n"
 	"	.previous\n"
 	: "=r" (mask)
-	: "i" (mask_4u), "i" (mask_4v));
+	: "i" (_PAGE_SZHUGE_4U), "i" (_PAGE_SZHUGE_4V));
 
 	return __pte(pte_val(pte) | mask);
 }
 
 static inline pte_t pte_mkdirty(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_MODIFIED_4U | _PAGE_W_4U;
-	const unsigned long mask_4v = _PAGE_MODIFIED_4V | _PAGE_W_4V;
 	unsigned long val = pte_val(pte), tmp;
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0xfffffc0000000fffUL)));
 
 	__asm__ __volatile__(
 	"\n661:	or		%0, %3, %0\n"
@@ -426,19 +390,15 @@ static inline pte_t pte_mkdirty(pte_t pte)
 	"	or		%0, %1, %0\n"
 	"	.previous\n"
 	: "=r" (val), "=r" (tmp)
-	: "0" (val), "i" (mask_4u), "i" (mask_4v));
+	: "0" (val), "i" (_PAGE_MODIFIED_4U | _PAGE_W_4U),
+	  "i" (_PAGE_MODIFIED_4V | _PAGE_W_4V));
 
 	return __pte(val);
 }
 
 static inline pte_t pte_mkclean(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_MODIFIED_4U | _PAGE_W_4U;
-	const unsigned long mask_4v = _PAGE_MODIFIED_4V | _PAGE_W_4V;
 	unsigned long val = pte_val(pte), tmp;
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0xfffffc0000000fffUL)));
 
 	__asm__ __volatile__(
 	"\n661:	andn		%0, %3, %0\n"
@@ -454,19 +414,15 @@ static inline pte_t pte_mkclean(pte_t pte)
 	"	andn		%0, %1, %0\n"
 	"	.previous\n"
 	: "=r" (val), "=r" (tmp)
-	: "0" (val), "i" (mask_4u), "i" (mask_4v));
+	: "0" (val), "i" (_PAGE_MODIFIED_4U | _PAGE_W_4U),
+	  "i" (_PAGE_MODIFIED_4V | _PAGE_W_4V));
 
 	return __pte(val);
 }
 
 static inline pte_t pte_mkwrite(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_WRITE_4U;
-	const unsigned long mask_4v = _PAGE_WRITE_4V;
 	unsigned long val = pte_val(pte), mask;
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0xfffffc0000000000UL)));
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
@@ -477,19 +433,14 @@ static inline pte_t pte_mkwrite(pte_t pte)
 	"	sllx		%0, 32, %0\n"
 	"	.previous\n"
 	: "=r" (mask)
-	: "i" (mask_4u), "i" (mask_4v));
+	: "i" (_PAGE_WRITE_4U), "i" (_PAGE_WRITE_4V));
 
 	return __pte(val | mask);
 }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_WRITE_4U | _PAGE_W_4U;
-	const unsigned long mask_4v = _PAGE_WRITE_4V | _PAGE_W_4V;
 	unsigned long val = pte_val(pte), tmp;
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0xfffffc0000000fffUL)));
 
 	__asm__ __volatile__(
 	"\n661:	andn		%0, %3, %0\n"
@@ -505,19 +456,15 @@ static inline pte_t pte_wrprotect(pte_t pte)
 	"	andn		%0, %1, %0\n"
 	"	.previous\n"
 	: "=r" (val), "=r" (tmp)
-	: "0" (val), "i" (mask_4u), "i" (mask_4v));
+	: "0" (val), "i" (_PAGE_WRITE_4U | _PAGE_W_4U),
+	  "i" (_PAGE_WRITE_4V | _PAGE_W_4V));
 
 	return __pte(val);
 }
 
 static inline pte_t pte_mkold(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_ACCESSED_4U;
-	const unsigned long mask_4v = _PAGE_ACCESSED_4V;
 	unsigned long mask;
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0xfffffc0000000000UL)));
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
@@ -528,7 +475,7 @@ static inline pte_t pte_mkold(pte_t pte)
 	"	sllx		%0, 32, %0\n"
 	"	.previous\n"
 	: "=r" (mask)
-	: "i" (mask_4u), "i" (mask_4v));
+	: "i" (_PAGE_ACCESSED_4U), "i" (_PAGE_ACCESSED_4V));
 
 	mask |= _PAGE_R;
 
@@ -537,12 +484,7 @@ static inline pte_t pte_mkold(pte_t pte)
 
 static inline pte_t pte_mkyoung(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_ACCESSED_4U;
-	const unsigned long mask_4v = _PAGE_ACCESSED_4V;
 	unsigned long mask;
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0xfffffc0000000000UL)));
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
@@ -553,7 +495,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	"	sllx		%0, 32, %0\n"
 	"	.previous\n"
 	: "=r" (mask)
-	: "i" (mask_4u), "i" (mask_4v));
+	: "i" (_PAGE_ACCESSED_4U), "i" (_PAGE_ACCESSED_4V));
 
 	mask |= _PAGE_R;
 
@@ -562,12 +504,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 
 static inline unsigned long pte_young(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_ACCESSED_4U;
-	const unsigned long mask_4v = _PAGE_ACCESSED_4V;
 	unsigned long mask;
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0xfffffc0000000000UL)));
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
@@ -578,19 +515,14 @@ static inline unsigned long pte_young(pte_t pte)
 	"	sllx		%0, 32, %0\n"
 	"	.previous\n"
 	: "=r" (mask)
-	: "i" (mask_4u), "i" (mask_4v));
+	: "i" (_PAGE_ACCESSED_4U), "i" (_PAGE_ACCESSED_4V));
 
 	return (pte_val(pte) & mask);
 }
 
 static inline unsigned long pte_dirty(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_MODIFIED_4U;
-	const unsigned long mask_4v = _PAGE_MODIFIED_4V;
 	unsigned long mask;
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0xfffffc0000000000UL)));
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
@@ -601,19 +533,14 @@ static inline unsigned long pte_dirty(pte_t pte)
 	"	sllx		%0, 32, %0\n"
 	"	.previous\n"
 	: "=r" (mask)
-	: "i" (mask_4u), "i" (mask_4v));
+	: "i" (_PAGE_MODIFIED_4U), "i" (_PAGE_MODIFIED_4V));
 
 	return (pte_val(pte) & mask);
 }
 
 static inline unsigned long pte_write(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_WRITE_4U;
-	const unsigned long mask_4v = _PAGE_WRITE_4V;
 	unsigned long mask;
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0xfffffc0000000000UL)));
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
@@ -624,19 +551,14 @@ static inline unsigned long pte_write(pte_t pte)
 	"	sllx		%0, 32, %0\n"
 	"	.previous\n"
 	: "=r" (mask)
-	: "i" (mask_4u), "i" (mask_4v));
+	: "i" (_PAGE_WRITE_4U), "i" (_PAGE_WRITE_4V));
 
 	return (pte_val(pte) & mask);
 }
 
 static inline unsigned long pte_exec(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_EXEC_4U;
-	const unsigned long mask_4v = _PAGE_EXEC_4V;
 	unsigned long mask;
-
-	BUILD_BUG_ON((mask_4u & ~(0x00000000fffffc00UL)) ||
-		     (mask_4v & ~(0x0000000000000fffUL)));
 
 	__asm__ __volatile__(
 	"\n661:	sethi		%%hi(%1), %0\n"
@@ -645,19 +567,14 @@ static inline unsigned long pte_exec(pte_t pte)
 	"	mov		%2, %0\n"
 	"	.previous\n"
 	: "=r" (mask)
-	: "i" (mask_4u), "i" (mask_4v));
+	: "i" (_PAGE_EXEC_4U), "i" (_PAGE_EXEC_4V));
 
 	return (pte_val(pte) & mask);
 }
 
 static inline unsigned long pte_read(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_READ_4U;
-	const unsigned long mask_4v = _PAGE_READ_4V;
 	unsigned long mask;
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0xfffffc0000000000UL)));
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
@@ -668,19 +585,14 @@ static inline unsigned long pte_read(pte_t pte)
 	"	sllx		%0, 32, %0\n"
 	"	.previous\n"
 	: "=r" (mask)
-	: "i" (mask_4u), "i" (mask_4v));
+	: "i" (_PAGE_READ_4U), "i" (_PAGE_READ_4V));
 
 	return (pte_val(pte) & mask);
 }
 
 static inline unsigned long pte_file(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_FILE_4U;
-	const unsigned long mask_4v = _PAGE_FILE_4V;
 	unsigned long val = pte_val(pte);
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0x0000000000000fffUL)));
 
 	__asm__ __volatile__(
 	"\n661:	and		%0, %2, %0\n"
@@ -689,19 +601,14 @@ static inline unsigned long pte_file(pte_t pte)
 	"	and		%0, %3, %0\n"
 	"	.previous\n"
 	: "=r" (val)
-	: "0" (val), "i" (mask_4u), "i" (mask_4v));
+	: "0" (val), "i" (_PAGE_FILE_4U), "i" (_PAGE_FILE_4V));
 
 	return val;
 }
 
 static inline unsigned long pte_present(pte_t pte)
 {
-	const unsigned long mask_4u = _PAGE_PRESENT_4U;
-	const unsigned long mask_4v = _PAGE_PRESENT_4V;
 	unsigned long val = pte_val(pte);
-
-	BUILD_BUG_ON((mask_4u & ~(0x0000000000000fffUL)) ||
-		     (mask_4v & ~(0x0000000000000fffUL)));
 
 	__asm__ __volatile__(
 	"\n661:	and		%0, %2, %0\n"
@@ -710,7 +617,7 @@ static inline unsigned long pte_present(pte_t pte)
 	"	and		%0, %3, %0\n"
 	"	.previous\n"
 	: "=r" (val)
-	: "0" (val), "i" (mask_4u), "i" (mask_4v));
+	: "0" (val), "i" (_PAGE_PRESENT_4U), "i" (_PAGE_PRESENT_4V));
 
 	return val;
 }
