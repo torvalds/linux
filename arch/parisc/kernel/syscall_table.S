@@ -377,8 +377,8 @@
 	ENTRY_SAME(inotify_init)
 	ENTRY_SAME(inotify_add_watch)	/* 270 */
 	ENTRY_SAME(inotify_rm_watch)
-	ENTRY_COMP(pselect6)
-	ENTRY_COMP(ppoll)
+	ENTRY_SAME(ni_syscall)		/* 271 ENTRY_COMP(pselect6) */
+	ENTRY_SAME(ni_syscall)		/* 272 ENTRY_COMP(ppoll) */
 	ENTRY_SAME(migrate_pages)
 	ENTRY_COMP(openat)		/* 275 */
 	ENTRY_SAME(mkdirat)
