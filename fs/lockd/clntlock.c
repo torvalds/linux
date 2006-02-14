@@ -111,9 +111,10 @@ long nlmclnt_block(struct nlm_rqst *req, long timeout)
 /*
  * The server lockd has called us back to tell us the lock was granted
  */
-u32
-nlmclnt_grant(struct nlm_lock *lock)
+u32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock)
 {
+	const struct file_lock *fl = &lock->fl;
+	const struct nfs_fh *fh = &lock->fh;
 	struct nlm_wait	*block;
 	u32 res = nlm_lck_denied;
 
@@ -122,14 +123,20 @@ nlmclnt_grant(struct nlm_lock *lock)
 	 * Warning: must not use cookie to match it!
 	 */
 	list_for_each_entry(block, &nlm_blocked, b_list) {
-		if (nlm_compare_locks(block->b_lock, &lock->fl)) {
-			/* Alright, we found a lock. Set the return status
-			 * and wake up the caller
-			 */
-			block->b_status = NLM_LCK_GRANTED;
-			wake_up(&block->b_wait);
-			res = nlm_granted;
-		}
+		struct file_lock *fl_blocked = block->b_lock;
+
+		if (!nlm_compare_locks(fl_blocked, fl))
+			continue;
+		if (!nlm_cmp_addr(&block->b_host->h_addr, addr))
+			continue;
+		if (nfs_compare_fh(NFS_FH(fl_blocked->fl_file->f_dentry->d_inode) ,fh) != 0)
+			continue;
+		/* Alright, we found a lock. Set the return status
+		 * and wake up the caller
+		 */
+		block->b_status = NLM_LCK_GRANTED;
+		wake_up(&block->b_wait);
+		res = nlm_granted;
 	}
 	return res;
 }
