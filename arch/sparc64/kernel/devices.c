@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
+#include <linux/bootmem.h>
 
 #include <asm/page.h>
 #include <asm/oplib.h>
@@ -20,6 +21,7 @@
 #include <asm/spitfire.h>
 #include <asm/timer.h>
 #include <asm/cpudata.h>
+#include <asm/vdev.h>
 
 /* Used to synchronize acceses to NatSemi SUPER I/O chip configure
  * operations in asm/ns87303.h
@@ -28,6 +30,61 @@ DEFINE_SPINLOCK(ns87303_lock);
 
 extern void cpu_probe(void);
 extern void central_probe(void);
+
+u32 sun4v_vdev_devhandle;
+int sun4v_vdev_root;
+struct linux_prom_pci_intmap *sun4v_vdev_intmap;
+int sun4v_vdev_num_intmap;
+struct linux_prom_pci_intmap sun4v_vdev_intmask;
+
+static void __init sun4v_virtual_device_probe(void)
+{
+	struct linux_prom64_registers regs;
+	struct linux_prom_pci_intmap *ip;
+	int node, sz, err;
+
+	if (tlb_type != hypervisor)
+		return;
+
+	node = prom_getchild(prom_root_node);
+	node = prom_searchsiblings(node, "virtual-devices");
+	if (!node) {
+		prom_printf("SUN4V: Fatal error, no virtual-devices node.\n");
+		prom_halt();
+	}
+
+	sun4v_vdev_root = node;
+
+	prom_getproperty(node, "reg", (char *)&regs, sizeof(regs));
+	sun4v_vdev_devhandle = (regs.phys_addr >> 32UL) & 0x0fffffff;
+
+	sz = sizeof(*ip) * 64;
+	sun4v_vdev_intmap = ip = alloc_bootmem_low_pages(sz);
+	if (!sun4v_vdev_intmap) {
+		prom_printf("SUN4V: Error, cannot allocate vdev intmap.\n");
+		prom_halt();
+	}
+
+	err = prom_getproperty(node, "interrupt-map", (char *) ip, sz);
+	if (err == -1) {
+		prom_printf("SUN4V: Fatal error, no vdev interrupt-map.\n");
+		prom_halt();
+	}
+
+	sun4v_vdev_num_intmap = err / sizeof(*ip);
+
+	err = prom_getproperty(node, "interrupt-map-mask",
+			       (char *) &sun4v_vdev_intmask,
+			       sizeof(sun4v_vdev_intmask));
+	if (err == -1) {
+		prom_printf("SUN4V: Fatal error, no vdev "
+			    "interrupt-map-mask.\n");
+		prom_halt();
+	}
+
+	printk("SUN4V: virtual-devices devhandle[%x]\n",
+	       sun4v_vdev_devhandle);
+}
 
 static const char *cpu_mid_prop(void)
 {
@@ -177,6 +234,7 @@ void __init device_scan(void)
 	}
 #endif
 
+	sun4v_virtual_device_probe();
 	central_probe();
 
 	cpu_probe();
