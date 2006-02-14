@@ -2007,9 +2007,8 @@ static int ub_sync_tur(struct ub_dev *sc, struct ub_lun *lun)
 	init_completion(&compl);
 
 	rc = -ENOMEM;
-	if ((cmd = kmalloc(ALLOC_SIZE, GFP_KERNEL)) == NULL)
+	if ((cmd = kzalloc(ALLOC_SIZE, GFP_KERNEL)) == NULL)
 		goto err_alloc;
-	memset(cmd, 0, ALLOC_SIZE);
 
 	cmd->cdb[0] = TEST_UNIT_READY;
 	cmd->cdb_len = 6;
@@ -2062,9 +2061,8 @@ static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
 	init_completion(&compl);
 
 	rc = -ENOMEM;
-	if ((cmd = kmalloc(ALLOC_SIZE, GFP_KERNEL)) == NULL)
+	if ((cmd = kzalloc(ALLOC_SIZE, GFP_KERNEL)) == NULL)
 		goto err_alloc;
-	memset(cmd, 0, ALLOC_SIZE);
 	p = (char *)cmd + sizeof(struct ub_scsi_cmd);
 
 	cmd->cdb[0] = 0x25;
@@ -2405,9 +2403,8 @@ static int ub_probe(struct usb_interface *intf,
 		return -ENXIO;
 
 	rc = -ENOMEM;
-	if ((sc = kmalloc(sizeof(struct ub_dev), GFP_KERNEL)) == NULL)
+	if ((sc = kzalloc(sizeof(struct ub_dev), GFP_KERNEL)) == NULL)
 		goto err_core;
-	memset(sc, 0, sizeof(struct ub_dev));
 	sc->lock = ub_next_lock();
 	INIT_LIST_HEAD(&sc->luns);
 	usb_init_urb(&sc->work_urb);
@@ -2524,9 +2521,8 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	int rc;
 
 	rc = -ENOMEM;
-	if ((lun = kmalloc(sizeof(struct ub_lun), GFP_KERNEL)) == NULL)
+	if ((lun = kzalloc(sizeof(struct ub_lun), GFP_KERNEL)) == NULL)
 		goto err_alloc;
-	memset(lun, 0, sizeof(struct ub_lun));
 	lun->num = lnum;
 
 	rc = -ENOSR;
