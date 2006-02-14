@@ -286,213 +286,6 @@ static int to_mthca_st(int transport)
 	}
 }
 
-static const struct {
-	int trans;
-	u32 req_param[NUM_TRANS];
-	u32 opt_param[NUM_TRANS];
-} state_table[IB_QPS_ERR + 1][IB_QPS_ERR + 1] = {
-	[IB_QPS_RESET] = {
-		[IB_QPS_RESET] = { .trans = MTHCA_TRANS_ANY2RST },
-		[IB_QPS_ERR] = { .trans = MTHCA_TRANS_ANY2ERR },
-		[IB_QPS_INIT]  = {
-			.trans = MTHCA_TRANS_RST2INIT,
-			.req_param = {
-				[UD]  = (IB_QP_PKEY_INDEX |
-					 IB_QP_PORT       |
-					 IB_QP_QKEY),
-				[UC]  = (IB_QP_PKEY_INDEX |
-					 IB_QP_PORT       |
-					 IB_QP_ACCESS_FLAGS),
-				[RC]  = (IB_QP_PKEY_INDEX |
-					 IB_QP_PORT       |
-					 IB_QP_ACCESS_FLAGS),
-				[MLX] = (IB_QP_PKEY_INDEX |
-					 IB_QP_QKEY),
-			},
-			/* bug-for-bug compatibility with VAPI: */
-			.opt_param = {
-				[MLX] = IB_QP_PORT
-			}
-		},
-	},
-	[IB_QPS_INIT]  = {
-		[IB_QPS_RESET] = { .trans = MTHCA_TRANS_ANY2RST },
-		[IB_QPS_ERR] = { .trans = MTHCA_TRANS_ANY2ERR },
-		[IB_QPS_INIT]  = {
-			.trans = MTHCA_TRANS_INIT2INIT,
-			.opt_param = {
-				[UD]  = (IB_QP_PKEY_INDEX |
-					 IB_QP_PORT       |
-					 IB_QP_QKEY),
-				[UC]  = (IB_QP_PKEY_INDEX |
-					 IB_QP_PORT       |
-					 IB_QP_ACCESS_FLAGS),
-				[RC]  = (IB_QP_PKEY_INDEX |
-					 IB_QP_PORT       |
-					 IB_QP_ACCESS_FLAGS),
-				[MLX] = (IB_QP_PKEY_INDEX |
-					 IB_QP_QKEY),
-			}
-		},
-		[IB_QPS_RTR]   = {
-			.trans = MTHCA_TRANS_INIT2RTR,
-			.req_param = {
-				[UC]  = (IB_QP_AV                  |
-					 IB_QP_PATH_MTU            |
-					 IB_QP_DEST_QPN            |
-					 IB_QP_RQ_PSN),
-				[RC]  = (IB_QP_AV                  |
-					 IB_QP_PATH_MTU            |
-					 IB_QP_DEST_QPN            |
-					 IB_QP_RQ_PSN              |
-					 IB_QP_MAX_DEST_RD_ATOMIC  |
-					 IB_QP_MIN_RNR_TIMER),
-			},
-			.opt_param = {
-				[UD]  = (IB_QP_PKEY_INDEX |
-					 IB_QP_QKEY),
-				[UC]  = (IB_QP_ALT_PATH     |
-					 IB_QP_ACCESS_FLAGS |
-					 IB_QP_PKEY_INDEX),
-				[RC]  = (IB_QP_ALT_PATH     |
-					 IB_QP_ACCESS_FLAGS |
-					 IB_QP_PKEY_INDEX),
-				[MLX] = (IB_QP_PKEY_INDEX |
-					 IB_QP_QKEY),
-			}
-		}
-	},
-	[IB_QPS_RTR]   = {
-		[IB_QPS_RESET] = { .trans = MTHCA_TRANS_ANY2RST },
-		[IB_QPS_ERR] = { .trans = MTHCA_TRANS_ANY2ERR },
-		[IB_QPS_RTS]   = {
-			.trans = MTHCA_TRANS_RTR2RTS,
-			.req_param = {
-				[UD]  = IB_QP_SQ_PSN,
-				[UC]  = IB_QP_SQ_PSN,
-				[RC]  = (IB_QP_TIMEOUT           |
-					 IB_QP_RETRY_CNT         |
-					 IB_QP_RNR_RETRY         |
-					 IB_QP_SQ_PSN            |
-					 IB_QP_MAX_QP_RD_ATOMIC),
-				[MLX] = IB_QP_SQ_PSN,
-			},
-			.opt_param = {
-				[UD]  = (IB_QP_CUR_STATE             |
-					 IB_QP_QKEY),
-				[UC]  = (IB_QP_CUR_STATE             |
-					 IB_QP_ALT_PATH              |
-					 IB_QP_ACCESS_FLAGS          |
-					 IB_QP_PATH_MIG_STATE),
-				[RC]  = (IB_QP_CUR_STATE             |
-					 IB_QP_ALT_PATH              |
-					 IB_QP_ACCESS_FLAGS          |
-					 IB_QP_MIN_RNR_TIMER         |
-					 IB_QP_PATH_MIG_STATE),
-				[MLX] = (IB_QP_CUR_STATE             |
-					 IB_QP_QKEY),
-			}
-		}
-	},
-	[IB_QPS_RTS]   = {
-		[IB_QPS_RESET] = { .trans = MTHCA_TRANS_ANY2RST },
-		[IB_QPS_ERR] = { .trans = MTHCA_TRANS_ANY2ERR },
-		[IB_QPS_RTS]   = {
-			.trans = MTHCA_TRANS_RTS2RTS,
-			.opt_param = {
-				[UD]  = (IB_QP_CUR_STATE             |
-					 IB_QP_QKEY),
-				[UC]  = (IB_QP_ACCESS_FLAGS          |
-					 IB_QP_ALT_PATH              |
-					 IB_QP_PATH_MIG_STATE),
-				[RC]  = (IB_QP_ACCESS_FLAGS          |
-					 IB_QP_ALT_PATH              |
-					 IB_QP_PATH_MIG_STATE        |
-					 IB_QP_MIN_RNR_TIMER),
-				[MLX] = (IB_QP_CUR_STATE             |
-					 IB_QP_QKEY),
-			}
-		},
-		[IB_QPS_SQD]   = {
-			.trans = MTHCA_TRANS_RTS2SQD,
-			.opt_param = {
-				[UD]  = IB_QP_EN_SQD_ASYNC_NOTIFY,
-				[UC]  = IB_QP_EN_SQD_ASYNC_NOTIFY,
-				[RC]  = IB_QP_EN_SQD_ASYNC_NOTIFY,
-				[MLX] = IB_QP_EN_SQD_ASYNC_NOTIFY
-			}
-		},
-	},
-	[IB_QPS_SQD]   = {
-		[IB_QPS_RESET] = { .trans = MTHCA_TRANS_ANY2RST },
-		[IB_QPS_ERR] = { .trans = MTHCA_TRANS_ANY2ERR },
-		[IB_QPS_RTS]   = {
-			.trans = MTHCA_TRANS_SQD2RTS,
-			.opt_param = {
-				[UD]  = (IB_QP_CUR_STATE             |
-					 IB_QP_QKEY),
-				[UC]  = (IB_QP_CUR_STATE             |
-					 IB_QP_ALT_PATH              |
-					 IB_QP_ACCESS_FLAGS          |
-					 IB_QP_PATH_MIG_STATE),
-				[RC]  = (IB_QP_CUR_STATE             |
-					 IB_QP_ALT_PATH              |
-					 IB_QP_ACCESS_FLAGS          |
-					 IB_QP_MIN_RNR_TIMER         |
-					 IB_QP_PATH_MIG_STATE),
-				[MLX] = (IB_QP_CUR_STATE             |
-					 IB_QP_QKEY),
-			}
-		},
-		[IB_QPS_SQD]   = {
-			.trans = MTHCA_TRANS_SQD2SQD,
-			.opt_param = {
-				[UD]  = (IB_QP_PKEY_INDEX            |
-					 IB_QP_QKEY),
-				[UC]  = (IB_QP_AV                    |
-					 IB_QP_CUR_STATE             |
-					 IB_QP_ALT_PATH              |
-					 IB_QP_ACCESS_FLAGS          |
-					 IB_QP_PKEY_INDEX            |
-					 IB_QP_PATH_MIG_STATE),
-				[RC]  = (IB_QP_AV                    |
-					 IB_QP_TIMEOUT               |
-					 IB_QP_RETRY_CNT             |
-					 IB_QP_RNR_RETRY             |
-					 IB_QP_MAX_QP_RD_ATOMIC      |
-					 IB_QP_MAX_DEST_RD_ATOMIC    |
-					 IB_QP_CUR_STATE             |
-					 IB_QP_ALT_PATH              |
-					 IB_QP_ACCESS_FLAGS          |
-					 IB_QP_PKEY_INDEX            |
-					 IB_QP_MIN_RNR_TIMER         |
-					 IB_QP_PATH_MIG_STATE),
-				[MLX] = (IB_QP_PKEY_INDEX            |
-					 IB_QP_QKEY),
-			}
-		}
-	},
-	[IB_QPS_SQE]   = {
-		[IB_QPS_RESET] = { .trans = MTHCA_TRANS_ANY2RST },
-		[IB_QPS_ERR] = { .trans = MTHCA_TRANS_ANY2ERR },
-		[IB_QPS_RTS]   = {
-			.trans = MTHCA_TRANS_SQERR2RTS,
-			.opt_param = {
-				[UD]  = (IB_QP_CUR_STATE             |
-					 IB_QP_QKEY),
-				[UC]  = (IB_QP_CUR_STATE             |
-					 IB_QP_ACCESS_FLAGS),
-				[MLX] = (IB_QP_CUR_STATE             |
-					 IB_QP_QKEY),
-			}
-		}
-	},
-	[IB_QPS_ERR] = {
-		[IB_QPS_RESET] = { .trans = MTHCA_TRANS_ANY2RST },
-		[IB_QPS_ERR] = { .trans = MTHCA_TRANS_ANY2ERR }
-	}
-};
-
 static void store_attrs(struct mthca_sqp *sqp, struct ib_qp_attr *attr,
 			int attr_mask)
 {
@@ -582,19 +375,12 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	struct mthca_mailbox *mailbox;
 	struct mthca_qp_param *qp_param;
 	struct mthca_qp_context *qp_context;
-	u32 req_param, opt_param;
 	u32 sqd_event = 0;
 	u8 status;
 	int err;
 
 	if (attr_mask & IB_QP_CUR_STATE) {
-		if (attr->cur_qp_state != IB_QPS_RTR &&
-		    attr->cur_qp_state != IB_QPS_RTS &&
-		    attr->cur_qp_state != IB_QPS_SQD &&
-		    attr->cur_qp_state != IB_QPS_SQE)
-			return -EINVAL;
-		else
-			cur_state = attr->cur_qp_state;
+		cur_state = attr->cur_qp_state;
 	} else {
 		spin_lock_irq(&qp->sq.lock);
 		spin_lock(&qp->rq.lock);
@@ -603,37 +389,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		spin_unlock_irq(&qp->sq.lock);
 	}
 
-	if (attr_mask & IB_QP_STATE) {
-		if (attr->qp_state < 0 || attr->qp_state > IB_QPS_ERR)
-			return -EINVAL;
-		new_state = attr->qp_state;
-	} else
-		new_state = cur_state;
+	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
-	if (state_table[cur_state][new_state].trans == MTHCA_TRANS_INVALID) {
-		mthca_dbg(dev, "Illegal QP transition "
-			  "%d->%d\n", cur_state, new_state);
-		return -EINVAL;
-	}
-
-	req_param = state_table[cur_state][new_state].req_param[qp->transport];
-	opt_param = state_table[cur_state][new_state].opt_param[qp->transport];
-
-	if ((req_param & attr_mask) != req_param) {
-		mthca_dbg(dev, "QP transition "
-			  "%d->%d missing req attr 0x%08x\n",
-			  cur_state, new_state,
-			  req_param & ~attr_mask);
-		return -EINVAL;
-	}
-
-	if (attr_mask & ~(req_param | opt_param | IB_QP_STATE)) {
-		mthca_dbg(dev, "QP transition (transport %d) "
-			  "%d->%d has extra attr 0x%08x\n",
-			  qp->transport,
-			  cur_state, new_state,
-			  attr_mask & ~(req_param | opt_param |
-						 IB_QP_STATE));
+	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask)) {
+		mthca_dbg(dev, "Bad QP transition (transport %d) "
+			  "%d->%d with attr 0x%08x\n",
+			  qp->transport, cur_state, new_state,
+			  attr_mask);
 		return -EINVAL;
 	}
 
@@ -853,11 +615,11 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	    attr->en_sqd_async_notify)
 		sqd_event = 1 << 31;
 
-	err = mthca_MODIFY_QP(dev, state_table[cur_state][new_state].trans,
-			      qp->qpn, 0, mailbox, sqd_event, &status);
+	err = mthca_MODIFY_QP(dev, cur_state, new_state, qp->qpn, 0,
+			      mailbox, sqd_event, &status);
 	if (status) {
-		mthca_warn(dev, "modify QP %d returned status %02x.\n",
-			   state_table[cur_state][new_state].trans, status);
+		mthca_warn(dev, "modify QP %d->%d returned status %02x.\n",
+			   cur_state, new_state, status);
 		err = -EINVAL;
 	}
 
@@ -1405,7 +1167,8 @@ void mthca_free_qp(struct mthca_dev *dev,
 	wait_event(qp->wait, !atomic_read(&qp->refcount));
 
 	if (qp->state != IB_QPS_RESET)
-		mthca_MODIFY_QP(dev, MTHCA_TRANS_ANY2RST, qp->qpn, 0, NULL, 0, &status);
+		mthca_MODIFY_QP(dev, qp->state, IB_QPS_RESET, qp->qpn, 0,
+				NULL, 0, &status);
 
 	/*
 	 * If this is a userspace QP, the buffers, MR, CQs and so on

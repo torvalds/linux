@@ -1566,31 +1566,56 @@ int mthca_ARM_SRQ(struct mthca_dev *dev, int srq_num, int limit, u8 *status)
 			 CMD_TIME_CLASS_B, status);
 }
 
-int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
-		    int is_ee, struct mthca_mailbox *mailbox, u32 optmask,
+int mthca_MODIFY_QP(struct mthca_dev *dev, enum ib_qp_state cur,
+		    enum ib_qp_state next, u32 num, int is_ee,
+		    struct mthca_mailbox *mailbox, u32 optmask,
 		    u8 *status)
 {
-	static const u16 op[] = {
-		[MTHCA_TRANS_RST2INIT]  = CMD_RST2INIT_QPEE,
-		[MTHCA_TRANS_INIT2INIT] = CMD_INIT2INIT_QPEE,
-		[MTHCA_TRANS_INIT2RTR]  = CMD_INIT2RTR_QPEE,
-		[MTHCA_TRANS_RTR2RTS]   = CMD_RTR2RTS_QPEE,
-		[MTHCA_TRANS_RTS2RTS]   = CMD_RTS2RTS_QPEE,
-		[MTHCA_TRANS_SQERR2RTS] = CMD_SQERR2RTS_QPEE,
-		[MTHCA_TRANS_ANY2ERR]   = CMD_2ERR_QPEE,
-		[MTHCA_TRANS_RTS2SQD]   = CMD_RTS2SQD_QPEE,
-		[MTHCA_TRANS_SQD2SQD]   = CMD_SQD2SQD_QPEE,
-		[MTHCA_TRANS_SQD2RTS]   = CMD_SQD2RTS_QPEE,
-		[MTHCA_TRANS_ANY2RST]   = CMD_ERR2RST_QPEE
+	static const u16 op[IB_QPS_ERR + 1][IB_QPS_ERR + 1] = {
+		[IB_QPS_RESET] = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_INIT]	= CMD_RST2INIT_QPEE,
+		},
+		[IB_QPS_INIT]  = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_INIT]	= CMD_INIT2INIT_QPEE,
+			[IB_QPS_RTR]	= CMD_INIT2RTR_QPEE,
+		},
+		[IB_QPS_RTR]   = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_RTS]	= CMD_RTR2RTS_QPEE,
+		},
+		[IB_QPS_RTS]   = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_RTS]	= CMD_RTS2RTS_QPEE,
+			[IB_QPS_SQD]	= CMD_RTS2SQD_QPEE,
+		},
+		[IB_QPS_SQD] = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_RTS]	= CMD_SQD2RTS_QPEE,
+			[IB_QPS_SQD]	= CMD_SQD2SQD_QPEE,
+		},
+		[IB_QPS_SQE] = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_RTS]	= CMD_SQERR2RTS_QPEE,
+		},
+		[IB_QPS_ERR] = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+		}
 	};
+
 	u8 op_mod = 0;
 	int my_mailbox = 0;
 	int err;
 
-	if (trans < 0 || trans >= ARRAY_SIZE(op))
-		return -EINVAL;
-
-	if (trans == MTHCA_TRANS_ANY2RST) {
+	if (op[cur][next] == CMD_ERR2RST_QPEE) {
 		op_mod = 3;	/* don't write outbox, any->reset */
 
 		/* For debugging */
@@ -1602,26 +1627,10 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 			} else
 				mailbox = NULL;
 		}
-	} else {
-		if (0) {
-			int i;
-			mthca_dbg(dev, "Dumping QP context:\n");
-			printk("  opt param mask: %08x\n", be32_to_cpup(mailbox->buf));
-			for (i = 0; i < 0x100 / 4; ++i) {
-				if (i % 8 == 0)
-					printk("  [%02x] ", i * 4);
-				printk(" %08x",
-				       be32_to_cpu(((__be32 *) mailbox->buf)[i + 2]));
-				if ((i + 1) % 8 == 0)
-					printk("\n");
-			}
-		}
-	}
 
-	if (trans == MTHCA_TRANS_ANY2RST) {
 		err = mthca_cmd_box(dev, 0, mailbox ? mailbox->dma : 0,
 				    (!!is_ee << 24) | num, op_mod,
-				    op[trans], CMD_TIME_CLASS_C, status);
+				    op[cur][next], CMD_TIME_CLASS_C, status);
 
 		if (0 && mailbox) {
 			int i;
@@ -1637,13 +1646,26 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 			}
 		}
 
-	} else
-		err = mthca_cmd(dev, mailbox->dma,
-				optmask | (!!is_ee << 24) | num,
-				op_mod, op[trans], CMD_TIME_CLASS_C, status);
+		if (my_mailbox)
+			mthca_free_mailbox(dev, mailbox);
+	} else {
+		if (0) {
+			int i;
+			mthca_dbg(dev, "Dumping QP context:\n");
+			printk("  opt param mask: %08x\n", be32_to_cpup(mailbox->buf));
+			for (i = 0; i < 0x100 / 4; ++i) {
+				if (i % 8 == 0)
+					printk("  [%02x] ", i * 4);
+				printk(" %08x",
+				       be32_to_cpu(((__be32 *) mailbox->buf)[i + 2]));
+				if ((i + 1) % 8 == 0)
+					printk("\n");
+			}
+		}
 
-	if (my_mailbox)
-		mthca_free_mailbox(dev, mailbox);
+		err = mthca_cmd(dev, mailbox->dma, optmask | (!!is_ee << 24) | num,
+				op_mod, op[cur][next], CMD_TIME_CLASS_C, status);
+	}
 
 	return err;
 }
