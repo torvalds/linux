@@ -3,18 +3,18 @@ Intel(R) PRO/Wireless 2100 Driver for Linux in support of:
 
 Intel(R) PRO/Wireless 2100 Network Connection
 
-Copyright (C) 2003-2005, Intel Corporation
+Copyright (C) 2003-2006, Intel Corporation
 
 README.ipw2100
 
-Version: 1.1.3
-Date   : October 17, 2005
+Version: git-1.1.5
+Date   : January 25, 2006
 
 Index
 -----------------------------------------------
 0. IMPORTANT INFORMATION BEFORE USING THIS DRIVER
 1. Introduction
-2. Release 1.1.3 Current Features
+2. Release git-1.1.5 Current Features
 3. Command Line Parameters
 4. Sysfs Helper Files
 5. Radio Kill Switch
@@ -89,7 +89,7 @@ potential fixes and patches, as well as links to the development mailing list
 for the driver project.
 
 
-2. Release 1.1.3 Current Supported Features
+2. Release git-1.1.5 Current Supported Features
 -----------------------------------------------
 - Managed (BSS) and Ad-Hoc (IBSS)
 - WEP (shared key and open)
@@ -270,7 +270,7 @@ For installation support on the ipw2100 1.1.0 driver on Linux kernels
 9. License
 -----------------------------------------------
 
-  Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 2003 - 2006 Intel Corporation. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it 
   under the terms of the GNU General Public License (version 2) as 

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 2003 - 2006 Intel Corporation. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of version 2 of the GNU General Public License as
@@ -172,7 +172,7 @@ that only one external action is invoked at a time.
 #define DRV_NAME	"ipw2100"
 #define DRV_VERSION	IPW2100_VERSION
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2100 Network Driver"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2005 Intel Corporation"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2006 Intel Corporation"
 
 /* Debugging stuff */
 #ifdef CONFIG_IPW2100_DEBUG

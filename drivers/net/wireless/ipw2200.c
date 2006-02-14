@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 2003 - 2006 Intel Corporation. All rights reserved.
 
   802.11 status code portion of this file from ethereal-0.10.6:
     Copyright 2000, Axis Communications AB
@@ -35,7 +35,7 @@
 
 #define IPW2200_VERSION "git-1.1.1"
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2200/2915 Network Driver"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2005 Intel Corporation"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2006 Intel Corporation"
 #define DRV_VERSION     IPW2200_VERSION
 
 #define ETH_P_80211_STATS (ETH_P_80211_RAW + 1)
