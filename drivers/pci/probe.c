@@ -456,7 +456,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 		 * pass and just note the configuration.
 		 */
 		if (pass)
-			return max;
+			goto out;
 		busnr = (buses >> 8) & 0xFF;
 
 		/*
@@ -466,12 +466,12 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 		if (pci_find_bus(pci_domain_nr(bus), busnr)) {
 			printk(KERN_INFO "PCI: Bus %04x:%02x already known\n",
 					pci_domain_nr(bus), busnr);
-			return max;
+			goto out;
 		}
 
 		child = pci_add_new_bus(bus, dev, busnr);
 		if (!child)
-			return max;
+			goto out;
 		child->primary = buses & 0xFF;
 		child->subordinate = (buses >> 16) & 0xFF;
 		child->bridge_ctl = bctl;
@@ -496,7 +496,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 				   bus ranges. */
 				pci_write_config_dword(dev, PCI_PRIMARY_BUS,
 						       buses & ~0xffffff);
-			return max;
+			goto out;
 		}
 
 		/* Clear errors */
@@ -505,7 +505,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 		/* Prevent assigning a bus number that already exists.
 		 * This can happen when a bridge is hot-plugged */
 		if (pci_find_bus(pci_domain_nr(bus), max+1))
-			return max;
+			goto out;
 		child = pci_add_new_bus(bus, dev, ++max);
 		buses = (buses & 0xff000000)
 		      | ((unsigned int)(child->primary)     <<  0)
@@ -581,8 +581,6 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 		pci_write_config_byte(dev, PCI_SUBORDINATE_BUS, max);
 	}
 
-	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, bctl);
-
 	sprintf(child->name, (is_cardbus ? "PCI CardBus #%02x" : "PCI Bus #%02x"), child->number);
 
 	while (bus->parent) {
@@ -600,6 +598,9 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 		}
 		bus = bus->parent;
 	}
+
+out:
+	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, bctl);
 
 	return max;
 }
