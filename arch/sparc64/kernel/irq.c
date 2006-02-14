@@ -319,8 +319,8 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsign
 
 	sysino = sun4v_devino_to_sysino(devhandle, devino);
 
-	printk(KERN_INFO "sun4v_irq: Mapping ( devh[%08x] devino[%08x] ) "
-	       "--> sysino[%016lx]\n", devhandle, devino, sysino);
+	printk(KERN_INFO "sun4v_irq: Mapping (%x:%x) --> sysino[%lx]\n",
+	       devhandle, devino, sysino);
 
 	bucket = &ivector_table[sysino];
 
