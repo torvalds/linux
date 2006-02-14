@@ -1895,7 +1895,7 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 
 	if ((ret = pkt_probe_settings(pd))) {
 		VPRINTK("pktcdvd: %s failed probe\n", pd->name);
-		return -EIO;
+		return -EROFS;
 	}
 
 	if ((ret = pkt_set_write_settings(pd))) {
@@ -2053,10 +2053,9 @@ static int pkt_open(struct inode *inode, struct file *file)
 			goto out_dec;
 		}
 	} else {
-		if (pkt_open_dev(pd, file->f_mode & FMODE_WRITE)) {
-			ret = -EIO;
+		ret = pkt_open_dev(pd, file->f_mode & FMODE_WRITE);
+		if (ret)
 			goto out_dec;
-		}
 		/*
 		 * needed here as well, since ext2 (among others) may change
 		 * the blocksize at mount time
