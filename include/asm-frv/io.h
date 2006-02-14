@@ -251,7 +251,6 @@ static inline void writel(uint32_t datum, volatile void __iomem *addr)
 #define IOMAP_WRITETHROUGH		3
 
 extern void __iomem *__ioremap(unsigned long physaddr, unsigned long size, int cacheflag);
-extern void __iounmap(void __iomem *addr, unsigned long size);
 
 static inline void __iomem *ioremap(unsigned long physaddr, unsigned long size)
 {
