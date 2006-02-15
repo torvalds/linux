@@ -954,19 +954,20 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, u32
 	err = prom_getproperty(prom_node, "interrupt-map",
 			       (char *)pbm->pbm_intmap,
 			       sizeof(pbm->pbm_intmap));
-	if (err != -1) {
-		pbm->num_pbm_intmap = (err / sizeof(struct linux_prom_pci_intmap));
-		err = prom_getproperty(prom_node, "interrupt-map-mask",
-				       (char *)&pbm->pbm_intmask,
-				       sizeof(pbm->pbm_intmask));
-		if (err == -1) {
-			prom_printf("%s: Fatal error, no "
-				    "interrupt-map-mask.\n", pbm->name);
-			prom_halt();
-		}
-	} else {
-		pbm->num_pbm_intmap = 0;
-		memset(&pbm->pbm_intmask, 0, sizeof(pbm->pbm_intmask));
+	if (err == 0 || err == -1) {
+		prom_printf("%s: Fatal error, no interrupt-map property.\n",
+			    pbm->name);
+		prom_halt();
+	}
+
+	pbm->num_pbm_intmap = (err / sizeof(struct linux_prom_pci_intmap));
+	err = prom_getproperty(prom_node, "interrupt-map-mask",
+			       (char *)&pbm->pbm_intmask,
+			       sizeof(pbm->pbm_intmask));
+	if (err == 0 || err == -1) {
+		prom_printf("%s: Fatal error, no interrupt-map-mask.\n",
+			    pbm->name);
+		prom_halt();
 	}
 
 	pci_sun4v_get_bus_range(pbm);
