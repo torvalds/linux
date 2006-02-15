@@ -333,9 +333,6 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsign
 
 	sysino = sun4v_devino_to_sysino(devhandle, devino);
 
-	printk(KERN_INFO "sun4v_irq: Mapping (%x:%x) --> sysino[%lx]\n",
-	       devhandle, devino, sysino);
-
 	bucket = &ivector_table[sysino];
 
 	/* Catch accidental accesses to these things.  IMAP/ICLR handling
