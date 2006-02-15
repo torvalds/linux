@@ -160,6 +160,8 @@ static void send_reset(struct sk_buff *oldskb)
 				      csum_partial((char *)tcph,
 						   sizeof(struct tcphdr), 0));
 
+	nf_ct_attach(nskb, oldskb);
+
 	NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, nskb, NULL, nskb->dst->dev,
 		dst_output);
 }
