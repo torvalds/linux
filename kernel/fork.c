@@ -1173,8 +1173,6 @@ static task_t *copy_process(unsigned long clone_flags,
 	if (unlikely(p->ptrace & PT_PTRACED))
 		__ptrace_link(p, current->parent);
 
-	attach_pid(p, PIDTYPE_PID, p->pid);
-	attach_pid(p, PIDTYPE_TGID, p->tgid);
 	if (thread_group_leader(p)) {
 		p->signal->tty = current->signal->tty;
 		p->signal->pgrp = process_group(current);
@@ -1184,6 +1182,8 @@ static task_t *copy_process(unsigned long clone_flags,
 		if (p->pid)
 			__get_cpu_var(process_counts)++;
 	}
+	attach_pid(p, PIDTYPE_TGID, p->tgid);
+	attach_pid(p, PIDTYPE_PID, p->pid);
 
 	nr_threads++;
 	total_forks++;
