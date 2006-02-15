@@ -678,7 +678,7 @@ static void ata_scsi_dev_config(struct scsi_device *sdev,
 	 */
 	max_sectors = ATA_MAX_SECTORS;
 	if (dev->flags & ATA_DFLAG_LBA48)
-		max_sectors = 2048;
+		max_sectors = ATA_MAX_SECTORS_LBA48;
 	if (dev->max_sectors)
 		max_sectors = dev->max_sectors;
 
