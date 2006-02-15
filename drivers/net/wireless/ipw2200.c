@@ -7061,8 +7061,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 		priv->assoc_request.auth_type = AUTH_SHARED_KEY;
 		priv->assoc_request.auth_key = priv->ieee->sec.active_key;
 
-		if ((priv->ieee->sec.level == SEC_LEVEL_1) &&
-		    !(priv->ieee->host_encrypt || priv->ieee->host_decrypt))
+		if (priv->ieee->sec.level == SEC_LEVEL_1)
 			ipw_send_wep_keys(priv, DCW_WEP_KEY_SEC_TYPE_WEP);
 
 	} else if ((priv->capability & CAP_PRIVACY_ON) &&
