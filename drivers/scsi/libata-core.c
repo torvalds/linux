@@ -2112,7 +2112,6 @@ int sata_std_hardreset(struct ata_port *ap, int verbose, unsigned int *class)
  *	This function is invoked after a successful reset.  Note that
  *	the device might have been reset more than once using
  *	different reset methods before postreset is invoked.
- *	postreset is also reponsible for setting cable type.
  *
  *	This function is to be used as standard callback for
  *	ata_drive_*_reset().
@@ -2124,7 +2123,7 @@ void ata_std_postreset(struct ata_port *ap, unsigned int *classes)
 {
 	DPRINTK("ENTER\n");
 
-	/* set cable type */
+	/* set cable type if it isn't already set */
 	if (ap->cbl == ATA_CBL_NONE && ap->flags & ATA_FLAG_SATA)
 		ap->cbl = ATA_CBL_SATA;
 
