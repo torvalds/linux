@@ -160,7 +160,7 @@ void enable_irq(unsigned int irq)
 		if (err != HV_EOK)
 			printk("sun4v_intr_settarget(%x,%d): err(%d)\n",
 			       ino, cpu, err);
-		sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
+		err = sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
 		if (err != HV_EOK)
 			printk("sun4v_intr_setenabled(%x): err(%d)\n",
 			       ino, err);
