@@ -1841,7 +1841,6 @@ static void release_dev(struct file * filp)
 		tty_closing = tty->count <= 1;
 		o_tty_closing = o_tty &&
 			(o_tty->count <= (pty_master ? 1 : 0));
-		up(&tty_sem);
 		do_sleep = 0;
 
 		if (tty_closing) {
@@ -1869,6 +1868,7 @@ static void release_dev(struct file * filp)
 
 		printk(KERN_WARNING "release_dev: %s: read/write wait queue "
 				    "active!\n", tty_name(tty, buf));
+		up(&tty_sem);
 		schedule();
 	}	
 
@@ -1877,8 +1877,6 @@ static void release_dev(struct file * filp)
 	 * both sides, and we've completed the last operation that could 
 	 * block, so it's safe to proceed with closing.
 	 */
-	 
-	down(&tty_sem);
 	if (pty_master) {
 		if (--o_tty->count < 0) {
 			printk(KERN_WARNING "release_dev: bad pty slave count "
@@ -1892,7 +1890,6 @@ static void release_dev(struct file * filp)
 		       tty->count, tty_name(tty, buf));
 		tty->count = 0;
 	}
-	up(&tty_sem);
 	
 	/*
 	 * We've decremented tty->count, so we need to remove this file
@@ -1936,6 +1933,8 @@ static void release_dev(struct file * filp)
 			} while_each_task_pid(o_tty->session, PIDTYPE_SID, p);
 		read_unlock(&tasklist_lock);
 	}
+
+	up(&tty_sem);
 
 	/* check whether both sides are closing ... */
 	if (!tty_closing || (o_tty && !o_tty_closing))

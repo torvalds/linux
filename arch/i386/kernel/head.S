@@ -398,7 +398,11 @@ ignore_int:
 	pushl 32(%esp)
 	pushl 40(%esp)
 	pushl $int_msg
+#ifdef CONFIG_EARLY_PRINTK
+	call early_printk
+#else
 	call printk
+#endif
 	addl $(5*4),%esp
 	popl %ds
 	popl %es

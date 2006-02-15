@@ -525,11 +525,6 @@ config FB_GBE_MEM
 	  This is the amount of memory reserved for the framebuffer,
 	  which can be any value between 1MB and 8MB.
 
-config BUS_I2C
-	bool
-	depends on (FB = y) && VISWS
-	default y
-
 config FB_SUN3
 	bool "Sun3 framebuffer support"
 	depends on (FB = y) && (SUN3 || SUN3X) && BROKEN

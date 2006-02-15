@@ -261,6 +261,7 @@ asmlinkage long sys_newlstat(char __user *filename, struct stat __user *statbuf)
 	return error;
 }
 
+#ifndef __ARCH_WANT_STAT64
 asmlinkage long sys_newfstatat(int dfd, char __user *filename,
 				struct stat __user *statbuf, int flag)
 {
@@ -281,6 +282,7 @@ asmlinkage long sys_newfstatat(int dfd, char __user *filename,
 out:
 	return error;
 }
+#endif
 
 asmlinkage long sys_newfstat(unsigned int fd, struct stat __user *statbuf)
 {
@@ -395,6 +397,26 @@ asmlinkage long sys_fstat64(unsigned long fd, struct stat64 __user * statbuf)
 	return error;
 }
 
+asmlinkage long sys_fstatat64(int dfd, char __user *filename,
+			       struct stat64 __user *statbuf, int flag)
+{
+	struct kstat stat;
+	int error = -EINVAL;
+
+	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
+		goto out;
+
+	if (flag & AT_SYMLINK_NOFOLLOW)
+		error = vfs_lstat_fd(dfd, filename, &stat);
+	else
+		error = vfs_stat_fd(dfd, filename, &stat);
+
+	if (!error)
+		error = cp_new_stat64(&stat, statbuf);
+
+out:
+	return error;
+}
 #endif /* __ARCH_WANT_STAT64 */
 
 void inode_add_bytes(struct inode *inode, loff_t bytes)

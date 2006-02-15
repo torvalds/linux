@@ -537,7 +537,7 @@ _sys32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	/* The ucontext contains a stack32_t, so we must convert!  */
 	if (__get_user(sp, &frame->rs_uc.uc_stack.ss_sp))
 		goto badframe;
-	st.ss_size = (long) sp;
+	st.ss_sp = (void *)(long) sp;
 	if (__get_user(st.ss_size, &frame->rs_uc.uc_stack.ss_size))
 		goto badframe;
 	if (__get_user(st.ss_flags, &frame->rs_uc.uc_stack.ss_flags))

@@ -12,15 +12,16 @@
  * on the S390 architecture.
  */
 
-#include <asm/cio.h>
-#include <asm/setup.h>
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/delay.h>
+#include <asm/cio.h>
+#include <asm/setup.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/system.h>
+#include <asm/smp.h>
 
 static void kexec_halt_all_cpus(void *);
 

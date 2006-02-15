@@ -102,8 +102,6 @@ config NF_CT_NETLINK
 	help
 	  This option enables support for a netlink-based userspace interface
 
-endmenu
-
 config NETFILTER_XTABLES
 	tristate "Netfilter Xtables support (required for ip_tables)"
 	help
@@ -360,4 +358,6 @@ config NETFILTER_XT_MATCH_TCPMSS
 	  for that connection.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+endmenu
 

@@ -27,7 +27,7 @@
 #ifndef _ASM_I386_TOPOLOGY_H
 #define _ASM_I386_TOPOLOGY_H
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_HT
 #define topology_physical_package_id(cpu)				\
 	(phys_proc_id[cpu] == BAD_APICID ? -1 : phys_proc_id[cpu])
 #define topology_core_id(cpu)						\

@@ -1717,11 +1717,9 @@ ioc4_change_speed(struct uart_port *the_port,
 	}
 
 	if (cflag & CRTSCTS) {
-		info->flags |= ASYNC_CTS_FLOW;
 		port->ip_sscr |= IOC4_SSCR_HFC_EN;
 	}
 	else {
-		info->flags &= ~ASYNC_CTS_FLOW;
 		port->ip_sscr &= ~IOC4_SSCR_HFC_EN;
 	}
 	writel(port->ip_sscr, &port->ip_serial_regs->sscr);
@@ -1760,18 +1758,6 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 
 	info = the_port->info;
 
-	if (info->tty) {
-		set_bit(TTY_IO_ERROR, &info->tty->flags);
-		clear_bit(TTY_IO_ERROR, &info->tty->flags);
-		if ((info->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-			info->tty->alt_speed = 57600;
-		if ((info->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-			info->tty->alt_speed = 115200;
-		if ((info->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-			info->tty->alt_speed = 230400;
-		if ((info->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-			info->tty->alt_speed = 460800;
-	}
 	local_open(port);
 
 	/* set the speed of the serial port */

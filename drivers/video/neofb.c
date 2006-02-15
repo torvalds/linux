@@ -1334,6 +1334,12 @@ static int neofb_blank(int blank_mode, struct fb_info *info)
 	struct neofb_par *par = info->par;
 	int seqflags, lcdflags, dpmsflags, reg;
 
+	/*
+	 * Reload the value stored in the register, might have been changed via
+	 * FN keystroke
+	 */
+	par->PanelDispCntlReg1 = vga_rgfx(NULL, 0x20) & 0x03;
+
 	switch (blank_mode) {
 	case FB_BLANK_POWERDOWN:	/* powerdown - both sync lines down */
 		seqflags = VGA_SR01_SCREEN_OFF; /* Disable sequencer */
@@ -1366,7 +1372,7 @@ static int neofb_blank(int blank_mode, struct fb_info *info)
 	case FB_BLANK_NORMAL:		/* just blank screen (backlight stays on) */
 		seqflags = VGA_SR01_SCREEN_OFF;	/* Disable sequencer */
 		lcdflags = par->PanelDispCntlReg1 & 0x02; /* LCD normal */
-		dpmsflags = 0;			/* no hsync/vsync suppression */
+		dpmsflags = 0x00;	/* no hsync/vsync suppression */
 		break;
 	case FB_BLANK_UNBLANK:		/* unblank */
 		seqflags = 0;			/* Enable sequencer */

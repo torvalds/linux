@@ -25,6 +25,10 @@ config GENERIC_HARDIRQS
 	bool
 	default n
 
+config TIME_LOW_RES
+	bool
+	default y
+
 mainmenu "Fujitsu FR-V Kernel Configuration"
 
 source "init/Kconfig"

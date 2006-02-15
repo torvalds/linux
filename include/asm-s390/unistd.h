@@ -285,7 +285,7 @@
 #define __NR_mknodat		290
 #define __NR_fchownat		291
 #define __NR_futimesat		292
-#define __NR_newfstatat		293
+#define __NR_fstatat64		293
 #define __NR_unlinkat		294
 #define __NR_renameat		295
 #define __NR_linkat		296
@@ -295,8 +295,9 @@
 #define __NR_faccessat		300
 #define __NR_pselect6		301
 #define __NR_ppoll		302
+#define __NR_unshare		303
 
-#define NR_syscalls 303
+#define NR_syscalls 304
 
 /* 
  * There are some system calls that are not present on 64 bit, some
@@ -358,6 +359,7 @@
 #undef  __NR_fcntl64
 #undef  __NR_sendfile64
 #undef  __NR_fadvise64_64
+#undef  __NR_fstatat64
 
 #define __NR_select		142
 #define __NR_getrlimit		191	/* SuS compliant getrlimit */
@@ -380,6 +382,7 @@
 #define __NR_setgid  		214
 #define __NR_setfsuid  		215
 #define __NR_setfsgid  		216
+#define __NR_newfstatat		293
 
 #endif
 

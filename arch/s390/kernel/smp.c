@@ -52,7 +52,7 @@ extern volatile int __cpu_logical_map[];
 struct _lowcore *lowcore_ptr[NR_CPUS];
 
 cpumask_t cpu_online_map;
-cpumask_t cpu_possible_map;
+cpumask_t cpu_possible_map = CPU_MASK_ALL;
 
 static struct task_struct *current_set[NR_CPUS];
 
@@ -514,9 +514,6 @@ __init smp_check_cpus(unsigned int max_cpus)
 		num_cpus++;
 	}
 
-	for (cpu = 1; cpu < max_cpus; cpu++)
-		cpu_set(cpu, cpu_possible_map);
-
 	printk("Detected %d CPU's\n",(int) num_cpus);
 	printk("Boot cpu address %2X\n", boot_cpu_addr);
 }
@@ -810,7 +807,6 @@ void __devinit smp_prepare_boot_cpu(void)
 
 	cpu_set(0, cpu_online_map);
 	cpu_set(0, cpu_present_map);
-	cpu_set(0, cpu_possible_map);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	current_set[0] = current;
 }
