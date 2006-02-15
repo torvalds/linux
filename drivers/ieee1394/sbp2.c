@@ -137,15 +137,15 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device (default = 1)"
 /*
  * SCSI inquiry hack for really badly behaved sbp2 devices. Turn this on
  * if your sbp2 device is not properly handling the SCSI inquiry command.
- * This hack makes the inquiry look more like a typical MS Windows
- * inquiry.
+ * This hack makes the inquiry look more like a typical MS Windows inquiry
+ * by enforcing 36 byte inquiry and avoiding access to mode_sense page 8.
  *
  * If force_inquiry_hack=1 is required for your device to work,
  * please submit the logged sbp2_firmware_revision value of this device to
  * the linux1394-devel mailing list.
  */
 static int force_inquiry_hack;
-module_param(force_inquiry_hack, int, 0444);
+module_param(force_inquiry_hack, int, 0644);
 MODULE_PARM_DESC(force_inquiry_hack, "Force SCSI inquiry hack (default = 0)");
 
 /*
@@ -264,17 +264,16 @@ static struct hpsb_protocol_driver sbp2_driver = {
 	},
 };
 
-
-/* List of device firmware's that require a forced 36 byte inquiry.  */
+/*
+ * List of device firmwares that require the inquiry hack.
+ * Yields a few false positives but did not break other devices so far.
+ */
 static u32 sbp2_broken_inquiry_list[] = {
-	0x00002800,	/* Stefan Richter <richtest@bauwesen.tu-cottbus.de> */
+	0x00002800,	/* Stefan Richter <stefanr@s5r6.in-berlin.de> */
 			/* DViCO Momobay CX-1 */
 	0x00000200	/* Andreas Plesch <plesch@fas.harvard.edu> */
 			/* QPS Fire DVDBurner */
 };
-
-#define NUM_BROKEN_INQUIRY_DEVS \
-	(sizeof(sbp2_broken_inquiry_list)/sizeof(*sbp2_broken_inquiry_list))
 
 /**************************************
  * General utility functions
@@ -1575,7 +1574,7 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 	/* Check for a blacklisted set of devices that require us to force
 	 * a 36 byte host inquiry. This can be overriden as a module param
 	 * (to force all hosts).  */
-	for (i = 0; i < NUM_BROKEN_INQUIRY_DEVS; i++) {
+	for (i = 0; i < ARRAY_SIZE(sbp2_broken_inquiry_list); i++) {
 		if ((firmware_revision & 0xffff00) ==
 				sbp2_broken_inquiry_list[i]) {
 			SBP2_WARN("Node " NODE_BUS_FMT ": Using 36byte inquiry workaround",
@@ -2019,18 +2018,6 @@ static int sbp2_send_command(struct scsi_id_instance_data *scsi_id,
 	command = sbp2util_allocate_command_orb(scsi_id, SCpnt, done);
 	if (!command) {
 		return -EIO;
-	}
-
-	/*
-	 * The scsi stack sends down a request_bufflen which does not match the
-	 * length field in the scsi cdb. This causes some sbp2 devices to
-	 * reject this inquiry command. Fix the request_bufflen.
-	 */
-	if (*cmd == INQUIRY) {
-		if (force_inquiry_hack || scsi_id->workarounds & SBP2_BREAKAGE_INQUIRY_HACK)
-			request_bufflen = cmd[4] = 0x24;
-		else
-			request_bufflen = cmd[4];
 	}
 
 	/*
@@ -2489,7 +2476,16 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 
 static int sbp2scsi_slave_alloc(struct scsi_device *sdev)
 {
-	((struct scsi_id_instance_data *)sdev->host->hostdata[0])->sdev = sdev;
+	struct scsi_id_instance_data *scsi_id =
+		(struct scsi_id_instance_data *)sdev->host->hostdata[0];
+
+	scsi_id->sdev = sdev;
+
+	if (force_inquiry_hack ||
+	    scsi_id->workarounds & SBP2_BREAKAGE_INQUIRY_HACK) {
+		sdev->inquiry_len = 36;
+		sdev->skip_ms_page_8 = 1;
+	}
 	return 0;
 }
 
