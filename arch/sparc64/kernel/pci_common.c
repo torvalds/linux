@@ -39,6 +39,8 @@ static int __init find_device_prom_node(struct pci_pbm_info *pbm,
 {
 	int node;
 
+	*nregs = 0;
+
 	/*
 	 * Return the PBM's PROM node in case we are it's PCI device,
 	 * as the PBM's reg property is different to standard PCI reg
@@ -51,10 +53,8 @@ static int __init find_device_prom_node(struct pci_pbm_info *pbm,
 	     pdev->device == PCI_DEVICE_ID_SUN_SCHIZO ||
 	     pdev->device == PCI_DEVICE_ID_SUN_TOMATILLO ||
 	     pdev->device == PCI_DEVICE_ID_SUN_SABRE ||
-	     pdev->device == PCI_DEVICE_ID_SUN_HUMMINGBIRD)) {
-		*nregs = 0;
+	     pdev->device == PCI_DEVICE_ID_SUN_HUMMINGBIRD))
 		return bus_prom_node;
-	}
 
 	node = prom_getchild(bus_prom_node);
 	while (node != 0) {
