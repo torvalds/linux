@@ -64,6 +64,7 @@
 #include <linux/interrupt.h>
 #include <linux/smp_lock.h>
 #include <linux/completion.h>
+#include <linux/kthread.h>
 #include <linux/buffer_head.h>		/* for sync_blockdev() */
 #include <linux/bio.h>
 #include <linux/suspend.h>
@@ -81,7 +82,6 @@
  */
 static struct lbuf *log_redrive_list;
 static DEFINE_SPINLOCK(log_redrive_lock);
-DECLARE_WAIT_QUEUE_HEAD(jfs_IO_thread_wait);
 
 
 /*
@@ -1980,7 +1980,7 @@ static inline void lbmRedrive(struct lbuf *bp)
 	log_redrive_list = bp;
 	spin_unlock_irqrestore(&log_redrive_lock, flags);
 
-	wake_up(&jfs_IO_thread_wait);
+	wake_up_process(jfsIOthread);
 }
 
 
@@ -2347,13 +2347,7 @@ int jfsIOWait(void *arg)
 {
 	struct lbuf *bp;
 
-	daemonize("jfsIO");
-
-	complete(&jfsIOwait);
-
 	do {
-		DECLARE_WAITQUEUE(wq, current);
-
 		spin_lock_irq(&log_redrive_lock);
 		while ((bp = log_redrive_list) != 0) {
 			log_redrive_list = bp->l_redrive_next;
@@ -2362,21 +2356,19 @@ int jfsIOWait(void *arg)
 			lbmStartIO(bp);
 			spin_lock_irq(&log_redrive_lock);
 		}
+		spin_unlock_irq(&log_redrive_lock);
+
 		if (freezing(current)) {
-			spin_unlock_irq(&log_redrive_lock);
 			refrigerator();
 		} else {
-			add_wait_queue(&jfs_IO_thread_wait, &wq);
 			set_current_state(TASK_INTERRUPTIBLE);
-			spin_unlock_irq(&log_redrive_lock);
 			schedule();
 			current->state = TASK_RUNNING;
-			remove_wait_queue(&jfs_IO_thread_wait, &wq);
 		}
-	} while (!jfs_stop_threads);
+	} while (!kthread_should_stop());
 
 	jfs_info("jfsIOWait being killed!");
-	complete_and_exit(&jfsIOwait, 0);
+	return 0;
 }
 
 /*

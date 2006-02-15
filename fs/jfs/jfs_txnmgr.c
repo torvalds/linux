@@ -49,6 +49,7 @@
 #include <linux/suspend.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/kthread.h>
 #include "jfs_incore.h"
 #include "jfs_inode.h"
 #include "jfs_filsys.h"
@@ -121,8 +122,7 @@ static DEFINE_SPINLOCK(jfsTxnLock);
 #define LAZY_LOCK(flags)	spin_lock_irqsave(&TxAnchor.LazyLock, flags)
 #define LAZY_UNLOCK(flags) spin_unlock_irqrestore(&TxAnchor.LazyLock, flags)
 
-DECLARE_WAIT_QUEUE_HEAD(jfs_sync_thread_wait);
-DECLARE_WAIT_QUEUE_HEAD(jfs_commit_thread_wait);
+static DECLARE_WAIT_QUEUE_HEAD(jfs_commit_thread_wait);
 static int jfs_commit_thread_waking;
 
 /*
@@ -207,7 +207,7 @@ static lid_t txLockAlloc(void)
 	if ((++TxAnchor.tlocksInUse > TxLockHWM) && (jfs_tlocks_low == 0)) {
 		jfs_info("txLockAlloc tlocks low");
 		jfs_tlocks_low = 1;
-		wake_up(&jfs_sync_thread_wait);
+		wake_up_process(jfsSyncThread);
 	}
 
 	return lid;
@@ -2743,10 +2743,6 @@ int jfs_lazycommit(void *arg)
 	unsigned long flags;
 	struct jfs_sb_info *sbi;
 
-	daemonize("jfsCommit");
-
-	complete(&jfsIOwait);
-
 	do {
 		LAZY_LOCK(flags);
 		jfs_commit_thread_waking = 0;	/* OK to wake another thread */
@@ -2806,13 +2802,13 @@ int jfs_lazycommit(void *arg)
 			current->state = TASK_RUNNING;
 			remove_wait_queue(&jfs_commit_thread_wait, &wq);
 		}
-	} while (!jfs_stop_threads);
+	} while (!kthread_should_stop());
 
 	if (!list_empty(&TxAnchor.unlock_queue))
 		jfs_err("jfs_lazycommit being killed w/pending transactions!");
 	else
 		jfs_info("jfs_lazycommit being killed\n");
-	complete_and_exit(&jfsIOwait, 0);
+	return 0;
 }
 
 void txLazyUnlock(struct tblock * tblk)
@@ -2932,10 +2928,6 @@ int jfs_sync(void *arg)
 	int rc;
 	tid_t tid;
 
-	daemonize("jfsSync");
-
-	complete(&jfsIOwait);
-
 	do {
 		/*
 		 * write each inode on the anonymous inode list
@@ -2996,19 +2988,15 @@ int jfs_sync(void *arg)
 			TXN_UNLOCK();
 			refrigerator();
 		} else {
-			DECLARE_WAITQUEUE(wq, current);
-
-			add_wait_queue(&jfs_sync_thread_wait, &wq);
 			set_current_state(TASK_INTERRUPTIBLE);
 			TXN_UNLOCK();
 			schedule();
 			current->state = TASK_RUNNING;
-			remove_wait_queue(&jfs_sync_thread_wait, &wq);
 		}
-	} while (!jfs_stop_threads);
+	} while (!kthread_should_stop());
 
 	jfs_info("jfs_sync being killed");
-	complete_and_exit(&jfsIOwait, 0);
+	return 0;
 }
 
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_JFS_DEBUG)
