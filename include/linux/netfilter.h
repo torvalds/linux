@@ -318,7 +318,7 @@ static inline int nf_hook(int pf, unsigned int hook, struct sk_buff **pskb,
 			  struct net_device *indev, struct net_device *outdev,
 			  int (*okfn)(struct sk_buff *))
 {
-	return okfn(*pskb);
+	return 1;
 }
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 struct flowi;
