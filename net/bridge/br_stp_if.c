@@ -67,7 +67,7 @@ void br_stp_disable_bridge(struct net_bridge *br)
 {
 	struct net_bridge_port *p;
 
-	spin_lock(&br->lock);
+	spin_lock_bh(&br->lock);
 	list_for_each_entry(p, &br->port_list, list) {
 		if (p->state != BR_STATE_DISABLED)
 			br_stp_disable_port(p);
@@ -76,7 +76,7 @@ void br_stp_disable_bridge(struct net_bridge *br)
 
 	br->topology_change = 0;
 	br->topology_change_detected = 0;
-	spin_unlock(&br->lock);
+	spin_unlock_bh(&br->lock);
 
 	del_timer_sync(&br->hello_timer);
 	del_timer_sync(&br->topology_change_timer);
