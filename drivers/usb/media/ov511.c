@@ -5639,7 +5639,7 @@ static CLASS_DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
 static ssize_t show_exposure(struct class_device *cd, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
-	unsigned char exp;
+	unsigned char exp = 0;
 
 	if (!ov->dev)
 		return -ENODEV;
