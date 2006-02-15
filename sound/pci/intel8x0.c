@@ -2351,7 +2351,7 @@ static int snd_intel8x0_ali_chip_init(struct intel8x0 *chip, int probing)
 
 static int snd_intel8x0_chip_init(struct intel8x0 *chip, int probing)
 {
-	unsigned int i;
+	unsigned int i, timeout;
 	int err;
 	
 	if (chip->device_type != DEVICE_ALI) {
@@ -2369,6 +2369,15 @@ static int snd_intel8x0_chip_init(struct intel8x0 *chip, int probing)
 	/* reset channels */
 	for (i = 0; i < chip->bdbars_count; i++)
 		iputbyte(chip, ICH_REG_OFF_CR + chip->ichd[i].reg_offset, ICH_RESETREGS);
+	for (i = 0; i < chip->bdbars_count; i++) {
+	        timeout = 100000;
+	        while (--timeout != 0) {
+        		if ((igetbyte(chip, ICH_REG_OFF_CR + chip->ichd[i].reg_offset) & ICH_RESETREGS) == 0)
+        		        break;
+                }
+                if (timeout == 0)
+                        printk(KERN_ERR "intel8x0: reset of registers failed?\n");
+        }
 	/* initialize Buffer Descriptor Lists */
 	for (i = 0; i < chip->bdbars_count; i++)
 		iputdword(chip, ICH_REG_OFF_BDBAR + chip->ichd[i].reg_offset,
