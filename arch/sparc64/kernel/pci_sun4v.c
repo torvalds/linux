@@ -517,8 +517,14 @@ struct pci_iommu_ops pci_sun4v_iommu_ops = {
 
 /* SUN4V PCI configuration space accessors. */
 
-static inline int pci_sun4v_out_of_range(struct pci_pbm_info *pbm, unsigned int bus)
+static inline int pci_sun4v_out_of_range(struct pci_pbm_info *pbm, unsigned int bus, unsigned int device, unsigned int func)
 {
+	if (bus == pbm->pci_first_busno) {
+		if (device == 0 && func == 0)
+			return 0;
+		return 1;
+	}
+
 	if (bus < pbm->pci_first_busno ||
 	    bus > pbm->pci_last_busno)
 		return 1;
@@ -535,15 +541,14 @@ static int pci_sun4v_read_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	unsigned int func = PCI_FUNC(devfn);
 	unsigned long ret;
 
-	if (pci_sun4v_out_of_range(pbm, bus)) {
+	if (pci_sun4v_out_of_range(pbm, bus, device, func)) {
 		ret = ~0UL;
 	} else {
 		ret = pci_sun4v_config_get(devhandle,
 				HV_PCI_DEVICE_BUILD(bus, device, func),
 				where, size);
 #if 0
-		printk("read_pci_cfg: devh[%x] device[%08x] where[%x] sz[%d] "
-		       "== [%016lx]\n",
+		printk("rcfg: [%x:%x:%x:%d]=[%lx]\n",
 		       devhandle, HV_PCI_DEVICE_BUILD(bus, device, func),
 		       where, size, ret);
 #endif
@@ -574,15 +579,14 @@ static int pci_sun4v_write_pci_cfg(struct pci_bus *bus_dev, unsigned int devfn,
 	unsigned int func = PCI_FUNC(devfn);
 	unsigned long ret;
 
-	if (pci_sun4v_out_of_range(pbm, bus)) {
+	if (pci_sun4v_out_of_range(pbm, bus, device, func)) {
 		/* Do nothing. */
 	} else {
 		ret = pci_sun4v_config_put(devhandle,
 				HV_PCI_DEVICE_BUILD(bus, device, func),
 				where, size, value);
 #if 0
-		printk("write_pci_cfg: devh[%x] device[%08x] where[%x] sz[%d] "
-		       "val[%08x] == [%016lx]\n",
+		printk("wcfg: [%x:%x:%x:%d] v[%x] == [%lx]\n",
 		       devhandle, HV_PCI_DEVICE_BUILD(bus, device, func),
 		       where, size, value, ret);
 #endif
@@ -610,16 +614,13 @@ static void pbm_scan_bus(struct pci_controller_info *p,
 	memset(cookie, 0, sizeof(*cookie));
 	cookie->pbm = pbm;
 
-	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno,
-				    p->pci_ops,
-				    pbm);
+	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno, p->pci_ops, pbm);
 #if 0
 	pci_fixup_host_bridge_self(pbm->pci_bus);
 	pbm->pci_bus->self->sysdata = cookie;
 #endif
-
 	pci_fill_in_pbm_cookies(pbm->pci_bus, pbm,
-				prom_getchild(pbm->prom_node));
+				pbm->prom_node);
 	pci_record_assignments(pbm, pbm->pci_bus);
 	pci_assign_unassigned(pbm, pbm->pci_bus);
 	pci_fixup_irq(pbm, pbm->pci_bus);
@@ -884,18 +885,11 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	probe_existing_entries(pbm, iommu);
 }
 
-/* Don't get this from the root nexus, get it from the "pci@0" node below.  */
 static void pci_sun4v_get_bus_range(struct pci_pbm_info *pbm)
 {
 	unsigned int busrange[2];
 	int prom_node = pbm->prom_node;
 	int err;
-
-	prom_node = prom_getchild(prom_node);
-	if (prom_node == 0) {
-		prom_printf("%s: Fatal error, no child OBP node.\n", pbm->name);
-		prom_halt();
-	}
 
 	err = prom_getproperty(prom_node, "bus-range",
 			       (char *)&busrange[0],
@@ -929,7 +923,9 @@ static void pci_sun4v_pbm_init(struct pci_controller_info *p, int prom_node, u32
 	sprintf(pbm->name, "SUN4V-PCI%d PBM%c",
 		p->index, (pbm == &p->pbm_A ? 'A' : 'B'));
 
-	printk("%s: devhandle[%x]\n", pbm->name, pbm->devhandle);
+	printk("%s: devhandle[%x] prom_node[%x:%x]\n",
+	       pbm->name, pbm->devhandle,
+	       pbm->prom_node, prom_getchild(pbm->prom_node));
 
 	prom_getstring(prom_node, "name",
 		       pbm->prom_name, sizeof(pbm->prom_name));
