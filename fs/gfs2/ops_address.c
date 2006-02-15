@@ -28,6 +28,7 @@
 #include "quota.h"
 #include "trans.h"
 #include "rgrp.h"
+#include "ops_file.h"
 
 /**
  * gfs2_get_block - Fills in a buffer head with details about a block
@@ -267,10 +268,12 @@ static int gfs2_readpage(struct file *file, struct page *page)
 
 	atomic_inc(&sdp->sd_ops_address);
 
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
-	error = gfs2_glock_nq_m_atime(1, &gh);
-	if (error)
-		goto out_unlock;
+	if (file != &gfs2_internal_file_sentinal) {
+		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
+		error = gfs2_glock_nq_m_atime(1, &gh);
+		if (error)
+			goto out_unlock;
+	}
 
 	if (gfs2_is_stuffed(ip)) {
 		if (!page->index) {
@@ -284,8 +287,10 @@ static int gfs2_readpage(struct file *file, struct page *page)
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = -EIO;
 
-	gfs2_glock_dq_m(1, &gh);
-	gfs2_holder_uninit(&gh);
+	if (file != &gfs2_internal_file_sentinal) {
+		gfs2_glock_dq_m(1, &gh);
+		gfs2_holder_uninit(&gh);
+	}
 out:
 	return error;
 out_unlock:

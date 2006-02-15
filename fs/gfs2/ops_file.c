@@ -67,6 +67,16 @@ struct filldir_reg {
 	void *fdr_opaque;
 };
 
+/*
+ * Most fields left uninitialised to catch anybody who tries to
+ * use them. f_flags set to prevent file_accessed() from touching
+ * any other part of this. Its use is purely as a flag so that we
+ * know (in readpage()) whether or not do to locking.
+ */
+struct file gfs2_internal_file_sentinal = {
+	.f_flags = O_NOATIME|O_RDONLY,
+};
+
 static int gfs2_read_actor(read_descriptor_t *desc, struct page *page,
 			   unsigned long offset, unsigned long size)
 {
@@ -95,7 +105,9 @@ int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
 	desc.arg.buf = buf;
 	desc.count = size;
 	desc.error = 0;
-	do_generic_mapping_read(inode->i_mapping, ra_state, NULL, pos, &desc, gfs2_read_actor);
+	do_generic_mapping_read(inode->i_mapping, ra_state,
+				&gfs2_internal_file_sentinal, pos, &desc,
+				gfs2_read_actor);
 	return desc.written ? desc.written : desc.error;
 }
 
