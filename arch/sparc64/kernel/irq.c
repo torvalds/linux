@@ -164,6 +164,10 @@ void enable_irq(unsigned int irq)
 		if (err != HV_EOK)
 			printk("sun4v_intr_setenabled(%x): err(%d)\n",
 			       ino, err);
+		err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
+		if (err != HV_EOK)
+			printk("sun4v_intr_setstate(%x): "
+			       "err(%d)\n", ino, err);
 	} else {
 		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 			unsigned long ver;
@@ -663,10 +667,11 @@ static void process_bucket(int irq, struct ino_bucket *bp, struct pt_regs *regs)
 				       "err(%d)\n", ino, err);
 		} else {
 			upa_writel(ICLR_IDLE, bp->iclr);
-			/* Test and add entropy */
-			if (random & SA_SAMPLE_RANDOM)
-				add_interrupt_randomness(irq);
 		}
+
+		/* Test and add entropy */
+		if (random & SA_SAMPLE_RANDOM)
+			add_interrupt_randomness(irq);
 	}
 out:
 	bp->flags &= ~IBF_INPROGRESS;
