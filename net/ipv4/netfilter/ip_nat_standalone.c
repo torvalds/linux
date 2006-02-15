@@ -235,19 +235,19 @@ ip_nat_out(unsigned int hooknum,
 		return NF_ACCEPT;
 
 	ret = ip_nat_fn(hooknum, pskb, in, out, okfn);
+#ifdef CONFIG_XFRM
 	if (ret != NF_DROP && ret != NF_STOLEN
 	    && (ct = ip_conntrack_get(*pskb, &ctinfo)) != NULL) {
 		enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 
 		if (ct->tuplehash[dir].tuple.src.ip !=
 		    ct->tuplehash[!dir].tuple.dst.ip
-#ifdef CONFIG_XFRM
 		    || ct->tuplehash[dir].tuple.src.u.all !=
 		       ct->tuplehash[!dir].tuple.dst.u.all
-#endif
 		    )
-			return ip_route_me_harder(pskb) == 0 ? ret : NF_DROP;
+			return ip_xfrm_me_harder(pskb) == 0 ? ret : NF_DROP;
 	}
+#endif
 	return ret;
 }
 

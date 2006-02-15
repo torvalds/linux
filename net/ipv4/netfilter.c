@@ -78,6 +78,47 @@ int ip_route_me_harder(struct sk_buff **pskb)
 }
 EXPORT_SYMBOL(ip_route_me_harder);
 
+#ifdef CONFIG_XFRM
+int ip_xfrm_me_harder(struct sk_buff **pskb)
+{
+	struct flowi fl;
+	unsigned int hh_len;
+	struct dst_entry *dst;
+
+	if (IPCB(*pskb)->flags & IPSKB_XFRM_TRANSFORMED)
+		return 0;
+	if (xfrm_decode_session(*pskb, &fl, AF_INET) < 0)
+		return -1;
+
+	dst = (*pskb)->dst;
+	if (dst->xfrm)
+		dst = ((struct xfrm_dst *)dst)->route;
+	dst_hold(dst);
+
+	if (xfrm_lookup(&dst, &fl, (*pskb)->sk, 0) < 0)
+		return -1;
+
+	dst_release((*pskb)->dst);
+	(*pskb)->dst = dst;
+
+	/* Change in oif may mean change in hh_len. */
+	hh_len = (*pskb)->dst->dev->hard_header_len;
+	if (skb_headroom(*pskb) < hh_len) {
+		struct sk_buff *nskb;
+
+		nskb = skb_realloc_headroom(*pskb, hh_len);
+		if (!nskb)
+			return -1;
+		if ((*pskb)->sk)
+			skb_set_owner_w(nskb, (*pskb)->sk);
+		kfree_skb(*pskb);
+		*pskb = nskb;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(ip_xfrm_me_harder);
+#endif
+
 void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);
 EXPORT_SYMBOL(ip_nat_decode_session);
 
