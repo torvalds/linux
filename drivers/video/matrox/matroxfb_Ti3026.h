@@ -1,7 +1,6 @@
 #ifndef __MATROXFB_TI3026_H__
 #define __MATROXFB_TI3026_H__
 
-/* make checkconfig does not walk through whole include tree */
 #include <linux/config.h>
 
 #include "matroxfb_base.h"
