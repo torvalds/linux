@@ -38,7 +38,6 @@
 #include <linux/pm.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
-#include <linux/pm.h>
 #include <linux/interrupt.h>
 
 #include <asm/io.h>
