@@ -2250,7 +2250,7 @@ void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned lo
 	force_sig_info(SIGBUS, &info, current);
 }
 
-void sun4v_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+void sun4v_do_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
 {
 	siginfo_t info;
 

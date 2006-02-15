@@ -265,7 +265,7 @@ sun4v_mna:
 	 rd	%pc, %g7
 	mov	%l4, %o1
 	mov	%l5, %o2
-	call	sun4v_mna
+	call	sun4v_do_mna
 	 add	%sp, PTREGS_OFF, %o0
 	ba,a,pt	%xcc, rtrap_clr_l6
 
