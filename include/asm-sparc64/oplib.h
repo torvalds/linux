@@ -188,10 +188,18 @@ extern enum prom_output_device prom_query_output_device(void);
 
 /* Multiprocessor operations... */
 #ifdef CONFIG_SMP
-/* Start the CPU with the given device tree node, context table, and context
- * at the passed program counter.
+/* Start the CPU with the given device tree node at the passed program
+ * counter with the given arg passed in via register %o0.
  */
-extern void prom_startcpu(int cpunode, unsigned long pc, unsigned long o0);
+extern void prom_startcpu(int cpunode, unsigned long pc, unsigned long arg);
+
+/* Start the CPU with the given cpu ID at the passed program
+ * counter with the given arg passed in via register %o0.
+ */
+extern void prom_startcpu_cpuid(int cpuid, unsigned long pc, unsigned long arg);
+
+/* Stop the CPU with the given cpu ID.  */
+extern void prom_stopcpu_cpuid(int cpuid);
 
 /* Stop the current CPU. */
 extern void prom_stopself(void);

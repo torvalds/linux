@@ -308,9 +308,21 @@ int prom_wakeupsystem(void)
 }
 
 #ifdef CONFIG_SMP
-void prom_startcpu(int cpunode, unsigned long pc, unsigned long o0)
+void prom_startcpu(int cpunode, unsigned long pc, unsigned long arg)
 {
-	p1275_cmd("SUNW,start-cpu", P1275_INOUT(3, 0), cpunode, pc, o0);
+	p1275_cmd("SUNW,start-cpu", P1275_INOUT(3, 0), cpunode, pc, arg);
+}
+
+void prom_startcpu_cpuid(int cpuid, unsigned long pc, unsigned long arg)
+{
+	p1275_cmd("SUNW,start-cpu-by-cpuid", P1275_INOUT(3, 0),
+		  cpuid, pc, arg);
+}
+
+void prom_stopcpu_cpuid(int cpuid)
+{
+	p1275_cmd("SUNW,stop-cpu-by-cpuid", P1275_INOUT(1, 0),
+		  cpuid);
 }
 
 void prom_stopself(void)

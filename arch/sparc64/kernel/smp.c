@@ -331,15 +331,21 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 	unsigned long cookie =
 		(unsigned long)(&cpu_new_thread);
 	struct task_struct *p;
-	int timeout, ret, cpu_node;
+	int timeout, ret;
 
 	p = fork_idle(cpu);
 	callin_flag = 0;
 	cpu_new_thread = task_thread_info(p);
 	cpu_set(cpu, cpu_callout_map);
 
-	cpu_find_by_mid(cpu, &cpu_node);
-	prom_startcpu(cpu_node, entry, cookie);
+	if (tlb_type == hypervisor) {
+		prom_startcpu_cpuid(cpu, entry, cookie);
+	} else {
+		int cpu_node;
+
+		cpu_find_by_mid(cpu, &cpu_node);
+		prom_startcpu(cpu_node, entry, cookie);
+	}
 
 	for (timeout = 0; timeout < 5000000; timeout++) {
 		if (callin_flag)
