@@ -62,7 +62,8 @@
 #include "libata.h"
 
 static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev);
-static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev);
+static unsigned int ata_dev_init_params(struct ata_port *ap,
+					struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev);
 static unsigned int ata_get_mode_mask(const struct ata_port *ap, int shift);
@@ -1041,7 +1042,12 @@ retry:
 		 * Some drives were very specific about that exact sequence.
 		 */
 		if (major_version < 4 || (!ata_id_has_lba(dev->id))) {
-			ata_dev_init_params(ap, dev);
+			err_mask = ata_dev_init_params(ap, dev);
+			if (err_mask) {
+				printk(KERN_ERR "ata%u: failed to init "
+				       "parameters, disabled\n", ap->id);
+				goto err_out;
+			}
 
 			/* current CHS translation info (id[53-58]) might be
 			 * changed. reread the identify device info.
@@ -2530,17 +2536,23 @@ err_out:
  *	@dev: Device to which command will be sent
  *
  *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, AC_ERR_* mask otherwise.
  */
 
-static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
+static unsigned int ata_dev_init_params(struct ata_port *ap,
+					struct ata_device *dev)
 {
 	struct ata_taskfile tf;
+	unsigned int err_mask;
 	u16 sectors = dev->id[6];
 	u16 heads   = dev->id[3];
 
 	/* Number of sectors per track 1-255. Number of heads 1-16 */
 	if (sectors < 1 || sectors > 255 || heads < 1 || heads > 16)
-		return;
+		return 0;
 
 	/* set up init dev params taskfile */
 	DPRINTK("init dev params \n");
@@ -2552,13 +2564,10 @@ static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
 	tf.nsect = sectors;
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
-	if (ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0)) {
-		printk(KERN_ERR "ata%u: failed to init parameters, disabled\n",
-		       ap->id);
-		ata_port_disable(ap);
-	}
+	err_mask = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
 
-	DPRINTK("EXIT\n");
+	DPRINTK("EXIT, err_mask=%x\n", err_mask);
+	return err_mask;
 }
 
 /**
