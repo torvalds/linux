@@ -581,18 +581,23 @@ static int __init pci_intmap_match(struct pci_dev *pdev, unsigned int *interrupt
 		int plen;
 
 		bus_dev = pdev->bus->self;
+		bus_pcp = bus_dev->sysdata;
 		regs_dev = pdev;
+		regs_pcp = regs_dev->sysdata;
 
 		while (bus_dev->bus &&
-		       bus_dev->bus->number != pbm->pci_first_busno) {
+		       bus_dev->bus->number != pbm->pci_first_busno &&
+		       prom_getproplen(bus_pcp->prom_node,
+				       "interrupt-map") <= 0) {
 			regs_dev = bus_dev;
+			regs_pcp = regs_dev->sysdata;
+
 			bus_dev = bus_dev->bus->self;
+			bus_pcp = bus_dev->sysdata;
 		}
 
-		regs_pcp = regs_dev->sysdata;
 		pregs = regs_pcp->prom_regs;
 
-		bus_pcp = bus_dev->sysdata;
 
 		/* But if the PCI bridge has it's own interrupt map
 		 * and mask properties, use that and the regs of the
@@ -615,6 +620,8 @@ static int __init pci_intmap_match(struct pci_dev *pdev, unsigned int *interrupt
 				printk("pci_intmap_match: Trying to recover.\n");
 				return 0;
 			}
+
+			intmask = &bridge_local_intmask;
 
 			if (pdev->bus->self != bus_dev)
 				map_slot = 1;
