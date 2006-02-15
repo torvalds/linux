@@ -7831,7 +7831,8 @@ static void ipw_rx(struct ipw_priv *priv)
 					    le16_to_cpu(pkt->u.frame.rssi_dbm) -
 					    IPW_RSSI_TO_DBM,
 					.signal =
-					    le16_to_cpu(pkt->u.frame.signal),
+					    le16_to_cpu(pkt->u.frame.rssi_dbm) -
+					    IPW_RSSI_TO_DBM + 0x100,
 					.noise =
 					    le16_to_cpu(pkt->u.frame.noise),
 					.rate = pkt->u.frame.rate,
@@ -8358,7 +8359,7 @@ static int ipw_wx_get_range(struct net_device *dev,
 	range->max_qual.qual = 100;
 	/* TODO: Find real max RSSI and stick here */
 	range->max_qual.level = 0;
-	range->max_qual.noise = priv->ieee->worst_rssi + 0x100;
+	range->max_qual.noise = 0;
 	range->max_qual.updated = 7;	/* Updated all three */
 
 	range->avg_qual.qual = 70;
@@ -9568,7 +9569,7 @@ static struct iw_statistics *ipw_get_wireless_stats(struct net_device *dev)
 	wstats->qual.level = average_value(&priv->average_rssi);
 	wstats->qual.noise = average_value(&priv->average_noise);
 	wstats->qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED |
-	    IW_QUAL_NOISE_UPDATED;
+	    IW_QUAL_NOISE_UPDATED | IW_QUAL_DBM;
 
 	wstats->miss.beacon = average_value(&priv->average_missed_beacons);
 	wstats->discard.retries = priv->last_tx_failures;
