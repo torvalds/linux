@@ -78,7 +78,7 @@ void smp_bogo(struct seq_file *m)
 
 void __init smp_store_cpu_info(int id)
 {
-	int cpu_node;
+	int cpu_node, def;
 
 	/* multiplier and counter set by
 	   smp_setup_percpu_timer()  */
@@ -90,18 +90,32 @@ void __init smp_store_cpu_info(int id)
 
 	cpu_data(id).idle_volume		= 1;
 
+	def = ((tlb_type == hypervisor) ? (8 * 1024) : (16 * 1024));
 	cpu_data(id).dcache_size = prom_getintdefault(cpu_node, "dcache-size",
-						      16 * 1024);
+						      def);
+
+	def = 32;
 	cpu_data(id).dcache_line_size =
-		prom_getintdefault(cpu_node, "dcache-line-size", 32);
+		prom_getintdefault(cpu_node, "dcache-line-size", def);
+
+	def = 16 * 1024;
 	cpu_data(id).icache_size = prom_getintdefault(cpu_node, "icache-size",
-						      16 * 1024);
+						      def);
+
+	def = 32;
 	cpu_data(id).icache_line_size =
-		prom_getintdefault(cpu_node, "icache-line-size", 32);
+		prom_getintdefault(cpu_node, "icache-line-size", def);
+
+	def = ((tlb_type == hypervisor) ?
+	       (3 * 1024 * 1024) :
+	       (4 * 1024 * 1024));
 	cpu_data(id).ecache_size = prom_getintdefault(cpu_node, "ecache-size",
-						      4 * 1024 * 1024);
+						      def);
+
+	def = 64;
 	cpu_data(id).ecache_line_size =
-		prom_getintdefault(cpu_node, "ecache-line-size", 64);
+		prom_getintdefault(cpu_node, "ecache-line-size", def);
+
 	printk("CPU[%d]: Caches "
 	       "D[sz(%d):line_sz(%d)] "
 	       "I[sz(%d):line_sz(%d)] "

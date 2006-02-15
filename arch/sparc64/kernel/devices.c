@@ -200,7 +200,8 @@ void __init device_scan(void)
 
 #ifndef CONFIG_SMP
 	{
-		int err, cpu_node;
+		int err, cpu_node, def;
+
 		err = cpu_find_by_instance(0, &cpu_node, NULL);
 		if (err) {
 			prom_printf("No cpu nodes, cannot continue\n");
@@ -209,21 +210,40 @@ void __init device_scan(void)
 		cpu_data(0).clock_tick = prom_getintdefault(cpu_node,
 							    "clock-frequency",
 							    0);
+
+		def = ((tlb_type == hypervisor) ?
+		       (8 * 1024) :
+		       (16 * 1024));
 		cpu_data(0).dcache_size = prom_getintdefault(cpu_node,
 							     "dcache-size",
-							     16 * 1024);
+							     def);
+
+		def = 32;
 		cpu_data(0).dcache_line_size =
-			prom_getintdefault(cpu_node, "dcache-line-size", 32);
+			prom_getintdefault(cpu_node, "dcache-line-size",
+					   def);
+
+		def = 16 * 1024;
 		cpu_data(0).icache_size = prom_getintdefault(cpu_node,
 							     "icache-size",
-							     16 * 1024);
+							     def);
+
+		def = 32;
 		cpu_data(0).icache_line_size =
-			prom_getintdefault(cpu_node, "icache-line-size", 32);
+			prom_getintdefault(cpu_node, "icache-line-size",
+					   def);
+
+		def = ((tlb_type == hypervisor) ?
+		       (3 * 1024 * 1024) :
+		       (4 * 1024 * 1024));
 		cpu_data(0).ecache_size = prom_getintdefault(cpu_node,
 							     "ecache-size",
-							     4 * 1024 * 1024);
+							     def);
+
+		def = 64;
 		cpu_data(0).ecache_line_size =
-			prom_getintdefault(cpu_node, "ecache-line-size", 64);
+			prom_getintdefault(cpu_node, "ecache-line-size",
+					   def);
 		printk("CPU[0]: Caches "
 		       "D[sz(%d):line_sz(%d)] "
 		       "I[sz(%d):line_sz(%d)] "
