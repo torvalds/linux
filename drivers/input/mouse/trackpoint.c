@@ -68,15 +68,19 @@ struct trackpoint_attr_data {
 	size_t field_offset;
 	unsigned char command;
 	unsigned char mask;
+	unsigned char inverted;
 };
 
 static ssize_t trackpoint_show_int_attr(struct psmouse *psmouse, void *data, char *buf)
 {
 	struct trackpoint_data *tp = psmouse->private;
 	struct trackpoint_attr_data *attr = data;
-	unsigned char *field = (unsigned char *)((char *)tp + attr->field_offset);
+	unsigned char value = *(unsigned char *)((char *)tp + attr->field_offset);
 
-	return sprintf(buf, "%u\n", *field);
+	if (attr->inverted)
+		value = !value;
+
+	return sprintf(buf, "%u\n", value);
 }
 
 static ssize_t trackpoint_set_int_attr(struct psmouse *psmouse, void *data,
@@ -120,6 +124,9 @@ static ssize_t trackpoint_set_bit_attr(struct psmouse *psmouse, void *data,
 	if (*rest || value > 1)
 		return -EINVAL;
 
+	if (attr->inverted)
+		value = !value;
+
 	if (*field != value) {
 		*field = value;
 		trackpoint_toggle_bit(&psmouse->ps2dev, attr->command, attr->mask);
@@ -129,11 +136,12 @@ static ssize_t trackpoint_set_bit_attr(struct psmouse *psmouse, void *data,
 }
 
 
-#define TRACKPOINT_BIT_ATTR(_name, _command, _mask)				\
+#define TRACKPOINT_BIT_ATTR(_name, _command, _mask, _inv)				\
 	static struct trackpoint_attr_data trackpoint_attr_##_name = {		\
 		.field_offset	= offsetof(struct trackpoint_data, _name),	\
 		.command	= _command,					\
 		.mask		= _mask,					\
+		.inverted	= _inv,						\
 	};									\
 	PSMOUSE_DEFINE_ATTR(_name, S_IWUSR | S_IRUGO,				\
 			    &trackpoint_attr_##_name,				\
@@ -150,9 +158,9 @@ TRACKPOINT_INT_ATTR(upthresh, TP_UP_THRESH);
 TRACKPOINT_INT_ATTR(ztime, TP_Z_TIME);
 TRACKPOINT_INT_ATTR(jenks, TP_JENKS_CURV);
 
-TRACKPOINT_BIT_ATTR(press_to_select, TP_TOGGLE_PTSON, TP_MASK_PTSON);
-TRACKPOINT_BIT_ATTR(skipback, TP_TOGGLE_SKIPBACK, TP_MASK_SKIPBACK);
-TRACKPOINT_BIT_ATTR(ext_dev, TP_TOGGLE_EXT_DEV, TP_MASK_EXT_DEV);
+TRACKPOINT_BIT_ATTR(press_to_select, TP_TOGGLE_PTSON, TP_MASK_PTSON, 0);
+TRACKPOINT_BIT_ATTR(skipback, TP_TOGGLE_SKIPBACK, TP_MASK_SKIPBACK, 0);
+TRACKPOINT_BIT_ATTR(ext_dev, TP_TOGGLE_EXT_DEV, TP_MASK_EXT_DEV, 1);
 
 static struct attribute *trackpoint_attrs[] = {
 	&psmouse_attr_sensitivity.dattr.attr,
