@@ -220,14 +220,14 @@ static int stuffed_readpage(struct gfs2_inode *ip, struct page *page)
 	if (error)
 		return error;
 
-	kaddr = kmap(page);
+	kaddr = kmap_atomic(page, KM_USER0);
 	memcpy((char *)kaddr,
 	       dibh->b_data + sizeof(struct gfs2_dinode),
 	       ip->i_di.di_size);
 	memset((char *)kaddr + ip->i_di.di_size,
 	       0,
 	       PAGE_CACHE_SIZE - ip->i_di.di_size);
-	kunmap(page);
+	kunmap_atomic(page, KM_USER0);
 
 	brelse(dibh);
 
@@ -240,9 +240,9 @@ static int zero_readpage(struct page *page)
 {
 	void *kaddr;
 
-	kaddr = kmap(page);
+	kaddr = kmap_atomic(page, KM_USER0);
 	memset(kaddr, 0, PAGE_CACHE_SIZE);
-	kunmap(page);
+	kunmap_atomic(page, KM_USER0);
 
 	SetPageUptodate(page);
 	unlock_page(page);
@@ -364,14 +364,14 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	if (gfs2_is_stuffed(ip)) {
 		if (end > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)) {
 			error = gfs2_unstuff_dinode(ip, gfs2_unstuffer_page, page);
-			if (error)
-				goto out;
-		} else if (!PageUptodate(page)) {
+			if (error == 0)
+				goto prepare_write;
+		} else if (!PageUptodate(page))
 			error = stuffed_readpage(ip, page);
-			goto out;
-		}
+		goto out;
 	}
 
+prepare_write:
 	error = block_prepare_write(page, from, to, gfs2_get_block);
 
 out:
