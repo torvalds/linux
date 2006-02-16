@@ -143,7 +143,6 @@ void enable_irq(unsigned int irq)
 {
 	struct ino_bucket *bucket = __bucket(irq);
 	unsigned long imap;
-	unsigned long tid;
 
 	imap = bucket->imap;
 	if (imap == 0UL)
@@ -169,6 +168,8 @@ void enable_irq(unsigned int irq)
 			printk("sun4v_intr_setstate(%x): "
 			       "err(%d)\n", ino, err);
 	} else {
+		unsigned long tid;
+
 		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 			unsigned long ver;
 
@@ -342,9 +343,12 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsign
 	/* Catch accidental accesses to these things.  IMAP/ICLR handling
 	 * is done by hypervisor calls on sun4v platforms, not by direct
 	 * register accesses.
+	 *
+	 * But we need to make them look unique for the disable_irq() logic
+	 * in free_irq().
 	 */
-	bucket->imap = ~0UL;
-	bucket->iclr = ~0UL;
+	bucket->imap = ~0UL - sysino;
+	bucket->iclr = ~0UL - sysino;
 
 	bucket->pil = pil;
 	bucket->flags = flags;
@@ -547,7 +551,6 @@ void free_irq(unsigned int irq, void *dev_id)
 	bucket = __bucket(irq);
 	if (bucket != &pil0_dummy_bucket) {
 		struct irq_desc *desc = bucket->irq_info;
-		unsigned long imap = bucket->imap;
 		int ent, i;
 
 		for (i = 0; i < MAX_IRQ_DESC_ACTION; i++) {
@@ -560,6 +563,8 @@ void free_irq(unsigned int irq, void *dev_id)
 		}
 
 		if (!desc->action_active_mask) {
+			unsigned long imap = bucket->imap;
+
 			/* This unique interrupt source is now inactive. */
 			bucket->flags &= ~IBF_ACTIVE;
 
@@ -803,7 +808,6 @@ EXPORT_SYMBOL(probe_irq_off);
 static int retarget_one_irq(struct irqaction *p, int goal_cpu)
 {
 	struct ino_bucket *bucket = get_ino_in_irqaction(p) + ivector_table;
-	unsigned long imap = bucket->imap;
 
 	while (!cpu_online(goal_cpu)) {
 		if (++goal_cpu >= NR_CPUS)
@@ -816,6 +820,7 @@ static int retarget_one_irq(struct irqaction *p, int goal_cpu)
 		sun4v_intr_settarget(ino, goal_cpu);
 		sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
 	} else {
+		unsigned long imap = bucket->imap;
 		unsigned int tid;
 
 		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
