@@ -250,7 +250,6 @@ struct azx_dev {
 	unsigned int fragsize;		/* size of each period in bytes */
 	unsigned int frags;		/* number for period in the play buffer */
 	unsigned int fifo_size;		/* FIFO size */
-	unsigned int last_pos;		/* last updated period position */
 
 	void __iomem *sd_addr;		/* stream descriptor pointer */
 
@@ -261,10 +260,11 @@ struct azx_dev {
 	unsigned int format_val;	/* format value to be set in the controller and the codec */
 	unsigned char stream_tag;	/* assigned stream */
 	unsigned char index;		/* stream index */
+	/* for sanity check of position buffer */
+	unsigned int period_intr;
 
 	unsigned int opened: 1;
 	unsigned int running: 1;
-	unsigned int period_updating: 1;
 };
 
 /* CORB/RIRB */
@@ -804,11 +804,10 @@ static irqreturn_t azx_interrupt(int irq, void* dev_id, struct pt_regs *regs)
 		if (status & azx_dev->sd_int_sta_mask) {
 			azx_sd_writeb(azx_dev, SD_STS, SD_INT_MASK);
 			if (azx_dev->substream && azx_dev->running) {
-				azx_dev->period_updating = 1;
+				azx_dev->period_intr++;
 				spin_unlock(&chip->reg_lock);
 				snd_pcm_period_elapsed(azx_dev->substream);
 				spin_lock(&chip->reg_lock);
-				azx_dev->period_updating = 0;
 			}
 		}
 	}
@@ -1119,7 +1118,6 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 		azx_dev->fifo_size = azx_sd_readw(azx_dev, SD_FIFOSIZE) + 1;
 	else
 		azx_dev->fifo_size = 0;
-	azx_dev->last_pos = 0;
 
 	return hinfo->ops.prepare(hinfo, apcm->codec, azx_dev->stream_tag,
 				  azx_dev->format_val, substream);
@@ -1167,10 +1165,20 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	unsigned int pos;
 
-	if (chip->position_fix == POS_FIX_POSBUF) {
+	if (chip->position_fix == POS_FIX_POSBUF ||
+	    chip->position_fix == POS_FIX_AUTO) {
 		/* use the position buffer */
 		pos = *azx_dev->posbuf;
+		if (chip->position_fix == POS_FIX_AUTO &&
+		    azx_dev->period_intr == 1 && ! pos) {
+			printk(KERN_WARNING
+			       "hda-intel: Invalid position buffer, "
+			       "using LPIB read method instead.\n");
+			chip->position_fix = POS_FIX_NONE;
+			goto read_lpib;
+		}
 	} else {
+	read_lpib:
 		/* read LPIB */
 		pos = azx_sd_readl(azx_dev, SD_LPIB);
 		if (chip->position_fix == POS_FIX_FIFO)
@@ -1441,7 +1449,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->irq = -1;
 	chip->driver_type = driver_type;
 
-	chip->position_fix = position_fix ? position_fix : POS_FIX_POSBUF;
+	chip->position_fix = position_fix;
 	chip->single_cmd = single_cmd;
 
 #if BITS_PER_LONG != 64
