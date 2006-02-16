@@ -356,6 +356,7 @@ fitos_emul_fini:
 	.globl		do_fptrap
 	.align		32
 do_fptrap:
+	TRAP_LOAD_THREAD_REG(%g6, %g1)
 	stx		%fsr, [%g6 + TI_XFSR]
 do_fptrap_after_fsr:
 	ldub		[%g6 + TI_FPSAVED], %g3
