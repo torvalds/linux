@@ -58,7 +58,7 @@ void flush_tsb_user(struct mmu_gather *mp)
 
 	ctx = CTX_HWBITS(mm->context);
 
-	if (tlb_type == cheetah_plus)
+	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
 		base = __pa(tsb);
 	else
 		base = (unsigned long) tsb;
