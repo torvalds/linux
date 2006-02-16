@@ -160,11 +160,17 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		f->val = rule->values[i];
 
 		entry->rule.vers_ops = (f->op & AUDIT_OPERATORS) ? 2 : 1;
+
+		/* Support for legacy operators where
+		 * AUDIT_NEGATE bit signifies != and otherwise assumes == */
 		if (f->op & AUDIT_NEGATE)
-			f->op |= AUDIT_NOT_EQUAL;
-		else if (!(f->op & AUDIT_OPERATORS))
-			f->op |= AUDIT_EQUAL;
-		f->op &= ~AUDIT_NEGATE;
+			f->op = AUDIT_NOT_EQUAL;
+		else if (!f->op)
+			f->op = AUDIT_EQUAL;
+		else if (f->op == AUDIT_OPERATORS) {
+			err = -EINVAL;
+			goto exit_free;
+		}
 	}
 
 exit_nofree:
@@ -533,9 +539,9 @@ int audit_comparator(const u32 left, const u32 op, const u32 right)
 		return (left > right);
 	case AUDIT_GREATER_THAN_OR_EQUAL:
 		return (left >= right);
-	default:
-		return -EINVAL;
 	}
+	BUG();
+	return 0;
 }
 
 
