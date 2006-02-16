@@ -102,6 +102,7 @@ static void *pci_4v_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr
 	first_page = __get_free_pages(GFP_ATOMIC, order);
 	if (first_page == 0UL)
 		return NULL;
+
 	memset((char *)first_page, 0, PAGE_SIZE << order);
 
 	pcp = pdev->sysdata;
@@ -805,11 +806,11 @@ static void pbm_register_toplevel_resources(struct pci_controller_info *p,
 				    &pbm->mem_space);
 }
 
-static void probe_existing_entries(struct pci_pbm_info *pbm,
-				   struct pci_iommu *iommu)
+static unsigned long probe_existing_entries(struct pci_pbm_info *pbm,
+					    struct pci_iommu *iommu)
 {
 	struct pci_iommu_arena *arena = &iommu->arena;
-	unsigned long i;
+	unsigned long i, cnt = 0;
 	u32 devhandle;
 
 	devhandle = pbm->devhandle;
@@ -819,9 +820,13 @@ static void probe_existing_entries(struct pci_pbm_info *pbm,
 		ret = pci_sun4v_iommu_getmap(devhandle,
 					     HV_PCI_TSBID(0, i),
 					     &io_attrs, &ra);
-		if (ret == HV_EOK)
+		if (ret == HV_EOK) {
+			cnt++;
 			__set_bit(i, arena->map);
+		}
 	}
+
+	return cnt;
 }
 
 static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
@@ -853,13 +858,15 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 
 		case 0x80000000:
 			dma_mask |= 0x7fffffff;
-			tsbsize = 128;
+			tsbsize = 256;
 			break;
 
 		default:
 			prom_printf("PCI-SUN4V: strange virtual-dma size.\n");
 			prom_halt();
 	};
+
+	tsbsize *= (8 * 1024);
 
 	num_tsb_entries = tsbsize / sizeof(iopte_t);
 
@@ -882,7 +889,10 @@ static void pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	memset(iommu->arena.map, 0, sz);
 	iommu->arena.limit = num_tsb_entries;
 
-	probe_existing_entries(pbm, iommu);
+	sz = probe_existing_entries(pbm, iommu);
+
+	printk("%s: TSB entries [%lu], existing mapings [%lu]\n",
+	       pbm->name, num_tsb_entries, sz);
 }
 
 static void pci_sun4v_get_bus_range(struct pci_pbm_info *pbm)
