@@ -7978,7 +7978,14 @@ static void ipw_rx(struct ipw_priv *priv)
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
-static int ipw_sw_reset(struct ipw_priv *priv, int init)
+/**
+ * ipw_sw_reset
+ * @option: options to control different reset behaviour
+ * 	    0 = reset everything except the 'disable' module_param
+ * 	    1 = reset everything and print out driver info (for probe only)
+ * 	    2 = reset everything
+ */
+static int ipw_sw_reset(struct ipw_priv *priv, int option)
 {
 	int band, modulation;
 	int old_mode = priv->ieee->iw_mode;
@@ -8005,7 +8012,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 	priv->essid_len = 0;
 	memset(priv->essid, 0, IW_ESSID_MAX_SIZE);
 
-	if (disable) {
+	if (disable && option) {
 		priv->status |= STATUS_RF_KILL_SW;
 		IPW_DEBUG_INFO("Radio disabled.\n");
 	}
@@ -8057,7 +8064,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 
 	if ((priv->pci_dev->device == 0x4223) ||
 	    (priv->pci_dev->device == 0x4224)) {
-		if (init)
+		if (option == 2)
 			printk(KERN_INFO DRV_NAME
 			       ": Detected Intel PRO/Wireless 2915ABG Network "
 			       "Connection\n");
@@ -8068,7 +8075,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 		priv->adapter = IPW_2915ABG;
 		priv->ieee->mode = IEEE_A | IEEE_G | IEEE_B;
 	} else {
-		if (init)
+		if (option == 2)
 			printk(KERN_INFO DRV_NAME
 			       ": Detected Intel PRO/Wireless 2200BG Network "
 			       "Connection\n");
@@ -9380,7 +9387,7 @@ static int ipw_wx_sw_reset(struct net_device *dev,
 
 	mutex_lock(&priv->mutex);
 
-	ret = ipw_sw_reset(priv, 0);
+	ret = ipw_sw_reset(priv, 2);
 	if (!ret) {
 		free_firmware();
 		ipw_adapter_restart(priv);
