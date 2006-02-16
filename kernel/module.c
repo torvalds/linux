@@ -429,7 +429,6 @@ static inline void percpu_modcopy(void *pcpudst, const void *src,
 }
 #endif /* CONFIG_SMP */
 
-#ifdef CONFIG_MODULE_UNLOAD
 #define MODINFO_ATTR(field)	\
 static void setup_modinfo_##field(struct module *mod, const char *s)  \
 {                                                                     \
@@ -461,12 +460,7 @@ static struct module_attribute modinfo_##field = {                    \
 MODINFO_ATTR(version);
 MODINFO_ATTR(srcversion);
 
-static struct module_attribute *modinfo_attrs[] = {
-	&modinfo_version,
-	&modinfo_srcversion,
-	NULL,
-};
-
+#ifdef CONFIG_MODULE_UNLOAD
 /* Init the unload section of the module. */
 static void module_unload_init(struct module *mod)
 {
@@ -780,6 +774,15 @@ static inline void module_unload_init(struct module *mod)
 {
 }
 #endif /* CONFIG_MODULE_UNLOAD */
+
+static struct module_attribute *modinfo_attrs[] = {
+	&modinfo_version,
+	&modinfo_srcversion,
+#ifdef CONFIG_MODULE_UNLOAD
+	&refcnt,
+#endif
+	NULL,
+};
 
 #ifdef CONFIG_OBSOLETE_MODPARM
 /* Bounds checking done below */
@@ -1106,37 +1109,28 @@ static inline void remove_sect_attrs(struct module *mod)
 }
 #endif /* CONFIG_KALLSYMS */
 
-
-#ifdef CONFIG_MODULE_UNLOAD
-static inline int module_add_refcnt_attr(struct module *mod)
-{
-	return sysfs_create_file(&mod->mkobj.kobj, &refcnt.attr);
-}
-static void module_remove_refcnt_attr(struct module *mod)
-{
-	return sysfs_remove_file(&mod->mkobj.kobj, &refcnt.attr);
-}
-#else
-static inline int module_add_refcnt_attr(struct module *mod)
-{
-	return 0;
-}
-static void module_remove_refcnt_attr(struct module *mod)
-{
-}
-#endif
-
-#ifdef CONFIG_MODULE_UNLOAD
 static int module_add_modinfo_attrs(struct module *mod)
 {
 	struct module_attribute *attr;
+	struct module_attribute *temp_attr;
 	int error = 0;
 	int i;
 
+	mod->modinfo_attrs = kzalloc((sizeof(struct module_attribute) *
+					(ARRAY_SIZE(modinfo_attrs) + 1)),
+					GFP_KERNEL);
+	if (!mod->modinfo_attrs)
+		return -ENOMEM;
+
+	temp_attr = mod->modinfo_attrs;
 	for (i = 0; (attr = modinfo_attrs[i]) && !error; i++) {
 		if (!attr->test ||
-		    (attr->test && attr->test(mod)))
-			error = sysfs_create_file(&mod->mkobj.kobj,&attr->attr);
+		    (attr->test && attr->test(mod))) {
+			memcpy(temp_attr, attr, sizeof(*temp_attr));
+			temp_attr->attr.owner = mod;
+			error = sysfs_create_file(&mod->mkobj.kobj,&temp_attr->attr);
+			++temp_attr;
+		}
 	}
 	return error;
 }
@@ -1146,12 +1140,16 @@ static void module_remove_modinfo_attrs(struct module *mod)
 	struct module_attribute *attr;
 	int i;
 
-	for (i = 0; (attr = modinfo_attrs[i]); i++) {
+	for (i = 0; (attr = &mod->modinfo_attrs[i]); i++) {
+		/* pick a field to test for end of list */
+		if (!attr->attr.name)
+			break;
 		sysfs_remove_file(&mod->mkobj.kobj,&attr->attr);
-		attr->free(mod);
+		if (attr->free)
+			attr->free(mod);
 	}
+	kfree(mod->modinfo_attrs);
 }
-#endif
 
 static int mod_sysfs_setup(struct module *mod,
 			   struct kernel_param *kparam,
@@ -1169,19 +1167,13 @@ static int mod_sysfs_setup(struct module *mod,
 	if (err)
 		goto out;
 
-	err = module_add_refcnt_attr(mod);
-	if (err)
-		goto out_unreg;
-
 	err = module_param_sysfs_setup(mod, kparam, num_params);
 	if (err)
 		goto out_unreg;
 
-#ifdef CONFIG_MODULE_UNLOAD
 	err = module_add_modinfo_attrs(mod);
 	if (err)
 		goto out_unreg;
-#endif
 
 	return 0;
 
@@ -1193,10 +1185,7 @@ out:
 
 static void mod_kobject_remove(struct module *mod)
 {
-#ifdef CONFIG_MODULE_UNLOAD
 	module_remove_modinfo_attrs(mod);
-#endif
-	module_remove_refcnt_attr(mod);
 	module_param_sysfs_remove(mod);
 
 	kobject_unregister(&mod->mkobj.kobj);
@@ -1474,7 +1463,6 @@ static char *get_modinfo(Elf_Shdr *sechdrs,
 	return NULL;
 }
 
-#ifdef CONFIG_MODULE_UNLOAD
 static void setup_modinfo(struct module *mod, Elf_Shdr *sechdrs,
 			  unsigned int infoindex)
 {
@@ -1489,7 +1477,6 @@ static void setup_modinfo(struct module *mod, Elf_Shdr *sechdrs,
 						attr->attr.name));
 	}
 }
-#endif
 
 #ifdef CONFIG_KALLSYMS
 int is_exported(const char *name, const struct module *mod)
@@ -1803,10 +1790,8 @@ static struct module *load_module(void __user *umod,
 	if (strcmp(mod->name, "driverloader") == 0)
 		add_taint(TAINT_PROPRIETARY_MODULE);
 
-#ifdef CONFIG_MODULE_UNLOAD
 	/* Set up MODINFO_ATTR fields */
 	setup_modinfo(mod, sechdrs, infoindex);
-#endif
 
 	/* Fix up syms, so that st_value is a pointer to location. */
 	err = simplify_symbols(sechdrs, symindex, strtab, versindex, pcpuindex,

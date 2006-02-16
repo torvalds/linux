@@ -245,6 +245,7 @@ struct module
 	/* Sysfs stuff. */
 	struct module_kobject mkobj;
 	struct module_param_attrs *param_attrs;
+	struct module_attribute *modinfo_attrs;
 	const char *version;
 	const char *srcversion;
 
