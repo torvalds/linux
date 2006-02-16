@@ -57,7 +57,7 @@ sun4v_itlb_miss:
 	COMPUTE_TSB_PTR(%g1, %g4, %g3, %g7)
 
 	/* Load TSB tag/pte into %g2/%g3 and compare the tag.  */
-	ldda	[%g1] ASI_QUAD_LDD_PHYS, %g2
+	ldda	[%g1] ASI_QUAD_LDD_PHYS_4V, %g2
 	cmp	%g2, %g6
 	sethi	%hi(PAGE_EXEC), %g7
 	ldx	[%g7 + %lo(PAGE_EXEC)], %g7
@@ -104,7 +104,7 @@ sun4v_dtlb_miss:
 	COMPUTE_TSB_PTR(%g1, %g4, %g3, %g7)
 
 	/* Load TSB tag/pte into %g2/%g3 and compare the tag.  */
-	ldda	[%g1] ASI_QUAD_LDD_PHYS, %g2
+	ldda	[%g1] ASI_QUAD_LDD_PHYS_4V, %g2
 	cmp	%g2, %g6
 	bne,a,pn %xcc, tsb_miss_page_table_walk
 	 mov	FAULT_CODE_ITLB, %g3
