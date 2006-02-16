@@ -531,6 +531,12 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	bus->caddr_tbl[codec_addr] = codec;
 
 	codec->vendor_id = snd_hda_param_read(codec, AC_NODE_ROOT, AC_PAR_VENDOR_ID);
+	if (codec->vendor_id == -1)
+		/* read again, hopefully the access method was corrected
+		 * in the last read...
+		 */
+		codec->vendor_id = snd_hda_param_read(codec, AC_NODE_ROOT,
+						      AC_PAR_VENDOR_ID);
 	codec->subsystem_id = snd_hda_param_read(codec, AC_NODE_ROOT, AC_PAR_SUBSYSTEM_ID);
 	codec->revision_id = snd_hda_param_read(codec, AC_NODE_ROOT, AC_PAR_REV_ID);
 

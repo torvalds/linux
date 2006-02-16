@@ -446,8 +446,8 @@ static void azx_free_cmd_io(struct azx *chip)
 }
 
 /* send a command */
-static int azx_send_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
-			unsigned int verb, unsigned int para)
+static int azx_corb_send_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
+			     unsigned int verb, unsigned int para)
 {
 	struct azx *chip = codec->bus->private_data;
 	unsigned int wp;
@@ -503,18 +503,21 @@ static void azx_update_rirb(struct azx *chip)
 }
 
 /* receive a response */
-static unsigned int azx_get_response(struct hda_codec *codec)
+static unsigned int azx_rirb_get_response(struct hda_codec *codec)
 {
 	struct azx *chip = codec->bus->private_data;
 	int timeout = 50;
 
 	while (chip->rirb.cmds) {
 		if (! --timeout) {
-			if (printk_ratelimit())
-				snd_printk(KERN_ERR
-					"azx_get_response timeout\n");
+			snd_printk(KERN_ERR
+				   "hda_intel: azx_get_response timeout, "
+				   "switching to single_cmd mode...\n");
 			chip->rirb.rp = azx_readb(chip, RIRBWP);
 			chip->rirb.cmds = 0;
+			/* switch to single_cmd mode */
+			chip->single_cmd = 1;
+			azx_free_cmd_io(chip);
 			return -1;
 		}
 		msleep(1);
@@ -577,6 +580,36 @@ static unsigned int azx_single_get_response(struct hda_codec *codec)
 	snd_printd(SFX "get_response timeout: IRS=0x%x\n", azx_readw(chip, IRS));
 	return (unsigned int)-1;
 }
+
+/*
+ * The below are the main callbacks from hda_codec.
+ *
+ * They are just the skeleton to call sub-callbacks according to the
+ * current setting of chip->single_cmd.
+ */
+
+/* send a command */
+static int azx_send_cmd(struct hda_codec *codec, hda_nid_t nid,
+			int direct, unsigned int verb,
+			unsigned int para)
+{
+	struct azx *chip = codec->bus->private_data;
+	if (chip->single_cmd)
+		return azx_single_send_cmd(codec, nid, direct, verb, para);
+	else
+		return azx_corb_send_cmd(codec, nid, direct, verb, para);
+}
+
+/* get a response */
+static unsigned int azx_get_response(struct hda_codec *codec)
+{
+	struct azx *chip = codec->bus->private_data;
+	if (chip->single_cmd)
+		return azx_single_get_response(codec);
+	else
+		return azx_rirb_get_response(codec);
+}
+
 
 /* reset codec link */
 static int azx_reset(struct azx *chip)
@@ -900,13 +933,8 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 	bus_temp.private_data = chip;
 	bus_temp.modelname = model;
 	bus_temp.pci = chip->pci;
-	if (chip->single_cmd) {
-		bus_temp.ops.command = azx_single_send_cmd;
-		bus_temp.ops.get_response = azx_single_get_response;
-	} else {
-		bus_temp.ops.command = azx_send_cmd;
-		bus_temp.ops.get_response = azx_get_response;
-	}
+	bus_temp.ops.command = azx_send_cmd;
+	bus_temp.ops.get_response = azx_get_response;
 
 	if ((err = snd_hda_bus_new(chip->card, &bus_temp, &chip->bus)) < 0)
 		return err;
@@ -1308,8 +1336,7 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 	for (i = 0; i < chip->pcm_devs; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	snd_hda_suspend(chip->bus, state);
-	if (! chip->single_cmd)
-		azx_free_cmd_io(chip);
+	azx_free_cmd_io(chip);
 	pci_disable_device(pci);
 	pci_save_state(pci);
 	return 0;
@@ -1347,8 +1374,7 @@ static int azx_free(struct azx *chip)
 		azx_int_clear(chip);
 
 		/* disable CORB/RIRB */
-		if (! chip->single_cmd)
-			azx_free_cmd_io(chip);
+		azx_free_cmd_io(chip);
 
 		/* disable position buffer */
 		azx_writel(chip, DPLBASE, 0);
