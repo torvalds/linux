@@ -91,6 +91,8 @@ static struct tty_struct *receive_chars(struct uart_port *port, struct pt_regs *
 			break;
 
 		if (c == CON_BREAK) {
+			if (uart_handle_break(port))
+				continue;
 			saw_console_brk = 1;
 			c = 0;
 		}
