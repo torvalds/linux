@@ -188,6 +188,11 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 		rdpr	%tt, %g3
 		stx	%g3, [%g2 + STACK_BIAS + 0x38]
 
+		sethi	%hi(is_sun4v), %g3
+		lduw	[%g3 + %lo(is_sun4v)], %g3
+		brnz,pn	%g3, finish_tl1_capture
+		 nop
+
 		wrpr	%g0, 3, %tl
 		rdpr	%tstate, %g3
 		stx	%g3, [%g2 + STACK_BIAS + 0x40]
@@ -210,6 +215,7 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 
 		stx	%g1, [%g2 + STACK_BIAS + 0x80]
 
+finish_tl1_capture:
 		wrpr	%g0, 1, %tl
 661:		nop
 		.section .sun4v_1insn_patch, "ax"

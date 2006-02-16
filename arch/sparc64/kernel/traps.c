@@ -73,10 +73,12 @@ struct tl1_traplog {
 
 static void dump_tl1_traplog(struct tl1_traplog *p)
 {
-	int i;
+	int i, limit;
 
 	printk("TRAPLOG: Error at trap level 0x%lx, dumping track stack.\n",
 	       p->tl);
+
+	limit = (tlb_type == hypervisor) ? 2 : 4;
 	for (i = 0; i < 4; i++) {
 		printk(KERN_CRIT
 		       "TRAPLOG: Trap level %d TSTATE[%016lx] TPC[%016lx] "
