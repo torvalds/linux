@@ -35,7 +35,7 @@ void mpc83xx_restart(char *cmd)
 	out_be32(reg + (RST_PROT_REG >> 2), 0x52535445);
 
 	/* set software hard reset */
-	out_be32(reg + (RST_CTRL_REG >> 2), 0x52535445);
+	out_be32(reg + (RST_CTRL_REG >> 2), 0x2);
 	for (;;) ;
 }
 
