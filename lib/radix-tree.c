@@ -752,12 +752,14 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 	 */
 	nr_cleared_tags = 0;
 	for (tag = 0; tag < RADIX_TREE_TAGS; tag++) {
+		tags[tag] = 1;
 		if (tag_get(pathp->node, tag, pathp->offset)) {
 			tag_clear(pathp->node, tag, pathp->offset);
-			tags[tag] = 0;
-			nr_cleared_tags++;
-		} else
-			tags[tag] = 1;
+			if (!any_tag_set(pathp->node, tag)) {
+				tags[tag] = 0;
+				nr_cleared_tags++;
+			}
+		}
 	}
 
 	for (pathp--; nr_cleared_tags && pathp->node; pathp--) {
