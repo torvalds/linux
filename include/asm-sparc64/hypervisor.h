@@ -301,6 +301,12 @@
 #define  HV_CPU_QUEUE_RES_ERROR		 0x3e
 #define  HV_CPU_QUEUE_NONRES_ERROR	 0x3f
 
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_cpu_qconf(unsigned long type,
+				     unsigned long queue_paddr,
+				     unsigned long num_queue_entries);
+#endif
+
 /* cpu_qinfo()
  * TRAP:	HV_FAST_TRAP
  * FUNCTION:	HV_FAST_CPU_QINFO

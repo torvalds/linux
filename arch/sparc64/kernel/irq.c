@@ -939,25 +939,13 @@ void init_irqwork_curcpu(void)
 
 static void __cpuinit register_one_mondo(unsigned long paddr, unsigned long type)
 {
-	register unsigned long func __asm__("%o5");
-	register unsigned long arg0 __asm__("%o0");
-	register unsigned long arg1 __asm__("%o1");
-	register unsigned long arg2 __asm__("%o2");
+	unsigned long num_entries = 128;
+	unsigned long status;
 
-	func = HV_FAST_CPU_QCONF;
-	arg0 = type;
-	arg1 = paddr;
-	arg2 = 128; /* XXX Implied by Niagara queue offsets. XXX */
-	__asm__ __volatile__("ta	%8"
-			     : "=&r" (func), "=&r" (arg0),
-			       "=&r" (arg1), "=&r" (arg2)
-			     : "0" (func), "1" (arg0),
-			       "2" (arg1), "3" (arg2),
-			       "i" (HV_FAST_TRAP));
-
-	if (arg0 != HV_EOK) {
-		prom_printf("SUN4V: cpu_qconf(%lu) failed with error %lu\n",
-			    type, func);
+	status = sun4v_cpu_qconf(type, paddr, num_entries);
+	if (status != HV_EOK) {
+		prom_printf("SUN4V: sun4v_cpu_qconf(%lu:%lx:%lu) failed, "
+			    "err %lu\n", type, paddr, num_entries, status);
 		prom_halt();
 	}
 }

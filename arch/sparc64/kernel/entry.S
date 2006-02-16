@@ -1772,3 +1772,15 @@ sun4v_intr_settarget:
 	retl
 	 nop
 
+	/* %o0:	type
+	 * %o1:	queue paddr
+	 * %o2:	num queue entries
+	 *
+	 * returns %o0:	status
+	 */
+	.globl	sun4v_cpu_qconf
+sun4v_cpu_qconf:
+	mov	HV_FAST_CPU_QCONF, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
