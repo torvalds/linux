@@ -794,24 +794,21 @@ __init void prefill_possible_map(void)
 	int possible, disabled_cpus;
 
 	disabled_cpus = total_cpus - available_cpus;
+
  	if (additional_cpus == -1) {
- 		if (disabled_cpus > 0) {
- 			possible = total_cpus;
+ 		if (disabled_cpus > 0)
 			additional_cpus = disabled_cpus;
-		}
- 		else {
-			possible = available_cpus;
+ 		else
 			additional_cpus = 0;
-		}
- 	} else {
-		possible = available_cpus + additional_cpus;
-	}
+ 	}
+
+	possible = available_cpus + additional_cpus;
+
 	if (possible > NR_CPUS)
 		possible = NR_CPUS;
 
 	printk(KERN_INFO "SMP: Allowing %d CPUs, %d hotplug CPUs\n",
-		possible,
-	        max_t(int, additional_cpus, 0));
+		possible, max((possible - available_cpus), 0));
 
 	for (i = 0; i < possible; i++)
 		cpu_set(i, cpu_possible_map);
