@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 Dell Inc.
+ * Copyright (C) 2005-2006 Dell Inc.
  *	Released under GPL v2.
  *
  * Serial Attached SCSI (SAS) transport class.
@@ -38,7 +38,7 @@
 
 #define SAS_HOST_ATTRS		0
 #define SAS_PORT_ATTRS		17
-#define SAS_RPORT_ATTRS		5
+#define SAS_RPORT_ATTRS		7
 
 struct sas_internal {
 	struct scsi_transport_template t;
@@ -533,6 +533,53 @@ show_sas_rphy_device_type(struct class_device *cdev, char *buf)
 static SAS_CLASS_DEVICE_ATTR(rphy, device_type, S_IRUGO,
 		show_sas_rphy_device_type, NULL);
 
+static ssize_t
+show_sas_rphy_enclosure_identifier(struct class_device *cdev, char *buf)
+{
+	struct sas_rphy *rphy = transport_class_to_rphy(cdev);
+	struct sas_phy *phy = dev_to_phy(rphy->dev.parent);
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+	struct sas_internal *i = to_sas_internal(shost->transportt);
+	u64 identifier;
+	int error;
+
+	/*
+	 * Only devices behind an expander are supported, because the
+	 * enclosure identifier is a SMP feature.
+	 */
+	if (phy->local_attached)
+		return -EINVAL;
+
+	error = i->f->get_enclosure_identifier(rphy, &identifier);
+	if (error)
+		return error;
+	return sprintf(buf, "0x%llx\n", (unsigned long long)identifier);
+}
+
+static SAS_CLASS_DEVICE_ATTR(rphy, enclosure_identifier, S_IRUGO,
+		show_sas_rphy_enclosure_identifier, NULL);
+
+static ssize_t
+show_sas_rphy_bay_identifier(struct class_device *cdev, char *buf)
+{
+	struct sas_rphy *rphy = transport_class_to_rphy(cdev);
+	struct sas_phy *phy = dev_to_phy(rphy->dev.parent);
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+	struct sas_internal *i = to_sas_internal(shost->transportt);
+	int val;
+
+	if (phy->local_attached)
+		return -EINVAL;
+
+	val = i->f->get_bay_identifier(rphy);
+	if (val < 0)
+		return val;
+	return sprintf(buf, "%d\n", val);
+}
+
+static SAS_CLASS_DEVICE_ATTR(rphy, bay_identifier, S_IRUGO,
+		show_sas_rphy_bay_identifier, NULL);
+
 sas_rphy_protocol_attr(identify.initiator_port_protocols,
 		initiator_port_protocols);
 sas_rphy_protocol_attr(identify.target_port_protocols, target_port_protocols);
@@ -845,6 +892,8 @@ sas_attach_transport(struct sas_function_template *ft)
 	SETUP_RPORT_ATTRIBUTE(rphy_device_type);
 	SETUP_RPORT_ATTRIBUTE(rphy_sas_address);
 	SETUP_RPORT_ATTRIBUTE(rphy_phy_identifier);
+	SETUP_RPORT_ATTRIBUTE(rphy_enclosure_identifier);
+	SETUP_RPORT_ATTRIBUTE(rphy_bay_identifier);
 	i->rphy_attrs[count] = NULL;
 
 	return &i->t;
