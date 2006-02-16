@@ -136,8 +136,12 @@ static struct tty_struct *receive_chars(struct uart_port *port, struct pt_regs *
 
 static void transmit_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->info->xmit;
+	struct circ_buf *xmit;
 
+	if (!port->info)
+		return;
+
+	xmit = &port->info->xmit;
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
 		return;
 
@@ -452,8 +456,6 @@ static unsigned int __init get_interrupt(void)
 	return sun4v_vdev_device_interrupt(node);
 }
 
-static u32 sunhv_irq;
-
 static int __init sunhv_init(void)
 {
 	struct uart_port *port;
@@ -462,35 +464,33 @@ static int __init sunhv_init(void)
 	if (tlb_type != hypervisor)
 		return -ENODEV;
 
-	sunhv_irq = get_interrupt();
-	if (!sunhv_irq)
-		return -ENODEV;
-
 	port = kmalloc(sizeof(struct uart_port), GFP_KERNEL);
 	if (unlikely(!port))
 		return -ENOMEM;
+
+	memset(port, 0, sizeof(struct uart_port));
 
 	port->line = 0;
 	port->ops = &sunhv_pops;
 	port->type = PORT_SUNHV;
 	port->uartclk = ( 29491200 / 16 ); /* arbitrary */
 
-	if (request_irq(sunhv_irq, sunhv_interrupt,
-			SA_SHIRQ, "serial(sunhv)", port)) {
-		printk("sunhv: Cannot get IRQ %x\n", sunhv_irq);
+	/* Set this just to make uart_configure_port() happy.  */
+	port->membase = (unsigned char __iomem *) __pa(port);
+
+	port->irq = get_interrupt();
+	if (!port->irq) {
 		kfree(port);
 		return -ENODEV;
 	}
-
-	printk("SUNHV: SUN4V virtual console, IRQ %s\n",
-	       __irq_itoa(sunhv_irq));
 
 	sunhv_reg.minor = sunserial_current_minor;
 	sunhv_reg.nr = 1;
 
 	ret = uart_register_driver(&sunhv_reg);
 	if (ret < 0) {
-		free_irq(sunhv_irq, up);
+		printk(KERN_ERR "SUNHV: uart_register_driver() failed %d\n",
+		       ret);
 		kfree(port);
 
 		return ret;
@@ -502,7 +502,26 @@ static int __init sunhv_init(void)
 
 	sunhv_port = port;
 
-	uart_add_one_port(&sunhv_reg, port);
+	ret = uart_add_one_port(&sunhv_reg, port);
+	if (ret < 0) {
+		printk(KERN_ERR "SUNHV: uart_add_one_port() failed %d\n", ret);
+		sunserial_current_minor -= 1;
+		uart_unregister_driver(&sunhv_reg);
+		kfree(port);
+		sunhv_port = NULL;
+		return -ENODEV;
+	}
+
+	if (request_irq(port->irq, sunhv_interrupt,
+			SA_SHIRQ, "serial(sunhv)", port)) {
+		printk(KERN_ERR "sunhv: Cannot register IRQ\n");
+		uart_remove_one_port(&sunhv_reg, port);
+		sunserial_current_minor -= 1;
+		uart_unregister_driver(&sunhv_reg);
+		kfree(port);
+		sunhv_port = NULL;
+		return -ENODEV;
+	}
 
 	return 0;
 }
@@ -513,8 +532,9 @@ static void __exit sunhv_exit(void)
 
 	BUG_ON(!port);
 
+	free_irq(port->irq, port);
+
 	uart_remove_one_port(&sunhv_reg, port);
-	free_irq(sunhv_irq, port);
 	sunserial_current_minor -= 1;
 
 	uart_unregister_driver(&sunhv_reg);
