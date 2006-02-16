@@ -265,13 +265,19 @@ __tsb_context_switch:
 	mov	SCRATCHPAD_UTSBREG2, %g1
 	stxa	%g2, [%g1] ASI_SCRATCHPAD
 
+	/* Save away %o5's %pstate, we have to use %o5 for
+	 * the hypervisor call.
+	 */
+	mov	%o5, %g1
+
 	mov	HV_FAST_MMU_TSB_CTXNON0, %o5
 	mov	1, %o0
 	mov	%o4, %o1
 	ta	HV_FAST_TRAP
 
+	/* Finish up and restore %o5.  */
 	ba,pt	%xcc, 9f
-	 nop
+	 mov	%g1, %o5
 
 	/* SUN4U TSB switch.  */
 1:	mov	TSB_REG, %g1
