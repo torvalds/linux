@@ -208,6 +208,9 @@ static inline void __dlm_set_joining_node(struct dlm_ctxt *dlm,
 #define DLM_LOCK_RES_IN_PROGRESS          0x00000010
 #define DLM_LOCK_RES_MIGRATING            0x00000020
 
+/* max milliseconds to wait to sync up a network failure with a node death */
+#define DLM_NODE_DEATH_WAIT_MAX (5 * 1000)
+
 #define DLM_PURGE_INTERVAL_MS   (8 * 1000)
 
 struct dlm_lock_resource
@@ -658,6 +661,7 @@ int dlm_launch_recovery_thread(struct dlm_ctxt *dlm);
 void dlm_complete_recovery_thread(struct dlm_ctxt *dlm);
 void dlm_wait_for_recovery(struct dlm_ctxt *dlm);
 int dlm_is_node_dead(struct dlm_ctxt *dlm, u8 node);
+int dlm_wait_for_node_death(struct dlm_ctxt *dlm, u8 node, int timeout);
 
 void dlm_put(struct dlm_ctxt *dlm);
 struct dlm_ctxt *dlm_grab(struct dlm_ctxt *dlm);
