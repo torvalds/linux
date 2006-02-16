@@ -21,6 +21,7 @@
 #include <asm/hypervisor.h>
 #include <asm/spitfire.h>
 #include <asm/vdev.h>
+#include <asm/oplib.h>
 #include <asm/irq.h>
 
 #if defined(CONFIG_MAGIC_SYSRQ)
@@ -427,7 +428,6 @@ static unsigned int __init get_interrupt(void)
 	const char *cons_str = "console";
 	const char *compat_str = "compatible";
 	int node = prom_getchild(sun4v_vdev_root);
-	unsigned int irq;
 	char buf[64];
 	int err, len;
 
@@ -449,12 +449,7 @@ static unsigned int __init get_interrupt(void)
 	/* Ok, the this is the OBP node for the sun4v hypervisor
 	 * console device.  Decode the interrupt.
 	 */
-	err = prom_getproperty(node, "interrupts",
-			       (char *) &irq, sizeof(irq));
-	if (err == -1)
-		return 0;
-
-	return sun4v_build_irq(sun4v_vdev_devhandle, irq, 4, 0);
+	return sun4v_vdev_device_interrupt(node);
 }
 
 static u32 sunhv_irq;
@@ -487,8 +482,8 @@ static int __init sunhv_init(void)
 		return -ENODEV;
 	}
 
-	printk("SUNHV: SUN4V virtual console, IRQ[%08x]\n",
-	       sunhv_irq);
+	printk("SUNHV: SUN4V virtual console, IRQ %s\n",
+	       __irq_itoa(sunhv_irq));
 
 	sunhv_reg.minor = sunserial_current_minor;
 	sunhv_reg.nr = 1;
@@ -520,7 +515,6 @@ static void __exit sunhv_exit(void)
 
 	uart_remove_one_port(&sunhv_reg, port);
 	free_irq(sunhv_irq, port);
-
 	sunserial_current_minor -= 1;
 
 	uart_unregister_driver(&sunhv_reg);
