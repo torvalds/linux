@@ -117,6 +117,8 @@ struct mptsas_hotplug_event {
 struct mptsas_devinfo {
 	u16	handle;		/* unique id to address this device */
 	u16	handle_parent;	/* unique id to address parent device */
+	u16	handle_enclosure; /* enclosure identifier of the enclosure */
+	u16	slot;		/* physical slot in enclosure */
 	u8	phy_id;		/* phy number of parent device */
 	u8	port_id;	/* sas physical port this device
 				   is assoc'd with */
@@ -144,6 +146,18 @@ struct mptsas_portinfo {
 	u16		handle;		/* unique id to address this */
 	u8		num_phys;	/* number of phys */
 	struct mptsas_phyinfo *phy_info;
+};
+
+struct mptsas_enclosure {
+	u64	enclosure_logical_id;	/* The WWN for the enclosure */
+	u16	enclosure_handle;	/* unique id to address this */
+	u16	flags;			/* details enclosure management */
+	u16	num_slot;		/* num slots */
+	u16	start_slot;		/* first slot */
+	u8	start_id;		/* starting logical target id */
+	u8	start_channel;		/* starting logical channel id */
+	u8	sep_id;			/* SEP device logical target id */
+	u8	sep_channel;		/* SEP channel logical channel id */
 };
 
 
@@ -205,6 +219,7 @@ static void mptsas_print_device_pg0(SasDevicePage0_t *pg0)
 
 	printk("---- SAS DEVICE PAGE 0 ---------\n");
 	printk("Handle=0x%X\n" ,le16_to_cpu(pg0->DevHandle));
+	printk("Parent Handle=0x%X\n" ,le16_to_cpu(pg0->ParentDevHandle));
 	printk("Enclosure Handle=0x%X\n", le16_to_cpu(pg0->EnclosureHandle));
 	printk("Slot=0x%X\n", le16_to_cpu(pg0->Slot));
 	printk("SAS Address=0x%llX\n", le64_to_cpu(sas_address));
@@ -243,6 +258,82 @@ static void mptsas_print_expander_pg1(SasExpanderPage1_t *pg1)
 #define mptsas_print_expander_pg1(pg1)		do { } while (0)
 #endif
 
+static inline MPT_ADAPTER *phy_to_ioc(struct sas_phy *phy)
+{
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+	return ((MPT_SCSI_HOST *)shost->hostdata)->ioc;
+}
+
+static inline MPT_ADAPTER *rphy_to_ioc(struct sas_rphy *rphy)
+{
+	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent->parent);
+	return ((MPT_SCSI_HOST *)shost->hostdata)->ioc;
+}
+
+static int
+mptsas_sas_exclosure_pg0(MPT_ADAPTER *ioc, struct mptsas_enclosure *enclosure,
+		u32 form, u32 form_specific)
+{
+	ConfigExtendedPageHeader_t hdr;
+	CONFIGPARMS cfg;
+	SasEnclosurePage0_t *buffer;
+	dma_addr_t dma_handle;
+	int error;
+	__le64 le_identifier;
+
+	memset(&hdr, 0, sizeof(hdr));
+	hdr.PageVersion = MPI_SASENCLOSURE0_PAGEVERSION;
+	hdr.PageNumber = 0;
+	hdr.PageType = MPI_CONFIG_PAGETYPE_EXTENDED;
+	hdr.ExtPageType = MPI_CONFIG_EXTPAGETYPE_ENCLOSURE;
+
+	cfg.cfghdr.ehdr = &hdr;
+	cfg.physAddr = -1;
+	cfg.pageAddr = form + form_specific;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	cfg.dir = 0;	/* read */
+	cfg.timeout = 10;
+
+	error = mpt_config(ioc, &cfg);
+	if (error)
+		goto out;
+	if (!hdr.ExtPageLength) {
+		error = -ENXIO;
+		goto out;
+	}
+
+	buffer = pci_alloc_consistent(ioc->pcidev, hdr.ExtPageLength * 4,
+			&dma_handle);
+	if (!buffer) {
+		error = -ENOMEM;
+		goto out;
+	}
+
+	cfg.physAddr = dma_handle;
+	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
+
+	error = mpt_config(ioc, &cfg);
+	if (error)
+		goto out_free_consistent;
+
+	/* save config data */
+	memcpy(&le_identifier, &buffer->EnclosureLogicalID, sizeof(__le64));
+	enclosure->enclosure_logical_id = le64_to_cpu(le_identifier);
+	enclosure->enclosure_handle = le16_to_cpu(buffer->EnclosureHandle);
+	enclosure->flags = le16_to_cpu(buffer->Flags);
+	enclosure->num_slot = le16_to_cpu(buffer->NumSlots);
+	enclosure->start_slot = le16_to_cpu(buffer->StartSlot);
+	enclosure->start_id = buffer->StartTargetID;
+	enclosure->start_channel = buffer->StartBus;
+	enclosure->sep_id = buffer->SEPTargetID;
+	enclosure->sep_channel = buffer->SEPBus;
+
+ out_free_consistent:
+	pci_free_consistent(ioc->pcidev, hdr.ExtPageLength * 4,
+			    buffer, dma_handle);
+ out:
+	return error;
+}
 
 /*
  * This is pretty ugly.  We will be able to seriously clean it up
@@ -399,12 +490,6 @@ static struct scsi_host_template mptsas_driver_template = {
 	.use_clustering			= ENABLE_CLUSTERING,
 };
 
-static inline MPT_ADAPTER *phy_to_ioc(struct sas_phy *phy)
-{
-	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
-	return ((MPT_SCSI_HOST *)shost->hostdata)->ioc;
-}
-
 static int mptsas_get_linkerrors(struct sas_phy *phy)
 {
 	MPT_ADAPTER *ioc = phy_to_ioc(phy);
@@ -546,8 +631,67 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 	return error;
 }
 
+static int
+mptsas_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
+{
+	MPT_ADAPTER *ioc = rphy_to_ioc(rphy);
+	int i, error;
+	struct mptsas_portinfo *p;
+	struct mptsas_enclosure enclosure_info;
+	u64 enclosure_handle;
+
+	mutex_lock(&ioc->sas_topology_mutex);
+	list_for_each_entry(p, &ioc->sas_topology, list) {
+		for (i = 0; i < p->num_phys; i++) {
+			if (p->phy_info[i].attached.sas_address ==
+			    rphy->identify.sas_address) {
+				enclosure_handle = p->phy_info[i].
+					attached.handle_enclosure;
+				goto found_info;
+			}
+		}
+	}
+	mutex_unlock(&ioc->sas_topology_mutex);
+	return -ENXIO;
+
+ found_info:
+	mutex_unlock(&ioc->sas_topology_mutex);
+	memset(&enclosure_info, 0, sizeof(struct mptsas_enclosure));
+	error = mptsas_sas_exclosure_pg0(ioc, &enclosure_info,
+			(MPI_SAS_ENCLOS_PGAD_FORM_HANDLE <<
+			 MPI_SAS_ENCLOS_PGAD_FORM_SHIFT), enclosure_handle);
+	if (!error)
+		*identifier = enclosure_info.enclosure_logical_id;
+	return error;
+}
+
+static int
+mptsas_get_bay_identifier(struct sas_rphy *rphy)
+{
+	MPT_ADAPTER *ioc = rphy_to_ioc(rphy);
+	struct mptsas_portinfo *p;
+	int i, rc;
+
+	mutex_lock(&ioc->sas_topology_mutex);
+	list_for_each_entry(p, &ioc->sas_topology, list) {
+		for (i = 0; i < p->num_phys; i++) {
+			if (p->phy_info[i].attached.sas_address ==
+			    rphy->identify.sas_address) {
+				rc = p->phy_info[i].attached.slot;
+				goto out;
+			}
+		}
+	}
+	rc = -ENXIO;
+ out:
+	mutex_unlock(&ioc->sas_topology_mutex);
+	return rc;
+}
+
 static struct sas_function_template mptsas_transport_functions = {
 	.get_linkerrors		= mptsas_get_linkerrors,
+	.get_enclosure_identifier = mptsas_get_enclosure_identifier,
+	.get_bay_identifier	= mptsas_get_bay_identifier,
 	.phy_reset		= mptsas_phy_reset,
 };
 
@@ -739,6 +883,9 @@ mptsas_sas_device_pg0(MPT_ADAPTER *ioc, struct mptsas_devinfo *device_info,
 
 	device_info->handle = le16_to_cpu(buffer->DevHandle);
 	device_info->handle_parent = le16_to_cpu(buffer->ParentDevHandle);
+	device_info->handle_enclosure =
+	    le16_to_cpu(buffer->EnclosureHandle);
+	device_info->slot = le16_to_cpu(buffer->Slot);
 	device_info->phy_id = buffer->PhyNum;
 	device_info->port_id = buffer->PhysicalPort;
 	device_info->id = buffer->TargetID;
@@ -1335,29 +1482,15 @@ mptsas_hotplug_work(void *arg)
 	case MPTSAS_ADD_DEVICE:
 
 		/*
-		 * When there is no sas address,
-		 * RAID volumes are being deleted,
-		 * and hidden phy disk are being added.
-		 * We don't know the SAS data yet,
-		 * so lookup sas device page to get
-		 * pertaining info
+		 * Refresh sas device pg0 data
 		 */
-		if (!ev->sas_address) {
-			if (mptsas_sas_device_pg0(ioc,
-			    &sas_device, ev->id,
-			    (MPI_SAS_DEVICE_PGAD_FORM_BUS_TARGET_ID <<
-			     MPI_SAS_DEVICE_PGAD_FORM_SHIFT)))
-				break;
-			ev->handle = sas_device.handle;
-			ev->parent_handle = sas_device.handle_parent;
-			ev->channel = sas_device.channel;
-			ev->phy_id = sas_device.phy_id;
-			ev->sas_address = sas_device.sas_address;
-			ev->device_info = sas_device.device_info;
-		}
+		if (mptsas_sas_device_pg0(ioc, &sas_device,
+		    (MPI_SAS_DEVICE_PGAD_FORM_BUS_TARGET_ID <<
+		     MPI_SAS_DEVICE_PGAD_FORM_SHIFT), ev->id))
+			break;
 
 		phy_info = mptsas_find_phyinfo_by_parent(ioc,
-				ev->parent_handle, ev->phy_id);
+				sas_device.handle_parent, sas_device.phy_id);
 		if (!phy_info) {
 			printk("mptsas: add event for non-existant PHY.\n");
 			break;
@@ -1368,14 +1501,8 @@ mptsas_hotplug_work(void *arg)
 			break;
 		}
 
-		/* fill attached info */
-		phy_info->attached.handle = ev->handle;
-		phy_info->attached.phy_id = ev->phy_id;
-		phy_info->attached.port_id = phy_info->identify.port_id;
-		phy_info->attached.id = ev->id;
-		phy_info->attached.channel = ev->channel;
-		phy_info->attached.sas_address = ev->sas_address;
-		phy_info->attached.device_info = ev->device_info;
+		memcpy(&phy_info->attached, &sas_device,
+		    sizeof(struct mptsas_devinfo));
 
 		if (phy_info->attached.device_info & MPI_SAS_DEVICE_INFO_SSP_TARGET)
 			ds = "ssp";
@@ -1393,7 +1520,6 @@ mptsas_hotplug_work(void *arg)
 		if (!rphy)
 			break; /* non-fatal: an rphy can be added later */
 
-		rphy->scsi_target_id = phy_info->attached.id;
 		mptsas_parse_device_info(&rphy->identify, &phy_info->attached);
 		if (sas_rphy_add(rphy)) {
 			sas_rphy_free(rphy);
