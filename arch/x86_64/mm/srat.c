@@ -271,7 +271,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		return -1;
 	}
 
-	memnode_shift = compute_hash_shift(nodes, nodes_weight(nodes_parsed));
+	memnode_shift = compute_hash_shift(nodes, MAX_NUMNODES);
 	if (memnode_shift < 0) {
 		printk(KERN_ERR
 		     "SRAT: No NUMA node hash function found. Contact maintainer\n");
