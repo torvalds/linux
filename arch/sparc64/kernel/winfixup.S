@@ -121,7 +121,7 @@ fill_fixup_mna:
 	cmp	%g1, 3
 	bne,pt	%icc, 1f
 	 add	%sp, PTREGS_OFF, %o0
-	call	sun4v_mna
+	call	sun4v_do_mna
 	 nop
 	ba,a,pt	%xcc, rtrap_clr_l6
 1:	call	mem_address_unaligned
