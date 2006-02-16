@@ -228,7 +228,8 @@ static int nodes_cover_memory(void)
 	}
 
 	e820ram = end_pfn - e820_hole_size(0, end_pfn);
-	if (pxmram < e820ram) {
+	/* We seem to lose 3 pages somewhere. Allow a bit of slack. */
+	if ((long)(e820ram - pxmram) >= 1*1024*1024) {
 		printk(KERN_ERR
 	"SRAT: PXMs only cover %luMB of your %luMB e820 RAM. Not used.\n",
 			(pxmram << PAGE_SHIFT) >> 20,
