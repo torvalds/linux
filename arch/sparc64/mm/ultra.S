@@ -86,7 +86,7 @@ __flush_tlb_pending:	/* 26 insns */
 
 	.align		32
 	.globl		__flush_tlb_kernel_range
-__flush_tlb_kernel_range:	/* 14 insns */
+__flush_tlb_kernel_range:	/* 16 insns */
 	/* %o0=start, %o1=end */
 	cmp		%o0, %o1
 	be,pn		%xcc, 2f
