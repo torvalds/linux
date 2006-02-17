@@ -1056,7 +1056,7 @@ static void __init sun4v_ktsb_init(void)
 		break;
 	};
 
-	ktsb_descr[0].assoc = 0;
+	ktsb_descr[0].assoc = 1;
 	ktsb_descr[0].num_ttes = KERNEL_TSB_NENTRIES;
 	ktsb_descr[0].ctx_idx = 0;
 	ktsb_descr[0].tsb_base = ktsb_pa;
