@@ -677,17 +677,21 @@ static unsigned int __initdata possible_cpus;
 
 void __init smp_setup_cpu_possible_map(void)
 {
-	unsigned int pcpus, cpu;
+	unsigned int phy_cpus, pos_cpus, cpu;
 
-	pcpus = min(smp_count_cpus() + additional_cpus, (unsigned int) NR_CPUS);
+	phy_cpus = smp_count_cpus();
+	pos_cpus = min(phy_cpus + additional_cpus, (unsigned int) NR_CPUS);
 
 	if (possible_cpus)
-		pcpus = min(possible_cpus, (unsigned int) NR_CPUS);
+		pos_cpus = min(possible_cpus, (unsigned int) NR_CPUS);
 
-	for (cpu = 0; cpu < pcpus; cpu++)
+	for (cpu = 0; cpu < pos_cpus; cpu++)
 		cpu_set(cpu, cpu_possible_map);
 
-	cpu_present_map = cpu_possible_map;
+	phy_cpus = min(phy_cpus, pos_cpus);
+
+	for (cpu = 0; cpu < phy_cpus; cpu++)
+		cpu_set(cpu, cpu_present_map);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -843,6 +847,7 @@ void __devinit smp_prepare_boot_cpu(void)
 
 void smp_cpus_done(unsigned int max_cpus)
 {
+	cpu_present_map = cpu_possible_map;
 }
 
 /*
