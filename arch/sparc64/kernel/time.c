@@ -1029,11 +1029,10 @@ static void sparc64_start_timers(irqreturn_t (*cfunc)(int, void *, struct pt_reg
 }
 
 struct freq_table {
-	unsigned long udelay_val_ref;
 	unsigned long clock_tick_ref;
 	unsigned int ref_freq;
 };
-static DEFINE_PER_CPU(struct freq_table, sparc64_freq_table) = { 0, 0, 0 };
+static DEFINE_PER_CPU(struct freq_table, sparc64_freq_table) = { 0, 0 };
 
 unsigned long sparc64_get_clock_tick(unsigned int cpu)
 {
@@ -1055,16 +1054,11 @@ static int sparc64_cpufreq_notifier(struct notifier_block *nb, unsigned long val
 
 	if (!ft->ref_freq) {
 		ft->ref_freq = freq->old;
-		ft->udelay_val_ref = cpu_data(cpu).udelay_val;
 		ft->clock_tick_ref = cpu_data(cpu).clock_tick;
 	}
 	if ((val == CPUFREQ_PRECHANGE  && freq->old < freq->new) ||
 	    (val == CPUFREQ_POSTCHANGE && freq->old > freq->new) ||
 	    (val == CPUFREQ_RESUMECHANGE)) {
-		cpu_data(cpu).udelay_val =
-			cpufreq_scale(ft->udelay_val_ref,
-				      ft->ref_freq,
-				      freq->new);
 		cpu_data(cpu).clock_tick =
 			cpufreq_scale(ft->clock_tick_ref,
 				      ft->ref_freq,
