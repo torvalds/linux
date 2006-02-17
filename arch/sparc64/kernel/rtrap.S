@@ -234,8 +234,10 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 
 		/* Normal globals are restored, go to trap globals.  */
 661:		wrpr			%g0, RTRAP_PSTATE_AG_IRQOFF, %pstate
-		.section		.sun4v_1insn_patch, "ax"
+		nop
+		.section		.sun4v_2insn_patch, "ax"
 		.word			661b
+		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
 		SET_GL(1)
 		.previous
 
