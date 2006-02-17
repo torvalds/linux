@@ -84,8 +84,9 @@ sun4v_itlb_load:
 	mov	%g3, %o2		! PTE
 	mov	HV_MMU_IMMU, %o3	! flags
 	ta	HV_MMU_MAP_ADDR_TRAP
+	brnz,pn	%o0, sun4v_itlb_error
+	 mov	%g2, %o1		! restore %o1
 	mov	%g1, %o0		! restore %o0
-	mov	%g2, %o1		! restore %o1
 	mov	%g5, %o2		! restore %o2
 	mov	%g7, %o3		! restore %o3
 
@@ -126,8 +127,9 @@ sun4v_dtlb_load:
 	mov	%g3, %o2		! PTE
 	mov	HV_MMU_DMMU, %o3	! flags
 	ta	HV_MMU_MAP_ADDR_TRAP
+	brnz,pn	%o0, sun4v_dtlb_error
+	 mov	%g2, %o1		! restore %o1
 	mov	%g1, %o0		! restore %o0
-	mov	%g2, %o1		! restore %o1
 	mov	%g5, %o2		! restore %o2
 	mov	%g7, %o3		! restore %o3
 
@@ -154,6 +156,7 @@ sun4v_itsb_miss:
 	ldxa	[%g1] ASI_SCRATCHPAD, %g1
 	brz,pn	%g5, kvmap_itlb_4v
 	 mov	FAULT_CODE_ITLB, %g3
+	ba,a,pt	%xcc, sun4v_tsb_miss_common
 
 	/* Called from trap table with TAG TARGET placed into
 	 * %g6 and SCRATCHPAD_UTSBREG1 contents in %g1.
@@ -181,6 +184,56 @@ sun4v_tsb_miss_common:
 	sub	%g2, TRAP_PER_CPU_FAULT_INFO, %g2
 	ba,pt	%xcc, tsb_miss_page_table_walk_sun4v_fastpath
 	 ldx	[%g2 + TRAP_PER_CPU_PGD_PADDR], %g7
+
+sun4v_itlb_error:
+	sethi	%hi(sun4v_err_itlb_vaddr), %g1
+	stx	%g4, [%g1 + %lo(sun4v_err_itlb_vaddr)]
+	sethi	%hi(sun4v_err_itlb_ctx), %g1
+	srlx	%g6, 48, %o1		! ctx
+	stx	%o1, [%g1 + %lo(sun4v_err_itlb_ctx)]
+	sethi	%hi(sun4v_err_itlb_pte), %g1
+	stx	%g3, [%g1 + %lo(sun4v_err_itlb_pte)]
+	sethi	%hi(sun4v_err_itlb_error), %g1
+	stx	%o0, [%g1 + %lo(sun4v_err_itlb_error)]
+
+	rdpr	%tl, %g4
+	cmp	%g4, 1
+	ble,pt	%icc, 1f
+	 sethi	%hi(2f), %g7
+	ba,pt	%xcc, etraptl1
+	 or	%g7, %lo(2f), %g7
+
+1:	ba,pt	%xcc, etrap
+2:	 or	%g7, %lo(2b), %g7
+	call	sun4v_itlb_error_report
+	 add	%sp, PTREGS_OFF, %o0
+
+	/* NOTREACHED */
+
+sun4v_dtlb_error:
+	sethi	%hi(sun4v_err_dtlb_vaddr), %g1
+	stx	%g4, [%g1 + %lo(sun4v_err_dtlb_vaddr)]
+	sethi	%hi(sun4v_err_dtlb_ctx), %g1
+	srlx	%g6, 48, %o1		! ctx
+	stx	%o1, [%g1 + %lo(sun4v_err_dtlb_ctx)]
+	sethi	%hi(sun4v_err_dtlb_pte), %g1
+	stx	%g3, [%g1 + %lo(sun4v_err_dtlb_pte)]
+	sethi	%hi(sun4v_err_dtlb_error), %g1
+	stx	%o0, [%g1 + %lo(sun4v_err_dtlb_error)]
+
+	rdpr	%tl, %g4
+	cmp	%g4, 1
+	ble,pt	%icc, 1f
+	 sethi	%hi(2f), %g7
+	ba,pt	%xcc, etraptl1
+	 or	%g7, %lo(2f), %g7
+
+1:	ba,pt	%xcc, etrap
+2:	 or	%g7, %lo(2b), %g7
+	call	sun4v_dtlb_error_report
+	 add	%sp, PTREGS_OFF, %o0
+
+	/* NOTREACHED */
 
 	/* Instruction Access Exception, tl0. */
 sun4v_iacc:

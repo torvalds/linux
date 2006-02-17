@@ -135,8 +135,8 @@ tsb_do_fault:
 	wrpr		%g5, PSTATE_AG | PSTATE_MG, %pstate
 	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
-	nop
-	nop
+	SET_GL(1)
+	ldxa		[%g0] ASI_SCRATCHPAD, %g2
 	.previous
 
 	bne,pn		%xcc, tsb_do_itlb_fault
@@ -150,7 +150,7 @@ tsb_do_dtlb_fault:
 	ldxa	[%g4] ASI_DMMU, %g5
 	.section .sun4v_2insn_patch, "ax"
 	.word	661b
-	mov	%g4, %g5
+	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g5
 	nop
 	.previous
 
