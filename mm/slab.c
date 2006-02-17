@@ -1717,6 +1717,12 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 		BUG();
 	}
 
+	/*
+	 * Prevent CPUs from coming and going.
+	 * lock_cpu_hotplug() nests outside cache_chain_mutex
+	 */
+	lock_cpu_hotplug();
+
 	mutex_lock(&cache_chain_mutex);
 
 	list_for_each(p, &cache_chain) {
@@ -1918,8 +1924,6 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	cachep->dtor = dtor;
 	cachep->name = name;
 
-	/* Don't let CPUs to come and go */
-	lock_cpu_hotplug();
 
 	if (g_cpucache_up == FULL) {
 		enable_cpucache(cachep);
@@ -1978,12 +1982,12 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 
 	/* cache setup completed, link it into the list */
 	list_add(&cachep->next, &cache_chain);
-	unlock_cpu_hotplug();
       oops:
 	if (!cachep && (flags & SLAB_PANIC))
 		panic("kmem_cache_create(): failed to create slab `%s'\n",
 		      name);
 	mutex_unlock(&cache_chain_mutex);
+	unlock_cpu_hotplug();
 	return cachep;
 }
 EXPORT_SYMBOL(kmem_cache_create);

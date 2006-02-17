@@ -1751,11 +1751,15 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 	ret = compat_core_sys_select(n, inp, outp, exp, &timeout);
 
 	if (tvp) {
+		struct compat_timeval rtv;
+
 		if (current->personality & STICKY_TIMEOUTS)
 			goto sticky;
-		tv.tv_usec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ));
-		tv.tv_sec = timeout;
-		if (copy_to_user(tvp, &tv, sizeof(tv))) {
+		rtv.tv_usec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ));
+		rtv.tv_sec = timeout;
+		if (compat_timeval_compare(&rtv, &tv) < 0)
+			rtv = tv;
+		if (copy_to_user(tvp, &rtv, sizeof(rtv))) {
 sticky:
 			/*
 			 * If an application puts its timeval in read-only
@@ -1822,13 +1826,17 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 	} while (!ret && !timeout && tsp && (ts.tv_sec || ts.tv_nsec));
 
 	if (tsp && !(current->personality & STICKY_TIMEOUTS)) {
-		ts.tv_sec += timeout / HZ;
-		ts.tv_nsec += (timeout % HZ) * (1000000000/HZ);
-		if (ts.tv_nsec >= 1000000000) {
-			ts.tv_sec++;
-			ts.tv_nsec -= 1000000000;
+		struct compat_timespec rts;
+
+		rts.tv_sec = timeout / HZ;
+		rts.tv_nsec = (timeout % HZ) * (NSEC_PER_SEC/HZ);
+		if (rts.tv_nsec >= NSEC_PER_SEC) {
+			rts.tv_sec++;
+			rts.tv_nsec -= NSEC_PER_SEC;
 		}
-		(void)copy_to_user(tsp, &ts, sizeof(ts));
+		if (compat_timespec_compare(&rts, &ts) < 0)
+			rts = ts;
+		copy_to_user(tsp, &rts, sizeof(rts));
 	}
 
 	if (ret == -ERESTARTNOHAND) {
@@ -1918,12 +1926,17 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
 
 	if (tsp && timeout >= 0) {
+		struct compat_timespec rts;
+
 		if (current->personality & STICKY_TIMEOUTS)
 			goto sticky;
 		/* Yes, we know it's actually an s64, but it's also positive. */
-		ts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) * 1000;
-		ts.tv_sec = timeout;
-		if (copy_to_user(tsp, &ts, sizeof(ts))) {
+		rts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) *
+					1000;
+		rts.tv_sec = timeout;
+		if (compat_timespec_compare(&rts, &ts) < 0)
+			rts = ts;
+		if (copy_to_user(tsp, &rts, sizeof(rts))) {
 sticky:
 			/*
 			 * If an application puts its timeval in read-only

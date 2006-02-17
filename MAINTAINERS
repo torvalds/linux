@@ -2232,7 +2232,23 @@ P:	Martin Schwidefsky
 M:	schwidefsky@de.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-390@vm.marist.edu
-W:	http://oss.software.ibm.com/developerworks/opensource/linux390
+W:	http://www.ibm.com/developerworks/linux/linux390/
+S:	Supported
+
+S390 NETWORK DRIVERS
+P:	Frank Pavlic
+M:	fpavlic@de.ibm.com
+M:	linux390@de.ibm.com
+L:	linux-390@vm.marist.edu
+W:	http://www.ibm.com/developerworks/linux/linux390/
+S:	Supported
+
+S390 ZFCP DRIVER
+P:	Andreas Herrmann
+M:	aherrman@de.ibm.com
+M:	linux390@de.ibm.com
+L:	linux-390@vm.marist.edu
+W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 
 SAA7146 VIDEO4LINUX-2 DRIVER

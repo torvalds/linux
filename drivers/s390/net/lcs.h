@@ -95,7 +95,7 @@ do {                                       \
  */
 #define LCS_ILLEGAL_OFFSET		0xffff
 #define LCS_IOBUFFERSIZE		0x5000
-#define LCS_NUM_BUFFS			8	/* needs to be power of 2 */
+#define LCS_NUM_BUFFS			32	/* needs to be power of 2 */
 #define LCS_MAC_LENGTH			6
 #define LCS_INVALID_PORT_NO		-1
 #define LCS_LANCMD_TIMEOUT_DEFAULT      5

@@ -82,9 +82,9 @@ do { if(!(expr)) { \
 #define IRDA_ASSERT_LABEL(label)
 #endif /* CONFIG_IRDA_DEBUG */
 
-#define IRDA_WARNING(args...) printk(KERN_WARNING args)
-#define IRDA_MESSAGE(args...) printk(KERN_INFO args)
-#define IRDA_ERROR(args...)   printk(KERN_ERR args)
+#define IRDA_WARNING(args...) do { if (net_ratelimit()) printk(KERN_WARNING args); } while (0)
+#define IRDA_MESSAGE(args...) do { if (net_ratelimit()) printk(KERN_INFO args); } while (0)
+#define IRDA_ERROR(args...)   do { if (net_ratelimit()) printk(KERN_ERR args); } while (0)
 
 /*
  *  Magic numbers used by Linux-IrDA. Random numbers which must be unique to 

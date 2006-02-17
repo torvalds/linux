@@ -40,6 +40,8 @@
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <linux/reboot.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
 #include <asm/byteorder.h>
 #include <asm/cache.h>		/* for L1_CACHE_BYTES */
@@ -1019,62 +1021,33 @@ static struct hppa_dma_ops ccio_ops = {
 };
 
 #ifdef CONFIG_PROC_FS
-static int proc_append(char *src, int len, char **dst, off_t *offset, int *max)
+static int ccio_proc_info(struct seq_file *m, void *p)
 {
-	if (len < *offset) {
-		*offset -= len;
-		return 0;
-	}
-	if (*offset > 0) {
-		src += *offset;
-		len -= *offset;
-		*offset = 0;
-	}
-	if (len > *max) {
-		len = *max;
-	}
-	memcpy(*dst, src, len);
-	*dst += len;
-	*max -= len;
-	return (*max == 0);
-}
-
-static int ccio_proc_info(char *buf, char **start, off_t offset, int count,
-			  int *eof, void *data)
-{
-	int max = count;
-	char tmp[80]; /* width of an ANSI-standard terminal */
+	int len = 0;
 	struct ioc *ioc = ioc_list;
 
 	while (ioc != NULL) {
 		unsigned int total_pages = ioc->res_size << 3;
 		unsigned long avg = 0, min, max;
-		int j, len;
+		int j;
 
-		len = sprintf(tmp, "%s\n", ioc->name);
-		if (proc_append(tmp, len, &buf, &offset, &count))
-			break;
+		len += seq_printf(m, "%s\n", ioc->name);
 		
-		len = sprintf(tmp, "Cujo 2.0 bug    : %s\n",
-			      (ioc->cujo20_bug ? "yes" : "no"));
-		if (proc_append(tmp, len, &buf, &offset, &count))
-			break;
+		len += seq_printf(m, "Cujo 2.0 bug    : %s\n",
+				  (ioc->cujo20_bug ? "yes" : "no"));
 		
-		len = sprintf(tmp, "IO PDIR size    : %d bytes (%d entries)\n",
-			      total_pages * 8, total_pages);
-		if (proc_append(tmp, len, &buf, &offset, &count))
-			break;
+		len += seq_printf(m, "IO PDIR size    : %d bytes (%d entries)\n",
+			       total_pages * 8, total_pages);
+
 #ifdef CCIO_MAP_STATS
-		len = sprintf(tmp, "IO PDIR entries : %ld free  %ld used (%d%%)\n",
-			      total_pages - ioc->used_pages, ioc->used_pages,
-			      (int)(ioc->used_pages * 100 / total_pages));
-		if (proc_append(tmp, len, &buf, &offset, &count))
-			break;
+		len += seq_printf(m, "IO PDIR entries : %ld free  %ld used (%d%%)\n",
+				  total_pages - ioc->used_pages, ioc->used_pages,
+				  (int)(ioc->used_pages * 100 / total_pages));
 #endif
-		len = sprintf(tmp, "Resource bitmap : %d bytes (%d pages)\n", 
-			ioc->res_size, total_pages);
-		if (proc_append(tmp, len, &buf, &offset, &count))
-			break;
+
+		len += seq_printf(m, "Resource bitmap : %d bytes (%d pages)\n", 
+				  ioc->res_size, total_pages);
+
 #ifdef CCIO_SEARCH_TIME
 		min = max = ioc->avg_search[0];
 		for(j = 0; j < CCIO_SEARCH_SAMPLE; ++j) {
@@ -1085,70 +1058,83 @@ static int ccio_proc_info(char *buf, char **start, off_t offset, int count,
 				min = ioc->avg_search[j];
 		}
 		avg /= CCIO_SEARCH_SAMPLE;
-		len = sprintf(tmp, "  Bitmap search : %ld/%ld/%ld (min/avg/max CPU Cycles)\n",
-			      min, avg, max);
-		if (proc_append(tmp, len, &buf, &offset, &count))
-			break;
+		len += seq_printf(m, "  Bitmap search : %ld/%ld/%ld (min/avg/max CPU Cycles)\n",
+				  min, avg, max);
 #endif
 #ifdef CCIO_MAP_STATS
-		len = sprintf(tmp, "pci_map_single(): %8ld calls  %8ld pages (avg %d/1000)\n",
-			      ioc->msingle_calls, ioc->msingle_pages,
-			      (int)((ioc->msingle_pages * 1000)/ioc->msingle_calls));
-		if (proc_append(tmp, len, &buf, &offset, &count))
-			break;
-		
+		len += seq_printf(m, "pci_map_single(): %8ld calls  %8ld pages (avg %d/1000)\n",
+				  ioc->msingle_calls, ioc->msingle_pages,
+				  (int)((ioc->msingle_pages * 1000)/ioc->msingle_calls));
 
 		/* KLUGE - unmap_sg calls unmap_single for each mapped page */
 		min = ioc->usingle_calls - ioc->usg_calls;
 		max = ioc->usingle_pages - ioc->usg_pages;
-		len = sprintf(tmp, "pci_unmap_single: %8ld calls  %8ld pages (avg %d/1000)\n",
-			      min, max, (int)((max * 1000)/min));
-		if (proc_append(tmp, len, &buf, &offset, &count))
-			break;
+		len += seq_printf(m, "pci_unmap_single: %8ld calls  %8ld pages (avg %d/1000)\n",
+				  min, max, (int)((max * 1000)/min));
  
-		len = sprintf(tmp, "pci_map_sg()    : %8ld calls  %8ld pages (avg %d/1000)\n",
-			      ioc->msg_calls, ioc->msg_pages,
-			      (int)((ioc->msg_pages * 1000)/ioc->msg_calls));
-		if (proc_append(tmp, len, &buf, &offset, &count))
-			break;
-		len = sprintf(tmp, "pci_unmap_sg()  : %8ld calls  %8ld pages (avg %d/1000)\n\n\n",
-			      ioc->usg_calls, ioc->usg_pages,
-			      (int)((ioc->usg_pages * 1000)/ioc->usg_calls));
-		if (proc_append(tmp, len, &buf, &offset, &count))
-			break;
+		len += seq_printf(m, "pci_map_sg()    : %8ld calls  %8ld pages (avg %d/1000)\n",
+				  ioc->msg_calls, ioc->msg_pages,
+				  (int)((ioc->msg_pages * 1000)/ioc->msg_calls));
+
+		len += seq_printf(m, "pci_unmap_sg()  : %8ld calls  %8ld pages (avg %d/1000)\n\n\n",
+				  ioc->usg_calls, ioc->usg_pages,
+				  (int)((ioc->usg_pages * 1000)/ioc->usg_calls));
 #endif	/* CCIO_MAP_STATS */
+
 		ioc = ioc->next;
 	}
 
-	if (count == 0) {
-		*eof = 1;
-	}
-	return (max - count);
+	return 0;
 }
 
-static int ccio_resource_map(char *buf, char **start, off_t offset, int len,
-			     int *eof, void *data)
+static int ccio_proc_info_open(struct inode *inode, struct file *file)
 {
+	return single_open(file, &ccio_proc_info, NULL);
+}
+
+static struct file_operations ccio_proc_info_fops = {
+	.owner = THIS_MODULE,
+	.open = ccio_proc_info_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int ccio_proc_bitmap_info(struct seq_file *m, void *p)
+{
+	int len = 0;
 	struct ioc *ioc = ioc_list;
 
-	buf[0] = '\0';
 	while (ioc != NULL) {
 		u32 *res_ptr = (u32 *)ioc->res_map;
 		int j;
 
 		for (j = 0; j < (ioc->res_size / sizeof(u32)); j++) {
 			if ((j & 7) == 0)
-				strcat(buf,"\n   ");
-			sprintf(buf, "%s %08x", buf, *res_ptr);
+				len += seq_puts(m, "\n   ");
+			len += seq_printf(m, "%08x", *res_ptr);
 			res_ptr++;
 		}
-		strcat(buf, "\n\n");
+		len += seq_puts(m, "\n\n");
 		ioc = ioc->next;
 		break; /* XXX - remove me */
 	}
 
-	return strlen(buf);
+	return 0;
 }
+
+static int ccio_proc_bitmap_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, &ccio_proc_bitmap_info, NULL);
+}
+
+static struct file_operations ccio_proc_bitmap_fops = {
+	.owner = THIS_MODULE,
+	.open = ccio_proc_bitmap_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 #endif
 
 /**
@@ -1556,6 +1542,7 @@ static int ccio_probe(struct parisc_device *dev)
 {
 	int i;
 	struct ioc *ioc, **ioc_p = &ioc_list;
+	struct proc_dir_entry *info_entry, *bitmap_entry;
 	
 	ioc = kzalloc(sizeof(struct ioc), GFP_KERNEL);
 	if (ioc == NULL) {
@@ -1583,13 +1570,14 @@ static int ccio_probe(struct parisc_device *dev)
 	BUG_ON(dev->dev.platform_data == NULL);
 	HBA_DATA(dev->dev.platform_data)->iommu = ioc;
 	
-
 	if (ioc_count == 0) {
-		/* FIXME: Create separate entries for each ioc */
-		create_proc_read_entry(MODULE_NAME, S_IRWXU, proc_runway_root,
-				       ccio_proc_info, NULL);
-		create_proc_read_entry(MODULE_NAME"-bitmap", S_IRWXU,
-				       proc_runway_root, ccio_resource_map, NULL);
+		info_entry = create_proc_entry(MODULE_NAME, 0, proc_runway_root);
+		if (info_entry)
+			info_entry->proc_fops = &ccio_proc_info_fops;
+
+		bitmap_entry = create_proc_entry(MODULE_NAME"-bitmap", 0, proc_runway_root);
+		if (bitmap_entry)
+			bitmap_entry->proc_fops = &ccio_proc_bitmap_fops;
 	}
 
 	ioc_count++;

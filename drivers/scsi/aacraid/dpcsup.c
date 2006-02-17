@@ -206,7 +206,7 @@ unsigned int aac_command_normal(struct aac_queue *q)
 			 *	Set the status of this FIB
 			 */
 			*(__le32 *)hw_fib->data = cpu_to_le32(ST_OK);
-			fib_adapter_complete(fib, sizeof(u32));
+			aac_fib_adapter_complete(fib, sizeof(u32));
 			spin_lock_irqsave(q->lock, flags);
 		}		
 	}

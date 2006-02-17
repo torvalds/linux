@@ -101,7 +101,7 @@ static struct resource resources[] = {
 	},
 };
 
-extern struct device_driver sl811h_driver;
+extern struct platform_driver sl811h_driver;
 
 static struct platform_device platform_dev = {
 	.id			= -1,
@@ -132,7 +132,7 @@ static int sl811_hc_init(struct device *parent, ioaddr_t base_addr, int irq)
 	 * initialized already because of the link order dependency created
 	 * by referencing "sl811h_driver".
 	 */
-	platform_dev.name = sl811h_driver.name;
+	platform_dev.name = sl811h_driver.driver.name;
 	return platform_device_register(&platform_dev);
 }
 

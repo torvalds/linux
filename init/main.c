@@ -668,7 +668,6 @@ static int init(void * unused)
 	 */
 	child_reaper = current;
 
-	/* Sets up cpus_possible() */
 	smp_prepare_cpus(max_cpus);
 
 	do_pre_smp_initcalls();

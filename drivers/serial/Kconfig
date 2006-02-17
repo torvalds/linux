@@ -902,8 +902,8 @@ config SERIAL_JSM
 	  something like this to connect more than two modems to your Linux
 	  box, for instance in order to become a dial-in server. This driver
 	  supports PCI boards only.
-	  If you have a card like this, say Y here and read the file
-	  <file:Documentation/jsm.txt>.
+
+	  If you have a card like this, say Y here, otherwise say N.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called jsm.

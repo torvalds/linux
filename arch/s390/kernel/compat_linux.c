@@ -905,6 +905,26 @@ asmlinkage long sys32_fstat64(unsigned long fd, struct stat64_emu31 __user * sta
 	return ret;
 }
 
+asmlinkage long sys32_fstatat(unsigned int dfd, char __user *filename,
+			      struct stat64_emu31 __user* statbuf, int flag)
+{
+	struct kstat stat;
+	int error = -EINVAL;
+
+	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
+		goto out;
+
+	if (flag & AT_SYMLINK_NOFOLLOW)
+		error = vfs_lstat_fd(dfd, filename, &stat);
+	else
+		error = vfs_stat_fd(dfd, filename, &stat);
+
+	if (!error)
+		error = cp_stat64(statbuf, &stat);
+out:
+	return error;
+}
+
 /*
  * Linux/i386 didn't use to be able to handle more than
  * 4 system call parameters, so these system calls used a memory

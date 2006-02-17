@@ -8,7 +8,6 @@
 
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
-#include <scsi/scsi_transport_fc.h>
 
 #include "qla_devtbl.h"
 

@@ -4236,35 +4236,6 @@ static void ipr_scsi_done(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
- * ipr_save_ioafp_mode_select - Save adapters mode select data
- * @ioa_cfg:	ioa config struct
- * @scsi_cmd:	scsi command struct
- *
- * This function saves mode select data for the adapter to
- * use following an adapter reset.
- *
- * Return value:
- *	0 on success / SCSI_MLQUEUE_HOST_BUSY on failure
- **/
-static int ipr_save_ioafp_mode_select(struct ipr_ioa_cfg *ioa_cfg,
-				       struct scsi_cmnd *scsi_cmd)
-{
-	if (!ioa_cfg->saved_mode_pages) {
-		ioa_cfg->saved_mode_pages  = kmalloc(sizeof(struct ipr_mode_pages),
-						     GFP_ATOMIC);
-		if (!ioa_cfg->saved_mode_pages) {
-			dev_err(&ioa_cfg->pdev->dev,
-				"IOA mode select buffer allocation failed\n");
-			return SCSI_MLQUEUE_HOST_BUSY;
-		}
-	}
-
-	memcpy(ioa_cfg->saved_mode_pages, scsi_cmd->buffer, scsi_cmd->cmnd[4]);
-	ioa_cfg->saved_mode_page_len = scsi_cmd->cmnd[4];
-	return 0;
-}
-
-/**
  * ipr_queuecommand - Queue a mid-layer request
  * @scsi_cmd:	scsi command struct
  * @done:		done function
@@ -4337,9 +4308,6 @@ static int ipr_queuecommand(struct scsi_cmnd *scsi_cmd,
 	if (scsi_cmd->cmnd[0] >= 0xC0 &&
 	    (!ipr_is_gscsi(res) || scsi_cmd->cmnd[0] == IPR_QUERY_RSRC_STATE))
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_IOACMD;
-
-	if (ipr_is_ioa_resource(res) && scsi_cmd->cmnd[0] == MODE_SELECT)
-		rc = ipr_save_ioafp_mode_select(ioa_cfg, scsi_cmd);
 
 	if (likely(rc == 0))
 		rc = ipr_build_ioadl(ioa_cfg, ipr_cmd);
@@ -4829,17 +4797,11 @@ static int ipr_ioafp_mode_select_page28(struct ipr_cmnd *ipr_cmd)
 	int length;
 
 	ENTER;
-	if (ioa_cfg->saved_mode_pages) {
-		memcpy(mode_pages, ioa_cfg->saved_mode_pages,
-		       ioa_cfg->saved_mode_page_len);
-		length = ioa_cfg->saved_mode_page_len;
-	} else {
-		ipr_scsi_bus_speed_limit(ioa_cfg);
-		ipr_check_term_power(ioa_cfg, mode_pages);
-		ipr_modify_ioafp_mode_page_28(ioa_cfg, mode_pages);
-		length = mode_pages->hdr.length + 1;
-		mode_pages->hdr.length = 0;
-	}
+	ipr_scsi_bus_speed_limit(ioa_cfg);
+	ipr_check_term_power(ioa_cfg, mode_pages);
+	ipr_modify_ioafp_mode_page_28(ioa_cfg, mode_pages);
+	length = mode_pages->hdr.length + 1;
+	mode_pages->hdr.length = 0;
 
 	ipr_build_mode_select(ipr_cmd, cpu_to_be32(IPR_IOA_RES_HANDLE), 0x11,
 			      ioa_cfg->vpd_cbs_dma + offsetof(struct ipr_misc_cbs, mode_pages),
@@ -5969,7 +5931,6 @@ static void ipr_free_mem(struct ipr_ioa_cfg *ioa_cfg)
 	}
 
 	ipr_free_dump(ioa_cfg);
-	kfree(ioa_cfg->saved_mode_pages);
 	kfree(ioa_cfg->trace);
 }
 

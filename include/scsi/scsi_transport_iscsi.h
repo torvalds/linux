@@ -63,25 +63,28 @@ struct iscsi_transport {
 	int max_lun;
 	unsigned int max_conn;
 	unsigned int max_cmd_len;
-	struct Scsi_Host *(*create_session) (struct scsi_transport_template *t,
-					     uint32_t initial_cmdsn);
-	void (*destroy_session) (struct Scsi_Host *shost);
-	struct iscsi_cls_conn *(*create_conn) (struct Scsi_Host *shost,
+	struct iscsi_cls_session *(*create_session)
+		(struct scsi_transport_template *t, uint32_t sn, uint32_t *sid);
+	void (*destroy_session) (struct iscsi_cls_session *session);
+	struct iscsi_cls_conn *(*create_conn) (struct iscsi_cls_session *sess,
 				uint32_t cid);
-	int (*bind_conn) (iscsi_sessionh_t session, iscsi_connh_t conn,
+	int (*bind_conn) (struct iscsi_cls_session *session,
+			  struct iscsi_cls_conn *cls_conn,
 			  uint32_t transport_fd, int is_leading);
-	int (*start_conn) (iscsi_connh_t conn);
-	void (*stop_conn) (iscsi_connh_t conn, int flag);
+	int (*start_conn) (struct iscsi_cls_conn *conn);
+	void (*stop_conn) (struct iscsi_cls_conn *conn, int flag);
 	void (*destroy_conn) (struct iscsi_cls_conn *conn);
-	int (*set_param) (iscsi_connh_t conn, enum iscsi_param param,
+	int (*set_param) (struct iscsi_cls_conn *conn, enum iscsi_param param,
 			  uint32_t value);
-	int (*get_conn_param) (void *conndata, enum iscsi_param param,
+	int (*get_conn_param) (struct iscsi_cls_conn *conn,
+			       enum iscsi_param param,
 			       uint32_t *value);
-	int (*get_session_param) (struct Scsi_Host *shost,
+	int (*get_session_param) (struct iscsi_cls_session *session,
 				  enum iscsi_param param, uint32_t *value);
-	int (*send_pdu) (iscsi_connh_t conn, struct iscsi_hdr *hdr,
+	int (*send_pdu) (struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			 char *data, uint32_t data_size);
-	void (*get_stats) (iscsi_connh_t conn, struct iscsi_stats *stats);
+	void (*get_stats) (struct iscsi_cls_conn *conn,
+			   struct iscsi_stats *stats);
 };
 
 /*
@@ -93,15 +96,14 @@ extern int iscsi_unregister_transport(struct iscsi_transport *tt);
 /*
  * control plane upcalls
  */
-extern void iscsi_conn_error(iscsi_connh_t conn, enum iscsi_err error);
-extern int iscsi_recv_pdu(iscsi_connh_t conn, struct iscsi_hdr *hdr,
+extern void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error);
+extern int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 			  char *data, uint32_t data_size);
 
 struct iscsi_cls_conn {
 	struct list_head conn_list;	/* item in connlist */
 	void *dd_data;			/* LLD private data */
 	struct iscsi_transport *transport;
-	iscsi_connh_t connh;
 	int active;			/* must be accessed with the connlock */
 	struct device dev;		/* sysfs transport/container device */
 	struct mempool_zone *z_error;
@@ -113,7 +115,7 @@ struct iscsi_cls_conn {
 	container_of(_dev, struct iscsi_cls_conn, dev)
 
 struct iscsi_cls_session {
-	struct list_head list;	/* item in session_list */
+	struct list_head sess_list;		/* item in session_list */
 	struct iscsi_transport *transport;
 	struct device dev;	/* sysfs transport/container device */
 };

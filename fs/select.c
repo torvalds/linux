@@ -398,11 +398,15 @@ asmlinkage long sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 	ret = core_sys_select(n, inp, outp, exp, &timeout);
 
 	if (tvp) {
+		struct timeval rtv;
+
 		if (current->personality & STICKY_TIMEOUTS)
 			goto sticky;
-		tv.tv_usec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ));
-		tv.tv_sec = timeout;
-		if (copy_to_user(tvp, &tv, sizeof(tv))) {
+		rtv.tv_usec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ));
+		rtv.tv_sec = timeout;
+		if (timeval_compare(&rtv, &tv) < 0)
+			rtv = tv;
+		if (copy_to_user(tvp, &rtv, sizeof(rtv))) {
 sticky:
 			/*
 			 * If an application puts its timeval in read-only
@@ -460,11 +464,16 @@ asmlinkage long sys_pselect7(int n, fd_set __user *inp, fd_set __user *outp,
 	ret = core_sys_select(n, inp, outp, exp, &timeout);
 
 	if (tsp) {
+		struct timespec rts;
+
 		if (current->personality & STICKY_TIMEOUTS)
 			goto sticky;
-		ts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) * 1000;
-		ts.tv_sec = timeout;
-		if (copy_to_user(tsp, &ts, sizeof(ts))) {
+		rts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) *
+						1000;
+		rts.tv_sec = timeout;
+		if (timespec_compare(&rts, &ts) < 0)
+			rts = ts;
+		if (copy_to_user(tsp, &rts, sizeof(rts))) {
 sticky:
 			/*
 			 * If an application puts its timeval in read-only
@@ -758,12 +767,17 @@ asmlinkage long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
 
 	if (tsp && timeout >= 0) {
+		struct timespec rts;
+
 		if (current->personality & STICKY_TIMEOUTS)
 			goto sticky;
 		/* Yes, we know it's actually an s64, but it's also positive. */
-		ts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) * 1000;
-		ts.tv_sec = timeout;
-		if (copy_to_user(tsp, &ts, sizeof(ts))) {
+		rts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) *
+						1000;
+		rts.tv_sec = timeout;
+		if (timespec_compare(&rts, &ts) < 0)
+			rts = ts;
+		if (copy_to_user(tsp, &rts, sizeof(rts))) {
 		sticky:
 			/*
 			 * If an application puts its timeval in read-only
