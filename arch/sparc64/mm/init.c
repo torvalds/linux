@@ -252,7 +252,7 @@ static inline void tsb_insert(struct tsb *ent, unsigned long tag, unsigned long 
 {
 	unsigned long tsb_addr = (unsigned long) ent;
 
-	if (tlb_type == cheetah_plus)
+	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
 		tsb_addr = __pa(tsb_addr);
 
 	__tsb_insert(tsb_addr, tag, pte);
