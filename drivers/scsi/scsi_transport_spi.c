@@ -1059,6 +1059,7 @@ int spi_populate_width_msg(unsigned char *msg, int width)
 	msg[3] = width;
 	return 4;
 }
+EXPORT_SYMBOL_GPL(spi_populate_width_msg);
 
 int spi_populate_sync_msg(unsigned char *msg, int period, int offset)
 {
@@ -1069,6 +1070,7 @@ int spi_populate_sync_msg(unsigned char *msg, int period, int offset)
 	msg[4] = offset;
 	return 5;
 }
+EXPORT_SYMBOL_GPL(spi_populate_sync_msg);
 
 int spi_populate_ppr_msg(unsigned char *msg, int period, int offset,
 		int width, int options)
@@ -1083,6 +1085,7 @@ int spi_populate_ppr_msg(unsigned char *msg, int period, int offset,
 	msg[7] = options;
 	return 8;
 }
+EXPORT_SYMBOL_GPL(spi_populate_ppr_msg);
 
 #ifdef CONFIG_SCSI_CONSTANTS
 static const char * const one_byte_msgs[] = {
