@@ -675,7 +675,7 @@ static int __init pci_intmap_match(struct pci_dev *pdev, unsigned int *interrupt
 {
 	struct pcidev_cookie *dev_pcp = pdev->sysdata;
 	struct pci_pbm_info *pbm = dev_pcp->pbm;
-	struct linux_prom_pci_registers reg;
+	struct linux_prom_pci_registers reg[PROMREG_MAX];
 	unsigned int hi, mid, lo, irq;
 	int i, cnode, plen;
 
@@ -683,7 +683,7 @@ static int __init pci_intmap_match(struct pci_dev *pdev, unsigned int *interrupt
 	if (cnode == pbm->prom_node)
 		goto success;
 
-	plen = prom_getproperty(cnode, "reg", (char *) &reg, sizeof(reg));
+	plen = prom_getproperty(cnode, "reg", (char *) reg, sizeof(reg));
 	if (plen <= 0 ||
 	    (plen % sizeof(struct linux_prom_pci_registers)) != 0) {
 		printk("%s: OBP node %x reg property has bad len %d\n",
@@ -691,9 +691,9 @@ static int __init pci_intmap_match(struct pci_dev *pdev, unsigned int *interrupt
 		goto fail;
 	}
 
-	hi   = reg.phys_hi & pbm->pbm_intmask.phys_hi;
-	mid  = reg.phys_mid & pbm->pbm_intmask.phys_mid;
-	lo   = reg.phys_lo & pbm->pbm_intmask.phys_lo;
+	hi   = reg[0].phys_hi & pbm->pbm_intmask.phys_hi;
+	mid  = reg[0].phys_mid & pbm->pbm_intmask.phys_mid;
+	lo   = reg[0].phys_lo & pbm->pbm_intmask.phys_lo;
 	irq  = *interrupt & pbm->pbm_intmask.interrupt;
 
 	for (i = 0; i < pbm->num_pbm_intmap; i++) {
