@@ -8,6 +8,10 @@
 #define SET_GL(val)	\
 	.word	0xa1902000 | val
 
+	/* rdpr %gl, %gN */
+#define GET_GL_GLOBAL(N)	\
+	.word	0x81540000 | (N << 25)
+
 #define KERNBASE	0x400000
 
 #define	PTREGS_OFF	(STACK_BIAS + STACKFRAME_SZ)
