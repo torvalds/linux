@@ -27,8 +27,6 @@ static struct flash_platform_data nslu2_flash_data = {
 };
 
 static struct resource nslu2_flash_resource = {
-	.start			= NSLU2_FLASH_BASE,
-	.end			= NSLU2_FLASH_BASE + NSLU2_FLASH_SIZE,
 	.flags			= IORESOURCE_MEM,
 };
 
@@ -115,6 +113,10 @@ static void nslu2_power_off(void)
 static void __init nslu2_init(void)
 {
 	ixp4xx_sys_init();
+
+	nslu2_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
+	nslu2_flash_resource.end =
+		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
 	pm_power_off = nslu2_power_off;
 
