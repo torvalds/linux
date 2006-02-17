@@ -163,10 +163,6 @@ void enable_irq(unsigned int irq)
 		if (err != HV_EOK)
 			printk("sun4v_intr_setenabled(%x): err(%d)\n",
 			       ino, err);
-		err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
-		if (err != HV_EOK)
-			printk("sun4v_intr_setstate(%x): "
-			       "err(%d)\n", ino, err);
 	} else {
 		unsigned long tid;
 
