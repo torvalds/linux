@@ -2413,12 +2413,12 @@ struct trap_per_cpu trap_block[NR_CPUS];
 /* This can get invoked before sched_init() so play it super safe
  * and use hard_smp_processor_id().
  */
-void init_cur_cpu_trap(void)
+void init_cur_cpu_trap(struct thread_info *t)
 {
 	int cpu = hard_smp_processor_id();
 	struct trap_per_cpu *p = &trap_block[cpu];
 
-	p->thread = current_thread_info();
+	p->thread = t;
 	p->pgd_paddr = 0;
 }
 

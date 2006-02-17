@@ -77,7 +77,7 @@ struct trap_per_cpu {
 	unsigned long		__pad2[4];
 } __attribute__((aligned(64)));
 extern struct trap_per_cpu trap_block[NR_CPUS];
-extern void init_cur_cpu_trap(void);
+extern void init_cur_cpu_trap(struct thread_info *);
 extern void setup_tba(void);
 
 #ifdef CONFIG_SMP

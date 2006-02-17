@@ -30,12 +30,16 @@ itlb_load:
 dtlb_load:
 	.asciz	"SUNW,dtlb-load"
 
+	/* XXX __cpuinit this thing XXX */
+#define TRAMP_STACK_SIZE	1024
+	.align	16
+tramp_stack:
+	.skip	TRAMP_STACK_SIZE
+
 	.text
 	.align		8
 	.globl		sparc64_cpu_startup, sparc64_cpu_startup_end
 sparc64_cpu_startup:
-	flushw
-
 	BRANCH_IF_SUN4V(g1, niagara_startup)
 	BRANCH_IF_CHEETAH_BASE(g1, g5, cheetah_startup)
 	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1, g5, cheetah_plus_startup)
@@ -58,6 +62,7 @@ cheetah_startup:
 	or	%g5, DCU_DM | DCU_IM | DCU_DC | DCU_IC, %g5
 	stxa	%g5, [%g0] ASI_DCU_CONTROL_REG
 	membar	#Sync
+	/* fallthru */
 
 cheetah_generic_startup:
 	mov	TSB_EXTENSION_P, %g3
@@ -90,19 +95,17 @@ spitfire_startup:
 	membar		#Sync
 
 startup_continue:
-	wrpr		%g0, 15, %pil
-
 	sethi		%hi(0x80000000), %g2
 	sllx		%g2, 32, %g2
 	wr		%g2, 0, %tick_cmpr
+
+	mov		%o0, %l0
 
 	BRANCH_IF_SUN4V(g1, niagara_lock_tlb)
 
 	/* Call OBP by hand to lock KERNBASE into i/d tlbs.
 	 * We lock 2 consequetive entries if we are 'bigkernel'.
 	 */
-	mov		%o0, %l0
-
 	sethi		%hi(prom_entry_lock), %g2
 1:	ldstub		[%g2 + %lo(prom_entry_lock)], %g1
 	membar		#StoreLoad | #StoreStore
@@ -112,7 +115,6 @@ startup_continue:
 	sethi		%hi(p1275buf), %g2
 	or		%g2, %lo(p1275buf), %g2
 	ldx		[%g2 + 0x10], %l2
-	mov		%sp, %l1
 	add		%l2, -(192 + 128), %sp
 	flushw
 
@@ -308,17 +310,8 @@ niagara_lock_tlb:
 	ta		HV_FAST_TRAP
 
 after_lock_tlb:
-	mov		%l1, %sp
-	flushw
-
-	mov		%l0, %o0
-
 	wrpr		%g0, (PSTATE_PRIV | PSTATE_PEF), %pstate
 	wr		%g0, 0, %fprs
-
-	/* XXX Buggy PROM... */
-	srl		%o0, 0, %o0
-	ldx		[%o0], %g6
 
 	wr		%g0, ASI_P, %asi
 
@@ -341,22 +334,25 @@ after_lock_tlb:
 
 	membar		#Sync
 
-	mov		1, %g5
-	sllx		%g5, THREAD_SHIFT, %g5
-	sub		%g5, (STACKFRAME_SZ + STACK_BIAS), %g5
-	add		%g6, %g5, %sp
+	/* Everything we do here, until we properly take over the
+	 * trap table, must be done with extreme care.  We cannot
+	 * make any references to %g6 (current thread pointer),
+	 * %g4 (current task pointer), or %g5 (base of current cpu's
+	 * per-cpu area) until we properly take over the trap table
+	 * from the firmware and hypervisor.
+	 *
+	 * Get onto temporary stack which is in the locked kernel image.
+	 */
+	sethi		%hi(tramp_stack), %g1
+	or		%g1, %lo(tramp_stack), %g1
+	add		%g1, TRAMP_STACK_SIZE, %g1
+	sub		%g1, STACKFRAME_SZ + STACK_BIAS, %sp
 	mov		0, %fp
 
-	wrpr		%g0, 0, %wstate
-	wrpr		%g0, 0, %tl
-
-	/* Load TBA, then we can resurface. */
-	sethi		%hi(sparc64_ttable_tl0), %g5
-	wrpr		%g5, %tba
-
-	ldx		[%g6 + TI_TASK], %g4
-
-	wrpr		%g0, 0, %wstate
+	/* Put garbage in these registers to trap any access to them.  */
+	set		0xdeadbeef, %g4
+	set		0xdeadbeef, %g5
+	set		0xdeadbeef, %g6
 
 	call		init_irqwork_curcpu
 	 nop
@@ -367,11 +363,17 @@ after_lock_tlb:
 	bne,pt		%icc, 1f
 	 nop
 
+	call		hard_smp_processor_id
+	 nop
+	
+	mov		%o0, %o1
+	mov		0, %o0
+	mov		0, %o2
 	call		sun4v_init_mondo_queues
-	 mov		0, %o0
+	 mov		1, %o3
 
 1:	call		init_cur_cpu_trap
-	 nop
+	 ldx		[%l0], %o0
 
 	/* Start using proper page size encodings in ctx register.  */
 	sethi		%hi(sparc64_kern_pri_context), %g3
@@ -386,9 +388,14 @@ after_lock_tlb:
 
 	membar		#Sync
 
-	rdpr		%pstate, %o1
-	or		%o1, PSTATE_IE, %o1
-	wrpr		%o1, 0, %pstate
+	wrpr		%g0, 0, %wstate
+
+	/* As a hack, put &init_thread_union into %g6.
+	 * prom_world() loads from here to restore the %asi
+	 * register.
+	 */
+	sethi		%hi(init_thread_union), %g6
+	or		%g6, %lo(init_thread_union), %g6
 
 	sethi		%hi(is_sun4v), %o0
 	lduw		[%o0 + %lo(is_sun4v)], %o0
@@ -418,7 +425,20 @@ after_lock_tlb:
 1:	call		prom_set_trap_table
 	 sethi		%hi(sparc64_ttable_tl0), %o0
 
-2:	call		smp_callin
+2:	ldx		[%l0], %g6
+	ldx		[%g6 + TI_TASK], %g4
+
+	mov		1, %g5
+	sllx		%g5, THREAD_SHIFT, %g5
+	sub		%g5, (STACKFRAME_SZ + STACK_BIAS), %g5
+	add		%g6, %g5, %sp
+	mov		0, %fp
+
+	rdpr		%pstate, %o1
+	or		%o1, PSTATE_IE, %o1
+	wrpr		%o1, 0, %pstate
+
+	call		smp_callin
 	 nop
 	call		cpu_idle
 	 mov		0, %o0

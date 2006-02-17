@@ -1018,21 +1018,29 @@ static void __cpuinit init_cpu_send_mondo_info(struct trap_per_cpu *tb, int use_
 }
 
 /* Allocate and register the mondo and error queues for this cpu.  */
-void __cpuinit sun4v_init_mondo_queues(int use_bootmem)
+void __cpuinit sun4v_init_mondo_queues(int use_bootmem, int cpu, int alloc, int load)
 {
-	int cpu = hard_smp_processor_id();
 	struct trap_per_cpu *tb = &trap_block[cpu];
 
-	alloc_one_mondo(&tb->cpu_mondo_pa, use_bootmem);
-	alloc_one_mondo(&tb->dev_mondo_pa, use_bootmem);
-	alloc_one_mondo(&tb->resum_mondo_pa, use_bootmem);
-	alloc_one_kbuf(&tb->resum_kernel_buf_pa, use_bootmem);
-	alloc_one_mondo(&tb->nonresum_mondo_pa, use_bootmem);
-	alloc_one_kbuf(&tb->nonresum_kernel_buf_pa, use_bootmem);
+	if (alloc) {
+		alloc_one_mondo(&tb->cpu_mondo_pa, use_bootmem);
+		alloc_one_mondo(&tb->dev_mondo_pa, use_bootmem);
+		alloc_one_mondo(&tb->resum_mondo_pa, use_bootmem);
+		alloc_one_kbuf(&tb->resum_kernel_buf_pa, use_bootmem);
+		alloc_one_mondo(&tb->nonresum_mondo_pa, use_bootmem);
+		alloc_one_kbuf(&tb->nonresum_kernel_buf_pa, use_bootmem);
 
-	init_cpu_send_mondo_info(tb, use_bootmem);
+		init_cpu_send_mondo_info(tb, use_bootmem);
+	}
 
-	sun4v_register_mondo_queues(cpu);
+	if (load) {
+		if (cpu != hard_smp_processor_id()) {
+			prom_printf("SUN4V: init mondo on cpu %d not %d\n",
+				    cpu, hard_smp_processor_id());
+			prom_halt();
+		}
+		sun4v_register_mondo_queues(cpu);
+	}
 }
 
 /* Only invoked on boot processor. */
@@ -1043,7 +1051,7 @@ void __init init_IRQ(void)
 	memset(&ivector_table[0], 0, sizeof(ivector_table));
 
 	if (tlb_type == hypervisor)
-		sun4v_init_mondo_queues(1);
+		sun4v_init_mondo_queues(1, hard_smp_processor_id(), 1, 1);
 
 	/* We need to clear any IRQ's pending in the soft interrupt
 	 * registers, a spurious one could be left around from the

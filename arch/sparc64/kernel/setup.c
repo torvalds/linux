@@ -384,7 +384,7 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 
 	/* Get boot processor trap_block[] setup.  */
-	init_cur_cpu_trap();
+	init_cur_cpu_trap(current_thread_info());
 }
 
 static int __init set_preferred_console(void)

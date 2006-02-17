@@ -316,6 +316,8 @@ static void smp_synchronize_one_tick(int cpu)
 	spin_unlock_irqrestore(&itc_sync_lock, flags);
 }
 
+extern void sun4v_init_mondo_queues(int use_bootmem, int cpu, int alloc, int load);
+
 extern unsigned long sparc64_cpu_startup;
 
 /* The OBP cpu startup callback truncates the 3rd arg cookie to
@@ -339,6 +341,9 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 	cpu_set(cpu, cpu_callout_map);
 
 	if (tlb_type == hypervisor) {
+		/* Alloc the mondo queues, cpu will load them.  */
+		sun4v_init_mondo_queues(0, cpu, 1, 0);
+
 		prom_startcpu_cpuid(cpu, entry, cookie);
 	} else {
 		int cpu_node;
@@ -352,6 +357,7 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 			break;
 		udelay(100);
 	}
+
 	if (callin_flag) {
 		ret = 0;
 	} else {
