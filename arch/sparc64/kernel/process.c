@@ -355,12 +355,14 @@ void show_regs(struct pt_regs *regs)
 	extern long etrap, etraptl1;
 #endif
 	__show_regs(regs);
+#if 0
 #ifdef CONFIG_SMP
 	{
 		extern void smp_report_regs(void);
 
 		smp_report_regs();
 	}
+#endif
 #endif
 
 #ifdef VERBOSE_SHOWREGS	
