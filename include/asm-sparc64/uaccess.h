@@ -252,14 +252,7 @@ copy_in_user(void __user *to, void __user *from, unsigned long size)
 }
 #define __copy_in_user copy_in_user
 
-extern unsigned long __must_check __bzero_noasi(void __user *, unsigned long);
-
-static inline unsigned long __must_check
-__clear_user(void __user *addr, unsigned long size)
-{
-	
-	return __bzero_noasi(addr, size);
-}
+extern unsigned long __must_check __clear_user(void __user *, unsigned long);
 
 #define clear_user __clear_user
 

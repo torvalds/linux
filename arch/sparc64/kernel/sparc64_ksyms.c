@@ -335,7 +335,7 @@ EXPORT_SYMBOL(copy_to_user_fixup);
 EXPORT_SYMBOL(copy_from_user_fixup);
 EXPORT_SYMBOL(copy_in_user_fixup);
 EXPORT_SYMBOL(__strncpy_from_user);
-EXPORT_SYMBOL(__bzero_noasi);
+EXPORT_SYMBOL(__clear_user);
 
 /* Various address conversion macros use this. */
 EXPORT_SYMBOL(phys_base);
