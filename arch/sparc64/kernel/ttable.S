@@ -18,11 +18,10 @@ tl0_resv000:	BOOT_KERNEL BTRAP(0x1) BTRAP(0x2) BTRAP(0x3)
 tl0_resv004:	BTRAP(0x4)  BTRAP(0x5) BTRAP(0x6) BTRAP(0x7)
 tl0_iax:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_insn_access_exception)
-tl0_resv009:	BTRAP(0x9)
+tl0_itsb_4v:	SUN4V_ITSB_MISS
 tl0_iae:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
-tl0_itsb_4v:	SUN4V_ITSB_MISS
-tl0_resv00c:	BTRAP(0xc) BTRAP(0xd) BTRAP(0xe) BTRAP(0xf)
+tl0_resv00b:	BTRAP(0xb) BTRAP(0xc) BTRAP(0xd) BTRAP(0xe) BTRAP(0xf)
 tl0_ill:	membar #Sync
 		TRAP_7INSNS(do_illegal_instruction)
 tl0_privop:	TRAP(do_privop)
@@ -182,11 +181,10 @@ sparc64_ttable_tl1:
 tl1_resv000:	BOOT_KERNEL    BTRAPTL1(0x1) BTRAPTL1(0x2) BTRAPTL1(0x3)
 tl1_resv004:	BTRAPTL1(0x4)  BTRAPTL1(0x5) BTRAPTL1(0x6) BTRAPTL1(0x7)
 tl1_iax:	TRAP_NOSAVE(__spitfire_insn_access_exception_tl1)
-tl1_resv009:	BTRAPTL1(0x9)
+tl1_itsb_4v:	SUN4V_ITSB_MISS
 tl1_iae:	membar #Sync
 		TRAP_NOSAVE_7INSNS(__spitfire_access_error)
-tl1_itsb_4v:	SUN4V_ITSB_MISS
-tl1_resv00c:	BTRAPTL1(0xc) BTRAPTL1(0xd) BTRAPTL1(0xe) BTRAPTL1(0xf)
+tl1_resv00b:	BTRAPTL1(0xb) BTRAPTL1(0xc) BTRAPTL1(0xd) BTRAPTL1(0xe) BTRAPTL1(0xf)
 tl1_ill:	TRAPTL1(do_ill_tl1)
 tl1_privop:	BTRAPTL1(0x11)
 tl1_resv012:	BTRAPTL1(0x12) BTRAPTL1(0x13) BTRAPTL1(0x14) BTRAPTL1(0x15)
