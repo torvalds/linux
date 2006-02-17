@@ -510,6 +510,11 @@ static void __init hypervisor_tlb_lock(unsigned long vaddr,
 			       "=&r" (arg3)
 			     : "0" (func), "1" (arg0), "2" (arg1),
 			       "3" (arg2), "4" (arg3));
+	if (arg0 != 0) {
+		prom_printf("hypervisor_tlb_lock[%lx:%lx:%lx:%lx]: "
+			    "errors with %lx\n", vaddr, 0, pte, mmu, arg0);
+		prom_halt();
+	}
 }
 
 static unsigned long kern_large_tte(unsigned long paddr);
