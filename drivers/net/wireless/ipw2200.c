@@ -8064,7 +8064,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
 
 	if ((priv->pci_dev->device == 0x4223) ||
 	    (priv->pci_dev->device == 0x4224)) {
-		if (option == 2)
+		if (option == 1)
 			printk(KERN_INFO DRV_NAME
 			       ": Detected Intel PRO/Wireless 2915ABG Network "
 			       "Connection\n");
@@ -8075,7 +8075,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int option)
 		priv->adapter = IPW_2915ABG;
 		priv->ieee->mode = IEEE_A | IEEE_G | IEEE_B;
 	} else {
-		if (option == 2)
+		if (option == 1)
 			printk(KERN_INFO DRV_NAME
 			       ": Detected Intel PRO/Wireless 2200BG Network "
 			       "Connection\n");
