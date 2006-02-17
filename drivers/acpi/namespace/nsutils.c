@@ -78,6 +78,7 @@ acpi_ns_report_error(char *module_name,
 		     char *internal_name, acpi_status lookup_status)
 {
 	acpi_status status;
+	u32 bad_name;
 	char *name = NULL;
 
 	acpi_ut_report_error(module_name, line_number);
@@ -86,8 +87,8 @@ acpi_ns_report_error(char *module_name,
 
 		/* There is a non-ascii character in the name */
 
-		acpi_os_printf("[0x%4.4X] (NON-ASCII)",
-			       *(ACPI_CAST_PTR(u32, internal_name)));
+		ACPI_MOVE_32_TO_32(&bad_name, internal_name);
+		acpi_os_printf("[0x%4.4X] (NON-ASCII)", bad_name);
 	} else {
 		/* Convert path to external format */
 

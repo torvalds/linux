@@ -77,6 +77,15 @@ acpi_rs_convert_aml_to_resources(u8 * aml, u32 aml_length, u8 * output_buffer)
 	/* Loop until end-of-buffer or an end_tag is found */
 
 	while (aml < end_aml) {
+		/*
+		 * Check that the input buffer and all subsequent pointers into it
+		 * are aligned on a native word boundary. Most important on IA64
+		 */
+		if (ACPI_IS_MISALIGNED(resource)) {
+			ACPI_WARNING((AE_INFO,
+				      "Misaligned resource pointer %p",
+				      resource));
+		}
 
 		/* Validate the Resource Type and Resource Length */
 
@@ -100,6 +109,12 @@ acpi_rs_convert_aml_to_resources(u8 * aml, u32 aml_length, u8 * output_buffer)
 					*aml));
 			return_ACPI_STATUS(status);
 		}
+
+		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
+				  "Type %.2X, Aml %.2X internal %.2X\n",
+				  acpi_ut_get_resource_type(aml),
+				  acpi_ut_get_descriptor_length(aml),
+				  resource->length));
 
 		/* Normal exit on completion of an end_tag resource descriptor */
 

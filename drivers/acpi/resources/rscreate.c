@@ -332,7 +332,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 		/* Now align the current length */
 
 		user_prt->length =
-		    (u32) ACPI_ROUND_UP_to_64_bITS(user_prt->length);
+		    (u32) ACPI_ROUND_UP_to_64_bIT(user_prt->length);
 
 		/* 4) Fourth subobject: Dereference the PRT.source_index */
 

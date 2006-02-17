@@ -767,6 +767,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 						return_ACPI_STATUS(status2);
 					}
 				}
+
 				acpi_ps_pop_scope(parser_state, &op,
 						  &walk_state->arg_types,
 						  &walk_state->arg_count);

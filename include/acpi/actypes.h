@@ -154,7 +154,6 @@ typedef u64 acpi_physical_address;
 #define ACPI_MAX_PTR                    ACPI_UINT64_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT64_MAX
 
-#define ALIGNED_ADDRESS_BOUNDARY        0x00000008
 #define ACPI_USE_NATIVE_DIVIDE	/* Has native 64-bit integer support */
 
 /*
@@ -195,8 +194,6 @@ typedef u64 acpi_physical_address;
 #define ACPI_MAX_PTR                    ACPI_UINT32_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT32_MAX
 
-#define ALIGNED_ADDRESS_BOUNDARY        0x00000004
-
 /*******************************************************************************
  *
  * Types specific to 16-bit targets
@@ -223,7 +220,6 @@ typedef char *acpi_physical_address;
 #define ACPI_MAX_PTR                    ACPI_UINT16_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT16_MAX
 
-#define ALIGNED_ADDRESS_BOUNDARY        0x00000002
 #define ACPI_USE_NATIVE_DIVIDE	/* No 64-bit integers, ok to use native divide */
 
 /* 64-bit integers cannot be supported */
@@ -1296,12 +1292,6 @@ struct acpi_resource {
 #define ACPI_RS_SIZE(type)                  (u32) (ACPI_RS_SIZE_NO_DATA + sizeof (type))
 
 #define ACPI_NEXT_RESOURCE(res)             (struct acpi_resource *)((u8 *) res + res->length)
-
-#ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
-#define ACPI_ALIGN_RESOURCE_SIZE(length)    (length)
-#else
-#define ACPI_ALIGN_RESOURCE_SIZE(length)    ACPI_ROUND_UP_TO_NATIVE_WORD(length)
-#endif
 
 /*
  * END: of definitions for Resource Attributes

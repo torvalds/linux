@@ -299,7 +299,8 @@ static u16 acpi_rs_strcpy(char *destination, char *source)
  *              string_ptr          - (optional) where to store the actual
  *                                    resource_source string
  *
- * RETURN:      Length of the string plus NULL terminator, rounded up to 32 bit
+ * RETURN:      Length of the string plus NULL terminator, rounded up to native
+ *              word boundary
  *
  * DESCRIPTION: Copy the optional resource_source data from a raw AML descriptor
  *              to an internal resource descriptor
@@ -346,18 +347,16 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 		}
 
 		/*
-		 * In order for the struct_size to fall on a 32-bit boundary, calculate
-		 * the length of the string (+1 for the NULL terminator) and expand the
-		 * struct_size to the next 32-bit boundary.
+		 * In order for the Resource length to be a multiple of the native
+		 * word, calculate the length of the string (+1 for NULL terminator)
+		 * and expand to the next word multiple.
 		 *
 		 * Zero the entire area of the buffer.
 		 */
 		total_length =
-		    (u32)
-		    ACPI_ROUND_UP_to_32_bITS(ACPI_STRLEN
-					     (ACPI_CAST_PTR
-					      (char,
-					       &aml_resource_source[1])) + 1);
+		    ACPI_STRLEN(ACPI_CAST_PTR(char, &aml_resource_source[1])) +
+		    1;
+		total_length = (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(total_length);
 
 		ACPI_MEMSET(resource_source->string_ptr, 0, total_length);
 
