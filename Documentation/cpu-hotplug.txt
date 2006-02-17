@@ -58,6 +58,12 @@ mark such hot-pluggable cpus as disabled entries, one could use this
 parameter "additional_cpus=x" to represent those cpus in the cpu_possible_map.
 
 
+possible_cpus=n		[s390 only] use this to set hotpluggable cpus.
+			This option sets possible_cpus bits in
+			cpu_possible_map. Thus keeping the numbers of bits set
+			constant even if the machine gets rebooted.
+			This option overrides additional_cpus.
+
 CPU maps and such
 -----------------
 [More on cpumaps and primitive to manipulate, please check

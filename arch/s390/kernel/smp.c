@@ -673,15 +673,16 @@ __cpu_up(unsigned int cpu)
 }
 
 static unsigned int __initdata additional_cpus;
+static unsigned int __initdata possible_cpus;
 
 void __init smp_setup_cpu_possible_map(void)
 {
 	unsigned int pcpus, cpu;
 
-	pcpus = smp_count_cpus() + additional_cpus;
+	pcpus = min(smp_count_cpus() + additional_cpus, (unsigned int) NR_CPUS);
 
-	if (pcpus > NR_CPUS)
-		pcpus = NR_CPUS;
+	if (possible_cpus)
+		pcpus = min(possible_cpus, (unsigned int) NR_CPUS);
 
 	for (cpu = 0; cpu < pcpus; cpu++)
 		cpu_set(cpu, cpu_possible_map);
@@ -697,6 +698,13 @@ static int __init setup_additional_cpus(char *s)
 	return 0;
 }
 early_param("additional_cpus", setup_additional_cpus);
+
+static int __init setup_possible_cpus(char *s)
+{
+	possible_cpus = simple_strtoul(s, NULL, 0);
+	return 0;
+}
+early_param("possible_cpus", setup_possible_cpus);
 
 int
 __cpu_disable(void)
