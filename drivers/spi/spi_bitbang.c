@@ -138,6 +138,43 @@ static unsigned bitbang_txrx_32(
 	return t->len - count;
 }
 
+static int
+bitbang_transfer_setup(struct spi_device *spi, struct spi_transfer *t)
+{
+	struct spi_bitbang_cs	*cs = spi->controller_state;
+	u8			bits_per_word;
+	u32			hz;
+
+	if (t) {
+		bits_per_word = t->bits_per_word;
+		hz = t->speed_hz;
+	} else {
+		bits_per_word = 0;
+		hz = 0;
+	}
+
+	/* spi_transfer level calls that work per-word */
+	if (!bits_per_word)
+		bits_per_word = spi->bits_per_word;
+	if (bits_per_word <= 8)
+		cs->txrx_bufs = bitbang_txrx_8;
+	else if (bits_per_word <= 16)
+		cs->txrx_bufs = bitbang_txrx_16;
+	else if (bits_per_word <= 32)
+		cs->txrx_bufs = bitbang_txrx_32;
+	else
+		return -EINVAL;
+
+	/* nsecs = (clock period)/2 */
+	if (!hz)
+		hz = spi->max_speed_hz;
+	cs->nsecs = (1000000000/2) / hz;
+	if (cs->nsecs > MAX_UDELAY_MS * 1000)
+		return -EINVAL;
+
+	return 0;
+}
+
 /**
  * spi_bitbang_setup - default setup for per-word I/O loops
  */
@@ -145,6 +182,7 @@ int spi_bitbang_setup(struct spi_device *spi)
 {
 	struct spi_bitbang_cs	*cs = spi->controller_state;
 	struct spi_bitbang	*bitbang;
+	int			retval;
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;
@@ -160,25 +198,14 @@ int spi_bitbang_setup(struct spi_device *spi)
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
 
-	/* spi_transfer level calls that work per-word */
-	if (spi->bits_per_word <= 8)
-		cs->txrx_bufs = bitbang_txrx_8;
-	else if (spi->bits_per_word <= 16)
-		cs->txrx_bufs = bitbang_txrx_16;
-	else if (spi->bits_per_word <= 32)
-		cs->txrx_bufs = bitbang_txrx_32;
-	else
-		return -EINVAL;
-
 	/* per-word shift register access, in hardware or bitbanging */
 	cs->txrx_word = bitbang->txrx_word[spi->mode & (SPI_CPOL|SPI_CPHA)];
 	if (!cs->txrx_word)
 		return -EINVAL;
 
-	/* nsecs = (clock period)/2 */
-	cs->nsecs = (1000000000/2) / (spi->max_speed_hz);
-	if (cs->nsecs > MAX_UDELAY_MS * 1000)
-		return -EINVAL;
+	retval = bitbang_transfer_setup(spi, NULL);
+	if (retval < 0)
+		return retval;
 
 	dev_dbg(&spi->dev, "%s, mode %d, %u bits/w, %u nsec\n",
 			__FUNCTION__, spi->mode & (SPI_CPOL | SPI_CPHA),
@@ -246,6 +273,8 @@ static void bitbang_work(void *_bitbang)
 		unsigned		tmp;
 		unsigned		cs_change;
 		int			status;
+		int			(*setup_transfer)(struct spi_device *,
+						struct spi_transfer *);
 
 		m = container_of(bitbang->queue.next, struct spi_message,
 				queue);
@@ -262,11 +291,26 @@ static void bitbang_work(void *_bitbang)
 		tmp = 0;
 		cs_change = 1;
 		status = 0;
+		setup_transfer = NULL;
 
 		list_for_each_entry (t, &m->transfers, transfer_list) {
 			if (bitbang->shutdown) {
 				status = -ESHUTDOWN;
 				break;
+			}
+
+			/* override or restore speed and wordsize */
+			if (t->speed_hz || t->bits_per_word) {
+				setup_transfer = bitbang->setup_transfer;
+				if (!setup_transfer) {
+					status = -ENOPROTOOPT;
+					break;
+				}
+			}
+			if (setup_transfer) {
+				status = setup_transfer(spi, t);
+				if (status < 0)
+					break;
 			}
 
 			/* set up default clock polarity, and activate chip;
@@ -324,6 +368,10 @@ static void bitbang_work(void *_bitbang)
 
 		m->status = status;
 		m->complete(m->context);
+
+		/* restore speed and wordsize */
+		if (setup_transfer)
+			setup_transfer(spi, NULL);
 
 		/* normally deactivate chipselect ... unless no error and
 		 * cs_change has hinted that the next message will probably
@@ -406,6 +454,7 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 		bitbang->use_dma = 0;
 		bitbang->txrx_bufs = spi_bitbang_bufs;
 		if (!bitbang->master->setup) {
+			bitbang->setup_transfer = bitbang_transfer_setup;
 			bitbang->master->setup = spi_bitbang_setup;
 			bitbang->master->cleanup = spi_bitbang_cleanup;
 		}

@@ -31,6 +31,7 @@ extern struct bus_type spi_bus_type;
  * @master: SPI controller used with the device.
  * @max_speed_hz: Maximum clock rate to be used with this chip
  *	(on this board); may be changed by the device's driver.
+ *	The spi_transfer.speed_hz can override this for each transfer.
  * @chip-select: Chipselect, distinguishing chips handled by "master".
  * @mode: The spi mode defines how data is clocked out and in.
  *	This may be changed by the device's driver.
@@ -38,6 +39,7 @@ extern struct bus_type spi_bus_type;
  * 	like eight or 12 bits are common.  In-memory wordsizes are
  *	powers of two bytes (e.g. 20 bit samples use 32 bits).
  *	This may be changed by the device's driver.
+ *	The spi_transfer.bits_per_word can override this for each transfer.
  * @irq: Negative, or the number passed to request_irq() to receive
  * 	interrupts from this device.
  * @controller_state: Controller's runtime state
@@ -268,6 +270,10 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * @tx_dma: DMA address of tx_buf, if spi_message.is_dma_mapped
  * @rx_dma: DMA address of rx_buf, if spi_message.is_dma_mapped
  * @len: size of rx and tx buffers (in bytes)
+ * @speed_hz: Select a speed other then the device default for this
+ *      transfer. If 0 the default (from spi_device) is used.
+ * @bits_per_word: select a bits_per_word other then the device default
+ *      for this transfer. If 0 the default (from spi_device) is used.
  * @cs_change: affects chipselect after this transfer completes
  * @delay_usecs: microseconds to delay after this transfer before
  * 	(optionally) changing the chipselect status, then starting
@@ -322,7 +328,9 @@ struct spi_transfer {
 	dma_addr_t	rx_dma;
 
 	unsigned	cs_change:1;
+	u8		bits_per_word;
 	u16		delay_usecs;
+	u32		speed_hz;
 
 	struct list_head transfer_list;
 };

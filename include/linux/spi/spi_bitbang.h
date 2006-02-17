@@ -30,6 +30,12 @@ struct spi_bitbang {
 
 	struct spi_master	*master;
 
+	/* setup_transfer() changes clock and/or wordsize to match settings
+	 * for this transfer; zeroes restore defaults from spi_device.
+	 */
+	int	(*setup_transfer)(struct spi_device *spi,
+			struct spi_transfer *t);
+
 	void	(*chipselect)(struct spi_device *spi, int is_on);
 #define	BITBANG_CS_ACTIVE	1	/* normally nCS, active low */
 #define	BITBANG_CS_INACTIVE	0
