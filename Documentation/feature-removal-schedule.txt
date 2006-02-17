@@ -151,6 +151,13 @@ Who:	Ralf Baechle <ralf@linux-mips.org>
 
 ---------------------------
 
+What:   eepro100 network driver
+When:   January 2007
+Why:    replaced by the e100 driver
+Who:    Adrian Bunk <bunk@stusta.de>
+
+---------------------------
+
 What:	Legacy /proc/pci interface (PCI_LEGACY_PROC)
 When:	March 2006
 Why:	deprecated since 2.5.53 in favor of lspci(8)

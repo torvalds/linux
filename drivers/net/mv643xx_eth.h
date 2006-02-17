@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/mii.h>
 
 #include <linux/mv643xx.h>
 
@@ -88,10 +89,6 @@
  *	None.
  *
  */
-
-/* MAC accepet/reject macros */
-#define ACCEPT_MAC_ADDR				0
-#define REJECT_MAC_ADDR				1
 
 /* Buffer offset from buffer pointer */
 #define RX_BUF_OFFSET				0x2
@@ -324,11 +321,6 @@ struct mv643xx_mib_counters {
 
 struct mv643xx_private {
 	int port_num;			/* User Ethernet port number	*/
-	u8 port_mac_addr[6];		/* User defined port MAC address.*/
-	u32 port_config;		/* User port configuration value*/
-	u32 port_config_extend;		/* User port config extend value*/
-	u32 port_sdma_config;		/* User port SDMA config value	*/
-	u32 port_serial_control;	/* User port serial control value */
 	u32 port_tx_queue_command;	/* Port active Tx queues summary*/
 	u32 port_rx_queue_command;	/* Port active Rx queues summary*/
 
@@ -376,12 +368,12 @@ struct mv643xx_private {
 	spinlock_t lock;
 	/* Size of Tx Ring per queue */
 	unsigned int tx_ring_size;
-	/* Ammont of SKBs outstanding on Tx queue */
-	unsigned int tx_ring_skbs;
+	/* Number of tx descriptors in use */
+	unsigned int tx_desc_count;
 	/* Size of Rx Ring per queue */
 	unsigned int rx_ring_size;
-	/* Ammount of SKBs allocated to Rx Ring per queue */
-	unsigned int rx_ring_skbs;
+	/* Number of rx descriptors in use */
+	unsigned int rx_desc_count;
 
 	/*
 	 * rx_task used to fill RX ring out of bottom half context
@@ -398,6 +390,7 @@ struct mv643xx_private {
 
 	u32 rx_int_coal;
 	u32 tx_int_coal;
+	struct mii_if_info mii;
 };
 
 /* ethernet.h API list */
@@ -405,7 +398,7 @@ struct mv643xx_private {
 /* Port operation control routines */
 static void eth_port_init(struct mv643xx_private *mp);
 static void eth_port_reset(unsigned int eth_port_num);
-static void eth_port_start(struct mv643xx_private *mp);
+static void eth_port_start(struct net_device *dev);
 
 /* Port MAC address routines */
 static void eth_port_uc_addr_set(unsigned int eth_port_num,

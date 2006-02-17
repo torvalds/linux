@@ -167,7 +167,7 @@ that only one external action is invoked at a time.
 
 #include "ipw2100.h"
 
-#define IPW2100_VERSION "1.1.3"
+#define IPW2100_VERSION "git-1.1.4"
 
 #define DRV_NAME	"ipw2100"
 #define DRV_VERSION	IPW2100_VERSION
@@ -1672,6 +1672,18 @@ static int ipw2100_start_scan(struct ipw2100_priv *priv)
 	return err;
 }
 
+static const struct ieee80211_geo ipw_geos[] = {
+	{			/* Restricted */
+	 "---",
+	 .bg_channels = 14,
+	 .bg = {{2412, 1}, {2417, 2}, {2422, 3},
+		{2427, 4}, {2432, 5}, {2437, 6},
+		{2442, 7}, {2447, 8}, {2452, 9},
+		{2457, 10}, {2462, 11}, {2467, 12},
+		{2472, 13}, {2484, 14}},
+	 },
+};
+
 static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 {
 	unsigned long flags;
@@ -1726,6 +1738,13 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 		rc = 1;
 		goto exit;
 	}
+
+	/* Initialize the geo */
+	if (ieee80211_set_geo(priv->ieee, &ipw_geos[0])) {
+		printk(KERN_WARNING DRV_NAME "Could not set geo\n");
+		return 0;
+	}
+	priv->ieee->freq_band = IEEE80211_24GHZ_BAND;
 
 	lock = LOCK_NONE;
 	if (ipw2100_set_ordinal(priv, IPW_ORD_PERS_DB_LOCK, &lock, &ord_len)) {
@@ -3750,7 +3769,7 @@ static ssize_t store_memory(struct device *d, struct device_attribute *attr,
 	struct net_device *dev = priv->net_dev;
 	const char *p = buf;
 
-	(void) dev; /* kill unused-var warning for debug-only code */
+	(void)dev;		/* kill unused-var warning for debug-only code */
 
 	if (count < 1)
 		return count;
@@ -4070,7 +4089,7 @@ static ssize_t store_scan_age(struct device *d, struct device_attribute *attr,
 	unsigned long val;
 	char *p = buffer;
 
-	(void) dev; /* kill unused-var warning for debug-only code */
+	(void)dev;		/* kill unused-var warning for debug-only code */
 
 	IPW_DEBUG_INFO("enter\n");
 
@@ -5107,12 +5126,13 @@ static int ipw2100_set_tx_power(struct ipw2100_priv *priv, u32 tx_power)
 		.host_command_length = 4
 	};
 	int err = 0;
+	u32 tmp = tx_power;
 
 	if (tx_power != IPW_TX_POWER_DEFAULT)
-		tx_power = (tx_power - IPW_TX_POWER_MIN_DBM) * 16 /
-		    (IPW_TX_POWER_MAX_DBM - IPW_TX_POWER_MIN_DBM);
+		tmp = (tx_power - IPW_TX_POWER_MIN_DBM) * 16 /
+		      (IPW_TX_POWER_MAX_DBM - IPW_TX_POWER_MIN_DBM);
 
-	cmd.host_command_parameters[0] = tx_power;
+	cmd.host_command_parameters[0] = tmp;
 
 	if (priv->ieee->iw_mode == IW_MODE_ADHOC)
 		err = ipw2100_hw_send_command(priv, &cmd);
@@ -5365,9 +5385,12 @@ static int ipw2100_configure_security(struct ipw2100_priv *priv, int batch_mode)
 						     SEC_LEVEL_0, 0, 1);
 	} else {
 		auth_mode = IPW_AUTH_OPEN;
-		if ((priv->ieee->sec.flags & SEC_AUTH_MODE) &&
-		    (priv->ieee->sec.auth_mode == WLAN_AUTH_SHARED_KEY))
-			auth_mode = IPW_AUTH_SHARED;
+		if (priv->ieee->sec.flags & SEC_AUTH_MODE) {
+			if (priv->ieee->sec.auth_mode == WLAN_AUTH_SHARED_KEY)
+				auth_mode = IPW_AUTH_SHARED;
+			else if (priv->ieee->sec.auth_mode == WLAN_AUTH_LEAP)
+				auth_mode = IPW_AUTH_LEAP_CISCO_ID;
+		}
 
 		sec_level = SEC_LEVEL_0;
 		if (priv->ieee->sec.flags & SEC_LEVEL)
@@ -5760,6 +5783,9 @@ static int ipw2100_wpa_set_auth_algs(struct ipw2100_priv *priv, int value)
 	} else if (value & IW_AUTH_ALG_OPEN_SYSTEM) {
 		sec.auth_mode = WLAN_AUTH_OPEN;
 		ieee->open_wep = 1;
+	} else if (value & IW_AUTH_ALG_LEAP) {
+		sec.auth_mode = WLAN_AUTH_LEAP;
+		ieee->open_wep = 1;
 	} else
 		return -EINVAL;
 
@@ -5771,8 +5797,8 @@ static int ipw2100_wpa_set_auth_algs(struct ipw2100_priv *priv, int value)
 	return ret;
 }
 
-void ipw2100_wpa_assoc_frame(struct ipw2100_priv *priv,
-			     char *wpa_ie, int wpa_ie_len)
+static void ipw2100_wpa_assoc_frame(struct ipw2100_priv *priv,
+				    char *wpa_ie, int wpa_ie_len)
 {
 
 	struct ipw2100_wpa_assoc_frame frame;

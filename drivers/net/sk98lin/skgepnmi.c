@@ -56,10 +56,6 @@ static const char SysKonnectFileId[] =
  * Public Function prototypes
  */
 int SkPnmiInit(SK_AC *pAC, SK_IOC IoC, int level);
-int SkPnmiGetVar(SK_AC *pAC, SK_IOC IoC, SK_U32 Id, void *pBuf,
-	unsigned int *pLen, SK_U32 Instance, SK_U32 NetIndex);
-int SkPnmiPreSetVar(SK_AC *pAC, SK_IOC IoC, SK_U32 Id, void *pBuf,
-	unsigned int *pLen, SK_U32 Instance, SK_U32 NetIndex);
 int SkPnmiSetVar(SK_AC *pAC, SK_IOC IoC, SK_U32 Id, void *pBuf,
 	unsigned int *pLen, SK_U32 Instance, SK_U32 NetIndex);
 int SkPnmiGetStruct(SK_AC *pAC, SK_IOC IoC, void *pBuf,
@@ -587,7 +583,7 @@ int Level)		/* Initialization level */
  *                           exist (e.g. port instance 3 on a two port
  *	                         adapter.
  */
-int SkPnmiGetVar(
+static int SkPnmiGetVar(
 SK_AC *pAC,		/* Pointer to adapter context */
 SK_IOC IoC,		/* IO context handle */
 SK_U32 Id,		/* Object ID that is to be processed */
@@ -629,7 +625,7 @@ SK_U32 NetIndex)	/* NetIndex (0..n), in single net mode always zero */
  *                           exist (e.g. port instance 3 on a two port
  *	                         adapter.
  */
-int SkPnmiPreSetVar(
+static int SkPnmiPreSetVar(
 SK_AC *pAC,		/* Pointer to adapter context */
 SK_IOC IoC,		/* IO context handle */
 SK_U32 Id,		/* Object ID that is to be processed */
@@ -5062,9 +5058,6 @@ SK_U32 NetIndex)	/* NetIndex (0..n), in single net mode always zero */
 		case OID_SKGE_SPEED_CAP:
 		case OID_SKGE_SPEED_MODE:
 		case OID_SKGE_SPEED_STATUS:
-#ifdef SK_PHY_LP_MODE
-		case OID_SKGE_PHY_LP_MODE:
-#endif
 			if (*pLen < (Limit - LogPortIndex) * sizeof(SK_U8)) {
 
 				*pLen = (Limit - LogPortIndex) * sizeof(SK_U8);
@@ -5139,28 +5132,6 @@ SK_U32 NetIndex)	/* NetIndex (0..n), in single net mode always zero */
 				}
 				Offset += sizeof(SK_U32);
 				break;
-
-#ifdef SK_PHY_LP_MODE
-			case OID_SKGE_PHY_LP_MODE:
-				if (!pAC->Pnmi.DualNetActiveFlag) { /* SingleNetMode */
-					if (LogPortIndex == 0) {
-						continue;
-					}
-					else {
-						/* Get value for physical ports */
-						PhysPortIndex = SK_PNMI_PORT_LOG2PHYS(pAC, LogPortIndex);
-						Val8 = (SK_U8) pAC->GIni.GP[PhysPortIndex].PPhyPowerState;
-						*pBufPtr = Val8;
-					}
-				}
-				else { /* DualNetMode */
-					
-					Val8 = (SK_U8) pAC->GIni.GP[PhysPortIndex].PPhyPowerState;
-					*pBufPtr = Val8;
-				}
-				Offset += sizeof(SK_U8);
-				break;
-#endif
 
 			case OID_SKGE_LINK_CAP:
 				if (!pAC->Pnmi.DualNetActiveFlag) { /* SingleNetMode */
@@ -5477,16 +5448,6 @@ SK_U32 NetIndex)	/* NetIndex (0..n), in single net mode always zero */
 			return (SK_PNMI_ERR_BAD_VALUE);
 		}
 		break;
-
-#ifdef SK_PHY_LP_MODE
-	case OID_SKGE_PHY_LP_MODE:
-		if (*pLen < Limit - LogPortIndex) {
-
-			*pLen = Limit - LogPortIndex;
-			return (SK_PNMI_ERR_TOO_SHORT);
-		}
-		break;
-#endif
 
 	case OID_SKGE_MTU:
 		if (*pLen < sizeof(SK_U32)) {
@@ -5845,116 +5806,6 @@ SK_U32 NetIndex)	/* NetIndex (0..n), in single net mode always zero */
 			Offset += sizeof(SK_U32);
 			break;
 		
-#ifdef SK_PHY_LP_MODE
-		case OID_SKGE_PHY_LP_MODE:
-			/* The preset ends here */
-			if (Action == SK_PNMI_PRESET) {
-
-				return (SK_PNMI_ERR_OK);
-			}
-
-			if (!pAC->Pnmi.DualNetActiveFlag) { /* SingleNetMode */
-				if (LogPortIndex == 0) {
-					Offset = 0;
-					continue;
-				}
-				else {
-					/* Set value for physical ports */
-					PhysPortIndex = SK_PNMI_PORT_LOG2PHYS(pAC, LogPortIndex);
-
-					switch (*(pBuf + Offset)) {
-						case 0:
-							/* If LowPowerMode is active, we can leave it. */
-							if (pAC->GIni.GP[PhysPortIndex].PPhyPowerState) {
-
-								Val32 = SkGmLeaveLowPowerMode(pAC, IoC, PhysPortIndex);
-								
-								if (pAC->GIni.GP[PhysPortIndex].PPhyPowerState < 3)	{
-									
-									SkDrvInitAdapter(pAC);
-								}
-								break;
-							}
-							else {
-								*pLen = 0;
-								return (SK_PNMI_ERR_GENERAL);
-							}
-						case 1:
-						case 2:
-						case 3:
-						case 4:
-							/* If no LowPowerMode is active, we can enter it. */
-							if (!pAC->GIni.GP[PhysPortIndex].PPhyPowerState) {
-
-								if ((*(pBuf + Offset)) < 3)	{
-								
-									SkDrvDeInitAdapter(pAC);
-								}
-
-								Val32 = SkGmEnterLowPowerMode(pAC, IoC, PhysPortIndex, *pBuf);
-								break;
-							}
-							else {
-								*pLen = 0;
-								return (SK_PNMI_ERR_GENERAL);
-							}
-						default:
-							*pLen = 0;
-							return (SK_PNMI_ERR_BAD_VALUE);
-					}
-				}
-			}
-			else { /* DualNetMode */
-				
-				switch (*(pBuf + Offset)) {
-					case 0:
-						/* If we are in a LowPowerMode, we can leave it. */
-						if (pAC->GIni.GP[PhysPortIndex].PPhyPowerState) {
-
-							Val32 = SkGmLeaveLowPowerMode(pAC, IoC, PhysPortIndex);
-							
-							if (pAC->GIni.GP[PhysPortIndex].PPhyPowerState < 3)	{
-
-								SkDrvInitAdapter(pAC);
-							}
-							break;
-						}
-						else {
-							*pLen = 0;
-							return (SK_PNMI_ERR_GENERAL);
-						}
-					
-					case 1:
-					case 2:
-					case 3:
-					case 4:
-						/* If we are not already in LowPowerMode, we can enter it. */
-						if (!pAC->GIni.GP[PhysPortIndex].PPhyPowerState) {
-
-							if ((*(pBuf + Offset)) < 3)	{
-
-								SkDrvDeInitAdapter(pAC);
-							}
-							else {
-
-								Val32 = SkGmEnterLowPowerMode(pAC, IoC, PhysPortIndex, *pBuf);
-							}
-							break;
-						}
-						else {
-							*pLen = 0;
-							return (SK_PNMI_ERR_GENERAL);
-						}
-					
-					default:
-						*pLen = 0;
-						return (SK_PNMI_ERR_BAD_VALUE);
-				}
-			}
-			Offset += sizeof(SK_U8);
-			break;
-#endif
-
 		default:
             SK_DBG_MSG(pAC, SK_DBGMOD_PNMI, SK_DBGCAT_ERR,
                 ("MacPrivateConf: Unknown OID should be handled before set"));

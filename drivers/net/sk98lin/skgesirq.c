@@ -265,7 +265,7 @@ int		Port)		/* Port Index (MAC_1 + n) */
  *
  * Returns: N/A
  */
-void SkHWLinkUp(
+static void SkHWLinkUp(
 SK_AC	*pAC,	/* adapter context */
 SK_IOC	IoC,	/* IO context */
 int		Port)	/* Port Index (MAC_1 + n) */
@@ -612,14 +612,6 @@ SK_U32	Istatus)	/* Interrupt status word */
 				 * we ignore those
 				 */
 				pPrt->HalfDupTimerActive = SK_TRUE;
-#ifdef XXX
-				Len = sizeof(SK_U64);
-				SkPnmiGetVar(pAC, IoC, OID_SKGE_STAT_TX_OCTETS, (char *)&Octets,
-					&Len, (SK_U32)SK_PNMI_PORT_PHYS2INST(pAC, 0),
-					pAC->Rlmt.Port[0].Net->NetNumber);
-				
-				pPrt->LastOctets = Octets;
-#endif /* XXX */
 				/* Snap statistic counters */
 				(void)SkXmUpdateStats(pAC, IoC, 0);
 
@@ -653,14 +645,6 @@ SK_U32	Istatus)	/* Interrupt status word */
 				 pPrt->PLinkModeStatus == SK_LMODE_STAT_AUTOHALF) &&
 				!pPrt->HalfDupTimerActive) {
 				pPrt->HalfDupTimerActive = SK_TRUE;
-#ifdef XXX
-				Len = sizeof(SK_U64);
-				SkPnmiGetVar(pAC, IoC, OID_SKGE_STAT_TX_OCTETS, (char *)&Octets,
-					&Len, (SK_U32)SK_PNMI_PORT_PHYS2INST(pAC, 1),
-					pAC->Rlmt.Port[1].Net->NetNumber);
-				
-				pPrt->LastOctets = Octets;
-#endif /* XXX */
 				/* Snap statistic counters */
 				(void)SkXmUpdateStats(pAC, IoC, 1);
 
@@ -2085,12 +2069,6 @@ SK_EVPARA	Para)		/* Event specific Parameter */
 			pPrt->HalfDupTimerActive = SK_FALSE;
 			if (pPrt->PLinkModeStatus == SK_LMODE_STAT_HALF ||
 				pPrt->PLinkModeStatus == SK_LMODE_STAT_AUTOHALF) {
-#ifdef XXX
-				Len = sizeof(SK_U64);
-				SkPnmiGetVar(pAC, IoC, OID_SKGE_STAT_TX_OCTETS, (char *)&Octets,
-					&Len, (SK_U32)SK_PNMI_PORT_PHYS2INST(pAC, Port),
-					pAC->Rlmt.Port[Port].Net->NetNumber);
-#endif /* XXX */
 				/* Snap statistic counters */
 				(void)SkXmUpdateStats(pAC, IoC, Port);
 
