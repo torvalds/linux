@@ -129,7 +129,7 @@ DEFINE_PER_CPU(int, cpu_state);
 /* Bitmasks of currently online, and possible CPUs */
 cpumask_t cpu_online_map;
 EXPORT_SYMBOL(cpu_online_map);
-cpumask_t cpu_possible_map;
+cpumask_t cpu_possible_map = CPU_MASK_NONE;
 EXPORT_SYMBOL(cpu_possible_map);
 
 cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
@@ -506,9 +506,6 @@ smp_build_cpu_map (void)
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 		ia64_cpu_to_sapicid[cpu] = -1;
-#ifdef CONFIG_HOTPLUG_CPU
-		cpu_set(cpu, cpu_possible_map);
-#endif
 	}
 
 	ia64_cpu_to_sapicid[0] = boot_cpu_id;
