@@ -1692,10 +1692,12 @@ __flushw_user:
 #ifdef CONFIG_SMP
 	.globl		hard_smp_processor_id
 hard_smp_processor_id:
+#endif
+	.globl		real_hard_smp_processor_id
+real_hard_smp_processor_id:
 	__GET_CPUID(%o0)
 	retl
 	 nop
-#endif
 
 	/* %o0: devhandle
 	 * %o1:	devino

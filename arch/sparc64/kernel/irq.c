@@ -138,11 +138,48 @@ out_unlock:
 	return 0;
 }
 
+extern unsigned long real_hard_smp_processor_id(void);
+
+static unsigned int sun4u_compute_tid(unsigned long imap, unsigned long cpuid)
+{
+	unsigned int tid;
+
+	if (this_is_starfire) {
+		tid = starfire_translate(imap, cpuid);
+		tid <<= IMAP_TID_SHIFT;
+		tid &= IMAP_TID_UPA;
+	} else {
+		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+			unsigned long ver;
+
+			__asm__ ("rdpr %%ver, %0" : "=r" (ver));
+			if ((ver >> 32UL) == __JALAPENO_ID ||
+			    (ver >> 32UL) == __SERRANO_ID) {
+				tid = cpuid << IMAP_TID_SHIFT;
+				tid &= IMAP_TID_JBUS;
+			} else {
+				unsigned int a = cpuid & 0x1f;
+				unsigned int n = (cpuid >> 5) & 0x1f;
+
+				tid = ((a << IMAP_AID_SHIFT) |
+				       (n << IMAP_NID_SHIFT));
+				tid &= (IMAP_AID_SAFARI |
+					IMAP_NID_SAFARI);;
+			}
+		} else {
+			tid = cpuid << IMAP_TID_SHIFT;
+			tid &= IMAP_TID_UPA;
+		}
+	}
+
+	return tid;
+}
+
 /* Now these are always passed a true fully specified sun4u INO. */
 void enable_irq(unsigned int irq)
 {
 	struct ino_bucket *bucket = __bucket(irq);
-	unsigned long imap;
+	unsigned long imap, cpuid;
 
 	imap = bucket->imap;
 	if (imap == 0UL)
@@ -150,54 +187,25 @@ void enable_irq(unsigned int irq)
 
 	preempt_disable();
 
+	/* This gets the physical processor ID, even on uniprocessor,
+	 * so we can always program the interrupt target correctly.
+	 */
+	cpuid = real_hard_smp_processor_id();
+
 	if (tlb_type == hypervisor) {
 		unsigned int ino = __irq_ino(irq);
-		int cpu = hard_smp_processor_id();
 		int err;
 
-		err = sun4v_intr_settarget(ino, cpu);
+		err = sun4v_intr_settarget(ino, cpuid);
 		if (err != HV_EOK)
-			printk("sun4v_intr_settarget(%x,%d): err(%d)\n",
-			       ino, cpu, err);
+			printk("sun4v_intr_settarget(%x,%lu): err(%d)\n",
+			       ino, cpuid, err);
 		err = sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
 		if (err != HV_EOK)
 			printk("sun4v_intr_setenabled(%x): err(%d)\n",
 			       ino, err);
 	} else {
-		unsigned long tid;
-
-		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-			unsigned long ver;
-
-			__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-			if ((ver >> 32) == __JALAPENO_ID ||
-			    (ver >> 32) == __SERRANO_ID) {
-				/* We set it to our JBUS ID. */
-				__asm__ __volatile__("ldxa [%%g0] %1, %0"
-						     : "=r" (tid)
-						     : "i" (ASI_JBUS_CONFIG));
-				tid = ((tid & (0x1fUL<<17)) << 9);
-				tid &= IMAP_TID_JBUS;
-			} else {
-				/* We set it to our Safari AID. */
-				__asm__ __volatile__("ldxa [%%g0] %1, %0"
-						     : "=r" (tid)
-						     : "i"(ASI_SAFARI_CONFIG));
-				tid = ((tid & (0x3ffUL<<17)) << 9);
-				tid &= IMAP_AID_SAFARI;
-			}
-		} else if (this_is_starfire == 0) {
-			/* We set it to our UPA MID. */
-			__asm__ __volatile__("ldxa [%%g0] %1, %0"
-					     : "=r" (tid)
-					     : "i" (ASI_UPA_CONFIG));
-			tid = ((tid & UPA_CONFIG_MID) << 9);
-			tid &= IMAP_TID_UPA;
-		} else {
-			tid = (starfire_translate(imap,
-						  smp_processor_id()) << 26);
-			tid &= IMAP_TID_UPA;
-		}
+		unsigned int tid = sun4u_compute_tid(imap, cpuid);
 
 		/* NOTE NOTE NOTE, IGN and INO are read-only, IGN is a product
 		 * of this SYSIO's preconfigured IGN in the SYSIO Control
@@ -817,18 +825,8 @@ static int retarget_one_irq(struct irqaction *p, int goal_cpu)
 		sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
 	} else {
 		unsigned long imap = bucket->imap;
-		unsigned int tid;
+		unsigned int tid = sun4u_compute_tid(imap, goal_cpu);
 
-		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-			tid = goal_cpu << 26;
-			tid &= IMAP_AID_SAFARI;
-		} else if (this_is_starfire == 0) {
-			tid = goal_cpu << 26;
-			tid &= IMAP_TID_UPA;
-		} else {
-			tid = (starfire_translate(imap, goal_cpu) << 26);
-			tid &= IMAP_TID_UPA;
-		}
 		upa_writel(tid | IMAP_VALID, imap);
 	}
 

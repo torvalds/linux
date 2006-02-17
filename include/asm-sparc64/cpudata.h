@@ -80,7 +80,6 @@ extern struct trap_per_cpu trap_block[NR_CPUS];
 extern void init_cur_cpu_trap(struct thread_info *);
 extern void setup_tba(void);
 
-#ifdef CONFIG_SMP
 struct cpuid_patch_entry {
 	unsigned int	addr;
 	unsigned int	cheetah_safari[4];
@@ -89,7 +88,6 @@ struct cpuid_patch_entry {
 	unsigned int	sun4v[4];
 };
 extern struct cpuid_patch_entry __cpuid_patch, __cpuid_patch_end;
-#endif
 
 struct sun4v_1insn_patch_entry {
 	unsigned int	addr;
@@ -123,8 +121,6 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 
 #include <asm/scratchpad.h>
 
-#ifdef CONFIG_SMP
-
 #define __GET_CPUID(REG)				\
 	/* Spitfire implementation (default). */	\
 661:	ldxa		[%g0] ASI_UPA_CONFIG, REG;	\
@@ -155,6 +151,8 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 	nop;						\
 	nop;						\
 	.previous;
+
+#ifdef CONFIG_SMP
 
 #define TRAP_LOAD_TRAP_BLOCK(DEST, TMP)		\
 	__GET_CPUID(TMP)			\

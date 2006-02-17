@@ -222,7 +222,6 @@ static struct pt_regs fake_swapper_regs = { { 0, }, 0, 0, 0, 0 };
 
 static void __init per_cpu_patch(void)
 {
-#ifdef CONFIG_SMP
 	struct cpuid_patch_entry *p;
 	unsigned long ver;
 	int is_jbus;
@@ -233,8 +232,8 @@ static void __init per_cpu_patch(void)
 	is_jbus = 0;
 	if (tlb_type != hypervisor) {
 		__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-		is_jbus = ((ver >> 32) == __JALAPENO_ID ||
-			   (ver >> 32) == __SERRANO_ID);
+		is_jbus = ((ver >> 32UL) == __JALAPENO_ID ||
+			   (ver >> 32UL) == __SERRANO_ID);
 	}
 
 	p = &__cpuid_patch;
@@ -279,7 +278,6 @@ static void __init per_cpu_patch(void)
 
 		p++;
 	}
-#endif
 }
 
 static void __init sun4v_patch(void)
