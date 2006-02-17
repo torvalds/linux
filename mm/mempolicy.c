@@ -808,6 +808,8 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
 	nodes_clear(*nodes);
 	if (maxnode == 0 || !nmask)
 		return 0;
+	if (maxnode > PAGE_SIZE)
+		return -EINVAL;
 
 	nlongs = BITS_TO_LONGS(maxnode);
 	if ((maxnode % BITS_PER_LONG) == 0)
