@@ -600,7 +600,8 @@ static int msix_capability_init(struct pci_dev *dev,
 	struct msg_address address;
 	struct msg_data data;
 	int vector, pos, i, j, nr_entries, temp = 0;
-	u32 phys_addr, table_offset;
+	unsigned long phys_addr;
+	u32 table_offset;
  	u16 control;
 	u8 bir;
 	void __iomem *base;
@@ -609,11 +610,11 @@ static int msix_capability_init(struct pci_dev *dev,
 	/* Request & Map MSI-X table region */
  	pci_read_config_word(dev, msi_control_reg(pos), &control);
 	nr_entries = multi_msix_capable(control);
- 	pci_read_config_dword(dev, msix_table_offset_reg(pos),
- 		&table_offset);
+
+ 	pci_read_config_dword(dev, msix_table_offset_reg(pos), &table_offset);
 	bir = (u8)(table_offset & PCI_MSIX_FLAGS_BIRMASK);
-	phys_addr = pci_resource_start (dev, bir);
-	phys_addr += (u32)(table_offset & ~PCI_MSIX_FLAGS_BIRMASK);
+	table_offset &= ~PCI_MSIX_FLAGS_BIRMASK;
+	phys_addr = pci_resource_start (dev, bir) + table_offset;
 	base = ioremap_nocache(phys_addr, nr_entries * PCI_MSIX_ENTRY_SIZE);
 	if (base == NULL)
 		return -ENOMEM;
@@ -838,8 +839,10 @@ static int msi_free_vector(struct pci_dev* dev, int vector, int reassign)
 			 * Detect last MSI-X vector to be released.
 			 * Release the MSI-X memory-mapped table.
 			 */
+#if 0
 			int pos, nr_entries;
-			u32 phys_addr, table_offset;
+			unsigned long phys_addr;
+			u32 table_offset;
 			u16 control;
 			u8 bir;
 
@@ -850,9 +853,12 @@ static int msi_free_vector(struct pci_dev* dev, int vector, int reassign)
 			pci_read_config_dword(dev, msix_table_offset_reg(pos),
 				&table_offset);
 			bir = (u8)(table_offset & PCI_MSIX_FLAGS_BIRMASK);
-			phys_addr = pci_resource_start (dev, bir);
-			phys_addr += (u32)(table_offset &
-				~PCI_MSIX_FLAGS_BIRMASK);
+			table_offset &= ~PCI_MSIX_FLAGS_BIRMASK;
+			phys_addr = pci_resource_start(dev, bir) + table_offset;
+/*
+ * FIXME!  and what did you want to do with phys_addr?
+ */
+#endif
 			iounmap(base);
 		}
 	}
@@ -1119,7 +1125,9 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 		msi_free_vector(dev, vector, 0);
 		if (warning) {
 			/* Force to release the MSI-X memory-mapped table */
-			u32 phys_addr, table_offset;
+#if 0
+			unsigned long phys_addr;
+			u32 table_offset;
 			u16 control;
 			u8 bir;
 
@@ -1128,9 +1136,12 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 			pci_read_config_dword(dev, msix_table_offset_reg(pos),
 				&table_offset);
 			bir = (u8)(table_offset & PCI_MSIX_FLAGS_BIRMASK);
-			phys_addr = pci_resource_start (dev, bir);
-			phys_addr += (u32)(table_offset &
-				~PCI_MSIX_FLAGS_BIRMASK);
+			table_offset &= ~PCI_MSIX_FLAGS_BIRMASK;
+			phys_addr = pci_resource_start(dev, bir) + table_offset;
+/*
+ * FIXME! and what did you want to do with phys_addr?
+ */
+#endif
 			iounmap(base);
 			printk(KERN_WARNING "PCI: %s: msi_remove_pci_irq_vectors() "
 			       "called without free_irq() on all MSI-X vectors\n",
