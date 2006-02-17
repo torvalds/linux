@@ -128,8 +128,10 @@ void default_idle(void)
 	__ctl_set_bit(8, 15);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	if (cpu_is_offline(cpu))
+	if (cpu_is_offline(cpu)) {
+		preempt_enable_no_resched();
 		cpu_die();
+	}
 #endif
 
 	local_mcck_disable();
