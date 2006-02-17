@@ -1757,7 +1757,7 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 			goto sticky;
 		rtv.tv_usec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ));
 		rtv.tv_sec = timeout;
-		if (compat_timeval_compare(&rtv, &tv) < 0)
+		if (compat_timeval_compare(&rtv, &tv) >= 0)
 			rtv = tv;
 		if (copy_to_user(tvp, &rtv, sizeof(rtv))) {
 sticky:
@@ -1834,7 +1834,7 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 			rts.tv_sec++;
 			rts.tv_nsec -= NSEC_PER_SEC;
 		}
-		if (compat_timespec_compare(&rts, &ts) < 0)
+		if (compat_timespec_compare(&rts, &ts) >= 0)
 			rts = ts;
 		copy_to_user(tsp, &rts, sizeof(rts));
 	}
@@ -1934,7 +1934,7 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 		rts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) *
 					1000;
 		rts.tv_sec = timeout;
-		if (compat_timespec_compare(&rts, &ts) < 0)
+		if (compat_timespec_compare(&rts, &ts) >= 0)
 			rts = ts;
 		if (copy_to_user(tsp, &rts, sizeof(rts))) {
 sticky:
