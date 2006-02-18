@@ -132,19 +132,29 @@ static int mpol_check_policy(int mode, nodemask_t *nodes)
 	}
 	return nodes_subset(*nodes, node_online_map) ? 0 : -EINVAL;
 }
+
 /* Generate a custom zonelist for the BIND policy. */
 static struct zonelist *bind_zonelist(nodemask_t *nodes)
 {
 	struct zonelist *zl;
-	int num, max, nd;
+	int num, max, nd, k;
 
 	max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
-	zl = kmalloc(sizeof(void *) * max, GFP_KERNEL);
+	zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
 	if (!zl)
 		return NULL;
 	num = 0;
-	for_each_node_mask(nd, *nodes)
-		zl->zones[num++] = &NODE_DATA(nd)->node_zones[policy_zone];
+	/* First put in the highest zones from all nodes, then all the next 
+	   lower zones etc. Avoid empty zones because the memory allocator
+	   doesn't like them. If you implement node hot removal you
+	   have to fix that. */
+	for (k = policy_zone; k >= 0; k--) { 
+		for_each_node_mask(nd, *nodes) { 
+			struct zone *z = &NODE_DATA(nd)->node_zones[k];
+			if (z->present_pages > 0) 
+				zl->zones[num++] = z;
+		}
+	}
 	zl->zones[num] = NULL;
 	return zl;
 }
@@ -798,6 +808,8 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
 	nodes_clear(*nodes);
 	if (maxnode == 0 || !nmask)
 		return 0;
+	if (maxnode > PAGE_SIZE)
+		return -EINVAL;
 
 	nlongs = BITS_TO_LONGS(maxnode);
 	if ((maxnode % BITS_PER_LONG) == 0)

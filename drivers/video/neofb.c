@@ -843,6 +843,9 @@ static int neofb_set_par(struct fb_info *info)
 
 	par->SysIfaceCntl2 = 0xc0;	/* VESA Bios sets this to 0x80! */
 
+	/* Initialize: by default, we want display config register to be read */
+	par->PanelDispCntlRegRead = 1;
+
 	/* Enable any user specified display devices. */
 	par->PanelDispCntlReg1 = 0x00;
 	if (par->internal_display)
@@ -1334,11 +1337,17 @@ static int neofb_blank(int blank_mode, struct fb_info *info)
 	struct neofb_par *par = info->par;
 	int seqflags, lcdflags, dpmsflags, reg;
 
+
 	/*
-	 * Reload the value stored in the register, might have been changed via
-	 * FN keystroke
+	 * Reload the value stored in the register, if sensible. It might have
+	 * been changed via FN keystroke.
 	 */
-	par->PanelDispCntlReg1 = vga_rgfx(NULL, 0x20) & 0x03;
+	if (par->PanelDispCntlRegRead) {
+		neoUnlock();
+		par->PanelDispCntlReg1 = vga_rgfx(NULL, 0x20) & 0x03;
+		neoLock(&par->state);
+	}
+	par->PanelDispCntlRegRead = !blank_mode;
 
 	switch (blank_mode) {
 	case FB_BLANK_POWERDOWN:	/* powerdown - both sync lines down */

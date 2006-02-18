@@ -2246,15 +2246,6 @@ zfcp_erp_adapter_strategy_open_fsf(struct zfcp_erp_action *erp_action)
 {
 	int retval;
 
-	if ((atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
-			      &erp_action->adapter->status)) &&
-	    (erp_action->adapter->adapter_features &
-	     FSF_FEATURE_HBAAPI_MANAGEMENT)) {
-		zfcp_erp_adapter_strategy_open_fsf_xport(erp_action);
-		atomic_set(&erp_action->adapter->erp_counter, 0);
-		return ZFCP_ERP_FAILED;
-	}
-
 	retval = zfcp_erp_adapter_strategy_open_fsf_xconfig(erp_action);
 	if (retval == ZFCP_ERP_FAILED)
 		return ZFCP_ERP_FAILED;
@@ -2266,13 +2257,6 @@ zfcp_erp_adapter_strategy_open_fsf(struct zfcp_erp_action *erp_action)
 	return zfcp_erp_adapter_strategy_open_fsf_statusread(erp_action);
 }
 
-/*
- * function:	
- *
- * purpose:	
- *
- * returns:
- */
 static int
 zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 {
@@ -2350,48 +2334,40 @@ static int
 zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *erp_action)
 {
 	int ret;
-	int retries;
-	int sleep;
-	struct zfcp_adapter *adapter = erp_action->adapter;
+	struct zfcp_adapter *adapter;
 
+	adapter = erp_action->adapter;
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_XPORT_OK, &adapter->status);
 
-	retries = 0;
-	do {
-		write_lock(&adapter->erp_lock);
-		zfcp_erp_action_to_running(erp_action);
-		write_unlock(&adapter->erp_lock);
-		zfcp_erp_timeout_init(erp_action);
-		ret = zfcp_fsf_exchange_port_data(erp_action, adapter, NULL);
-		if (ret == -EOPNOTSUPP) {
-			debug_text_event(adapter->erp_dbf, 3, "a_xport_notsupp");
-			return ZFCP_ERP_SUCCEEDED;
-		} else if (ret) {
-			debug_text_event(adapter->erp_dbf, 3, "a_xport_failed");
-			return ZFCP_ERP_FAILED;
-		}
-		debug_text_event(adapter->erp_dbf, 6, "a_xport_ok");
+	write_lock(&adapter->erp_lock);
+	zfcp_erp_action_to_running(erp_action);
+	write_unlock(&adapter->erp_lock);
 
-		down(&adapter->erp_ready_sem);
-		if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT) {
-			ZFCP_LOG_INFO("error: exchange of port data "
-				      "for adapter %s timed out\n",
-				      zfcp_get_busid_by_adapter(adapter));
-			break;
-		}
-		if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
-				      &adapter->status))
-			break;
+	zfcp_erp_timeout_init(erp_action);
+	ret = zfcp_fsf_exchange_port_data(erp_action, adapter, NULL);
+	if (ret == -EOPNOTSUPP) {
+		debug_text_event(adapter->erp_dbf, 3, "a_xport_notsupp");
+		return ZFCP_ERP_SUCCEEDED;
+	} else if (ret) {
+		debug_text_event(adapter->erp_dbf, 3, "a_xport_failed");
+		return ZFCP_ERP_FAILED;
+	}
+	debug_text_event(adapter->erp_dbf, 6, "a_xport_ok");
 
-		if (retries < ZFCP_EXCHANGE_PORT_DATA_SHORT_RETRIES) {
-			sleep = ZFCP_EXCHANGE_PORT_DATA_SHORT_SLEEP;
-			retries++;
-		} else
-			sleep = ZFCP_EXCHANGE_PORT_DATA_LONG_SLEEP;
-		schedule_timeout(sleep);
-	} while (1);
+	ret = ZFCP_ERP_SUCCEEDED;
+	down(&adapter->erp_ready_sem);
+	if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT) {
+		ZFCP_LOG_INFO("error: exchange port data timed out (adapter "
+			      "%s)\n", zfcp_get_busid_by_adapter(adapter));
+		ret = ZFCP_ERP_FAILED;
+	}
+	if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_XPORT_OK, &adapter->status)) {
+		ZFCP_LOG_INFO("error: exchange port data failed (adapter "
+			      "%s\n", zfcp_get_busid_by_adapter(adapter));
+		ret = ZFCP_ERP_FAILED;
+	}
 
-	return ZFCP_ERP_SUCCEEDED;
+	return ret;
 }
 
 /*
@@ -3439,6 +3415,8 @@ zfcp_erp_action_cleanup(int action, struct zfcp_adapter *adapter,
 						"(adapter %s, wwpn=0x%016Lx)\n",
 						zfcp_get_busid_by_port(port),
 						port->wwpn);
+			else
+				scsi_flush_work(adapter->scsi_host);
 		}
 		zfcp_port_put(port);
 		break;

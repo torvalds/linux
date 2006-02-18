@@ -387,18 +387,11 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	return found_target;
 }
 
-struct work_queue_wrapper {
-	struct work_struct	work;
-	struct scsi_target	*starget;
-};
-
-static void scsi_target_reap_work(void *data) {
-	struct work_queue_wrapper *wqw = (struct work_queue_wrapper *)data;
-	struct scsi_target *starget = wqw->starget;
+static void scsi_target_reap_usercontext(void *data)
+{
+	struct scsi_target *starget = data;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
-
-	kfree(wqw);
 
 	spin_lock_irqsave(shost->host_lock, flags);
 
@@ -428,18 +421,7 @@ static void scsi_target_reap_work(void *data) {
  */
 void scsi_target_reap(struct scsi_target *starget)
 {
-	struct work_queue_wrapper *wqw = 
-		kzalloc(sizeof(struct work_queue_wrapper), GFP_ATOMIC);
-
-	if (!wqw) {
-		starget_printk(KERN_ERR, starget,
-			       "Failed to allocate memory in scsi_reap_target()\n");
-		return;
-	}
-
-	INIT_WORK(&wqw->work, scsi_target_reap_work, wqw);
-	wqw->starget = starget;
-	schedule_work(&wqw->work);
+	scsi_execute_in_process_context(scsi_target_reap_usercontext, starget);
 }
 
 /**

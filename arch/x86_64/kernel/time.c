@@ -1327,8 +1327,7 @@ static int __init nohpet_setup(char *s)
 
 __setup("nohpet", nohpet_setup);
 
-
-static int __init notsc_setup(char *s)
+int __init notsc_setup(char *s)
 {
 	notsc = 1;
 	return 0;

@@ -113,7 +113,10 @@ struct iscsi_tcp_recv {
 	int			datadgst;
 };
 
+struct iscsi_cls_conn;
+
 struct iscsi_conn {
+	struct iscsi_cls_conn	*cls_conn;	/* ptr to class connection */
 	struct iscsi_hdr	hdr;		/* header placeholder */
 	char			hdrext[4*sizeof(__u16) +
 				    sizeof(__u32)];
@@ -143,7 +146,6 @@ struct iscsi_conn {
 	struct iscsi_mgmt_task	*login_mtask;	/* mtask used for login/text */
 	struct iscsi_mgmt_task	*mtask;		/* xmit mtask in progress */
 	struct iscsi_cmd_task	*ctask;		/* xmit ctask in progress */
-	spinlock_t		lock;		/* FIXME: to be removed */
 
 	/* old values for socket callbacks */
 	void			(*old_data_ready)(struct sock *, int);

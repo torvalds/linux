@@ -284,11 +284,9 @@ struct sn_irq_info *tiocx_irq_alloc(nasid_t nasid, int widget, int irq,
 	if ((nasid & 1) == 0)
 		return NULL;
 
-	sn_irq_info = kmalloc(sn_irq_size, GFP_KERNEL);
+	sn_irq_info = kzalloc(sn_irq_size, GFP_KERNEL);
 	if (sn_irq_info == NULL)
 		return NULL;
-
-	memset(sn_irq_info, 0x0, sn_irq_size);
 
 	status = tiocx_intr_alloc(nasid, widget, __pa(sn_irq_info), irq,
 				  req_nasid, slice);

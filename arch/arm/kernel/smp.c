@@ -338,7 +338,6 @@ void __init smp_prepare_boot_cpu(void)
 
 	per_cpu(cpu_data, cpu).idle = current;
 
-	cpu_set(cpu, cpu_possible_map);
 	cpu_set(cpu, cpu_present_map);
 	cpu_set(cpu, cpu_online_map);
 }

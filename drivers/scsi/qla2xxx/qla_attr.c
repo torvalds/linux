@@ -7,7 +7,6 @@
 #include "qla_def.h"
 
 #include <linux/vmalloc.h>
-#include <scsi/scsi_transport_fc.h>
 
 /* SYSFS attributes --------------------------------------------------------- */
 
@@ -114,7 +113,7 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj, char *buf, loff_t off,
 	    struct device, kobj)));
 	unsigned long	flags;
 
-	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->nvram_size)
+	if (!capable(CAP_SYS_ADMIN) || off != 0)
 		return 0;
 
 	/* Read NVRAM. */
@@ -123,7 +122,7 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj, char *buf, loff_t off,
 	    ha->nvram_size);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-	return (count);
+	return ha->nvram_size;
 }
 
 static ssize_t
@@ -175,9 +174,138 @@ static struct bin_attribute sysfs_nvram_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 		.owner = THIS_MODULE,
 	},
-	.size = 0,
+	.size = 512,
 	.read = qla2x00_sysfs_read_nvram,
 	.write = qla2x00_sysfs_write_nvram,
+};
+
+static ssize_t
+qla2x00_sysfs_read_optrom(struct kobject *kobj, char *buf, loff_t off,
+    size_t count)
+{
+	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+
+	if (ha->optrom_state != QLA_SREADING)
+		return 0;
+	if (off > ha->optrom_size)
+		return 0;
+	if (off + count > ha->optrom_size)
+		count = ha->optrom_size - off;
+
+	memcpy(buf, &ha->optrom_buffer[off], count);
+
+	return count;
+}
+
+static ssize_t
+qla2x00_sysfs_write_optrom(struct kobject *kobj, char *buf, loff_t off,
+    size_t count)
+{
+	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+
+	if (ha->optrom_state != QLA_SWRITING)
+		return -EINVAL;
+	if (off > ha->optrom_size)
+		return -ERANGE;
+	if (off + count > ha->optrom_size)
+		count = ha->optrom_size - off;
+
+	memcpy(&ha->optrom_buffer[off], buf, count);
+
+	return count;
+}
+
+static struct bin_attribute sysfs_optrom_attr = {
+	.attr = {
+		.name = "optrom",
+		.mode = S_IRUSR | S_IWUSR,
+		.owner = THIS_MODULE,
+	},
+	.size = OPTROM_SIZE_24XX,
+	.read = qla2x00_sysfs_read_optrom,
+	.write = qla2x00_sysfs_write_optrom,
+};
+
+static ssize_t
+qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj, char *buf, loff_t off,
+    size_t count)
+{
+	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
+	    struct device, kobj)));
+	int val;
+
+	if (off)
+		return 0;
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	switch (val) {
+	case 0:
+		if (ha->optrom_state != QLA_SREADING &&
+		    ha->optrom_state != QLA_SWRITING)
+			break;
+
+		ha->optrom_state = QLA_SWAITING;
+		vfree(ha->optrom_buffer);
+		ha->optrom_buffer = NULL;
+		break;
+	case 1:
+		if (ha->optrom_state != QLA_SWAITING)
+			break;
+
+		ha->optrom_state = QLA_SREADING;
+		ha->optrom_buffer = (uint8_t *)vmalloc(ha->optrom_size);
+		if (ha->optrom_buffer == NULL) {
+			qla_printk(KERN_WARNING, ha,
+			    "Unable to allocate memory for optrom retrieval "
+			    "(%x).\n", ha->optrom_size);
+
+			ha->optrom_state = QLA_SWAITING;
+			return count;
+		}
+
+		memset(ha->optrom_buffer, 0, ha->optrom_size);
+		ha->isp_ops.read_optrom(ha, ha->optrom_buffer, 0,
+		    ha->optrom_size);
+		break;
+	case 2:
+		if (ha->optrom_state != QLA_SWAITING)
+			break;
+
+		ha->optrom_state = QLA_SWRITING;
+		ha->optrom_buffer = (uint8_t *)vmalloc(ha->optrom_size);
+		if (ha->optrom_buffer == NULL) {
+			qla_printk(KERN_WARNING, ha,
+			    "Unable to allocate memory for optrom update "
+			    "(%x).\n", ha->optrom_size);
+
+			ha->optrom_state = QLA_SWAITING;
+			return count;
+		}
+		memset(ha->optrom_buffer, 0, ha->optrom_size);
+		break;
+	case 3:
+		if (ha->optrom_state != QLA_SWRITING)
+			break;
+
+		ha->isp_ops.write_optrom(ha, ha->optrom_buffer, 0,
+		    ha->optrom_size);
+		break;
+	}
+	return count;
+}
+
+static struct bin_attribute sysfs_optrom_ctl_attr = {
+	.attr = {
+		.name = "optrom_ctl",
+		.mode = S_IWUSR,
+		.owner = THIS_MODULE,
+	},
+	.size = 0,
+	.write = qla2x00_sysfs_write_optrom_ctl,
 };
 
 void
@@ -186,8 +314,10 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *ha)
 	struct Scsi_Host *host = ha->host;
 
 	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_fw_dump_attr);
-	sysfs_nvram_attr.size = ha->nvram_size;
 	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
+	sysfs_create_bin_file(&host->shost_gendev.kobj, &sysfs_optrom_attr);
+	sysfs_create_bin_file(&host->shost_gendev.kobj,
+	    &sysfs_optrom_ctl_attr);
 }
 
 void
@@ -197,6 +327,12 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *ha)
 
 	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_fw_dump_attr);
 	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
+	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_optrom_attr);
+	sysfs_remove_bin_file(&host->shost_gendev.kobj,
+	    &sysfs_optrom_ctl_attr);
+
+	if (ha->beacon_blink_led == 1)
+		ha->isp_ops.beacon_off(ha);
 }
 
 /* Scsi_Host attributes. */
@@ -384,6 +520,50 @@ qla2x00_zio_timer_store(struct class_device *cdev, const char *buf,
 	return strlen(buf);
 }
 
+static ssize_t
+qla2x00_beacon_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	int len = 0;
+
+	if (ha->beacon_blink_led)
+		len += snprintf(buf + len, PAGE_SIZE-len, "Enabled\n");
+	else
+		len += snprintf(buf + len, PAGE_SIZE-len, "Disabled\n");
+	return len;
+}
+
+static ssize_t
+qla2x00_beacon_store(struct class_device *cdev, const char *buf,
+    size_t count)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	int val = 0;
+	int rval;
+
+	if (IS_QLA2100(ha) || IS_QLA2200(ha))
+		return -EPERM;
+
+	if (test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags)) {
+		qla_printk(KERN_WARNING, ha,
+		    "Abort ISP active -- ignoring beacon request.\n");
+		return -EBUSY;
+	}
+
+	if (sscanf(buf, "%d", &val) != 1)
+		return -EINVAL;
+
+	if (val)
+		rval = ha->isp_ops.beacon_on(ha);
+	else
+		rval = ha->isp_ops.beacon_off(ha);
+
+	if (rval != QLA_SUCCESS)
+		count = 0;
+
+	return count;
+}
+
 static CLASS_DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show,
 	NULL);
 static CLASS_DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
@@ -398,6 +578,8 @@ static CLASS_DEVICE_ATTR(zio, S_IRUGO | S_IWUSR, qla2x00_zio_show,
     qla2x00_zio_store);
 static CLASS_DEVICE_ATTR(zio_timer, S_IRUGO | S_IWUSR, qla2x00_zio_timer_show,
     qla2x00_zio_timer_store);
+static CLASS_DEVICE_ATTR(beacon, S_IRUGO | S_IWUSR, qla2x00_beacon_show,
+    qla2x00_beacon_store);
 
 struct class_device_attribute *qla2x00_host_attrs[] = {
 	&class_device_attr_driver_version,
@@ -411,6 +593,7 @@ struct class_device_attribute *qla2x00_host_attrs[] = {
 	&class_device_attr_state,
 	&class_device_attr_zio,
 	&class_device_attr_zio_timer,
+	&class_device_attr_beacon,
 	NULL,
 };
 
@@ -423,6 +606,49 @@ qla2x00_get_host_port_id(struct Scsi_Host *shost)
 
 	fc_host_port_id(shost) = ha->d_id.b.domain << 16 |
 	    ha->d_id.b.area << 8 | ha->d_id.b.al_pa;
+}
+
+static void
+qla2x00_get_host_speed(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+	uint32_t speed = 0;
+
+	switch (ha->link_data_rate) {
+	case LDR_1GB:
+		speed = 1;
+		break;
+	case LDR_2GB:
+		speed = 2;
+		break;
+	case LDR_4GB:
+		speed = 4;
+		break;
+	}
+	fc_host_speed(shost) = speed;
+}
+
+static void
+qla2x00_get_host_port_type(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+	uint32_t port_type = FC_PORTTYPE_UNKNOWN;
+
+	switch (ha->current_topology) {
+	case ISP_CFG_NL:
+		port_type = FC_PORTTYPE_LPORT;
+		break;
+	case ISP_CFG_FL:
+		port_type = FC_PORTTYPE_NLPORT;
+		break;
+	case ISP_CFG_N:
+		port_type = FC_PORTTYPE_PTP;
+		break;
+	case ISP_CFG_F:
+		port_type = FC_PORTTYPE_NPORT;
+		break;
+	}
+	fc_host_port_type(shost) = port_type;
 }
 
 static void
@@ -512,6 +738,41 @@ qla2x00_issue_lip(struct Scsi_Host *shost)
 	return 0;
 }
 
+static struct fc_host_statistics *
+qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
+{
+	scsi_qla_host_t *ha = to_qla_host(shost);
+	int rval;
+	uint16_t mb_stat[1];
+	link_stat_t stat_buf;
+	struct fc_host_statistics *pfc_host_stat;
+
+	pfc_host_stat = &ha->fc_host_stat;
+	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
+
+	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+		rval = qla24xx_get_isp_stats(ha, (uint32_t *)&stat_buf,
+		    sizeof(stat_buf) / 4, mb_stat);
+	} else {
+		rval = qla2x00_get_link_status(ha, ha->loop_id, &stat_buf,
+		    mb_stat);
+	}
+	if (rval != 0) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to retrieve host statistics (%d).\n", mb_stat[0]);
+		return pfc_host_stat;
+	}
+
+	pfc_host_stat->link_failure_count = stat_buf.link_fail_cnt;
+	pfc_host_stat->loss_of_sync_count = stat_buf.loss_sync_cnt;
+	pfc_host_stat->loss_of_signal_count = stat_buf.loss_sig_cnt;
+	pfc_host_stat->prim_seq_protocol_err_count = stat_buf.prim_seq_err_cnt;
+	pfc_host_stat->invalid_tx_word_count = stat_buf.inval_xmit_word_cnt;
+	pfc_host_stat->invalid_crc_count = stat_buf.inval_crc_cnt;
+
+	return pfc_host_stat;
+}
+
 struct fc_function_template qla2xxx_transport_functions = {
 
 	.show_host_node_name = 1,
@@ -520,6 +781,10 @@ struct fc_function_template qla2xxx_transport_functions = {
 
 	.get_host_port_id = qla2x00_get_host_port_id,
 	.show_host_port_id = 1,
+	.get_host_speed = qla2x00_get_host_speed,
+	.show_host_speed = 1,
+	.get_host_port_type = qla2x00_get_host_port_type,
+	.show_host_port_type = 1,
 
 	.dd_fcrport_size = sizeof(struct fc_port *),
 	.show_rport_supported_classes = 1,
@@ -536,6 +801,7 @@ struct fc_function_template qla2xxx_transport_functions = {
 	.show_rport_dev_loss_tmo = 1,
 
 	.issue_fc_host_lip = qla2x00_issue_lip,
+	.get_fc_host_stats = qla2x00_get_fc_host_stats,
 };
 
 void

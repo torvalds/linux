@@ -126,8 +126,6 @@ extern int sysctl_hz_timer;
 extern int acct_parm[];
 #endif
 
-int randomize_va_space = 1;
-
 static int parse_table(int __user *, int, void __user *, size_t __user *, void __user *, size_t,
 		       ctl_table *, void **);
 static int proc_doutsstring(ctl_table *table, int write, struct file *filp,

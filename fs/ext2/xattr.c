@@ -792,18 +792,20 @@ ext2_xattr_delete_inode(struct inode *inode)
 		ext2_free_blocks(inode, EXT2_I(inode)->i_file_acl, 1);
 		get_bh(bh);
 		bforget(bh);
+		unlock_buffer(bh);
 	} else {
 		HDR(bh)->h_refcount = cpu_to_le32(
 			le32_to_cpu(HDR(bh)->h_refcount) - 1);
 		if (ce)
 			mb_cache_entry_release(ce);
+		ea_bdebug(bh, "refcount now=%d",
+			le32_to_cpu(HDR(bh)->h_refcount));
+		unlock_buffer(bh);
 		mark_buffer_dirty(bh);
 		if (IS_SYNC(inode))
 			sync_dirty_buffer(bh);
 		DQUOT_FREE_BLOCK(inode, 1);
 	}
-	ea_bdebug(bh, "refcount now=%d", le32_to_cpu(HDR(bh)->h_refcount) - 1);
-	unlock_buffer(bh);
 	EXT2_I(inode)->i_file_acl = 0;
 
 cleanup:
