@@ -1353,6 +1353,10 @@ EXPORT_SYMBOL(PAGE_KERNEL);
 
 pgprot_t PAGE_KERNEL_LOCKED __read_mostly;
 pgprot_t PAGE_COPY __read_mostly;
+
+pgprot_t PAGE_SHARED __read_mostly;
+EXPORT_SYMBOL(PAGE_SHARED);
+
 pgprot_t PAGE_EXEC __read_mostly;
 unsigned long pg_iobits __read_mostly;
 
@@ -1367,6 +1371,7 @@ static void prot_init_common(unsigned long page_none,
 			     unsigned long page_exec_bit)
 {
 	PAGE_COPY = __pgprot(page_copy);
+	PAGE_SHARED = __pgprot(page_shared);
 
 	protection_map[0x0] = __pgprot(page_none);
 	protection_map[0x1] = __pgprot(page_readonly & ~page_exec_bit);
