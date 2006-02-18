@@ -45,7 +45,7 @@ define filechk
 endef
 
 ######
-# cc support functions to be used (only) in arch/$(ARCH)/Makefile
+# gcc support functions
 # See documentation in Documentation/kbuild/makefiles.txt
 
 # as-option
