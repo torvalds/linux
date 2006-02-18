@@ -369,7 +369,7 @@ static struct usb_gadget_driver gs_gadget_driver = {
 #endif /* CONFIG_USB_GADGET_DUALSPEED */
 	.function =		GS_LONG_NAME,
 	.bind =			gs_bind,
-	.unbind =		gs_unbind,
+	.unbind =		__exit_p(gs_unbind),
 	.setup =		gs_setup,
 	.disconnect =		gs_disconnect,
 	.driver = {
@@ -1413,7 +1413,7 @@ requeue:
  * Called on module load.  Allocates and initializes the device
  * structure and a control request.
  */
-static int gs_bind(struct usb_gadget *gadget)
+static int __init gs_bind(struct usb_gadget *gadget)
 {
 	int ret;
 	struct usb_ep *ep;
@@ -1538,7 +1538,7 @@ autoconf_fail:
  * Called on module unload.  Frees the control request and device
  * structure.
  */
-static void gs_unbind(struct usb_gadget *gadget)
+static void __exit gs_unbind(struct usb_gadget *gadget)
 {
 	struct gs_dev *dev = get_gadget_data(gadget);
 

@@ -2125,7 +2125,7 @@ eth_req_free (struct usb_ep *ep, struct usb_request *req)
 }
 
 
-static void
+static void __exit
 eth_unbind (struct usb_gadget *gadget)
 {
 	struct eth_dev		*dev = get_gadget_data (gadget);
@@ -2532,7 +2532,7 @@ static struct usb_gadget_driver eth_driver = {
 
 	.function	= (char *) driver_desc,
 	.bind		= eth_bind,
-	.unbind		= eth_unbind,
+	.unbind		= __exit_p(eth_unbind),
 
 	.setup		= eth_setup,
 	.disconnect	= eth_disconnect,

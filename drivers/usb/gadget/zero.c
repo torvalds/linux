@@ -1119,7 +1119,7 @@ zero_autoresume (unsigned long _dev)
 
 /*-------------------------------------------------------------------------*/
 
-static void
+static void __exit
 zero_unbind (struct usb_gadget *gadget)
 {
 	struct zero_dev		*dev = get_gadget_data (gadget);
@@ -1136,7 +1136,7 @@ zero_unbind (struct usb_gadget *gadget)
 	set_gadget_data (gadget, NULL);
 }
 
-static int
+static int __init
 zero_bind (struct usb_gadget *gadget)
 {
 	struct zero_dev		*dev;
@@ -1288,7 +1288,7 @@ static struct usb_gadget_driver zero_driver = {
 #endif
 	.function	= (char *) longname,
 	.bind		= zero_bind,
-	.unbind		= zero_unbind,
+	.unbind		= __exit_p(zero_unbind),
 
 	.setup		= zero_setup,
 	.disconnect	= zero_disconnect,
