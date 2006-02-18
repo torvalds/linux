@@ -221,7 +221,7 @@ _sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t *uset;
 	sigset_t newset;
-        size_t sigsetsize;
+	size_t sigsetsize;
 
 	/* XXX Don't preclude handling different sized sigset_t's.  */
 	sigsetsize = regs.regs[5];
