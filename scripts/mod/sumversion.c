@@ -381,8 +381,11 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen)
 	struct md4_ctx md;
 	char *sources, *end, *fname;
 	const char *basename;
-	char filelist[strlen(getenv("MODVERDIR")) + strlen("/") +
-		      strlen(modname) - strlen(".o") + strlen(".mod") + 1 ];
+	char filelist[PATH_MAX + 1];
+	char *modverdir = getenv("MODVERDIR");
+
+	if (!modverdir)
+		modverdir = ".";
 
 	/* Source files for module are in .tmp_versions/modname.mod,
 	   after the first line. */
@@ -390,7 +393,7 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen)
 		basename = strrchr(modname, '/') + 1;
 	else
 		basename = modname;
-	sprintf(filelist, "%s/%.*s.mod", getenv("MODVERDIR"),
+	sprintf(filelist, "%s/%.*s.mod", modverdir,
 		(int) strlen(basename) - 2, basename);
 
 	file = grab_file(filelist, &len);
