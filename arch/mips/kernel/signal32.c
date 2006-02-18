@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 1991, 1992  Linus Torvalds
- * Copyright (C) 1994 - 2000  Ralf Baechle
+ * Copyright (C) 1994 - 2000, 2006  Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/cache.h>
@@ -800,7 +800,7 @@ static inline int handle_signal(unsigned long sig, siginfo_t *info,
 	return ret;
 }
 
-int do_signal32(struct pt_regs *regs)
+void do_signal32(struct pt_regs *regs)
 {
 	struct k_sigaction ka;
 	sigset_t *oldset;
@@ -813,7 +813,7 @@ int do_signal32(struct pt_regs *regs)
 	 * if so.
 	 */
 	if (!user_mode(regs))
-		return 1;
+		return;
 
 	if (try_to_freeze())
 		goto no_signal;
@@ -866,8 +866,6 @@ no_signal:
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
-
-	return 0;
 }
 
 asmlinkage int sys32_rt_sigaction(int sig, const struct sigaction32 *act,
