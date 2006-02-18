@@ -506,8 +506,7 @@ static __inline__ int r300_emit_bitblt_multi(drm_radeon_private_t *dev_priv,
 			      | RADEON_GMC_DST_PITCH_OFFSET_CNTL)) {
 			offset = cmd[2] << 10;
 			ret = r300_check_offset(dev_priv, offset);
-			if (ret)
-			{
+			if (ret) {
 				DRM_ERROR("Invalid bitblt first offset is %08X\n", offset);
 				return DRM_ERR(EINVAL);
 			}
@@ -517,8 +516,7 @@ static __inline__ int r300_emit_bitblt_multi(drm_radeon_private_t *dev_priv,
 		    (cmd[1] & RADEON_GMC_DST_PITCH_OFFSET_CNTL)) {
 			offset = cmd[3] << 10;
 			ret = r300_check_offset(dev_priv, offset);
-			if (ret)
-			{
+			if (ret) {
 				DRM_ERROR("Invalid bitblt second offset is %08X\n", offset);
 				return DRM_ERR(EINVAL);
 			}
