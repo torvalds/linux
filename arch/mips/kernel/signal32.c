@@ -236,7 +236,7 @@ _sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	spin_lock_irq(&current->sighand->siglock);
 	current->saved_sigmask = current->blocked;
 	current->blocked = newset;
-        recalc_sigpending();
+	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
 	current->state = TASK_INTERRUPTIBLE;
@@ -272,15 +272,15 @@ asmlinkage int sys32_sigaction(int sig, const struct sigaction32 *act,
 
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)))
-                        return -EFAULT;
+			return -EFAULT;
 		err |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 		err |= __put_user((u32)(u64)old_ka.sa.sa_handler,
 		                  &oact->sa_handler);
 		err |= __put_user(old_ka.sa.sa_mask.sig[0], oact->sa_mask.sig);
-                err |= __put_user(0, &oact->sa_mask.sig[1]);
-                err |= __put_user(0, &oact->sa_mask.sig[2]);
-                err |= __put_user(0, &oact->sa_mask.sig[3]);
-                if (err)
+		err |= __put_user(0, &oact->sa_mask.sig[1]);
+		err |= __put_user(0, &oact->sa_mask.sig[2]);
+		err |= __put_user(0, &oact->sa_mask.sig[3]);
+		if (err)
 			return -EFAULT;
 	}
 
