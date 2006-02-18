@@ -52,8 +52,10 @@ kvmap_itlb_vmalloc_addr:
 
 	/* Load and check PTE.  */
 	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
+	mov		1, %g7
+	sllx		%g7, TSB_TAG_INVALID_BIT, %g7
 	brgez,a,pn	%g5, kvmap_itlb_longpath
-	 KTSB_STORE(%g1, %g0)
+	 KTSB_STORE(%g1, %g7)
 
 	KTSB_WRITE(%g1, %g5, %g6)
 
@@ -146,8 +148,10 @@ kvmap_dtlb_vmalloc_addr:
 
 	/* Load and check PTE.  */
 	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
+	mov		1, %g7
+	sllx		%g7, TSB_TAG_INVALID_BIT, %g7
 	brgez,a,pn	%g5, kvmap_dtlb_longpath
-	 KTSB_STORE(%g1, %g0)
+	 KTSB_STORE(%g1, %g7)
 
 	KTSB_WRITE(%g1, %g5, %g6)
 
@@ -215,8 +219,8 @@ kvmap_dtlb_longpath:
 	wrpr	%g5, PSTATE_AG | PSTATE_MG, %pstate
 	.section .sun4v_2insn_patch, "ax"
 	.word	661b
-	nop
-	nop
+	SET_GL(1)
+	ldxa		[%g0] ASI_SCRATCHPAD, %g5
 	.previous
 
 	rdpr	%tl, %g3
@@ -226,7 +230,7 @@ kvmap_dtlb_longpath:
 	ldxa	[%g4] ASI_DMMU, %g5
 	.section .sun4v_2insn_patch, "ax"
 	.word	661b
-	mov	%g4, %g5
+	ldx	[%g5 + HV_FAULT_D_ADDR_OFFSET], %g5
 	nop
 	.previous
 

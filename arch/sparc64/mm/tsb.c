@@ -20,9 +20,9 @@ static inline unsigned long tsb_hash(unsigned long vaddr, unsigned long nentries
 	return vaddr & (nentries - 1);
 }
 
-static inline int tag_compare(unsigned long tag, unsigned long vaddr, unsigned long context)
+static inline int tag_compare(unsigned long tag, unsigned long vaddr)
 {
-	return (tag == ((vaddr >> 22) | (context << 48)));
+	return (tag == (vaddr >> 22));
 }
 
 /* TSB flushes need only occur on the processor initiating the address
@@ -38,8 +38,8 @@ void flush_tsb_kernel_range(unsigned long start, unsigned long end)
 		unsigned long hash = tsb_hash(v, KERNEL_TSB_NENTRIES);
 		struct tsb *ent = &swapper_tsb[hash];
 
-		if (tag_compare(ent->tag, v, 0)) {
-			ent->tag = 0UL;
+		if (tag_compare(ent->tag, v)) {
+			ent->tag = (1UL << TSB_TAG_INVALID_BIT);
 			membar_storeload_storestore();
 		}
 	}
@@ -50,13 +50,8 @@ void flush_tsb_user(struct mmu_gather *mp)
 	struct mm_struct *mm = mp->mm;
 	struct tsb *tsb = mm->context.tsb;
 	unsigned long nentries = mm->context.tsb_nentries;
-	unsigned long ctx, base;
+	unsigned long base;
 	int i;
-
-	if (unlikely(!CTX_VALID(mm->context)))
-		return;
-
-	ctx = CTX_HWBITS(mm->context);
 
 	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
 		base = __pa(tsb);
@@ -71,7 +66,7 @@ void flush_tsb_user(struct mmu_gather *mp)
 
 		hash = tsb_hash(v, nentries);
 		ent = base + (hash * sizeof(struct tsb));
-		tag = (v >> 22UL) | (ctx << 48UL);
+		tag = (v >> 22UL);
 
 		tsb_flush(ent, tag);
 	}
@@ -243,7 +238,8 @@ static void copy_tsb(struct tsb *old_tsb, unsigned long old_size,
 				  "i" (ASI_NUCLEUS_QUAD_LDD));
 		}
 
-		if (!tag || (tag & (1UL << TSB_TAG_LOCK_BIT)))
+		if (tag & ((1UL << TSB_TAG_LOCK_BIT) |
+			   (1UL << TSB_TAG_INVALID_BIT)))
 			continue;
 
 		/* We only put base page size PTEs into the TSB,
@@ -315,9 +311,12 @@ void tsb_grow(struct mm_struct *mm, unsigned long rss, gfp_t gfp_flags)
 			break;
 	}
 
-	page = alloc_pages(gfp_flags | __GFP_ZERO, get_order(size));
+	page = alloc_pages(gfp_flags, get_order(size));
 	if (unlikely(!page))
 		return;
+
+	/* Mark all tags as invalid.  */
+	memset(page_address(page), 0x40, size);
 
 	if (size == max_tsb_size)
 		mm->context.tsb_rss_limit = ~0UL;

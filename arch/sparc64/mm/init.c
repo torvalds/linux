@@ -296,7 +296,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 
 		tsb = &mm->context.tsb[(address >> PAGE_SHIFT) &
 				       (mm->context.tsb_nentries - 1UL)];
-		tag = (address >> 22UL) | CTX_HWBITS(mm->context) << 48UL;
+		tag = (address >> 22UL);
 		tsb_insert(tsb, tag, pte_val(pte));
 	}
 }
@@ -1109,6 +1109,8 @@ void __init paging_init(void)
 
 	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
 	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
+
+	memset(swapper_tsb, 0x40, sizeof(swapper_tsb));
 
 	if (tlb_type == hypervisor)
 		sun4v_pgprot_init();

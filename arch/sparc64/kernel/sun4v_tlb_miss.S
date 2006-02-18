@@ -16,15 +16,14 @@
 	ldx	[BASE + HV_FAULT_D_ADDR_OFFSET], VADDR; \
 	ldx	[BASE + HV_FAULT_D_CTX_OFFSET], CTX;
 
-	/* DEST = (CTX << 48) | (VADDR >> 22)
+	/* DEST = (VADDR >> 22)
 	 *
 	 * Branch to ZERO_CTX_LABEL is context is zero.
 	 */
-#define	COMPUTE_TAG_TARGET(DEST, VADDR, CTX, TMP, ZERO_CTX_LABEL) \
-	srlx	VADDR, 22, TMP; \
-	sllx	CTX, 48, DEST; \
+#define	COMPUTE_TAG_TARGET(DEST, VADDR, CTX, ZERO_CTX_LABEL) \
+	srlx	VADDR, 22, DEST; \
 	brz,pn	CTX, ZERO_CTX_LABEL; \
-	 or	DEST, TMP, DEST;
+	 nop;
 
 	/* Create TSB pointer.  This is something like:
 	 *
@@ -53,7 +52,7 @@ sun4v_itlb_miss:
 	ldxa	[%g1] ASI_SCRATCHPAD, %g1
 
 	LOAD_ITLB_INFO(%g2, %g4, %g5)
-	COMPUTE_TAG_TARGET(%g6, %g4, %g5, %g3, kvmap_itlb_4v)
+	COMPUTE_TAG_TARGET(%g6, %g4, %g5, kvmap_itlb_4v)
 	COMPUTE_TSB_PTR(%g1, %g4, %g3, %g7)
 
 	/* Load TSB tag/pte into %g2/%g3 and compare the tag.  */
@@ -72,15 +71,15 @@ sun4v_itlb_miss:
 	 *
 	 * %g3:	PTE
 	 * %g4:	vaddr
-	 * %g6:	TAG TARGET (only "CTX << 48" part matters)
 	 */
 sun4v_itlb_load:
+	ldxa	[%g0] ASI_SCRATCHPAD, %g6
 	mov	%o0, %g1		! save %o0
 	mov	%o1, %g2		! save %o1
 	mov	%o2, %g5		! save %o2
 	mov	%o3, %g7		! save %o3
 	mov	%g4, %o0		! vaddr
-	srlx	%g6, 48, %o1		! ctx
+	ldx	[%g6 + HV_FAULT_I_CTX_OFFSET], %o1	! ctx
 	mov	%g3, %o2		! PTE
 	mov	HV_MMU_IMMU, %o3	! flags
 	ta	HV_MMU_MAP_ADDR_TRAP
@@ -101,7 +100,7 @@ sun4v_dtlb_miss:
 	ldxa	[%g1] ASI_SCRATCHPAD, %g1
 
 	LOAD_DTLB_INFO(%g2, %g4, %g5)
-	COMPUTE_TAG_TARGET(%g6, %g4, %g5, %g3, kvmap_dtlb_4v)
+	COMPUTE_TAG_TARGET(%g6, %g4, %g5, kvmap_dtlb_4v)
 	COMPUTE_TSB_PTR(%g1, %g4, %g3, %g7)
 
 	/* Load TSB tag/pte into %g2/%g3 and compare the tag.  */
@@ -115,15 +114,15 @@ sun4v_dtlb_miss:
 	 *
 	 * %g3:	PTE
 	 * %g4:	vaddr
-	 * %g6:	TAG TARGET (only "CTX << 48" part matters)
 	 */
 sun4v_dtlb_load:
+	ldxa	[%g0] ASI_SCRATCHPAD, %g6
 	mov	%o0, %g1		! save %o0
 	mov	%o1, %g2		! save %o1
 	mov	%o2, %g5		! save %o2
 	mov	%o3, %g7		! save %o3
 	mov	%g4, %o0		! vaddr
-	srlx	%g6, 48, %o1		! ctx
+	ldx	[%g6 + HV_FAULT_D_CTX_OFFSET], %o1	! ctx
 	mov	%g3, %o2		! PTE
 	mov	HV_MMU_DMMU, %o3	! flags
 	ta	HV_MMU_MAP_ADDR_TRAP
@@ -136,16 +135,18 @@ sun4v_dtlb_load:
 	retry
 
 sun4v_dtlb_prot:
+	SET_GL(1)
+
 	/* Load MMU Miss base into %g2.  */
-	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	ldxa	[%g0] ASI_SCRATCHPAD, %g5
 	
-	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g5
+	ldx	[%g5 + HV_FAULT_D_ADDR_OFFSET], %g5
 	rdpr	%tl, %g1
 	cmp	%g1, 1
-	bgu,pn		%xcc, winfix_trampoline
+	bgu,pn	%xcc, winfix_trampoline
 	 nop
-	ba,pt		%xcc, sparc64_realfault_common
-	 mov		FAULT_CODE_DTLB | FAULT_CODE_WRITE, %g4
+	ba,pt	%xcc, sparc64_realfault_common
+	 mov	FAULT_CODE_DTLB | FAULT_CODE_WRITE, %g4
 
 	/* Called from trap table with TAG TARGET placed into
 	 * %g6, SCRATCHPAD_UTSBREG1 contents in %g1, and
@@ -189,7 +190,8 @@ sun4v_itlb_error:
 	sethi	%hi(sun4v_err_itlb_vaddr), %g1
 	stx	%g4, [%g1 + %lo(sun4v_err_itlb_vaddr)]
 	sethi	%hi(sun4v_err_itlb_ctx), %g1
-	srlx	%g6, 48, %o1		! ctx
+	ldxa	[%g0] ASI_SCRATCHPAD, %g6
+	ldx	[%g6 + HV_FAULT_I_CTX_OFFSET], %o1
 	stx	%o1, [%g1 + %lo(sun4v_err_itlb_ctx)]
 	sethi	%hi(sun4v_err_itlb_pte), %g1
 	stx	%g3, [%g1 + %lo(sun4v_err_itlb_pte)]
@@ -214,7 +216,8 @@ sun4v_dtlb_error:
 	sethi	%hi(sun4v_err_dtlb_vaddr), %g1
 	stx	%g4, [%g1 + %lo(sun4v_err_dtlb_vaddr)]
 	sethi	%hi(sun4v_err_dtlb_ctx), %g1
-	srlx	%g6, 48, %o1		! ctx
+	ldxa	[%g0] ASI_SCRATCHPAD, %g6
+	ldx	[%g6 + HV_FAULT_D_CTX_OFFSET], %o1
 	stx	%o1, [%g1 + %lo(sun4v_err_dtlb_ctx)]
 	sethi	%hi(sun4v_err_dtlb_pte), %g1
 	stx	%g3, [%g1 + %lo(sun4v_err_dtlb_pte)]

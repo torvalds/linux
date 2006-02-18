@@ -12,6 +12,8 @@
  *
  * 	ldxa		[%g0] ASI_{D,I}MMU_TSB_8KB_PTR, %g1
  * 	ldxa		[%g0] ASI_{D,I}MMU, %g6
+ *	sllx		%g6, 22, %g6
+ *	srlx		%g6, 22, %g6
  * 	ldda		[%g1] ASI_NUCLEUS_QUAD_LDD, %g4
  * 	cmp		%g4, %g6
  * 	bne,pn	%xcc, tsb_miss_{d,i}tlb
@@ -29,6 +31,9 @@
  * -------------------------------------------------
  *  63 61 60      48 47 42 41                     0
  *
+ * But actually, since we use per-mm TSB's, we zero out the CONTEXT
+ * field.
+ *
  * Like the powerpc hashtables we need to use locking in order to
  * synchronize while we update the entries.  PTE updates need locking
  * as well.
@@ -41,6 +46,9 @@
 
 #define TSB_TAG_LOCK_BIT	47
 #define TSB_TAG_LOCK_HIGH	(1 << (TSB_TAG_LOCK_BIT - 32))
+
+#define TSB_TAG_INVALID_BIT	46
+#define TSB_TAG_INVALID_HIGH	(1 << (TSB_TAG_INVALID_BIT - 32))
 
 #define TSB_MEMBAR	membar	#StoreStore
 

@@ -2,10 +2,10 @@
 	ldxa	[%g0] ASI_DMMU_TSB_8KB_PTR, %g1	! Get TSB 8K pointer
 	ldxa	[%g0] ASI_DMMU, %g6		! Get TAG TARGET
 	srlx	%g6, 48, %g5			! Get context
+	sllx	%g6, 22, %g6			! Zero out context
 	brz,pn	%g5, kvmap_dtlb			! Context 0 processing
-	 nop					! Delay slot (fill me)
+	 srlx	%g6, 22, %g6			! Delay slot
 	TSB_LOAD_QUAD(%g1, %g4)			! Load TSB entry
-	nop					! Push branch to next I$ line
 	cmp	%g4, %g6			! Compare TAG
 
 /* DTLB ** ICACHE line 2: TSB compare and TLB load	*/

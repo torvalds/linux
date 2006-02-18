@@ -36,7 +36,7 @@ tsb_miss_itlb:
 	/* At this point we have:
 	 * %g4 --	missing virtual address
 	 * %g1 --	TSB entry address
-	 * %g6 --	TAG TARGET ((vaddr >> 22) | (ctx << 48))
+	 * %g6 --	TAG TARGET (vaddr >> 22)
 	 */
 tsb_miss_page_table_walk:
 	TRAP_LOAD_PGD_PHYS(%g7, %g5)
@@ -50,8 +50,10 @@ tsb_reload:
 
 	/* Load and check PTE.  */
 	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
+	mov		1, %g7
+	sllx		%g7, TSB_TAG_INVALID_BIT, %g7
 	brgez,a,pn	%g5, tsb_do_fault
-	 TSB_STORE(%g1, %g0)
+	 TSB_STORE(%g1, %g7)
 
 	/* If it is larger than the base page size, don't
 	 * bother putting it into the TSB.
@@ -62,8 +64,10 @@ tsb_reload:
 	sethi		%hi(_PAGE_SZBITS), %g7
 	ldx		[%g7 + %lo(_PAGE_SZBITS)], %g7
 	cmp		%g2, %g7
+	mov		1, %g7
+	sllx		%g7, TSB_TAG_INVALID_BIT, %g7
 	bne,a,pn	%xcc, tsb_tlb_reload
-	 TSB_STORE(%g1, %g0)
+	 TSB_STORE(%g1, %g7)
 
 	TSB_WRITE(%g1, %g5, %g6)
 
@@ -136,7 +140,7 @@ tsb_do_fault:
 	.section	.sun4v_2insn_patch, "ax"
 	.word		661b
 	SET_GL(1)
-	ldxa		[%g0] ASI_SCRATCHPAD, %g2
+	ldxa		[%g0] ASI_SCRATCHPAD, %g4
 	.previous
 
 	bne,pn		%xcc, tsb_do_itlb_fault
@@ -150,7 +154,7 @@ tsb_do_dtlb_fault:
 	ldxa	[%g4] ASI_DMMU, %g5
 	.section .sun4v_2insn_patch, "ax"
 	.word	661b
-	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g5
+	ldx	[%g4 + HV_FAULT_D_ADDR_OFFSET], %g5
 	nop
 	.previous
 
@@ -217,8 +221,9 @@ tsb_flush:
 	bne,pn	%icc, 1b
 	 membar	#LoadLoad
 	cmp	%g1, %o1
+	mov	1, %o3
 	bne,pt	%xcc, 2f
-	 clr	%o3
+	 sllx	%o3, TSB_TAG_INVALID_BIT, %o3
 	TSB_CAS_TAG(%o0, %g1, %o3)
 	cmp	%g1, %o3
 	bne,pn	%xcc, 1b
