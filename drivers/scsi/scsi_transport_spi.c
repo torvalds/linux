@@ -1105,7 +1105,7 @@ static const char * const two_byte_msgs[] = {
 static const char * const extended_msgs[] = {
 /* 0x00 */ "Modify Data Pointer", "Synchronous Data Transfer Request",
 /* 0x02 */ "SCSI-I Extended Identify", "Wide Data Transfer Request",
-/* 0x04 */ "Parallel Protocol Request"
+/* 0x04 */ "Parallel Protocol Request", "Modify Bidirectional Data Pointer"
 };
 
 static void print_nego(const unsigned char *msg, int per, int off, int width)
@@ -1122,11 +1122,20 @@ static void print_nego(const unsigned char *msg, int per, int off, int width)
 		printk("width = %d ", 8 << msg[width]);
 }
 
+static void print_ptr(const unsigned char *msg, int msb, const char *desc)
+{
+	int ptr = (msg[msb] << 24) | (msg[msb+1] << 16) | (msg[msb+2] << 8) |
+			msg[msb+3];
+	printk("%s = %d ", desc, ptr);
+}
+
 int spi_print_msg(const unsigned char *msg)
 {
 	int len = 0, i;
 	if (msg[0] == EXTENDED_MESSAGE) {
-		len = 3 + msg[1];
+		len = 2 + msg[1];
+		if (len == 2)
+			len += 256;
 		if (msg[2] < ARRAY_SIZE(extended_msgs))
 			printk ("%s ", extended_msgs[msg[2]]); 
 		else 
@@ -1134,8 +1143,7 @@ int spi_print_msg(const unsigned char *msg)
 				(int) msg[2]);
 		switch (msg[2]) {
 		case EXTENDED_MODIFY_DATA_POINTER:
-			printk("pointer = %d ", (msg[3] << 24) |
-				(msg[4] << 16) | (msg[5] << 8) | msg[6]);
+			print_ptr(msg, 3, "pointer");
 			break;
 		case EXTENDED_SDTR:
 			print_nego(msg, 3, 4, 0);
@@ -1145,6 +1153,10 @@ int spi_print_msg(const unsigned char *msg)
 			break;
 		case EXTENDED_PPR:
 			print_nego(msg, 3, 5, 6);
+			break;
+		case EXTENDED_MODIFY_BIDI_DATA_PTR:
+			print_ptr(msg, 3, "out");
+			print_ptr(msg, 7, "in");
 			break;
 		default:
 		for (i = 2; i < len; ++i) 
@@ -1186,7 +1198,9 @@ int spi_print_msg(const unsigned char *msg)
 	int len = 0, i;
 
 	if (msg[0] == EXTENDED_MESSAGE) {
-		len = 3 + msg[1];
+		len = 2 + msg[1];
+		if (len == 2)
+			len += 256;
 		for (i = 0; i < len; ++i)
 			printk("%02x ", msg[i]);
 	/* Identify */
