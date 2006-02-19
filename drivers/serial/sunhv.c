@@ -210,9 +210,6 @@ static void sunhv_stop_tx(struct uart_port *port)
 static void sunhv_start_tx(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->info->xmit;
-	unsigned long flags;
-
-	spin_lock_irqsave(&port->lock, flags);
 
 	while (!uart_circ_empty(xmit)) {
 		long status = hypervisor_con_putchar(xmit->buf[xmit->tail]);
@@ -223,8 +220,6 @@ static void sunhv_start_tx(struct uart_port *port)
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
-
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 /* port->lock is not held.  */
@@ -259,7 +254,7 @@ static void sunhv_break_ctl(struct uart_port *port, int break_state)
 {
 	if (break_state) {
 		unsigned long flags;
-		int limit = 10000;
+		int limit = 1000000;
 
 		spin_lock_irqsave(&port->lock, flags);
 
@@ -267,6 +262,7 @@ static void sunhv_break_ctl(struct uart_port *port, int break_state)
 			long status = hypervisor_con_putchar(CON_BREAK);
 			if (status == HV_EOK)
 				break;
+			udelay(2);
 		}
 
 		spin_unlock_irqrestore(&port->lock, flags);
