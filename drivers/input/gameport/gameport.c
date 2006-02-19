@@ -797,5 +797,5 @@ static void __exit gameport_exit(void)
 	kthread_stop(gameport_task);
 }
 
-module_init(gameport_init);
+subsys_initcall(gameport_init);
 module_exit(gameport_exit);

@@ -924,5 +924,5 @@ static void __exit serio_exit(void)
 	kthread_stop(serio_task);
 }
 
-module_init(serio_init);
+subsys_initcall(serio_init);
 module_exit(serio_exit);
