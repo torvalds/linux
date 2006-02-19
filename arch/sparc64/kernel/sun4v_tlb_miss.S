@@ -137,7 +137,7 @@ sun4v_dtlb_load:
 sun4v_dtlb_prot:
 	SET_GL(1)
 
-	/* Load MMU Miss base into %g2.  */
+	/* Load MMU Miss base into %g5.  */
 	ldxa	[%g0] ASI_SCRATCHPAD, %g5
 	
 	ldx	[%g5 + HV_FAULT_D_ADDR_OFFSET], %g5
@@ -148,9 +148,10 @@ sun4v_dtlb_prot:
 	ba,pt	%xcc, sparc64_realfault_common
 	 mov	FAULT_CODE_DTLB | FAULT_CODE_WRITE, %g4
 
-	/* Called from trap table with TAG TARGET placed into
-	 * %g6, SCRATCHPAD_UTSBREG1 contents in %g1, and
-	 * SCRATCHPAD_MMU_MISS contents in %g2.
+	/* Called from trap table:
+	 * %g4:	vaddr
+	 * %g5:	context
+	 * %g6: TAG TARGET
 	 */
 sun4v_itsb_miss:
 	mov	SCRATCHPAD_UTSBREG1, %g1
@@ -159,14 +160,18 @@ sun4v_itsb_miss:
 	 mov	FAULT_CODE_ITLB, %g3
 	ba,a,pt	%xcc, sun4v_tsb_miss_common
 
-	/* Called from trap table with TAG TARGET placed into
-	 * %g6 and SCRATCHPAD_UTSBREG1 contents in %g1.
+	/* Called from trap table:
+	 * %g4:	vaddr
+	 * %g5:	context
+	 * %g6: TAG TARGET
 	 */
 sun4v_dtsb_miss:
 	mov	SCRATCHPAD_UTSBREG1, %g1
 	ldxa	[%g1] ASI_SCRATCHPAD, %g1
 	brz,pn	%g5, kvmap_dtlb_4v
 	 mov	FAULT_CODE_DTLB, %g3
+
+	/* fallthrough */
 
 	/* Create TSB pointer into %g1.  This is something like:
 	 *
@@ -304,18 +309,29 @@ sun4v_dacc_tl1:
 
 	/* Memory Address Unaligned.  */
 sun4v_mna:
-	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	/* Window fixup? */
+	rdpr	%tl, %g2
+	cmp	%g2, 1
+	ble,pt	%icc, 1f
+	 nop
+
+	SET_GL(1)
+	ldxa	[%g0] ASI_SCRATCHPAD, %g5
+	ldx	[%g5 + HV_FAULT_D_ADDR_OFFSET], %g5
+	mov	HV_FAULT_TYPE_UNALIGNED, %g3
+	ldx	[%g5 + HV_FAULT_D_CTX_OFFSET], %g4
+	sllx	%g3, 16, %g3
+	or	%g4, %g3, %g4
+	ba,pt	%xcc, winfix_mna
+	 rdpr	%tpc, %g3
+	/* not reached */
+
+1:	ldxa	[%g0] ASI_SCRATCHPAD, %g2
 	mov	HV_FAULT_TYPE_UNALIGNED, %g3
 	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g4
 	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5
 	sllx	%g3, 16, %g3
 	or	%g5, %g3, %g5
-
-	/* Window fixup? */
-	rdpr	%tl, %g2
-	cmp	%g2, 1
-	bgu,pn	%icc, winfix_mna
-	 rdpr	%tpc, %g3
 
 	ba,pt	%xcc, etrap
 	 rd	%pc, %g7

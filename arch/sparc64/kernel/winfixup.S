@@ -115,16 +115,17 @@ fill_fixup_mna:
 	ba,pt	%xcc, etrap
 	 rd	%pc, %g7
 	sethi	%hi(tlb_type), %g1
-	mov	%l4, %o1
 	lduw	[%g1 + %lo(tlb_type)], %g1
-	mov	%l5, %o2
 	cmp	%g1, 3
 	bne,pt	%icc, 1f
 	 add	%sp, PTREGS_OFF, %o0
+	mov	%l4, %o2
 	call	sun4v_do_mna
-	 nop
+	 mov	%l5, %o1
 	ba,a,pt	%xcc, rtrap_clr_l6
-1:	call	mem_address_unaligned
+1:	mov	%l4, %o1
+	mov	%l5, %o2
+	call	mem_address_unaligned
 	 nop
 	ba,a,pt	%xcc, rtrap_clr_l6
 
