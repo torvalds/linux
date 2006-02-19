@@ -901,7 +901,7 @@ static inline u8 bcm43xx_crc8(u8 crc, u8 data)
 	return t[crc ^ data];
 }
 
-u8 bcm43xx_sprom_crc(const u16 *sprom)
+static u8 bcm43xx_sprom_crc(const u16 *sprom)
 {
 	int word;
 	u8 crc = 0xFF;
