@@ -230,6 +230,9 @@ sysn32_waitid(int which, compat_pid_t pid,
 	long ret;
 	mm_segment_t old_fs = get_fs();
 
+	if (!access_ok(VERIFY_WRITE, uinfo, sizeof(*uinfo)))
+		return -EFAULT;
+
 	set_fs (KERNEL_DS);
 	ret = sys_waitid(which, pid, uinfo, options,
 			 uru ? (struct rusage __user *) &ru : NULL);
