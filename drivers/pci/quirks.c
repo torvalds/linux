@@ -934,6 +934,12 @@ static void __init asus_hides_smbus_hostbridge(struct pci_dev *dev)
 			case 0x12bd: /* HP D530 */
 				asus_hides_smbus = 1;
 			}
+		if (dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB) {
+			switch (dev->subsystem_device) {
+			case 0x099c: /* HP Compaq nx6110 */
+				asus_hides_smbus = 1;
+			}
+		}
 	} else if (unlikely(dev->subsystem_vendor == PCI_VENDOR_ID_TOSHIBA)) {
 		if (dev->device == PCI_DEVICE_ID_INTEL_82855GM_HB)
 			switch(dev->subsystem_device) {
