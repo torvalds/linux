@@ -179,11 +179,6 @@ struct bcm43xx_xmitstatus {
 //TODO #define BCM43xx_TXSTAT_FLAG_???	0x40
 //TODO #define BCM43xx_TXSTAT_FLAG_???	0x80
 
-struct bcm43xx_xmitstatus_queue {
-	struct list_head list;
-	struct bcm43xx_hwxmitstatus status;
-};
-
 
 /* Lightweight function to convert a frequency (in Mhz) to a channel number. */
 static inline
