@@ -782,7 +782,6 @@ static int hex2sprom(u16 *sprom, const char *dump, unsigned int len)
 	char tmp[5] = { 0 };
 	int cnt = 0;
 	unsigned long parsed;
-	u8 crc, expected_crc;
 
 	if (len < BCM43xx_SPROM_SIZE * sizeof(u16) * 2)
 		return -EINVAL;
@@ -791,13 +790,6 @@ static int hex2sprom(u16 *sprom, const char *dump, unsigned int len)
 		dump += 4;
 		parsed = simple_strtoul(tmp, NULL, 16);
 		sprom[cnt++] = swab16((u16)parsed);
-	}
-
-	crc = bcm43xx_sprom_crc(sprom);
-	expected_crc = (sprom[BCM43xx_SPROM_VERSION] & 0xFF00) >> 8;
-	if (crc != expected_crc) {
-		printk(KERN_ERR PFX "SPROM input data: Invalid CRC\n");
-		return -EINVAL;
 	}
 
 	return 0;
@@ -809,7 +801,7 @@ static int bcm43xx_wx_sprom_read(struct net_device *net_dev,
 				 char *extra)
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
-	int err = -EPERM, i;
+	int err = -EPERM;
 	u16 *sprom;
 	unsigned long flags;
 
@@ -828,13 +820,10 @@ static int bcm43xx_wx_sprom_read(struct net_device *net_dev,
 		spin_unlock_irqrestore(&bcm->lock, flags);
 		goto out_kfree;
 	}
-	for (i = 0; i < BCM43xx_SPROM_SIZE; i++)
-		sprom[i] = bcm43xx_read16(bcm, BCM43xx_SPROM_BASE + (i * 2));
+	err = bcm43xx_sprom_read(bcm, sprom);
 	spin_unlock_irqrestore(&bcm->lock, flags);
-
-	data->data.length = sprom2hex(sprom, extra);
-
-	err = 0;
+	if (!err)
+		data->data.length = sprom2hex(sprom, extra);
 out_kfree:
 	kfree(sprom);
 out:
@@ -852,8 +841,6 @@ static int bcm43xx_wx_sprom_write(struct net_device *net_dev,
 	unsigned long flags;
 	char *input;
 	unsigned int len;
-	u32 spromctl;
-	int i;
 
 	if (!capable(CAP_SYS_RAWIO))
 		goto out;
@@ -878,50 +865,9 @@ static int bcm43xx_wx_sprom_write(struct net_device *net_dev,
 
 	spin_lock_irqsave(&bcm->lock, flags);
 	err = -ENODEV;
-	if (!bcm->initialized) {
-		spin_unlock_irqrestore(&bcm->lock, flags);
-		goto out_kfree;
-	}
-
-	printk(KERN_INFO PFX "Writing SPROM. Do NOT turn off the power! Please stand by...\n");
-	err = bcm43xx_pci_read_config32(bcm, BCM43xx_PCICFG_SPROMCTL, &spromctl);
-	if (err) {
-		printk(KERN_ERR PFX "Could not access SPROM control register.\n");
+	if (!bcm->initialized)
 		goto out_unlock;
-	}
-	spromctl |= 0x10; /* SPROM WRITE enable. */
-	bcm43xx_pci_write_config32(bcm, BCM43xx_PCICFG_SPROMCTL, spromctl);
-	if (err) {
-		printk(KERN_ERR PFX "Could not access SPROM control register.\n");
-		goto out_unlock;
-	}
-	/* We must burn lots of CPU cycles here, but that does not
-	 * really matter as one does not write the SPROM every other minute...
-	 */
-	printk(KERN_INFO PFX "[ 0%%");
-	mdelay(500);
-	for (i = 0; i < BCM43xx_SPROM_SIZE; i++) {
-		if (i == 16)
-			printk("25%%");
-		else if (i == 32)
-			printk("50%%");
-		else if (i == 48)
-			printk("75%%");
-		else if (i % 2)
-			printk(".");
-		bcm43xx_write16(bcm, BCM43xx_SPROM_BASE + (i * 2), sprom[i]);
-		mdelay(20);
-	}
-	spromctl &= ~0x10; /* SPROM WRITE enable. */
-	bcm43xx_pci_write_config32(bcm, BCM43xx_PCICFG_SPROMCTL, spromctl);
-	if (err) {
-		printk(KERN_ERR PFX "Could not access SPROM control register.\n");
-		goto out_unlock;
-	}
-	mdelay(500);
-	printk("100%% ]\n");
-	printk(KERN_INFO PFX "SPROM written.\n");
-	err = 0;
+	err = bcm43xx_sprom_write(bcm, sprom);
 out_unlock:
 	spin_unlock_irqrestore(&bcm->lock, flags);
 out_kfree:

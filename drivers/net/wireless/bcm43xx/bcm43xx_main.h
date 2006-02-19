@@ -280,4 +280,7 @@ u8 bcm43xx_sprom_crc(const u16 *sprom);
 
 void bcm43xx_controller_restart(struct bcm43xx_private *bcm, const char *reason);
 
+int bcm43xx_sprom_read(struct bcm43xx_private *bcm, u16 *sprom);
+int bcm43xx_sprom_write(struct bcm43xx_private *bcm, const u16 *sprom);
+
 #endif /* BCM43xx_MAIN_H_ */

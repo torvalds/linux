@@ -916,13 +916,84 @@ u8 bcm43xx_sprom_crc(const u16 *sprom)
 	return crc;
 }
 
-
-static int bcm43xx_read_sprom(struct bcm43xx_private *bcm)
+int bcm43xx_sprom_read(struct bcm43xx_private *bcm, u16 *sprom)
 {
 	int i;
+	u8 crc, expected_crc;
+
+	for (i = 0; i < BCM43xx_SPROM_SIZE; i++)
+		sprom[i] = bcm43xx_read16(bcm, BCM43xx_SPROM_BASE + (i * 2));
+	/* CRC-8 check. */
+	crc = bcm43xx_sprom_crc(sprom);
+	expected_crc = (sprom[BCM43xx_SPROM_VERSION] & 0xFF00) >> 8;
+	if (crc != expected_crc) {
+		printk(KERN_WARNING PFX "WARNING: Invalid SPROM checksum "
+					"(0x%02X, expected: 0x%02X)\n",
+		       crc, expected_crc);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int bcm43xx_sprom_write(struct bcm43xx_private *bcm, const u16 *sprom)
+{
+	int i, err;
+	u8 crc, expected_crc;
+	u32 spromctl;
+
+	/* CRC-8 validation of the input data. */
+	crc = bcm43xx_sprom_crc(sprom);
+	expected_crc = (sprom[BCM43xx_SPROM_VERSION] & 0xFF00) >> 8;
+	if (crc != expected_crc) {
+		printk(KERN_ERR PFX "SPROM input data: Invalid CRC\n");
+		return -EINVAL;
+	}
+
+	printk(KERN_INFO PFX "Writing SPROM. Do NOT turn off the power! Please stand by...\n");
+	err = bcm43xx_pci_read_config32(bcm, BCM43xx_PCICFG_SPROMCTL, &spromctl);
+	if (err)
+		goto err_ctlreg;
+	spromctl |= 0x10; /* SPROM WRITE enable. */
+	bcm43xx_pci_write_config32(bcm, BCM43xx_PCICFG_SPROMCTL, spromctl);
+	if (err)
+		goto err_ctlreg;
+	/* We must burn lots of CPU cycles here, but that does not
+	 * really matter as one does not write the SPROM every other minute...
+	 */
+	printk(KERN_INFO PFX "[ 0%%");
+	mdelay(500);
+	for (i = 0; i < BCM43xx_SPROM_SIZE; i++) {
+		if (i == 16)
+			printk("25%%");
+		else if (i == 32)
+			printk("50%%");
+		else if (i == 48)
+			printk("75%%");
+		else if (i % 2)
+			printk(".");
+		bcm43xx_write16(bcm, BCM43xx_SPROM_BASE + (i * 2), sprom[i]);
+		mdelay(20);
+	}
+	spromctl &= ~0x10; /* SPROM WRITE enable. */
+	bcm43xx_pci_write_config32(bcm, BCM43xx_PCICFG_SPROMCTL, spromctl);
+	if (err)
+		goto err_ctlreg;
+	mdelay(500);
+	printk("100%% ]\n");
+	printk(KERN_INFO PFX "SPROM written.\n");
+	bcm43xx_controller_restart(bcm, "SPROM update");
+
+	return 0;
+err_ctlreg:
+	printk(KERN_ERR PFX "Could not access SPROM control register.\n");
+	return -ENODEV;
+}
+
+static int bcm43xx_sprom_extract(struct bcm43xx_private *bcm)
+{
 	u16 value;
 	u16 *sprom;
-	u8 crc, expected_crc;
 #ifdef CONFIG_BCM947XX
 	char *c;
 #endif
@@ -930,7 +1001,7 @@ static int bcm43xx_read_sprom(struct bcm43xx_private *bcm)
 	sprom = kzalloc(BCM43xx_SPROM_SIZE * sizeof(u16),
 			GFP_KERNEL);
 	if (!sprom) {
-		printk(KERN_ERR PFX "read_sprom OOM\n");
+		printk(KERN_ERR PFX "sprom_extract OOM\n");
 		return -ENOMEM;
 	}
 #ifdef CONFIG_BCM947XX
@@ -953,17 +1024,7 @@ static int bcm43xx_read_sprom(struct bcm43xx_private *bcm)
 
 	sprom[BCM43xx_SPROM_BOARDREV] = atoi(nvram_get("boardrev"));
 #else
-	for (i = 0; i < BCM43xx_SPROM_SIZE; i++)
-		sprom[i] = bcm43xx_read16(bcm, BCM43xx_SPROM_BASE + (i * 2));
-
-	/* CRC-8 check. */
-	crc = bcm43xx_sprom_crc(sprom);
-	expected_crc = (sprom[BCM43xx_SPROM_VERSION] & 0xFF00) >> 8;
-	if (crc != expected_crc) {
-		printk(KERN_WARNING PFX "WARNING: Invalid SPROM checksum "
-					"(0x%02X, expected: 0x%02X)\n",
-		       crc, expected_crc);
-	}
+	bcm43xx_sprom_read(bcm, sprom);
 #endif
 
 	/* boardflags2 */
@@ -3632,7 +3693,7 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 		goto err_chipset_detach;
 	}
 
-	err = bcm43xx_read_sprom(bcm);
+	err = bcm43xx_sprom_extract(bcm);
 	if (err)
 		goto err_chipset_detach;
 	err = bcm43xx_leds_init(bcm);
