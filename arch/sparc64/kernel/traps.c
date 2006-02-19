@@ -75,12 +75,12 @@ static void dump_tl1_traplog(struct tl1_traplog *p)
 {
 	int i, limit;
 
-	printk("TRAPLOG: Error at trap level 0x%lx, dumping track stack.\n",
-	       p->tl);
+	printk(KERN_EMERG "TRAPLOG: Error at trap level 0x%lx, "
+	       "dumping track stack.\n", p->tl);
 
 	limit = (tlb_type == hypervisor) ? 2 : 4;
 	for (i = 0; i < 4; i++) {
-		printk(KERN_CRIT
+		printk(KERN_EMERG
 		       "TRAPLOG: Trap level %d TSTATE[%016lx] TPC[%016lx] "
 		       "TNPC[%016lx] TT[%lx]\n",
 		       i + 1,
@@ -1938,10 +1938,13 @@ void sun4v_itlb_error_report(struct pt_regs *regs, int tl)
 	if (tl > 1)
 		dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 
-	printk("SUN4V-ITLB: Error at TPC[%lx], tl %d\n", regs->tpc, tl);
-	printk("SUN4V-ITLB: vaddr[%lx] ctx[%lx] pte[%lx] error[%lx]\n",
+	printk(KERN_EMERG "SUN4V-ITLB: Error at TPC[%lx], tl %d\n",
+	       regs->tpc, tl);
+	printk(KERN_EMERG "SUN4V-ITLB: vaddr[%lx] ctx[%lx] "
+	       "pte[%lx] error[%lx]\n",
 	       sun4v_err_itlb_vaddr, sun4v_err_itlb_ctx,
 	       sun4v_err_itlb_pte, sun4v_err_itlb_error);
+
 	prom_halt();
 }
 
@@ -1955,10 +1958,13 @@ void sun4v_dtlb_error_report(struct pt_regs *regs, int tl)
 	if (tl > 1)
 		dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 
-	printk("SUN4V-DTLB: Error at TPC[%lx], tl %d\n", regs->tpc, tl);
-	printk("SUN4V-DTLB: vaddr[%lx] ctx[%lx] pte[%lx] error[%lx]\n",
+	printk(KERN_EMERG "SUN4V-DTLB: Error at TPC[%lx], tl %d\n",
+	       regs->tpc, tl);
+	printk(KERN_EMERG "SUN4V-DTLB: vaddr[%lx] ctx[%lx] "
+	       "pte[%lx] error[%lx]\n",
 	       sun4v_err_dtlb_vaddr, sun4v_err_dtlb_ctx,
 	       sun4v_err_dtlb_pte, sun4v_err_dtlb_error);
+
 	prom_halt();
 }
 
