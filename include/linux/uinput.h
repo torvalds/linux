@@ -20,7 +20,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * Author: Aristeu Sergio Rozanski Filho <aris@cathedrallabs.org>
- * 
+ *
  * Changes/Revisions:
  *	0.2	16/10/2004 (Micah Dowty <micah@navi.cx>)
  *		- added force feedback support
@@ -51,7 +51,7 @@ struct uinput_request {
 
 struct uinput_device {
 	struct input_dev	*dev;
-	struct semaphore	sem;
+	struct mutex		mutex;
 	enum uinput_state	state;
 	wait_queue_head_t	waitq;
 	unsigned char		ready;

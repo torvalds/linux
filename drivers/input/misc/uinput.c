@@ -194,7 +194,7 @@ static int uinput_open(struct inode *inode, struct file *file)
 	if (!newdev)
 		return -ENOMEM;
 
-	init_MUTEX(&newdev->sem);
+	mutex_init(&newdev->mutex);
 	spin_lock_init(&newdev->requests_lock);
 	init_waitqueue_head(&newdev->requests_waitq);
 	init_waitqueue_head(&newdev->waitq);
@@ -340,7 +340,7 @@ static ssize_t uinput_write(struct file *file, const char __user *buffer, size_t
 	struct uinput_device *udev = file->private_data;
 	int retval;
 
-	retval = down_interruptible(&udev->sem);
+	retval = mutex_lock_interruptible(&udev->mutex);
 	if (retval)
 		return retval;
 
@@ -348,7 +348,7 @@ static ssize_t uinput_write(struct file *file, const char __user *buffer, size_t
 			uinput_inject_event(udev, buffer, count) :
 			uinput_setup_device(udev, buffer, count);
 
-	up(&udev->sem);
+	mutex_unlock(&udev->mutex);
 
 	return retval;
 }
@@ -369,7 +369,7 @@ static ssize_t uinput_read(struct file *file, char __user *buffer, size_t count,
 	if (retval)
 		return retval;
 
-	retval = down_interruptible(&udev->sem);
+	retval = mutex_lock_interruptible(&udev->mutex);
 	if (retval)
 		return retval;
 
@@ -388,7 +388,7 @@ static ssize_t uinput_read(struct file *file, char __user *buffer, size_t count,
 	}
 
  out:
-	up(&udev->sem);
+	mutex_unlock(&udev->mutex);
 
 	return retval;
 }
@@ -439,7 +439,7 @@ static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	udev = file->private_data;
 
-	retval = down_interruptible(&udev->sem);
+	retval = mutex_lock_interruptible(&udev->mutex);
 	if (retval)
 		return retval;
 
@@ -589,7 +589,7 @@ static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
  out:
-	up(&udev->sem);
+	mutex_unlock(&udev->mutex);
 	return retval;
 }
 
