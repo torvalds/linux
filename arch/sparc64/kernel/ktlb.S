@@ -92,7 +92,7 @@ kvmap_itlb_longpath:
 	wrpr	%g5, PSTATE_AG | PSTATE_MG, %pstate
 	.section .sun4v_2insn_patch, "ax"
 	.word	661b
-	nop
+	SET_GL(1)
 	nop
 	.previous
 
