@@ -37,13 +37,14 @@
 #include <linux/serio.h>
 #include <linux/config.h>
 #include <linux/circ_buf.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 /* This module provides arbitrary resource management routines.
  * I use it to manage the device's memory.
  * Despite the name of this module, I am *not* going to access the ioports.
  */
 #include <linux/ioport.h>
+
 
 #define IFORCE_MAX_LENGTH	16
 
@@ -146,7 +147,7 @@ struct iforce {
 	wait_queue_head_t wait;
 	struct resource device_memory;
 	struct iforce_core_effect core_effects[FF_EFFECTS_MAX];
-	struct semaphore mem_mutex;
+	struct mutex mem_mutex;
 };
 
 /* Get hi and low bytes of a 16-bits int */

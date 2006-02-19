@@ -42,14 +42,14 @@ static int make_magnitude_modifier(struct iforce* iforce,
 	unsigned char data[3];
 
 	if (!no_alloc) {
-		down(&iforce->mem_mutex);
+		mutex_lock(&iforce->mem_mutex);
 		if (allocate_resource(&(iforce->device_memory), mod_chunk, 2,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
-			up(&iforce->mem_mutex);
+			mutex_unlock(&iforce->mem_mutex);
 			return -ENOMEM;
 		}
-		up(&iforce->mem_mutex);
+		mutex_unlock(&iforce->mem_mutex);
 	}
 
 	data[0] = LO(mod_chunk->start);
@@ -75,14 +75,14 @@ static int make_period_modifier(struct iforce* iforce,
 	period = TIME_SCALE(period);
 
 	if (!no_alloc) {
-		down(&iforce->mem_mutex);
+		mutex_lock(&iforce->mem_mutex);
 		if (allocate_resource(&(iforce->device_memory), mod_chunk, 0x0c,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
-			up(&iforce->mem_mutex);
+			mutex_unlock(&iforce->mem_mutex);
 			return -ENOMEM;
 		}
-		up(&iforce->mem_mutex);
+		mutex_unlock(&iforce->mem_mutex);
 	}
 
 	data[0] = LO(mod_chunk->start);
@@ -115,14 +115,14 @@ static int make_envelope_modifier(struct iforce* iforce,
 	fade_duration = TIME_SCALE(fade_duration);
 
 	if (!no_alloc) {
-		down(&iforce->mem_mutex);
+		mutex_lock(&iforce->mem_mutex);
 		if (allocate_resource(&(iforce->device_memory), mod_chunk, 0x0e,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
-			up(&iforce->mem_mutex);
+			mutex_unlock(&iforce->mem_mutex);
 			return -ENOMEM;
 		}
-		up(&iforce->mem_mutex);
+		mutex_unlock(&iforce->mem_mutex);
 	}
 
 	data[0] = LO(mod_chunk->start);
@@ -152,14 +152,14 @@ static int make_condition_modifier(struct iforce* iforce,
 	unsigned char data[10];
 
 	if (!no_alloc) {
-		down(&iforce->mem_mutex);
+		mutex_lock(&iforce->mem_mutex);
 		if (allocate_resource(&(iforce->device_memory), mod_chunk, 8,
 			iforce->device_memory.start, iforce->device_memory.end, 2L,
 			NULL, NULL)) {
-			up(&iforce->mem_mutex);
+			mutex_unlock(&iforce->mem_mutex);
 			return -ENOMEM;
 		}
-		up(&iforce->mem_mutex);
+		mutex_unlock(&iforce->mem_mutex);
 	}
 
 	data[0] = LO(mod_chunk->start);

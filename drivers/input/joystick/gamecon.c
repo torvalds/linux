@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/parport.h>
 #include <linux/input.h>
+#include <linux/mutex.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("NES, SNES, N64, MultiSystem, PSX gamepad driver");
@@ -83,7 +84,7 @@ struct gc {
 	struct timer_list timer;
 	unsigned char pads[GC_MAX + 1];
 	int used;
-	struct semaphore sem;
+	struct mutex mutex;
 	char phys[GC_MAX_DEVICES][32];
 };
 
@@ -552,7 +553,7 @@ static int gc_open(struct input_dev *dev)
 	struct gc *gc = dev->private;
 	int err;
 
-	err = down_interruptible(&gc->sem);
+	err = mutex_lock_interruptible(&gc->mutex);
 	if (err)
 		return err;
 
@@ -562,7 +563,7 @@ static int gc_open(struct input_dev *dev)
 		mod_timer(&gc->timer, jiffies + GC_REFRESH_TIME);
 	}
 
-	up(&gc->sem);
+	mutex_unlock(&gc->mutex);
 	return 0;
 }
 
@@ -570,13 +571,13 @@ static void gc_close(struct input_dev *dev)
 {
 	struct gc *gc = dev->private;
 
-	down(&gc->sem);
+	mutex_lock(&gc->mutex);
 	if (!--gc->used) {
 		del_timer_sync(&gc->timer);
 		parport_write_control(gc->pd->port, 0x00);
 		parport_release(gc->pd);
 	}
-	up(&gc->sem);
+	mutex_unlock(&gc->mutex);
 }
 
 static int __init gc_setup_pad(struct gc *gc, int idx, int pad_type)
@@ -693,7 +694,7 @@ static struct gc __init *gc_probe(int parport, int *pads, int n_pads)
 		goto err_unreg_pardev;
 	}
 
-	init_MUTEX(&gc->sem);
+	mutex_init(&gc->mutex);
 	gc->pd = pd;
 	init_timer(&gc->timer);
 	gc->timer.data = (long) gc;
