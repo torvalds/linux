@@ -187,58 +187,78 @@ struct bcm43xx_xmitstatus_queue {
 
 /* Lightweight function to convert a frequency (in Mhz) to a channel number. */
 static inline
-u8 bcm43xx_freq_to_channel(struct bcm43xx_private *bcm,
-			   int freq)
+u8 bcm43xx_freq_to_channel_a(int freq)
+{
+	return ((freq - 5000) / 5);
+}
+static inline
+u8 bcm43xx_freq_to_channel_bg(int freq)
 {
 	u8 channel;
 
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A) {
-		channel = (freq - 5000) / 5;
-	} else {
-		if (freq == 2484)
-			channel = 14;
-		else
-			channel = (freq - 2407) / 5;
-	}
+	if (freq == 2484)
+		channel = 14;
+	else
+		channel = (freq - 2407) / 5;
 
 	return channel;
+}
+static inline
+u8 bcm43xx_freq_to_channel(struct bcm43xx_private *bcm,
+			   int freq)
+{
+	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A)
+		return bcm43xx_freq_to_channel_a(freq);
+	return bcm43xx_freq_to_channel_bg(freq);
 }
 
 /* Lightweight function to convert a channel number to a frequency (in Mhz). */
 static inline
-int bcm43xx_channel_to_freq(struct bcm43xx_private *bcm,
-			    u8 channel)
+int bcm43xx_channel_to_freq_a(u8 channel)
+{
+	return (5000 + (5 * channel));
+}
+static inline
+int bcm43xx_channel_to_freq_bg(u8 channel)
 {
 	int freq;
 
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A) {
-		freq = 5000 + (5 * channel);
-	} else {
-		if (channel == 14)
-			freq = 2484;
-		else
-			freq = 2407 + (5 * channel);
-	}
+	if (channel == 14)
+		freq = 2484;
+	else
+		freq = 2407 + (5 * channel);
 
 	return freq;
+}
+static inline
+int bcm43xx_channel_to_freq(struct bcm43xx_private *bcm,
+			    u8 channel)
+{
+	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A)
+		return bcm43xx_channel_to_freq_a(channel);
+	return bcm43xx_channel_to_freq_bg(channel);
 }
 
 /* Lightweight function to check if a channel number is valid.
  * Note that this does _NOT_ check for geographical restrictions!
  */
 static inline
-int bcm43xx_is_valid_channel(struct bcm43xx_private *bcm,
-			    u8 channel)
+int bcm43xx_is_valid_channel_a(u8 channel)
 {
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A) {
-		if (channel <= 200)
-			return 1;
-	} else {
-		if (channel >= 1 && channel <= 14)
-			return 1;
-	}
-
-	return 0;
+	return (channel <= 200);
+}
+static inline
+int bcm43xx_is_valid_channel_bg(u8 channel)
+{
+	return (channel >= 1 && channel <= 14);
+}
+static inline
+int bcm43xx_is_valid_channel(struct bcm43xx_private *bcm,
+			     u8 channel)
+{
+	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A)
+		return bcm43xx_is_valid_channel_a(channel);
+	return bcm43xx_is_valid_channel_bg(channel);
 }
 
 void bcm43xx_tsf_read(struct bcm43xx_private *bcm, u64 *tsf);

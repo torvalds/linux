@@ -1169,7 +1169,7 @@ static void bcm43xx_geo_init(struct bcm43xx_private *bcm)
  	if (have_a) {
 		for (i = 0, channel = 0; channel < 201; channel++) {
 			chan = &geo.a[i++];
-			chan->freq = bcm43xx_channel_to_freq(bcm, channel);
+			chan->freq = bcm43xx_channel_to_freq_a(channel);
 			chan->channel = channel;
 		}
 		geo.a_channels = i;
@@ -1177,7 +1177,7 @@ static void bcm43xx_geo_init(struct bcm43xx_private *bcm)
 	if (have_bg) {
 		for (i = 0, channel = 1; channel < 15; channel++) {
 			chan = &geo.bg[i++];
-			chan->freq = bcm43xx_channel_to_freq(bcm, channel);
+			chan->freq = bcm43xx_channel_to_freq_bg(channel);
 			chan->channel = channel;
 		}
 		geo.bg_channels = i;

@@ -111,8 +111,9 @@ static int bcm43xx_wx_set_channelfreq(struct net_device *net_dev,
 	unsigned long flags;
 	u8 channel;
 	int freq;
-	int err = 0;
+	int err = -EINVAL;
 
+	spin_lock_irqsave(&bcm->lock, flags);
 	if ((data->freq.m >= 0) && (data->freq.m <= 1000)) {
 		channel = data->freq.m;
 		freq = bcm43xx_channel_to_freq(bcm, channel);
@@ -121,16 +122,17 @@ static int bcm43xx_wx_set_channelfreq(struct net_device *net_dev,
 		freq = data->freq.m;
 	}
 	if (!bcm43xx_is_valid_channel(bcm, channel))
-		return -EINVAL;
-
-	spin_lock_irqsave(&bcm->lock, flags);
+		goto out_unlock;
 	if (bcm->initialized) {
 		//ieee80211softmac_disassoc(softmac, $REASON);
 		bcm43xx_mac_suspend(bcm);
 		err = bcm43xx_radio_selectchannel(bcm, channel, 0);
 		bcm43xx_mac_enable(bcm);
-	} else
+	} else {
 		bcm->current_core->radio->initial_channel = channel;
+		err = 0;
+	}
+out_unlock:
 	spin_unlock_irqrestore(&bcm->lock, flags);
 
 	return err;
