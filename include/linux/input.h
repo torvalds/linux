@@ -929,7 +929,7 @@ struct input_dev {
 
 	struct input_handle *grab;
 
-	struct semaphore sem;	/* serializes open and close operations */
+	struct mutex mutex;	/* serializes open and close operations */
 	unsigned int users;
 
 	struct class_device cdev;

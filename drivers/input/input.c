@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/poll.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
@@ -224,7 +225,7 @@ int input_open_device(struct input_handle *handle)
 	struct input_dev *dev = handle->dev;
 	int err;
 
-	err = down_interruptible(&dev->sem);
+	err = mutex_lock_interruptible(&dev->mutex);
 	if (err)
 		return err;
 
@@ -236,7 +237,7 @@ int input_open_device(struct input_handle *handle)
 	if (err)
 		handle->open--;
 
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 
 	return err;
 }
@@ -255,13 +256,13 @@ void input_close_device(struct input_handle *handle)
 
 	input_release_device(handle);
 
-	down(&dev->sem);
+	mutex_lock(&dev->mutex);
 
 	if (!--dev->users && dev->close)
 		dev->close(dev);
 	handle->open--;
 
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 }
 
 static void input_link_handle(struct input_handle *handle)
@@ -512,13 +513,13 @@ static ssize_t input_dev_show_##name(struct class_device *dev, char *buf)	\
 	struct input_dev *input_dev = to_input_dev(dev);			\
 	int retval;								\
 										\
-	retval = down_interruptible(&input_dev->sem);				\
+	retval = mutex_lock_interruptible(&input_dev->mutex);			\
 	if (retval)								\
 		return retval;							\
 										\
 	retval = sprintf(buf, "%s\n", input_dev->name ? input_dev->name : "");	\
 										\
-	up(&input_dev->sem);							\
+	mutex_unlock(&input_dev->mutex);					\
 										\
 	return retval;								\
 }										\
@@ -790,7 +791,7 @@ int input_register_device(struct input_dev *dev)
 		return -EINVAL;
 	}
 
-	init_MUTEX(&dev->sem);
+	mutex_init(&dev->mutex);
 	set_bit(EV_SYN, dev->evbit);
 
 	/*
