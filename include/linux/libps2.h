@@ -28,7 +28,7 @@ struct ps2dev {
 	struct serio *serio;
 
 	/* Ensures that only one command is executing at a time */
-	struct semaphore cmd_sem;
+	struct mutex cmd_mutex;
 
 	/* Used to signal completion from interrupt handler */
 	wait_queue_head_t wait;

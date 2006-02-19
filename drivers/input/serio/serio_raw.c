@@ -19,6 +19,7 @@
 #include <linux/devfs_fs_kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/wait.h>
+#include <linux/mutex.h>
 
 #define DRIVER_DESC	"Raw serio driver"
 
@@ -46,7 +47,7 @@ struct serio_raw_list {
 	struct list_head node;
 };
 
-static DECLARE_MUTEX(serio_raw_sem);
+static DEFINE_MUTEX(serio_raw_mutex);
 static LIST_HEAD(serio_raw_list);
 static unsigned int serio_raw_no;
 
@@ -81,7 +82,7 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 	struct serio_raw_list *list;
 	int retval = 0;
 
-	retval = down_interruptible(&serio_raw_sem);
+	retval = mutex_lock_interruptible(&serio_raw_mutex);
 	if (retval)
 		return retval;
 
@@ -108,7 +109,7 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 	list_add_tail(&list->node, &serio_raw->list);
 
 out:
-	up(&serio_raw_sem);
+	mutex_unlock(&serio_raw_mutex);
 	return retval;
 }
 
@@ -130,12 +131,12 @@ static int serio_raw_release(struct inode *inode, struct file *file)
 	struct serio_raw_list *list = file->private_data;
 	struct serio_raw *serio_raw = list->serio_raw;
 
-	down(&serio_raw_sem);
+	mutex_lock(&serio_raw_mutex);
 
 	serio_raw_fasync(-1, file, 0);
 	serio_raw_cleanup(serio_raw);
 
-	up(&serio_raw_sem);
+	mutex_unlock(&serio_raw_mutex);
 	return 0;
 }
 
@@ -194,7 +195,7 @@ static ssize_t serio_raw_write(struct file *file, const char __user *buffer, siz
 	int retval;
 	unsigned char c;
 
-	retval = down_interruptible(&serio_raw_sem);
+	retval = mutex_lock_interruptible(&serio_raw_mutex);
 	if (retval)
 		return retval;
 
@@ -219,7 +220,7 @@ static ssize_t serio_raw_write(struct file *file, const char __user *buffer, siz
 	};
 
 out:
-	up(&serio_raw_sem);
+	mutex_unlock(&serio_raw_mutex);
 	return written;
 }
 
@@ -280,7 +281,7 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 		return -ENOMEM;
 	}
 
-	down(&serio_raw_sem);
+	mutex_lock(&serio_raw_mutex);
 
 	memset(serio_raw, 0, sizeof(struct serio_raw));
 	snprintf(serio_raw->name, sizeof(serio_raw->name), "serio_raw%d", serio_raw_no++);
@@ -325,7 +326,7 @@ out_free:
 	serio_set_drvdata(serio, NULL);
 	kfree(serio_raw);
 out:
-	up(&serio_raw_sem);
+	mutex_unlock(&serio_raw_mutex);
 	return err;
 }
 
@@ -350,7 +351,7 @@ static void serio_raw_disconnect(struct serio *serio)
 {
 	struct serio_raw *serio_raw;
 
-	down(&serio_raw_sem);
+	mutex_lock(&serio_raw_mutex);
 
 	serio_raw = serio_get_drvdata(serio);
 
@@ -361,7 +362,7 @@ static void serio_raw_disconnect(struct serio *serio)
 	if (!serio_raw_cleanup(serio_raw))
 		wake_up_interruptible(&serio_raw->wait);
 
-	up(&serio_raw_sem);
+	mutex_unlock(&serio_raw_mutex);
 }
 
 static struct serio_device_id serio_raw_serio_ids[] = {
