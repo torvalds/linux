@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>	/* HZ */
+#include <linux/mutex.h>
 
 /*#include <asm/io.h>*/
 
@@ -43,10 +44,10 @@ EXPORT_SYMBOL(gameport_start_polling);
 EXPORT_SYMBOL(gameport_stop_polling);
 
 /*
- * gameport_sem protects entire gameport subsystem and is taken
+ * gameport_mutex protects entire gameport subsystem and is taken
  * every time gameport port or driver registrered or unregistered.
  */
-static DECLARE_MUTEX(gameport_sem);
+static DEFINE_MUTEX(gameport_mutex);
 
 static LIST_HEAD(gameport_list);
 
@@ -342,7 +343,7 @@ static void gameport_handle_event(void)
 	struct gameport_event *event;
 	struct gameport_driver *gameport_drv;
 
-	down(&gameport_sem);
+	mutex_lock(&gameport_mutex);
 
 	/*
 	 * Note that we handle only one event here to give swsusp
@@ -379,7 +380,7 @@ static void gameport_handle_event(void)
 		gameport_free_event(event);
 	}
 
-	up(&gameport_sem);
+	mutex_unlock(&gameport_mutex);
 }
 
 /*
@@ -464,7 +465,7 @@ static ssize_t gameport_rebind_driver(struct device *dev, struct device_attribut
 	struct device_driver *drv;
 	int retval;
 
-	retval = down_interruptible(&gameport_sem);
+	retval = mutex_lock_interruptible(&gameport_mutex);
 	if (retval)
 		return retval;
 
@@ -484,7 +485,7 @@ static ssize_t gameport_rebind_driver(struct device *dev, struct device_attribut
 		retval = -EINVAL;
 	}
 
-	up(&gameport_sem);
+	mutex_unlock(&gameport_mutex);
 
 	return retval;
 }
@@ -521,7 +522,7 @@ static void gameport_init_port(struct gameport *gameport)
 
 	__module_get(THIS_MODULE);
 
-	init_MUTEX(&gameport->drv_sem);
+	mutex_init(&gameport->drv_mutex);
 	device_initialize(&gameport->dev);
 	snprintf(gameport->dev.bus_id, sizeof(gameport->dev.bus_id),
 		 "gameport%lu", (unsigned long)atomic_inc_return(&gameport_no) - 1);
@@ -661,10 +662,10 @@ void __gameport_register_port(struct gameport *gameport, struct module *owner)
  */
 void gameport_unregister_port(struct gameport *gameport)
 {
-	down(&gameport_sem);
+	mutex_lock(&gameport_mutex);
 	gameport_disconnect_port(gameport);
 	gameport_destroy_port(gameport);
-	up(&gameport_sem);
+	mutex_unlock(&gameport_mutex);
 }
 
 
@@ -717,7 +718,7 @@ void gameport_unregister_driver(struct gameport_driver *drv)
 {
 	struct gameport *gameport;
 
-	down(&gameport_sem);
+	mutex_lock(&gameport_mutex);
 	drv->ignore = 1;	/* so gameport_find_driver ignores it */
 
 start_over:
@@ -731,7 +732,7 @@ start_over:
 	}
 
 	driver_unregister(&drv->driver);
-	up(&gameport_sem);
+	mutex_unlock(&gameport_mutex);
 }
 
 static int gameport_bus_match(struct device *dev, struct device_driver *drv)
@@ -743,9 +744,9 @@ static int gameport_bus_match(struct device *dev, struct device_driver *drv)
 
 static void gameport_set_drv(struct gameport *gameport, struct gameport_driver *drv)
 {
-	down(&gameport->drv_sem);
+	mutex_lock(&gameport->drv_mutex);
 	gameport->drv = drv;
-	up(&gameport->drv_sem);
+	mutex_unlock(&gameport->drv_mutex);
 }
 
 int gameport_open(struct gameport *gameport, struct gameport_driver *drv, int mode)
