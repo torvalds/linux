@@ -27,6 +27,7 @@
 #include <linux/serio.h>
 #include <linux/workqueue.h>
 #include <linux/libps2.h>
+#include <linux/mutex.h>
 
 #define DRIVER_DESC	"AT and PS/2 keyboard driver"
 
@@ -216,7 +217,7 @@ struct atkbd {
 	unsigned long time;
 
 	struct work_struct event_work;
-	struct semaphore event_sem;
+	struct mutex event_mutex;
 	unsigned long event_mask;
 };
 
@@ -449,7 +450,7 @@ static void atkbd_event_work(void *data)
 	unsigned char param[2];
 	int i, j;
 
-	down(&atkbd->event_sem);
+	mutex_lock(&atkbd->event_mutex);
 
 	if (test_and_clear_bit(ATKBD_LED_EVENT_BIT, &atkbd->event_mask)) {
 		param[0] = (test_bit(LED_SCROLLL, dev->led) ? 1 : 0)
@@ -480,7 +481,7 @@ static void atkbd_event_work(void *data)
 		ps2_command(&atkbd->ps2dev, param, ATKBD_CMD_SETREP);
 	}
 
-	up(&atkbd->event_sem);
+	mutex_unlock(&atkbd->event_mutex);
 }
 
 /*
@@ -846,7 +847,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd->dev = dev;
 	ps2_init(&atkbd->ps2dev, serio);
 	INIT_WORK(&atkbd->event_work, atkbd_event_work, atkbd);
-	init_MUTEX(&atkbd->event_sem);
+	mutex_init(&atkbd->event_mutex);
 
 	switch (serio->id.type) {
 
