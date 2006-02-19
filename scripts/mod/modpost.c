@@ -576,11 +576,11 @@ static void check_sec_ref(struct module *mod, const char *modname,
 			r.r_offset = TO_NATIVE(rela->r_offset);
 			r.r_info   = TO_NATIVE(rela->r_info);
 			sym = elf->symtab_start + ELF_R_SYM(r.r_info);
-			secname = secstrings + sechdrs[sym->st_shndx].sh_name;
 			/* Skip special sections */
 			if (sym->st_shndx >= SHN_LORESERVE)
 				continue;
 
+			secname = secstrings + sechdrs[sym->st_shndx].sh_name;
 			if (section(secname))
 				warn_sec_mismatch(modname, name, elf, sym, r);
 		}
