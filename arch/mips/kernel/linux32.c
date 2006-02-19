@@ -161,12 +161,6 @@ out:
 	return error;
 }
 
-asmlinkage int
-sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr, int options)
-{
-	return compat_sys_wait4(pid, stat_addr, options, NULL);
-}
-
 asmlinkage long
 sysn32_waitid(int which, compat_pid_t pid,
 	      siginfo_t __user *uinfo, int options,
