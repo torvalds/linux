@@ -41,6 +41,7 @@ struct inet_skb_parm
 #define IPSKB_XFRM_TUNNEL_SIZE	2
 #define IPSKB_XFRM_TRANSFORMED	4
 #define IPSKB_FRAG_COMPLETE	8
+#define IPSKB_REROUTED		16
 };
 
 struct ipcm_cookie

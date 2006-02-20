@@ -623,7 +623,7 @@ einval:	li	v0, -EINVAL
 	sys	sys_mknodat		4	/* 4290 */
 	sys	sys_fchownat		5
 	sys	sys_futimesat		3
-	sys	sys_newfstatat		4
+	sys	sys_fstatat64		4
 	sys	sys_unlinkat		3
 	sys	sys_renameat		4	/* 4295 */
 	sys	sys_linkat		4

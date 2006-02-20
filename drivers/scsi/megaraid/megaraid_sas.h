@@ -18,9 +18,9 @@
 /**
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.02.02"
-#define MEGASAS_RELDATE				"Jan 23, 2006"
-#define MEGASAS_EXT_VERSION			"Mon Jan 23 14:09:01 PST 2006"
+#define MEGASAS_VERSION				"00.00.02.04"
+#define MEGASAS_RELDATE				"Feb 03, 2006"
+#define MEGASAS_EXT_VERSION			"Fri Feb 03 14:31:44 PST 2006"
 /*
  * =====================================
  * MegaRAID SAS MFI firmware definitions
@@ -553,31 +553,46 @@ struct megasas_ctrl_info {
 #define MFI_OB_INTR_STATUS_MASK			0x00000002
 #define MFI_POLL_TIMEOUT_SECS			10
 
+#define MFI_REPLY_1078_MESSAGE_INTERRUPT	0x80000000
+#define PCI_DEVICE_ID_LSI_SAS1078R		0x00000060
+ 
 struct megasas_register_set {
+	u32 	reserved_0[4];			/*0000h*/
 
-	u32 reserved_0[4];	/*0000h */
+	u32 	inbound_msg_0;			/*0010h*/
+	u32 	inbound_msg_1;			/*0014h*/
+	u32 	outbound_msg_0;			/*0018h*/
+	u32 	outbound_msg_1;			/*001Ch*/
 
-	u32 inbound_msg_0;	/*0010h */
-	u32 inbound_msg_1;	/*0014h */
-	u32 outbound_msg_0;	/*0018h */
-	u32 outbound_msg_1;	/*001Ch */
+	u32 	inbound_doorbell;		/*0020h*/
+	u32 	inbound_intr_status;		/*0024h*/
+	u32 	inbound_intr_mask;		/*0028h*/
 
-	u32 inbound_doorbell;	/*0020h */
-	u32 inbound_intr_status;	/*0024h */
-	u32 inbound_intr_mask;	/*0028h */
+	u32 	outbound_doorbell;		/*002Ch*/
+	u32 	outbound_intr_status;		/*0030h*/
+	u32 	outbound_intr_mask;		/*0034h*/
 
-	u32 outbound_doorbell;	/*002Ch */
-	u32 outbound_intr_status;	/*0030h */
-	u32 outbound_intr_mask;	/*0034h */
+	u32 	reserved_1[2];			/*0038h*/
 
-	u32 reserved_1[2];	/*0038h */
+	u32 	inbound_queue_port;		/*0040h*/
+	u32 	outbound_queue_port;		/*0044h*/
 
-	u32 inbound_queue_port;	/*0040h */
-	u32 outbound_queue_port;	/*0044h */
+	u32 	reserved_2[22];			/*0048h*/
 
-	u32 reserved_2;		/*004Ch */
+	u32 	outbound_doorbell_clear;	/*00A0h*/
 
-	u32 index_registers[1004];	/*0050h */
+	u32 	reserved_3[3];			/*00A4h*/
+
+	u32 	outbound_scratch_pad ;		/*00B0h*/
+
+	u32 	reserved_4[3];			/*00B4h*/
+
+	u32 	inbound_low_queue_port ;	/*00C0h*/
+
+	u32 	inbound_high_queue_port ;	/*00C4h*/
+
+	u32 	reserved_5;			/*00C8h*/
+	u32 	index_registers[820];		/*00CCh*/
 
 } __attribute__ ((packed));
 

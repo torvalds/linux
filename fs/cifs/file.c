@@ -1442,13 +1442,15 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 					 &bytes_read, &smb_read_data,
 					 &buf_type);
 			pSMBr = (struct smb_com_read_rsp *)smb_read_data;
-			if (copy_to_user(current_offset, 
-					 smb_read_data + 4 /* RFC1001 hdr */
-					 + le16_to_cpu(pSMBr->DataOffset), 
-					 bytes_read)) {
-				rc = -EFAULT;
-			}
 			if (smb_read_data) {
+				if (copy_to_user(current_offset,
+						smb_read_data +
+						4 /* RFC1001 length field */ +
+						le16_to_cpu(pSMBr->DataOffset),
+						bytes_read)) {
+					rc = -EFAULT;
+				}
+
 				if(buf_type == CIFS_SMALL_BUFFER)
 					cifs_small_buf_release(smb_read_data);
 				else if(buf_type == CIFS_LARGE_BUFFER)

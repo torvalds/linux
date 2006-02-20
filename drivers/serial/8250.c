@@ -2198,7 +2198,7 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	touch_nmi_watchdog();
 
 	/*
-	 *	First save the UER then disable the interrupts
+	 *	First save the IER then disable the interrupts
 	 */
 	ier = serial_in(up, UART_IER);
 

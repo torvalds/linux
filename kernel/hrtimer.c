@@ -418,8 +418,19 @@ hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
 	/* Switch the timer base, if necessary: */
 	new_base = switch_hrtimer_base(timer, base);
 
-	if (mode == HRTIMER_REL)
+	if (mode == HRTIMER_REL) {
 		tim = ktime_add(tim, new_base->get_time());
+		/*
+		 * CONFIG_TIME_LOW_RES is a temporary way for architectures
+		 * to signal that they simply return xtime in
+		 * do_gettimeoffset(). In this case we want to round up by
+		 * resolution when starting a relative timer, to avoid short
+		 * timeouts. This will go away with the GTOD framework.
+		 */
+#ifdef CONFIG_TIME_LOW_RES
+		tim = ktime_add(tim, base->resolution);
+#endif
+	}
 	timer->expires = tim;
 
 	enqueue_hrtimer(timer, new_base);

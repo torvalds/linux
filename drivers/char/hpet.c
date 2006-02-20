@@ -956,22 +956,18 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		}
 	} else if (res->type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ) {
 		struct acpi_resource_extended_irq *irqp;
-		int i;
+		int i, irq;
 
 		irqp = &res->data.extended_irq;
 
-		if (irqp->interrupt_count > 0) {
-			hdp->hd_nirqs = irqp->interrupt_count;
+		for (i = 0; i < irqp->interrupt_count; i++) {
+			irq = acpi_register_gsi(irqp->interrupts[i],
+				      irqp->triggering, irqp->polarity);
+			if (irq < 0)
+				return AE_ERROR;
 
-			for (i = 0; i < hdp->hd_nirqs; i++) {
-				int rc =
-				    acpi_register_gsi(irqp->interrupts[i],
-						      irqp->triggering,
-						      irqp->polarity);
-				if (rc < 0)
-					return AE_ERROR;
-				hdp->hd_irq[i] = rc;
-			}
+			hdp->hd_irq[hdp->hd_nirqs] = irq;
+			hdp->hd_nirqs++;
 		}
 	}
 

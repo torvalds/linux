@@ -30,6 +30,9 @@
 #include <linux/mc146818rtc.h>
 #include <linux/acpi.h>
 #include <linux/sysdev.h>
+#ifdef CONFIG_ACPI
+#include <acpi/acpi_bus.h>
+#endif
 
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -260,6 +263,8 @@ __setup("apic", enable_ioapic_setup);
 
    And another hack to disable the IOMMU on VIA chipsets.
 
+   ... and others. Really should move this somewhere else.
+
    Kludge-O-Rama. */
 void __init check_ioapic(void) 
 { 
@@ -307,6 +312,17 @@ void __init check_ioapic(void)
 				case PCI_VENDOR_ID_ATI:
 					if (apic_runs_main_timer != 0)
 						break;
+#ifdef CONFIG_ACPI
+					/* Don't do this for laptops right
+					   right now because their timer
+					   doesn't necessarily tick in C2/3 */
+					if (acpi_fadt.revision >= 3 &&
+			(acpi_fadt.plvl2_lat + acpi_fadt.plvl3_lat) < 1100) {
+						printk(KERN_INFO
+"ATI board detected, but seems to be a laptop. Timer might be shakey, sorry\n");
+						break;
+					}
+#endif					
 					printk(KERN_INFO
 	     "ATI board detected. Using APIC/PM timer.\n");
 					apic_runs_main_timer = 1;

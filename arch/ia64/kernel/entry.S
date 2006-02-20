@@ -569,7 +569,9 @@ GLOBAL_ENTRY(ia64_trace_syscall)
 .mem.offset 0,0; st8.spill [r2]=r8		// store return value in slot for r8
 .mem.offset 8,0; st8.spill [r3]=r10		// clear error indication in slot for r10
 	br.call.sptk.many rp=syscall_trace_leave // give parent a chance to catch return value
-.ret3:	br.cond.sptk .work_pending_syscall_end
+.ret3:
+(pUStk)	cmp.eq.unc p6,p0=r0,r0			// p6 <- pUStk
+	br.cond.sptk .work_pending_syscall_end
 
 strace_error:
 	ld8 r3=[r2]				// load pt_regs.r8

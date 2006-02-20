@@ -15,6 +15,8 @@
 
 typedef unsigned long cycles_t;
 
+extern void (*ia64_udelay)(unsigned long usecs);
+
 /*
  * For performance reasons, we don't want to define CLOCK_TICK_TRATE as
  * local_cpu_data->itc_rate.  Fortunately, we don't have to, either: according to George

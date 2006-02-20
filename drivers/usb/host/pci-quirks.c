@@ -191,8 +191,9 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 		}
 		if (wait_time <= 0)
 			printk(KERN_WARNING "%s %s: BIOS handoff "
-					"failed (BIOS bug ?)\n",
-					pdev->dev.bus_id, "OHCI");
+					"failed (BIOS bug ?) %08x\n",
+					pdev->dev.bus_id, "OHCI",
+					readl(base + OHCI_CONTROL));
 
 		/* reset controller, preserving RWC */
 		writel(control & OHCI_CTRL_RWC, base + OHCI_CONTROL);
@@ -243,6 +244,12 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 				pr_debug("%s %s: BIOS handoff\n",
 						pdev->dev.bus_id, "EHCI");
 
+#if 0
+/* aleksey_gorelov@phoenix.com reports that some systems need SMI forced on,
+ * but that seems dubious in general (the BIOS left it off intentionally)
+ * and is known to prevent some systems from booting.  so we won't do this
+ * unless maybe we can determine when we're on a system that needs SMI forced.
+ */
 				/* BIOS workaround (?): be sure the
 				 * pre-Linux code receives the SMI
 				 */
@@ -252,6 +259,7 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 				pci_write_config_dword(pdev,
 						offset + EHCI_USBLEGCTLSTS,
 						val | EHCI_USBLEGCTLSTS_SOOE);
+#endif
 			}
 
 			/* always say Linux will own the hardware
@@ -274,8 +282,8 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 				 * it down, and hope nothing goes too wrong
 				 */
 				printk(KERN_WARNING "%s %s: BIOS handoff "
-						"failed (BIOS bug ?)\n",
-					pdev->dev.bus_id, "EHCI");
+						"failed (BIOS bug ?) %08x\n",
+					pdev->dev.bus_id, "EHCI", cap);
 				pci_write_config_byte(pdev, offset + 2, 0);
 			}
 

@@ -513,6 +513,9 @@ __head_mmu_enabled:
 	movgs		gr0,ccr
 	movgs		gr0,cccr
 
+	# initialise the virtual interrupt handling
+	subcc		gr0,gr0,gr0,icc2		/* set Z, clear C */
+
 #ifdef CONFIG_MMU
 	movgs		gr3,scr2
 	movgs		gr3,scr3

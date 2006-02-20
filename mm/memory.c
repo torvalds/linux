@@ -82,6 +82,16 @@ EXPORT_SYMBOL(num_physpages);
 EXPORT_SYMBOL(high_memory);
 EXPORT_SYMBOL(vmalloc_earlyreserve);
 
+int randomize_va_space __read_mostly = 1;
+
+static int __init disable_randmaps(char *s)
+{
+	randomize_va_space = 0;
+	return 0;
+}
+__setup("norandmaps", disable_randmaps);
+
+
 /*
  * If a p?d_bad entry is found while walking page tables, report
  * the error, before resetting entry to p?d_none.  Usually (but

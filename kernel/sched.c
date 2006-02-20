@@ -1204,9 +1204,6 @@ static int try_to_wake_up(task_t *p, unsigned int state, int sync)
 		}
 	}
 
-	if (p->last_waker_cpu != this_cpu)
-		goto out_set_cpu;
-
 	if (unlikely(!cpu_isset(this_cpu, p->cpus_allowed)))
 		goto out_set_cpu;
 
@@ -1276,8 +1273,6 @@ out_set_cpu:
 		this_cpu = smp_processor_id();
 		cpu = task_cpu(p);
 	}
-
-	p->last_waker_cpu = this_cpu;
 
 out_activate:
 #endif /* CONFIG_SMP */
@@ -1360,11 +1355,8 @@ void fastcall sched_fork(task_t *p, int clone_flags)
 #ifdef CONFIG_SCHEDSTATS
 	memset(&p->sched_info, 0, sizeof(p->sched_info));
 #endif
-#if defined(CONFIG_SMP)
-	p->last_waker_cpu = cpu;
-#if defined(__ARCH_WANT_UNLOCKED_CTXSW)
+#if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
 	p->oncpu = 0;
-#endif
 #endif
 #ifdef CONFIG_PREEMPT
 	/* Want to start with kernel preemption disabled. */
@@ -5066,7 +5058,18 @@ static void init_sched_build_groups(struct sched_group groups[], cpumask_t span,
 #define MAX_DOMAIN_DISTANCE 32
 
 static unsigned long long migration_cost[MAX_DOMAIN_DISTANCE] =
-		{ [ 0 ... MAX_DOMAIN_DISTANCE-1 ] = -1LL };
+		{ [ 0 ... MAX_DOMAIN_DISTANCE-1 ] =
+/*
+ * Architectures may override the migration cost and thus avoid
+ * boot-time calibration. Unit is nanoseconds. Mostly useful for
+ * virtualized hardware:
+ */
+#ifdef CONFIG_DEFAULT_MIGRATION_COST
+			CONFIG_DEFAULT_MIGRATION_COST
+#else
+			-1LL
+#endif
+};
 
 /*
  * Allow override of migration cost - in units of microseconds.

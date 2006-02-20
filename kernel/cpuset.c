@@ -1977,6 +1977,39 @@ void cpuset_fork(struct task_struct *child)
  * We don't need to task_lock() this reference to tsk->cpuset,
  * because tsk is already marked PF_EXITING, so attach_task() won't
  * mess with it, or task is a failed fork, never visible to attach_task.
+ *
+ * Hack:
+ *
+ *    Set the exiting tasks cpuset to the root cpuset (top_cpuset).
+ *
+ *    Don't leave a task unable to allocate memory, as that is an
+ *    accident waiting to happen should someone add a callout in
+ *    do_exit() after the cpuset_exit() call that might allocate.
+ *    If a task tries to allocate memory with an invalid cpuset,
+ *    it will oops in cpuset_update_task_memory_state().
+ *
+ *    We call cpuset_exit() while the task is still competent to
+ *    handle notify_on_release(), then leave the task attached to
+ *    the root cpuset (top_cpuset) for the remainder of its exit.
+ *
+ *    To do this properly, we would increment the reference count on
+ *    top_cpuset, and near the very end of the kernel/exit.c do_exit()
+ *    code we would add a second cpuset function call, to drop that
+ *    reference.  This would just create an unnecessary hot spot on
+ *    the top_cpuset reference count, to no avail.
+ *
+ *    Normally, holding a reference to a cpuset without bumping its
+ *    count is unsafe.   The cpuset could go away, or someone could
+ *    attach us to a different cpuset, decrementing the count on
+ *    the first cpuset that we never incremented.  But in this case,
+ *    top_cpuset isn't going away, and either task has PF_EXITING set,
+ *    which wards off any attach_task() attempts, or task is a failed
+ *    fork, never visible to attach_task.
+ *
+ *    Another way to do this would be to set the cpuset pointer
+ *    to NULL here, and check in cpuset_update_task_memory_state()
+ *    for a NULL pointer.  This hack avoids that NULL check, for no
+ *    cost (other than this way too long comment ;).
  **/
 
 void cpuset_exit(struct task_struct *tsk)
@@ -1984,7 +2017,7 @@ void cpuset_exit(struct task_struct *tsk)
 	struct cpuset *cs;
 
 	cs = tsk->cpuset;
-	tsk->cpuset = NULL;
+	tsk->cpuset = &top_cpuset;	/* Hack - see comment above */
 
 	if (notify_on_release(cs)) {
 		char *pathbuf = NULL;
