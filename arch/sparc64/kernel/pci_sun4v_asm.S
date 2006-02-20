@@ -11,14 +11,19 @@
 	 * %o3:	io_attributes
 	 * %o4:	io_page_list phys address
 	 *
-	 * returns %o0:	num ttes mapped
+	 * returns %o0:	-status if status was non-zero, else
+	 *         %o0:	num pages mapped
 	 */
 	.globl	pci_sun4v_iommu_map
 pci_sun4v_iommu_map:
+	mov	%o5, %g1
 	mov	HV_FAST_PCI_IOMMU_MAP, %o5
 	ta	HV_FAST_TRAP
-	retl
-	 mov	%o1, %o0
+	brnz,pn %o0, 1f
+	 sub	%g0, %o0, %o0
+	mov	%o1, %o0
+1:	retl
+	 nop
 
 	/* %o0: devhandle
 	 * %o1:	tsbid
