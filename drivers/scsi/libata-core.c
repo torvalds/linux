@@ -2570,7 +2570,7 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
 	unsigned int idx;
 
 	assert(qc->__sg != NULL);
-	assert(qc->n_elem > 0);
+	assert(qc->n_elem > 0 || qc->pad_len > 0);
 
 	idx = 0;
 	ata_for_each_sg(sg, qc) {
