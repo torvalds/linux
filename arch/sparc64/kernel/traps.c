@@ -283,7 +283,7 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 		printk("sun4v_data_access_exception: ADDR[%016lx] "
 		       "CTX[%04x] TYPE[%04x], going.\n",
 		       addr, ctx, type);
-		die_if_kernel("Iax", regs);
+		die_if_kernel("Dax", regs);
 	}
 
 	if (test_thread_flag(TIF_32BIT)) {
