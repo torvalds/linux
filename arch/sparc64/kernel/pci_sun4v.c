@@ -57,7 +57,7 @@ static long pci_iommu_batch_flush(struct pci_iommu_batch *p)
 	u64 *pglist = p->pglist;
 	unsigned long npages = p->npages;
 
-	do {
+	while (npages != 0) {
 		long num;
 
 		num = pci_sun4v_iommu_map(devhandle, HV_PCI_TSBID(0, entry),
@@ -75,7 +75,7 @@ static long pci_iommu_batch_flush(struct pci_iommu_batch *p)
 		entry += num;
 		npages -= num;
 		pglist += num;
-	} while (npages != 0);
+	}
 
 	p->entry = entry;
 	p->npages = 0;
