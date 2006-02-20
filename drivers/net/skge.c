@@ -1697,6 +1697,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	skge_write32(hw, SK_REG(port, GPHY_CTRL), reg | GPC_RST_SET);
 	skge_write32(hw, SK_REG(port, GPHY_CTRL), reg | GPC_RST_CLR);
 	skge_write32(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_ON | GMC_RST_CLR);
+
 	if (skge->autoneg == AUTONEG_DISABLE) {
 		reg = GM_GPCR_AU_ALL_DIS;
 		gma_write16(hw, port, GM_GP_CTRL,
@@ -1704,16 +1705,23 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 
 		switch (skge->speed) {
 		case SPEED_1000:
+			reg &= ~GM_GPCR_SPEED_100;
 			reg |= GM_GPCR_SPEED_1000;
-			/* fallthru */
+			break;
 		case SPEED_100:
+			reg &= ~GM_GPCR_SPEED_1000;
 			reg |= GM_GPCR_SPEED_100;
+			break;
+		case SPEED_10:
+			reg &= ~(GM_GPCR_SPEED_1000 | GM_GPCR_SPEED_100);
+			break;
 		}
 
 		if (skge->duplex == DUPLEX_FULL)
 			reg |= GM_GPCR_DUP_FULL;
 	} else
 		reg = GM_GPCR_SPEED_1000 | GM_GPCR_SPEED_100 | GM_GPCR_DUP_FULL;
+
 	switch (skge->flow_control) {
 	case FLOW_MODE_NONE:
 		skge_write32(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);

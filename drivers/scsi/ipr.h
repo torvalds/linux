@@ -36,8 +36,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.1.1"
-#define IPR_DRIVER_DATE "(November 15, 2005)"
+#define IPR_DRIVER_VERSION "2.1.2"
+#define IPR_DRIVER_DATE "(February 8, 2006)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -1000,7 +1000,6 @@ struct ipr_ioa_cfg {
 	struct Scsi_Host *host;
 	struct pci_dev *pdev;
 	struct ipr_sglist *ucode_sglist;
-	struct ipr_mode_pages *saved_mode_pages;
 	u8 saved_mode_page_len;
 
 	struct work_struct work_q;

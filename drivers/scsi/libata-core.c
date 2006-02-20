@@ -62,7 +62,8 @@
 #include "libata.h"
 
 static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev);
-static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev);
+static unsigned int ata_dev_init_params(struct ata_port *ap,
+					struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev);
 static unsigned int ata_get_mode_mask(const struct ata_port *ap, int shift);
@@ -487,7 +488,7 @@ ata_dev_try_classify(struct ata_port *ap, unsigned int device, u8 *r_err)
 }
 
 /**
- *	ata_dev_id_string - Convert IDENTIFY DEVICE page into string
+ *	ata_id_string - Convert IDENTIFY DEVICE page into string
  *	@id: IDENTIFY DEVICE results we will examine
  *	@s: string into which data is output
  *	@ofs: offset into identify device page
@@ -501,8 +502,8 @@ ata_dev_try_classify(struct ata_port *ap, unsigned int device, u8 *r_err)
  *	caller.
  */
 
-void ata_dev_id_string(const u16 *id, unsigned char *s,
-		       unsigned int ofs, unsigned int len)
+void ata_id_string(const u16 *id, unsigned char *s,
+		   unsigned int ofs, unsigned int len)
 {
 	unsigned int c;
 
@@ -521,27 +522,27 @@ void ata_dev_id_string(const u16 *id, unsigned char *s,
 }
 
 /**
- *	ata_dev_id_c_string - Convert IDENTIFY DEVICE page into C string
+ *	ata_id_c_string - Convert IDENTIFY DEVICE page into C string
  *	@id: IDENTIFY DEVICE results we will examine
  *	@s: string into which data is output
  *	@ofs: offset into identify device page
  *	@len: length of string to return. must be an odd number.
  *
- *	This function is identical to ata_dev_id_string except that it
+ *	This function is identical to ata_id_string except that it
  *	trims trailing spaces and terminates the resulting string with
  *	null.  @len must be actual maximum length (even number) + 1.
  *
  *	LOCKING:
  *	caller.
  */
-void ata_dev_id_c_string(const u16 *id, unsigned char *s,
-			 unsigned int ofs, unsigned int len)
+void ata_id_c_string(const u16 *id, unsigned char *s,
+		     unsigned int ofs, unsigned int len)
 {
 	unsigned char *p;
 
 	WARN_ON(!(len & 1));
 
-	ata_dev_id_string(id, s, ofs, len - 1);
+	ata_id_string(id, s, ofs, len - 1);
 
 	p = s + strnlen(s, len - 1);
 	while (p > s && p[-1] == ' ')
@@ -1034,7 +1035,12 @@ retry:
 		 * Some drives were very specific about that exact sequence.
 		 */
 		if (major_version < 4 || (!ata_id_has_lba(dev->id))) {
-			ata_dev_init_params(ap, dev);
+			err_mask = ata_dev_init_params(ap, dev);
+			if (err_mask) {
+				printk(KERN_ERR "ata%u: failed to init "
+				       "parameters, disabled\n", ap->id);
+				goto err_out;
+			}
 
 			/* current CHS translation info (id[53-58]) might be
 			 * changed. reread the identify device info.
@@ -2316,8 +2322,7 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
 	unsigned char model_num[41];
 	int i;
 
-	ata_dev_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS,
-			    sizeof(model_num));
+	ata_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS, sizeof(model_num));
 
 	for (i = 0; i < ARRAY_SIZE(ata_dma_blacklist); i++)
 		if (!strcmp(ata_dma_blacklist[i], model_num))
@@ -2532,17 +2537,23 @@ err_out:
  *	@dev: Device to which command will be sent
  *
  *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, AC_ERR_* mask otherwise.
  */
 
-static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
+static unsigned int ata_dev_init_params(struct ata_port *ap,
+					struct ata_device *dev)
 {
 	struct ata_taskfile tf;
+	unsigned int err_mask;
 	u16 sectors = dev->id[6];
 	u16 heads   = dev->id[3];
 
 	/* Number of sectors per track 1-255. Number of heads 1-16 */
 	if (sectors < 1 || sectors > 255 || heads < 1 || heads > 16)
-		return;
+		return 0;
 
 	/* set up init dev params taskfile */
 	DPRINTK("init dev params \n");
@@ -2554,13 +2565,10 @@ static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
 	tf.nsect = sectors;
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
-	if (ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0)) {
-		printk(KERN_ERR "ata%u: failed to init parameters, disabled\n",
-		       ap->id);
-		ata_port_disable(ap);
-	}
+	err_mask = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
 
-	DPRINTK("EXIT\n");
+	DPRINTK("EXIT, err_mask=%x\n", err_mask);
+	return err_mask;
 }
 
 /**
@@ -5209,8 +5217,8 @@ EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 EXPORT_SYMBOL_GPL(ata_scsi_release);
 EXPORT_SYMBOL_GPL(ata_host_intr);
 EXPORT_SYMBOL_GPL(ata_dev_classify);
-EXPORT_SYMBOL_GPL(ata_dev_id_string);
-EXPORT_SYMBOL_GPL(ata_dev_id_c_string);
+EXPORT_SYMBOL_GPL(ata_id_string);
+EXPORT_SYMBOL_GPL(ata_id_c_string);
 EXPORT_SYMBOL_GPL(ata_dev_config);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 EXPORT_SYMBOL_GPL(ata_eh_qc_complete);

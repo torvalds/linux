@@ -238,7 +238,7 @@ int genl_register_family(struct genl_family *family)
 					sizeof(struct nlattr *), GFP_KERNEL);
 		if (family->attrbuf == NULL) {
 			err = -ENOMEM;
-			goto errout;
+			goto errout_locked;
 		}
 	} else
 		family->attrbuf = NULL;
@@ -288,7 +288,7 @@ int genl_unregister_family(struct genl_family *family)
 	return -ENOENT;
 }
 
-static inline int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
+static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 			       int *errp)
 {
 	struct genl_ops *ops;
@@ -375,7 +375,7 @@ static void genl_rcv(struct sock *sk, int len)
 	do {
 		if (genl_trylock())
 			return;
-		netlink_run_queue(sk, &qlen, &genl_rcv_msg);
+		netlink_run_queue(sk, &qlen, genl_rcv_msg);
 		genl_unlock();
 	} while (qlen && genl_sock && genl_sock->sk_receive_queue.qlen);
 }
@@ -549,10 +549,8 @@ static int __init genl_init(void)
 	netlink_set_nonroot(NETLINK_GENERIC, NL_NONROOT_RECV);
 	genl_sock = netlink_kernel_create(NETLINK_GENERIC, GENL_MAX_ID,
 					  genl_rcv, THIS_MODULE);
-	if (genl_sock == NULL) {
+	if (genl_sock == NULL)
 		panic("GENL: Cannot initialize generic netlink\n");
-		return -ENOMEM;
-	}
 
 	return 0;
 
@@ -560,7 +558,6 @@ errout_register:
 	genl_unregister_family(&genl_ctrl);
 errout:
 	panic("GENL: Cannot register controller: %d\n", err);
-	return err;
 }
 
 subsys_initcall(genl_init);

@@ -220,9 +220,9 @@ extern unsigned long atomic_test_and_XOR_mask(unsigned long mask, volatile unsig
 	switch (sizeof(__xg_orig)) {						\
 	case 4:									\
 		asm volatile(							\
-			"swap%I0 %2,%M0"					\
-			: "+m"(*__xg_ptr), "=&r"(__xg_orig)			\
-			: "r"(x)						\
+			"swap%I0 %M0,%1"					\
+			: "+m"(*__xg_ptr), "=r"(__xg_orig)			\
+			: "1"(x)						\
 			: "memory"						\
 			);							\
 		break;								\

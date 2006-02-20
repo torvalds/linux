@@ -7,6 +7,21 @@
  *    for details.
  */
 
+/*
+ * The caller puts arg2 in %ecx, which gets pushed. The kernel will use
+ * %ecx itself for arg2. The pushing is because the sysexit instruction
+ * (found in entry.S) requires that we clobber %ecx with the desired %esp.
+ * User code might expect that %ecx is unclobbered though, as it would be
+ * for returning via the iret instruction, so we must push and pop.
+ *
+ * The caller puts arg3 in %edx, which the sysexit instruction requires
+ * for %eip. Thus, exactly as for arg2, we must push and pop.
+ *
+ * Arg6 is different. The caller puts arg6 in %ebp. Since the sysenter
+ * instruction clobbers %esp, the user's %esp won't even survive entry
+ * into the kernel. We store %esp in %ebp. Code in entry.S must fetch
+ * arg6 from the stack.
+ */
 	.text
 	.globl __kernel_vsyscall
 	.type __kernel_vsyscall,@function

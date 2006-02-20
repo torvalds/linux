@@ -192,7 +192,7 @@ int sysctl_icmp_echo_ignore_all;
 int sysctl_icmp_echo_ignore_broadcasts = 1;
 
 /* Control parameter - ignore bogus broadcast responses? */
-int sysctl_icmp_ignore_bogus_error_responses;
+int sysctl_icmp_ignore_bogus_error_responses = 1;
 
 /*
  * 	Configurable global rate limit.

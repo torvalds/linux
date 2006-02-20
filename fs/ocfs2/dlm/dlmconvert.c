@@ -392,6 +392,11 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 	} else {
 		mlog_errno(tmpret);
 		if (dlm_is_host_down(tmpret)) {
+			/* instead of logging the same network error over
+			 * and over, sleep here and wait for the heartbeat
+			 * to notice the node is dead.  times out after 5s. */
+			dlm_wait_for_node_death(dlm, res->owner, 
+						DLM_NODE_DEATH_WAIT_MAX);
 			ret = DLM_RECOVERING;
 			mlog(0, "node %u died so returning DLM_RECOVERING "
 			     "from convert message!\n", res->owner);
@@ -421,7 +426,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 	struct dlm_lockstatus *lksb;
 	enum dlm_status status = DLM_NORMAL;
 	u32 flags;
-	int call_ast = 0, kick_thread = 0;
+	int call_ast = 0, kick_thread = 0, ast_reserved = 0;
 
 	if (!dlm_grab(dlm)) {
 		dlm_error(DLM_REJECTED);
@@ -490,6 +495,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 	status = __dlm_lockres_state_to_status(res);
 	if (status == DLM_NORMAL) {
 		__dlm_lockres_reserve_ast(res);
+		ast_reserved = 1;
 		res->state |= DLM_LOCK_RES_IN_PROGRESS;
 		status = __dlmconvert_master(dlm, res, lock, flags,
 					     cnv->requested_type,
@@ -512,10 +518,10 @@ leave:
 	else
 		dlm_lock_put(lock);
 
-	/* either queue the ast or release it */
+	/* either queue the ast or release it, if reserved */
 	if (call_ast)
 		dlm_queue_ast(dlm, lock);
-	else
+	else if (ast_reserved)
 		dlm_lockres_release_ast(dlm, res);
 
 	if (kick_thread)

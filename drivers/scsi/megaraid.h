@@ -5,7 +5,7 @@
 #include <linux/mutex.h>
 
 #define MEGARAID_VERSION	\
-	"v2.00.3 (Release Date: Wed Feb 19 08:51:30 EST 2003)\n"
+	"v2.00.4 (Release Date: Thu Feb 9 08:51:30 EST 2006)\n"
 
 /*
  * Driver features - change the values to enable or disable features in the

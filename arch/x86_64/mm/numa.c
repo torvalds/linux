@@ -351,7 +351,7 @@ void __init init_cpu_to_node(void)
 			continue;
 		if (apicid_to_node[apicid] == NUMA_NO_NODE)
 			continue;
- 		cpu_to_node[i] = apicid_to_node[apicid];
+		numa_set_node(i,apicid_to_node[apicid]);
 	}
 }
 

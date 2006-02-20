@@ -287,17 +287,10 @@ asmlinkage void do_IRQ(void)
 	struct irq_source *source;
 	int level, cpu;
 
+	irq_enter();
+
 	level = (__frame->tbr >> 4) & 0xf;
 	cpu = smp_processor_id();
-
-#if 0
-	{
-		static u32 irqcount;
-		*(volatile u32 *) 0xe1200004 = ~((irqcount++ << 8) | level);
-		*(volatile u16 *) 0xffc00100 = (u16) ~0x9999;
-		mb();
-	}
-#endif
 
 	if ((unsigned long) __frame - (unsigned long) (current + 1) < 512)
 		BUG();
@@ -308,40 +301,12 @@ asmlinkage void do_IRQ(void)
 
 	kstat_this_cpu.irqs[level]++;
 
-	irq_enter();
-
 	for (source = frv_irq_levels[level].sources; source; source = source->next)
 		source->doirq(source);
 
-	irq_exit();
-
 	__clr_MASK(level);
 
-	/* only process softirqs if we didn't interrupt another interrupt handler */
-	if ((__frame->psr & PSR_PIL) == PSR_PIL_0)
-		if (local_softirq_pending())
-			do_softirq();
-
-#ifdef CONFIG_PREEMPT
-	local_irq_disable();
-	while (--current->preempt_count == 0) {
-		if (!(__frame->psr & PSR_S) ||
-		    current->need_resched == 0 ||
-		    in_interrupt())
-			break;
-		current->preempt_count++;
-		local_irq_enable();
-		preempt_schedule();
-		local_irq_disable();
-	}
-#endif
-
-#if 0
-	{
-		*(volatile u16 *) 0xffc00100 = (u16) ~0x6666;
-		mb();
-	}
-#endif
+	irq_exit();
 
 } /* end do_IRQ() */
 

@@ -697,11 +697,8 @@ struct task_struct {
 
 	int lock_depth;		/* BKL lock depth */
 
-#if defined(CONFIG_SMP)
-	int last_waker_cpu;	/* CPU that last woke this task up */
-#if defined(__ARCH_WANT_UNLOCKED_CTXSW)
+#if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
 	int oncpu;
-#endif
 #endif
 	int prio, static_prio;
 	struct list_head run_list;

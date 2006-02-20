@@ -520,10 +520,16 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 		switch (sky2->speed) {
 		case SPEED_1000:
+			reg &= ~GM_GPCR_SPEED_100;
 			reg |= GM_GPCR_SPEED_1000;
-			/* fallthru */
+			break;
 		case SPEED_100:
+			reg &= ~GM_GPCR_SPEED_1000;
 			reg |= GM_GPCR_SPEED_100;
+			break;
+		case SPEED_10:
+			reg &= ~(GM_GPCR_SPEED_1000 | GM_GPCR_SPEED_100);
+			break;
 		}
 
 		if (sky2->duplex == DUPLEX_FULL)
@@ -1446,6 +1452,29 @@ static void sky2_link_up(struct sky2_port *sky2)
 	sky2_write8(hw, SK_REG(port, GMAC_IRQ_MSK), GMAC_DEF_MSK);
 
 	reg = gma_read16(hw, port, GM_GP_CTRL);
+	if (sky2->autoneg == AUTONEG_DISABLE) {
+		reg |= GM_GPCR_AU_ALL_DIS;
+
+		/* Is write/read necessary?  Copied from sky2_mac_init */
+		gma_write16(hw, port, GM_GP_CTRL, reg);
+		gma_read16(hw, port, GM_GP_CTRL);
+
+		switch (sky2->speed) {
+		case SPEED_1000:
+			reg &= ~GM_GPCR_SPEED_100;
+			reg |= GM_GPCR_SPEED_1000;
+			break;
+		case SPEED_100:
+			reg &= ~GM_GPCR_SPEED_1000;
+			reg |= GM_GPCR_SPEED_100;
+			break;
+		case SPEED_10:
+			reg &= ~(GM_GPCR_SPEED_1000 | GM_GPCR_SPEED_100);
+			break;
+		}
+	} else
+		reg &= ~GM_GPCR_AU_ALL_DIS;
+
 	if (sky2->duplex == DUPLEX_FULL || sky2->autoneg == AUTONEG_ENABLE)
 		reg |= GM_GPCR_DUP_FULL;
 

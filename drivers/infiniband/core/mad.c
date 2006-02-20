@@ -665,7 +665,15 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	struct ib_wc mad_wc;
 	struct ib_send_wr *send_wr = &mad_send_wr->send_wr;
 
-	if (!smi_handle_dr_smp_send(smp, device->node_type, port_num)) {
+	/*
+	 * Directed route handling starts if the initial LID routed part of
+	 * a request or the ending LID routed part of a response is empty.
+	 * If we are at the start of the LID routed part, don't update the
+	 * hop_ptr or hop_cnt.  See section 14.2.2, Vol 1 IB spec.
+	 */
+	if ((ib_get_smp_direction(smp) ? smp->dr_dlid : smp->dr_slid) ==
+	     IB_LID_PERMISSIVE &&
+	    !smi_handle_dr_smp_send(smp, device->node_type, port_num)) {
 		ret = -EINVAL;
 		printk(KERN_ERR PFX "Invalid directed route\n");
 		goto out;

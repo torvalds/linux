@@ -152,11 +152,6 @@ typedef u32 scsi_lun_t;
 #define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	100
 #define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	7
 
-/* Retry 5 times every 2 second, then every minute */
-#define ZFCP_EXCHANGE_PORT_DATA_SHORT_RETRIES	5
-#define ZFCP_EXCHANGE_PORT_DATA_SHORT_SLEEP	200
-#define ZFCP_EXCHANGE_PORT_DATA_LONG_SLEEP	6000
-
 /* timeout value for "default timer" for fsf requests */
 #define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ);
 
@@ -429,11 +424,7 @@ struct zfcp_scsi_dbf_record {
 	u32 fsf_seqno;
 	u64 fsf_issued;
 	union {
-		struct {
-			u64 fsf_reqid;
-			u32 fsf_seqno;
-			u64 fsf_issued;
-		} new_fsf_req;
+		u64 old_fsf_reqid;
 		struct {
 			u8 rsp_validity;
 			u8 rsp_scsi_status;
@@ -915,8 +906,6 @@ struct zfcp_adapter {
 	wwn_t			peer_wwnn;	   /* P2P peer WWNN */
 	wwn_t			peer_wwpn;	   /* P2P peer WWPN */
 	u32			peer_d_id;	   /* P2P peer D_ID */
-	wwn_t			physical_wwpn;     /* WWPN of physical port */
-	u32			physical_s_id;     /* local FC port ID */
 	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
 	u8			fc_service_class;
 	u32			hydra_version;	   /* Hydra version */

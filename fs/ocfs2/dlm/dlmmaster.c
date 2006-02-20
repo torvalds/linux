@@ -2482,7 +2482,9 @@ top:
 				atomic_set(&mle->woken, 1);
 				spin_unlock(&mle->spinlock);
 				wake_up(&mle->wq);
-				/* final put will take care of list removal */
+				/* do not need events any longer, so detach 
+				 * from heartbeat */
+				__dlm_mle_detach_hb_events(dlm, mle);
 				__dlm_put_mle(mle);
 			}
 			continue;
@@ -2536,6 +2538,9 @@ top:
 			dlm_move_lockres_to_recovery_list(dlm, res);
 			spin_unlock(&res->spinlock);
 			dlm_lockres_put(res);
+
+			/* about to get rid of mle, detach from heartbeat */
+			__dlm_mle_detach_hb_events(dlm, mle);
 
 			/* dump the mle */
 			spin_lock(&dlm->master_lock);

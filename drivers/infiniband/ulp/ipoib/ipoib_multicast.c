@@ -533,8 +533,10 @@ void ipoib_mcast_join_task(void *dev_ptr)
 	}
 
 	if (!priv->broadcast) {
-		priv->broadcast = ipoib_mcast_alloc(dev, 1);
-		if (!priv->broadcast) {
+		struct ipoib_mcast *broadcast;
+
+		broadcast = ipoib_mcast_alloc(dev, 1);
+		if (!broadcast) {
 			ipoib_warn(priv, "failed to allocate broadcast group\n");
 			mutex_lock(&mcast_mutex);
 			if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
@@ -544,10 +546,11 @@ void ipoib_mcast_join_task(void *dev_ptr)
 			return;
 		}
 
-		memcpy(priv->broadcast->mcmember.mgid.raw, priv->dev->broadcast + 4,
-		       sizeof (union ib_gid));
-
 		spin_lock_irq(&priv->lock);
+		memcpy(broadcast->mcmember.mgid.raw, priv->dev->broadcast + 4,
+		       sizeof (union ib_gid));
+		priv->broadcast = broadcast;
+
 		__ipoib_mcast_add(dev, priv->broadcast);
 		spin_unlock_irq(&priv->lock);
 	}
@@ -601,6 +604,10 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 		queue_work(ipoib_workqueue, &priv->mcast_task);
 	mutex_unlock(&mcast_mutex);
 
+	spin_lock_irq(&priv->lock);
+	set_bit(IPOIB_MCAST_STARTED, &priv->flags);
+	spin_unlock_irq(&priv->lock);
+
 	return 0;
 }
 
@@ -610,6 +617,10 @@ int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 	struct ipoib_mcast *mcast;
 
 	ipoib_dbg_mcast(priv, "stopping multicast thread\n");
+
+	spin_lock_irq(&priv->lock);
+	clear_bit(IPOIB_MCAST_STARTED, &priv->flags);
+	spin_unlock_irq(&priv->lock);
 
 	mutex_lock(&mcast_mutex);
 	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
@@ -693,6 +704,14 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 	 */
 	spin_lock(&priv->lock);
 
+	if (!test_bit(IPOIB_MCAST_STARTED, &priv->flags)	||
+	    !priv->broadcast					||
+	    !test_bit(IPOIB_MCAST_FLAG_ATTACHED, &priv->broadcast->flags)) {
+		++priv->stats.tx_dropped;
+		dev_kfree_skb_any(skb);
+		goto unlock;
+	}
+
 	mcast = __ipoib_mcast_find(dev, mgid);
 	if (!mcast) {
 		/* Let's create a new send only group now */
@@ -754,6 +773,7 @@ out:
 		ipoib_send(dev, skb, mcast->ah, IB_MULTICAST_QPN);
 	}
 
+unlock:
 	spin_unlock(&priv->lock);
 }
 

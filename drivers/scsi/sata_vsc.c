@@ -81,6 +81,19 @@
 /* Port stride */
 #define VSC_SATA_PORT_OFFSET		0x200
 
+/* Error interrupt status bit offsets */
+#define VSC_SATA_INT_ERROR_E_OFFSET	2
+#define VSC_SATA_INT_ERROR_P_OFFSET	4
+#define VSC_SATA_INT_ERROR_T_OFFSET	5
+#define VSC_SATA_INT_ERROR_M_OFFSET	1
+#define is_vsc_sata_int_err(port_idx, int_status) \
+	 (int_status & ((1 << (VSC_SATA_INT_ERROR_E_OFFSET + (8 * port_idx))) | \
+		        (1 << (VSC_SATA_INT_ERROR_P_OFFSET + (8 * port_idx))) | \
+		        (1 << (VSC_SATA_INT_ERROR_T_OFFSET + (8 * port_idx))) | \
+		        (1 << (VSC_SATA_INT_ERROR_M_OFFSET + (8 * port_idx)))   \
+		       )\
+ 	 )
+
 
 static u32 vsc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
@@ -201,13 +214,27 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 			struct ata_port *ap;
 
 			ap = host_set->ports[i];
-			if (ap &&
-			    !(ap->flags & ATA_FLAG_PORT_DISABLED)) {
+
+			if (is_vsc_sata_int_err(i, int_status)) {
+				u32 err_status;
+				printk(KERN_DEBUG "%s: ignoring interrupt(s)\n", __FUNCTION__);
+				err_status = ap ? vsc_sata_scr_read(ap, SCR_ERROR) : 0;
+				vsc_sata_scr_write(ap, SCR_ERROR, err_status);
+				handled++;
+			}
+
+			if (ap && !(ap->flags & ATA_FLAG_PORT_DISABLED)) {
 				struct ata_queued_cmd *qc;
 
 				qc = ata_qc_from_tag(ap, ap->active_tag);
 				if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 					handled += ata_host_intr(ap, qc);
+				} else {
+					printk(KERN_DEBUG "%s: ignoring interrupt(s)\n", __FUNCTION__);
+					ata_chk_status(ap);
+					handled++;
+				}
+
 			}
 		}
 	}
