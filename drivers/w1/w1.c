@@ -30,6 +30,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/kthread.h>
 
 #include <asm/atomic.h>
 
@@ -57,9 +58,7 @@ module_param_named(slave_ttl, w1_max_slave_ttl, int, 0);
 DEFINE_SPINLOCK(w1_mlock);
 LIST_HEAD(w1_masters);
 
-static pid_t control_thread;
-static int control_needs_exit;
-static DECLARE_COMPLETION(w1_control_complete);
+static struct task_struct *w1_control_thread;
 
 static int w1_master_match(struct device *dev, struct device_driver *drv)
 {
@@ -717,22 +716,16 @@ static int w1_control(void *data)
 {
 	struct w1_slave *sl, *sln;
 	struct w1_master *dev, *n;
-	int err, have_to_wait = 0;
+	int have_to_wait = 0;
 
-	daemonize("w1_control");
-	allow_signal(SIGTERM);
-
-	while (!control_needs_exit || have_to_wait) {
+	while (!kthread_should_stop() || have_to_wait) {
 		have_to_wait = 0;
 
 		try_to_freeze();
 		msleep_interruptible(w1_control_timeout * 1000);
 
-		if (signal_pending(current))
-			flush_signals(current);
-
 		list_for_each_entry_safe(dev, n, &w1_masters, w1_master_entry) {
-			if (!control_needs_exit && !dev->flags)
+			if (!kthread_should_stop() && !dev->flags)
 				continue;
 			/*
 			 * Little race: we can create thread but not set the flag.
@@ -743,21 +736,12 @@ static int w1_control(void *data)
 				continue;
 			}
 
-			if (control_needs_exit) {
+			if (kthread_should_stop() || test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
 				set_bit(W1_MASTER_NEED_EXIT, &dev->flags);
 
-				err = kill_proc(dev->kpid, SIGTERM, 1);
-				if (err)
-					dev_err(&dev->dev,
-						 "Failed to send signal to w1 kernel thread %d.\n",
-						 dev->kpid);
-			}
-
-			if (test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
-				wait_for_completion(&dev->dev_exited);
-				spin_lock_bh(&w1_mlock);
+				spin_lock(&w1_mlock);
 				list_del(&dev->w1_master_entry);
-				spin_unlock_bh(&w1_mlock);
+				spin_unlock(&w1_mlock);
 
 				down(&dev->mutex);
 				list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
@@ -789,7 +773,7 @@ static int w1_control(void *data)
 		}
 	}
 
-	complete_and_exit(&w1_control_complete, 0);
+	return 0;
 }
 
 int w1_process(void *data)
@@ -797,17 +781,11 @@ int w1_process(void *data)
 	struct w1_master *dev = (struct w1_master *) data;
 	struct w1_slave *sl, *sln;
 
-	daemonize("%s", dev->name);
-	allow_signal(SIGTERM);
-
-	while (!test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
+	while (!kthread_should_stop() && !test_bit(W1_MASTER_NEED_EXIT, &dev->flags)) {
 		try_to_freeze();
 		msleep_interruptible(w1_timeout * 1000);
 
-		if (signal_pending(current))
-			flush_signals(current);
-
-		if (test_bit(W1_MASTER_NEED_EXIT, &dev->flags))
+		if (kthread_should_stop() || test_bit(W1_MASTER_NEED_EXIT, &dev->flags))
 			break;
 
 		if (!dev->initialized)
@@ -840,7 +818,6 @@ int w1_process(void *data)
 	}
 
 	atomic_dec(&dev->refcnt);
-	complete_and_exit(&dev->dev_exited, 0);
 
 	return 0;
 }
@@ -873,11 +850,11 @@ static int w1_init(void)
 		goto err_out_master_unregister;
 	}
 
-	control_thread = kernel_thread(&w1_control, NULL, 0);
-	if (control_thread < 0) {
+	w1_control_thread = kthread_run(w1_control, NULL, "w1_control");
+	if (IS_ERR(w1_control_thread)) {
+		retval = PTR_ERR(w1_control_thread);
 		printk(KERN_ERR "Failed to create control thread. err=%d\n",
-			control_thread);
-		retval = control_thread;
+			retval);
 		goto err_out_slave_unregister;
 	}
 
@@ -903,8 +880,7 @@ static void w1_fini(void)
 	list_for_each_entry(dev, &w1_masters, w1_master_entry)
 		__w1_remove_master_device(dev);
 
-	control_needs_exit = 1;
-	wait_for_completion(&w1_control_complete);
+	kthread_stop(w1_control_thread);
 
 	driver_unregister(&w1_slave_driver);
 	driver_unregister(&w1_master_driver);

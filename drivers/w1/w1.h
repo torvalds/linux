@@ -172,12 +172,11 @@ struct w1_master
 
 	long			flags;
 
-	pid_t			kpid;
+	struct task_struct	*thread;
 	struct semaphore	mutex;
 
 	struct device_driver	*driver;
 	struct device		dev;
-	struct completion	dev_exited;
 
 	struct w1_bus_master	*bus_master;
 
