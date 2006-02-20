@@ -2226,10 +2226,11 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 		}
 		user_instruction_dump ((unsigned int __user *) regs->tpc);
 	}
+#if 0
 #ifdef CONFIG_SMP
 	smp_report_regs();
 #endif
-                                                	
+#endif                                                	
 	if (regs->tstate & TSTATE_PRIV)
 		do_exit(SIGKILL);
 	do_exit(SIGSEGV);
