@@ -79,7 +79,7 @@ static void dump_tl1_traplog(struct tl1_traplog *p)
 	       "dumping track stack.\n", p->tl);
 
 	limit = (tlb_type == hypervisor) ? 2 : 4;
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < limit; i++) {
 		printk(KERN_EMERG
 		       "TRAPLOG: Trap level %d TSTATE[%016lx] TPC[%016lx] "
 		       "TNPC[%016lx] TT[%lx]\n",
