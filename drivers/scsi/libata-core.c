@@ -61,7 +61,6 @@
 
 #include "libata.h"
 
-static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev);
 static unsigned int ata_dev_init_params(struct ata_port *ap,
 					struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
@@ -2532,47 +2531,6 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 	}
 
 	DPRINTK("EXIT\n");
-}
-
-/**
- *	ata_dev_reread_id - Reread the device identify device info
- *	@ap: port where the device is
- *	@dev: device to reread the identify device info
- *
- *	LOCKING:
- */
-
-static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
-{
-	struct ata_taskfile tf;
-
-	ata_tf_init(ap, &tf, dev->devno);
-
-	if (dev->class == ATA_DEV_ATA) {
-		tf.command = ATA_CMD_ID_ATA;
-		DPRINTK("do ATA identify\n");
-	} else {
-		tf.command = ATA_CMD_ID_ATAPI;
-		DPRINTK("do ATAPI identify\n");
-	}
-
-	tf.flags |= ATA_TFLAG_DEVICE;
-	tf.protocol = ATA_PROT_PIO;
-
-	if (ata_exec_internal(ap, dev, &tf, DMA_FROM_DEVICE,
-			      dev->id, sizeof(dev->id)))
-		goto err_out;
-
-	swap_buf_le16(dev->id, ATA_ID_WORDS);
-
-	ata_dump_id(dev->id);
-
-	DPRINTK("EXIT\n");
-
-	return;
-err_out:
-	printk(KERN_ERR "ata%u: failed to reread ID, disabled\n", ap->id);
-	ata_port_disable(ap);
 }
 
 /**
