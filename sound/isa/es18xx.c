@@ -2381,9 +2381,9 @@ static int __init alsa_card_es18xx_init(void)
 	if ((err = platform_driver_register(&snd_es18xx_nonpnp_driver)) < 0)
 		return err;
 
-	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+	for (i = 0; i < SNDRV_CARDS; i++) {
 		struct platform_device *device;
-		if (is_isapnp_selected(i))
+		if (! enable[i] || is_isapnp_selected(i))
 			continue;
 		device = platform_device_register_simple(ES18XX_DRIVER,
 							 i, NULL, 0);
