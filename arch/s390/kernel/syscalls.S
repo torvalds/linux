@@ -301,7 +301,7 @@ SYSCALL(sys_mkdirat,sys_mkdirat,sys_mkdirat_wrapper)
 SYSCALL(sys_mknodat,sys_mknodat,sys_mknodat_wrapper)	/* 290 */
 SYSCALL(sys_fchownat,sys_fchownat,sys_fchownat_wrapper)
 SYSCALL(sys_futimesat,sys_futimesat,compat_sys_futimesat_wrapper)
-SYSCALL(sys_fstatat64,sys_newfstatat,sys32_fstatat_wrapper)
+SYSCALL(sys_fstatat64,sys_newfstatat,sys32_fstatat64_wrapper)
 SYSCALL(sys_unlinkat,sys_unlinkat,sys_unlinkat_wrapper)
 SYSCALL(sys_renameat,sys_renameat,sys_renameat_wrapper)	/* 295 */
 SYSCALL(sys_linkat,sys_linkat,sys_linkat_wrapper)

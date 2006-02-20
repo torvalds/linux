@@ -1523,13 +1523,13 @@ compat_sys_futimesat_wrapper:
 	llgtr	%r4,%r4			# struct timeval *
 	jg	compat_sys_futimesat
 
-	.globl sys32_fstatat_wrapper
-sys32_fstatat_wrapper:
+	.globl sys32_fstatat64_wrapper
+sys32_fstatat64_wrapper:
 	llgfr	%r2,%r2			# unsigned int
 	llgtr	%r3,%r3			# char *
 	llgtr	%r4,%r4			# struct stat64 *
 	lgfr	%r5,%r5			# int
-	jg	sys32_fstatat
+	jg	sys32_fstatat64
 
 	.globl sys_unlinkat_wrapper
 sys_unlinkat_wrapper:
