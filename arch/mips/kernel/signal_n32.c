@@ -87,7 +87,8 @@ save_static_function(sysn32_rt_sigsuspend);
 __attribute_used__ noinline static int
 _sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
-	compat_sigset_t __user *unewset, uset;
+	compat_sigset_t __user *unewset;
+	compat_sigset_t uset;
 	size_t sigsetsize;
 	sigset_t newset;
 
