@@ -229,7 +229,7 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 				qc = ata_qc_from_tag(ap, ap->active_tag);
 				if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 					handled += ata_host_intr(ap, qc);
-				} else {
+				else {
 					printk(KERN_DEBUG "%s: ignoring interrupt(s)\n", __FUNCTION__);
 					ata_chk_status(ap);
 					handled++;
