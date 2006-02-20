@@ -485,8 +485,6 @@ static int pci_4v_map_sg(struct pci_dev *pdev, struct scatterlist *sglist, int n
 
 	/* Step 1: Prepare scatter list. */
 	npages = prepare_sg(sglist, nelems);
-	if (unlikely(npages > PGLIST_NENTS))
-		goto bad;
 
 	/* Step 2: Allocate a cluster and context, if necessary. */
 	spin_lock_irqsave(&iommu->lock, flags);
