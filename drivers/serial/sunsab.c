@@ -1142,6 +1142,8 @@ static int __init sunsab_init(void)
 		return ret;
 	}
 
+	sunsab_reg.tty_driver->name_base = sunsab_reg.minor - 64;
+
 	sunsab_reg.cons = SUNSAB_CONSOLE();
 
 	sunserial_current_minor += num_channels;

@@ -494,6 +494,7 @@ static int __init sunhv_init(void)
 		return ret;
 	}
 
+	sunhv_reg.tty_driver->name_base = sunhv_reg.minor - 64;
 	sunserial_current_minor += 1;
 
 	sunhv_reg.cons = SUNHV_CONSOLE();

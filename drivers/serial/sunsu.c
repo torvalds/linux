@@ -1529,6 +1529,8 @@ static int __init sunsu_serial_init(void)
 	if (ret < 0)
 		return ret;
 
+	sunsu_reg.tty_driver->name_base = sunsu_reg.minor - 64;
+
 	sunserial_current_minor += instance;
 
 	sunsu_reg.cons = SUNSU_CONSOLE();

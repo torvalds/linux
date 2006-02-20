@@ -1692,6 +1692,7 @@ static int __init sunzilog_ports_init(void)
 
 	ret = uart_register_driver(&sunzilog_reg);
 	if (ret == 0) {
+		sunzilog_reg.tty_driver->name_base = sunzilog_reg.minor - 64;
 		sunzilog_reg.cons = SUNZILOG_CONSOLE();
 
 		sunserial_current_minor += uart_count;
