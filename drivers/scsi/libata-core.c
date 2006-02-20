@@ -2514,7 +2514,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 	assert(sg != NULL);
 
 	if (qc->flags & ATA_QCFLAG_SINGLE)
-		assert(qc->n_elem == 1);
+		assert(qc->n_elem <= 1);
 
 	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
 
@@ -2537,7 +2537,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 			kunmap_atomic(addr, KM_IRQ0);
 		}
 	} else {
-		if (sg_dma_len(&sg[0]) > 0)
+		if (qc->n_elem)
 			dma_unmap_single(ap->host_set->dev,
 				sg_dma_address(&sg[0]), sg_dma_len(&sg[0]),
 				dir);
@@ -2715,6 +2715,7 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 	int dir = qc->dma_dir;
 	struct scatterlist *sg = qc->__sg;
 	dma_addr_t dma_address;
+	int trim_sg = 0;
 
 	/* we must lengthen transfers to end on a 32-bit boundary */
 	qc->pad_len = sg->length & 3;
@@ -2734,13 +2735,15 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 		sg_dma_len(psg) = ATA_DMA_PAD_SZ;
 		/* trim sg */
 		sg->length -= qc->pad_len;
+		if (sg->length == 0)
+			trim_sg = 1;
 
 		DPRINTK("padding done, sg->length=%u pad_len=%u\n",
 			sg->length, qc->pad_len);
 	}
 
-	if (!sg->length) {
-		sg_dma_address(sg) = 0;
+	if (trim_sg) {
+		qc->n_elem--;
 		goto skip_map;
 	}
 
@@ -2753,9 +2756,9 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 	}
 
 	sg_dma_address(sg) = dma_address;
-skip_map:
 	sg_dma_len(sg) = sg->length;
 
+skip_map:
 	DPRINTK("mapped buffer of %d bytes for %s\n", sg_dma_len(sg),
 		qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
 
