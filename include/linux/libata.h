@@ -619,17 +619,29 @@ ata_sg_is_last(struct scatterlist *sg, struct ata_queued_cmd *qc)
 }
 
 static inline struct scatterlist *
+ata_qc_first_sg(struct ata_queued_cmd *qc)
+{
+	if (qc->n_elem)
+		return qc->__sg;
+	if (qc->pad_len)
+		return &qc->pad_sgent;
+	return NULL;
+}
+
+static inline struct scatterlist *
 ata_qc_next_sg(struct scatterlist *sg, struct ata_queued_cmd *qc)
 {
 	if (sg == &qc->pad_sgent)
 		return NULL;
 	if (++sg - qc->__sg < qc->n_elem)
 		return sg;
-	return qc->pad_len ? &qc->pad_sgent : NULL;
+	if (qc->pad_len)
+		return &qc->pad_sgent;
+	return NULL;
 }
 
 #define ata_for_each_sg(sg, qc) \
-	for (sg = qc->__sg; sg; sg = ata_qc_next_sg(sg, qc))
+	for (sg = ata_qc_first_sg(qc); sg; sg = ata_qc_next_sg(sg, qc))
 
 static inline unsigned int ata_tag_valid(unsigned int tag)
 {
