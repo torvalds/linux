@@ -1497,9 +1497,9 @@ static int pkt_set_write_settings(struct pktcdvd_device *pd)
 }
 
 /*
- * 0 -- we can write to this track, 1 -- we can't
+ * 1 -- we can write to this track, 0 -- we can't
  */
-static int pkt_good_track(track_information *ti)
+static int pkt_writable_track(track_information *ti)
 {
 	/*
 	 * only good for CD-RW at the moment, not DVD-RW
@@ -1509,28 +1509,28 @@ static int pkt_good_track(track_information *ti)
 	 * FIXME: only for FP
 	 */
 	if (ti->fp == 0)
-		return 0;
+		return 1;
 
 	/*
 	 * "good" settings as per Mt Fuji.
 	 */
 	if (ti->rt == 0 && ti->blank == 0 && ti->packet == 1)
-		return 0;
+		return 1;
 
 	if (ti->rt == 0 && ti->blank == 1 && ti->packet == 1)
-		return 0;
+		return 1;
 
 	if (ti->rt == 1 && ti->blank == 0 && ti->packet == 1)
-		return 0;
+		return 1;
 
 	printk("pktcdvd: bad state %d-%d-%d\n", ti->rt, ti->blank, ti->packet);
-	return 1;
+	return 0;
 }
 
 /*
- * 0 -- we can write to this disc, 1 -- we can't
+ * 1 -- we can write to this disc, 0 -- we can't
  */
-static int pkt_good_disc(struct pktcdvd_device *pd, disc_information *di)
+static int pkt_writable_disc(struct pktcdvd_device *pd, disc_information *di)
 {
 	switch (pd->mmc3_profile) {
 		case 0x0a: /* CD-RW */
@@ -1539,10 +1539,10 @@ static int pkt_good_disc(struct pktcdvd_device *pd, disc_information *di)
 		case 0x1a: /* DVD+RW */
 		case 0x13: /* DVD-RW */
 		case 0x12: /* DVD-RAM */
-			return 0;
+			return 1;
 		default:
 			VPRINTK("pktcdvd: Wrong disc profile (%x)\n", pd->mmc3_profile);
-			return 1;
+			return 0;
 	}
 
 	/*
@@ -1551,25 +1551,25 @@ static int pkt_good_disc(struct pktcdvd_device *pd, disc_information *di)
 	 */
 	if (di->disc_type == 0xff) {
 		printk("pktcdvd: Unknown disc. No track?\n");
-		return 1;
+		return 0;
 	}
 
 	if (di->disc_type != 0x20 && di->disc_type != 0) {
 		printk("pktcdvd: Wrong disc type (%x)\n", di->disc_type);
-		return 1;
+		return 0;
 	}
 
 	if (di->erasable == 0) {
 		printk("pktcdvd: Disc not erasable\n");
-		return 1;
+		return 0;
 	}
 
 	if (di->border_status == PACKET_SESSION_RESERVED) {
 		printk("pktcdvd: Can't write to last track (reserved)\n");
-		return 1;
+		return 0;
 	}
 
-	return 0;
+	return 1;
 }
 
 static int pkt_probe_settings(struct pktcdvd_device *pd)
@@ -1594,7 +1594,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 		return ret;
 	}
 
-	if (pkt_good_disc(pd, &di))
+	if (!pkt_writable_disc(pd, &di))
 		return -ENXIO;
 
 	switch (pd->mmc3_profile) {
@@ -1619,7 +1619,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 		return ret;
 	}
 
-	if (pkt_good_track(&ti)) {
+	if (!pkt_writable_track(&ti)) {
 		printk("pktcdvd: can't write to this track\n");
 		return -ENXIO;
 	}
