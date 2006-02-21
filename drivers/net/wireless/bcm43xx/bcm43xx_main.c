@@ -3366,6 +3366,7 @@ static void bcm43xx_periodic_tasks_setup(struct bcm43xx_private *bcm)
 {
 	struct timer_list *timer = &(bcm->periodic_tasks);
 
+	assert(bcm->initialized);
 	setup_timer(timer,
 		    bcm43xx_periodic_task_handler,
 		    (unsigned long)bcm);
