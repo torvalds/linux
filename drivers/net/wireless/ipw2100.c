@@ -2445,8 +2445,6 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 	struct ipw2100_status *status = &priv->status_queue.drv[i];
 	struct ipw2100_rx_packet *packet = &priv->rx_buffers[i];
 
-	IPW_DEBUG_RX("Handler...\n");
-
 	/* Magic struct that slots into the radiotap header -- no reason
 	 * to build this manually element by element, we can write it much
 	 * more efficiently than we can parse it. ORDER MATTERS HERE */
@@ -2455,11 +2453,15 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 		s8 rt_dbmsignal; /* signal in dbM, kluged to signed */
 	} *ipw_rt;
 
-	if (unlikely(status->frame_size > skb_tailroom(packet->skb) - sizeof(struct ipw_rt_hdr))) {
+	IPW_DEBUG_RX("Handler...\n");
+
+	if (unlikely(status->frame_size > skb_tailroom(packet->skb) -
+				sizeof(struct ipw_rt_hdr))) {
 		IPW_DEBUG_INFO("%s: frame_size (%u) > skb_tailroom (%u)!"
 			       "  Dropping.\n",
 			       priv->net_dev->name,
-			       status->frame_size, skb_tailroom(packet->skb));
+			       status->frame_size,
+			       skb_tailroom(packet->skb));
 		priv->ieee->stats.rx_errors++;
 		return;
 	}
@@ -2478,8 +2480,7 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 		return;
 	}
 
-	pci_unmap_single(priv->pci_dev,
-			 packet->dma_addr,
+	pci_unmap_single(priv->pci_dev, packet->dma_addr,
 			 sizeof(struct ipw2100_rx), PCI_DMA_FROMDEVICE);
 	memmove(packet->skb->data + sizeof(struct ipw_rt_hdr),
 		packet->skb->data, status->frame_size);
@@ -2488,7 +2489,7 @@ static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
 
 	ipw_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
 	ipw_rt->rt_hdr.it_pad = 0; /* always good to zero */
-	ipw_rt->rt_hdr.it_len = sizeof(struct ipw_rt_hdr); /* total header+data */
+	ipw_rt->rt_hdr.it_len = sizeof(struct ipw_rt_hdr); /* total hdr+data */
 
 	ipw_rt->rt_hdr.it_present = 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL;
 
