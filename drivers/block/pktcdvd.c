@@ -1597,7 +1597,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 	}
 
 	if (!pkt_writable_disc(pd, &di))
-		return -ENXIO;
+		return -EROFS;
 
 	pd->type = di.erasable ? PACKET_CDRW : PACKET_CDR;
 
@@ -1609,7 +1609,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 
 	if (!pkt_writable_track(pd, &ti)) {
 		printk("pktcdvd: can't write to this track\n");
-		return -ENXIO;
+		return -EROFS;
 	}
 
 	/*
@@ -1623,7 +1623,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 	}
 	if (pd->settings.size > PACKET_MAX_SECTORS) {
 		printk("pktcdvd: packet size is too big\n");
-		return -ENXIO;
+		return -EROFS;
 	}
 	pd->settings.fp = ti.fp;
 	pd->offset = (be32_to_cpu(ti.track_start) << 2) & (pd->settings.size - 1);
@@ -1665,7 +1665,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 			break;
 		default:
 			printk("pktcdvd: unknown data mode\n");
-			return 1;
+			return -EROFS;
 	}
 	return 0;
 }
@@ -1876,7 +1876,7 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 
 	if ((ret = pkt_probe_settings(pd))) {
 		VPRINTK("pktcdvd: %s failed probe\n", pd->name);
-		return -EROFS;
+		return ret;
 	}
 
 	if ((ret = pkt_set_write_settings(pd))) {
