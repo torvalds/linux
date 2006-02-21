@@ -58,6 +58,7 @@
 #include <linux/suspend.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_ioctl.h>
+#include <scsi/scsi.h>
 
 #include <asm/uaccess.h>
 
@@ -380,6 +381,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	memcpy(rq->cmd, cgc->cmd, CDROM_PACKET_SIZE);
 	if (sizeof(rq->cmd) > CDROM_PACKET_SIZE)
 		memset(rq->cmd + CDROM_PACKET_SIZE, 0, sizeof(rq->cmd) - CDROM_PACKET_SIZE);
+	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
 
 	rq->ref_count++;
 	rq->flags |= REQ_NOMERGE;
