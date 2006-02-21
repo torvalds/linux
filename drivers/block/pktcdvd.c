@@ -1499,28 +1499,30 @@ static int pkt_set_write_settings(struct pktcdvd_device *pd)
 /*
  * 1 -- we can write to this track, 0 -- we can't
  */
-static int pkt_writable_track(track_information *ti)
+static int pkt_writable_track(struct pktcdvd_device *pd, track_information *ti)
 {
-	/*
-	 * only good for CD-RW at the moment, not DVD-RW
-	 */
+	switch (pd->mmc3_profile) {
+		case 0x1a: /* DVD+RW */
+		case 0x12: /* DVD-RAM */
+			/* The track is always writable on DVD+RW/DVD-RAM */
+			return 1;
+		default:
+			break;
+	}
 
-	/*
-	 * FIXME: only for FP
-	 */
-	if (ti->fp == 0)
-		return 1;
+	if (!ti->packet || !ti->fp)
+		return 0;
 
 	/*
 	 * "good" settings as per Mt Fuji.
 	 */
-	if (ti->rt == 0 && ti->blank == 0 && ti->packet == 1)
+	if (ti->rt == 0 && ti->blank == 0)
 		return 1;
 
-	if (ti->rt == 0 && ti->blank == 1 && ti->packet == 1)
+	if (ti->rt == 0 && ti->blank == 1)
 		return 1;
 
-	if (ti->rt == 1 && ti->blank == 0 && ti->packet == 1)
+	if (ti->rt == 1 && ti->blank == 0)
 		return 1;
 
 	printk("pktcdvd: bad state %d-%d-%d\n", ti->rt, ti->blank, ti->packet);
@@ -1605,7 +1607,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 		return ret;
 	}
 
-	if (!pkt_writable_track(&ti)) {
+	if (!pkt_writable_track(pd, &ti)) {
 		printk("pktcdvd: can't write to this track\n");
 		return -ENXIO;
 	}
