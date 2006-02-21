@@ -557,7 +557,6 @@ retry:
 	}
 }
 
-#if 0
 /* Multi-cpu list version.  */
 static int init_cpu_list(u16 *list, cpumask_t mask)
 {
@@ -631,59 +630,6 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 
 	put_cpu();
 }
-#else
-/* Single-cpu list version.  */
-static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mask)
-{
-	int this_cpu = get_cpu();
-	struct trap_per_cpu *tb = &trap_block[this_cpu];
-	u64 *mondo = __va(tb->cpu_mondo_block_pa);
-	u16 *cpu_list = __va(tb->cpu_list_pa);
-	int i;
-
-	mondo[0] = data0;
-	mondo[1] = data1;
-	mondo[2] = data2;
-	wmb();
-
-	for_each_cpu_mask(i, mask) {
-		int retries = 0;
-
-		do {
-			register unsigned long func __asm__("%o5");
-			register unsigned long arg0 __asm__("%o0");
-			register unsigned long arg1 __asm__("%o1");
-			register unsigned long arg2 __asm__("%o2");
-
-			cpu_list[0] = i;
-			func = HV_FAST_CPU_MONDO_SEND;
-			arg0 = 1;
-			arg1 = tb->cpu_list_pa;
-			arg2 = tb->cpu_mondo_block_pa;
-
-			__asm__ __volatile__("ta	%8"
-					     : "=&r" (func), "=&r" (arg0),
-					       "=&r" (arg1), "=&r" (arg2)
-					     : "0" (func), "1" (arg0),
-					       "2" (arg1), "3" (arg2),
-					       "i" (HV_FAST_TRAP)
-					     : "memory");
-			if (likely(arg0 == HV_EOK))
-				break;
-
-			if (unlikely(++retries > 100)) {
-				printk("CPU[%d]: sun4v mondo error %lu\n",
-				       this_cpu, func);
-				break;
-			}
-
-			udelay(2 * i);
-		} while (1);
-	}
-
-	put_cpu();
-}
-#endif
 
 /* Send cross call to all processors mentioned in MASK
  * except self.
