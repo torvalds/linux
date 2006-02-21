@@ -1597,20 +1597,6 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 	if (!pkt_writable_disc(pd, &di))
 		return -ENXIO;
 
-	switch (pd->mmc3_profile) {
-		case 0x1a: /* DVD+RW */
-			printk("pktcdvd: inserted media is DVD+RW\n");
-			break;
-		case 0x13: /* DVD-RW */
-			printk("pktcdvd: inserted media is DVD-RW\n");
-			break;
-		case 0x12: /* DVD-RAM */
-			printk("pktcdvd: inserted media is DVD-RAM\n");
-			break;
-		default:
-			printk("pktcdvd: inserted media is CD-R%s\n", di.erasable ? "W" : "");
-			break;
-	}
 	pd->type = di.erasable ? PACKET_CDRW : PACKET_CDR;
 
 	track = 1; /* (di.last_track_msb << 8) | di.last_track_lsb; */
