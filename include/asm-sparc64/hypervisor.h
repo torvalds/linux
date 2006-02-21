@@ -258,6 +258,9 @@
  */
 #define HV_FAST_CPU_YIELD		0x12
 
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_cpu_yield(void);
+#endif
 
 /* cpu_qconf()
  * TRAP:	HV_FAST_TRAP

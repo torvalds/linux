@@ -1786,3 +1786,12 @@ sun4v_cpu_qconf:
 	ta	HV_FAST_TRAP
 	retl
 	 nop
+
+	/* returns %o0:	status
+	 */
+	.globl	sun4v_cpu_yield
+sun4v_cpu_yield:
+	mov	HV_FAST_CPU_YIELD, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
