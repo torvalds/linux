@@ -156,7 +156,12 @@ dasd_state_known_to_new(struct dasd_device * device)
 	/* disable extended error reporting for this device */
 	dasd_disable_eer(device);
 	/* Forget the discipline information. */
+	if (device->discipline)
+		module_put(device->discipline->owner);
 	device->discipline = NULL;
+	if (device->base_discipline)
+		module_put(device->base_discipline->owner);
+	device->base_discipline = NULL;
 	device->state = DASD_STATE_NEW;
 
 	dasd_free_queue(device);
@@ -1880,9 +1885,10 @@ dasd_generic_remove (struct ccw_device *cdev)
  */
 int
 dasd_generic_set_online (struct ccw_device *cdev,
-			 struct dasd_discipline *discipline)
+			 struct dasd_discipline *base_discipline)
 
 {
+	struct dasd_discipline *discipline;
 	struct dasd_device *device;
 	int rc;
 
@@ -1890,6 +1896,7 @@ dasd_generic_set_online (struct ccw_device *cdev,
 	if (IS_ERR(device))
 		return PTR_ERR(device);
 
+	discipline = base_discipline;
 	if (device->features & DASD_FEATURE_USEDIAG) {
 	  	if (!dasd_diag_discipline_pointer) {
 		        printk (KERN_WARNING
@@ -1901,6 +1908,16 @@ dasd_generic_set_online (struct ccw_device *cdev,
 		}
 		discipline = dasd_diag_discipline_pointer;
 	}
+	if (!try_module_get(base_discipline->owner)) {
+		dasd_delete_device(device);
+		return -EINVAL;
+	}
+	if (!try_module_get(discipline->owner)) {
+		module_put(base_discipline->owner);
+		dasd_delete_device(device);
+		return -EINVAL;
+	}
+	device->base_discipline = base_discipline;
 	device->discipline = discipline;
 
 	rc = discipline->check_device(device);
@@ -1909,6 +1926,8 @@ dasd_generic_set_online (struct ccw_device *cdev,
 			"dasd_generic couldn't online device %s "
 			"with discipline %s rc=%i\n",
 			cdev->dev.bus_id, discipline->name, rc);
+		module_put(discipline->owner);
+		module_put(base_discipline->owner);
 		dasd_delete_device(device);
 		return rc;
 	}
