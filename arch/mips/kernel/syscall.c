@@ -345,7 +345,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 		union semun fourth;
 		if (!ptr)
 			return -EINVAL;
-		if (get_user(fourth.__pad, (void *__user *) ptr))
+		if (get_user(fourth.__pad, (void __user *__user *) ptr))
 			return -EFAULT;
 		return sys_semctl (first, second, third, fourth);
 	}
