@@ -88,8 +88,6 @@ void __init smp_store_cpu_info(int id)
 	cpu_data(id).clock_tick = prom_getintdefault(cpu_node,
 						     "clock-frequency", 0);
 
-	cpu_data(id).idle_volume		= 1;
-
 	def = ((tlb_type == hypervisor) ? (8 * 1024) : (16 * 1024));
 	cpu_data(id).dcache_size = prom_getintdefault(cpu_node, "dcache-size",
 						      def);

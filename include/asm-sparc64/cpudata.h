@@ -19,7 +19,7 @@ typedef struct {
 	unsigned int	__softirq_pending; /* must be 1st, see rtrap.S */
 	unsigned int	multiplier;
 	unsigned int	counter;
-	unsigned int	idle_volume;
+	unsigned int	__pad1;
 	unsigned long	clock_tick;	/* %tick's per second */
 	unsigned long	udelay_val;
 

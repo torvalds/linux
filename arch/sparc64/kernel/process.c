@@ -56,6 +56,8 @@ void default_idle(void)
 {
 }
 
+
+
 #ifndef CONFIG_SMP
 
 /*
@@ -104,19 +106,11 @@ void cpu_idle(void)
 
 	while(1) {
 		if (need_resched()) {
-			cpuinfo->idle_volume = 0;
 			preempt_enable_no_resched();
 			schedule();
 			preempt_disable();
 			check_pgt_cache();
 		}
-		cpuinfo->idle_volume++;
-
-		/* The store ordering is so that IRQ handlers on
-		 * other cpus see our increasing idleness for the buddy
-		 * redistribution algorithm.  -DaveM
-		 */
-		membar_storeload_storestore();
 	}
 }
 
