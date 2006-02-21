@@ -133,12 +133,17 @@ int prom_getprev(void)
 /* Install Linux trap table so PROM uses that instead of its own. */
 void prom_set_trap_table(unsigned long tba)
 {
-	p1275_cmd("SUNW,set-trap-table", P1275_INOUT(1, 0), tba);
+	p1275_cmd("SUNW,set-trap-table",
+		  (P1275_ARG(0, P1275_ARG_IN_64B) |
+		   P1275_INOUT(1, 0)), tba);
 }
 
 void prom_set_trap_table_sun4v(unsigned long tba, unsigned long mmfsa)
 {
-	p1275_cmd("SUNW,set-trap-table", P1275_INOUT(2, 0), tba, mmfsa);
+	p1275_cmd("SUNW,set-trap-table",
+		  (P1275_ARG(0, P1275_ARG_IN_64B) |
+		   P1275_ARG(1, P1275_ARG_IN_64B) |
+		   P1275_INOUT(2, 0)), tba, mmfsa);
 }
 
 int prom_get_mmu_ihandle(void)
