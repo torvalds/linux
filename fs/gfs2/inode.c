@@ -782,11 +782,11 @@ static int pick_formal_ino_1(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 	error = gfs2_trans_begin(sdp, RES_DINODE, 0);
 	if (error)
 		return error;
-	down(&sdp->sd_inum_mutex);
+	mutex_lock(&sdp->sd_inum_mutex);
 
 	error = gfs2_meta_inode_buffer(ip, &bh);
 	if (error) {
-		up(&sdp->sd_inum_mutex);
+		mutex_unlock(&sdp->sd_inum_mutex);
 		gfs2_trans_end(sdp);
 		return error;
 	}
@@ -800,14 +800,14 @@ static int pick_formal_ino_1(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 		gfs2_inum_range_out(&ir,
 				    bh->b_data + sizeof(struct gfs2_dinode));
 		brelse(bh);
-		up(&sdp->sd_inum_mutex);
+		mutex_unlock(&sdp->sd_inum_mutex);
 		gfs2_trans_end(sdp);
 		return 0;
 	}
 
 	brelse(bh);
 
-	up(&sdp->sd_inum_mutex);
+	mutex_unlock(&sdp->sd_inum_mutex);
 	gfs2_trans_end(sdp);
 
 	return 1;
@@ -829,7 +829,7 @@ static int pick_formal_ino_2(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 	error = gfs2_trans_begin(sdp, 2 * RES_DINODE, 0);
 	if (error)
 		goto out;
-	down(&sdp->sd_inum_mutex);
+	mutex_lock(&sdp->sd_inum_mutex);
 
 	error = gfs2_meta_inode_buffer(ip, &bh);
 	if (error)
@@ -869,7 +869,7 @@ static int pick_formal_ino_2(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 	brelse(bh);
 
  out_end_trans:
-	up(&sdp->sd_inum_mutex);
+	mutex_unlock(&sdp->sd_inum_mutex);
 	gfs2_trans_end(sdp);
 
  out:

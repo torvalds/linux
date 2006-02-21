@@ -251,10 +251,10 @@ static int bh_get(struct gfs2_quota_data *qd)
 	struct buffer_head *bh;
 	int error;
 
-	down(&sdp->sd_quota_mutex);
+	mutex_lock(&sdp->sd_quota_mutex);
 
 	if (qd->qd_bh_count++) {
-		up(&sdp->sd_quota_mutex);
+		mutex_unlock(&sdp->sd_quota_mutex);
 		return 0;
 	}
 
@@ -276,7 +276,7 @@ static int bh_get(struct gfs2_quota_data *qd)
 		(bh->b_data + sizeof(struct gfs2_meta_header) +
 		 offset * sizeof(struct gfs2_quota_change));
 
-	up(&sdp->sd_quota_mutex);
+	mutex_lock(&sdp->sd_quota_mutex);
 
 	return 0;
 
@@ -285,7 +285,7 @@ static int bh_get(struct gfs2_quota_data *qd)
 
  fail:
 	qd->qd_bh_count--;
-	up(&sdp->sd_quota_mutex);
+	mutex_unlock(&sdp->sd_quota_mutex);
 	return error;
 }
 
@@ -293,14 +293,14 @@ static void bh_put(struct gfs2_quota_data *qd)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
 
-	down(&sdp->sd_quota_mutex);
+	mutex_lock(&sdp->sd_quota_mutex);
 	gfs2_assert(sdp, qd->qd_bh_count);
 	if (!--qd->qd_bh_count) {
 		brelse(qd->qd_bh);
 		qd->qd_bh = NULL;
 		qd->qd_bh_qc = NULL;
 	}
-	up(&sdp->sd_quota_mutex);
+	mutex_unlock(&sdp->sd_quota_mutex);
 }
 
 static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
@@ -529,7 +529,7 @@ static void do_qc(struct gfs2_quota_data *qd, int64_t change)
 	struct gfs2_quota_change *qc = qd->qd_bh_qc;
 	int64_t x;
 
-	down(&sdp->sd_quota_mutex);
+	mutex_lock(&sdp->sd_quota_mutex);
 	gfs2_trans_add_bh(ip->i_gl, qd->qd_bh, 1);
 
 	if (!test_bit(QDF_CHANGE, &qd->qd_flags)) {
@@ -560,7 +560,7 @@ static void do_qc(struct gfs2_quota_data *qd, int64_t change)
 		slot_hold(qd);
 	}
 			
-	up(&sdp->sd_quota_mutex);
+	mutex_unlock(&sdp->sd_quota_mutex);
 }
 
 /**

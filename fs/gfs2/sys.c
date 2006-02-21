@@ -41,9 +41,9 @@ static ssize_t freeze_show(struct gfs2_sbd *sdp, char *buf)
 {
 	unsigned int count;
 
-	down(&sdp->sd_freeze_lock);
+	mutex_lock(&sdp->sd_freeze_lock);
 	count = sdp->sd_freeze_count;
-	up(&sdp->sd_freeze_lock);
+	mutex_unlock(&sdp->sd_freeze_lock);
 
 	return sprintf(buf, "%u\n", count);
 }

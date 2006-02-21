@@ -556,7 +556,7 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh, int meta
 		return;
 	}
 
-	bd = kmem_cache_alloc(gfs2_bufdata_cachep, GFP_KERNEL | __GFP_NOFAIL),
+	bd = kmem_cache_alloc(gfs2_bufdata_cachep, GFP_NOFS | __GFP_NOFAIL),
 	atomic_inc(&gl->gl_sbd->sd_bufdata_count);
 
 	memset(bd, 0, sizeof(struct gfs2_bufdata));

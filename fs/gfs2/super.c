@@ -279,7 +279,7 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 
 	name.name = buf;
 
-	down(&sdp->sd_jindex_mutex);
+	mutex_lock(&sdp->sd_jindex_mutex);
 
 	for (;;) {
 		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED,
@@ -317,7 +317,7 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 		spin_unlock(&sdp->sd_jindex_spin);
 	}
 
-	up(&sdp->sd_jindex_mutex);
+	mutex_unlock(&sdp->sd_jindex_mutex);
 
 	return error;
 }
@@ -608,9 +608,9 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, int64_t total, int64_t free,
 	if (error)
 		return;
 
-	down(&sdp->sd_statfs_mutex);
+	mutex_lock(&sdp->sd_statfs_mutex);
 	gfs2_trans_add_bh(l_ip->i_gl, l_bh, 1);
-	up(&sdp->sd_statfs_mutex);
+	mutex_unlock(&sdp->sd_statfs_mutex);
 
 	spin_lock(&sdp->sd_statfs_spin);
 	l_sc->sc_total += total;
@@ -659,9 +659,9 @@ int gfs2_statfs_sync(struct gfs2_sbd *sdp)
 	if (error)
 		goto out_bh2;
 
-	down(&sdp->sd_statfs_mutex);
+	mutex_lock(&sdp->sd_statfs_mutex);
 	gfs2_trans_add_bh(l_ip->i_gl, l_bh, 1);
-	up(&sdp->sd_statfs_mutex);
+	mutex_unlock(&sdp->sd_statfs_mutex);
 
 	spin_lock(&sdp->sd_statfs_spin);
 	m_sc->sc_total += l_sc->sc_total;
@@ -910,7 +910,7 @@ int gfs2_freeze_fs(struct gfs2_sbd *sdp)
 {
 	int error = 0;
 
-	down(&sdp->sd_freeze_lock);
+	mutex_lock(&sdp->sd_freeze_lock);
 
 	if (!sdp->sd_freeze_count++) {
 		error = gfs2_lock_fs_check_clean(sdp, &sdp->sd_freeze_gh);
@@ -918,7 +918,7 @@ int gfs2_freeze_fs(struct gfs2_sbd *sdp)
 			sdp->sd_freeze_count--;
 	}
 
-	up(&sdp->sd_freeze_lock);
+	mutex_unlock(&sdp->sd_freeze_lock);
 
 	return error;
 }
@@ -935,11 +935,11 @@ int gfs2_freeze_fs(struct gfs2_sbd *sdp)
 
 void gfs2_unfreeze_fs(struct gfs2_sbd *sdp)
 {
-	down(&sdp->sd_freeze_lock);
+	mutex_lock(&sdp->sd_freeze_lock);
 
 	if (sdp->sd_freeze_count && !--sdp->sd_freeze_count)
 		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 
-	up(&sdp->sd_freeze_lock);
+	mutex_unlock(&sdp->sd_freeze_lock);
 }
 

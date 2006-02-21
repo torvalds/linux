@@ -189,7 +189,6 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 		gfs2_page_add_databufs(ip, page, 0, sdp->sd_vfs->s_blocksize-1);
 		done_trans = 1;
 	}
-
 	error = block_write_full_page(page, get_block_noalloc, wbc);
 	if (done_trans)
 		gfs2_trans_end(sdp);

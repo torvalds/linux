@@ -74,10 +74,10 @@ static void gfs2_put_super(struct super_block *sb)
 
 	/*  Unfreeze the filesystem, if we need to  */
 
-	down(&sdp->sd_freeze_lock);
+	mutex_lock(&sdp->sd_freeze_lock);
 	if (sdp->sd_freeze_count)
 		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
-	up(&sdp->sd_freeze_lock);
+	mutex_unlock(&sdp->sd_freeze_lock);
 
 	kthread_stop(sdp->sd_inoded_process);
 	kthread_stop(sdp->sd_quotad_process);

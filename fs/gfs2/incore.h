@@ -88,7 +88,7 @@ struct gfs2_rgrpd {
 	uint64_t rd_rg_vn;
 	struct gfs2_bitmap *rd_bits;
 	unsigned int rd_bh_count;
-	struct semaphore rd_mutex;
+	struct mutex rd_mutex;
 	uint32_t rd_free_clone;
 	struct gfs2_log_element rd_le;
 	uint32_t rd_last_alloc_data;
@@ -277,7 +277,7 @@ enum {
 struct gfs2_file {
 	unsigned long f_flags;		/* GFF_... */
 
-	struct semaphore f_fl_mutex;
+	struct mutex f_fl_mutex;
 	struct gfs2_holder f_fl_gh;
 
 	struct gfs2_inode *f_inode;
@@ -510,7 +510,7 @@ struct gfs2_sbd {
 	struct gfs2_holder sd_live_gh;
 	struct gfs2_glock *sd_rename_gl;
 	struct gfs2_glock *sd_trans_gl;
-	struct semaphore sd_invalidate_inodes_mutex;
+	struct mutex sd_invalidate_inodes_mutex;
 
 	/* Inode Stuff */
 
@@ -528,12 +528,12 @@ struct gfs2_sbd {
 
 	/* Inum stuff */
 
-	struct semaphore sd_inum_mutex;
+	struct mutex sd_inum_mutex;
 
 	/* StatFS stuff */
 
 	spinlock_t sd_statfs_spin;
-	struct semaphore sd_statfs_mutex;
+	struct mutex sd_statfs_mutex;
 	struct gfs2_statfs_change sd_statfs_master;
 	struct gfs2_statfs_change sd_statfs_local;
 	unsigned long sd_statfs_sync_time;
@@ -542,7 +542,7 @@ struct gfs2_sbd {
 
 	uint64_t sd_rindex_vn;
 	spinlock_t sd_rindex_spin;
-	struct semaphore sd_rindex_mutex;
+	struct mutex sd_rindex_mutex;
 	struct list_head sd_rindex_list;
 	struct list_head sd_rindex_mru_list;
 	struct list_head sd_rindex_recent_list;
@@ -553,7 +553,7 @@ struct gfs2_sbd {
 
 	struct list_head sd_jindex_list;
 	spinlock_t sd_jindex_spin;
-	struct semaphore sd_jindex_mutex;
+	struct mutex sd_jindex_mutex;
 	unsigned int sd_journals;
 	unsigned long sd_jindex_refresh_time;
 
@@ -581,7 +581,7 @@ struct gfs2_sbd {
 	struct list_head sd_unlinked_list;
 	atomic_t sd_unlinked_count;
 	spinlock_t sd_unlinked_spin;
-	struct semaphore sd_unlinked_mutex;
+	struct mutex sd_unlinked_mutex;
 
 	unsigned int sd_unlinked_slots;
 	unsigned int sd_unlinked_chunks;
@@ -592,7 +592,7 @@ struct gfs2_sbd {
 	struct list_head sd_quota_list;
 	atomic_t sd_quota_count;
 	spinlock_t sd_quota_spin;
-	struct semaphore sd_quota_mutex;
+	struct mutex sd_quota_mutex;
 
 	unsigned int sd_quota_slots;
 	unsigned int sd_quota_chunks;
@@ -637,7 +637,7 @@ struct gfs2_sbd {
 	int sd_log_idle;
 
 	unsigned long sd_log_flush_time;
-	struct semaphore sd_log_flush_lock;
+	struct mutex sd_log_flush_lock;
 	struct list_head sd_log_flush_list;
 
 	unsigned int sd_log_flush_head;
@@ -659,7 +659,7 @@ struct gfs2_sbd {
 	/* For quiescing the filesystem */
 
 	struct gfs2_holder sd_freeze_gh;
-	struct semaphore sd_freeze_lock;
+	struct mutex sd_freeze_lock;
 	unsigned int sd_freeze_count;
 
 	/* Counters */

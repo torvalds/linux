@@ -59,29 +59,29 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_reclaim_list);
 	spin_lock_init(&sdp->sd_reclaim_lock);
 	init_waitqueue_head(&sdp->sd_reclaim_wq);
-	init_MUTEX(&sdp->sd_invalidate_inodes_mutex);
+	mutex_init(&sdp->sd_invalidate_inodes_mutex);
 
-	init_MUTEX(&sdp->sd_inum_mutex);
+	mutex_init(&sdp->sd_inum_mutex);
 	spin_lock_init(&sdp->sd_statfs_spin);
-	init_MUTEX(&sdp->sd_statfs_mutex);
+	mutex_init(&sdp->sd_statfs_mutex);
 
 	spin_lock_init(&sdp->sd_rindex_spin);
-	init_MUTEX(&sdp->sd_rindex_mutex);
+	mutex_init(&sdp->sd_rindex_mutex);
 	INIT_LIST_HEAD(&sdp->sd_rindex_list);
 	INIT_LIST_HEAD(&sdp->sd_rindex_mru_list);
 	INIT_LIST_HEAD(&sdp->sd_rindex_recent_list);
 
 	INIT_LIST_HEAD(&sdp->sd_jindex_list);
 	spin_lock_init(&sdp->sd_jindex_spin);
-	init_MUTEX(&sdp->sd_jindex_mutex);
+	mutex_init(&sdp->sd_jindex_mutex);
 
 	INIT_LIST_HEAD(&sdp->sd_unlinked_list);
 	spin_lock_init(&sdp->sd_unlinked_spin);
-	init_MUTEX(&sdp->sd_unlinked_mutex);
+	mutex_init(&sdp->sd_unlinked_mutex);
 
 	INIT_LIST_HEAD(&sdp->sd_quota_list);
 	spin_lock_init(&sdp->sd_quota_spin);
-	init_MUTEX(&sdp->sd_quota_mutex);
+	mutex_init(&sdp->sd_quota_mutex);
 
 	spin_lock_init(&sdp->sd_log_lock);
 	init_waitqueue_head(&sdp->sd_log_trans_wq);
@@ -99,12 +99,12 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_ail1_list);
 	INIT_LIST_HEAD(&sdp->sd_ail2_list);
 
-	init_MUTEX(&sdp->sd_log_flush_lock);
+	mutex_init(&sdp->sd_log_flush_lock);
 	INIT_LIST_HEAD(&sdp->sd_log_flush_list);
 
 	INIT_LIST_HEAD(&sdp->sd_revoke_list);
 
-	init_MUTEX(&sdp->sd_freeze_lock);
+	mutex_init(&sdp->sd_freeze_lock);
 
 	return sdp;
 }

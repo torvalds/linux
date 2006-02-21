@@ -42,9 +42,6 @@ static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
 	sdp->sd_log_head = sdp->sd_log_tail = value;
 }
 
-void gfs2_lock_for_flush(struct gfs2_sbd *sdp);
-void gfs2_unlock_from_flush(struct gfs2_sbd *sdp);
-
 unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 			    unsigned int ssize);
 

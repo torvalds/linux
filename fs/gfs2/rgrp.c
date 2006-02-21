@@ -182,9 +182,9 @@ static void clear_rgrpdi(struct gfs2_sbd *sdp)
 
 void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 {
-	down(&sdp->sd_rindex_mutex);
+	mutex_lock(&sdp->sd_rindex_mutex);
 	clear_rgrpdi(sdp);
-	up(&sdp->sd_rindex_mutex);
+	mutex_unlock(&sdp->sd_rindex_mutex);
 }
 
 /**
@@ -301,7 +301,7 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 		if (!rgd)
 			goto fail;
 
-		init_MUTEX(&rgd->rd_mutex);
+		mutex_init(&rgd->rd_mutex);
 		lops_init_le(&rgd->rd_le, &gfs2_rg_lops);
 		rgd->rd_sbd = sdp;
 
@@ -363,13 +363,13 @@ int gfs2_rindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ri_gh)
 
 	/* Read new copy from disk if we don't have the latest */
 	if (sdp->sd_rindex_vn != gl->gl_vn) {
-		down(&sdp->sd_rindex_mutex);
+		mutex_lock(&sdp->sd_rindex_mutex);
 		if (sdp->sd_rindex_vn != gl->gl_vn) {
 			error = gfs2_ri_update(ip);
 			if (error)
 				gfs2_glock_dq_uninit(ri_gh);
 		}
-		up(&sdp->sd_rindex_mutex);
+		mutex_unlock(&sdp->sd_rindex_mutex);
 	}
 
 	return error;
@@ -394,13 +394,13 @@ int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 	unsigned int x, y;
 	int error;
 
-	down(&rgd->rd_mutex);
+	mutex_lock(&rgd->rd_mutex);
 
 	spin_lock(&sdp->sd_rindex_spin);
 	if (rgd->rd_bh_count) {
 		rgd->rd_bh_count++;
 		spin_unlock(&sdp->sd_rindex_spin);
-		up(&rgd->rd_mutex);
+		mutex_unlock(&rgd->rd_mutex);
 		return 0;
 	}
 	spin_unlock(&sdp->sd_rindex_spin);
@@ -436,7 +436,7 @@ int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 	rgd->rd_bh_count++;
 	spin_unlock(&sdp->sd_rindex_spin);
 
-	up(&rgd->rd_mutex);
+	mutex_unlock(&rgd->rd_mutex);
 
 	return 0;
 
@@ -447,7 +447,7 @@ int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 		bi->bi_bh = NULL;
 		gfs2_assert_warn(sdp, !bi->bi_clone);
 	}
-	up(&rgd->rd_mutex);
+	mutex_unlock(&rgd->rd_mutex);
 
 	return error;
 }

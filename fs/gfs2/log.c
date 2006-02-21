@@ -23,29 +23,16 @@
 
 #define PULL 1
 
-static inline int is_done(struct gfs2_sbd *sdp, atomic_t *a)
-{
-	int done;
-	gfs2_log_lock(sdp);
-	done = atomic_read(a) ? 0 : 1;
-	gfs2_log_unlock(sdp);
-	return done;
-}
-
 static void do_lock_wait(struct gfs2_sbd *sdp, wait_queue_head_t *wq,
 			 atomic_t *a)
 {
-	gfs2_log_unlock(sdp);
-	wait_event(*wq, is_done(sdp, a));
-	gfs2_log_lock(sdp);
+	wait_event(*wq, atomic_read(a) ? 0 : 1);
 }
 
 static void lock_for_trans(struct gfs2_sbd *sdp)
 {
-	gfs2_log_lock(sdp);
 	do_lock_wait(sdp, &sdp->sd_log_trans_wq, &sdp->sd_log_flush_count);
 	atomic_inc(&sdp->sd_log_trans_count);
-	gfs2_log_unlock(sdp);
 }
 
 static void unlock_from_trans(struct gfs2_sbd *sdp)
@@ -55,15 +42,13 @@ static void unlock_from_trans(struct gfs2_sbd *sdp)
 		wake_up(&sdp->sd_log_flush_wq);
 }
 
-void gfs2_lock_for_flush(struct gfs2_sbd *sdp)
+static void gfs2_lock_for_flush(struct gfs2_sbd *sdp)
 {
-	gfs2_log_lock(sdp);
 	atomic_inc(&sdp->sd_log_flush_count);
 	do_lock_wait(sdp, &sdp->sd_log_flush_wq, &sdp->sd_log_trans_count);
-	gfs2_log_unlock(sdp);
 }
 
-void gfs2_unlock_from_flush(struct gfs2_sbd *sdp)
+static void gfs2_unlock_from_flush(struct gfs2_sbd *sdp)
 {
 	gfs2_assert_warn(sdp, atomic_read(&sdp->sd_log_flush_count));
 	if (atomic_dec_and_test(&sdp->sd_log_flush_count))
@@ -209,7 +194,6 @@ int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 
 	for (;;) {
 		gfs2_log_lock(sdp);
-
 		if (list_empty(&list)) {
 			list_add_tail(&list, &sdp->sd_log_blks_list);
 			while (sdp->sd_log_blks_list.next != &list) {
@@ -225,7 +209,6 @@ int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 				set_current_state(TASK_RUNNING);
 			}
 		}
-
 		/* Never give away the last block so we can
 		   always pull the tail if we need to. */
 		if (sdp->sd_log_blks_free > blks) {
@@ -237,14 +220,12 @@ int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 		}
 
 		gfs2_log_unlock(sdp);
-
 		gfs2_ail1_empty(sdp, 0);
 		gfs2_log_flush(sdp);
 
 		if (try++)
 			gfs2_ail1_start(sdp, 0);
 	}
-
 	lock_for_trans(sdp);
 
 	return 0;
@@ -512,21 +493,25 @@ void gfs2_log_flush_i(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	ai = kzalloc(sizeof(struct gfs2_ail), GFP_NOFS | __GFP_NOFAIL);
 	INIT_LIST_HEAD(&ai->ai_ail1_list);
 	INIT_LIST_HEAD(&ai->ai_ail2_list);
-
 	gfs2_lock_for_flush(sdp);
-	down(&sdp->sd_log_flush_lock);
+
+	if (gl) {
+		gfs2_log_lock(sdp);
+		if (list_empty(&gl->gl_le.le_list)) {
+			gfs2_log_unlock(sdp);
+			gfs2_unlock_from_flush(sdp);
+			kfree(ai);
+			return;
+		}
+		gfs2_log_unlock(sdp);
+	}
+
+	mutex_lock(&sdp->sd_log_flush_lock);
 
 	gfs2_assert_withdraw(sdp,
 			sdp->sd_log_num_buf == sdp->sd_log_commited_buf);
 	gfs2_assert_withdraw(sdp,
 			sdp->sd_log_num_revoke == sdp->sd_log_commited_revoke);
-
-	if (gl && list_empty(&gl->gl_le.le_list)) {
-		up(&sdp->sd_log_flush_lock);
-		gfs2_unlock_from_flush(sdp);
-		kfree(ai);
-		return;
-	}
 
 	sdp->sd_log_flush_head = sdp->sd_log_head;
 	sdp->sd_log_flush_wrapped = 0;
@@ -538,7 +523,6 @@ void gfs2_log_flush_i(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	else if (sdp->sd_log_tail != current_tail(sdp) && !sdp->sd_log_idle)
 		log_write_header(sdp, 0, PULL);
 	lops_after_commit(sdp, ai);
-
 	sdp->sd_log_head = sdp->sd_log_flush_head;
 	if (sdp->sd_log_flush_wrapped)
 		sdp->sd_log_wraps++;
@@ -554,7 +538,7 @@ void gfs2_log_flush_i(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	}
 	gfs2_log_unlock(sdp);
 
-	up(&sdp->sd_log_flush_lock);
+	mutex_unlock(&sdp->sd_log_flush_lock);
 	sdp->sd_vfs->s_dirt = 0;
 	gfs2_unlock_from_flush(sdp);
 
@@ -627,7 +611,7 @@ void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 
 void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 {
-	down(&sdp->sd_log_flush_lock);
+	mutex_lock(&sdp->sd_log_flush_lock);
 
 	gfs2_assert_withdraw(sdp, !atomic_read(&sdp->sd_log_trans_count));
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_blks_reserved);
@@ -654,6 +638,6 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 		sdp->sd_log_wraps++;
 	sdp->sd_log_tail = sdp->sd_log_head;
 
-	up(&sdp->sd_log_flush_lock);
+	mutex_unlock(&sdp->sd_log_flush_lock);
 }
 
