@@ -587,7 +587,7 @@ redo:
 		}
 		list_add(&page->lru, &newlist);
 		nr_pages++;
-		if (nr_pages > MIGRATE_CHUNK_SIZE);
+		if (nr_pages > MIGRATE_CHUNK_SIZE)
 			break;
 	}
 	err = migrate_pages(pagelist, &newlist, &moved, &failed);
