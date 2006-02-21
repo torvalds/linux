@@ -2390,15 +2390,6 @@ static void isr_rx(struct ipw2100_priv *priv, int i,
 		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
 		return;
 	}
-#ifdef CONFIG_IPW2100_MONITOR
-	if (unlikely(priv->ieee->iw_mode == IW_MODE_MONITOR &&
-		     priv->config & CFG_CRC_CHECK &&
-		     status->flags & IPW_STATUS_FLAG_CRC_ERROR)) {
-		IPW_DEBUG_RX("CRC error in packet.  Dropping.\n");
-		priv->ieee->stats.rx_errors++;
-		return;
-	}
-#endif
 
 	if (unlikely(priv->ieee->iw_mode != IW_MODE_MONITOR &&
 		     !(priv->status & STATUS_ASSOCIATED))) {
@@ -2445,6 +2436,88 @@ static void isr_rx(struct ipw2100_priv *priv, int i,
 	/* Update the RDB entry */
 	priv->rx_queue.drv[i].host_addr = packet->dma_addr;
 }
+
+#ifdef CONFIG_IPW2100_MONITOR
+
+static void isr_rx_monitor(struct ipw2100_priv *priv, int i,
+		   struct ieee80211_rx_stats *stats)
+{
+	struct ipw2100_status *status = &priv->status_queue.drv[i];
+	struct ipw2100_rx_packet *packet = &priv->rx_buffers[i];
+
+	IPW_DEBUG_RX("Handler...\n");
+
+	/* Magic struct that slots into the radiotap header -- no reason
+	 * to build this manually element by element, we can write it much
+	 * more efficiently than we can parse it. ORDER MATTERS HERE */
+	struct ipw_rt_hdr {
+		struct ieee80211_radiotap_header rt_hdr;
+		s8 rt_dbmsignal; /* signal in dbM, kluged to signed */
+	} *ipw_rt;
+
+	if (unlikely(status->frame_size > skb_tailroom(packet->skb) - sizeof(struct ipw_rt_hdr))) {
+		IPW_DEBUG_INFO("%s: frame_size (%u) > skb_tailroom (%u)!"
+			       "  Dropping.\n",
+			       priv->net_dev->name,
+			       status->frame_size, skb_tailroom(packet->skb));
+		priv->ieee->stats.rx_errors++;
+		return;
+	}
+
+	if (unlikely(!netif_running(priv->net_dev))) {
+		priv->ieee->stats.rx_errors++;
+		priv->wstats.discard.misc++;
+		IPW_DEBUG_DROP("Dropping packet while interface is not up.\n");
+		return;
+	}
+
+	if (unlikely(priv->config & CFG_CRC_CHECK &&
+		     status->flags & IPW_STATUS_FLAG_CRC_ERROR)) {
+		IPW_DEBUG_RX("CRC error in packet.  Dropping.\n");
+		priv->ieee->stats.rx_errors++;
+		return;
+	}
+
+	pci_unmap_single(priv->pci_dev,
+			 packet->dma_addr,
+			 sizeof(struct ipw2100_rx), PCI_DMA_FROMDEVICE);
+	memmove(packet->skb->data + sizeof(struct ipw_rt_hdr),
+		packet->skb->data, status->frame_size);
+
+	ipw_rt = (struct ipw_rt_hdr *) packet->skb->data;
+
+	ipw_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
+	ipw_rt->rt_hdr.it_pad = 0; /* always good to zero */
+	ipw_rt->rt_hdr.it_len = sizeof(struct ipw_rt_hdr); /* total header+data */
+
+	ipw_rt->rt_hdr.it_present = 1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL;
+
+	ipw_rt->rt_dbmsignal = status->rssi + IPW2100_RSSI_TO_DBM;
+
+	skb_put(packet->skb, status->frame_size + sizeof(struct ipw_rt_hdr));
+
+	if (!ieee80211_rx(priv->ieee, packet->skb, stats)) {
+		priv->ieee->stats.rx_errors++;
+
+		/* ieee80211_rx failed, so it didn't free the SKB */
+		dev_kfree_skb_any(packet->skb);
+		packet->skb = NULL;
+	}
+
+	/* We need to allocate a new SKB and attach it to the RDB. */
+	if (unlikely(ipw2100_alloc_skb(priv, packet))) {
+		IPW_DEBUG_WARNING(
+			"%s: Unable to allocate SKB onto RBD ring - disabling "
+			"adapter.\n", priv->net_dev->name);
+		/* TODO: schedule adapter shutdown */
+		IPW_DEBUG_INFO("TODO: Shutdown adapter...\n");
+	}
+
+	/* Update the RDB entry */
+	priv->rx_queue.drv[i].host_addr = packet->dma_addr;
+}
+
+#endif
 
 static int ipw2100_corruption_check(struct ipw2100_priv *priv, int i)
 {
@@ -2577,7 +2650,7 @@ static void __ipw2100_rx_process(struct ipw2100_priv *priv)
 		case P8023_DATA_VAL:
 #ifdef CONFIG_IPW2100_MONITOR
 			if (priv->ieee->iw_mode == IW_MODE_MONITOR) {
-				isr_rx(priv, i, &stats);
+				isr_rx_monitor(priv, i, &stats);
 				break;
 			}
 #endif
@@ -3882,7 +3955,7 @@ static int ipw2100_switch_mode(struct ipw2100_priv *priv, u32 mode)
 #ifdef CONFIG_IPW2100_MONITOR
 	case IW_MODE_MONITOR:
 		priv->last_mode = priv->ieee->iw_mode;
-		priv->net_dev->type = ARPHRD_IEEE80211;
+		priv->net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 		break;
 #endif				/* CONFIG_IPW2100_MONITOR */
 	}
