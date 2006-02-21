@@ -3484,15 +3484,17 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 
 	bcm43xx_pctl_set_clock(bcm, BCM43xx_PCTL_CLK_DYNAMIC);
 
-	spin_lock_irqsave(&bcm->lock, flags);
-	bcm->initialized = 1;
-	spin_unlock_irqrestore(&bcm->lock, flags);
-
 	if (bcm->current_core->radio->initial_channel != 0xFF) {
 		bcm43xx_mac_suspend(bcm);
 		bcm43xx_radio_selectchannel(bcm, bcm->current_core->radio->initial_channel, 0);
 		bcm43xx_mac_enable(bcm);
 	}
+
+	/* Initialization of the board is done. Flag it as such. */
+	spin_lock_irqsave(&bcm->lock, flags);
+	bcm->initialized = 1;
+	spin_unlock_irqrestore(&bcm->lock, flags);
+
 	bcm43xx_periodic_tasks_setup(bcm);
 
 	assert(err == 0);
