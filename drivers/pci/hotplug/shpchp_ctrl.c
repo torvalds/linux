@@ -441,7 +441,7 @@ static int board_added(struct slot *p_slot)
 	}
 
 	/* Wait for ~1 second */
-	wait_for_ctrl_irq (ctrl);
+	msleep(1000);
 
 	dbg("%s: slot status = %x\n", __FUNCTION__, p_slot->status);
 	/* Check for a power fault */

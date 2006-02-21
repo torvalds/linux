@@ -325,27 +325,6 @@ static inline struct slot *shpchp_find_slot (struct controller *ctrl, u8 device)
 	return NULL;
 }
 
-static inline int wait_for_ctrl_irq (struct controller *ctrl)
-{
-    DECLARE_WAITQUEUE(wait, current);
-	int retval = 0;
-
-	add_wait_queue(&ctrl->queue, &wait);
-
-	if (!shpchp_poll_mode) {
-		/* Sleep for up to 1 second */
-		msleep_interruptible(1000);
-	} else {
-		/* Sleep for up to 2 seconds */
-		msleep_interruptible(2000);
-	}
-	remove_wait_queue(&ctrl->queue, &wait);
-	if (signal_pending(current))
-		retval =  -EINTR;
-
-	return retval;
-}
-
 static inline void amd_pogo_errata_save_misc_reg(struct slot *p_slot)
 {
 	u32 pcix_misc2_temp;
