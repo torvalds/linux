@@ -37,6 +37,8 @@
 #include "shpchp.h"
 
 static void interrupt_event_handler(void *data);
+static int shpchp_enable_slot(struct slot *p_slot);
+static int shpchp_disable_slot(struct slot *p_slot);
 
 static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
 {
@@ -50,7 +52,7 @@ static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
 	info->p_slot = p_slot;
 	INIT_WORK(&info->work, interrupt_event_handler, info);
 
-	queue_work(shpchp_wq, &info->work);
+	schedule_work(&info->work);
 
 	return 0;
 }
@@ -72,24 +74,6 @@ u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
 	 */
 	info("Button pressed on Slot(%d)\n", ctrl->first_slot + hp_slot);
 	event_type = INT_BUTTON_PRESS;
-
-	if ((p_slot->state == BLINKINGON_STATE)
-	    || (p_slot->state == BLINKINGOFF_STATE)) {
-		/* Cancel if we are still blinking; this means that we press the
-		 * attention again before the 5 sec. limit expires to cancel hot-add
-		 * or hot-remove
-		 */
-		event_type = INT_BUTTON_CANCEL;
-		info("Button cancel on Slot(%d)\n", ctrl->first_slot + hp_slot);
-	} else if ((p_slot->state == POWERON_STATE)
-		   || (p_slot->state == POWEROFF_STATE)) {
-		/* Ignore if the slot is on power-on or power-off state; this 
-		 * means that the previous attention button action to hot-add or
-		 * hot-remove is undergoing
-		 */
-		event_type = INT_BUTTON_IGNORE;
-		info("Button ignore on Slot(%d)\n", ctrl->first_slot + hp_slot);
-	}
 
 	queue_interrupt_event(p_slot, event_type);
 
@@ -492,6 +476,11 @@ static int remove_board(struct slot *p_slot)
 }
 
 
+struct pushbutton_work_info {
+	struct slot *p_slot;
+	struct work_struct work;
+};
+
 /**
  * shpchp_pushbutton_thread
  *
@@ -499,22 +488,61 @@ static int remove_board(struct slot *p_slot)
  * Handles all pending events and exits.
  *
  */
-void shpchp_pushbutton_thread(void *data)
+static void shpchp_pushbutton_thread(void *data)
 {
-	struct slot *p_slot = data;
-	u8 getstatus;
+	struct pushbutton_work_info *info = data;
+	struct slot *p_slot = info->p_slot;
 
-	p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
-	if (getstatus) {
-		p_slot->state = POWEROFF_STATE;
+	mutex_lock(&p_slot->lock);
+	switch (p_slot->state) {
+	case POWEROFF_STATE:
+		mutex_unlock(&p_slot->lock);
 		shpchp_disable_slot(p_slot);
+		mutex_lock(&p_slot->lock);
 		p_slot->state = STATIC_STATE;
-	} else {
-		p_slot->state = POWERON_STATE;
+		break;
+	case POWERON_STATE:
+		mutex_unlock(&p_slot->lock);
 		if (shpchp_enable_slot(p_slot))
 			p_slot->hpc_ops->green_led_off(p_slot);
+		mutex_lock(&p_slot->lock);
 		p_slot->state = STATIC_STATE;
+		break;
+	default:
+		break;
 	}
+	mutex_unlock(&p_slot->lock);
+
+	kfree(info);
+}
+
+void queue_pushbutton_work(void *data)
+{
+	struct slot *p_slot = data;
+	struct pushbutton_work_info *info;
+
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		err("%s: Cannot allocate memory\n", __FUNCTION__);
+		return;
+	}
+	info->p_slot = p_slot;
+	INIT_WORK(&info->work, shpchp_pushbutton_thread, info);
+
+	mutex_lock(&p_slot->lock);
+	switch (p_slot->state) {
+	case BLINKINGOFF_STATE:
+		p_slot->state = POWEROFF_STATE;
+		break;
+	case BLINKINGON_STATE:
+		p_slot->state = POWERON_STATE;
+		break;
+	default:
+		goto out;
+	}
+	queue_work(shpchp_wq, &info->work);
+ out:
+	mutex_unlock(&p_slot->lock);
 }
 
 static int update_slot_info (struct slot *slot)
@@ -536,34 +564,15 @@ static int update_slot_info (struct slot *slot)
 	return result;
 }
 
-static void interrupt_event_handler(void *data)
+/*
+ * Note: This function must be called with slot->lock held
+ */
+static void handle_button_press_event(struct slot *p_slot)
 {
-	struct event_info *info = data;
-	struct slot *p_slot = info->p_slot;
 	u8 getstatus;
 
-	switch (info->event_type) {
-	case INT_BUTTON_CANCEL:
-		dbg("%s: button cancel\n", __FUNCTION__);
-		cancel_delayed_work(&p_slot->work);
-		switch (p_slot->state) {
-		case BLINKINGOFF_STATE:
-			p_slot->hpc_ops->green_led_on(p_slot);
-			p_slot->hpc_ops->set_attention_status(p_slot, 0);
-			break;
-		case BLINKINGON_STATE:
-			p_slot->hpc_ops->green_led_off(p_slot);
-			p_slot->hpc_ops->set_attention_status(p_slot, 0);
-			break;
-		default:
-			warn("Not a valid state\n");
-			return;
-		}
-		info(msg_button_cancel, p_slot->number);
-		p_slot->state = STATIC_STATE;
-		break;
-	case INT_BUTTON_PRESS:
-		dbg("%s: Button pressed\n", __FUNCTION__);
+	switch (p_slot->state) {
+	case STATIC_STATE:
 		p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (getstatus) {
 			p_slot->state = BLINKINGOFF_STATE;
@@ -576,7 +585,51 @@ static void interrupt_event_handler(void *data)
 		p_slot->hpc_ops->green_led_blink(p_slot);
 		p_slot->hpc_ops->set_attention_status(p_slot, 0);
 
-		queue_delayed_work(shpchp_wq, &p_slot->work, 5*HZ);
+		schedule_delayed_work(&p_slot->work, 5*HZ);
+		break;
+	case BLINKINGOFF_STATE:
+	case BLINKINGON_STATE:
+		/*
+		 * Cancel if we are still blinking; this means that we
+		 * press the attention again before the 5 sec. limit
+		 * expires to cancel hot-add or hot-remove
+		 */
+		info("Button cancel on Slot(%s)\n", p_slot->name);
+		dbg("%s: button cancel\n", __FUNCTION__);
+		cancel_delayed_work(&p_slot->work);
+		if (p_slot->state == BLINKINGOFF_STATE)
+			p_slot->hpc_ops->green_led_on(p_slot);
+		else
+			p_slot->hpc_ops->green_led_off(p_slot);
+		p_slot->hpc_ops->set_attention_status(p_slot, 0);
+		info(msg_button_cancel, p_slot->number);
+		p_slot->state = STATIC_STATE;
+		break;
+	case POWEROFF_STATE:
+	case POWERON_STATE:
+		/*
+		 * Ignore if the slot is on power-on or power-off state;
+		 * this means that the previous attention button action
+		 * to hot-add or hot-remove is undergoing
+		 */
+		info("Button ignore on Slot(%s)\n", p_slot->name);
+		update_slot_info(p_slot);
+		break;
+	default:
+		warn("Not a valid state\n");
+		break;
+	}
+}
+
+static void interrupt_event_handler(void *data)
+{
+	struct event_info *info = data;
+	struct slot *p_slot = info->p_slot;
+
+	mutex_lock(&p_slot->lock);
+	switch (info->event_type) {
+	case INT_BUTTON_PRESS:
+		handle_button_press_event(p_slot);
 		break;
 	case INT_POWER_FAULT:
 		dbg("%s: power fault\n", __FUNCTION__);
@@ -587,12 +640,13 @@ static void interrupt_event_handler(void *data)
 		update_slot_info(p_slot);
 		break;
 	}
+	mutex_unlock(&p_slot->lock);
 
 	kfree(info);
 }
 
 
-int shpchp_enable_slot (struct slot *p_slot)
+static int shpchp_enable_slot (struct slot *p_slot)
 {
 	u8 getstatus = 0;
 	int rc, retval = -ENODEV;
@@ -647,7 +701,7 @@ int shpchp_enable_slot (struct slot *p_slot)
 }
 
 
-int shpchp_disable_slot (struct slot *p_slot)
+static int shpchp_disable_slot (struct slot *p_slot)
 {
 	u8 getstatus = 0;
 	int rc, retval = -ENODEV;
@@ -681,3 +735,66 @@ int shpchp_disable_slot (struct slot *p_slot)
 	return retval;
 }
 
+int shpchp_sysfs_enable_slot(struct slot *p_slot)
+{
+	int retval = -ENODEV;
+
+	mutex_lock(&p_slot->lock);
+	switch (p_slot->state) {
+	case BLINKINGON_STATE:
+		cancel_delayed_work(&p_slot->work);
+	case STATIC_STATE:
+		p_slot->state = POWERON_STATE;
+		mutex_unlock(&p_slot->lock);
+		retval = shpchp_enable_slot(p_slot);
+		mutex_lock(&p_slot->lock);
+		p_slot->state = STATIC_STATE;
+		break;
+	case POWERON_STATE:
+		info("Slot %s is already in powering on state\n",
+		     p_slot->name);
+		break;
+	case BLINKINGOFF_STATE:
+	case POWEROFF_STATE:
+		info("Already enabled on slot %s\n", p_slot->name);
+		break;
+	default:
+		err("Not a valid state on slot %s\n", p_slot->name);
+		break;
+	}
+	mutex_unlock(&p_slot->lock);
+
+	return retval;
+}
+
+int shpchp_sysfs_disable_slot(struct slot *p_slot)
+{
+	int retval = -ENODEV;
+
+	mutex_lock(&p_slot->lock);
+	switch (p_slot->state) {
+	case BLINKINGOFF_STATE:
+		cancel_delayed_work(&p_slot->work);
+	case STATIC_STATE:
+		p_slot->state = POWEROFF_STATE;
+		mutex_unlock(&p_slot->lock);
+		retval = shpchp_disable_slot(p_slot);
+		mutex_lock(&p_slot->lock);
+		p_slot->state = STATIC_STATE;
+		break;
+	case POWEROFF_STATE:
+		info("Slot %s is already in powering off state\n",
+		     p_slot->name);
+		break;
+	case BLINKINGON_STATE:
+	case POWERON_STATE:
+		info("Already disabled on slot %s\n", p_slot->name);
+		break;
+	default:
+		err("Not a valid state on slot %s\n", p_slot->name);
+		break;
+	}
+	mutex_unlock(&p_slot->lock);
+
+	return retval;
+}

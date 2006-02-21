@@ -136,13 +136,14 @@ static int init_slots(struct controller *ctrl)
 		slot->bus = ctrl->slot_bus;
 		slot->device = ctrl->slot_device_offset + i;
 		slot->hpc_ops = ctrl->hpc_ops;
+		mutex_init(&slot->lock);
 
 		if (shpchprm_get_physical_slot_number(ctrl, &sun,
 						      slot->bus, slot->device))
 			goto error_info;
 
 		slot->number = sun;
-		INIT_WORK(&slot->work, shpchp_pushbutton_thread, slot);
+		INIT_WORK(&slot->work, queue_pushbutton_work, slot);
 
 		/* register this slot with the hotplug pci core */
 		hotplug_slot->private = slot;
@@ -188,6 +189,7 @@ void cleanup_slots(struct controller *ctrl)
 		slot = list_entry(tmp, struct slot, slot_list);
 		list_del(&slot->slot_list);
 		cancel_delayed_work(&slot->work);
+		flush_scheduled_work();
 		flush_workqueue(shpchp_wq);
 		pci_hp_deregister(slot->hotplug_slot);
 	}
@@ -244,7 +246,7 @@ static int enable_slot (struct hotplug_slot *hotplug_slot)
 
 	dbg("%s - physical_slot = %s\n", __FUNCTION__, hotplug_slot->name);
 
-	return shpchp_enable_slot(slot);
+	return shpchp_sysfs_enable_slot(slot);
 }
 
 static int disable_slot (struct hotplug_slot *hotplug_slot)
@@ -253,7 +255,7 @@ static int disable_slot (struct hotplug_slot *hotplug_slot)
 
 	dbg("%s - physical_slot = %s\n", __FUNCTION__, hotplug_slot->name);
 
-	return shpchp_disable_slot(slot);
+	return shpchp_sysfs_disable_slot(slot);
 }
 
 static int get_power_status (struct hotplug_slot *hotplug_slot, u8 *value)

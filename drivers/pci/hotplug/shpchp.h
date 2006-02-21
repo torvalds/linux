@@ -72,6 +72,7 @@ struct slot {
 	struct list_head	slot_list;
 	char name[SLOT_NAME_SIZE];
 	struct work_struct work;	/* work for button event */
+	struct mutex lock;
 };
 
 struct event_info {
@@ -181,8 +182,8 @@ struct hotplug_params {
 /* sysfs functions for the hotplug controller info */
 extern void shpchp_create_ctrl_files	(struct controller *ctrl);
 
-extern int	shpchp_enable_slot(struct slot *slot);
-extern int	shpchp_disable_slot(struct slot *slot);
+extern int	shpchp_sysfs_enable_slot(struct slot *slot);
+extern int	shpchp_sysfs_disable_slot(struct slot *slot);
 
 extern u8	shpchp_handle_attention_button(u8 hp_slot, void *inst_id);
 extern u8	shpchp_handle_switch_change(u8 hp_slot, void *inst_id);
@@ -200,7 +201,7 @@ extern int	shpchprm_get_physical_slot_number(struct controller *ctrl,
 		u32 *sun, u8 busnum, u8 devnum);
 extern void	shpchp_remove_ctrl_files(struct controller *ctrl);
 extern void	cleanup_slots(struct controller *ctrl);
-extern void	shpchp_pushbutton_thread(void *data);
+extern void	queue_pushbutton_work(void *data);
 
 /* Global variables */
 extern struct list_head shpchp_ctrl_list;
