@@ -386,14 +386,6 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, ctrl);
 
-	ctrl->pci_bus = kmalloc(sizeof(*ctrl->pci_bus), GFP_KERNEL);
-	if (!ctrl->pci_bus) {
-		err("out of memory\n");
-		rc = -ENOMEM;
-		goto err_out_unmap_mmio_region;
-	}
-
-	memcpy (ctrl->pci_bus, pdev->bus, sizeof (*ctrl->pci_bus));
 	ctrl->bus = pdev->bus->number;
 	ctrl->slot_bus = pdev->subordinate->number;
 	ctrl->device = PCI_SLOT(pdev->devfn);
@@ -408,7 +400,7 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = get_ctlr_slot_config(ctrl);
 	if (rc) {
 		err(msg_initialization_err, rc);
-		goto err_out_free_ctrl_bus;
+		goto err_out_unmap_mmio_region;
 	}
 	first_device_num = ctrl->slot_device_offset;
 	num_ctlr_slots = ctrl->num_slots;
@@ -446,8 +438,6 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_out_free_ctrl_slot:
 	cleanup_slots(ctrl);
-err_out_free_ctrl_bus:
-	kfree(ctrl->pci_bus);
 err_out_unmap_mmio_region:
 	ctrl->hpc_ops->release_ctlr(ctrl);
 err_out_free_ctrl:
@@ -481,7 +471,6 @@ static void __exit unload_shpchpd(void)
 		ctrl = list_entry(tmp, struct controller, ctrl_list);
 		shpchp_remove_ctrl_files(ctrl);
 		cleanup_slots(ctrl);
-		kfree (ctrl->pci_bus);
 		ctrl->hpc_ops->release_ctlr(ctrl);
 		kfree(ctrl);
 	}
