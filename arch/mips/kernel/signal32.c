@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 1991, 1992  Linus Torvalds
- * Copyright (C) 1994 - 2000  Ralf Baechle
+ * Copyright (C) 1994 - 2000, 2006  Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/cache.h>
@@ -106,8 +106,6 @@ typedef struct compat_siginfo {
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-extern int do_signal32(sigset_t *oldset, struct pt_regs *regs);
-
 /* 32-bit compatibility types */
 
 #define _NSIG_BPW32	32
@@ -198,7 +196,7 @@ __attribute_used__ noinline static int
 _sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t *uset;
-	sigset_t newset, saveset;
+	sigset_t newset;
 
 	uset = (compat_sigset_t *) regs.regs[4];
 	if (get_sigset(&newset, uset))
@@ -206,19 +204,15 @@ _sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	sigdelsetmask(&newset, ~_BLOCKABLE);
 
 	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
+	current->saved_sigmask = current->blocked;
 	current->blocked = newset;
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	regs.regs[2] = EINTR;
-	regs.regs[7] = 1;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal32(&saveset, &regs))
-			return -EINTR;
-	}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_thread_flag(TIF_RESTORE_SIGMASK);
+	return -ERESTARTNOHAND;
 }
 
 save_static_function(sys32_rt_sigsuspend);
@@ -226,8 +220,8 @@ __attribute_used__ noinline static int
 _sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
 	compat_sigset_t *uset;
-	sigset_t newset, saveset;
-        size_t sigsetsize;
+	sigset_t newset;
+	size_t sigsetsize;
 
 	/* XXX Don't preclude handling different sized sigset_t's.  */
 	sigsetsize = regs.regs[5];
@@ -240,19 +234,15 @@ _sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	sigdelsetmask(&newset, ~_BLOCKABLE);
 
 	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
+	current->saved_sigmask = current->blocked;
 	current->blocked = newset;
         recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	regs.regs[2] = EINTR;
-	regs.regs[7] = 1;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal32(&saveset, &regs))
-			return -EINTR;
-	}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_thread_flag(TIF_RESTORE_SIGMASK);
+	return -ERESTARTNOHAND;
 }
 
 asmlinkage int sys32_sigaction(int sig, const struct sigaction32 *act,
@@ -783,7 +773,7 @@ static inline int handle_signal(unsigned long sig, siginfo_t *info,
 		regs->regs[2] = EINTR;
 		break;
 	case ERESTARTSYS:
-		if(!(ka->sa.sa_flags & SA_RESTART)) {
+		if (!(ka->sa.sa_flags & SA_RESTART)) {
 			regs->regs[2] = EINTR;
 			break;
 		}
@@ -810,9 +800,10 @@ static inline int handle_signal(unsigned long sig, siginfo_t *info,
 	return ret;
 }
 
-int do_signal32(sigset_t *oldset, struct pt_regs *regs)
+void do_signal32(struct pt_regs *regs)
 {
 	struct k_sigaction ka;
+	sigset_t *oldset;
 	siginfo_t info;
 	int signr;
 
@@ -822,17 +813,30 @@ int do_signal32(sigset_t *oldset, struct pt_regs *regs)
 	 * if so.
 	 */
 	if (!user_mode(regs))
-		return 1;
+		return;
 
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0)
-		return handle_signal(signr, &info, &ka, oldset, regs);
+	if (signr > 0) {
+		/* Whee! Actually deliver the signal. */
+		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
+			/*
+			* A signal was successfully delivered; the saved
+			* sigmask will have been stored in the signal frame,
+			* and will be restored by sigreturn, so we can simply
+			* clear the TIF_RESTORE_SIGMASK flag.
+			*/
+			if (test_thread_flag(TIF_RESTORE_SIGMASK))
+				clear_thread_flag(TIF_RESTORE_SIGMASK);
+		}
+	}
 
 no_signal:
 	/*
@@ -853,7 +857,15 @@ no_signal:
 			regs->cp0_epc -= 4;
 		}
 	}
-	return 0;
+
+	/*
+	* If there's no signal to deliver, we just put the saved sigmask
+	* back
+	*/
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
 }
 
 asmlinkage int sys32_rt_sigaction(int sig, const struct sigaction32 *act,
