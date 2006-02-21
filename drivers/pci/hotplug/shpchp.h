@@ -46,6 +46,7 @@
 extern int shpchp_poll_mode;
 extern int shpchp_poll_time;
 extern int shpchp_debug;
+extern struct workqueue_struct *shpchp_wq;
 
 /*#define dbg(format, arg...) do { if (shpchp_debug) printk(KERN_DEBUG "%s: " format, MY_NAME , ## arg); } while (0)*/
 #define dbg(format, arg...) do { if (shpchp_debug) printk("%s: " format, MY_NAME , ## arg); } while (0)
@@ -70,11 +71,13 @@ struct slot {
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
 	char name[SLOT_NAME_SIZE];
+	struct work_struct work;	/* work for button event */
 };
 
 struct event_info {
 	u32 event_type;
-	u8 hp_slot;
+	struct slot *p_slot;
+	struct work_struct work;
 };
 
 struct controller {
@@ -85,11 +88,9 @@ struct controller {
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
-	struct event_info event_queue[10];
 	struct list_head slot_list;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
-	u8 next_event;
 	u8 bus;
 	u8 device;
 	u8 function;
@@ -180,9 +181,6 @@ struct hotplug_params {
 /* sysfs functions for the hotplug controller info */
 extern void shpchp_create_ctrl_files	(struct controller *ctrl);
 
-/* controller functions */
-extern int	shpchp_event_start_thread(void);
-extern void	shpchp_event_stop_thread(void);
 extern int	shpchp_enable_slot(struct slot *slot);
 extern int	shpchp_disable_slot(struct slot *slot);
 
@@ -201,7 +199,8 @@ extern void	get_hp_params_from_firmware(struct pci_dev *dev,
 extern int	shpchprm_get_physical_slot_number(struct controller *ctrl,
 		u32 *sun, u8 busnum, u8 devnum);
 extern void	shpchp_remove_ctrl_files(struct controller *ctrl);
-
+extern void	cleanup_slots(struct controller *ctrl);
+extern void	shpchp_pushbutton_thread(void *data);
 
 /* Global variables */
 extern struct list_head shpchp_ctrl_list;

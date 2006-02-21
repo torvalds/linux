@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/workqueue.h>
 #include "shpchp.h"
 
 /* Global variables */
@@ -39,6 +40,7 @@ int shpchp_debug;
 int shpchp_poll_mode;
 int shpchp_poll_time;
 LIST_HEAD(shpchp_ctrl_list);
+struct workqueue_struct *shpchp_wq;
 
 #define DRIVER_VERSION	"0.4"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
@@ -57,7 +59,6 @@ MODULE_PARM_DESC(shpchp_poll_time, "Polling mechanism frequency, in seconds");
 
 #define SHPC_MODULE_NAME "shpchp"
 
-static int shpc_start_thread (void);
 static int set_attention_status (struct hotplug_slot *slot, u8 value);
 static int enable_slot		(struct hotplug_slot *slot);
 static int disable_slot		(struct hotplug_slot *slot);
@@ -141,6 +142,7 @@ static int init_slots(struct controller *ctrl)
 			goto error_info;
 
 		slot->number = sun;
+		INIT_WORK(&slot->work, shpchp_pushbutton_thread, slot);
 
 		/* register this slot with the hotplug pci core */
 		hotplug_slot->private = slot;
@@ -176,7 +178,7 @@ error:
 	return retval;
 }
 
-static void cleanup_slots(struct controller *ctrl)
+void cleanup_slots(struct controller *ctrl)
 {
 	struct list_head *tmp;
 	struct list_head *next;
@@ -185,6 +187,8 @@ static void cleanup_slots(struct controller *ctrl)
 	list_for_each_safe(tmp, next, &ctrl->slot_list) {
 		slot = list_entry(tmp, struct slot, slot_list);
 		list_del(&slot->slot_list);
+		cancel_delayed_work(&slot->work);
+		flush_workqueue(shpchp_wq);
 		pci_hp_deregister(slot->hotplug_slot);
 	}
 }
@@ -400,7 +404,7 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = get_ctlr_slot_config(ctrl);
 	if (rc) {
 		err(msg_initialization_err, rc);
-		goto err_out_unmap_mmio_region;
+		goto err_out_release_ctlr;
 	}
 	first_device_num = ctrl->slot_device_offset;
 	num_ctlr_slots = ctrl->num_slots;
@@ -411,7 +415,7 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = init_slots(ctrl);
 	if (rc) {
 		err(msg_initialization_err, 6);
-		goto err_out_free_ctrl_slot;
+		goto err_out_release_ctlr;
 	}
 
 	/* Now hpc_functions (slot->hpc_ops->functions) are ready  */
@@ -427,38 +431,18 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ctrl->speed = PCI_SPEED_33MHz;
 	}
 
-	/* Finish setting up the hot plug ctrl device */
-	ctrl->next_event = 0;
-
 	list_add(&ctrl->ctrl_list, &shpchp_ctrl_list);
 
 	shpchp_create_ctrl_files(ctrl);
 
 	return 0;
 
-err_out_free_ctrl_slot:
-	cleanup_slots(ctrl);
-err_out_unmap_mmio_region:
+err_out_release_ctlr:
 	ctrl->hpc_ops->release_ctlr(ctrl);
 err_out_free_ctrl:
 	kfree(ctrl);
 err_out_none:
 	return -ENODEV;
-}
-
-static int shpc_start_thread(void)
-{
-	int retval = 0;
-
-	dbg("Initialize + Start the notification/polling mechanism \n");
-
-	retval = shpchp_event_start_thread();
-	if (retval) {
-		dbg("shpchp_event_start_thread() failed\n");
-		return retval;
-	}
-
-	return retval;
 }
 
 static void __exit unload_shpchpd(void)
@@ -470,14 +454,11 @@ static void __exit unload_shpchpd(void)
 	list_for_each_safe(tmp, next, &shpchp_ctrl_list) {
 		ctrl = list_entry(tmp, struct controller, ctrl_list);
 		shpchp_remove_ctrl_files(ctrl);
-		cleanup_slots(ctrl);
 		ctrl->hpc_ops->release_ctlr(ctrl);
 		kfree(ctrl);
 	}
 
-	/* Stop the notification mechanism */
-	shpchp_event_stop_thread();
-
+	destroy_workqueue(shpchp_wq);
 }
 
 static struct pci_device_id shpcd_pci_tbl[] = {
@@ -501,17 +482,15 @@ static int __init shpcd_init(void)
 	shpchp_poll_mode = 1;
 #endif
 
-	retval = shpc_start_thread();
-	if (retval)
-		goto error_hpc_init;
+	shpchp_wq = create_singlethread_workqueue("shpchpd");
+	if (!shpchp_wq)
+		return -ENOMEM;
 
 	retval = pci_register_driver(&shpc_driver);
 	dbg("%s: pci_register_driver = %d\n", __FUNCTION__, retval);
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
-
-error_hpc_init:
 	if (retval) {
-		shpchp_event_stop_thread();
+		destroy_workqueue(shpchp_wq);
 	}
 	return retval;
 }

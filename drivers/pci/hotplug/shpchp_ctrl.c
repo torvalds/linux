@@ -32,44 +32,46 @@
 #include <linux/types.h>
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
+#include <linux/workqueue.h>
 #include "../pci.h"
 #include "shpchp.h"
 
-static void interrupt_event_handler(struct controller *ctrl);
+static void interrupt_event_handler(void *data);
 
-static struct semaphore event_semaphore;	/* mutex for process loop (up if something to process) */
-static struct semaphore event_exit;		/* guard ensure thread has exited before calling it quits */
-static int event_finished;
-static unsigned long pushbutton_pending;	/* = 0 */
+static int queue_interrupt_event(struct slot *p_slot, u32 event_type)
+{
+	struct event_info *info;
+
+	info = kmalloc(sizeof(*info), GFP_ATOMIC);
+	if (!info)
+		return -ENOMEM;
+
+	info->event_type = event_type;
+	info->p_slot = p_slot;
+	INIT_WORK(&info->work, interrupt_event_handler, info);
+
+	queue_work(shpchp_wq, &info->work);
+
+	return 0;
+}
 
 u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
 {
 	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
-	u8 rc = 0;
-	u8 getstatus;
-	struct event_info *taskInfo;
+	u32 event_type;
 
 	/* Attention Button Change */
 	dbg("shpchp:  Attention button interrupt received.\n");
 	
-	/* This is the structure that tells the worker thread what to do */
-	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
-
 	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
-	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
-	
-	ctrl->next_event = (ctrl->next_event + 1) % 10;
-	taskInfo->hp_slot = hp_slot;
-
-	rc++;
 
 	/*
 	 *  Button pressed - See if need to TAKE ACTION!!!
 	 */
 	info("Button pressed on Slot(%d)\n", ctrl->first_slot + hp_slot);
-	taskInfo->event_type = INT_BUTTON_PRESS;
+	event_type = INT_BUTTON_PRESS;
 
 	if ((p_slot->state == BLINKINGON_STATE)
 	    || (p_slot->state == BLINKINGOFF_STATE)) {
@@ -77,7 +79,7 @@ u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
 		 * attention again before the 5 sec. limit expires to cancel hot-add
 		 * or hot-remove
 		 */
-		taskInfo->event_type = INT_BUTTON_CANCEL;
+		event_type = INT_BUTTON_CANCEL;
 		info("Button cancel on Slot(%d)\n", ctrl->first_slot + hp_slot);
 	} else if ((p_slot->state == POWERON_STATE)
 		   || (p_slot->state == POWEROFF_STATE)) {
@@ -85,12 +87,11 @@ u8 shpchp_handle_attention_button(u8 hp_slot, void *inst_id)
 		 * means that the previous attention button action to hot-add or
 		 * hot-remove is undergoing
 		 */
-		taskInfo->event_type = INT_BUTTON_IGNORE;
+		event_type = INT_BUTTON_IGNORE;
 		info("Button ignore on Slot(%d)\n", ctrl->first_slot + hp_slot);
 	}
 
-	if (rc)
-		up(&event_semaphore);	/* signal event thread that new event is posted */
+	queue_interrupt_event(p_slot, event_type);
 
 	return 0;
 
@@ -100,21 +101,12 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 {
 	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
-	u8 rc = 0;
 	u8 getstatus;
-	struct event_info *taskInfo;
+	u32 event_type;
 
 	/* Switch Change */
 	dbg("shpchp:  Switch interrupt received.\n");
 
-	/* This is the structure that tells the worker thread
-	 * what to do
-	 */
-	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
-	ctrl->next_event = (ctrl->next_event + 1) % 10;
-	taskInfo->hp_slot = hp_slot;
-
-	rc++;
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
@@ -126,9 +118,9 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 		 * Switch opened
 		 */
 		info("Latch open on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		taskInfo->event_type = INT_SWITCH_OPEN;
+		event_type = INT_SWITCH_OPEN;
 		if (p_slot->pwr_save && p_slot->presence_save) {
-			taskInfo->event_type = INT_POWER_FAULT;
+			event_type = INT_POWER_FAULT;
 			err("Surprise Removal of card\n");
 		}
 	} else {
@@ -136,34 +128,23 @@ u8 shpchp_handle_switch_change(u8 hp_slot, void *inst_id)
 		 *  Switch closed
 		 */
 		info("Latch close on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		taskInfo->event_type = INT_SWITCH_CLOSE;
+		event_type = INT_SWITCH_CLOSE;
 	}
 
-	if (rc)
-		up(&event_semaphore);	/* signal event thread that new event is posted */
+	queue_interrupt_event(p_slot, event_type);
 
-	return rc;
+	return 1;
 }
 
 u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
 {
 	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
-	u8 rc = 0;
-	/*u8 temp_byte;*/
-	struct event_info *taskInfo;
+	u32 event_type;
 
 	/* Presence Change */
 	dbg("shpchp:  Presence/Notify input change.\n");
 
-	/* This is the structure that tells the worker thread
-	 * what to do
-	 */
-	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
-	ctrl->next_event = (ctrl->next_event + 1) % 10;
-	taskInfo->hp_slot = hp_slot;
-
-	rc++;
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	/* 
@@ -175,39 +156,29 @@ u8 shpchp_handle_presence_change(u8 hp_slot, void *inst_id)
 		 * Card Present
 		 */
 		info("Card present on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		taskInfo->event_type = INT_PRESENCE_ON;
+		event_type = INT_PRESENCE_ON;
 	} else {
 		/*
 		 * Not Present
 		 */
 		info("Card not present on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		taskInfo->event_type = INT_PRESENCE_OFF;
+		event_type = INT_PRESENCE_OFF;
 	}
 
-	if (rc)
-		up(&event_semaphore);	/* signal event thread that new event is posted */
+	queue_interrupt_event(p_slot, event_type);
 
-	return rc;
+	return 1;
 }
 
 u8 shpchp_handle_power_fault(u8 hp_slot, void *inst_id)
 {
 	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
-	u8 rc = 0;
-	struct event_info *taskInfo;
+	u32 event_type;
 
 	/* Power fault */
 	dbg("shpchp:  Power fault interrupt received.\n");
 
-	/* This is the structure that tells the worker thread
-	 * what to do
-	 */
-	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
-	ctrl->next_event = (ctrl->next_event + 1) % 10;
-	taskInfo->hp_slot = hp_slot;
-
-	rc++;
 	p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	if ( !(p_slot->hpc_ops->query_power_fault(p_slot))) {
@@ -216,21 +187,21 @@ u8 shpchp_handle_power_fault(u8 hp_slot, void *inst_id)
 		 */
 		info("Power fault cleared on Slot(%d)\n", ctrl->first_slot + hp_slot);
 		p_slot->status = 0x00;
-		taskInfo->event_type = INT_POWER_FAULT_CLEAR;
+		event_type = INT_POWER_FAULT_CLEAR;
 	} else {
 		/*
 		 *   Power fault
 		 */
 		info("Power fault on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		taskInfo->event_type = INT_POWER_FAULT;
+		event_type = INT_POWER_FAULT;
 		/* set power fault status for this board */
 		p_slot->status = 0xFF;
 		info("power fault bit %x set\n", hp_slot);
 	}
-	if (rc)
-		up(&event_semaphore);	/* signal event thread that new event is posted */
 
-	return rc;
+	queue_interrupt_event(p_slot, event_type);
+
+	return 1;
 }
 
 /* The following routines constitute the bulk of the 
@@ -521,14 +492,6 @@ static int remove_board(struct slot *p_slot)
 }
 
 
-static void pushbutton_helper_thread (unsigned long data)
-{
-	pushbutton_pending = data;
-
-	up(&event_semaphore);
-}
-
-
 /**
  * shpchp_pushbutton_thread
  *
@@ -536,89 +499,23 @@ static void pushbutton_helper_thread (unsigned long data)
  * Handles all pending events and exits.
  *
  */
-static void shpchp_pushbutton_thread (unsigned long slot)
+void shpchp_pushbutton_thread(void *data)
 {
-	struct slot *p_slot = (struct slot *) slot;
+	struct slot *p_slot = data;
 	u8 getstatus;
-	
-	pushbutton_pending = 0;
-
-	if (!p_slot) {
-		dbg("%s: Error! slot NULL\n", __FUNCTION__);
-		return;
-	}
 
 	p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 	if (getstatus) {
 		p_slot->state = POWEROFF_STATE;
-
 		shpchp_disable_slot(p_slot);
 		p_slot->state = STATIC_STATE;
 	} else {
 		p_slot->state = POWERON_STATE;
-
 		if (shpchp_enable_slot(p_slot))
 			p_slot->hpc_ops->green_led_off(p_slot);
-
 		p_slot->state = STATIC_STATE;
 	}
-
-	return;
 }
-
-
-/* this is the main worker thread */
-static int event_thread(void* data)
-{
-	struct controller *ctrl;
-	lock_kernel();
-	daemonize("shpchpd_event");
-	unlock_kernel();
-
-	while (1) {
-		dbg("!!!!event_thread sleeping\n");
-		down_interruptible (&event_semaphore);
-		dbg("event_thread woken finished = %d\n", event_finished);
-		if (event_finished || signal_pending(current))
-			break;
-		/* Do stuff here */
-		if (pushbutton_pending)
-			shpchp_pushbutton_thread(pushbutton_pending);
-		else
-			list_for_each_entry(ctrl, &shpchp_ctrl_list, ctrl_list)
-				interrupt_event_handler(ctrl);
-	}
-	dbg("event_thread signals exit\n");
-	up(&event_exit);
-	return 0;
-}
-
-int shpchp_event_start_thread (void)
-{
-	int pid;
-
-	/* initialize our semaphores */
-	init_MUTEX_LOCKED(&event_exit);
-	event_finished=0;
-
-	init_MUTEX_LOCKED(&event_semaphore);
-	pid = kernel_thread(event_thread, NULL, 0);
-
-	if (pid < 0) {
-		err ("Can't start up our event thread\n");
-		return -1;
-	}
-	return 0;
-}
-
-
-void shpchp_event_stop_thread (void)
-{
-	event_finished = 1;
-	up(&event_semaphore);
-	down(&event_exit);
-}
-
 
 static int update_slot_info (struct slot *slot)
 {
@@ -639,91 +536,59 @@ static int update_slot_info (struct slot *slot)
 	return result;
 }
 
-static void interrupt_event_handler(struct controller *ctrl)
+static void interrupt_event_handler(void *data)
 {
-	int loop = 0;
-	int change = 1;
-	u8 hp_slot;
+	struct event_info *info = data;
+	struct slot *p_slot = info->p_slot;
 	u8 getstatus;
-	struct slot *p_slot;
 
-	while (change) {
-		change = 0;
+	switch (info->event_type) {
+	case INT_BUTTON_CANCEL:
+		dbg("%s: button cancel\n", __FUNCTION__);
+		cancel_delayed_work(&p_slot->work);
+		switch (p_slot->state) {
+		case BLINKINGOFF_STATE:
+			p_slot->hpc_ops->green_led_on(p_slot);
+			p_slot->hpc_ops->set_attention_status(p_slot, 0);
+			break;
+		case BLINKINGON_STATE:
+			p_slot->hpc_ops->green_led_off(p_slot);
+			p_slot->hpc_ops->set_attention_status(p_slot, 0);
+			break;
+		default:
+			warn("Not a valid state\n");
+			return;
+		}
+		info(msg_button_cancel, p_slot->number);
+		p_slot->state = STATIC_STATE;
+		break;
+	case INT_BUTTON_PRESS:
+		dbg("%s: Button pressed\n", __FUNCTION__);
+		p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
+		if (getstatus) {
+			p_slot->state = BLINKINGOFF_STATE;
+			info(msg_button_off, p_slot->number);
+		} else {
+			p_slot->state = BLINKINGON_STATE;
+			info(msg_button_on, p_slot->number);
+		}
+		/* blink green LED and turn off amber */
+		p_slot->hpc_ops->green_led_blink(p_slot);
+		p_slot->hpc_ops->set_attention_status(p_slot, 0);
 
-		for (loop = 0; loop < 10; loop++) {
-			if (ctrl->event_queue[loop].event_type != 0) {
-				dbg("%s:loop %x event_type %x\n", __FUNCTION__, loop, 
-					ctrl->event_queue[loop].event_type);
-				hp_slot = ctrl->event_queue[loop].hp_slot;
-
-				p_slot = shpchp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
-
-				if (ctrl->event_queue[loop].event_type == INT_BUTTON_CANCEL) {
-					dbg("%s: button cancel\n", __FUNCTION__);
-					del_timer(&p_slot->task_event);
-
-					switch (p_slot->state) {
-					case BLINKINGOFF_STATE:
-						p_slot->hpc_ops->green_led_on(p_slot);
-						p_slot->hpc_ops->set_attention_status(p_slot, 0);
-						break;
-					case BLINKINGON_STATE:
-						p_slot->hpc_ops->green_led_off(p_slot);
-						p_slot->hpc_ops->set_attention_status(p_slot, 0);
-						break;
-					default:
-						warn("Not a valid state\n");
-						return;
-					}
-					info(msg_button_cancel, p_slot->number);
-					p_slot->state = STATIC_STATE;
-				} else if (ctrl->event_queue[loop].event_type == INT_BUTTON_PRESS) {
-					/* Button Pressed (No action on 1st press...) */
-					dbg("%s: Button pressed\n", __FUNCTION__);
-
-					p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
-					if (getstatus) {
-						/* slot is on */
-						dbg("%s: slot is on\n", __FUNCTION__);
-						p_slot->state = BLINKINGOFF_STATE;
-						info(msg_button_off, p_slot->number);
-					} else {
-						/* slot is off */
-						dbg("%s: slot is off\n", __FUNCTION__);
-						p_slot->state = BLINKINGON_STATE;
-						info(msg_button_on, p_slot->number);
-					}
-
-					/* blink green LED and turn off amber */
-					p_slot->hpc_ops->green_led_blink(p_slot);
-					p_slot->hpc_ops->set_attention_status(p_slot, 0);
-
-					init_timer(&p_slot->task_event);
-					p_slot->task_event.expires = jiffies + 5 * HZ;   /* 5 second delay */
-					p_slot->task_event.function = (void (*)(unsigned long)) pushbutton_helper_thread;
-					p_slot->task_event.data = (unsigned long) p_slot;
-
-					dbg("%s: add_timer p_slot = %p\n", __FUNCTION__,(void *) p_slot);
-					add_timer(&p_slot->task_event);
-				} else if (ctrl->event_queue[loop].event_type == INT_POWER_FAULT) {
-					/***********POWER FAULT********************/
-					dbg("%s: power fault\n", __FUNCTION__);
-					p_slot->hpc_ops->set_attention_status(p_slot, 1);
-					p_slot->hpc_ops->green_led_off(p_slot);
-				} else {
-					/* refresh notification */
-					if (p_slot)
-						update_slot_info(p_slot);
-				}
-
-				ctrl->event_queue[loop].event_type = 0;
-
-				change = 1;
-			}
-		}		/* End of FOR loop */
+		queue_delayed_work(shpchp_wq, &p_slot->work, 5*HZ);
+		break;
+	case INT_POWER_FAULT:
+		dbg("%s: power fault\n", __FUNCTION__);
+		p_slot->hpc_ops->set_attention_status(p_slot, 1);
+		p_slot->hpc_ops->green_led_off(p_slot);
+		break;
+	default:
+		update_slot_info(p_slot);
+		break;
 	}
 
-	return;
+	kfree(info);
 }
 
 

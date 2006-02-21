@@ -813,6 +813,7 @@ static void hpc_release_ctlr(struct controller *ctrl)
 {
 	struct php_ctlr_state_s *php_ctlr = ctrl->hpc_ctlr_handle;
 	struct php_ctlr_state_s *p, *p_prev;
+	int i;
 
 	DBG_ENTER_ROUTINE 
 
@@ -820,6 +821,14 @@ static void hpc_release_ctlr(struct controller *ctrl)
 		err("%s: Invalid HPC controller handle!\n", __FUNCTION__);
 		return ;
 	}
+
+	/*
+	 * Mask all slot event interrupts
+	 */
+	for (i = 0; i < ctrl->num_slots; i++)
+		writel(0xffff3fff, php_ctlr->creg + SLOT1 + (4 * i));
+
+	cleanup_slots(ctrl);
 
 	if (shpchp_poll_mode) {
 	    del_timer(&php_ctlr->int_poll_timer);
@@ -830,6 +839,7 @@ static void hpc_release_ctlr(struct controller *ctrl)
 			pci_disable_msi(php_ctlr->pci_dev);
 		}
 	}
+
 	if (php_ctlr->pci_dev) {
 		iounmap(php_ctlr->creg);
 		release_mem_region(ctrl->mmio_base, ctrl->mmio_size);
