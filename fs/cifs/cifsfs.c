@@ -93,13 +93,10 @@ cifs_read_super(struct super_block *sb, void *data,
 	int rc = 0;
 
 	sb->s_flags |= MS_NODIRATIME; /* and probably even noatime */
-	sb->s_fs_info = kmalloc(sizeof(struct cifs_sb_info),GFP_KERNEL);
+	sb->s_fs_info = kzalloc(sizeof(struct cifs_sb_info),GFP_KERNEL);
 	cifs_sb = CIFS_SB(sb);
 	if(cifs_sb == NULL)
 		return -ENOMEM;
-	else
-		memset(cifs_sb,0,sizeof(struct cifs_sb_info));
-	
 
 	rc = cifs_mount(sb, cifs_sb, data, devname);
 

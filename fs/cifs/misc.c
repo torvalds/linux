@@ -72,10 +72,9 @@ sesInfoAlloc(void)
 	struct cifsSesInfo *ret_buf;
 
 	ret_buf =
-	    (struct cifsSesInfo *) kmalloc(sizeof (struct cifsSesInfo),
+	    (struct cifsSesInfo *) kzalloc(sizeof (struct cifsSesInfo),
 					   GFP_KERNEL);
 	if (ret_buf) {
-		memset(ret_buf, 0, sizeof (struct cifsSesInfo));
 		write_lock(&GlobalSMBSeslock);
 		atomic_inc(&sesInfoAllocCount);
 		ret_buf->status = CifsNew;
@@ -110,10 +109,9 @@ tconInfoAlloc(void)
 {
 	struct cifsTconInfo *ret_buf;
 	ret_buf =
-	    (struct cifsTconInfo *) kmalloc(sizeof (struct cifsTconInfo),
+	    (struct cifsTconInfo *) kzalloc(sizeof (struct cifsTconInfo),
 					    GFP_KERNEL);
 	if (ret_buf) {
-		memset(ret_buf, 0, sizeof (struct cifsTconInfo));
 		write_lock(&GlobalSMBSeslock);
 		atomic_inc(&tconInfoAllocCount);
 		list_add(&ret_buf->cifsConnectionList,

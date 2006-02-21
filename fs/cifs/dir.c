@@ -255,12 +255,10 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			CIFSSMBClose(xid, pTcon, fileHandle);
 		} else if(newinode) {
 			pCifsFile =
-			   kmalloc(sizeof (struct cifsFileInfo), GFP_KERNEL);
+			   kzalloc(sizeof (struct cifsFileInfo), GFP_KERNEL);
 			
 			if(pCifsFile == NULL)
 				goto cifs_create_out;
-			memset((char *)pCifsFile, 0,
-			       sizeof (struct cifsFileInfo));
 			pCifsFile->netfid = fileHandle;
 			pCifsFile->pid = current->tgid;
 			pCifsFile->pInode = newinode;

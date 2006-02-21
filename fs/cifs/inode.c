@@ -609,9 +609,8 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 		}
 	} else if (rc == -EACCES) {
 		/* try only if r/o attribute set in local lookup data? */
-		pinfo_buf = kmalloc(sizeof(FILE_BASIC_INFO), GFP_KERNEL);
+		pinfo_buf = kzalloc(sizeof(FILE_BASIC_INFO), GFP_KERNEL);
 		if (pinfo_buf) {
-			memset(pinfo_buf, 0, sizeof(FILE_BASIC_INFO));
 			/* ATTRS set to normal clears r/o bit */
 			pinfo_buf->Attributes = cpu_to_le32(ATTR_NORMAL);
 			if (!(pTcon->ses->flags & CIFS_SES_NT4))
