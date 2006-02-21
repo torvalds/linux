@@ -39,7 +39,6 @@
 int shpchp_debug;
 int shpchp_poll_mode;
 int shpchp_poll_time;
-LIST_HEAD(shpchp_ctrl_list);
 struct workqueue_struct *shpchp_wq;
 
 #define DRIVER_VERSION	"0.4"
@@ -433,8 +432,6 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ctrl->speed = PCI_SPEED_33MHz;
 	}
 
-	list_add(&ctrl->ctrl_list, &shpchp_ctrl_list);
-
 	shpchp_create_ctrl_files(ctrl);
 
 	return 0;
@@ -447,20 +444,13 @@ err_out_none:
 	return -ENODEV;
 }
 
-static void __exit unload_shpchpd(void)
+static void shpc_remove(struct pci_dev *dev)
 {
-	struct list_head *tmp;
-	struct list_head *next;
-	struct controller *ctrl;
+	struct controller *ctrl = pci_get_drvdata(dev);
 
-	list_for_each_safe(tmp, next, &shpchp_ctrl_list) {
-		ctrl = list_entry(tmp, struct controller, ctrl_list);
-		shpchp_remove_ctrl_files(ctrl);
-		ctrl->hpc_ops->release_ctlr(ctrl);
-		kfree(ctrl);
-	}
-
-	destroy_workqueue(shpchp_wq);
+	shpchp_remove_ctrl_files(ctrl);
+	ctrl->hpc_ops->release_ctlr(ctrl);
+	kfree(ctrl);
 }
 
 static struct pci_device_id shpcd_pci_tbl[] = {
@@ -473,7 +463,7 @@ static struct pci_driver shpc_driver = {
 	.name =		SHPC_MODULE_NAME,
 	.id_table =	shpcd_pci_tbl,
 	.probe =	shpc_probe,
-	/* remove:	shpc_remove_one, */
+	.remove =	shpc_remove,
 };
 
 static int __init shpcd_init(void)
@@ -500,10 +490,8 @@ static int __init shpcd_init(void)
 static void __exit shpcd_cleanup(void)
 {
 	dbg("unload_shpchpd()\n");
-	unload_shpchpd();
-
 	pci_unregister_driver(&shpc_driver);
-
+	destroy_workqueue(shpchp_wq);
 	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");
 }
 
