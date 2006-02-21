@@ -58,15 +58,17 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 
 	/*
 	 * Processes which fork a lot of child processes are likely
-	 * a good choice. We add the vmsize of the children if they
+	 * a good choice. We add half the vmsize of the children if they
 	 * have an own mm. This prevents forking servers to flood the
-	 * machine with an endless amount of children
+	 * machine with an endless amount of children. In case a single
+	 * child is eating the vast majority of memory, adding only half
+	 * to the parents will make the child our kill candidate of choice.
 	 */
 	list_for_each(tsk, &p->children) {
 		struct task_struct *chld;
 		chld = list_entry(tsk, struct task_struct, sibling);
 		if (chld->mm != p->mm && chld->mm)
-			points += chld->mm->total_vm;
+			points += chld->mm->total_vm/2 + 1;
 	}
 
 	/*
@@ -136,12 +138,12 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
  *
  * (not docbooked, we don't want this one cluttering up the manual)
  */
-static struct task_struct * select_bad_process(void)
+static struct task_struct *select_bad_process(unsigned long *ppoints)
 {
-	unsigned long maxpoints = 0;
 	struct task_struct *g, *p;
 	struct task_struct *chosen = NULL;
 	struct timespec uptime;
+	*ppoints = 0;
 
 	do_posix_clock_monotonic_gettime(&uptime);
 	do_each_thread(g, p) {
@@ -169,9 +171,9 @@ static struct task_struct * select_bad_process(void)
 			return p;
 
 		points = badness(p, uptime.tv_sec);
-		if (points > maxpoints || !chosen) {
+		if (points > *ppoints || !chosen) {
 			chosen = p;
-			maxpoints = points;
+			*ppoints = points;
 		}
 	} while_each_thread(g, p);
 	return chosen;
@@ -237,12 +239,15 @@ static struct mm_struct *oom_kill_task(task_t *p)
 	return mm;
 }
 
-static struct mm_struct *oom_kill_process(struct task_struct *p)
+static struct mm_struct *oom_kill_process(struct task_struct *p,
+					  unsigned long points)
 {
  	struct mm_struct *mm;
 	struct task_struct *c;
 	struct list_head *tsk;
 
+	printk(KERN_ERR "Out of Memory: Kill process %d (%s) score %li and "
+		"children.\n", p->pid, p->comm, points);
 	/* Try to kill a child first */
 	list_for_each(tsk, &p->children) {
 		c = list_entry(tsk, struct task_struct, sibling);
@@ -267,6 +272,7 @@ void out_of_memory(gfp_t gfp_mask, int order)
 {
 	struct mm_struct *mm = NULL;
 	task_t * p;
+	unsigned long points;
 
 	if (printk_ratelimit()) {
 		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
@@ -278,7 +284,7 @@ void out_of_memory(gfp_t gfp_mask, int order)
 	cpuset_lock();
 	read_lock(&tasklist_lock);
 retry:
-	p = select_bad_process();
+	p = select_bad_process(&points);
 
 	if (PTR_ERR(p) == -1UL)
 		goto out;
@@ -290,7 +296,7 @@ retry:
 		panic("Out of memory and no killable processes...\n");
 	}
 
-	mm = oom_kill_process(p);
+	mm = oom_kill_process(p, points);
 	if (!mm)
 		goto retry;
 
