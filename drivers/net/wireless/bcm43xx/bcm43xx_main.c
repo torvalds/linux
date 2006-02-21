@@ -2079,12 +2079,19 @@ static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id, struct pt_re
 
 	bcm43xx_interrupt_ack(bcm, reason, mask);
 
-	/* disable all IRQs. They are enabled again in the bottom half. */
-	bcm->irq_savedstate = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
-
-	/* save the reason code and call our bottom half. */
-	bcm->irq_reason = reason;
-	tasklet_schedule(&bcm->isr_tasklet);
+	/* Only accept IRQs, if we are initialized properly.
+	 * This avoids an RX race while initializing.
+	 * We should probably not enable IRQs before we are initialized
+	 * completely, but some careful work is needed to fix this. I think it
+	 * is best to stay with this cheap workaround for now... .
+	 */
+	if (likely(bcm->initialized)) {
+		/* disable all IRQs. They are enabled again in the bottom half. */
+		bcm->irq_savedstate = bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
+		/* save the reason code and call our bottom half. */
+		bcm->irq_reason = reason;
+		tasklet_schedule(&bcm->isr_tasklet);
+	}
 
 	spin_unlock(&bcm->lock);
 
