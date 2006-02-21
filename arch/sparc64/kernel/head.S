@@ -420,6 +420,8 @@ niagara_tlb_fixup:
 	/* Patch copy/clear ops.  */
 	call	niagara_patch_copyops
 	 nop
+	call	niagara_patch_bzero
+	 nop
 	call	niagara_patch_pageops
 	 nop
 
