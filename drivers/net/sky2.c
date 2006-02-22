@@ -195,11 +195,11 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 	pr_debug("sky2_set_power_state %d\n", state);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 
-	pci_read_config_word(hw->pdev, hw->pm_cap + PCI_PM_PMC, &power_control);
+	power_control = sky2_pci_read16(hw, hw->pm_cap + PCI_PM_PMC);
 	vaux = (sky2_read16(hw, B0_CTST) & Y2_VAUX_AVAIL) &&
 		(power_control & PCI_PM_CAP_PME_D3cold);
 
-	pci_read_config_word(hw->pdev, hw->pm_cap + PCI_PM_CTRL, &power_control);
+	power_control = sky2_pci_read16(hw, hw->pm_cap + PCI_PM_CTRL);
 
 	power_control |= PCI_PM_CTRL_PME_STATUS;
 	power_control &= ~(PCI_PM_CTRL_STATE_MASK);
@@ -223,7 +223,7 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 			sky2_write8(hw, B2_Y2_CLK_GATE, 0);
 
 		/* Turn off phy power saving */
-		pci_read_config_dword(hw->pdev, PCI_DEV_REG1, &reg1);
+		reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
 		reg1 &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
 
 		/* looks like this XL is back asswards .. */
@@ -234,26 +234,26 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		}
 
 		if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
-			pci_write_config_dword(hw->pdev, PCI_DEV_REG3, 0);
-			pci_read_config_dword(hw->pdev, PCI_DEV_REG4, &reg1);
+			sky2_pci_write32(hw, PCI_DEV_REG3, 0);
+			reg1 = sky2_pci_read32(hw, PCI_DEV_REG4);
 			reg1 &= P_ASPM_CONTROL_MSK;
-			pci_write_config_dword(hw->pdev, PCI_DEV_REG4, reg1);
-			pci_write_config_dword(hw->pdev, PCI_DEV_REG5, 0);
+			sky2_pci_write32(hw, PCI_DEV_REG4, reg1);
+			sky2_pci_write32(hw, PCI_DEV_REG5, 0);
 		}
 
-		pci_write_config_dword(hw->pdev, PCI_DEV_REG1, reg1);
+		sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
 
 		break;
 
 	case PCI_D3hot:
 	case PCI_D3cold:
 		/* Turn on phy power saving */
-		pci_read_config_dword(hw->pdev, PCI_DEV_REG1, &reg1);
+		reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
 		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
 			reg1 &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
 		else
 			reg1 |= (PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
-		pci_write_config_dword(hw->pdev, PCI_DEV_REG1, reg1);
+		sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
 
 		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
 			sky2_write8(hw, B2_Y2_CLK_GATE, 0);
@@ -275,7 +275,7 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		ret = -1;
 	}
 
-	pci_write_config_byte(hw->pdev, hw->pm_cap + PCI_PM_CTRL, power_control);
+	sky2_pci_write16(hw, hw->pm_cap + PCI_PM_CTRL, power_control);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	return ret;
 }
@@ -2059,13 +2059,13 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 	if (status & (Y2_IS_MST_ERR | Y2_IS_IRQ_STAT)) {
 		u16 pci_err;
 
-		pci_read_config_word(hw->pdev, PCI_STATUS, &pci_err);
+		pci_err = sky2_pci_read16(hw, PCI_STATUS);
 		if (net_ratelimit())
 			printk(KERN_ERR PFX "%s: pci hw error (0x%x)\n",
 			       pci_name(hw->pdev), pci_err);
 
 		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-		pci_write_config_word(hw->pdev, PCI_STATUS,
+		sky2_pci_write16(hw, PCI_STATUS,
 				      pci_err | PCI_STATUS_ERROR_BITS);
 		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	}
@@ -2074,7 +2074,7 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 		/* PCI-Express uncorrectable Error occurred */
 		u32 pex_err;
 
-		pci_read_config_dword(hw->pdev, PEX_UNC_ERR_STAT, &pex_err);
+		pex_err = sky2_pci_read32(hw, PEX_UNC_ERR_STAT);
 
 		if (net_ratelimit())
 			printk(KERN_ERR PFX "%s: pci express error (0x%x)\n",
@@ -2082,7 +2082,7 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 
 		/* clear the interrupt */
 		sky2_write32(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-		pci_write_config_dword(hw->pdev, PEX_UNC_ERR_STAT,
+		sky2_pci_write32(hw, PEX_UNC_ERR_STAT,
 				       0xffffffffUL);
 		sky2_write32(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
@@ -2212,7 +2212,7 @@ static int sky2_reset(struct sky2_hw *hw)
 {
 	u16 status;
 	u8 t8, pmd_type;
-	int i, err;
+	int i;
 
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
 
@@ -2234,25 +2234,18 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
 
 	/* clear PCI errors, if any */
-	err = pci_read_config_word(hw->pdev, PCI_STATUS, &status);
-	if (err)
-		goto pci_err;
+	status = sky2_pci_read16(hw, PCI_STATUS);
 
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-	err = pci_write_config_word(hw->pdev, PCI_STATUS,
-				    status | PCI_STATUS_ERROR_BITS);
-	if (err)
-		goto pci_err;
+	sky2_pci_write16(hw, PCI_STATUS, status | PCI_STATUS_ERROR_BITS);
+
 
 	sky2_write8(hw, B0_CTST, CS_MRST_CLR);
 
 	/* clear any PEX errors */
-	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP)) {
-		err = pci_write_config_dword(hw->pdev, PEX_UNC_ERR_STAT,
-						 0xffffffffUL);
-		if (err)
-			goto pci_err;
-	}
+	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP)) 
+		sky2_pci_write32(hw, PEX_UNC_ERR_STAT, 0xffffffffUL);
+
 
 	pmd_type = sky2_read8(hw, B2_PMD_TYP);
 	hw->copper = !(pmd_type == 'L' || pmd_type == 'S');
@@ -2362,14 +2355,6 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_START);
 
 	return 0;
-
-pci_err:
-	/* This is to catch a BIOS bug workaround where
-	 * mmconfig table doesn't have other buses.
-	 */
-	printk(KERN_ERR PFX "%s: can't access PCI config space\n",
-	       pci_name(hw->pdev));
-	return err;
 }
 
 static u32 sky2_supported_modes(const struct sky2_hw *hw)
@@ -3239,17 +3224,6 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		}
 	}
 
-#ifdef __BIG_ENDIAN
-	/* byte swap descriptors in hardware */
-	{
-		u32 reg;
-
-		pci_read_config_dword(pdev, PCI_DEV_REG2, &reg);
-		reg |= PCI_REV_DESC;
-		pci_write_config_dword(pdev, PCI_DEV_REG2, reg);
-	}
-#endif
-
 	err = -ENOMEM;
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw) {
@@ -3267,6 +3241,17 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		goto err_out_free_hw;
 	}
 	hw->pm_cap = pm_cap;
+
+#ifdef __BIG_ENDIAN
+	/* byte swap descriptors in hardware */
+	{
+		u32 reg;
+
+		reg = sky2_pci_read32(hw, PCI_DEV_REG2);
+		reg |= PCI_REV_DESC;
+		sky2_pci_write32(hw, PCI_DEV_REG2, reg);
+	}
+#endif
 
 	/* ring for status responses */
 	hw->st_le = pci_alloc_consistent(hw->pdev, STATUS_LE_BYTES,
