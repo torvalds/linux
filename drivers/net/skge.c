@@ -2185,8 +2185,10 @@ static int skge_up(struct net_device *dev)
 	skge->tx_avail = skge->tx_ring.count - 1;
 
 	/* Enable IRQ from port */
+	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask |= portirqmask[port];
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
+	spin_unlock_irq(&hw->hw_lock);
 
 	/* Initialize MAC */
 	spin_lock_bh(&hw->phy_lock);
@@ -2244,8 +2246,10 @@ static int skge_down(struct net_device *dev)
 	else
 		yukon_stop(skge);
 
+	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask &= ~portirqmask[skge->port];
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
+	spin_unlock_irq(&hw->hw_lock);
 
 	/* Stop transmitter */
 	skge_write8(hw, Q_ADDR(txqaddr[port], Q_CSR), CSR_STOP);
@@ -2701,10 +2705,11 @@ static int skge_poll(struct net_device *dev, int *budget)
 	if (work_done >=  to_do)
 		return 1; /* not done */
 
-	netif_rx_complete(dev);
-	hw->intr_mask |= portirqmask[skge->port];
-	skge_write32(hw, B0_IMSK, hw->intr_mask);
-	skge_read32(hw, B0_IMSK);
+	spin_lock_irq(&hw->hw_lock);
+	__netif_rx_complete(dev);
+  	hw->intr_mask |= portirqmask[skge->port];
+  	skge_write32(hw, B0_IMSK, hw->intr_mask);
+ 	spin_unlock_irq(&hw->hw_lock);
 
 	return 0;
 }
@@ -2864,10 +2869,10 @@ static void skge_extirq(unsigned long data)
 	}
 	spin_unlock(&hw->phy_lock);
 
-	local_irq_disable();
+	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask |= IS_EXT_REG;
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
-	local_irq_enable();
+	spin_unlock_irq(&hw->hw_lock);
 }
 
 static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
@@ -2878,7 +2883,7 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 	if (status == 0 || status == ~0) /* hotplug or shared irq */
 		return IRQ_NONE;
 
-	status &= hw->intr_mask;
+	spin_lock(&hw->hw_lock);
 	if (status & IS_R1_F) {
 		skge_write8(hw, Q_ADDR(Q_R1, Q_CSR), CSR_IRQ_CL_F);
 		hw->intr_mask &= ~IS_R1_F;
@@ -2930,6 +2935,7 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 	}
 
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
+	spin_unlock(&hw->hw_lock);
 
 	return IRQ_HANDLED;
 }
@@ -3298,6 +3304,7 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 
 	hw->pdev = pdev;
 	spin_lock_init(&hw->phy_lock);
+	spin_lock_init(&hw->hw_lock);
 	tasklet_init(&hw->ext_tasklet, skge_extirq, (unsigned long) hw);
 
 	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
