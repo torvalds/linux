@@ -46,62 +46,47 @@
 #include <asm/cpudata.h>
 #include <asm/mmu_context.h>
 #include <asm/unistd.h>
+#include <asm/hypervisor.h>
 
 /* #define VERBOSE_SHOWREGS */
 
-/*
- * Nothing special yet...
- */
-void default_idle(void)
+static void sparc64_yield(void)
 {
-}
+	if (tlb_type != hypervisor)
+		return;
 
+	clear_thread_flag(TIF_POLLING_NRFLAG);
+	smp_mb__after_clear_bit();
 
+	while (!need_resched()) {
+		unsigned long pstate;
 
-#ifndef CONFIG_SMP
+		/* Disable interrupts. */
+		__asm__ __volatile__(
+			"rdpr %%pstate, %0\n\t"
+			"andn %0, %1, %0\n\t"
+			"wrpr %0, %%g0, %%pstate"
+			: "=&r" (pstate)
+			: "i" (PSTATE_IE));
 
-/*
- * the idle loop on a Sparc... ;)
- */
-void cpu_idle(void)
-{
-	/* endless idle loop with no priority at all */
-	for (;;) {
-		/* If current->work.need_resched is zero we should really
-		 * setup for a system wakup event and execute a shutdown
-		 * instruction.
-		 *
-		 * But this requires writing back the contents of the
-		 * L2 cache etc. so implement this later. -DaveM
-		 */
-		while (!need_resched())
-			barrier();
+		if (!need_resched())
+			sun4v_cpu_yield();
 
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-		check_pgt_cache();
+		/* Re-enable interrupts. */
+		__asm__ __volatile__(
+			"rdpr %%pstate, %0\n\t"
+			"or %0, %1, %0\n\t"
+			"wrpr %0, %%g0, %%pstate"
+			: "=&r" (pstate)
+			: "i" (PSTATE_IE));
 	}
+
+	set_thread_flag(TIF_POLLING_NRFLAG);
 }
 
-#else
-
-/*
- * the idle loop on a UltraMultiPenguin...
- *
- * TIF_POLLING_NRFLAG is set because we do not sleep the cpu
- * inside of the idler task, so an interrupt is not needed
- * to get a clean fast response.
- *
- * XXX Reverify this assumption... -DaveM
- *
- * Addendum: We do want it to do something for the signal
- *           delivery case, we detect that by just seeing
- *           if we are trying to send this to an idler or not.
- */
+/* The idle loop on sparc64. */
 void cpu_idle(void)
 {
-	cpuinfo_sparc *cpuinfo = &local_cpu_data();
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while(1) {
@@ -109,12 +94,10 @@ void cpu_idle(void)
 			preempt_enable_no_resched();
 			schedule();
 			preempt_disable();
-			check_pgt_cache();
 		}
+		sparc64_yield();
 	}
 }
-
-#endif
 
 extern char reboot_command [];
 
