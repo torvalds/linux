@@ -1876,8 +1876,9 @@ struct sky2_port {
 struct sky2_hw {
 	void __iomem  	     *regs;
 	struct pci_dev	     *pdev;
-	u32		     intr_mask;
 	struct net_device    *dev[2];
+	spinlock_t	     hw_lock;
+	u32		     intr_mask;
 
 	int		     pm_cap;
 	int		     msi;

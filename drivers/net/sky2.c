@@ -1079,8 +1079,10 @@ static int sky2_up(struct net_device *dev)
 		goto err_out;
 
 	/* Enable interrupts from phy/mac for port */
+	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask |= (port == 0) ? Y2_IS_PORT_1 : Y2_IS_PORT_2;
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
+	spin_unlock_irq(&hw->hw_lock);
 	return 0;
 
 err_out:
@@ -1380,10 +1382,10 @@ static int sky2_down(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/* Disable port IRQ */
-	local_irq_disable();
+	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask &= ~((sky2->port == 0) ? Y2_IS_IRQ_PHY1 : Y2_IS_IRQ_PHY2);
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
-	local_irq_enable();
+	spin_unlock_irq(&hw->hw_lock);
 
 	flush_scheduled_work();
 
@@ -1665,10 +1667,10 @@ static void sky2_phy_task(void *arg)
 out:
 	up(&sky2->phy_sema);
 
-	local_irq_disable();
+	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask |= (sky2->port == 0) ? Y2_IS_IRQ_PHY1 : Y2_IS_IRQ_PHY2;
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
-	local_irq_enable();
+	spin_unlock_irq(&hw->hw_lock);
 }
 
 
@@ -1994,9 +1996,13 @@ exit_loop:
 	}
 
 	if (likely(work_done < to_do)) {
-		netif_rx_complete(dev0);
+		spin_lock_irq(&hw->hw_lock);
+		__netif_rx_complete(dev0);
+
 		hw->intr_mask |= Y2_IS_STAT_BMU;
 		sky2_write32(hw, B0_IMSK, hw->intr_mask);
+		spin_unlock_irq(&hw->hw_lock);
+
 		return 0;
 	} else {
 		*budget -= work_done;
@@ -2128,6 +2134,7 @@ static void sky2_phy_intr(struct sky2_hw *hw, unsigned port)
 
 	hw->intr_mask &= ~(port == 0 ? Y2_IS_IRQ_PHY1 : Y2_IS_IRQ_PHY2);
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
+
 	schedule_work(&sky2->phy_task);
 }
 
@@ -2141,6 +2148,7 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 	if (status == 0 || status == ~0)
 		return IRQ_NONE;
 
+	spin_lock(&hw->hw_lock);
 	if (status & Y2_IS_HW_ERR)
 		sky2_hw_intr(hw);
 
@@ -2169,7 +2177,7 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 	sky2_write32(hw, B0_Y2_SP_ICR, 2);
 
-	sky2_read32(hw, B0_IMSK);
+	spin_unlock(&hw->hw_lock);
 
 	return IRQ_HANDLED;
 }
@@ -3241,6 +3249,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		goto err_out_free_hw;
 	}
 	hw->pm_cap = pm_cap;
+	spin_lock_init(&hw->hw_lock);
 
 #ifdef __BIG_ENDIAN
 	/* byte swap descriptors in hardware */
