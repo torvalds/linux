@@ -287,6 +287,12 @@ enum RTL8169_register_content {
 	TxInterFrameGapShift = 24,
 	TxDMAShift = 8,	/* DMA burst value (0-7) is shift this many bits */
 
+	/* Config1 register p.24 */
+	PMEnable	= (1 << 0),	/* Power Management Enable */
+
+	/* Config5 register p.27 */
+	PMEStatus	= (1 << 0),	/* PME status can be reset by PCI RST# */
+
 	/* TBICSR p.28 */
 	TBIReset	= 0x80000000,
 	TBILoopback	= 0x40000000,
@@ -1442,6 +1448,11 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	}
 	tp->chipset = i;
 
+	RTL_W8(Cfg9346, Cfg9346_Unlock);
+	RTL_W8(Config1, RTL_R8(Config1) | PMEnable);
+	RTL_W8(Config5, RTL_R8(Config5) & PMEStatus);
+	RTL_W8(Cfg9346, Cfg9346_Lock);
+
 	*ioaddr_out = ioaddr;
 	*dev_out = dev;
 out:
@@ -1611,49 +1622,6 @@ rtl8169_remove_one(struct pci_dev *pdev)
 	rtl8169_release_board(pdev, dev, tp->mmio_addr);
 	pci_set_drvdata(pdev, NULL);
 }
-
-#ifdef CONFIG_PM
-
-static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
-	unsigned long flags;
-
-	if (!netif_running(dev))
-		return 0;
-	
-	netif_device_detach(dev);
-	netif_stop_queue(dev);
-	spin_lock_irqsave(&tp->lock, flags);
-
-	/* Disable interrupts, stop Rx and Tx */
-	RTL_W16(IntrMask, 0);
-	RTL_W8(ChipCmd, 0);
-		
-	/* Update the error counts. */
-	tp->stats.rx_missed_errors += RTL_R32(RxMissed);
-	RTL_W32(RxMissed, 0);
-	spin_unlock_irqrestore(&tp->lock, flags);
-	
-	return 0;
-}
-
-static int rtl8169_resume(struct pci_dev *pdev)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-
-	if (!netif_running(dev))
-	    return 0;
-
-	netif_device_attach(dev);
-	rtl8169_hw_start(dev);
-
-	return 0;
-}
-                                                                                
-#endif /* CONFIG_PM */
 
 static void rtl8169_set_rxbufsize(struct rtl8169_private *tp,
 				  struct net_device *dev)
@@ -2699,6 +2667,54 @@ static struct net_device_stats *rtl8169_get_stats(struct net_device *dev)
 		
 	return &tp->stats;
 }
+
+#ifdef CONFIG_PM
+
+static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	if (!netif_running(dev))
+		goto out;
+
+	netif_device_detach(dev);
+	netif_stop_queue(dev);
+
+	spin_lock_irq(&tp->lock);
+
+	rtl8169_asic_down(ioaddr);
+
+	tp->stats.rx_missed_errors += RTL_R32(RxMissed);
+	RTL_W32(RxMissed, 0);
+
+	spin_unlock_irq(&tp->lock);
+
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+out:
+	return 0;
+}
+
+static int rtl8169_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	if (!netif_running(dev))
+		goto out;
+
+	netif_device_attach(dev);
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	rtl8169_schedule_work(dev, rtl8169_reset_task);
+out:
+	return 0;
+}
+
+#endif /* CONFIG_PM */
 
 static struct pci_driver rtl8169_pci_driver = {
 	.name		= MODULENAME,
