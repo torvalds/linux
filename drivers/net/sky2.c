@@ -1988,13 +1988,12 @@ exit_loop:
 	sky2_tx_check(hw, 0, tx_done[0]);
 	sky2_tx_check(hw, 1, tx_done[1]);
 
-	if (likely(work_done < to_do)) {
-		/* need to restart TX timer */
-		if (is_ec_a1(hw)) {
-			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
-			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
-		}
+	if (sky2_read8(hw, STAT_TX_TIMER_CTRL) == TIM_START) {
+		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
+		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
+	}
 
+	if (likely(work_done < to_do)) {
 		netif_rx_complete(dev0);
 		hw->intr_mask |= Y2_IS_STAT_BMU;
 		sky2_write32(hw, B0_IMSK, hw->intr_mask);
@@ -2352,8 +2351,7 @@ static int sky2_reset(struct sky2_hw *hw)
 			sky2_write8(hw, STAT_FIFO_ISR_WM, 16);
 
 		sky2_write32(hw, STAT_TX_TIMER_INI, sky2_us2clk(hw, 1000));
-		sky2_write32(hw, STAT_LEV_TIMER_INI, sky2_us2clk(hw, 100));
-		sky2_write32(hw, STAT_ISR_TIMER_INI, sky2_us2clk(hw, 20));
+		sky2_write32(hw, STAT_ISR_TIMER_INI, sky2_us2clk(hw, 7));
 	}
 
 	/* enable status unit */
