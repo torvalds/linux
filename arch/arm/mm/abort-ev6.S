@@ -20,7 +20,7 @@
  */
 	.align	5
 ENTRY(v6_early_abort)
-#ifdef CONFIG_CPU_MPCORE
+#ifdef CONFIG_CPU_32v6K
 	clrex
 #else
 	strex	r0, r1, [sp]			@ Clear the exclusive monitor

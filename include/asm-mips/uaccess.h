@@ -233,7 +233,7 @@ do {									\
 #define __get_user_check(x,ptr,size)					\
 ({									\
 	long __gu_err = -EFAULT;					\
-	const void __user * __gu_ptr = (ptr);				\
+	const __typeof__(*(ptr)) __user * __gu_ptr = (ptr);		\
 									\
 	if (likely(access_ok(VERIFY_READ,  __gu_ptr, size)))		\
 		__get_user_common((x), size, __gu_ptr);			\
@@ -258,7 +258,7 @@ do {									\
 	: "=r" (__gu_err), "=r" (__gu_tmp)				\
 	: "0" (0), "o" (__m(addr)), "i" (-EFAULT));			\
 									\
-	(val) = (__typeof__(val)) __gu_tmp;				\
+	(val) = (__typeof__(*(addr))) __gu_tmp;				\
 }
 
 /*
@@ -284,7 +284,7 @@ do {									\
 	"	.previous					\n"	\
 	: "=r" (__gu_err), "=&r" (__gu_tmp)				\
 	: "0" (0), "r" (addr), "i" (-EFAULT));				\
-	(val) = __gu_tmp;						\
+	(val) = (__typeof__(*(addr))) __gu_tmp;				\
 }
 
 /*

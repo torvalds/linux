@@ -1015,7 +1015,7 @@ rebalance:
 		if (page)
 			goto got_pg;
 
-		out_of_memory(gfp_mask, order);
+		out_of_memory(zonelist, gfp_mask, order);
 		goto restart;
 	}
 

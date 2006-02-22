@@ -2082,9 +2082,7 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 
 	SBP2_DEBUG("sbp2_check_sbp2_response");
 
-	switch (SCpnt->cmnd[0]) {
-
-	case INQUIRY:
+	if (SCpnt->cmnd[0] == INQUIRY && (SCpnt->cmnd[1] & 3) == 0) {
 		/*
 		 * Make sure data length is ok. Minimum length is 36 bytes
 		 */
@@ -2097,13 +2095,7 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 		 */
 		scsi_buf[2] |= 2;
 		scsi_buf[3] = (scsi_buf[3] & 0xf0) | 2;
-
-		break;
-
-	default:
-		break;
 	}
-	return;
 }
 
 /*

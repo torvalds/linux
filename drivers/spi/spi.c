@@ -90,7 +90,7 @@ static int spi_suspend(struct device *dev, pm_message_t message)
 	int			value;
 	struct spi_driver	*drv = to_spi_driver(dev->driver);
 
-	if (!drv->suspend)
+	if (!drv || !drv->suspend)
 		return 0;
 
 	/* suspend will stop irqs and dma; no more i/o */
@@ -105,7 +105,7 @@ static int spi_resume(struct device *dev)
 	int			value;
 	struct spi_driver	*drv = to_spi_driver(dev->driver);
 
-	if (!drv->resume)
+	if (!drv || !drv->resume)
 		return 0;
 
 	/* resume may restart the i/o queue */
@@ -449,7 +449,6 @@ void spi_unregister_master(struct spi_master *master)
 {
 	(void) device_for_each_child(master->cdev.dev, NULL, __unregister);
 	class_device_unregister(&master->cdev);
-	master->cdev.dev = NULL;
 }
 EXPORT_SYMBOL_GPL(spi_unregister_master);
 

@@ -157,15 +157,13 @@ _GLOBAL(__secondary_hold)
 	SET_REG_IMMEDIATE(r4, .hmt_init)
 	mtctr	r4
 	bctr
-#else
-#ifdef CONFIG_SMP
+#elif defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
 	LOAD_REG_IMMEDIATE(r4, .pSeries_secondary_smp_init)
 	mtctr	r4
 	mr	r3,r24
 	bctr
 #else
 	BUG_OPCODE
-#endif
 #endif
 
 /* This value is used to mark exception frames on the stack. */
