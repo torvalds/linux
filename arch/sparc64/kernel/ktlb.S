@@ -121,6 +121,12 @@ kvmap_dtlb_obp:
 	 nop
 
 	.align		32
+kvmap_dtlb_tsb4m_load:
+	KTSB_LOCK_TAG(%g1, %g2, %g7)
+	KTSB_WRITE(%g1, %g5, %g6)
+	ba,pt		%xcc, kvmap_dtlb_load
+	 nop
+
 kvmap_dtlb:
 	/* %g6: TAG TARGET */
 	mov		TLB_TAG_ACCESS, %g4
@@ -133,6 +139,13 @@ kvmap_dtlb_4v:
 	brgez,pn	%g4, kvmap_dtlb_nonlinear
 	 nop
 
+	/* Correct TAG_TARGET is already in %g6, check 4mb TSB.  */
+	KERN_TSB4M_LOOKUP_TL1(%g6, %g5, %g1, %g2, %g3, kvmap_dtlb_load)
+
+	/* TSB entry address left in %g1, lookup linear PTE.
+	 * Must preserve %g1 and %g6 (TAG).
+	 */
+kvmap_dtlb_tsb4m_miss:
 	sethi		%hi(kpte_linear_bitmap), %g2
 	or		%g2, %lo(kpte_linear_bitmap), %g2
 
@@ -163,7 +176,7 @@ kvmap_dtlb_4v:
 
 	.globl		kvmap_linear_patch
 kvmap_linear_patch:
-	ba,pt		%xcc, kvmap_dtlb_load
+	ba,pt		%xcc, kvmap_dtlb_tsb4m_load
 	 xor		%g2, %g4, %g5
 
 kvmap_dtlb_vmalloc_addr:

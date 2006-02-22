@@ -58,6 +58,9 @@ unsigned long kern_linear_pte_xor[2] __read_mostly;
  */
 unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
 
+/* A special kernel TSB for 4MB and 256MB linear mappings.  */
+struct tsb swapper_4m_tsb[KERNEL_TSB4M_NENTRIES];
+
 #define MAX_BANKS	32
 
 static struct linux_prom64_registers pavail[MAX_BANKS] __initdata;
@@ -1086,6 +1089,7 @@ static void __init sun4v_ktsb_init(void)
 {
 	unsigned long ktsb_pa;
 
+	/* First KTSB for PAGE_SIZE mappings.  */
 	ktsb_pa = kern_base + ((unsigned long)&swapper_tsb[0] - KERNBASE);
 
 	switch (PAGE_SIZE) {
@@ -1117,9 +1121,18 @@ static void __init sun4v_ktsb_init(void)
 	ktsb_descr[0].tsb_base = ktsb_pa;
 	ktsb_descr[0].resv = 0;
 
-	/* XXX When we have a kernel large page size TSB, describe
-	 * XXX it in ktsb_descr[1] here.
-	 */
+	/* Second KTSB for 4MB/256MB mappings.  */
+	ktsb_pa = (kern_base +
+		   ((unsigned long)&swapper_4m_tsb[0] - KERNBASE));
+
+	ktsb_descr[1].pgsz_idx = HV_PGSZ_IDX_4MB;
+	ktsb_descr[1].pgsz_mask = (HV_PGSZ_MASK_4MB |
+				   HV_PGSZ_MASK_256MB);
+	ktsb_descr[1].assoc = 1;
+	ktsb_descr[1].num_ttes = KERNEL_TSB4M_NENTRIES;
+	ktsb_descr[1].ctx_idx = 0;
+	ktsb_descr[1].tsb_base = ktsb_pa;
+	ktsb_descr[1].resv = 0;
 }
 
 void __cpuinit sun4v_ktsb_register(void)
@@ -1132,8 +1145,7 @@ void __cpuinit sun4v_ktsb_register(void)
 	pa = kern_base + ((unsigned long)&ktsb_descr[0] - KERNBASE);
 
 	func = HV_FAST_MMU_TSB_CTX0;
-	/* XXX set arg0 to 2 when we use ktsb_descr[1], see above XXX */
-	arg0 = 1;
+	arg0 = 2;
 	arg1 = pa;
 	__asm__ __volatile__("ta	%6"
 			     : "=&r" (func), "=&r" (arg0), "=&r" (arg1)
@@ -1160,7 +1172,9 @@ void __init paging_init(void)
 	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
 	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
+	/* Invalidate both kernel TSBs.  */
 	memset(swapper_tsb, 0x40, sizeof(swapper_tsb));
+	memset(swapper_4m_tsb, 0x40, sizeof(swapper_4m_tsb));
 
 	if (tlb_type == hypervisor)
 		sun4v_pgprot_init();
