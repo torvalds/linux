@@ -521,7 +521,6 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 		if (num > limit)
 			num = limit;
 		n = 0;
-		i = 0;
 		list_for_each_entry_safe_continue(bd1, bdt, &sdp->sd_log_le_databuf, bd_le.le_list) {
 			/* An ordered write buffer */
 			if (bd1->bd_bh && !buffer_pinned(bd1->bd_bh)) {
