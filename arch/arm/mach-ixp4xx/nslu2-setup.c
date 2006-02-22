@@ -50,6 +50,12 @@ static struct platform_device nslu2_i2c_controller = {
 	.num_resources		= 0,
 };
 
+static struct platform_device nslu2_beeper = {
+	.name			= "ixp4xx-beeper",
+	.id			= NSLU2_GPIO_BUZZ,
+	.num_resources		= 0,
+};
+
 static struct resource nslu2_uart_resources[] = {
 	{
 		.start		= IXP4XX_UART1_BASE_PHYS,
@@ -97,6 +103,7 @@ static struct platform_device *nslu2_devices[] __initdata = {
 	&nslu2_i2c_controller,
 	&nslu2_flash,
 	&nslu2_uart,
+	&nslu2_beeper,
 };
 
 static void nslu2_power_off(void)
