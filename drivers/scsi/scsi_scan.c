@@ -332,6 +332,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 		+ shost->transportt->target_size;
 	struct scsi_target *starget;
 	struct scsi_target *found_target;
+	int error;
 
 	starget = kzalloc(size, GFP_KERNEL);
 	if (!starget) {
@@ -361,10 +362,20 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	/* allocate and add */
 	transport_setup_device(dev);
-	device_add(dev);
+	error = device_add(dev);
+	if (error) {
+		dev_err(dev, "target device_add failed, error %d\n", error);
+		spin_lock_irqsave(shost->host_lock, flags);
+		list_del_init(&starget->siblings);
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		transport_destroy_device(dev);
+		put_device(parent);
+		kfree(starget);
+		return NULL;
+	}
 	transport_add_device(dev);
 	if (shost->hostt->target_alloc) {
-		int error = shost->hostt->target_alloc(starget);
+		error = shost->hostt->target_alloc(starget);
 
 		if(error) {
 			dev_printk(KERN_ERR, dev, "target allocation failed, error %d\n", error);
