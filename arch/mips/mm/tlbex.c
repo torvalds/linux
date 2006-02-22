@@ -951,7 +951,6 @@ build_get_pmde64(u32 **p, struct label **l, struct reloc **r,
 	/* No i_nop needed here, since the next insn doesn't touch TMP. */
 
 #ifdef CONFIG_SMP
-# ifdef CONFIG_BUILD_ELF64
 	/*
 	 * 64 bit SMP running in XKPHYS has smp_processor_id() << 3
 	 * stored in CONTEXT.
@@ -962,18 +961,6 @@ build_get_pmde64(u32 **p, struct label **l, struct reloc **r,
 	i_daddu(p, ptr, ptr, tmp);
 	i_dmfc0(p, tmp, C0_BADVADDR);
 	i_ld(p, ptr, rel_lo(pgdc), ptr);
-# else
-	/*
-	 * 64 bit SMP running in compat space has the lower part of
-	 * &pgd_current[smp_processor_id()] stored in CONTEXT.
-	 */
-	if (!in_compat_space_p(pgdc))
-		panic("Invalid page directory address!");
-
-	i_dmfc0(p, ptr, C0_CONTEXT);
-	i_dsra(p, ptr, ptr, 23);
-	i_ld(p, ptr, 0, ptr);
-# endif
 #else
 	i_LA_mostly(p, ptr, pgdc);
 	i_ld(p, ptr, rel_lo(pgdc), ptr);

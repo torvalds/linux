@@ -70,18 +70,20 @@ CHECKFLAGS-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -D__MIPSEL__
 
 CHECKFLAGS				= $(CHECKFLAGS-y)
 
-ifdef CONFIG_BUILD_ELF64
-gas-abi			= 64
-ld-emul			= $(64bit-emul)
-vmlinux-32		= vmlinux.32
-vmlinux-64		= vmlinux
-else
+ifdef CONFIG_32BIT
 gas-abi			= 32
 ld-emul			= $(32bit-emul)
 vmlinux-32		= vmlinux
 vmlinux-64		= vmlinux.64
+endif
 
-cflags-$(CONFIG_64BIT)	+= $(call cc-option,-mno-explicit-relocs)
+ifdef CONFIG_64BIT
+gas-abi			= 64
+ld-emul			= $(64bit-emul)
+vmlinux-32		= vmlinux.32
+vmlinux-64		= vmlinux
+
+cflags-y		+= $(call cc-option,-mno-explicit-relocs)
 endif
 
 #
@@ -630,7 +632,6 @@ endif
 ifdef CONFIG_SGI_IP27
 core-$(CONFIG_SGI_IP27)		+= arch/mips/sgi-ip27/
 cflags-$(CONFIG_SGI_IP27)	+= -Iinclude/asm-mips/mach-ip27
-ifdef CONFIG_BUILD_ELF64
 ifdef CONFIG_MAPPED_KERNEL
 load-$(CONFIG_SGI_IP27)		+= 0xc00000004001c000
 OBJCOPYFLAGS			:= --change-addresses=0x3fffffff80000000
@@ -638,16 +639,6 @@ dataoffset-$(CONFIG_SGI_IP27)	+= 0x01000000
 else
 load-$(CONFIG_SGI_IP27)		+= 0xa80000000001c000
 OBJCOPYFLAGS			:= --change-addresses=0x57ffffff80000000
-endif
-else
-ifdef CONFIG_MAPPED_KERNEL
-load-$(CONFIG_SGI_IP27)		+= 0xffffffffc001c000
-OBJCOPYFLAGS			:= --change-addresses=0xc000000080000000
-dataoffset-$(CONFIG_SGI_IP27)	+= 0x01000000
-else
-load-$(CONFIG_SGI_IP27)		+= 0xffffffff8001c000
-OBJCOPYFLAGS			:= --change-addresses=0xa800000080000000
-endif
 endif
 endif
 
