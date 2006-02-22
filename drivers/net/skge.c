@@ -2678,8 +2678,7 @@ static int skge_poll(struct net_device *dev, int *budget)
 
 	/* restart receiver */
 	wmb();
-	skge_write8(hw, Q_ADDR(rxqaddr[skge->port], Q_CSR),
-		    CSR_START | CSR_IRQ_CL_F);
+	skge_write8(hw, Q_ADDR(rxqaddr[skge->port], Q_CSR), CSR_START);
 
 	*budget -= work_done;
 	dev->quota -= work_done;
@@ -2856,14 +2855,6 @@ static void skge_extirq(unsigned long data)
 	local_irq_enable();
 }
 
-static inline void skge_wakeup(struct net_device *dev)
-{
-	struct skge_port *skge = netdev_priv(dev);
-
-	prefetch(skge->rx_ring.to_clean);
-	netif_rx_schedule(dev);
-}
-
 static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct skge_hw *hw = dev_id;
@@ -2874,13 +2865,15 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 	status &= hw->intr_mask;
 	if (status & IS_R1_F) {
+		skge_write8(hw, Q_ADDR(Q_R1, Q_CSR), CSR_IRQ_CL_F);
 		hw->intr_mask &= ~IS_R1_F;
-		skge_wakeup(hw->dev[0]);
+		netif_rx_schedule(hw->dev[0]);
 	}
 
 	if (status & IS_R2_F) {
+		skge_write8(hw, Q_ADDR(Q_R2, Q_CSR), CSR_IRQ_CL_F);
 		hw->intr_mask &= ~IS_R2_F;
-		skge_wakeup(hw->dev[1]);
+		netif_rx_schedule(hw->dev[1]);
 	}
 
 	if (status & IS_XA1_F)
