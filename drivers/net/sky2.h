@@ -5,14 +5,22 @@
 #define _SKY2_H
 
 /* PCI config registers */
-#define PCI_DEV_REG1	0x40
-#define PCI_DEV_REG2	0x44
-#define PCI_DEV_STATUS  0x7c
-#define PCI_OS_PCI_X    (1<<26)
+enum {
+	PCI_DEV_REG1	= 0x40,
+	PCI_DEV_REG2	= 0x44,
+	PCI_DEV_STATUS  = 0x7c,
+	PCI_DEV_REG3	= 0x80,
+	PCI_DEV_REG4	= 0x84,
+	PCI_DEV_REG5    = 0x88,
+};
 
-#define PEX_LNK_STAT	0xf2
-#define PEX_UNC_ERR_STAT 0x104
-#define PEX_DEV_CTRL	0xe8
+enum {
+	PEX_DEV_CAP	= 0xe4,
+	PEX_DEV_CTRL	= 0xe8,
+	PEX_DEV_STA	= 0xea,
+	PEX_LNK_STAT	= 0xf2,
+	PEX_UNC_ERR_STAT= 0x104,
+};
 
 /* Yukon-2 */
 enum pci_dev_reg_1 {
@@ -35,6 +43,25 @@ enum pci_dev_reg_2 {
 	PCI_REV_DESC	= 1<<2,		/* Reverse Desc. Bytes */
 
 	PCI_USEDATA64	= 1<<0,		/* Use 64Bit Data bus ext */
+};
+
+/*	PCI_OUR_REG_4		32 bit	Our Register 4 (Yukon-ECU only) */
+enum pci_dev_reg_4 {
+					/* (Link Training & Status State Machine) */
+	P_TIMER_VALUE_MSK	= 0xffL<<16,	/* Bit 23..16:	Timer Value Mask */
+					/* (Active State Power Management) */
+	P_FORCE_ASPM_REQUEST	= 1<<15, /* Force ASPM Request (A1 only) */
+	P_ASPM_GPHY_LINK_DOWN	= 1<<14, /* GPHY Link Down (A1 only) */
+	P_ASPM_INT_FIFO_EMPTY	= 1<<13, /* Internal FIFO Empty (A1 only) */
+	P_ASPM_CLKRUN_REQUEST	= 1<<12, /* CLKRUN Request (A1 only) */
+
+	P_ASPM_FORCE_CLKREQ_ENA	= 1<<4,	/* Force CLKREQ Enable (A1b only) */
+	P_ASPM_CLKREQ_PAD_CTL	= 1<<3,	/* CLKREQ PAD Control (A1 only) */
+	P_ASPM_A1_MODE_SELECT	= 1<<2,	/* A1 Mode Select (A1 only) */
+	P_CLK_GATE_PEX_UNIT_ENA	= 1<<1,	/* Enable Gate PEX Unit Clock */
+	P_CLK_GATE_ROOT_COR_ENA	= 1<<0,	/* Enable Gate Root Core Clock */
+	P_ASPM_CONTROL_MSK	= P_FORCE_ASPM_REQUEST | P_ASPM_GPHY_LINK_DOWN
+				  | P_ASPM_CLKRUN_REQUEST | P_ASPM_INT_FIFO_EMPTY,
 };
 
 
@@ -507,6 +534,16 @@ enum {
 };
 #define Q_ADDR(reg, offs) (B8_Q_REGS + (reg) + (offs))
 
+/*	Q_F				32 bit	Flag Register */
+enum {
+	F_ALM_FULL	= 1<<27, /* Rx FIFO: almost full */
+	F_EMPTY		= 1<<27, /* Tx FIFO: empty flag */
+	F_FIFO_EOF	= 1<<26, /* Tag (EOF Flag) bit in FIFO */
+	F_WM_REACHED	= 1<<25, /* Watermark reached */
+	F_M_RX_RAM_DIS	= 1<<24, /* MAC Rx RAM Read Port disable */
+	F_FIFO_LEVEL	= 0x1fL<<16, /* Bit 23..16:	# of Qwords in FIFO */
+	F_WATER_MARK	= 0x0007ffL, /* Bit 10.. 0:	Watermark */
+};
 
 /* Queue Prefetch Unit Offsets, use Y2_QADDR() to address (Yukon-2 only)*/
 enum {
@@ -909,10 +946,12 @@ enum {
 	PHY_BCOM_ID1_C0	= 0x6044,
 	PHY_BCOM_ID1_C5	= 0x6047,
 
-	PHY_MARV_ID1_B0	= 0x0C23, /* Yukon (PHY 88E1011) */
+	PHY_MARV_ID1_B0	= 0x0C23, /* Yukon 	(PHY 88E1011) */
 	PHY_MARV_ID1_B2	= 0x0C25, /* Yukon-Plus (PHY 88E1011) */
-	PHY_MARV_ID1_C2	= 0x0CC2, /* Yukon-EC (PHY 88E1111) */
-	PHY_MARV_ID1_Y2	= 0x0C91, /* Yukon-2 (PHY 88E1112) */
+	PHY_MARV_ID1_C2	= 0x0CC2, /* Yukon-EC	(PHY 88E1111) */
+	PHY_MARV_ID1_Y2	= 0x0C91, /* Yukon-2	(PHY 88E1112) */
+	PHY_MARV_ID1_FE = 0x0C83, /* Yukon-FE   (PHY 88E3082 Rev.A1) */
+	PHY_MARV_ID1_ECU= 0x0CB0, /* Yukon-ECU  (PHY 88E1149 Rev.B2?) */
 };
 
 /* Advertisement register bits */

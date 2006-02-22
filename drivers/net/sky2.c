@@ -232,7 +232,17 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 			if (hw->ports > 1)
 				reg1 |= PCI_Y2_PHY2_COMA;
 		}
+
+		if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+			pci_write_config_dword(hw->pdev, PCI_DEV_REG3, 0);
+			pci_read_config_dword(hw->pdev, PCI_DEV_REG4, &reg1);
+			reg1 &= P_ASPM_CONTROL_MSK;
+			pci_write_config_dword(hw->pdev, PCI_DEV_REG4, reg1);
+			pci_write_config_dword(hw->pdev, PCI_DEV_REG5, 0);
+		}
+
 		pci_write_config_dword(hw->pdev, PCI_DEV_REG1, reg1);
+
 		break;
 
 	case PCI_D3hot:
@@ -463,16 +473,31 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		ledover |= PHY_M_LED_MO_RX(MO_LED_OFF);
 	}
 
-	gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U && hw->chip_rev >= 2) {
+		/* apply fixes in PHY AFE */
+		gm_phy_write(hw, port, 22, 255);
+		/* increase differential signal amplitude in 10BASE-T */
+		gm_phy_write(hw, port, 24, 0xaa99);
+		gm_phy_write(hw, port, 23, 0x2011);
 
-	if (sky2->autoneg == AUTONEG_DISABLE || sky2->speed == SPEED_100) {
-		/* turn on 100 Mbps LED (LED_LINK100) */
-		ledover |= PHY_M_LED_MO_100(MO_LED_ON);
+		/* fix for IEEE A/B Symmetry failure in 1000BASE-T */
+		gm_phy_write(hw, port, 24, 0xa204);
+		gm_phy_write(hw, port, 23, 0x2002);
+
+		/* set page register to 0 */
+		gm_phy_write(hw, port, 22, 0);
+	} else {
+		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
+
+		if (sky2->autoneg == AUTONEG_DISABLE || sky2->speed == SPEED_100) {
+			/* turn on 100 Mbps LED (LED_LINK100) */
+			ledover |= PHY_M_LED_MO_100(MO_LED_ON);
+		}
+
+		if (ledover)
+			gm_phy_write(hw, port, PHY_MARV_LED_OVER, ledover);
+
 	}
-
-	if (ledover)
-		gm_phy_write(hw, port, PHY_MARV_LED_OVER, ledover);
-
 	/* Enable phy interrupt on auto-negotiation complete (or link up) */
 	if (sky2->autoneg == AUTONEG_ENABLE)
 		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_IS_AN_COMPL);
@@ -953,6 +978,12 @@ static int sky2_rx_start(struct sky2_port *sky2)
 
 	sky2->rx_put = sky2->rx_next = 0;
 	sky2_qset(hw, rxq);
+
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U && hw->chip_rev >= 2) {
+		/* MAC Rx RAM Read is controlled by hardware */
+		sky2_write32(hw, Q_ADDR(rxq, Q_F), F_M_RX_RAM_DIS);
+	}
+
 	sky2_prefetch_init(hw, rxq, sky2->rx_le_map, RX_LE_SIZE - 1);
 
 	rx_set_checksum(sky2);
@@ -1035,9 +1066,10 @@ static int sky2_up(struct net_device *dev)
 		    RB_RST_SET);
 
 	sky2_qset(hw, txqaddr[port]);
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U)
-		sky2_write16(hw, Q_ADDR(txqaddr[port], Q_AL), 0x1a0);
 
+	/* Set almost empty threshold */
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U && hw->chip_rev == 1)
+		sky2_write16(hw, Q_ADDR(txqaddr[port], Q_AL), 0x1a0);
 
 	sky2_prefetch_init(hw, txqaddr[port], sky2->tx_le_map,
 			   TX_RING_SIZE - 1);
