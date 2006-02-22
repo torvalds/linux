@@ -291,7 +291,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 
 	while (!list_empty(head)) {
 		rv = list_entry(head->next, struct gfs2_revoke, rv_le.le_list);
-		list_del(&rv->rv_le.le_list);
+		list_del_init(&rv->rv_le.le_list);
 		sdp->sd_log_num_revoke--;
 
 		if (offset + sizeof(uint64_t) > sdp->sd_sb.sb_bsize) {
@@ -460,10 +460,12 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 		gfs2_pin(sdp, bd->bd_bh);
 	}
 	gfs2_log_lock(sdp);
-	if (ip->i_di.di_flags & GFS2_DIF_JDATA)
-		sdp->sd_log_num_jdata++;
-	sdp->sd_log_num_databuf++;
-	list_add(&le->le_list, &sdp->sd_log_le_databuf);
+	if (!list_empty(&le->le_list)) {
+		if (ip->i_di.di_flags & GFS2_DIF_JDATA)
+			sdp->sd_log_num_jdata++;
+		sdp->sd_log_num_databuf++;
+		list_add(&le->le_list, &sdp->sd_log_le_databuf);
+	}
 	gfs2_log_unlock(sdp);
 }
 
@@ -503,25 +505,21 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	unsigned int total_jdata = sdp->sd_log_num_jdata;
 	unsigned int num, n;
 	__be64 *ptr = NULL;
-	unsigned i;
 
 	offset += (2*sizeof(__be64) - 1);
 	offset &= ~(2*sizeof(__be64) - 1);
 	limit = (sdp->sd_sb.sb_bsize - offset)/sizeof(__be64);
 
-	/* printk(KERN_INFO "totals: jdata=%u dbuf=%u\n", total_jdata, total_dbuf); */
 	/*
 	 * Start writing ordered buffers, write journaled buffers
 	 * into the log along with a header
 	 */
 	gfs2_log_lock(sdp);
-	/* printk(KERN_INFO "locked in lops databuf_before_commit\n"); */
 	bd2 = bd1 = list_prepare_entry(bd1, &sdp->sd_log_le_databuf, bd_le.le_list);
 	while(total_dbuf) {
 		num = total_jdata;
 		if (num > limit)
 			num = limit;
-		/* printk(KERN_INFO "total_dbuf=%u num=%u\n", total_dbuf, num); */
 		n = 0;
 		i = 0;
 		list_for_each_entry_safe_continue(bd1, bdt, &sdp->sd_log_le_databuf, bd_le.le_list) {
@@ -542,21 +540,12 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 						gfs2_log_lock(sdp);
 					}
 					brelse(bd1->bd_bh);
-					/* printk(KERN_INFO "db write %p\n", bd1); */
-					if (++i > 100000) {
-						printk(KERN_INFO "looping bd1=%p bdt=%p eol=%p started=%p\n", bd1, bdt, &sdp->sd_log_le_databuf, &started);
-						dump_stack();
-						BUG();
-					}
 					continue;
 				}
-				/* printk(KERN_INFO "db skip\n"); */
 				continue;
 			} else if (bd1->bd_bh) { /* A journaled buffer */
 				int magic;
 				gfs2_log_unlock(sdp);
-				printk(KERN_INFO "journaled buffer %p\n", bd1->bd_bh);
-				printk(KERN_INFO "%lu %u %p %p\n", bd1->bd_bh->b_blocknr, bd1->bd_bh->b_size, bd1->bd_bh->b_data, bd1->bd_bh->b_page);  
 				if (!bh) {
 					bh = gfs2_log_get_buf(sdp);
 					ld = (struct gfs2_log_descriptor *)bh->b_data;
@@ -570,12 +559,9 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 					ld->ld_data2 = cpu_to_be32(0);
 					memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
 				}
-				/* printk(KERN_INFO "check_magic\n"); */
 				magic = gfs2_check_magic(bd1->bd_bh);
-				/* printk(KERN_INFO "write data\n"); */
 				*ptr++ = cpu_to_be64(bd1->bd_bh->b_blocknr);
 				*ptr++ = cpu_to_be64((__u64)magic);
-				/* printk(KERN_INFO "mark escaped or not\n"); */
 				clear_buffer_escaped(bd1->bd_bh);
 				if (unlikely(magic != 0))
 					set_buffer_escaped(bd1->bd_bh);
@@ -591,7 +577,6 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 			bh = NULL;
 		}
 		n = 0;
-		/* printk(KERN_INFO "totals2: jdata=%u dbuf=%u\n", total_jdata, total_dbuf); */
 		gfs2_log_lock(sdp);
 		list_for_each_entry_continue(bd2, &sdp->sd_log_le_databuf, bd_le.le_list) {
 			if (!bd2->bd_bh)
@@ -621,14 +606,13 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	}
 	gfs2_log_unlock(sdp);
 
-	/* printk(KERN_INFO "wait on ordered data buffers\n"); */
 	/* Wait on all ordered buffers */
 	while (!list_empty(&started)) {
+		gfs2_log_lock(sdp);
 		bd1 = list_entry(started.next, struct gfs2_bufdata, bd_le.le_list);
 		list_del(&bd1->bd_le.le_list);
 		sdp->sd_log_num_databuf--;
 
-		gfs2_log_lock(sdp);
 		bh = bd1->bd_bh;
 		if (bh) {
 			set_v2bd(bh, NULL);
@@ -641,7 +625,6 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 		kfree(bd1);
 	}
 
-	/* printk(KERN_INFO "sd_log_num_databuf %u sd_log_num_jdata %u\n", sdp->sd_log_num_databuf, sdp->sd_log_num_jdata); */
 	/* We've removed all the ordered write bufs here, so only jdata left */
 	gfs2_assert_warn(sdp, sdp->sd_log_num_databuf == sdp->sd_log_num_jdata);
 }
