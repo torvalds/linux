@@ -1288,7 +1288,7 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 		struct resource *res;
 		if (e820.map[i].addr + e820.map[i].size > 0x100000000ULL)
 			continue;
-		res = alloc_bootmem_low(sizeof(struct resource));
+		res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
 		switch (e820.map[i].type) {
 		case E820_RAM:	res->name = "System RAM"; break;
 		case E820_ACPI:	res->name = "ACPI Tables"; break;
@@ -1316,13 +1316,15 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 
 /*
  * Request address space for all standard resources
+ *
+ * This is called just before pcibios_assign_resources(), which is also
+ * an fs_initcall, but is linked in later (in arch/i386/pci/i386.c).
  */
-static void __init register_memory(void)
+static int __init request_standard_resources(void)
 {
-	unsigned long gapstart, gapsize, round;
-	unsigned long long last;
-	int	      i;
+	int i;
 
+	printk("Setting up standard PCI resources\n");
 	if (efi_enabled)
 		efi_initialize_iomem_resources(&code_resource, &data_resource);
 	else
@@ -1334,6 +1336,16 @@ static void __init register_memory(void)
 	/* request I/O space for devices used on all i[345]86 PCs */
 	for (i = 0; i < STANDARD_IO_RESOURCES; i++)
 		request_resource(&ioport_resource, &standard_io_resources[i]);
+	return 0;
+}
+
+fs_initcall(request_standard_resources);
+
+static void __init register_memory(void)
+{
+	unsigned long gapstart, gapsize, round;
+	unsigned long long last;
+	int i;
 
 	/*
 	 * Search for the bigest gap in the low 32 bits of the e820
