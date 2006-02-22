@@ -159,6 +159,23 @@ int __init_or_module at91_set_deglitch(unsigned pin, int is_on)
 }
 EXPORT_SYMBOL(at91_set_deglitch);
 
+/*
+ * enable/disable the multi-driver; This is only valid for output and
+ * allows the output pin to run as an open collector output.
+ */
+int __init_or_module at91_set_multi_drive(unsigned pin, int is_on)
+{
+	void __iomem	*pio = pin_to_controller(pin);
+	unsigned	mask = pin_to_mask(pin);
+
+	if (!pio)
+		return -EINVAL;
+
+	__raw_writel(mask, pio + (is_on ? PIO_MDER : PIO_MDDR));
+	return 0;
+}
+EXPORT_SYMBOL(at91_set_multi_drive);
+
 /*--------------------------------------------------------------------------*/
 
 
