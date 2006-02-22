@@ -671,12 +671,20 @@ static int init_section_ref_ok(const char *name)
 		".debug",
 		NULL
 	};
-	
+	/* part of section name */
+	const char *namelist3 [] = {
+		".unwind",  /* sample: IA_64.unwind.init.text */
+		NULL
+	};
+
 	for (s = namelist1; *s; s++)
 		if (strcmp(*s, name) == 0)
 			return 1;
 	for (s = namelist2; *s; s++)	
 		if (strncmp(*s, name, strlen(*s)) == 0)
+			return 1;
+	for (s = namelist3; *s; s++)	
+		if (strstr(*s, name) != NULL)
 			return 1;
 	return 0;
 }
@@ -727,12 +735,20 @@ static int exit_section_ref_ok(const char *name)
 		".debug",
 		NULL
 	};
+	/* part of section name */
+	const char *namelist3 [] = {
+		".unwind",  /* Sample: IA_64.unwind.exit.text */
+		NULL
+	};
 	
 	for (s = namelist1; *s; s++)
 		if (strcmp(*s, name) == 0)
 			return 1;
 	for (s = namelist2; *s; s++)	
 		if (strncmp(*s, name, strlen(*s)) == 0)
+			return 1;
+	for (s = namelist3; *s; s++)	
+		if (strstr(*s, name) != NULL)
 			return 1;
 	return 0;
 }
