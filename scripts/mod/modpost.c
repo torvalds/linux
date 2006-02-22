@@ -590,14 +590,14 @@ static void check_sec_ref(struct module *mod, const char *modname,
 		
 	/* Walk through all sections */
 	for (i = 0; i < hdr->e_shnum; i++) {
+		Elf_Rela *rela;
+		Elf_Rela *start = (void *)hdr + sechdrs[i].sh_offset;
+		Elf_Rela *stop  = (void*)start + sechdrs[i].sh_size;
 		const char *name = secstrings + sechdrs[i].sh_name +
 						strlen(".rela");
 		/* We want to process only relocation sections and not .init */
 		if (section_ref_ok(name) || (sechdrs[i].sh_type != SHT_RELA))
 			continue;
-		Elf_Rela *rela;
-		Elf_Rela *start = (void *)hdr + sechdrs[i].sh_offset;
-		Elf_Rela *stop  = (void*)start + sechdrs[i].sh_size;
 
 		for (rela = start; rela < stop; rela++) {
 			Elf_Rela r;
