@@ -879,13 +879,12 @@ static int __xm_phy_read(struct skge_hw *hw, int port, u16 reg, u16 *val)
 	int i;
 
 	xm_write16(hw, port, XM_PHY_ADDR, reg | hw->phy_addr);
-	xm_read16(hw, port, XM_PHY_DATA);
+	*val = xm_read16(hw, port, XM_PHY_DATA);
 
-	/* Need to wait for external PHY */
 	for (i = 0; i < PHY_RETRIES; i++) {
-		udelay(1);
 		if (xm_read16(hw, port, XM_MMU_CMD) & XM_MMU_PHY_RDY)
 			goto ready;
+		udelay(1);
 	}
 
 	return -ETIMEDOUT;
@@ -918,7 +917,12 @@ static int xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
 
  ready:
 	xm_write16(hw, port, XM_PHY_DATA, val);
-	return 0;
+	for (i = 0; i < PHY_RETRIES; i++) {
+		if (!(xm_read16(hw, port, XM_MMU_CMD) & XM_MMU_PHY_BUSY))
+			return 0;
+		udelay(1);
+	}
+	return -ETIMEDOUT;
 }
 
 static void genesis_init(struct skge_hw *hw)
@@ -1168,13 +1172,17 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	u32 r;
 	const u8 zero[6]  = { 0 };
 
-	/* Clear MIB counters */
-	xm_write16(hw, port, XM_STAT_CMD,
-			XM_SC_CLR_RXC | XM_SC_CLR_TXC);
-	/* Clear two times according to Errata #3 */
-	xm_write16(hw, port, XM_STAT_CMD,
-			XM_SC_CLR_RXC | XM_SC_CLR_TXC);
+	for (i = 0; i < 10; i++) {
+		skge_write16(hw, SK_REG(port, TX_MFF_CTRL1),
+			     MFF_SET_MAC_RST);
+		if (skge_read16(hw, SK_REG(port, TX_MFF_CTRL1)) & MFF_SET_MAC_RST)
+			goto reset_ok;
+		udelay(1);
+	}
 
+	printk(KERN_WARNING PFX "%s: genesis reset failed\n", dev->name);
+
+ reset_ok:
 	/* Unreset the XMAC. */
 	skge_write16(hw, SK_REG(port, TX_MFF_CTRL1), MFF_CLR_MAC_RST);
 
@@ -1191,7 +1199,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 		r |= GP_DIR_2|GP_IO_2;
 
 	skge_write32(hw, B2_GP_IO, r);
-	skge_read32(hw, B2_GP_IO);
+
 
 	/* Enable GMII interface */
 	xm_write16(hw, port, XM_HW_CFG, XM_HW_GMII_MD);
@@ -1204,6 +1212,13 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	/* We don't use match addresses so clear */
 	for (i = 1; i < 16; i++)
 		xm_outaddr(hw, port, XM_EXM(i), zero);
+
+	/* Clear MIB counters */
+	xm_write16(hw, port, XM_STAT_CMD,
+			XM_SC_CLR_RXC | XM_SC_CLR_TXC);
+	/* Clear two times according to Errata #3 */
+	xm_write16(hw, port, XM_STAT_CMD,
+			XM_SC_CLR_RXC | XM_SC_CLR_TXC);
 
 	/* configure Rx High Water Mark (XM_RX_HI_WM) */
 	xm_write16(hw, port, XM_RX_HI_WM, 1450);
