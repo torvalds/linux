@@ -45,6 +45,19 @@
 
 extern void device_scan(void);
 
+#define MAX_PHYS_ADDRESS	(1UL << 42UL)
+#define KPTE_BITMAP_CHUNK_SZ	(256UL * 1024UL * 1024UL)
+#define KPTE_BITMAP_BYTES	\
+	((MAX_PHYS_ADDRESS / KPTE_BITMAP_CHUNK_SZ) / 8)
+
+unsigned long kern_linear_pte_xor[2] __read_mostly;
+
+/* A bitmap, one bit for every 256MB of physical memory.  If the bit
+ * is clear, we should use a 4MB page (via kern_linear_pte_xor[0]) else
+ * if set we should use a 256MB page (via kern_linear_pte_xor[1]).
+ */
+unsigned long kpte_linear_bitmap[KPTE_BITMAP_BYTES / sizeof(unsigned long)];
+
 #define MAX_BANKS	32
 
 static struct linux_prom64_registers pavail[MAX_BANKS] __initdata;
@@ -119,7 +132,6 @@ unsigned long phys_base __read_mostly;
 unsigned long kern_base __read_mostly;
 unsigned long kern_size __read_mostly;
 unsigned long pfn_base __read_mostly;
-unsigned long kern_linear_pte_xor __read_mostly;
 
 /* get_new_mmu_context() uses "cache + 1".  */
 DEFINE_SPINLOCK(ctx_alloc_lock);
@@ -878,6 +890,9 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 	return end_pfn;
 }
 
+static struct linux_prom64_registers pall[MAX_BANKS] __initdata;
+static int pall_ents __initdata;
+
 #ifdef CONFIG_DEBUG_PAGEALLOC
 static unsigned long kernel_map_range(unsigned long pstart, unsigned long pend, pgprot_t prot)
 {
@@ -933,14 +948,41 @@ static unsigned long kernel_map_range(unsigned long pstart, unsigned long pend, 
 	return alloc_bytes;
 }
 
-static struct linux_prom64_registers pall[MAX_BANKS] __initdata;
-static int pall_ents __initdata;
-
 extern unsigned int kvmap_linear_patch[1];
+#endif /* CONFIG_DEBUG_PAGEALLOC */
+
+static void __init mark_kpte_bitmap(unsigned long start, unsigned long end)
+{
+	const unsigned long shift_256MB = 28;
+	const unsigned long mask_256MB = ((1UL << shift_256MB) - 1UL);
+	const unsigned long size_256MB = (1UL << shift_256MB);
+
+	while (start < end) {
+		long remains;
+
+		if (start & mask_256MB) {
+			start = (start + size_256MB) & ~mask_256MB;
+			continue;
+		}
+
+		remains = end - start;
+		while (remains >= size_256MB) {
+			unsigned long index = start >> shift_256MB;
+
+			__set_bit(index, kpte_linear_bitmap);
+
+			start += size_256MB;
+			remains -= size_256MB;
+		}
+	}
+}
 
 static void __init kernel_physical_mapping_init(void)
 {
-	unsigned long i, mem_alloced = 0UL;
+	unsigned long i;
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	unsigned long mem_alloced = 0UL;
+#endif
 
 	read_obp_memory("reg", &pall[0], &pall_ents);
 
@@ -949,10 +991,16 @@ static void __init kernel_physical_mapping_init(void)
 
 		phys_start = pall[i].phys_addr;
 		phys_end = phys_start + pall[i].reg_size;
+
+		mark_kpte_bitmap(phys_start, phys_end);
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
 		mem_alloced += kernel_map_range(phys_start, phys_end,
 						PAGE_KERNEL);
+#endif
 	}
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
 	printk("Allocated %ld bytes for kernel page tables.\n",
 	       mem_alloced);
 
@@ -960,8 +1008,10 @@ static void __init kernel_physical_mapping_init(void)
 	flushi(&kvmap_linear_patch[0]);
 
 	__flush_tlb_all();
+#endif
 }
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
 void kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long phys_start = page_to_pfn(page) << PAGE_SHIFT;
@@ -1172,9 +1222,7 @@ void __init paging_init(void)
 	pages_avail = 0;
 	last_valid_pfn = end_pfn = bootmem_init(&pages_avail);
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
 	kernel_physical_mapping_init();
-#endif
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES];
@@ -1413,10 +1461,13 @@ static void __init sun4u_pgprot_init(void)
 	pg_iobits = (_PAGE_VALID | _PAGE_PRESENT_4U | __DIRTY_BITS_4U |
 		     __ACCESS_BITS_4U | _PAGE_E_4U);
 
-	kern_linear_pte_xor = (_PAGE_VALID | _PAGE_SZ4MB_4U) ^
+	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4U) ^
 		0xfffff80000000000;
-	kern_linear_pte_xor |= (_PAGE_CP_4U | _PAGE_CV_4U |
-				_PAGE_P_4U | _PAGE_W_4U);
+	kern_linear_pte_xor[0] |= (_PAGE_CP_4U | _PAGE_CV_4U |
+				   _PAGE_P_4U | _PAGE_W_4U);
+
+	/* XXX Should use 256MB on Panther. XXX */
+	kern_linear_pte_xor[1] = kern_linear_pte_xor[0];
 
 	_PAGE_SZBITS = _PAGE_SZBITS_4U;
 	_PAGE_ALL_SZ_BITS =  (_PAGE_SZ4MB_4U | _PAGE_SZ512K_4U |
@@ -1454,10 +1505,15 @@ static void __init sun4v_pgprot_init(void)
 	_PAGE_E = _PAGE_E_4V;
 	_PAGE_CACHE = _PAGE_CACHE_4V;
 
-	kern_linear_pte_xor = (_PAGE_VALID | _PAGE_SZ4MB_4V) ^
+	kern_linear_pte_xor[0] = (_PAGE_VALID | _PAGE_SZ4MB_4V) ^
 		0xfffff80000000000;
-	kern_linear_pte_xor |= (_PAGE_CP_4V | _PAGE_CV_4V |
-				_PAGE_P_4V | _PAGE_W_4V);
+	kern_linear_pte_xor[0] |= (_PAGE_CP_4V | _PAGE_CV_4V |
+				   _PAGE_P_4V | _PAGE_W_4V);
+
+	kern_linear_pte_xor[1] = (_PAGE_VALID | _PAGE_SZ256MB_4V) ^
+		0xfffff80000000000;
+	kern_linear_pte_xor[1] |= (_PAGE_CP_4V | _PAGE_CV_4V |
+				   _PAGE_P_4V | _PAGE_W_4V);
 
 	pg_iobits = (_PAGE_VALID | _PAGE_PRESENT_4V | __DIRTY_BITS_4V |
 		     __ACCESS_BITS_4V | _PAGE_E_4V);
