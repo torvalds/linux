@@ -2884,11 +2884,11 @@ static int sky2_set_coalesce(struct net_device *dev,
 	    (ecmd->rx_coalesce_usecs_irq < tmin || ecmd->rx_coalesce_usecs_irq > tmax))
 		return -EINVAL;
 
-	if (ecmd->tx_max_coalesced_frames > 0xffff)
+	if (ecmd->tx_max_coalesced_frames >= TX_RING_SIZE-1)
 		return -EINVAL;
-	if (ecmd->rx_max_coalesced_frames > 0xff)
+	if (ecmd->rx_max_coalesced_frames > RX_MAX_PENDING)
 		return -EINVAL;
-	if (ecmd->rx_max_coalesced_frames_irq > 0xff)
+	if (ecmd->rx_max_coalesced_frames_irq >RX_MAX_PENDING)
 		return -EINVAL;
 
 	if (ecmd->tx_coalesce_usecs == 0)
