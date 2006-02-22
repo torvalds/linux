@@ -217,7 +217,6 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f)
 
 				x = (x >> 14) & 0xf;
 				TYPE(x,1,1,1,1,0,0);
-				printk("math-emu: type is %08x\n", type);
 				break;
 			}
 
