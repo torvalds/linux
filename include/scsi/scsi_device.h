@@ -4,6 +4,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
 #include <asm/atomic.h>
 
 struct request_queue;
@@ -137,6 +138,8 @@ struct scsi_device {
 	struct device		sdev_gendev;
 	struct class_device	sdev_classdev;
 
+	struct execute_work	ew; /* used to get process context on put */
+
 	enum scsi_device_state sdev_state;
 	unsigned long		sdev_data[0];
 } __attribute__((aligned(sizeof(unsigned long))));
@@ -152,6 +155,11 @@ struct scsi_device {
 
 #define scmd_printk(prefix, scmd, fmt, a...)	\
 	dev_printk(prefix, &(scmd)->device->sdev_gendev, fmt, ##a)
+
+enum scsi_target_state {
+	STARGET_RUNNING = 1,
+	STARGET_DEL,
+};
 
 /*
  * scsi_target: representation of a scsi target, for now, this is only
@@ -172,6 +180,8 @@ struct scsi_target {
 						/* means no lun present */
 
 	char			scsi_level;
+	struct execute_work	ew;
+	enum scsi_target_state	state;
 	void 			*hostdata; /* available to low-level driver */
 	unsigned long		starget_data[0]; /* for the transport */
 	/* starget_data must be the last element!!!! */

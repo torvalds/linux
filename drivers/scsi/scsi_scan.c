@@ -349,6 +349,8 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	starget->channel = channel;
 	INIT_LIST_HEAD(&starget->siblings);
 	INIT_LIST_HEAD(&starget->devices);
+	starget->state = STARGET_RUNNING;
+ retry:
 	spin_lock_irqsave(shost->host_lock, flags);
 
 	found_target = __scsi_find_target(parent, channel, id);
@@ -381,8 +383,15 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	found_target->reap_ref++;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	put_device(parent);
-	kfree(starget);
-	return found_target;
+	if (found_target->state != STARGET_DEL) {
+		kfree(starget);
+		return found_target;
+	}
+	/* Unfortunately, we found a dying target; need to
+	 * wait until it's dead before we can get a new one */
+	put_device(&found_target->dev);
+	flush_scheduled_work();
+	goto retry;
 }
 
 static void scsi_target_reap_usercontext(void *data)
@@ -391,21 +400,13 @@ static void scsi_target_reap_usercontext(void *data)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
 
+	transport_remove_device(&starget->dev);
+	device_del(&starget->dev);
+	transport_destroy_device(&starget->dev);
 	spin_lock_irqsave(shost->host_lock, flags);
-
-	if (--starget->reap_ref == 0 && list_empty(&starget->devices)) {
-		list_del_init(&starget->siblings);
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		transport_remove_device(&starget->dev);
-		device_del(&starget->dev);
-		transport_destroy_device(&starget->dev);
-		put_device(&starget->dev);
-		return;
-
-	}
+	list_del_init(&starget->siblings);
 	spin_unlock_irqrestore(shost->host_lock, flags);
-
-	return;
+	put_device(&starget->dev);
 }
 
 /**
@@ -419,7 +420,23 @@ static void scsi_target_reap_usercontext(void *data)
  */
 void scsi_target_reap(struct scsi_target *starget)
 {
-	scsi_execute_in_process_context(scsi_target_reap_usercontext, starget);
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
+	unsigned long flags;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+
+	if (--starget->reap_ref == 0 && list_empty(&starget->devices)) {
+		BUG_ON(starget->state == STARGET_DEL);
+		starget->state = STARGET_DEL;
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		execute_in_process_context(scsi_target_reap_usercontext,
+					   starget, &starget->ew);
+		return;
+
+	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	return;
 }
 
 /**
