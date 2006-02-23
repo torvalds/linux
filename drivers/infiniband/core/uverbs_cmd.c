@@ -1864,6 +1864,8 @@ retry:
 		goto err_destroy;
 
 	resp.srq_handle = uobj->uobject.id;
+	resp.max_wr     = attr.attr.max_wr;
+	resp.max_sge    = attr.attr.max_sge;
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {

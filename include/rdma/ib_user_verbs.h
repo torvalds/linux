@@ -44,7 +44,7 @@
  * Increment this value if any changes that break userspace ABI
  * compatibility are made.
  */
-#define IB_USER_VERBS_ABI_VERSION	5
+#define IB_USER_VERBS_ABI_VERSION	6
 
 enum {
 	IB_USER_VERBS_CMD_GET_CONTEXT,
@@ -605,6 +605,9 @@ struct ib_uverbs_create_srq {
 
 struct ib_uverbs_create_srq_resp {
 	__u32 srq_handle;
+	__u32 max_wr;
+	__u32 max_sge;
+	__u32 reserved;
 };
 
 struct ib_uverbs_modify_srq {
