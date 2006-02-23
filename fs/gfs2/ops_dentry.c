@@ -35,7 +35,6 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct dentry *parent = dget_parent(dentry);
 	struct gfs2_inode *dip = get_v2ip(parent->d_inode);
-	struct gfs2_sbd *sdp = dip->i_sbd;
 	struct inode *inode;
 	struct gfs2_holder d_gh;
 	struct gfs2_inode *ip;

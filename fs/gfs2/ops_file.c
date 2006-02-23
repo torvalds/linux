@@ -299,7 +299,6 @@ static ssize_t gfs2_file_readv(struct file *filp, const struct iovec *iov,
 static ssize_t gfs2_file_aio_read(struct kiocb *iocb, char __user *buf,
 				  size_t count, loff_t pos)
 {
-	struct file *filp = iocb->ki_filp;
         struct iovec local_iov = { .iov_base = buf, .iov_len = count };
 
         BUG_ON(iocb->ki_pos != pos);
@@ -818,7 +817,6 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 static ssize_t gfs2_sendfile(struct file *in_file, loff_t *offset, size_t count,
 			     read_actor_t actor, void *target)
 {
-	struct gfs2_inode *ip = get_v2ip(in_file->f_mapping->host);
 	return generic_file_sendfile(in_file, offset, count, actor, target);
 }
 

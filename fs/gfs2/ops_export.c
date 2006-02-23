@@ -161,7 +161,6 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 
 static struct dentry *gfs2_get_parent(struct dentry *child)
 {
-	struct gfs2_inode *dip = get_v2ip(child->d_inode);
 	struct qstr dotdot = { .name = "..", .len = 2 };
 	struct inode *inode;
 	struct dentry *dentry;

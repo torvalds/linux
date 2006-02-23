@@ -825,7 +825,6 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state)
 
 static void state_change(struct gfs2_glock *gl, unsigned int new_state)
 {
-	struct gfs2_sbd *sdp = gl->gl_sbd;
 	int held1, held2;
 
 	held1 = (gl->gl_state != LM_ST_UNLOCKED);
@@ -1390,7 +1389,6 @@ int gfs2_glock_wait(struct gfs2_holder *gh)
 void gfs2_glock_dq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_glock_operations *glops = gl->gl_ops;
 
 	if (gh->gh_flags & GL_SYNC)
