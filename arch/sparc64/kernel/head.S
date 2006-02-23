@@ -622,7 +622,6 @@ setup_tba:
 	 restore
 sparc64_boot_end:
 
-#include "systbls.S"
 #include "ktlb.S"
 #include "tsb.S"
 #include "etrap.S"
@@ -649,6 +648,8 @@ swapper_tsb:
 ! 0x0000000000408000
 
 #include "ttable.S"
+
+#include "systbls.S"
 
 	.data
 	.align	8
