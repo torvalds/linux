@@ -18,7 +18,7 @@
 #define DLM_USER_LVB_LEN	32
 
 /* Version of the device interface */
-#define DLM_DEVICE_VERSION_MAJOR 3
+#define DLM_DEVICE_VERSION_MAJOR 4
 #define DLM_DEVICE_VERSION_MINOR 0
 #define DLM_DEVICE_VERSION_PATCH 0
 
@@ -28,7 +28,6 @@ struct dlm_lock_params {
 	__u16 flags;
 	__u32 lkid;
 	__u32 parent;
-	struct dlm_range range;
 	__u8 namelen;
         void __user *castparam;
 	void __user *castaddr;

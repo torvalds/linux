@@ -160,15 +160,6 @@
 typedef void dlm_lockspace_t;
 
 /*
- * Lock range structure
- */
-
-struct dlm_range {
-	uint64_t ra_start;
-	uint64_t ra_end;
-};
-
-/*
  * Lock status block
  *
  * Use this structure to specify the contents of the lock value block.  For a
@@ -277,8 +268,7 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 	     uint32_t parent_lkid,
 	     void (*lockast) (void *astarg),
 	     void *astarg,
-	     void (*bast) (void *astarg, int mode),
-	     struct dlm_range *range);
+	     void (*bast) (void *astarg, int mode));
 
 /*
  * dlm_unlock

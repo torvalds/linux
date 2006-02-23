@@ -50,22 +50,6 @@ void free_lvb(char *p)
 	kfree(p);
 }
 
-uint64_t *allocate_range(struct dlm_ls *ls)
-{
-	int ralen = 4*sizeof(uint64_t);
-	uint64_t *p;
-
-	p = kmalloc(ralen, GFP_KERNEL);
-	if (p)
-		memset(p, 0, ralen);
-	return p;
-}
-
-void free_range(uint64_t *p)
-{
-	kfree(p);
-}
-
 /* FIXME: have some minimal space built-in to rsb for the name and
    kmalloc a separate name if needed, like dentries are done */
 

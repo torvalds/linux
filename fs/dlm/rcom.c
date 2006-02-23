@@ -284,9 +284,6 @@ static void pack_rcom_lock(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	if (lkb->lkb_astaddr)
 		rl->rl_asts |= AST_COMP;
 
-	if (lkb->lkb_range)
-		memcpy(rl->rl_range, lkb->lkb_range, 4*sizeof(uint64_t));
-
 	rl->rl_namelen = r->res_length;
 	memcpy(rl->rl_name, r->res_name, r->res_length);
 

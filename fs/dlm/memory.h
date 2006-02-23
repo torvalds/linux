@@ -24,8 +24,6 @@ struct dlm_direntry *allocate_direntry(struct dlm_ls *ls, int namelen);
 void free_direntry(struct dlm_direntry *de);
 char *allocate_lvb(struct dlm_ls *ls);
 void free_lvb(char *l);
-uint64_t *allocate_range(struct dlm_ls *ls);
-void free_range(uint64_t *l);
 
 #endif		/* __MEMORY_DOT_H__ */
 

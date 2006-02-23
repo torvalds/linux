@@ -532,8 +532,7 @@ static int dlm_close(struct inode *inode, struct file *file)
 			status = dlm_lock(f->fi_ls->ls_lockspace,
 					  old_li->li_grmode, &li.li_lksb,
 					  DLM_LKF_CONVERT|DLM_LKF_ORPHAN,
-					  NULL, 0, 0, ast_routine, NULL,
-					  NULL, NULL);
+					  NULL, 0, 0, ast_routine, NULL, NULL);
 			if (status != 0)
 				printk("dlm: Error orphaning lock %x: %d\n",
 				       old_li->li_lksb.sb_lkid, status);
@@ -878,8 +877,7 @@ static int do_user_lock(struct file_info *fi, uint8_t cmd,
 			  ast_routine,
 			  li,
 			  (li->li_pend_bastaddr || li->li_bastaddr) ?
-			   bast_routine : NULL,
-			  kparams->range.ra_end ? &kparams->range : NULL);
+			   bast_routine : NULL);
 	if (status)
 		goto out_err;
 

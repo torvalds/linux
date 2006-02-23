@@ -146,7 +146,6 @@ struct dlm_args {
 	void			*bastaddr;
 	int			mode;
 	struct dlm_lksb		*lksb;
-	struct dlm_range	*range;
 };
 
 
@@ -195,13 +194,6 @@ struct dlm_args {
 #define AST_COMP		1
 #define AST_BAST		2
 
-/* lkb_range[] */
-
-#define GR_RANGE_START		0
-#define GR_RANGE_END		1
-#define RQ_RANGE_START		2
-#define RQ_RANGE_END		3
-
 /* lkb_status */
 
 #define DLM_LKSTS_WAITING	1
@@ -212,7 +204,6 @@ struct dlm_args {
 
 #define DLM_IFL_MSTCPY		0x00010000
 #define DLM_IFL_RESEND		0x00020000
-#define DLM_IFL_RANGE		0x00000001
 
 struct dlm_lkb {
 	struct dlm_rsb		*lkb_resource;	/* the rsb */
@@ -241,7 +232,6 @@ struct dlm_lkb {
 	struct list_head	lkb_wait_reply;	/* waiting for remote reply */
 	struct list_head	lkb_astqueue;	/* need ast to be sent */
 
-	uint64_t		*lkb_range;	/* array of gr/rq ranges */
 	char			*lkb_lvbptr;
 	struct dlm_lksb		*lkb_lksb;      /* caller's status block */
 	void			*lkb_astaddr;	/* caller's ast function */
@@ -360,7 +350,6 @@ struct dlm_message {
 	int			m_bastmode;
 	int			m_asts;
 	int			m_result;	/* 0 or -EXXX */
-	uint64_t		m_range[2];
 	char			m_extra[0];	/* name or lvb */
 };
 
@@ -413,7 +402,6 @@ struct rcom_lock {
 	int8_t			rl_asts;
 	uint16_t		rl_wait_type;
 	uint16_t		rl_namelen;
-	uint64_t		rl_range[4];
 	char			rl_name[DLM_RESNAME_MAXLEN];
 	char			rl_lvb[0];
 };

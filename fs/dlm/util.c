@@ -54,8 +54,6 @@ void dlm_message_out(struct dlm_message *ms)
 	ms->m_bastmode		= cpu_to_le32(ms->m_bastmode);
 	ms->m_asts		= cpu_to_le32(ms->m_asts);
 	ms->m_result		= cpu_to_le32(ms->m_result);
-	ms->m_range[0]		= cpu_to_le64(ms->m_range[0]);
-	ms->m_range[1]		= cpu_to_le64(ms->m_range[1]);
 }
 
 void dlm_message_in(struct dlm_message *ms)
@@ -82,8 +80,6 @@ void dlm_message_in(struct dlm_message *ms)
 	ms->m_bastmode		= le32_to_cpu(ms->m_bastmode);
 	ms->m_asts		= le32_to_cpu(ms->m_asts);
 	ms->m_result		= le32_to_cpu(ms->m_result);
-	ms->m_range[0]		= le64_to_cpu(ms->m_range[0]);
-	ms->m_range[1]		= le64_to_cpu(ms->m_range[1]);
 }
 
 static void rcom_lock_out(struct rcom_lock *rl)
@@ -99,10 +95,6 @@ static void rcom_lock_out(struct rcom_lock *rl)
 	rl->rl_result		= cpu_to_le32(rl->rl_result);
 	rl->rl_wait_type	= cpu_to_le16(rl->rl_wait_type);
 	rl->rl_namelen		= cpu_to_le16(rl->rl_namelen);
-	rl->rl_range[0]		= cpu_to_le64(rl->rl_range[0]);
-	rl->rl_range[1]		= cpu_to_le64(rl->rl_range[1]);
-	rl->rl_range[2]		= cpu_to_le64(rl->rl_range[2]);
-	rl->rl_range[3]		= cpu_to_le64(rl->rl_range[3]);
 }
 
 static void rcom_lock_in(struct rcom_lock *rl)
@@ -118,10 +110,6 @@ static void rcom_lock_in(struct rcom_lock *rl)
 	rl->rl_result		= le32_to_cpu(rl->rl_result);
 	rl->rl_wait_type	= le16_to_cpu(rl->rl_wait_type);
 	rl->rl_namelen		= le16_to_cpu(rl->rl_namelen);
-	rl->rl_range[0]		= le64_to_cpu(rl->rl_range[0]);
-	rl->rl_range[1]		= le64_to_cpu(rl->rl_range[1]);
-	rl->rl_range[2]		= le64_to_cpu(rl->rl_range[2]);
-	rl->rl_range[3]		= le64_to_cpu(rl->rl_range[3]);
 }
 
 static void rcom_config_out(struct rcom_config *rf)

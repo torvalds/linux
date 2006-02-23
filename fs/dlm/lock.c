@@ -606,8 +606,6 @@ static int put_lkb(struct dlm_lkb *lkb)
 		/* for local/process lkbs, lvbptr points to caller's lksb */
 		if (lkb->lkb_lvbptr && is_master_copy(lkb))
 			free_lvb(lkb->lkb_lvbptr);
-		if (lkb->lkb_range)
-			free_range(lkb->lkb_range);
 		free_lkb(lkb);
 		return 1;
 	} else {
@@ -988,11 +986,6 @@ static void _grant_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	}
 
 	lkb->lkb_rqmode = DLM_LOCK_IV;
-
-	if (lkb->lkb_range) {
-		lkb->lkb_range[GR_RANGE_START] = lkb->lkb_range[RQ_RANGE_START];
-		lkb->lkb_range[GR_RANGE_END] = lkb->lkb_range[RQ_RANGE_END];
-	}
 }
 
 static void grant_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
@@ -1032,21 +1025,6 @@ static inline int first_in_list(struct dlm_lkb *lkb, struct list_head *head)
 	return 0;
 }
 
-/* Return 1 if the locks' ranges overlap.  If the lkb has no range then it is
-   assumed to cover 0-ffffffff.ffffffff */
-
-static inline int ranges_overlap(struct dlm_lkb *lkb1, struct dlm_lkb *lkb2)
-{
-	if (!lkb1->lkb_range || !lkb2->lkb_range)
-		return 1;
-
-	if (lkb1->lkb_range[RQ_RANGE_END] < lkb2->lkb_range[GR_RANGE_START] ||
-	    lkb1->lkb_range[RQ_RANGE_START] > lkb2->lkb_range[GR_RANGE_END])
-		return 0;
-
-	return 1;
-}
-
 /* Check if the given lkb conflicts with another lkb on the queue. */
 
 static int queue_conflict(struct list_head *head, struct dlm_lkb *lkb)
@@ -1056,7 +1034,7 @@ static int queue_conflict(struct list_head *head, struct dlm_lkb *lkb)
 	list_for_each_entry(this, head, lkb_statequeue) {
 		if (this == lkb)
 			continue;
-		if (ranges_overlap(lkb, this) && !modes_compat(this, lkb))
+		if (!modes_compat(this, lkb))
 			return 1;
 	}
 	return 0;
@@ -1098,9 +1076,6 @@ static int conversion_deadlock_detect(struct dlm_rsb *rsb, struct dlm_lkb *lkb)
 			self = lkb;
 			continue;
 		}
-
-		if (!ranges_overlap(lkb, this))
-			continue;
 
 		if (!modes_compat(this, lkb) && !modes_compat(lkb, this))
 			return 1;
@@ -1203,8 +1178,8 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 		return 1;
 
 	/*
-	 * When using range locks the NOORDER flag is set to avoid the standard
-	 * vms rules on grant order.
+	 * The NOORDER flag is set to avoid the standard vms rules on grant
+	 * order.
 	 */
 
 	if (lkb->lkb_exflags & DLM_LKF_NOORDER)
@@ -1358,8 +1333,7 @@ static void grant_pending_locks(struct dlm_rsb *r)
 	/*
 	 * If there are locks left on the wait/convert queue then send blocking
 	 * ASTs to granted locks based on the largest requested mode (high)
-	 * found above.  This can generate spurious blocking ASTs for range
-	 * locks. FIXME: highbast < high comparison not valid for PR/CW.
+	 * found above. FIXME: highbast < high comparison not valid for PR/CW.
 	 */
 
 	list_for_each_entry_safe(lkb, s, &r->res_grantqueue, lkb_statequeue) {
@@ -1379,7 +1353,7 @@ static void send_bast_queue(struct dlm_rsb *r, struct list_head *head,
 	list_for_each_entry(gr, head, lkb_statequeue) {
 		if (gr->lkb_bastaddr &&
 		    gr->lkb_highbast < lkb->lkb_rqmode &&
-		    ranges_overlap(lkb, gr) && !modes_compat(gr, lkb)) {
+		    !modes_compat(gr, lkb)) {
 			queue_bast(r, gr, lkb->lkb_rqmode);
 			gr->lkb_highbast = lkb->lkb_rqmode;
 		}
@@ -1530,8 +1504,7 @@ static void confirm_master(struct dlm_rsb *r, int error)
 
 static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
 			 int namelen, uint32_t parent_lkid, void *ast,
-			 void *astarg, void *bast, struct dlm_range *range,
-			 struct dlm_args *args)
+			 void *astarg, void *bast, struct dlm_args *args)
 {
 	int rv = -EINVAL;
 
@@ -1590,7 +1563,6 @@ static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
 	args->bastaddr = bast;
 	args->mode = mode;
 	args->lksb = lksb;
-	args->range = range;
 	rv = 0;
  out:
 	return rv;
@@ -1637,26 +1609,6 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	lkb->lkb_lksb = args->lksb;
 	lkb->lkb_lvbptr = args->lksb->sb_lvbptr;
 	lkb->lkb_ownpid = (int) current->pid;
-
-	rv = 0;
-	if (!args->range)
-		goto out;
-
-	if (!lkb->lkb_range) {
-		rv = -ENOMEM;
-		lkb->lkb_range = allocate_range(ls);
-		if (!lkb->lkb_range)
-			goto out;
-		/* This is needed for conversions that contain ranges
-		   where the original lock didn't but it's harmless for
-		   new locks too. */
-		lkb->lkb_range[GR_RANGE_START] = 0LL;
-		lkb->lkb_range[GR_RANGE_END] = 0xffffffffffffffffULL;
-	}
-
-	lkb->lkb_range[RQ_RANGE_START] = args->range->ra_start;
-	lkb->lkb_range[RQ_RANGE_END] = args->range->ra_end;
-	lkb->lkb_flags |= DLM_IFL_RANGE;
 	rv = 0;
  out:
 	return rv;
@@ -1805,7 +1757,7 @@ static int _request_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	return error;
 }
 
-/* change some property of an existing lkb, e.g. mode, range */
+/* change some property of an existing lkb, e.g. mode */
 
 static int _convert_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
@@ -1962,8 +1914,7 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 	     uint32_t parent_lkid,
 	     void (*ast) (void *astarg),
 	     void *astarg,
-	     void (*bast) (void *astarg, int mode),
-	     struct dlm_range *range)
+	     void (*bast) (void *astarg, int mode))
 {
 	struct dlm_ls *ls;
 	struct dlm_lkb *lkb;
@@ -1985,7 +1936,7 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 		goto out;
 
 	error = set_lock_args(mode, lksb, flags, namelen, parent_lkid, ast,
-			      astarg, bast, range, &args);
+			      astarg, bast, &args);
 	if (error)
 		goto out_put;
 
@@ -2153,11 +2104,6 @@ static void send_args(struct dlm_rsb *r, struct dlm_lkb *lkb,
 		ms->m_asts |= AST_BAST;
 	if (lkb->lkb_astaddr)
 		ms->m_asts |= AST_COMP;
-
-	if (lkb->lkb_range) {
-		ms->m_range[0] = lkb->lkb_range[RQ_RANGE_START];
-		ms->m_range[1] = lkb->lkb_range[RQ_RANGE_END];
-	}
 
 	if (ms->m_type == DLM_MSG_REQUEST || ms->m_type == DLM_MSG_LOOKUP)
 		memcpy(ms->m_extra, r->res_name, r->res_length);
@@ -2402,20 +2348,6 @@ static int receive_extralen(struct dlm_message *ms)
 	return (ms->m_header.h_length - sizeof(struct dlm_message));
 }
 
-static int receive_range(struct dlm_ls *ls, struct dlm_lkb *lkb,
-			 struct dlm_message *ms)
-{
-	if (lkb->lkb_flags & DLM_IFL_RANGE) {
-		if (!lkb->lkb_range)
-			lkb->lkb_range = allocate_range(ls);
-		if (!lkb->lkb_range)
-			return -ENOMEM;
-		lkb->lkb_range[RQ_RANGE_START] = ms->m_range[0];
-		lkb->lkb_range[RQ_RANGE_END] = ms->m_range[1];
-	}
-	return 0;
-}
-
 static int receive_lvb(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		       struct dlm_message *ms)
 {
@@ -2445,9 +2377,6 @@ static int receive_request_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 
 	DLM_ASSERT(is_master_copy(lkb), dlm_print_lkb(lkb););
 
-	if (receive_range(ls, lkb, ms))
-		return -ENOMEM;
-
 	if (receive_lvb(ls, lkb, ms))
 		return -ENOMEM;
 
@@ -2469,13 +2398,6 @@ static int receive_convert_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 
 	if (lkb->lkb_status != DLM_LKSTS_GRANTED)
 		return -EBUSY;
-
-	if (receive_range(ls, lkb, ms))
-		return -ENOMEM;
-	if (lkb->lkb_range) {
-		lkb->lkb_range[GR_RANGE_START] = 0LL;
-		lkb->lkb_range[GR_RANGE_END] = 0xffffffffffffffffULL;
-	}
 
 	if (receive_lvb(ls, lkb, ms))
 		return -ENOMEM;
@@ -3475,13 +3397,6 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 
 	lkb->lkb_bastaddr = (void *) (long) (rl->rl_asts & AST_BAST);
 	lkb->lkb_astaddr = (void *) (long) (rl->rl_asts & AST_COMP);
-
-	if (lkb->lkb_flags & DLM_IFL_RANGE) {
-		lkb->lkb_range = allocate_range(ls);
-		if (!lkb->lkb_range)
-			return -ENOMEM;
-		memcpy(lkb->lkb_range, rl->rl_range, 4*sizeof(uint64_t));
-	}
 
 	if (lkb->lkb_exflags & DLM_LKF_VALBLK) {
 		lkb->lkb_lvbptr = allocate_lvb(ls);
