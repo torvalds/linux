@@ -32,8 +32,6 @@ static struct dentry *gfs2_decode_fh(struct super_block *sb,
 {
 	struct gfs2_inum this, parent;
 
-	atomic_inc(&get_v2sdp(sb)->sd_ops_export);
-
 	if (fh_type != fh_len)
 		return NULL;
 
@@ -65,8 +63,6 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	struct inode *inode = dentry->d_inode;
 	struct gfs2_inode *ip = get_v2ip(inode);
 	struct gfs2_sbd *sdp = ip->i_sbd;
-
-	atomic_inc(&sdp->sd_ops_export);
 
 	if (*len < 4 || (connectable && *len < 8))
 		return 255;
@@ -139,8 +135,6 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 	if (!dir)
 		return -EINVAL;
 
-	atomic_inc(&get_v2sdp(dir->i_sb)->sd_ops_export);
-
 	if (!S_ISDIR(dir->i_mode) || !inode)
 		return -EINVAL;
 
@@ -173,8 +167,6 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 	struct dentry *dentry;
 	int error;
 
-	atomic_inc(&dip->i_sbd->sd_ops_export);
-
 	error = gfs2_lookupi(child->d_inode, &dotdot, 1, &inode);
 	if (error)
 		return ERR_PTR(error);
@@ -198,8 +190,6 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_p)
 	struct inode *inode;
 	struct dentry *dentry;
 	int error;
-
-	atomic_inc(&sdp->sd_ops_export);
 
 	/* System files? */
 
@@ -255,8 +245,6 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_p)
 		gfs2_inode_put(ip);
 		goto fail;
 	}
-
-	atomic_inc(&sdp->sd_fh2dentry_misses);
 
  out_ip:
 	error = -EIO;

@@ -129,8 +129,6 @@ static loff_t gfs2_llseek(struct file *file, loff_t offset, int origin)
 	struct gfs2_holder i_gh;
 	loff_t error;
 
-	atomic_inc(&ip->i_sbd->sd_ops_file);
-
 	if (origin == 2) {
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY,
 					   &i_gh);
@@ -278,8 +276,6 @@ static ssize_t gfs2_read(struct file *filp, char __user *buf, size_t size,
 	struct kiocb kiocb;
 	ssize_t ret;
 
-	atomic_inc(&get_v2sdp(filp->f_mapping->host->i_sb)->sd_ops_file);
-
 	init_sync_kiocb(&kiocb, filp);
 	ret = __gfs2_file_aio_read(&kiocb, &local_iov, 1, offset);
 	if (-EIOCBQUEUED == ret)
@@ -293,8 +289,6 @@ static ssize_t gfs2_file_readv(struct file *filp, const struct iovec *iov,
 	struct kiocb kiocb;
 	ssize_t ret;
 
-	atomic_inc(&get_v2sdp(filp->f_mapping->host->i_sb)->sd_ops_file);
-
 	init_sync_kiocb(&kiocb, filp);
 	ret = __gfs2_file_aio_read(&kiocb, iov, nr_segs, ppos);
 	if (-EIOCBQUEUED == ret)
@@ -307,8 +301,6 @@ static ssize_t gfs2_file_aio_read(struct kiocb *iocb, char __user *buf,
 {
 	struct file *filp = iocb->ki_filp;
         struct iovec local_iov = { .iov_base = buf, .iov_len = count };
-
-	atomic_inc(&get_v2sdp(filp->f_mapping->host->i_sb)->sd_ops_file);
 
         BUG_ON(iocb->ki_pos != pos);
         return __gfs2_file_aio_read(iocb, &local_iov, 1, &iocb->ki_pos);
@@ -529,8 +521,6 @@ static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
 {
 	int error;
 
-	atomic_inc(&get_v2sdp(file->f_mapping->host->i_sb)->sd_ops_file);
-
 	if (strcmp(current->comm, "nfsd") != 0)
 		error = readdir_reg(file, dirent, filldir);
 	else
@@ -539,7 +529,8 @@ static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
 	return error;
 }
 
-static int gfs2_ioctl_flags(struct gfs2_inode *ip, unsigned int cmd, unsigned long arg)
+static int gfs2_ioctl_flags(struct gfs2_inode *ip, unsigned int cmd,
+			    unsigned long arg)
 {
 	unsigned int lmode = (cmd == GFS2_IOCTL_SETFLAGS) ? LM_ST_EXCLUSIVE : LM_ST_SHARED;
 	struct buffer_head *dibh;
@@ -618,8 +609,6 @@ static int gfs2_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 {
 	struct gfs2_inode *ip = get_v2ip(inode);
 
-	atomic_inc(&ip->i_sbd->sd_ops_file);
-
 	switch (cmd) {
 	case GFS2_IOCTL_SETFLAGS:
 	case GFS2_IOCTL_GETFLAGS:
@@ -643,8 +632,6 @@ static int gfs2_mmap(struct file *file, struct vm_area_struct *vma)
 	struct gfs2_inode *ip = get_v2ip(file->f_mapping->host);
 	struct gfs2_holder i_gh;
 	int error;
-
-	atomic_inc(&ip->i_sbd->sd_ops_file);
 
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &i_gh);
 	error = gfs2_glock_nq_atime(&i_gh);
@@ -681,8 +668,6 @@ static int gfs2_open(struct inode *inode, struct file *file)
 	struct gfs2_holder i_gh;
 	struct gfs2_file *fp;
 	int error;
-
-	atomic_inc(&ip->i_sbd->sd_ops_file);
 
 	fp = kzalloc(sizeof(struct gfs2_file), GFP_KERNEL);
 	if (!fp)
@@ -741,8 +726,6 @@ static int gfs2_close(struct inode *inode, struct file *file)
 	struct gfs2_sbd *sdp = get_v2sdp(inode->i_sb);
 	struct gfs2_file *fp;
 
-	atomic_inc(&sdp->sd_ops_file);
-
 	fp = get_v2fp(file);
 	set_v2fp(file, NULL);
 
@@ -766,7 +749,6 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct gfs2_inode *ip = get_v2ip(dentry->d_inode);
 
-	atomic_inc(&ip->i_sbd->sd_ops_file);
 	gfs2_log_flush_glock(ip->i_gl);
 
 	return 0;
@@ -788,8 +770,6 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 	struct lm_lockname name =
 		{ .ln_number = ip->i_num.no_addr,
 		  .ln_type = LM_TYPE_PLOCK };
-
-	atomic_inc(&sdp->sd_ops_file);
 
 	if (!(fl->fl_flags & FL_POSIX))
 		return -ENOLCK;
@@ -839,9 +819,6 @@ static ssize_t gfs2_sendfile(struct file *in_file, loff_t *offset, size_t count,
 			     read_actor_t actor, void *target)
 {
 	struct gfs2_inode *ip = get_v2ip(in_file->f_mapping->host);
-
-	atomic_inc(&ip->i_sbd->sd_ops_file);
-
 	return generic_file_sendfile(in_file, offset, count, actor, target);
 }
 
@@ -920,8 +897,6 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct gfs2_inode *ip = get_v2ip(file->f_mapping->host);
 	struct gfs2_sbd *sdp = ip->i_sbd;
-
-	atomic_inc(&ip->i_sbd->sd_ops_file);
 
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;

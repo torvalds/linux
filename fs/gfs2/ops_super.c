@@ -46,8 +46,6 @@ static int gfs2_write_inode(struct inode *inode, int sync)
 {
 	struct gfs2_inode *ip = get_v2ip(inode);
 
-	atomic_inc(&ip->i_sbd->sd_ops_super);
-
 	if (current->flags & PF_MEMALLOC)
 		return 0;
 	if (ip && sync)
@@ -69,8 +67,6 @@ static void gfs2_put_super(struct super_block *sb)
 
 	if (!sdp)
 		return;
-
-	atomic_inc(&sdp->sd_ops_super);
 
 	/*  Unfreeze the filesystem, if we need to  */
 
@@ -156,7 +152,6 @@ static void gfs2_put_super(struct super_block *sb)
 static void gfs2_write_super(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = get_v2sdp(sb);
-	atomic_inc(&sdp->sd_ops_super);
 	gfs2_log_flush(sdp);
 }
 
@@ -170,8 +165,6 @@ static void gfs2_write_super_lockfs(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = get_v2sdp(sb);
 	int error;
-
-	atomic_inc(&sdp->sd_ops_super);
 
 	for (;;) {
 		error = gfs2_freeze_fs(sdp);
@@ -202,8 +195,6 @@ static void gfs2_write_super_lockfs(struct super_block *sb)
 static void gfs2_unlockfs(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = get_v2sdp(sb);
-
-	atomic_inc(&sdp->sd_ops_super);
 	gfs2_unfreeze_fs(sdp);
 }
 
@@ -220,8 +211,6 @@ static int gfs2_statfs(struct super_block *sb, struct kstatfs *buf)
 	struct gfs2_sbd *sdp = get_v2sdp(sb);
 	struct gfs2_statfs_change sc;
 	int error;
-
-	atomic_inc(&sdp->sd_ops_super);
 
 	if (gfs2_tune_get(sdp, gt_statfs_slow))
 		error = gfs2_statfs_slow(sdp, &sc);
@@ -258,8 +247,6 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	struct gfs2_sbd *sdp = get_v2sdp(sb);
 	int error;
-
-	atomic_inc(&sdp->sd_ops_super);
 
 	error = gfs2_mount_args(sdp, data, 1);
 	if (error)
@@ -298,8 +285,6 @@ static void gfs2_clear_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = get_v2ip(inode);
 
-	atomic_inc(&get_v2sdp(inode->i_sb)->sd_ops_super);
-
 	if (ip) {
 		spin_lock(&ip->i_spin);
 		ip->i_vnode = NULL;
@@ -323,8 +308,6 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 {
 	struct gfs2_sbd *sdp = get_v2sdp(mnt->mnt_sb);
 	struct gfs2_args *args = &sdp->sd_args;
-
-	atomic_inc(&sdp->sd_ops_super);
 
 	if (args->ar_lockproto[0])
 		seq_printf(s, ",lockproto=%s", args->ar_lockproto);

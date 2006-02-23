@@ -319,85 +319,23 @@ struct counters_attr {
 	ssize_t (*show)(struct gfs2_sbd *, char *);
 };
 
-#define COUNTERS_ATTR_GENERAL(name, fmt, val)                               \
+#define COUNTERS_ATTR(name, fmt)                                            \
 static ssize_t name##_show(struct gfs2_sbd *sdp, char *buf)                 \
 {                                                                           \
-	return sprintf(buf, fmt, val);                                      \
+	return sprintf(buf, fmt, (unsigned int)atomic_read(&sdp->sd_##name)); \
 }                                                                           \
 static struct counters_attr counters_attr_##name = __ATTR_RO(name)
 
-#define COUNTERS_ATTR_SIMPLE(name, fmt) \
-	COUNTERS_ATTR_GENERAL(name, fmt, sdp->sd_##name)
-
-#define COUNTERS_ATTR_ATOMIC(name, fmt) \
-	COUNTERS_ATTR_GENERAL(name, fmt, (unsigned int)atomic_read(&sdp->sd_##name))
-
-COUNTERS_ATTR_ATOMIC(glock_count,          "%u\n");
-COUNTERS_ATTR_ATOMIC(glock_held_count,     "%u\n");
-COUNTERS_ATTR_ATOMIC(inode_count,          "%u\n");
-COUNTERS_ATTR_ATOMIC(bufdata_count,        "%u\n");
-COUNTERS_ATTR_ATOMIC(unlinked_count,       "%u\n");
-COUNTERS_ATTR_ATOMIC(quota_count,          "%u\n");
-COUNTERS_ATTR_SIMPLE(log_num_gl,           "%u\n");
-COUNTERS_ATTR_SIMPLE(log_num_buf,          "%u\n");
-COUNTERS_ATTR_SIMPLE(log_num_revoke,       "%u\n");
-COUNTERS_ATTR_SIMPLE(log_num_rg,           "%u\n");
-COUNTERS_ATTR_SIMPLE(log_num_databuf,      "%u\n");
-COUNTERS_ATTR_SIMPLE(log_blks_free,        "%u\n");
-COUNTERS_ATTR_GENERAL(jd_blocks,           "%u\n", sdp->sd_jdesc->jd_blocks);
-COUNTERS_ATTR_ATOMIC(reclaim_count,        "%u\n");
-COUNTERS_ATTR_SIMPLE(log_wraps,            "%llu\n");
-COUNTERS_ATTR_ATOMIC(fh2dentry_misses,     "%u\n");
-COUNTERS_ATTR_ATOMIC(reclaimed,            "%u\n");
-COUNTERS_ATTR_ATOMIC(log_flush_incore,     "%u\n");
-COUNTERS_ATTR_ATOMIC(log_flush_ondisk,     "%u\n");
-COUNTERS_ATTR_ATOMIC(glock_nq_calls,       "%u\n");
-COUNTERS_ATTR_ATOMIC(glock_dq_calls,       "%u\n");
-COUNTERS_ATTR_ATOMIC(glock_prefetch_calls, "%u\n");
-COUNTERS_ATTR_ATOMIC(lm_lock_calls,        "%u\n");
-COUNTERS_ATTR_ATOMIC(lm_unlock_calls,      "%u\n");
-COUNTERS_ATTR_ATOMIC(lm_callbacks,         "%u\n");
-COUNTERS_ATTR_ATOMIC(ops_address,          "%u\n");
-COUNTERS_ATTR_ATOMIC(ops_dentry,           "%u\n");
-COUNTERS_ATTR_ATOMIC(ops_export,           "%u\n");
-COUNTERS_ATTR_ATOMIC(ops_file,             "%u\n");
-COUNTERS_ATTR_ATOMIC(ops_inode,            "%u\n");
-COUNTERS_ATTR_ATOMIC(ops_super,            "%u\n");
-COUNTERS_ATTR_ATOMIC(ops_vm,               "%u\n");
+COUNTERS_ATTR(glock_count,      "%u\n");
+COUNTERS_ATTR(glock_held_count, "%u\n");
+COUNTERS_ATTR(inode_count,      "%u\n");
+COUNTERS_ATTR(reclaimed,        "%u\n");
 
 static struct attribute *counters_attrs[] = {
 	&counters_attr_glock_count.attr,
 	&counters_attr_glock_held_count.attr,
 	&counters_attr_inode_count.attr,
-	&counters_attr_bufdata_count.attr,
-	&counters_attr_unlinked_count.attr,
-	&counters_attr_quota_count.attr,
-	&counters_attr_log_num_gl.attr,
-	&counters_attr_log_num_buf.attr,
-	&counters_attr_log_num_revoke.attr,
-	&counters_attr_log_num_rg.attr,
-	&counters_attr_log_num_databuf.attr,
-	&counters_attr_log_blks_free.attr,
-	&counters_attr_jd_blocks.attr,
-	&counters_attr_reclaim_count.attr,
-	&counters_attr_log_wraps.attr,
-	&counters_attr_fh2dentry_misses.attr,
 	&counters_attr_reclaimed.attr,
-	&counters_attr_log_flush_incore.attr,
-	&counters_attr_log_flush_ondisk.attr,
-	&counters_attr_glock_nq_calls.attr,
-	&counters_attr_glock_dq_calls.attr,
-	&counters_attr_glock_prefetch_calls.attr,
-	&counters_attr_lm_lock_calls.attr,
-	&counters_attr_lm_unlock_calls.attr,
-	&counters_attr_lm_callbacks.attr,
-	&counters_attr_ops_address.attr,
-	&counters_attr_ops_dentry.attr,
-	&counters_attr_ops_export.attr,
-	&counters_attr_ops_file.attr,
-	&counters_attr_ops_inode.attr,
-	&counters_attr_ops_super.attr,
-	&counters_attr_ops_vm.attr,
 	NULL
 };
 

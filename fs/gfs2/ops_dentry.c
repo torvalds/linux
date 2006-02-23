@@ -45,8 +45,6 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 
 	lock_kernel();
 
-	atomic_inc(&sdp->sd_ops_dentry);
-
 	inode = dentry->d_inode;
 	if (inode && is_bad_inode(inode))
 		goto invalid;

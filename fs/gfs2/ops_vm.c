@@ -48,8 +48,6 @@ static struct page *gfs2_private_nopage(struct vm_area_struct *area,
 	struct page *result;
 	int error;
 
-	atomic_inc(&ip->i_sbd->sd_ops_vm);
-
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &i_gh);
 	if (error)
 		return NULL;
@@ -148,8 +146,6 @@ static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 	unsigned long index = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) + area->vm_pgoff;
 	int alloc_required;
 	int error;
-
-	atomic_inc(&ip->i_sbd->sd_ops_vm);
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
 	if (error)

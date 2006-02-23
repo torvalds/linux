@@ -106,8 +106,6 @@ static void glock_free(struct gfs2_glock *gl)
 		gfs2_aspace_put(aspace);
 
 	kmem_cache_free(gfs2_glock_cachep, gl);
-
-	atomic_dec(&sdp->sd_glock_count);
 }
 
 /**
@@ -315,8 +313,6 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, uint64_t number,
 	error = gfs2_lm_get_lock(sdp, &name, &gl->gl_lock);
 	if (error)
 		goto fail_aspace;
-
-	atomic_inc(&sdp->sd_glock_count);
 
 	write_lock(&bucket->hb_lock);
 	tmp = search_bucket(bucket, &name);
@@ -836,13 +832,10 @@ static void state_change(struct gfs2_glock *gl, unsigned int new_state)
 	held2 = (new_state != LM_ST_UNLOCKED);
 
 	if (held1 != held2) {
-		if (held2) {
-			atomic_inc(&sdp->sd_glock_held_count);
+		if (held2)
 			gfs2_glock_hold(gl);
-		} else {
-			atomic_dec(&sdp->sd_glock_held_count);
+		else
 			gfs2_glock_put(gl);
-		}
 	}
 
 	gl->gl_state = new_state;
@@ -994,8 +987,6 @@ void gfs2_glock_xmote_th(struct gfs2_glock *gl, unsigned int state, int flags)
 	gfs2_glock_hold(gl);
 	gl->gl_req_bh = xmote_bh;
 
-	atomic_inc(&sdp->sd_lm_lock_calls);
-
 	lck_ret = gfs2_lm_lock(sdp, gl->gl_lock, gl->gl_state, state,
 			       lck_flags);
 
@@ -1086,8 +1077,6 @@ void gfs2_glock_drop_th(struct gfs2_glock *gl)
 
 	gfs2_glock_hold(gl);
 	gl->gl_req_bh = drop_bh;
-
-	atomic_inc(&sdp->sd_lm_unlock_calls);
 
 	ret = gfs2_lm_unlock(sdp, gl->gl_lock, gl->gl_state);
 
@@ -1313,8 +1302,6 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	int error = 0;
 
-	atomic_inc(&sdp->sd_glock_nq_calls);
-
  restart:
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags))) {
 		set_bit(HIF_ABORTED, &gh->gh_iflags);
@@ -1406,8 +1393,6 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_glock_operations *glops = gl->gl_ops;
 
-	atomic_inc(&sdp->sd_glock_dq_calls);
-
 	if (gh->gh_flags & GL_SYNC)
 		set_bit(GLF_SYNC, &gl->gl_flags);
 
@@ -1469,8 +1454,6 @@ void gfs2_glock_prefetch(struct gfs2_glock *gl, unsigned int state, int flags)
 	spin_unlock(&gl->gl_spin);
 
 	glops->go_xmote_th(gl, state, flags);
-
-	atomic_inc(&gl->gl_sbd->sd_glock_prefetch_calls);
 }
 
 /**
@@ -1915,8 +1898,6 @@ static void blocking_cb(struct gfs2_sbd *sdp, struct lm_lockname *name,
 void gfs2_glock_cb(lm_fsdata_t *fsdata, unsigned int type, void *data)
 {
 	struct gfs2_sbd *sdp = (struct gfs2_sbd *)fsdata;
-
-	atomic_inc(&sdp->sd_lm_callbacks);
 
 	switch (type) {
 	case LM_CB_NEED_E:

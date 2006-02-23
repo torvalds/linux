@@ -667,27 +667,7 @@ struct gfs2_sbd {
 	atomic_t sd_glock_count;
 	atomic_t sd_glock_held_count;
 	atomic_t sd_inode_count;
-	atomic_t sd_bufdata_count;
-
-	atomic_t sd_fh2dentry_misses;
 	atomic_t sd_reclaimed;
-	atomic_t sd_log_flush_incore;
-	atomic_t sd_log_flush_ondisk;
-
-	atomic_t sd_glock_nq_calls;
-	atomic_t sd_glock_dq_calls;
-	atomic_t sd_glock_prefetch_calls;
-	atomic_t sd_lm_lock_calls;
-	atomic_t sd_lm_unlock_calls;
-	atomic_t sd_lm_callbacks;
-
-	atomic_t sd_ops_address;
-	atomic_t sd_ops_dentry;
-	atomic_t sd_ops_export;
-	atomic_t sd_ops_file;
-	atomic_t sd_ops_inode;
-	atomic_t sd_ops_super;
-	atomic_t sd_ops_vm;
 
 	char sd_fsname[GFS2_FSNAME_LEN];
 	char sd_table_name[GFS2_FSNAME_LEN];

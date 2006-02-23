@@ -56,8 +56,6 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 	int new = 1;
 	int error;
 
-	atomic_inc(&sdp->sd_ops_inode);
-
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
 	for (;;) {
@@ -113,8 +111,6 @@ static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 	struct inode *inode = NULL;
 	int error;
 
-	atomic_inc(&sdp->sd_ops_inode);
-
 	if (!sdp->sd_args.ar_localcaching)
 		dentry->d_op = &gfs2_dops;
 
@@ -151,8 +147,6 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	struct gfs2_holder ghs[2];
 	int alloc_required;
 	int error;
-
-	atomic_inc(&sdp->sd_ops_inode);
 
 	if (S_ISDIR(ip->i_di.di_mode))
 		return -EPERM;
@@ -287,8 +281,6 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 	struct gfs2_holder ghs[2];
 	int error;
 
-	atomic_inc(&sdp->sd_ops_inode);
-
 	error = gfs2_unlinked_get(sdp, &ul);
 	if (error)
 		return error;
@@ -344,8 +336,6 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 	struct buffer_head *dibh;
 	int size;
 	int error;
-
-	atomic_inc(&sdp->sd_ops_inode);
 
 	/* Must be stuffed with a null terminator for gfs2_follow_link() */
 	size = strlen(symname);
@@ -404,8 +394,6 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	struct inode *inode;
 	struct buffer_head *dibh;
 	int error;
-
-	atomic_inc(&sdp->sd_ops_inode);
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
@@ -487,8 +475,6 @@ static int gfs2_rmdir(struct inode *dir, struct dentry *dentry)
 	struct gfs2_holder ghs[2];
 	int error;
 
-	atomic_inc(&sdp->sd_ops_inode);
-
 	error = gfs2_unlinked_get(sdp, &ul);
 	if (error)
 		return error;
@@ -555,8 +541,6 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	struct buffer_head *dibh;
 	uint32_t major = 0, minor = 0;
 	int error;
-
-	atomic_inc(&sdp->sd_ops_inode);
 
 	switch (mode & S_IFMT) {
 	case S_IFBLK:
@@ -630,8 +614,6 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	int alloc_required;
 	unsigned int x;
 	int error;
-
-	atomic_inc(&sdp->sd_ops_inode);
 
 	if (ndentry->d_inode) {
 		nip = get_v2ip(ndentry->d_inode);
@@ -871,8 +853,6 @@ static int gfs2_readlink(struct dentry *dentry, char __user *user_buf,
 	unsigned int len = GFS2_FAST_NAME_SIZE;
 	int error;
 
-	atomic_inc(&ip->i_sbd->sd_ops_inode);
-
 	error = gfs2_readlinki(ip, &buf, &len);
 	if (error)
 		return error;
@@ -909,8 +889,6 @@ static void *gfs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 	unsigned int len = GFS2_FAST_NAME_SIZE;
 	int error;
 
-	atomic_inc(&ip->i_sbd->sd_ops_inode);
-
 	error = gfs2_readlinki(ip, &buf, &len);
 	if (!error) {
 		error = vfs_follow_link(nd, buf);
@@ -935,8 +913,6 @@ static int gfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 	struct gfs2_inode *ip = get_v2ip(inode);
 	struct gfs2_holder i_gh;
 	int error;
-
-	atomic_inc(&ip->i_sbd->sd_ops_inode);
 
 	if (ip->i_vn == ip->i_gl->gl_vn)
 		return generic_permission(inode, mask, gfs2_check_acl);
@@ -1053,8 +1029,6 @@ static int gfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	struct gfs2_holder i_gh;
 	int error;
 
-	atomic_inc(&ip->i_sbd->sd_ops_inode);
-
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
 	if (error)
 		return error;
@@ -1102,8 +1076,6 @@ static int gfs2_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct gfs2_holder gh;
 	int error;
 
-	atomic_inc(&ip->i_sbd->sd_ops_inode);
-
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
 	if (!error) {
 		generic_fillattr(inode, stat);
@@ -1118,8 +1090,6 @@ static int gfs2_setxattr(struct dentry *dentry, const char *name,
 {
 	struct gfs2_inode *ip = get_v2ip(dentry->d_inode);
 	struct gfs2_ea_request er;
-
-	atomic_inc(&ip->i_sbd->sd_ops_inode);
 
 	memset(&er, 0, sizeof(struct gfs2_ea_request));
 	er.er_type = gfs2_ea_name2type(name, &er.er_name);
@@ -1140,8 +1110,6 @@ static ssize_t gfs2_getxattr(struct dentry *dentry, const char *name,
 {
 	struct gfs2_ea_request er;
 
-	atomic_inc(&get_v2sdp(dentry->d_inode->i_sb)->sd_ops_inode);
-
 	memset(&er, 0, sizeof(struct gfs2_ea_request));
 	er.er_type = gfs2_ea_name2type(name, &er.er_name);
 	if (er.er_type == GFS2_EATYPE_UNUSED)
@@ -1157,8 +1125,6 @@ static ssize_t gfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	struct gfs2_ea_request er;
 
-	atomic_inc(&get_v2sdp(dentry->d_inode->i_sb)->sd_ops_inode);
-
 	memset(&er, 0, sizeof(struct gfs2_ea_request));
 	er.er_data = (size) ? buffer : NULL;
 	er.er_data_len = size;
@@ -1169,8 +1135,6 @@ static ssize_t gfs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 static int gfs2_removexattr(struct dentry *dentry, const char *name)
 {
 	struct gfs2_ea_request er;
-
-	atomic_inc(&get_v2sdp(dentry->d_inode->i_sb)->sd_ops_inode);
 
 	memset(&er, 0, sizeof(struct gfs2_ea_request));
 	er.er_type = gfs2_ea_name2type(name, &er.er_name);

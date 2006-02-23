@@ -408,8 +408,6 @@ static void log_write_header(struct gfs2_sbd *sdp, uint32_t flags, int pull)
 	unsigned int tail;
 	uint32_t hash;
 
-	atomic_inc(&sdp->sd_log_flush_ondisk);
-
 	bh = sb_getblk(sdp->sd_vfs, blkno);
 	lock_buffer(bh);
 	memset(bh->b_data, 0, bh->b_size);
@@ -487,8 +485,6 @@ static void log_flush_commit(struct gfs2_sbd *sdp)
 void gfs2_log_flush_i(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 {
 	struct gfs2_ail *ai;
-
-	atomic_inc(&sdp->sd_log_flush_incore);
 
 	ai = kzalloc(sizeof(struct gfs2_ail), GFP_NOFS | __GFP_NOFAIL);
 	INIT_LIST_HEAD(&ai->ai_ail1_list);

@@ -166,7 +166,6 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 	int error;
 	int done_trans = 0;
 
-	atomic_inc(&sdp->sd_ops_address);
 	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl))) {
 		unlock_page(page);
 		return -EIO;
@@ -265,8 +264,6 @@ static int gfs2_readpage(struct file *file, struct page *page)
 	struct gfs2_holder gh;
 	int error;
 
-	atomic_inc(&sdp->sd_ops_address);
-
 	if (file != &gfs2_internal_file_sentinal) {
 		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
 		error = gfs2_glock_nq_m_atime(1, &gh);
@@ -318,8 +315,6 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + from;
 	loff_t end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
 	struct gfs2_alloc *al;
-
-	atomic_inc(&sdp->sd_ops_address);
 
 	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_ATIME, &ip->i_gh);
 	error = gfs2_glock_nq_m_atime(1, &ip->i_gh);
@@ -412,9 +407,6 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 	struct buffer_head *dibh;
 	struct gfs2_alloc *al = &ip->i_alloc;;
 
-	atomic_inc(&sdp->sd_ops_address);
-
-
 	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_locked_by_me(ip->i_gl)))
                 goto fail_nounlock;
 
@@ -492,8 +484,6 @@ static sector_t gfs2_bmap(struct address_space *mapping, sector_t lblock)
 	struct gfs2_holder i_gh;
 	sector_t dblock = 0;
 	int error;
-
-	atomic_inc(&ip->i_sbd->sd_ops_address);
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
 	if (error)
@@ -614,8 +604,6 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode = file->f_mapping->host;
 	struct gfs2_inode *ip = get_v2ip(inode);
 	struct gfs2_sbd *sdp = ip->i_sbd;
-
-	atomic_inc(&sdp->sd_ops_address);
 
 	if (rw == WRITE)
 		return gfs2_direct_IO_write(iocb, iov, offset, nr_segs);
