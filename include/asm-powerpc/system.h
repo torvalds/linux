@@ -424,5 +424,9 @@ static inline void create_function_call(unsigned long addr, void * func)
 	create_branch(addr, func_addr, BRANCH_SET_LINK);
 }
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+extern void account_system_vtime(struct task_struct *);
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SYSTEM_H */
