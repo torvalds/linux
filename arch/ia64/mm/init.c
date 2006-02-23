@@ -109,6 +109,7 @@ lazy_mmu_prot_update (pte_t pte)
 {
 	unsigned long addr;
 	struct page *page;
+	unsigned long order;
 
 	if (!pte_exec(pte))
 		return;				/* not an executable page... */
@@ -119,7 +120,12 @@ lazy_mmu_prot_update (pte_t pte)
 	if (test_bit(PG_arch_1, &page->flags))
 		return;				/* i-cache is already coherent with d-cache */
 
-	flush_icache_range(addr, addr + PAGE_SIZE);
+	if (PageCompound(page)) {
+		order = (unsigned long) (page[1].lru.prev);
+		flush_icache_range(addr, addr + (1UL << order << PAGE_SHIFT));
+	}
+	else
+		flush_icache_range(addr, addr + PAGE_SIZE);
 	set_bit(PG_arch_1, &page->flags);	/* mark page as clean */
 }
 
