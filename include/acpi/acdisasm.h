@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,26 +57,11 @@ struct acpi_external_list {
 };
 
 extern struct acpi_external_list *acpi_gbl_external_list;
-extern const char *acpi_gbl_io_decode[2];
-extern const char *acpi_gbl_word_decode[4];
-extern const char *acpi_gbl_consume_decode[2];
-extern const char *acpi_gbl_min_decode[2];
-extern const char *acpi_gbl_max_decode[2];
-extern const char *acpi_gbl_DECdecode[2];
-extern const char *acpi_gbl_RNGdecode[4];
-extern const char *acpi_gbl_MEMdecode[4];
-extern const char *acpi_gbl_RWdecode[2];
-extern const char *acpi_gbl_irq_decode[2];
-extern const char *acpi_gbl_HEdecode[2];
-extern const char *acpi_gbl_LLdecode[2];
-extern const char *acpi_gbl_SHRdecode[2];
-extern const char *acpi_gbl_TYPdecode[4];
-extern const char *acpi_gbl_BMdecode[2];
-extern const char *acpi_gbl_SIZdecode[4];
-extern const char *acpi_gbl_TTPdecode[2];
-extern const char *acpi_gbl_MTPdecode[4];
-extern const char *acpi_gbl_TRSdecode[2];
 
+/* Strings used for decoding flags to ASL keywords */
+
+extern const char *acpi_gbl_word_decode[4];
+extern const char *acpi_gbl_irq_decode[2];
 extern const char *acpi_gbl_lock_rule[ACPI_NUM_LOCK_RULES];
 extern const char *acpi_gbl_access_types[ACPI_NUM_ACCESS_TYPES];
 extern const char *acpi_gbl_update_rules[ACPI_NUM_UPDATE_RULES];
@@ -171,11 +156,19 @@ u8 acpi_dm_is_string_buffer(union acpi_parse_object *op);
 /*
  * dmresrc
  */
-void
-acpi_dm_resource_descriptor(struct acpi_op_walk_info *info,
-			    u8 * byte_data, u32 byte_count);
+void acpi_dm_dump_integer8(u8 value, char *name);
 
-u8 acpi_dm_is_resource_descriptor(union acpi_parse_object *op);
+void acpi_dm_dump_integer16(u16 value, char *name);
+
+void acpi_dm_dump_integer32(u32 value, char *name);
+
+void acpi_dm_dump_integer64(u64 value, char *name);
+
+void
+acpi_dm_resource_template(struct acpi_op_walk_info *info,
+			  u8 * byte_data, u32 byte_count);
+
+u8 acpi_dm_is_resource_template(union acpi_parse_object *op);
 
 void acpi_dm_indent(u32 level);
 
@@ -187,73 +180,69 @@ void acpi_dm_decode_attribute(u8 attribute);
  * dmresrcl
  */
 void
-acpi_dm_word_descriptor(struct asl_word_address_desc *resource,
-			u32 length, u32 level);
+acpi_dm_word_descriptor(union aml_resource *resource, u32 length, u32 level);
 
 void
-acpi_dm_dword_descriptor(struct asl_dword_address_desc *resource,
-			 u32 length, u32 level);
+acpi_dm_dword_descriptor(union aml_resource *resource, u32 length, u32 level);
 
 void
-acpi_dm_extended_descriptor(struct asl_extended_address_desc *resource,
+acpi_dm_extended_descriptor(union aml_resource *resource,
 			    u32 length, u32 level);
 
 void
-acpi_dm_qword_descriptor(struct asl_qword_address_desc *resource,
-			 u32 length, u32 level);
+acpi_dm_qword_descriptor(union aml_resource *resource, u32 length, u32 level);
 
 void
-acpi_dm_memory24_descriptor(struct asl_memory_24_desc *resource,
+acpi_dm_memory24_descriptor(union aml_resource *resource,
 			    u32 length, u32 level);
 
 void
-acpi_dm_memory32_descriptor(struct asl_memory_32_desc *resource,
+acpi_dm_memory32_descriptor(union aml_resource *resource,
 			    u32 length, u32 level);
 
 void
-acpi_dm_fixed_mem32_descriptor(struct asl_fixed_memory_32_desc *resource,
-			       u32 length, u32 level);
+acpi_dm_fixed_memory32_descriptor(union aml_resource *resource,
+				  u32 length, u32 level);
 
 void
-acpi_dm_generic_register_descriptor(struct asl_general_register_desc *resource,
+acpi_dm_generic_register_descriptor(union aml_resource *resource,
 				    u32 length, u32 level);
 
 void
-acpi_dm_interrupt_descriptor(struct asl_extended_xrupt_desc *resource,
+acpi_dm_interrupt_descriptor(union aml_resource *resource,
 			     u32 length, u32 level);
 
 void
-acpi_dm_vendor_large_descriptor(struct asl_large_vendor_desc *resource,
+acpi_dm_vendor_large_descriptor(union aml_resource *resource,
 				u32 length, u32 level);
+
+void acpi_dm_vendor_common(char *name, u8 * byte_data, u32 length, u32 level);
 
 /*
  * dmresrcs
  */
 void
-acpi_dm_irq_descriptor(struct asl_irq_format_desc *resource,
-		       u32 length, u32 level);
+acpi_dm_irq_descriptor(union aml_resource *resource, u32 length, u32 level);
 
 void
-acpi_dm_dma_descriptor(struct asl_dma_format_desc *resource,
-		       u32 length, u32 level);
+acpi_dm_dma_descriptor(union aml_resource *resource, u32 length, u32 level);
+
+void acpi_dm_io_descriptor(union aml_resource *resource, u32 length, u32 level);
 
 void
-acpi_dm_io_descriptor(struct asl_io_port_desc *resource, u32 length, u32 level);
-
-void
-acpi_dm_fixed_io_descriptor(struct asl_fixed_io_port_desc *resource,
+acpi_dm_fixed_io_descriptor(union aml_resource *resource,
 			    u32 length, u32 level);
 
 void
-acpi_dm_start_dependent_descriptor(struct asl_start_dependent_desc *resource,
+acpi_dm_start_dependent_descriptor(union aml_resource *resource,
 				   u32 length, u32 level);
 
 void
-acpi_dm_end_dependent_descriptor(struct asl_start_dependent_desc *resource,
+acpi_dm_end_dependent_descriptor(union aml_resource *resource,
 				 u32 length, u32 level);
 
 void
-acpi_dm_vendor_small_descriptor(struct asl_small_vendor_desc *resource,
+acpi_dm_vendor_small_descriptor(union aml_resource *resource,
 				u32 length, u32 level);
 
 /*

@@ -23,7 +23,11 @@
 #define MMU_PAGE_ASSOC_BIT	0x80
 
 #define MMU_NTLB_ENTRIES	64	/* for 7750 */
+#ifdef CONFIG_SH_STORE_QUEUES
+#define MMU_CONTROL_INIT	0x05	/* SQMD=0, SV=0, TI=1, AT=1 */
+#else
 #define MMU_CONTROL_INIT	0x205	/* SQMD=1, SV=0, TI=1, AT=1 */
+#endif
 
 #define MMU_ITLB_DATA_ARRAY	0xF3000000
 #define MMU_UTLB_DATA_ARRAY	0xF7000000
@@ -34,6 +38,10 @@
 #define MMU_ITLB_ENTRIES	    4
 #define MMU_I_ENTRY_SHIFT	    8
 #define MMU_ITLB_VALID		0x100
+
+#define TRA	0xff000020
+#define EXPEVT	0xff000024
+#define INTEVT	0xff000028
 
 #endif /* __ASM_CPU_SH4_MMU_CONTEXT_H */
 

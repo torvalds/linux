@@ -236,7 +236,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (err)
 		goto failure;
 
-	err = ip_route_newports(&rt, inet->sport, inet->dport, sk);
+	err = ip_route_newports(&rt, IPPROTO_TCP, inet->sport, inet->dport, sk);
 	if (err)
 		goto failure;
 
@@ -1845,7 +1845,6 @@ void __init tcp_v4_init(struct net_proto_family *ops)
 }
 
 EXPORT_SYMBOL(ipv4_specific);
-EXPORT_SYMBOL(inet_bind_bucket_create);
 EXPORT_SYMBOL(tcp_hashinfo);
 EXPORT_SYMBOL(tcp_prot);
 EXPORT_SYMBOL(tcp_unhash);

@@ -10,6 +10,7 @@
 #include <linux/nodemask.h>
 #include <asm/sn/types.h>
 #include <asm/sn/addrs.h>
+#include <asm/sn/sn_feature_sets.h>
 #include <asm/sn/geo.h>
 #include <asm/sn/io.h>
 #include <asm/sn/pcibr_provider.h>
@@ -21,6 +22,10 @@
 #include <asm/sn/tioce_provider.h>
 #include "xtalk/hubdev.h"
 #include "xtalk/xwidgetdev.h"
+
+
+extern void sn_init_cpei_timer(void);
+extern void register_sn_procfs(void);
 
 static struct list_head sn_sysdata_list;
 
@@ -39,12 +44,12 @@ struct brick {
 	struct slab_info slab_info[MAX_SLABS + 1];
 };
 
-int sn_ioif_inited = 0;		/* SN I/O infrastructure initialized? */
+int sn_ioif_inited;		/* SN I/O infrastructure initialized? */
 
 struct sn_pcibus_provider *sn_pci_provider[PCIIO_ASIC_MAX_TYPES];	/* indexed by asic type */
 
-static int max_segment_number = 0; /* Default highest segment number */
-static int max_pcibus_number = 255; /* Default highest pci bus number */
+static int max_segment_number;		 /* Default highest segment number */
+static int max_pcibus_number = 255;	/* Default highest pci bus number */
 
 /*
  * Hooks and struct for unsupported pci providers
@@ -83,7 +88,6 @@ static inline u64
 sal_get_device_dmaflush_list(u64 nasid, u64 widget_num, u64 device_num,
 			     u64 address)
 {
-
 	struct ia64_sal_retval ret_stuff;
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
@@ -93,7 +97,6 @@ sal_get_device_dmaflush_list(u64 nasid, u64 widget_num, u64 device_num,
 			(u64) nasid, (u64) widget_num,
 			(u64) device_num, (u64) address, 0, 0, 0);
 	return ret_stuff.status;
-
 }
 
 /*
@@ -101,7 +104,6 @@ sal_get_device_dmaflush_list(u64 nasid, u64 widget_num, u64 device_num,
  */
 static inline u64 sal_get_hubdev_info(u64 handle, u64 address)
 {
-
 	struct ia64_sal_retval ret_stuff;
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
@@ -117,7 +119,6 @@ static inline u64 sal_get_hubdev_info(u64 handle, u64 address)
  */
 static inline u64 sal_get_pcibus_info(u64 segment, u64 busnum, u64 address)
 {
-
 	struct ia64_sal_retval ret_stuff;
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
@@ -173,8 +174,8 @@ sn_pcidev_info_get(struct pci_dev *dev)
  */
 static u8 war_implemented = 0;
 
-static void sn_device_fixup_war(u64 nasid, u64 widget, int device,
-				struct sn_flush_device_common *common)
+static s64 sn_device_fixup_war(u64 nasid, u64 widget, int device,
+			       struct sn_flush_device_common *common)
 {
 	struct sn_flush_device_war *war_list;
 	struct sn_flush_device_war *dev_entry;
@@ -198,22 +199,23 @@ static void sn_device_fixup_war(u64 nasid, u64 widget, int device,
 
 	dev_entry = war_list + device;
 	memcpy(common,dev_entry, sizeof(*common));
-
 	kfree(war_list);
+
+	return isrv.status;
 }
 
 /*
  * sn_fixup_ionodes() - This routine initializes the HUB data strcuture for
  *	each node in the system.
  */
-static void sn_fixup_ionodes(void)
+static void __init sn_fixup_ionodes(void)
 {
 	struct sn_flush_device_kernel *sn_flush_device_kernel;
 	struct sn_flush_device_kernel *dev_entry;
 	struct hubdev_info *hubdev;
 	u64 status;
 	u64 nasid;
-	int i, widget, device;
+	int i, widget, device, size;
 
 	/*
 	 * Get SGI Specific HUB chipset information.
@@ -249,53 +251,40 @@ static void sn_fixup_ionodes(void)
 		if (!hubdev->hdi_flush_nasid_list.widget_p)
 			continue;
 
+		size = (HUB_WIDGET_ID_MAX + 1) *
+			sizeof(struct sn_flush_device_kernel *);
 		hubdev->hdi_flush_nasid_list.widget_p =
-		    kmalloc((HUB_WIDGET_ID_MAX + 1) *
-			    sizeof(struct sn_flush_device_kernel *),
-			    GFP_KERNEL);
-		memset(hubdev->hdi_flush_nasid_list.widget_p, 0x0,
-		       (HUB_WIDGET_ID_MAX + 1) *
-		       sizeof(struct sn_flush_device_kernel *));
+			kzalloc(size, GFP_KERNEL);
+		if (!hubdev->hdi_flush_nasid_list.widget_p)
+			BUG();
 
 		for (widget = 0; widget <= HUB_WIDGET_ID_MAX; widget++) {
-			sn_flush_device_kernel = kmalloc(DEV_PER_WIDGET *
-						         sizeof(struct
-						        sn_flush_device_kernel),
-						        GFP_KERNEL);
+			size = DEV_PER_WIDGET *
+				sizeof(struct sn_flush_device_kernel);
+			sn_flush_device_kernel = kzalloc(size, GFP_KERNEL);
 			if (!sn_flush_device_kernel)
 				BUG();
-			memset(sn_flush_device_kernel, 0x0,
-			       DEV_PER_WIDGET *
-			       sizeof(struct sn_flush_device_kernel));
 
 			dev_entry = sn_flush_device_kernel;
 			for (device = 0; device < DEV_PER_WIDGET;
 			     device++,dev_entry++) {
-				dev_entry->common = kmalloc(sizeof(struct
-					      	        sn_flush_device_common),
-					                    GFP_KERNEL);
+				size = sizeof(struct sn_flush_device_common);
+				dev_entry->common = kzalloc(size, GFP_KERNEL);
 				if (!dev_entry->common)
 					BUG();
-				memset(dev_entry->common, 0x0, sizeof(struct
-					     	       sn_flush_device_common));
 
-				status = sal_get_device_dmaflush_list(nasid,
-									widget,
-								       	device,
-						      (u64)(dev_entry->common));
-				if (status) {
-					if (sn_sal_rev() < 0x0450) {
-						/* shortlived WAR for older
-						 * PROM images
-						 */
-						sn_device_fixup_war(nasid,
-								    widget,
-								    device,
-							     dev_entry->common);
-					}
-					else
-						BUG();
-				}
+				if (sn_prom_feature_available(
+						       PRF_DEVICE_FLUSH_LIST))
+					status = sal_get_device_dmaflush_list(
+						     nasid, widget, device,
+						     (u64)(dev_entry->common));
+				else
+					status = sn_device_fixup_war(nasid,
+						     widget, device,
+						     dev_entry->common);
+				if (status != SALRET_OK)
+					panic("SAL call failed: %s\n",
+					      ia64_sal_strerror(status));
 
 				spin_lock_init(&dev_entry->sfdl_flush_lock);
 			}
@@ -383,13 +372,12 @@ void sn_pci_fixup_slot(struct pci_dev *dev)
 
 	pci_dev_get(dev); /* for the sysdata pointer */
 	pcidev_info = kzalloc(sizeof(struct pcidev_info), GFP_KERNEL);
-	if (pcidev_info <= 0)
+	if (!pcidev_info)
 		BUG();		/* Cannot afford to run out of memory */
 
-	sn_irq_info = kmalloc(sizeof(struct sn_irq_info), GFP_KERNEL);
-	if (sn_irq_info <= 0)
+	sn_irq_info = kzalloc(sizeof(struct sn_irq_info), GFP_KERNEL);
+	if (!sn_irq_info)
 		BUG();		/* Cannot afford to run out of memory */
-	memset(sn_irq_info, 0, sizeof(struct sn_irq_info));
 
 	/* Call to retrieve pci device information needed by kernel. */
 	status = sal_get_pcidev_info((u64) segment, (u64) dev->bus->number, 
@@ -467,6 +455,13 @@ void sn_pci_fixup_slot(struct pci_dev *dev)
 		pcidev_info->pdi_sn_irq_info = NULL;
 		kfree(sn_irq_info);
 	}
+
+	/*
+	 * MSI currently not supported on altix.  Remove this when
+	 * the MSI abstraction patches are integrated into the kernel
+	 * (sometime after 2.6.16 releases)
+	 */
+	dev->no_msi = 1;
 }
 
 /*
@@ -475,13 +470,13 @@ void sn_pci_fixup_slot(struct pci_dev *dev)
  */
 void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 {
-	int status = 0;
+	int status;
 	int nasid, cnode;
 	struct pci_controller *controller;
 	struct sn_pci_controller *sn_controller;
 	struct pcibus_bussoft *prom_bussoft_ptr;
 	struct hubdev_info *hubdev_info;
-	void *provider_soft = NULL;
+	void *provider_soft;
 	struct sn_pcibus_provider *provider;
 
  	status = sal_get_pcibus_info((u64) segment, (u64) busnum,
@@ -528,6 +523,8 @@ void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 	bus->sysdata = controller;
 	if (provider->bus_fixup)
 		provider_soft = (*provider->bus_fixup) (prom_bussoft_ptr, controller);
+	else
+		provider_soft = NULL;
 
 	if (provider_soft == NULL) {
 		/* fixup failed or not applicable */
@@ -610,15 +607,15 @@ void sn_bus_store_sysdata(struct pci_dev *dev)
 void sn_bus_free_sysdata(void)
 {
 	struct sysdata_el *element;
-	struct list_head *list;
+	struct list_head *list, *safe;
 
-sn_sysdata_free_start:
-	list_for_each(list, &sn_sysdata_list) {
+	list_for_each_safe(list, safe, &sn_sysdata_list) {
 		element = list_entry(list, struct sysdata_el, entry);
 		list_del(&element->entry);
+		list_del(&(((struct pcidev_info *)
+			     (element->sysdata))->pdi_list));
 		kfree(element->sysdata);
 		kfree(element);
-		goto sn_sysdata_free_start;
 	}
 	return;
 }
@@ -631,13 +628,8 @@ sn_sysdata_free_start:
 
 static int __init sn_pci_init(void)
 {
-	int i = 0;
-	int j = 0;
+	int i, j;
 	struct pci_dev *pci_dev = NULL;
-	extern void sn_init_cpei_timer(void);
-#ifdef CONFIG_PROC_FS
-	extern void register_sn_procfs(void);
-#endif
 
 	if (!ia64_platform_is("sn2") || IS_RUNNING_ON_FAKE_PROM())
 		return 0;
@@ -693,32 +685,29 @@ static int __init sn_pci_init(void)
  */
 void hubdev_init_node(nodepda_t * npda, cnodeid_t node)
 {
-
 	struct hubdev_info *hubdev_info;
+	int size;
+	pg_data_t *pg;
+
+	size = sizeof(struct hubdev_info);
 
 	if (node >= num_online_nodes())	/* Headless/memless IO nodes */
-		hubdev_info =
-		    (struct hubdev_info *)alloc_bootmem_node(NODE_DATA(0),
-							     sizeof(struct
-								    hubdev_info));
+		pg = NODE_DATA(0);
 	else
-		hubdev_info =
-		    (struct hubdev_info *)alloc_bootmem_node(NODE_DATA(node),
-							     sizeof(struct
-								    hubdev_info));
-	npda->pdinfo = (void *)hubdev_info;
+		pg = NODE_DATA(node);
 
+	hubdev_info = (struct hubdev_info *)alloc_bootmem_node(pg, size);
+
+	npda->pdinfo = (void *)hubdev_info;
 }
 
 geoid_t
 cnodeid_get_geoid(cnodeid_t cnode)
 {
-
 	struct hubdev_info *hubdev;
 
 	hubdev = (struct hubdev_info *)(NODEPDA(cnode)->pdinfo);
 	return hubdev->hdi_geoid;
-
 }
 
 subsys_initcall(sn_pci_init);
@@ -727,3 +716,4 @@ EXPORT_SYMBOL(sn_pci_unfixup_slot);
 EXPORT_SYMBOL(sn_pci_controller_fixup);
 EXPORT_SYMBOL(sn_bus_store_sysdata);
 EXPORT_SYMBOL(sn_bus_free_sysdata);
+EXPORT_SYMBOL(sn_pcidev_info_get);

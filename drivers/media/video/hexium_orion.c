@@ -484,7 +484,7 @@ static struct saa7146_ext_vv vv_data = {
 };
 
 static struct saa7146_extension extension = {
-	.name = "hexium HV-PCI6/Orion",
+	.name = "hexium HV-PCI6 Orion",
 	.flags = 0,		// SAA7146_USE_I2C_IRQ,
 
 	.pci_tbl = &pci_tbl[0],

@@ -98,6 +98,7 @@
 #define TBR_TT_TRAP0		(0x80 << 4)
 #define TBR_TT_TRAP1		(0x81 << 4)
 #define TBR_TT_TRAP2		(0x82 << 4)
+#define TBR_TT_TRAP3		(0x83 << 4)
 #define TBR_TT_TRAP126		(0xfe << 4)
 #define TBR_TT_BREAK		(0xff << 4)
 

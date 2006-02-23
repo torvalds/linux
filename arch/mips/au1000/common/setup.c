@@ -33,6 +33,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
@@ -125,7 +126,7 @@ void __init plat_setup(void)
 #endif
 	_machine_restart = au1000_restart;
 	_machine_halt = au1000_halt;
-	_machine_power_off = au1000_power_off;
+	pm_power_off = au1000_power_off;
 	board_time_init = au1xxx_time_init;
 	board_timer_setup = au1xxx_timer_setup;
 

@@ -193,10 +193,9 @@ void show_stack(struct task_struct *task, unsigned long *s)
 
 HERE:
 		asm volatile ("copy %%r30, %0" : "=r"(sp));
-		r = (struct pt_regs *)kmalloc(sizeof(struct pt_regs), GFP_KERNEL);
+		r = kzalloc(sizeof(struct pt_regs), GFP_KERNEL);
 		if (!r)
 			return;
-		memset(r, 0, sizeof(struct pt_regs));
 		r->iaoq[0] = (unsigned long)&&HERE;
 		r->gr[2] = (unsigned long)__builtin_return_address(0);
 		r->gr[30] = sp;

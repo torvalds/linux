@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
+#include <asm/tlb.h>
 #include <asm/mach/map.h>
 #include <asm/io.h>
 #include <asm/arch/mux.h>
@@ -83,15 +84,24 @@ static struct map_desc omap16xx_io_desc[] __initdata = {
 };
 #endif
 
-static int initialized = 0;
-
-static void __init _omap_map_io(void)
+/*
+ * Maps common IO regions for omap1. This should only get called from
+ * board specific init.
+ */
+void __init omap1_map_common_io(void)
 {
-	initialized = 1;
-
-	/* We have to initialize the IO space mapping before we can run
-	 * cpu_is_omapxxx() macros. */
 	iotable_init(omap_io_desc, ARRAY_SIZE(omap_io_desc));
+
+	/* Normally devicemaps_init() would flush caches and tlb after
+	 * mdesc->map_io(), but we must also do it here because of the CPU
+	 * revision check below.
+	 */
+	local_flush_tlb_all();
+	flush_cache_all();
+
+	/* We want to check CPU revision early for cpu_is_omapxxxx() macros.
+	 * IO space mapping must be initialized before we can do that.
+	 */
 	omap_check_revision();
 
 #ifdef CONFIG_ARCH_OMAP730
@@ -111,7 +121,14 @@ static void __init _omap_map_io(void)
 #endif
 
 	omap_sram_init();
+}
 
+/*
+ * Common low-level hardware init for omap1. This should only get called from
+ * board specific init.
+ */
+void __init omap1_init_common_hw()
+{
 	/* REVISIT: Refer to OMAP5910 Errata, Advisory SYS_1: "Timeout Abort
 	 * on a Posted Write in the TIPB Bridge".
 	 */
@@ -121,16 +138,7 @@ static void __init _omap_map_io(void)
 	/* Must init clocks early to assure that timer interrupt works
 	 */
 	omap1_clk_init();
-}
 
-/*
- * This should only get called from board specific init
- */
-void __init omap_map_common_io(void)
-{
-	if (!initialized) {
-		_omap_map_io();
-		omap1_mux_init();
-	}
+	omap1_mux_init();
 }
 

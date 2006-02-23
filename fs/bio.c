@@ -411,6 +411,7 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 
 /**
  *	bio_add_pc_page	-	attempt to add page to bio
+ *	@q: the target queue
  *	@bio: destination bio
  *	@page: page to add
  *	@len: vec entry length

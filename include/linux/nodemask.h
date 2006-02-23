@@ -84,7 +84,6 @@
 #include <linux/threads.h>
 #include <linux/bitmap.h>
 #include <linux/numa.h>
-#include <asm/bug.h>
 
 typedef struct { DECLARE_BITMAP(bits, MAX_NUMNODES); } nodemask_t;
 extern nodemask_t _unused_nodemask_arg_;

@@ -332,7 +332,7 @@ uart_get_baud_rate(struct uart_port *port, struct termios *termios,
 		   struct termios *old, unsigned int min, unsigned int max)
 {
 	unsigned int try, baud, altbaud = 38400;
-	unsigned int flags = port->flags & UPF_SPD_MASK;
+	upf_t flags = port->flags & UPF_SPD_MASK;
 
 	if (flags == UPF_SPD_HI)
 		altbaud = 57600;
@@ -615,8 +615,9 @@ static int uart_set_info(struct uart_state *state,
 	struct serial_struct new_serial;
 	struct uart_port *port = state->port;
 	unsigned long new_port;
-	unsigned int change_irq, change_port, old_flags, closing_wait;
+	unsigned int change_irq, change_port, closing_wait;
 	unsigned int old_custom_divisor, close_delay;
+	upf_t old_flags, new_flags;
 	int retval = 0;
 
 	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
@@ -655,6 +656,7 @@ static int uart_set_info(struct uart_state *state,
 		      new_serial.type != port->type;
 
 	old_flags = port->flags;
+	new_flags = new_serial.flags;
 	old_custom_divisor = port->custom_divisor;
 
 	if (!capable(CAP_SYS_ADMIN)) {
@@ -664,10 +666,10 @@ static int uart_set_info(struct uart_state *state,
 		    (close_delay != state->close_delay) ||
 		    (closing_wait != state->closing_wait) ||
 		    (new_serial.xmit_fifo_size != port->fifosize) ||
-		    (((new_serial.flags ^ old_flags) & ~UPF_USR_MASK) != 0))
+		    (((new_flags ^ old_flags) & ~UPF_USR_MASK) != 0))
 			goto exit;
 		port->flags = ((port->flags & ~UPF_USR_MASK) |
-			       (new_serial.flags & UPF_USR_MASK));
+			       (new_flags & UPF_USR_MASK));
 		port->custom_divisor = new_serial.custom_divisor;
 		goto check_and_exit;
 	}
@@ -764,7 +766,7 @@ static int uart_set_info(struct uart_state *state,
 	port->irq              = new_serial.irq;
 	port->uartclk          = new_serial.baud_base * 16;
 	port->flags            = (port->flags & ~UPF_CHANGE_MASK) |
-				 (new_serial.flags & UPF_CHANGE_MASK);
+				 (new_flags & UPF_CHANGE_MASK);
 	port->custom_divisor   = new_serial.custom_divisor;
 	state->close_delay     = close_delay;
 	state->closing_wait    = closing_wait;
@@ -1870,7 +1872,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
 	mutex_lock(&state->mutex);
 
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
-		struct uart_ops *ops = port->ops;
+		const struct uart_ops *ops = port->ops;
 
 		spin_lock_irq(&port->lock);
 		ops->stop_tx(port);
@@ -1932,7 +1934,7 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 	}
 
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
-		struct uart_ops *ops = port->ops;
+		const struct uart_ops *ops = port->ops;
 		int ret;
 
 		ops->set_mctrl(port, 0);
@@ -2235,7 +2237,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	 * If this port is a console, then the spinlock is already
 	 * initialised.
 	 */
-	if (!uart_console(port))
+	if (!(uart_console(port) && (port->cons->flags & CON_ENABLED)))
 		spin_lock_init(&port->lock);
 
 	uart_configure_port(drv, state, port);

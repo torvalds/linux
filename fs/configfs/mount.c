@@ -38,6 +38,7 @@
 
 struct vfsmount * configfs_mount = NULL;
 struct super_block * configfs_sb = NULL;
+kmem_cache_t *configfs_dir_cachep;
 static int configfs_mnt_count = 0;
 
 static struct super_operations configfs_ops = {
@@ -62,6 +63,7 @@ static struct configfs_dirent configfs_root = {
 	.s_children	= LIST_HEAD_INIT(configfs_root.s_children),
 	.s_element	= &configfs_root_group.cg_item,
 	.s_type		= CONFIGFS_ROOT,
+	.s_iattr	= NULL,
 };
 
 static int configfs_fill_super(struct super_block *sb, void *data, int silent)
@@ -73,9 +75,11 @@ static int configfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = CONFIGFS_MAGIC;
 	sb->s_op = &configfs_ops;
+	sb->s_time_gran = 1;
 	configfs_sb = sb;
 
-	inode = configfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO);
+	inode = configfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
+				   &configfs_root);
 	if (inode) {
 		inode->i_op = &configfs_dir_inode_operations;
 		inode->i_fop = &configfs_dir_operations;
@@ -128,19 +132,31 @@ static decl_subsys(config, NULL, NULL);
 
 static int __init configfs_init(void)
 {
-	int err;
+	int err = -ENOMEM;
+
+	configfs_dir_cachep = kmem_cache_create("configfs_dir_cache",
+						sizeof(struct configfs_dirent),
+						0, 0, NULL, NULL);
+	if (!configfs_dir_cachep)
+		goto out;
 
 	kset_set_kset_s(&config_subsys, kernel_subsys);
 	err = subsystem_register(&config_subsys);
-	if (err)
-		return err;
+	if (err) {
+		kmem_cache_destroy(configfs_dir_cachep);
+		configfs_dir_cachep = NULL;
+		goto out;
+	}
 
 	err = register_filesystem(&configfs_fs_type);
 	if (err) {
 		printk(KERN_ERR "configfs: Unable to register filesystem!\n");
 		subsystem_unregister(&config_subsys);
+		kmem_cache_destroy(configfs_dir_cachep);
+		configfs_dir_cachep = NULL;
 	}
 
+out:
 	return err;
 }
 
@@ -148,11 +164,13 @@ static void __exit configfs_exit(void)
 {
 	unregister_filesystem(&configfs_fs_type);
 	subsystem_unregister(&config_subsys);
+	kmem_cache_destroy(configfs_dir_cachep);
+	configfs_dir_cachep = NULL;
 }
 
 MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.0.1");
+MODULE_VERSION("0.0.2");
 MODULE_DESCRIPTION("Simple RAM filesystem for user driven kernel subsystem configuration.");
 
 module_init(configfs_init);

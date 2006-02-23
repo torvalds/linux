@@ -85,11 +85,10 @@ static volatile enum sclp_mask_state_t {
 /* Maximum retry counts */
 #define SCLP_INIT_RETRY		3
 #define SCLP_MASK_RETRY		3
-#define SCLP_REQUEST_RETRY	3
 
 /* Timeout intervals in seconds.*/
-#define SCLP_BUSY_INTERVAL	2
-#define SCLP_RETRY_INTERVAL	5
+#define SCLP_BUSY_INTERVAL	10
+#define SCLP_RETRY_INTERVAL	15
 
 static void sclp_process_queue(void);
 static int sclp_init_mask(int calculate);
@@ -153,11 +152,9 @@ __sclp_start_request(struct sclp_req *req)
 	if (sclp_running_state != sclp_running_state_idle)
 		return 0;
 	del_timer(&sclp_request_timer);
-	if (req->start_count <= SCLP_REQUEST_RETRY) {
-		rc = service_call(req->command, req->sccb);
-		req->start_count++;
-	} else
-		rc = -EIO;
+	rc = service_call(req->command, req->sccb);
+	req->start_count++;
+
 	if (rc == 0) {
 		/* Sucessfully started request */
 		req->status = SCLP_REQ_RUNNING;

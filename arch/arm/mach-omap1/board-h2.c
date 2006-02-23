@@ -128,6 +128,7 @@ static void __init h2_init_smc91x(void)
 
 static void __init h2_init_irq(void)
 {
+	omap1_init_common_hw();
 	omap_init_irq();
 	omap_gpio_init();
 	h2_init_smc91x();
@@ -194,7 +195,7 @@ static void __init h2_init(void)
 
 static void __init h2_map_io(void)
 {
-	omap_map_common_io();
+	omap1_map_common_io();
 }
 
 MACHINE_START(OMAP_H2, "TI-H2")

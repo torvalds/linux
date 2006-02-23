@@ -59,6 +59,7 @@
 #include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
+#include <asm/numa.h>
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -890,6 +891,7 @@ do_rest:
 	if (boot_error) {
 		cpu_clear(cpu, cpu_callout_map); /* was set here (do_boot_cpu()) */
 		clear_bit(cpu, &cpu_initialized); /* was set by cpu_init() */
+		clear_node_cpumask(cpu); /* was set by numa_add_cpu */
 		cpu_clear(cpu, cpu_present_map);
 		cpu_clear(cpu, cpu_possible_map);
 		x86_cpu_to_apicid[cpu] = BAD_APICID;
@@ -1187,6 +1189,7 @@ void remove_cpu_from_maps(void)
 	cpu_clear(cpu, cpu_callout_map);
 	cpu_clear(cpu, cpu_callin_map);
 	clear_bit(cpu, &cpu_initialized); /* was set by cpu_init() */
+	clear_node_cpumask(cpu);
 }
 
 int __cpu_disable(void)

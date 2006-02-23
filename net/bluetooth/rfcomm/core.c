@@ -46,12 +46,14 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/rfcomm.h>
 
-#define VERSION "1.6"
-
 #ifndef CONFIG_BT_RFCOMM_DEBUG
 #undef  BT_DBG
 #define BT_DBG(D...)
 #endif
+
+#define VERSION "1.7"
+
+static unsigned int l2cap_mtu = RFCOMM_MAX_L2CAP_MTU;
 
 static struct task_struct *rfcomm_thread;
 
@@ -623,7 +625,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src, bdaddr_t *dst
 	/* Set L2CAP options */
 	sk = sock->sk;
 	lock_sock(sk);
-	l2cap_pi(sk)->imtu = RFCOMM_MAX_L2CAP_MTU;
+	l2cap_pi(sk)->imtu = l2cap_mtu;
 	release_sock(sk);
 
 	s = rfcomm_session_add(sock, BT_BOUND);
@@ -1868,7 +1870,7 @@ static int rfcomm_add_listener(bdaddr_t *ba)
 	/* Set L2CAP options */
 	sk = sock->sk;
 	lock_sock(sk);
-	l2cap_pi(sk)->imtu = RFCOMM_MAX_L2CAP_MTU;
+	l2cap_pi(sk)->imtu = l2cap_mtu;
 	release_sock(sk);
 
 	/* Start listening on the socket */
@@ -2069,6 +2071,9 @@ static void __exit rfcomm_exit(void)
 
 module_init(rfcomm_init);
 module_exit(rfcomm_exit);
+
+module_param(l2cap_mtu, uint, 0644);
+MODULE_PARM_DESC(l2cap_mtu, "Default MTU for the L2CAP connection");
 
 MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>, Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth RFCOMM ver " VERSION);

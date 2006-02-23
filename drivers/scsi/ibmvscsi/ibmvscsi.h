@@ -103,6 +103,9 @@ void ibmvscsi_release_crq_queue(struct crq_queue *queue,
 int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 			      struct ibmvscsi_host_data *hostdata);
 
+int ibmvscsi_reenable_crq_queue(struct crq_queue *queue,
+				struct ibmvscsi_host_data *hostdata);
+
 void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			 struct ibmvscsi_host_data *hostdata);
 int ibmvscsi_send_crq(struct ibmvscsi_host_data *hostdata,

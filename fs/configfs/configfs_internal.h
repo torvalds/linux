@@ -36,6 +36,7 @@ struct configfs_dirent {
 	int			s_type;
 	umode_t			s_mode;
 	struct dentry		* s_dentry;
+	struct iattr		* s_iattr;
 };
 
 #define CONFIGFS_ROOT		0x0001
@@ -48,10 +49,11 @@ struct configfs_dirent {
 #define CONFIGFS_NOT_PINNED	(CONFIGFS_ITEM_ATTR)
 
 extern struct vfsmount * configfs_mount;
+extern kmem_cache_t *configfs_dir_cachep;
 
 extern int configfs_is_root(struct config_item *item);
 
-extern struct inode * configfs_new_inode(mode_t mode);
+extern struct inode * configfs_new_inode(mode_t mode, struct configfs_dirent *);
 extern int configfs_create(struct dentry *, int mode, int (*init)(struct inode *));
 
 extern int configfs_create_file(struct config_item *, const struct configfs_attribute *);
@@ -63,6 +65,7 @@ extern void configfs_hash_and_remove(struct dentry * dir, const char * name);
 
 extern const unsigned char * configfs_get_name(struct configfs_dirent *sd);
 extern void configfs_drop_dentry(struct configfs_dirent *sd, struct dentry *parent);
+extern int configfs_setattr(struct dentry *dentry, struct iattr *iattr);
 
 extern int configfs_pin_fs(void);
 extern void configfs_release_fs(void);
@@ -120,8 +123,10 @@ static inline struct config_item *configfs_get_config_item(struct dentry *dentry
 
 static inline void release_configfs_dirent(struct configfs_dirent * sd)
 {
-	if (!(sd->s_type & CONFIGFS_ROOT))
-		kfree(sd);
+	if (!(sd->s_type & CONFIGFS_ROOT)) {
+		kfree(sd->s_iattr);
+		kmem_cache_free(configfs_dir_cachep, sd);
+	}
 }
 
 static inline struct configfs_dirent * configfs_get(struct configfs_dirent * sd)

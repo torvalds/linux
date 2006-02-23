@@ -78,7 +78,7 @@ static int em2800_i2c_send_max4(struct em28xx *dev, unsigned char addr,
 		ret = dev->em28xx_read_reg(dev, 0x05);
 		if (ret == 0x80 + len - 1)
 			return len;
-		mdelay(5);
+		msleep(5);
 	}
 	em28xx_warn("i2c write timed out\n");
 	return -EIO;
@@ -138,7 +138,7 @@ static int em2800_i2c_check_for_device(struct em28xx *dev, unsigned char addr)
 			return -ENODEV;
 		else if (msg == 0x84)
 			return 0;
-		mdelay(5);
+		msleep(5);
 	}
 	return -ENODEV;
 }
@@ -278,9 +278,9 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 							   msgs[i].buf,
 							   msgs[i].len,
 							   i == num - 1);
-			if (rc < 0)
-				goto err;
 		}
+		if (rc < 0)
+			goto err;
 		if (i2c_debug>=2)
 			printk("\n");
 	}

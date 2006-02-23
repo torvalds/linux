@@ -64,7 +64,7 @@ sbc8560_early_serial_map(void)
 	uart_req.irq = MPC85xx_IRQ_EXT9;
 	uart_req.flags = STD_COM_FLAGS;
 	uart_req.uartclk = BASE_BAUD * 16;
-        uart_req.iotype = SERIAL_IO_MEM;
+        uart_req.iotype = UPIO_MEM;
         uart_req.mapbase = UARTA_ADDR;
         uart_req.membase = ioremap(uart_req.mapbase, MPC85xx_UART0_SIZE);
 	uart_req.type = PORT_16650;

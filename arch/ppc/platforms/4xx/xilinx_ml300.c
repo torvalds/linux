@@ -95,8 +95,8 @@ ml300_early_serial_map(void)
 		port.irq = old_ports[i].irq;
 		port.uartclk = old_ports[i].baud_base * 16;
 		port.regshift = old_ports[i].iomem_reg_shift;
-		port.iotype = SERIAL_IO_MEM;
-		port.flags = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
+		port.iotype = UPIO_MEM;
+		port.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
 		port.line = i;
 
 		if (early_serial_setup(&port) != 0) {

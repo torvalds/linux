@@ -486,7 +486,7 @@ asmlinkage void illegal_op(struct pt_regs * regs, long interruption_code)
 		info.si_signo = signal;
 		info.si_errno = 0;
 		info.si_code = ILL_ILLOPC;
-		info.si_addr = (void *) location;
+		info.si_addr = (void __user *) location;
 		do_trap(interruption_code, signal,
 			"illegal operation", regs, &info);
 	}

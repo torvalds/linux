@@ -230,6 +230,9 @@ sysn32_waitid(int which, compat_pid_t pid,
 	long ret;
 	mm_segment_t old_fs = get_fs();
 
+	if (!access_ok(VERIFY_WRITE, uinfo, sizeof(*uinfo)))
+		return -EFAULT;
+
 	set_fs (KERNEL_DS);
 	ret = sys_waitid(which, pid, uinfo, options,
 			 uru ? (struct rusage __user *) &ru : NULL);
@@ -1448,25 +1451,6 @@ sys32_timer_create(u32 clock, struct sigevent32 __user *se32, timer_t __user *ti
 			return -EFAULT;
 	}
 	return sys_timer_create(clock, p, timer_id);
-}
-
-asmlinkage long
-sysn32_rt_sigtimedwait(const sigset_t __user *uthese,
-		       siginfo_t __user *uinfo,
-		       const struct compat_timespec __user *uts32,
-		       size_t sigsetsize)
-{
-	struct timespec __user *uts = NULL;
-
-	if (uts32) {
-		struct timespec ts;
-		uts = compat_alloc_user_space(sizeof(struct timespec));
-		if (get_user(ts.tv_sec, &uts32->tv_sec) ||
-		    get_user(ts.tv_nsec, &uts32->tv_nsec) ||
-		    copy_to_user (uts, &ts, sizeof (ts)))
-			return -EFAULT;
-	}
-	return sys_rt_sigtimedwait(uthese, uinfo, uts, sigsetsize);
 }
 
 save_static_function(sys32_clone);

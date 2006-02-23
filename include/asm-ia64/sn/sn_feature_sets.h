@@ -8,12 +8,9 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2005 Silicon Graphics, Inc.  All rights reserved.
+ * Copyright (c) 2005-2006 Silicon Graphics, Inc.  All rights reserved.
  */
 
-
-#include <asm/types.h>
-#include <asm/bitops.h>
 
 /* --------------------- PROM Features -----------------------------*/
 extern int sn_prom_feature_available(int id);
@@ -27,14 +24,12 @@ extern int sn_prom_feature_available(int id);
  * "false" for new features.
  *
  * Use:
- * 		if (sn_prom_feature_available(PRF_FEATURE_XXX))
+ * 		if (sn_prom_feature_available(PRF_XXX))
  * 			...
  */
 
-/*
- * Example: feature XXX
- */
-#define PRF_FEATURE_XXX		0
+#define PRF_PAL_CACHE_FLUSH_SAFE	0
+#define PRF_DEVICE_FLUSH_LIST		1
 
 
 
@@ -51,7 +46,7 @@ extern int sn_prom_feature_available(int id);
  *
  * By default, features are disabled unless explicitly enabled.
  */
-#define  OSF_MCA_SLV_TO_OS_INIT_SLV		0
-#define  OSF_FEAT_LOG_SBES			1
+#define  OSF_MCA_SLV_TO_OS_INIT_SLV	0
+#define  OSF_FEAT_LOG_SBES		1
 
 #endif /* _ASM_IA64_SN_FEATURE_SETS_H */

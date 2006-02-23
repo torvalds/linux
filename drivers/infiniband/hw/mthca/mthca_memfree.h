@@ -39,8 +39,7 @@
 
 #include <linux/list.h>
 #include <linux/pci.h>
-
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #define MTHCA_ICM_CHUNK_LEN \
 	((256 - sizeof (struct list_head) - 2 * sizeof (int)) /		\
@@ -64,7 +63,7 @@ struct mthca_icm_table {
 	int               num_obj;
 	int               obj_size;
 	int               lowmem;
-	struct semaphore  mutex;
+	struct mutex      mutex;
 	struct mthca_icm *icm[0];
 };
 
@@ -147,7 +146,7 @@ struct mthca_db_table {
 	int 	       	      max_group1;
 	int 	       	      min_group2;
 	struct mthca_db_page *page;
-	struct semaphore      mutex;
+	struct mutex          mutex;
 };
 
 enum mthca_db_type {

@@ -14,6 +14,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
+#include <linux/device.h>
 
 /* Display a 16.16 fixed point value */
 #define FIX32TOPRINT(f)	((f) >> 16),((((f) & 0xffff) * 1000) >> 16)
@@ -39,6 +40,7 @@ struct wf_control {
 	char			*name;
 	int			type;
 	struct kref		ref;
+	struct device_attribute	attr;
 };
 
 #define WF_CONTROL_TYPE_GENERIC		0
@@ -87,6 +89,7 @@ struct wf_sensor {
 	struct wf_sensor_ops	*ops;
 	char			*name;
 	struct kref		ref;
+	struct device_attribute	attr;
 };
 
 /* Same lifetime rules as controls */

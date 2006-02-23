@@ -94,7 +94,7 @@ void __init prom_prepare_cpus(unsigned int max_cpus)
 void prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 	unsigned long gp = (unsigned long) task_thread_info(idle);
-	unsigned long sp = __KSTK_TOP(idle);
+	unsigned long sp = __KSTK_TOS(idle);
 
 	secondary_sp = sp;
 	secondary_gp = gp;

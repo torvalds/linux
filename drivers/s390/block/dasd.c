@@ -7,7 +7,6 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
- * $Revision: 1.172 $
  */
 
 #include <linux/config.h>
@@ -153,7 +152,12 @@ static inline void
 dasd_state_known_to_new(struct dasd_device * device)
 {
 	/* Forget the discipline information. */
+	if (device->discipline)
+		module_put(device->discipline->owner);
 	device->discipline = NULL;
+	if (device->base_discipline)
+		module_put(device->base_discipline->owner);
+	device->base_discipline = NULL;
 	device->state = DASD_STATE_NEW;
 
 	dasd_free_queue(device);
@@ -675,11 +679,8 @@ dasd_term_IO(struct dasd_ccw_req * cqr)
 		rc = ccw_device_clear(device->cdev, (long) cqr);
 		switch (rc) {
 		case 0:	/* termination successful */
-		        if (cqr->retries > 0) {
-				cqr->retries--;
-				cqr->status = DASD_CQR_CLEAR;
-			} else
-				cqr->status = DASD_CQR_FAILED;
+			cqr->retries--;
+			cqr->status = DASD_CQR_CLEAR;
 			cqr->stopclk = get_clock();
 			DBF_DEV_EVENT(DBF_DEBUG, device,
 				      "terminate cqr %p successful",
@@ -1308,7 +1309,7 @@ dasd_tasklet(struct dasd_device * device)
 	/* Now call the callback function of requests with final status */
 	list_for_each_safe(l, n, &final_queue) {
 		cqr = list_entry(l, struct dasd_ccw_req, list);
-		list_del(&cqr->list);
+		list_del_init(&cqr->list);
 		if (cqr->callback != NULL)
 			(cqr->callback)(cqr, cqr->callback_data);
 	}
@@ -1393,7 +1394,9 @@ _wait_for_wakeup(struct dasd_ccw_req *cqr)
 
 	device = cqr->device;
 	spin_lock_irq(get_ccwdev_lock(device->cdev));
-	rc = cqr->status == DASD_CQR_DONE || cqr->status == DASD_CQR_FAILED;
+	rc = ((cqr->status == DASD_CQR_DONE ||
+	       cqr->status == DASD_CQR_FAILED) &&
+	      list_empty(&cqr->list));
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	return rc;
 }
@@ -1457,15 +1460,37 @@ dasd_sleep_on_interruptible(struct dasd_ccw_req * cqr)
 	while (!finished) {
 		rc = wait_event_interruptible(wait_q, _wait_for_wakeup(cqr));
 		if (rc != -ERESTARTSYS) {
-			/* Request status is either done or failed. */
-			rc = (cqr->status == DASD_CQR_FAILED) ? -EIO : 0;
+			/* Request is final (done or failed) */
+			rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
 			break;
 		}
 		spin_lock_irq(get_ccwdev_lock(device->cdev));
-		if (cqr->status == DASD_CQR_IN_IO &&
-		    device->discipline->term_IO(cqr) == 0) {
-			list_del(&cqr->list);
+		switch (cqr->status) {
+		case DASD_CQR_IN_IO:
+                        /* terminate runnig cqr */
+			if (device->discipline->term_IO) {
+				cqr->retries = -1;
+				device->discipline->term_IO(cqr);
+				/*nished =
+				 * wait (non-interruptible) for final status
+				 * because signal ist still pending
+				 */
+				spin_unlock_irq(get_ccwdev_lock(device->cdev));
+				wait_event(wait_q, _wait_for_wakeup(cqr));
+				spin_lock_irq(get_ccwdev_lock(device->cdev));
+				rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
+				finished = 1;
+			}
+			break;
+		case DASD_CQR_QUEUED:
+			/* request  */
+			list_del_init(&cqr->list);
+			rc = -EIO;
 			finished = 1;
+			break;
+		default:
+			/* cqr with 'non-interruptable' status - just wait */
+			break;
 		}
 		spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	}
@@ -1839,9 +1864,10 @@ dasd_generic_remove (struct ccw_device *cdev)
  */
 int
 dasd_generic_set_online (struct ccw_device *cdev,
-			 struct dasd_discipline *discipline)
+			 struct dasd_discipline *base_discipline)
 
 {
+	struct dasd_discipline *discipline;
 	struct dasd_device *device;
 	int rc;
 
@@ -1849,6 +1875,7 @@ dasd_generic_set_online (struct ccw_device *cdev,
 	if (IS_ERR(device))
 		return PTR_ERR(device);
 
+	discipline = base_discipline;
 	if (device->features & DASD_FEATURE_USEDIAG) {
 	  	if (!dasd_diag_discipline_pointer) {
 		        printk (KERN_WARNING
@@ -1860,6 +1887,16 @@ dasd_generic_set_online (struct ccw_device *cdev,
 		}
 		discipline = dasd_diag_discipline_pointer;
 	}
+	if (!try_module_get(base_discipline->owner)) {
+		dasd_delete_device(device);
+		return -EINVAL;
+	}
+	if (!try_module_get(discipline->owner)) {
+		module_put(base_discipline->owner);
+		dasd_delete_device(device);
+		return -EINVAL;
+	}
+	device->base_discipline = base_discipline;
 	device->discipline = discipline;
 
 	rc = discipline->check_device(device);
@@ -1868,6 +1905,8 @@ dasd_generic_set_online (struct ccw_device *cdev,
 			"dasd_generic couldn't online device %s "
 			"with discipline %s rc=%i\n",
 			cdev->dev.bus_id, discipline->name, rc);
+		module_put(discipline->owner);
+		module_put(base_discipline->owner);
 		dasd_delete_device(device);
 		return rc;
 	}

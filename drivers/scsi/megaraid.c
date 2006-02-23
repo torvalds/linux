@@ -5049,7 +5049,7 @@ static struct pci_device_id megaraid_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, megaraid_pci_tbl);
 
 static struct pci_driver megaraid_pci_driver = {
-	.name		= "megaraid",
+	.name		= "megaraid_legacy",
 	.id_table	= megaraid_pci_tbl,
 	.probe		= megaraid_probe_one,
 	.remove		= __devexit_p(megaraid_remove_one),

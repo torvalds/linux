@@ -32,8 +32,6 @@
 #ifndef ZFCP_EXT_H
 #define ZFCP_EXT_H
 
-#define ZFCP_EXT_REVISION "$Revision: 1.62 $"
-
 #include "zfcp_def.h"
 
 extern struct zfcp_data zfcp_data;
@@ -196,9 +194,10 @@ extern void zfcp_san_dbf_event_els_response(struct zfcp_fsf_req *);
 extern void zfcp_san_dbf_event_incoming_els(struct zfcp_fsf_req *);
 
 extern void zfcp_scsi_dbf_event_result(const char *, int, struct zfcp_adapter *,
-				       struct scsi_cmnd *);
+				       struct scsi_cmnd *,
+				       struct zfcp_fsf_req *);
 extern void zfcp_scsi_dbf_event_abort(const char *, struct zfcp_adapter *,
-				      struct scsi_cmnd *,
+				      struct scsi_cmnd *, struct zfcp_fsf_req *,
 				      struct zfcp_fsf_req *);
 extern void zfcp_scsi_dbf_event_devreset(const char *, u8, struct zfcp_unit *,
 					 struct scsi_cmnd *);

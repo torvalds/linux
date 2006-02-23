@@ -50,3 +50,11 @@ config BACKLIGHT_CORGI
 	  If you have a Sharp Zaurus SL-C7xx, say y to enable the
 	  backlight driver.
 
+config BACKLIGHT_HP680
+	tristate "HP Jornada 680 Backlight Driver"
+	depends on BACKLIGHT_DEVICE && SH_HP6XX
+	default y
+	help
+	  If you have a HP Jornada 680, say y to enable the
+	  backlight driver.
+

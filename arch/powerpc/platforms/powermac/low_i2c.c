@@ -1052,8 +1052,7 @@ struct pmac_i2c_bus *pmac_i2c_adapter_to_bus(struct i2c_adapter *adapter)
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_adapter_to_bus);
 
-extern int pmac_i2c_match_adapter(struct device_node *dev,
-				  struct i2c_adapter *adapter)
+int pmac_i2c_match_adapter(struct device_node *dev, struct i2c_adapter *adapter)
 {
 	struct pmac_i2c_bus *bus = pmac_i2c_find_bus(dev);
 

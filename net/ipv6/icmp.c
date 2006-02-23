@@ -42,6 +42,7 @@
 #include <linux/net.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
+#include <linux/netfilter.h>
 
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
@@ -255,6 +256,7 @@ out:
 struct icmpv6_msg {
 	struct sk_buff	*skb;
 	int		offset;
+	uint8_t		type;
 };
 
 static int icmpv6_getfrag(void *from, char *to, int offset, int len, int odd, struct sk_buff *skb)
@@ -266,6 +268,8 @@ static int icmpv6_getfrag(void *from, char *to, int offset, int len, int odd, st
 	csum = skb_copy_and_csum_bits(org_skb, msg->offset + offset,
 				      to, len, csum);
 	skb->csum = csum_block_add(skb->csum, csum, odd);
+	if (!(msg->type & ICMPV6_INFOMSG_MASK))
+		nf_ct_attach(skb, org_skb);
 	return 0;
 }
 
@@ -403,6 +407,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 
 	msg.skb = skb;
 	msg.offset = skb->nh.raw - skb->data;
+	msg.type = type;
 
 	len = skb->len - msg.offset;
 	len = min_t(unsigned int, len, IPV6_MIN_MTU - sizeof(struct ipv6hdr) -sizeof(struct icmp6hdr));
@@ -500,6 +505,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 
 	msg.skb = skb;
 	msg.offset = 0;
+	msg.type = ICMPV6_ECHO_REPLY;
 
 	err = ip6_append_data(sk, icmpv6_getfrag, &msg, skb->len + sizeof(struct icmp6hdr),
 				sizeof(struct icmp6hdr), hlimit, tclass, NULL, &fl,

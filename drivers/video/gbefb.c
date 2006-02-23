@@ -1243,7 +1243,7 @@ static int __devexit gbefb_remove(struct platform_device* p_dev)
 			  (void *)gbe_tiles.cpu, gbe_tiles.dma);
 	release_mem_region(GBE_BASE, sizeof(struct sgi_gbe));
 	iounmap(gbe);
-	gbefb_remove_sysfs(dev);
+	gbefb_remove_sysfs(&p_dev->dev);
 	framebuffer_release(info);
 
 	return 0;

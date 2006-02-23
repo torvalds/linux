@@ -157,15 +157,13 @@ _GLOBAL(__secondary_hold)
 	SET_REG_IMMEDIATE(r4, .hmt_init)
 	mtctr	r4
 	bctr
-#else
-#ifdef CONFIG_SMP
+#elif defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
 	LOAD_REG_IMMEDIATE(r4, .pSeries_secondary_smp_init)
 	mtctr	r4
 	mr	r3,r24
 	bctr
 #else
 	BUG_OPCODE
-#endif
 #endif
 
 /* This value is used to mark exception frames on the stack. */
@@ -749,11 +747,12 @@ iSeries_secondary_smp_loop:
 
 	.globl decrementer_iSeries_masked
 decrementer_iSeries_masked:
+	/* We may not have a valid TOC pointer in here. */
 	li	r11,1
 	ld	r12,PACALPPACAPTR(r13)
 	stb	r11,LPPACADECRINT(r12)
-	LOAD_REG_ADDRBASE(r12,tb_ticks_per_jiffy)
-	lwz	r12,ADDROFF(tb_ticks_per_jiffy)(r12)
+	LOAD_REG_IMMEDIATE(r12, tb_ticks_per_jiffy)
+	lwz	r12,0(r12)
 	mtspr	SPRN_DEC,r12
 	/* fall through */
 

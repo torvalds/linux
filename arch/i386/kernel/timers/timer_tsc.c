@@ -45,6 +45,15 @@ static unsigned long last_tsc_high; /* msb 32 bits of Time Stamp Counter */
 static unsigned long long monotonic_base;
 static seqlock_t monotonic_lock = SEQLOCK_UNLOCKED;
 
+/* Avoid compensating for lost ticks before TSCs are synched */
+static int detect_lost_ticks;
+static int __init start_lost_tick_compensation(void)
+{
+	detect_lost_ticks = 1;
+	return 0;
+}
+late_initcall(start_lost_tick_compensation);
+
 /* convert from cycles(64bits) => nanoseconds (64bits)
  *  basic equation:
  *		ns = cycles / (freq / ns_per_sec)
@@ -196,7 +205,8 @@ static void mark_offset_tsc_hpet(void)
 
 	/* lost tick compensation */
 	offset = hpet_readl(HPET_T0_CMP) - hpet_tick;
-	if (unlikely(((offset - hpet_last) > hpet_tick) && (hpet_last != 0))) {
+	if (unlikely(((offset - hpet_last) > hpet_tick) && (hpet_last != 0))
+					&& detect_lost_ticks) {
 		int lost_ticks = (offset - hpet_last) / hpet_tick;
 		jiffies_64 += lost_ticks;
 	}
@@ -272,6 +282,10 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	if (val != CPUFREQ_RESUMECHANGE)
 		write_seqlock_irq(&xtime_lock);
 	if (!ref_freq) {
+		if (!freq->old){
+			ref_freq = freq->new;
+			goto end;
+		}
 		ref_freq = freq->old;
 		loops_per_jiffy_ref = cpu_data[freq->cpu].loops_per_jiffy;
 #ifndef CONFIG_SMP
@@ -297,6 +311,7 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 #endif
 	}
 
+end:
 	if (val != CPUFREQ_RESUMECHANGE)
 		write_sequnlock_irq(&xtime_lock);
 
@@ -421,7 +436,7 @@ static void mark_offset_tsc(void)
 	delta += delay_at_last_interrupt;
 	lost = delta/(1000000/HZ);
 	delay = delta%(1000000/HZ);
-	if (lost >= 2) {
+	if (lost >= 2 && detect_lost_ticks) {
 		jiffies_64 += lost-1;
 
 		/* sanity check to ensure we're not always losing ticks */

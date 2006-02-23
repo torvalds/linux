@@ -866,7 +866,7 @@ wavefront_send_sample (snd_wavefront_t *dev,
 	   divided by 2.
         */
 
-	u16 sample_short;
+	u16 sample_short = 0;
 	u32 length;
 	u16 __user *data_end = NULL;
 	unsigned int i;

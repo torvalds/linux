@@ -27,16 +27,22 @@ struct ipt_policy_spec
 			reqid:1;
 };
 
+union ipt_policy_addr
+{
+	struct in_addr	a4;
+	struct in6_addr	a6;
+};
+
 struct ipt_policy_elem
 {
-	u_int32_t	saddr;
-	u_int32_t	smask;
-	u_int32_t	daddr;
-	u_int32_t	dmask;
-	u_int32_t	spi;
-	u_int32_t	reqid;
-	u_int8_t	proto;
-	u_int8_t	mode;
+	union ipt_policy_addr	saddr;
+	union ipt_policy_addr	smask;
+	union ipt_policy_addr	daddr;
+	union ipt_policy_addr	dmask;
+	u_int32_t		spi;
+	u_int32_t		reqid;
+	u_int8_t		proto;
+	u_int8_t		mode;
 
 	struct ipt_policy_spec	match;
 	struct ipt_policy_spec	invert;

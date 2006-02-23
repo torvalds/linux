@@ -262,6 +262,21 @@ static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev, const ch
 	else
 		pci_set_drvdata(dev, (void *) aec6xxx_34_base);
 
+	/* These are necessary to get AEC6280 Macintosh cards to work */
+	if ((dev->device == PCI_DEVICE_ID_ARTOP_ATP865) ||
+	    (dev->device == PCI_DEVICE_ID_ARTOP_ATP865R)) {
+		u8 reg49h = 0, reg4ah = 0;
+		/* Clear reset and test bits.  */
+		pci_read_config_byte(dev, 0x49, &reg49h);
+		pci_write_config_byte(dev, 0x49, reg49h & ~0x30);
+		/* Enable chip interrupt output.  */
+		pci_read_config_byte(dev, 0x4a, &reg4ah);
+		pci_write_config_byte(dev, 0x4a, reg4ah & ~0x01);
+		/* Enable burst mode. */
+		pci_read_config_byte(dev, 0x4a, &reg4ah);
+		pci_write_config_byte(dev, 0x4a, reg4ah | 0x80);
+	}
+
 	return dev->irq;
 }
 

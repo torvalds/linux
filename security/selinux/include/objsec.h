@@ -27,7 +27,6 @@
 #include "avc.h"
 
 struct task_security_struct {
-        unsigned long magic;           /* magic number for this module */
 	struct task_struct *task;      /* back pointer to task object */
 	u32 osid;            /* SID prior to last execve */
 	u32 sid;             /* current SID */
@@ -37,7 +36,6 @@ struct task_security_struct {
 };
 
 struct inode_security_struct {
-	unsigned long magic;           /* magic number for this module */
         struct inode *inode;           /* back pointer to inode object */
 	struct list_head list;         /* list of inode_security_struct */
 	u32 task_sid;        /* SID of creating task */
@@ -49,14 +47,12 @@ struct inode_security_struct {
 };
 
 struct file_security_struct {
-	unsigned long magic;            /* magic number for this module */
 	struct file *file;              /* back pointer to file object */
 	u32 sid;              /* SID of open file description */
 	u32 fown_sid;         /* SID of file owner (for SIGIO) */
 };
 
 struct superblock_security_struct {
-	unsigned long magic;            /* magic number for this module */
 	struct super_block *sb;         /* back pointer to sb object */
 	struct list_head list;          /* list of superblock_security_struct */
 	u32 sid;              /* SID of file system */
@@ -70,20 +66,17 @@ struct superblock_security_struct {
 };
 
 struct msg_security_struct {
-        unsigned long magic;		/* magic number for this module */
 	struct msg_msg *msg;		/* back pointer */
 	u32 sid;              /* SID of message */
 };
 
 struct ipc_security_struct {
-        unsigned long magic;		/* magic number for this module */
 	struct kern_ipc_perm *ipc_perm; /* back pointer */
 	u16 sclass;	/* security class of this object */
 	u32 sid;              /* SID of IPC resource */
 };
 
 struct bprm_security_struct {
-	unsigned long magic;           /* magic number for this module */
 	struct linux_binprm *bprm;     /* back pointer to bprm object */
 	u32 sid;                       /* SID for transformed process */
 	unsigned char set;
@@ -102,7 +95,6 @@ struct netif_security_struct {
 };
 
 struct sk_security_struct {
-	unsigned long magic;		/* magic number for this module */
 	struct sock *sk;		/* back pointer to sk object */
 	u32 peer_sid;			/* SID of peer */
 };

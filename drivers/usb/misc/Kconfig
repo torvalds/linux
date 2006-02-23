@@ -141,7 +141,7 @@ source "drivers/usb/misc/sisusbvga/Kconfig"
 
 config USB_LD
 	tristate "USB LD driver"
-	depends on USB && EXPERIMENTAL
+	depends on USB
 	help
 	  This driver is for generic USB devices that use interrupt transfers,
 	  like LD Didactic's USB devices.

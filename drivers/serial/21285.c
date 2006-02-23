@@ -362,11 +362,11 @@ static struct uart_ops serial21285_ops = {
 
 static struct uart_port serial21285_port = {
 	.mapbase	= 0x42000160,
-	.iotype		= SERIAL_IO_MEM,
+	.iotype		= UPIO_MEM,
 	.irq		= NO_IRQ,
 	.fifosize	= 16,
 	.ops		= &serial21285_ops,
-	.flags		= ASYNC_BOOT_AUTOCONF,
+	.flags		= UPF_BOOT_AUTOCONF,
 };
 
 static void serial21285_setup_ports(void)

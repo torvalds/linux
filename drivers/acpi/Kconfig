@@ -267,7 +267,6 @@ config ACPI_DEBUG
 
 config ACPI_EC
 	bool
-	depends on X86
 	default y
 	help
 	  This driver is required on some systems for the proper operation of

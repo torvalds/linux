@@ -31,14 +31,6 @@
 
 extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 
-#if 0
-/* Not yet - there's no declaration of drive_info anywhere. */
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_HD) || defined(CONFIG_BLK_DEV_IDE_MODULE) || defined(CONFIG_BLK_DEV_HD_MODULE)
-extern struct drive_info_struct drive_info;
-EXPORT_SYMBOL(drive_info);
-#endif
-#endif
-
 /* platform dependent support */
 EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(iounmap);

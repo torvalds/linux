@@ -44,17 +44,6 @@
 #endif
 
 
- /*************************************************
-  * Set the LIMIT values.
-  ************************************************/
-#ifdef RTA
-#define RX_LIMIT       (ushort) 3
-#endif
-#ifdef HOST
-#define RX_LIMIT       (ushort) 1
-#endif
-
-
 /*************************************************
  * Handshake asserted. Deasserted by the LTT(s)
  ************************************************/
@@ -69,11 +58,7 @@
 /*************************************************
  * Maximum number of PHB's
  ************************************************/
-#if defined (HOST) || defined (INKERNEL)
 #define MAX_PHB               ((ushort) 128)	/* range 0-127 */
-#else
-#define MAX_PHB               ((ushort) 8)	/* range 0-7 */
-#endif
 
 /*************************************************
  * Defines for the mode fields
@@ -139,141 +124,23 @@
  * the start. The pointer tx_add points to a SPACE to put a Packet.
  * The pointer tx_remove points to the next Packet to remove
  *************************************************************************/
-#ifndef INKERNEL
-#define src_unit     u2.s2.unit
-#define src_port     u2.s2.port
-#define dest_unit    u1.s1.unit
-#define dest_port    u1.s1.port
-#endif
-#ifdef HOST
-#define tx_start     u3.s1.tx_start_ptr_ptr
-#define tx_add       u3.s1.tx_add_ptr_ptr
-#define tx_end       u3.s1.tx_end_ptr_ptr
-#define tx_remove    u3.s1.tx_remove_ptr_ptr
-#define rx_start     u4.s1.rx_start_ptr_ptr
-#define rx_add       u4.s1.rx_add_ptr_ptr
-#define rx_end       u4.s1.rx_end_ptr_ptr
-#define rx_remove    u4.s1.rx_remove_ptr_ptr
-#endif
 typedef struct PHB PHB;
 struct PHB {
-#ifdef RTA
-	ushort port;
-#endif
-#ifdef INKERNEL
 	WORD source;
-#else
-	union {
-		ushort source;	/* Complete source */
-		struct {
-			unsigned char unit;	/* Source unit */
-			unsigned char port;	/* Source port */
-		} s2;
-	} u2;
-#endif
 	WORD handshake;
 	WORD status;
 	NUMBER timeout;		/* Maximum of 1.9 seconds */
 	WORD link;		/* Send down this link */
-#ifdef INKERNEL
 	WORD destination;
-#else
-	union {
-		ushort destination;	/* Complete destination */
-		struct {
-			unsigned char unit;	/* Destination unit */
-			unsigned char port;	/* Destination port */
-		} s1;
-	} u1;
-#endif
-#ifdef RTA
-	ushort tx_pkts_added;
-	ushort tx_pkts_removed;
-	Q_BUF_ptr tx_q_start;	/* Start of the Q list chain */
-	short num_tx_q_bufs;	/* Number of Q buffers in the chain */
-	PKT_ptr_ptr tx_add;	/* Add a new Packet here */
-	Q_BUF_ptr tx_add_qb;	/* Pointer to the add Q buf */
-	PKT_ptr_ptr tx_add_st_qbb;	/* Pointer to start of the Q's buf */
-	PKT_ptr_ptr tx_add_end_qbb;	/* Pointer to the end of the Q's buf */
-	PKT_ptr_ptr tx_remove;	/* Remove a Packet here */
-	Q_BUF_ptr tx_remove_qb;	/* Pointer to the remove Q buf */
-	PKT_ptr_ptr tx_remove_st_qbb;	/* Pointer to the start of the Q buf */
-	PKT_ptr_ptr tx_remove_end_qbb;	/* Pointer to the end of the Q buf */
-#endif
-#ifdef INKERNEL
 	PKT_ptr_ptr tx_start;
 	PKT_ptr_ptr tx_end;
 	PKT_ptr_ptr tx_add;
 	PKT_ptr_ptr tx_remove;
-#endif
-#ifdef HOST
-	union {
-		struct {
-			PKT_ptr_ptr tx_start_ptr_ptr;
-			PKT_ptr_ptr tx_end_ptr_ptr;
-			PKT_ptr_ptr tx_add_ptr_ptr;
-			PKT_ptr_ptr tx_remove_ptr_ptr;
-		} s1;
-		struct {
-			ushort *tx_start_ptr;
-			ushort *tx_end_ptr;
-			ushort *tx_add_ptr;
-			ushort *tx_remove_ptr;
-		} s2;
-	} u3;
-#endif
 
-#ifdef  RTA
-	ushort rx_pkts_added;
-	ushort rx_pkts_removed;
-	Q_BUF_ptr rx_q_start;	/* Start of the Q list chain */
-	short num_rx_q_bufs;	/* Number of Q buffers in the chain */
-	PKT_ptr_ptr rx_add;	/* Add a new Packet here */
-	Q_BUF_ptr rx_add_qb;	/* Pointer to the add Q buf */
-	PKT_ptr_ptr rx_add_st_qbb;	/* Pointer to start of the Q's buf */
-	PKT_ptr_ptr rx_add_end_qbb;	/* Pointer to the end of the Q's buf */
-	PKT_ptr_ptr rx_remove;	/* Remove a Packet here */
-	Q_BUF_ptr rx_remove_qb;	/* Pointer to the remove Q buf */
-	PKT_ptr_ptr rx_remove_st_qbb;	/* Pointer to the start of the Q buf */
-	PKT_ptr_ptr rx_remove_end_qbb;	/* Pointer to the end of the Q buf */
-#endif
-#ifdef INKERNEL
 	PKT_ptr_ptr rx_start;
 	PKT_ptr_ptr rx_end;
 	PKT_ptr_ptr rx_add;
 	PKT_ptr_ptr rx_remove;
-#endif
-#ifdef HOST
-	union {
-		struct {
-			PKT_ptr_ptr rx_start_ptr_ptr;
-			PKT_ptr_ptr rx_end_ptr_ptr;
-			PKT_ptr_ptr rx_add_ptr_ptr;
-			PKT_ptr_ptr rx_remove_ptr_ptr;
-		} s1;
-		struct {
-			ushort *rx_start_ptr;
-			ushort *rx_end_ptr;
-			ushort *rx_add_ptr;
-			ushort *rx_remove_ptr;
-		} s2;
-	} u4;
-#endif
-
-#ifdef RTA			/* some fields for the remotes */
-	ushort flush_count;	/* Count of write flushes */
-	ushort txmode;		/* Modes for tx */
-	ushort rxmode;		/* Modes for rx */
-	ushort portmode;	/* Generic modes */
-	ushort column;		/* TAB3 column count */
-	ushort tx_subscript;	/* (TX) Subscript into data field */
-	ushort rx_subscript;	/* (RX) Subscript into data field */
-	PKT_ptr rx_incomplete;	/* Hold an incomplete packet here */
-	ushort modem_bits;	/* Modem bits to mask */
-	ushort lastModem;	/* Modem control lines. */
-	ushort addr;		/* Address for sub commands */
-	ushort MonitorTstate;	/* TRUE if monitoring tstop */
-#endif
 
 };
 

@@ -382,7 +382,6 @@ struct reiserfs_sb_info {
 					   on-disk FS format */
 
 	/* session statistics */
-	int s_kmallocs;
 	int s_disk_reads;
 	int s_disk_writes;
 	int s_fix_nodes;

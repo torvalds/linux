@@ -1565,7 +1565,7 @@ lba_driver_probe(struct parisc_device *dev)
 	} else if (IS_MERCURY(dev) || IS_QUICKSILVER(dev)) {
 		func_class &= 0xff;
 		version = kmalloc(6, GFP_KERNEL);
-		sprintf(version,"TR%d.%d",(func_class >> 4),(func_class & 0xf));
+		snprintf(version, 6, "TR%d.%d",(func_class >> 4),(func_class & 0xf));
 		/* We could use one printk for both Elroy and Mercury,
                  * but for the mask for func_class.
                  */ 
@@ -1586,13 +1586,11 @@ lba_driver_probe(struct parisc_device *dev)
 	**	have an IRT entry will get NULL back from iosapic code.
 	*/
 	
-	lba_dev = kmalloc(sizeof(struct lba_device), GFP_KERNEL);
+	lba_dev = kzalloc(sizeof(struct lba_device), GFP_KERNEL);
 	if (!lba_dev) {
 		printk(KERN_ERR "lba_init_chip - couldn't alloc lba_device\n");
 		return(1);
 	}
-
-	memset(lba_dev, 0, sizeof(struct lba_device));
 
 
 	/* ---------- First : initialize data we already have --------- */

@@ -15,6 +15,7 @@ struct namespace {
 
 extern int copy_namespace(int, struct task_struct *);
 extern void __put_namespace(struct namespace *namespace);
+extern struct namespace *dup_namespace(struct task_struct *, struct fs_struct *);
 
 static inline void put_namespace(struct namespace *namespace)
 {

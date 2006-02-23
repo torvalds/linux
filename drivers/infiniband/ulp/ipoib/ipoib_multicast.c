@@ -97,6 +97,7 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_neigh *neigh, *tmp;
 	unsigned long flags;
+	int tx_dropped = 0;
 
 	ipoib_dbg_mcast(netdev_priv(dev),
 			"deleting multicast group " IPOIB_GID_FMT "\n",
@@ -123,8 +124,14 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 	if (mcast->ah)
 		ipoib_put_ah(mcast->ah);
 
-	while (!skb_queue_empty(&mcast->pkt_queue))
+	while (!skb_queue_empty(&mcast->pkt_queue)) {
+		++tx_dropped;
 		dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
+	}
+
+	spin_lock_irqsave(&priv->tx_lock, flags);
+	priv->stats.tx_dropped += tx_dropped;
+	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	kfree(mcast);
 }
@@ -276,8 +283,10 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	}
 
 	/* actually send any queued packets */
+	spin_lock_irq(&priv->tx_lock);
 	while (!skb_queue_empty(&mcast->pkt_queue)) {
 		struct sk_buff *skb = skb_dequeue(&mcast->pkt_queue);
+		spin_unlock_irq(&priv->tx_lock);
 
 		skb->dev = dev;
 
@@ -288,7 +297,9 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 
 		if (dev_queue_xmit(skb))
 			ipoib_warn(priv, "dev_queue_xmit failed to requeue packet\n");
+		spin_lock_irq(&priv->tx_lock);
 	}
+	spin_unlock_irq(&priv->tx_lock);
 
 	return 0;
 }
@@ -300,6 +311,7 @@ ipoib_mcast_sendonly_join_complete(int status,
 {
 	struct ipoib_mcast *mcast = mcast_ptr;
 	struct net_device *dev = mcast->dev;
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	if (!status)
 		ipoib_mcast_join_finish(mcast, mcmember);
@@ -310,8 +322,12 @@ ipoib_mcast_sendonly_join_complete(int status,
 					IPOIB_GID_ARG(mcast->mcmember.mgid), status);
 
 		/* Flush out any queued packets */
-		while (!skb_queue_empty(&mcast->pkt_queue))
+		spin_lock_irq(&priv->tx_lock);
+		while (!skb_queue_empty(&mcast->pkt_queue)) {
+			++priv->stats.tx_dropped;
 			dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
+		}
+		spin_unlock_irq(&priv->tx_lock);
 
 		/* Clear the busy flag so we try again */
 		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
@@ -517,8 +533,10 @@ void ipoib_mcast_join_task(void *dev_ptr)
 	}
 
 	if (!priv->broadcast) {
-		priv->broadcast = ipoib_mcast_alloc(dev, 1);
-		if (!priv->broadcast) {
+		struct ipoib_mcast *broadcast;
+
+		broadcast = ipoib_mcast_alloc(dev, 1);
+		if (!broadcast) {
 			ipoib_warn(priv, "failed to allocate broadcast group\n");
 			mutex_lock(&mcast_mutex);
 			if (test_bit(IPOIB_MCAST_RUN, &priv->flags))
@@ -528,10 +546,11 @@ void ipoib_mcast_join_task(void *dev_ptr)
 			return;
 		}
 
-		memcpy(priv->broadcast->mcmember.mgid.raw, priv->dev->broadcast + 4,
-		       sizeof (union ib_gid));
-
 		spin_lock_irq(&priv->lock);
+		memcpy(broadcast->mcmember.mgid.raw, priv->dev->broadcast + 4,
+		       sizeof (union ib_gid));
+		priv->broadcast = broadcast;
+
 		__ipoib_mcast_add(dev, priv->broadcast);
 		spin_unlock_irq(&priv->lock);
 	}
@@ -585,6 +604,10 @@ int ipoib_mcast_start_thread(struct net_device *dev)
 		queue_work(ipoib_workqueue, &priv->mcast_task);
 	mutex_unlock(&mcast_mutex);
 
+	spin_lock_irq(&priv->lock);
+	set_bit(IPOIB_MCAST_STARTED, &priv->flags);
+	spin_unlock_irq(&priv->lock);
+
 	return 0;
 }
 
@@ -594,6 +617,10 @@ int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 	struct ipoib_mcast *mcast;
 
 	ipoib_dbg_mcast(priv, "stopping multicast thread\n");
+
+	spin_lock_irq(&priv->lock);
+	clear_bit(IPOIB_MCAST_STARTED, &priv->flags);
+	spin_unlock_irq(&priv->lock);
 
 	mutex_lock(&mcast_mutex);
 	clear_bit(IPOIB_MCAST_RUN, &priv->flags);
@@ -677,6 +704,14 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 	 */
 	spin_lock(&priv->lock);
 
+	if (!test_bit(IPOIB_MCAST_STARTED, &priv->flags)	||
+	    !priv->broadcast					||
+	    !test_bit(IPOIB_MCAST_FLAG_ATTACHED, &priv->broadcast->flags)) {
+		++priv->stats.tx_dropped;
+		dev_kfree_skb_any(skb);
+		goto unlock;
+	}
+
 	mcast = __ipoib_mcast_find(dev, mgid);
 	if (!mcast) {
 		/* Let's create a new send only group now */
@@ -687,6 +722,7 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 		if (!mcast) {
 			ipoib_warn(priv, "unable to allocate memory for "
 				   "multicast structure\n");
+			++priv->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
 			goto out;
 		}
@@ -700,8 +736,10 @@ void ipoib_mcast_send(struct net_device *dev, union ib_gid *mgid,
 	if (!mcast->ah) {
 		if (skb_queue_len(&mcast->pkt_queue) < IPOIB_MAX_MCAST_QUEUE)
 			skb_queue_tail(&mcast->pkt_queue, skb);
-		else
+		else {
+			++priv->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
+		}
 
 		if (mcast->query)
 			ipoib_dbg_mcast(priv, "no address vector, "
@@ -735,6 +773,7 @@ out:
 		ipoib_send(dev, skb, mcast->ah, IB_MULTICAST_QPN);
 	}
 
+unlock:
 	spin_unlock(&priv->lock);
 }
 

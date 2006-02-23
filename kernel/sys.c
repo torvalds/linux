@@ -428,7 +428,7 @@ void kernel_kexec(void)
 {
 #ifdef CONFIG_KEXEC
 	struct kimage *image;
-	image = xchg(&kexec_image, 0);
+	image = xchg(&kexec_image, NULL);
 	if (!image) {
 		return;
 	}
@@ -440,23 +440,25 @@ void kernel_kexec(void)
 }
 EXPORT_SYMBOL_GPL(kernel_kexec);
 
+void kernel_shutdown_prepare(enum system_states state)
+{
+	notifier_call_chain(&reboot_notifier_list,
+		(state == SYSTEM_HALT)?SYS_HALT:SYS_POWER_OFF, NULL);
+	system_state = state;
+	device_shutdown();
+}
 /**
  *	kernel_halt - halt the system
  *
  *	Shutdown everything and perform a clean system halt.
  */
-void kernel_halt_prepare(void)
-{
-	notifier_call_chain(&reboot_notifier_list, SYS_HALT, NULL);
-	system_state = SYSTEM_HALT;
-	device_shutdown();
-}
 void kernel_halt(void)
 {
-	kernel_halt_prepare();
+	kernel_shutdown_prepare(SYSTEM_HALT);
 	printk(KERN_EMERG "System halted.\n");
 	machine_halt();
 }
+
 EXPORT_SYMBOL_GPL(kernel_halt);
 
 /**
@@ -464,20 +466,13 @@ EXPORT_SYMBOL_GPL(kernel_halt);
  *
  *	Shutdown everything and perform a clean system power_off.
  */
-void kernel_power_off_prepare(void)
-{
-	notifier_call_chain(&reboot_notifier_list, SYS_POWER_OFF, NULL);
-	system_state = SYSTEM_POWER_OFF;
-	device_shutdown();
-}
 void kernel_power_off(void)
 {
-	kernel_power_off_prepare();
+	kernel_shutdown_prepare(SYSTEM_POWER_OFF);
 	printk(KERN_EMERG "Power down.\n");
 	machine_power_off();
 }
 EXPORT_SYMBOL_GPL(kernel_power_off);
-
 /*
  * Reboot system call: for obvious reasons only root may call it,
  * and even root needs to set up some magic numbers in the registers

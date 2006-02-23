@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2003-2006 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -12,11 +12,6 @@
  * You should have received a copy of the GNU General Public
  * License along with this program; if not, write the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information:  Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
  *
  * For further information regarding this notice, see:
  *
@@ -510,7 +505,7 @@ sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
 				       drive->name);
 				goto use_pio_instead;
 			} else {
-				u32 xcount, bcount =
+				u32 bcount =
 				    0x10000 - (cur_addr & 0xffff);
 
 				if (bcount > cur_len)
@@ -525,8 +520,7 @@ sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
 				*table = 0x0;
 				table++;
 
-				xcount = bcount & 0xffff;
-				*table = cpu_to_be32(xcount);
+				*table = cpu_to_be32(bcount);
 				table++;
 
 				cur_addr += bcount;
@@ -680,7 +674,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t * d)
 		return -EIO;
 
 	/* Create /proc/ide entries */
-	create_proc_ide_interfaces(); 
+	create_proc_ide_interfaces();
 
 	return 0;
 }

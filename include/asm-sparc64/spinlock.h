@@ -131,6 +131,28 @@ static void inline __read_lock(raw_rwlock_t *lock)
 	: "memory");
 }
 
+static int inline __read_trylock(raw_rwlock_t *lock)
+{
+	int tmp1, tmp2;
+
+	__asm__ __volatile__ (
+"1:	ldsw		[%2], %0\n"
+"	brlz,a,pn	%0, 2f\n"
+"	 mov		0, %0\n"
+"	add		%0, 1, %1\n"
+"	cas		[%2], %0, %1\n"
+"	cmp		%0, %1\n"
+"	membar		#StoreLoad | #StoreStore\n"
+"	bne,pn		%%icc, 1b\n"
+"	 mov		1, %0\n"
+"2:"
+	: "=&r" (tmp1), "=&r" (tmp2)
+	: "r" (lock)
+	: "memory");
+
+	return tmp1;
+}
+
 static void inline __read_unlock(raw_rwlock_t *lock)
 {
 	unsigned long tmp1, tmp2;
@@ -211,12 +233,12 @@ static int inline __write_trylock(raw_rwlock_t *lock)
 }
 
 #define __raw_read_lock(p)	__read_lock(p)
+#define __raw_read_trylock(p)	__read_trylock(p)
 #define __raw_read_unlock(p)	__read_unlock(p)
 #define __raw_write_lock(p)	__write_lock(p)
 #define __raw_write_unlock(p)	__write_unlock(p)
 #define __raw_write_trylock(p)	__write_trylock(p)
 
-#define __raw_read_trylock(lock)	generic__raw_read_trylock(lock)
 #define __raw_read_can_lock(rw)		(!((rw)->lock & 0x80000000UL))
 #define __raw_write_can_lock(rw)	(!(rw)->lock)
 

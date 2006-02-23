@@ -149,6 +149,7 @@ static int vyres      __devinitdata;
 static int sync       __devinitdata;
 static int extvga     __devinitdata;
 static int dcolor     __devinitdata;
+static int ddc3       __devinitdata = 2;
 
 /*------------------------------------------------------------*/
 
@@ -1763,6 +1764,8 @@ static void __devinit i810_init_defaults(struct i810fb_par *par,
 	if (sync) 
 		par->dev_flags |= ALWAYS_SYNC;
 
+	par->ddc_num = ddc3;
+
 	if (bpp < 8)
 		bpp = 8;
 	
@@ -1885,7 +1888,7 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 	int found = 0;
 #ifdef CONFIG_FB_I810_I2C
 	int i;
-	int err;
+	int err = 1;
 	struct i810fb_par *par = info->par;
 #endif
 
@@ -1895,8 +1898,8 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 #ifdef CONFIG_FB_I810_I2C
 	i810_create_i2c_busses(par);
 
-	for (i = 0; i < 4; i++) {
-		err = i810_probe_i2c_connector(info, &par->edid, i+1);
+	for (i = 0; i < par->ddc_num + 1; i++) {
+		err = i810_probe_i2c_connector(info, &par->edid, i);
 		if (!err)
 			break;
 	}
@@ -1983,6 +1986,8 @@ static int __devinit i810fb_setup(char *options)
 			vsync2 = simple_strtoul(this_opt+7, NULL, 0);
 		else if (!strncmp(this_opt, "dcolor", 6))
 			dcolor = 1;
+		else if (!strncmp(this_opt, "ddc3", 4))
+			ddc3 = 3;
 		else
 			mode_option = this_opt;
 	}
@@ -2190,6 +2195,8 @@ MODULE_PARM_DESC(sync, "wait for accel engine to finish drawing"
 module_param(dcolor, bool, 0);
 MODULE_PARM_DESC(dcolor, "use DirectColor visuals"
 		 " (default = 0 = TrueColor)");
+module_param(ddc3, bool, 0);
+MODULE_PARM_DESC(ddc3, "Probe DDC bus 3 (default = 0 = no)");
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Specify initial video mode");
 
