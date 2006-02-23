@@ -1100,7 +1100,9 @@ int ib_destroy_ah(struct ib_ah *ah);
  * ib_create_srq - Creates a SRQ associated with the specified protection
  *   domain.
  * @pd: The protection domain associated with the SRQ.
- * @srq_init_attr: A list of initial attributes required to create the SRQ.
+ * @srq_init_attr: A list of initial attributes required to create the
+ *   SRQ.  If SRQ creation succeeds, then the attributes are updated to
+ *   the actual capabilities of the created SRQ.
  *
  * srq_attr->max_wr and srq_attr->max_sge are read the determine the
  * requested size of the SRQ, and set to the actual values allocated
@@ -1159,7 +1161,9 @@ static inline int ib_post_srq_recv(struct ib_srq *srq,
  * ib_create_qp - Creates a QP associated with the specified protection
  *   domain.
  * @pd: The protection domain associated with the QP.
- * @qp_init_attr: A list of initial attributes required to create the QP.
+ * @qp_init_attr: A list of initial attributes required to create the
+ *   QP.  If QP creation succeeds, then the attributes are updated to
+ *   the actual capabilities of the created QP.
  */
 struct ib_qp *ib_create_qp(struct ib_pd *pd,
 			   struct ib_qp_init_attr *qp_init_attr);

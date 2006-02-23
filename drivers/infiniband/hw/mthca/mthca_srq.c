@@ -271,6 +271,9 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	srq->first_free = 0;
 	srq->last_free  = srq->max - 1;
 
+	attr->max_wr    = srq->max;
+	attr->max_sge   = srq->max_gs;
+
 	return 0;
 
 err_out_free_srq:
