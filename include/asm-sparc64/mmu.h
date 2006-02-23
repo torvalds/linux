@@ -102,6 +102,7 @@ extern void __tsb_insert(unsigned long ent, unsigned long tag, unsigned long pte
 extern void tsb_flush(unsigned long ent, unsigned long tag);
 
 typedef struct {
+	spinlock_t		lock;
 	unsigned long		sparc64_ctx_val;
 	struct tsb		*tsb;
 	unsigned long		tsb_rss_limit;

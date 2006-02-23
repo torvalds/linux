@@ -629,17 +629,20 @@ void __flush_dcache_range(unsigned long start, unsigned long end)
  * let the user have CTX 0 (nucleus) or we ever use a CTX
  * version of zero (and thus NO_CONTEXT would not be caught
  * by version mis-match tests in mmu_context.h).
+ *
+ * Always invoked with interrupts disabled.
  */
 void get_new_mmu_context(struct mm_struct *mm)
 {
 	unsigned long ctx, new_ctx;
 	unsigned long orig_pgsz_bits;
-	
+	int new_version;
 
 	spin_lock(&ctx_alloc_lock);
 	orig_pgsz_bits = (mm->context.sparc64_ctx_val & CTX_PGSZ_MASK);
 	ctx = (tlb_context_cache + 1) & CTX_NR_MASK;
 	new_ctx = find_next_zero_bit(mmu_context_bmap, 1 << CTX_NR_BITS, ctx);
+	new_version = 0;
 	if (new_ctx >= (1 << CTX_NR_BITS)) {
 		new_ctx = find_next_zero_bit(mmu_context_bmap, ctx, 1);
 		if (new_ctx >= ctx) {
@@ -662,6 +665,7 @@ void get_new_mmu_context(struct mm_struct *mm)
 				mmu_context_bmap[i + 2] = 0;
 				mmu_context_bmap[i + 3] = 0;
 			}
+			new_version = 1;
 			goto out;
 		}
 	}
@@ -671,6 +675,9 @@ out:
 	tlb_context_cache = new_ctx;
 	mm->context.sparc64_ctx_val = new_ctx | orig_pgsz_bits;
 	spin_unlock(&ctx_alloc_lock);
+
+	if (unlikely(new_version))
+		smp_new_mmu_context_version();
 }
 
 void sparc_ultra_dump_itlb(void)

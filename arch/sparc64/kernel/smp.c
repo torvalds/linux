@@ -885,26 +885,44 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	put_cpu();
 }
 
+static void __smp_receive_signal_mask(cpumask_t mask)
+{
+	smp_cross_call_masked(&xcall_receive_signal, 0, 0, 0, mask);
+}
+
 void smp_receive_signal(int cpu)
 {
 	cpumask_t mask = cpumask_of_cpu(cpu);
 
-	if (cpu_online(cpu)) {
-		u64 data0 = (((u64)&xcall_receive_signal) & 0xffffffff);
-
-		if (tlb_type == spitfire)
-			spitfire_xcall_deliver(data0, 0, 0, mask);
-		else if (tlb_type == cheetah || tlb_type == cheetah_plus)
-			cheetah_xcall_deliver(data0, 0, 0, mask);
-		else if (tlb_type == hypervisor)
-			hypervisor_xcall_deliver(data0, 0, 0, mask);
-	}
+	if (cpu_online(cpu))
+		__smp_receive_signal_mask(mask);
 }
 
 void smp_receive_signal_client(int irq, struct pt_regs *regs)
 {
-	/* Just return, rtrap takes care of the rest. */
+	struct mm_struct *mm;
+
 	clear_softint(1 << irq);
+
+	/* See if we need to allocate a new TLB context because
+	 * the version of the one we are using is now out of date.
+	 */
+	mm = current->active_mm;
+	if (likely(mm)) {
+		if (unlikely(!CTX_VALID(mm->context))) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&mm->context.lock, flags);
+			get_new_mmu_context(mm);
+			load_secondary_context(mm);
+			spin_unlock_irqrestore(&mm->context.lock, flags);
+		}
+	}
+}
+
+void smp_new_mmu_context_version(void)
+{
+	__smp_receive_signal_mask(cpu_online_map);
 }
 
 void smp_report_regs(void)

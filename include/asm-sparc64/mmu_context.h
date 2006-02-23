@@ -19,6 +19,12 @@ extern unsigned long tlb_context_cache;
 extern unsigned long mmu_context_bmap[];
 
 extern void get_new_mmu_context(struct mm_struct *mm);
+#ifdef CONFIG_SMP
+extern void smp_new_mmu_context_version(void);
+#else
+#define smp_new_mmu_context_version() do { } while (0)
+#endif
+
 extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 extern void destroy_context(struct mm_struct *mm);
 
@@ -58,21 +64,17 @@ extern void smp_tsb_sync(struct mm_struct *mm);
 
 extern void __flush_tlb_mm(unsigned long, unsigned long);
 
-/* Switch the current MM context. */
+/* Switch the current MM context.  Interrupts are disabled.  */
 static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, struct task_struct *tsk)
 {
 	unsigned long ctx_valid;
 	int cpu;
 
-	/* Note: page_table_lock is used here to serialize switch_mm
-	 * and activate_mm, and their calls to get_new_mmu_context.
-	 * This use of page_table_lock is unrelated to its other uses.
-	 */ 
-	spin_lock(&mm->page_table_lock);
+	spin_lock(&mm->context.lock);
 	ctx_valid = CTX_VALID(mm->context);
 	if (!ctx_valid)
 		get_new_mmu_context(mm);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock(&mm->context.lock);
 
 	if (!ctx_valid || (old_mm != mm)) {
 		load_secondary_context(mm);
@@ -98,19 +100,16 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 /* Activate a new MM instance for the current task. */
 static inline void activate_mm(struct mm_struct *active_mm, struct mm_struct *mm)
 {
+	unsigned long flags;
 	int cpu;
 
-	/* Note: page_table_lock is used here to serialize switch_mm
-	 * and activate_mm, and their calls to get_new_mmu_context.
-	 * This use of page_table_lock is unrelated to its other uses.
-	 */ 
-	spin_lock(&mm->page_table_lock);
+	spin_lock_irqsave(&mm->context.lock, flags);
 	if (!CTX_VALID(mm->context))
 		get_new_mmu_context(mm);
 	cpu = smp_processor_id();
 	if (!cpu_isset(cpu, mm->cpu_vm_mask))
 		cpu_set(cpu, mm->cpu_vm_mask);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock_irqrestore(&mm->context.lock, flags);
 
 	load_secondary_context(mm);
 	__flush_tlb_mm(CTX_HWBITS(mm->context), SECONDARY_CONTEXT);
