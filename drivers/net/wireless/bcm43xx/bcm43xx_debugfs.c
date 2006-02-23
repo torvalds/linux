@@ -37,6 +37,7 @@
 #include "bcm43xx_debugfs.h"
 #include "bcm43xx_dma.h"
 #include "bcm43xx_pio.h"
+#include "bcm43xx_xmit.h"
 
 #define REALLY_BIG_BUFFER_SIZE	(1024*256)
 

@@ -314,23 +314,6 @@
 /* Initial default iw_mode */
 #define BCM43xx_INITIAL_IWMODE			IW_MODE_INFRA
 
-/* Values/Masks for the device TX header */
-#define BCM43xx_TXHDRFLAG_EXPECTACK		0x0001
-#define BCM43xx_TXHDRFLAG_FIRSTFRAGMENT		0x0008
-#define BCM43xx_TXHDRFLAG_DESTPSMODE		0x0020
-#define BCM43xx_TXHDRFLAG_FALLBACKOFDM		0x0100
-#define BCM43xx_TXHDRFLAG_FRAMEBURST		0x0800
-
-#define BCM43xx_TXHDRCTL_OFDM			0x0001
-#define BCM43xx_TXHDRCTL_SHORT_PREAMBLE		0x0010
-#define BCM43xx_TXHDRCTL_ANTENNADIV_MASK	0x0030
-#define BCM43xx_TXHDRCTL_ANTENNADIV_SHIFT	8
-
-#define BCM43xx_TXHDR_WSEC_KEYINDEX_MASK	0x00F0
-#define BCM43xx_TXHDR_WSEC_KEYINDEX_SHIFT	4
-#define BCM43xx_TXHDR_WSEC_ALGO_MASK		0x0003
-#define BCM43xx_TXHDR_WSEC_ALGO_SHIFT		0
-
 /* Bus type PCI. */
 #define BCM43xx_BUSTYPE_PCI	0
 /* Bus type Silicone Backplane Bus. */
@@ -951,5 +934,11 @@ int bcm43xx_pci_write_config32(struct bcm43xx_private *bcm, int offset, u32 valu
 	 		__value = __max;		\
 	 	__value;				\
 	})
+
+/** Helpers to print MAC addresses. */
+#define BCM43xx_MACFMT		"%02x:%02x:%02x:%02x:%02x:%02x"
+#define BCM43xx_MACARG(x)	((u8*)(x))[0], ((u8*)(x))[1], \
+				((u8*)(x))[2], ((u8*)(x))[3], \
+				((u8*)(x))[4], ((u8*)(x))[5]
 
 #endif /* BCM43xx_H_ */

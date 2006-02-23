@@ -26,6 +26,7 @@
 #include "bcm43xx.h"
 #include "bcm43xx_pio.h"
 #include "bcm43xx_main.h"
+#include "bcm43xx_xmit.h"
 
 #include <linux/delay.h>
 

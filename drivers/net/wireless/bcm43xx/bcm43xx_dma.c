@@ -32,6 +32,7 @@
 #include "bcm43xx_main.h"
 #include "bcm43xx_debugfs.h"
 #include "bcm43xx_power.h"
+#include "bcm43xx_xmit.h"
 
 #include <linux/dmapool.h>
 #include <linux/pci.h>
