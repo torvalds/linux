@@ -1423,8 +1423,12 @@ pgprot_t PAGE_EXEC __read_mostly;
 unsigned long pg_iobits __read_mostly;
 
 unsigned long _PAGE_IE __read_mostly;
+
 unsigned long _PAGE_E __read_mostly;
+EXPORT_SYMBOL(_PAGE_E);
+
 unsigned long _PAGE_CACHE __read_mostly;
+EXPORT_SYMBOL(_PAGE_CACHE);
 
 static void prot_init_common(unsigned long page_none,
 			     unsigned long page_shared,
