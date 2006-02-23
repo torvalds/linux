@@ -395,10 +395,9 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!new_valid_dev(sb->s_bdev->bd_dev))
 		return -EOVERFLOW;
 
-	sbi = kmalloc(sizeof (struct jfs_sb_info), GFP_KERNEL);
+	sbi = kzalloc(sizeof (struct jfs_sb_info), GFP_KERNEL);
 	if (!sbi)
 		return -ENOSPC;
-	memset(sbi, 0, sizeof (struct jfs_sb_info));
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
 

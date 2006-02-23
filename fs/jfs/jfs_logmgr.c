@@ -1105,11 +1105,10 @@ int lmLogOpen(struct super_block *sb)
 		}
 	}
 
-	if (!(log = kmalloc(sizeof(struct jfs_log), GFP_KERNEL))) {
+	if (!(log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL))) {
 		up(&jfs_log_sem);
 		return -ENOMEM;
 	}
-	memset(log, 0, sizeof(struct jfs_log));
 	INIT_LIST_HEAD(&log->sb_list);
 	init_waitqueue_head(&log->syncwait);
 
@@ -1181,9 +1180,8 @@ static int open_inline_log(struct super_block *sb)
 	struct jfs_log *log;
 	int rc;
 
-	if (!(log = kmalloc(sizeof(struct jfs_log), GFP_KERNEL)))
+	if (!(log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(log, 0, sizeof(struct jfs_log));
 	INIT_LIST_HEAD(&log->sb_list);
 	init_waitqueue_head(&log->syncwait);
 
@@ -1216,12 +1214,11 @@ static int open_dummy_log(struct super_block *sb)
 
 	down(&jfs_log_sem);
 	if (!dummy_log) {
-		dummy_log = kmalloc(sizeof(struct jfs_log), GFP_KERNEL);
+		dummy_log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL);
 		if (!dummy_log) {
 			up(&jfs_log_sem);
 			return -ENOMEM;
 		}
-		memset(dummy_log, 0, sizeof(struct jfs_log));
 		INIT_LIST_HEAD(&dummy_log->sb_list);
 		init_waitqueue_head(&dummy_log->syncwait);
 		dummy_log->no_integrity = 1;
