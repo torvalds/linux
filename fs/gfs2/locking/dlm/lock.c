@@ -223,7 +223,7 @@ void gdlm_put_lock(lm_lock_t *lock)
 	gdlm_delete_lp((struct gdlm_lock *) lock);
 }
 
-unsigned int gdlm_do_lock(struct gdlm_lock *lp, struct dlm_range *range)
+unsigned int gdlm_do_lock(struct gdlm_lock *lp)
 {
 	struct gdlm_ls *ls = lp->ls;
 	struct gdlm_strname str;
@@ -258,7 +258,7 @@ unsigned int gdlm_do_lock(struct gdlm_lock *lp, struct dlm_range *range)
 
 	error = dlm_lock(ls->dlm_lockspace, lp->req, &lp->lksb, lp->lkf,
 			 str.name, str.namelen, 0, gdlm_ast, (void *) lp,
-			 bast ? gdlm_bast : NULL, range);
+			 bast ? gdlm_bast : NULL);
 
 	if ((error == -EAGAIN) && (lp->lkf & DLM_LKF_NOQUEUE)) {
 		lp->lksb.sb_status = -EAGAIN;
@@ -316,7 +316,7 @@ unsigned int gdlm_lock(lm_lock_t *lock, unsigned int cur_state,
 	lp->req = make_mode(req_state);
 	lp->lkf = make_flags(lp, flags, lp->cur, lp->req);
 
-	return gdlm_do_lock(lp, NULL);
+	return gdlm_do_lock(lp);
 }
 
 unsigned int gdlm_unlock(lm_lock_t *lock, unsigned int cur_state)
@@ -425,7 +425,7 @@ static int hold_null_lock(struct gdlm_lock *lp)
 	set_bit(LFL_INLOCK, &lpn->flags);
 
 	init_completion(&lpn->ast_wait);
-	gdlm_do_lock(lpn, NULL);
+	gdlm_do_lock(lpn);
 	wait_for_completion(&lpn->ast_wait);
 	error = lp->lksb.sb_status;
 	if (error) {
@@ -499,7 +499,7 @@ void gdlm_sync_lvb(lm_lock_t *lock, char *lvb)
 	lp->req = DLM_LOCK_EX;
 	lp->lkf = make_flags(lp, 0, lp->cur, lp->req);
 
-	gdlm_do_lock(lp, NULL);
+	gdlm_do_lock(lp);
 	wait_for_completion(&lp->ast_wait);
 }
 

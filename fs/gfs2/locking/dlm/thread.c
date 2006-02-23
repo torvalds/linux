@@ -308,7 +308,7 @@ static int gdlm_thread(void *data)
 			process_blocking(lp, blocking);
 
 		else if (submit)
-			gdlm_do_lock(lp, NULL);
+			gdlm_do_lock(lp);
 
 		if (drop)
 			ls->fscb(ls->fsdata, LM_CB_DROPLOCKS, NULL);
