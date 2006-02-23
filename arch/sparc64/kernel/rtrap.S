@@ -333,13 +333,14 @@ user_rtt_fill_fixup:
 
 		mov	%g6, %l1
 		wrpr	%g0, 0x0, %tl
-		wrpr	%g0, RTRAP_PSTATE, %pstate
 
 661:		nop
 		.section		.sun4v_1insn_patch, "ax"
 		.word			661b
 		SET_GL(0)
 		.previous
+
+		wrpr	%g0, RTRAP_PSTATE, %pstate
 
 		mov	%l1, %g6
 		ldx	[%g6 + TI_TASK], %g4
