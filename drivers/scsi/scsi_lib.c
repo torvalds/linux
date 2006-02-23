@@ -1892,8 +1892,16 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 	}
 
 	if(scsi_status_is_good(result)) {
-		data->header_length = header_length;
-		if(use_10_for_ms) {
+		if (unlikely(buffer[0] == 0x86 && buffer[1] == 0x0b &&
+			     (modepage == 6 || modepage == 8))) {
+			/* Initio breakage? */
+			header_length = 0;
+			data->length = 13;
+			data->medium_type = 0;
+			data->device_specific = 0;
+			data->longlba = 0;
+			data->block_descriptor_length = 0;
+		} else if(use_10_for_ms) {
 			data->length = buffer[0]*256 + buffer[1] + 2;
 			data->medium_type = buffer[2];
 			data->device_specific = buffer[3];
@@ -1906,6 +1914,7 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 			data->device_specific = buffer[2];
 			data->block_descriptor_length = buffer[3];
 		}
+		data->header_length = header_length;
 	}
 
 	return result;

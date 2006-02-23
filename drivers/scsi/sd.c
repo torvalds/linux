@@ -1333,6 +1333,12 @@ sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
 	if (!scsi_status_is_good(res))
 		goto bad_sense;
 
+	if (!data.header_length) {
+		modepage = 6;
+		printk(KERN_ERR "%s: missing header in MODE_SENSE response\n",
+		       diskname);
+	}
+
 	/* that went OK, now ask for the proper length */
 	len = data.length;
 
