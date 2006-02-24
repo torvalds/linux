@@ -864,7 +864,9 @@ static int csum6(const struct sk_buff *skb, unsigned int dataoff)
 {
 	return csum_ipv6_magic(&skb->nh.ipv6h->saddr, &skb->nh.ipv6h->daddr,
 			       skb->len - dataoff, IPPROTO_TCP,
-			       skb->ip_summed == CHECKSUM_HW ? skb->csum
+			       skb->ip_summed == CHECKSUM_HW
+			       ? csum_sub(skb->csum,
+					  skb_checksum(skb, 0, dataoff, 0))
 			       : skb_checksum(skb, dataoff, skb->len - dataoff,
 					      0));
 }

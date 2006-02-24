@@ -106,6 +106,13 @@ UNUSUAL_DEV(  0x0411, 0x001c, 0x0113, 0x0113,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
 
+/* Reported by Christian Leber <christian@leber.de> */
+UNUSUAL_DEV(  0x0419, 0xaaf5, 0x0100, 0x0100,
+		"TrekStor",
+		"i.Beat 115 2.0",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_NOT_LOCKABLE ),
+
 /* Reported by Stefan Werner <dustbln@gmx.de> */
 UNUSUAL_DEV(  0x0419, 0xaaf6, 0x0100, 0x0100,
 		"TrekStor",
@@ -127,6 +134,14 @@ UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
  		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
 #endif
 
+/* Patch submitted by Daniel Drake <dsd@gentoo.org>
+ * Device reports nonsense bInterfaceProtocol 6 when connected over USB2 */
+UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
+		"Neuros Audio",
+		"USB 2.0 HD 2.5",
+		US_SC_DEVICE, US_PR_BULK, NULL,
+		US_FL_NEED_OVERRIDE ),
+
 /*
  * Pete Zaitcev <zaitcev@yahoo.com>, from Patrick C. F. Ernzer, bz#162559.
  * The key does not actually break, but it returns zero sense which
@@ -137,13 +152,16 @@ UNUSUAL_DEV(  0x0457, 0x0150, 0x0100, 0x0100,
 		"USB Mass Storage Device",
 		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
 
-/* Patch submitted by Daniel Drake <dsd@gentoo.org>
- * Device reports nonsense bInterfaceProtocol 6 when connected over USB2 */
-UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
-		"Neuros Audio",
-		"USB 2.0 HD 2.5",
-		US_SC_DEVICE, US_PR_BULK, NULL,
-		US_FL_NEED_OVERRIDE ),
+/*
+* Bohdan Linda <bohdan.linda@gmail.com>
+* 1GB USB sticks MyFlash High Speed. I have restricted
+* the revision to my model only
+*/
+UNUSUAL_DEV(  0x0457, 0x0151, 0x0100, 0x0100,
+                "USB 2.0",
+                "Flash Disk",
+                US_SC_DEVICE, US_PR_DEVICE, NULL,
+                US_FL_NOT_LOCKABLE ),
 
 UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
 		"Rio",
@@ -946,6 +964,12 @@ UNUSUAL_DEV(  0x084d, 0x0011, 0x0110, 0x0110,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_BULK32),
 
+/* Submitted by Jan De Luyck <lkml@kcore.org> */
+UNUSUAL_DEV(  0x08bd, 0x1100, 0x0000, 0x0000,
+		"CITIZEN",
+		"X1DE-USB",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN),
 
 /* Entry needed for flags. Moreover, all devices with this ID use
  * bulk-only transport, but _some_ falsely report Control/Bulk instead.
@@ -1085,6 +1109,13 @@ UNUSUAL_DEV(  0x0dda, 0x0301, 0x0012, 0x0012,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Jim McCloskey <mcclosk@ucsc.edu> */
+UNUSUAL_DEV( 0x0e21, 0x0520, 0x0100, 0x0100,
+		"Cowon Systems",
+		"iAUDIO M5",
+		US_SC_DEVICE, US_PR_BULK, NULL,
+		0 ),
+
 /* Submitted by Antoine Mairesse <antoine.mairesse@free.fr> */
 UNUSUAL_DEV( 0x0ed1, 0x6660, 0x0100, 0x0300,
 		"USB",
@@ -1161,6 +1192,13 @@ UNUSUAL_DEV(  0x55aa, 0xa103, 0x0000, 0x9999,
 		US_SC_SCSI, US_PR_SDDR55, NULL,
 		US_FL_SINGLE_LUN),
 #endif
+
+/* Reported by Andrew Simmons <andrew.simmons@gmail.com> */
+UNUSUAL_DEV(  0xed06, 0x4500, 0x0001, 0x0001,
+		"DataStor",
+		"USB4500 FW1.04",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
 
 /* Control/Bulk transport for all SubClass values */
 USUAL_DEV(US_SC_RBC, US_PR_CB, USB_US_TYPE_STOR),

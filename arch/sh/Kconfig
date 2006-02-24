@@ -446,7 +446,7 @@ endmenu
 
 config ISA_DMA_API
 	bool
-	depends on MPC1211
+	depends on SH_MPC1211
 	default y
 
 menu "Kernel features"

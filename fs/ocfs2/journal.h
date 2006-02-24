@@ -29,8 +29,6 @@
 #include <linux/fs.h>
 #include <linux/jbd.h>
 
-#define OCFS2_CHECKPOINT_INTERVAL        (8 * HZ)
-
 enum ocfs2_journal_state {
 	OCFS2_JOURNAL_FREE = 0,
 	OCFS2_JOURNAL_LOADED,

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1992-1997,2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1992-1997,2000-2006 Silicon Graphics, Inc. All rights reserved.
  */
 #ifndef _ASM_IA64_SN_PCI_PCIBR_PROVIDER_H
 #define _ASM_IA64_SN_PCI_PCIBR_PROVIDER_H
@@ -114,18 +114,6 @@ struct pcibus_info {
 
 	spinlock_t              pbi_lock;
 };
-
-/*
- * pcibus_info structure locking macros
- */
-inline static unsigned long
-pcibr_lock(struct pcibus_info *pcibus_info)
-{
-	unsigned long flag;
-	spin_lock_irqsave(&pcibus_info->pbi_lock, flag);
-	return(flag);
-}
-#define pcibr_unlock(pcibus_info, flag)  spin_unlock_irqrestore(&pcibus_info->pbi_lock, flag)
 
 extern int  pcibr_init_provider(void);
 extern void *pcibr_bus_fixup(struct pcibus_bussoft *, struct pci_controller *);

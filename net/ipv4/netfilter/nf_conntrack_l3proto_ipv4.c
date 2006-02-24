@@ -529,15 +529,10 @@ static int init_or_cleanup(int init)
 		goto cleanup_localinops;
 	}
 #endif
-
-	/* For use by REJECT target */
-	ip_ct_attach = __nf_conntrack_attach;
-
 	return ret;
 
  cleanup:
 	synchronize_net();
-	ip_ct_attach = NULL;
 #ifdef CONFIG_SYSCTL
  	unregister_sysctl_table(nf_ct_ipv4_sysctl_header);
  cleanup_localinops:

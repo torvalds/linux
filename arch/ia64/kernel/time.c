@@ -250,32 +250,27 @@ time_init (void)
 	set_normalized_timespec(&wall_to_monotonic, -xtime.tv_sec, -xtime.tv_nsec);
 }
 
-#define SMALLUSECS 100
+/*
+ * Generic udelay assumes that if preemption is allowed and the thread
+ * migrates to another CPU, that the ITC values are synchronized across
+ * all CPUs.
+ */
+static void
+ia64_itc_udelay (unsigned long usecs)
+{
+	unsigned long start = ia64_get_itc();
+	unsigned long end = start + usecs*local_cpu_data->cyc_per_usec;
+
+	while (time_before(ia64_get_itc(), end))
+		cpu_relax();
+}
+
+void (*ia64_udelay)(unsigned long usecs) = &ia64_itc_udelay;
 
 void
 udelay (unsigned long usecs)
 {
-	unsigned long start;
-	unsigned long cycles;
-	unsigned long smallusecs;
-
-	/*
-	 * Execute the non-preemptible delay loop (because the ITC might
-	 * not be synchronized between CPUS) in relatively short time
-	 * chunks, allowing preemption between the chunks.
-	 */
-	while (usecs > 0) {
-		smallusecs = (usecs > SMALLUSECS) ? SMALLUSECS : usecs;
-		preempt_disable();
-		cycles = smallusecs*local_cpu_data->cyc_per_usec;
-		start = ia64_get_itc();
-
-		while (ia64_get_itc() - start < cycles)
-			cpu_relax();
-
-		preempt_enable();
-		usecs -= smallusecs;
-	}
+	(*ia64_udelay)(usecs);
 }
 EXPORT_SYMBOL(udelay);
 

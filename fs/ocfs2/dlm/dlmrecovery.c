@@ -278,6 +278,24 @@ int dlm_is_node_dead(struct dlm_ctxt *dlm, u8 node)
 	return dead;
 }
 
+int dlm_wait_for_node_death(struct dlm_ctxt *dlm, u8 node, int timeout)
+{
+	if (timeout) {
+		mlog(ML_NOTICE, "%s: waiting %dms for notification of "
+		     "death of node %u\n", dlm->name, timeout, node);
+		wait_event_timeout(dlm->dlm_reco_thread_wq,
+			   dlm_is_node_dead(dlm, node),
+			   msecs_to_jiffies(timeout));
+	} else {
+		mlog(ML_NOTICE, "%s: waiting indefinitely for notification "
+		     "of death of node %u\n", dlm->name, node);
+		wait_event(dlm->dlm_reco_thread_wq,
+			   dlm_is_node_dead(dlm, node));
+	}
+	/* for now, return 0 */
+	return 0;
+}
+
 /* callers of the top-level api calls (dlmlock/dlmunlock) should
  * block on the dlm->reco.event when recovery is in progress.
  * the dlm recovery thread will set this state when it begins
@@ -2032,6 +2050,30 @@ again:
 			     dlm->reco.new_master);
 			status = -EEXIST;
 		} else {
+			status = 0;
+
+			/* see if recovery was already finished elsewhere */
+			spin_lock(&dlm->spinlock);
+			if (dlm->reco.dead_node == O2NM_INVALID_NODE_NUM) {
+				status = -EINVAL;	
+				mlog(0, "%s: got reco EX lock, but "
+				     "node got recovered already\n", dlm->name);
+				if (dlm->reco.new_master != O2NM_INVALID_NODE_NUM) {
+					mlog(ML_ERROR, "%s: new master is %u "
+					     "but no dead node!\n", 
+					     dlm->name, dlm->reco.new_master);
+					BUG();
+				}
+			}
+			spin_unlock(&dlm->spinlock);
+		}
+
+		/* if this node has actually become the recovery master,
+		 * set the master and send the messages to begin recovery */
+		if (!status) {
+			mlog(0, "%s: dead=%u, this=%u, sending "
+			     "begin_reco now\n", dlm->name, 
+			     dlm->reco.dead_node, dlm->node_num);
 			status = dlm_send_begin_reco_message(dlm,
 				      dlm->reco.dead_node);
 			/* this always succeeds */

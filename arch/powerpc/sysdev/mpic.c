@@ -234,7 +234,7 @@ static void mpic_shutdown_ht_interrupt(struct mpic *mpic, unsigned int source,
 	spin_lock_irqsave(&mpic->fixup_lock, flags);
 	writeb(0x10 + 2 * fixup->index, fixup->base + 2);
 	tmp = readl(fixup->base + 4);
-	tmp &= ~1U;
+	tmp |= 1;
 	writel(tmp, fixup->base + 4);
 	spin_unlock_irqrestore(&mpic->fixup_lock, flags);
 }
@@ -446,13 +446,14 @@ static unsigned int mpic_startup_irq(unsigned int irq)
 #ifdef CONFIG_MPIC_BROKEN_U3
 	struct mpic *mpic = mpic_from_irq(irq);
 	unsigned int src = irq - mpic->irq_offset;
-
-	if (mpic_is_ht_interrupt(mpic, src))
-		mpic_startup_ht_interrupt(mpic, src, irq_desc[irq].status);
-
 #endif /* CONFIG_MPIC_BROKEN_U3 */
 
 	mpic_enable_irq(irq);
+
+#ifdef CONFIG_MPIC_BROKEN_U3
+	if (mpic_is_ht_interrupt(mpic, src))
+		mpic_startup_ht_interrupt(mpic, src, irq_desc[irq].status);
+#endif /* CONFIG_MPIC_BROKEN_U3 */
 
 	return 0;
 }

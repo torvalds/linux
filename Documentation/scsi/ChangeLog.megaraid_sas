@@ -1,3 +1,26 @@
+1 Release Date    : Wed Feb 03 14:31:44 PST 2006 - Sumant Patro <Sumant.Patro@lsil.com>
+2 Current Version : 00.00.02.04
+3 Older Version   : 00.00.02.04 
+
+i.	Support for 1078 type (ppc IOP) controller, device id : 0x60 added.
+	During initialization, depending on the device id, the template members 
+	are initialized with function pointers specific to the ppc or 
+	xscale controllers.  
+
+		-Sumant Patro <Sumant.Patro@lsil.com>
+		
+1 Release Date    : Fri Feb 03 14:16:25 PST 2006 - Sumant Patro 
+							<Sumant.Patro@lsil.com>
+2 Current Version : 00.00.02.04
+3 Older Version   : 00.00.02.02 
+i.	Register 16 byte CDB capability with scsi midlayer 
+
+	"Ths patch properly registers the 16 byte command length capability of the 
+	megaraid_sas controlled hardware with the scsi midlayer. All megaraid_sas 
+	hardware supports 16 byte CDB's."
+
+		-Joshua Giles <joshua_giles@dell.com> 
+
 1 Release Date    : Mon Jan 23 14:09:01 PST 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.02.02
 3 Older Version   : 00.00.02.01 

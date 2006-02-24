@@ -1123,8 +1123,8 @@ static task_t *copy_process(unsigned long clone_flags,
 		p->real_parent = current;
 	p->parent = p->real_parent;
 
+	spin_lock(&current->sighand->siglock);
 	if (clone_flags & CLONE_THREAD) {
-		spin_lock(&current->sighand->siglock);
 		/*
 		 * Important: if an exit-all has been started then
 		 * do not create this new thread - the whole thread
@@ -1162,8 +1162,6 @@ static task_t *copy_process(unsigned long clone_flags,
 			 */
 			p->it_prof_expires = jiffies_to_cputime(1);
 		}
-
-		spin_unlock(&current->sighand->siglock);
 	}
 
 	/*
@@ -1175,8 +1173,6 @@ static task_t *copy_process(unsigned long clone_flags,
 	if (unlikely(p->ptrace & PT_PTRACED))
 		__ptrace_link(p, current->parent);
 
-	attach_pid(p, PIDTYPE_PID, p->pid);
-	attach_pid(p, PIDTYPE_TGID, p->tgid);
 	if (thread_group_leader(p)) {
 		p->signal->tty = current->signal->tty;
 		p->signal->pgrp = process_group(current);
@@ -1186,9 +1182,12 @@ static task_t *copy_process(unsigned long clone_flags,
 		if (p->pid)
 			__get_cpu_var(process_counts)++;
 	}
+	attach_pid(p, PIDTYPE_TGID, p->tgid);
+	attach_pid(p, PIDTYPE_PID, p->pid);
 
 	nr_threads++;
 	total_forks++;
+	spin_unlock(&current->sighand->siglock);
 	write_unlock_irq(&tasklist_lock);
 	proc_fork_connector(p);
 	return p;

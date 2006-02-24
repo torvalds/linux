@@ -96,10 +96,16 @@ static inline ktime_t ktime_set(const long secs, const unsigned long nsecs)
 		({ (ktime_t){ .tv64 = (kt).tv64 + (nsval) }; })
 
 /* convert a timespec to ktime_t format: */
-#define timespec_to_ktime(ts)		ktime_set((ts).tv_sec, (ts).tv_nsec)
+static inline ktime_t timespec_to_ktime(struct timespec ts)
+{
+	return ktime_set(ts.tv_sec, ts.tv_nsec);
+}
 
 /* convert a timeval to ktime_t format: */
-#define timeval_to_ktime(tv)		ktime_set((tv).tv_sec, (tv).tv_usec * 1000)
+static inline ktime_t timeval_to_ktime(struct timeval tv)
+{
+	return ktime_set(tv.tv_sec, tv.tv_usec * NSEC_PER_USEC);
+}
 
 /* Map the ktime_t to timespec conversion to ns_to_timespec function */
 #define ktime_to_timespec(kt)		ns_to_timespec((kt).tv64)

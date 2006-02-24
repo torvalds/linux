@@ -82,7 +82,6 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
-#include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>

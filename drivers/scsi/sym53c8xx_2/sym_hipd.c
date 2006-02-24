@@ -3588,7 +3588,7 @@ static int sym_evaluate_dp(struct sym_hcb *np, struct sym_ccb *cp, u32 scr, int 
 
 	if (pm) {
 		dp_scr  = scr_to_cpu(pm->ret);
-		dp_ofs -= scr_to_cpu(pm->sg.size);
+		dp_ofs -= scr_to_cpu(pm->sg.size) & 0x00ffffff;
 	}
 
 	/*

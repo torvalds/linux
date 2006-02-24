@@ -195,9 +195,6 @@ sys32_sigaction(int sig, const struct old_sigaction32 __user *act,
 	return ret;
 }
 
-int
-do_sigaction(int sig, const struct k_sigaction *act, struct k_sigaction *oact);
-
 asmlinkage long
 sys32_rt_sigaction(int sig, const struct sigaction32 __user *act,
 	   struct sigaction32 __user *oact,  size_t sigsetsize)

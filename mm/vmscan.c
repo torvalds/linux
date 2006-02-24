@@ -443,6 +443,10 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 		BUG_ON(PageActive(page));
 
 		sc->nr_scanned++;
+
+		if (!sc->may_swap && page_mapped(page))
+			goto keep_locked;
+
 		/* Double the slab pressure for mapped and swapcache pages */
 		if (page_mapped(page) || PageSwapCache(page))
 			sc->nr_scanned++;
@@ -632,7 +636,7 @@ static int swap_page(struct page *page)
 	struct address_space *mapping = page_mapping(page);
 
 	if (page_mapped(page) && mapping)
-		if (try_to_unmap(page, 0) != SWAP_SUCCESS)
+		if (try_to_unmap(page, 1) != SWAP_SUCCESS)
 			goto unlock_retry;
 
 	if (PageDirty(page)) {
@@ -839,7 +843,7 @@ EXPORT_SYMBOL(migrate_page);
  * pages are swapped out.
  *
  * The function returns after 10 attempts or if no pages
- * are movable anymore because t has become empty
+ * are movable anymore because to has become empty
  * or no retryable pages exist anymore.
  *
  * Return: Number of pages not migrated when "to" ran empty.
@@ -928,12 +932,21 @@ redo:
 			goto unlock_both;
 
 		if (mapping->a_ops->migratepage) {
+			/*
+			 * Most pages have a mapping and most filesystems
+			 * should provide a migration function. Anonymous
+			 * pages are part of swap space which also has its
+			 * own migration function. This is the most common
+			 * path for page migration.
+			 */
 			rc = mapping->a_ops->migratepage(newpage, page);
 			goto unlock_both;
                 }
 
 		/*
-		 * Trigger writeout if page is dirty
+		 * Default handling if a filesystem does not provide
+		 * a migration function. We can only migrate clean
+		 * pages so try to write out any dirty pages first.
 		 */
 		if (PageDirty(page)) {
 			switch (pageout(page, mapping)) {
@@ -949,9 +962,10 @@ redo:
 				; /* try to migrate the page below */
 			}
                 }
+
 		/*
-		 * If we have no buffer or can release the buffer
-		 * then do a simple migration.
+		 * Buffers are managed in a filesystem specific way.
+		 * We must have no buffers or drop them.
 		 */
 		if (!page_has_buffers(page) ||
 		    try_to_release_page(page, GFP_KERNEL)) {
@@ -966,6 +980,11 @@ redo:
 		 * swap them out.
 		 */
 		if (pass > 4) {
+			/*
+			 * Persistently unable to drop buffers..... As a
+			 * measure of last resort we fall back to
+			 * swap_page().
+			 */
 			unlock_page(newpage);
 			newpage = NULL;
 			rc = swap_page(page);
@@ -1176,9 +1195,47 @@ refill_inactive_zone(struct zone *zone, struct scan_control *sc)
 	struct page *page;
 	struct pagevec pvec;
 	int reclaim_mapped = 0;
-	long mapped_ratio;
-	long distress;
-	long swap_tendency;
+
+	if (unlikely(sc->may_swap)) {
+		long mapped_ratio;
+		long distress;
+		long swap_tendency;
+
+		/*
+		 * `distress' is a measure of how much trouble we're having
+		 * reclaiming pages.  0 -> no problems.  100 -> great trouble.
+		 */
+		distress = 100 >> zone->prev_priority;
+
+		/*
+		 * The point of this algorithm is to decide when to start
+		 * reclaiming mapped memory instead of just pagecache.  Work out
+		 * how much memory
+		 * is mapped.
+		 */
+		mapped_ratio = (sc->nr_mapped * 100) / total_memory;
+
+		/*
+		 * Now decide how much we really want to unmap some pages.  The
+		 * mapped ratio is downgraded - just because there's a lot of
+		 * mapped memory doesn't necessarily mean that page reclaim
+		 * isn't succeeding.
+		 *
+		 * The distress ratio is important - we don't want to start
+		 * going oom.
+		 *
+		 * A 100% value of vm_swappiness overrides this algorithm
+		 * altogether.
+		 */
+		swap_tendency = mapped_ratio / 2 + distress + vm_swappiness;
+
+		/*
+		 * Now use this metric to decide whether to start moving mapped
+		 * memory onto the inactive list.
+		 */
+		if (swap_tendency >= 100)
+			reclaim_mapped = 1;
+	}
 
 	lru_add_drain();
 	spin_lock_irq(&zone->lru_lock);
@@ -1187,37 +1244,6 @@ refill_inactive_zone(struct zone *zone, struct scan_control *sc)
 	zone->pages_scanned += pgscanned;
 	zone->nr_active -= pgmoved;
 	spin_unlock_irq(&zone->lru_lock);
-
-	/*
-	 * `distress' is a measure of how much trouble we're having reclaiming
-	 * pages.  0 -> no problems.  100 -> great trouble.
-	 */
-	distress = 100 >> zone->prev_priority;
-
-	/*
-	 * The point of this algorithm is to decide when to start reclaiming
-	 * mapped memory instead of just pagecache.  Work out how much memory
-	 * is mapped.
-	 */
-	mapped_ratio = (sc->nr_mapped * 100) / total_memory;
-
-	/*
-	 * Now decide how much we really want to unmap some pages.  The mapped
-	 * ratio is downgraded - just because there's a lot of mapped memory
-	 * doesn't necessarily mean that page reclaim isn't succeeding.
-	 *
-	 * The distress ratio is important - we don't want to start going oom.
-	 *
-	 * A 100% value of vm_swappiness overrides this algorithm altogether.
-	 */
-	swap_tendency = mapped_ratio / 2 + distress + vm_swappiness;
-
-	/*
-	 * Now use this metric to decide whether to start moving mapped memory
-	 * onto the inactive list.
-	 */
-	if (swap_tendency >= 100)
-		reclaim_mapped = 1;
 
 	while (!list_empty(&l_hold)) {
 		cond_resched();
@@ -1595,9 +1621,7 @@ scan:
 			sc.nr_reclaimed = 0;
 			sc.priority = priority;
 			sc.swap_cluster_max = nr_pages? nr_pages : SWAP_CLUSTER_MAX;
-			atomic_inc(&zone->reclaim_in_progress);
 			shrink_zone(zone, &sc);
-			atomic_dec(&zone->reclaim_in_progress);
 			reclaim_state->reclaimed_slab = 0;
 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
 						lru_pages);

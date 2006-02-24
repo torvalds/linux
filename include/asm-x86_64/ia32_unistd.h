@@ -305,7 +305,7 @@
 #define __NR_ia32_mknodat		297
 #define __NR_ia32_fchownat		298
 #define __NR_ia32_futimesat		299
-#define __NR_ia32_newfstatat		300
+#define __NR_ia32_fstatat64		300
 #define __NR_ia32_unlinkat		301
 #define __NR_ia32_renameat		302
 #define __NR_ia32_linkat		303

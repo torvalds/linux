@@ -427,7 +427,8 @@ extern int acpi_mp_config;
 extern struct acpi_table_mcfg_config *pci_mmcfg_config;
 extern int pci_mmcfg_config_num;
 
-extern int sbf_port ;
+extern int sbf_port;
+extern unsigned long acpi_video_flags;
 
 #else	/* !CONFIG_ACPI */
 
