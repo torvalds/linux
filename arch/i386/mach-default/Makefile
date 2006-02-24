@@ -2,4 +2,4 @@
 # Makefile for the linux kernel.
 #
 
-obj-y				:= setup.o topology.o
+obj-y				:= setup.o
