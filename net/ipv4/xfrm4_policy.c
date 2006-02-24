@@ -35,6 +35,7 @@ __xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 		if (xdst->u.rt.fl.oif == fl->oif &&	/*XXX*/
 		    xdst->u.rt.fl.fl4_dst == fl->fl4_dst &&
 	    	    xdst->u.rt.fl.fl4_src == fl->fl4_src &&
+	    	    xdst->u.rt.fl.fl4_tos == fl->fl4_tos &&
 		    xfrm_bundle_ok(xdst, fl, AF_INET)) {
 			dst_clone(dst);
 			break;
@@ -61,7 +62,8 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		.nl_u = {
 			.ip4_u = {
 				.saddr = local,
-				.daddr = remote
+				.daddr = remote,
+				.tos = fl->fl4_tos
 			}
 		}
 	};
@@ -230,6 +232,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 	fl->proto = iph->protocol;
 	fl->fl4_dst = iph->daddr;
 	fl->fl4_src = iph->saddr;
+	fl->fl4_tos = iph->tos;
 }
 
 static inline int xfrm4_garbage_collect(void)
