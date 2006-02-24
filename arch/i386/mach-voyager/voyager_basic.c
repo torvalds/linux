@@ -23,6 +23,9 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/sysrq.h>
+#include <linux/smp.h>
+#include <linux/nodemask.h>
+#include <asm/cpu.h>
 #include <asm/io.h>
 #include <asm/voyager.h>
 #include <asm/vic.h>
@@ -329,3 +332,15 @@ void machine_power_off(void)
 		pm_power_off();
 }
 
+static struct i386_cpu cpu_devices[NR_CPUS];
+
+static int __init topology_init(void)
+{
+	int i;
+
+	for_each_present_cpu(i)
+		register_cpu(&cpu_devices[i].cpu, i, NULL);
+	return 0;
+}
+
+subsys_initcall(topology_init);
