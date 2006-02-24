@@ -33,7 +33,7 @@ static inline int cow_file_size(char *file, unsigned long long *size_out)
 	return(os_file_size(file, size_out));
 }
 
-static inline int cow_write_file(int fd, char *buf, int size)
+static inline int cow_write_file(int fd, void *buf, int size)
 {
 	return(os_write_file(fd, buf, size));
 }
