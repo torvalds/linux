@@ -373,6 +373,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 void destroy_context(struct mm_struct *mm)
 {
 	unsigned long size = mm->context.tsb_nentries * sizeof(struct tsb);
+	unsigned long flags;
 
 	free_pages((unsigned long) mm->context.tsb, get_order(size));
 
@@ -383,12 +384,12 @@ void destroy_context(struct mm_struct *mm)
 	mm->context.tsb = NULL;
 	mm->context.tsb_reg_val = 0UL;
 
-	spin_lock(&ctx_alloc_lock);
+	spin_lock_irqsave(&ctx_alloc_lock, flags);
 
 	if (CTX_VALID(mm->context)) {
 		unsigned long nr = CTX_NRBITS(mm->context);
 		mmu_context_bmap[nr>>6] &= ~(1UL << (nr & 63));
 	}
 
-	spin_unlock(&ctx_alloc_lock);
+	spin_unlock_irqrestore(&ctx_alloc_lock, flags);
 }
