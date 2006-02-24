@@ -64,7 +64,7 @@ do {									\
 		"	.balign 4\n"					\
 		"	.long 0b,3b\n"					\
 		".previous"						\
-		: "=r"(res), "=r"(count), "=&r" (__d0), "=&r" (__d1),	\
+		: "=&r"(res), "=&r"(count), "=&r" (__d0), "=&r" (__d1),	\
 		  "=&r" (__d2)						\
 		: "i"(-EFAULT), "0"(count), "1"(count), "3"(src), 	\
 		  "4"(dst)						\
@@ -101,7 +101,7 @@ do {									\
 		"	.balign 4\n"					\
 		"	.long 0b,3b\n"					\
 		".previous"						\
-		: "=r"(res), "=r"(count), "=&r" (__d0), "=&r" (__d1),	\
+		: "=&r"(res), "=&r"(count), "=&r" (__d0), "=&r" (__d1),	\
 		  "=&r" (__d2)						\
 		: "i"(-EFAULT), "0"(count), "1"(count), "3"(src),	\
 		  "4"(dst)						\
