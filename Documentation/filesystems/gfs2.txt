@@ -28,7 +28,7 @@ at the URL above.
 To use gfs as a local file system, no external clustering systems are
 needed, simply:
 
-  $ gfs2_mkfs -p lock_nolock -j 1 /dev/block_device
+  $ mkfs -t gfs2 -p lock_nolock -j 1 /dev/block_device
   $ mount -t gfs2 /dev/block_device /dir
 
 GFS2 is not on-disk compatible with previous versions of GFS.
