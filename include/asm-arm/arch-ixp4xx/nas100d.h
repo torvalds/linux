@@ -19,8 +19,8 @@
 #error "Do not include this directly, instead #include <asm/hardware.h>"
 #endif
 
-#define NAS100D_SDA_PIN		6
-#define NAS100D_SCL_PIN		5
+#define NAS100D_SDA_PIN		5
+#define NAS100D_SCL_PIN		6
 
 /*
  * NAS100D PCI IRQs

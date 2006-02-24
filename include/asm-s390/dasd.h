@@ -204,8 +204,7 @@ typedef struct attrib_data_t {
  *
  * Here ist how the ioctl-nr should be used:
  *    0 -   31   DASD driver itself
- *   32 -  229   still open
- *  230 -  239   DASD extended error reporting
+ *   32 -  239   still open
  *  240 -  255   reserved for EMC 
  *******************************************************************************/
 
@@ -237,22 +236,12 @@ typedef struct attrib_data_t {
 #define BIODASDPSRD    _IOR(DASD_IOCTL_LETTER,4,dasd_rssd_perf_stats_t)
 /* Get Attributes (cache operations) */
 #define BIODASDGATTR   _IOR(DASD_IOCTL_LETTER,5,attrib_data_t) 
-/* retrieve extended error-reporting value */
-#define BIODASDEERGET  _IOR(DASD_IOCTL_LETTER,6,int)
 
 
 /* #define BIODASDFORMAT  _IOW(IOCTL_LETTER,0,format_data_t) , deprecated */
 #define BIODASDFMT     _IOW(DASD_IOCTL_LETTER,1,format_data_t) 
 /* Set Attributes (cache operations) */
 #define BIODASDSATTR   _IOW(DASD_IOCTL_LETTER,2,attrib_data_t) 
-/* retrieve extended error-reporting value */
-#define BIODASDEERSET  _IOW(DASD_IOCTL_LETTER,3,int)
-
-
-/* remove all records from the eer buffer */
-#define DASD_EER_PURGE       _IO(DASD_IOCTL_LETTER,230)
-/* set the number of pages that are used for the internal eer buffer */
-#define DASD_EER_SETBUFSIZE  _IOW(DASD_IOCTL_LETTER,230,int)
 
 
 #endif				/* DASD_H */

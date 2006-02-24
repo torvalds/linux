@@ -58,6 +58,7 @@
 #include <linux/suspend.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_ioctl.h>
+#include <scsi/scsi.h>
 
 #include <asm/uaccess.h>
 
@@ -380,6 +381,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	memcpy(rq->cmd, cgc->cmd, CDROM_PACKET_SIZE);
 	if (sizeof(rq->cmd) > CDROM_PACKET_SIZE)
 		memset(rq->cmd + CDROM_PACKET_SIZE, 0, sizeof(rq->cmd) - CDROM_PACKET_SIZE);
+	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
 
 	rq->ref_count++;
 	rq->flags |= REQ_NOMERGE;
@@ -1495,40 +1497,42 @@ static int pkt_set_write_settings(struct pktcdvd_device *pd)
 }
 
 /*
- * 0 -- we can write to this track, 1 -- we can't
+ * 1 -- we can write to this track, 0 -- we can't
  */
-static int pkt_good_track(track_information *ti)
+static int pkt_writable_track(struct pktcdvd_device *pd, track_information *ti)
 {
-	/*
-	 * only good for CD-RW at the moment, not DVD-RW
-	 */
+	switch (pd->mmc3_profile) {
+		case 0x1a: /* DVD+RW */
+		case 0x12: /* DVD-RAM */
+			/* The track is always writable on DVD+RW/DVD-RAM */
+			return 1;
+		default:
+			break;
+	}
 
-	/*
-	 * FIXME: only for FP
-	 */
-	if (ti->fp == 0)
+	if (!ti->packet || !ti->fp)
 		return 0;
 
 	/*
 	 * "good" settings as per Mt Fuji.
 	 */
-	if (ti->rt == 0 && ti->blank == 0 && ti->packet == 1)
-		return 0;
+	if (ti->rt == 0 && ti->blank == 0)
+		return 1;
 
-	if (ti->rt == 0 && ti->blank == 1 && ti->packet == 1)
-		return 0;
+	if (ti->rt == 0 && ti->blank == 1)
+		return 1;
 
-	if (ti->rt == 1 && ti->blank == 0 && ti->packet == 1)
-		return 0;
+	if (ti->rt == 1 && ti->blank == 0)
+		return 1;
 
 	printk("pktcdvd: bad state %d-%d-%d\n", ti->rt, ti->blank, ti->packet);
-	return 1;
+	return 0;
 }
 
 /*
- * 0 -- we can write to this disc, 1 -- we can't
+ * 1 -- we can write to this disc, 0 -- we can't
  */
-static int pkt_good_disc(struct pktcdvd_device *pd, disc_information *di)
+static int pkt_writable_disc(struct pktcdvd_device *pd, disc_information *di)
 {
 	switch (pd->mmc3_profile) {
 		case 0x0a: /* CD-RW */
@@ -1537,10 +1541,10 @@ static int pkt_good_disc(struct pktcdvd_device *pd, disc_information *di)
 		case 0x1a: /* DVD+RW */
 		case 0x13: /* DVD-RW */
 		case 0x12: /* DVD-RAM */
-			return 0;
+			return 1;
 		default:
 			VPRINTK("pktcdvd: Wrong disc profile (%x)\n", pd->mmc3_profile);
-			return 1;
+			return 0;
 	}
 
 	/*
@@ -1549,25 +1553,25 @@ static int pkt_good_disc(struct pktcdvd_device *pd, disc_information *di)
 	 */
 	if (di->disc_type == 0xff) {
 		printk("pktcdvd: Unknown disc. No track?\n");
-		return 1;
+		return 0;
 	}
 
 	if (di->disc_type != 0x20 && di->disc_type != 0) {
 		printk("pktcdvd: Wrong disc type (%x)\n", di->disc_type);
-		return 1;
+		return 0;
 	}
 
 	if (di->erasable == 0) {
 		printk("pktcdvd: Disc not erasable\n");
-		return 1;
+		return 0;
 	}
 
 	if (di->border_status == PACKET_SESSION_RESERVED) {
 		printk("pktcdvd: Can't write to last track (reserved)\n");
-		return 1;
+		return 0;
 	}
 
-	return 0;
+	return 1;
 }
 
 static int pkt_probe_settings(struct pktcdvd_device *pd)
@@ -1592,23 +1596,9 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 		return ret;
 	}
 
-	if (pkt_good_disc(pd, &di))
-		return -ENXIO;
+	if (!pkt_writable_disc(pd, &di))
+		return -EROFS;
 
-	switch (pd->mmc3_profile) {
-		case 0x1a: /* DVD+RW */
-			printk("pktcdvd: inserted media is DVD+RW\n");
-			break;
-		case 0x13: /* DVD-RW */
-			printk("pktcdvd: inserted media is DVD-RW\n");
-			break;
-		case 0x12: /* DVD-RAM */
-			printk("pktcdvd: inserted media is DVD-RAM\n");
-			break;
-		default:
-			printk("pktcdvd: inserted media is CD-R%s\n", di.erasable ? "W" : "");
-			break;
-	}
 	pd->type = di.erasable ? PACKET_CDRW : PACKET_CDR;
 
 	track = 1; /* (di.last_track_msb << 8) | di.last_track_lsb; */
@@ -1617,9 +1607,9 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 		return ret;
 	}
 
-	if (pkt_good_track(&ti)) {
+	if (!pkt_writable_track(pd, &ti)) {
 		printk("pktcdvd: can't write to this track\n");
-		return -ENXIO;
+		return -EROFS;
 	}
 
 	/*
@@ -1633,7 +1623,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 	}
 	if (pd->settings.size > PACKET_MAX_SECTORS) {
 		printk("pktcdvd: packet size is too big\n");
-		return -ENXIO;
+		return -EROFS;
 	}
 	pd->settings.fp = ti.fp;
 	pd->offset = (be32_to_cpu(ti.track_start) << 2) & (pd->settings.size - 1);
@@ -1675,7 +1665,7 @@ static int pkt_probe_settings(struct pktcdvd_device *pd)
 			break;
 		default:
 			printk("pktcdvd: unknown data mode\n");
-			return 1;
+			return -EROFS;
 	}
 	return 0;
 }
@@ -1886,7 +1876,7 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 
 	if ((ret = pkt_probe_settings(pd))) {
 		VPRINTK("pktcdvd: %s failed probe\n", pd->name);
-		return -EROFS;
+		return ret;
 	}
 
 	if ((ret = pkt_set_write_settings(pd))) {

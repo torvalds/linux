@@ -38,6 +38,10 @@ static char *action_to_string(enum kobject_action action)
 		return "remove";
 	case KOBJ_CHANGE:
 		return "change";
+	case KOBJ_MOUNT:
+		return "mount";
+	case KOBJ_UMOUNT:
+		return "umount";
 	case KOBJ_OFFLINE:
 		return "offline";
 	case KOBJ_ONLINE:
