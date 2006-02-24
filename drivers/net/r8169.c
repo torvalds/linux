@@ -287,6 +287,20 @@ enum RTL8169_register_content {
 	TxInterFrameGapShift = 24,
 	TxDMAShift = 8,	/* DMA burst value (0-7) is shift this many bits */
 
+	/* Config1 register p.24 */
+	PMEnable	= (1 << 0),	/* Power Management Enable */
+
+	/* Config3 register p.25 */
+	MagicPacket	= (1 << 5),	/* Wake up when receives a Magic Packet */
+	LinkUp		= (1 << 4),	/* Wake up when the cable connection is re-established */
+
+	/* Config5 register p.27 */
+	BWF		= (1 << 6),	/* Accept Broadcast wakeup frame */
+	MWF		= (1 << 5),	/* Accept Multicast wakeup frame */
+	UWF		= (1 << 4),	/* Accept Unicast wakeup frame */
+	LanWake		= (1 << 1),	/* LanWake enable/disable */
+	PMEStatus	= (1 << 0),	/* PME status can be reset by PCI RST# */
+
 	/* TBICSR p.28 */
 	TBIReset	= 0x80000000,
 	TBILoopback	= 0x40000000,
@@ -433,6 +447,7 @@ struct rtl8169_private {
 	unsigned int (*phy_reset_pending)(void __iomem *);
 	unsigned int (*link_ok)(void __iomem *);
 	struct work_struct task;
+	unsigned wol_enabled : 1;
 };
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
@@ -605,6 +620,80 @@ static void rtl8169_link_option(int idx, u8 *autoneg, u16 *speed, u8 *duplex)
 	*autoneg = p->autoneg;
 	*speed = p->speed;
 	*duplex = p->duplex;
+}
+
+static void rtl8169_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	u8 options;
+
+	wol->wolopts = 0;
+
+#define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
+	wol->supported = WAKE_ANY;
+
+	spin_lock_irq(&tp->lock);
+
+	options = RTL_R8(Config1);
+	if (!(options & PMEnable))
+		goto out_unlock;
+
+	options = RTL_R8(Config3);
+	if (options & LinkUp)
+		wol->wolopts |= WAKE_PHY;
+	if (options & MagicPacket)
+		wol->wolopts |= WAKE_MAGIC;
+
+	options = RTL_R8(Config5);
+	if (options & UWF)
+		wol->wolopts |= WAKE_UCAST;
+	if (options & BWF)
+	        wol->wolopts |= WAKE_BCAST;
+	if (options & MWF)
+	        wol->wolopts |= WAKE_MCAST;
+
+out_unlock:
+	spin_unlock_irq(&tp->lock);
+}
+
+static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+	int i;
+	static struct {
+		u32 opt;
+		u16 reg;
+		u8  mask;
+	} cfg[] = {
+		{ WAKE_ANY,   Config1, PMEnable },
+		{ WAKE_PHY,   Config3, LinkUp },
+		{ WAKE_MAGIC, Config3, MagicPacket },
+		{ WAKE_UCAST, Config5, UWF },
+		{ WAKE_BCAST, Config5, BWF },
+		{ WAKE_MCAST, Config5, MWF },
+		{ WAKE_ANY,   Config5, LanWake }
+	};
+
+	spin_lock_irq(&tp->lock);
+
+	RTL_W8(Cfg9346, Cfg9346_Unlock);
+
+	for (i = 0; i < ARRAY_SIZE(cfg); i++) {
+		u8 options = RTL_R8(cfg[i].reg) & ~cfg[i].mask;
+		if (wol->wolopts & cfg[i].opt)
+			options |= cfg[i].mask;
+		RTL_W8(cfg[i].reg, options);
+	}
+
+	RTL_W8(Cfg9346, Cfg9346_Lock);
+
+	tp->wol_enabled = (wol->wolopts) ? 1 : 0;
+
+	spin_unlock_irq(&tp->lock);
+
+	return 0;
 }
 
 static void rtl8169_get_drvinfo(struct net_device *dev,
@@ -1025,6 +1114,8 @@ static struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= ethtool_op_set_tso,
 	.get_regs		= rtl8169_get_regs,
+	.get_wol		= rtl8169_get_wol,
+	.set_wol		= rtl8169_set_wol,
 	.get_strings		= rtl8169_get_strings,
 	.get_stats_count	= rtl8169_get_stats_count,
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
@@ -1442,6 +1533,11 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	}
 	tp->chipset = i;
 
+	RTL_W8(Cfg9346, Cfg9346_Unlock);
+	RTL_W8(Config1, RTL_R8(Config1) | PMEnable);
+	RTL_W8(Config5, RTL_R8(Config5) & PMEStatus);
+	RTL_W8(Cfg9346, Cfg9346_Lock);
+
 	*ioaddr_out = ioaddr;
 	*dev_out = dev;
 out:
@@ -1611,49 +1707,6 @@ rtl8169_remove_one(struct pci_dev *pdev)
 	rtl8169_release_board(pdev, dev, tp->mmio_addr);
 	pci_set_drvdata(pdev, NULL);
 }
-
-#ifdef CONFIG_PM
-
-static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
-	void __iomem *ioaddr = tp->mmio_addr;
-	unsigned long flags;
-
-	if (!netif_running(dev))
-		return 0;
-	
-	netif_device_detach(dev);
-	netif_stop_queue(dev);
-	spin_lock_irqsave(&tp->lock, flags);
-
-	/* Disable interrupts, stop Rx and Tx */
-	RTL_W16(IntrMask, 0);
-	RTL_W8(ChipCmd, 0);
-		
-	/* Update the error counts. */
-	tp->stats.rx_missed_errors += RTL_R32(RxMissed);
-	RTL_W32(RxMissed, 0);
-	spin_unlock_irqrestore(&tp->lock, flags);
-	
-	return 0;
-}
-
-static int rtl8169_resume(struct pci_dev *pdev)
-{
-	struct net_device *dev = pci_get_drvdata(pdev);
-
-	if (!netif_running(dev))
-	    return 0;
-
-	netif_device_attach(dev);
-	rtl8169_hw_start(dev);
-
-	return 0;
-}
-                                                                                
-#endif /* CONFIG_PM */
 
 static void rtl8169_set_rxbufsize(struct rtl8169_private *tp,
 				  struct net_device *dev)
@@ -2699,6 +2752,56 @@ static struct net_device_stats *rtl8169_get_stats(struct net_device *dev)
 		
 	return &tp->stats;
 }
+
+#ifdef CONFIG_PM
+
+static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct rtl8169_private *tp = netdev_priv(dev);
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	if (!netif_running(dev))
+		goto out;
+
+	netif_device_detach(dev);
+	netif_stop_queue(dev);
+
+	spin_lock_irq(&tp->lock);
+
+	rtl8169_asic_down(ioaddr);
+
+	tp->stats.rx_missed_errors += RTL_R32(RxMissed);
+	RTL_W32(RxMissed, 0);
+
+	spin_unlock_irq(&tp->lock);
+
+	pci_save_state(pdev);
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), tp->wol_enabled);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+out:
+	return 0;
+}
+
+static int rtl8169_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	if (!netif_running(dev))
+		goto out;
+
+	netif_device_attach(dev);
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_enable_wake(pdev, PCI_D0, 0);
+
+	rtl8169_schedule_work(dev, rtl8169_reset_task);
+out:
+	return 0;
+}
+
+#endif /* CONFIG_PM */
 
 static struct pci_driver rtl8169_pci_driver = {
 	.name		= MODULENAME,
