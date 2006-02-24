@@ -112,6 +112,7 @@ typedef struct {
 } hpte_t;
 
 extern hpte_t *htab_address;
+extern unsigned long htab_size_bytes;
 extern unsigned long htab_hash_mask;
 
 /*
