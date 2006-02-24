@@ -60,10 +60,7 @@ struct acpiphp_slot;
  * struct slot - slot information for each *physical* slot
  */
 struct slot {
-	u8 number;
 	struct hotplug_slot	*hotplug_slot;
-	struct list_head	slot_list;
-
 	struct acpiphp_slot	*acpi_slot;
 };
 
@@ -119,9 +116,9 @@ struct acpiphp_slot {
 	struct acpiphp_bridge *bridge;	/* parent */
 	struct list_head funcs;		/* one slot may have different
 					   objects (i.e. for each function) */
+	struct slot *slot;
 	struct mutex crit_sect;
 
-	u32		id;		/* slot id (serial #) for hotplug core */
 	u8		device;		/* pci device# */
 
 	u32		sun;		/* ACPI _SUN (slot unique number) */
@@ -229,12 +226,13 @@ struct acpiphp_dock_station {
 /* acpiphp_core.c */
 extern int acpiphp_register_attention(struct acpiphp_attention_info*info);
 extern int acpiphp_unregister_attention(struct acpiphp_attention_info *info);
+extern int acpiphp_register_hotplug_slot(struct acpiphp_slot *slot);
+extern void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);
 
 /* acpiphp_glue.c */
 extern int acpiphp_glue_init (void);
 extern void acpiphp_glue_exit (void);
 extern int acpiphp_get_num_slots (void);
-extern struct acpiphp_slot *get_slot_from_id (int id);
 typedef int (*acpiphp_callback)(struct acpiphp_slot *slot, void *data);
 void handle_hotplug_event_func(acpi_handle, u32, void*);
 

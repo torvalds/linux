@@ -128,8 +128,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	acpi_handle tmp;
 	acpi_status status = AE_OK;
 	unsigned long adr, sun;
-	int device, function;
-	static int num_slots = 0;	/* XXX if we support I/O node hotplug... */
+	int device, function, retval;
 
 	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
 
@@ -198,7 +197,6 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 		memset(slot, 0, sizeof(struct acpiphp_slot));
 		slot->bridge = bridge;
-		slot->id = num_slots++;
 		slot->device = device;
 		slot->sun = sun;
 		INIT_LIST_HEAD(&slot->funcs);
@@ -212,6 +210,11 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		dbg("found ACPI PCI Hotplug slot %d at PCI %04x:%02x:%02x\n",
 				slot->sun, pci_domain_nr(bridge->pci_bus),
 				bridge->pci_bus->number, slot->device);
+		retval = acpiphp_register_hotplug_slot(slot);
+		if (retval) {
+			warn("acpiphp_register_hotplug_slot failed(err code = 0x%x)\n", retval);
+			goto err_exit;
+		}
 	}
 
 	newfunc->slot = slot;
@@ -253,6 +256,14 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		status = AE_OK;
 
 	return status;
+
+ err_exit:
+	bridge->nr_slots--;
+	bridge->slots = slot->next;
+	kfree(slot);
+	kfree(newfunc);
+
+	return AE_OK;
 }
 
 
@@ -335,9 +346,16 @@ static void init_bridge_misc(struct acpiphp_bridge *bridge)
 	/* decode ACPI 2.0 _HPP (hot plug parameters) */
 	decode_hpp(bridge);
 
+	/* must be added to the list prior to calling register_slot */
+	list_add(&bridge->list, &bridge_list);
+
 	/* register all slot objects under this bridge */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge->handle, (u32)1,
 				     register_slot, bridge, NULL);
+	if (ACPI_FAILURE(status)) {
+		list_del(&bridge->list);
+		return;
+	}
 
 	/* install notify handler */
 	if (bridge->type != BRIDGE_TYPE_HOST) {
@@ -350,8 +368,6 @@ static void init_bridge_misc(struct acpiphp_bridge *bridge)
 			err("failed to register interrupt notify handler\n");
 		}
 	}
-
-	list_add(&bridge->list, &bridge_list);
 }
 
 
@@ -555,6 +571,8 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 			list_del(list);
 			kfree(func);
 		}
+		acpiphp_unregister_hotplug_slot(slot);
+		list_del(&slot->funcs);
 		kfree(slot);
 		slot = next;
 	}
@@ -1520,26 +1538,6 @@ static int acpiphp_for_each_slot(acpiphp_callback fn, void *data)
 	return retval;
 }
 #endif
-
-/* search matching slot from id  */
-struct acpiphp_slot *get_slot_from_id(int id)
-{
-	struct list_head *node;
-	struct acpiphp_bridge *bridge;
-	struct acpiphp_slot *slot;
-
-	list_for_each (node, &bridge_list) {
-		bridge = (struct acpiphp_bridge *)node;
-		for (slot = bridge->slots; slot; slot = slot->next)
-			if (slot->id == id)
-				return slot;
-	}
-
-	/* should never happen! */
-	err("%s: no object for id %d\n", __FUNCTION__, id);
-	WARN_ON(1);
-	return NULL;
-}
 
 
 /**
