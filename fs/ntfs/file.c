@@ -248,7 +248,7 @@ do_non_resident_extend:
 		 * enough to make ntfs_writepage() work.
 		 */
 		write_lock_irqsave(&ni->size_lock, flags);
-		ni->initialized_size = (index + 1) << PAGE_CACHE_SHIFT;
+		ni->initialized_size = (s64)(index + 1) << PAGE_CACHE_SHIFT;
 		if (ni->initialized_size > new_init_size)
 			ni->initialized_size = new_init_size;
 		write_unlock_irqrestore(&ni->size_lock, flags);
