@@ -16,7 +16,7 @@
 
 #define tlb_flush(tlb)	((void) tlb)
 
-#else /* CONFIG_MMY */
+#else /* CONFIG_MMU */
 
 #include <asm/glue.h>
 
