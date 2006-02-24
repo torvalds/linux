@@ -429,14 +429,17 @@ static void __exit cleanup_slots (void)
 static int __init acpiphp_init(void)
 {
 	int retval;
+	int docking_station;
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
 	acpiphp_debug = debug;
 
+	docking_station = find_dock_station();
+
 	/* read all the ACPI info from the system */
 	retval = init_acpi();
-	if (retval)
+	if (retval && !(docking_station))
 		return retval;
 
 	return init_slots();
@@ -448,6 +451,8 @@ static void __exit acpiphp_exit(void)
 	cleanup_slots();
 	/* deallocate internal data structures etc. */
 	acpiphp_glue_exit();
+
+	remove_dock_station();
 }
 
 module_init(acpiphp_init);

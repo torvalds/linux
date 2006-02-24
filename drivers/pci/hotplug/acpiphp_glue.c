@@ -57,7 +57,6 @@ static LIST_HEAD(bridge_list);
 #define MY_NAME "acpiphp_glue"
 
 static void handle_hotplug_event_bridge (acpi_handle, u32, void *);
-static void handle_hotplug_event_func (acpi_handle, u32, void *);
 static void acpiphp_sanitize_bus(struct pci_bus *bus);
 static void acpiphp_set_hpp_values(acpi_handle handle, struct pci_bus *bus);
 
@@ -125,6 +124,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	struct acpiphp_bridge *bridge = (struct acpiphp_bridge *)context;
 	struct acpiphp_slot *slot;
 	struct acpiphp_func *newfunc;
+	struct dependent_device *dd;
 	acpi_handle tmp;
 	acpi_status status = AE_OK;
 	unsigned long adr, sun;
@@ -138,7 +138,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	status = acpi_get_handle(handle, "_EJ0", &tmp);
 
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status) && !(is_dependent_device(handle)))
 		return AE_OK;
 
 	device = (adr >> 16) & 0xffff;
@@ -152,7 +152,8 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	INIT_LIST_HEAD(&newfunc->sibling);
 	newfunc->handle = handle;
 	newfunc->function = function;
-	newfunc->flags = FUNC_HAS_EJ0;
+	if (ACPI_SUCCESS(status))
+		newfunc->flags = FUNC_HAS_EJ0;
 
 	if (ACPI_SUCCESS(acpi_get_handle(handle, "_STA", &tmp)))
 		newfunc->flags |= FUNC_HAS_STA;
@@ -162,6 +163,19 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	if (ACPI_SUCCESS(acpi_get_handle(handle, "_PS3", &tmp)))
 		newfunc->flags |= FUNC_HAS_PS3;
+
+	if (ACPI_SUCCESS(acpi_get_handle(handle, "_DCK", &tmp))) {
+		newfunc->flags |= FUNC_HAS_DCK;
+		/* add to devices dependent on dock station,
+		 * because this may actually be the dock bridge
+		 */
+		dd = alloc_dependent_device(handle);
+                if (!dd)
+                        err("Can't allocate memory for "
+				"new dependent device!\n");
+		else
+			add_dependent_device(dd);
+	}
 
 	status = acpi_evaluate_integer(handle, "_SUN", NULL, &sun);
 	if (ACPI_FAILURE(status))
@@ -210,18 +224,35 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		slot->flags |= (SLOT_ENABLED | SLOT_POWEREDON);
 	}
 
+	/* if this is a device dependent on a dock station,
+	 * associate the acpiphp_func to the dependent_device
+ 	 * struct.
+	 */
+	if ((dd = get_dependent_device(handle))) {
+		newfunc->flags |= FUNC_IS_DD;
+		/*
+		 * we don't want any devices which is dependent
+		 * on the dock to have it's _EJ0 method executed.
+		 * because we need to run _DCK first.
+		 */
+		newfunc->flags &= ~FUNC_HAS_EJ0;
+		dd->func = newfunc;
+		add_pci_dependent_device(dd);
+	}
+
 	/* install notify handler */
-	status = acpi_install_notify_handler(handle,
+	if (!(newfunc->flags & FUNC_HAS_DCK)) {
+		status = acpi_install_notify_handler(handle,
 					     ACPI_SYSTEM_NOTIFY,
 					     handle_hotplug_event_func,
 					     newfunc);
 
-	if (ACPI_FAILURE(status)) {
-		err("failed to register interrupt notify handler\n");
-		return status;
-	}
+		if (ACPI_FAILURE(status))
+			err("failed to register interrupt notify handler\n");
+	} else
+		status = AE_OK;
 
-	return AE_OK;
+	return status;
 }
 
 
@@ -410,7 +441,8 @@ find_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 		goto out;
 
 	/* check if this bridge has ejectable slots */
-	if (detect_ejectable_slots(handle) > 0) {
+	if ((detect_ejectable_slots(handle) > 0) ||
+		(detect_dependent_devices(handle) > 0)) {
 		dbg("found PCI-to-PCI bridge at PCI %s\n", pci_name(dev));
 		add_p2p_bridge(handle, dev);
 	}
@@ -512,11 +544,13 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 		list_for_each_safe (list, tmp, &slot->funcs) {
 			struct acpiphp_func *func;
 			func = list_entry(list, struct acpiphp_func, sibling);
-			status = acpi_remove_notify_handler(func->handle,
+			if (!(func->flags & FUNC_HAS_DCK)) {
+				status = acpi_remove_notify_handler(func->handle,
 						ACPI_SYSTEM_NOTIFY,
 						handle_hotplug_event_func);
-			if (ACPI_FAILURE(status))
-				err("failed to remove notify handler\n");
+				if (ACPI_FAILURE(status))
+					err("failed to remove notify handler\n");
+			}
 			pci_dev_put(func->pci_dev);
 			list_del(list);
 			kfree(func);
@@ -828,14 +862,21 @@ static int acpiphp_bus_add(struct acpiphp_func *func)
 		dbg("no parent device, assuming NULL\n");
 		pdevice = NULL;
 	}
-	if (acpi_bus_get_device(func->handle, &device)) {
-		ret_val = acpi_bus_add(&device, pdevice, func->handle,
-			ACPI_BUS_TYPE_DEVICE);
-		if (ret_val) {
-			dbg("error adding bus, %x\n",
-				-ret_val);
-			goto acpiphp_bus_add_out;
-		}
+	if (!acpi_bus_get_device(func->handle, &device)) {
+		dbg("bus exists... trim\n");
+		/* this shouldn't be in here, so remove
+		 * the bus then re-add it...
+		 */
+		ret_val = acpi_bus_trim(device, 1);
+		dbg("acpi_bus_trim return %x\n", ret_val);
+	}
+
+	ret_val = acpi_bus_add(&device, pdevice, func->handle,
+		ACPI_BUS_TYPE_DEVICE);
+	if (ret_val) {
+		dbg("error adding bus, %x\n",
+			-ret_val);
+		goto acpiphp_bus_add_out;
 	}
 	/*
 	 * try to start anyway.  We could have failed to add
@@ -1307,7 +1348,7 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
  * handles ACPI event notification on slots
  *
  */
-static void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context)
+void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context)
 {
 	struct acpiphp_func *func;
 	char objname[64];

@@ -161,6 +161,25 @@ struct acpiphp_attention_info
 	struct module *owner;
 };
 
+
+struct dependent_device {
+	struct list_head device_list;
+	struct list_head pci_list;
+	acpi_handle handle;
+	struct acpiphp_func *func;
+};
+
+
+struct acpiphp_dock_station {
+	acpi_handle handle;
+	u32 last_dock_time;
+	u32 flags;
+	struct acpiphp_func *dock_bridge;
+	struct list_head dependent_devices;
+	struct list_head pci_dependent_devices;
+};
+
+
 /* PCI bus bridge HID */
 #define ACPI_PCI_HOST_HID		"PNP0A03"
 
@@ -198,6 +217,12 @@ struct acpiphp_attention_info
 #define FUNC_HAS_PS1		(0x00000020)
 #define FUNC_HAS_PS2		(0x00000040)
 #define FUNC_HAS_PS3		(0x00000080)
+#define FUNC_HAS_DCK            (0x00000100)
+#define FUNC_IS_DD              (0x00000200)
+
+/* dock station flags */
+#define DOCK_DOCKING            (0x00000001)
+#define DOCK_HAS_BRIDGE         (0x00000002)
 
 /* function prototypes */
 
@@ -211,6 +236,7 @@ extern void acpiphp_glue_exit (void);
 extern int acpiphp_get_num_slots (void);
 extern struct acpiphp_slot *get_slot_from_id (int id);
 typedef int (*acpiphp_callback)(struct acpiphp_slot *slot, void *data);
+void handle_hotplug_event_func(acpi_handle, u32, void*);
 
 extern int acpiphp_enable_slot (struct acpiphp_slot *slot);
 extern int acpiphp_disable_slot (struct acpiphp_slot *slot);
@@ -219,6 +245,16 @@ extern u8 acpiphp_get_attention_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_latch_status (struct acpiphp_slot *slot);
 extern u8 acpiphp_get_adapter_status (struct acpiphp_slot *slot);
 extern u32 acpiphp_get_address (struct acpiphp_slot *slot);
+
+/* acpiphp_dock.c */
+extern int find_dock_station(void);
+extern void remove_dock_station(void);
+extern void add_dependent_device(struct dependent_device *new_dd);
+extern void add_pci_dependent_device(struct dependent_device *new_dd);
+extern struct dependent_device *get_dependent_device(acpi_handle handle);
+extern int is_dependent_device(acpi_handle handle);
+extern int detect_dependent_devices(acpi_handle *bridge_handle);
+extern struct dependent_device *alloc_dependent_device(acpi_handle handle);
 
 /* variables */
 extern int acpiphp_debug;
