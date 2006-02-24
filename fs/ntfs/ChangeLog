@@ -21,8 +21,14 @@ ToDo/Notes:
 
 2.1.26 - Minor bug fixes and updates.
 
+	- Fix a potential overflow in file.c where a cast to s64 was missing in
+	  a left shift of a page index.
+	- The struct inode has had its i_sem semaphore changed to a mutex named
+	  i_mutex.
 	- We have struct kmem_cache now so use it instead of the typedef
 	  kmem_cache_t.  (Pekka Enberg)
+	- Implement support for sector sizes above 512 bytes (up to the maximum
+	  supported by NTFS which is 4096 bytes).
 	- Miscellaneous updates to layout.h.
 	- Cope with attribute list attribute having invalid flags.  Windows
 	  copes with this and even chkdsk does not detect or fix this so we
