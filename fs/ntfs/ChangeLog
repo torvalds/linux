@@ -29,6 +29,8 @@ ToDo/Notes:
 	  kmem_cache_t.  (Pekka Enberg)
 	- Implement support for sector sizes above 512 bytes (up to the maximum
 	  supported by NTFS which is 4096 bytes).
+	- Do more detailed reporting of why we cannot mount read-write by
+	  special casing the VOLUME_MODIFIED_BY_CHKDSK flag.
 	- Miscellaneous updates to layout.h.
 	- Cope with attribute list attribute having invalid flags.  Windows
 	  copes with this and even chkdsk does not detect or fix this so we

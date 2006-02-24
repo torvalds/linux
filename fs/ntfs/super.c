@@ -472,9 +472,16 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 			ntfs_error(sb, "Volume is dirty and read-only%s", es);
 			return -EROFS;
 		}
+		if (vol->vol_flags & VOLUME_MODIFIED_BY_CHKDSK) {
+			ntfs_error(sb, "Volume has been modified by chkdsk "
+					"and is read-only%s", es);
+			return -EROFS;
+		}
 		if (vol->vol_flags & VOLUME_MUST_MOUNT_RO_MASK) {
-			ntfs_error(sb, "Volume has unsupported flags set and "
-					"is read-only%s", es);
+			ntfs_error(sb, "Volume has unsupported flags set "
+					"(0x%x) and is read-only%s",
+					(unsigned)le16_to_cpu(vol->vol_flags),
+					es);
 			return -EROFS;
 		}
 		if (ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY)) {
@@ -1845,11 +1852,24 @@ get_ctx_vol_failed:
 	/* Make sure that no unsupported volume flags are set. */
 	if (vol->vol_flags & VOLUME_MUST_MOUNT_RO_MASK) {
 		static const char *es1a = "Volume is dirty";
-		static const char *es1b = "Volume has unsupported flags set";
-		static const char *es2 = ".  Run chkdsk and mount in Windows.";
-		const char *es1;
-		
-		es1 = vol->vol_flags & VOLUME_IS_DIRTY ? es1a : es1b;
+		static const char *es1b = "Volume has been modified by chkdsk";
+		static const char *es1c = "Volume has unsupported flags set";
+		static const char *es2a = ".  Run chkdsk and mount in Windows.";
+		static const char *es2b = ".  Mount in Windows.";
+		const char *es1, *es2;
+
+		es2 = es2a;
+		if (vol->vol_flags & VOLUME_IS_DIRTY)
+			es1 = es1a;
+		else if (vol->vol_flags & VOLUME_MODIFIED_BY_CHKDSK) {
+			es1 = es1b;
+			es2 = es2b;
+		} else {
+			es1 = es1c;
+			ntfs_warning(sb, "Unsupported volume flags 0x%x "
+					"encountered.",
+					(unsigned)le16_to_cpu(vol->vol_flags));
+		}
 		/* If a read-write mount, convert it to a read-only mount. */
 		if (!(sb->s_flags & MS_RDONLY)) {
 			if (!(vol->on_errors & (ON_ERRORS_REMOUNT_RO |
