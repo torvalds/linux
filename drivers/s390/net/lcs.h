@@ -6,8 +6,6 @@
 #include <linux/workqueue.h>
 #include <asm/ccwdev.h>
 
-#define VERSION_LCS_H "$Revision: 1.19 $"
-
 #define LCS_DBF_TEXT(level, name, text) \
 	do { \
 		debug_text_event(lcs_dbf_##name, level, text); \
@@ -97,7 +95,7 @@ do {                                       \
  */
 #define LCS_ILLEGAL_OFFSET		0xffff
 #define LCS_IOBUFFERSIZE		0x5000
-#define LCS_NUM_BUFFS			8	/* needs to be power of 2 */
+#define LCS_NUM_BUFFS			32	/* needs to be power of 2 */
 #define LCS_MAC_LENGTH			6
 #define LCS_INVALID_PORT_NO		-1
 #define LCS_LANCMD_TIMEOUT_DEFAULT      5

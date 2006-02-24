@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@
 	u8                                      type;               /* acpi_object_type */\
 	u16                                     reference_count;    /* For object deletion management */\
 	union acpi_operand_object               *next_object;       /* Objects linked to parent NS node */\
-	u8                                      flags; \
+	u8                                      flags;
 
 /* Values for flag byte above */
 

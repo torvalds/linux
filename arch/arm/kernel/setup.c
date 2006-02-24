@@ -23,6 +23,7 @@
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
+#include <linux/smp.h>
 
 #include <asm/cpu.h>
 #include <asm/elf.h>
@@ -770,6 +771,10 @@ void __init setup_arch(char **cmdline_p)
 	parse_cmdline(cmdline_p, from);
 	paging_init(&meminfo, mdesc);
 	request_standard_resources(&meminfo, mdesc);
+
+#ifdef CONFIG_SMP
+	smp_init_cpus();
+#endif
 
 	cpu_init();
 

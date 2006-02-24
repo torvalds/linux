@@ -179,11 +179,12 @@ temp[1-*]_auto_point[1-*]_temp_hyst
 ****************
 
 temp[1-3]_type	Sensor type selection.
-		Integers 1, 2, 3 or thermistor Beta value (3435)
+		Integers 1 to 4 or thermistor Beta value (typically 3435)
 		Read/Write.
 		1: PII/Celeron Diode
 		2: 3904 transistor
 		3: thermal diode
+		4: thermistor (default/unknown Beta)
 		Not all types are supported by all chips
 
 temp[1-4]_max	Temperature max value.
@@ -260,6 +261,21 @@ alarms		Alarm bitmask.
 		alarm registers; there is no standard for the position
 		of individual bits.
 		Bits are defined in kernel/include/sensors.h.
+
+alarms_in	Alarm bitmask relative to in (voltage) channels
+		Read only
+		A '1' bit means an alarm, LSB corresponds to in0 and so on
+		Prefered to 'alarms' for newer chips
+
+alarms_fan	Alarm bitmask relative to fan channels
+		Read only
+		A '1' bit means an alarm, LSB corresponds to fan1 and so on
+		Prefered to 'alarms' for newer chips
+
+alarms_temp	Alarm bitmask relative to temp (temperature) channels
+		Read only
+		A '1' bit means an alarm, LSB corresponds to temp1 and so on
+		Prefered to 'alarms' for newer chips
 
 beep_enable	Beep/interrupt enable
 		0 to disable.

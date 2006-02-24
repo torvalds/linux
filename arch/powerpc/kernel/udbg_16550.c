@@ -144,7 +144,7 @@ unsigned int udbg_probe_uart_speed(void __iomem *comport, unsigned int clock)
 }
 
 #ifdef CONFIG_PPC_MAPLE
-void udbg_maple_real_putc(unsigned char c)
+void udbg_maple_real_putc(char c)
 {
 	if (udbg_comport) {
 		while ((real_readb(&udbg_comport->lsr) & LSR_THRE) == 0)

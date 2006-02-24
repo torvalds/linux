@@ -19,6 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
+#include <linux/completion.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/sn/bte.h>
@@ -335,8 +337,7 @@ struct xpc_openclose_args {
  * and consumed by the intended recipient.
  */
 struct xpc_notify {
-	struct semaphore sema;		/* notify semaphore */
-	volatile u8 type;			/* type of notification */
+	volatile u8 type;		/* type of notification */
 
 	/* the following two fields are only used if type == XPC_N_CALL */
 	xpc_notify_func func;		/* user's notify function */
@@ -465,8 +466,8 @@ struct xpc_channel {
 	xpc_channel_func func;		/* user's channel function */
 	void *key;			/* pointer to user's key */
 
-	struct semaphore msg_to_pull_sema; /* next msg to pull serialization */
-	struct semaphore wdisconnect_sema; /* wait for channel disconnect */
+	struct mutex msg_to_pull_mutex;	/* next msg to pull serialization */
+	struct completion wdisconnect_wait; /* wait for channel disconnect */
 
 	struct xpc_openclose_args *local_openclose_args; /* args passed on */
 					/* opening or closing of channel */
@@ -507,19 +508,24 @@ struct xpc_channel {
 #define	XPC_C_OPENREQUEST	0x00000010 /* local open channel request */
 
 #define	XPC_C_SETUP		0x00000020 /* channel's msgqueues are alloc'd */
-#define	XPC_C_CONNECTCALLOUT	0x00000040 /* channel connected callout made */
-#define	XPC_C_CONNECTED		0x00000080 /* local channel is connected */
-#define	XPC_C_CONNECTING	0x00000100 /* channel is being connected */
+#define	XPC_C_CONNECTEDCALLOUT	0x00000040 /* connected callout initiated */
+#define	XPC_C_CONNECTEDCALLOUT_MADE \
+				0x00000080 /* connected callout completed */
+#define	XPC_C_CONNECTED		0x00000100 /* local channel is connected */
+#define	XPC_C_CONNECTING	0x00000200 /* channel is being connected */
 
-#define	XPC_C_RCLOSEREPLY	0x00000200 /* remote close channel reply */
-#define	XPC_C_CLOSEREPLY	0x00000400 /* local close channel reply */
-#define	XPC_C_RCLOSEREQUEST	0x00000800 /* remote close channel request */
-#define	XPC_C_CLOSEREQUEST	0x00001000 /* local close channel request */
+#define	XPC_C_RCLOSEREPLY	0x00000400 /* remote close channel reply */
+#define	XPC_C_CLOSEREPLY	0x00000800 /* local close channel reply */
+#define	XPC_C_RCLOSEREQUEST	0x00001000 /* remote close channel request */
+#define	XPC_C_CLOSEREQUEST	0x00002000 /* local close channel request */
 
-#define	XPC_C_DISCONNECTED	0x00002000 /* channel is disconnected */
-#define	XPC_C_DISCONNECTING	0x00004000 /* channel is being disconnected */
-#define	XPC_C_DISCONNECTCALLOUT	0x00008000 /* chan disconnected callout made */
-#define	XPC_C_WDISCONNECT	0x00010000 /* waiting for channel disconnect */
+#define	XPC_C_DISCONNECTED	0x00004000 /* channel is disconnected */
+#define	XPC_C_DISCONNECTING	0x00008000 /* channel is being disconnected */
+#define	XPC_C_DISCONNECTINGCALLOUT \
+				0x00010000 /* disconnecting callout initiated */
+#define	XPC_C_DISCONNECTINGCALLOUT_MADE \
+				0x00020000 /* disconnecting callout completed */
+#define	XPC_C_WDISCONNECT	0x00040000 /* waiting for channel disconnect */
 
 
 

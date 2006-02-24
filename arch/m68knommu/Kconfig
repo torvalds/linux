@@ -29,6 +29,10 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config TIME_LOW_RES
+	bool
+	default y
+
 source "init/Kconfig"
 
 menu "Processor type and features"

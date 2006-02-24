@@ -1,14 +1,6 @@
 #include <linux/suspend.h>
 #include <linux/utsname.h>
 
-/* With SUSPEND_CONSOLE defined suspend looks *really* cool, but
-   we probably do not take enough locks for switching consoles, etc,
-   so bad things might happen.
-*/
-#if defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
-#define SUSPEND_CONSOLE	(MAX_NR_CONSOLES-1)
-#endif
-
 struct swsusp_info {
 	struct new_utsname	uts;
 	u32			version_code;
@@ -42,17 +34,14 @@ static struct subsys_attribute _name##_attr = {	\
 
 extern struct subsystem power_subsys;
 
-extern int pm_prepare_console(void);
-extern void pm_restore_console(void);
-
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;
 
 extern unsigned int nr_copy_pages;
 extern struct pbe *pagedir_nosave;
 
-/* Preferred image size in MB (default 500) */
-extern unsigned int image_size;
+/* Preferred image size in bytes (default 500 MB) */
+extern unsigned long image_size;
 
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);

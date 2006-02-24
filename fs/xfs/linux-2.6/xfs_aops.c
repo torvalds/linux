@@ -747,10 +747,11 @@ xfs_convert_page(
 			struct backing_dev_info *bdi;
 
 			bdi = inode->i_mapping->backing_dev_info;
+			wbc->nr_to_write--;
 			if (bdi_write_congested(bdi)) {
 				wbc->encountered_congestion = 1;
 				done = 1;
-			} else if (--wbc->nr_to_write <= 0) {
+			} else if (wbc->nr_to_write <= 0) {
 				done = 1;
 			}
 		}
@@ -1462,4 +1463,5 @@ struct address_space_operations linvfs_aops = {
 	.commit_write		= generic_commit_write,
 	.bmap			= linvfs_bmap,
 	.direct_IO		= linvfs_direct_IO,
+	.migratepage		= buffer_migrate_page,
 };

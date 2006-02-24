@@ -30,7 +30,7 @@ void __delay(unsigned long loops)
          */
         __asm__ __volatile__(
                 "0: brct %0,0b"
-                : /* no outputs */ : "r" (loops/2) );
+                : /* no outputs */ : "r" ((loops/2) + 1));
 }
 
 /*

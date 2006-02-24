@@ -197,6 +197,8 @@ long __init lmb_reserve(unsigned long base, unsigned long size)
 {
 	struct lmb_region *_rgn = &(lmb.reserved);
 
+	BUG_ON(0 == size);
+
 	return lmb_add_region(_rgn, base, size);
 }
 
@@ -226,6 +228,8 @@ unsigned long __init lmb_alloc_base(unsigned long size, unsigned long align,
 {
 	long i, j;
 	unsigned long base = 0;
+
+	BUG_ON(0 == size);
 
 #ifdef CONFIG_PPC32
 	/* On 32-bit, make sure we allocate lowmem */

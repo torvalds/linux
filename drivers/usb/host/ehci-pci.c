@@ -24,46 +24,11 @@
 
 /*-------------------------------------------------------------------------*/
 
-/* EHCI 0.96 (and later) section 5.1 says how to kick BIOS/SMM/...
- * off the controller (maybe it can boot from highspeed USB disks).
- */
-static int bios_handoff(struct ehci_hcd *ehci, int where, u32 cap)
-{
-	struct pci_dev *pdev = to_pci_dev(ehci_to_hcd(ehci)->self.controller);
-
-	/* always say Linux will own the hardware */
-	pci_write_config_byte(pdev, where + 3, 1);
-
-	/* maybe wait a while for BIOS to respond */
-	if (cap & (1 << 16)) {
-		int msec = 5000;
-
-		do {
-			msleep(10);
-			msec -= 10;
-			pci_read_config_dword(pdev, where, &cap);
-		} while ((cap & (1 << 16)) && msec);
-		if (cap & (1 << 16)) {
-			ehci_err(ehci, "BIOS handoff failed (%d, %08x)\n",
-				where, cap);
-			// some BIOS versions seem buggy...
-			// return 1;
-			ehci_warn(ehci, "continuing after BIOS bug...\n");
-			/* disable all SMIs, and clear "BIOS owns" flag */
-			pci_write_config_dword(pdev, where + 4, 0);
-			pci_write_config_byte(pdev, where + 2, 0);
-		} else
-			ehci_dbg(ehci, "BIOS handoff succeeded\n");
-	}
-	return 0;
-}
-
 /* called after powerup, by probe or system-pm "wakeup" */
 static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 {
 	u32			temp;
 	int			retval;
-	unsigned		count = 256/4;
 
 	/* optional debug port, normally in the first BAR */
 	temp = pci_find_capability(pdev, 0x0a);
@@ -84,32 +49,9 @@ static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 		}
 	}
 
-	temp = HCC_EXT_CAPS(readl(&ehci->caps->hcc_params));
-
-	/* EHCI 0.96 and later may have "extended capabilities" */
-	while (temp && count--) {
-		u32		cap;
-
-		pci_read_config_dword(pdev, temp, &cap);
-		ehci_dbg(ehci, "capability %04x at %02x\n", cap, temp);
-		switch (cap & 0xff) {
-		case 1:			/* BIOS/SMM/... handoff */
-			if (bios_handoff(ehci, temp, cap) != 0)
-				return -EOPNOTSUPP;
-			break;
-		case 0:			/* illegal reserved capability */
-			ehci_dbg(ehci, "illegal capability!\n");
-			cap = 0;
-			/* FALLTHROUGH */
-		default:		/* unknown */
-			break;
-		}
-		temp = (cap >> 8) & 0xff;
-	}
-	if (!count) {
-		ehci_err(ehci, "bogus capabilities ... PCI problems!\n");
-		return -EIO;
-	}
+	/* we expect static quirk code to handle the "extended capabilities"
+	 * (currently just BIOS handoff) allowed starting with EHCI 0.96
+	 */
 
 	/* PCI Memory-Write-Invalidate cycle support is optional (uncommon) */
 	retval = pci_set_mwi(pdev);

@@ -9,18 +9,13 @@
 #include <linux/console.h>
 #include "power.h"
 
-static int new_loglevel = 10;
-static int orig_loglevel;
-#ifdef SUSPEND_CONSOLE
+#if defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
+#define SUSPEND_CONSOLE	(MAX_NR_CONSOLES-1)
+
 static int orig_fgconsole, orig_kmsg;
-#endif
 
 int pm_prepare_console(void)
 {
-	orig_loglevel = console_loglevel;
-	console_loglevel = new_loglevel;
-
-#ifdef SUSPEND_CONSOLE
 	acquire_console_sem();
 
 	orig_fgconsole = fg_console;
@@ -41,18 +36,15 @@ int pm_prepare_console(void)
 	}
 	orig_kmsg = kmsg_redirect;
 	kmsg_redirect = SUSPEND_CONSOLE;
-#endif
 	return 0;
 }
 
 void pm_restore_console(void)
 {
-	console_loglevel = orig_loglevel;
-#ifdef SUSPEND_CONSOLE
 	acquire_console_sem();
 	set_console(orig_fgconsole);
 	release_console_sem();
 	kmsg_redirect = orig_kmsg;
-#endif
 	return;
 }
+#endif

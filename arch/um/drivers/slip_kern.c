@@ -21,13 +21,14 @@ void slip_init(struct net_device *dev, void *data)
 
 	private = dev->priv;
 	spri = (struct slip_data *) private->user;
-	*spri = ((struct slip_data)
-		{ .name 	= { '\0' },
-		  .addr		= NULL,
-		  .gate_addr 	= init->gate_addr,
-		  .slave  	= -1,
-		  .slip		= SLIP_PROTO_INIT,
-		  .dev 		= dev });
+
+	memset(spri->name, 0, sizeof(spri->name));
+	spri->addr = NULL;
+	spri->gate_addr = init->gate_addr;
+	spri->slave = -1;
+	spri->dev = dev;
+
+	slip_proto_init(&spri->slip);
 
 	dev->init = NULL;
 	dev->header_cache_update = NULL;

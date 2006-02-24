@@ -1048,13 +1048,14 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 			cifs_small_buf_release(iov[0].iov_base);
 		else if(resp_buf_type == CIFS_LARGE_BUFFER)
 			cifs_buf_release(iov[0].iov_base);
-	} else /* return buffer to caller to free */ /* BB FIXME how do we tell caller if it is not a large buffer */ {
-		*buf = iov[0].iov_base;
+	} else if(resp_buf_type != CIFS_NO_BUFFER) {
+		/* return buffer to caller to free */ 
+		*buf = iov[0].iov_base;		
 		if(resp_buf_type == CIFS_SMALL_BUFFER)
 			*pbuf_type = CIFS_SMALL_BUFFER;
 		else if(resp_buf_type == CIFS_LARGE_BUFFER)
 			*pbuf_type = CIFS_LARGE_BUFFER;
-	}
+	} /* else no valid buffer on return - leave as null */
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls
 		since file handle passed in no longer valid */

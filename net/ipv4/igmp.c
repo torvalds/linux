@@ -970,7 +970,7 @@ int igmp_rcv(struct sk_buff *skb)
 	case IGMP_MTRACE_RESP:
 		break;
 	default:
-		NETDEBUG(KERN_DEBUG "New IGMP type=%d, why we do not know about it?\n", ih->type);
+		break;
 	}
 
 drop:
@@ -1578,7 +1578,7 @@ static int sf_setstate(struct ip_mc_list *pmc)
 			new_in = psf->sf_count[MCAST_INCLUDE] != 0;
 		if (new_in) {
 			if (!psf->sf_oldin) {
-				struct ip_sf_list *prev = 0;
+				struct ip_sf_list *prev = NULL;
 
 				for (dpsf=pmc->tomb; dpsf; dpsf=dpsf->sf_next) {
 					if (dpsf->sf_inaddr == psf->sf_inaddr)

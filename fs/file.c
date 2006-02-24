@@ -379,7 +379,6 @@ static void __devinit fdtable_defer_list_init(int cpu)
 void __init files_defer_init(void)
 {
 	int i;
-	/* Really early - can't use for_each_cpu */
-	for (i = 0; i < NR_CPUS; i++)
+	for_each_cpu(i)
 		fdtable_defer_list_init(i);
 }

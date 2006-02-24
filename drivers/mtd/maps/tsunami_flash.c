@@ -62,7 +62,7 @@ static void tsunami_flash_copy_to(
 static struct map_info tsunami_flash_map = {
 	.name = "flash chip on the Tsunami TIG bus",
 	.size = MAX_TIG_FLASH_SIZE,
-	.phys = NO_XIP;
+	.phys = NO_XIP,
 	.bankwidth = 1,
 	.read = tsunami_flash_read8,
 	.copy_from = tsunami_flash_copy_from,

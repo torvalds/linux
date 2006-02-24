@@ -88,12 +88,13 @@ struct slip_proto {
 	int esc;
 };
 
-#define SLIP_PROTO_INIT { \
-	.ibuf  	= { '\0' }, \
-	.obuf  	= { '\0' }, \
-        .more	= 0, \
-	.pos	= 0, \
-	.esc	= 0 \
+static inline void slip_proto_init(struct slip_proto * slip)
+{
+	memset(slip->ibuf, 0, sizeof(slip->ibuf));
+	memset(slip->obuf, 0, sizeof(slip->obuf));
+	slip->more = 0;
+	slip->pos = 0;
+	slip->esc = 0;
 }
 
 extern int slip_proto_read(int fd, void *buf, int len,

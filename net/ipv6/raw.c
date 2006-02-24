@@ -35,7 +35,6 @@
 #include <linux/skbuff.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
-#include <asm/bug.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
@@ -804,10 +803,7 @@ back_from_confirm:
 			err = rawv6_push_pending_frames(sk, &fl, rp);
 	}
 done:
-	ip6_dst_store(sk, dst,
-		      ipv6_addr_equal(&fl.fl6_dst, &np->daddr) ?
-		      &np->daddr : NULL);
-
+	dst_release(dst);
 	release_sock(sk);
 out:	
 	fl6_sock_release(flowlabel);

@@ -29,28 +29,7 @@
 
 /*
  * sys_tas() - test-and-set
- * linuxthreads testing version
  */
-#ifndef CONFIG_SMP
-asmlinkage int sys_tas(int *addr)
-{
-	int oldval;
-	unsigned long flags;
-
-	if (!access_ok(VERIFY_WRITE, addr, sizeof (int)))
-		return -EFAULT;
-	local_irq_save(flags);
-	oldval = *addr;
-	if (!oldval)
-		*addr = 1;
-	local_irq_restore(flags);
-	return oldval;
-}
-#else /* CONFIG_SMP */
-#include <linux/spinlock.h>
-
-static DEFINE_SPINLOCK(tas_lock);
-
 asmlinkage int sys_tas(int *addr)
 {
 	int oldval;
@@ -58,15 +37,43 @@ asmlinkage int sys_tas(int *addr)
 	if (!access_ok(VERIFY_WRITE, addr, sizeof (int)))
 		return -EFAULT;
 
-	_raw_spin_lock(&tas_lock);
-	oldval = *addr;
-	if (!oldval)
-		*addr = 1;
-	_raw_spin_unlock(&tas_lock);
+	/* atomic operation:
+	 *   oldval = *addr; *addr = 1;
+	 */
+	__asm__ __volatile__ (
+		DCACHE_CLEAR("%0", "r4", "%1")
+		"	.fillinsn\n"
+		"1:\n"
+		"	lock	%0, @%1	    ->	unlock	%2, @%1\n"
+		"2:\n"
+		/* NOTE:
+		 *   The m32r processor can accept interrupts only
+		 *   at the 32-bit instruction boundary.
+		 *   So, in the above code, the "unlock" instruction
+		 *   can be executed continuously after the "lock"
+		 *   instruction execution without any interruptions.
+		 */
+		".section .fixup,\"ax\"\n"
+		"	.balign 4\n"
+		"3:	ldi	%0, #%3\n"
+		"	seth	r14, #high(2b)\n"
+		"	or3	r14, r14, #low(2b)\n"
+		"	jmp	r14\n"
+		".previous\n"
+		".section __ex_table,\"a\"\n"
+		"	.balign 4\n"
+		"	.long 1b,3b\n"
+		".previous\n"
+		: "=&r" (oldval)
+		: "r" (addr), "r" (1), "i"(-EFAULT)
+		: "r14", "memory"
+#ifdef CONFIG_CHIP_M32700_TS1
+		  , "r4"
+#endif /* CONFIG_CHIP_M32700_TS1 */
+	);
 
 	return oldval;
 }
-#endif /* CONFIG_SMP */
 
 /*
  * sys_pipe() is the normal C calling standard for creating

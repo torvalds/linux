@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -295,12 +295,12 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 
 	handler_desc = region_obj->region.handler;
 	if (!handler_desc) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "No handler for Region [%4.4s] (%p) [%s]\n",
-				  acpi_ut_get_node_name(region_obj->region.
-							node), region_obj,
-				  acpi_ut_get_region_name(region_obj->region.
-							  space_id)));
+		ACPI_ERROR((AE_INFO,
+			    "No handler for Region [%4.4s] (%p) [%s]",
+			    acpi_ut_get_node_name(region_obj->region.node),
+			    region_obj,
+			    acpi_ut_get_region_name(region_obj->region.
+						    space_id)));
 
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
@@ -317,12 +317,11 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		if (!region_setup) {
 			/* No initialization routine, exit with error */
 
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "No init routine for region(%p) [%s]\n",
-					  region_obj,
-					  acpi_ut_get_region_name(region_obj->
-								  region.
-								  space_id)));
+			ACPI_ERROR((AE_INFO,
+				    "No init routine for region(%p) [%s]",
+				    region_obj,
+				    acpi_ut_get_region_name(region_obj->region.
+							    space_id)));
 			return_ACPI_STATUS(AE_NOT_EXIST);
 		}
 
@@ -347,12 +346,11 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		/* Check for failure of the Region Setup */
 
 		if (ACPI_FAILURE(status)) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Region Init: %s [%s]\n",
-					  acpi_format_exception(status),
-					  acpi_ut_get_region_name(region_obj->
-								  region.
-								  space_id)));
+			ACPI_EXCEPTION((AE_INFO, status,
+					"During region initialization: [%s]",
+					acpi_ut_get_region_name(region_obj->
+								region.
+								space_id)));
 			return_ACPI_STATUS(status);
 		}
 
@@ -406,10 +404,9 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			 region_obj2->extra.region_context);
 
 	if (ACPI_FAILURE(status)) {
-		ACPI_REPORT_ERROR(("Handler for [%s] returned %s\n",
-				   acpi_ut_get_region_name(region_obj->region.
-							   space_id),
-				   acpi_format_exception(status)));
+		ACPI_EXCEPTION((AE_INFO, status, "Returned by Handler for [%s]",
+				acpi_ut_get_region_name(region_obj->region.
+							space_id)));
 	}
 
 	if (!
@@ -501,12 +498,10 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 
 			status = acpi_ev_execute_reg_method(region_obj, 0);
 			if (ACPI_FAILURE(status)) {
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "%s from region _REG, [%s]\n",
-						  acpi_format_exception(status),
-						  acpi_ut_get_region_name
-						  (region_obj->region.
-						   space_id)));
+				ACPI_EXCEPTION((AE_INFO, status,
+						"from region _REG, [%s]",
+						acpi_ut_get_region_name
+						(region_obj->region.space_id)));
 			}
 
 			if (acpi_ns_is_locked) {
@@ -528,12 +523,10 @@ acpi_ev_detach_region(union acpi_operand_object *region_obj,
 			/* Init routine may fail, Just ignore errors */
 
 			if (ACPI_FAILURE(status)) {
-				ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-						  "%s from region init, [%s]\n",
-						  acpi_format_exception(status),
-						  acpi_ut_get_region_name
-						  (region_obj->region.
-						   space_id)));
+				ACPI_EXCEPTION((AE_INFO, status,
+						"from region init, [%s]",
+						acpi_ut_get_region_name
+						(region_obj->region.space_id)));
 			}
 
 			region_obj->region.flags &= ~(AOPOBJ_SETUP_COMPLETE);

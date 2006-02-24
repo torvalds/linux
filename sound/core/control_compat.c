@@ -167,7 +167,7 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 			int *countp)
 {
 	struct snd_kcontrol *kctl;
-	struct snd_ctl_elem_info info;
+	struct snd_ctl_elem_info *info;
 	int err;
 
 	down_read(&card->controls_rwsem);
@@ -176,13 +176,19 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 		up_read(&card->controls_rwsem);
 		return -ENXIO;
 	}
-	info.id = *id;
-	err = kctl->info(kctl, &info);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (info == NULL) {
+		up_read(&card->controls_rwsem);
+		return -ENOMEM;
+	}
+	info->id = *id;
+	err = kctl->info(kctl, info);
 	up_read(&card->controls_rwsem);
 	if (err >= 0) {
-		err = info.type;
-		*countp = info.count;
+		err = info->type;
+		*countp = info->count;
 	}
+	kfree(info);
 	return err;
 }
 

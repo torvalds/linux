@@ -305,7 +305,7 @@
 #define __NR_mknodat		297
 #define __NR_fchownat		298
 #define __NR_futimesat		299
-#define __NR_newfstatat		300
+#define __NR_fstatat64		300
 #define __NR_unlinkat		301
 #define __NR_renameat		302
 #define __NR_linkat		303
@@ -315,8 +315,9 @@
 #define __NR_faccessat		307
 #define __NR_pselect6		308
 #define __NR_ppoll		309
+#define __NR_unshare		310
 
-#define NR_syscalls 310
+#define NR_syscalls 311
 
 /*
  * user-visible error numbers are in the range -1 - -128: see

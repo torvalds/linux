@@ -142,6 +142,7 @@ drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 # Default to zImage, override when needed
 defaultimage-y			:= zImage
 defaultimage-$(CONFIG_PPC_ISERIES) := vmlinux
+defaultimage-$(CONFIG_DEFAULT_UIMAGE) := uImage
 KBUILD_IMAGE := $(defaultimage-y)
 all: $(KBUILD_IMAGE)
 
@@ -167,6 +168,8 @@ endef
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
+
+archmrproper:
 	$(Q)rm -rf arch/$(ARCH)/include
 
 archprepare: checkbin

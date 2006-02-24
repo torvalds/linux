@@ -732,7 +732,7 @@ static int i2o_scsi_abort(struct scsi_cmnd *SCpnt)
 	    cpu_to_le32(I2O_CMD_SCSI_ABORT << 24 | HOST_TID << 12 | tid);
 	msg->body[0] = cpu_to_le32(i2o_cntxt_list_get_ptr(c, SCpnt));
 
-	if (i2o_msg_post_wait(c, msg, I2O_TIMEOUT_SCSI_SCB_ABORT))
+	if (!i2o_msg_post_wait(c, msg, I2O_TIMEOUT_SCSI_SCB_ABORT))
 		status = SUCCESS;
 
 	return status;

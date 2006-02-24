@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -274,9 +274,8 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 	default:
 		/* Invalid field access type */
 
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown field access type %X\n", access));
-		return_VALUE(0);
+		ACPI_ERROR((AE_INFO, "Unknown field access type %X", access));
+		return_UINT32(0);
 	}
 
 	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_BUFFER_FIELD) {
@@ -289,7 +288,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 	}
 
 	*return_byte_alignment = byte_alignment;
-	return_VALUE(bit_length);
+	return_UINT32(bit_length);
 }
 
 /*******************************************************************************
@@ -422,15 +421,15 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 	if (info->field_type != ACPI_TYPE_LOCAL_INDEX_FIELD) {
 		if (!info->region_node) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Null region_node\n"));
+			ACPI_ERROR((AE_INFO, "Null region_node"));
 			return_ACPI_STATUS(AE_AML_NO_OPERAND);
 		}
 
 		type = acpi_ns_get_type(info->region_node);
 		if (type != ACPI_TYPE_REGION) {
-			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-					  "Needed Region, found type %X (%s)\n",
-					  type, acpi_ut_get_type_name(type)));
+			ACPI_ERROR((AE_INFO,
+				    "Needed Region, found type %X (%s)",
+				    type, acpi_ut_get_type_name(type)));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -499,17 +498,17 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 	case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
+		/* Get the Index and Data registers */
+
 		obj_desc->index_field.index_obj =
 		    acpi_ns_get_attached_object(info->register_node);
 		obj_desc->index_field.data_obj =
 		    acpi_ns_get_attached_object(info->data_register_node);
-		obj_desc->index_field.value = (u32)
-		    (info->field_bit_position /
-		     ACPI_MUL_8(obj_desc->field.access_byte_width));
 
 		if (!obj_desc->index_field.data_obj
 		    || !obj_desc->index_field.index_obj) {
-			ACPI_REPORT_ERROR(("Null Index Object during field prep\n"));
+			ACPI_ERROR((AE_INFO,
+				    "Null Index Object during field prep"));
 			acpi_ut_delete_object_desc(obj_desc);
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
@@ -518,6 +517,15 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 
 		acpi_ut_add_reference(obj_desc->index_field.data_obj);
 		acpi_ut_add_reference(obj_desc->index_field.index_obj);
+
+		/*
+		 * The value written to the Index register is the byte offset of the
+		 * target field
+		 * Note: may change code to: ACPI_DIV_8 (Info->field_bit_position)
+		 */
+		obj_desc->index_field.value = (u32)
+		    (info->field_bit_position /
+		     ACPI_MUL_8(obj_desc->field.access_byte_width));
 
 		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
 				  "index_field: bit_off %X, Off %X, Value %X, Gran %X, Index %p, Data %p\n",

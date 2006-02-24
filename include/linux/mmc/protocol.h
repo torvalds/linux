@@ -79,7 +79,7 @@
 /* SD commands                           type  argument     response */
   /* class 8 */
 /* This is basically the same command as for MMC with some quirks. */
-#define SD_SEND_RELATIVE_ADDR     3   /* ac                      R6  */
+#define SD_SEND_RELATIVE_ADDR     3   /* bcr                     R6  */
 
   /* Application commands */
 #define SD_APP_SET_BUS_WIDTH      6   /* ac   [1:0] bus width    R1  */

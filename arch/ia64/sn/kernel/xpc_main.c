@@ -55,6 +55,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
+#include <linux/completion.h>
 #include <asm/sn/intr.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/kdebug.h>
@@ -177,10 +178,10 @@ static DECLARE_WAIT_QUEUE_HEAD(xpc_act_IRQ_wq);
 static unsigned long xpc_hb_check_timeout;
 
 /* notification that the xpc_hb_checker thread has exited */
-static DECLARE_MUTEX_LOCKED(xpc_hb_checker_exited);
+static DECLARE_COMPLETION(xpc_hb_checker_exited);
 
 /* notification that the xpc_discovery thread has exited */
-static DECLARE_MUTEX_LOCKED(xpc_discovery_exited);
+static DECLARE_COMPLETION(xpc_discovery_exited);
 
 
 static struct timer_list xpc_hb_timer;
@@ -321,7 +322,7 @@ xpc_hb_checker(void *ignore)
 
 
 	/* mark this thread as having exited */
-	up(&xpc_hb_checker_exited);
+	complete(&xpc_hb_checker_exited);
 	return 0;
 }
 
@@ -341,7 +342,7 @@ xpc_initiate_discovery(void *ignore)
 	dev_dbg(xpc_part, "discovery thread is exiting\n");
 
 	/* mark this thread as having exited */
-	up(&xpc_discovery_exited);
+	complete(&xpc_discovery_exited);
 	return 0;
 }
 
@@ -574,18 +575,21 @@ xpc_activate_partition(struct xpc_partition *part)
 
 	spin_lock_irqsave(&part->act_lock, irq_flags);
 
-	pid = kernel_thread(xpc_activating, (void *) ((u64) partid), 0);
-
 	DBUG_ON(part->act_state != XPC_P_INACTIVE);
 
-	if (pid > 0) {
-		part->act_state = XPC_P_ACTIVATION_REQ;
-		XPC_SET_REASON(part, xpcCloneKThread, __LINE__);
-	} else {
-		XPC_SET_REASON(part, xpcCloneKThreadFailed, __LINE__);
-	}
+	part->act_state = XPC_P_ACTIVATION_REQ;
+	XPC_SET_REASON(part, xpcCloneKThread, __LINE__);
 
 	spin_unlock_irqrestore(&part->act_lock, irq_flags);
+
+	pid = kernel_thread(xpc_activating, (void *) ((u64) partid), 0);
+
+	if (unlikely(pid <= 0)) {
+		spin_lock_irqsave(&part->act_lock, irq_flags);
+		part->act_state = XPC_P_INACTIVE;
+		XPC_SET_REASON(part, xpcCloneKThreadFailed, __LINE__);
+		spin_unlock_irqrestore(&part->act_lock, irq_flags);
+	}
 }
 
 
@@ -746,11 +750,15 @@ xpc_daemonize_kthread(void *args)
 		/* let registerer know that connection has been established */
 
 		spin_lock_irqsave(&ch->lock, irq_flags);
-		if (!(ch->flags & XPC_C_CONNECTCALLOUT)) {
-			ch->flags |= XPC_C_CONNECTCALLOUT;
+		if (!(ch->flags & XPC_C_CONNECTEDCALLOUT)) {
+			ch->flags |= XPC_C_CONNECTEDCALLOUT;
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 
 			xpc_connected_callout(ch);
+
+			spin_lock_irqsave(&ch->lock, irq_flags);
+			ch->flags |= XPC_C_CONNECTEDCALLOUT_MADE;
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
 
 			/*
 			 * It is possible that while the callout was being
@@ -773,15 +781,17 @@ xpc_daemonize_kthread(void *args)
 
 	if (atomic_dec_return(&ch->kthreads_assigned) == 0) {
 		spin_lock_irqsave(&ch->lock, irq_flags);
-		if ((ch->flags & XPC_C_CONNECTCALLOUT) &&
-				!(ch->flags & XPC_C_DISCONNECTCALLOUT)) {
-			ch->flags |= XPC_C_DISCONNECTCALLOUT;
+		if ((ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) &&
+				!(ch->flags & XPC_C_DISCONNECTINGCALLOUT)) {
+			ch->flags |= XPC_C_DISCONNECTINGCALLOUT;
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 
 			xpc_disconnect_callout(ch, xpcDisconnecting);
-		} else {
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
+
+			spin_lock_irqsave(&ch->lock, irq_flags);
+			ch->flags |= XPC_C_DISCONNECTINGCALLOUT_MADE;
 		}
+		spin_unlock_irqrestore(&ch->lock, irq_flags);
 		if (atomic_dec_return(&part->nchannels_engaged) == 0) {
 			xpc_mark_partition_disengaged(part);
 			xpc_IPI_send_disengage(part);
@@ -893,7 +903,7 @@ xpc_disconnect_wait(int ch_number)
 			continue;
 		}
 
-		(void) down(&ch->wdisconnect_sema);
+		wait_for_completion(&ch->wdisconnect_wait);
 
 		spin_lock_irqsave(&ch->lock, irq_flags);
 		DBUG_ON(!(ch->flags & XPC_C_DISCONNECTED));
@@ -946,10 +956,10 @@ xpc_do_exit(enum xpc_retval reason)
 	free_irq(SGI_XPC_ACTIVATE, NULL);
 
 	/* wait for the discovery thread to exit */
-	down(&xpc_discovery_exited);
+	wait_for_completion(&xpc_discovery_exited);
 
 	/* wait for the heartbeat checker thread to exit */
-	down(&xpc_hb_checker_exited);
+	wait_for_completion(&xpc_hb_checker_exited);
 
 
 	/* sleep for a 1/3 of a second or so */
@@ -1367,7 +1377,7 @@ xpc_init(void)
 		dev_err(xpc_part, "failed while forking discovery thread\n");
 
 		/* mark this new thread as a non-starter */
-		up(&xpc_discovery_exited);
+		complete(&xpc_discovery_exited);
 
 		xpc_do_exit(xpcUnloading);
 		return -EBUSY;

@@ -265,13 +265,13 @@ static struct serio_driver twidjoy_drv = {
  * The functions for inserting/removing us as a module.
  */
 
-int __init twidjoy_init(void)
+static int __init twidjoy_init(void)
 {
 	serio_register_driver(&twidjoy_drv);
 	return 0;
 }
 
-void __exit twidjoy_exit(void)
+static void __exit twidjoy_exit(void)
 {
 	serio_unregister_driver(&twidjoy_drv);
 }

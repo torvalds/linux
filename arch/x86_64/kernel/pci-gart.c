@@ -310,7 +310,7 @@ void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents, int di
 
 	for (i = 0; i < nents; i++) {
 		struct scatterlist *s = &sg[i];
-		if (!s->dma_length || !s->length)
+		if (!s->dma_length)
 			break;
 		dma_unmap_single(dev, s->dma_address, s->dma_length, dir);
 	}
@@ -364,7 +364,6 @@ static int __dma_map_cont(struct scatterlist *sg, int start, int stopat,
 		
 		BUG_ON(i > start && s->offset);
 		if (i == start) {
-			*sout = *s; 
 			sout->dma_address = iommu_bus_base;
 			sout->dma_address += iommu_page*PAGE_SIZE + s->offset;
 			sout->dma_length = s->length;
@@ -379,7 +378,7 @@ static int __dma_map_cont(struct scatterlist *sg, int start, int stopat,
 			SET_LEAK(iommu_page);
 			addr += PAGE_SIZE;
 			iommu_page++;
-	} 
+		}
 	} 
 	BUG_ON(iommu_page - iommu_start != pages);	
 	return 0;
@@ -391,7 +390,6 @@ static inline int dma_map_cont(struct scatterlist *sg, int start, int stopat,
 {
 	if (!need) { 
 		BUG_ON(stopat - start != 1);
-		*sout = sg[start]; 
 		sout->dma_length = sg[start].length; 
 		return 0;
 	} 
@@ -457,9 +455,12 @@ int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 error:
 	flush_gart(NULL);
 	gart_unmap_sg(dev, sg, nents, dir);
-	/* When it was forced try again unforced */
-	if (force_iommu) 
-		return dma_map_sg_nonforce(dev, sg, nents, dir);
+	/* When it was forced or merged try again in a dumb way */
+	if (force_iommu || iommu_merge) {
+		out = dma_map_sg_nonforce(dev, sg, nents, dir);
+		if (out > 0)
+			return out;
+	}
 	if (panic_on_overflow)
 		panic("dma_map_sg: overflow on %lu pages\n", pages);
 	iommu_full(dev, pages << PAGE_SHIFT, dir);
@@ -642,9 +643,18 @@ static int __init pci_iommu_init(void)
 	    (no_agp && init_k8_gatt(&info) < 0)) {
 		no_iommu = 1;
 		no_iommu_init();
+		printk(KERN_INFO "PCI-DMA: Disabling IOMMU.\n");
+		if (end_pfn > MAX_DMA32_PFN) {
+			printk(KERN_ERR "WARNING more than 4GB of memory "
+					"but IOMMU not compiled in.\n"
+			       KERN_ERR "WARNING 32bit PCI may malfunction.\n"
+			       KERN_ERR "You might want to enable "
+					"CONFIG_GART_IOMMU\n");
+		}
 		return -1;
 	}
 
+	printk(KERN_INFO "PCI-DMA: using GART IOMMU.\n");
 	aper_size = info.aper_size * 1024 * 1024;	
 	iommu_size = check_iommu_size(info.aper_base, aper_size); 
 	iommu_pages = iommu_size >> PAGE_SHIFT; 
@@ -718,7 +728,6 @@ static int __init pci_iommu_init(void)
 		     
 	flush_gart(NULL);
 
-	printk(KERN_INFO "PCI-DMA: using GART IOMMU.\n");
 	dma_ops = &gart_dma_ops;
 
 	return 0;

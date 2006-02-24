@@ -139,6 +139,9 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 {
 	int ret, byte;
 
+	if (dev->state & DEV_DISCONNECTED)
+		return(-ENODEV);
+
 	em28xx_regdbg("req=%02x, reg=%02x ", req, reg);
 
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0), req,
@@ -164,6 +167,9 @@ int em28xx_read_reg_req(struct em28xx *dev, u8 req, u16 reg)
 {
 	u8 val;
 	int ret;
+
+	if (dev->state & DEV_DISCONNECTED)
+		return(-ENODEV);
 
 	em28xx_regdbg("req=%02x, reg=%02x:", req, reg);
 
@@ -195,7 +201,12 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	int ret;
 
 	/*usb_control_msg seems to expect a kmalloced buffer */
-	unsigned char *bufs = kmalloc(len, GFP_KERNEL);
+	unsigned char *bufs;
+
+	if (dev->state & DEV_DISCONNECTED)
+		return(-ENODEV);
+
+	bufs = kmalloc(len, GFP_KERNEL);
 
 	em28xx_regdbg("req=%02x reg=%02x:", req, reg);
 
@@ -212,7 +223,7 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0), req,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x0000, reg, bufs, len, HZ);
-	mdelay(5);		/* FIXME: magic number */
+	msleep(5);		/* FIXME: magic number */
 	kfree(bufs);
 	return ret;
 }
@@ -253,7 +264,7 @@ int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 * val)
 	if ((ret = em28xx_read_reg(dev, AC97BUSY_REG)) < 0)
 		return ret;
 	else if (((u8) ret) & 0x01) {
-		em28xx_warn ("AC97 command still being exectuted: not handled properly!\n");
+		em28xx_warn ("AC97 command still being executed: not handled properly!\n");
 	}
 	return 0;
 }

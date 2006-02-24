@@ -210,6 +210,7 @@ uncached_build_memmap(unsigned long start, unsigned long end, void *arg)
 
 	dprintk(KERN_ERR "uncached_build_memmap(%lx %lx)\n", start, end);
 
+	touch_softlockup_watchdog();
 	memset((char *)start, 0, length);
 
 	node = paddr_to_nid(start - __IA64_UNCACHED_OFFSET);

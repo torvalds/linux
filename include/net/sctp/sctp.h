@@ -175,6 +175,8 @@ void sctp_icmp_frag_needed(struct sock *, struct sctp_association *,
 void sctp_icmp_proto_unreachable(struct sock *sk,
 				 struct sctp_association *asoc,
 				 struct sctp_transport *t);
+void sctp_backlog_migrate(struct sctp_association *assoc,
+			  struct sock *oldsk, struct sock *newsk);
 
 /*
  *  Section:  Macros, externs, and inlines

@@ -10,9 +10,13 @@ obj-m			:=
 obj-n			:=
 obj-			:=
 
+# S3C2400 support files
+obj-$(CONFIG_CPU_S3C2400)  += s3c2400-gpio.o
+
 # S3C2410 support files
 
 obj-$(CONFIG_CPU_S3C2410)  += s3c2410.o
+obj-$(CONFIG_CPU_S3C2410)  += s3c2410-gpio.o
 obj-$(CONFIG_S3C2410_DMA)  += dma.o
 
 # Power Management support
@@ -25,6 +29,7 @@ obj-$(CONFIG_PM_SIMTEC)	   += pm-simtec.o
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440.o s3c2440-dsc.o
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440-irq.o
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440-clock.o
+obj-$(CONFIG_CPU_S3C2440)  += s3c2410-gpio.o
 
 # bast extras
 

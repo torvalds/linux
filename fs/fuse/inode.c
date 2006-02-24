@@ -473,6 +473,16 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	if (req->out.h.error || arg->major != FUSE_KERNEL_VERSION)
 		fc->conn_error = 1;
 	else {
+		unsigned long ra_pages;
+
+		if (arg->minor >= 6) {
+			ra_pages = arg->max_readahead / PAGE_CACHE_SIZE;
+			if (arg->flags & FUSE_ASYNC_READ)
+				fc->async_read = 1;
+		} else
+			ra_pages = fc->max_read / PAGE_CACHE_SIZE;
+
+		fc->bdi.ra_pages = min(fc->bdi.ra_pages, ra_pages);
 		fc->minor = arg->minor;
 		fc->max_write = arg->minor < 5 ? 4096 : arg->max_write;
 	}
@@ -496,6 +506,8 @@ static void fuse_send_init(struct fuse_conn *fc)
 
 	arg->major = FUSE_KERNEL_VERSION;
 	arg->minor = FUSE_KERNEL_MINOR_VERSION;
+	arg->max_readahead = fc->bdi.ra_pages * PAGE_CACHE_SIZE;
+	arg->flags |= FUSE_ASYNC_READ;
 	req->in.h.opcode = FUSE_INIT;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(*arg);
@@ -552,8 +564,6 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	fc->user_id = d.user_id;
 	fc->group_id = d.group_id;
 	fc->max_read = d.max_read;
-	if (fc->max_read / PAGE_CACHE_SIZE < fc->bdi.ra_pages)
-		fc->bdi.ra_pages = fc->max_read / PAGE_CACHE_SIZE;
 
 	/* Used by get_root_inode() */
 	sb->s_fs_info = fc;

@@ -91,7 +91,8 @@ static inline void page_dup_rmap(struct page *page)
  * Called from mm/vmscan.c to handle paging out
  */
 int page_referenced(struct page *, int is_locked);
-int try_to_unmap(struct page *);
+int try_to_unmap(struct page *, int ignore_refs);
+void remove_from_swap(struct page *page);
 
 /*
  * Called from mm/filemap_xip.c to unmap empty zero page
@@ -111,7 +112,7 @@ unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
 #define anon_vma_link(vma)	do {} while (0)
 
 #define page_referenced(page,l) TestClearPageReferenced(page)
-#define try_to_unmap(page)	SWAP_FAIL
+#define try_to_unmap(page, refs) SWAP_FAIL
 
 #endif	/* CONFIG_MMU */
 

@@ -46,11 +46,7 @@ static char *_rio_qbuf_h_sccs = "@(#)qbuf.h	1.1";
 
 
 
-#ifdef HOST
-#define PKTS_PER_BUFFER    1
-#else
 #define PKTS_PER_BUFFER    (220 / PKT_LENGTH)
-#endif
 
 typedef struct Q_BUF Q_BUF;
 struct Q_BUF {

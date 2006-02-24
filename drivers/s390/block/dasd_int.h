@@ -6,7 +6,6 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.68 $
  */
 
 #ifndef DASD_INT_H
@@ -291,6 +290,7 @@ struct dasd_device {
 
 	/* Device discipline stuff. */
 	struct dasd_discipline *discipline;
+	struct dasd_discipline *base_discipline;
 	char *private;
 
 	/* Device state and target state. */

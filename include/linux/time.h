@@ -33,9 +33,32 @@ struct timezone {
 #define NSEC_PER_SEC		1000000000L
 #define NSEC_PER_USEC		1000L
 
-static __inline__ int timespec_equal(struct timespec *a, struct timespec *b)
+static inline int timespec_equal(struct timespec *a, struct timespec *b)
 {
 	return (a->tv_sec == b->tv_sec) && (a->tv_nsec == b->tv_nsec);
+}
+
+/*
+ * lhs < rhs:  return <0
+ * lhs == rhs: return 0
+ * lhs > rhs:  return >0
+ */
+static inline int timespec_compare(struct timespec *lhs, struct timespec *rhs)
+{
+	if (lhs->tv_sec < rhs->tv_sec)
+		return -1;
+	if (lhs->tv_sec > rhs->tv_sec)
+		return 1;
+	return lhs->tv_nsec - rhs->tv_nsec;
+}
+
+static inline int timeval_compare(struct timeval *lhs, struct timeval *rhs)
+{
+	if (lhs->tv_sec < rhs->tv_sec)
+		return -1;
+	if (lhs->tv_sec > rhs->tv_sec)
+		return 1;
+	return lhs->tv_usec - rhs->tv_usec;
 }
 
 extern unsigned long mktime(const unsigned int year, const unsigned int mon,
@@ -48,7 +71,7 @@ extern void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec);
  * Returns true if the timespec is norm, false if denorm:
  */
 #define timespec_valid(ts) \
-	(((ts)->tv_sec >= 0) && (((unsigned) (ts)->tv_nsec) < NSEC_PER_SEC))
+	(((ts)->tv_sec >= 0) && (((unsigned long) (ts)->tv_nsec) < NSEC_PER_SEC))
 
 /*
  * 64-bit nanosec type. Large enough to span 292+ years in nanosecond

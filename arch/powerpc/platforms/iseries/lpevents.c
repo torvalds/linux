@@ -184,6 +184,8 @@ void setup_hvlpevent_queue(void)
 {
 	void *eventStack;
 
+	spin_lock_init(&hvlpevent_queue.lock);
+
 	/* Allocate a page for the Event Stack. */
 	eventStack = alloc_bootmem_pages(LpEventStackSize);
 	memset(eventStack, 0, LpEventStackSize);

@@ -161,7 +161,11 @@ s3c24xx_serial_dbg(const char *fmt, ...)
 
 /* we can support 3 uarts, but not always use them */
 
+#ifdef CONFIG_CPU_S3C2400
+#define NR_PORTS (2)
+#else
 #define NR_PORTS (3)
+#endif
 
 /* port irq numbers */
 
@@ -1060,7 +1064,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	dbg("resource %p (%lx..%lx)\n", res, res->start, res->end);
 
 	port->mapbase	= res->start;
-	port->membase	= S3C24XX_VA_UART + (res->start - S3C2410_PA_UART);
+	port->membase	= S3C24XX_VA_UART + (res->start - S3C24XX_PA_UART);
 	port->irq	= platform_get_irq(platdev, 0);
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");

@@ -116,7 +116,11 @@ typedef struct { volatile u32 offset[4096]; } __regbase32;
 					->offset[((vaddr)&4095)>>2]
 #define __REG32(paddr)		__REGV32(io_p2v(paddr))
 
-extern void omap_map_common_io(void);
+extern void omap1_map_common_io(void);
+extern void omap1_init_common_hw(void);
+
+extern void omap2_map_common_io(void);
+extern void omap2_init_common_hw(void);
 
 #else
 

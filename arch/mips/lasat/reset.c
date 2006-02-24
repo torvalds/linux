@@ -19,9 +19,12 @@
  */
 #include <linux/config.h>
 #include <linux/kernel.h>
+#include <linux/pm.h>
+
 #include <asm/reboot.h>
 #include <asm/system.h>
 #include <asm/lasat/lasat.h>
+
 #include "picvue.h"
 #include "prom.h"
 
@@ -63,5 +66,5 @@ void lasat_reboot_setup(void)
 {
 	_machine_restart = lasat_machine_restart;
 	_machine_halt = lasat_machine_halt;
-	_machine_power_off = lasat_machine_halt;
+	pm_power_off = lasat_machine_halt;
 }

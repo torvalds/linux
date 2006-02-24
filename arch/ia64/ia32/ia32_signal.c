@@ -515,6 +515,7 @@ sys32_signal (int sig, unsigned int handler)
 
 	sigact_set_handler(&new_sa, handler, 0);
 	new_sa.sa.sa_flags = SA_ONESHOT | SA_NOMASK;
+	sigemptyset(&new_sa.sa.sa_mask);
 
 	ret = do_sigaction(sig, &new_sa, &old_sa);
 

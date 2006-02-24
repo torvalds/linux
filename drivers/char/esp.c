@@ -150,17 +150,6 @@ static void rs_wait_until_sent(struct tty_struct *, int);
 /* Standard COM flags (except for COM4, because of the 8514 problem) */
 #define STD_COM_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST)
 
-/*
- * tmp_buf is used as a temporary buffer by serial_write.  We need to
- * lock it in case the memcpy_fromfs blocks while swapping in a page,
- * and some other program tries to do a serial write at the same time.
- * Since the lock will only come under contention when the system is
- * swapping and available memory is low, it makes sense to share one
- * buffer across all the serial ports, since it significantly saves
- * memory if large numbers of serial ports are open.
- */
-static unsigned char *tmp_buf;
-
 static inline int serial_paranoia_check(struct esp_struct *info,
 					char *name, const char *routine)
 {
@@ -359,7 +348,7 @@ static inline void receive_chars_pio(struct esp_struct *info, int num_bytes)
 		}
 	}
 
-	schedule_delayed_work(&tty->buf.work, 1);
+	tty_schedule_flip(tty);
 
 	info->stat_flags &= ~ESP_STAT_RX_TIMEOUT;
 	release_pio_buffer(pio_buf);
@@ -426,7 +415,7 @@ static inline void receive_chars_dma_done(struct esp_struct *info,
 			}
 			tty_insert_flip_char(tty, dma_buffer[num_bytes - 1], statflag);
 		}
-		schedule_delayed_work(&tty->buf.work, 1);
+		tty_schedule_flip(tty);
 	}
 
 	if (dma_bytes != num_bytes) {
@@ -1267,7 +1256,7 @@ static int rs_write(struct tty_struct * tty,
 	if (serial_paranoia_check(info, tty->name, "rs_write"))
 		return 0;
 
-	if (!tty || !info->xmit_buf || !tmp_buf)
+	if (!tty || !info->xmit_buf)
 		return 0;
 	    
 	while (1) {
@@ -2291,11 +2280,7 @@ static int esp_open(struct tty_struct *tty, struct file * filp)
 	tty->driver_data = info;
 	info->tty = tty;
 
-	if (!tmp_buf) {
-		tmp_buf = (unsigned char *) get_zeroed_page(GFP_KERNEL);
-		if (!tmp_buf)
-			return -ENOMEM;
-	}
+	spin_unlock_irqrestore(&info->lock, flags);
 	
 	/*
 	 * Start up serial port
@@ -2601,9 +2586,6 @@ static void __exit espserial_exit(void)
 	if (dma_buffer)
 		free_pages((unsigned long)dma_buffer,
 			get_order(DMA_BUFFER_SZ));
-
-	if (tmp_buf)
-		free_page((unsigned long)tmp_buf);
 
 	while (free_pio_buf) {
 		pio_buf = free_pio_buf->next;

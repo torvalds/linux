@@ -505,7 +505,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 
 	list_add_tail(&neigh->list, &path->neigh_list);
 
-	if (path->pathrec.dlid) {
+	if (path->ah) {
 		kref_get(&path->ah->ref);
 		neigh->ah = path->ah;
 
@@ -591,7 +591,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 		return;
 	}
 
-	if (path->pathrec.dlid) {
+	if (path->ah) {
 		ipoib_dbg(priv, "Send unicast ARP to %04x\n",
 			  be16_to_cpu(path->pathrec.dlid));
 

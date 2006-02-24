@@ -27,8 +27,8 @@
 #include <linux/hdlc.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/delay.h>
 
 #include "wanxl.h"
 

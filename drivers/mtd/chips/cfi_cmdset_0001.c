@@ -1019,8 +1019,8 @@ static void __xipram xip_udelay(struct map_info *map, struct flchip *chip,
 #define XIP_INVAL_CACHED_RANGE(map, from, size)  \
 	INVALIDATE_CACHED_RANGE(map, from, size)
 
-#define INVALIDATE_CACHE_UDELAY(map, chip, adr, len, usec)  \
-	UDELAY(map, chip, adr, usec)
+#define INVALIDATE_CACHE_UDELAY(map, chip, cmd_adr, adr, len, usec)  \
+	UDELAY(map, chip, cmd_adr, usec)
 
 /*
  * Extra notes:
@@ -1052,7 +1052,7 @@ do {  \
 	spin_lock(chip->mutex);  \
 } while (0)
 
-#define INVALIDATE_CACHE_UDELAY(map, chip, adr, len, usec)  \
+#define INVALIDATE_CACHE_UDELAY(map, chip, cmd_adr, adr, len, usec)  \
 do {  \
 	spin_unlock(chip->mutex);  \
 	INVALIDATE_CACHED_RANGE(map, adr, len);  \
@@ -1284,7 +1284,7 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 	map_write(map, datum, adr);
 	chip->state = mode;
 
-	INVALIDATE_CACHE_UDELAY(map, chip,
+	INVALIDATE_CACHE_UDELAY(map, chip, adr,
 				adr, map_bankwidth(map),
 				chip->word_write_time);
 
@@ -1572,8 +1572,8 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	map_write(map, CMD(0xd0), cmd_adr);
 	chip->state = FL_WRITING;
 
-	INVALIDATE_CACHE_UDELAY(map, chip,
-				cmd_adr, len,
+	INVALIDATE_CACHE_UDELAY(map, chip, cmd_adr,
+				adr, len,
 				chip->buffer_write_time);
 
 	timeo = jiffies + (HZ/2);
@@ -1744,7 +1744,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 	chip->state = FL_ERASING;
 	chip->erase_suspended = 0;
 
-	INVALIDATE_CACHE_UDELAY(map, chip,
+	INVALIDATE_CACHE_UDELAY(map, chip, adr,
 				adr, len,
 				chip->erase_time*1000/2);
 

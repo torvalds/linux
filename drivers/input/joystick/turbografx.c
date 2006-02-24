@@ -204,14 +204,14 @@ static struct tgfx __init *tgfx_probe(int parport, int *n_buttons, int n_devs)
 		if (n_buttons[i] > 6) {
 			printk(KERN_ERR "turbografx.c: Invalid number of buttons %d\n", n_buttons[i]);
 			err = -EINVAL;
-			goto err_free_devs;
+			goto err_unreg_devs;
 		}
 
 		tgfx->dev[i] = input_dev = input_allocate_device();
 		if (!input_dev) {
 			printk(KERN_ERR "turbografx.c: Not enough memory for input device\n");
 			err = -ENOMEM;
-			goto err_free_devs;
+			goto err_unreg_devs;
 		}
 
 		tgfx->sticks |= (1 << i);
@@ -238,7 +238,9 @@ static struct tgfx __init *tgfx_probe(int parport, int *n_buttons, int n_devs)
 		for (j = 0; j < n_buttons[i]; j++)
 			set_bit(tgfx_buttons[j], input_dev->keybit);
 
-		input_register_device(tgfx->dev[i]);
+		err = input_register_device(tgfx->dev[i]);
+		if (err)
+			goto err_free_dev;
 	}
 
         if (!tgfx->sticks) {
@@ -249,9 +251,12 @@ static struct tgfx __init *tgfx_probe(int parport, int *n_buttons, int n_devs)
 
 	return tgfx;
 
- err_free_devs:
+ err_free_dev:
+	input_free_device(tgfx->dev[i]);
+ err_unreg_devs:
 	while (--i >= 0)
-		input_unregister_device(tgfx->dev[i]);
+		if (tgfx->dev[i])
+			input_unregister_device(tgfx->dev[i]);
  err_free_tgfx:
 	kfree(tgfx);
  err_unreg_pardev:
@@ -262,7 +267,7 @@ static struct tgfx __init *tgfx_probe(int parport, int *n_buttons, int n_devs)
 	return ERR_PTR(err);
 }
 
-static void __exit tgfx_remove(struct tgfx *tgfx)
+static void tgfx_remove(struct tgfx *tgfx)
 {
 	int i;
 
@@ -300,7 +305,8 @@ static int __init tgfx_init(void)
 
 	if (err) {
 		while (--i >= 0)
-			tgfx_remove(tgfx_base[i]);
+			if (tgfx_base[i])
+				tgfx_remove(tgfx_base[i]);
 		return err;
 	}
 

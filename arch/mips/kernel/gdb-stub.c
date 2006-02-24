@@ -178,7 +178,7 @@ int kgdb_enabled;
  */
 static DEFINE_SPINLOCK(kgdb_lock);
 static raw_spinlock_t kgdb_cpulock[NR_CPUS] = {
-	[0 ... NR_CPUS-1] = __RAW_SPIN_LOCK_UNLOCKED;
+	[0 ... NR_CPUS-1] = __RAW_SPIN_LOCK_UNLOCKED,
 };
 
 /*

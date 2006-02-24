@@ -29,7 +29,7 @@
 #include <linux/netdevice.h>
 #include <linux/hdlc.h>
 #include <linux/pci.h>
-#include <asm/delay.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 
 #include "hd64572.h"

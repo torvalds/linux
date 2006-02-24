@@ -304,6 +304,7 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
  * blk_queue_ordered - does this queue support ordered writes
  * @q:        the request queue
  * @ordered:  one of QUEUE_ORDERED_*
+ * @prepare_flush_fn: rq setup helper for cache flush ordered writes
  *
  * Description:
  *   For journalled file systems, doing ordered writes on a commit
@@ -332,6 +333,7 @@ int blk_queue_ordered(request_queue_t *q, unsigned ordered,
 		return -EINVAL;
 	}
 
+	q->ordered = ordered;
 	q->next_ordered = ordered;
 	q->prepare_flush_fn = prepare_flush_fn;
 
@@ -452,7 +454,7 @@ static void queue_flush(request_queue_t *q, unsigned which)
 	rq->end_io = end_io;
 	q->prepare_flush_fn(q, rq);
 
-	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 }
 
 static inline struct request *start_ordered(request_queue_t *q,
@@ -488,7 +490,7 @@ static inline struct request *start_ordered(request_queue_t *q,
 	else
 		q->ordseq |= QUEUE_ORDSEQ_POSTFLUSH;
 
-	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 
 	if (q->ordered & QUEUE_ORDERED_PREFLUSH) {
 		queue_flush(q, QUEUE_ORDERED_PREFLUSH);
@@ -506,7 +508,7 @@ static inline struct request *start_ordered(request_queue_t *q,
 
 int blk_do_ordered(request_queue_t *q, struct request **rqp)
 {
-	struct request *rq = *rqp, *allowed_rq;
+	struct request *rq = *rqp;
 	int is_barrier = blk_fs_request(rq) && blk_barrier_rq(rq);
 
 	if (!q->ordseq) {
@@ -530,31 +532,25 @@ int blk_do_ordered(request_queue_t *q, struct request **rqp)
 		}
 	}
 
+	/*
+	 * Ordered sequence in progress
+	 */
+
+	/* Special requests are not subject to ordering rules. */
+	if (!blk_fs_request(rq) &&
+	    rq != &q->pre_flush_rq && rq != &q->post_flush_rq)
+		return 1;
+
 	if (q->ordered & QUEUE_ORDERED_TAG) {
+		/* Ordered by tag.  Blocking the next barrier is enough. */
 		if (is_barrier && rq != &q->bar_rq)
 			*rqp = NULL;
-		return 1;
+	} else {
+		/* Ordered by draining.  Wait for turn. */
+		WARN_ON(blk_ordered_req_seq(rq) < blk_ordered_cur_seq(q));
+		if (blk_ordered_req_seq(rq) > blk_ordered_cur_seq(q))
+			*rqp = NULL;
 	}
-
-	switch (blk_ordered_cur_seq(q)) {
-	case QUEUE_ORDSEQ_PREFLUSH:
-		allowed_rq = &q->pre_flush_rq;
-		break;
-	case QUEUE_ORDSEQ_BAR:
-		allowed_rq = &q->bar_rq;
-		break;
-	case QUEUE_ORDSEQ_POSTFLUSH:
-		allowed_rq = &q->post_flush_rq;
-		break;
-	default:
-		allowed_rq = NULL;
-		break;
-	}
-
-	if (rq != allowed_rq &&
-	    (blk_fs_request(rq) || rq == &q->pre_flush_rq ||
-	     rq == &q->post_flush_rq))
-		*rqp = NULL;
 
 	return 1;
 }
@@ -662,7 +658,7 @@ EXPORT_SYMBOL(blk_queue_bounce_limit);
  *    Enables a low level driver to set an upper limit on the size of
  *    received requests.
  **/
-void blk_queue_max_sectors(request_queue_t *q, unsigned short max_sectors)
+void blk_queue_max_sectors(request_queue_t *q, unsigned int max_sectors)
 {
 	if ((max_sectors << 9) < PAGE_CACHE_SIZE) {
 		max_sectors = 1 << (PAGE_CACHE_SHIFT - 9);
@@ -2577,6 +2573,8 @@ void disk_round_stats(struct gendisk *disk)
 	disk->stamp = now;
 }
 
+EXPORT_SYMBOL_GPL(disk_round_stats);
+
 /*
  * queue lock must be held
  */
@@ -2632,6 +2630,7 @@ EXPORT_SYMBOL(blk_put_request);
 /**
  * blk_end_sync_rq - executes a completion event on a request
  * @rq: request to complete
+ * @error: end io status of the request
  */
 void blk_end_sync_rq(struct request *rq, int error)
 {
@@ -3153,7 +3152,7 @@ static int __end_that_request_first(struct request *req, int uptodate,
 	if (blk_fs_request(req) && req->rq_disk) {
 		const int rw = rq_data_dir(req);
 
-		__disk_stat_add(req->rq_disk, sectors[rw], nr_bytes >> 9);
+		disk_stat_add(req->rq_disk, sectors[rw], nr_bytes >> 9);
 	}
 
 	total_bytes = bio_nbytes = 0;
@@ -3448,7 +3447,7 @@ int __init blk_dev_init(void)
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
 			sizeof(struct io_context), 0, SLAB_PANIC, NULL, NULL);
 
-	for (i = 0; i < NR_CPUS; i++)
+	for_each_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
 
 	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq, NULL);

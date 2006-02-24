@@ -79,7 +79,7 @@ enum nf_ip_hook_priorities {
 
 #ifdef __KERNEL__
 extern int ip_route_me_harder(struct sk_buff **pskb);
-
+extern int ip_xfrm_me_harder(struct sk_buff **pskb);
 #endif /*__KERNEL__*/
 
 #endif /*__LINUX_IP_NETFILTER_H*/

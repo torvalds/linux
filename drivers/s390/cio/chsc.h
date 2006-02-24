@@ -68,6 +68,6 @@ extern void *chsc_get_chp_desc(struct subchannel*, int);
 
 extern int chsc_enable_facility(int);
 
-#define to_channelpath(dev) container_of(dev, struct channel_path, dev)
+#define to_channelpath(device) container_of(device, struct channel_path, dev)
 
 #endif

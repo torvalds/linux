@@ -480,6 +480,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
 {
 	siginfo_t info;
 	int signr;
+	struct k_sigaction ka;
 
 	/*
 	 * We want the common case to go fast, which
@@ -493,7 +494,7 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs, int syscall)
         if (current->ptrace & PT_SINGLESTEP)
                 ptrace_cancel_bpt(current);
 	
-        signr = get_signal_to_deliver(&info, regs, NULL);
+        signr = get_signal_to_deliver(&info, &ka, regs, NULL);
         if (signr > 0) {
                 handle_signal(signr, &info, oldset, regs, syscall);
                 if (current->ptrace & PT_SINGLESTEP)

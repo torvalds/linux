@@ -116,9 +116,14 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 /* Special case for failed iget in CREATE */
 static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
 {
-	u64 nodeid = req->in.h.nodeid;
-	fuse_reset_request(req);
-	fuse_send_forget(fc, req, nodeid, 1);
+	/* If called from end_io_requests(), req has more than one
+	   reference and fuse_reset_request() cannot work */
+	if (fc->connected) {
+		u64 nodeid = req->in.h.nodeid;
+		fuse_reset_request(req);
+		fuse_send_forget(fc, req, nodeid, 1);
+	} else
+		fuse_put_request(fc, req);
 }
 
 void fuse_send_release(struct fuse_conn *fc, struct fuse_file *ff,
@@ -335,9 +340,14 @@ static void fuse_send_readpages(struct fuse_req *req, struct file *file,
 	loff_t pos = page_offset(req->pages[0]);
 	size_t count = req->num_pages << PAGE_CACHE_SHIFT;
 	req->out.page_zeroing = 1;
-	req->end = fuse_readpages_end;
 	fuse_read_fill(req, file, inode, pos, count, FUSE_READ);
-	request_send_background(fc, req);
+	if (fc->async_read) {
+		req->end = fuse_readpages_end;
+		request_send_background(fc, req);
+	} else {
+		request_send(fc, req);
+		fuse_readpages_end(fc, req);
+	}
 }
 
 struct fuse_readpages_data {
