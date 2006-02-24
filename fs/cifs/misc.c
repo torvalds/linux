@@ -421,9 +421,7 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 {
 	__u32 len = smb->smb_buf_length;
 	__u32 clc_len;  /* calculated length */
-	cFYI(0,
-	     ("Entering checkSMB with Length: %x, smb_buf_length: %x",
-	      length, len));
+	cFYI(0, ("checkSMB Length: 0x%x, smb_buf_length: 0x%x", length, len));
 	if (((unsigned int)length < 2 + sizeof (struct smb_hdr)) ||
 	    (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)) {
 		if ((unsigned int)length < 2 + sizeof (struct smb_hdr)) {
@@ -435,22 +433,29 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 			} else {
 				cERROR(1, ("Length less than smb header size"));
 			}
-
 		}
 		if (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)
-			cERROR(1,
-			       ("smb_buf_length greater than MaxBufSize"));
-		cERROR(1,
-		       ("bad smb detected. Illegal length. mid=%d",
-			smb->Mid));
+			cERROR(1, ("smb length greater than MaxBufSize, mid=%d",
+				   smb->Mid));
 		return 1;
 	}
 
 	if (checkSMBhdr(smb, mid))
 		return 1;
 	clc_len = smbCalcSize_LE(smb);
-	if ((4 + len != clc_len)
-	    || (4 + len != (unsigned int)length)) {
+
+	if(4 + len != (unsigned int)length) {
+		cERROR(1, ("Length read does not match RFC1001 length %d",len));
+		return 1;
+	}
+
+	if (4 + len != clc_len) {
+		/* check if bcc wrapped around for large read responses */
+		if((len > 64 * 1024) && (len > clc_len)) {
+			/* check if lengths match mod 64K */
+			if(((4 + len) & 0xFFFF) == (clc_len & 0xFFFF))
+				return 0; /* bcc wrapped */			
+		}
 		cERROR(1, ("Calculated size 0x%x vs actual length 0x%x",
 				clc_len, 4 + len));
 		cERROR(1, ("bad smb size detected for Mid=%d", smb->Mid));

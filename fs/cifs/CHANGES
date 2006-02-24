@@ -2,7 +2,11 @@ Version 1.41
 ------------
 Fix NTLMv2 security (can be enabled in /proc/fs/cifs) so customers can
 configure stronger authentication.  Fix sfu symlinks so they can
-be followed (not just recognized).
+be followed (not just recognized).  Fix wraparound of bcc on
+read responses when buffer size over 64K and also fix wrap of
+max smb buffer size when CIFSMaxBufSize over 64K.  Fix oops in
+cifs_user_read and cifs_readpages (when EAGAIN on send of smb
+on socket is returned over and over)
 
 Version 1.40
 ------------

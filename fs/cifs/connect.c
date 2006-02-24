@@ -564,7 +564,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	
 
 		dump_smb(smb_buffer, length);
-		if (checkSMB (smb_buffer, smb_buffer->Mid, total_read+4)) {
+		if (checkSMB(smb_buffer, smb_buffer->Mid, total_read+4)) {
 			cifs_dump_mem("Bad SMB: ", smb_buffer, 48);
 			continue;
 		}
@@ -2278,6 +2278,8 @@ CIFSSpnegoSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	smb_buffer->Mid = GetNextMid(ses->server);
 	pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	pSMB->req.AndXCommand = 0xFF;
+	if(ses->server->maxBuf > 64*1024)
+		ses->server->maxBuf = (64*1023);
 	pSMB->req.MaxBufferSize = cpu_to_le16(ses->server->maxBuf);
 	pSMB->req.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
 
