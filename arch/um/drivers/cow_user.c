@@ -362,7 +362,8 @@ int init_cow_file(int fd, char *cow_file, char *backing_file, int sectorsize,
 	if(err != sizeof(zero)){
 		cow_printf("Write of bitmap to new COW file '%s' failed, "
 			   "err = %d\n", cow_file, -err);
-		err = -EINVAL;
+		if (err >= 0)
+			err = -EINVAL;
 		goto out;
 	}
 
