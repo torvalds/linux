@@ -68,11 +68,6 @@ Some of the features of the driver are:
   data transfers;
 - automatic detection of image sensor;
 - video format is standard JPEG;
-- full support for the capabilities of every possible image sensors that can
-  be connected to the ZC0301 bridges, including, for istance, red, green,
-  blue and global gain adjustments and exposure control (see "Supported
-  devices" paragraph for details);
-- use of default color settings for sunlight conditions;
 - dynamic driver control thanks to various module parameters (see "Module
   parameters" paragraph);
 - up to 64 cameras can be handled at the same time; they can be connected and
@@ -171,6 +166,14 @@ Description:    Force the application to unmap previously mapped buffer memory
                 1 = force memory unmapping (save memory)
 Default:        0
 -------------------------------------------------------------------------------
+Name:           frame_timeout
+Type:           uint array (min = 0, max = 64)
+Syntax:         <n[,...]>
+Description:    Timeout for a video frame in seconds. This parameter is
+                specific for each detected camera. This parameter can be
+                changed at runtime thanks to the /sys filesystem interface.
+Default:        2
+-------------------------------------------------------------------------------
 Name:           debug
 Type:           ushort
 Syntax:         <n>
@@ -198,16 +201,22 @@ devices mounting the ZC0301 Image Processor and Control Chips:
 
 Vendor ID  Product ID
 ---------  ----------
+0x10fd     0x8050
+0x041e     0x0417
+0x041e     0x041e
+0x041e     0x081c
+0x041e     0x0834
+0x041e     0x0835
 0x046d     0x08ae
+0x0ac8     0x0301
 
-The following image sensors are supported:
+The list above does not imply that all those devices work with this driver: up
+until now only the ones that mount the following image sensors are supported;
+kernel messages will always tell you whether this is the case:
 
 Model       Manufacturer
 -----       ------------
 PAS202BCB   PixArt Imaging, Inc.
-
-All the available control settings of each image sensor are supported through
-the V4L2 interface.
 
 
 9. Notes for V4L2 application developers
@@ -240,6 +249,6 @@ the fingerprint is: '88E8 F32F 7244 68BA 3958  5D40 99DA 5D2A FCE6 35A4'.
 - Informations about the chip internals needed to enable the I2C protocol have
   been taken from the documentation of the ZC030x Video4Linux1 driver written
   by Andrew Birkett <andy@nobugs.org>;
-- Initialization values of the ZC0301 controller connected to the PAS202BCB
+- The initialization values of the ZC0301 controller connected to the PAS202BCB
   image sensor have been taken from the SPCA5XX driver maintained by
   Michel Xhaard <mxhaard@magic.fr>.

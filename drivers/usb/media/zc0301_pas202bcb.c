@@ -22,6 +22,14 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.               *
  ***************************************************************************/
 
+/*
+   NOTE: Sensor controls are disabled for now, becouse changing them while
+         streaming sometimes results in out-of-sync video frames. We'll use
+         the default initialization, until we know how to stop and start video
+         in the chip. However, the image quality still looks good under various
+         light conditions.
+*/
+
 #include <linux/delay.h>
 #include "zc0301_sensor.h"
 
@@ -245,7 +253,7 @@ static struct zc0301_sensor pas202bcb = {
 			.maximum = 0x3fff,
 			.step = 0x0001,
 			.default_value = 0x01e5,
-			.flags = 0,
+			.flags = V4L2_CTRL_FLAG_DISABLED,
 		},
 		{
 			.id = V4L2_CID_GAIN,
@@ -255,7 +263,17 @@ static struct zc0301_sensor pas202bcb = {
 			.maximum = 0x1f,
 			.step = 0x01,
 			.default_value = 0x0c,
-			.flags = 0,
+			.flags = V4L2_CTRL_FLAG_DISABLED,
+		},
+		{
+			.id = ZC0301_V4L2_CID_DAC_MAGNITUDE,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "DAC magnitude",
+			.minimum = 0x00,
+			.maximum = 0xff,
+			.step = 0x01,
+			.default_value = 0x00,
+			.flags = V4L2_CTRL_FLAG_DISABLED,
 		},
 		{
 			.id = V4L2_CID_RED_BALANCE,
@@ -265,7 +283,7 @@ static struct zc0301_sensor pas202bcb = {
 			.maximum = 0x0f,
 			.step = 0x01,
 			.default_value = 0x01,
-			.flags = 0,
+			.flags = V4L2_CTRL_FLAG_DISABLED,
 		},
 		{
 			.id = V4L2_CID_BLUE_BALANCE,
@@ -275,7 +293,7 @@ static struct zc0301_sensor pas202bcb = {
 			.maximum = 0x0f,
 			.step = 0x01,
 			.default_value = 0x05,
-			.flags = 0,
+			.flags = V4L2_CTRL_FLAG_DISABLED,
 		},
 		{
 			.id = ZC0301_V4L2_CID_GREEN_BALANCE,
@@ -285,17 +303,7 @@ static struct zc0301_sensor pas202bcb = {
 			.maximum = 0x0f,
 			.step = 0x01,
 			.default_value = 0x00,
-			.flags = 0,
-		},
-		{
-			.id = ZC0301_V4L2_CID_DAC_MAGNITUDE,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "DAC magnitude",
-			.minimum = 0x00,
-			.maximum = 0xff,
-			.step = 0x01,
-			.default_value = 0x04,
-			.flags = 0,
+			.flags = V4L2_CTRL_FLAG_DISABLED,
 		},
 	},
 	.get_ctrl = &pas202bcb_get_ctrl,

@@ -43,9 +43,11 @@ static int (*zc0301_sensor_table[])(struct zc0301_device*) = {                \
 	NULL,                                                                 \
 };
 
+extern struct zc0301_device*
+zc0301_match_id(struct zc0301_device* cam, const struct usb_device_id *id);
+
 extern void
-zc0301_attach_sensor(struct zc0301_device* cam,
-                       struct zc0301_sensor* sensor);
+zc0301_attach_sensor(struct zc0301_device* cam, struct zc0301_sensor* sensor);
 
 #define ZC0301_USB_DEVICE(vend, prod, intclass)                               \
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |                           \
@@ -56,7 +58,14 @@ zc0301_attach_sensor(struct zc0301_device* cam,
 
 #define ZC0301_ID_TABLE                                                       \
 static const struct usb_device_id zc0301_id_table[] =  {                      \
+	{ ZC0301_USB_DEVICE(0x10fd, 0x8050, 0xff), }, /* TAS5130D */          \
+	{ ZC0301_USB_DEVICE(0x041e, 0x0417, 0xff), },                         \
+	{ ZC0301_USB_DEVICE(0x041e, 0x041e, 0xff), }, /* HV7131B */           \
+	{ ZC0301_USB_DEVICE(0x041e, 0x081c, 0xff), }, /* PAS106 */            \
+	{ ZC0301_USB_DEVICE(0x041e, 0x0834, 0xff), }, /* PAS106 */            \
+	{ ZC0301_USB_DEVICE(0x041e, 0x0835, 0xff), }, /* PAS106 */            \
 	{ ZC0301_USB_DEVICE(0x046d, 0x08ae, 0xff), }, /* PAS202BCB */         \
+	{ ZC0301_USB_DEVICE(0x0ac8, 0x0301, 0xff), },                         \
 	{ }                                                                   \
 };
 
@@ -80,15 +89,11 @@ struct zc0301_sensor {
 	struct v4l2_cropcap cropcap;
 	struct v4l2_pix_format pix_format;
 
-	int (*init)(struct zc0301_device* cam);
-	int (*get_ctrl)(struct zc0301_device* cam,
-	                struct v4l2_control* ctrl);
-	int (*set_ctrl)(struct zc0301_device* cam,
+	int (*init)(struct zc0301_device*);
+	int (*get_ctrl)(struct zc0301_device*, struct v4l2_control* ctrl);
+	int (*set_ctrl)(struct zc0301_device*,
 	                const struct v4l2_control* ctrl);
-	int (*set_crop)(struct zc0301_device* cam,
-	                const struct v4l2_rect* rect);
-
-	const struct usb_device* usbdev;
+	int (*set_crop)(struct zc0301_device*, const struct v4l2_rect* rect);
 
 	/* Private */
 	struct v4l2_queryctrl _qctrl[ZC0301_MAX_CTRLS];

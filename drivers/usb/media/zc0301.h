@@ -34,7 +34,8 @@
 #include <linux/param.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
-#include <asm/semaphore.h>
+#include <linux/stddef.h>
+#include <linux/string.h>
 
 #include "zc0301_sensor.h"
 
@@ -51,7 +52,7 @@
 #define ZC0301_ALTERNATE_SETTING   7
 #define ZC0301_URB_TIMEOUT         msecs_to_jiffies(2 * ZC0301_ISO_PACKETS)
 #define ZC0301_CTRL_TIMEOUT        100
-#define ZC0301_FRAME_TIMEOUT       2 * 1000 * msecs_to_jiffies(1)
+#define ZC0301_FRAME_TIMEOUT       2
 
 /*****************************************************************************/
 
@@ -94,6 +95,7 @@ enum zc0301_stream_state {
 
 struct zc0301_module_param {
 	u8 force_munmap;
+	u16 frame_timeout;
 };
 
 static DECLARE_RWSEM(zc0301_disconnect);
@@ -101,7 +103,7 @@ static DECLARE_RWSEM(zc0301_disconnect);
 struct zc0301_device {
 	struct video_device* v4ldev;
 
-	struct zc0301_sensor* sensor;
+	struct zc0301_sensor sensor;
 
 	struct usb_device* usbdev;
 	struct urb* urb[ZC0301_URBS];
@@ -129,11 +131,19 @@ struct zc0301_device {
 
 /*****************************************************************************/
 
+struct zc0301_device*
+zc0301_match_id(struct zc0301_device* cam, const struct usb_device_id *id)
+{
+	if (usb_match_id(usb_ifnum_to_if(cam->usbdev, 0), id))
+		return cam;
+
+	return NULL;
+}
+
 void
 zc0301_attach_sensor(struct zc0301_device* cam, struct zc0301_sensor* sensor)
 {
-	cam->sensor = sensor;
-	cam->sensor->usbdev = cam->usbdev;
+	memcpy(&cam->sensor, sensor, sizeof(struct zc0301_sensor));
 }
 
 /*****************************************************************************/

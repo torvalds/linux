@@ -29,11 +29,9 @@
 #include <linux/moduleparam.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/string.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
-#include <linux/stddef.h>
 #include <linux/compiler.h>
 #include <linux/ioctl.h>
 #include <linux/poll.h>
@@ -54,8 +52,8 @@
 #define ZC0301_MODULE_AUTHOR  "(C) 2006 Luca Risolia"
 #define ZC0301_AUTHOR_EMAIL   "<luca.risolia@studio.unibo.it>"
 #define ZC0301_MODULE_LICENSE "GPL"
-#define ZC0301_MODULE_VERSION "1:1.01"
-#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 1)
+#define ZC0301_MODULE_VERSION "1:1.02"
+#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 2)
 
 /*****************************************************************************/
 
@@ -94,6 +92,15 @@ MODULE_PARM_DESC(force_munmap,
                  "\nDefault value is "__MODULE_STRING(SN9C102_FORCE_MUNMAP)"."
                  "\n");
 
+static unsigned int frame_timeout[] = {[0 ... ZC0301_MAX_DEVICES-1] =
+                                       ZC0301_FRAME_TIMEOUT};
+module_param_array(frame_timeout, uint, NULL, 0644);
+MODULE_PARM_DESC(frame_timeout,
+                 "\n<n[,...]> Timeout for a video frame in seconds."
+                 "\nThis parameter is specific for each detected camera."
+                 "\nDefault value is "__MODULE_STRING(ZC0301_FRAME_TIMEOUT)"."
+                 "\n");
+
 #ifdef ZC0301_DEBUG
 static unsigned short debug = ZC0301_DEBUG_LEVEL;
 module_param(debug, ushort, 0644);
@@ -115,8 +122,8 @@ static u32
 zc0301_request_buffers(struct zc0301_device* cam, u32 count,
                        enum zc0301_io_method io)
 {
-	struct v4l2_pix_format* p = &(cam->sensor->pix_format);
-	struct v4l2_rect* r = &(cam->sensor->cropcap.bounds);
+	struct v4l2_pix_format* p = &(cam->sensor.pix_format);
+	struct v4l2_rect* r = &(cam->sensor.cropcap.bounds);
 	const size_t imagesize = cam->module_param.force_munmap ||
 	                         io == IO_READ ?
 	                         (p->width * p->height * p->priv) / 8 :
@@ -332,9 +339,9 @@ static void zc0301_urb_complete(struct urb *urb, struct pt_regs* regs)
 		(*f) = list_entry(cam->inqueue.next, struct zc0301_frame_t,
 		                  frame);
 
-	imagesize = (cam->sensor->pix_format.width *
-	             cam->sensor->pix_format.height *
-	             cam->sensor->pix_format.priv) / 8;
+	imagesize = (cam->sensor.pix_format.width *
+	             cam->sensor.pix_format.height *
+	             cam->sensor.pix_format.priv) / 8;
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		unsigned int len, status;
@@ -555,7 +562,7 @@ zc0301_set_compression(struct zc0301_device* cam,
 
 static int zc0301_init(struct zc0301_device* cam)
 {
-	struct zc0301_sensor* s = cam->sensor;
+	struct zc0301_sensor* s = &cam->sensor;
 	struct v4l2_control ctrl;
 	struct v4l2_queryctrl *qctrl;
 	struct v4l2_rect* rect;
@@ -630,6 +637,7 @@ static void zc0301_release_resources(struct zc0301_device* cam)
 	DBG(2, "V4L2 device /dev/video%d deregistered", cam->v4ldev->minor);
 	video_set_drvdata(cam->v4ldev, NULL);
 	video_unregister_device(cam->v4ldev);
+	usb_put_dev(cam->usbdev);
 	kfree(cam->control_buffer);
 }
 
@@ -798,7 +806,8 @@ zc0301_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 		            (!list_empty(&cam->outqueue)) ||
 		            (cam->state & DEV_DISCONNECTED) ||
 		            (cam->state & DEV_MISCONFIGURED),
-		            ZC0301_FRAME_TIMEOUT );
+		            cam->module_param.frame_timeout *
+		            1000 * msecs_to_jiffies(1) );
 		if (timeout < 0) {
 			mutex_unlock(&cam->fileop_mutex);
 			return timeout;
@@ -1056,7 +1065,7 @@ zc0301_vidioc_s_input(struct zc0301_device* cam, void __user * arg)
 static int
 zc0301_vidioc_query_ctrl(struct zc0301_device* cam, void __user * arg)
 {
-	struct zc0301_sensor* s = cam->sensor;
+	struct zc0301_sensor* s = &cam->sensor;
 	struct v4l2_queryctrl qc;
 	u8 i;
 
@@ -1078,7 +1087,7 @@ zc0301_vidioc_query_ctrl(struct zc0301_device* cam, void __user * arg)
 static int
 zc0301_vidioc_g_ctrl(struct zc0301_device* cam, void __user * arg)
 {
-	struct zc0301_sensor* s = cam->sensor;
+	struct zc0301_sensor* s = &cam->sensor;
 	struct v4l2_control ctrl;
 	int err = 0;
 	u8 i;
@@ -1110,7 +1119,7 @@ exit:
 static int
 zc0301_vidioc_s_ctrl(struct zc0301_device* cam, void __user * arg)
 {
-	struct zc0301_sensor* s = cam->sensor;
+	struct zc0301_sensor* s = &cam->sensor;
 	struct v4l2_control ctrl;
 	u8 i;
 	int err = 0;
@@ -1123,6 +1132,8 @@ zc0301_vidioc_s_ctrl(struct zc0301_device* cam, void __user * arg)
 
 	for (i = 0; i < ARRAY_SIZE(s->qctrl); i++)
 		if (ctrl.id == s->qctrl[i].id) {
+			if (s->qctrl[i].flags & V4L2_CTRL_FLAG_DISABLED)
+				return -EINVAL;
 			if (ctrl.value < s->qctrl[i].minimum ||
 			    ctrl.value > s->qctrl[i].maximum)
 				return -ERANGE;
@@ -1142,7 +1153,7 @@ zc0301_vidioc_s_ctrl(struct zc0301_device* cam, void __user * arg)
 static int
 zc0301_vidioc_cropcap(struct zc0301_device* cam, void __user * arg)
 {
-	struct v4l2_cropcap* cc = &(cam->sensor->cropcap);
+	struct v4l2_cropcap* cc = &(cam->sensor.cropcap);
 
 	cc->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	cc->pixelaspect.numerator = 1;
@@ -1158,7 +1169,7 @@ zc0301_vidioc_cropcap(struct zc0301_device* cam, void __user * arg)
 static int
 zc0301_vidioc_g_crop(struct zc0301_device* cam, void __user * arg)
 {
-	struct zc0301_sensor* s = cam->sensor;
+	struct zc0301_sensor* s = &cam->sensor;
 	struct v4l2_crop crop = {
 		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
 	};
@@ -1175,7 +1186,7 @@ zc0301_vidioc_g_crop(struct zc0301_device* cam, void __user * arg)
 static int
 zc0301_vidioc_s_crop(struct zc0301_device* cam, void __user * arg)
 {
-	struct zc0301_sensor* s = cam->sensor;
+	struct zc0301_sensor* s = &cam->sensor;
 	struct v4l2_crop crop;
 	struct v4l2_rect* rect;
 	struct v4l2_rect* bounds = &(s->cropcap.bounds);
@@ -1304,7 +1315,7 @@ static int
 zc0301_vidioc_g_fmt(struct zc0301_device* cam, void __user * arg)
 {
 	struct v4l2_format format;
-	struct v4l2_pix_format* pfmt = &(cam->sensor->pix_format);
+	struct v4l2_pix_format* pfmt = &(cam->sensor.pix_format);
 
 	if (copy_from_user(&format, arg, sizeof(format)))
 		return -EFAULT;
@@ -1328,7 +1339,7 @@ static int
 zc0301_vidioc_try_s_fmt(struct zc0301_device* cam, unsigned int cmd,
                         void __user * arg)
 {
-	struct zc0301_sensor* s = cam->sensor;
+	struct zc0301_sensor* s = &cam->sensor;
 	struct v4l2_format format;
 	struct v4l2_pix_format* pix;
 	struct v4l2_pix_format* pfmt = &(s->pix_format);
@@ -1612,7 +1623,8 @@ zc0301_vidioc_dqbuf(struct zc0301_device* cam, struct file* filp,
 		            (!list_empty(&cam->outqueue)) ||
 		            (cam->state & DEV_DISCONNECTED) ||
 		            (cam->state & DEV_MISCONFIGURED),
-		            ZC0301_FRAME_TIMEOUT );
+		            cam->module_param.frame_timeout *
+		            1000 * msecs_to_jiffies(1) );
 		if (timeout < 0)
 			return timeout;
 		if (cam->state & DEV_DISCONNECTED)
@@ -1911,8 +1923,8 @@ zc0301_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 			break;
 	}
 
-	if (!err && cam->sensor)
-		DBG(2, "%s image sensor detected", cam->sensor->name);
+	if (!err)
+		DBG(2, "%s image sensor detected", cam->sensor.name);
 	else {
 		DBG(1, "No supported image sensor detected");
 		err = -ENODEV;
@@ -1950,6 +1962,7 @@ zc0301_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	DBG(2, "V4L2 device registered as /dev/video%d", cam->v4ldev->minor);
 
 	cam->module_param.force_munmap = force_munmap[dev_nr];
+	cam->module_param.frame_timeout = frame_timeout[dev_nr];
 
 	dev_nr = (dev_nr < ZC0301_MAX_DEVICES-1) ? dev_nr+1 : 0;
 
@@ -1994,6 +2007,7 @@ static void zc0301_usb_disconnect(struct usb_interface* intf)
 		cam->state |= DEV_DISCONNECTED;
 		wake_up_interruptible(&cam->wait_frame);
 		wake_up(&cam->wait_stream);
+		usb_get_dev(cam->usbdev);
 	} else {
 		cam->state |= DEV_DISCONNECTED;
 		zc0301_release_resources(cam);
