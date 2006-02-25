@@ -106,6 +106,10 @@ sys32_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
 	unsigned long error;
 
 	error = -EINVAL;
+	if (pgoff & (~PAGE_MASK >> 12))
+		goto out;
+	pgoff >>= PAGE_SHIFT-12;
+
 	if (!(flags & MAP_ANONYMOUS)) {
 		error = -EBADF;
 		file = fget(fd);
