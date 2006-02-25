@@ -78,7 +78,7 @@ help:
 	@echo  '  defconfig	  - New config with default answer to all options'
 	@echo  '  allmodconfig	  - New config selecting modules when possible'
 	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
-	@echo  '  allnoconfig	  - New minimal config'
+	@echo  '  allnoconfig	  - New config where all options are answered with no'
 
 # ===========================================================================
 # Shared Makefile for the various kconfig executables:
