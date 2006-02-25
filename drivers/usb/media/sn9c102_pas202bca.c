@@ -1,13 +1,8 @@
 /***************************************************************************
- * Plug-in for PAS202BCB image sensor connected to the SN9C10x PC Camera   *
+ * Plug-in for PAS202BCA image sensor connected to the SN9C10x PC Camera   *
  * Controllers                                                             *
  *                                                                         *
- * Copyright (C) 2004 by Carlos Eduardo Medaglia Dyonisio                  *
- *                       <medaglia@undl.org.br>                            *
- *                       http://cadu.homelinux.com:8080/                   *
- *                                                                         *
- * DAC Magnitude, exposure and green gain controls added by                *
- * Luca Risolia <luca.risolia@studio.unibo.it>                             *
+ * Copyright (C) 2006 by Luca Risolia <luca.risolia@studio.unibo.it>       *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -28,10 +23,10 @@
 #include "sn9c102_sensor.h"
 
 
-static struct sn9c102_sensor pas202bcb;
+static struct sn9c102_sensor pas202bca;
 
 
-static int pas202bcb_init(struct sn9c102_device* cam)
+static int pas202bca_init(struct sn9c102_device* cam)
 {
 	int err = 0;
 
@@ -58,50 +53,7 @@ static int pas202bcb_init(struct sn9c102_device* cam)
 }
 
 
-static int pas202bcb_get_ctrl(struct sn9c102_device* cam, 
-                              struct v4l2_control* ctrl)
-{
-	switch (ctrl->id) {
-	case V4L2_CID_EXPOSURE:
-		{
-			int r1 = sn9c102_i2c_read(cam, 0x04),
-			    r2 = sn9c102_i2c_read(cam, 0x05);
-			if (r1 < 0 || r2 < 0)
-				return -EIO;
-			ctrl->value = (r1 << 6) | (r2 & 0x3f);
-		}
-		return 0;
-	case V4L2_CID_RED_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x09)) < 0)
-			return -EIO;
-		ctrl->value &= 0x0f;
-		return 0;
-	case V4L2_CID_BLUE_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x07)) < 0)
-			return -EIO;
-		ctrl->value &= 0x0f;
-		return 0;
-	case V4L2_CID_GAIN:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x10)) < 0)
-			return -EIO;
-		ctrl->value &= 0x1f;
-		return 0;
-	case SN9C102_V4L2_CID_GREEN_BALANCE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x08)) < 0)
-			return -EIO;
-		ctrl->value &= 0x0f;
-		return 0;
-	case SN9C102_V4L2_CID_DAC_MAGNITUDE:
-		if ((ctrl->value = sn9c102_i2c_read(cam, 0x0c)) < 0)
-			return -EIO;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
-
-static int pas202bcb_set_pix_format(struct sn9c102_device* cam, 
+static int pas202bca_set_pix_format(struct sn9c102_device* cam,
                                     const struct v4l2_pix_format* pix)
 {
 	int err = 0;
@@ -115,7 +67,7 @@ static int pas202bcb_set_pix_format(struct sn9c102_device* cam,
 }
 
 
-static int pas202bcb_set_ctrl(struct sn9c102_device* cam, 
+static int pas202bca_set_ctrl(struct sn9c102_device* cam,
                               const struct v4l2_control* ctrl)
 {
 	int err = 0;
@@ -149,12 +101,12 @@ static int pas202bcb_set_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int pas202bcb_set_crop(struct sn9c102_device* cam, 
+static int pas202bca_set_crop(struct sn9c102_device* cam,
                               const struct v4l2_rect* rect)
 {
-	struct sn9c102_sensor* s = &pas202bcb;
+	struct sn9c102_sensor* s = &pas202bca;
 	int err = 0;
-	u8 h_start = (u8)(rect->left - s->cropcap.bounds.left) + 4,
+	u8 h_start = (u8)(rect->left - s->cropcap.bounds.left) + 3,
 	   v_start = (u8)(rect->top - s->cropcap.bounds.top) + 3;
 
 	err += sn9c102_write_reg(cam, h_start, 0x12);
@@ -164,15 +116,14 @@ static int pas202bcb_set_crop(struct sn9c102_device* cam,
 }
 
 
-static struct sn9c102_sensor pas202bcb = {
-	.name = "PAS202BCB",
-	.maintainer = "Carlos Eduardo Medaglia Dyonisio "
-	              "<medaglia@undl.org.br>",
+static struct sn9c102_sensor pas202bca = {
+	.name = "PAS202BCA",
+	.maintainer = "Luca Risolia <luca.risolia@studio.unibo.it>",
 	.sysfs_ops = SN9C102_I2C_READ | SN9C102_I2C_WRITE,
 	.frequency = SN9C102_I2C_400KHZ | SN9C102_I2C_100KHZ,
 	.interface = SN9C102_I2C_2WIRES,
 	.i2c_slave_id = 0x40,
-	.init = &pas202bcb_init,
+	.init = &pas202bca_init,
 	.qctrl = {
 		{
 			.id = V4L2_CID_EXPOSURE,
@@ -235,8 +186,7 @@ static struct sn9c102_sensor pas202bcb = {
 			.flags = 0,
 		},
 	},
-	.get_ctrl = &pas202bcb_get_ctrl,
-	.set_ctrl = &pas202bcb_set_ctrl,
+	.set_ctrl = &pas202bca_set_ctrl,
 	.cropcap = {
 		.bounds = {
 			.left = 0,
@@ -251,43 +201,38 @@ static struct sn9c102_sensor pas202bcb = {
 			.height = 480,
 		},
 	},
-	.set_crop = &pas202bcb_set_crop,
+	.set_crop = &pas202bca_set_crop,
 	.pix_format = {
 		.width = 640,
 		.height = 480,
 		.pixelformat = V4L2_PIX_FMT_SBGGR8,
 		.priv = 8,
 	},
-	.set_pix_format = &pas202bcb_set_pix_format
+	.set_pix_format = &pas202bca_set_pix_format
 };
 
 
-int sn9c102_probe_pas202bcb(struct sn9c102_device* cam)
+int sn9c102_probe_pas202bca(struct sn9c102_device* cam)
 {
-	int r0 = 0, r1 = 0, err = 0;
-	unsigned int pid = 0;
+	const struct usb_device_id pas202bca_id_table[] = {
+		{ USB_DEVICE(0x0c45, 0x60af), },
+		{ }
+	};
+	int err = 0;
 
-	/*
-	 *  Minimal initialization to enable the I2C communication
-	 *  NOTE: do NOT change the values!
-	 */
-	err += sn9c102_write_reg(cam, 0x01, 0x01); /* sensor power down */
-	err += sn9c102_write_reg(cam, 0x40, 0x01); /* sensor power on */
-	err += sn9c102_write_reg(cam, 0x28, 0x17); /* sensor clock at 24 MHz */
+	if (!sn9c102_match_id(cam,pas202bca_id_table))
+		return -ENODEV;
+
+	err += sn9c102_write_reg(cam, 0x01, 0x01);
+	err += sn9c102_write_reg(cam, 0x40, 0x01);
+	err += sn9c102_write_reg(cam, 0x28, 0x17);
 	if (err)
 		return -EIO;
 
-	r0 = sn9c102_i2c_try_read(cam, &pas202bcb, 0x00);
-	r1 = sn9c102_i2c_try_read(cam, &pas202bcb, 0x01);
-
-	if (r0 < 0 || r1 < 0)
-		return -EIO;
-
-	pid = (r0 << 4) | ((r1 & 0xf0) >> 4);
-	if (pid != 0x017)
+	if (sn9c102_i2c_try_write(cam, &pas202bca, 0x10, 0)) /* try to write */
 		return -ENODEV;
 
-	sn9c102_attach_sensor(cam, &pas202bcb);
+	sn9c102_attach_sensor(cam, &pas202bca);
 
 	return 0;
 }
