@@ -1070,7 +1070,7 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 		}
 	}
 
-	cifs_small_buf_release(pSMB);
+/*	cifs_small_buf_release(pSMB); */ /* Freed earlier now in SendReceive2 */
 	if(*buf) {
 		if(resp_buf_type == CIFS_SMALL_BUFFER)
 			cifs_small_buf_release(iov[0].iov_base);
@@ -1274,7 +1274,7 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 		*nbytes += le16_to_cpu(pSMBr->Count);
 	} 
 
-	cifs_small_buf_release(pSMB);
+/*	cifs_small_buf_release(pSMB); */ /* Freed earlier now in SendReceive2 */
 	if(resp_buf_type == CIFS_SMALL_BUFFER)
 		cifs_small_buf_release(iov[0].iov_base);
 	else if(resp_buf_type == CIFS_LARGE_BUFFER)
@@ -2606,7 +2606,7 @@ qsec_out:
 		cifs_small_buf_release(iov[0].iov_base);
 	else if(buf_type == CIFS_LARGE_BUFFER)
 		cifs_buf_release(iov[0].iov_base);
-	cifs_small_buf_release(pSMB);
+/*	cifs_small_buf_release(pSMB); */ /* Freed earlier now in SendReceive2 */
 	return rc;
 }
 

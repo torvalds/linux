@@ -122,8 +122,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, const int type,
 
 
 /*	rc = SendReceive2(xid, ses, iov, num_iovecs, &resp_buf_type, 0); */
-
-	cifs_small_buf_release(smb_buffer);
+	/* SMB request buf freed in SendReceive2 */
 
 	return rc;
 }
