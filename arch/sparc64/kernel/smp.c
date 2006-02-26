@@ -617,7 +617,7 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 
 		if (unlikely(++retries > 100)) {
 			printk("CPU[%d]: sun4v mondo error %lu\n",
-			       this_cpu, func);
+			       this_cpu, arg0);
 			break;
 		}
 
