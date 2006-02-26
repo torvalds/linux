@@ -1244,7 +1244,7 @@ void __cpu_die(unsigned int cpu)
  	printk(KERN_ERR "CPU %u didn't die...\n", cpu);
 }
 
-static __init int setup_additional_cpus(char *s)
+__init int setup_additional_cpus(char *s)
 {
 	return get_option(&s, &additional_cpus);
 }
