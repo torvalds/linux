@@ -1850,7 +1850,7 @@ static inline void check_timer(void)
 	}
 	printk(" failed.\n");
 
-	if (nmi_watchdog) {
+	if (nmi_watchdog == NMI_IO_APIC) {
 		printk(KERN_WARNING "timer doesn't work through the IO-APIC - disabling NMI Watchdog!\n");
 		nmi_watchdog = 0;
 	}
