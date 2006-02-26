@@ -108,6 +108,14 @@ extern void xor_vis_4(unsigned long, unsigned long *, unsigned long *,
 extern void xor_vis_5(unsigned long, unsigned long *, unsigned long *,
 		      unsigned long *, unsigned long *, unsigned long *);
 
+extern void xor_niagara_2(unsigned long, unsigned long *, unsigned long *);
+extern void xor_niagara_3(unsigned long, unsigned long *, unsigned long *,
+			  unsigned long *);
+extern void xor_niagara_4(unsigned long, unsigned long *, unsigned long *,
+			  unsigned long *, unsigned long *);
+extern void xor_niagara_5(unsigned long, unsigned long *, unsigned long *,
+			  unsigned long *, unsigned long *, unsigned long *);
+
 /* Per-CPU information table */
 EXPORT_PER_CPU_SYMBOL(__cpu_data);
 
@@ -387,5 +395,10 @@ EXPORT_SYMBOL(xor_vis_2);
 EXPORT_SYMBOL(xor_vis_3);
 EXPORT_SYMBOL(xor_vis_4);
 EXPORT_SYMBOL(xor_vis_5);
+
+EXPORT_SYMBOL(xor_niagara_2);
+EXPORT_SYMBOL(xor_niagara_3);
+EXPORT_SYMBOL(xor_niagara_4);
+EXPORT_SYMBOL(xor_niagara_5);
 
 EXPORT_SYMBOL(prom_palette);
