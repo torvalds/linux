@@ -182,25 +182,58 @@ struct mthca_cmd_context {
 	u8                status;
 };
 
+static int fw_cmd_doorbell = 1;
+module_param(fw_cmd_doorbell, int, 0644);
+MODULE_PARM_DESC(fw_cmd_doorbell, "post FW commands through doorbell page if nonzero "
+		 "(and supported by FW)");
+
 static inline int go_bit(struct mthca_dev *dev)
 {
 	return readl(dev->hcr + HCR_STATUS_OFFSET) &
 		swab32(1 << HCR_GO_BIT);
 }
 
-static int mthca_cmd_post(struct mthca_dev *dev,
-			  u64 in_param,
-			  u64 out_param,
-			  u32 in_modifier,
-			  u8 op_modifier,
-			  u16 op,
-			  u16 token,
-			  int event)
+static void mthca_cmd_post_dbell(struct mthca_dev *dev,
+				 u64 in_param,
+				 u64 out_param,
+				 u32 in_modifier,
+				 u8 op_modifier,
+				 u16 op,
+				 u16 token)
 {
-	int err = 0;
+	void __iomem *ptr = dev->cmd.dbell_map;
+	u16 *offs = dev->cmd.dbell_offsets;
 
-	mutex_lock(&dev->cmd.hcr_mutex);
+	__raw_writel((__force u32) cpu_to_be32(in_param >> 32),           ptr + offs[0]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32(in_param & 0xfffffffful),  ptr + offs[1]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32(in_modifier),              ptr + offs[2]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32(out_param >> 32),          ptr + offs[3]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32(out_param & 0xfffffffful), ptr + offs[4]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32(token << 16),              ptr + offs[5]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32((1 << HCR_GO_BIT)                |
+					       (1 << HCA_E_BIT)                 |
+					       (op_modifier << HCR_OPMOD_SHIFT) |
+					        op),                      ptr + offs[6]);
+	wmb();
+	__raw_writel((__force u32) 0,                                     ptr + offs[7]);
+	wmb();
+}
 
+static int mthca_cmd_post_hcr(struct mthca_dev *dev,
+			      u64 in_param,
+			      u64 out_param,
+			      u32 in_modifier,
+			      u8 op_modifier,
+			      u16 op,
+			      u16 token,
+			      int event)
+{
 	if (event) {
 		unsigned long end = jiffies + GO_BIT_TIMEOUT;
 
@@ -210,10 +243,8 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 		}
 	}
 
-	if (go_bit(dev)) {
-		err = -EAGAIN;
-		goto out;
-	}
+	if (go_bit(dev))
+		return -EAGAIN;
 
 	/*
 	 * We use writel (instead of something like memcpy_toio)
@@ -236,7 +267,29 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 					       (op_modifier << HCR_OPMOD_SHIFT) |
 					       op),                       dev->hcr + 6 * 4);
 
-out:
+	return 0;
+}
+
+static int mthca_cmd_post(struct mthca_dev *dev,
+			  u64 in_param,
+			  u64 out_param,
+			  u32 in_modifier,
+			  u8 op_modifier,
+			  u16 op,
+			  u16 token,
+			  int event)
+{
+	int err = 0;
+
+	mutex_lock(&dev->cmd.hcr_mutex);
+
+	if (event && dev->cmd.flags & MTHCA_CMD_POST_DOORBELLS && fw_cmd_doorbell)
+		mthca_cmd_post_dbell(dev, in_param, out_param, in_modifier,
+					   op_modifier, op, token);
+	else
+		err = mthca_cmd_post_hcr(dev, in_param, out_param, in_modifier,
+					 op_modifier, op, token, event);
+
 	mutex_unlock(&dev->cmd.hcr_mutex);
 	return err;
 }
@@ -386,7 +439,7 @@ static int mthca_cmd_box(struct mthca_dev *dev,
 			 unsigned long timeout,
 			 u8 *status)
 {
-	if (dev->cmd.use_events)
+	if (dev->cmd.flags & MTHCA_CMD_USE_EVENTS)
 		return mthca_cmd_wait(dev, in_param, &out_param, 0,
 				      in_modifier, op_modifier, op,
 				      timeout, status);
@@ -423,7 +476,7 @@ static int mthca_cmd_imm(struct mthca_dev *dev,
 			 unsigned long timeout,
 			 u8 *status)
 {
-	if (dev->cmd.use_events)
+	if (dev->cmd.flags & MTHCA_CMD_USE_EVENTS)
 		return mthca_cmd_wait(dev, in_param, out_param, 1,
 				      in_modifier, op_modifier, op,
 				      timeout, status);
@@ -437,7 +490,7 @@ int mthca_cmd_init(struct mthca_dev *dev)
 {
 	mutex_init(&dev->cmd.hcr_mutex);
 	sema_init(&dev->cmd.poll_sem, 1);
-	dev->cmd.use_events = 0;
+	dev->cmd.flags = 0;
 
 	dev->hcr = ioremap(pci_resource_start(dev->pdev, 0) + MTHCA_HCR_BASE,
 			   MTHCA_HCR_SIZE);
@@ -461,6 +514,8 @@ void mthca_cmd_cleanup(struct mthca_dev *dev)
 {
 	pci_pool_destroy(dev->cmd.pool);
 	iounmap(dev->hcr);
+	if (dev->cmd.flags & MTHCA_CMD_POST_DOORBELLS)
+		iounmap(dev->cmd.dbell_map);
 }
 
 /*
@@ -498,7 +553,8 @@ int mthca_cmd_use_events(struct mthca_dev *dev)
 		; /* nothing */
 	--dev->cmd.token_mask;
 
-	dev->cmd.use_events = 1;
+	dev->cmd.flags |= MTHCA_CMD_USE_EVENTS;
+
 	down(&dev->cmd.poll_sem);
 
 	return 0;
@@ -511,7 +567,7 @@ void mthca_cmd_use_polling(struct mthca_dev *dev)
 {
 	int i;
 
-	dev->cmd.use_events = 0;
+	dev->cmd.flags &= ~MTHCA_CMD_USE_EVENTS;
 
 	for (i = 0; i < dev->cmd.max_cmds; ++i)
 		down(&dev->cmd.event_sem);
@@ -661,18 +717,51 @@ int mthca_RUN_FW(struct mthca_dev *dev, u8 *status)
 	return mthca_cmd(dev, 0, 0, 0, CMD_RUN_FW, CMD_TIME_CLASS_A, status);
 }
 
+static void mthca_setup_cmd_doorbells(struct mthca_dev *dev, u64 base)
+{
+	unsigned long addr;
+	u16 max_off = 0;
+	int i;
+
+	for (i = 0; i < 8; ++i)
+		max_off = max(max_off, dev->cmd.dbell_offsets[i]);
+
+	if ((base & PAGE_MASK) != ((base + max_off) & PAGE_MASK)) {
+		mthca_warn(dev, "Firmware doorbell region at 0x%016llx, "
+			   "length 0x%x crosses a page boundary\n",
+			   (unsigned long long) base, max_off);
+		return;
+	}
+
+	addr = pci_resource_start(dev->pdev, 2) +
+		((pci_resource_len(dev->pdev, 2) - 1) & base);
+	dev->cmd.dbell_map = ioremap(addr, max_off + sizeof(u32));
+	if (!dev->cmd.dbell_map)
+		return;
+
+	dev->cmd.flags |= MTHCA_CMD_POST_DOORBELLS;
+	mthca_dbg(dev, "Mapped doorbell page for posting FW commands\n");
+}
+
 int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 {
 	struct mthca_mailbox *mailbox;
 	u32 *outbox;
+	u64 base;
+	u32 tmp;
 	int err = 0;
 	u8 lg;
+	int i;
 
 #define QUERY_FW_OUT_SIZE             0x100
 #define QUERY_FW_VER_OFFSET            0x00
 #define QUERY_FW_MAX_CMD_OFFSET        0x0f
 #define QUERY_FW_ERR_START_OFFSET      0x30
 #define QUERY_FW_ERR_SIZE_OFFSET       0x38
+
+#define QUERY_FW_CMD_DB_EN_OFFSET      0x10
+#define QUERY_FW_CMD_DB_OFFSET         0x50
+#define QUERY_FW_CMD_DB_BASE           0x60
 
 #define QUERY_FW_START_OFFSET          0x20
 #define QUERY_FW_END_OFFSET            0x28
@@ -702,15 +791,28 @@ int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 		((dev->fw_ver & 0xffff0000ull) >> 16) |
 		((dev->fw_ver & 0x0000ffffull) << 16);
 
+	mthca_dbg(dev, "FW version %012llx, max commands %d\n",
+		  (unsigned long long) dev->fw_ver, dev->cmd.max_cmds);
+
 	MTHCA_GET(lg, outbox, QUERY_FW_MAX_CMD_OFFSET);
 	dev->cmd.max_cmds = 1 << lg;
 	MTHCA_GET(dev->catas_err.addr, outbox, QUERY_FW_ERR_START_OFFSET);
 	MTHCA_GET(dev->catas_err.size, outbox, QUERY_FW_ERR_SIZE_OFFSET);
 
-	mthca_dbg(dev, "FW version %012llx, max commands %d\n",
-		  (unsigned long long) dev->fw_ver, dev->cmd.max_cmds);
 	mthca_dbg(dev, "Catastrophic error buffer at 0x%llx, size 0x%x\n",
 		  (unsigned long long) dev->catas_err.addr, dev->catas_err.size);
+
+	MTHCA_GET(tmp, outbox, QUERY_FW_CMD_DB_EN_OFFSET);
+	if (tmp & 0x1) {
+		mthca_dbg(dev, "FW supports commands through doorbells\n");
+
+		MTHCA_GET(base, outbox, QUERY_FW_CMD_DB_BASE);
+		for (i = 0; i < MTHCA_CMD_NUM_DBELL_DWORDS; ++i)
+			MTHCA_GET(dev->cmd.dbell_offsets[i], outbox,
+				  QUERY_FW_CMD_DB_OFFSET + (i << 1));
+
+		mthca_setup_cmd_doorbells(dev, base);
+	}
 
 	if (mthca_is_memfree(dev)) {
 		MTHCA_GET(dev->fw.arbel.fw_pages,       outbox, QUERY_FW_SIZE_OFFSET);

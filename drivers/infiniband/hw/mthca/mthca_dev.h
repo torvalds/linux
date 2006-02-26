@@ -110,9 +110,17 @@ enum {
 	MTHCA_OPCODE_INVALID        = 0xff
 };
 
+enum {
+	MTHCA_CMD_USE_EVENTS         = 1 << 0,
+	MTHCA_CMD_POST_DOORBELLS     = 1 << 1
+};
+
+enum {
+	MTHCA_CMD_NUM_DBELL_DWORDS = 8
+};
+
 struct mthca_cmd {
 	struct pci_pool          *pool;
-	int                       use_events;
 	struct mutex              hcr_mutex;
 	struct semaphore 	  poll_sem;
 	struct semaphore 	  event_sem;
@@ -121,6 +129,9 @@ struct mthca_cmd {
 	int                       free_head;
 	struct mthca_cmd_context *context;
 	u16                       token_mask;
+	u32                       flags;
+	void __iomem             *dbell_map;
+	u16                       dbell_offsets[MTHCA_CMD_NUM_DBELL_DWORDS];
 };
 
 struct mthca_limits {
