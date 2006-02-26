@@ -1152,8 +1152,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	setup_ioapic_dest();
 #endif
 
-	time_init_gtod();
-
 	check_nmi_watchdog();
 }
 
