@@ -1282,9 +1282,7 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 	u8 hp_slot;
 	u8 temp_byte;
 	u8 adapter_speed;
-	u32 index;
 	u32 rc = 0;
-	u32 src = 8;
 
 	hp_slot = func->device - ctrl->slot_device_offset;
 
@@ -1368,68 +1366,17 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 
 			rc = cpqhp_configure_board(ctrl, func);
 
-			if (rc || src) {
-				/* If configuration fails, turn it off
-				 * Get slot won't work for devices behind
-				 * bridges, but in this case it will always be
-				 * called for the "base" bus/dev/func of an
-				 * adapter. */
-
-				mutex_lock(&ctrl->crit_sect);
-
-				amber_LED_on (ctrl, hp_slot);
-				green_LED_off (ctrl, hp_slot);
-				slot_disable (ctrl, hp_slot);
-
-				set_SOGO(ctrl);
-
-				/* Wait for SOBS to be unset */
-				wait_for_ctrl_irq (ctrl);
-
-				mutex_unlock(&ctrl->crit_sect);
-
-				if (rc)
-					return rc;
-				else
-					return 1;
-			}
-
-			func->status = 0;
-			func->switch_save = 0x10;
-
-			index = 1;
-			while (((func = cpqhp_slot_find(func->bus, func->device, index)) != NULL) && !rc) {
-				rc |= cpqhp_configure_board(ctrl, func);
-				index++;
-			}
-
-			if (rc) {
-				/* If configuration fails, turn it off
-				 * Get slot won't work for devices behind
-				 * bridges, but in this case it will always be
-				 * called for the "base" bus/dev/func of an
-				 * adapter. */
-
-				mutex_lock(&ctrl->crit_sect);
-
-				amber_LED_on (ctrl, hp_slot);
-				green_LED_off (ctrl, hp_slot);
-				slot_disable (ctrl, hp_slot);
-
-				set_SOGO(ctrl);
-
-				/* Wait for SOBS to be unset */
-				wait_for_ctrl_irq (ctrl);
-
-				mutex_unlock(&ctrl->crit_sect);
-
-				return rc;
-			}
-			/* Done configuring so turn LED on full time */
+			/* If configuration fails, turn it off
+			 * Get slot won't work for devices behind
+			 * bridges, but in this case it will always be
+			 * called for the "base" bus/dev/func of an
+			 * adapter. */
 
 			mutex_lock(&ctrl->crit_sect);
 
-			green_LED_on (ctrl, hp_slot);
+			amber_LED_on (ctrl, hp_slot);
+			green_LED_off (ctrl, hp_slot);
+			slot_disable (ctrl, hp_slot);
 
 			set_SOGO(ctrl);
 
@@ -1437,7 +1384,12 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 			wait_for_ctrl_irq (ctrl);
 
 			mutex_unlock(&ctrl->crit_sect);
-			rc = 0;
+
+			if (rc)
+				return rc;
+			else
+				return 1;
+
 		} else {
 			/* Something is wrong
 
