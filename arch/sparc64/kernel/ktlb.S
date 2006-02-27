@@ -163,6 +163,7 @@ kvmap_dtlb_tsb4m_miss:
 
 	/* Divide by 64 to get the offset into the bitmask.  */
 	srlx		%g5, 6, %g5
+	sllx		%g5, 3, %g5
 
 	/* kern_linear_pte_xor[((mask & bit) ? 1 : 0)] */
 	ldx		[%g2 + %g5], %g2
