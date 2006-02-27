@@ -542,7 +542,8 @@ int gfs2_meta_reread(struct gfs2_sbd *sdp, struct buffer_head *bh, int flags)
  * @meta: Flag to indicate whether its metadata or not
  */
 
-void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
+void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
+			 int meta)
 {
 	struct gfs2_bufdata *bd;
 
@@ -818,7 +819,8 @@ void gfs2_meta_ra(struct gfs2_glock *gl, uint64_t dblock, uint32_t extlen)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct inode *aspace = gl->gl_aspace;
 	struct buffer_head *first_bh, *bh;
-	uint32_t max_ra = gfs2_tune_get(sdp, gt_max_readahead) >> sdp->sd_sb.sb_bsize_shift;
+	uint32_t max_ra = gfs2_tune_get(sdp, gt_max_readahead) >>
+			  sdp->sd_sb.sb_bsize_shift;
 	int error;
 
 	if (!extlen || !max_ra)

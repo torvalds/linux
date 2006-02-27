@@ -64,7 +64,8 @@ int gfs2_meta_read(struct gfs2_glock *gl, uint64_t blkno,
 		   int flags, struct buffer_head **bhp);
 int gfs2_meta_reread(struct gfs2_sbd *sdp, struct buffer_head *bh, int flags);
 
-void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh, int meta);
+void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
+			 int meta);
 void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh);
 void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 		struct gfs2_ail *ai);

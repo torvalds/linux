@@ -98,7 +98,8 @@ int gfs2_dir_get_buffer(struct gfs2_inode *ip, uint64_t block, int new,
 		gfs2_metatype_set(bh, GFS2_METATYPE_JD, GFS2_FORMAT_JD);
 		gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
 	} else {
-		error = gfs2_meta_read(ip->i_gl, block, DIO_START | DIO_WAIT, &bh);
+		error = gfs2_meta_read(ip->i_gl, block, DIO_START | DIO_WAIT,
+				       &bh);
 		if (error)
 			return error;
 		if (gfs2_metatype_check(ip->i_sbd, bh, GFS2_METATYPE_JD)) {
@@ -163,7 +164,8 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 
 	if (gfs2_is_stuffed(ip) &&
 	    offset + size <= sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode))
-		return gfs2_dir_write_stuffed(ip, buf, (unsigned int)offset, size);
+		return gfs2_dir_write_stuffed(ip, buf, (unsigned int)offset,
+					      size);
 
 	if (gfs2_assert_warn(sdp, gfs2_is_jdata(ip)))
 		return -EINVAL;
@@ -188,7 +190,8 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 
 		if (!extlen) {
 			new = 1;
-			error = gfs2_block_map(ip, lblock, &new, &dblock, &extlen);
+			error = gfs2_block_map(ip, lblock, &new, &dblock,
+					       &extlen);
 			if (error)
 				goto fail;
 			error = -EIO;
@@ -196,7 +199,9 @@ static int gfs2_dir_write_data(struct gfs2_inode *ip, const char *buf,
 				goto fail;
 		}
 
-		error = gfs2_dir_get_buffer(ip, dblock, (amount == sdp->sd_jbsize) ? 1 : new, &bh);
+		error = gfs2_dir_get_buffer(ip, dblock,
+					    (amount == sdp->sd_jbsize) ?
+					    1 : new, &bh);
 		if (error)
 			goto fail;
 
@@ -280,7 +285,8 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf,
 		return 0;
 
 	if (gfs2_is_stuffed(ip))
-		return gfs2_dir_read_stuffed(ip, buf, (unsigned int)offset, size);
+		return gfs2_dir_read_stuffed(ip, buf, (unsigned int)offset,
+					     size);
 
 	if (gfs2_assert_warn(sdp, gfs2_is_jdata(ip)))
 		return -EINVAL;
@@ -299,7 +305,8 @@ static int gfs2_dir_read_data(struct gfs2_inode *ip, char *buf,
 
 		if (!extlen) {
 			new = 0;
-			error = gfs2_block_map(ip, lblock, &new, &dblock, &extlen);
+			error = gfs2_block_map(ip, lblock, &new, &dblock,
+					       &extlen);
 			if (error)
 				goto fail;
 		}
@@ -538,13 +545,15 @@ int gfs2_dirent_alloc(struct gfs2_inode *dip, struct buffer_head *bh,
 
 			if (dent->de_inum.no_addr) {
 				new = (struct gfs2_dirent *)((char *)dent +
-							    GFS2_DIRENT_SIZE(cur_name_len));
+					    GFS2_DIRENT_SIZE(cur_name_len));
 				memset(new, 0, sizeof(struct gfs2_dirent));
 
-				new->de_rec_len = cpu_to_be16(cur_rec_len - GFS2_DIRENT_SIZE(cur_name_len));
+				new->de_rec_len = cpu_to_be16(cur_rec_len -
+						GFS2_DIRENT_SIZE(cur_name_len));
 				new->de_name_len = cpu_to_be16(name_len);
 
-				dent->de_rec_len = cpu_to_be16(cur_rec_len - be16_to_cpu(new->de_rec_len));
+				dent->de_rec_len = cpu_to_be16(cur_rec_len -
+						be16_to_cpu(new->de_rec_len));
 
 				*dent_out = new;
 				return 0;
@@ -2281,7 +2290,8 @@ int gfs2_dir_exhash_dealloc(struct gfs2_inode *dip)
 	error = gfs2_meta_inode_buffer(dip, &bh);
 	if (!error) {
 		gfs2_trans_add_bh(dip->i_gl, bh, 1);
-		((struct gfs2_dinode *)bh->b_data)->di_mode = cpu_to_be32(S_IFREG);
+		((struct gfs2_dinode *)bh->b_data)->di_mode =
+						cpu_to_be32(S_IFREG);
 		brelse(bh);
 	}
 

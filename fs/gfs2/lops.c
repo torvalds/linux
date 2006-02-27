@@ -137,7 +137,8 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 		memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
 
 		n = 0;
-		list_for_each_entry_continue(bd1, &sdp->sd_log_le_buf, bd_le.le_list) {
+		list_for_each_entry_continue(bd1, &sdp->sd_log_le_buf,
+					     bd_le.le_list) {
 			*ptr++ = cpu_to_be64(bd1->bd_bh->b_blocknr);
 			if (++n >= num)
 				break;
@@ -147,7 +148,8 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 		ll_rw_block(WRITE, 1, &bh);
 
 		n = 0;
-		list_for_each_entry_continue(bd2, &sdp->sd_log_le_buf, bd_le.le_list) {
+		list_for_each_entry_continue(bd2, &sdp->sd_log_le_buf,
+					     bd_le.le_list) {
 			bh = gfs2_log_fake_buf(sdp, bd2->bd_bh);
 			set_buffer_dirty(bh);
 			ll_rw_block(WRITE, 1, &bh);
@@ -239,7 +241,8 @@ static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
 
 	if (error) {
-		gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl, DIO_START | DIO_WAIT);
+		gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl,
+			       DIO_START | DIO_WAIT);
 		return;
 	}
 	if (pass != 1)
@@ -283,7 +286,8 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	ld->ld_header.mh_type = cpu_to_be16(GFS2_METATYPE_LD);
 	ld->ld_header.mh_format = cpu_to_be16(GFS2_FORMAT_LD);
 	ld->ld_type = cpu_to_be32(GFS2_LOG_DESC_REVOKE);
-	ld->ld_length = cpu_to_be32(gfs2_struct2blk(sdp, sdp->sd_log_num_revoke, sizeof(uint64_t)));
+	ld->ld_length = cpu_to_be32(gfs2_struct2blk(sdp, sdp->sd_log_num_revoke,
+						    sizeof(uint64_t)));
 	ld->ld_data1 = cpu_to_be32(sdp->sd_log_num_revoke);
 	ld->ld_data2 = cpu_to_be32(0);
 	memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
@@ -515,19 +519,24 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	 * into the log along with a header
 	 */
 	gfs2_log_lock(sdp);
-	bd2 = bd1 = list_prepare_entry(bd1, &sdp->sd_log_le_databuf, bd_le.le_list);
+	bd2 = bd1 = list_prepare_entry(bd1, &sdp->sd_log_le_databuf,
+				       bd_le.le_list);
 	while(total_dbuf) {
 		num = total_jdata;
 		if (num > limit)
 			num = limit;
 		n = 0;
-		list_for_each_entry_safe_continue(bd1, bdt, &sdp->sd_log_le_databuf, bd_le.le_list) {
+		list_for_each_entry_safe_continue(bd1, bdt,
+						  &sdp->sd_log_le_databuf,
+						  bd_le.le_list) {
 			/* An ordered write buffer */
 			if (bd1->bd_bh && !buffer_pinned(bd1->bd_bh)) {
 				list_move(&bd1->bd_le.le_list, &started);
 				if (bd1 == bd2) {
 					bd2 = NULL;
-					bd2 = list_prepare_entry(bd2, &sdp->sd_log_le_databuf, bd_le.le_list);
+					bd2 = list_prepare_entry(bd2,
+							&sdp->sd_log_le_databuf,
+							bd_le.le_list);
 				}
 				total_dbuf--;
 				if (bd1->bd_bh) {
@@ -535,7 +544,8 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 					if (buffer_dirty(bd1->bd_bh)) {
 						gfs2_log_unlock(sdp);
 						wait_on_buffer(bd1->bd_bh);
-						ll_rw_block(WRITE, 1, &bd1->bd_bh);
+						ll_rw_block(WRITE, 1,
+							    &bd1->bd_bh);
 						gfs2_log_lock(sdp);
 					}
 					brelse(bd1->bd_bh);
@@ -547,12 +557,17 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				gfs2_log_unlock(sdp);
 				if (!bh) {
 					bh = gfs2_log_get_buf(sdp);
-					ld = (struct gfs2_log_descriptor *)bh->b_data;
+					ld = (struct gfs2_log_descriptor *)
+					     bh->b_data;
 					ptr = (__be64 *)(bh->b_data + offset);
-					ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
-					ld->ld_header.mh_type = cpu_to_be16(GFS2_METATYPE_LD);
-					ld->ld_header.mh_format = cpu_to_be16(GFS2_FORMAT_LD);
-					ld->ld_type = cpu_to_be32(GFS2_LOG_DESC_JDATA);
+					ld->ld_header.mh_magic =
+						cpu_to_be32(GFS2_MAGIC);
+					ld->ld_header.mh_type =
+						cpu_to_be16(GFS2_METATYPE_LD);
+					ld->ld_header.mh_format =
+						cpu_to_be16(GFS2_FORMAT_LD);
+					ld->ld_type =
+						cpu_to_be32(GFS2_LOG_DESC_JDATA);
 					ld->ld_length = cpu_to_be32(num + 1);
 					ld->ld_data1 = cpu_to_be32(num);
 					ld->ld_data2 = cpu_to_be32(0);
@@ -577,7 +592,8 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 		}
 		n = 0;
 		gfs2_log_lock(sdp);
-		list_for_each_entry_continue(bd2, &sdp->sd_log_le_databuf, bd_le.le_list) {
+		list_for_each_entry_continue(bd2, &sdp->sd_log_le_databuf,
+					     bd_le.le_list) {
 			if (!bd2->bd_bh)
 				continue;
 			/* copy buffer if it needs escaping */
@@ -587,7 +603,9 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				struct page *page = bd2->bd_bh->b_page;
 				bh = gfs2_log_get_buf(sdp);
 				kaddr = kmap_atomic(page, KM_USER0);
-				memcpy(bh->b_data, kaddr + bh_offset(bd2->bd_bh), sdp->sd_sb.sb_bsize);
+				memcpy(bh->b_data,
+				       kaddr + bh_offset(bd2->bd_bh),
+				       sdp->sd_sb.sb_bsize);
 				kunmap_atomic(page, KM_USER0);
 				*(__be32 *)bh->b_data = 0;
 			} else {
@@ -608,7 +626,8 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	/* Wait on all ordered buffers */
 	while (!list_empty(&started)) {
 		gfs2_log_lock(sdp);
-		bd1 = list_entry(started.next, struct gfs2_bufdata, bd_le.le_list);
+		bd1 = list_entry(started.next, struct gfs2_bufdata,
+				 bd_le.le_list);
 		list_del(&bd1->bd_le.le_list);
 		sdp->sd_log_num_databuf--;
 
@@ -685,7 +704,8 @@ static void databuf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
 
 	if (error) {
-		gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl, DIO_START | DIO_WAIT);
+		gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl,
+			       DIO_START | DIO_WAIT);
 		return;
 	}
 	if (pass != 1)

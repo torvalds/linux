@@ -531,7 +531,8 @@ static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
 static int gfs2_ioctl_flags(struct gfs2_inode *ip, unsigned int cmd,
 			    unsigned long arg)
 {
-	unsigned int lmode = (cmd == GFS2_IOCTL_SETFLAGS) ? LM_ST_EXCLUSIVE : LM_ST_SHARED;
+	unsigned int lmode = (cmd == GFS2_IOCTL_SETFLAGS) ?
+			     LM_ST_EXCLUSIVE : LM_ST_SHARED;
 	struct buffer_head *dibh;
 	struct gfs2_holder i_gh;
 	int error;
@@ -559,7 +560,8 @@ static int gfs2_ioctl_flags(struct gfs2_inode *ip, unsigned int cmd,
 			if (!S_ISREG(ip->i_di.di_mode))
 				goto out;
 		}
-		if (flags & (GFS2_DIF_INHERIT_JDATA|GFS2_DIF_INHERIT_DIRECTIO)) {
+		if (flags &
+		    (GFS2_DIF_INHERIT_JDATA|GFS2_DIF_INHERIT_DIRECTIO)) {
 			if (!S_ISDIR(ip->i_di.di_mode))
 				goto out;
 		}

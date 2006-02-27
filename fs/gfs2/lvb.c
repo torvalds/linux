@@ -16,7 +16,8 @@
 
 #include "gfs2.h"
 
-#define pv(struct, member, fmt) printk("  "#member" = "fmt"\n", struct->member);
+#define pv(struct, member, fmt) printk(KERN_INFO "  "#member" = "fmt"\n", \
+				       struct->member);
 
 void gfs2_quota_lvb_in(struct gfs2_quota_lvb *qb, char *lvb)
 {

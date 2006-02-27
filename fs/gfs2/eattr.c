@@ -354,7 +354,6 @@ static int ea_remove_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 	return error;
 }
 
-/******************************************************************************/
 
 static int gfs2_ea_repack_i(struct gfs2_inode *ip)
 {
@@ -819,7 +818,8 @@ static int ea_init(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 static struct gfs2_ea_header *ea_split_ea(struct gfs2_ea_header *ea)
 {
 	uint32_t ea_size = GFS2_EA_SIZE(ea);
-	struct gfs2_ea_header *new = (struct gfs2_ea_header *)((char *)ea + ea_size);
+	struct gfs2_ea_header *new = (struct gfs2_ea_header *)((char *)ea +
+				     ea_size);
 	uint32_t new_size = GFS2_EA_REC_LEN(ea) - ea_size;
 	int last = ea->ea_flags & GFS2_EAFLAG_LAST;
 

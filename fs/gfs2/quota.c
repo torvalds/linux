@@ -395,7 +395,8 @@ static int qd_trylock(struct gfs2_quota_data *qd)
 
 static void qd_unlock(struct gfs2_quota_data *qd)
 {
-	gfs2_assert_warn(qd->qd_gl->gl_sbd, test_bit(QDF_LOCKED, &qd->qd_flags));
+	gfs2_assert_warn(qd->qd_gl->gl_sbd,
+			 test_bit(QDF_LOCKED, &qd->qd_flags));
 	clear_bit(QDF_LOCKED, &qd->qd_flags);
 	bh_put(qd);
 	slot_put(qd);
@@ -715,7 +716,8 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		qd = qda[x];
 		offset = qd2offset(qd);
 		error = gfs2_adjust_quota(ip, offset, qd->qd_change_sync,
-					  (struct gfs2_quota_data *)qd->qd_gl->gl_lvb);
+					  (struct gfs2_quota_data *)
+					  qd->qd_gl->gl_lvb);
 		if (error)
 			goto out_end_trans;
 
@@ -932,7 +934,8 @@ static int print_message(struct gfs2_quota_data *qd, char *type)
 	if (!line)
 		return -ENOMEM;
 
-	len = snprintf(line, MAX_LINE-1, "GFS2: fsid=%s: quota %s for %s %u\r\n",
+	len = snprintf(line, MAX_LINE-1,
+		       "GFS2: fsid=%s: quota %s for %s %u\r\n",
 		       sdp->sd_fsname, type,
 		       (test_bit(QDF_USER, &qd->qd_flags)) ? "user" : "group",
 		       qd->qd_id);
@@ -981,7 +984,8 @@ int gfs2_quota_check(struct gfs2_inode *ip, uint32_t uid, uint32_t gid)
 		} else if (qd->qd_qb.qb_warn &&
 			   (int64_t)qd->qd_qb.qb_warn < value &&
 			   time_after_eq(jiffies, qd->qd_last_warn +
-					 gfs2_tune_get(sdp, gt_quota_warn_period) * HZ)) {
+					 gfs2_tune_get(sdp,
+						gt_quota_warn_period) * HZ)) {
 			error = print_message(qd, "warning");
 			qd->qd_last_warn = jiffies;
 		}

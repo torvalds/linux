@@ -17,7 +17,8 @@
 #include "gfs2.h"
 #include <linux/gfs2_ondisk.h>
 
-#define pv(struct, member, fmt) printk(KERN_INFO "  "#member" = "fmt"\n", struct->member);
+#define pv(struct, member, fmt) printk(KERN_INFO "  "#member" = "fmt"\n", \
+				       struct->member);
 #define pa(struct, member, count) print_array(#member, struct->member, count);
 
 /**

@@ -80,7 +80,8 @@ int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 void gfs2_lm_others_may_mount(struct gfs2_sbd *sdp)
 {
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		sdp->sd_lockstruct.ls_ops->lm_others_may_mount(sdp->sd_lockstruct.ls_lockspace);
+		sdp->sd_lockstruct.ls_ops->lm_others_may_mount(
+					sdp->sd_lockstruct.ls_lockspace);
 }
 
 void gfs2_lm_unmount(struct gfs2_sbd *sdp)
@@ -124,7 +125,8 @@ int gfs2_lm_get_lock(struct gfs2_sbd *sdp, struct lm_lockname *name,
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
 		error = -EIO;
 	else
-		error = sdp->sd_lockstruct.ls_ops->lm_get_lock(sdp->sd_lockstruct.ls_lockspace, name, lockp);
+		error = sdp->sd_lockstruct.ls_ops->lm_get_lock(
+				sdp->sd_lockstruct.ls_lockspace, name, lockp);
 	return error;
 }
 
@@ -230,6 +232,7 @@ void gfs2_lm_recovery_done(struct gfs2_sbd *sdp, unsigned int jid,
 			   unsigned int message)
 {
 	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
-		sdp->sd_lockstruct.ls_ops->lm_recovery_done(sdp->sd_lockstruct.ls_lockspace, jid, message);
+		sdp->sd_lockstruct.ls_ops->lm_recovery_done(
+			sdp->sd_lockstruct.ls_lockspace, jid, message);
 }
 

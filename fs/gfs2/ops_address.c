@@ -357,7 +357,8 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 
 	if (gfs2_is_stuffed(ip)) {
 		if (end > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)) {
-			error = gfs2_unstuff_dinode(ip, gfs2_unstuffer_page, page);
+			error = gfs2_unstuff_dinode(ip, gfs2_unstuffer_page,
+						    page);
 			if (error == 0)
 				goto prepare_write;
 		} else if (!PageUptodate(page))
@@ -432,7 +433,8 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 		if (inode->i_size < file_size)
 			i_size_write(inode, file_size);
 	} else {
-		if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
+		if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED ||
+		    gfs2_is_jdata(ip))
 			gfs2_page_add_databufs(ip, page, from, to);
 		error = generic_commit_write(file, page, from, to);
 		if (error)

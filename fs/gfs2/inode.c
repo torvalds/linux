@@ -1034,8 +1034,10 @@ static void init_dinode(struct gfs2_inode *dip, struct gfs2_glock *gl,
 		    gfs2_tune_get(sdp, gt_new_files_directio))
 			di->di_flags |= cpu_to_be32(GFS2_DIF_DIRECTIO);
 	} else if (S_ISDIR(mode)) {
-		di->di_flags |= cpu_to_be32(dip->i_di.di_flags & GFS2_DIF_INHERIT_DIRECTIO);
-		di->di_flags |= cpu_to_be32(dip->i_di.di_flags & GFS2_DIF_INHERIT_JDATA);
+		di->di_flags |= cpu_to_be32(dip->i_di.di_flags &
+					    GFS2_DIF_INHERIT_DIRECTIO);
+		di->di_flags |= cpu_to_be32(dip->i_di.di_flags &
+					    GFS2_DIF_INHERIT_JDATA);
 	}
 
 	di->__pad1 = 0;
@@ -1188,7 +1190,8 @@ static int link_dinode(struct gfs2_inode *dip, struct qstr *name,
  * Returns: An inode
  */
 
-struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode)
+struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name,
+			   unsigned int mode)
 {
 	struct inode *inode;
 	struct gfs2_inode *dip = get_gl2ip(ghs->gh_gl);

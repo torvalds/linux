@@ -68,7 +68,8 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 {
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	unsigned long index = page->index;
-	uint64_t lblock = index << (PAGE_CACHE_SHIFT - sdp->sd_sb.sb_bsize_shift);
+	uint64_t lblock = index << (PAGE_CACHE_SHIFT -
+				    sdp->sd_sb.sb_bsize_shift);
 	unsigned int blocks = PAGE_CACHE_SIZE >> sdp->sd_sb.sb_bsize_shift;
 	struct gfs2_alloc *al;
 	unsigned int data_blocks, ind_blocks;
@@ -143,7 +144,8 @@ static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 	struct gfs2_inode *ip = get_v2ip(area->vm_file->f_mapping->host);
 	struct gfs2_holder i_gh;
 	struct page *result = NULL;
-	unsigned long index = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) + area->vm_pgoff;
+	unsigned long index = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) +
+			      area->vm_pgoff;
 	int alloc_required;
 	int error;
 

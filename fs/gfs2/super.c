@@ -110,36 +110,43 @@ int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb *sb, int silent)
 				break;
 
 		if (!gfs2_old_fs_formats[x]) {
-			printk(KERN_WARNING "GFS2: code version (%u, %u) is incompatible "
+			printk(KERN_WARNING
+			       "GFS2: code version (%u, %u) is incompatible "
 			       "with ondisk format (%u, %u)\n",
 			       GFS2_FORMAT_FS, GFS2_FORMAT_MULTI,
 			       sb->sb_fs_format, sb->sb_multihost_format);
-			printk(KERN_WARNING "GFS2: I don't know how to upgrade this FS\n");
+			printk(KERN_WARNING
+			       "GFS2: I don't know how to upgrade this FS\n");
 			return -EINVAL;
 		}
 	}
 
 	if (sb->sb_multihost_format != GFS2_FORMAT_MULTI) {
 		for (x = 0; gfs2_old_multihost_formats[x]; x++)
-			if (gfs2_old_multihost_formats[x] == sb->sb_multihost_format)
+			if (gfs2_old_multihost_formats[x] ==
+			    sb->sb_multihost_format)
 				break;
 
 		if (!gfs2_old_multihost_formats[x]) {
-			printk(KERN_WARNING "GFS2: code version (%u, %u) is incompatible "
+			printk(KERN_WARNING
+			       "GFS2: code version (%u, %u) is incompatible "
 			       "with ondisk format (%u, %u)\n",
 			       GFS2_FORMAT_FS, GFS2_FORMAT_MULTI,
 			       sb->sb_fs_format, sb->sb_multihost_format);
-			printk(KERN_WARNING "GFS2: I don't know how to upgrade this FS\n");
+			printk(KERN_WARNING
+			       "GFS2: I don't know how to upgrade this FS\n");
 			return -EINVAL;
 		}
 	}
 
 	if (!sdp->sd_args.ar_upgrade) {
-		printk(KERN_WARNING "GFS2: code version (%u, %u) is incompatible "
+		printk(KERN_WARNING
+		       "GFS2: code version (%u, %u) is incompatible "
 		       "with ondisk format (%u, %u)\n",
 		       GFS2_FORMAT_FS, GFS2_FORMAT_MULTI,
 		       sb->sb_fs_format, sb->sb_multihost_format);
-		printk(KERN_INFO "GFS2: Use the \"upgrade\" mount option to upgrade "
+		printk(KERN_INFO
+		       "GFS2: Use the \"upgrade\" mount option to upgrade "
 		       "the FS\n");
 		printk(KERN_INFO "GFS2: See the manual for more details\n");
 		return -EINVAL;
@@ -289,7 +296,8 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 
 		name.len = sprintf(buf, "journal%u", sdp->sd_journals);
 
-		error = gfs2_dir_search(get_v2ip(sdp->sd_jindex), &name, NULL, NULL);
+		error = gfs2_dir_search(get_v2ip(sdp->sd_jindex),
+					&name, NULL, NULL);
 		if (error == -ENOENT) {
 			error = 0;
 			break;
@@ -445,7 +453,8 @@ int gfs2_lookup_master_dir(struct gfs2_sbd *sdp)
 			       sdp->sd_sb.sb_master_dir.no_addr,
 			       &gfs2_inode_glops, CREATE, &gl);
 	if (!error) {
-		error = gfs2_lookup_simple(sdp->sd_root_dir, ".gfs2_admin", &inode);
+		error = gfs2_lookup_simple(sdp->sd_root_dir, ".gfs2_admin",
+					   &inode);
 		sdp->sd_master_dir = inode;
 		gfs2_glock_put(gl);
 	}
@@ -854,7 +863,8 @@ int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp, struct gfs2_holder *t_gh)
 			error = -ENOMEM;
 			goto out;
 		}
-		error = gfs2_glock_nq_init(get_v2ip(jd->jd_inode)->i_gl, LM_ST_SHARED, 0,
+		error = gfs2_glock_nq_init(get_v2ip(jd->jd_inode)->i_gl,
+					   LM_ST_SHARED, 0,
 					   &lfcc->gh);
 		if (error) {
 			kfree(lfcc);

@@ -233,7 +233,8 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 			bi->bi_len = bytes;
 		/* other blocks */
 		} else {
-			bytes = sdp->sd_sb.sb_bsize - sizeof(struct gfs2_meta_header);
+			bytes = sdp->sd_sb.sb_bsize -
+				sizeof(struct gfs2_meta_header);
 			bi->bi_offset = sizeof(struct gfs2_meta_header);
 			bi->bi_start = rgd->rd_ri.ri_bitbytes - bytes_left;
 			bi->bi_len = bytes;

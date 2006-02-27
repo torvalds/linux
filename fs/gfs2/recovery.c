@@ -33,7 +33,8 @@ int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 	uint32_t extlen;
 	int error;
 
-	error = gfs2_block_map(get_v2ip(jd->jd_inode), blk, &new, &dblock, &extlen);
+	error = gfs2_block_map(get_v2ip(jd->jd_inode), blk, &new, &dblock,
+			       &extlen);
 	if (error)
 		return error;
 	if (!dblock) {

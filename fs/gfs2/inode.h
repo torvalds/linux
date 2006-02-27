@@ -46,7 +46,8 @@ int gfs2_inode_dealloc(struct gfs2_sbd *sdp, struct gfs2_unlinked *ul);
 int gfs2_change_nlink(struct gfs2_inode *ip, int diff);
 int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 		 struct inode **ipp);
-struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name, unsigned int mode);
+struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name,
+			   unsigned int mode);
 int gfs2_unlinki(struct gfs2_inode *dip, struct qstr *name,
 		 struct gfs2_inode *ip, struct gfs2_unlinked *ul);
 int gfs2_rmdiri(struct gfs2_inode *dip, struct qstr *name,

@@ -128,7 +128,8 @@ static void init_vfs(struct gfs2_sbd *sdp)
 	   to allow us to read-in the on-disk superblock. */
 	sdp->sd_sb.sb_bsize = sb_min_blocksize(sb, GFS2_BASIC_BLOCK);
 	sdp->sd_sb.sb_bsize_shift = sb->s_blocksize_bits;
-	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift - GFS2_BASIC_BLOCK_SHIFT;
+	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift -
+			       GFS2_BASIC_BLOCK_SHIFT;
 	sdp->sd_fsb2bb = 1 << sdp->sd_fsb2bb_shift;
 }
 
@@ -435,7 +436,8 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 			goto fail_jindex;
 		}
 
-		error = gfs2_glock_nq_init(get_v2ip(sdp->sd_jdesc->jd_inode)->i_gl,
+		error = gfs2_glock_nq_init(
+				get_v2ip(sdp->sd_jdesc->jd_inode)->i_gl,
 					   LM_ST_SHARED,
 					   LM_FLAG_NOEXP | GL_EXACT,
 					   &sdp->sd_jinode_gh);

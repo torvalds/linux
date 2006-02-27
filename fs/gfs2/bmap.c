@@ -129,7 +129,8 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, gfs2_unstuffer_t unstuffer,
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
 	if (ip->i_di.di_size) {
-		*(uint64_t *)(dibh->b_data + sizeof(struct gfs2_dinode)) = cpu_to_be64(block);
+		*(uint64_t *)(dibh->b_data + sizeof(struct gfs2_dinode)) =
+			cpu_to_be64(block);
 		ip->i_di.di_blocks++;
 	}
 
@@ -241,7 +242,9 @@ static int build_height(struct gfs2_inode *ip, int height)
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 
 		if (new_block) {
-			*(uint64_t *)(dibh->b_data + sizeof(struct gfs2_dinode)) = cpu_to_be64(block);
+			*(uint64_t *)(dibh->b_data +
+				      sizeof(struct gfs2_dinode)) =
+				      cpu_to_be64(block);
 			ip->i_di.di_blocks++;
 		}
 
@@ -313,7 +316,8 @@ static int build_height(struct gfs2_inode *ip, int height)
  *
  */
 
-static void find_metapath(struct gfs2_inode *ip, uint64_t block, struct metapath *mp)
+static void find_metapath(struct gfs2_inode *ip, uint64_t block,
+			  struct metapath *mp)
 {
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	uint64_t b = block;
