@@ -640,6 +640,32 @@ struct saa7134_board saa7134_boards[] = {
 			.tv   = 1,
 		}},
 	},
+	[SAA7134_BOARD_ELSA_700TV] = {
+		.name           = "ELSA EX-VISION 700TV",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_HITACHI_NTSC,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 4,
+			.amux = LINE2,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 6,
+			.amux = LINE1,
+		},{
+			.name = name_svideo,
+			.vmux = 7,
+			.amux = LINE1,
+		}},
+		.mute           = {
+			.name = name_mute,
+			.amux = TV,
+		},
+	},
 	[SAA7134_BOARD_ASUSTeK_TVFM7134] = {
 		.name           = "ASUS TV-FM 7134",
 		.audio_clock    = 0x00187de7,
@@ -2829,6 +2855,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1048,
 		.subdevice    = 0x226b,
 		.driver_data  = SAA7134_BOARD_ELSA_500TV,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x1131,
+		.subdevice    = 0x7130,
+		.driver_data  = SAA7134_BOARD_ELSA_700TV,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
