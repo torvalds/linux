@@ -272,14 +272,23 @@ int os_connect_socket(char *name)
 	snprintf(sock.sun_path, sizeof(sock.sun_path), "%s", name);
 
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	if(fd < 0)
-		return(fd);
+	if(fd < 0) {
+		err = -errno;
+		goto out;
+	}
 
 	err = connect(fd, (struct sockaddr *) &sock, sizeof(sock));
-	if(err)
-		return(-errno);
+	if(err) {
+		err = -errno;
+		goto out_close;
+	}
 
-	return(fd);
+	return fd;
+
+out_close:
+	close(fd);
+out:
+	return err;
 }
 
 void os_close_file(int fd)

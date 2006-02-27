@@ -179,8 +179,11 @@ extern void os_stop_process(int pid);
 extern void os_kill_process(int pid, int reap_child);
 extern void os_kill_ptraced_process(int pid, int reap_child);
 extern void os_usr1_process(int pid);
+extern long os_ptrace_ldt(long pid, long addr, long data);
+
 extern int os_getpid(void);
 extern int os_getpgrp(void);
+
 extern void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int));
 extern void init_new_thread_signals(int altstack);
 extern int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr);
