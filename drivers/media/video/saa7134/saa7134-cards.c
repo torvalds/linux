@@ -2882,7 +2882,7 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
 		.subvendor    = 0x1048,
-		.subdevice    = 0x226b,
+		.subdevice    = 0x226a,
 		.driver_data  = SAA7134_BOARD_ELSA_500TV,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
