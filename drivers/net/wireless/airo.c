@@ -5036,7 +5036,6 @@ static int set_wep_key(struct airo_info *ai, u16 index,
 		wkr.len = sizeof(wkr);
 		wkr.kindex = 0xffff;
 		wkr.mac[0] = (char)index;
-		if (perm) printk(KERN_INFO "Setting transmit key to %d\n", index);
 		if (perm) ai->defindex = (char)index;
 	} else {
 // We are actually setting the key
@@ -5045,7 +5044,6 @@ static int set_wep_key(struct airo_info *ai, u16 index,
 		wkr.klen = keylen;
 		memcpy( wkr.key, key, keylen );
 		memcpy( wkr.mac, macaddr, ETH_ALEN );
-		printk(KERN_INFO "Setting key %d\n", index);
 	}
 
 	if (perm) disable_MAC(ai, lock);
