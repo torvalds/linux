@@ -62,7 +62,6 @@
 #include <linux/ioport.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
-#include <linux/mutex.h>
 #include <asm/io.h>
 
 
@@ -136,7 +135,6 @@
 
 static struct pci_driver ali1535_driver;
 static unsigned short ali1535_smba;
-static DEFINE_MUTEX(i2c_ali1535_mutex);
 
 /* Detect whether a ALI1535 can be found, and initialize it, where necessary.
    Note the differences between kernels with the old PCI BIOS interface and
@@ -345,7 +343,6 @@ static s32 ali1535_access(struct i2c_adapter *adap, u16 addr,
 	int timeout;
 	s32 result = 0;
 
-	mutex_lock(&i2c_ali1535_mutex);
 	/* make sure SMBus is idle */
 	temp = inb_p(SMBHSTSTS);
 	for (timeout = 0;
@@ -460,7 +457,6 @@ static s32 ali1535_access(struct i2c_adapter *adap, u16 addr,
 		break;
 	}
 EXIT:
-	mutex_unlock(&i2c_ali1535_mutex);
 	return result;
 }
 
