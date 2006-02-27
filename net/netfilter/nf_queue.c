@@ -155,13 +155,13 @@ int nf_queue(struct sk_buff **skb,
 		if (physoutdev) dev_hold(physoutdev);
 	}
 #endif
-	if (queue_rerouter[pf]->save)
+	if (queue_rerouter[pf])
 		queue_rerouter[pf]->save(*skb, info);
 
 	status = queue_handler[pf]->outfn(*skb, info, queuenum,
 					  queue_handler[pf]->data);
 
-	if (status >= 0 && queue_rerouter[pf]->reroute)
+	if (status >= 0 && queue_rerouter[pf])
 		status = queue_rerouter[pf]->reroute(skb, info);
 
 	read_unlock(&queue_handler_lock);
