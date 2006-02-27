@@ -46,7 +46,7 @@ static struct i2c_adapter *s4882_adapter;
 static struct i2c_algorithm *s4882_algo;
 
 /* Wrapper access functions for multiplexed SMBus */
-static struct mutex amd756_lock;
+static DEFINE_MUTEX(amd756_lock);
 
 static s32 amd756_access_virt0(struct i2c_adapter * adap, u16 addr,
 			       unsigned short flags, char read_write,
@@ -167,8 +167,6 @@ static int __init amd756_s4882_init(void)
 	}
 
 	printk(KERN_INFO "Enabling SMBus multiplexing for Tyan S4882\n");
-	mutex_init(&amd756_lock);
-
 	/* Define the 5 virtual adapters and algorithms structures */
 	if (!(s4882_adapter = kzalloc(5 * sizeof(struct i2c_adapter),
 				      GFP_KERNEL))) {
