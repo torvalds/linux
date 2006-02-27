@@ -382,7 +382,7 @@ bt878_device_control(struct bt878 *bt, unsigned int cmd, union dst_gpio_packet *
 EXPORT_SYMBOL(bt878_device_control);
 
 
-struct cards card_list[] __devinitdata = {
+static struct cards card_list[] __devinitdata = {
 
 	{ 0x01010071, BTTV_BOARD_NEBULA_DIGITV,			"Nebula Electronics DigiTV" },
 	{ 0x07611461, BTTV_BOARD_AVDVBT_761,			"AverMedia AverTV DVB-T 761" },
