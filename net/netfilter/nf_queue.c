@@ -16,7 +16,7 @@
  * for queueing and must reinject all packets it receives, no matter what.
  */
 static struct nf_queue_handler *queue_handler[NPROTO];
-static struct nf_queue_rerouter *queue_rerouter;
+static struct nf_queue_rerouter *queue_rerouter[NPROTO];
 
 static DEFINE_RWLOCK(queue_handler_lock);
 
@@ -64,7 +64,7 @@ int nf_register_queue_rerouter(int pf, struct nf_queue_rerouter *rer)
 		return -EINVAL;
 
 	write_lock_bh(&queue_handler_lock);
-	memcpy(&queue_rerouter[pf], rer, sizeof(queue_rerouter[pf]));
+	queue_rerouter[pf] = rer;
 	write_unlock_bh(&queue_handler_lock);
 
 	return 0;
@@ -77,7 +77,7 @@ int nf_unregister_queue_rerouter(int pf)
 		return -EINVAL;
 
 	write_lock_bh(&queue_handler_lock);
-	memset(&queue_rerouter[pf], 0, sizeof(queue_rerouter[pf]));
+	queue_rerouter[pf] = NULL;
 	write_unlock_bh(&queue_handler_lock);
 	return 0;
 }
@@ -123,7 +123,7 @@ int nf_queue(struct sk_buff **skb,
 		return 1;
 	}
 
-	info = kmalloc(sizeof(*info)+queue_rerouter[pf].rer_size, GFP_ATOMIC);
+	info = kmalloc(sizeof(*info)+queue_rerouter[pf]->rer_size, GFP_ATOMIC);
 	if (!info) {
 		if (net_ratelimit())
 			printk(KERN_ERR "OOM queueing packet %p\n",
@@ -155,14 +155,14 @@ int nf_queue(struct sk_buff **skb,
 		if (physoutdev) dev_hold(physoutdev);
 	}
 #endif
-	if (queue_rerouter[pf].save)
-		queue_rerouter[pf].save(*skb, info);
+	if (queue_rerouter[pf]->save)
+		queue_rerouter[pf]->save(*skb, info);
 
 	status = queue_handler[pf]->outfn(*skb, info, queuenum,
 					  queue_handler[pf]->data);
 
-	if (status >= 0 && queue_rerouter[pf].reroute)
-		status = queue_rerouter[pf].reroute(skb, info);
+	if (status >= 0 && queue_rerouter[pf]->reroute)
+		status = queue_rerouter[pf]->reroute(skb, info);
 
 	read_unlock(&queue_handler_lock);
 
@@ -322,22 +322,12 @@ int __init netfilter_queue_init(void)
 {
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *pde;
-#endif
-	queue_rerouter = kmalloc(NPROTO * sizeof(struct nf_queue_rerouter),
-				 GFP_KERNEL);
-	if (!queue_rerouter)
-		return -ENOMEM;
 
-#ifdef CONFIG_PROC_FS
 	pde = create_proc_entry("nf_queue", S_IRUGO, proc_net_netfilter);
-	if (!pde) {
-		kfree(queue_rerouter);
+	if (!pde)
 		return -1;
-	}
 	pde->proc_fops = &nfqueue_file_ops;
 #endif
-	memset(queue_rerouter, 0, NPROTO * sizeof(struct nf_queue_rerouter));
-
 	return 0;
 }
 
