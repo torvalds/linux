@@ -1382,7 +1382,7 @@ static int isd200_init_info(struct us_data *us)
 	} else
 		US_DEBUGP("ERROR - kmalloc failure\n");
 
-	return(retStatus);
+	return retStatus;
 }
 
 /**************************************************************************

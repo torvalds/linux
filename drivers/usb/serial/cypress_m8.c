@@ -435,11 +435,10 @@ static int generic_startup (struct usb_serial *serial)
 
 	dbg("%s - port %d", __FUNCTION__, serial->port[0]->number);
 
-	priv = kmalloc(sizeof (struct cypress_private), GFP_KERNEL);
+	priv = kzalloc(sizeof (struct cypress_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	memset(priv, 0x00, sizeof (struct cypress_private));
 	spin_lock_init(&priv->lock);
 	priv->buf = cypress_buf_alloc(CYPRESS_BUF_SIZE);
 	if (priv->buf == NULL) {

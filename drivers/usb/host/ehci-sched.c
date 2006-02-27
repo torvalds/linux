@@ -864,9 +864,8 @@ iso_sched_alloc (unsigned packets, gfp_t mem_flags)
 	int			size = sizeof *iso_sched;
 
 	size += packets * sizeof (struct ehci_iso_packet);
-	iso_sched = kmalloc (size, mem_flags);
+	iso_sched = kzalloc(size, mem_flags);
 	if (likely (iso_sched != NULL)) {
-		memset(iso_sched, 0, size);
 		INIT_LIST_HEAD (&iso_sched->td_list);
 	}
 	return iso_sched;

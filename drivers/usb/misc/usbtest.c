@@ -382,12 +382,11 @@ alloc_sglist (int nents, int max, int vary)
 	for (i = 0; i < nents; i++) {
 		char		*buf;
 
-		buf = kmalloc (size, SLAB_KERNEL);
+		buf = kzalloc (size, SLAB_KERNEL);
 		if (!buf) {
 			free_sglist (sg, i);
 			return NULL;
 		}
-		memset (buf, 0, size);
 
 		/* kmalloc pages are always physically contiguous! */
 		sg_init_one(&sg[i], buf, size);
@@ -842,10 +841,9 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 	 * as with bulk/intr sglists, sglen is the queue depth; it also
 	 * controls which subtests run (more tests than sglen) or rerun.
 	 */
-	urb = kmalloc (param->sglen * sizeof (struct urb *), SLAB_KERNEL);
+	urb = kcalloc(param->sglen, sizeof(struct urb *), SLAB_KERNEL);
 	if (!urb)
 		return -ENOMEM;
-	memset (urb, 0, param->sglen * sizeof (struct urb *));
 	for (i = 0; i < param->sglen; i++) {
 		int			pipe = usb_rcvctrlpipe (udev, 0);
 		unsigned		len;
@@ -1865,10 +1863,9 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 	}
 #endif
 
-	dev = kmalloc (sizeof *dev, SLAB_KERNEL);
+	dev = kzalloc(sizeof(*dev), SLAB_KERNEL);
 	if (!dev)
 		return -ENOMEM;
-	memset (dev, 0, sizeof *dev);
 	info = (struct usbtest_info *) id->driver_info;
 	dev->info = info;
 	init_MUTEX (&dev->sem);

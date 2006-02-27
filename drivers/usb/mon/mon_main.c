@@ -277,9 +277,8 @@ static void mon_bus_init(struct dentry *mondir, struct usb_bus *ubus)
 	char name[NAMESZ];
 	int rc;
 
-	if ((mbus = kmalloc(sizeof(struct mon_bus), GFP_KERNEL)) == NULL)
+	if ((mbus = kzalloc(sizeof(struct mon_bus), GFP_KERNEL)) == NULL)
 		goto err_alloc;
-	memset(mbus, 0, sizeof(struct mon_bus));
 	kref_init(&mbus->ref);
 	spin_lock_init(&mbus->lock);
 	INIT_LIST_HEAD(&mbus->r_list);

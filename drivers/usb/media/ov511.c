@@ -5686,12 +5686,10 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (idesc->bInterfaceSubClass != 0x00)
 		return -ENODEV;
 
-	if ((ov = kmalloc(sizeof(*ov), GFP_KERNEL)) == NULL) {
+	if ((ov = kzalloc(sizeof(*ov), GFP_KERNEL)) == NULL) {
 		err("couldn't kmalloc ov struct");
 		goto error_out;
 	}
-
-	memset(ov, 0, sizeof(*ov));
 
 	ov->dev = dev;
 	ov->iface = idesc->bInterfaceNumber;

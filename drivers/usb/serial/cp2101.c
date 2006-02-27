@@ -169,9 +169,7 @@ static int cp2101_get_config(struct usb_serial_port* port, u8 request,
 	/* Number of integers required to contain the array */
 	length = (((size - 1) | 3) + 1)/4;
 
-	buf = kmalloc (length * sizeof(u32), GFP_KERNEL);
-	memset(buf, 0, length * sizeof(u32));
-
+	buf = kcalloc(length, sizeof(u32), GFP_KERNEL);
 	if (!buf) {
 		dev_err(&port->dev, "%s - out of memory.\n", __FUNCTION__);
 		return -ENOMEM;

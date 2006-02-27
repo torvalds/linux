@@ -1345,12 +1345,10 @@ static int se401_probe(struct usb_interface *intf,
         /* We found one */
         info("SE401 camera found: %s", camera_name);
 
-        if ((se401 = kmalloc(sizeof(*se401), GFP_KERNEL)) == NULL) {
+        if ((se401 = kzalloc(sizeof(*se401), GFP_KERNEL)) == NULL) {
                 err("couldn't kmalloc se401 struct");
 		return -ENOMEM;
         }
-
-        memset(se401, 0, sizeof(*se401));
 
         se401->dev = dev;
         se401->iface = interface->bInterfaceNumber;

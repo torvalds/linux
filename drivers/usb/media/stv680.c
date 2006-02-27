@@ -318,12 +318,11 @@ static int stv_init (struct usb_stv *stv680)
 	unsigned char *buffer;
 	unsigned long int bufsize;
 
-	buffer = kmalloc (40, GFP_KERNEL);
+	buffer = kzalloc (40, GFP_KERNEL);
 	if (buffer == NULL) {
 		PDEBUG (0, "STV(e): Out of (small buf) memory");
 		return -1;
 	}
-	memset (buffer, 0, 40);
 	udelay (100);
 
 	/* set config 1, interface 0, alternate 0 */
@@ -1388,13 +1387,11 @@ static int stv680_probe (struct usb_interface *intf, const struct usb_device_id 
 		goto error;
 	}
 	/* We found one */
-	if ((stv680 = kmalloc (sizeof (*stv680), GFP_KERNEL)) == NULL) {
+	if ((stv680 = kzalloc (sizeof (*stv680), GFP_KERNEL)) == NULL) {
 		PDEBUG (0, "STV(e): couldn't kmalloc stv680 struct.");
 		retval = -ENOMEM;
 		goto error;
 	}
-
-	memset (stv680, 0, sizeof (*stv680));
 
 	stv680->udev = dev;
 	stv680->camera_name = camera_name;

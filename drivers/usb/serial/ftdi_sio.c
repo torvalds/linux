@@ -1141,12 +1141,11 @@ static int ftdi_sio_attach (struct usb_serial *serial)
 	
 	dbg("%s",__FUNCTION__);
 
-	priv = kmalloc(sizeof(struct ftdi_private), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct ftdi_private), GFP_KERNEL);
 	if (!priv){
 		err("%s- kmalloc(%Zd) failed.", __FUNCTION__, sizeof(struct ftdi_private));
 		return -ENOMEM;
 	}
-	memset(priv, 0, sizeof(*priv));
 
 	spin_lock_init(&priv->rx_lock);
         init_waitqueue_head(&priv->delta_msr_wait);

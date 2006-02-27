@@ -213,12 +213,11 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	mbus = inode->u.generic_ip;
 	ubus = mbus->u_bus;
 
-	rp = kmalloc(sizeof(struct mon_reader_text), GFP_KERNEL);
+	rp = kzalloc(sizeof(struct mon_reader_text), GFP_KERNEL);
 	if (rp == NULL) {
 		rc = -ENOMEM;
 		goto err_alloc;
 	}
-	memset(rp, 0, sizeof(struct mon_reader_text));
 	INIT_LIST_HEAD(&rp->e_list);
 	init_waitqueue_head(&rp->wait);
 	mutex_init(&rp->printf_lock);
