@@ -539,6 +539,7 @@ int mthca_create_ah(struct mthca_dev *dev,
 int mthca_destroy_ah(struct mthca_dev *dev, struct mthca_ah *ah);
 int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 		  struct ib_ud_header *header);
+int mthca_ah_query(struct ib_ah *ibah, struct ib_ah_attr *attr);
 int mthca_ah_grh_present(struct mthca_ah *ah);
 
 int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid);

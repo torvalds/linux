@@ -1289,6 +1289,7 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.alloc_pd             = mthca_alloc_pd;
 	dev->ib_dev.dealloc_pd           = mthca_dealloc_pd;
 	dev->ib_dev.create_ah            = mthca_ah_create;
+	dev->ib_dev.query_ah             = mthca_ah_query;
 	dev->ib_dev.destroy_ah           = mthca_ah_destroy;
 
 	if (dev->mthca_flags & MTHCA_FLAG_SRQ) {
