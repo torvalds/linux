@@ -216,9 +216,11 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		i2c_master_send(c,buffer,4);
 		default_tuner_init(c);
 		break;
+#ifdef CONFIG_XC3028
 	case TUNER_XCEIVE_XC3028:
 		xc3028_init(c);
 		break;
+#endif
 	default:
 		default_tuner_init(c);
 		break;
