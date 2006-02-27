@@ -386,11 +386,10 @@ net2280_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 		return NULL;
 	ep = container_of (_ep, struct net2280_ep, ep);
 
-	req = kmalloc (sizeof *req, gfp_flags);
+	req = kzalloc(sizeof(*req), gfp_flags);
 	if (!req)
 		return NULL;
 
-	memset (req, 0, sizeof *req);
 	req->req.dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD (&req->queue);
 

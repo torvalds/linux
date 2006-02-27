@@ -2178,10 +2178,9 @@ static int gs_alloc_ports(struct gs_dev *dev, gfp_t kmalloc_flags)
 		return -EIO;
 
 	for (i=0; i<GS_NUM_PORTS; i++) {
-		if ((port=(struct gs_port *)kmalloc(sizeof(struct gs_port), kmalloc_flags)) == NULL)
+		if ((port=kzalloc(sizeof(struct gs_port), kmalloc_flags)) == NULL)
 			return -ENOMEM;
 
-		memset(port, 0, sizeof(struct gs_port));
 		port->port_dev = dev;
 		port->port_num = i;
 		port->port_line_coding.dwDTERate = cpu_to_le32(GS_DEFAULT_DTE_RATE);
