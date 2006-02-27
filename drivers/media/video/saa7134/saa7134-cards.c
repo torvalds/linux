@@ -2732,7 +2732,7 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_KWORLD_ATSC110] = {
-		.name           = "KWORLD ATSC110",
+		.name           = "Kworld ATSC110",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_TUV1236D,
 		.radio_type     = UNSET,
