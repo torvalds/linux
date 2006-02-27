@@ -1968,6 +1968,18 @@ void sun4v_dtlb_error_report(struct pt_regs *regs, int tl)
 	prom_halt();
 }
 
+void hypervisor_tlbop_error(unsigned long err, unsigned long op)
+{
+	printk(KERN_CRIT "SUN4V: TLB hv call error %lu for op %lu\n",
+	       err, op);
+}
+
+void hypervisor_tlbop_error_xcall(unsigned long err, unsigned long op)
+{
+	printk(KERN_CRIT "SUN4V: XCALL TLB hv call error %lu for op %lu\n",
+	       err, op);
+}
+
 void do_fpe_common(struct pt_regs *regs)
 {
 	if (regs->tstate & TSTATE_PRIV) {
