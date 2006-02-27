@@ -90,8 +90,8 @@ static int fscpos_attach_adapter(struct i2c_adapter *adapter);
 static int fscpos_detect(struct i2c_adapter *adapter, int address, int kind);
 static int fscpos_detach_client(struct i2c_client *client);
 
-static int fscpos_read_value(struct i2c_client *client, u8 register);
-static int fscpos_write_value(struct i2c_client *client, u8 register, u8 value);
+static int fscpos_read_value(struct i2c_client *client, u8 reg);
+static int fscpos_write_value(struct i2c_client *client, u8 reg, u8 value);
 static struct fscpos_data *fscpos_update_device(struct device *dev);
 static void fscpos_init_client(struct i2c_client *client);
 

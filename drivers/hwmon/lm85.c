@@ -374,8 +374,8 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 			int kind);
 static int lm85_detach_client(struct i2c_client *client);
 
-static int lm85_read_value(struct i2c_client *client, u8 register);
-static int lm85_write_value(struct i2c_client *client, u8 register, int value);
+static int lm85_read_value(struct i2c_client *client, u8 reg);
+static int lm85_write_value(struct i2c_client *client, u8 reg, int value);
 static struct lm85_data *lm85_update_device(struct device *dev);
 static void lm85_init_client(struct i2c_client *client);
 

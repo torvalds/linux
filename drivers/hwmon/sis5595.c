@@ -193,8 +193,8 @@ static struct pci_dev *s_bridge;	/* pointer to the (only) sis5595 */
 static int sis5595_detect(struct i2c_adapter *adapter);
 static int sis5595_detach_client(struct i2c_client *client);
 
-static int sis5595_read_value(struct i2c_client *client, u8 register);
-static int sis5595_write_value(struct i2c_client *client, u8 register, u8 value);
+static int sis5595_read_value(struct i2c_client *client, u8 reg);
+static int sis5595_write_value(struct i2c_client *client, u8 reg, u8 value);
 static struct sis5595_data *sis5595_update_device(struct device *dev);
 static void sis5595_init_client(struct i2c_client *client);
 

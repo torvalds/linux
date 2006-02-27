@@ -299,9 +299,8 @@ static int adm1026_attach_adapter(struct i2c_adapter *adapter);
 static int adm1026_detect(struct i2c_adapter *adapter, int address,
 	int kind);
 static int adm1026_detach_client(struct i2c_client *client);
-static int adm1026_read_value(struct i2c_client *client, u8 register);
-static int adm1026_write_value(struct i2c_client *client, u8 register,
-	int value); 
+static int adm1026_read_value(struct i2c_client *client, u8 reg);
+static int adm1026_write_value(struct i2c_client *client, u8 reg, int value);
 static void adm1026_print_gpio(struct i2c_client *client);
 static void adm1026_fixup_gpio(struct i2c_client *client); 
 static struct adm1026_data *adm1026_update_device(struct device *dev);
