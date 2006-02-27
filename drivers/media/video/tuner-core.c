@@ -173,7 +173,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 
 	t->type = type;
-
 	switch (t->type) {
 	case TUNER_MT2032:
 		microtune_init(c);
