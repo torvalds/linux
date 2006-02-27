@@ -6,6 +6,7 @@
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
 #include <linux/seq_file.h>
+#include <linux/rcupdate.h>
 #include <net/protocol.h>
 
 #include "nf_internals.h"
@@ -64,7 +65,7 @@ int nf_register_queue_rerouter(int pf, struct nf_queue_rerouter *rer)
 		return -EINVAL;
 
 	write_lock_bh(&queue_handler_lock);
-	queue_rerouter[pf] = rer;
+	rcu_assign_pointer(queue_rerouter[pf], rer);
 	write_unlock_bh(&queue_handler_lock);
 
 	return 0;
@@ -77,8 +78,9 @@ int nf_unregister_queue_rerouter(int pf)
 		return -EINVAL;
 
 	write_lock_bh(&queue_handler_lock);
-	queue_rerouter[pf] = NULL;
+	rcu_assign_pointer(queue_rerouter[pf], NULL);
 	write_unlock_bh(&queue_handler_lock);
+	synchronize_rcu();
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_unregister_queue_rerouter);
@@ -114,6 +116,7 @@ int nf_queue(struct sk_buff **skb,
 	struct net_device *physindev = NULL;
 	struct net_device *physoutdev = NULL;
 #endif
+	struct nf_queue_rerouter *rerouter;
 
 	/* QUEUE == DROP if noone is waiting, to be safe. */
 	read_lock(&queue_handler_lock);
@@ -155,14 +158,12 @@ int nf_queue(struct sk_buff **skb,
 		if (physoutdev) dev_hold(physoutdev);
 	}
 #endif
-	if (queue_rerouter[pf])
-		queue_rerouter[pf]->save(*skb, info);
+	rerouter = rcu_dereference(queue_rerouter[pf]);
+	if (rerouter)
+		rerouter->save(*skb, info);
 
 	status = queue_handler[pf]->outfn(*skb, info, queuenum,
 					  queue_handler[pf]->data);
-
-	if (status >= 0 && queue_rerouter[pf])
-		status = queue_rerouter[pf]->reroute(skb, info);
 
 	read_unlock(&queue_handler_lock);
 
@@ -189,6 +190,7 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 {
 	struct list_head *elem = &info->elem->list;
 	struct list_head *i;
+	struct nf_queue_rerouter *rerouter;
 
 	rcu_read_lock();
 
@@ -223,6 +225,12 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 	if (verdict == NF_REPEAT) {
 		elem = elem->prev;
 		verdict = NF_ACCEPT;
+	}
+
+	if (verdict == NF_ACCEPT) {
+		rerouter = rcu_dereference(queue_rerouter[info->pf]);
+		if (rerouter && rerouter->reroute(&skb, info) < 0)
+			verdict = NF_DROP;
 	}
 
 	if (verdict == NF_ACCEPT) {
