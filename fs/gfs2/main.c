@@ -14,11 +14,15 @@
 #include <linux/buffer_head.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "ops_fstype.h"
 #include "sys.h"
+#include "util.h"
 
 /**
  * init_gfs2_fs - Register GFS2 as a filesystem

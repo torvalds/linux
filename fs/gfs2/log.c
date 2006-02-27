@@ -12,14 +12,18 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "bmap.h"
 #include "glock.h"
 #include "log.h"
 #include "lops.h"
 #include "meta_io.h"
+#include "util.h"
 
 #define PULL 1
 
@@ -80,7 +84,7 @@ unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 	if (nstruct > first) {
 		second = (sdp->sd_sb.sb_bsize -
 			  sizeof(struct gfs2_meta_header)) / ssize;
-		blks += DIV_RU(nstruct - first, second);
+		blks += DIV_ROUND_UP(nstruct - first, second);
 	}
 
 	return blks;
@@ -257,7 +261,7 @@ static uint64_t log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 	uint64_t dbn;
 	int error;
 
-	error = gfs2_block_map(get_v2ip(sdp->sd_jdesc->jd_inode),
+	error = gfs2_block_map(sdp->sd_jdesc->jd_inode->u.generic_ip,
 			       lbn, &new, &dbn, NULL);
 	gfs2_assert_withdraw(sdp, !error && dbn);
 

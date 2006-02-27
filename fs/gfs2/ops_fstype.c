@@ -15,9 +15,12 @@
 #include <linux/vmalloc.h>
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "daemon.h"
 #include "glock.h"
 #include "glops.h"
@@ -32,6 +35,7 @@
 #include "super.h"
 #include "unlinked.h"
 #include "sys.h"
+#include "util.h"
 
 #define DO 0
 #define UNDO 1
@@ -47,7 +51,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	memset(sdp, 0, sizeof(struct gfs2_sbd));
 
-	set_v2sdp(sb, sdp);
+	sb->s_fs_info = sdp;
 	sdp->sd_vfs = sb;
 
 	gfs2_tune_init(&sdp->sd_tune);
@@ -382,6 +386,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 {
 	struct gfs2_holder ji_gh;
 	struct task_struct *p;
+	struct gfs2_inode *ip;
 	int jindex = 1;
 	int error = 0;
 
@@ -396,7 +401,8 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't lookup journal index: %d\n", error);
 		return error;
 	}
-	set_bit(GLF_STICKY, &get_v2ip(sdp->sd_jindex)->i_gl->gl_flags);
+	ip = sdp->sd_jindex->u.generic_ip;
+	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
 
 	/* Load in the journal index special file */
 
@@ -436,8 +442,8 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 			goto fail_jindex;
 		}
 
-		error = gfs2_glock_nq_init(
-				get_v2ip(sdp->sd_jdesc->jd_inode)->i_gl,
+		ip = sdp->sd_jdesc->jd_inode->u.generic_ip;
+		error = gfs2_glock_nq_init(ip->i_gl,
 					   LM_ST_SHARED,
 					   LM_FLAG_NOEXP | GL_EXACT,
 					   &sdp->sd_jinode_gh);
@@ -522,6 +528,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 static int init_inodes(struct gfs2_sbd *sdp, int undo)
 {
 	int error = 0;
+	struct gfs2_inode *ip;
 
 	if (undo)
 		goto fail_qinode;
@@ -560,8 +567,9 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't get resource index inode: %d\n", error);
 		goto fail_statfs;
 	}
-	set_bit(GLF_STICKY, &get_v2ip(sdp->sd_rindex)->i_gl->gl_flags);
-	sdp->sd_rindex_vn = get_v2ip(sdp->sd_rindex)->i_gl->gl_vn - 1;
+	ip = sdp->sd_rindex->u.generic_ip;
+	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
+	sdp->sd_rindex_vn = ip->i_gl->gl_vn - 1;
 
 	/* Read in the quota inode */
 	error = gfs2_lookup_simple(sdp->sd_master_dir, "quota",
@@ -597,6 +605,7 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	struct inode *pn = NULL;
 	char buf[30];
 	int error = 0;
+	struct gfs2_inode *ip;
 
 	if (sdp->sd_args.ar_spectator)
 		return 0;
@@ -641,7 +650,8 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	iput(pn);
 	pn = NULL;
 
-	error = gfs2_glock_nq_init(get_v2ip(sdp->sd_ir_inode)->i_gl,
+	ip = sdp->sd_ir_inode->u.generic_ip;
+	error = gfs2_glock_nq_init(ip->i_gl,
 				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
 				   &sdp->sd_ir_gh);
 	if (error) {
@@ -649,7 +659,8 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		goto fail_qc_i;
 	}
 
-	error = gfs2_glock_nq_init(get_v2ip(sdp->sd_sc_inode)->i_gl,
+	ip = sdp->sd_sc_inode->u.generic_ip;
+	error = gfs2_glock_nq_init(ip->i_gl,
 				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
 				   &sdp->sd_sc_gh);
 	if (error) {
@@ -657,7 +668,8 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		goto fail_ir_gh;
 	}
 
-	error = gfs2_glock_nq_init(get_v2ip(sdp->sd_ut_inode)->i_gl,
+	ip = sdp->sd_ut_inode->u.generic_ip;
+	error = gfs2_glock_nq_init(ip->i_gl,
 				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
 				   &sdp->sd_ut_gh);
 	if (error) {
@@ -665,7 +677,8 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		goto fail_sc_gh;
 	}
 
-	error = gfs2_glock_nq_init(get_v2ip(sdp->sd_qc_inode)->i_gl,
+	ip = sdp->sd_qc_inode->u.generic_ip;
+	error = gfs2_glock_nq_init(ip->i_gl,
 				   LM_ST_EXCLUSIVE, GL_NEVER_RECURSE,
 				   &sdp->sd_qc_gh);
 	if (error) {
@@ -862,7 +875,7 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 
  fail:
 	vfree(sdp);
-	set_v2sdp(sb, NULL);
+	sb->s_fs_info = NULL;
 
 	return error;
 }

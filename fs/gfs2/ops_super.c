@@ -18,9 +18,12 @@
 #include <linux/mount.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "glock.h"
 #include "inode.h"
 #include "lm.h"
@@ -33,6 +36,7 @@
 #include "rgrp.h"
 #include "super.h"
 #include "sys.h"
+#include "util.h"
 
 /**
  * gfs2_write_inode - Make sure the inode is stable on the disk
@@ -44,7 +48,7 @@
 
 static int gfs2_write_inode(struct inode *inode, int sync)
 {
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 
 	if (current->flags & PF_MEMALLOC)
 		return 0;
@@ -62,7 +66,7 @@ static int gfs2_write_inode(struct inode *inode, int sync)
 
 static void gfs2_put_super(struct super_block *sb)
 {
-	struct gfs2_sbd *sdp = get_v2sdp(sb);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
 
 	if (!sdp)
@@ -138,7 +142,7 @@ static void gfs2_put_super(struct super_block *sb)
 
 	vfree(sdp);
 
-	set_v2sdp(sb, NULL);
+	sb->s_fs_info = NULL;
 }
 
 /**
@@ -151,7 +155,7 @@ static void gfs2_put_super(struct super_block *sb)
 
 static void gfs2_write_super(struct super_block *sb)
 {
-	struct gfs2_sbd *sdp = get_v2sdp(sb);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 	gfs2_log_flush(sdp);
 }
 
@@ -163,7 +167,7 @@ static void gfs2_write_super(struct super_block *sb)
 
 static void gfs2_write_super_lockfs(struct super_block *sb)
 {
-	struct gfs2_sbd *sdp = get_v2sdp(sb);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
 
 	for (;;) {
@@ -194,7 +198,7 @@ static void gfs2_write_super_lockfs(struct super_block *sb)
 
 static void gfs2_unlockfs(struct super_block *sb)
 {
-	struct gfs2_sbd *sdp = get_v2sdp(sb);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 	gfs2_unfreeze_fs(sdp);
 }
 
@@ -208,7 +212,7 @@ static void gfs2_unlockfs(struct super_block *sb)
 
 static int gfs2_statfs(struct super_block *sb, struct kstatfs *buf)
 {
-	struct gfs2_sbd *sdp = get_v2sdp(sb);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_statfs_change sc;
 	int error;
 
@@ -245,7 +249,7 @@ static int gfs2_statfs(struct super_block *sb, struct kstatfs *buf)
 
 static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 {
-	struct gfs2_sbd *sdp = get_v2sdp(sb);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
 
 	error = gfs2_mount_args(sdp, data, 1);
@@ -283,12 +287,12 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 
 static void gfs2_clear_inode(struct inode *inode)
 {
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 
 	if (ip) {
 		spin_lock(&ip->i_spin);
 		ip->i_vnode = NULL;
-		set_v2ip(inode, NULL);
+		inode->u.generic_ip = NULL;
 		spin_unlock(&ip->i_spin);
 
 		gfs2_glock_schedule_for_reclaim(ip->i_gl);
@@ -306,7 +310,7 @@ static void gfs2_clear_inode(struct inode *inode)
 
 static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 {
-	struct gfs2_sbd *sdp = get_v2sdp(mnt->mnt_sb);
+	struct gfs2_sbd *sdp = mnt->mnt_sb->s_fs_info;
 	struct gfs2_args *args = &sdp->sd_args;
 
 	if (args->ar_lockproto[0])

@@ -13,12 +13,16 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/smp_lock.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "dir.h"
 #include "glock.h"
 #include "ops_dentry.h"
+#include "util.h"
 
 /**
  * gfs2_drevalidate - Check directory lookup consistency
@@ -34,7 +38,7 @@
 static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct dentry *parent = dget_parent(dentry);
-	struct gfs2_inode *dip = get_v2ip(parent->d_inode);
+	struct gfs2_inode *dip = parent->d_inode->u.generic_ip;
 	struct inode *inode;
 	struct gfs2_holder d_gh;
 	struct gfs2_inode *ip;
@@ -66,7 +70,7 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 		goto fail_gunlock;
 	}
 
-	ip = get_v2ip(inode);
+	ip = inode->u.generic_ip;
 
 	if (!gfs2_inum_equal(&ip->i_num, &inum))
 		goto invalid_gunlock;

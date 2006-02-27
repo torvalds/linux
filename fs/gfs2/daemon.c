@@ -14,9 +14,12 @@
 #include <linux/buffer_head.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "daemon.h"
 #include "glock.h"
 #include "log.h"
@@ -24,6 +27,7 @@
 #include "recovery.h"
 #include "super.h"
 #include "unlinked.h"
+#include "util.h"
 
 /* This uses schedule_timeout() instead of msleep() because it's good for
    the daemons to wake up more often than the timeout when unmounting so

@@ -12,9 +12,12 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "bmap.h"
 #include "dir.h"
 #include "format.h"
@@ -29,6 +32,7 @@
 #include "super.h"
 #include "trans.h"
 #include "unlinked.h"
+#include "util.h"
 
 /**
  * gfs2_tune_init - Fill a gfs2_tune structure with default values
@@ -207,12 +211,12 @@ int gfs2_read_sb(struct gfs2_sbd *sdp, struct gfs2_glock *gl, int silent)
 
 	/* Compute maximum reservation required to add a entry to a directory */
 
-	hash_blocks = DIV_RU(sizeof(uint64_t) * (1 << GFS2_DIR_MAX_DEPTH),
+	hash_blocks = DIV_ROUND_UP(sizeof(uint64_t) * (1 << GFS2_DIR_MAX_DEPTH),
 			     sdp->sd_jbsize);
 
 	ind_blocks = 0;
 	for (tmp_blocks = hash_blocks; tmp_blocks > sdp->sd_diptrs;) {
-		tmp_blocks = DIV_RU(tmp_blocks, sdp->sd_inptrs);
+		tmp_blocks = DIV_ROUND_UP(tmp_blocks, sdp->sd_inptrs);
 		ind_blocks += tmp_blocks;
 	}
 
@@ -278,7 +282,7 @@ int gfs2_do_upgrade(struct gfs2_sbd *sdp, struct gfs2_glock *sb_gl)
 
 int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 {
-	struct gfs2_inode *dip = get_v2ip(sdp->sd_jindex);
+	struct gfs2_inode *dip = sdp->sd_jindex->u.generic_ip;
 	struct qstr name;
 	char buf[20];
 	struct gfs2_jdesc *jd;
@@ -296,7 +300,7 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 
 		name.len = sprintf(buf, "journal%u", sdp->sd_journals);
 
-		error = gfs2_dir_search(get_v2ip(sdp->sd_jindex),
+		error = gfs2_dir_search(sdp->sd_jindex->u.generic_ip,
 					&name, NULL, NULL);
 		if (error == -ENOENT) {
 			error = 0;
@@ -419,7 +423,7 @@ struct gfs2_jdesc *gfs2_jdesc_find_dirty(struct gfs2_sbd *sdp)
 
 int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 {
-	struct gfs2_inode *ip = get_v2ip(jd->jd_inode);
+	struct gfs2_inode *ip = jd->jd_inode->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	int ar;
 	int error;
@@ -471,7 +475,8 @@ int gfs2_lookup_master_dir(struct gfs2_sbd *sdp)
 
 int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 {
-	struct gfs2_glock *j_gl = get_v2ip(sdp->sd_jdesc->jd_inode)->i_gl;
+	struct gfs2_inode *ip = sdp->sd_jdesc->jd_inode->u.generic_ip;
+	struct gfs2_glock *j_gl = ip->i_gl;
 	struct gfs2_holder t_gh;
 	struct gfs2_log_header head;
 	int error;
@@ -481,7 +486,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	if (error)
 		return error;
 
-	gfs2_meta_cache_flush(get_v2ip(sdp->sd_jdesc->jd_inode));
+	gfs2_meta_cache_flush(ip);
 	j_gl->gl_ops->go_inval(j_gl, DIO_METADATA | DIO_DATA);
 
 	error = gfs2_find_jhead(sdp->sd_jdesc, &head);
@@ -559,9 +564,9 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 
 int gfs2_statfs_init(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *m_ip = get_v2ip(sdp->sd_statfs_inode);
+	struct gfs2_inode *m_ip = sdp->sd_statfs_inode->u.generic_ip;
 	struct gfs2_statfs_change *m_sc = &sdp->sd_statfs_master;
-	struct gfs2_inode *l_ip = get_v2ip(sdp->sd_sc_inode);
+	struct gfs2_inode *l_ip = sdp->sd_sc_inode->u.generic_ip;
 	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;
 	struct buffer_head *m_bh, *l_bh;
 	struct gfs2_holder gh;
@@ -608,7 +613,7 @@ int gfs2_statfs_init(struct gfs2_sbd *sdp)
 void gfs2_statfs_change(struct gfs2_sbd *sdp, int64_t total, int64_t free,
 			int64_t dinodes)
 {
-	struct gfs2_inode *l_ip = get_v2ip(sdp->sd_sc_inode);
+	struct gfs2_inode *l_ip = sdp->sd_sc_inode->u.generic_ip;
 	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;
 	struct buffer_head *l_bh;
 	int error;
@@ -634,8 +639,8 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, int64_t total, int64_t free,
 
 int gfs2_statfs_sync(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *m_ip = get_v2ip(sdp->sd_statfs_inode);
-	struct gfs2_inode *l_ip = get_v2ip(sdp->sd_sc_inode);
+	struct gfs2_inode *m_ip = sdp->sd_statfs_inode->u.generic_ip;
+	struct gfs2_inode *l_ip = sdp->sd_sc_inode->u.generic_ip;
 	struct gfs2_statfs_change *m_sc = &sdp->sd_statfs_master;
 	struct gfs2_statfs_change *l_sc = &sdp->sd_statfs_local;
 	struct gfs2_holder gh;
@@ -795,7 +800,8 @@ int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change *sc)
 					error = err;
 				} else {
 					if (!error)
-						error = statfs_slow_fill(get_gl2rgd(gh->gh_gl), sc);
+						error = statfs_slow_fill(
+							gh->gh_gl->gl_object, sc);
 					gfs2_glock_dq_uninit(gh);
 				}
 			}
@@ -846,6 +852,7 @@ struct lfcc {
 
 int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp, struct gfs2_holder *t_gh)
 {
+	struct gfs2_inode *ip;
 	struct gfs2_holder ji_gh;
 	struct gfs2_jdesc *jd;
 	struct lfcc *lfcc;
@@ -863,7 +870,8 @@ int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp, struct gfs2_holder *t_gh)
 			error = -ENOMEM;
 			goto out;
 		}
-		error = gfs2_glock_nq_init(get_v2ip(jd->jd_inode)->i_gl,
+		ip = jd->jd_inode->u.generic_ip;
+		error = gfs2_glock_nq_init(ip->i_gl,
 					   LM_ST_SHARED, 0,
 					   &lfcc->gh);
 		if (error) {

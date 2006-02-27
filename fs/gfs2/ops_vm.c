@@ -14,9 +14,12 @@
 #include <linux/buffer_head.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "bmap.h"
 #include "glock.h"
 #include "inode.h"
@@ -25,6 +28,7 @@
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
+#include "util.h"
 
 static void pfault_be_greedy(struct gfs2_inode *ip)
 {
@@ -43,7 +47,7 @@ static void pfault_be_greedy(struct gfs2_inode *ip)
 static struct page *gfs2_private_nopage(struct vm_area_struct *area,
 					unsigned long address, int *type)
 {
-	struct gfs2_inode *ip = get_v2ip(area->vm_file->f_mapping->host);
+	struct gfs2_inode *ip = area->vm_file->f_mapping->host->u.generic_ip;
 	struct gfs2_holder i_gh;
 	struct page *result;
 	int error;
@@ -141,7 +145,7 @@ static int alloc_page_backing(struct gfs2_inode *ip, struct page *page)
 static struct page *gfs2_sharewrite_nopage(struct vm_area_struct *area,
 					   unsigned long address, int *type)
 {
-	struct gfs2_inode *ip = get_v2ip(area->vm_file->f_mapping->host);
+	struct gfs2_inode *ip = area->vm_file->f_mapping->host->u.generic_ip;
 	struct gfs2_holder i_gh;
 	struct page *result = NULL;
 	unsigned long index = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) +

@@ -13,13 +13,17 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/xattr.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "acl.h"
 #include "eaops.h"
 #include "eattr.h"
+#include "util.h"
 
 /**
  * gfs2_ea_name2type - get the type of the ea, and truncate type from the name

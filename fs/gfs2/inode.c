@@ -14,9 +14,12 @@
 #include <linux/buffer_head.h>
 #include <linux/posix_acl.h>
 #include <linux/sort.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "acl.h"
 #include "bmap.h"
 #include "dir.h"
@@ -33,6 +36,7 @@
 #include "rgrp.h"
 #include "trans.h"
 #include "unlinked.h"
+#include "util.h"
 
 /**
  * inode_attr_in - Copy attributes from the dinode into the VFS inode
@@ -176,7 +180,7 @@ struct inode *gfs2_ip2v(struct gfs2_inode *ip)
 		init_special_inode(tmp, tmp->i_mode, tmp->i_rdev);
 	}
 
-	set_v2ip(tmp, NULL);
+	tmp->u.generic_ip = NULL;
 
 	for (;;) {
 		spin_lock(&ip->i_spin);
@@ -196,7 +200,7 @@ struct inode *gfs2_ip2v(struct gfs2_inode *ip)
 
 	gfs2_inode_hold(ip);
 	ip->i_vnode = inode;
-	set_v2ip(inode, ip);
+	inode->u.generic_ip = ip;
 
 	spin_unlock(&ip->i_spin);
 
@@ -207,7 +211,7 @@ struct inode *gfs2_ip2v(struct gfs2_inode *ip)
 
 static int iget_test(struct inode *inode, void *opaque)
 {
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_inum *inum = (struct gfs2_inum *)opaque;
 
 	if (ip && ip->i_num.no_addr == inum->no_addr)
@@ -320,11 +324,11 @@ static int inode_create(struct gfs2_glock *i_gl, struct gfs2_inum *inum,
 
 	spin_lock(&io_gl->gl_spin);
 	gfs2_glock_hold(i_gl);
-	set_gl2gl(io_gl, i_gl);
+	io_gl->gl_object = i_gl;
 	spin_unlock(&io_gl->gl_spin);
 
 	gfs2_glock_hold(i_gl);
-	set_gl2ip(i_gl, ip);
+	i_gl->gl_object = ip;
 
 	atomic_inc(&sdp->sd_inode_count);
 
@@ -359,7 +363,7 @@ int gfs2_inode_get(struct gfs2_glock *i_gl, struct gfs2_inum *inum, int create,
 
 	gfs2_glmutex_lock(i_gl);
 
-	*ipp = get_gl2ip(i_gl);
+	*ipp = i_gl->gl_object;
 	if (*ipp) {
 		error = -ESTALE;
 		if ((*ipp)->i_num.no_formal_ino != inum->no_formal_ino)
@@ -404,10 +408,10 @@ void gfs2_inode_destroy(struct gfs2_inode *ip)
 	struct gfs2_glock *i_gl = ip->i_gl;
 
 	gfs2_assert_warn(sdp, !atomic_read(&ip->i_count));
-	gfs2_assert(sdp, get_gl2gl(io_gl) == i_gl);
+	gfs2_assert(sdp, io_gl->gl_object == i_gl);
 
 	spin_lock(&io_gl->gl_spin);
-	set_gl2gl(io_gl, NULL);
+	io_gl->gl_object = NULL;
 	gfs2_glock_put(i_gl);
 	spin_unlock(&io_gl->gl_spin);
 
@@ -416,7 +420,7 @@ void gfs2_inode_destroy(struct gfs2_inode *ip)
 	gfs2_meta_cache_flush(ip);
 	kmem_cache_free(gfs2_inode_cachep, ip);
 
-	set_gl2ip(i_gl, NULL);
+	i_gl->gl_object = NULL;
 	gfs2_glock_put(i_gl);
 
 	atomic_dec(&sdp->sd_inode_count);
@@ -524,7 +528,7 @@ static int inode_dealloc(struct gfs2_sbd *sdp, struct gfs2_unlinked *ul,
 		goto out;
 	}
 
-	gfs2_assert_warn(sdp, !get_gl2ip(i_gh.gh_gl));
+	gfs2_assert_warn(sdp, !i_gh.gh_gl->gl_object);
 	error = inode_create(i_gh.gh_gl, &ul->ul_ut.ut_inum, io_gh->gh_gl,
 			     LM_ST_EXCLUSIVE, &ip);
 
@@ -715,7 +719,7 @@ int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 		 struct inode **inodep)
 {
 	struct gfs2_inode *ipp;
-	struct gfs2_inode *dip = get_v2ip(dir);
+	struct gfs2_inode *dip = dir->u.generic_ip;
 	struct gfs2_sbd *sdp = dip->i_sbd;
 	struct gfs2_holder d_gh;
 	struct gfs2_inum inum;
@@ -774,7 +778,7 @@ done:
 
 static int pick_formal_ino_1(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 {
-	struct gfs2_inode *ip = get_v2ip(sdp->sd_ir_inode);
+	struct gfs2_inode *ip = sdp->sd_ir_inode->u.generic_ip;
 	struct buffer_head *bh;
 	struct gfs2_inum_range ir;
 	int error;
@@ -815,8 +819,8 @@ static int pick_formal_ino_1(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 
 static int pick_formal_ino_2(struct gfs2_sbd *sdp, uint64_t *formal_ino)
 {
-	struct gfs2_inode *ip = get_v2ip(sdp->sd_ir_inode);
-	struct gfs2_inode *m_ip = get_v2ip(sdp->sd_inum_inode);
+	struct gfs2_inode *ip = sdp->sd_ir_inode->u.generic_ip;
+	struct gfs2_inode *m_ip = sdp->sd_inum_inode->u.generic_ip;
 	struct gfs2_holder gh;
 	struct buffer_head *bh;
 	struct gfs2_inum_range ir;
@@ -1194,7 +1198,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name,
 			   unsigned int mode)
 {
 	struct inode *inode;
-	struct gfs2_inode *dip = get_gl2ip(ghs->gh_gl);
+	struct gfs2_inode *dip = ghs->gh_gl->gl_object;
 	struct gfs2_sbd *sdp = dip->i_sbd;
 	struct gfs2_unlinked *ul;
 	struct gfs2_inode *ip;
@@ -1570,7 +1574,7 @@ int gfs2_glock_nq_atime(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_inode *ip = get_gl2ip(gl);
+	struct gfs2_inode *ip = gl->gl_object;
 	int64_t curtime, quantum = gfs2_tune_get(sdp, gt_atime_quantum);
 	unsigned int state;
 	int flags;
@@ -1817,7 +1821,7 @@ int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 {
 	int error;
 
-	if (get_transaction)
+	if (current->journal_info)
 		return __gfs2_setattr_simple(ip, attr);
 
 	error = gfs2_trans_begin(ip->i_sbd, RES_DINODE, 0);

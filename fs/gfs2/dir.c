@@ -59,9 +59,12 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/sort.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "dir.h"
 #include "glock.h"
 #include "inode.h"
@@ -70,6 +73,7 @@
 #include "rgrp.h"
 #include "trans.h"
 #include "bmap.h"
+#include "util.h"
 
 #define IS_LEAF     1 /* Hashed (leaf) directory */
 #define IS_DINODE   2 /* Linear (stuffed dinode block) directory */
@@ -2196,7 +2200,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, uint32_t index, uint32_t len,
 
 	for (x = 0; x < rlist.rl_rgrps; x++) {
 		struct gfs2_rgrpd *rgd;
-		rgd = get_gl2rgd(rlist.rl_ghs[x].gh_gl);
+		rgd = rlist.rl_ghs[x].gh_gl->gl_object;
 		rg_blocks += rgd->rd_ri.ri_length;
 	}
 
@@ -2205,7 +2209,7 @@ static int leaf_dealloc(struct gfs2_inode *dip, uint32_t index, uint32_t len,
 		goto out_rlist;
 
 	error = gfs2_trans_begin(sdp,
-			rg_blocks + (DIV_RU(size, sdp->sd_jbsize) + 1) +
+			rg_blocks + (DIV_ROUND_UP(size, sdp->sd_jbsize) + 1) +
 			RES_DINODE + RES_STATFS + RES_QUOTA, l_blocks);
 	if (error)
 		goto out_rg_gunlock;

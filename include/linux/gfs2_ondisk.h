@@ -50,14 +50,17 @@
  * An on-disk inode number
  */
 
-#define gfs2_inum_equal(ino1, ino2) \
-	(((ino1)->no_formal_ino == (ino2)->no_formal_ino) && \
-	((ino1)->no_addr == (ino2)->no_addr))
-
 struct gfs2_inum {
 	__be64 no_formal_ino;
 	__be64 no_addr;
 };
+
+static inline int gfs2_inum_equal(const struct gfs2_inum *ino1,
+				  const struct gfs2_inum *ino2)
+{
+	return ino1->no_formal_ino == ino2->no_formal_ino &&
+	       ino1->no_addr == ino2->no_addr;
+}
 
 /*
  * Generic metadata head structure

@@ -12,9 +12,12 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "dir.h"
 #include "glock.h"
 #include "glops.h"
@@ -61,7 +64,7 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 			  int connectable)
 {
 	struct inode *inode = dentry->d_inode;
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
 
 	if (*len < 4 || (connectable && *len < 8))
@@ -77,12 +80,12 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	fh[3] = cpu_to_be32(fh[3]);
 	*len = 4;
 
-	if (!connectable || ip == get_v2ip(sdp->sd_root_dir))
+	if (!connectable || ip == sdp->sd_root_dir->u.generic_ip)
 		return *len;
 
 	spin_lock(&dentry->d_lock);
 	inode = dentry->d_parent->d_inode;
-	ip = get_v2ip(inode);
+	ip = inode->u.generic_ip;
 	gfs2_inode_hold(ip);
 	spin_unlock(&dentry->d_lock);
 
@@ -138,8 +141,8 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 	if (!S_ISDIR(dir->i_mode) || !inode)
 		return -EINVAL;
 
-	dip = get_v2ip(dir);
-	ip = get_v2ip(inode);
+	dip = dir->u.generic_ip;
+	ip = inode->u.generic_ip;
 
 	*name = 0;
 	gnfd.inum = ip->i_num;
@@ -181,7 +184,7 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 
 static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_p)
 {
-	struct gfs2_sbd *sdp = get_v2sdp(sb);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_inum *inum = (struct gfs2_inum *)inum_p;
 	struct gfs2_holder i_gh, ri_gh, rgd_gh;
 	struct gfs2_rgrpd *rgd;
@@ -194,7 +197,7 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb, void *inum_p)
 
 	inode = gfs2_iget(sb, inum);
 	if (inode) {
-		ip = get_v2ip(inode);
+		ip = inode->u.generic_ip;
 		if (ip->i_num.no_formal_ino != inum->no_formal_ino) {
 			iput(inode);
 			return ERR_PTR(-ESTALE);

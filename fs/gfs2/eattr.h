@@ -29,7 +29,7 @@ ALIGN(sizeof(struct gfs2_ea_header) + (er)->er_name_len + (er)->er_data_len, 8)
 
 #define GFS2_EAREQ_SIZE_UNSTUFFED(sdp, er) \
 ALIGN(sizeof(struct gfs2_ea_header) + (er)->er_name_len + \
-      sizeof(uint64_t) * DIV_RU((er)->er_data_len, (sdp)->sd_jbsize), 8)
+      sizeof(uint64_t) * DIV_ROUND_UP((er)->er_data_len, (sdp)->sd_jbsize), 8)
 
 #define GFS2_EA2NAME(ea) ((char *)((struct gfs2_ea_header *)(ea) + 1))
 #define GFS2_EA2DATA(ea) (GFS2_EA2NAME(ea) + (ea)->ea_name_len)

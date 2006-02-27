@@ -13,19 +13,23 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/kthread.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "bmap.h"
 #include "inode.h"
 #include "meta_io.h"
 #include "trans.h"
 #include "unlinked.h"
+#include "util.h"
 
 static int munge_ondisk(struct gfs2_sbd *sdp, unsigned int slot,
 			struct gfs2_unlinked_tag *ut)
 {
-	struct gfs2_inode *ip = get_v2ip(sdp->sd_ut_inode);
+	struct gfs2_inode *ip = sdp->sd_ut_inode->u.generic_ip;
 	unsigned int block, offset;
 	uint64_t dblock;
 	int new = 0;
@@ -312,7 +316,7 @@ int gfs2_unlinked_dealloc(struct gfs2_sbd *sdp)
 
 int gfs2_unlinked_init(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *ip = get_v2ip(sdp->sd_ut_inode);
+	struct gfs2_inode *ip = sdp->sd_ut_inode->u.generic_ip;
 	unsigned int blocks = ip->i_di.di_size >> sdp->sd_sb.sb_bsize_shift;
 	unsigned int x, slot = 0;
 	unsigned int found = 0;
@@ -327,7 +331,8 @@ int gfs2_unlinked_init(struct gfs2_sbd *sdp)
 		return -EIO;		
 	}
 	sdp->sd_unlinked_slots = blocks * sdp->sd_ut_per_block;
-	sdp->sd_unlinked_chunks = DIV_RU(sdp->sd_unlinked_slots, 8 * PAGE_SIZE);
+	sdp->sd_unlinked_chunks = DIV_ROUND_UP(sdp->sd_unlinked_slots,
+					       8 * PAGE_SIZE);
 
 	error = -ENOMEM;
 

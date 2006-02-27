@@ -14,15 +14,19 @@
 #include <linux/buffer_head.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "lm.h"
 #include "sys.h"
 #include "super.h"
 #include "glock.h"
 #include "quota.h"
+#include "util.h"
 
 char *gfs2_sys_margs;
 spinlock_t gfs2_sys_margs_lock;

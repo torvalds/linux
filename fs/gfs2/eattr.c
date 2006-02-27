@@ -13,10 +13,13 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/xattr.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "acl.h"
 #include "eaops.h"
 #include "eattr.h"
@@ -26,6 +29,7 @@
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
+#include "util.h"
 
 /**
  * ea_calc_size - returns the acutal number of bytes the request will take up
@@ -478,7 +482,7 @@ static int ea_get_unstuffed(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	struct buffer_head **bh;
 	unsigned int amount = GFS2_EA_DATA_LEN(ea);
-	unsigned int nptrs = DIV_RU(amount, sdp->sd_jbsize);
+	unsigned int nptrs = DIV_ROUND_UP(amount, sdp->sd_jbsize);
 	uint64_t *dataptrs = GFS2_EA2DATAPTRS(ea);
 	unsigned int x;
 	int error = 0;
@@ -676,7 +680,7 @@ static int ea_write(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 		unsigned int copy;
 		unsigned int x;
 
-		ea->ea_num_ptrs = DIV_RU(er->er_data_len, sdp->sd_jbsize);
+		ea->ea_num_ptrs = DIV_ROUND_UP(er->er_data_len, sdp->sd_jbsize);
 		for (x = 0; x < ea->ea_num_ptrs; x++) {
 			struct buffer_head *bh;
 			uint64_t block;
@@ -810,7 +814,7 @@ static int ea_init(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 	unsigned int blks = 1;
 
 	if (GFS2_EAREQ_SIZE_STUFFED(er) > jbsize)
-		blks += DIV_RU(er->er_data_len, jbsize);
+		blks += DIV_ROUND_UP(er->er_data_len, jbsize);
 
 	return ea_alloc_skeleton(ip, er, blks, ea_init_i, NULL);
 }
@@ -962,7 +966,8 @@ static int ea_set_simple(struct gfs2_inode *ip, struct buffer_head *bh,
 
 		es->es_bh = bh;
 		es->es_ea = ea;
-		blks = 2 + DIV_RU(es->es_er->er_data_len, ip->i_sbd->sd_jbsize);
+		blks = 2 + DIV_ROUND_UP(es->es_er->er_data_len,
+					ip->i_sbd->sd_jbsize);
 
 		error = ea_alloc_skeleton(ip, es->es_er, blks,
 					  ea_set_simple_alloc, es);
@@ -1066,7 +1071,7 @@ static int ea_set_i(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	if (!(ip->i_di.di_flags & GFS2_DIF_EA_INDIRECT))
 		blks++;
 	if (GFS2_EAREQ_SIZE_STUFFED(er) > ip->i_sbd->sd_jbsize)
-		blks += DIV_RU(er->er_data_len, ip->i_sbd->sd_jbsize);
+		blks += DIV_ROUND_UP(er->er_data_len, ip->i_sbd->sd_jbsize);
 
 	return ea_alloc_skeleton(ip, er, blks, ea_set_block, el);
 }
@@ -1250,7 +1255,7 @@ static int ea_acl_chmod_unstuffed(struct gfs2_inode *ip,
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	struct buffer_head **bh;
 	unsigned int amount = GFS2_EA_DATA_LEN(ea);
-	unsigned int nptrs = DIV_RU(amount, sdp->sd_jbsize);
+	unsigned int nptrs = DIV_ROUND_UP(amount, sdp->sd_jbsize);
 	uint64_t *dataptrs = GFS2_EA2DATAPTRS(ea);
 	unsigned int x;
 	int error;
@@ -1402,7 +1407,7 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 
 	for (x = 0; x < rlist.rl_rgrps; x++) {
 		struct gfs2_rgrpd *rgd;
-		rgd = get_gl2rgd(rlist.rl_ghs[x].gh_gl);
+		rgd = rlist.rl_ghs[x].gh_gl->gl_object;
 		rg_blocks += rgd->rd_ri.ri_length;
 	}
 

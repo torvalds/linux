@@ -13,12 +13,16 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/crc32.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "glock.h"
 #include "lm.h"
+#include "util.h"
 
 kmem_cache_t *gfs2_glock_cachep __read_mostly;
 kmem_cache_t *gfs2_inode_cachep __read_mostly;

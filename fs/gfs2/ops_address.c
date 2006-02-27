@@ -15,9 +15,12 @@
 #include <linux/pagemap.h>
 #include <linux/mpage.h>
 #include <linux/fs.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "bmap.h"
 #include "glock.h"
 #include "inode.h"
@@ -29,6 +32,7 @@
 #include "trans.h"
 #include "rgrp.h"
 #include "ops_file.h"
+#include "util.h"
 
 /**
  * gfs2_get_block - Fills in a buffer head with details about a block
@@ -43,7 +47,7 @@
 int gfs2_get_block(struct inode *inode, sector_t lblock,
 	           struct buffer_head *bh_result, int create)
 {
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	int new = create;
 	uint64_t dblock;
 	int error;
@@ -75,7 +79,7 @@ int gfs2_get_block(struct inode *inode, sector_t lblock,
 static int get_block_noalloc(struct inode *inode, sector_t lblock,
 			     struct buffer_head *bh_result, int create)
 {
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	int new = 0;
 	uint64_t dblock;
 	int error;
@@ -96,7 +100,7 @@ static int get_blocks(struct inode *inode, sector_t lblock,
 		      unsigned long max_blocks, struct buffer_head *bh_result,
 		      int create)
 {
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	int new = create;
 	uint64_t dblock;
 	uint32_t extlen;
@@ -124,7 +128,7 @@ static int get_blocks_noalloc(struct inode *inode, sector_t lblock,
 			      unsigned long max_blocks,
 			      struct buffer_head *bh_result, int create)
 {
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	int new = 0;
 	uint64_t dblock;
 	uint32_t extlen;
@@ -158,7 +162,7 @@ static int get_blocks_noalloc(struct inode *inode, sector_t lblock,
 static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
-	struct gfs2_inode *ip = get_v2ip(page->mapping->host);
+	struct gfs2_inode *ip = page->mapping->host->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	loff_t i_size = i_size_read(inode);
 	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
@@ -170,7 +174,7 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 		unlock_page(page);
 		return -EIO;
 	}
-	if (get_transaction)
+	if (current->journal_info)
 		goto out_ignore;
 
 	/* Is the page fully outside i_size? (truncate in progress) */
@@ -259,7 +263,7 @@ static int zero_readpage(struct page *page)
 
 static int gfs2_readpage(struct file *file, struct page *page)
 {
-	struct gfs2_inode *ip = get_v2ip(page->mapping->host);
+	struct gfs2_inode *ip = page->mapping->host->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	struct gfs2_holder gh;
 	int error;
@@ -307,7 +311,7 @@ out_unlock:
 static int gfs2_prepare_write(struct file *file, struct page *page,
 			      unsigned from, unsigned to)
 {
-	struct gfs2_inode *ip = get_v2ip(page->mapping->host);
+	struct gfs2_inode *ip = page->mapping->host->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	unsigned int data_blocks, ind_blocks, rblocks;
 	int alloc_required;
@@ -402,7 +406,7 @@ static int gfs2_commit_write(struct file *file, struct page *page,
 			     unsigned from, unsigned to)
 {
 	struct inode *inode = page->mapping->host;
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	int error = -EOPNOTSUPP;
 	struct buffer_head *dibh;
@@ -482,7 +486,7 @@ fail_nounlock:
 
 static sector_t gfs2_bmap(struct address_space *mapping, sector_t lblock)
 {
-	struct gfs2_inode *ip = get_v2ip(mapping->host);
+	struct gfs2_inode *ip = mapping->host->u.generic_ip;
 	struct gfs2_holder i_gh;
 	sector_t dblock = 0;
 	int error;
@@ -504,10 +508,10 @@ static void discard_buffer(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	struct gfs2_bufdata *bd;
 
 	gfs2_log_lock(sdp);
-	bd = get_v2bd(bh);
+	bd = bh->b_private;
 	if (bd) {
 		bd->bd_bh = NULL;
-		set_v2bd(bh, NULL);
+		bh->b_private = NULL;
 		gfs2_log_unlock(sdp);
 		brelse(bh);
 	} else
@@ -525,7 +529,7 @@ static void discard_buffer(struct gfs2_sbd *sdp, struct buffer_head *bh)
 
 static int gfs2_invalidatepage(struct page *page, unsigned long offset)
 {
-	struct gfs2_sbd *sdp = get_v2sdp(page->mapping->host->i_sb);
+	struct gfs2_sbd *sdp = page->mapping->host->i_sb->s_fs_info;
 	struct buffer_head *head, *bh, *next;
 	unsigned int curr_off = 0;
 	int ret = 1;
@@ -557,7 +561,7 @@ static ssize_t gfs2_direct_IO_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_holder gh;
 	int rv;
 
@@ -604,7 +608,7 @@ static ssize_t gfs2_direct_IO(int rw, struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
 
 	if (rw == WRITE)

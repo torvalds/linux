@@ -16,10 +16,13 @@
 #include <linux/sort.h>
 #include <linux/jhash.h>
 #include <linux/kref.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
@@ -28,6 +31,7 @@
 #include "meta_io.h"
 #include "quota.h"
 #include "super.h"
+#include "util.h"
 
 /*  Must be kept in sync with the beginning of struct gfs2_glock  */
 struct glock_plug {
@@ -1962,7 +1966,7 @@ void gfs2_try_toss_inode(struct gfs2_sbd *sdp, struct gfs2_inum *inum)
 	if (!gfs2_glmutex_trylock(gl))
 		goto out;
 
-	ip = get_gl2ip(gl);
+	ip = gl->gl_object;
 	if (!ip)
 		goto out_unlock;
 
@@ -1994,7 +1998,7 @@ void gfs2_iopen_go_callback(struct gfs2_glock *io_gl, unsigned int state)
 		return;
 
 	spin_lock(&io_gl->gl_spin);
-	i_gl = get_gl2gl(io_gl);
+	i_gl = io_gl->gl_object;
 	if (i_gl) {
 		gfs2_glock_hold(i_gl);
 		spin_unlock(&io_gl->gl_spin);
@@ -2004,7 +2008,7 @@ void gfs2_iopen_go_callback(struct gfs2_glock *io_gl, unsigned int state)
 	}
 
 	if (gfs2_glmutex_trylock(i_gl)) {
-		struct gfs2_inode *ip = get_gl2ip(i_gl);
+		struct gfs2_inode *ip = i_gl->gl_object;
 		if (ip) {
 			gfs2_try_toss_vnode(ip);
 			gfs2_glmutex_unlock(i_gl);
@@ -2093,7 +2097,7 @@ void gfs2_reclaim_glock(struct gfs2_sbd *sdp)
 
 	if (gfs2_glmutex_trylock(gl)) {
 		if (gl->gl_ops == &gfs2_inode_glops) {
-			struct gfs2_inode *ip = get_gl2ip(gl);
+			struct gfs2_inode *ip = gl->gl_object;
 			if (ip && !atomic_read(&ip->i_count))
 				gfs2_inode_destroy(ip);
 		}
@@ -2174,7 +2178,7 @@ static void scan_glock(struct gfs2_glock *gl)
 {
 	if (gfs2_glmutex_trylock(gl)) {
 		if (gl->gl_ops == &gfs2_inode_glops) {
-			struct gfs2_inode *ip = get_gl2ip(gl);
+			struct gfs2_inode *ip = gl->gl_object;
 			if (ip && !atomic_read(&ip->i_count))
 				goto out_schedule;
 		}
@@ -2234,7 +2238,7 @@ static void clear_glock(struct gfs2_glock *gl)
 
 	if (gfs2_glmutex_trylock(gl)) {
 		if (gl->gl_ops == &gfs2_inode_glops) {
-			struct gfs2_inode *ip = get_gl2ip(gl);
+			struct gfs2_inode *ip = gl->gl_object;
 			if (ip && !atomic_read(&ip->i_count))
 				gfs2_inode_destroy(ip);
 		}
@@ -2430,10 +2434,10 @@ static int dump_glock(struct gfs2_glock *gl)
 		if (error)
 			goto out;
 	}
-	if (gl->gl_ops == &gfs2_inode_glops && get_gl2ip(gl)) {
+	if (gl->gl_ops == &gfs2_inode_glops && gl->gl_object) {
 		if (!test_bit(GLF_LOCK, &gl->gl_flags) &&
 		    list_empty(&gl->gl_holders)) {
-			error = dump_inode(get_gl2ip(gl));
+			error = dump_inode(gl->gl_object);
 			if (error)
 				goto out;
 		} else {

@@ -17,9 +17,12 @@
 #include <linux/writeback.h>
 #include <linux/swap.h>
 #include <linux/delay.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
@@ -28,6 +31,7 @@
 #include "meta_io.h"
 #include "rgrp.h"
 #include "trans.h"
+#include "util.h"
 
 #define buffer_busy(bh) \
 ((bh)->b_state & ((1ul << BH_Dirty) | (1ul << BH_Lock) | (1ul << BH_Pinned)))
@@ -37,7 +41,7 @@
 static int aspace_get_block(struct inode *inode, sector_t lblock,
 			    struct buffer_head *bh_result, int create)
 {
-	gfs2_assert_warn(get_v2sdp(inode->i_sb), 0);
+	gfs2_assert_warn(inode->i_sb->s_fs_info, 0);
 	return -EOPNOTSUPP;
 }
 
@@ -55,15 +59,15 @@ static int gfs2_aspace_writepage(struct page *page,
 
 static void stuck_releasepage(struct buffer_head *bh)
 {
-	struct gfs2_sbd *sdp = get_v2sdp(bh->b_page->mapping->host->i_sb);
-	struct gfs2_bufdata *bd = get_v2bd(bh);
+	struct gfs2_sbd *sdp = bh->b_page->mapping->host->i_sb->s_fs_info;
+	struct gfs2_bufdata *bd = bh->b_private;
 	struct gfs2_glock *gl;
 
 	fs_warn(sdp, "stuck in gfs2_releasepage()\n");
 	fs_warn(sdp, "blkno = %llu, bh->b_count = %d\n",
 		(uint64_t)bh->b_blocknr, atomic_read(&bh->b_count));
 	fs_warn(sdp, "pinned = %u\n", buffer_pinned(bh));
-	fs_warn(sdp, "get_v2bd(bh) = %s\n", (bd) ? "!NULL" : "NULL");
+	fs_warn(sdp, "bh->b_private = %s\n", (bd) ? "!NULL" : "NULL");
 
 	if (!bd)
 		return;
@@ -78,7 +82,7 @@ static void stuck_releasepage(struct buffer_head *bh)
 		(list_empty(&bd->bd_le.le_list)) ? "no" : "yes");
 
 	if (gl->gl_ops == &gfs2_inode_glops) {
-		struct gfs2_inode *ip = get_gl2ip(gl);
+		struct gfs2_inode *ip = gl->gl_object;
 		unsigned int x;
 
 		if (!ip)
@@ -110,7 +114,7 @@ static void stuck_releasepage(struct buffer_head *bh)
 static int gfs2_aspace_releasepage(struct page *page, gfp_t gfp_mask)
 {
 	struct inode *aspace = page->mapping->host;
-	struct gfs2_sbd *sdp = get_v2sdp(aspace->i_sb);
+	struct gfs2_sbd *sdp = aspace->i_sb->s_fs_info;
 	struct buffer_head *bh, *head;
 	struct gfs2_bufdata *bd;
 	unsigned long t;
@@ -139,14 +143,14 @@ static int gfs2_aspace_releasepage(struct page *page, gfp_t gfp_mask)
 
 		gfs2_assert_warn(sdp, !buffer_pinned(bh));
 
-		bd = get_v2bd(bh);
+		bd = bh->b_private;
 		if (bd) {
 			gfs2_assert_warn(sdp, bd->bd_bh == bh);
 			gfs2_assert_warn(sdp, list_empty(&bd->bd_list_tr));
 			gfs2_assert_warn(sdp, list_empty(&bd->bd_le.le_list));
 			gfs2_assert_warn(sdp, !bd->bd_ail);
 			kmem_cache_free(gfs2_bufdata_cachep, bd);
-			set_v2bd(bh, NULL);
+			bh->b_private = NULL;
 		}
 
 		bh = bh->b_this_page;
@@ -184,7 +188,7 @@ struct inode *gfs2_aspace_get(struct gfs2_sbd *sdp)
 		mapping_set_gfp_mask(aspace->i_mapping, GFP_KERNEL);
 		aspace->i_mapping->a_ops = &aspace_aops;
 		aspace->i_size = ~0ULL;
-		set_v2ip(aspace, NULL);
+		aspace->u.generic_ip = NULL;
 		insert_inode_hash(aspace);
 	}
 
@@ -523,7 +527,7 @@ int gfs2_meta_reread(struct gfs2_sbd *sdp, struct buffer_head *bh, int flags)
 		wait_on_buffer(bh);
 
 		if (!buffer_uptodate(bh)) {
-			struct gfs2_trans *tr = get_transaction;
+			struct gfs2_trans *tr = current->journal_info;
 			if (tr && tr->tr_touched)
 				gfs2_io_error_bh(sdp, bh);
 			return -EIO;
@@ -550,7 +554,7 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
 	if (meta)
 		lock_page(bh->b_page);
 
-	if (get_v2bd(bh)) {
+	if (bh->b_private) {
 		if (meta)
 			unlock_page(bh->b_page);
 		return;
@@ -569,7 +573,7 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
 		lops_init_le(&bd->bd_le, &gfs2_databuf_lops);
 		get_bh(bh);
 	}
-	set_v2bd(bh, bd);
+	bh->b_private = bd;
 
 	if (meta)
 		unlock_page(bh->b_page);
@@ -584,7 +588,7 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
 
 void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 {
-	struct gfs2_bufdata *bd = get_v2bd(bh);
+	struct gfs2_bufdata *bd = bh->b_private;
 
 	gfs2_assert_withdraw(sdp, test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags));
 
@@ -621,7 +625,7 @@ void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	        struct gfs2_ail *ai)
 {
-	struct gfs2_bufdata *bd = get_v2bd(bh);
+	struct gfs2_bufdata *bd = bh->b_private;
 
 	gfs2_assert_withdraw(sdp, buffer_uptodate(bh));
 
@@ -662,15 +666,16 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, uint64_t bstart, uint32_t blen)
 	while (blen) {
 		bh = getbuf(sdp, aspace, bstart, NO_CREATE);
 		if (bh) {
-			struct gfs2_bufdata *bd = get_v2bd(bh);
+			struct gfs2_bufdata *bd = bh->b_private;
 
 			if (test_clear_buffer_pinned(bh)) {
+				struct gfs2_trans *tr = current->journal_info;
 				gfs2_log_lock(sdp);
 				list_del_init(&bd->bd_le.le_list);
 				gfs2_assert_warn(sdp, sdp->sd_log_num_buf);
 				sdp->sd_log_num_buf--;
 				gfs2_log_unlock(sdp);
-				get_transaction->tr_num_buf_rm++;
+				tr->tr_num_buf_rm++;
 				brelse(bh);
 			}
 			if (bd) {

@@ -14,14 +14,18 @@
 #include <linux/buffer_head.h>
 #include <linux/pagemap.h>
 #include <linux/mm.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "bmap.h"
 #include "inode.h"
 #include "page.h"
 #include "trans.h"
 #include "ops_address.h"
+#include "util.h"
 
 /**
  * gfs2_pte_inval - Sync and invalidate all PTEs associated with a glock
@@ -34,7 +38,7 @@ void gfs2_pte_inval(struct gfs2_glock *gl)
 	struct gfs2_inode *ip;
 	struct inode *inode;
 
-	ip = get_gl2ip(gl);
+	ip = gl->gl_object;
 	if (!ip || !S_ISREG(ip->i_di.di_mode))
 		return;
 
@@ -64,7 +68,7 @@ void gfs2_page_inval(struct gfs2_glock *gl)
 	struct gfs2_inode *ip;
 	struct inode *inode;
 
-	ip = get_gl2ip(gl);
+	ip = gl->gl_object;
 	if (!ip || !S_ISREG(ip->i_di.di_mode))
 		return;
 
@@ -95,7 +99,7 @@ void gfs2_page_sync(struct gfs2_glock *gl, int flags)
 	struct gfs2_inode *ip;
 	struct inode *inode;
 
-	ip = get_gl2ip(gl);
+	ip = gl->gl_object;
 	if (!ip || !S_ISREG(ip->i_di.di_mode))
 		return;
 
@@ -192,7 +196,7 @@ int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 int gfs2_block_truncate_page(struct address_space *mapping)
 {
 	struct inode *inode = mapping->host;
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_sbd *sdp = ip->i_sbd;
 	loff_t from = inode->i_size;
 	unsigned long index = from >> PAGE_CACHE_SHIFT;

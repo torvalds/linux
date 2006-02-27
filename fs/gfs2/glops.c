@@ -12,9 +12,12 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "bmap.h"
 #include "glock.h"
 #include "glops.h"
@@ -24,6 +27,7 @@
 #include "page.h"
 #include "recovery.h"
 #include "rgrp.h"
+#include "util.h"
 
 /**
  * meta_go_sync - sync out the metadata for this glock
@@ -193,7 +197,7 @@ static int inode_go_demote_ok(struct gfs2_glock *gl)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	int demote = 0;
 
-	if (!get_gl2ip(gl) && !gl->gl_aspace->i_mapping->nrpages)
+	if (!gl->gl_object && !gl->gl_aspace->i_mapping->nrpages)
 		demote = 1;
 	else if (!sdp->sd_args.ar_localcaching &&
 		 time_after_eq(jiffies, gl->gl_stamp +
@@ -214,7 +218,7 @@ static int inode_go_demote_ok(struct gfs2_glock *gl)
 static int inode_go_lock(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_inode *ip = get_gl2ip(gl);
+	struct gfs2_inode *ip = gl->gl_object;
 	int error = 0;
 
 	if (!ip)
@@ -246,7 +250,7 @@ static int inode_go_lock(struct gfs2_holder *gh)
 static void inode_go_unlock(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_inode *ip = get_gl2ip(gl);
+	struct gfs2_inode *ip = gl->gl_object;
 
 	if (ip && test_bit(GLF_DIRTY, &gl->gl_flags))
 		gfs2_inode_attr_in(ip);
@@ -264,7 +268,7 @@ static void inode_go_unlock(struct gfs2_holder *gh)
 static void inode_greedy(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_inode *ip = get_gl2ip(gl);
+	struct gfs2_inode *ip = gl->gl_object;
 	unsigned int quantum = gfs2_tune_get(sdp, gt_greedy_quantum);
 	unsigned int max = gfs2_tune_get(sdp, gt_greedy_max);
 	unsigned int new_time;
@@ -311,7 +315,7 @@ static int rgrp_go_demote_ok(struct gfs2_glock *gl)
 
 static int rgrp_go_lock(struct gfs2_holder *gh)
 {
-	return gfs2_rgrp_bh_get(get_gl2rgd(gh->gh_gl));
+	return gfs2_rgrp_bh_get(gh->gh_gl->gl_object);
 }
 
 /**
@@ -324,7 +328,7 @@ static int rgrp_go_lock(struct gfs2_holder *gh)
 
 static void rgrp_go_unlock(struct gfs2_holder *gh)
 {
-	gfs2_rgrp_bh_put(get_gl2rgd(gh->gh_gl));
+	gfs2_rgrp_bh_put(gh->gh_gl->gl_object);
 }
 
 /**
@@ -358,13 +362,14 @@ static void trans_go_xmote_th(struct gfs2_glock *gl, unsigned int state,
 static void trans_go_xmote_bh(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	struct gfs2_glock *j_gl = get_v2ip(sdp->sd_jdesc->jd_inode)->i_gl;
+	struct gfs2_inode *ip = sdp->sd_jdesc->jd_inode->u.generic_ip;
+	struct gfs2_glock *j_gl = ip->i_gl;
 	struct gfs2_log_header head;
 	int error;
 
 	if (gl->gl_state != LM_ST_UNLOCKED &&
 	    test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
-		gfs2_meta_cache_flush(get_v2ip(sdp->sd_jdesc->jd_inode));
+		gfs2_meta_cache_flush(sdp->sd_jdesc->jd_inode->u.generic_ip);
 		j_gl->gl_ops->go_inval(j_gl, DIO_METADATA | DIO_DATA);
 
 		error = gfs2_find_jhead(sdp->sd_jdesc, &head);

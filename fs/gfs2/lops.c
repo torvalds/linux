@@ -12,9 +12,12 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "glock.h"
 #include "log.h"
 #include "lops.h"
@@ -22,12 +25,14 @@
 #include "recovery.h"
 #include "rgrp.h"
 #include "trans.h"
+#include "util.h"
 
 static void glock_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 {
 	struct gfs2_glock *gl;
+	struct gfs2_trans *tr = current->journal_info;
 
-	get_transaction->tr_touched = 1;
+	tr->tr_touched = 1;
 
 	if (!list_empty(&le->le_list))
 		return;
@@ -68,7 +73,7 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	if (!list_empty(&bd->bd_list_tr))
 		return;
 
-	tr = get_transaction;
+	tr = current->journal_info;
 	tr->tr_touched = 1;
 	tr->tr_num_buf++;
 	list_add(&bd->bd_list_tr, &tr->tr_list_buf);
@@ -179,7 +184,8 @@ static void buf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 static void buf_lo_before_scan(struct gfs2_jdesc *jd,
 			       struct gfs2_log_header *head, int pass)
 {
-	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
+	struct gfs2_inode *ip = jd->jd_inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
 
 	if (pass != 0)
 		return;
@@ -192,8 +198,9 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 				struct gfs2_log_descriptor *ld, __be64 *ptr,
 				int pass)
 {
-	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
-	struct gfs2_glock *gl = get_v2ip(jd->jd_inode)->i_gl;
+	struct gfs2_inode *ip = jd->jd_inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_glock *gl = ip->i_gl;
 	unsigned int blks = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh_log, *bh_ip;
 	uint64_t blkno;
@@ -238,17 +245,18 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 
 static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
-	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
+	struct gfs2_inode *ip = jd->jd_inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
 
 	if (error) {
-		gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl,
+		gfs2_meta_sync(ip->i_gl,
 			       DIO_START | DIO_WAIT);
 		return;
 	}
 	if (pass != 1)
 		return;
 
-	gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl, DIO_START | DIO_WAIT);
+	gfs2_meta_sync(ip->i_gl, DIO_START | DIO_WAIT);
 
 	fs_info(sdp, "jid=%u: Replayed %u of %u blocks\n",
 	        jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);
@@ -258,7 +266,7 @@ static void revoke_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 {
 	struct gfs2_trans *tr;
 
-	tr = get_transaction;
+	tr = current->journal_info;
 	tr->tr_touched = 1;
 	tr->tr_num_revoke++;
 
@@ -324,7 +332,8 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 static void revoke_lo_before_scan(struct gfs2_jdesc *jd,
 				  struct gfs2_log_header *head, int pass)
 {
-	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
+	struct gfs2_inode *ip = jd->jd_inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
 
 	if (pass != 0)
 		return;
@@ -337,7 +346,8 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 				   struct gfs2_log_descriptor *ld, __be64 *ptr,
 				   int pass)
 {
-	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
+	struct gfs2_inode *ip = jd->jd_inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
 	unsigned int blks = be32_to_cpu(ld->ld_length);
 	unsigned int revokes = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh;
@@ -383,7 +393,8 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 
 static void revoke_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
-	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
+	struct gfs2_inode *ip = jd->jd_inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
 
 	if (error) {
 		gfs2_revoke_clean(sdp);
@@ -401,8 +412,9 @@ static void revoke_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 static void rg_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 {
 	struct gfs2_rgrpd *rgd;
+	struct gfs2_trans *tr = current->journal_info;
 
-	get_transaction->tr_touched = 1;
+	tr->tr_touched = 1;
 
 	if (!list_empty(&le->le_list))
 		return;
@@ -451,9 +463,9 @@ static void rg_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 {
 	struct gfs2_bufdata *bd = container_of(le, struct gfs2_bufdata, bd_le);
-	struct gfs2_trans *tr = get_transaction;
+	struct gfs2_trans *tr = current->journal_info;
 	struct address_space *mapping = bd->bd_bh->b_page->mapping;
-	struct gfs2_inode *ip = get_v2ip(mapping->host);
+	struct gfs2_inode *ip = mapping->host->u.generic_ip;
 
 	tr->tr_touched = 1;
 	if (!list_empty(&bd->bd_list_tr) &&
@@ -633,7 +645,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 
 		bh = bd1->bd_bh;
 		if (bh) {
-			set_v2bd(bh, NULL);
+			bh->b_private = NULL;
 			gfs2_log_unlock(sdp);
 			wait_on_buffer(bh);
 			brelse(bh);
@@ -651,8 +663,9 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 				    struct gfs2_log_descriptor *ld,
 				    __be64 *ptr, int pass)
 {
-	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
-	struct gfs2_glock *gl = get_v2ip(jd->jd_inode)->i_gl;
+	struct gfs2_inode *ip = jd->jd_inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
+	struct gfs2_glock *gl = ip->i_gl;
 	unsigned int blks = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh_log, *bh_ip;
 	uint64_t blkno;
@@ -701,10 +714,11 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 
 static void databuf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
-	struct gfs2_sbd *sdp = get_v2ip(jd->jd_inode)->i_sbd;
+	struct gfs2_inode *ip = jd->jd_inode->u.generic_ip;
+	struct gfs2_sbd *sdp = ip->i_sbd;
 
 	if (error) {
-		gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl,
+		gfs2_meta_sync(ip->i_gl,
 			       DIO_START | DIO_WAIT);
 		return;
 	}
@@ -712,7 +726,7 @@ static void databuf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 		return;
 
 	/* data sync? */
-	gfs2_meta_sync(get_v2ip(jd->jd_inode)->i_gl, DIO_START | DIO_WAIT);
+	gfs2_meta_sync(ip->i_gl, DIO_START | DIO_WAIT);
 
 	fs_info(sdp, "jid=%u: Replayed %u of %u data blocks\n",
 		jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);

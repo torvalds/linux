@@ -15,8 +15,11 @@
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
 #include <asm/semaphore.h>
+#include <linux/gfs2_ondisk.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "acl.h"
 #include "eaops.h"
 #include "eattr.h"
@@ -24,6 +27,7 @@
 #include "inode.h"
 #include "meta_io.h"
 #include "trans.h"
+#include "util.h"
 
 #define ACL_ACCESS 1
 #define ACL_DEFAULT 0
@@ -157,7 +161,7 @@ int gfs2_check_acl_locked(struct inode *inode, int mask)
 	struct posix_acl *acl = NULL;
 	int error;
 
-	error = acl_get(get_v2ip(inode), ACL_ACCESS, &acl, NULL, NULL, NULL);
+	error = acl_get(inode->u.generic_ip, ACL_ACCESS, &acl, NULL, NULL, NULL);
 	if (error)
 		return error;
 
@@ -172,7 +176,7 @@ int gfs2_check_acl_locked(struct inode *inode, int mask)
 
 int gfs2_check_acl(struct inode *inode, int mask)
 {
-	struct gfs2_inode *ip = get_v2ip(inode);
+	struct gfs2_inode *ip = inode->u.generic_ip;
 	struct gfs2_holder i_gh;
 	int error;
 

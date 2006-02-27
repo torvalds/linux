@@ -13,12 +13,17 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/delay.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "glock.h"
 #include "lm.h"
 #include "super.h"
+#include "util.h"
+#include "lvb.h"
 
 /**
  * gfs2_lm_mount - mount a locking protocol

@@ -44,13 +44,17 @@
 #include <linux/tty.h>
 #include <linux/sort.h>
 #include <linux/fs.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "bmap.h"
 #include "glock.h"
 #include "glops.h"
 #include "log.h"
+#include "lvb.h"
 #include "meta_io.h"
 #include "quota.h"
 #include "rgrp.h"
@@ -59,6 +63,7 @@
 #include "inode.h"
 #include "ops_file.h"
 #include "ops_address.h"
+#include "util.h"
 
 #define QUOTA_USER 1
 #define QUOTA_GROUP 0
@@ -244,7 +249,7 @@ static void slot_put(struct gfs2_quota_data *qd)
 static int bh_get(struct gfs2_quota_data *qd)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
-	struct gfs2_inode *ip = get_v2ip(sdp->sd_qc_inode);
+	struct gfs2_inode *ip = sdp->sd_qc_inode->u.generic_ip;
 	unsigned int block, offset;
 	uint64_t dblock;
 	int new = 0;
@@ -526,7 +531,7 @@ static int sort_qd(const void *a, const void *b)
 static void do_qc(struct gfs2_quota_data *qd, int64_t change)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
-	struct gfs2_inode *ip = get_v2ip(sdp->sd_qc_inode);
+	struct gfs2_inode *ip = sdp->sd_qc_inode->u.generic_ip;
 	struct gfs2_quota_change *qc = qd->qd_bh_qc;
 	int64_t x;
 
@@ -642,7 +647,7 @@ unlock:
 static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 {
 	struct gfs2_sbd *sdp = (*qda)->qd_gl->gl_sbd;
-	struct gfs2_inode *ip = get_v2ip(sdp->sd_quota_inode);
+	struct gfs2_inode *ip = sdp->sd_quota_inode->u.generic_ip;
 	unsigned int data_blocks, ind_blocks;
 	struct file_ra_state ra_state;
 	struct gfs2_holder *ghs, i_gh;
@@ -753,6 +758,7 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 		    struct gfs2_holder *q_gh)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_sbd;
+	struct gfs2_inode *ip = sdp->sd_quota_inode->u.generic_ip;
 	struct gfs2_holder i_gh;
 	struct gfs2_quota q;
 	char buf[sizeof(struct gfs2_quota)];
@@ -776,7 +782,7 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 		if (error)
 			return error;
 
-		error = gfs2_glock_nq_init(get_v2ip(sdp->sd_quota_inode)->i_gl,
+		error = gfs2_glock_nq_init(ip->i_gl,
 					  LM_ST_SHARED, 0,
 					  &i_gh);
 		if (error)
@@ -784,7 +790,7 @@ static int do_glock(struct gfs2_quota_data *qd, int force_refresh,
 
 		memset(buf, 0, sizeof(struct gfs2_quota));
 		pos = qd2offset(qd);
-		error = gfs2_internal_read(get_v2ip(sdp->sd_quota_inode),
+		error = gfs2_internal_read(ip,
 					    &ra_state, buf,
 					    &pos,
 					    sizeof(struct gfs2_quota));
@@ -1118,7 +1124,7 @@ int gfs2_quota_read(struct gfs2_sbd *sdp, int user, uint32_t id,
 
 int gfs2_quota_init(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *ip = get_v2ip(sdp->sd_qc_inode);
+	struct gfs2_inode *ip = sdp->sd_qc_inode->u.generic_ip;
 	unsigned int blocks = ip->i_di.di_size >> sdp->sd_sb.sb_bsize_shift;
 	unsigned int x, slot = 0;
 	unsigned int found = 0;
@@ -1133,7 +1139,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 		return -EIO;		
 	}
 	sdp->sd_quota_slots = blocks * sdp->sd_qc_per_block;
-	sdp->sd_quota_chunks = DIV_RU(sdp->sd_quota_slots, 8 * PAGE_SIZE);
+	sdp->sd_quota_chunks = DIV_ROUND_UP(sdp->sd_quota_slots, 8 * PAGE_SIZE);
 
 	error = -ENOMEM;
 

@@ -12,9 +12,12 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "bmap.h"
 #include "glock.h"
 #include "inode.h"
@@ -24,6 +27,7 @@
 #include "rgrp.h"
 #include "trans.h"
 #include "dir.h"
+#include "util.h"
 
 /* This doesn't need to be that large as max 64 bit pointers in a 4k
  * block is 512, so __u16 is fine for that. It saves stack space to
@@ -660,7 +664,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	for (x = 0; x < rlist.rl_rgrps; x++) {
 		struct gfs2_rgrpd *rgd;
-		rgd = get_gl2rgd(rlist.rl_ghs[x].gh_gl);
+		rgd = rlist.rl_ghs[x].gh_gl->gl_object;
 		rg_blocks += rgd->rd_ri.ri_length;
 	}
 
@@ -1021,7 +1025,7 @@ void gfs2_write_calc_reserv(struct gfs2_inode *ip, unsigned int len,
 	unsigned int tmp;
 
 	if (gfs2_is_dir(ip)) {
-		*data_blocks = DIV_RU(len, sdp->sd_jbsize) + 2;
+		*data_blocks = DIV_ROUND_UP(len, sdp->sd_jbsize) + 2;
 		*ind_blocks = 3 * (sdp->sd_max_jheight - 1);
 	} else {
 		*data_blocks = (len >> sdp->sd_sb.sb_bsize_shift) + 3;
@@ -1029,7 +1033,7 @@ void gfs2_write_calc_reserv(struct gfs2_inode *ip, unsigned int len,
 	}
 
 	for (tmp = *data_blocks; tmp > sdp->sd_diptrs;) {
-		tmp = DIV_RU(tmp, sdp->sd_inptrs);
+		tmp = DIV_ROUND_UP(tmp, sdp->sd_inptrs);
 		*ind_blocks += tmp;
 	}
 }

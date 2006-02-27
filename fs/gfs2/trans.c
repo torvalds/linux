@@ -12,14 +12,18 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "glock.h"
 #include "log.h"
 #include "lops.h"
 #include "meta_io.h"
 #include "trans.h"
+#include "util.h"
 
 int gfs2_trans_begin_i(struct gfs2_sbd *sdp, unsigned int blocks,
 		       unsigned int revokes, char *file, unsigned int line)
@@ -27,7 +31,7 @@ int gfs2_trans_begin_i(struct gfs2_sbd *sdp, unsigned int blocks,
 	struct gfs2_trans *tr;
 	int error;
 
-	if (gfs2_assert_warn(sdp, !get_transaction) ||
+	if (gfs2_assert_warn(sdp, !current->journal_info) ||
 	    gfs2_assert_warn(sdp, blocks || revokes)) {
 		fs_warn(sdp, "(%s, %u)\n", file, line);
 		return -EINVAL;
@@ -69,7 +73,7 @@ int gfs2_trans_begin_i(struct gfs2_sbd *sdp, unsigned int blocks,
 	if (error)
 		goto fail_gunlock;
 
-	set_transaction(tr);
+	current->journal_info = tr;
 
 	return 0;
 
@@ -90,8 +94,8 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	struct gfs2_trans *tr;
 	struct gfs2_holder *t_gh;
 
-	tr = get_transaction;
-	set_transaction(NULL);
+	tr = current->journal_info;
+	current->journal_info = NULL;
 
 	if (gfs2_assert_warn(sdp, tr))
 		return;
@@ -147,12 +151,12 @@ void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct gfs2_bufdata *bd;
 
-	bd = get_v2bd(bh);
+	bd = bh->b_private;
 	if (bd)
 		gfs2_assert(sdp, bd->bd_gl == gl);
 	else {
 		gfs2_attach_bufdata(gl, bh, meta);
-		bd = get_v2bd(bh);
+		bd = bh->b_private;
 	}
 	lops_add(sdp, &bd->bd_le);
 }
@@ -186,8 +190,9 @@ void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, uint64_t blkno)
 	gfs2_log_unlock(sdp);
 
 	if (found) {
+		struct gfs2_trans *tr = current->journal_info;
 		kfree(rv);
-		get_transaction->tr_num_revoke_rm++;
+		tr->tr_num_revoke_rm++;
 	}
 }
 

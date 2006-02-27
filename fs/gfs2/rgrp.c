@@ -13,9 +13,12 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "bits.h"
 #include "glock.h"
 #include "glops.h"
@@ -26,6 +29,7 @@
 #include "super.h"
 #include "trans.h"
 #include "ops_file.h"
+#include "util.h"
 
 /**
  * gfs2_rgrp_verify - Verify that a resource group is consistent
@@ -171,7 +175,7 @@ static void clear_rgrpdi(struct gfs2_sbd *sdp)
 		list_del(&rgd->rd_list_mru);
 
 		if (gl) {
-			set_gl2rgd(gl, NULL);
+			gl->gl_object = NULL;
 			gfs2_glock_put(gl);
 		}
 
@@ -320,7 +324,7 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 		if (error)
 			goto fail;
 
-		set_gl2rgd(rgd->rd_gl, rgd);
+		rgd->rd_gl->gl_object = rgd;
 		rgd->rd_rg_vn = rgd->rd_gl->gl_vn - 1;
 	}
 
@@ -354,7 +358,7 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 
 int gfs2_rindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ri_gh)
 {
-	struct gfs2_inode *ip = get_v2ip(sdp->sd_rindex);
+	struct gfs2_inode *ip = sdp->sd_rindex->u.generic_ip;
 	struct gfs2_glock *gl = ip->i_gl;
 	int error;
 

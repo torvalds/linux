@@ -12,11 +12,15 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
+#include "lm_interface.h"
+#include "incore.h"
 #include "mount.h"
 #include "sys.h"
+#include "util.h"
 
 /**
  * gfs2_mount_args - Parse mount options
