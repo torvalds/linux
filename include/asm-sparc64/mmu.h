@@ -6,19 +6,7 @@
 #include <asm/const.h>
 #include <asm/hypervisor.h>
 
-/*
- * For the 8k pagesize kernel, use only 10 hw context bits to optimize some
- * shifts in the fast tlbmiss handlers, instead of all 13 bits (specifically
- * for vpte offset calculation). For other pagesizes, this optimization in
- * the tlbhandlers can not be done; but still, all 13 bits can not be used
- * because the tlb handlers use "andcc" instruction which sign extends 13
- * bit arguments.
- */
-#if PAGE_SHIFT == 13
-#define CTX_NR_BITS		10
-#else
-#define CTX_NR_BITS		12
-#endif
+#define CTX_NR_BITS		13
 
 #define TAG_CONTEXT_BITS	((_AC(1,UL) << CTX_NR_BITS) - _AC(1,UL))
 
