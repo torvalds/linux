@@ -243,11 +243,13 @@ int __init init_nolock(void)
 
 	error = gfs_register_lockproto(&nolock_ops);
 	if (error) {
-		printk(KERN_WARNING "lock_nolock: can't register protocol: %d\n", error);
+		printk(KERN_WARNING
+		       "lock_nolock: can't register protocol: %d\n", error);
 		return error;
 	}
 
-	printk(KERN_INFO "Lock_Nolock (built %s %s) installed\n", __DATE__, __TIME__);
+	printk(KERN_INFO
+	       "Lock_Nolock (built %s %s) installed\n", __DATE__, __TIME__);
 	return 0;
 }
 
