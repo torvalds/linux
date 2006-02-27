@@ -94,19 +94,11 @@ struct dmxdev_filter {
 };
 
 
-struct dmxdev_dvr {
-	int state;
-	struct dmxdev *dev;
-	struct dmxdev_buffer buffer;
-};
-
-
 struct dmxdev {
 	struct dvb_device *dvbdev;
 	struct dvb_device *dvr_dvbdev;
 
 	struct dmxdev_filter *filter;
-	struct dmxdev_dvr *dvr;
 	struct dmx_demux *demux;
 
 	int filternum;

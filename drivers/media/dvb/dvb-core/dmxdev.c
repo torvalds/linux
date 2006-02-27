@@ -160,13 +160,6 @@ static struct dmx_frontend * get_fe(struct dmx_demux *demux, int type)
 	return NULL;
 }
 
-static inline void dvb_dmxdev_dvr_state_set(struct dmxdev_dvr *dmxdevdvr, int state)
-{
-	spin_lock_irq(&dmxdevdvr->dev->lock);
-	dmxdevdvr->state=state;
-	spin_unlock_irq(&dmxdevdvr->dev->lock);
-}
-
 static int dvb_dvr_open(struct inode *inode, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -1106,22 +1099,12 @@ dvb_dmxdev_init(struct dmxdev *dmxdev, struct dvb_adapter *dvb_adapter)
 	if (!dmxdev->filter)
 		return -ENOMEM;
 
-	dmxdev->dvr = vmalloc(dmxdev->filternum*sizeof(struct dmxdev_dvr));
-	if (!dmxdev->dvr) {
-		vfree(dmxdev->filter);
-		dmxdev->filter = NULL;
-		return -ENOMEM;
-	}
-
 	mutex_init(&dmxdev->mutex);
 	spin_lock_init(&dmxdev->lock);
 	for (i=0; i<dmxdev->filternum; i++) {
 		dmxdev->filter[i].dev=dmxdev;
 		dmxdev->filter[i].buffer.data=NULL;
 		dvb_dmxdev_filter_state_set(&dmxdev->filter[i], DMXDEV_STATE_FREE);
-		dmxdev->dvr[i].dev=dmxdev;
-		dmxdev->dvr[i].buffer.data=NULL;
-		dvb_dmxdev_dvr_state_set(&dmxdev->dvr[i], DMXDEV_STATE_FREE);
 	}
 
 	dvb_register_device(dvb_adapter, &dmxdev->dvbdev, &dvbdev_demux, dmxdev, DVB_DEVICE_DEMUX);
@@ -1141,8 +1124,6 @@ dvb_dmxdev_release(struct dmxdev *dmxdev)
 
 	vfree(dmxdev->filter);
 	dmxdev->filter=NULL;
-	vfree(dmxdev->dvr);
-	dmxdev->dvr=NULL;
 	dmxdev->demux->close(dmxdev->demux);
 }
 EXPORT_SYMBOL(dvb_dmxdev_release);
