@@ -239,6 +239,20 @@ static int cx24108_pll_set(struct dvb_frontend* fe, struct dvb_frontend_paramete
 
 static int pinnsat_pll_init(struct dvb_frontend* fe)
 {
+	struct dvb_bt8xx_card *card = fe->dvb->priv;
+
+	bttv_gpio_enable(card->bttv_nr, 1, 1);  /* output */
+	bttv_write_gpio(card->bttv_nr, 1, 1);   /* relay on */
+	
+	return 0;
+}
+
+static int pinnsat_pll_sleep(struct dvb_frontend* fe)
+{
+	struct dvb_bt8xx_card *card = fe->dvb->priv;
+
+	bttv_write_gpio(card->bttv_nr, 1, 0);   /* relay off */
+
 	return 0;
 }
 
@@ -246,6 +260,7 @@ static struct cx24110_config pctvsat_config = {
 	.demod_address = 0x55,
 	.pll_init = pinnsat_pll_init,
 	.pll_set = cx24108_pll_set,
+	.pll_sleep = pinnsat_pll_sleep,
 };
 
 static int microtune_mt7202dtf_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)

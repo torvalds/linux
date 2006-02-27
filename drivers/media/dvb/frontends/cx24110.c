@@ -371,6 +371,15 @@ static int cx24110_initfe(struct dvb_frontend* fe)
 	return 0;
 }
 
+static int cx24110_sleep(struct dvb_frontend *fe)
+{
+	struct cx24110_state *state = fe->demodulator_priv;
+
+	if (state->config->pll_sleep)
+		  return state->config->pll_sleep(fe);
+	return 0;
+}
+
 static int cx24110_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
@@ -642,6 +651,7 @@ static struct dvb_frontend_ops cx24110_ops = {
 	.release = cx24110_release,
 
 	.init = cx24110_initfe,
+	.sleep = cx24110_sleep,
 	.set_frontend = cx24110_set_frontend,
 	.get_frontend = cx24110_get_frontend,
 	.read_status = cx24110_read_status,
