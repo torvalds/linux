@@ -2418,7 +2418,7 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 	},
 	[SAA7134_BOARD_PINNACLE_PCTV_110i] = {
-		.name           = "Pinnacle PCTV 110i (saa7133)",
+	       .name           = "Pinnacle PCTV 40i/50i/110i (saa7133)",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -2433,6 +2433,10 @@ struct saa7134_board saa7134_boards[] = {
 		},{
 			  .name = name_comp1,
 			  .vmux = 1,
+			 .amux = LINE2,
+	       },{
+			 .name = name_comp2,
+			 .vmux = 0,
 			  .amux = LINE2,
 		},{
 			  .name = name_svideo,
