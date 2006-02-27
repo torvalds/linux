@@ -49,7 +49,8 @@ void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t
 	if (pte_exec(orig))
 		vaddr |= 0x1UL;
 
-	if (pte_dirty(orig)) {
+	if (tlb_type != hypervisor &&
+	    pte_dirty(orig)) {
 		unsigned long paddr, pfn = pte_pfn(orig);
 		struct address_space *mapping;
 		struct page *page;

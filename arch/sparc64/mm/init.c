@@ -188,8 +188,9 @@ atomic_t dcpage_flushes_xcall = ATOMIC_INIT(0);
 #endif
 #endif
 
-__inline__ void flush_dcache_page_impl(struct page *page)
+inline void flush_dcache_page_impl(struct page *page)
 {
+	BUG_ON(tlb_type == hypervisor);
 #ifdef CONFIG_DEBUG_DCFLUSH
 	atomic_inc(&dcpage_flushes);
 #endif
@@ -279,29 +280,31 @@ unsigned long _PAGE_SZBITS __read_mostly;
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
 	struct mm_struct *mm;
-	struct page *page;
-	unsigned long pfn;
-	unsigned long pg_flags;
 
-	pfn = pte_pfn(pte);
-	if (pfn_valid(pfn) &&
-	    (page = pfn_to_page(pfn), page_mapping(page)) &&
-	    ((pg_flags = page->flags) & (1UL << PG_dcache_dirty))) {
-		int cpu = ((pg_flags >> PG_dcache_cpu_shift) &
-			   PG_dcache_cpu_mask);
-		int this_cpu = get_cpu();
+	if (tlb_type != hypervisor) {
+		unsigned long pfn = pte_pfn(pte);
+		unsigned long pg_flags;
+		struct page *page;
 
-		/* This is just to optimize away some function calls
-		 * in the SMP case.
-		 */
-		if (cpu == this_cpu)
-			flush_dcache_page_impl(page);
-		else
-			smp_flush_dcache_page_impl(page, cpu);
+		if (pfn_valid(pfn) &&
+		    (page = pfn_to_page(pfn), page_mapping(page)) &&
+		    ((pg_flags = page->flags) & (1UL << PG_dcache_dirty))) {
+			int cpu = ((pg_flags >> PG_dcache_cpu_shift) &
+				   PG_dcache_cpu_mask);
+			int this_cpu = get_cpu();
 
-		clear_dcache_dirty_cpu(page, cpu);
+			/* This is just to optimize away some function calls
+			 * in the SMP case.
+			 */
+			if (cpu == this_cpu)
+				flush_dcache_page_impl(page);
+			else
+				smp_flush_dcache_page_impl(page, cpu);
 
-		put_cpu();
+			clear_dcache_dirty_cpu(page, cpu);
+
+			put_cpu();
+		}
 	}
 
 	mm = vma->vm_mm;
@@ -320,6 +323,9 @@ void flush_dcache_page(struct page *page)
 {
 	struct address_space *mapping;
 	int this_cpu;
+
+	if (tlb_type == hypervisor)
+		return;
 
 	/* Do not bother with the expensive D-cache flush if it
 	 * is merely the zero page.  The 'bigcore' testcase in GDB
