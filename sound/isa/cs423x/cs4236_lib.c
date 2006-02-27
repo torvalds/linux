@@ -644,7 +644,7 @@ static int snd_cs4236_put_master_digital(struct snd_kcontrol *kcontrol, struct s
 	val2 = (chip->eimage[CS4236_REG(CS4236_RIGHT_MASTER)] & ~0x7f) | val2;
 	change = val1 != chip->eimage[CS4236_REG(CS4236_LEFT_MASTER)] || val2 != chip->eimage[CS4236_REG(CS4236_RIGHT_MASTER)];
 	snd_cs4236_ext_out(chip, CS4236_LEFT_MASTER, val1);
-	snd_cs4236_ext_out(chip, CS4236_RIGHT_MASTER, val1);
+	snd_cs4236_ext_out(chip, CS4236_RIGHT_MASTER, val2);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return change;
 }
