@@ -120,7 +120,7 @@ int nf_queue(struct sk_buff **skb,
 
 	/* QUEUE == DROP if noone is waiting, to be safe. */
 	read_lock(&queue_handler_lock);
-	if (!queue_handler[pf] || !queue_handler[pf]->outfn) {
+	if (!queue_handler[pf]) {
 		read_unlock(&queue_handler_lock);
 		kfree_skb(*skb);
 		return 1;
