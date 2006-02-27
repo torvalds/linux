@@ -74,6 +74,9 @@ SECTIONS
   __tsb_phys_patch = .;
   .tsb_phys_patch : { *(.tsb_phys_patch) }
   __tsb_phys_patch_end = .;
+  __cpuid_patch = .;
+  .cpuid_patch : { *(.cpuid_patch) }
+  __cpuid_patch_end = .;
   . = ALIGN(8192); 
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }

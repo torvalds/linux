@@ -490,6 +490,58 @@ void register_prom_callbacks(void)
 		   "' linux-.soft2 to .soft2");
 }
 
+static void __init per_cpu_patch(void)
+{
+#ifdef CONFIG_SMP
+	struct cpuid_patch_entry *p;
+	unsigned long ver;
+	int is_jbus;
+
+	if (tlb_type == spitfire && !this_is_starfire)
+		return;
+
+	__asm__ ("rdpr %%ver, %0" : "=r" (ver));
+	is_jbus = ((ver >> 32) == __JALAPENO_ID ||
+		   (ver >> 32) == __SERRANO_ID);
+
+	p = &__cpuid_patch;
+	while (p < &__cpuid_patch_end) {
+		unsigned long addr = p->addr;
+		unsigned int *insns;
+
+		switch (tlb_type) {
+		case spitfire:
+			insns = &p->starfire[0];
+			break;
+		case cheetah:
+		case cheetah_plus:
+			if (is_jbus)
+				insns = &p->cheetah_jbus[0];
+			else
+				insns = &p->cheetah_safari[0];
+			break;
+		default:
+			prom_printf("Unknown cpu type, halting.\n");
+			prom_halt();
+		};
+
+		*(unsigned int *) (addr +  0) = insns[0];
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		*(unsigned int *) (addr +  4) = insns[1];
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
+
+		*(unsigned int *) (addr +  8) = insns[2];
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  8));
+
+		*(unsigned int *) (addr + 12) = insns[3];
+		__asm__ __volatile__("flush	%0" : : "r" (addr + 12));
+
+		p++;
+	}
+#endif
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	/* Initialize PROM console and command line. */
@@ -507,8 +559,8 @@ void __init setup_arch(char **cmdline_p)
 	/* Work out if we are starfire early on */
 	check_if_starfire();
 
-	/* Now we know enough to patch the __get_cpu_id()
-	 * trampoline used by trap code.
+	/* Now we know enough to patch the get_cpuid sequences
+	 * used by trap code.
 	 */
 	per_cpu_patch();
 

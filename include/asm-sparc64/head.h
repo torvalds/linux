@@ -10,6 +10,7 @@
 
 #define __CHEETAH_ID	0x003e0014
 #define __JALAPENO_ID	0x003e0016
+#define __SERRANO_ID	0x003e0022
 
 #define CHEETAH_MANUF		0x003e
 #define CHEETAH_IMPL		0x0014 /* Ultra-III   */

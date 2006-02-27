@@ -424,7 +424,7 @@ static __inline__ void spitfire_xcall_deliver(u64 data0, u64 data1, u64 data2, c
 static void cheetah_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mask)
 {
 	u64 pstate, ver;
-	int nack_busy_id, is_jalapeno;
+	int nack_busy_id, is_jbus;
 
 	if (cpus_empty(mask))
 		return;
@@ -434,7 +434,8 @@ static void cheetah_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mas
 	 * derivative processor.
 	 */
 	__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-	is_jalapeno = ((ver >> 32) == 0x003e0016);
+	is_jbus = ((ver >> 32) == __JALAPENO_ID ||
+		   (ver >> 32) == __SERRANO_ID);
 
 	__asm__ __volatile__("rdpr %%pstate, %0" : "=r" (pstate));
 
@@ -459,7 +460,7 @@ retry:
 		for_each_cpu_mask(i, mask) {
 			u64 target = (i << 14) | 0x70;
 
-			if (!is_jalapeno)
+			if (!is_jbus)
 				target |= (nack_busy_id << 24);
 			__asm__ __volatile__(
 				"stxa	%%g0, [%0] %1\n\t"
@@ -512,7 +513,7 @@ retry:
 			for_each_cpu_mask(i, mask) {
 				u64 check_mask;
 
-				if (is_jalapeno)
+				if (is_jbus)
 					check_mask = (0x2UL << (2*i));
 				else
 					check_mask = (0x2UL <<

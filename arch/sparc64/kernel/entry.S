@@ -1628,84 +1628,10 @@ __flushw_user:
 2:	retl
 	 nop
 
-	/* Read cpu ID from hardware, return in %g6.
-	 * (callers_pc - 4) is in %g1.  Patched at boot time.
-	 *
-	 * Default is spitfire implementation.
-	 *
-	 * The instruction sequence needs to be 5 instructions
-	 * in order to fit the longest implementation, which is
-	 * currently starfire.
-	 */
-	.align		32
-	.globl		__get_cpu_id
-__get_cpu_id:
-	ldxa		[%g0] ASI_UPA_CONFIG, %g6
-	srlx		%g6, 17, %g6
-	jmpl		%g1 + 0x4, %g0
-	 and		%g6, 0x1f, %g6
-	nop
-
-__get_cpu_id_cheetah_safari:
-	ldxa		[%g0] ASI_SAFARI_CONFIG, %g6
-	srlx		%g6, 17, %g6
-	jmpl		%g1 + 0x4, %g0
-	 and		%g6, 0x3ff, %g6
-	nop
-
-__get_cpu_id_cheetah_jbus:
-	ldxa		[%g0] ASI_JBUS_CONFIG, %g6
-	srlx		%g6, 17, %g6
-	jmpl		%g1 + 0x4, %g0
-	 and		%g6, 0x1f, %g6
-	nop
-
-__get_cpu_id_starfire:
-	sethi		%hi(0x1fff40000d0 >> 9), %g6
-	sllx		%g6, 9, %g6
-	or		%g6, 0xd0, %g6
-	jmpl		%g1 + 0x4, %g0
-	 lduwa		[%g6] ASI_PHYS_BYPASS_EC_E, %g6
-
-	.globl		per_cpu_patch
-per_cpu_patch:
-	sethi		%hi(this_is_starfire), %o0
-	lduw		[%o0 + %lo(this_is_starfire)], %o1
-	sethi		%hi(__get_cpu_id_starfire), %o0
-	brnz,pn		%o1, 10f
-	 or		%o0, %lo(__get_cpu_id_starfire), %o0
-	sethi		%hi(tlb_type), %o0
-	lduw		[%o0 + %lo(tlb_type)], %o1
-	brz,pt		%o1, 11f
-	 nop
-	rdpr		%ver, %o0
-	srlx		%o0, 32, %o0
-	sethi		%hi(0x003e0016), %o1
-	or		%o1, %lo(0x003e0016), %o1
-	cmp		%o0, %o1
-	sethi		%hi(__get_cpu_id_cheetah_jbus), %o0
-	be,pn		%icc, 10f
-	 or		%o0, %lo(__get_cpu_id_cheetah_jbus), %o0
-	sethi		%hi(__get_cpu_id_cheetah_safari), %o0
-	or		%o0, %lo(__get_cpu_id_cheetah_safari), %o0
-10:
-	sethi		%hi(__get_cpu_id), %o1
-	or		%o1, %lo(__get_cpu_id), %o1
-	lduw		[%o0 + 0x00], %o2
-	stw		%o2, [%o1 + 0x00]
-	flush		%o1 + 0x00
-	lduw		[%o0 + 0x04], %o2
-	stw		%o2, [%o1 + 0x04]
-	flush		%o1 + 0x04
-	lduw		[%o0 + 0x08], %o2
-	stw		%o2, [%o1 + 0x08]
-	flush		%o1 + 0x08
-	lduw		[%o0 + 0x0c], %o2
-	stw		%o2, [%o1 + 0x0c]
-	flush		%o1 + 0x0c
-	lduw		[%o0 + 0x10], %o2
-	stw		%o2, [%o1 + 0x10]
-	flush		%o1 + 0x10
-11:
+#ifdef CONFIG_SMP
+	.globl		hard_smp_processor_id
+hard_smp_processor_id:
+	__GET_CPUID(%o0)
 	retl
 	 nop
+#endif

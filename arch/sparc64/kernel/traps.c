@@ -38,6 +38,7 @@
 #include <asm/processor.h>
 #include <asm/timer.h>
 #include <asm/kdebug.h>
+#include <asm/head.h>
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
@@ -788,7 +789,8 @@ void __init cheetah_ecache_flush_init(void)
 		cheetah_error_log[i].afsr = CHAFSR_INVALID;
 
 	__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-	if ((ver >> 32) == 0x003e0016) {
+	if ((ver >> 32) == __JALAPENO_ID ||
+	    (ver >> 32) == __SERRANO_ID) {
 		cheetah_error_table = &__jalapeno_error_table[0];
 		cheetah_afsr_errors = JPAFSR_ERRORS;
 	} else if ((ver >> 32) == 0x003e0015) {

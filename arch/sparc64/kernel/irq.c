@@ -39,6 +39,7 @@
 #include <asm/cache.h>
 #include <asm/cpudata.h>
 #include <asm/auxio.h>
+#include <asm/head.h>
 
 #ifdef CONFIG_SMP
 static void distribute_irqs(void);
@@ -153,7 +154,8 @@ void enable_irq(unsigned int irq)
 		unsigned long ver;
 
 		__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-		if ((ver >> 32) == 0x003e0016) {
+		if ((ver >> 32) == __JALAPENO_ID ||
+		    (ver >> 32) == __SERRANO_ID) {
 			/* We set it to our JBUS ID. */
 			__asm__ __volatile__("ldxa [%%g0] %1, %0"
 					     : "=r" (tid)
