@@ -16,6 +16,7 @@ before actually making adjustments.
 
 Currently, these files might (depending on your configuration)
 show up in /proc/sys/kernel:
+- acpi_video_flags
 - acct
 - core_pattern
 - core_uses_pid
@@ -54,6 +55,15 @@ show up in /proc/sys/kernel:
 - tainted
 - threads-max
 - version
+
+==============================================================
+
+acpi_video_flags:
+
+flags
+
+See Doc*/kernel/power/video.txt, it allows mode of video boot to be
+set during run time.
 
 ==============================================================
 

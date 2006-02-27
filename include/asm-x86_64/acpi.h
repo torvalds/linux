@@ -164,6 +164,20 @@ extern u8 x86_acpiid_to_apicid[];
 
 extern int acpi_skip_timer_override;
 
+extern int unsync_tsc_on_multicluster;
+
+static inline int acpi_madt_oem_check(char *oem, char *productid) 
+{ 
+	/* Copied from i386. Probably has too many entries. */
+	if (!strncmp(oem, "IBM ENSW", 8) && 
+        	(!strncmp(productid, "VIGIL SMP", 9) 
+             		|| !strncmp(productid, "EXA", 3)
+			|| !strncmp(productid, "RUTHLESS SMP", 12))) {
+		unsync_tsc_on_multicluster = 1;
+        }
+        return 0;
+}
+
 #endif /*__KERNEL__*/
 
 #endif /*_ASM_ACPI_H*/

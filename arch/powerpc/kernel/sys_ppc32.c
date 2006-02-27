@@ -176,7 +176,6 @@ struct timex32 {
 };
 
 extern int do_adjtimex(struct timex *);
-extern void ppc_adjtimex(void);
 
 asmlinkage long compat_sys_adjtimex(struct timex32 __user *utp)
 {
@@ -208,9 +207,6 @@ asmlinkage long compat_sys_adjtimex(struct timex32 __user *utp)
 		return -EFAULT;
 
 	ret = do_adjtimex(&txc);
-
-	/* adjust the conversion of TB to time of day to track adjtimex */
-	ppc_adjtimex();
 
 	if(put_user(txc.modes, &utp->modes) ||
 	   __put_user(txc.offset, &utp->offset) ||

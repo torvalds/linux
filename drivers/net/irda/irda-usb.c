@@ -108,6 +108,7 @@ static void irda_usb_close(struct irda_usb_cb *self);
 static void speed_bulk_callback(struct urb *urb, struct pt_regs *regs);
 static void write_bulk_callback(struct urb *urb, struct pt_regs *regs);
 static void irda_usb_receive(struct urb *urb, struct pt_regs *regs);
+static void irda_usb_rx_defer_expired(unsigned long data);
 static int irda_usb_net_open(struct net_device *dev);
 static int irda_usb_net_close(struct net_device *dev);
 static int irda_usb_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -677,6 +678,12 @@ static void irda_usb_net_timeout(struct net_device *netdev)
  * on the interrupt pipe and hang the Rx URB only when an interrupt is
  * received.
  * Jean II
+ *
+ * Note : don't read the above as what we are currently doing, but as
+ * something we could do with KC dongle. Also don't forget that the
+ * interrupt pipe is not part of the original standard, so this would
+ * need to be optional...
+ * Jean II
  */
 
 /*------------------------------------------------------------------*/
@@ -704,10 +711,8 @@ static void irda_usb_submit(struct irda_usb_cb *self, struct sk_buff *skb, struc
 	/* Reinitialize URB */
 	usb_fill_bulk_urb(urb, self->usbdev, 
 		      usb_rcvbulkpipe(self->usbdev, self->bulk_in_ep), 
-		      skb->data, skb->truesize,
+		      skb->data, IRDA_SKB_MAX_MTU,
                       irda_usb_receive, skb);
-	/* Note : unlink *must* be synchronous because of the code in 
-	 * irda_usb_net_close() -> free the skb - Jean II */
 	urb->status = 0;
 
 	/* Can be called from irda_usb_receive (irq handler) -> GFP_ATOMIC */
@@ -734,6 +739,7 @@ static void irda_usb_receive(struct urb *urb, struct pt_regs *regs)
 	struct irda_skb_cb *cb;
 	struct sk_buff *newskb;
 	struct sk_buff *dataskb;
+	struct urb *next_urb;
 	int		docopy;
 
 	IRDA_DEBUG(2, "%s(), len=%d\n", __FUNCTION__, urb->actual_length);
@@ -755,20 +761,37 @@ static void irda_usb_receive(struct urb *urb, struct pt_regs *regs)
 	if (urb->status != 0) {
 		switch (urb->status) {
 		case -EILSEQ:
-			self->stats.rx_errors++;
 			self->stats.rx_crc_errors++;	
-			break;
+			/* Also precursor to a hot-unplug on UHCI. */
+			/* Fallthrough... */
 		case -ECONNRESET:		/* -104 */
-			IRDA_DEBUG(0, "%s(), Connection Reset (-104), transfer_flags 0x%04X \n", __FUNCTION__, urb->transfer_flags);
+			/* Random error, if I remember correctly */
 			/* uhci_cleanup_unlink() is going to kill the Rx
 			 * URB just after we return. No problem, at this
 			 * point the URB will be idle ;-) - Jean II */
-			break;
+		case -ESHUTDOWN:		/* -108 */
+			/* That's usually a hot-unplug. Submit will fail... */
+		case -ETIMEDOUT:		/* -110 */
+			/* Usually precursor to a hot-unplug on OHCI. */
 		default:
-			IRDA_DEBUG(0, "%s(), RX status %d,transfer_flags 0x%04X \n", __FUNCTION__, urb->status, urb->transfer_flags);
+			self->stats.rx_errors++;
+			IRDA_DEBUG(0, "%s(), RX status %d, transfer_flags 0x%04X \n", __FUNCTION__, urb->status, urb->transfer_flags);
 			break;
 		}
-		goto done;
+		/* If we received an error, we don't want to resubmit the
+		 * Rx URB straight away but to give the USB layer a little
+		 * bit of breathing room.
+		 * We are in the USB thread context, therefore there is a
+		 * danger of recursion (new URB we submit fails, we come
+		 * back here).
+		 * With recent USB stack (2.6.15+), I'm seeing that on
+		 * hot unplug of the dongle...
+		 * Lowest effective timer is 10ms...
+		 * Jean II */
+		self->rx_defer_timer.function = &irda_usb_rx_defer_expired;
+		self->rx_defer_timer.data = (unsigned long) urb;
+		mod_timer(&self->rx_defer_timer, jiffies + (10 * HZ / 1000));
+		return;
 	}
 	
 	/* Check for empty frames */
@@ -845,13 +868,45 @@ done:
 	 * idle slot....
 	 * Jean II */
 	/* Note : with this scheme, we could submit the idle URB before
-	 * processing the Rx URB. Another time... Jean II */
+	 * processing the Rx URB. I don't think it would buy us anything as
+	 * we are running in the USB thread context. Jean II */
+	next_urb = self->idle_rx_urb;
 
-	/* Submit the idle URB to replace the URB we've just received */
-	irda_usb_submit(self, skb, self->idle_rx_urb);
 	/* Recycle Rx URB : Now, the idle URB is the present one */
 	urb->context = NULL;
 	self->idle_rx_urb = urb;
+
+	/* Submit the idle URB to replace the URB we've just received.
+	 * Do it last to avoid race conditions... Jean II */
+	irda_usb_submit(self, skb, next_urb);
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * In case of errors, we want the USB layer to have time to recover.
+ * Now, it is time to resubmit ouur Rx URB...
+ */
+static void irda_usb_rx_defer_expired(unsigned long data)
+{
+	struct urb *urb = (struct urb *) data;
+	struct sk_buff *skb = (struct sk_buff *) urb->context;
+	struct irda_usb_cb *self; 
+	struct irda_skb_cb *cb;
+	struct urb *next_urb;
+
+	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+
+	/* Find ourselves */
+	cb = (struct irda_skb_cb *) skb->cb;
+	IRDA_ASSERT(cb != NULL, return;);
+	self = (struct irda_usb_cb *) cb->context;
+	IRDA_ASSERT(self != NULL, return;);
+
+	/* Same stuff as when Rx is done, see above... */
+	next_urb = self->idle_rx_urb;
+	urb->context = NULL;
+	self->idle_rx_urb = urb;
+	irda_usb_submit(self, skb, next_urb);
 }
 
 /*------------------------------------------------------------------*/
@@ -989,6 +1044,9 @@ static int irda_usb_net_close(struct net_device *netdev)
 
 	/* Stop network Tx queue */
 	netif_stop_queue(netdev);
+
+	/* Kill defered Rx URB */
+	del_timer(&self->rx_defer_timer);
 
 	/* Deallocate all the Rx path buffers (URBs and skb) */
 	for (i = 0; i < IU_MAX_RX_URBS; i++) {
@@ -1365,6 +1423,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 	self = net->priv;
 	self->netdev = net;
 	spin_lock_init(&self->lock);
+	init_timer(&self->rx_defer_timer);
 
 	/* Create all of the needed urbs */
 	for (i = 0; i < IU_MAX_RX_URBS; i++) {
@@ -1498,6 +1557,9 @@ static void irda_usb_disconnect(struct usb_interface *intf)
 	 * This will stop/desactivate the Tx path. - Jean II */
 	self->present = 0;
 
+	/* Kill defered Rx URB */
+	del_timer(&self->rx_defer_timer);
+
 	/* We need to have irq enabled to unlink the URBs. That's OK,
 	 * at this point the Tx path is gone - Jean II */
 	spin_unlock_irqrestore(&self->lock, flags);
@@ -1507,11 +1569,11 @@ static void irda_usb_disconnect(struct usb_interface *intf)
 		/* Accept no more transmissions */
 		/*netif_device_detach(self->netdev);*/
 		netif_stop_queue(self->netdev);
-		/* Stop all the receive URBs */
+		/* Stop all the receive URBs. Must be synchronous. */
 		for (i = 0; i < IU_MAX_RX_URBS; i++)
 			usb_kill_urb(self->rx_urb[i]);
 		/* Cancel Tx and speed URB.
-		 * Toggle flags to make sure it's synchronous. */
+		 * Make sure it's synchronous to avoid races. */
 		usb_kill_urb(self->tx_urb);
 		usb_kill_urb(self->speed_urb);
 	}

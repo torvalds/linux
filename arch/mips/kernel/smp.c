@@ -29,6 +29,7 @@
 #include <linux/timex.h>
 #include <linux/sched.h>
 #include <linux/cpumask.h>
+#include <linux/cpu.h>
 
 #include <asm/atomic.h>
 #include <asm/cpu.h>
@@ -423,6 +424,25 @@ void flush_tlb_one(unsigned long vaddr)
 	smp_call_function(flush_tlb_one_ipi, (void *) vaddr, 1, 1);
 	local_flush_tlb_one(vaddr);
 }
+
+static DEFINE_PER_CPU(struct cpu, cpu_devices);
+
+static int __init topology_init(void)
+{
+	int cpu;
+	int ret;
+
+	for_each_cpu(cpu) {
+		ret = register_cpu(&per_cpu(cpu_devices, cpu), cpu, NULL);
+		if (ret)
+			printk(KERN_WARNING "topology_init: register_cpu %d "
+			       "failed (%d)\n", cpu, ret);
+	}
+
+	return 0;
+}
+
+subsys_initcall(topology_init);
 
 EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(flush_tlb_one);

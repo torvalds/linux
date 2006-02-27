@@ -134,8 +134,10 @@ static void crash_kexec_prepare_cpus(void)
 	 * the crash CPU will send an IPI and wait for other CPUs to
 	 * respond. If not, proceed the kexec boot even though we failed to
 	 * capture other CPU states.
+	 * Delay of at least 10 seconds.
 	 */
-	msecs = 1000000;
+	printk(KERN_ALERT "Sending IPI to other cpus...\n");
+	msecs = 10000;
 	while ((atomic_read(&waiting_for_crash_ipi) > 0) && (--msecs > 0)) {
 		barrier();
 		mdelay(1);

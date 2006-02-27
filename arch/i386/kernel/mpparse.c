@@ -710,7 +710,7 @@ void __init get_smp_config (void)
 		 * Read the physical hardware table.  Anything here will
 		 * override the defaults.
 		 */
-		if (!smp_read_mpc((void *)mpf->mpf_physptr)) {
+		if (!smp_read_mpc(phys_to_virt(mpf->mpf_physptr))) {
 			smp_found_config = 0;
 			printk(KERN_ERR "BIOS bug, MP table errors detected!...\n");
 			printk(KERN_ERR "... disabling SMP support. (tell your hw vendor)\n");
@@ -915,6 +915,7 @@ void __init mp_register_ioapic (
 	u32			gsi_base)
 {
 	int			idx = 0;
+	int			tmpid;
 
 	if (nr_ioapics >= MAX_IO_APICS) {
 		printk(KERN_ERR "ERROR: Max # of I/O APICs (%d) exceeded "
@@ -935,9 +936,14 @@ void __init mp_register_ioapic (
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) && (boot_cpu_data.x86 < 15))
-		mp_ioapics[idx].mpc_apicid = io_apic_get_unique_id(idx, id);
+		tmpid = io_apic_get_unique_id(idx, id);
 	else
-		mp_ioapics[idx].mpc_apicid = id;
+		tmpid = id;
+	if (tmpid == -1) {
+		nr_ioapics--;
+		return;
+	}
+	mp_ioapics[idx].mpc_apicid = tmpid;
 	mp_ioapics[idx].mpc_apicver = io_apic_get_version(idx);
 	
 	/* 

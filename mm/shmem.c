@@ -45,6 +45,7 @@
 #include <linux/swapops.h>
 #include <linux/mempolicy.h>
 #include <linux/namei.h>
+#include <linux/ctype.h>
 #include <asm/uaccess.h>
 #include <asm/div64.h>
 #include <asm/pgtable.h>
@@ -874,6 +875,51 @@ redirty:
 }
 
 #ifdef CONFIG_NUMA
+static int shmem_parse_mpol(char *value, int *policy, nodemask_t *policy_nodes)
+{
+	char *nodelist = strchr(value, ':');
+	int err = 1;
+
+	if (nodelist) {
+		/* NUL-terminate policy string */
+		*nodelist++ = '\0';
+		if (nodelist_parse(nodelist, *policy_nodes))
+			goto out;
+	}
+	if (!strcmp(value, "default")) {
+		*policy = MPOL_DEFAULT;
+		/* Don't allow a nodelist */
+		if (!nodelist)
+			err = 0;
+	} else if (!strcmp(value, "prefer")) {
+		*policy = MPOL_PREFERRED;
+		/* Insist on a nodelist of one node only */
+		if (nodelist) {
+			char *rest = nodelist;
+			while (isdigit(*rest))
+				rest++;
+			if (!*rest)
+				err = 0;
+		}
+	} else if (!strcmp(value, "bind")) {
+		*policy = MPOL_BIND;
+		/* Insist on a nodelist */
+		if (nodelist)
+			err = 0;
+	} else if (!strcmp(value, "interleave")) {
+		*policy = MPOL_INTERLEAVE;
+		/* Default to nodes online if no nodelist */
+		if (!nodelist)
+			*policy_nodes = node_online_map;
+		err = 0;
+	}
+out:
+	/* Restore string for error message */
+	if (nodelist)
+		*--nodelist = ':';
+	return err;
+}
+
 static struct page *shmem_swapin_async(struct shared_policy *p,
 				       swp_entry_t entry, unsigned long idx)
 {
@@ -926,6 +972,11 @@ shmem_alloc_page(gfp_t gfp, struct shmem_inode_info *info,
 	return page;
 }
 #else
+static inline int shmem_parse_mpol(char *value, int *policy, nodemask_t *policy_nodes)
+{
+	return 1;
+}
+
 static inline struct page *
 shmem_swapin(struct shmem_inode_info *info,swp_entry_t entry,unsigned long idx)
 {
@@ -1859,7 +1910,23 @@ static int shmem_parse_options(char *options, int *mode, uid_t *uid,
 {
 	char *this_char, *value, *rest;
 
-	while ((this_char = strsep(&options, ",")) != NULL) {
+	while (options != NULL) {
+		this_char = options;
+		for (;;) {
+			/*
+			 * NUL-terminate this option: unfortunately,
+			 * mount options form a comma-separated list,
+			 * but mpol's nodelist may also contain commas.
+			 */
+			options = strchr(options, ',');
+			if (options == NULL)
+				break;
+			options++;
+			if (!isdigit(*options)) {
+				options[-1] = '\0';
+				break;
+			}
+		}
 		if (!*this_char)
 			continue;
 		if ((value = strchr(this_char,'=')) != NULL) {
@@ -1910,18 +1977,8 @@ static int shmem_parse_options(char *options, int *mode, uid_t *uid,
 			if (*rest)
 				goto bad_val;
 		} else if (!strcmp(this_char,"mpol")) {
-			if (!strcmp(value,"default"))
-				*policy = MPOL_DEFAULT;
-			else if (!strcmp(value,"preferred"))
-				*policy = MPOL_PREFERRED;
-			else if (!strcmp(value,"bind"))
-				*policy = MPOL_BIND;
-			else if (!strcmp(value,"interleave"))
-				*policy = MPOL_INTERLEAVE;
-			else
+			if (shmem_parse_mpol(value,policy,policy_nodes))
 				goto bad_val;
-		} else if (!strcmp(this_char,"mpol_nodelist")) {
-			nodelist_parse(value, *policy_nodes);
 		} else {
 			printk(KERN_ERR "tmpfs: Bad mount option %s\n",
 			       this_char);

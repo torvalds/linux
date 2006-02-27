@@ -552,7 +552,7 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
 	 */
 	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
 		if (isolate_lru_page(page))
-			list_add(&page->lru, pagelist);
+			list_add_tail(&page->lru, pagelist);
 	}
 }
 
@@ -569,6 +569,7 @@ static int migrate_pages_to(struct list_head *pagelist,
 	LIST_HEAD(moved);
 	LIST_HEAD(failed);
 	int err = 0;
+	unsigned long offset = 0;
 	int nr_pages;
 	struct page *page;
 	struct list_head *p;
@@ -576,8 +577,21 @@ static int migrate_pages_to(struct list_head *pagelist,
 redo:
 	nr_pages = 0;
 	list_for_each(p, pagelist) {
-		if (vma)
-			page = alloc_page_vma(GFP_HIGHUSER, vma, vma->vm_start);
+		if (vma) {
+			/*
+			 * The address passed to alloc_page_vma is used to
+			 * generate the proper interleave behavior. We fake
+			 * the address here by an increasing offset in order
+			 * to get the proper distribution of pages.
+			 *
+			 * No decision has been made as to which page
+			 * a certain old page is moved to so we cannot
+			 * specify the correct address.
+			 */
+			page = alloc_page_vma(GFP_HIGHUSER, vma,
+					offset + vma->vm_start);
+			offset += PAGE_SIZE;
+		}
 		else
 			page = alloc_pages_node(dest, GFP_HIGHUSER, 0);
 
@@ -585,9 +599,9 @@ redo:
 			err = -ENOMEM;
 			goto out;
 		}
-		list_add(&page->lru, &newlist);
+		list_add_tail(&page->lru, &newlist);
 		nr_pages++;
-		if (nr_pages > MIGRATE_CHUNK_SIZE);
+		if (nr_pages > MIGRATE_CHUNK_SIZE)
 			break;
 	}
 	err = migrate_pages(pagelist, &newlist, &moved, &failed);
@@ -808,7 +822,7 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
 	nodes_clear(*nodes);
 	if (maxnode == 0 || !nmask)
 		return 0;
-	if (maxnode > PAGE_SIZE)
+	if (maxnode > PAGE_SIZE*BITS_PER_BYTE)
 		return -EINVAL;
 
 	nlongs = BITS_TO_LONGS(maxnode);

@@ -50,6 +50,8 @@ static int no_timer_check;
 
 int disable_timer_pin_1 __initdata;
 
+int timer_over_8254 __initdata = 1;
+
 /* Where if anywhere is the i8259 connect in external int mode */
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
@@ -251,6 +253,20 @@ static int __init enable_ioapic_setup(char *str)
 __setup("noapic", disable_ioapic_setup);
 __setup("apic", enable_ioapic_setup);
 
+static int __init setup_disable_8254_timer(char *s)
+{
+	timer_over_8254 = -1;
+	return 1;
+}
+static int __init setup_enable_8254_timer(char *s)
+{
+	timer_over_8254 = 2;
+	return 1;
+}
+
+__setup("disable_8254_timer", setup_disable_8254_timer);
+__setup("enable_8254_timer", setup_enable_8254_timer);
+
 #include <asm/pci-direct.h>
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
@@ -309,26 +325,19 @@ void __init check_ioapic(void)
 #endif
 					/* RED-PEN skip them on mptables too? */
 					return;
+
+				/* This should be actually default, but
+				   for 2.6.16 let's do it for ATI only where
+				   it's really needed. */
 				case PCI_VENDOR_ID_ATI:
-					if (apic_runs_main_timer != 0)
-						break;
-#ifdef CONFIG_ACPI
-					/* Don't do this for laptops right
-					   right now because their timer
-					   doesn't necessarily tick in C2/3 */
-					if (acpi_fadt.revision >= 3 &&
-			(acpi_fadt.plvl2_lat + acpi_fadt.plvl3_lat) < 1100) {
-						printk(KERN_INFO
-"ATI board detected, but seems to be a laptop. Timer might be shakey, sorry\n");
-						break;
-					}
-#endif					
+					if (timer_over_8254 == 1) {	
+						timer_over_8254 = 0;	
 					printk(KERN_INFO
-	     "ATI board detected. Using APIC/PM timer.\n");
-					apic_runs_main_timer = 1;
-					nohpet = 1;
+		"ATI board detected. Disabling timer routing over 8254.\n");
+					}	
 					return;
 				} 
+
 
 				/* No multi-function device? */
 				type = read_pci_config_byte(num,slot,func,
@@ -1773,6 +1782,8 @@ static inline void unlock_ExtINT_logic(void)
  * a wide range of boards and BIOS bugs.  Fortunately only the timer IRQ
  * is so screwy.  Thanks to Brian Perkins for testing/hacking this beast
  * fanatically on his truly buggy board.
+ *
+ * FIXME: really need to revamp this for modern platforms only.
  */
 static inline void check_timer(void)
 {
@@ -1795,7 +1806,8 @@ static inline void check_timer(void)
 	 */
 	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	init_8259A(1);
-	enable_8259A_irq(0);
+	if (timer_over_8254 > 0)
+		enable_8259A_irq(0);
 
 	pin1  = find_isa_irq_pin(0, mp_INT);
 	apic1 = find_isa_irq_apic(0, mp_INT);
@@ -1850,7 +1862,7 @@ static inline void check_timer(void)
 	}
 	printk(" failed.\n");
 
-	if (nmi_watchdog) {
+	if (nmi_watchdog == NMI_IO_APIC) {
 		printk(KERN_WARNING "timer doesn't work through the IO-APIC - disabling NMI Watchdog!\n");
 		nmi_watchdog = 0;
 	}

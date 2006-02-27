@@ -2224,12 +2224,16 @@ int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_de
  * and other special files.  --ADM
  */
 asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
-			   int newdfd, const char __user *newname)
+			   int newdfd, const char __user *newname,
+			   int flags)
 {
 	struct dentry *new_dentry;
 	struct nameidata nd, old_nd;
 	int error;
 	char * to;
+
+	if (flags != 0)
+		return -EINVAL;
 
 	to = getname(newname);
 	if (IS_ERR(to))
@@ -2263,7 +2267,7 @@ exit:
 
 asmlinkage long sys_link(const char __user *oldname, const char __user *newname)
 {
-	return sys_linkat(AT_FDCWD, oldname, AT_FDCWD, newname);
+	return sys_linkat(AT_FDCWD, oldname, AT_FDCWD, newname, 0);
 }
 
 /*

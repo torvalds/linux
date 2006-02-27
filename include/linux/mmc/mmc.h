@@ -49,7 +49,7 @@ struct mmc_command {
 /*
  * These are the command types.
  */
-#define mmc_cmd_type(cmd)	((cmd)->flags & MMC_CMD_TYPE)
+#define mmc_cmd_type(cmd)	((cmd)->flags & MMC_CMD_MASK)
 
 	unsigned int		retries;	/* max number of retries */
 	unsigned int		error;		/* command error */

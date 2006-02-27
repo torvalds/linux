@@ -1646,10 +1646,10 @@ static void intrepid_shutdown(struct macio_chip *macio, int sleep_mode)
 		  KL0_SCC_CELL_ENABLE);
 
 	MACIO_BIC(KEYLARGO_FCR1,
-		  /*KL1_USB2_CELL_ENABLE |*/
 		KL1_I2S0_CELL_ENABLE | KL1_I2S0_CLK_ENABLE_BIT |
 		KL1_I2S0_ENABLE | KL1_I2S1_CELL_ENABLE |
-		KL1_I2S1_CLK_ENABLE_BIT | KL1_I2S1_ENABLE);
+		KL1_I2S1_CLK_ENABLE_BIT | KL1_I2S1_ENABLE |
+		KL1_EIDE0_ENABLE);
 	if (pmac_mb.board_flags & PMAC_MB_MOBILE)
 		MACIO_BIC(KEYLARGO_FCR1, KL1_UIDE_RESET_N);
 
@@ -2183,7 +2183,7 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 	},
 	{	"PowerMac10,1",			"Mac mini",
 		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,
-		PMAC_MB_MAY_SLEEP | PMAC_MB_HAS_FW_POWER,
+		PMAC_MB_MAY_SLEEP,
 	},
 	{	"iMac,1",			"iMac (first generation)",
 		PMAC_TYPE_ORIG_IMAC,		paddington_features,
@@ -2295,11 +2295,11 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 	},
 	{	"PowerBook5,8",			"PowerBook G4 15\"",
 		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,
-		PMAC_MB_MAY_SLEEP | PMAC_MB_HAS_FW_POWER | PMAC_MB_MOBILE,
+		PMAC_MB_MAY_SLEEP  | PMAC_MB_MOBILE,
 	},
 	{	"PowerBook5,9",			"PowerBook G4 17\"",
 		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,
-		PMAC_MB_MAY_SLEEP | PMAC_MB_HAS_FW_POWER | PMAC_MB_MOBILE,
+		PMAC_MB_MAY_SLEEP | PMAC_MB_MOBILE,
 	},
 	{	"PowerBook6,1",			"PowerBook G4 12\"",
 		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,

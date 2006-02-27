@@ -2173,15 +2173,17 @@ static int probe_si (struct sx_board *board)
 	if ( IS_SI1_BOARD(board)) {
 		/* This should be an SI1 board, which has this
 		   location writable... */
-		if (read_sx_byte (board, SI2_ISA_ID_BASE) != 0x10)
+		if (read_sx_byte (board, SI2_ISA_ID_BASE) != 0x10) {
 			func_exit ();
 			return 0; 
+		}
 	} else {
 		/* This should be an SI2 board, which has the bottom
 		   3 bits non-writable... */
-		if (read_sx_byte (board, SI2_ISA_ID_BASE) == 0x10)
+		if (read_sx_byte (board, SI2_ISA_ID_BASE) == 0x10) {
 			func_exit ();
 			return 0; 
+		}
 	}
 
 	/* Now we're pretty much convinced that there is an SI board here, 
@@ -2192,15 +2194,17 @@ static int probe_si (struct sx_board *board)
 	if ( IS_SI1_BOARD(board)) {
 		/* This should be an SI1 board, which has this
 		   location writable... */
-		if (read_sx_byte (board, SI2_ISA_ID_BASE) != 0x10)
+		if (read_sx_byte (board, SI2_ISA_ID_BASE) != 0x10) {
 			func_exit();
 			return 0; 
+		}
 	} else {
 		/* This should be an SI2 board, which has the bottom
 		   3 bits non-writable... */
-		if (read_sx_byte (board, SI2_ISA_ID_BASE) == 0x10)
+		if (read_sx_byte (board, SI2_ISA_ID_BASE) == 0x10) {
 			func_exit ();
 			return 0; 
+		}
 	}
 
 	printheader ();
