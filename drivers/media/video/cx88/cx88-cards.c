@@ -1064,8 +1064,12 @@ struct cx88_board cx88_boards[] = {
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-			.gpio0  = 0x07fa,
+			.gpio0  = 0x3de2,
 		}},
+		.radio = {
+			.type   = CX88_RADIO,
+			.gpio0  = 0x3de6,
+		},
 	},
 
 };
