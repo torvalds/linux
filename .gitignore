@@ -30,3 +30,5 @@ include/linux/autoconf.h
 include/linux/compile.h
 include/linux/version.h
 
+# stgit generated dirs
+patches-*
