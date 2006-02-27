@@ -1049,9 +1049,7 @@ struct cx88_board cx88_boards[] = {
 		.dvb            = 1,
 	},
 	[CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT] = {
-		/* FIXME: This card is shipped without a windows tv app,
-		 * so I haven't been able to use regspy to figure out the GPIO
-		 * settings. Standard video using the cx88 broadcast decoder is
+		/* FIXME: Standard video using the cx88 broadcast decoder is
 		 * working, but blackbird isn't working yet, audio is only
 		 * working correctly for television mode. S-Video and Composite
 		 * are working for video-only, so I have them disabled for now.
