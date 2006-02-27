@@ -813,14 +813,14 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 		card->gpio_mode = 0x0400c060;
 		/* should be: BT878_A_GAIN=0,BT878_A_PWRDN,BT878_DA_DPM,BT878_DA_SBR,
 			      BT878_DA_IOM=1,BT878_DA_APP to enable serial highspeed mode. */
-		card->op_sync_orin = 0;
-		card->irq_err_ignore = 0;
+		card->op_sync_orin = BT878_RISC_SYNC_MASK;
+		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
 		break;
 
 	case BTTV_BOARD_DVICO_DVBT_LITE:
 		card->gpio_mode = 0x0400C060;
-		card->op_sync_orin = 0;
-		card->irq_err_ignore = 0;
+		card->op_sync_orin = BT878_RISC_SYNC_MASK;
+		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
 		/* 26, 15, 14, 6, 5
 		 * A_PWRDN  DA_DPM DA_SBR DA_IOM_DA
 		 * DA_APP(parallel) */
@@ -835,15 +835,15 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 	case BTTV_BOARD_NEBULA_DIGITV:
 	case BTTV_BOARD_AVDVBT_761:
 		card->gpio_mode = (1 << 26) | (1 << 14) | (1 << 5);
-		card->op_sync_orin = 0;
-		card->irq_err_ignore = 0;
+		card->op_sync_orin = BT878_RISC_SYNC_MASK;
+		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
 		/* A_PWRDN DA_SBR DA_APP (high speed serial) */
 		break;
 
 	case BTTV_BOARD_AVDVBT_771: //case 0x07711461:
 		card->gpio_mode = 0x0400402B;
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
-		card->irq_err_ignore = 0;
+		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
 		/* A_PWRDN DA_SBR  DA_APP[0] PKTP=10 RISC_ENABLE FIFO_ENABLE*/
 		break;
 
@@ -867,8 +867,8 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 
 	case BTTV_BOARD_PC_HDTV:
 		card->gpio_mode = 0x0100EC7B;
-		card->op_sync_orin = 0;
-		card->irq_err_ignore = 0;
+		card->op_sync_orin = BT878_RISC_SYNC_MASK;
+		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
 		break;
 
 	default:
