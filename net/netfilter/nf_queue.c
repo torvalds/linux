@@ -214,7 +214,7 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
   			break;
   	}
   
-	if (elem == &nf_hooks[info->pf][info->hook]) {
+	if (i == &nf_hooks[info->pf][info->hook]) {
 		/* The module which sent it to userspace is gone. */
 		NFDEBUG("%s: module disappeared, dropping packet.\n",
 			__FUNCTION__);
