@@ -38,6 +38,7 @@
 #include <asm/timer.h>
 #include <asm/starfire.h>
 #include <asm/tlb.h>
+#include <asm/sections.h>
 
 extern void calibrate_delay(void);
 
@@ -87,10 +88,6 @@ void __init smp_store_cpu_info(int id)
 	cpu_data(id).clock_tick = prom_getintdefault(cpu_node,
 						     "clock-frequency", 0);
 
-	cpu_data(id).pgcache_size		= 0;
-	cpu_data(id).pte_cache[0]		= NULL;
-	cpu_data(id).pte_cache[1]		= NULL;
-	cpu_data(id).pgd_cache			= NULL;
 	cpu_data(id).idle_volume		= 1;
 
 	cpu_data(id).dcache_size = prom_getintdefault(cpu_node, "dcache-size",
@@ -121,26 +118,15 @@ static volatile unsigned long callin_flag = 0;
 
 extern void inherit_locked_prom_mappings(int save_p);
 
-static inline void cpu_setup_percpu_base(unsigned long cpu_id)
-{
-#error IMMU TSB usage must be fixed
-	__asm__ __volatile__("mov	%0, %%g5\n\t"
-			     "stxa	%0, [%1] %2\n\t"
-			     "membar	#Sync"
-			     : /* no outputs */
-			     : "r" (__per_cpu_offset(cpu_id)),
-			       "r" (TSB_REG), "i" (ASI_IMMU));
-}
-
 void __init smp_callin(void)
 {
 	int cpuid = hard_smp_processor_id();
 
 	inherit_locked_prom_mappings(0);
 
-	__flush_tlb_all();
+	__local_per_cpu_offset = __per_cpu_offset(cpuid);
 
-	cpu_setup_percpu_base(cpuid);
+	__flush_tlb_all();
 
 	smp_setup_percpu_timer();
 
@@ -1107,12 +1093,15 @@ void __init smp_setup_cpu_possible_map(void)
 
 void __devinit smp_prepare_boot_cpu(void)
 {
-	if (hard_smp_processor_id() >= NR_CPUS) {
+	int cpu = hard_smp_processor_id();
+
+	if (cpu >= NR_CPUS) {
 		prom_printf("Serious problem, boot cpu id >= NR_CPUS\n");
 		prom_halt();
 	}
 
-	current_thread_info()->cpu = hard_smp_processor_id();
+	current_thread_info()->cpu = cpu;
+	__local_per_cpu_offset = __per_cpu_offset(cpu);
 
 	cpu_set(smp_processor_id(), cpu_online_map);
 	cpu_set(smp_processor_id(), phys_cpu_present_map);
@@ -1173,12 +1162,9 @@ void __init setup_per_cpu_areas(void)
 {
 	unsigned long goal, size, i;
 	char *ptr;
-	/* Created by linker magic */
-	extern char __per_cpu_start[], __per_cpu_end[];
 
 	/* Copy section for each CPU (we discard the original) */
-	goal = ALIGN(__per_cpu_end - __per_cpu_start, PAGE_SIZE);
-
+	goal = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
 #ifdef CONFIG_MODULES
 	if (goal < PERCPU_ENOUGH_ROOM)
 		goal = PERCPU_ENOUGH_ROOM;
@@ -1187,31 +1173,10 @@ void __init setup_per_cpu_areas(void)
 	for (size = 1UL; size < goal; size <<= 1UL)
 		__per_cpu_shift++;
 
-	/* Make sure the resulting __per_cpu_base value
-	 * will fit in the 43-bit sign extended IMMU
-	 * TSB register.
-	 */
-	ptr = __alloc_bootmem(size * NR_CPUS, PAGE_SIZE,
-			      (unsigned long) __per_cpu_start);
+	ptr = alloc_bootmem(size * NR_CPUS);
 
 	__per_cpu_base = ptr - __per_cpu_start;
 
-	if ((__per_cpu_shift < PAGE_SHIFT) ||
-	    (__per_cpu_base & ~PAGE_MASK) ||
-	    (__per_cpu_base != (((long) __per_cpu_base << 20) >> 20))) {
-		prom_printf("PER_CPU: Invalid layout, "
-			    "ptr[%p] shift[%lx] base[%lx]\n",
-			    ptr, __per_cpu_shift, __per_cpu_base);
-		prom_halt();
-	}
-
 	for (i = 0; i < NR_CPUS; i++, ptr += size)
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
-
-	/* Finally, load in the boot cpu's base value.
-	 * We abuse the IMMU TSB register for trap handler
-	 * entry and exit loading of %g5.  That is why it
-	 * has to be page aligned.
-	 */
-	cpu_setup_percpu_base(hard_smp_processor_id());
 }

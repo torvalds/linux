@@ -109,14 +109,14 @@
 	nop;nop;nop;
 	
 #define TRAP_UTRAP(handler,lvl)				\
-	ldx	[%g6 + TI_UTRAPS], %g1;			\
-	sethi	%hi(109f), %g7;				\
-	brz,pn	%g1, utrap;				\
-	 or	%g7, %lo(109f), %g7;			\
-	ba,pt	%xcc, utrap;				\
-109:	 ldx	[%g1 + handler*8], %g1;			\
-	ba,pt	%xcc, utrap_ill;			\
-	 mov	lvl, %o1;
+	mov	handler, %g3;				\
+	ba,pt	%xcc, utrap_trap;			\
+	 mov	lvl, %g4;				\
+	nop;						\
+	nop;						\
+	nop;						\
+	nop;						\
+	nop;
 
 #ifdef CONFIG_SUNOS_EMUL
 #define SUNOS_SYSCALL_TRAP SYSCALL_TRAP(linux_sparc_syscall32, sunos_sys_table)
@@ -136,8 +136,6 @@
 #else
 #define SOLARIS_SYSCALL_TRAP TRAP(solaris_syscall)
 #endif
-/* FIXME: Write these actually */	
-#define NETBSD_SYSCALL_TRAP TRAP(netbsd_syscall)
 #define BREAKPOINT_TRAP TRAP(breakpoint_trap)
 
 #define TRAP_IRQ(routine, level)			\

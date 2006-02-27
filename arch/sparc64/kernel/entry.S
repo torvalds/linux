@@ -50,7 +50,8 @@ do_fpdis:
 	add		%g0, %g0, %g0
 	ba,a,pt		%xcc, rtrap_clr_l6
 
-1:	ldub		[%g6 + TI_FPSAVED], %g5
+1:	TRAP_LOAD_THREAD_REG
+	ldub		[%g6 + TI_FPSAVED], %g5
 	wr		%g0, FPRS_FEF, %fprs
 	andcc		%g5, FPRS_FEF, %g0
 	be,a,pt		%icc, 1f
@@ -189,6 +190,7 @@ fp_other_bounce:
 	.globl		do_fpother_check_fitos
 	.align		32
 do_fpother_check_fitos:
+	TRAP_LOAD_THREAD_REG
 	sethi		%hi(fp_other_bounce - 4), %g7
 	or		%g7, %lo(fp_other_bounce - 4), %g7
 
@@ -353,8 +355,6 @@ do_fptrap_after_fsr:
 	 *
 	 * With this method we can do most of the cross-call tlb/cache
 	 * flushing very quickly.
-	 *
-	 * Current CPU's IRQ worklist table is locked into %g6, don't touch.
 	 */
 	.text
 	.align		32
@@ -377,6 +377,8 @@ do_ivec:
 	mov		1, %g2
 	sllx		%g2, %g4, %g2
 	sllx		%g4, 2, %g4
+
+	TRAP_LOAD_IRQ_WORK
 
 	lduw		[%g6 + %g4], %g5	/* g5 = irq_work(cpu, pil) */
 	stw		%g5, [%g3 + 0x00]	/* bucket->irq_chain = g5 */
@@ -488,9 +490,24 @@ setcc:
 	retl
 	 stx		%o1, [%o0 + PT_V9_TSTATE]
 
-	.globl		utrap, utrap_ill
-utrap:	brz,pn		%g1, etrap
+	.globl		utrap_trap
+utrap_trap:		/* %g3=handler,%g4=level */
+	TRAP_LOAD_THREAD_REG
+	ldx		[%g6 + TI_UTRAPS], %g1
+	brnz,pt		%g1, invoke_utrap
 	 nop
+
+	ba,pt		%xcc, etrap
+	 rd		%pc, %g7
+	mov		%l4, %o1
+        call		bad_trap
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
+
+invoke_utrap:
+	sllx		%g3, 3, %g3
+	ldx		[%g1 + %g3], %g1
 	save		%sp, -128, %sp
 	rdpr		%tstate, %l6
 	rdpr		%cwp, %l7
@@ -500,17 +517,6 @@ utrap:	brz,pn		%g1, etrap
 	rdpr		%tnpc, %l7
 	wrpr		%g1, 0, %tnpc
 	done
-utrap_ill:
-        call		bad_trap
-	 add		%sp, PTREGS_OFF, %o0
-	ba,pt		%xcc, rtrap
-	 clr		%l6
-
-	/* XXX Here is stuff we still need to write... -DaveM XXX */
-	.globl		netbsd_syscall
-netbsd_syscall:
-	retl
-	 nop
 
 	/* We need to carefully read the error status, ACK
 	 * the errors, prevent recursive traps, and pass the
@@ -1001,7 +1007,7 @@ dcpe_icpe_tl1_common:
 	 * %g3:		scratch
 	 * %g4:		AFSR
 	 * %g5:		AFAR
-	 * %g6:		current thread ptr
+	 * %g6:		unused, will have current thread ptr after etrap
 	 * %g7:		scratch
 	 */
 __cheetah_log_error:
@@ -1689,4 +1695,86 @@ __flushw_user:
 	brnz,pt		%g2, 1b
 	 restore	%g0, %g0, %g0
 2:	retl
+	 nop
+
+	/* Read cpu ID from hardware, return in %g6.
+	 * (callers_pc - 4) is in %g1.  Patched at boot time.
+	 *
+	 * Default is spitfire implementation.
+	 *
+	 * The instruction sequence needs to be 5 instructions
+	 * in order to fit the longest implementation, which is
+	 * currently starfire.
+	 */
+	.align		32
+	.globl		__get_cpu_id
+__get_cpu_id:
+	ldxa		[%g0] ASI_UPA_CONFIG, %g6
+	srlx		%g6, 17, %g6
+	jmpl		%g1 + 0x4, %g0
+	 and		%g6, 0x1f, %g6
+	nop
+
+__get_cpu_id_cheetah_safari:
+	ldxa		[%g0] ASI_SAFARI_CONFIG, %g6
+	srlx		%g6, 17, %g6
+	jmpl		%g1 + 0x4, %g0
+	 and		%g6, 0x3ff, %g6
+	nop
+
+__get_cpu_id_cheetah_jbus:
+	ldxa		[%g0] ASI_JBUS_CONFIG, %g6
+	srlx		%g6, 17, %g6
+	jmpl		%g1 + 0x4, %g0
+	 and		%g6, 0x1f, %g6
+	nop
+
+__get_cpu_id_starfire:
+	sethi		%hi(0x1fff40000d0 >> 9), %g6
+	sllx		%g6, 9, %g6
+	or		%g6, 0xd0, %g6
+	jmpl		%g1 + 0x4, %g0
+	 lduwa		[%g6] ASI_PHYS_BYPASS_EC_E, %g6
+
+	.globl		per_cpu_patch
+per_cpu_patch:
+	sethi		%hi(this_is_starfire), %o0
+	lduw		[%o0 + %lo(this_is_starfire)], %o1
+	sethi		%hi(__get_cpu_id_starfire), %o0
+	brnz,pn		%o1, 10f
+	 or		%o0, %lo(__get_cpu_id_starfire), %o0
+	sethi		%hi(tlb_type), %o0
+	lduw		[%o0 + %lo(tlb_type)], %o1
+	brz,pt		%o1, 11f
+	 nop
+	rdpr		%ver, %o0
+	srlx		%o0, 32, %o0
+	sethi		%hi(0x003e0016), %o1
+	or		%o1, %lo(0x003e0016), %o1
+	cmp		%o0, %o1
+	sethi		%hi(__get_cpu_id_cheetah_jbus), %o0
+	be,pn		%icc, 10f
+	 or		%o0, %lo(__get_cpu_id_cheetah_jbus), %o0
+	sethi		%hi(__get_cpu_id_cheetah_safari), %o0
+	or		%o0, %lo(__get_cpu_id_cheetah_safari), %o0
+10:
+	sethi		%hi(__get_cpu_id), %o1
+	or		%o1, %lo(__get_cpu_id), %o1
+	lduw		[%o0 + 0x00], %o2
+	stw		%o2, [%o1 + 0x00]
+	flush		%o1 + 0x00
+	lduw		[%o0 + 0x04], %o2
+	stw		%o2, [%o1 + 0x04]
+	flush		%o1 + 0x04
+	lduw		[%o0 + 0x08], %o2
+	stw		%o2, [%o1 + 0x08]
+	flush		%o1 + 0x08
+	lduw		[%o0 + 0x0c], %o2
+	stw		%o2, [%o1 + 0x0c]
+	flush		%o1 + 0x0c
+	lduw		[%o0 + 0x10], %o2
+	stw		%o2, [%o1 + 0x10]
+	flush		%o1 + 0x10
+11:
+	retl
 	 nop

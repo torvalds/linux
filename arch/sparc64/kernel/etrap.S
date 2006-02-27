@@ -31,6 +31,7 @@
 		.globl	etrap, etrap_irq, etraptl1
 etrap:		rdpr	%pil, %g2
 etrap_irq:
+		TRAP_LOAD_THREAD_REG
 		rdpr	%tstate, %g1
 		sllx	%g2, 20, %g3
 		andcc	%g1, TSTATE_PRIV, %g0
@@ -98,11 +99,7 @@ etrap_irq:
 		stx	%i7, [%sp + PTREGS_OFF + PT_V9_I7]
 		wrpr	%g0, ETRAP_PSTATE2, %pstate
 		mov	%l6, %g6
-#ifdef CONFIG_SMP
-#error IMMU TSB usage must be fixed
-		mov	TSB_REG, %g3
-		ldxa	[%g3] ASI_IMMU, %g5
-#endif
+		LOAD_PER_CPU_BASE(%g4, %g3)
 		jmpl	%l2 + 0x4, %g0
 		 ldx	[%g6 + TI_TASK], %g4
 
@@ -126,6 +123,7 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 		 *	0x58	TL4's TT
 		 *	0x60	TL
 		 */
+		TRAP_LOAD_THREAD_REG
 		sub	%sp, ((4 * 8) * 4) + 8, %g2
 		rdpr	%tl, %g1
 
@@ -179,7 +177,9 @@ etraptl1:	/* Save tstate/tpc/tnpc of TL 1-->4 and the tl register itself.
 
 		.align	64
 		.globl	scetrap
-scetrap:	rdpr	%pil, %g2
+scetrap:
+		TRAP_LOAD_THREAD_REG
+		rdpr	%pil, %g2
 		rdpr	%tstate, %g1
 		sllx	%g2, 20, %g3
 		andcc	%g1, TSTATE_PRIV, %g0
@@ -248,11 +248,7 @@ scetrap:	rdpr	%pil, %g2
 		stx	%i6, [%sp + PTREGS_OFF + PT_V9_I6]
 		mov	%l6, %g6
 		stx	%i7, [%sp + PTREGS_OFF + PT_V9_I7]
-#ifdef CONFIG_SMP
-#error IMMU TSB usage must be fixed
-		mov	TSB_REG, %g3
-		ldxa	[%g3] ASI_IMMU, %g5
-#endif
+		LOAD_PER_CPU_BASE(%g4, %g3)
 		ldx	[%g6 + TI_TASK], %g4
 		done
 

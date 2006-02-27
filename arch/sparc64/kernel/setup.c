@@ -507,6 +507,11 @@ void __init setup_arch(char **cmdline_p)
 	/* Work out if we are starfire early on */
 	check_if_starfire();
 
+	/* Now we know enough to patch the __get_cpu_id()
+	 * trampoline used by trap code.
+	 */
+	per_cpu_patch();
+
 	boot_flags_init(*cmdline_p);
 
 	idprom_init();
@@ -545,6 +550,9 @@ void __init setup_arch(char **cmdline_p)
 	smp_setup_cpu_possible_map();
 
 	paging_init();
+
+	/* Get boot processor trap_block[] setup.  */
+	init_cur_cpu_trap();
 }
 
 static int __init set_preferred_console(void)

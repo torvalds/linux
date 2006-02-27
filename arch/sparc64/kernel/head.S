@@ -26,6 +26,7 @@
 #include <asm/head.h>
 #include <asm/ttable.h>
 #include <asm/mmu.h>
+#include <asm/cpudata.h>
 	
 /* This section from from _start to sparc64_boot_end should fit into
  * 0x0000000000404000 to 0x0000000000408000.
@@ -421,24 +422,6 @@ setup_trap_table:
 	stxa	%g2, [%g1] ASI_DMMU
 	membar	#Sync
 
-	/* The Linux trap handlers expect various trap global registers
-	 * to be setup with some fixed values.  So here we set these
-	 * up very carefully.  These globals are:
-	 *
-	 * Alternate Globals (PSTATE_AG):
-	 *
-	 * %g6			--> current_thread_info()
-	 *
-	 * Interrupt Globals (PSTATE_IG, setup by init_irqwork_curcpu()):
-	 *
-	 * %g6			--> __irq_work[smp_processor_id()]
-	 */
-
-	rdpr	%pstate, %o1
-	mov	%g6, %o2
-	wrpr	%o1, PSTATE_AG, %pstate
-	mov	%o2, %g6
-
 	/* Kill PROM timer */
 	sethi	%hi(0x80000000), %o2
 	sllx	%o2, 32, %o2
@@ -457,7 +440,6 @@ setup_trap_table:
 
 2:
 	wrpr	%g0, %g0, %wstate
-	wrpr	%o1, 0x0, %pstate
 
 	call	init_irqwork_curcpu
 	 nop

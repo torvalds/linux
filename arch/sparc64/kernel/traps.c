@@ -2130,7 +2130,22 @@ void do_getpsr(struct pt_regs *regs)
 	}
 }
 
+struct trap_per_cpu trap_block[NR_CPUS];
+
+/* This can get invoked before sched_init() so play it super safe
+ * and use hard_smp_processor_id().
+ */
+void init_cur_cpu_trap(void)
+{
+	int cpu = hard_smp_processor_id();
+	struct trap_per_cpu *p = &trap_block[cpu];
+
+	p->thread = current_thread_info();
+	p->pgd_paddr = 0;
+}
+
 extern void thread_info_offsets_are_bolixed_dave(void);
+extern void trap_per_cpu_offsets_are_bolixed_dave(void);
 
 /* Only invoked on boot processor. */
 void __init trap_init(void)
@@ -2164,6 +2179,10 @@ void __init trap_init(void)
 	    TI_FPREGS != offsetof(struct thread_info, fpregs) ||
 	    (TI_FPREGS & (64 - 1)))
 		thread_info_offsets_are_bolixed_dave();
+
+	if (TRAP_PER_CPU_THREAD != offsetof(struct trap_per_cpu, thread) ||
+	    TRAP_PER_CPU_PGD_PADDR != offsetof(struct trap_per_cpu, pgd_paddr))
+		trap_per_cpu_offsets_are_bolixed_dave();
 
 	/* Attach to the address space of init_task.  On SMP we
 	 * do this in smp.c:smp_callin for other cpus.

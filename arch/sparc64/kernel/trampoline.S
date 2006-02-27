@@ -287,20 +287,17 @@ do_unlock:
 	wrpr		%g0, 0, %wstate
 	wrpr		%g0, 0, %tl
 
-	/* Setup the trap globals, then we can resurface. */
-	rdpr		%pstate, %o1
-	mov		%g6, %o2
-	wrpr		%o1, PSTATE_AG, %pstate
+	/* Load TBA, then we can resurface. */
 	sethi		%hi(sparc64_ttable_tl0), %g5
 	wrpr		%g5, %tba
-	mov		%o2, %g6
 
-	wrpr		%o1, 0x0, %pstate
 	ldx		[%g6 + TI_TASK], %g4
 
 	wrpr		%g0, 0, %wstate
 
 	call		init_irqwork_curcpu
+	 nop
+	call		init_cur_cpu_trap
 	 nop
 
 	/* Start using proper page size encodings in ctx register.  */

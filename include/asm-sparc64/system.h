@@ -209,6 +209,8 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	/* so that ASI is only written if it changes, think again. */	\
 	__asm__ __volatile__("wr %%g0, %0, %%asi"			\
 	: : "r" (__thread_flag_byte_ptr(task_thread_info(next))[TI_FLAG_BYTE_CURRENT_DS]));\
+	trap_block[current_thread_info()->cpu].thread =			\
+		task_thread_info(next);					\
 	__asm__ __volatile__(						\
 	"mov	%%g4, %%g7\n\t"						\
 	"wrpr	%%g0, 0x95, %%pstate\n\t"				\

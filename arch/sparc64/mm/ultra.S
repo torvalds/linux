@@ -295,12 +295,10 @@ cheetah_patch_cachetlbops:
 	 *   %g1	address arg 1	(tlb page and range flushes)
 	 *   %g7	address arg 2	(tlb range flush only)
 	 *
-	 *   %g6	ivector table, don't touch
-	 *   %g2	scratch 1
-	 *   %g3	scratch 2
-	 *   %g4	scratch 3
-	 *
-	 * TODO: Make xcall TLB range flushes use the tricks above... -DaveM
+	 *   %g6	scratch 1
+	 *   %g2	scratch 2
+	 *   %g3	scratch 3
+	 *   %g4	scratch 4
 	 */
 	.align		32
 	.globl		xcall_flush_tlb_mm

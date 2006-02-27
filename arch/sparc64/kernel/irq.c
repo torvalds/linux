@@ -848,33 +848,9 @@ static void kill_prom_timer(void)
 
 void init_irqwork_curcpu(void)
 {
-	register struct irq_work_struct *workp asm("o2");
-	register unsigned long tmp asm("o3");
 	int cpu = hard_smp_processor_id();
 
-	memset(__irq_work + cpu, 0, sizeof(*workp));
-
-	/* Make sure we are called with PSTATE_IE disabled.  */
-	__asm__ __volatile__("rdpr	%%pstate, %0\n\t"
-			     : "=r" (tmp));
-	if (tmp & PSTATE_IE) {
-		prom_printf("BUG: init_irqwork_curcpu() called with "
-			    "PSTATE_IE enabled, bailing.\n");
-		__asm__ __volatile__("mov	%%i7, %0\n\t"
-				     : "=r" (tmp));
-		prom_printf("BUG: Called from %lx\n", tmp);
-		prom_halt();
-	}
-
-	/* Set interrupt globals.  */
-	workp = &__irq_work[cpu];
-	__asm__ __volatile__(
-	"rdpr	%%pstate, %0\n\t"
-	"wrpr	%0, %1, %%pstate\n\t"
-	"mov	%2, %%g6\n\t"
-	"wrpr	%0, 0x0, %%pstate\n\t"
-	: "=&r" (tmp)
-	: "i" (PSTATE_IG), "r" (workp));
+	memset(__irq_work + cpu, 0, sizeof(struct irq_work_struct));
 }
 
 /* Only invoked on boot processor. */

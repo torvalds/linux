@@ -36,6 +36,15 @@ tsb_miss_itlb:
 	 nop
 
 tsb_miss_page_table_walk:
+	/* This clobbers %g1 and %g6, preserve them... */
+	mov		%g1, %g5
+	mov		%g6, %g2
+
+	TRAP_LOAD_PGD_PHYS
+
+	mov		%g2, %g6
+	mov		%g5, %g1
+
 	USER_PGTABLE_WALK_TL1(%g4, %g7, %g5, %g2, tsb_do_fault)
 
 tsb_reload:
@@ -112,15 +121,20 @@ winfix_trampoline:
 	 * %o0: page table physical address
 	 * %o1:	TSB address
 	 */
+	.align	32
 	.globl	tsb_context_switch
 tsb_context_switch:
-	wrpr	%g0, PSTATE_MG | PSTATE_RMO | PSTATE_PEF | PSTATE_PRIV, %pstate
+	rdpr	%pstate, %o5
+	wrpr	%o5, PSTATE_IE, %pstate
 
-	/* Set page table base alternate global.  */
-	mov	%o0, %g7
+	ldub	[%g6 + TI_CPU], %o3
+	sethi	%hi(trap_block), %o4
+	sllx	%o3, TRAP_BLOCK_SZ_SHIFT, %o3
+	or	%o4, %lo(trap_block), %o4
+	add	%o4, %o3, %o4
+	stx	%o0, [%o4 + TRAP_PER_CPU_PGD_PADDR]
 
-	/* XXX can this happen?  */
-	brz,pn	%o1, 9f
+	brgez	%o1, 9f
 	 nop
 
 	/* Lock TSB into D-TLB.  */
@@ -163,7 +177,7 @@ tsb_context_switch:
 	membar		#Sync
 
 9:
-	wrpr	%g0, PSTATE_RMO | PSTATE_PEF | PSTATE_PRIV | PSTATE_IE, %pstate
+	wrpr	%o5, %pstate
 
 	retl
 	 mov	%o2, %o0
