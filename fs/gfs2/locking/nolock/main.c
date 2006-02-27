@@ -33,9 +33,6 @@ static int nolock_mount(char *table_name, char *host_data,
 	unsigned int jid;
 	struct nolock_lockspace *nl;
 
-	/* If there is a "jid=" in the hostdata, return that jid.
-	   Otherwise, return zero. */
-
 	c = strstr(host_data, "jid=");
 	if (!c)
 		jid = 0;
