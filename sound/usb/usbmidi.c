@@ -871,10 +871,10 @@ static int snd_usbmidi_in_endpoint_create(struct snd_usb_midi* umidi,
 
 static unsigned int snd_usbmidi_count_bits(unsigned int x)
 {
-	unsigned int bits = 0;
+	unsigned int bits;
 
-	for (; x; x >>= 1)
-		bits += x & 1;
+	for (bits = 0; x; ++bits)
+		x &= x - 1;
 	return bits;
 }
 
