@@ -379,10 +379,10 @@ void __init setup_arch(char **cmdline_p)
 
 	smp_setup_cpu_possible_map();
 
-	paging_init();
-
 	/* Get boot processor trap_block[] setup.  */
 	init_cur_cpu_trap(current_thread_info());
+
+	paging_init();
 }
 
 static int __init set_preferred_console(void)
