@@ -99,6 +99,7 @@ unsigned long tb_ticks_per_jiffy;
 unsigned long tb_ticks_per_usec = 100; /* sane default */
 EXPORT_SYMBOL(tb_ticks_per_usec);
 unsigned long tb_ticks_per_sec;
+EXPORT_SYMBOL(tb_ticks_per_sec);	/* for cputime_t conversions */
 u64 tb_to_xs;
 unsigned tb_to_us;
 
@@ -143,9 +144,13 @@ DEFINE_PER_CPU(unsigned long, last_jiffy);
  * These are all stored as 0.64 fixed-point binary fractions.
  */
 u64 __cputime_jiffies_factor;
+EXPORT_SYMBOL(__cputime_jiffies_factor);
 u64 __cputime_msec_factor;
+EXPORT_SYMBOL(__cputime_msec_factor);
 u64 __cputime_sec_factor;
+EXPORT_SYMBOL(__cputime_sec_factor);
 u64 __cputime_clockt_factor;
+EXPORT_SYMBOL(__cputime_clockt_factor);
 
 static void calc_cputime_factors(void)
 {
