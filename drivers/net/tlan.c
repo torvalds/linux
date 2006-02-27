@@ -536,6 +536,7 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 	u16		   device_id;
 	int		   reg, rc = -ENODEV;
 
+#ifdef CONFIG_PCI
 	if (pdev) {
 		rc = pci_enable_device(pdev);
 		if (rc)
@@ -547,6 +548,7 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 			goto err_out;
 		}
 	}
+#endif  /*  CONFIG_PCI  */
 
 	dev = alloc_etherdev(sizeof(TLanPrivateInfo));
 	if (dev == NULL) {

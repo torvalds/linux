@@ -963,7 +963,7 @@ source "arch/powerpc/oprofile/Kconfig"
 
 config KPROBES
 	bool "Kprobes (EXPERIMENTAL)"
-	depends on PPC64
+	depends on PPC64 && EXPERIMENTAL && MODULES
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes

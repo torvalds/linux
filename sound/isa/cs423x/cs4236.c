@@ -414,7 +414,7 @@ static int __devinit snd_card_cs423x_pnpc(int dev, struct snd_card_cs4236 *acard
 	}
 	/* MPU initialization */
 	if (acard->mpu && mpu_port[dev] > 0) {
-		if (snd_cs423x_pnp_init_mpu(dev, acard->ctrl, cfg) < 0)
+		if (snd_cs423x_pnp_init_mpu(dev, acard->mpu, cfg) < 0)
 			goto error;
 	}
 	kfree(cfg);

@@ -48,6 +48,8 @@ static void cpufreq_delayed_get(void);
 extern void i8254_timer_resume(void);
 extern int using_apic_timer;
 
+static char *time_init_gtod(void);
+
 DEFINE_SPINLOCK(rtc_lock);
 DEFINE_SPINLOCK(i8253_lock);
 
@@ -901,6 +903,7 @@ static struct irqaction irq0 = {
 void __init time_init(void)
 {
 	char *timename;
+	char *gtod;
 
 #ifdef HPET_HACK_ENABLE_DANGEROUS
         if (!vxtime.hpet_address) {
@@ -945,21 +948,19 @@ void __init time_init(void)
 		timename = "PIT";
 	}
 
-	printk(KERN_INFO "time.c: Using %ld.%06ld MHz %s timer.\n",
-	       vxtime_hz / 1000000, vxtime_hz % 1000000, timename);
+	vxtime.mode = VXTIME_TSC;
+	gtod = time_init_gtod();
+
+	printk(KERN_INFO "time.c: Using %ld.%06ld MHz WALL %s GTOD %s timer.\n",
+	       vxtime_hz / 1000000, vxtime_hz % 1000000, timename, gtod);
 	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
 		cpu_khz / 1000, cpu_khz % 1000);
-	vxtime.mode = VXTIME_TSC;
 	vxtime.quot = (1000000L << 32) / vxtime_hz;
 	vxtime.tsc_quot = (1000L << 32) / cpu_khz;
 	vxtime.last_tsc = get_cycles_sync();
 	setup_irq(0, &irq0);
 
 	set_cyc2ns_scale(cpu_khz);
-
-#ifndef CONFIG_SMP
-	time_init_gtod();
-#endif
 }
 
 /*
@@ -981,9 +982,9 @@ __cpuinit int unsynchronized_tsc(void)
 }
 
 /*
- * Decide after all CPUs are booted what mode gettimeofday should use.
+ * Decide what mode gettimeofday should use.
  */
-void __init time_init_gtod(void)
+__init static char *time_init_gtod(void)
 {
 	char *timetype;
 
@@ -1011,8 +1012,7 @@ void __init time_init_gtod(void)
 		timetype = hpet_use_timer ? "HPET/TSC" : "PIT/TSC";
 		vxtime.mode = VXTIME_TSC;
 	}
-
-	printk(KERN_INFO "time.c: Using %s based timekeeping.\n", timetype);
+	return timetype;
 }
 
 __setup("report_lost_ticks", time_setup);

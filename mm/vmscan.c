@@ -1908,7 +1908,12 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
 
 	cond_resched();
-	p->flags |= PF_MEMALLOC;
+	/*
+	 * We need to be able to allocate from the reserves for RECLAIM_SWAP
+	 * and we also need to be able to write out pages for RECLAIM_WRITE
+	 * and RECLAIM_SWAP.
+	 */
+	p->flags |= PF_MEMALLOC | PF_SWAPWRITE;
 	reclaim_state.reclaimed_slab = 0;
 	p->reclaim_state = &reclaim_state;
 
@@ -1932,11 +1937,10 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 		 * a long time.
 		 */
 		shrink_slab(sc.nr_scanned, gfp_mask, order);
-		sc.nr_reclaimed = 1;    /* Avoid getting the off node timeout */
 	}
 
 	p->reclaim_state = NULL;
-	current->flags &= ~PF_MEMALLOC;
+	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
 
 	if (sc.nr_reclaimed == 0)
 		zone->last_unsuccessful_zone_reclaim = jiffies;

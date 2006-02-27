@@ -1,12 +1,12 @@
 /*
- * arch/i386/mach-generic/topology.c - Populate driverfs with topology information
+ * arch/i386/kernel/topology.c - Populate driverfs with topology information
  *
  * Written by: Matthew Dobson, IBM Corporation
  * Original Code: Paul Dorwin, IBM Corporation, Patrick Mochel, OSDL
  *
  * Copyright (C) 2002, IBM Corp.
  *
- * All rights reserved.          
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ static struct i386_cpu cpu_devices[NR_CPUS];
 
 int arch_register_cpu(int num){
 	struct node *parent = NULL;
-	
+
 #ifdef CONFIG_NUMA
 	int node = cpu_to_node(num);
 	if (node_online(node))
