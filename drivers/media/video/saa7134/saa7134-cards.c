@@ -3549,6 +3549,18 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
 		}
 		break;
+	case SAA7134_BOARD_KWORLD_ATSC110:
+		{
+			/* enable tuner */
+			int i;
+			u8 buffer [] = { 0x10,0x12,0x13,0x04,0x16,0x00,0x14,0x04,0x017,0x00 };
+			dev->i2c_client.addr = 0x0a;
+			for (i = 0; i < 5; i++)
+				if (2 != i2c_master_send(&dev->i2c_client,&buffer[i*2],2))
+					printk(KERN_WARNING "%s: Unable to enable tuner(%i).\n",
+					       dev->name, i);
+		}
+		break;
 	}
 	return 0;
 }
