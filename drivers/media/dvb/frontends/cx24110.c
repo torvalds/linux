@@ -418,6 +418,9 @@ static int cx24110_send_diseqc_msg(struct dvb_frontend* fe,
 	struct cx24110_state *state = fe->demodulator_priv;
 	unsigned long timeout;
 
+	if (cmd->msg_len < 3 || cmd->msg_len > 6)
+		return -EINVAL;  /* not implemented */
+
 	for (i = 0; i < cmd->msg_len; i++)
 		cx24110_writereg(state, 0x79 + i, cmd->msg[i]);
 
