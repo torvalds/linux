@@ -983,6 +983,23 @@ static struct tuner_params tuner_samsung_tcpn_2121p30a_params[] = {
 	},
 };
 
+/* ------------ TUNER_XCEIVE_XC3028 - Xceive xc3028 ------------ */
+
+static struct tuner_range tuner_xceive_xc3028_ranges[] = {
+	{ 16 * 140.25 /*MHz*/, 0x02, },
+	{ 16 * 463.25 /*MHz*/, 0x04, },
+	{ 16 * 999.99        , 0x01, },
+};
+
+static struct tuner_params tuner_xceive_xc3028_params[] = {
+	{
+		.type   = TUNER_XCEIVE_XC3028,
+		.ranges = tuner_xceive_xc3028_ranges,
+		.count  = ARRAY_SIZE(tuner_xceive_xc3028_ranges),
+	},
+};
+
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1349,6 +1366,10 @@ struct tunertype tuners[] = {
 		.name   = "Samsung TCPN 2121P30A",
 		.params = tuner_samsung_tcpn_2121p30a_params,
 		.count  = ARRAY_SIZE(tuner_samsung_tcpn_2121p30a_params),
+	},
+	[TUNER_XCEIVE_XC3028] = { /* Xceive 3028 */
+		.name	= "Xceive xc3028",
+		.params = tuner_xceive_xc3028_params,
 	},
 };
 

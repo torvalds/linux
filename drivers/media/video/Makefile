@@ -9,7 +9,7 @@ zoran-objs      :=	zr36120.o zr36120_i2c.o zr36120_mem.o
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
 tuner-objs	:=	tuner-core.o tuner-types.o tuner-simple.o \
-			mt20xx.o tda8290.o tea5767.o
+			mt20xx.o tda8290.o tea5767.o xc3028.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 

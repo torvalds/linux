@@ -117,6 +117,8 @@
 #define TUNER_TNF_5335MF                69	/* Sabrent Bt848   */
 #define TUNER_SAMSUNG_TCPN_2121P30A     70 	/* Hauppauge PVR-500MCE NTSC */
 
+#define TUNER_XCEIVE_XC3028		71
+
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
 #define TDA9887_PORT1_INACTIVE 		(1<<1)
@@ -209,6 +211,7 @@ struct tuner {
 extern unsigned const int tuner_count;
 
 extern int microtune_init(struct i2c_client *c);
+extern int xc3028_init(struct i2c_client *c);
 extern int tda8290_init(struct i2c_client *c);
 extern int tda8290_probe(struct i2c_client *c);
 extern int tea5767_tuner_init(struct i2c_client *c);
