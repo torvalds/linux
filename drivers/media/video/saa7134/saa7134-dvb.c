@@ -927,6 +927,12 @@ static struct nxt200x_config avertvhda180 = {
 	.pll_address      = 0x61,
 	.pll_desc         = &dvb_pll_tdhu2,
 };
+
+static struct nxt200x_config kworldatsc110 = {
+	.demod_address    = 0x0a,
+	.pll_address      = 0x61,
+	.pll_desc         = &dvb_pll_tuv1236d,
+};
 #endif
 
 /* ------------------------------------------------------------------ */
@@ -1011,6 +1017,9 @@ static int dvb_init(struct saa7134_dev *dev)
 #ifdef HAVE_NXT200X
 	case SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180:
 		dev->dvb.frontend = nxt200x_attach(&avertvhda180, &dev->i2c_adap);
+		break;
+	case SAA7134_BOARD_KWORLD_ATSC110:
+		dev->dvb.frontend = nxt200x_attach(&kworldatsc110, &dev->i2c_adap);
 		break;
 #endif
 	default:

@@ -2731,6 +2731,22 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE1,
 		},
 	},
+	[SAA7134_BOARD_KWORLD_ATSC110] = {
+		.name           = "KWORLD ATSC110",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TUV1236D,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3231,6 +3247,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x17de,
 		.subdevice    = 0x7201,
 		.driver_data  = SAA7134_BOARD_TEVION_DVBT_220RF,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133, /* SAA7135HL */
+		.subvendor    = 0x17de,
+		.subdevice    = 0x7350,
+		.driver_data  = SAA7134_BOARD_KWORLD_ATSC110,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
