@@ -243,7 +243,7 @@ static int pinnsat_pll_init(struct dvb_frontend* fe)
 
 	bttv_gpio_enable(card->bttv_nr, 1, 1);  /* output */
 	bttv_write_gpio(card->bttv_nr, 1, 1);   /* relay on */
-	
+
 	return 0;
 }
 

@@ -918,9 +918,9 @@ static int get_control(struct cx88_core *core, struct v4l2_control *ctl)
 		ctl->value = ((value + (c->off << c->shift)) & c->mask) >> c->shift;
 		break;
 	}
-	printk("get_control id=0x%X reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
-					ctl->id, c->reg, ctl->value,
-					c->mask, c->sreg ? " [shadowed]" : "");
+	dprintk(1,"get_control id=0x%X(%s) ctrl=0x%02x, reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
+				ctl->id, c->v.name, ctl->value, c->reg,
+				value,c->mask, c->sreg ? " [shadowed]" : "");
 	return 0;
 }
 
@@ -969,9 +969,9 @@ static int set_control(struct cx88_core *core, struct v4l2_control *ctl)
 		value = ((ctl->value - c->off) << c->shift) & c->mask;
 		break;
 	}
-	printk("set_control id=0x%X reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
-					ctl->id, c->reg, value,
-					mask, c->sreg ? " [shadowed]" : "");
+	dprintk(1,"set_control id=0x%X(%s) ctrl=0x%02x, reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
+				ctl->id, c->v.name, ctl->value, c->reg, value,
+				mask, c->sreg ? " [shadowed]" : "");
 	if (c->sreg) {
 		cx_sandor(c->sreg, c->reg, mask, value);
 	} else {
@@ -1252,7 +1252,7 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 {
 	int err;
 
-	dprintk( 1, "CORE IOCTL: 0x%x\n", cmd );
+	dprintk(2, "CORE IOCTL: 0x%x\n", cmd );
 	if (video_debug > 1)
 		v4l_print_ioctl(core->name,cmd);
 
