@@ -323,6 +323,16 @@ static const char *v4l2_int_ioctls[] = {
 };
 #define V4L2_INT_IOCTLS ARRAY_SIZE(v4l2_int_ioctls)
 
+static void v4l_print_pix_fmt (char *s, struct v4l2_pix_format *fmt)
+{
+	printk ("%s: width=%d, height=%d, format=%d, field=%s, "
+		"bytesperline=%d sizeimage=%d, colorspace=%d\n", s,
+		fmt->width,fmt->height,fmt->pixelformat,
+		((fmt->field>=0)&&(fmt->field<ARRAY_SIZE(v4l2_field_names)))?
+		v4l2_field_names[fmt->field]:"unknown",
+		fmt->bytesperline,fmt->sizeimage,fmt->colorspace);
+};
+
 /* Common ioctl debug function. This function can be used by
    external ioctl messages as well as internal V4L ioctl */
 void v4l_printk_ioctl(unsigned int cmd)
@@ -449,15 +459,18 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	{
 		struct v4l2_buffer *p=arg;
 		struct v4l2_timecode *tc=&p->timecode;
-		printk ("%s: %02ld:%02d:%02d.%08ld index=%d, type=%d, "
+		printk ("%s: %02ld:%02d:%02d.%08ld index=%d, type=%s, "
 			"bytesused=%d, flags=0x%08d, "
-			"field=%0d, sequence=%d, memory=%d, offset/userptr=0x%08lx,",
+			"field=%0d, sequence=%d, memory=%d, offset/userptr=0x%08lx\n",
 				s,
 				(p->timestamp.tv_sec/3600),
 				(int)(p->timestamp.tv_sec/60)%60,
 				(int)(p->timestamp.tv_sec%60),
 				p->timestamp.tv_usec,
-				p->index,p->type,p->bytesused,p->flags,
+				p->index,
+				((p->type>=0)&&(p->type<ARRAY_SIZE(v4l2_type_names)))?
+				v4l2_type_names[p->type]:"unknown",
+				p->bytesused,p->flags,
 				p->field,p->sequence,p->memory,p->m.userptr);
 		printk ("%s: timecode= %02d:%02d:%02d type=%d, "
 			"flags=0x%08d, frames=%d, userbits=0x%08x",
@@ -522,17 +535,24 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	case VIDIOC_TRY_FMT:
 	{
 		struct v4l2_format *p=arg;
-		/* FIXME: Should be one dump per type*/
-		printk ("%s: type=%d\n", s,p->type);
-		break;
+		printk ("%s: type=%s\n", s,
+				((p->type>=0)&&(p->type<ARRAY_SIZE(v4l2_type_names)))?
+				v4l2_type_names[p->type]:"unknown");
+		switch (p->type) {
+		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+			v4l_print_pix_fmt (s, &p->fmt.pix);
+			break;
+		default:
+			break;
+		}
 	}
 	case VIDIOC_G_FBUF:
 	case VIDIOC_S_FBUF:
 	{
 		struct v4l2_framebuffer *p=arg;
-		/*FIXME: should show also struct v4l2_pix_format p->fmt field */
 		printk ("%s: capability=%d, flags=%d, base=0x%08lx\n", s,
 				p->capability,p->flags, (unsigned long)p->base);
+		v4l_print_pix_fmt (s, &p->fmt);
 		break;
 	}
 	case VIDIOC_G_FREQUENCY:
