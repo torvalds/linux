@@ -34,7 +34,7 @@ static inline void gdlm_bast(void *astarg, int mode)
 	struct gdlm_ls *ls = lp->ls;
 
 	if (!mode) {
-		printk("lock_dlm: bast mode zero %x,%llx\n",
+		printk(KERN_INFO "lock_dlm: bast mode zero %x,%llx\n",
 			lp->lockname.ln_type, lp->lockname.ln_number);
 		return;
 	}
@@ -408,7 +408,7 @@ static int hold_null_lock(struct gdlm_lock *lp)
 	int error;
 
 	if (lp->hold_null) {
-		printk("lock_dlm: lvb already held\n");
+		printk(KERN_INFO "lock_dlm: lvb already held\n");
 		return 0;
 	}
 
@@ -429,7 +429,8 @@ static int hold_null_lock(struct gdlm_lock *lp)
 	wait_for_completion(&lpn->ast_wait);
 	error = lp->lksb.sb_status;
 	if (error) {
-		printk("lock_dlm: hold_null_lock dlm error %d\n", error);
+		printk(KERN_INFO "lock_dlm: hold_null_lock dlm error %d\n",
+		       error);
 		gdlm_delete_lp(lpn);
 		lpn = NULL;
 	}

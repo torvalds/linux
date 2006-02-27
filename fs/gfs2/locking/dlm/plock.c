@@ -83,7 +83,7 @@ int gdlm_plock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&op->list)) {
-		printk("plock op on list\n");
+		printk(KERN_INFO "plock op on list\n");
 		list_del(&op->list);
 	}
 	spin_unlock(&ops_lock);
@@ -127,7 +127,7 @@ int gdlm_punlock(lm_lockspace_t *lockspace, struct lm_lockname *name,
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&op->list)) {
-		printk("punlock op on list\n");
+		printk(KERN_INFO "punlock op on list\n");
 		list_del(&op->list);
 	}
 	spin_unlock(&ops_lock);
@@ -162,7 +162,7 @@ int gdlm_plock_get(lm_lockspace_t *lockspace, struct lm_lockname *name,
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&op->list)) {
-		printk("plock_get op on list\n");
+		printk(KERN_INFO "plock_get op on list\n");
 		list_del(&op->list);
 	}
 	spin_unlock(&ops_lock);
@@ -242,7 +242,7 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 	if (found)
 		wake_up(&recv_wq);
 	else
-		printk("gdlm dev_write no op %x %llx\n", info.fsid,
+		printk(KERN_INFO "gdlm dev_write no op %x %llx\n", info.fsid,
 			info.number);
 	return count;
 }
@@ -285,13 +285,14 @@ int gdlm_plock_init(void)
 
 	rv = misc_register(&plock_dev_misc);
 	if (rv)
-		printk("gdlm_plock_init: misc_register failed %d", rv);
+		printk(KERN_INFO "gdlm_plock_init: misc_register failed %d",
+		       rv);
 	return rv;
 }
 
 void gdlm_plock_exit(void)
 {
 	if (misc_deregister(&plock_dev_misc) < 0)
-		printk("gdlm_plock_exit: misc_deregister failed");
+		printk(KERN_INFO "gdlm_plock_exit: misc_deregister failed");
 }
 

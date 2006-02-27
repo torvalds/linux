@@ -2315,17 +2315,17 @@ static int dump_holder(char *str, struct gfs2_holder *gh)
 	unsigned int x;
 	int error = -ENOBUFS;
 
-	printk("  %s\n", str);
-	printk("    owner = %ld\n",
+	printk(KERN_INFO "  %s\n", str);
+	printk(KERN_INFO "    owner = %ld\n",
 		   (gh->gh_owner) ? (long)gh->gh_owner->pid : -1);
-	printk("    gh_state = %u\n", gh->gh_state);
-	printk("    gh_flags =");
+	printk(KERN_INFO "    gh_state = %u\n", gh->gh_state);
+	printk(KERN_INFO "    gh_flags =");
 	for (x = 0; x < 32; x++)
 		if (gh->gh_flags & (1 << x))
 			printk(" %u", x);
 	printk(" \n");
-	printk("    error = %d\n", gh->gh_error);
-	printk("    gh_iflags =");
+	printk(KERN_INFO "    error = %d\n", gh->gh_error);
+	printk(KERN_INFO "    gh_iflags =");
 	for (x = 0; x < 32; x++)
 		if (test_bit(x, &gh->gh_iflags))
 			printk(" %u", x);
@@ -2348,17 +2348,17 @@ static int dump_inode(struct gfs2_inode *ip)
 	unsigned int x;
 	int error = -ENOBUFS;
 
-	printk("  Inode:\n");
-	printk("    num = %llu %llu\n",
+	printk(KERN_INFO "  Inode:\n");
+	printk(KERN_INFO "    num = %llu %llu\n",
 		    ip->i_num.no_formal_ino, ip->i_num.no_addr);
-	printk("    type = %u\n", IF2DT(ip->i_di.di_mode));
-	printk("    i_count = %d\n", atomic_read(&ip->i_count));
-	printk("    i_flags =");
+	printk(KERN_INFO "    type = %u\n", IF2DT(ip->i_di.di_mode));
+	printk(KERN_INFO "    i_count = %d\n", atomic_read(&ip->i_count));
+	printk(KERN_INFO "    i_flags =");
 	for (x = 0; x < 32; x++)
 		if (test_bit(x, &ip->i_flags))
 			printk(" %u", x);
 	printk(" \n");
-	printk("    vnode = %s\n", (ip->i_vnode) ? "yes" : "no");
+	printk(KERN_INFO "    vnode = %s\n", (ip->i_vnode) ? "yes" : "no");
 
 	error = 0;
 
@@ -2381,30 +2381,30 @@ static int dump_glock(struct gfs2_glock *gl)
 
 	spin_lock(&gl->gl_spin);
 
-	printk("Glock (%u, %llu)\n",
+	printk(KERN_INFO "Glock (%u, %llu)\n",
 		    gl->gl_name.ln_type,
 		    gl->gl_name.ln_number);
-	printk("  gl_flags =");
+	printk(KERN_INFO "  gl_flags =");
 	for (x = 0; x < 32; x++)
 		if (test_bit(x, &gl->gl_flags))
 			printk(" %u", x);
 	printk(" \n");
-	printk("  gl_ref = %d\n", atomic_read(&gl->gl_ref.refcount));
-	printk("  gl_state = %u\n", gl->gl_state);
-	printk("  req_gh = %s\n", (gl->gl_req_gh) ? "yes" : "no");
-	printk("  req_bh = %s\n", (gl->gl_req_bh) ? "yes" : "no");
-	printk("  lvb_count = %d\n", atomic_read(&gl->gl_lvb_count));
-	printk("  object = %s\n", (gl->gl_object) ? "yes" : "no");
-	printk("  le = %s\n",
+	printk(KERN_INFO "  gl_ref = %d\n", atomic_read(&gl->gl_ref.refcount));
+	printk(KERN_INFO "  gl_state = %u\n", gl->gl_state);
+	printk(KERN_INFO "  req_gh = %s\n", (gl->gl_req_gh) ? "yes" : "no");
+	printk(KERN_INFO "  req_bh = %s\n", (gl->gl_req_bh) ? "yes" : "no");
+	printk(KERN_INFO "  lvb_count = %d\n", atomic_read(&gl->gl_lvb_count));
+	printk(KERN_INFO "  object = %s\n", (gl->gl_object) ? "yes" : "no");
+	printk(KERN_INFO "  le = %s\n",
 		   (list_empty(&gl->gl_le.le_list)) ? "no" : "yes");
-	printk("  reclaim = %s\n",
+	printk(KERN_INFO "  reclaim = %s\n",
 		    (list_empty(&gl->gl_reclaim)) ? "no" : "yes");
 	if (gl->gl_aspace)
-		printk("  aspace = %lu\n",
+		printk(KERN_INFO "  aspace = %lu\n",
 			    gl->gl_aspace->i_mapping->nrpages);
 	else
-		printk("  aspace = no\n");
-	printk("  ail = %d\n", atomic_read(&gl->gl_ail_count));
+		printk(KERN_INFO "  aspace = no\n");
+	printk(KERN_INFO "  ail = %d\n", atomic_read(&gl->gl_ail_count));
 	if (gl->gl_req_gh) {
 		error = dump_holder("Request", gl->gl_req_gh);
 		if (error)
@@ -2438,7 +2438,7 @@ static int dump_glock(struct gfs2_glock *gl)
 				goto out;
 		} else {
 			error = -ENOBUFS;
-			printk("  Inode: busy\n");
+			printk(KERN_INFO "  Inode: busy\n");
 		}
 	}
 

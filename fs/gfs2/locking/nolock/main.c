@@ -44,11 +44,10 @@ static int nolock_mount(char *table_name, char *host_data,
 		sscanf(c, "%u", &jid);
 	}
 
-	nl = kmalloc(sizeof(struct nolock_lockspace), GFP_KERNEL);
+	nl = kzalloc(sizeof(struct nolock_lockspace), GFP_KERNEL);
 	if (!nl)
 		return -ENOMEM;
 
-	memset(nl, 0, sizeof(struct nolock_lockspace));
 	nl->nl_lvb_size = min_lvb_size;
 
 	lockstruct->ls_jid = jid;
@@ -147,10 +146,8 @@ static int nolock_hold_lvb(lm_lock_t *lock, char **lvbp)
 	struct nolock_lockspace *nl = (struct nolock_lockspace *)lock;
 	int error = 0;
 
-	*lvbp = kmalloc(nl->nl_lvb_size, GFP_KERNEL);
-	if (*lvbp)
-		memset(*lvbp, 0, nl->nl_lvb_size);
-	else
+	*lvbp = kzalloc(nl->nl_lvb_size, GFP_KERNEL);
+	if (!*lvbp)
 		error = -ENOMEM;
 
 	return error;
@@ -246,11 +243,11 @@ int __init init_nolock(void)
 
 	error = gfs_register_lockproto(&nolock_ops);
 	if (error) {
-		printk("lock_nolock: can't register protocol: %d\n", error);
+		printk(KERN_WARNING "lock_nolock: can't register protocol: %d\n", error);
 		return error;
 	}
 
-	printk("Lock_Nolock (built %s %s) installed\n", __DATE__, __TIME__);
+	printk(KERN_INFO "Lock_Nolock (built %s %s) installed\n", __DATE__, __TIME__);
 	return 0;
 }
 

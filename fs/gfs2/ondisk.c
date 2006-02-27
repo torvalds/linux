@@ -17,7 +17,7 @@
 #include "gfs2.h"
 #include <linux/gfs2_ondisk.h>
 
-#define pv(struct, member, fmt) printk("  "#member" = "fmt"\n", struct->member);
+#define pv(struct, member, fmt) printk(KERN_INFO "  "#member" = "fmt"\n", struct->member);
 #define pa(struct, member, count) print_array(#member, struct->member, count);
 
 /**
@@ -32,11 +32,11 @@ static void print_array(char *title, char *buf, int count)
 {
 	int x;
 
-	printk("  %s =\n", title);
+	printk(KERN_INFO "  %s =\n" KERN_INFO, title);
 	for (x = 0; x < count; x++) {
 		printk("%.2X ", (unsigned char)buf[x]);
 		if (x % 16 == 15)
-			printk("\n");
+			printk("\n" KERN_INFO);
 	}
 	if (x % 16)
 		printk("\n");
@@ -338,7 +338,7 @@ void gfs2_dirent_print(struct gfs2_dirent *de, char *name)
 
 	memset(buf, 0, GFS2_FNAMESIZE + 1);
 	memcpy(buf, name, de->de_name_len);
-	printk("  name = %s\n", buf);
+	printk(KERN_INFO "  name = %s\n", buf);
 }
 
 void gfs2_leaf_in(struct gfs2_leaf *lf, char *buf)
@@ -401,7 +401,7 @@ void gfs2_ea_header_print(struct gfs2_ea_header *ea, char *name)
 
 	memset(buf, 0, GFS2_EA_MAX_NAME_LEN + 1);
 	memcpy(buf, name, ea->ea_name_len);
-	printk("  name = %s\n", buf);
+	printk(KERN_INFO "  name = %s\n", buf);
 }
 
 void gfs2_log_header_in(struct gfs2_log_header *lh, char *buf)

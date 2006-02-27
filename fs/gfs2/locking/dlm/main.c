@@ -22,7 +22,7 @@ int __init init_lock_dlm(void)
 
 	error = gfs_register_lockproto(&gdlm_ops);
 	if (error) {
-		printk("lock_dlm:  can't register protocol: %d\n", error);
+		printk(KERN_WARNING "lock_dlm:  can't register protocol: %d\n", error);
 		return error;
 	}
 
@@ -42,7 +42,7 @@ int __init init_lock_dlm(void)
 	gdlm_drop_count = GDLM_DROP_COUNT;
 	gdlm_drop_period = GDLM_DROP_PERIOD;
 
-	printk("Lock_DLM (built %s %s) installed\n", __DATE__, __TIME__);
+	printk(KERN_INFO "Lock_DLM (built %s %s) installed\n", __DATE__, __TIME__);
 	return 0;
 }
 

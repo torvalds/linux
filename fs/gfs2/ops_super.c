@@ -12,8 +12,8 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
-#include <linux/vmalloc.h>
 #include <linux/statfs.h>
+#include <linux/vmalloc.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
 #include <linux/kthread.h>

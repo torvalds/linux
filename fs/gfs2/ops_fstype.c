@@ -772,13 +772,13 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 
 	sdp = init_sbd(sb);
 	if (!sdp) {
-		printk("GFS2: can't alloc struct gfs2_sbd\n");
+		printk(KERN_WARNING "GFS2: can't alloc struct gfs2_sbd\n");
 		return -ENOMEM;
 	}
 
 	error = gfs2_mount_args(sdp, (char *)data, 0);
 	if (error) {
-		printk("GFS2: can't parse mount arguments\n");
+		printk(KERN_WARNING "GFS2: can't parse mount arguments\n");
 		goto fail;
 	}
 

@@ -94,7 +94,7 @@ int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb *sb, int silent)
 	if (sb->sb_header.mh_magic != GFS2_MAGIC ||
 	    sb->sb_header.mh_type != GFS2_METATYPE_SB) {
 		if (!silent)
-			printk("GFS2: not a GFS2 filesystem\n");
+			printk(KERN_WARNING "GFS2: not a GFS2 filesystem\n");
 		return -EINVAL;
 	}
 
@@ -110,11 +110,11 @@ int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb *sb, int silent)
 				break;
 
 		if (!gfs2_old_fs_formats[x]) {
-			printk("GFS2: code version (%u, %u) is incompatible "
+			printk(KERN_WARNING "GFS2: code version (%u, %u) is incompatible "
 			       "with ondisk format (%u, %u)\n",
 			       GFS2_FORMAT_FS, GFS2_FORMAT_MULTI,
 			       sb->sb_fs_format, sb->sb_multihost_format);
-			printk("GFS2: I don't know how to upgrade this FS\n");
+			printk(KERN_WARNING "GFS2: I don't know how to upgrade this FS\n");
 			return -EINVAL;
 		}
 	}
@@ -125,23 +125,23 @@ int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb *sb, int silent)
 				break;
 
 		if (!gfs2_old_multihost_formats[x]) {
-			printk("GFS2: code version (%u, %u) is incompatible "
+			printk(KERN_WARNING "GFS2: code version (%u, %u) is incompatible "
 			       "with ondisk format (%u, %u)\n",
 			       GFS2_FORMAT_FS, GFS2_FORMAT_MULTI,
 			       sb->sb_fs_format, sb->sb_multihost_format);
-			printk("GFS2: I don't know how to upgrade this FS\n");
+			printk(KERN_WARNING "GFS2: I don't know how to upgrade this FS\n");
 			return -EINVAL;
 		}
 	}
 
 	if (!sdp->sd_args.ar_upgrade) {
-		printk("GFS2: code version (%u, %u) is incompatible "
+		printk(KERN_WARNING "GFS2: code version (%u, %u) is incompatible "
 		       "with ondisk format (%u, %u)\n",
 		       GFS2_FORMAT_FS, GFS2_FORMAT_MULTI,
 		       sb->sb_fs_format, sb->sb_multihost_format);
-		printk("GFS2: Use the \"upgrade\" mount option to upgrade "
+		printk(KERN_INFO "GFS2: Use the \"upgrade\" mount option to upgrade "
 		       "the FS\n");
-		printk("GFS2: See the manual for more details\n");
+		printk(KERN_INFO "GFS2: See the manual for more details\n");
 		return -EINVAL;
 	}
 
