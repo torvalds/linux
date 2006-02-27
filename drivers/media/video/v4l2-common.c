@@ -97,7 +97,7 @@ int v4l2_video_std_construct(struct v4l2_standard *vs,
 	memset(vs, 0, sizeof(struct v4l2_standard));
 	vs->index = index;
 	vs->id    = id;
-	if (id & (V4L2_STD_NTSC | V4L2_STD_PAL_M)) {
+	if (id & V4L2_STD_525_60) {
 		vs->frameperiod.numerator = 1001;
 		vs->frameperiod.denominator = 30000;
 		vs->framelines = 525;
@@ -109,7 +109,6 @@ int v4l2_video_std_construct(struct v4l2_standard *vs,
 	strlcpy(vs->name,name,sizeof(vs->name));
 	return 0;
 }
-
 
 /* ----------------------------------------------------------------- */
 /* priority handling                                                 */
