@@ -463,6 +463,12 @@ find_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 		add_p2p_bridge(handle, dev);
 	}
 
+	/* search P2P bridges under this p2p bridge */
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
+				     find_p2p_bridge, dev->subordinate, NULL);
+	if (ACPI_FAILURE(status))
+		warn("find_p2p_bridge faied (error code = 0x%x)\n", status);
+
  out:
 	pci_dev_put(dev);
 	return AE_OK;
@@ -603,7 +609,8 @@ static void remove_bridge(acpi_handle handle)
 	} else {
 		/* clean-up p2p bridges under this host bridge */
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
-				(u32)1, cleanup_p2p_bridge, NULL, NULL);
+				    ACPI_UINT32_MAX, cleanup_p2p_bridge,
+				    NULL, NULL);
 	}
 }
 
