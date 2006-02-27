@@ -282,7 +282,7 @@ static struct cx22702_config cxusb_cx22702_config = {
 	.pll_set  = dvb_usb_pll_set_i2c,
 };
 
-static struct lgdt330x_config cxusb_lgdt330x_config = {
+static struct lgdt330x_config cxusb_lgdt3303_config = {
 	.demod_address = 0x0e,
 	.demod_chip    = LGDT3303,
 	.pll_set       = dvb_usb_pll_set_i2c,
@@ -357,14 +357,14 @@ static int cxusb_cx22702_frontend_attach(struct dvb_usb_device *d)
 	return -EIO;
 }
 
-static int cxusb_lgdt330x_frontend_attach(struct dvb_usb_device *d)
+static int cxusb_lgdt3303_frontend_attach(struct dvb_usb_device *d)
 {
 	if (usb_set_interface(d->udev,0,7) < 0)
 		err("set interface failed");
 
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if ((d->fe = lgdt330x_attach(&cxusb_lgdt330x_config, &d->i2c_adap)) != NULL)
+	if ((d->fe = lgdt330x_attach(&cxusb_lgdt3303_config, &d->i2c_adap)) != NULL)
 		return 0;
 
 	return -EIO;
@@ -506,7 +506,7 @@ static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 
 	.streaming_ctrl   = cxusb_streaming_ctrl,
 	.power_ctrl       = cxusb_power_ctrl,
-	.frontend_attach  = cxusb_lgdt330x_frontend_attach,
+	.frontend_attach  = cxusb_lgdt3303_frontend_attach,
 	.tuner_attach     = cxusb_lgh064f_tuner_attach,
 
 	.i2c_algo         = &cxusb_i2c_algo,
