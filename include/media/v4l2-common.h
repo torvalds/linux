@@ -58,6 +58,9 @@
 /* Prints the ioctl in a human-readable format */
 extern void v4l_printk_ioctl(unsigned int cmd);
 
+/* Prints the ioctl and arg in a human-readable format */
+extern void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg);
+
 /* Use this macro for non-I2C drivers. Pass the driver name as the first arg. */
 #define v4l_print_ioctl(name, cmd)  		 \
 	do {  					 \
@@ -185,11 +188,11 @@ struct msp_matrix {
    register contains invalid or erroneous data -EIO is returned. Note that
    you must fill in the 'id' member and the 'field' member (to determine
    whether CC data from the first or second field should be obtained). */
-#define VIDIOC_INT_G_VBI_DATA 		_IOWR('d', 106, struct v4l2_sliced_vbi_data *)
+#define VIDIOC_INT_G_VBI_DATA 		_IOWR('d', 106, struct v4l2_sliced_vbi_data)
 
 /* Returns the chip identifier or V4L2_IDENT_UNKNOWN if no identification can
    be made. */
-#define VIDIOC_INT_G_CHIP_IDENT		_IOR ('d', 107, enum v4l2_chip_ident *)
+#define VIDIOC_INT_G_CHIP_IDENT		_IOR ('d', 107, enum v4l2_chip_ident)
 
 /* Sets I2S speed in bps. This is used to provide a standard way to select I2S
    clock used by driving digital audio streams at some board designs.
@@ -214,8 +217,8 @@ struct v4l2_routing {
    These four commands should only be sent directly to an i2c device, they
    should not be broadcast as the routing is very device specific. */
 #define	VIDIOC_INT_S_AUDIO_ROUTING	_IOW ('d', 109, struct v4l2_routing)
-#define	VIDIOC_INT_G_AUDIO_ROUTING	_IOR ('d', 110, struct v4l2_routing *)
+#define	VIDIOC_INT_G_AUDIO_ROUTING	_IOR ('d', 110, struct v4l2_routing)
 #define	VIDIOC_INT_S_VIDEO_ROUTING	_IOW ('d', 111, struct v4l2_routing)
-#define	VIDIOC_INT_G_VIDEO_ROUTING	_IOR ('d', 112, struct v4l2_routing *)
+#define	VIDIOC_INT_G_VIDEO_ROUTING	_IOR ('d', 112, struct v4l2_routing)
 
 #endif /* V4L2_COMMON_H_ */
