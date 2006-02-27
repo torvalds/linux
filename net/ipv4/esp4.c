@@ -12,13 +12,6 @@
 #include <net/protocol.h>
 #include <net/udp.h>
 
-/* decapsulation data for use when post-processing */
-struct esp_decap_data {
-	xfrm_address_t	saddr;
-	__u16		sport;
-	__u8		proto;
-};
-
 static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
@@ -210,25 +203,47 @@ static int esp_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 
 	/* ... check padding bits here. Silly. :-) */ 
 
-	if (x->encap && decap && decap->decap_type) {
-		struct esp_decap_data *encap_data;
-		struct udphdr *uh = (struct udphdr *) (iph+1);
+	if (x->encap) {
+		struct xfrm_encap_tmpl *encap = x->encap;
+		struct udphdr *uh;
 
-		encap_data = (struct esp_decap_data *) (decap->decap_data);
-		encap_data->proto = 0;
-
-		switch (decap->decap_type) {
-		case UDP_ENCAP_ESPINUDP:
-		case UDP_ENCAP_ESPINUDP_NON_IKE:
-			encap_data->proto = AF_INET;
-			encap_data->saddr.a4 = iph->saddr;
-			encap_data->sport = uh->source;
-			encap_len = (void*)esph - (void*)uh;
-			break;
-
-		default:
+		if (encap->encap_type != decap->decap_type)
 			goto out;
+
+		uh = (struct udphdr *)(iph + 1);
+		encap_len = (void*)esph - (void*)uh;
+
+		/*
+		 * 1) if the NAT-T peer's IP or port changed then
+		 *    advertize the change to the keying daemon.
+		 *    This is an inbound SA, so just compare
+		 *    SRC ports.
+		 */
+		if (iph->saddr != x->props.saddr.a4 ||
+		    uh->source != encap->encap_sport) {
+			xfrm_address_t ipaddr;
+
+			ipaddr.a4 = iph->saddr;
+			km_new_mapping(x, &ipaddr, uh->source);
+				
+			/* XXX: perhaps add an extra
+			 * policy check here, to see
+			 * if we should allow or
+			 * reject a packet from a
+			 * different source
+			 * address/port.
+			 */
 		}
+	
+		/*
+		 * 2) ignore UDP/TCP checksums in case
+		 *    of NAT-T in Transport Mode, or
+		 *    perform other post-processing fixes
+		 *    as per draft-ietf-ipsec-udp-encaps-06,
+		 *    section 3.1.2
+		 */
+		if (!x->props.mode)
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
 	iph->protocol = nexthdr[1];
@@ -243,63 +258,6 @@ static int esp_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 
 out:
 	return -EINVAL;
-}
-
-static int esp_post_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
-{
-  
-	if (x->encap) {
-		struct xfrm_encap_tmpl *encap;
-		struct esp_decap_data *decap_data;
-
-		encap = x->encap;
-		decap_data = (struct esp_decap_data *)(decap->decap_data);
-
-		/* first, make sure that the decap type == the encap type */
-		if (encap->encap_type != decap->decap_type)
-			return -EINVAL;
-
-		switch (encap->encap_type) {
-		default:
-		case UDP_ENCAP_ESPINUDP:
-		case UDP_ENCAP_ESPINUDP_NON_IKE:
-			/*
-			 * 1) if the NAT-T peer's IP or port changed then
-			 *    advertize the change to the keying daemon.
-			 *    This is an inbound SA, so just compare
-			 *    SRC ports.
-			 */
-			if (decap_data->proto == AF_INET &&
-			    (decap_data->saddr.a4 != x->props.saddr.a4 ||
-			     decap_data->sport != encap->encap_sport)) {
-				xfrm_address_t ipaddr;
-
-				ipaddr.a4 = decap_data->saddr.a4;
-				km_new_mapping(x, &ipaddr, decap_data->sport);
-					
-				/* XXX: perhaps add an extra
-				 * policy check here, to see
-				 * if we should allow or
-				 * reject a packet from a
-				 * different source
-				 * address/port.
-				 */
-			}
-		
-			/*
-			 * 2) ignore UDP/TCP checksums in case
-			 *    of NAT-T in Transport Mode, or
-			 *    perform other post-processing fixes
-			 *    as per * draft-ietf-ipsec-udp-encaps-06,
-			 *    section 3.1.2
-			 */
-			if (!x->props.mode)
-				skb->ip_summed = CHECKSUM_UNNECESSARY;
-
-			break;
-		}
-	}
-	return 0;
 }
 
 static u32 esp4_get_max_size(struct xfrm_state *x, int mtu)
@@ -457,7 +415,6 @@ static struct xfrm_type esp_type =
 	.destructor	= esp_destroy,
 	.get_max_size	= esp4_get_max_size,
 	.input		= esp_input,
-	.post_input	= esp_post_input,
 	.output		= esp_output
 };
 
@@ -469,15 +426,6 @@ static struct net_protocol esp4_protocol = {
 
 static int __init esp4_init(void)
 {
-	struct xfrm_decap_state decap;
-
-	if (sizeof(struct esp_decap_data)  >
-	    sizeof(decap.decap_data)) {
-		extern void decap_data_too_small(void);
-
-		decap_data_too_small();
-	}
-
 	if (xfrm_register_type(&esp_type, AF_INET) < 0) {
 		printk(KERN_INFO "ip esp init: can't add xfrm type\n");
 		return -EAGAIN;
