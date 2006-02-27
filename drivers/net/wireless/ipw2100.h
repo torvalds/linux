@@ -594,8 +594,8 @@ struct ipw2100_priv {
 	int inta_other;
 
 	spinlock_t low_lock;
-	struct semaphore action_sem;
-	struct semaphore adapter_sem;
+	struct mutex action_mutex;
+	struct mutex adapter_mutex;
 
 	wait_queue_head_t wait_command_queue;
 };
