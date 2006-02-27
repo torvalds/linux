@@ -50,7 +50,8 @@ int ieee80211_is_valid_channel(struct ieee80211_device *ieee, u8 channel)
 
 	/* Driver needs to initialize the geography map before using
 	 * these helper functions */
-	BUG_ON(ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0);
+	if (ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0)
+		return 0;
 
 	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
 		for (i = 0; i < ieee->geo.bg_channels; i++)
@@ -78,7 +79,8 @@ int ieee80211_channel_to_index(struct ieee80211_device *ieee, u8 channel)
 
 	/* Driver needs to initialize the geography map before using
 	 * these helper functions */
-	BUG_ON(ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0);
+	if (ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0)
+		return -1;
 
 	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
 		for (i = 0; i < ieee->geo.bg_channels; i++)
@@ -99,7 +101,8 @@ u8 ieee80211_freq_to_channel(struct ieee80211_device * ieee, u32 freq)
 
 	/* Driver needs to initialize the geography map before using
 	 * these helper functions */
-	BUG_ON(ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0);
+	if (ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0)
+		return 0;
 
 	freq /= 100000;
 
