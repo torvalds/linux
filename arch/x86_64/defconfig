@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16-rc3
-# Mon Feb 13 22:31:24 2006
+# Linux kernel version: 2.6.16-rc3-git9
+# Sat Feb 18 00:27:03 2006
 #
 CONFIG_X86_64=y
 CONFIG_64BIT=y
@@ -1317,7 +1317,7 @@ CONFIG_DETECT_SOFTLOCKUP=y
 # CONFIG_DEBUG_SPINLOCK is not set
 # CONFIG_DEBUG_SPINLOCK_SLEEP is not set
 # CONFIG_DEBUG_KOBJECT is not set
-CONFIG_DEBUG_INFO=y
+# CONFIG_DEBUG_INFO is not set
 CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_VM is not set
 # CONFIG_FRAME_POINTER is not set

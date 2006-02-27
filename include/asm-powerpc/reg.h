@@ -615,27 +615,9 @@
 #define proc_trap()	asm volatile("trap")
 
 #ifdef CONFIG_PPC64
-static inline void ppc64_runlatch_on(void)
-{
-	unsigned long ctrl;
 
-	if (cpu_has_feature(CPU_FTR_CTRL)) {
-		ctrl = mfspr(SPRN_CTRLF);
-		ctrl |= CTRL_RUNLATCH;
-		mtspr(SPRN_CTRLT, ctrl);
-	}
-}
-
-static inline void ppc64_runlatch_off(void)
-{
-	unsigned long ctrl;
-
-	if (cpu_has_feature(CPU_FTR_CTRL)) {
-		ctrl = mfspr(SPRN_CTRLF);
-		ctrl &= ~CTRL_RUNLATCH;
-		mtspr(SPRN_CTRLT, ctrl);
-	}
-}
+extern void ppc64_runlatch_on(void);
+extern void ppc64_runlatch_off(void);
 
 extern unsigned long scom970_read(unsigned int address);
 extern void scom970_write(unsigned int address, unsigned long value);
@@ -644,15 +626,6 @@ extern void scom970_write(unsigned int address, unsigned long value);
 
 #define __get_SP()	({unsigned long sp; \
 			asm volatile("mr %0,1": "=r" (sp)); sp;})
-
-#else /* __ASSEMBLY__ */
-
-#define RUNLATCH_ON(REG)			\
-BEGIN_FTR_SECTION				\
-	mfspr	(REG),SPRN_CTRLF;		\
-	ori	(REG),(REG),CTRL_RUNLATCH;	\
-	mtspr	SPRN_CTRLT,(REG);		\
-END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

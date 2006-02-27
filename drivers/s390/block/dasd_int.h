@@ -275,34 +275,6 @@ struct dasd_discipline {
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
 
-
-/*
- * Notification numbers for extended error reporting notifications:
- * The DASD_EER_DISABLE notification is sent before a dasd_device (and it's
- * eer pointer) is freed. The error reporting module needs to do all necessary
- * cleanup steps.
- * The DASD_EER_TRIGGER notification sends the actual error reports (triggers).
- */
-#define DASD_EER_DISABLE 0
-#define DASD_EER_TRIGGER 1
-
-/* Trigger IDs for extended error reporting DASD_EER_TRIGGER notification */
-#define DASD_EER_FATALERROR  1
-#define DASD_EER_NOPATH      2
-#define DASD_EER_STATECHANGE 3
-#define DASD_EER_PPRCSUSPEND 4
-
-/*
- * The dasd_eer_trigger structure contains all data that we need to send
- * along with an DASD_EER_TRIGGER notification.
- */
-struct dasd_eer_trigger {
-	unsigned int id;
-	struct dasd_device *device;
-	struct dasd_ccw_req *cqr;
-};
-
-
 struct dasd_device {
 	/* Block device stuff. */
 	struct gendisk *gdp;
@@ -316,11 +288,9 @@ struct dasd_device {
 	unsigned long flags;		/* per device flags */
 	unsigned short features;        /* copy of devmap-features (read-only!) */
 
-	/* extended error reporting stuff (eer) */
-	void *eer;
-
 	/* Device discipline stuff. */
 	struct dasd_discipline *discipline;
+	struct dasd_discipline *base_discipline;
 	char *private;
 
 	/* Device state and target state. */
@@ -519,12 +489,6 @@ int dasd_generic_set_online(struct ccw_device *, struct dasd_discipline *);
 int dasd_generic_set_offline (struct ccw_device *cdev);
 int dasd_generic_notify(struct ccw_device *, int);
 void dasd_generic_auto_online (struct ccw_driver *);
-int dasd_register_eer_notifier(struct notifier_block *);
-int dasd_unregister_eer_notifier(struct notifier_block *);
-void dasd_write_eer_trigger(unsigned int , struct dasd_device *,
-			struct dasd_ccw_req *);
-
-
 
 /* externals in dasd_devmap.c */
 extern int dasd_max_devindex;

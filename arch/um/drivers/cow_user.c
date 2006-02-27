@@ -176,7 +176,7 @@ int write_cow_header(char *cow_file, int fd, char *backing_file,
 	err = -ENOMEM;
 	header = cow_malloc(sizeof(*header));
 	if(header == NULL){
-		cow_printf("Failed to allocate COW V3 header\n");
+		cow_printf("write_cow_header - failed to allocate COW V3 header\n");
 		goto out;
 	}
 	header->magic = htonl(COW_MAGIC);
@@ -196,15 +196,17 @@ int write_cow_header(char *cow_file, int fd, char *backing_file,
 
 	err = os_file_modtime(header->backing_file, &modtime);
 	if(err < 0){
-		cow_printf("Backing file '%s' mtime request failed, "
-			   "err = %d\n", header->backing_file, -err);
+		cow_printf("write_cow_header - backing file '%s' mtime "
+			   "request failed, err = %d\n", header->backing_file,
+			   -err);
 		goto out_free;
 	}
 
 	err = cow_file_size(header->backing_file, size);
 	if(err < 0){
-		cow_printf("Couldn't get size of backing file '%s', "
-			   "err = %d\n", header->backing_file, -err);
+		cow_printf("write_cow_header - couldn't get size of "
+			   "backing file '%s', err = %d\n",
+			   header->backing_file, -err);
 		goto out_free;
 	}
 
@@ -214,10 +216,11 @@ int write_cow_header(char *cow_file, int fd, char *backing_file,
 	header->alignment = htonl(alignment);
 	header->cow_format = COW_BITMAP;
 
-	err = os_write_file(fd, header, sizeof(*header));
+	err = cow_write_file(fd, header, sizeof(*header));
 	if(err != sizeof(*header)){
-		cow_printf("Write of header to new COW file '%s' failed, "
-			   "err = %d\n", cow_file, -err);
+		cow_printf("write_cow_header - write of header to "
+			   "new COW file '%s' failed, err = %d\n", cow_file,
+			   -err);
 		goto out_free;
 	}
 	err = 0;
@@ -299,7 +302,7 @@ int read_cow_header(int (*reader)(__u64, char *, int, void *), void *arg,
 	}
 	else if(version == 3){
 		if(n < sizeof(header->v3)){
-			cow_printf("read_cow_header - failed to read V2 "
+			cow_printf("read_cow_header - failed to read V3 "
 				   "header\n");
 			goto out;
 		}
@@ -359,7 +362,8 @@ int init_cow_file(int fd, char *cow_file, char *backing_file, int sectorsize,
 	if(err != sizeof(zero)){
 		cow_printf("Write of bitmap to new COW file '%s' failed, "
 			   "err = %d\n", cow_file, -err);
-		err = -EINVAL;
+		if (err >= 0)
+			err = -EINVAL;
 		goto out;
 	}
 

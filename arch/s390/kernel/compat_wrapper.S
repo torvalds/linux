@@ -1552,6 +1552,7 @@ sys_linkat_wrapper:
 	llgtr	%r3,%r3			# const char *
 	lgfr	%r4,%r4			# int
 	llgtr	%r5,%r5			# const char *
+	lgfr	%r6,%r6			# int
 	jg	sys_linkat
 
 	.globl sys_symlinkat_wrapper

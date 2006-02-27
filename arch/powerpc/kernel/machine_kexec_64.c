@@ -26,8 +26,6 @@
 #include <asm/prom.h>
 #include <asm/smp.h>
 
-#define HASH_GROUP_SIZE 0x80	/* size of each hash group, asm/mmu.h */
-
 int default_machine_kexec_prepare(struct kimage *image)
 {
 	int i;
@@ -61,7 +59,7 @@ int default_machine_kexec_prepare(struct kimage *image)
 	 */
 	if (htab_address) {
 		low = __pa(htab_address);
-		high = low + (htab_hash_mask + 1) * HASH_GROUP_SIZE;
+		high = low + htab_size_bytes;
 
 		for (i = 0; i < image->nr_segments; i++) {
 			begin = image->segment[i].mem;
@@ -294,7 +292,7 @@ void default_machine_kexec(struct kimage *image)
 }
 
 /* Values we need to export to the second kernel via the device tree. */
-static unsigned long htab_base, htab_size, kernel_end;
+static unsigned long htab_base, kernel_end;
 
 static struct property htab_base_prop = {
 	.name = "linux,htab-base",
@@ -305,7 +303,7 @@ static struct property htab_base_prop = {
 static struct property htab_size_prop = {
 	.name = "linux,htab-size",
 	.length = sizeof(unsigned long),
-	.value = (unsigned char *)&htab_size,
+	.value = (unsigned char *)&htab_size_bytes,
 };
 
 static struct property kernel_end_prop = {
@@ -331,8 +329,6 @@ static void __init export_htab_values(void)
 
 	htab_base = __pa(htab_address);
 	prom_add_property(node, &htab_base_prop);
-
-	htab_size = 1UL << ppc64_pft_size;
 	prom_add_property(node, &htab_size_prop);
 
  out:

@@ -61,7 +61,6 @@
 
 #include "libata.h"
 
-static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev);
 static unsigned int ata_dev_init_params(struct ata_port *ap,
 					struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
@@ -896,6 +895,145 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
 }
 
 /**
+ *	ata_dev_read_id - Read ID data from the specified device
+ *	@ap: port on which target device resides
+ *	@dev: target device
+ *	@p_class: pointer to class of the target device (may be changed)
+ *	@post_reset: is this read ID post-reset?
+ *	@id: buffer to fill IDENTIFY page into
+ *
+ *	Read ID data from the specified device.  ATA_CMD_ID_ATA is
+ *	performed on ATA devices and ATA_CMD_ID_ATAPI on ATAPI
+ *	devices.  This function also takes care of EDD signature
+ *	misreporting (to be removed once EDD support is gone) and
+ *	issues ATA_CMD_INIT_DEV_PARAMS for pre-ATA4 drives.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
+			   unsigned int *p_class, int post_reset, u16 *id)
+{
+	unsigned int class = *p_class;
+	unsigned int using_edd;
+	struct ata_taskfile tf;
+	unsigned int err_mask = 0;
+	const char *reason;
+	int rc;
+
+	DPRINTK("ENTER, host %u, dev %u\n", ap->id, dev->devno);
+
+	if (ap->ops->probe_reset ||
+	    ap->flags & (ATA_FLAG_SRST | ATA_FLAG_SATA_RESET))
+		using_edd = 0;
+	else
+		using_edd = 1;
+
+	ata_dev_select(ap, dev->devno, 1, 1); /* select device 0/1 */
+
+ retry:
+	ata_tf_init(ap, &tf, dev->devno);
+
+	switch (class) {
+	case ATA_DEV_ATA:
+		tf.command = ATA_CMD_ID_ATA;
+		break;
+	case ATA_DEV_ATAPI:
+		tf.command = ATA_CMD_ID_ATAPI;
+		break;
+	default:
+		rc = -ENODEV;
+		reason = "unsupported class";
+		goto err_out;
+	}
+
+	tf.protocol = ATA_PROT_PIO;
+
+	err_mask = ata_exec_internal(ap, dev, &tf, DMA_FROM_DEVICE,
+				     id, sizeof(id[0]) * ATA_ID_WORDS);
+
+	if (err_mask) {
+		rc = -EIO;
+		reason = "I/O error";
+
+		if (err_mask & ~AC_ERR_DEV)
+			goto err_out;
+
+		/*
+		 * arg!  EDD works for all test cases, but seems to return
+		 * the ATA signature for some ATAPI devices.  Until the
+		 * reason for this is found and fixed, we fix up the mess
+		 * here.  If IDENTIFY DEVICE returns command aborted
+		 * (as ATAPI devices do), then we issue an
+		 * IDENTIFY PACKET DEVICE.
+		 *
+		 * ATA software reset (SRST, the default) does not appear
+		 * to have this problem.
+		 */
+		if ((using_edd) && (class == ATA_DEV_ATA)) {
+			u8 err = tf.feature;
+			if (err & ATA_ABORTED) {
+				class = ATA_DEV_ATAPI;
+				goto retry;
+			}
+		}
+		goto err_out;
+	}
+
+	swap_buf_le16(id, ATA_ID_WORDS);
+
+	/* print device capabilities */
+	printk(KERN_DEBUG "ata%u: dev %u cfg "
+	       "49:%04x 82:%04x 83:%04x 84:%04x 85:%04x 86:%04x 87:%04x 88:%04x\n",
+	       ap->id, dev->devno,
+	       id[49], id[82], id[83], id[84], id[85], id[86], id[87], id[88]);
+
+	/* sanity check */
+	if ((class == ATA_DEV_ATA) != ata_id_is_ata(id)) {
+		rc = -EINVAL;
+		reason = "device reports illegal type";
+		goto err_out;
+	}
+
+	if (post_reset && class == ATA_DEV_ATA) {
+		/*
+		 * The exact sequence expected by certain pre-ATA4 drives is:
+		 * SRST RESET
+		 * IDENTIFY
+		 * INITIALIZE DEVICE PARAMETERS
+		 * anything else..
+		 * Some drives were very specific about that exact sequence.
+		 */
+		if (ata_id_major_version(id) < 4 || !ata_id_has_lba(id)) {
+			err_mask = ata_dev_init_params(ap, dev);
+			if (err_mask) {
+				rc = -EIO;
+				reason = "INIT_DEV_PARAMS failed";
+				goto err_out;
+			}
+
+			/* current CHS translation info (id[53-58]) might be
+			 * changed. reread the identify device info.
+			 */
+			post_reset = 0;
+			goto retry;
+		}
+	}
+
+	*p_class = class;
+	return 0;
+
+ err_out:
+	printk(KERN_WARNING "ata%u: dev %u failed to IDENTIFY (%s)\n",
+	       ap->id, dev->devno, reason);
+	kfree(id);
+	return rc;
+}
+
+/**
  *	ata_dev_identify - obtain IDENTIFY x DEVICE page
  *	@ap: port on which device we wish to probe resides
  *	@device: device bus address, starting at zero
@@ -920,11 +1058,7 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
 static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 {
 	struct ata_device *dev = &ap->device[device];
-	unsigned int major_version;
 	unsigned long xfer_modes;
-	unsigned int using_edd;
-	struct ata_taskfile tf;
-	unsigned int err_mask;
 	int i, rc;
 
 	if (!ata_dev_present(dev)) {
@@ -933,69 +1067,11 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 		return;
 	}
 
-	if (ap->ops->probe_reset ||
-	    ap->flags & (ATA_FLAG_SRST | ATA_FLAG_SATA_RESET))
-		using_edd = 0;
-	else
-		using_edd = 1;
-
 	DPRINTK("ENTER, host %u, dev %u\n", ap->id, device);
 
-	WARN_ON(dev->class != ATA_DEV_ATA && dev->class != ATA_DEV_ATAPI &&
-		dev->class != ATA_DEV_NONE);
-
-	ata_dev_select(ap, device, 1, 1); /* select device 0/1 */
-
-retry:
-	ata_tf_init(ap, &tf, device);
-
-	if (dev->class == ATA_DEV_ATA) {
-		tf.command = ATA_CMD_ID_ATA;
-		DPRINTK("do ATA identify\n");
-	} else {
-		tf.command = ATA_CMD_ID_ATAPI;
-		DPRINTK("do ATAPI identify\n");
-	}
-
-	tf.protocol = ATA_PROT_PIO;
-
-	err_mask = ata_exec_internal(ap, dev, &tf, DMA_FROM_DEVICE,
-				     dev->id, sizeof(dev->id));
-
-	if (err_mask) {
-		if (err_mask & ~AC_ERR_DEV)
-			goto err_out;
-
-		/*
-		 * arg!  EDD works for all test cases, but seems to return
-		 * the ATA signature for some ATAPI devices.  Until the
-		 * reason for this is found and fixed, we fix up the mess
-		 * here.  If IDENTIFY DEVICE returns command aborted
-		 * (as ATAPI devices do), then we issue an
-		 * IDENTIFY PACKET DEVICE.
-		 *
-		 * ATA software reset (SRST, the default) does not appear
-		 * to have this problem.
-		 */
-		if ((using_edd) && (dev->class == ATA_DEV_ATA)) {
-			u8 err = tf.feature;
-			if (err & ATA_ABORTED) {
-				dev->class = ATA_DEV_ATAPI;
-				goto retry;
-			}
-		}
+	rc = ata_dev_read_id(ap, dev, &dev->class, 1, dev->id);
+	if (rc)
 		goto err_out;
-	}
-
-	swap_buf_le16(dev->id, ATA_ID_WORDS);
-
-	/* print device capabilities */
-	printk(KERN_DEBUG "ata%u: dev %u cfg "
-	       "49:%04x 82:%04x 83:%04x 84:%04x 85:%04x 86:%04x 87:%04x 88:%04x\n",
-	       ap->id, device, dev->id[49],
-	       dev->id[82], dev->id[83], dev->id[84],
-	       dev->id[85], dev->id[86], dev->id[87],
-	       dev->id[88]);
 
 	/*
 	 * common ATA, ATAPI feature tests
@@ -1020,34 +1096,6 @@ retry:
 	if (dev->class == ATA_DEV_ATA) {
 		dev->n_sectors = ata_id_n_sectors(dev->id);
 
-		if (!ata_id_is_ata(dev->id))	/* sanity check */
-			goto err_out_nosup;
-
-		/* get major version */
-		major_version = ata_id_major_version(dev->id);
-
-		/*
-		 * The exact sequence expected by certain pre-ATA4 drives is:
-		 * SRST RESET
-		 * IDENTIFY
-		 * INITIALIZE DEVICE PARAMETERS
-		 * anything else..
-		 * Some drives were very specific about that exact sequence.
-		 */
-		if (major_version < 4 || (!ata_id_has_lba(dev->id))) {
-			err_mask = ata_dev_init_params(ap, dev);
-			if (err_mask) {
-				printk(KERN_ERR "ata%u: failed to init "
-				       "parameters, disabled\n", ap->id);
-				goto err_out;
-			}
-
-			/* current CHS translation info (id[53-58]) might be
-			 * changed. reread the identify device info.
-			 */
-			ata_dev_reread_id(ap, dev);
-		}
-
 		if (ata_id_has_lba(dev->id)) {
 			dev->flags |= ATA_DFLAG_LBA;
 
@@ -1057,7 +1105,7 @@ retry:
 			/* print device info to dmesg */
 			printk(KERN_INFO "ata%u: dev %u ATA-%d, max %s, %Lu sectors:%s\n",
 			       ap->id, device,
-			       major_version,
+			       ata_id_major_version(dev->id),
 			       ata_mode_string(xfer_modes),
 			       (unsigned long long)dev->n_sectors,
 			       dev->flags & ATA_DFLAG_LBA48 ? " LBA48" : " LBA");
@@ -1079,7 +1127,7 @@ retry:
 			/* print device info to dmesg */
 			printk(KERN_INFO "ata%u: dev %u ATA-%d, max %s, %Lu sectors: CHS %d/%d/%d\n",
 			       ap->id, device,
-			       major_version,
+			       ata_id_major_version(dev->id),
 			       ata_mode_string(xfer_modes),
 			       (unsigned long long)dev->n_sectors,
 			       (int)dev->cylinders, (int)dev->heads, (int)dev->sectors);
@@ -1096,9 +1144,6 @@ retry:
 
 	/* ATAPI-specific feature tests */
 	else if (dev->class == ATA_DEV_ATAPI) {
-		if (ata_id_is_ata(dev->id))		/* sanity check */
-			goto err_out_nosup;
-
 		rc = atapi_cdb_len(dev->id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
 			printk(KERN_WARNING "ata%u: unsupported CDB len\n", ap->id);
@@ -2487,47 +2532,6 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 	}
 
 	DPRINTK("EXIT\n");
-}
-
-/**
- *	ata_dev_reread_id - Reread the device identify device info
- *	@ap: port where the device is
- *	@dev: device to reread the identify device info
- *
- *	LOCKING:
- */
-
-static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
-{
-	struct ata_taskfile tf;
-
-	ata_tf_init(ap, &tf, dev->devno);
-
-	if (dev->class == ATA_DEV_ATA) {
-		tf.command = ATA_CMD_ID_ATA;
-		DPRINTK("do ATA identify\n");
-	} else {
-		tf.command = ATA_CMD_ID_ATAPI;
-		DPRINTK("do ATAPI identify\n");
-	}
-
-	tf.flags |= ATA_TFLAG_DEVICE;
-	tf.protocol = ATA_PROT_PIO;
-
-	if (ata_exec_internal(ap, dev, &tf, DMA_FROM_DEVICE,
-			      dev->id, sizeof(dev->id)))
-		goto err_out;
-
-	swap_buf_le16(dev->id, ATA_ID_WORDS);
-
-	ata_dump_id(dev->id);
-
-	DPRINTK("EXIT\n");
-
-	return;
-err_out:
-	printk(KERN_ERR "ata%u: failed to reread ID, disabled\n", ap->id);
-	ata_port_disable(ap);
 }
 
 /**

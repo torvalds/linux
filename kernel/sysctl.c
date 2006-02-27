@@ -44,13 +44,11 @@
 #include <linux/limits.h>
 #include <linux/dcache.h>
 #include <linux/syscalls.h>
+#include <linux/nfs_fs.h>
+#include <linux/acpi.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
-
-#ifdef CONFIG_ROOT_NFS
-#include <linux/nfs_fs.h>
-#endif
 
 #if defined(CONFIG_SYSCTL)
 
@@ -638,6 +636,7 @@ static ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
+#if defined(CONFIG_MMU)
 	{
 		.ctl_name	= KERN_RANDOMIZE,
 		.procname	= "randomize_va_space",
@@ -646,12 +645,23 @@ static ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+#endif
 #if defined(CONFIG_S390) && defined(CONFIG_SMP)
 	{
 		.ctl_name	= KERN_SPIN_RETRY,
 		.procname	= "spin_retry",
 		.data		= &spin_retry,
 		.maxlen		= sizeof (int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_ACPI_SLEEP
+	{
+		.ctl_name	= KERN_ACPI_VIDEO_FLAGS,
+		.procname	= "acpi_video_flags",
+		.data		= &acpi_video_flags,
+		.maxlen		= sizeof (unsigned long),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},

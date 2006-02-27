@@ -77,6 +77,9 @@ static int __init nslu2_power_init(void)
 
 static void __exit nslu2_power_exit(void)
 {
+	if (!(machine_is_nslu2()))
+		return;
+
 	free_irq(NSLU2_RB_IRQ, NULL);
 	free_irq(NSLU2_PB_IRQ, NULL);
 }

@@ -1079,18 +1079,12 @@ int setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
+/* Constrain the number of cpus to max_cpus.  */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int instance, mid;
-
-	instance = 0;
-	while (!cpu_find_by_instance(instance, NULL, &mid)) {
-		if (mid < max_cpus)
-			cpu_set(mid, phys_cpu_present_map);
-		instance++;
-	}
-
 	if (num_possible_cpus() > max_cpus) {
+		int instance, mid;
+
 		instance = 0;
 		while (!cpu_find_by_instance(instance, NULL, &mid)) {
 			if (mid != boot_cpu_id) {
@@ -1103,6 +1097,22 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	}
 
 	smp_store_cpu_info(boot_cpu_id);
+}
+
+/* Set this up early so that things like the scheduler can init
+ * properly.  We use the same cpu mask for both the present and
+ * possible cpu map.
+ */
+void __init smp_setup_cpu_possible_map(void)
+{
+	int instance, mid;
+
+	instance = 0;
+	while (!cpu_find_by_instance(instance, NULL, &mid)) {
+		if (mid < NR_CPUS)
+			cpu_set(mid, phys_cpu_present_map);
+		instance++;
+	}
 }
 
 void __devinit smp_prepare_boot_cpu(void)

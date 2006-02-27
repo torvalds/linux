@@ -239,7 +239,7 @@ __cmpxchg_u32(volatile unsigned int *p, unsigned int old, unsigned int new)
 		"	bra	2f;		\n"
                 "       .fillinsn		\n"
 		"1:"
-			M32R_UNLOCK" %2, @%1;	\n"
+			M32R_UNLOCK" %0, @%1;	\n"
                 "       .fillinsn		\n"
 		"2:"
 			: "=&r" (retval)

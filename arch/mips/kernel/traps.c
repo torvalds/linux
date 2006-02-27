@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1994 - 1999, 2000, 01 Ralf Baechle
+ * Copyright (C) 1994 - 1999, 2000, 01, 06 Ralf Baechle
  * Copyright (C) 1995, 1996 Paul M. Antoine
  * Copyright (C) 1998 Ulf Carlsson
  * Copyright (C) 1999 Silicon Graphics, Inc.
@@ -547,6 +547,8 @@ static inline int simulate_rdhwr(struct pt_regs *regs)
 asmlinkage void do_ov(struct pt_regs *regs)
 {
 	siginfo_t info;
+
+	die_if_kernel("Integer overflow", regs);
 
 	info.si_code = FPE_INTOVF;
 	info.si_signo = SIGFPE;
