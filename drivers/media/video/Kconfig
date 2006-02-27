@@ -142,6 +142,16 @@ config VIDEO_CPIA_USB
 	  otherwise say N. This will not work with the Creative Webcam III.
 	  It is also available as a module (cpia_usb).
 
+config VIDEO_CPIA2
+	tristate "CPiA2 Video For Linux"
+	depends on VIDEO_DEV
+	---help---
+	  This is the video4linux driver for cameras based on Vision's CPiA2
+	  (Colour Processor Interface ASIC), such as the Digital Blue QX5
+	  Microscope. If you have one of these cameras, say Y here
+
+	  This driver is also available as a module (cpia2).
+
 config VIDEO_SAA5246A
 	tristate "SAA5246A, SAA5281 Teletext processor"
 	depends on VIDEO_DEV && I2C
