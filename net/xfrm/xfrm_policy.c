@@ -996,13 +996,6 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 			struct sec_decap_state *xvec = &(skb->sp->x[i]);
 			if (!xfrm_selector_match(&xvec->xvec->sel, &fl, family))
 				return 0;
-
-			/* If there is a post_input processor, try running it */
-			if (xvec->xvec->type->post_input &&
-			    (xvec->xvec->type->post_input)(xvec->xvec,
-							   &(xvec->decap),
-							   skb) != 0)
-				return 0;
 		}
 	}
 

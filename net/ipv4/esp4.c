@@ -12,13 +12,6 @@
 #include <net/protocol.h>
 #include <net/udp.h>
 
-/* decapsulation data for use when post-processing */
-struct esp_decap_data {
-	xfrm_address_t	saddr;
-	__u16		sport;
-	__u8		proto;
-};
-
 static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
@@ -150,6 +143,10 @@ static int esp_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 	int elen = skb->len - sizeof(struct ip_esp_hdr) - esp->conf.ivlen - alen;
 	int nfrags;
 	int encap_len = 0;
+	u8 nexthdr[2];
+	struct scatterlist *sg;
+	u8 workbuf[60];
+	int padlen;
 
 	if (!pskb_may_pull(skb, sizeof(struct ip_esp_hdr)))
 		goto out;
@@ -185,122 +182,82 @@ static int esp_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 	if (esp->conf.ivlen)
 		crypto_cipher_set_iv(esp->conf.tfm, esph->enc_data, crypto_tfm_alg_ivsize(esp->conf.tfm));
 
-        {
-		u8 nexthdr[2];
-		struct scatterlist *sg = &esp->sgbuf[0];
-		u8 workbuf[60];
-		int padlen;
+	sg = &esp->sgbuf[0];
 
-		if (unlikely(nfrags > ESP_NUM_FAST_SG)) {
-			sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
-			if (!sg)
-				goto out;
-		}
-		skb_to_sgvec(skb, sg, sizeof(struct ip_esp_hdr) + esp->conf.ivlen, elen);
-		crypto_cipher_decrypt(esp->conf.tfm, sg, sg, elen);
-		if (unlikely(sg != &esp->sgbuf[0]))
-			kfree(sg);
+	if (unlikely(nfrags > ESP_NUM_FAST_SG)) {
+		sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
+		if (!sg)
+			goto out;
+	}
+	skb_to_sgvec(skb, sg, sizeof(struct ip_esp_hdr) + esp->conf.ivlen, elen);
+	crypto_cipher_decrypt(esp->conf.tfm, sg, sg, elen);
+	if (unlikely(sg != &esp->sgbuf[0]))
+		kfree(sg);
 
-		if (skb_copy_bits(skb, skb->len-alen-2, nexthdr, 2))
-			BUG();
+	if (skb_copy_bits(skb, skb->len-alen-2, nexthdr, 2))
+		BUG();
 
-		padlen = nexthdr[0];
-		if (padlen+2 >= elen)
+	padlen = nexthdr[0];
+	if (padlen+2 >= elen)
+		goto out;
+
+	/* ... check padding bits here. Silly. :-) */ 
+
+	if (x->encap) {
+		struct xfrm_encap_tmpl *encap = x->encap;
+		struct udphdr *uh;
+
+		if (encap->encap_type != decap->decap_type)
 			goto out;
 
-		/* ... check padding bits here. Silly. :-) */ 
+		uh = (struct udphdr *)(iph + 1);
+		encap_len = (void*)esph - (void*)uh;
 
-		if (x->encap && decap && decap->decap_type) {
-			struct esp_decap_data *encap_data;
-			struct udphdr *uh = (struct udphdr *) (iph+1);
+		/*
+		 * 1) if the NAT-T peer's IP or port changed then
+		 *    advertize the change to the keying daemon.
+		 *    This is an inbound SA, so just compare
+		 *    SRC ports.
+		 */
+		if (iph->saddr != x->props.saddr.a4 ||
+		    uh->source != encap->encap_sport) {
+			xfrm_address_t ipaddr;
 
-			encap_data = (struct esp_decap_data *) (decap->decap_data);
-			encap_data->proto = 0;
-
-			switch (decap->decap_type) {
-			case UDP_ENCAP_ESPINUDP:
-			case UDP_ENCAP_ESPINUDP_NON_IKE:
-				encap_data->proto = AF_INET;
-				encap_data->saddr.a4 = iph->saddr;
-				encap_data->sport = uh->source;
-				encap_len = (void*)esph - (void*)uh;
-				break;
-
-			default:
-				goto out;
-			}
+			ipaddr.a4 = iph->saddr;
+			km_new_mapping(x, &ipaddr, uh->source);
+				
+			/* XXX: perhaps add an extra
+			 * policy check here, to see
+			 * if we should allow or
+			 * reject a packet from a
+			 * different source
+			 * address/port.
+			 */
 		}
-
-		iph->protocol = nexthdr[1];
-		pskb_trim(skb, skb->len - alen - padlen - 2);
-		memcpy(workbuf, skb->nh.raw, iph->ihl*4);
-		skb->h.raw = skb_pull(skb, sizeof(struct ip_esp_hdr) + esp->conf.ivlen);
-		skb->nh.raw += encap_len + sizeof(struct ip_esp_hdr) + esp->conf.ivlen;
-		memcpy(skb->nh.raw, workbuf, iph->ihl*4);
-		skb->nh.iph->tot_len = htons(skb->len);
+	
+		/*
+		 * 2) ignore UDP/TCP checksums in case
+		 *    of NAT-T in Transport Mode, or
+		 *    perform other post-processing fixes
+		 *    as per draft-ietf-ipsec-udp-encaps-06,
+		 *    section 3.1.2
+		 */
+		if (!x->props.mode)
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
+
+	iph->protocol = nexthdr[1];
+	pskb_trim(skb, skb->len - alen - padlen - 2);
+	memcpy(workbuf, skb->nh.raw, iph->ihl*4);
+	skb->h.raw = skb_pull(skb, sizeof(struct ip_esp_hdr) + esp->conf.ivlen);
+	skb->nh.raw += encap_len + sizeof(struct ip_esp_hdr) + esp->conf.ivlen;
+	memcpy(skb->nh.raw, workbuf, iph->ihl*4);
+	skb->nh.iph->tot_len = htons(skb->len);
 
 	return 0;
 
 out:
 	return -EINVAL;
-}
-
-static int esp_post_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
-{
-  
-	if (x->encap) {
-		struct xfrm_encap_tmpl *encap;
-		struct esp_decap_data *decap_data;
-
-		encap = x->encap;
-		decap_data = (struct esp_decap_data *)(decap->decap_data);
-
-		/* first, make sure that the decap type == the encap type */
-		if (encap->encap_type != decap->decap_type)
-			return -EINVAL;
-
-		switch (encap->encap_type) {
-		default:
-		case UDP_ENCAP_ESPINUDP:
-		case UDP_ENCAP_ESPINUDP_NON_IKE:
-			/*
-			 * 1) if the NAT-T peer's IP or port changed then
-			 *    advertize the change to the keying daemon.
-			 *    This is an inbound SA, so just compare
-			 *    SRC ports.
-			 */
-			if (decap_data->proto == AF_INET &&
-			    (decap_data->saddr.a4 != x->props.saddr.a4 ||
-			     decap_data->sport != encap->encap_sport)) {
-				xfrm_address_t ipaddr;
-
-				ipaddr.a4 = decap_data->saddr.a4;
-				km_new_mapping(x, &ipaddr, decap_data->sport);
-					
-				/* XXX: perhaps add an extra
-				 * policy check here, to see
-				 * if we should allow or
-				 * reject a packet from a
-				 * different source
-				 * address/port.
-				 */
-			}
-		
-			/*
-			 * 2) ignore UDP/TCP checksums in case
-			 *    of NAT-T in Transport Mode, or
-			 *    perform other post-processing fixes
-			 *    as per * draft-ietf-ipsec-udp-encaps-06,
-			 *    section 3.1.2
-			 */
-			if (!x->props.mode)
-				skb->ip_summed = CHECKSUM_UNNECESSARY;
-
-			break;
-		}
-	}
-	return 0;
 }
 
 static u32 esp4_get_max_size(struct xfrm_state *x, int mtu)
@@ -458,7 +415,6 @@ static struct xfrm_type esp_type =
 	.destructor	= esp_destroy,
 	.get_max_size	= esp4_get_max_size,
 	.input		= esp_input,
-	.post_input	= esp_post_input,
 	.output		= esp_output
 };
 
@@ -470,15 +426,6 @@ static struct net_protocol esp4_protocol = {
 
 static int __init esp4_init(void)
 {
-	struct xfrm_decap_state decap;
-
-	if (sizeof(struct esp_decap_data)  >
-	    sizeof(decap.decap_data)) {
-		extern void decap_data_too_small(void);
-
-		decap_data_too_small();
-	}
-
 	if (xfrm_register_type(&esp_type, AF_INET) < 0) {
 		printk(KERN_INFO "ip esp init: can't add xfrm type\n");
 		return -EAGAIN;

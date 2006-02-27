@@ -6,6 +6,7 @@
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
 #include <linux/seq_file.h>
+#include <linux/rcupdate.h>
 #include <net/protocol.h>
 
 #include "nf_internals.h"
@@ -16,7 +17,7 @@
  * for queueing and must reinject all packets it receives, no matter what.
  */
 static struct nf_queue_handler *queue_handler[NPROTO];
-static struct nf_queue_rerouter *queue_rerouter;
+static struct nf_queue_rerouter *queue_rerouter[NPROTO];
 
 static DEFINE_RWLOCK(queue_handler_lock);
 
@@ -64,7 +65,7 @@ int nf_register_queue_rerouter(int pf, struct nf_queue_rerouter *rer)
 		return -EINVAL;
 
 	write_lock_bh(&queue_handler_lock);
-	memcpy(&queue_rerouter[pf], rer, sizeof(queue_rerouter[pf]));
+	rcu_assign_pointer(queue_rerouter[pf], rer);
 	write_unlock_bh(&queue_handler_lock);
 
 	return 0;
@@ -77,8 +78,9 @@ int nf_unregister_queue_rerouter(int pf)
 		return -EINVAL;
 
 	write_lock_bh(&queue_handler_lock);
-	memset(&queue_rerouter[pf], 0, sizeof(queue_rerouter[pf]));
+	rcu_assign_pointer(queue_rerouter[pf], NULL);
 	write_unlock_bh(&queue_handler_lock);
+	synchronize_rcu();
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_unregister_queue_rerouter);
@@ -114,16 +116,17 @@ int nf_queue(struct sk_buff **skb,
 	struct net_device *physindev = NULL;
 	struct net_device *physoutdev = NULL;
 #endif
+	struct nf_queue_rerouter *rerouter;
 
 	/* QUEUE == DROP if noone is waiting, to be safe. */
 	read_lock(&queue_handler_lock);
-	if (!queue_handler[pf] || !queue_handler[pf]->outfn) {
+	if (!queue_handler[pf]) {
 		read_unlock(&queue_handler_lock);
 		kfree_skb(*skb);
 		return 1;
 	}
 
-	info = kmalloc(sizeof(*info)+queue_rerouter[pf].rer_size, GFP_ATOMIC);
+	info = kmalloc(sizeof(*info)+queue_rerouter[pf]->rer_size, GFP_ATOMIC);
 	if (!info) {
 		if (net_ratelimit())
 			printk(KERN_ERR "OOM queueing packet %p\n",
@@ -155,14 +158,12 @@ int nf_queue(struct sk_buff **skb,
 		if (physoutdev) dev_hold(physoutdev);
 	}
 #endif
-	if (queue_rerouter[pf].save)
-		queue_rerouter[pf].save(*skb, info);
+	rerouter = rcu_dereference(queue_rerouter[pf]);
+	if (rerouter)
+		rerouter->save(*skb, info);
 
 	status = queue_handler[pf]->outfn(*skb, info, queuenum,
 					  queue_handler[pf]->data);
-
-	if (status >= 0 && queue_rerouter[pf].reroute)
-		status = queue_rerouter[pf].reroute(skb, info);
 
 	read_unlock(&queue_handler_lock);
 
@@ -189,6 +190,7 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 {
 	struct list_head *elem = &info->elem->list;
 	struct list_head *i;
+	struct nf_queue_rerouter *rerouter;
 
 	rcu_read_lock();
 
@@ -212,7 +214,7 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
   			break;
   	}
   
-	if (elem == &nf_hooks[info->pf][info->hook]) {
+	if (i == &nf_hooks[info->pf][info->hook]) {
 		/* The module which sent it to userspace is gone. */
 		NFDEBUG("%s: module disappeared, dropping packet.\n",
 			__FUNCTION__);
@@ -223,6 +225,12 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 	if (verdict == NF_REPEAT) {
 		elem = elem->prev;
 		verdict = NF_ACCEPT;
+	}
+
+	if (verdict == NF_ACCEPT) {
+		rerouter = rcu_dereference(queue_rerouter[info->pf]);
+		if (rerouter && rerouter->reroute(&skb, info) < 0)
+			verdict = NF_DROP;
 	}
 
 	if (verdict == NF_ACCEPT) {
@@ -322,22 +330,12 @@ int __init netfilter_queue_init(void)
 {
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *pde;
-#endif
-	queue_rerouter = kmalloc(NPROTO * sizeof(struct nf_queue_rerouter),
-				 GFP_KERNEL);
-	if (!queue_rerouter)
-		return -ENOMEM;
 
-#ifdef CONFIG_PROC_FS
 	pde = create_proc_entry("nf_queue", S_IRUGO, proc_net_netfilter);
-	if (!pde) {
-		kfree(queue_rerouter);
+	if (!pde)
 		return -1;
-	}
 	pde->proc_fops = &nfqueue_file_ops;
 #endif
-	memset(queue_rerouter, 0, NPROTO * sizeof(struct nf_queue_rerouter));
-
 	return 0;
 }
 
