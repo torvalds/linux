@@ -101,7 +101,7 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 2,
-			.amux     = 0,
+			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
@@ -165,11 +165,11 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = {{
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 2,
-			.amux     = 0,
+			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 0,
-			.amux     = 1,
+			.amux     = 0,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
@@ -185,12 +185,12 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_XCEIVE_XC3028,
 		.decoder      = EM28XX_TVP5150,
 		.input          = {{
-			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = 2,
-			.amux     = 0,
-		},{
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 0,
+			.amux     = 0,
+		},{
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = 2,
 			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,

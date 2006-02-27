@@ -222,8 +222,8 @@ static int em28xx_config(struct em28xx *dev)
 
 	/* enable vbi capturing */
 
-	em28xx_write_regs_req(dev,0x00,0x0e,"\xC0",1);
-	em28xx_write_regs_req(dev,0x00,0x0f,"\x80",1);
+/*	em28xx_write_regs_req(dev,0x00,0x0e,"\xC0",1); audio register */
+/*	em28xx_write_regs_req(dev,0x00,0x0f,"\x80",1); clk register */
 	em28xx_write_regs_req(dev,0x00,0x11,"\x51",1);
 
 	em28xx_audio_usb_mute(dev, 1);
@@ -313,11 +313,11 @@ static void video_mux(struct em28xx *dev, int index)
 		em28xx_audio_source(dev, ainput);
 	} else {
 		switch (dev->ctl_ainput) {
-		case 0:
-			ainput = EM28XX_AUDIO_SRC_TUNER;
-			break;
-		default:
-			ainput = EM28XX_AUDIO_SRC_LINE;
+			case 0:
+				ainput = EM28XX_AUDIO_SRC_TUNER;
+				break;
+			default:
+				ainput = EM28XX_AUDIO_SRC_LINE;
 		}
 		em28xx_audio_source(dev, ainput);
 	}
