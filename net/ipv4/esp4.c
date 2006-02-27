@@ -150,6 +150,10 @@ static int esp_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 	int elen = skb->len - sizeof(struct ip_esp_hdr) - esp->conf.ivlen - alen;
 	int nfrags;
 	int encap_len = 0;
+	u8 nexthdr[2];
+	struct scatterlist *sg;
+	u8 workbuf[60];
+	int padlen;
 
 	if (!pskb_may_pull(skb, sizeof(struct ip_esp_hdr)))
 		goto out;
@@ -185,60 +189,55 @@ static int esp_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 	if (esp->conf.ivlen)
 		crypto_cipher_set_iv(esp->conf.tfm, esph->enc_data, crypto_tfm_alg_ivsize(esp->conf.tfm));
 
-        {
-		u8 nexthdr[2];
-		struct scatterlist *sg = &esp->sgbuf[0];
-		u8 workbuf[60];
-		int padlen;
+	sg = &esp->sgbuf[0];
 
-		if (unlikely(nfrags > ESP_NUM_FAST_SG)) {
-			sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
-			if (!sg)
-				goto out;
-		}
-		skb_to_sgvec(skb, sg, sizeof(struct ip_esp_hdr) + esp->conf.ivlen, elen);
-		crypto_cipher_decrypt(esp->conf.tfm, sg, sg, elen);
-		if (unlikely(sg != &esp->sgbuf[0]))
-			kfree(sg);
-
-		if (skb_copy_bits(skb, skb->len-alen-2, nexthdr, 2))
-			BUG();
-
-		padlen = nexthdr[0];
-		if (padlen+2 >= elen)
+	if (unlikely(nfrags > ESP_NUM_FAST_SG)) {
+		sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
+		if (!sg)
 			goto out;
-
-		/* ... check padding bits here. Silly. :-) */ 
-
-		if (x->encap && decap && decap->decap_type) {
-			struct esp_decap_data *encap_data;
-			struct udphdr *uh = (struct udphdr *) (iph+1);
-
-			encap_data = (struct esp_decap_data *) (decap->decap_data);
-			encap_data->proto = 0;
-
-			switch (decap->decap_type) {
-			case UDP_ENCAP_ESPINUDP:
-			case UDP_ENCAP_ESPINUDP_NON_IKE:
-				encap_data->proto = AF_INET;
-				encap_data->saddr.a4 = iph->saddr;
-				encap_data->sport = uh->source;
-				encap_len = (void*)esph - (void*)uh;
-				break;
-
-			default:
-				goto out;
-			}
-		}
-
-		iph->protocol = nexthdr[1];
-		pskb_trim(skb, skb->len - alen - padlen - 2);
-		memcpy(workbuf, skb->nh.raw, iph->ihl*4);
-		skb->h.raw = skb_pull(skb, sizeof(struct ip_esp_hdr) + esp->conf.ivlen);
-		skb->nh.raw += encap_len + sizeof(struct ip_esp_hdr) + esp->conf.ivlen;
-		memcpy(skb->nh.raw, workbuf, iph->ihl*4);
-		skb->nh.iph->tot_len = htons(skb->len);
 	}
+	skb_to_sgvec(skb, sg, sizeof(struct ip_esp_hdr) + esp->conf.ivlen, elen);
+	crypto_cipher_decrypt(esp->conf.tfm, sg, sg, elen);
+	if (unlikely(sg != &esp->sgbuf[0]))
+		kfree(sg);
+
+	if (skb_copy_bits(skb, skb->len-alen-2, nexthdr, 2))
+		BUG();
+
+	padlen = nexthdr[0];
+	if (padlen+2 >= elen)
+		goto out;
+
+	/* ... check padding bits here. Silly. :-) */ 
+
+	if (x->encap && decap && decap->decap_type) {
+		struct esp_decap_data *encap_data;
+		struct udphdr *uh = (struct udphdr *) (iph+1);
+
+		encap_data = (struct esp_decap_data *) (decap->decap_data);
+		encap_data->proto = 0;
+
+		switch (decap->decap_type) {
+		case UDP_ENCAP_ESPINUDP:
+		case UDP_ENCAP_ESPINUDP_NON_IKE:
+			encap_data->proto = AF_INET;
+			encap_data->saddr.a4 = iph->saddr;
+			encap_data->sport = uh->source;
+			encap_len = (void*)esph - (void*)uh;
+			break;
+
+		default:
+			goto out;
+		}
+	}
+
+	iph->protocol = nexthdr[1];
+	pskb_trim(skb, skb->len - alen - padlen - 2);
+	memcpy(workbuf, skb->nh.raw, iph->ihl*4);
+	skb->h.raw = skb_pull(skb, sizeof(struct ip_esp_hdr) + esp->conf.ivlen);
+	skb->nh.raw += encap_len + sizeof(struct ip_esp_hdr) + esp->conf.ivlen;
+	memcpy(skb->nh.raw, workbuf, iph->ihl*4);
+	skb->nh.iph->tot_len = htons(skb->len);
 
 	return 0;
 
