@@ -38,10 +38,8 @@ struct mt312_config
 	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 };
 
-extern struct dvb_frontend* mt312_attach(const struct mt312_config* config,
-					 struct i2c_adapter* i2c);
+struct dvb_frontend* vp310_mt312_attach(const struct mt312_config* config,
+					struct i2c_adapter* i2c);
 
-extern struct dvb_frontend* vp310_attach(const struct mt312_config* config,
-					 struct i2c_adapter* i2c);
 
 #endif // MT312_H
