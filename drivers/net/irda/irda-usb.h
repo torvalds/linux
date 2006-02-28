@@ -136,8 +136,6 @@ struct irda_usb_cb {
 	__u16 bulk_out_mtu;		/* Max Tx packet size in bytes */
 	__u8  bulk_int_ep;		/* Interrupt Endpoint assignments */
 
-	wait_queue_head_t wait_q;	/* for timeouts */
-
 	struct urb *rx_urb[IU_MAX_RX_URBS];	/* URBs used to receive data frames */
 	struct urb *idle_rx_urb;	/* Pointer to idle URB in Rx path */
 	struct urb *tx_urb;		/* URB used to send data frames */
@@ -147,17 +145,18 @@ struct irda_usb_cb {
 	struct net_device_stats stats;
 	struct irlap_cb   *irlap;	/* The link layer we are binded to */
 	struct qos_info qos;
-	hashbin_t *tx_list;		/* Queued transmit skb's */
 	char *speed_buff;		/* Buffer for speed changes */
 
 	struct timeval stamp;
 	struct timeval now;
 
-	spinlock_t lock;		/* For serializing operations */
+	spinlock_t lock;		/* For serializing Tx operations */
 
 	__u16 xbofs;			/* Current xbofs setting */
 	__s16 new_xbofs;		/* xbofs we need to set */
 	__u32 speed;			/* Current speed */
 	__s32 new_speed;		/* speed we need to set */
+
+	struct timer_list rx_defer_timer;	/* Wait for Rx error to clear */
 };
 

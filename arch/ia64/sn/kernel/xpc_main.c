@@ -750,11 +750,15 @@ xpc_daemonize_kthread(void *args)
 		/* let registerer know that connection has been established */
 
 		spin_lock_irqsave(&ch->lock, irq_flags);
-		if (!(ch->flags & XPC_C_CONNECTCALLOUT)) {
-			ch->flags |= XPC_C_CONNECTCALLOUT;
+		if (!(ch->flags & XPC_C_CONNECTEDCALLOUT)) {
+			ch->flags |= XPC_C_CONNECTEDCALLOUT;
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 
 			xpc_connected_callout(ch);
+
+			spin_lock_irqsave(&ch->lock, irq_flags);
+			ch->flags |= XPC_C_CONNECTEDCALLOUT_MADE;
+			spin_unlock_irqrestore(&ch->lock, irq_flags);
 
 			/*
 			 * It is possible that while the callout was being
@@ -777,15 +781,17 @@ xpc_daemonize_kthread(void *args)
 
 	if (atomic_dec_return(&ch->kthreads_assigned) == 0) {
 		spin_lock_irqsave(&ch->lock, irq_flags);
-		if ((ch->flags & XPC_C_CONNECTCALLOUT) &&
-				!(ch->flags & XPC_C_DISCONNECTCALLOUT)) {
-			ch->flags |= XPC_C_DISCONNECTCALLOUT;
+		if ((ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) &&
+				!(ch->flags & XPC_C_DISCONNECTINGCALLOUT)) {
+			ch->flags |= XPC_C_DISCONNECTINGCALLOUT;
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 
 			xpc_disconnect_callout(ch, xpcDisconnecting);
-		} else {
-			spin_unlock_irqrestore(&ch->lock, irq_flags);
+
+			spin_lock_irqsave(&ch->lock, irq_flags);
+			ch->flags |= XPC_C_DISCONNECTINGCALLOUT_MADE;
 		}
+		spin_unlock_irqrestore(&ch->lock, irq_flags);
 		if (atomic_dec_return(&part->nchannels_engaged) == 0) {
 			xpc_mark_partition_disengaged(part);
 			xpc_IPI_send_disengage(part);

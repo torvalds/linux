@@ -471,61 +471,29 @@ struct flush_icache_range_args {
 static inline void local_r4k_flush_icache_range(void *args)
 {
 	struct flush_icache_range_args *fir_args = args;
-	unsigned long dc_lsize = cpu_dcache_line_size();
-	unsigned long ic_lsize = cpu_icache_line_size();
-	unsigned long sc_lsize = cpu_scache_line_size();
 	unsigned long start = fir_args->start;
 	unsigned long end = fir_args->end;
-	unsigned long addr, aend;
 
 	if (!cpu_has_ic_fills_f_dc) {
 		if (end - start > dcache_size) {
 			r4k_blast_dcache();
 		} else {
 			R4600_HIT_CACHEOP_WAR_IMPL;
-			addr = start & ~(dc_lsize - 1);
-			aend = (end - 1) & ~(dc_lsize - 1);
-
-			while (1) {
-				/* Hit_Writeback_Inv_D */
-				protected_writeback_dcache_line(addr);
-				if (addr == aend)
-					break;
-				addr += dc_lsize;
-			}
+			protected_blast_dcache_range(start, end);
 		}
 
 		if (!cpu_icache_snoops_remote_store) {
-			if (end - start > scache_size) {
+			if (end - start > scache_size)
 				r4k_blast_scache();
-			} else {
-				addr = start & ~(sc_lsize - 1);
-				aend = (end - 1) & ~(sc_lsize - 1);
-
-				while (1) {
-					/* Hit_Writeback_Inv_SD */
-					protected_writeback_scache_line(addr);
-					if (addr == aend)
-						break;
-					addr += sc_lsize;
-				}
-			}
+			else
+				protected_blast_scache_range(start, end);
 		}
 	}
 
 	if (end - start > icache_size)
 		r4k_blast_icache();
-	else {
-		addr = start & ~(ic_lsize - 1);
-		aend = (end - 1) & ~(ic_lsize - 1);
-		while (1) {
-			/* Hit_Invalidate_I */
-			protected_flush_icache_line(addr);
-			if (addr == aend)
-				break;
-			addr += ic_lsize;
-		}
-	}
+	else
+		protected_blast_icache_range(start, end);
 }
 
 static void r4k_flush_icache_range(unsigned long start, unsigned long end)
@@ -619,27 +587,14 @@ static void r4k_flush_icache_page(struct vm_area_struct *vma,
 
 static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 {
-	unsigned long end, a;
-
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
 	if (cpu_has_subset_pcaches) {
-		unsigned long sc_lsize = cpu_scache_line_size();
-
-		if (size >= scache_size) {
+		if (size >= scache_size)
 			r4k_blast_scache();
-			return;
-		}
-
-		a = addr & ~(sc_lsize - 1);
-		end = (addr + size - 1) & ~(sc_lsize - 1);
-		while (1) {
-			flush_scache_line(a);	/* Hit_Writeback_Inv_SD */
-			if (a == end)
-				break;
-			a += sc_lsize;
-		}
+		else
+			blast_scache_range(addr, addr + size);
 		return;
 	}
 
@@ -651,17 +606,8 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	if (size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
-		unsigned long dc_lsize = cpu_dcache_line_size();
-
 		R4600_HIT_CACHEOP_WAR_IMPL;
-		a = addr & ~(dc_lsize - 1);
-		end = (addr + size - 1) & ~(dc_lsize - 1);
-		while (1) {
-			flush_dcache_line(a);	/* Hit_Writeback_Inv_D */
-			if (a == end)
-				break;
-			a += dc_lsize;
-		}
+		blast_dcache_range(addr, addr + size);
 	}
 
 	bc_wback_inv(addr, size);
@@ -669,44 +615,22 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 
 static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 {
-	unsigned long end, a;
-
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
 	if (cpu_has_subset_pcaches) {
-		unsigned long sc_lsize = cpu_scache_line_size();
-
-		if (size >= scache_size) {
+		if (size >= scache_size)
 			r4k_blast_scache();
-			return;
-		}
-
-		a = addr & ~(sc_lsize - 1);
-		end = (addr + size - 1) & ~(sc_lsize - 1);
-		while (1) {
-			flush_scache_line(a);	/* Hit_Writeback_Inv_SD */
-			if (a == end)
-				break;
-			a += sc_lsize;
-		}
+		else
+			blast_scache_range(addr, addr + size);
 		return;
 	}
 
 	if (size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
-		unsigned long dc_lsize = cpu_dcache_line_size();
-
 		R4600_HIT_CACHEOP_WAR_IMPL;
-		a = addr & ~(dc_lsize - 1);
-		end = (addr + size - 1) & ~(dc_lsize - 1);
-		while (1) {
-			flush_dcache_line(a);	/* Hit_Writeback_Inv_D */
-			if (a == end)
-				break;
-			a += dc_lsize;
-		}
+		blast_dcache_range(addr, addr + size);
 	}
 
 	bc_inv(addr, size);

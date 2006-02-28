@@ -102,8 +102,6 @@ config NF_CT_NETLINK
 	help
 	  This option enables support for a netlink-based userspace interface
 
-endmenu
-
 config NETFILTER_XTABLES
 	tristate "Netfilter Xtables support (required for ip_tables)"
 	help
@@ -128,7 +126,7 @@ config NETFILTER_XT_TARGET_CONNMARK
 	tristate  '"CONNMARK" target support'
 	depends on NETFILTER_XTABLES
 	depends on IP_NF_MANGLE || IP6_NF_MANGLE
-	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
+	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK)
 	help
 	  This option adds a `CONNMARK' target, which allows one to manipulate
 	  the connection mark value.  Similar to the MARK target, but
@@ -189,7 +187,7 @@ config NETFILTER_XT_MATCH_COMMENT
 config NETFILTER_XT_MATCH_CONNBYTES
 	tristate  '"connbytes" per-connection counter match support'
 	depends on NETFILTER_XTABLES
-	depends on (IP_NF_CONNTRACK && IP_NF_CT_ACCT) || NF_CT_ACCT
+	depends on (IP_NF_CONNTRACK && IP_NF_CT_ACCT) || (NF_CT_ACCT && NF_CONNTRACK)
 	help
 	  This option adds a `connbytes' match, which allows you to match the
 	  number of bytes and/or packets for each direction within a connection.
@@ -200,7 +198,7 @@ config NETFILTER_XT_MATCH_CONNBYTES
 config NETFILTER_XT_MATCH_CONNMARK
 	tristate  '"connmark" connection mark match support'
 	depends on NETFILTER_XTABLES
-	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || NF_CONNTRACK_MARK
+	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK)
 	help
 	  This option adds a `connmark' match, which allows you to match the
 	  connection mark value previously set for the session by `CONNMARK'. 
@@ -360,4 +358,6 @@ config NETFILTER_XT_MATCH_TCPMSS
 	  for that connection.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+endmenu
 

@@ -434,6 +434,7 @@ int ip_nat_icmp_reply_translation(struct sk_buff **pskb,
 	} *inside;
 	struct ip_conntrack_tuple inner, target;
 	int hdrlen = (*pskb)->nh.iph->ihl * 4;
+	unsigned long statusbit;
 
 	if (!skb_make_writable(pskb, hdrlen + sizeof(*inside)))
 		return 0;
@@ -495,17 +496,16 @@ int ip_nat_icmp_reply_translation(struct sk_buff **pskb,
 
 	/* Change outer to look the reply to an incoming packet
 	 * (proto 0 means don't invert per-proto part). */
+	if (manip == IP_NAT_MANIP_SRC)
+		statusbit = IPS_SRC_NAT;
+	else
+		statusbit = IPS_DST_NAT;
 
-	/* Obviously, we need to NAT destination IP, but source IP
-	   should be NAT'ed only if it is from a NAT'd host.
+	/* Invert if this is reply dir. */
+	if (dir == IP_CT_DIR_REPLY)
+		statusbit ^= IPS_NAT_MASK;
 
-	   Explanation: some people use NAT for anonymizing.  Also,
-	   CERT recommends dropping all packets from private IP
-	   addresses (although ICMP errors from internal links with
-	   such addresses are not too uncommon, as Alan Cox points
-	   out) */
-	if (manip != IP_NAT_MANIP_SRC
-	    || ((*pskb)->nh.iph->saddr == ct->tuplehash[dir].tuple.src.ip)) {
+	if (ct->status & statusbit) {
 		invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
 		if (!manip_pkt(0, pskb, 0, &target, manip))
 			return 0;

@@ -143,6 +143,18 @@ static void __init poke_milo(void)
 	mb();
 }
 
+/*
+ * Initialise the CPU possible map early - this describes the CPUs
+ * which may be present or become present in the system.
+ */
+void __init smp_init_cpus(void)
+{
+	unsigned int i, ncores = get_core_count();
+
+	for (i = 0; i < ncores; i++)
+		cpu_set(i, cpu_possible_map);
+}
+
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int ncores = get_core_count();
@@ -179,14 +191,11 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	local_timer_setup(cpu);
 
 	/*
-	 * Initialise the possible/present maps.
-	 * cpu_possible_map describes the set of CPUs which may be present
-	 * cpu_present_map describes the set of CPUs populated
+	 * Initialise the present map, which describes the set of CPUs
+	 * actually populated at the present time.
 	 */
-	for (i = 0; i < max_cpus; i++) {
-		cpu_set(i, cpu_possible_map);
+	for (i = 0; i < max_cpus; i++)
 		cpu_set(i, cpu_present_map);
-	}
 
 	/*
 	 * Do we need any more CPUs? If so, then let them know where

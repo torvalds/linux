@@ -116,6 +116,8 @@ __break_kerneltrap_fixup_table:
 	.long		__break_step_uspace_external_interrupt
 	.section .trap.kernel
 	.org		\tbr_tt
+	# deal with virtual interrupt disablement
+	beq		icc2,#0,__entry_kernel_external_interrupt_virtually_disabled
 	bra		__entry_kernel_external_interrupt
 	.section .trap.fixup.kernel
 	.org		\tbr_tt >> 2
@@ -259,24 +261,51 @@ __trap_fixup_kernel_data_tlb_miss:
 	.org		TBR_TT_TRAP0
 	.rept		127
 	bra		__entry_uspace_softprog_interrupt
-	bra		__break_step_uspace_softprog_interrupt
-	.long		0,0
+	.long		0,0,0
 	.endr
 	.org		TBR_TT_BREAK
 	bra		__entry_break
 	.long		0,0,0
 
+	.section	.trap.fixup.user
+	.org		TBR_TT_TRAP0 >> 2
+	.rept		127
+	.long		__break_step_uspace_softprog_interrupt
+	.endr
+	.org		TBR_TT_BREAK >> 2
+	.long		0
+
 	# miscellaneous kernel mode entry points
 	.section	.trap.kernel
 	.org		TBR_TT_TRAP0
-	.rept		127
 	bra		__entry_kernel_softprog_interrupt
-	bra		__break_step_kernel_softprog_interrupt
-	.long		0,0
+	.org		TBR_TT_TRAP1
+	bra		__entry_kernel_softprog_interrupt
+
+	# trap #2 in kernel - reenable interrupts
+	.org		TBR_TT_TRAP2
+	bra		__entry_kernel_external_interrupt_virtual_reenable
+
+	# miscellaneous kernel traps
+	.org		TBR_TT_TRAP3
+	.rept		124
+	bra		__entry_kernel_softprog_interrupt
+	.long		0,0,0
 	.endr
 	.org		TBR_TT_BREAK
 	bra		__entry_break
 	.long		0,0,0
+
+	.section	.trap.fixup.kernel
+	.org		TBR_TT_TRAP0 >> 2
+	.long		__break_step_kernel_softprog_interrupt
+	.long		__break_step_kernel_softprog_interrupt
+	.long		__break_step_kernel_external_interrupt_virtual_reenable
+	.rept		124
+	.long		__break_step_kernel_softprog_interrupt
+	.endr
+	.org		TBR_TT_BREAK >> 2
+	.long		0
 
 	# miscellaneous debug mode entry points
 	.section	.trap.break

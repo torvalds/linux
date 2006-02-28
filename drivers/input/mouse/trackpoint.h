@@ -78,7 +78,7 @@
 
 #define TP_TOGGLE_MB		0x23	/* Disable/Enable Middle Button */
 #define TP_MASK_MB			0x01
-#define TP_TOGGLE_EXT_DEV	0x23	/* Toggle external device */
+#define TP_TOGGLE_EXT_DEV	0x23	/* Disable external device */
 #define TP_MASK_EXT_DEV			0x02
 #define TP_TOGGLE_DRIFT		0x23	/* Drift Correction */
 #define TP_MASK_DRIFT			0x80
@@ -125,7 +125,7 @@
 #define TP_DEF_MB		0x00
 #define TP_DEF_PTSON		0x00
 #define TP_DEF_SKIPBACK		0x00
-#define TP_DEF_EXT_DEV		0x01
+#define TP_DEF_EXT_DEV		0x00	/* 0 means enabled */
 
 #define MAKE_PS2_CMD(params, results, cmd) ((params<<12) | (results<<8) | (cmd))
 

@@ -247,7 +247,7 @@ config ACPI_CUSTOM_DSDT_FILE
 	  Enter the full path name to the file wich includes the AmlCode declaration.
 
 config ACPI_BLACKLIST_YEAR
-	int "Disable ACPI for systems before Jan 1st this year" if X86
+	int "Disable ACPI for systems before Jan 1st this year" if X86_32
 	default 0
 	help
 	  enter a 4-digit year, eg. 2001 to disable ACPI by default
@@ -285,9 +285,8 @@ config ACPI_SYSTEM
 	  dump your ACPI DSDT table using /proc/acpi/dsdt.
 
 config X86_PM_TIMER
-	bool "Power Management Timer Support"
+	bool "Power Management Timer Support" if EMBEDDED
 	depends on X86
-	depends on !X86_64
 	default y
 	help
 	  The Power Management Timer is available on all ACPI-capable,
@@ -298,9 +297,8 @@ config X86_PM_TIMER
 	  voltage scaling, unlike the commonly used Time Stamp Counter
 	  (TSC) timing source.
 
-	  So, if you see messages like 'Losing too many ticks!' in the
-	  kernel logs, and/or you are using this on a notebook which
-	  does not yet have an HPET, you should say "Y" here.
+	  You should nearly always say Y here because many modern
+	  systems require this timer. 
 
 config ACPI_CONTAINER
 	tristate "ACPI0004,PNP0A05 and PNP0A06 Container Driver (EXPERIMENTAL)"

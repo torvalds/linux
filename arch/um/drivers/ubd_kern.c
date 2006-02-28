@@ -1135,7 +1135,7 @@ static int path_requires_switch(char *from_cmdline, char *from_cow, char *cow)
 static int backing_file_mismatch(char *file, __u64 size, time_t mtime)
 {
 	unsigned long modtime;
-	long long actual;
+	unsigned long long actual;
 	int err;
 
 	err = os_file_modtime(file, &modtime);

@@ -305,7 +305,7 @@
 #define __NR_mknodat		286
 #define __NR_fchownat		287
 #define __NR_futimesat		288
-#define __NR_newfstatat		289
+#define __NR_fstatat64		289
 #define __NR_unlinkat		290
 #define __NR_renameat		291
 #define __NR_linkat		292

@@ -1076,16 +1076,6 @@ qeth_get_qdio_q_format(struct qeth_card *card)
 }
 
 static inline int
-qeth_isdigit(char * buf)
-{
-	while (*buf) {
-		if (!isdigit(*buf++))
-			return 0;
-	}
-	return 1;
-}
-
-static inline int
 qeth_isxdigit(char * buf)
 {
 	while (*buf) {
@@ -1104,33 +1094,17 @@ qeth_ipaddr4_to_string(const __u8 *addr, char *buf)
 static inline int
 qeth_string_to_ipaddr4(const char *buf, __u8 *addr)
 {
-	const char *start, *end;
-	char abuf[4];
-	char *tmp;
-	int len;
-	int i;
+	int count = 0, rc = 0;
+	int in[4];
 
-	start = buf;
-	for (i = 0; i < 4; i++) {
-		if (i == 3) {
-			end = strchr(start,0xa);
-			if (end)
-				len = end - start;
-			else		
-				len = strlen(start);
-		}
-		else {
-			end = strchr(start, '.');
-			len = end - start;
-		}
-		if ((len <= 0) || (len > 3))
+	rc = sscanf(buf, "%d.%d.%d.%d%n", 
+		    &in[0], &in[1], &in[2], &in[3], &count);
+	if (rc != 4  || count) 
+		return -EINVAL;
+	for (count = 0; count < 4; count++) {
+		if (in[count] > 255)
 			return -EINVAL;
-		memset(abuf, 0, 4);
-		strncpy(abuf, start, len);
-		if (!qeth_isdigit(abuf))
-			return -EINVAL;
-		addr[i] = simple_strtoul(abuf, &tmp, 10);
-		start = end + 1;
+		addr[count] = in[count];
 	}
 	return 0;
 }
@@ -1149,36 +1123,44 @@ qeth_ipaddr6_to_string(const __u8 *addr, char *buf)
 static inline int
 qeth_string_to_ipaddr6(const char *buf, __u8 *addr)
 {
-	const char *start, *end;
-	u16 *tmp_addr;
-	char abuf[5];
-	char *tmp;
-	int len;
-	int i;
+	char *end, *start;
+	__u16 *in;
+        char num[5];
+        int num2, cnt, out, found, save_cnt;
+        unsigned short in_tmp[8] = {0, };
 
-	tmp_addr = (u16 *)addr;
-	start = buf;
-	for (i = 0; i < 8; i++) {
-		if (i == 7) {
-			end = strchr(start,0xa);
-			if (end)
-				len = end - start;
-			else
-				len = strlen(start);
+	cnt = out = found = save_cnt = num2 = 0;
+        end = start = (char *) buf;
+	in = (__u16 *) addr;	
+	memset(in, 0, 16);
+        while (end) {
+                end = strchr(end,':');
+                if (end == NULL) {
+                        end = (char *)buf + (strlen(buf));
+                        out = 1;
+                }
+                if ((end - start)) { 
+                        memset(num, 0, 5);
+                        memcpy(num, start, end - start);
+			if (!qeth_isxdigit(num))
+				return -EINVAL;
+                        sscanf(start, "%x", &num2);
+                        if (found)
+                                in_tmp[save_cnt++] = num2;
+                        else
+                                in[cnt++] = num2;
+                        if (out)
+                                break;
+                } else {
+			if (found)
+				return -EINVAL;
+                        found = 1;
 		}
-		else {
-			end = strchr(start, ':');
-			len = end - start;
-		}
-		if ((len <= 0) || (len > 4))
-			return -EINVAL;
-		memset(abuf, 0, 5);
-		strncpy(abuf, start, len);
-		if (!qeth_isxdigit(abuf))
-			return -EINVAL;
-		tmp_addr[i] = simple_strtoul(abuf, &tmp, 16);
-		start = end + 1;
-	}
+		start = ++end;
+        }
+        cnt = 7;
+	while (save_cnt)
+                in[cnt--] = in_tmp[--save_cnt];
 	return 0;
 }
 

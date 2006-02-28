@@ -710,10 +710,9 @@ static inline void
 _zfcp_scsi_dbf_event_common(const char *tag, const char *tag2, int level,
 			    struct zfcp_adapter *adapter,
 			    struct scsi_cmnd *scsi_cmnd,
-			    struct zfcp_fsf_req *new_fsf_req)
+			    struct zfcp_fsf_req *fsf_req,
+			    struct zfcp_fsf_req *old_fsf_req)
 {
-	struct zfcp_fsf_req *fsf_req =
-	    (struct zfcp_fsf_req *)scsi_cmnd->host_scribble;
 	struct zfcp_scsi_dbf_record *rec = &adapter->scsi_dbf_buf;
 	struct zfcp_dbf_dump *dump = (struct zfcp_dbf_dump *)rec;
 	unsigned long flags;
@@ -727,19 +726,20 @@ _zfcp_scsi_dbf_event_common(const char *tag, const char *tag2, int level,
 		if (offset == 0) {
 			strncpy(rec->tag, tag, ZFCP_DBF_TAG_SIZE);
 			strncpy(rec->tag2, tag2, ZFCP_DBF_TAG_SIZE);
-			if (scsi_cmnd->device) {
-				rec->scsi_id = scsi_cmnd->device->id;
-				rec->scsi_lun = scsi_cmnd->device->lun;
+			if (scsi_cmnd != NULL) {
+				if (scsi_cmnd->device) {
+					rec->scsi_id = scsi_cmnd->device->id;
+					rec->scsi_lun = scsi_cmnd->device->lun;
+				}
+				rec->scsi_result = scsi_cmnd->result;
+				rec->scsi_cmnd = (unsigned long)scsi_cmnd;
+				rec->scsi_serial = scsi_cmnd->serial_number;
+				memcpy(rec->scsi_opcode, &scsi_cmnd->cmnd,
+					min((int)scsi_cmnd->cmd_len,
+						ZFCP_DBF_SCSI_OPCODE));
+				rec->scsi_retries = scsi_cmnd->retries;
+				rec->scsi_allowed = scsi_cmnd->allowed;
 			}
-			rec->scsi_result = scsi_cmnd->result;
-			rec->scsi_cmnd = (unsigned long)scsi_cmnd;
-			rec->scsi_serial = scsi_cmnd->serial_number;
-			memcpy(rec->scsi_opcode,
-			       &scsi_cmnd->cmnd,
-			       min((int)scsi_cmnd->cmd_len,
-				   ZFCP_DBF_SCSI_OPCODE));
-			rec->scsi_retries = scsi_cmnd->retries;
-			rec->scsi_allowed = scsi_cmnd->allowed;
 			if (fsf_req != NULL) {
 				fcp_rsp = (struct fcp_rsp_iu *)
 				    &(fsf_req->qtcb->bottom.io.fcp_rsp);
@@ -772,15 +772,8 @@ _zfcp_scsi_dbf_event_common(const char *tag, const char *tag2, int level,
 				rec->fsf_seqno = fsf_req->seq_no;
 				rec->fsf_issued = fsf_req->issued;
 			}
-			if (new_fsf_req != NULL) {
-				rec->type.new_fsf_req.fsf_reqid =
-				    (unsigned long)
-				    new_fsf_req;
-				rec->type.new_fsf_req.fsf_seqno =
-				    new_fsf_req->seq_no;
-				rec->type.new_fsf_req.fsf_issued =
-				    new_fsf_req->issued;
-			}
+			rec->type.old_fsf_reqid =
+				    (unsigned long) old_fsf_req;
 		} else {
 			strncpy(dump->tag, "dump", ZFCP_DBF_TAG_SIZE);
 			dump->total_size = buflen;
@@ -801,19 +794,21 @@ _zfcp_scsi_dbf_event_common(const char *tag, const char *tag2, int level,
 inline void
 zfcp_scsi_dbf_event_result(const char *tag, int level,
 			   struct zfcp_adapter *adapter,
-			   struct scsi_cmnd *scsi_cmnd)
+			   struct scsi_cmnd *scsi_cmnd,
+			   struct zfcp_fsf_req *fsf_req)
 {
-	_zfcp_scsi_dbf_event_common("rslt",
-				    tag, level, adapter, scsi_cmnd, NULL);
+	_zfcp_scsi_dbf_event_common("rslt", tag, level,
+			adapter, scsi_cmnd, fsf_req, NULL);
 }
 
 inline void
 zfcp_scsi_dbf_event_abort(const char *tag, struct zfcp_adapter *adapter,
 			  struct scsi_cmnd *scsi_cmnd,
-			  struct zfcp_fsf_req *new_fsf_req)
+			  struct zfcp_fsf_req *new_fsf_req,
+			  struct zfcp_fsf_req *old_fsf_req)
 {
-	_zfcp_scsi_dbf_event_common("abrt",
-				    tag, 1, adapter, scsi_cmnd, new_fsf_req);
+	_zfcp_scsi_dbf_event_common("abrt", tag, 1,
+			adapter, scsi_cmnd, new_fsf_req, old_fsf_req);
 }
 
 inline void
@@ -823,7 +818,7 @@ zfcp_scsi_dbf_event_devreset(const char *tag, u8 flag, struct zfcp_unit *unit,
 	struct zfcp_adapter *adapter = unit->port->adapter;
 
 	_zfcp_scsi_dbf_event_common(flag == FCP_TARGET_RESET ? "trst" : "lrst",
-				    tag, 1, adapter, scsi_cmnd, NULL);
+			tag, 1, adapter, scsi_cmnd, NULL, NULL);
 }
 
 static int
@@ -856,6 +851,10 @@ zfcp_scsi_dbf_view_format(debug_info_t * id, struct debug_view *view,
 			     rec->scsi_retries);
 	len += zfcp_dbf_view(out_buf + len, "scsi_allowed", "0x%02x",
 			     rec->scsi_allowed);
+	if (strncmp(rec->tag, "abrt", ZFCP_DBF_TAG_SIZE) == 0) {
+		len += zfcp_dbf_view(out_buf + len, "old_fsf_reqid", "0x%0Lx",
+				     rec->type.old_fsf_reqid);
+	}
 	len += zfcp_dbf_view(out_buf + len, "fsf_reqid", "0x%0Lx",
 			     rec->fsf_reqid);
 	len += zfcp_dbf_view(out_buf + len, "fsf_seqno", "0x%08x",
@@ -883,21 +882,6 @@ zfcp_scsi_dbf_view_format(debug_info_t * id, struct debug_view *view,
 				       min((int)rec->type.fcp.sns_info_len,
 					   ZFCP_DBF_SCSI_FCP_SNS_INFO), 0,
 				       rec->type.fcp.sns_info_len);
-	} else if (strncmp(rec->tag, "abrt", ZFCP_DBF_TAG_SIZE) == 0) {
-		len += zfcp_dbf_view(out_buf + len, "fsf_reqid_abort", "0x%0Lx",
-				     rec->type.new_fsf_req.fsf_reqid);
-		len += zfcp_dbf_view(out_buf + len, "fsf_seqno_abort", "0x%08x",
-				     rec->type.new_fsf_req.fsf_seqno);
-		len += zfcp_dbf_stck(out_buf + len, "fsf_issued",
-				     rec->type.new_fsf_req.fsf_issued);
-	} else if ((strncmp(rec->tag, "trst", ZFCP_DBF_TAG_SIZE) == 0) ||
-		   (strncmp(rec->tag, "lrst", ZFCP_DBF_TAG_SIZE) == 0)) {
-		len += zfcp_dbf_view(out_buf + len, "fsf_reqid_reset", "0x%0Lx",
-				     rec->type.new_fsf_req.fsf_reqid);
-		len += zfcp_dbf_view(out_buf + len, "fsf_seqno_reset", "0x%08x",
-				     rec->type.new_fsf_req.fsf_seqno);
-		len += zfcp_dbf_stck(out_buf + len, "fsf_issued",
-				     rec->type.new_fsf_req.fsf_issued);
 	}
 
 	len += sprintf(out_buf + len, "\n");

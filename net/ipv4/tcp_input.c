@@ -456,7 +456,8 @@ void tcp_rcv_space_adjust(struct sock *sk)
 
 		tp->rcvq_space.space = space;
 
-		if (sysctl_tcp_moderate_rcvbuf) {
+		if (sysctl_tcp_moderate_rcvbuf &&
+		    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK)) {
 			int new_clamp = space;
 
 			/* Receive space grows, normalize in order to

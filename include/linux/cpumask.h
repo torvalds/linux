@@ -328,7 +328,7 @@ static inline void __cpus_remap(cpumask_t *dstp, const cpumask_t *srcp,
  * bitmap of size NR_CPUS.
  *
  *  #ifdef CONFIG_HOTPLUG_CPU
- *     cpu_possible_map - all NR_CPUS bits set
+ *     cpu_possible_map - has bit 'cpu' set iff cpu is populatable
  *     cpu_present_map  - has bit 'cpu' set iff cpu is populated
  *     cpu_online_map   - has bit 'cpu' set iff cpu available to scheduler
  *  #else

@@ -29,6 +29,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_transport_fc.h>
 
 #if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
 #if defined(CONFIG_SCSI_QLA21XX) || defined(CONFIG_SCSI_QLA21XX_MODULE)
@@ -179,6 +180,13 @@
 #define WRT_REG_BYTE(addr, data)	writeb(data,addr)
 #define WRT_REG_WORD(addr, data)	writew(data,addr)
 #define WRT_REG_DWORD(addr, data)	writel(data,addr)
+
+/*
+ * The ISP2312 v2 chip cannot access the FLASH/GPIO registers via MMIO in an
+ * 133Mhz slot.
+ */
+#define RD_REG_WORD_PIO(addr)		(inw((unsigned long)addr))
+#define WRT_REG_WORD_PIO(addr, data)	(outw(data,(unsigned long)addr))
 
 /*
  * Fibre Channel device definitions.
@@ -432,6 +440,9 @@ struct device_reg_2xxx {
 #define GPIO_LED_GREEN_ON_AMBER_OFF	0x0040
 #define GPIO_LED_GREEN_OFF_AMBER_ON	0x0080
 #define GPIO_LED_GREEN_ON_AMBER_ON	0x00C0
+#define GPIO_LED_ALL_OFF		0x0000
+#define GPIO_LED_RED_ON_OTHER_OFF	0x0001	/* isp2322 */
+#define GPIO_LED_RGA_ON			0x00C1	/* isp2322: red green amber */
 
 	union {
 		struct {
@@ -2199,6 +2210,15 @@ struct isp_operations {
 
 	void (*fw_dump) (struct scsi_qla_host *, int);
 	void (*ascii_fw_dump) (struct scsi_qla_host *);
+
+	int (*beacon_on) (struct scsi_qla_host *);
+	int (*beacon_off) (struct scsi_qla_host *);
+	void (*beacon_blink) (struct scsi_qla_host *);
+
+	uint8_t * (*read_optrom) (struct scsi_qla_host *, uint8_t *,
+		uint32_t, uint32_t);
+	int (*write_optrom) (struct scsi_qla_host *, uint8_t *, uint32_t,
+		uint32_t);
 };
 
 /*
@@ -2331,6 +2351,10 @@ typedef struct scsi_qla_host {
 	uint16_t	min_external_loopid;	/* First external loop Id */
 
 	uint16_t	link_data_rate;		/* F/W operating speed */
+#define LDR_1GB		0
+#define LDR_2GB		1
+#define LDR_4GB		3
+#define LDR_UNKNOWN	0xFFFF
 
 	uint8_t		current_topology;
 	uint8_t		prev_topology;
@@ -2486,12 +2510,26 @@ typedef struct scsi_qla_host {
 	uint8_t		*port_name;
 	uint32_t    isp_abort_cnt;
 
+	/* Option ROM information. */
+	char		*optrom_buffer;
+	uint32_t	optrom_size;
+	int		optrom_state;
+#define QLA_SWAITING	0
+#define QLA_SREADING	1
+#define QLA_SWRITING	2
+
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;
-	uint16_t	beacon_green_on;
+	uint8_t		beacon_color_state;
+#define QLA_LED_GRN_ON		0x01
+#define QLA_LED_YLW_ON		0x02
+#define QLA_LED_ABR_ON		0x04
+#define QLA_LED_ALL_ON		0x07	/* yellow, green, amber. */
+					/* ISP2322: red, green, amber. */
 
 	uint16_t	zio_mode;
 	uint16_t	zio_timer;
+	struct fc_host_statistics fc_host_stat;
 } scsi_qla_host_t;
 
 
@@ -2557,7 +2595,9 @@ struct _qla2x00stats  {
 /*
  * Flash support definitions
  */
-#define FLASH_IMAGE_SIZE	131072
+#define OPTROM_SIZE_2300	0x20000
+#define OPTROM_SIZE_2322	0x100000
+#define OPTROM_SIZE_24XX	0x100000
 
 #include "qla_gbl.h"
 #include "qla_dbg.h"

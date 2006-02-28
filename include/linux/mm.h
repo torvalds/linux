@@ -1051,5 +1051,11 @@ int shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 void drop_pagecache(void);
 void drop_slab(void);
 
+#ifndef CONFIG_MMU
+#define randomize_va_space 0
+#else
+extern int randomize_va_space;
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

@@ -50,6 +50,8 @@
 #include <linux/security.h>
 #include <linux/percpu.h>
 #include <linux/rtc.h>
+#include <linux/jiffies.h>
+#include <linux/posix-timers.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -97,9 +99,18 @@ unsigned long tb_ticks_per_jiffy;
 unsigned long tb_ticks_per_usec = 100; /* sane default */
 EXPORT_SYMBOL(tb_ticks_per_usec);
 unsigned long tb_ticks_per_sec;
+EXPORT_SYMBOL(tb_ticks_per_sec);	/* for cputime_t conversions */
 u64 tb_to_xs;
 unsigned tb_to_us;
-unsigned long processor_freq;
+
+#define TICKLEN_SCALE	(SHIFT_SCALE - 10)
+u64 last_tick_len;	/* units are ns / 2^TICKLEN_SCALE */
+u64 ticklen_to_xs;	/* 0.64 fraction */
+
+/* If last_tick_len corresponds to about 1/HZ seconds, then
+   last_tick_len << TICKLEN_SHIFT will be about 2^63. */
+#define TICKLEN_SHIFT	(63 - 30 - TICKLEN_SCALE + SHIFT_HZ)
+
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL_GPL(rtc_lock);
 
@@ -113,10 +124,6 @@ extern unsigned long wall_jiffies;
 extern struct timezone sys_tz;
 static long timezone_offset;
 
-void ppc_adjtimex(void);
-
-static unsigned adjusting_time = 0;
-
 unsigned long ppc_proc_freq;
 unsigned long ppc_tb_freq;
 
@@ -129,6 +136,224 @@ unsigned long tb_last_stamp;
  * has passed.
  */
 DEFINE_PER_CPU(unsigned long, last_jiffy);
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+/*
+ * Factors for converting from cputime_t (timebase ticks) to
+ * jiffies, milliseconds, seconds, and clock_t (1/USER_HZ seconds).
+ * These are all stored as 0.64 fixed-point binary fractions.
+ */
+u64 __cputime_jiffies_factor;
+EXPORT_SYMBOL(__cputime_jiffies_factor);
+u64 __cputime_msec_factor;
+EXPORT_SYMBOL(__cputime_msec_factor);
+u64 __cputime_sec_factor;
+EXPORT_SYMBOL(__cputime_sec_factor);
+u64 __cputime_clockt_factor;
+EXPORT_SYMBOL(__cputime_clockt_factor);
+
+static void calc_cputime_factors(void)
+{
+	struct div_result res;
+
+	div128_by_32(HZ, 0, tb_ticks_per_sec, &res);
+	__cputime_jiffies_factor = res.result_low;
+	div128_by_32(1000, 0, tb_ticks_per_sec, &res);
+	__cputime_msec_factor = res.result_low;
+	div128_by_32(1, 0, tb_ticks_per_sec, &res);
+	__cputime_sec_factor = res.result_low;
+	div128_by_32(USER_HZ, 0, tb_ticks_per_sec, &res);
+	__cputime_clockt_factor = res.result_low;
+}
+
+/*
+ * Read the PURR on systems that have it, otherwise the timebase.
+ */
+static u64 read_purr(void)
+{
+	if (cpu_has_feature(CPU_FTR_PURR))
+		return mfspr(SPRN_PURR);
+	return mftb();
+}
+
+/*
+ * Account time for a transition between system, hard irq
+ * or soft irq state.
+ */
+void account_system_vtime(struct task_struct *tsk)
+{
+	u64 now, delta;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	now = read_purr();
+	delta = now - get_paca()->startpurr;
+	get_paca()->startpurr = now;
+	if (!in_interrupt()) {
+		delta += get_paca()->system_time;
+		get_paca()->system_time = 0;
+	}
+	account_system_time(tsk, 0, delta);
+	local_irq_restore(flags);
+}
+
+/*
+ * Transfer the user and system times accumulated in the paca
+ * by the exception entry and exit code to the generic process
+ * user and system time records.
+ * Must be called with interrupts disabled.
+ */
+void account_process_vtime(struct task_struct *tsk)
+{
+	cputime_t utime;
+
+	utime = get_paca()->user_time;
+	get_paca()->user_time = 0;
+	account_user_time(tsk, utime);
+}
+
+static void account_process_time(struct pt_regs *regs)
+{
+	int cpu = smp_processor_id();
+
+	account_process_vtime(current);
+	run_local_timers();
+	if (rcu_pending(cpu))
+		rcu_check_callbacks(cpu, user_mode(regs));
+	scheduler_tick();
+ 	run_posix_cpu_timers(current);
+}
+
+#ifdef CONFIG_PPC_SPLPAR
+/*
+ * Stuff for accounting stolen time.
+ */
+struct cpu_purr_data {
+	int	initialized;			/* thread is running */
+	u64	tb0;			/* timebase at origin time */
+	u64	purr0;			/* PURR at origin time */
+	u64	tb;			/* last TB value read */
+	u64	purr;			/* last PURR value read */
+	u64	stolen;			/* stolen time so far */
+	spinlock_t lock;
+};
+
+static DEFINE_PER_CPU(struct cpu_purr_data, cpu_purr_data);
+
+static void snapshot_tb_and_purr(void *data)
+{
+	struct cpu_purr_data *p = &__get_cpu_var(cpu_purr_data);
+
+	p->tb0 = mftb();
+	p->purr0 = mfspr(SPRN_PURR);
+	p->tb = p->tb0;
+	p->purr = 0;
+	wmb();
+	p->initialized = 1;
+}
+
+/*
+ * Called during boot when all cpus have come up.
+ */
+void snapshot_timebases(void)
+{
+	int cpu;
+
+	if (!cpu_has_feature(CPU_FTR_PURR))
+		return;
+	for_each_cpu(cpu)
+		spin_lock_init(&per_cpu(cpu_purr_data, cpu).lock);
+	on_each_cpu(snapshot_tb_and_purr, NULL, 0, 1);
+}
+
+void calculate_steal_time(void)
+{
+	u64 tb, purr, t0;
+	s64 stolen;
+	struct cpu_purr_data *p0, *pme, *phim;
+	int cpu;
+
+	if (!cpu_has_feature(CPU_FTR_PURR))
+		return;
+	cpu = smp_processor_id();
+	pme = &per_cpu(cpu_purr_data, cpu);
+	if (!pme->initialized)
+		return;		/* this can happen in early boot */
+	p0 = &per_cpu(cpu_purr_data, cpu & ~1);
+	phim = &per_cpu(cpu_purr_data, cpu ^ 1);
+	spin_lock(&p0->lock);
+	tb = mftb();
+	purr = mfspr(SPRN_PURR) - pme->purr0;
+	if (!phim->initialized || !cpu_online(cpu ^ 1)) {
+		stolen = (tb - pme->tb) - (purr - pme->purr);
+	} else {
+		t0 = pme->tb0;
+		if (phim->tb0 < t0)
+			t0 = phim->tb0;
+		stolen = phim->tb - t0 - phim->purr - purr - p0->stolen;
+	}
+	if (stolen > 0) {
+		account_steal_time(current, stolen);
+		p0->stolen += stolen;
+	}
+	pme->tb = tb;
+	pme->purr = purr;
+	spin_unlock(&p0->lock);
+}
+
+/*
+ * Must be called before the cpu is added to the online map when
+ * a cpu is being brought up at runtime.
+ */
+static void snapshot_purr(void)
+{
+	int cpu;
+	u64 purr;
+	struct cpu_purr_data *p0, *pme, *phim;
+	unsigned long flags;
+
+	if (!cpu_has_feature(CPU_FTR_PURR))
+		return;
+	cpu = smp_processor_id();
+	pme = &per_cpu(cpu_purr_data, cpu);
+	p0 = &per_cpu(cpu_purr_data, cpu & ~1);
+	phim = &per_cpu(cpu_purr_data, cpu ^ 1);
+	spin_lock_irqsave(&p0->lock, flags);
+	pme->tb = pme->tb0 = mftb();
+	purr = mfspr(SPRN_PURR);
+	if (!phim->initialized) {
+		pme->purr = 0;
+		pme->purr0 = purr;
+	} else {
+		/* set p->purr and p->purr0 for no change in p0->stolen */
+		pme->purr = phim->tb - phim->tb0 - phim->purr - p0->stolen;
+		pme->purr0 = purr - pme->purr;
+	}
+	pme->initialized = 1;
+	spin_unlock_irqrestore(&p0->lock, flags);
+}
+
+#endif /* CONFIG_PPC_SPLPAR */
+
+#else /* ! CONFIG_VIRT_CPU_ACCOUNTING */
+#define calc_cputime_factors()
+#define account_process_time(regs)	update_process_times(user_mode(regs))
+#define calculate_steal_time()		do { } while (0)
+#endif
+
+#if !(defined(CONFIG_VIRT_CPU_ACCOUNTING) && defined(CONFIG_PPC_SPLPAR))
+#define snapshot_purr()			do { } while (0)
+#endif
+
+/*
+ * Called when a cpu comes up after the system has finished booting,
+ * i.e. as a result of a hotplug cpu action.
+ */
+void snapshot_timebase(void)
+{
+	__get_cpu_var(last_jiffy) = get_tb();
+	snapshot_purr();
+}
 
 void __delay(unsigned long loops)
 {
@@ -178,8 +403,7 @@ static __inline__ void timer_check_rtc(void)
          */
         if (ppc_md.set_rtc_time && ntp_synced() &&
 	    xtime.tv_sec - last_rtc_update >= 659 &&
-	    abs((xtime.tv_nsec/1000) - (1000000-1000000/HZ)) < 500000/HZ &&
-	    jiffies - wall_jiffies == 1) {
+	    abs((xtime.tv_nsec/1000) - (1000000-1000000/HZ)) < 500000/HZ) {
 		struct rtc_time tm;
 		to_tm(xtime.tv_sec + 1 + timezone_offset, &tm);
 		tm.tm_year -= 1900;
@@ -226,15 +450,14 @@ void do_gettimeofday(struct timeval *tv)
 	if (__USE_RTC()) {
 		/* do this the old way */
 		unsigned long flags, seq;
-		unsigned int sec, nsec, usec, lost;
+		unsigned int sec, nsec, usec;
 
 		do {
 			seq = read_seqbegin_irqsave(&xtime_lock, flags);
 			sec = xtime.tv_sec;
 			nsec = xtime.tv_nsec + tb_ticks_since(tb_last_stamp);
-			lost = jiffies - wall_jiffies;
 		} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
-		usec = nsec / 1000 + lost * (1000000 / HZ);
+		usec = nsec / 1000;
 		while (usec >= 1000000) {
 			usec -= 1000000;
 			++sec;
@@ -247,23 +470,6 @@ void do_gettimeofday(struct timeval *tv)
 }
 
 EXPORT_SYMBOL(do_gettimeofday);
-
-/* Synchronize xtime with do_gettimeofday */ 
-
-static inline void timer_sync_xtime(unsigned long cur_tb)
-{
-#ifdef CONFIG_PPC64
-	/* why do we do this? */
-	struct timeval my_tv;
-
-	__do_gettimeofday(&my_tv, cur_tb);
-
-	if (xtime.tv_sec <= my_tv.tv_sec) {
-		xtime.tv_sec = my_tv.tv_sec;
-		xtime.tv_nsec = my_tv.tv_usec * 1000;
-	}
-#endif
-}
 
 /*
  * There are two copies of tb_to_xs and stamp_xsec so that no
@@ -323,15 +529,30 @@ static __inline__ void timer_recalc_offset(u64 cur_tb)
 {
 	unsigned long offset;
 	u64 new_stamp_xsec;
+	u64 tlen, t2x;
 
 	if (__USE_RTC())
 		return;
+	tlen = current_tick_length();
 	offset = cur_tb - do_gtod.varp->tb_orig_stamp;
-	if ((offset & 0x80000000u) == 0)
-		return;
-	new_stamp_xsec = do_gtod.varp->stamp_xsec
-		+ mulhdu(offset, do_gtod.varp->tb_to_xs);
-	update_gtod(cur_tb, new_stamp_xsec, do_gtod.varp->tb_to_xs);
+	if (tlen == last_tick_len && offset < 0x80000000u) {
+		/* check that we're still in sync; if not, resync */
+		struct timeval tv;
+		__do_gettimeofday(&tv, cur_tb);
+		if (tv.tv_sec <= xtime.tv_sec &&
+		    (tv.tv_sec < xtime.tv_sec ||
+		     tv.tv_usec * 1000 <= xtime.tv_nsec))
+			return;
+	}
+	if (tlen != last_tick_len) {
+		t2x = mulhdu(tlen << TICKLEN_SHIFT, ticklen_to_xs);
+		last_tick_len = tlen;
+	} else
+		t2x = do_gtod.varp->tb_to_xs;
+	new_stamp_xsec = (u64) xtime.tv_nsec * XSEC_PER_SEC;
+	do_div(new_stamp_xsec, 1000000000);
+	new_stamp_xsec += (u64) xtime.tv_sec * XSEC_PER_SEC;
+	update_gtod(cur_tb, new_stamp_xsec, t2x);
 }
 
 #ifdef CONFIG_SMP
@@ -381,6 +602,7 @@ static void iSeries_tb_recal(void)
 						new_tb_ticks_per_jiffy, sign, tick_diff );
 				tb_ticks_per_jiffy = new_tb_ticks_per_jiffy;
 				tb_ticks_per_sec   = new_tb_ticks_per_sec;
+				calc_cputime_factors();
 				div128_by_32( XSEC_PER_SEC, 0, tb_ticks_per_sec, &divres );
 				do_gtod.tb_ticks_per_sec = tb_ticks_per_sec;
 				tb_to_xs = divres.result_low;
@@ -429,6 +651,7 @@ void timer_interrupt(struct pt_regs * regs)
 	irq_enter();
 
 	profile_tick(CPU_PROFILING, regs);
+	calculate_steal_time();
 
 #ifdef CONFIG_PPC_ISERIES
 	get_lppaca()->int_dword.fields.decr_int = 0;
@@ -450,7 +673,7 @@ void timer_interrupt(struct pt_regs * regs)
 		 * is the case.
 		 */
 		if (!cpu_is_offline(cpu))
-			update_process_times(user_mode(regs));
+			account_process_time(regs);
 
 		/*
 		 * No need to check whether cpu is offline here; boot_cpuid
@@ -462,13 +685,10 @@ void timer_interrupt(struct pt_regs * regs)
 		write_seqlock(&xtime_lock);
 		tb_last_jiffy += tb_ticks_per_jiffy;
 		tb_last_stamp = per_cpu(last_jiffy, cpu);
-		timer_recalc_offset(tb_last_jiffy);
 		do_timer(regs);
-		timer_sync_xtime(tb_last_jiffy);
+		timer_recalc_offset(tb_last_jiffy);
 		timer_check_rtc();
 		write_sequnlock(&xtime_lock);
-		if (adjusting_time && (time_adjust == 0))
-			ppc_adjtimex();
 	}
 	
 	next_dec = tb_ticks_per_jiffy - ticks;
@@ -492,29 +712,45 @@ void timer_interrupt(struct pt_regs * regs)
 
 void wakeup_decrementer(void)
 {
-	int i;
+	unsigned long ticks;
 
-	set_dec(tb_ticks_per_jiffy);
 	/*
-	 * We don't expect this to be called on a machine with a 601,
-	 * so using get_tbl is fine.
+	 * The timebase gets saved on sleep and restored on wakeup,
+	 * so all we need to do is to reset the decrementer.
 	 */
-	tb_last_stamp = tb_last_jiffy = get_tb();
-	for_each_cpu(i)
-		per_cpu(last_jiffy, i) = tb_last_stamp;
+	ticks = tb_ticks_since(__get_cpu_var(last_jiffy));
+	if (ticks < tb_ticks_per_jiffy)
+		ticks = tb_ticks_per_jiffy - ticks;
+	else
+		ticks = 1;
+	set_dec(ticks);
 }
 
 #ifdef CONFIG_SMP
 void __init smp_space_timers(unsigned int max_cpus)
 {
 	int i;
+	unsigned long half = tb_ticks_per_jiffy / 2;
 	unsigned long offset = tb_ticks_per_jiffy / max_cpus;
 	unsigned long previous_tb = per_cpu(last_jiffy, boot_cpuid);
 
 	/* make sure tb > per_cpu(last_jiffy, cpu) for all cpus always */
 	previous_tb -= tb_ticks_per_jiffy;
+	/*
+	 * The stolen time calculation for POWER5 shared-processor LPAR
+	 * systems works better if the two threads' timebase interrupts
+	 * are staggered by half a jiffy with respect to each other.
+	 */
 	for_each_cpu(i) {
-		if (i != boot_cpuid) {
+		if (i == boot_cpuid)
+			continue;
+		if (i == (boot_cpuid ^ 1))
+			per_cpu(last_jiffy, i) =
+				per_cpu(last_jiffy, boot_cpuid) - half;
+		else if (i & 1)
+			per_cpu(last_jiffy, i) =
+				per_cpu(last_jiffy, i ^ 1) + half;
+		else {
 			previous_tb += offset;
 			per_cpu(last_jiffy, i) = previous_tb;
 		}
@@ -541,8 +777,8 @@ int do_settimeofday(struct timespec *tv)
 	time_t wtm_sec, new_sec = tv->tv_sec;
 	long wtm_nsec, new_nsec = tv->tv_nsec;
 	unsigned long flags;
-	long int tb_delta;
-	u64 new_xsec, tb_delta_xs;
+	u64 new_xsec;
+	unsigned long tb_delta;
 
 	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
 		return -EINVAL;
@@ -563,9 +799,19 @@ int do_settimeofday(struct timespec *tv)
 		first_settimeofday = 0;
 	}
 #endif
+
+	/*
+	 * Subtract off the number of nanoseconds since the
+	 * beginning of the last tick.
+	 * Note that since we don't increment jiffies_64 anywhere other
+	 * than in do_timer (since we don't have a lost tick problem),
+	 * wall_jiffies will always be the same as jiffies,
+	 * and therefore the (jiffies - wall_jiffies) computation
+	 * has been removed.
+	 */
 	tb_delta = tb_ticks_since(tb_last_stamp);
-	tb_delta += (jiffies - wall_jiffies) * tb_ticks_per_jiffy;
-	tb_delta_xs = mulhdu(tb_delta, do_gtod.varp->tb_to_xs);
+	tb_delta = mulhdu(tb_delta, do_gtod.varp->tb_to_xs); /* in xsec */
+	new_nsec -= SCALE_XSEC(tb_delta, 1000000000);
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - new_sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - new_nsec);
@@ -580,12 +826,12 @@ int do_settimeofday(struct timespec *tv)
 
 	ntp_clear();
 
-	new_xsec = 0;
-	if (new_nsec != 0) {
-		new_xsec = (u64)new_nsec * XSEC_PER_SEC;
+	new_xsec = xtime.tv_nsec;
+	if (new_xsec != 0) {
+		new_xsec *= XSEC_PER_SEC;
 		do_div(new_xsec, NSEC_PER_SEC);
 	}
-	new_xsec += (u64)new_sec * XSEC_PER_SEC - tb_delta_xs;
+	new_xsec += (u64)xtime.tv_sec * XSEC_PER_SEC;
 	update_gtod(tb_last_jiffy, new_xsec, do_gtod.varp->tb_to_xs);
 
 	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
@@ -671,7 +917,7 @@ void __init time_init(void)
 	unsigned long flags;
 	unsigned long tm = 0;
 	struct div_result res;
-	u64 scale;
+	u64 scale, x;
 	unsigned shift;
 
         if (ppc_md.time_init != NULL)
@@ -693,11 +939,37 @@ void __init time_init(void)
 	}
 
 	tb_ticks_per_jiffy = ppc_tb_freq / HZ;
-	tb_ticks_per_sec = tb_ticks_per_jiffy * HZ;
+	tb_ticks_per_sec = ppc_tb_freq;
 	tb_ticks_per_usec = ppc_tb_freq / 1000000;
 	tb_to_us = mulhwu_scale_factor(ppc_tb_freq, 1000000);
-	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &res);
-	tb_to_xs = res.result_low;
+	calc_cputime_factors();
+
+	/*
+	 * Calculate the length of each tick in ns.  It will not be
+	 * exactly 1e9/HZ unless ppc_tb_freq is divisible by HZ.
+	 * We compute 1e9 * tb_ticks_per_jiffy / ppc_tb_freq,
+	 * rounded up.
+	 */
+	x = (u64) NSEC_PER_SEC * tb_ticks_per_jiffy + ppc_tb_freq - 1;
+	do_div(x, ppc_tb_freq);
+	tick_nsec = x;
+	last_tick_len = x << TICKLEN_SCALE;
+
+	/*
+	 * Compute ticklen_to_xs, which is a factor which gets multiplied
+	 * by (last_tick_len << TICKLEN_SHIFT) to get a tb_to_xs value.
+	 * It is computed as:
+	 * ticklen_to_xs = 2^N / (tb_ticks_per_jiffy * 1e9)
+	 * where N = 64 + 20 - TICKLEN_SCALE - TICKLEN_SHIFT
+	 * so as to give the result as a 0.64 fixed-point fraction.
+	 */
+	div128_by_32(1ULL << (64 + 20 - TICKLEN_SCALE - TICKLEN_SHIFT), 0,
+		     tb_ticks_per_jiffy, &res);
+	div128_by_32(res.result_high, res.result_low, NSEC_PER_SEC, &res);
+	ticklen_to_xs = res.result_low;
+
+	/* Compute tb_to_xs from tick_nsec */
+	tb_to_xs = mulhdu(last_tick_len << TICKLEN_SHIFT, ticklen_to_xs);
 
 	/*
 	 * Compute scale factor for sched_clock.
@@ -724,6 +996,14 @@ void __init time_init(void)
 		tm = get_boot_time();
 
 	write_seqlock_irqsave(&xtime_lock, flags);
+
+	/* If platform provided a timezone (pmac), we correct the time */
+        if (timezone_offset) {
+		sys_tz.tz_minuteswest = -timezone_offset / 60;
+		sys_tz.tz_dsttime = 0;
+		tm -= timezone_offset;
+        }
+
 	xtime.tv_sec = tm;
 	xtime.tv_nsec = 0;
 	do_gtod.varp = &do_gtod.vars[0];
@@ -738,17 +1018,10 @@ void __init time_init(void)
 	vdso_data->tb_orig_stamp = tb_last_jiffy;
 	vdso_data->tb_update_count = 0;
 	vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
-	vdso_data->stamp_xsec = xtime.tv_sec * XSEC_PER_SEC;
+	vdso_data->stamp_xsec = (u64) xtime.tv_sec * XSEC_PER_SEC;
 	vdso_data->tb_to_xs = tb_to_xs;
 
 	time_freq = 0;
-
-	/* If platform provided a timezone (pmac), we correct the time */
-        if (timezone_offset) {
-		sys_tz.tz_minuteswest = -timezone_offset / 60;
-		sys_tz.tz_dsttime = 0;
-		xtime.tv_sec -= timezone_offset;
-        }
 
 	last_rtc_update = xtime.tv_sec;
 	set_normalized_timespec(&wall_to_monotonic,
@@ -757,126 +1030,6 @@ void __init time_init(void)
 
 	/* Not exact, but the timer interrupt takes care of this */
 	set_dec(tb_ticks_per_jiffy);
-}
-
-/* 
- * After adjtimex is called, adjust the conversion of tb ticks
- * to microseconds to keep do_gettimeofday synchronized 
- * with ntpd.
- *
- * Use the time_adjust, time_freq and time_offset computed by adjtimex to 
- * adjust the frequency.
- */
-
-/* #define DEBUG_PPC_ADJTIMEX 1 */
-
-void ppc_adjtimex(void)
-{
-#ifdef CONFIG_PPC64
-	unsigned long den, new_tb_ticks_per_sec, tb_ticks, old_xsec,
-		new_tb_to_xs, new_xsec, new_stamp_xsec;
-	unsigned long tb_ticks_per_sec_delta;
-	long delta_freq, ltemp;
-	struct div_result divres; 
-	unsigned long flags;
-	long singleshot_ppm = 0;
-
-	/*
-	 * Compute parts per million frequency adjustment to
-	 * accomplish the time adjustment implied by time_offset to be
-	 * applied over the elapsed time indicated by time_constant.
-	 * Use SHIFT_USEC to get it into the same units as
-	 * time_freq.
-	 */
-	if ( time_offset < 0 ) {
-		ltemp = -time_offset;
-		ltemp <<= SHIFT_USEC - SHIFT_UPDATE;
-		ltemp >>= SHIFT_KG + time_constant;
-		ltemp = -ltemp;
-	} else {
-		ltemp = time_offset;
-		ltemp <<= SHIFT_USEC - SHIFT_UPDATE;
-		ltemp >>= SHIFT_KG + time_constant;
-	}
-	
-	/* If there is a single shot time adjustment in progress */
-	if ( time_adjust ) {
-#ifdef DEBUG_PPC_ADJTIMEX
-		printk("ppc_adjtimex: ");
-		if ( adjusting_time == 0 )
-			printk("starting ");
-		printk("single shot time_adjust = %ld\n", time_adjust);
-#endif	
-	
-		adjusting_time = 1;
-		
-		/*
-		 * Compute parts per million frequency adjustment
-		 * to match time_adjust
-		 */
-		singleshot_ppm = tickadj * HZ;	
-		/*
-		 * The adjustment should be tickadj*HZ to match the code in
-		 * linux/kernel/timer.c, but experiments show that this is too
-		 * large. 3/4 of tickadj*HZ seems about right
-		 */
-		singleshot_ppm -= singleshot_ppm / 4;
-		/* Use SHIFT_USEC to get it into the same units as time_freq */
-		singleshot_ppm <<= SHIFT_USEC;
-		if ( time_adjust < 0 )
-			singleshot_ppm = -singleshot_ppm;
-	}
-	else {
-#ifdef DEBUG_PPC_ADJTIMEX
-		if ( adjusting_time )
-			printk("ppc_adjtimex: ending single shot time_adjust\n");
-#endif
-		adjusting_time = 0;
-	}
-	
-	/* Add up all of the frequency adjustments */
-	delta_freq = time_freq + ltemp + singleshot_ppm;
-	
-	/*
-	 * Compute a new value for tb_ticks_per_sec based on
-	 * the frequency adjustment
-	 */
-	den = 1000000 * (1 << (SHIFT_USEC - 8));
-	if ( delta_freq < 0 ) {
-		tb_ticks_per_sec_delta = ( tb_ticks_per_sec * ( (-delta_freq) >> (SHIFT_USEC - 8))) / den;
-		new_tb_ticks_per_sec = tb_ticks_per_sec + tb_ticks_per_sec_delta;
-	}
-	else {
-		tb_ticks_per_sec_delta = ( tb_ticks_per_sec * ( delta_freq >> (SHIFT_USEC - 8))) / den;
-		new_tb_ticks_per_sec = tb_ticks_per_sec - tb_ticks_per_sec_delta;
-	}
-	
-#ifdef DEBUG_PPC_ADJTIMEX
-	printk("ppc_adjtimex: ltemp = %ld, time_freq = %ld, singleshot_ppm = %ld\n", ltemp, time_freq, singleshot_ppm);
-	printk("ppc_adjtimex: tb_ticks_per_sec - base = %ld  new = %ld\n", tb_ticks_per_sec, new_tb_ticks_per_sec);
-#endif
-
-	/*
-	 * Compute a new value of tb_to_xs (used to convert tb to
-	 * microseconds) and a new value of stamp_xsec which is the
-	 * time (in 1/2^20 second units) corresponding to
-	 * tb_orig_stamp.  This new value of stamp_xsec compensates
-	 * for the change in frequency (implied by the new tb_to_xs)
-	 * which guarantees that the current time remains the same.
-	 */
-	write_seqlock_irqsave( &xtime_lock, flags );
-	tb_ticks = get_tb() - do_gtod.varp->tb_orig_stamp;
-	div128_by_32(1024*1024, 0, new_tb_ticks_per_sec, &divres);
-	new_tb_to_xs = divres.result_low;
-	new_xsec = mulhdu(tb_ticks, new_tb_to_xs);
-
-	old_xsec = mulhdu(tb_ticks, do_gtod.varp->tb_to_xs);
-	new_stamp_xsec = do_gtod.varp->stamp_xsec + old_xsec - new_xsec;
-
-	update_gtod(do_gtod.varp->tb_orig_stamp, new_stamp_xsec, new_tb_to_xs);
-
-	write_sequnlock_irqrestore( &xtime_lock, flags );
-#endif /* CONFIG_PPC64 */
 }
 
 

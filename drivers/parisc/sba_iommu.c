@@ -37,6 +37,8 @@
 #include <asm/hardware.h>	/* for register_parisc_driver() stuff */
 
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+
 #include <asm/runway.h>		/* for proc_runway_root */
 #include <asm/pdc.h>		/* for PDC_MODEL_* */
 #include <asm/pdcpat.h>		/* for is_pdc_pat() */
@@ -1892,46 +1894,43 @@ sba_common_init(struct sba_device *sba_dev)
 }
 
 #ifdef CONFIG_PROC_FS
-static int sba_proc_info(char *buf, char **start, off_t offset, int len)
+static int sba_proc_info(struct seq_file *m, void *p)
 {
 	struct sba_device *sba_dev = sba_list;
 	struct ioc *ioc = &sba_dev->ioc[0];	/* FIXME: Multi-IOC support! */
 	int total_pages = (int) (ioc->res_size << 3); /* 8 bits per byte */
-	unsigned long i;
 #ifdef SBA_COLLECT_STATS
 	unsigned long avg = 0, min, max;
 #endif
+	int i, len = 0;
 
-	sprintf(buf, "%s rev %d.%d\n",
+	len += seq_printf(m, "%s rev %d.%d\n",
 		sba_dev->name,
 		(sba_dev->hw_rev & 0x7) + 1,
 		(sba_dev->hw_rev & 0x18) >> 3
 		);
-	sprintf(buf, "%sIO PDIR size    : %d bytes (%d entries)\n",
-		buf,
+	len += seq_printf(m, "IO PDIR size    : %d bytes (%d entries)\n",
 		(int) ((ioc->res_size << 3) * sizeof(u64)), /* 8 bits/byte */
 		total_pages);
 
-	sprintf(buf, "%sResource bitmap : %d bytes (%d pages)\n", 
-		buf, ioc->res_size, ioc->res_size << 3);   /* 8 bits per byte */
+	len += seq_printf(m, "Resource bitmap : %d bytes (%d pages)\n", 
+		ioc->res_size, ioc->res_size << 3);   /* 8 bits per byte */
 
-	sprintf(buf, "%sLMMIO_BASE/MASK/ROUTE %08x %08x %08x\n",
-		buf,
+	len += seq_printf(m, "LMMIO_BASE/MASK/ROUTE %08x %08x %08x\n",
 		READ_REG32(sba_dev->sba_hpa + LMMIO_DIST_BASE),
 		READ_REG32(sba_dev->sba_hpa + LMMIO_DIST_MASK),
 		READ_REG32(sba_dev->sba_hpa + LMMIO_DIST_ROUTE)
 		);
 
 	for (i=0; i<4; i++)
-		sprintf(buf, "%sDIR%ld_BASE/MASK/ROUTE %08x %08x %08x\n",
-			buf, i,
+		len += seq_printf(m, "DIR%d_BASE/MASK/ROUTE %08x %08x %08x\n", i,
 			READ_REG32(sba_dev->sba_hpa + LMMIO_DIRECT0_BASE  + i*0x18),
 			READ_REG32(sba_dev->sba_hpa + LMMIO_DIRECT0_MASK  + i*0x18),
 			READ_REG32(sba_dev->sba_hpa + LMMIO_DIRECT0_ROUTE + i*0x18)
 		);
 
 #ifdef SBA_COLLECT_STATS
-	sprintf(buf, "%sIO PDIR entries : %ld free  %ld used (%d%%)\n", buf,
+	len += seq_printf(m, "IO PDIR entries : %ld free  %ld used (%d%%)\n",
 		total_pages - ioc->used_pages, ioc->used_pages,
 		(int) (ioc->used_pages * 100 / total_pages));
 
@@ -1942,53 +1941,76 @@ static int sba_proc_info(char *buf, char **start, off_t offset, int len)
 		if (ioc->avg_search[i] < min) min = ioc->avg_search[i];
 	}
 	avg /= SBA_SEARCH_SAMPLE;
-	sprintf(buf, "%s  Bitmap search : %ld/%ld/%ld (min/avg/max CPU Cycles)\n",
-		buf, min, avg, max);
+	len += seq_printf(m, "  Bitmap search : %ld/%ld/%ld (min/avg/max CPU Cycles)\n",
+		min, avg, max);
 
-	sprintf(buf, "%spci_map_single(): %12ld calls  %12ld pages (avg %d/1000)\n",
-		buf, ioc->msingle_calls, ioc->msingle_pages,
+	len += seq_printf(m, "pci_map_single(): %12ld calls  %12ld pages (avg %d/1000)\n",
+		ioc->msingle_calls, ioc->msingle_pages,
 		(int) ((ioc->msingle_pages * 1000)/ioc->msingle_calls));
 
 	/* KLUGE - unmap_sg calls unmap_single for each mapped page */
 	min = ioc->usingle_calls;
 	max = ioc->usingle_pages - ioc->usg_pages;
-	sprintf(buf, "%spci_unmap_single: %12ld calls  %12ld pages (avg %d/1000)\n",
-		buf, min, max,
-		(int) ((max * 1000)/min));
+	len += seq_printf(m, "pci_unmap_single: %12ld calls  %12ld pages (avg %d/1000)\n",
+		min, max, (int) ((max * 1000)/min));
 
-	sprintf(buf, "%spci_map_sg()    : %12ld calls  %12ld pages (avg %d/1000)\n",
-		buf, ioc->msg_calls, ioc->msg_pages,
+	len += seq_printf(m, "pci_map_sg()    : %12ld calls  %12ld pages (avg %d/1000)\n",
+		ioc->msg_calls, ioc->msg_pages, 
 		(int) ((ioc->msg_pages * 1000)/ioc->msg_calls));
 
-	sprintf(buf, "%spci_unmap_sg()  : %12ld calls  %12ld pages (avg %d/1000)\n",
-		buf, ioc->usg_calls, ioc->usg_pages,
+	len += seq_printf(m, "pci_unmap_sg()  : %12ld calls  %12ld pages (avg %d/1000)\n",
+		ioc->usg_calls, ioc->usg_pages,
 		(int) ((ioc->usg_pages * 1000)/ioc->usg_calls));
 #endif
 
-	return strlen(buf);
+	return 0;
 }
 
-#if 0
-/* XXX too much output - exceeds 4k limit and needs to be re-written */
 static int
-sba_resource_map(char *buf, char **start, off_t offset, int len)
+sba_proc_open(struct inode *i, struct file *f)
+{
+	return single_open(f, &sba_proc_info, NULL);
+}
+
+static struct file_operations sba_proc_fops = {
+	.owner = THIS_MODULE,
+	.open = sba_proc_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int
+sba_proc_bitmap_info(struct seq_file *m, void *p)
 {
 	struct sba_device *sba_dev = sba_list;
-	struct ioc *ioc = &sba_dev->ioc[0];	/* FIXME: Mutli-IOC suppoer! */
+	struct ioc *ioc = &sba_dev->ioc[0];	/* FIXME: Multi-IOC support! */
 	unsigned int *res_ptr = (unsigned int *)ioc->res_map;
-	int i;
+	int i, len = 0;
 
-	buf[0] = '\0';
-	for(i = 0; i < (ioc->res_size / sizeof(unsigned int)); ++i, ++res_ptr) {
+	for (i = 0; i < (ioc->res_size/sizeof(unsigned int)); ++i, ++res_ptr) {
 		if ((i & 7) == 0)
-		    strcat(buf,"\n   ");
-		sprintf(buf, "%s %08x", buf, *res_ptr);
+			len += seq_printf(m, "\n   ");
+		len += seq_printf(m, " %08x", *res_ptr);
 	}
-	strcat(buf, "\n");
+	len += seq_printf(m, "\n");
 
-	return strlen(buf);
+	return 0;
 }
-#endif /* 0 */
+
+static int
+sba_proc_bitmap_open(struct inode *i, struct file *f)
+{
+	return single_open(f, &sba_proc_bitmap_info, NULL);
+}
+
+static struct file_operations sba_proc_bitmap_fops = {
+	.owner = THIS_MODULE,
+	.open = sba_proc_bitmap_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
 #endif /* CONFIG_PROC_FS */
 
 static struct parisc_device_id sba_tbl[] = {
@@ -2021,6 +2043,7 @@ sba_driver_callback(struct parisc_device *dev)
 	int i;
 	char *version;
 	void __iomem *sba_addr = ioremap(dev->hpa.start, SBA_FUNC_SIZE);
+	struct proc_dir_entry *info_entry, *bitmap_entry, *root;
 
 	sba_dump_ranges(sba_addr);
 
@@ -2088,19 +2111,27 @@ sba_driver_callback(struct parisc_device *dev)
 	hppa_dma_ops = &sba_ops;
 
 #ifdef CONFIG_PROC_FS
-	if (IS_ASTRO(&dev->id)) {
-		create_proc_info_entry("Astro", 0, proc_runway_root, sba_proc_info);
-	} else if (IS_IKE(&dev->id)) {
-		create_proc_info_entry("Ike", 0, proc_runway_root, sba_proc_info);
-	} else if (IS_PLUTO(&dev->id)) {
-		create_proc_info_entry("Pluto", 0, proc_mckinley_root, sba_proc_info);
-	} else {
-		create_proc_info_entry("Reo", 0, proc_runway_root, sba_proc_info);
+	switch (dev->id.hversion) {
+	case PLUTO_MCKINLEY_PORT:
+		root = proc_mckinley_root;
+		break;
+	case ASTRO_RUNWAY_PORT:
+	case IKE_MERCED_PORT:
+	default:
+		root = proc_runway_root;
+		break;
 	}
-#if 0
-	create_proc_info_entry("bitmap", 0, proc_runway_root, sba_resource_map);
+
+	info_entry = create_proc_entry("sba_iommu", 0, root);
+	bitmap_entry = create_proc_entry("sba_iommu-bitmap", 0, root);
+
+	if (info_entry)
+		info_entry->proc_fops = &sba_proc_fops;
+
+	if (bitmap_entry)
+		bitmap_entry->proc_fops = &sba_proc_bitmap_fops;
 #endif
-#endif
+
 	parisc_vmerge_boundary = IOVP_SIZE;
 	parisc_vmerge_max_size = IOVP_SIZE * BITS_PER_LONG;
 	parisc_has_iommu();

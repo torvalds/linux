@@ -27,8 +27,6 @@ static struct flash_platform_data nslu2_flash_data = {
 };
 
 static struct resource nslu2_flash_resource = {
-	.start			= NSLU2_FLASH_BASE,
-	.end			= NSLU2_FLASH_BASE + NSLU2_FLASH_SIZE,
 	.flags			= IORESOURCE_MEM,
 };
 
@@ -49,6 +47,12 @@ static struct platform_device nslu2_i2c_controller = {
 	.name			= "IXP4XX-I2C",
 	.id			= 0,
 	.dev.platform_data	= &nslu2_i2c_gpio_pins,
+	.num_resources		= 0,
+};
+
+static struct platform_device nslu2_beeper = {
+	.name			= "ixp4xx-beeper",
+	.id			= NSLU2_GPIO_BUZZ,
 	.num_resources		= 0,
 };
 
@@ -99,6 +103,7 @@ static struct platform_device *nslu2_devices[] __initdata = {
 	&nslu2_i2c_controller,
 	&nslu2_flash,
 	&nslu2_uart,
+	&nslu2_beeper,
 };
 
 static void nslu2_power_off(void)
@@ -115,6 +120,10 @@ static void nslu2_power_off(void)
 static void __init nslu2_init(void)
 {
 	ixp4xx_sys_init();
+
+	nslu2_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
+	nslu2_flash_resource.end =
+		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
 	pm_power_off = nslu2_power_off;
 

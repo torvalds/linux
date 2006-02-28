@@ -68,6 +68,8 @@ void __init sanitize_tlb_entries(void)
 
 	set_c0_mvpcontrol(MVPCONTROL_VPC);
 
+	back_to_back_c0_hazard();
+
 	/* Disable TLB sharing */
 	clear_c0_mvpcontrol(MVPCONTROL_STLB);
 
@@ -101,35 +103,6 @@ void __init sanitize_tlb_entries(void)
 
 	clear_c0_mvpcontrol(MVPCONTROL_VPC);
 }
-
-#if 0
-/*
- * Use c0_MVPConf0 to find out how many CPUs are available, setting up
- * phys_cpu_present_map and the logical/physical mappings.
- */
-void __init prom_build_cpu_map(void)
-{
-	int i, num, ncpus;
-
-	cpus_clear(phys_cpu_present_map);
-
-	/* assume we boot on cpu 0.... */
-	cpu_set(0, phys_cpu_present_map);
-	__cpu_number_map[0] = 0;
-	__cpu_logical_map[0] = 0;
-
-	if (cpu_has_mipsmt) {
-		ncpus = ((read_c0_mvpconf0() & (MVPCONF0_PVPE)) >> MVPCONF0_PVPE_SHIFT) + 1;
-		for (i=1, num=0; i< NR_CPUS && i<ncpus; i++) {
-			cpu_set(i, phys_cpu_present_map);
-			__cpu_number_map[i] = ++num;
-			__cpu_logical_map[num] = i;
-		}
-
-		printk(KERN_INFO "%i available secondary CPU(s)\n", num);
-	}
-}
-#endif
 
 static void ipi_resched_dispatch (struct pt_regs *regs)
 {
@@ -170,7 +143,7 @@ static struct irqaction irq_call = {
  * Make sure all CPU's are in a sensible state before we boot any of the
  * secondarys
  */
-void prom_prepare_cpus(unsigned int max_cpus)
+void plat_smp_setup(void)
 {
 	unsigned long val;
 	int i, num;
@@ -206,11 +179,9 @@ void prom_prepare_cpus(unsigned int max_cpus)
 				write_vpe_c0_vpeconf0(tmp);
 
 				/* Record this as available CPU */
-				if (i < max_cpus) {
-					cpu_set(i, phys_cpu_present_map);
-					__cpu_number_map[i]	= ++num;
-					__cpu_logical_map[num]	= i;
-				}
+				cpu_set(i, phys_cpu_present_map);
+				__cpu_number_map[i]	= ++num;
+				__cpu_logical_map[num]	= i;
 			}
 
 			/* disable multi-threading with TC's */
@@ -222,6 +193,9 @@ void prom_prepare_cpus(unsigned int max_cpus)
 
 				/* set config to be the same as vpe0, particularly kseg0 coherency alg */
 				write_vpe_c0_config( read_c0_config());
+
+				/* Propagate Config7 */
+				write_vpe_c0_config7(read_c0_config7());
 			}
 
 		}
@@ -265,7 +239,10 @@ void prom_prepare_cpus(unsigned int max_cpus)
 		set_vi_handler (MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
 		set_vi_handler (MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
 	}
+}
 
+void __init plat_prepare_cpus(unsigned int max_cpus)
+{
 	cpu_ipi_resched_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_RESCHED_IRQ;
 	cpu_ipi_call_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_CALL_IRQ;
 

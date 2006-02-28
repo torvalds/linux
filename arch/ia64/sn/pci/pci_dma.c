@@ -335,10 +335,10 @@ int sn_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
 	 */
 
 	SAL_CALL(isrv, SN_SAL_IOIF_PCI_SAFE,
-		pci_domain_nr(bus), bus->number,
-		0, /* io */
-		0, /* read */
-		port, size, __pa(val));
+		 pci_domain_nr(bus), bus->number,
+		 0, /* io */
+		 0, /* read */
+		 port, size, __pa(val));
 
 	if (isrv.status == 0)
 		return size;
@@ -381,10 +381,10 @@ int sn_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 	 */
 
 	SAL_CALL(isrv, SN_SAL_IOIF_PCI_SAFE,
-		pci_domain_nr(bus), bus->number,
-		0, /* io */
-		1, /* write */
-		port, size, __pa(&val));
+		 pci_domain_nr(bus), bus->number,
+		 0, /* io */
+		 1, /* write */
+		 port, size, __pa(&val));
 
 	if (isrv.status == 0)
 		return size;

@@ -79,15 +79,27 @@ that instance in a system with many cpus making intensive use of it.
 
 
 tmpfs has a mount option to set the NUMA memory allocation policy for
-all files in that instance:
-mpol=interleave		prefers to allocate memory from each node in turn
-mpol=default		prefers to allocate memory from the local node
-mpol=bind		prefers to allocate from mpol_nodelist
-mpol=preferred		prefers to allocate from first node in mpol_nodelist
+all files in that instance (if CONFIG_NUMA is enabled) - which can be
+adjusted on the fly via 'mount -o remount ...'
 
-The following mount option is used in conjunction with mpol=interleave,
-mpol=bind or mpol=preferred:
-mpol_nodelist:	nodelist suitable for parsing with nodelist_parse.
+mpol=default             prefers to allocate memory from the local node
+mpol=prefer:Node         prefers to allocate memory from the given Node
+mpol=bind:NodeList       allocates memory only from nodes in NodeList
+mpol=interleave          prefers to allocate from each node in turn
+mpol=interleave:NodeList allocates from each node of NodeList in turn
+
+NodeList format is a comma-separated list of decimal numbers and ranges,
+a range being two hyphen-separated decimal numbers, the smallest and
+largest node numbers in the range.  For example, mpol=bind:0-3,5,7,9-15
+
+Note that trying to mount a tmpfs with an mpol option will fail if the
+running kernel does not support NUMA; and will fail if its nodelist
+specifies a node >= MAX_NUMNODES.  If your system relies on that tmpfs
+being mounted, but from time to time runs a kernel built without NUMA
+capability (perhaps a safe recovery kernel), or configured to support
+fewer nodes, then it is advisable to omit the mpol option from automatic
+mount options.  It can be added later, when the tmpfs is already mounted
+on MountPoint, by 'mount -o remount,mpol=Policy:NodeList MountPoint'.
 
 
 To specify the initial root directory you can use the following mount
@@ -109,4 +121,4 @@ RAM/SWAP in 10240 inodes and it is only accessible by root.
 Author:
    Christoph Rohland <cr@sap.com>, 1.12.01
 Updated:
-   Hugh Dickins <hugh@veritas.com>, 13 March 2005
+   Hugh Dickins <hugh@veritas.com>, 19 February 2006

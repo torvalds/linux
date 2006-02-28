@@ -72,16 +72,6 @@ static ssize_t show_adapter_name(struct device *dev,
 }
 static DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
 
-static int i2c_isa_device_probe(struct device *dev)
-{
-	return -ENODEV;
-}
-
-static int i2c_isa_device_remove(struct device *dev)
-{
-	return 0;
-}
-
 
 /* We implement an interface which resembles i2c_{add,del}_driver,
    but for i2c-isa drivers. We don't have to remember and handle lists
@@ -93,8 +83,6 @@ int i2c_isa_add_driver(struct i2c_driver *driver)
 
 	/* Add the driver to the list of i2c drivers in the driver core */
 	driver->driver.bus = &i2c_bus_type;
-	driver->driver.probe = i2c_isa_device_probe;
-	driver->driver.remove = i2c_isa_device_remove;
 	res = driver_register(&driver->driver);
 	if (res)
 		return res;

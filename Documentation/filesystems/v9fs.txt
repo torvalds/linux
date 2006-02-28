@@ -57,8 +57,6 @@ OPTIONS
 
   port=n	port to connect to on the remote server
 
-  timeout=n	request timeouts (in ms) (default 60000ms)
-
   noextend	force legacy mode (no 9P2000.u semantics)
 
   uid		attempt to mount as a particular uid
@@ -74,10 +72,16 @@ OPTIONS
 RESOURCES
 =========
 
-The Linux version of the 9P server, along with some client-side utilities
-can be found at http://v9fs.sf.net (along with a CVS repository of the
-development branch of this module).  There are user and developer mailing
-lists here, as well as a bug-tracker.
+The Linux version of the 9P server is now maintained under the npfs project
+on sourceforge (http://sourceforge.net/projects/npfs).
+
+There are user and developer mailing lists available through the v9fs project
+on sourceforge (http://sourceforge.net/projects/v9fs).
+
+News and other information is maintained on SWiK (http://swik.net/v9fs).
+
+Bug reports may be issued through the kernel.org bugzilla 
+(http://bugzilla.kernel.org)
 
 For more information on the Plan 9 Operating System check out
 http://plan9.bell-labs.com/plan9

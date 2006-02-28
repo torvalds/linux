@@ -93,15 +93,8 @@ EXPORT_SYMBOL(test_and_change_bit);
 EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strpbrk);
-EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(strcasecmp);
 EXPORT_SYMBOL(__div64_32);
 
@@ -253,7 +246,6 @@ EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(cacheable_memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memchr);
 

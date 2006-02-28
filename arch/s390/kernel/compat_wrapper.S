@@ -1523,13 +1523,13 @@ compat_sys_futimesat_wrapper:
 	llgtr	%r4,%r4			# struct timeval *
 	jg	compat_sys_futimesat
 
-	.globl compat_sys_newfstatat_wrapper
-compat_sys_newfstatat_wrapper:
+	.globl sys32_fstatat64_wrapper
+sys32_fstatat64_wrapper:
 	llgfr	%r2,%r2			# unsigned int
 	llgtr	%r3,%r3			# char *
-	llgtr	%r4,%r4			# struct stat *
+	llgtr	%r4,%r4			# struct stat64 *
 	lgfr	%r5,%r5			# int
-	jg	compat_sys_newfstatat
+	jg	sys32_fstatat64
 
 	.globl sys_unlinkat_wrapper
 sys_unlinkat_wrapper:
@@ -1552,6 +1552,7 @@ sys_linkat_wrapper:
 	llgtr	%r3,%r3			# const char *
 	lgfr	%r4,%r4			# int
 	llgtr	%r5,%r5			# const char *
+	lgfr	%r6,%r6			# int
 	jg	sys_linkat
 
 	.globl sys_symlinkat_wrapper
@@ -1602,3 +1603,8 @@ compat_sys_ppoll_wrapper:
 	llgtr	%r5,%r5			# const sigset_t *
 	llgfr	%r6,%r6			# size_t
 	jg	compat_sys_ppoll
+
+	.globl sys_unshare_wrapper
+sys_unshare_wrapper:
+	llgfr	%r2,%r2			# unsigned long
+	jg	sys_unshare

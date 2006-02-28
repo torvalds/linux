@@ -29,6 +29,11 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config TIME_LOW_RES
+	bool
+	depends on SMP
+	default y
+
 config GENERIC_ISA_DMA
 	bool
 

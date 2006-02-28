@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/hardirq.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_dbg.h>
@@ -2248,3 +2249,61 @@ scsi_target_unblock(struct device *dev)
 		device_for_each_child(dev, NULL, target_unblock);
 }
 EXPORT_SYMBOL_GPL(scsi_target_unblock);
+
+
+struct work_queue_work {
+	struct work_struct	work;
+	void			(*fn)(void *);
+	void			*data;
+};
+
+static void execute_in_process_context_work(void *data)
+{
+	void (*fn)(void *data);
+	struct work_queue_work *wqw = data;
+
+	fn = wqw->fn;
+	data = wqw->data;
+
+	kfree(wqw);
+
+	fn(data);
+}
+
+/**
+ * scsi_execute_in_process_context - reliably execute the routine with user context
+ * @fn:		the function to execute
+ * @data:	data to pass to the function
+ *
+ * Executes the function immediately if process context is available,
+ * otherwise schedules the function for delayed execution.
+ *
+ * Returns:	0 - function was executed
+ *		1 - function was scheduled for execution
+ *		<0 - error
+ */
+int scsi_execute_in_process_context(void (*fn)(void *data), void *data)
+{
+	struct work_queue_work *wqw;
+
+	if (!in_interrupt()) {
+		fn(data);
+		return 0;
+	}
+
+	wqw = kmalloc(sizeof(struct work_queue_work), GFP_ATOMIC);
+
+	if (unlikely(!wqw)) {
+		printk(KERN_ERR "Failed to allocate memory\n");
+		WARN_ON(1);
+		return -ENOMEM;
+	}
+
+	INIT_WORK(&wqw->work, execute_in_process_context_work, wqw);
+	wqw->fn = fn;
+	wqw->data = data;
+	schedule_work(&wqw->work);
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(scsi_execute_in_process_context);

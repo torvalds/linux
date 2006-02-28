@@ -29,8 +29,10 @@ _INLINE_ void tty_schedule_flip(struct tty_struct *tty)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&tty->buf.lock, flags);
-	if (tty->buf.tail != NULL)
+	if (tty->buf.tail != NULL) {
 		tty->buf.tail->active = 0;
+		tty->buf.tail->commit = tty->buf.tail->used;
+	}
 	spin_unlock_irqrestore(&tty->buf.lock, flags);
 	schedule_delayed_work(&tty->buf.work, 1);
 }

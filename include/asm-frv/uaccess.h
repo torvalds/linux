@@ -306,7 +306,4 @@ extern long strnlen_user(const char *src, long count);
 
 extern unsigned long search_exception_table(unsigned long addr);
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
-#define copy_from_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
-
 #endif /* _ASM_UACCESS_H */
