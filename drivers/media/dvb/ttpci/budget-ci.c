@@ -42,6 +42,8 @@
 #include "stv0299.h"
 #include "stv0297.h"
 #include "tda1004x.h"
+#include "lnbp21.h"
+#include "bsbe1.h"
 
 #define DEBIADDR_IR		0x1234
 #define DEBIADDR_CICONTROL	0x0000
@@ -1069,6 +1071,20 @@ static void frontend_init(struct budget_ci *budget_ci)
 			break;
 		}
 		break;
+
+	case 0x1017:		// TT S-1500 PCI
+		budget_ci->budget.dvb_frontend = stv0299_attach(&alps_bsbe1_config, &budget_ci->budget.i2c_adap);
+		if (budget_ci->budget.dvb_frontend) {
+			budget_ci->budget.dvb_frontend->ops->dishnetwork_send_legacy_command = NULL;
+			if (lnbp21_init(budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, LNBP21_LLC, 0)) {
+				printk("%s: No LNBP21 found!\n", __FUNCTION__);
+				if (budget_ci->budget.dvb_frontend->ops->release)
+					budget_ci->budget.dvb_frontend->ops->release(budget_ci->budget.dvb_frontend);
+				budget_ci->budget.dvb_frontend = NULL;
+			}
+		}
+
+		break;
 	}
 
 	if (budget_ci->budget.dvb_frontend == NULL) {
@@ -1146,6 +1162,7 @@ static int budget_ci_detach(struct saa7146_dev *dev)
 
 static struct saa7146_extension budget_extension;
 
+MAKE_BUDGET_INFO(ttbs2, "TT-Budget/S-1500 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(ttbci, "TT-Budget/WinTV-NOVA-CI PCI", BUDGET_TT_HW_DISEQC);
 MAKE_BUDGET_INFO(ttbt2, "TT-Budget/WinTV-NOVA-T	 PCI", BUDGET_TT);
 MAKE_BUDGET_INFO(ttbtci, "TT-Budget-T-CI PCI", BUDGET_TT);
@@ -1157,6 +1174,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbcci, 0x13c2, 0x1010),
 	MAKE_EXTENSION_PCI(ttbt2, 0x13c2, 0x1011),
 	MAKE_EXTENSION_PCI(ttbtci, 0x13c2, 0x1012),
+	MAKE_EXTENSION_PCI(ttbs2, 0x13c2, 0x1017),
 	{
 	 .vendor = 0,
 	 }

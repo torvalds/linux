@@ -42,7 +42,6 @@
 #include "tda8083.h"
 #include "s5h1420.h"
 #include "lnbp21.h"
-#include "bsbe1.h"
 
 static void Set22K (struct budget *budget, int state)
 {
@@ -451,18 +450,6 @@ static u8 read_pwm(struct budget* budget)
 static void frontend_init(struct budget *budget)
 {
 	switch(budget->dev->pci->subsystem_device) {
-	case 0x1017:
-		// try the ALPS BSBE1 now
-		budget->dvb_frontend = stv0299_attach(&alps_bsbe1_config, &budget->i2c_adap);
-		if (budget->dvb_frontend) {
-			budget->dvb_frontend->ops->dishnetwork_send_legacy_command = NULL;
-			if (lnbp21_init(budget->dvb_frontend, &budget->i2c_adap, LNBP21_LLC, 0)) {
-				printk("%s: No LNBP21 found!\n", __FUNCTION__);
-				goto error_out;
-			}
-		}
-
-		break;
 	case 0x1003: // Hauppauge/TT Nova budget (stv0299/ALPS BSRU6(tsa5059) OR ves1893/ALPS BSRV2(sp5659))
 	case 0x1013:
 		// try the ALPS BSRV2 first of all
@@ -586,7 +573,6 @@ static int budget_detach (struct saa7146_dev* dev)
 
 static struct saa7146_extension budget_extension;
 
-MAKE_BUDGET_INFO(ttbs2, "TT-Budget/WinTV-NOVA-S PCI (rev AL/alps bsbe1 lnbp21 frontend)", BUDGET_TT);
 MAKE_BUDGET_INFO(ttbs,	"TT-Budget/WinTV-NOVA-S  PCI",	BUDGET_TT);
 MAKE_BUDGET_INFO(ttbc,	"TT-Budget/WinTV-NOVA-C  PCI",	BUDGET_TT);
 MAKE_BUDGET_INFO(ttbt,	"TT-Budget/WinTV-NOVA-T  PCI",	BUDGET_TT);
@@ -599,7 +585,6 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbc,  0x13c2, 0x1004),
 	MAKE_EXTENSION_PCI(ttbt,  0x13c2, 0x1005),
 	MAKE_EXTENSION_PCI(satel, 0x13c2, 0x1013),
-	MAKE_EXTENSION_PCI(ttbs2, 0x13c2, 0x1017),
 	MAKE_EXTENSION_PCI(ttbs,  0x13c2, 0x1016),
 	MAKE_EXTENSION_PCI(fsacs1,0x1131, 0x4f60),
 	MAKE_EXTENSION_PCI(fsacs0,0x1131, 0x4f61),
