@@ -577,13 +577,14 @@ int cifs_closedir(struct inode *inode, struct file *file)
 int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 {
 	int rc, xid;
-	__u32 lockType = LOCKING_ANDX_LARGE_FILES;
 	__u32 numLock = 0;
 	__u32 numUnlock = 0;
 	__u64 length;
 	int wait_flag = FALSE;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
+	__u16 netfid;
+	__u8 lockType = LOCKING_ANDX_LARGE_FILES;
 
 	length = 1 + pfLock->fl_end - pfLock->fl_start;
 	rc = -EACCES;
@@ -640,27 +641,39 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 		FreeXid(xid);
 		return -EBADF;
 	}
+	netfid = ((struct cifsFileInfo *)file->private_data)->netfid;
 
+
+	/* BB add code here to normalize offset and length to
+	account for negative length which we can not accept over the
+	wire */
 	if (IS_GETLK(cmd)) {
-		rc = CIFSSMBLock(xid, pTcon,
-				 ((struct cifsFileInfo *)file->
-				  private_data)->netfid,
-				 length,
-				 pfLock->fl_start, 0, 1, lockType,
-				 0 /* wait flag */ );
+		if(experimEnabled && 
+		   (cifs_sb->tcon->ses->capabilities & CAP_UNIX)) {
+			int posix_lock_type;
+			if(lockType & LOCKING_ANDX_SHARED_LOCK)
+				posix_lock_type = CIFS_RDLCK;
+			else
+				posix_lock_type = CIFS_WRLCK;
+			rc = CIFSSMBPosixLock(xid, pTcon, netfid, 1 /* get */,
+					length,	pfLock->fl_start,
+					posix_lock_type, wait_flag);
+			FreeXid(xid);
+			return rc;
+		}
+
+		/* BB we could chain these into one lock request BB */
+		rc = CIFSSMBLock(xid, pTcon, netfid, length, pfLock->fl_start,
+				 0, 1, lockType, 0 /* wait flag */ );
 		if (rc == 0) {
-			rc = CIFSSMBLock(xid, pTcon,
-					 ((struct cifsFileInfo *) file->
-					  private_data)->netfid,
-					 length,
+			rc = CIFSSMBLock(xid, pTcon, netfid, length, 
 					 pfLock->fl_start, 1 /* numUnlock */ ,
 					 0 /* numLock */ , lockType,
 					 0 /* wait flag */ );
 			pfLock->fl_type = F_UNLCK;
 			if (rc != 0)
 				cERROR(1, ("Error unlocking previously locked "
-					   "range %d during test of lock ",
-					   rc));
+					   "range %d during test of lock", rc));
 			rc = 0;
 
 		} else {
@@ -672,12 +685,28 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 		FreeXid(xid);
 		return rc;
 	}
-
-	rc = CIFSSMBLock(xid, pTcon,
-			 ((struct cifsFileInfo *) file->private_data)->
-			 netfid, length,
-			 pfLock->fl_start, numUnlock, numLock, lockType,
-			 wait_flag);
+	if (experimEnabled &&
+		(cifs_sb->tcon->ses->capabilities & CAP_UNIX)) {
+		int posix_lock_type;
+		if(lockType & LOCKING_ANDX_SHARED_LOCK)
+			posix_lock_type = CIFS_RDLCK;
+		else
+			posix_lock_type = CIFS_WRLCK;
+		
+		if(numUnlock == 1)
+			posix_lock_type |= CIFS_UNLCK;
+		else if(numLock == 0) {
+			/* if no lock or unlock then nothing
+			to do since we do not know what it is */
+			FreeXid(xid);
+			return -EOPNOTSUPP;
+		}
+		rc = CIFSSMBPosixLock(xid, pTcon, netfid, 0 /* set */,
+				      length, pfLock->fl_start,
+				      posix_lock_type, wait_flag);
+	} else
+		rc = CIFSSMBLock(xid, pTcon, netfid, length, pfLock->fl_start,
+				numUnlock, numLock, lockType, wait_flag);
 	if (pfLock->fl_flags & FL_POSIX)
 		posix_lock_file_wait(file, pfLock);
 	FreeXid(xid);

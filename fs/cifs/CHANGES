@@ -6,7 +6,9 @@ be followed (not just recognized).  Fix wraparound of bcc on
 read responses when buffer size over 64K and also fix wrap of
 max smb buffer size when CIFSMaxBufSize over 64K.  Fix oops in
 cifs_user_read and cifs_readpages (when EAGAIN on send of smb
-on socket is returned over and over)
+on socket is returned over and over).  Add POSIX (advisory) byte range
+locking support (requires server with newest CIFS UNIX Extensions
+to the protocol implemented).
 
 Version 1.40
 ------------

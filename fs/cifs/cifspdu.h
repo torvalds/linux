@@ -859,7 +859,10 @@ typedef struct smb_com_lock_req {
 	LOCKING_ANDX_RANGE Locks[1];
 } __attribute__((packed)) LOCK_REQ;
 
-
+/* lock type */
+#define CIFS_RDLCK	0
+#define CIFS_WRLCK	1
+#define CIFS_UNLCK      2
 typedef struct cifs_posix_lock {
 	__le16  lock_type;  /* 0 = Read, 1 = Write, 2 = Unlock */
 	__le16  lock_flags; /* 1 = Wait (only valid for setlock) */
