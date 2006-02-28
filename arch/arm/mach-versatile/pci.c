@@ -240,6 +240,14 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
         int i;
         int myslot = -1;
 	unsigned long val;
+	void __iomem *local_pci_cfg_base;
+
+	val = __raw_readl(SYS_PCICTL);
+	if (!(val & 1)) {
+		printk("Not plugged into PCI backplane!\n");
+		ret = -EIO;
+		goto out;
+	}
 
 	if (nr == 0) {
 		sys->mem_offset = 0;
@@ -253,47 +261,44 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 		goto out;
 	}
 
-	__raw_writel(VERSATILE_PCI_MEM_BASE0 >> 28,PCI_IMAP0);
-	__raw_writel(VERSATILE_PCI_MEM_BASE1 >> 28,PCI_IMAP1);
-	__raw_writel(VERSATILE_PCI_MEM_BASE2 >> 28,PCI_IMAP2);
-
-	__raw_writel(1, SYS_PCICTL);
-
-	val = __raw_readl(SYS_PCICTL);
-	if (!(val & 1)) {
-		printk("Not plugged into PCI backplane!\n");
-		ret = -EIO;
-		goto out;
-	}
-
 	/*
 	 *  We need to discover the PCI core first to configure itself
 	 *  before the main PCI probing is performed
 	 */
-	for (i=0; i<32; i++) {
+	for (i=0; i<32; i++)
 		if ((__raw_readl(VERSATILE_PCI_VIRT_BASE+(i<<11)+DEVICE_ID_OFFSET) == VP_PCI_DEVICE_ID) &&
 		    (__raw_readl(VERSATILE_PCI_VIRT_BASE+(i<<11)+CLASS_ID_OFFSET) == VP_PCI_CLASS_ID)) {
 			myslot = i;
-
-			__raw_writel(myslot, PCI_SELFID);
-			val = __raw_readl(VERSATILE_PCI_CFG_VIRT_BASE+(myslot<<11)+CSR_OFFSET);
-			val |= (1<<2);
-			__raw_writel(val, VERSATILE_PCI_CFG_VIRT_BASE+(myslot<<11)+CSR_OFFSET);
 			break;
 		}
-	}
 
 	if (myslot == -1) {
 		printk("Cannot find PCI core!\n");
 		ret = -EIO;
-	} else {
-		printk("PCI core found (slot %d)\n",myslot);
-		/* Do not to map Versatile FPGA PCI device
-		   into memory space as we are short of
-		   mappable memory */
-		pci_slot_ignore |= (1 << myslot);
-		ret = 1;
+		goto out;
 	}
+
+	printk("PCI core found (slot %d)\n",myslot);
+
+	__raw_writel(myslot, PCI_SELFID);
+	local_pci_cfg_base = (void *) VERSATILE_PCI_CFG_VIRT_BASE + (myslot << 11);
+
+	val = __raw_readl(local_pci_cfg_base + CSR_OFFSET);
+	val |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE;
+	__raw_writel(val, local_pci_cfg_base + CSR_OFFSET);
+
+	/*
+	 * Configure the PCI inbound memory windows to be 1:1 mapped to SDRAM
+	 */
+	__raw_writel(PHYS_OFFSET, local_pci_cfg_base + PCI_BASE_ADDRESS_0);
+	__raw_writel(PHYS_OFFSET, local_pci_cfg_base + PCI_BASE_ADDRESS_1);
+	__raw_writel(PHYS_OFFSET, local_pci_cfg_base + PCI_BASE_ADDRESS_2);
+
+	/*
+	 * Do not to map Versatile FPGA PCI device into memory space
+	 */
+	pci_slot_ignore |= (1 << myslot);
+	ret = 1;
 
  out:
 	return ret;
@@ -305,18 +310,18 @@ struct pci_bus *pci_versatile_scan_bus(int nr, struct pci_sys_data *sys)
 	return pci_scan_bus(sys->busnr, &pci_versatile_ops, sys);
 }
 
-/*
- * V3_LB_BASE? - local bus address
- * V3_LB_MAP?  - pci bus address
- */
 void __init pci_versatile_preinit(void)
 {
-}
+	__raw_writel(VERSATILE_PCI_MEM_BASE0 >> 28, PCI_IMAP0);
+	__raw_writel(VERSATILE_PCI_MEM_BASE1 >> 28, PCI_IMAP1);
+	__raw_writel(VERSATILE_PCI_MEM_BASE2 >> 28, PCI_IMAP2);
 
-void __init pci_versatile_postinit(void)
-{
-}
+	__raw_writel(PHYS_OFFSET >> 28, PCI_SMAP0);
+	__raw_writel(PHYS_OFFSET >> 28, PCI_SMAP1);
+	__raw_writel(PHYS_OFFSET >> 28, PCI_SMAP2);
 
+	__raw_writel(1, SYS_PCICTL);
+}
 
 /*
  * map the specified device/slot/pin to an IRQ.   Different backplanes may need to modify this.
@@ -326,16 +331,15 @@ static int __init versatile_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	int irq;
 	int devslot = PCI_SLOT(dev->devfn);
 
-	/* slot,  pin,  irq
-	    24	  1	27
-	    25    1	28	untested
-	    26	  1	29
-	    27    1	30	untested
-	*/
+	/* slot,  pin,	irq
+	 *  24     1     27
+	 *  25     1     28
+	 *  26     1     29
+	 *  27     1     30
+	 */
+	irq = 27 + ((slot + pin - 1) & 3);
 
-	irq = 27 + ((slot + pin + 2) % 3);	/* Fudged */
-
-	printk("map irq: slot %d, pin %d, devslot %d, irq: %d\n",slot,pin,devslot,irq);
+	printk("PCI map irq: slot %d, pin %d, devslot %d, irq: %d\n",slot,pin,devslot,irq);
 
 	return irq;
 }
@@ -347,7 +351,6 @@ static struct hw_pci versatile_pci __initdata = {
 	.setup			= pci_versatile_setup,
 	.scan			= pci_versatile_scan_bus,
 	.preinit		= pci_versatile_preinit,
-	.postinit		= pci_versatile_postinit,
 };
 
 static int __init versatile_pci_init(void)

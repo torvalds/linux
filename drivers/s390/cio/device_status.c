@@ -317,7 +317,6 @@ ccw_device_do_sense(struct ccw_device *cdev, struct irb *irb)
 	/*
 	 * We have ending status but no sense information. Do a basic sense.
 	 */
-	sch = to_subchannel(cdev->dev.parent);
 	sch->sense_ccw.cmd_code = CCW_CMD_BASIC_SENSE;
 	sch->sense_ccw.cda = (__u32) __pa(cdev->private->irb.ecw);
 	sch->sense_ccw.count = SENSE_MAX_COUNT;

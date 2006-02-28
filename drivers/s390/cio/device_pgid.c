@@ -405,7 +405,7 @@ __ccw_device_disband_start(struct ccw_device *cdev)
 		cdev->private->iretry = 5;
 		cdev->private->imask >>= 1;
 	}
-	ccw_device_verify_done(cdev, (sch->lpm != 0) ? 0 : -ENODEV);
+	ccw_device_disband_done(cdev, (sch->lpm != 0) ? 0 : -ENODEV);
 }
 
 /*

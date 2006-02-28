@@ -1,7 +1,7 @@
 /**
  * mft.c - NTFS kernel mft record operations. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2005 Anton Altaparmakov
+ * Copyright (c) 2001-2006 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -473,7 +473,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 	runlist_element *rl;
 	unsigned int block_start, block_end, m_start, m_end, page_ofs;
 	int i_bhs, nr_bhs, err = 0;
-	unsigned char blocksize_bits = vol->mftmirr_ino->i_blkbits;
+	unsigned char blocksize_bits = vol->sb->s_blocksize_bits;
 
 	ntfs_debug("Entering for inode 0x%lx.", mft_no);
 	BUG_ON(!max_bhs);
@@ -672,8 +672,8 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 {
 	ntfs_volume *vol = ni->vol;
 	struct page *page = ni->page;
-	unsigned char blocksize_bits = vol->mft_ino->i_blkbits;
-	unsigned int blocksize = 1 << blocksize_bits;
+	unsigned int blocksize = vol->sb->s_blocksize;
+	unsigned char blocksize_bits = vol->sb->s_blocksize_bits;
 	int max_bhs = vol->mft_record_size / blocksize;
 	struct buffer_head *bhs[max_bhs];
 	struct buffer_head *bh, *head;

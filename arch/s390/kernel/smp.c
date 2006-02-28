@@ -1,8 +1,7 @@
 /*
  *  arch/s390/kernel/smp.c
  *
- *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright (C) IBM Corp. 1999,2006
  *    Author(s): Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *               Heiko Carstens (heiko.carstens@de.ibm.com)
@@ -41,8 +40,6 @@
 #include <asm/cpcmd.h>
 #include <asm/tlbflush.h>
 
-/* prototypes */
-
 extern volatile int __cpu_logical_map[];
 
 /*
@@ -51,12 +48,10 @@ extern volatile int __cpu_logical_map[];
 
 struct _lowcore *lowcore_ptr[NR_CPUS];
 
-cpumask_t cpu_online_map;
-cpumask_t cpu_possible_map = CPU_MASK_ALL;
+cpumask_t cpu_online_map = CPU_MASK_NONE;
+cpumask_t cpu_possible_map = CPU_MASK_NONE;
 
 static struct task_struct *current_set[NR_CPUS];
-
-EXPORT_SYMBOL(cpu_online_map);
 
 /*
  * Reboot, halt and power_off routines for SMP.
@@ -490,10 +485,10 @@ void smp_ctl_clear_bit(int cr, int bit) {
  * Lets check how many CPUs we have.
  */
 
-void
-__init smp_check_cpus(unsigned int max_cpus)
+static unsigned int
+__init smp_count_cpus(void)
 {
-	int cpu, num_cpus;
+	unsigned int cpu, num_cpus;
 	__u16 boot_cpu_addr;
 
 	/*
@@ -503,19 +498,20 @@ __init smp_check_cpus(unsigned int max_cpus)
 	boot_cpu_addr = S390_lowcore.cpu_data.cpu_addr;
 	current_thread_info()->cpu = 0;
 	num_cpus = 1;
-	for (cpu = 0; cpu <= 65535 && num_cpus < max_cpus; cpu++) {
+	for (cpu = 0; cpu <= 65535; cpu++) {
 		if ((__u16) cpu == boot_cpu_addr)
 			continue;
-		__cpu_logical_map[num_cpus] = (__u16) cpu;
-		if (signal_processor(num_cpus, sigp_sense) ==
+		__cpu_logical_map[1] = (__u16) cpu;
+		if (signal_processor(1, sigp_sense) ==
 		    sigp_not_operational)
 			continue;
-		cpu_set(num_cpus, cpu_present_map);
 		num_cpus++;
 	}
 
 	printk("Detected %d CPU's\n",(int) num_cpus);
 	printk("Boot cpu address %2X\n", boot_cpu_addr);
+
+	return num_cpus;
 }
 
 /*
@@ -676,6 +672,44 @@ __cpu_up(unsigned int cpu)
 	return 0;
 }
 
+static unsigned int __initdata additional_cpus;
+static unsigned int __initdata possible_cpus;
+
+void __init smp_setup_cpu_possible_map(void)
+{
+	unsigned int phy_cpus, pos_cpus, cpu;
+
+	phy_cpus = smp_count_cpus();
+	pos_cpus = min(phy_cpus + additional_cpus, (unsigned int) NR_CPUS);
+
+	if (possible_cpus)
+		pos_cpus = min(possible_cpus, (unsigned int) NR_CPUS);
+
+	for (cpu = 0; cpu < pos_cpus; cpu++)
+		cpu_set(cpu, cpu_possible_map);
+
+	phy_cpus = min(phy_cpus, pos_cpus);
+
+	for (cpu = 0; cpu < phy_cpus; cpu++)
+		cpu_set(cpu, cpu_present_map);
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+static int __init setup_additional_cpus(char *s)
+{
+	additional_cpus = simple_strtoul(s, NULL, 0);
+	return 0;
+}
+early_param("additional_cpus", setup_additional_cpus);
+
+static int __init setup_possible_cpus(char *s)
+{
+	possible_cpus = simple_strtoul(s, NULL, 0);
+	return 0;
+}
+early_param("possible_cpus", setup_possible_cpus);
+
 int
 __cpu_disable(void)
 {
@@ -744,6 +778,8 @@ cpu_die(void)
 	for(;;);
 }
 
+#endif /* CONFIG_HOTPLUG_CPU */
+
 /*
  *	Cycle through the processors and setup structures.
  */
@@ -757,7 +793,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
         /* request the 0x1201 emergency signal external interrupt */
         if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
                 panic("Couldn't request external interrupt 0x1201");
-        smp_check_cpus(max_cpus);
         memset(lowcore_ptr,0,sizeof(lowcore_ptr));  
         /*
          *  Initialize prefix pages and stacks for all possible cpus
@@ -806,7 +841,6 @@ void __devinit smp_prepare_boot_cpu(void)
 	BUG_ON(smp_processor_id() != 0);
 
 	cpu_set(0, cpu_online_map);
-	cpu_set(0, cpu_present_map);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	current_set[0] = current;
 }
@@ -845,6 +879,7 @@ static int __init topology_init(void)
 
 subsys_initcall(topology_init);
 
+EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
 EXPORT_SYMBOL(lowcore_ptr);
 EXPORT_SYMBOL(smp_ctl_set_bit);

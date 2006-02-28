@@ -103,17 +103,19 @@ static void efi_call_phys_prelog(void)
 	 */
 	local_flush_tlb();
 
-	cpu_gdt_descr[0].address = __pa(cpu_gdt_descr[0].address);
-	load_gdt((struct Xgt_desc_struct *) __pa(&cpu_gdt_descr[0]));
+	per_cpu(cpu_gdt_descr, 0).address =
+				 __pa(per_cpu(cpu_gdt_descr, 0).address);
+	load_gdt((struct Xgt_desc_struct *)__pa(&per_cpu(cpu_gdt_descr, 0)));
 }
 
 static void efi_call_phys_epilog(void)
 {
 	unsigned long cr4;
 
-	cpu_gdt_descr[0].address =
-		(unsigned long) __va(cpu_gdt_descr[0].address);
-	load_gdt(&cpu_gdt_descr[0]);
+	per_cpu(cpu_gdt_descr, 0).address =
+			(unsigned long)__va(per_cpu(cpu_gdt_descr, 0).address);
+	load_gdt((struct Xgt_desc_struct *)__va(&per_cpu(cpu_gdt_descr, 0)));
+
 	cr4 = read_cr4();
 
 	if (cr4 & X86_CR4_PSE) {

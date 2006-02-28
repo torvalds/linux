@@ -838,15 +838,19 @@ enum {
 	   F_A_DEVICE, F_A_DIRECTORY, F_A_SPARSE_FILE, F_A_REPARSE_POINT,
 	   F_A_COMPRESSED, and F_A_ENCRYPTED and preserves the rest.  This mask
 	   is used to to obtain all flags that are valid for setting. */
-
 	/*
-	 * The following flags are only present in the FILE_NAME attribute (in
+	 * The following flag is only present in the FILE_NAME attribute (in
 	 * the field file_attributes).
 	 */
 	FILE_ATTR_DUP_FILE_NAME_INDEX_PRESENT	= const_cpu_to_le32(0x10000000),
 	/* Note, this is a copy of the corresponding bit from the mft record,
 	   telling us whether this is a directory or not, i.e. whether it has
 	   an index root attribute or not. */
+	/*
+	 * The following flag is present both in the STANDARD_INFORMATION
+	 * attribute and in the FILE_NAME attribute (in the field
+	 * file_attributes).
+	 */
 	FILE_ATTR_DUP_VIEW_INDEX_PRESENT	= const_cpu_to_le32(0x20000000),
 	/* Note, this is a copy of the corresponding bit from the mft record,
 	   telling us whether this file has a view index present (eg. object id
@@ -1071,9 +1075,15 @@ typedef struct {
 					   modified. */
 /* 20*/	sle64 last_access_time;		/* Time this mft record was last
 					   accessed. */
-/* 28*/	sle64 allocated_size;		/* Byte size of allocated space for the
-					   data attribute. NOTE: Is a multiple
-					   of the cluster size. */
+/* 28*/	sle64 allocated_size;		/* Byte size of on-disk allocated space
+					   for the data attribute.  So for
+					   normal $DATA, this is the
+					   allocated_size from the unnamed
+					   $DATA attribute and for compressed
+					   and/or sparse $DATA, this is the
+					   compressed_size from the unnamed
+					   $DATA attribute.  NOTE: This is a
+					   multiple of the cluster size. */
 /* 30*/	sle64 data_size;		/* Byte size of actual data in data
 					   attribute. */
 /* 38*/	FILE_ATTR_FLAGS file_attributes;	/* Flags describing the file. */
@@ -1904,12 +1914,13 @@ enum {
 	VOLUME_DELETE_USN_UNDERWAY	= const_cpu_to_le16(0x0010),
 	VOLUME_REPAIR_OBJECT_ID		= const_cpu_to_le16(0x0020),
 
+	VOLUME_CHKDSK_UNDERWAY		= const_cpu_to_le16(0x4000),
 	VOLUME_MODIFIED_BY_CHKDSK	= const_cpu_to_le16(0x8000),
 
-	VOLUME_FLAGS_MASK		= const_cpu_to_le16(0x803f),
+	VOLUME_FLAGS_MASK		= const_cpu_to_le16(0xc03f),
 
 	/* To make our life easier when checking if we must mount read-only. */
-	VOLUME_MUST_MOUNT_RO_MASK	= const_cpu_to_le16(0x8027),
+	VOLUME_MUST_MOUNT_RO_MASK	= const_cpu_to_le16(0xc027),
 } __attribute__ ((__packed__));
 
 typedef le16 VOLUME_FLAGS;

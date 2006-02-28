@@ -849,10 +849,16 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 
 static void free_dev(struct mapped_device *md)
 {
-	free_minor(md->disk->first_minor);
+	unsigned int minor = md->disk->first_minor;
+
+	if (md->suspended_bdev) {
+		thaw_bdev(md->suspended_bdev, NULL);
+		bdput(md->suspended_bdev);
+	}
 	mempool_destroy(md->tio_pool);
 	mempool_destroy(md->io_pool);
 	del_gendisk(md->disk);
+	free_minor(minor);
 	put_disk(md->disk);
 	blk_put_queue(md->queue);
 	kfree(md);

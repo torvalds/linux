@@ -520,7 +520,7 @@ config FB_GBE
 config FB_GBE_MEM
 	int "Video memory size in MB"
 	depends on FB_GBE
-	default 8
+	default 4
 	help
 	  This is the amount of memory reserved for the framebuffer,
 	  which can be any value between 1MB and 8MB.

@@ -5058,7 +5058,18 @@ static void init_sched_build_groups(struct sched_group groups[], cpumask_t span,
 #define MAX_DOMAIN_DISTANCE 32
 
 static unsigned long long migration_cost[MAX_DOMAIN_DISTANCE] =
-		{ [ 0 ... MAX_DOMAIN_DISTANCE-1 ] = -1LL };
+		{ [ 0 ... MAX_DOMAIN_DISTANCE-1 ] =
+/*
+ * Architectures may override the migration cost and thus avoid
+ * boot-time calibration. Unit is nanoseconds. Mostly useful for
+ * virtualized hardware:
+ */
+#ifdef CONFIG_DEFAULT_MIGRATION_COST
+			CONFIG_DEFAULT_MIGRATION_COST
+#else
+			-1LL
+#endif
+};
 
 /*
  * Allow override of migration cost - in units of microseconds.

@@ -165,8 +165,13 @@ qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 	q_no = q->q_no;
 	if(!q->is_input_q)
 		q_no += irq->no_input_qs;
+again:
 	ccq = do_eqbs(irq->sch_token, state, q_no, start, cnt);
 	rc = qdio_check_ccq(q, ccq);
+	if (rc == 1) {
+		QDIO_DBF_TEXT5(1,trace,"eqAGAIN");
+		goto again;
+	}
 	if (rc < 0) {
                 QDIO_DBF_TEXT2(1,trace,"eqberr");
                 sprintf(dbf_text,"%2x,%2x,%d,%d",tmp_cnt, *cnt, ccq, q_no);
@@ -195,8 +200,13 @@ qdio_do_sqbs(struct qdio_q *q, unsigned char state,
 	q_no = q->q_no;
 	if(!q->is_input_q)
 		q_no += irq->no_input_qs;
+again:
 	ccq = do_sqbs(irq->sch_token, state, q_no, start, cnt);
 	rc = qdio_check_ccq(q, ccq);
+	if (rc == 1) {
+		QDIO_DBF_TEXT5(1,trace,"sqAGAIN");
+		goto again;
+	}
 	if (rc < 0) {
                 QDIO_DBF_TEXT3(1,trace,"sqberr");
                 sprintf(dbf_text,"%2x,%2x,%d,%d",tmp_cnt,*cnt,ccq,q_no);
@@ -1187,8 +1197,7 @@ tiqdio_is_inbound_q_done(struct qdio_q *q)
 
 	if (!no_used)
 		return 1;
-
-	if (!q->siga_sync)
+	if (!q->siga_sync && !irq->is_qebsm)
 		/* we'll check for more primed buffers in qeth_stop_polling */
 		return 0;
 	if (irq->is_qebsm) {

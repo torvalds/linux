@@ -146,7 +146,7 @@ void snd_opl3_init_seq_oss(struct snd_opl3 *opl3, char *name)
 void snd_opl3_free_seq_oss(struct snd_opl3 *opl3)
 {
 	if (opl3->oss_seq_dev) {
-		snd_device_free(opl3->card, opl3->oss_seq_dev);
+		/* The instance should have been released in prior */
 		opl3->oss_seq_dev = NULL;
 	}
 }

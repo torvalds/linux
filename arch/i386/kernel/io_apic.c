@@ -2566,8 +2566,10 @@ int __init io_apic_get_unique_id (int ioapic, int apic_id)
 		spin_unlock_irqrestore(&ioapic_lock, flags);
 
 		/* Sanity check */
-		if (reg_00.bits.ID != apic_id)
-			panic("IOAPIC[%d]: Unable change apic_id!\n", ioapic);
+		if (reg_00.bits.ID != apic_id) {
+			printk("IOAPIC[%d]: Unable to change apic_id!\n", ioapic);
+			return -1;
+		}
 	}
 
 	apic_printk(APIC_VERBOSE, KERN_INFO

@@ -1581,6 +1581,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		printk(KERN_INFO DRV_NAME
 		       ": %s: %s not enslaved\n",
 		       bond_dev->name, slave_dev->name);
+		write_unlock_bh(&bond->lock);
 		return -EINVAL;
 	}
 

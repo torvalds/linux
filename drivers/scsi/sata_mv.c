@@ -997,6 +997,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	case ATA_CMD_READ_EXT:
 	case ATA_CMD_WRITE:
 	case ATA_CMD_WRITE_EXT:
+	case ATA_CMD_WRITE_FUA_EXT:
 		mv_crqb_pack_cmd(cw++, tf->hob_nsect, ATA_REG_NSECT, 0);
 		break;
 #ifdef LIBATA_NCQ		/* FIXME: remove this line when NCQ added */

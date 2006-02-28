@@ -430,6 +430,7 @@ setup_arch (char **cmdline_p)
 	if (early_console_setup(*cmdline_p) == 0)
 		mark_bsp_online();
 
+	parse_early_param();
 #ifdef CONFIG_ACPI
 	/* Initialize the ACPI boot-time table parser */
 	acpi_table_init();
@@ -688,6 +689,9 @@ void
 setup_per_cpu_areas (void)
 {
 	/* start_kernel() requires this... */
+#ifdef CONFIG_ACPI_HOTPLUG_CPU
+	prefill_possible_map();
+#endif
 }
 
 /*

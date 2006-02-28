@@ -14,6 +14,7 @@
 
 #include <asm/hw_irq.h>
 #include <asm/system.h>
+#include <asm/timex.h>
 
 #include <asm/sn/leds.h>
 #include <asm/sn/shub_mmr.h>
@@ -28,9 +29,27 @@ static struct time_interpolator sn2_interpolator = {
 	.source = TIME_SOURCE_MMIO64
 };
 
+/*
+ * sn udelay uses the RTC instead of the ITC because the ITC is not
+ * synchronized across all CPUs, and the thread may migrate to another CPU
+ * if preemption is enabled.
+ */
+static void
+ia64_sn_udelay (unsigned long usecs)
+{
+	unsigned long start = rtc_time();
+	unsigned long end = start +
+			usecs * sn_rtc_cycles_per_second / 1000000;
+
+	while (time_before((unsigned long)rtc_time(), end))
+		cpu_relax();
+}
+
 void __init sn_timer_init(void)
 {
 	sn2_interpolator.frequency = sn_rtc_cycles_per_second;
 	sn2_interpolator.addr = RTC_COUNTER_ADDR;
 	register_time_interpolator(&sn2_interpolator);
+
+	ia64_udelay = &ia64_sn_udelay;
 }

@@ -163,9 +163,12 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	/* Setup the PMU ATE map */
 	soft->pbi_int_ate_resource.lowest_free_index = 0;
 	soft->pbi_int_ate_resource.ate =
-	    kmalloc(soft->pbi_int_ate_size * sizeof(u64), GFP_KERNEL);
-	memset(soft->pbi_int_ate_resource.ate, 0,
- 	       (soft->pbi_int_ate_size * sizeof(u64)));
+	    kzalloc(soft->pbi_int_ate_size * sizeof(u64), GFP_KERNEL);
+
+	if (!soft->pbi_int_ate_resource.ate) {
+		kfree(soft);
+		return NULL;
+	}
 
 	if (prom_bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCP) {
 		/* TIO PCI Bridge: find nearest node with CPUs */

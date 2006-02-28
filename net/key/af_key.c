@@ -1423,7 +1423,7 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
-		xfrm_state_put(x);
+		__xfrm_state_put(x);
 		goto out;
 	}
 

@@ -292,7 +292,7 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 	if (start_cpu == RTAS_UNKNOWN_SERVICE)
 		return 1;
 
-	status = rtas_call(start_cpu, 3, 1, NULL, pcpu, start_here, lcpu);
+	status = rtas_call(start_cpu, 3, 1, NULL, pcpu, start_here, pcpu);
 	if (status != 0) {
 		printk(KERN_ERR "start-cpu failed: %i\n", status);
 		return 0;

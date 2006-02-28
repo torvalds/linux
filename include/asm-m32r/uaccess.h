@@ -328,7 +328,7 @@ extern void __put_user_bad(void);
                 "       .long 1b,4b\n"                                  \
                 "       .long 2b,4b\n"                                  \
                 ".previous"                                             \
-                : "=r"(err)                                             \
+                : "=&r"(err)                                             \
                 : "r"(x), "r"(addr), "i"(-EFAULT), "0"(err)		\
                 : "r14", "memory")
 
@@ -353,7 +353,7 @@ extern void __put_user_bad(void);
 		"	.long 1b,4b\n"					\
 		"	.long 2b,4b\n"					\
 		".previous"						\
-		: "=r"(err)						\
+		: "=&r"(err)						\
 		: "r"(x), "r"(addr), "i"(-EFAULT), "0"(err)		\
 		: "r14", "memory")
 #else
@@ -398,7 +398,7 @@ struct __large_struct { unsigned long buf[100]; };
 		"	.balign 4\n"					\
 		"	.long 1b,3b\n"					\
 		".previous"						\
-		: "=r"(err)						\
+		: "=&r"(err)						\
 		: "r"(x), "r"(addr), "i"(-EFAULT), "0"(err)		\
 		: "r14", "memory")
 
@@ -442,7 +442,7 @@ do {									\
 		"	.balign 4\n"					\
 		"	.long 1b,3b\n"					\
 		".previous"						\
-		: "=r"(err), "=&r"(x)					\
+		: "=&r"(err), "=&r"(x)					\
 		: "r"(addr), "i"(-EFAULT), "0"(err)			\
 		: "r14", "memory")
 

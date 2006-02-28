@@ -1015,7 +1015,7 @@ rebalance:
 		if (page)
 			goto got_pg;
 
-		out_of_memory(gfp_mask, order);
+		out_of_memory(zonelist, gfp_mask, order);
 		goto restart;
 	}
 
@@ -1541,28 +1541,28 @@ static int __initdata node_load[MAX_NUMNODES];
  */
 static int __init find_next_best_node(int node, nodemask_t *used_node_mask)
 {
-	int i, n, val;
+	int n, val;
 	int min_val = INT_MAX;
 	int best_node = -1;
 
-	for_each_online_node(i) {
-		cpumask_t tmp;
+	/* Use the local node if we haven't already */
+	if (!node_isset(node, *used_node_mask)) {
+		node_set(node, *used_node_mask);
+		return node;
+	}
 
-		/* Start from local node */
-		n = (node+i) % num_online_nodes();
+	for_each_online_node(n) {
+		cpumask_t tmp;
 
 		/* Don't want a node to appear more than once */
 		if (node_isset(n, *used_node_mask))
 			continue;
 
-		/* Use the local node if we haven't already */
-		if (!node_isset(node, *used_node_mask)) {
-			best_node = node;
-			break;
-		}
-
 		/* Use the distance array to find the distance */
 		val = node_distance(node, n);
+
+		/* Penalize nodes under us ("prefer the next node") */
+		val += (n < node);
 
 		/* Give preference to headless and unused nodes */
 		tmp = node_to_cpumask(n);

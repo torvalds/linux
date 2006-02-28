@@ -311,8 +311,6 @@ void smp_release_cpus(void)
 
 	DBG(" <- smp_release_cpus()\n");
 }
-#else
-#define smp_release_cpus()
 #endif /* CONFIG_SMP || CONFIG_KEXEC */
 
 /*
@@ -473,10 +471,12 @@ void __init setup_system(void)
 	check_smt_enabled();
 	smp_setup_cpu_maps();
 
+#ifdef CONFIG_SMP
 	/* Release secondary cpus out of their spinloops at 0x60 now that
 	 * we can map physical -> logical CPU ids
 	 */
 	smp_release_cpus();
+#endif
 
 	printk("Starting Linux PPC64 %s\n", system_utsname.version);
 

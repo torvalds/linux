@@ -161,6 +161,7 @@ void r300_init_reg_flags(void)
 	ADD_RANGE(R300_VAP_PVS_CNTL_1, 3);
 	ADD_RANGE(R300_GB_ENABLE, 1);
 	ADD_RANGE(R300_GB_MSPOS0, 5);
+	ADD_RANGE(R300_TX_CNTL, 1);
 	ADD_RANGE(R300_TX_ENABLE, 1);
 	ADD_RANGE(0x4200, 4);
 	ADD_RANGE(0x4214, 1);
@@ -489,6 +490,50 @@ static __inline__ int r300_emit_3d_load_vbpntr(drm_radeon_private_t *dev_priv,
 
 	return 0;
 }
+static __inline__ int r300_emit_bitblt_multi(drm_radeon_private_t *dev_priv,
+					     drm_radeon_kcmd_buffer_t *cmdbuf)
+{
+	u32 *cmd = (u32 *) cmdbuf->buf;
+	int count, ret;
+	RING_LOCALS;
+
+	count=(cmd[0]>>16) & 0x3fff;
+
+	if (cmd[0] & 0x8000) {
+		u32 offset;
+
+		if (cmd[1] & (RADEON_GMC_SRC_PITCH_OFFSET_CNTL 
+			      | RADEON_GMC_DST_PITCH_OFFSET_CNTL)) {
+			offset = cmd[2] << 10;
+			ret = r300_check_offset(dev_priv, offset);
+			if (ret) {
+				DRM_ERROR("Invalid bitblt first offset is %08X\n", offset);
+				return DRM_ERR(EINVAL);
+			}
+		}
+
+		if ((cmd[1] & RADEON_GMC_SRC_PITCH_OFFSET_CNTL) &&
+		    (cmd[1] & RADEON_GMC_DST_PITCH_OFFSET_CNTL)) {
+			offset = cmd[3] << 10;
+			ret = r300_check_offset(dev_priv, offset);
+			if (ret) {
+				DRM_ERROR("Invalid bitblt second offset is %08X\n", offset);
+				return DRM_ERR(EINVAL);
+			}
+			
+		}
+	}
+
+	BEGIN_RING(count+2);
+	OUT_RING(cmd[0]);
+	OUT_RING_TABLE((int *)(cmdbuf->buf + 4), count + 1);
+	ADVANCE_RING();
+
+	cmdbuf->buf += (count+2)*4;
+	cmdbuf->bufsz -= (count+2)*4;
+
+	return 0;
+}
 
 static __inline__ int r300_emit_raw_packet3(drm_radeon_private_t *dev_priv,
 					    drm_radeon_kcmd_buffer_t *cmdbuf)
@@ -526,6 +571,9 @@ static __inline__ int r300_emit_raw_packet3(drm_radeon_private_t *dev_priv,
 	switch (header & 0xff00) {
 	case RADEON_3D_LOAD_VBPNTR:	/* load vertex array pointers */
 		return r300_emit_3d_load_vbpntr(dev_priv, cmdbuf, header);
+
+	case RADEON_CNTL_BITBLT_MULTI:
+		return r300_emit_bitblt_multi(dev_priv, cmdbuf);
 
 	case RADEON_CP_3D_DRAW_IMMD_2:	/* triggers drawing using in-packet vertex data */
 	case RADEON_CP_3D_DRAW_VBUF_2:	/* triggers drawing of vertex buffers setup elsewhere */

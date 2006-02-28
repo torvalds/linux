@@ -1042,7 +1042,7 @@ typedef struct net_local {
         __u16            functional_address[2];
         __u16            bitwise_group_address[2];
 
-	__u8            *ptr_ucode;
+	const __u8       *ptr_ucode;
 
 	__u8		cleanup;
 

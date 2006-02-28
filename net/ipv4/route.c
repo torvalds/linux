@@ -835,7 +835,7 @@ static int rt_garbage_collect(void)
 					int r;
 
 					rthp = rt_remove_balanced_route(
-						&rt_hash_table[i].chain,
+						&rt_hash_table[k].chain,
 						rth,
 						&r);
 					goal -= r;

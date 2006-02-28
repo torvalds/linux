@@ -1,4 +1,5 @@
 config PROFILING
+	depends on !PPC_ISERIES
 	bool "Profiling support (EXPERIMENTAL)"
 	help
 	  Say Y here to enable the extended profiling support mechanisms used

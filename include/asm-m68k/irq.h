@@ -79,7 +79,7 @@ static __inline__ int irq_canonicalize(int irq)
 
 extern void (*enable_irq)(unsigned int);
 extern void (*disable_irq)(unsigned int);
-#define enable_irq_nosync	enable_irq
+#define disable_irq_nosync	disable_irq
 
 struct pt_regs;
 

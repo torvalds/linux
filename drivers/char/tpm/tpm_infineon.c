@@ -33,6 +33,7 @@
 static int TPM_INF_DATA;
 static int TPM_INF_ADDR;
 static int TPM_INF_BASE;
+static int TPM_INF_ADDR_LEN;
 static int TPM_INF_PORT_LEN;
 
 /* TPM header definitions */
@@ -195,6 +196,7 @@ static int tpm_inf_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 	int i;
 	int ret;
 	u32 size = 0;
+	number_of_wtx = 0;
 
 recv_begin:
 	/* start receiving header */
@@ -378,24 +380,35 @@ static int __devinit tpm_inf_pnp_probe(struct pnp_dev *dev,
 	if (pnp_port_valid(dev, 0) && pnp_port_valid(dev, 1) &&
 	    !(pnp_port_flags(dev, 0) & IORESOURCE_DISABLED)) {
 		TPM_INF_ADDR = pnp_port_start(dev, 0);
+		TPM_INF_ADDR_LEN = pnp_port_len(dev, 0);
 		TPM_INF_DATA = (TPM_INF_ADDR + 1);
 		TPM_INF_BASE = pnp_port_start(dev, 1);
 		TPM_INF_PORT_LEN = pnp_port_len(dev, 1);
-		if (!TPM_INF_PORT_LEN)
-			return -EINVAL;
+		if ((TPM_INF_PORT_LEN < 4) || (TPM_INF_ADDR_LEN < 2)) {
+			rc = -EINVAL;
+			goto err_last;
+		}
 		dev_info(&dev->dev, "Found %s with ID %s\n",
 			 dev->name, dev_id->id);
-		if (!((TPM_INF_BASE >> 8) & 0xff))
-			return -EINVAL;
+		if (!((TPM_INF_BASE >> 8) & 0xff)) {
+			rc = -EINVAL;
+			goto err_last;
+		}
 		/* publish my base address and request region */
 		tpm_inf.base = TPM_INF_BASE;
 		if (request_region
 		    (tpm_inf.base, TPM_INF_PORT_LEN, "tpm_infineon0") == NULL) {
-			release_region(tpm_inf.base, TPM_INF_PORT_LEN);
-			return -EINVAL;
+			rc = -EINVAL;
+			goto err_last;
+		}
+		if (request_region(TPM_INF_ADDR, TPM_INF_ADDR_LEN,
+				"tpm_infineon0") == NULL) {
+			rc = -EINVAL;
+			goto err_last;
 		}
 	} else {
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_last;
 	}
 
 	/* query chip for its vendor, its version number a.s.o. */
@@ -443,8 +456,8 @@ static int __devinit tpm_inf_pnp_probe(struct pnp_dev *dev,
 			dev_err(&dev->dev,
 				"Could not set IO-ports to 0x%lx\n",
 				tpm_inf.base);
-			release_region(tpm_inf.base, TPM_INF_PORT_LEN);
-			return -EIO;
+			rc = -EIO;
+			goto err_release_region;
 		}
 
 		/* activate register */
@@ -471,14 +484,21 @@ static int __devinit tpm_inf_pnp_probe(struct pnp_dev *dev,
 
 		rc = tpm_register_hardware(&dev->dev, &tpm_inf);
 		if (rc < 0) {
-			release_region(tpm_inf.base, TPM_INF_PORT_LEN);
-			return -ENODEV;
+			rc = -ENODEV;
+			goto err_release_region;
 		}
 		return 0;
 	} else {
-		dev_info(&dev->dev, "No Infineon TPM found!\n");
-		return -ENODEV;
+		rc = -ENODEV;
+		goto err_release_region;
 	}
+
+err_release_region:
+	release_region(tpm_inf.base, TPM_INF_PORT_LEN);
+	release_region(TPM_INF_ADDR, TPM_INF_ADDR_LEN);
+
+err_last:
+	return rc;
 }
 
 static __devexit void tpm_inf_pnp_remove(struct pnp_dev *dev)
@@ -518,5 +538,5 @@ module_exit(cleanup_inf);
 
 MODULE_AUTHOR("Marcel Selhorst <selhorst@crypto.rub.de>");
 MODULE_DESCRIPTION("Driver for Infineon TPM SLD 9630 TT 1.1 / SLB 9635 TT 1.2");
-MODULE_VERSION("1.6");
+MODULE_VERSION("1.7");
 MODULE_LICENSE("GPL");

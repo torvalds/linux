@@ -19,8 +19,6 @@ extern unsigned int pcibios_assign_all_busses(void);
 #endif
 #define pcibios_scan_all_fns(a, b)	0
 
-extern int no_iommu, force_iommu;
-
 extern unsigned long pci_mem_start;
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		(pci_mem_start)
