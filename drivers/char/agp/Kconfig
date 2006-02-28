@@ -98,7 +98,7 @@ config AGP_SWORKS
 	tristate "Serverworks LE/HE chipset support"
 	depends on AGP && X86_32
 	help
-	  Say Y here to support the Serverworks AGP card.  See 
+	  Say Y here to support the Serverworks AGP card.  See
 	  <http://www.serverworks.com/> for product descriptions and images.
 
 config AGP_VIA

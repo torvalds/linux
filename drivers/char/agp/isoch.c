@@ -26,7 +26,7 @@ static void agp_3_5_dev_list_insert(struct list_head *head, struct list_head *ne
 
 	list_for_each(pos, head) {
 		cur = list_entry(pos, struct agp_3_5_dev, list);
-		if(cur->maxbw > n->maxbw)
+		if (cur->maxbw > n->maxbw)
 			break;
 	}
 	list_add_tail(new, pos);
@@ -54,9 +54,9 @@ static void agp_3_5_dev_list_sort(struct agp_3_5_dev *list, unsigned int ndevs)
 	}
 }
 
-/* 
- * Initialize all isochronous transfer parameters for an AGP 3.0 
- * node (i.e. a host bridge in combination with the adapters 
+/*
+ * Initialize all isochronous transfer parameters for an AGP 3.0
+ * node (i.e. a host bridge in combination with the adapters
  * lying behind it...)
  */
 
@@ -200,7 +200,7 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 	 * this to the hungriest device (as per the spec) */
 	rem  = target.n - tot_n;
 
-	/* 
+	/*
 	 * Calculate the minimum isochronous RQ depth needed by each master.
 	 * Along the way, distribute the extra ISOCH_N capability calculated
 	 * above.
@@ -214,7 +214,7 @@ static int agp_3_5_isochronous_node_enable(struct agp_bridge_data *bridge,
 		 * many writes on the AGP bus).
 		 */
 		master[cdev].rq = master[cdev].n;
-		if(master[cdev].y > 0x1)
+		if (master[cdev].y > 0x1)
 			master[cdev].rq *= (1 << (master[cdev].y - 1));
 
 		tot_rq += master[cdev].rq;
@@ -334,9 +334,9 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 
 	arqsz     = (tstatus >> 13) & 0x7;
 
-	/* 
+	/*
 	 * Allocate a head for our AGP 3.5 device list
-	 * (multiple AGP v3 devices are allowed behind a single bridge). 
+	 * (multiple AGP v3 devices are allowed behind a single bridge).
 	 */
 	if ((dev_list = kmalloc(sizeof(*dev_list), GFP_KERNEL)) == NULL) {
 		ret = -ENOMEM;
@@ -366,7 +366,7 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 
 			case 0x0300:    /* Display controller */
 			case 0x0400:    /* Multimedia controller */
-				if((cur = kmalloc(sizeof(*cur), GFP_KERNEL)) == NULL) {
+				if ((cur = kmalloc(sizeof(*cur), GFP_KERNEL)) == NULL) {
 					ret = -ENOMEM;
 					goto free_and_exit;
 				}
@@ -391,7 +391,7 @@ int agp_3_5_enable(struct agp_bridge_data *bridge)
 	list_for_each(pos, head) {
 		cur = list_entry(pos, struct agp_3_5_dev, list);
 		dev = cur->dev;
-		
+
 		pci_read_config_word(dev, PCI_STATUS, &mpstat);
 		if ((mpstat & PCI_STATUS_CAP_LIST) == 0)
 			continue;

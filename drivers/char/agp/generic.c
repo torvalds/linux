@@ -299,7 +299,7 @@ EXPORT_SYMBOL_GPL(agp_num_entries);
 /**
  *	agp_copy_info  -  copy bridge state information
  *
- *	@info:		agp_kern_info pointer.  The caller should insure that this pointer is valid. 
+ *	@info:		agp_kern_info pointer.  The caller should insure that this pointer is valid.
  *
  *	This function copies information about the agp bridge device and the state of
  *	the agp backend into an agp_kern_info pointer.

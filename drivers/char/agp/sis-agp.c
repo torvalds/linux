@@ -121,7 +121,7 @@ static struct aper_size_info_8 sis_generic_sizes[7] =
 
 static struct agp_bridge_driver sis_driver = {
 	.owner			= THIS_MODULE,
-	.aperture_sizes 	= sis_generic_sizes,
+	.aperture_sizes		= sis_generic_sizes,
 	.size_type		= U8_APER_SIZE,
 	.num_aperture_sizes	= 7,
 	.configure		= sis_configure,
@@ -243,11 +243,11 @@ static void __devinit sis_get_driver(struct agp_bridge_data *bridge)
 {
 	int i;
 
-	for(i=0; sis_broken_chipsets[i]!=0; ++i)
-		if(bridge->dev->device==sis_broken_chipsets[i])
+	for (i=0; sis_broken_chipsets[i]!=0; ++i)
+		if (bridge->dev->device==sis_broken_chipsets[i])
 			break;
 
-	if(sis_broken_chipsets[i] || agp_sis_force_delay)
+	if (sis_broken_chipsets[i] || agp_sis_force_delay)
 		sis_driver.agp_enable=sis_delayed_enable;
 
 	// sis chipsets that indicate less than agp3.5
