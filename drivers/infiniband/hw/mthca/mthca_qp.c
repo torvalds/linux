@@ -1609,7 +1609,9 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				    mthca_opcode[wr->opcode]);
 		wmb();
 		((struct mthca_next_seg *) prev_wqe)->ee_nds =
-			cpu_to_be32((size0 ? 0 : MTHCA_NEXT_DBD) | size);
+			cpu_to_be32((size0 ? 0 : MTHCA_NEXT_DBD) | size |
+				    ((wr->send_flags & IB_SEND_FENCE) ?
+				    MTHCA_NEXT_FENCE : 0));
 
 		if (!size0) {
 			size0 = size;
@@ -1971,7 +1973,9 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 				    mthca_opcode[wr->opcode]);
 		wmb();
 		((struct mthca_next_seg *) prev_wqe)->ee_nds =
-			cpu_to_be32(MTHCA_NEXT_DBD | size);
+			cpu_to_be32(MTHCA_NEXT_DBD | size |
+                                    ((wr->send_flags & IB_SEND_FENCE) ?
+                                    MTHCA_NEXT_FENCE : 0));
 
 		if (!size0) {
 			size0 = size;
