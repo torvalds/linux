@@ -2819,28 +2819,28 @@ static struct hda_verb alc260_fujitsu_init_verbs[] = {
 	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	/* Headphone/Line-out jack connects to Line1 pin; make it an output */
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-        /* Mic/Line-in jack is connected to mic1 pin, so make it an input */
-        {0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-        /* Ensure all other unused pins are disabled and muted.
-	 * Note: trying to set widget 0x15 to anything blocks all audio
-	 * output for some reason, so just leave that at the default.
-	 */
-        {0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-        {0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	/* Mic/Line-in jack is connected to mic1 pin, so make it an input */
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	/* Ensure all other unused pins are disabled and muted. */
+	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-        {0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-        {0x13, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-        /* Disable digital (SPDIF) pins */
-        {0x03, AC_VERB_SET_DIGI_CONVERT_1, 0},
-        {0x06, AC_VERB_SET_DIGI_CONVERT_1, 0},
+	{0x13, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 
-        /* Ensure Line1 pin widget takes its input from the OUT1 sum bus 
-         * when acting as an output.
-         */
-        {0x0d, AC_VERB_SET_CONNECT_SEL, 0},
+	/* Disable digital (SPDIF) pins */
+	{0x03, AC_VERB_SET_DIGI_CONVERT_1, 0},
+	{0x06, AC_VERB_SET_DIGI_CONVERT_1, 0},
 
-        /* Start with output sum widgets muted and their output gains at min */
+	/* Ensure Line1 pin widget takes its input from the OUT1 sum bus 
+	 * when acting as an output.
+	 */
+	{0x0d, AC_VERB_SET_CONNECT_SEL, 0},
+
+	/* Start with output sum widgets muted and their output gains at min */
 	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
@@ -2851,42 +2851,42 @@ static struct hda_verb alc260_fujitsu_init_verbs[] = {
 	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
 	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 
-        /* Unmute HP pin widget amp left and right (no equiv mixer ctrl) */
-        {0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-        /* Unmute Line1 pin widget output buffer since it starts as an output.
-         * If the pin mode is changed by the user the pin mode control will
-         * take care of enabling the pin's input/output buffers as needed.
-         * Therefore there's no need to enable the input buffer at this
-         * stage.
+	/* Unmute HP pin widget amp left and right (no equiv mixer ctrl) */
+	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* Unmute Line1 pin widget output buffer since it starts as an output.
+	 * If the pin mode is changed by the user the pin mode control will
+	 * take care of enabling the pin's input/output buffers as needed.
+	 * Therefore there's no need to enable the input buffer at this
+	 * stage.
 	 */
-        {0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	/* Unmute input buffer of pin widget used for Line-in (no equiv 
 	 * mixer ctrl)
 	 */
-        {0x12, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x12, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 
-        /* Mute capture amp left and right */
-        {0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-        /* Set ADC connection select to match default mixer setting - line 
-         * in (on mic1 pin)
-         */
-        {0x04, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* Mute capture amp left and right */
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	/* Set ADC connection select to match default mixer setting - line 
+	 * in (on mic1 pin)
+	 */
+	{0x04, AC_VERB_SET_CONNECT_SEL, 0x00},
 
-        /* Do the same for the second ADC: mute capture input amp and
-         * set ADC connection to line in
-         */
-        {0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-        {0x05, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* Do the same for the second ADC: mute capture input amp and
+	 * set ADC connection to line in (on mic1 pin)
+	 */
+	{0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x05, AC_VERB_SET_CONNECT_SEL, 0x00},
 
-        /* Mute all inputs to mixer widget (even unconnected ones) */
-        {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)}, /* mic1 pin */
-        {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)}, /* mic2 pin */
-        {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)}, /* line1 pin */
-        {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)}, /* line2 pin */
-        {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)}, /* CD pin */
-        {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(5)}, /* Beep-gen pin */
-        {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(6)}, /* Line-out pin */
-        {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(7)}, /* HP-pin pin */
+	/* Mute all inputs to mixer widget (even unconnected ones) */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)}, /* mic1 pin */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)}, /* mic2 pin */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)}, /* line1 pin */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)}, /* line2 pin */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)}, /* CD pin */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(5)}, /* Beep-gen pin */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(6)}, /* Line-out pin */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(7)}, /* HP-pin pin */
 
 	{ }
 };
@@ -3068,7 +3068,7 @@ static struct hda_verb alc260_test_init_verbs[] = {
 	{0x03, AC_VERB_SET_DIGI_CONVERT_1, 0},
 	{0x06, AC_VERB_SET_DIGI_CONVERT_1, 0},
 
-	/* Ensure mic1, mic2, line1 and line2 pin widget take input from the 
+	/* Ensure mic1, mic2, line1 and line2 pin widgets take input from the 
 	 * OUT1 sum bus when acting as an output.
 	 */
 	{0x0b, AC_VERB_SET_CONNECT_SEL, 0},
@@ -3103,13 +3103,13 @@ static struct hda_verb alc260_test_init_verbs[] = {
 
 	/* Mute capture amp left and right */
 	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	/* Set ADC connection select to match default mixer setting - line 
-	 * in (on mic1 pin)
+	/* Set ADC connection select to match default mixer setting (mic1
+	 * pin)
 	 */
 	{0x04, AC_VERB_SET_CONNECT_SEL, 0x00},
 
 	/* Do the same for the second ADC: mute capture input amp and
-	 * set ADC connection to line in
+	 * set ADC connection to mic1 pin
 	 */
 	{0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x05, AC_VERB_SET_CONNECT_SEL, 0x00},
