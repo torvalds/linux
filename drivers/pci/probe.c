@@ -33,10 +33,9 @@ LIST_HEAD(pci_devices);
  */
 static void pci_create_legacy_files(struct pci_bus *b)
 {
-	b->legacy_io = kmalloc(sizeof(struct bin_attribute) * 2,
+	b->legacy_io = kzalloc(sizeof(struct bin_attribute) * 2,
 			       GFP_ATOMIC);
 	if (b->legacy_io) {
-		memset(b->legacy_io, 0, sizeof(struct bin_attribute) * 2);
 		b->legacy_io->attr.name = "legacy_io";
 		b->legacy_io->size = 0xffff;
 		b->legacy_io->attr.mode = S_IRUSR | S_IWUSR;
@@ -320,9 +319,8 @@ static struct pci_bus * __devinit pci_alloc_bus(void)
 {
 	struct pci_bus *b;
 
-	b = kmalloc(sizeof(*b), GFP_KERNEL);
+	b = kzalloc(sizeof(*b), GFP_KERNEL);
 	if (b) {
-		memset(b, 0, sizeof(*b));
 		INIT_LIST_HEAD(&b->node);
 		INIT_LIST_HEAD(&b->children);
 		INIT_LIST_HEAD(&b->devices);
@@ -797,11 +795,10 @@ pci_scan_device(struct pci_bus *bus, int devfn)
 	if (pci_bus_read_config_byte(bus, devfn, PCI_HEADER_TYPE, &hdr_type))
 		return NULL;
 
-	dev = kmalloc(sizeof(struct pci_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct pci_dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 
-	memset(dev, 0, sizeof(struct pci_dev));
 	dev->bus = bus;
 	dev->sysdata = bus->sysdata;
 	dev->dev.parent = bus->bridge;

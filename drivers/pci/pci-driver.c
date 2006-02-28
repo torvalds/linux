@@ -53,11 +53,10 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	if (fields < 0)
 		return -EINVAL;
 
-	dynid = kmalloc(sizeof(*dynid), GFP_KERNEL);
+	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
 	if (!dynid)
 		return -ENOMEM;
 
-	memset(dynid, 0, sizeof(*dynid));
 	INIT_LIST_HEAD(&dynid->node);
 	dynid->id.vendor = vendor;
 	dynid->id.device = device;

@@ -143,10 +143,9 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	device = (adr >> 16) & 0xffff;
 	function = adr & 0xffff;
 
-	newfunc = kmalloc(sizeof(struct acpiphp_func), GFP_KERNEL);
+	newfunc = kzalloc(sizeof(struct acpiphp_func), GFP_KERNEL);
 	if (!newfunc)
 		return AE_NO_MEMORY;
-	memset(newfunc, 0, sizeof(struct acpiphp_func));
 
 	INIT_LIST_HEAD(&newfunc->sibling);
 	newfunc->handle = handle;
@@ -189,13 +188,12 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		}
 
 	if (!slot) {
-		slot = kmalloc(sizeof(struct acpiphp_slot), GFP_KERNEL);
+		slot = kzalloc(sizeof(struct acpiphp_slot), GFP_KERNEL);
 		if (!slot) {
 			kfree(newfunc);
 			return AE_NO_MEMORY;
 		}
 
-		memset(slot, 0, sizeof(struct acpiphp_slot));
 		slot->bridge = bridge;
 		slot->device = device;
 		slot->sun = sun;
@@ -376,11 +374,9 @@ static void add_host_bridge(acpi_handle *handle, struct pci_bus *pci_bus)
 {
 	struct acpiphp_bridge *bridge;
 
-	bridge = kmalloc(sizeof(struct acpiphp_bridge), GFP_KERNEL);
+	bridge = kzalloc(sizeof(struct acpiphp_bridge), GFP_KERNEL);
 	if (bridge == NULL)
 		return;
-
-	memset(bridge, 0, sizeof(struct acpiphp_bridge));
 
 	bridge->type = BRIDGE_TYPE_HOST;
 	bridge->handle = handle;
@@ -398,13 +394,11 @@ static void add_p2p_bridge(acpi_handle *handle, struct pci_dev *pci_dev)
 {
 	struct acpiphp_bridge *bridge;
 
-	bridge = kmalloc(sizeof(struct acpiphp_bridge), GFP_KERNEL);
+	bridge = kzalloc(sizeof(struct acpiphp_bridge), GFP_KERNEL);
 	if (bridge == NULL) {
 		err("out of memory\n");
 		return;
 	}
-
-	memset(bridge, 0, sizeof(struct acpiphp_bridge));
 
 	bridge->type = BRIDGE_TYPE_P2P;
 	bridge->handle = handle;

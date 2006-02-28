@@ -347,26 +347,22 @@ static int ctrl_slot_setup(struct controller *ctrl,
 	slot_number = ctrl->first_slot;
 
 	while (number_of_slots) {
-		slot = kmalloc(sizeof(*slot), GFP_KERNEL);
+		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 		if (!slot)
 			goto error;
 
-		memset(slot, 0, sizeof(struct slot));
-		slot->hotplug_slot = kmalloc(sizeof(*(slot->hotplug_slot)),
+		slot->hotplug_slot = kzalloc(sizeof(*(slot->hotplug_slot)),
 						GFP_KERNEL);
 		if (!slot->hotplug_slot)
 			goto error_slot;
 		hotplug_slot = slot->hotplug_slot;
-		memset(hotplug_slot, 0, sizeof(struct hotplug_slot));
 
 		hotplug_slot->info =
-				kmalloc(sizeof(*(hotplug_slot->info)),
+				kzalloc(sizeof(*(hotplug_slot->info)),
 							GFP_KERNEL);
 		if (!hotplug_slot->info)
 			goto error_hpslot;
 		hotplug_slot_info = hotplug_slot->info;
-		memset(hotplug_slot_info, 0,
-				sizeof(struct hotplug_slot_info));
 		hotplug_slot->name = kmalloc(SLOT_NAME_SIZE, GFP_KERNEL);
 
 		if (!hotplug_slot->name)
@@ -854,13 +850,12 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto err_disable_device;
 		}
 
-		ctrl = (struct controller *) kmalloc(sizeof(struct controller), GFP_KERNEL);
+		ctrl = kzalloc(sizeof(struct controller), GFP_KERNEL);
 		if (!ctrl) {
 			err("%s : out of memory\n", __FUNCTION__);
 			rc = -ENOMEM;
 			goto err_disable_device;
 		}
-		memset(ctrl, 0, sizeof(struct controller));
 
 		rc = pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &subsystem_deviceid);
 		if (rc) {
