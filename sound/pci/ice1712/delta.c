@@ -412,7 +412,7 @@ int snd_ice1712_delta1010lt_wordclock_status_get(struct snd_kcontrol *kcontrol,
 	if (snd_i2c_sendbytes(ice->cs8427, &reg, 1) != 1)
 		snd_printk(KERN_ERR "unable to send register 0x%x byte to CS8427\n", reg);
 	snd_i2c_readbytes(ice->cs8427, &reg, 1);
-	ucontrol->value.integer.value[0] = (reg ? 0 : 1);
+	ucontrol->value.integer.value[0] = (reg ? 1 : 0);
 	return 0;
 }
 
