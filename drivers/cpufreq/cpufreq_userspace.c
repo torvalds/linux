@@ -41,7 +41,7 @@ static DEFINE_MUTEX	(userspace_mutex);
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_GOVERNOR, "userspace", msg)
 
 /* keep track of frequency transitions */
-static int 
+static int
 userspace_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
                        void *data)
 {
@@ -58,7 +58,7 @@ static struct notifier_block userspace_cpufreq_notifier_block = {
 };
 
 
-/** 
+/**
  * cpufreq_set - set the CPU frequency
  * @freq: target frequency in kHz
  * @cpu: CPU for which the frequency is to be set
@@ -103,8 +103,8 @@ static ssize_t show_speed (struct cpufreq_policy *policy, char *buf)
 	return sprintf (buf, "%u\n", cpu_cur_freq[policy->cpu]);
 }
 
-static ssize_t 
-store_speed (struct cpufreq_policy *policy, const char *buf, size_t count) 
+static ssize_t
+store_speed (struct cpufreq_policy *policy, const char *buf, size_t count)
 {
 	unsigned int freq = 0;
 	unsigned int ret;
@@ -118,7 +118,7 @@ store_speed (struct cpufreq_policy *policy, const char *buf, size_t count)
 	return count;
 }
 
-static struct freq_attr freq_attr_scaling_setspeed = 
+static struct freq_attr freq_attr_scaling_setspeed =
 {
 	.attr = { .name = "scaling_setspeed", .mode = 0644, .owner = THIS_MODULE },
 	.show = show_speed,
@@ -135,7 +135,7 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 			return -EINVAL;
 		BUG_ON(!policy->cur);
 		mutex_lock(&userspace_mutex);
-		cpu_is_managed[cpu] = 1;		
+		cpu_is_managed[cpu] = 1;
 		cpu_min_freq[cpu] = policy->min;
 		cpu_max_freq[cpu] = policy->max;
 		cpu_cur_freq[cpu] = policy->cur;

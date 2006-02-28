@@ -14,7 +14,7 @@
 
 #define SPEEDSTEP_PROCESSOR_PIII_C_EARLY	0x00000001  /* Coppermine core */
 #define SPEEDSTEP_PROCESSOR_PIII_C		0x00000002  /* Coppermine core */
-#define SPEEDSTEP_PROCESSOR_PIII_T 		0x00000003  /* Tualatin core */
+#define SPEEDSTEP_PROCESSOR_PIII_T		0x00000003  /* Tualatin core */
 #define SPEEDSTEP_PROCESSOR_P4M			0x00000004  /* P4-M  */
 
 /* the following processors are not speedstep-capable and are not auto-detected
@@ -25,8 +25,8 @@
 
 /* speedstep states -- only two of them */
 
-#define SPEEDSTEP_HIGH                  0x00000000
-#define SPEEDSTEP_LOW                   0x00000001
+#define SPEEDSTEP_HIGH	0x00000000
+#define SPEEDSTEP_LOW	0x00000001
 
 
 /* detect a speedstep-capable processor */
@@ -36,13 +36,13 @@ extern unsigned int speedstep_detect_processor (void);
 extern unsigned int speedstep_get_processor_frequency(unsigned int processor);
 
 
-/* detect the low and high speeds of the processor. The callback 
- * set_state"'s first argument is either SPEEDSTEP_HIGH or 
- * SPEEDSTEP_LOW; the second argument is zero so that no 
+/* detect the low and high speeds of the processor. The callback
+ * set_state"'s first argument is either SPEEDSTEP_HIGH or
+ * SPEEDSTEP_LOW; the second argument is zero so that no
  * cpufreq_notify_transition calls are initiated.
  */
 extern unsigned int speedstep_get_freqs(unsigned int processor,
-	  unsigned int *low_speed,
-	  unsigned int *high_speed,
-	  unsigned int *transition_latency,
-	  void (*set_state) (unsigned int state));
+	unsigned int *low_speed,
+	unsigned int *high_speed,
+	unsigned int *transition_latency,
+	void (*set_state) (unsigned int state));

@@ -199,8 +199,8 @@ static int get_ranges (unsigned char *pst)
 		powernow_table[j].index |= (vid << 8); /* upper 8 bits */
 
 		dprintk ("   FID: 0x%x (%d.%dx [%dMHz])  "
-			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10, 
-			 fid_codes[fid] % 10, speed/1000, vid,	
+			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
+			 fid_codes[fid] % 10, speed/1000, vid,
 			 mobile_vid_table[vid]/1000,
 			 mobile_vid_table[vid]%1000);
 	}
@@ -368,8 +368,8 @@ static int powernow_acpi_init(void)
 		}
 
 		dprintk ("   FID: 0x%x (%d.%dx [%dMHz])  "
-			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10, 
-			 fid_codes[fid] % 10, speed/1000, vid,	
+			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
+			 fid_codes[fid] % 10, speed/1000, vid,
 			 mobile_vid_table[vid]/1000,
 			 mobile_vid_table[vid]%1000);
 
@@ -460,7 +460,7 @@ static int powernow_decode_bios (int maxfid, int startvid)
 				    (maxfid==pst->maxfid) && (startvid==pst->startvid))
 				{
 					dprintk ("PST:%d (@%p)\n", i, pst);
-					dprintk (" cpuid: 0x%x  fsb: %d  maxFID: 0x%x  startvid: 0x%x\n", 
+					dprintk (" cpuid: 0x%x  fsb: %d  maxFID: 0x%x  startvid: 0x%x\n",
 						 pst->cpuid, pst->fsbspeed, pst->maxfid, pst->startvid);
 
 					ret = get_ranges ((char *) pst + sizeof (struct pst_s));

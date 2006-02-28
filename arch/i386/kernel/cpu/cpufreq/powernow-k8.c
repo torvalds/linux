@@ -83,11 +83,10 @@ static u32 find_millivolts_from_vid(struct powernow_k8_data *data, u32 vid)
  */
 static u32 convert_fid_to_vco_fid(u32 fid)
 {
-	if (fid < HI_FID_TABLE_BOTTOM) {
+	if (fid < HI_FID_TABLE_BOTTOM)
 		return 8 + (2 * fid);
-	} else {
+	else
 		return fid;
-	}
 }
 
 /*
@@ -177,7 +176,7 @@ static int write_new_fid(struct powernow_k8_data *data, u32 fid)
 		if (i++ > 100) {
 			printk(KERN_ERR PFX "internal error - pending bit very stuck - no further pstate changes possible\n");
 			return 1;
-		}			
+		}
 	} while (query_current_values_with_pending_wait(data));
 
 	count_off_irt(data);
@@ -782,9 +781,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 		/* verify only 1 entry from the lo frequency table */
 		if (fid < HI_FID_TABLE_BOTTOM) {
 			if (cntlofreq) {
-				/* if both entries are the same, ignore this
-				 * one... 
-				 */
+				/* if both entries are the same, ignore this one ... */
 				if ((powernow_table[i].frequency != powernow_table[cntlofreq].frequency) ||
 				    (powernow_table[i].index != powernow_table[cntlofreq].index)) {
 					printk(KERN_ERR PFX "Too many lo freq table entries\n");
@@ -856,7 +853,7 @@ static int transition_frequency(struct powernow_k8_data *data, unsigned int inde
 	dprintk("cpu %d transition to index %u\n", smp_processor_id(), index);
 
 	/* fid are the lower 8 bits of the index we stored into
-	 * the cpufreq frequency table in find_psb_table, vid are 
+	 * the cpufreq frequency table in find_psb_table, vid are
 	 * the upper 8 bits.
 	 */
 
@@ -1050,7 +1047,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	pol->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	pol->cpus = cpu_core_map[pol->cpu];
 
-	/* Take a crude guess here. 
+	/* Take a crude guess here.
 	 * That guess was in microseconds, so multiply with 1000 */
 	pol->cpuinfo.transition_latency = (((data->rvo + 8) * data->vstable * VST_UNITS_20US)
 	    + (3 * (1 << data->irt) * 10)) * 1000;

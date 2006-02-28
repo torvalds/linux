@@ -59,9 +59,8 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 	if (!cpu_online(policy->cpu))
 		return -EINVAL;
 
-	cpufreq_verify_within_limits(policy, 
-				     policy->cpuinfo.min_freq, 
-				     policy->cpuinfo.max_freq);
+	cpufreq_verify_within_limits(policy,
+				     policy->cpuinfo.min_freq, policy->cpuinfo.max_freq);
 
 	for (i=0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		unsigned int freq = table[i].frequency;
@@ -76,9 +75,8 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 	if (!count)
 		policy->max = next_larger;
 
-	cpufreq_verify_within_limits(policy, 
-				     policy->cpuinfo.min_freq, 
-				     policy->cpuinfo.max_freq);
+	cpufreq_verify_within_limits(policy,
+				     policy->cpuinfo.min_freq, policy->cpuinfo.max_freq);
 
 	dprintk("verification lead to (%u - %u kHz) for cpu %u\n", policy->min, policy->max, policy->cpu);
 
@@ -199,7 +197,7 @@ EXPORT_SYMBOL_GPL(cpufreq_freq_attr_scaling_available_freqs);
  * if you use these, you must assure that the frequency table is valid
  * all the time between get_attr and put_attr!
  */
-void cpufreq_frequency_table_get_attr(struct cpufreq_frequency_table *table, 
+void cpufreq_frequency_table_get_attr(struct cpufreq_frequency_table *table,
 				      unsigned int cpu)
 {
 	dprintk("setting show_table for cpu %u to %p\n", cpu, table);
