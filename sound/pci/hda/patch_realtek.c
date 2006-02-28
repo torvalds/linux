@@ -395,6 +395,60 @@ static int alc_gpio_data_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	  .private_value = nid | (mask<<16) }
 #endif   /* CONFIG_SND_DEBUG */
 
+/* A switch control to allow the enabling of the digital IO pins on the
+ * ALC260.  This is incredibly simplistic; the intention of this control is
+ * to provide something in the test model allowing digital outputs to be
+ * identified if present.  If models are found which can utilise these
+ * outputs a more complete mixer control can be devised for those models if
+ * necessary.
+ */
+#ifdef CONFIG_SND_DEBUG
+static int alc_spdif_ctrl_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}                                
+static int alc_spdif_ctrl_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value & 0xffff;
+	unsigned char mask = (kcontrol->private_value >> 16) & 0xff;
+	long *valp = ucontrol->value.integer.value;
+	unsigned int val = snd_hda_codec_read(codec,nid,0,AC_VERB_GET_DIGI_CONVERT,0x00);
+
+	*valp = (val & mask) != 0;
+	return 0;
+}
+static int alc_spdif_ctrl_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	signed int change;
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value & 0xffff;
+	unsigned char mask = (kcontrol->private_value >> 16) & 0xff;
+	long val = *ucontrol->value.integer.value;
+	unsigned int ctrl_data = snd_hda_codec_read(codec,nid,0,AC_VERB_GET_DIGI_CONVERT,0x00);
+
+	/* Set/unset the masked control bit(s) as needed */
+	change = (val==0?0:mask) != (ctrl_data & mask);
+	if (val==0)
+		ctrl_data &= ~mask;
+	else
+		ctrl_data |= mask;
+	snd_hda_codec_write(codec,nid,0,AC_VERB_SET_DIGI_CONVERT_1,ctrl_data);
+
+	return change;
+}
+#define ALC_SPDIF_CTRL_SWITCH(xname, nid, mask) \
+	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = 0,  \
+	  .info = alc_spdif_ctrl_info, \
+	  .get = alc_spdif_ctrl_get, \
+	  .put = alc_spdif_ctrl_put, \
+	  .private_value = nid | (mask<<16) }
+#endif   /* CONFIG_SND_DEBUG */
+
 /*
  * set up from the preset table
  */
@@ -3048,6 +3102,13 @@ static struct snd_kcontrol_new alc260_test_mixer[] = {
 	ALC_GPIO_DATA_SWITCH("GPIO pin 2", 0x01, 0x04),
 	ALC_GPIO_DATA_SWITCH("GPIO pin 3", 0x01, 0x08),
 
+	/* Switches to allow the digital IO pins to be enabled.  The datasheet
+	 * is ambigious as to which NID is which; testing on laptops which
+	 * make this output available should provide clarification. 
+	 */
+	ALC_SPDIF_CTRL_SWITCH("SPDIF Playback Switch", 0x03, 0x01),
+	ALC_SPDIF_CTRL_SWITCH("SPDIF Capture Switch", 0x06, 0x01),
+
 	{ } /* end */
 };
 static struct hda_verb alc260_test_init_verbs[] = {
@@ -3064,7 +3125,12 @@ static struct hda_verb alc260_test_init_verbs[] = {
 	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 
-	/* Disable digital (SPDIF) pins for now */
+	/* Disable digital (SPDIF) pins initially, but users can enable
+	 * them via a mixer switch.  In the case of SPDIF-out, this initverb
+	 * payload also sets the generation to 0, output to be in "consumer"
+	 * PCM format, copyright asserted, no pre-emphasis and no validity
+	 * control.
+	 */
 	{0x03, AC_VERB_SET_DIGI_CONVERT_1, 0},
 	{0x06, AC_VERB_SET_DIGI_CONVERT_1, 0},
 
