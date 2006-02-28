@@ -3026,6 +3026,7 @@ findFirstRetry:
 				psrch_inf->unicode = FALSE;
 
 			psrch_inf->ntwrk_buf_start = (char *)pSMBr;
+			psrch_inf->smallBuf = 0;
 			psrch_inf->srch_entries_start = 
 				(char *) &pSMBr->hdr.Protocol + 
 					le16_to_cpu(pSMBr->t2.DataOffset);
@@ -3146,9 +3147,14 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 			parms = (T2_FNEXT_RSP_PARMS *)response_data;
 			response_data = (char *)&pSMBr->hdr.Protocol +
 				le16_to_cpu(pSMBr->t2.DataOffset);
-			cifs_buf_release(psrch_inf->ntwrk_buf_start);
+			if(psrch_inf->smallBuf)
+				cifs_small_buf_release(
+					psrch_inf->ntwrk_buf_start);
+			else
+				cifs_buf_release(psrch_inf->ntwrk_buf_start);
 			psrch_inf->srch_entries_start = response_data;
 			psrch_inf->ntwrk_buf_start = (char *)pSMB;
+			psrch_inf->smallBuf = 0;
 			if(parms->EndofSearch)
 				psrch_inf->endOfSearch = TRUE;
 			else

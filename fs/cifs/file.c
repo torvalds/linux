@@ -555,7 +555,10 @@ int cifs_closedir(struct inode *inode, struct file *file)
 		if (ptmp) {
 			cFYI(1, ("closedir free smb buf in srch struct"));
 			pCFileStruct->srch_inf.ntwrk_buf_start = NULL;
-			cifs_buf_release(ptmp);
+			if(pCFileStruct->srch_inf.smallBuf)
+				cifs_small_buf_release(ptmp);
+			else
+				cifs_buf_release(ptmp);
 		}
 		ptmp = pCFileStruct->search_resume_name;
 		if (ptmp) {
@@ -592,11 +595,11 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 	        pfLock->fl_end));
 
 	if (pfLock->fl_flags & FL_POSIX)
-		cFYI(1, ("Posix "));
+		cFYI(1, ("Posix"));
 	if (pfLock->fl_flags & FL_FLOCK)
-		cFYI(1, ("Flock "));
+		cFYI(1, ("Flock"));
 	if (pfLock->fl_flags & FL_SLEEP) {
-		cFYI(1, ("Blocking lock "));
+		cFYI(1, ("Blocking lock"));
 		wait_flag = TRUE;
 	}
 	if (pfLock->fl_flags & FL_ACCESS)
@@ -612,21 +615,23 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 		cFYI(1, ("F_WRLCK "));
 		numLock = 1;
 	} else if (pfLock->fl_type == F_UNLCK) {
-		cFYI(1, ("F_UNLCK "));
+		cFYI(1, ("F_UNLCK"));
 		numUnlock = 1;
+		/* Check if unlock includes more than
+		one lock range */
 	} else if (pfLock->fl_type == F_RDLCK) {
-		cFYI(1, ("F_RDLCK "));
+		cFYI(1, ("F_RDLCK"));
 		lockType |= LOCKING_ANDX_SHARED_LOCK;
 		numLock = 1;
 	} else if (pfLock->fl_type == F_EXLCK) {
-		cFYI(1, ("F_EXLCK "));
+		cFYI(1, ("F_EXLCK"));
 		numLock = 1;
 	} else if (pfLock->fl_type == F_SHLCK) {
-		cFYI(1, ("F_SHLCK "));
+		cFYI(1, ("F_SHLCK"));
 		lockType |= LOCKING_ANDX_SHARED_LOCK;
 		numLock = 1;
 	} else
-		cFYI(1, ("Unknown type of lock "));
+		cFYI(1, ("Unknown type of lock"));
 
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 	pTcon = cifs_sb->tcon;

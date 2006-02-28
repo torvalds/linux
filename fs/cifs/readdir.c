@@ -604,7 +604,12 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		cifsFile->search_resume_name = NULL;
 		if(cifsFile->srch_inf.ntwrk_buf_start) {
 			cFYI(1,("freeing SMB ff cache buf on search rewind"));
-			cifs_buf_release(cifsFile->srch_inf.ntwrk_buf_start);
+			if(cifsFile->srch_inf.smallBuf)
+				cifs_small_buf_release(cifsFile->srch_inf.
+						ntwrk_buf_start);
+			else
+				cifs_buf_release(cifsFile->srch_inf.
+						ntwrk_buf_start);
 		}
 		rc = initiate_cifs_search(xid,file);
 		if(rc) {
