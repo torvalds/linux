@@ -194,7 +194,6 @@ static struct ipw2100_fw ipw2100_firmware;
 #endif
 
 #include <linux/moduleparam.h>
-#include <linux/mutex.h>
 module_param(debug, int, 0444);
 module_param(mode, int, 0444);
 module_param(channel, int, 0444);

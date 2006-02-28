@@ -46,6 +46,7 @@
 #endif
 
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 
 struct ipw2100_priv;
 struct ipw2100_tx_packet;
