@@ -499,44 +499,59 @@ static int piix_pata_probe_reset(struct ata_port *ap, unsigned int *classes)
  *	piix_sata_probe - Probe PCI device for present SATA devices
  *	@ap: Port associated with the PCI device we wish to probe
  *
- *	Reads SATA PCI device's PCI config register Port Configuration
- *	and Status (PCS) to determine port and device availability.
+ *	Reads and configures SATA PCI device's PCI config register
+ *	Port Configuration and Status (PCS) to determine port and
+ *	device availability.
  *
  *	LOCKING:
  *	None (inherited from caller).
  *
  *	RETURNS:
- *	Non-zero if port is enabled, it may or may not have a device
- *	attached in that case (PRESENT bit would only be set if BIOS probe
- *	was done). Zero is returned if port is disabled.
+ *	Mask of avaliable devices on the port.
  */
-static int piix_sata_probe (struct ata_port *ap)
+static unsigned int piix_sata_probe (struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host_set->dev);
-	int combined = (ap->flags & ATA_FLAG_SLAVE_POSS);
-	int orig_mask, mask, i;
+	const unsigned int *map = ap->host_set->private_data;
+	int base = 2 * ap->hard_port_no;
+	unsigned int present_mask = 0;
+	int port, i;
 	u8 pcs;
 
 	pci_read_config_byte(pdev, ICH5_PCS, &pcs);
-	orig_mask = (int) pcs & 0xff;
+	DPRINTK("ata%u: ENTER, pcs=0x%x base=%d\n", ap->id, pcs, base);
 
-	/* TODO: this is vaguely wrong for ICH6 combined mode,
-	 * where only two of the four SATA ports are mapped
-	 * onto a single ATA channel.  It is also vaguely inaccurate
-	 * for ICH5, which has only two ports.  However, this is ok,
-	 * as further device presence detection code will handle
-	 * any false positives produced here.
-	 */
-
-	for (i = 0; i < 4; i++) {
-		mask = (PIIX_PORT_ENABLED << i);
-
-		if ((orig_mask & mask) == mask)
-			if (combined || (i == ap->hard_port_no))
-				return 1;
+	/* enable all ports on this ap and wait for them to settle */
+	for (i = 0; i < 2; i++) {
+		port = map[base + i];
+		if (port >= 0)
+			pcs |= 1 << port;
 	}
 
-	return 0;
+	pci_write_config_byte(pdev, ICH5_PCS, pcs);
+	msleep(100);
+
+	/* let's see which devices are present */
+	pci_read_config_byte(pdev, ICH5_PCS, &pcs);
+
+	for (i = 0; i < 2; i++) {
+		port = map[base + i];
+		if (port < 0)
+			continue;
+		if (ap->flags & PIIX_FLAG_IGN_PRESENT || pcs & 1 << (4 + port))
+			present_mask |= 1 << i;
+		else
+			pcs &= ~(1 << port);
+	}
+
+	/* disable offline ports on non-AHCI controllers */
+	if (!(ap->flags & PIIX_FLAG_AHCI))
+		pci_write_config_byte(pdev, ICH5_PCS, pcs);
+
+	DPRINTK("ata%u: LEAVE, pcs=0x%x present_mask=0x%x\n",
+		ap->id, pcs, present_mask);
+
+	return present_mask;
 }
 
 /**
