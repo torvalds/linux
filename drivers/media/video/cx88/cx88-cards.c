@@ -1435,7 +1435,7 @@ static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
 {
 	struct i2c_msg msg = { .addr = 0x45, .flags = 0 };
 	int i, err;
-	u8 init_bufs[13][5] = {
+	static u8 init_bufs[13][5] = {
 		{ 0x10, 0x00, 0x20, 0x01, 0x03 },
 		{ 0x10, 0x10, 0x01, 0x00, 0x21 },
 		{ 0x10, 0x10, 0x10, 0x00, 0xCA },
