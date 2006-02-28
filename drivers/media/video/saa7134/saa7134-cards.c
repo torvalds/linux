@@ -2624,7 +2624,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.gpiomask	= 0x00200000,
-		.mpeg           = SAA7134_MPEG_DVB,	/* FIXME: DVB not implemented yet */
+		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = {{
 			.name = name_tv,	/* Analog broadcast/cable TV */
 			.vmux = 1,
@@ -3549,6 +3549,12 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_FLYDVB_TRIO:
+		{
+		u8 data[] = { 0x3c, 0x33, 0x62};
+		struct i2c_msg msg = {.addr=0x09, .flags=0, .buf=data, .len = sizeof(data)};
+		i2c_transfer(&dev->i2c_adap, &msg, 1);
+		}
+		break;
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:
 		/* make the tda10046 find its eeprom */
 		{
