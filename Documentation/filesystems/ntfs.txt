@@ -457,6 +457,12 @@ ChangeLog
 
 Note, a technical ChangeLog aimed at kernel hackers is in fs/ntfs/ChangeLog.
 
+2.1.26:
+	- Implement support for sector sizes above 512 bytes (up to the maximum
+	  supported by NTFS which is 4096 bytes).
+	- Enhance support for NTFS volumes which were supported by Windows but
+	  not by Linux due to invalid attribute list attribute flags.
+	- A few minor updates and bug fixes.
 2.1.25:
 	- Write support is now extended with write(2) being able to both
 	  overwrite existing file data and to extend files.  Also, if a write

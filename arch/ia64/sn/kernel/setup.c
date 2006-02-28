@@ -75,7 +75,7 @@ EXPORT_SYMBOL(sn_rtc_cycles_per_second);
 DEFINE_PER_CPU(struct sn_hub_info_s, __sn_hub_info);
 EXPORT_PER_CPU_SYMBOL(__sn_hub_info);
 
-DEFINE_PER_CPU(short, __sn_cnodeid_to_nasid[MAX_NUMNODES]);
+DEFINE_PER_CPU(short, __sn_cnodeid_to_nasid[MAX_COMPACT_NODES]);
 EXPORT_PER_CPU_SYMBOL(__sn_cnodeid_to_nasid);
 
 DEFINE_PER_CPU(struct nodepda_s *, __sn_nodepda);
@@ -317,6 +317,7 @@ struct pcdp_vga_device {
 #define PCDP_PCI_TRANS_IOPORT	0x02
 #define PCDP_PCI_TRANS_MMIO	0x01
 
+#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
 static void
 sn_scan_pcdp(void)
 {
@@ -358,6 +359,7 @@ sn_scan_pcdp(void)
 		break; /* once we find the primary, we're done */
 	}
 }
+#endif
 
 static unsigned long sn2_rtc_initial;
 

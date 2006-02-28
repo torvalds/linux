@@ -132,19 +132,29 @@ static int mpol_check_policy(int mode, nodemask_t *nodes)
 	}
 	return nodes_subset(*nodes, node_online_map) ? 0 : -EINVAL;
 }
+
 /* Generate a custom zonelist for the BIND policy. */
 static struct zonelist *bind_zonelist(nodemask_t *nodes)
 {
 	struct zonelist *zl;
-	int num, max, nd;
+	int num, max, nd, k;
 
 	max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
-	zl = kmalloc(sizeof(void *) * max, GFP_KERNEL);
+	zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
 	if (!zl)
 		return NULL;
 	num = 0;
-	for_each_node_mask(nd, *nodes)
-		zl->zones[num++] = &NODE_DATA(nd)->node_zones[policy_zone];
+	/* First put in the highest zones from all nodes, then all the next 
+	   lower zones etc. Avoid empty zones because the memory allocator
+	   doesn't like them. If you implement node hot removal you
+	   have to fix that. */
+	for (k = policy_zone; k >= 0; k--) { 
+		for_each_node_mask(nd, *nodes) { 
+			struct zone *z = &NODE_DATA(nd)->node_zones[k];
+			if (z->present_pages > 0) 
+				zl->zones[num++] = z;
+		}
+	}
 	zl->zones[num] = NULL;
 	return zl;
 }
@@ -542,7 +552,7 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
 	 */
 	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
 		if (isolate_lru_page(page))
-			list_add(&page->lru, pagelist);
+			list_add_tail(&page->lru, pagelist);
 	}
 }
 
@@ -559,6 +569,7 @@ static int migrate_pages_to(struct list_head *pagelist,
 	LIST_HEAD(moved);
 	LIST_HEAD(failed);
 	int err = 0;
+	unsigned long offset = 0;
 	int nr_pages;
 	struct page *page;
 	struct list_head *p;
@@ -566,8 +577,21 @@ static int migrate_pages_to(struct list_head *pagelist,
 redo:
 	nr_pages = 0;
 	list_for_each(p, pagelist) {
-		if (vma)
-			page = alloc_page_vma(GFP_HIGHUSER, vma, vma->vm_start);
+		if (vma) {
+			/*
+			 * The address passed to alloc_page_vma is used to
+			 * generate the proper interleave behavior. We fake
+			 * the address here by an increasing offset in order
+			 * to get the proper distribution of pages.
+			 *
+			 * No decision has been made as to which page
+			 * a certain old page is moved to so we cannot
+			 * specify the correct address.
+			 */
+			page = alloc_page_vma(GFP_HIGHUSER, vma,
+					offset + vma->vm_start);
+			offset += PAGE_SIZE;
+		}
 		else
 			page = alloc_pages_node(dest, GFP_HIGHUSER, 0);
 
@@ -575,9 +599,9 @@ redo:
 			err = -ENOMEM;
 			goto out;
 		}
-		list_add(&page->lru, &newlist);
+		list_add_tail(&page->lru, &newlist);
 		nr_pages++;
-		if (nr_pages > MIGRATE_CHUNK_SIZE);
+		if (nr_pages > MIGRATE_CHUNK_SIZE)
 			break;
 	}
 	err = migrate_pages(pagelist, &newlist, &moved, &failed);
@@ -798,6 +822,8 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
 	nodes_clear(*nodes);
 	if (maxnode == 0 || !nmask)
 		return 0;
+	if (maxnode > PAGE_SIZE*BITS_PER_BYTE)
+		return -EINVAL;
 
 	nlongs = BITS_TO_LONGS(maxnode);
 	if ((maxnode % BITS_PER_LONG) == 0)

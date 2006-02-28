@@ -656,12 +656,15 @@ static int gbefb_set_par(struct fb_info *info)
 	switch (bytesPerPixel) {
 	case 1:
 		SET_GBE_FIELD(WID, TYP, val, GBE_CMODE_I8);
+		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
 		break;
 	case 2:
 		SET_GBE_FIELD(WID, TYP, val, GBE_CMODE_ARGB5);
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 	case 4:
 		SET_GBE_FIELD(WID, TYP, val, GBE_CMODE_RGB8);
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 	}
 	SET_GBE_FIELD(WID, BUF, val, GBE_BMODE_BOTH);
@@ -1243,7 +1246,7 @@ static int __devexit gbefb_remove(struct platform_device* p_dev)
 			  (void *)gbe_tiles.cpu, gbe_tiles.dma);
 	release_mem_region(GBE_BASE, sizeof(struct sgi_gbe));
 	iounmap(gbe);
-	gbefb_remove_sysfs(dev);
+	gbefb_remove_sysfs(&p_dev->dev);
 	framebuffer_release(info);
 
 	return 0;

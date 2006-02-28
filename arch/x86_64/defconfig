@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16-rc1-git2
-# Thu Jan 19 10:05:21 2006
+# Linux kernel version: 2.6.16-rc3-git9
+# Sat Feb 18 00:27:03 2006
 #
 CONFIG_X86_64=y
 CONFIG_64BIT=y
@@ -21,7 +21,6 @@ CONFIG_DMI=y
 # Code maturity level options
 #
 CONFIG_EXPERIMENTAL=y
-CONFIG_CLEAN_COMPILE=y
 CONFIG_LOCK_KERNEL=y
 CONFIG_INIT_ENV_ARG_LIMIT=32
 
@@ -267,6 +266,7 @@ CONFIG_NET=y
 #
 # Networking options
 #
+# CONFIG_NETDEBUG is not set
 CONFIG_PACKET=y
 # CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
@@ -446,7 +446,6 @@ CONFIG_BLK_DEV_PIIX=y
 # CONFIG_BLK_DEV_NS87415 is not set
 # CONFIG_BLK_DEV_PDC202XX_OLD is not set
 CONFIG_BLK_DEV_PDC202XX_NEW=y
-# CONFIG_PDC202XX_FORCE is not set
 # CONFIG_BLK_DEV_SVWKS is not set
 # CONFIG_BLK_DEV_SIIMAGE is not set
 # CONFIG_BLK_DEV_SIS5513 is not set
@@ -573,7 +572,33 @@ CONFIG_FUSION_MAX_SGE=128
 #
 # IEEE 1394 (FireWire) support
 #
-# CONFIG_IEEE1394 is not set
+CONFIG_IEEE1394=y
+
+#
+# Subsystem Options
+#
+# CONFIG_IEEE1394_VERBOSEDEBUG is not set
+# CONFIG_IEEE1394_OUI_DB is not set
+# CONFIG_IEEE1394_EXTRA_CONFIG_ROMS is not set
+# CONFIG_IEEE1394_EXPORT_FULL_API is not set
+
+#
+# Device Drivers
+#
+
+#
+# Texas Instruments PCILynx requires I2C
+#
+CONFIG_IEEE1394_OHCI1394=y
+
+#
+# Protocol Drivers
+#
+# CONFIG_IEEE1394_VIDEO1394 is not set
+# CONFIG_IEEE1394_SBP2 is not set
+# CONFIG_IEEE1394_ETH1394 is not set
+# CONFIG_IEEE1394_DV1394 is not set
+CONFIG_IEEE1394_RAWIO=y
 
 #
 # I2O device support
@@ -772,6 +797,7 @@ CONFIG_SERIAL_8250_RUNTIME_UARTS=4
 #
 CONFIG_SERIAL_CORE=y
 CONFIG_SERIAL_CORE_CONSOLE=y
+# CONFIG_SERIAL_JSM is not set
 CONFIG_UNIX98_PTYS=y
 CONFIG_LEGACY_PTYS=y
 CONFIG_LEGACY_PTY_COUNT=256
@@ -871,6 +897,7 @@ CONFIG_HPET_MMAP=y
 #
 CONFIG_HWMON=y
 # CONFIG_HWMON_VID is not set
+# CONFIG_SENSORS_F71805F is not set
 # CONFIG_SENSORS_HDAPS is not set
 # CONFIG_HWMON_DEBUG_CHIP is not set
 
@@ -1101,7 +1128,6 @@ CONFIG_USB_MON=y
 # EDAC - error detection and reporting (RAS)
 #
 # CONFIG_EDAC is not set
-# CONFIG_EDAC_POLL is not set
 
 #
 # Firmware Drivers
@@ -1296,9 +1322,7 @@ CONFIG_DEBUG_FS=y
 # CONFIG_DEBUG_VM is not set
 # CONFIG_FRAME_POINTER is not set
 # CONFIG_FORCED_INLINING is not set
-# CONFIG_UNWIND_INFO is not set
 # CONFIG_RCU_TORTURE_TEST is not set
-CONFIG_INIT_DEBUG=y
 # CONFIG_DEBUG_RODATA is not set
 # CONFIG_IOMMU_DEBUG is not set
 

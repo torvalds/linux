@@ -90,6 +90,7 @@ static struct rtable __fake_rtable = {
 			.dev			= &__fake_net_device,
 			.path			= &__fake_rtable.u.dst,
 			.metrics		= {[RTAX_MTU - 1] = 1500},
+			.flags			= DST_NOXFRM,
 		}
 	},
 	.rt_flags	= 0,

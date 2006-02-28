@@ -288,9 +288,9 @@ static int __init smp_read_mpc(struct mp_config_table *mpc)
 
 	memcpy(str,mpc->mpc_productid,12);
 	str[12]=0;
-	printk(KERN_INFO "Product ID: %s ",str);
+	printk("Product ID: %s ",str);
 
-	printk(KERN_INFO "APIC at: 0x%X\n",mpc->mpc_lapic);
+	printk("APIC at: 0x%X\n",mpc->mpc_lapic);
 
 	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)

@@ -600,6 +600,7 @@ setup_arch(char **cmdline_p)
 	init_mm.brk = (unsigned long) &_end;
 
 	parse_cmdline_early(cmdline_p);
+	parse_early_param();
 
 	setup_memory();
 	setup_resources();
@@ -607,6 +608,7 @@ setup_arch(char **cmdline_p)
 
         cpu_init();
         __cpu_logical_map[0] = S390_lowcore.cpu_data.cpu_addr;
+	smp_setup_cpu_possible_map();
 
 	/*
 	 * Create kernel page tables and switch to virtual addressing.

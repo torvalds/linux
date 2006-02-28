@@ -938,6 +938,11 @@ static int load_elf_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		kfree(elf_interpreter);
 	} else {
 		elf_entry = loc->elf_ex.e_entry;
+		if (BAD_ADDR(elf_entry)) {
+			send_sig(SIGSEGV, current, 0);
+			retval = -ENOEXEC; /* Nobody gets to see this, but.. */
+			goto out_free_dentry;
+		}
 	}
 
 	kfree(elf_phdata);

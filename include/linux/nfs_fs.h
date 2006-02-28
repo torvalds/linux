@@ -398,7 +398,7 @@ extern struct inode_operations nfs_symlink_inode_operations;
 extern int nfs_register_sysctl(void);
 extern void nfs_unregister_sysctl(void);
 #else
-#define nfs_register_sysctl() do { } while(0)
+#define nfs_register_sysctl() 0
 #define nfs_unregister_sysctl() do { } while(0)
 #endif
 

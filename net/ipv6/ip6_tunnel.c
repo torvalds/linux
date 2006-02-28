@@ -458,7 +458,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			mtu = IPV6_MIN_MTU;
 		t->dev->mtu = mtu;
 
-		if ((len = sizeof (*ipv6h) + ipv6h->payload_len) > mtu) {
+		if ((len = sizeof (*ipv6h) + ntohs(ipv6h->payload_len)) > mtu) {
 			rel_type = ICMPV6_PKT_TOOBIG;
 			rel_code = 0;
 			rel_info = mtu;
@@ -884,6 +884,7 @@ ip6ip6_tnl_change(struct ip6_tnl *t, struct ip6_tnl_parm *p)
 	t->parms.encap_limit = p->encap_limit;
 	t->parms.flowinfo = p->flowinfo;
 	t->parms.link = p->link;
+	ip6_tnl_dst_reset(t);
 	ip6ip6_tnl_link_config(t);
 	return 0;
 }

@@ -898,12 +898,6 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	unsigned long start_eip;
 	unsigned short nmi_high = 0, nmi_low = 0;
 
-	if (!cpu_gdt_descr[cpu].address &&
-	    !(cpu_gdt_descr[cpu].address = get_zeroed_page(GFP_KERNEL))) {
-		printk("Failed to allocate GDT for CPU %d\n", cpu);
-		return 1;
-	}
-
 	++cpucount;
 
 	/*

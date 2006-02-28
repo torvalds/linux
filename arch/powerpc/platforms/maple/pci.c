@@ -435,8 +435,8 @@ void __init maple_pci_init(void)
 			PCI_DN(np)->busno = 0xf0;
 	}
 
-	/* Tell pci.c to use the common resource allocation mecanism */
-	pci_probe_only = 0;
+	/* Tell pci.c to not change any resource allocations.  */
+	pci_probe_only = 1;
 	
 	/* Allow all IO */
 	io_page_mask = -1;

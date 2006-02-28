@@ -816,8 +816,6 @@ void __init unflatten_device_tree(void)
 {
 	unsigned long start, mem, size;
 	struct device_node **allnextp = &allnodes;
-	char *p = NULL;
-	int l = 0;
 
 	DBG(" -> unflatten_device_tree()\n");
 
@@ -856,19 +854,6 @@ void __init unflatten_device_tree(void)
 	of_chosen = of_find_node_by_path("/chosen");
 	if (of_chosen == NULL)
 		of_chosen = of_find_node_by_path("/chosen@0");
-
-	/* Retreive command line */
-	if (of_chosen != NULL) {
-		p = (char *)get_property(of_chosen, "bootargs", &l);
-		if (p != NULL && l > 0)
-			strlcpy(cmd_line, p, min(l, COMMAND_LINE_SIZE));
-	}
-#ifdef CONFIG_CMDLINE
-	if (l == 0 || (l == 1 && (*p) == 0))
-		strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
-#endif /* CONFIG_CMDLINE */
-
-	DBG("Command line is: %s\n", cmd_line);
 
 	DBG(" <- unflatten_device_tree()\n");
 }
@@ -940,6 +925,8 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 {
 	u32 *prop;
 	unsigned long *lprop;
+	unsigned long l;
+	char *p;
 
 	DBG("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
 
@@ -1003,6 +990,41 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
        if (lprop)
                crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
+
+	/* Retreive command line */
+ 	p = of_get_flat_dt_prop(node, "bootargs", &l);
+	if (p != NULL && l > 0)
+		strlcpy(cmd_line, p, min((int)l, COMMAND_LINE_SIZE));
+
+#ifdef CONFIG_CMDLINE
+	if (l == 0 || (l == 1 && (*p) == 0))
+		strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
+#endif /* CONFIG_CMDLINE */
+
+	DBG("Command line is: %s\n", cmd_line);
+
+	if (strstr(cmd_line, "mem=")) {
+		char *p, *q;
+		unsigned long maxmem = 0;
+
+		for (q = cmd_line; (p = strstr(q, "mem=")) != 0; ) {
+			q = p + 4;
+			if (p > cmd_line && p[-1] != ' ')
+				continue;
+			maxmem = simple_strtoul(q, &q, 0);
+			if (*q == 'k' || *q == 'K') {
+				maxmem <<= 10;
+				++q;
+			} else if (*q == 'm' || *q == 'M') {
+				maxmem <<= 20;
+				++q;
+			} else if (*q == 'g' || *q == 'G') {
+				maxmem <<= 30;
+				++q;
+			}
+		}
+		memory_limit = maxmem;
+	}
 
 	/* break now */
 	return 1;
@@ -1124,7 +1146,7 @@ static void __init early_reserve_mem(void)
 			size_32 = *(reserve_map_32++);
 			if (size_32 == 0)
 				break;
-			DBG("reserving: %lx -> %lx\n", base_32, size_32);
+			DBG("reserving: %x -> %x\n", base_32, size_32);
 			lmb_reserve(base_32, size_32);
 		}
 		return;

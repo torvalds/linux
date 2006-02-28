@@ -403,6 +403,11 @@ unsigned xfrm_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto, unsigned short f
 
 extern void __xfrm_state_destroy(struct xfrm_state *);
 
+static inline void __xfrm_state_put(struct xfrm_state *x)
+{
+	atomic_dec(&x->refcnt);
+}
+
 static inline void xfrm_state_put(struct xfrm_state *x)
 {
 	if (atomic_dec_and_test(&x->refcnt))

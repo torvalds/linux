@@ -137,14 +137,12 @@ pcibr_dmatrans_direct64(struct pcidev_info * info, u64 paddr,
 		pci_addr |= PCI64_ATTR_VIRTUAL;
 
 	return pci_addr;
-
 }
 
 static dma_addr_t
 pcibr_dmatrans_direct32(struct pcidev_info * info,
 			u64 paddr, size_t req_size, u64 flags)
 {
-
 	struct pcidev_info *pcidev_info = info->pdi_host_pcidev_info;
 	struct pcibus_info *pcibus_info = (struct pcibus_info *)pcidev_info->
 	    pdi_pcibus_info;
@@ -171,7 +169,6 @@ pcibr_dmatrans_direct32(struct pcidev_info * info,
 	}
 
 	return PCI32_DIRECT_BASE | offset;
-
 }
 
 /*
@@ -218,9 +215,8 @@ void sn_dma_flush(u64 addr)
 	u64 flags;
 	u64 itte;
 	struct hubdev_info *hubinfo;
-	volatile struct sn_flush_device_kernel *p;
-	volatile struct sn_flush_device_common *common;
-
+	struct sn_flush_device_kernel *p;
+	struct sn_flush_device_common *common;
 	struct sn_flush_nasid_entry *flush_nasid_list;
 
 	if (!sn_ioif_inited)
@@ -310,8 +306,7 @@ void sn_dma_flush(u64 addr)
 					     (common->sfdl_slot - 1));
 		}
 	} else {
-		spin_lock_irqsave((spinlock_t *)&p->sfdl_flush_lock,
-				  flags);
+		spin_lock_irqsave(&p->sfdl_flush_lock, flags);
 		*common->sfdl_flush_addr = 0;
 
 		/* force an interrupt. */
@@ -322,8 +317,7 @@ void sn_dma_flush(u64 addr)
 			cpu_relax();
 
 		/* okay, everything is synched up. */
-		spin_unlock_irqrestore((spinlock_t *)&p->sfdl_flush_lock,
-				       flags);
+		spin_unlock_irqrestore(&p->sfdl_flush_lock, flags);
 	}
 	return;
 }
