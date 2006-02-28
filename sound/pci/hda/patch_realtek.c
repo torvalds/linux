@@ -342,6 +342,58 @@ static int alc_pin_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 	  .put = alc_pin_mode_put, \
 	  .private_value = nid | (dir<<16) }
 
+/* A switch control for ALC260 GPIO pins.  Multiple GPIOs can be ganged
+ * together using a mask with more than one bit set.  This control is
+ * currently used only by the ALC260 test model.  At this stage they are not
+ * needed for any "production" models.
+ */
+#ifdef CONFIG_SND_DEBUG
+static int alc_gpio_data_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}                                
+static int alc_gpio_data_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value & 0xffff;
+	unsigned char mask = (kcontrol->private_value >> 16) & 0xff;
+	long *valp = ucontrol->value.integer.value;
+	unsigned int val = snd_hda_codec_read(codec,nid,0,AC_VERB_GET_GPIO_DATA,0x00);
+
+	*valp = (val & mask) != 0;
+	return 0;
+}
+static int alc_gpio_data_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	signed int change;
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	hda_nid_t nid = kcontrol->private_value & 0xffff;
+	unsigned char mask = (kcontrol->private_value >> 16) & 0xff;
+	long val = *ucontrol->value.integer.value;
+	unsigned int gpio_data = snd_hda_codec_read(codec,nid,0,AC_VERB_GET_GPIO_DATA,0x00);
+
+	/* Set/unset the masked GPIO bit(s) as needed */
+	change = (val==0?0:mask) != (gpio_data & mask);
+	if (val==0)
+		gpio_data &= ~mask;
+	else
+		gpio_data |= mask;
+	snd_hda_codec_write(codec,nid,0,AC_VERB_SET_GPIO_DATA,gpio_data);
+
+	return change;
+}
+#define ALC_GPIO_DATA_SWITCH(xname, nid, mask) \
+	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = 0,  \
+	  .info = alc_gpio_data_info, \
+	  .get = alc_gpio_data_get, \
+	  .put = alc_gpio_data_put, \
+	  .private_value = nid | (mask<<16) }
+#endif   /* CONFIG_SND_DEBUG */
+
 /*
  * set up from the preset table
  */
@@ -2874,11 +2926,21 @@ static struct snd_kcontrol_new alc260_test_mixer[] = {
 	HDA_CODEC_MUTE("LINE-OUT loopback Playback Switch", 0x07, 0x06, HDA_INPUT),
 	HDA_CODEC_VOLUME("HP-OUT loopback Playback Volume", 0x07, 0x7, HDA_INPUT),
 	HDA_CODEC_MUTE("HP-OUT loopback Playback Switch", 0x07, 0x7, HDA_INPUT),
+
+	/* Controls for GPIO pins, assuming they are configured as outputs */
+	ALC_GPIO_DATA_SWITCH("GPIO pin 0", 0x01, 0x01),
+	ALC_GPIO_DATA_SWITCH("GPIO pin 1", 0x01, 0x02),
+	ALC_GPIO_DATA_SWITCH("GPIO pin 2", 0x01, 0x04),
+	ALC_GPIO_DATA_SWITCH("GPIO pin 3", 0x01, 0x08),
+
 	{ } /* end */
 };
 static struct hda_verb alc260_test_init_verbs[] = {
-	/* Disable all GPIOs */
-	{0x01, AC_VERB_SET_GPIO_MASK, 0},
+	/* Enable all GPIOs as outputs with an initial value of 0 */
+	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x0f},
+	{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
+	{0x01, AC_VERB_SET_GPIO_MASK, 0x0f},
+
 	/* Enable retasking pins as output, initially without power amp */
 	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
