@@ -2419,7 +2419,10 @@ static hda_nid_t alc260_hp_adc_nids[2] = {
 	0x05, 0x04
 };
 
-static hda_nid_t alc260_fujitsu_adc_nids[2] = {
+/* NIDs used when simultaneous access to both ADCs makes sense.  Note that
+ * alc260_capture_mixer assumes ADC0 (nid 0x04) is the first ADC.
+ */
+static hda_nid_t alc260_dual_adc_nids[2] = {
 	/* ADC0, ADC1 */
 	0x04, 0x05
 };
@@ -3285,8 +3288,8 @@ static struct alc_config_preset alc260_presets[] = {
 		.init_verbs = { alc260_fujitsu_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
 		.dac_nids = alc260_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc260_fujitsu_adc_nids),
-		.adc_nids = alc260_fujitsu_adc_nids,
+		.num_adc_nids = ARRAY_SIZE(alc260_dual_adc_nids),
+		.adc_nids = alc260_dual_adc_nids,
 		.num_channel_mode = ARRAY_SIZE(alc260_modes),
 		.channel_mode = alc260_modes,
 		.input_mux = &alc260_fujitsu_capture_source,
