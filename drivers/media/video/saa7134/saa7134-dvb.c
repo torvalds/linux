@@ -814,7 +814,7 @@ static int philips_tiger_pll_set(struct dvb_frontend *fe, struct dvb_frontend_pa
 	tda8290_msg.buf = tda8290_open;
 	i2c_transfer(&dev->i2c_adap, &tda8290_msg, 1);
 	return ret;
-};
+}
 
 static int philips_tiger_dvb_mode(struct dvb_frontend *fe)
 {
@@ -891,7 +891,7 @@ static int ads_duo_pll_set(struct dvb_frontend *fe, struct dvb_frontend_paramete
 
 	ret = philips_tda827xa_pll_set(0x61, fe, params);
 	return ret;
-};
+}
 
 static int ads_duo_dvb_mode(struct dvb_frontend *fe)
 {
