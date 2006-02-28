@@ -70,7 +70,7 @@ line like this:
 
 	If the driver is compiled into the kernel, at boot time specify them
 like this:
-	cpia2=num_buffers:3,buffer_size:65535
+	cpia2.num_buffers=3 cpia2.buffer_size=65535
 
 	What buffer size should I use?
 	------------------------------

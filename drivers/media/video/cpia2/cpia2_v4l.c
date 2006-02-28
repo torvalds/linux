@@ -2053,7 +2053,7 @@ static void __init check_parameters(void)
  * cpia2_init/module_init
  *
  *****************************************************************************/
-int __init cpia2_init(void)
+static int __init cpia2_init(void)
 {
 	LOG("%s v%d.%d.%d\n",
 	    ABOUT, CPIA2_MAJ_VER, CPIA2_MIN_VER, CPIA2_PATCH_VER);
@@ -2068,36 +2068,11 @@ int __init cpia2_init(void)
  * cpia2_exit/module_exit
  *
  *****************************************************************************/
-void __exit cpia2_exit(void)
+static void __exit cpia2_exit(void)
 {
 	cpia2_usb_cleanup();
 	schedule_timeout(2 * HZ);
 }
-
-
-int __init cpia2_setup(char *str)
-{
-	while(str) {
-		if(!strncmp(str, "buffer_size:", 12)) {
-			buffer_size = simple_strtoul(str + 13, &str, 10);
-		} else if(!strncmp(str, "num_buffers:", 12)) {
-			num_buffers = simple_strtoul(str + 13, &str, 10);
-		} else if(!strncmp(str, "alternate:", 10)) {
-			alternate = simple_strtoul(str + 11, &str, 10);
-		} else if(!strncmp(str, "video_nr:", 9)) {
-			video_nr = simple_strtoul(str + 10, &str, 10);
-		} else if(!strncmp(str, "flicker_freq:",13)) {
-		   flicker_freq = simple_strtoul(str + 14, &str, 10);
-		} else if(!strncmp(str, "flicker_mode:",13)) {
-		   flicker_mode = simple_strtoul(str + 14, &str, 10);
-		} else {
-			++str;
-		}
-	}
-	return 1;
-}
-
-__setup("cpia2=", cpia2_setup);
 
 module_init(cpia2_init);
 module_exit(cpia2_exit);
