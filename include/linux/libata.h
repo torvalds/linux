@@ -645,10 +645,14 @@ static inline unsigned int ata_tag_valid(unsigned int tag)
 	return (tag < ATA_MAX_QUEUE) ? 1 : 0;
 }
 
+static inline unsigned int ata_class_present(unsigned int class)
+{
+	return class == ATA_DEV_ATA || class == ATA_DEV_ATAPI;
+}
+
 static inline unsigned int ata_dev_present(const struct ata_device *dev)
 {
-	return ((dev->class == ATA_DEV_ATA) ||
-		(dev->class == ATA_DEV_ATAPI));
+	return ata_class_present(dev->class);
 }
 
 static inline u8 ata_chk_status(struct ata_port *ap)
