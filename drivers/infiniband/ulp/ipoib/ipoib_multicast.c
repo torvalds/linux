@@ -213,6 +213,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 {
 	struct net_device *dev = mcast->dev;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_ah *ah;
 	int ret;
 
 	mcast->mcmember = *mcmember;
@@ -269,8 +270,8 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 				av.static_rate, priv->local_rate,
 				ib_sa_rate_enum_to_int(mcast->mcmember.rate));
 
-		mcast->ah = ipoib_create_ah(dev, priv->pd, &av);
-		if (!mcast->ah) {
+		ah = ipoib_create_ah(dev, priv->pd, &av);
+		if (!ah) {
 			ipoib_warn(priv, "ib_address_create failed\n");
 		} else {
 			ipoib_dbg_mcast(priv, "MGID " IPOIB_GID_FMT
@@ -280,6 +281,10 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 					be16_to_cpu(mcast->mcmember.mlid),
 					mcast->mcmember.sl);
 		}
+
+		spin_lock_irq(&priv->lock);
+		mcast->ah = ah;
+		spin_unlock_irq(&priv->lock);
 	}
 
 	/* actually send any queued packets */
