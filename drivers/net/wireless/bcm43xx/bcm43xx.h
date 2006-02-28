@@ -15,6 +15,7 @@
 
 #include "bcm43xx_debugfs.h"
 #include "bcm43xx_leds.h"
+#include "bcm43xx_sysfs.h"
 
 
 #define PFX				KBUILD_MODNAME ": "
@@ -606,6 +607,8 @@ struct bcm43xx_key {
 };
 
 struct bcm43xx_private {
+	struct bcm43xx_sysfs sysfs;
+
 	struct ieee80211_device *ieee;
 	struct ieee80211softmac_device *softmac;
 

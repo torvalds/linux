@@ -3160,6 +3160,8 @@ static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 	int i, err;
 	unsigned long flags;
 
+	bcm43xx_sysfs_unregister(bcm);
+
 	bcm43xx_periodic_tasks_delete(bcm);
 
 	spin_lock_irqsave(&bcm->lock, flags);
@@ -3270,6 +3272,8 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 	spin_unlock_irqrestore(&bcm->lock, flags);
 
 	bcm43xx_periodic_tasks_setup(bcm);
+	bcm43xx_sysfs_register(bcm);
+	//FIXME: check for bcm43xx_sysfs_register failure. This function is a bit messy regarding unwinding, though...
 
 	assert(err == 0);
 out:
