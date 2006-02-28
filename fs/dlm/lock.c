@@ -591,9 +591,11 @@ static void kill_lkb(struct kref *kref)
 	DLM_ASSERT(!lkb->lkb_status, dlm_print_lkb(lkb););
 }
 
-static int put_lkb(struct dlm_lkb *lkb)
+/* __put_lkb() is used when an lkb may not have an rsb attached to
+   it so we need to provide the lockspace explicitly */
+
+static int __put_lkb(struct dlm_ls *ls, struct dlm_lkb *lkb)
 {
-	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	uint16_t bucket = lkb->lkb_id & 0xFFFF;
 
 	write_lock(&ls->ls_lkbtbl[bucket].lock);
@@ -616,7 +618,13 @@ static int put_lkb(struct dlm_lkb *lkb)
 
 int dlm_put_lkb(struct dlm_lkb *lkb)
 {
-	return put_lkb(lkb);
+	struct dlm_ls *ls;
+
+	DLM_ASSERT(lkb->lkb_resource, dlm_print_lkb(lkb););
+	DLM_ASSERT(lkb->lkb_resource->res_ls, dlm_print_lkb(lkb););
+
+	ls = lkb->lkb_resource->res_ls;
+	return __put_lkb(ls, lkb);
 }
 
 /* This is only called to add a reference when the code already holds
@@ -1949,7 +1957,7 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 		error = 0;
  out_put:
 	if (convert || error)
-		put_lkb(lkb);
+		__put_lkb(ls, lkb);
 	if (error == -EAGAIN)
 		error = 0;
  out:
@@ -1991,7 +1999,7 @@ int dlm_unlock(dlm_lockspace_t *lockspace,
 	if (error == -DLM_EUNLOCK || error == -DLM_ECANCEL)
 		error = 0;
  out_put:
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
  out:
 	unlock_recovery(ls);
 	dlm_put_lockspace(ls);
@@ -2442,7 +2450,7 @@ static void receive_request(struct dlm_ls *ls, struct dlm_message *ms)
 	lkb->lkb_flags |= DLM_IFL_MSTCPY;
 	error = receive_request_args(ls, lkb, ms);
 	if (error) {
-		put_lkb(lkb);
+		__put_lkb(ls, lkb);
 		goto fail;
 	}
 
@@ -2450,7 +2458,7 @@ static void receive_request(struct dlm_ls *ls, struct dlm_message *ms)
 
 	error = find_rsb(ls, ms->m_extra, namelen, R_MASTER, &r);
 	if (error) {
-		put_lkb(lkb);
+		__put_lkb(ls, lkb);
 		goto fail;
 	}
 
@@ -2466,7 +2474,7 @@ static void receive_request(struct dlm_ls *ls, struct dlm_message *ms)
 	if (error == -EINPROGRESS)
 		error = 0;
 	if (error)
-		put_lkb(lkb);
+		dlm_put_lkb(lkb);
 	return;
 
  fail:
@@ -2502,7 +2510,7 @@ static void receive_convert(struct dlm_ls *ls, struct dlm_message *ms)
 
 	unlock_rsb(r);
 	put_rsb(r);
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 	return;
 
  fail:
@@ -2536,7 +2544,7 @@ static void receive_unlock(struct dlm_ls *ls, struct dlm_message *ms)
 
 	unlock_rsb(r);
 	put_rsb(r);
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 	return;
 
  fail:
@@ -2566,7 +2574,7 @@ static void receive_cancel(struct dlm_ls *ls, struct dlm_message *ms)
 
 	unlock_rsb(r);
 	put_rsb(r);
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 	return;
 
  fail:
@@ -2598,7 +2606,7 @@ static void receive_grant(struct dlm_ls *ls, struct dlm_message *ms)
 
 	unlock_rsb(r);
 	put_rsb(r);
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 }
 
 static void receive_bast(struct dlm_ls *ls, struct dlm_message *ms)
@@ -2623,7 +2631,7 @@ static void receive_bast(struct dlm_ls *ls, struct dlm_message *ms)
 
 	unlock_rsb(r);
 	put_rsb(r);
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 }
 
 static void receive_lookup(struct dlm_ls *ls, struct dlm_message *ms)
@@ -2746,7 +2754,7 @@ static void receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	unlock_rsb(r);
 	put_rsb(r);
  out:
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 }
 
 static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
@@ -2813,7 +2821,7 @@ static void receive_convert_reply(struct dlm_ls *ls, struct dlm_message *ms)
 
 	_receive_convert_reply(lkb, ms);
  out:
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 }
 
 static void _receive_unlock_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
@@ -2860,7 +2868,7 @@ static void receive_unlock_reply(struct dlm_ls *ls, struct dlm_message *ms)
 
 	_receive_unlock_reply(lkb, ms);
  out:
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 }
 
 static void _receive_cancel_reply(struct dlm_lkb *lkb, struct dlm_message *ms)
@@ -2907,7 +2915,7 @@ static void receive_cancel_reply(struct dlm_ls *ls, struct dlm_message *ms)
 
 	_receive_cancel_reply(lkb, ms);
  out:
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 }
 
 static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
@@ -2954,7 +2962,7 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	unlock_rsb(r);
 	put_rsb(r);
  out:
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 }
 
 int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery)
@@ -3159,7 +3167,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			ls->ls_stub_ms.m_result = -DLM_EUNLOCK;
 			_remove_from_waiters(lkb);
 			_receive_unlock_reply(lkb, &ls->ls_stub_ms);
-			put_lkb(lkb);
+			dlm_put_lkb(lkb);
 			break;
 
 		case DLM_MSG_CANCEL:
@@ -3167,7 +3175,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 			ls->ls_stub_ms.m_result = -DLM_ECANCEL;
 			_remove_from_waiters(lkb);
 			_receive_cancel_reply(lkb, &ls->ls_stub_ms);
-			put_lkb(lkb);
+			dlm_put_lkb(lkb);
 			break;
 
 		default:
@@ -3272,7 +3280,7 @@ static void purge_queue(struct dlm_rsb *r, struct list_head *queue,
 		if (test(ls, lkb)) {
 			del_lkb(r, lkb);
 			/* this put should free the lkb */
-			if (!put_lkb(lkb))
+			if (!dlm_put_lkb(lkb))
 				log_error(ls, "purged lkb not released");
 		}
 	}
@@ -3456,7 +3464,7 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 
 	error = receive_rcom_lock_args(ls, lkb, r, rc);
 	if (error) {
-		put_lkb(lkb);
+		__put_lkb(ls, lkb);
 		goto out_unlock;
 	}
 
@@ -3518,7 +3526,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 
 	unlock_rsb(r);
 	put_rsb(r);
-	put_lkb(lkb);
+	dlm_put_lkb(lkb);
 
 	return 0;
 }
