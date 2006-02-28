@@ -2414,8 +2414,8 @@ static struct hda_input_mux alc260_capture_source = {
 	},
 };
 
-/* On Fujitsu S702x laptops capture only makes sense from Mic/LineIn jack
- * and the internal CD lines.
+/* On Fujitsu S702x laptops capture only makes sense from Mic/LineIn jack,
+ * headphone jack and the internal CD lines.
  */
 static struct hda_input_mux alc260_fujitsu_capture_source = {
 	.num_items = 3,
@@ -2790,16 +2790,26 @@ static hda_nid_t alc260_test_dac_nids[1] = {
 static hda_nid_t alc260_test_adc_nids[2] = {
 	0x04, 0x05,
 };
+/* This is a bit messy since the two input muxes in the ALC260 have slight
+ * variations in their signal assignments.  The ideal way to deal with this
+ * is to extend alc_spec.input_mux to allow a different input MUX for each
+ * ADC.  For the purposes of the test model it's sufficient to just list
+ * both options for affected signal indices.  The separate input mux
+ * functionality only needs to be considered if a model comes along which
+ * actually uses signals 0x5, 0x6 and 0x7 for something which makes sense to
+ * record.
+ */
 static struct hda_input_mux alc260_test_capture_source = {
-	.num_items = 7,
+	.num_items = 8,
 	.items = {
 		{ "MIC1 pin", 0x0 },
 		{ "MIC2 pin", 0x1 },
 		{ "LINE1 pin", 0x2 },
 		{ "LINE2 pin", 0x3 },
 		{ "CD pin", 0x4 },
-		{ "LINE-OUT pin", 0x5 },
-		{ "HP-OUT pin", 0x6 },
+		{ "LINE-OUT pin (cap1), Mixer (cap2)", 0x5 },
+		{ "HP-OUT pin (cap1), LINE-OUT pin (cap2)", 0x6 },
+		{ "HP-OUT pin (cap2 only)", 0x7 },
         },
 };
 static struct snd_kcontrol_new alc260_test_mixer[] = {
