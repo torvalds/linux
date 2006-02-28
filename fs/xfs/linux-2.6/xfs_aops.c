@@ -540,7 +540,7 @@ xfs_probe_cluster(
 
 	/* First sum forwards in this page */
 	do {
-		if (mapped != buffer_mapped(bh))
+		if (!buffer_uptodate(bh) || (mapped != buffer_mapped(bh)))
 			return total;
 		total += bh->b_size;
 	} while ((bh = bh->b_this_page) != head);
