@@ -1040,7 +1040,6 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
  err_out:
 	printk(KERN_WARNING "ata%u: dev %u failed to IDENTIFY (%s)\n",
 	       ap->id, dev->devno, reason);
-	kfree(id);
 	return rc;
 }
 
