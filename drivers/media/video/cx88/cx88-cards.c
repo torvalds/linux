@@ -1071,6 +1071,27 @@ struct cx88_board cx88_boards[] = {
 			.gpio2  = 0x00ff,
 		},
 	},
+	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID] = {
+		.name           = "DViCO FusionHDTV DVB-T Hybrid",
+		.tuner_type     = TUNER_FE6600,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x0000a75f,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x0000a75b,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x0000a75b,
+		}},
+		.dvb            = 1,
+	},
 
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
@@ -1281,6 +1302,14 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x17de,
 		.subdevice = 0x0840,
 		.card      = CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT,
+	},{
+		.subvendor = 0x18ac,
+		.subdevice = 0xdb40,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID,
+	},{
+		.subvendor = 0x18ac,
+		.subdevice = 0xdb44,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1400,6 +1429,40 @@ static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
 }
 
 /* ----------------------------------------------------------------------- */
+/* some DViCO specific stuff                                               */
+
+static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
+{
+	struct i2c_msg msg = { .addr = 0x45, .flags = 0 };
+	int i, err;
+	u8 init_bufs[13][5] = {
+		{ 0x10, 0x00, 0x20, 0x01, 0x03 },
+		{ 0x10, 0x10, 0x01, 0x00, 0x21 },
+		{ 0x10, 0x10, 0x10, 0x00, 0xCA },
+		{ 0x10, 0x10, 0x12, 0x00, 0x08 },
+		{ 0x10, 0x10, 0x13, 0x00, 0x0A },
+		{ 0x10, 0x10, 0x16, 0x01, 0xC0 },
+		{ 0x10, 0x10, 0x22, 0x01, 0x3D },
+		{ 0x10, 0x10, 0x73, 0x01, 0x2E },
+		{ 0x10, 0x10, 0x72, 0x00, 0xC5 },
+		{ 0x10, 0x10, 0x71, 0x01, 0x97 },
+		{ 0x10, 0x10, 0x70, 0x00, 0x0F },
+		{ 0x10, 0x10, 0xB0, 0x00, 0x01 },
+		{ 0x03, 0x0C },
+	};
+
+	for (i = 0; i < 13; i++) {
+		msg.buf = init_bufs[i];
+		msg.len = (i != 12 ? 5 : 2);
+		err = i2c_transfer(&core->i2c_adap, &msg, 1);
+		if (err != 1) {
+			printk("dvico_fusionhdtv_hybrid_init buf %d failed (err = %d)!\n", i, err);
+			return;
+		}
+	}
+}
+
+/* ----------------------------------------------------------------------- */
 
 void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
 {
@@ -1465,11 +1528,15 @@ void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:
 		/* GPIO0:0 is hooked to mt352 reset pin */
 		cx_set(MO_GP0_IO, 0x00000101);
 		cx_clear(MO_GP0_IO, 0x00000001);
 		msleep(1);
 		cx_set(MO_GP0_IO, 0x00000101);
+		if (0 == core->i2c_rc &&
+		    core->board == CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID)
+			dvico_fusionhdtv_hybrid_init(core);
 		break;
 	case CX88_BOARD_KWORLD_DVB_T:
 	case CX88_BOARD_DNTV_LIVE_DVB_T:

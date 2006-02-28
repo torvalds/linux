@@ -116,8 +116,9 @@
 #define TUNER_PHILIPS_TUV1236D		68	/* ATI HDTV Wonder */
 #define TUNER_TNF_5335MF                69	/* Sabrent Bt848   */
 #define TUNER_SAMSUNG_TCPN_2121P30A     70 	/* Hauppauge PVR-500MCE NTSC */
-
 #define TUNER_XCEIVE_XC3028		71
+
+#define TUNER_FE6600			72	/* DViCO FusionHDTV DVB-T Hybrid */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)

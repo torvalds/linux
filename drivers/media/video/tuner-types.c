@@ -983,6 +983,22 @@ static struct tuner_params tuner_samsung_tcpn_2121p30a_params[] = {
 	},
 };
 
+/* ------------ TUNER_FE6600 - DViCO Hybrid PAL ------------ */
+
+static struct tuner_range tuner_fe6600_ranges[] = {
+	{ 16 * 160.00 /*MHz*/, 0xfe, 0x11, },
+	{ 16 * 442.00 /*MHz*/, 0xf6, 0x12, },
+	{ 16 * 999.99        , 0xf6, 0x18, },
+};
+
+static struct tuner_params tuner_fe6600_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_PAL,
+		.ranges = tuner_fe6600_ranges,
+		.count  = ARRAY_SIZE(tuner_fe6600_ranges),
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1353,6 +1369,10 @@ struct tunertype tuners[] = {
 	[TUNER_XCEIVE_XC3028] = { /* Xceive 3028 */
 		.name	= "Xceive xc3028",
 		/* see xc3028.c for details */
+	},
+	[TUNER_FE6600] = { /* */
+		.name   = "FE6600",
+		.params = tuner_fe6600_params,
 	},
 };
 
