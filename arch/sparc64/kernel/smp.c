@@ -556,77 +556,144 @@ retry:
 }
 
 /* Multi-cpu list version.  */
-static int init_cpu_list(u16 *list, cpumask_t mask)
-{
-	int i, cnt;
-
-	cnt = 0;
-	for_each_cpu_mask(i, mask)
-		list[cnt++] = i;
-
-	return cnt;
-}
-
-static int update_cpu_list(u16 *list, int orig_cnt, cpumask_t mask)
-{
-	int i;
-
-	for (i = 0; i < orig_cnt; i++) {
-		if (list[i] == 0xffff)
-			cpu_clear(i, mask);
-	}
-
-	return init_cpu_list(list, mask);
-}
-
 static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mask)
 {
-	int this_cpu = get_cpu();
-	struct trap_per_cpu *tb = &trap_block[this_cpu];
-	u64 *mondo = __va(tb->cpu_mondo_block_pa);
-	u16 *cpu_list = __va(tb->cpu_list_pa);
-	int cnt, retries;
+	struct trap_per_cpu *tb;
+	u16 *cpu_list;
+	u64 *mondo;
+	cpumask_t error_mask;
+	unsigned long flags, status;
+	int cnt, retries, this_cpu, i;
 
+	/* We have to do this whole thing with interrupts fully disabled.
+	 * Otherwise if we send an xcall from interrupt context it will
+	 * corrupt both our mondo block and cpu list state.
+	 *
+	 * One consequence of this is that we cannot use timeout mechanisms
+	 * that depend upon interrupts being delivered locally.  So, for
+	 * example, we cannot sample jiffies and expect it to advance.
+	 *
+	 * Fortunately, udelay() uses %stick/%tick so we can use that.
+	 */
+	local_irq_save(flags);
+
+	this_cpu = smp_processor_id();
+	tb = &trap_block[this_cpu];
+
+	mondo = __va(tb->cpu_mondo_block_pa);
 	mondo[0] = data0;
 	mondo[1] = data1;
 	mondo[2] = data2;
 	wmb();
 
+	cpu_list = __va(tb->cpu_list_pa);
+
+	/* Setup the initial cpu list.  */
+	cnt = 0;
+	for_each_cpu_mask(i, mask)
+		cpu_list[cnt++] = i;
+
+	cpus_clear(error_mask);
 	retries = 0;
-	cnt = init_cpu_list(cpu_list, mask);
 	do {
-		register unsigned long func __asm__("%o5");
-		register unsigned long arg0 __asm__("%o0");
-		register unsigned long arg1 __asm__("%o1");
-		register unsigned long arg2 __asm__("%o2");
+		int forward_progress;
 
-		func = HV_FAST_CPU_MONDO_SEND;
-		arg0 = cnt;
-		arg1 = tb->cpu_list_pa;
-		arg2 = tb->cpu_mondo_block_pa;
+		status = sun4v_cpu_mondo_send(cnt,
+					      tb->cpu_list_pa,
+					      tb->cpu_mondo_block_pa);
 
-		__asm__ __volatile__("ta	%8"
-				     : "=&r" (func), "=&r" (arg0),
-				       "=&r" (arg1), "=&r" (arg2)
-				     : "0" (func), "1" (arg0),
-				       "2" (arg1), "3" (arg2),
-				       "i" (HV_FAST_TRAP)
-				     : "memory");
-		if (likely(arg0 == HV_EOK))
+		/* HV_EOK means all cpus received the xcall, we're done.  */
+		if (likely(status == HV_EOK))
 			break;
 
-		if (unlikely(++retries > 100)) {
-			printk("CPU[%d]: sun4v mondo error %lu\n",
-			       this_cpu, arg0);
-			break;
+		/* First, clear out all the cpus in the mask that were
+		 * successfully sent to.  The hypervisor indicates this
+		 * by setting the cpu list entry of such cpus to 0xffff.
+		 */
+		forward_progress = 0;
+		for (i = 0; i < cnt; i++) {
+			if (cpu_list[i] == 0xffff) {
+				cpu_clear(i, mask);
+				forward_progress = 1;
+			}
 		}
 
-		cnt = update_cpu_list(cpu_list, cnt, mask);
+		/* If we get a HV_ECPUERROR, then one or more of the cpus
+		 * in the list are in error state.  Use the cpu_state()
+		 * hypervisor call to find out which cpus are in error state.
+		 */
+		if (unlikely(status == HV_ECPUERROR)) {
+			for (i = 0; i < cnt; i++) {
+				long err;
+				u16 cpu;
 
-		udelay(2 * cnt);
+				cpu = cpu_list[i];
+				if (cpu == 0xffff)
+					continue;
+
+				err = sun4v_cpu_state(cpu);
+				if (err >= 0 &&
+				    err == HV_CPU_STATE_ERROR) {
+					cpu_clear(cpu, mask);
+					cpu_set(cpu, error_mask);
+				}
+			}
+		} else if (unlikely(status != HV_EWOULDBLOCK))
+			goto fatal_mondo_error;
+
+		/* Rebuild the cpu_list[] array and try again.  */
+		cnt = 0;
+		for_each_cpu_mask(i, mask)
+			cpu_list[cnt++] = i;
+
+		if (unlikely(!forward_progress)) {
+			if (unlikely(++retries > 10000))
+				goto fatal_mondo_timeout;
+
+			/* Delay a little bit to let other cpus catch up
+			 * on their cpu mondo queue work.
+			 */
+			udelay(2 * cnt);
+		}
 	} while (1);
 
-	put_cpu();
+	local_irq_restore(flags);
+
+	if (unlikely(!cpus_empty(error_mask)))
+		goto fatal_mondo_cpu_error;
+
+	return;
+
+fatal_mondo_cpu_error:
+	printk(KERN_CRIT "CPU[%d]: SUN4V mondo cpu error, some target cpus "
+	       "were in error state\n",
+	       this_cpu);
+	printk(KERN_CRIT "CPU[%d]: Error mask [ ", this_cpu);
+	for_each_cpu_mask(i, error_mask)
+		printk("%d ", i);
+	printk("]\n");
+	return;
+
+fatal_mondo_timeout:
+	local_irq_restore(flags);
+	printk(KERN_CRIT "CPU[%d]: SUN4V mondo timeout, no forward "
+	       " progress after %d retries.\n",
+	       this_cpu, retries);
+	goto dump_cpu_list_and_out;
+
+fatal_mondo_error:
+	local_irq_restore(flags);
+	printk(KERN_CRIT "CPU[%d]: Unexpected SUN4V mondo error %lu\n",
+	       this_cpu, status);
+	printk(KERN_CRIT "CPU[%d]: Args were cnt(%d) cpulist_pa(%lx) "
+	       "mondo_block_pa(%lx)\n",
+	       this_cpu, cnt, tb->cpu_list_pa, tb->cpu_mondo_block_pa);
+
+dump_cpu_list_and_out:
+	printk(KERN_CRIT "CPU[%d]: CPU list [ ", this_cpu);
+	for (i = 0; i < cnt; i++)
+		printk("%u ", cpu_list[i]);
+	printk("]\n");
 }
 
 /* Send cross call to all processors mentioned in MASK
@@ -723,9 +790,8 @@ static int smp_call_function_mask(void (*func)(void *info), void *info,
 
 out_timeout:
 	spin_unlock(&call_lock);
-	printk("XCALL: Remote cpus not responding, ncpus=%ld finished=%ld\n",
-	       (long) num_online_cpus() - 1L,
-	       (long) atomic_read(&data.finished));
+	printk("XCALL: Remote cpus not responding, ncpus=%d finished=%d\n",
+	       cpus, atomic_read(&data.finished));
 	return 0;
 }
 

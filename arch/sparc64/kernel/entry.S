@@ -1795,3 +1795,31 @@ sun4v_cpu_yield:
 	ta	HV_FAST_TRAP
 	retl
 	 nop
+
+	/* %o0:	num cpus in cpu list
+	 * %o1:	cpu list paddr
+	 * %o2:	mondo block paddr
+	 *
+	 * returns %o0: status
+	 */
+	.globl	sun4v_cpu_mondo_send
+sun4v_cpu_mondo_send:
+	mov	HV_FAST_CPU_MONDO_SEND, %o5
+	ta	HV_FAST_TRAP
+	retl
+	 nop
+
+	/* %o0:	CPU ID
+	 *
+	 * returns %o0:	-status if status non-zero, else
+	 *         %o0:	cpu state as HV_CPU_STATE_*
+	 */
+	.globl	sun4v_cpu_state
+sun4v_cpu_state:
+	mov	HV_FAST_CPU_STATE, %o5
+	ta	HV_FAST_TRAP
+	brnz,pn	%o0, 1f
+	 sub	%g0, %o0, %o0
+	mov	%o1, %o0
+1:	retl
+	 nop

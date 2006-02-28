@@ -342,6 +342,8 @@ extern unsigned long sun4v_cpu_qconf(unsigned long type,
  *		ENOCPU		Invalid cpu in CPU list
  *		EWOULDBLOCK	Some or all of the listed CPUs did not receive
  *				the mondo
+ *		ECPUERROR	One or more of the listed CPUs are in error
+ *				state, use HV_FAST_CPU_STATE to see which ones
  *		EINVAL		CPU list includes caller's CPU ID
  *
  * Send a mondo interrupt to the CPUs in the given CPU list with the
@@ -354,6 +356,10 @@ extern unsigned long sun4v_cpu_qconf(unsigned long type,
  * their entry in CPU list updated with the value 0xffff.
  */
 #define HV_FAST_CPU_MONDO_SEND		0x42
+
+#ifndef __ASSEMBLY__
+extern unsigned long sun4v_cpu_mondo_send(unsigned long cpu_count, unsigned long cpu_list_pa, unsigned long mondo_block_pa);
+#endif
 
 /* cpu_myid()
  * TRAP:	HV_FAST_TRAP
@@ -381,6 +387,10 @@ extern unsigned long sun4v_cpu_qconf(unsigned long type,
 #define  HV_CPU_STATE_STOPPED		 0x01
 #define  HV_CPU_STATE_RUNNING		 0x02
 #define  HV_CPU_STATE_ERROR		 0x03
+
+#ifndef __ASSEMBLY__
+extern long sun4v_cpu_state(unsigned long cpuid);
+#endif
 
 /* cpu_set_rtba()
  * TRAP:	HV_FAST_TRAP
