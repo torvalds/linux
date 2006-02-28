@@ -542,6 +542,8 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 
+	smp_setup_cpu_possible_map();
+
 	paging_init();
 }
 

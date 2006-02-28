@@ -423,6 +423,12 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		else if(!memcmp(from, "elfcorehdr=", 11))
 			elfcorehdr_addr = memparse(from+11, &from);
 #endif
+
+#ifdef CONFIG_HOTPLUG_CPU
+		else if (!memcmp(from, "additional_cpus=", 16))
+			setup_additional_cpus(from+16);
+#endif
+
 	next_char:
 		c = *(from++);
 		if (!c)

@@ -143,7 +143,7 @@ static struct irqaction irq_call = {
  * Make sure all CPU's are in a sensible state before we boot any of the
  * secondarys
  */
-void prom_prepare_cpus(unsigned int max_cpus)
+void plat_smp_setup(void)
 {
 	unsigned long val;
 	int i, num;
@@ -179,11 +179,9 @@ void prom_prepare_cpus(unsigned int max_cpus)
 				write_vpe_c0_vpeconf0(tmp);
 
 				/* Record this as available CPU */
-				if (i < max_cpus) {
-					cpu_set(i, phys_cpu_present_map);
-					__cpu_number_map[i]	= ++num;
-					__cpu_logical_map[num]	= i;
-				}
+				cpu_set(i, phys_cpu_present_map);
+				__cpu_number_map[i]	= ++num;
+				__cpu_logical_map[num]	= i;
 			}
 
 			/* disable multi-threading with TC's */
@@ -241,7 +239,10 @@ void prom_prepare_cpus(unsigned int max_cpus)
 		set_vi_handler (MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
 		set_vi_handler (MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
 	}
+}
 
+void __init plat_prepare_cpus(unsigned int max_cpus)
+{
 	cpu_ipi_resched_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_RESCHED_IRQ;
 	cpu_ipi_call_irq = MIPSCPU_INT_BASE + MIPS_CPU_IPI_CALL_IRQ;
 

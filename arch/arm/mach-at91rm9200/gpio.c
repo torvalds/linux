@@ -274,8 +274,18 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 		gpio = &irq_desc[pin];
 
 		while (isr) {
-			if (isr & 1)
-				gpio->handle(pin, gpio, regs);
+			if (isr & 1) {
+				if (unlikely(gpio->disable_depth)) {
+					/*
+					 * The core ARM interrupt handler lazily disables IRQs so
+					 * another IRQ must be generated before it actually gets
+					 * here to be disabled on the GPIO controller.
+					 */
+					gpio_irq_mask(pin);
+				}
+				else
+					gpio->handle(pin, gpio, regs);
+			}
 			pin++;
 			gpio++;
 			isr >>= 1;

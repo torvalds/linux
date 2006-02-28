@@ -425,7 +425,12 @@ ipt_log_target(struct sk_buff **pskb,
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	nf_log_packet(PF_INET, hooknum, *pskb, in, out, &li, loginfo->prefix);
+	if (loginfo->logflags & IPT_LOG_NFLOG)
+		nf_log_packet(PF_INET, hooknum, *pskb, in, out, &li,
+		              loginfo->prefix);
+	else
+		ipt_log_packet(PF_INET, hooknum, *pskb, in, out, &li,
+		               loginfo->prefix);
 
 	return IPT_CONTINUE;
 }

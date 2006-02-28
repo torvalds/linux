@@ -169,7 +169,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 #ifdef CONFIG_PPC_ISERIES
 		if (_machine == PLATFORM_ISERIES_LPAR)
 			ret = iSeries_hpte_insert(hpteg, va,
-						  virt_to_abs(paddr),
+						  __pa(vaddr),
 						  tmp_mode,
 						  HPTE_V_BOLTED,
 						  psize);

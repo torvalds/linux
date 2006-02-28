@@ -236,7 +236,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	init_new_context(current, &init_mm);
 	current_thread_info()->cpu = 0;
 	smp_tune_scheduling();
-	prom_prepare_cpus(max_cpus);
+	plat_prepare_cpus(max_cpus);
 }
 
 /* preload SMP state for boot cpu */

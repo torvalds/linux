@@ -1,7 +1,7 @@
 /*
  * file.c - NTFS kernel file operations.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2005 Anton Altaparmakov
+ * Copyright (c) 2001-2006 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -248,7 +248,7 @@ do_non_resident_extend:
 		 * enough to make ntfs_writepage() work.
 		 */
 		write_lock_irqsave(&ni->size_lock, flags);
-		ni->initialized_size = (index + 1) << PAGE_CACHE_SHIFT;
+		ni->initialized_size = (s64)(index + 1) << PAGE_CACHE_SHIFT;
 		if (ni->initialized_size > new_init_size)
 			ni->initialized_size = new_init_size;
 		write_unlock_irqrestore(&ni->size_lock, flags);
@@ -529,8 +529,8 @@ static int ntfs_prepare_pages_for_non_resident_write(struct page **pages,
 			"index 0x%lx, nr_pages 0x%x, pos 0x%llx, bytes 0x%zx.",
 			vi->i_ino, ni->type, pages[0]->index, nr_pages,
 			(long long)pos, bytes);
-	blocksize_bits = vi->i_blkbits;
-	blocksize = 1 << blocksize_bits;
+	blocksize = vol->sb->s_blocksize;
+	blocksize_bits = vol->sb->s_blocksize_bits;
 	u = 0;
 	do {
 		struct page *page = pages[u];
@@ -1525,7 +1525,7 @@ static inline int ntfs_commit_pages_after_non_resident_write(
 
 	vi = pages[0]->mapping->host;
 	ni = NTFS_I(vi);
-	blocksize = 1 << vi->i_blkbits;
+	blocksize = vi->i_sb->s_blocksize;
 	end = pos + bytes;
 	u = 0;
 	do {

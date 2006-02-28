@@ -122,7 +122,7 @@ extern struct uml_param __uml_setup_start, __uml_setup_end;
 
 #define __exitcall(fn) static exitcall_t __exitcall_##fn __exit_call = fn
 
-#define __init_call __attribute__ ((unused,__section__ (".initcall.init")))
+#define __init_call	__attribute_used__ __attribute__ ((__section__ (".initcall.init")))
 
 #endif
 

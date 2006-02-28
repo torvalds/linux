@@ -2,7 +2,7 @@
  * aops.c - NTFS kernel address space operations and page cache handling.
  *	    Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2005 Anton Altaparmakov
+ * Copyright (c) 2001-2006 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -200,8 +200,8 @@ static int ntfs_read_block(struct page *page)
 	/* $MFT/$DATA must have its complete runlist in memory at all times. */
 	BUG_ON(!ni->runlist.rl && !ni->mft_no && !NInoAttr(ni));
 
-	blocksize_bits = VFS_I(ni)->i_blkbits;
-	blocksize = 1 << blocksize_bits;
+	blocksize = vol->sb->s_blocksize;
+	blocksize_bits = vol->sb->s_blocksize_bits;
 
 	if (!page_has_buffers(page)) {
 		create_empty_buffers(page, blocksize, 0);
@@ -569,10 +569,8 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 
 	BUG_ON(!NInoNonResident(ni));
 	BUG_ON(NInoMstProtected(ni));
-
-	blocksize_bits = vi->i_blkbits;
-	blocksize = 1 << blocksize_bits;
-
+	blocksize = vol->sb->s_blocksize;
+	blocksize_bits = vol->sb->s_blocksize_bits;
 	if (!page_has_buffers(page)) {
 		BUG_ON(!PageUptodate(page));
 		create_empty_buffers(page, blocksize,
@@ -949,8 +947,8 @@ static int ntfs_write_mst_block(struct page *page,
 	 */
 	BUG_ON(!(is_mft || S_ISDIR(vi->i_mode) ||
 			(NInoAttr(ni) && ni->type == AT_INDEX_ALLOCATION)));
-	bh_size_bits = vi->i_blkbits;
-	bh_size = 1 << bh_size_bits;
+	bh_size = vol->sb->s_blocksize;
+	bh_size_bits = vol->sb->s_blocksize_bits;
 	max_bhs = PAGE_CACHE_SIZE / bh_size;
 	BUG_ON(!max_bhs);
 	BUG_ON(max_bhs > MAX_BUF_PER_PAGE);
@@ -1596,7 +1594,7 @@ void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
 
 	BUG_ON(!PageUptodate(page));
 	end = ofs + ni->itype.index.block_size;
-	bh_size = 1 << VFS_I(ni)->i_blkbits;
+	bh_size = VFS_I(ni)->i_sb->s_blocksize;
 	spin_lock(&mapping->private_lock);
 	if (unlikely(!page_has_buffers(page))) {
 		spin_unlock(&mapping->private_lock);
