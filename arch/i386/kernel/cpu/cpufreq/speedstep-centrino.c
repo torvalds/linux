@@ -479,15 +479,13 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	unsigned l, h;
 	int ret;
 	int i;
-	struct cpuinfo_x86 *c = &cpu_data[policy->cpu];
 
 	/* Only Intel makes Enhanced Speedstep-capable CPUs */
 	if (cpu->x86_vendor != X86_VENDOR_INTEL || !cpu_has(cpu, X86_FEATURE_EST))
 		return -ENODEV;
 
-	if (cpu_has(c, X86_FEATURE_CONSTANT_TSC)) {
+	if (cpu_has(cpu, X86_FEATURE_CONSTANT_TSC))
 		centrino_driver.flags |= CPUFREQ_CONST_LOOPS;
-	}
 
 	if (centrino_cpu_init_acpi(policy)) {
 		if (policy->cpu != 0)
