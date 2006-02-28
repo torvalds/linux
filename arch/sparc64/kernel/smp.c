@@ -909,14 +909,18 @@ void smp_receive_signal_client(int irq, struct pt_regs *regs)
 	 */
 	mm = current->active_mm;
 	if (likely(mm)) {
-		if (unlikely(!CTX_VALID(mm->context))) {
-			unsigned long flags;
+		unsigned long flags;
 
-			spin_lock_irqsave(&mm->context.lock, flags);
+		spin_lock_irqsave(&mm->context.lock, flags);
+
+		if (unlikely(!CTX_VALID(mm->context)))
 			get_new_mmu_context(mm);
-			load_secondary_context(mm);
-			spin_unlock_irqrestore(&mm->context.lock, flags);
-		}
+
+		load_secondary_context(mm);
+		__flush_tlb_mm(CTX_HWBITS(mm->context),
+			       SECONDARY_CONTEXT);
+
+		spin_unlock_irqrestore(&mm->context.lock, flags);
 	}
 }
 
