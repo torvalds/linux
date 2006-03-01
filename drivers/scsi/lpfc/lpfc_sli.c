@@ -766,7 +766,9 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	}
 	/* unSolicited Responses */
 	if (pring->prt[0].profile) {
-		(pring->prt[0].lpfc_sli_rcv_unsol_event) (phba, pring, saveq);
+		if (pring->prt[0].lpfc_sli_rcv_unsol_event)
+			(pring->prt[0].lpfc_sli_rcv_unsol_event) (phba, pring,
+									saveq);
 		match = 1;
 	} else {
 		/* We must search, based on rctl / type
@@ -777,8 +779,9 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			     Rctl)
 			    && (pring->prt[i].
 				type == Type)) {
-				(pring->prt[i].lpfc_sli_rcv_unsol_event)
-					(phba, pring, saveq);
+				if (pring->prt[i].lpfc_sli_rcv_unsol_event)
+					(pring->prt[i].lpfc_sli_rcv_unsol_event)
+							(phba, pring, saveq);
 				match = 1;
 				break;
 			}
@@ -2377,6 +2380,37 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	return IOCB_BUSY;
 }
 
+static int
+lpfc_extra_ring_setup( struct lpfc_hba *phba)
+{
+	struct lpfc_sli *psli;
+	struct lpfc_sli_ring *pring;
+
+	psli = &phba->sli;
+
+	/* Adjust cmd/rsp ring iocb entries more evenly */
+	pring = &psli->ring[psli->fcp_ring];
+	pring->numCiocb -= SLI2_IOCB_CMD_R1XTRA_ENTRIES;
+	pring->numRiocb -= SLI2_IOCB_RSP_R1XTRA_ENTRIES;
+	pring->numCiocb -= SLI2_IOCB_CMD_R3XTRA_ENTRIES;
+	pring->numRiocb -= SLI2_IOCB_RSP_R3XTRA_ENTRIES;
+
+	pring = &psli->ring[1];
+	pring->numCiocb += SLI2_IOCB_CMD_R1XTRA_ENTRIES;
+	pring->numRiocb += SLI2_IOCB_RSP_R1XTRA_ENTRIES;
+	pring->numCiocb += SLI2_IOCB_CMD_R3XTRA_ENTRIES;
+	pring->numRiocb += SLI2_IOCB_RSP_R3XTRA_ENTRIES;
+
+	/* Setup default profile for this ring */
+	pring->iotag_max = 4096;
+	pring->num_mask = 1;
+	pring->prt[0].profile = 0;      /* Mask 0 */
+	pring->prt[0].rctl = FC_UNSOL_DATA;
+	pring->prt[0].type = 5;
+	pring->prt[0].lpfc_sli_rcv_unsol_event = NULL;
+	return 0;
+}
+
 int
 lpfc_sli_setup(struct lpfc_hba *phba)
 {
@@ -2460,6 +2494,8 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 				"SLI2 SLIM Data: x%x x%x\n",
 				phba->brd_no, totiocb, MAX_SLI2_IOCB);
 	}
+	if (phba->cfg_multi_ring_support == 2)
+		lpfc_extra_ring_setup(phba);
 
 	return 0;
 }

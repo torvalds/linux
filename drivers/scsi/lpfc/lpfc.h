@@ -293,6 +293,7 @@ struct lpfc_hba {
 	uint32_t cfg_link_speed;
 	uint32_t cfg_cr_delay;
 	uint32_t cfg_cr_count;
+	uint32_t cfg_multi_ring_support;
 	uint32_t cfg_fdmi_on;
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_max_luns;

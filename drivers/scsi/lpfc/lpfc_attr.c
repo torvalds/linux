@@ -671,6 +671,14 @@ LPFC_ATTR_RW(cr_count, 1, 1, 255, "A count of I/O completions after which an "
 		"interrupt response is generated");
 
 /*
+# lpfc_multi_ring_support:  Determines how many rings to spread available
+# cmd/rsp IOCB entries across.
+# Value range is [1,2]. Default value is 1.
+*/
+LPFC_ATTR_R(multi_ring_support, 1, 1, 2, "Determines number of primary "
+		"SLI rings to spread IOCB entries across");
+
+/*
 # lpfc_fdmi_on: controls FDMI support.
 #       0 = no FDMI support
 #       1 = support FDMI without attribute of hostname
@@ -726,6 +734,7 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_link_speed,
 	&class_device_attr_lpfc_cr_delay,
 	&class_device_attr_lpfc_cr_count,
+	&class_device_attr_lpfc_multi_ring_support,
 	&class_device_attr_lpfc_fdmi_on,
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
@@ -1440,6 +1449,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_log_verbose_init(phba, lpfc_log_verbose);
 	lpfc_cr_delay_init(phba, lpfc_cr_delay);
 	lpfc_cr_count_init(phba, lpfc_cr_count);
+	lpfc_multi_ring_support_init(phba, lpfc_multi_ring_support);
 	lpfc_lun_queue_depth_init(phba, lpfc_lun_queue_depth);
 	lpfc_fcp_class_init(phba, lpfc_fcp_class);
 	lpfc_use_adisc_init(phba, lpfc_use_adisc);
