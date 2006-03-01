@@ -61,7 +61,6 @@ struct lpfc_iocbq {
 };
 
 #define SLI_IOCB_RET_IOCB      1	/* Return IOCB if cmd ring full */
-#define SLI_IOCB_HIGH_PRIORITY 2	/* High priority command */
 
 #define IOCB_SUCCESS        0
 #define IOCB_BUSY           1

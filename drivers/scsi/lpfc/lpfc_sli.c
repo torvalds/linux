@@ -2237,16 +2237,6 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		   !(phba->sli.sli_flag & LPFC_PROCESS_LA)))
 		goto iocb_busy;
 
-	/*
-	 * Check to see if this is a high priority command.
-	 * If so bypass tx queue processing.
-	 */
-	if (unlikely((flag & SLI_IOCB_HIGH_PRIORITY) &&
-		     (iocb = lpfc_sli_next_iocb_slot(phba, pring)))) {
-		lpfc_sli_submit_iocb(phba, pring, iocb, piocb);
-		piocb = NULL;
-	}
-
 	while ((iocb = lpfc_sli_next_iocb_slot(phba, pring)) &&
 	       (nextiocb = lpfc_sli_next_iocb(phba, pring, &piocb)))
 		lpfc_sli_submit_iocb(phba, pring, iocb, nextiocb);
