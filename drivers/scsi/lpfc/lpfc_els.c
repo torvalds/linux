@@ -2668,7 +2668,7 @@ lpfc_els_rcv_lirr(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	return 0;
 }
 
-void
+static void
 lpfc_els_rsp_rps_acc(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 {
 	struct lpfc_sli *psli;
@@ -2795,7 +2795,7 @@ lpfc_els_rcv_rps(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	return 0;
 }
 
-int
+static int
 lpfc_els_rsp_rpl_acc(struct lpfc_hba * phba, uint16_t cmdsize,
 		 struct lpfc_iocbq * oldiocb, struct lpfc_nodelist * ndlp)
 {
