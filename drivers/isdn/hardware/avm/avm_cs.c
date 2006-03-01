@@ -371,42 +371,6 @@ static void avmcs_release(dev_link_t *link)
 	pcmcia_disable_device(link->handle);
 } /* avmcs_release */
 
-static int avmcs_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int avmcs_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-    When a CARD_REMOVAL event is received, we immediately set a flag
-    to block future accesses to this device.  All the functions that
-    actually access the device should check this flag to make sure
-    the card is still present.
-    
-======================================================================*/
-
 
 static struct pcmcia_device_id avmcs_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("AVM", "ISDN-Controller B1", 0x95d42008, 0x845dc335),
@@ -424,8 +388,6 @@ static struct pcmcia_driver avmcs_driver = {
 	.probe = avmcs_attach,
 	.remove	= avmcs_detach,
 	.id_table = avmcs_ids,
-	.suspend= avmcs_suspend,
-	.resume = avmcs_resume,
 };
 
 static int __init avmcs_init(void)

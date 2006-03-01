@@ -232,28 +232,6 @@ static void ixj_cs_release(dev_link_t *link)
 	pcmcia_disable_device(link->handle);
 }
 
-static int ixj_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int ixj_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (DEV_OK(link))
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
-
 static struct pcmcia_device_id ixj_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0257, 0x0600),
 	PCMCIA_DEVICE_NULL
@@ -268,8 +246,6 @@ static struct pcmcia_driver ixj_driver = {
 	.probe		= ixj_attach,
 	.remove		= ixj_detach,
 	.id_table	= ixj_ids,
-	.suspend	= ixj_suspend,
-	.resume		= ixj_resume,
 };
 
 static int __init ixj_pcmcia_init(void)

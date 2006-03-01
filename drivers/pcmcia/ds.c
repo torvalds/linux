@@ -10,7 +10,7 @@
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * (C) 1999		David A. Hinds
- * (C) 2003 - 2005	Dominik Brodowski
+ * (C) 2003 - 2006	Dominik Brodowski
  */
 
 #include <linux/kernel.h>
@@ -1030,12 +1030,22 @@ static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	struct pcmcia_driver *p_drv = NULL;
+	int ret;
 
 	if (dev->driver)
 		p_drv = to_pcmcia_drv(dev->driver);
 
-	if (p_drv && p_drv->suspend)
-		return p_drv->suspend(p_dev);
+	if (p_drv && p_drv->suspend) {
+		ret = p_drv->suspend(p_dev);
+		if (ret)
+			return ret;
+		if (p_dev->instance) {
+			p_dev->instance->state |= DEV_SUSPEND;
+			if ((p_dev->instance->state & DEV_CONFIG) &&
+			    !(p_dev->instance->state & DEV_SUSPEND_NORELEASE))
+				pcmcia_release_configuration(p_dev);
+		}
+	}
 
 	return 0;
 }
@@ -1045,12 +1055,24 @@ static int pcmcia_dev_resume(struct device * dev)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
         struct pcmcia_driver *p_drv = NULL;
+	int ret;
 
 	if (dev->driver)
 		p_drv = to_pcmcia_drv(dev->driver);
 
-	if (p_drv && p_drv->resume)
+	if (p_drv && p_drv->resume) {
+		if (p_dev->instance) {
+			p_dev->instance->state &= ~DEV_SUSPEND;
+			if ((p_dev->instance->state & DEV_CONFIG) &&
+			    !(p_dev->instance->state & DEV_SUSPEND_NORELEASE)){
+				ret = pcmcia_request_configuration(p_dev,
+						 &p_dev->instance->conf);
+				if (ret)
+					return ret;
+			}
+		}
 		return p_drv->resume(p_dev);
+	}
 
 	return 0;
 }

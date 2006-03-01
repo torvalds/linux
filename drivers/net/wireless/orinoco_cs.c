@@ -429,7 +429,6 @@ static int orinoco_cs_suspend(struct pcmcia_device *p_dev)
 	int err = 0;
 	unsigned long flags;
 
-	link->state |= DEV_SUSPEND;
 	if (link->state & DEV_CONFIG) {
 		/* This is probably racy, but I can't think of
 		   a better way, short of rewriting the PCMCIA
@@ -447,8 +446,6 @@ static int orinoco_cs_suspend(struct pcmcia_device *p_dev)
 
 			spin_unlock_irqrestore(&priv->lock, flags);
 		}
-
-		pcmcia_release_configuration(link->handle);
 	}
 
 	return 0;
@@ -463,12 +460,7 @@ static int orinoco_cs_resume(struct pcmcia_device *p_dev)
 	int err = 0;
 	unsigned long flags;
 
-	link->state &= ~DEV_SUSPEND;
 	if (link->state & DEV_CONFIG) {
-		/* FIXME: should we double check that this is
-		 * the same card as we had before */
-		pcmcia_request_configuration(link->handle, &link->conf);
-
 		if (! test_bit(0, &card->hard_reset_in_progress)) {
 			err = orinoco_reinit_firmware(dev);
 			if (err) {

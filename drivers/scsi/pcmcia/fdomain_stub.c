@@ -220,26 +220,12 @@ static void fdomain_release(dev_link_t *link)
 
 /*====================================================================*/
 
-static int fdomain_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
 static int fdomain_resume(struct pcmcia_device *dev)
 {
 	dev_link_t *link = dev_to_instance(dev);
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
+	if (link->state & DEV_CONFIG)
 		fdomain_16x0_bus_reset(NULL);
-	}
 
 	return 0;
 }
@@ -260,7 +246,6 @@ static struct pcmcia_driver fdomain_cs_driver = {
 	.probe		= fdomain_attach,
 	.remove		= fdomain_detach,
 	.id_table       = fdomain_ids,
-	.suspend	= fdomain_suspend,
 	.resume		= fdomain_resume,
 };
 

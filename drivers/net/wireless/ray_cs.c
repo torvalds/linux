@@ -868,14 +868,8 @@ static int ray_suspend(struct pcmcia_device *p_dev)
 	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state |= DEV_SUSPEND;
-        if (link->state & DEV_CONFIG) {
-		if (link->open)
-			netif_device_detach(dev);
-
-		pcmcia_release_configuration(link->handle);
-        }
-
+	if ((link->state & DEV_CONFIG) && (link->open))
+		netif_device_detach(dev);
 
 	return 0;
 }
@@ -885,14 +879,10 @@ static int ray_resume(struct pcmcia_device *p_dev)
 	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-        if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-		if (link->open) {
-			ray_reset(dev);
-			netif_device_attach(dev);
-		}
-        }
+	if ((link->state & DEV_CONFIG) && (link->open)) {
+		ray_reset(dev);
+		netif_device_attach(dev);
+	}
 
 	return 0;
 }

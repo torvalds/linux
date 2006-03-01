@@ -389,10 +389,7 @@ static int elsa_suspend(struct pcmcia_device *p_dev)
 	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *dev = link->priv;
 
-	link->state |= DEV_SUSPEND;
         dev->busy = 1;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
 
 	return 0;
 }
@@ -402,9 +399,6 @@ static int elsa_resume(struct pcmcia_device *p_dev)
 	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *dev = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
         dev->busy = 0;
 
 	return 0;

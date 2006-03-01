@@ -1870,10 +1870,6 @@ static int cm4000_suspend(struct pcmcia_device *p_dev)
 	struct cm4000_dev *dev;
 
 	dev = link->priv;
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
 	stop_monitor(dev);
 
 	return 0;
@@ -1885,11 +1881,6 @@ static int cm4000_resume(struct pcmcia_device *p_dev)
 	struct cm4000_dev *dev;
 
 	dev = link->priv;
-
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
-
 	if (link->open)
 		start_monitor(dev);
 

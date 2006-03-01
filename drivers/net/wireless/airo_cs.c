@@ -437,11 +437,8 @@ static int airo_suspend(struct pcmcia_device *p_dev)
 	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *local = link->priv;
 
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
+	if (link->state & DEV_CONFIG)
 		netif_device_detach(local->eth_dev);
-		pcmcia_release_configuration(link->handle);
-	}
 
 	return 0;
 }
@@ -451,9 +448,7 @@ static int airo_resume(struct pcmcia_device *p_dev)
 	dev_link_t *link = dev_to_instance(p_dev);
 	local_info_t *local = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
+	if ((link->state & DEV_CONFIG) && (link->open)) {
 		reset_airo_card(local->eth_dev);
 		netif_device_attach(local->eth_dev);
 	}

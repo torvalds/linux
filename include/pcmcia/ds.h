@@ -118,8 +118,7 @@ typedef struct dev_link_t {
 /* Flags for device state */
 #define DEV_PRESENT		0x01
 #define DEV_CONFIG		0x02
-#define DEV_STALE_CONFIG	0x04	/* release on close */
-#define DEV_STALE_LINK		0x08	/* detach on release */
+#define DEV_SUSPEND_NORELEASE	0x04
 #define DEV_CONFIG_PENDING	0x10
 #define DEV_RELEASE_PENDING	0x20
 #define DEV_SUSPEND		0x40

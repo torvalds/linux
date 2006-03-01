@@ -280,27 +280,6 @@ void parport_cs_release(dev_link_t *link)
 	pcmcia_disable_device(link->handle);
 } /* parport_cs_release */
 
-static int parport_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int parport_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (DEV_OK(link))
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
 
 static struct pcmcia_device_id parport_ids[] = {
 	PCMCIA_DEVICE_FUNC_ID(3),
@@ -317,8 +296,6 @@ static struct pcmcia_driver parport_cs_driver = {
 	.probe		= parport_attach,
 	.remove		= parport_detach,
 	.id_table	= parport_ids,
-	.suspend	= parport_suspend,
-	.resume		= parport_resume,
 };
 
 static int __init init_parport_cs(void)

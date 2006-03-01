@@ -908,7 +908,6 @@ spectrum_cs_suspend(struct pcmcia_device *p_dev)
 	unsigned long flags;
 	int err = 0;
 
-	link->state |= DEV_SUSPEND;
 	/* Mark the device as stopped, to block IO until later */
 	if (link->state & DEV_CONFIG) {
 		spin_lock_irqsave(&priv->lock, flags);
@@ -922,8 +921,6 @@ spectrum_cs_suspend(struct pcmcia_device *p_dev)
 		priv->hw_unavailable++;
 
 		spin_unlock_irqrestore(&priv->lock, flags);
-
-		pcmcia_release_configuration(link->handle);
 	}
 
 	return 0;
@@ -936,11 +933,7 @@ spectrum_cs_resume(struct pcmcia_device *p_dev)
 	struct net_device *dev = link->priv;
 	struct orinoco_private *priv = netdev_priv(dev);
 
-	link->state &= ~DEV_SUSPEND;
 	if (link->state & DEV_CONFIG) {
-		/* FIXME: should we double check that this is
-		 * the same card as we had before */
-		pcmcia_request_configuration(link->handle, &link->conf);
 		netif_device_attach(dev);
 		priv->hw_unavailable--;
 		schedule_work(&priv->reset_work);

@@ -874,7 +874,6 @@ static int smc91c92_suspend(struct pcmcia_device *p_dev)
 	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state |= DEV_SUSPEND;
 	if (link->state & DEV_CONFIG) {
 		if (link->open)
 			netif_device_detach(dev);
@@ -891,7 +890,6 @@ static int smc91c92_resume(struct pcmcia_device *p_dev)
 	struct smc_private *smc = netdev_priv(dev);
 	int i;
 
-	link->state &= ~DEV_SUSPEND;
 	if (link->state & DEV_CONFIG) {
 		if ((smc->manfid == MANFID_MEGAHERTZ) &&
 		    (smc->cardid == PRODID_MEGAHERTZ_EM3288))

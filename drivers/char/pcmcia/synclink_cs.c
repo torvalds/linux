@@ -733,10 +733,7 @@ static int mgslpc_suspend(struct pcmcia_device *dev)
 	dev_link_t *link = dev_to_instance(dev);
 	MGSLPC_INFO *info = link->priv;
 
-	link->state |= DEV_SUSPEND;
 	info->stop = 1;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
 
 	return 0;
 }
@@ -746,9 +743,6 @@ static int mgslpc_resume(struct pcmcia_device *dev)
 	dev_link_t *link = dev_to_instance(dev);
 	MGSLPC_INFO *info = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
 	info->stop = 0;
 
 	return 0;

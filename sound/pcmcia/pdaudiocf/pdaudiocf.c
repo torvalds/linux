@@ -284,15 +284,10 @@ static int pdacf_suspend(struct pcmcia_device *dev)
 	struct snd_pdacf *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "SUSPEND\n");
-	link->state |= DEV_SUSPEND;
 	if (chip) {
 		snd_printdd(KERN_DEBUG "snd_pdacf_suspend calling\n");
 		snd_pdacf_suspend(chip, PMSG_SUSPEND);
 	}
-
-	snd_printdd(KERN_DEBUG "RESET_PHYSICAL\n");
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
 
 	return 0;
 }
@@ -303,12 +298,7 @@ static int pdacf_resume(struct pcmcia_device *dev)
 	struct snd_pdacf *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "RESUME\n");
-	link->state &= ~DEV_SUSPEND;
-
-	snd_printdd(KERN_DEBUG "CARD_RESET\n");
 	if (DEV_OK(link)) {
-		snd_printdd(KERN_DEBUG "requestconfig...\n");
-		pcmcia_request_configuration(link->handle, &link->conf);
 		if (chip) {
 			snd_printdd(KERN_DEBUG "calling snd_pdacf_resume\n");
 			snd_pdacf_resume(chip);

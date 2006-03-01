@@ -284,14 +284,10 @@ static int vxp_suspend(struct pcmcia_device *dev)
 	struct vx_core *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "SUSPEND\n");
-	link->state |= DEV_SUSPEND;
 	if (chip) {
 		snd_printdd(KERN_DEBUG "snd_vx_suspend calling\n");
 		snd_vx_suspend(chip, PMSG_SUSPEND);
 	}
-	snd_printdd(KERN_DEBUG "RESET_PHYSICAL\n");
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
 
 	return 0;
 }
@@ -302,13 +298,8 @@ static int vxp_resume(struct pcmcia_device *dev)
 	struct vx_core *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "RESUME\n");
-	link->state &= ~DEV_SUSPEND;
-
-	snd_printdd(KERN_DEBUG "CARD_RESET\n");
 	if (DEV_OK(link)) {
 		//struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
-		snd_printdd(KERN_DEBUG "requestconfig...\n");
-		pcmcia_request_configuration(link->handle, &link->conf);
 		if (chip) {
 			snd_printdd(KERN_DEBUG "calling snd_vx_resume\n");
 			snd_vx_resume(chip);

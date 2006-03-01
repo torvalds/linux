@@ -1005,28 +1005,6 @@ static void bluecard_release(dev_link_t *link)
 	pcmcia_disable_device(link->handle);
 }
 
-static int bluecard_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int bluecard_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (DEV_OK(link))
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
-
 static struct pcmcia_device_id bluecard_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("BlueCard", "LSE041", 0xbaf16fbf, 0x657cc15e),
 	PCMCIA_DEVICE_PROD_ID12("BTCFCARD", "LSE139", 0xe3987764, 0x2524b59c),
@@ -1043,8 +1021,6 @@ static struct pcmcia_driver bluecard_driver = {
 	.probe		= bluecard_attach,
 	.remove		= bluecard_detach,
 	.id_table	= bluecard_ids,
-	.suspend	= bluecard_suspend,
-	.resume		= bluecard_resume,
 };
 
 static int __init init_bluecard_cs(void)

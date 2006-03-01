@@ -387,13 +387,8 @@ static int com20020_suspend(struct pcmcia_device *p_dev)
 	com20020_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	link->state |= DEV_SUSPEND;
-        if (link->state & DEV_CONFIG) {
-		if (link->open) {
-			netif_device_detach(dev);
-		}
-		pcmcia_release_configuration(link->handle);
-        }
+	if ((link->state & DEV_CONFIG) && (link->open))
+		netif_device_detach(dev);
 
 	return 0;
 }
@@ -404,15 +399,11 @@ static int com20020_resume(struct pcmcia_device *p_dev)
 	com20020_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	link->state &= ~DEV_SUSPEND;
-        if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-		if (link->open) {
-			int ioaddr = dev->base_addr;
-			struct arcnet_local *lp = dev->priv;
-			ARCRESET;
-		}
-        }
+	if ((link->state & DEV_CONFIG) && (link->open)) {
+		int ioaddr = dev->base_addr;
+		struct arcnet_local *lp = dev->priv;
+		ARCRESET;
+	}
 
 	return 0;
 }

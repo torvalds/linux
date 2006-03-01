@@ -842,28 +842,6 @@ static void bt3c_release(dev_link_t *link)
 	pcmcia_disable_device(link->handle);
 }
 
-static int bt3c_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int bt3c_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (DEV_OK(link))
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
-
 
 static struct pcmcia_device_id bt3c_ids[] = {
 	PCMCIA_DEVICE_PROD_ID13("3COM", "Bluetooth PC Card", 0xefce0a31, 0xd4ce9b02),
@@ -879,8 +857,6 @@ static struct pcmcia_driver bt3c_driver = {
 	.probe		= bt3c_attach,
 	.remove		= bt3c_detach,
 	.id_table	= bt3c_ids,
-	.suspend	= bt3c_suspend,
-	.resume		= bt3c_resume,
 };
 
 static int __init init_bt3c_cs(void)

@@ -629,28 +629,6 @@ cs_release:
 	link->state &= ~DEV_CONFIG_PENDING;
 }
 
-static int reader_suspend(struct pcmcia_device *p_dev)
-{
-	dev_link_t *link = dev_to_instance(p_dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int reader_resume(struct pcmcia_device *p_dev)
-{
-	dev_link_t *link = dev_to_instance(p_dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
-
 static void reader_release(dev_link_t *link)
 {
 	cm4040_reader_release(link->priv);
@@ -754,8 +732,6 @@ static struct pcmcia_driver reader_driver = {
 	},
 	.probe		= reader_attach,
 	.remove		= reader_detach,
-	.suspend	= reader_suspend,
-	.resume		= reader_resume,
 	.id_table	= cm4040_ids,
 };
 

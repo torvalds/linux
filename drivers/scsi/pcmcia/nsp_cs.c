@@ -1987,8 +1987,6 @@ static int nsp_cs_suspend(struct pcmcia_device *dev)
 	scsi_info_t *info = link->priv;
 	nsp_hw_data *data;
 
-	link->state |= DEV_SUSPEND;
-
 	nsp_dbg(NSP_DEBUG_INIT, "event: suspend");
 
 	if (info->host != NULL) {
@@ -2001,9 +1999,6 @@ static int nsp_cs_suspend(struct pcmcia_device *dev)
 
 	info->stop = 1;
 
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
 	return 0;
 }
 
@@ -2014,11 +2009,6 @@ static int nsp_cs_resume(struct pcmcia_device *dev)
 	nsp_hw_data *data;
 
 	nsp_dbg(NSP_DEBUG_INIT, "event: resume");
-
-	link->state &= ~DEV_SUSPEND;
-
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
 
 	info->stop = 0;
 

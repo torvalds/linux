@@ -373,27 +373,6 @@ void ide_release(dev_link_t *link)
     pcmcia_disable_device(link->handle);
 } /* ide_release */
 
-static int ide_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int ide_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (DEV_OK(link))
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
 
 /*======================================================================
 
@@ -456,8 +435,6 @@ static struct pcmcia_driver ide_cs_driver = {
 	.probe		= ide_attach,
 	.remove		= ide_detach,
 	.id_table       = ide_ids,
-	.suspend	= ide_suspend,
-	.resume		= ide_resume,
 };
 
 static int __init init_ide_cs(void)

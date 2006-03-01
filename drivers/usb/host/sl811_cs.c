@@ -293,28 +293,6 @@ cs_failed:
 	}
 }
 
-static int sl811_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int sl811_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
-
 static int sl811_cs_attach(struct pcmcia_device *p_dev)
 {
 	local_info_t *local;
@@ -359,8 +337,6 @@ static struct pcmcia_driver sl811_cs_driver = {
 	.probe		= sl811_cs_attach,
 	.remove		= sl811_cs_detach,
 	.id_table	= sl811_ids,
-	.suspend	= sl811_suspend,
-	.resume		= sl811_resume,
 };
 
 /*====================================================================*/

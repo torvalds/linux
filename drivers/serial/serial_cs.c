@@ -151,7 +151,6 @@ static void serial_remove(dev_link_t *link)
 static int serial_suspend(struct pcmcia_device *dev)
 {
 	dev_link_t *link = dev_to_instance(dev);
-	link->state |= DEV_SUSPEND;
 
 	if (link->state & DEV_CONFIG) {
 		struct serial_info *info = link->priv;
@@ -160,8 +159,8 @@ static int serial_suspend(struct pcmcia_device *dev)
 		for (i = 0; i < info->ndev; i++)
 			serial8250_suspend_port(info->line[i]);
 
-		if (!info->slave)
-			pcmcia_release_configuration(link->handle);
+		if (info->slave)
+			link->state &= DEV_SUSPEND_NORELEASE;
 	}
 
 	return 0;
@@ -170,14 +169,10 @@ static int serial_suspend(struct pcmcia_device *dev)
 static int serial_resume(struct pcmcia_device *dev)
 {
 	dev_link_t *link = dev_to_instance(dev);
-	link->state &= ~DEV_SUSPEND;
 
 	if (DEV_OK(link)) {
 		struct serial_info *info = link->priv;
 		int i;
-
-		if (!info->slave)
-			pcmcia_request_configuration(link->handle, &link->conf);
 
 		for (i = 0; i < info->ndev; i++)
 			serial8250_resume_port(info->line[i]);

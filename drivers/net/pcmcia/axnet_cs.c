@@ -464,12 +464,8 @@ static int axnet_suspend(struct pcmcia_device *p_dev)
 	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		if (link->open)
+	if ((link->state & DEV_CONFIG) && (link->open))
 			netif_device_detach(dev);
-		pcmcia_release_configuration(link->handle);
-	}
 
 	return 0;
 }
@@ -479,14 +475,10 @@ static int axnet_resume(struct pcmcia_device *p_dev)
 	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-		if (link->open) {
-			axnet_reset_8390(dev);
-			AX88190_init(dev, 1);
-			netif_device_attach(dev);
-		}
+	if ((link->state & DEV_CONFIG) && (link->open)) {
+		axnet_reset_8390(dev);
+		AX88190_init(dev, 1);
+		netif_device_attach(dev);
 	}
 
 	return 0;

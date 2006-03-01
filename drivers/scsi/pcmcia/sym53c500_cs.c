@@ -857,26 +857,12 @@ cs_failed:
 	return;
 } /* SYM53C500_config */
 
-static int sym53c500_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
 static int sym53c500_resume(struct pcmcia_device *dev)
 {
 	dev_link_t *link = dev_to_instance(dev);
 	struct scsi_info_t *info = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
 	if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-
 		/* See earlier comment about manufacturer IDs. */
 		if ((info->manf_id == MANFID_MACNICA) ||
 		    (info->manf_id == MANFID_PIONEER) ||
@@ -963,7 +949,6 @@ static struct pcmcia_driver sym53c500_cs_driver = {
 	.probe		= SYM53C500_attach,
 	.remove		= SYM53C500_detach,
 	.id_table       = sym53c500_ids,
-	.suspend	= sym53c500_suspend,
 	.resume		= sym53c500_resume,
 };
 

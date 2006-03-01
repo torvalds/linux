@@ -383,28 +383,6 @@ static void avma1cs_release(dev_link_t *link)
 	pcmcia_disable_device(link->handle);
 } /* avma1cs_release */
 
-static int avma1cs_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int avma1cs_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
-
 
 static struct pcmcia_device_id avma1cs_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("AVM", "ISDN A", 0x95d42008, 0xadc9d4bb),
@@ -421,10 +399,8 @@ static struct pcmcia_driver avma1cs_driver = {
 	.probe		= avma1cs_attach,
 	.remove		= avma1cs_detach,
 	.id_table	= avma1cs_ids,
-	.suspend	= avma1cs_suspend,
-	.resume		= avma1cs_resume,
 };
- 
+
 /*====================================================================*/
 
 static int __init init_avma1_cs(void)

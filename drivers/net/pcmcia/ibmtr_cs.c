@@ -367,12 +367,8 @@ static int ibmtr_suspend(struct pcmcia_device *p_dev)
 	ibmtr_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	link->state |= DEV_SUSPEND;
-        if (link->state & DEV_CONFIG) {
-		if (link->open)
-			netif_device_detach(dev);
-		pcmcia_release_configuration(link->handle);
-        }
+	if ((link->state & DEV_CONFIG) && (link->open))
+		netif_device_detach(dev);
 
 	return 0;
 }
@@ -383,14 +379,10 @@ static int ibmtr_resume(struct pcmcia_device *p_dev)
 	ibmtr_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	link->state &= ~DEV_SUSPEND;
-        if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-		if (link->open) {
-			ibmtr_probe(dev);	/* really? */
-			netif_device_attach(dev);
-		}
-        }
+	if ((link->state & DEV_CONFIG) && (link->open)) {
+		ibmtr_probe(dev);	/* really? */
+		netif_device_attach(dev);
+	}
 
 	return 0;
 }

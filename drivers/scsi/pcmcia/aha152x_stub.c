@@ -251,27 +251,12 @@ static void aha152x_release_cs(dev_link_t *link)
 	pcmcia_disable_device(link->handle);
 }
 
-static int aha152x_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
 static int aha152x_resume(struct pcmcia_device *dev)
 {
 	dev_link_t *link = dev_to_instance(dev);
 	scsi_info_t *info = link->priv;
 
-	link->state &= ~DEV_SUSPEND;
-	if (link->state & DEV_CONFIG) {
-		pcmcia_request_configuration(link->handle, &link->conf);
-		aha152x_host_reset_host(info->host);
-	}
+	aha152x_host_reset_host(info->host);
 
 	return 0;
 }
@@ -294,7 +279,6 @@ static struct pcmcia_driver aha152x_cs_driver = {
 	.probe		= aha152x_attach,
 	.remove		= aha152x_detach,
 	.id_table       = aha152x_ids,
-	.suspend	= aha152x_suspend,
 	.resume		= aha152x_resume,
 };
 

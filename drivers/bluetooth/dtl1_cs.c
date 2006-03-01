@@ -723,28 +723,6 @@ static void dtl1_release(dev_link_t *link)
 	pcmcia_disable_device(link->handle);
 }
 
-static int dtl1_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int dtl1_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (DEV_OK(link))
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
-
 
 static struct pcmcia_device_id dtl1_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Nokia Mobile Phones", "DTL-1", 0xe1bfdd64, 0xe168480d),
@@ -762,8 +740,6 @@ static struct pcmcia_driver dtl1_driver = {
 	.probe		= dtl1_attach,
 	.remove		= dtl1_detach,
 	.id_table	= dtl1_ids,
-	.suspend	= dtl1_suspend,
-	.resume		= dtl1_resume,
 };
 
 static int __init init_dtl1_cs(void)

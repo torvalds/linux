@@ -771,29 +771,6 @@ static void btuart_release(dev_link_t *link)
 	pcmcia_disable_device(link->handle);
 }
 
-static int btuart_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
-static int btuart_resume(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state &= ~DEV_SUSPEND;
-	if (DEV_OK(link))
-		pcmcia_request_configuration(link->handle, &link->conf);
-
-	return 0;
-}
-
-
 static struct pcmcia_device_id btuart_ids[] = {
 	/* don't use this driver. Use serial_cs + hci_uart instead */
 	PCMCIA_DEVICE_NULL
@@ -808,8 +785,6 @@ static struct pcmcia_driver btuart_driver = {
 	.probe		= btuart_attach,
 	.remove		= btuart_detach,
 	.id_table	= btuart_ids,
-	.suspend	= btuart_suspend,
-	.resume		= btuart_resume,
 };
 
 static int __init init_btuart_cs(void)

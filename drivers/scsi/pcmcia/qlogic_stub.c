@@ -311,22 +311,10 @@ static void qlogic_release(dev_link_t *link)
 
 /*====================================================================*/
 
-static int qlogic_suspend(struct pcmcia_device *dev)
-{
-	dev_link_t *link = dev_to_instance(dev);
-
-	link->state |= DEV_SUSPEND;
-	if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-
-	return 0;
-}
-
 static int qlogic_resume(struct pcmcia_device *dev)
 {
 	dev_link_t *link = dev_to_instance(dev);
 
-	link->state &= ~DEV_SUSPEND;
 	if (link->state & DEV_CONFIG) {
 		scsi_info_t *info = link->priv;
 
@@ -375,7 +363,6 @@ static struct pcmcia_driver qlogic_cs_driver = {
 	.probe		= qlogic_attach,
 	.remove		= qlogic_detach,
 	.id_table       = qlogic_ids,
-	.suspend	= qlogic_suspend,
 	.resume		= qlogic_resume,
 };
 

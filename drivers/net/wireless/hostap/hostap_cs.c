@@ -816,8 +816,6 @@ static int hostap_cs_suspend(struct pcmcia_device *p_dev)
 
 	PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_SUSPEND\n", dev_info);
 
-	link->state |= DEV_SUSPEND;
-
 	if (link->state & DEV_CONFIG) {
 		struct hostap_interface *iface = netdev_priv(dev);
 		if (iface && iface->local)
@@ -827,7 +825,6 @@ static int hostap_cs_suspend(struct pcmcia_device *p_dev)
 			netif_device_detach(dev);
 		}
 		prism2_suspend(dev);
-		pcmcia_release_configuration(link->handle);
 	}
 
 	return 0;
@@ -841,13 +838,10 @@ static int hostap_cs_resume(struct pcmcia_device *p_dev)
 
 	PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_RESUME\n", dev_info);
 
-	link->state &= ~DEV_SUSPEND;
 	if (link->state & DEV_CONFIG) {
 		struct hostap_interface *iface = netdev_priv(dev);
 		if (iface && iface->local)
 			dev_open = iface->local->num_dev_open > 0;
-
-		pcmcia_request_configuration(link->handle, &link->conf);
 
 		prism2_hw_shutdown(dev, 1);
 		prism2_hw_config(dev, dev_open ? 0 : 1);
