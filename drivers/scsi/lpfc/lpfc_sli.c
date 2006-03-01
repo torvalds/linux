@@ -2983,7 +2983,7 @@ lpfc_intr_handler(int irq, void *dev_id, struct pt_regs * regs)
 			 * to shutdown interrupt when there is a
 			 * ERROR.
 			 */
-			lpfc_sli_send_reset(phba, phba->hba_state);
+			lpfc_sli_send_reset(phba, 1);
 		}
 
 		spin_lock(phba->host->host_lock);
