@@ -796,9 +796,9 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 	lpfc_vpd_t *vp;
 	uint16_t dev_id = phba->pcidev->device;
 	uint16_t dev_subid = phba->pcidev->subsystem_device;
-	uint8_t hdrtype = phba->pcidev->hdr_type;
+	uint8_t hdrtype;
 	int max_speed;
-	char * ports = (hdrtype == 0x80) ? "2-port " : "";
+	char * ports;
 	struct {
 		char * name;
 		int    max_speed;
@@ -806,6 +806,8 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		char * bus;
 	} m;
 
+	pci_read_config_byte(phba->pcidev, PCI_HEADER_TYPE, &hdrtype);
+	ports = (hdrtype == 0x80) ? "2-port " : "";
 	if (mdp && mdp[0] != '\0'
 		&& descp && descp[0] != '\0')
 		return;
