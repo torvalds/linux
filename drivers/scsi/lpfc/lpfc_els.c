@@ -2654,41 +2654,243 @@ lpfc_els_rcv_rnid(struct lpfc_hba * phba,
 }
 
 static int
-lpfc_els_rcv_rrq(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
+lpfc_els_rcv_lirr(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
+		 struct lpfc_nodelist * ndlp)
+{
+	struct ls_rjt stat;
+
+	/* For now, unconditionally reject this command */
+	stat.un.b.lsRjtRsvd0 = 0;
+	stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+	stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
+	stat.un.b.vendorUnique = 0;
+	lpfc_els_rsp_reject(phba, stat.un.lsRjtError, cmdiocb, ndlp);
+	return 0;
+}
+
+void
+lpfc_els_rsp_rps_acc(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
+{
+	struct lpfc_sli *psli;
+	struct lpfc_sli_ring *pring;
+	MAILBOX_t *mb;
+	IOCB_t *icmd;
+	RPS_RSP *rps_rsp;
+	uint8_t *pcmd;
+	struct lpfc_iocbq *elsiocb;
+	struct lpfc_nodelist *ndlp;
+	uint16_t xri, status;
+	uint32_t cmdsize;
+
+	psli = &phba->sli;
+	pring = &psli->ring[LPFC_ELS_RING];
+	mb = &pmb->mb;
+
+	ndlp = (struct lpfc_nodelist *) pmb->context2;
+	xri = (uint16_t) ((unsigned long)(pmb->context1));
+	pmb->context1 = 0;
+	pmb->context2 = 0;
+
+	if (mb->mbxStatus) {
+		mempool_free( pmb, phba->mbox_mem_pool);
+		return;
+	}
+
+	cmdsize = sizeof(RPS_RSP) + sizeof(uint32_t);
+	mempool_free( pmb, phba->mbox_mem_pool);
+	if ((elsiocb = lpfc_prep_els_iocb(phba, 0, cmdsize, 3,
+					  ndlp, ELS_CMD_ACC)) == 0) {
+		return;
+	}
+
+	icmd = &elsiocb->iocb;
+	icmd->ulpContext = xri;
+
+	pcmd = (uint8_t *) (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
+	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
+	pcmd += sizeof (uint32_t); /* Skip past command */
+	rps_rsp = (RPS_RSP *)pcmd;
+
+	if (phba->fc_topology != TOPOLOGY_LOOP)
+		status = 0x10;
+	else
+		status = 0x8;
+	if (phba->fc_flag & FC_FABRIC)
+		status |= 0x4;
+
+	rps_rsp->rsvd1 = 0;
+	rps_rsp->portStatus = be16_to_cpu(status);
+	rps_rsp->linkFailureCnt = be32_to_cpu(mb->un.varRdLnk.linkFailureCnt);
+	rps_rsp->lossSyncCnt = be32_to_cpu(mb->un.varRdLnk.lossSyncCnt);
+	rps_rsp->lossSignalCnt = be32_to_cpu(mb->un.varRdLnk.lossSignalCnt);
+	rps_rsp->primSeqErrCnt = be32_to_cpu(mb->un.varRdLnk.primSeqErrCnt);
+	rps_rsp->invalidXmitWord = be32_to_cpu(mb->un.varRdLnk.invalidXmitWord);
+	rps_rsp->crcCnt = be32_to_cpu(mb->un.varRdLnk.crcCnt);
+
+	/* Xmit ELS RPS ACC response tag <ulpIoTag> */
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"%d:0128 Xmit ELS RPS ACC response tag x%x "
+			"Data: x%x x%x x%x x%x x%x\n",
+			phba->brd_no,
+			elsiocb->iocb.ulpIoTag,
+			elsiocb->iocb.ulpContext, ndlp->nlp_DID,
+			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
+
+	elsiocb->iocb_cmpl = lpfc_cmpl_els_acc;
+	phba->fc_stat.elsXmitACC++;
+	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR) {
+		lpfc_els_free_iocb(phba, elsiocb);
+	}
+	return;
+}
+
+static int
+lpfc_els_rcv_rps(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
+		 struct lpfc_nodelist * ndlp)
+{
+	uint32_t *lp;
+	uint8_t flag;
+	LPFC_MBOXQ_t *mbox;
+	struct lpfc_dmabuf *pcmd;
+	RPS *rps;
+	struct ls_rjt stat;
+
+	if((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
+	   (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
+		stat.un.b.lsRjtRsvd0 = 0;
+		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+		stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
+		stat.un.b.vendorUnique = 0;
+		lpfc_els_rsp_reject(phba, stat.un.lsRjtError, cmdiocb, ndlp);
+	}
+
+	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
+	lp = (uint32_t *) pcmd->virt;
+	flag = (be32_to_cpu(*lp++) & 0xf);
+	rps = (RPS *) lp;
+
+	if ((flag == 0) ||
+	    ((flag == 1) && (be32_to_cpu(rps->un.portNum) == 0)) ||
+	    ((flag == 2) && (memcmp(&rps->un.portName, &phba->fc_portname,
+			   sizeof (struct lpfc_name)) == 0))) {
+		if ((mbox = mempool_alloc(phba->mbox_mem_pool, GFP_ATOMIC))) {
+			lpfc_read_lnk_stat(phba, mbox);
+			mbox->context1 =
+			    (void *)((unsigned long)cmdiocb->iocb.ulpContext);
+			mbox->context2 = ndlp;
+			mbox->mbox_cmpl = lpfc_els_rsp_rps_acc;
+			if (lpfc_sli_issue_mbox (phba, mbox,
+			    (MBX_NOWAIT | MBX_STOP_IOCB)) != MBX_NOT_FINISHED) {
+				/* Mbox completion will send ELS Response */
+				return 0;
+			}
+			mempool_free(mbox, phba->mbox_mem_pool);
+		}
+	}
+	stat.un.b.lsRjtRsvd0 = 0;
+	stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+	stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
+	stat.un.b.vendorUnique = 0;
+	lpfc_els_rsp_reject(phba, stat.un.lsRjtError, cmdiocb, ndlp);
+	return 0;
+}
+
+int
+lpfc_els_rsp_rpl_acc(struct lpfc_hba * phba, uint16_t cmdsize,
+		 struct lpfc_iocbq * oldiocb, struct lpfc_nodelist * ndlp)
+{
+	IOCB_t *icmd;
+	IOCB_t *oldcmd;
+	RPL_RSP rpl_rsp;
+	struct lpfc_iocbq *elsiocb;
+	struct lpfc_sli_ring *pring;
+	struct lpfc_sli *psli;
+	uint8_t *pcmd;
+
+	psli = &phba->sli;
+	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
+
+	if ((elsiocb =
+	     lpfc_prep_els_iocb(phba, 0, cmdsize, oldiocb->retry,
+				ndlp, ELS_CMD_ACC)) == 0) {
+		return 1;
+	}
+	icmd = &elsiocb->iocb;
+	oldcmd = &oldiocb->iocb;
+	icmd->ulpContext = oldcmd->ulpContext;	/* Xri */
+
+	pcmd = (((struct lpfc_dmabuf *) elsiocb->context2)->virt);
+	*((uint32_t *) (pcmd)) = ELS_CMD_ACC;
+	pcmd += sizeof (uint16_t);
+	*((uint16_t *)(pcmd)) = be16_to_cpu(cmdsize);
+	pcmd += sizeof(uint16_t);
+
+	/* Setup the RPL ACC payload */
+	rpl_rsp.listLen = be32_to_cpu(1);
+	rpl_rsp.index = 0;
+	rpl_rsp.port_num_blk.portNum = 0;
+	rpl_rsp.port_num_blk.portID = be32_to_cpu(phba->fc_myDID);
+	memcpy(&rpl_rsp.port_num_blk.portName, &phba->fc_portname,
+	    sizeof(struct lpfc_name));
+
+	memcpy(pcmd, &rpl_rsp, cmdsize - sizeof(uint32_t));
+
+
+	/* Xmit ELS RPL ACC response tag <ulpIoTag> */
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"%d:0128 Xmit ELS RPL ACC response tag x%x "
+			"Data: x%x x%x x%x x%x x%x\n",
+			phba->brd_no,
+			elsiocb->iocb.ulpIoTag,
+			elsiocb->iocb.ulpContext, ndlp->nlp_DID,
+			ndlp->nlp_flag, ndlp->nlp_state, ndlp->nlp_rpi);
+
+	elsiocb->iocb_cmpl = lpfc_cmpl_els_acc;
+
+	phba->fc_stat.elsXmitACC++;
+	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR) {
+		lpfc_els_free_iocb(phba, elsiocb);
+		return 1;
+	}
+	return 0;
+}
+
+static int
+lpfc_els_rcv_rpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		 struct lpfc_nodelist * ndlp)
 {
 	struct lpfc_dmabuf *pcmd;
 	uint32_t *lp;
-	IOCB_t *icmd;
-	struct lpfc_sli_ring *pring;
-	struct lpfc_sli *psli;
-	RRQ *rrq;
-	uint32_t cmd, did;
+	uint32_t maxsize;
+	uint16_t cmdsize;
+	RPL *rpl;
+	struct ls_rjt stat;
 
-	psli = &phba->sli;
-	pring = &psli->ring[LPFC_FCP_RING];
-	icmd = &cmdiocb->iocb;
-	did = icmd->un.elsreq64.remoteID;
-	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
-	lp = (uint32_t *) pcmd->virt;
-
-	cmd = *lp++;
-	rrq = (RRQ *) lp;
-
-	/* RRQ received */
-	/* Get oxid / rxid from payload and abort it */
-	spin_lock_irq(phba->host->host_lock);
-	if ((rrq->SID == be32_to_cpu(phba->fc_myDID))) {
-		lpfc_sli_abort_iocb(phba, pring, 0, 0, rrq->Oxid,
-							LPFC_CTX_CTX);
-	} else {
-		lpfc_sli_abort_iocb(phba, pring, 0, 0, rrq->Rxid,
-							LPFC_CTX_CTX);
+	if((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
+	   (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
+		stat.un.b.lsRjtRsvd0 = 0;
+		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+		stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
+		stat.un.b.vendorUnique = 0;
+		lpfc_els_rsp_reject(phba, stat.un.lsRjtError, cmdiocb, ndlp);
 	}
 
-	spin_unlock_irq(phba->host->host_lock);
-	/* ACCEPT the rrq request */
-	lpfc_els_rsp_acc(phba, ELS_CMD_ACC, cmdiocb, ndlp, NULL, 0);
+	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
+	lp = (uint32_t *) pcmd->virt;
+	rpl = (RPL *) (lp + 1);
+
+	maxsize = be32_to_cpu(rpl->maxsize);
+
+	/* We support only one port */
+	if ((rpl->index == 0) &&
+	    ((maxsize == 0) ||
+	     ((maxsize * sizeof(uint32_t)) >= sizeof(RPL_RSP)))) {
+		cmdsize = sizeof(uint32_t) + sizeof(RPL_RSP);
+	}
+	else {
+		cmdsize = sizeof(uint32_t) + maxsize * sizeof(uint32_t);
+	}
+	lpfc_els_rsp_rpl_acc(phba, cmdsize, cmdiocb, ndlp);
 
 	return 0;
 }
@@ -3201,10 +3403,6 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 		phba->fc_stat.elsRcvFAN++;
 		lpfc_els_rcv_fan(phba, elsiocb, ndlp);
 		break;
-	case ELS_CMD_RRQ:
-		phba->fc_stat.elsRcvRRQ++;
-		lpfc_els_rcv_rrq(phba, elsiocb, ndlp);
-		break;
 	case ELS_CMD_PRLI:
 		phba->fc_stat.elsRcvPRLI++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
@@ -3213,9 +3411,33 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PRLI);
 		break;
+	case ELS_CMD_LIRR:
+		phba->fc_stat.elsRcvLIRR++;
+		lpfc_els_rcv_lirr(phba, elsiocb, ndlp);
+		if (newnode) {
+			mempool_free( ndlp, phba->nlp_mem_pool);
+		}
+		break;
+	case ELS_CMD_RPS:
+		phba->fc_stat.elsRcvRPS++;
+		lpfc_els_rcv_rps(phba, elsiocb, ndlp);
+		if (newnode) {
+			mempool_free( ndlp, phba->nlp_mem_pool);
+		}
+		break;
+	case ELS_CMD_RPL:
+		phba->fc_stat.elsRcvRPL++;
+		lpfc_els_rcv_rpl(phba, elsiocb, ndlp);
+		if (newnode) {
+			mempool_free( ndlp, phba->nlp_mem_pool);
+		}
+		break;
 	case ELS_CMD_RNID:
 		phba->fc_stat.elsRcvRNID++;
 		lpfc_els_rcv_rnid(phba, elsiocb, ndlp);
+		if (newnode) {
+			mempool_free( ndlp, phba->nlp_mem_pool);
+		}
 		break;
 	default:
 		/* Unsupported ELS command, reject */

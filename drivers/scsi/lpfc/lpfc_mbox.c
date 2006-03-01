@@ -336,6 +336,23 @@ lpfc_read_config(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	return;
 }
 
+/*************************************************/
+/*  lpfc_read_lnk_stat  Issue a READ LINK STATUS */
+/*                mailbox command                */
+/*************************************************/
+void
+lpfc_read_lnk_stat(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
+{
+	MAILBOX_t *mb;
+
+	mb = &pmb->mb;
+	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
+
+	mb->mbxCommand = MBX_READ_LNK_STAT;
+	mb->mbxOwner = OWN_HOST;
+	return;
+}
+
 /********************************************/
 /*  lpfc_reg_login  Issue a REG_LOGIN       */
 /*                  mailbox command         */

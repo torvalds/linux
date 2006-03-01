@@ -26,6 +26,7 @@ void lpfc_clear_la(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_config_link(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_read_sparam(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_read_config(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_read_lnk_stat(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_set_slim(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t, uint32_t);
 int lpfc_reg_login(struct lpfc_hba *, uint32_t, uint8_t *, LPFC_MBOXQ_t *,
 		   uint32_t);
