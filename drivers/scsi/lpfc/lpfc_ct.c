@@ -1166,11 +1166,6 @@ lpfc_fdmi_tmo_handler(struct lpfc_hba *phba)
 {
 	struct lpfc_nodelist *ndlp;
 
-	spin_lock_irq(phba->host->host_lock);
-	if (!(phba->work_hba_events & WORKER_FDMI_TMO)) {
-		spin_unlock_irq(phba->host->host_lock);
-		return;
-	}
 	ndlp = lpfc_findnode_did(phba, NLP_SEARCH_ALL, FDMI_DID);
 	if (ndlp) {
 		if (system_utsname.nodename[0] != '\0') {
@@ -1179,7 +1174,6 @@ lpfc_fdmi_tmo_handler(struct lpfc_hba *phba)
 			mod_timer(&phba->fc_fdmitmo, jiffies + HZ * 60);
 		}
 	}
-	spin_unlock_irq(phba->host->host_lock);
 	return;
 }
 
