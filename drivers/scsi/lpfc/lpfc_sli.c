@@ -1154,12 +1154,17 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 			cmdiocbq = lpfc_sli_iocbq_lookup(phba, pring,
 							 &rspiocbq);
 			if ((cmdiocbq) && (cmdiocbq->iocb_cmpl)) {
-				spin_unlock_irqrestore(
-				       phba->host->host_lock, iflag);
-				(cmdiocbq->iocb_cmpl)(phba, cmdiocbq,
-						      &rspiocbq);
-				spin_lock_irqsave(phba->host->host_lock,
-						  iflag);
+				if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+					(cmdiocbq->iocb_cmpl)(phba, cmdiocbq,
+							      &rspiocbq);
+				} else {
+					spin_unlock_irqrestore(
+						phba->host->host_lock, iflag);
+					(cmdiocbq->iocb_cmpl)(phba, cmdiocbq,
+							      &rspiocbq);
+					spin_lock_irqsave(phba->host->host_lock,
+							  iflag);
+				}
 			}
 			break;
 		default:

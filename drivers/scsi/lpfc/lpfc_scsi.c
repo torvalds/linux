@@ -467,6 +467,11 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	sdev = cmd->device;
 	cmd->scsi_done(cmd);
 
+	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+		lpfc_release_scsi_buf(phba, lpfc_cmd);
+		return;
+	}
+
 	if (!result && pnode != NULL &&
 	   ((jiffies - pnode->last_ramp_up_time) >
 		LPFC_Q_RAMP_UP_INTERVAL * HZ) &&
