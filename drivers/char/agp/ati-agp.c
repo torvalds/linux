@@ -466,6 +466,10 @@ static struct agp_device_ids ati_agp_device_ids[] __devinitdata =
 		.device_id	= PCI_DEVICE_ID_ATI_RS300_200,
 		.chipset_name	= "IGP9100/M",
 	},
+	{
+		.device_id	= PCI_DEVICE_ID_ATI_RS350_200,
+		.chipset_name	= "IGP9100/M",
+	},
 	{ }, /* dummy final entry, always present */
 };
 
