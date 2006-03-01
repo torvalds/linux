@@ -1211,34 +1211,39 @@ err_out_nosup:
 
 static int ata_bus_probe(struct ata_port *ap)
 {
-	unsigned int i, found = 0;
+	unsigned int classes[ATA_MAX_DEVICES];
+	unsigned int i, rc, found = 0;
 
+	ata_port_probe(ap);
+
+	/* reset */
 	if (ap->ops->probe_reset) {
-		unsigned int classes[ATA_MAX_DEVICES];
-		int rc;
-
-		ata_port_probe(ap);
-
 		rc = ap->ops->probe_reset(ap, classes);
-		if (rc == 0) {
-			for (i = 0; i < ATA_MAX_DEVICES; i++) {
-				if (classes[i] == ATA_DEV_UNKNOWN)
-					classes[i] = ATA_DEV_NONE;
-				ap->device[i].class = classes[i];
-			}
-		} else {
-			printk(KERN_ERR "ata%u: probe reset failed, "
-			       "disabling port\n", ap->id);
-			ata_port_disable(ap);
+		if (rc) {
+			printk("ata%u: reset failed (errno=%d)\n", ap->id, rc);
+			return rc;
 		}
-	} else
+
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			if (classes[i] == ATA_DEV_UNKNOWN)
+				classes[i] = ATA_DEV_NONE;
+	} else {
 		ap->ops->phy_reset(ap);
 
-	if (ap->flags & ATA_FLAG_PORT_DISABLED)
-		goto err_out;
+		for (i = 0; i < ATA_MAX_DEVICES; i++) {
+			if (!(ap->flags & ATA_FLAG_PORT_DISABLED))
+				classes[i] = ap->device[i].class;
+			else
+				ap->device[i].class = ATA_DEV_UNKNOWN;
+		}
+		ata_port_probe(ap);
+	}
 
+	/* read IDENTIFY page and configure devices */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
+
+		dev->class = classes[i];
 
 		if (!ata_dev_present(dev))
 			continue;
@@ -1257,7 +1262,7 @@ static int ata_bus_probe(struct ata_port *ap)
 		found = 1;
 	}
 
-	if ((!found) || (ap->flags & ATA_FLAG_PORT_DISABLED))
+	if (!found)
 		goto err_out_disable;
 
 	ata_set_mode(ap);
@@ -1268,7 +1273,6 @@ static int ata_bus_probe(struct ata_port *ap)
 
 err_out_disable:
 	ap->ops->port_disable(ap);
-err_out:
 	return -1;
 }
 
