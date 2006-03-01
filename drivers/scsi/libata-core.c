@@ -1053,6 +1053,12 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 	return rc;
 }
 
+static inline u8 ata_dev_knobble(const struct ata_port *ap,
+				 struct ata_device *dev)
+{
+	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
+}
+
 /**
  *	ata_dev_configure - Configure the specified ATA/ATAPI device
  *	@ap: Port on which target device resides
@@ -1167,6 +1173,17 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev)
 					      ap->host->max_cmd_len,
 					      ap->device[i].cdb_len);
 
+	/* limit bridge transfers to udma5, 200 sectors */
+	if (ata_dev_knobble(ap, dev)) {
+		printk(KERN_INFO "ata%u(%u): applying bridge limits\n",
+		       ap->id, dev->devno);
+		ap->udma_mask &= ATA_UDMA5;
+		dev->max_sectors = ATA_MAX_SECTORS;
+	}
+
+	if (ap->ops->dev_config)
+		ap->ops->dev_config(ap, dev);
+
 	DPRINTK("EXIT, drv_stat = 0x%x\n", ata_chk_status(ap));
 	return 0;
 
@@ -1175,35 +1192,6 @@ err_out_nosup:
 	       ap->id, dev->devno);
 	DPRINTK("EXIT, err\n");
 	return rc;
-}
-
-
-static inline u8 ata_dev_knobble(const struct ata_port *ap,
-				 struct ata_device *dev)
-{
-	return ((ap->cbl == ATA_CBL_SATA) && (!ata_id_is_sata(dev->id)));
-}
-
-/**
- * ata_dev_config - Run device specific handlers & check for SATA->PATA bridges
- * @ap: Bus
- * @i:  Device
- *
- * LOCKING:
- */
-
-void ata_dev_config(struct ata_port *ap, unsigned int i)
-{
-	/* limit bridge transfers to udma5, 200 sectors */
-	if (ata_dev_knobble(ap, &ap->device[i])) {
-		printk(KERN_INFO "ata%u(%u): applying bridge limits\n",
-		       ap->id, i);
-		ap->udma_mask &= ATA_UDMA5;
-		ap->device[i].max_sectors = ATA_MAX_SECTORS;
-	}
-
-	if (ap->ops->dev_config)
-		ap->ops->dev_config(ap, &ap->device[i]);
 }
 
 /**
@@ -1266,7 +1254,6 @@ static int ata_bus_probe(struct ata_port *ap)
 			continue;
 		}
 
-		ata_dev_config(ap, i);
 		found = 1;
 	}
 
@@ -4967,7 +4954,6 @@ EXPORT_SYMBOL_GPL(ata_host_intr);
 EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_id_string);
 EXPORT_SYMBOL_GPL(ata_id_c_string);
-EXPORT_SYMBOL_GPL(ata_dev_config);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 EXPORT_SYMBOL_GPL(ata_eh_qc_complete);
 EXPORT_SYMBOL_GPL(ata_eh_qc_retry);
