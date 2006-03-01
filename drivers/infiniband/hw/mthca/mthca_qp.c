@@ -536,8 +536,8 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 
 	if ((attr_mask & IB_QP_PKEY_INDEX) &&
 	     attr->pkey_index >= dev->limits.pkey_table_len) {
-		mthca_dbg(dev, "PKey index (%u) too large. max is %d\n",
-			  attr->pkey_index,dev->limits.pkey_table_len-1);
+		mthca_dbg(dev, "P_Key index (%u) too large. max is %d\n",
+			  attr->pkey_index, dev->limits.pkey_table_len-1);
 		return -EINVAL;
 	}
 
@@ -652,6 +652,12 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	if (attr_mask & IB_QP_ALT_PATH) {
+		if (attr->alt_pkey_index >= dev->limits.pkey_table_len) {
+			mthca_dbg(dev, "Alternate P_Key index (%u) too large. max is %d\n",
+				  attr->alt_pkey_index, dev->limits.pkey_table_len-1);
+			return -EINVAL;
+		}
+
 		if (attr->alt_port_num == 0 || attr->alt_port_num > dev->limits.num_ports) {
 			mthca_dbg(dev, "Alternate port number (%u) is invalid\n",
 				attr->alt_port_num);
