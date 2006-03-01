@@ -1711,13 +1711,13 @@ typedef struct {
 	uint32_t rttov;
 	uint32_t altov;
 	uint32_t lmt;
-#define LMT_RESERVED    0x0    /* Not used */
-#define LMT_266_10bit   0x1    /* 265.625 Mbaud 10 bit iface  */
-#define LMT_532_10bit   0x2    /* 531.25  Mbaud 10 bit iface  */
-#define LMT_1063_20bit  0x3    /* 1062.5   Mbaud 20 bit iface */
-#define LMT_1063_10bit  0x4    /* 1062.5   Mbaud 10 bit iface */
-#define LMT_2125_10bit  0x8    /* 2125     Mbaud 10 bit iface */
-#define LMT_4250_10bit  0x40   /* 4250     Mbaud 10 bit iface */
+#define LMT_RESERVED  0x000    /* Not used */
+#define LMT_1Gb       0x004
+#define LMT_2Gb       0x008
+#define LMT_4Gb       0x040
+#define LMT_8Gb       0x080
+#define LMT_10Gb      0x100
+
 
 	uint32_t rsvd2;
 	uint32_t rsvd3;

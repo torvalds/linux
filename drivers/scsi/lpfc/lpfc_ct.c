@@ -1014,19 +1014,19 @@ lpfc_fdmi_cmd(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, int cmdcode)
 			ae = (ATTRIBUTE_ENTRY *) ((uint8_t *) pab + size);
 			ae->ad.bits.AttrType = be16_to_cpu(SUPPORTED_SPEED);
 			ae->ad.bits.AttrLen = be16_to_cpu(FOURBYTES + 4);
-			if (FC_JEDEC_ID(vp->rev.biuRev) == VIPER_JEDEC_ID)
+
+			ae->un.SupportSpeed = 0;
+			if (phba->lmt & LMT_10Gb)
 				ae->un.SupportSpeed = HBA_PORTSPEED_10GBIT;
-			else if (FC_JEDEC_ID(vp->rev.biuRev) == HELIOS_JEDEC_ID)
-				ae->un.SupportSpeed = HBA_PORTSPEED_4GBIT;
-			else if ((FC_JEDEC_ID(vp->rev.biuRev) ==
-				  CENTAUR_2G_JEDEC_ID)
-				 || (FC_JEDEC_ID(vp->rev.biuRev) ==
-				     PEGASUS_JEDEC_ID)
-				 || (FC_JEDEC_ID(vp->rev.biuRev) ==
-				     THOR_JEDEC_ID))
-				ae->un.SupportSpeed = HBA_PORTSPEED_2GBIT;
-			else
-				ae->un.SupportSpeed = HBA_PORTSPEED_1GBIT;
+			if (phba->lmt & LMT_8Gb)
+				ae->un.SupportSpeed |= HBA_PORTSPEED_8GBIT;
+			if (phba->lmt & LMT_4Gb)
+				ae->un.SupportSpeed |= HBA_PORTSPEED_4GBIT;
+			if (phba->lmt & LMT_2Gb)
+				ae->un.SupportSpeed |= HBA_PORTSPEED_2GBIT;
+			if (phba->lmt & LMT_1Gb)
+				ae->un.SupportSpeed |= HBA_PORTSPEED_1GBIT;
+
 			pab->ab.EntryCnt++;
 			size += FOURBYTES + 4;
 
