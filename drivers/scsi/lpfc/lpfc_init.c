@@ -1462,9 +1462,23 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	phba->pci_bar2_map = pci_resource_start(phba->pcidev, 2);
 	bar2map_len        = pci_resource_len(phba->pcidev, 2);
 
-	/* Map HBA SLIM and Control Registers to a kernel virtual address. */
+	/* Map HBA SLIM to a kernel virtual address. */
 	phba->slim_memmap_p      = ioremap(phba->pci_bar0_map, bar0map_len);
+	if (!phba->slim_memmap_p) {
+		error = -ENODEV;
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "ioremap failed for SLIM memory.\n");
+		goto out_idr_remove;
+	}
+
+	/* Map HBA Control Registers to a kernel virtual address. */
 	phba->ctrl_regs_memmap_p = ioremap(phba->pci_bar2_map, bar2map_len);
+	if (!phba->ctrl_regs_memmap_p) {
+		error = -ENODEV;
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "ioremap failed for HBA control registers.\n");
+		goto out_iounmap_slim;
+	}
 
 	/* Allocate memory for SLI-2 structures */
 	phba->slim2p = dma_alloc_coherent(&phba->pcidev->dev, SLI2_SLIM_SIZE,
@@ -1643,6 +1657,7 @@ out_free_slim:
 							phba->slim2p_mapping);
 out_iounmap:
 	iounmap(phba->ctrl_regs_memmap_p);
+out_iounmap_slim:
 	iounmap(phba->slim_memmap_p);
 out_idr_remove:
 	idr_remove(&lpfc_hba_index, phba->brd_no);
