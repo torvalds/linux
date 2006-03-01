@@ -1120,65 +1120,6 @@ mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp)
 	return -1;
 }
 
-int
-mpt_alt_ioc_wait(MPT_ADAPTER *ioc)
-{
-	int loop_count = 30 * 4;  /* Wait 30 seconds */
-	int status = -1; /* -1 means failed to get board READY */
-
-	do {
-		spin_lock(&ioc->initializing_hba_lock);
-		if (ioc->initializing_hba_lock_flag == 0) {
-			ioc->initializing_hba_lock_flag=1;
-			spin_unlock(&ioc->initializing_hba_lock);
-			status = 0;
-			break;
-		}
-		spin_unlock(&ioc->initializing_hba_lock);
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ/4);
-	} while (--loop_count);
-
-	return status;
-}
-
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- *	mpt_bringup_adapter - This is a wrapper function for mpt_do_ioc_recovery
- *	@ioc: Pointer to MPT adapter structure
- *	@sleepFlag: Use schedule if CAN_SLEEP else use udelay.
- *
- *	This routine performs all the steps necessary to bring the IOC
- *	to a OPERATIONAL state.
- *
- *      Special Note: This function was added with spin lock's so as to allow
- *      the dv(domain validation) work thread to succeed on the other channel
- *      that maybe occuring at the same time when this function is called.
- *      Without this lock, the dv would fail when message frames were
- *      requested during hba bringup on the alternate ioc.
- */
-static int
-mpt_bringup_adapter(MPT_ADAPTER *ioc, int sleepFlag)
-{
-	int r;
-
-	if(ioc->alt_ioc) {
-		if((r=mpt_alt_ioc_wait(ioc->alt_ioc)!=0))
-			return r;
-	}
-
-	r = mpt_do_ioc_recovery(ioc, MPT_HOSTEVENT_IOC_BRINGUP,
-	    CAN_SLEEP);
-
-	if(ioc->alt_ioc) {
-		spin_lock(&ioc->alt_ioc->initializing_hba_lock);
-		ioc->alt_ioc->initializing_hba_lock_flag=0;
-		spin_unlock(&ioc->alt_ioc->initializing_hba_lock);
-	}
-
-return r;
-}
-
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	mpt_attach - Install a PCI intelligent MPT adapter.
@@ -1482,7 +1423,8 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	mpt_detect_bound_ports(ioc, pdev);
 
-	if ((r = mpt_bringup_adapter(ioc, CAN_SLEEP)) != 0){
+	if ((r = mpt_do_ioc_recovery(ioc, MPT_HOSTEVENT_IOC_BRINGUP,
+	    CAN_SLEEP)) != 0){
 		printk(KERN_WARNING MYNAM
 		  ": WARNING - %s did not initialize properly! (%d)\n",
 		  ioc->name, r);
@@ -1629,7 +1571,6 @@ mpt_resume(struct pci_dev *pdev)
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
 	u32 device_state = pdev->current_state;
 	int recovery_state;
-	int ii;
 
 	printk(MYIOC_s_INFO_FMT
 	"pci-resume: pdev=0x%p, slot=%s, Previous operating state [D%d]\n",
@@ -1642,14 +1583,6 @@ mpt_resume(struct pci_dev *pdev)
 	/* enable interrupts */
 	CHIPREG_WRITE32(&ioc->chip->IntMask, MPI_HIM_DIM);
 	ioc->active = 1;
-
-	/* F/W not running */
-	if(!CHIPREG_READ32(&ioc->chip->Doorbell)) {
-		/* enable domain validation flags */
-		for (ii=0; ii < MPT_MAX_SCSI_DEVICES; ii++) {
-			ioc->spi_data.dvStatus[ii] |= MPT_SCSICFG_NEED_DV;
-		}
-	}
 
 	printk(MYIOC_s_INFO_FMT
 		"pci-resume: ioc-state=0x%x,doorbell=0x%x\n",
@@ -6435,7 +6368,6 @@ EXPORT_SYMBOL(mpt_read_ioc_pg_3);
 EXPORT_SYMBOL(mpt_alloc_fw_memory);
 EXPORT_SYMBOL(mpt_free_fw_memory);
 EXPORT_SYMBOL(mptbase_sas_persist_operation);
-EXPORT_SYMBOL(mpt_alt_ioc_wait);
 EXPORT_SYMBOL(mptbase_GetFcPortPage0);
 
 

@@ -331,6 +331,7 @@ typedef struct _SYSIF_REGS
  *	VirtDevice - FC LUN device or SCSI target device
  */
 typedef struct _VirtTarget {
+	struct scsi_target	*starget;
 	u8			 tflags;
 	u8			 ioc_id;
 	u8			 target_id;
@@ -343,7 +344,6 @@ typedef struct _VirtTarget {
 	u8			 type;		/* byte 0 of Inquiry data */
 	u32			 num_luns;
 	u32			 luns[8];		/* Max LUNs is 256 */
-	u8			 inq_data[8];
 } VirtTarget;
 
 typedef struct _VirtDevice {
@@ -364,6 +364,7 @@ typedef struct _VirtDevice {
 #define MPT_TARGET_FLAGS_Q_YES		0x08
 #define MPT_TARGET_FLAGS_VALID_56	0x10
 #define MPT_TARGET_FLAGS_SAF_TE_ISSUED	0x20
+#define MPT_TARGET_FLAGS_RAID_COMPONENT	0x40
 
 /*
  *	/proc/mpt interface
@@ -447,13 +448,6 @@ typedef struct _mpt_ioctl_events {
  *	Substructure to store SCSI specific configuration page data
  */
 						/* dvStatus defines: */
-#define MPT_SCSICFG_NEGOTIATE		0x01	/* Negotiate on next IO */
-#define MPT_SCSICFG_NEED_DV		0x02	/* Schedule DV */
-#define MPT_SCSICFG_DV_PENDING		0x04	/* DV on this physical id pending */
-#define MPT_SCSICFG_DV_NOT_DONE		0x08	/* DV has not been performed */
-#define MPT_SCSICFG_BLK_NEGO		0x10	/* WriteSDP1 with WDTR and SDTR disabled */
-#define MPT_SCSICFG_RELOAD_IOC_PG3	0x20	/* IOC Pg 3 data is obsolete */
-						/* Args passed to writeSDP1: */
 #define MPT_SCSICFG_USE_NVRAM		0x01	/* WriteSDP1 using NVRAM */
 #define MPT_SCSICFG_ALL_IDS		0x02	/* WriteSDP1 to all IDS */
 /* #define MPT_SCSICFG_BLK_NEGO		0x10	   WriteSDP1 with WDTR and SDTR disabled */
@@ -464,7 +458,6 @@ typedef	struct _SpiCfgData {
 	IOCPage4_t	*pIocPg4;		/* SEP devices addressing */
 	dma_addr_t	 IocPg4_dma;		/* Phys Addr of IOCPage4 data */
 	int		 IocPg4Sz;		/* IOCPage4 size */
-	u8		 dvStatus[MPT_MAX_SCSI_DEVICES];
 	u8		 minSyncFactor;		/* 0xFF if async */
 	u8		 maxSyncOffset;		/* 0 if async */
 	u8		 maxBusWidth;		/* 0 if narrow, 1 if wide */
@@ -474,13 +467,11 @@ typedef	struct _SpiCfgData {
 	u8		 sdp0version;		/* SDP0 version */
 	u8		 sdp0length;		/* SDP0 length  */
 	u8		 dvScheduled;		/* 1 if scheduled */
-	u8		 forceDv;		/* 1 to force DV scheduling */
 	u8		 noQas;			/* Disable QAS for this adapter */
 	u8		 Saf_Te;		/* 1 to force all Processors as
 						 * SAF-TE if Inquiry data length
 						 * is too short to check for SAF-TE
 						 */
-	u8		 mpt_dv;		/* command line option: enhanced=1, basic=0 */
 	u8		 bus_reset;		/* 1 to allow bus reset */
 	u8		 rsvd[1];
 }SpiCfgData;
@@ -1033,7 +1024,6 @@ extern int	 mpt_findImVolumes(MPT_ADAPTER *ioc);
 extern int	 mpt_read_ioc_pg_3(MPT_ADAPTER *ioc);
 extern int	 mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode);
 extern int	 mptbase_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum);
-extern int	 mpt_alt_ioc_wait(MPT_ADAPTER *ioc);
 
 /*
  *  Public data decl's...
