@@ -309,14 +309,12 @@ lpfc_linkdown(struct lpfc_hba * phba)
 	LPFC_MBOXQ_t     *mb;
 	int               rc, i;
 
-	if (phba->hba_state == LPFC_LINK_DOWN) {
-		return 0;
-	}
-
 	psli = &phba->sli;
-
 	/* sysfs or selective reset may call this routine to clean up */
-	if (phba->hba_state > LPFC_LINK_DOWN) {
+	if (phba->hba_state >= LPFC_LINK_DOWN) {
+		if (phba->hba_state == LPFC_LINK_DOWN)
+			return 0;
+
 		spin_lock_irq(phba->host->host_lock);
 		phba->hba_state = LPFC_LINK_DOWN;
 		spin_unlock_irq(phba->host->host_lock);
@@ -1172,6 +1170,7 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 			spin_lock_irq(phba->host->host_lock);
 			nlp->nlp_flag &= ~NLP_DELAY_TMO;
 			spin_unlock_irq(phba->host->host_lock);
+			nlp->nlp_last_elscmd = 0;
 			del_timer_sync(&nlp->nlp_delayfunc);
 			if (!list_empty(&nlp->els_retry_evt.evt_listp))
 				list_del_init(&nlp->els_retry_evt.evt_listp);
@@ -1595,6 +1594,7 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 	spin_unlock_irq(phba->host->host_lock);
 	del_timer_sync(&ndlp->nlp_tmofunc);
 
+	ndlp->nlp_last_elscmd = 0;
 	del_timer_sync(&ndlp->nlp_delayfunc);
 
 	if (!list_empty(&ndlp->nodev_timeout_evt.evt_listp))
@@ -1630,6 +1630,7 @@ lpfc_nlp_remove(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 		spin_lock_irq(phba->host->host_lock);
 		ndlp->nlp_flag &= ~NLP_DELAY_TMO;
 		spin_unlock_irq(phba->host->host_lock);
+		ndlp->nlp_last_elscmd = 0;
 		del_timer_sync(&ndlp->nlp_delayfunc);
 		if (!list_empty(&ndlp->els_retry_evt.evt_listp))
 			list_del_init(&ndlp->els_retry_evt.evt_listp);

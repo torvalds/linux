@@ -62,6 +62,7 @@ struct lpfc_nodelist {
 
 	uint16_t        nlp_rpi;
 	uint16_t        nlp_state;		/* state transition indicator */
+	uint16_t        nlp_prev_state;		/* state transition indicator */
 	uint16_t        nlp_xri;		/* output exchange id for RPI */
 	uint16_t        nlp_sid;		/* scsi id */
 #define NLP_NO_SID		0xffff
