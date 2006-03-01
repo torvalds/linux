@@ -37,7 +37,7 @@
 
 static inline const char * pcid_name (struct pci_dev *pdev)
 {
-	if (pdev->dev.driver)
+	if (pdev && pdev->dev.driver)
 		return pdev->dev.driver->name;
 	return "";
 }

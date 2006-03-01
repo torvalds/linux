@@ -1095,16 +1095,16 @@ static inline void sx_receive_chars (struct sx_port *port)
 
 		sx_dprintk (SX_DEBUG_RECEIVE, "rxop=%d, c = %d.\n", rx_op, c); 
 
+		/* Don't copy past the end of the hardware receive buffer */
+		if (rx_op + c > 0x100) c = 0x100 - rx_op;
+
+		sx_dprintk (SX_DEBUG_RECEIVE, "c = %d.\n", c);
+
 		/* Don't copy more bytes than there is room for in the buffer */
 
 		c = tty_prepare_flip_string(tty, &rp, c);
 
 		sx_dprintk (SX_DEBUG_RECEIVE, "c = %d.\n", c); 
-
-		/* Don't copy past the end of the hardware receive buffer */
-		if (rx_op + c > 0x100) c = 0x100 - rx_op;
-
-		sx_dprintk (SX_DEBUG_RECEIVE, "c = %d.\n", c);
 
 		/* If for one reason or another, we can't copy more data, we're done! */
 		if (c == 0) break;

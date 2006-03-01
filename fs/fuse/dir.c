@@ -111,6 +111,8 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 
 		/* Doesn't hurt to "reset" the validity timeout */
 		fuse_invalidate_entry_cache(entry);
+
+		/* For negative dentries, always do a fresh lookup */
 		if (!inode)
 			return 0;
 
@@ -122,6 +124,9 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		fuse_lookup_init(req, entry->d_parent->d_inode, entry, &outarg);
 		request_send(fc, req);
 		err = req->out.h.error;
+		/* Zero nodeid is same as -ENOENT */
+		if (!err && !outarg.nodeid)
+			err = -ENOENT;
 		if (!err) {
 			struct fuse_inode *fi = get_fuse_inode(inode);
 			if (outarg.nodeid != get_node_id(inode)) {
@@ -190,8 +195,9 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	fuse_lookup_init(req, dir, entry, &outarg);
 	request_send(fc, req);
 	err = req->out.h.error;
-	if (!err && ((outarg.nodeid && invalid_nodeid(outarg.nodeid)) ||
-		     !valid_mode(outarg.attr.mode)))
+	/* Zero nodeid is same as -ENOENT, but with valid timeout */
+	if (!err && outarg.nodeid &&
+	    (invalid_nodeid(outarg.nodeid) || !valid_mode(outarg.attr.mode)))
 		err = -EIO;
 	if (!err && outarg.nodeid) {
 		inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,

@@ -96,10 +96,6 @@ static int copybreak __read_mostly = 256;
 module_param(copybreak, int, 0);
 MODULE_PARM_DESC(copybreak, "Receive copy threshold");
 
-static int disable_msi = 0;
-module_param(disable_msi, int, 0);
-MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
-
 static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9000) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9E00) },
@@ -3126,61 +3122,6 @@ static void __devinit sky2_show_addr(struct net_device *dev)
 		       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
 }
 
-/* Handle software interrupt used during MSI test */
-static irqreturn_t __devinit sky2_test_intr(int irq, void *dev_id,
-					    struct pt_regs *regs)
-{
-	struct sky2_hw *hw = dev_id;
-	u32 status = sky2_read32(hw, B0_Y2_SP_ISRC2);
-
-	if (status == 0)
-		return IRQ_NONE;
-
-	if (status & Y2_IS_IRQ_SW) {
-		sky2_write8(hw, B0_CTST, CS_CL_SW_IRQ);
-		hw->msi = 1;
-	}
-	sky2_write32(hw, B0_Y2_SP_ICR, 2);
-
-	sky2_read32(hw, B0_IMSK);
-	return IRQ_HANDLED;
-}
-
-/* Test interrupt path by forcing a a software IRQ */
-static int __devinit sky2_test_msi(struct sky2_hw *hw)
-{
-	struct pci_dev *pdev = hw->pdev;
-	int i, err;
-
-	sky2_write32(hw, B0_IMSK, Y2_IS_IRQ_SW);
-
-	err = request_irq(pdev->irq, sky2_test_intr, SA_SHIRQ, DRV_NAME, hw);
-	if (err) {
-		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
-		       pci_name(pdev), pdev->irq);
-		return err;
-	}
-
-	sky2_write8(hw, B0_CTST, CS_ST_SW_IRQ);
-	wmb();
-
-	for (i = 0; i < 10; i++) {
-		barrier();
-		if (hw->msi)
-			goto found;
-		mdelay(1);
-	}
-
-	err = -EOPNOTSUPP;
-	sky2_write8(hw, B0_CTST, CS_CL_SW_IRQ);
- found:
-	sky2_write32(hw, B0_IMSK, 0);
-
-	free_irq(pdev->irq, hw);
-
-	return err;
-}
-
 static int __devinit sky2_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
@@ -3302,20 +3243,6 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		}
 	}
 
-	if (!disable_msi && pci_enable_msi(pdev) == 0) {
-		err = sky2_test_msi(hw);
-		if (err == -EOPNOTSUPP) {
-			/* MSI test failed, go back to INTx mode */
-			printk(KERN_WARNING PFX "%s: No interrupt was generated using MSI, "
-			       "switching to INTx mode. Please report this failure to "
-			       "the PCI maintainer and include system chipset information.\n",
-			       pci_name(pdev));
-			pci_disable_msi(pdev);
-		}
-		else if (err)
-			goto err_out_unregister;
-	}
-
 	err = request_irq(pdev->irq, sky2_intr, SA_SHIRQ | SA_SAMPLE_RANDOM,
 			  DRV_NAME, hw);
 	if (err) {
@@ -3332,8 +3259,6 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	return 0;
 
 err_out_unregister:
-	if (hw->msi)
-		pci_disable_msi(pdev);
 	if (dev1) {
 		unregister_netdev(dev1);
 		free_netdev(dev1);
@@ -3376,8 +3301,6 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	sky2_read8(hw, B0_CTST);
 
 	free_irq(pdev->irq, hw);
-	if (hw->msi)
-		pci_disable_msi(pdev);
 	pci_free_consistent(pdev, STATUS_LE_BYTES, hw->st_le, hw->st_dma);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
