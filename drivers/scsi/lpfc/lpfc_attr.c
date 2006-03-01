@@ -664,10 +664,10 @@ LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
 # is 0. Default value of cr_count is 1. The cr_count feature is disabled if
 # cr_delay is set to 0.
 */
-LPFC_ATTR_RW(cr_delay, 0, 0, 63, "A count of milliseconds after which an"
+LPFC_ATTR_RW(cr_delay, 0, 0, 63, "A count of milliseconds after which an "
 		"interrupt response is generated");
 
-LPFC_ATTR_RW(cr_count, 1, 1, 255, "A count of I/O completions after which an"
+LPFC_ATTR_RW(cr_count, 1, 1, 255, "A count of I/O completions after which an "
 		"interrupt response is generated");
 
 /*
@@ -683,7 +683,7 @@ LPFC_ATTR_RW(fdmi_on, 0, 0, 2, "Enable FDMI support");
 # Specifies the maximum number of ELS cmds we can have outstanding (for
 # discovery). Value range is [1,64]. Default value = 32.
 */
-LPFC_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands"
+LPFC_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands "
 		 "during discovery");
 
 /*
