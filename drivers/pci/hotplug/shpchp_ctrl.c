@@ -198,7 +198,8 @@ static int change_bus_speed(struct controller *ctrl, struct slot *p_slot,
 
 	dbg("%s: change to speed %d\n", __FUNCTION__, speed);
 	if ((rc = p_slot->hpc_ops->set_bus_speed_mode(p_slot, speed))) {
-		err("%s: Issue of set bus speed mode command failed\n", __FUNCTION__);
+		err("%s: Issue of set bus speed mode command failed\n",
+		    __FUNCTION__);
 		return WRONG_BUS_FREQUENCY;
 	}
 	return rc;
@@ -209,33 +210,26 @@ static int fix_bus_speed(struct controller *ctrl, struct slot *pslot,
 		enum pci_bus_speed msp)
 { 
 	int rc = 0;
-	
-	if (flag != 0) { /* Other slots on the same bus are occupied */
-		if ( asp < bsp ) {
-			err("%s: speed of bus %x and adapter %x mismatch\n", __FUNCTION__, bsp, asp);
-			return WRONG_BUS_FREQUENCY;
+
+	/*
+	 * If other slots on the same bus are occupied, we cannot
+	 * change the bus speed.
+	 */
+	if (flag) {
+		if (asp < bsp) {
+			err("%s: speed of bus %x and adapter %x mismatch\n",
+			    __FUNCTION__, bsp, asp);
+			rc = WRONG_BUS_FREQUENCY;
 		}
+		return rc;
+	}
+
+	if (asp < msp) {
+		if (bsp != asp)
+			rc = change_bus_speed(ctrl, pslot, asp);
 	} else {
-		/* Other slots on the same bus are empty */
-		if (msp == bsp) {
-		/* if adapter_speed >= bus_speed, do nothing */
-			if (asp < bsp) {
-				/* 
-				* Try to lower bus speed to accommodate the adapter if other slots 
-				* on the same controller are empty
-				*/
-				if ((rc = change_bus_speed(ctrl, pslot, asp)))
-					return rc;
-			} 
-		} else {
-			if (asp < msp) {
-				if ((rc = change_bus_speed(ctrl, pslot, asp)))
-					return rc;
-			} else {
-				if ((rc = change_bus_speed(ctrl, pslot, msp)))
-					return rc;
-			}
-		}
+		if (bsp != msp)
+			rc = change_bus_speed(ctrl, pslot, msp);
 	}
 	return rc;
 }
@@ -252,8 +246,7 @@ static int board_added(struct slot *p_slot)
 	u8 hp_slot;
 	u8 slots_not_empty = 0;
 	int rc = 0;
-	enum pci_bus_speed adapter_speed, bus_speed, max_bus_speed;
-	u8 pi, mode;
+	enum pci_bus_speed asp, bsp, msp;
 	struct controller *ctrl = p_slot->ctrl;
 
 	hp_slot = p_slot->device - ctrl->slot_device_offset;
@@ -285,109 +278,36 @@ static int board_added(struct slot *p_slot)
 		}
 	}
  
-	rc = p_slot->hpc_ops->get_adapter_speed(p_slot, &adapter_speed);
-	/* 0 = PCI 33Mhz, 1 = PCI 66 Mhz, 2 = PCI-X 66 PA, 4 = PCI-X 66 ECC, */
-	/* 5 = PCI-X 133 PA, 7 = PCI-X 133 ECC,  0xa = PCI-X 133 Mhz 266, */
-	/* 0xd = PCI-X 133 Mhz 533 */
-	/* This encoding is different from the one used in cur_bus_speed & */
-	/* max_bus_speed */
-
-	if (rc  || adapter_speed == PCI_SPEED_UNKNOWN) {
-		err("%s: Can't get adapter speed or bus mode mismatch\n", __FUNCTION__);
+	rc = p_slot->hpc_ops->get_adapter_speed(p_slot, &asp);
+	if (rc) {
+		err("%s: Can't get adapter speed or bus mode mismatch\n",
+		    __FUNCTION__);
 		return WRONG_BUS_FREQUENCY;
 	}
 
-	rc = p_slot->hpc_ops->get_cur_bus_speed(p_slot, &bus_speed);
-	if (rc || bus_speed == PCI_SPEED_UNKNOWN) {
+	rc = p_slot->hpc_ops->get_cur_bus_speed(p_slot, &bsp);
+	if (rc) {
 		err("%s: Can't get bus operation speed\n", __FUNCTION__);
 		return WRONG_BUS_FREQUENCY;
 	}
 
-	rc = p_slot->hpc_ops->get_max_bus_speed(p_slot, &max_bus_speed);
-	if (rc || max_bus_speed == PCI_SPEED_UNKNOWN) {
+	rc = p_slot->hpc_ops->get_max_bus_speed(p_slot, &msp);
+	if (rc) {
 		err("%s: Can't get max bus operation speed\n", __FUNCTION__);
-		max_bus_speed = bus_speed;
-	}
-
-	if ((rc  = p_slot->hpc_ops->get_prog_int(p_slot, &pi))) {
-		err("%s: Can't get controller programming interface, set it to 1\n", __FUNCTION__);
-		pi = 1;
+		msp = bsp;
 	}
 
 	/* Check if there are other slots or devices on the same bus */
 	if (!list_empty(&ctrl->pci_dev->subordinate->devices))
 		slots_not_empty = 1;
 
-	dbg("%s: slots_not_empty %d, pi %d\n", __FUNCTION__, 
-		slots_not_empty, pi);
-	dbg("adapter_speed %d, bus_speed %d, max_bus_speed %d\n", 
-		adapter_speed, bus_speed, max_bus_speed);
+	dbg("%s: slots_not_empty %d, adapter_speed %d, bus_speed %d, "
+	    "max_bus_speed %d\n", __FUNCTION__, slots_not_empty, asp,
+	    bsp, msp);
 
-	if (pi == 2) {
-		dbg("%s: In PI = %d\n", __FUNCTION__, pi);
-		if ((rc = p_slot->hpc_ops->get_mode1_ECC_cap(p_slot, &mode))) {
-			err("%s: Can't get Mode1_ECC, set mode to 0\n", __FUNCTION__);
-			mode = 0;
-		}
-
-		switch (adapter_speed) {
-		case PCI_SPEED_133MHz_PCIX_533:
-		case PCI_SPEED_133MHz_PCIX_266:
-			if ((bus_speed != adapter_speed) &&
-			   ((rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, adapter_speed, bus_speed, max_bus_speed)))) 
-				return rc;
-			break;	
-		case PCI_SPEED_133MHz_PCIX_ECC:
-		case PCI_SPEED_133MHz_PCIX:
-			if (mode) { /* Bus - Mode 1 ECC */
-				if ((bus_speed != 0x7) &&
-				   ((rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, adapter_speed, bus_speed, max_bus_speed)))) 
-					return rc;
-			} else {
-				if ((bus_speed != 0x4) &&
-				   ((rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, adapter_speed, bus_speed, max_bus_speed)))) 
-					return rc;
-			}
-			break;
-		case PCI_SPEED_66MHz_PCIX_ECC:
-		case PCI_SPEED_66MHz_PCIX:
-			if (mode) { /* Bus - Mode 1 ECC */
-				if ((bus_speed != 0x5) &&
-				   ((rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, adapter_speed, bus_speed, max_bus_speed)))) 
-					return rc;
-			} else {
-				if ((bus_speed != 0x2) &&
-				   ((rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, adapter_speed, bus_speed, max_bus_speed)))) 
-					return rc;
-			}
-			break;
-		case PCI_SPEED_66MHz:
-			if ((bus_speed != 0x1) &&
-			   ((rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, adapter_speed, bus_speed, max_bus_speed)))) 
-				return rc;
-			break;	
-		case PCI_SPEED_33MHz:
-			if (bus_speed > 0x0) {
-				if (slots_not_empty == 0) {
-					if ((rc = change_bus_speed(ctrl, p_slot, adapter_speed)))
-						return rc;
-				} else {
-					err("%s: speed of bus %x and adapter %x mismatch\n", __FUNCTION__, bus_speed, adapter_speed);
-					return WRONG_BUS_FREQUENCY;
-				}
-			}
-			break;
-		default:
-			err("%s: speed of bus %x and adapter %x mismatch\n", __FUNCTION__, bus_speed, adapter_speed);
-			return WRONG_BUS_FREQUENCY;
-		}
-	} else {
-		/* If adpater_speed == bus_speed, nothing to do here */
-		dbg("%s: In PI = %d\n", __FUNCTION__, pi);
-		if ((adapter_speed != bus_speed) &&
-		   ((rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, adapter_speed, bus_speed, max_bus_speed))))
-				return rc;
-	}
+	rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, asp, bsp, msp);
+	if (rc)
+		return rc;
 
 	/* turn on board, blink green LED, turn off Amber LED */
 	if ((rc = p_slot->hpc_ops->slot_enable(p_slot))) {
