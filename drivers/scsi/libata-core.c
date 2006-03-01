@@ -1054,45 +1054,31 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 }
 
 /**
- *	ata_dev_identify - obtain IDENTIFY x DEVICE page
- *	@ap: port on which device we wish to probe resides
- *	@device: device bus address, starting at zero
+ *	ata_dev_configure - Configure the specified ATA/ATAPI device
+ *	@ap: Port on which target device resides
+ *	@dev: Target device to configure
  *
- *	Following bus reset, we issue the IDENTIFY [PACKET] DEVICE
- *	command, and read back the 512-byte device information page.
- *	The device information page is fed to us via the standard
- *	PIO-IN protocol, but we hand-code it here. (TODO: investigate
- *	using standard PIO-IN paths)
- *
- *	After reading the device information page, we use several
- *	bits of information from it to initialize data structures
- *	that will be used during the lifetime of the ata_device.
- *	Other data from the info page is used to disqualify certain
- *	older ATA devices we do not wish to support.
+ *	Configure @dev according to @dev->id.  Generic and low-level
+ *	driver specific fixups are also applied.
  *
  *	LOCKING:
- *	Inherited from caller.  Some functions called by this function
- *	obtain the host_set lock.
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise
  */
-
-static void ata_dev_identify(struct ata_port *ap, unsigned int device)
+static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev)
 {
-	struct ata_device *dev = &ap->device[device];
 	unsigned long xfer_modes;
 	int i, rc;
 
 	if (!ata_dev_present(dev)) {
 		DPRINTK("ENTER/EXIT (host %u, dev %u) -- nodev\n",
-			ap->id, device);
-		return;
+			ap->id, dev->devno);
+		return 0;
 	}
 
-	DPRINTK("ENTER, host %u, dev %u\n", ap->id, device);
-
-	WARN_ON(dev->id != NULL);
-	rc = ata_dev_read_id(ap, dev, &dev->class, 1, &dev->id);
-	if (rc)
-		goto err_out;
+	DPRINTK("ENTER, host %u, dev %u\n", ap->id, dev->devno);
 
 	/*
 	 * common ATA, ATAPI feature tests
@@ -1101,6 +1087,7 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 	/* we require DMA support (bits 8 of word 49) */
 	if (!ata_id_has_dma(dev->id)) {
 		printk(KERN_DEBUG "ata%u: no dma\n", ap->id);
+		rc = -EINVAL;
 		goto err_out_nosup;
 	}
 
@@ -1125,12 +1112,12 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 
 			/* print device info to dmesg */
 			printk(KERN_INFO "ata%u: dev %u ATA-%d, max %s, %Lu sectors:%s\n",
-			       ap->id, device,
+			       ap->id, dev->devno,
 			       ata_id_major_version(dev->id),
 			       ata_mode_string(xfer_modes),
 			       (unsigned long long)dev->n_sectors,
 			       dev->flags & ATA_DFLAG_LBA48 ? " LBA48" : " LBA");
-		} else { 
+		} else {
 			/* CHS */
 
 			/* Default translation */
@@ -1147,7 +1134,7 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 
 			/* print device info to dmesg */
 			printk(KERN_INFO "ata%u: dev %u ATA-%d, max %s, %Lu sectors: CHS %d/%d/%d\n",
-			       ap->id, device,
+			       ap->id, dev->devno,
 			       ata_id_major_version(dev->id),
 			       ata_mode_string(xfer_modes),
 			       (unsigned long long)dev->n_sectors,
@@ -1163,13 +1150,14 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 		rc = atapi_cdb_len(dev->id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
 			printk(KERN_WARNING "ata%u: unsupported CDB len\n", ap->id);
+			rc = -EINVAL;
 			goto err_out_nosup;
 		}
 		dev->cdb_len = (unsigned int) rc;
 
 		/* print device info to dmesg */
 		printk(KERN_INFO "ata%u: dev %u ATAPI, max %s\n",
-		       ap->id, device,
+		       ap->id, dev->devno,
 		       ata_mode_string(xfer_modes));
 	}
 
@@ -1180,14 +1168,13 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 					      ap->device[i].cdb_len);
 
 	DPRINTK("EXIT, drv_stat = 0x%x\n", ata_chk_status(ap));
-	return;
+	return 0;
 
 err_out_nosup:
 	printk(KERN_WARNING "ata%u: dev %u not supported, ignoring\n",
-	       ap->id, device);
-err_out:
-	dev->class++;	/* converts ATA_DEV_xxx into ATA_DEV_xxx_UNSUP */
+	       ap->id, dev->devno);
 	DPRINTK("EXIT, err\n");
+	return rc;
 }
 
 
@@ -1263,11 +1250,24 @@ static int ata_bus_probe(struct ata_port *ap)
 		goto err_out;
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		ata_dev_identify(ap, i);
-		if (ata_dev_present(&ap->device[i])) {
-			found = 1;
-			ata_dev_config(ap,i);
+		struct ata_device *dev = &ap->device[i];
+
+		if (!ata_dev_present(dev))
+			continue;
+
+		WARN_ON(dev->id != NULL);
+		if (ata_dev_read_id(ap, dev, &dev->class, 1, &dev->id)) {
+			dev->class = ATA_DEV_NONE;
+			continue;
 		}
+
+		if (ata_dev_configure(ap, dev)) {
+			dev->class++;	/* disable device */
+			continue;
+		}
+
+		ata_dev_config(ap, i);
+		found = 1;
 	}
 
 	if ((!found) || (ap->flags & ATA_FLAG_PORT_DISABLED))
