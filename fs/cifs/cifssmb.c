@@ -1410,6 +1410,7 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 	parm_data->length = len;  /* normalize negative numbers */
 
 	pSMB->DataOffset = cpu_to_le16(offset);
+	pSMB->Fid = smb_file_id;
 	pSMB->InformationLevel = cpu_to_le16(SMB_SET_POSIX_LOCK);
 	pSMB->Reserved4 = 0;
 	pSMB->hdr.smb_buf_length += byte_count;
@@ -3946,6 +3947,7 @@ CIFSSMBSetFSUnixInfo(const int xid, struct cifsTconInfo *tcon, __u64 cap)
 
 	cFYI(1, ("In SETFSUnixInfo"));
 SETFSUnixRetry:
+	/* BB switch to small buf init to save memory */
 	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
 		      (void **) &pSMBr);
 	if (rc)
