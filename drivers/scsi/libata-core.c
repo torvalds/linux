@@ -911,7 +911,7 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
  *	@dev: target device
  *	@p_class: pointer to class of the target device (may be changed)
  *	@post_reset: is this read ID post-reset?
- *	@id: buffer to fill IDENTIFY page into
+ *	@p_id: read IDENTIFY page (newly allocated)
  *
  *	Read ID data from the specified device.  ATA_CMD_ID_ATA is
  *	performed on ATA devices and ATA_CMD_ID_ATAPI on ATAPI
@@ -926,12 +926,13 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
  *	0 on success, -errno otherwise.
  */
 static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
-			   unsigned int *p_class, int post_reset, u16 *id)
+			   unsigned int *p_class, int post_reset, u16 **p_id)
 {
 	unsigned int class = *p_class;
 	unsigned int using_edd;
 	struct ata_taskfile tf;
 	unsigned int err_mask = 0;
+	u16 *id;
 	const char *reason;
 	int rc;
 
@@ -944,6 +945,13 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 		using_edd = 1;
 
 	ata_dev_select(ap, dev->devno, 1, 1); /* select device 0/1 */
+
+	id = kmalloc(sizeof(id[0]) * ATA_ID_WORDS, GFP_KERNEL);
+	if (id == NULL) {
+		rc = -ENOMEM;
+		reason = "out of memory";
+		goto err_out;
+	}
 
  retry:
 	ata_tf_init(ap, &tf, dev->devno);
@@ -1035,11 +1043,13 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 	}
 
 	*p_class = class;
+	*p_id = id;
 	return 0;
 
  err_out:
 	printk(KERN_WARNING "ata%u: dev %u failed to IDENTIFY (%s)\n",
 	       ap->id, dev->devno, reason);
+	kfree(id);
 	return rc;
 }
 
@@ -1079,7 +1089,8 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 
 	DPRINTK("ENTER, host %u, dev %u\n", ap->id, device);
 
-	rc = ata_dev_read_id(ap, dev, &dev->class, 1, dev->id);
+	WARN_ON(dev->id != NULL);
+	rc = ata_dev_read_id(ap, dev, &dev->class, 1, &dev->id);
 	if (rc)
 		goto err_out;
 
@@ -4732,11 +4743,14 @@ void ata_host_set_remove(struct ata_host_set *host_set)
 int ata_scsi_release(struct Scsi_Host *host)
 {
 	struct ata_port *ap = (struct ata_port *) &host->hostdata[0];
+	int i;
 
 	DPRINTK("ENTER\n");
 
 	ap->ops->port_disable(ap);
 	ata_host_remove(ap, 0);
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		kfree(ap->device[i].id);
 
 	DPRINTK("EXIT\n");
 	return 1;
