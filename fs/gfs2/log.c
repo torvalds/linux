@@ -597,8 +597,6 @@ void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	sdp->sd_vfs->s_dirt = 1;
 	unlock_from_trans(sdp);
 
-	kfree(tr);
-
 	gfs2_log_lock(sdp);
 	if (sdp->sd_log_num_buf > gfs2_tune_get(sdp, gt_incore_log_blocks)) {
 		gfs2_log_unlock(sdp);

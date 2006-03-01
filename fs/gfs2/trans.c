@@ -87,7 +87,6 @@ int gfs2_trans_begin_i(struct gfs2_sbd *sdp, unsigned int blocks,
 void gfs2_trans_end(struct gfs2_sbd *sdp)
 {
 	struct gfs2_trans *tr;
-	struct gfs2_holder *t_gh;
 
 	tr = current->journal_info;
 	current->journal_info = NULL;
@@ -95,13 +94,11 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	if (gfs2_assert_warn(sdp, tr))
 		return;
 
-	t_gh = &tr->tr_t_gh;
-
 	if (!tr->tr_touched) {
 		gfs2_log_release(sdp, tr->tr_reserved);
 
-		gfs2_glock_dq(t_gh);
-		gfs2_holder_uninit(t_gh);
+		gfs2_glock_dq(&tr->tr_t_gh);
+		gfs2_holder_uninit(&tr->tr_t_gh);
 
 		kfree(tr);
 		return;
@@ -120,8 +117,10 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 
 	gfs2_log_commit(sdp, tr);
 
-	gfs2_glock_dq(t_gh);
-	gfs2_holder_uninit(t_gh);
+        gfs2_glock_dq(&tr->tr_t_gh);
+        gfs2_holder_uninit(&tr->tr_t_gh);
+
+        kfree(tr);
 
 	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)
 		gfs2_log_flush(sdp);

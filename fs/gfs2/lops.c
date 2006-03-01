@@ -474,6 +474,7 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 		gfs2_trans_add_gl(bd->bd_gl);
 		list_add(&bd->bd_list_tr, &tr->tr_list_buf);
 		gfs2_pin(sdp, bd->bd_bh);
+		tr->tr_num_buf_new++;
 	}
 	gfs2_log_lock(sdp);
 	if (!list_empty(&le->le_list)) {
