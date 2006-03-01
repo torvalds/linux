@@ -360,7 +360,7 @@ struct gfs2_trans {
 	unsigned int tr_revokes;
 	unsigned int tr_reserved;
 
-	struct gfs2_holder *tr_t_gh;
+	struct gfs2_holder tr_t_gh;
 
 	int tr_touched;
 

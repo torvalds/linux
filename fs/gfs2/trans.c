@@ -53,18 +53,15 @@ int gfs2_trans_begin_i(struct gfs2_sbd *sdp, unsigned int blocks,
 						   sizeof(uint64_t));
 	INIT_LIST_HEAD(&tr->tr_list_buf);
 
-	error = -ENOMEM;
-	tr->tr_t_gh = gfs2_holder_get(sdp->sd_trans_gl, LM_ST_SHARED,
-				      GL_NEVER_RECURSE, GFP_NOFS);
-	if (!tr->tr_t_gh)
-		goto fail;
+	gfs2_holder_init(sdp->sd_trans_gl, LM_ST_SHARED,
+			 GL_NEVER_RECURSE, &tr->tr_t_gh);
 
-	error = gfs2_glock_nq(tr->tr_t_gh);
+	error = gfs2_glock_nq(&tr->tr_t_gh);
 	if (error)
-		goto fail_holder_put;
+		goto fail_holder_uninit;
 
 	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
-		tr->tr_t_gh->gh_flags |= GL_NOCACHE;
+		tr->tr_t_gh.gh_flags |= GL_NOCACHE;
 		error = -EROFS;
 		goto fail_gunlock;
 	}
@@ -78,12 +75,10 @@ int gfs2_trans_begin_i(struct gfs2_sbd *sdp, unsigned int blocks,
 	return 0;
 
  fail_gunlock:
-	gfs2_glock_dq(tr->tr_t_gh);
+	gfs2_glock_dq(&tr->tr_t_gh);
 
- fail_holder_put:
-	gfs2_holder_put(tr->tr_t_gh);
-
- fail:
+ fail_holder_uninit:
+	gfs2_holder_uninit(&tr->tr_t_gh);
 	kfree(tr);
 
 	return error;
@@ -100,16 +95,15 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	if (gfs2_assert_warn(sdp, tr))
 		return;
 
-	t_gh = tr->tr_t_gh;
-	tr->tr_t_gh = NULL;
+	t_gh = &tr->tr_t_gh;
 
 	if (!tr->tr_touched) {
 		gfs2_log_release(sdp, tr->tr_reserved);
-		kfree(tr);
 
 		gfs2_glock_dq(t_gh);
-		gfs2_holder_put(t_gh);
+		gfs2_holder_uninit(t_gh);
 
+		kfree(tr);
 		return;
 	}
 
@@ -127,7 +121,7 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	gfs2_log_commit(sdp, tr);
 
 	gfs2_glock_dq(t_gh);
-	gfs2_holder_put(t_gh);
+	gfs2_holder_uninit(t_gh);
 
 	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)
 		gfs2_log_flush(sdp);
