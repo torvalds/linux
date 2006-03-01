@@ -603,7 +603,7 @@ static int patch_ad1986a(struct hda_codec *codec)
 	spec->multiout.dig_out_nid = AD1986A_SPDIF_OUT;
 	spec->num_adc_nids = 1;
 	spec->adc_nids = ad1986a_adc_nids;
-	spec->capsrc_nids = ad1986a_adc_nids;
+	spec->capsrc_nids = ad1986a_capsrc_nids;
 	spec->input_mux = &ad1986a_capture_source;
 	spec->num_mixers = 1;
 	spec->mixers[0] = ad1986a_mixers;
