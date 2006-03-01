@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -107,6 +107,7 @@ void lpfc_fdmi_tmo_handler(struct lpfc_hba *);
 int lpfc_config_port_prep(struct lpfc_hba *);
 int lpfc_config_port_post(struct lpfc_hba *);
 int lpfc_hba_down_prep(struct lpfc_hba *);
+int lpfc_hba_down_post(struct lpfc_hba *);
 void lpfc_hba_init(struct lpfc_hba *, uint32_t *);
 int lpfc_post_buffer(struct lpfc_hba *, struct lpfc_sli_ring *, int, int);
 void lpfc_decode_firmware_rev(struct lpfc_hba *, char *, int);
@@ -123,6 +124,7 @@ irqreturn_t lpfc_intr_handler(int, void *, struct pt_regs *);
 void lpfc_read_rev(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_config_ring(struct lpfc_hba *, int, LPFC_MBOXQ_t *);
 void lpfc_config_port(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_kill_board(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbox_put(struct lpfc_hba *, LPFC_MBOXQ_t *);
 LPFC_MBOXQ_t *lpfc_mbox_get(struct lpfc_hba *);
 
@@ -135,6 +137,11 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba * hba);
 struct lpfc_iocbq * lpfc_sli_get_iocbq(struct lpfc_hba *);
 void lpfc_sli_release_iocbq(struct lpfc_hba * phba, struct lpfc_iocbq * iocb);
 uint16_t lpfc_sli_next_iotag(struct lpfc_hba * phba, struct lpfc_iocbq * iocb);
+
+int lpfc_sli_brdready(struct lpfc_hba *, uint32_t);
+int lpfc_sli_brdkill(struct lpfc_hba *);
+int lpfc_sli_brdreset(struct lpfc_hba *);
+int lpfc_sli_brdrestart(struct lpfc_hba *);
 int lpfc_sli_hba_setup(struct lpfc_hba *);
 int lpfc_sli_hba_down(struct lpfc_hba *);
 int lpfc_sli_issue_mbox(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t);

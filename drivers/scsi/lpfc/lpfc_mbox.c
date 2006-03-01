@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -634,6 +634,17 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 		        "%d:0405 Service Level Interface (SLI) 2 selected\n",
 		        phba->brd_no);
+}
+
+void
+lpfc_kill_board(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
+{
+	MAILBOX_t *mb = &pmb->mb;
+
+	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
+	mb->mbxCommand = MBX_KILL_BOARD;
+	mb->mbxOwner = OWN_HOST;
+	return;
 }
 
 void

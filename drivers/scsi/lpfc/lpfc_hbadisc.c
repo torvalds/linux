@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -120,11 +120,33 @@ lpfc_work_list_done(struct lpfc_hba * phba)
 			free_evt = 0;
 			break;
 		case LPFC_EVT_ONLINE:
-			*(int *)(evtp->evt_arg1)  = lpfc_online(phba);
+			if (phba->hba_state < LPFC_LINK_DOWN)
+				*(int *)(evtp->evt_arg1)  = lpfc_online(phba);
+			else
+				*(int *)(evtp->evt_arg1)  = 0;
 			complete((struct completion *)(evtp->evt_arg2));
 			break;
 		case LPFC_EVT_OFFLINE:
-			*(int *)(evtp->evt_arg1)  = lpfc_offline(phba);
+			if (phba->hba_state >= LPFC_LINK_DOWN)
+				lpfc_offline(phba);
+			lpfc_sli_brdrestart(phba);
+			*(int *)(evtp->evt_arg1) =
+				lpfc_sli_brdready(phba,HS_FFRDY | HS_MBRDY);
+			complete((struct completion *)(evtp->evt_arg2));
+			break;
+		case LPFC_EVT_WARM_START:
+			if (phba->hba_state >= LPFC_LINK_DOWN)
+				lpfc_offline(phba);
+			lpfc_sli_brdreset(phba);
+			lpfc_hba_down_post(phba);
+			*(int *)(evtp->evt_arg1) =
+				lpfc_sli_brdready(phba, HS_MBRDY);
+			complete((struct completion *)(evtp->evt_arg2));
+			break;
+		case LPFC_EVT_KILL:
+			if (phba->hba_state >= LPFC_LINK_DOWN)
+				lpfc_offline(phba);
+			*(int *)(evtp->evt_arg1)  = lpfc_sli_brdkill(phba);
 			complete((struct completion *)(evtp->evt_arg2));
 			break;
 		}
@@ -286,6 +308,10 @@ lpfc_linkdown(struct lpfc_hba * phba)
 	struct list_head *listp, *node_list[7];
 	LPFC_MBOXQ_t     *mb;
 	int               rc, i;
+
+	if (phba->hba_state == LPFC_LINK_DOWN) {
+		return 0;
+	}
 
 	psli = &phba->sli;
 

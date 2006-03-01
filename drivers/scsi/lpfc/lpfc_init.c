@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -459,7 +459,43 @@ lpfc_hba_down_prep(struct lpfc_hba * phba)
 	lpfc_els_flush_cmd(phba);
 	lpfc_disc_flush_list(phba);
 
+	/* Disable SLI2 since we disabled interrupts */
+	phba->sli.sli_flag &= ~LPFC_SLI2_ACTIVE;
 	return (0);
+}
+
+/************************************************************************/
+/*                                                                      */
+/*    lpfc_hba_down_post                                                */
+/*    This routine will do uninitialization after the HBA is reset      */
+/*    when bringing down the SLI Layer.                                 */
+/*    This routine returns 0 on success. Any other return value         */
+/*    indicates an error.                                               */
+/*                                                                      */
+/************************************************************************/
+int
+lpfc_hba_down_post(struct lpfc_hba * phba)
+{
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring *pring;
+	struct lpfc_dmabuf *mp, *next_mp;
+	int i;
+
+	/* Cleanup preposted buffers on the ELS ring */
+	pring = &psli->ring[LPFC_ELS_RING];
+	list_for_each_entry_safe(mp, next_mp, &pring->postbufq, list) {
+		list_del(&mp->list);
+		pring->postbufq_cnt--;
+		lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		kfree(mp);
+	}
+
+	for (i = 0; i < psli->num_rings; i++) {
+		pring = &psli->ring[i];
+		lpfc_sli_abort_iocb_ring(phba, pring);
+	}
+
+	return 0;
 }
 
 /************************************************************************/
@@ -475,20 +511,6 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring  *pring;
-
-	/*
-	 * If a reset is sent to the HBA restore PCI configuration registers.
-	 */
-	if ( phba->hba_state == LPFC_INIT_START ) {
-		mdelay(1);
-		readl(phba->HCregaddr); /* flush */
-		writel(0, phba->HCregaddr);
-		readl(phba->HCregaddr); /* flush */
-
-		/* Restore PCI cmd register */
-		pci_write_config_word(phba->pcidev,
-				      PCI_COMMAND, phba->pci_cfg_value);
-	}
 
 	if (phba->work_hs & HS_FFER6) {
 		/* Re-establishing Link */
@@ -516,6 +538,7 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 		 * attempt to restart it.
 		 */
 		lpfc_offline(phba);
+		lpfc_sli_brdrestart(phba);
 		if (lpfc_online(phba) == 0) {	/* Initialize the HBA */
 			mod_timer(&phba->fc_estabtmo, jiffies + HZ * 60);
 			return;
@@ -532,7 +555,8 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 				phba->work_status[0], phba->work_status[1]);
 
 		lpfc_offline(phba);
-
+		phba->hba_state = LPFC_HBA_ERROR;
+		lpfc_hba_down_post(phba);
 	}
 }
 
@@ -1695,6 +1719,7 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	 * the HBA.
 	 */
 	lpfc_sli_hba_down(phba);
+	lpfc_sli_brdrestart(phba);
 
 	/* Release the irq reservation */
 	free_irq(phba->pcidev->irq, phba);

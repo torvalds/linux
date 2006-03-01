@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -149,6 +149,8 @@ lpfc_state_show(struct class_device *cdev, char *buf)
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
 	int len = 0;
 	switch (phba->hba_state) {
+	case LPFC_STATE_UNKNOWN:
+	case LPFC_WARM_START:
 	case LPFC_INIT_START:
 	case LPFC_INIT_MBX_CMDS:
 	case LPFC_LINK_DOWN:
@@ -272,6 +274,58 @@ lpfc_board_online_store(struct class_device *cdev, const char *buf,
 		lpfc_workq_post_event(phba, &status, &online_compl,
 							LPFC_EVT_OFFLINE);
 	wait_for_completion(&online_compl);
+	if (!status)
+		return strlen(buf);
+	else
+		return -EIO;
+}
+
+static ssize_t
+lpfc_board_mode_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	char  * state;
+
+	if (phba->hba_state == LPFC_HBA_ERROR)
+		state = "error";
+	else if (phba->hba_state == LPFC_WARM_START)
+		state = "warm start";
+	else if (phba->hba_state == LPFC_INIT_START)
+		state = "offline";
+	else
+		state = "online";
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", state);
+}
+
+static ssize_t
+lpfc_board_mode_store(struct class_device *cdev, const char *buf, size_t count)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata;
+	struct completion online_compl;
+	int status=0;
+
+	init_completion(&online_compl);
+
+	if(strncmp(buf, "online", sizeof("online") - 1) == 0)
+		lpfc_workq_post_event(phba, &status, &online_compl,
+				      LPFC_EVT_ONLINE);
+	else if (strncmp(buf, "offline", sizeof("offline") - 1) == 0)
+		lpfc_workq_post_event(phba, &status, &online_compl,
+				      LPFC_EVT_OFFLINE);
+	else if (strncmp(buf, "warm", sizeof("warm") - 1) == 0)
+		lpfc_workq_post_event(phba, &status, &online_compl,
+				      LPFC_EVT_WARM_START);
+ 	else if (strncmp(buf, "error", sizeof("error") - 1) == 0)
+		lpfc_workq_post_event(phba, &status, &online_compl,
+				      LPFC_EVT_KILL);
+	else
+		return -EINVAL;
+
+	wait_for_completion(&online_compl);
+
 	if (!status)
 		return strlen(buf);
 	else
@@ -480,6 +534,8 @@ static CLASS_DEVICE_ATTR(management_version, S_IRUGO, management_version_show,
 			 NULL);
 static CLASS_DEVICE_ATTR(board_online, S_IRUGO | S_IWUSR,
 			 lpfc_board_online_show, lpfc_board_online_store);
+static CLASS_DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
+			 lpfc_board_mode_show, lpfc_board_mode_store);
 
 static int lpfc_poll = 0;
 module_param(lpfc_poll, int, 0);
@@ -674,6 +730,7 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_nport_evt_cnt,
 	&class_device_attr_management_version,
 	&class_device_attr_board_online,
+	&class_device_attr_board_mode,
 	&class_device_attr_lpfc_poll,
 	&class_device_attr_lpfc_poll_tmo,
 	NULL,
@@ -883,8 +940,11 @@ sysfs_mbox_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		case MBX_DUMP_MEMORY:
 		case MBX_DOWN_LOAD:
 		case MBX_UPDATE_CFG:
+		case MBX_KILL_BOARD:
 		case MBX_LOAD_AREA:
 		case MBX_LOAD_EXP_ROM:
+		case MBX_BEACON:
+		case MBX_DEL_LD_ENTRY:
 			break;
 		case MBX_READ_SPARM64:
 		case MBX_READ_LA:
@@ -1042,6 +1102,8 @@ lpfc_get_host_port_state(struct Scsi_Host *shost)
 		fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;
 	else {
 		switch (phba->hba_state) {
+		case LPFC_STATE_UNKNOWN:
+		case LPFC_WARM_START:
 		case LPFC_INIT_START:
 		case LPFC_INIT_MBX_CMDS:
 		case LPFC_LINK_DOWN:

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -1233,7 +1233,9 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_SET_MASK        0x20
 #define MBX_SET_SLIM        0x21
 #define MBX_UNREG_D_ID      0x23
+#define MBX_KILL_BOARD      0x24
 #define MBX_CONFIG_FARP     0x25
+#define MBX_BEACON          0x2A
 
 #define MBX_LOAD_AREA       0x81
 #define MBX_RUN_BIU_DIAG64  0x84
