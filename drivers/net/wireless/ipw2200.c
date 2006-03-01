@@ -1796,9 +1796,9 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 	}
 
 	if (inta & IPW_INTA_BIT_FATAL_ERROR) {
-		IPW_ERROR("Firmware error detected.  Restarting.\n");
+		IPW_WARNING("Firmware error detected.  Restarting.\n");
 		if (priv->error) {
-			IPW_ERROR("Sysfs 'error' log already exists.\n");
+			IPW_DEBUG_FW("Sysfs 'error' log already exists.\n");
 #ifdef CONFIG_IPW2200_DEBUG
 			if (ipw_debug_level & IPW_DL_FW_ERRORS) {
 				struct ipw_fw_error *error =
@@ -1811,10 +1811,10 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 		} else {
 			priv->error = ipw_alloc_error_log(priv);
 			if (priv->error)
-				IPW_ERROR("Sysfs 'error' log captured.\n");
+				IPW_DEBUG_FW("Sysfs 'error' log captured.\n");
 			else
-				IPW_ERROR("Error allocating sysfs 'error' "
-					  "log.\n");
+				IPW_DEBUG_FW("Error allocating sysfs 'error' "
+					     "log.\n");
 #ifdef CONFIG_IPW2200_DEBUG
 			if (ipw_debug_level & IPW_DL_FW_ERRORS)
 				ipw_dump_error_log(priv, priv->error);
