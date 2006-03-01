@@ -1627,6 +1627,14 @@ lpfc_device_recov_npr_node(struct lpfc_hba * phba,
 {
 	spin_lock_irq(phba->host->host_lock);
 	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+	if (ndlp->nlp_flag & NLP_DELAY_TMO) {
+		ndlp->nlp_flag &= ~NLP_DELAY_TMO;
+		if (!list_empty(&ndlp->els_retry_evt.evt_listp))
+			list_del_init(&ndlp->els_retry_evt.evt_listp);
+		spin_unlock_irq(phba->host->host_lock);
+		del_timer_sync(&ndlp->nlp_delayfunc);
+		return (ndlp->nlp_state);
+	}
 	spin_unlock_irq(phba->host->host_lock);
 	return (ndlp->nlp_state);
 }

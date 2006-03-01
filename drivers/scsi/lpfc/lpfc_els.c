@@ -1467,24 +1467,28 @@ lpfc_els_retry_delay_handler(struct lpfc_nodelist *ndlp)
 		lpfc_issue_els_flogi(phba, ndlp, retry);
 		break;
 	case ELS_CMD_PLOGI:
-		ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
-		lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
-		lpfc_issue_els_plogi(phba, ndlp, retry);
+		if (!lpfc_issue_els_plogi(phba, ndlp, retry)) {
+			ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
+			lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
+		}
 		break;
 	case ELS_CMD_ADISC:
-		ndlp->nlp_state = NLP_STE_ADISC_ISSUE;
-		lpfc_nlp_list(phba, ndlp, NLP_ADISC_LIST);
-		lpfc_issue_els_adisc(phba, ndlp, retry);
+		if (!lpfc_issue_els_adisc(phba, ndlp, retry)) {
+			ndlp->nlp_state = NLP_STE_ADISC_ISSUE;
+			lpfc_nlp_list(phba, ndlp, NLP_ADISC_LIST);
+		}
 		break;
 	case ELS_CMD_PRLI:
-		ndlp->nlp_state = NLP_STE_PRLI_ISSUE;
-		lpfc_nlp_list(phba, ndlp, NLP_PRLI_LIST);
-		lpfc_issue_els_prli(phba, ndlp, retry);
+		if (!lpfc_issue_els_prli(phba, ndlp, retry)) {
+			ndlp->nlp_state = NLP_STE_PRLI_ISSUE;
+			lpfc_nlp_list(phba, ndlp, NLP_PRLI_LIST);
+		}
 		break;
 	case ELS_CMD_LOGO:
-		ndlp->nlp_state = NLP_STE_NPR_NODE;
-		lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
-		lpfc_issue_els_logo(phba, ndlp, retry);
+		if (!lpfc_issue_els_logo(phba, ndlp, retry)) {
+			ndlp->nlp_state = NLP_STE_NPR_NODE;
+			lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
+		}
 		break;
 	}
 	return;
