@@ -1301,7 +1301,7 @@ static void update_network(struct ieee80211_network *dst,
 	/* dst->last_associate is not overwritten */
 }
 
-static inline int is_beacon(int fc)
+static inline int is_beacon(__le16 fc)
 {
 	return (WLAN_FC_GET_STYPE(le16_to_cpu(fc)) == IEEE80211_STYPE_BEACON);
 }
@@ -1348,9 +1348,7 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 				     escape_essid(info_element->data,
 						  info_element->len),
 				     MAC_ARG(beacon->header.addr3),
-				     is_beacon(le16_to_cpu
-					       (beacon->header.
-						frame_ctl)) ?
+				     is_beacon(beacon->header.frame_ctl) ?
 				     "BEACON" : "PROBE RESPONSE");
 		return;
 	}
@@ -1400,9 +1398,7 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 				     escape_essid(network.ssid,
 						  network.ssid_len),
 				     MAC_ARG(network.bssid),
-				     is_beacon(le16_to_cpu
-					       (beacon->header.
-						frame_ctl)) ?
+				     is_beacon(beacon->header.frame_ctl) ?
 				     "BEACON" : "PROBE RESPONSE");
 #endif
 		memcpy(target, &network, sizeof(*target));
@@ -1412,16 +1408,14 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 				     escape_essid(target->ssid,
 						  target->ssid_len),
 				     MAC_ARG(target->bssid),
-				     is_beacon(le16_to_cpu
-					       (beacon->header.
-						frame_ctl)) ?
+				     is_beacon(beacon->header.frame_ctl) ?
 				     "BEACON" : "PROBE RESPONSE");
 		update_network(target, &network);
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
-	if (is_beacon(le16_to_cpu(beacon->header.frame_ctl))) {
+	if (is_beacon(beacon->header.frame_ctl)) {
 		if (ieee->handle_beacon != NULL)
 			ieee->handle_beacon(dev, beacon, &network);
 	} else {

@@ -752,8 +752,20 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 
 	transport_configure_device(&sdev->sdev_gendev);
 
-	if (sdev->host->hostt->slave_configure)
-		sdev->host->hostt->slave_configure(sdev);
+	if (sdev->host->hostt->slave_configure) {
+		int ret = sdev->host->hostt->slave_configure(sdev);
+		if (ret) {
+			/*
+			 * if LLDD reports slave not present, don't clutter
+			 * console with alloc failure messages
+			 */
+			if (ret != -ENXIO) {
+				sdev_printk(KERN_ERR, sdev,
+					"failed to configure device\n");
+			}
+			return SCSI_SCAN_NO_RESPONSE;
+		}
+	}
 
 	/*
 	 * Ok, the device is now all set up, we can

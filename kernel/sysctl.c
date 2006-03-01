@@ -124,6 +124,10 @@ extern int sysctl_hz_timer;
 extern int acct_parm[];
 #endif
 
+#ifdef CONFIG_IA64
+extern int no_unaligned_warning;
+#endif
+
 static int parse_table(int __user *, int, void __user *, size_t __user *, void __user *, size_t,
 		       ctl_table *, void **);
 static int proc_doutsstring(ctl_table *table, int write, struct file *filp,
@@ -663,6 +667,16 @@ static ctl_table kern_table[] = {
 		.data		= &acpi_video_flags,
 		.maxlen		= sizeof (unsigned long),
 		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_IA64
+	{
+		.ctl_name	= KERN_IA64_UNALIGNED,
+		.procname	= "ignore-unaligned-usertrap",
+		.data		= &no_unaligned_warning,
+		.maxlen		= sizeof (int),
+	 	.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
 #endif

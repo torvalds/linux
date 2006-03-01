@@ -1498,8 +1498,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 	}
 
 	/* Search the bindings array */
-	if (likely((ids->roles & FC_RPORT_ROLE_FCP_TARGET) &&
-		(fc_host_tgtid_bind_type(shost) != FC_TGTID_BIND_NONE))) {
+	if (fc_host_tgtid_bind_type(shost) != FC_TGTID_BIND_NONE) {
 
 		/* search for a matching consistent binding */
 

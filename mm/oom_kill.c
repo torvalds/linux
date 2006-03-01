@@ -302,7 +302,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 {
 	struct mm_struct *mm = NULL;
 	task_t *p;
-	unsigned long points;
+	unsigned long points = 0;
 
 	if (printk_ratelimit()) {
 		printk("oom-killer: gfp_mask=0x%x, order=%d\n",

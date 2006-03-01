@@ -3,10 +3,11 @@
 #
 
 menu "SN Devices"
+	depends on SGI_SN
 
 config SGI_IOC4
 	tristate "SGI IOC4 Base IO support"
-	depends on (IA64_GENERIC || IA64_SGI_SN2) && MMTIMER
+	depends on MMTIMER
 	default m
 	---help---
 	This option enables basic support for the SGI IOC4-based Base IO
@@ -19,7 +20,6 @@ config SGI_IOC4
 
 config SGI_IOC3
 	tristate "SGI IOC3 Base IO support"
-	depends on (IA64_GENERIC || IA64_SGI_SN2)
 	default m
 	---help---
 	This option enables basic support for the SGI IOC3-based Base IO

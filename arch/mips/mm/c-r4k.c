@@ -235,7 +235,9 @@ static inline void r4k_blast_scache_page_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
-	if (sc_lsize == 16)
+	if (scache_size == 0)
+		r4k_blast_scache_page = (void *)no_sc_noop;
+	else if (sc_lsize == 16)
 		r4k_blast_scache_page = blast_scache16_page;
 	else if (sc_lsize == 32)
 		r4k_blast_scache_page = blast_scache32_page;
@@ -251,7 +253,9 @@ static inline void r4k_blast_scache_page_indexed_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
-	if (sc_lsize == 16)
+	if (scache_size == 0)
+		r4k_blast_scache_page_indexed = (void *)no_sc_noop;
+	else if (sc_lsize == 16)
 		r4k_blast_scache_page_indexed = blast_scache16_page_indexed;
 	else if (sc_lsize == 32)
 		r4k_blast_scache_page_indexed = blast_scache32_page_indexed;
@@ -267,7 +271,9 @@ static inline void r4k_blast_scache_setup(void)
 {
 	unsigned long sc_lsize = cpu_scache_line_size();
 
-	if (sc_lsize == 16)
+	if (scache_size == 0)
+		r4k_blast_scache = (void *)no_sc_noop;
+	else if (sc_lsize == 16)
 		r4k_blast_scache = blast_scache16;
 	else if (sc_lsize == 32)
 		r4k_blast_scache = blast_scache32;
@@ -482,7 +488,7 @@ static inline void local_r4k_flush_icache_range(void *args)
 			protected_blast_dcache_range(start, end);
 		}
 
-		if (!cpu_icache_snoops_remote_store) {
+		if (!cpu_icache_snoops_remote_store && scache_size) {
 			if (end - start > scache_size)
 				r4k_blast_scache();
 			else
@@ -651,7 +657,7 @@ static void local_r4k_flush_cache_sigtramp(void * arg)
 
 	R4600_HIT_CACHEOP_WAR_IMPL;
 	protected_writeback_dcache_line(addr & ~(dc_lsize - 1));
-	if (!cpu_icache_snoops_remote_store)
+	if (!cpu_icache_snoops_remote_store && scache_size)
 		protected_writeback_scache_line(addr & ~(sc_lsize - 1));
 	protected_flush_icache_line(addr & ~(ic_lsize - 1));
 	if (MIPS4K_ICACHE_REFILL_WAR) {
