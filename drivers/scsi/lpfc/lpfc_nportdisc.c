@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -150,8 +150,7 @@ lpfc_check_elscmpl_iocb(struct lpfc_hba * phba,
 			lp = (uint32_t *) prsp->virt;
 			ptr = (void *)((uint8_t *)lp + sizeof(uint32_t));
 		}
-	}
-	else {
+	} else {
 		/* Force ulpStatus error since we are returning NULL ptr */
 		if (!(irsp->ulpStatus)) {
 			irsp->ulpStatus = IOSTAT_LOCAL_REJECT;
@@ -301,12 +300,10 @@ lpfc_rcv_plogi(struct lpfc_hba * phba,
 				/* Start discovery - this should just do
 				   CLEAR_LA */
 				lpfc_disc_start(phba);
-			}
-			else {
+			} else {
 				lpfc_initial_flogi(phba);
 			}
-		}
-		else {
+		} else {
 			stat.un.b.lsRjtRsnCode = LSRJT_LOGICAL_BSY;
 			stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
 			lpfc_els_rsp_reject(phba, stat.un.lsRjtError, cmdiocb,
@@ -354,7 +351,7 @@ lpfc_rcv_plogi(struct lpfc_hba * phba,
 		((sp->cmn.bbRcvSizeMsb & 0x0F) << 8) | sp->cmn.bbRcvSizeLsb;
 
 	/* no need to reg_login if we are already in one of these states */
-	switch(ndlp->nlp_state) {
+	switch (ndlp->nlp_state) {
 	case  NLP_STE_NPR_NODE:
 		if (!(ndlp->nlp_flag & NLP_NPR_ADISC))
 			break;
@@ -444,8 +441,7 @@ lpfc_rcv_padisc(struct lpfc_hba * phba,
 	    (lpfc_check_adisc(phba, ndlp, pnn, ppn))) {
 		if (cmd == ELS_CMD_ADISC) {
 			lpfc_els_rsp_adisc_acc(phba, cmdiocb, ndlp);
-		}
-		else {
+		} else {
 			lpfc_els_rsp_acc(phba, ELS_CMD_PLOGI, cmdiocb, ndlp,
 				NULL, 0);
 		}
@@ -672,8 +668,7 @@ lpfc_rcv_plogi_plogi_issue(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_CMD_IN_PROGRESS;
 		lpfc_els_rsp_reject(phba, stat.un.lsRjtError, cmdiocb, ndlp);
-	}
-	else {
+	} else {
 		lpfc_rcv_plogi(phba, ndlp, cmdiocb);
 	} /* if our portname was less */
 
@@ -708,8 +703,7 @@ lpfc_rcv_els_plogi_issue(struct lpfc_hba * phba,
 
 	if (evt == NLP_EVT_RCV_LOGO) {
 		lpfc_els_rsp_acc(phba, ELS_CMD_ACC, cmdiocb, ndlp, NULL, 0);
-	}
-	else {
+	} else {
 		lpfc_issue_els_logo(phba, ndlp, 0);
 	}
 
@@ -803,7 +797,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_hba * phba,
 		 * execute first, queue this command to
 		 * be processed later.
 		 */
-		switch(ndlp->nlp_DID) {
+		switch (ndlp->nlp_DID) {
 		case NameServer_DID:
 			mbox->mbox_cmpl =
 				lpfc_mbx_cmpl_ns_reg_login;

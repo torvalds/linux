@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -717,8 +717,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			rc = NLP_STE_FREED_NODE;
-		}
-		else {
+		} else {
 			rc = lpfc_disc_state_machine(phba, ndlp, cmdiocb,
 					NLP_EVT_CMPL_PLOGI);
 		}
@@ -784,7 +783,7 @@ lpfc_issue_els_plogi(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
 
 	cmdsize = (sizeof (uint32_t) + sizeof (struct serv_parm));
 	elsiocb = lpfc_prep_els_iocb(phba, 1, cmdsize, retry, ndlp,
-							ELS_CMD_PLOGI);
+								ELS_CMD_PLOGI);
 	if (!elsiocb)
 		return 1;
 
@@ -861,8 +860,7 @@ lpfc_cmpl_els_prli(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			goto out;
-		}
-		else {
+		} else {
 			lpfc_disc_state_machine(phba, ndlp, cmdiocb,
 					NLP_EVT_CMPL_PRLI);
 		}
@@ -1195,8 +1193,7 @@ lpfc_cmpl_els_logo(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			goto out;
-		}
-		else {
+		} else {
 			lpfc_disc_state_machine(phba, ndlp, cmdiocb,
 					NLP_EVT_CMPL_LOGO);
 		}
@@ -2201,7 +2198,7 @@ lpfc_els_disc_adisc(struct lpfc_hba * phba)
 		phba->fc_flag &= ~FC_NLP_MORE;
 		spin_unlock_irq(phba->host->host_lock);
 	}
-	return(sentadisc);
+	return sentadisc;
 }
 
 int
@@ -2238,7 +2235,7 @@ lpfc_els_disc_plogi(struct lpfc_hba * phba)
 		phba->fc_flag &= ~FC_NLP_MORE;
 		spin_unlock_irq(phba->host->host_lock);
 	}
-	return(sentplogi);
+	return sentplogi;
 }
 
 int
@@ -2591,8 +2588,7 @@ lpfc_els_rcv_flogi(struct lpfc_hba * phba,
 				mempool_free( mbox, phba->mbox_mem_pool);
 			}
 			return 1;
-		}
-		else if (rc > 0) {	/* greater than */
+		} else if (rc > 0) {	/* greater than */
 			spin_lock_irq(phba->host->host_lock);
 			phba->fc_flag |= FC_PT2PT_PLOGI;
 			spin_unlock_irq(phba->host->host_lock);
@@ -2755,8 +2751,8 @@ lpfc_els_rcv_rps(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	RPS *rps;
 	struct ls_rjt stat;
 
-	if((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
-	   (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
+	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
+	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
 		stat.un.b.lsRjtRsvd0 = 0;
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
@@ -2866,8 +2862,8 @@ lpfc_els_rcv_rpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	RPL *rpl;
 	struct ls_rjt stat;
 
-	if((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
-	   (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
+	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
+	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
 		stat.un.b.lsRjtRsvd0 = 0;
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
@@ -2886,8 +2882,7 @@ lpfc_els_rcv_rpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	    ((maxsize == 0) ||
 	     ((maxsize * sizeof(uint32_t)) >= sizeof(RPL_RSP)))) {
 		cmdsize = sizeof(uint32_t) + sizeof(RPL_RSP);
-	}
-	else {
+	} else {
 		cmdsize = sizeof(uint32_t) + maxsize * sizeof(uint32_t);
 	}
 	lpfc_els_rsp_rpl_acc(phba, cmdsize, cmdiocb, ndlp);
@@ -3032,8 +3027,7 @@ lpfc_els_rcv_fan(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 					 * other NLP_FABRIC logins
 					 */
 					lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-				}
-				else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
+				} else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
 					/* Fail outstanding I/O now since this
 					 * device is marked for PLOGI
 					 */
@@ -3228,8 +3222,7 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 			spin_unlock_irq(phba->host->host_lock);
 			(piocb->iocb_cmpl) (phba, piocb, piocb);
 			spin_lock_irq(phba->host->host_lock);
-		}
-		else
+		} else
 			lpfc_sli_release_iocbq(phba, piocb);
 	}
 
@@ -3253,8 +3246,7 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 			spin_unlock_irq(phba->host->host_lock);
 			(piocb->iocb_cmpl) (phba, piocb, piocb);
 			spin_lock_irq(phba->host->host_lock);
-		}
-		else
+		} else
 			lpfc_sli_release_iocbq(phba, piocb);
 	}
 	spin_unlock_irq(phba->host->host_lock);

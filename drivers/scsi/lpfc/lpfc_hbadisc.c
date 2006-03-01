@@ -108,7 +108,7 @@ lpfc_work_list_done(struct lpfc_hba * phba)
 				 evt_listp);
 		spin_unlock_irq(phba->host->host_lock);
 		free_evt = 1;
-		switch(evtp->evt) {
+		switch (evtp->evt) {
 		case LPFC_EVT_NODEV_TMO:
 			ndlp = (struct lpfc_nodelist *)(evtp->evt_arg1);
 			lpfc_process_nodev_timeout(phba, ndlp);
@@ -173,13 +173,13 @@ lpfc_work_done(struct lpfc_hba * phba)
 	work_hba_events=phba->work_hba_events;
 	spin_unlock_irq(phba->host->host_lock);
 
-	if(ha_copy & HA_ERATT)
+	if (ha_copy & HA_ERATT)
 		lpfc_handle_eratt(phba);
 
-	if(ha_copy & HA_MBATT)
+	if (ha_copy & HA_MBATT)
 		lpfc_sli_handle_mb_event(phba);
 
-	if(ha_copy & HA_LATT)
+	if (ha_copy & HA_LATT)
 		lpfc_handle_latt(phba);
 
 	if (work_hba_events & WORKER_DISC_TMO)
@@ -357,8 +357,7 @@ lpfc_linkdown(struct lpfc_hba * phba)
 			/* Check config parameter use-adisc or FCP-2 */
 			if ((rc != NLP_STE_FREED_NODE) &&
 				(phba->cfg_use_adisc == 0) &&
-				!(ndlp->nlp_fcp_info &
-					NLP_FCP_2_DEVICE)) {
+				!(ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE)) {
 				/* We know we will have to relogin, so
 				 * unreglogin the rpi right now to fail
 				 * any outstanding I/Os quickly.
@@ -398,7 +397,7 @@ lpfc_linkdown(struct lpfc_hba * phba)
 	lpfc_can_disctmo(phba);
 
 	/* Must process IOCBs on all rings to handle ABORTed I/Os */
-	return (0);
+	return 0;
 }
 
 static int
@@ -497,7 +496,7 @@ lpfc_mbx_cmpl_clear_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 		lpfc_els_disc_plogi(phba);
 	}
 
-	if(!phba->num_disc_nodes) {
+	if (!phba->num_disc_nodes) {
 		spin_lock_irq(phba->host->host_lock);
 		phba->fc_flag &= ~FC_NDISC_ACTIVE;
 		spin_unlock_irq(phba->host->host_lock);
@@ -685,7 +684,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 	cfglink_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 
 	spin_lock_irq(phba->host->host_lock);
-	switch(la->UlnkSpeed) {
+	switch (la->UlnkSpeed) {
 		case LA_1GHZ_LINK:
 			phba->fc_linkspeed = LA_1GHZ_LINK;
 			break;
@@ -1115,12 +1114,11 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 
 	psli = &phba->sli;
 	/* Sanity check to ensure we are not moving to / from the same list */
-	if ((nlp->nlp_flag & NLP_LIST_MASK) == list) {
+	if ((nlp->nlp_flag & NLP_LIST_MASK) == list)
 		if (list != NLP_NO_LIST)
-			return(0);
-	}
+			return 0;
 
-	switch(nlp->nlp_flag & NLP_LIST_MASK) {
+	switch (nlp->nlp_flag & NLP_LIST_MASK) {
 	case NLP_NO_LIST: /* Not on any list */
 		break;
 	case NLP_UNUSED_LIST:
@@ -1190,7 +1188,7 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 			phba->brd_no,
 			nlp->nlp_DID, list, nlp->nlp_flag);
 
-	switch(list) {
+	switch (list) {
 	case NLP_NO_LIST: /* No list, just remove it */
 		lpfc_nlp_remove(phba, nlp);
 		/* as node removed - stop further transport calls */
@@ -1287,10 +1285,10 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 		list_add_tail(&nlp->nlp_listp, &phba->fc_npr_list);
 		phba->fc_npr_cnt++;
 
-		if (!(nlp->nlp_flag & NLP_NODEV_TMO)) {
+		if (!(nlp->nlp_flag & NLP_NODEV_TMO))
 			mod_timer(&nlp->nlp_tmofunc,
 		 			jiffies + HZ * phba->cfg_nodev_tmo);
-		}
+
 		spin_lock_irq(phba->host->host_lock);
 		nlp->nlp_flag |= NLP_NODEV_TMO;
 		nlp->nlp_flag &= ~NLP_RCV_PLOGI;
@@ -1342,7 +1340,7 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 			}
 		}
 	}
-	return (0);
+	return 0;
 }
 
 /*
@@ -1401,7 +1399,7 @@ lpfc_can_disctmo(struct lpfc_hba * phba)
 			phba->brd_no, phba->hba_state, phba->fc_flag,
 			phba->fc_plogi_cnt, phba->fc_adisc_cnt);
 
-	return (0);
+	return 0;
 }
 
 /*
@@ -1422,11 +1420,11 @@ lpfc_check_sli_ndlp(struct lpfc_hba * phba,
 		switch (icmd->ulpCommand) {
 		case CMD_GEN_REQUEST64_CR:
 			if (icmd->ulpContext == (volatile ushort)ndlp->nlp_rpi)
-				return (1);
+				return 1;
 		case CMD_ELS_REQUEST64_CR:
 		case CMD_XMIT_ELS_RSP64_CX:
 			if (iocb->context1 == (uint8_t *) ndlp)
-				return (1);
+				return 1;
 		}
 	} else if (pring->ringno == psli->ip_ring) {
 
@@ -1434,15 +1432,15 @@ lpfc_check_sli_ndlp(struct lpfc_hba * phba,
 		/* Skip match check if waiting to relogin to FCP target */
 		if ((ndlp->nlp_type & NLP_FCP_TARGET) &&
 		  (ndlp->nlp_flag & NLP_DELAY_TMO)) {
-			return (0);
+			return 0;
 		}
 		if (icmd->ulpContext == (volatile ushort)ndlp->nlp_rpi) {
-			return (1);
+			return 1;
 		}
 	} else if (pring->ringno == psli->next_ring) {
 
 	}
-	return (0);
+	return 0;
 }
 
 /*
@@ -1503,7 +1501,7 @@ lpfc_no_rpi(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 
 		}
 	}
-	return (0);
+	return 0;
 }
 
 /*
@@ -1604,7 +1602,7 @@ lpfc_freenode(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 
 	lpfc_unreg_rpi(phba, ndlp);
 
-	return (0);
+	return 0;
 }
 
 /*
@@ -1640,12 +1638,11 @@ lpfc_nlp_remove(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 		spin_lock_irq(phba->host->host_lock);
 		ndlp->nlp_flag |= NLP_DELAY_REMOVE;
 		spin_unlock_irq(phba->host->host_lock);
-	}
-	else {
+	} else {
 		lpfc_freenode(phba, ndlp);
 		mempool_free( ndlp, phba->nlp_mem_pool);
 	}
-	return(0);
+	return 0;
 }
 
 static int
@@ -1656,20 +1653,20 @@ lpfc_matchdid(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, uint32_t did)
 	D_ID matchdid;
 
 	if (did == Bcast_DID)
-		return (0);
+		return 0;
 
 	if (ndlp->nlp_DID == 0) {
-		return (0);
+		return 0;
 	}
 
 	/* First check for Direct match */
 	if (ndlp->nlp_DID == did)
-		return (1);
+		return 1;
 
 	/* Next check for area/domain identically equals 0 match */
 	mydid.un.word = phba->fc_myDID;
 	if ((mydid.un.b.domain == 0) && (mydid.un.b.area == 0)) {
-		return (0);
+		return 0;
 	}
 
 	matchdid.un.word = did;
@@ -1680,9 +1677,9 @@ lpfc_matchdid(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, uint32_t did)
 			if ((ndlpdid.un.b.domain == 0) &&
 			    (ndlpdid.un.b.area == 0)) {
 				if (ndlpdid.un.b.id)
-					return (1);
+					return 1;
 			}
-			return (0);
+			return 0;
 		}
 
 		matchdid.un.word = ndlp->nlp_DID;
@@ -1691,11 +1688,11 @@ lpfc_matchdid(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp, uint32_t did)
 			if ((matchdid.un.b.domain == 0) &&
 			    (matchdid.un.b.area == 0)) {
 				if (matchdid.un.b.id)
-					return (1);
+					return 1;
 			}
 		}
 	}
-	return (0);
+	return 0;
 }
 
 /* Search for a nodelist entry on a specific list */
@@ -1720,7 +1717,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
 						ndlp->nlp_flag, data1);
-				return (ndlp);
+				return ndlp;
 			}
 		}
 	}
@@ -1741,7 +1738,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
 						ndlp->nlp_flag, data1);
-				return (ndlp);
+				return ndlp;
 			}
 		}
 	}
@@ -1763,7 +1760,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
 						ndlp->nlp_flag, data1);
-				return (ndlp);
+				return ndlp;
 			}
 		}
 	}
@@ -1785,7 +1782,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
 						ndlp->nlp_flag, data1);
-				return (ndlp);
+				return ndlp;
 			}
 		}
 	}
@@ -1807,7 +1804,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
 						ndlp->nlp_flag, data1);
-				return (ndlp);
+				return ndlp;
 			}
 		}
 	}
@@ -1829,7 +1826,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
 						ndlp->nlp_flag, data1);
-				return (ndlp);
+				return ndlp;
 			}
 		}
 	}
@@ -1851,7 +1848,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
 						ndlp->nlp_flag, data1);
-				return (ndlp);
+				return ndlp;
 			}
 		}
 	}
@@ -1873,7 +1870,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
 						ndlp->nlp_flag, data1);
-				return (ndlp);
+				return ndlp;
 			}
 		}
 	}
@@ -1923,17 +1920,15 @@ lpfc_setup_disc_node(struct lpfc_hba * phba, uint32_t did)
 				del_timer_sync(&ndlp->nlp_delayfunc);
 				spin_lock_irq(phba->host->host_lock);
 				if (!list_empty(&ndlp->els_retry_evt.
-						evt_listp))
+								evt_listp))
 					list_del_init(&ndlp->els_retry_evt.
-				      		evt_listp);
+						      		evt_listp);
 			}
-		}
-		else {
+		} else {
 			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 			ndlp = NULL;
 		}
-	}
-	else {
+	} else {
 		flg = ndlp->nlp_flag & NLP_LIST_MASK;
 		if ((flg == NLP_ADISC_LIST) || (flg == NLP_PLOGI_LIST))
 			return NULL;
@@ -2084,8 +2079,7 @@ lpfc_disc_start(struct lpfc_hba * phba)
 				spin_lock_irq(phba->host->host_lock);
 				phba->fc_flag &= ~FC_RSCN_MODE;
 				spin_unlock_irq(phba->host->host_lock);
-			}
-			else
+			} else
 				lpfc_els_handle_rscn(phba);
 		}
 	}
@@ -2268,8 +2262,7 @@ lpfc_disc_timeout_handler(struct lpfc_hba *phba)
 			if (ndlp->nlp_type & NLP_FABRIC) {
 				/* Clean up the ndlp on Fabric connections */
 				lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
-			}
-			else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
+			} else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
 				/* Fail outstanding IO now since device
 				 * is marked for PLOGI.
 				 */
@@ -2544,7 +2537,7 @@ lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi)
 	for (i = 0; i < ARRAY_SIZE(lists); i++ )
 		list_for_each_entry(ndlp, lists[i], nlp_listp)
 			if (ndlp->nlp_rpi == rpi)
-				return (ndlp);
+				return ndlp;
 
 	return NULL;
 }
