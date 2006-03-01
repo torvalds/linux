@@ -283,16 +283,18 @@ lpfc_linkdown(struct lpfc_hba * phba)
 {
 	struct lpfc_sli       *psli;
 	struct lpfc_nodelist  *ndlp, *next_ndlp;
-	struct list_head *listp;
-	struct list_head *node_list[7];
+	struct list_head *listp, *node_list[7];
 	LPFC_MBOXQ_t     *mb;
 	int               rc, i;
 
 	psli = &phba->sli;
 
-	spin_lock_irq(phba->host->host_lock);
-	phba->hba_state = LPFC_LINK_DOWN;
-	spin_unlock_irq(phba->host->host_lock);
+	/* sysfs or selective reset may call this routine to clean up */
+	if (phba->hba_state > LPFC_LINK_DOWN) {
+		spin_lock_irq(phba->host->host_lock);
+		phba->hba_state = LPFC_LINK_DOWN;
+		spin_unlock_irq(phba->host->host_lock);
+	}
 
 	/* Clean up any firmware default rpi's */
 	if ((mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL))) {
@@ -324,32 +326,20 @@ lpfc_linkdown(struct lpfc_hba * phba)
 			continue;
 
 		list_for_each_entry_safe(ndlp, next_ndlp, listp, nlp_listp) {
-			/* Fabric nodes are not handled thru state machine for
-			   link down */
-			if (ndlp->nlp_type & NLP_FABRIC) {
-				/* Remove ALL Fabric nodes except Fabric_DID */
-				if (ndlp->nlp_DID != Fabric_DID) {
-					/* Take it off current list and free */
-					lpfc_nlp_list(phba, ndlp,
-						NLP_NO_LIST);
-				}
-			}
-			else {
 
-				rc = lpfc_disc_state_machine(phba, ndlp, NULL,
-						     NLP_EVT_DEVICE_RECOVERY);
+			rc = lpfc_disc_state_machine(phba, ndlp, NULL,
+					     NLP_EVT_DEVICE_RECOVERY);
 
-				/* Check config parameter use-adisc or FCP-2 */
-				if ((rc != NLP_STE_FREED_NODE) &&
-					(phba->cfg_use_adisc == 0) &&
-					!(ndlp->nlp_fcp_info &
-						NLP_FCP_2_DEVICE)) {
-					/* We know we will have to relogin, so
-					 * unreglogin the rpi right now to fail
-					 * any outstanding I/Os quickly.
-					 */
-					lpfc_unreg_rpi(phba, ndlp);
-				}
+			/* Check config parameter use-adisc or FCP-2 */
+			if ((rc != NLP_STE_FREED_NODE) &&
+				(phba->cfg_use_adisc == 0) &&
+				!(ndlp->nlp_fcp_info &
+					NLP_FCP_2_DEVICE)) {
+				/* We know we will have to relogin, so
+				 * unreglogin the rpi right now to fail
+				 * any outstanding I/Os quickly.
+				 */
+				lpfc_unreg_rpi(phba, ndlp);
 			}
 		}
 	}
@@ -391,6 +381,8 @@ static int
 lpfc_linkup(struct lpfc_hba * phba)
 {
 	struct lpfc_nodelist *ndlp, *next_ndlp;
+	struct list_head *listp, *node_list[7];
+	int i;
 
 	spin_lock_irq(phba->host->host_lock);
 	phba->hba_state = LPFC_LINK_UP;
@@ -401,14 +393,33 @@ lpfc_linkup(struct lpfc_hba * phba)
 	spin_unlock_irq(phba->host->host_lock);
 
 
-	/*
-	 * Clean up old Fabric NLP_FABRIC logins.
-	 */
-	list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_nlpunmap_list,
-				nlp_listp) {
-		if (ndlp->nlp_DID == Fabric_DID) {
-			/* Take it off current list and free */
-			lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+	node_list[0] = &phba->fc_plogi_list;
+	node_list[1] = &phba->fc_adisc_list;
+	node_list[2] = &phba->fc_reglogin_list;
+	node_list[3] = &phba->fc_prli_list;
+	node_list[4] = &phba->fc_nlpunmap_list;
+	node_list[5] = &phba->fc_nlpmap_list;
+	node_list[6] = &phba->fc_npr_list;
+	for (i = 0; i < 7; i++) {
+		listp = node_list[i];
+		if (list_empty(listp))
+			continue;
+
+		list_for_each_entry_safe(ndlp, next_ndlp, listp, nlp_listp) {
+			if (phba->fc_flag & FC_LBIT) {
+				if (ndlp->nlp_type & NLP_FABRIC) {
+					/* On Linkup its safe to clean up the
+					 * ndlp from Fabric connections.
+					 */
+					lpfc_nlp_list(phba, ndlp,
+							NLP_UNUSED_LIST);
+				} else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
+					/* Fail outstanding IO now since device
+					 * is marked for PLOGI.
+					 */
+					lpfc_unreg_rpi(phba, ndlp);
+				}
+			}
 		}
 	}
 
@@ -784,6 +795,13 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	memcpy(&phba->alpa_map[0], mp->virt, 128);
 
+	spin_lock_irq(phba->host->host_lock);
+	if (la->pb)
+		phba->fc_flag |= FC_BYPASSED_MODE;
+	else
+		phba->fc_flag &= ~FC_BYPASSED_MODE;
+	spin_unlock_irq(phba->host->host_lock);
+
 	if (((phba->fc_eventTag + 1) < la->eventTag) ||
 	     (phba->fc_eventTag == la->eventTag)) {
 		phba->fc_stat.LinkMultiEvent++;
@@ -904,32 +922,36 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 		 */
 		lpfc_issue_els_scr(phba, SCR_DID, 0);
 
-		/* Allocate a new node instance.  If the pool is empty, just
-		 * start the discovery process and skip the Nameserver login
-		 * process.  This is attempted again later on.  Otherwise, issue
-		 * a Port Login (PLOGI) to the NameServer
-		 */
-		if ((ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL))
-		    == 0) {
-			lpfc_disc_start(phba);
-		} else {
-			lpfc_nlp_init(phba, ndlp, NameServer_DID);
-			ndlp->nlp_type |= NLP_FABRIC;
-			ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
-			lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
-			lpfc_issue_els_plogi(phba, ndlp, 0);
-			if (phba->cfg_fdmi_on) {
-				if ((ndlp_fdmi = mempool_alloc(
-						       phba->nlp_mem_pool,
-						       GFP_KERNEL))) {
-					lpfc_nlp_init(phba, ndlp_fdmi,
-						FDMI_DID);
-					ndlp_fdmi->nlp_type |= NLP_FABRIC;
-					ndlp_fdmi->nlp_state =
-					    NLP_STE_PLOGI_ISSUE;
-					lpfc_issue_els_plogi(phba, ndlp_fdmi,
-							     0);
-				}
+		ndlp = lpfc_findnode_did(phba, NLP_SEARCH_ALL, NameServer_DID);
+		if (!ndlp) {
+			/* Allocate a new node instance. If the pool is empty,
+			 * start the discovery process and skip the Nameserver
+			 * login process.  This is attempted again later on.
+			 * Otherwise, issue a Port Login (PLOGI) to NameServer.
+			 */
+			ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_ATOMIC);
+			if (!ndlp) {
+				lpfc_disc_start(phba);
+				lpfc_mbuf_free(phba, mp->virt, mp->phys);
+				kfree(mp);
+				mempool_free( pmb, phba->mbox_mem_pool);
+				return;
+			} else {
+				lpfc_nlp_init(phba, ndlp, NameServer_DID);
+				ndlp->nlp_type |= NLP_FABRIC;
+			}
+		}
+		ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
+		lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
+		lpfc_issue_els_plogi(phba, ndlp, 0);
+		if (phba->cfg_fdmi_on) {
+			ndlp_fdmi = mempool_alloc(phba->nlp_mem_pool,
+								GFP_KERNEL);
+			if (ndlp_fdmi) {
+				lpfc_nlp_init(phba, ndlp_fdmi, FDMI_DID);
+				ndlp_fdmi->nlp_type |= NLP_FABRIC;
+				ndlp_fdmi->nlp_state = NLP_STE_PLOGI_ISSUE;
+				lpfc_issue_els_plogi(phba, ndlp_fdmi, 0);
 			}
 		}
 	}
@@ -937,7 +959,6 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	mempool_free( pmb, phba->mbox_mem_pool);
-
 	return;
 }
 
@@ -1241,16 +1262,9 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 		list_add_tail(&nlp->nlp_listp, &phba->fc_npr_list);
 		phba->fc_npr_cnt++;
 
-		/*
-		 * Sanity check for Fabric entity.
-		 * Set nodev_tmo for NPR state, for Fabric use 1 sec.
-		 */
-		if (nlp->nlp_type & NLP_FABRIC) {
-			mod_timer(&nlp->nlp_tmofunc, jiffies + HZ);
-		}
-		else {
+		if (!(nlp->nlp_flag & NLP_NODEV_TMO)) {
 			mod_timer(&nlp->nlp_tmofunc,
-			    jiffies + HZ * phba->cfg_nodev_tmo);
+		 			jiffies + HZ * phba->cfg_nodev_tmo);
 		}
 		spin_lock_irq(phba->host->host_lock);
 		nlp->nlp_flag |= NLP_NODEV_TMO;
@@ -1314,7 +1328,15 @@ lpfc_set_disctmo(struct lpfc_hba * phba)
 {
 	uint32_t tmo;
 
-	tmo = ((phba->fc_ratov * 2) + 1);
+	if (phba->hba_state == LPFC_LOCAL_CFG_LINK) {
+		/* For FAN, timeout should be greater then edtov */
+		tmo = (((phba->fc_edtov + 999) / 1000) + 1);
+	} else {
+		/* Normal discovery timeout should be > then ELS/CT timeout
+		 * FC spec states we need 3 * ratov for CT requests
+		 */
+		tmo = ((phba->fc_ratov * 3) + 3);
+	}
 
 	mod_timer(&phba->fc_disctmo, jiffies + HZ * tmo);
 	spin_lock_irq(phba->host->host_lock);
@@ -1846,8 +1868,9 @@ lpfc_setup_disc_node(struct lpfc_hba * phba, uint32_t did)
 	struct lpfc_nodelist *ndlp;
 	uint32_t flg;
 
-	if ((ndlp = lpfc_findnode_did(phba, NLP_SEARCH_ALL, did)) == 0) {
-		if ((phba->hba_state == LPFC_HBA_READY) &&
+	ndlp = lpfc_findnode_did(phba, NLP_SEARCH_ALL, did);
+	if (!ndlp) {
+		if ((phba->fc_flag & FC_RSCN_MODE) &&
 		   ((lpfc_rscn_payload_check(phba, did) == 0)))
 			return NULL;
 		ndlp = (struct lpfc_nodelist *)
@@ -1860,10 +1883,23 @@ lpfc_setup_disc_node(struct lpfc_hba * phba, uint32_t did)
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 		return ndlp;
 	}
-	if ((phba->hba_state == LPFC_HBA_READY) &&
-	    (phba->fc_flag & FC_RSCN_MODE)) {
+	if (phba->fc_flag & FC_RSCN_MODE) {
 		if (lpfc_rscn_payload_check(phba, did)) {
 			ndlp->nlp_flag |= NLP_NPR_2B_DISC;
+
+			/* Since this node is marked for discovery,
+			 * delay timeout is not needed.
+			 */
+			if (ndlp->nlp_flag & NLP_DELAY_TMO) {
+				ndlp->nlp_flag &= ~NLP_DELAY_TMO;
+				spin_unlock_irq(phba->host->host_lock);
+				del_timer_sync(&ndlp->nlp_delayfunc);
+				spin_lock_irq(phba->host->host_lock);
+				if (!list_empty(&ndlp->els_retry_evt.
+						evt_listp))
+					list_del_init(&ndlp->els_retry_evt.
+				      		evt_listp);
+			}
 		}
 		else {
 			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
@@ -1872,10 +1908,8 @@ lpfc_setup_disc_node(struct lpfc_hba * phba, uint32_t did)
 	}
 	else {
 		flg = ndlp->nlp_flag & NLP_LIST_MASK;
-		if ((flg == NLP_ADISC_LIST) ||
-		(flg == NLP_PLOGI_LIST)) {
+		if ((flg == NLP_ADISC_LIST) || (flg == NLP_PLOGI_LIST))
 			return NULL;
-		}
 		ndlp->nlp_state = NLP_STE_NPR_NODE;
 		lpfc_nlp_list(phba, ndlp, NLP_NPR_LIST);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
@@ -2174,7 +2208,7 @@ static void
 lpfc_disc_timeout_handler(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli;
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_nodelist *ndlp, *next_ndlp;
 	LPFC_MBOXQ_t *clearlambox, *initlinkmbox;
 	int rc, clrlaerr = 0;
 
@@ -2201,10 +2235,20 @@ lpfc_disc_timeout_handler(struct lpfc_hba *phba)
 				 "%d:0221 FAN timeout\n",
 				 phba->brd_no);
 
-		/* Forget about FAN, Start discovery by sending a FLOGI
-		 * hba_state is identically LPFC_FLOGI while waiting for FLOGI
-		 * cmpl
-		 */
+		/* Start discovery by sending FLOGI, clean up old rpis */
+		list_for_each_entry_safe(ndlp, next_ndlp, &phba->fc_npr_list,
+					nlp_listp) {
+			if (ndlp->nlp_type & NLP_FABRIC) {
+				/* Clean up the ndlp on Fabric connections */
+				lpfc_nlp_list(phba, ndlp, NLP_NO_LIST);
+			}
+			else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
+				/* Fail outstanding IO now since device
+				 * is marked for PLOGI.
+				 */
+				lpfc_unreg_rpi(phba, ndlp);
+			}
+		}
 		phba->hba_state = LPFC_FLOGI;
 		lpfc_set_disctmo(phba);
 		lpfc_initial_flogi(phba);

@@ -247,6 +247,7 @@ struct lpfc_hba {
 #define FC_SCSI_SCAN_TMO        0x4000	/* scsi scan timer running */
 #define FC_ABORT_DISCOVERY      0x8000	/* we want to abort discovery */
 #define FC_NDISC_ACTIVE         0x10000	/* NPort discovery active */
+#define FC_BYPASSED_MODE        0x20000	/* NPort is in bypassed mode */
 
 	uint32_t fc_topology;	/* link topology, from LINK INIT */
 
