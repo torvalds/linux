@@ -588,8 +588,8 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	p_dev->socket = s;
 	p_dev->device_no = (s->device_count++);
 	p_dev->func   = function;
-	if (s->functions < function)
-		s->functions = function;
+	if (s->functions <= function)
+		s->functions = function + 1;
 
 	p_dev->dev.bus = &pcmcia_bus_type;
 	p_dev->dev.parent = s->dev.dev;
