@@ -64,8 +64,8 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 			  int connectable)
 {
 	struct inode *inode = dentry->d_inode;
+	struct super_block *sb = inode->i_sb;
 	struct gfs2_inode *ip = inode->u.generic_ip;
-	struct gfs2_sbd *sdp = ip->i_sbd;
 
 	if (*len < 4 || (connectable && *len < 8))
 		return 255;
@@ -80,7 +80,7 @@ static int gfs2_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	fh[3] = cpu_to_be32(fh[3]);
 	*len = 4;
 
-	if (!connectable || ip == sdp->sd_root_dir->u.generic_ip)
+	if (!connectable || inode == sb->s_root->d_inode)
 		return *len;
 
 	spin_lock(&dentry->d_lock);

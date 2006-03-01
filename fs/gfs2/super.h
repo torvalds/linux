@@ -33,7 +33,6 @@ void gfs2_jdesc_make_dirty(struct gfs2_sbd *sdp, unsigned int jid);
 struct gfs2_jdesc *gfs2_jdesc_find_dirty(struct gfs2_sbd *sdp);
 int gfs2_jdesc_check(struct gfs2_jdesc *jd);
 
-int gfs2_lookup_master_dir(struct gfs2_sbd *sdp);
 int gfs2_lookup_in_master_dir(struct gfs2_sbd *sdp, char *filename,
 			      struct gfs2_inode **ipp);
 

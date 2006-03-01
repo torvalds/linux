@@ -288,7 +288,7 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
  * Returns: errno
  */
 
-static int inode_create(struct gfs2_glock *i_gl, struct gfs2_inum *inum,
+static int inode_create(struct gfs2_glock *i_gl, const struct gfs2_inum *inum,
 			struct gfs2_glock *io_gl, unsigned int io_state,
 			struct gfs2_inode **ipp)
 {
@@ -354,8 +354,8 @@ static int inode_create(struct gfs2_glock *i_gl, struct gfs2_inum *inum,
  * Returns: errno
  */
 
-int gfs2_inode_get(struct gfs2_glock *i_gl, struct gfs2_inum *inum, int create,
-		   struct gfs2_inode **ipp)
+int gfs2_inode_get(struct gfs2_glock *i_gl, const struct gfs2_inum *inum,
+		   int create, struct gfs2_inode **ipp)
 {
 	struct gfs2_sbd *sdp = i_gl->gl_sbd;
 	struct gfs2_glock *io_gl;
@@ -718,6 +718,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 		 struct inode **inodep)
 {
+	struct super_block *sb = dir->i_sb;
 	struct gfs2_inode *ipp;
 	struct gfs2_inode *dip = dir->u.generic_ip;
 	struct gfs2_sbd *sdp = dip->i_sbd;
@@ -733,7 +734,7 @@ int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 		return -ENAMETOOLONG;
 
 	if (gfs2_filecmp(name, ".", 1) ||
-	    (gfs2_filecmp(name, "..", 2) && dir == sdp->sd_root_dir)) {
+	    (gfs2_filecmp(name, "..", 2) && dir == sb->s_root->d_inode)) {
 		gfs2_inode_hold(dip);
 		ipp = dip;
 		goto done;
@@ -1466,8 +1467,8 @@ int gfs2_unlink_ok(struct gfs2_inode *dip, struct qstr *name,
 
 int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 {
-	struct gfs2_sbd *sdp = this->i_sbd;
 	struct inode *dir = to->i_vnode;
+	struct super_block *sb = dir->i_sb;
 	struct inode *tmp;
 	struct qstr dotdot;
 	int error = 0;
@@ -1483,7 +1484,7 @@ int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 			error = -EINVAL;
 			break;
 		}
-		if (dir == sdp->sd_root_dir) {
+		if (dir == sb->s_root->d_inode) {
 			error = 0;
 			break;
 		}

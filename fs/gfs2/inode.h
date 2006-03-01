@@ -35,7 +35,7 @@ void gfs2_inode_min_init(struct gfs2_inode *ip, unsigned int type);
 int gfs2_inode_refresh(struct gfs2_inode *ip);
 
 int gfs2_inode_get(struct gfs2_glock *i_gl,
-		   struct gfs2_inum *inum, int create,
+		   const struct gfs2_inum *inum, int create,
 		   struct gfs2_inode **ipp);
 void gfs2_inode_hold(struct gfs2_inode *ip);
 void gfs2_inode_put(struct gfs2_inode *ip);

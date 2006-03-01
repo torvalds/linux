@@ -532,7 +532,6 @@ struct gfs2_sbd {
 	struct inode *sd_qc_inode;
 	struct inode *sd_rindex;
 	struct inode *sd_quota_inode;
-	struct inode *sd_root_dir;
 
 	/* Inum stuff */
 

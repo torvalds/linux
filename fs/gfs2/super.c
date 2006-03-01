@@ -447,25 +447,6 @@ int gfs2_jdesc_check(struct gfs2_jdesc *jd)
 	return error;
 }
 
-int gfs2_lookup_master_dir(struct gfs2_sbd *sdp)
-{
-	struct inode *inode = NULL;
-	struct gfs2_glock *gl;
-	int error;
-
-	error = gfs2_glock_get(sdp,
-			       sdp->sd_sb.sb_master_dir.no_addr,
-			       &gfs2_inode_glops, CREATE, &gl);
-	if (!error) {
-		error = gfs2_lookup_simple(sdp->sd_root_dir, ".gfs2_admin",
-					   &inode);
-		sdp->sd_master_dir = inode;
-		gfs2_glock_put(gl);
-	}
-
-	return error;
-}
-
 /**
  * gfs2_make_fs_rw - Turn a Read-Only FS into a Read-Write one
  * @sdp: the filesystem

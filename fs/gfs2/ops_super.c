@@ -103,7 +103,6 @@ static void gfs2_put_super(struct super_block *sb)
 	iput(sdp->sd_statfs_inode);
 	iput(sdp->sd_rindex);
 	iput(sdp->sd_quota_inode);
-	iput(sdp->sd_root_dir);
 
 	gfs2_glock_put(sdp->sd_rename_gl);
 	gfs2_glock_put(sdp->sd_trans_gl);

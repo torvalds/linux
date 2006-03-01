@@ -280,27 +280,30 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 	return error;
 }
 
-int gfs2_lookup_root(struct gfs2_sbd *sdp)
+static struct inode *gfs2_lookup_root(struct gfs2_sbd *sdp,
+				      const struct gfs2_inum *inum)
 {
         int error;
 	struct gfs2_glock *gl;
 	struct gfs2_inode *ip;
+	struct inode *inode;
 
-	error = gfs2_glock_get(sdp, sdp->sd_sb.sb_root_dir.no_addr,
+	error = gfs2_glock_get(sdp, inum->no_addr,
                                &gfs2_inode_glops, CREATE, &gl);
         if (!error) {
-               	error = gfs2_inode_get(gl, &sdp->sd_sb.sb_root_dir,
+               	error = gfs2_inode_get(gl, inum,
 				       CREATE, &ip);
 		if (!error) {
 			if (!error) 
 				gfs2_inode_min_init(ip, DT_DIR);
-			sdp->sd_root_dir = gfs2_ip2v(ip);
+			inode = gfs2_ip2v(ip);
 			gfs2_inode_put(ip);
+			return inode;
 		}
                 gfs2_glock_put(gl);
         }
 
-        return error;
+        return ERR_PTR(error);
 }
 
 static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
@@ -311,7 +314,6 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 	int error = 0;
 
 	if (undo) {
-		iput(sdp->sd_master_dir);
 		return 0;
 	}
 	
@@ -351,35 +353,24 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 	sb_set_blocksize(sb, sdp->sd_sb.sb_bsize);
 
 	/* Get the root inode */
-	error = gfs2_lookup_root(sdp);
-	if (error) {
+	inode = gfs2_lookup_root(sdp, &sdp->sd_sb.sb_root_dir);
+	if (IS_ERR(inode)) {
+		error = PTR_ERR(inode);
 		fs_err(sdp, "can't read in root inode: %d\n", error);
 		goto out;
 	}
 
-	/* Get the root inode/dentry */
-	inode = sdp->sd_root_dir;
-	if (!inode) {
-		fs_err(sdp, "can't get root inode\n");
-		error = -ENOMEM;
-		goto out_rooti;
-	}
-
-	igrab(inode);
 	sb->s_root = d_alloc_root(inode);
 	if (!sb->s_root) {
 		fs_err(sdp, "can't get root dentry\n");
 		error = -ENOMEM;
-		goto out_rooti;
+		iput(inode);
 	}
 
 out:
 	gfs2_glock_dq_uninit(&sb_gh);
 
 	return error;
-out_rooti:
-	iput(sdp->sd_root_dir);
-	goto out;
 }
 
 static int init_journal(struct gfs2_sbd *sdp, int undo)
@@ -529,15 +520,18 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 {
 	int error = 0;
 	struct gfs2_inode *ip;
+	struct inode *inode;
 
 	if (undo)
 		goto fail_qinode;
 
-	error = gfs2_lookup_master_dir(sdp);
-	if (error) {
+	inode = gfs2_lookup_root(sdp, &sdp->sd_sb.sb_master_dir);
+	if (IS_ERR(inode)) {
+		error = PTR_ERR(inode);
 		fs_err(sdp, "can't read in master directory: %d\n", error);
 		goto fail;
 	}
+	sdp->sd_master_dir = inode;
 
 	error = init_journal(sdp, undo);
 	if (error)
