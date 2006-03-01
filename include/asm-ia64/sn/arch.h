@@ -31,7 +31,8 @@
  * 	to ACPI3.0, this limit will be removed. The notion of "compact nodes"
  * 	should be deleted and TIOs should be included in MAX_NUMNODES.
  */
-#define MAX_COMPACT_NODES	512
+#define MAX_TIO_NODES		MAX_NUMNODES
+#define MAX_COMPACT_NODES	(MAX_NUMNODES + MAX_TIO_NODES)
 
 /*
  * Maximum number of nodes in all partitions and in all coherency domains.

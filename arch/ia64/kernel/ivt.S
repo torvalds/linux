@@ -1362,7 +1362,6 @@ END(debug_vector)
 // 0x5a00 Entry 30 (size 16 bundles) Unaligned Reference (57)
 ENTRY(unaligned_access)
 	DBG_FAULT(30)
-	mov r16=cr.ipsr
 	mov r31=pr		// prepare to save predicates
 	;;
 	br.sptk.many dispatch_unaligned_handler
