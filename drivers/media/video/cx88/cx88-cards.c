@@ -1073,7 +1073,7 @@ struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID] = {
 		.name           = "DViCO FusionHDTV DVB-T Hybrid",
-		.tuner_type     = TUNER_FE6600,
+		.tuner_type     = TUNER_THOMSON_FE6600,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,

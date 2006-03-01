@@ -405,8 +405,8 @@ struct dvb_pll_desc dvb_pll_philips_td1316 = {
 EXPORT_SYMBOL(dvb_pll_philips_td1316);
 
 /* FE6600 used on DViCO Hybrid */
-struct dvb_pll_desc dvb_pll_unknown_fe6600 = {
-	.name = "FE6600",
+struct dvb_pll_desc dvb_pll_thomson_fe6600 = {
+	.name = "Thomson FE6600",
 	.min =  44250000,
 	.max = 858000000,
 	.count = 4,
@@ -417,7 +417,7 @@ struct dvb_pll_desc dvb_pll_unknown_fe6600 = {
 		{ 999999999, 36213333, 166667, 0xf4, 0x18 },
 	}
 };
-EXPORT_SYMBOL(dvb_pll_unknown_fe6600);
+EXPORT_SYMBOL(dvb_pll_thomson_fe6600);
 
 /* ----------------------------------------------------------- */
 /* code                                                        */

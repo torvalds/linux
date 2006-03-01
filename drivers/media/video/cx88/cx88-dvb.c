@@ -599,7 +599,7 @@ static int dvb_register(struct cx8802_dev *dev)
 #ifdef HAVE_ZL10353
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:
 		dev->core->pll_addr = 0x61;
-		dev->core->pll_desc = &dvb_pll_unknown_fe6600;
+		dev->core->pll_desc = &dvb_pll_thomson_fe6600;
 		dev->dvb.frontend = zl10353_attach(&dvico_fusionhdtv_hybrid,
 						   &dev->core->i2c_adap);
 		break;
