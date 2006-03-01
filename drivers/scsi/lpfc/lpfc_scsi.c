@@ -743,7 +743,7 @@ lpfc_scsi_tgt_reset(struct lpfc_scsi_buf * lpfc_cmd, struct lpfc_hba * phba)
 const char *
 lpfc_info(struct Scsi_Host *host)
 {
-	struct lpfc_hba    *phba = (struct lpfc_hba *) host->hostdata[0];
+	struct lpfc_hba    *phba = (struct lpfc_hba *) host->hostdata;
 	int len;
 	static char  lpfcinfobuf[384];
 
@@ -803,7 +803,7 @@ static int
 lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 {
 	struct lpfc_hba *phba =
-		(struct lpfc_hba *) cmnd->device->host->hostdata[0];
+		(struct lpfc_hba *) cmnd->device->host->hostdata;
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_rport_data *rdata = cmnd->device->hostdata;
 	struct lpfc_nodelist *ndlp = rdata->pnode;
@@ -877,7 +877,7 @@ static int
 lpfc_abort_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
-	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
+	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata;
 	struct lpfc_sli_ring *pring = &phba->sli.ring[phba->sli.fcp_ring];
 	struct lpfc_iocbq *iocb;
 	struct lpfc_iocbq *abtsiocb;
@@ -981,7 +981,7 @@ static int
 lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
-	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
+	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata;
 	struct lpfc_scsi_buf *lpfc_cmd;
 	struct lpfc_iocbq *iocbq, *iocbqrsp;
 	struct lpfc_rport_data *rdata = cmnd->device->hostdata;
@@ -1094,7 +1094,7 @@ static int
 lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
-	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
+	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata;
 	struct lpfc_nodelist *ndlp = NULL;
 	int match;
 	int ret = FAILED, i, err_count = 0;
@@ -1195,7 +1195,7 @@ out:
 static int
 lpfc_slave_alloc(struct scsi_device *sdev)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba *)sdev->host->hostdata[0];
+	struct lpfc_hba *phba = (struct lpfc_hba *)sdev->host->hostdata;
 	struct lpfc_scsi_buf *scsi_buf = NULL;
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 	uint32_t total = 0, i;
@@ -1251,7 +1251,7 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 static int
 lpfc_slave_configure(struct scsi_device *sdev)
 {
-	struct lpfc_hba *phba = (struct lpfc_hba *) sdev->host->hostdata[0];
+	struct lpfc_hba *phba = (struct lpfc_hba *) sdev->host->hostdata;
 	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
 
 	if (sdev->tagged_supported)
