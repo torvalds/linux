@@ -13,11 +13,12 @@
   *
   * (C) 2000,2001,2002,2003,2004 Omnikey AG
   *
-  * (C) 2005 Harald Welte <laforge@gnumonks.org>
+  * (C) 2005-2006 Harald Welte <laforge@gnumonks.org>
   * 	- Adhere to Kernel CodingStyle
   * 	- Port to 2.6.13 "new" style PCMCIA
   * 	- Check for copy_{from,to}_user return values
   * 	- Use nonseekable_open()
+  * 	- add class interface for udev device creation
   *
   * All rights reserved. Licensed under dual BSD/GPL license.
   */
@@ -56,7 +57,7 @@ module_param(pc_debug, int, 0600);
 #else
 #define DEBUGP(n, rdr, x, args...)
 #endif
-static char *version = "cm4000_cs.c v2.4.0gm5 - All bugs added by Harald Welte";
+static char *version = "cm4000_cs.c v2.4.0gm6 - All bugs added by Harald Welte";
 
 #define	T_1SEC		(HZ)
 #define	T_10MSEC	msecs_to_jiffies(10)
@@ -156,6 +157,7 @@ struct cm4000_dev {
 		/*queue*/ 4*sizeof(wait_queue_head_t))
 
 static dev_link_t *dev_table[CM4000_MAX_DEV];
+static struct class *cmm_class;
 
 /* This table doesn't use spaces after the comma between fields and thus
  * violates CodingStyle.  However, I don't really think wrapping it around will
@@ -1937,6 +1939,9 @@ static int cm4000_attach(struct pcmcia_device *p_dev)
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	cm4000_config(link, i);
 
+	class_device_create(cmm_class, NULL, MKDEV(major, i), NULL,
+			    "cmm%d", i);
+
 	return 0;
 }
 
@@ -1961,6 +1966,8 @@ static void cm4000_detach(struct pcmcia_device *p_dev)
 
 	dev_table[devno] = NULL;
  	kfree(dev);
+
+	class_device_destroy(cmm_class, MKDEV(major, devno));
 
 	return;
 }
@@ -1995,8 +2002,18 @@ static struct pcmcia_driver cm4000_driver = {
 
 static int __init cmm_init(void)
 {
+	int rc;
+
 	printk(KERN_INFO "%s\n", version);
-	pcmcia_register_driver(&cm4000_driver);
+
+	cmm_class = class_create(THIS_MODULE, "cardman_4000");
+	if (!cmm_class)
+		return -1;
+
+	rc = pcmcia_register_driver(&cm4000_driver);
+	if (rc < 0)
+		return rc;
+
 	major = register_chrdev(0, DEVICE_NAME, &cm4000_fops);
 	if (major < 0) {
 		printk(KERN_WARNING MODULE_NAME
@@ -2012,6 +2029,7 @@ static void __exit cmm_exit(void)
 	printk(KERN_INFO MODULE_NAME ": unloading\n");
 	pcmcia_unregister_driver(&cm4000_driver);
 	unregister_chrdev(major, DEVICE_NAME);
+	class_destroy(cmm_class);
 };
 
 module_init(cmm_init);
