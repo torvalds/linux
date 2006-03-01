@@ -971,7 +971,7 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 	if (count == 0)		/* according to manpage */
 		return 0;
 
-	if ((dev->p_dev->state & DEV_PRESENT) == 0 ||	/* socket removed */
+	if (!pcmcia_dev_present(dev->p_dev) || /* device removed */
 	    test_bit(IS_CMM_ABSENT, &dev->flags))
 		return -ENODEV;
 
@@ -1108,7 +1108,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 
 	sendT0 = dev->proto ? 0 : nr > 5 ? 0x08 : 0;
 
-	if ((dev->p_dev->state & DEV_PRESENT) == 0 ||	/* socket removed */
+	if (!pcmcia_dev_present(dev->p_dev) || /* device removed */
 	    test_bit(IS_CMM_ABSENT, &dev->flags))
 		return -ENODEV;
 
@@ -1789,7 +1789,6 @@ static int cm4000_config(struct pcmcia_device * link, int devno)
 		goto cs_failed;
 	}
 
-	link->state |= DEV_CONFIG;
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
@@ -1844,7 +1843,6 @@ static int cm4000_config(struct pcmcia_device * link, int devno)
 	dev->node.minor = devno;
 	dev->node.next = NULL;
 	link->dev_node = &dev->node;
-	link->state &= ~DEV_CONFIG_PENDING;
 
 	return 0;
 
@@ -1852,8 +1850,6 @@ cs_failed:
 	cs_error(link, fail_fn, fail_rc);
 cs_release:
 	cm4000_release(link);
-
-	link->state &= ~DEV_CONFIG_PENDING;
 	return -ENODEV;
 }
 
@@ -1913,7 +1909,6 @@ static int cm4000_probe(struct pcmcia_device *link)
 	init_waitqueue_head(&dev->atrq);
 	init_waitqueue_head(&dev->readq);
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	ret = cm4000_config(link, i);
 	if (ret)
 		return ret;
@@ -1936,11 +1931,9 @@ static void cm4000_detach(struct pcmcia_device *link)
 	if (devno == CM4000_MAX_DEV)
 		return;
 
-	link->state &= ~DEV_PRESENT;
 	stop_monitor(dev);
 
-	if (link->state & DEV_CONFIG)
- 		cm4000_release(link);
+	cm4000_release(link);
 
 	dev_table[devno] = NULL;
  	kfree(dev);

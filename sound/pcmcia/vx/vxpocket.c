@@ -249,9 +249,6 @@ static int vxpocket_config(struct pcmcia_device *link)
 		strcpy(chip->card->driver, vxp440_hw.name);
 	}
 
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
 	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
 	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
@@ -263,7 +260,6 @@ static int vxpocket_config(struct pcmcia_device *link)
 		goto failed;
 
 	link->dev_node = &vxp->node;
-	link->state &= ~DEV_CONFIG_PENDING;
 	kfree(parse);
 	return 9;
 
@@ -348,7 +344,6 @@ static int vxpocket_probe(struct pcmcia_device *p_dev)
 	card_alloc |= 1 << i;
 
 	vxp->p_dev = p_dev;
-	vxp->p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 
 	return vxpocket_config(p_dev);
 }

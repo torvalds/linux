@@ -296,7 +296,6 @@ static int tc574_probe(struct pcmcia_device *link)
 	dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return tc574_config(link);
 } /* tc574_attach */
 
@@ -318,8 +317,7 @@ static void tc574_detach(struct pcmcia_device *link)
 	if (link->dev_node)
 		unregister_netdev(dev);
 
-	if (link->state & DEV_CONFIG)
-		tc574_release(link);
+	tc574_release(link);
 
 	free_netdev(dev);
 } /* tc574_detach */
@@ -362,9 +360,6 @@ static int tc574_config(struct pcmcia_device *link)
 	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
-
-	/* Configure card */
-	link->state |= DEV_CONFIG;
 
 	link->io.IOAddrLines = 16;
 	for (i = j = 0; j < 0x400; j += 0x20) {
@@ -464,7 +459,6 @@ static int tc574_config(struct pcmcia_device *link)
 		}
 	}
 
-	link->state &= ~DEV_CONFIG_PENDING;
 	link->dev_node = &lp->node;
 	SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
@@ -509,7 +503,7 @@ static int tc574_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -519,7 +513,7 @@ static int tc574_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		tc574_reset(dev);
 		netif_device_attach(dev);
 	}

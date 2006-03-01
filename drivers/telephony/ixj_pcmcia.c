@@ -52,7 +52,6 @@ static int ixj_probe(struct pcmcia_device *p_dev)
 	}
 	memset(p_dev->priv, 0, sizeof(struct ixj_info_t));
 
-	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return ixj_config(p_dev);
 }
 
@@ -60,8 +59,7 @@ static void ixj_detach(struct pcmcia_device *link)
 {
 	DEBUG(0, "ixj_detach(0x%p)\n", link);
 
-	if (link->state & DEV_CONFIG)
-		ixj_cs_release(link);
+	ixj_cs_release(link);
 
         kfree(link->priv);
 }
@@ -155,7 +153,6 @@ static int ixj_config(struct pcmcia_device * link)
 	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
-	link->state |= DEV_CONFIG;
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	tuple.Attributes = 0;
 	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
@@ -194,7 +191,6 @@ static int ixj_config(struct pcmcia_device * link)
 	info->node.major = PHONE_MAJOR;
 	link->dev_node = &info->node;
 	ixj_get_serial(link, j);
-	link->state &= ~DEV_CONFIG_PENDING;
 	return 0;
       cs_failed:
 	cs_error(link, last_fn, last_ret);

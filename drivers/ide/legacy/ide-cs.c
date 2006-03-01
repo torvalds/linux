@@ -125,7 +125,6 @@ static int ide_probe(struct pcmcia_device *link)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return ide_config(link);
 } /* ide_attach */
 
@@ -142,8 +141,7 @@ static void ide_detach(struct pcmcia_device *link)
 {
     DEBUG(0, "ide_detach(0x%p)\n", link);
 
-    if (link->state & DEV_CONFIG)
-	ide_release(link);
+    ide_release(link);
 
     kfree(link->priv);
 } /* ide_detach */
@@ -208,9 +206,6 @@ static int ide_config(struct pcmcia_device *link)
 	is_kme = ((stk->parse.manfid.manf == MANFID_KME) &&
 		  ((stk->parse.manfid.card == PRODID_KME_KXLC005_A) ||
 		   (stk->parse.manfid.card == PRODID_KME_KXLC005_B)));
-
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     /* Not sure if this is right... look up the current Vcc */
     CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &stk->conf));
@@ -323,7 +318,6 @@ static int ide_config(struct pcmcia_device *link)
     printk(KERN_INFO "ide-cs: %s: Vpp = %d.%d\n",
 	   info->node.dev_name, link->conf.Vpp / 10, link->conf.Vpp % 10);
 
-    link->state &= ~DEV_CONFIG_PENDING;
     kfree(stk);
     return 0;
 
@@ -336,7 +330,6 @@ cs_failed:
 failed:
     kfree(stk);
     ide_release(link);
-    link->state &= ~DEV_CONFIG_PENDING;
     return -ENODEV;
 } /* ide_config */
 

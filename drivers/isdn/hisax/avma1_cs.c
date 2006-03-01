@@ -149,7 +149,6 @@ static int avma1cs_probe(struct pcmcia_device *p_dev)
     p_dev->conf.ConfigIndex = 1;
     p_dev->conf.Present = PRESENT_OPTION;
 
-    p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return avma1cs_config(p_dev);
 } /* avma1cs_attach */
 
@@ -164,12 +163,9 @@ static int avma1cs_probe(struct pcmcia_device *p_dev)
 
 static void avma1cs_detach(struct pcmcia_device *link)
 {
-    DEBUG(0, "avma1cs_detach(0x%p)\n", link);
-
-    if (link->state & DEV_CONFIG)
-	    avma1cs_release(link);
-
-    kfree(link->priv);
+	DEBUG(0, "avma1cs_detach(0x%p)\n", link);
+	avma1cs_release(link);
+	kfree(link->priv);
 } /* avma1cs_detach */
 
 /*======================================================================
@@ -239,12 +235,8 @@ static int avma1cs_config(struct pcmcia_device *link)
     } while (0);
     if (i != CS_SUCCESS) {
 	cs_error(link, ParseTuple, i);
-	link->state &= ~DEV_CONFIG_PENDING;
 	return -ENODEV;
     }
-    
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     do {
 
@@ -318,8 +310,7 @@ found_port:
     dev->node.major = 45;
     dev->node.minor = 0;
     link->dev_node = &dev->node;
-    
-    link->state &= ~DEV_CONFIG_PENDING;
+
     /* If any step failed, release any partially configured state */
     if (i != 0) {
 	avma1cs_release(link);

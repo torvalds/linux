@@ -244,7 +244,7 @@ static void bluecard_write_wakeup(bluecard_info_t *info)
 
 		clear_bit(XMIT_WAKEUP, &(info->tx_state));
 
-		if (!(info->p_dev->state & DEV_PRESENT))
+		if (!pcmcia_dev_present(info->p_dev))
 			return;
 
 		if (test_bit(XMIT_BUFFER_NUMBER, &(info->tx_state))) {
@@ -879,7 +879,6 @@ static int bluecard_probe(struct pcmcia_device *link)
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return bluecard_config(link);
 }
 
@@ -888,9 +887,7 @@ static void bluecard_detach(struct pcmcia_device *link)
 {
 	bluecard_info_t *info = link->priv;
 
-	if (link->state & DEV_CONFIG)
-		bluecard_release(link);
-
+	bluecard_release(link);
 	kfree(info);
 }
 
@@ -933,9 +930,6 @@ static int bluecard_config(struct pcmcia_device *link)
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
 	link->conf.ConfigIndex = 0x20;
 	link->io.NumPorts1 = 64;
 	link->io.IOAddrLines = 6;
@@ -969,7 +963,6 @@ static int bluecard_config(struct pcmcia_device *link)
 
 	strcpy(info->node.dev_name, info->hdev->name);
 	link->dev_node = &info->node;
-	link->state &= ~DEV_CONFIG_PENDING;
 
 	return 0;
 
@@ -986,8 +979,7 @@ static void bluecard_release(struct pcmcia_device *link)
 {
 	bluecard_info_t *info = link->priv;
 
-	if (link->state & DEV_PRESENT)
-		bluecard_close(info);
+	bluecard_close(info);
 
 	del_timer(&(info->timer));
 

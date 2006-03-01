@@ -3983,12 +3983,9 @@ wv_pcmcia_config(struct pcmcia_device *	link)
   if(i != CS_SUCCESS)
     {
       cs_error(link, ParseTuple, i);
-      link->state &= ~DEV_CONFIG_PENDING;
       return FALSE;
     }
-    
-  /* Configure card */
-  link->state |= DEV_CONFIG;
+
   do
     {
       i = pcmcia_request_io(link, &link->io);
@@ -4071,7 +4068,6 @@ wv_pcmcia_config(struct pcmcia_device *	link)
     }
   while(0);		/* Humm... Disguised goto !!! */
 
-  link->state &= ~DEV_CONFIG_PENDING;
   /* If any step failed, release any partially configured state */
   if(i != 0)
     {
@@ -4651,7 +4647,6 @@ wavelan_probe(struct pcmcia_device *p_dev)
   /* Other specific data */
   dev->mtu = WAVELAN_MTU;
 
-  p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
   ret = wv_pcmcia_config(p_dev);
   if (ret)
 	  return ret;
@@ -4686,17 +4681,8 @@ wavelan_detach(struct pcmcia_device *link)
   printk(KERN_DEBUG "-> wavelan_detach(0x%p)\n", link);
 #endif
 
-  /*
-   * If the device is currently configured and active, we won't
-   * actually delete it yet.  Instead, it is marked so that when the
-   * release() function is called, that will trigger a proper
-   * detach().
-   */
-  if(link->state & DEV_CONFIG)
-    {
-      /* Some others haven't done their job : give them another chance */
-      wv_pcmcia_release(link);
-    }
+  /* Some others haven't done their job : give them another chance */
+  wv_pcmcia_release(link);
 
   /* Free pieces */
   if(link->priv)
@@ -4731,7 +4717,7 @@ static int wavelan_suspend(struct pcmcia_device *link)
 	/* Stop receiving new messages and wait end of transmission */
 	wv_ru_stop(dev);
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	/* Power down the module */
@@ -4744,7 +4730,7 @@ static int wavelan_resume(struct pcmcia_device *link)
 {
 	struct net_device *	dev = (struct net_device *) link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open))	{
+	if (link->open) {
 		wv_hw_reset(dev);
 		netif_device_attach(dev);
 	}

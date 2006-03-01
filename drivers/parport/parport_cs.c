@@ -119,7 +119,6 @@ static int parport_probe(struct pcmcia_device *link)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return parport_config(link);
 } /* parport_attach */
 
@@ -136,8 +135,7 @@ static void parport_detach(struct pcmcia_device *link)
 {
     DEBUG(0, "parport_detach(0x%p)\n", link);
 
-    if (link->state & DEV_CONFIG)
-	parport_cs_release(link);
+    parport_cs_release(link);
 
     kfree(link->priv);
 } /* parport_detach */
@@ -175,9 +173,6 @@ static int parport_config(struct pcmcia_device *link)
     CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
-    
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
@@ -233,14 +228,12 @@ static int parport_config(struct pcmcia_device *link)
     strcpy(info->node.dev_name, p->name);
     link->dev_node = &info->node;
 
-    link->state &= ~DEV_CONFIG_PENDING;
     return 0;
 
 cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     parport_cs_release(link);
-    link->state &= ~DEV_CONFIG_PENDING;
     return -ENODEV;
 } /* parport_config */
 

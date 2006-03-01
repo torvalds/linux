@@ -428,7 +428,6 @@ static int netwave_probe(struct pcmcia_device *link)
     dev->stop = &netwave_close;
     link->irq.Instance = dev;
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return netwave_pcmcia_config( link);
 } /* netwave_attach */
 
@@ -446,8 +445,7 @@ static void netwave_detach(struct pcmcia_device *link)
 
 	DEBUG(0, "netwave_detach(0x%p)\n", link);
 
-	if (link->state & DEV_CONFIG)
-		netwave_release(link);
+	netwave_release(link);
 
 	if (link->dev_node)
 		unregister_netdev(dev);
@@ -763,9 +761,6 @@ static int netwave_pcmcia_config(struct pcmcia_device *link) {
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
 
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
     /*
      *  Try allocating IO ports.  This tries a few fixed addresses.
      *  If you want, you can also read the card's config table to
@@ -823,7 +818,6 @@ static int netwave_pcmcia_config(struct pcmcia_device *link) {
 
     strcpy(priv->node.dev_name, dev->name);
     link->dev_node = &priv->node;
-    link->state &= ~DEV_CONFIG_PENDING;
 
     /* Reset card before reading physical address */
     netwave_doreset(dev->base_addr, ramBase);
@@ -875,7 +869,7 @@ static int netwave_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -885,7 +879,7 @@ static int netwave_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		netwave_reset(dev);
 		netif_device_attach(dev);
 	}

@@ -243,9 +243,6 @@ static int pdacf_config(struct pcmcia_device *link)
 	link->conf.ConfigIndex = 0x5;
 	kfree(parse);
 
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
 	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
 	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
@@ -254,7 +251,6 @@ static int pdacf_config(struct pcmcia_device *link)
 		goto failed;
 
 	link->dev_node = &pdacf->node;
-	link->state &= ~DEV_CONFIG_PENDING;
 	return 0;
 
 cs_failed:

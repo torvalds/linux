@@ -111,8 +111,8 @@ static caddr_t remap_window(struct map_info *map, unsigned long to)
 	memreq_t mrq;
 	int ret;
 
-	if(!(dev->p_dev->state & DEV_PRESENT)) {
-		DEBUG(1, "device removed state = 0x%4.4X", dev->p_dev->state);
+	if (!pcmcia_dev_present(dev->p_dev)) {
+		DEBUG(1, "device removed");
 		return 0;
 	}
 
@@ -238,7 +238,7 @@ static void pcmcia_copy_to_remap(struct map_info *map, unsigned long to, const v
 
 /* read/write{8,16} copy_{from,to} routines with direct access */
 
-#define DEV_REMOVED(x)  (!(*(u_int *)x->map_priv_1 & DEV_PRESENT))
+#define DEV_REMOVED(x)  (!(pcmcia_dev_present(((struct pcmciamtd_dev *)map->map_priv_1)->p_dev)))
 
 static map_word pcmcia_read8(struct map_info *map, unsigned long ofs)
 {
@@ -503,9 +503,6 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 
 	DEBUG(3, "link=0x%p", link);
 
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
 	DEBUG(2, "Validating CIS");
 	ret = pcmcia_validate_cis(link, &cisinfo);
 	if(ret != CS_SUCCESS) {
@@ -651,7 +648,6 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	   use the faster non-remapping read/write functions */
 	if(mtd->size <= dev->win_size) {
 		DEBUG(1, "Using non remapping memory functions");
-		dev->pcmcia_map.map_priv_1 = (unsigned long)&(dev->p_dev->state);
 		dev->pcmcia_map.map_priv_2 = (unsigned long)dev->win_base;
 		if (dev->pcmcia_map.bankwidth == 1) {
 			dev->pcmcia_map.read = pcmcia_read8;
@@ -673,7 +669,6 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	}
 	snprintf(dev->node.dev_name, sizeof(dev->node.dev_name), "mtd%d", mtd->index);
 	info("mtd%d: %s", mtd->index, mtd->name);
-	link->state &= ~DEV_CONFIG_PENDING;
 	link->dev_node = &dev->node;
 	return 0;
 
@@ -712,17 +707,16 @@ static int pcmciamtd_resume(struct pcmcia_device *dev)
 
 static void pcmciamtd_detach(struct pcmcia_device *link)
 {
+	struct pcmciamtd_dev *dev = link->priv;
+
 	DEBUG(3, "link=0x%p", link);
 
-	if(link->state & DEV_CONFIG) {
-		struct pcmciamtd_dev *dev = link->priv;
-		if(dev->mtd_info) {
-			del_mtd_device(dev->mtd_info);
-			info("mtd%d: Removed", dev->mtd_info->index);
-		}
-
-		pcmciamtd_release(link);
+	if(dev->mtd_info) {
+		del_mtd_device(dev->mtd_info);
+		info("mtd%d: Removed", dev->mtd_info->index);
 	}
+
+	pcmciamtd_release(link);
 }
 
 
@@ -747,7 +741,6 @@ static int pcmciamtd_probe(struct pcmcia_device *link)
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return pcmciamtd_config(link);
 }
 

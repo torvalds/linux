@@ -1485,13 +1485,11 @@ static void wl3501_detach(struct pcmcia_device *link)
 	 * delete it yet.  Instead, it is marked so that when the release()
 	 * function is called, that will trigger a proper detach(). */
 
-	if (link->state & DEV_CONFIG) {
-		while (link->open > 0)
-			wl3501_close(dev);
+	while (link->open > 0)
+		wl3501_close(dev);
 
-		netif_device_detach(dev);
-		wl3501_release(link);
-	}
+	netif_device_detach(dev);
+	wl3501_release(link);
 
 	if (link->priv)
 		free_netdev(link->priv);
@@ -1959,7 +1957,6 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 	netif_stop_queue(dev);
 	p_dev->priv = p_dev->irq.Instance = dev;
 
-	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return wl3501_config(p_dev);
 out_link:
 	return -ENOMEM;
@@ -1996,9 +1993,6 @@ static int wl3501_config(struct pcmcia_device *link)
 	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase	= parse.config.base;
 	link->conf.Present	= parse.config.rmask[0];
-
-	/* Configure card */
-	link->state |= DEV_CONFIG;
 
 	/* Try allocating IO ports.  This tries a few fixed addresses.  If you
 	 * want, you can also read the card's config table to pick addresses --
@@ -2044,7 +2038,6 @@ static int wl3501_config(struct pcmcia_device *link)
 	 * arranged in a linked list at link->dev_node.
 	 */
 	link->dev_node = &this->node;
-	link->state &= ~DEV_CONFIG_PENDING;
 
 	this->base_addr = dev->base_addr;
 
@@ -2113,7 +2106,7 @@ static int wl3501_suspend(struct pcmcia_device *link)
 	struct net_device *dev = link->priv;
 
 	wl3501_pwr_mgmt(dev->priv, WL3501_SUSPEND);
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -2124,7 +2117,7 @@ static int wl3501_resume(struct pcmcia_device *link)
 	struct net_device *dev = link->priv;
 
 	wl3501_pwr_mgmt(dev->priv, WL3501_RESUME);
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		wl3501_reset(dev);
 		netif_device_attach(dev);
 	}

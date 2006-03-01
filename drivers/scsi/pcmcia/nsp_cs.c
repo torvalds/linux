@@ -1630,7 +1630,6 @@ static int nsp_cs_probe(struct pcmcia_device *link)
 	link->conf.IntType	 = INT_MEMORY_AND_IO;
 	link->conf.Present	 = PRESENT_OPTION;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	ret = nsp_cs_config(link);
 
 	nsp_dbg(NSP_DEBUG_INIT, "link=0x%p", link);
@@ -1648,10 +1647,8 @@ static void nsp_cs_detach(struct pcmcia_device *link)
 {
 	nsp_dbg(NSP_DEBUG_INIT, "in, link=0x%p", link);
 
-	if (link->state & DEV_CONFIG) {
-		((scsi_info_t *)link->priv)->stop = 1;
-		nsp_cs_release(link);
-	}
+	((scsi_info_t *)link->priv)->stop = 1;
+	nsp_cs_release(link);
 
 	kfree(link->priv);
 	link->priv = NULL;
@@ -1697,9 +1694,6 @@ static int nsp_cs_config(struct pcmcia_device *link)
 	CS_CHECK(ParseTuple,	pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present    = parse.config.rmask[0];
-
-	/* Configure card */
-	link->state	      |= DEV_CONFIG;
 
 	/* Look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &conf));
@@ -1921,7 +1915,6 @@ static int nsp_cs_config(struct pcmcia_device *link)
 		       req.Base+req.Size-1);
 	printk("\n");
 
-	link->state &= ~DEV_CONFIG_PENDING;
 	return 0;
 
  cs_failed:
@@ -2071,19 +2064,7 @@ static int __init nsp_cs_init(void)
 static void __exit nsp_cs_exit(void)
 {
 	nsp_msg(KERN_INFO, "unloading...");
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,68))
 	pcmcia_unregister_driver(&nsp_driver);
-#else
-	unregister_pcmcia_driver(&dev_info);
-	/* XXX: this really needs to move into generic code.. */
-	while (dev_list != NULL) {
-		if (dev_list->state & DEV_CONFIG) {
-			nsp_cs_release(dev_list);
-		}
-		nsp_cs_detach(dev_list);
-	}
-#endif
 }
 
 

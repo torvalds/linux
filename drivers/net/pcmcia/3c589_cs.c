@@ -211,7 +211,6 @@ static int tc589_probe(struct pcmcia_device *link)
 #endif
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return tc589_config(link);
 } /* tc589_attach */
 
@@ -233,8 +232,7 @@ static void tc589_detach(struct pcmcia_device *link)
     if (link->dev_node)
 	unregister_netdev(dev);
 
-    if (link->state & DEV_CONFIG)
-	tc589_release(link);
+    tc589_release(link);
 
     free_netdev(dev);
 } /* tc589_detach */
@@ -285,9 +283,6 @@ static int tc589_config(struct pcmcia_device *link)
 		   "3Com card??\n");
 	multi = (le16_to_cpu(buf[1]) == PRODID_3COM_3C562);
     }
-    
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     /* For the 3c562, the base address must be xx00-xx7f */
     link->io.IOAddrLines = 16;
@@ -338,7 +333,6 @@ static int tc589_config(struct pcmcia_device *link)
 	printk(KERN_ERR "3c589_cs: invalid if_port requested\n");
     
     link->dev_node = &lp->node;
-    link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     if (register_netdev(dev) != 0) {
@@ -383,7 +377,7 @@ static int tc589_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -393,7 +387,7 @@ static int tc589_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+ 	if (link->open) {
 		tc589_reset(dev);
 		netif_device_attach(dev);
 	}

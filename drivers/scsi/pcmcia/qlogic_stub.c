@@ -178,7 +178,6 @@ static int qlogic_probe(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return qlogic_config(link);
 }				/* qlogic_attach */
 
@@ -188,9 +187,7 @@ static void qlogic_detach(struct pcmcia_device *link)
 {
 	DEBUG(0, "qlogic_detach(0x%p)\n", link);
 
-	if (link->state & DEV_CONFIG)
-		qlogic_release(link);
-
+	qlogic_release(link);
 	kfree(link->priv);
 
 }				/* qlogic_detach */
@@ -223,9 +220,6 @@ static int qlogic_config(struct pcmcia_device * link)
 	tuple.DesiredTuple = CISTPL_MANFID;
 	if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) && (pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS))
 		info->manf_id = le16_to_cpu(tuple.TupleData[0]);
-
-	/* Configure card */
-	link->state |= DEV_CONFIG;
 
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
@@ -272,7 +266,6 @@ static int qlogic_config(struct pcmcia_device * link)
 	link->dev_node = &info->node;
 	info->host = host;
 
-	link->state &= ~DEV_CONFIG_PENDING;
 	return 0;
 
 cs_failed:
@@ -302,20 +295,18 @@ static void qlogic_release(struct pcmcia_device *link)
 
 static int qlogic_resume(struct pcmcia_device *link)
 {
-	if (link->state & DEV_CONFIG) {
-		scsi_info_t *info = link->priv;
+	scsi_info_t *info = link->priv;
 
-		pcmcia_request_configuration(link, &link->conf);
-		if ((info->manf_id == MANFID_MACNICA) ||
-		    (info->manf_id == MANFID_PIONEER) ||
-		    (info->manf_id == 0x0098)) {
-			outb(0x80, link->io.BasePort1 + 0xd);
-			outb(0x24, link->io.BasePort1 + 0x9);
-			outb(0x04, link->io.BasePort1 + 0xd);
-		}
-		/* Ugggglllyyyy!!! */
-		qlogicfas408_bus_reset(NULL);
+	pcmcia_request_configuration(link, &link->conf);
+	if ((info->manf_id == MANFID_MACNICA) ||
+	    (info->manf_id == MANFID_PIONEER) ||
+	    (info->manf_id == 0x0098)) {
+		outb(0x80, link->io.BasePort1 + 0xd);
+		outb(0x24, link->io.BasePort1 + 0x9);
+		outb(0x04, link->io.BasePort1 + 0xd);
 	}
+	/* Ugggglllyyyy!!! */
+	qlogicfas408_bus_reset(NULL);
 
 	return 0;
 }

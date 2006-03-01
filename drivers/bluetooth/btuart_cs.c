@@ -152,7 +152,7 @@ static void btuart_write_wakeup(btuart_info_t *info)
 
 		clear_bit(XMIT_WAKEUP, &(info->tx_state));
 
-		if (!(info->p_dev->state & DEV_PRESENT))
+		if (!pcmcia_dev_present(info->p_dev))
 			return;
 
 		if (!(skb = skb_dequeue(&(info->txq))))
@@ -599,7 +599,6 @@ static int btuart_probe(struct pcmcia_device *link)
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return btuart_config(link);
 }
 
@@ -608,9 +607,7 @@ static void btuart_detach(struct pcmcia_device *link)
 {
 	btuart_info_t *info = link->priv;
 
-	if (link->state & DEV_CONFIG)
-		btuart_release(link);
-
+	btuart_release(link);
 	kfree(info);
 }
 
@@ -663,9 +660,6 @@ static int btuart_config(struct pcmcia_device *link)
 	}
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
-
-	/* Configure card */
-	link->state |= DEV_CONFIG;
 
 	/* First pass: look for a config entry that looks normal. */
 	tuple.TupleData = (cisdata_t *) buf;
@@ -737,7 +731,6 @@ found_port:
 
 	strcpy(info->node.dev_name, info->hdev->name);
 	link->dev_node = &info->node;
-	link->state &= ~DEV_CONFIG_PENDING;
 
 	return 0;
 
@@ -754,8 +747,7 @@ static void btuart_release(struct pcmcia_device *link)
 {
 	btuart_info_t *info = link->priv;
 
-	if (link->state & DEV_PRESENT)
-		btuart_close(info);
+	btuart_close(info);
 
 	pcmcia_disable_device(link);
 }

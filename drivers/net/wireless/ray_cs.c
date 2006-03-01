@@ -366,7 +366,6 @@ static int ray_probe(struct pcmcia_device *p_dev)
 
     init_timer(&local->timer);
 
-    p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     this_device = p_dev;
     return ray_config(p_dev);
 
@@ -389,12 +388,10 @@ static void ray_detach(struct pcmcia_device *link)
     this_device = NULL;
     dev = link->priv;
 
-    if (link->state & DEV_CONFIG) {
-	    ray_release(link);
+    ray_release(link);
 
-	    local = (ray_dev_t *)dev->priv;
-            del_timer(&local->timer);
-    }
+    local = (ray_dev_t *)dev->priv;
+    del_timer(&local->timer);
 
     if (link->priv) {
 	if (link->dev_node) unregister_netdev(dev);
@@ -447,9 +444,6 @@ static int ray_config(struct pcmcia_device *link)
     for (i=0; i<tuple.TupleDataLen - 4; i++) 
         if (buf[i] == 0) buf[i] = ' ';
     printk(KERN_INFO "ray_cs Detected: %s\n",buf);
-
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     /* Now allocate an interrupt line.  Note that this does not
        actually assign a handler to the interrupt.
@@ -511,7 +505,6 @@ static int ray_config(struct pcmcia_device *link)
     strcpy(local->node.dev_name, dev->name);
     link->dev_node = &local->node;
 
-    link->state &= ~DEV_CONFIG_PENDING;
     printk(KERN_INFO "%s: RayLink, irq %d, hw_addr ",
        dev->name, dev->irq);
     for (i = 0; i < 6; i++)
@@ -552,7 +545,7 @@ static int ray_init(struct net_device *dev)
     ray_dev_t *local = (ray_dev_t *)dev->priv;
     struct pcmcia_device *link = local->finder;
     DEBUG(1, "ray_init(0x%p)\n", dev);
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(0,"ray_init - device not present\n");
         return -1;
     }
@@ -615,7 +608,7 @@ static int dl_startup_params(struct net_device *dev)
     struct pcmcia_device *link = local->finder;
 
     DEBUG(1,"dl_startup_params entered\n");
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_cs dl_startup_params - device not present\n");
         return -1;
     }
@@ -721,7 +714,7 @@ static void verify_dl_startup(u_long data)
     UCHAR status;
     struct pcmcia_device *link = local->finder;
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_cs verify_dl_startup - device not present\n");
         return;
     }
@@ -760,7 +753,7 @@ static void start_net(u_long data)
     struct ccs __iomem *pccs;
     int ccsindex;
     struct pcmcia_device *link = local->finder;
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_cs start_net - device not present\n");
         return;
     }
@@ -788,7 +781,7 @@ static void join_net(u_long data)
     int ccsindex;
     struct pcmcia_device *link = local->finder;
     
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_cs join_net - device not present\n");
         return;
     }
@@ -839,7 +832,7 @@ static int ray_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -849,7 +842,7 @@ static int ray_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		ray_reset(dev);
 		netif_device_attach(dev);
 	}
@@ -867,7 +860,7 @@ int ray_dev_init(struct net_device *dev)
     struct pcmcia_device *link = local->finder;
 
     DEBUG(1,"ray_dev_init(dev=%p)\n",dev);
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_dev_init - device not present\n");
         return -1;
     }
@@ -901,7 +894,7 @@ static int ray_dev_config(struct net_device *dev, struct ifmap *map)
     struct pcmcia_device *link = local->finder;
     /* Dummy routine to satisfy device structure */
     DEBUG(1,"ray_dev_config(dev=%p,ifmap=%p)\n",dev,map);
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_dev_config - device not present\n");
         return -1;
     }
@@ -915,7 +908,7 @@ static int ray_dev_start_xmit(struct sk_buff *skb, struct net_device *dev)
     struct pcmcia_device *link = local->finder;
     short length = skb->len;
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_dev_start_xmit - device not present\n");
         return -1;
     }
@@ -1542,7 +1535,7 @@ static iw_stats * ray_get_wireless_stats(struct net_device *	dev)
     }
 #endif /* WIRELESS_SPY */
 
-  if((link->state & DEV_PRESENT)) {
+  if(pcmcia_dev_present(link)) {
     local->wstats.qual.noise = readb(&p->rxnoise);
     local->wstats.qual.updated |= 4;
   }
@@ -1674,7 +1667,7 @@ static int interrupt_ecf(ray_dev_t *local, int ccs)
     int i = 50;
     struct pcmcia_device *link = local->finder;
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_cs interrupt_ecf - device not present\n");
         return -1;
     }
@@ -1701,7 +1694,7 @@ static int get_free_tx_ccs(ray_dev_t *local)
     struct ccs __iomem *pccs = ccs_base(local);
     struct pcmcia_device *link = local->finder;
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_cs get_free_tx_ccs - device not present\n");
         return ECARDGONE;
     }
@@ -1732,7 +1725,7 @@ static int get_free_ccs(ray_dev_t *local)
     struct ccs __iomem *pccs = ccs_base(local);
     struct pcmcia_device *link = local->finder;
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_cs get_free_ccs - device not present\n");
         return ECARDGONE;
     }
@@ -1807,7 +1800,7 @@ static struct net_device_stats *ray_get_stats(struct net_device *dev)
     ray_dev_t *local = (ray_dev_t *)dev->priv;
     struct pcmcia_device *link = local->finder;
     struct status __iomem *p = local->sram + STATUS_BASE;
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_cs net_device_stats - device not present\n");
         return &local->stats;
     }
@@ -1840,7 +1833,7 @@ static void ray_update_parm(struct net_device *dev, UCHAR objid, UCHAR *value, i
     int i;
     struct ccs __iomem *pccs;
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_update_parm - device not present\n");
         return;
     }
@@ -1875,7 +1868,7 @@ static void ray_update_multi_list(struct net_device *dev, int all)
     struct pcmcia_device *link = local->finder;
     void __iomem *p = local->sram + HOST_TO_ECF_BASE;
 
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_update_multi_list - device not present\n");
         return;
     }
@@ -1968,7 +1961,7 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
     local = (ray_dev_t *)dev->priv;
     link = (struct pcmcia_device *)local->finder;
-    if ( ! (link->state & DEV_PRESENT) || link->suspended ) {
+    if (!(pcmcia_dev_present(link))  || link->suspended ) {
         DEBUG(2,"ray_cs interrupt from device not present or suspended.\n");
         return IRQ_NONE;
     }
@@ -2489,7 +2482,7 @@ static void authenticate(ray_dev_t *local)
 {
     struct pcmcia_device *link = local->finder;
     DEBUG(0,"ray_cs Starting authentication.\n");
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_cs authenticate - device not present\n");
         return;
     }
@@ -2556,7 +2549,7 @@ static void associate(ray_dev_t *local)
     struct pcmcia_device *link = local->finder;
     struct net_device *dev = link->priv;
     int ccsindex;
-    if (!(link->state & DEV_PRESENT)) {
+    if (!(pcmcia_dev_present(link))) {
         DEBUG(2,"ray_cs associate - device not present\n");
         return;
     }

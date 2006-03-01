@@ -578,7 +578,6 @@ static int mgslpc_probe(struct pcmcia_device *link)
     link->conf.Attributes = 0;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     ret = mgslpc_config(link);
     if (ret)
 	    return ret;
@@ -618,9 +617,6 @@ static int mgslpc_config(struct pcmcia_device *link)
     CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
-    
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     /* get CIS configuration entry */
 
@@ -681,8 +677,6 @@ static int mgslpc_config(struct pcmcia_device *link)
 	    printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		   link->io.BasePort1+link->io.NumPorts1-1);
     printk("\n");
-    
-    link->state &= ~DEV_CONFIG_PENDING;
     return 0;
 
 cs_failed:
@@ -697,25 +691,23 @@ cs_failed:
  */
 static void mgslpc_release(u_long arg)
 {
-    struct pcmcia_device *link = (struct pcmcia_device *)arg;
+	struct pcmcia_device *link = (struct pcmcia_device *)arg;
 
-    if (debug_level >= DEBUG_LEVEL_INFO)
-	    printk("mgslpc_release(0x%p)\n", link);
+	if (debug_level >= DEBUG_LEVEL_INFO)
+		printk("mgslpc_release(0x%p)\n", link);
 
-    pcmcia_disable_device(link);
+	pcmcia_disable_device(link);
 }
 
 static void mgslpc_detach(struct pcmcia_device *link)
 {
-    if (debug_level >= DEBUG_LEVEL_INFO)
-	    printk("mgslpc_detach(0x%p)\n", link);
+	if (debug_level >= DEBUG_LEVEL_INFO)
+		printk("mgslpc_detach(0x%p)\n", link);
 
-    if (link->state & DEV_CONFIG) {
-	    ((MGSLPC_INFO *)link->priv)->stop = 1;
-	    mgslpc_release((u_long)link);
-    }
+	((MGSLPC_INFO *)link->priv)->stop = 1;
+	mgslpc_release((u_long)link);
 
-    mgslpc_remove_device((MGSLPC_INFO *)link->priv);
+	mgslpc_remove_device((MGSLPC_INFO *)link->priv);
 }
 
 static int mgslpc_suspend(struct pcmcia_device *link)
@@ -1254,7 +1246,7 @@ static irqreturn_t mgslpc_isr(int irq, void *dev_id, struct pt_regs * regs)
 	if (!info)
 		return IRQ_NONE;
 		
-	if (!(info->p_dev->state & DEV_CONFIG))
+	if (!(info->p_dev->_locked))
 		return IRQ_HANDLED;
 
 	spin_lock(&info->lock);

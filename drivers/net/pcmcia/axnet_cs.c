@@ -168,7 +168,6 @@ static int axnet_probe(struct pcmcia_device *link)
     dev->do_ioctl = &axnet_ioctl;
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return axnet_config(link);
 } /* axnet_attach */
 
@@ -190,8 +189,7 @@ static void axnet_detach(struct pcmcia_device *link)
     if (link->dev_node)
 	unregister_netdev(dev);
 
-    if (link->state & DEV_CONFIG)
-	axnet_release(link);
+    axnet_release(link);
 
     free_netdev(dev);
 } /* axnet_detach */
@@ -309,9 +307,6 @@ static int axnet_config(struct pcmcia_device *link)
     /* don't trust the CIS on this; Linksys got it wrong */
     link->conf.Present = 0x63;
 
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     tuple.Attributes = 0;
     CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
@@ -402,7 +397,6 @@ static int axnet_config(struct pcmcia_device *link)
 
     info->phy_id = (i < 32) ? i : -1;
     link->dev_node = &info->node;
-    link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     if (register_netdev(dev) != 0) {
@@ -429,7 +423,6 @@ cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     axnet_release(link);
-    link->state &= ~DEV_CONFIG_PENDING;
     return -ENODEV;
 } /* axnet_config */
 
@@ -450,8 +443,8 @@ static int axnet_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
-			netif_device_detach(dev);
+	if (link->open)
+		netif_device_detach(dev);
 
 	return 0;
 }
@@ -460,7 +453,7 @@ static int axnet_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		axnet_reset_8390(dev);
 		AX88190_init(dev, 1);
 		netif_device_attach(dev);

@@ -181,7 +181,6 @@ static int atmel_probe(struct pcmcia_device *p_dev)
 	}
 	p_dev->priv = local;
 
-	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return atmel_config(p_dev);
 } /* atmel_attach */
 
@@ -198,8 +197,7 @@ static void atmel_detach(struct pcmcia_device *link)
 {
 	DEBUG(0, "atmel_detach(0x%p)\n", link);
 
-	if (link->state & DEV_CONFIG)
-		atmel_release(link);
+	atmel_release(link);
 
 	kfree(link->priv);
 }
@@ -222,7 +220,7 @@ static int card_present(void *arg)
 	struct pcmcia_device *link = (struct pcmcia_device *)arg;
 	if (link->suspended)
 		return 0;
-	else if (link->state & DEV_PRESENT)
+	else if (pcmcia_dev_present(link))
 		return 1;
 	
 	return 0;
@@ -257,10 +255,7 @@ static int atmel_config(struct pcmcia_device *link)
 	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
-	
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-	
+
 	/*
 	  In this loop, we scan the CIS for configuration table entries,
 	  each of which describes a valid card configuration, including
@@ -373,10 +368,9 @@ static int atmel_config(struct pcmcia_device *link)
 	strcpy(dev->node.dev_name, ((local_info_t*)link->priv)->eth_dev->name );
 	dev->node.major = dev->node.minor = 0;
 	link->dev_node = &dev->node;
-			
-	link->state &= ~DEV_CONFIG_PENDING;
+
 	return 0;
-	
+
  cs_failed:
 	cs_error(link, last_fn, last_ret);
 	atmel_release(link);
@@ -408,8 +402,7 @@ static int atmel_suspend(struct pcmcia_device *link)
 {
 	local_info_t *local = link->priv;
 
-	if (link->state & DEV_CONFIG)
-		netif_device_detach(local->eth_dev);
+	netif_device_detach(local->eth_dev);
 
 	return 0;
 }
@@ -418,10 +411,8 @@ static int atmel_resume(struct pcmcia_device *link)
 {
 	local_info_t *local = link->priv;
 
-	if (link->state & DEV_CONFIG) {
-		atmel_open(local->eth_dev);
-		netif_device_attach(local->eth_dev);
-	}
+	atmel_open(local->eth_dev);
+	netif_device_attach(local->eth_dev);
 
 	return 0;
 }

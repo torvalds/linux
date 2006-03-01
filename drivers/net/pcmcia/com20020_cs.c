@@ -178,7 +178,6 @@ static int com20020_probe(struct pcmcia_device *p_dev)
     p_dev->irq.Instance = info->dev = dev;
     p_dev->priv = info;
 
-    p_dev->state |= DEV_PRESENT;
     return com20020_config(p_dev);
 
 fail_alloc_dev:
@@ -218,8 +217,7 @@ static void com20020_detach(struct pcmcia_device *link)
 	    free_irq(dev->irq, dev);
     }
 
-    if (link->state & DEV_CONFIG)
-        com20020_release(link);
+    com20020_release(link);
 
     /* Unlink device structure, free bits */
     DEBUG(1,"unlinking...\n");
@@ -276,9 +274,6 @@ static int com20020_config(struct pcmcia_device *link)
     CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
 
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
     DEBUG(1,"arcnet: baseport1 is %Xh\n", link->io.BasePort1);
     i = !CS_SUCCESS;
     if (!link->io.BasePort1)
@@ -328,7 +323,6 @@ static int com20020_config(struct pcmcia_device *link)
     lp->card_flags = ARC_CAN_10MBIT; /* pretend all of them can 10Mbit */
 
     link->dev_node = &info->node;
-    link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     i = com20020_found(dev, 0);	/* calls register_netdev */
@@ -372,7 +366,7 @@ static int com20020_suspend(struct pcmcia_device *link)
 	com20020_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -383,7 +377,7 @@ static int com20020_resume(struct pcmcia_device *link)
 	com20020_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		int ioaddr = dev->base_addr;
 		struct arcnet_local *lp = dev->priv;
 		ARCRESET;

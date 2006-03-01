@@ -186,7 +186,6 @@ static int sedlbauer_probe(struct pcmcia_device *link)
     link->conf.Attributes = 0;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return sedlbauer_config(link);
 } /* sedlbauer_attach */
 
@@ -201,15 +200,13 @@ static int sedlbauer_probe(struct pcmcia_device *link)
 
 static void sedlbauer_detach(struct pcmcia_device *link)
 {
-    DEBUG(0, "sedlbauer_detach(0x%p)\n", link);
+	DEBUG(0, "sedlbauer_detach(0x%p)\n", link);
 
-    if (link->state & DEV_CONFIG) {
-	    ((local_info_t *)link->priv)->stop = 1;
-	    sedlbauer_release(link);
-    }
+	((local_info_t *)link->priv)->stop = 1;
+	sedlbauer_release(link);
 
-    /* This points to the parent local_info_t struct */
-    kfree(link->priv);
+	/* This points to the parent local_info_t struct */
+	kfree(link->priv);
 } /* sedlbauer_detach */
 
 /*======================================================================
@@ -250,9 +247,6 @@ static int sedlbauer_config(struct pcmcia_device *link)
     CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
-    
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &conf));
 
@@ -408,8 +402,6 @@ static int sedlbauer_config(struct pcmcia_device *link)
 	printk(", mem 0x%06lx-0x%06lx", req.Base,
 	       req.Base+req.Size-1);
     printk("\n");
-    
-    link->state &= ~DEV_CONFIG_PENDING;
 
     icard.para[0] = link->irq.AssignedIRQ;
     icard.para[1] = link->io.BasePort1;

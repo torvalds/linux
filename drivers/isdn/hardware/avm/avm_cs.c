@@ -127,7 +127,6 @@ static int avmcs_probe(struct pcmcia_device *p_dev)
     memset(local, 0, sizeof(local_info_t));
     p_dev->priv = local;
 
-    p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return avmcs_config(p_dev);
 
  err:
@@ -145,10 +144,8 @@ static int avmcs_probe(struct pcmcia_device *p_dev)
 
 static void avmcs_detach(struct pcmcia_device *link)
 {
-    if (link->state & DEV_CONFIG)
 	avmcs_release(link);
-
-    kfree(link->priv);
+	kfree(link->priv);
 } /* avmcs_detach */
 
 /*======================================================================
@@ -216,12 +213,8 @@ static int avmcs_config(struct pcmcia_device *link)
     } while (0);
     if (i != CS_SUCCESS) {
 	cs_error(link, ParseTuple, i);
-	link->state &= ~DEV_CONFIG_PENDING;
 	return -ENODEV;
     }
-    
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     do {
 
@@ -312,8 +305,7 @@ found_port:
     dev->node.major = 64;
     dev->node.minor = 0;
     link->dev_node = &dev->node;
-    
-    link->state &= ~DEV_CONFIG_PENDING;
+
     /* If any step failed, release any partially configured state */
     if (i != 0) {
 	avmcs_release(link);

@@ -23,7 +23,7 @@
 #define CLIENT_IO_REQ		0x0004
 #define CLIENT_UNBOUND		0x0008
 #define CLIENT_STALE		0x0010
-#define CLIENT_WIN_REQ(i)	(0x20<<(i))
+#define CLIENT_WIN_REQ(i)	(0x1<<(i))
 #define CLIENT_CARDBUS		0x8000
 
 #define REGION_MAGIC	0xE3C9

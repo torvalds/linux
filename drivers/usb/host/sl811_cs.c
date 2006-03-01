@@ -142,9 +142,7 @@ static void sl811_cs_detach(struct pcmcia_device *link)
 {
 	DBG(0, "sl811_cs_detach(0x%p)\n", link);
 
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-		sl811_cs_release(link);
+	sl811_cs_release(link);
 
 	/* This points to the parent local_info_t struct */
 	kfree(link->priv);
@@ -181,9 +179,6 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
-
-	/* Configure card */
-	link->state |= DEV_CONFIG;
 
 	/* Look up the current Vcc */
 	CS_CHECK(GetConfigurationInfo,
@@ -276,15 +271,12 @@ next_entry:
 	       link->io.BasePort1+link->io.NumPorts1-1);
 	printk("\n");
 
-	link->state &= ~DEV_CONFIG_PENDING;
-
 	if (sl811_hc_init(parent, link->io.BasePort1, link->irq.AssignedIRQ)
 			< 0) {
 cs_failed:
 		printk("sl811_cs_config failed\n");
 		cs_error(link, last_fn, last_ret);
 		sl811_cs_release(link);
-		link->state &= ~DEV_CONFIG_PENDING;
 		return  -ENODEV;
 	}
 	return 0;
@@ -309,7 +301,6 @@ static int sl811_cs_probe(struct pcmcia_device *link)
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return sl811_cs_config(link);
 }
 

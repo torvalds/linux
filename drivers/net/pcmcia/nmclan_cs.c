@@ -487,7 +487,6 @@ static int nmclan_probe(struct pcmcia_device *link)
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return nmclan_config(link);
 } /* nmclan_attach */
 
@@ -508,8 +507,7 @@ static void nmclan_detach(struct pcmcia_device *link)
     if (link->dev_node)
 	unregister_netdev(dev);
 
-    if (link->state & DEV_CONFIG)
-	nmclan_release(link);
+    nmclan_release(link);
 
     free_netdev(dev);
 } /* nmclan_detach */
@@ -675,9 +673,6 @@ static int nmclan_config(struct pcmcia_device *link)
   CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
   link->conf.ConfigBase = parse.config.base;
 
-  /* Configure card */
-  link->state |= DEV_CONFIG;
-
   CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
   CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
   CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
@@ -707,7 +702,6 @@ static int nmclan_config(struct pcmcia_device *link)
     } else {
       printk(KERN_NOTICE "nmclan_cs: mace id not found: %x %x should"
 	     " be 0x40 0x?9\n", sig[0], sig[1]);
-      link->state &= ~DEV_CONFIG_PENDING;
       return -ENODEV;
     }
   }
@@ -722,7 +716,6 @@ static int nmclan_config(struct pcmcia_device *link)
     printk(KERN_NOTICE "nmclan_cs: invalid if_port requested\n");
 
   link->dev_node = &lp->node;
-  link->state &= ~DEV_CONFIG_PENDING;
   SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
   i = register_netdev(dev);
@@ -763,7 +756,7 @@ static int nmclan_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -773,7 +766,7 @@ static int nmclan_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		nmclan_reset(dev);
 		netif_device_attach(dev);
 	}

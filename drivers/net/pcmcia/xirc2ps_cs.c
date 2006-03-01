@@ -591,7 +591,6 @@ xirc2ps_probe(struct pcmcia_device *link)
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return xirc2ps_config(link);
 } /* xirc2ps_attach */
 
@@ -612,8 +611,7 @@ xirc2ps_detach(struct pcmcia_device *link)
     if (link->dev_node)
 	unregister_netdev(dev);
 
-    if (link->state & DEV_CONFIG)
-	xirc2ps_release(link);
+    xirc2ps_release(link);
 
     free_netdev(dev);
 } /* xirc2ps_detach */
@@ -843,9 +841,6 @@ xirc2ps_config(struct pcmcia_device * link)
     for (i=0; i < 6; i++)
 	dev->dev_addr[i] = node_id->id[i];
 
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
     link->io.IOAddrLines =10;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
     link->irq.Attributes = IRQ_HANDLE_PRESENT;
@@ -1041,7 +1036,6 @@ xirc2ps_config(struct pcmcia_device * link)
 	do_reset(dev, 1); /* a kludge to make the cem56 work */
 
     link->dev_node = &local->node;
-    link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     if ((err=register_netdev(dev))) {
@@ -1062,14 +1056,12 @@ xirc2ps_config(struct pcmcia_device * link)
     return 0;
 
   config_error:
-    link->state &= ~DEV_CONFIG_PENDING;
     xirc2ps_release(link);
     return -ENODEV;
 
   cis_error:
     printk(KNOT_XIRC "unable to parse CIS\n");
   failure:
-    link->state &= ~DEV_CONFIG_PENDING;
     return -ENODEV;
 } /* xirc2ps_config */
 
@@ -1099,9 +1091,9 @@ static int xirc2ps_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
-			netif_device_detach(dev);
-			do_powerdown(dev);
+	if (link->open) {
+		netif_device_detach(dev);
+		do_powerdown(dev);
 	}
 
 	return 0;
@@ -1111,7 +1103,7 @@ static int xirc2ps_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		do_reset(dev,1);
 		netif_device_attach(dev);
 	}

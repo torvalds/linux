@@ -173,7 +173,6 @@ static int ibmtr_attach(struct pcmcia_device *link)
 
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    link->state |= DEV_PRESENT;
     return ibmtr_config(link);
 } /* ibmtr_attach */
 
@@ -200,8 +199,8 @@ static void ibmtr_detach(struct pcmcia_device *link)
 	struct tok_info *ti = netdev_priv(dev);
 	del_timer_sync(&(ti->tr_timer));
     }
-    if (link->state & DEV_CONFIG)
-        ibmtr_release(link);
+
+    ibmtr_release(link);
 
     free_netdev(dev);
     kfree(info);
@@ -241,10 +240,6 @@ static int ibmtr_config(struct pcmcia_device *link)
     CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
     CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
-
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
     link->conf.ConfigIndex = 0x61;
 
     /* Determine if this is PRIMARY or ALTERNATE. */
@@ -301,7 +296,6 @@ static int ibmtr_config(struct pcmcia_device *link)
     ibmtr_hw_setup(dev, mmiobase);
 
     link->dev_node = &info->node;
-    link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     i = ibmtr_probe_card(dev);
@@ -358,7 +352,7 @@ static int ibmtr_suspend(struct pcmcia_device *link)
 	ibmtr_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -369,7 +363,7 @@ static int ibmtr_resume(struct pcmcia_device *link)
 	ibmtr_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		ibmtr_probe(dev);	/* really? */
 		netif_device_attach(dev);
 	}

@@ -356,7 +356,6 @@ static int smc91c92_probe(struct pcmcia_device *link)
     smc->mii_if.phy_id_mask = 0x1f;
     smc->mii_if.reg_num_mask = 0x1f;
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return smc91c92_config(link);
 } /* smc91c92_attach */
 
@@ -378,8 +377,7 @@ static void smc91c92_detach(struct pcmcia_device *link)
     if (link->dev_node)
 	unregister_netdev(dev);
 
-    if (link->state & DEV_CONFIG)
-	smc91c92_release(link);
+    smc91c92_release(link);
 
     free_netdev(dev);
 } /* smc91c92_detach */
@@ -862,7 +860,7 @@ static int smc91c92_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -874,32 +872,30 @@ static int smc91c92_resume(struct pcmcia_device *link)
 	struct smc_private *smc = netdev_priv(dev);
 	int i;
 
-	if (link->state & DEV_CONFIG) {
-		if ((smc->manfid == MANFID_MEGAHERTZ) &&
-		    (smc->cardid == PRODID_MEGAHERTZ_EM3288))
-			mhz_3288_power(link);
-		if (smc->manfid == MANFID_MOTOROLA)
-			mot_config(link);
-		if ((smc->manfid == MANFID_OSITECH) &&
-		    (smc->cardid != PRODID_OSITECH_SEVEN)) {
-			/* Power up the card and enable interrupts */
-			set_bits(0x0300, dev->base_addr-0x10+OSITECH_AUI_PWR);
-			set_bits(0x0300, dev->base_addr-0x10+OSITECH_RESET_ISR);
+	if ((smc->manfid == MANFID_MEGAHERTZ) &&
+	    (smc->cardid == PRODID_MEGAHERTZ_EM3288))
+		mhz_3288_power(link);
+	if (smc->manfid == MANFID_MOTOROLA)
+		mot_config(link);
+	if ((smc->manfid == MANFID_OSITECH) &&
+	    (smc->cardid != PRODID_OSITECH_SEVEN)) {
+		/* Power up the card and enable interrupts */
+		set_bits(0x0300, dev->base_addr-0x10+OSITECH_AUI_PWR);
+		set_bits(0x0300, dev->base_addr-0x10+OSITECH_RESET_ISR);
+	}
+	if (((smc->manfid == MANFID_OSITECH) &&
+	     (smc->cardid == PRODID_OSITECH_SEVEN)) ||
+	    ((smc->manfid == MANFID_PSION) &&
+	     (smc->cardid == PRODID_PSION_NET100))) {
+		/* Download the Seven of Diamonds firmware */
+		for (i = 0; i < sizeof(__Xilinx7OD); i++) {
+			outb(__Xilinx7OD[i], link->io.BasePort1+2);
+			udelay(50);
 		}
-		if (((smc->manfid == MANFID_OSITECH) &&
-		     (smc->cardid == PRODID_OSITECH_SEVEN)) ||
-		    ((smc->manfid == MANFID_PSION) &&
-		     (smc->cardid == PRODID_PSION_NET100))) {
-			/* Download the Seven of Diamonds firmware */
-			for (i = 0; i < sizeof(__Xilinx7OD); i++) {
-				outb(__Xilinx7OD[i], link->io.BasePort1+2);
-				udelay(50);
-			}
-		}
-		if (link->open) {
-			smc_reset(dev);
-			netif_device_attach(dev);
-		}
+	}
+	if (link->open) {
+		smc_reset(dev);
+		netif_device_attach(dev);
 	}
 
 	return 0;
@@ -1010,9 +1006,6 @@ static int smc91c92_config(struct pcmcia_device *link)
 	smc->cardid = parse->manfid.card;
     }
 
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
     if ((smc->manfid == MANFID_OSITECH) &&
 	(smc->cardid != PRODID_OSITECH_SEVEN)) {
 	i = osi_config(link);
@@ -1108,7 +1101,6 @@ static int smc91c92_config(struct pcmcia_device *link)
     }
 
     link->dev_node = &smc->node;
-    link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     if (register_netdev(dev) != 0) {
@@ -1149,7 +1141,6 @@ config_undo:
     unregister_netdev(dev);
 config_failed:			/* CS_EXIT_TEST() calls jump to here... */
     smc91c92_release(link);
-    link->state &= ~DEV_CONFIG_PENDING;
     kfree(cfg_mem);
     return -ENODEV;
 } /* smc91c92_config */

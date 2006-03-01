@@ -105,7 +105,6 @@ static int fdomain_probe(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return fdomain_config(link);
 } /* fdomain_attach */
 
@@ -115,8 +114,7 @@ static void fdomain_detach(struct pcmcia_device *link)
 {
 	DEBUG(0, "fdomain_detach(0x%p)\n", link);
 
-	if (link->state & DEV_CONFIG)
-		fdomain_release(link);
+	fdomain_release(link);
 
 	kfree(link->priv);
 } /* fdomain_detach */
@@ -146,9 +144,6 @@ static int fdomain_config(struct pcmcia_device *link)
     CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
     CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
-
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
@@ -188,7 +183,6 @@ static int fdomain_config(struct pcmcia_device *link)
     link->dev_node = &info->node;
     info->host = host;
 
-    link->state &= ~DEV_CONFIG_PENDING;
     return 0;
 
 cs_failed:
@@ -214,8 +208,7 @@ static void fdomain_release(struct pcmcia_device *link)
 
 static int fdomain_resume(struct pcmcia_device *link)
 {
-	if (link->state & DEV_CONFIG)
-		fdomain_16x0_bus_reset(NULL);
+	fdomain_16x0_bus_reset(NULL);
 
 	return 0;
 }

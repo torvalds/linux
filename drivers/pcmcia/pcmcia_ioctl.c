@@ -304,6 +304,7 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
 {
 	dev_node_t *node;
 	struct pcmcia_device *p_dev;
+	struct pcmcia_driver *p_drv;
 	unsigned long flags;
 	int ret = 0;
 
@@ -358,7 +359,8 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
  found:
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
-	if (p_dev->state & DEV_CONFIG_PENDING) {
+	p_drv = to_pcmcia_drv(p_dev->dev.driver);
+	if (p_drv && !p_dev->_locked) {
 		ret = -EAGAIN;
 		goto err_put;
 	}

@@ -122,7 +122,6 @@ static int aha152x_probe(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return aha152x_config_cs(link);
 } /* aha152x_attach */
 
@@ -132,8 +131,7 @@ static void aha152x_detach(struct pcmcia_device *link)
 {
     DEBUG(0, "aha152x_detach(0x%p)\n", link);
 
-    if (link->state & DEV_CONFIG)
-	aha152x_release_cs(link);
+    aha152x_release_cs(link);
 
     /* Unlink device structure, free bits */
     kfree(link->priv);
@@ -164,9 +162,6 @@ static int aha152x_config_cs(struct pcmcia_device *link)
     CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
     CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
     link->conf.ConfigBase = parse.config.base;
-
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
     CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
@@ -216,7 +211,6 @@ static int aha152x_config_cs(struct pcmcia_device *link)
     link->dev_node = &info->node;
     info->host = host;
 
-    link->state &= ~DEV_CONFIG_PENDING;
     return 0;
 
 cs_failed:

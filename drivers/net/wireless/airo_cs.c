@@ -170,7 +170,6 @@ static int airo_probe(struct pcmcia_device *p_dev)
 	}
 	p_dev->priv = local;
 
-	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return airo_config(p_dev);
 } /* airo_attach */
 
@@ -187,8 +186,7 @@ static void airo_detach(struct pcmcia_device *link)
 {
 	DEBUG(0, "airo_detach(0x%p)\n", link);
 
-	if (link->state & DEV_CONFIG)
-		airo_release(link);
+	airo_release(link);
 
 	if ( ((local_info_t*)link->priv)->eth_dev ) {
 		stop_airo_card( ((local_info_t*)link->priv)->eth_dev, 0 );
@@ -237,10 +235,7 @@ static int airo_config(struct pcmcia_device *link)
 	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
-	
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-	
+
 	/*
 	  In this loop, we scan the CIS for configuration table entries,
 	  each of which describes a valid card configuration, including
@@ -382,8 +377,6 @@ static int airo_config(struct pcmcia_device *link)
 		printk(", mem 0x%06lx-0x%06lx", req.Base,
 		       req.Base+req.Size-1);
 	printk("\n");
-	
-	link->state &= ~DEV_CONFIG_PENDING;
 	return 0;
 
  cs_failed:
@@ -410,8 +403,7 @@ static int airo_suspend(struct pcmcia_device *link)
 {
 	local_info_t *local = link->priv;
 
-	if (link->state & DEV_CONFIG)
-		netif_device_detach(local->eth_dev);
+	netif_device_detach(local->eth_dev);
 
 	return 0;
 }
@@ -420,7 +412,7 @@ static int airo_resume(struct pcmcia_device *link)
 {
 	local_info_t *local = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		reset_airo_card(local->eth_dev);
 		netif_device_attach(local->eth_dev);
 	}

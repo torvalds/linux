@@ -210,9 +210,7 @@ static int prism2_config(struct pcmcia_device *link);
 static int prism2_pccard_card_present(local_info_t *local)
 {
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
-	if (hw_priv != NULL && hw_priv->link != NULL &&
-	    ((hw_priv->link->state & (DEV_PRESENT | DEV_CONFIG)) ==
-	     (DEV_PRESENT | DEV_CONFIG)))
+	if (hw_priv != NULL && hw_priv->link != NULL && DEV_OK(hw_priv->link))
 		return 1;
 	return 0;
 }
@@ -508,7 +506,6 @@ static int hostap_cs_probe(struct pcmcia_device *p_dev)
 	PDEBUG(DEBUG_HW, "%s: setting Vcc=33 (constant)\n", dev_info);
 	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
-	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	ret = prism2_config(p_dev);
 	if (ret) {
 		PDEBUG(DEBUG_EXTRA, "prism2_config() failed\n");
@@ -522,9 +519,7 @@ static void prism2_detach(struct pcmcia_device *link)
 {
 	PDEBUG(DEBUG_FLOW, "prism2_detach\n");
 
-	if (link->state & DEV_CONFIG) {
-		prism2_release((u_long)link);
-	}
+	prism2_release((u_long)link);
 
 	/* release net devices */
 	if (link->priv) {
@@ -746,9 +741,6 @@ static int prism2_config(struct pcmcia_device *link)
 		       link->io.BasePort2+link->io.NumPorts2-1);
 	printk("\n");
 
-	link->state |= DEV_CONFIG;
-	link->state &= ~DEV_CONFIG_PENDING;
-
 	local->shutdown = 0;
 
 	sandisk_enable_wireless(dev);
@@ -784,8 +776,7 @@ static void prism2_release(u_long arg)
 		struct hostap_interface *iface;
 
 		iface = netdev_priv(dev);
-		if (link->state & DEV_CONFIG)
-			prism2_hw_shutdown(dev, 0);
+		prism2_hw_shutdown(dev, 0);
 		iface->local->shutdown = 1;
 	}
 
@@ -797,19 +788,19 @@ static int hostap_cs_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = (struct net_device *) link->priv;
 	int dev_open = 0;
+	struct hostap_interface *iface = NULL;
+
+	if (dev)
+		iface = netdev_priv(dev);
 
 	PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_SUSPEND\n", dev_info);
-
-	if (link->state & DEV_CONFIG) {
-		struct hostap_interface *iface = netdev_priv(dev);
-		if (iface && iface->local)
-			dev_open = iface->local->num_dev_open > 0;
-		if (dev_open) {
-			netif_stop_queue(dev);
-			netif_device_detach(dev);
-		}
-		prism2_suspend(dev);
+	if (iface && iface->local)
+		dev_open = iface->local->num_dev_open > 0;
+	if (dev_open) {
+		netif_stop_queue(dev);
+		netif_device_detach(dev);
 	}
+	prism2_suspend(dev);
 
 	return 0;
 }
@@ -818,20 +809,21 @@ static int hostap_cs_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = (struct net_device *) link->priv;
 	int dev_open = 0;
+	struct hostap_interface *iface = NULL;
+
+	if (dev)
+		iface = netdev_priv(dev);
 
 	PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_PM_RESUME\n", dev_info);
 
-	if (link->state & DEV_CONFIG) {
-		struct hostap_interface *iface = netdev_priv(dev);
-		if (iface && iface->local)
-			dev_open = iface->local->num_dev_open > 0;
+	if (iface && iface->local)
+		dev_open = iface->local->num_dev_open > 0;
 
-		prism2_hw_shutdown(dev, 1);
-		prism2_hw_config(dev, dev_open ? 0 : 1);
-		if (dev_open) {
-			netif_device_attach(dev);
-			netif_start_queue(dev);
-		}
+	prism2_hw_shutdown(dev, 1);
+	prism2_hw_config(dev, dev_open ? 0 : 1);
+	if (dev_open) {
+		netif_device_attach(dev);
+		netif_start_queue(dev);
 	}
 
 	return 0;

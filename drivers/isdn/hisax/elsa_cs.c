@@ -174,7 +174,6 @@ static int elsa_cs_probe(struct pcmcia_device *link)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return elsa_cs_config(link);
 } /* elsa_cs_attach */
 
@@ -189,17 +188,14 @@ static int elsa_cs_probe(struct pcmcia_device *link)
 
 static void elsa_cs_detach(struct pcmcia_device *link)
 {
-    local_info_t *info = link->priv;
+	local_info_t *info = link->priv;
 
-    DEBUG(0, "elsa_cs_detach(0x%p)\n", link);
+	DEBUG(0, "elsa_cs_detach(0x%p)\n", link);
 
-    if (link->state & DEV_CONFIG) {
-	    info->busy = 1;
-	    elsa_cs_release(link);
-    }
+	info->busy = 1;
+	elsa_cs_release(link);
 
-    kfree(info);
-
+	kfree(info);
 } /* elsa_cs_detach */
 
 /*======================================================================
@@ -263,9 +259,6 @@ static int elsa_cs_config(struct pcmcia_device *link)
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
 
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
     tuple.TupleData = (cisdata_t *)buf;
     tuple.TupleOffset = 0; tuple.TupleDataMax = 255;
     tuple.Attributes = 0;
@@ -328,8 +321,6 @@ static int elsa_cs_config(struct pcmcia_device *link)
         printk(" & 0x%04x-0x%04x", link->io.BasePort2,
                link->io.BasePort2+link->io.NumPorts2-1);
     printk("\n");
-
-    link->state &= ~DEV_CONFIG_PENDING;
 
     icard.para[0] = link->irq.AssignedIRQ;
     icard.para[1] = link->io.BasePort1;

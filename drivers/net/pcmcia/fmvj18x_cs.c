@@ -272,7 +272,6 @@ static int fmvj18x_probe(struct pcmcia_device *link)
 #endif
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return fmvj18x_config(link);
 } /* fmvj18x_attach */
 
@@ -287,8 +286,7 @@ static void fmvj18x_detach(struct pcmcia_device *link)
     if (link->dev_node)
 	unregister_netdev(dev);
 
-    if (link->state & DEV_CONFIG)
-	fmvj18x_release(link);
+    fmvj18x_release(link);
 
     free_netdev(dev);
 } /* fmvj18x_detach */
@@ -363,9 +361,6 @@ static int fmvj18x_config(struct pcmcia_device *link)
     tuple.TupleOffset = 0;
     CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
     CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
-    
-    /* Configure card */
-    link->state |= DEV_CONFIG;
 
     link->conf.ConfigBase = parse.config.base; 
     link->conf.Present = parse.config.rmask[0];
@@ -532,7 +527,6 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     lp->cardtype = cardtype;
     link->dev_node = &lp->node;
-    link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
     if (register_netdev(dev) != 0) {
@@ -557,7 +551,6 @@ cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     fmvj18x_release(link);
-    link->state &= ~DEV_CONFIG_PENDING;
     return -ENODEV;
 } /* fmvj18x_config */
 /*====================================================================*/
@@ -668,7 +661,7 @@ static int fmvj18x_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -678,7 +671,7 @@ static int fmvj18x_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		fjn_reset(dev);
 		netif_device_attach(dev);
 	}

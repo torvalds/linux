@@ -246,7 +246,7 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 		return -EAGAIN;
 	}
 
-	if ((dev->p_dev->state & DEV_PRESENT)==0)
+	if (!pcmcia_dev_present(dev->p_dev))
 		return -ENODEV;
 
 	for (i = 0; i < 5; i++) {
@@ -351,7 +351,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 		return -EAGAIN;
 	}
 
-	if ((dev->p_dev->state & DEV_PRESENT) == 0)
+	if (!pcmcia_dev_present(dev->p_dev))
 		return -ENODEV;
 
 	bytes_to_write = count;
@@ -543,7 +543,6 @@ static int reader_config(struct pcmcia_device *link, int devno)
 		goto cs_failed;
 	}
 
-	link->state |= DEV_CONFIG;
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
@@ -602,9 +601,7 @@ static int reader_config(struct pcmcia_device *link, int devno)
 	sprintf(dev->node.dev_name, DEVICE_NAME "%d", devno);
 	dev->node.major = major;
 	dev->node.minor = devno;
-	dev->node.next = NULL;
-	link->dev_node = &dev->node;
-	link->state &= ~DEV_CONFIG_PENDING;
+	dev->node.next = &dev->node;
 
 	DEBUGP(2, dev, "device " DEVICE_NAME "%d at 0x%.4x-0x%.4x\n", devno,
 	      link->io.BasePort1, link->io.BasePort1+link->io.NumPorts1);
@@ -616,7 +613,6 @@ cs_failed:
 	cs_error(link, fail_fn, fail_rc);
 cs_release:
 	reader_release(link);
-	link->state &= ~DEV_CONFIG_PENDING;
 	return -ENODEV;
 }
 
@@ -659,7 +655,6 @@ static int reader_probe(struct pcmcia_device *link)
 	init_timer(&dev->poll_timer);
 	dev->poll_timer.function = &cm4040_do_poll;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	ret = reader_config(link, i);
 	if (ret)
 		return ret;
@@ -683,10 +678,7 @@ static void reader_detach(struct pcmcia_device *link)
 	if (devno == CM_MAX_DEV)
 		return;
 
-	link->state &= ~DEV_PRESENT;
-
-	if (link->state & DEV_CONFIG)
-		reader_release(link);
+	reader_release(link);
 
 	dev_table[devno] = NULL;
 	kfree(dev);

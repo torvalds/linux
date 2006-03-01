@@ -736,9 +736,6 @@ SYM53C500_config(struct pcmcia_device *link)
 	    (pcmcia_get_tuple_data(link, &tuple) == CS_SUCCESS))
 		info->manf_id = le16_to_cpu(tuple.TupleData[0]);
 
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	while (1) {
@@ -836,7 +833,6 @@ next_entry:
 
 	scsi_scan_host(host);
 
-	link->state &= ~DEV_CONFIG_PENDING;
 	return 0;
 
 err_free_irq:
@@ -846,7 +842,6 @@ err_free_scsi:
 err_release:
 	release_region(port_base, 0x10);
 	printk(KERN_INFO "sym53c500_cs: no SCSI devices found\n");
-	link->state &= ~DEV_CONFIG_PENDING;
 	return -ENODEV;
 
 cs_failed:
@@ -859,21 +854,19 @@ static int sym53c500_resume(struct pcmcia_device *link)
 {
 	struct scsi_info_t *info = link->priv;
 
-	if (link->state & DEV_CONFIG) {
-		/* See earlier comment about manufacturer IDs. */
-		if ((info->manf_id == MANFID_MACNICA) ||
-		    (info->manf_id == MANFID_PIONEER) ||
-		    (info->manf_id == 0x0098)) {
-			outb(0x80, link->io.BasePort1 + 0xd);
-			outb(0x24, link->io.BasePort1 + 0x9);
-			outb(0x04, link->io.BasePort1 + 0xd);
-		}
-		/*
-		 *  If things don't work after a "resume",
-		 *  this is a good place to start looking.
-		 */
-		SYM53C500_int_host_reset(link->io.BasePort1);
+	/* See earlier comment about manufacturer IDs. */
+	if ((info->manf_id == MANFID_MACNICA) ||
+	    (info->manf_id == MANFID_PIONEER) ||
+	    (info->manf_id == 0x0098)) {
+		outb(0x80, link->io.BasePort1 + 0xd);
+		outb(0x24, link->io.BasePort1 + 0x9);
+		outb(0x04, link->io.BasePort1 + 0xd);
 	}
+	/*
+	 *  If things don't work after a "resume",
+	 *  this is a good place to start looking.
+	 */
+	SYM53C500_int_host_reset(link->io.BasePort1);
 
 	return 0;
 }
@@ -883,8 +876,7 @@ SYM53C500_detach(struct pcmcia_device *link)
 {
 	DEBUG(0, "SYM53C500_detach(0x%p)\n", link);
 
-	if (link->state & DEV_CONFIG)
-		SYM53C500_release(link);
+	SYM53C500_release(link);
 
 	kfree(link->priv);
 	link->priv = NULL;
@@ -913,7 +905,6 @@ SYM53C500_probe(struct pcmcia_device *link)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return SYM53C500_config(link);
 } /* SYM53C500_attach */
 

@@ -128,38 +128,27 @@ static void serial_remove(struct pcmcia_device *link)
 	struct serial_info *info = link->priv;
 	int i;
 
-	link->state &= ~DEV_PRESENT;
-
 	DEBUG(0, "serial_release(0x%p)\n", link);
 
 	/*
 	 * Recheck to see if the device is still configured.
 	 */
-	if (info->p_dev->state & DEV_CONFIG) {
-		for (i = 0; i < info->ndev; i++)
-			serial8250_unregister_port(info->line[i]);
+	for (i = 0; i < info->ndev; i++)
+		serial8250_unregister_port(info->line[i]);
 
-		info->p_dev->dev_node = NULL;
+	info->p_dev->dev_node = NULL;
 
-		if (!info->slave)
-			pcmcia_disable_device(link);
-
-		info->p_dev->state &= ~DEV_CONFIG;
-	}
+	if (!info->slave)
+		pcmcia_disable_device(link);
 }
 
 static int serial_suspend(struct pcmcia_device *link)
 {
-	if (link->state & DEV_CONFIG) {
-		struct serial_info *info = link->priv;
-		int i;
+	struct serial_info *info = link->priv;
+	int i;
 
-		for (i = 0; i < info->ndev; i++)
-			serial8250_suspend_port(info->line[i]);
-
-		if (info->slave)
-			link->state &= DEV_SUSPEND_NORELEASE;
-	}
+	for (i = 0; i < info->ndev; i++)
+		serial8250_suspend_port(info->line[i]);
 
 	return 0;
 }
@@ -210,7 +199,6 @@ static int serial_probe(struct pcmcia_device *link)
 	}
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	return serial_config(link);
 }
 
@@ -586,9 +574,6 @@ static int serial_config(struct pcmcia_device * link)
 	link->conf.ConfigBase = parse->config.base;
 	link->conf.Present = parse->config.rmask[0];
 
-	/* Configure card */
-	link->state |= DEV_CONFIG;
-
 	/* Is this a compliant multifunction card? */
 	tuple->DesiredTuple = CISTPL_LONGLINK_MFC;
 	tuple->Attributes = TUPLE_RETURN_COMMON | TUPLE_RETURN_LINK;
@@ -648,7 +633,6 @@ static int serial_config(struct pcmcia_device * link)
 	}
 
 	link->dev_node = &info->node[0];
-	link->state &= ~DEV_CONFIG_PENDING;
 	kfree(cfg_mem);
 	return 0;
 
@@ -656,7 +640,6 @@ static int serial_config(struct pcmcia_device * link)
 	cs_error(link, last_fn, last_ret);
  failed:
 	serial_remove(link);
-	link->state &= ~DEV_CONFIG_PENDING;
 	kfree(cfg_mem);
 	return -ENODEV;
 }

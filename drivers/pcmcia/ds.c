@@ -390,8 +390,6 @@ static int pcmcia_device_probe(struct device * dev)
 		goto put_dev;
 	}
 
-	p_dev->p_state &= ~CLIENT_UNBOUND;
-
 	ret = p_drv->probe(p_dev);
 	if (ret)
 		goto put_module;
@@ -433,17 +431,16 @@ static int pcmcia_device_remove(struct device * dev)
 	       	p_drv->remove(p_dev);
 
 	/* check for proper unloading */
-	if (p_dev->p_state & (CLIENT_IRQ_REQ|CLIENT_IO_REQ|CLIENT_CONFIG_LOCKED))
+	if (p_dev->_irq || p_dev->_io || p_dev->_locked)
 		printk(KERN_INFO "pcmcia: driver %s did not release config properly\n",
 		       p_drv->drv.name);
 
 	for (i = 0; i < MAX_WIN; i++)
-		if (p_dev->p_state & CLIENT_WIN_REQ(i))
+		if (p_dev->_win & CLIENT_WIN_REQ(i))
 			printk(KERN_INFO "pcmcia: driver %s did not release windows properly\n",
 			       p_drv->drv.name);
 
 	/* references from pcmcia_probe_device */
-	p_dev->p_state = CLIENT_UNBOUND;
 	pcmcia_put_dev(p_dev);
 	module_put(p_drv->owner);
 
@@ -472,7 +469,6 @@ static void pcmcia_card_remove(struct pcmcia_socket *s)
 		}
 		p_dev = list_entry((&s->devices_list)->next, struct pcmcia_device, socket_device_list);
 		list_del(&p_dev->socket_device_list);
-		p_dev->p_state |= CLIENT_STALE;
 		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
 		device_unregister(&p_dev->dev);
@@ -602,9 +598,6 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	sprintf (p_dev->devname, "pcmcia%s", p_dev->dev.bus_id);
 
 	/* compat */
-	p_dev->p_state = CLIENT_UNBOUND;
-
-
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 
 	/*
@@ -1033,14 +1026,17 @@ static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
 	if (dev->driver)
 		p_drv = to_pcmcia_drv(dev->driver);
 
-	if (p_drv && p_drv->suspend) {
+	if (!p_drv)
+		goto out;
+
+	if (p_drv->suspend) {
 		ret = p_drv->suspend(p_dev);
 		if (ret)
 			goto out;
-		if ((p_dev->state & DEV_CONFIG) &&
-		    !(p_dev->state & DEV_SUSPEND_NORELEASE))
-			pcmcia_release_configuration(p_dev);
 	}
+
+	if (p_dev->device_no == p_dev->func)
+		pcmcia_release_configuration(p_dev);
 
  out:
 	if (!ret)
@@ -1058,16 +1054,17 @@ static int pcmcia_dev_resume(struct device * dev)
 	if (dev->driver)
 		p_drv = to_pcmcia_drv(dev->driver);
 
-	if (p_drv && p_drv->resume) {
-		if ((p_dev->state & DEV_CONFIG) &&
-		    !(p_dev->state & DEV_SUSPEND_NORELEASE)){
-			ret = pcmcia_request_configuration(p_dev,
-							   &p_dev->conf);
-			if (ret)
-				goto out;
-		}
-		ret = p_drv->resume(p_dev);
+	if (!p_drv)
+		goto out;
+
+	if (p_dev->device_no == p_dev->func) {
+		ret = pcmcia_request_configuration(p_dev, &p_dev->conf);
+		if (ret)
+			goto out;
 	}
+
+	if (p_drv->resume)
+		ret = p_drv->resume(p_dev);
 
  out:
 	if (!ret)

@@ -264,7 +264,6 @@ static int pcnet_probe(struct pcmcia_device *link)
     dev->stop = &pcnet_close;
     dev->set_config = &set_config;
 
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     return pcnet_config(link);
 } /* pcnet_attach */
 
@@ -286,8 +285,7 @@ static void pcnet_detach(struct pcmcia_device *link)
 	if (link->dev_node)
 		unregister_netdev(dev);
 
-	if (link->state & DEV_CONFIG)
-		pcnet_release(link);
+	pcnet_release(link);
 
 	free_netdev(dev);
 } /* pcnet_detach */
@@ -538,9 +536,6 @@ static int pcnet_config(struct pcmcia_device *link)
     link->conf.ConfigBase = parse.config.base;
     link->conf.Present = parse.config.rmask[0];
 
-    /* Configure card */
-    link->state |= DEV_CONFIG;
-
     tuple.DesiredTuple = CISTPL_MANFID;
     tuple.Attributes = TUPLE_RETURN_COMMON;
     if ((pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) &&
@@ -667,7 +662,6 @@ static int pcnet_config(struct pcmcia_device *link)
     }
 
     link->dev_node = &info->node;
-    link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(link));
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -705,7 +699,6 @@ cs_failed:
     cs_error(link, last_fn, last_ret);
 failed:
     pcnet_release(link);
-    link->state &= ~DEV_CONFIG_PENDING;
     return -ENODEV;
 } /* pcnet_config */
 
@@ -742,7 +735,7 @@ static int pcnet_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open))
+	if (link->open)
 		netif_device_detach(dev);
 
 	return 0;
@@ -752,7 +745,7 @@ static int pcnet_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if ((link->state & DEV_CONFIG) && (link->open)) {
+	if (link->open) {
 		pcnet_reset_8390(dev);
 		NS8390_init(dev, 1);
 		netif_device_attach(dev);

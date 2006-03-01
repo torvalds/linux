@@ -96,6 +96,7 @@ typedef union ds_ioctl_arg_t {
 
 #ifdef __KERNEL__
 #include <linux/device.h>
+#include <pcmcia/ss.h>
 
 typedef struct dev_node_t {
     char		dev_name[DEV_NAME_LEN];
@@ -103,15 +104,11 @@ typedef struct dev_node_t {
     struct dev_node_t	*next;
 } dev_node_t;
 
-/* Flags for device state */
-#define DEV_PRESENT		0x01
-#define DEV_CONFIG		0x02
-#define DEV_SUSPEND_NORELEASE	0x04
-#define DEV_CONFIG_PENDING	0x10
-#define DEV_BUSY		0x80
+#define pcmcia_dev_present(p_dev) \
+    (p_dev->socket->pcmcia_state.present)
 
 #define DEV_OK(l) \
-    ((l) && ((l->state & ~DEV_BUSY) == (DEV_CONFIG|DEV_PRESENT)))
+    ((l) && (!l->suspended) && pcmcia_dev_present(l))
 
 
 struct pcmcia_socket;
@@ -133,6 +130,7 @@ struct pcmcia_driver {
 int pcmcia_register_driver(struct pcmcia_driver *driver);
 void pcmcia_unregister_driver(struct pcmcia_driver *driver);
 
+
 struct pcmcia_device {
 	/* the socket and the device_no [for multifunction devices]
 	   uniquely define a pcmcia_device */
@@ -151,25 +149,32 @@ struct pcmcia_device {
 
 	/* deprecated, will be cleaned up soon */
 	dev_node_t		*dev_node;
-	u_int			state;
 	u_int			open;
 	io_req_t		io;
 	irq_req_t		irq;
 	config_req_t		conf;
 	window_handle_t		win;
-	void			*priv;
 
-	u_int			p_state;
+	/* Is the device suspended? */
+	u16			suspended:1;
 
-	u8			suspended:1;
-	u8			reserved:3;
+	/* Flags whether io, irq, win configurations were
+	 * requested, and whether the configuration is "locked" */
+	u16			_irq:1;
+	u16			_io:1;
+	u16			_win:4;
+	u16			_locked:1;
+
+	/* Flag whether a "fuzzy" func_id based match is
+	 * allowed. */
+	u16			allow_func_id_match:1;
 
 	/* information about this device */
-	u8			has_manf_id:1;
-	u8			has_card_id:1;
-	u8			has_func_id:1;
+	u16			has_manf_id:1;
+	u16			has_card_id:1;
+	u16			has_func_id:1;
 
-	u8			allow_func_id_match:1;
+	u16			reserved:4;
 
 	u8			func_id;
 	u16			manf_id;
@@ -183,6 +188,9 @@ struct pcmcia_device {
 	/* device driver wanted by cardmgr */
 	struct pcmcia_driver *	cardmgr;
 #endif
+
+	/* data private to drivers */
+	void			*priv;
 };
 
 #define to_pcmcia_dev(n) container_of(n, struct pcmcia_device, dev)
