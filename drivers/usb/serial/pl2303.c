@@ -826,6 +826,7 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->line_status = data[status_idx];
 	spin_unlock_irqrestore(&priv->lock, flags);
+	wake_up_interruptible (&priv->delta_msr_wait);
 
 exit:
 	return;
