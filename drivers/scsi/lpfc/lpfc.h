@@ -169,7 +169,6 @@ struct lpfc_sysfs_mbox {
 };
 
 struct lpfc_hba {
-	struct list_head hba_list;	/* List of hbas/ports */
 	struct lpfc_sli sli;
 	struct lpfc_sli2_slim *slim2p;
 	dma_addr_t slim2p_mapping;
