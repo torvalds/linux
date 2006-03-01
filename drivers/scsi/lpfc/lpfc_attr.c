@@ -616,6 +616,7 @@ LPFC_ATTR_RW(nodev_tmo, 30, 0, 255,
 /*
 # lpfc_topology:  link topology for init link
 #            0x0  = attempt loop mode then point-to-point
+#            0x01 = internal loopback mode
 #            0x02 = attempt point-to-point mode only
 #            0x04 = attempt loop mode only
 #            0x06 = attempt point-to-point mode then loop
@@ -623,7 +624,7 @@ LPFC_ATTR_RW(nodev_tmo, 30, 0, 255,
 # Set loop mode if you want to run as an NL_Port. Value range is [0,0x6].
 # Default value is 0.
 */
-LPFC_ATTR_R(topology, 0, 0, 6, "Select Fibre Channel topology");
+LPFC_ATTR_RW(topology, 0, 0, 6, "Select Fibre Channel topology");
 
 /*
 # lpfc_link_speed: Link speed selection for initializing the Fibre Channel

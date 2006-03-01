@@ -195,6 +195,9 @@ lpfc_init_link(struct lpfc_hba * phba,
 		mb->un.varInitLnk.link_flags = FLAGS_TOPOLOGY_MODE_PT_PT;
 		mb->un.varInitLnk.link_flags |= FLAGS_TOPOLOGY_FAILOVER;
 		break;
+	case FLAGS_LOCAL_LB:
+		mb->un.varInitLnk.link_flags = FLAGS_LOCAL_LB;
+		break;
 	}
 
 	/* NEW_FEATURE
