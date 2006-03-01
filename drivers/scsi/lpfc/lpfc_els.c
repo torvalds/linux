@@ -3144,8 +3144,9 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 
 		if (cmd->ulpCommand == CMD_GEN_REQUEST64_CR) {
 			struct lpfc_nodelist *ndlp;
-
+			spin_unlock_irq(phba->host->host_lock);
 			ndlp = lpfc_findnode_rpi(phba, cmd->ulpContext);
+			spin_lock_irq(phba->host->host_lock);
 			remote_ID = ndlp->nlp_DID;
 			if (cmd->un.elsreq64.bdl.ulpIoTag32) {
 				lpfc_sli_issue_abort_iotag32(phba,
