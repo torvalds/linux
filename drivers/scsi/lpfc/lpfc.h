@@ -290,7 +290,6 @@ struct lpfc_hba {
 	uint32_t cfg_cr_delay;
 	uint32_t cfg_cr_count;
 	uint32_t cfg_fdmi_on;
-	uint32_t cfg_fcp_bind_method;
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_max_luns;
 	uint32_t cfg_poll;
