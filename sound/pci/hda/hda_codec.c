@@ -729,7 +729,8 @@ static void put_vol_mute(struct hda_codec *codec, struct hda_amp_info *info,
 /*
  * read AMP value.  The volume is between 0 to 0x7f, 0x80 = mute bit.
  */
-static int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch, int direction, int index)
+int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch,
+			   int direction, int index)
 {
 	struct hda_amp_info *info = get_alloc_amp_hash(codec, HDA_HASH_KEY(nid, direction, index));
 	if (! info)
@@ -740,7 +741,8 @@ static int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch
 /*
  * update the AMP value, mask = bit mask to set, val = the value
  */
-static int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch, int direction, int idx, int mask, int val)
+int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
+			     int direction, int idx, int mask, int val)
 {
 	struct hda_amp_info *info = get_alloc_amp_hash(codec, HDA_HASH_KEY(nid, direction, idx));
 

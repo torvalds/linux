@@ -66,6 +66,11 @@ int snd_hda_mixer_amp_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 int snd_hda_mixer_amp_switch_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
 int snd_hda_mixer_amp_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
+/* lowlevel accessor with caching; use carefully */
+int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch,
+			   int direction, int index);
+int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
+			     int direction, int idx, int mask, int val);
 
 /* mono switch binding multiple inputs */
 #define HDA_BIND_MUTE_MONO(xname, nid, channel, indices, direction) \

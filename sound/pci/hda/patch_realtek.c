@@ -75,6 +75,7 @@ enum {
 /* ALC262 models */
 enum {
 	ALC262_BASIC,
+	ALC262_FUJITSU,
 	ALC262_AUTO,
 	ALC262_MODEL_LAST /* last tag */
 };
@@ -145,6 +146,10 @@ struct alc_spec {
 	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
 	hda_nid_t private_dac_nids[5];
+
+	/* for pin sensing */
+	unsigned int sense_updated: 1;
+	unsigned int jack_present: 1;
 };
 
 /*
@@ -4194,19 +4199,9 @@ static struct snd_kcontrol_new alc262_base_mixer[] = {
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_MONO("Mono Playback Switch", 0x16, 2, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Capture Source",
-		.count = 1,
-		.info = alc882_mux_enum_info,
-		.get = alc882_mux_enum_get,
-		.put = alc882_mux_enum_put,
-	},
 	{ } /* end */
-};			
-	
+};
+
 #define alc262_capture_mixer		alc882_capture_mixer
 #define alc262_capture_alt_mixer	alc882_capture_alt_mixer
 
@@ -4287,6 +4282,129 @@ static struct hda_verb alc262_init_verbs[] = {
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, (0x7080 | (0x04 << 8))},	
 
 	{ }
+};
+
+/*
+ * fujitsu model
+ *  0x14 = headphone/spdif-out, 0x15 = internal speaker
+ */
+
+#define ALC_HP_EVENT	0x37
+
+static struct hda_verb alc262_fujitsu_unsol_verbs[] = {
+	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{}
+};
+
+static struct hda_input_mux alc262_fujitsu_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "CD", 0x4 },
+	},
+};
+
+/* mute/unmute internal speaker according to the hp jack and mute state */
+static void alc262_fujitsu_automute(struct hda_codec *codec, int force)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int mute;
+
+	if (force || ! spec->sense_updated) {
+		unsigned int present;
+		/* need to execute and sync at first */
+		snd_hda_codec_read(codec, 0x14, 0, AC_VERB_SET_PIN_SENSE, 0);
+		present = snd_hda_codec_read(codec, 0x14, 0,
+				    	 AC_VERB_GET_PIN_SENSE, 0);
+		spec->jack_present = (present & 0x80000000) != 0;
+		spec->sense_updated = 1;
+	}
+	if (spec->jack_present) {
+		/* mute internal speaker */
+		snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
+					 0x80, 0x80);
+		snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
+					 0x80, 0x80);
+	} else {
+		/* unmute internal speaker if necessary */
+		mute = snd_hda_codec_amp_read(codec, 0x14, 0, HDA_OUTPUT, 0);
+		snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
+					 0x80, mute & 0x80);
+		mute = snd_hda_codec_amp_read(codec, 0x14, 1, HDA_OUTPUT, 0);
+		snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
+					 0x80, mute & 0x80);
+	}
+}
+
+/* unsolicited event for HP jack sensing */
+static void alc262_fujitsu_unsol_event(struct hda_codec *codec,
+				       unsigned int res)
+{
+	if ((res >> 26) != ALC_HP_EVENT)
+		return;
+	alc262_fujitsu_automute(codec, 1);
+}
+
+/* bind volumes of both NID 0x0c and 0x0d */
+static int alc262_fujitsu_master_vol_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int change;
+
+	change = snd_hda_codec_amp_update(codec, 0x0c, 0, HDA_OUTPUT, 0,
+					  0x7f, valp[0] & 0x7f);
+	change |= snd_hda_codec_amp_update(codec, 0x0c, 1, HDA_OUTPUT, 0,
+					   0x7f, valp[1] & 0x7f);
+	snd_hda_codec_amp_update(codec, 0x0d, 0, HDA_OUTPUT, 0,
+				 0x7f, valp[0] & 0x7f);
+	snd_hda_codec_amp_update(codec, 0x0d, 1, HDA_OUTPUT, 0,
+				 0x7f, valp[1] & 0x7f);
+	return change;
+}
+
+/* bind hp and internal speaker mute (with plug check) */
+static int alc262_fujitsu_master_sw_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int change;
+
+	change = snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
+					  0x80, valp[0] ? 0 : 0x80);
+	change |= snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
+					   0x80, valp[1] ? 0 : 0x80);
+	if (change || codec->in_resume)
+		alc262_fujitsu_automute(codec, codec->in_resume);
+	return change;
+}
+
+static struct snd_kcontrol_new alc262_fujitsu_mixer[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Volume",
+		.info = snd_hda_mixer_amp_volume_info,
+		.get = snd_hda_mixer_amp_volume_get,
+		.put = alc262_fujitsu_master_vol_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT),
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = snd_hda_mixer_amp_switch_info,
+		.get = snd_hda_mixer_amp_switch_get,
+		.put = alc262_fujitsu_master_sw_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
+	},
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	{ } /* end */
 };
 
 /* add playback controls from the parsed DAC table */
@@ -4479,6 +4597,8 @@ static int alc262_auto_init(struct hda_codec *codec)
  */
 static struct hda_board_config alc262_cfg_tbl[] = {
 	{ .modelname = "basic", .config = ALC262_BASIC },
+	{ .modelname = "fujitsu", .config = ALC262_FUJITSU },
+	{ .pci_subvendor = 0x10cf, .pci_subdevice = 0x1397, .config = ALC262_FUJITSU },
 	{ .modelname = "auto", .config = ALC262_AUTO },
 	{}
 };
@@ -4493,6 +4613,17 @@ static struct alc_config_preset alc262_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
 		.input_mux = &alc262_capture_source,
+	},
+	[ALC262_FUJITSU] = {
+		.mixers = { alc262_fujitsu_mixer },
+		.init_verbs = { alc262_init_verbs, alc262_fujitsu_unsol_verbs },
+		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
+		.dac_nids = alc262_dac_nids,
+		.hp_nid = 0x03,
+		.dig_out_nid = ALC262_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc262_modes),
+		.channel_mode = alc262_modes,
+		.input_mux = &alc262_fujitsu_capture_source,
 	},
 };
 
@@ -4568,7 +4699,9 @@ static int patch_alc262(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC262_AUTO)
 		codec->patch_ops.init = alc262_auto_init;
-	
+	if (board_config == ALC262_FUJITSU)
+		codec->patch_ops.unsol_event = alc262_fujitsu_unsol_event;
+		
 	return 0;
 }
 
