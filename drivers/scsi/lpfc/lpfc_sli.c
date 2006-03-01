@@ -2867,11 +2867,10 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 		pmboxq->context1 = NULL;
 		/* if schedule_timeout returns 0, we timed out and were not
 		   woken up */
-		if (timeleft == 0) {
+		if ((timeleft == 0) || signal_pending(current))
 			retval = MBX_TIMEOUT;
-		} else {
+		else
 			retval = MBX_SUCCESS;
-		}
 	}
 
 
