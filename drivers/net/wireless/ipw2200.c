@@ -5533,8 +5533,8 @@ static int ipw_best_network(struct ipw_priv *priv,
 		return 0;
 	}
 
-	if (!priv->ieee->wpa_enabled && (network->wpa_ie_len > 0 ||
-					 network->rsn_ie_len > 0)) {
+	if (priv->ieee->wpa_enabled &&
+	    network->wpa_ie_len == 0 && network->rsn_ie_len == 0) {
 		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded "
 				"because of WPA capability mismatch.\n",
 				escape_essid(network->ssid, network->ssid_len),
@@ -7061,8 +7061,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 		priv->assoc_request.auth_type = AUTH_SHARED_KEY;
 		priv->assoc_request.auth_key = priv->ieee->sec.active_key;
 
-		if ((priv->ieee->sec.level == SEC_LEVEL_1) &&
-		    !(priv->ieee->host_encrypt || priv->ieee->host_decrypt))
+		if (priv->ieee->sec.level == SEC_LEVEL_1)
 			ipw_send_wep_keys(priv, DCW_WEP_KEY_SEC_TYPE_WEP);
 
 	} else if ((priv->capability & CAP_PRIVACY_ON) &&

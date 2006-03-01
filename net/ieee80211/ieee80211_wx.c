@@ -193,33 +193,21 @@ static char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 	if (iwe.u.data.length)
 		start = iwe_stream_add_point(start, stop, &iwe, custom);
 
+	memset(&iwe, 0, sizeof(iwe));
 	if (network->wpa_ie_len) {
-		char buf[MAX_WPA_IE_LEN * 2 + 30];
-
-		u8 *p = buf;
-		p += sprintf(p, "wpa_ie=");
-		for (i = 0; i < network->wpa_ie_len; i++) {
-			p += sprintf(p, "%02x", network->wpa_ie[i]);
-		}
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		iwe.u.data.length = strlen(buf);
+		char buf[MAX_WPA_IE_LEN];
+		memcpy(buf, network->wpa_ie, network->wpa_ie_len);
+		iwe.cmd = IWEVGENIE;
+		iwe.u.data.length = network->wpa_ie_len;
 		start = iwe_stream_add_point(start, stop, &iwe, buf);
 	}
 
+	memset(&iwe, 0, sizeof(iwe));
 	if (network->rsn_ie_len) {
-		char buf[MAX_WPA_IE_LEN * 2 + 30];
-
-		u8 *p = buf;
-		p += sprintf(p, "rsn_ie=");
-		for (i = 0; i < network->rsn_ie_len; i++) {
-			p += sprintf(p, "%02x", network->rsn_ie[i]);
-		}
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		iwe.u.data.length = strlen(buf);
+		char buf[MAX_WPA_IE_LEN];
+		memcpy(buf, network->rsn_ie, network->rsn_ie_len);
+		iwe.cmd = IWEVGENIE;
+		iwe.u.data.length = network->rsn_ie_len;
 		start = iwe_stream_add_point(start, stop, &iwe, buf);
 	}
 

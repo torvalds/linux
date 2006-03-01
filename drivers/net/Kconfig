@@ -66,7 +66,7 @@ config BONDING
 	  'Trunking' by Sun, 802.3ad by the IEEE, and 'Bonding' in Linux.
 
 	  The driver supports multiple bonding modes to allow for both high
-	  perfomance and high availability operation.
+	  performance and high availability operation.
 
 	  Refer to <file:Documentation/networking/bonding.txt> for more
 	  information.
@@ -698,8 +698,8 @@ config VORTEX
 	depends on NET_VENDOR_3COM && (PCI || EISA)
 	select MII
 	---help---
-	  This option enables driver support for a large number of 10mbps and
-	  10/100mbps EISA, PCI and PCMCIA 3Com network cards:
+	  This option enables driver support for a large number of 10Mbps and
+	  10/100Mbps EISA, PCI and PCMCIA 3Com network cards:
 
 	  "Vortex"    (Fast EtherLink 3c590/3c592/3c595/3c597) EISA and PCI
 	  "Boomerang" (EtherLink XL 3c900 or 3c905)            PCI
@@ -1021,7 +1021,7 @@ config EEXPRESS_PRO
 	depends on NET_ISA
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y. This
-	  driver supports intel i82595{FX,TX} based boards. Note however
+	  driver supports Intel i82595{FX,TX} based boards. Note however
 	  that the EtherExpress PRO/100 Ethernet card has its own separate
 	  driver.  Please read the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
@@ -1207,7 +1207,7 @@ config IBM_EMAC_RX_SKB_HEADROOM
 	help
 	  Additional receive skb headroom. Note, that driver
 	  will always reserve at least 2 bytes to make IP header
-	  aligned, so usualy there is no need to add any additional
+	  aligned, so usually there is no need to add any additional
 	  headroom.
 	  
 	  If unsure, set to 0.
@@ -1933,7 +1933,7 @@ config MYRI_SBUS
 	  will be called myri_sbus.  This is recommended.
 
 config NS83820
-	tristate "National Semiconduct DP83820 support"
+	tristate "National Semiconductor DP83820 support"
 	depends on PCI
 	help
 	  This is a driver for the National Semiconductor DP83820 series
@@ -2513,7 +2513,7 @@ config PPP_FILTER
 	  Say Y here if you want to be able to filter the packets passing over
 	  PPP interfaces.  This allows you to control which packets count as
 	  activity (i.e. which packets will reset the idle timer or bring up
-	  a demand-dialled link) and which packets are to be dropped entirely.
+	  a demand-dialed link) and which packets are to be dropped entirely.
 	  You need to say Y here if you wish to use the pass-filter and
 	  active-filter options to pppd.
 
@@ -2701,8 +2701,8 @@ config SHAPER
 	  <file:Documentation/networking/shaper.txt> for more information.
 
 	  An alternative to this traffic shaper is the experimental
-	  Class-Based Queueing (CBQ) scheduling support which you get if you
-	  say Y to "QoS and/or fair queueing" above.
+	  Class-Based Queuing (CBQ) scheduling support which you get if you
+	  say Y to "QoS and/or fair queuing" above.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called shaper.  If unsure, say N.

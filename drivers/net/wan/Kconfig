@@ -459,7 +459,7 @@ config WANPIPE_FR
 	bool "WANPIPE Frame Relay support"
 	depends on VENDOR_SANGOMA
 	help
-	  Connect a WANPIPE card to a Frame Relay network, or use Frame Felay
+	  Connect a WANPIPE card to a Frame Relay network, or use Frame Relay
 	  API to develop custom applications.
 
 	  Contains the Ethernet Bridging over Frame Relay feature, where

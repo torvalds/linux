@@ -5036,7 +5036,6 @@ static int set_wep_key(struct airo_info *ai, u16 index,
 		wkr.len = sizeof(wkr);
 		wkr.kindex = 0xffff;
 		wkr.mac[0] = (char)index;
-		if (perm) printk(KERN_INFO "Setting transmit key to %d\n", index);
 		if (perm) ai->defindex = (char)index;
 	} else {
 // We are actually setting the key
@@ -5045,7 +5044,6 @@ static int set_wep_key(struct airo_info *ai, u16 index,
 		wkr.klen = keylen;
 		memcpy( wkr.key, key, keylen );
 		memcpy( wkr.mac, macaddr, ETH_ALEN );
-		printk(KERN_INFO "Setting key %d\n", index);
 	}
 
 	if (perm) disable_MAC(ai, lock);
@@ -6266,7 +6264,7 @@ static int airo_set_encodeext(struct net_device *dev,
 	CapabilityRid cap_rid;		/* Card capability info */
 	int perm = ( encoding->flags & IW_ENCODE_TEMP ? 0 : 1 );
 	u16 currentAuthType = local->config.authType;
-	int idx, key_len, alg = ext->alg;	/* Check encryption mode */
+	int idx, key_len, alg = ext->alg, set_key = 1;
 	wep_key_t key;
 
 	/* Is WEP supported ? */
@@ -6289,10 +6287,15 @@ static int airo_set_encodeext(struct net_device *dev,
 	if (encoding->flags & IW_ENCODE_DISABLED)
 		alg = IW_ENCODE_ALG_NONE;
 
-	/* Just setting the transmit key? */
 	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
+		/* Only set transmit key index here, actual
+		 * key is set below if needed.
+		 */
 		set_wep_key(local, idx, NULL, 0, perm, 1);
-	} else {
+		set_key = ext->key_len > 0 ? 1 : 0;
+	}
+
+	if (set_key) {
 		/* Set the requested key first */
 		memset(key.key, 0, MAX_KEY_SIZE);
 		switch (alg) {
