@@ -310,7 +310,7 @@ static int ad198x_resume(struct hda_codec *codec)
 	struct ad198x_spec *spec = codec->spec;
 	int i;
 
-	ad198x_init(codec);
+	codec->patch_ops.init(codec);
 	for (i = 0; i < spec->num_mixers; i++)
 		snd_hda_resume_ctls(codec, spec->mixers[i]);
 	if (spec->multiout.dig_out_nid)
@@ -333,6 +333,53 @@ static struct hda_codec_ops ad198x_patch_ops = {
 
 
 /*
+ * EAPD control
+ * the private value = nid | (invert << 8)
+ */
+static int ad198x_eapd_info(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}
+
+static int ad198x_eapd_get(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ad198x_spec *spec = codec->spec;
+	int invert = (kcontrol->private_value >> 8) & 1;
+	if (invert)
+		ucontrol->value.integer.value[0] = ! spec->cur_eapd;
+	else
+		ucontrol->value.integer.value[0] = spec->cur_eapd;
+	return 0;
+}
+
+static int ad198x_eapd_put(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ad198x_spec *spec = codec->spec;
+	int invert = (kcontrol->private_value >> 8) & 1;
+	hda_nid_t nid = kcontrol->private_value & 0xff;
+	unsigned int eapd;
+	eapd = ucontrol->value.integer.value[0];
+	if (invert)
+		eapd = !eapd;
+	if (eapd == spec->cur_eapd && ! codec->in_resume)
+		return 0;
+	spec->cur_eapd = eapd;
+	snd_hda_codec_write(codec, nid,
+			    0, AC_VERB_SET_EAPD_BTLENABLE,
+			    eapd ? 0x02 : 0x00);
+	return 1;
+}
+
+/*
  * AD1986A specific
  */
 
@@ -346,6 +393,7 @@ static hda_nid_t ad1986a_dac_nids[3] = {
 	AD1986A_FRONT_DAC, AD1986A_SURR_DAC, AD1986A_CLFE_DAC
 };
 static hda_nid_t ad1986a_adc_nids[1] = { AD1986A_ADC };
+static hda_nid_t ad1986a_capsrc_nids[1] = { 0x12 };
 
 static struct hda_input_mux ad1986a_capture_source = {
 	.num_items = 7,
@@ -577,6 +625,7 @@ static int patch_ad1986a(struct hda_codec *codec)
 
 static hda_nid_t ad1983_dac_nids[1] = { AD1983_DAC };
 static hda_nid_t ad1983_adc_nids[1] = { AD1983_ADC };
+static hda_nid_t ad1983_capsrc_nids[1] = { 0x15 };
 
 static struct hda_input_mux ad1983_capture_source = {
 	.num_items = 4,
@@ -719,7 +768,7 @@ static int patch_ad1983(struct hda_codec *codec)
 	spec->multiout.dig_out_nid = AD1983_SPDIF_OUT;
 	spec->num_adc_nids = 1;
 	spec->adc_nids = ad1983_adc_nids;
-	spec->capsrc_nids = ad1983_adc_nids;
+	spec->capsrc_nids = ad1983_capsrc_nids;
 	spec->input_mux = &ad1983_capture_source;
 	spec->num_mixers = 1;
 	spec->mixers[0] = ad1983_mixers;
@@ -743,6 +792,7 @@ static int patch_ad1983(struct hda_codec *codec)
 
 static hda_nid_t ad1981_dac_nids[1] = { AD1981_DAC };
 static hda_nid_t ad1981_adc_nids[1] = { AD1981_ADC };
+static hda_nid_t ad1981_capsrc_nids[1] = { 0x15 };
 
 /* 0x0c, 0x09, 0x0e, 0x0f, 0x19, 0x05, 0x18, 0x17 */
 static struct hda_input_mux ad1981_capture_source = {
@@ -848,9 +898,192 @@ static struct hda_verb ad1981_init_verbs[] = {
 	{ } /* end */
 };
 
+/*
+ * Patch for HP nx6320
+ *
+ * nx6320 uses EAPD in the reserve way - EAPD-on means the internal
+ * speaker output enabled _and_ mute-LED off.
+ */
+
+#define AD1981_HP_EVENT		0x37
+#define AD1981_MIC_EVENT	0x38
+
+static struct hda_verb ad1981_hp_init_verbs[] = {
+	{0x05, AC_VERB_SET_EAPD_BTLENABLE, 0x00 }, /* default off */
+	/* pin sensing on HP and Mic jacks */
+	{0x06, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | AD1981_HP_EVENT},
+	{0x08, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | AD1981_MIC_EVENT},
+	{}
+};
+
+/* turn on/off EAPD (+ mute HP) as a master switch */
+static int ad1981_hp_master_sw_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct ad198x_spec *spec = codec->spec;
+
+	if (! ad198x_eapd_put(kcontrol, ucontrol))
+		return 0;
+
+	/* toggle HP mute appropriately */
+	snd_hda_codec_amp_update(codec, 0x06, 0, HDA_OUTPUT, 0,
+				 0x80, spec->cur_eapd ? 0 : 0x80);
+	snd_hda_codec_amp_update(codec, 0x06, 1, HDA_OUTPUT, 0,
+				 0x80, spec->cur_eapd ? 0 : 0x80);
+	return 1;
+}
+
+/* bind volumes of both NID 0x05 and 0x06 */
+static int ad1981_hp_master_vol_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int change;
+
+	change = snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
+					  0x7f, valp[0] & 0x7f);
+	change |= snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
+					   0x7f, valp[1] & 0x7f);
+	snd_hda_codec_amp_update(codec, 0x06, 0, HDA_OUTPUT, 0,
+				 0x7f, valp[0] & 0x7f);
+	snd_hda_codec_amp_update(codec, 0x06, 1, HDA_OUTPUT, 0,
+				 0x7f, valp[1] & 0x7f);
+	return change;
+}
+
+/* mute internal speaker if HP is plugged */
+static void ad1981_hp_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x06, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
+				 0x80, present ? 0x80 : 0);
+	snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
+				 0x80, present ? 0x80 : 0);
+}
+
+/* toggle input of built-in and mic jack appropriately */
+static void ad1981_hp_automic(struct hda_codec *codec)
+{
+	static struct hda_verb mic_jack_on[] = {
+		{0x1f, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+		{0x1e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+		{}
+	};
+	static struct hda_verb mic_jack_off[] = {
+		{0x1e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+		{0x1f, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+		{}
+	};
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x08, 0,
+			    	 AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	if (present)
+		snd_hda_sequence_write(codec, mic_jack_on);
+	else
+		snd_hda_sequence_write(codec, mic_jack_off);
+}
+
+/* unsolicited event for HP jack sensing */
+static void ad1981_hp_unsol_event(struct hda_codec *codec,
+				  unsigned int res)
+{
+	res >>= 26;
+	switch (res) {
+	case AD1981_HP_EVENT:
+		ad1981_hp_automute(codec);
+		break;
+	case AD1981_MIC_EVENT:
+		ad1981_hp_automic(codec);
+		break;
+	}
+}
+
+static struct hda_input_mux ad1981_hp_capture_source = {
+	.num_items = 3,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "Docking-Station", 0x1 },
+		{ "Mix", 0x2 },
+	},
+};
+
+static struct snd_kcontrol_new ad1981_hp_mixers[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Volume",
+		.info = snd_hda_mixer_amp_volume_info,
+		.get = snd_hda_mixer_amp_volume_get,
+		.put = ad1981_hp_master_vol_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x05, 3, 0, HDA_OUTPUT),
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = ad198x_eapd_info,
+		.get = ad198x_eapd_get,
+		.put = ad1981_hp_master_sw_put,
+		.private_value = 0x05,
+	},
+	HDA_CODEC_VOLUME("PCM Playback Volume", 0x11, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0x11, 0x0, HDA_OUTPUT),
+#if 0
+	/* FIXME: analog mic/line loopback doesn't work with my tests...
+	 *        (although recording is OK)
+	 */
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x12, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x12, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Docking-Station Playback Volume", 0x13, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Docking-Station Playback Switch", 0x13, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x1c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x1c, 0x0, HDA_OUTPUT),
+	/* FIXME: does this laptop have analog CD connection? */
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x1d, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x1d, 0x0, HDA_OUTPUT),
+#endif
+	HDA_CODEC_VOLUME("Mic Boost", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Internal Mic Boost", 0x18, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x15, 0x0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.info = ad198x_mux_enum_info,
+		.get = ad198x_mux_enum_get,
+		.put = ad198x_mux_enum_put,
+	},
+	{ } /* end */
+};
+
+/* initialize jack-sensing, too */
+static int ad1981_hp_init(struct hda_codec *codec)
+{
+	ad198x_init(codec);
+	ad1981_hp_automute(codec);
+	ad1981_hp_automic(codec);
+	return 0;
+}
+
+/* models */
+enum { AD1981_BASIC, AD1981_HP };
+
+static struct hda_board_config ad1981_cfg_tbl[] = {
+	{ .modelname = "hp", .config = AD1981_HP },
+	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30aa,
+	  .config = AD1981_HP },
+	{ .modelname = "basic", .config = AD1981_BASIC },
+	{}
+};
+
 static int patch_ad1981(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
+	int board_config;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -865,7 +1098,7 @@ static int patch_ad1981(struct hda_codec *codec)
 	spec->multiout.dig_out_nid = AD1981_SPDIF_OUT;
 	spec->num_adc_nids = 1;
 	spec->adc_nids = ad1981_adc_nids;
-	spec->capsrc_nids = ad1981_adc_nids;
+	spec->capsrc_nids = ad1981_capsrc_nids;
 	spec->input_mux = &ad1981_capture_source;
 	spec->num_mixers = 1;
 	spec->mixers[0] = ad1981_mixers;
@@ -874,6 +1107,21 @@ static int patch_ad1981(struct hda_codec *codec)
 	spec->spdif_route = 0;
 
 	codec->patch_ops = ad198x_patch_ops;
+
+	/* override some parameters */
+	board_config = snd_hda_check_board_config(codec, ad1981_cfg_tbl);
+	switch (board_config) {
+	case AD1981_HP:
+		spec->mixers[0] = ad1981_hp_mixers;
+		spec->num_init_verbs = 2;
+		spec->init_verbs[1] = ad1981_hp_init_verbs;
+		spec->multiout.dig_out_nid = 0;
+		spec->input_mux = &ad1981_hp_capture_source;
+
+		codec->patch_ops.init = ad1981_hp_init;
+		codec->patch_ops.unsol_event = ad1981_hp_unsol_event;
+		break;
+	}
 
 	return 0;
 }
@@ -1062,44 +1310,6 @@ static int ad198x_ch_mode_put(struct snd_kcontrol *kcontrol,
 				   spec->num_channel_mode, &spec->multiout.max_channels);
 }
 
-/*
- * EAPD control
- */
-static int ad1988_eapd_info(struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
-
-static int ad1988_eapd_get(struct snd_kcontrol *kcontrol,
-			   struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct ad198x_spec *spec = codec->spec;
-	ucontrol->value.enumerated.item[0] = ! spec->cur_eapd;
-	return 0;
-}
-
-static int ad1988_eapd_put(struct snd_kcontrol *kcontrol,
-			   struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct ad198x_spec *spec = codec->spec;
-	unsigned int eapd;
-	eapd = ! ucontrol->value.enumerated.item[0];
-	if (eapd == spec->cur_eapd && ! codec->in_resume)
-		return 0;
-	spec->cur_eapd = eapd;
-	snd_hda_codec_write(codec, 0x12 /* port-D */,
-			    0, AC_VERB_SET_EAPD_BTLENABLE,
-			    eapd ? 0x02 : 0x00);
-	return 0;
-}
-
 /* 6-stack mode */
 static struct snd_kcontrol_new ad1988_6stack_mixers1[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x04, 0x0, HDA_OUTPUT),
@@ -1222,9 +1432,10 @@ static struct snd_kcontrol_new ad1988_laptop_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "External Amplifier",
-		.info = ad1988_eapd_info,
-		.get = ad1988_eapd_get,
-		.put = ad1988_eapd_put,
+		.info = ad198x_eapd_info,
+		.get = ad198x_eapd_get,
+		.put = ad198x_eapd_put,
+		.private_value = 0x12 | (1 << 8), /* port-D, inversed */
 	},
 
 	{ } /* end */
