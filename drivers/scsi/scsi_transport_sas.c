@@ -151,6 +151,7 @@ static struct {
 	{ SAS_SATA_SPINUP_HOLD,		"Spin-up hold" },
 	{ SAS_LINK_RATE_1_5_GBPS,	"1.5 Gbit" },
 	{ SAS_LINK_RATE_3_0_GBPS,	"3.0 Gbit" },
+	{ SAS_LINK_RATE_6_0_GBPS,	"6.0 Gbit" },
 };
 sas_bitfield_name_search(linkspeed, sas_linkspeed_names)
 
