@@ -68,7 +68,7 @@ struct zfcp_data zfcp_data = {
 	      eh_host_reset_handler:   zfcp_scsi_eh_host_reset_handler,
 			               /* FIXME(openfcp): Tune */
 	      can_queue:               4096,
-	      this_id:	               0,
+	      this_id:	               -1,
 	      /*
 	       * FIXME:
 	       * one less? can zfcp_create_sbale cope with it?
