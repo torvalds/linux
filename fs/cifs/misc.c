@@ -429,7 +429,8 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 				sizeof (struct smb_hdr) - 1)
 			    && (smb->Status.CifsError != 0)) {
 				smb->WordCount = 0;
-				return 0;	/* some error cases do not return wct and bcc */
+				/* some error cases do not return wct and bcc */
+				return 0;
 			} else {
 				cERROR(1, ("Length less than smb header size"));
 			}
@@ -456,9 +457,8 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 			if(((4 + len) & 0xFFFF) == (clc_len & 0xFFFF))
 				return 0; /* bcc wrapped */			
 		}
-		cERROR(1, ("Calculated size 0x%x vs actual length 0x%x",
-				clc_len, 4 + len));
-		cERROR(1, ("bad smb size detected for Mid=%d", smb->Mid));
+		cFYI(1, ("Calculated size %d vs length %d mismatch for mid %d",
+				clc_len, 4 + len, smb->Mid));
 		/* Windows XP can return a few bytes too much, presumably
 		an illegal pad, at the end of byte range lock responses 
 		so we allow for that three byte pad, as long as actual
@@ -472,8 +472,11 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 		wct and bcc to minimum size and drop the t2 parms and data */
 		if((4+len > clc_len) && (len <= clc_len + 512))
 			return 0;
-		else
+		else {
+			cERROR(1, ("RFC1001 size %d bigger than SMB for Mid=%d",
+					len, smb->Mid));
 			return 1;
+		}
 	}
 	return 0;
 }
