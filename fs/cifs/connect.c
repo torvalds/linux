@@ -1920,27 +1920,34 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cifs_sb->tcon = tcon;
 		tcon->ses = pSesInfo;
 
-		/* do not care if following two calls succeed - informational only */
+		/* do not care if following two calls succeed - informational */
 		CIFSSMBQFSDeviceInfo(xid, tcon);
 		CIFSSMBQFSAttributeInfo(xid, tcon);
+
 		if (tcon->ses->capabilities & CAP_UNIX) {
 			if(!CIFSSMBQFSUnixInfo(xid, tcon)) {
-				if(!volume_info.no_psx_acl) {
-					if(CIFS_UNIX_POSIX_ACL_CAP & 
-					   le64_to_cpu(tcon->fsUnixInfo.Capability))
-						cFYI(1,("server negotiated posix acl support"));
-						sb->s_flags |= MS_POSIXACL;
+				__u64 cap = 
+				       le64_to_cpu(tcon->fsUnixInfo.Capability);
+				cap &= CIFS_UNIX_CAP_MASK;
+				if(volume_info.no_psx_acl)
+					cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
+				else if(CIFS_UNIX_POSIX_ACL_CAP & cap) {
+					cFYI(1,("negotiated posix acl support"));
+					sb->s_flags |= MS_POSIXACL;
 				}
 
-				/* Try and negotiate POSIX pathnames if we can. */
-				if (volume_info.posix_paths && (CIFS_UNIX_POSIX_PATHNAMES_CAP &
-				    le64_to_cpu(tcon->fsUnixInfo.Capability))) {
-					if (!CIFSSMBSetFSUnixInfo(xid, tcon, CIFS_UNIX_POSIX_PATHNAMES_CAP))  {
-						cFYI(1,("negotiated posix pathnames support"));
-						cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
-					} else {
-						cFYI(1,("posix pathnames support requested but not supported"));
-					}
+				if(volume_info.posix_paths == 0)
+					cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
+				else if(cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) {
+					cFYI(1,("negotiate posix pathnames"));
+					cifs_sb->mnt_cifs_flags |= 
+						CIFS_MOUNT_POSIX_PATHS;
+				}
+					
+				cFYI(1,("Negotiate caps 0x%x",(int)cap));
+
+				if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
+					cFYI(1,("setting capabilities failed"));
 				}
 			}
 		}

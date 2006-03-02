@@ -649,7 +649,9 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 	wire */
 	if (IS_GETLK(cmd)) {
 		if(experimEnabled && 
-		   (cifs_sb->tcon->ses->capabilities & CAP_UNIX)) {
+		   (cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
+		   (CIFS_UNIX_FCNTL_CAP & 
+			le64_to_cpu(cifs_sb->tcon->fsUnixInfo.Capability))) {
 			int posix_lock_type;
 			if(lockType & LOCKING_ANDX_SHARED_LOCK)
 				posix_lock_type = CIFS_RDLCK;
@@ -686,7 +688,9 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 		return rc;
 	}
 	if (experimEnabled &&
-		(cifs_sb->tcon->ses->capabilities & CAP_UNIX)) {
+		(cifs_sb->tcon->ses->capabilities & CAP_UNIX) &&
+		(CIFS_UNIX_FCNTL_CAP &
+			 le64_to_cpu(cifs_sb->tcon->fsUnixInfo.Capability))) {
 		int posix_lock_type;
 		if(lockType & LOCKING_ANDX_SHARED_LOCK)
 			posix_lock_type = CIFS_RDLCK;

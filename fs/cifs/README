@@ -422,6 +422,13 @@ A partial list of the supported mount options follows:
  nomapchars     Do not translate any of these seven characters (default).
  nocase         Request case insensitive path name matching (case
 		sensitive is the default if the server suports it).
+ posixpaths     If CIFS Unix extensions are supported, attempt to
+		negotiate posix path name support which allows certain
+		characters forbidden in typical CIFS filenames, without
+		requiring remapping. (default)
+ noposixpaths   If CIFS Unix extensions are supported, do not request
+		posix path name support (this may cause servers to
+		reject creatingfile with certain reserved characters).
  nobrl          Do not send byte range lock requests to the server.
 		This is necessary for certain applications that break
 		with cifs style mandatory byte range locks (and most

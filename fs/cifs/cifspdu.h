@@ -1789,7 +1789,13 @@ typedef struct {
 #define CIFS_UNIX_POSIX_ACL_CAP         0x00000002 /* support getfacl/setfacl */
 #define CIFS_UNIX_XATTR_CAP             0x00000004 /* support new namespace   */
 #define CIFS_UNIX_EXTATTR_CAP           0x00000008 /* support chattr/chflag   */
-#define CIFS_UNIX_POSIX_PATHNAMES_CAP   0x00000010 /* Use POSIX pathnames on the wire. */
+#define CIFS_UNIX_POSIX_PATHNAMES_CAP   0x00000010 /* Allow POSIX path chars  */
+#ifdef CONFIG_CIFS_POSIX
+#define CIFS_UNIX_CAP_MASK              0x0000001b
+#else 
+#define CIFS_UNIX_CAP_MASK              0x00000013
+#endif /* CONFIG_CIFS_POSIX */
+
 
 #define CIFS_POSIX_EXTENSIONS           0x00000010 /* support for new QFSInfo */
 
