@@ -825,7 +825,7 @@ void __devexit mthca_unmap_eq_icm(struct mthca_dev *dev)
 {
 	u8 status;
 
-	mthca_UNMAP_ICM(dev, dev->eq_table.icm_virt, PAGE_SIZE / 4096, &status);
+	mthca_UNMAP_ICM(dev, dev->eq_table.icm_virt, 1, &status);
 	pci_unmap_page(dev->pdev, dev->eq_table.icm_dma, PAGE_SIZE,
 		       PCI_DMA_BIDIRECTIONAL);
 	__free_page(dev->eq_table.icm_page);

@@ -652,8 +652,9 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 		 * address or size and use that as our log2 size.
 		 */
 		lg = ffs(mthca_icm_addr(&iter) | mthca_icm_size(&iter)) - 1;
-		if (lg < 12) {
-			mthca_warn(dev, "Got FW area not aligned to 4K (%llx/%lx).\n",
+		if (lg < MTHCA_ICM_PAGE_SHIFT) {
+			mthca_warn(dev, "Got FW area not aligned to %d (%llx/%lx).\n",
+				   MTHCA_ICM_PAGE_SIZE,
 				   (unsigned long long) mthca_icm_addr(&iter),
 				   mthca_icm_size(&iter));
 			err = -EINVAL;
@@ -665,8 +666,9 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 				virt += 1 << lg;
 			}
 
-			pages[nent * 2 + 1] = cpu_to_be64((mthca_icm_addr(&iter) +
-							   (i << lg)) | (lg - 12));
+			pages[nent * 2 + 1] =
+				cpu_to_be64((mthca_icm_addr(&iter) + (i << lg)) |
+					    (lg - MTHCA_ICM_PAGE_SHIFT));
 			ts += 1 << (lg - 10);
 			++tc;
 
@@ -822,12 +824,12 @@ int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 		mthca_dbg(dev, "FW size %d KB\n", dev->fw.arbel.fw_pages << 2);
 
 		/*
-		 * Arbel page size is always 4 KB; round up number of
-		 * system pages needed.
+		 * Round up number of system pages needed in case
+		 * MTHCA_ICM_PAGE_SIZE < PAGE_SIZE.
 		 */
 		dev->fw.arbel.fw_pages =
-			ALIGN(dev->fw.arbel.fw_pages, PAGE_SIZE >> 12) >>
-				(PAGE_SHIFT - 12);
+			ALIGN(dev->fw.arbel.fw_pages, PAGE_SIZE / MTHCA_ICM_PAGE_SIZE) >>
+				(PAGE_SHIFT - MTHCA_ICM_PAGE_SHIFT);
 
 		mthca_dbg(dev, "Clear int @ %llx, EQ arm @ %llx, EQ set CI @ %llx\n",
 			  (unsigned long long) dev->fw.arbel.clr_int_base,
@@ -1540,11 +1542,11 @@ int mthca_SET_ICM_SIZE(struct mthca_dev *dev, u64 icm_size, u64 *aux_pages,
 		return ret;
 
 	/*
-	 * Arbel page size is always 4 KB; round up number of system
-	 * pages needed.
+	 * Round up number of system pages needed in case
+	 * MTHCA_ICM_PAGE_SIZE < PAGE_SIZE.
 	 */
-	*aux_pages = (*aux_pages + (1 << (PAGE_SHIFT - 12)) - 1) >> (PAGE_SHIFT - 12);
-	*aux_pages = ALIGN(*aux_pages, PAGE_SIZE >> 12) >> (PAGE_SHIFT - 12);
+	*aux_pages = ALIGN(*aux_pages, PAGE_SIZE / MTHCA_ICM_PAGE_SIZE) >>
+		(PAGE_SHIFT - MTHCA_ICM_PAGE_SHIFT);
 
 	return 0;
 }
