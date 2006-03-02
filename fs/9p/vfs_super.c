@@ -146,7 +146,6 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 	inode->i_gid = gid;
 
 	root = d_alloc_root(inode);
-
 	if (!root) {
 		retval = -ENOMEM;
 		goto put_back_sb;
@@ -157,23 +156,26 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 	stat_result = v9fs_t_stat(v9ses, newfid, &fcall);
 	if (stat_result < 0) {
 		dprintk(DEBUG_ERROR, "stat error\n");
+		kfree(fcall);
 		v9fs_t_clunk(v9ses, newfid);
-		v9fs_put_idpool(newfid, &v9ses->fidpool);
 	} else {
 		/* Setup the Root Inode */
-		root_fid = v9fs_fid_create(root, v9ses, newfid, 0);
+		kfree(fcall);
+		root_fid = v9fs_fid_create(v9ses, newfid);
 		if (root_fid == NULL) {
 			retval = -ENOMEM;
 			goto put_back_sb;
 		}
+
+		retval = v9fs_fid_insert(root_fid, root);
+		if (retval < 0)
+			goto put_back_sb;
 
 		root_fid->qid = fcall->params.rstat.stat.qid;
 		root->d_inode->i_ino =
 		    v9fs_qid2ino(&fcall->params.rstat.stat.qid);
 		v9fs_stat2inode(&fcall->params.rstat.stat, root->d_inode, sb);
 	}
-
-	kfree(fcall);
 
 	if (stat_result < 0) {
 		retval = stat_result;
