@@ -113,9 +113,9 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	return sdp;
 }
 
-static void init_vfs(struct gfs2_sbd *sdp)
+static void init_vfs(struct super_block *sb, unsigned noatime)
 {
-	struct super_block *sb = sdp->sd_vfs;
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 
 	sb->s_magic = GFS2_MAGIC;
 	sb->s_op = &gfs2_super_ops;
@@ -123,18 +123,10 @@ static void init_vfs(struct gfs2_sbd *sdp)
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
 	if (sb->s_flags & (MS_NOATIME | MS_NODIRATIME))
-		set_bit(SDF_NOATIME, &sdp->sd_flags);
+		set_bit(noatime, &sdp->sd_flags);
 
 	/* Don't let the VFS update atimes.  GFS2 handles this itself. */
 	sb->s_flags |= MS_NOATIME | MS_NODIRATIME;
-
-	/* Set up the buffer cache and fill in some fake block size values
-	   to allow us to read-in the on-disk superblock. */
-	sdp->sd_sb.sb_bsize = sb_min_blocksize(sb, GFS2_BASIC_BLOCK);
-	sdp->sd_sb.sb_bsize_shift = sb->s_blocksize_bits;
-	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift -
-			       GFS2_BASIC_BLOCK_SHIFT;
-	sdp->sd_fsb2bb = 1 << sdp->sd_fsb2bb_shift;
 }
 
 static int init_names(struct gfs2_sbd *sdp, int silent)
@@ -291,18 +283,16 @@ static struct inode *gfs2_lookup_root(struct gfs2_sbd *sdp,
 	error = gfs2_glock_get(sdp, inum->no_addr,
                                &gfs2_inode_glops, CREATE, &gl);
         if (!error) {
-               	error = gfs2_inode_get(gl, inum,
-				       CREATE, &ip);
+               	error = gfs2_inode_get(gl, inum, CREATE, &ip);
 		if (!error) {
-			if (!error) 
-				gfs2_inode_min_init(ip, DT_DIR);
+			gfs2_inode_min_init(ip, DT_DIR);
 			inode = gfs2_ip2v(ip);
 			gfs2_inode_put(ip);
+			gfs2_glock_put(gl);
 			return inode;
 		}
                 gfs2_glock_put(gl);
         }
-
         return ERR_PTR(error);
 }
 
@@ -310,6 +300,7 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_holder sb_gh;
+	struct gfs2_inum *inum;
 	struct inode *inode;
 	int error = 0;
 
@@ -332,14 +323,15 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 	}
 
 	/* Set up the buffer cache and SB for real */
-	error = -EINVAL;
 	if (sdp->sd_sb.sb_bsize < bdev_hardsect_size(sb->s_bdev)) {
+		error = -EINVAL;
 		fs_err(sdp, "FS block size (%u) is too small for device "
 		       "block size (%u)\n",
 		       sdp->sd_sb.sb_bsize, bdev_hardsect_size(sb->s_bdev));
 		goto out;
 	}
 	if (sdp->sd_sb.sb_bsize > PAGE_SIZE) {
+		error = -EINVAL;
 		fs_err(sdp, "FS block size (%u) is too big for machine "
 		       "page size (%u)\n",
 		       sdp->sd_sb.sb_bsize, (unsigned int)PAGE_SIZE);
@@ -353,7 +345,10 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 	sb_set_blocksize(sb, sdp->sd_sb.sb_bsize);
 
 	/* Get the root inode */
-	inode = gfs2_lookup_root(sdp, &sdp->sd_sb.sb_root_dir);
+	inum = &sdp->sd_sb.sb_root_dir;
+	if (sb->s_type == &gfs2meta_fs_type)
+		inum = &sdp->sd_sb.sb_master_dir;
+	inode = gfs2_lookup_root(sdp, inum);
 	if (IS_ERR(inode)) {
 		error = PTR_ERR(inode);
 		fs_err(sdp, "can't read in root inode: %d\n", error);
@@ -366,10 +361,8 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 		error = -ENOMEM;
 		iput(inode);
 	}
-
 out:
 	gfs2_glock_dq_uninit(&sb_gh);
-
 	return error;
 }
 
@@ -791,7 +784,15 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 		goto fail;
 	}
 
-	init_vfs(sdp);
+	init_vfs(sb, SDF_NOATIME);
+
+	/* Set up the buffer cache and fill in some fake block size values
+	   to allow us to read-in the on-disk superblock. */
+	sdp->sd_sb.sb_bsize = sb_min_blocksize(sb, GFS2_BASIC_BLOCK);
+	sdp->sd_sb.sb_bsize_shift = sb->s_blocksize_bits;
+	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift -
+                               GFS2_BASIC_BLOCK_SHIFT;
+	sdp->sd_fsb2bb = 1 << sdp->sd_fsb2bb_shift;
 
 	error = init_names(sdp, silent);
 	if (error)
@@ -881,11 +882,24 @@ static struct super_block *gfs2_get_sb(struct file_system_type *fs_type,
 	return get_sb_bdev(fs_type, flags, dev_name, data, fill_super);
 }
 
+static void gfs2_kill_sb(struct super_block *sb)
+{
+	kill_block_super(sb);
+}
+
 struct file_system_type gfs2_fs_type = {
 	.name = "gfs2",
 	.fs_flags = FS_REQUIRES_DEV,
 	.get_sb = gfs2_get_sb,
-	.kill_sb = kill_block_super,
+	.kill_sb = gfs2_kill_sb,
+	.owner = THIS_MODULE,
+};
+
+struct file_system_type gfs2meta_fs_type = {
+	.name = "gfs2meta",
+	.fs_flags = FS_REQUIRES_DEV,
+	.get_sb = gfs2_get_sb,
+	.kill_sb = gfs2_kill_sb,
 	.owner = THIS_MODULE,
 };
 

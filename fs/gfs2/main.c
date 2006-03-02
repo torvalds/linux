@@ -64,11 +64,17 @@ static int __init init_gfs2_fs(void)
 	if (error)
 		goto fail;
 
+	error = register_filesystem(&gfs2meta_fs_type);
+	if (error)
+		goto fail_unregister;
+
 	printk("GFS2 (built %s %s) installed\n", __DATE__, __TIME__);
 
 	return 0;
 
- fail:
+fail_unregister:
+	unregister_filesystem(&gfs2_fs_type);
+fail:
 	if (gfs2_bufdata_cachep)
 		kmem_cache_destroy(gfs2_bufdata_cachep);
 
@@ -90,6 +96,7 @@ static int __init init_gfs2_fs(void)
 static void __exit exit_gfs2_fs(void)
 {
 	unregister_filesystem(&gfs2_fs_type);
+	unregister_filesystem(&gfs2meta_fs_type);
 
 	kmem_cache_destroy(gfs2_bufdata_cachep);
 	kmem_cache_destroy(gfs2_inode_cachep);
