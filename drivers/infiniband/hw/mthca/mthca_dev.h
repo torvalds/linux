@@ -64,7 +64,8 @@ enum {
 	MTHCA_FLAG_NO_LAM     = 1 << 5,
 	MTHCA_FLAG_FMR        = 1 << 6,
 	MTHCA_FLAG_MEMFREE    = 1 << 7,
-	MTHCA_FLAG_PCIE       = 1 << 8
+	MTHCA_FLAG_PCIE       = 1 << 8,
+	MTHCA_FLAG_SINAI_OPT  = 1 << 9
 };
 
 enum {

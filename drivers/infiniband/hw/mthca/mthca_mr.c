@@ -76,6 +76,8 @@ struct mthca_mpt_entry {
 #define MTHCA_MPT_STATUS_SW 0xF0
 #define MTHCA_MPT_STATUS_HW 0x00
 
+#define SINAI_FMR_KEY_INC 0x1000000
+
 /*
  * Buddy allocator for MTT segments (currently not very efficient
  * since it doesn't keep a free list and just searches linearly
@@ -330,6 +332,14 @@ static inline u32 key_to_hw_index(struct mthca_dev *dev, u32 key)
 		return tavor_key_to_hw_index(key);
 }
 
+static inline u32 adjust_key(struct mthca_dev *dev, u32 key)
+{
+	if (dev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
+		return ((key << 20) & 0x800000) | (key & 0x7fffff);
+	else
+		return key;
+}
+
 int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 		   u64 iova, u64 total_size, u32 access, struct mthca_mr *mr)
 {
@@ -345,6 +355,7 @@ int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 	key = mthca_alloc(&dev->mr_table.mpt_alloc);
 	if (key == -1)
 		return -ENOMEM;
+	key = adjust_key(dev, key);
 	mr->ibmr.rkey = mr->ibmr.lkey = hw_index_to_key(dev, key);
 
 	if (mthca_is_memfree(dev)) {
@@ -504,6 +515,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 	key = mthca_alloc(&dev->mr_table.mpt_alloc);
 	if (key == -1)
 		return -ENOMEM;
+	key = adjust_key(dev, key);
 
 	idx = key & (dev->limits.num_mpts - 1);
 	mr->ibmr.rkey = mr->ibmr.lkey = hw_index_to_key(dev, key);
@@ -687,7 +699,10 @@ int mthca_arbel_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 	++fmr->maps;
 
 	key = arbel_key_to_hw_index(fmr->ibmr.lkey);
-	key += dev->limits.num_mpts;
+	if (dev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
+		key += SINAI_FMR_KEY_INC;
+	else
+		key += dev->limits.num_mpts;
 	fmr->ibmr.lkey = fmr->ibmr.rkey = arbel_hw_index_to_key(key);
 
 	*(u8 *) fmr->mem.arbel.mpt = MTHCA_MPT_STATUS_SW;
@@ -759,6 +774,9 @@ int __devinit mthca_init_mr_table(struct mthca_dev *dev)
 		dev->limits.fmr_reserved_mtts = 0;
 	else
 		dev->mthca_flags |= MTHCA_FLAG_FMR;
+
+	if (dev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
+		mthca_dbg(dev, "Memory key throughput optimization activated.\n");
 
 	err = mthca_buddy_init(&dev->mr_table.mtt_buddy,
 			       fls(dev->limits.num_mtt_segs - 1));

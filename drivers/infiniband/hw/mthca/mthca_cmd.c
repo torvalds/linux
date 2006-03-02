@@ -1277,7 +1277,8 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 	int err;
 
 #define INIT_HCA_IN_SIZE             	 0x200
-#define INIT_HCA_FLAGS_OFFSET        	 0x014
+#define INIT_HCA_FLAGS1_OFFSET           0x00c
+#define INIT_HCA_FLAGS2_OFFSET           0x014
 #define INIT_HCA_QPC_OFFSET          	 0x020
 #define  INIT_HCA_QPC_BASE_OFFSET    	 (INIT_HCA_QPC_OFFSET + 0x10)
 #define  INIT_HCA_LOG_QP_OFFSET      	 (INIT_HCA_QPC_OFFSET + 0x17)
@@ -1320,15 +1321,18 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 
 	memset(inbox, 0, INIT_HCA_IN_SIZE);
 
+	if (dev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
+		MTHCA_PUT(inbox, 0x1, INIT_HCA_FLAGS1_OFFSET);
+
 #if defined(__LITTLE_ENDIAN)
-	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) &= ~cpu_to_be32(1 << 1);
+	*(inbox + INIT_HCA_FLAGS2_OFFSET / 4) &= ~cpu_to_be32(1 << 1);
 #elif defined(__BIG_ENDIAN)
-	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 1);
+	*(inbox + INIT_HCA_FLAGS2_OFFSET / 4) |= cpu_to_be32(1 << 1);
 #else
 #error Host endianness not defined
 #endif
 	/* Check port for UD address vector: */
-	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1);
+	*(inbox + INIT_HCA_FLAGS2_OFFSET / 4) |= cpu_to_be32(1);
 
 	/* We leave wqe_quota, responder_exu, etc as 0 (default) */
 
