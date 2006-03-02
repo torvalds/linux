@@ -416,6 +416,7 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	ret = ipoib_ib_post_receives(dev);
 	if (ret) {
 		ipoib_warn(priv, "ipoib_ib_post_receives returned %d\n", ret);
+		ipoib_ib_dev_stop(dev);
 		return -1;
 	}
 
