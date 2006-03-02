@@ -1793,7 +1793,8 @@ int show_numa_map(struct seq_file *m, void *v)
 	if (!md)
 		return 0;
 
-	check_pgd_range(vma, vma->vm_start, vma->vm_end,
+	if (!is_vm_hugetlb_page(vma))
+		check_pgd_range(vma, vma->vm_start, vma->vm_end,
 		    &node_online_map, MPOL_MF_STATS, md);
 
 	if (md->pages) {
