@@ -937,14 +937,14 @@ static struct {
 	u64 latest_fw;
 	u32 flags;
 } mthca_hca_table[] = {
-	[TAVOR]        = { .latest_fw = MTHCA_FW_VER(3, 3, 3),
+	[TAVOR]        = { .latest_fw = MTHCA_FW_VER(3, 4, 0),
 			   .flags     = 0 },
-	[ARBEL_COMPAT] = { .latest_fw = MTHCA_FW_VER(4, 7, 0),
+	[ARBEL_COMPAT] = { .latest_fw = MTHCA_FW_VER(4, 7, 400),
 			   .flags     = MTHCA_FLAG_PCIE },
 	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 1, 0),
 			   .flags     = MTHCA_FLAG_MEMFREE |
 					MTHCA_FLAG_PCIE },
-	[SINAI]        = { .latest_fw = MTHCA_FW_VER(1, 0, 1),
+	[SINAI]        = { .latest_fw = MTHCA_FW_VER(1, 0, 800),
 			   .flags     = MTHCA_FLAG_MEMFREE |
 					MTHCA_FLAG_PCIE    |
 					MTHCA_FLAG_SINAI_OPT }
