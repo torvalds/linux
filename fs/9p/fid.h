@@ -44,7 +44,6 @@ struct v9fs_fid {
 	struct v9fs_fcall *rdir_fcall;
 
 	/* management stuff */
-	pid_t pid;		/* thread associated with this fid */
 	uid_t uid;		/* user associated with this fid */
 
 	/* private data */
