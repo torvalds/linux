@@ -273,7 +273,7 @@ show_sas_phy_##field(struct class_device *cdev, char *buf)		\
 	if (!phy->local_attached)					\
 		return -EINVAL;						\
 									\
-	error = i->f->get_linkerrors(phy);				\
+	error = i->f->get_linkerrors ? i->f->get_linkerrors(phy) : 0;	\
 	if (error)							\
 		return error;						\
 	return snprintf(buf, 20, "%u\n", phy->field);			\
@@ -814,6 +814,14 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
 	i->rphy_attrs[count] = &i->private_rphy_attrs[count];	\
 	count++
 
+#define SETUP_OPTIONAL_RPORT_ATTRIBUTE(field, func)			\
+	i->private_rphy_attrs[count] = class_device_attr_##field;	\
+	i->private_rphy_attrs[count].attr.mode = S_IRUGO;		\
+	i->private_rphy_attrs[count].store = NULL;			\
+	i->rphy_attrs[count] = &i->private_rphy_attrs[count];		\
+	if (i->f->func)							\
+		count++
+
 #define SETUP_PORT_ATTRIBUTE(field)					\
 	i->private_phy_attrs[count] = class_device_attr_##field;	\
         i->private_phy_attrs[count].attr.mode = S_IRUGO;		\
@@ -821,12 +829,28 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
         i->phy_attrs[count] = &i->private_phy_attrs[count];		\
 	count++
 
+#define SETUP_OPTIONAL_PORT_ATTRIBUTE(field, func)			\
+	i->private_phy_attrs[count] = class_device_attr_##field;	\
+        i->private_phy_attrs[count].attr.mode = S_IRUGO;		\
+        i->private_phy_attrs[count].store = NULL;			\
+        i->phy_attrs[count] = &i->private_phy_attrs[count];		\
+	if (i->f->func)							\
+		count++
+
 #define SETUP_PORT_ATTRIBUTE_WRONLY(field)				\
 	i->private_phy_attrs[count] = class_device_attr_##field;	\
 	i->private_phy_attrs[count].attr.mode = S_IWUGO;		\
 	i->private_phy_attrs[count].show = NULL;			\
 	i->phy_attrs[count] = &i->private_phy_attrs[count];		\
 	count++
+
+#define SETUP_OPTIONAL_PORT_ATTRIBUTE_WRONLY(field, func)		\
+	i->private_phy_attrs[count] = class_device_attr_##field;	\
+	i->private_phy_attrs[count].attr.mode = S_IWUGO;		\
+	i->private_phy_attrs[count].show = NULL;			\
+	i->phy_attrs[count] = &i->private_phy_attrs[count];		\
+	if (i->f->func)							\
+		count++
 
 
 /**
@@ -883,8 +907,8 @@ sas_attach_transport(struct sas_function_template *ft)
 	SETUP_PORT_ATTRIBUTE(running_disparity_error_count);
 	SETUP_PORT_ATTRIBUTE(loss_of_dword_sync_count);
 	SETUP_PORT_ATTRIBUTE(phy_reset_problem_count);
-	SETUP_PORT_ATTRIBUTE_WRONLY(link_reset);
-	SETUP_PORT_ATTRIBUTE_WRONLY(hard_reset);
+	SETUP_OPTIONAL_PORT_ATTRIBUTE_WRONLY(link_reset, phy_reset);
+	SETUP_OPTIONAL_PORT_ATTRIBUTE_WRONLY(hard_reset, phy_reset);
 	i->phy_attrs[count] = NULL;
 
 	count = 0;
@@ -893,8 +917,10 @@ sas_attach_transport(struct sas_function_template *ft)
 	SETUP_RPORT_ATTRIBUTE(rphy_device_type);
 	SETUP_RPORT_ATTRIBUTE(rphy_sas_address);
 	SETUP_RPORT_ATTRIBUTE(rphy_phy_identifier);
-	SETUP_RPORT_ATTRIBUTE(rphy_enclosure_identifier);
-	SETUP_RPORT_ATTRIBUTE(rphy_bay_identifier);
+	SETUP_OPTIONAL_RPORT_ATTRIBUTE(rphy_enclosure_identifier,
+				       get_enclosure_identifier);
+	SETUP_OPTIONAL_RPORT_ATTRIBUTE(rphy_bay_identifier,
+				       get_bay_identifier);
 	i->rphy_attrs[count] = NULL;
 
 	return &i->t;
