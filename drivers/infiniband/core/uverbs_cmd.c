@@ -1084,7 +1084,7 @@ ssize_t ib_uverbs_query_qp(struct ib_uverbs_file *file,
 	resp.max_send_sge           = init_attr->cap.max_send_sge;
 	resp.max_recv_sge           = init_attr->cap.max_recv_sge;
 	resp.max_inline_data        = init_attr->cap.max_inline_data;
-	resp.sq_sig_all             = !!init_attr->sq_sig_type;
+	resp.sq_sig_all             = init_attr->sq_sig_type == IB_SIGNAL_ALL_WR;
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp))
