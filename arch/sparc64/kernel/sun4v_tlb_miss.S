@@ -107,7 +107,7 @@ sun4v_dtlb_miss:
 	ldda	[%g1] ASI_QUAD_LDD_PHYS_4V, %g2
 	cmp	%g2, %g6
 	bne,a,pn %xcc, tsb_miss_page_table_walk
-	 mov	FAULT_CODE_ITLB, %g3
+	 mov	FAULT_CODE_DTLB, %g3
 
 	/* We have a valid entry, make hypervisor call to load
 	 * D-TLB and return from trap.
