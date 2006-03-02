@@ -160,7 +160,6 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 		v9fs_t_clunk(v9ses, newfid);
 	} else {
 		/* Setup the Root Inode */
-		kfree(fcall);
 		root_fid = v9fs_fid_create(v9ses, newfid);
 		if (root_fid == NULL) {
 			retval = -ENOMEM;
@@ -168,14 +167,18 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 		}
 
 		retval = v9fs_fid_insert(root_fid, root);
-		if (retval < 0)
+		if (retval < 0) {
+			kfree(fcall);
 			goto put_back_sb;
+		}
 
 		root_fid->qid = fcall->params.rstat.stat.qid;
 		root->d_inode->i_ino =
 		    v9fs_qid2ino(&fcall->params.rstat.stat.qid);
 		v9fs_stat2inode(&fcall->params.rstat.stat, root->d_inode, sb);
 	}
+
+	kfree(fcall);
 
 	if (stat_result < 0) {
 		retval = stat_result;
