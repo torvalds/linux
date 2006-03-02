@@ -32,7 +32,7 @@
 #endif /* __GNU_LIBRARY__ */
 
 #include "genksyms.h"
-
+#include "../mod/elfconfig.h"
 /*----------------------------------------------------------------------*/
 
 #define HASH_BUCKETS  4096
@@ -458,7 +458,7 @@ export_symbol(const char *name)
 	fputs(">\n", debugfile);
 
       /* Used as a linker script. */
-      printf("__crc_%s = 0x%08lx ;\n", name, crc);
+      printf("%s__crc_%s = 0x%08lx ;\n", MODULE_SYMBOL_PREFIX, name, crc);
     }
 }
 

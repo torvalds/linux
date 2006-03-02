@@ -346,8 +346,8 @@ static void parse_elf_finish(struct elf_info *info)
 	release_file(info->hdr, info->size);
 }
 
-#define CRC_PFX     "__crc_"
-#define KSYMTAB_PFX "__ksymtab_"
+#define CRC_PFX     MODULE_SYMBOL_PREFIX "__crc_"
+#define KSYMTAB_PFX MODULE_SYMBOL_PREFIX "__ksymtab_"
 
 static void handle_modversions(struct module *mod, struct elf_info *info,
 			       Elf_Sym *sym, const char *symname)
