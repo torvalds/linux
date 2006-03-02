@@ -646,27 +646,6 @@ static inline unsigned long pte_present(pte_t pte)
 /* Same in both SUN4V and SUN4U.  */
 #define pte_none(pte) 			(!pte_val(pte))
 
-extern unsigned long pte_present(pte_t);
-
-/* The following only work if pte_present() is true.
- * Undefined behaviour if not..
- */
-extern unsigned long pte_read(pte_t);
-extern unsigned long pte_exec(pte_t);
-extern unsigned long pte_write(pte_t);
-extern unsigned long pte_dirty(pte_t);
-extern unsigned long pte_young(pte_t);
-extern pte_t pte_wrprotect(pte_t);
-extern pte_t pte_rdprotect(pte_t);
-extern pte_t pte_mkclean(pte_t);
-extern pte_t pte_mkold(pte_t);
-
-/* Be very careful when you change these three, they are delicate. */
-extern pte_t pte_mkyoung(pte_t);
-extern pte_t pte_mkwrite(pte_t);
-extern pte_t pte_mkdirty(pte_t);
-extern pte_t pte_mkhuge(pte_t);
-
 /* to find an entry in a page-table-directory. */
 #define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
 #define pgd_offset(mm, address)	((mm)->pgd + pgd_index(address))
@@ -765,9 +744,6 @@ extern unsigned long *sparc64_valid_addr_bitmap;
 extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 			       unsigned long pfn,
 			       unsigned long size, pgprot_t prot);
-
-/* Clear virtual and physical cachability, set side-effect bit.  */
-extern pgprot_t pgprot_noncached(pgprot_t);
 
 /*
  * For sparc32&64, the pfn in io_remap_pfn_range() carries <iospace> in
