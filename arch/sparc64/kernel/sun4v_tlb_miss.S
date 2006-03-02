@@ -58,11 +58,9 @@ sun4v_itlb_miss:
 	/* Load TSB tag/pte into %g2/%g3 and compare the tag.  */
 	ldda	[%g1] ASI_QUAD_LDD_PHYS_4V, %g2
 	cmp	%g2, %g6
-	sethi	%hi(PAGE_EXEC), %g7
-	ldx	[%g7 + %lo(PAGE_EXEC)], %g7
 	bne,a,pn %xcc, tsb_miss_page_table_walk
 	 mov	FAULT_CODE_ITLB, %g3
-	andcc	%g3, %g7, %g0
+	andcc	%g3, _PAGE_EXEC_4V, %g0
 	be,a,pn	%xcc, tsb_do_fault
 	 mov	FAULT_CODE_ITLB, %g3
 

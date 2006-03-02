@@ -103,6 +103,15 @@ tsb_dtlb_load:
 	 mov		%g5, %g3
 
 tsb_itlb_load:
+	/* Executable bit must be set.  */
+661:	andcc		%g5, _PAGE_EXEC_4U, %g0
+	.section	.sun4v_1insn_patch, "ax"
+	.word		661b
+	andcc		%g5, _PAGE_EXEC_4V, %g0
+	.previous
+
+	be,pn		%xcc, tsb_do_fault
+	 nop
 
 661:	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
 	retry
