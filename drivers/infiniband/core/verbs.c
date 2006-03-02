@@ -366,10 +366,12 @@ static const struct {
 			.opt_param = {
 				[IB_QPT_UD]  = (IB_QP_CUR_STATE			|
 						IB_QP_QKEY),
-				[IB_QPT_UC]  = (IB_QP_ACCESS_FLAGS		|
+				[IB_QPT_UC]  = (IB_QP_CUR_STATE			|
+						IB_QP_ACCESS_FLAGS		|
 						IB_QP_ALT_PATH			|
 						IB_QP_PATH_MIG_STATE),
-				[IB_QPT_RC]  = (IB_QP_ACCESS_FLAGS		|
+				[IB_QPT_RC]  = (IB_QP_CUR_STATE			|
+						IB_QP_ACCESS_FLAGS		|
 						IB_QP_ALT_PATH			|
 						IB_QP_PATH_MIG_STATE		|
 						IB_QP_MIN_RNR_TIMER),
@@ -419,7 +421,6 @@ static const struct {
 				[IB_QPT_UD]  = (IB_QP_PKEY_INDEX		|
 						IB_QP_QKEY),
 				[IB_QPT_UC]  = (IB_QP_AV			|
-						IB_QP_CUR_STATE			|
 						IB_QP_ALT_PATH			|
 						IB_QP_ACCESS_FLAGS		|
 						IB_QP_PKEY_INDEX		|
@@ -431,7 +432,6 @@ static const struct {
 						IB_QP_RNR_RETRY			|
 						IB_QP_MAX_QP_RD_ATOMIC		|
 						IB_QP_MAX_DEST_RD_ATOMIC	|
-						IB_QP_CUR_STATE			|
 						IB_QP_ALT_PATH			|
 						IB_QP_ACCESS_FLAGS		|
 						IB_QP_PKEY_INDEX		|
