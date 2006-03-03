@@ -62,7 +62,7 @@ static void wait_till_cmd_acked(struct cs5535audio *cs5535au, unsigned long time
 		tmp = cs_readl(cs5535au, ACC_CODEC_CNTL);
 		if (!(tmp & CMD_NEW))
 			break;
-		msleep(10);
+		udelay(1);
 	} while (--timeout);
 	if (!timeout)
 		snd_printk(KERN_ERR "Failure writing to cs5535 codec\n");
@@ -80,14 +80,14 @@ static unsigned short snd_cs5535audio_codec_read(struct cs5535audio *cs5535au,
 	regdata |= CMD_NEW;
 
 	cs_writel(cs5535au, ACC_CODEC_CNTL, regdata);
-	wait_till_cmd_acked(cs5535au, 500);
+	wait_till_cmd_acked(cs5535au, 50);
 
 	timeout = 50;
 	do {
 		val = cs_readl(cs5535au, ACC_CODEC_STATUS);
 		if ((val & STS_NEW) && reg == (val >> 24))
 			break;
-		msleep(10);
+		udelay(1);
 	} while (--timeout);
 	if (!timeout)
 		snd_printk(KERN_ERR "Failure reading cs5535 codec\n");
