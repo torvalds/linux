@@ -3686,12 +3686,9 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			pci_unmap_page(pdev, ps_page_dma->ps_page_dma[j],
 					PAGE_SIZE, PCI_DMA_FROMDEVICE);
 			ps_page_dma->ps_page_dma[j] = 0;
-			skb_shinfo(skb)->frags[j].page =
-				ps_page->ps_page[j];
+			skb_fill_page_desc(skb, j, ps_page->ps_page[j], 0,
+			                   length);
 			ps_page->ps_page[j] = NULL;
-			skb_shinfo(skb)->frags[j].page_offset = 0;
-			skb_shinfo(skb)->frags[j].size = length;
-			skb_shinfo(skb)->nr_frags++;
 			skb->len += length;
 			skb->data_len += length;
 		}
