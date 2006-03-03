@@ -100,6 +100,8 @@ static void e1000_write_reg_io(struct e1000_hw *hw, uint32_t offset,
 
 #define E1000_WRITE_REG_IO(a, reg, val) \
 	    e1000_write_reg_io((a), E1000_##reg, val)
+static int32_t e1000_configure_kmrn_for_10_100(struct e1000_hw *hw);
+static int32_t e1000_configure_kmrn_for_1000(struct e1000_hw *hw);
 
 /* IGP cable length table */
 static const
@@ -151,6 +153,11 @@ e1000_set_phy_type(struct e1000_hw *hw)
            hw->mac_type == e1000_82547 ||
            hw->mac_type == e1000_82547_rev_2) {
             hw->phy_type = e1000_phy_igp;
+            break;
+        }
+    case GG82563_E_PHY_ID:
+        if (hw->mac_type == e1000_80003es2lan) {
+            hw->phy_type = e1000_phy_gg82563;
             break;
         }
         /* Fall Through */
@@ -353,12 +360,19 @@ e1000_set_mac_type(struct e1000_hw *hw)
     case E1000_DEV_ID_82573L:
         hw->mac_type = e1000_82573;
         break;
+    case E1000_DEV_ID_80003ES2LAN_COPPER_DPT:
+    case E1000_DEV_ID_80003ES2LAN_SERDES_DPT:
+        hw->mac_type = e1000_80003es2lan;
+        break;
     default:
         /* Should never have loaded on this device */
         return -E1000_ERR_MAC_TYPE;
     }
 
     switch(hw->mac_type) {
+    case e1000_80003es2lan:
+        hw->swfw_sync_present = TRUE;
+        /* fall through */
     case e1000_82571:
     case e1000_82572:
     case e1000_82573:
@@ -399,6 +413,7 @@ e1000_set_media_type(struct e1000_hw *hw)
     case E1000_DEV_ID_82546GB_SERDES:
     case E1000_DEV_ID_82571EB_SERDES:
     case E1000_DEV_ID_82572EI_SERDES:
+    case E1000_DEV_ID_80003ES2LAN_SERDES_DPT:
         hw->media_type = e1000_media_type_internal_serdes;
         break;
     default:
@@ -575,6 +590,7 @@ e1000_reset_hw(struct e1000_hw *hw)
             /* fall through */
         case e1000_82571:
         case e1000_82572:
+        case e1000_80003es2lan:
             ret_val = e1000_get_auto_rd_done(hw);
             if(ret_val)
                 /* We don't want to continue accessing MAC registers. */
@@ -641,6 +657,7 @@ e1000_init_hw(struct e1000_hw *hw)
     uint16_t cmd_mmrbc;
     uint16_t stat_mmrbc;
     uint32_t mta_size;
+    uint32_t reg_data;
     uint32_t ctrl_ext;
 
     DEBUGFUNC("e1000_init_hw");
@@ -739,6 +756,7 @@ e1000_init_hw(struct e1000_hw *hw)
         case e1000_82571:
         case e1000_82572:
         case e1000_82573:
+        case e1000_80003es2lan:
             ctrl |= E1000_TXDCTL_COUNT_DESC;
             break;
         }
@@ -752,12 +770,34 @@ e1000_init_hw(struct e1000_hw *hw)
     switch (hw->mac_type) {
     default:
         break;
+    case e1000_80003es2lan:
+        /* Enable retransmit on late collisions */
+        reg_data = E1000_READ_REG(hw, TCTL);
+        reg_data |= E1000_TCTL_RTLC;
+        E1000_WRITE_REG(hw, TCTL, reg_data);
+
+        /* Configure Gigabit Carry Extend Padding */
+        reg_data = E1000_READ_REG(hw, TCTL_EXT);
+        reg_data &= ~E1000_TCTL_EXT_GCEX_MASK;
+        reg_data |= DEFAULT_80003ES2LAN_TCTL_EXT_GCEX;
+        E1000_WRITE_REG(hw, TCTL_EXT, reg_data);
+
+        /* Configure Transmit Inter-Packet Gap */
+        reg_data = E1000_READ_REG(hw, TIPG);
+        reg_data &= ~E1000_TIPG_IPGT_MASK;
+        reg_data |= DEFAULT_80003ES2LAN_TIPG_IPGT_1000;
+        E1000_WRITE_REG(hw, TIPG, reg_data);
+
+        reg_data = E1000_READ_REG_ARRAY(hw, FFLT, 0x0001);
+        reg_data &= ~0x00100000;
+        E1000_WRITE_REG_ARRAY(hw, FFLT, 0x0001, reg_data);
+        /* Fall through */
     case e1000_82571:
     case e1000_82572:
         ctrl = E1000_READ_REG(hw, TXDCTL1);
-        ctrl &= ~E1000_TXDCTL_WTHRESH;
-        ctrl |= E1000_TXDCTL_COUNT_DESC | E1000_TXDCTL_FULL_TX_DESC_WB;
-        ctrl |= (1 << 22);
+        ctrl = (ctrl & ~E1000_TXDCTL_WTHRESH) | E1000_TXDCTL_FULL_TX_DESC_WB;
+        if(hw->mac_type >= e1000_82571)
+            ctrl |= E1000_TXDCTL_COUNT_DESC;
         E1000_WRITE_REG(hw, TXDCTL1, ctrl);
         break;
     }
@@ -1314,6 +1354,154 @@ e1000_copper_link_igp_setup(struct e1000_hw *hw)
     return E1000_SUCCESS;
 }
 
+/********************************************************************
+* Copper link setup for e1000_phy_gg82563 series.
+*
+* hw - Struct containing variables accessed by shared code
+*********************************************************************/
+static int32_t
+e1000_copper_link_ggp_setup(struct e1000_hw *hw)
+{
+    int32_t ret_val;
+    uint16_t phy_data;
+    uint32_t reg_data;
+
+    DEBUGFUNC("e1000_copper_link_ggp_setup");
+
+    if(!hw->phy_reset_disable) {
+        
+        /* Enable CRS on TX for half-duplex operation. */
+        ret_val = e1000_read_phy_reg(hw, GG82563_PHY_MAC_SPEC_CTRL,
+                                     &phy_data);
+        if(ret_val)
+            return ret_val;
+
+        phy_data |= GG82563_MSCR_ASSERT_CRS_ON_TX;
+        /* Use 25MHz for both link down and 1000BASE-T for Tx clock */
+        phy_data |= GG82563_MSCR_TX_CLK_1000MBPS_25MHZ;
+
+        ret_val = e1000_write_phy_reg(hw, GG82563_PHY_MAC_SPEC_CTRL,
+                                      phy_data);
+        if(ret_val)
+            return ret_val;
+
+        /* Options:
+         *   MDI/MDI-X = 0 (default)
+         *   0 - Auto for all speeds
+         *   1 - MDI mode
+         *   2 - MDI-X mode
+         *   3 - Auto for 1000Base-T only (MDI-X for 10/100Base-T modes)
+         */
+        ret_val = e1000_read_phy_reg(hw, GG82563_PHY_SPEC_CTRL, &phy_data);
+        if(ret_val)
+            return ret_val;
+
+        phy_data &= ~GG82563_PSCR_CROSSOVER_MODE_MASK;
+
+        switch (hw->mdix) {
+        case 1:
+            phy_data |= GG82563_PSCR_CROSSOVER_MODE_MDI;
+            break;
+        case 2:
+            phy_data |= GG82563_PSCR_CROSSOVER_MODE_MDIX;
+            break;
+        case 0:
+        default:
+            phy_data |= GG82563_PSCR_CROSSOVER_MODE_AUTO;
+            break;
+        }
+
+        /* Options:
+         *   disable_polarity_correction = 0 (default)
+         *       Automatic Correction for Reversed Cable Polarity
+         *   0 - Disabled
+         *   1 - Enabled
+         */
+        phy_data &= ~GG82563_PSCR_POLARITY_REVERSAL_DISABLE;
+        if(hw->disable_polarity_correction == 1)
+            phy_data |= GG82563_PSCR_POLARITY_REVERSAL_DISABLE;
+        ret_val = e1000_write_phy_reg(hw, GG82563_PHY_SPEC_CTRL, phy_data);
+
+        if(ret_val)
+            return ret_val;
+
+        /* SW Reset the PHY so all changes take effect */
+        ret_val = e1000_phy_reset(hw);
+        if (ret_val) {
+            DEBUGOUT("Error Resetting the PHY\n");
+            return ret_val;
+        }
+    } /* phy_reset_disable */
+
+    if (hw->mac_type == e1000_80003es2lan) {
+        /* Bypass RX and TX FIFO's */
+        ret_val = e1000_write_kmrn_reg(hw, E1000_KUMCTRLSTA_OFFSET_FIFO_CTRL,
+                                       E1000_KUMCTRLSTA_FIFO_CTRL_RX_BYPASS |
+                                       E1000_KUMCTRLSTA_FIFO_CTRL_TX_BYPASS);
+        if (ret_val)
+            return ret_val;
+
+        ret_val = e1000_read_phy_reg(hw, GG82563_PHY_SPEC_CTRL_2, &phy_data);
+        if (ret_val)
+            return ret_val;
+
+        phy_data &= ~GG82563_PSCR2_REVERSE_AUTO_NEG;
+        ret_val = e1000_write_phy_reg(hw, GG82563_PHY_SPEC_CTRL_2, phy_data);
+
+        if (ret_val)
+            return ret_val;
+
+        reg_data = E1000_READ_REG(hw, CTRL_EXT);
+        reg_data &= ~(E1000_CTRL_EXT_LINK_MODE_MASK);
+        E1000_WRITE_REG(hw, CTRL_EXT, reg_data);
+
+        ret_val = e1000_read_phy_reg(hw, GG82563_PHY_PWR_MGMT_CTRL,
+                                          &phy_data);
+        if (ret_val)
+            return ret_val;
+
+        /* Do not init these registers when the HW is in IAMT mode, since the
+         * firmware will have already initialized them.  We only initialize
+         * them if the HW is not in IAMT mode.
+         */
+        if (e1000_check_mng_mode(hw) == FALSE) {
+            /* Enable Electrical Idle on the PHY */
+            phy_data |= GG82563_PMCR_ENABLE_ELECTRICAL_IDLE;
+            ret_val = e1000_write_phy_reg(hw, GG82563_PHY_PWR_MGMT_CTRL,
+                                          phy_data);
+            if (ret_val)
+                return ret_val;
+
+            ret_val = e1000_read_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
+                                         &phy_data);
+            if (ret_val)
+                return ret_val;
+
+            /* Enable Pass False Carrier on the PHY */
+            phy_data |= GG82563_KMCR_PASS_FALSE_CARRIER;
+
+            ret_val = e1000_write_phy_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
+                                          phy_data);
+            if (ret_val)
+                return ret_val;
+        }
+
+        /* Workaround: Disable padding in Kumeran interface in the MAC
+         * and in the PHY to avoid CRC errors.
+         */
+        ret_val = e1000_read_phy_reg(hw, GG82563_PHY_INBAND_CTRL,
+                                     &phy_data);
+        if (ret_val)
+            return ret_val;
+        phy_data |= GG82563_ICR_DIS_PADDING;
+        ret_val = e1000_write_phy_reg(hw, GG82563_PHY_INBAND_CTRL,
+                                      phy_data);
+        if (ret_val)
+            return ret_val;
+    }
+
+    return E1000_SUCCESS;
+}
 
 /********************************************************************
 * Copper link setup for e1000_phy_m88 series.
@@ -1524,6 +1712,7 @@ e1000_setup_copper_link(struct e1000_hw *hw)
     int32_t ret_val;
     uint16_t i;
     uint16_t phy_data;
+    uint16_t reg_data;
 
     DEBUGFUNC("e1000_setup_copper_link");
 
@@ -1532,6 +1721,22 @@ e1000_setup_copper_link(struct e1000_hw *hw)
     if(ret_val)
         return ret_val;
 
+    switch (hw->mac_type) {
+    case e1000_80003es2lan:
+        ret_val = e1000_read_kmrn_reg(hw, E1000_KUMCTRLSTA_OFFSET_INB_CTRL,
+                                      &reg_data);
+        if (ret_val)
+            return ret_val;
+        reg_data |= E1000_KUMCTRLSTA_INB_CTRL_DIS_PADDING;
+        ret_val = e1000_write_kmrn_reg(hw, E1000_KUMCTRLSTA_OFFSET_INB_CTRL,
+                                       reg_data);
+        if (ret_val)
+            return ret_val;
+        break;
+    default:
+        break;
+    }
+
     if (hw->phy_type == e1000_phy_igp ||
         hw->phy_type == e1000_phy_igp_2) {
         ret_val = e1000_copper_link_igp_setup(hw);
@@ -1539,6 +1744,10 @@ e1000_setup_copper_link(struct e1000_hw *hw)
             return ret_val;
     } else if (hw->phy_type == e1000_phy_m88) {
         ret_val = e1000_copper_link_mgp_setup(hw);
+        if(ret_val)
+            return ret_val;
+    } else if (hw->phy_type == e1000_phy_gg82563) {
+        ret_val = e1000_copper_link_ggp_setup(hw);
         if(ret_val)
             return ret_val;
     }
@@ -1585,6 +1794,59 @@ e1000_setup_copper_link(struct e1000_hw *hw)
 
     DEBUGOUT("Unable to establish link!!!\n");
     return E1000_SUCCESS;
+}
+
+/******************************************************************************
+* Configure the MAC-to-PHY interface for 10/100Mbps
+*
+* hw - Struct containing variables accessed by shared code
+******************************************************************************/
+static int32_t
+e1000_configure_kmrn_for_10_100(struct e1000_hw *hw)
+{
+    int32_t ret_val = E1000_SUCCESS;
+    uint32_t tipg;
+    uint16_t reg_data;
+
+    DEBUGFUNC("e1000_configure_kmrn_for_10_100");
+
+    reg_data = E1000_KUMCTRLSTA_HD_CTRL_10_100_DEFAULT;
+    ret_val = e1000_write_kmrn_reg(hw, E1000_KUMCTRLSTA_OFFSET_HD_CTRL,
+                                   reg_data);
+    if (ret_val)
+        return ret_val;
+
+    /* Configure Transmit Inter-Packet Gap */
+    tipg = E1000_READ_REG(hw, TIPG);
+    tipg &= ~E1000_TIPG_IPGT_MASK;
+    tipg |= DEFAULT_80003ES2LAN_TIPG_IPGT_10_100;
+    E1000_WRITE_REG(hw, TIPG, tipg);
+
+    return ret_val;
+}
+
+static int32_t
+e1000_configure_kmrn_for_1000(struct e1000_hw *hw)
+{
+    int32_t ret_val = E1000_SUCCESS;
+    uint16_t reg_data;
+    uint32_t tipg;
+
+    DEBUGFUNC("e1000_configure_kmrn_for_1000");
+
+    reg_data = E1000_KUMCTRLSTA_HD_CTRL_1000_DEFAULT;
+    ret_val = e1000_write_kmrn_reg(hw, E1000_KUMCTRLSTA_OFFSET_HD_CTRL,
+                                   reg_data);
+    if (ret_val)
+        return ret_val;
+
+    /* Configure Transmit Inter-Packet Gap */
+    tipg = E1000_READ_REG(hw, TIPG);
+    tipg &= ~E1000_TIPG_IPGT_MASK;
+    tipg |= DEFAULT_80003ES2LAN_TIPG_IPGT_1000;
+    E1000_WRITE_REG(hw, TIPG, tipg);
+
+    return ret_val;
 }
 
 /******************************************************************************
@@ -1808,7 +2070,8 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
     /* Write the configured values back to the Device Control Reg. */
     E1000_WRITE_REG(hw, CTRL, ctrl);
 
-    if (hw->phy_type == e1000_phy_m88) {
+    if ((hw->phy_type == e1000_phy_m88) ||
+        (hw->phy_type == e1000_phy_gg82563)) {
         ret_val = e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
         if(ret_val)
             return ret_val;
@@ -1877,7 +2140,8 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
             msec_delay(100);
         }
         if((i == 0) &&
-           (hw->phy_type == e1000_phy_m88)) {
+           ((hw->phy_type == e1000_phy_m88) ||
+            (hw->phy_type == e1000_phy_gg82563))) {
             /* We didn't get link.  Reset the DSP and wait again for link. */
             ret_val = e1000_phy_reset_dsp(hw);
             if(ret_val) {
@@ -1936,6 +2200,27 @@ e1000_phy_force_speed_duplex(struct e1000_hw *hw)
             if(ret_val)
                 return ret_val;
         }
+    } else if (hw->phy_type == e1000_phy_gg82563) {
+        /* The TX_CLK of the Extended PHY Specific Control Register defaults
+         * to 2.5MHz on a reset.  We need to re-force it back to 25MHz, if
+         * we're not in a forced 10/duplex configuration. */
+        ret_val = e1000_read_phy_reg(hw, GG82563_PHY_MAC_SPEC_CTRL, &phy_data);
+        if (ret_val)
+            return ret_val;
+
+        phy_data &= ~GG82563_MSCR_TX_CLK_MASK;
+        if ((hw->forced_speed_duplex == e1000_10_full) ||
+            (hw->forced_speed_duplex == e1000_10_half))
+            phy_data |= GG82563_MSCR_TX_CLK_10MBPS_2_5MHZ;
+        else
+            phy_data |= GG82563_MSCR_TX_CLK_100MBPS_25MHZ;
+
+        /* Also due to the reset, we need to enable CRS on Tx. */
+        phy_data |= GG82563_MSCR_ASSERT_CRS_ON_TX;
+
+        ret_val = e1000_write_phy_reg(hw, GG82563_PHY_MAC_SPEC_CTRL, phy_data);
+        if (ret_val)
+            return ret_val;
     }
     return E1000_SUCCESS;
 }
@@ -2598,6 +2883,16 @@ e1000_get_speed_and_duplex(struct e1000_hw *hw,
         }
     }
 
+    if ((hw->mac_type == e1000_80003es2lan) && 
+        (hw->media_type == e1000_media_type_copper)) {
+        if (*speed == SPEED_1000)
+            ret_val = e1000_configure_kmrn_for_1000(hw);
+        else
+            ret_val = e1000_configure_kmrn_for_10_100(hw);
+        if (ret_val)
+            return ret_val;
+    }
+
     return E1000_SUCCESS;
 }
 
@@ -2773,6 +3068,72 @@ e1000_shift_in_mdi_bits(struct e1000_hw *hw)
     return data;
 }
 
+int32_t
+e1000_swfw_sync_acquire(struct e1000_hw *hw, uint16_t mask)
+{
+    uint32_t swfw_sync = 0;
+    uint32_t swmask = mask;
+    uint32_t fwmask = mask << 16;
+    int32_t timeout = 200;
+
+    DEBUGFUNC("e1000_swfw_sync_acquire");
+
+    if (!hw->swfw_sync_present)
+        return e1000_get_hw_eeprom_semaphore(hw);
+
+    while(timeout) {
+            if (e1000_get_hw_eeprom_semaphore(hw))
+                return -E1000_ERR_SWFW_SYNC;
+
+            swfw_sync = E1000_READ_REG(hw, SW_FW_SYNC);
+            if (!(swfw_sync & (fwmask | swmask))) {
+                break;
+            }
+
+            /* firmware currently using resource (fwmask) */
+            /* or other software thread currently using resource (swmask) */
+            e1000_put_hw_eeprom_semaphore(hw);
+            msec_delay_irq(5);
+            timeout--;
+    }
+
+    if (!timeout) {
+        DEBUGOUT("Driver can't access resource, SW_FW_SYNC timeout.\n");
+        return -E1000_ERR_SWFW_SYNC;
+    }
+
+    swfw_sync |= swmask;
+    E1000_WRITE_REG(hw, SW_FW_SYNC, swfw_sync);
+
+    e1000_put_hw_eeprom_semaphore(hw);
+    return E1000_SUCCESS;
+}
+
+void
+e1000_swfw_sync_release(struct e1000_hw *hw, uint16_t mask)
+{
+    uint32_t swfw_sync;
+    uint32_t swmask = mask;
+
+    DEBUGFUNC("e1000_swfw_sync_release");
+
+    if (!hw->swfw_sync_present) {
+        e1000_put_hw_eeprom_semaphore(hw);
+        return;
+    }
+
+    /* if (e1000_get_hw_eeprom_semaphore(hw))
+     *    return -E1000_ERR_SWFW_SYNC; */
+    while (e1000_get_hw_eeprom_semaphore(hw) != E1000_SUCCESS);
+        /* empty */
+
+    swfw_sync = E1000_READ_REG(hw, SW_FW_SYNC);
+    swfw_sync &= ~swmask;
+    E1000_WRITE_REG(hw, SW_FW_SYNC, swfw_sync);
+
+    e1000_put_hw_eeprom_semaphore(hw);
+}
+
 /*****************************************************************************
 * Reads the value from a PHY register, if the value is on a specific non zero
 * page, sets the page first.
@@ -2785,8 +3146,18 @@ e1000_read_phy_reg(struct e1000_hw *hw,
                    uint16_t *phy_data)
 {
     uint32_t ret_val;
+    uint16_t swfw;
 
     DEBUGFUNC("e1000_read_phy_reg");
+
+    if ((hw->mac_type == e1000_80003es2lan) &&
+        (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)) {
+        swfw = E1000_SWFW_PHY1_SM;
+    } else {
+        swfw = E1000_SWFW_PHY0_SM;
+    }
+    if (e1000_swfw_sync_acquire(hw, swfw))
+        return -E1000_ERR_SWFW_SYNC;
 
     if((hw->phy_type == e1000_phy_igp || 
         hw->phy_type == e1000_phy_igp_2) &&
@@ -2794,13 +3165,36 @@ e1000_read_phy_reg(struct e1000_hw *hw,
         ret_val = e1000_write_phy_reg_ex(hw, IGP01E1000_PHY_PAGE_SELECT,
                                          (uint16_t)reg_addr);
         if(ret_val) {
+            e1000_swfw_sync_release(hw, swfw);
             return ret_val;
+        }
+    } else if (hw->phy_type == e1000_phy_gg82563) {
+        if (((reg_addr & MAX_PHY_REG_ADDRESS) > MAX_PHY_MULTI_PAGE_REG) ||
+            (hw->mac_type == e1000_80003es2lan)) {
+            /* Select Configuration Page */
+            if ((reg_addr & MAX_PHY_REG_ADDRESS) < GG82563_MIN_ALT_REG) {
+                ret_val = e1000_write_phy_reg_ex(hw, GG82563_PHY_PAGE_SELECT,
+                          (uint16_t)((uint16_t)reg_addr >> GG82563_PAGE_SHIFT));
+            } else {
+                /* Use Alternative Page Select register to access
+                 * registers 30 and 31
+                 */
+                ret_val = e1000_write_phy_reg_ex(hw,
+                                                 GG82563_PHY_PAGE_SELECT_ALT,
+                          (uint16_t)((uint16_t)reg_addr >> GG82563_PAGE_SHIFT));
+            }
+
+            if (ret_val) {
+                e1000_swfw_sync_release(hw, swfw);
+                return ret_val;
+            }
         }
     }
 
     ret_val = e1000_read_phy_reg_ex(hw, MAX_PHY_REG_ADDRESS & reg_addr,
                                     phy_data);
 
+    e1000_swfw_sync_release(hw, swfw);
     return ret_val;
 }
 
@@ -2891,8 +3285,18 @@ e1000_write_phy_reg(struct e1000_hw *hw,
                     uint16_t phy_data)
 {
     uint32_t ret_val;
+    uint16_t swfw;
 
     DEBUGFUNC("e1000_write_phy_reg");
+
+    if ((hw->mac_type == e1000_80003es2lan) &&
+        (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)) {
+        swfw = E1000_SWFW_PHY1_SM;
+    } else {
+        swfw = E1000_SWFW_PHY0_SM;
+    }
+    if (e1000_swfw_sync_acquire(hw, swfw))
+        return -E1000_ERR_SWFW_SYNC;
 
     if((hw->phy_type == e1000_phy_igp || 
         hw->phy_type == e1000_phy_igp_2) &&
@@ -2900,13 +3304,36 @@ e1000_write_phy_reg(struct e1000_hw *hw,
         ret_val = e1000_write_phy_reg_ex(hw, IGP01E1000_PHY_PAGE_SELECT,
                                          (uint16_t)reg_addr);
         if(ret_val) {
+            e1000_swfw_sync_release(hw, swfw);
             return ret_val;
+        }
+    } else if (hw->phy_type == e1000_phy_gg82563) {
+        if (((reg_addr & MAX_PHY_REG_ADDRESS) > MAX_PHY_MULTI_PAGE_REG) ||
+            (hw->mac_type == e1000_80003es2lan)) {
+            /* Select Configuration Page */
+            if ((reg_addr & MAX_PHY_REG_ADDRESS) < GG82563_MIN_ALT_REG) {
+                ret_val = e1000_write_phy_reg_ex(hw, GG82563_PHY_PAGE_SELECT,
+                          (uint16_t)((uint16_t)reg_addr >> GG82563_PAGE_SHIFT));
+            } else {
+                /* Use Alternative Page Select register to access
+                 * registers 30 and 31
+                 */
+                ret_val = e1000_write_phy_reg_ex(hw,
+                                                 GG82563_PHY_PAGE_SELECT_ALT,
+                          (uint16_t)((uint16_t)reg_addr >> GG82563_PAGE_SHIFT));
+            }
+
+            if (ret_val) {
+                e1000_swfw_sync_release(hw, swfw);
+                return ret_val;
+            }
         }
     }
 
     ret_val = e1000_write_phy_reg_ex(hw, MAX_PHY_REG_ADDRESS & reg_addr,
                                      phy_data);
 
+    e1000_swfw_sync_release(hw, swfw);
     return ret_val;
 }
 
@@ -2973,6 +3400,65 @@ e1000_write_phy_reg_ex(struct e1000_hw *hw,
     return E1000_SUCCESS;
 }
 
+int32_t
+e1000_read_kmrn_reg(struct e1000_hw *hw,
+                    uint32_t reg_addr,
+                    uint16_t *data)
+{
+    uint32_t reg_val;
+    uint16_t swfw;
+    DEBUGFUNC("e1000_read_kmrn_reg");
+
+    if ((hw->mac_type == e1000_80003es2lan) &&
+        (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)) {
+        swfw = E1000_SWFW_PHY1_SM;
+    } else {
+        swfw = E1000_SWFW_PHY0_SM;
+    }
+    if (e1000_swfw_sync_acquire(hw, swfw))
+        return -E1000_ERR_SWFW_SYNC;
+
+    /* Write register address */
+    reg_val = ((reg_addr << E1000_KUMCTRLSTA_OFFSET_SHIFT) &
+              E1000_KUMCTRLSTA_OFFSET) |
+              E1000_KUMCTRLSTA_REN;
+    E1000_WRITE_REG(hw, KUMCTRLSTA, reg_val);
+    udelay(2);
+
+    /* Read the data returned */
+    reg_val = E1000_READ_REG(hw, KUMCTRLSTA);
+    *data = (uint16_t)reg_val;
+
+    e1000_swfw_sync_release(hw, swfw);
+    return E1000_SUCCESS;
+}
+
+int32_t
+e1000_write_kmrn_reg(struct e1000_hw *hw,
+                     uint32_t reg_addr,
+                     uint16_t data)
+{
+    uint32_t reg_val;
+    uint16_t swfw;
+    DEBUGFUNC("e1000_write_kmrn_reg");
+
+    if ((hw->mac_type == e1000_80003es2lan) &&
+        (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)) {
+        swfw = E1000_SWFW_PHY1_SM;
+    } else {
+        swfw = E1000_SWFW_PHY0_SM;
+    }
+    if (e1000_swfw_sync_acquire(hw, swfw))
+        return -E1000_ERR_SWFW_SYNC;
+
+    reg_val = ((reg_addr << E1000_KUMCTRLSTA_OFFSET_SHIFT) &
+              E1000_KUMCTRLSTA_OFFSET) | data;
+    E1000_WRITE_REG(hw, KUMCTRLSTA, reg_val);
+    udelay(2);
+
+    e1000_swfw_sync_release(hw, swfw);
+    return E1000_SUCCESS;
+}
 
 /******************************************************************************
 * Returns the PHY to the power-on reset state
@@ -2985,6 +3471,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
     uint32_t ctrl, ctrl_ext;
     uint32_t led_ctrl;
     int32_t ret_val;
+    uint16_t swfw;
 
     DEBUGFUNC("e1000_phy_hw_reset");
 
@@ -2997,6 +3484,16 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
     DEBUGOUT("Resetting Phy...\n");
 
     if(hw->mac_type > e1000_82543) {
+        if ((hw->mac_type == e1000_80003es2lan) &&
+            (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)) {
+            swfw = E1000_SWFW_PHY1_SM;
+        } else {
+            swfw = E1000_SWFW_PHY0_SM;
+        }
+        if (e1000_swfw_sync_acquire(hw, swfw)) {
+            e1000_release_software_semaphore(hw);
+            return -E1000_ERR_SWFW_SYNC;
+        }
         /* Read the device control register and assert the E1000_CTRL_PHY_RST
          * bit. Then, take it out of reset.
          * For pre-e1000_82571 hardware, we delay for 10ms between the assert 
@@ -3017,6 +3514,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
         
         if (hw->mac_type >= e1000_82571)
             msec_delay(10);
+        e1000_swfw_sync_release(hw, swfw);
     } else {
         /* Read the Extended Device Control Register, assert the PHY_RESET_DIR
          * bit to put the PHY into reset. Then, take it out of reset.
@@ -3043,6 +3541,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
 
     /* Wait for FW to finish PHY configuration. */
     ret_val = e1000_get_phy_cfg_done(hw);
+    e1000_release_software_semaphore(hw);
 
     return ret_val;
 }
@@ -3120,6 +3619,15 @@ e1000_detect_gig_phy(struct e1000_hw *hw)
         return E1000_SUCCESS;
     }
 
+    /* ESB-2 PHY reads require e1000_phy_gg82563 to be set because of a work-
+     * around that forces PHY page 0 to be set or the reads fail.  The rest of
+     * the code in this routine uses e1000_read_phy_reg to read the PHY ID.
+     * So for ESB-2 we need to have this set so our reads won't fail.  If the
+     * attached PHY is not a e1000_phy_gg82563, the routines below will figure
+     * this out as well. */
+    if (hw->mac_type == e1000_80003es2lan)
+        hw->phy_type = e1000_phy_gg82563;
+
     /* Read the PHY ID Registers to identify which PHY is onboard. */
     ret_val = e1000_read_phy_reg(hw, PHY_ID1, &phy_id_high);
     if(ret_val)
@@ -3157,6 +3665,9 @@ e1000_detect_gig_phy(struct e1000_hw *hw)
     case e1000_82573:
         if(hw->phy_id == M88E1111_I_PHY_ID) match = TRUE;
         break;
+    case e1000_80003es2lan:
+        if (hw->phy_id == GG82563_E_PHY_ID) match = TRUE;
+        break;
     default:
         DEBUGOUT1("Invalid MAC type %d\n", hw->mac_type);
         return -E1000_ERR_CONFIG;
@@ -3183,8 +3694,10 @@ e1000_phy_reset_dsp(struct e1000_hw *hw)
     DEBUGFUNC("e1000_phy_reset_dsp");
 
     do {
-        ret_val = e1000_write_phy_reg(hw, 29, 0x001d);
-        if(ret_val) break;
+        if (hw->phy_type != e1000_phy_gg82563) {
+            ret_val = e1000_write_phy_reg(hw, 29, 0x001d);
+            if(ret_val) break;
+        }
         ret_val = e1000_write_phy_reg(hw, 30, 0x00c1);
         if(ret_val) break;
         ret_val = e1000_write_phy_reg(hw, 30, 0x0000);
@@ -3316,8 +3829,17 @@ e1000_phy_m88_get_info(struct e1000_hw *hw,
         /* Cable Length Estimation and Local/Remote Receiver Information
          * are only valid at 1000 Mbps.
          */
-        phy_info->cable_length = ((phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
-                                  M88E1000_PSSR_CABLE_LENGTH_SHIFT);
+        if (hw->phy_type != e1000_phy_gg82563) {
+            phy_info->cable_length = ((phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
+                                      M88E1000_PSSR_CABLE_LENGTH_SHIFT);
+        } else {
+            ret_val = e1000_read_phy_reg(hw, GG82563_PHY_DSP_DISTANCE,
+                                         &phy_data);
+            if (ret_val)
+                return ret_val;
+
+            phy_info->cable_length = phy_data & GG82563_DSPD_CABLE_LENGTH;
+        }
 
         ret_val = e1000_read_phy_reg(hw, PHY_1000T_STATUS, &phy_data);
         if(ret_val)
@@ -3511,6 +4033,20 @@ e1000_init_eeprom_params(struct e1000_hw *hw)
             E1000_WRITE_REG(hw, EECD, eecd);
         }
         break;
+    case e1000_80003es2lan:
+        eeprom->type = e1000_eeprom_spi;
+        eeprom->opcode_bits = 8;
+        eeprom->delay_usec = 1;
+        if (eecd & E1000_EECD_ADDR_BITS) {
+            eeprom->page_size = 32;
+            eeprom->address_bits = 16;
+        } else {
+            eeprom->page_size = 8;
+            eeprom->address_bits = 8;
+        }
+        eeprom->use_eerd = TRUE;
+        eeprom->use_eewr = FALSE;
+        break;
     default:
         break;
     }
@@ -3691,9 +4227,8 @@ e1000_acquire_eeprom(struct e1000_hw *hw)
 
     DEBUGFUNC("e1000_acquire_eeprom");
 
-    if(e1000_get_hw_eeprom_semaphore(hw))
-        return -E1000_ERR_EEPROM;
-
+    if (e1000_swfw_sync_acquire(hw, E1000_SWFW_EEP_SM))
+        return -E1000_ERR_SWFW_SYNC;
     eecd = E1000_READ_REG(hw, EECD);
 
     if (hw->mac_type != e1000_82573) {
@@ -3712,7 +4247,7 @@ e1000_acquire_eeprom(struct e1000_hw *hw)
                 eecd &= ~E1000_EECD_REQ;
                 E1000_WRITE_REG(hw, EECD, eecd);
                 DEBUGOUT("Could not acquire EEPROM grant\n");
-                e1000_put_hw_eeprom_semaphore(hw);
+                e1000_swfw_sync_release(hw, E1000_SWFW_EEP_SM);
                 return -E1000_ERR_EEPROM;
             }
         }
@@ -3835,7 +4370,7 @@ e1000_release_eeprom(struct e1000_hw *hw)
         E1000_WRITE_REG(hw, EECD, eecd);
     }
 
-    e1000_put_hw_eeprom_semaphore(hw);
+    e1000_swfw_sync_release(hw, E1000_SWFW_EEP_SM);
 }
 
 /******************************************************************************
@@ -3914,6 +4449,8 @@ e1000_read_eeprom(struct e1000_hw *hw,
     if (e1000_is_onboard_nvm_eeprom(hw) == TRUE &&
     hw->eeprom.use_eerd == FALSE) {
         switch (hw->mac_type) {
+        case e1000_80003es2lan:
+            break;
         default:
             /* Prepare the EEPROM for reading  */
             if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)
@@ -4031,6 +4568,9 @@ e1000_write_eeprom_eewr(struct e1000_hw *hw,
     uint32_t    i              = 0;
     int32_t     error          = 0;
 
+    if (e1000_swfw_sync_acquire(hw, E1000_SWFW_EEP_SM))
+        return -E1000_ERR_SWFW_SYNC;
+
     for (i = 0; i < words; i++) {
         register_value = (data[i] << E1000_EEPROM_RW_REG_DATA) | 
                          ((offset+i) << E1000_EEPROM_RW_ADDR_SHIFT) | 
@@ -4050,6 +4590,7 @@ e1000_write_eeprom_eewr(struct e1000_hw *hw,
         }       
     }
     
+    e1000_swfw_sync_release(hw, E1000_SWFW_EEP_SM);
     return error;
 }
 
@@ -4090,6 +4631,8 @@ static boolean_t
 e1000_is_onboard_nvm_eeprom(struct e1000_hw *hw)
 {
     uint32_t eecd = 0;
+
+    DEBUGFUNC("e1000_is_onboard_nvm_eeprom");
 
     if(hw->mac_type == e1000_82573) {
         eecd = E1000_READ_REG(hw, EECD);
@@ -4517,6 +5060,7 @@ e1000_read_mac_addr(struct e1000_hw * hw)
     case e1000_82546:
     case e1000_82546_rev_3:
     case e1000_82571:
+    case e1000_80003es2lan:
         if(E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)
             hw->perm_mac_addr[5] ^= 0x01;
         break;
@@ -4778,6 +5322,7 @@ e1000_rar_set(struct e1000_hw *hw,
     switch (hw->mac_type) {
     case e1000_82571:
     case e1000_82572:
+    case e1000_80003es2lan:
         if (hw->leave_av_bit_off == TRUE)
             break;
     default:
@@ -5364,6 +5909,7 @@ e1000_get_bus_info(struct e1000_hw *hw)
         hw->bus_width = e1000_bus_width_pciex_1;
         break;
     case e1000_82571:
+    case e1000_80003es2lan:
         hw->bus_type = e1000_bus_type_pci_express;
         hw->bus_speed = e1000_bus_speed_2500;
         hw->bus_width = e1000_bus_width_pciex_4;
@@ -5509,6 +6055,34 @@ e1000_get_cable_length(struct e1000_hw *hw,
             return -E1000_ERR_PHY;
             break;
         }
+    } else if (hw->phy_type == e1000_phy_gg82563) {
+        ret_val = e1000_read_phy_reg(hw, GG82563_PHY_DSP_DISTANCE,
+                                     &phy_data);
+        if (ret_val)
+            return ret_val;
+        cable_length = phy_data & GG82563_DSPD_CABLE_LENGTH;
+
+        switch (cable_length) {
+        case e1000_gg_cable_length_60:
+            *min_length = 0;
+            *max_length = e1000_igp_cable_length_60;
+            break;
+        case e1000_gg_cable_length_60_115:
+            *min_length = e1000_igp_cable_length_60;
+            *max_length = e1000_igp_cable_length_115;
+            break;
+        case e1000_gg_cable_length_115_150:
+            *min_length = e1000_igp_cable_length_115;
+            *max_length = e1000_igp_cable_length_150;
+            break;
+        case e1000_gg_cable_length_150:
+            *min_length = e1000_igp_cable_length_150;
+            *max_length = e1000_igp_cable_length_180;
+            break;
+        default:
+            return -E1000_ERR_PHY;
+            break;
+        }
     } else if(hw->phy_type == e1000_phy_igp) { /* For IGP PHY */
         uint16_t agc_reg_array[IGP01E1000_PHY_CHANNEL_NUM] =
                                                          {IGP01E1000_PHY_AGC_A,
@@ -5618,7 +6192,8 @@ e1000_check_polarity(struct e1000_hw *hw,
 
     DEBUGFUNC("e1000_check_polarity");
 
-    if(hw->phy_type == e1000_phy_m88) {
+    if ((hw->phy_type == e1000_phy_m88) ||
+        (hw->phy_type == e1000_phy_gg82563)) {
         /* return the Polarity bit in the Status register. */
         ret_val = e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_STATUS,
                                      &phy_data);
@@ -5687,7 +6262,8 @@ e1000_check_downshift(struct e1000_hw *hw)
             return ret_val;
 
         hw->speed_downgraded = (phy_data & IGP01E1000_PLHR_SS_DOWNGRADE) ? 1 : 0;
-    } else if(hw->phy_type == e1000_phy_m88) {
+    } else if ((hw->phy_type == e1000_phy_m88) ||
+               (hw->phy_type == e1000_phy_gg82563)) {
         ret_val = e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_STATUS,
                                      &phy_data);
         if(ret_val)
@@ -6720,6 +7296,7 @@ e1000_get_auto_rd_done(struct e1000_hw *hw)
     case e1000_82571:
     case e1000_82572:
     case e1000_82573:
+    case e1000_80003es2lan:
         while(timeout) {
             if (E1000_READ_REG(hw, EECD) & E1000_EECD_AUTO_RD) break;
             else msec_delay(1);
@@ -6763,6 +7340,11 @@ e1000_get_phy_cfg_done(struct e1000_hw *hw)
     default:
         msec_delay(10);
         break;
+    case e1000_80003es2lan:
+        /* Separate *_CFG_DONE_* bit for each port */
+        if (E1000_READ_REG(hw, STATUS) & E1000_STATUS_FUNC_1)
+            cfg_mask = E1000_EEPROM_CFG_DONE_PORT_1;
+        /* Fall Through */
     case e1000_82571:
     case e1000_82572:
         while (timeout) {
@@ -6805,6 +7387,11 @@ e1000_get_hw_eeprom_semaphore(struct e1000_hw *hw)
     if(!hw->eeprom_semaphore_present)
         return E1000_SUCCESS;
 
+    if (hw->mac_type == e1000_80003es2lan) {
+        /* Get the SW semaphore. */
+        if (e1000_get_software_semaphore(hw) != E1000_SUCCESS)
+            return -E1000_ERR_EEPROM;
+    }
 
     /* Get the FW semaphore. */
     timeout = hw->eeprom.word_size + 1;
@@ -6850,7 +7437,72 @@ e1000_put_hw_eeprom_semaphore(struct e1000_hw *hw)
         return;
 
     swsm = E1000_READ_REG(hw, SWSM);
+    if (hw->mac_type == e1000_80003es2lan) {
+        /* Release both semaphores. */
+        swsm &= ~(E1000_SWSM_SMBI | E1000_SWSM_SWESMBI);
+    } else
         swsm &= ~(E1000_SWSM_SWESMBI);
+    E1000_WRITE_REG(hw, SWSM, swsm);
+}
+
+/***************************************************************************
+ *
+ * Obtaining software semaphore bit (SMBI) before resetting PHY.
+ *
+ * hw: Struct containing variables accessed by shared code
+ *
+ * returns: - E1000_ERR_RESET if fail to obtain semaphore.
+ *            E1000_SUCCESS at any other case.
+ *
+ ***************************************************************************/
+int32_t
+e1000_get_software_semaphore(struct e1000_hw *hw)
+{
+    int32_t timeout = hw->eeprom.word_size + 1;
+    uint32_t swsm;
+
+    DEBUGFUNC("e1000_get_software_semaphore");
+
+    if (hw->mac_type != e1000_80003es2lan)
+        return E1000_SUCCESS;
+
+    while(timeout) {
+        swsm = E1000_READ_REG(hw, SWSM);
+        /* If SMBI bit cleared, it is now set and we hold the semaphore */
+        if(!(swsm & E1000_SWSM_SMBI))
+            break;
+        msec_delay_irq(1);
+        timeout--;
+    }
+
+    if(!timeout) {
+        DEBUGOUT("Driver can't access device - SMBI bit is set.\n");
+        return -E1000_ERR_RESET;
+    }
+
+    return E1000_SUCCESS;
+}
+
+/***************************************************************************
+ *
+ * Release semaphore bit (SMBI).
+ *
+ * hw: Struct containing variables accessed by shared code
+ *
+ ***************************************************************************/
+void
+e1000_release_software_semaphore(struct e1000_hw *hw)
+{
+    uint32_t swsm;
+
+    DEBUGFUNC("e1000_release_software_semaphore");
+
+    if (hw->mac_type != e1000_80003es2lan)
+        return;
+
+    swsm = E1000_READ_REG(hw, SWSM);
+    /* Release the SW semaphores.*/
+    swsm &= ~E1000_SWSM_SMBI;
     E1000_WRITE_REG(hw, SWSM, swsm);
 }
 
@@ -6890,6 +7542,7 @@ e1000_arc_subsystem_valid(struct e1000_hw *hw)
     case e1000_82571:
     case e1000_82572:
     case e1000_82573:
+    case e1000_80003es2lan:
         fwsm = E1000_READ_REG(hw, FWSM);
         if((fwsm & E1000_FWSM_MODE_MASK) != 0)
             return TRUE;

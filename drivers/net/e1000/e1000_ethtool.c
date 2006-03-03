@@ -589,6 +589,7 @@ e1000_get_drvinfo(struct net_device *netdev,
 	case e1000_82571:
 	case e1000_82572:
 	case e1000_82573:
+	case e1000_80003es2lan:
 		sprintf(firmware_version, "%d.%d-%d",
 			(eeprom_data & 0xF000) >> 12,
 			(eeprom_data & 0x0FF0) >> 4,
@@ -762,6 +763,7 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	/* there are several bits on newer hardware that are r/w */
 	case e1000_82571:
 	case e1000_82572:
+	case e1000_80003es2lan:
 		toggle = 0x7FFFF3FF;
 		break;
 	case e1000_82573:
@@ -1320,6 +1322,7 @@ e1000_set_phy_loopback(struct e1000_adapter *adapter)
 	case e1000_82571:
 	case e1000_82572:
 	case e1000_82573:
+	case e1000_80003es2lan:
 		return e1000_integrated_phy_loopback(adapter);
 		break;
 
