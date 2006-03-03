@@ -853,11 +853,14 @@ static int rndis_query_response (int configNr, rndis_query_msg_type *buf)
 	// DEBUG("%s: OID = %08X\n", __FUNCTION__, cpu_to_le32(buf->OID));
 	if (!rndis_per_dev_params [configNr].dev) return -ENOTSUPP;
 	
-	/* 
-	 * we need more memory: 
-	 * oid_supported_list is the largest answer 
+	/*
+	 * we need more memory:
+	 * gen_ndis_query_resp expects enough space for
+	 * rndis_query_cmplt_type followed by data.
+	 * oid_supported_list is the largest data reply
 	 */
-	r = rndis_add_response (configNr, sizeof (oid_supported_list));
+	r = rndis_add_response (configNr,
+		sizeof (oid_supported_list) + sizeof(rndis_query_cmplt_type));
 	if (!r)
 		return -ENOMEM;
 	resp = (rndis_query_cmplt_type *) r->buf;

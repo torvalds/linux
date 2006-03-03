@@ -248,7 +248,7 @@ void __init iommu_hole_init(void)
 		/* Got the aperture from the AGP bridge */
 	} else if (swiotlb && !valid_agp) {
 		/* Do nothing */
-	} else if ((!no_iommu && end_pfn >= MAX_DMA32_PFN) ||
+	} else if ((!no_iommu && end_pfn > MAX_DMA32_PFN) ||
 		   force_iommu ||
 		   valid_agp ||
 		   fallback_aper_force) { 

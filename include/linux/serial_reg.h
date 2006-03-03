@@ -247,10 +247,10 @@
 #define UART_CTR	0xFF
 
 /*
- * The 16C950 Additional Control Reigster
+ * The 16C950 Additional Control Register
  */
 #define UART_ACR_RXDIS	0x01	/* Receiver disable */
-#define UART_ACR_TXDIS	0x02	/* Receiver disable */
+#define UART_ACR_TXDIS	0x02	/* Transmitter disable */
 #define UART_ACR_DSRFC	0x04	/* DSR Flow Control */
 #define UART_ACR_TLENB	0x20	/* 950 trigger levels enable */
 #define UART_ACR_ICRRD	0x40	/* ICR Read enable */

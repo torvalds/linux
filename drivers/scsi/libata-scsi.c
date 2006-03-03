@@ -1708,6 +1708,8 @@ static int ata_dev_supports_fua(u16 *id)
 {
 	unsigned char model[41], fw[9];
 
+	if (!libata_fua)
+		return 0;
 	if (!ata_id_has_fua(id))
 		return 0;
 

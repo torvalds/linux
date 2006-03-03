@@ -627,11 +627,6 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 	reiserfs_write_lock(inode->i_sb);
 	version = get_inode_item_key_version(inode);
 
-	if (block < 0) {
-		reiserfs_write_unlock(inode->i_sb);
-		return -EIO;
-	}
-
 	if (!file_capable(inode, block)) {
 		reiserfs_write_unlock(inode->i_sb);
 		return -EFBIG;
@@ -934,12 +929,13 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 				     //pos_in_item * inode->i_sb->s_blocksize,
 				     TYPE_INDIRECT, 3);	// key type is unimportant
 
+			RFALSE(cpu_key_k_offset(&tmp_key) > cpu_key_k_offset(&key),
+			       "green-805: invalid offset");
 			blocks_needed =
 			    1 +
 			    ((cpu_key_k_offset(&key) -
 			      cpu_key_k_offset(&tmp_key)) >> inode->i_sb->
 			     s_blocksize_bits);
-			RFALSE(blocks_needed < 0, "green-805: invalid offset");
 
 			if (blocks_needed == 1) {
 				un = &unf_single;

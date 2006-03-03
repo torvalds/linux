@@ -65,27 +65,6 @@ static int jazz_esp_release(struct Scsi_Host *shost)
 	return 0;
 }
 
-static struct scsi_host_template driver_template = {
-	.proc_name		= "jazz_esp",
-	.proc_info		= &esp_proc_info,
-	.name			= "ESP 100/100a/200",
-	.detect			= jazz_esp_detect,
-	.slave_alloc		= esp_slave_alloc,
-	.slave_destroy		= esp_slave_destroy,
-	.release		= jazz_esp_release,
-	.info			= esp_info,
-	.queuecommand		= esp_queue,
-	.eh_abort_handler	= esp_abort,
-	.eh_bus_reset_handler	= esp_reset,
-	.can_queue		= 7,
-	.this_id		= 7,
-	.sg_tablesize		= SG_ALL,
-	.cmd_per_lun		= 1,
-	.use_clustering		= DISABLE_CLUSTERING,
-};
-
-#include "scsi_module.c"
-
 /***************************************************************** Detection */
 static int jazz_esp_detect(struct scsi_host_template *tpnt)
 {

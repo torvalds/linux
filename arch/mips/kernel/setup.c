@@ -540,6 +540,9 @@ void __init setup_arch(char **cmdline_p)
 	sparse_init();
 	paging_init();
 	resource_init();
+#ifdef CONFIG_SMP
+	plat_smp_setup();
+#endif
 }
 
 int __init fpu_disable(char *s)

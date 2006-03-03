@@ -27,6 +27,7 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
+#include <linux/time.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/smp_lock.h>
@@ -104,6 +105,7 @@ ramfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 		d_instantiate(dentry, inode);
 		dget(dentry);	/* Extra count - pin the dentry in core */
 		error = 0;
+		dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	}
 	return error;
 }

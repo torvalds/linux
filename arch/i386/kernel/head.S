@@ -534,5 +534,3 @@ ENTRY(cpu_gdt_table)
 	.quad 0x0000000000000000	/* 0xf0 - unused */
 	.quad 0x0000000000000000	/* 0xf8 - GDT entry 31: double-fault TSS */
 
-	/* Be sure this is zeroed to avoid false validations in Xen */
-	.fill PAGE_SIZE_asm / 8 - GDT_ENTRIES,8,0

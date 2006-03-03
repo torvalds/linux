@@ -552,7 +552,7 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
 	 */
 	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
 		if (isolate_lru_page(page))
-			list_add(&page->lru, pagelist);
+			list_add_tail(&page->lru, pagelist);
 	}
 }
 
@@ -569,6 +569,7 @@ static int migrate_pages_to(struct list_head *pagelist,
 	LIST_HEAD(moved);
 	LIST_HEAD(failed);
 	int err = 0;
+	unsigned long offset = 0;
 	int nr_pages;
 	struct page *page;
 	struct list_head *p;
@@ -576,8 +577,21 @@ static int migrate_pages_to(struct list_head *pagelist,
 redo:
 	nr_pages = 0;
 	list_for_each(p, pagelist) {
-		if (vma)
-			page = alloc_page_vma(GFP_HIGHUSER, vma, vma->vm_start);
+		if (vma) {
+			/*
+			 * The address passed to alloc_page_vma is used to
+			 * generate the proper interleave behavior. We fake
+			 * the address here by an increasing offset in order
+			 * to get the proper distribution of pages.
+			 *
+			 * No decision has been made as to which page
+			 * a certain old page is moved to so we cannot
+			 * specify the correct address.
+			 */
+			page = alloc_page_vma(GFP_HIGHUSER, vma,
+					offset + vma->vm_start);
+			offset += PAGE_SIZE;
+		}
 		else
 			page = alloc_pages_node(dest, GFP_HIGHUSER, 0);
 
@@ -585,7 +599,7 @@ redo:
 			err = -ENOMEM;
 			goto out;
 		}
-		list_add(&page->lru, &newlist);
+		list_add_tail(&page->lru, &newlist);
 		nr_pages++;
 		if (nr_pages > MIGRATE_CHUNK_SIZE)
 			break;
@@ -940,7 +954,8 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 		goto out;
 	}
 
-	err = do_migrate_pages(mm, &old, &new, MPOL_MF_MOVE);
+	err = do_migrate_pages(mm, &old, &new,
+		capable(CAP_SYS_ADMIN) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
 out:
 	mmput(mm);
 	return err;
@@ -1778,7 +1793,8 @@ int show_numa_map(struct seq_file *m, void *v)
 	if (!md)
 		return 0;
 
-	check_pgd_range(vma, vma->vm_start, vma->vm_end,
+	if (!is_vm_hugetlb_page(vma))
+		check_pgd_range(vma, vma->vm_start, vma->vm_end,
 		    &node_online_map, MPOL_MF_STATS, md);
 
 	if (md->pages) {

@@ -9408,6 +9408,15 @@ static int __devinit tg3_is_sun_570X(struct tg3 *tp)
 			return 0;
 		if (venid == PCI_VENDOR_ID_SUN)
 			return 1;
+
+		/* TG3 chips onboard the SunBlade-2500 don't have the
+		 * subsystem-vendor-id set to PCI_VENDOR_ID_SUN but they
+		 * are distinguishable from non-Sun variants by being
+		 * named "network" by the firmware.  Non-Sun cards will
+		 * show up as being named "ethernet".
+		 */
+		if (!strcmp(pcp->prom_name, "network"))
+			return 1;
 	}
 	return 0;
 }
