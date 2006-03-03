@@ -700,6 +700,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  asus		3-jack
 	  uniwill	3-jack
 	  F1734		2-jack
+	  lg		LG laptop (m1 express dual)
 	  test		for testing/debugging purpose, almost all controls can be
 			adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
