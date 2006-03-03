@@ -651,6 +651,7 @@ e1000_probe(struct pci_dev *pdev,
 	unsigned long mmio_start, mmio_len;
 
 	static int cards_found = 0;
+	static int e1000_ksp3_port_a = 0; /* global ksp3 port a indication */
 	int i, err, pci_using_dac;
 	uint16_t eeprom_data;
 	uint16_t eeprom_apme_mask = E1000_EEPROM_APME;
@@ -742,6 +743,15 @@ e1000_probe(struct pci_dev *pdev,
 
 	if ((err = e1000_check_phy_reset_block(&adapter->hw)))
 		DPRINTK(PROBE, INFO, "PHY reset is blocked due to SOL/IDER session.\n");
+
+	/* if ksp3, indicate if it's port a being setup */
+	if (pdev->device == E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 && 
+			e1000_ksp3_port_a == 0) 
+		adapter->ksp3_port_a = 1;
+	e1000_ksp3_port_a++;
+	/* Reset for multiple KP3 adapters */
+	if (e1000_ksp3_port_a == 4)
+		e1000_ksp3_port_a = 0;
 
 	if (adapter->hw.mac_type >= e1000_82543) {
 		netdev->features = NETIF_F_SG |

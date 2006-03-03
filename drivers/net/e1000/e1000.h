@@ -242,6 +242,7 @@ struct e1000_adapter {
 	uint32_t rx_buffer_len;
 	uint32_t part_num;
 	uint32_t wol;
+	uint32_t ksp3_port_a;
 	uint32_t smartspeed;
 	uint32_t en_mng_pt;
 	uint16_t link_speed;

@@ -1632,9 +1632,25 @@ e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	case E1000_DEV_ID_82546EB_QUAD_COPPER:
 	case E1000_DEV_ID_82545EM_FIBER:
 	case E1000_DEV_ID_82545EM_COPPER:
+	case E1000_DEV_ID_82546GB_QUAD_COPPER:
 		wol->supported = 0;
 		wol->wolopts   = 0;
 		return;
+
+	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
+		/* device id 10B5 port-A supports wol */
+		if (!adapter->ksp3_port_a) {
+			wol->supported = 0;
+			return;
+		}
+		/* KSP3 does not suppport UCAST wake-ups for any interface */
+		wol->supported = WAKE_MCAST | WAKE_BCAST | WAKE_MAGIC;
+
+		if (adapter->wol & E1000_WUFC_EX)
+			DPRINTK(DRV, ERR, "Interface does not support "
+		        "directed (unicast) frame wake-up packets\n");
+		wol->wolopts = 0;
+		goto do_defaults;
 
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
@@ -1650,8 +1666,9 @@ e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	default:
 		wol->supported = WAKE_UCAST | WAKE_MCAST |
 				 WAKE_BCAST | WAKE_MAGIC;
-
 		wol->wolopts = 0;
+
+do_defaults:
 		if (adapter->wol & E1000_WUFC_EX)
 			wol->wolopts |= WAKE_UCAST;
 		if (adapter->wol & E1000_WUFC_MC)
@@ -1676,9 +1693,21 @@ e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	case E1000_DEV_ID_82543GC_COPPER:
 	case E1000_DEV_ID_82544EI_FIBER:
 	case E1000_DEV_ID_82546EB_QUAD_COPPER:
+	case E1000_DEV_ID_82546GB_QUAD_COPPER:
 	case E1000_DEV_ID_82545EM_FIBER:
 	case E1000_DEV_ID_82545EM_COPPER:
 		return wol->wolopts ? -EOPNOTSUPP : 0;
+
+	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
+		/* device id 10B5 port-A supports wol */
+		if (!adapter->ksp3_port_a)
+			return wol->wolopts ? -EOPNOTSUPP : 0;
+
+		if (wol->wolopts & WAKE_UCAST) {
+			DPRINTK(DRV, ERR, "Interface does not support "
+		        "directed (unicast) frame wake-up packets\n");
+			return -EOPNOTSUPP;
+		}
 
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
