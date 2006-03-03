@@ -83,9 +83,9 @@ static void eth_port_uc_addr_get(struct net_device *dev,
 						unsigned char *MacAddr);
 static void eth_port_set_multicast_list(struct net_device *);
 static void mv643xx_eth_port_enable_tx(unsigned int port_num,
-						unsigned int channels);
+						unsigned int queues);
 static void mv643xx_eth_port_enable_rx(unsigned int port_num,
-						unsigned int channels);
+						unsigned int queues);
 static unsigned int mv643xx_eth_port_disable_tx(unsigned int port_num);
 static unsigned int mv643xx_eth_port_disable_rx(unsigned int port_num);
 static int mv643xx_eth_open(struct net_device *);
@@ -466,7 +466,7 @@ static void mv643xx_eth_update_pscr(struct net_device *dev,
 	struct mv643xx_private *mp = netdev_priv(dev);
 	int port_num = mp->port_num;
 	u32 o_pscr, n_pscr;
-	unsigned int channels;
+	unsigned int queues;
 
 	o_pscr = mv_read(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num));
 	n_pscr = o_pscr;
@@ -494,7 +494,7 @@ static void mv643xx_eth_update_pscr(struct net_device *dev,
 			mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num),
 								n_pscr);
 		else {
-			channels = mv643xx_eth_port_disable_tx(port_num);
+			queues = mv643xx_eth_port_disable_tx(port_num);
 
 			o_pscr &= ~MV643XX_ETH_SERIAL_PORT_ENABLE;
 			mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num),
@@ -503,8 +503,8 @@ static void mv643xx_eth_update_pscr(struct net_device *dev,
 								n_pscr);
 			mv_write(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(port_num),
 								n_pscr);
-			if (channels)
-				mv643xx_eth_port_enable_tx(port_num, channels);
+			if (queues)
+				mv643xx_eth_port_enable_tx(port_num, queues);
 		}
 	}
 }
@@ -2453,28 +2453,28 @@ static void ethernet_phy_reset(unsigned int eth_port_num)
 }
 
 static void mv643xx_eth_port_enable_tx(unsigned int port_num,
-					unsigned int channels)
+					unsigned int queues)
 {
-	mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num), channels);
+	mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num), queues);
 }
 
 static void mv643xx_eth_port_enable_rx(unsigned int port_num,
-					unsigned int channels)
+					unsigned int queues)
 {
-	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num), channels);
+	mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num), queues);
 }
 
 static unsigned int mv643xx_eth_port_disable_tx(unsigned int port_num)
 {
-	u32 channels;
+	u32 queues;
 
 	/* Stop Tx port activity. Check port Tx activity. */
-	channels = mv_read(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num))
+	queues = mv_read(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num))
 							& 0xFF;
-	if (channels) {
-		/* Issue stop command for active channels only */
+	if (queues) {
+		/* Issue stop command for active queues only */
 		mv_write(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(port_num),
-							(channels << 8));
+							(queues << 8));
 
 		/* Wait for all Tx activity to terminate. */
 		/* Check port cause register that all Tx queues are stopped */
@@ -2488,20 +2488,20 @@ static unsigned int mv643xx_eth_port_disable_tx(unsigned int port_num)
 			udelay(PHY_WAIT_MICRO_SECONDS);
 	}
 
-	return channels;
+	return queues;
 }
 
 static unsigned int mv643xx_eth_port_disable_rx(unsigned int port_num)
 {
-	u32 channels;
+	u32 queues;
 
 	/* Stop Rx port activity. Check port Rx activity. */
-	channels = mv_read(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num))
+	queues = mv_read(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num))
 							& 0xFF;
-	if (channels) {
-		/* Issue stop command for active channels only */
+	if (queues) {
+		/* Issue stop command for active queues only */
 		mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num),
-							(channels << 8));
+							(queues << 8));
 
 		/* Wait for all Rx activity to terminate. */
 		/* Check port cause register that all Rx queues are stopped */
@@ -2510,7 +2510,7 @@ static unsigned int mv643xx_eth_port_disable_rx(unsigned int port_num)
 			udelay(PHY_WAIT_MICRO_SECONDS);
 	}
 
-	return channels;
+	return queues;
 }
 
 /*
