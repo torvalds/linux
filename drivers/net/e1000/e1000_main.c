@@ -3569,10 +3569,15 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		skb = buffer_info->skb;
 		buffer_info->skb = NULL;
 
+		prefetch(skb->data - NET_IP_ALIGN);
+
 		if (++i == rx_ring->count) i = 0;
 		next_rxd = E1000_RX_DESC(*rx_ring, i);
+		prefetch(next_rxd);
+
 		next_buffer = &rx_ring->buffer_info[i];
 		next_skb = next_buffer->skb;
+		prefetch(next_skb->data - NET_IP_ALIGN);
 
 		cleaned = TRUE;
 		cleaned_count++;
@@ -3668,6 +3673,7 @@ next_desc:
 			cleaned_count = 0;
 		}
 
+		/* use prefetched values */
 		rx_desc = next_rxd;
 		buffer_info = next_buffer;
 	}
@@ -3710,9 +3716,9 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC_PS(*rx_ring, i);
 	staterr = le32_to_cpu(rx_desc->wb.middle.status_error);
-	buffer_info = &rx_ring->buffer_info[i];
 
 	while (staterr & E1000_RXD_STAT_DD) {
+		buffer_info = &rx_ring->buffer_info[i];
 		ps_page = &rx_ring->ps_page[i];
 		ps_page_dma = &rx_ring->ps_page_dma[i];
 #ifdef CONFIG_E1000_NAPI
@@ -3722,10 +3728,16 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 #endif
 		skb = buffer_info->skb;
 
+		/* in the packet split case this is header only */
+		prefetch(skb->data - NET_IP_ALIGN);
+
 		if (++i == rx_ring->count) i = 0;
 		next_rxd = E1000_RX_DESC_PS(*rx_ring, i);
+		prefetch(next_rxd);
+
 		next_buffer = &rx_ring->buffer_info[i];
 		next_skb = next_buffer->skb;
+		prefetch(next_skb->data - NET_IP_ALIGN);
 
 		cleaned = TRUE;
 		cleaned_count++;
@@ -3787,9 +3799,8 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		}
 		
 		for (j = 0; j < adapter->rx_ps_pages; j++) {
-			if (!(length = le16_to_cpu(rx_desc->wb.upper.length[j])))
+			if (!(length= le16_to_cpu(rx_desc->wb.upper.length[j])))
 				break;
-
 			pci_unmap_page(pdev, ps_page_dma->ps_page_dma[j],
 					PAGE_SIZE, PCI_DMA_FROMDEVICE);
 			ps_page_dma->ps_page_dma[j] = 0;
@@ -3837,6 +3848,7 @@ next_desc:
 			cleaned_count = 0;
 		}
 
+		/* use prefetched values */
 		rx_desc = next_rxd;
 		buffer_info = next_buffer;
 
