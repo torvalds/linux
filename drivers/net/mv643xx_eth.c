@@ -2496,8 +2496,8 @@ static unsigned int mv643xx_eth_port_disable_rx(unsigned int port_num)
 	u32 channels;
 
 	/* Stop Rx port activity. Check port Rx activity. */
-	channels = mv_read(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num)
-							& 0xFF);
+	channels = mv_read(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num))
+							& 0xFF;
 	if (channels) {
 		/* Issue stop command for active channels only */
 		mv_write(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(port_num),
