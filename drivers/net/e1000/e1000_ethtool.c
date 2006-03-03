@@ -634,6 +634,9 @@ e1000_set_ringparam(struct net_device *netdev,
 	struct e1000_rx_ring *rxdr, *rx_old, *rx_new;
 	int i, err, tx_ring_size, rx_ring_size;
 
+	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
+		return -EINVAL;
+
 	tx_ring_size = sizeof(struct e1000_tx_ring) * adapter->num_tx_queues;
 	rx_ring_size = sizeof(struct e1000_rx_ring) * adapter->num_rx_queues;
 
@@ -660,9 +663,6 @@ e1000_set_ringparam(struct net_device *netdev,
 
 	txdr = adapter->tx_ring;
 	rxdr = adapter->rx_ring;
-
-	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
-		return -EINVAL;
 
 	rxdr->count = max(ring->rx_pending,(uint32_t)E1000_MIN_RXD);
 	rxdr->count = min(rxdr->count,(uint32_t)(mac_type < e1000_82544 ?
