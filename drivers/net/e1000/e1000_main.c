@@ -2978,6 +2978,7 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	int max_frame = new_mtu + ENET_HEADER_SIZE + ETHERNET_FCS_SIZE;
+	uint16_t eeprom_data = 0;
 
 	if ((max_frame < MINIMUM_ETHERNET_FRAME_SIZE) ||
 	    (max_frame > MAX_JUMBO_FRAME_SIZE)) {
@@ -2989,12 +2990,25 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	switch (adapter->hw.mac_type) {
 	case e1000_82542_rev2_0:
 	case e1000_82542_rev2_1:
-	case e1000_82573:
 		if (max_frame > MAXIMUM_ETHERNET_FRAME_SIZE) {
 			DPRINTK(PROBE, ERR, "Jumbo Frames not supported.\n");
 			return -EINVAL;
 		}
 		break;
+	case e1000_82573:
+		/* only enable jumbo frames if ASPM is disabled completely
+		 * this means both bits must be zero in 0x1A bits 3:2 */
+		e1000_read_eeprom(&adapter->hw, EEPROM_INIT_3GIO_3, 1,
+		                  &eeprom_data);
+		if (eeprom_data & EEPROM_WORD1A_ASPM_MASK) {
+			if (max_frame > MAXIMUM_ETHERNET_FRAME_SIZE) {
+				DPRINTK(PROBE, ERR,
+			            	"Jumbo Frames not supported.\n");
+				return -EINVAL;
+			}
+			break;
+		}
+		/* fall through to get support */
 	case e1000_82571:
 	case e1000_82572:
 #define MAX_STD_JUMBO_FRAME_SIZE 9234

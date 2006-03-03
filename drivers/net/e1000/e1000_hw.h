@@ -1875,6 +1875,7 @@ struct e1000_hw {
 #define E1000_MANC_TCO_RESET     0x00010000 /* TCO Reset Occurred */
 #define E1000_MANC_RCV_TCO_EN    0x00020000 /* Receive TCO Packets Enabled */
 #define E1000_MANC_REPORT_STATUS 0x00040000 /* Status Reporting Enabled */
+#define E1000_MANC_RCV_ALL       0x00080000 /* Receive All Enabled */
 #define E1000_MANC_BLK_PHY_RST_ON_IDE   0x00040000 /* Block phy resets */
 #define E1000_MANC_EN_MAC_ADDR_FILTER   0x00100000 /* Enable MAC address
                                                     * filtering */
@@ -2036,6 +2037,7 @@ struct e1000_host_command_info {
 #define EEPROM_INIT_CONTROL1_REG      0x000A
 #define EEPROM_INIT_CONTROL2_REG      0x000F
 #define EEPROM_INIT_CONTROL3_PORT_B   0x0014
+#define EEPROM_INIT_3GIO_3            0x001A
 #define EEPROM_INIT_CONTROL3_PORT_A   0x0024
 #define EEPROM_CFG                    0x0012
 #define EEPROM_FLASH_VERSION          0x0032
@@ -2084,6 +2086,9 @@ struct e1000_host_command_info {
 #define EEPROM_WORD0F_ASM_DIR    0x2000
 #define EEPROM_WORD0F_ANE        0x0800
 #define EEPROM_WORD0F_SWPDIO_EXT 0x00F0
+
+/* Mask bits for fields in Word 0x1a of the EEPROM */
+#define EEPROM_WORD1A_ASPM_MASK  0x000C
 
 /* For checksumming, the sum of all words in the EEPROM should equal 0xBABA. */
 #define EEPROM_SUM 0xBABA
