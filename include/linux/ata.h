@@ -314,7 +314,8 @@ static inline int is_multi_taskfile(struct ata_taskfile *tf)
 	return (tf->command == ATA_CMD_READ_MULTI) ||
 	       (tf->command == ATA_CMD_WRITE_MULTI) ||
 	       (tf->command == ATA_CMD_READ_MULTI_EXT) ||
-	       (tf->command == ATA_CMD_WRITE_MULTI_EXT);
+	       (tf->command == ATA_CMD_WRITE_MULTI_EXT) ||
+	       (tf->command == ATA_CMD_WRITE_MULTI_FUA_EXT);
 }
 
 static inline int ata_ok(u8 status)
