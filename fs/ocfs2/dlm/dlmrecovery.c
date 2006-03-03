@@ -744,10 +744,12 @@ static void dlm_request_all_locks_worker(struct dlm_work_item *item, void *data)
 		     dlm->name, dlm->reco.dead_node, dlm->reco.new_master,
 		     dead_node, reco_master);
 		mlog(ML_ERROR, "%s: name=%.*s master=%u locks=%u/%u flags=%u "
-		     "entry[0]={c=%"MLFu64",l=%u,f=%u,t=%d,ct=%d,hb=%d,n=%u}\n",
+		     "entry[0]={c=%u:%llu,l=%u,f=%u,t=%d,ct=%d,hb=%d,n=%u}\n",
 		     dlm->name, mres->lockname_len, mres->lockname, mres->master,
 		     mres->num_locks, mres->total_locks, mres->flags,
-		     mres->ml[0].cookie, mres->ml[0].list, mres->ml[0].flags,
+		     dlm_get_lock_cookie_node(mres->ml[0].cookie),
+		     dlm_get_lock_cookie_seq(mres->ml[0].cookie),
+		     mres->ml[0].list, mres->ml[0].flags,
 		     mres->ml[0].type, mres->ml[0].convert_type,
 		     mres->ml[0].highest_blocked, mres->ml[0].node);
 		BUG();
@@ -1513,9 +1515,11 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 			/* lock is always created locally first, and
 			 * destroyed locally last.  it must be on the list */
 			if (!lock) {
+				u64 c = ml->cookie;
 				mlog(ML_ERROR, "could not find local lock "
-					       "with cookie %"MLFu64"!\n",
-				     ml->cookie);
+					       "with cookie %u:%llu!\n",
+					       dlm_get_lock_cookie_node(c),
+					       dlm_get_lock_cookie_seq(c));
 				BUG();
 			}
 			BUG_ON(lock->ml.node != ml->node);

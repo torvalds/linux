@@ -630,6 +630,21 @@ __dlm_lockres_state_to_status(struct dlm_lock_resource *res)
 	return status;
 }
 
+static inline u8 dlm_get_lock_cookie_node(u64 cookie)
+{
+	u8 ret;
+	cookie >>= 56;
+	ret = (u8)(cookie & 0xffULL);
+	return ret;
+}
+
+static inline unsigned long long dlm_get_lock_cookie_seq(u64 cookie)
+{
+	unsigned long long ret;
+	ret = ((unsigned long long)cookie) & 0x00ffffffffffffffULL;
+	return ret;
+}
+
 struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
 			       struct dlm_lockstatus *lksb);
 void dlm_lock_get(struct dlm_lock *lock);

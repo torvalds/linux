@@ -244,8 +244,10 @@ leave:
 	if (actions & DLM_UNLOCK_FREE_LOCK) {
 		/* this should always be coupled with list removal */
 		BUG_ON(!(actions & DLM_UNLOCK_REMOVE_LOCK));
-		mlog(0, "lock %"MLFu64" should be gone now! refs=%d\n",
-		     lock->ml.cookie, atomic_read(&lock->lock_refs.refcount)-1);
+		mlog(0, "lock %u:%llu should be gone now! refs=%d\n",
+		     dlm_get_lock_cookie_node(lock->ml.cookie),
+		     dlm_get_lock_cookie_seq(lock->ml.cookie),
+		     atomic_read(&lock->lock_refs.refcount)-1);
 		dlm_lock_put(lock);
 	}
 	if (actions & DLM_UNLOCK_CALL_AST)
@@ -493,8 +495,9 @@ int dlm_unlock_lock_handler(struct o2net_msg *msg, u32 len, void *data)
 not_found:
 	if (!found)
 		mlog(ML_ERROR, "failed to find lock to unlock! "
-			       "cookie=%"MLFu64"\n",
-		     unlock->cookie);
+			       "cookie=%u:%llu\n",
+			       dlm_get_lock_cookie_node(unlock->cookie),
+			       dlm_get_lock_cookie_seq(unlock->cookie));
 	else {
 		/* send the lksb->status back to the other node */
 		status = lksb->status;
