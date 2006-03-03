@@ -9,43 +9,6 @@
 
 #include <linux/mv643xx.h>
 
-#define	BIT0	0x00000001
-#define	BIT1	0x00000002
-#define	BIT2	0x00000004
-#define	BIT3	0x00000008
-#define	BIT4	0x00000010
-#define	BIT5	0x00000020
-#define	BIT6	0x00000040
-#define	BIT7	0x00000080
-#define	BIT8	0x00000100
-#define	BIT9	0x00000200
-#define	BIT10	0x00000400
-#define	BIT11	0x00000800
-#define	BIT12	0x00001000
-#define	BIT13	0x00002000
-#define	BIT14	0x00004000
-#define	BIT15	0x00008000
-#define	BIT16	0x00010000
-#define	BIT17	0x00020000
-#define	BIT18	0x00040000
-#define	BIT19	0x00080000
-#define	BIT20	0x00100000
-#define	BIT21	0x00200000
-#define	BIT22	0x00400000
-#define	BIT23	0x00800000
-#define	BIT24	0x01000000
-#define	BIT25	0x02000000
-#define	BIT26	0x04000000
-#define	BIT27	0x08000000
-#define	BIT28	0x10000000
-#define	BIT29	0x20000000
-#define	BIT30	0x40000000
-#define	BIT31	0x80000000
-
-/*
- *  The first part is the high level driver of the gigE ethernet ports.
- */
-
 /* Checksum offload for Tx works for most packets, but
  * fails if previous packet sent did not use hw csum
  */
@@ -148,88 +111,71 @@
 #define ETH_MIB_LATE_COLLISION			0x7c
 
 /* Port serial status reg (PSR) */
-#define ETH_INTERFACE_GMII_MII			0
-#define ETH_INTERFACE_PCM			BIT0
-#define ETH_LINK_IS_DOWN			0
-#define ETH_LINK_IS_UP				BIT1
-#define ETH_PORT_AT_HALF_DUPLEX			0
-#define ETH_PORT_AT_FULL_DUPLEX			BIT2
-#define ETH_RX_FLOW_CTRL_DISABLED		0
-#define ETH_RX_FLOW_CTRL_ENBALED		BIT3
-#define ETH_GMII_SPEED_100_10			0
-#define ETH_GMII_SPEED_1000			BIT4
-#define ETH_MII_SPEED_10			0
-#define ETH_MII_SPEED_100			BIT5
-#define ETH_NO_TX				0
-#define ETH_TX_IN_PROGRESS			BIT7
-#define ETH_BYPASS_NO_ACTIVE			0
-#define ETH_BYPASS_ACTIVE			BIT8
-#define ETH_PORT_NOT_AT_PARTITION_STATE		0
-#define ETH_PORT_AT_PARTITION_STATE		BIT9
-#define ETH_PORT_TX_FIFO_NOT_EMPTY		0
-#define ETH_PORT_TX_FIFO_EMPTY			BIT10
-
-#define ETH_DEFAULT_RX_BPDU_QUEUE_3		(BIT23 | BIT22)
-#define ETH_DEFAULT_RX_BPDU_QUEUE_4		BIT24
-#define ETH_DEFAULT_RX_BPDU_QUEUE_5		(BIT24 | BIT22)
-#define ETH_DEFAULT_RX_BPDU_QUEUE_6		(BIT24 | BIT23)
-#define ETH_DEFAULT_RX_BPDU_QUEUE_7		(BIT24 | BIT23 | BIT22)
+#define ETH_INTERFACE_PCM			0x00000001
+#define ETH_LINK_IS_UP				0x00000002
+#define ETH_PORT_AT_FULL_DUPLEX			0x00000004
+#define ETH_RX_FLOW_CTRL_ENABLED		0x00000008
+#define ETH_GMII_SPEED_1000			0x00000010
+#define ETH_MII_SPEED_100			0x00000020
+#define ETH_TX_IN_PROGRESS			0x00000080
+#define ETH_BYPASS_ACTIVE			0x00000100
+#define ETH_PORT_AT_PARTITION_STATE		0x00000200
+#define ETH_PORT_TX_FIFO_EMPTY			0x00000400
 
 /* SMI reg */
-#define ETH_SMI_BUSY		BIT28	/* 0 - Write, 1 - Read		*/
-#define ETH_SMI_READ_VALID	BIT27	/* 0 - Write, 1 - Read		*/
-#define ETH_SMI_OPCODE_WRITE	0	/* Completion of Read operation */
-#define ETH_SMI_OPCODE_READ 	BIT26	/* Operation is in progress	*/
+#define ETH_SMI_BUSY		0x10000000	/* 0 - Write, 1 - Read	*/
+#define ETH_SMI_READ_VALID	0x08000000	/* 0 - Write, 1 - Read	*/
+#define ETH_SMI_OPCODE_WRITE	0		/* Completion of Read	*/
+#define ETH_SMI_OPCODE_READ 	0x04000000	/* Operation is in progress */
+
+/* Interrupt Cause Register Bit Definitions */
 
 /* SDMA command status fields macros */
 
 /* Tx & Rx descriptors status */
-#define ETH_ERROR_SUMMARY			(BIT0)
+#define ETH_ERROR_SUMMARY			0x00000001
 
 /* Tx & Rx descriptors command */
-#define ETH_BUFFER_OWNED_BY_DMA			(BIT31)
+#define ETH_BUFFER_OWNED_BY_DMA			0x80000000
 
 /* Tx descriptors status */
-#define ETH_LC_ERROR				(0    )
-#define ETH_UR_ERROR				(BIT1 )
-#define ETH_RL_ERROR				(BIT2 )
-#define ETH_LLC_SNAP_FORMAT			(BIT9 )
+#define ETH_LC_ERROR				0
+#define ETH_UR_ERROR				0x00000002
+#define ETH_RL_ERROR				0x00000004
+#define ETH_LLC_SNAP_FORMAT			0x00000200
 
 /* Rx descriptors status */
-#define ETH_CRC_ERROR				(0    )
-#define ETH_OVERRUN_ERROR			(BIT1 )
-#define ETH_MAX_FRAME_LENGTH_ERROR		(BIT2 )
-#define ETH_RESOURCE_ERROR			((BIT2 | BIT1))
-#define ETH_VLAN_TAGGED				(BIT19)
-#define ETH_BPDU_FRAME				(BIT20)
-#define ETH_TCP_FRAME_OVER_IP_V_4		(0    )
-#define ETH_UDP_FRAME_OVER_IP_V_4		(BIT21)
-#define ETH_OTHER_FRAME_TYPE			(BIT22)
-#define ETH_LAYER_2_IS_ETH_V_2			(BIT23)
-#define ETH_FRAME_TYPE_IP_V_4			(BIT24)
-#define ETH_FRAME_HEADER_OK			(BIT25)
-#define ETH_RX_LAST_DESC			(BIT26)
-#define ETH_RX_FIRST_DESC			(BIT27)
-#define ETH_UNKNOWN_DESTINATION_ADDR		(BIT28)
-#define ETH_RX_ENABLE_INTERRUPT			(BIT29)
-#define ETH_LAYER_4_CHECKSUM_OK			(BIT30)
+#define ETH_OVERRUN_ERROR			0x00000002
+#define ETH_MAX_FRAME_LENGTH_ERROR		0x00000004
+#define ETH_RESOURCE_ERROR			0x00000006
+#define ETH_VLAN_TAGGED				0x00080000
+#define ETH_BPDU_FRAME				0x00100000
+#define ETH_UDP_FRAME_OVER_IP_V_4		0x00200000
+#define ETH_OTHER_FRAME_TYPE			0x00400000
+#define ETH_LAYER_2_IS_ETH_V_2			0x00800000
+#define ETH_FRAME_TYPE_IP_V_4			0x01000000
+#define ETH_FRAME_HEADER_OK			0x02000000
+#define ETH_RX_LAST_DESC			0x04000000
+#define ETH_RX_FIRST_DESC			0x08000000
+#define ETH_UNKNOWN_DESTINATION_ADDR		0x10000000
+#define ETH_RX_ENABLE_INTERRUPT			0x20000000
+#define ETH_LAYER_4_CHECKSUM_OK			0x40000000
 
 /* Rx descriptors byte count */
-#define ETH_FRAME_FRAGMENTED			(BIT2)
+#define ETH_FRAME_FRAGMENTED			0x00000004
 
 /* Tx descriptors command */
-#define ETH_LAYER_4_CHECKSUM_FIRST_DESC		(BIT10)
-#define ETH_FRAME_SET_TO_VLAN			(BIT15)
-#define ETH_TCP_FRAME				(0    )
-#define ETH_UDP_FRAME				(BIT16)
-#define ETH_GEN_TCP_UDP_CHECKSUM		(BIT17)
-#define ETH_GEN_IP_V_4_CHECKSUM			(BIT18)
-#define ETH_ZERO_PADDING			(BIT19)
-#define ETH_TX_LAST_DESC			(BIT20)
-#define ETH_TX_FIRST_DESC			(BIT21)
-#define ETH_GEN_CRC				(BIT22)
-#define ETH_TX_ENABLE_INTERRUPT			(BIT23)
-#define ETH_AUTO_MODE				(BIT30)
+#define ETH_LAYER_4_CHECKSUM_FIRST_DESC		0x00000400
+#define ETH_FRAME_SET_TO_VLAN			0x00008000
+#define ETH_UDP_FRAME				0x00010000
+#define ETH_GEN_TCP_UDP_CHECKSUM		0x00020000
+#define ETH_GEN_IP_V_4_CHECKSUM			0x00040000
+#define ETH_ZERO_PADDING			0x00080000
+#define ETH_TX_LAST_DESC			0x00100000
+#define ETH_TX_FIRST_DESC			0x00200000
+#define ETH_GEN_CRC				0x00400000
+#define ETH_TX_ENABLE_INTERRUPT			0x00800000
+#define ETH_AUTO_MODE				0x40000000
 
 #define ETH_TX_IHL_SHIFT			11
 
