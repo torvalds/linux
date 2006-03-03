@@ -2678,7 +2678,7 @@ e1000_transfer_dhcp_info(struct e1000_adapter *adapter, struct sk_buff *skb)
 			  E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT)) )
 			return 0;
 	}
-	if ((skb->len > MINIMUM_DHCP_PACKET_SIZE) && (!skb->protocol)) {
+	if (skb->len > MINIMUM_DHCP_PACKET_SIZE) {
 		struct ethhdr *eth = (struct ethhdr *) skb->data;
 		if ((htons(ETH_P_IP) == eth->h_proto)) {
 			const struct iphdr *ip =
