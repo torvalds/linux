@@ -3757,6 +3757,35 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		/* Good Receive */
 		skb_put(skb, length);
 
+		{
+		/* this looks ugly, but it seems compiler issues make it
+		   more efficient than reusing j */
+		int l1 = le16_to_cpu(rx_desc->wb.upper.length[0]);
+
+		/* page alloc/put takes too long and effects small packet
+		 * throughput, so unsplit small packets and save the alloc/put*/
+		if (l1 && ((length + l1) < E1000_CB_LENGTH)) {
+			u8 *vaddr;
+			/* there is no documentation about how to call 
+			 * kmap_atomic, so we can't hold the mapping
+			 * very long */
+			pci_dma_sync_single_for_cpu(pdev,
+				ps_page_dma->ps_page_dma[0],
+				PAGE_SIZE,
+				PCI_DMA_FROMDEVICE);
+			vaddr = kmap_atomic(ps_page->ps_page[0],
+			                    KM_SKB_DATA_SOFTIRQ);
+			memcpy(skb->tail, vaddr, l1);
+			kunmap_atomic(vaddr, KM_SKB_DATA_SOFTIRQ);
+			pci_dma_sync_single_for_device(pdev,
+				ps_page_dma->ps_page_dma[0],
+				PAGE_SIZE, PCI_DMA_FROMDEVICE);
+			skb_put(skb, l1);
+			length += l1;
+			goto copydone;
+		} /* if */
+		}
+		
 		for (j = 0; j < adapter->rx_ps_pages; j++) {
 			if (!(length = le16_to_cpu(rx_desc->wb.upper.length[j])))
 				break;
@@ -3771,6 +3800,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			skb->data_len += length;
 		}
 
+copydone:
 		e1000_rx_checksum(adapter, staterr,
 				  rx_desc->wb.lower.hi_dword.csum_ip.csum, skb);
 		skb->protocol = eth_type_trans(skb, netdev);
