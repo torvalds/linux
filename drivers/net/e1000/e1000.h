@@ -252,8 +252,8 @@ struct e1000_adapter {
 	spinlock_t tx_queue_lock;
 #endif
 	atomic_t irq_sem;
-	struct work_struct tx_timeout_task;
 	struct work_struct watchdog_task;
+	struct work_struct reset_task;
 	uint8_t fc_autoneg;
 
 	struct timer_list blink_timer;
@@ -328,7 +328,7 @@ struct e1000_adapter {
 	struct e1000_rx_ring test_rx_ring;
 
 
-	u32 *config_space;
+	uint32_t *config_space;
 	int msg_enable;
 #ifdef CONFIG_PCI_MSI
 	boolean_t have_msi;

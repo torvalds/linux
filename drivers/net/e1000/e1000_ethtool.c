@@ -67,7 +67,6 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_over_errors", E1000_STAT(net_stats.rx_over_errors) },
 	{ "rx_crc_errors", E1000_STAT(net_stats.rx_crc_errors) },
 	{ "rx_frame_errors", E1000_STAT(net_stats.rx_frame_errors) },
-	{ "rx_fifo_errors", E1000_STAT(net_stats.rx_fifo_errors) },
 	{ "rx_no_buffer_count", E1000_STAT(stats.rnbc) },
 	{ "rx_missed_errors", E1000_STAT(net_stats.rx_missed_errors) },
 	{ "tx_aborted_errors", E1000_STAT(net_stats.tx_aborted_errors) },
@@ -1253,6 +1252,10 @@ e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x9140);
 		/* autoneg off */
 		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x8140);
+	} else if (adapter->hw.phy_type == e1000_phy_gg82563) {
+		e1000_write_phy_reg(&adapter->hw,
+		                    GG82563_PHY_KMRN_MODE_CTRL,
+		                    0x1CE);
 	}
 	/* force 1000, set loopback */
 	e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x4140);
@@ -1403,6 +1406,11 @@ e1000_loopback_cleanup(struct e1000_adapter *adapter)
 	case e1000_82546_rev_3:
 	default:
 		hw->autoneg = TRUE;
+		if (hw->phy_type == e1000_phy_gg82563) {
+			e1000_write_phy_reg(hw,
+					    GG82563_PHY_KMRN_MODE_CTRL,
+					    0x180);
+		}
 		e1000_read_phy_reg(hw, PHY_CTRL, &phy_reg);
 		if (phy_reg & MII_CR_LOOPBACK) {
 			phy_reg &= ~MII_CR_LOOPBACK;

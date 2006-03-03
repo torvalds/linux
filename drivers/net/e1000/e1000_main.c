@@ -245,7 +245,7 @@ void e1000_set_ethtool_ops(struct net_device *netdev);
 static void e1000_enter_82542_rst(struct e1000_adapter *adapter);
 static void e1000_leave_82542_rst(struct e1000_adapter *adapter);
 static void e1000_tx_timeout(struct net_device *dev);
-static void e1000_tx_timeout_task(struct net_device *dev);
+static void e1000_reset_task(struct net_device *dev);
 static void e1000_smartspeed(struct e1000_adapter *adapter);
 static inline int e1000_82547_fifo_workaround(struct e1000_adapter *adapter,
 					      struct sk_buff *skb);
@@ -611,7 +611,10 @@ e1000_reset(struct e1000_adapter *adapter)
 
 	adapter->hw.fc_high_water = fc_high_water_mark;
 	adapter->hw.fc_low_water = fc_high_water_mark - 8;
-	adapter->hw.fc_pause_time = E1000_FC_PAUSE_TIME;
+	if (adapter->hw.mac_type == e1000_80003es2lan)
+		adapter->hw.fc_pause_time = 0xFFFF;
+	else
+		adapter->hw.fc_pause_time = E1000_FC_PAUSE_TIME;
 	adapter->hw.fc_send_xon = 1;
 	adapter->hw.fc = adapter->hw.original_fc;
 
@@ -828,8 +831,8 @@ e1000_probe(struct pci_dev *pdev,
 	adapter->phy_info_timer.function = &e1000_update_phy_info;
 	adapter->phy_info_timer.data = (unsigned long) adapter;
 
-	INIT_WORK(&adapter->tx_timeout_task,
-		(void (*)(void *))e1000_tx_timeout_task, netdev);
+	INIT_WORK(&adapter->reset_task,
+		(void (*)(void *))e1000_reset_task, netdev);
 
 	/* we're going to reset, so assume we have no link for now */
 
@@ -1390,6 +1393,10 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 		ipgr1 = DEFAULT_82542_TIPG_IPGR1;
 		ipgr2 = DEFAULT_82542_TIPG_IPGR2;
 		break;
+	case e1000_80003es2lan:
+		ipgr1 = DEFAULT_82543_TIPG_IPGR1;
+		ipgr2 = DEFAULT_80003ES2LAN_TIPG_IPGR2;
+		break;
 	default:
 		ipgr1 = DEFAULT_82543_TIPG_IPGR1;
 		ipgr2 = DEFAULT_82543_TIPG_IPGR2;
@@ -1428,6 +1435,15 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 			tarc &= ~(1 << 28);
 		else
 			tarc |= (1 << 28);
+		E1000_WRITE_REG(hw, TARC1, tarc);
+	} else if (hw->mac_type == e1000_80003es2lan) {
+		tarc = E1000_READ_REG(hw, TARC0);
+		tarc |= 1;
+		if (hw->media_type == e1000_media_type_internal_serdes)
+			tarc |= (1 << 20);
+		E1000_WRITE_REG(hw, TARC0, tarc);
+		tarc = E1000_READ_REG(hw, TARC1);
+		tarc |= 1;
 		E1000_WRITE_REG(hw, TARC1, tarc);
 	}
 
@@ -2349,6 +2365,16 @@ e1000_watchdog_task(struct e1000_adapter *adapter)
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 			mod_timer(&adapter->phy_info_timer, jiffies + 2 * HZ);
+
+			/* 80003ES2LAN workaround--
+			 * For packet buffer work-around on link down event;
+			 * disable receives in the ISR and
+			 * reset device here in the watchdog
+			 */
+			if (adapter->hw.mac_type == e1000_80003es2lan) {
+				/* reset device */
+				schedule_work(&adapter->reset_task);
+			}
 		}
 
 		e1000_smartspeed(adapter);
@@ -2374,7 +2400,8 @@ e1000_watchdog_task(struct e1000_adapter *adapter)
 			 * but we've got queued Tx work that's never going
 			 * to get done, so reset controller to flush Tx.
 			 * (Do the reset outside of interrupt context). */
-			schedule_work(&adapter->tx_timeout_task);
+			adapter->tx_timeout_count++;
+			schedule_work(&adapter->reset_task);
 		}
 	}
 
@@ -2940,15 +2967,15 @@ e1000_tx_timeout(struct net_device *netdev)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	/* Do the reset outside of interrupt context */
-	schedule_work(&adapter->tx_timeout_task);
+	adapter->tx_timeout_count++;
+	schedule_work(&adapter->reset_task);
 }
 
 static void
-e1000_tx_timeout_task(struct net_device *netdev)
+e1000_reset_task(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	adapter->tx_timeout_count++;
 	e1000_down(adapter);
 	e1000_up(adapter);
 }
@@ -3016,6 +3043,7 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		/* fall through to get support */
 	case e1000_82571:
 	case e1000_82572:
+	case e1000_80003es2lan:
 #define MAX_STD_JUMBO_FRAME_SIZE 9234
 		if (max_frame > MAX_STD_JUMBO_FRAME_SIZE) {
 			DPRINTK(PROBE, ERR, "MTU > 9216 not supported.\n");
@@ -3169,11 +3197,15 @@ e1000_update_stats(struct e1000_adapter *adapter)
 
 	/* Rx Errors */
 
+	/* RLEC on some newer hardware can be incorrect so build
+	* our own version based on RUC and ROC */
 	adapter->net_stats.rx_errors = adapter->stats.rxerrc +
 		adapter->stats.crcerrs + adapter->stats.algnerrc +
-		adapter->stats.rlec + adapter->stats.cexterr;
+		adapter->stats.ruc + adapter->stats.roc +
+		adapter->stats.cexterr;
 	adapter->net_stats.rx_dropped = 0;
-	adapter->net_stats.rx_length_errors = adapter->stats.rlec;
+	adapter->net_stats.rx_length_errors = adapter->stats.ruc +
+	                                      adapter->stats.roc;
 	adapter->net_stats.rx_crc_errors = adapter->stats.crcerrs;
 	adapter->net_stats.rx_frame_errors = adapter->stats.algnerrc;
 	adapter->net_stats.rx_missed_errors = adapter->stats.mpc;
@@ -3219,7 +3251,7 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 	struct net_device *netdev = data;
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	uint32_t icr = E1000_READ_REG(hw, ICR);
+	uint32_t rctl, icr = E1000_READ_REG(hw, ICR);
 #ifndef CONFIG_E1000_NAPI
 	int i;
 #else
@@ -3241,6 +3273,17 @@ e1000_intr(int irq, void *data, struct pt_regs *regs)
 
 	if (unlikely(icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))) {
 		hw->get_link_status = 1;
+		/* 80003ES2LAN workaround--
+		 * For packet buffer work-around on link down event;
+		 * disable receives here in the ISR and
+		 * reset adapter in watchdog
+		 */
+		if (netif_carrier_ok(netdev) &&
+		    (adapter->hw.mac_type == e1000_80003es2lan)) {
+			/* disable receives */
+			rctl = E1000_READ_REG(hw, RCTL);
+			E1000_WRITE_REG(hw, RCTL, rctl & ~E1000_RCTL_EN);
+		}
 		mod_timer(&adapter->watchdog_timer, jiffies);
 	}
 
