@@ -2067,19 +2067,19 @@ struct e1000_host_command_info {
 /* PCI-Ex registers */
 
 /* PCI-Ex Control Register */
-#define E1000_GCR_RXD_NO_SNOOP			0x00000001
-#define E1000_GCR_RXDSCW_NO_SNOOP		0x00000002
-#define E1000_GCR_RXDSCR_NO_SNOOP		0x00000004
-#define E1000_GCR_TXD_NO_SNOOP			0x00000008
-#define E1000_GCR_TXDSCW_NO_SNOOP		0x00000010
-#define E1000_GCR_TXDSCR_NO_SNOOP		0x00000020
+#define E1000_GCR_RXD_NO_SNOOP          0x00000001
+#define E1000_GCR_RXDSCW_NO_SNOOP       0x00000002
+#define E1000_GCR_RXDSCR_NO_SNOOP       0x00000004
+#define E1000_GCR_TXD_NO_SNOOP          0x00000008
+#define E1000_GCR_TXDSCW_NO_SNOOP       0x00000010
+#define E1000_GCR_TXDSCR_NO_SNOOP       0x00000020
 
-#define PCI_EX_NO_SNOOP_ALL (E1000_GCR_RXD_NO_SNOOP		| \
-							 E1000_GCR_RXDSCW_NO_SNOOP	| \
-							 E1000_GCR_RXDSCR_NO_SNOOP	| \
-							 E1000_GCR TXD_NO_SNOOP		| \
-							 E1000_GCR_TXDSCW_NO_SNOOP	| \
-							 E1000_GCR_TXDSCR_NO_SNOOP)
+#define PCI_EX_NO_SNOOP_ALL (E1000_GCR_RXD_NO_SNOOP         | \
+                             E1000_GCR_RXDSCW_NO_SNOOP      | \
+                             E1000_GCR_RXDSCR_NO_SNOOP      | \
+                             E1000_GCR_TXD_NO_SNOOP         | \
+                             E1000_GCR_TXDSCW_NO_SNOOP      | \
+                             E1000_GCR_TXDSCR_NO_SNOOP)
 
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
 /* Function Active and Power State to MNG */

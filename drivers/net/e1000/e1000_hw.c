@@ -3498,7 +3498,7 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
          * bit. Then, take it out of reset.
          * For pre-e1000_82571 hardware, we delay for 10ms between the assert 
          * and deassert.  For e1000_82571 hardware and later, we instead delay
-         * for 10ms after the deassertion.
+         * for 50us between and 10ms after the deassertion.
          */
         ctrl = E1000_READ_REG(hw, CTRL);
         E1000_WRITE_REG(hw, CTRL, ctrl | E1000_CTRL_PHY_RST);
@@ -3920,7 +3920,8 @@ e1000_validate_mdi_setting(struct e1000_hw *hw)
 
 /******************************************************************************
  * Sets up eeprom variables in the hw struct.  Must be called after mac_type
- * is configured.
+ * is configured.  Additionally, if this is ICH8, the flash controller GbE
+ * registers must be mapped, or this will crash.
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
