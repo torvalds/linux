@@ -1476,6 +1476,14 @@ ipv4_connect(struct sockaddr_in *psin_server, struct socket **csocket,
 			rc = smb_send(*csocket, smb_buf, 0x44,
 				(struct sockaddr *)psin_server);
 			kfree(ses_init_buf);
+			msleep(1); /* RFC1001 layer in at least one server 
+				      requires very short break before negprot
+				      presumably because not expecting negprot
+				      to follow so fast.  This is a simple
+				      solution that works without 
+				      complicating the code and causes no
+				      significant slowing down on mount
+				      for everyone else */
 		}
 		/* else the negprot may still work without this 
 		even though malloc failed */

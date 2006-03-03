@@ -1166,7 +1166,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 						nfid, npid, FALSE);
 			atomic_dec(&open_file->wrtPending);
 			cFYI(1,("SetFSize for attrs rc = %d", rc));
-			if((rc == -EINVAL) ||(rc == -EOPNOTSUPP)) {
+			if((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 				int bytes_written;
 				rc = CIFSSMBWrite(xid, pTcon,
 						  nfid, 0, attrs->ia_size,
@@ -1188,7 +1188,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					   cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			cFYI(1, ("SetEOF by path (setattrs) rc = %d", rc));
-			if(rc == -EINVAL) {
+			if((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 				__u16 netfid;
 				int oplock = FALSE;
 
