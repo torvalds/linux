@@ -1363,6 +1363,8 @@ static inline void mini_get_rtc_time(struct rtc_time *time)
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	to_tm(seconds, time);
+	time->tm_year -= 1900;
+	time->tm_mon -= 1;
 }
 
 static inline int mini_set_rtc_time(struct rtc_time *time)
