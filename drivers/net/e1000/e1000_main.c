@@ -2796,21 +2796,29 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		max_per_txd = min(mss << 2, max_per_txd);
 		max_txd_pwr = fls(max_per_txd) - 1;
 
-	/* TSO Workaround for 82571/2 Controllers -- if skb->data
+	/* TSO Workaround for 82571/2/3 Controllers -- if skb->data
 	 * points to just header, pull a few bytes of payload from
 	 * frags into skb->data */
 		hdr_len = ((skb->h.raw - skb->data) + (skb->h.th->doff << 2));
-		if (skb->data_len && (hdr_len == (skb->len - skb->data_len)) &&
-			(adapter->hw.mac_type == e1000_82571 ||
-			adapter->hw.mac_type == e1000_82572)) {
-			unsigned int pull_size;
-			pull_size = min((unsigned int)4, skb->data_len);
-			if (!__pskb_pull_tail(skb, pull_size)) {
-				printk(KERN_ERR "__pskb_pull_tail failed.\n");
-				dev_kfree_skb_any(skb);
-				return -EFAULT;
+		if (skb->data_len && (hdr_len == (skb->len - skb->data_len))) {
+			switch (adapter->hw.mac_type) {
+				unsigned int pull_size;
+			case e1000_82571:
+			case e1000_82572:
+			case e1000_82573:
+				pull_size = min((unsigned int)4, skb->data_len);
+				if (!__pskb_pull_tail(skb, pull_size)) {
+					printk(KERN_ERR 
+						"__pskb_pull_tail failed.\n");
+					dev_kfree_skb_any(skb);
+					return -EFAULT;
+				}
+				len = skb->len - skb->data_len;
+				break;
+			default:
+				/* do nothing */
+				break;
 			}
-			len = skb->len - skb->data_len;
 		}
 	}
 
