@@ -74,21 +74,40 @@
 #define MV643XX_RX_COAL 100
 #endif
 
-/*
- * The second part is the low level driver of the gigE ethernet ports.
- */
+#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
+#define MAX_DESCS_PER_SKB	(MAX_SKB_FRAGS + 1)
+#else
+#define MAX_DESCS_PER_SKB	1
+#endif
 
-/*
- * Header File for : MV-643xx network interface header
- *
- * DESCRIPTION:
- *	This header file contains macros typedefs and function declaration for
- *	the Marvell Gig Bit Ethernet Controller.
- *
- * DEPENDENCIES:
- *	None.
- *
- */
+#define ETH_VLAN_HLEN		4
+#define ETH_FCS_LEN		4
+#define ETH_DMA_ALIGN		8	/* hw requires 8-byte alignment */
+#define ETH_HW_IP_ALIGN		2	/* hw aligns IP header */
+#define ETH_WRAPPER_LEN		(ETH_HW_IP_ALIGN + ETH_HLEN + \
+				ETH_VLAN_HLEN + ETH_FCS_LEN)
+#define ETH_RX_SKB_SIZE		((dev->mtu + ETH_WRAPPER_LEN + 7) & ~0x7)
+
+#define ETH_RX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for receive */
+#define ETH_TX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for transmit */
+
+#define ETH_INT_CAUSE_RX_DONE	(ETH_RX_QUEUES_ENABLED << 2)
+#define ETH_INT_CAUSE_RX_ERROR	(ETH_RX_QUEUES_ENABLED << 9)
+#define ETH_INT_CAUSE_RX	(ETH_INT_CAUSE_RX_DONE | ETH_INT_CAUSE_RX_ERROR)
+#define ETH_INT_CAUSE_EXT	0x00000002
+#define ETH_INT_UNMASK_ALL	(ETH_INT_CAUSE_RX | ETH_INT_CAUSE_EXT)
+
+#define ETH_INT_CAUSE_TX_DONE	(ETH_TX_QUEUES_ENABLED << 0)
+#define ETH_INT_CAUSE_TX_ERROR	(ETH_TX_QUEUES_ENABLED << 8)
+#define ETH_INT_CAUSE_TX	(ETH_INT_CAUSE_TX_DONE | ETH_INT_CAUSE_TX_ERROR)
+#define ETH_INT_CAUSE_PHY	0x00010000
+#define ETH_INT_UNMASK_ALL_EXT	(ETH_INT_CAUSE_TX | ETH_INT_CAUSE_PHY)
+
+#define ETH_INT_MASK_ALL	0x00000000
+#define ETH_INT_MASK_ALL_EXT	0x00000000
+
+#define PHY_WAIT_ITERATIONS	1000	/* 1000 iterations * 10uS = 10mS max */
+#define PHY_WAIT_MICRO_SECONDS	10
 
 /* Buffer offset from buffer pointer */
 #define RX_BUF_OFFSET				0x2

@@ -50,37 +50,6 @@
 #include <asm/delay.h>
 #include "mv643xx_eth.h"
 
-/*
- * The first part is the high level driver of the gigE ethernet ports.
- */
-
-/* Constants */
-#define VLAN_HLEN		4
-#define FCS_LEN			4
-#define DMA_ALIGN		8	/* hw requires 8-byte alignment */
-#define HW_IP_ALIGN		2	/* hw aligns IP header */
-#define WRAP			HW_IP_ALIGN + ETH_HLEN + VLAN_HLEN + FCS_LEN
-#define RX_SKB_SIZE		((dev->mtu + WRAP + 7) & ~0x7)
-
-#define ETH_RX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for receive */
-#define ETH_TX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for transmit */
-
-#define INT_UNMASK_ALL			0x0007ffff
-#define INT_UNMASK_ALL_EXT		0x0011ffff
-#define INT_MASK_ALL			0x00000000
-#define INT_MASK_ALL_EXT		0x00000000
-#define INT_CAUSE_CHECK_BITS		INT_CAUSE_UNMASK_ALL
-#define INT_CAUSE_CHECK_BITS_EXT	INT_CAUSE_UNMASK_ALL_EXT
-
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
-#define MAX_DESCS_PER_SKB	(MAX_SKB_FRAGS + 1)
-#else
-#define MAX_DESCS_PER_SKB	1
-#endif
-
-#define PHY_WAIT_ITERATIONS	1000	/* 1000 iterations * 10uS = 10mS max */
-#define PHY_WAIT_MICRO_SECONDS	10
-
 /* Static function declarations */
 static void eth_port_uc_addr_get(struct net_device *dev,
 						unsigned char *MacAddr);
@@ -182,24 +151,24 @@ static void mv643xx_eth_rx_task(void *data)
 		panic("%s: Error in test_set_bit / clear_bit", dev->name);
 
 	while (mp->rx_desc_count < (mp->rx_ring_size - 5)) {
-		skb = dev_alloc_skb(RX_SKB_SIZE + DMA_ALIGN);
+		skb = dev_alloc_skb(ETH_RX_SKB_SIZE + ETH_DMA_ALIGN);
 		if (!skb)
 			break;
 		mp->rx_desc_count++;
-		unaligned = (u32)skb->data & (DMA_ALIGN - 1);
+		unaligned = (u32)skb->data & (ETH_DMA_ALIGN - 1);
 		if (unaligned)
-			skb_reserve(skb, DMA_ALIGN - unaligned);
+			skb_reserve(skb, ETH_DMA_ALIGN - unaligned);
 		pkt_info.cmd_sts = ETH_RX_ENABLE_INTERRUPT;
-		pkt_info.byte_cnt = RX_SKB_SIZE;
-		pkt_info.buf_ptr = dma_map_single(NULL, skb->data, RX_SKB_SIZE,
-							DMA_FROM_DEVICE);
+		pkt_info.byte_cnt = ETH_RX_SKB_SIZE;
+		pkt_info.buf_ptr = dma_map_single(NULL, skb->data,
+					ETH_RX_SKB_SIZE, DMA_FROM_DEVICE);
 		pkt_info.return_info = skb;
 		if (eth_rx_return_buff(mp, &pkt_info) != ETH_OK) {
 			printk(KERN_ERR
 				"%s: Error allocating RX Ring\n", dev->name);
 			break;
 		}
-		skb_reserve(skb, HW_IP_ALIGN);
+		skb_reserve(skb, ETH_HW_IP_ALIGN);
 	}
 	clear_bit(0, &mp->rx_task_busy);
 	/*
@@ -375,7 +344,7 @@ int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
 
 		spin_unlock_irqrestore(&mp->lock, flags);
 
-		if (cmd_sts & BIT0) {
+		if (cmd_sts & ETH_ERROR_SUMMARY) {
 			printk("%s: Error in TX\n", dev->name);
 			mp->stats.tx_errors++;
 		}
@@ -562,12 +531,12 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 
 	/* Read interrupt cause registers */
 	eth_int_cause = mv_read(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num)) &
-						INT_UNMASK_ALL;
+						ETH_INT_UNMASK_ALL;
 
 	if (eth_int_cause & BIT1)
 		eth_int_cause_ext = mv_read(
 			MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num)) &
-						INT_UNMASK_ALL_EXT;
+						ETH_INT_UNMASK_ALL_EXT;
 
 #ifdef MV643XX_NAPI
 	if (!(eth_int_cause & 0x0007fffd)) {
@@ -591,7 +560,7 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 		if (netif_rx_schedule_prep(dev)) {
 			/* Mask all the interrupts */
 			mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-								INT_MASK_ALL);
+							ETH_INT_MASK_ALL);
 			/* wait for previous write to complete */
 			mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 			__netif_rx_schedule(dev);
@@ -619,6 +588,7 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 #endif
 #endif
 	}
+
 	/* PHY status changed */
 	if (eth_int_cause_ext & (BIT16 | BIT20)) {
 		struct ethtool_cmd cmd;
@@ -966,10 +936,10 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	/* Unmask phy and link status changes interrupts */
 	mv_write(MV643XX_ETH_INTERRUPT_EXTEND_MASK_REG(port_num),
-						INT_UNMASK_ALL_EXT);
+						ETH_INT_UNMASK_ALL_EXT);
 
 	/* Unmask RX buffer and TX end interrupt */
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_UNMASK_ALL);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), ETH_INT_UNMASK_ALL);
 
 	return 0;
 
@@ -1049,7 +1019,7 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	unsigned int port_num = mp->port_num;
 
 	/* Mask all interrupts on ethernet port */
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_MASK_ALL);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), ETH_INT_MASK_ALL);
 	/* wait for previous write to complete */
 	mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 
@@ -1110,7 +1080,7 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-						INT_UNMASK_ALL);
+						ETH_INT_UNMASK_ALL);
 	}
 
 	return done ? 0 : 1;
@@ -1325,13 +1295,13 @@ static void mv643xx_netpoll(struct net_device *netdev)
 	struct mv643xx_private *mp = netdev_priv(netdev);
 	int port_num = mp->port_num;
 
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_MASK_ALL);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), ETH_INT_MASK_ALL);
 	/* wait for previous write to complete */
 	mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 
 	mv643xx_eth_int_handler(netdev->irq, netdev, NULL);
 
-	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), INT_UNMASK_ALL);
+	mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num), ETH_INT_UNMASK_ALL);
 }
 #endif
 
