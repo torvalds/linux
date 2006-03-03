@@ -373,7 +373,8 @@ e1000_update_mng_vlan(struct e1000_adapter *adapter)
 					(vid != old_vid) &&
 					!adapter->vlgrp->vlan_devices[old_vid])
 				e1000_vlan_rx_kill_vid(netdev, old_vid);
-		}
+		} else
+			adapter->mng_vlan_id = vid;
 	}
 }
 
