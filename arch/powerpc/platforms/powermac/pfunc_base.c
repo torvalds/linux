@@ -9,7 +9,12 @@
 #include <asm/pmac_feature.h>
 #include <asm/pmac_pfunc.h>
 
+#undef DEBUG
+#ifdef DEBUG
 #define DBG(fmt...)	printk(fmt)
+#else
+#define DBG(fmt...)
+#endif
 
 static irqreturn_t macio_gpio_irq(int irq, void *data, struct pt_regs *regs)
 {
