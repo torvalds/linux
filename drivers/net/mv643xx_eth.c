@@ -62,6 +62,9 @@
 #define WRAP			HW_IP_ALIGN + ETH_HLEN + VLAN_HLEN + FCS_LEN
 #define RX_SKB_SIZE		((dev->mtu + WRAP + 7) & ~0x7)
 
+#define ETH_RX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for receive */
+#define ETH_TX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for transmit */
+
 #define INT_UNMASK_ALL			0x0007ffff
 #define INT_UNMASK_ALL_EXT		0x0011ffff
 #define INT_MASK_ALL			0x00000000
@@ -333,47 +336,76 @@ static void mv643xx_eth_tx_timeout_task(struct net_device *dev)
 	netif_device_attach(dev);
 }
 
-/*
- * mv643xx_eth_free_tx_queue
+/**
+ * mv643xx_eth_free_tx_descs - Free the tx desc data for completed descriptors
  *
- * Input :	dev - a pointer to the required interface
- *
- * Output :	0 if was able to release skb , nonzero otherwise
+ * If force is non-zero, frees uncompleted descriptors as well
  */
-static int mv643xx_eth_free_tx_queue(struct net_device *dev,
-					unsigned int eth_int_cause_ext)
+int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
-	struct net_device_stats *stats = &mp->stats;
-	struct pkt_info pkt_info;
-	int released = 1;
+	struct eth_tx_desc *desc;
+	u32 cmd_sts;
+	struct sk_buff *skb;
+	unsigned long flags;
+	int tx_index;
+	dma_addr_t addr;
+	int count;
+	int released = 0;
 
-	if (!(eth_int_cause_ext & (BIT0 | BIT8)))
-		return released;
+	while (mp->tx_desc_count > 0) {
+		spin_lock_irqsave(&mp->lock, flags);
+		tx_index = mp->tx_used_desc_q;
+		desc = &mp->p_tx_desc_area[tx_index];
+		cmd_sts = desc->cmd_sts;
 
-	/* Check only queue 0 */
-	while (eth_tx_return_desc(mp, &pkt_info) == ETH_OK) {
-		if (pkt_info.cmd_sts & BIT0) {
+		if (!force && (cmd_sts & ETH_BUFFER_OWNED_BY_DMA)) {
+			spin_unlock_irqrestore(&mp->lock, flags);
+			return released;
+		}
+
+		mp->tx_used_desc_q = (tx_index + 1) % mp->tx_ring_size;
+		mp->tx_desc_count--;
+
+		addr = desc->buf_ptr;
+		count = desc->byte_cnt;
+		skb = mp->tx_skb[tx_index];
+		if (skb)
+			mp->tx_skb[tx_index] = NULL;
+
+		spin_unlock_irqrestore(&mp->lock, flags);
+
+		if (cmd_sts & BIT0) {
 			printk("%s: Error in TX\n", dev->name);
-			stats->tx_errors++;
+			mp->stats.tx_errors++;
 		}
 
-		if (pkt_info.cmd_sts & ETH_TX_FIRST_DESC)
-			dma_unmap_single(NULL, pkt_info.buf_ptr,
-					pkt_info.byte_cnt,
-					DMA_TO_DEVICE);
+		if (cmd_sts & ETH_TX_FIRST_DESC)
+			dma_unmap_single(NULL, addr, count, DMA_TO_DEVICE);
 		else
-			dma_unmap_page(NULL, pkt_info.buf_ptr,
-					pkt_info.byte_cnt,
-					DMA_TO_DEVICE);
+			dma_unmap_page(NULL, addr, count, DMA_TO_DEVICE);
 
-		if (pkt_info.return_info) {
-			dev_kfree_skb_irq(pkt_info.return_info);
-			released = 0;
-		}
+		if (skb)
+			dev_kfree_skb_irq(skb);
+
+		released = 1;
 	}
 
 	return released;
+}
+
+static void mv643xx_eth_free_completed_tx_descs(struct net_device *dev)
+{
+	struct mv643xx_private *mp = netdev_priv(dev);
+
+	if (mv643xx_eth_free_tx_descs(dev, 0) &&
+	    mp->tx_ring_size - mp->tx_desc_count >= MAX_DESCS_PER_SKB)
+		netif_wake_queue(dev);
+}
+
+static void mv643xx_eth_free_all_tx_descs(struct net_device *dev)
+{
+	mv643xx_eth_free_tx_descs(dev, 1);
 }
 
 /*
@@ -547,15 +579,13 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 		 */
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num),
 							~eth_int_cause);
-		if (eth_int_cause_ext != 0x0)
+		if (eth_int_cause_ext != 0x0) {
 			mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG
 					(port_num), ~eth_int_cause_ext);
-
-		/* UDP change : We may need this */
-		if ((eth_int_cause_ext & 0x0000ffff) &&
-		    (mv643xx_eth_free_tx_queue(dev, eth_int_cause_ext) == 0) &&
-		    (mp->tx_ring_size - mp->tx_desc_count > MAX_DESCS_PER_SKB))
-			netif_wake_queue(dev);
+			/* UDP change : We may need this */
+			if (eth_int_cause_ext & (BIT0 | BIT8))
+				mv643xx_eth_free_completed_tx_descs(dev);
+		}
 #ifdef MV643XX_NAPI
 	} else {
 		if (netif_rx_schedule_prep(dev)) {
@@ -596,14 +626,13 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 		if (mii_link_ok(&mp->mii)) {
 			mii_ethtool_gset(&mp->mii, &cmd);
 			mv643xx_eth_update_pscr(dev, &cmd);
+			mv643xx_eth_port_enable_tx(port_num,
+						   ETH_TX_QUEUES_ENABLED);
 			if (!netif_carrier_ok(dev)) {
 				netif_carrier_on(dev);
-				if (mp->tx_ring_size - mp->tx_desc_count >
-							MAX_DESCS_PER_SKB) {
+				if (mp->tx_ring_size - mp->tx_desc_count >=
+							MAX_DESCS_PER_SKB)
 					netif_wake_queue(dev);
-					/* Start TX queue */
-					mv643xx_eth_port_enable_tx(port_num, mp->port_tx_queue_command);
-				}
 			}
 		} else if (netif_carrier_ok(dev)) {
 			netif_stop_queue(dev);
@@ -735,9 +764,6 @@ static void ether_init_rx_desc_ring(struct mv643xx_private *mp)
 	mp->rx_used_desc_q = 0;
 
 	mp->rx_desc_area_size = rx_desc_num * sizeof(struct eth_rx_desc);
-
-	/* Enable queue 0 for this port */
-	mp->port_rx_queue_command = 1;
 }
 
 /*
@@ -779,9 +805,6 @@ static void ether_init_tx_desc_ring(struct mv643xx_private *mp)
 	mp->tx_used_desc_q = 0;
 
 	mp->tx_desc_area_size = tx_desc_num * sizeof(struct eth_tx_desc);
-
-	/* Enable queue 0 for this port */
-	mp->port_tx_queue_command = 1;
 }
 
 static int mv643xx_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -963,25 +986,14 @@ out_free_irq:
 static void mv643xx_eth_free_tx_rings(struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
-	unsigned int port_num = mp->port_num;
-	unsigned int curr;
-	struct sk_buff *skb;
 
 	/* Stop Tx Queues */
-	mv643xx_eth_port_disable_tx(port_num);
+	mv643xx_eth_port_disable_tx(mp->port_num);
 
-	/* Free outstanding skb's on TX rings */
-	for (curr = 0; mp->tx_desc_count && curr < mp->tx_ring_size; curr++) {
-		skb = mp->tx_skb[curr];
-		if (skb) {
-			mp->tx_desc_count -= skb_shinfo(skb)->nr_frags;
-			dev_kfree_skb(skb);
-			mp->tx_desc_count--;
-		}
-	}
-	if (mp->tx_desc_count)
-		printk("%s: Error on Tx descriptor free - could not free %d"
-				" descriptors\n", dev->name, mp->tx_desc_count);
+	/* Free outstanding skb's on TX ring */
+	mv643xx_eth_free_all_tx_descs(dev);
+
+	BUG_ON(mp->tx_used_desc_q != mp->tx_curr_desc_q);
 
 	/* Free TX ring */
 	if (mp->tx_sram_size)
@@ -1062,30 +1074,6 @@ static int mv643xx_eth_stop(struct net_device *dev)
 }
 
 #ifdef MV643XX_NAPI
-static void mv643xx_tx(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-	struct pkt_info pkt_info;
-
-	while (eth_tx_return_desc(mp, &pkt_info) == ETH_OK) {
-		if (pkt_info.cmd_sts & ETH_TX_FIRST_DESC)
-			dma_unmap_single(NULL, pkt_info.buf_ptr,
-					pkt_info.byte_cnt,
-					DMA_TO_DEVICE);
-		else
-			dma_unmap_page(NULL, pkt_info.buf_ptr,
-					pkt_info.byte_cnt,
-					DMA_TO_DEVICE);
-
-		if (pkt_info.return_info)
-			dev_kfree_skb_irq(pkt_info.return_info);
-	}
-
-	if (netif_queue_stopped(dev) &&
-	    mp->tx_ring_size - mp->tx_desc_count > MAX_DESCS_PER_SKB)
-		netif_wake_queue(dev);
-}
-
 /*
  * mv643xx_poll
  *
@@ -1099,7 +1087,7 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 
 #ifdef MV643XX_TX_FAST_REFILL
 	if (++mp->tx_clean_threshold > 5) {
-		mv643xx_tx(dev);
+		mv643xx_eth_free_completed_tx_descs(dev);
 		mp->tx_clean_threshold = 0;
 	}
 #endif
@@ -1156,11 +1144,9 @@ static int eth_alloc_tx_desc_index(struct mv643xx_private *mp)
 {
 	int tx_desc_curr;
 
-	tx_desc_curr = mp->tx_curr_desc_q;
-
 	BUG_ON(mp->tx_desc_count >= mp->tx_ring_size);
-	mp->tx_desc_count++;
 
+	tx_desc_curr = mp->tx_curr_desc_q;
 	mp->tx_curr_desc_q = (tx_desc_curr + 1) % mp->tx_ring_size;
 
 	BUG_ON(mp->tx_curr_desc_q == mp->tx_used_desc_q);
@@ -1180,7 +1166,6 @@ static void eth_tx_fill_frag_descs(struct mv643xx_private *mp,
 	int frag;
 	int tx_index;
 	struct eth_tx_desc *desc;
-	struct net_device_stats *stats = &mp->stats;
 
 	for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
 		skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
@@ -1205,7 +1190,6 @@ static void eth_tx_fill_frag_descs(struct mv643xx_private *mp,
 						this_frag->page_offset,
 						this_frag->size,
 						DMA_TO_DEVICE);
-		stats->tx_bytes += this_frag->size;
 	}
 }
 
@@ -1215,21 +1199,21 @@ static void eth_tx_fill_frag_descs(struct mv643xx_private *mp,
  * Ensure the data for an skb to be transmitted is mapped properly,
  * then fill in descriptors in the tx hw queue and start the hardware.
  */
-static int eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
-				       struct sk_buff *skb)
+static void eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
+					struct sk_buff *skb)
 {
 	int tx_index;
 	struct eth_tx_desc *desc;
 	u32 cmd_sts;
 	int length;
-	int tx_bytes = 0;
+	int nr_frags = skb_shinfo(skb)->nr_frags;
 
 	cmd_sts = ETH_TX_FIRST_DESC | ETH_GEN_CRC | ETH_BUFFER_OWNED_BY_DMA;
 
 	tx_index = eth_alloc_tx_desc_index(mp);
 	desc = &mp->p_tx_desc_area[tx_index];
 
-	if (skb_shinfo(skb)->nr_frags) {
+	if (nr_frags) {
 		eth_tx_fill_frag_descs(mp, skb);
 
 		length = skb_headlen(skb);
@@ -1244,7 +1228,6 @@ static int eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
 
 	desc->byte_cnt = length;
 	desc->buf_ptr = dma_map_single(NULL, skb->data, length, DMA_TO_DEVICE);
-	tx_bytes += length;
 
 	if (skb->ip_summed == CHECKSUM_HW) {
 		BUG_ON(skb->protocol != ETH_P_IP);
@@ -1276,9 +1259,9 @@ static int eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
 
 	/* ensure all descriptors are written before poking hardware */
 	wmb();
-	mv643xx_eth_port_enable_tx(mp->port_num, mp->port_tx_queue_command);
+	mv643xx_eth_port_enable_tx(mp->port_num, ETH_TX_QUEUES_ENABLED);
 
-	return tx_bytes;
+	mp->tx_desc_count += nr_frags + 1;
 }
 
 /**
@@ -1306,7 +1289,8 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&mp->lock, flags);
 
-	stats->tx_bytes = eth_tx_submit_descs_for_skb(mp, skb);
+	eth_tx_submit_descs_for_skb(mp, skb);
+	stats->tx_bytes = skb->len;
 	stats->tx_packets++;
 	dev->trans_start = jiffies;
 
@@ -1893,7 +1877,7 @@ static void eth_port_start(struct net_device *dev)
 			  MV643XX_ETH_PORT_SDMA_CONFIG_DEFAULT_VALUE);
 
 	/* Enable port Rx. */
-	mv643xx_eth_port_enable_rx(port_num, mp->port_rx_queue_command);
+	mv643xx_eth_port_enable_rx(port_num, ETH_RX_QUEUES_ENABLED);
 
 	/* Disable port bandwidth limits by clearing MTU register */
 	mv_write(MV643XX_ETH_MAXIMUM_TRANSMIT_UNIT(port_num), 0);
@@ -2599,79 +2583,6 @@ static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location,
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
 	eth_port_write_smi_reg(mp->port_num, location, val);
-}
-
-/*
- * eth_tx_return_desc - Free all used Tx descriptors
- *
- * DESCRIPTION:
- *	This routine returns the transmitted packet information to the caller.
- *	It uses the 'first' index to support Tx desc return in case a transmit
- *	of a packet spanned over multiple buffer still in process.
- *	In case the Tx queue was in "resource error" condition, where there are
- *	no available Tx resources, the function resets the resource error flag.
- *
- * INPUT:
- *	struct mv643xx_private	*mp		Ethernet Port Control srtuct.
- *	struct pkt_info		*p_pkt_info	User packet buffer.
- *
- * OUTPUT:
- *	Tx ring 'first' and 'used' indexes are updated.
- *
- * RETURN:
- *	ETH_OK on success
- *	ETH_ERROR otherwise.
- *
- */
-static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
-						struct pkt_info *p_pkt_info)
-{
-	int tx_desc_used;
-	struct eth_tx_desc *p_tx_desc_used;
-	unsigned int command_status;
-	unsigned long flags;
-	int err = ETH_OK;
-
-	spin_lock_irqsave(&mp->lock, flags);
-
-	BUG_ON(mp->tx_desc_count < 0);
-	if (mp->tx_desc_count == 0) {
-		/* no more tx descs in use */
-		err = ETH_ERROR;
-		goto out;
-	}
-
-	/* Get the Tx Desc ring indexes */
-	tx_desc_used = mp->tx_used_desc_q;
-
-	p_tx_desc_used = &mp->p_tx_desc_area[tx_desc_used];
-
-	BUG_ON(p_tx_desc_used == NULL);
-
-	command_status = p_tx_desc_used->cmd_sts;
-	if (command_status & (ETH_BUFFER_OWNED_BY_DMA)) {
-		/* Still transmitting... */
-		err = ETH_ERROR;
-		goto out;
-	}
-
-	/* Pass the packet information to the caller */
-	p_pkt_info->cmd_sts = command_status;
-	p_pkt_info->return_info = mp->tx_skb[tx_desc_used];
-	p_pkt_info->buf_ptr = p_tx_desc_used->buf_ptr;
-	p_pkt_info->byte_cnt = p_tx_desc_used->byte_cnt;
-	mp->tx_skb[tx_desc_used] = NULL;
-
-	/* Update the next descriptor to release. */
-	mp->tx_used_desc_q = (tx_desc_used + 1) % mp->tx_ring_size;
-
-	BUG_ON(mp->tx_desc_count == 0);
-	mp->tx_desc_count--;
-
-out:
-	spin_unlock_irqrestore(&mp->lock, flags);
-
-	return err;
 }
 
 /*

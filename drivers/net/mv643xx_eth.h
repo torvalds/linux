@@ -321,8 +321,6 @@ struct mv643xx_mib_counters {
 
 struct mv643xx_private {
 	int port_num;			/* User Ethernet port number	*/
-	u32 port_tx_queue_command;	/* Port active Tx queues summary*/
-	u32 port_rx_queue_command;	/* Port active Rx queues summary*/
 
 	u32 rx_sram_addr;		/* Base address of rx sram area */
 	u32 rx_sram_size;		/* Size of rx sram area		*/
@@ -411,8 +409,6 @@ static void eth_port_read_smi_reg(unsigned int eth_port_num,
 static void eth_clear_mib_counters(unsigned int eth_port_num);
 
 /* Port data flow control routines */
-static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
-					      struct pkt_info *p_pkt_info);
 static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
 					    struct pkt_info *p_pkt_info);
 static ETH_FUNC_RET_STATUS eth_rx_return_buff(struct mv643xx_private *mp,
