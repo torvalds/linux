@@ -568,10 +568,15 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 		return 0;
 
 	/*
-	 * If there is no bus error, record is weird but we need not to recover.
+	 * The cache check and bus check bits have four possible states
+	 *   cc bc
+	 *    0  0	Weird record, not recovered
+	 *    1  0	Cache error, not recovered
+	 *    0  1	I/O error, attempt recovery
+	 *    1  1	Memory error, attempt recovery
 	 */
 	if (psp->bc == 0 || pbci == NULL)
-		return 1;
+		return 0;
 
 	/*
 	 * Sorry, we cannot handle so many.
