@@ -630,7 +630,7 @@ multi_t2_fnd:
 					smallbuf = NULL;
 			}
 			wake_up_process(task_to_wake);
-		} else if ((is_valid_oplock_break(smb_buffer) == FALSE)
+		} else if ((is_valid_oplock_break(smb_buffer, server) == FALSE)
 		    && (isMultiRsp == FALSE)) {                          
 			cERROR(1, ("No task to wake, unknown frame rcvd!"));
 			cifs_dump_mem("Received Data is: ",(char *)smb_buffer,
