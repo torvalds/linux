@@ -906,7 +906,13 @@ e1000_setup_link(struct e1000_hw *hw)
      * signal detection.  So this should be done before e1000_setup_pcs_link()
      * or e1000_phy_setup() is called.
      */
-    if(hw->mac_type == e1000_82543) {
+    if (hw->mac_type == e1000_82543) {
+		ret_val = e1000_read_eeprom(hw, EEPROM_INIT_CONTROL2_REG,
+									1, &eeprom_data);
+		if (ret_val) {
+			DEBUGOUT("EEPROM Read Error\n");
+			return -E1000_ERR_EEPROM;
+		}
         ctrl_ext = ((eeprom_data & EEPROM_WORD0F_SWPDIO_EXT) <<
                     SWDPIO__EXT_SHIFT);
         E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
