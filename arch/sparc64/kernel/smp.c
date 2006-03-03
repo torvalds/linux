@@ -563,7 +563,7 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 	u64 *mondo;
 	cpumask_t error_mask;
 	unsigned long flags, status;
-	int cnt, retries, this_cpu, i;
+	int cnt, retries, this_cpu, prev_sent, i;
 
 	/* We have to do this whole thing with interrupts fully disabled.
 	 * Otherwise if we send an xcall from interrupt context it will
@@ -595,8 +595,9 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 
 	cpus_clear(error_mask);
 	retries = 0;
+	prev_sent = 0;
 	do {
-		int forward_progress;
+		int forward_progress, n_sent;
 
 		status = sun4v_cpu_mondo_send(cnt,
 					      tb->cpu_list_pa,
@@ -606,17 +607,22 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 		if (likely(status == HV_EOK))
 			break;
 
-		/* First, clear out all the cpus in the mask that were
-		 * successfully sent to.  The hypervisor indicates this
-		 * by setting the cpu list entry of such cpus to 0xffff.
+		/* First, see if we made any forward progress.
+		 *
+		 * The hypervisor indicates successful sends by setting
+		 * cpu list entries to the value 0xffff.
 		 */
-		forward_progress = 0;
+		n_sent = 0;
 		for (i = 0; i < cnt; i++) {
-			if (cpu_list[i] == 0xffff) {
-				cpu_clear(i, mask);
-				forward_progress = 1;
-			}
+			if (likely(cpu_list[i] == 0xffff))
+				n_sent++;
 		}
+
+		forward_progress = 0;
+		if (n_sent > prev_sent)
+			forward_progress = 1;
+
+		prev_sent = n_sent;
 
 		/* If we get a HV_ECPUERROR, then one or more of the cpus
 		 * in the list are in error state.  Use the cpu_state()
@@ -634,18 +640,20 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 				err = sun4v_cpu_state(cpu);
 				if (err >= 0 &&
 				    err == HV_CPU_STATE_ERROR) {
-					cpu_clear(cpu, mask);
+					cpu_list[i] = 0xffff;
 					cpu_set(cpu, error_mask);
 				}
 			}
 		} else if (unlikely(status != HV_EWOULDBLOCK))
 			goto fatal_mondo_error;
 
-		/* Rebuild the cpu_list[] array and try again.  */
-		cnt = 0;
-		for_each_cpu_mask(i, mask)
-			cpu_list[cnt++] = i;
-
+		/* Don't bother rewriting the CPU list, just leave the
+		 * 0xffff and non-0xffff entries in there and the
+		 * hypervisor will do the right thing.
+		 *
+		 * Only advance timeout state if we didn't make any
+		 * forward progress.
+		 */
 		if (unlikely(!forward_progress)) {
 			if (unlikely(++retries > 10000))
 				goto fatal_mondo_timeout;
