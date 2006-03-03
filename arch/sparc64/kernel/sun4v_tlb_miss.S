@@ -18,7 +18,7 @@
 
 	/* DEST = (VADDR >> 22)
 	 *
-	 * Branch to ZERO_CTX_LABEL is context is zero.
+	 * Branch to ZERO_CTX_LABEL if context is zero.
 	 */
 #define	COMPUTE_TAG_TARGET(DEST, VADDR, CTX, ZERO_CTX_LABEL) \
 	srlx	VADDR, 22, DEST; \
@@ -314,10 +314,10 @@ sun4v_mna:
 	 nop
 
 	SET_GL(1)
-	ldxa	[%g0] ASI_SCRATCHPAD, %g5
-	ldx	[%g5 + HV_FAULT_D_ADDR_OFFSET], %g5
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2
+	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g5
 	mov	HV_FAULT_TYPE_UNALIGNED, %g3
-	ldx	[%g5 + HV_FAULT_D_CTX_OFFSET], %g4
+	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g4
 	sllx	%g3, 16, %g3
 	or	%g4, %g3, %g4
 	ba,pt	%xcc, winfix_mna
