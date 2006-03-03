@@ -2270,19 +2270,8 @@ static int ub_probe(struct usb_interface *intf,
 
 	nluns = 1;
 	for (i = 0; i < 3; i++) {
-		if ((rc = ub_sync_getmaxlun(sc)) < 0) {
-			/* 
-			 * This segment is taken from usb-storage. They say
-			 * that ZIP-100 needs this, but my own ZIP-100 works
-			 * fine without this.
-			 * Still, it does not seem to hurt anything.
-			 */
-			if (rc == -EPIPE) {
-				ub_probe_clear_stall(sc, sc->recv_bulk_pipe);
-				ub_probe_clear_stall(sc, sc->send_bulk_pipe);
-			}
+		if ((rc = ub_sync_getmaxlun(sc)) < 0)
 			break;
-		}
 		if (rc != 0) {
 			nluns = rc;
 			break;
