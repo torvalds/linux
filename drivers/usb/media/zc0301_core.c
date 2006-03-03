@@ -52,8 +52,8 @@
 #define ZC0301_MODULE_AUTHOR  "(C) 2006 Luca Risolia"
 #define ZC0301_AUTHOR_EMAIL   "<luca.risolia@studio.unibo.it>"
 #define ZC0301_MODULE_LICENSE "GPL"
-#define ZC0301_MODULE_VERSION "1:1.02"
-#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 2)
+#define ZC0301_MODULE_VERSION "1:1.03"
+#define ZC0301_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 3)
 
 /*****************************************************************************/
 
@@ -637,7 +637,6 @@ static void zc0301_release_resources(struct zc0301_device* cam)
 	DBG(2, "V4L2 device /dev/video%d deregistered", cam->v4ldev->minor);
 	video_set_drvdata(cam->v4ldev, NULL);
 	video_unregister_device(cam->v4ldev);
-	usb_put_dev(cam->usbdev);
 	kfree(cam->control_buffer);
 }
 
@@ -727,6 +726,7 @@ static int zc0301_release(struct inode* inode, struct file* filp)
 
 	if (cam->state & DEV_DISCONNECTED) {
 		zc0301_release_resources(cam);
+		usb_put_dev(cam->usbdev);
 		mutex_unlock(&cam->dev_mutex);
 		kfree(cam);
 		return 0;

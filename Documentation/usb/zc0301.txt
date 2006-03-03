@@ -201,14 +201,14 @@ devices mounting the ZC0301 Image Processor and Control Chips:
 
 Vendor ID  Product ID
 ---------  ----------
-0x10fd     0x8050
-0x041e     0x0417
-0x041e     0x041e
-0x041e     0x081c
-0x041e     0x0834
-0x041e     0x0835
+0x041e     0x4017
+0x041e     0x401c
+0x041e     0x401e
+0x041e     0x4034
+0x041e     0x4035
 0x046d     0x08ae
 0x0ac8     0x0301
+0x10fd     0x8050
 
 The list above does not imply that all those devices work with this driver: up
 until now only the ones that mount the following image sensors are supported;

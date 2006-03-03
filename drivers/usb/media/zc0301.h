@@ -134,10 +134,7 @@ struct zc0301_device {
 struct zc0301_device*
 zc0301_match_id(struct zc0301_device* cam, const struct usb_device_id *id)
 {
-	if (usb_match_id(usb_ifnum_to_if(cam->usbdev, 0), id))
-		return cam;
-
-	return NULL;
+	return usb_match_id(usb_ifnum_to_if(cam->usbdev, 0), id) ? cam : NULL;
 }
 
 void
