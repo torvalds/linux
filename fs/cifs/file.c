@@ -698,7 +698,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			posix_lock_type = CIFS_WRLCK;
 		
 		if(numUnlock == 1)
-			posix_lock_type |= CIFS_UNLCK;
+			posix_lock_type = CIFS_UNLCK;
 		else if(numLock == 0) {
 			/* if no lock or unlock then nothing
 			to do since we do not know what it is */
