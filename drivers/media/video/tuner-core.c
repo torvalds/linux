@@ -713,8 +713,9 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			struct v4l2_frequency *f = arg;
 
 			switch_v4l2();
-			if (V4L2_TUNER_RADIO == f->type &&
-			    V4L2_TUNER_RADIO != t->mode) {
+			if ((V4L2_TUNER_RADIO == f->type && V4L2_TUNER_RADIO != t->mode)
+				|| (V4L2_TUNER_DIGITAL_TV == f->type
+					&& V4L2_TUNER_DIGITAL_TV != t->mode)) {
 				if (set_mode (client, t, f->type, "VIDIOC_S_FREQUENCY")
 					    == EINVAL)
 					return 0;
