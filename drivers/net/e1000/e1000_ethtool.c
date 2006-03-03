@@ -97,14 +97,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "alloc_rx_buff_failed", E1000_STAT(alloc_rx_buff_failed) },
 };
 
-#ifdef CONFIG_E1000_MQ
-#define E1000_QUEUE_STATS_LEN \
-	(((struct e1000_adapter *)netdev->priv)->num_tx_queues + \
-	 ((struct e1000_adapter *)netdev->priv)->num_rx_queues) \
-	* (sizeof(struct e1000_queue_stats) / sizeof(uint64_t))
-#else
 #define E1000_QUEUE_STATS_LEN 0
-#endif
 #define E1000_GLOBAL_STATS_LEN	\
 	sizeof(e1000_gstrings_stats) / sizeof(struct e1000_stats)
 #define E1000_STATS_LEN (E1000_GLOBAL_STATS_LEN + E1000_QUEUE_STATS_LEN)
@@ -1799,11 +1792,6 @@ e1000_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, uint64_t *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-#ifdef CONFIG_E1000_MQ
-	uint64_t *queue_stat;
-	int stat_count = sizeof(struct e1000_queue_stats) / sizeof(uint64_t);
-	int j, k;
-#endif
 	int i;
 
 	e1000_update_stats(adapter);
@@ -1812,29 +1800,12 @@ e1000_get_ethtool_stats(struct net_device *netdev,
 		data[i] = (e1000_gstrings_stats[i].sizeof_stat ==
 			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
 	}
-#ifdef CONFIG_E1000_MQ
-	for (j = 0; j < adapter->num_tx_queues; j++) {
-		queue_stat = (uint64_t *)&adapter->tx_ring[j].tx_stats;
-		for (k = 0; k < stat_count; k++)
-			data[i + k] = queue_stat[k];
-		i += k;
-	}
-	for (j = 0; j < adapter->num_rx_queues; j++) {
-		queue_stat = (uint64_t *)&adapter->rx_ring[j].rx_stats;
-		for (k = 0; k < stat_count; k++)
-			data[i + k] = queue_stat[k];
-		i += k;
-	}
-#endif
 /*	BUG_ON(i != E1000_STATS_LEN); */
 }
 
 static void
 e1000_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
 {
-#ifdef CONFIG_E1000_MQ
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-#endif
 	uint8_t *p = data;
 	int i;
 
@@ -1849,20 +1820,6 @@ e1000_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-#ifdef CONFIG_E1000_MQ
-		for (i = 0; i < adapter->num_tx_queues; i++) {
-			sprintf(p, "tx_queue_%u_packets", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "tx_queue_%u_bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < adapter->num_rx_queues; i++) {
-			sprintf(p, "rx_queue_%u_packets", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "rx_queue_%u_bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
-#endif
 /*		BUG_ON(p - data != E1000_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
 	}

@@ -83,10 +83,6 @@
 struct e1000_adapter;
 
 #include "e1000_hw.h"
-#ifdef CONFIG_E1000_MQ
-#include <linux/cpu.h>
-#include <linux/smp.h>
-#endif
 
 #ifdef DBG
 #define E1000_DBG(args...) printk(KERN_DEBUG "e1000: " args)
@@ -169,12 +165,6 @@ struct e1000_buffer {
 	uint16_t next_to_watch;
 };
 
-#ifdef CONFIG_E1000_MQ
-struct e1000_queue_stats {
-	uint64_t packets;
-	uint64_t bytes;
-};
-#endif
 
 struct e1000_ps_page { struct page *ps_page[PS_PAGE_BUFFERS]; };
 struct e1000_ps_page_dma { uint64_t ps_page_dma[PS_PAGE_BUFFERS]; };
@@ -198,12 +188,7 @@ struct e1000_tx_ring {
 	spinlock_t tx_lock;
 	uint16_t tdh;
 	uint16_t tdt;
-
 	boolean_t last_tx_tso;
-
-#ifdef CONFIG_E1000_MQ
-	struct e1000_queue_stats tx_stats;
-#endif
 };
 
 struct e1000_rx_ring {
@@ -230,9 +215,6 @@ struct e1000_rx_ring {
 
 	uint16_t rdh;
 	uint16_t rdt;
-#ifdef CONFIG_E1000_MQ
-	struct e1000_queue_stats rx_stats;
-#endif
 };
 
 #define E1000_DESC_UNUSED(R) \
@@ -278,9 +260,6 @@ struct e1000_adapter {
 
 	/* TX */
 	struct e1000_tx_ring *tx_ring;      /* One per active queue */
-#ifdef CONFIG_E1000_MQ
-	struct e1000_tx_ring **cpu_tx_ring; /* per-cpu */
-#endif
 	unsigned long tx_queue_len;
 	uint32_t txd_cmd;
 	uint32_t tx_int_delay;
@@ -313,11 +292,6 @@ struct e1000_adapter {
 	struct e1000_rx_ring *rx_ring;      /* One per active queue */
 #ifdef CONFIG_E1000_NAPI
 	struct net_device *polling_netdev;  /* One per active queue */
-#endif
-#ifdef CONFIG_E1000_MQ
-	struct net_device **cpu_netdev;     /* per-cpu */
-	struct call_async_data_struct rx_sched_call_data;
-	cpumask_t cpumask;
 #endif
 	int num_tx_queues;
 	int num_rx_queues;
