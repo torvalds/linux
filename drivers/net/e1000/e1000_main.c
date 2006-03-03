@@ -3349,6 +3349,9 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	struct e1000_tx_desc *tx_desc, *eop_desc;
 	struct e1000_buffer *buffer_info;
 	unsigned int i, eop;
+#ifdef CONFIG_E1000_NAPI
+	unsigned int count = 0;
+#endif
 	boolean_t cleaned = FALSE;
 
 	i = tx_ring->next_to_clean;
@@ -3370,6 +3373,11 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 
 		eop = tx_ring->buffer_info[i].next_to_watch;
 		eop_desc = E1000_TX_DESC(*tx_ring, eop);
+#ifdef CONFIG_E1000_NAPI
+#define E1000_TX_WEIGHT 64
+		/* weight of a sort for tx, to avoid endless transmit cleanup */
+		if (count++ == E1000_TX_WEIGHT) break;
+#endif
 	}
 
 	tx_ring->next_to_clean = i;
