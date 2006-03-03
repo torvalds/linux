@@ -8,7 +8,6 @@
  * and is not licensed separately. See file COPYING for details.
  *
  * TODO (sorted by decreasing priority)
- *  -- Kill first_open (Al Viro fixed the block layer now)
  *  -- set readonly flag for CDs, set removable flag for CF readers
  *  -- do inquiry and verify we got a disk and not a tape (for LUN mismatch)
  *  -- special case some senses, e.g. 3a/0 -> no media present, reduce retries
@@ -334,7 +333,6 @@ struct ub_lun {
 	int changed;			/* Media was changed */
 	int removable;
 	int readonly;
-	int first_open;			/* Kludge. See ub_bd_open. */
 
 	struct ub_request urq;
 
@@ -1849,26 +1847,6 @@ static int ub_bd_open(struct inode *inode, struct file *filp)
 	sc->openc++;
 	spin_unlock_irqrestore(&ub_lock, flags);
 
-	/*
-	 * This is a workaround for a specific problem in our block layer.
-	 * In 2.6.9, register_disk duplicates the code from rescan_partitions.
-	 * However, if we do add_disk with a device which persistently reports
-	 * a changed media, add_disk calls register_disk, which does do_open,
-	 * which will call rescan_paritions for changed media. After that,
-	 * register_disk attempts to do it all again and causes double kobject
-	 * registration and a eventually an oops on module removal.
-	 *
-	 * The bottom line is, Al Viro says that we should not allow
-	 * bdev->bd_invalidated to be set when doing add_disk no matter what.
-	 */
-	if (lun->first_open) {
-		lun->first_open = 0;
-		if (lun->changed) {
-			rc = -ENOMEDIUM;
-			goto err_open;
-		}
-	}
-
 	if (lun->removable || lun->readonly)
 		check_disk_change(inode->i_bdev);
 
@@ -2537,7 +2515,6 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 
 	lun->removable = 1;		/* XXX Query this from the device */
 	lun->changed = 1;		/* ub_revalidate clears only */
-	lun->first_open = 1;
 	ub_revalidate(sc, lun);
 
 	rc = -ENOMEM;
