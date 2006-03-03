@@ -852,6 +852,39 @@ static struct tda1004x_config philips_tiger_config = {
 
 /* ------------------------------------------------------------------ */
 
+static int lifeview_trio_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+{
+	int ret;
+
+	ret = philips_tda827xa_pll_set(0x60, fe, params);
+	return ret;
+}
+
+static int lifeview_trio_dvb_mode(struct dvb_frontend *fe)
+{
+	return 0;
+}
+
+static void lifeview_trio_analog_mode(struct dvb_frontend *fe)
+{
+	philips_tda827xa_pll_sleep(0x60, fe);
+}
+
+static struct tda1004x_config lifeview_trio_config = {
+	.demod_address = 0x09,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X_GPL,
+	.if_freq       = TDA10046_FREQ_045,
+	.pll_init      = lifeview_trio_dvb_mode,
+	.pll_set       = lifeview_trio_pll_set,
+	.pll_sleep     = lifeview_trio_analog_mode,
+	.request_firmware = NULL,
+};
+
+/* ------------------------------------------------------------------ */
+
 static int ads_duo_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
 	int ret;
@@ -1017,6 +1050,10 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_FLYDVBT_LR301:
 		dev->dvb.frontend = tda10046_attach(&tda827x_lifeview_config,
+						    &dev->i2c_adap);
+		break;
+	case SAA7134_BOARD_FLYDVB_TRIO:
+		dev->dvb.frontend = tda10046_attach(&lifeview_trio_config,
 						    &dev->i2c_adap);
 		break;
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:
