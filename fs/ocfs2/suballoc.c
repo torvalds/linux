@@ -157,8 +157,9 @@ static int ocfs2_block_group_fill(struct ocfs2_journal_handle *handle,
 	mlog_entry_void();
 
 	if (((unsigned long long) bg_bh->b_blocknr) != group_blkno) {
-		ocfs2_error(alloc_inode->i_sb, "group block (%"MLFu64") "
-			    "!= b_blocknr (%llu)", group_blkno,
+		ocfs2_error(alloc_inode->i_sb, "group block (%llu) != "
+			    "b_blocknr (%llu)",
+			    (unsigned long long)group_blkno,
 			    (unsigned long long) bg_bh->b_blocknr);
 		status = -EIO;
 		goto bail;
@@ -280,8 +281,8 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 
 	/* setup the group */
 	bg_blkno = ocfs2_clusters_to_blocks(osb->sb, bit_off);
-	mlog(0, "new descriptor, record %u, at block %"MLFu64"\n",
-	     alloc_rec, bg_blkno);
+	mlog(0, "new descriptor, record %u, at block %llu\n",
+	     alloc_rec, (unsigned long long)bg_blkno);
 
 	bg_bh = sb_getblk(osb->sb, bg_blkno);
 	if (!bg_bh) {
@@ -382,8 +383,8 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 		goto bail;
 	}
 	if (!(fe->i_flags & cpu_to_le32(OCFS2_CHAIN_FL))) {
-		ocfs2_error(alloc_inode->i_sb, "Invalid chain allocator "
-			    "# %"MLFu64, le64_to_cpu(fe->i_blkno));
+		ocfs2_error(alloc_inode->i_sb, "Invalid chain allocator %llu",
+			    (unsigned long long)le64_to_cpu(fe->i_blkno));
 		status = -EIO;
 		goto bail;
 	}
@@ -829,9 +830,10 @@ static int ocfs2_relink_block_group(struct ocfs2_journal_handle *handle,
 		goto out;
 	}
 
-	mlog(0, "In suballoc %"MLFu64", chain %u, move group %"MLFu64" to "
-	     "top, prev = %"MLFu64"\n",
-	     fe->i_blkno, chain, bg->bg_blkno, prev_bg->bg_blkno);
+	mlog(0, "Suballoc %llu, chain %u, move group %llu to top, prev = %llu\n",
+	     (unsigned long long)fe->i_blkno, chain,
+	     (unsigned long long)bg->bg_blkno,
+	     (unsigned long long)prev_bg->bg_blkno);
 
 	fe_ptr = le64_to_cpu(fe->id2.i_chain.cl_recs[chain].c_blkno);
 	bg_ptr = le64_to_cpu(bg->bg_next_group);
@@ -974,8 +976,9 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	struct ocfs2_group_desc *bg;
 
 	chain = ac->ac_chain;
-	mlog(0, "trying to alloc %u bits from chain %u, inode %"MLFu64"\n",
-	     bits_wanted, chain, OCFS2_I(alloc_inode)->ip_blkno);
+	mlog(0, "trying to alloc %u bits from chain %u, inode %llu\n",
+	     bits_wanted, chain,
+	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno);
 
 	status = ocfs2_read_block(OCFS2_SB(alloc_inode->i_sb),
 				  le64_to_cpu(cl->cl_recs[chain].c_blkno),
@@ -1027,8 +1030,8 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 		goto bail;
 	}
 
-	mlog(0, "alloc succeeds: we give %u bits from block group %"MLFu64"\n",
-	     tmp_bits, bg->bg_blkno);
+	mlog(0, "alloc succeeds: we give %u bits from block group %llu\n",
+	     tmp_bits, (unsigned long long)bg->bg_blkno);
 
 	*num_bits = tmp_bits;
 
@@ -1092,8 +1095,8 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 		goto bail;
 	}
 
-	mlog(0, "Allocated %u bits from suballocator %"MLFu64"\n",
-	     *num_bits, fe->i_blkno);
+	mlog(0, "Allocated %u bits from suballocator %llu\n", *num_bits,
+	     (unsigned long long)fe->i_blkno);
 
 	*bg_blkno = le64_to_cpu(bg->bg_blkno);
 bail:
@@ -1134,9 +1137,9 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 	}
 	if (le32_to_cpu(fe->id1.bitmap1.i_used) >=
 	    le32_to_cpu(fe->id1.bitmap1.i_total)) {
-		ocfs2_error(osb->sb, "Chain allocator dinode %"MLFu64" has %u"
-			    "used bits but only %u total.",
-			    le64_to_cpu(fe->i_blkno),
+		ocfs2_error(osb->sb, "Chain allocator dinode %llu has %u used "
+			    "bits but only %u total.",
+			    (unsigned long long)le64_to_cpu(fe->i_blkno),
 			    le32_to_cpu(fe->id1.bitmap1.i_used),
 			    le32_to_cpu(fe->id1.bitmap1.i_total));
 		status = -EIO;
@@ -1479,10 +1482,9 @@ static int ocfs2_free_suballoc_bits(struct ocfs2_journal_handle *handle,
 	}
 	BUG_ON((count + start_bit) > ocfs2_bits_per_group(cl));
 
-	mlog(0, "suballocator %"MLFu64": freeing %u bits from group %"MLFu64
-	     ", starting at %u\n",
-	     OCFS2_I(alloc_inode)->ip_blkno, count, bg_blkno,
-	     start_bit);
+	mlog(0, "%llu: freeing %u bits from group %llu, starting at %u\n",
+	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno, count,
+	     (unsigned long long)bg_blkno, start_bit);
 
 	status = ocfs2_read_block(osb, bg_blkno, &group_bh, OCFS2_BH_CACHED,
 				  alloc_inode);
@@ -1592,10 +1594,10 @@ int ocfs2_free_clusters(struct ocfs2_journal_handle *handle,
 	ocfs2_block_to_cluster_group(bitmap_inode, start_blk, &bg_blkno,
 				     &bg_start_bit);
 
-	mlog(0, "want to free %u clusters starting at block %"MLFu64"\n",
-	     num_clusters, start_blk);
-	mlog(0, "bg_blkno = %"MLFu64", bg_start_bit = %u\n",
-	     bg_blkno, bg_start_bit);
+	mlog(0, "want to free %u clusters starting at block %llu\n",
+	     num_clusters, (unsigned long long)start_blk);
+	mlog(0, "bg_blkno = %llu, bg_start_bit = %u\n",
+	     (unsigned long long)bg_blkno, bg_start_bit);
 
 	status = ocfs2_free_suballoc_bits(handle, bitmap_inode, bitmap_bh,
 					  bg_start_bit, bg_blkno,
@@ -1616,18 +1618,22 @@ static inline void ocfs2_debug_bg(struct ocfs2_group_desc *bg)
 	printk("bg_free_bits_count: %u\n", bg->bg_free_bits_count);
 	printk("bg_chain:           %u\n", bg->bg_chain);
 	printk("bg_generation:      %u\n", le32_to_cpu(bg->bg_generation));
-	printk("bg_next_group:      %"MLFu64"\n", bg->bg_next_group);
-	printk("bg_parent_dinode:   %"MLFu64"\n", bg->bg_parent_dinode);
-	printk("bg_blkno:           %"MLFu64"\n", bg->bg_blkno);
+	printk("bg_next_group:      %llu\n",
+	       (unsigned long long)bg->bg_next_group);
+	printk("bg_parent_dinode:   %llu\n",
+	       (unsigned long long)bg->bg_parent_dinode);
+	printk("bg_blkno:           %llu\n",
+	       (unsigned long long)bg->bg_blkno);
 }
 
 static inline void ocfs2_debug_suballoc_inode(struct ocfs2_dinode *fe)
 {
 	int i;
 
-	printk("Suballoc Inode %"MLFu64":\n", fe->i_blkno);
+	printk("Suballoc Inode %llu:\n", (unsigned long long)fe->i_blkno);
 	printk("i_signature:                  %s\n", fe->i_signature);
-	printk("i_size:                       %"MLFu64"\n", fe->i_size);
+	printk("i_size:                       %llu\n",
+	       (unsigned long long)fe->i_size);
 	printk("i_clusters:                   %u\n", fe->i_clusters);
 	printk("i_generation:                 %u\n",
 	       le32_to_cpu(fe->i_generation));
@@ -1645,7 +1651,7 @@ static inline void ocfs2_debug_suballoc_inode(struct ocfs2_dinode *fe)
 		       fe->id2.i_chain.cl_recs[i].c_free);
 		printk("fe->id2.i_chain.cl_recs[%d].c_total: %u\n", i,
 		       fe->id2.i_chain.cl_recs[i].c_total);
-		printk("fe->id2.i_chain.cl_recs[%d].c_blkno: %"MLFu64"\n", i,
-		       fe->id2.i_chain.cl_recs[i].c_blkno);
+		printk("fe->id2.i_chain.cl_recs[%d].c_blkno: %llu\n", i,
+		       (unsigned long long)fe->id2.i_chain.cl_recs[i].c_blkno);
 	}
 }

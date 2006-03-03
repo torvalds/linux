@@ -97,8 +97,8 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 	int i, ignore_cache = 0;
 	struct buffer_head *bh;
 
-	mlog_entry("(block=(%"MLFu64"), nr=(%d), flags=%d, inode=%p)\n",
-		   block, nr, flags, inode);
+	mlog_entry("(block=(%llu), nr=(%d), flags=%d, inode=%p)\n",
+		   (unsigned long long)block, nr, flags, inode);
 
 	if (osb == NULL || osb->sb == NULL || bhs == NULL) {
 		status = -EINVAL;
@@ -143,9 +143,9 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 		if (flags & OCFS2_BH_CACHED &&
 		    !ocfs2_buffer_uptodate(inode, bh)) {
 			mlog(ML_UPTODATE,
-			     "bh (%llu), inode %"MLFu64" not uptodate\n",
+			     "bh (%llu), inode %llu not uptodate\n",
 			     (unsigned long long)bh->b_blocknr,
-			     OCFS2_I(inode)->ip_blkno);
+			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 			ignore_cache = 1;
 		}
 
@@ -222,7 +222,8 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 	if (inode)
 		mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
 
-	mlog(ML_BH_IO, "block=(%"MLFu64"), nr=(%d), cached=%s\n", block, nr,
+	mlog(ML_BH_IO, "block=(%llu), nr=(%d), cached=%s\n", 
+	     (unsigned long long)block, nr,
 	     (!(flags & OCFS2_BH_CACHED) || ignore_cache) ? "no" : "yes");
 
 bail:

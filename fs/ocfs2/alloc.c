@@ -566,9 +566,8 @@ static int ocfs2_do_insert_extent(struct ocfs2_super *osb,
 			next_free = le16_to_cpu(el->l_next_free_rec);
 			if (next_free == 0) {
 				ocfs2_error(inode->i_sb,
-					    "Dinode %"MLFu64" has a bad "
-					    "extent list",
-					    OCFS2_I(inode)->ip_blkno);
+					    "Dinode %llu has a bad extent list",
+					    (unsigned long long)OCFS2_I(inode)->ip_blkno);
 				status = -EIO;
 				goto bail;
 			}
@@ -611,9 +610,8 @@ static int ocfs2_do_insert_extent(struct ocfs2_super *osb,
 		next_free = le16_to_cpu(el->l_next_free_rec);
 		if (next_free == 0) {
 			ocfs2_error(inode->i_sb,
-				    "Dinode %"MLFu64" has a bad "
-				    "extent list",
-				    OCFS2_I(inode)->ip_blkno);
+				    "Dinode %llu has a bad extent list",
+				    (unsigned long long)OCFS2_I(inode)->ip_blkno);
 			status = -EIO;
 			goto bail;
 		}
@@ -652,8 +650,9 @@ static int ocfs2_do_insert_extent(struct ocfs2_super *osb,
 		/* having an empty extent at eof is legal. */
 		if (el->l_recs[i].e_cpos != fe->i_clusters) {
 			ocfs2_error(inode->i_sb,
-				    "Dinode %"MLFu64" trailing extent is bad: "
+				    "Dinode %llu trailing extent is bad: "
 				    "cpos (%u) != number of clusters (%u)",
+				    (unsigned long long)OCFS2_I(inode)->ip_blkno,
 				    le32_to_cpu(el->l_recs[i].e_cpos),
 				    le32_to_cpu(fe->i_clusters));
 			status = -EIO;
@@ -747,19 +746,19 @@ static int ocfs2_find_branch_target(struct ocfs2_super *osb,
 
 	while(le16_to_cpu(el->l_tree_depth) > 1) {
 		if (le16_to_cpu(el->l_next_free_rec) == 0) {
-			ocfs2_error(inode->i_sb, "Dinode %"MLFu64" has empty "
+			ocfs2_error(inode->i_sb, "Dinode %llu has empty "
 				    "extent list (next_free_rec == 0)",
-				    OCFS2_I(inode)->ip_blkno);
+				    (unsigned long long)OCFS2_I(inode)->ip_blkno);
 			status = -EIO;
 			goto bail;
 		}
 		i = le16_to_cpu(el->l_next_free_rec) - 1;
 		blkno = le64_to_cpu(el->l_recs[i].e_blkno);
 		if (!blkno) {
-			ocfs2_error(inode->i_sb, "Dinode %"MLFu64" has extent "
+			ocfs2_error(inode->i_sb, "Dinode %llu has extent "
 				    "list where extent # %d has no physical "
 				    "block start",
-				    OCFS2_I(inode)->ip_blkno, i);
+				    (unsigned long long)OCFS2_I(inode)->ip_blkno, i);
 			status = -EIO;
 			goto bail;
 		}
@@ -826,9 +825,9 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 
 	mlog_entry_void();
 
-	mlog(0, "add %u clusters starting at block %"MLFu64" to "
-		"inode %"MLFu64"\n",
-	     new_clusters, start_blk, OCFS2_I(inode)->ip_blkno);
+	mlog(0, "add %u clusters starting at block %llu to inode %llu\n",
+	     new_clusters, (unsigned long long)start_blk,
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 	el = &fe->id2.i_list;
@@ -963,8 +962,8 @@ static int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 	struct ocfs2_dinode *di;
 	struct ocfs2_truncate_log *tl;
 
-	mlog_entry("start_blk = %"MLFu64", num_clusters = %u\n", start_blk,
-		   num_clusters);
+	mlog_entry("start_blk = %llu, num_clusters = %u\n",
+		   (unsigned long long)start_blk, num_clusters);
 
 	BUG_ON(mutex_trylock(&tl_inode->i_mutex));
 
@@ -981,8 +980,9 @@ static int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 	tl_count = le16_to_cpu(tl->tl_count);
 	mlog_bug_on_msg(tl_count > ocfs2_truncate_recs_per_inode(osb->sb) ||
 			tl_count == 0,
-			"Truncate record count on #%"MLFu64" invalid ("
-			"wanted %u, actual %u\n", OCFS2_I(tl_inode)->ip_blkno,
+			"Truncate record count on #%llu invalid "
+			"wanted %u, actual %u\n",
+			(unsigned long long)OCFS2_I(tl_inode)->ip_blkno,
 			ocfs2_truncate_recs_per_inode(osb->sb),
 			le16_to_cpu(tl->tl_count));
 
@@ -1002,8 +1002,8 @@ static int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 	}
 
 	mlog(0, "Log truncate of %u clusters starting at cluster %u to "
-	     "%"MLFu64" (index = %d)\n", num_clusters, start_cluster,
-	     OCFS2_I(tl_inode)->ip_blkno, index);
+	     "%llu (index = %d)\n", num_clusters, start_cluster,
+	     (unsigned long long)OCFS2_I(tl_inode)->ip_blkno, index);
 
 	if (ocfs2_truncate_log_can_coalesce(tl, start_cluster)) {
 		/*
@@ -1134,8 +1134,8 @@ static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	}
 
 	num_to_flush = le16_to_cpu(tl->tl_used);
-	mlog(0, "Flush %u records from truncate log #%"MLFu64"\n",
-	     num_to_flush, OCFS2_I(tl_inode)->ip_blkno);
+	mlog(0, "Flush %u records from truncate log #%llu\n",
+	     num_to_flush, (unsigned long long)OCFS2_I(tl_inode)->ip_blkno);
 	if (!num_to_flush) {
 		status = 0;
 		goto bail;
@@ -1360,8 +1360,8 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 
 	tl = &tl_copy->id2.i_dealloc;
 	num_recs = le16_to_cpu(tl->tl_used);
-	mlog(0, "cleanup %u records from %"MLFu64"\n", num_recs,
-	     tl_copy->i_blkno);
+	mlog(0, "cleanup %u records from %llu\n", num_recs,
+	     (unsigned long long)tl_copy->i_blkno);
 
 	mutex_lock(&tl_inode->i_mutex);
 	for(i = 0; i < num_recs; i++) {
@@ -1529,7 +1529,8 @@ static int ocfs2_find_new_last_ext_blk(struct ocfs2_super *osb,
 
 	*new_last_eb = bh;
 	get_bh(*new_last_eb);
-	mlog(0, "returning block %"MLFu64"\n", le64_to_cpu(eb->h_blkno));
+	mlog(0, "returning block %llu\n",
+	     (unsigned long long)le64_to_cpu(eb->h_blkno));
 bail:
 	if (bh)
 		brelse(bh);
@@ -1646,8 +1647,8 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 
 	/* if our tree depth > 0, update all the tree blocks below us. */
 	while (depth) {
-		mlog(0, "traveling tree (depth = %d, next_eb = %"MLFu64")\n",
-		     depth,  next_eb);
+		mlog(0, "traveling tree (depth = %d, next_eb = %llu)\n",
+		     depth,  (unsigned long long)next_eb);
 		status = ocfs2_read_block(osb, next_eb, &eb_bh,
 					  OCFS2_BH_CACHED, inode);
 		if (status < 0) {
@@ -1674,12 +1675,12 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 
 		i = le16_to_cpu(el->l_next_free_rec) - 1;
 
-		mlog(0, "extent block %"MLFu64", before: record %d: "
-		     "(%u, %u, %"MLFu64"), next = %u\n",
-		     le64_to_cpu(eb->h_blkno), i,
+		mlog(0, "extent block %llu, before: record %d: "
+		     "(%u, %u, %llu), next = %u\n",
+		     (unsigned long long)le64_to_cpu(eb->h_blkno), i,
 		     le32_to_cpu(el->l_recs[i].e_cpos),
 		     le32_to_cpu(el->l_recs[i].e_clusters),
-		     le64_to_cpu(el->l_recs[i].e_blkno),
+		     (unsigned long long)le64_to_cpu(el->l_recs[i].e_blkno),
 		     le16_to_cpu(el->l_next_free_rec));
 
 		BUG_ON(le32_to_cpu(el->l_recs[i].e_clusters) < clusters_to_del);
@@ -1697,12 +1698,12 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 			BUG_ON(!el->l_next_free_rec);
 			le16_add_cpu(&el->l_next_free_rec, -1);
 		}
-		mlog(0, "extent block %"MLFu64", after: record %d: "
-		     "(%u, %u, %"MLFu64"), next = %u\n",
-		     le64_to_cpu(eb->h_blkno), i,
+		mlog(0, "extent block %llu, after: record %d: "
+		     "(%u, %u, %llu), next = %u\n",
+		     (unsigned long long)le64_to_cpu(eb->h_blkno), i,
 		     le32_to_cpu(el->l_recs[i].e_cpos),
 		     le32_to_cpu(el->l_recs[i].e_clusters),
-		     le64_to_cpu(el->l_recs[i].e_blkno),
+		     (unsigned long long)le64_to_cpu(el->l_recs[i].e_blkno),
 		     le16_to_cpu(el->l_next_free_rec));
 
 		status = ocfs2_journal_dirty(handle, eb_bh);
@@ -1792,10 +1793,10 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 	last_eb = le64_to_cpu(fe->i_last_eb_blk);
 start:
 	mlog(0, "ocfs2_commit_truncate: fe->i_clusters = %u, "
-	     "last_eb = %"MLFu64", fe->i_last_eb_blk = %"MLFu64", "
+	     "last_eb = %llu, fe->i_last_eb_blk = %llu, "
 	     "fe->id2.i_list.l_tree_depth = %u last_eb_bh = %p\n",
-	     le32_to_cpu(fe->i_clusters), last_eb,
-	     le64_to_cpu(fe->i_last_eb_blk),
+	     le32_to_cpu(fe->i_clusters), (unsigned long long)last_eb,
+	     (unsigned long long)le64_to_cpu(fe->i_last_eb_blk),
 	     le16_to_cpu(fe->id2.i_list.l_tree_depth), last_eb_bh);
 
 	if (last_eb != le64_to_cpu(fe->i_last_eb_blk)) {
@@ -1934,16 +1935,17 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
 	mlog(0, "fe->i_clusters = %u, new_i_clusters = %u, fe->i_size ="
-	     "%"MLFu64"\n", fe->i_clusters, new_i_clusters, fe->i_size);
+	     "%llu\n", fe->i_clusters, new_i_clusters,
+	     (unsigned long long)fe->i_size);
 
 	if (le32_to_cpu(fe->i_clusters) <= new_i_clusters) {
-		ocfs2_error(inode->i_sb, "Dinode %"MLFu64" has cluster count "
-			    "%u and size %"MLFu64" whereas struct inode has "
+		ocfs2_error(inode->i_sb, "Dinode %llu has cluster count "
+			    "%u and size %llu whereas struct inode has "
 			    "cluster count %u and size %llu which caused an "
 			    "invalid truncate to %u clusters.",
-			    le64_to_cpu(fe->i_blkno),
+			    (unsigned long long)le64_to_cpu(fe->i_blkno),
 			    le32_to_cpu(fe->i_clusters),
-			    le64_to_cpu(fe->i_size),
+			    (unsigned long long)le64_to_cpu(fe->i_size),
 			    OCFS2_I(inode)->ip_clusters, i_size_read(inode),
 			    new_i_clusters);
 		mlog_meta_lvb(ML_ERROR, &OCFS2_I(inode)->ip_meta_lockres);

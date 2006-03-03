@@ -190,20 +190,21 @@ static int ocfs2_process_delete_request(struct inode *inode,
 				OCFS2_INVALID_SLOT &&
 				OCFS2_I(inode)->ip_orphaned_slot !=
 				(*orphaned_slot),
-				"Inode %"MLFu64": This node thinks it's "
+				"Inode %llu: This node thinks it's "
 				"orphaned in slot %d, messaged it's in %d\n",
-				OCFS2_I(inode)->ip_blkno,
+				(unsigned long long)OCFS2_I(inode)->ip_blkno,
 				OCFS2_I(inode)->ip_orphaned_slot,
 				*orphaned_slot);
 
-		mlog(0, "Setting orphaned slot for inode %"MLFu64" to %d\n",
-		     OCFS2_I(inode)->ip_blkno, *orphaned_slot);
+		mlog(0, "Setting orphaned slot for inode %llu to %d\n",
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+		     *orphaned_slot);
 
 		OCFS2_I(inode)->ip_orphaned_slot = *orphaned_slot;
 	} else {
-		mlog(0, "Sending back orphaned slot %d for inode %"MLFu64"\n",
+		mlog(0, "Sending back orphaned slot %d for inode %llu\n",
 		     OCFS2_I(inode)->ip_orphaned_slot,
-		     OCFS2_I(inode)->ip_blkno);
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 		*orphaned_slot = OCFS2_I(inode)->ip_orphaned_slot;
 	}
@@ -226,8 +227,8 @@ static int ocfs2_process_delete_request(struct inode *inode,
 	}
 
 	if (filemap_fdatawrite(inode->i_mapping)) {
-		mlog(ML_ERROR, "Could not sync inode %"MLFu64" for delete!\n",
-		     OCFS2_I(inode)->ip_blkno);
+		mlog(ML_ERROR, "Could not sync inode %llu for delete!\n",
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 		goto done;
 	}
 	sync_mapping_buffers(inode->i_mapping);
@@ -302,8 +303,8 @@ static void ocfs2_process_dentry_request(struct inode *inode,
 	struct list_head *p;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
-	mlog(0, "parent %"MLFu64", namelen = %u, name = %.*s\n", parent_blkno,
-	     namelen, namelen, name);
+	mlog(0, "parent %llu, namelen = %u, name = %.*s\n",
+	     (unsigned long long)parent_blkno, namelen, namelen, name);
 
 	spin_lock(&dcache_lock);
 
@@ -370,9 +371,10 @@ static void ocfs2_process_vote(struct ocfs2_super *osb,
 	if (request == OCFS2_VOTE_REQ_DELETE)
 		orphaned_slot = be32_to_cpu(msg->md1.v_orphaned_slot);
 
-	mlog(0, "processing vote: request = %u, blkno = %"MLFu64", "
+	mlog(0, "processing vote: request = %u, blkno = %llu, "
 	     "generation = %u, node_num = %u, priv1 = %u\n", request,
-	     blkno, generation, node_num, be32_to_cpu(msg->md1.v_generic1));
+	     (unsigned long long)blkno, generation, node_num,
+	     be32_to_cpu(msg->md1.v_generic1));
 
 	if (!ocfs2_is_valid_vote_request(request)) {
 		mlog(ML_ERROR, "Invalid vote request %d from node %u\n",
@@ -419,11 +421,12 @@ static void ocfs2_process_vote(struct ocfs2_super *osb,
 	 * we had not found an inode in the first place. */
 	if (inode->i_generation != generation) {
 		mlog(0, "generation passed %u != inode generation = %u, "
-		     "ip_flags = %x, ip_blkno = %"MLFu64", msg %"MLFu64", "
-		     "i_count = %u, message type = %u\n",
-		     generation, inode->i_generation, OCFS2_I(inode)->ip_flags,
-		     OCFS2_I(inode)->ip_blkno, blkno,
-		     atomic_read(&inode->i_count), request);
+		     "ip_flags = %x, ip_blkno = %llu, msg %llu, i_count = %u, "
+		     "message type = %u\n", generation, inode->i_generation,
+		     OCFS2_I(inode)->ip_flags,
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+		     (unsigned long long)blkno, atomic_read(&inode->i_count),
+		     request);
 		iput(inode);
 		inode = NULL;
 		goto respond;
@@ -830,8 +833,9 @@ static void ocfs2_delete_response_cb(void *priv,
 
 	orphaned_slot = be32_to_cpu(resp->r_orphaned_slot);
 	node = be32_to_cpu(resp->r_hdr.h_node_num);
-	mlog(0, "node %d tells us that inode %"MLFu64" is orphaned in slot "
-	     "%d\n", node, OCFS2_I(inode)->ip_blkno, orphaned_slot);
+	mlog(0, "node %d tells us that inode %llu is orphaned in slot %d\n",
+	     node, (unsigned long long)OCFS2_I(inode)->ip_blkno,
+	     orphaned_slot);
 
 	/* The other node may not actually know which slot the inode
 	 * is orphaned in. */
@@ -845,9 +849,9 @@ static void ocfs2_delete_response_cb(void *priv,
 	spin_lock(&OCFS2_I(inode)->ip_lock);
 	mlog_bug_on_msg(OCFS2_I(inode)->ip_orphaned_slot != orphaned_slot &&
 			OCFS2_I(inode)->ip_orphaned_slot
-			!= OCFS2_INVALID_SLOT, "Inode %"MLFu64": Node %d "
-			"says it's orphaned in slot %d, we think it's in %d\n",
-			OCFS2_I(inode)->ip_blkno,
+			!= OCFS2_INVALID_SLOT, "Inode %llu: Node %d says it's "
+			"orphaned in slot %d, we think it's in %d\n",
+			(unsigned long long)OCFS2_I(inode)->ip_blkno,
 			be32_to_cpu(resp->r_hdr.h_node_num),
 			orphaned_slot, OCFS2_I(inode)->ip_orphaned_slot);
 
@@ -869,8 +873,8 @@ int ocfs2_request_delete_vote(struct inode *inode)
 	delete_cb.rc_cb = ocfs2_delete_response_cb;
 	delete_cb.rc_priv = inode;
 
-	mlog(0, "Inode %"MLFu64", we start thinking orphaned slot is %d\n",
-	     OCFS2_I(inode)->ip_blkno, orphaned_slot);
+	mlog(0, "Inode %llu, we start thinking orphaned slot is %d\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno, orphaned_slot);
 
 	status = -ENOMEM;
 	request = ocfs2_new_vote_request(osb, OCFS2_I(inode)->ip_blkno,
@@ -895,8 +899,8 @@ static void ocfs2_setup_unlink_vote(struct ocfs2_vote_msg *request,
 	 * d_delete against it. Parent directory block and full name
 	 * should suffice. */
 
-	mlog(0, "unlink/rename request: parent: %"MLFu64" name: %.*s\n",
-	     OCFS2_I(parent)->ip_blkno, dentry->d_name.len,
+	mlog(0, "unlink/rename request: parent: %llu name: %.*s\n",
+	     (unsigned long long)OCFS2_I(parent)->ip_blkno, dentry->d_name.len,
 	     dentry->d_name.name);
 
 	request->v_unlink_parent = cpu_to_be64(OCFS2_I(parent)->ip_blkno);
@@ -1082,7 +1086,8 @@ static int ocfs2_handle_response_message(struct o2net_msg *msg,
 	mlog(0, "received response message:\n");
 	mlog(0, "h_response_id = %u\n", response_id);
 	mlog(0, "h_request = %u\n", be32_to_cpu(resp->r_hdr.h_request));
-	mlog(0, "h_blkno = %"MLFu64"\n", be64_to_cpu(resp->r_hdr.h_blkno));
+	mlog(0, "h_blkno = %llu\n",
+	     (unsigned long long)be64_to_cpu(resp->r_hdr.h_blkno));
 	mlog(0, "h_generation = %u\n", be32_to_cpu(resp->r_hdr.h_generation));
 	mlog(0, "h_node_num = %u\n", node_num);
 	mlog(0, "r_response = %d\n", response_status);
@@ -1138,8 +1143,8 @@ static int ocfs2_handle_vote_message(struct o2net_msg *msg,
 	mlog(0, "h_response_id = %u\n",
 	     be32_to_cpu(work->w_msg.v_hdr.h_response_id));
 	mlog(0, "h_request = %u\n", be32_to_cpu(work->w_msg.v_hdr.h_request));
-	mlog(0, "h_blkno = %"MLFu64"\n",
-	     be64_to_cpu(work->w_msg.v_hdr.h_blkno));
+	mlog(0, "h_blkno = %llu\n",
+	     (unsigned long long)be64_to_cpu(work->w_msg.v_hdr.h_blkno));
 	mlog(0, "h_generation = %u\n",
 	     be32_to_cpu(work->w_msg.v_hdr.h_generation));
 	mlog(0, "h_node_num = %u\n",

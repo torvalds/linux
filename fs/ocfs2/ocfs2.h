@@ -357,8 +357,8 @@ static inline int ocfs2_is_soft_readonly(struct ocfs2_super *osb)
 #define OCFS2_RO_ON_INVALID_DINODE(__sb, __di)	do {			\
 	typeof(__di) ____di = (__di);					\
 	ocfs2_error((__sb), 						\
-		"Dinode # %"MLFu64" has bad signature %.*s",		\
-		(____di)->i_blkno, 7,					\
+		"Dinode # %llu has bad signature %.*s",			\
+		(unsigned long long)(____di)->i_blkno, 7,		\
 		(____di)->i_signature);					\
 } while (0);
 
@@ -368,8 +368,8 @@ static inline int ocfs2_is_soft_readonly(struct ocfs2_super *osb)
 #define OCFS2_RO_ON_INVALID_EXTENT_BLOCK(__sb, __eb)	do {		\
 	typeof(__eb) ____eb = (__eb);					\
 	ocfs2_error((__sb), 						\
-		"Extent Block # %"MLFu64" has bad signature %.*s",	\
-		(____eb)->h_blkno, 7,					\
+		"Extent Block # %llu has bad signature %.*s",		\
+		(unsigned long long)(____eb)->h_blkno, 7,		\
 		(____eb)->h_signature);					\
 } while (0);
 
@@ -379,8 +379,8 @@ static inline int ocfs2_is_soft_readonly(struct ocfs2_super *osb)
 #define OCFS2_RO_ON_INVALID_GROUP_DESC(__sb, __gd)	do {		\
 	typeof(__gd) ____gd = (__gd);					\
 		ocfs2_error((__sb),					\
-		"Group Descriptor # %"MLFu64" has bad signature %.*s",	\
-		(____gd)->bg_blkno, 7,					\
+		"Group Descriptor # %llu has bad signature %.*s",	\
+		(unsigned long long)(____gd)->bg_blkno, 7,		\
 		(____gd)->bg_signature);				\
 } while (0);
 
