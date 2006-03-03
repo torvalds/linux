@@ -132,25 +132,21 @@ static int mv643xx_eth_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 /*
- * mv643xx_eth_rx_task
+ * mv643xx_eth_rx_refill_descs
  *
  * Fills / refills RX queue on a certain gigabit ethernet port
  *
  * Input :	pointer to ethernet interface network device structure
  * Output :	N/A
  */
-static void mv643xx_eth_rx_task(void *data)
+static void mv643xx_eth_rx_refill_descs(struct net_device *dev)
 {
-	struct net_device *dev = (struct net_device *)data;
 	struct mv643xx_private *mp = netdev_priv(dev);
 	struct pkt_info pkt_info;
 	struct sk_buff *skb;
 	int unaligned;
 
-	if (test_and_set_bit(0, &mp->rx_task_busy))
-		panic("%s: Error in test_set_bit / clear_bit", dev->name);
-
-	while (mp->rx_desc_count < (mp->rx_ring_size - 5)) {
+	while (mp->rx_desc_count < mp->rx_ring_size) {
 		skb = dev_alloc_skb(ETH_RX_SKB_SIZE + ETH_DMA_ALIGN);
 		if (!skb)
 			break;
@@ -170,29 +166,19 @@ static void mv643xx_eth_rx_task(void *data)
 		}
 		skb_reserve(skb, ETH_HW_IP_ALIGN);
 	}
-	clear_bit(0, &mp->rx_task_busy);
 	/*
 	 * If RX ring is empty of SKB, set a timer to try allocating
-	 * again in a later time .
+	 * again at a later time.
 	 */
-	if ((mp->rx_desc_count == 0) && (mp->rx_timer_flag == 0)) {
+	if (mp->rx_desc_count == 0) {
 		printk(KERN_INFO "%s: Rx ring is empty\n", dev->name);
-		/* After 100mSec */
-		mp->timeout.expires = jiffies + (HZ / 10);
+		mp->timeout.expires = jiffies + (HZ / 10);	/* 100 mSec */
 		add_timer(&mp->timeout);
-		mp->rx_timer_flag = 1;
 	}
-#ifdef MV643XX_RX_QUEUE_FILL_ON_TASK
-	else {
-		/* Return interrupts */
-		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(mp->port_num),
-							INT_UNMASK_ALL);
-	}
-#endif
 }
 
 /*
- * mv643xx_eth_rx_task_timer_wrapper
+ * mv643xx_eth_rx_refill_descs_timer_wrapper
  *
  * Timer routine to wake up RX queue filling task. This function is
  * used only in case the RX queue is empty, and all alloc_skb has
@@ -201,13 +187,9 @@ static void mv643xx_eth_rx_task(void *data)
  * Input :	pointer to ethernet interface network device structure
  * Output :	N/A
  */
-static void mv643xx_eth_rx_task_timer_wrapper(unsigned long data)
+static inline void mv643xx_eth_rx_refill_descs_timer_wrapper(unsigned long data)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct mv643xx_private *mp = netdev_priv(dev);
-
-	mp->rx_timer_flag = 0;
-	mv643xx_eth_rx_task((void *)data);
+	mv643xx_eth_rx_refill_descs((struct net_device *)data);
 }
 
 /*
@@ -451,6 +433,7 @@ static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 		}
 		dev->last_rx = jiffies;
 	}
+	mv643xx_eth_rx_refill_descs(dev);	/* Fill RX ring with skb's */
 
 	return received_packets;
 }
@@ -531,18 +514,6 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 		eth_int_cause_ext = mv_read(
 			MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num)) &
 						ETH_INT_UNMASK_ALL_EXT;
-#ifdef MV643XX_RX_QUEUE_FILL_ON_TASK
-		/* Mask all interrupts on ethernet port */
-		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-							INT_MASK_ALL);
-		/* wait for previous write to take effect */
-		mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
-
-		queue_task(&mp->rx_task, &tq_immediate);
-		mark_bh(IMMEDIATE_BH);
-#else
-		mp->rx_task.func(dev);
-#endif
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num),
 							~eth_int_cause_ext);
 	}
@@ -810,14 +781,9 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	eth_port_init(mp);
 
-	INIT_WORK(&mp->rx_task, (void (*)(void *))mv643xx_eth_rx_task, dev);
-
 	memset(&mp->timeout, 0, sizeof(struct timer_list));
-	mp->timeout.function = mv643xx_eth_rx_task_timer_wrapper;
+	mp->timeout.function = mv643xx_eth_rx_refill_descs_timer_wrapper;
 	mp->timeout.data = (unsigned long)dev;
-
-	mp->rx_task_busy = 0;
-	mp->rx_timer_flag = 0;
 
 	/* Allocate RX and TX skb rings */
 	mp->rx_skb = kmalloc(sizeof(*mp->rx_skb) * mp->rx_ring_size,
@@ -891,7 +857,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	ether_init_rx_desc_ring(mp);
 
-	mv643xx_eth_rx_task(dev);	/* Fill RX ring with skb's */
+	mv643xx_eth_rx_refill_descs(dev);	/* Fill RX ring with skb's */
 
 	/* Clear any pending ethernet port interrupts */
 	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
@@ -1043,7 +1009,6 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 		if (orig_budget > dev->quota)
 			orig_budget = dev->quota;
 		work_done = mv643xx_eth_receive_queue(dev, orig_budget);
-		mp->rx_task.func(dev);
 		*budget -= work_done;
 		dev->quota -= work_done;
 		if (work_done >= orig_budget)

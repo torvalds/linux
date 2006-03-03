@@ -52,7 +52,6 @@
 #define	MV643XX_CHECKSUM_OFFLOAD_TX
 #define	MV643XX_NAPI
 #define	MV643XX_TX_FAST_REFILL
-#undef	MV643XX_RX_QUEUE_FILL_ON_TASK	/* Does not work, yet */
 #undef	MV643XX_COAL
 
 /*
@@ -385,17 +384,10 @@ struct mv643xx_private {
 	int rx_desc_count;
 
 	/*
-	 * rx_task used to fill RX ring out of bottom half context
-	 */
-	struct work_struct rx_task;
-
-	/*
 	 * Used in case RX Ring is empty, which can be caused when
 	 * system does not have resources (skb's)
 	 */
 	struct timer_list timeout;
-	long rx_task_busy __attribute__ ((aligned(SMP_CACHE_BYTES)));
-	unsigned rx_timer_flag;
 
 	u32 rx_int_coal;
 	u32 tx_int_coal;
