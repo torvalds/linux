@@ -64,19 +64,6 @@ struct slot {
 	struct acpiphp_slot	*acpi_slot;
 };
 
-/**
- * struct hpp_param - ACPI 2.0 _HPP Hot Plug Parameters
- * @cache_line_size in DWORD
- * @latency_timer in PCI clock
- * @enable_SERR 0 or 1
- * @enable_PERR 0 or 1
- */
-struct hpp_param {
-	u8 cache_line_size;
-	u8 latency_timer;
-	u8 enable_SERR;
-	u8 enable_PERR;
-};
 
 
 /**
@@ -100,7 +87,7 @@ struct acpiphp_bridge {
 	struct pci_dev *pci_dev;
 
 	/* ACPI 2.0 _HPP parameters */
-	struct hpp_param hpp;
+	struct hotplug_params hpp;
 
 	spinlock_t res_lock;
 };

@@ -1,7 +1,7 @@
 /*
- * SHPCHPRM ACPI: PHP Resource Manager for ACPI platform
+ * Common ACPI functions for hot plug platforms
  *
- * Copyright (C) 2003-2004 Intel Corporation
+ * Copyright (C) 2006 Intel Corporation
  *
  * All rights reserved.
  *
@@ -31,26 +31,34 @@
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/actypes.h>
-#include "shpchp.h"
+#include "pci_hotplug.h"
 
 #define	METHOD_NAME__SUN	"_SUN"
 #define	METHOD_NAME__HPP	"_HPP"
 #define	METHOD_NAME_OSHP	"OSHP"
 
-static u8 * acpi_path_name( acpi_handle	handle)
+/* acpi_path_name
+ *
+ * @handle - the acpi_handle of the object who's name you want.
+ *
+ * Caller must free buffer.
+ */
+u8 * acpi_path_name(acpi_handle handle)
 {
-	acpi_status		status;
-	static u8	path_name[ACPI_PATHNAME_MAX];
-	struct acpi_buffer		ret_buf = { ACPI_PATHNAME_MAX, path_name };
+	acpi_status status;
+	struct acpi_buffer ret_buf = {ACPI_ALLOCATE_BUFFER, NULL};
+	union acpi_object *obj;
 
-	memset(path_name, 0, sizeof (path_name));
 	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &ret_buf);
-
-	if (ACPI_FAILURE(status))
+	if (ACPI_FAILURE(status)) {
 		return NULL;
-	else
-		return path_name;	
+	}
+	obj = ret_buf.pointer;
+	return obj->string.pointer;
 }
+EXPORT_SYMBOL_GPL(acpi_path_name);
+
+
 
 static acpi_status
 acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
@@ -68,8 +76,9 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 	case AE_BUFFER_OVERFLOW:
 		ret_buf.pointer = kmalloc (ret_buf.length, GFP_KERNEL);
 		if (!ret_buf.pointer) {
-			err ("%s:%s alloc for _HPP fail\n", __FUNCTION__,
-					path_name);
+			printk(KERN_ERR "%s:%s alloc for _HPP fail\n",
+				__FUNCTION__, path_name);
+			acpi_os_free(path_name);
 			return AE_NO_MEMORY;
 		}
 		status = acpi_evaluate_object(handle, METHOD_NAME__HPP,
@@ -78,15 +87,16 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 			break;
 	default:
 		if (ACPI_FAILURE(status)) {
-			dbg("%s:%s _HPP fail=0x%x\n", __FUNCTION__,
+			pr_debug("%s:%s _HPP fail=0x%x\n", __FUNCTION__,
 					path_name, status);
+			acpi_os_free(path_name);
 			return status;
 		}
 	}
 
 	ext_obj = (union acpi_object *) ret_buf.pointer;
 	if (ext_obj->type != ACPI_TYPE_PACKAGE) {
-		err ("%s:%s _HPP obj not a package\n", __FUNCTION__,
+		printk(KERN_ERR "%s:%s _HPP obj not a package\n", __FUNCTION__,
 				path_name);
 		status = AE_ERROR;
 		goto free_and_return;
@@ -101,8 +111,8 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 			nui[i] = (u8)ext_obj->integer.value;
 			break;
 		default:
-			err ("%s:%s _HPP obj type incorrect\n", __FUNCTION__,
-					path_name);
+			printk(KERN_ERR "%s:%s _HPP obj type incorrect\n",
+				__FUNCTION__, path_name);
 			status = AE_ERROR;
 			goto free_and_return;
 		}
@@ -113,54 +123,48 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 	hpp->enable_serr = nui[2];
 	hpp->enable_perr = nui[3];
 
-	dbg("  _HPP: cache_line_size=0x%x\n", hpp->cache_line_size);
-	dbg("  _HPP: latency timer  =0x%x\n", hpp->latency_timer);
-	dbg("  _HPP: enable SERR    =0x%x\n", hpp->enable_serr);
-	dbg("  _HPP: enable PERR    =0x%x\n", hpp->enable_perr);
+	pr_debug("  _HPP: cache_line_size=0x%x\n", hpp->cache_line_size);
+	pr_debug("  _HPP: latency timer  =0x%x\n", hpp->latency_timer);
+	pr_debug("  _HPP: enable SERR    =0x%x\n", hpp->enable_serr);
+	pr_debug("  _HPP: enable PERR    =0x%x\n", hpp->enable_perr);
 
 free_and_return:
+	acpi_os_free(path_name);
 	kfree(ret_buf.pointer);
 	return status;
 }
 
-static void acpi_run_oshp(acpi_handle handle)
+
+
+/* acpi_run_oshp - get control of hotplug from the firmware
+ *
+ * @handle - the handle of the hotplug controller.
+ */
+acpi_status acpi_run_oshp(acpi_handle handle)
 {
 	acpi_status		status;
 	u8			*path_name = acpi_path_name(handle);
 
 	/* run OSHP */
 	status = acpi_evaluate_object(handle, METHOD_NAME_OSHP, NULL, NULL);
-	if (ACPI_FAILURE(status)) {
-		err("%s:%s OSHP fails=0x%x\n", __FUNCTION__, path_name,
-				status);
-	} else {
-		dbg("%s:%s OSHP passes\n", __FUNCTION__, path_name);
-	}
+	if (ACPI_FAILURE(status))
+		printk(KERN_ERR "%s:%s OSHP fails=0x%x\n", __FUNCTION__,
+			path_name, status);
+	else
+		pr_debug("%s:%s OSHP passes\n", __FUNCTION__, path_name);
+	acpi_os_free(path_name);
+	return status;
 }
+EXPORT_SYMBOL_GPL(acpi_run_oshp);
 
-int shpchprm_get_physical_slot_number(struct controller *ctrl, u32 *sun, u8 busnum, u8 devnum)
-{
-	int offset = devnum - ctrl->slot_device_offset;
 
-	dbg("%s: ctrl->slot_num_inc %d, offset %d\n", __FUNCTION__, ctrl->slot_num_inc, offset);
-	*sun = (u8) (ctrl->first_slot + ctrl->slot_num_inc *offset);
-	return 0;
-}
 
-void get_hp_hw_control_from_firmware(struct pci_dev *dev)
-{
-	/*
-	 * OSHP is an optional ACPI firmware control method. If present,
-	 * we need to run it to inform BIOS that we will control SHPC
-	 * hardware from now on.
-	 */
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&(dev->dev));
-	if (!handle)
-		return;
-	acpi_run_oshp(handle);
-}
-
-void get_hp_params_from_firmware(struct pci_dev *dev,
+/* acpi_get_hp_params_from_firmware
+ *
+ * @dev - the pci_dev of the newly added device
+ * @hpp - allocated by the caller
+ */
+acpi_status acpi_get_hp_params_from_firmware(struct pci_dev *dev,
 		struct hotplug_params *hpp)
 {
 	acpi_status status = AE_NOT_FOUND;
@@ -182,5 +186,42 @@ void get_hp_params_from_firmware(struct pci_dev *dev,
 		/* Check if a parent object supports _HPP */
 		pdev = pdev->bus->parent->self;
 	}
+	return status;
 }
+EXPORT_SYMBOL_GPL(acpi_get_hp_params_from_firmware);
 
+
+/* acpi_root_bridge - check to see if this acpi object is a root bridge
+ *
+ * @handle - the acpi object in question.
+ */
+int acpi_root_bridge(acpi_handle handle)
+{
+	acpi_status status;
+	struct acpi_device_info *info;
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	int i;
+
+	status = acpi_get_object_info(handle, &buffer);
+	if (ACPI_SUCCESS(status)) {
+		info = buffer.pointer;
+		if ((info->valid & ACPI_VALID_HID) &&
+			!strcmp(PCI_ROOT_HID_STRING,
+					info->hardware_id.value)) {
+			acpi_os_free(buffer.pointer);
+			return 1;
+		}
+		if (info->valid & ACPI_VALID_CID) {
+			for (i=0; i < info->compatibility_id.count; i++) {
+				if (!strcmp(PCI_ROOT_HID_STRING,
+					info->compatibility_id.id[i].value)) {
+					acpi_os_free(buffer.pointer);
+					return 1;
+				}
+			}
+		}
+		acpi_os_free(buffer.pointer);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(acpi_root_bridge);

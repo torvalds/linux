@@ -104,6 +104,23 @@ static void make_slot_name(struct slot *slot)
 		 slot->bus, slot->number);
 }
 
+
+
+
+static int
+shpchprm_get_physical_slot_number(struct controller *ctrl, u32 *sun,
+				u8 busnum, u8 devnum)
+{
+	int offset = devnum - ctrl->slot_device_offset;
+
+	dbg("%s: ctrl->slot_num_inc %d, offset %d\n", __FUNCTION__,
+			ctrl->slot_num_inc, offset);
+	*sun = (u8) (ctrl->first_slot + ctrl->slot_num_inc *offset);
+	return 0;
+}
+
+
+
 static int init_slots(struct controller *ctrl)
 {
 	struct slot *slot;

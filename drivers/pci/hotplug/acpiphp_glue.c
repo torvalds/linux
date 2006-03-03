@@ -285,55 +285,17 @@ static int detect_ejectable_slots(acpi_handle *bridge_handle)
 static void decode_hpp(struct acpiphp_bridge *bridge)
 {
 	acpi_status status;
-	struct acpi_buffer buffer = { .length = ACPI_ALLOCATE_BUFFER,
-				      .pointer = NULL};
-	union acpi_object *package;
-	int i;
 
-	/* default numbers */
-	bridge->hpp.cache_line_size = 0x10;
-	bridge->hpp.latency_timer = 0x40;
-	bridge->hpp.enable_SERR = 0;
-	bridge->hpp.enable_PERR = 0;
-
-	status = acpi_evaluate_object(bridge->handle, "_HPP", NULL, &buffer);
-
+	status = acpi_get_hp_params_from_firmware(bridge->pci_dev, &bridge->hpp);
 	if (ACPI_FAILURE(status)) {
-		dbg("_HPP evaluation failed\n");
-		return;
+		/* use default numbers */
+		bridge->hpp.cache_line_size = 0x10;
+		bridge->hpp.latency_timer = 0x40;
+		bridge->hpp.enable_serr = 0;
+		bridge->hpp.enable_perr = 0;
 	}
-
-	package = (union acpi_object *) buffer.pointer;
-
-	if (!package || package->type != ACPI_TYPE_PACKAGE ||
-	    package->package.count != 4 || !package->package.elements) {
-		err("invalid _HPP object; ignoring\n");
-		goto err_exit;
-	}
-
-	for (i = 0; i < 4; i++) {
-		if (package->package.elements[i].type != ACPI_TYPE_INTEGER) {
-			err("invalid _HPP parameter type; ignoring\n");
-			goto err_exit;
-		}
-	}
-
-	bridge->hpp.cache_line_size = package->package.elements[0].integer.value;
-	bridge->hpp.latency_timer = package->package.elements[1].integer.value;
-	bridge->hpp.enable_SERR = package->package.elements[2].integer.value;
-	bridge->hpp.enable_PERR = package->package.elements[3].integer.value;
-
-	dbg("_HPP parameter = (%02x, %02x, %02x, %02x)\n",
-		bridge->hpp.cache_line_size,
-		bridge->hpp.latency_timer,
-		bridge->hpp.enable_SERR,
-		bridge->hpp.enable_PERR);
-
-	bridge->flags |= BRIDGE_HAS_HPP;
-
- err_exit:
-	kfree(buffer.pointer);
 }
+
 
 
 /* initialize miscellaneous stuff for both root and PCI-to-PCI bridge */
@@ -1154,11 +1116,11 @@ static void program_hpp(struct pci_dev *dev, struct acpiphp_bridge *bridge)
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER,
 			bridge->hpp.latency_timer);
 	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
-	if (bridge->hpp.enable_SERR)
+	if (bridge->hpp.enable_serr)
 		pci_cmd |= PCI_COMMAND_SERR;
 	else
 		pci_cmd &= ~PCI_COMMAND_SERR;
-	if (bridge->hpp.enable_PERR)
+	if (bridge->hpp.enable_perr)
 		pci_cmd |= PCI_COMMAND_PARITY;
 	else
 		pci_cmd &= ~PCI_COMMAND_PARITY;
@@ -1169,11 +1131,11 @@ static void program_hpp(struct pci_dev *dev, struct acpiphp_bridge *bridge)
 		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
 				bridge->hpp.latency_timer);
 		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
-		if (bridge->hpp.enable_SERR)
+		if (bridge->hpp.enable_serr)
 			pci_bctl |= PCI_BRIDGE_CTL_SERR;
 		else
 			pci_bctl &= ~PCI_BRIDGE_CTL_SERR;
-		if (bridge->hpp.enable_PERR)
+		if (bridge->hpp.enable_perr)
 			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
 		else
 			pci_bctl &= ~PCI_BRIDGE_CTL_PARITY;
@@ -1193,6 +1155,7 @@ static void acpiphp_set_hpp_values(acpi_handle handle, struct pci_bus *bus)
 
 	memset(&bridge, 0, sizeof(bridge));
 	bridge.handle = handle;
+	bridge.pci_dev = bus->self;
 	decode_hpp(&bridge);
 	list_for_each_entry(dev, &bus->devices, bus_list)
 		program_hpp(dev, &bridge);
@@ -1409,41 +1372,13 @@ void handle_hotplug_event_func(acpi_handle handle, u32 type, void *context)
 	}
 }
 
-static int is_root_bridge(acpi_handle handle)
-{
-	acpi_status status;
-	struct acpi_device_info *info;
-	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
-	int i;
-
-	status = acpi_get_object_info(handle, &buffer);
-	if (ACPI_SUCCESS(status)) {
-		info = buffer.pointer;
-		if ((info->valid & ACPI_VALID_HID) &&
-			!strcmp(PCI_ROOT_HID_STRING,
-					info->hardware_id.value)) {
-			acpi_os_free(buffer.pointer);
-			return 1;
-		}
-		if (info->valid & ACPI_VALID_CID) {
-			for (i=0; i < info->compatibility_id.count; i++) {
-				if (!strcmp(PCI_ROOT_HID_STRING,
-					info->compatibility_id.id[i].value)) {
-					acpi_os_free(buffer.pointer);
-					return 1;
-				}
-			}
-		}
-	}
-	return 0;
-}
 
 static acpi_status
 find_root_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	int *count = (int *)context;
 
-	if (is_root_bridge(handle)) {
+	if (acpi_root_bridge(handle)) {
 		acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
 				handle_hotplug_event_bridge, NULL);
 			(*count)++;

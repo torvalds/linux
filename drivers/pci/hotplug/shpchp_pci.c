@@ -38,7 +38,7 @@ static void program_fw_provided_values(struct pci_dev *dev)
 {
 	u16 pci_cmd, pci_bctl;
 	struct pci_dev *cdev;
-	struct hotplug_params hpp = {0x8, 0x40, 0, 0}; /* defaults */
+	struct hotplug_params hpp;
 
 	/* Program hpp values for this device */
 	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
@@ -46,7 +46,13 @@ static void program_fw_provided_values(struct pci_dev *dev)
 			(dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)))
 		return;
 
-	get_hp_params_from_firmware(dev, &hpp);
+	/* use default values if we can't get them from firmware */
+	if (get_hp_params_from_firmware(dev, &hpp)) {
+		hpp.cache_line_size = 8;
+		hpp.latency_timer = 0x40;
+		hpp.enable_serr = 0;
+		hpp.enable_perr = 0;
+	}
 
 	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, hpp.cache_line_size);
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, hpp.latency_timer);
