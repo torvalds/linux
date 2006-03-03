@@ -675,7 +675,7 @@ static int __init mmtimer_init(void)
 	cnodeid_t node, maxn = -1;
 
 	if (!ia64_platform_is("sn2"))
-		return -1;
+		return 0;
 
 	/*
 	 * Sanity check the cycles/sec variable
