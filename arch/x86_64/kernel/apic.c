@@ -962,14 +962,12 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 	irq_exit();
 }
 
-int __initdata unsync_tsc_on_multicluster;
-
 /*
  * oem_force_hpet_timer -- force HPET mode for some boxes.
  *
  * Thus far, the major user of this is IBM's Summit2 series:
  *
- * Some clustered boxes may have unsynced TSC problems if they are
+ * Clustered boxes may have unsynced TSC problems if they are
  * multi-chassis. Use available data to take a good guess.
  * If in doubt, go HPET.
  */
@@ -978,11 +976,6 @@ __cpuinit int oem_force_hpet_timer(void)
 	int i, clusters, zeros;
 	unsigned id;
 	DECLARE_BITMAP(clustermap, NUM_APIC_CLUSTERS);
-
-	/* Only do this check on IBM machines - big Unisys systems
-	   use multiple clusters too, but have synchronized TSC */
-	if (!unsync_tsc_on_multicluster)
-		return 0;
 
 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
 

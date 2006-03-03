@@ -24,7 +24,7 @@
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 
-extern void die_if_kernel(char *str, struct pt_regs *regs, long err) __attribute__ ((noreturn));
+extern void die_if_kernel(char *str, struct pt_regs *regs, long err);
 
 #undef DEBUG_UNALIGNED_TRAP
 
@@ -51,6 +51,15 @@ dump (const char *str, void *vp, size_t len)
 #define IA64_FIRST_STACKED_GR	32
 #define IA64_FIRST_ROTATING_FR	32
 #define SIGN_EXT9		0xffffffffffffff00ul
+
+/*
+ *  sysctl settable hook which tells the kernel whether to honor the
+ *  IA64_THREAD_UAC_NOPRINT prctl.  Because this is user settable, we want
+ *  to allow the super user to enable/disable this for security reasons
+ *  (i.e. don't allow attacker to fill up logs with unaligned accesses).
+ */
+int no_unaligned_warning;
+static int noprint_warning;
 
 /*
  * For M-unit:
@@ -1324,8 +1333,9 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 		if ((current->thread.flags & IA64_THREAD_UAC_SIGBUS) != 0)
 			goto force_sigbus;
 
-		if (!(current->thread.flags & IA64_THREAD_UAC_NOPRINT)
-		    && within_logging_rate_limit())
+		if (!no_unaligned_warning &&
+		    !(current->thread.flags & IA64_THREAD_UAC_NOPRINT) &&
+		    within_logging_rate_limit())
 		{
 			char buf[200];	/* comm[] is at most 16 bytes... */
 			size_t len;
@@ -1340,7 +1350,22 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 			if (user_mode(regs))
 				tty_write_message(current->signal->tty, buf);
 			buf[len-1] = '\0';	/* drop '\r' */
-			printk(KERN_WARNING "%s", buf);	/* watch for command names containing %s */
+			/* watch for command names containing %s */
+			printk(KERN_WARNING "%s", buf);
+		} else {
+			if (no_unaligned_warning && !noprint_warning) {
+				noprint_warning = 1;
+				printk(KERN_WARNING "%s(%d) encountered an "
+				       "unaligned exception which required\n"
+				       "kernel assistance, which degrades "
+				       "the performance of the application.\n"
+				       "Unaligned exception warnings have "
+				       "been disabled by the system "
+				       "administrator\n"
+				       "echo 0 > /proc/sys/kernel/ignore-"
+				       "unaligned-usertrap to re-enable\n",
+				       current->comm, current->pid);
+			}
 		}
 	} else {
 		if (within_logging_rate_limit())

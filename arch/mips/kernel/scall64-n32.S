@@ -195,7 +195,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_fdatasync
 	PTR	sys_truncate
 	PTR	sys_ftruncate			/* 6075 */
-	PTR	sys32_getdents
+	PTR	compat_sys_getdents
 	PTR	sys_getcwd
 	PTR	sys_chdir
 	PTR	sys_fchdir

@@ -58,7 +58,9 @@ static inline int num_booting_cpus(void)
 	return cpus_weight(cpu_callout_map);
 }
 
-/* These are defined by the board-specific code. */
+/*
+ * These are defined by the board-specific code.
+ */
 
 /*
  * Cause the function described by call_data to be executed on the passed
@@ -79,7 +81,12 @@ extern void prom_boot_secondary(int cpu, struct task_struct *idle);
 extern void prom_init_secondary(void);
 
 /*
- * Detect available CPUs, populate phys_cpu_present_map before smp_init
+ * Populate cpu_possible_map before smp_init, called from setup_arch.
+ */
+extern void plat_smp_setup(void);
+
+/*
+ * Called after init_IRQ but before __cpu_up.
  */
 extern void prom_prepare_cpus(unsigned int max_cpus);
 

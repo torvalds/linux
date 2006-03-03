@@ -753,6 +753,13 @@ UNUSUAL_DEV(  0x0693, 0x0005, 0x0100, 0x0100,
 		"Flashgate",
 		US_SC_SCSI, US_PR_BULK, NULL, 0 ), 
 
+/* Reported by David Hamilton <niftimusmaximus@lycos.com> */
+UNUSUAL_DEV(  0x069b, 0x3004, 0x0001, 0x0001,
+		"Thomson Multimedia Inc.",
+		"RCA RD1080 MP3 Player",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 UNUSUAL_DEV(  0x0781, 0x0001, 0x0200, 0x0200, 
 		"Sandisk",
 		"ImageMate SDDR-05a",

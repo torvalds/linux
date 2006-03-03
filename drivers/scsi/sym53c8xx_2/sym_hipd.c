@@ -919,6 +919,8 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 
 		tp->usrflags |= (SYM_DISC_ENABLED | SYM_TAGS_ENABLED);
 		tp->usrtags = SYM_SETUP_MAX_TAG;
+		tp->usr_width = np->maxwide;
+		tp->usr_period = 9;
 
 		sym_nvram_setup_target(tp, i, nvram);
 

@@ -79,6 +79,10 @@ int atapi_enabled = 0;
 module_param(atapi_enabled, int, 0444);
 MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
 
+int libata_fua = 0;
+module_param_named(fua, libata_fua, int, 0444);
+MODULE_PARM_DESC(fua, "FUA support (0=off, 1=on)");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -1029,7 +1033,6 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
  err_out:
 	printk(KERN_WARNING "ata%u: dev %u failed to IDENTIFY (%s)\n",
 	       ap->id, dev->devno, reason);
-	kfree(id);
 	return rc;
 }
 

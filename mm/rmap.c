@@ -212,25 +212,33 @@ out:
  * through real pte's pointing to valid pages and then releasing
  * the page from the swap cache.
  *
- * Must hold page lock on page.
+ * Must hold page lock on page and mmap_sem of one vma that contains
+ * the page.
  */
 void remove_from_swap(struct page *page)
 {
 	struct anon_vma *anon_vma;
 	struct vm_area_struct *vma;
+	unsigned long mapping;
 
-	if (!PageAnon(page) || !PageSwapCache(page))
+	if (!PageSwapCache(page))
 		return;
 
-	anon_vma = page_lock_anon_vma(page);
-	if (!anon_vma)
+	mapping = (unsigned long)page->mapping;
+
+	if (!mapping || (mapping & PAGE_MAPPING_ANON) == 0)
 		return;
+
+	/*
+	 * We hold the mmap_sem lock. So no need to call page_lock_anon_vma.
+	 */
+	anon_vma = (struct anon_vma *) (mapping - PAGE_MAPPING_ANON);
+	spin_lock(&anon_vma->lock);
 
 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
 		remove_vma_swap(vma, page);
 
 	spin_unlock(&anon_vma->lock);
-
 	delete_from_swap_cache(page);
 }
 EXPORT_SYMBOL(remove_from_swap);
