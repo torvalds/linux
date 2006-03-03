@@ -333,5 +333,10 @@ struct e1000_adapter {
 #ifdef CONFIG_PCI_MSI
 	boolean_t have_msi;
 #endif
+	/* to not mess up cache alignment, always add to the bottom */
+	boolean_t txb2b;
+#ifdef NETIF_F_TSO
+	boolean_t tso_force;
+#endif
 };
 #endif /* _E1000_H_ */

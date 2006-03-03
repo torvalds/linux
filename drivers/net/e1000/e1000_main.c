@@ -1405,10 +1405,13 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 	tctl = E1000_READ_REG(hw, TCTL);
 
 	tctl &= ~E1000_TCTL_CT;
-	tctl |= E1000_TCTL_EN | E1000_TCTL_PSP | E1000_TCTL_RTLC |
+	tctl |= E1000_TCTL_PSP | E1000_TCTL_RTLC |
 		(E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT);
 
-	E1000_WRITE_REG(hw, TCTL, tctl);
+#ifdef DISABLE_MULR
+	/* disable Multiple Reads for debugging */
+	tctl &= ~E1000_TCTL_MULR;
+#endif
 
 	if (hw->mac_type == e1000_82571 || hw->mac_type == e1000_82572) {
 		tarc = E1000_READ_REG(hw, TARC0);
@@ -1439,6 +1442,9 @@ e1000_configure_tx(struct e1000_adapter *adapter)
 	if (hw->mac_type == e1000_82544 &&
 	    hw->bus_type == e1000_bus_type_pcix)
 		adapter->pcix_82544 = 1;
+
+	E1000_WRITE_REG(hw, TCTL, tctl);
+
 }
 
 /**
@@ -2243,7 +2249,7 @@ e1000_watchdog_task(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_tx_ring *txdr = adapter->tx_ring;
-	uint32_t link;
+	uint32_t link, tctl;
 
 	e1000_check_for_link(&adapter->hw);
 	if (adapter->hw.mac_type == e1000_82573) {
@@ -2269,20 +2275,61 @@ e1000_watchdog_task(struct e1000_adapter *adapter)
 			       adapter->link_duplex == FULL_DUPLEX ?
 			       "Full Duplex" : "Half Duplex");
 
-			/* tweak tx_queue_len according to speed/duplex */
+			/* tweak tx_queue_len according to speed/duplex
+			 * and adjust the timeout factor */
 			netdev->tx_queue_len = adapter->tx_queue_len;
 			adapter->tx_timeout_factor = 1;
-			if (adapter->link_duplex == HALF_DUPLEX) {
+			adapter->txb2b = 1;
+			switch (adapter->link_speed) {
+			case SPEED_10:
+				adapter->txb2b = 0;
+				netdev->tx_queue_len = 10;
+				adapter->tx_timeout_factor = 8;
+				break;
+			case SPEED_100:
+				adapter->txb2b = 0;
+				netdev->tx_queue_len = 100;
+				/* maybe add some timeout factor ? */
+				break;
+			}
+
+			if ((adapter->hw.mac_type == e1000_82571 || 
+			     adapter->hw.mac_type == e1000_82572) &&
+			    adapter->txb2b == 0) {
+#define SPEED_MODE_BIT (1 << 21)
+				uint32_t tarc0;
+				tarc0 = E1000_READ_REG(&adapter->hw, TARC0);
+				tarc0 &= ~SPEED_MODE_BIT;
+				E1000_WRITE_REG(&adapter->hw, TARC0, tarc0);
+			}
+				
+#ifdef NETIF_F_TSO
+			/* disable TSO for pcie and 10/100 speeds, to avoid
+			 * some hardware issues */
+			if (!adapter->tso_force &&
+			    adapter->hw.bus_type == e1000_bus_type_pci_express){
 				switch (adapter->link_speed) {
 				case SPEED_10:
-					netdev->tx_queue_len = 10;
-					adapter->tx_timeout_factor = 8;
-					break;
 				case SPEED_100:
-					netdev->tx_queue_len = 100;
+					DPRINTK(PROBE,INFO,
+				        "10/100 speed: disabling TSO\n");
+					netdev->features &= ~NETIF_F_TSO;
+					break;
+				case SPEED_1000:
+					netdev->features |= NETIF_F_TSO;
+					break;
+				default:
+					/* oops */
 					break;
 				}
 			}
+#endif
+
+			/* enable transmits in the hardware, need to do this
+			 * after setting TARC0 */
+			tctl = E1000_READ_REG(&adapter->hw, TCTL);
+			tctl |= E1000_TCTL_EN;
+			E1000_WRITE_REG(&adapter->hw, TCTL, tctl);
 
 			netif_carrier_on(netdev);
 			netif_wake_queue(netdev);
@@ -3319,7 +3366,7 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 		adapter->detect_tx_hung = FALSE;
 		if (tx_ring->buffer_info[eop].dma &&
 		    time_after(jiffies, tx_ring->buffer_info[eop].time_stamp +
-		               adapter->tx_timeout_factor * HZ)
+		               (adapter->tx_timeout_factor * HZ))
 		    && !(E1000_READ_REG(&adapter->hw, STATUS) &
 		         E1000_STATUS_TXOFF)) {
 
