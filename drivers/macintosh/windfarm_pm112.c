@@ -613,7 +613,7 @@ static void pm112_new_sensor(struct wf_sensor *sr)
 	} else if (!strcmp(sr->name, "slots-power")) {
 		if (slots_power == NULL && wf_get_sensor(sr) == 0)
 			slots_power = sr;
-	} else if (!strcmp(sr->name, "u4-temp")) {
+	} else if (!strcmp(sr->name, "backside-temp")) {
 		if (u4_temp == NULL && wf_get_sensor(sr) == 0)
 			u4_temp = sr;
 	} else
