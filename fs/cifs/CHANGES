@@ -1,3 +1,8 @@
+Version 1.42
+------------
+Fix slow oplock break when mounted to different servers at the same time and
+the tids match and we try to find matching fid on wrong server.
+
 Version 1.41
 ------------
 Fix NTLMv2 security (can be enabled in /proc/fs/cifs) so customers can
