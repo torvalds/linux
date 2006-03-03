@@ -372,9 +372,6 @@ struct mv643xx_private {
 
 	struct work_struct tx_timeout_task;
 
-	/*
-	 * Former struct mv643xx_eth_priv members start here
-	 */
 	struct net_device_stats stats;
 	struct mv643xx_mib_counters mib_counters;
 	spinlock_t lock;
@@ -404,8 +401,6 @@ struct mv643xx_private {
 	u32 tx_int_coal;
 	struct mii_if_info mii;
 };
-
-/* ethernet.h API list */
 
 /* Port operation control routines */
 static void eth_port_init(struct mv643xx_private *mp);

@@ -388,11 +388,7 @@ static void mv643xx_eth_free_all_tx_descs(struct net_device *dev)
  *
  * Output :	number of served packets
  */
-#ifdef MV643XX_NAPI
 static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
-#else
-static int mv643xx_eth_receive_queue(struct net_device *dev)
-#endif
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
 	struct net_device_stats *stats = &mp->stats;
@@ -400,15 +396,14 @@ static int mv643xx_eth_receive_queue(struct net_device *dev)
 	struct sk_buff *skb;
 	struct pkt_info pkt_info;
 
-#ifdef MV643XX_NAPI
 	while (budget-- > 0 && eth_port_receive(mp, &pkt_info) == ETH_OK) {
-#else
-	while (eth_port_receive(mp, &pkt_info) == ETH_OK) {
-#endif
 		mp->rx_desc_count--;
 		received_packets++;
 
-		/* Update statistics. Note byte count includes 4 byte CRC count */
+		/*
+		 * Update statistics.
+		 * Note byte count includes 4 byte CRC count
+		 */
 		stats->rx_packets++;
 		stats->rx_bytes += pkt_info.byte_cnt;
 		skb = pkt_info.return_info;
@@ -532,48 +527,10 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 	/* Read interrupt cause registers */
 	eth_int_cause = mv_read(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num)) &
 						ETH_INT_UNMASK_ALL;
-
-	if (eth_int_cause & BIT1)
+	if (eth_int_cause & ETH_INT_CAUSE_EXT) {
 		eth_int_cause_ext = mv_read(
 			MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num)) &
 						ETH_INT_UNMASK_ALL_EXT;
-
-#ifdef MV643XX_NAPI
-	if (!(eth_int_cause & 0x0007fffd)) {
-		/* Dont ack the Rx interrupt */
-#endif
-		/*
-		 * Clear specific ethernet port intrerrupt registers by
-		 * acknowleding relevant bits.
-		 */
-		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num),
-							~eth_int_cause);
-		if (eth_int_cause_ext != 0x0) {
-			mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG
-					(port_num), ~eth_int_cause_ext);
-			/* UDP change : We may need this */
-			if (eth_int_cause_ext & (BIT0 | BIT8))
-				mv643xx_eth_free_completed_tx_descs(dev);
-		}
-#ifdef MV643XX_NAPI
-	} else {
-		if (netif_rx_schedule_prep(dev)) {
-			/* Mask all the interrupts */
-			mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
-							ETH_INT_MASK_ALL);
-			/* wait for previous write to complete */
-			mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
-			__netif_rx_schedule(dev);
-		}
-#else
-		if (eth_int_cause & (BIT2 | BIT11))
-			mv643xx_eth_receive_queue(dev, 0);
-
-		/*
-		 * After forwarded received packets to upper layer, add a task
-		 * in an interrupts enabled context that refills the RX ring
-		 * with skb's.
-		 */
 #ifdef MV643XX_RX_QUEUE_FILL_ON_TASK
 		/* Mask all interrupts on ethernet port */
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
@@ -586,11 +543,12 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 #else
 		mp->rx_task.func(dev);
 #endif
-#endif
+		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num),
+							~eth_int_cause_ext);
 	}
 
 	/* PHY status changed */
-	if (eth_int_cause_ext & (BIT16 | BIT20)) {
+	if (eth_int_cause_ext & ETH_INT_CAUSE_PHY) {
 		struct ethtool_cmd cmd;
 
 		if (mii_link_ok(&mp->mii)) {
@@ -609,6 +567,23 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 			netif_carrier_off(dev);
 		}
 	}
+
+#ifdef MV643XX_NAPI
+	if (eth_int_cause & ETH_INT_CAUSE_RX) {
+		/* schedule the NAPI poll routine to maintain port */
+		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
+							ETH_INT_MASK_ALL);
+		/* wait for previous write to complete */
+		mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
+
+		netif_rx_schedule(dev);
+	}
+#else
+	if (eth_int_cause & ETH_INT_CAUSE_RX)
+		mv643xx_eth_receive_queue(dev, INT_MAX);
+	if (eth_int_cause_ext & ETH_INT_CAUSE_TX)
+		mv643xx_eth_free_completed_tx_descs(dev);
+#endif
 
 	/*
 	 * If no real interrupt occured, exit.
