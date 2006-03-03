@@ -34,7 +34,7 @@ typedef uint16_t	__u16;
 typedef unsigned char	__u8;
 
 /* Big exception to the "don't include kernel headers into userspace, which
- * even potentially has different endianness and word sizes, since 
+ * even potentially has different endianness and word sizes, since
  * we handle those differences explicitly below */
 #include "../../include/linux/mod_devicetable.h"
 #include "../../include/linux/input.h"
@@ -228,7 +228,7 @@ static int do_pci_entry(const char *filename,
 	return 1;
 }
 
-/* looks like: "ccw:tNmNdtNdmN" */ 
+/* looks like: "ccw:tNmNdtNdmN" */
 static int do_ccw_entry(const char *filename,
 			struct ccw_device_id *id, char *alias)
 {

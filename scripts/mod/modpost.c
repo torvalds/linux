@@ -85,7 +85,7 @@ static struct module *new_module(char *modname)
 {
 	struct module *mod;
 	char *p, *s;
-	
+
 	mod = NOFAIL(malloc(sizeof(*mod)));
 	memset(mod, 0, sizeof(*mod));
 	p = NOFAIL(strdup(modname));
@@ -320,9 +320,9 @@ static void parse_elf(struct elf_info *info, const char *filename)
 			continue;
 
 		info->symtab_start = (void *)hdr + sechdrs[i].sh_offset;
-		info->symtab_stop  = (void *)hdr + sechdrs[i].sh_offset 
+		info->symtab_stop  = (void *)hdr + sechdrs[i].sh_offset
 			                         + sechdrs[i].sh_size;
-		info->strtab       = (void *)hdr + 
+		info->strtab       = (void *)hdr +
 			             sechdrs[sechdrs[i].sh_link].sh_offset;
 	}
 	if (!info->symtab_start) {
@@ -387,15 +387,15 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 			/* Ignore register directives. */
 			if (ELF_ST_TYPE(sym->st_info) == STT_SPARC_REGISTER)
 				break;
- 			if (symname[0] == '.') {
- 				char *munged = strdup(symname);
- 				munged[0] = '_';
- 				munged[1] = toupper(munged[1]);
- 				symname = munged;
- 			}
+			if (symname[0] == '.') {
+				char *munged = strdup(symname);
+				munged[0] = '_';
+				munged[1] = toupper(munged[1]);
+				symname = munged;
+			}
 		}
 #endif
-		
+
 		if (memcmp(symname, MODULE_SYMBOL_PREFIX,
 			   strlen(MODULE_SYMBOL_PREFIX)) == 0)
 			mod->unres = alloc_symbol(symname +
@@ -458,13 +458,13 @@ static char *get_modinfo(void *modinfo, unsigned long modinfo_len,
 static int strrcmp(const char *s, const char *sub)
 {
         int slen, sublen;
-	
+
 	if (!s || !sub)
 		return 1;
-	
+
 	slen = strlen(s);
         sublen = strlen(sub);
-	
+
 	if ((slen == 0) || (sublen == 0))
 		return 1;
 
@@ -485,7 +485,7 @@ static int strrcmp(const char *s, const char *sub)
  *   tosec   = .init.data
  *   fromsec = .data
  *   atsym   =__param*
- *   
+ *
  * Pattern 2:
  *   Many drivers utilise a *_driver container with references to
  *   add, remove, probe functions etc.
@@ -508,7 +508,7 @@ static int secref_whitelist(const char *tosec, const char *fromsec,
 		"_probe_one",
 		NULL
 	};
-	
+
 	/* Check for pattern 1 */
 	if (strcmp(tosec, ".init.data") != 0)
 		f1 = 0;
@@ -521,7 +521,7 @@ static int secref_whitelist(const char *tosec, const char *fromsec,
 		return f1;
 
 	/* Check for pattern 2 */
-	if ((strcmp(tosec, ".init.text") != 0) && 
+	if ((strcmp(tosec, ".init.text") != 0) &&
 	    (strcmp(tosec, ".exit.text") != 0))
 		f2 = 0;
 	if (strcmp(fromsec, ".data") != 0)
@@ -570,7 +570,7 @@ static void find_symbols_between(struct elf_info *elf, Elf_Addr addr,
 	Elf_Addr afterdiff = ~0;
 	const char *secstrings = (void *)hdr +
 				 elf->sechdrs[hdr->e_shstrndx].sh_offset;
-	
+
 	*before = NULL;
 	*after = NULL;
 
@@ -614,7 +614,7 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 	const char *secstrings = (void *)hdr +
 				 sechdrs[hdr->e_shstrndx].sh_offset;
 	const char *secname = secstrings + sechdrs[sym->st_shndx].sh_name;
-	
+
 	find_symbols_between(elf, r.r_offset, fromsec, &before, &after);
 
 	refsym = find_elf_symbol(elf, r.r_addend, sym);
@@ -622,10 +622,10 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 		refsymname = elf->strtab + refsym->st_name;
 
 	/* check whitelist - we may ignore it */
-	if (before && 
+	if (before &&
 	    secref_whitelist(secname, fromsec, elf->strtab + before->st_name))
 		return;
-	
+
 	if (before && after) {
 		warn("%s - Section mismatch: reference to %s:%s from %s "
 		     "between '%s' (at offset 0x%llx) and '%s'\n",
@@ -636,13 +636,13 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 	} else if (before) {
 		warn("%s - Section mismatch: reference to %s:%s from %s "
 		     "after '%s' (at offset 0x%llx)\n",
-		     modname, secname, refsymname, fromsec, 
+		     modname, secname, refsymname, fromsec,
 		     elf->strtab + before->st_name,
 		     (long long)r.r_offset);
 	} else if (after) {
 		warn("%s - Section mismatch: reference to %s:%s from %s "
 		     "before '%s' (at offset -0x%llx)\n",
-		     modname, secname, refsymname, fromsec, 
+		     modname, secname, refsymname, fromsec,
 		     elf->strtab + before->st_name,
 		     (long long)r.r_offset);
 	} else {
@@ -676,7 +676,7 @@ static void check_sec_ref(struct module *mod, const char *modname,
 	Elf_Shdr *sechdrs = elf->sechdrs;
 	const char *secstrings = (void *)hdr +
 				 sechdrs[hdr->e_shstrndx].sh_offset;
-		
+
 	/* Walk through all sections */
 	for (i = 0; i < hdr->e_shnum; i++) {
 		Elf_Rela *rela;
@@ -724,13 +724,13 @@ static int init_section(const char *name)
 
 /**
  * Identify sections from which references to a .init section is OK.
- * 
+ *
  * Unfortunately references to read only data that referenced .init
  * sections had to be excluded. Almost all of these are false
  * positives, they are created by gcc. The downside of excluding rodata
  * is that there really are some user references from rodata to
  * init code, e.g. drivers/video/vgacon.c:
- * 
+ *
  * const struct consw vga_con = {
  *        con_startup:            vgacon_startup,
  *
@@ -769,10 +769,10 @@ static int init_section_ref_ok(const char *name)
 	for (s = namelist1; *s; s++)
 		if (strcmp(*s, name) == 0)
 			return 1;
-	for (s = namelist2; *s; s++)	
+	for (s = namelist2; *s; s++)
 		if (strncmp(*s, name, strlen(*s)) == 0)
 			return 1;
-	for (s = namelist3; *s; s++)	
+	for (s = namelist3; *s; s++)
 		if (strstr(*s, name) != NULL)
 			return 1;
 	return 0;
@@ -792,12 +792,12 @@ static int exit_section(const char *name)
 	if (strcmp(name, ".exit.data") == 0)
 		return 1;
 	return 0;
-	
+
 }
 
 /*
  * Identify sections from which references to a .exit section is OK.
- * 
+ *
  * [OPD] Keith Ownes <kaos@sgi.com> commented:
  * For our future {in}sanity, add a comment that this is the ppc .opd
  * section, not the ia64 .opd section.
@@ -829,14 +829,14 @@ static int exit_section_ref_ok(const char *name)
 		".unwind",  /* Sample: IA_64.unwind.exit.text */
 		NULL
 	};
-	
+
 	for (s = namelist1; *s; s++)
 		if (strcmp(*s, name) == 0)
 			return 1;
-	for (s = namelist2; *s; s++)	
+	for (s = namelist2; *s; s++)
 		if (strncmp(*s, name, strlen(*s)) == 0)
 			return 1;
-	for (s = namelist3; *s; s++)	
+	for (s = namelist3; *s; s++)
 		if (strstr(*s, name) != NULL)
 			return 1;
 	return 0;
@@ -900,7 +900,7 @@ void __attribute__((format(printf, 2, 3))) buf_printf(struct buffer *buf,
 	char tmp[SZ];
 	int len;
 	va_list ap;
-	
+
 	va_start(ap, fmt);
 	len = vsnprintf(tmp, SZ, fmt, ap);
 	if (buf->size - buf->pos < len + 1) {
@@ -1129,7 +1129,7 @@ static int dump_sym(struct symbol *sym)
 		return 0;
 	return 1;
 }
-		
+
 static void write_dump(const char *fname)
 {
 	struct buffer buf = { };
@@ -1141,7 +1141,7 @@ static void write_dump(const char *fname)
 		while (symbol) {
 			if (dump_sym(symbol))
 				buf_printf(&buf, "0x%08x\t%s\t%s\n",
-					symbol->crc, symbol->name, 
+					symbol->crc, symbol->name,
 					symbol->module->name);
 			symbol = symbol->next;
 		}
