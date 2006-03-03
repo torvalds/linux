@@ -60,7 +60,6 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "tx_bytes", E1000_STAT(net_stats.tx_bytes) },
 	{ "rx_errors", E1000_STAT(net_stats.rx_errors) },
 	{ "tx_errors", E1000_STAT(net_stats.tx_errors) },
-	{ "rx_dropped", E1000_STAT(net_stats.rx_dropped) },
 	{ "tx_dropped", E1000_STAT(net_stats.tx_dropped) },
 	{ "multicast", E1000_STAT(net_stats.multicast) },
 	{ "collisions", E1000_STAT(net_stats.collisions) },
