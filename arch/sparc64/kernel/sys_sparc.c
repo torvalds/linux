@@ -33,12 +33,53 @@
 
 /* #define DEBUG_UNIMP_SYSCALL */
 
-/* XXX Make this per-binary type, this way we can detect the type of
- * XXX a binary.  Every Sparc executable calls this very early on.
- */
 asmlinkage unsigned long sys_getpagesize(void)
 {
 	return PAGE_SIZE;
+}
+
+#define VA_EXCLUDE_START (0x0000080000000000UL - (1UL << 32UL))
+#define VA_EXCLUDE_END   (0xfffff80000000000UL + (1UL << 32UL))
+
+/* Does addr --> addr+len fall within 4GB of the VA-space hole or
+ * overflow past the end of the 64-bit address space?
+ */
+static inline int invalid_64bit_range(unsigned long addr, unsigned long len)
+{
+	unsigned long va_exclude_start, va_exclude_end;
+
+	va_exclude_start = VA_EXCLUDE_START;
+	va_exclude_end   = VA_EXCLUDE_END;
+
+	if (unlikely(len >= va_exclude_start))
+		return 1;
+
+	if (unlikely((addr + len) < addr))
+		return 1;
+
+	if (unlikely((addr >= va_exclude_start && addr < va_exclude_end) ||
+		     ((addr + len) >= va_exclude_start &&
+		      (addr + len) < va_exclude_end)))
+		return 1;
+
+	return 0;
+}
+
+/* Does start,end straddle the VA-space hole?  */
+static inline int straddles_64bit_va_hole(unsigned long start, unsigned long end)
+{
+	unsigned long va_exclude_start, va_exclude_end;
+
+	va_exclude_start = VA_EXCLUDE_START;
+	va_exclude_end   = VA_EXCLUDE_END;
+
+	if (likely(start < va_exclude_start && end < va_exclude_start))
+		return 0;
+
+	if (likely(start >= va_exclude_end && end >= va_exclude_end))
+		return 0;
+
+	return 1;
 }
 
 #define COLOUR_ALIGN(addr,pgoff)		\
@@ -65,7 +106,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 
 	if (test_thread_flag(TIF_32BIT))
 		task_size = 0xf0000000UL;
-	if (len > task_size || len > -PAGE_OFFSET)
+	if (len > task_size || len >= VA_EXCLUDE_START)
 		return -ENOMEM;
 
 	do_color_align = 0;
@@ -100,9 +141,10 @@ full_search:
 
 	for (vma = find_vma(mm, addr); ; vma = vma->vm_next) {
 		/* At this point:  (!vma || addr < vma->vm_end). */
-		if (addr < PAGE_OFFSET && -PAGE_OFFSET - len < addr) {
-			addr = PAGE_OFFSET;
-			vma = find_vma(mm, PAGE_OFFSET);
+		if (addr < VA_EXCLUDE_START &&
+		    (addr + len) >= VA_EXCLUDE_START) {
+			addr = VA_EXCLUDE_END;
+			vma = find_vma(mm, VA_EXCLUDE_END);
 		}
 		if (task_size < addr) {
 			if (start_addr != TASK_UNMAPPED_BASE) {
@@ -174,12 +216,12 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, u
 asmlinkage unsigned long sparc_brk(unsigned long brk)
 {
 	/* People could try to be nasty and use ta 0x6d in 32bit programs */
-	if (test_thread_flag(TIF_32BIT) &&
-	    brk >= 0xf0000000UL)
+	if (test_thread_flag(TIF_32BIT) && brk >= 0xf0000000UL)
 		return current->mm->brk;
 
-	if ((current->mm->brk & PAGE_OFFSET) != (brk & PAGE_OFFSET))
+	if (unlikely(straddles_64bit_va_hole(current->mm->brk, brk)))
 		return current->mm->brk;
+
 	return sys_brk(brk);
 }
                                                                 
@@ -340,13 +382,16 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 	retval = -EINVAL;
 
 	if (test_thread_flag(TIF_32BIT)) {
-		if (len > 0xf0000000UL ||
-		    ((flags & MAP_FIXED) && addr > 0xf0000000UL - len))
+		if (len >= 0xf0000000UL)
+			goto out_putf;
+
+		if ((flags & MAP_FIXED) && addr > 0xf0000000UL - len)
 			goto out_putf;
 	} else {
-		if (len > -PAGE_OFFSET ||
-		    ((flags & MAP_FIXED) &&
-		     addr < PAGE_OFFSET && addr + len > -PAGE_OFFSET))
+		if (len >= VA_EXCLUDE_START)
+			goto out_putf;
+
+		if ((flags & MAP_FIXED) && invalid_64bit_range(addr, len))
 			goto out_putf;
 	}
 
@@ -365,9 +410,9 @@ asmlinkage long sys64_munmap(unsigned long addr, size_t len)
 {
 	long ret;
 
-	if (len > -PAGE_OFFSET ||
-	    (addr < PAGE_OFFSET && addr + len > -PAGE_OFFSET))
+	if (invalid_64bit_range(addr, len))
 		return -EINVAL;
+
 	down_write(&current->mm->mmap_sem);
 	ret = do_munmap(current->mm, addr, len);
 	up_write(&current->mm->mmap_sem);
@@ -384,18 +429,19 @@ asmlinkage unsigned long sys64_mremap(unsigned long addr,
 {
 	struct vm_area_struct *vma;
 	unsigned long ret = -EINVAL;
+
 	if (test_thread_flag(TIF_32BIT))
 		goto out;
-	if (old_len > -PAGE_OFFSET || new_len > -PAGE_OFFSET)
+	if (unlikely(new_len >= VA_EXCLUDE_START))
 		goto out;
-	if (addr < PAGE_OFFSET && addr + old_len > -PAGE_OFFSET)
+	if (unlikely(invalid_64bit_range(addr, old_len)))
 		goto out;
+
 	down_write(&current->mm->mmap_sem);
 	if (flags & MREMAP_FIXED) {
-		if (new_addr < PAGE_OFFSET &&
-		    new_addr + new_len > -PAGE_OFFSET)
+		if (invalid_64bit_range(new_addr, new_len))
 			goto out_sem;
-	} else if (addr < PAGE_OFFSET && addr + new_len > -PAGE_OFFSET) {
+	} else if (invalid_64bit_range(addr, new_len)) {
 		unsigned long map_flags = 0;
 		struct file *file = NULL;
 
