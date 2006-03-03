@@ -330,7 +330,6 @@ struct mv643xx_private {
 	u32 tx_sram_size;		/* Size of tx sram area		*/
 
 	int rx_resource_err;		/* Rx ring resource error flag */
-	int tx_resource_err;		/* Tx ring resource error flag */
 
 	/* Tx/Rx rings managment indexes fields. For driver use */
 
@@ -339,10 +338,6 @@ struct mv643xx_private {
 
 	/* Next available and first returning Tx resource */
 	int tx_curr_desc_q, tx_used_desc_q;
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
-	int tx_first_desc_q;
-	u32 tx_first_command;
-#endif
 
 #ifdef MV643XX_TX_FAST_REFILL
 	u32 tx_clean_threshold;
@@ -350,12 +345,12 @@ struct mv643xx_private {
 
 	struct eth_rx_desc *p_rx_desc_area;
 	dma_addr_t rx_desc_dma;
-	unsigned int rx_desc_area_size;
+	int rx_desc_area_size;
 	struct sk_buff **rx_skb;
 
 	struct eth_tx_desc *p_tx_desc_area;
 	dma_addr_t tx_desc_dma;
-	unsigned int tx_desc_area_size;
+	int tx_desc_area_size;
 	struct sk_buff **tx_skb;
 
 	struct work_struct tx_timeout_task;
@@ -367,13 +362,13 @@ struct mv643xx_private {
 	struct mv643xx_mib_counters mib_counters;
 	spinlock_t lock;
 	/* Size of Tx Ring per queue */
-	unsigned int tx_ring_size;
+	int tx_ring_size;
 	/* Number of tx descriptors in use */
-	unsigned int tx_desc_count;
+	int tx_desc_count;
 	/* Size of Rx Ring per queue */
-	unsigned int rx_ring_size;
+	int rx_ring_size;
 	/* Number of rx descriptors in use */
-	unsigned int rx_desc_count;
+	int rx_desc_count;
 
 	/*
 	 * rx_task used to fill RX ring out of bottom half context
@@ -416,8 +411,6 @@ static void eth_port_read_smi_reg(unsigned int eth_port_num,
 static void eth_clear_mib_counters(unsigned int eth_port_num);
 
 /* Port data flow control routines */
-static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
-					 struct pkt_info *p_pkt_info);
 static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 					      struct pkt_info *p_pkt_info);
 static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,

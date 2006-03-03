@@ -10,7 +10,7 @@
  *
  * Copyright (C) 2003 Ralf Baechle <ralf@linux-mips.org>
  *
- * Copyright (C) 2004-2005 MontaVista Software, Inc.
+ * Copyright (C) 2004-2006 MontaVista Software, Inc.
  *			   Dale Farnsworth <dale@farnsworth.org>
  *
  * Copyright (C) 2004 Steven J. Hill <sjhill1@rockwellcollins.com>
@@ -554,7 +554,7 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 		/* UDP change : We may need this */
 		if ((eth_int_cause_ext & 0x0000ffff) &&
 		    (mv643xx_eth_free_tx_queue(dev, eth_int_cause_ext) == 0) &&
-		    (mp->tx_ring_size > mp->tx_desc_count + MAX_DESCS_PER_SKB))
+		    (mp->tx_ring_size - mp->tx_desc_count > MAX_DESCS_PER_SKB))
 			netif_wake_queue(dev);
 #ifdef MV643XX_NAPI
 	} else {
@@ -598,7 +598,7 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id,
 			mv643xx_eth_update_pscr(dev, &cmd);
 			if (!netif_carrier_ok(dev)) {
 				netif_carrier_on(dev);
-				if (mp->tx_ring_size > mp->tx_desc_count +
+				if (mp->tx_ring_size - mp->tx_desc_count >
 							MAX_DESCS_PER_SKB) {
 					netif_wake_queue(dev);
 					/* Start TX queue */
@@ -777,9 +777,6 @@ static void ether_init_tx_desc_ring(struct mv643xx_private *mp)
 
 	mp->tx_curr_desc_q = 0;
 	mp->tx_used_desc_q = 0;
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
-	mp->tx_first_desc_q = 0;
-#endif
 
 	mp->tx_desc_area_size = tx_desc_num * sizeof(struct eth_tx_desc);
 
@@ -1085,8 +1082,7 @@ static void mv643xx_tx(struct net_device *dev)
 	}
 
 	if (netif_queue_stopped(dev) &&
-			mp->tx_ring_size >
-					mp->tx_desc_count + MAX_DESCS_PER_SKB)
+	    mp->tx_ring_size - mp->tx_desc_count > MAX_DESCS_PER_SKB)
 		netif_wake_queue(dev);
 }
 
@@ -1133,7 +1129,10 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 }
 #endif
 
-/* Hardware can't handle unaligned fragments smaller than 9 bytes.
+/**
+ * has_tiny_unaligned_frags - check if skb has any small, unaligned fragments
+ *
+ * Hardware can't handle unaligned fragments smaller than 9 bytes.
  * This helper function detects that case.
  */
 
@@ -1150,51 +1149,152 @@ static inline unsigned int has_tiny_unaligned_frags(struct sk_buff *skb)
 	return 0;
 }
 
+/**
+ * eth_alloc_tx_desc_index - return the index of the next available tx desc
+ */
+static int eth_alloc_tx_desc_index(struct mv643xx_private *mp)
+{
+	int tx_desc_curr;
 
-/*
- * mv643xx_eth_start_xmit
+	tx_desc_curr = mp->tx_curr_desc_q;
+
+	BUG_ON(mp->tx_desc_count >= mp->tx_ring_size);
+	mp->tx_desc_count++;
+
+	mp->tx_curr_desc_q = (tx_desc_curr + 1) % mp->tx_ring_size;
+
+	BUG_ON(mp->tx_curr_desc_q == mp->tx_used_desc_q);
+
+	return tx_desc_curr;
+}
+
+/**
+ * eth_tx_fill_frag_descs - fill tx hw descriptors for an skb's fragments.
  *
- * This function is queues a packet in the Tx descriptor for
- * required port.
+ * Ensure the data for each fragment to be transmitted is mapped properly,
+ * then fill in descriptors in the tx hw queue.
+ */
+static void eth_tx_fill_frag_descs(struct mv643xx_private *mp,
+				   struct sk_buff *skb)
+{
+	int frag;
+	int tx_index;
+	struct eth_tx_desc *desc;
+	struct net_device_stats *stats = &mp->stats;
+
+	for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
+		skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
+
+		tx_index = eth_alloc_tx_desc_index(mp);
+		desc = &mp->p_tx_desc_area[tx_index];
+
+		desc->cmd_sts = ETH_BUFFER_OWNED_BY_DMA;
+		/* Last Frag enables interrupt and frees the skb */
+		if (frag == (skb_shinfo(skb)->nr_frags - 1)) {
+			desc->cmd_sts |= ETH_ZERO_PADDING |
+					 ETH_TX_LAST_DESC |
+					 ETH_TX_ENABLE_INTERRUPT;
+			mp->tx_skb[tx_index] = skb;
+		} else
+			mp->tx_skb[tx_index] = 0;
+
+		desc = &mp->p_tx_desc_area[tx_index];
+		desc->l4i_chk = 0;
+		desc->byte_cnt = this_frag->size;
+		desc->buf_ptr = dma_map_page(NULL, this_frag->page,
+						this_frag->page_offset,
+						this_frag->size,
+						DMA_TO_DEVICE);
+		stats->tx_bytes += this_frag->size;
+	}
+}
+
+/**
+ * eth_tx_submit_descs_for_skb - submit data from an skb to the tx hw
  *
- * Input :	skb - a pointer to socket buffer
- *		dev - a pointer to the required port
+ * Ensure the data for an skb to be transmitted is mapped properly,
+ * then fill in descriptors in the tx hw queue and start the hardware.
+ */
+static int eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
+				       struct sk_buff *skb)
+{
+	int tx_index;
+	struct eth_tx_desc *desc;
+	u32 cmd_sts;
+	int length;
+	int tx_bytes = 0;
+
+	cmd_sts = ETH_TX_FIRST_DESC | ETH_GEN_CRC | ETH_BUFFER_OWNED_BY_DMA;
+
+	tx_index = eth_alloc_tx_desc_index(mp);
+	desc = &mp->p_tx_desc_area[tx_index];
+
+	if (skb_shinfo(skb)->nr_frags) {
+		eth_tx_fill_frag_descs(mp, skb);
+
+		length = skb_headlen(skb);
+		mp->tx_skb[tx_index] = 0;
+	} else {
+		cmd_sts |= ETH_ZERO_PADDING |
+			   ETH_TX_LAST_DESC |
+			   ETH_TX_ENABLE_INTERRUPT;
+		length = skb->len;
+		mp->tx_skb[tx_index] = skb;
+	}
+
+	desc->byte_cnt = length;
+	desc->buf_ptr = dma_map_single(NULL, skb->data, length, DMA_TO_DEVICE);
+	tx_bytes += length;
+
+	if (skb->ip_summed == CHECKSUM_HW) {
+		BUG_ON(skb->protocol != ETH_P_IP);
+
+		cmd_sts |= ETH_GEN_TCP_UDP_CHECKSUM |
+			   ETH_GEN_IP_V_4_CHECKSUM  |
+			   skb->nh.iph->ihl << ETH_TX_IHL_SHIFT;
+
+		switch (skb->nh.iph->protocol) {
+		case IPPROTO_UDP:
+			cmd_sts |= ETH_UDP_FRAME;
+			desc->l4i_chk = skb->h.uh->check;
+			break;
+		case IPPROTO_TCP:
+			desc->l4i_chk = skb->h.th->check;
+			break;
+		default:
+			BUG();
+		}
+	} else {
+		/* Errata BTS #50, IHL must be 5 if no HW checksum */
+		cmd_sts |= 5 << ETH_TX_IHL_SHIFT;
+		desc->l4i_chk = 0;
+	}
+
+	/* ensure all other descriptors are written before first cmd_sts */
+	wmb();
+	desc->cmd_sts = cmd_sts;
+
+	/* ensure all descriptors are written before poking hardware */
+	wmb();
+	mv643xx_eth_port_enable_tx(mp->port_num, mp->port_tx_queue_command);
+
+	return tx_bytes;
+}
+
+/**
+ * mv643xx_eth_start_xmit - queue an skb to the hardware for transmission
  *
- * Output :	zero upon success
  */
 static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
 	struct net_device_stats *stats = &mp->stats;
-	ETH_FUNC_RET_STATUS status;
 	unsigned long flags;
-	struct pkt_info pkt_info;
 
-	if (netif_queue_stopped(dev)) {
-		printk(KERN_ERR
-			"%s: Tried sending packet when interface is stopped\n",
-			dev->name);
-		return 1;
-	}
+	BUG_ON(netif_queue_stopped(dev));
+	BUG_ON(skb == NULL);
+	BUG_ON(mp->tx_ring_size - mp->tx_desc_count < MAX_DESCS_PER_SKB);
 
-	/* This is a hard error, log it. */
-	if ((mp->tx_ring_size - mp->tx_desc_count) <=
-					(skb_shinfo(skb)->nr_frags + 1)) {
-		netif_stop_queue(dev);
-		printk(KERN_ERR
-			"%s: Bug in mv643xx_eth - Trying to transmit when"
-			" queue full !\n", dev->name);
-		return 1;
-	}
-
-	/* Paranoid check - this shouldn't happen */
-	if (skb == NULL) {
-		stats->tx_dropped++;
-		printk(KERN_ERR "mv64320_eth paranoid check failed\n");
-		return 1;
-	}
-
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
 	if (has_tiny_unaligned_frags(skb)) {
 		if ((skb_linearize(skb, GFP_ATOMIC) != 0)) {
 			stats->tx_dropped++;
@@ -1206,166 +1306,12 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&mp->lock, flags);
 
-	if (!skb_shinfo(skb)->nr_frags) {
-		if (skb->ip_summed != CHECKSUM_HW) {
-			/* Errata BTS #50, IHL must be 5 if no HW checksum */
-			pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT |
-					   ETH_TX_FIRST_DESC |
-					   ETH_TX_LAST_DESC |
-					   5 << ETH_TX_IHL_SHIFT;
-			pkt_info.l4i_chk = 0;
-		} else {
-			pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT |
-					   ETH_TX_FIRST_DESC |
-					   ETH_TX_LAST_DESC |
-					   ETH_GEN_TCP_UDP_CHECKSUM |
-					   ETH_GEN_IP_V_4_CHECKSUM |
-					   skb->nh.iph->ihl << ETH_TX_IHL_SHIFT;
-			/* CPU already calculated pseudo header checksum. */
-			if ((skb->protocol == ETH_P_IP) &&
-			    (skb->nh.iph->protocol == IPPROTO_UDP) ) {
-				pkt_info.cmd_sts |= ETH_UDP_FRAME;
-				pkt_info.l4i_chk = skb->h.uh->check;
-			} else if ((skb->protocol == ETH_P_IP) &&
-				   (skb->nh.iph->protocol == IPPROTO_TCP))
-				pkt_info.l4i_chk = skb->h.th->check;
-			else {
-				printk(KERN_ERR
-					"%s: chksum proto != IPv4 TCP or UDP\n",
-					dev->name);
-				spin_unlock_irqrestore(&mp->lock, flags);
-				return 1;
-			}
-		}
-		pkt_info.byte_cnt = skb->len;
-		pkt_info.buf_ptr = dma_map_single(NULL, skb->data, skb->len,
-							DMA_TO_DEVICE);
-		pkt_info.return_info = skb;
-		status = eth_port_send(mp, &pkt_info);
-		if ((status == ETH_ERROR) || (status == ETH_QUEUE_FULL))
-			printk(KERN_ERR "%s: Error on transmitting packet\n",
-								dev->name);
-		stats->tx_bytes += pkt_info.byte_cnt;
-	} else {
-		unsigned int frag;
-
-		/* first frag which is skb header */
-		pkt_info.byte_cnt = skb_headlen(skb);
-		pkt_info.buf_ptr = dma_map_single(NULL, skb->data,
-							skb_headlen(skb),
-							DMA_TO_DEVICE);
-		pkt_info.l4i_chk = 0;
-		pkt_info.return_info = 0;
-
-		if (skb->ip_summed != CHECKSUM_HW)
-			/* Errata BTS #50, IHL must be 5 if no HW checksum */
-			pkt_info.cmd_sts = ETH_TX_FIRST_DESC |
-					   5 << ETH_TX_IHL_SHIFT;
-		else {
-			pkt_info.cmd_sts = ETH_TX_FIRST_DESC |
-					   ETH_GEN_TCP_UDP_CHECKSUM |
-					   ETH_GEN_IP_V_4_CHECKSUM |
-					   skb->nh.iph->ihl << ETH_TX_IHL_SHIFT;
-			/* CPU already calculated pseudo header checksum. */
-			if ((skb->protocol == ETH_P_IP) &&
-			    (skb->nh.iph->protocol == IPPROTO_UDP)) {
-				pkt_info.cmd_sts |= ETH_UDP_FRAME;
-				pkt_info.l4i_chk = skb->h.uh->check;
-			} else if ((skb->protocol == ETH_P_IP) &&
-				   (skb->nh.iph->protocol == IPPROTO_TCP))
-				pkt_info.l4i_chk = skb->h.th->check;
-			else {
-				printk(KERN_ERR
-					"%s: chksum proto != IPv4 TCP or UDP\n",
-					dev->name);
-				spin_unlock_irqrestore(&mp->lock, flags);
-				return 1;
-			}
-		}
-
-		status = eth_port_send(mp, &pkt_info);
-		if (status != ETH_OK) {
-			if ((status == ETH_ERROR))
-				printk(KERN_ERR
-					"%s: Error on transmitting packet\n",
-					dev->name);
-			if (status == ETH_QUEUE_FULL)
-				printk("Error on Queue Full \n");
-			if (status == ETH_QUEUE_LAST_RESOURCE)
-				printk("Tx resource error \n");
-		}
-		stats->tx_bytes += pkt_info.byte_cnt;
-
-		/* Check for the remaining frags */
-		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
-			skb_frag_t *this_frag = &skb_shinfo(skb)->frags[frag];
-			pkt_info.l4i_chk = 0x0000;
-			pkt_info.cmd_sts = 0x00000000;
-
-			/* Last Frag enables interrupt and frees the skb */
-			if (frag == (skb_shinfo(skb)->nr_frags - 1)) {
-				pkt_info.cmd_sts |= ETH_TX_ENABLE_INTERRUPT |
-							ETH_TX_LAST_DESC;
-				pkt_info.return_info = skb;
-			} else {
-				pkt_info.return_info = 0;
-			}
-			pkt_info.l4i_chk = 0;
-			pkt_info.byte_cnt = this_frag->size;
-
-			pkt_info.buf_ptr = dma_map_page(NULL, this_frag->page,
-							this_frag->page_offset,
-							this_frag->size,
-							DMA_TO_DEVICE);
-
-			status = eth_port_send(mp, &pkt_info);
-
-			if (status != ETH_OK) {
-				if ((status == ETH_ERROR))
-					printk(KERN_ERR "%s: Error on "
-							"transmitting packet\n",
-							dev->name);
-
-				if (status == ETH_QUEUE_LAST_RESOURCE)
-					printk("Tx resource error \n");
-
-				if (status == ETH_QUEUE_FULL)
-					printk("Queue is full \n");
-			}
-			stats->tx_bytes += pkt_info.byte_cnt;
-		}
-	}
-#else
-	spin_lock_irqsave(&mp->lock, flags);
-
-	pkt_info.cmd_sts = ETH_TX_ENABLE_INTERRUPT | ETH_TX_FIRST_DESC |
-							ETH_TX_LAST_DESC;
-	pkt_info.l4i_chk = 0;
-	pkt_info.byte_cnt = skb->len;
-	pkt_info.buf_ptr = dma_map_single(NULL, skb->data, skb->len,
-								DMA_TO_DEVICE);
-	pkt_info.return_info = skb;
-	status = eth_port_send(mp, &pkt_info);
-	if ((status == ETH_ERROR) || (status == ETH_QUEUE_FULL))
-		printk(KERN_ERR "%s: Error on transmitting packet\n",
-								dev->name);
-	stats->tx_bytes += pkt_info.byte_cnt;
-#endif
-
-	/* Check if TX queue can handle another skb. If not, then
-	 * signal higher layers to stop requesting TX
-	 */
-	if (mp->tx_ring_size <= (mp->tx_desc_count + MAX_DESCS_PER_SKB))
-		/*
-		 * Stop getting skb's from upper layers.
-		 * Getting skb's from upper layers will be enabled again after
-		 * packets are released.
-		 */
-		netif_stop_queue(dev);
-
-	/* Update statistics and start of transmittion time */
+	stats->tx_bytes = eth_tx_submit_descs_for_skb(mp, skb);
 	stats->tx_packets++;
 	dev->trans_start = jiffies;
+
+	if (mp->tx_ring_size - mp->tx_desc_count < MAX_DESCS_PER_SKB)
+		netif_stop_queue(dev);
 
 	spin_unlock_irqrestore(&mp->lock, flags);
 
@@ -1812,22 +1758,6 @@ MODULE_DESCRIPTION("Ethernet driver for Marvell MV643XX");
  *		to the Rx descriptor ring to enable the reuse of this source.
  *		Return Rx resource is done using the eth_rx_return_buff API.
  *
- *		Transmit operation:
- *		The eth_port_send API supports Scatter-Gather which enables to
- *		send a packet spanned over multiple buffers. This means that
- *		for each packet info structure given by the user and put into
- *		the Tx descriptors ring, will be transmitted only if the 'LAST'
- *		bit will be set in the packet info command status field. This
- *		API also consider restriction regarding buffer alignments and
- *		sizes.
- *		The user must return a Tx resource after ensuring the buffer
- *		has been transmitted to enable the Tx ring indexes to update.
- *
- *		BOARD LAYOUT
- *		This device is on-board.  No jumper diagram is necessary.
- *
- *		EXTERNAL INTERFACE
- *
  *	Prior to calling the initialization routine eth_port_init() the user
  *	must set the following fields under mv643xx_private struct:
  *	port_num		User Ethernet port number.
@@ -1881,7 +1811,6 @@ static void eth_port_set_filter_table_entry(int table, unsigned char entry);
 static void eth_port_init(struct mv643xx_private *mp)
 {
 	mp->rx_resource_err = 0;
-	mp->tx_resource_err = 0;
 
 	eth_port_reset(mp->port_num);
 
@@ -2673,166 +2602,6 @@ static void mv643xx_mdio_write(struct net_device *dev, int phy_id, int location,
 }
 
 /*
- * eth_port_send - Send an Ethernet packet
- *
- * DESCRIPTION:
- *	This routine send a given packet described by p_pktinfo parameter. It
- *	supports transmitting of a packet spaned over multiple buffers. The
- *	routine updates 'curr' and 'first' indexes according to the packet
- *	segment passed to the routine. In case the packet segment is first,
- *	the 'first' index is update. In any case, the 'curr' index is updated.
- *	If the routine get into Tx resource error it assigns 'curr' index as
- *	'first'. This way the function can abort Tx process of multiple
- *	descriptors per packet.
- *
- * INPUT:
- *	struct mv643xx_private	*mp		Ethernet Port Control srtuct.
- *	struct pkt_info		*p_pkt_info	User packet buffer.
- *
- * OUTPUT:
- *	Tx ring 'curr' and 'first' indexes are updated.
- *
- * RETURN:
- *	ETH_QUEUE_FULL in case of Tx resource error.
- *	ETH_ERROR in case the routine can not access Tx desc ring.
- *	ETH_QUEUE_LAST_RESOURCE if the routine uses the last Tx resource.
- *	ETH_OK otherwise.
- *
- */
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
-/*
- * Modified to include the first descriptor pointer in case of SG
- */
-static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
-					 struct pkt_info *p_pkt_info)
-{
-	int tx_desc_curr, tx_desc_used, tx_first_desc, tx_next_desc;
-	struct eth_tx_desc *current_descriptor;
-	struct eth_tx_desc *first_descriptor;
-	u32 command;
-
-	/* Do not process Tx ring in case of Tx ring resource error */
-	if (mp->tx_resource_err)
-		return ETH_QUEUE_FULL;
-
-	/*
-	 * The hardware requires that each buffer that is <= 8 bytes
-	 * in length must be aligned on an 8 byte boundary.
-	 */
-	if (p_pkt_info->byte_cnt <= 8 && p_pkt_info->buf_ptr & 0x7) {
-		printk(KERN_ERR
-			"mv643xx_eth port %d: packet size <= 8 problem\n",
-			mp->port_num);
-		return ETH_ERROR;
-	}
-
-	mp->tx_desc_count++;
-	BUG_ON(mp->tx_desc_count > mp->tx_ring_size);
-
-	/* Get the Tx Desc ring indexes */
-	tx_desc_curr = mp->tx_curr_desc_q;
-	tx_desc_used = mp->tx_used_desc_q;
-
-	current_descriptor = &mp->p_tx_desc_area[tx_desc_curr];
-
-	tx_next_desc = (tx_desc_curr + 1) % mp->tx_ring_size;
-
-	current_descriptor->buf_ptr = p_pkt_info->buf_ptr;
-	current_descriptor->byte_cnt = p_pkt_info->byte_cnt;
-	current_descriptor->l4i_chk = p_pkt_info->l4i_chk;
-	mp->tx_skb[tx_desc_curr] = p_pkt_info->return_info;
-
-	command = p_pkt_info->cmd_sts | ETH_ZERO_PADDING | ETH_GEN_CRC |
-							ETH_BUFFER_OWNED_BY_DMA;
-	if (command & ETH_TX_FIRST_DESC) {
-		tx_first_desc = tx_desc_curr;
-		mp->tx_first_desc_q = tx_first_desc;
-		first_descriptor = current_descriptor;
-		mp->tx_first_command = command;
-	} else {
-		tx_first_desc = mp->tx_first_desc_q;
-		first_descriptor = &mp->p_tx_desc_area[tx_first_desc];
-		BUG_ON(first_descriptor == NULL);
-		current_descriptor->cmd_sts = command;
-	}
-
-	if (command & ETH_TX_LAST_DESC) {
-		wmb();
-		first_descriptor->cmd_sts = mp->tx_first_command;
-
-		wmb();
-		mv643xx_eth_port_enable_tx(mp->port_num, mp->port_tx_queue_command);
-
-		/*
-		 * Finish Tx packet. Update first desc in case of Tx resource
-		 * error */
-		tx_first_desc = tx_next_desc;
-		mp->tx_first_desc_q = tx_first_desc;
-	}
-
-	/* Check for ring index overlap in the Tx desc ring */
-	if (tx_next_desc == tx_desc_used) {
-		mp->tx_resource_err = 1;
-		mp->tx_curr_desc_q = tx_first_desc;
-
-		return ETH_QUEUE_LAST_RESOURCE;
-	}
-
-	mp->tx_curr_desc_q = tx_next_desc;
-
-	return ETH_OK;
-}
-#else
-static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
-					 struct pkt_info *p_pkt_info)
-{
-	int tx_desc_curr;
-	int tx_desc_used;
-	struct eth_tx_desc *current_descriptor;
-	unsigned int command_status;
-
-	/* Do not process Tx ring in case of Tx ring resource error */
-	if (mp->tx_resource_err)
-		return ETH_QUEUE_FULL;
-
-	mp->tx_desc_count++;
-	BUG_ON(mp->tx_desc_count > mp->tx_ring_size);
-
-	/* Get the Tx Desc ring indexes */
-	tx_desc_curr = mp->tx_curr_desc_q;
-	tx_desc_used = mp->tx_used_desc_q;
-	current_descriptor = &mp->p_tx_desc_area[tx_desc_curr];
-
-	command_status = p_pkt_info->cmd_sts | ETH_ZERO_PADDING | ETH_GEN_CRC;
-	current_descriptor->buf_ptr = p_pkt_info->buf_ptr;
-	current_descriptor->byte_cnt = p_pkt_info->byte_cnt;
-	mp->tx_skb[tx_desc_curr] = p_pkt_info->return_info;
-
-	/* Set last desc with DMA ownership and interrupt enable. */
-	wmb();
-	current_descriptor->cmd_sts = command_status |
-			ETH_BUFFER_OWNED_BY_DMA | ETH_TX_ENABLE_INTERRUPT;
-
-	wmb();
-	mv643xx_eth_port_enable_tx(mp->port_num, mp->port_tx_queue_command);
-
-	/* Finish Tx packet. Update first desc in case of Tx resource error */
-	tx_desc_curr = (tx_desc_curr + 1) % mp->tx_ring_size;
-
-	/* Update the current descriptor */
-	mp->tx_curr_desc_q = tx_desc_curr;
-
-	/* Check for ring index overlap in the Tx desc ring */
-	if (tx_desc_curr == tx_desc_used) {
-		mp->tx_resource_err = 1;
-		return ETH_QUEUE_LAST_RESOURCE;
-	}
-
-	return ETH_OK;
-}
-#endif
-
-/*
  * eth_tx_return_desc - Free all used Tx descriptors
  *
  * DESCRIPTION:
@@ -2858,7 +2627,6 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 						struct pkt_info *p_pkt_info)
 {
 	int tx_desc_used;
-	int tx_busy_desc;
 	struct eth_tx_desc *p_tx_desc_used;
 	unsigned int command_status;
 	unsigned long flags;
@@ -2866,33 +2634,23 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 
 	spin_lock_irqsave(&mp->lock, flags);
 
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
-	tx_busy_desc = mp->tx_first_desc_q;
-#else
-	tx_busy_desc = mp->tx_curr_desc_q;
-#endif
+	BUG_ON(mp->tx_desc_count < 0);
+	if (mp->tx_desc_count == 0) {
+		/* no more tx descs in use */
+		err = ETH_ERROR;
+		goto out;
+	}
 
 	/* Get the Tx Desc ring indexes */
 	tx_desc_used = mp->tx_used_desc_q;
 
 	p_tx_desc_used = &mp->p_tx_desc_area[tx_desc_used];
 
-	/* Sanity check */
-	if (p_tx_desc_used == NULL) {
-		err = ETH_ERROR;
-		goto out;
-	}
-
-	/* Stop release. About to overlap the current available Tx descriptor */
-	if (tx_desc_used == tx_busy_desc && !mp->tx_resource_err) {
-		err = ETH_ERROR;
-		goto out;
-	}
+	BUG_ON(p_tx_desc_used == NULL);
 
 	command_status = p_tx_desc_used->cmd_sts;
-
-	/* Still transmitting... */
 	if (command_status & (ETH_BUFFER_OWNED_BY_DMA)) {
+		/* Still transmitting... */
 		err = ETH_ERROR;
 		goto out;
 	}
@@ -2906,9 +2664,6 @@ static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
 
 	/* Update the next descriptor to release. */
 	mp->tx_used_desc_q = (tx_desc_used + 1) % mp->tx_ring_size;
-
-	/* Any Tx return cancels the Tx resource error status */
-	mp->tx_resource_err = 0;
 
 	BUG_ON(mp->tx_desc_count == 0);
 	mp->tx_desc_count--;
