@@ -1537,6 +1537,9 @@ _STATIC(__boot_from_prom)
 	mr	r28,r6
 	mr	r27,r7
 
+	/* Align the stack to 16-byte boundary for broken yaboot */
+	rldicr	r1,r1,0,59
+
 	/* Make sure we are running in 64 bits mode */
 	bl	.enable_64b_mode
 
