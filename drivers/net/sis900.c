@@ -100,7 +100,7 @@ enum {
 	SIS_900 = 0,
 	SIS_7016
 };
-static char * card_names[] = {
+static const char * card_names[] = {
 	"SiS 900 PCI Fast Ethernet",
 	"SiS 7016 PCI Fast Ethernet"
 };
@@ -115,7 +115,7 @@ MODULE_DEVICE_TABLE (pci, sis900_pci_tbl);
 
 static void sis900_read_mode(struct net_device *net_dev, int *speed, int *duplex);
 
-static struct mii_chip_info {
+static const struct mii_chip_info {
 	const char * name;
 	u16 phy_id0;
 	u16 phy_id1;
@@ -400,7 +400,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 	void *ring_space;
 	long ioaddr;
 	int i, ret;
-	char *card_name = card_names[pci_id->driver_data];
+	const char *card_name = card_names[pci_id->driver_data];
 	const char *dev_name = pci_name(pci_dev);
 
 /* when built into the kernel, we only print version if device is found */
@@ -1275,7 +1275,7 @@ static void sis900_timer(unsigned long data)
 	struct net_device *net_dev = (struct net_device *)data;
 	struct sis900_private *sis_priv = net_dev->priv;
 	struct mii_phy *mii_phy = sis_priv->mii;
-	static int next_tick = 5*HZ;
+	static const int next_tick = 5*HZ;
 	u16 status;
 
 	if (!sis_priv->autong_complete){

@@ -355,6 +355,7 @@ retry:
 	}
 
 out:
+	read_unlock(&tasklist_lock);
 	cpuset_unlock();
 	if (mm)
 		mmput(mm);
@@ -364,5 +365,5 @@ out:
 	 * retry to allocate memory unless "p" is current
 	 */
 	if (!test_thread_flag(TIF_MEMDIE))
-		schedule_timeout_interruptible(1);
+		schedule_timeout_uninterruptible(1);
 }

@@ -43,47 +43,18 @@
 #include "fid.h"
 
 /**
- * v9fs_dentry_validate - VFS dcache hook to validate cache
- * @dentry:  dentry that is being validated
- * @nd: path data
+ * v9fs_dentry_delete - called when dentry refcount equals 0
+ * @dentry:  dentry in question
  *
- * dcache really shouldn't be used for 9P2000 as at all due to
- * potential attached semantics to directory traversal (walk).
- *
- * FUTURE: look into how to use dcache to allow multi-stage
- * walks in Plan 9 & potential for better dcache operation which
- * would remain valid for Plan 9 semantics.  Older versions
- * had validation via stat for those interested.  However, since
- * stat has the same approximate overhead as walk there really
- * is no difference.  The only improvement would be from a
- * time-decay cache like NFS has and that undermines the
- * synchronous nature of 9P2000.
+ * By returning 1 here we should remove cacheing of unused
+ * dentry components.
  *
  */
 
-static int v9fs_dentry_validate(struct dentry *dentry, struct nameidata *nd)
+int v9fs_dentry_delete(struct dentry *dentry)
 {
-	struct dentry *dc = current->fs->pwd;
-
-	dprintk(DEBUG_VFS, "dentry: %s (%p)\n", dentry->d_iname, dentry);
-	if (v9fs_fid_lookup(dentry)) {
-		dprintk(DEBUG_VFS, "VALID\n");
-		return 1;
-	}
-
-	while (dc != NULL) {
-		if (dc == dentry) {
-			dprintk(DEBUG_VFS, "VALID\n");
-			return 1;
-		}
-		if (dc == dc->d_parent)
-			break;
-
-		dc = dc->d_parent;
-	}
-
-	dprintk(DEBUG_VFS, "INVALID\n");
-	return 0;
+	dprintk(DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_iname, dentry);
+	return 1;
 }
 
 /**
@@ -118,6 +89,6 @@ void v9fs_dentry_release(struct dentry *dentry)
 }
 
 struct dentry_operations v9fs_dentry_operations = {
-	.d_revalidate = v9fs_dentry_validate,
+	.d_delete = v9fs_dentry_delete,
 	.d_release = v9fs_dentry_release,
 };

@@ -667,7 +667,7 @@ static ctl_table kern_table[] = {
 		.data		= &acpi_video_flags,
 		.maxlen		= sizeof (unsigned long),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_doulongvec_minmax,
 	},
 #endif
 #ifdef CONFIG_IA64

@@ -90,8 +90,8 @@ module_param(tx_coalesce, int, 0); /* HW xmit count each TxDMAComplete */
 #define EnableInt() \
 writew(DEFAULT_INTR, ioaddr + IntEnable)
 
-static int max_intrloop = 50;
-static int multicast_filter_limit = 0x40;
+static const int max_intrloop = 50;
+static const int multicast_filter_limit = 0x40;
 
 static int rio_open (struct net_device *dev);
 static void rio_timer (unsigned long data);

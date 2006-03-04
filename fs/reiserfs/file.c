@@ -1464,19 +1464,19 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 		   partially overwritten pages, if needed. And lock the pages,
 		   so that nobody else can access these until we are done.
 		   We get number of actual blocks needed as a result. */
-		blocks_to_allocate =
-		    reiserfs_prepare_file_region_for_write(inode, pos,
-							   num_pages,
-							   write_bytes,
-							   prepared_pages);
-		if (blocks_to_allocate < 0) {
-			res = blocks_to_allocate;
+		res = reiserfs_prepare_file_region_for_write(inode, pos,
+							     num_pages,
+							     write_bytes,
+							     prepared_pages);
+		if (res < 0) {
 			reiserfs_release_claimed_blocks(inode->i_sb,
 							num_pages <<
 							(PAGE_CACHE_SHIFT -
 							 inode->i_blkbits));
 			break;
 		}
+
+		blocks_to_allocate = res;
 
 		/* First we correct our estimate of how many blocks we need */
 		reiserfs_release_claimed_blocks(inode->i_sb,

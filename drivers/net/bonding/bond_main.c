@@ -131,7 +131,7 @@ MODULE_PARM_DESC(arp_ip_target, "arp targets in n.n.n.n form");
 
 /*----------------------------- Global variables ----------------------------*/
 
-static const char *version =
+static const char * const version =
 	DRV_DESCRIPTION ": v" DRV_VERSION " (" DRV_RELDATE ")\n";
 
 LIST_HEAD(bond_dev_list);

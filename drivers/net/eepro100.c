@@ -27,7 +27,7 @@
 		rx_align support: enables rx DMA without causing unaligned accesses.
 */
 
-static const char *version =
+static const char * const version =
 "eepro100.c:v1.09j-t 9/29/99 Donald Becker http://www.scyld.com/network/eepro100.html\n"
 "eepro100.c: $Revision: 1.36 $ 2000/11/17 Modified by Andrey V. Savochkin <saw@saw.sw.com.sg> and others\n";
 
@@ -469,7 +469,7 @@ static const char i82558_config_cmd[CONFIG_DATA_SIZE] = {
 	0x31, 0x05, };
 
 /* PHY media interface chips. */
-static const char *phys[] = {
+static const char * const phys[] = {
 	"None", "i82553-A/B", "i82553-C", "i82503",
 	"DP83840", "80c240", "80c24", "i82555",
 	"unknown-8", "unknown-9", "DP83840A", "unknown-11",

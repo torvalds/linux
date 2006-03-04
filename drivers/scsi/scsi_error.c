@@ -1308,7 +1308,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 	 * the request was not marked fast fail.  Note that above,
 	 * even if the request is marked fast fail, we still requeue
 	 * for queue congestion conditions (QUEUE_FULL or BUSY) */
-	if ((++scmd->retries) < scmd->allowed 
+	if ((++scmd->retries) <= scmd->allowed
 	    && !blk_noretry_request(scmd->request)) {
 		return NEEDS_RETRY;
 	} else {
@@ -1433,7 +1433,7 @@ static void scsi_eh_flush_done_q(struct list_head *done_q)
 		list_del_init(&scmd->eh_entry);
 		if (scsi_device_online(scmd->device) &&
 		    !blk_noretry_request(scmd->request) &&
-		    (++scmd->retries < scmd->allowed)) {
+		    (++scmd->retries <= scmd->allowed)) {
 			SCSI_LOG_ERROR_RECOVERY(3, printk("%s: flush"
 							  " retry cmd: %p\n",
 							  current->comm,
