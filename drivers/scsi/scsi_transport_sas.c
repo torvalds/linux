@@ -39,6 +39,7 @@
 #define SAS_HOST_ATTRS		0
 #define SAS_PORT_ATTRS		17
 #define SAS_RPORT_ATTRS		7
+#define SAS_END_DEV_ATTRS	3
 
 struct sas_internal {
 	struct scsi_transport_template t;
@@ -47,9 +48,11 @@ struct sas_internal {
 	struct class_device_attribute private_host_attrs[SAS_HOST_ATTRS];
 	struct class_device_attribute private_phy_attrs[SAS_PORT_ATTRS];
 	struct class_device_attribute private_rphy_attrs[SAS_RPORT_ATTRS];
+	struct class_device_attribute private_end_dev_attrs[SAS_END_DEV_ATTRS];
 
 	struct transport_container phy_attr_cont;
 	struct transport_container rphy_attr_cont;
+	struct transport_container end_dev_attr_cont;
 
 	/*
 	 * The array of null terminated pointers to attributes
@@ -58,6 +61,7 @@ struct sas_internal {
 	struct class_device_attribute *host_attrs[SAS_HOST_ATTRS + 1];
 	struct class_device_attribute *phy_attrs[SAS_PORT_ATTRS + 1];
 	struct class_device_attribute *rphy_attrs[SAS_RPORT_ATTRS + 1];
+	struct class_device_attribute *end_dev_attrs[SAS_END_DEV_ATTRS + 1];
 };
 #define to_sas_internal(tmpl)	container_of(tmpl, struct sas_internal, t)
 
@@ -588,6 +592,73 @@ sas_rphy_simple_attr(identify.sas_address, sas_address, "0x%016llx\n",
 		unsigned long long);
 sas_rphy_simple_attr(identify.phy_identifier, phy_identifier, "%d\n", u8);
 
+/* only need 8 bytes of data plus header (4 or 8) */
+#define BUF_SIZE 64
+
+int sas_read_port_mode_page(struct scsi_device *sdev)
+{
+	char *buffer = kzalloc(BUF_SIZE, GFP_KERNEL), *msdata;
+	struct sas_rphy *rphy = target_to_rphy(sdev->sdev_target);
+	struct sas_end_device *rdev;
+	struct scsi_mode_data mode_data;
+	int res, error;
+
+	BUG_ON(rphy->identify.device_type != SAS_END_DEVICE);
+
+	rdev = rphy_to_end_device(rphy);
+
+	if (!buffer)
+		return -ENOMEM;
+
+	res = scsi_mode_sense(sdev, 1, 0x19, buffer, BUF_SIZE, 30*HZ, 3,
+			      &mode_data, NULL);
+
+	error = -EINVAL;
+	if (!scsi_status_is_good(res))
+		goto out;
+
+	msdata = buffer +  mode_data.header_length +
+		mode_data.block_descriptor_length;
+
+	if (msdata - buffer > BUF_SIZE - 8)
+		goto out;
+
+	error = 0;
+
+	rdev->ready_led_meaning = msdata[2] & 0x10 ? 1 : 0;
+	rdev->I_T_nexus_loss_timeout = (msdata[4] << 8) + msdata[5];
+	rdev->initiator_response_timeout = (msdata[6] << 8) + msdata[7];
+
+ out:
+	kfree(buffer);
+	return error;
+}
+EXPORT_SYMBOL(sas_read_port_mode_page);
+
+#define sas_end_dev_show_simple(field, name, format_string, cast)	\
+static ssize_t								\
+show_sas_end_dev_##name(struct class_device *cdev, char *buf)		\
+{									\
+	struct sas_rphy *rphy = transport_class_to_rphy(cdev);		\
+	struct sas_end_device *rdev = rphy_to_end_device(rphy);		\
+									\
+	return snprintf(buf, 20, format_string, cast rdev->field);	\
+}
+
+#define sas_end_dev_simple_attr(field, name, format_string, type)	\
+	sas_end_dev_show_simple(field, name, format_string, (type))	\
+static SAS_CLASS_DEVICE_ATTR(end_dev, name, S_IRUGO, 			\
+		show_sas_end_dev_##name, NULL)
+
+sas_end_dev_simple_attr(ready_led_meaning, ready_led_meaning, "%d\n", int);
+sas_end_dev_simple_attr(I_T_nexus_loss_timeout, I_T_nexus_loss_timeout,
+			"%d\n", int);
+sas_end_dev_simple_attr(initiator_response_timeout, initiator_response_timeout,
+			"%d\n", int);
+
+static DECLARE_TRANSPORT_CLASS(sas_end_dev_class,
+			       "sas_end_device", NULL, NULL, NULL);
+
 static DECLARE_TRANSPORT_CLASS(sas_rphy_class,
 		"sas_rphy", NULL, NULL, NULL);
 
@@ -608,6 +679,31 @@ static int sas_rphy_match(struct attribute_container *cont, struct device *dev)
 
 	i = to_sas_internal(shost->transportt);
 	return &i->rphy_attr_cont.ac == cont;
+}
+
+static int sas_end_dev_match(struct attribute_container *cont,
+			     struct device *dev)
+{
+	struct Scsi_Host *shost;
+	struct sas_internal *i;
+	struct sas_rphy *rphy;
+
+	if (!scsi_is_sas_rphy(dev))
+		return 0;
+	shost = dev_to_shost(dev->parent->parent);
+	rphy = dev_to_rphy(dev);
+
+	if (!shost->transportt)
+		return 0;
+	if (shost->transportt->host_attrs.ac.class !=
+			&sas_host_class.class)
+		return 0;
+
+	i = to_sas_internal(shost->transportt);
+	return &i->end_dev_attr_cont.ac == cont &&
+		rphy->identify.device_type == SAS_END_DEVICE &&
+		/* FIXME: remove contained eventually */
+		rphy->contained;
 }
 
 static void sas_rphy_release(struct device *dev)
@@ -648,6 +744,40 @@ struct sas_rphy *sas_rphy_alloc(struct sas_phy *parent)
 	return rphy;
 }
 EXPORT_SYMBOL(sas_rphy_alloc);
+
+/**
+ * sas_end_device_alloc - allocate an rphy for an end device
+ *
+ * Allocates an SAS remote PHY structure, connected to @parent.
+ *
+ * Returns:
+ *	SAS PHY allocated or %NULL if the allocation failed.
+ */
+struct sas_rphy *sas_end_device_alloc(struct sas_phy *parent)
+{
+	struct Scsi_Host *shost = dev_to_shost(&parent->dev);
+	struct sas_end_device *rdev;
+
+	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
+	if (!rdev) {
+		put_device(&parent->dev);
+		return NULL;
+	}
+
+	device_initialize(&rdev->rphy.dev);
+	rdev->rphy.dev.parent = get_device(&parent->dev);
+	rdev->rphy.dev.release = sas_rphy_release;
+	sprintf(rdev->rphy.dev.bus_id, "rphy-%d:%d-%d",
+		shost->host_no, parent->port_identifier, parent->number);
+	rdev->rphy.identify.device_type = SAS_END_DEVICE;
+	/* FIXME: mark the rphy as being contained in a larger structure */
+	rdev->rphy.contained = 1;
+	transport_setup_device(&rdev->rphy.dev);
+
+	return &rdev->rphy;
+}
+EXPORT_SYMBOL(sas_end_device_alloc);
+
 
 /**
  * sas_rphy_add  --  add a SAS remote PHY to the device hierachy
@@ -807,51 +937,35 @@ static int sas_user_scan(struct Scsi_Host *shost, uint channel,
  * Setup / Teardown code
  */
 
-#define SETUP_RPORT_ATTRIBUTE(field)					\
-	i->private_rphy_attrs[count] = class_device_attr_##field;	\
-	i->private_rphy_attrs[count].attr.mode = S_IRUGO;		\
-	i->private_rphy_attrs[count].store = NULL;			\
-	i->rphy_attrs[count] = &i->private_rphy_attrs[count];	\
-	count++
+#define SETUP_TEMPLATE(attrb, field, perm, test)				\
+	i->private_##attrb[count] = class_device_attr_##field;		\
+	i->private_##attrb[count].attr.mode = perm;			\
+	i->private_##attrb[count].store = NULL;				\
+	i->attrb[count] = &i->private_##attrb[count];			\
+	if (test)							\
+		count++
+
+
+#define SETUP_RPORT_ATTRIBUTE(field) 					\
+	SETUP_TEMPLATE(rphy_attrs, field, S_IRUGO, 1)
 
 #define SETUP_OPTIONAL_RPORT_ATTRIBUTE(field, func)			\
-	i->private_rphy_attrs[count] = class_device_attr_##field;	\
-	i->private_rphy_attrs[count].attr.mode = S_IRUGO;		\
-	i->private_rphy_attrs[count].store = NULL;			\
-	i->rphy_attrs[count] = &i->private_rphy_attrs[count];		\
-	if (i->f->func)							\
-		count++
+	SETUP_TEMPLATE(rphy_attrs, field, S_IRUGO, i->f->func)
 
 #define SETUP_PORT_ATTRIBUTE(field)					\
-	i->private_phy_attrs[count] = class_device_attr_##field;	\
-        i->private_phy_attrs[count].attr.mode = S_IRUGO;		\
-        i->private_phy_attrs[count].store = NULL;			\
-        i->phy_attrs[count] = &i->private_phy_attrs[count];		\
-	count++
+	SETUP_TEMPLATE(phy_attrs, field, S_IRUGO, 1)
 
 #define SETUP_OPTIONAL_PORT_ATTRIBUTE(field, func)			\
-	i->private_phy_attrs[count] = class_device_attr_##field;	\
-        i->private_phy_attrs[count].attr.mode = S_IRUGO;		\
-        i->private_phy_attrs[count].store = NULL;			\
-        i->phy_attrs[count] = &i->private_phy_attrs[count];		\
-	if (i->f->func)							\
-		count++
+	SETUP_TEMPLATE(phy_attrs, field, S_IRUGO, i->f->func)
 
 #define SETUP_PORT_ATTRIBUTE_WRONLY(field)				\
-	i->private_phy_attrs[count] = class_device_attr_##field;	\
-	i->private_phy_attrs[count].attr.mode = S_IWUGO;		\
-	i->private_phy_attrs[count].show = NULL;			\
-	i->phy_attrs[count] = &i->private_phy_attrs[count];		\
-	count++
+	SETUP_TEMPLATE(phy_attrs, field, S_IWUGO, 1)
 
 #define SETUP_OPTIONAL_PORT_ATTRIBUTE_WRONLY(field, func)		\
-	i->private_phy_attrs[count] = class_device_attr_##field;	\
-	i->private_phy_attrs[count].attr.mode = S_IWUGO;		\
-	i->private_phy_attrs[count].show = NULL;			\
-	i->phy_attrs[count] = &i->private_phy_attrs[count];		\
-	if (i->f->func)							\
-		count++
+	SETUP_TEMPLATE(phy_attrs, field, S_IWUGO, i->f->func)
 
+#define SETUP_END_DEV_ATTRIBUTE(field)					\
+	SETUP_TEMPLATE(end_dev_attrs, field, S_IRUGO, 1)
 
 /**
  * sas_attach_transport  --  instantiate SAS transport template
@@ -884,6 +998,11 @@ sas_attach_transport(struct sas_function_template *ft)
 	i->rphy_attr_cont.ac.attrs = &i->rphy_attrs[0];
 	i->rphy_attr_cont.ac.match = sas_rphy_match;
 	transport_container_register(&i->rphy_attr_cont);
+
+	i->end_dev_attr_cont.ac.class = &sas_end_dev_class.class;
+	i->end_dev_attr_cont.ac.attrs = &i->end_dev_attrs[0];
+	i->end_dev_attr_cont.ac.match = sas_end_dev_match;
+	transport_container_register(&i->end_dev_attr_cont);
 
 	i->f = ft;
 
@@ -923,6 +1042,12 @@ sas_attach_transport(struct sas_function_template *ft)
 				       get_bay_identifier);
 	i->rphy_attrs[count] = NULL;
 
+	count = 0;
+	SETUP_END_DEV_ATTRIBUTE(end_dev_ready_led_meaning);
+	SETUP_END_DEV_ATTRIBUTE(end_dev_I_T_nexus_loss_timeout);
+	SETUP_END_DEV_ATTRIBUTE(end_dev_initiator_response_timeout);
+	i->end_dev_attrs[count] = NULL;
+
 	return &i->t;
 }
 EXPORT_SYMBOL(sas_attach_transport);
@@ -956,9 +1081,14 @@ static __init int sas_transport_init(void)
 	error = transport_class_register(&sas_rphy_class);
 	if (error)
 		goto out_unregister_phy;
+	error = transport_class_register(&sas_end_dev_class);
+	if (error)
+		goto out_unregister_rphy;
 
 	return 0;
 
+ out_unregister_rphy:
+	transport_class_unregister(&sas_rphy_class);
  out_unregister_phy:
 	transport_class_unregister(&sas_phy_class);
  out_unregister_transport:
@@ -973,6 +1103,7 @@ static void __exit sas_transport_exit(void)
 	transport_class_unregister(&sas_host_class);
 	transport_class_unregister(&sas_phy_class);
 	transport_class_unregister(&sas_rphy_class);
+	transport_class_unregister(&sas_end_dev_class);
 }
 
 MODULE_AUTHOR("Christoph Hellwig");

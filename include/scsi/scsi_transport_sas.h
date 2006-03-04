@@ -82,6 +82,10 @@ struct sas_rphy {
 	struct sas_identify	identify;
 	struct list_head	list;
 	u32			scsi_target_id;
+	/* temporary expedient: mark the rphy as being contained
+	 * within a type specific rphy
+	 * FIXME: pull this out when everything uses the containers */
+	unsigned		contained:1;
 };
 
 #define dev_to_rphy(d) \
@@ -90,6 +94,19 @@ struct sas_rphy {
 	dev_to_rphy((cdev)->dev)
 #define rphy_to_shost(rphy) \
 	dev_to_shost((rphy)->dev.parent)
+#define target_to_rphy(targ) \
+	dev_to_rphy((targ)->dev.parent)
+
+struct sas_end_device {
+	struct sas_rphy		rphy;
+	/* flags */
+	unsigned		ready_led_meaning:1;
+	/* parameters */
+	u16			I_T_nexus_loss_timeout;
+	u16			initiator_response_timeout;
+};
+#define rphy_to_end_device(r) \
+	container_of((r), struct sas_end_device, rphy)
 
 
 /* The functions by which the transport class and the driver communicate */
@@ -110,6 +127,7 @@ extern void sas_phy_delete(struct sas_phy *);
 extern int scsi_is_sas_phy(const struct device *);
 
 extern struct sas_rphy *sas_rphy_alloc(struct sas_phy *);
+extern struct sas_rphy *sas_end_device_alloc(struct sas_phy *);
 void sas_rphy_free(struct sas_rphy *);
 extern int sas_rphy_add(struct sas_rphy *);
 extern void sas_rphy_delete(struct sas_rphy *);
@@ -118,5 +136,6 @@ extern int scsi_is_sas_rphy(const struct device *);
 extern struct scsi_transport_template *
 sas_attach_transport(struct sas_function_template *);
 extern void sas_release_transport(struct scsi_transport_template *);
+int sas_read_port_mode_page(struct scsi_device *);
 
 #endif /* SCSI_TRANSPORT_SAS_H */
