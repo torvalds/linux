@@ -2,7 +2,7 @@
  *  net/dccp/ccids/ccid3.c
  *
  *  Copyright (c) 2005 The University of Waikato, Hamilton, New Zealand.
- *  Copyright (c) 2005 Ian McDonald <iam4@cs.waikato.ac.nz>
+ *  Copyright (c) 2005-6 Ian McDonald <imcdnzl@gmail.com>
  *
  *  An implementation of the DCCP protocol
  *
@@ -1033,9 +1033,13 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	p_prev = hcrx->ccid3hcrx_p;
 	
 	/* Calculate loss event rate */
-	if (!list_empty(&hcrx->ccid3hcrx_li_hist))
+	if (!list_empty(&hcrx->ccid3hcrx_li_hist)) {
+		u32 i_mean = dccp_li_hist_calc_i_mean(&hcrx->ccid3hcrx_li_hist);
+
 		/* Scaling up by 1000000 as fixed decimal */
-		hcrx->ccid3hcrx_p = 1000000 / dccp_li_hist_calc_i_mean(&hcrx->ccid3hcrx_li_hist);
+		if (i_mean != 0)
+			hcrx->ccid3hcrx_p = 1000000 / i_mean;
+	}
 
 	if (hcrx->ccid3hcrx_p > p_prev) {
 		ccid3_hc_rx_send_feedback(sk);
