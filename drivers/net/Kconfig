@@ -1613,11 +1613,7 @@ config SIS900
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on
 	  the SiS 900 and SiS 7016 chips. The SiS 900 core is also embedded in
-	  SiS 630 and SiS 540 chipsets.  If you have one of those, say Y and
-	  read the Ethernet-HOWTO, available at
-	  <http://www.tldp.org/docs.html#howto>.  Please read
-	  <file:Documentation/networking/sis900.txt> and comments at the
-	  beginning of <file:drivers/net/sis900.c> for more information.
+	  SiS 630 and SiS 540 chipsets.
 
 	  This driver also supports AMD 79C901 HomePNA so that you can use
 	  your phone line as a network cable.
