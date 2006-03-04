@@ -194,7 +194,7 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 
 	u32 mmccmd = (cmd->opcode << SD_CMD_CI_SHIFT);
 
-	switch (mmc_rsp_type(cmd->flags)) {
+	switch (mmc_resp_type(cmd)) {
 	case MMC_RSP_R1:
 		mmccmd |= SD_CMD_RT_1;
 		break;
