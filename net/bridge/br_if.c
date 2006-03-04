@@ -277,8 +277,9 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
 	INIT_WORK(&p->carrier_check, port_carrier_check, dev);
-	kobject_init(&p->kobj);
+	br_stp_port_timer_init(p);
 
+	kobject_init(&p->kobj);
 	kobject_set_name(&p->kobj, SYSFS_BRIDGE_PORT_ATTR);
 	p->kobj.ktype = &brport_ktype;
 	p->kobj.parent = &(dev->class_dev.kobj);
