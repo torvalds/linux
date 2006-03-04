@@ -169,6 +169,7 @@ static void del_nbp(struct net_bridge_port *p)
 
 	rcu_assign_pointer(dev->br_port, NULL);
 
+	kobject_uevent(&p->kobj, KOBJ_REMOVE);
 	kobject_del(&p->kobj);
 
 	call_rcu(&p->rcu, destroy_nbp_rcu);
