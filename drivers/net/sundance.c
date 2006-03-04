@@ -106,7 +106,7 @@
 static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
    Typical is a 64 element hash table based on the Ethernet CRC.  */
-static int multicast_filter_limit = 32;
+static const int multicast_filter_limit = 32;
 
 /* Set the copy breakpoint for the copy-only-tiny-frames scheme.
    Setting to > 1518 effectively disables this feature.
@@ -298,7 +298,7 @@ enum {
 struct pci_id_info {
         const char *name;
 };
-static struct pci_id_info pci_id_tbl[] = {
+static const struct pci_id_info pci_id_tbl[] = {
 	{"D-Link DFE-550TX FAST Ethernet Adapter"},
 	{"D-Link DFE-550FX 100Mbps Fiber-optics Adapter"},
 	{"D-Link DFE-580TX 4 port Server Adapter"},

@@ -132,7 +132,7 @@ struct phy_setting {
 };
 
 /* A mapping of all SUPPORTED settings to speed/duplex */
-static struct phy_setting settings[] = {
+static const struct phy_setting settings[] = {
 	{
 		.speed = 10000,
 		.duplex = DUPLEX_FULL,

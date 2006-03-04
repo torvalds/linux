@@ -189,7 +189,7 @@ static int mtu;
 
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
    This chip uses a 512 element hash table based on the Ethernet CRC.  */
-static int multicast_filter_limit = 100;
+static const int multicast_filter_limit = 100;
 
 /* Set the copy breakpoint for the copy-only-tiny-frames scheme.
    Setting to > 1518 effectively disables this feature. */
@@ -374,7 +374,7 @@ enum pcistuff {
 
  
 /* array of board data directly indexed by pci_tbl[x].driver_data */
-static struct {
+static const struct {
 	const char *name;
 	unsigned long flags;
 } natsemi_pci_info[] __devinitdata = {

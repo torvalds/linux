@@ -841,7 +841,7 @@ enum xcvr_types {
 	XCVR_100baseFx, XCVR_MII=6, XCVR_NWAY=8, XCVR_ExtMII=9, XCVR_Default=10,
 };
 
-static struct media_table {
+static const struct media_table {
 	char *name;
 	unsigned int media_bits:16,		/* Bits to set in Wn4_Media register. */
 		mask:8,						/* The transceiver-present bit in Wn3_Config.*/
@@ -1445,7 +1445,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	}
 
 	{
-		static const char * ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
+		static const char * const ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
 		unsigned int config;
 		EL3WINDOW(3);
 		vp->available_media = ioread16(ioaddr + Wn3_Options);

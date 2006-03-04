@@ -201,7 +201,7 @@ static int max_interrupt_work = 20;
 static int mtu;
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
    The Starfire has a 512 element hash table based on the Ethernet CRC. */
-static int multicast_filter_limit = 512;
+static const int multicast_filter_limit = 512;
 /* Whether to do TCP/UDP checksums in hardware */
 static int enable_hw_cksum = 1;
 
@@ -463,7 +463,7 @@ static struct pci_device_id starfire_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, starfire_pci_tbl);
 
 /* A chip capabilities table, matching the CH_xxx entries in xxx_pci_tbl[] above. */
-static struct chip_info {
+static const struct chip_info {
 	const char *name;
 	int drv_flags;
 } netdrv_tbl[] __devinitdata = {

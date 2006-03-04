@@ -59,7 +59,7 @@ static char version[] = "sb1000.c:v1.1.2 6/01/98 (fventuri@mediaone.net)\n";
 #ifdef SB1000_DEBUG
 static int sb1000_debug = SB1000_DEBUG;
 #else
-static int sb1000_debug = 1;
+static const int sb1000_debug = 1;
 #endif
 
 static const int SB1000_IO_EXTENT = 8;

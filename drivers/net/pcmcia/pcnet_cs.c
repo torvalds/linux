@@ -66,7 +66,7 @@
 
 #define PCNET_RDC_TIMEOUT (2*HZ/100)	/* Max wait in jiffies for Tx RDC */
 
-static char *if_names[] = { "auto", "10baseT", "10base2"};
+static const char *if_names[] = { "auto", "10baseT", "10base2"};
 
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;

@@ -214,7 +214,7 @@ static void s2io_vlan_rx_kill_vid(struct net_device *dev, unsigned long vid)
 #define SWITCH_SIGN	0xA5A5A5A5A5A5A5A5ULL
 #define	END_SIGN	0x0
 
-static u64 herc_act_dtx_cfg[] = {
+static const u64 herc_act_dtx_cfg[] = {
 	/* Set address */
 	0x8000051536750000ULL, 0x80000515367500E0ULL,
 	/* Write data */
@@ -235,7 +235,7 @@ static u64 herc_act_dtx_cfg[] = {
 	END_SIGN
 };
 
-static u64 xena_mdio_cfg[] = {
+static const u64 xena_mdio_cfg[] = {
 	/* Reset PMA PLL */
 	0xC001010000000000ULL, 0xC0010100000000E0ULL,
 	0xC0010100008000E4ULL,
@@ -245,7 +245,7 @@ static u64 xena_mdio_cfg[] = {
 	END_SIGN
 };
 
-static u64 xena_dtx_cfg[] = {
+static const u64 xena_dtx_cfg[] = {
 	0x8000051500000000ULL, 0x80000515000000E0ULL,
 	0x80000515D93500E4ULL, 0x8001051500000000ULL,
 	0x80010515000000E0ULL, 0x80010515001E00E4ULL,
@@ -273,7 +273,7 @@ static u64 xena_dtx_cfg[] = {
  * Constants for Fixing the MacAddress problem seen mostly on
  * Alpha machines.
  */
-static u64 fix_mac[] = {
+static const u64 fix_mac[] = {
 	0x0060000000000000ULL, 0x0060600000000000ULL,
 	0x0040600000000000ULL, 0x0000600000000000ULL,
 	0x0020600000000000ULL, 0x0060600000000000ULL,
