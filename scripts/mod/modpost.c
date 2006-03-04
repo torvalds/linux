@@ -483,7 +483,7 @@ static int strrcmp(const char *s, const char *sub)
  *   this pattern.
  *   The pattern is identified by:
  *   tosec   = .init.data
- *   fromsec = .data
+ *   fromsec = .data*
  *   atsym   =__param*
  *
  * Pattern 2:
@@ -512,7 +512,7 @@ static int secref_whitelist(const char *tosec, const char *fromsec,
 	/* Check for pattern 1 */
 	if (strcmp(tosec, ".init.data") != 0)
 		f1 = 0;
-	if (strcmp(fromsec, ".data") != 0)
+	if (strncmp(fromsec, ".data", strlen(".data")) != 0)
 		f1 = 0;
 	if (strncmp(atsym, "__param", strlen("__param")) != 0)
 		f1 = 0;
@@ -743,9 +743,12 @@ static int init_section_ref_ok(const char *name)
 	/* Absolute section names */
 	const char *namelist1[] = {
 		".init",
+		".opd",   /* see comment [OPD] at exit_section_ref_ok() */
+		".toc1",  /* used by ppc64 */
 		".stab",
 		".rodata",
 		".text.lock",
+		"__bug_table", /* used by powerpc for BUG() */
 		".pci_fixup_header",
 		".pci_fixup_final",
 		".pdr",
@@ -812,8 +815,10 @@ static int exit_section_ref_ok(const char *name)
 		".exit.data",
 		".init.text",
 		".opd", /* See comment [OPD] */
+		".toc1",  /* used by ppc64 */
 		".altinstructions",
 		".pdr",
+		"__bug_table", /* used by powerpc for BUG() */
 		".exitcall.exit",
 		".eh_frame",
 		".stab",
