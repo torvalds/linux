@@ -1224,7 +1224,7 @@ static inline u8 ata_dev_knobble(const struct ata_port *ap,
 static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 			     int print_info)
 {
-	unsigned long xfer_modes;
+	unsigned int xfer_mask;
 	int i, rc;
 
 	if (!ata_dev_present(dev)) {
@@ -1255,12 +1255,8 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 		goto err_out_nosup;
 	}
 
-	/* quick-n-dirty find max transfer mode; for printk only */
-	xfer_modes = dev->id[ATA_ID_UDMA_MODES];
-	if (!xfer_modes)
-		xfer_modes = (dev->id[ATA_ID_MWDMA_MODES]) << ATA_SHIFT_MWDMA;
-	if (!xfer_modes)
-		xfer_modes = ata_pio_modes(dev);
+	/* find max transfer mode; for printk only */
+	xfer_mask = ata_id_xfermask(dev->id);
 
 	ata_dump_id(dev->id);
 
@@ -1284,7 +1280,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 				       "max %s, %Lu sectors: %s\n",
 				       ap->id, dev->devno,
 				       ata_id_major_version(dev->id),
-				       ata_mode_string(xfer_modes),
+				       ata_mode_string(xfer_mask),
 				       (unsigned long long)dev->n_sectors,
 				       lba_desc);
 		} else {
@@ -1308,7 +1304,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 				       "max %s, %Lu sectors: CHS %u/%u/%u\n",
 				       ap->id, dev->devno,
 				       ata_id_major_version(dev->id),
-				       ata_mode_string(xfer_modes),
+				       ata_mode_string(xfer_mask),
 				       (unsigned long long)dev->n_sectors,
 				       dev->cylinders, dev->heads, dev->sectors);
 		}
@@ -1329,7 +1325,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 		/* print device info to dmesg */
 		if (print_info)
 			printk(KERN_INFO "ata%u: dev %u ATAPI, max %s\n",
-			       ap->id, dev->devno, ata_mode_string(xfer_modes));
+			       ap->id, dev->devno, ata_mode_string(xfer_mask));
 	}
 
 	ap->host->max_cmd_len = 0;
