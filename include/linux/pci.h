@@ -490,9 +490,9 @@ void pdev_sort_resources(struct pci_dev *, struct resource_list *);
 void pci_fixup_irqs(u8 (*)(struct pci_dev *, u8 *),
 		    int (*)(struct pci_dev *, u8, u8));
 #define HAVE_PCI_REQ_REGIONS	2
-int pci_request_regions(struct pci_dev *, char *);
+int pci_request_regions(struct pci_dev *, const char *);
 void pci_release_regions(struct pci_dev *);
-int pci_request_region(struct pci_dev *, int, char *);
+int pci_request_region(struct pci_dev *, int, const char *);
 void pci_release_region(struct pci_dev *, int);
 
 /* drivers/pci/bus.c */

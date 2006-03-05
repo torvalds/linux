@@ -639,7 +639,7 @@ void pci_release_region(struct pci_dev *pdev, int bar)
  *	Returns 0 on success, or %EBUSY on error.  A warning
  *	message is also printed on failure.
  */
-int pci_request_region(struct pci_dev *pdev, int bar, char *res_name)
+int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
 {
 	if (pci_resource_len(pdev, bar) == 0)
 		return 0;
@@ -697,7 +697,7 @@ void pci_release_regions(struct pci_dev *pdev)
  *	Returns 0 on success, or %EBUSY on error.  A warning
  *	message is also printed on failure.
  */
-int pci_request_regions(struct pci_dev *pdev, char *res_name)
+int pci_request_regions(struct pci_dev *pdev, const char *res_name)
 {
 	int i;
 	
