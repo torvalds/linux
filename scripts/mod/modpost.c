@@ -191,7 +191,7 @@ static struct symbol *sym_add_exported(const char *name, struct module *mod)
 		s = new_symbol(name, mod);
 	} else {
 		if (!s->preloaded) {
-			warn("%s: duplicate symbol '%s' previous definition "
+			warn("%s: '%s' exported twice. Previous export "
 			     "was in %s%s\n", mod->name, name,
 			     s->module->name,
 			     is_vmlinux(s->module->name) ?"":".ko");
