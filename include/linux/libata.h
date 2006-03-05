@@ -388,6 +388,8 @@ struct ata_port {
 	struct ata_host_stats	stats;
 	struct ata_host_set	*host_set;
 
+	struct work_struct	port_task;
+
 	struct work_struct	packet_task;
 
 	struct work_struct	pio_task;
@@ -515,6 +517,8 @@ extern int ata_ratelimit(void);
 extern unsigned int ata_busy_sleep(struct ata_port *ap,
 				   unsigned long timeout_pat,
 				   unsigned long timeout);
+extern void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *),
+				void *data, unsigned long delay);
 
 /*
  * Default driver ops implementations

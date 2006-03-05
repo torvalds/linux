@@ -721,6 +721,81 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 	   timing API will get this right anyway */
 }
 
+/**
+ *	ata_port_queue_task - Queue port_task
+ *	@ap: The ata_port to queue port_task for
+ *
+ *	Schedule @fn(@data) for execution after @delay jiffies using
+ *	port_task.  There is one port_task per port and it's the
+ *	user(low level driver)'s responsibility to make sure that only
+ *	one task is active at any given time.
+ *
+ *	libata core layer takes care of synchronization between
+ *	port_task and EH.  ata_port_queue_task() may be ignored for EH
+ *	synchronization.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *), void *data,
+			 unsigned long delay)
+{
+	int rc;
+
+	if (ap->flags & ATA_FLAG_FLUSH_PIO_TASK)
+		return;
+
+	PREPARE_WORK(&ap->port_task, fn, data);
+
+	if (!delay)
+		rc = queue_work(ata_wq, &ap->port_task);
+	else
+		rc = queue_delayed_work(ata_wq, &ap->port_task, delay);
+
+	/* rc == 0 means that another user is using port task */
+	WARN_ON(rc == 0);
+}
+
+/**
+ *	ata_port_flush_task - Flush port_task
+ *	@ap: The ata_port to flush port_task for
+ *
+ *	After this function completes, port_task is guranteed not to
+ *	be running or scheduled.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+void ata_port_flush_task(struct ata_port *ap)
+{
+	unsigned long flags;
+
+	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags |= ATA_FLAG_FLUSH_PIO_TASK;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	DPRINTK("flush #1\n");
+	flush_workqueue(ata_wq);
+
+	/*
+	 * At this point, if a task is running, it's guaranteed to see
+	 * the FLUSH flag; thus, it will never queue pio tasks again.
+	 * Cancel and flush.
+	 */
+	if (!cancel_delayed_work(&ap->port_task)) {
+		DPRINTK("flush #2\n");
+		flush_workqueue(ata_wq);
+	}
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags &= ~ATA_FLAG_FLUSH_PIO_TASK;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	DPRINTK("EXIT\n");
+}
+
 static inline void
 ata_queue_packet_task(struct ata_port *ap)
 {
@@ -4617,6 +4692,7 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;
 
+	INIT_WORK(&ap->port_task, NULL, NULL);
 	INIT_WORK(&ap->packet_task, atapi_packet_task, ap);
 	INIT_WORK(&ap->pio_task, ata_pio_task, ap);
 	INIT_LIST_HEAD(&ap->eh_done_q);
@@ -5088,6 +5164,7 @@ EXPORT_SYMBOL_GPL(ata_dev_revalidate);
 EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
 EXPORT_SYMBOL_GPL(ata_busy_sleep);
+EXPORT_SYMBOL_GPL(ata_port_queue_task);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 EXPORT_SYMBOL_GPL(ata_scsi_timed_out);
