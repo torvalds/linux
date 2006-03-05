@@ -232,6 +232,14 @@ int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 }
 
 static const char * const xfer_mode_str[] = {
+	"PIO0",
+	"PIO1",
+	"PIO2",
+	"PIO3",
+	"PIO4",
+	"MWDMA0",
+	"MWDMA1",
+	"MWDMA2",
 	"UDMA/16",
 	"UDMA/25",
 	"UDMA/33",
@@ -240,49 +248,31 @@ static const char * const xfer_mode_str[] = {
 	"UDMA/100",
 	"UDMA/133",
 	"UDMA7",
-	"MWDMA0",
-	"MWDMA1",
-	"MWDMA2",
-	"PIO0",
-	"PIO1",
-	"PIO2",
-	"PIO3",
-	"PIO4",
 };
 
 /**
- *	ata_udma_string - convert UDMA bit offset to string
- *	@mask: mask of bits supported; only highest bit counts.
+ *	ata_mode_string - convert xfer_mask to string
+ *	@xfer_mask: mask of bits supported; only highest bit counts.
  *
  *	Determine string which represents the highest speed
- *	(highest bit in @udma_mask).
+ *	(highest bit in @modemask).
  *
  *	LOCKING:
  *	None.
  *
  *	RETURNS:
  *	Constant C string representing highest speed listed in
- *	@udma_mask, or the constant C string "<n/a>".
+ *	@mode_mask, or the constant C string "<n/a>".
  */
 
-static const char *ata_mode_string(unsigned int mask)
+static const char *ata_mode_string(unsigned int xfer_mask)
 {
-	int i;
+	int highbit;
 
-	for (i = 7; i >= 0; i--)
-		if (mask & (1 << i))
-			goto out;
-	for (i = ATA_SHIFT_MWDMA + 2; i >= ATA_SHIFT_MWDMA; i--)
-		if (mask & (1 << i))
-			goto out;
-	for (i = ATA_SHIFT_PIO + 4; i >= ATA_SHIFT_PIO; i--)
-		if (mask & (1 << i))
-			goto out;
-
+	highbit = fls(xfer_mask) - 1;
+	if (highbit >= 0 && highbit < ARRAY_SIZE(xfer_mode_str))
+		return xfer_mode_str[highbit];
 	return "<n/a>";
-
-out:
-	return xfer_mode_str[i];
 }
 
 /**

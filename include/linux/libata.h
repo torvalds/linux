@@ -188,11 +188,19 @@ enum {
 	PORT_DISABLED		= 2,
 
 	/* encoding various smaller bitmaps into a single
-	 * unsigned long bitmap
+	 * unsigned int bitmap
 	 */
-	ATA_SHIFT_UDMA		= 0,
-	ATA_SHIFT_MWDMA		= 8,
-	ATA_SHIFT_PIO		= 11,
+	ATA_BITS_PIO		= 5,
+	ATA_BITS_MWDMA		= 3,
+	ATA_BITS_UDMA		= 8,
+
+	ATA_SHIFT_PIO		= 0,
+	ATA_SHIFT_MWDMA		= ATA_SHIFT_PIO + ATA_BITS_PIO,
+	ATA_SHIFT_UDMA		= ATA_SHIFT_MWDMA + ATA_BITS_MWDMA,
+
+	ATA_MASK_PIO		= ((1 << ATA_BITS_PIO) - 1) << ATA_SHIFT_PIO,
+	ATA_MASK_MWDMA		= ((1 << ATA_BITS_MWDMA) - 1) << ATA_SHIFT_MWDMA,
+	ATA_MASK_UDMA		= ((1 << ATA_BITS_UDMA) - 1) << ATA_SHIFT_UDMA,
 
 	/* size of buffer to pad xfers ending on unaligned boundaries */
 	ATA_DMA_PAD_SZ		= 4,
