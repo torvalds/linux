@@ -49,14 +49,30 @@
 #define DRV_VERSION	"0.9"
 
 enum {
+	/*
+	 * host flags
+	 */
 	SIL_FLAG_RERR_ON_DMA_ACT = (1 << 29),
 	SIL_FLAG_MOD15WRITE	= (1 << 30),
+	SIL_DFL_HOST_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
+				  ATA_FLAG_MMIO,
 
+	/*
+	 * Controller IDs
+	 */
 	sil_3112		= 0,
 	sil_3512		= 1,
 	sil_3114		= 2,
 
+	/*
+	 * Register offsets
+	 */
 	SIL_SYSCFG		= 0x48,
+
+	/*
+	 * Register bits
+	 */
+	/* SYSCFG */
 	SIL_MASK_IDE0_INT	= (1 << 22),
 	SIL_MASK_IDE1_INT	= (1 << 23),
 	SIL_MASK_IDE2_INT	= (1 << 24),
@@ -65,7 +81,12 @@ enum {
 	SIL_MASK_4PORT		= SIL_MASK_2PORT |
 				  SIL_MASK_IDE2_INT | SIL_MASK_IDE3_INT,
 
+	/* BMDMA/BMDMA2 */
 	SIL_INTR_STEERING	= (1 << 1),
+
+	/*
+	 * Others
+	 */
 	SIL_QUIRK_MOD15WRITE	= (1 << 0),
 	SIL_QUIRK_UDMA5MAX	= (1 << 1),
 };
@@ -169,8 +190,7 @@ static const struct ata_port_info sil_port_info[] = {
 	/* sil_3112 */
 	{
 		.sht		= &sil_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO | SIL_FLAG_MOD15WRITE,
+		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_MOD15WRITE,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -179,9 +199,7 @@ static const struct ata_port_info sil_port_info[] = {
 	/* sil_3512 */
 	{
 		.sht		= &sil_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO |
-				  SIL_FLAG_RERR_ON_DMA_ACT,
+		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_RERR_ON_DMA_ACT,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
@@ -190,9 +208,7 @@ static const struct ata_port_info sil_port_info[] = {
 	/* sil_3114 */
 	{
 		.sht		= &sil_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_MMIO |
-				  SIL_FLAG_RERR_ON_DMA_ACT,
+		.host_flags	= SIL_DFL_HOST_FLAGS | SIL_FLAG_RERR_ON_DMA_ACT,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= 0x3f,			/* udma0-5 */
