@@ -1752,9 +1752,6 @@ static u8 base_from_shift(unsigned int shift)
 
 static void ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 {
-	int ofs, idx;
-	u8 base;
-
 	if (!ata_dev_present(dev) || (ap->flags & ATA_FLAG_PORT_DISABLED))
 		return;
 
@@ -1763,22 +1760,18 @@ static void ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 
 	ata_dev_set_xfermode(ap, dev);
 
-	base = base_from_shift(dev->xfer_shift);
-	ofs = dev->xfer_mode - base;
-	idx = ofs + dev->xfer_shift;
-	WARN_ON(idx >= ARRAY_SIZE(xfer_mode_str));
-
 	if (ata_dev_revalidate(ap, dev, 0)) {
 		printk(KERN_ERR "ata%u: failed to revalidate after set "
 		       "xfermode, disabled\n", ap->id);
 		ata_port_disable(ap);
 	}
 
-	DPRINTK("idx=%d xfer_shift=%u, xfer_mode=0x%x, base=0x%x, offset=%d\n",
-		idx, dev->xfer_shift, (int)dev->xfer_mode, (int)base, ofs);
+	DPRINTK("xfer_shift=%u, xfer_mode=0x%x\n",
+		dev->xfer_shift, (int)dev->xfer_mode);
 
 	printk(KERN_INFO "ata%u: dev %u configured for %s\n",
-		ap->id, dev->devno, xfer_mode_str[idx]);
+	       ap->id, dev->devno,
+	       ata_mode_string(ata_xfer_mode2mask(dev->xfer_mode)));
 }
 
 static int ata_host_set_pio(struct ata_port *ap)
