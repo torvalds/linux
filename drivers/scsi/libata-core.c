@@ -742,7 +742,7 @@ void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *), void *data,
 {
 	int rc;
 
-	if (ap->flags & ATA_FLAG_FLUSH_PIO_TASK)
+	if (ap->flags & ATA_FLAG_FLUSH_PORT_TASK)
 		return;
 
 	PREPARE_WORK(&ap->port_task, fn, data);
@@ -773,7 +773,7 @@ void ata_port_flush_task(struct ata_port *ap)
 	DPRINTK("ENTER\n");
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
-	ap->flags |= ATA_FLAG_FLUSH_PIO_TASK;
+	ap->flags |= ATA_FLAG_FLUSH_PORT_TASK;
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	DPRINTK("flush #1\n");
@@ -790,7 +790,7 @@ void ata_port_flush_task(struct ata_port *ap)
 	}
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
-	ap->flags &= ~ATA_FLAG_FLUSH_PIO_TASK;
+	ap->flags &= ~ATA_FLAG_FLUSH_PORT_TASK;
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	DPRINTK("EXIT\n");

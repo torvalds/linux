@@ -151,7 +151,7 @@ enum {
 	ATA_FLAG_PIO_LBA48	= (1 << 13), /* Host DMA engine is LBA28 only */
 	ATA_FLAG_IRQ_MASK	= (1 << 14), /* Mask IRQ in PIO xfers */
 
-	ATA_FLAG_FLUSH_PIO_TASK	= (1 << 15), /* Flush PIO task */
+	ATA_FLAG_FLUSH_PORT_TASK = (1 << 15), /* Flush port task */
 	ATA_FLAG_IN_EH		= (1 << 16), /* EH in progress */
 
 	ATA_QCFLAG_ACTIVE	= (1 << 1), /* cmd not yet ack'd to scsi lyer */
