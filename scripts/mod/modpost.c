@@ -558,7 +558,10 @@ static Elf_Sym *find_elf_symbol(struct elf_info *elf, Elf_Addr addr,
 }
 
 /*
- * Find symbols before or equal addr and after addr - in the section sec
+ * Find symbols before or equal addr and after addr - in the section sec.
+ * If we find two symbols with equal offset prefer one with a valid name.
+ * The ELF format may have a better way to detect what type of symbol
+ * it is, but this works for now.
  **/
 static void find_symbols_between(struct elf_info *elf, Elf_Addr addr,
 				 const char *sec,
@@ -587,12 +590,24 @@ static void find_symbols_between(struct elf_info *elf, Elf_Addr addr,
 				beforediff = addr - sym->st_value;
 				*before = sym;
 			}
+			else if ((addr - sym->st_value) == beforediff) {
+				/* equal offset, valid name? */
+				const char *name = elf->strtab + sym->st_name;
+				if (name && strlen(name))
+					*before = sym;
+			}
 		}
 		else
 		{
 			if ((sym->st_value - addr) < afterdiff) {
 				afterdiff = sym->st_value - addr;
 				*after = sym;
+			}
+			else if ((sym->st_value - addr) == afterdiff) {
+				/* equal offset, valid name? */
+				const char *name = elf->strtab + sym->st_name;
+				if (name && strlen(name))
+					*after = sym;
 			}
 		}
 	}
