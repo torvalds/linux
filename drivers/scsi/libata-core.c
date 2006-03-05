@@ -1063,6 +1063,7 @@ static inline u8 ata_dev_knobble(const struct ata_port *ap,
  *	ata_dev_configure - Configure the specified ATA/ATAPI device
  *	@ap: Port on which target device resides
  *	@dev: Target device to configure
+ *	@print_info: Enable device info printout
  *
  *	Configure @dev according to @dev->id.  Generic and low-level
  *	driver specific fixups are also applied.
@@ -1073,7 +1074,8 @@ static inline u8 ata_dev_knobble(const struct ata_port *ap,
  *	RETURNS:
  *	0 on success, -errno otherwise
  */
-static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev)
+static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
+			     int print_info)
 {
 	unsigned long xfer_modes;
 	int i, rc;
@@ -1120,18 +1122,24 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev)
 		dev->n_sectors = ata_id_n_sectors(dev->id);
 
 		if (ata_id_has_lba(dev->id)) {
-			dev->flags |= ATA_DFLAG_LBA;
+			const char *lba_desc;
 
-			if (ata_id_has_lba48(dev->id))
+			lba_desc = "LBA";
+			dev->flags |= ATA_DFLAG_LBA;
+			if (ata_id_has_lba48(dev->id)) {
 				dev->flags |= ATA_DFLAG_LBA48;
+				lba_desc = "LBA48";
+			}
 
 			/* print device info to dmesg */
-			printk(KERN_INFO "ata%u: dev %u ATA-%d, max %s, %Lu sectors:%s\n",
-			       ap->id, dev->devno,
-			       ata_id_major_version(dev->id),
-			       ata_mode_string(xfer_modes),
-			       (unsigned long long)dev->n_sectors,
-			       dev->flags & ATA_DFLAG_LBA48 ? " LBA48" : " LBA");
+			if (print_info)
+				printk(KERN_INFO "ata%u: dev %u ATA-%d, "
+				       "max %s, %Lu sectors: %s\n",
+				       ap->id, dev->devno,
+				       ata_id_major_version(dev->id),
+				       ata_mode_string(xfer_modes),
+				       (unsigned long long)dev->n_sectors,
+				       lba_desc);
 		} else {
 			/* CHS */
 
@@ -1148,13 +1156,14 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev)
 			}
 
 			/* print device info to dmesg */
-			printk(KERN_INFO "ata%u: dev %u ATA-%d, max %s, %Lu sectors: CHS %d/%d/%d\n",
-			       ap->id, dev->devno,
-			       ata_id_major_version(dev->id),
-			       ata_mode_string(xfer_modes),
-			       (unsigned long long)dev->n_sectors,
-			       (int)dev->cylinders, (int)dev->heads, (int)dev->sectors);
-
+			if (print_info)
+				printk(KERN_INFO "ata%u: dev %u ATA-%d, "
+				       "max %s, %Lu sectors: CHS %u/%u/%u\n",
+				       ap->id, dev->devno,
+				       ata_id_major_version(dev->id),
+				       ata_mode_string(xfer_modes),
+				       (unsigned long long)dev->n_sectors,
+				       dev->cylinders, dev->heads, dev->sectors);
 		}
 
 		dev->cdb_len = 16;
@@ -1171,9 +1180,9 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev)
 		dev->cdb_len = (unsigned int) rc;
 
 		/* print device info to dmesg */
-		printk(KERN_INFO "ata%u: dev %u ATAPI, max %s\n",
-		       ap->id, dev->devno,
-		       ata_mode_string(xfer_modes));
+		if (print_info)
+			printk(KERN_INFO "ata%u: dev %u ATAPI, max %s\n",
+			       ap->id, dev->devno, ata_mode_string(xfer_modes));
 	}
 
 	ap->host->max_cmd_len = 0;
@@ -1184,8 +1193,9 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev)
 
 	/* limit bridge transfers to udma5, 200 sectors */
 	if (ata_dev_knobble(ap, dev)) {
-		printk(KERN_INFO "ata%u(%u): applying bridge limits\n",
-		       ap->id, dev->devno);
+		if (print_info)
+			printk(KERN_INFO "ata%u(%u): applying bridge limits\n",
+			       ap->id, dev->devno);
 		ap->udma_mask &= ATA_UDMA5;
 		dev->max_sectors = ATA_MAX_SECTORS;
 	}
@@ -1263,7 +1273,7 @@ static int ata_bus_probe(struct ata_port *ap)
 			continue;
 		}
 
-		if (ata_dev_configure(ap, dev)) {
+		if (ata_dev_configure(ap, dev, 1)) {
 			dev->class++;	/* disable device */
 			continue;
 		}
