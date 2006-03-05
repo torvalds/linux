@@ -390,9 +390,6 @@ struct ata_port {
 
 	struct work_struct	port_task;
 
-	struct work_struct	packet_task;
-
-	struct work_struct	pio_task;
 	unsigned int		hsm_task_state;
 	unsigned long		pio_task_timeout;
 
