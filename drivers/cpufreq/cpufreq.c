@@ -6,6 +6,8 @@
  *
  *  Oct 2005 - Ashok Raj <ashok.raj@intel.com>
  *	Added handling for CPU hotplug
+ *  Feb 2006 - Jacob Shin <jacob.shin@amd.com>
+ *	Fix handling for CPU hotplug -- affected CPUs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -573,8 +575,12 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	struct cpufreq_policy new_policy;
 	struct cpufreq_policy *policy;
 	struct freq_attr **drv_attr;
+	struct sys_device *cpu_sys_dev;
 	unsigned long flags;
 	unsigned int j;
+#ifdef CONFIG_SMP
+	struct cpufreq_policy *managed_policy;
+#endif
 
 	if (cpu_is_offline(cpu))
 		return 0;
@@ -587,8 +593,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	 * CPU because it is in the same boat. */
 	policy = cpufreq_cpu_get(cpu);
 	if (unlikely(policy)) {
-		dprintk("CPU already managed, adding link\n");
-		sysfs_create_link(&sys_dev->kobj, &policy->kobj, "cpufreq");
+		cpufreq_cpu_put(policy);
 		cpufreq_debug_enable_ratelimit();
 		return 0;
 	}
@@ -623,6 +628,32 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 		goto err_out;
 	}
 
+#ifdef CONFIG_SMP
+	for_each_cpu_mask(j, policy->cpus) {
+		if (cpu == j)
+			continue;
+
+		/* check for existing affected CPUs.  They may not be aware
+		 * of it due to CPU Hotplug.
+		 */
+		managed_policy = cpufreq_cpu_get(j);
+		if (unlikely(managed_policy)) {
+			spin_lock_irqsave(&cpufreq_driver_lock, flags);
+			managed_policy->cpus = policy->cpus;
+			cpufreq_cpu_data[cpu] = managed_policy;
+			spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
+
+			dprintk("CPU already managed, adding link\n");
+			sysfs_create_link(&sys_dev->kobj,
+					  &managed_policy->kobj, "cpufreq");
+
+			cpufreq_debug_enable_ratelimit();
+			mutex_unlock(&policy->lock);
+			ret = 0;
+			goto err_out_driver_exit; /* call driver->exit() */
+		}
+	}
+#endif
 	memcpy(&new_policy, policy, sizeof(struct cpufreq_policy));
 
 	/* prepare interface data */
@@ -650,6 +681,21 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	for_each_cpu_mask(j, policy->cpus)
 		cpufreq_cpu_data[j] = policy;
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
+
+	/* symlink affected CPUs */
+	for_each_cpu_mask(j, policy->cpus) {
+		if (j == cpu)
+			continue;
+		if (!cpu_online(j))
+			continue;
+
+		dprintk("CPU already managed, adding link\n");
+		cpufreq_cpu_get(cpu);
+		cpu_sys_dev = get_cpu_sysdev(j);
+		sysfs_create_link(&cpu_sys_dev->kobj, &policy->kobj,
+				  "cpufreq");
+	}
+
 	policy->governor = NULL; /* to assure that the starting sequence is
 				  * run in cpufreq_set_policy */
 	mutex_unlock(&policy->lock);
@@ -728,6 +774,7 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 	 */
 	if (unlikely(cpu != data->cpu)) {
 		dprintk("removing link\n");
+		cpu_clear(cpu, data->cpus);
 		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 		sysfs_remove_link(&sys_dev->kobj, "cpufreq");
 		cpufreq_cpu_put(data);
