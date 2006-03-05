@@ -776,7 +776,7 @@ static int init_section_ref_ok(const char *name)
 		if (strncmp(*s, name, strlen(*s)) == 0)
 			return 1;
 	for (s = namelist3; *s; s++)
-		if (strstr(*s, name) != NULL)
+		if (strstr(name, *s) != NULL)
 			return 1;
 	return 0;
 }
@@ -842,7 +842,7 @@ static int exit_section_ref_ok(const char *name)
 		if (strncmp(*s, name, strlen(*s)) == 0)
 			return 1;
 	for (s = namelist3; *s; s++)
-		if (strstr(*s, name) != NULL)
+		if (strstr(name, *s) != NULL)
 			return 1;
 	return 0;
 }
