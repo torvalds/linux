@@ -1289,17 +1289,17 @@ kernelversion:
 # ---------------------------------------------------------------------------
 # The directory part is taken from first prerequisite, so this
 # works even with external modules
-%.s: %.c scripts FORCE
+%.s: %.c prepare scripts FORCE
 	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
-%.i: %.c scripts FORCE
+%.i: %.c prepare scripts FORCE
 	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
-%.o: %.c scripts FORCE
+%.o: %.c prepare scripts FORCE
 	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
-%.lst: %.c scripts FORCE
+%.lst: %.c prepare scripts FORCE
 	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
-%.s: %.S scripts FORCE
+%.s: %.S prepare scripts FORCE
 	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
-%.o: %.S scripts FORCE
+%.o: %.S prepare scripts FORCE
 	$(Q)$(MAKE) $(build)=$(dir $<) $(dir $<)$(notdir $@)
 
 # For external modules we shall include any directory of the target,
