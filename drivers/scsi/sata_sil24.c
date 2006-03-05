@@ -892,6 +892,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->sht		= pinfo->sht;
 	probe_ent->host_flags	= pinfo->host_flags;
 	probe_ent->pio_mask	= pinfo->pio_mask;
+	probe_ent->mwdma_mask	= pinfo->mwdma_mask;
 	probe_ent->udma_mask	= pinfo->udma_mask;
 	probe_ent->port_ops	= pinfo->port_ops;
 	probe_ent->n_ports	= SIL24_FLAG2NPORTS(pinfo->host_flags);
