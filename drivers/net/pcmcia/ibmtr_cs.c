@@ -113,7 +113,7 @@ static void ibmtr_detach(struct pcmcia_device *p_dev);
 /*====================================================================*/
 
 typedef struct ibmtr_dev_t {
-    dev_link_t		link;
+	struct pcmcia_device	*p_dev;
     struct net_device	*dev;
     dev_node_t          node;
     window_handle_t     sram_win_handle;
@@ -141,8 +141,8 @@ static struct ethtool_ops netdev_ethtool_ops = {
 static int ibmtr_attach(struct pcmcia_device *p_dev)
 {
     ibmtr_dev_t *info;
-    dev_link_t *link;
     struct net_device *dev;
+    dev_link_t *link = dev_to_instance(p_dev);
     
     DEBUG(0, "ibmtr_attach()\n");
 
@@ -156,7 +156,7 @@ static int ibmtr_attach(struct pcmcia_device *p_dev)
 	return -ENOMEM;
     }
 
-    link = &info->link;
+    info->p_dev = p_dev;
     link->priv = info;
     info->ti = netdev_priv(dev);
 
@@ -171,11 +171,8 @@ static int ibmtr_attach(struct pcmcia_device *p_dev)
     link->conf.Present = PRESENT_OPTION;
 
     link->irq.Instance = info->dev = dev;
-    
-    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    link->handle = p_dev;
-    p_dev->instance = link;
+    SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     link->state |= DEV_PRESENT;
     ibmtr_config(link);
@@ -200,7 +197,7 @@ static void ibmtr_detach(struct pcmcia_device *p_dev)
 
     DEBUG(0, "ibmtr_detach(0x%p)\n", link);
 
-    if (link->dev)
+    if (link->dev_node)
 	unregister_netdev(dev);
 
     {
@@ -308,14 +305,14 @@ static void ibmtr_config(dev_link_t *link)
         Adapters Technical Reference"  SC30-3585 for this info.  */
     ibmtr_hw_setup(dev, mmiobase);
 
-    link->dev = &info->node;
+    link->dev_node = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
     i = ibmtr_probe_card(dev);
     if (i != 0) {
 	printk(KERN_NOTICE "ibmtr_cs: register_netdev() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto failed;
     }
 

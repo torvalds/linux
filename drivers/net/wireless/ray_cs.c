@@ -190,12 +190,6 @@ static int bc;
 static char *phy_addr = NULL;
 
 
-/* A linked list of "instances" of the ray device.  Each actual
-   PCMCIA card corresponds to one device instance, and is described
-   by one dev_link_t structure (defined in ds.h).
-*/
-static dev_link_t *dev_list = NULL;
-
 /* A dev_link_t structure has fields for most things that are needed
    to keep track of a socket, but there will usually be some device
    specific information that also needs to be kept track of.  The
@@ -203,6 +197,9 @@ static dev_link_t *dev_list = NULL;
    a device-specific private data structure, like this.
 */
 static unsigned int ray_mem_speed = 500;
+
+/* WARNING: THIS DRIVER IS NOT CAPABLE OF HANDLING MULTIPLE DEVICES! */
+static struct pcmcia_device *this_device = NULL;
 
 MODULE_AUTHOR("Corey Thomas <corey@world.std.com>");
 MODULE_DESCRIPTION("Raylink/WebGear wireless LAN driver");
@@ -308,53 +305,44 @@ static char rcsid[] = "Raylink/WebGear wireless LAN - Corey <Thomas corey@world.
 =============================================================================*/
 static int ray_attach(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link;
     ray_dev_t *local;
     struct net_device *dev;
-    
+
     DEBUG(1, "ray_attach()\n");
-
-    /* Initialize the dev_link_t structure */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-
-    if (!link)
-	    return -ENOMEM;
 
     /* Allocate space for private device-specific data */
     dev = alloc_etherdev(sizeof(ray_dev_t));
-
     if (!dev)
 	    goto fail_alloc_dev;
 
     local = dev->priv;
-
-    memset(link, 0, sizeof(struct dev_link_t));
+    local->finder = p_dev;
 
     /* The io structure describes IO port mapping. None used here */
-    link->io.NumPorts1 = 0;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.IOAddrLines = 5;
+    p_dev->io.NumPorts1 = 0;
+    p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+    p_dev->io.IOAddrLines = 5;
 
     /* Interrupt setup. For PCMCIA, driver takes what's given */
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->irq.Handler = &ray_interrupt;
+    p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+    p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
+    p_dev->irq.Handler = &ray_interrupt;
 
     /* General socket configuration */
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.ConfigIndex = 1;
-    link->conf.Present = PRESENT_OPTION;
+    p_dev->conf.Attributes = CONF_ENABLE_IRQ;
+    p_dev->conf.IntType = INT_MEMORY_AND_IO;
+    p_dev->conf.ConfigIndex = 1;
+    p_dev->conf.Present = PRESENT_OPTION;
 
-    link->priv = dev;
-    link->irq.Instance = dev;
+    p_dev->priv = dev;
+    p_dev->irq.Instance = dev;
     
-    local->finder = link;
+    local->finder = p_dev;
     local->card_status = CARD_INSERTED;
     local->authentication_state = UNAUTHENTICATED;
     local->num_multi = 0;
-    DEBUG(2,"ray_attach link = %p,  dev = %p,  local = %p, intr = %p\n",
-          link,dev,local,&ray_interrupt);
+    DEBUG(2,"ray_attach p_dev = %p,  dev = %p,  local = %p, intr = %p\n",
+          p_dev,dev,local,&ray_interrupt);
 
     /* Raylink entries in the device structure */
     dev->hard_start_xmit = &ray_dev_start_xmit;
@@ -378,16 +366,13 @@ static int ray_attach(struct pcmcia_device *p_dev)
 
     init_timer(&local->timer);
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    ray_config(link);
+    p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    this_device = p_dev;
+    ray_config(p_dev);
 
     return 0;
 
 fail_alloc_dev:
-    kfree(link);
     return -ENOMEM;
 } /* ray_attach */
 /*=============================================================================
@@ -399,18 +384,12 @@ fail_alloc_dev:
 static void ray_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
-    dev_link_t **linkp;
     struct net_device *dev;
     ray_dev_t *local;
 
     DEBUG(1, "ray_detach(0x%p)\n", link);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-        if (*linkp == link) break;
-    if (*linkp == NULL)
-        return;
 
+    this_device = NULL;
     dev = link->priv;
 
     if (link->state & DEV_CONFIG) {
@@ -420,13 +399,10 @@ static void ray_detach(struct pcmcia_device *p_dev)
             del_timer(&local->timer);
     }
 
-    /* Unlink device structure, free pieces */
-    *linkp = link->next;
     if (link->priv) {
-	if (link->dev) unregister_netdev(dev);
+	if (link->dev_node) unregister_netdev(dev);
         free_netdev(dev);
     }
-    kfree(link);
     DEBUG(2,"ray_cs ray_detach ending\n");
 } /* ray_detach */
 /*=============================================================================
@@ -537,7 +513,7 @@ static void ray_config(dev_link_t *link)
     }
 
     strcpy(local->node.dev_name, dev->name);
-    link->dev = &local->node;
+    link->dev_node = &local->node;
 
     link->state &= ~DEV_CONFIG_PENDING;
     printk(KERN_INFO "%s: RayLink, irq %d, hw_addr ",
@@ -1640,18 +1616,14 @@ static const struct iw_handler_def	ray_handler_def =
 /*===========================================================================*/
 static int ray_open(struct net_device *dev)
 {
-    dev_link_t *link;
     ray_dev_t *local = (ray_dev_t *)dev->priv;
+    dev_link_t *link;
+    link = local->finder;
     
     DEBUG(1, "ray_open('%s')\n", dev->name);
 
-    for (link = dev_list; link; link = link->next)
-        if (link->priv == dev) break;
-    if (!DEV_OK(link)) {
-        return -ENODEV;
-    }
-
-    if (link->open == 0) local->num_multi = 0;
+    if (link->open == 0)
+	    local->num_multi = 0;
     link->open++;
 
     /* If the card is not started, time to start it ! - Jean II */
@@ -1678,14 +1650,11 @@ static int ray_open(struct net_device *dev)
 /*===========================================================================*/
 static int ray_dev_close(struct net_device *dev)
 {
+    ray_dev_t *local = (ray_dev_t *)dev->priv;
     dev_link_t *link;
+    link = local->finder;
 
     DEBUG(1, "ray_dev_close('%s')\n", dev->name);
-
-    for (link = dev_list; link; link = link->next)
-        if (link->priv == dev) break;
-    if (link == NULL)
-        return -ENODEV;
 
     link->open--;
     netif_stop_queue(dev);
@@ -2679,7 +2648,7 @@ static int ray_cs_proc_read(char *buf, char **start, off_t offset, int len)
     struct freq_hop_element *pfh;
     UCHAR c[33];
 
-    link = dev_list;
+    link = this_device;
     if (!link)
     	return 0;
     dev = (struct net_device *)link->priv;
@@ -2923,7 +2892,6 @@ static void __exit exit_ray_cs(void)
 #endif
 
     pcmcia_unregister_driver(&ray_driver);
-    BUG_ON(dev_list != NULL);
 } /* exit_ray_cs */
 
 module_init(init_ray_cs);

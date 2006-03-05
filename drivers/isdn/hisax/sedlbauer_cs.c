@@ -130,7 +130,7 @@ static void sedlbauer_detach(struct pcmcia_device *p_dev);
 */
    
 typedef struct local_info_t {
-    dev_link_t		link;
+	struct pcmcia_device	*p_dev;
     dev_node_t		node;
     int			stop;
     int			cardnr;
@@ -151,7 +151,7 @@ typedef struct local_info_t {
 static int sedlbauer_attach(struct pcmcia_device *p_dev)
 {
     local_info_t *local;
-    dev_link_t *link;
+    dev_link_t *link = dev_to_instance(p_dev);
     
     DEBUG(0, "sedlbauer_attach()\n");
 
@@ -160,8 +160,10 @@ static int sedlbauer_attach(struct pcmcia_device *p_dev)
     if (!local) return -ENOMEM;
     memset(local, 0, sizeof(local_info_t));
     local->cardnr = -1;
-    link = &local->link; link->priv = local;
-    
+
+    local->p_dev = p_dev;
+    link->priv = local;
+
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
@@ -182,12 +184,8 @@ static int sedlbauer_attach(struct pcmcia_device *p_dev)
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.IOAddrLines = 3;
 
-
     link->conf.Attributes = 0;
     link->conf.IntType = INT_MEMORY_AND_IO;
-
-    link->handle = p_dev;
-    p_dev->instance = link;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     sedlbauer_config(link);
@@ -397,7 +395,7 @@ static void sedlbauer_config(dev_link_t *link)
     */
     sprintf(dev->node.dev_name, "sedlbauer");
     dev->node.major = dev->node.minor = 0;
-    link->dev = &dev->node;
+    link->dev_node = &dev->node;
 
     /* Finally, report what we've done */
     printk(KERN_INFO "%s: index 0x%02x:",

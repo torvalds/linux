@@ -116,7 +116,7 @@ typedef enum { MBH10302, MBH10304, TDK, CONTEC, LA501, UNGERMANN,
     driver specific data structure
 */
 typedef struct local_info_t {
-    dev_link_t link;
+	struct pcmcia_device	*p_dev;
     dev_node_t node;
     struct net_device_stats stats;
     long open_time;
@@ -231,8 +231,8 @@ typedef struct local_info_t {
 static int fmvj18x_attach(struct pcmcia_device *p_dev)
 {
     local_info_t *lp;
-    dev_link_t *link;
     struct net_device *dev;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "fmvj18x_attach()\n");
 
@@ -241,8 +241,8 @@ static int fmvj18x_attach(struct pcmcia_device *p_dev)
     if (!dev)
 	return -ENOMEM;
     lp = netdev_priv(dev);
-    link = &lp->link;
     link->priv = dev;
+    lp->p_dev = p_dev;
 
     /* The io structure describes IO port mapping */
     link->io.NumPorts1 = 32;
@@ -273,9 +273,6 @@ static int fmvj18x_attach(struct pcmcia_device *p_dev)
 #endif
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     fmvj18x_config(link);
 
@@ -291,7 +288,7 @@ static void fmvj18x_detach(struct pcmcia_device *p_dev)
 
     DEBUG(0, "fmvj18x_detach(0x%p)\n", link);
 
-    if (link->dev)
+    if (link->dev_node)
 	unregister_netdev(dev);
 
     if (link->state & DEV_CONFIG)
@@ -539,13 +536,13 @@ static void fmvj18x_config(dev_link_t *link)
     }
 
     lp->cardtype = cardtype;
-    link->dev = &lp->node;
+    link->dev_node = &lp->node;
     link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "fmvj18x_cs: register_netdev() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto failed;
     }
 
@@ -1125,7 +1122,7 @@ static int fjn_config(struct net_device *dev, struct ifmap *map){
 static int fjn_open(struct net_device *dev)
 {
     struct local_info_t *lp = netdev_priv(dev);
-    dev_link_t *link = &lp->link;
+    dev_link_t *link = lp->p_dev;
 
     DEBUG(4, "fjn_open('%s').\n", dev->name);
 
@@ -1150,7 +1147,7 @@ static int fjn_open(struct net_device *dev)
 static int fjn_close(struct net_device *dev)
 {
     struct local_info_t *lp = netdev_priv(dev);
-    dev_link_t *link = &lp->link;
+    dev_link_t *link = lp->p_dev;
     kio_addr_t ioaddr = dev->base_addr;
 
     DEBUG(4, "fjn_close('%s').\n", dev->name);

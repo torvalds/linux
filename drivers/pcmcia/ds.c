@@ -391,6 +391,7 @@ static int pcmcia_device_probe(struct device * dev)
 	}
 
 	p_dev->p_state &= ~CLIENT_UNBOUND;
+	p_dev->handle = p_dev;
 
 	ret = p_drv->probe(p_dev);
 	if (ret)
@@ -1039,12 +1040,10 @@ static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
 		ret = p_drv->suspend(p_dev);
 		if (ret)
 			return ret;
-		if (p_dev->instance) {
-			p_dev->instance->state |= DEV_SUSPEND;
-			if ((p_dev->instance->state & DEV_CONFIG) &&
-			    !(p_dev->instance->state & DEV_SUSPEND_NORELEASE))
+		p_dev->state |= DEV_SUSPEND;
+			if ((p_dev->state & DEV_CONFIG) &&
+			    !(p_dev->state & DEV_SUSPEND_NORELEASE))
 				pcmcia_release_configuration(p_dev);
-		}
 	}
 
 	return 0;
@@ -1061,16 +1060,14 @@ static int pcmcia_dev_resume(struct device * dev)
 		p_drv = to_pcmcia_drv(dev->driver);
 
 	if (p_drv && p_drv->resume) {
-		if (p_dev->instance) {
-			p_dev->instance->state &= ~DEV_SUSPEND;
-			if ((p_dev->instance->state & DEV_CONFIG) &&
-			    !(p_dev->instance->state & DEV_SUSPEND_NORELEASE)){
+		p_dev->state &= ~DEV_SUSPEND;
+			if ((p_dev->state & DEV_CONFIG) &&
+			    !(p_dev->state & DEV_SUSPEND_NORELEASE)){
 				ret = pcmcia_request_configuration(p_dev,
-						 &p_dev->instance->conf);
+						 &p_dev->conf);
 				if (ret)
 					return ret;
 			}
-		}
 		return p_drv->resume(p_dev);
 	}
 

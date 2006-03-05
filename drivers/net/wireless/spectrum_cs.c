@@ -63,7 +63,7 @@ MODULE_PARM_DESC(ignore_cis_vcc, "Allow voltage mismatch between card and socket
 /* PCMCIA specific device information (goes in the card field of
  * struct orinoco_private */
 struct orinoco_pccard {
-	dev_link_t link;
+	struct pcmcia_device	*p_dev;
 	dev_node_t node;
 };
 
@@ -554,12 +554,12 @@ static int
 spectrum_cs_hard_reset(struct orinoco_private *priv)
 {
 	struct orinoco_pccard *card = priv->card;
-	dev_link_t *link = &card->link;
+	dev_link_t *link = card->p_dev;
 	int err;
 
 	if (!hermes_present(&priv->hw)) {
 		/* The firmware needs to be reloaded */
-		if (spectrum_dl_firmware(&priv->hw, &card->link) != 0) {
+		if (spectrum_dl_firmware(&priv->hw, link) != 0) {
 			printk(KERN_ERR PFX "Firmware download failed\n");
 			err = -ENODEV;
 		}
@@ -589,7 +589,7 @@ spectrum_cs_attach(struct pcmcia_device *p_dev)
 	struct net_device *dev;
 	struct orinoco_private *priv;
 	struct orinoco_pccard *card;
-	dev_link_t *link;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	dev = alloc_orinocodev(sizeof(*card), spectrum_cs_hard_reset);
 	if (! dev)
@@ -598,7 +598,7 @@ spectrum_cs_attach(struct pcmcia_device *p_dev)
 	card = priv->card;
 
 	/* Link both structures together */
-	link = &card->link;
+	card->p_dev = p_dev;
 	link->priv = dev;
 
 	/* Interrupt setup */
@@ -614,9 +614,6 @@ spectrum_cs_attach(struct pcmcia_device *p_dev)
 	 * the nature of the device, and can be hard-wired here. */
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;
-
-	link->handle = p_dev;
-	p_dev->instance = link;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	spectrum_cs_config(link);
@@ -638,8 +635,8 @@ static void spectrum_cs_detach(struct pcmcia_device *p_dev)
 	if (link->state & DEV_CONFIG)
 		spectrum_cs_release(link);
 
-	DEBUG(0, PFX "detach: link=%p link->dev=%p\n", link, link->dev);
-	if (link->dev) {
+	DEBUG(0, PFX "detach: link=%p link->dev_node=%p\n", link, link->dev_node);
+	if (link->dev_node) {
 		DEBUG(0, PFX "About to unregister net device %p\n",
 		      dev);
 		unregister_netdev(dev);
@@ -842,9 +839,9 @@ spectrum_cs_config(dev_link_t *link)
 	}
 
 	/* At this point, the dev_node_t structure(s) needs to be
-	 * initialized and arranged in a linked list at link->dev. */
+	 * initialized and arranged in a linked list at link->dev_node. */
 	strcpy(card->node.dev_name, dev->name);
-	link->dev = &card->node; /* link->dev being non-NULL is also
+	link->dev_node = &card->node; /* link->dev_node being non-NULL is also
                                     used to indicate that the
                                     net_device has been registered */
 	link->state &= ~DEV_CONFIG_PENDING;

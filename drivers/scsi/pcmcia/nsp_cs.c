@@ -1596,8 +1596,8 @@ static int nsp_eh_host_reset(Scsi_Cmnd *SCpnt)
 static int nsp_cs_attach(struct pcmcia_device *p_dev)
 {
 	scsi_info_t  *info;
-	dev_link_t   *link;
 	nsp_hw_data  *data = &nsp_data_base;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
@@ -1605,7 +1605,7 @@ static int nsp_cs_attach(struct pcmcia_device *p_dev)
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) { return -ENOMEM; }
 	memset(info, 0, sizeof(*info));
-	link = &info->link;
+	info->p_dev = p_dev;
 	link->priv = info;
 	data->ScsiInfo = info;
 
@@ -1629,9 +1629,6 @@ static int nsp_cs_attach(struct pcmcia_device *p_dev)
 	link->conf.Attributes	 = CONF_ENABLE_IRQ;
 	link->conf.IntType	 = INT_MEMORY_AND_IO;
 	link->conf.Present	 = PRESENT_OPTION;
-
-	link->handle = p_dev;
-	p_dev->instance = link;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	nsp_cs_config(link);
@@ -1853,12 +1850,12 @@ static void nsp_cs_config(dev_link_t *link)
 	scsi_scan_host(host);
 
 	snprintf(info->node.dev_name, sizeof(info->node.dev_name), "scsi%d", host->host_no);
-	link->dev  = &info->node;
+	link->dev_node  = &info->node;
 	info->host = host;
 
 #else
 	nsp_dbg(NSP_DEBUG_INIT, "GET_SCSI_INFO");
-	tail = &link->dev;
+	tail = &link->dev_node;
 	info->ndev = 0;
 
 	nsp_dbg(NSP_DEBUG_INIT, "host=0x%p", host);
@@ -1962,7 +1959,7 @@ static void nsp_cs_release(dev_link_t *link)
 #else
 	scsi_unregister_host(&nsp_driver_template);
 #endif
-	link->dev = NULL;
+	link->dev_node = NULL;
 
 	if (link->win) {
 		if (data != NULL) {

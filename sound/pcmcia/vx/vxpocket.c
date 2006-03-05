@@ -126,7 +126,8 @@ static struct snd_vx_hardware vxp440_hw = {
 /*
  * create vxpocket instance
  */
-static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl)
+static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl,
+					     struct pcmcia_device *p_dev)
 {
 	dev_link_t *link;		/* Info for cardmgr */
 	struct vx_core *chip;
@@ -134,6 +135,8 @@ static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl)
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_vxpocket_dev_free,
 	};
+
+	link = dev_to_instance(p_dev);
 
 	chip = snd_vx_create(card, &vxpocket_hw, &snd_vxpocket_ops,
 			     sizeof(struct snd_vxpocket) - sizeof(struct vx_core));
@@ -148,7 +151,7 @@ static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl)
 
 	vxp = (struct snd_vxpocket *)chip;
 
-	link = &vxp->link;
+	vxp->p_dev = p_dev;
 	link->priv = chip;
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -263,7 +266,7 @@ static void vxpocket_config(dev_link_t *link)
 	if (snd_vxpocket_assign_resources(chip, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
 		goto failed;
 
-	link->dev = &vxp->node;
+	link->dev_node = &vxp->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 	kfree(parse);
 	return;
@@ -339,7 +342,7 @@ static int vxpocket_attach(struct pcmcia_device *p_dev)
 		return -ENOMEM;
 	}
 
-	vxp = snd_vxpocket_new(card, ibl[i]);
+	vxp = snd_vxpocket_new(card, ibl[i], p_dev);
 	if (! vxp) {
 		snd_card_free(card);
 		return -ENODEV;
@@ -349,13 +352,10 @@ static int vxpocket_attach(struct pcmcia_device *p_dev)
 	vxp->index = i;
 	card_alloc |= 1 << i;
 
-	/* Chain drivers */
-	vxp->link.next = NULL;
+	vxp->p_dev = p_dev;
+	vxp->p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 
-	vxp->link.handle = p_dev;
-	vxp->link.state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	p_dev->instance = &vxp->link;
-	vxpocket_config(&vxp->link);
+	vxpocket_config(p_dev);
 
 	return 0;
 }

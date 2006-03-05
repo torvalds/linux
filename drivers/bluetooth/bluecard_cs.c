@@ -65,7 +65,7 @@ MODULE_LICENSE("GPL");
 
 
 typedef struct bluecard_info_t {
-	dev_link_t link;
+	struct pcmcia_device *p_dev;
 	dev_node_t node;
 
 	struct hci_dev *hdev;
@@ -162,7 +162,7 @@ static void bluecard_detach(struct pcmcia_device *p_dev);
 static void bluecard_activity_led_timeout(u_long arg)
 {
 	bluecard_info_t *info = (bluecard_info_t *)arg;
-	unsigned int iobase = info->link.io.BasePort1;
+	unsigned int iobase = info->p_dev->io.BasePort1;
 
 	if (!test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		return;
@@ -179,7 +179,7 @@ static void bluecard_activity_led_timeout(u_long arg)
 
 static void bluecard_enable_activity_led(bluecard_info_t *info)
 {
-	unsigned int iobase = info->link.io.BasePort1;
+	unsigned int iobase = info->p_dev->io.BasePort1;
 
 	if (!test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		return;
@@ -235,7 +235,7 @@ static void bluecard_write_wakeup(bluecard_info_t *info)
 	}
 
 	do {
-		register unsigned int iobase = info->link.io.BasePort1;
+		register unsigned int iobase = info->p_dev->io.BasePort1;
 		register unsigned int offset;
 		register unsigned char command;
 		register unsigned long ready_bit;
@@ -244,7 +244,7 @@ static void bluecard_write_wakeup(bluecard_info_t *info)
 
 		clear_bit(XMIT_WAKEUP, &(info->tx_state));
 
-		if (!(info->link.state & DEV_PRESENT))
+		if (!(info->p_dev->state & DEV_PRESENT))
 			return;
 
 		if (test_bit(XMIT_BUFFER_NUMBER, &(info->tx_state))) {
@@ -382,7 +382,7 @@ static void bluecard_receive(bluecard_info_t *info, unsigned int offset)
 		return;
 	}
 
-	iobase = info->link.io.BasePort1;
+	iobase = info->p_dev->io.BasePort1;
 
 	if (test_bit(XMIT_SENDING_READY, &(info->tx_state)))
 		bluecard_enable_activity_led(info);
@@ -512,7 +512,7 @@ static irqreturn_t bluecard_interrupt(int irq, void *dev_inst, struct pt_regs *r
 	if (!test_bit(CARD_READY, &(info->hw_state)))
 		return IRQ_HANDLED;
 
-	iobase = info->link.io.BasePort1;
+	iobase = info->p_dev->io.BasePort1;
 
 	spin_lock(&(info->lock));
 
@@ -626,7 +626,7 @@ static int bluecard_hci_flush(struct hci_dev *hdev)
 static int bluecard_hci_open(struct hci_dev *hdev)
 {
 	bluecard_info_t *info = (bluecard_info_t *)(hdev->driver_data);
-	unsigned int iobase = info->link.io.BasePort1;
+	unsigned int iobase = info->p_dev->io.BasePort1;
 
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		bluecard_hci_set_baud_rate(hdev, DEFAULT_BAUD_RATE);
@@ -646,7 +646,7 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 static int bluecard_hci_close(struct hci_dev *hdev)
 {
 	bluecard_info_t *info = (bluecard_info_t *)(hdev->driver_data);
-	unsigned int iobase = info->link.io.BasePort1;
+	unsigned int iobase = info->p_dev->io.BasePort1;
 
 	if (!test_and_clear_bit(HCI_RUNNING, &(hdev->flags)))
 		return 0;
@@ -713,7 +713,7 @@ static int bluecard_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned l
 
 static int bluecard_open(bluecard_info_t *info)
 {
-	unsigned int iobase = info->link.io.BasePort1;
+	unsigned int iobase = info->p_dev->io.BasePort1;
 	struct hci_dev *hdev;
 	unsigned char id;
 
@@ -831,7 +831,7 @@ static int bluecard_open(bluecard_info_t *info)
 
 static int bluecard_close(bluecard_info_t *info)
 {
-	unsigned int iobase = info->link.io.BasePort1;
+	unsigned int iobase = info->p_dev->io.BasePort1;
 	struct hci_dev *hdev = info->hdev;
 
 	if (!hdev)
@@ -859,14 +859,14 @@ static int bluecard_close(bluecard_info_t *info)
 static int bluecard_attach(struct pcmcia_device *p_dev)
 {
 	bluecard_info_t *info;
-	dev_link_t *link;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	/* Create new info device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	link = &info->link;
+	info->p_dev = p_dev;
 	link->priv = info;
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
@@ -879,9 +879,6 @@ static int bluecard_attach(struct pcmcia_device *p_dev)
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
-
-	link->handle = p_dev;
-	p_dev->instance = link;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	bluecard_config(link);
@@ -976,7 +973,7 @@ static void bluecard_config(dev_link_t *link)
 		goto failed;
 
 	strcpy(info->node.dev_name, info->hdev->name);
-	link->dev = &info->node;
+	link->dev_node = &info->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 
 	return;

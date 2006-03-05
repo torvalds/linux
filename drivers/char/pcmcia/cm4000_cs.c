@@ -46,7 +46,7 @@
 /* #define ATR_CSUM */
 
 #ifdef PCMCIA_DEBUG
-#define reader_to_dev(x)	(&handle_to_dev(x->link.handle))
+#define reader_to_dev(x)	(&handle_to_dev(x->p_dev->handle))
 static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0600);
 #define DEBUGP(n, rdr, x, args...) do { 				\
@@ -106,7 +106,7 @@ static int major;		/* major number we get from the kernel */
 #define REG_STOPBITS(x)		(x + 7)
 
 struct cm4000_dev {
-	dev_link_t link;		/* pcmcia link */
+	struct pcmcia_device *p_dev;
 	dev_node_t node;		/* OS node (major,minor) */
 
 	unsigned char atr[MAX_ATR];
@@ -454,7 +454,7 @@ static struct card_fixup card_fixups[] = {
 static void set_cardparameter(struct cm4000_dev *dev)
 {
 	int i;
-	ioaddr_t iobase = dev->link.io.BasePort1;
+	ioaddr_t iobase = dev->p_dev->io.BasePort1;
 	u_int8_t stopbits = 0x02; /* ISO default */
 
 	DEBUGP(3, dev, "-> set_cardparameter\n");
@@ -487,7 +487,7 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 	unsigned short num_bytes_read;
 	unsigned char pts_reply[4];
 	ssize_t rc;
-	ioaddr_t iobase = dev->link.io.BasePort1;
+	ioaddr_t iobase = dev->p_dev->io.BasePort1;
 
 	rc = 0;
 
@@ -699,7 +699,7 @@ static void terminate_monitor(struct cm4000_dev *dev)
 static void monitor_card(unsigned long p)
 {
 	struct cm4000_dev *dev = (struct cm4000_dev *) p;
-	ioaddr_t iobase = dev->link.io.BasePort1;
+	ioaddr_t iobase = dev->p_dev->io.BasePort1;
 	unsigned short s;
 	struct ptsreq ptsreq;
 	int i, atrc;
@@ -962,7 +962,7 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 			loff_t *ppos)
 {
 	struct cm4000_dev *dev = filp->private_data;
-	ioaddr_t iobase = dev->link.io.BasePort1;
+	ioaddr_t iobase = dev->p_dev->io.BasePort1;
 	ssize_t rc;
 	int i, j, k;
 
@@ -971,7 +971,7 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 	if (count == 0)		/* according to manpage */
 		return 0;
 
-	if ((dev->link.state & DEV_PRESENT) == 0 ||	/* socket removed */
+	if ((dev->p_dev->state & DEV_PRESENT) == 0 ||	/* socket removed */
 	    test_bit(IS_CMM_ABSENT, &dev->flags))
 		return -ENODEV;
 
@@ -1083,7 +1083,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	struct cm4000_dev *dev = (struct cm4000_dev *) filp->private_data;
-	ioaddr_t iobase = dev->link.io.BasePort1;
+	ioaddr_t iobase = dev->p_dev->io.BasePort1;
 	unsigned short s;
 	unsigned char tmp;
 	unsigned char infolen;
@@ -1108,7 +1108,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 
 	sendT0 = dev->proto ? 0 : nr > 5 ? 0x08 : 0;
 
-	if ((dev->link.state & DEV_PRESENT) == 0 ||	/* socket removed */
+	if ((dev->p_dev->state & DEV_PRESENT) == 0 ||	/* socket removed */
 	    test_bit(IS_CMM_ABSENT, &dev->flags))
 		return -ENODEV;
 
@@ -1440,7 +1440,7 @@ static int cmm_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		     unsigned long arg)
 {
 	struct cm4000_dev *dev = filp->private_data;
-	ioaddr_t iobase = dev->link.io.BasePort1;
+	ioaddr_t iobase = dev->p_dev->io.BasePort1;
 	dev_link_t *link;
 	int size;
 	int rc;
@@ -1844,7 +1844,7 @@ static void cm4000_config(dev_link_t * link, int devno)
 	dev->node.major = major;
 	dev->node.minor = devno;
 	dev->node.next = NULL;
-	link->dev = &dev->node;
+	link->dev_node = &dev->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 
 	return;
@@ -1889,8 +1889,8 @@ static void cm4000_release(dev_link_t *link)
 static int cm4000_attach(struct pcmcia_device *p_dev)
 {
 	struct cm4000_dev *dev;
-	dev_link_t *link;
 	int i;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	for (i = 0; i < CM4000_MAX_DEV; i++)
 		if (dev_table[i] == NULL)
@@ -1906,7 +1906,7 @@ static int cm4000_attach(struct pcmcia_device *p_dev)
 	if (dev == NULL)
 		return -ENOMEM;
 
-	link = &dev->link;
+	dev->p_dev = p_dev;
 	link->priv = dev;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
@@ -1915,9 +1915,6 @@ static int cm4000_attach(struct pcmcia_device *p_dev)
 	init_waitqueue_head(&dev->ioq);
 	init_waitqueue_head(&dev->atrq);
 	init_waitqueue_head(&dev->readq);
-
-	link->handle = p_dev;
-	p_dev->instance = link;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	cm4000_config(link, i);

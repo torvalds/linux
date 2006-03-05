@@ -54,7 +54,7 @@ static const int debug = 0;
 #define MAX_PCMCIA_ADDR	0x4000000
 
 struct pcmciamtd_dev {
-	dev_link_t	link;		/* PCMCIA link */
+	struct pcmcia_device	*p_dev;
 	dev_node_t	node;		/* device node */
 	caddr_t		win_base;	/* ioremapped address of PCMCIA window */
 	unsigned int	win_size;	/* size of window */
@@ -111,8 +111,8 @@ static caddr_t remap_window(struct map_info *map, unsigned long to)
 	memreq_t mrq;
 	int ret;
 
-	if(!(dev->link.state & DEV_PRESENT)) {
-		DEBUG(1, "device removed state = 0x%4.4X", dev->link.state);
+	if(!(dev->p_dev->state & DEV_PRESENT)) {
+		DEBUG(1, "device removed state = 0x%4.4X", dev->p_dev->state);
 		return 0;
 	}
 
@@ -122,7 +122,7 @@ static caddr_t remap_window(struct map_info *map, unsigned long to)
 		      dev->offset, mrq.CardOffset);
 		mrq.Page = 0;
 		if( (ret = pcmcia_map_mem_page(win, &mrq)) != CS_SUCCESS) {
-			cs_error(dev->link.handle, MapMemPage, ret);
+			cs_error(dev->p_dev->handle, MapMemPage, ret);
 			return NULL;
 		}
 		dev->offset = mrq.CardOffset;
@@ -319,7 +319,7 @@ static void pcmcia_copy_to(struct map_info *map, unsigned long to, const void *f
 static void pcmciamtd_set_vpp(struct map_info *map, int on)
 {
 	struct pcmciamtd_dev *dev = (struct pcmciamtd_dev *)map->map_priv_1;
-	dev_link_t *link = &dev->link;
+	dev_link_t *link = dev->p_dev;
 	modconf_t mod;
 	int ret;
 
@@ -650,7 +650,7 @@ static void pcmciamtd_config(dev_link_t *link)
 	   use the faster non-remapping read/write functions */
 	if(mtd->size <= dev->win_size) {
 		DEBUG(1, "Using non remapping memory functions");
-		dev->pcmcia_map.map_priv_1 = (unsigned long)&(dev->link.state);
+		dev->pcmcia_map.map_priv_1 = (unsigned long)&(dev->p_dev->state);
 		dev->pcmcia_map.map_priv_2 = (unsigned long)dev->win_base;
 		if (dev->pcmcia_map.bankwidth == 1) {
 			dev->pcmcia_map.read = pcmcia_read8;
@@ -673,7 +673,7 @@ static void pcmciamtd_config(dev_link_t *link)
 	snprintf(dev->node.dev_name, sizeof(dev->node.dev_name), "mtd%d", mtd->index);
 	info("mtd%d: %s", mtd->index, mtd->name);
 	link->state &= ~DEV_CONFIG_PENDING;
-	link->dev = &dev->node;
+	link->dev_node = &dev->node;
 	return;
 
  cs_failed:
@@ -735,7 +735,7 @@ static void pcmciamtd_detach(struct pcmcia_device *p_dev)
 static int pcmciamtd_attach(struct pcmcia_device *p_dev)
 {
 	struct pcmciamtd_dev *dev;
-	dev_link_t *link;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	/* Create new memory card device */
 	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
@@ -743,15 +743,11 @@ static int pcmciamtd_attach(struct pcmcia_device *p_dev)
 	DEBUG(1, "dev=0x%p", dev);
 
 	memset(dev, 0, sizeof(*dev));
-	link = &dev->link;
+	dev->p_dev = p_dev;
 	link->priv = dev;
 
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY;
-
-	link->next = NULL;
-	link->handle = p_dev;
-	p_dev->instance = link;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	pcmciamtd_config(link);

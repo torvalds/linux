@@ -117,7 +117,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 /*====================================================================*/
 
 typedef struct axnet_dev_t {
-    dev_link_t		link;
+	struct pcmcia_device	*p_dev;
     dev_node_t		node;
     caddr_t		base;
     struct timer_list	watchdog;
@@ -145,8 +145,8 @@ static inline axnet_dev_t *PRIV(struct net_device *dev)
 static int axnet_attach(struct pcmcia_device *p_dev)
 {
     axnet_dev_t *info;
-    dev_link_t *link;
     struct net_device *dev;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "axnet_attach()\n");
 
@@ -157,7 +157,7 @@ static int axnet_attach(struct pcmcia_device *p_dev)
 	return -ENOMEM;
 
     info = PRIV(dev);
-    link = &info->link;
+    info->p_dev = p_dev;
     link->priv = dev;
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
@@ -168,9 +168,6 @@ static int axnet_attach(struct pcmcia_device *p_dev)
     dev->stop = &axnet_close;
     dev->do_ioctl = &axnet_ioctl;
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
-
-    link->handle = p_dev;
-    p_dev->instance = link;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     axnet_config(link);
@@ -194,7 +191,7 @@ static void axnet_detach(struct pcmcia_device *p_dev)
 
     DEBUG(0, "axnet_detach(0x%p)\n", link);
 
-    if (link->dev)
+    if (link->dev_node)
 	unregister_netdev(dev);
 
     if (link->state & DEV_CONFIG)
@@ -409,13 +406,13 @@ static void axnet_config(dev_link_t *link)
     }
 
     info->phy_id = (i < 32) ? i : -1;
-    link->dev = &info->node;
+    link->dev_node = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "axnet_cs: register_netdev() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto failed;
     }
 
@@ -543,7 +540,7 @@ static void mdio_write(kio_addr_t addr, int phy_id, int loc, int value)
 static int axnet_open(struct net_device *dev)
 {
     axnet_dev_t *info = PRIV(dev);
-    dev_link_t *link = &info->link;
+    dev_link_t *link = info->p_dev;
     
     DEBUG(2, "axnet_open('%s')\n", dev->name);
 
@@ -569,7 +566,7 @@ static int axnet_open(struct net_device *dev)
 static int axnet_close(struct net_device *dev)
 {
     axnet_dev_t *info = PRIV(dev);
-    dev_link_t *link = &info->link;
+    dev_link_t *link = info->p_dev;
 
     DEBUG(2, "axnet_close('%s')\n", dev->name);
 

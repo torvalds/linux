@@ -91,7 +91,7 @@ static struct scsi_host_template qlogicfas_driver_template = {
 /*====================================================================*/
 
 typedef struct scsi_info_t {
-	dev_link_t link;
+	struct pcmcia_device	*p_dev;
 	dev_node_t node;
 	struct Scsi_Host *host;
 	unsigned short manf_id;
@@ -159,7 +159,7 @@ err:
 static int qlogic_attach(struct pcmcia_device *p_dev)
 {
 	scsi_info_t *info;
-	dev_link_t *link;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	DEBUG(0, "qlogic_attach()\n");
 
@@ -168,7 +168,7 @@ static int qlogic_attach(struct pcmcia_device *p_dev)
 	if (!info)
 		return -ENOMEM;
 	memset(info, 0, sizeof(*info));
-	link = &info->link;
+	info->p_dev = p_dev;
 	link->priv = info;
 	link->io.NumPorts1 = 16;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -178,9 +178,6 @@ static int qlogic_attach(struct pcmcia_device *p_dev)
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
-
-	link->handle = p_dev;
-	p_dev->instance = link;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	qlogic_config(link);
@@ -278,7 +275,7 @@ static void qlogic_config(dev_link_t * link)
 	}
 
 	sprintf(info->node.dev_name, "scsi%d", host->host_no);
-	link->dev = &info->node;
+	link->dev_node = &info->node;
 	info->host = host;
 
 out:

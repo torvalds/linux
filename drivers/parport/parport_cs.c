@@ -81,7 +81,7 @@ static char *version =
 #define FORCE_EPP_MODE	0x08
 
 typedef struct parport_info_t {
-    dev_link_t		link;
+	struct pcmcia_device	*p_dev;
     int			ndev;
     dev_node_t		node;
     struct parport	*port;
@@ -102,7 +102,7 @@ static void parport_cs_release(dev_link_t *);
 static int parport_attach(struct pcmcia_device *p_dev)
 {
     parport_info_t *info;
-    dev_link_t *link;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "parport_attach()\n");
 
@@ -110,7 +110,8 @@ static int parport_attach(struct pcmcia_device *p_dev)
     info = kmalloc(sizeof(*info), GFP_KERNEL);
     if (!info) return -ENOMEM;
     memset(info, 0, sizeof(*info));
-    link = &info->link; link->priv = info;
+    link->priv = info;
+    info->p_dev = p_dev;
 
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
@@ -118,9 +119,6 @@ static int parport_attach(struct pcmcia_device *p_dev)
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
-
-    link->handle = p_dev;
-    p_dev->instance = link;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     parport_config(link);
@@ -239,7 +237,7 @@ void parport_config(dev_link_t *link)
     info->node.minor = p->number;
     info->port = p;
     strcpy(info->node.dev_name, p->name);
-    link->dev = &info->node;
+    link->dev_node = &info->node;
 
     link->state &= ~DEV_CONFIG_PENDING;
     return;

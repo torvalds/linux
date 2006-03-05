@@ -942,15 +942,12 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 EXPORT_SYMBOL(pcmcia_request_window);
 
 void pcmcia_disable_device(struct pcmcia_device *p_dev) {
-	if (!p_dev->instance)
-		return;
-
 	pcmcia_release_configuration(p_dev);
-	pcmcia_release_io(p_dev, &p_dev->instance->io);
-	pcmcia_release_irq(p_dev, &p_dev->instance->irq);
-	if (&p_dev->instance->win)
-		pcmcia_release_window(p_dev->instance->win);
+	pcmcia_release_io(p_dev, &p_dev->io);
+	pcmcia_release_irq(p_dev, &p_dev->irq);
+	if (&p_dev->win)
+		pcmcia_release_window(p_dev->win);
 
-	p_dev->instance->dev = NULL;
+	p_dev->dev_node = NULL;
 }
 EXPORT_SYMBOL(pcmcia_disable_device);

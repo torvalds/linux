@@ -97,7 +97,7 @@ static const struct multi_id multi_id[] = {
 #define MULTI_COUNT (sizeof(multi_id)/sizeof(struct multi_id))
 
 struct serial_info {
-	dev_link_t		link;
+	struct pcmcia_device	*p_dev;
 	int			ndev;
 	int			multi;
 	int			slave;
@@ -135,16 +135,16 @@ static void serial_remove(dev_link_t *link)
 	/*
 	 * Recheck to see if the device is still configured.
 	 */
-	if (info->link.state & DEV_CONFIG) {
+	if (info->p_dev->state & DEV_CONFIG) {
 		for (i = 0; i < info->ndev; i++)
 			serial8250_unregister_port(info->line[i]);
 
-		info->link.dev = NULL;
+		info->p_dev->dev_node = NULL;
 
 		if (!info->slave)
 			pcmcia_disable_device(link->handle);
 
-		info->link.state &= ~DEV_CONFIG;
+		info->p_dev->state &= ~DEV_CONFIG;
 	}
 }
 
@@ -192,7 +192,7 @@ static int serial_resume(struct pcmcia_device *dev)
 static int serial_probe(struct pcmcia_device *p_dev)
 {
 	struct serial_info *info;
-	dev_link_t *link;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	DEBUG(0, "serial_attach()\n");
 
@@ -201,7 +201,7 @@ static int serial_probe(struct pcmcia_device *p_dev)
 	if (!info)
 		return -ENOMEM;
 	memset(info, 0, sizeof (*info));
-	link = &info->link;
+	info->p_dev = p_dev;
 	link->priv = info;
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
@@ -215,8 +215,6 @@ static int serial_probe(struct pcmcia_device *p_dev)
 	}
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	link->handle = p_dev;
-	p_dev->instance = link;
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	serial_config(link);
 
@@ -660,7 +658,7 @@ void serial_config(dev_link_t * link)
 		}
 	}
 
-	link->dev = &info->node[0];
+	link->dev_node = &info->node[0];
 	link->state &= ~DEV_CONFIG_PENDING;
 	kfree(cfg_mem);
 	return;

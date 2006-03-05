@@ -89,7 +89,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 /*====================================================================*/
 
 typedef struct scsi_info_t {
-    dev_link_t		link;
+	struct pcmcia_device	*p_dev;
     dev_node_t		node;
     struct Scsi_Host	*host;
 } scsi_info_t;
@@ -103,7 +103,7 @@ static dev_link_t *dev_list;
 static int aha152x_attach(struct pcmcia_device *p_dev)
 {
     scsi_info_t *info;
-    dev_link_t *link;
+    dev_link_t *link = dev_to_instance(p_dev);
     
     DEBUG(0, "aha152x_attach()\n");
 
@@ -111,7 +111,8 @@ static int aha152x_attach(struct pcmcia_device *p_dev)
     info = kmalloc(sizeof(*info), GFP_KERNEL);
     if (!info) return -ENOMEM;
     memset(info, 0, sizeof(*info));
-    link = &info->link; link->priv = info;
+    info->p_dev = p_dev;
+    link->priv = info;
 
     link->io.NumPorts1 = 0x20;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -121,9 +122,6 @@ static int aha152x_attach(struct pcmcia_device *p_dev)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
-
-    link->handle = p_dev;
-    p_dev->instance = link;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     aha152x_config_cs(link);
@@ -136,23 +134,14 @@ static int aha152x_attach(struct pcmcia_device *p_dev)
 static void aha152x_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
-    dev_link_t **linkp;
 
     DEBUG(0, "aha152x_detach(0x%p)\n", link);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->state & DEV_CONFIG)
 	aha152x_release_cs(link);
 
     /* Unlink device structure, free bits */
-    *linkp = link->next;
     kfree(link->priv);
-    
 } /* aha152x_detach */
 
 /*====================================================================*/
@@ -230,7 +219,7 @@ static void aha152x_config_cs(dev_link_t *link)
     }
 
     sprintf(info->node.dev_name, "scsi%d", host->host_no);
-    link->dev = &info->node;
+    link->dev_node = &info->node;
     info->host = host;
 
     link->state &= ~DEV_CONFIG_PENDING;

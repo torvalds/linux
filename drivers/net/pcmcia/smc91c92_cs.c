@@ -104,7 +104,7 @@ static const char *version =
 #define MEMORY_WAIT_TIME       	8
 
 struct smc_private {
-    dev_link_t			link;
+	struct pcmcia_device	*p_dev;
     spinlock_t			lock;
     u_short			manfid;
     u_short			cardid;
@@ -312,8 +312,8 @@ static struct ethtool_ops ethtool_ops;
 static int smc91c92_attach(struct pcmcia_device *p_dev)
 {
     struct smc_private *smc;
-    dev_link_t *link;
     struct net_device *dev;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "smc91c92_attach()\n");
 
@@ -322,7 +322,7 @@ static int smc91c92_attach(struct pcmcia_device *p_dev)
     if (!dev)
 	return -ENOMEM;
     smc = netdev_priv(dev);
-    link = &smc->link;
+    smc->p_dev = p_dev;
     link->priv = dev;
 
     spin_lock_init(&smc->lock);
@@ -357,9 +357,6 @@ static int smc91c92_attach(struct pcmcia_device *p_dev)
     smc->mii_if.phy_id_mask = 0x1f;
     smc->mii_if.reg_num_mask = 0x1f;
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     smc91c92_config(link);
 
@@ -382,7 +379,7 @@ static void smc91c92_detach(struct pcmcia_device *p_dev)
 
     DEBUG(0, "smc91c92_detach(0x%p)\n", link);
 
-    if (link->dev)
+    if (link->dev_node)
 	unregister_netdev(dev);
 
     if (link->state & DEV_CONFIG)
@@ -1120,13 +1117,13 @@ static void smc91c92_config(dev_link_t *link)
 	SMC_SELECT_BANK(0);
     }
 
-    link->dev = &smc->node;
+    link->dev_node = &smc->node;
     link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_ERR "smc91c92_cs: register_netdev() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto config_undo;
     }
 
@@ -1272,7 +1269,7 @@ static void smc_dump(struct net_device *dev)
 static int smc_open(struct net_device *dev)
 {
     struct smc_private *smc = netdev_priv(dev);
-    dev_link_t *link = &smc->link;
+    dev_link_t *link = smc->p_dev;
 
 #ifdef PCMCIA_DEBUG
     DEBUG(0, "%s: smc_open(%p), ID/Window %4.4x.\n",
@@ -1309,7 +1306,7 @@ static int smc_open(struct net_device *dev)
 static int smc_close(struct net_device *dev)
 {
     struct smc_private *smc = netdev_priv(dev);
-    dev_link_t *link = &smc->link;
+    dev_link_t *link = smc->p_dev;
     kio_addr_t ioaddr = dev->base_addr;
 
     DEBUG(0, "%s: smc_close(), status %4.4x.\n",

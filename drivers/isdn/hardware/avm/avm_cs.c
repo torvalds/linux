@@ -101,49 +101,37 @@ typedef struct local_info_t {
 
 static int avmcs_attach(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link;
     local_info_t *local;
 
-    /* Initialize the dev_link_t structure */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    if (!link)
-        goto err;
-    memset(link, 0, sizeof(struct dev_link_t));
-
     /* The io structure describes IO port mapping */
-    link->io.NumPorts1 = 16;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.NumPorts2 = 0;
+    p_dev->io.NumPorts1 = 16;
+    p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+    p_dev->io.NumPorts2 = 0;
 
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+    p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+    p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
 
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    
+    p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
+
     /* General socket configuration */
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.ConfigIndex = 1;
-    link->conf.Present = PRESENT_OPTION;
+    p_dev->conf.Attributes = CONF_ENABLE_IRQ;
+    p_dev->conf.IntType = INT_MEMORY_AND_IO;
+    p_dev->conf.ConfigIndex = 1;
+    p_dev->conf.Present = PRESENT_OPTION;
 
     /* Allocate space for private device-specific data */
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local)
-        goto err_kfree;
+        goto err;
     memset(local, 0, sizeof(local_info_t));
-    link->priv = local;
+    p_dev->priv = local;
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
-    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-    avmcs_config(link);
+    p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    avmcs_config(p_dev);
 
     return 0;
 
- err_kfree:
-    kfree(link);
  err:
     return -EINVAL;
 } /* avmcs_attach */
@@ -165,7 +153,6 @@ static void avmcs_detach(struct pcmcia_device *p_dev)
 	avmcs_release(link);
 
     kfree(link->priv);
-    kfree(link);
 } /* avmcs_detach */
 
 /*======================================================================
@@ -330,7 +317,7 @@ found_port:
 
     dev->node.major = 64;
     dev->node.minor = 0;
-    link->dev = &dev->node;
+    link->dev_node = &dev->node;
     
     link->state &= ~DEV_CONFIG_PENDING;
     /* If any step failed, release any partially configured state */

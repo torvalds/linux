@@ -121,7 +121,7 @@ static void elsa_cs_detach(struct pcmcia_device *p_dev);
 */
 
 typedef struct local_info_t {
-    dev_link_t          link;
+	struct pcmcia_device	*p_dev;
     dev_node_t          node;
     int                 busy;
     int			cardnr;
@@ -141,8 +141,8 @@ typedef struct local_info_t {
 
 static int elsa_cs_attach(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link;
     local_info_t *local;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "elsa_cs_attach()\n");
 
@@ -150,8 +150,11 @@ static int elsa_cs_attach(struct pcmcia_device *p_dev)
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
     if (!local) return -ENOMEM;
     memset(local, 0, sizeof(local_info_t));
+
+    local->p_dev = p_dev;
+    link->priv = local;
+
     local->cardnr = -1;
-    link = &local->link; link->priv = local;
 
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
@@ -171,9 +174,6 @@ static int elsa_cs_attach(struct pcmcia_device *p_dev)
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
-
-    link->handle = p_dev;
-    p_dev->instance = link;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     elsa_cs_config(link);
@@ -320,7 +320,7 @@ static void elsa_cs_config(dev_link_t *link)
     sprintf(dev->node.dev_name, "elsa");
     dev->node.major = dev->node.minor = 0x0;
 
-    link->dev = &dev->node;
+    link->dev_node = &dev->node;
 
     /* Finally, report what we've done */
     printk(KERN_INFO "%s: index 0x%02x: ",

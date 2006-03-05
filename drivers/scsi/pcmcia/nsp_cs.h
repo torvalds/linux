@@ -225,7 +225,7 @@
 /*====================================================================*/
 
 typedef struct scsi_info_t {
-	dev_link_t             link;
+	struct pcmcia_device	*p_dev;
 	struct Scsi_Host      *host;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,74))
 	dev_node_t             node;

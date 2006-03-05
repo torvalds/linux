@@ -268,7 +268,7 @@ struct site_survey {
 };	
    
 typedef struct netwave_private {
-    dev_link_t link;
+	struct pcmcia_device	*p_dev;
     spinlock_t	spinlock;	/* Serialize access to the hardware (SMP) */
     dev_node_t node;
     u_char     __iomem *ramBase;
@@ -378,9 +378,9 @@ static struct iw_statistics *netwave_get_wireless_stats(struct net_device *dev)
  */
 static int netwave_attach(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link;
     struct net_device *dev;
     netwave_private *priv;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "netwave_attach()\n");
 
@@ -389,7 +389,7 @@ static int netwave_attach(struct pcmcia_device *p_dev)
     if (!dev)
 	return -ENOMEM;
     priv = netdev_priv(dev);
-    link = &priv->link;
+    priv->p_dev = p_dev;
     link->priv = dev;
 
     /* The io structure describes IO port mapping */
@@ -429,9 +429,6 @@ static int netwave_attach(struct pcmcia_device *p_dev)
     dev->stop = &netwave_close;
     link->irq.Instance = dev;
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     netwave_pcmcia_config( link);
 
@@ -456,7 +453,7 @@ static void netwave_detach(struct pcmcia_device *p_dev)
 	if (link->state & DEV_CONFIG)
 		netwave_release(link);
 
-	if (link->dev)
+	if (link->dev_node)
 		unregister_netdev(dev);
 
 	free_netdev(dev);
@@ -830,7 +827,7 @@ static void netwave_pcmcia_config(dev_link_t *link) {
     }
 
     strcpy(priv->node.dev_name, dev->name);
-    link->dev = &priv->node;
+    link->dev_node = &priv->node;
     link->state &= ~DEV_CONFIG_PENDING;
 
     /* Reset card before reading physical address */
@@ -1103,7 +1100,7 @@ static irqreturn_t netwave_interrupt(int irq, void* dev_id, struct pt_regs *regs
     u_char __iomem *ramBase;
     struct net_device *dev = (struct net_device *)dev_id;
     struct netwave_private *priv = netdev_priv(dev);
-    dev_link_t *link = &priv->link;
+    dev_link_t *link = priv->p_dev;
     int i;
     
     if (!netif_device_present(dev))
@@ -1357,7 +1354,7 @@ static int netwave_rx(struct net_device *dev)
 
 static int netwave_open(struct net_device *dev) {
     netwave_private *priv = netdev_priv(dev);
-    dev_link_t *link = &priv->link;
+    dev_link_t *link = priv->p_dev;
 
     DEBUG(1, "netwave_open: starting.\n");
     
@@ -1374,7 +1371,7 @@ static int netwave_open(struct net_device *dev) {
 
 static int netwave_close(struct net_device *dev) {
     netwave_private *priv = netdev_priv(dev);
-    dev_link_t *link = &priv->link;
+    dev_link_t *link = priv->p_dev;
 
     DEBUG(1, "netwave_close: finishing.\n");
 

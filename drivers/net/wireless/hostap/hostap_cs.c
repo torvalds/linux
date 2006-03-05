@@ -503,22 +503,11 @@ static struct prism2_helper_functions prism2_pccard_funcs =
  * initialize dev_link structure, but do not configure the card yet */
 static int prism2_attach(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link;
-
-	link = kmalloc(sizeof(dev_link_t), GFP_KERNEL);
-	if (link == NULL)
-		return -ENOMEM;
-
-	memset(link, 0, sizeof(dev_link_t));
-
 	PDEBUG(DEBUG_HW, "%s: setting Vcc=33 (constant)\n", dev_info);
-	link->conf.IntType = INT_MEMORY_AND_IO;
+	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
-	link->handle = p_dev;
-	p_dev->instance = link;
-
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	if (prism2_config(link))
+	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	if (prism2_config(p_dev))
 		PDEBUG(DEBUG_EXTRA, "prism2_config() failed\n");
 
 	return 0;
@@ -546,7 +535,6 @@ static void prism2_detach(struct pcmcia_device *p_dev)
 		prism2_free_local_data(dev);
 		kfree(hw_priv);
 	}
-	kfree(link);
 }
 
 
@@ -713,7 +701,7 @@ static int prism2_config(dev_link_t *link)
 	local->hw_priv = hw_priv;
 	hw_priv->link = link;
 	strcpy(hw_priv->node.dev_name, dev->name);
-	link->dev = &hw_priv->node;
+	link->dev_node = &hw_priv->node;
 
 	/*
 	 * Allocate an interrupt line.  Note that this does not assign a

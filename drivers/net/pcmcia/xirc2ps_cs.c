@@ -332,7 +332,7 @@ static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id, struct pt_regs *regs
  */
 
 typedef struct local_info_t {
-    dev_link_t link;
+	struct pcmcia_device	*p_dev;
     dev_node_t node;
     struct net_device_stats stats;
     int card_type;
@@ -555,9 +555,9 @@ mii_wr(kio_addr_t ioaddr, u_char phyaddr, u_char phyreg, unsigned data, int len)
 static int
 xirc2ps_attach(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link;
     struct net_device *dev;
     local_info_t *local;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "attach()\n");
 
@@ -566,7 +566,7 @@ xirc2ps_attach(struct pcmcia_device *p_dev)
     if (!dev)
 	    return -ENOMEM;
     local = netdev_priv(dev);
-    link = &local->link;
+    local->p_dev = p_dev;
     link->priv = dev;
 
     /* General socket configuration */
@@ -592,9 +592,6 @@ xirc2ps_attach(struct pcmcia_device *p_dev)
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     xirc2ps_config(link);
 
@@ -616,7 +613,7 @@ xirc2ps_detach(struct pcmcia_device *p_dev)
 
     DEBUG(0, "detach(0x%p)\n", link);
 
-    if (link->dev)
+    if (link->dev_node)
 	unregister_netdev(dev);
 
     if (link->state & DEV_CONFIG)
@@ -1049,13 +1046,13 @@ xirc2ps_config(dev_link_t * link)
     if (local->dingo)
 	do_reset(dev, 1); /* a kludge to make the cem56 work */
 
-    link->dev = &local->node;
+    link->dev_node = &local->node;
     link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
     if ((err=register_netdev(dev))) {
 	printk(KNOT_XIRC "register_netdev() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto config_error;
     }
 
@@ -1537,7 +1534,7 @@ static int
 do_open(struct net_device *dev)
 {
     local_info_t *lp = netdev_priv(dev);
-    dev_link_t *link = &lp->link;
+    dev_link_t *link = lp->p_dev;
 
     DEBUG(0, "do_open(%p)\n", dev);
 
@@ -1867,7 +1864,7 @@ do_stop(struct net_device *dev)
 {
     kio_addr_t ioaddr = dev->base_addr;
     local_info_t *lp = netdev_priv(dev);
-    dev_link_t *link = &lp->link;
+    dev_link_t *link = lp->p_dev;
 
     DEBUG(0, "do_stop(%p)\n", dev);
 

@@ -112,7 +112,7 @@ static void teles_detach(struct pcmcia_device *p_dev);
 */
 
 typedef struct local_info_t {
-    dev_link_t          link;
+	struct pcmcia_device	*p_dev;
     dev_node_t          node;
     int                 busy;
     int			cardnr;
@@ -132,8 +132,8 @@ typedef struct local_info_t {
 
 static int teles_attach(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link;
     local_info_t *local;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "teles_attach()\n");
 
@@ -142,7 +142,9 @@ static int teles_attach(struct pcmcia_device *p_dev)
     if (!local) return -ENOMEM;
     memset(local, 0, sizeof(local_info_t));
     local->cardnr = -1;
-    link = &local->link; link->priv = local;
+
+    local->p_dev = p_dev;
+    link->priv = local;
 
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
@@ -162,9 +164,6 @@ static int teles_attach(struct pcmcia_device *p_dev)
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
-
-    link->handle = p_dev;
-    p_dev->instance = link;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     teles_cs_config(link);
@@ -311,7 +310,7 @@ static void teles_cs_config(dev_link_t *link)
     sprintf(dev->node.dev_name, "teles");
     dev->node.major = dev->node.minor = 0x0;
 
-    link->dev = &dev->node;
+    link->dev_node = &dev->node;
 
     /* Finally, report what we've done */
     printk(KERN_INFO "%s: index 0x%02x:",

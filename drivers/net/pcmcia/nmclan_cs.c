@@ -362,7 +362,7 @@ typedef struct _mace_statistics {
 } mace_statistics;
 
 typedef struct _mace_private {
-    dev_link_t link;
+	struct pcmcia_device	*p_dev;
     dev_node_t node;
     struct net_device_stats linux_stats; /* Linux statistics counters */
     mace_statistics mace_stats; /* MACE chip statistics counters */
@@ -446,8 +446,8 @@ nmclan_attach
 static int nmclan_attach(struct pcmcia_device *p_dev)
 {
     mace_private *lp;
-    dev_link_t *link;
     struct net_device *dev;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "nmclan_attach()\n");
     DEBUG(1, "%s\n", rcsid);
@@ -457,7 +457,7 @@ static int nmclan_attach(struct pcmcia_device *p_dev)
     if (!dev)
 	    return -ENOMEM;
     lp = netdev_priv(dev);
-    link = &lp->link;
+    lp->p_dev = p_dev;
     link->priv = dev;
     
     spin_lock_init(&lp->bank_lock);
@@ -488,9 +488,6 @@ static int nmclan_attach(struct pcmcia_device *p_dev)
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     nmclan_config(link);
 
@@ -512,7 +509,7 @@ static void nmclan_detach(struct pcmcia_device *p_dev)
 
     DEBUG(0, "nmclan_detach(0x%p)\n", link);
 
-    if (link->dev)
+    if (link->dev_node)
 	unregister_netdev(dev);
 
     if (link->state & DEV_CONFIG)
@@ -729,14 +726,14 @@ static void nmclan_config(dev_link_t *link)
   else
     printk(KERN_NOTICE "nmclan_cs: invalid if_port requested\n");
 
-  link->dev = &lp->node;
+  link->dev_node = &lp->node;
   link->state &= ~DEV_CONFIG_PENDING;
   SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
   i = register_netdev(dev);
   if (i != 0) {
     printk(KERN_NOTICE "nmclan_cs: register_netdev() failed\n");
-    link->dev = NULL;
+    link->dev_node = NULL;
     goto failed;
   }
 
@@ -869,7 +866,7 @@ static int mace_open(struct net_device *dev)
 {
   kio_addr_t ioaddr = dev->base_addr;
   mace_private *lp = netdev_priv(dev);
-  dev_link_t *link = &lp->link;
+  dev_link_t *link = lp->p_dev;
 
   if (!DEV_OK(link))
     return -ENODEV;
@@ -892,7 +889,7 @@ static int mace_close(struct net_device *dev)
 {
   kio_addr_t ioaddr = dev->base_addr;
   mace_private *lp = netdev_priv(dev);
-  dev_link_t *link = &lp->link;
+  dev_link_t *link = lp->p_dev;
 
   DEBUG(2, "%s: shutting down ethercard.\n", dev->name);
 
@@ -947,7 +944,7 @@ mace_start_xmit
 static void mace_tx_timeout(struct net_device *dev)
 {
   mace_private *lp = netdev_priv(dev);
-  dev_link_t *link = &lp->link;
+  dev_link_t *link = lp->p_dev;
 
   printk(KERN_NOTICE "%s: transmit timed out -- ", dev->name);
 #if RESET_ON_TIMEOUT

@@ -105,7 +105,7 @@ enum RxFilter {
 #define TX_TIMEOUT	((400*HZ)/1000)
 
 struct el3_private {
-    dev_link_t		link;
+	struct pcmcia_device	*p_dev;
     dev_node_t 		node;
     struct net_device_stats stats;
     /* For transceiver monitoring */
@@ -173,8 +173,8 @@ static void tc589_detach(struct pcmcia_device *p_dev);
 static int tc589_attach(struct pcmcia_device *p_dev)
 {
     struct el3_private *lp;
-    dev_link_t *link;
     struct net_device *dev;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "3c589_attach()\n");
 
@@ -183,8 +183,8 @@ static int tc589_attach(struct pcmcia_device *p_dev)
     if (!dev)
 	 return -ENOMEM;
     lp = netdev_priv(dev);
-    link = &lp->link;
     link->priv = dev;
+    lp->p_dev = p_dev;
 
     spin_lock_init(&lp->lock);
     link->io.NumPorts1 = 16;
@@ -212,9 +212,6 @@ static int tc589_attach(struct pcmcia_device *p_dev)
 #endif
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    link->handle = p_dev;
-    p_dev->instance = link;
-
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     tc589_config(link);
 
@@ -237,7 +234,7 @@ static void tc589_detach(struct pcmcia_device *p_dev)
 
     DEBUG(0, "3c589_detach(0x%p)\n", link);
 
-    if (link->dev)
+    if (link->dev_node)
 	unregister_netdev(dev);
 
     if (link->state & DEV_CONFIG)
@@ -345,13 +342,13 @@ static void tc589_config(dev_link_t *link)
     else
 	printk(KERN_ERR "3c589_cs: invalid if_port requested\n");
     
-    link->dev = &lp->node;
+    link->dev_node = &lp->node;
     link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_ERR "3c589_cs: register_netdev() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto failed;
     }
 
@@ -572,7 +569,7 @@ static int el3_config(struct net_device *dev, struct ifmap *map)
 static int el3_open(struct net_device *dev)
 {
     struct el3_private *lp = netdev_priv(dev);
-    dev_link_t *link = &lp->link;
+    dev_link_t *link = lp->p_dev;
     
     if (!DEV_OK(link))
 	return -ENODEV;
@@ -833,7 +830,7 @@ static struct net_device_stats *el3_get_stats(struct net_device *dev)
 {
     struct el3_private *lp = netdev_priv(dev);
     unsigned long flags;
-    dev_link_t *link = &lp->link;
+    dev_link_t *link = lp->p_dev;
 
     if (DEV_OK(link)) {
     	spin_lock_irqsave(&lp->lock, flags);
@@ -935,7 +932,7 @@ static int el3_rx(struct net_device *dev)
 static void set_multicast_list(struct net_device *dev)
 {
     struct el3_private *lp = netdev_priv(dev);
-    dev_link_t *link = &lp->link;
+    dev_link_t *link = lp->p_dev;
     kio_addr_t ioaddr = dev->base_addr;
     u16 opts = SetRxFilter | RxStation | RxBroadcast;
 
@@ -950,7 +947,7 @@ static void set_multicast_list(struct net_device *dev)
 static int el3_close(struct net_device *dev)
 {
     struct el3_private *lp = netdev_priv(dev);
-    dev_link_t *link = &lp->link;
+    dev_link_t *link = lp->p_dev;
     kio_addr_t ioaddr = dev->base_addr;
     
     DEBUG(1, "%s: shutting down ethercard.\n", dev->name);

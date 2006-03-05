@@ -226,17 +226,6 @@ static void iw_copy_mgmt_info_element(struct iw_mgmt_info_element *to,
 	iw_set_mgmt_info_element(from->id, to, from->data, from->len);
 }
 
-/*
- * A linked list of "instances" of the wl24 device.  Each actual PCMCIA card
- * corresponds to one device instance, and is described by one dev_link_t
- * structure (defined in ds.h).
- *
- * You may not want to use a linked list for this -- for example, the memory
- * card driver uses an array of dev_link_t pointers, where minor device numbers
- * are used to derive the corresponding array index.
- */
-static dev_link_t *wl3501_dev_list;
-
 static inline void wl3501_switch_page(struct wl3501_card *this, u8 page)
 {
 	wl3501_outb(page, this->base_addr + WL3501_NIC_BSS);
@@ -1282,14 +1271,9 @@ static int wl3501_close(struct net_device *dev)
 	int rc = -ENODEV;
 	unsigned long flags;
 	dev_link_t *link;
+	link = this->p_dev;
 
 	spin_lock_irqsave(&this->lock, flags);
-	/* Check if the device is in wl3501_dev_list */
-	for (link = wl3501_dev_list; link; link = link->next)
-		if (link->priv == dev)
-			break;
-	if (!link)
-		goto out;
 	link->open--;
 
 	/* Stop wl3501_hard_start_xmit() from now on */
@@ -1301,7 +1285,6 @@ static int wl3501_close(struct net_device *dev)
 
 	rc = 0;
 	printk(KERN_INFO "%s: WL3501 closed\n", dev->name);
-out:
 	spin_unlock_irqrestore(&this->lock, flags);
 	return rc;
 }
@@ -1401,12 +1384,9 @@ static int wl3501_open(struct net_device *dev)
 	struct wl3501_card *this = dev->priv;
 	unsigned long flags;
 	dev_link_t *link;
+	link = this->p_dev;
 
 	spin_lock_irqsave(&this->lock, flags);
-	/* Check if the device is in wl3501_dev_list */
-	for (link = wl3501_dev_list; link; link = link->next)
-		if (link->priv == dev)
-			break;
 	if (!DEV_OK(link))
 		goto out;
 	netif_device_attach(dev);
@@ -1500,15 +1480,7 @@ static struct ethtool_ops ops = {
 static void wl3501_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
-	dev_link_t **linkp;
 	struct net_device *dev = link->priv;
-
-	/* Locate device structure */
-	for (linkp = &wl3501_dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-	if (!*linkp)
-		goto out;
 
 	/* If the device is currently configured and active, we won't actually
 	 * delete it yet.  Instead, it is marked so that when the release()
@@ -1522,13 +1494,9 @@ static void wl3501_detach(struct pcmcia_device *p_dev)
 		wl3501_release(link);
 	}
 
-	/* Unlink device structure, free pieces */
-	*linkp = link->next;
-
 	if (link->priv)
 		free_netdev(link->priv);
-	kfree(link);
-out:
+
 	return;
 }
 
@@ -1955,14 +1923,9 @@ static const struct iw_handler_def wl3501_handler_def = {
  */
 static int wl3501_attach(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link;
 	struct net_device *dev;
 	struct wl3501_card *this;
-
-	/* Initialize the dev_link_t structure */
-	link = kzalloc(sizeof(*link), GFP_KERNEL);
-	if (!link)
-		return -ENOMEM;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	/* The io structure describes IO port mapping */
 	link->io.NumPorts1	= 16;
@@ -1991,22 +1954,18 @@ static int wl3501_attach(struct pcmcia_device *p_dev)
 	dev->get_stats		= wl3501_get_stats;
 	this = dev->priv;
 	this->wireless_data.spy_data = &this->spy_data;
+	this->p_dev = p_dev;
 	dev->wireless_data	= &this->wireless_data;
 	dev->wireless_handlers	= (struct iw_handler_def *)&wl3501_handler_def;
 	SET_ETHTOOL_OPS(dev, &ops);
 	netif_stop_queue(dev);
 	link->priv = link->irq.Instance = dev;
 
-	link->handle = p_dev;
-	p_dev->instance = link;
-
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	wl3501_config(link);
+	wl3501_config(p_dev);
 
 	return 0;
 out_link:
-	kfree(link);
-	link = NULL;
 	return -ENOMEM;
 }
 
@@ -2087,9 +2046,9 @@ static void wl3501_config(dev_link_t *link)
 	this = dev->priv;
 	/*
 	 * At this point, the dev_node_t structure(s) should be initialized and
-	 * arranged in a linked list at link->dev.
+	 * arranged in a linked list at link->dev_node.
 	 */
-	link->dev = &this->node;
+	link->dev_node = &this->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 
 	this->base_addr = dev->base_addr;
@@ -2148,7 +2107,7 @@ static void wl3501_release(dev_link_t *link)
 	struct net_device *dev = link->priv;
 
 	/* Unlink the device chain */
-	if (link->dev)
+	if (link->dev_node)
 		unregister_netdev(dev);
 
 	pcmcia_disable_device(link->handle);
@@ -2206,9 +2165,7 @@ static int __init wl3501_init_module(void)
 
 static void __exit wl3501_exit_module(void)
 {
-	dprintk(0, ": unloading");
 	pcmcia_unregister_driver(&wl3501_driver);
-	BUG_ON(wl3501_dev_list != NULL);
 }
 
 module_init(wl3501_init_module);

@@ -70,7 +70,7 @@ static void pdacf_release(dev_link_t *link)
  */
 static int snd_pdacf_free(struct snd_pdacf *pdacf)
 {
-	dev_link_t *link = &pdacf->link;
+	dev_link_t *link = pdacf->p_dev;
 
 	pdacf_release(link);
 
@@ -99,6 +99,8 @@ static int snd_pdacf_attach(struct pcmcia_device *p_dev)
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_pdacf_dev_free,
 	};
+
+	link = dev_to_instance(p_dev);
 
 	snd_printdd(KERN_DEBUG "pdacf_attach called\n");
 	/* find an empty slot from the card list */
@@ -133,7 +135,7 @@ static int snd_pdacf_attach(struct pcmcia_device *p_dev)
 	pdacf->index = i;
 	card_list[i] = card;
 
-	link = &pdacf->link;
+	pdacf->p_dev = p_dev;
 	link->priv = pdacf;
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -150,10 +152,6 @@ static int snd_pdacf_attach(struct pcmcia_device *p_dev)
 	link->conf.ConfigIndex = 1;
 	link->conf.Present = PRESENT_OPTION;
 
-	/* Chain drivers */
-	link->next = NULL;
-
-	link->handle = p_dev;
 	pdacf_config(link);
 
 	return 0;
@@ -262,7 +260,7 @@ static void pdacf_config(dev_link_t *link)
 	if (snd_pdacf_assign_resources(pdacf, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
 		goto failed;
 
-	link->dev = &pdacf->node;
+	link->dev_node = &pdacf->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 	return;
 

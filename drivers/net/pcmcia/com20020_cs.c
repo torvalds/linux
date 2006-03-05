@@ -140,7 +140,6 @@ typedef struct com20020_dev_t {
 
 static int com20020_attach(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link;
     com20020_dev_t *info;
     struct net_device *dev;
     struct arcnet_local *lp;
@@ -148,10 +147,6 @@ static int com20020_attach(struct pcmcia_device *p_dev)
     DEBUG(0, "com20020_attach()\n");
 
     /* Create new network device */
-    link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-    if (!link)
-	return -ENOMEM;
-
     info = kmalloc(sizeof(struct com20020_dev_t), GFP_KERNEL);
     if (!info)
 	goto fail_alloc_info;
@@ -161,7 +156,6 @@ static int com20020_attach(struct pcmcia_device *p_dev)
 	goto fail_alloc_dev;
 
     memset(info, 0, sizeof(struct com20020_dev_t));
-    memset(link, 0, sizeof(struct dev_link_t));
     lp = dev->priv;
     lp->timeout = timeout;
     lp->backplane = backplane;
@@ -172,27 +166,26 @@ static int com20020_attach(struct pcmcia_device *p_dev)
     /* fill in our module parameters as defaults */
     dev->dev_addr[0] = node;
 
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.NumPorts1 = 16;
-    link->io.IOAddrLines = 16;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->conf.Attributes = CONF_ENABLE_IRQ;
-    link->conf.IntType = INT_MEMORY_AND_IO;
-    link->conf.Present = PRESENT_OPTION;
+    p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+    p_dev->io.NumPorts1 = 16;
+    p_dev->io.IOAddrLines = 16;
+    p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+    p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
+    p_dev->conf.Attributes = CONF_ENABLE_IRQ;
+    p_dev->conf.IntType = INT_MEMORY_AND_IO;
+    p_dev->conf.Present = PRESENT_OPTION;
 
-    link->irq.Instance = info->dev = dev;
-    link->priv = info;
+    p_dev->irq.Instance = info->dev = dev;
+    p_dev->priv = info;
 
-    link->state |= DEV_PRESENT;
-    com20020_config(link);
+    p_dev->state |= DEV_PRESENT;
+    com20020_config(p_dev);
 
     return 0;
 
 fail_alloc_dev:
     kfree(info);
 fail_alloc_info:
-    kfree(link);
     return -ENOMEM;
 } /* com20020_attach */
 
@@ -215,7 +208,7 @@ static void com20020_detach(struct pcmcia_device *p_dev)
 
     DEBUG(0, "com20020_detach(0x%p)\n", link);
 
-    if (link->dev) {
+    if (link->dev_node) {
 	DEBUG(1,"unregister...\n");
 
 	unregister_netdev(dev);
@@ -244,8 +237,6 @@ static void com20020_detach(struct pcmcia_device *p_dev)
 	DEBUG(1,"kfree2...\n");
 	kfree(info);
     }
-    DEBUG(1,"kfree3...\n");
-    kfree(link);
 
 } /* com20020_detach */
 
@@ -341,7 +332,7 @@ static void com20020_config(dev_link_t *link)
     lp->card_name = "PCMCIA COM20020";
     lp->card_flags = ARC_CAN_10MBIT; /* pretend all of them can 10Mbit */
 
-    link->dev = &info->node;
+    link->dev_node = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
@@ -349,7 +340,7 @@ static void com20020_config(dev_link_t *link)
     
     if (i != 0) {
 	DEBUG(1,KERN_NOTICE "com20020_cs: com20020_found() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto failed;
     }
 

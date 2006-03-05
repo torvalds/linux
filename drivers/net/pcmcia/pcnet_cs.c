@@ -214,7 +214,7 @@ static hw_info_t dl10019_info = { 0, 0, 0, 0, IS_DL10019|HAS_MII };
 static hw_info_t dl10022_info = { 0, 0, 0, 0, IS_DL10022|HAS_MII };
 
 typedef struct pcnet_dev_t {
-    dev_link_t		link;
+	struct pcmcia_device	*p_dev;
     dev_node_t		node;
     u_int		flags;
     void		__iomem *base;
@@ -243,8 +243,8 @@ static inline pcnet_dev_t *PRIV(struct net_device *dev)
 static int pcnet_probe(struct pcmcia_device *p_dev)
 {
     pcnet_dev_t *info;
-    dev_link_t *link;
     struct net_device *dev;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "pcnet_attach()\n");
 
@@ -252,7 +252,7 @@ static int pcnet_probe(struct pcmcia_device *p_dev)
     dev = __alloc_ei_netdev(sizeof(pcnet_dev_t));
     if (!dev) return -ENOMEM;
     info = PRIV(dev);
-    link = &info->link;
+    info->p_dev = p_dev;
     link->priv = dev;
 
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
@@ -264,9 +264,6 @@ static int pcnet_probe(struct pcmcia_device *p_dev)
     dev->open = &pcnet_open;
     dev->stop = &pcnet_close;
     dev->set_config = &set_config;
-
-    link->handle = p_dev;
-    p_dev->instance = link;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     pcnet_config(link);
@@ -290,7 +287,7 @@ static void pcnet_detach(struct pcmcia_device *p_dev)
 
 	DEBUG(0, "pcnet_detach(0x%p)\n", link);
 
-	if (link->dev)
+	if (link->dev_node)
 		unregister_netdev(dev);
 
 	if (link->state & DEV_CONFIG)
@@ -674,7 +671,7 @@ static void pcnet_config(dev_link_t *link)
 	    info->eth_phy = 0;
     }
 
-    link->dev = &info->node;
+    link->dev_node = &info->node;
     link->state &= ~DEV_CONFIG_PENDING;
     SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
@@ -684,7 +681,7 @@ static void pcnet_config(dev_link_t *link)
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "pcnet_cs: register_netdev() failed\n");
-	link->dev = NULL;
+	link->dev_node = NULL;
 	goto failed;
     }
 
@@ -1005,8 +1002,8 @@ static void mii_phy_probe(struct net_device *dev)
 static int pcnet_open(struct net_device *dev)
 {
     pcnet_dev_t *info = PRIV(dev);
-    dev_link_t *link = &info->link;
-    
+    dev_link_t *link = info->p_dev;
+
     DEBUG(2, "pcnet_open('%s')\n", dev->name);
 
     if (!DEV_OK(link))
@@ -1033,7 +1030,7 @@ static int pcnet_open(struct net_device *dev)
 static int pcnet_close(struct net_device *dev)
 {
     pcnet_dev_t *info = PRIV(dev);
-    dev_link_t *link = &info->link;
+    dev_link_t *link = info->p_dev;
 
     DEBUG(2, "pcnet_close('%s')\n", dev->name);
 

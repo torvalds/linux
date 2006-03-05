@@ -204,7 +204,7 @@ enum Window4 {		/* Window 4: Xcvr/media bits. */
 #define MEDIA_TP	0x00C0	/* Enable link beat and jabber for 10baseT. */
 
 struct el3_private {
-	dev_link_t link;
+	struct pcmcia_device	*p_dev;
 	dev_node_t node;
 	struct net_device_stats stats;
 	u16 advertising, partner;		/* NWay media advertisement */
@@ -259,8 +259,8 @@ static void tc574_detach(struct pcmcia_device *p_dev);
 static int tc574_attach(struct pcmcia_device *p_dev)
 {
 	struct el3_private *lp;
-	dev_link_t *link;
 	struct net_device *dev;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	DEBUG(0, "3c574_attach()\n");
 
@@ -269,8 +269,8 @@ static int tc574_attach(struct pcmcia_device *p_dev)
 	if (!dev)
 		return -ENOMEM;
 	lp = netdev_priv(dev);
-	link = &lp->link;
 	link->priv = dev;
+	lp->p_dev = p_dev;
 
 	spin_lock_init(&lp->window_lock);
 	link->io.NumPorts1 = 32;
@@ -297,9 +297,6 @@ static int tc574_attach(struct pcmcia_device *p_dev)
 	dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-	link->handle = p_dev;
-	p_dev->instance = link;
-
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	tc574_config(link);
 
@@ -322,7 +319,7 @@ static void tc574_detach(struct pcmcia_device *p_dev)
 
 	DEBUG(0, "3c574_detach(0x%p)\n", link);
 
-	if (link->dev)
+	if (link->dev_node)
 		unregister_netdev(dev);
 
 	if (link->state & DEV_CONFIG)
@@ -473,12 +470,12 @@ static void tc574_config(dev_link_t *link)
 	}
 
 	link->state &= ~DEV_CONFIG_PENDING;
-	link->dev = &lp->node;
+	link->dev_node = &lp->node;
 	SET_NETDEV_DEV(dev, &handle_to_dev(handle));
 
 	if (register_netdev(dev) != 0) {
 		printk(KERN_NOTICE "3c574_cs: register_netdev() failed\n");
-		link->dev = NULL;
+		link->dev_node = NULL;
 		goto failed;
 	}
 
@@ -742,7 +739,7 @@ static void tc574_reset(struct net_device *dev)
 static int el3_open(struct net_device *dev)
 {
 	struct el3_private *lp = netdev_priv(dev);
-	dev_link_t *link = &lp->link;
+	dev_link_t *link = lp->p_dev;
 
 	if (!DEV_OK(link))
 		return -ENODEV;
@@ -1188,7 +1185,7 @@ static int el3_close(struct net_device *dev)
 {
 	kio_addr_t ioaddr = dev->base_addr;
 	struct el3_private *lp = netdev_priv(dev);
-	dev_link_t *link = &lp->link;
+	dev_link_t *link = lp->p_dev;
 
 	DEBUG(2, "%s: shutting down ethercard.\n", dev->name);
 	

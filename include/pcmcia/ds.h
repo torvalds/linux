@@ -39,7 +39,7 @@ typedef struct win_info_t {
 typedef struct bind_info_t {
     dev_info_t		dev_info;
     u_char		function;
-    struct dev_link_t	*instance;
+    struct pcmcia_device *instance;
     char		name[DEV_NAME_LEN];
     u_short		major, minor;
     void		*next;
@@ -103,18 +103,6 @@ typedef struct dev_node_t {
     struct dev_node_t	*next;
 } dev_node_t;
 
-typedef struct dev_link_t {
-    dev_node_t		*dev;
-    u_int		state, open;
-    client_handle_t	handle;
-    io_req_t		io;
-    irq_req_t		irq;
-    config_req_t	conf;
-    window_handle_t	win;
-    void		*priv;
-    struct dev_link_t	*next;
-} dev_link_t;
-
 /* Flags for device state */
 #define DEV_PRESENT		0x01
 #define DEV_CONFIG		0x02
@@ -163,9 +151,17 @@ struct pcmcia_device {
 
 	struct list_head	socket_device_list;
 
-	/* deprecated, a cleaned up version will be moved into this
-	   struct soon */
-	dev_link_t		*instance;
+	/* deprecated, will be cleaned up soon */
+	dev_node_t		*dev_node;
+	u_int			state;
+	u_int			open;
+	struct pcmcia_device	*handle;
+	io_req_t		io;
+	irq_req_t		irq;
+	config_req_t		conf;
+	window_handle_t		win;
+	void			*priv;
+
 	u_int			p_state;
 
 	/* information about this device */
@@ -189,6 +185,7 @@ struct pcmcia_device {
 	struct pcmcia_driver *	cardmgr;
 #endif
 };
+typedef struct pcmcia_device dev_link_t;
 
 #define to_pcmcia_dev(n) container_of(n, struct pcmcia_device, dev)
 #define to_pcmcia_drv(n) container_of(n, struct pcmcia_driver, drv)
@@ -196,7 +193,7 @@ struct pcmcia_device {
 #define handle_to_pdev(handle) (handle)
 #define handle_to_dev(handle) (handle->dev)
 
-#define dev_to_instance(dev) (dev->instance)
+#define dev_to_instance(dev) (dev)
 
 /* error reporting */
 void cs_error(client_handle_t handle, int func, int ret);

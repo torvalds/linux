@@ -143,22 +143,14 @@ typedef struct local_info_t {
 
 static int airo_attach(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link;
 	local_info_t *local;
 
 	DEBUG(0, "airo_attach()\n");
 
-	/* Initialize the dev_link_t structure */
-	link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-	if (!link) {
-		printk(KERN_ERR "airo_cs: no memory for new device\n");
-		return -ENOMEM;
-	}
-	
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-	link->irq.Handler = NULL;
+	p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+	p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	p_dev->irq.Handler = NULL;
 	
 	/*
 	  General socket configuration defaults can go here.  In this
@@ -167,23 +159,19 @@ static int airo_attach(struct pcmcia_device *p_dev)
 	  and attributes of IO windows) are fixed by the nature of the
 	  device, and can be hard-wired here.
 	*/
-	link->conf.Attributes = 0;
-	link->conf.IntType = INT_MEMORY_AND_IO;
+	p_dev->conf.Attributes = 0;
+	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 	
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local) {
 		printk(KERN_ERR "airo_cs: no memory for new device\n");
-		kfree (link);
 		return -ENOMEM;
 	}
-	link->priv = local;
+	p_dev->priv = local;
 
-	link->handle = p_dev;
-	p_dev->instance = link;
-
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	airo_config(link);
+	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	airo_config(p_dev);
 
 	return 0;
 } /* airo_attach */
@@ -212,7 +200,6 @@ static void airo_detach(struct pcmcia_device *p_dev)
 	((local_info_t*)link->priv)->eth_dev = NULL;
 
 	kfree(link->priv);
-	kfree(link);
 } /* airo_detach */
 
 /*======================================================================
@@ -378,11 +365,11 @@ static void airo_config(dev_link_t *link)
 	
 	/*
 	  At this point, the dev_node_t structure(s) need to be
-	  initialized and arranged in a linked list at link->dev.
+	  initialized and arranged in a linked list at link->dev_node.
 	*/
 	strcpy(dev->node.dev_name, ((local_info_t*)link->priv)->eth_dev->name );
 	dev->node.major = dev->node.minor = 0;
-	link->dev = &dev->node;
+	link->dev_node = &dev->node;
 	
 	/* Finally, report what we've done */
 	printk(KERN_INFO "%s: index 0x%02x: ",

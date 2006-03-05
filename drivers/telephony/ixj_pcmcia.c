@@ -40,30 +40,20 @@ static void ixj_cs_release(dev_link_t * link);
 
 static int ixj_attach(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link;
-
 	DEBUG(0, "ixj_attach()\n");
 	/* Create new ixj device */
-	link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-	if (!link)
-		return -ENOMEM;
-	memset(link, 0, sizeof(struct dev_link_t));
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	link->io.IOAddrLines = 3;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-	link->priv = kmalloc(sizeof(struct ixj_info_t), GFP_KERNEL);
-	if (!link->priv) {
-		kfree(link);
+	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+	p_dev->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
+	p_dev->io.IOAddrLines = 3;
+	p_dev->conf.IntType = INT_MEMORY_AND_IO;
+	p_dev->priv = kmalloc(sizeof(struct ixj_info_t), GFP_KERNEL);
+	if (!p_dev->priv) {
 		return -ENOMEM;
 	}
-	memset(link->priv, 0, sizeof(struct ixj_info_t));
+	memset(p_dev->priv, 0, sizeof(struct ixj_info_t));
 
-	link->handle = p_dev;
-	p_dev->instance = link;
-
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	ixj_config(link);
+	p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	ixj_config(p_dev);
 
 	return 0;
 }
@@ -79,7 +69,6 @@ static void ixj_detach(struct pcmcia_device *p_dev)
 		ixj_cs_release(link);
 
         kfree(link->priv);
-        kfree(link);
 }
 
 #define CS_CHECK(fn, ret) \
@@ -212,7 +201,7 @@ static void ixj_config(dev_link_t * link)
 
 	info->ndev = 1;
 	info->node.major = PHONE_MAJOR;
-	link->dev = &info->node;
+	link->dev_node = &info->node;
 	ixj_get_serial(link, j);
 	link->state &= ~DEV_CONFIG_PENDING;
 	return;

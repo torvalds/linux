@@ -67,7 +67,7 @@ module_param(pc_debug, int, 0644);
 static const char driver_name[DEV_NAME_LEN]  = "sl811_cs";
 
 typedef struct local_info_t {
-	dev_link_t		link;
+	struct pcmcia_device	*p_dev;
 	dev_node_t		node;
 } local_info_t;
 
@@ -268,7 +268,7 @@ next_entry:
 
 	sprintf(dev->node.dev_name, driver_name);
 	dev->node.major = dev->node.minor = 0;
-	link->dev = &dev->node;
+	link->dev_node = &dev->node;
 
 	printk(KERN_INFO "%s: index 0x%02x: ",
 	       dev->node.dev_name, link->conf.ConfigIndex);
@@ -294,13 +294,13 @@ cs_failed:
 static int sl811_cs_attach(struct pcmcia_device *p_dev)
 {
 	local_info_t *local;
-	dev_link_t *link;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
 	memset(local, 0, sizeof(local_info_t));
-	link = &local->link;
+	local->p_dev = p_dev;
 	link->priv = local;
 
 	/* Initialize */
@@ -310,9 +310,6 @@ static int sl811_cs_attach(struct pcmcia_device *p_dev)
 
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;
-
-	link->handle = p_dev;
-	p_dev->instance = link;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	sl811_cs_config(link);

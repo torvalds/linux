@@ -81,7 +81,7 @@ static const char ide_major[] = {
 };
 
 typedef struct ide_info_t {
-    dev_link_t	link;
+	struct pcmcia_device	*p_dev;
     int		ndev;
     dev_node_t	node;
     int		hd;
@@ -106,7 +106,7 @@ static void ide_detach(struct pcmcia_device *p_dev);
 static int ide_attach(struct pcmcia_device *p_dev)
 {
     ide_info_t *info;
-    dev_link_t *link;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "ide_attach()\n");
 
@@ -114,7 +114,9 @@ static int ide_attach(struct pcmcia_device *p_dev)
     info = kzalloc(sizeof(*info), GFP_KERNEL);
     if (!info)
 	return -ENOMEM;
-    link = &info->link; link->priv = info;
+
+    info->p_dev = p_dev;
+    link->priv = info;
 
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
@@ -123,9 +125,6 @@ static int ide_attach(struct pcmcia_device *p_dev)
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
-
-    link->handle = p_dev;
-    p_dev->instance = link;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     ide_config(link);
@@ -326,7 +325,7 @@ static void ide_config(dev_link_t *link)
     info->node.major = ide_major[hd];
     info->node.minor = 0;
     info->hd = hd;
-    link->dev = &info->node;
+    link->dev_node = &info->node;
     printk(KERN_INFO "ide-cs: %s: Vpp = %d.%d\n",
 	   info->node.dev_name, link->conf.Vpp / 10, link->conf.Vpp % 10);
 

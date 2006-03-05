@@ -41,7 +41,7 @@
 
 
 #ifdef PCMCIA_DEBUG
-#define reader_to_dev(x)	(&handle_to_dev(x->link.handle))
+#define reader_to_dev(x)	(&handle_to_dev(x->p_dev->handle))
 static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0600);
 #define DEBUGP(n, rdr, x, args...) do { 				\
@@ -74,7 +74,7 @@ static struct class *cmx_class;
 #define		BS_WRITABLE	0x02
 
 struct reader_dev {
-	dev_link_t		link;
+	struct pcmcia_device	*p_dev;
 	dev_node_t		node;
 	wait_queue_head_t	devq;
 	wait_queue_head_t	poll_wait;
@@ -116,7 +116,7 @@ static inline unsigned char xinb(unsigned short port)
 static void cm4040_do_poll(unsigned long dummy)
 {
 	struct reader_dev *dev = (struct reader_dev *) dummy;
-	unsigned int obs = xinb(dev->link.io.BasePort1
+	unsigned int obs = xinb(dev->p_dev->io.BasePort1
 				+ REG_OFFSET_BUFFER_STATUS);
 
 	if ((obs & BSR_BULK_IN_FULL)) {
@@ -147,7 +147,7 @@ static void cm4040_stop_poll(struct reader_dev *dev)
 static int wait_for_bulk_out_ready(struct reader_dev *dev)
 {
 	int i, rc;
-	int iobase = dev->link.io.BasePort1;
+	int iobase = dev->p_dev->io.BasePort1;
 
 	for (i = 0; i < POLL_LOOP_COUNT; i++) {
 		if ((xinb(iobase + REG_OFFSET_BUFFER_STATUS)
@@ -177,7 +177,7 @@ static int wait_for_bulk_out_ready(struct reader_dev *dev)
 /* Write to Sync Control Register */
 static int write_sync_reg(unsigned char val, struct reader_dev *dev)
 {
-	int iobase = dev->link.io.BasePort1;
+	int iobase = dev->p_dev->io.BasePort1;
 	int rc;
 
 	rc = wait_for_bulk_out_ready(dev);
@@ -195,7 +195,7 @@ static int write_sync_reg(unsigned char val, struct reader_dev *dev)
 static int wait_for_bulk_in_ready(struct reader_dev *dev)
 {
 	int i, rc;
-	int iobase = dev->link.io.BasePort1;
+	int iobase = dev->p_dev->io.BasePort1;
 
 	for (i = 0; i < POLL_LOOP_COUNT; i++) {
 		if ((xinb(iobase + REG_OFFSET_BUFFER_STATUS)
@@ -225,7 +225,7 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 			size_t count, loff_t *ppos)
 {
 	struct reader_dev *dev = filp->private_data;
-	int iobase = dev->link.io.BasePort1;
+	int iobase = dev->p_dev->io.BasePort1;
 	size_t bytes_to_read;
 	unsigned long i;
 	size_t min_bytes_to_read;
@@ -246,7 +246,7 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 		return -EAGAIN;
 	}
 
-	if ((dev->link.state & DEV_PRESENT)==0)
+	if ((dev->p_dev->state & DEV_PRESENT)==0)
 		return -ENODEV;
 
 	for (i = 0; i < 5; i++) {
@@ -328,7 +328,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	struct reader_dev *dev = filp->private_data;
-	int iobase = dev->link.io.BasePort1;
+	int iobase = dev->p_dev->io.BasePort1;
 	ssize_t rc;
 	int i;
 	unsigned int bytes_to_write;
@@ -351,7 +351,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 		return -EAGAIN;
 	}
 
-	if ((dev->link.state & DEV_PRESENT) == 0)
+	if ((dev->p_dev->state & DEV_PRESENT) == 0)
 		return -ENODEV;
 
 	bytes_to_write = count;
@@ -606,7 +606,7 @@ static void reader_config(dev_link_t *link, int devno)
 	dev->node.major = major;
 	dev->node.minor = devno;
 	dev->node.next = NULL;
-	link->dev = &dev->node;
+	link->dev_node = &dev->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 
 	DEBUGP(2, dev, "device " DEVICE_NAME "%d at 0x%.4x-0x%.4x\n", devno,
@@ -631,8 +631,8 @@ static void reader_release(dev_link_t *link)
 static int reader_attach(struct pcmcia_device *p_dev)
 {
 	struct reader_dev *dev;
-	dev_link_t *link;
 	int i;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	for (i = 0; i < CM_MAX_DEV; i++) {
 		if (dev_table[i] == NULL)
@@ -649,8 +649,8 @@ static int reader_attach(struct pcmcia_device *p_dev)
 	dev->timeout = CCID_DRIVER_MINIMUM_TIMEOUT;
 	dev->buffer_status = 0;
 
-	link = &dev->link;
 	link->priv = dev;
+	dev->p_dev = p_dev;
 
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
@@ -661,9 +661,6 @@ static int reader_attach(struct pcmcia_device *p_dev)
 	init_waitqueue_head(&dev->write_wait);
 	init_timer(&dev->poll_timer);
 	dev->poll_timer.function = &cm4040_do_poll;
-
-	link->handle = p_dev;
-	p_dev->instance = link;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	reader_config(link, i);

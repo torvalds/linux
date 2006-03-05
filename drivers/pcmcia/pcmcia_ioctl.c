@@ -229,7 +229,7 @@ static int bind_request(struct pcmcia_socket *s, bind_info_t *bind_info)
 					 * by userspace before, we need to
 					 * return the "instance". */
 					spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
-					bind_info->instance = p_dev->instance;
+					bind_info->instance = p_dev;
 					ret = -EBUSY;
 					goto err_put_module;
 				} else {
@@ -358,16 +358,15 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
  found:
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
-	if ((!p_dev->instance) ||
-	    (p_dev->instance->state & DEV_CONFIG_PENDING)) {
+	if (p_dev->state & DEV_CONFIG_PENDING) {
 		ret = -EAGAIN;
 		goto err_put;
 	}
 
 	if (first)
-		node = p_dev->instance->dev;
+		node = p_dev->dev_node;
 	else
-		for (node = p_dev->instance->dev; node; node = node->next)
+		for (node = p_dev->dev_node; node; node = node->next)
 			if (node == bind_info->next)
 				break;
 	if (!node) {

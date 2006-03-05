@@ -72,7 +72,7 @@ MODULE_LICENSE("GPL");
 
 
 typedef struct bt3c_info_t {
-	dev_link_t link;
+	struct pcmcia_device *p_dev;
 	dev_node_t node;
 
 	struct hci_dev *hdev;
@@ -191,11 +191,11 @@ static void bt3c_write_wakeup(bt3c_info_t *info)
 		return;
 
 	do {
-		register unsigned int iobase = info->link.io.BasePort1;
+		register unsigned int iobase = info->p_dev->io.BasePort1;
 		register struct sk_buff *skb;
 		register int len;
 
-		if (!(info->link.state & DEV_PRESENT))
+		if (!(info->p_dev->state & DEV_PRESENT))
 			break;
 
 
@@ -229,7 +229,7 @@ static void bt3c_receive(bt3c_info_t *info)
 		return;
 	}
 
-	iobase = info->link.io.BasePort1;
+	iobase = info->p_dev->io.BasePort1;
 
 	avail = bt3c_read(iobase, 0x7006);
 	//printk("bt3c_cs: receiving %d bytes\n", avail);
@@ -350,7 +350,7 @@ static irqreturn_t bt3c_interrupt(int irq, void *dev_inst, struct pt_regs *regs)
 		return IRQ_NONE;
 	}
 
-	iobase = info->link.io.BasePort1;
+	iobase = info->p_dev->io.BasePort1;
 
 	spin_lock(&(info->lock));
 
@@ -481,7 +481,7 @@ static int bt3c_load_firmware(bt3c_info_t *info, unsigned char *firmware, int co
 	unsigned int iobase, size, addr, fcs, tmp;
 	int i, err = 0;
 
-	iobase = info->link.io.BasePort1;
+	iobase = info->p_dev->io.BasePort1;
 
 	/* Reset */
 	bt3c_io_write(iobase, 0x8040, 0x0404);
@@ -562,7 +562,6 @@ static int bt3c_open(bt3c_info_t *info)
 {
 	const struct firmware *firmware;
 	struct hci_dev *hdev;
-	client_handle_t handle;
 	int err;
 
 	spin_lock_init(&(info->lock));
@@ -594,10 +593,8 @@ static int bt3c_open(bt3c_info_t *info)
 
 	hdev->owner = THIS_MODULE;
 
-	handle = info->link.handle;
-
 	/* Load firmware */
-	err = request_firmware(&firmware, "BT3CPCC.bin", &handle_to_dev(handle));
+	err = request_firmware(&firmware, "BT3CPCC.bin", &info->p_dev->dev);
 	if (err < 0) {
 		BT_ERR("Firmware request failed");
 		goto error;
@@ -651,14 +648,14 @@ static int bt3c_close(bt3c_info_t *info)
 static int bt3c_attach(struct pcmcia_device *p_dev)
 {
 	bt3c_info_t *info;
-	dev_link_t *link;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	/* Create new info device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	link = &info->link;
+	info->p_dev = p_dev;
 	link->priv = info;
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
@@ -671,9 +668,6 @@ static int bt3c_attach(struct pcmcia_device *p_dev)
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
-
-	link->handle = p_dev;
-	p_dev->instance = link;
 
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	bt3c_config(link);
@@ -815,7 +809,7 @@ found_port:
 		goto failed;
 
 	strcpy(info->node.dev_name, info->hdev->name);
-	link->dev = &info->node;
+	link->dev_node = &info->node;
 	link->state &= ~DEV_CONFIG_PENDING;
 
 	return;

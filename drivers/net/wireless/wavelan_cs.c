@@ -4081,7 +4081,7 @@ wv_pcmcia_config(dev_link_t *	link)
     }
 
   strcpy(((net_local *) netdev_priv(dev))->node.dev_name, dev->name);
-  link->dev = &((net_local *) netdev_priv(dev))->node;
+  link->dev_node = &((net_local *) netdev_priv(dev))->node;
 
 #ifdef DEBUG_CONFIG_TRACE
   printk(KERN_DEBUG "<-wv_pcmcia_config()\n");
@@ -4583,7 +4583,6 @@ wavelan_close(struct net_device *	dev)
 static int
 wavelan_attach(struct pcmcia_device *p_dev)
 {
-  dev_link_t *	link;		/* Info for cardmgr */
   struct net_device *	dev;		/* Interface generic data */
   net_local *	lp;		/* Interface specific data */
 
@@ -4591,34 +4590,26 @@ wavelan_attach(struct pcmcia_device *p_dev)
   printk(KERN_DEBUG "-> wavelan_attach()\n");
 #endif
 
-  /* Initialize the dev_link_t structure */
-  link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
-  if (!link) return -ENOMEM;
-
   /* The io structure describes IO port mapping */
-  link->io.NumPorts1 = 8;
-  link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-  link->io.IOAddrLines = 3;
+  p_dev->io.NumPorts1 = 8;
+  p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+  p_dev->io.IOAddrLines = 3;
 
   /* Interrupt setup */
-  link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-  link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-  link->irq.Handler = wavelan_interrupt;
+  p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
+  p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
+  p_dev->irq.Handler = wavelan_interrupt;
 
   /* General socket configuration */
-  link->conf.Attributes = CONF_ENABLE_IRQ;
-  link->conf.IntType = INT_MEMORY_AND_IO;
-
-  /* Chain drivers */
-  link->next = NULL;
+  p_dev->conf.Attributes = CONF_ENABLE_IRQ;
+  p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
   /* Allocate the generic data structure */
   dev = alloc_etherdev(sizeof(net_local));
-  if (!dev) {
-      kfree(link);
+  if (!dev)
       return -ENOMEM;
-  }
-  link->priv = link->irq.Instance = dev;
+
+  p_dev->priv = p_dev->irq.Instance = dev;
 
   lp = netdev_priv(dev);
 
@@ -4635,7 +4626,6 @@ wavelan_attach(struct pcmcia_device *p_dev)
   spin_lock_init(&lp->spinlock);
 
   /* back links */
-  lp->link = link;
   lp->dev = dev;
 
   /* wavelan NET3 callbacks */
@@ -4661,11 +4651,8 @@ wavelan_attach(struct pcmcia_device *p_dev)
   /* Other specific data */
   dev->mtu = WAVELAN_MTU;
 
-  link->handle = p_dev;
-  p_dev->instance = link;
-
-  link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-  if(wv_pcmcia_config(link) &&
+  p_dev->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+  if(wv_pcmcia_config(p_dev) &&
      wv_hw_config(dev))
 	  wv_init_info(dev);
   else
@@ -4713,14 +4700,13 @@ wavelan_detach(struct pcmcia_device *p_dev)
 
       /* Remove ourselves from the kernel list of ethernet devices */
       /* Warning : can't be called from interrupt, timer or wavelan_close() */
-      if (link->dev)
+      if (link->dev_node)
 	unregister_netdev(dev);
-      link->dev = NULL;
+      link->dev_node = NULL;
       ((net_local *)netdev_priv(dev))->link = NULL;
       ((net_local *)netdev_priv(dev))->dev = NULL;
       free_netdev(dev);
     }
-  kfree(link);
 
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "<- wavelan_detach()\n");

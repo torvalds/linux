@@ -228,7 +228,7 @@ typedef struct _mgslpc_info {
 	struct	_input_signal_events	input_signal_events;
 
 	/* PCMCIA support */
-	dev_link_t	      link;
+	struct pcmcia_device	*p_dev;
 	dev_node_t	      node;
 	int		      stop;
 
@@ -536,11 +536,11 @@ static void ldisc_receive_buf(struct tty_struct *tty,
 static int mgslpc_attach(struct pcmcia_device *p_dev)
 {
     MGSLPC_INFO *info;
-    dev_link_t *link;
-    
+    dev_link_t *link = dev_to_instance(p_dev);
+
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_attach\n");
-	
+
     info = (MGSLPC_INFO *)kmalloc(sizeof(MGSLPC_INFO), GFP_KERNEL);
     if (!info) {
 	    printk("Error can't allocate device instance data\n");
@@ -565,21 +565,18 @@ static int mgslpc_attach(struct pcmcia_device *p_dev)
     info->imrb_value = 0xffff;
     info->pim_value = 0xff;
 
-    link = &info->link;
+    info->p_dev = p_dev;
     link->priv = info;
-    
+
     /* Initialize the dev_link_t structure */
 
     /* Interrupt setup */
     link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
     link->irq.IRQInfo1   = IRQ_LEVEL_ID;
     link->irq.Handler = NULL;
-    
+
     link->conf.Attributes = 0;
     link->conf.IntType = INT_MEMORY_AND_IO;
-
-    link->handle = p_dev;
-    p_dev->instance = link;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     mgslpc_config(link);
@@ -673,7 +670,7 @@ static void mgslpc_config(dev_link_t *link)
     /* add to linked list of devices */
     sprintf(info->node.dev_name, "mgslpc0");
     info->node.major = info->node.minor = 0;
-    link->dev = &info->node;
+    link->dev_node = &info->node;
 
     printk(KERN_INFO "%s: index 0x%02x:",
 	   info->node.dev_name, link->conf.ConfigIndex);
@@ -1259,7 +1256,7 @@ static irqreturn_t mgslpc_isr(int irq, void *dev_id, struct pt_regs * regs)
 	if (!info)
 		return IRQ_NONE;
 		
-	if (!(info->link.state & DEV_CONFIG))
+	if (!(info->p_dev->state & DEV_CONFIG))
 		return IRQ_HANDLED;
 
 	spin_lock(&info->lock);

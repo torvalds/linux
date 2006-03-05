@@ -73,7 +73,7 @@ static char *version =
 /*====================================================================*/
 
 typedef struct scsi_info_t {
-    dev_link_t		link;
+	struct pcmcia_device	*p_dev;
     dev_node_t		node;
     struct Scsi_Host	*host;
 } scsi_info_t;
@@ -86,7 +86,7 @@ static void fdomain_config(dev_link_t *link);
 static int fdomain_attach(struct pcmcia_device *p_dev)
 {
     scsi_info_t *info;
-    dev_link_t *link;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "fdomain_attach()\n");
 
@@ -94,7 +94,8 @@ static int fdomain_attach(struct pcmcia_device *p_dev)
     info = kmalloc(sizeof(*info), GFP_KERNEL);
     if (!info) return -ENOMEM;
     memset(info, 0, sizeof(*info));
-    link = &info->link; link->priv = info;
+    info->p_dev = p_dev;
+    link->priv = info;
     link->io.NumPorts1 = 0x10;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.IOAddrLines = 10;
@@ -103,9 +104,6 @@ static int fdomain_attach(struct pcmcia_device *p_dev)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
-
-    link->handle = p_dev;
-    p_dev->instance = link;
 
     link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
     fdomain_config(link);
@@ -191,7 +189,7 @@ static void fdomain_config(dev_link_t *link)
     scsi_scan_host(host);
 
     sprintf(info->node.dev_name, "scsi%d", host->host_no);
-    link->dev = &info->node;
+    link->dev_node = &info->node;
     info->host = host;
     
     link->state &= ~DEV_CONFIG_PENDING;
