@@ -2345,6 +2345,120 @@ int ata_drive_probe_reset(struct ata_port *ap, ata_probeinit_fn_t probeinit,
 	return rc;
 }
 
+/**
+ *	ata_dev_same_device - Determine whether new ID matches configured device
+ *	@ap: port on which the device to compare against resides
+ *	@dev: device to compare against
+ *	@new_class: class of the new device
+ *	@new_id: IDENTIFY page of the new device
+ *
+ *	Compare @new_class and @new_id against @dev and determine
+ *	whether @dev is the device indicated by @new_class and
+ *	@new_id.
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	RETURNS:
+ *	1 if @dev matches @new_class and @new_id, 0 otherwise.
+ */
+static int ata_dev_same_device(struct ata_port *ap, struct ata_device *dev,
+			       unsigned int new_class, const u16 *new_id)
+{
+	const u16 *old_id = dev->id;
+	unsigned char model[2][41], serial[2][21];
+	u64 new_n_sectors;
+
+	if (dev->class != new_class) {
+		printk(KERN_INFO
+		       "ata%u: dev %u class mismatch %d != %d\n",
+		       ap->id, dev->devno, dev->class, new_class);
+		return 0;
+	}
+
+	ata_id_c_string(old_id, model[0], ATA_ID_PROD_OFS, sizeof(model[0]));
+	ata_id_c_string(new_id, model[1], ATA_ID_PROD_OFS, sizeof(model[1]));
+	ata_id_c_string(old_id, serial[0], ATA_ID_SERNO_OFS, sizeof(serial[0]));
+	ata_id_c_string(new_id, serial[1], ATA_ID_SERNO_OFS, sizeof(serial[1]));
+	new_n_sectors = ata_id_n_sectors(new_id);
+
+	if (strcmp(model[0], model[1])) {
+		printk(KERN_INFO
+		       "ata%u: dev %u model number mismatch '%s' != '%s'\n",
+		       ap->id, dev->devno, model[0], model[1]);
+		return 0;
+	}
+
+	if (strcmp(serial[0], serial[1])) {
+		printk(KERN_INFO
+		       "ata%u: dev %u serial number mismatch '%s' != '%s'\n",
+		       ap->id, dev->devno, serial[0], serial[1]);
+		return 0;
+	}
+
+	if (dev->class == ATA_DEV_ATA && dev->n_sectors != new_n_sectors) {
+		printk(KERN_INFO
+		       "ata%u: dev %u n_sectors mismatch %llu != %llu\n",
+		       ap->id, dev->devno, (unsigned long long)dev->n_sectors,
+		       (unsigned long long)new_n_sectors);
+		return 0;
+	}
+
+	return 1;
+}
+
+/**
+ *	ata_dev_revalidate - Revalidate ATA device
+ *	@ap: port on which the device to revalidate resides
+ *	@dev: device to revalidate
+ *	@post_reset: is this revalidation after reset?
+ *
+ *	Re-read IDENTIFY page and make sure @dev is still attached to
+ *	the port.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	0 on success, negative errno otherwise
+ */
+int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
+		       int post_reset)
+{
+	unsigned int class;
+	u16 *id;
+	int rc;
+
+	if (!ata_dev_present(dev))
+		return -ENODEV;
+
+	class = dev->class;
+	id = NULL;
+
+	/* allocate & read ID data */
+	rc = ata_dev_read_id(ap, dev, &class, post_reset, &id);
+	if (rc)
+		goto fail;
+
+	/* is the device still there? */
+	if (!ata_dev_same_device(ap, dev, class, id)) {
+		rc = -ENODEV;
+		goto fail;
+	}
+
+	kfree(dev->id);
+	dev->id = id;
+
+	/* configure device according to the new ID */
+	return ata_dev_configure(ap, dev, 0);
+
+ fail:
+	printk(KERN_ERR "ata%u: dev %u revalidation failed (errno=%d)\n",
+	       ap->id, dev->devno, rc);
+	kfree(id);
+	return rc;
+}
+
 static void ata_pr_blacklisted(const struct ata_port *ap,
 			       const struct ata_device *dev)
 {
@@ -4964,6 +5078,7 @@ EXPORT_SYMBOL_GPL(sata_std_hardreset);
 EXPORT_SYMBOL_GPL(ata_std_postreset);
 EXPORT_SYMBOL_GPL(ata_std_probe_reset);
 EXPORT_SYMBOL_GPL(ata_drive_probe_reset);
+EXPORT_SYMBOL_GPL(ata_dev_revalidate);
 EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
 EXPORT_SYMBOL_GPL(ata_busy_sleep);
