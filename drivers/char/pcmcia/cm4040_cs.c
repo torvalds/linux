@@ -452,7 +452,7 @@ static int cm4040_open(struct inode *inode, struct file *filp)
 		return -ENODEV;
 
 	link = dev_table[minor];
-	if (link == NULL || !(DEV_OK(link)))
+	if (link == NULL || !pcmcia_dev_present(link))
 		return -ENODEV;
 
 	if (link->open)

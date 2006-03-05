@@ -1458,7 +1458,7 @@ static int cmm_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 	       iminor(inode), ioctl_names[_IOC_NR(cmd)]);
 
 	link = dev_table[iminor(inode)];
-	if (!(DEV_OK(link))) {
+	if (!pcmcia_dev_present(link)) {
 		DEBUGP(4, dev, "DEV_OK false\n");
 		return -ENODEV;
 	}
@@ -1667,7 +1667,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 		return -ENODEV;
 
 	link = dev_table[minor];
-	if (link == NULL || !(DEV_OK(link)))
+	if (link == NULL || !pcmcia_dev_present(link))
 		return -ENODEV;
 
 	if (link->open)

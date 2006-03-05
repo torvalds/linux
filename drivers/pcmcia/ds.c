@@ -469,6 +469,7 @@ static void pcmcia_card_remove(struct pcmcia_socket *s)
 		}
 		p_dev = list_entry((&s->devices_list)->next, struct pcmcia_device, socket_device_list);
 		list_del(&p_dev->socket_device_list);
+		p_dev->_removed=1;
 		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
 		device_unregister(&p_dev->dev);
@@ -1161,6 +1162,32 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 
     return 0;
 } /* ds_event */
+
+
+struct pcmcia_device * pcmcia_dev_present(struct pcmcia_device *_p_dev)
+{
+	struct pcmcia_device *p_dev;
+	struct pcmcia_device *ret = NULL;
+
+	p_dev = pcmcia_get_dev(_p_dev);
+	if (!p_dev)
+		return NULL;
+
+	if (!p_dev->socket->pcmcia_state.present)
+		goto out;
+
+	if (p_dev->_removed)
+		goto out;
+
+	if (p_dev->suspended)
+		goto out;
+
+	ret = p_dev;
+ out:
+	pcmcia_put_dev(p_dev);
+	return ret;
+}
+EXPORT_SYMBOL(pcmcia_dev_present);
 
 
 static struct pcmcia_callback pcmcia_bus_callback = {

@@ -280,7 +280,7 @@ static int pdacf_resume(struct pcmcia_device *link)
 	struct snd_pdacf *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "RESUME\n");
-	if (DEV_OK(link)) {
+	if (pcmcia_dev_present(link)) {
 		if (chip) {
 			snd_printdd(KERN_DEBUG "calling snd_pdacf_resume\n");
 			snd_pdacf_resume(chip);

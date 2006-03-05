@@ -1387,7 +1387,7 @@ static int wl3501_open(struct net_device *dev)
 	link = this->p_dev;
 
 	spin_lock_irqsave(&this->lock, flags);
-	if (!DEV_OK(link))
+	if (!pcmcia_dev_present(link))
 		goto out;
 	netif_device_attach(dev);
 	link->open++;

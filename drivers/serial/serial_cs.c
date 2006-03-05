@@ -155,7 +155,7 @@ static int serial_suspend(struct pcmcia_device *link)
 
 static int serial_resume(struct pcmcia_device *link)
 {
-	if (DEV_OK(link)) {
+	if (pcmcia_dev_present(link)) {
 		struct serial_info *info = link->priv;
 		int i;
 

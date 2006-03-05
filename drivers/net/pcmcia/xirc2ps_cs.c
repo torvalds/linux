@@ -1525,7 +1525,7 @@ do_open(struct net_device *dev)
 
     /* Check that the PCMCIA card is still here. */
     /* Physical device present signature. */
-    if (!DEV_OK(link))
+    if (!pcmcia_dev_present(link))
 	return -ENODEV;
 
     /* okay */

@@ -853,7 +853,7 @@ static int mace_open(struct net_device *dev)
   mace_private *lp = netdev_priv(dev);
   struct pcmcia_device *link = lp->p_dev;
 
-  if (!DEV_OK(link))
+  if (!pcmcia_dev_present(link))
     return -ENODEV;
 
   link->open++;

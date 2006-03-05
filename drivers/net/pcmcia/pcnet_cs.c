@@ -992,7 +992,7 @@ static int pcnet_open(struct net_device *dev)
 
     DEBUG(2, "pcnet_open('%s')\n", dev->name);
 
-    if (!DEV_OK(link))
+    if (!pcmcia_dev_present(link))
 	return -ENODEV;
 
     link->open++;

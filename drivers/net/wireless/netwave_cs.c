@@ -1107,7 +1107,7 @@ static irqreturn_t netwave_interrupt(int irq, void* dev_id, struct pt_regs *regs
 	
         status = inb(iobase + NETWAVE_REG_ASR);
 		
-	if (!DEV_OK(link)) {
+	if (!pcmcia_dev_present(link)) {
 	    DEBUG(1, "netwave_interrupt: Interrupt with status 0x%x "
 		  "from removed or suspended card!\n", status);
 	    break;
@@ -1346,7 +1346,7 @@ static int netwave_open(struct net_device *dev) {
 
     DEBUG(1, "netwave_open: starting.\n");
     
-    if (!DEV_OK(link))
+    if (!pcmcia_dev_present(link))
 	return -ENODEV;
 
     link->open++;

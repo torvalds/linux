@@ -1961,7 +1961,7 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 
     local = (ray_dev_t *)dev->priv;
     link = (struct pcmcia_device *)local->finder;
-    if (!(pcmcia_dev_present(link))  || link->suspended ) {
+    if (!pcmcia_dev_present(link)) {
         DEBUG(2,"ray_cs interrupt from device not present or suspended.\n");
         return IRQ_NONE;
     }

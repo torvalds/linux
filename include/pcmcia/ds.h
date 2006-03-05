@@ -104,12 +104,6 @@ typedef struct dev_node_t {
     struct dev_node_t	*next;
 } dev_node_t;
 
-#define pcmcia_dev_present(p_dev) \
-    (p_dev->socket->pcmcia_state.present)
-
-#define DEV_OK(l) \
-    ((l) && (!l->suspended) && pcmcia_dev_present(l))
-
 
 struct pcmcia_socket;
 struct config_t;
@@ -155,8 +149,10 @@ struct pcmcia_device {
 	config_req_t		conf;
 	window_handle_t		win;
 
-	/* Is the device suspended? */
+	/* Is the device suspended, or in the process of
+	 * being removed? */
 	u16			suspended:1;
+	u16			_removed:1;
 
 	/* Flags whether io, irq, win configurations were
 	 * requested, and whether the configuration is "locked" */
@@ -174,7 +170,7 @@ struct pcmcia_device {
 	u16			has_card_id:1;
 	u16			has_func_id:1;
 
-	u16			reserved:4;
+	u16			reserved:3;
 
 	u8			func_id;
 	u16			manf_id;

@@ -1259,7 +1259,7 @@ static int smc_open(struct net_device *dev)
 #endif
 
     /* Check that the PCMCIA card is still here. */
-    if (!DEV_OK(link))
+    if (!pcmcia_dev_present(link))
 	return -ENODEV;
     /* Physical device present signature. */
     if (check_sig(link) < 0) {

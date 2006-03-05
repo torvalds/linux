@@ -557,7 +557,7 @@ static int el3_open(struct net_device *dev)
     struct el3_private *lp = netdev_priv(dev);
     struct pcmcia_device *link = lp->p_dev;
     
-    if (!DEV_OK(link))
+    if (!pcmcia_dev_present(link))
 	return -ENODEV;
 
     link->open++;
@@ -818,7 +818,7 @@ static struct net_device_stats *el3_get_stats(struct net_device *dev)
     unsigned long flags;
     struct pcmcia_device *link = lp->p_dev;
 
-    if (DEV_OK(link)) {
+    if (pcmcia_dev_present(link)) {
     	spin_lock_irqsave(&lp->lock, flags);
 	update_stats(dev);
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -922,7 +922,7 @@ static void set_multicast_list(struct net_device *dev)
     kio_addr_t ioaddr = dev->base_addr;
     u16 opts = SetRxFilter | RxStation | RxBroadcast;
 
-    if (!(DEV_OK(link))) return;
+    if (!pcmcia_dev_present(link)) return;
     if (dev->flags & IFF_PROMISC)
 	opts |= RxMulticast | RxProm;
     else if (dev->mc_count || (dev->flags & IFF_ALLMULTI))
@@ -938,7 +938,7 @@ static int el3_close(struct net_device *dev)
     
     DEBUG(1, "%s: shutting down ethercard.\n", dev->name);
 
-    if (DEV_OK(link)) {
+    if (pcmcia_dev_present(link)) {
 	/* Turn off statistics ASAP.  We update lp->stats below. */
 	outw(StatsDisable, ioaddr + EL3_CMD);
 	

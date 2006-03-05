@@ -210,7 +210,7 @@ static int prism2_config(struct pcmcia_device *link);
 static int prism2_pccard_card_present(local_info_t *local)
 {
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
-	if (hw_priv != NULL && hw_priv->link != NULL && DEV_OK(hw_priv->link))
+	if (hw_priv != NULL && hw_priv->link != NULL && pcmcia_dev_present(hw_priv->link))
 		return 1;
 	return 0;
 }

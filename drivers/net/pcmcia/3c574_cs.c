@@ -728,7 +728,7 @@ static int el3_open(struct net_device *dev)
 	struct el3_private *lp = netdev_priv(dev);
 	struct pcmcia_device *link = lp->p_dev;
 
-	if (!DEV_OK(link))
+	if (!pcmcia_dev_present(link))
 		return -ENODEV;
 	
 	link->open++;
@@ -1176,7 +1176,7 @@ static int el3_close(struct net_device *dev)
 
 	DEBUG(2, "%s: shutting down ethercard.\n", dev->name);
 	
-	if (DEV_OK(link)) {
+	if (pcmcia_dev_present(link)) {
 		unsigned long flags;
 
 		/* Turn off statistics ASAP.  We update lp->stats below. */

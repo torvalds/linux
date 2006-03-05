@@ -291,7 +291,7 @@ static int vxp_resume(struct pcmcia_device *link)
 	struct vx_core *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "RESUME\n");
-	if (DEV_OK(link)) {
+	if (pcmcia_dev_present(link)) {
 		//struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
 		if (chip) {
 			snd_printdd(KERN_DEBUG "calling snd_vx_resume\n");

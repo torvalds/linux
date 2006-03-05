@@ -216,13 +216,12 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 /* Call-back function to interrogate PCMCIA-specific information
    about the current existance of the card */
 static int card_present(void *arg)
-{ 
+{
 	struct pcmcia_device *link = (struct pcmcia_device *)arg;
-	if (link->suspended)
-		return 0;
-	else if (pcmcia_dev_present(link))
+
+	if (pcmcia_dev_present(link))
 		return 1;
-	
+
 	return 0;
 }
 

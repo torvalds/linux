@@ -390,6 +390,7 @@ int pcmcia_eject_card(struct pcmcia_socket *skt);
 int pcmcia_insert_card(struct pcmcia_socket *skt);
 int pccard_reset_card(struct pcmcia_socket *skt);
 
+struct pcmcia_device * pcmcia_dev_present(struct pcmcia_device *p_dev);
 void pcmcia_disable_device(struct pcmcia_device *p_dev);
 
 struct pcmcia_socket * pcmcia_get_socket(struct pcmcia_socket *skt);
