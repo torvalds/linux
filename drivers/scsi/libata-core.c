@@ -1086,6 +1086,15 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev)
 
 	DPRINTK("ENTER, host %u, dev %u\n", ap->id, dev->devno);
 
+	/* initialize to-be-configured parameters */
+	dev->flags = 0;
+	dev->max_sectors = 0;
+	dev->cdb_len = 0;
+	dev->n_sectors = 0;
+	dev->cylinders = 0;
+	dev->heads = 0;
+	dev->sectors = 0;
+
 	/*
 	 * common ATA, ATAPI feature tests
 	 */
