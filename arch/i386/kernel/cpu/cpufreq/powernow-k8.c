@@ -45,7 +45,7 @@
 
 #define PFX "powernow-k8: "
 #define BFX PFX "BIOS error: "
-#define VERSION "version 1.60.0"
+#define VERSION "version 1.60.1"
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
@@ -908,7 +908,6 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	u32 checkvid = data->currvid;
 	unsigned int newstate;
 	int ret = -EIO;
-	int i;
 
 	/* only run on specific CPU from here on */
 	oldmask = current->cpus_allowed;
@@ -954,12 +953,6 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 		up(&fidvid_sem);
 		goto err_out;
 	}
-
-	/* Update all the fid/vids of our siblings */
-	for_each_cpu_mask(i, cpu_core_map[pol->cpu]) {
-		powernow_data[i]->currvid = data->currvid;
-		powernow_data[i]->currfid = data->currfid;
-	}	
 	up(&fidvid_sem);
 
 	pol->cur = find_khz_freq_from_fid(data->currfid);
@@ -983,7 +976,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data;
 	cpumask_t oldmask = CPU_MASK_ALL;
-	int rc, i;
+	int rc;
 
 	if (!cpu_online(pol->cpu))
 		return -ENODEV;
@@ -1069,9 +1062,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	printk("cpu_init done, current fid 0x%x, vid 0x%x\n",
 	       data->currfid, data->currvid);
 
-	for_each_cpu_mask(i, cpu_core_map[pol->cpu]) {
-		powernow_data[i] = data;
-	}
+	powernow_data[pol->cpu] = data;
 
 	return 0;
 
