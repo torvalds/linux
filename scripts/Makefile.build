@@ -4,7 +4,7 @@
 
 src := $(obj)
 
-.PHONY: __build
+PHONY := __build
 __build:
 
 # Read .config if it exist, otherwise ignore
@@ -308,14 +308,14 @@ targets += $(multi-used-y) $(multi-used-m)
 # Descending
 # ---------------------------------------------------------------------------
 
-.PHONY: $(subdir-ym)
+PHONY += $(subdir-ym)
 $(subdir-ym):
 	$(Q)$(MAKE) $(build)=$@
 
 # Add FORCE to the prequisites of a target to force it to be always rebuilt.
 # ---------------------------------------------------------------------------
 
-.PHONY: FORCE
+PHONY += FORCE
 
 FORCE:
 
@@ -330,3 +330,9 @@ cmd_files := $(wildcard $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
 ifneq ($(cmd_files),)
   include $(cmd_files)
 endif
+
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable se we can use it in if_changed and friends.
+
+.PHONY: $(PHONY)

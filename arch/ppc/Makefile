@@ -82,7 +82,7 @@ drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
 BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
 
-.PHONY: $(BOOT_TARGETS)
+PHONY += $(BOOT_TARGETS)
 
 all: uImage zImage
 

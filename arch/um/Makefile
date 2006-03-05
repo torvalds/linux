@@ -1,4 +1,7 @@
-# 
+#
+# This file is included by the global makefile so that you can add your own
+# architecture-specific flags and dependencies.
+#
 # Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
 # Licensed under the GPL
 #
@@ -88,7 +91,7 @@ CONFIG_KERNEL_HALF_GIGS ?= 0
 
 SIZE = (($(CONFIG_NEST_LEVEL) + $(CONFIG_KERNEL_HALF_GIGS)) * 0x20000000)
 
-.PHONY: linux
+PHONY += linux
 
 all: linux
 

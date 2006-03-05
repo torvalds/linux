@@ -67,8 +67,8 @@ drivers-$(CONFIG_OPROFILE)		+= arch/x86_64/oprofile/
 
 boot := arch/x86_64/boot
 
-.PHONY: bzImage bzlilo install archmrproper \
-	fdimage fdimage144 fdimage288 archclean
+PHONY += bzImage bzlilo install archmrproper \
+	 fdimage fdimage144 fdimage288 archclean
 
 #Default target when executing "make"
 all: bzImage

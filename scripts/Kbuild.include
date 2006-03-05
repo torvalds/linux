@@ -116,16 +116,18 @@ make-cmd = $(subst \#,\\\#,$(subst $$,$$$$,$(call escsq,$(cmd_$(1)))))
 # function to only execute the passed command if necessary
 # >'< substitution is for echo to work, >$< substitution to preserve $ when reloading .cmd file
 # note: when using inline perl scripts [perl -e '...$$t=1;...'] in $(cmd_xxx) double $$ your perl vars
-# 
-if_changed = $(if $(strip $? $(call arg-check, $(cmd_$(1)), $(cmd_$@)) ), \
+#
+if_changed = $(if $(strip $(filter-out $(PHONY),$?)          \
+		$(call arg-check, $(cmd_$(1)), $(cmd_$@)) ), \
 	@set -e; \
 	$(echo-cmd) $(cmd_$(1)); \
 	echo 'cmd_$@ := $(make-cmd)' > $(@D)/.$(@F).cmd)
 
 # execute the command and also postprocess generated .d dependencies
 # file
-if_changed_dep = $(if $(strip $? $(filter-out FORCE $(wildcard $^),$^)\
-	$(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),                  \
+if_changed_dep = $(if $(strip $(filter-out $(PHONY),$?)  \
+		$(filter-out FORCE $(wildcard $^),$^)    \
+	$(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),     \
 	@set -e; \
 	$(echo-cmd) $(cmd_$(1)); \
 	scripts/basic/fixdep $(depfile) $@ '$(make-cmd)' > $(@D)/.$(@F).tmp; \
@@ -135,6 +137,7 @@ if_changed_dep = $(if $(strip $? $(filter-out FORCE $(wildcard $^),$^)\
 # Usage: $(call if_changed_rule,foo)
 # will check if $(cmd_foo) changed, or any of the prequisites changed,
 # and if so will execute $(rule_foo)
-if_changed_rule = $(if $(strip $? $(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),\
+if_changed_rule = $(if $(strip $(filter-out $(PHONY),$?)            \
+			$(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),\
 			@set -e; \
 			$(rule_$(1)))

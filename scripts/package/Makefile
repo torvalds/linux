@@ -32,7 +32,7 @@ MKSPEC     := $(srctree)/scripts/package/mkspec
 PREV       := set -e; cd ..;
 
 # rpm-pkg
-.PHONY: rpm-pkg rpm
+PHONY += rpm-pkg rpm
 
 $(objtree)/kernel.spec: $(MKSPEC) $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) > $@
@@ -54,10 +54,10 @@ rpm-pkg rpm: $(objtree)/kernel.spec
 clean-files := $(objtree)/kernel.spec
 
 # binrpm-pkg
-.PHONY: binrpm-pkg
+PHONY += binrpm-pkg
 $(objtree)/binkernel.spec: $(MKSPEC) $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $@
-	
+
 binrpm-pkg: $(objtree)/binkernel.spec
 	$(MAKE) KBUILD_SRC=
 	set -e; \
@@ -72,7 +72,7 @@ clean-files += $(objtree)/binkernel.spec
 # Deb target
 # ---------------------------------------------------------------------------
 #
-.PHONY: deb-pkg
+PHONY += deb-pkg
 deb-pkg:
 	$(MAKE) KBUILD_SRC=
 	$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
@@ -82,7 +82,7 @@ clean-dirs += $(objtree)/debian/
 
 # tarball targets
 # ---------------------------------------------------------------------------
-.PHONY: tar%pkg
+PHONY += tar%pkg
 tar%pkg:
 	$(MAKE) KBUILD_SRC=
 	$(CONFIG_SHELL) $(srctree)/scripts/package/buildtar $@

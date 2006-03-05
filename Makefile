@@ -95,7 +95,7 @@ ifdef O
 endif
 
 # That's our default target when none is given on the command line
-.PHONY: _all
+PHONY := _all
 _all:
 
 ifneq ($(KBUILD_OUTPUT),)
@@ -106,7 +106,7 @@ KBUILD_OUTPUT := $(shell cd $(KBUILD_OUTPUT) && /bin/pwd)
 $(if $(KBUILD_OUTPUT),, \
      $(error output directory "$(saved-output)" does not exist))
 
-.PHONY: $(MAKECMDGOALS)
+PHONY += $(MAKECMDGOALS)
 
 $(filter-out _all,$(MAKECMDGOALS)) _all:
 	$(if $(KBUILD_VERBOSE:1=),@)$(MAKE) -C $(KBUILD_OUTPUT) \
@@ -123,7 +123,7 @@ ifeq ($(skip-makefile),)
 
 # If building an external module we do not care about the all: rule
 # but instead _all depend on modules
-.PHONY: all
+PHONY += all
 ifeq ($(KBUILD_EXTMOD),)
 _all: all
 else
@@ -337,14 +337,14 @@ export RCS_TAR_IGNORE := --exclude SCCS --exclude BitKeeper --exclude .svn --exc
 # Rules shared between *config targets and build targets
 
 # Basic helpers built in scripts/
-.PHONY: scripts_basic
+PHONY += scripts_basic
 scripts_basic:
 	$(Q)$(MAKE) $(build)=scripts/basic
 
 # To avoid any implicit rule to kick in, define an empty command.
 scripts/basic/%: scripts_basic ;
 
-.PHONY: outputmakefile
+PHONY += outputmakefile
 # outputmakefile generate a Makefile to be placed in output directory, if
 # using a seperate output directory. This allows convinient use
 # of make in output directory
@@ -420,7 +420,7 @@ ifeq ($(KBUILD_EXTMOD),)
 # Additional helpers built in scripts/
 # Carefully list dependencies so we do not try to build scripts twice
 # in parrallel
-.PHONY: scripts
+PHONY += scripts
 scripts: scripts_basic include/config/MARKER
 	$(Q)$(MAKE) $(build)=$(@)
 
@@ -720,7 +720,7 @@ $(sort $(vmlinux-init) $(vmlinux-main)) $(vmlinux-lds): $(vmlinux-dirs) ;
 # make menuconfig etc.
 # Error messages still appears in the original language
 
-.PHONY: $(vmlinux-dirs)
+PHONY += $(vmlinux-dirs)
 $(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
 
@@ -773,10 +773,10 @@ kernelrelease = $(KERNELVERSION)$(localver-full)
 # version.h and scripts_basic is processed / created.
 
 # Listed in dependency order
-.PHONY: prepare archprepare prepare0 prepare1 prepare2 prepare3
+PHONY += prepare archprepare prepare0 prepare1 prepare2 prepare3
 
 # prepare-all is deprecated, use prepare as valid replacement
-.PHONY: prepare-all
+PHONY += prepare-all
 
 # prepare3 is used to check if we are building in a separate output directory,
 # and if so do:
@@ -857,7 +857,7 @@ include/linux/version.h: $(srctree)/Makefile .config .kernelrelease FORCE
 
 # ---------------------------------------------------------------------------
 
-.PHONY: depend dep
+PHONY += depend dep
 depend dep:
 	@echo '*** Warning: make $@ is unnecessary now.'
 
@@ -872,21 +872,21 @@ all: modules
 
 #	Build modules
 
-.PHONY: modules
+PHONY += modules
 modules: $(vmlinux-dirs) $(if $(KBUILD_BUILTIN),vmlinux)
 	@echo '  Building modules, stage 2.';
 	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
 
 
 # Target to prepare building external modules
-.PHONY: modules_prepare
+PHONY += modules_prepare
 modules_prepare: prepare scripts
 
 # Target to install modules
-.PHONY: modules_install
+PHONY += modules_install
 modules_install: _modinst_ _modinst_post
 
-.PHONY: _modinst_
+PHONY += _modinst_
 _modinst_:
 	@if [ -z "`$(DEPMOD) -V 2>/dev/null | grep module-init-tools`" ]; then \
 		echo "Warning: you may need to install module-init-tools"; \
@@ -913,7 +913,7 @@ depmod_opts	:=
 else
 depmod_opts	:= -b $(INSTALL_MOD_PATH) -r
 endif
-.PHONY: _modinst_post
+PHONY += _modinst_post
 _modinst_post: _modinst_
 	if [ -r System.map -a -x $(DEPMOD) ]; then $(DEPMOD) -ae -F System.map $(depmod_opts) $(KERNELRELEASE); fi
 
@@ -956,7 +956,7 @@ clean: rm-dirs  := $(CLEAN_DIRS)
 clean: rm-files := $(CLEAN_FILES)
 clean-dirs      := $(addprefix _clean_,$(srctree) $(vmlinux-alldirs))
 
-.PHONY: $(clean-dirs) clean archclean
+PHONY += $(clean-dirs) clean archclean
 $(clean-dirs):
 	$(Q)$(MAKE) $(clean)=$(patsubst _clean_%,%,$@)
 
@@ -974,7 +974,7 @@ mrproper: rm-dirs  := $(wildcard $(MRPROPER_DIRS))
 mrproper: rm-files := $(wildcard $(MRPROPER_FILES))
 mrproper-dirs      := $(addprefix _mrproper_,Documentation/DocBook scripts)
 
-.PHONY: $(mrproper-dirs) mrproper archmrproper
+PHONY += $(mrproper-dirs) mrproper archmrproper
 $(mrproper-dirs):
 	$(Q)$(MAKE) $(clean)=$(patsubst _mrproper_%,%,$@)
 
@@ -984,7 +984,7 @@ mrproper: clean archmrproper $(mrproper-dirs)
 
 # distclean
 #
-.PHONY: distclean
+PHONY += distclean
 
 distclean: mrproper
 	@find $(srctree) $(RCS_FIND_IGNORE) \
@@ -1000,7 +1000,7 @@ distclean: mrproper
 # rpm target kept for backward compatibility
 package-dir	:= $(srctree)/scripts/package
 
-.PHONY: %-pkg rpm
+PHONY += %-pkg rpm
 
 %pkg: FORCE
 	$(Q)$(MAKE) -f $(package-dir)/Makefile $@
@@ -1092,12 +1092,12 @@ else # KBUILD_EXTMOD
 
 # We are always building modules
 KBUILD_MODULES := 1
-.PHONY: crmodverdir
+PHONY += crmodverdir
 crmodverdir:
 	$(Q)rm -rf $(MODVERDIR)
 	$(Q)mkdir -p $(MODVERDIR)
 
-.PHONY: $(objtree)/Module.symvers
+PHONY += $(objtree)/Module.symvers
 $(objtree)/Module.symvers:
 	@test -e $(objtree)/Module.symvers || ( \
 	echo; \
@@ -1106,7 +1106,7 @@ $(objtree)/Module.symvers:
 	echo )
 
 module-dirs := $(addprefix _module_,$(KBUILD_EXTMOD))
-.PHONY: $(module-dirs) modules
+PHONY += $(module-dirs) modules
 $(module-dirs): crmodverdir $(objtree)/Module.symvers
 	$(Q)$(MAKE) $(build)=$(patsubst _module_%,%,$@)
 
@@ -1114,11 +1114,11 @@ modules: $(module-dirs)
 	@echo '  Building modules, stage 2.';
 	$(Q)$(MAKE) -rR -f $(srctree)/scripts/Makefile.modpost
 
-.PHONY: modules_install
+PHONY += modules_install
 modules_install: _emodinst_ _emodinst_post
 
-install-dir := $(if $(INSTALL_MOD_DIR),$(INSTALL_MOD_DIR),extra)	
-.PHONY: _emodinst_
+install-dir := $(if $(INSTALL_MOD_DIR),$(INSTALL_MOD_DIR),extra)
+PHONY += _emodinst_
 _emodinst_:
 	$(Q)rm -rf $(MODLIB)/$(install-dir)
 	$(Q)mkdir -p $(MODLIB)/$(install-dir)
@@ -1133,13 +1133,13 @@ quiet_cmd_depmod = DEPMOD  $(KERNELRELEASE)
 		      $(KERNELRELEASE);                       \
                    fi
 
-.PHONY: _emodinst_post
+PHONY += _emodinst_post
 _emodinst_post: _emodinst_
 	$(call cmd,depmod)
 
 clean-dirs := $(addprefix _clean_,$(KBUILD_EXTMOD))
 
-.PHONY: $(clean-dirs) clean
+PHONY += $(clean-dirs) clean
 $(clean-dirs):
 	$(Q)$(MAKE) $(clean)=$(patsubst _clean_%,%,$@)
 
@@ -1161,7 +1161,7 @@ help:
 	@echo  ''
 
 # Dummies...
-.PHONY: prepare scripts
+PHONY += prepare scripts
 prepare: ;
 scripts: ;
 endif # KBUILD_EXTMOD
@@ -1274,7 +1274,7 @@ namespacecheck:
 endif #ifeq ($(config-targets),1)
 endif #ifeq ($(mixed-targets),1)
 
-.PHONY: checkstack
+PHONY += checkstack
 checkstack:
 	$(OBJDUMP) -d vmlinux $$(find . -name '*.ko') | \
 	$(PERL) $(src)/scripts/checkstack.pl $(ARCH)
@@ -1357,4 +1357,10 @@ clean := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.clean obj
 
 endif	# skip-makefile
 
+PHONY += FORCE
 FORCE:
+
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable se we can use it in if_changed and friends.
+.PHONY: $(PHONY)

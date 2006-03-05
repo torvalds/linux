@@ -1,6 +1,9 @@
 #
 # linux/arch/arm/boot/bootp/Makefile
 #
+# This file is included by the global makefile so that you can add your own
+# architecture-specific flags and dependencies.
+#
 
 LDFLAGS_bootp	:=-p --no-undefined -X \
 		 --defsym initrd_phys=$(INITRD_PHYS) \
@@ -21,4 +24,4 @@ $(obj)/kernel.o: arch/arm/boot/zImage FORCE
 
 $(obj)/initrd.o: $(INITRD) FORCE
 
-.PHONY:	$(INITRD) FORCE
+PHONY += $(INITRD) FORCE
