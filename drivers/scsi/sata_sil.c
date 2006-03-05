@@ -56,15 +56,6 @@ enum {
 	sil_3512		= 1,
 	sil_3114		= 2,
 
-	SIL_FIFO_R0		= 0x40,
-	SIL_FIFO_W0		= 0x41,
-	SIL_FIFO_R1		= 0x44,
-	SIL_FIFO_W1		= 0x45,
-	SIL_FIFO_R2		= 0x240,
-	SIL_FIFO_W2		= 0x241,
-	SIL_FIFO_R3		= 0x244,
-	SIL_FIFO_W3		= 0x245,
-
 	SIL_SYSCFG		= 0x48,
 	SIL_MASK_IDE0_INT	= (1 << 22),
 	SIL_MASK_IDE1_INT	= (1 << 23),
@@ -73,8 +64,6 @@ enum {
 	SIL_MASK_2PORT		= SIL_MASK_IDE0_INT | SIL_MASK_IDE1_INT,
 	SIL_MASK_4PORT		= SIL_MASK_2PORT |
 				  SIL_MASK_IDE2_INT | SIL_MASK_IDE3_INT,
-
-	SIL_IDE2_BMDMA		= 0x200,
 
 	SIL_INTR_STEERING	= (1 << 1),
 	SIL_QUIRK_MOD15WRITE	= (1 << 0),
@@ -217,16 +206,17 @@ static const struct {
 	unsigned long tf;	/* ATA taskfile register block */
 	unsigned long ctl;	/* ATA control/altstatus register block */
 	unsigned long bmdma;	/* DMA register block */
+	unsigned long fifo_cfg;	/* FIFO Valid Byte Count and Control */
 	unsigned long scr;	/* SATA control register block */
 	unsigned long sien;	/* SATA Interrupt Enable register */
 	unsigned long xfer_mode;/* data transfer mode register */
 	unsigned long sfis_cfg;	/* SATA FIS reception config register */
 } sil_port[] = {
 	/* port 0 ... */
-	{ 0x80, 0x8A, 0x00, 0x100, 0x148, 0xb4, 0x14c },
-	{ 0xC0, 0xCA, 0x08, 0x180, 0x1c8, 0xf4, 0x1cc },
-	{ 0x280, 0x28A, 0x200, 0x300, 0x348, 0x2b4, 0x34c },
-	{ 0x2C0, 0x2CA, 0x208, 0x380, 0x3c8, 0x2f4, 0x3cc },
+	{ 0x80, 0x8A, 0x00, 0x40, 0x100, 0x148, 0xb4, 0x14c },
+	{ 0xC0, 0xCA, 0x08, 0x44, 0x180, 0x1c8, 0xf4, 0x1cc },
+	{ 0x280, 0x28A, 0x200, 0x240, 0x300, 0x348, 0x2b4, 0x34c },
+	{ 0x2C0, 0x2CA, 0x208, 0x244, 0x380, 0x3c8, 0x2f4, 0x3cc },
 	/* ... port 3 */
 };
 
@@ -449,19 +439,12 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (cls) {
 		cls >>= 3;
 		cls++;  /* cls = (line_size/8)+1 */
-		writeb(cls, mmio_base + SIL_FIFO_R0);
-		writeb(cls, mmio_base + SIL_FIFO_W0);
-		writeb(cls, mmio_base + SIL_FIFO_R1);
-		writeb(cls, mmio_base + SIL_FIFO_W1);
-		if (ent->driver_data == sil_3114) {
-			writeb(cls, mmio_base + SIL_FIFO_R2);
-			writeb(cls, mmio_base + SIL_FIFO_W2);
-			writeb(cls, mmio_base + SIL_FIFO_R3);
-			writeb(cls, mmio_base + SIL_FIFO_W3);
-		}
+		for (i = 0; i < probe_ent->n_ports; i++)
+			writew(cls << 8 | cls,
+			       mmio_base + sil_port[i].fifo_cfg);
 	} else
 		dev_printk(KERN_WARNING, &pdev->dev,
-			 "cache line size not set.  Driver may not function\n");
+			   "cache line size not set.  Driver may not function\n");
 
 	/* Apply R_ERR on DMA activate FIS errata workaround */
 	if (probe_ent->host_flags & SIL_FLAG_RERR_ON_DMA_ACT) {
@@ -484,10 +467,10 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		irq_mask = SIL_MASK_4PORT;
 
 		/* flip the magic "make 4 ports work" bit */
-		tmp = readl(mmio_base + SIL_IDE2_BMDMA);
+		tmp = readl(mmio_base + sil_port[2].bmdma);
 		if ((tmp & SIL_INTR_STEERING) == 0)
 			writel(tmp | SIL_INTR_STEERING,
-			       mmio_base + SIL_IDE2_BMDMA);
+			       mmio_base + sil_port[2].bmdma);
 
 	} else {
 		irq_mask = SIL_MASK_2PORT;
