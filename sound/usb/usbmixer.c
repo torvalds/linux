@@ -434,7 +434,6 @@ static int add_control_to_empty(struct mixer_build *state, struct snd_kcontrol *
 		kctl->id.index++;
 	if ((err = snd_ctl_add(state->chip->card, kctl)) < 0) {
 		snd_printd(KERN_ERR "cannot add control (err = %d)\n", err);
-		snd_ctl_free_one(kctl);
 		return err;
 	}
 	cval->elem_id = &kctl->id;
