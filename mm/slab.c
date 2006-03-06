@@ -2554,7 +2554,7 @@ static void check_slabp(struct kmem_cache *cachep, struct slab *slabp)
 		       "slab: Internal list corruption detected in cache '%s'(%d), slabp %p(%d). Hexdump:\n",
 		       cachep->name, cachep->num, slabp, slabp->inuse);
 		for (i = 0;
-		     i < sizeof(slabp) + cachep->num * sizeof(kmem_bufctl_t);
+		     i < sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t);
 		     i++) {
 			if ((i % 16) == 0)
 				printk("\n%03x:", i);
