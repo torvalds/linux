@@ -289,7 +289,7 @@ static int show_smap(struct seq_file *m, void *v)
 	struct mem_size_stats mss;
 
 	memset(&mss, 0, sizeof mss);
-	if (vma->vm_mm)
+	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
 		smaps_pgd_range(vma, vma->vm_start, vma->vm_end, &mss);
 	return show_map_internal(m, v, &mss);
 }
