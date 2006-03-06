@@ -58,7 +58,7 @@ static void dlm_do_local_recovery_cleanup(struct dlm_ctxt *dlm, u8 dead_node);
 static int dlm_recovery_thread(void *data);
 void dlm_complete_recovery_thread(struct dlm_ctxt *dlm);
 int dlm_launch_recovery_thread(struct dlm_ctxt *dlm);
-static void dlm_kick_recovery_thread(struct dlm_ctxt *dlm);
+void dlm_kick_recovery_thread(struct dlm_ctxt *dlm);
 static int dlm_do_recovery(struct dlm_ctxt *dlm);
 
 static int dlm_pick_recovery_master(struct dlm_ctxt *dlm);
@@ -78,15 +78,9 @@ static int dlm_send_mig_lockres_msg(struct dlm_ctxt *dlm,
 				    u8 send_to,
 				    struct dlm_lock_resource *res,
 				    int total_locks);
-static int dlm_lockres_master_requery(struct dlm_ctxt *dlm,
-				      struct dlm_lock_resource *res,
-				      u8 *real_master);
 static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 				     struct dlm_lock_resource *res,
 				     struct dlm_migratable_lockres *mres);
-static int dlm_do_master_requery(struct dlm_ctxt *dlm,
-				 struct dlm_lock_resource *res,
-				 u8 nodenum, u8 *real_master);
 static int dlm_send_finalize_reco_message(struct dlm_ctxt *dlm);
 static int dlm_send_all_done_msg(struct dlm_ctxt *dlm,
 				 u8 dead_node, u8 send_to);
@@ -165,7 +159,7 @@ void dlm_dispatch_work(void *data)
  * RECOVERY THREAD
  */
 
-static void dlm_kick_recovery_thread(struct dlm_ctxt *dlm)
+void dlm_kick_recovery_thread(struct dlm_ctxt *dlm)
 {
 	/* wake the recovery thread
 	 * this will wake the reco thread in one of three places
@@ -1316,9 +1310,8 @@ leave:
 
 
 
-static int dlm_lockres_master_requery(struct dlm_ctxt *dlm,
-				      struct dlm_lock_resource *res,
-				      u8 *real_master)
+int dlm_lockres_master_requery(struct dlm_ctxt *dlm,
+			       struct dlm_lock_resource *res, u8 *real_master)
 {
 	struct dlm_node_iter iter;
 	int nodenum;
@@ -1360,8 +1353,10 @@ static int dlm_lockres_master_requery(struct dlm_ctxt *dlm,
 		ret = dlm_do_master_requery(dlm, res, nodenum, real_master);
 		if (ret < 0) {
 			mlog_errno(ret);
-			BUG();
-			/* TODO: need to figure a way to restart this */
+			if (!dlm_is_host_down(ret))
+				BUG();
+			/* host is down, so answer for that node would be
+			 * DLM_LOCK_RES_OWNER_UNKNOWN.  continue. */
 		}
 		if (*real_master != DLM_LOCK_RES_OWNER_UNKNOWN) {
 			mlog(0, "lock master is %u\n", *real_master);
@@ -1372,9 +1367,8 @@ static int dlm_lockres_master_requery(struct dlm_ctxt *dlm,
 }
 
 
-static int dlm_do_master_requery(struct dlm_ctxt *dlm,
-				 struct dlm_lock_resource *res,
-				 u8 nodenum, u8 *real_master)
+int dlm_do_master_requery(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
+			  u8 nodenum, u8 *real_master)
 {
 	int ret = -EINVAL;
 	struct dlm_master_requery req;
@@ -1739,6 +1733,13 @@ static void dlm_finish_local_lockres_recovery(struct dlm_ctxt *dlm,
 				} else
 					continue;
 
+				if (!list_empty(&res->recovering)) {
+					mlog(0, "%s:%.*s: lockres was "
+					     "marked RECOVERING, owner=%u\n",
+					     dlm->name, res->lockname.len,
+					     res->lockname.name, res->owner);
+					list_del_init(&res->recovering);
+				}
 				spin_lock(&res->spinlock);
 				dlm_change_lockres_owner(dlm, res, new_master);
 				res->state &= ~DLM_LOCK_RES_RECOVERING;
@@ -2258,7 +2259,10 @@ int dlm_begin_reco_handler(struct o2net_msg *msg, u32 len, void *data)
 			mlog(0, "%u not in domain/live_nodes map "
 			     "so setting it in reco map manually\n",
 			     br->dead_node);
-		set_bit(br->dead_node, dlm->recovery_map);
+		/* force the recovery cleanup in __dlm_hb_node_down
+		 * both of these will be cleared in a moment */
+		set_bit(br->dead_node, dlm->domain_map);
+		set_bit(br->dead_node, dlm->live_nodes_map);
 		__dlm_hb_node_down(dlm, br->dead_node);
 	}
 	spin_unlock(&dlm->spinlock);
