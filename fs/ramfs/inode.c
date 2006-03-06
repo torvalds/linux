@@ -137,6 +137,7 @@ static int ramfs_symlink(struct inode * dir, struct dentry *dentry, const char *
 				inode->i_gid = dir->i_gid;
 			d_instantiate(dentry, inode);
 			dget(dentry);
+			dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 		} else
 			iput(inode);
 	}
