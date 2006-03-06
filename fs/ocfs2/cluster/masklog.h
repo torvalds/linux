@@ -256,16 +256,6 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 	}								\
 } while (0)
 
-#if (BITS_PER_LONG == 32) || defined(CONFIG_X86_64) || (defined(CONFIG_UML_X86) && defined(CONFIG_64BIT))
-#define MLFi64 "lld"
-#define MLFu64 "llu"
-#define MLFx64 "llx"
-#else
-#define MLFi64 "ld"
-#define MLFu64 "lu"
-#define MLFx64 "lx"
-#endif
-
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 int mlog_sys_init(struct subsystem *o2cb_subsys);
