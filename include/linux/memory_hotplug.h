@@ -6,6 +6,10 @@
 #include <linux/mmzone.h>
 #include <linux/notifier.h>
 
+struct page;
+struct zone;
+struct pglist_data;
+
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
  * pgdat resizing functions
