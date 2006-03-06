@@ -316,12 +316,11 @@ unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long 
 		goto out;
 	}
 
-	bucket->irq_info = kmalloc(sizeof(struct irq_desc), GFP_ATOMIC);
+	bucket->irq_info = kzalloc(sizeof(struct irq_desc), GFP_ATOMIC);
 	if (!bucket->irq_info) {
 		prom_printf("IRQ: Error, kmalloc(irq_desc) failed.\n");
 		prom_halt();
 	}
-	memset(bucket->irq_info, 0, sizeof(struct irq_desc));
 
 	/* Ok, looks good, set it up.  Don't touch the irq_chain or
 	 * the pending flag.
@@ -357,12 +356,11 @@ unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsign
 	bucket->pil = pil;
 	bucket->flags = flags;
 
-	bucket->irq_info = kmalloc(sizeof(struct irq_desc), GFP_ATOMIC);
+	bucket->irq_info = kzalloc(sizeof(struct irq_desc), GFP_ATOMIC);
 	if (!bucket->irq_info) {
 		prom_printf("IRQ: Error, kmalloc(irq_desc) failed.\n");
 		prom_halt();
 	}
-	memset(bucket->irq_info, 0, sizeof(struct irq_desc));
 
 	return __irq(bucket);
 }

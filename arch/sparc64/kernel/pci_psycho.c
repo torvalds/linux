@@ -1164,7 +1164,7 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 static void pbm_scan_bus(struct pci_controller_info *p,
 			 struct pci_pbm_info *pbm)
 {
-	struct pcidev_cookie *cookie = kmalloc(sizeof(*cookie), GFP_KERNEL);
+	struct pcidev_cookie *cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
 
 	if (!cookie) {
 		prom_printf("PSYCHO: Critical allocation failure.\n");
@@ -1172,7 +1172,6 @@ static void pbm_scan_bus(struct pci_controller_info *p,
 	}
 
 	/* All we care about is the PBM. */
-	memset(cookie, 0, sizeof(*cookie));
 	cookie->pbm = pbm;
 
 	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno,
@@ -1465,18 +1464,16 @@ void psycho_init(int node, char *model_name)
 		}
 	}
 
-	p = kmalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
+	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
 	if (!p) {
 		prom_printf("PSYCHO: Fatal memory allocation error.\n");
 		prom_halt();
 	}
-	memset(p, 0, sizeof(*p));
-	iommu = kmalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
 	if (!iommu) {
 		prom_printf("PSYCHO: Fatal memory allocation error.\n");
 		prom_halt();
 	}
-	memset(iommu, 0, sizeof(*iommu));
 	p->pbm_A.iommu = p->pbm_B.iommu = iommu;
 
 	p->next = pci_controller_root;

@@ -977,33 +977,30 @@ void pci_register_legacy_regions(struct resource *io_res,
 	struct resource *p;
 
 	/* VGA Video RAM. */
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return;
 
-	memset(p, 0, sizeof(*p));
 	p->name = "Video RAM area";
 	p->start = mem_res->start + 0xa0000UL;
 	p->end = p->start + 0x1ffffUL;
 	p->flags = IORESOURCE_BUSY;
 	request_resource(mem_res, p);
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return;
 
-	memset(p, 0, sizeof(*p));
 	p->name = "System ROM";
 	p->start = mem_res->start + 0xf0000UL;
 	p->end = p->start + 0xffffUL;
 	p->flags = IORESOURCE_BUSY;
 	request_resource(mem_res, p);
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return;
 
-	memset(p, 0, sizeof(*p));
 	p->name = "Video ROM";
 	p->start = mem_res->start + 0xc0000UL;
 	p->end = p->start + 0x7fffUL;

@@ -536,15 +536,11 @@ static int __init topology_init(void)
 	while (!cpu_find_by_instance(ncpus_probed, NULL, NULL))
 		ncpus_probed++;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_possible(i)) {
-			struct cpu *p = kmalloc(sizeof(*p), GFP_KERNEL);
-
-			if (p) {
-				memset(p, 0, sizeof(*p));
-				register_cpu(p, i, NULL);
-				err = 0;
-			}
+	for_each_cpu(i) {
+		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
+		if (p) {
+			register_cpu(p, i, NULL);
+			err = 0;
 		}
 	}
 

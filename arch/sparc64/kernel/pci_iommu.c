@@ -139,12 +139,11 @@ void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize, u32 dma_offset, 
 	/* Allocate and initialize the free area map.  */
 	sz = num_tsb_entries / 8;
 	sz = (sz + 7UL) & ~7UL;
-	iommu->arena.map = kmalloc(sz, GFP_KERNEL);
+	iommu->arena.map = kzalloc(sz, GFP_KERNEL);
 	if (!iommu->arena.map) {
 		prom_printf("PCI_IOMMU: Error, kmalloc(arena.map) failed.\n");
 		prom_halt();
 	}
-	memset(iommu->arena.map, 0, sz);
 	iommu->arena.limit = num_tsb_entries;
 
 	/* Allocate and initialize the dummy page which we

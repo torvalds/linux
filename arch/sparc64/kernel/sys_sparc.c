@@ -600,12 +600,10 @@ asmlinkage long sys_utrap_install(utrap_entry_t type,
 	}
 	if (!current_thread_info()->utraps) {
 		current_thread_info()->utraps =
-			kmalloc((UT_TRAP_INSTRUCTION_31+1)*sizeof(long), GFP_KERNEL);
+			kzalloc((UT_TRAP_INSTRUCTION_31+1)*sizeof(long), GFP_KERNEL);
 		if (!current_thread_info()->utraps)
 			return -ENOMEM;
 		current_thread_info()->utraps[0] = 1;
-		memset(current_thread_info()->utraps+1, 0,
-		       UT_TRAP_INSTRUCTION_31*sizeof(long));
 	} else {
 		if ((utrap_handler_t)current_thread_info()->utraps[type] != new_p &&
 		    current_thread_info()->utraps[0] > 1) {
