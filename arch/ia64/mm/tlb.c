@@ -156,17 +156,19 @@ flush_tlb_range (struct vm_area_struct *vma, unsigned long start,
 		nbits = purge.max_bits;
 	start &= ~((1UL << nbits) - 1);
 
-# ifdef CONFIG_SMP
-	platform_global_tlb_purge(mm, start, end, nbits);
-# else
 	preempt_disable();
+#ifdef CONFIG_SMP
+	if (mm != current->active_mm || cpus_weight(mm->cpu_vm_mask) != 1) {
+		platform_global_tlb_purge(mm, start, end, nbits);
+		preempt_enable();
+		return;
+	}
+#endif
 	do {
 		ia64_ptcl(start, (nbits<<2));
 		start += (1UL << nbits);
 	} while (start < end);
 	preempt_enable();
-# endif
-
 	ia64_srlz_i();			/* srlz.i implies srlz.d */
 }
 EXPORT_SYMBOL(flush_tlb_range);
