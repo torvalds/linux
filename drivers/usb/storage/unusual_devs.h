@@ -62,6 +62,13 @@ UNUSUAL_DEV(  0x03ee, 0x6901, 0x0000, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
+/* Reported by Rodolfo Quesada <rquesada@roqz.net> */
+UNUSUAL_DEV(  0x03ee, 0x6906, 0x0003, 0x0003,
+		"VIA Technologies Inc.",
+		"Mitsumi multi cardreader",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
 UNUSUAL_DEV(  0x03f0, 0x0107, 0x0200, 0x0200, 
 		"HP",
 		"CD-Writer+",
