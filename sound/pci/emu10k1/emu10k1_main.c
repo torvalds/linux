@@ -777,6 +777,14 @@ static int snd_emu10k1_dev_free(struct snd_device *device)
 
 static struct snd_emu_chip_details emu_chip_details[] = {
 	/* Audigy 2 Value AC3 out does not work yet. Need to find out how to turn off interpolators.*/
+	/* Audigy4 SB0400 */
+	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10211102,
+	 .driver = "Audigy2", .name = "Audigy 4 [SB0400]", 
+	 .id = "Audigy2",
+	 .emu10k2_chip = 1,
+	 .ca0108_chip = 1,
+	 .spk71 = 1,
+	 .ac97_chip = 1} ,
 	/* Tested by James@superbug.co.uk 3rd July 2005 */
 	/* DSP: CA0108-IAT
 	 * DAC: CS4382-KQ
