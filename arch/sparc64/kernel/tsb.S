@@ -55,20 +55,6 @@ tsb_reload:
 	brgez,a,pn	%g5, tsb_do_fault
 	 TSB_STORE(%g1, %g7)
 
-	/* If it is larger than the base page size, don't
-	 * bother putting it into the TSB.
-	 */
-	sethi		%hi(_PAGE_ALL_SZ_BITS), %g7
-	ldx		[%g7 + %lo(_PAGE_ALL_SZ_BITS)], %g7
-	and		%g5, %g7, %g2
-	sethi		%hi(_PAGE_SZBITS), %g7
-	ldx		[%g7 + %lo(_PAGE_SZBITS)], %g7
-	cmp		%g2, %g7
-	mov		1, %g7
-	sllx		%g7, TSB_TAG_INVALID_BIT, %g7
-	bne,a,pn	%xcc, tsb_tlb_reload
-	 TSB_STORE(%g1, %g7)
-
 	TSB_WRITE(%g1, %g5, %g6)
 
 	/* Finally, load TLB and return from trap.  */

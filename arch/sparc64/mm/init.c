@@ -280,6 +280,8 @@ unsigned long _PAGE_SZBITS __read_mostly;
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
 	struct mm_struct *mm;
+	struct tsb *tsb;
+	unsigned long tag;
 
 	if (tlb_type != hypervisor) {
 		unsigned long pfn = pte_pfn(pte);
@@ -308,15 +310,10 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 	}
 
 	mm = vma->vm_mm;
-	if ((pte_val(pte) & _PAGE_ALL_SZ_BITS) == _PAGE_SZBITS) {
-		struct tsb *tsb;
-		unsigned long tag;
-
-		tsb = &mm->context.tsb[(address >> PAGE_SHIFT) &
-				       (mm->context.tsb_nentries - 1UL)];
-		tag = (address >> 22UL);
-		tsb_insert(tsb, tag, pte_val(pte));
-	}
+	tsb = &mm->context.tsb[(address >> PAGE_SHIFT) &
+			       (mm->context.tsb_nentries - 1UL)];
+	tag = (address >> 22UL);
+	tsb_insert(tsb, tag, pte_val(pte));
 }
 
 void flush_dcache_page(struct page *page)
