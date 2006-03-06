@@ -765,8 +765,11 @@ void pci_disable_msi(struct pci_dev* dev)
 	u16 control;
 	unsigned long flags;
 
+	if (!pci_msi_enable)
+		return;
 	if (!dev)
 		return;
+
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	if (!pos)
 		return;
@@ -1026,6 +1029,8 @@ void pci_disable_msix(struct pci_dev* dev)
 	int pos, temp;
 	u16 control;
 
+	if (!pci_msi_enable)
+		return;
 	if (!dev)
 		return;
 
@@ -1150,6 +1155,11 @@ void msi_remove_pci_irq_vectors(struct pci_dev* dev)
 		}
 		dev->irq = temp;		/* Restore IOAPIC IRQ */
 	}
+}
+
+void pci_no_msi(void)
+{
+	pci_msi_enable = 0;
 }
 
 EXPORT_SYMBOL(pci_enable_msi);

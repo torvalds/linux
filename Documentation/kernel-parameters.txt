@@ -49,6 +49,7 @@ restrictions referred to are that the relevant option is valid if:
 	MCA	MCA bus support is enabled.
 	MDA	MDA console support is enabled.
 	MOUSE	Appropriate mouse support is enabled.
+	MSI	Message Signaled Interrupts (PCI).
 	MTD	MTD support is enabled.
 	NET	Appropriate network support is enabled.
 	NUMA	NUMA support is enabled.
@@ -1152,6 +1153,9 @@ running once the system is up.
 				Mechanism 2.
 		nommconf	[IA-32,X86_64] Disable use of MMCONFIG for PCI
 				Configuration
+		nomsi		[MSI] If the PCI_MSI kernel config parameter is
+				enabled, this kernel boot option can be used to
+				disable the use of MSI interrupts system-wide.
 		nosort		[IA-32] Don't sort PCI devices according to
 				order given by the PCI BIOS. This sorting is
 				done to get a device order compatible with

@@ -900,8 +900,12 @@ static int __devinit pci_setup(char *str)
 		if (k)
 			*k++ = 0;
 		if (*str && (str = pcibios_setup(str)) && *str) {
-			/* PCI layer options should be handled here */
-			printk(KERN_ERR "PCI: Unknown option `%s'\n", str);
+			if (!strcmp(str, "nomsi")) {
+				pci_no_msi();
+			} else {
+				printk(KERN_ERR "PCI: Unknown option `%s'\n",
+						str);
+			}
 		}
 		str = k;
 	}
