@@ -287,7 +287,10 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
 	u16 bridge;
 
-	yenta_set_power(socket, state);
+	/* if powering down: do it immediately */
+	if (state->Vcc == 0)
+		yenta_set_power(socket, state);
+
 	socket->io_irq = state->io_irq;
 	bridge = config_readw(socket, CB_BRIDGE_CONTROL) & ~(CB_BRIDGE_CRST | CB_BRIDGE_INTR);
 	if (cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) {
@@ -339,6 +342,10 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	/* Socket event mask: get card insert/remove events.. */
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	cb_writel(socket, CB_SOCKET_MASK, CB_CDMASK);
+
+	/* if powering up: do it as the last step when the socket is configured */
+	if (state->Vcc != 0)
+		yenta_set_power(socket, state);
 	return 0;
 }
 
