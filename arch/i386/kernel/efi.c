@@ -70,9 +70,12 @@ static void efi_call_phys_prelog(void)
 {
 	unsigned long cr4;
 	unsigned long temp;
+	struct Xgt_desc_struct *cpu_gdt_descr;
 
 	spin_lock(&efi_rt_lock);
 	local_irq_save(efi_rt_eflags);
+
+	cpu_gdt_descr = &per_cpu(cpu_gdt_descr, 0);
 
 	/*
 	 * If I don't have PSE, I should just duplicate two entries in page
@@ -103,18 +106,17 @@ static void efi_call_phys_prelog(void)
 	 */
 	local_flush_tlb();
 
-	per_cpu(cpu_gdt_descr, 0).address =
-				 __pa(per_cpu(cpu_gdt_descr, 0).address);
-	load_gdt((struct Xgt_desc_struct *)__pa(&per_cpu(cpu_gdt_descr, 0)));
+	cpu_gdt_descr->address = __pa(cpu_gdt_descr->address);
+	load_gdt(cpu_gdt_descr);
 }
 
 static void efi_call_phys_epilog(void)
 {
 	unsigned long cr4;
+	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, 0);
 
-	per_cpu(cpu_gdt_descr, 0).address =
-			(unsigned long)__va(per_cpu(cpu_gdt_descr, 0).address);
-	load_gdt((struct Xgt_desc_struct *)__va(&per_cpu(cpu_gdt_descr, 0)));
+	cpu_gdt_descr->address = __va(cpu_gdt_descr->address);
+	load_gdt(cpu_gdt_descr);
 
 	cr4 = read_cr4();
 
