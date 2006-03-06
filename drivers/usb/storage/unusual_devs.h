@@ -1080,6 +1080,16 @@ UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
 			0),
 #endif
 
+/*
+ * Pete Zaitcev <zaitcev@yahoo.com>, bz#164688.
+ * The device blatantly ignores LUN and returns 1 in GetMaxLUN.
+ */
+UNUSUAL_DEV( 0x0c45, 0x1060, 0x0100, 0x0100,
+		"Unknown",
+		"Unknown",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
+
 /* Submitted by Joris Struyve <joris@struyve.be> */
 UNUSUAL_DEV( 0x0d96, 0x410a, 0x0001, 0xffff,
 		"Medion",
