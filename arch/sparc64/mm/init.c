@@ -973,12 +973,15 @@ static void __init mark_kpte_bitmap(unsigned long start, unsigned long end)
 	while (start < end) {
 		long remains;
 
+		remains = end - start;
+		if (remains < size_256MB)
+			break;
+
 		if (start & mask_256MB) {
 			start = (start + size_256MB) & ~mask_256MB;
 			continue;
 		}
 
-		remains = end - start;
 		while (remains >= size_256MB) {
 			unsigned long index = start >> shift_256MB;
 
