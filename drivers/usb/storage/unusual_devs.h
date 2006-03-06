@@ -760,11 +760,18 @@ UNUSUAL_DEV(  0x069b, 0x3004, 0x0001, 0x0001,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
-UNUSUAL_DEV(  0x0781, 0x0001, 0x0200, 0x0200, 
+/* Submitted by Roman Hodek <roman@hodek.net> */
+UNUSUAL_DEV(  0x0781, 0x0001, 0x0200, 0x0200,
 		"Sandisk",
 		"ImageMate SDDR-05a",
 		US_SC_SCSI, US_PR_CB, NULL,
 		US_FL_SINGLE_LUN ),
+
+UNUSUAL_DEV(  0x0781, 0x0002, 0x0009, 0x0009,
+		"SanDisk Corporation",
+		"ImageMate CompactFlash USB",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
 
 #ifdef CONFIG_USB_STORAGE_USBAT
 UNUSUAL_DEV(  0x0781, 0x0005, 0x0005, 0x0005,
