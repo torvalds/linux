@@ -1202,10 +1202,8 @@ int snd_ad1848_add_ctl(struct snd_ad1848 *chip, const char *name, int index, int
 	strlcpy(ctl->id.name, name, sizeof(ctl->id.name));
 	ctl->id.index = index;
 	ctl->private_value = value;
-	if ((err = snd_ctl_add(chip->card, ctl)) < 0) {
-		snd_ctl_free_one(ctl);
+	if ((err = snd_ctl_add(chip->card, ctl)) < 0)
 		return err;
-	}
 	return 0;
 }
 
