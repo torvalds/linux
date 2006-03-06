@@ -216,6 +216,7 @@ struct dlm_lock_resource
 	/* WARNING: Please see the comment in dlm_init_lockres before
 	 * adding fields here. */
 	struct hlist_node hash_node;
+	struct qstr lockname;
 	struct kref      refs;
 
 	/* please keep these next 3 in this order
@@ -238,7 +239,6 @@ struct dlm_lock_resource
 	wait_queue_head_t wq;
 	u8  owner;              //node which owns the lock resource, or unknown
 	u16 state;
-	struct qstr lockname;
 	char lvb[DLM_LVB_LEN];
 };
 
