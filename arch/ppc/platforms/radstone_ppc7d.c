@@ -683,11 +683,10 @@ ppc7d_fixup_i2c_pdata(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
-		pdata = kmalloc(sizeof(*pdata), GFP_KERNEL);
+		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 		if (pdata == NULL)
 			return;
 
-		memset(pdata, 0, sizeof(*pdata));
 		pdev->dev.platform_data = pdata;
 	}
 
