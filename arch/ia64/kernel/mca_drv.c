@@ -123,8 +123,9 @@ mca_page_isolate(unsigned long paddr)
 void
 mca_handler_bh(unsigned long paddr)
 {
-	printk(KERN_DEBUG "OS_MCA: process [pid: %d](%s) encounters MCA.\n",
-		current->pid, current->comm);
+	printk(KERN_ERR
+		"OS_MCA: process [pid: %d](%s) encounters MCA (paddr=%lx)\n",
+		current->pid, current->comm, paddr);
 
 	spin_lock(&mca_bh_lock);
 	switch (mca_page_isolate(paddr)) {
@@ -132,7 +133,7 @@ mca_handler_bh(unsigned long paddr)
 		printk(KERN_DEBUG "Page isolation: ( %lx ) success.\n", paddr);
 		break;
 	case ISOLATE_NG:
-		printk(KERN_DEBUG "Page isolation: ( %lx ) failure.\n", paddr);
+		printk(KERN_CRIT "Page isolation: ( %lx ) failure.\n", paddr);
 		break;
 	default:
 		break;
