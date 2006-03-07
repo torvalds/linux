@@ -68,6 +68,15 @@ lpfc_process_nodev_timeout(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		return;
 	}
 
+	/*
+	 * If a discovery event readded nodev_timer after timer
+	 * firing and before processing the timer, cancel the
+	 * nlp_tmofunc.
+	 */
+	spin_unlock_irq(phba->host->host_lock);
+	del_timer_sync(&ndlp->nlp_tmofunc);
+	spin_lock_irq(phba->host->host_lock);
+
 	ndlp->nlp_flag &= ~NLP_NODEV_TMO;
 
 	if (ndlp->nlp_sid != NLP_NO_SID) {
