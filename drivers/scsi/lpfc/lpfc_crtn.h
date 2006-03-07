@@ -84,6 +84,7 @@ int lpfc_els_rsp_adisc_acc(struct lpfc_hba *, struct lpfc_iocbq *,
 			   struct lpfc_nodelist *);
 int lpfc_els_rsp_prli_acc(struct lpfc_hba *, struct lpfc_iocbq *,
 			  struct lpfc_nodelist *);
+void lpfc_cancel_retry_delay_tmo(struct lpfc_hba *, struct lpfc_nodelist *);
 void lpfc_els_retry_delay(unsigned long);
 void lpfc_els_retry_delay_handler(struct lpfc_nodelist *);
 void lpfc_els_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,

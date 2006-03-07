@@ -259,13 +259,8 @@ lpfc_els_abort(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
 	} while(found);
 
 	/* If we are delaying issuing an ELS command, cancel it */
-	if (ndlp->nlp_flag & NLP_DELAY_TMO) {
-		ndlp->nlp_flag &= ~NLP_DELAY_TMO;
-		ndlp->nlp_last_elscmd = 0;
-		del_timer_sync(&ndlp->nlp_delayfunc);
-		if (!list_empty(&ndlp->els_retry_evt.evt_listp))
-			list_del_init(&ndlp->els_retry_evt.evt_listp);
-	}
+	if (ndlp->nlp_flag & NLP_DELAY_TMO)
+		lpfc_cancel_retry_delay_tmo(phba, ndlp);
 	return 0;
 }
 
@@ -1496,7 +1491,7 @@ lpfc_rcv_plogi_npr_node(struct lpfc_hba * phba,
 
 	if (lpfc_rcv_plogi(phba, ndlp, cmdiocb)) {
 		spin_lock_irq(phba->host->host_lock);
-		ndlp->nlp_flag &= ~(NLP_NPR_ADISC | NLP_NPR_2B_DISC);
+		ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 		spin_unlock_irq(phba->host->host_lock);
 		return ndlp->nlp_state;
 	}
@@ -1693,16 +1688,10 @@ lpfc_device_recov_npr_node(struct lpfc_hba * phba,
 {
 	spin_lock_irq(phba->host->host_lock);
 	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
-	if (ndlp->nlp_flag & NLP_DELAY_TMO) {
-		ndlp->nlp_flag &= ~NLP_DELAY_TMO;
-		if (!list_empty(&ndlp->els_retry_evt.evt_listp))
-			list_del_init(&ndlp->els_retry_evt.evt_listp);
-		spin_unlock_irq(phba->host->host_lock);
-		ndlp->nlp_last_elscmd = 0;
-		del_timer_sync(&ndlp->nlp_delayfunc);
-		return ndlp->nlp_state;
-	}
 	spin_unlock_irq(phba->host->host_lock);
+	if (ndlp->nlp_flag & NLP_DELAY_TMO) {
+		lpfc_cancel_retry_delay_tmo(phba, ndlp);
+	}
 	return ndlp->nlp_state;
 }
 

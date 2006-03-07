@@ -1435,6 +1435,46 @@ lpfc_issue_els_farpr(struct lpfc_hba * phba, uint32_t nportid, uint8_t retry)
 }
 
 void
+lpfc_cancel_retry_delay_tmo(struct lpfc_hba *phba, struct lpfc_nodelist * nlp)
+{
+	nlp->nlp_flag &= ~NLP_DELAY_TMO;
+	del_timer_sync(&nlp->nlp_delayfunc);
+	nlp->nlp_last_elscmd = 0;
+
+	if (!list_empty(&nlp->els_retry_evt.evt_listp))
+		list_del_init(&nlp->els_retry_evt.evt_listp);
+
+	if (nlp->nlp_flag & NLP_NPR_2B_DISC) {
+		nlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+		if (phba->num_disc_nodes) {
+			/* Check to see if there are more
+			 * PLOGIs to be sent
+			 */
+			lpfc_more_plogi(phba);
+		}
+
+		if (phba->num_disc_nodes == 0) {
+			phba->fc_flag &= ~FC_NDISC_ACTIVE;
+			lpfc_can_disctmo(phba);
+			if (phba->fc_flag & FC_RSCN_MODE) {
+				/* Check to see if more RSCNs
+				 * came in while we were
+				 * processing this one.
+				 */
+				if((phba->fc_rscn_id_cnt==0) &&
+				   (!(phba->fc_flag & FC_RSCN_DISCOVERY))) {
+					phba->fc_flag &= ~FC_RSCN_MODE;
+				}
+				else {
+					lpfc_els_handle_rscn(phba);
+				}
+			}
+		}
+	}
+	return;
+}
+
+void
 lpfc_els_retry_delay(unsigned long ptr)
 {
 	struct lpfc_nodelist *ndlp;
@@ -2415,15 +2455,8 @@ lpfc_rscn_recovery_check(struct lpfc_hba * phba)
 			/* Make sure NLP_DELAY_TMO is NOT running
 			 * after a device recovery event.
 			 */
-			if (ndlp->nlp_flag & NLP_DELAY_TMO) {
-				ndlp->nlp_flag &= ~NLP_DELAY_TMO;
-				ndlp->nlp_last_elscmd = 0;
-				del_timer_sync(&ndlp->nlp_delayfunc);
-				if (!list_empty(&ndlp->
-						els_retry_evt.evt_listp))
-					list_del_init(&ndlp->
-						els_retry_evt.evt_listp);
-			}
+			if (ndlp->nlp_flag & NLP_DELAY_TMO)
+				lpfc_cancel_retry_delay_tmo(phba, ndlp);
 		}
 	}
 	return 0;

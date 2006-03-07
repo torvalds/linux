@@ -1152,13 +1152,9 @@ lpfc_nlp_list(struct lpfc_hba * phba, struct lpfc_nodelist * nlp, int list)
 		/* Stop delay tmo if taking node off NPR list */
 		if ((nlp->nlp_flag & NLP_DELAY_TMO) &&
 		   (list != NLP_NPR_LIST)) {
-			nlp->nlp_flag &= ~NLP_DELAY_TMO;
-			nlp->nlp_last_elscmd = 0;
 			spin_unlock_irq(phba->host->host_lock);
-			del_timer_sync(&nlp->nlp_delayfunc);
+			lpfc_cancel_retry_delay_tmo(phba, nlp);
 			spin_lock_irq(phba->host->host_lock);
-			if (!list_empty(&nlp->els_retry_evt.evt_listp))
-				list_del_init(&nlp->els_retry_evt.evt_listp);
 		}
 		break;
 	}
@@ -1598,13 +1594,7 @@ lpfc_nlp_remove(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 
 
 	if (ndlp->nlp_flag & NLP_DELAY_TMO) {
-		spin_lock_irq(phba->host->host_lock);
-		ndlp->nlp_flag &= ~NLP_DELAY_TMO;
-		spin_unlock_irq(phba->host->host_lock);
-		ndlp->nlp_last_elscmd = 0;
-		del_timer_sync(&ndlp->nlp_delayfunc);
-		if (!list_empty(&ndlp->els_retry_evt.evt_listp))
-			list_del_init(&ndlp->els_retry_evt.evt_listp);
+		lpfc_cancel_retry_delay_tmo(phba, ndlp);
 	}
 
 	if (ndlp->nlp_disc_refcnt) {
@@ -1896,14 +1886,8 @@ lpfc_setup_disc_node(struct lpfc_hba * phba, uint32_t did)
 			/* Since this node is marked for discovery,
 			 * delay timeout is not needed.
 			 */
-			if (ndlp->nlp_flag & NLP_DELAY_TMO) {
-				ndlp->nlp_flag &= ~NLP_DELAY_TMO;
-				del_timer_sync(&ndlp->nlp_delayfunc);
-				if (!list_empty(&ndlp->els_retry_evt.
-								evt_listp))
-					list_del_init(&ndlp->els_retry_evt.
-						      		evt_listp);
-			}
+			if (ndlp->nlp_flag & NLP_DELAY_TMO)
+				lpfc_cancel_retry_delay_tmo(phba, ndlp);
 		} else {
 			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 			ndlp = NULL;
