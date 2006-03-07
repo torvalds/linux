@@ -618,13 +618,16 @@ struct notif_tgi_tx_key {
 	u8 reserved;
 } __attribute__ ((packed));
 
+#define SILENCE_OVER_THRESH (1)
+#define SILENCE_UNDER_THRESH (2)
+
 struct notif_link_deterioration {
 	struct ipw_cmd_stats stats;
 	u8 rate;
 	u8 modulation;
 	struct rate_histogram histogram;
-	u8 reserved1;
-	u16 reserved2;
+	u8 silence_notification_type;	/* SILENCE_OVER/UNDER_THRESH */
+	u16 silence_count;
 } __attribute__ ((packed));
 
 struct notif_association {
@@ -782,7 +785,7 @@ struct ipw_sys_config {
 	u8 enable_cts_to_self;
 	u8 enable_multicast_filtering;
 	u8 bt_coexist_collision_thr;
-	u8 reserved2;
+	u8 silence_threshold;
 	u8 accept_all_mgmt_bcpr;
 	u8 accept_all_mgtm_frames;
 	u8 pass_noise_stats_to_host;

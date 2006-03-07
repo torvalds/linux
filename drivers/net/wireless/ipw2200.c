@@ -4541,10 +4541,9 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 
 			if (notif->size == sizeof(*x)) {
 				IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE,
-					  "link deterioration: '%s' " MAC_FMT
-					  " \n", escape_essid(priv->essid,
-							      priv->essid_len),
-					  MAC_ARG(priv->bssid));
+					"link deterioration: type %d, cnt %d\n",
+					x->silence_notification_type,
+					x->silence_count);
 				memcpy(&priv->last_link_deterioration, x,
 				       sizeof(*x));
 			} else {
@@ -9607,6 +9606,7 @@ static  void init_sys_config(struct ipw_sys_config *sys_config)
 	sys_config->enable_cts_to_self = 0;
 	sys_config->bt_coexist_collision_thr = 0;
 	sys_config->pass_noise_stats_to_host = 1;	//1 -- fix for 256
+	sys_config->silence_threshold = 0x1e;
 }
 
 static int ipw_net_open(struct net_device *dev)
