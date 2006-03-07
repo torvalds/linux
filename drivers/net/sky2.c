@@ -74,7 +74,7 @@
 #define TX_RING_SIZE		512
 #define TX_DEF_PENDING		(TX_RING_SIZE - 1)
 #define TX_MIN_PENDING		64
-#define MAX_SKB_TX_LE		(4 + 2*MAX_SKB_FRAGS)
+#define MAX_SKB_TX_LE		(4 + (sizeof(dma_addr_t)/sizeof(u32))*MAX_SKB_FRAGS)
 
 #define STATUS_RING_SIZE	2048	/* 2 ports * (TX + 2*RX) */
 #define STATUS_LE_BYTES		(STATUS_RING_SIZE*sizeof(struct sky2_status_le))
@@ -1145,6 +1145,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	struct sky2_tx_le *le = NULL;
 	struct tx_ring_info *re;
 	unsigned i, len;
+	int avail;
 	dma_addr_t mapping;
 	u32 addr64;
 	u16 mss;
@@ -1287,11 +1288,15 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	re->idx = sky2->tx_prod;
 	le->ctrl |= EOP;
 
+	avail = tx_avail(sky2);
+	if (mss != 0 || avail < TX_MIN_PENDING) {
+ 		le->ctrl |= FRC_STAT;
+		if (avail <= MAX_SKB_TX_LE)
+			netif_stop_queue(dev);
+	}
+
 	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod,
 		     &sky2->tx_last_put, TX_RING_SIZE);
-
-	if (tx_avail(sky2) <= MAX_SKB_TX_LE)
-		netif_stop_queue(dev);
 
 out_unlock:
 	spin_unlock(&sky2->tx_lock);
