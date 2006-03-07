@@ -170,19 +170,6 @@ void sync_descbuffer_for_device(struct bcm43xx_dmaring *ring,
 				   addr, len, DMA_FROM_DEVICE);
 }
 
-static inline
-void mark_skb_mustfree(struct sk_buff *skb,
-		       char mustfree)
-{
-	skb->cb[0] = mustfree;
-}
-
-static inline
-int skb_mustfree(struct sk_buff *skb)
-{
-	return (skb->cb[0] != 0);
-}
-
 /* Unmap and free a descriptor buffer. */
 static inline
 void free_descriptor_buffer(struct bcm43xx_dmaring *ring,
@@ -191,17 +178,11 @@ void free_descriptor_buffer(struct bcm43xx_dmaring *ring,
 			    int irq_context)
 {
 	assert(meta->skb);
-	if (skb_mustfree(meta->skb)) {
-		if (irq_context)
-			dev_kfree_skb_irq(meta->skb);
-		else
-			dev_kfree_skb(meta->skb);
-	}
+	if (irq_context)
+		dev_kfree_skb_irq(meta->skb);
+	else
+		dev_kfree_skb(meta->skb);
 	meta->skb = NULL;
-	if (meta->txb) {
-		ieee80211_txb_free(meta->txb);
-		meta->txb = NULL;
-	}
 }
 
 static int alloc_ringmemory(struct bcm43xx_dmaring *ring)
@@ -334,7 +315,6 @@ static int setup_rx_descbuffer(struct bcm43xx_dmaring *ring,
 	meta->skb = skb;
 	meta->dmaaddr = dmaaddr;
 	skb->dev = ring->bcm->net_dev;
-	mark_skb_mustfree(skb, 1);
 	desc_addr = (u32)(dmaaddr + ring->memoffset);
 	desc_ctl = (BCM43xx_DMADTOR_BYTECNT_MASK &
 		    (u32)(ring->rx_buffersize - ring->frameoffset));
@@ -457,7 +437,6 @@ static void free_all_descbuffers(struct bcm43xx_dmaring *ring)
 
 		if (!meta->skb) {
 			assert(ring->tx);
-			assert(!meta->txb);
 			continue;
 		}
 		if (ring->tx) {
@@ -726,7 +705,6 @@ static void dmacontroller_poke_tx(struct bcm43xx_dmaring *ring,
 
 static int dma_tx_fragment(struct bcm43xx_dmaring *ring,
 			   struct sk_buff *skb,
-			   struct ieee80211_txb *txb,
 			   u8 cur_frag)
 {
 	int slot;
@@ -740,11 +718,6 @@ static int dma_tx_fragment(struct bcm43xx_dmaring *ring,
 	slot = request_slot(ring);
 	desc = ring->vbase + slot;
 	meta = ring->meta + slot;
-
-	if (cur_frag == 0) {
-		/* Save the txb pointer for freeing in xmitstatus IRQ */
-		meta->txb = txb;
-	}
 
 	/* Add a device specific TX header. */
 	assert(skb_headroom(skb) >= sizeof(struct bcm43xx_txhdr));
@@ -810,13 +783,12 @@ int bcm43xx_dma_tx(struct bcm43xx_private *bcm,
 
 	for (i = 0; i < txb->nr_frags; i++) {
 		skb = txb->fragments[i];
-		/* We do not free the skb, as it is freed as
-		 * part of the txb freeing.
-		 */
-		mark_skb_mustfree(skb, 0);
-		dma_tx_fragment(ring, skb, txb, i);
+		/* Take skb from ieee80211_txb_free */
+		txb->fragments[i] = NULL;
+		dma_tx_fragment(ring, skb, i);
 		//TODO: handle failure of dma_tx_fragment
 	}
+	ieee80211_txb_free(txb);
 
 	return 0;
 }
