@@ -246,8 +246,10 @@ enum connection_manager_assoc_states {
 #define HOST_NOTIFICATION_S36_MEASUREMENT_REFUSED       31
 
 #define HOST_NOTIFICATION_STATUS_BEACON_MISSING         1
-#define IPW_MB_DISASSOCIATE_THRESHOLD_DEFAULT           24
+#define IPW_MB_ROAMING_THRESHOLD_MIN                    1
 #define IPW_MB_ROAMING_THRESHOLD_DEFAULT                8
+#define IPW_MB_ROAMING_THRESHOLD_MAX                    30
+#define IPW_MB_DISASSOCIATE_THRESHOLD_DEFAULT           3*IPW_MB_ROAMING_THRESHOLD_DEFAULT
 #define IPW_REAL_RATE_RX_PACKET_THRESHOLD               300
 
 #define MACADRR_BYTE_LEN                     6

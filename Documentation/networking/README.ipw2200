@@ -30,6 +30,7 @@ Index
 2.   Ad-Hoc Networking
 3.   Interacting with Wireless Tools
 3.1. iwconfig mode
+3.2. iwconfig sens
 4.   About the Version Numbers
 5.   Firmware installation
 6.   Support
@@ -382,6 +383,15 @@ iwconfig eth1 mode ad-hoc essid testing channel 2
 When configuring the mode of the adapter, all run-time configured parameters
 are reset to the value used when the module was loaded.  This includes
 channels, rates, ESSID, etc.
+
+3.2 iwconfig sens
+-----------------------------------------------
+
+The 'iwconfig ethX sens XX' command will not set the signal sensitivity
+threshold, as described in iwconfig documentation, but rather the number
+of consecutive missed beacons that will trigger handover, i.e. roaming
+to another access point. At the same time, it will set the disassociation
+threshold to 3 times the given value.
 
 
 4.   About the Version Numbers
