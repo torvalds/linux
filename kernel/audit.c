@@ -558,8 +558,9 @@ static int __init audit_init(void)
 					   THIS_MODULE);
 	if (!audit_sock)
 		audit_panic("cannot initialize netlink socket");
+	else
+		audit_sock->sk_sndtimeo = MAX_SCHEDULE_TIMEOUT;
 
-	audit_sock->sk_sndtimeo = MAX_SCHEDULE_TIMEOUT;
 	skb_queue_head_init(&audit_skb_queue);
 	audit_initialized = 1;
 	audit_enabled = audit_default;
