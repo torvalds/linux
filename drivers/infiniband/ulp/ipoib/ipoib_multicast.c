@@ -115,7 +115,6 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 		if (neigh->ah)
 			ipoib_put_ah(neigh->ah);
 		*to_ipoib_neigh(neigh->neighbour) = NULL;
-		neigh->neighbour->ops->destructor = NULL;
 		kfree(neigh);
 	}
 
