@@ -2829,32 +2829,10 @@ static void ipw_arc_release(struct ipw_priv *priv)
 	mdelay(5);
 }
 
-struct fw_header {
-	u32 version;
-	u32 mode;
-};
-
 struct fw_chunk {
 	u32 address;
 	u32 length;
 };
-
-#define IPW_FW_MAJOR_VERSION 2
-#define IPW_FW_MINOR_VERSION 4
-
-#define IPW_FW_MINOR(x) ((x & 0xff) >> 8)
-#define IPW_FW_MAJOR(x) (x & 0xff)
-
-#define IPW_FW_VERSION ((IPW_FW_MINOR_VERSION << 8) | IPW_FW_MAJOR_VERSION)
-
-#define IPW_FW_PREFIX "ipw-" __stringify(IPW_FW_MAJOR_VERSION) \
-"." __stringify(IPW_FW_MINOR_VERSION) "-"
-
-#if IPW_FW_MAJOR_VERSION >= 2 && IPW_FW_MINOR_VERSION > 0
-#define IPW_FW_NAME(x) IPW_FW_PREFIX "" x ".fw"
-#else
-#define IPW_FW_NAME(x) "ipw2200_" x ".fw"
-#endif
 
 static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
 {
@@ -3124,33 +3102,47 @@ static int ipw_reset_nic(struct ipw_priv *priv)
 	return rc;
 }
 
+
+struct ipw_fw {
+	u32 ver;
+	u32 boot_size;
+	u32 ucode_size;
+	u32 fw_size;
+	u8 data[0];
+};
+
 static int ipw_get_fw(struct ipw_priv *priv,
-		      const struct firmware **fw, const char *name)
+		      const struct firmware **raw, const char *name)
 {
-	struct fw_header *header;
+	struct ipw_fw *fw;
 	int rc;
 
 	/* ask firmware_class module to get the boot firmware off disk */
-	rc = request_firmware(fw, name, &priv->pci_dev->dev);
+	rc = request_firmware(raw, name, &priv->pci_dev->dev);
 	if (rc < 0) {
-		IPW_ERROR("%s load failed: Reason %d\n", name, rc);
+		IPW_ERROR("%s request_firmware failed: Reason %d\n", name, rc);
 		return rc;
 	}
 
-	header = (struct fw_header *)(*fw)->data;
-	if (IPW_FW_MAJOR(le32_to_cpu(header->version)) != IPW_FW_MAJOR_VERSION) {
-		IPW_ERROR("'%s' firmware version not compatible (%d != %d)\n",
-			  name,
-			  IPW_FW_MAJOR(le32_to_cpu(header->version)),
-			  IPW_FW_MAJOR_VERSION);
+	if ((*raw)->size < sizeof(*fw)) {
+		IPW_ERROR("%s is too small (%zd)\n", name, (*raw)->size);
 		return -EINVAL;
 	}
 
-	IPW_DEBUG_INFO("Loading firmware '%s' file v%d.%d (%zd bytes)\n",
+	fw = (void *)(*raw)->data;
+
+	if ((*raw)->size < sizeof(*fw) +
+	    fw->boot_size + fw->ucode_size + fw->fw_size) {
+		IPW_ERROR("%s is too small or corrupt (%zd)\n",
+			  name, (*raw)->size);
+		return -EINVAL;
+	}
+
+	IPW_DEBUG_INFO("Read firmware '%s' image v%d.%d (%zd bytes)\n",
 		       name,
-		       IPW_FW_MAJOR(le32_to_cpu(header->version)),
-		       IPW_FW_MINOR(le32_to_cpu(header->version)),
-		       (*fw)->size - sizeof(struct fw_header));
+		       le32_to_cpu(fw->ver) >> 16,
+		       le32_to_cpu(fw->ver) & 0xff,
+		       (*raw)->size - sizeof(*fw));
 	return 0;
 }
 
@@ -3190,17 +3182,13 @@ static void ipw_rx_queue_reset(struct ipw_priv *priv,
 
 #ifdef CONFIG_PM
 static int fw_loaded = 0;
-static const struct firmware *bootfw = NULL;
-static const struct firmware *firmware = NULL;
-static const struct firmware *ucode = NULL;
+static const struct firmware *raw = NULL;
 
 static void free_firmware(void)
 {
 	if (fw_loaded) {
-		release_firmware(bootfw);
-		release_firmware(ucode);
-		release_firmware(firmware);
-		bootfw = ucode = firmware = NULL;
+		release_firmware(raw);
+		raw = NULL;
 		fw_loaded = 0;
 	}
 }
@@ -3211,32 +3199,46 @@ static void free_firmware(void)
 static int ipw_load(struct ipw_priv *priv)
 {
 #ifndef CONFIG_PM
-	const struct firmware *bootfw = NULL;
-	const struct firmware *firmware = NULL;
-	const struct firmware *ucode = NULL;
+	const struct firmware *raw = NULL;
 #endif
-	char *ucode_name;
-	char *fw_name;
+	struct ipw_fw *fw;
+	u8 *boot_img, *ucode_img, *fw_img;
+	u8 *name = NULL;
 	int rc = 0, retries = 3;
 
 	switch (priv->ieee->iw_mode) {
 	case IW_MODE_ADHOC:
-		ucode_name = IPW_FW_NAME("ibss_ucode");
-		fw_name = IPW_FW_NAME("ibss");
+		name = "ipw2200-ibss.fw";
 		break;
 #ifdef CONFIG_IPW2200_MONITOR
 	case IW_MODE_MONITOR:
-		ucode_name = IPW_FW_NAME("sniffer_ucode");
-		fw_name = IPW_FW_NAME("sniffer");
+		name = "ipw2200-sniffer.fw";
 		break;
 #endif
 	case IW_MODE_INFRA:
-		ucode_name = IPW_FW_NAME("bss_ucode");
-		fw_name = IPW_FW_NAME("bss");
+		name = "ipw2200-bss.fw";
 		break;
-	default:
-		rc = -EINVAL;
 	}
+
+	if (!name) {
+		rc = -EINVAL;
+		goto error;
+	}
+
+#ifdef CONFIG_PM
+	if (!fw_loaded) {
+#endif
+		rc = ipw_get_fw(priv, &raw, name);
+		if (rc < 0)
+			goto error;
+#ifdef CONFIG_PM
+	}
+#endif
+
+	fw = (void *)raw->data;
+	boot_img = &fw->data[0];
+	ucode_img = &fw->data[fw->boot_size];
+	fw_img = &fw->data[fw->boot_size + fw->ucode_size];
 
 	if (rc < 0)
 		goto error;
@@ -3269,18 +3271,8 @@ static int ipw_load(struct ipw_priv *priv)
 	ipw_zero_memory(priv, IPW_NIC_SRAM_LOWER_BOUND,
 			IPW_NIC_SRAM_UPPER_BOUND - IPW_NIC_SRAM_LOWER_BOUND);
 
-#ifdef CONFIG_PM
-	if (!fw_loaded) {
-#endif
-		rc = ipw_get_fw(priv, &bootfw, IPW_FW_NAME("boot"));
-		if (rc < 0)
-			goto error;
-#ifdef CONFIG_PM
-	}
-#endif
 	/* DMA the initial boot firmware into the device */
-	rc = ipw_load_firmware(priv, bootfw->data + sizeof(struct fw_header),
-			       bootfw->size - sizeof(struct fw_header));
+	rc = ipw_load_firmware(priv, boot_img, fw->boot_size);
 	if (rc < 0) {
 		IPW_ERROR("Unable to load boot firmware: %d\n", rc);
 		goto error;
@@ -3301,19 +3293,8 @@ static int ipw_load(struct ipw_priv *priv)
 	/* ack fw init done interrupt */
 	ipw_write32(priv, IPW_INTA_RW, IPW_INTA_BIT_FW_INITIALIZATION_DONE);
 
-#ifdef CONFIG_PM
-	if (!fw_loaded) {
-#endif
-		rc = ipw_get_fw(priv, &ucode, ucode_name);
-		if (rc < 0)
-			goto error;
-#ifdef CONFIG_PM
-	}
-#endif
-
 	/* DMA the ucode into the device */
-	rc = ipw_load_ucode(priv, ucode->data + sizeof(struct fw_header),
-			    ucode->size - sizeof(struct fw_header));
+	rc = ipw_load_ucode(priv, ucode_img, fw->ucode_size);
 	if (rc < 0) {
 		IPW_ERROR("Unable to load ucode: %d\n", rc);
 		goto error;
@@ -3322,20 +3303,8 @@ static int ipw_load(struct ipw_priv *priv)
 	/* stop nic */
 	ipw_stop_nic(priv);
 
-#ifdef CONFIG_PM
-	if (!fw_loaded) {
-#endif
-		rc = ipw_get_fw(priv, &firmware, fw_name);
-		if (rc < 0)
-			goto error;
-#ifdef CONFIG_PM
-	}
-#endif
-
 	/* DMA bss firmware into the device */
-	rc = ipw_load_firmware(priv, firmware->data +
-			       sizeof(struct fw_header),
-			       firmware->size - sizeof(struct fw_header));
+	rc = ipw_load_firmware(priv, fw_img, fw->fw_size);
 	if (rc < 0) {
 		IPW_ERROR("Unable to load firmware: %d\n", rc);
 		goto error;
@@ -3400,9 +3369,7 @@ static int ipw_load(struct ipw_priv *priv)
 	ipw_write32(priv, IPW_INTA_RW, IPW_INTA_MASK_ALL);
 
 #ifndef CONFIG_PM
-	release_firmware(bootfw);
-	release_firmware(ucode);
-	release_firmware(firmware);
+	release_firmware(raw);
 #endif
 	return 0;
 
@@ -3412,15 +3379,11 @@ static int ipw_load(struct ipw_priv *priv)
 		priv->rxq = NULL;
 	}
 	ipw_tx_queue_free(priv);
-	if (bootfw)
-		release_firmware(bootfw);
-	if (ucode)
-		release_firmware(ucode);
-	if (firmware)
-		release_firmware(firmware);
+	if (raw)
+		release_firmware(raw);
 #ifdef CONFIG_PM
 	fw_loaded = 0;
-	bootfw = ucode = firmware = NULL;
+	raw = NULL;
 #endif
 
 	return rc;
