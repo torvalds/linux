@@ -59,6 +59,7 @@ static void lpfc_disc_timeout_handler(struct lpfc_hba *);
 static void
 lpfc_process_nodev_timeout(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
+	uint8_t *name = (uint8_t *)&ndlp->nlp_portname;
 	int warn_on = 0;
 
 	spin_lock_irq(phba->host->host_lock);
@@ -79,15 +80,23 @@ lpfc_process_nodev_timeout(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 
 	if (warn_on) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-				"%d:0203 Nodev timeout on NPort x%x "
-				"Data: x%x x%x x%x\n",
-				phba->brd_no, ndlp->nlp_DID, ndlp->nlp_flag,
+				"%d:0203 Nodev timeout on "
+				"WWPN %x:%x:%x:%x:%x:%x:%x:%x "
+				"NPort x%x Data: x%x x%x x%x\n",
+				phba->brd_no,
+				*name, *(name+1), *(name+2), *(name+3),
+				*(name+4), *(name+5), *(name+6), *(name+7),
+				ndlp->nlp_DID, ndlp->nlp_flag,
 				ndlp->nlp_state, ndlp->nlp_rpi);
 	} else {
 		lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
-				"%d:0204 Nodev timeout on NPort x%x "
-				"Data: x%x x%x x%x\n",
-				phba->brd_no, ndlp->nlp_DID, ndlp->nlp_flag,
+				"%d:0204 Nodev timeout on "
+				"WWPN %x:%x:%x:%x:%x:%x:%x:%x "
+				"NPort x%x Data: x%x x%x x%x\n",
+				phba->brd_no,
+				*name, *(name+1), *(name+2), *(name+3),
+				*(name+4), *(name+5), *(name+6), *(name+7),
+				ndlp->nlp_DID, ndlp->nlp_flag,
 				ndlp->nlp_state, ndlp->nlp_rpi);
 	}
 
@@ -945,7 +954,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 		}
 		ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
 		lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
-		lpfc_issue_els_plogi(phba, ndlp, 0);
+		lpfc_issue_els_plogi(phba, NameServer_DID, 0);
 		if (phba->cfg_fdmi_on) {
 			ndlp_fdmi = mempool_alloc(phba->nlp_mem_pool,
 								GFP_KERNEL);
@@ -953,7 +962,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 				lpfc_nlp_init(phba, ndlp_fdmi, FDMI_DID);
 				ndlp_fdmi->nlp_type |= NLP_FABRIC;
 				ndlp_fdmi->nlp_state = NLP_STE_PLOGI_ISSUE;
-				lpfc_issue_els_plogi(phba, ndlp_fdmi, 0);
+				lpfc_issue_els_plogi(phba, FDMI_DID, 0);
 			}
 		}
 	}
@@ -2512,6 +2521,49 @@ lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi)
 				spin_unlock_irq(phba->host->host_lock);
 				return ndlp;
 			}
+	spin_unlock_irq(phba->host->host_lock);
+	return NULL;
+}
+
+/*
+ * This routine looks up the ndlp  lists
+ * for the given WWPN. If WWPN found
+ * it return the node list pointer
+ * else return NULL.
+ */
+struct lpfc_nodelist *
+lpfc_findnode_wwpn(struct lpfc_hba * phba, uint32_t order,
+		   struct lpfc_name * wwpn)
+{
+	struct lpfc_nodelist *ndlp;
+	struct list_head * lists[]={&phba->fc_nlpunmap_list,
+				    &phba->fc_nlpmap_list,
+				    &phba->fc_npr_list,
+				    &phba->fc_plogi_list,
+				    &phba->fc_adisc_list,
+				    &phba->fc_reglogin_list,
+				    &phba->fc_prli_list};
+	uint32_t search[]={NLP_SEARCH_UNMAPPED,
+			   NLP_SEARCH_MAPPED,
+			   NLP_SEARCH_NPR,
+			   NLP_SEARCH_PLOGI,
+			   NLP_SEARCH_ADISC,
+			   NLP_SEARCH_REGLOGIN,
+			   NLP_SEARCH_PRLI};
+	int i;
+
+	spin_lock_irq(phba->host->host_lock);
+	for (i = 0; i < ARRAY_SIZE(lists); i++ ) {
+		if (!(order & search[i]))
+			continue;
+		list_for_each_entry(ndlp, lists[i], nlp_listp) {
+			if (memcmp(&ndlp->nlp_portname, wwpn,
+				   sizeof(struct lpfc_name)) == 0) {
+				spin_unlock_irq(phba->host->host_lock);
+				return ndlp;
+			}
+		}
+	}
 	spin_unlock_irq(phba->host->host_lock);
 	return NULL;
 }

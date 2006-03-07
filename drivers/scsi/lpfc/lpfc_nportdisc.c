@@ -880,7 +880,7 @@ lpfc_rcv_plogi_adisc_issue(struct lpfc_hba * phba,
 	ndlp->nlp_prev_state = NLP_STE_ADISC_ISSUE;
 	ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
 	lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
-	lpfc_issue_els_plogi(phba, ndlp, 0);
+	lpfc_issue_els_plogi(phba, ndlp->nlp_DID, 0);
 
 	return ndlp->nlp_state;
 }
@@ -1503,11 +1503,12 @@ lpfc_rcv_plogi_npr_node(struct lpfc_hba * phba,
 
 	/* send PLOGI immediately, move to PLOGI issue state */
 	if (!(ndlp->nlp_flag & NLP_DELAY_TMO)) {
-			ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
-			ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
-			lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
-			lpfc_issue_els_plogi(phba, ndlp, 0);
+		ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
+		ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
+		lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
+		lpfc_issue_els_plogi(phba, ndlp->nlp_DID, 0);
 	}
+
 	return ndlp->nlp_state;
 }
 
@@ -1539,8 +1540,9 @@ lpfc_rcv_prli_npr_node(struct lpfc_hba * phba,
 			ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
 			ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
 			lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
-			lpfc_issue_els_plogi(phba, ndlp, 0);
+			lpfc_issue_els_plogi(phba, ndlp->nlp_DID, 0);
 		}
+
 	}
 	return ndlp->nlp_state;
 }
@@ -1579,7 +1581,7 @@ lpfc_rcv_padisc_npr_node(struct lpfc_hba * phba,
 			ndlp->nlp_prev_state = NLP_STE_NPR_NODE;
 			ndlp->nlp_state = NLP_STE_PLOGI_ISSUE;
 			lpfc_nlp_list(phba, ndlp, NLP_PLOGI_LIST);
-			lpfc_issue_els_plogi(phba, ndlp, 0);
+			lpfc_issue_els_plogi(phba, ndlp->nlp_DID, 0);
 		}
 	}
 	return ndlp->nlp_state;
