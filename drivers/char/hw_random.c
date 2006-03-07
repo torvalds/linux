@@ -131,7 +131,9 @@ enum {
 	rng_hw_none,
 	rng_hw_intel,
 	rng_hw_amd,
+#ifdef __i386__
 	rng_hw_via,
+#endif
 	rng_hw_geode,
 };
 

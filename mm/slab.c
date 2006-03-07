@@ -1628,36 +1628,36 @@ static inline size_t calculate_slab_order(struct kmem_cache *cachep,
 			size_t size, size_t align, unsigned long flags)
 {
 	size_t left_over = 0;
+	int gfporder;
 
-	for (;; cachep->gfporder++) {
+	for (gfporder = 0 ; gfporder <= MAX_GFP_ORDER; gfporder++) {
 		unsigned int num;
 		size_t remainder;
 
-		if (cachep->gfporder > MAX_GFP_ORDER) {
-			cachep->num = 0;
-			break;
-		}
-
-		cache_estimate(cachep->gfporder, size, align, flags,
-			       &remainder, &num);
+		cache_estimate(gfporder, size, align, flags, &remainder, &num);
 		if (!num)
 			continue;
+
 		/* More than offslab_limit objects will cause problems */
-		if (flags & CFLGS_OFF_SLAB && cachep->num > offslab_limit)
+		if ((flags & CFLGS_OFF_SLAB) && num > offslab_limit)
 			break;
 
+		/* Found something acceptable - save it away */
 		cachep->num = num;
+		cachep->gfporder = gfporder;
 		left_over = remainder;
 
 		/*
 		 * Large number of objects is good, but very large slabs are
 		 * currently bad for the gfp()s.
 		 */
-		if (cachep->gfporder >= slab_break_gfp_order)
+		if (gfporder >= slab_break_gfp_order)
 			break;
 
-		if ((left_over * 8) <= (PAGE_SIZE << cachep->gfporder))
-			/* Acceptable internal fragmentation */
+		/*
+		 * Acceptable internal fragmentation?
+		 */
+		if ((left_over * 8) <= (PAGE_SIZE << gfporder))
 			break;
 	}
 	return left_over;
@@ -2554,7 +2554,7 @@ static void check_slabp(struct kmem_cache *cachep, struct slab *slabp)
 		       "slab: Internal list corruption detected in cache '%s'(%d), slabp %p(%d). Hexdump:\n",
 		       cachep->name, cachep->num, slabp, slabp->inuse);
 		for (i = 0;
-		     i < sizeof(slabp) + cachep->num * sizeof(kmem_bufctl_t);
+		     i < sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t);
 		     i++) {
 			if ((i % 16) == 0)
 				printk("\n%03x:", i);

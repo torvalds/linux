@@ -1,7 +1,7 @@
 /*
  * hfc_usb.c
  *
- * $Id: hfc_usb.c,v 4.36 2005/04/08 09:55:13 martinb1 Exp $
+ * $Id: hfc_usb.c,v 2.3.2.13 2006/02/17 17:17:22 mbachem Exp $
  *
  * modular HiSax ISDN driver for Colognechip HFC-S USB chip
  *
@@ -45,7 +45,7 @@
 #include "hfc_usb.h"
 
 static const char *hfcusb_revision =
-    "$Revision: 4.36 $ $Date: 2005/04/08 09:55:13 $ ";
+    "$Revision: 2.3.2.13 $ $Date: 2006/02/17 17:17:22 $ ";
 
 /* Hisax debug support
 * use "modprobe debug=x" where x is bitfield of USB_DBG & ISDN_DBG
@@ -219,7 +219,7 @@ symbolic(struct hfcusb_symbolic_list list[], const int num)
 	for (i = 0; list[i].name != NULL; i++)
 		if (list[i].num == num)
 			return (list[i].name);
-	return "<unkown ERROR>";
+	return "<unknown ERROR>";
 }
 
 
@@ -235,9 +235,9 @@ ctrl_start_transfer(hfcusb_data * hfc)
 		hfc->ctrl_urb->transfer_buffer = NULL;
 		hfc->ctrl_urb->transfer_buffer_length = 0;
 		hfc->ctrl_write.wIndex =
-		    hfc->ctrl_buff[hfc->ctrl_out_idx].hfc_reg;
+		    cpu_to_le16(hfc->ctrl_buff[hfc->ctrl_out_idx].hfc_reg);
 		hfc->ctrl_write.wValue =
-		    hfc->ctrl_buff[hfc->ctrl_out_idx].reg_val;
+		    cpu_to_le16(hfc->ctrl_buff[hfc->ctrl_out_idx].reg_val);
 
 		usb_submit_urb(hfc->ctrl_urb, GFP_ATOMIC);	/* start transfer */
 	}
@@ -1282,7 +1282,7 @@ usb_init(hfcusb_data * hfc)
 	/* init the background machinery for control requests */
 	hfc->ctrl_read.bRequestType = 0xc0;
 	hfc->ctrl_read.bRequest = 1;
-	hfc->ctrl_read.wLength = 1;
+	hfc->ctrl_read.wLength = cpu_to_le16(1);
 	hfc->ctrl_write.bRequestType = 0x40;
 	hfc->ctrl_write.bRequest = 0;
 	hfc->ctrl_write.wLength = 0;
@@ -1373,9 +1373,8 @@ hfc_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	vend_idx = 0xffff;
 	for (i = 0; hfcusb_idtab[i].idVendor; i++) {
-		if (dev->descriptor.idVendor == hfcusb_idtab[i].idVendor
-		    && dev->descriptor.idProduct ==
-		    hfcusb_idtab[i].idProduct) {
+		if ((le16_to_cpu(dev->descriptor.idVendor) == hfcusb_idtab[i].idVendor)
+		    && (le16_to_cpu(dev->descriptor.idProduct) == hfcusb_idtab[i].idProduct)) {
 			vend_idx = i;
 			continue;
 		}
@@ -1516,8 +1515,7 @@ hfc_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 							    usb_transfer_mode
 							    = USB_INT;
 							packet_size =
-							    ep->desc.
-							    wMaxPacketSize;
+							    le16_to_cpu(ep->desc.wMaxPacketSize);
 							break;
 						case USB_ENDPOINT_XFER_BULK:
 							if (ep_addr & 0x80)
@@ -1545,8 +1543,7 @@ hfc_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 							    usb_transfer_mode
 							    = USB_BULK;
 							packet_size =
-							    ep->desc.
-							    wMaxPacketSize;
+							    le16_to_cpu(ep->desc.wMaxPacketSize);
 							break;
 						case USB_ENDPOINT_XFER_ISOC:
 							if (ep_addr & 0x80)
@@ -1574,8 +1571,7 @@ hfc_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 							    usb_transfer_mode
 							    = USB_ISOC;
 							iso_packet_size =
-							    ep->desc.
-							    wMaxPacketSize;
+							    le16_to_cpu(ep->desc.wMaxPacketSize);
 							break;
 						default:
 							context->
@@ -1588,10 +1584,8 @@ hfc_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 						    fifonum = cidx;
 						context->fifos[cidx].hfc =
 						    context;
-						context->fifos[cidx].
-						    usb_packet_maxlen =
-						    ep->desc.
-						    wMaxPacketSize;
+						context->fifos[cidx].usb_packet_maxlen =
+						    le16_to_cpu(ep->desc.wMaxPacketSize);
 						context->fifos[cidx].
 						    intervall =
 						    ep->desc.bInterval;

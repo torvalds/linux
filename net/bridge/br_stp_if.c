@@ -39,8 +39,6 @@ void br_init_port(struct net_bridge_port *p)
 	p->state = BR_STATE_BLOCKING;
 	p->topology_change_ack = 0;
 	p->config_pending = 0;
-
-	br_stp_port_timer_init(p);
 }
 
 /* called under bridge lock */

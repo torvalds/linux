@@ -1682,6 +1682,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 #ifdef ISDN_DEBUG_MODEM_OPEN
 		printk(KERN_DEBUG "isdn_tty_close after info->count != 0\n");
 #endif
+		module_put(info->owner);
 		return;
 	}
 	info->flags |= ISDN_ASYNC_CLOSING;
