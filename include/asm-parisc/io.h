@@ -26,11 +26,7 @@ extern unsigned long parisc_vmerge_max_size;
  */
 
 #ifdef CONFIG_DEBUG_IOREMAP
-#ifdef CONFIG_64BIT
-#define NYBBLE_SHIFT 60
-#else
-#define NYBBLE_SHIFT 28
-#endif
+#define NYBBLE_SHIFT (BITS_PER_LONG - 4)
 extern void gsc_bad_addr(unsigned long addr);
 extern void __raw_bad_addr(const volatile void __iomem *addr);
 #define gsc_check_addr(addr)					\
@@ -181,13 +177,11 @@ extern inline void * ioremap_nocache(unsigned long offset, unsigned long size)
 extern void iounmap(void __iomem *addr);
 
 /*
- * USE_HPPA_IOREMAP is the magic flag to enable or disable real ioremap()
+ * CONFIG_HPPA_IOREMAP is the magic flag to enable or disable real ioremap()
  * functionality.  It's currently disabled because it may not work on some
  * machines.
  */
-#define USE_HPPA_IOREMAP 0
-
-#if USE_HPPA_IOREMAP
+#ifdef CONFIG_HPPA_IOREMAP
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
 {
 	return (*(volatile unsigned char __force *) (addr));
@@ -221,7 +215,7 @@ static inline void __raw_writeq(unsigned long long b, volatile void __iomem *add
 {
 	*(volatile unsigned long long __force *) addr = b;
 }
-#else /* !USE_HPPA_IOREMAP */
+#else /* !CONFIG_HPPA_IOREMAP */
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
 {
 	__raw_check_addr(addr);
@@ -271,7 +265,7 @@ static inline void __raw_writeq(unsigned long long b, volatile void __iomem *add
 
 	gsc_writeq(b, (unsigned long) addr);
 }
-#endif /* !USE_HPPA_IOREMAP */
+#endif /* !CONFIG_HPPA_IOREMAP */
 
 /* readb can never be const, so use __fswab instead of le*_to_cpu */
 #define readb(addr) __raw_readb(addr)
