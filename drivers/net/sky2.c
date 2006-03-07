@@ -622,8 +622,8 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	/* Configure Rx MAC FIFO */
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
-	sky2_write16(hw, SK_REG(port, RX_GMF_CTRL_T),
-		     GMF_RX_CTRL_DEF);
+	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T),
+		     GMF_OPER_ON | GMF_RX_F_FL_ON);
 
 	/* Flush Rx MAC FIFO on any flow control or error */
 	sky2_write16(hw, SK_REG(port, RX_GMF_FL_MSK), GMR_FS_ANY_ERR);
@@ -994,6 +994,10 @@ static int sky2_rx_start(struct sky2_port *sky2)
 					     sky2->rx_bufsize, PCI_DMA_FROMDEVICE);
 		sky2_rx_add(sky2, re->mapaddr);
 	}
+
+ 	/* Truncate oversize frames */
+ 	sky2_write16(hw, SK_REG(sky2->port, RX_GMF_TR_THR), sky2->rx_bufsize - 8);
+ 	sky2_write32(hw, SK_REG(sky2->port, RX_GMF_CTRL_T), RX_TRUNC_ON);
 
 	/* Tell chip about available buffers */
 	sky2_write16(hw, Y2_QADDR(rxq, PREF_UNIT_PUT_IDX), sky2->rx_put);
@@ -1712,10 +1716,12 @@ static void sky2_tx_timeout(struct net_device *dev)
 
 
 #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
-/* Want receive buffer size to be multiple of 64 bits, and incl room for vlan */
+/* Want receive buffer size to be multiple of 64 bits
+ * and incl room for vlan and truncation
+ */
 static inline unsigned sky2_buf_size(int mtu)
 {
-	return roundup(mtu + ETH_HLEN + 4, 8);
+	return roundup(mtu + ETH_HLEN + VLAN_HLEN, 8) + 8;
 }
 
 static int sky2_change_mtu(struct net_device *dev, int new_mtu)
@@ -1798,7 +1804,7 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 	if (!(status & GMR_FS_RX_OK))
 		goto resubmit;
 
-	if ((status >> 16) != length || length > sky2->rx_bufsize)
+	if (length > sky2->netdev->mtu + ETH_HLEN)
 		goto oversize;
 
 	if (length < copybreak) {
