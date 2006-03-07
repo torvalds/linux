@@ -464,8 +464,6 @@ lpfc_hba_down_prep(struct lpfc_hba * phba)
 	lpfc_els_flush_cmd(phba);
 	lpfc_disc_flush_list(phba);
 
-	/* Disable SLI2 since we disabled interrupts */
-	phba->sli.sli_flag &= ~LPFC_SLI2_ACTIVE;
 	return (0);
 }
 
@@ -526,6 +524,7 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 				phba->work_status[0], phba->work_status[1]);
 		spin_lock_irq(phba->host->host_lock);
 		phba->fc_flag |= FC_ESTABLISH_LINK;
+		psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
 		spin_unlock_irq(phba->host->host_lock);
 
 		/*
@@ -559,6 +558,7 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 				phba->brd_no, phba->work_hs,
 				phba->work_status[0], phba->work_status[1]);
 
+		psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
 		lpfc_offline(phba);
 		phba->hba_state = LPFC_HBA_ERROR;
 		lpfc_hba_down_post(phba);

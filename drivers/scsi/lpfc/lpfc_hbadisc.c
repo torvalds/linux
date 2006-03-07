@@ -155,6 +155,7 @@ lpfc_work_list_done(struct lpfc_hba * phba)
 		case LPFC_EVT_WARM_START:
 			if (phba->hba_state >= LPFC_LINK_DOWN)
 				lpfc_offline(phba);
+			lpfc_reset_barrier(phba);
 			lpfc_sli_brdreset(phba);
 			lpfc_hba_down_post(phba);
 			*(int *)(evtp->evt_arg1) =
@@ -164,7 +165,8 @@ lpfc_work_list_done(struct lpfc_hba * phba)
 		case LPFC_EVT_KILL:
 			if (phba->hba_state >= LPFC_LINK_DOWN)
 				lpfc_offline(phba);
-			*(int *)(evtp->evt_arg1)  = lpfc_sli_brdkill(phba);
+			*(int *)(evtp->evt_arg1)
+				= (phba->stopped) ? 0 : lpfc_sli_brdkill(phba);
 			complete((struct completion *)(evtp->evt_arg2));
 			break;
 		}

@@ -197,6 +197,7 @@ struct lpfc_hba {
 #define LPFC_HBA_READY            32
 #define LPFC_HBA_ERROR            -1
 
+	int32_t stopped;   /* HBA has not been restarted since last ERATT */
 	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
 
 	uint32_t fc_eventTag;	/* event tag for link attention */
