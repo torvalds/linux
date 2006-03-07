@@ -67,14 +67,14 @@ extern void __flush_tlb_mm(unsigned long, unsigned long);
 /* Switch the current MM context.  Interrupts are disabled.  */
 static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, struct task_struct *tsk)
 {
-	unsigned long ctx_valid;
+	unsigned long ctx_valid, flags;
 	int cpu;
 
-	spin_lock(&mm->context.lock);
+	spin_lock_irqsave(&mm->context.lock, flags);
 	ctx_valid = CTX_VALID(mm->context);
 	if (!ctx_valid)
 		get_new_mmu_context(mm);
-	spin_unlock(&mm->context.lock);
+	spin_unlock_irqrestore(&mm->context.lock, flags);
 
 	if (!ctx_valid || (old_mm != mm)) {
 		load_secondary_context(mm);

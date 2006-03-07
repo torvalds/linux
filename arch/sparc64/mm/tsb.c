@@ -354,6 +354,7 @@ void tsb_grow(struct mm_struct *mm, unsigned long rss, gfp_t gfp_flags)
 
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
+	spin_lock_init(&mm->context.lock);
 
 	mm->context.sparc64_ctx_val = 0UL;
 
