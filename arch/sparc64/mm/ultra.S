@@ -673,6 +673,11 @@ xcall_capture:
 	wr		%g0, (1 << PIL_SMP_CAPTURE), %set_softint
 	retry
 
+	.globl		xcall_new_mmu_context_version
+xcall_new_mmu_context_version:
+	wr		%g0, (1 << PIL_SMP_CTX_NEW_VERSION), %set_softint
+	retry
+
 #endif /* CONFIG_SMP */
 
 

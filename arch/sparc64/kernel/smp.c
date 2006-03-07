@@ -760,11 +760,8 @@ static int smp_call_function_mask(void (*func)(void *info), void *info,
 				  int nonatomic, int wait, cpumask_t mask)
 {
 	struct call_data_struct data;
-	int cpus = cpus_weight(mask) - 1;
+	int cpus;
 	long timeout;
-
-	if (!cpus)
-		return 0;
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
@@ -775,6 +772,11 @@ static int smp_call_function_mask(void (*func)(void *info), void *info,
 	data.wait = wait;
 
 	spin_lock(&call_lock);
+
+	cpu_clear(smp_processor_id(), mask);
+	cpus = cpus_weight(mask);
+	if (!cpus)
+		goto out_unlock;
 
 	call_data = &data;
 
@@ -792,6 +794,7 @@ static int smp_call_function_mask(void (*func)(void *info), void *info,
 		udelay(1);
 	}
 
+out_unlock:
 	spin_unlock(&call_lock);
 
 	return 0;
@@ -845,6 +848,7 @@ extern unsigned long xcall_flush_tlb_pending;
 extern unsigned long xcall_flush_tlb_kernel_range;
 extern unsigned long xcall_report_regs;
 extern unsigned long xcall_receive_signal;
+extern unsigned long xcall_new_mmu_context_version;
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 extern unsigned long xcall_flush_dcache_page_cheetah;
@@ -974,7 +978,13 @@ void smp_receive_signal(int cpu)
 
 void smp_receive_signal_client(int irq, struct pt_regs *regs)
 {
+	clear_softint(1 << irq);
+}
+
+void smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)
+{
 	struct mm_struct *mm;
+	unsigned long flags;
 
 	clear_softint(1 << irq);
 
@@ -982,25 +992,24 @@ void smp_receive_signal_client(int irq, struct pt_regs *regs)
 	 * the version of the one we are using is now out of date.
 	 */
 	mm = current->active_mm;
-	if (likely(mm)) {
-		unsigned long flags;
+	if (unlikely(!mm || (mm == &init_mm)))
+		return;
 
-		spin_lock_irqsave(&mm->context.lock, flags);
+	spin_lock_irqsave(&mm->context.lock, flags);
 
-		if (unlikely(!CTX_VALID(mm->context)))
-			get_new_mmu_context(mm);
+	if (unlikely(!CTX_VALID(mm->context)))
+		get_new_mmu_context(mm);
 
-		load_secondary_context(mm);
-		__flush_tlb_mm(CTX_HWBITS(mm->context),
-			       SECONDARY_CONTEXT);
+	spin_unlock_irqrestore(&mm->context.lock, flags);
 
-		spin_unlock_irqrestore(&mm->context.lock, flags);
-	}
+	load_secondary_context(mm);
+	__flush_tlb_mm(CTX_HWBITS(mm->context),
+		       SECONDARY_CONTEXT);
 }
 
 void smp_new_mmu_context_version(void)
 {
-	__smp_receive_signal_mask(cpu_online_map);
+	smp_cross_call(&xcall_new_mmu_context_version, 0, 0, 0);
 }
 
 void smp_report_regs(void)

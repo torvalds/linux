@@ -735,11 +735,11 @@ static unsigned int pci_sun4v_irq_build(struct pci_pbm_info *pbm,
 	u32 devhandle = pbm->devhandle;
 	int pil;
 
-	pil = 4;
+	pil = 5;
 	if (pdev) {
 		switch ((pdev->class >> 16) & 0xff) {
 		case PCI_BASE_CLASS_STORAGE:
-			pil = 4;
+			pil = 5;
 			break;
 
 		case PCI_BASE_CLASS_NETWORK:
@@ -758,7 +758,7 @@ static unsigned int pci_sun4v_irq_build(struct pci_pbm_info *pbm,
 			break;
 
 		default:
-			pil = 4;
+			pil = 5;
 			break;
 		};
 	}
