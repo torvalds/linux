@@ -943,7 +943,8 @@ rl_not_mapped_enoent:
 		}
 		ni->runlist.rl = rl;
 		status.runlist_merged = 1;
-		ntfs_debug("Allocated cluster, lcn 0x%llx.", lcn);
+		ntfs_debug("Allocated cluster, lcn 0x%llx.",
+				(unsigned long long)lcn);
 		/* Map and lock the mft record and get the attribute record. */
 		if (!NInoAttr(ni))
 			base_ni = ni;
