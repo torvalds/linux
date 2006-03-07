@@ -1895,6 +1895,7 @@ struct ipw_cmd_log {
 #define CFG_SYS_ANTENNA_BOTH            0x00	/* NIC selects best antenna */
 #define CFG_SYS_ANTENNA_A               0x01	/* force antenna A */
 #define CFG_SYS_ANTENNA_B               0x03	/* force antenna B */
+#define CFG_SYS_ANTENNA_SLOW_DIV        0x02	/* consider background noise */
 
 /*
  * The definitions below were lifted off the ipw2100 driver, which only

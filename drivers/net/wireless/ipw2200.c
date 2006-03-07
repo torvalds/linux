@@ -9600,7 +9600,7 @@ static  void init_sys_config(struct ipw_sys_config *sys_config)
 	sys_config->disable_unicast_decryption = 1;
 	sys_config->exclude_multicast_unencrypted = 0;
 	sys_config->disable_multicast_decryption = 1;
-	sys_config->antenna_diversity = CFG_SYS_ANTENNA_BOTH;
+	sys_config->antenna_diversity = CFG_SYS_ANTENNA_SLOW_DIV;
 	sys_config->pass_crc_to_host = 0;	/* TODO: See if 1 gives us FCS */
 	sys_config->dot11g_auto_detection = 0;
 	sys_config->enable_cts_to_self = 0;
