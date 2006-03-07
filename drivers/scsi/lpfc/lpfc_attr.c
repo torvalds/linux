@@ -856,7 +856,7 @@ sysfs_mbox_write(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (!mbox)
 			return -ENOMEM;
-
+		memset(mbox, 0, sizeof (LPFC_MBOXQ_t));
 	}
 
 	spin_lock_irq(host->host_lock);

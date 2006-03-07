@@ -1760,6 +1760,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
 						ndlp->nlp_flag, data1);
+				spin_unlock_irq(phba->host->host_lock);
 				return ndlp;
 			}
 		}
@@ -1805,6 +1806,7 @@ lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order, uint32_t did)
 						phba->brd_no,
 						ndlp, ndlp->nlp_DID,
 						ndlp->nlp_flag, data1);
+				spin_unlock_irq(phba->host->host_lock);
 				return ndlp;
 			}
 		}
