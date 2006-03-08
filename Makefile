@@ -472,13 +472,6 @@ else
 CFLAGS		+= -O2
 endif
 
-#Add align options if CONFIG_CC_* is not equal to 0
-add-align = $(if $(filter-out 0,$($(1))),$(cc-option-align)$(2)=$($(1)))
-CFLAGS		+= $(call add-align,CONFIG_CC_ALIGN_FUNCTIONS,-functions)
-CFLAGS		+= $(call add-align,CONFIG_CC_ALIGN_LABELS,-labels)
-CFLAGS		+= $(call add-align,CONFIG_CC_ALIGN_LOOPS,-loops)
-CFLAGS		+= $(call add-align,CONFIG_CC_ALIGN_JUMPS,-jumps)
-
 ifdef CONFIG_FRAME_POINTER
 CFLAGS		+= -fno-omit-frame-pointer $(call cc-option,-fno-optimize-sibling-calls,)
 else
