@@ -994,3 +994,8 @@ void audit_log(struct audit_context *ctx, gfp_t gfp_mask, int type,
 		audit_log_end(ab);
 	}
 }
+
+EXPORT_SYMBOL(audit_log_start);
+EXPORT_SYMBOL(audit_log_end);
+EXPORT_SYMBOL(audit_log_format);
+EXPORT_SYMBOL(audit_log);
