@@ -126,8 +126,14 @@ extern struct device_node *find_all_nodes(void);
 /* New style node lookup */
 extern struct device_node *of_find_node_by_name(struct device_node *from,
 	const char *name);
+#define for_each_node_by_name(dn, name) \
+	for (dn = of_find_node_by_name(NULL, name); dn; \
+	     dn = of_find_node_by_name(dn, name))
 extern struct device_node *of_find_node_by_type(struct device_node *from,
 	const char *type);
+#define for_each_node_by_type(dn, type) \
+	for (dn = of_find_node_by_type(NULL, type); dn; \
+	     dn = of_find_node_by_type(dn, type))
 extern struct device_node *of_find_compatible_node(struct device_node *from,
 	const char *type, const char *compat);
 extern struct device_node *of_find_node_by_path(const char *path);
