@@ -532,10 +532,10 @@ dbUpdatePMap(struct inode *ipbmap,
 
 		lastlblkno = lblkno;
 
+		LOGSYNC_LOCK(log, flags);
 		if (mp->lsn != 0) {
 			/* inherit older/smaller lsn */
 			logdiff(diffp, mp->lsn, log);
-			LOGSYNC_LOCK(log, flags);
 			if (difft < diffp) {
 				mp->lsn = lsn;
 
@@ -548,20 +548,17 @@ dbUpdatePMap(struct inode *ipbmap,
 			logdiff(diffp, mp->clsn, log);
 			if (difft > diffp)
 				mp->clsn = tblk->clsn;
-			LOGSYNC_UNLOCK(log, flags);
 		} else {
 			mp->log = log;
 			mp->lsn = lsn;
 
 			/* insert bp after tblock in logsync list */
-			LOGSYNC_LOCK(log, flags);
-
 			log->count++;
 			list_add(&mp->synclist, &tblk->synclist);
 
 			mp->clsn = tblk->clsn;
-			LOGSYNC_UNLOCK(log, flags);
 		}
+		LOGSYNC_UNLOCK(log, flags);
 	}
 
 	/* write the last buffer. */

@@ -2844,11 +2844,11 @@ diUpdatePMap(struct inode *ipimap,
 	 */
 	lsn = tblk->lsn;
 	log = JFS_SBI(tblk->sb)->log;
+	LOGSYNC_LOCK(log, flags);
 	if (mp->lsn != 0) {
 		/* inherit older/smaller lsn */
 		logdiff(difft, lsn, log);
 		logdiff(diffp, mp->lsn, log);
-		LOGSYNC_LOCK(log, flags);
 		if (difft < diffp) {
 			mp->lsn = lsn;
 			/* move mp after tblock in logsync list */
@@ -2860,17 +2860,15 @@ diUpdatePMap(struct inode *ipimap,
 		logdiff(diffp, mp->clsn, log);
 		if (difft > diffp)
 			mp->clsn = tblk->clsn;
-		LOGSYNC_UNLOCK(log, flags);
 	} else {
 		mp->log = log;
 		mp->lsn = lsn;
 		/* insert mp after tblock in logsync list */
-		LOGSYNC_LOCK(log, flags);
 		log->count++;
 		list_add(&mp->synclist, &tblk->synclist);
 		mp->clsn = tblk->clsn;
-		LOGSYNC_UNLOCK(log, flags);
 	}
+	LOGSYNC_UNLOCK(log, flags);
 	write_metapage(mp);
 	return (0);
 }
