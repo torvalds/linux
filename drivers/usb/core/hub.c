@@ -1179,8 +1179,11 @@ static int choose_configuration(struct usb_device *udev)
 	c = udev->config;
 	num_configs = udev->descriptor.bNumConfigurations;
 	for (i = 0; i < num_configs; (i++, c++)) {
-		struct usb_interface_descriptor	*desc =
-				&c->intf_cache[0]->altsetting->desc;
+		struct usb_interface_descriptor	*desc = NULL;
+
+		/* It's possible that a config has no interfaces! */
+		if (c->desc.bNumInterfaces > 0)
+			desc = &c->intf_cache[0]->altsetting->desc;
 
 		/*
 		 * HP's USB bus-powered keyboard has only one configuration
@@ -1215,7 +1218,8 @@ static int choose_configuration(struct usb_device *udev)
 		/* If the first config's first interface is COMM/2/0xff
 		 * (MSFT RNDIS), rule it out unless Linux has host-side
 		 * RNDIS support. */
-		if (i == 0 && desc->bInterfaceClass == USB_CLASS_COMM
+		if (i == 0 && desc
+				&& desc->bInterfaceClass == USB_CLASS_COMM
 				&& desc->bInterfaceSubClass == 2
 				&& desc->bInterfaceProtocol == 0xff) {
 #ifndef CONFIG_USB_NET_RNDIS
@@ -1231,8 +1235,8 @@ static int choose_configuration(struct usb_device *udev)
 		 * than a vendor-specific driver. */
 		else if (udev->descriptor.bDeviceClass !=
 						USB_CLASS_VENDOR_SPEC &&
-				desc->bInterfaceClass !=
-						USB_CLASS_VENDOR_SPEC) {
+				(!desc || desc->bInterfaceClass !=
+						USB_CLASS_VENDOR_SPEC)) {
 			best = c;
 			break;
 		}
@@ -3024,7 +3028,7 @@ int usb_reset_device(struct usb_device *udev)
 	parent_hub = hdev_to_hub(parent_hdev);
 
 	/* If we're resetting an active hub, take some special actions */
-	if (udev->actconfig &&
+	if (udev->actconfig && udev->actconfig->desc.bNumInterfaces > 0 &&
 			udev->actconfig->interface[0]->dev.driver ==
 				&hub_driver.driver &&
 			(hub = hdev_to_hub(udev)) != NULL) {
