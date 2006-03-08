@@ -481,6 +481,7 @@ ahd_linux_target_alloc(struct scsi_target *starget)
 {
 	struct	ahd_softc *ahd =
 		*((struct ahd_softc **)dev_to_shost(&starget->dev)->hostdata);
+	struct seeprom_config *sc = ahd->seep_config;
 	unsigned long flags;
 	struct scsi_target **ahd_targp = ahd_linux_target_in_softc(starget);
 	struct ahd_linux_target *targ = scsi_transport_target_data(starget);
@@ -496,18 +497,38 @@ ahd_linux_target_alloc(struct scsi_target *starget)
 	*ahd_targp = starget;
 	memset(targ, 0, sizeof(*targ));
 
+	if (sc) {
+		int flags = sc->device_flags[starget->id];
+
+		tinfo = ahd_fetch_transinfo(ahd, 'A', ahd->our_id,
+					    starget->id, &tstate);
+
+		if ((flags  & CFPACKETIZED) == 0) {
+			/* Do not negotiate packetized transfers */
+			spi_rd_strm(starget) = 0;
+			spi_pcomp_en(starget) = 0;
+			spi_rti(starget) = 0;
+			spi_wr_flow(starget) = 0;
+			spi_hold_mcs(starget) = 0;
+		} else {
+			if ((ahd->features & AHD_RTI) == 0)
+				spi_rti(starget) = 0;
+		}
+
+		if ((flags & CFQAS) == 0)
+			spi_qas(starget) = 0;
+
+		/* Transinfo values have been set to BIOS settings */
+		spi_max_width(starget) = (flags & CFWIDEB) ? 1 : 0;
+		spi_min_period(starget) = tinfo->user.period;
+		spi_max_offset(starget) = tinfo->user.offset;
+	}
+
 	tinfo = ahd_fetch_transinfo(ahd, channel, ahd->our_id,
 				    starget->id, &tstate);
 	ahd_compile_devinfo(&devinfo, ahd->our_id, starget->id,
 			    CAM_LUN_WILDCARD, channel,
 			    ROLE_INITIATOR);
-	spi_min_period(starget) = AHD_SYNCRATE_MAX; /* We can do U320 */
-	if ((ahd->bugs & AHD_PACED_NEGTABLE_BUG) != 0)
-		spi_max_offset(starget) = MAX_OFFSET_PACED_BUG;
-	else
-		spi_max_offset(starget) = MAX_OFFSET_PACED;
-	spi_max_width(starget) = ahd->features & AHD_WIDE;
-
 	ahd_set_syncrate(ahd, &devinfo, 0, 0, 0,
 			 AHD_TRANS_GOAL, /*paused*/FALSE);
 	ahd_set_width(ahd, &devinfo, MSG_EXT_WDTR_BUS_8_BIT,
