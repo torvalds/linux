@@ -1648,6 +1648,14 @@ static inline size_t calculate_slab_order(struct kmem_cache *cachep,
 		left_over = remainder;
 
 		/*
+		 * A VFS-reclaimable slab tends to have most allocations
+		 * as GFP_NOFS and we really don't want to have to be allocating
+		 * higher-order pages when we are unable to shrink dcache.
+		 */
+		if (flags & SLAB_RECLAIM_ACCOUNT)
+			break;
+
+		/*
 		 * Large number of objects is good, but very large slabs are
 		 * currently bad for the gfp()s.
 		 */
@@ -1869,17 +1877,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 
 	size = ALIGN(size, align);
 
-	if ((flags & SLAB_RECLAIM_ACCOUNT) && size <= PAGE_SIZE) {
-		/*
-		 * A VFS-reclaimable slab tends to have most allocations
-		 * as GFP_NOFS and we really don't want to have to be allocating
-		 * higher-order pages when we are unable to shrink dcache.
-		 */
-		cachep->gfporder = 0;
-		cache_estimate(cachep->gfporder, size, align, flags,
-			       &left_over, &cachep->num);
-	} else
-		left_over = calculate_slab_order(cachep, size, align, flags);
+	left_over = calculate_slab_order(cachep, size, align, flags);
 
 	if (!cachep->num) {
 		printk("kmem_cache_create: couldn't create cache %s.\n", name);
