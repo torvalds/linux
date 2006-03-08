@@ -1000,8 +1000,6 @@ distclean: mrproper
 # rpm target kept for backward compatibility
 package-dir	:= $(srctree)/scripts/package
 
-PHONY += %-pkg rpm
-
 %pkg: FORCE
 	$(Q)$(MAKE) -f $(package-dir)/Makefile $@
 rpm: FORCE
