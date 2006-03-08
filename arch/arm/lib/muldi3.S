@@ -29,8 +29,8 @@ ENTRY(__aeabi_lmul)
 
 	mul	xh, yl, xh
 	mla	xh, xl, yh, xh
-	mov	ip, xl, asr #16
-	mov	yh, yl, asr #16
+	mov	ip, xl, lsr #16
+	mov	yh, yl, lsr #16
 	bic	xl, xl, ip, lsl #16
 	bic	yl, yl, yh, lsl #16
 	mla	xh, yh, ip, xh
