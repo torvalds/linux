@@ -205,8 +205,8 @@ inline void flush_dcache_page_impl(struct page *page)
 }
 
 #define PG_dcache_dirty		PG_arch_1
-#define PG_dcache_cpu_shift	24
-#define PG_dcache_cpu_mask	(256 - 1)
+#define PG_dcache_cpu_shift	24UL
+#define PG_dcache_cpu_mask	(256UL - 1UL)
 
 #if NR_CPUS > 256
 #error D-cache dirty tracking and thread_info->cpu need fixing for > 256 cpus
@@ -901,8 +901,7 @@ static unsigned long __init bootmem_init(unsigned long *pages_avail,
 		    min_low_pfn, bootmap_pfn, max_low_pfn);
 #endif
 	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap_pfn,
-					 (phys_base >> PAGE_SHIFT),
-					 end_pfn);
+					 min_low_pfn, end_pfn);
 
 	/* Now register the available physical memory with the
 	 * allocator.
@@ -1311,25 +1310,24 @@ void __init paging_init(void)
 	pages_avail = 0;
 	last_valid_pfn = end_pfn = bootmem_init(&pages_avail, phys_base);
 
-	max_mapnr = last_valid_pfn - (phys_base >> PAGE_SHIFT);
+	max_mapnr = last_valid_pfn;
 
 	kernel_physical_mapping_init();
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES];
 		unsigned long zholes_size[MAX_NR_ZONES];
-		unsigned long npages;
 		int znum;
 
 		for (znum = 0; znum < MAX_NR_ZONES; znum++)
 			zones_size[znum] = zholes_size[znum] = 0;
 
-		npages = end_pfn - (phys_base >> PAGE_SHIFT);
-		zones_size[ZONE_DMA] = npages;
-		zholes_size[ZONE_DMA] = npages - pages_avail;
+		zones_size[ZONE_DMA] = end_pfn;
+		zholes_size[ZONE_DMA] = end_pfn - pages_avail;
 
 		free_area_init_node(0, &contig_page_data, zones_size,
-				    phys_base >> PAGE_SHIFT, zholes_size);
+				    __pa(PAGE_OFFSET) >> PAGE_SHIFT,
+				    zholes_size);
 	}
 
 	device_scan();
