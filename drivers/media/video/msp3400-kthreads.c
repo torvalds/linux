@@ -154,7 +154,7 @@ const char *msp_standard_std_name(int std)
 	return "unknown";
 }
 
-void msp_set_source(struct i2c_client *client, u16 src)
+static void msp_set_source(struct i2c_client *client, u16 src)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
 
@@ -217,7 +217,7 @@ void msp3400c_set_mode(struct i2c_client *client, int mode)
 
 /* Set audio mode. Note that the pre-'G' models do not support BTSC+SAP,
    nor do they support stereo BTSC. */
-void msp3400c_set_audmode(struct i2c_client *client)
+static void msp3400c_set_audmode(struct i2c_client *client)
 {
 	static char *strmode[] = { "mono", "stereo", "lang2", "lang1" };
 	struct msp_state *state = i2c_get_clientdata(client);
@@ -944,7 +944,7 @@ static void msp34xxg_detect_stereo(struct i2c_client *client)
 		status, is_stereo, is_bilingual, state->rxsubchans);
 }
 
-void msp34xxg_set_audmode(struct i2c_client *client)
+static void msp34xxg_set_audmode(struct i2c_client *client)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
 	int source;

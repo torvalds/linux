@@ -104,7 +104,6 @@ int msp_sleep(struct msp_state *state, int timeout);
 
 /* msp3400-kthreads.c */
 const char *msp_standard_std_name(int std);
-void msp_set_source(struct i2c_client *client, u16 src);
 void msp_set_audmode(struct i2c_client *client);
 void msp_detect_stereo(struct i2c_client *client);
 int msp3400c_thread(void *data);
