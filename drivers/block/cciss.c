@@ -996,13 +996,11 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 			status = -EINVAL;
 			goto cleanup1;
 		}
-		buff = (unsigned char **) kmalloc(MAXSGENTRIES * 
-				sizeof(char *), GFP_KERNEL);
+		buff = kzalloc(MAXSGENTRIES * sizeof(char *), GFP_KERNEL);
 		if (!buff) {
 			status = -ENOMEM;
 			goto cleanup1;
 		}
-		memset(buff, 0, MAXSGENTRIES);
 		buff_size = (int *) kmalloc(MAXSGENTRIES * sizeof(int), 
 					GFP_KERNEL);
 		if (!buff_size) {
@@ -2940,13 +2938,12 @@ static void cciss_getgeometry(int cntl_num)
 	int block_size;
 	int total_size; 
 
-	ld_buff = kmalloc(sizeof(ReportLunData_struct), GFP_KERNEL);
+	ld_buff = kzalloc(sizeof(ReportLunData_struct), GFP_KERNEL);
 	if (ld_buff == NULL)
 	{
 		printk(KERN_ERR "cciss: out of memory\n");
 		return;
 	}
-	memset(ld_buff, 0, sizeof(ReportLunData_struct));
 	size_buff = kmalloc(sizeof( ReadCapdata_struct), GFP_KERNEL);
         if (size_buff == NULL)
         {
@@ -3060,10 +3057,9 @@ static int alloc_cciss_hba(void)
 	for(i=0; i< MAX_CTLR; i++) {
 		if (!hba[i]) {
 			ctlr_info_t *p;
-			p = kmalloc(sizeof(ctlr_info_t), GFP_KERNEL);
+			p = kzalloc(sizeof(ctlr_info_t), GFP_KERNEL);
 			if (!p)
 				goto Enomem;
-			memset(p, 0, sizeof(ctlr_info_t));
 			for (n = 0; n < NWD; n++)
 				p->gendisk[n] = disk[n];
 			hba[i] = p;
