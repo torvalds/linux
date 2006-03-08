@@ -40,7 +40,6 @@
 #define FAILURE         0xFFFFFFFFL
 
 
-typedef unsigned int    UINT;
 typedef unsigned long   ULONG;
 
 
@@ -5205,7 +5204,7 @@ static void FPT_dataXferProcessor(ULONG port, PSCCBcard pCurrCard)
 static void FPT_busMstrSGDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
 {
    ULONG count,addr,tmpSGCnt;
-   UINT sg_index;
+   unsigned int sg_index;
    unsigned char sg_count, i;
    ULONG reg_offset;
 
@@ -5231,7 +5230,7 @@ static void FPT_busMstrSGDataXferStart(ULONG p_port, PSCCB pcurrSCCB)
 	WR_HARPOON(p_port+hp_page_ctrl, i);
 
    while ((sg_count < (unsigned char)SG_BUF_CNT) &&
-      ((ULONG)(sg_index * (UINT)SG_ELEMENT_SIZE) < pcurrSCCB->DataLength) ) {
+      ((ULONG)(sg_index * (unsigned int)SG_ELEMENT_SIZE) < pcurrSCCB->DataLength) ) {
 
       tmpSGCnt += *(((ULONG *)pcurrSCCB->DataPointer)+
          (sg_index * 2));
@@ -5403,7 +5402,7 @@ static void FPT_hostDataXferAbort(ULONG port, unsigned char p_card, PSCCB pCurrS
 
    ULONG timeout;
    ULONG remain_cnt;
-   UINT sg_ptr;
+   unsigned int sg_ptr;
 
    FPT_BL_Card[p_card].globalFlags &= ~F_HOST_XFER_ACT;
 
@@ -5454,9 +5453,9 @@ static void FPT_hostDataXferAbort(ULONG port, unsigned char p_card, PSCCB pCurrS
 
          sg_ptr = pCurrSCCB->Sccb_sgseg + SG_BUF_CNT;
 
-         if (sg_ptr > (UINT)(pCurrSCCB->DataLength / SG_ELEMENT_SIZE)) {
+         if (sg_ptr > (unsigned int)(pCurrSCCB->DataLength / SG_ELEMENT_SIZE)) {
 
-            sg_ptr = (UINT)(pCurrSCCB->DataLength / SG_ELEMENT_SIZE);
+            sg_ptr = (unsigned int)(pCurrSCCB->DataLength / SG_ELEMENT_SIZE);
             }
 
          remain_cnt = pCurrSCCB->Sccb_XferCnt;
@@ -5659,7 +5658,7 @@ static void FPT_hostDataXferAbort(ULONG port, unsigned char p_card, PSCCB pCurrS
 static void FPT_hostDataXferRestart(PSCCB currSCCB)
 {
    ULONG data_count;
-   UINT  sg_index;
+   unsigned int  sg_index;
    ULONG *sg_ptr;
 
    if (currSCCB->Sccb_XferState & F_SG_XFER) {
@@ -7418,7 +7417,7 @@ static unsigned char FPT_queueFindSccb(PSCCB p_SCCB, unsigned char p_card)
 static void  FPT_utilUpdateResidual(PSCCB p_SCCB)
 {
    ULONG partial_cnt;
-   UINT  sg_index;
+   unsigned int  sg_index;
    ULONG *sg_ptr;
 
    if (p_SCCB->Sccb_XferState & F_ALL_XFERRED) {
