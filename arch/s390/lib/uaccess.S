@@ -198,12 +198,12 @@ __strnlen_user_asm:
 0:	srst	%r2,%r1
 	jo	0b
 	sacf	0
-	jh	1f		# \0 found in string ?
 	ahi	%r2,1		# strnlen_user result includes the \0
-1:	slr	%r2,%r3
+				# or return count+1 if \0 not found
+	slr	%r2,%r3
 	br	%r14
 2:	sacf	0
-	lhi	%r2,-EFAULT
+	slr	%r2,%r2		# return 0 on exception
 	br	%r14
 	.section __ex_table,"a"
 	.long	0b,2b
