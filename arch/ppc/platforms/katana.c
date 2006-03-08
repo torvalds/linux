@@ -596,7 +596,7 @@ katana_fixup_mv64xxx_pdata(struct platform_device *pdev)
 }
 #endif
 
-static int __init
+static int
 katana_platform_notify(struct device *dev)
 {
 	static struct {
