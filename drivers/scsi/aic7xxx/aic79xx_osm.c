@@ -1526,30 +1526,6 @@ ahd_linux_run_command(struct ahd_softc *ahd, struct ahd_linux_device *dev,
 	if ((tstate->auto_negotiate & mask) != 0) {
 		scb->flags |= SCB_AUTO_NEGOTIATE;
 		scb->hscb->control |= MK_MESSAGE;
-		} else if (cmd->cmnd[0] == INQUIRY
-			&& (tinfo->curr.offset != 0
-			 || tinfo->curr.width != MSG_EXT_WDTR_BUS_8_BIT
-			 || tinfo->curr.ppr_options != 0)
-			&& (tinfo->curr.ppr_options & MSG_EXT_PPR_IU_REQ)==0) {
-			/*
-			 * The SCSI spec requires inquiry
-			 * commands to complete without
-			 * reporting unit attention conditions.
-			 * Because of this, an inquiry command
-			 * that occurs just after a device is
-			 * reset will result in a data phase
-			 * with mismatched negotiated rates.
-			 * The core already forces a renegotiation
-			 * for reset events that are visible to
-			 * our controller or that we initiate,
-			 * but a third party device reset or a
-			 * hot-plug insertion can still cause this
-			 * issue.  Therefore, we force a re-negotiation
-			 * for every inquiry command unless we
-			 * are async.
-			 */
-			scb->flags |= SCB_NEGOTIATE;
-			scb->hscb->control |= MK_MESSAGE;
 	}
 
 	if ((dev->flags & (AHD_DEV_Q_TAGGED|AHD_DEV_Q_BASIC)) != 0) {
