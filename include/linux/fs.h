@@ -35,6 +35,7 @@ struct files_stat_struct {
 	int max_files;		/* tunable */
 };
 extern struct files_stat_struct files_stat;
+extern int get_max_files(void);
 
 struct inodes_stat_t {
 	int nr_inodes;
