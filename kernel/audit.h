@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/mutex.h>
 #include <linux/fs.h>
 #include <linux/audit.h>
 
@@ -84,4 +85,4 @@ extern void		    audit_send_reply(int pid, int seq, int type,
 					     void *payload, int size);
 extern void		    audit_log_lost(const char *message);
 extern void		    audit_panic(const char *message);
-extern struct semaphore audit_netlink_sem;
+extern struct mutex audit_netlink_mutex;

@@ -114,7 +114,7 @@ static DECLARE_WAIT_QUEUE_HEAD(audit_backlog_wait);
 /* The netlink socket is only to be read by 1 CPU, which lets us assume
  * that list additions and deletions never happen simultaneously in
  * auditsc.c */
-DECLARE_MUTEX(audit_netlink_sem);
+DEFINE_MUTEX(audit_netlink_mutex);
 
 /* AUDIT_BUFSIZ is the size of the temporary buffer used for formatting
  * audit records.  Since printk uses a 1024 byte buffer, this buffer
@@ -538,14 +538,14 @@ static void audit_receive(struct sock *sk, int length)
 	struct sk_buff  *skb;
 	unsigned int qlen;
 
-	down(&audit_netlink_sem);
+	mutex_lock(&audit_netlink_mutex);
 
 	for (qlen = skb_queue_len(&sk->sk_receive_queue); qlen; qlen--) {
 		skb = skb_dequeue(&sk->sk_receive_queue);
 		audit_receive_skb(skb);
 		kfree_skb(skb);
 	}
-	up(&audit_netlink_sem);
+	mutex_unlock(&audit_netlink_mutex);
 }
 
 

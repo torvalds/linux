@@ -329,7 +329,7 @@ static int audit_compare_rule(struct audit_krule *a, struct audit_krule *b)
 }
 
 /* Add rule to given filterlist if not a duplicate.  Protected by
- * audit_netlink_sem. */
+ * audit_netlink_mutex. */
 static inline int audit_add_rule(struct audit_entry *entry,
 				  struct list_head *list)
 {
@@ -352,7 +352,7 @@ static inline int audit_add_rule(struct audit_entry *entry,
 }
 
 /* Remove an existing rule from filterlist.  Protected by
- * audit_netlink_sem. */
+ * audit_netlink_mutex. */
 static inline int audit_del_rule(struct audit_entry *entry,
 				 struct list_head *list)
 {
@@ -383,10 +383,10 @@ static int audit_list(void *_dest)
 	seq = dest[1];
 	kfree(dest);
 
-	down(&audit_netlink_sem);
+	mutex_lock(&audit_netlink_mutex);
 
 	/* The *_rcu iterators not needed here because we are
-	   always called with audit_netlink_sem held. */
+	   always called with audit_netlink_mutex held. */
 	for (i=0; i<AUDIT_NR_FILTERS; i++) {
 		list_for_each_entry(entry, &audit_filter_list[i], list) {
 			struct audit_rule *rule;
@@ -401,7 +401,7 @@ static int audit_list(void *_dest)
 	}
 	audit_send_reply(pid, seq, AUDIT_LIST, 1, 1, NULL, 0);
 	
-	up(&audit_netlink_sem);
+	mutex_unlock(&audit_netlink_mutex);
 	return 0;
 }
 
@@ -417,10 +417,10 @@ static int audit_list_rules(void *_dest)
 	seq = dest[1];
 	kfree(dest);
 
-	down(&audit_netlink_sem);
+	mutex_lock(&audit_netlink_mutex);
 
 	/* The *_rcu iterators not needed here because we are
-	   always called with audit_netlink_sem held. */
+	   always called with audit_netlink_mutex held. */
 	for (i=0; i<AUDIT_NR_FILTERS; i++) {
 		list_for_each_entry(e, &audit_filter_list[i], list) {
 			struct audit_rule_data *data;
@@ -435,7 +435,7 @@ static int audit_list_rules(void *_dest)
 	}
 	audit_send_reply(pid, seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
 
-	up(&audit_netlink_sem);
+	mutex_unlock(&audit_netlink_mutex);
 	return 0;
 }
 
