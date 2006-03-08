@@ -1418,9 +1418,6 @@ extern int is_bad_inode(struct inode *);
 extern struct file_operations read_fifo_fops;
 extern struct file_operations write_fifo_fops;
 extern struct file_operations rdwr_fifo_fops;
-extern struct file_operations read_pipe_fops;
-extern struct file_operations write_pipe_fops;
-extern struct file_operations rdwr_pipe_fops;
 
 extern int fs_may_remount_ro(struct super_block *);
 
