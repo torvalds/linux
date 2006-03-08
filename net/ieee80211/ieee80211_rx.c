@@ -1345,7 +1345,19 @@ static void update_network(struct ieee80211_network *dst,
 	ieee80211_network_reset(dst);
 	dst->ibss_dfs = src->ibss_dfs;
 
-	memcpy(&dst->stats, &src->stats, sizeof(struct ieee80211_rx_stats));
+	/* We only update the statistics if they were created by receiving
+	 * the network information on the actual channel the network is on.
+	 * 
+	 * This keeps beacons received on neighbor channels from bringing
+	 * down the signal level of an AP. */
+	if (dst->channel == src->stats.received_channel)
+		memcpy(&dst->stats, &src->stats,
+		       sizeof(struct ieee80211_rx_stats));
+	else
+		IEEE80211_DEBUG_SCAN("Network " MAC_FMT " info received "
+			"off channel (%d vs. %d)\n", MAC_ARG(src->bssid),
+			dst->channel, src->stats.received_channel);
+
 	dst->capability = src->capability;
 	memcpy(dst->rates, src->rates, src->rates_len);
 	dst->rates_len = src->rates_len;
