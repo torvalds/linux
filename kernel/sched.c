@@ -4335,6 +4335,7 @@ void __devinit init_idle(task_t *idle, int cpu)
 	runqueue_t *rq = cpu_rq(cpu);
 	unsigned long flags;
 
+	idle->timestamp = sched_clock();
 	idle->sleep_avg = 0;
 	idle->array = NULL;
 	idle->prio = MAX_PRIO;
