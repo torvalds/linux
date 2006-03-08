@@ -3,14 +3,16 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004 by Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2004, 06 by Ralf Baechle (ralf@linux-mips.org)
  */
 
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <asm/mv64340.h>
+#include <linux/mv643xx.h>
 
 #include <linux/init.h>
+
+#include <asm/marvell.h>
 
 /*
  * We assume the address ranges have already been setup appropriately by

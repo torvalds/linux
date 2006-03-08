@@ -11,12 +11,14 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <asm/ptrace.h>
-#include <linux/sched.h>
 #include <linux/kernel_stat.h>
+#include <linux/mv643xx.h>
+#include <linux/sched.h>
+
+#include <asm/ptrace.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <linux/mv643xx.h>
+#include <asm/marvell.h>
 
 static unsigned int irq_base;
 
