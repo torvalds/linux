@@ -906,17 +906,15 @@ init_tag_map(request_queue_t *q, struct blk_queue_tag *tags, int depth)
 				__FUNCTION__, depth);
 	}
 
-	tag_index = kmalloc(depth * sizeof(struct request *), GFP_ATOMIC);
+	tag_index = kzalloc(depth * sizeof(struct request *), GFP_ATOMIC);
 	if (!tag_index)
 		goto fail;
 
 	nr_ulongs = ALIGN(depth, BITS_PER_LONG) / BITS_PER_LONG;
-	tag_map = kmalloc(nr_ulongs * sizeof(unsigned long), GFP_ATOMIC);
+	tag_map = kzalloc(nr_ulongs * sizeof(unsigned long), GFP_ATOMIC);
 	if (!tag_map)
 		goto fail;
 
-	memset(tag_index, 0, depth * sizeof(struct request *));
-	memset(tag_map, 0, nr_ulongs * sizeof(unsigned long));
 	tags->real_max_depth = depth;
 	tags->max_depth = depth;
 	tags->tag_index = tag_index;
