@@ -71,6 +71,11 @@ static void uart_change_pm(struct uart_state *state, int pm_state);
 void uart_write_wakeup(struct uart_port *port)
 {
 	struct uart_info *info = port->info;
+	/*
+	 * This means you called this function _after_ the port was
+	 * closed.  No cookie for you.
+	 */
+	BUG_ON(!info);
 	tasklet_schedule(&info->tlet);
 }
 
@@ -471,13 +476,25 @@ static void uart_flush_chars(struct tty_struct *tty)
 }
 
 static int
-uart_write(struct tty_struct *tty, const unsigned char * buf, int count)
+uart_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	struct uart_state *state = tty->driver_data;
-	struct uart_port *port = state->port;
-	struct circ_buf *circ = &state->info->xmit;
+	struct uart_port *port;
+	struct circ_buf *circ;
 	unsigned long flags;
 	int c, ret = 0;
+
+	/*
+	 * This means you called this function _after_ the port was
+	 * closed.  No cookie for you.
+	 */
+	if (!state || !state->info) {
+		WARN_ON(1);
+		return -EL3HLT;
+	}
+
+	port = state->port;
+	circ = &state->info->xmit;
 
 	if (!circ->buf)
 		return 0;
@@ -520,6 +537,15 @@ static void uart_flush_buffer(struct tty_struct *tty)
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->port;
 	unsigned long flags;
+
+	/*
+	 * This means you called this function _after_ the port was
+	 * closed.  No cookie for you.
+	 */
+	if (!state || !state->info) {
+		WARN_ON(1);
+		return;
+	}
 
 	DPRINTK("uart_flush_buffer(%d) called\n", tty->index);
 
