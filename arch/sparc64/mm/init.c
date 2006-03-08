@@ -130,11 +130,9 @@ static void __init read_obp_memory(const char *property,
 
 unsigned long *sparc64_valid_addr_bitmap __read_mostly;
 
-/* Ugly, but necessary... -DaveM */
-unsigned long phys_base __read_mostly;
+/* Kernel physical address base and size in bytes.  */
 unsigned long kern_base __read_mostly;
 unsigned long kern_size __read_mostly;
-unsigned long pfn_base __read_mostly;
 
 /* get_new_mmu_context() uses "cache + 1".  */
 DEFINE_SPINLOCK(ctx_alloc_lock);
@@ -366,16 +364,6 @@ void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 		for (kaddr = start; kaddr < end; kaddr += PAGE_SIZE)
 			__flush_icache_page(__get_phys(kaddr));
 	}
-}
-
-unsigned long page_to_pfn(struct page *page)
-{
-	return (unsigned long) ((page - mem_map) + pfn_base);
-}
-
-struct page *pfn_to_page(unsigned long pfn)
-{
-	return (mem_map + (pfn - pfn_base));
 }
 
 void show_mem(void)
@@ -773,9 +761,78 @@ void sparc_ultra_dump_dtlb(void)
 
 extern unsigned long cmdline_memory_size;
 
-unsigned long __init bootmem_init(unsigned long *pages_avail)
+/* Find a free area for the bootmem map, avoiding the kernel image
+ * and the initial ramdisk.
+ */
+static unsigned long __init choose_bootmap_pfn(unsigned long start_pfn,
+					       unsigned long end_pfn)
 {
-	unsigned long bootmap_size, start_pfn, end_pfn;
+	unsigned long avoid_start, avoid_end, bootmap_size;
+	int i;
+
+	bootmap_size = ((end_pfn - start_pfn) + 7) / 8;
+	bootmap_size = ALIGN(bootmap_size, sizeof(long));
+
+	avoid_start = avoid_end = 0;
+#ifdef CONFIG_BLK_DEV_INITRD
+	avoid_start = initrd_start;
+	avoid_end = PAGE_ALIGN(initrd_end);
+#endif
+
+#ifdef CONFIG_DEBUG_BOOTMEM
+	prom_printf("choose_bootmap_pfn: kern[%lx:%lx] avoid[%lx:%lx]\n",
+		    kern_base, PAGE_ALIGN(kern_base + kern_size),
+		    avoid_start, avoid_end);
+#endif
+	for (i = 0; i < pavail_ents; i++) {
+		unsigned long start, end;
+
+		start = pavail[i].phys_addr;
+		end = start + pavail[i].reg_size;
+
+		while (start < end) {
+			if (start >= kern_base &&
+			    start < PAGE_ALIGN(kern_base + kern_size)) {
+				start = PAGE_ALIGN(kern_base + kern_size);
+				continue;
+			}
+			if (start >= avoid_start && start < avoid_end) {
+				start = avoid_end;
+				continue;
+			}
+
+			if ((end - start) < bootmap_size)
+				break;
+
+			if (start < kern_base &&
+			    (start + bootmap_size) > kern_base) {
+				start = PAGE_ALIGN(kern_base + kern_size);
+				continue;
+			}
+
+			if (start < avoid_start &&
+			    (start + bootmap_size) > avoid_start) {
+				start = avoid_end;
+				continue;
+			}
+
+			/* OK, it doesn't overlap anything, use it.  */
+#ifdef CONFIG_DEBUG_BOOTMEM
+			prom_printf("choose_bootmap_pfn: Using %lx [%lx]\n",
+				    start >> PAGE_SHIFT, start);
+#endif
+			return start >> PAGE_SHIFT;
+		}
+	}
+
+	prom_printf("Cannot find free area for bootmap, aborting.\n");
+	prom_halt();
+}
+
+static unsigned long __init bootmem_init(unsigned long *pages_avail,
+					 unsigned long phys_base)
+{
+	unsigned long bootmap_size, end_pfn;
 	unsigned long end_of_phys_memory = 0UL;
 	unsigned long bootmap_pfn, bytes_avail, size;
 	int i;
@@ -813,14 +870,6 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 
 	*pages_avail = bytes_avail >> PAGE_SHIFT;
 
-	/* Start with page aligned address of last symbol in kernel
-	 * image.  The kernel is hard mapped below PAGE_OFFSET in a
-	 * 4MB locked TLB translation.
-	 */
-	start_pfn = PAGE_ALIGN(kern_base + kern_size) >> PAGE_SHIFT;
-
-	bootmap_pfn = start_pfn;
-
 	end_pfn = end_of_phys_memory >> PAGE_SHIFT;
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -837,23 +886,23 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 		                 	 "(0x%016lx > 0x%016lx)\ndisabling initrd\n",
 			       initrd_end, end_of_phys_memory);
 			initrd_start = 0;
-		}
-		if (initrd_start) {
-			if (initrd_start >= (start_pfn << PAGE_SHIFT) &&
-			    initrd_start < (start_pfn << PAGE_SHIFT) + 2 * PAGE_SIZE)
-				bootmap_pfn = PAGE_ALIGN (initrd_end) >> PAGE_SHIFT;
+			initrd_end = 0;
 		}
 	}
 #endif	
 	/* Initialize the boot-time allocator. */
 	max_pfn = max_low_pfn = end_pfn;
-	min_low_pfn = pfn_base;
+	min_low_pfn = (phys_base >> PAGE_SHIFT);
+
+	bootmap_pfn = choose_bootmap_pfn(min_low_pfn, end_pfn);
 
 #ifdef CONFIG_DEBUG_BOOTMEM
 	prom_printf("init_bootmem(min[%lx], bootmap[%lx], max[%lx])\n",
 		    min_low_pfn, bootmap_pfn, max_low_pfn);
 #endif
-	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap_pfn, pfn_base, end_pfn);
+	bootmap_size = init_bootmem_node(NODE_DATA(0), bootmap_pfn,
+					 (phys_base >> PAGE_SHIFT),
+					 end_pfn);
 
 	/* Now register the available physical memory with the
 	 * allocator.
@@ -900,6 +949,20 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 #endif
 	reserve_bootmem((bootmap_pfn << PAGE_SHIFT), size);
 	*pages_avail -= PAGE_ALIGN(size) >> PAGE_SHIFT;
+
+	for (i = 0; i < pavail_ents; i++) {
+		unsigned long start_pfn, end_pfn;
+
+		start_pfn = pavail[i].phys_addr >> PAGE_SHIFT;
+		end_pfn = (start_pfn + (pavail[i].reg_size >> PAGE_SHIFT));
+#ifdef CONFIG_DEBUG_BOOTMEM
+		prom_printf("memory_present(0, %lx, %lx)\n",
+			    start_pfn, end_pfn);
+#endif
+		memory_present(0, start_pfn, end_pfn);
+	}
+
+	sparse_init();
 
 	return end_pfn;
 }
@@ -1180,7 +1243,7 @@ static void sun4v_pgprot_init(void);
 
 void __init paging_init(void)
 {
-	unsigned long end_pfn, pages_avail, shift;
+	unsigned long end_pfn, pages_avail, shift, phys_base;
 	unsigned long real_end, i;
 
 	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
@@ -1210,8 +1273,6 @@ void __init paging_init(void)
 	phys_base = 0xffffffffffffffffUL;
 	for (i = 0; i < pavail_ents; i++)
 		phys_base = min(phys_base, pavail[i].phys_addr);
-
-	pfn_base = phys_base >> PAGE_SHIFT;
 
 	set_bit(0, mmu_context_bmap);
 
@@ -1248,7 +1309,9 @@ void __init paging_init(void)
 
 	/* Setup bootmem... */
 	pages_avail = 0;
-	last_valid_pfn = end_pfn = bootmem_init(&pages_avail);
+	last_valid_pfn = end_pfn = bootmem_init(&pages_avail, phys_base);
+
+	max_mapnr = last_valid_pfn - (phys_base >> PAGE_SHIFT);
 
 	kernel_physical_mapping_init();
 
@@ -1261,7 +1324,7 @@ void __init paging_init(void)
 		for (znum = 0; znum < MAX_NR_ZONES; znum++)
 			zones_size[znum] = zholes_size[znum] = 0;
 
-		npages = end_pfn - pfn_base;
+		npages = end_pfn - (phys_base >> PAGE_SHIFT);
 		zones_size[ZONE_DMA] = npages;
 		zholes_size[ZONE_DMA] = npages - pages_avail;
 
@@ -1336,7 +1399,6 @@ void __init mem_init(void)
 
 	taint_real_pages();
 
-	max_mapnr = last_valid_pfn - pfn_base;
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
 
 #ifdef CONFIG_DEBUG_BOOTMEM

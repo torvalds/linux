@@ -217,9 +217,6 @@ extern unsigned long pg_iobits;
 extern unsigned long _PAGE_ALL_SZ_BITS;
 extern unsigned long _PAGE_SZBITS;
 
-extern unsigned long phys_base;
-extern unsigned long pfn_base;
-
 extern struct page *mem_map_zero;
 #define ZERO_PAGE(vaddr)	(mem_map_zero)
 

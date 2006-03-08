@@ -95,9 +95,6 @@ extern int __ashrdi3(int, int);
 
 extern int dump_fpu (struct pt_regs * regs, elf_fpregset_t * fpregs);
 
-extern unsigned long phys_base;
-extern unsigned long pfn_base;
-
 extern unsigned int sys_call_table[];
 
 extern void xor_vis_2(unsigned long, unsigned long *, unsigned long *);
@@ -346,11 +343,7 @@ EXPORT_SYMBOL(__strncpy_from_user);
 EXPORT_SYMBOL(__clear_user);
 
 /* Various address conversion macros use this. */
-EXPORT_SYMBOL(phys_base);
-EXPORT_SYMBOL(pfn_base);
 EXPORT_SYMBOL(sparc64_valid_addr_bitmap);
-EXPORT_SYMBOL(page_to_pfn);
-EXPORT_SYMBOL(pfn_to_page);
 
 /* No version information on this, heavily used in inline asm,
  * and will always be 'void __ret_efault(void)'.
