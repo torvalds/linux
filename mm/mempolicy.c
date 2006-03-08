@@ -1789,6 +1789,7 @@ static void gather_stats(struct page *page, void *private, int pte_dirty)
 	cond_resched();
 }
 
+#ifdef CONFIG_HUGETLB_PAGE
 static void check_huge_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end,
 		struct numa_maps *md)
@@ -1814,6 +1815,13 @@ static void check_huge_range(struct vm_area_struct *vma,
 		gather_stats(page, md, pte_dirty(*ptep));
 	}
 }
+#else
+static inline void check_huge_range(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end,
+		struct numa_maps *md)
+{
+}
+#endif
 
 int show_numa_map(struct seq_file *m, void *v)
 {
