@@ -2706,7 +2706,7 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 	},
 	[SAA7134_BOARD_TEVION_DVBT_220RF] = {
-		.name           = "Tevion DVB-T 220RF",
+		.name           = "Tevion/KWorld DVB-T 220RF",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
