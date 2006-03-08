@@ -1628,7 +1628,7 @@ static int cpia2_do_ioctl(struct inode *inode, struct file *file,
 	}
 
 	switch (ioctl_nr) {
-	case VIDIOCGCAP:	/* query capabilites */
+	case VIDIOCGCAP:	/* query capabilities */
 		retval = ioctl_cap_query(arg, cam);
 		break;
 
