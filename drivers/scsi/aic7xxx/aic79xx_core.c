@@ -978,9 +978,13 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		break;
 	}
 	case INVALID_SEQINT:
-		printf("%s: Invalid Sequencer interrupt occurred.\n",
+		printf("%s: Invalid Sequencer interrupt occurred, "
+		       "resetting channel.\n",
 		       ahd_name(ahd));
-		ahd_dump_card_state(ahd);
+#ifdef AHD_DEBUG
+		if ((ahd_debug & AHD_SHOW_RECOVERY) != 0)
+			ahd_dump_card_state(ahd);
+#endif
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
 		break;
 	case STATUS_OVERRUN:
