@@ -60,6 +60,10 @@
 #include "sr.h"
 
 
+MODULE_DESCRIPTION("SCSI cdrom (sr) driver");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_BLOCKDEV_MAJOR(SCSI_CDROM_MAJOR);
+
 #define SR_DISKS	256
 
 #define MAX_RETRIES	3

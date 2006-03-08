@@ -86,8 +86,9 @@ static int st_nr_dev;
 static struct class *st_sysfs_class;
 
 MODULE_AUTHOR("Kai Makisara");
-MODULE_DESCRIPTION("SCSI Tape Driver");
+MODULE_DESCRIPTION("SCSI tape (st) driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_CHARDEV_MAJOR(SCSI_TAPE_MAJOR);
 
 /* Set 'perm' (4th argument) to 0 to disable module_param's definition
  * of sysfs parameters (which module_param doesn't yet support).
