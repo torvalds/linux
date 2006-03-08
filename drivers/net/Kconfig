@@ -1372,8 +1372,8 @@ config B44
 	  called b44.
 
 config FORCEDETH
-	tristate "Reverse Engineered nForce Ethernet support (EXPERIMENTAL)"
-	depends on NET_PCI && PCI && EXPERIMENTAL
+	tristate "nForce Ethernet support"
+	depends on NET_PCI && PCI
 	help
 	  If you have a network (Ethernet) controller of this type, say Y and
 	  read the Ethernet-HOWTO, available from
