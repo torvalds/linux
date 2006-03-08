@@ -80,6 +80,7 @@ static int v9fs_fd_send(struct v9fs_transport *trans, void *v, int len)
 	if (!trans || trans->status != Connected || !ts)
 		return -EIO;
 
+	oldfs = get_fs();
 	set_fs(get_ds());
 	/* The cast to a user pointer is valid due to the set_fs() */
 	ret = vfs_write(ts->out_file, (void __user *)v, len, &ts->out_file->f_pos);

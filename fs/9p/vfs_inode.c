@@ -265,8 +265,7 @@ v9fs_create(struct v9fs_session_info *v9ses, u32 pfid, char *name,
 	fid = v9fs_get_idpool(&v9ses->fidpool);
 	if (fid < 0) {
 		eprintk(KERN_WARNING, "no free fids available\n");
-		err = -ENOSPC;
-		goto error;
+		return -ENOSPC;
 	}
 
 	err = v9fs_t_walk(v9ses, pfid, fid, NULL, &fcall);
@@ -313,8 +312,7 @@ v9fs_clone_walk(struct v9fs_session_info *v9ses, u32 fid, struct dentry *dentry)
 	nfid = v9fs_get_idpool(&v9ses->fidpool);
 	if (nfid < 0) {
 		eprintk(KERN_WARNING, "no free fids available\n");
-		err = -ENOSPC;
-		goto error;
+		return ERR_PTR(-ENOSPC);
 	}
 
 	err = v9fs_t_walk(v9ses, fid, nfid, (char *) dentry->d_name.name,
@@ -612,7 +610,7 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	int result = 0;
 
 	dprintk(DEBUG_VFS, "dir: %p dentry: (%s) %p nameidata: %p\n",
-		dir, dentry->d_iname, dentry, nameidata);
+		dir, dentry->d_name.name, dentry, nameidata);
 
 	sb = dir->i_sb;
 	v9ses = v9fs_inode2v9ses(dir);
