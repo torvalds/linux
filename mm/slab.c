@@ -1124,6 +1124,7 @@ void __init kmem_cache_init(void)
 	struct cache_sizes *sizes;
 	struct cache_names *names;
 	int i;
+	int order;
 
 	for (i = 0; i < NUM_INIT_LISTS; i++) {
 		kmem_list3_init(&initkmem_list3[i]);
@@ -1167,11 +1168,15 @@ void __init kmem_cache_init(void)
 
 	cache_cache.buffer_size = ALIGN(cache_cache.buffer_size, cache_line_size());
 
-	cache_estimate(0, cache_cache.buffer_size, cache_line_size(), 0,
-		       &left_over, &cache_cache.num);
+	for (order = 0; order < MAX_ORDER; order++) {
+		cache_estimate(order, cache_cache.buffer_size,
+			cache_line_size(), 0, &left_over, &cache_cache.num);
+		if (cache_cache.num)
+			break;
+	}
 	if (!cache_cache.num)
 		BUG();
-
+	cache_cache.gfporder = order;
 	cache_cache.colour = left_over / cache_cache.colour_off;
 	cache_cache.slab_size = ALIGN(cache_cache.num * sizeof(kmem_bufctl_t) +
 				      sizeof(struct slab), cache_line_size());
