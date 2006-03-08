@@ -13,6 +13,8 @@
 #include <asm/sn/sn_feature_sets.h>
 #include <asm/sn/geo.h>
 #include <asm/sn/io.h>
+#include <asm/sn/l1.h>
+#include <asm/sn/module.h>
 #include <asm/sn/pcibr_provider.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
@@ -710,9 +712,36 @@ cnodeid_get_geoid(cnodeid_t cnode)
 	return hubdev->hdi_geoid;
 }
 
+void sn_generate_path(struct pci_bus *pci_bus, char *address)
+{
+	nasid_t nasid;
+	cnodeid_t cnode;
+	geoid_t geoid;
+	moduleid_t moduleid;
+	u16 bricktype;
+
+	nasid = NASID_GET(SN_PCIBUS_BUSSOFT(pci_bus)->bs_base);
+	cnode = nasid_to_cnodeid(nasid);
+	geoid = cnodeid_get_geoid(cnode);
+	moduleid = geo_module(geoid);
+
+	sprintf(address, "module_%c%c%c%c%.2d",
+		'0'+RACK_GET_CLASS(MODULE_GET_RACK(moduleid)),
+		'0'+RACK_GET_GROUP(MODULE_GET_RACK(moduleid)),
+		'0'+RACK_GET_NUM(MODULE_GET_RACK(moduleid)),
+		MODULE_GET_BTCHAR(moduleid), MODULE_GET_BPOS(moduleid));
+
+	/* Tollhouse requires slot id to be displayed */
+	bricktype = MODULE_GET_BTYPE(moduleid);
+	if ((bricktype == L1_BRICKTYPE_191010) ||
+	    (bricktype == L1_BRICKTYPE_1932))
+			sprintf(address, "%s^%d", address, geo_slot(geoid));
+}
+
 subsys_initcall(sn_pci_init);
 EXPORT_SYMBOL(sn_pci_fixup_slot);
 EXPORT_SYMBOL(sn_pci_unfixup_slot);
 EXPORT_SYMBOL(sn_pci_controller_fixup);
 EXPORT_SYMBOL(sn_bus_store_sysdata);
 EXPORT_SYMBOL(sn_bus_free_sysdata);
+EXPORT_SYMBOL(sn_generate_path);
