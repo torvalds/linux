@@ -1453,6 +1453,8 @@ static void de_tx_timeout (struct net_device *dev)
 	synchronize_irq(dev->irq);
 	de_clean_rings(de);
 
+	de_init_rings(de);
+
 	de_init_hw(de);
 	
 	netif_wake_queue(dev);
