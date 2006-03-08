@@ -44,13 +44,7 @@
 
 
 
-#define s08bits	char
-#define s16bits 	short
-#define s32bits	long
 
-#define u08bits	unsigned s08bits
-#define u16bits	unsigned s16bits
-#define u32bits	unsigned s32bits
 
 
 
@@ -245,12 +239,12 @@ typedef struct _SCCB {
 #define SG_ELEMENT_SIZE 8              /*Eight byte per element. */
 
 
-#define RD_HARPOON(ioport)          inb((u32bits)ioport)
-#define RDW_HARPOON(ioport)         inw((u32bits)ioport)
-#define RD_HARP32(ioport,offset,data) (data = inl((u32bits)(ioport + offset)))
-#define WR_HARPOON(ioport,val)      outb((u08bits) val, (u32bits)ioport)
-#define WRW_HARPOON(ioport,val)       outw((u16bits)val, (u32bits)ioport)
-#define WR_HARP32(ioport,offset,data)  outl(data, (u32bits)(ioport + offset))
+#define RD_HARPOON(ioport)          inb((u32)ioport)
+#define RDW_HARPOON(ioport)         inw((u32)ioport)
+#define RD_HARP32(ioport,offset,data) (data = inl((u32)(ioport + offset)))
+#define WR_HARPOON(ioport,val)      outb((u8) val, (u32)ioport)
+#define WRW_HARPOON(ioport,val)       outw((u16)val, (u32)ioport)
+#define WR_HARP32(ioport,offset,data)  outl(data, (u32)(ioport + offset))
 
 
 #define  TAR_SYNC_MASK     (BIT(7)+BIT(6))
