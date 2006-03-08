@@ -1439,7 +1439,7 @@ static int check_firmware(struct av7110* av7110)
 	len = ntohl(*(u32*) ptr);
 	ptr += 4;
 	if (len >= 512) {
-		printk("dvb-ttpci: dpram file is way to big.\n");
+		printk("dvb-ttpci: dpram file is way too big.\n");
 		return -EINVAL;
 	}
 	if (crc != crc32_le(0, ptr, len)) {
