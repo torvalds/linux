@@ -802,59 +802,6 @@ ahd_dmamap_unload(struct ahd_softc *ahd, bus_dma_tag_t dmat, bus_dmamap_t map)
 }
 
 /********************* Platform Dependent Functions ***************************/
-/*
- * Compare "left hand" softc with "right hand" softc, returning:
- * < 0 - lahd has a lower priority than rahd
- *   0 - Softcs are equal
- * > 0 - lahd has a higher priority than rahd
- */
-int
-ahd_softc_comp(struct ahd_softc *lahd, struct ahd_softc *rahd)
-{
-	int	value;
-
-	/*
-	 * Under Linux, cards are ordered as follows:
-	 *	1) PCI devices that are marked as the boot controller.
-	 *	2) PCI devices with BIOS enabled sorted by bus/slot/func.
-	 *	3) All remaining PCI devices sorted by bus/slot/func.
-	 */
-#if 0
-	value = (lahd->flags & AHD_BOOT_CHANNEL)
-	      - (rahd->flags & AHD_BOOT_CHANNEL);
-	if (value != 0)
-		/* Controllers set for boot have a *higher* priority */
-		return (value);
-#endif
-
-	value = (lahd->flags & AHD_BIOS_ENABLED)
-	      - (rahd->flags & AHD_BIOS_ENABLED);
-	if (value != 0)
-		/* Controllers with BIOS enabled have a *higher* priority */
-		return (value);
-
-	/* Still equal.  Sort by bus/slot/func. */
-	if (aic79xx_reverse_scan != 0)
-		value = ahd_get_pci_bus(lahd->dev_softc)
-		      - ahd_get_pci_bus(rahd->dev_softc);
-	else
-		value = ahd_get_pci_bus(rahd->dev_softc)
-		      - ahd_get_pci_bus(lahd->dev_softc);
-	if (value != 0)
-		return (value);
-	if (aic79xx_reverse_scan != 0)
-		value = ahd_get_pci_slot(lahd->dev_softc)
-		      - ahd_get_pci_slot(rahd->dev_softc);
-	else
-		value = ahd_get_pci_slot(rahd->dev_softc)
-		      - ahd_get_pci_slot(lahd->dev_softc);
-	if (value != 0)
-		return (value);
-
-	value = rahd->channel - lahd->channel;
-	return (value);
-}
-
 static void
 ahd_linux_setup_iocell_info(u_long index, int instance, int targ, int32_t value)
 {
@@ -1593,12 +1540,6 @@ ahd_linux_isr(int irq, void *dev_id, struct pt_regs * regs)
 	ours = ahd_intr(ahd);
 	ahd_unlock(ahd, &flags);
 	return IRQ_RETVAL(ours);
-}
-
-void
-ahd_platform_flushwork(struct ahd_softc *ahd)
-{
-
 }
 
 void
