@@ -57,7 +57,7 @@ struct sccb;
 typedef void (*CALL_BK_FN)(struct sccb *);
 
 
-typedef struct SCCBMgr_info {
+struct sccb_mgr_info {
    unsigned long    si_baseaddr;
    unsigned char    si_present;
    unsigned char    si_intvect;
@@ -79,9 +79,8 @@ typedef struct SCCBMgr_info {
    unsigned char    si_XlatInfo[4];
    unsigned long    si_reserved2[5];
    unsigned long    si_secondary_range;
-} SCCBMGR_INFO;
+};
 
-typedef SCCBMGR_INFO *      PSCCBMGR_INFO;
 
 
 #define SCSI_PARITY_ENA		  0x0001
@@ -309,7 +308,7 @@ typedef NVRAMINFO *PNVRamInfo;
 
 typedef struct SCCBcard {
    struct sccb * currentSCCB;
-   PSCCBMGR_INFO cardInfo;
+   struct sccb_mgr_info * cardInfo;
 
    unsigned long ioPort;
 
@@ -1108,7 +1107,7 @@ static void (*FPT_s_PhaseTbl[8]) (unsigned long, unsigned char)= { 0 };
  *
  *---------------------------------------------------------------------*/
 
-static int FlashPoint_ProbeHostAdapter(PSCCBMGR_INFO pCardInfo)
+static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info * pCardInfo)
 {
    static unsigned char first_time = 1;
 
@@ -1386,7 +1385,7 @@ static int FlashPoint_ProbeHostAdapter(PSCCBMGR_INFO pCardInfo)
  *
  *---------------------------------------------------------------------*/
 
-static unsigned long FlashPoint_HardwareResetHostAdapter(PSCCBMGR_INFO pCardInfo)
+static unsigned long FlashPoint_HardwareResetHostAdapter(struct sccb_mgr_info * pCardInfo)
 {
    PSCCBcard CurrCard = NULL;
 	PNVRamInfo pCurrNvRam;
@@ -7788,14 +7787,14 @@ static unsigned char FPT_CalcLrc(unsigned char buffer[])
 static inline unsigned char
 FlashPoint__ProbeHostAdapter(struct FlashPoint_Info *FlashPointInfo)
 {
-  return FlashPoint_ProbeHostAdapter((PSCCBMGR_INFO) FlashPointInfo);
+  return FlashPoint_ProbeHostAdapter((struct sccb_mgr_info *) FlashPointInfo);
 }
 
 
 static inline FlashPoint_CardHandle_T
 FlashPoint__HardwareResetHostAdapter(struct FlashPoint_Info *FlashPointInfo)
 {
-  return FlashPoint_HardwareResetHostAdapter((PSCCBMGR_INFO) FlashPointInfo);
+  return FlashPoint_HardwareResetHostAdapter((struct sccb_mgr_info *) FlashPointInfo);
 }
 
 static inline void
