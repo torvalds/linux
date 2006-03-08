@@ -42,7 +42,6 @@
 
 
 
-typedef unsigned short          * ushort_ptr;
 
 
 #define s08bits	char
@@ -6003,7 +6002,7 @@ static void FPT_scasid(unsigned char p_card, unsigned long p_port)
    unsigned char i,k,scam_id;
 	unsigned char crcBytes[3];
 	PNVRamInfo pCurrNvRam;
-	ushort_ptr pCrcBytes;
+	unsigned short * pCrcBytes;
 
 	pCurrNvRam = FPT_BL_Card[p_card].pNvRamInfo;
 
@@ -6023,7 +6022,7 @@ static void FPT_scasid(unsigned char p_card, unsigned long p_port)
       if (!(FPT_sciso(p_port,&temp_id_string[0])))
          {
 			if(pCurrNvRam){
-				pCrcBytes = (ushort_ptr)&crcBytes[0];
+				pCrcBytes = (unsigned short *)&crcBytes[0];
 				*pCrcBytes = FPT_CalcCrc16(&temp_id_string[0]);
 				crcBytes[2] = FPT_CalcLrc(&temp_id_string[0]);
 				temp_id_string[1] = crcBytes[2];
