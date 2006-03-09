@@ -1408,10 +1408,11 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 
 /* Casio devices */
 {
+	/* this ID is used by several devices without a product ID */
 	USB_DEVICE(0x07cf, 0x6802),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Casio",
-		.product_name = "AP-80R",
+		.product_name = "Keyboard",
 		.ifnum = 0,
 		.type = QUIRK_MIDI_YAMAHA
 	}
