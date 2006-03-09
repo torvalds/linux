@@ -442,9 +442,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 	seq_printf(m, 
 		   "cpu\t\t: %s\n"
 		   "fpu\t\t: %s\n"
-		   "promlib\t\t: Version 3 Revision %d\n"
-		   "prom\t\t: %d.%d.%d\n"
-		   "type\t\t: sun4u\n"
+		   "prom\t\t: %s\n"
+		   "type\t\t: %s\n"
 		   "ncpus probed\t: %d\n"
 		   "ncpus active\t: %d\n"
 		   "D$ parity tl1\t: %u\n"
@@ -456,10 +455,10 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   ,
 		   sparc_cpu_type,
 		   sparc_fpu_type,
-		   prom_rev,
-		   prom_prev >> 16,
-		   (prom_prev >> 8) & 0xff,
-		   prom_prev & 0xff,
+		   prom_version,
+		   ((tlb_type == hypervisor) ?
+		    "sun4v" :
+		    "sun4u"),
 		   ncpus_probed,
 		   num_online_cpus(),
 		   dcache_parity_tl1_occurred,

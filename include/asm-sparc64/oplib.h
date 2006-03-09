@@ -12,18 +12,8 @@
 #include <linux/config.h>
 #include <asm/openprom.h>
 
-/* Enumeration to describe the prom major version we have detected. */
-enum prom_major_version {
-	PROM_V0,      /* Original sun4c V0 prom */
-	PROM_V2,      /* sun4c and early sun4m V2 prom */
-	PROM_V3,      /* sun4m and later, up to sun4d/sun4e machines V3 */
-	PROM_P1275,   /* IEEE compliant ISA based Sun PROM, only sun4u */
-        PROM_AP1000,  /* actually no prom at all */
-};
-
-extern enum prom_major_version prom_vers;
-/* Revision, and firmware revision. */
-extern unsigned int prom_rev, prom_prev;
+/* OBP version string. */
+extern char prom_version[];
 
 /* Root node of the prom device tree, this stays constant after
  * initialization is complete.
@@ -132,15 +122,6 @@ extern void prom_setcallback(callback_func_t func_ptr);
  * is the format type of this idprom or 0xff on error.
  */
 extern unsigned char prom_get_idprom(char *idp_buffer, int idpbuf_size);
-
-/* Get the prom major version. */
-extern int prom_version(void);
-
-/* Get the prom plugin revision. */
-extern int prom_getrev(void);
-
-/* Get the prom firmware revision. */
-extern int prom_getprev(void);
 
 /* Character operations to/from the console.... */
 

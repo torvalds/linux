@@ -112,24 +112,6 @@ unsigned char prom_get_idprom(char *idbuf, int num_bytes)
 	return 0xff;
 }
 
-/* Get the major prom version number. */
-int prom_version(void)
-{
-	return PROM_P1275;
-}
-
-/* Get the prom plugin-revision. */
-int prom_getrev(void)
-{
-	return prom_rev;
-}
-
-/* Get the prom firmware print revision. */
-int prom_getprev(void)
-{
-	return prom_prev;
-}
-
 /* Install Linux trap table so PROM uses that instead of its own. */
 void prom_set_trap_table(unsigned long tba)
 {
