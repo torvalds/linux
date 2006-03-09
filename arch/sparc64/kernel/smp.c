@@ -47,6 +47,8 @@ static unsigned char boot_cpu_id;
 
 cpumask_t cpu_online_map __read_mostly = CPU_MASK_NONE;
 cpumask_t phys_cpu_present_map __read_mostly = CPU_MASK_NONE;
+cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly =
+	{ [0 ... NR_CPUS-1] = CPU_MASK_NONE };
 static cpumask_t smp_commenced_mask;
 static cpumask_t cpu_callout_map;
 
@@ -1291,6 +1293,8 @@ int setup_profiling_timer(unsigned int multiplier)
 /* Constrain the number of cpus to max_cpus.  */
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
+	int i;
+
 	if (num_possible_cpus() > max_cpus) {
 		int instance, mid;
 
@@ -1302,6 +1306,20 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 					break;
 			}
 			instance++;
+		}
+	}
+
+	for_each_cpu(i) {
+		if (tlb_type == hypervisor) {
+			int j;
+
+			/* XXX get this mapping from machine description */
+			for_each_cpu(j) {
+				if ((j >> 2) == (i >> 2))
+					cpu_set(j, cpu_sibling_map[i]);
+			}
+		} else {
+			cpu_set(i, cpu_sibling_map[i]);
 		}
 	}
 
