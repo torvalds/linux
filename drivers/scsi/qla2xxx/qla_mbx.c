@@ -1631,20 +1631,25 @@ qla2x00_login_fabric(scsi_qla_host_t *ha, uint16_t loop_id, uint8_t domain,
  *
  */
 int
-qla2x00_login_local_device(scsi_qla_host_t *ha, uint16_t loop_id,
+qla2x00_login_local_device(scsi_qla_host_t *ha, fc_port_t *fcport,
     uint16_t *mb_ret, uint8_t opt)
 {
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+		return qla24xx_login_fabric(ha, fcport->loop_id,
+		    fcport->d_id.b.domain, fcport->d_id.b.area,
+		    fcport->d_id.b.al_pa, mb_ret, opt);
+
 	DEBUG3(printk("%s(%ld): entered.\n", __func__, ha->host_no);)
 
 	mcp->mb[0] = MBC_LOGIN_LOOP_PORT;
 	if (HAS_EXTENDED_IDS(ha))
-		mcp->mb[1] = loop_id;
+		mcp->mb[1] = fcport->loop_id;
 	else
-		mcp->mb[1] = loop_id << 8;
+		mcp->mb[1] = fcport->loop_id << 8;
 	mcp->mb[2] = opt;
 	mcp->out_mb = MBX_2|MBX_1|MBX_0;
  	mcp->in_mb = MBX_7|MBX_6|MBX_1|MBX_0;

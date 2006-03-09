@@ -2888,13 +2888,13 @@ qla2x00_fabric_login(scsi_qla_host_t *ha, fc_port_t *fcport,
  *      3 - Fatal error
  */
 int
-qla2x00_local_device_login(scsi_qla_host_t *ha, uint16_t loop_id)
+qla2x00_local_device_login(scsi_qla_host_t *ha, fc_port_t *fcport)
 {
 	int		rval;
 	uint16_t	mb[MAILBOX_REGISTER_COUNT];
 
 	memset(mb, 0, sizeof(mb));
-	rval = qla2x00_login_local_device(ha, loop_id, mb, BIT_0);
+	rval = qla2x00_login_local_device(ha, fcport, mb, BIT_0);
 	if (rval == QLA_SUCCESS) {
 		/* Interrogate mailbox registers for any errors */
 		if (mb[0] == MBS_COMMAND_ERROR)

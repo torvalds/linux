@@ -2295,7 +2295,7 @@ qla2x00_do_dpc(void *data)
 					} else
 						status =
 						    qla2x00_local_device_login(
-							ha, fcport->loop_id);
+							ha, fcport);
 
 					if (status == QLA_SUCCESS) {
 						fcport->old_loop_id = fcport->loop_id;
