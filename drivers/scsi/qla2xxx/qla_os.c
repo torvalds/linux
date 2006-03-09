@@ -1146,6 +1146,52 @@ qla2x00_config_dma_addressing(scsi_qla_host_t *ha)
 	pci_set_consistent_dma_mask(ha->pdev, DMA_32BIT_MASK);
 }
 
+static inline void
+qla2x00_set_isp_flags(scsi_qla_host_t *ha)
+{
+	ha->device_type = DT_EXTENDED_IDS;
+	switch (ha->pdev->device) {
+	case PCI_DEVICE_ID_QLOGIC_ISP2100:
+		ha->device_type |= DT_ISP2100;
+		ha->device_type &= ~DT_EXTENDED_IDS;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2200:
+		ha->device_type |= DT_ISP2200;
+		ha->device_type &= ~DT_EXTENDED_IDS;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2300:
+		ha->device_type |= DT_ISP2300;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2312:
+		ha->device_type |= DT_ISP2312;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2322:
+		ha->device_type |= DT_ISP2322;
+		if (ha->pdev->subsystem_vendor == 0x1028 &&
+		    ha->pdev->subsystem_device == 0x0170)
+			ha->device_type |= DT_OEM_001;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP6312:
+		ha->device_type |= DT_ISP6312;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP6322:
+		ha->device_type |= DT_ISP6322;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2422:
+		ha->device_type |= DT_ISP2422;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2432:
+		ha->device_type |= DT_ISP2432;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2512:
+		ha->device_type |= DT_ISP2512;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2522:
+		ha->device_type |= DT_ISP2522;
+		break;
+	}
+}
+
 static int
 qla2x00_iospace_config(scsi_qla_host_t *ha)
 {
@@ -1306,6 +1352,9 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->host_no = host->host_no;
 	ha->brd_info = brd_info;
 	sprintf(ha->host_str, "%s_%ld", ha->brd_info->drv_name, ha->host_no);
+
+	/* Set ISP-type information. */
+	qla2x00_set_isp_flags(ha);
 
 	/* Configure PCI I/O space */
 	ret = qla2x00_iospace_config(ha);

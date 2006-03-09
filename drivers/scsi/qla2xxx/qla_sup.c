@@ -1191,11 +1191,6 @@ qla2x00_poll_flash(scsi_qla_host_t *ha, uint32_t addr, uint8_t poll_data,
 	return status;
 }
 
-#define IS_OEM_001(ha) \
-	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2322 && \
-	 (ha)->pdev->subsystem_vendor == 0x1028 && \
-	 (ha)->pdev->subsystem_device == 0x0170)
-
 /**
  * qla2x00_program_flash_address() - Programs a flash address
  * @ha: HA context

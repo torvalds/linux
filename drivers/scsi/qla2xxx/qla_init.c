@@ -727,6 +727,7 @@ qla2x00_chip_diag(scsi_qla_host_t *ha)
 		DEBUG3(printk("scsi(%ld): Found QLA2200A chip.\n",
 		    ha->host_no));
 
+		ha->device_type |= DT_ISP2200A;
 		ha->fw_transfer_size = 128;
 	}
 
