@@ -950,12 +950,22 @@ static struct tuner_params tuner_tuv1236d_params[] = {
 	},
 };
 
-/* ------------ TUNER_TNF_5335MF - Philips NTSC ------------ */
+/* ------------ TUNER_TNF_xxx5  - Texas Instruments--------- */
+/* This is known to work with Tenna TVF58t5-MFF and TVF5835 MFF
+ *	but it is expected to work also with other Tenna/Ymec
+ *	models based on TI SN 761677 chip on both PAL and NTSC
+ */
+
+static struct tuner_range tuner_tnf_5335_d_if_pal_ranges[] = {
+	{ 16 * 168.25 /*MHz*/, 0x8e, 0x01, },
+        { 16 * 471.25 /*MHz*/, 0x8e, 0x02, },
+        { 16 * 999.99        , 0x8e, 0x08, },
+};
 
 static struct tuner_range tuner_tnf_5335mf_ntsc_ranges[] = {
-	{ 16 * 157.25 /*MHz*/, 0x8e, 0x01, },
-	{ 16 * 454.00 /*MHz*/, 0x8e, 0x02, },
-	{ 16 * 999.99        , 0x8e, 0x04, },
+	{ 16 * 169.25 /*MHz*/, 0x8e, 0x01, },
+	{ 16 * 469.25 /*MHz*/, 0x8e, 0x02, },
+	{ 16 * 999.99        , 0x8e, 0x08, },
 };
 
 static struct tuner_params tuner_tnf_5335mf_params[] = {
@@ -963,6 +973,11 @@ static struct tuner_params tuner_tnf_5335mf_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_tnf_5335mf_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_tnf_5335mf_ntsc_ranges),
+	},
+	{
+		.type   = TUNER_PARAM_TYPE_PAL,
+		.ranges = tuner_tnf_5335_d_if_pal_ranges,
+		.count  = ARRAY_SIZE(tuner_tnf_5335_d_if_pal_ranges),
 	},
 };
 
@@ -1354,8 +1369,8 @@ struct tunertype tuners[] = {
 		.params = tuner_tuv1236d_params,
 		.count  = ARRAY_SIZE(tuner_tuv1236d_params),
 	},
-	[TUNER_TNF_5335MF] = { /* Philips NTSC */
-		.name   = "Tena TNF 5335 MF",
+	[TUNER_TNF_5335MF] = { /* Tenna PAL/NTSC */
+		.name   = "Tena TNF 5335 and similar models",
 		.params = tuner_tnf_5335mf_params,
 		.count  = ARRAY_SIZE(tuner_tnf_5335mf_params),
 	},

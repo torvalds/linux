@@ -364,6 +364,9 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	case TUNER_PHILIPS_FMD1216ME_MK3:
 		buffer[3] = 0x19;
 		break;
+	case TUNER_TNF_5335MF:
+		buffer[3] = 0x11;
+		break;
 	case TUNER_PHILIPS_FM1256_IH3:
 		div = (20 * freq) / 16000 + (int)(33.3 * 20);  /* IF 33.3 MHz */
 		buffer[3] = 0x19;
