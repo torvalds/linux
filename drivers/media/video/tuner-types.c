@@ -958,8 +958,8 @@ static struct tuner_params tuner_tuv1236d_params[] = {
 
 static struct tuner_range tuner_tnf_5335_d_if_pal_ranges[] = {
 	{ 16 * 168.25 /*MHz*/, 0x8e, 0x01, },
-        { 16 * 471.25 /*MHz*/, 0x8e, 0x02, },
-        { 16 * 999.99        , 0x8e, 0x08, },
+	{ 16 * 471.25 /*MHz*/, 0x8e, 0x02, },
+	{ 16 * 999.99        , 0x8e, 0x08, },
 };
 
 static struct tuner_range tuner_tnf_5335mf_ntsc_ranges[] = {
