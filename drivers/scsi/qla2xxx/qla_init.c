@@ -387,7 +387,7 @@ qla2x00_isp_firmware(scsi_qla_host_t *ha)
 
 		/* Verify checksum of loaded RISC code. */
 		rval = qla2x00_verify_checksum(ha,
-		    IS_QLA24XX(ha) || IS_QLA25XX(ha) ? RISC_SADDRESS :
+		    IS_QLA24XX(ha) || IS_QLA54XX(ha) ? RISC_SADDRESS :
 		    *ha->brd_info->fw_info[0].fwstart);
 	}
 
@@ -822,7 +822,7 @@ qla2x00_resize_request_q(scsi_qla_host_t *ha)
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
 		return;
 
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 		qla2x00_alloc_fw_dump(ha);
 
 	/* Retrieve IOCB counts available to the firmware. */
@@ -2123,7 +2123,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 	LIST_HEAD(new_fcports);
 
 	/* If FL port exists, then SNS is present */
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 		loop_id = NPH_F_PORT;
 	else
 		loop_id = SNS_FL_PORT;
@@ -2149,7 +2149,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 			qla2x00_fdmi_register(ha);
 
 		/* Ensure we are logged into the SNS. */
-		if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+		if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 			loop_id = NPH_SNS;
 		else
 			loop_id = SIMPLE_NAME_SERVER;
@@ -2640,7 +2640,7 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 			if (ql2xprocessrscn &&
 			    !IS_QLA2100(ha) && !IS_QLA2200(ha) &&
 			    !IS_QLA6312(ha) && !IS_QLA6322(ha) &&
-			    !IS_QLA24XX(ha) && !IS_QLA25XX(ha) &&
+			    !IS_QLA24XX(ha) && !IS_QLA54XX(ha) &&
 			    ha->flags.init_done) {
 				/* Handle port RSCN via asyncronous IOCBs */
 				rval2 = qla2x00_handle_port_rscn(ha, rscn_entry,
@@ -3130,7 +3130,7 @@ qla2x00_restart_isp(scsi_qla_host_t *ha)
 
 			spin_lock_irqsave(&ha->hardware_lock, flags);
 
-			if (!IS_QLA24XX(ha) && !IS_QLA25XX(ha)) {
+			if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha)) {
 				/*
 				 * Disable SRAM, Instruction RAM and GP RAM
 				 * parity.
@@ -3146,7 +3146,7 @@ qla2x00_restart_isp(scsi_qla_host_t *ha)
 
 			spin_lock_irqsave(&ha->hardware_lock, flags);
 
-			if (!IS_QLA24XX(ha) && !IS_QLA25XX(ha)) {
+			if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha)) {
 				/* Enable proper parity */
 				if (IS_QLA2300(ha))
 					/* SRAM parity */

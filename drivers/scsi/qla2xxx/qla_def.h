@@ -2234,9 +2234,9 @@ typedef struct scsi_qla_host {
 #define DT_ISP6322			BIT_6
 #define DT_ISP2422			BIT_7
 #define DT_ISP2432			BIT_8
-#define DT_ISP2512			BIT_9
-#define DT_ISP2522			BIT_10
-#define DT_ISP_LAST			(DT_ISP2522 << 1)
+#define DT_ISP5422			BIT_9
+#define DT_ISP5432			BIT_10
+#define DT_ISP_LAST			(DT_ISP5432 << 1)
 
 #define DT_OEM_001			BIT_29
 #define DT_ISP2200A			BIT_30
@@ -2252,13 +2252,13 @@ typedef struct scsi_qla_host {
 #define IS_QLA6322(ha)	(DT_MASK(ha) & DT_ISP6322)
 #define IS_QLA2422(ha)	(DT_MASK(ha) & DT_ISP2422)
 #define IS_QLA2432(ha)	(DT_MASK(ha) & DT_ISP2432)
-#define IS_QLA2512(ha)	(DT_MASK(ha) & DT_ISP2512)
-#define IS_QLA2522(ha)	(DT_MASK(ha) & DT_ISP2522)
+#define IS_QLA5422(ha)	(DT_MASK(ha) & DT_ISP5422)
+#define IS_QLA5432(ha)	(DT_MASK(ha) & DT_ISP5432)
 
 #define IS_QLA23XX(ha)	(IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
     			 IS_QLA6312(ha) || IS_QLA6322(ha))
 #define IS_QLA24XX(ha)	(IS_QLA2422(ha) || IS_QLA2432(ha))
-#define IS_QLA25XX(ha)	(IS_QLA2512(ha) || IS_QLA2522(ha))
+#define IS_QLA54XX(ha)	(IS_QLA5422(ha) || IS_QLA5432(ha))
 
 #define IS_OEM_001(ha)		((ha)->device_type & DT_OEM_001)
 #define HAS_EXTENDED_IDS(ha)	((ha)->device_type & DT_EXTENDED_IDS)

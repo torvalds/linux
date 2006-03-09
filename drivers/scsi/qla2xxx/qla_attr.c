@@ -50,7 +50,7 @@ qla2x00_sysfs_write_fw_dump(struct kobject *kobj, char *buf, loff_t off,
 			    ha->host_no);
 
 			vfree(ha->fw_dump_buffer);
-			if (!IS_QLA24XX(ha) && !IS_QLA25XX(ha))
+			if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha))
 				free_pages((unsigned long)ha->fw_dump,
 				    ha->fw_dump_order);
 
@@ -64,7 +64,7 @@ qla2x00_sysfs_write_fw_dump(struct kobject *kobj, char *buf, loff_t off,
 		if ((ha->fw_dump || ha->fw_dumped) && !ha->fw_dump_reading) {
 			ha->fw_dump_reading = 1;
 
-			if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+			if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 				dump_size = FW_DUMP_SIZE_24XX;
 			else {
 				dump_size = FW_DUMP_SIZE_1M;
@@ -138,7 +138,7 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj, char *buf, loff_t off,
 		return 0;
 
 	/* Checksum NVRAM. */
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		uint32_t *iter;
 		uint32_t chksum;
 
@@ -750,7 +750,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	pfc_host_stat = &ha->fc_host_stat;
 	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
 
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		rval = qla24xx_get_isp_stats(ha, (uint32_t *)&stat_buf,
 		    sizeof(stat_buf) / 4, mb_stat);
 	} else {

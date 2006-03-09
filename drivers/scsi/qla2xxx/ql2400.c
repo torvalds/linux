@@ -49,6 +49,18 @@ static struct qla_board_info qla_board_tbl[] = {
 		.fw_info	= qla_fw_tbl,
 		.fw_fname	= "ql2400_fw.bin",
 	},
+	{
+		.drv_name	= qla_driver_name,
+		.isp_name	= "ISP5422",
+		.fw_info	= qla_fw_tbl,
+		.fw_fname	= "ql2400_fw.bin",
+	},
+	{
+		.drv_name	= qla_driver_name,
+		.isp_name	= "ISP5432",
+		.fw_info	= qla_fw_tbl,
+		.fw_fname	= "ql2400_fw.bin",
+	},
 };
 
 static struct pci_device_id qla24xx_pci_tbl[] = {
@@ -66,6 +78,21 @@ static struct pci_device_id qla24xx_pci_tbl[] = {
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (unsigned long)&qla_board_tbl[1],
 	},
+	{
+		.vendor		= PCI_VENDOR_ID_QLOGIC,
+		.device		= PCI_DEVICE_ID_QLOGIC_ISP5422,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (unsigned long)&qla_board_tbl[2],
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_QLOGIC,
+		.device		= PCI_DEVICE_ID_QLOGIC_ISP5432,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (unsigned long)&qla_board_tbl[3],
+	},
+
 	{0, 0},
 };
 MODULE_DEVICE_TABLE(pci, qla24xx_pci_tbl);

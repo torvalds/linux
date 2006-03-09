@@ -1183,11 +1183,11 @@ qla2x00_set_isp_flags(scsi_qla_host_t *ha)
 	case PCI_DEVICE_ID_QLOGIC_ISP2432:
 		ha->device_type |= DT_ISP2432;
 		break;
-	case PCI_DEVICE_ID_QLOGIC_ISP2512:
-		ha->device_type |= DT_ISP2512;
+	case PCI_DEVICE_ID_QLOGIC_ISP5422:
+		ha->device_type |= DT_ISP5422;
 		break;
-	case PCI_DEVICE_ID_QLOGIC_ISP2522:
-		ha->device_type |= DT_ISP2522;
+	case PCI_DEVICE_ID_QLOGIC_ISP5432:
+		ha->device_type |= DT_ISP5432;
 		break;
 	}
 }
@@ -1433,7 +1433,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->gid_list_info_size = 6;
 		if (IS_QLA2322(ha) || IS_QLA6322(ha))
 			ha->optrom_size = OPTROM_SIZE_2322;
-	} else if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+	} else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		host->max_id = MAX_TARGETS_2200;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		ha->request_q_length = REQUEST_ENTRY_CNT_24XX;
@@ -1559,7 +1559,7 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	reg = ha->iobase;
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_HOST_INT);
 		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_RISC_INT);
 	} else {
@@ -2631,7 +2631,7 @@ qla2x00_request_firmware(scsi_qla_host_t *ha)
 		blob = &qla_fw_blobs[FW_ISP2322];
 	} else if (IS_QLA6312(ha) || IS_QLA6322(ha)) {
 		blob = &qla_fw_blobs[FW_ISP63XX];
-	} else if (IS_QLA24XX(ha)) {
+	} else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		blob = &qla_fw_blobs[FW_ISP24XX];
 	}
 
@@ -2686,6 +2686,10 @@ static struct pci_device_id qla2xxx_pci_tbl[] = {
 	{ PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2422,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2432,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{ PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP5422,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{ PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP5432,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 },
 };
