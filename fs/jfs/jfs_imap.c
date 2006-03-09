@@ -3074,14 +3074,40 @@ static void duplicateIXtree(struct super_block *sb, s64 blkno,
 static int copy_from_dinode(struct dinode * dip, struct inode *ip)
 {
 	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
+	struct jfs_sb_info *sbi = JFS_SBI(ip->i_sb);
 
 	jfs_ip->fileset = le32_to_cpu(dip->di_fileset);
 	jfs_ip->mode2 = le32_to_cpu(dip->di_mode);
 
 	ip->i_mode = le32_to_cpu(dip->di_mode) & 0xffff;
+	if (sbi->umask != -1) {
+		ip->i_mode = (ip->i_mode & ~0777) | (0777 & ~sbi->umask);
+		/* For directories, add x permission if r is allowed by umask */
+		if (S_ISDIR(ip->i_mode)) {
+			if (ip->i_mode & 0400)
+				ip->i_mode |= 0100;
+			if (ip->i_mode & 0040)
+				ip->i_mode |= 0010;
+			if (ip->i_mode & 0004)
+				ip->i_mode |= 0001;
+		}
+	}
 	ip->i_nlink = le32_to_cpu(dip->di_nlink);
-	ip->i_uid = le32_to_cpu(dip->di_uid);
-	ip->i_gid = le32_to_cpu(dip->di_gid);
+
+	jfs_ip->saved_uid = le32_to_cpu(dip->di_uid);
+	if (sbi->uid == -1)
+		ip->i_uid = jfs_ip->saved_uid;
+	else {
+		ip->i_uid = sbi->uid;
+	}
+
+	jfs_ip->saved_gid = le32_to_cpu(dip->di_gid);
+	if (sbi->gid == -1)
+		ip->i_gid = jfs_ip->saved_gid;
+	else {
+		ip->i_gid = sbi->gid;
+	}
+
 	ip->i_size = le64_to_cpu(dip->di_size);
 	ip->i_atime.tv_sec = le32_to_cpu(dip->di_atime.tv_sec);
 	ip->i_atime.tv_nsec = le32_to_cpu(dip->di_atime.tv_nsec);
@@ -3132,21 +3158,33 @@ static int copy_from_dinode(struct dinode * dip, struct inode *ip)
 static void copy_to_dinode(struct dinode * dip, struct inode *ip)
 {
 	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
+	struct jfs_sb_info *sbi = JFS_SBI(ip->i_sb);
 
 	dip->di_fileset = cpu_to_le32(jfs_ip->fileset);
-	dip->di_inostamp = cpu_to_le32(JFS_SBI(ip->i_sb)->inostamp);
+	dip->di_inostamp = cpu_to_le32(sbi->inostamp);
 	dip->di_number = cpu_to_le32(ip->i_ino);
 	dip->di_gen = cpu_to_le32(ip->i_generation);
 	dip->di_size = cpu_to_le64(ip->i_size);
 	dip->di_nblocks = cpu_to_le64(PBLK2LBLK(ip->i_sb, ip->i_blocks));
 	dip->di_nlink = cpu_to_le32(ip->i_nlink);
-	dip->di_uid = cpu_to_le32(ip->i_uid);
-	dip->di_gid = cpu_to_le32(ip->i_gid);
+	if (sbi->uid == -1)
+		dip->di_uid = cpu_to_le32(ip->i_uid);
+	else
+		dip->di_uid = cpu_to_le32(jfs_ip->saved_uid);
+	if (sbi->gid == -1)
+		dip->di_gid = cpu_to_le32(ip->i_gid);
+	else
+		dip->di_gid = cpu_to_le32(jfs_ip->saved_gid);
 	/*
 	 * mode2 is only needed for storing the higher order bits.
 	 * Trust i_mode for the lower order ones
 	 */
-	dip->di_mode = cpu_to_le32((jfs_ip->mode2 & 0xffff0000) | ip->i_mode);
+	if (sbi->umask == -1)
+		dip->di_mode = cpu_to_le32((jfs_ip->mode2 & 0xffff0000) |
+					   ip->i_mode);
+	else /* Leave the original permissions alone */
+		dip->di_mode = cpu_to_le32(jfs_ip->mode2);
+
 	dip->di_atime.tv_sec = cpu_to_le32(ip->i_atime.tv_sec);
 	dip->di_atime.tv_nsec = cpu_to_le32(ip->i_atime.tv_nsec);
 	dip->di_ctime.tv_sec = cpu_to_le32(ip->i_ctime.tv_sec);

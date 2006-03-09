@@ -194,7 +194,7 @@ static void jfs_put_super(struct super_block *sb)
 enum {
 	Opt_integrity, Opt_nointegrity, Opt_iocharset, Opt_resize,
 	Opt_resize_nosize, Opt_errors, Opt_ignore, Opt_err, Opt_quota,
-	Opt_usrquota, Opt_grpquota
+	Opt_usrquota, Opt_grpquota, Opt_uid, Opt_gid, Opt_umask
 };
 
 static match_table_t tokens = {
@@ -208,6 +208,9 @@ static match_table_t tokens = {
 	{Opt_ignore, "quota"},
 	{Opt_usrquota, "usrquota"},
 	{Opt_grpquota, "grpquota"},
+	{Opt_uid, "uid=%u"},
+	{Opt_gid, "gid=%u"},
+	{Opt_umask, "umask=%u"},
 	{Opt_err, NULL}
 };
 
@@ -312,7 +315,29 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 			       "JFS: quota operations not supported\n");
 			break;
 #endif
-
+		case Opt_uid:
+		{
+			char *uid = args[0].from;
+			sbi->uid = simple_strtoul(uid, &uid, 0);
+			break;
+		}
+		case Opt_gid:
+		{
+			char *gid = args[0].from;
+			sbi->gid = simple_strtoul(gid, &gid, 0);
+			break;
+		}
+		case Opt_umask:
+		{
+			char *umask = args[0].from;
+			sbi->umask = simple_strtoul(umask, &umask, 8);
+			if (sbi->umask & ~0777) {
+				printk(KERN_ERR
+				       "JFS: Invalid value of umask\n");
+				goto cleanup;
+			}
+			break;
+		}
 		default:
 			printk("jfs: Unrecognized mount option \"%s\" "
 					" or missing value\n", p);
@@ -400,6 +425,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOSPC;
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
+	sbi->uid = sbi->gid = sbi->umask = -1;
 
 	/* initialize the mount flag and determine the default error handler */
 	flag = JFS_ERR_REMOUNT_RO;
@@ -562,10 +588,14 @@ static int jfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(vfs->mnt_sb);
 
+	if (sbi->uid != -1)
+		seq_printf(seq, ",uid=%d", sbi->uid);
+	if (sbi->gid != -1)
+		seq_printf(seq, ",gid=%d", sbi->gid);
+	if (sbi->umask != -1)
+		seq_printf(seq, ",umask=%03o", sbi->umask);
 	if (sbi->flag & JFS_NOINTEGRITY)
 		seq_puts(seq, ",nointegrity");
-	else
-		seq_puts(seq, ",integrity");
 
 #if defined(CONFIG_QUOTA)
 	if (sbi->flag & JFS_USRQUOTA)
