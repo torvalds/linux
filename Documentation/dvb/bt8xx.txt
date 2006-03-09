@@ -111,4 +111,8 @@ source:  linux/Documentation/video4linux/CARDLIST.bttv
 If you have problems with this please do ask on the mailing list.
 
 --
-Authors: Richard Walker, Jamie Honan, Michael Hunold, Manu Abraham
+Authors: Richard Walker,
+	 Jamie Honan,
+	 Michael Hunold,
+	 Manu Abraham,
+	 Michael Krufky
