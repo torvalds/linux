@@ -1161,12 +1161,15 @@ qla2x00_set_isp_flags(scsi_qla_host_t *ha)
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2300:
 		ha->device_type |= DT_ISP2300;
+		ha->device_type |= DT_ZIO_SUPPORTED;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2312:
 		ha->device_type |= DT_ISP2312;
+		ha->device_type |= DT_ZIO_SUPPORTED;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2322:
 		ha->device_type |= DT_ISP2322;
+		ha->device_type |= DT_ZIO_SUPPORTED;
 		if (ha->pdev->subsystem_vendor == 0x1028 &&
 		    ha->pdev->subsystem_device == 0x0170)
 			ha->device_type |= DT_OEM_001;
@@ -1179,9 +1182,11 @@ qla2x00_set_isp_flags(scsi_qla_host_t *ha)
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2422:
 		ha->device_type |= DT_ISP2422;
+		ha->device_type |= DT_ZIO_SUPPORTED;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP2432:
 		ha->device_type |= DT_ISP2432;
+		ha->device_type |= DT_ZIO_SUPPORTED;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_ISP5422:
 		ha->device_type |= DT_ISP5422;

@@ -1659,6 +1659,8 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 		    ~(BIT_3 | BIT_2 | BIT_1 | BIT_0);
 		ha->flags.process_response_queue = 0;
 		if (ha->zio_mode != QLA_ZIO_DISABLED) {
+			ha->zio_mode = QLA_ZIO_MODE_6;
+
 			DEBUG2(printk("scsi(%ld): ZIO mode %d enabled; timer "
 			    "delay (%d us).\n", ha->host_no, ha->zio_mode,
 			    ha->zio_timer * 100));
@@ -3474,6 +3476,8 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	    ~(BIT_3 | BIT_2 | BIT_1 | BIT_0));
 	ha->flags.process_response_queue = 0;
 	if (ha->zio_mode != QLA_ZIO_DISABLED) {
+		ha->zio_mode = QLA_ZIO_MODE_6;
+
 		DEBUG2(printk("scsi(%ld): ZIO mode %d enabled; timer delay "
 		    "(%d us).\n", ha->host_no, ha->zio_mode,
 		    ha->zio_timer * 100));

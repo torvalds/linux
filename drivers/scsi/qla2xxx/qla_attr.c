@@ -507,9 +507,6 @@ qla2x00_zio_show(struct class_device *cdev, char *buf)
 	int len = 0;
 
 	switch (ha->zio_mode) {
-	case QLA_ZIO_MODE_5:
-		len += snprintf(buf + len, PAGE_SIZE-len, "Mode 5\n");
-		break;
 	case QLA_ZIO_MODE_6:
 		len += snprintf(buf + len, PAGE_SIZE-len, "Mode 6\n");
 		break;
@@ -527,20 +524,16 @@ qla2x00_zio_store(struct class_device *cdev, const char *buf, size_t count)
 	int val = 0;
 	uint16_t zio_mode;
 
+	if (!IS_ZIO_SUPPORTED(ha))
+		return -ENOTSUPP;
+
 	if (sscanf(buf, "%d", &val) != 1)
 		return -EINVAL;
 
-	switch (val) {
-	case 1:
-		zio_mode = QLA_ZIO_MODE_5;
-		break;
-	case 2:
+	if (val)
 		zio_mode = QLA_ZIO_MODE_6;
-		break;
-	default:
+	else
 		zio_mode = QLA_ZIO_DISABLED;
-		break;
-	}
 
 	/* Update per-hba values and queue a reset. */
 	if (zio_mode != QLA_ZIO_DISABLED || ha->zio_mode != QLA_ZIO_DISABLED) {
