@@ -63,7 +63,7 @@
 /* need "shadow" registers for some write-only ones ... */
 #define SHADOW_AUD_VOL_CTL           1
 #define SHADOW_AUD_BAL_CTL           2
-#define SHADOW_MAX                   2
+#define SHADOW_MAX                   3
 
 /* FM Radio deemphasis type */
 enum cx88_deemph_type {
