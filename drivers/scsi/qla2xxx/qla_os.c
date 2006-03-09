@@ -2596,13 +2596,12 @@ qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
 
 /* Firmware interface routines. */
 
-#define FW_BLOBS	6
+#define FW_BLOBS	5
 #define FW_ISP21XX	0
 #define FW_ISP22XX	1
 #define FW_ISP2300	2
 #define FW_ISP2322	3
-#define FW_ISP63XX	4
-#define FW_ISP24XX	5
+#define FW_ISP24XX	4
 
 static DECLARE_MUTEX(qla_fw_lock);
 
@@ -2611,7 +2610,6 @@ static struct fw_blob qla_fw_blobs[FW_BLOBS] = {
 	{ .name = "ql2200_fw.bin", .segs = { 0x1000, 0 }, },
 	{ .name = "ql2300_fw.bin", .segs = { 0x800, 0 }, },
 	{ .name = "ql2322_fw.bin", .segs = { 0x800, 0x1c000, 0x1e000, 0 }, },
-	{ .name = "ql6312_fw.bin", .segs = { 0x800, 0 }, },
 	{ .name = "ql2400_fw.bin", },
 };
 
@@ -2625,12 +2623,10 @@ qla2x00_request_firmware(scsi_qla_host_t *ha)
 		blob = &qla_fw_blobs[FW_ISP21XX];
 	} else if (IS_QLA2200(ha)) {
 		blob = &qla_fw_blobs[FW_ISP22XX];
-	} else if (IS_QLA2300(ha) || IS_QLA2312(ha)) {
+	} else if (IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA6312(ha)) {
 		blob = &qla_fw_blobs[FW_ISP2300];
-	} else if (IS_QLA2322(ha)) {
+	} else if (IS_QLA2322(ha) || IS_QLA6322(ha)) {
 		blob = &qla_fw_blobs[FW_ISP2322];
-	} else if (IS_QLA6312(ha) || IS_QLA6322(ha)) {
-		blob = &qla_fw_blobs[FW_ISP63XX];
 	} else if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		blob = &qla_fw_blobs[FW_ISP24XX];
 	}

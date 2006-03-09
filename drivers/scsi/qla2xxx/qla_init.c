@@ -1003,6 +1003,10 @@ qla2x00_update_fw_options(scsi_qla_host_t *ha)
 	if (ha->flags.enable_led_scheme)
 		ha->fw_options[2] |= BIT_12;
 
+	/* Detect ISP6312. */
+	if (IS_QLA6312(ha))
+		ha->fw_options[2] |= BIT_13;
+
 	/* Update firmware options. */
 	qla2x00_set_fw_options(ha, ha->fw_options);
 }
