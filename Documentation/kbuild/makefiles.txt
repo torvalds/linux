@@ -106,9 +106,9 @@ This document is aimed towards normal developers and arch developers.
 Most Makefiles within the kernel are kbuild Makefiles that use the
 kbuild infrastructure. This chapter introduce the syntax used in the
 kbuild makefiles.
-The preferred name for the kbuild files is 'Kbuild' but 'Makefile' will
-continue to be supported. All new developmen is expected to use the
-Kbuild filename.
+The preferred name for the kbuild files are 'Makefile' but 'Kbuild' can
+be used and if both a 'Makefile' and a 'Kbuild' file exists then the 'Kbuild'
+file will be used.
 
 Section 3.1 "Goal definitions" is a quick intro, further chapters provide
 more details, with real examples.
