@@ -2406,9 +2406,9 @@ qla2x00_set_serdes_params(scsi_qla_host_t *ha, uint16_t sw_em_1g,
 
 	mcp->mb[0] = MBC_SERDES_PARAMS;
 	mcp->mb[1] = BIT_0;
-	mcp->mb[2] = sw_em_1g;
-	mcp->mb[3] = sw_em_2g;
-	mcp->mb[4] = sw_em_4g;
+	mcp->mb[2] = sw_em_1g | BIT_15;
+	mcp->mb[3] = sw_em_2g | BIT_15;
+	mcp->mb[4] = sw_em_4g | BIT_15;
 	mcp->out_mb = MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->in_mb = MBX_0;
 	mcp->tov = 30;
