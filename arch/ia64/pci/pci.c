@@ -579,7 +579,7 @@ pcibios_align_resource (void *data, struct resource *res,
 char * __init
 pcibios_setup (char *str)
 {
-	return NULL;
+	return str;
 }
 
 int

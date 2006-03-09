@@ -41,6 +41,7 @@
 #include "dlmglue.h"
 #include "extent_map.h"
 #include "file.h"
+#include "heartbeat.h"
 #include "inode.h"
 #include "journal.h"
 #include "namei.h"
@@ -544,6 +545,42 @@ bail:
 	return status;
 }
 
+/* 
+ * Serialize with orphan dir recovery. If the process doing
+ * recovery on this orphan dir does an iget() with the dir
+ * i_mutex held, we'll deadlock here. Instead we detect this
+ * and exit early - recovery will wipe this inode for us.
+ */
+static int ocfs2_check_orphan_recovery_state(struct ocfs2_super *osb,
+					     int slot)
+{
+	int ret = 0;
+
+	spin_lock(&osb->osb_lock);
+	if (ocfs2_node_map_test_bit(osb, &osb->osb_recovering_orphan_dirs, slot)) {
+		mlog(0, "Recovery is happening on orphan dir %d, will skip "
+		     "this inode\n", slot);
+		ret = -EDEADLK;
+		goto out;
+	}
+	/* This signals to the orphan recovery process that it should
+	 * wait for us to handle the wipe. */
+	osb->osb_orphan_wipes[slot]++;
+out:
+	spin_unlock(&osb->osb_lock);
+	return ret;
+}
+
+static void ocfs2_signal_wipe_completion(struct ocfs2_super *osb,
+					 int slot)
+{
+	spin_lock(&osb->osb_lock);
+	osb->osb_orphan_wipes[slot]--;
+	spin_unlock(&osb->osb_lock);
+
+	wake_up(&osb->osb_wipe_event);
+}
+
 static int ocfs2_wipe_inode(struct inode *inode,
 			    struct buffer_head *di_bh)
 {
@@ -555,6 +592,11 @@ static int ocfs2_wipe_inode(struct inode *inode,
 	/* We've already voted on this so it should be readonly - no
 	 * spinlock needed. */
 	orphaned_slot = OCFS2_I(inode)->ip_orphaned_slot;
+
+	status = ocfs2_check_orphan_recovery_state(osb, orphaned_slot);
+	if (status)
+		return status;
+
 	orphan_dir_inode = ocfs2_get_system_file_inode(osb,
 						       ORPHAN_DIR_SYSTEM_INODE,
 						       orphaned_slot);
@@ -597,6 +639,7 @@ bail_unlock_dir:
 	brelse(orphan_dir_bh);
 bail:
 	iput(orphan_dir_inode);
+	ocfs2_signal_wipe_completion(osb, orphaned_slot);
 
 	return status;
 }
@@ -822,7 +865,8 @@ void ocfs2_delete_inode(struct inode *inode)
 
 	status = ocfs2_wipe_inode(inode, di_bh);
 	if (status < 0) {
-		mlog_errno(status);
+		if (status != -EDEADLK)
+			mlog_errno(status);
 		goto bail_unlock_inode;
 	}
 

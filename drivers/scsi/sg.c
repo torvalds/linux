@@ -2162,7 +2162,7 @@ sg_link_reserve(Sg_fd * sfp, Sg_request * srp, int size)
 
 	srp->res_used = 1;
 	SCSI_LOG_TIMEOUT(4, printk("sg_link_reserve: size=%d\n", size));
-	rem = size = (size + 1) & (~1);	/* round to even for aha1542 */
+	rem = size;
 
 	for (k = 0; k < rsv_schp->k_use_sg; ++k, ++sg) {
 		num = sg->length;

@@ -29,7 +29,7 @@ config DVB_TDA8083
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_MT312
-	tristate "Zarlink MT312 based"
+	tristate "Zarlink VP310/MT312 based"
 	depends on DVB_CORE
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.

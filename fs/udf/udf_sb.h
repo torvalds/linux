@@ -20,6 +20,10 @@
 #define UDF_FLAG_VARCONV		8
 #define UDF_FLAG_NLS_MAP		9
 #define UDF_FLAG_UTF8			10
+#define UDF_FLAG_UID_FORGET     11    /* save -1 for uid to disk */
+#define UDF_FLAG_UID_IGNORE     12    /* use sb uid instead of on disk uid */
+#define UDF_FLAG_GID_FORGET     13
+#define UDF_FLAG_GID_IGNORE     14
 
 #define UDF_PART_FLAG_UNALLOC_BITMAP	0x0001
 #define UDF_PART_FLAG_UNALLOC_TABLE	0x0002

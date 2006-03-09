@@ -4028,6 +4028,8 @@ static inline void __cond_resched(void)
 	 */
 	if (unlikely(preempt_count()))
 		return;
+	if (unlikely(system_state != SYSTEM_RUNNING))
+		return;
 	do {
 		add_preempt_count(PREEMPT_ACTIVE);
 		schedule();
@@ -4333,6 +4335,7 @@ void __devinit init_idle(task_t *idle, int cpu)
 	runqueue_t *rq = cpu_rq(cpu);
 	unsigned long flags;
 
+	idle->timestamp = sched_clock();
 	idle->sleep_avg = 0;
 	idle->array = NULL;
 	idle->prio = MAX_PRIO;

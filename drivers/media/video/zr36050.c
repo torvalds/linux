@@ -159,7 +159,7 @@ zr36050_wait_end (struct zr36050 *ptr)
 
 	while (!(zr36050_read_status1(ptr) & 0x4)) {
 		udelay(1);
-		if (i++ > 200000) {	// 200ms, there is for shure something wrong!!!
+		if (i++ > 200000) {	// 200ms, there is for sure something wrong!!!
 			dprintk(1,
 				"%s: timout at wait_end (last status: 0x%02x)\n",
 				ptr->name, ptr->status1);

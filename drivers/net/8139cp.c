@@ -1118,13 +1118,18 @@ err_out:
 	return -ENOMEM;
 }
 
+static void cp_init_rings_index (struct cp_private *cp)
+{
+	cp->rx_tail = 0;
+	cp->tx_head = cp->tx_tail = 0;
+}
+
 static int cp_init_rings (struct cp_private *cp)
 {
 	memset(cp->tx_ring, 0, sizeof(struct cp_desc) * CP_TX_RING_SIZE);
 	cp->tx_ring[CP_TX_RING_SIZE - 1].opts1 = cpu_to_le32(RingEnd);
 
-	cp->rx_tail = 0;
-	cp->tx_head = cp->tx_tail = 0;
+	cp_init_rings_index(cp);
 
 	return cp_refill_rx (cp);
 }
@@ -1886,30 +1891,30 @@ static int cp_suspend (struct pci_dev *pdev, pm_message_t state)
 
 	spin_unlock_irqrestore (&cp->lock, flags);
 
-	if (cp->pdev && cp->wol_enabled) {
-		pci_save_state (cp->pdev);
-		cp_set_d3_state (cp);
-	}
+	pci_save_state(pdev);
+	pci_enable_wake(pdev, pci_choose_state(pdev, state), cp->wol_enabled);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
 	return 0;
 }
 
 static int cp_resume (struct pci_dev *pdev)
 {
-	struct net_device *dev;
-	struct cp_private *cp;
+	struct net_device *dev = pci_get_drvdata (pdev);
+	struct cp_private *cp = netdev_priv(dev);
 	unsigned long flags;
 
-	dev = pci_get_drvdata (pdev);
-	cp  = netdev_priv(dev);
+	if (!netif_running(dev))
+		return 0;
 
 	netif_device_attach (dev);
-	
-	if (cp->pdev && cp->wol_enabled) {
-		pci_set_power_state (cp->pdev, PCI_D0);
-		pci_restore_state (cp->pdev);
-	}
-	
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_enable_wake(pdev, PCI_D0, 0);
+
+	/* FIXME: sh*t may happen if the Rx ring buffer is depleted */
+	cp_init_rings_index (cp);
 	cp_init_hw (cp);
 	netif_start_queue (dev);
 

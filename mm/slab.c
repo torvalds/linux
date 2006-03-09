@@ -1124,6 +1124,7 @@ void __init kmem_cache_init(void)
 	struct cache_sizes *sizes;
 	struct cache_names *names;
 	int i;
+	int order;
 
 	for (i = 0; i < NUM_INIT_LISTS; i++) {
 		kmem_list3_init(&initkmem_list3[i]);
@@ -1167,11 +1168,15 @@ void __init kmem_cache_init(void)
 
 	cache_cache.buffer_size = ALIGN(cache_cache.buffer_size, cache_line_size());
 
-	cache_estimate(0, cache_cache.buffer_size, cache_line_size(), 0,
-		       &left_over, &cache_cache.num);
+	for (order = 0; order < MAX_ORDER; order++) {
+		cache_estimate(order, cache_cache.buffer_size,
+			cache_line_size(), 0, &left_over, &cache_cache.num);
+		if (cache_cache.num)
+			break;
+	}
 	if (!cache_cache.num)
 		BUG();
-
+	cache_cache.gfporder = order;
 	cache_cache.colour = left_over / cache_cache.colour_off;
 	cache_cache.slab_size = ALIGN(cache_cache.num * sizeof(kmem_bufctl_t) +
 				      sizeof(struct slab), cache_line_size());
@@ -1628,36 +1633,44 @@ static inline size_t calculate_slab_order(struct kmem_cache *cachep,
 			size_t size, size_t align, unsigned long flags)
 {
 	size_t left_over = 0;
+	int gfporder;
 
-	for (;; cachep->gfporder++) {
+	for (gfporder = 0 ; gfporder <= MAX_GFP_ORDER; gfporder++) {
 		unsigned int num;
 		size_t remainder;
 
-		if (cachep->gfporder > MAX_GFP_ORDER) {
-			cachep->num = 0;
-			break;
-		}
-
-		cache_estimate(cachep->gfporder, size, align, flags,
-			       &remainder, &num);
+		cache_estimate(gfporder, size, align, flags, &remainder, &num);
 		if (!num)
 			continue;
+
 		/* More than offslab_limit objects will cause problems */
-		if (flags & CFLGS_OFF_SLAB && cachep->num > offslab_limit)
+		if ((flags & CFLGS_OFF_SLAB) && num > offslab_limit)
 			break;
 
+		/* Found something acceptable - save it away */
 		cachep->num = num;
+		cachep->gfporder = gfporder;
 		left_over = remainder;
+
+		/*
+		 * A VFS-reclaimable slab tends to have most allocations
+		 * as GFP_NOFS and we really don't want to have to be allocating
+		 * higher-order pages when we are unable to shrink dcache.
+		 */
+		if (flags & SLAB_RECLAIM_ACCOUNT)
+			break;
 
 		/*
 		 * Large number of objects is good, but very large slabs are
 		 * currently bad for the gfp()s.
 		 */
-		if (cachep->gfporder >= slab_break_gfp_order)
+		if (gfporder >= slab_break_gfp_order)
 			break;
 
-		if ((left_over * 8) <= (PAGE_SIZE << cachep->gfporder))
-			/* Acceptable internal fragmentation */
+		/*
+		 * Acceptable internal fragmentation?
+		 */
+		if ((left_over * 8) <= (PAGE_SIZE << gfporder))
 			break;
 	}
 	return left_over;
@@ -1869,17 +1882,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 
 	size = ALIGN(size, align);
 
-	if ((flags & SLAB_RECLAIM_ACCOUNT) && size <= PAGE_SIZE) {
-		/*
-		 * A VFS-reclaimable slab tends to have most allocations
-		 * as GFP_NOFS and we really don't want to have to be allocating
-		 * higher-order pages when we are unable to shrink dcache.
-		 */
-		cachep->gfporder = 0;
-		cache_estimate(cachep->gfporder, size, align, flags,
-			       &left_over, &cachep->num);
-	} else
-		left_over = calculate_slab_order(cachep, size, align, flags);
+	left_over = calculate_slab_order(cachep, size, align, flags);
 
 	if (!cachep->num) {
 		printk("kmem_cache_create: couldn't create cache %s.\n", name);
@@ -2554,7 +2557,7 @@ static void check_slabp(struct kmem_cache *cachep, struct slab *slabp)
 		       "slab: Internal list corruption detected in cache '%s'(%d), slabp %p(%d). Hexdump:\n",
 		       cachep->name, cachep->num, slabp, slabp->inuse);
 		for (i = 0;
-		     i < sizeof(slabp) + cachep->num * sizeof(kmem_bufctl_t);
+		     i < sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t);
 		     i++) {
 			if ((i % 16) == 0)
 				printk("\n%03x:", i);

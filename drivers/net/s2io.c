@@ -4092,6 +4092,7 @@ static void s2io_set_multicast(struct net_device *dev)
 		     i++, mclist = mclist->next) {
 			memcpy(sp->usr_addrs[i].addr, mclist->dmi_addr,
 			       ETH_ALEN);
+			mac_addr = 0;
 			for (j = 0; j < ETH_ALEN; j++) {
 				mac_addr |= mclist->dmi_addr[j];
 				mac_addr <<= 8;

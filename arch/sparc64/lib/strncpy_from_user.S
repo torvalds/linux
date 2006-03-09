@@ -125,7 +125,7 @@ __strncpy_from_user:
 	 add	%o2, %o3, %o0
 	.size	__strncpy_from_user, .-__strncpy_from_user
 
-	.section __ex_table,#alloc
+	.section __ex_table,"a"
 	.align	4
 	.word	60b, __retl_efault
 	.word	61b, __retl_efault
