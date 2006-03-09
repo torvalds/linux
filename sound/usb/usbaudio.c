@@ -773,6 +773,31 @@ static int deactivate_urbs(struct snd_usb_substream *subs, int force, int can_sl
 }
 
 
+static const char *usb_error_string(int err)
+{
+	switch (err) {
+	case -ENODEV:
+		return "no device";
+	case -ENOENT:
+		return "endpoint not enabled";
+	case -EPIPE:
+		return "endpoint stalled";
+	case -ENOSPC:
+		return "not enough bandwidth";
+	case -ESHUTDOWN:
+		return "device disabled";
+	case -EHOSTUNREACH:
+		return "device suspended";
+	case -EINVAL:
+	case -EAGAIN:
+	case -EFBIG:
+	case -EMSGSIZE:
+		return "internal error";
+	default:
+		return "unknown error";
+	}
+}
+
 /*
  * set up and start data/sync urbs
  */
@@ -805,16 +830,22 @@ static int start_urbs(struct snd_usb_substream *subs, struct snd_pcm_runtime *ru
 	subs->unlink_mask = 0;
 	subs->running = 1;
 	for (i = 0; i < subs->nurbs; i++) {
-		if ((err = usb_submit_urb(subs->dataurb[i].urb, GFP_ATOMIC)) < 0) {
-			snd_printk(KERN_ERR "cannot submit datapipe for urb %d, err = %d\n", i, err);
+		err = usb_submit_urb(subs->dataurb[i].urb, GFP_ATOMIC);
+		if (err < 0) {
+			snd_printk(KERN_ERR "cannot submit datapipe "
+				   "for urb %d, error %d: %s\n",
+				   i, err, usb_error_string(err));
 			goto __error;
 		}
 		set_bit(i, &subs->active_mask);
 	}
 	if (subs->syncpipe) {
 		for (i = 0; i < SYNC_URBS; i++) {
-			if ((err = usb_submit_urb(subs->syncurb[i].urb, GFP_ATOMIC)) < 0) {
-				snd_printk(KERN_ERR "cannot submit syncpipe for urb %d, err = %d\n", i, err);
+			err = usb_submit_urb(subs->syncurb[i].urb, GFP_ATOMIC);
+			if (err < 0) {
+				snd_printk(KERN_ERR "cannot submit syncpipe "
+					   "for urb %d, error %d: %s\n",
+					   i, err, usb_error_string(err));
 				goto __error;
 			}
 			set_bit(i + 16, &subs->active_mask);
