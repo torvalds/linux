@@ -3061,7 +3061,8 @@ findFirstRetry:
 	pSMB->TotalParameterCount = cpu_to_le16(params);
 	pSMB->ParameterCount = pSMB->TotalParameterCount;
 	pSMB->ParameterOffset = cpu_to_le16(
-	  offsetof(struct smb_com_transaction2_ffirst_req, SearchAttributes) - 4);
+	      offsetof(struct smb_com_transaction2_ffirst_req, SearchAttributes)
+		- 4);
 	pSMB->DataCount = 0;
 	pSMB->DataOffset = 0;
 	pSMB->SetupCount = 1;	/* one byte, no need to make endian neutral */
@@ -3084,12 +3085,12 @@ findFirstRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->num_ffirst);
 
-	if (rc) {/* BB add logic to retry regular search if Unix search rejected unexpectedly by server */
+	if (rc) {/* BB add logic to retry regular search if Unix search
+			rejected unexpectedly by server */
 		/* BB Add code to handle unsupported level rc */
 		cFYI(1, ("Error in FindFirst = %d", rc));
 
-		if (pSMB)
-			cifs_buf_release(pSMB);
+		cifs_buf_release(pSMB);
 
 		/* BB eventually could optimize out free and realloc of buf */
 		/*    for this case */
