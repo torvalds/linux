@@ -1406,6 +1406,17 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* Casio devices */
+{
+	USB_DEVICE(0x07cf, 0x6802),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Casio",
+		.product_name = "AP-80R",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_YAMAHA
+	}
+},
+
 /* Mark of the Unicorn devices */
 {
 	/* thanks to Robert A. Lerche <ral 'at' msbit.com> */
