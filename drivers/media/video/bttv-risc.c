@@ -276,6 +276,8 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 		if (line > maxy)
 			btcx_calc_skips(line, ov->w.width, &maxy,
 					skips, &nskips, ov->clips, ov->nclips);
+		else
+			nskips = 0;
 
 		/* write out risc code */
 		for (start = 0, skip = 0; start < ov->w.width; start = end) {
