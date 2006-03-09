@@ -143,10 +143,43 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 	struct cx88_buffer *buf;
 	struct list_head *item;
 
-	dprintk( 0, "cx8802_restart_queue\n" );
+       dprintk( 1, "cx8802_restart_queue\n" );
 	if (list_empty(&q->active))
 	{
-		dprintk( 0, "cx8802_restart_queue: queue is empty\n" );
+	       struct cx88_buffer *prev;
+	       prev = NULL;
+
+	       dprintk(1, "cx8802_restart_queue: queue is empty\n" );
+
+	       for (;;) {
+		       if (list_empty(&q->queued))
+			       return 0;
+		       buf = list_entry(q->queued.next, struct cx88_buffer, vb.queue);
+		       if (NULL == prev) {
+			       list_del(&buf->vb.queue);
+			       list_add_tail(&buf->vb.queue,&q->active);
+			       cx8802_start_dma(dev, q, buf);
+			       buf->vb.state = STATE_ACTIVE;
+			       buf->count    = q->count++;
+			       mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
+			       dprintk(1,"[%p/%d] restart_queue - first active\n",
+				       buf,buf->vb.i);
+
+		       } else if (prev->vb.width  == buf->vb.width  &&
+				  prev->vb.height == buf->vb.height &&
+				  prev->fmt       == buf->fmt) {
+			       list_del(&buf->vb.queue);
+			       list_add_tail(&buf->vb.queue,&q->active);
+			       buf->vb.state = STATE_ACTIVE;
+			       buf->count    = q->count++;
+			       prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
+			       dprintk(1,"[%p/%d] restart_queue - move to active\n",
+				       buf,buf->vb.i);
+		       } else {
+			       return 0;
+		       }
+		       prev = buf;
+	       }
 		return 0;
 	}
 
