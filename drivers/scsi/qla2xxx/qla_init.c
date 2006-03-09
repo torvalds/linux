@@ -3263,8 +3263,12 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	/* Determine NVRAM starting address. */
 	ha->nvram_size = sizeof(struct nvram_24xx);
 	ha->nvram_base = FA_NVRAM_FUNC0_ADDR;
-	if (PCI_FUNC(ha->pdev->devfn))
+	ha->vpd_size = FA_NVRAM_VPD_SIZE;
+	ha->vpd_base = FA_NVRAM_VPD0_ADDR;
+	if (PCI_FUNC(ha->pdev->devfn)) {
 		ha->nvram_base = FA_NVRAM_FUNC1_ADDR;
+		ha->vpd_base = FA_NVRAM_VPD1_ADDR;
+	}
 
 	/* Get NVRAM data and calculate checksum. */
 	dptr = (uint32_t *)nv;

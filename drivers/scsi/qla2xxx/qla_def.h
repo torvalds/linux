@@ -2344,6 +2344,8 @@ typedef struct scsi_qla_host {
 	/* NVRAM configuration data */
 	uint16_t	nvram_size;
 	uint16_t	nvram_base;
+	uint16_t	vpd_size;
+	uint16_t	vpd_base;
 
 	uint16_t	loop_reset_delay;
 	uint8_t		retry_count;
