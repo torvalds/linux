@@ -1505,9 +1505,9 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 				index = (ha->pdev->subsystem_device & 0xff);
 				if (index < QLA_MODEL_NAMES) {
 					strcpy(ha->model_number,
-					    qla2x00_model_name[index]);
+					    qla2x00_model_name[index * 2]);
 					ha->model_desc =
-					    qla2x00_model_desc[index];
+					    qla2x00_model_name[index * 2 + 1];
 				} else {
 					strcpy(ha->model_number, "QLA23xx");
 				}
@@ -3373,7 +3373,7 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 
 		index = (ha->pdev->subsystem_device & 0xff);
 		if (index < QLA_MODEL_NAMES)
-			ha->model_desc = qla2x00_model_desc[index];
+			ha->model_desc = qla2x00_model_name[index * 2 + 1];
 	} else
 		strcpy(ha->model_number, "QLA2462");
 
