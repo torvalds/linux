@@ -335,6 +335,12 @@ running once the system is up.
 			timesource is not avalible, it defaults to PIT.
 			Format: { pit | tsc | cyclone | pmtmr }
 
+	disable_8254_timer
+	enable_8254_timer
+			[IA32/X86_64] Disable/Enable interrupt 0 timer routing
+			over the 8254 in addition to over the IO-APIC. The
+			kernel tries to set a sensible default.
+
 	hpet=		[IA-32,HPET] option to disable HPET and use PIT.
 			Format: disable
 
