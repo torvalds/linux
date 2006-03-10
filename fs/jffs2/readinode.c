@@ -112,7 +112,7 @@ static struct jffs2_raw_node_ref *jffs2_first_valid_node(struct jffs2_raw_node_r
  * 	    negative error code on failure.
  */
 static inline int read_direntry(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref,
-				struct jffs2_raw_dirent *rd, uint32_t read, struct jffs2_full_dirent **fdp,
+				struct jffs2_raw_dirent *rd, size_t read, struct jffs2_full_dirent **fdp,
 				uint32_t *latest_mctime, uint32_t *mctime_ver)
 {
 	struct jffs2_full_dirent *fd;
