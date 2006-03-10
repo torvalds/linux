@@ -37,7 +37,7 @@
 #include "dvbdev.h"
 #include "demux.h"
 
-enum dmxdevype {
+enum dmxdev_type {
 	DMXDEV_TYPE_NONE,
 	DMXDEV_TYPE_SEC,
 	DMXDEV_TYPE_PES,
@@ -76,7 +76,7 @@ struct dmxdev_filter {
 		struct dmx_pes_filter_params pes;
 	} params;
 
-	int type;
+	enum dmxdev_type type;
 	enum dmxdev_state state;
 	struct dmxdev *dev;
 	struct dmxdev_buffer buffer;
