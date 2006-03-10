@@ -1063,6 +1063,7 @@ void sas_release_transport(struct scsi_transport_template *t)
 	transport_container_unregister(&i->t.host_attrs);
 	transport_container_unregister(&i->phy_attr_cont);
 	transport_container_unregister(&i->rphy_attr_cont);
+	transport_container_unregister(&i->end_dev_attr_cont);
 
 	kfree(i);
 }
