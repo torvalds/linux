@@ -89,8 +89,6 @@ struct dmxdev_filter {
 	struct timer_list timer;
 	int todo;
 	u8 secheader[3];
-
-	u16 pid;
 };
 
 

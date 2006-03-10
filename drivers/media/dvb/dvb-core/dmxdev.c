@@ -454,7 +454,7 @@ static int dvb_dmxdev_feed_restart(struct dmxdev_filter *filter)
 	for (i=0; i<dmxdev->filternum; i++)
 		if (dmxdev->filter[i].state>=DMXDEV_STATE_GO &&
 		    dmxdev->filter[i].type==DMXDEV_TYPE_SEC &&
-		    dmxdev->filter[i].pid==pid) {
+		    dmxdev->filter[i].params.sec.pid==pid) {
 			dvb_dmxdev_feed_start(&dmxdev->filter[i]);
 			return 0;
 		}
@@ -505,7 +505,6 @@ static inline int dvb_dmxdev_filter_reset(struct dmxdev_filter *dmxdevfilter)
 		return 0;
 
 	dmxdevfilter->type=DMXDEV_TYPE_NONE;
-	dmxdevfilter->pid=0xffff;
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_ALLOCATED);
 	return 0;
 }
@@ -546,8 +545,8 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 		/* find active filter/feed with same PID */
 		for (i=0; i<dmxdev->filternum; i++) {
 			if (dmxdev->filter[i].state >= DMXDEV_STATE_GO &&
-			    dmxdev->filter[i].pid == para->pid &&
-			    dmxdev->filter[i].type == DMXDEV_TYPE_SEC) {
+			    dmxdev->filter[i].type == DMXDEV_TYPE_SEC &&
+			    dmxdev->filter[i].params.sec.pid == para->pid) {
 				*secfeed = dmxdev->filter[i].feed.sec;
 				break;
 			}
@@ -756,7 +755,6 @@ static int dvb_dmxdev_filter_set(struct dmxdev *dmxdev,
 	dvb_dmxdev_filter_stop(dmxdevfilter);
 
 	dmxdevfilter->type=DMXDEV_TYPE_SEC;
-	dmxdevfilter->pid=params->pid;
 	memcpy(&dmxdevfilter->params.sec,
 	       params, sizeof(struct dmx_sct_filter_params));
 	invert_mode(&dmxdevfilter->params.sec.filter);
@@ -778,7 +776,6 @@ static int dvb_dmxdev_pes_filter_set(struct dmxdev *dmxdev,
 		return -EINVAL;
 
 	dmxdevfilter->type=DMXDEV_TYPE_PES;
-	dmxdevfilter->pid=params->pid;
 	memcpy(&dmxdevfilter->params, params, sizeof(struct dmx_pes_filter_params));
 
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_SET);
