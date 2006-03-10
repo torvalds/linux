@@ -764,6 +764,7 @@ vicam_open(struct inode *inode, struct file *file)
 	if (!cam) {
 		printk(KERN_ERR
 		       "vicam video_device improperly initialized");
+		return -EINVAL;
 	}
 
 	/* the videodev_lock held above us protects us from
