@@ -244,7 +244,7 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	for (i=1; (p4clockmod_table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		if ((i<2) && (has_N44_O17_errata[policy->cpu]))
 			p4clockmod_table[i].frequency = CPUFREQ_ENTRY_INVALID;
-		else if (has_N60_errata[policy->cpu] && p4clockmod_table[i].frequency < 2000000)
+		else if (has_N60_errata[policy->cpu] && ((stock_freq * i)/8) < 2000000)
 			p4clockmod_table[i].frequency = CPUFREQ_ENTRY_INVALID;
 		else
 			p4clockmod_table[i].frequency = (stock_freq * i)/8;
