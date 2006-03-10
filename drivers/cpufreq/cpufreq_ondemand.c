@@ -395,8 +395,11 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			return -EINVAL;
 
 		if (policy->cpuinfo.transition_latency >
-				(TRANSITION_LATENCY_LIMIT * 1000))
+				(TRANSITION_LATENCY_LIMIT * 1000)) {
+			printk(KERN_WARNING "ondemand governor failed to load "
+			       "due to too long transition latency\n");
 			return -EINVAL;
+		}
 		if (this_dbs_info->enable) /* Already enabled */
 			break;
 
