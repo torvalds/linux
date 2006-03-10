@@ -690,7 +690,12 @@ void dlm_lockres_calc_usage(struct dlm_ctxt *dlm,
 			    struct dlm_lock_resource *res);
 void dlm_purge_lockres(struct dlm_ctxt *dlm,
 		       struct dlm_lock_resource *lockres);
-void dlm_lockres_get(struct dlm_lock_resource *res);
+static inline void dlm_lockres_get(struct dlm_lock_resource *res)
+{
+	/* This is called on every lookup, so it might be worth
+	 * inlining. */
+	kref_get(&res->refs);
+}
 void dlm_lockres_put(struct dlm_lock_resource *res);
 void __dlm_unhash_lockres(struct dlm_lock_resource *res);
 void __dlm_insert_lockres(struct dlm_ctxt *dlm,

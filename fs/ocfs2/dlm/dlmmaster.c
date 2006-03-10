@@ -579,11 +579,6 @@ static void dlm_lockres_release(struct kref *kref)
 	kfree(res);
 }
 
-void dlm_lockres_get(struct dlm_lock_resource *res)
-{
-	kref_get(&res->refs);
-}
-
 void dlm_lockres_put(struct dlm_lock_resource *res)
 {
 	kref_put(&res->refs, dlm_lockres_release);
