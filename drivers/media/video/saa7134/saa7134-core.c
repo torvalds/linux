@@ -66,6 +66,11 @@ static unsigned int latency = UNSET;
 module_param(latency, int, 0444);
 MODULE_PARM_DESC(latency,"pci latency timer");
 
+static int no_overlay=-1;
+module_param(no_overlay, int, 0444);
+MODULE_PARM_DESC(no_overlay,"allow override overlay default (0 disables, 1 enables)"
+		" [some VIA/SIS chipsets are known to have problem with overlay]");
+
 static unsigned int video_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 static unsigned int vbi_nr[]   = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 static unsigned int radio_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
@@ -835,6 +840,22 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 			latency = 0x0A;
 		}
 #endif
+		if (pci_pci_problems & PCIPCI_FAIL) {
+			printk(KERN_INFO "%s: quirk: this driver and your "
+					"chipset may not work together"
+					" in overlay mode.\n",dev->name);
+			if (!no_overlay) {
+				printk(KERN_INFO "%s: quirk: overlay "
+						"mode will be disabled.\n",
+						dev->name);
+				no_overlay = 1;
+			} else {
+				printk(KERN_INFO "%s: quirk: overlay "
+						"mode will be forced. Use this"
+						" option at your own risk.\n",
+						dev->name);
+			}
+		}
 	}
 	if (UNSET != latency) {
 		printk(KERN_INFO "%s: setting pci latency timer to %d\n",

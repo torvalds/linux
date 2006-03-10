@@ -137,6 +137,8 @@ MODULE_PARM_DESC(card,"specify TV/grabber card model, see CARDLIST file for a li
 MODULE_PARM_DESC(pll,"specify installed crystal (0=none, 28=28 MHz, 35=35 MHz)");
 MODULE_PARM_DESC(tuner,"specify installed tuner type");
 MODULE_PARM_DESC(autoload,"automatically load i2c modules like tuner.o, default is 1 (yes)");
+MODULE_PARM_DESC(no_overlay,"allow override overlay default (0 disables, 1 enables)"
+		" [some VIA/SIS chipsets are known to have problem with overlay]");
 
 /* ----------------------------------------------------------------------- */
 /* list of card IDs for bt878+ cards                                       */
@@ -4944,12 +4946,14 @@ void __devinit bttv_check_chipset(void)
 	if (vsfx)
 		printk(KERN_INFO "bttv: Host bridge needs VSFX enabled.\n");
 	if (pcipci_fail) {
-		printk(KERN_WARNING "bttv: BT848 and your chipset may not work together.\n");
+		printk(KERN_INFO "bttv: bttv and your chipset may not work "
+							"together.\n");
 		if (!no_overlay) {
-			printk(KERN_WARNING "bttv: overlay will be disabled.\n");
+			printk(KERN_INFO "bttv: overlay will be disabled.\n");
 			no_overlay = 1;
 		} else {
-			printk(KERN_WARNING "bttv: overlay forced. Use this option at your own risk.\n");
+			printk(KERN_INFO "bttv: overlay forced. Use this "
+						"option at your own risk.\n");
 		}
 	}
 	if (UNSET != latency)
