@@ -39,6 +39,9 @@
 
 #define DLM_HASH_BUCKETS     (PAGE_SIZE / sizeof(struct hlist_head))
 
+/* Intended to make it easier for us to switch out hash functions */
+#define dlm_lockid_hash(_n, _l) full_name_hash(_n, _l)
+
 enum dlm_ast_type {
 	DLM_AST = 0,
 	DLM_BAST,
@@ -694,7 +697,8 @@ void __dlm_insert_lockres(struct dlm_ctxt *dlm,
 			  struct dlm_lock_resource *res);
 struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
 						const char *name,
-						unsigned int len);
+						unsigned int len,
+						unsigned int hash);
 struct dlm_lock_resource * dlm_lookup_lockres(struct dlm_ctxt *dlm,
 					      const char *name,
 					      unsigned int len);

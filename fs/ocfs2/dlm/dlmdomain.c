@@ -90,7 +90,6 @@ void __dlm_insert_lockres(struct dlm_ctxt *dlm,
 	assert_spin_locked(&dlm->spinlock);
 
 	q = &res->lockname;
-	q->hash = full_name_hash(q->name, q->len);
 	bucket = &(dlm->lockres_hash[q->hash % DLM_HASH_BUCKETS]);
 
 	/* get a reference for our hashtable */
@@ -100,10 +99,10 @@ void __dlm_insert_lockres(struct dlm_ctxt *dlm,
 }
 
 struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
-					 const char *name,
-					 unsigned int len)
+						const char *name,
+						unsigned int len,
+						unsigned int hash)
 {
-	unsigned int hash;
 	struct hlist_node *iter;
 	struct dlm_lock_resource *tmpres=NULL;
 	struct hlist_head *bucket;
@@ -111,8 +110,6 @@ struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
 	mlog_entry("%.*s\n", len, name);
 
 	assert_spin_locked(&dlm->spinlock);
-
-	hash = full_name_hash(name, len);
 
 	bucket = &(dlm->lockres_hash[hash % DLM_HASH_BUCKETS]);
 
@@ -135,9 +132,10 @@ struct dlm_lock_resource * dlm_lookup_lockres(struct dlm_ctxt *dlm,
 				    unsigned int len)
 {
 	struct dlm_lock_resource *res;
+	unsigned int hash = dlm_lockid_hash(name, len);
 
 	spin_lock(&dlm->spinlock);
-	res = __dlm_lookup_lockres(dlm, name, len);
+	res = __dlm_lookup_lockres(dlm, name, len, hash);
 	spin_unlock(&dlm->spinlock);
 	return res;
 }

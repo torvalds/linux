@@ -1404,6 +1404,7 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data)
 	struct dlm_ctxt *dlm = data;
 	struct dlm_master_requery *req = (struct dlm_master_requery *)msg->buf;
 	struct dlm_lock_resource *res = NULL;
+	unsigned int hash;
 	int master = DLM_LOCK_RES_OWNER_UNKNOWN;
 	u32 flags = DLM_ASSERT_MASTER_REQUERY;
 
@@ -1413,8 +1414,10 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data)
 		return master;
 	}
 
+	hash = dlm_lockid_hash(req->name, req->namelen);
+
 	spin_lock(&dlm->spinlock);
-	res = __dlm_lookup_lockres(dlm, req->name, req->namelen);
+	res = __dlm_lookup_lockres(dlm, req->name, req->namelen, hash);
 	if (res) {
 		spin_lock(&res->spinlock);
 		master = res->owner;

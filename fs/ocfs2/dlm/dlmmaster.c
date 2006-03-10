@@ -603,7 +603,7 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 	memcpy(qname, name, namelen);
 
 	res->lockname.len = namelen;
-	res->lockname.hash = full_name_hash(name, namelen);
+	res->lockname.hash = dlm_lockid_hash(name, namelen);
 
 	init_waitqueue_head(&res->wq);
 	spin_lock_init(&res->spinlock);
@@ -677,19 +677,20 @@ struct dlm_lock_resource * dlm_get_lock_resource(struct dlm_ctxt *dlm,
 	int blocked = 0;
 	int ret, nodenum;
 	struct dlm_node_iter iter;
-	unsigned int namelen;
+	unsigned int namelen, hash;
 	int tries = 0;
 	int bit, wait_on_recovery = 0;
 
 	BUG_ON(!lockid);
 
 	namelen = strlen(lockid);
+	hash = dlm_lockid_hash(lockid, namelen);
 
 	mlog(0, "get lockres %s (len %d)\n", lockid, namelen);
 
 lookup:
 	spin_lock(&dlm->spinlock);
-	tmpres = __dlm_lookup_lockres(dlm, lockid, namelen);
+	tmpres = __dlm_lookup_lockres(dlm, lockid, namelen, hash);
 	if (tmpres) {
 		spin_unlock(&dlm->spinlock);
 		mlog(0, "found in hash!\n");
@@ -1316,7 +1317,7 @@ int dlm_master_request_handler(struct o2net_msg *msg, u32 len, void *data)
 	struct dlm_master_request *request = (struct dlm_master_request *) msg->buf;
 	struct dlm_master_list_entry *mle = NULL, *tmpmle = NULL;
 	char *name;
-	unsigned int namelen;
+	unsigned int namelen, hash;
 	int found, ret;
 	int set_maybe;
 	int dispatch_assert = 0;
@@ -1331,6 +1332,7 @@ int dlm_master_request_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	name = request->name;
 	namelen = request->namelen;
+	hash = dlm_lockid_hash(name, namelen);
 
 	if (namelen > DLM_LOCKID_NAME_MAX) {
 		response = DLM_IVBUFLEN;
@@ -1339,7 +1341,7 @@ int dlm_master_request_handler(struct o2net_msg *msg, u32 len, void *data)
 
 way_up_top:
 	spin_lock(&dlm->spinlock);
-	res = __dlm_lookup_lockres(dlm, name, namelen);
+	res = __dlm_lookup_lockres(dlm, name, namelen, hash);
 	if (res) {
 		spin_unlock(&dlm->spinlock);
 
@@ -1612,7 +1614,7 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data)
 	struct dlm_assert_master *assert = (struct dlm_assert_master *)msg->buf;
 	struct dlm_lock_resource *res = NULL;
 	char *name;
-	unsigned int namelen;
+	unsigned int namelen, hash;
 	u32 flags;
 	int master_request = 0;
 	int ret = 0;
@@ -1622,6 +1624,7 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	name = assert->name;
 	namelen = assert->namelen;
+	hash = dlm_lockid_hash(name, namelen);
 	flags = be32_to_cpu(assert->flags);
 
 	if (namelen > DLM_LOCKID_NAME_MAX) {
@@ -1670,7 +1673,7 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	/* ok everything checks out with the MLE
 	 * now check to see if there is a lockres */
-	res = __dlm_lookup_lockres(dlm, name, namelen);
+	res = __dlm_lookup_lockres(dlm, name, namelen, hash);
 	if (res) {
 		spin_lock(&res->spinlock);
 		if (res->state & DLM_LOCK_RES_RECOVERING)  {
@@ -2462,7 +2465,7 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data)
 	struct dlm_migrate_request *migrate = (struct dlm_migrate_request *) msg->buf;
 	struct dlm_master_list_entry *mle = NULL, *oldmle = NULL;
 	const char *name;
-	unsigned int namelen;
+	unsigned int namelen, hash;
 	int ret = 0;
 
 	if (!dlm_grab(dlm))
@@ -2470,6 +2473,7 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	name = migrate->name;
 	namelen = migrate->namelen;
+	hash = dlm_lockid_hash(name, namelen);
 
 	/* preallocate.. if this fails, abort */
 	mle = (struct dlm_master_list_entry *) kmem_cache_alloc(dlm_mle_cache,
@@ -2482,7 +2486,7 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	/* check for pre-existing lock */
 	spin_lock(&dlm->spinlock);
-	res = __dlm_lookup_lockres(dlm, name, namelen);
+	res = __dlm_lookup_lockres(dlm, name, namelen, hash);
 	spin_lock(&dlm->master_lock);
 
 	if (res) {
@@ -2601,6 +2605,7 @@ void dlm_clean_master_list(struct dlm_ctxt *dlm, u8 dead_node)
 	struct list_head *iter, *iter2;
 	struct dlm_master_list_entry *mle;
 	struct dlm_lock_resource *res;
+	unsigned int hash;
 
 	mlog_entry("dlm=%s, dead node=%u\n", dlm->name, dead_node);
 top:
@@ -2684,8 +2689,9 @@ top:
 		     mle->master, mle->new_master);
 		/* if there is a lockres associated with this
 	 	 * mle, find it and set its owner to UNKNOWN */
+		hash = dlm_lockid_hash(mle->u.name.name, mle->u.name.len);
 		res = __dlm_lookup_lockres(dlm, mle->u.name.name,
-					mle->u.name.len);
+					   mle->u.name.len, hash);
 		if (res) {
 			/* unfortunately if we hit this rare case, our
 		 	 * lock ordering is messed.  we need to drop
