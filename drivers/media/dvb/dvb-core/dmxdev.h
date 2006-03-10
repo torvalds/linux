@@ -62,8 +62,6 @@ struct dmxdev_buffer {
 };
 
 struct dmxdev_filter {
-	struct dvb_device *dvbdev;
-
 	union {
 		struct dmx_section_filter *sec;
 	} filter;

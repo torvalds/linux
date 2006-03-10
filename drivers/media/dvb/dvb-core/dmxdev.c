@@ -694,7 +694,6 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 
 	dmxdevfilter=&dmxdev->filter[i];
 	mutex_init(&dmxdevfilter->mutex);
-	dmxdevfilter->dvbdev=dmxdev->dvbdev;
 	file->private_data=dmxdevfilter;
 
 	dvb_dmxdev_buffer_init(&dmxdevfilter->buffer);
