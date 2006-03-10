@@ -96,7 +96,7 @@ static int vbi_buffer_prepare(struct videobuf_queue *q,
 		return -EINVAL;
 
 	if (STATE_NEEDS_INIT == buf->vb.state) {
-		if (0 != (rc = videobuf_iolock(btv->c.pci, &buf->vb, NULL)))
+		if (0 != (rc = videobuf_iolock(q, &buf->vb, NULL)))
 			goto fail;
 		if (0 != (rc = vbi_buffer_risc(btv,buf,fh->lines)))
 			goto fail;
@@ -109,7 +109,7 @@ static int vbi_buffer_prepare(struct videobuf_queue *q,
 	return 0;
 
  fail:
-	bttv_dma_free(btv,buf);
+	bttv_dma_free(q,btv,buf);
 	return rc;
 }
 
@@ -136,7 +136,7 @@ static void vbi_buffer_release(struct videobuf_queue *q, struct videobuf_buffer 
 	struct bttv_buffer *buf = container_of(vb,struct bttv_buffer,vb);
 
 	dprintk("free %p\n",vb);
-	bttv_dma_free(fh->btv,buf);
+	bttv_dma_free(&fh->cap,fh->btv,buf);
 }
 
 struct videobuf_queue_ops bttv_vbi_qops = {

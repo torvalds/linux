@@ -89,7 +89,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		return -EINVAL;
 
 	if (buf->vb.size != size) {
-		saa7134_dma_free(dev,buf);
+		saa7134_dma_free(q,buf);
 	}
 
 	if (STATE_NEEDS_INIT == buf->vb.state) {
@@ -98,7 +98,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		buf->vb.size   = size;
 		buf->pt        = &dev->ts.pt_ts;
 
-		err = videobuf_iolock(dev->pci,&buf->vb,NULL);
+		err = videobuf_iolock(q,&buf->vb,NULL);
 		if (err)
 			goto oops;
 		err = saa7134_pgtable_build(dev->pci,buf->pt,
@@ -126,7 +126,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	return 0;
 
  oops:
-	saa7134_dma_free(dev,buf);
+	saa7134_dma_free(q,buf);
 	return err;
 }
 
@@ -152,10 +152,9 @@ static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 
 static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
-	struct saa7134_dev *dev = q->priv_data;
 	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
 
-	saa7134_dma_free(dev,buf);
+	saa7134_dma_free(q,buf);
 }
 
 struct videobuf_queue_ops saa7134_ts_qops = {

@@ -564,7 +564,7 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 
 	if (STATE_NEEDS_INIT == buf->vb.state) {
 		init_buffer = 1;
-		if (0 != (rc = videobuf_iolock(dev->pci,&buf->vb,NULL)))
+		if (0 != (rc = videobuf_iolock(q,&buf->vb,NULL)))
 			goto fail;
 	}
 
@@ -614,7 +614,7 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	return 0;
 
  fail:
-	cx88_free_buffer(dev->pci,buf);
+	cx88_free_buffer(q,buf);
 	return rc;
 }
 
@@ -671,9 +671,8 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
 	struct cx88_buffer *buf = container_of(vb,struct cx88_buffer,vb);
-	struct cx8800_fh   *fh  = q->priv_data;
 
-	cx88_free_buffer(fh->dev->pci,buf);
+	cx88_free_buffer(q,buf);
 }
 
 static struct videobuf_queue_ops cx8800_video_qops = {
@@ -1251,9 +1250,17 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 {
 	int err;
 
-	dprintk(2, "CORE IOCTL: 0x%x\n", cmd );
-	if (video_debug > 1)
-		v4l_print_ioctl(core->name,cmd);
+       if (video_debug) {
+	       if (video_debug > 1) {
+		       if (_IOC_DIR(cmd) & _IOC_WRITE)
+			       v4l_printk_ioctl_arg("cx88(w)",cmd, arg);
+		       else if (!_IOC_DIR(cmd) & _IOC_READ) {
+			       v4l_print_ioctl("cx88", cmd);
+		       }
+	       } else
+		       v4l_print_ioctl(core->name,cmd);
+
+       }
 
 	switch (cmd) {
 	/* ---------- tv norms ---------- */
@@ -1460,7 +1467,19 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 static int video_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
-	return video_usercopy(inode, file, cmd, arg, video_do_ioctl);
+       int retval;
+
+       retval=video_usercopy(inode, file, cmd, arg, video_do_ioctl);
+
+       if (video_debug > 1) {
+	       if (retval < 0) {
+		       v4l_print_ioctl("cx88(err)", cmd);
+		       printk(KERN_DEBUG "cx88(err): errcode=%d\n",retval);
+	       } else if (_IOC_DIR(cmd) & _IOC_READ)
+		       v4l_printk_ioctl_arg("cx88(r)",cmd, (void *)arg);
+       }
+
+       return retval;
 }
 
 /* ----------------------------------------------------------- */

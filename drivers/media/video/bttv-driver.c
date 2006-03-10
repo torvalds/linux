@@ -1397,7 +1397,7 @@ bttv_switch_overlay(struct bttv *btv, struct bttv_fh *fh,
 		free_btres(btv,fh,RESOURCE_OVERLAY);
 	if (NULL != old) {
 		dprintk("switch_overlay: old=%p state is %d\n",old,old->vb.state);
-		bttv_dma_free(btv, old);
+		bttv_dma_free(&fh->cap,btv, old);
 		kfree(old);
 	}
 	dprintk("switch_overlay: done\n");
@@ -1407,7 +1407,8 @@ bttv_switch_overlay(struct bttv *btv, struct bttv_fh *fh,
 /* ----------------------------------------------------------------------- */
 /* video4linux (1) interface                                               */
 
-static int bttv_prepare_buffer(struct bttv *btv, struct bttv_buffer *buf,
+static int bttv_prepare_buffer(struct videobuf_queue *q,struct bttv *btv,
+			       struct bttv_buffer *buf,
 			       const struct bttv_format *fmt,
 			       unsigned int width, unsigned int height,
 			       enum v4l2_field field)
@@ -1450,7 +1451,7 @@ static int bttv_prepare_buffer(struct bttv *btv, struct bttv_buffer *buf,
 	/* alloc risc memory */
 	if (STATE_NEEDS_INIT == buf->vb.state) {
 		redo_dma_risc = 1;
-		if (0 != (rc = videobuf_iolock(btv->c.pci,&buf->vb,&btv->fbuf)))
+		if (0 != (rc = videobuf_iolock(q,&buf->vb,&btv->fbuf)))
 			goto fail;
 	}
 
@@ -1462,7 +1463,7 @@ static int bttv_prepare_buffer(struct bttv *btv, struct bttv_buffer *buf,
 	return 0;
 
  fail:
-	bttv_dma_free(btv,buf);
+	bttv_dma_free(q,btv,buf);
 	return rc;
 }
 
@@ -1486,7 +1487,7 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	struct bttv_buffer *buf = container_of(vb,struct bttv_buffer,vb);
 	struct bttv_fh *fh = q->priv_data;
 
-	return bttv_prepare_buffer(fh->btv, buf, fh->fmt,
+	return bttv_prepare_buffer(q,fh->btv, buf, fh->fmt,
 				   fh->width, fh->height, field);
 }
 
@@ -1510,7 +1511,7 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	struct bttv_buffer *buf = container_of(vb,struct bttv_buffer,vb);
 	struct bttv_fh *fh = q->priv_data;
 
-	bttv_dma_free(fh->btv,buf);
+	bttv_dma_free(&fh->cap,fh->btv,buf);
 }
 
 static struct videobuf_queue_ops bttv_video_qops = {
@@ -2496,7 +2497,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		field = (vm->height > bttv_tvnorms[btv->tvnorm].sheight/2)
 			? V4L2_FIELD_INTERLACED
 			: V4L2_FIELD_BOTTOM;
-		retval = bttv_prepare_buffer(btv,buf,
+		retval = bttv_prepare_buffer(&fh->cap,btv,buf,
 					     format_by_palette(vm->format),
 					     vm->width,vm->height,field);
 		if (0 != retval)
@@ -2528,8 +2529,8 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			retval = -EIO;
 			/* fall through */
 		case STATE_DONE:
-			videobuf_dma_pci_sync(btv->c.pci,&buf->vb.dma);
-			bttv_dma_free(btv,buf);
+			videobuf_dma_sync(&fh->cap,&buf->vb.dma);
+			bttv_dma_free(&fh->cap,btv,buf);
 			break;
 		default:
 			retval = -EINVAL;

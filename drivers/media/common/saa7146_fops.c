@@ -50,14 +50,15 @@ void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits)
 /********************************************************************************/
 /* common dma functions */
 
-void saa7146_dma_free(struct saa7146_dev *dev,struct saa7146_buf *buf)
+void saa7146_dma_free(struct saa7146_dev *dev,struct videobuf_queue *q,
+						struct saa7146_buf *buf)
 {
 	DEB_EE(("dev:%p, buf:%p\n",dev,buf));
 
 	BUG_ON(in_interrupt());
 
 	videobuf_waiton(&buf->vb,0,0);
-	videobuf_dma_pci_unmap(dev->pci, &buf->vb.dma);
+	videobuf_dma_unmap(q, &buf->vb.dma);
 	videobuf_dma_free(&buf->vb.dma);
 	buf->vb.state = STATE_NEEDS_INIT;
 }

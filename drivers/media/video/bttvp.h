@@ -190,7 +190,8 @@ int bttv_buffer_activate_video(struct bttv *btv,
 			       struct bttv_buffer_set *set);
 int bttv_buffer_activate_vbi(struct bttv *btv,
 			     struct bttv_buffer *vbi);
-void bttv_dma_free(struct bttv *btv, struct bttv_buffer *buf);
+void bttv_dma_free(struct videobuf_queue *q, struct bttv *btv,
+		   struct bttv_buffer *buf);
 
 /* overlay handling */
 int bttv_overlay_risc(struct bttv *btv, struct bttv_overlay *ov,
