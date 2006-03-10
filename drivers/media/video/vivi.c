@@ -53,7 +53,7 @@
 #endif
 
 MODULE_DESCRIPTION("Video Technology Magazine Virtual Video Capture Board");
-MODULE_AUTHOR("Ted Walther and John Sokol");
+MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
 MODULE_LICENSE("Dual BSD/GPL");
 
 #define VIVI_MAJOR_VERSION 0
