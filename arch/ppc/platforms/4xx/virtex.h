@@ -27,7 +27,7 @@
 /* Device type enumeration for platform bus definitions */
 #ifndef __ASSEMBLY__
 enum ppc_sys_devices {
-	VIRTEX_UART,
+	VIRTEX_UART, NUM_PPC_SYS_DEVS,
 };
 #endif
   
