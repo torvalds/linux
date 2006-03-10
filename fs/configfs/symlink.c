@@ -66,7 +66,7 @@ static void fill_item_path(struct config_item * item, char * buffer, int length)
 }
 
 static int create_link(struct config_item *parent_item,
- 		       struct config_item *item,
+		       struct config_item *item,
 		       struct dentry *dentry)
 {
 	struct configfs_dirent *target_sd = item->ci_dentry->d_fsdata;
