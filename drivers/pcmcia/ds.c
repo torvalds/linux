@@ -464,7 +464,7 @@ static int pcmcia_device_remove(struct device * dev)
 	 * all devices
 	 */
 	did = (struct pcmcia_device_id *) p_dev->dev.driver_data;
-	if ((did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
+	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count != 0) &&
 	    (p_dev->device_no == 0))
 		pcmcia_card_remove(p_dev->socket, p_dev);
