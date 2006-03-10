@@ -103,28 +103,27 @@ struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
 						unsigned int len,
 						unsigned int hash)
 {
-	struct hlist_node *iter;
-	struct dlm_lock_resource *tmpres=NULL;
 	struct hlist_head *bucket;
+	struct hlist_node *list;
 
 	mlog_entry("%.*s\n", len, name);
 
 	assert_spin_locked(&dlm->spinlock);
 
-	bucket = &(dlm->lockres_hash[hash % DLM_HASH_BUCKETS]);
-
-	/* check for pre-existing lock */
-	hlist_for_each(iter, bucket) {
-		tmpres = hlist_entry(iter, struct dlm_lock_resource, hash_node);
-		if (tmpres->lockname.len == len &&
-		    memcmp(tmpres->lockname.name, name, len) == 0) {
-			dlm_lockres_get(tmpres);
-			break;
-		}
-
-		tmpres = NULL;
+	bucket = dlm->lockres_hash + full_name_hash(name, len) % DLM_HASH_BUCKETS;
+	hlist_for_each(list, bucket) {
+		struct dlm_lock_resource *res = hlist_entry(list,
+			struct dlm_lock_resource, hash_node);
+		if (res->lockname.name[0] != name[0])
+			continue;
+		if (unlikely(res->lockname.len != len))
+			continue;
+		if (memcmp(res->lockname.name + 1, name + 1, len - 1))
+			continue;
+		dlm_lockres_get(res);
+		return res;
 	}
-	return tmpres;
+	return NULL;
 }
 
 struct dlm_lock_resource * dlm_lookup_lockres(struct dlm_ctxt *dlm,
