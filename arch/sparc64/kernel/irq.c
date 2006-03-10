@@ -694,7 +694,7 @@ irqreturn_t sparc_floppy_irq(int irq, void *dev_cookie, struct pt_regs *regs)
 		val = readb(auxio_register);
 		val |= AUXIO_AUX1_FTCNT;
 		writeb(val, auxio_register);
-		val &= AUXIO_AUX1_FTCNT;
+		val &= ~AUXIO_AUX1_FTCNT;
 		writeb(val, auxio_register);
 
 		doing_pdma = 0;
