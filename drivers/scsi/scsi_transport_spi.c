@@ -1089,17 +1089,19 @@ EXPORT_SYMBOL_GPL(spi_populate_ppr_msg);
 
 #ifdef CONFIG_SCSI_CONSTANTS
 static const char * const one_byte_msgs[] = {
-/* 0x00 */ "Command Complete", NULL, "Save Pointers",
+/* 0x00 */ "Task Complete", NULL /* Extended Message */, "Save Pointers",
 /* 0x03 */ "Restore Pointers", "Disconnect", "Initiator Error", 
-/* 0x06 */ "Abort", "Message Reject", "Nop", "Message Parity Error",
+/* 0x06 */ "Abort Task Set", "Message Reject", "Nop", "Message Parity Error",
 /* 0x0a */ "Linked Command Complete", "Linked Command Complete w/flag",
-/* 0x0c */ "Bus device reset", "Abort Tag", "Clear Queue", 
-/* 0x0f */ "Initiate Recovery", "Release Recovery"
+/* 0x0c */ "Target Reset", "Abort Task", "Clear Task Set", 
+/* 0x0f */ "Initiate Recovery", "Release Recovery",
+/* 0x11 */ "Terminate Process", "Continue Task", "Target Transfer Disable",
+/* 0x14 */ NULL, NULL, "Clear ACA", "LUN Reset"
 };
 
 static const char * const two_byte_msgs[] = {
 /* 0x20 */ "Simple Queue Tag", "Head of Queue Tag", "Ordered Queue Tag",
-/* 0x23 */ "Ignore Wide Residue"
+/* 0x23 */ "Ignore Wide Residue", "ACA"
 };
 
 static const char * const extended_msgs[] = {
@@ -1131,7 +1133,7 @@ static void print_ptr(const unsigned char *msg, int msb, const char *desc)
 
 int spi_print_msg(const unsigned char *msg)
 {
-	int len = 0, i;
+	int len = 1, i;
 	if (msg[0] == EXTENDED_MESSAGE) {
 		len = 2 + msg[1];
 		if (len == 2)
@@ -1168,14 +1170,14 @@ int spi_print_msg(const unsigned char *msg)
 			(msg[0] & 0x40) ? "" : "not ",
 			(msg[0] & 0x20) ? "target routine" : "lun",
 			msg[0] & 0x7);
-		len = 1;
 	/* Normal One byte */
 	} else if (msg[0] < 0x1f) {
-		if (msg[0] < ARRAY_SIZE(one_byte_msgs))
+		if (msg[0] < ARRAY_SIZE(one_byte_msgs) && one_byte_msgs[msg[0]])
 			printk("%s ", one_byte_msgs[msg[0]]);
 		else
 			printk("reserved (%02x) ", msg[0]);
-		len = 1;
+	} else if (msg[0] == 0x55) {
+		printk("QAS Request ");
 	/* Two byte */
 	} else if (msg[0] <= 0x2f) {
 		if ((msg[0] - 0x20) < ARRAY_SIZE(two_byte_msgs))
@@ -1195,7 +1197,7 @@ EXPORT_SYMBOL(spi_print_msg);
 
 int spi_print_msg(const unsigned char *msg)
 {
-	int len = 0, i;
+	int len = 1, i;
 
 	if (msg[0] == EXTENDED_MESSAGE) {
 		len = 2 + msg[1];
@@ -1206,11 +1208,9 @@ int spi_print_msg(const unsigned char *msg)
 	/* Identify */
 	} else if (msg[0] & 0x80) {
 		printk("%02x ", msg[0]);
-		len = 1;
 	/* Normal One byte */
-	} else if (msg[0] < 0x1f) {
+	} else if ((msg[0] < 0x1f) || (msg == 0x55)) {
 		printk("%02x ", msg[0]);
-		len = 1;
 	/* Two byte */
 	} else if (msg[0] <= 0x2f) {
 		printk("%02x %02x", msg[0], msg[1]);
