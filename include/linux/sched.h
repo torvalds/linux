@@ -892,7 +892,6 @@ static inline int pid_alive(struct task_struct *p)
 }
 
 extern void free_task(struct task_struct *tsk);
-extern void __put_task_struct(struct task_struct *tsk);
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 
 extern void __put_task_struct_cb(struct rcu_head *rhp);
