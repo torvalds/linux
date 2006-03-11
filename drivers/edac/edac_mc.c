@@ -132,11 +132,13 @@ static struct kobject edac_pci_kobj;
  * /sys/devices/system/edac/mc;
  * 	data structures and methods
  */
+#if 0
 static ssize_t memctrl_string_show(void *ptr, char *buffer)
 {
 	char *value = (char*) ptr;
 	return sprintf(buffer, "%s\n", value);
 }
+#endif
 
 static ssize_t memctrl_int_show(void *ptr, char *buffer)
 {
@@ -207,7 +209,9 @@ struct memctrl_dev_attribute attr_##_name = {			\
 };
 
 /* cwrow<id> attribute f*/
+#if 0
 MEMCTRL_STRING_ATTR(mc_version,EDAC_MC_VERSION,S_IRUGO,memctrl_string_show,NULL);
+#endif
 
 /* csrow<id> control files */
 MEMCTRL_ATTR(panic_on_ue,S_IRUGO|S_IWUSR,memctrl_int_show,memctrl_int_store);
@@ -222,7 +226,6 @@ static struct memctrl_dev_attribute *memctrl_attr[] = {
 	&attr_log_ue,
 	&attr_log_ce,
 	&attr_poll_msec,
-	&attr_mc_version,
 	NULL,
 };
 
@@ -309,6 +312,8 @@ struct list_control {
 	int *count;
 };
 
+
+#if 0
 /* Output the list as:  vendor_id:device:id<,vendor_id:device_id> */
 static ssize_t edac_pci_list_string_show(void *ptr, char *buffer)
 {
@@ -430,6 +435,7 @@ static ssize_t edac_pci_list_string_store(void *ptr, const char *buffer,
 	return count;
 }
 
+#endif
 static ssize_t edac_pci_int_show(void *ptr, char *buffer)
 {
 	int *value = ptr;
@@ -498,6 +504,7 @@ struct edac_pci_dev_attribute edac_pci_attr_##_name = {		\
 	.store  = _store,					\
 };
 
+#if 0
 static struct list_control pci_whitelist_control = {
 	.list = pci_whitelist,
 	.count = &pci_whitelist_count
@@ -520,6 +527,7 @@ EDAC_PCI_STRING_ATTR(pci_parity_blacklist,
 	S_IRUGO|S_IWUSR,
 	edac_pci_list_string_show,
 	edac_pci_list_string_store);
+#endif
 
 /* PCI Parity control files */
 EDAC_PCI_ATTR(check_pci_parity,S_IRUGO|S_IWUSR,edac_pci_int_show,edac_pci_int_store);
@@ -531,8 +539,6 @@ static struct edac_pci_dev_attribute *edac_pci_attr[] = {
 	&edac_pci_attr_check_pci_parity,
 	&edac_pci_attr_panic_on_pci_parity,
 	&edac_pci_attr_pci_parity_count,
-	&edac_pci_attr_pci_parity_whitelist,
-	&edac_pci_attr_pci_parity_blacklist,
 	NULL,
 };
 
