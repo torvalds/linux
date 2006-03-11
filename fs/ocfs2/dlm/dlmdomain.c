@@ -49,6 +49,30 @@
 #define MLOG_MASK_PREFIX (ML_DLM|ML_DLM_DOMAIN)
 #include "cluster/masklog.h"
 
+static void dlm_free_pagevec(void **vec, int pages)
+{
+	while (pages--)
+		free_page((unsigned long)vec[pages]);
+	kfree(vec);
+}
+
+static void **dlm_alloc_pagevec(int pages)
+{
+	void **vec = kmalloc(pages * sizeof(void *), GFP_KERNEL);
+	int i;
+
+	if (!vec)
+		return NULL;
+
+	for (i = 0; i < pages; i++)
+		if (!(vec[i] = (void *)__get_free_page(GFP_KERNEL)))
+			goto out_free;
+	return vec;
+out_free:
+	dlm_free_pagevec(vec, i);
+	return NULL;
+}
+
 /*
  *
  * spinlock lock ordering: if multiple locks are needed, obey this ordering:
@@ -90,7 +114,7 @@ void __dlm_insert_lockres(struct dlm_ctxt *dlm,
 	assert_spin_locked(&dlm->spinlock);
 
 	q = &res->lockname;
-	bucket = &(dlm->lockres_hash[q->hash % DLM_HASH_BUCKETS]);
+	bucket = dlm_lockres_hash(dlm, q->hash);
 
 	/* get a reference for our hashtable */
 	dlm_lockres_get(res);
@@ -110,7 +134,8 @@ struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
 
 	assert_spin_locked(&dlm->spinlock);
 
-	bucket = dlm->lockres_hash + full_name_hash(name, len) % DLM_HASH_BUCKETS;
+	bucket = dlm_lockres_hash(dlm, hash);
+
 	hlist_for_each(list, bucket) {
 		struct dlm_lock_resource *res = hlist_entry(list,
 			struct dlm_lock_resource, hash_node);
@@ -191,7 +216,7 @@ static int dlm_wait_on_domain_helper(const char *domain)
 static void dlm_free_ctxt_mem(struct dlm_ctxt *dlm)
 {
 	if (dlm->lockres_hash)
-		free_page((unsigned long) dlm->lockres_hash);
+		dlm_free_pagevec((void **)dlm->lockres_hash, DLM_HASH_PAGES);
 
 	if (dlm->name)
 		kfree(dlm->name);
@@ -301,8 +326,8 @@ static void dlm_migrate_all_locks(struct dlm_ctxt *dlm)
 restart:
 	spin_lock(&dlm->spinlock);
 	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
-		while (!hlist_empty(&dlm->lockres_hash[i])) {
-			res = hlist_entry(dlm->lockres_hash[i].first,
+		while (!hlist_empty(dlm_lockres_hash(dlm, i))) {
+			res = hlist_entry(dlm_lockres_hash(dlm, i)->first,
 					  struct dlm_lock_resource, hash_node);
 			/* need reference when manually grabbing lockres */
 			dlm_lockres_get(res);
@@ -1188,7 +1213,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 		goto leave;
 	}
 
-	dlm->lockres_hash = (struct hlist_head *) __get_free_page(GFP_KERNEL);
+	dlm->lockres_hash = (struct hlist_head **)dlm_alloc_pagevec(DLM_HASH_PAGES);
 	if (!dlm->lockres_hash) {
 		mlog_errno(-ENOMEM);
 		kfree(dlm->name);
@@ -1197,8 +1222,8 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 		goto leave;
 	}
 
-	for (i=0; i<DLM_HASH_BUCKETS; i++)
-		INIT_HLIST_HEAD(&dlm->lockres_hash[i]);
+	for (i = 0; i < DLM_HASH_BUCKETS; i++)
+		INIT_HLIST_HEAD(dlm_lockres_hash(dlm, i));
 
 	strcpy(dlm->name, domain);
 	dlm->key = key;
