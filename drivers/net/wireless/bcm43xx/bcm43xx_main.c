@@ -2018,12 +2018,6 @@ static void bcm43xx_upload_microcode(struct bcm43xx_private *bcm)
 	const u32 *data;
 	unsigned int i, len;
 
-#ifdef DEBUG_ENABLE_UCODE_MMIO_PRINT
-	bcm43xx_mmioprint_enable(bcm);
-#else
-	bcm43xx_mmioprint_disable(bcm);
-#endif
-
 	/* Upload Microcode. */
 	data = (u32 *)(bcm->ucode->data);
 	len = bcm->ucode->size / sizeof(u32);
@@ -2045,12 +2039,6 @@ static void bcm43xx_upload_microcode(struct bcm43xx_private *bcm)
 				be32_to_cpu(data[i]));
 		udelay(10);
 	}
-
-#ifdef DEBUG_ENABLE_UCODE_MMIO_PRINT
-	bcm43xx_mmioprint_disable(bcm);
-#else
-	bcm43xx_mmioprint_enable(bcm);
-#endif
 }
 
 static int bcm43xx_write_initvals(struct bcm43xx_private *bcm,
@@ -2090,12 +2078,6 @@ static int bcm43xx_upload_initvals(struct bcm43xx_private *bcm)
 {
 	int err;
 
-#ifdef DEBUG_ENABLE_UCODE_MMIO_PRINT
-	bcm43xx_mmioprint_enable(bcm);
-#else
-	bcm43xx_mmioprint_disable(bcm);
-#endif
-
 	err = bcm43xx_write_initvals(bcm, (struct bcm43xx_initval *)bcm->initvals0->data,
 				     bcm->initvals0->size / sizeof(struct bcm43xx_initval));
 	if (err)
@@ -2106,13 +2088,7 @@ static int bcm43xx_upload_initvals(struct bcm43xx_private *bcm)
 		if (err)
 			goto out;
 	}
-
 out:
-#ifdef DEBUG_ENABLE_UCODE_MMIO_PRINT
-	bcm43xx_mmioprint_disable(bcm);
-#else
-	bcm43xx_mmioprint_enable(bcm);
-#endif
 	return err;
 }
 
@@ -3727,17 +3703,6 @@ static int bcm43xx_init_private(struct bcm43xx_private *bcm,
 	bcm->ieee = netdev_priv(net_dev);
 	bcm->softmac = ieee80211_priv(net_dev);
 	bcm->softmac->set_channel = bcm43xx_ieee80211_set_chan;
-
-#ifdef DEBUG_ENABLE_MMIO_PRINT
-	bcm43xx_mmioprint_initial(bcm, 1);
-#else
-	bcm43xx_mmioprint_initial(bcm, 0);
-#endif
-#ifdef DEBUG_ENABLE_PCILOG
-	bcm43xx_pciprint_initial(bcm, 1);
-#else
-	bcm43xx_pciprint_initial(bcm, 0);
-#endif
 
 	bcm->irq_savedstate = BCM43xx_IRQ_INITIAL;
 	bcm->pci_dev = pci_dev;
