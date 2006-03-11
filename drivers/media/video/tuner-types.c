@@ -903,17 +903,27 @@ static struct tuner_params tuner_ymec_tvf66t5_b_dff_params[] = {
 
 /* ------------ TUNER_LG_NTSC_TALN_MINI - LGINNOTEK NTSC ------------ */
 
-static struct tuner_range tuner_lg_taln_mini_ntsc_ranges[] = {
+static struct tuner_range tuner_lg_taln_ntsc_ranges[] = {
 	{ 16 * 137.25 /*MHz*/, 0x8e, 0x01, },
 	{ 16 * 373.25 /*MHz*/, 0x8e, 0x02, },
 	{ 16 * 999.99        , 0x8e, 0x08, },
 };
 
-static struct tuner_params tuner_lg_taln_mini_params[] = {
+static struct tuner_range tuner_lg_taln_pal_secam_ranges[] = {
+	{ 16 * 150.00 /*MHz*/, 0x8e, 0x01, },
+	{ 16 * 425.00 /*MHz*/, 0x8e, 0x02, },
+	{ 16 * 999.99        , 0x8e, 0x08, },
+};
+
+static struct tuner_params tuner_lg_taln_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_NTSC,
-		.ranges = tuner_lg_taln_mini_ntsc_ranges,
-		.count  = ARRAY_SIZE(tuner_lg_taln_mini_ntsc_ranges),
+		.ranges = tuner_lg_taln_ntsc_ranges,
+		.count  = ARRAY_SIZE(tuner_lg_taln_ntsc_ranges),
+	},{
+		.type   = TUNER_PARAM_TYPE_PAL,
+		.ranges = tuner_lg_taln_pal_secam_ranges,
+		.count  = ARRAY_SIZE(tuner_lg_taln_pal_secam_ranges),
 	},
 };
 
@@ -1354,10 +1364,10 @@ struct tunertype tuners[] = {
 		.params = tuner_ymec_tvf66t5_b_dff_params,
 		.count  = ARRAY_SIZE(tuner_ymec_tvf66t5_b_dff_params),
 	},
-	[TUNER_LG_NTSC_TALN_MINI] = { /* LGINNOTEK NTSC */
-		.name   = "LG NTSC (TALN mini series)",
-		.params = tuner_lg_taln_mini_params,
-		.count  = ARRAY_SIZE(tuner_lg_taln_mini_params),
+	[TUNER_LG_TALN] = { /* LGINNOTEK NTSC / PAL / SECAM */
+		.name   = "LG TALN series",
+		.params = tuner_lg_taln_params,
+		.count  = ARRAY_SIZE(tuner_lg_taln_params),
 	},
 	[TUNER_PHILIPS_TD1316] = { /* Philips PAL */
 		.name   = "Philips TD1316 Hybrid Tuner",
