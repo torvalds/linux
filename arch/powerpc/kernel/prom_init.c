@@ -978,7 +978,7 @@ static void __init prom_init_mem(void)
 			if (size == 0)
 				continue;
 			prom_debug("    %x %x\n", base, size);
-			if (base == 0)
+			if (base == 0 && (RELOC(of_platform) & PLATFORM_LPAR))
 				RELOC(rmo_top) = size;
 			if ((base + size) > RELOC(ram_top))
 				RELOC(ram_top) = base + size;

@@ -1087,7 +1087,8 @@ config NE2000
 	  without a specific driver are compatible with NE2000.
 
 	  If you have a PCI NE2000 card however, say N here and Y to "PCI
-	  NE2000 support", above. If you have a NE2000 card and are running on
+	  NE2000 and clone support" under "EISA, VLB, PCI and on board
+	  controllers" below. If you have a NE2000 card and are running on
 	  an MCA system (a bus system used on some IBM PS/2 computers and
 	  laptops), say N here and Y to "NE/2 (ne2000 MCA version) support",
 	  below.

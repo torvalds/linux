@@ -411,7 +411,7 @@ static int pcmcia_device_probe(struct device * dev)
 	 * pseudo devices, and if not, add the second one.
 	 */
 	did = (struct pcmcia_device_id *) p_dev->dev.driver_data;
-	if ((did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
+	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
 		pcmcia_add_pseudo_device(p_dev->socket);
 

@@ -156,7 +156,6 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 	stat_result = v9fs_t_stat(v9ses, newfid, &fcall);
 	if (stat_result < 0) {
 		dprintk(DEBUG_ERROR, "stat error\n");
-		kfree(fcall);
 		v9fs_t_clunk(v9ses, newfid);
 	} else {
 		/* Setup the Root Inode */

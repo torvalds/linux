@@ -30,6 +30,9 @@
 #include <asm/system.h>
 #include <asm/pgtable.h>
 
+void (*pm_power_off)(void) = NULL;
+EXPORT_SYMBOL(pm_power_off);
+
 extern void ret_from_fork (void);
 
 

@@ -100,8 +100,6 @@ dasd_scan_partitions(struct dasd_device * device)
 {
 	struct block_device *bdev;
 
-	/* Make the disk known. */
-	set_capacity(device->gdp, device->blocks << device->s2b_shift);
 	bdev = bdget_disk(device->gdp, 0);
 	if (!bdev || blkdev_get(bdev, FMODE_READ, 1) < 0)
 		return -ENODEV;

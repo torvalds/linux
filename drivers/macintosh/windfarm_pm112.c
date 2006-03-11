@@ -358,6 +358,7 @@ static void backside_fan_tick(void)
 		return;
 	if (!backside_tick) {
 		/* first time; initialize things */
+		printk(KERN_INFO "windfarm: Backside control loop started.\n");
 		backside_param.min = backside_fan->ops->get_min(backside_fan);
 		backside_param.max = backside_fan->ops->get_max(backside_fan);
 		wf_pid_init(&backside_pid, &backside_param);
@@ -407,6 +408,7 @@ static void drive_bay_fan_tick(void)
 		return;
 	if (!drive_bay_tick) {
 		/* first time; initialize things */
+		printk(KERN_INFO "windfarm: Drive bay control loop started.\n");
 		drive_bay_prm.min = drive_bay_fan->ops->get_min(drive_bay_fan);
 		drive_bay_prm.max = drive_bay_fan->ops->get_max(drive_bay_fan);
 		wf_pid_init(&drive_bay_pid, &drive_bay_prm);
@@ -458,6 +460,7 @@ static void slots_fan_tick(void)
 		return;
 	if (!slots_started) {
 		/* first time; initialize things */
+		printk(KERN_INFO "windfarm: Slots control loop started.\n");
 		wf_pid_init(&slots_pid, &slots_param);
 		slots_started = 1;
 	}
@@ -504,6 +507,7 @@ static void pm112_tick(void)
 
 	if (!started) {
 		started = 1;
+		printk(KERN_INFO "windfarm: CPUs control loops started.\n");
 		for (i = 0; i < nr_cores; ++i) {
 			if (create_cpu_loop(i) < 0) {
 				failure_state = FAILURE_PERM;
@@ -594,8 +598,6 @@ static void pm112_new_sensor(struct wf_sensor *sr)
 {
 	unsigned int i;
 
-	if (have_all_sensors)
-		return;
 	if (!strncmp(sr->name, "cpu-temp-", 9)) {
 		i = sr->name[9] - '0';
 		if (sr->name[10] == 0 && i < NR_CORES &&
@@ -613,7 +615,7 @@ static void pm112_new_sensor(struct wf_sensor *sr)
 	} else if (!strcmp(sr->name, "slots-power")) {
 		if (slots_power == NULL && wf_get_sensor(sr) == 0)
 			slots_power = sr;
-	} else if (!strcmp(sr->name, "u4-temp")) {
+	} else if (!strcmp(sr->name, "backside-temp")) {
 		if (u4_temp == NULL && wf_get_sensor(sr) == 0)
 			u4_temp = sr;
 	} else

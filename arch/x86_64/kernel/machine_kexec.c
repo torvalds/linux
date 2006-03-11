@@ -140,7 +140,7 @@ static void load_segments(void)
 		"\tmovl %0,%%ss\n"
 		"\tmovl %0,%%fs\n"
 		"\tmovl %0,%%gs\n"
-		: : "a" (__KERNEL_DS)
+		: : "a" (__KERNEL_DS) : "memory"
 		);
 }
 

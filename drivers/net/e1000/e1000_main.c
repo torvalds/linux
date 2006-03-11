@@ -2815,7 +2815,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 					printk(KERN_ERR 
 						"__pskb_pull_tail failed.\n");
 					dev_kfree_skb_any(skb);
-					return -EFAULT;
+					return NETDEV_TX_OK;
 				}
 				len = skb->len - skb->data_len;
 				break;

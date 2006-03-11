@@ -253,7 +253,7 @@ static void arcfb_lcd_update_page(struct arcfb_par *par, unsigned int upper,
 {
 	unsigned char *src;
 	unsigned int xindex, yindex, chipindex, linesize;
-	int i, count;
+	int i;
 	unsigned char val;
 	unsigned char bitmask, rightshift;
 
@@ -282,7 +282,6 @@ static void arcfb_lcd_update_page(struct arcfb_par *par, unsigned int upper,
 		}
 		ks108_writeb_data(par, chipindex, val);
 		left++;
-		count++;
 		if (bitmask == 0x80) {
 			bitmask = 1;
 			src++;
@@ -460,11 +459,11 @@ static ssize_t arcfb_write(struct file *file, const char __user *buf, size_t cou
 	inode = file->f_dentry->d_inode;
 	fbidx = iminor(inode);
 	info = registered_fb[fbidx];
-	par = info->par;
 
 	if (!info || !info->screen_base)
 		return -ENODEV;
 
+	par = info->par;
 	xres = info->var.xres;
 	fbmemlength = (xres * info->var.yres)/8;
 

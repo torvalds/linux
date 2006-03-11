@@ -537,9 +537,6 @@ void page_add_new_anon_rmap(struct page *page,
  */
 void page_add_file_rmap(struct page *page)
 {
-	BUG_ON(PageAnon(page));
-	BUG_ON(!pfn_valid(page_to_pfn(page)));
-
 	if (atomic_inc_and_test(&page->_mapcount))
 		__inc_page_state(nr_mapped);
 }

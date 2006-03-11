@@ -39,7 +39,7 @@
 #include "dcdbas.h"
 
 #define DRIVER_NAME		"dcdbas"
-#define DRIVER_VERSION		"5.6.0-1"
+#define DRIVER_VERSION		"5.6.0-2"
 #define DRIVER_DESCRIPTION	"Dell Systems Management Base Driver"
 
 static struct platform_device *dcdbas_pdev;
@@ -581,9 +581,13 @@ static int __init dcdbas_init(void)
  */
 static void __exit dcdbas_exit(void)
 {
-	platform_device_unregister(dcdbas_pdev);
+	/*
+	 * make sure functions that use dcdbas_pdev are called
+	 * before platform_device_unregister
+	 */
 	unregister_reboot_notifier(&dcdbas_reboot_nb);
 	smi_data_buf_free();
+	platform_device_unregister(dcdbas_pdev);
 }
 
 module_init(dcdbas_init);

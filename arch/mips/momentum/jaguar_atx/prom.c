@@ -21,10 +21,10 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/bootmem.h>
+#include <linux/mv643xx.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
-#include <asm/mv64340.h>
 #include <asm/pmon.h>
 
 #include "jaguar_atx_fpga.h"
