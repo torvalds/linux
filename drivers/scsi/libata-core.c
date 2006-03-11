@@ -1346,6 +1346,9 @@ static int ata_bus_probe(struct ata_port *ap)
 
 	/* reset */
 	if (ap->ops->probe_reset) {
+		for (i = 0; i < ATA_MAX_DEVICES; i++)
+			classes[i] = ATA_DEV_UNKNOWN;
+
 		rc = ap->ops->probe_reset(ap, classes);
 		if (rc) {
 			printk("ata%u: reset failed (errno=%d)\n", ap->id, rc);
