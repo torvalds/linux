@@ -1388,6 +1388,7 @@ struct tunertype tuners[] = {
 	[TUNER_THOMSON_FE6600] = { /* Thomson PAL / DVB-T */
 		.name   = "Thomson FE6600",
 		.params = tuner_thomson_fe6600_params,
+		.count  = ARRAY_SIZE(tuner_thomson_fe6600_params),
 	},
 };
 
