@@ -459,11 +459,11 @@ static ssize_t arcfb_write(struct file *file, const char __user *buf, size_t cou
 	inode = file->f_dentry->d_inode;
 	fbidx = iminor(inode);
 	info = registered_fb[fbidx];
-	par = info->par;
 
 	if (!info || !info->screen_base)
 		return -ENODEV;
 
+	par = info->par;
 	xres = info->var.xres;
 	fbmemlength = (xres * info->var.yres)/8;
 
