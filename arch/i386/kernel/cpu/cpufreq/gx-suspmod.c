@@ -459,10 +459,9 @@ static int __init cpufreq_gx_init(void)
 
 	dprintk("geode suspend modulation available.\n");
 
-	params = kmalloc(sizeof(struct gxfreq_params), GFP_KERNEL);
+	params = kzalloc(sizeof(struct gxfreq_params), GFP_KERNEL);
 	if (params == NULL)
 		return -ENOMEM;
-	memset(params, 0, sizeof(struct gxfreq_params));
 
 	params->cs55x0 = gx_pci;
 	gx_params = params;
