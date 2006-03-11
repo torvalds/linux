@@ -17,7 +17,7 @@
 void DisableVGA(volatile STG4000REG __iomem *pSTGReg)
 {
 	u32 tmp;
-	volatile u32 count, i;
+	volatile u32 count = 0, i;
 
 	/* Reset the VGA registers */
 	tmp = STG_READ_REG(SoftwareReset);
