@@ -24,7 +24,7 @@ static void prom_console_write(struct console *co, const char *s,
 	}
 }
 
-static int __init prom_console_setup(struct console *co, char *options)
+static int prom_console_setup(struct console *co, char *options)
 {
 	return !(prom_flags & PROM_FLAG_USE_AS_CONSOLE);
 }

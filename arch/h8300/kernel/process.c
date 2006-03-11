@@ -45,6 +45,9 @@
 #include <asm/setup.h>
 #include <asm/pgtable.h>
 
+void (*pm_power_off)(void) = NULL;
+EXPORT_SYMBOL(pm_power_off);
+
 asmlinkage void ret_from_fork(void);
 
 /*

@@ -2319,8 +2319,7 @@ static int journal_read(struct super_block *p_s_sb)
 		return 1;
 	}
 	jh = (struct reiserfs_journal_header *)(journal->j_header_bh->b_data);
-	if (le32_to_cpu(jh->j_first_unflushed_offset) >= 0 &&
-	    le32_to_cpu(jh->j_first_unflushed_offset) <
+	if (le32_to_cpu(jh->j_first_unflushed_offset) <
 	    SB_ONDISK_JOURNAL_SIZE(p_s_sb)
 	    && le32_to_cpu(jh->j_last_flush_trans_id) > 0) {
 		oldest_start =

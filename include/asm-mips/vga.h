@@ -26,6 +26,9 @@
  *  <linux/vt_buffer.h> has already done the right job for us.
  */
 
+#undef scr_writew
+#undef scr_readw
+
 static inline void scr_writew(u16 val, volatile u16 *addr)
 {
 	*addr = cpu_to_le16(val);

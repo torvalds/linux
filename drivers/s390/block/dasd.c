@@ -215,9 +215,10 @@ dasd_state_basic_to_known(struct dasd_device * device)
  * interrupt for this detection ccw uses the kernel event daemon to
  * trigger the call to dasd_change_state. All this is done in the
  * discipline code, see dasd_eckd.c.
- * After the analysis ccw is done (do_analysis returned 0 or error)
- * the block device is setup. Either a fake disk is added to allow
- * formatting or a proper device request queue is created.
+ * After the analysis ccw is done (do_analysis returned 0) the block
+ * device is setup.
+ * In case the analysis returns an error, the device setup is stopped
+ * (a fake disk was already added to allow formatting).
  */
 static inline int
 dasd_state_basic_to_ready(struct dasd_device * device)
@@ -227,13 +228,19 @@ dasd_state_basic_to_ready(struct dasd_device * device)
 	rc = 0;
 	if (device->discipline->do_analysis != NULL)
 		rc = device->discipline->do_analysis(device);
-	if (rc)
+	if (rc) {
+		if (rc != -EAGAIN)
+			device->state = DASD_STATE_UNFMT;
 		return rc;
+	}
+	/* make disk known with correct capacity */
 	dasd_setup_queue(device);
+	set_capacity(device->gdp, device->blocks << device->s2b_shift);
 	device->state = DASD_STATE_READY;
-	if (dasd_scan_partitions(device) != 0)
+	rc = dasd_scan_partitions(device);
+	if (rc)
 		device->state = DASD_STATE_BASIC;
-	return 0;
+	return rc;
 }
 
 /*
@@ -250,6 +257,15 @@ dasd_state_ready_to_basic(struct dasd_device * device)
 	device->blocks = 0;
 	device->bp_block = 0;
 	device->s2b_shift = 0;
+	device->state = DASD_STATE_BASIC;
+}
+
+/*
+ * Back to basic.
+ */
+static inline void
+dasd_state_unfmt_to_basic(struct dasd_device * device)
+{
 	device->state = DASD_STATE_BASIC;
 }
 
@@ -319,8 +335,12 @@ dasd_decrease_state(struct dasd_device *device)
 	if (device->state == DASD_STATE_READY &&
 	    device->target <= DASD_STATE_BASIC)
 		dasd_state_ready_to_basic(device);
-	
-	if (device->state == DASD_STATE_BASIC && 
+
+	if (device->state == DASD_STATE_UNFMT &&
+	    device->target <= DASD_STATE_BASIC)
+		dasd_state_unfmt_to_basic(device);
+
+	if (device->state == DASD_STATE_BASIC &&
 	    device->target <= DASD_STATE_KNOWN)
 		dasd_state_basic_to_known(device);
 	
@@ -1722,7 +1742,7 @@ dasd_open(struct inode *inp, struct file *filp)
 		goto out;
 	}
 
-	if (device->state < DASD_STATE_BASIC) {
+	if (device->state <= DASD_STATE_BASIC) {
 		DBF_DEV_EVENT(DBF_ERR, device, " %s",
 			      " Cannot open unrecognized device");
 		rc = -ENODEV;

@@ -814,6 +814,8 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 		return;
 	}
 
+	local_irq_enable();
+
 	/* Try to emulate it if we should. */
 	if (reason & (REASON_ILLEGAL | REASON_PRIVILEGED)) {
 		switch (emulate_instruction(regs)) {

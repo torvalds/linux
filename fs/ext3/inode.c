@@ -1624,15 +1624,14 @@ static int ext3_block_truncate_page(handle_t *handle, struct page *page,
 	 * For "nobh" option,  we can only work if we don't need to
 	 * read-in the page - otherwise we create buffers to do the IO.
 	 */
-	if (!page_has_buffers(page) && test_opt(inode->i_sb, NOBH)) {
-		if (PageUptodate(page)) {
-			kaddr = kmap_atomic(page, KM_USER0);
-			memset(kaddr + offset, 0, length);
-			flush_dcache_page(page);
-			kunmap_atomic(kaddr, KM_USER0);
-			set_page_dirty(page);
-			goto unlock;
-		}
+	if (!page_has_buffers(page) && test_opt(inode->i_sb, NOBH) &&
+	     ext3_should_writeback_data(inode) && PageUptodate(page)) {
+		kaddr = kmap_atomic(page, KM_USER0);
+		memset(kaddr + offset, 0, length);
+		flush_dcache_page(page);
+		kunmap_atomic(kaddr, KM_USER0);
+		set_page_dirty(page);
+		goto unlock;
 	}
 
 	if (!page_has_buffers(page))

@@ -39,25 +39,19 @@ static DECLARE_WAIT_QUEUE_HEAD(sigd_sleep);
 static void sigd_put_skb(struct sk_buff *skb)
 {
 #ifdef WAIT_FOR_DEMON
-	static unsigned long silence;
 	DECLARE_WAITQUEUE(wait,current);
 
 	add_wait_queue(&sigd_sleep,&wait);
 	while (!sigd) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (time_after(jiffies, silence) || silence == 0) {
-			printk(KERN_INFO "atmsvc: waiting for signaling demon "
-			    "...\n");
-			silence = (jiffies+30*HZ)|1;
-		}
+		DPRINTK("atmsvc: waiting for signaling demon...\n");
 		schedule();
 	}
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&sigd_sleep,&wait);
 #else
 	if (!sigd) {
-		if (net_ratelimit())
-			printk(KERN_WARNING "atmsvc: no signaling demon\n");
+		DPRINTK("atmsvc: no signaling demon\n");
 		kfree_skb(skb);
 		return;
 	}

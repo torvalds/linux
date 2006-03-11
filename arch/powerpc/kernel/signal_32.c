@@ -151,10 +151,7 @@ static inline int save_general_regs(struct pt_regs *regs,
 	elf_greg_t64 *gregs = (elf_greg_t64 *)regs;
 	int i;
 
-	if (!FULL_REGS(regs)) {
-		set_thread_flag(TIF_SAVE_NVGPRS);
-		current_thread_info()->nvgprs_frame = frame->mc_gregs;
-	}
+	WARN_ON(!FULL_REGS(regs));
 
 	for (i = 0; i <= PT_RESULT; i ++) {
 		if (i == 14 && !FULL_REGS(regs))
@@ -215,15 +212,7 @@ static inline int get_old_sigaction(struct k_sigaction *new_ka,
 static inline int save_general_regs(struct pt_regs *regs,
 		struct mcontext __user *frame)
 {
-	if (!FULL_REGS(regs)) {
-		/* Zero out the unsaved GPRs to avoid information
-		   leak, and set TIF_SAVE_NVGPRS to ensure that the
-		   registers do actually get saved later. */
-		memset(&regs->gpr[14], 0, 18 * sizeof(unsigned long));
-		current_thread_info()->nvgprs_frame = &frame->mc_gregs;
-		set_thread_flag(TIF_SAVE_NVGPRS);
-	}
-
+	WARN_ON(!FULL_REGS(regs));
 	return __copy_to_user(&frame->mc_gregs, regs, GP_REGS_SIZE);
 }
 
@@ -826,8 +815,8 @@ static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int 
 }
 
 long sys_swapcontext(struct ucontext __user *old_ctx,
-		       struct ucontext __user *new_ctx,
-		       int ctx_size, int r6, int r7, int r8, struct pt_regs *regs)
+		     struct ucontext __user *new_ctx,
+		     int ctx_size, int r6, int r7, int r8, struct pt_regs *regs)
 {
 	unsigned char tmp;
 

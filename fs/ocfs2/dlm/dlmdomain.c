@@ -77,26 +77,26 @@ static void dlm_unregister_domain_handlers(struct dlm_ctxt *dlm);
 
 void __dlm_unhash_lockres(struct dlm_lock_resource *lockres)
 {
-	list_del_init(&lockres->list);
+	hlist_del_init(&lockres->hash_node);
 	dlm_lockres_put(lockres);
 }
 
 void __dlm_insert_lockres(struct dlm_ctxt *dlm,
 		       struct dlm_lock_resource *res)
 {
-	struct list_head *bucket;
+	struct hlist_head *bucket;
 	struct qstr *q;
 
 	assert_spin_locked(&dlm->spinlock);
 
 	q = &res->lockname;
 	q->hash = full_name_hash(q->name, q->len);
-	bucket = &(dlm->resources[q->hash & DLM_HASH_MASK]);
+	bucket = &(dlm->lockres_hash[q->hash % DLM_HASH_BUCKETS]);
 
 	/* get a reference for our hashtable */
 	dlm_lockres_get(res);
 
-	list_add_tail(&res->list, bucket);
+	hlist_add_head(&res->hash_node, bucket);
 }
 
 struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
@@ -104,9 +104,9 @@ struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
 					 unsigned int len)
 {
 	unsigned int hash;
-	struct list_head *iter;
+	struct hlist_node *iter;
 	struct dlm_lock_resource *tmpres=NULL;
-	struct list_head *bucket;
+	struct hlist_head *bucket;
 
 	mlog_entry("%.*s\n", len, name);
 
@@ -114,11 +114,11 @@ struct dlm_lock_resource * __dlm_lookup_lockres(struct dlm_ctxt *dlm,
 
 	hash = full_name_hash(name, len);
 
-	bucket = &(dlm->resources[hash & DLM_HASH_MASK]);
+	bucket = &(dlm->lockres_hash[hash % DLM_HASH_BUCKETS]);
 
 	/* check for pre-existing lock */
-	list_for_each(iter, bucket) {
-		tmpres = list_entry(iter, struct dlm_lock_resource, list);
+	hlist_for_each(iter, bucket) {
+		tmpres = hlist_entry(iter, struct dlm_lock_resource, hash_node);
 		if (tmpres->lockname.len == len &&
 		    memcmp(tmpres->lockname.name, name, len) == 0) {
 			dlm_lockres_get(tmpres);
@@ -193,8 +193,8 @@ static int dlm_wait_on_domain_helper(const char *domain)
 
 static void dlm_free_ctxt_mem(struct dlm_ctxt *dlm)
 {
-	if (dlm->resources)
-		free_page((unsigned long) dlm->resources);
+	if (dlm->lockres_hash)
+		free_page((unsigned long) dlm->lockres_hash);
 
 	if (dlm->name)
 		kfree(dlm->name);
@@ -303,10 +303,10 @@ static void dlm_migrate_all_locks(struct dlm_ctxt *dlm)
 	mlog(0, "Migrating locks from domain %s\n", dlm->name);
 restart:
 	spin_lock(&dlm->spinlock);
-	for (i=0; i<DLM_HASH_SIZE; i++) {
-		while (!list_empty(&dlm->resources[i])) {
-			res = list_entry(dlm->resources[i].next,
-				     struct dlm_lock_resource, list);
+	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
+		while (!hlist_empty(&dlm->lockres_hash[i])) {
+			res = hlist_entry(dlm->lockres_hash[i].first,
+					  struct dlm_lock_resource, hash_node);
 			/* need reference when manually grabbing lockres */
 			dlm_lockres_get(res);
 			/* this should unhash the lockres
@@ -1191,18 +1191,17 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 		goto leave;
 	}
 
-	dlm->resources = (struct list_head *) __get_free_page(GFP_KERNEL);
-	if (!dlm->resources) {
+	dlm->lockres_hash = (struct hlist_head *) __get_free_page(GFP_KERNEL);
+	if (!dlm->lockres_hash) {
 		mlog_errno(-ENOMEM);
 		kfree(dlm->name);
 		kfree(dlm);
 		dlm = NULL;
 		goto leave;
 	}
-	memset(dlm->resources, 0, PAGE_SIZE);
 
-	for (i=0; i<DLM_HASH_SIZE; i++)
-		INIT_LIST_HEAD(&dlm->resources[i]);
+	for (i=0; i<DLM_HASH_BUCKETS; i++)
+		INIT_HLIST_HEAD(&dlm->lockres_hash[i]);
 
 	strcpy(dlm->name, domain);
 	dlm->key = key;

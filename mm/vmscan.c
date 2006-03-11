@@ -1883,7 +1883,8 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 
 	if (!(gfp_mask & __GFP_WAIT) ||
 		zone->all_unreclaimable ||
-		atomic_read(&zone->reclaim_in_progress) > 0)
+		atomic_read(&zone->reclaim_in_progress) > 0 ||
+		(p->flags & PF_MEMALLOC))
 			return 0;
 
 	node_id = zone->zone_pgdat->node_id;

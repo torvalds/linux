@@ -110,6 +110,7 @@ static int mt352_pinnacle_init(struct dvb_frontend* fe)
 	mt352_write(fe, fsm_ctl_cfg,    sizeof(fsm_ctl_cfg));
 	mt352_write(fe, scan_ctl_cfg,   sizeof(scan_ctl_cfg));
 	mt352_write(fe, irq_cfg,        sizeof(irq_cfg));
+
 	return 0;
 }
 
@@ -117,8 +118,10 @@ static int mt352_pinnacle_pll_set(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters* params,
 				  u8* pllbuf)
 {
-	static int on  = TDA9887_PRESENT | TDA9887_PORT2_INACTIVE;
-	static int off = TDA9887_PRESENT | TDA9887_PORT2_ACTIVE;
+	u8 off[] = { 0x00, 0xf1};
+	u8 on[]  = { 0x00, 0x71};
+	struct i2c_msg msg = {.addr=0x43, .flags=0, .buf=off, .len = sizeof(off)};
+
 	struct saa7134_dev *dev = fe->dvb->priv;
 	struct v4l2_frequency f;
 
@@ -126,9 +129,10 @@ static int mt352_pinnacle_pll_set(struct dvb_frontend* fe,
 	f.tuner     = 0;
 	f.type      = V4L2_TUNER_DIGITAL_TV;
 	f.frequency = params->frequency / 1000 * 16 / 1000;
-	saa7134_i2c_call_clients(dev,TDA9887_SET_CONFIG,&on);
+	i2c_transfer(&dev->i2c_adap, &msg, 1);
 	saa7134_i2c_call_clients(dev,VIDIOC_S_FREQUENCY,&f);
-	saa7134_i2c_call_clients(dev,TDA9887_SET_CONFIG,&off);
+	msg.buf = on;
+	i2c_transfer(&dev->i2c_adap, &msg, 1);
 
 	pinnacle_antenna_pwr(dev, antenna_pwr);
 

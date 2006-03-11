@@ -85,7 +85,7 @@ __strnlen_user:
         retl
          clr    %o0
 
-	.section __ex_table,#alloc
+	.section __ex_table,"a"
 	.align	4
 
 	.word	10b, 30b

@@ -312,8 +312,7 @@ static int __devinit parport_register (struct pci_dev *dev,
 {
 	struct parport_pc_pci *card;
 	struct parport_serial_private *priv = pci_get_drvdata (dev);
-	int i = id->driver_data, n;
-	int success = 0;
+	int n, success = 0;
 
 	priv->par = cards[id->driver_data];
 	card = &priv->par;
@@ -344,10 +343,8 @@ static int __devinit parport_register (struct pci_dev *dev,
                                         "hi" as an offset (see SYBA
                                         def.) */
 		/* TODO: test if sharing interrupts works */
-		printk (KERN_DEBUG "PCI parallel port detected: %04x:%04x, "
-			"I/O at %#lx(%#lx)\n",
-			parport_serial_pci_tbl[i].vendor,
-			parport_serial_pci_tbl[i].device, io_lo, io_hi);
+		dev_dbg(&dev->dev, "PCI parallel port detected: I/O at "
+			"%#lx(%#lx)\n", io_lo, io_hi);
 		port = parport_pc_probe_port (io_lo, io_hi, PARPORT_IRQ_NONE,
 					      PARPORT_DMA_NONE, dev);
 		if (port) {
@@ -359,7 +356,7 @@ static int __devinit parport_register (struct pci_dev *dev,
 	if (card->postinit_hook)
 		card->postinit_hook (dev, card, !success);
 
-	return success ? 0 : 1;
+	return 0;
 }
 
 static int __devinit parport_serial_pci_probe (struct pci_dev *dev,

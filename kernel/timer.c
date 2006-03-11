@@ -489,8 +489,20 @@ unsigned long next_timer_interrupt(void)
 	struct list_head *list;
 	struct timer_list *nte;
 	unsigned long expires;
+	unsigned long hr_expires = MAX_JIFFY_OFFSET;
+	ktime_t hr_delta;
 	tvec_t *varray[4];
 	int i, j;
+
+	hr_delta = hrtimer_get_next_event();
+	if (hr_delta.tv64 != KTIME_MAX) {
+		struct timespec tsdelta;
+		tsdelta = ktime_to_timespec(hr_delta);
+		hr_expires = timespec_to_jiffies(&tsdelta);
+		if (hr_expires < 3)
+			return hr_expires + jiffies;
+	}
+	hr_expires += jiffies;
 
 	base = &__get_cpu_var(tvec_bases);
 	spin_lock(&base->t_base.lock);
@@ -542,6 +554,10 @@ found:
 		}
 	}
 	spin_unlock(&base->t_base.lock);
+
+	if (time_before(hr_expires, expires))
+		return hr_expires;
+
 	return expires;
 }
 #endif
@@ -925,6 +941,8 @@ static inline void update_times(void)
 void do_timer(struct pt_regs *regs)
 {
 	jiffies_64++;
+	/* prevent loading jiffies before storing new jiffies_64 value. */
+	barrier();
 	update_times();
 	softlockup_tick(regs);
 }
@@ -1351,10 +1369,10 @@ static inline u64 time_interpolator_get_cycles(unsigned int src)
 			return x();
 
 		case TIME_SOURCE_MMIO64	:
-			return readq((void __iomem *) time_interpolator->addr);
+			return readq_relaxed((void __iomem *)time_interpolator->addr);
 
 		case TIME_SOURCE_MMIO32	:
-			return readl((void __iomem *) time_interpolator->addr);
+			return readl_relaxed((void __iomem *)time_interpolator->addr);
 
 		default: return get_cycles();
 	}
