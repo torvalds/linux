@@ -786,28 +786,32 @@ static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (regno >= info->cmap.len || regno > 255) return 1;
    
 	switch (info->fix.visual) {
-		case FB_VISUAL_PSEUDOCOLOR:
-			rgbcol =(((u32)red   & 0xff00) << 8) |
-				(((u32)green & 0xff00) << 0) |
-				(((u32)blue  & 0xff00) >> 8);
-			do_setpalentry(par, regno, rgbcol);
-			break;
-		/* Truecolor has no hardware color palettes. */
-		case FB_VISUAL_TRUECOLOR:
+	case FB_VISUAL_PSEUDOCOLOR:
+		rgbcol =(((u32)red   & 0xff00) << 8) |
+			(((u32)green & 0xff00) << 0) |
+			(((u32)blue  & 0xff00) >> 8);
+		do_setpalentry(par, regno, rgbcol);
+		break;
+	/* Truecolor has no hardware color palettes. */
+	case FB_VISUAL_TRUECOLOR:
+		if (regno < 16) {
 			rgbcol = (CNVT_TOHW( red, info->var.red.length) <<
 				  info->var.red.offset) |
-				 (CNVT_TOHW( green, info->var.green.length) <<
-				  info->var.green.offset) |
-				 (CNVT_TOHW( blue, info->var.blue.length) <<
-				  info->var.blue.offset) |
-				 (CNVT_TOHW( transp, info->var.transp.length) <<
-				  info->var.transp.offset);
-				par->palette[regno] = rgbcol;
-			break;
-		default:
-			DPRINTK("bad depth %u\n", info->var.bits_per_pixel);
-			break;
+				(CNVT_TOHW( green, info->var.green.length) <<
+				 info->var.green.offset) |
+				(CNVT_TOHW( blue, info->var.blue.length) <<
+				 info->var.blue.offset) |
+				(CNVT_TOHW( transp, info->var.transp.length) <<
+				 info->var.transp.offset);
+			par->palette[regno] = rgbcol;
+		}
+
+		break;
+	default:
+		DPRINTK("bad depth %u\n", info->var.bits_per_pixel);
+		break;
 	}
+
 	return 0;
 }
 
