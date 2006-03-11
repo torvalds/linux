@@ -3717,6 +3717,8 @@ static int bcm43xx_init_private(struct bcm43xx_private *bcm,
 				struct net_device *net_dev,
 				struct pci_dev *pci_dev)
 {
+	int err;
+
 	bcm->ieee = netdev_priv(net_dev);
 	bcm->softmac = ieee80211_priv(net_dev);
 	bcm->softmac->set_channel = bcm43xx_ieee80211_set_chan;
@@ -3735,8 +3737,7 @@ static int bcm43xx_init_private(struct bcm43xx_private *bcm,
 	bcm->irq_savedstate = BCM43xx_IRQ_INITIAL;
 	bcm->pci_dev = pci_dev;
 	bcm->net_dev = net_dev;
-	if (modparam_bad_frames_preempt)
-		bcm->bad_frames_preempt = 1;
+	bcm->bad_frames_preempt = modparam_bad_frames_preempt;
 	spin_lock_init(&bcm->lock);
 	tasklet_init(&bcm->isr_tasklet,
 		     (void (*)(unsigned long))bcm43xx_interrupt_tasklet,
@@ -3745,7 +3746,9 @@ static int bcm43xx_init_private(struct bcm43xx_private *bcm,
 	if (modparam_pio) {
 		bcm->__using_pio = 1;
 	} else {
-		if (pci_set_dma_mask(pci_dev, DMA_30BIT_MASK)) {
+		err = pci_set_dma_mask(pci_dev, DMA_30BIT_MASK);
+		err |= pci_set_consistent_dma_mask(pci_dev, DMA_30BIT_MASK);
+		if (err) {
 #ifdef CONFIG_BCM43XX_PIO
 			printk(KERN_WARNING PFX "DMA not supported. Falling back to PIO.\n");
 			bcm->__using_pio = 1;
