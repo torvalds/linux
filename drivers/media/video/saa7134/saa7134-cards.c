@@ -3368,9 +3368,9 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_MD5044:
 		printk("%s: seems there are two different versions of the MD5044\n"
-		"%s: (with the same ID) out there.  If sound doesn't work for\n"
-		"%s: you try the audio_clock_override=0x200000 insmod option.\n",
-		dev->name,dev->name,dev->name);
+		       "%s: (with the same ID) out there.  If sound doesn't work for\n"
+		       "%s: you try the audio_clock_override=0x200000 insmod option.\n",
+		       dev->name,dev->name,dev->name);
 		break;
 	case SAA7134_BOARD_CINERGY400_CARDBUS:
 		/* power-up tuner chip */
