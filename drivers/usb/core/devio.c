@@ -493,7 +493,8 @@ static int check_ctrlrecip(struct dev_state *ps, unsigned int requesttype, unsig
 {
 	int ret = 0;
 
-	if (ps->dev->state != USB_STATE_CONFIGURED)
+	if (ps->dev->state != USB_STATE_ADDRESS
+	 && ps->dev->state != USB_STATE_CONFIGURED)
 		return -EHOSTUNREACH;
 	if (USB_TYPE_VENDOR == (USB_TYPE_MASK & requesttype))
 		return 0;
