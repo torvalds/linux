@@ -55,6 +55,9 @@
 #include <net/netlink.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
+#include <linux/selinux.h>
+
+#include "audit.h"
 
 /* No auditing will take place until audit_initialized != 0.
  * (Initialization happens after skb_init is called.) */
@@ -564,6 +567,11 @@ static int __init audit_init(void)
 	skb_queue_head_init(&audit_skb_queue);
 	audit_initialized = 1;
 	audit_enabled = audit_default;
+
+	/* Register the callback with selinux.  This callback will be invoked
+	 * when a new policy is loaded. */
+	selinux_audit_set_callback(&selinux_audit_rule_update);
+
 	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL, "initialized");
 	return 0;
 }

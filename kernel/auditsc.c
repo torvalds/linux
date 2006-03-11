@@ -58,6 +58,7 @@
 #include <linux/security.h>
 #include <linux/list.h>
 #include <linux/tty.h>
+#include <linux/selinux.h>
 
 #include "audit.h"
 
@@ -168,6 +169,9 @@ static int audit_filter_rules(struct task_struct *tsk,
 			      enum audit_state *state)
 {
 	int i, j;
+	u32 sid;
+
+	selinux_task_ctxid(tsk, &sid);
 
 	for (i = 0; i < rule->field_count; i++) {
 		struct audit_field *f = &rule->fields[i];
@@ -256,6 +260,22 @@ static int audit_filter_rules(struct task_struct *tsk,
 			result = 0;
 			if (ctx)
 				result = audit_comparator(ctx->loginuid, f->op, f->val);
+			break;
+		case AUDIT_SE_USER:
+		case AUDIT_SE_ROLE:
+		case AUDIT_SE_TYPE:
+		case AUDIT_SE_SEN:
+		case AUDIT_SE_CLR:
+			/* NOTE: this may return negative values indicating
+			   a temporary error.  We simply treat this as a
+			   match for now to avoid losing information that
+			   may be wanted.   An error message will also be
+			   logged upon error */
+			if (f->se_rule)
+				result = selinux_audit_rule_match(sid, f->type,
+				                                  f->op,
+				                                  f->se_rule,
+				                                  ctx);
 			break;
 		case AUDIT_ARG0:
 		case AUDIT_ARG1:
