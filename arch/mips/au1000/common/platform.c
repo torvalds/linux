@@ -264,7 +264,7 @@ static struct resource smc91x_resources[] = {
 
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
- 	.id		= -1,
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
 };
@@ -288,7 +288,7 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1xxx_mmc_device,
 #endif
 #ifdef CONFIG_MIPS_DB1200
- 	&smc91x_device,
+	&smc91x_device,
 #endif
 };
 

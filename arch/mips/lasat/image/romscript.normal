@@ -16,7 +16,8 @@ SECTIONS
   _image_start = ADDR(.data);
   _image_size = SIZEOF(.data);
 
-  .other : {
-  	*(.*)
+  .other :
+  {
+    *(.*)
   }
 }
