@@ -2756,6 +2756,47 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 		}},
 	},
+	[SAA7134_BOARD_AVERMEDIA_A169_B] = {
+		/* AVerMedia A169  */
+		/* Rickard Osser <ricky@osser.se>  */
+		/* This card has two saa7134 chips on it,
+		   but only one of them is currently working. */
+		.name		= "AVerMedia A169 B",
+		.audio_clock    = 0x02187de7,
+		.tuner_type	= TUNER_LG_TALN,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0x0a60000,
+	},
+	[SAA7134_BOARD_AVERMEDIA_A169_B1] = {
+		/* AVerMedia A169 */
+		/* Rickard Osser <ricky@osser.se> */
+		.name		= "AVerMedia A169 B1",
+		.audio_clock    = 0x02187de7,
+		.tuner_type	= TUNER_LG_TALN,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask       = 0xca60000,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 4,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x04a61000,
+		},{
+			.name = name_comp2,  /*  Composite SVIDEO (B/W if signal is carried with SVIDEO) */
+			.vmux = 1,
+			.amux = LINE2,
+		},{
+			.name = name_svideo,
+			.vmux = 9,           /* 9 is correct as S-VIDEO1 according to a169.inf! */
+			.amux = LINE1,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3263,6 +3304,18 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x7350,
 		.driver_data  = SAA7134_BOARD_KWORLD_ATSC110,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x1461,
+		.subdevice    = 0x7360,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_A169_B,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x1461,
+		.subdevice    = 0x6360,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_A169_B1,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3416,6 +3469,12 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
 	case SAA7134_BOARD_UPMOST_PURPLE_TV:
 		dev->has_remote = SAA7134_REMOTE_I2C;
+		break;
+	case SAA7134_BOARD_AVERMEDIA_A169_B:
+		printk("%s: AVerMedia A169: dual saa7134 broadcast decoders\n"
+		       "%s: Sorry, none of the inputs to this chip are supported yet.\n"
+		       "%s: Dual decoder functionality is disabled for now, use the other chip.\n",
+		       dev->name,dev->name,dev->name);
 		break;
 	}
 	return 0;
