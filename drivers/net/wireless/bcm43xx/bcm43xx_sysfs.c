@@ -88,7 +88,7 @@ static ssize_t bcm43xx_attr_sprom_show(struct device *dev,
 			GFP_KERNEL);
 	if (!sprom)
 		return -ENOMEM;
-	spin_lock_irqsave(&bcm->lock, flags);
+	bcm43xx_lock_mmio(bcm, flags);
 	assert(bcm->initialized);
 	err = bcm43xx_sprom_read(bcm, sprom);
 	if (!err) {
@@ -97,7 +97,7 @@ static ssize_t bcm43xx_attr_sprom_show(struct device *dev,
 			buf[i * 2 + 1] = (sprom[i] & 0xFF00) >> 8;
 		}
 	}
-	spin_unlock_irqrestore(&bcm->lock, flags);
+	bcm43xx_unlock_mmio(bcm, flags);
 	kfree(sprom);
 
 	return err ? err : BCM43xx_SPROM_SIZE * sizeof(u16);
@@ -125,10 +125,10 @@ static ssize_t bcm43xx_attr_sprom_store(struct device *dev,
 		sprom[i] = buf[i * 2] & 0xFF;
 		sprom[i] |= ((u16)(buf[i * 2 + 1] & 0xFF)) << 8;
 	}
-	spin_lock_irqsave(&bcm->lock, flags);
+	bcm43xx_lock_mmio(bcm, flags);
 	assert(bcm->initialized);
 	err = bcm43xx_sprom_write(bcm, sprom);
-	spin_unlock_irqrestore(&bcm->lock, flags);
+	bcm43xx_unlock_mmio(bcm, flags);
 	kfree(sprom);
 
 	return err ? err : count;
@@ -147,7 +147,7 @@ static ssize_t bcm43xx_attr_interfmode_show(struct device *dev,
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	spin_lock_irqsave(&bcm->lock, flags);
+	bcm43xx_lock(bcm, flags);
 	assert(bcm->initialized);
 
 	switch (bcm->current_core->radio->interfmode) {
@@ -165,7 +165,8 @@ static ssize_t bcm43xx_attr_interfmode_show(struct device *dev,
 	}
 	err = 0;
 
-	spin_unlock_irqrestore(&bcm->lock, flags);
+	bcm43xx_unlock(bcm, flags);
+
 	return err ? err : count;
 
 }
@@ -200,7 +201,7 @@ static ssize_t bcm43xx_attr_interfmode_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&bcm->lock, flags);
+	bcm43xx_lock_mmio(bcm, flags);
 	assert(bcm->initialized);
 
 	err = bcm43xx_radio_set_interference_mitigation(bcm, mode);
@@ -209,7 +210,7 @@ static ssize_t bcm43xx_attr_interfmode_store(struct device *dev,
 				    "supported by device\n");
 	}
 
-	spin_unlock_irqrestore(&bcm->lock, flags);
+	bcm43xx_unlock_mmio(bcm, flags);
 
 	return err ? err : count;
 }
@@ -226,7 +227,7 @@ static ssize_t bcm43xx_attr_preamble_show(struct device *dev,
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	spin_lock_irqsave(&bcm->lock, flags);
+	bcm43xx_lock(bcm, flags);
 	assert(bcm->initialized);
 
 	if (bcm->short_preamble)
@@ -235,7 +236,7 @@ static ssize_t bcm43xx_attr_preamble_show(struct device *dev,
 		count = snprintf(buf, PAGE_SIZE, "0 (Short Preamble disabled)\n");
 
 	err = 0;
-	spin_unlock_irqrestore(&bcm->lock, flags);
+	bcm43xx_unlock(bcm, flags);
 
 	return err ? err : count;
 }
@@ -255,13 +256,13 @@ static ssize_t bcm43xx_attr_preamble_store(struct device *dev,
 	value = get_boolean(buf, count);
 	if (value < 0)
 		return value;
-	spin_lock_irqsave(&bcm->lock, flags);
+	bcm43xx_lock(bcm, flags);
 	assert(bcm->initialized);
 
 	bcm->short_preamble = !!value;
 
 	err = 0;
-	spin_unlock_irqrestore(&bcm->lock, flags);
+	bcm43xx_unlock(bcm, flags);
 
 	return err ? err : count;
 }

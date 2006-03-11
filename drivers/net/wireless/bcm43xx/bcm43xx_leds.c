@@ -51,12 +51,12 @@ static void bcm43xx_led_blink(unsigned long d)
 	struct bcm43xx_private *bcm = led->bcm;
 	unsigned long flags;
 
-	spin_lock_irqsave(&bcm->lock, flags);
+	bcm43xx_lock_mmio(bcm, flags);
 	if (led->blink_interval) {
 		bcm43xx_led_changestate(led);
 		mod_timer(&led->blink_timer, jiffies + led->blink_interval);
 	}
-	spin_unlock_irqrestore(&bcm->lock, flags);
+	bcm43xx_unlock_mmio(bcm, flags);
 }
 
 static void bcm43xx_led_blink_start(struct bcm43xx_led *led,

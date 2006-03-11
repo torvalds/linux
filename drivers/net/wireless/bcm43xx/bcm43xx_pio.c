@@ -258,7 +258,7 @@ static void tx_tasklet(unsigned long d)
 	struct bcm43xx_pio_txpacket *packet, *tmp_packet;
 	int err;
 
-	spin_lock_irqsave(&bcm->lock, flags);
+	bcm43xx_lock_mmio(bcm, flags);
 	list_for_each_entry_safe(packet, tmp_packet, &queue->txqueue, list) {
 		assert(packet->xmitted_frags < packet->txb->nr_frags);
 		if (packet->xmitted_frags == 0) {
@@ -288,7 +288,7 @@ static void tx_tasklet(unsigned long d)
 	next_packet:
 		continue;
 	}
-	spin_unlock_irqrestore(&bcm->lock, flags);
+	bcm43xx_unlock_mmio(bcm, flags);
 }
 
 static void setup_txqueues(struct bcm43xx_pioqueue *queue)

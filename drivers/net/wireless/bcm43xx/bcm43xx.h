@@ -619,7 +619,9 @@ struct bcm43xx_private {
 	void __iomem *mmio_addr;
 	unsigned int mmio_len;
 
-	spinlock_t lock;
+	/* Do not use the lock directly. Use the bcm43xx_lock* helper
+	 * functions, to be MMIO-safe. */
+	spinlock_t _lock;
 
 	/* Driver status flags. */
 	u32 initialized:1,		/* init_board() succeed */
@@ -720,6 +722,22 @@ struct bcm43xx_private {
 	atomic_t pcicfg_print_cnt;
 #endif
 };
+
+/* bcm43xx_(un)lock() protect struct bcm43xx_private.
+ * Note that _NO_ MMIO writes are allowed. If you want to
+ * write to the device through MMIO in the critical section, use
+ * the *_mmio lock functions.
+ * MMIO read-access is allowed, though.
+ */
+#define bcm43xx_lock(bcm, flags)	spin_lock_irqsave(&(bcm)->_lock, flags)
+#define bcm43xx_unlock(bcm, flags)	spin_unlock_irqrestore(&(bcm)->_lock, flags)
+/* bcm43xx_(un)lock_mmio() protect struct bcm43xx_private and MMIO.
+ * MMIO write-access to the device is allowed.
+ * All MMIO writes are flushed on unlock, so it is guaranteed to not
+ * interfere with other threads writing MMIO registers.
+ */
+#define bcm43xx_lock_mmio(bcm, flags)	bcm43xx_lock(bcm, flags)
+#define bcm43xx_unlock_mmio(bcm, flags)	do { mmiowb(); bcm43xx_unlock(bcm, flags); } while (0)
 
 static inline
 struct bcm43xx_private * bcm43xx_priv(struct net_device *dev)
