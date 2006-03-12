@@ -227,7 +227,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.minimum       = 0x00,
 			.maximum       = 0xff,
 			.step          = 1,
-			.default_value = 0,
+			.default_value = 0x7f,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
 		.off                   = 128,
@@ -255,7 +255,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.minimum       = 0,
 			.maximum       = 0xff,
 			.step          = 1,
-			.default_value = 0,
+			.default_value = 0x7f,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
 		.off                   = 128,
@@ -300,7 +300,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.minimum       = 0,
 			.maximum       = 0x3f,
 			.step          = 1,
-			.default_value = 0x1f,
+			.default_value = 0x3f,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
 		.reg                   = AUD_VOL_CTL,
@@ -909,7 +909,8 @@ static int get_control(struct cx88_core *core, struct v4l2_control *ctl)
 	value = c->sreg ? cx_sread(c->sreg) : cx_read(c->reg);
 	switch (ctl->id) {
 	case V4L2_CID_AUDIO_BALANCE:
-		ctl->value = (value & 0x40) ? (value & 0x3f) : (0x40 - (value & 0x3f));
+		ctl->value = ((value & 0x7f) < 0x40) ? ((value & 0x7f) + 0x40)
+					: (0x7f - (value & 0x7f));
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
 		ctl->value = 0x3f - (value & 0x3f);
@@ -946,7 +947,7 @@ static int set_control(struct cx88_core *core, struct v4l2_control *ctl)
 	mask=c->mask;
 	switch (ctl->id) {
 	case V4L2_CID_AUDIO_BALANCE:
-		value = (ctl->value < 0x40) ? (0x40 - ctl->value) : ctl->value;
+		value = (ctl->value < 0x40) ? (0x7f - ctl->value) : (ctl->value - 0x40);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
 		value = 0x3f - (ctl->value & 0x3f);
@@ -987,8 +988,7 @@ static void init_controls(struct cx88_core *core)
 
 	for (i = 0; i < CX8800_CTLS; i++) {
 		ctrl.id=cx8800_ctls[i].v.id;
-		ctrl.value=cx8800_ctls[i].v.default_value
-				+cx8800_ctls[i].off;
+		ctrl.value=cx8800_ctls[i].v.default_value;
 		set_control(core, &ctrl);
 	}
 }
