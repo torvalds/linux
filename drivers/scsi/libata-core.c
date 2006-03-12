@@ -3809,7 +3809,7 @@ fsm_start:
 
 	if (timeout)
 		ata_port_queue_task(ap, ata_pio_task, ap, timeout);
-	else if (!qc_completed)
+	else if (has_next)
 		goto fsm_start;
 }
 
@@ -3866,7 +3866,8 @@ static void atapi_packet_task(void *_data)
 		 * finished.  Hence, the following locking.
 		 */
 		spin_lock_irqsave(&ap->host_set->lock, flags);
-		ap->flags &= ~ATA_FLAG_NOINTR;
+#warning FIXME
+		/* ap->flags &= ~ATA_FLAG_NOINTR; */
 		ata_data_xfer(ap, qc->cdb, qc->dev->cdb_len, 1);
 		if (qc->tf.protocol == ATA_PROT_ATAPI_DMA)
 			ap->ops->bmdma_start(qc);	/* initiate bmdma */
@@ -4200,7 +4201,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		ap->hsm_task_state = HSM_ST_LAST;
 
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
-			ata_queue_pio_task(ap);
+			ata_port_queue_task(ap, ata_pio_task, ap, 0);
 
 		break;
 
