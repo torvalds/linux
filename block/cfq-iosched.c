@@ -2121,13 +2121,10 @@ static void cfq_shutdown_timer_wq(struct cfq_data *cfqd)
 
 static void cfq_put_cfqd(struct cfq_data *cfqd)
 {
-	request_queue_t *q = cfqd->queue;
-
 	if (!atomic_dec_and_test(&cfqd->ref))
 		return;
 
 	cfq_shutdown_timer_wq(cfqd);
-	blk_put_queue(q);
 
 	mempool_destroy(cfqd->crq_pool);
 	kfree(cfqd->crq_hash);
@@ -2205,7 +2202,6 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	e->elevator_data = cfqd;
 
 	cfqd->queue = q;
-	atomic_inc(&q->refcnt);
 
 	cfqd->max_queued = q->nr_requests / 4;
 	q->nr_batching = cfq_queued;
