@@ -1209,7 +1209,7 @@ int spi_print_msg(const unsigned char *msg)
 	} else if (msg[0] & 0x80) {
 		printk("%02x ", msg[0]);
 	/* Normal One byte */
-	} else if ((msg[0] < 0x1f) || (msg == 0x55)) {
+	} else if ((msg[0] < 0x1f) || (msg[0] == 0x55)) {
 		printk("%02x ", msg[0]);
 	/* Two byte */
 	} else if (msg[0] <= 0x2f) {
