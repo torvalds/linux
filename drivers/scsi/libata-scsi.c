@@ -785,6 +785,8 @@ int ata_scsi_error(struct Scsi_Host *host)
 	WARN_ON(ata_qc_from_tag(ap, ap->active_tag) == NULL);
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
+	ata_port_flush_task(ap);
+
 	ap->ops->eng_timeout(ap);
 
 	WARN_ON(host->host_failed || !list_empty(&host->eh_cmd_q));

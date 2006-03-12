@@ -225,9 +225,6 @@ struct e1000_rx_ring {
 	struct e1000_ps_page *ps_page;
 	struct e1000_ps_page_dma *ps_page_dma;
 
-	struct sk_buff *rx_skb_top;
-	struct sk_buff *rx_skb_prev;
-
 	/* cpu for rx queue */
 	int cpu;
 

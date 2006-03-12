@@ -116,13 +116,13 @@ static void load_segments(void)
 	__asm__ __volatile__ (
 		"\tljmp $"STR(__KERNEL_CS)",$1f\n"
 		"\t1:\n"
-		"\tmovl $"STR(__KERNEL_DS)",%eax\n"
-		"\tmovl %eax,%ds\n"
-		"\tmovl %eax,%es\n"
-		"\tmovl %eax,%fs\n"
-		"\tmovl %eax,%gs\n"
-		"\tmovl %eax,%ss\n"
-		);
+		"\tmovl $"STR(__KERNEL_DS)",%%eax\n"
+		"\tmovl %%eax,%%ds\n"
+		"\tmovl %%eax,%%es\n"
+		"\tmovl %%eax,%%fs\n"
+		"\tmovl %%eax,%%gs\n"
+		"\tmovl %%eax,%%ss\n"
+		::: "eax", "memory");
 #undef STR
 #undef __STR
 }

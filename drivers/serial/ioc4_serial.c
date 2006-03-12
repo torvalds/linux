@@ -2301,7 +2301,6 @@ static void receive_chars(struct uart_port *the_port)
 	int read_count, request_count = IOC4_MAX_CHARS;
 	struct uart_icount *icount;
 	struct uart_info *info = the_port->info;
-	int flip = 0;
 	unsigned long pflags;
 
 	/* Make sure all the pointers are "good" ones */
@@ -2313,7 +2312,7 @@ static void receive_chars(struct uart_port *the_port)
 	spin_lock_irqsave(&the_port->lock, pflags);
 	tty = info->tty;
 
-	request_count = tty_buffer_request_room(tty, IOC4_MAX_CHARS - 2);
+	request_count = tty_buffer_request_room(tty, IOC4_MAX_CHARS);
 
 	if (request_count > 0) {
 		icount = &the_port->icount;
@@ -2326,8 +2325,7 @@ static void receive_chars(struct uart_port *the_port)
 
 	spin_unlock_irqrestore(&the_port->lock, pflags);
 
-	if (flip)
-		tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tty);
 }
 
 /**

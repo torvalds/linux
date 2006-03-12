@@ -335,6 +335,12 @@ running once the system is up.
 			timesource is not avalible, it defaults to PIT.
 			Format: { pit | tsc | cyclone | pmtmr }
 
+	disable_8254_timer
+	enable_8254_timer
+			[IA32/X86_64] Disable/Enable interrupt 0 timer routing
+			over the 8254 in addition to over the IO-APIC. The
+			kernel tries to set a sensible default.
+
 	hpet=		[IA-32,HPET] option to disable HPET and use PIT.
 			Format: disable
 
@@ -1283,6 +1289,19 @@ running once the system is up.
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			New name for the ramdisk parameter.
 			See Documentation/ramdisk.txt.
+
+	rcu.blimit=	[KNL,BOOT] Set maximum number of finished
+			RCU callbacks to process in one batch.
+
+	rcu.qhimark=	[KNL,BOOT] Set threshold of queued
+			RCU callbacks over which batch limiting is disabled.
+
+	rcu.qlowmark=	[KNL,BOOT] Set threshold of queued
+			RCU callbacks below which batch limiting is re-enabled.
+
+	rcu.rsinterval=	[KNL,BOOT,SMP] Set the number of additional
+			RCU callbacks to queued before forcing reschedule
+			on all cpus.
 
 	rdinit=		[KNL]
 			Format: <full_path>

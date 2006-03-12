@@ -352,11 +352,20 @@ static void pcmcia_release_dev(struct device *dev)
 	kfree(p_dev);
 }
 
+static void pcmcia_add_pseudo_device(struct pcmcia_socket *s)
+{
+	if (!s->pcmcia_state.device_add_pending) {
+		s->pcmcia_state.device_add_pending = 1;
+		schedule_work(&s->device_add);
+	}
+	return;
+}
 
 static int pcmcia_device_probe(struct device * dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
+	struct pcmcia_device_id *did;
 	struct pcmcia_socket *s;
 	int ret = 0;
 
@@ -392,6 +401,19 @@ static int pcmcia_device_probe(struct device * dev)
 	}
 
 	ret = p_drv->probe(p_dev);
+	if (ret)
+		goto put_module;
+
+	/* handle pseudo multifunction devices:
+	 * there are at most two pseudo multifunction devices.
+	 * if we're matching against the first, schedule a
+	 * call which will then check whether there are two
+	 * pseudo devices, and if not, add the second one.
+	 */
+	did = (struct pcmcia_device_id *) p_dev->dev.driver_data;
+	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
+	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
+		pcmcia_add_pseudo_device(p_dev->socket);
 
  put_module:
 	if (ret)
@@ -660,15 +682,6 @@ static void pcmcia_delayed_add_pseudo_device(void *data)
 	s->pcmcia_state.device_add_pending = 0;
 }
 
-static inline void pcmcia_add_pseudo_device(struct pcmcia_socket *s)
-{
-	if (!s->pcmcia_state.device_add_pending) {
-		s->pcmcia_state.device_add_pending = 1;
-		schedule_work(&s->device_add);
-	}
-	return;
-}
-
 static int pcmcia_requery(struct device *dev, void * _data)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
@@ -755,15 +768,6 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) {
-		/* handle pseudo multifunction devices:
-		 * there are at most two pseudo multifunction devices.
-		 * if we're matching against the first, schedule a
-		 * call which will then check whether there are two
-		 * pseudo devices, and if not, add the second one.
-		 */
-		if (dev->device_no == 0)
-			pcmcia_add_pseudo_device(dev->socket);
-
 		if (dev->device_no != did->device_no)
 			return 0;
 	}

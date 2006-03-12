@@ -1326,7 +1326,7 @@ static int aty128_var_to_pll(u32 period_in_ps, struct aty128_pll *pll,
 	unsigned char post_dividers[] = {1,2,4,8,3,6,12};
 	u32 output_freq;
 	u32 vclk;        /* in .01 MHz */
-	int i;
+	int i = 0;
 	u32 n, d;
 
 	vclk = 100000000 / period_in_ps;	/* convert units to 10 kHz */
@@ -1340,15 +1340,16 @@ static int aty128_var_to_pll(u32 period_in_ps, struct aty128_pll *pll,
 	/* now, find an acceptable divider */
 	for (i = 0; i < sizeof(post_dividers); i++) {
 		output_freq = post_dividers[i] * vclk;
-		if (output_freq >= c.ppll_min && output_freq <= c.ppll_max)
+		if (output_freq >= c.ppll_min && output_freq <= c.ppll_max) {
+			pll->post_divider = post_dividers[i];
 			break;
+		}
 	}
 
 	/* calculate feedback divider */
 	n = c.ref_divider * output_freq;
 	d = c.ref_clk;
 
-	pll->post_divider = post_dividers[i];
 	pll->feedback_divider = round_div(n, d);
 	pll->vclk = vclk;
 

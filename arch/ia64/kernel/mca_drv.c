@@ -123,8 +123,9 @@ mca_page_isolate(unsigned long paddr)
 void
 mca_handler_bh(unsigned long paddr)
 {
-	printk(KERN_DEBUG "OS_MCA: process [pid: %d](%s) encounters MCA.\n",
-		current->pid, current->comm);
+	printk(KERN_ERR
+		"OS_MCA: process [pid: %d](%s) encounters MCA (paddr=%lx)\n",
+		current->pid, current->comm, paddr);
 
 	spin_lock(&mca_bh_lock);
 	switch (mca_page_isolate(paddr)) {
@@ -132,7 +133,7 @@ mca_handler_bh(unsigned long paddr)
 		printk(KERN_DEBUG "Page isolation: ( %lx ) success.\n", paddr);
 		break;
 	case ISOLATE_NG:
-		printk(KERN_DEBUG "Page isolation: ( %lx ) failure.\n", paddr);
+		printk(KERN_CRIT "Page isolation: ( %lx ) failure.\n", paddr);
 		break;
 	default:
 		break;
@@ -567,10 +568,15 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 		return 0;
 
 	/*
-	 * If there is no bus error, record is weird but we need not to recover.
+	 * The cache check and bus check bits have four possible states
+	 *   cc bc
+	 *    0  0	Weird record, not recovered
+	 *    1  0	Cache error, not recovered
+	 *    0  1	I/O error, attempt recovery
+	 *    1  1	Memory error, attempt recovery
 	 */
 	if (psp->bc == 0 || pbci == NULL)
-		return 1;
+		return 0;
 
 	/*
 	 * Sorry, we cannot handle so many.

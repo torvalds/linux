@@ -152,7 +152,7 @@ enum {
 	ATA_FLAG_PIO_LBA48	= (1 << 13), /* Host DMA engine is LBA28 only */
 	ATA_FLAG_IRQ_MASK	= (1 << 14), /* Mask IRQ in PIO xfers */
 
-	ATA_FLAG_FLUSH_PIO_TASK	= (1 << 15), /* Flush PIO task */
+	ATA_FLAG_FLUSH_PORT_TASK = (1 << 15), /* Flush port task */
 	ATA_FLAG_IN_EH		= (1 << 16), /* EH in progress */
 
 	ATA_QCFLAG_ACTIVE	= (1 << 1), /* cmd not yet ack'd to scsi lyer */
@@ -191,11 +191,19 @@ enum {
 	PORT_DISABLED		= 2,
 
 	/* encoding various smaller bitmaps into a single
-	 * unsigned long bitmap
+	 * unsigned int bitmap
 	 */
-	ATA_SHIFT_UDMA		= 0,
-	ATA_SHIFT_MWDMA		= 8,
-	ATA_SHIFT_PIO		= 11,
+	ATA_BITS_PIO		= 5,
+	ATA_BITS_MWDMA		= 3,
+	ATA_BITS_UDMA		= 8,
+
+	ATA_SHIFT_PIO		= 0,
+	ATA_SHIFT_MWDMA		= ATA_SHIFT_PIO + ATA_BITS_PIO,
+	ATA_SHIFT_UDMA		= ATA_SHIFT_MWDMA + ATA_BITS_MWDMA,
+
+	ATA_MASK_PIO		= ((1 << ATA_BITS_PIO) - 1) << ATA_SHIFT_PIO,
+	ATA_MASK_MWDMA		= ((1 << ATA_BITS_MWDMA) - 1) << ATA_SHIFT_MWDMA,
+	ATA_MASK_UDMA		= ((1 << ATA_BITS_UDMA) - 1) << ATA_SHIFT_UDMA,
 
 	/* size of buffer to pad xfers ending on unaligned boundaries */
 	ATA_DMA_PAD_SZ		= 4,
@@ -344,7 +352,7 @@ struct ata_device {
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	unsigned int		class;		/* ATA_DEV_xxx */
 	unsigned int		devno;		/* 0 or 1 */
-	u16			id[ATA_ID_WORDS]; /* IDENTIFY xxx DEVICE data */
+	u16			*id;		/* IDENTIFY xxx DEVICE data */
 	u8			pio_mode;
 	u8			dma_mode;
 	u8			xfer_mode;
@@ -393,7 +401,8 @@ struct ata_port {
 	struct ata_host_stats	stats;
 	struct ata_host_set	*host_set;
 
-	struct work_struct	pio_task;
+	struct work_struct	port_task;
+
 	unsigned int		hsm_task_state;
 	unsigned long		pio_task_timeout;
 
@@ -488,6 +497,8 @@ extern int ata_std_softreset(struct ata_port *ap, int verbose,
 extern int sata_std_hardreset(struct ata_port *ap, int verbose,
 			      unsigned int *class);
 extern void ata_std_postreset(struct ata_port *ap, unsigned int *classes);
+extern int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
+			      int post_reset);
 extern void ata_port_disable(struct ata_port *);
 extern void ata_std_ports(struct ata_ioports *ioaddr);
 #ifdef CONFIG_PCI
@@ -516,6 +527,8 @@ extern int ata_ratelimit(void);
 extern unsigned int ata_busy_sleep(struct ata_port *ap,
 				   unsigned long timeout_pat,
 				   unsigned long timeout);
+extern void ata_port_queue_task(struct ata_port *ap, void (*fn)(void *),
+				void *data, unsigned long delay);
 
 /*
  * Default driver ops implementations
@@ -545,7 +558,6 @@ extern void ata_id_string(const u16 *id, unsigned char *s,
 			  unsigned int ofs, unsigned int len);
 extern void ata_id_c_string(const u16 *id, unsigned char *s,
 			    unsigned int ofs, unsigned int len);
-extern void ata_dev_config(struct ata_port *ap, unsigned int i);
 extern void ata_bmdma_setup (struct ata_queued_cmd *qc);
 extern void ata_bmdma_start (struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
@@ -648,10 +660,14 @@ static inline unsigned int ata_tag_valid(unsigned int tag)
 	return (tag < ATA_MAX_QUEUE) ? 1 : 0;
 }
 
+static inline unsigned int ata_class_present(unsigned int class)
+{
+	return class == ATA_DEV_ATA || class == ATA_DEV_ATAPI;
+}
+
 static inline unsigned int ata_dev_present(const struct ata_device *dev)
 {
-	return ((dev->class == ATA_DEV_ATA) ||
-		(dev->class == ATA_DEV_ATAPI));
+	return ata_class_present(dev->class);
 }
 
 static inline u8 ata_chk_status(struct ata_port *ap)

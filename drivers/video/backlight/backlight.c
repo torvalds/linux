@@ -172,7 +172,7 @@ struct backlight_device *backlight_device_register(const char *name, void *devda
 
 	new_bd = kmalloc(sizeof(struct backlight_device), GFP_KERNEL);
 	if (unlikely(!new_bd))
-		return ERR_PTR(ENOMEM);
+		return ERR_PTR(-ENOMEM);
 
 	init_MUTEX(&new_bd->sem);
 	new_bd->props = bp;

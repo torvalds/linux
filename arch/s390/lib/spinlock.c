@@ -2,8 +2,7 @@
  *  arch/s390/lib/spinlock.c
  *    Out of line spinlock code.
  *
- *  S390 version
- *    Copyright (C) 2004 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright (C) IBM Corp. 2004, 2006
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
@@ -44,6 +43,8 @@ _raw_spin_lock_wait(raw_spinlock_t *lp, unsigned int pc)
 			_diag44();
 			count = spin_retry;
 		}
+		if (__raw_spin_is_locked(lp))
+			continue;
 		if (_raw_compare_and_swap(&lp->lock, 0, pc) == 0)
 			return;
 	}
@@ -56,6 +57,8 @@ _raw_spin_trylock_retry(raw_spinlock_t *lp, unsigned int pc)
 	int count = spin_retry;
 
 	while (count-- > 0) {
+		if (__raw_spin_is_locked(lp))
+			continue;
 		if (_raw_compare_and_swap(&lp->lock, 0, pc) == 0)
 			return 1;
 	}
@@ -74,6 +77,8 @@ _raw_read_lock_wait(raw_rwlock_t *rw)
 			_diag44();
 			count = spin_retry;
 		}
+		if (!__raw_read_can_lock(rw))
+			continue;
 		old = rw->lock & 0x7fffffffU;
 		if (_raw_compare_and_swap(&rw->lock, old, old + 1) == old)
 			return;
@@ -88,6 +93,8 @@ _raw_read_trylock_retry(raw_rwlock_t *rw)
 	int count = spin_retry;
 
 	while (count-- > 0) {
+		if (!__raw_read_can_lock(rw))
+			continue;
 		old = rw->lock & 0x7fffffffU;
 		if (_raw_compare_and_swap(&rw->lock, old, old + 1) == old)
 			return 1;
@@ -106,6 +113,8 @@ _raw_write_lock_wait(raw_rwlock_t *rw)
 			_diag44();
 			count = spin_retry;
 		}
+		if (!__raw_write_can_lock(rw))
+			continue;
 		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0)
 			return;
 	}
@@ -118,6 +127,8 @@ _raw_write_trylock_retry(raw_rwlock_t *rw)
 	int count = spin_retry;
 
 	while (count-- > 0) {
+		if (!__raw_write_can_lock(rw))
+			continue;
 		if (_raw_compare_and_swap(&rw->lock, 0, 0x80000000) == 0)
 			return 1;
 	}

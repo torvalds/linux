@@ -227,7 +227,7 @@ ret_from_syscall:
 	MTMSRD(r10)
 	lwz	r9,TI_FLAGS(r12)
 	li	r8,-_LAST_ERRNO
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SIGPENDING|_TIF_NEED_RESCHED|_TIF_RESTOREALL)
+	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	syscall_exit_work
 	cmplw	0,r3,r8
 	blt+	syscall_exit_cont
@@ -287,8 +287,10 @@ syscall_dotrace:
 
 syscall_exit_work:
 	andi.	r0,r9,_TIF_RESTOREALL
-	bne-	2f
-	cmplw	0,r3,r8
+	beq+	0f
+	REST_NVGPRS(r1)
+	b	2f
+0:	cmplw	0,r3,r8
 	blt+	1f
 	andi.	r0,r9,_TIF_NOERROR
 	bne-	1f
@@ -302,9 +304,7 @@ syscall_exit_work:
 2:	andi.	r0,r9,(_TIF_PERSYSCALL_MASK)
 	beq	4f
 
-	/* Clear per-syscall TIF flags if any are set, but _leave_
-	_TIF_SAVE_NVGPRS set in r9 since we haven't dealt with that
-	yet.  */
+	/* Clear per-syscall TIF flags if any are set.  */
 
 	li	r11,_TIF_PERSYSCALL_MASK
 	addi	r12,r12,TI_FLAGS
@@ -318,8 +318,13 @@ syscall_exit_work:
 	subi	r12,r12,TI_FLAGS
 	
 4:	/* Anything which requires enabling interrupts? */
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_SAVE_NVGPRS)
-	beq	7f
+	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
+	beq	ret_from_except
+
+	/* Re-enable interrupts */
+	ori	r10,r10,MSR_EE
+	SYNC
+	MTMSRD(r10)
 
 	/* Save NVGPRS if they're not saved already */
 	lwz	r4,TRAP(r1)
@@ -328,71 +333,11 @@ syscall_exit_work:
 	SAVE_NVGPRS(r1)
 	li	r4,0xc00
 	stw	r4,TRAP(r1)
-
-	/* Re-enable interrupts */
-5:	ori	r10,r10,MSR_EE
-	SYNC
-	MTMSRD(r10)
-
-	andi.	r0,r9,_TIF_SAVE_NVGPRS
-	bne	save_user_nvgprs
-
-save_user_nvgprs_cont:
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
-	beq	7f
-
+5:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_syscall_trace_leave
-	REST_NVGPRS(r1)
+	b	ret_from_except_full
 
-6:	lwz	r3,GPR3(r1)
-	LOAD_MSR_KERNEL(r10,MSR_KERNEL)	/* doesn't include MSR_EE */
-	SYNC
-	MTMSRD(r10)		/* disable interrupts again */
-	rlwinm	r12,r1,0,0,18	/* current_thread_info() */
-	lwz	r9,TI_FLAGS(r12)
-7:
-	andi.	r0,r9,_TIF_NEED_RESCHED
-	bne	8f
-	lwz	r5,_MSR(r1)
-	andi.	r5,r5,MSR_PR
-	beq	ret_from_except
-	andi.	r0,r9,_TIF_SIGPENDING
-	beq	ret_from_except
-	b	do_user_signal
-8:
-	ori	r10,r10,MSR_EE
-	SYNC
-	MTMSRD(r10)		/* re-enable interrupts */
-	bl	schedule
-	b	6b
-
-save_user_nvgprs:
-	lwz	r8,TI_SIGFRAME(r12)
-
-.macro savewords start, end
-  1:	stw \start,4*(\start)(r8)
-	.section __ex_table,"a"
-	.align	2
-	.long	1b,save_user_nvgprs_fault
-	.previous
-	.if \end - \start
-	savewords "(\start+1)",\end
-	.endif
-.endm	
-	savewords 14,31
-	b	save_user_nvgprs_cont
-
-	
-save_user_nvgprs_fault:
-	li	r3,11		/* SIGSEGV */
-	lwz	r4,TI_TASK(r12)
-	bl	force_sigsegv
-
-	rlwinm	r12,r1,0,0,18	/* current_thread_info() */
-	lwz	r9,TI_FLAGS(r12)
-	b	save_user_nvgprs_cont
-	
 #ifdef SHOW_SYSCALLS
 do_show_syscall:
 #ifdef SHOW_SYSCALLS_TASK
@@ -489,6 +434,14 @@ ppc_clone:
 	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
 	stw	r0,TRAP(r1)		/* register set saved */
 	b	sys_clone
+
+	.globl	ppc_swapcontext
+ppc_swapcontext:
+	SAVE_NVGPRS(r1)
+	lwz	r0,TRAP(r1)
+	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
+	stw	r0,TRAP(r1)		/* register set saved */
+	b	sys_swapcontext
 
 /*
  * Top-level page fault handling.
@@ -683,7 +636,7 @@ user_exc_return:		/* r10 contains MSR_KERNEL here */
 	/* Check current_thread_info()->flags */
 	rlwinm	r9,r1,0,0,18
 	lwz	r9,TI_FLAGS(r9)
-	andi.	r0,r9,(_TIF_SIGPENDING|_TIF_NEED_RESCHED|_TIF_RESTOREALL)
+	andi.	r0,r9,(_TIF_SIGPENDING|_TIF_RESTORE_SIGMASK|_TIF_NEED_RESCHED)
 	bne	do_work
 
 restore_user:
