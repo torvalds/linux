@@ -2786,50 +2786,6 @@ mptscsih_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 /*
  *  SCSI Config Page functionality ...
  */
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*	mptscsih_setDevicePage1Flags  - add Requested and Configuration fields flags
- *	based on width, factor and offset parameters.
- *	@width: bus width
- *	@factor: sync factor
- *	@offset: sync offset
- *	@requestedPtr: pointer to requested values (updated)
- *	@configurationPtr: pointer to configuration values (updated)
- *	@flags: flags to block WDTR or SDTR negotiation
- *
- *	Return: None.
- *
- *	Remark: Called by writeSDP1 and _dv_params
- */
-static void
-mptscsih_setDevicePage1Flags (u8 width, u8 factor, u8 offset, int *requestedPtr, int *configurationPtr, u8 flags)
-{
-	u8 nowide = flags & MPT_TARGET_NO_NEGO_WIDE;
-	u8 nosync = flags & MPT_TARGET_NO_NEGO_SYNC;
-
-	*configurationPtr = 0;
-	*requestedPtr = width ? MPI_SCSIDEVPAGE1_RP_WIDE : 0;
-	*requestedPtr |= (offset << 16) | (factor << 8);
-
-	if (width && offset && !nowide && !nosync) {
-		if (factor < MPT_ULTRA160) {
-			*requestedPtr |= (MPI_SCSIDEVPAGE1_RP_IU + MPI_SCSIDEVPAGE1_RP_DT);
-			if ((flags & MPT_TARGET_NO_NEGO_QAS) == 0)
-				*requestedPtr |= MPI_SCSIDEVPAGE1_RP_QAS;
-			if (flags & MPT_TAPE_NEGO_IDP)
-				*requestedPtr |= 0x08000000;
-		} else if (factor < MPT_ULTRA2) {
-			*requestedPtr |= MPI_SCSIDEVPAGE1_RP_DT;
-		}
-	}
-
-	if (nowide)
-		*configurationPtr |= MPI_SCSIDEVPAGE1_CONF_WDTR_DISALLOWED;
-
-	if (nosync)
-		*configurationPtr |= MPI_SCSIDEVPAGE1_CONF_SDTR_DISALLOWED;
-
-	return;
-}
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*	mptscsih_writeIOCPage4  - write IOC Page 4
