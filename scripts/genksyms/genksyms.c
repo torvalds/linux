@@ -37,14 +37,14 @@
 #define HASH_BUCKETS  4096
 
 static struct symbol *symtab[HASH_BUCKETS];
-FILE *debugfile;
+static FILE *debugfile;
 
 int cur_line = 1;
-char *cur_filename, *output_directory;
+char *cur_filename;
 
-int flag_debug, flag_dump_defs, flag_warnings;
-const char *arch = "";
-const char *mod_prefix = "";
+static int flag_debug, flag_dump_defs, flag_warnings;
+static const char *arch = "";
+static const char *mod_prefix = "";
 
 static int errors;
 static int nsyms;
@@ -54,6 +54,9 @@ static struct symbol *expansion_trail;
 static const char *const symbol_type_name[] = {
 	"normal", "typedef", "enum", "struct", "union"
 };
+
+static int equal_list(struct string_list *a, struct string_list *b);
+static void print_list(FILE * f, struct string_list *list);
 
 /*----------------------------------------------------------------------*/
 
@@ -112,27 +115,26 @@ static const unsigned int crctab32[] = {
 	0x2d02ef8dU
 };
 
-static inline unsigned long
-partial_crc32_one(unsigned char c, unsigned long crc)
+static unsigned long partial_crc32_one(unsigned char c, unsigned long crc)
 {
 	return crctab32[(crc ^ c) & 0xff] ^ (crc >> 8);
 }
 
-static inline unsigned long partial_crc32(const char *s, unsigned long crc)
+static unsigned long partial_crc32(const char *s, unsigned long crc)
 {
 	while (*s)
 		crc = partial_crc32_one(*s++, crc);
 	return crc;
 }
 
-static inline unsigned long crc32(const char *s)
+static unsigned long crc32(const char *s)
 {
 	return partial_crc32(s, 0xffffffff) ^ 0xffffffff;
 }
 
 /*----------------------------------------------------------------------*/
 
-static inline enum symbol_type map_to_ns(enum symbol_type t)
+static enum symbol_type map_to_ns(enum symbol_type t)
 {
 	if (t == SYM_TYPEDEF)
 		t = SYM_NORMAL;
@@ -147,8 +149,8 @@ struct symbol *find_symbol(const char *name, enum symbol_type ns)
 	struct symbol *sym;
 
 	for (sym = symtab[h]; sym; sym = sym->hash_next)
-		if (map_to_ns(sym->type) == map_to_ns(ns)
-		    && strcmp(name, sym->name) == 0)
+		if (map_to_ns(sym->type) == map_to_ns(ns) &&
+		    strcmp(name, sym->name) == 0)
 			break;
 
 	return sym;
@@ -160,13 +162,14 @@ struct symbol *add_symbol(const char *name, enum symbol_type type,
 	unsigned long h = crc32(name) % HASH_BUCKETS;
 	struct symbol *sym;
 
-	for (sym = symtab[h]; sym; sym = sym->hash_next)
+	for (sym = symtab[h]; sym; sym = sym->hash_next) {
 		if (map_to_ns(sym->type) == map_to_ns(type)
 		    && strcmp(name, sym->name) == 0) {
 			if (!equal_list(sym->defn, defn))
 				error_with_pos("redefinition of %s", name);
 			return sym;
 		}
+	}
 
 	sym = xmalloc(sizeof(*sym));
 	sym->name = name;
@@ -193,7 +196,7 @@ struct symbol *add_symbol(const char *name, enum symbol_type type,
 
 /*----------------------------------------------------------------------*/
 
-inline void free_node(struct string_list *node)
+void free_node(struct string_list *node)
 {
 	free(node->string);
 	free(node);
@@ -208,7 +211,7 @@ void free_list(struct string_list *s, struct string_list *e)
 	}
 }
 
-inline struct string_list *copy_node(struct string_list *node)
+struct string_list *copy_node(struct string_list *node)
 {
 	struct string_list *newnode;
 
@@ -219,22 +222,7 @@ inline struct string_list *copy_node(struct string_list *node)
 	return newnode;
 }
 
-struct string_list *copy_list(struct string_list *s, struct string_list *e)
-{
-	struct string_list *h, *p;
-
-	if (s == e)
-		return NULL;
-
-	p = h = copy_node(s);
-	while ((s = s->next) != e)
-		p = p->next = copy_node(s);
-	p->next = NULL;
-
-	return h;
-}
-
-int equal_list(struct string_list *a, struct string_list *b)
+static int equal_list(struct string_list *a, struct string_list *b)
 {
 	while (a && b) {
 		if (a->tag != b->tag || strcmp(a->string, b->string))
@@ -246,7 +234,7 @@ int equal_list(struct string_list *a, struct string_list *b)
 	return !a && !b;
 }
 
-static inline void print_node(FILE * f, struct string_list *list)
+static void print_node(FILE * f, struct string_list *list)
 {
 	switch (list->tag) {
 	case SYM_STRUCT:
@@ -270,7 +258,7 @@ static inline void print_node(FILE * f, struct string_list *list)
 	}
 }
 
-void print_list(FILE * f, struct string_list *list)
+static void print_list(FILE * f, struct string_list *list)
 {
 	struct string_list **e, **b;
 	struct string_list *tmp, **tmp2;
@@ -299,8 +287,8 @@ void print_list(FILE * f, struct string_list *list)
 	}
 }
 
-static unsigned long
-expand_and_crc_list(struct string_list *list, unsigned long crc)
+static unsigned long expand_and_crc_list(struct string_list *list,
+					 unsigned long crc)
 {
 	struct string_list **e, **b;
 	struct string_list *tmp, **tmp2;
@@ -386,9 +374,8 @@ expand_and_crc_list(struct string_list *list, unsigned long crc)
 						cur->string);
 				}
 
-				crc =
-				    partial_crc32(symbol_type_name[cur->tag],
-						  crc);
+				crc = partial_crc32(symbol_type_name[cur->tag],
+						    crc);
 				crc = partial_crc32_one(' ', crc);
 				crc = partial_crc32(cur->string, crc);
 				crc = partial_crc32_one(' ', crc);
@@ -437,21 +424,6 @@ void export_symbol(const char *name)
 }
 
 /*----------------------------------------------------------------------*/
-
-void error(const char *fmt, ...)
-{
-	va_list args;
-
-	if (flag_warnings) {
-		va_start(args, fmt);
-		vfprintf(stderr, fmt, args);
-		va_end(args);
-		putc('\n', stderr);
-
-		errors++;
-	}
-}
-
 void error_with_pos(const char *fmt, ...)
 {
 	va_list args;
@@ -469,7 +441,7 @@ void error_with_pos(const char *fmt, ...)
 	}
 }
 
-void genksyms_usage(void)
+static void genksyms_usage(void)
 {
 	fputs("Usage:\n" "genksyms [-dDwqhV] > /path/to/.tmp_obj.ver\n" "\n"
 #ifdef __GNU_LIBRARY__
