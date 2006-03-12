@@ -819,7 +819,10 @@ static unsigned int ata_id_xfermask(const u16 *id)
 	}
 
 	mwdma_mask = id[ATA_ID_MWDMA_MODES] & 0x07;
-	udma_mask = id[ATA_ID_UDMA_MODES] & 0xff;
+
+	udma_mask = 0;
+	if (id[ATA_ID_FIELD_VALID] & (1 << 2))
+		udma_mask = id[ATA_ID_UDMA_MODES] & 0xff;
 
 	return ata_pack_xfermask(pio_mask, mwdma_mask, udma_mask);
 }
