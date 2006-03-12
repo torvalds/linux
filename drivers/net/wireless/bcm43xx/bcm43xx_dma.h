@@ -9,27 +9,10 @@
 
 
 /* DMA-Interrupt reasons. */
-/*TODO: add the missing ones. */
-#define BCM43xx_DMAIRQ_ERR0		(1 << 10)
-#define BCM43xx_DMAIRQ_ERR1		(1 << 11)
-#define BCM43xx_DMAIRQ_ERR2		(1 << 12)
-#define BCM43xx_DMAIRQ_ERR3		(1 << 13)
-#define BCM43xx_DMAIRQ_ERR4		(1 << 14)
-#define BCM43xx_DMAIRQ_ERR5		(1 << 15)
+#define BCM43xx_DMAIRQ_FATALMASK	((1 << 10) | (1 << 11) | (1 << 12) \
+					 | (1 << 14) | (1 << 15))
+#define BCM43xx_DMAIRQ_NONFATALMASK	(1 << 13)
 #define BCM43xx_DMAIRQ_RX_DONE		(1 << 16)
-/* helpers */
-#define BCM43xx_DMAIRQ_ANYERR		(BCM43xx_DMAIRQ_ERR0 | \
-					 BCM43xx_DMAIRQ_ERR1 | \
-					 BCM43xx_DMAIRQ_ERR2 | \
-					 BCM43xx_DMAIRQ_ERR3 | \
-					 BCM43xx_DMAIRQ_ERR4 | \
-					 BCM43xx_DMAIRQ_ERR5)
-#define BCM43xx_DMAIRQ_FATALERR		(BCM43xx_DMAIRQ_ERR0 | \
-					 BCM43xx_DMAIRQ_ERR1 | \
-					 BCM43xx_DMAIRQ_ERR2 | \
-					 BCM43xx_DMAIRQ_ERR4 | \
-					 BCM43xx_DMAIRQ_ERR5)
-#define BCM43xx_DMAIRQ_NONFATALERR	BCM43xx_DMAIRQ_ERR3
 
 /* DMA controller register offsets. (relative to BCM43xx_DMA#_BASE) */
 #define BCM43xx_DMA_TX_CONTROL		0x00

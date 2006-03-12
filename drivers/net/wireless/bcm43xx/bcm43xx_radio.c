@@ -97,6 +97,7 @@ void bcm43xx_radio_lock(struct bcm43xx_private *bcm)
 	status = bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD);
 	status |= BCM43xx_SBF_RADIOREG_LOCK;
 	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD, status);
+	mmiowb();
 	udelay(10);
 }
 
@@ -108,6 +109,7 @@ void bcm43xx_radio_unlock(struct bcm43xx_private *bcm)
 	status = bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD);
 	status &= ~BCM43xx_SBF_RADIOREG_LOCK;
 	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD, status);
+	mmiowb();
 }
 
 u16 bcm43xx_radio_read16(struct bcm43xx_private *bcm, u16 offset)
@@ -142,6 +144,7 @@ u16 bcm43xx_radio_read16(struct bcm43xx_private *bcm, u16 offset)
 void bcm43xx_radio_write16(struct bcm43xx_private *bcm, u16 offset, u16 val)
 {
 	bcm43xx_write16(bcm, BCM43xx_MMIO_RADIO_CONTROL, offset);
+	mmiowb();
 	bcm43xx_write16(bcm, BCM43xx_MMIO_RADIO_DATA_LOW, val);
 }
 
@@ -161,10 +164,10 @@ static void bcm43xx_set_all_gains(struct bcm43xx_private *bcm,
 	}
 
 	for (i = 0; i < 4; i++)
-		bcm43xx_ilt_write16(bcm, offset + i, first);
+		bcm43xx_ilt_write(bcm, offset + i, first);
 
 	for (i = start; i < end; i++)
-		bcm43xx_ilt_write16(bcm, offset + i, second);
+		bcm43xx_ilt_write(bcm, offset + i, second);
 
 	if (third != -1) {
 		tmp = ((u16)third << 14) | ((u16)third << 6);
@@ -196,11 +199,11 @@ static void bcm43xx_set_original_gains(struct bcm43xx_private *bcm)
 		tmp |= (i & 0x0001) << 1;
 		tmp |= (i & 0x0002) >> 1;
 
-		bcm43xx_ilt_write16(bcm, offset + i, tmp);
+		bcm43xx_ilt_write(bcm, offset + i, tmp);
 	}
 
 	for (i = start; i < end; i++)
-		bcm43xx_ilt_write16(bcm, offset + i, i - start);
+		bcm43xx_ilt_write(bcm, offset + i, i - start);
 
 	bcm43xx_phy_write(bcm, 0x04A0,
 	                  (bcm43xx_phy_read(bcm, 0x04A0) & 0xBFBF) | 0x4040);
@@ -316,6 +319,7 @@ u8 bcm43xx_radio_aci_scan(struct bcm43xx_private *bcm)
 void bcm43xx_nrssi_hw_write(struct bcm43xx_private *bcm, u16 offset, s16 val)
 {
 	bcm43xx_phy_write(bcm, BCM43xx_PHY_NRSSILT_CTRL, offset);
+	mmiowb();
 	bcm43xx_phy_write(bcm, BCM43xx_PHY_NRSSILT_DATA, (u16)val);
 }
 
@@ -612,10 +616,6 @@ void bcm43xx_calc_nrssi_slope(struct bcm43xx_private *bcm)
 		}
 		break;
 	case BCM43xx_PHYTYPE_G:
-//FIXME: Something is broken here. This is called when enabling WLAN interfmode.
-//	 If this is done at runtime, I get an XMIT ERROR and transmission is
-//	 broken. I guess some important register is overwritten by accident.
-//	 The XMIT ERROR comes from the dummy_transmissions in set_gains.
 		if (radio->revision >= 9)
 			return;
 		if (radio->revision == 8)
@@ -1641,14 +1641,14 @@ void bcm43xx_radio_set_txpower_a(struct bcm43xx_private *bcm, u16 txpower)
 	base &= 0x000F;
 	bcm43xx_phy_write(bcm, 0x0017, base | 0x0020);
 
-	ilt = bcm43xx_ilt_read16(bcm, 0x3001);
+	ilt = bcm43xx_ilt_read(bcm, 0x3001);
 	ilt &= 0x0007;
 
 	dac = bcm43xx_get_txgain_dac(txpower);
 	dac <<= 3;
 	dac |= ilt;
 
-	bcm43xx_ilt_write16(bcm, 0x3001, dac);
+	bcm43xx_ilt_write(bcm, 0x3001, dac);
 
 	bcm->current_core->radio->txpower[0] = txpower;
 

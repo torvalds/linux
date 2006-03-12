@@ -155,6 +155,7 @@ static void bcm43xx_ram_write(struct bcm43xx_private *bcm, u16 offset, u32 val)
 		val = swab32(val);
 
 	bcm43xx_write32(bcm, BCM43xx_MMIO_RAM_CONTROL, offset);
+	mmiowb();
 	bcm43xx_write32(bcm, BCM43xx_MMIO_RAM_DATA, val);
 }
 
@@ -225,9 +226,12 @@ void bcm43xx_shm_write32(struct bcm43xx_private *bcm,
 		if (offset & 0x0003) {
 			/* Unaligned access */
 			bcm43xx_shm_control_word(bcm, routing, offset >> 2);
+			mmiowb();
 			bcm43xx_write16(bcm, BCM43xx_MMIO_SHM_DATA_UNALIGNED,
 					(value >> 16) & 0xffff);
+			mmiowb();
 			bcm43xx_shm_control_word(bcm, routing, (offset >> 2) + 1);
+			mmiowb();
 			bcm43xx_write16(bcm, BCM43xx_MMIO_SHM_DATA,
 					value & 0xffff);
 			return;
@@ -235,6 +239,7 @@ void bcm43xx_shm_write32(struct bcm43xx_private *bcm,
 		offset >>= 2;
 	}
 	bcm43xx_shm_control_word(bcm, routing, offset);
+	mmiowb();
 	bcm43xx_write32(bcm, BCM43xx_MMIO_SHM_DATA, value);
 }
 
@@ -246,6 +251,7 @@ void bcm43xx_shm_write16(struct bcm43xx_private *bcm,
 		if (offset & 0x0003) {
 			/* Unaligned access */
 			bcm43xx_shm_control_word(bcm, routing, offset >> 2);
+			mmiowb();
 			bcm43xx_write16(bcm, BCM43xx_MMIO_SHM_DATA_UNALIGNED,
 					value);
 			return;
@@ -253,6 +259,7 @@ void bcm43xx_shm_write16(struct bcm43xx_private *bcm,
 		offset >>= 2;
 	}
 	bcm43xx_shm_control_word(bcm, routing, offset);
+	mmiowb();
 	bcm43xx_write16(bcm, BCM43xx_MMIO_SHM_DATA, value);
 }
 
@@ -311,6 +318,7 @@ void bcm43xx_tsf_write(struct bcm43xx_private *bcm, u64 tsf)
 	status = bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD);
 	status |= BCM43xx_SBF_TIME_UPDATE;
 	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD, status);
+	mmiowb();
 
 	/* Be careful with the in-progress timer.
 	 * First zero out the low register, so we have a full
@@ -320,9 +328,10 @@ void bcm43xx_tsf_write(struct bcm43xx_private *bcm, u64 tsf)
 		u32 lo = (tsf & 0x00000000FFFFFFFFULL);
 		u32 hi = (tsf & 0xFFFFFFFF00000000ULL) >> 32;
 
-		barrier();
 		bcm43xx_write32(bcm, BCM43xx_MMIO_REV3PLUS_TSF_LOW, 0);
+		mmiowb();
 		bcm43xx_write32(bcm, BCM43xx_MMIO_REV3PLUS_TSF_HIGH, hi);
+		mmiowb();
 		bcm43xx_write32(bcm, BCM43xx_MMIO_REV3PLUS_TSF_LOW, lo);
 	} else {
 		u16 v0 = (tsf & 0x000000000000FFFFULL);
@@ -330,11 +339,14 @@ void bcm43xx_tsf_write(struct bcm43xx_private *bcm, u64 tsf)
 		u16 v2 = (tsf & 0x0000FFFF00000000ULL) >> 32;
 		u16 v3 = (tsf & 0xFFFF000000000000ULL) >> 48;
 
-		barrier();
 		bcm43xx_write16(bcm, BCM43xx_MMIO_TSF_0, 0);
+		mmiowb();
 		bcm43xx_write16(bcm, BCM43xx_MMIO_TSF_3, v3);
+		mmiowb();
 		bcm43xx_write16(bcm, BCM43xx_MMIO_TSF_2, v2);
+		mmiowb();
 		bcm43xx_write16(bcm, BCM43xx_MMIO_TSF_1, v1);
+		mmiowb();
 		bcm43xx_write16(bcm, BCM43xx_MMIO_TSF_0, v0);
 	}
 
@@ -974,6 +986,7 @@ static void bcm43xx_geo_init(struct bcm43xx_private *bcm)
 void bcm43xx_dummy_transmission(struct bcm43xx_private *bcm)
 {
 	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
 	unsigned int i, max_loop;
 	u16 value = 0;
 	u32 buffer[5] = {
@@ -983,6 +996,13 @@ void bcm43xx_dummy_transmission(struct bcm43xx_private *bcm)
 		0x00000001,
 		0x00000000,
 	};
+
+/* FIXME: It seems like a dummy_transmission corrupts the DMA engines,
+ *        once they are initialized. So avoid doing a dummy_transmission,
+ *        if the DMA engines are running.
+ */
+if (bcm->initialized)
+return;
 
 	switch (phy->type) {
 	case BCM43xx_PHYTYPE_A:
@@ -1015,24 +1035,28 @@ void bcm43xx_dummy_transmission(struct bcm43xx_private *bcm)
 	bcm43xx_write16(bcm, 0x0500, 0x0000);
 	bcm43xx_write16(bcm, 0x0502, 0x0030);
 
+	if (radio->version == 0x2050 && radio->revision <= 0x5)
+		bcm43xx_radio_write16(bcm, 0x0051, 0x0017);
 	for (i = 0x00; i < max_loop; i++) {
 		value = bcm43xx_read16(bcm, 0x050E);
-		if ((value & 0x0080) != 0)
+		if (value & 0x0080)
 			break;
 		udelay(10);
 	}
 	for (i = 0x00; i < 0x0A; i++) {
 		value = bcm43xx_read16(bcm, 0x050E);
-		if ((value & 0x0400) != 0)
+		if (value & 0x0400)
 			break;
 		udelay(10);
 	}
 	for (i = 0x00; i < 0x0A; i++) {
 		value = bcm43xx_read16(bcm, 0x0690);
-		if ((value & 0x0100) == 0)
+		if (!(value & 0x0100))
 			break;
 		udelay(10);
 	}
+	if (radio->version == 0x2050 && radio->revision <= 0x5)
+		bcm43xx_radio_write16(bcm, 0x0051, 0x0037);
 }
 
 static void key_write(struct bcm43xx_private *bcm,
@@ -1646,22 +1670,6 @@ static void handle_irq_beacon(struct bcm43xx_private *bcm)
 	}
 }
 
-/* Debug helper for irq bottom-half to print all reason registers. */
-#define bcmirq_print_reasons(description) \
-	do {											\
-		dprintkl(KERN_ERR PFX description "\n"						\
-			 KERN_ERR PFX "  Generic Reason: 0x%08x\n"				\
-			 KERN_ERR PFX "  DMA reasons:    0x%08x, 0x%08x, 0x%08x, 0x%08x\n"	\
-			 KERN_ERR PFX "  DMA TX status:  0x%08x, 0x%08x, 0x%08x, 0x%08x\n",	\
-			 reason,								\
-			 dma_reason[0], dma_reason[1],						\
-			 dma_reason[2], dma_reason[3],						\
-			 bcm43xx_read32(bcm, BCM43xx_MMIO_DMA1_BASE + BCM43xx_DMA_TX_STATUS),	\
-			 bcm43xx_read32(bcm, BCM43xx_MMIO_DMA2_BASE + BCM43xx_DMA_TX_STATUS),	\
-			 bcm43xx_read32(bcm, BCM43xx_MMIO_DMA3_BASE + BCM43xx_DMA_TX_STATUS),	\
-			 bcm43xx_read32(bcm, BCM43xx_MMIO_DMA4_BASE + BCM43xx_DMA_TX_STATUS));	\
-	} while (0)
-
 /* Interrupt handler bottom-half */
 static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 {
@@ -1690,8 +1698,29 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 		 * on DMA or PIO queues.
 		 * Maybe we get this in other error conditions, too.
 		 */
-		bcmirq_print_reasons("XMIT ERROR");
+		printkl(KERN_ERR PFX "FATAL ERROR: BCM43xx_IRQ_XMIT_ERROR\n");
 		bcmirq_handled(BCM43xx_IRQ_XMIT_ERROR);
+	}
+	if (unlikely((dma_reason[0] & BCM43xx_DMAIRQ_FATALMASK) |
+		     (dma_reason[1] & BCM43xx_DMAIRQ_FATALMASK) |
+		     (dma_reason[2] & BCM43xx_DMAIRQ_FATALMASK) |
+		     (dma_reason[3] & BCM43xx_DMAIRQ_FATALMASK))) {
+		printkl(KERN_ERR PFX "FATAL ERROR: Fatal DMA error: "
+				     "0x%08X, 0x%08X, 0x%08X, 0x%08X\n",
+		        dma_reason[0], dma_reason[1],
+			dma_reason[2], dma_reason[3]);
+		bcm43xx_controller_restart(bcm, "DMA error");
+		bcm43xx_unlock_mmio(bcm, flags);
+		return;
+	}
+	if (unlikely((dma_reason[0] & BCM43xx_DMAIRQ_NONFATALMASK) |
+		     (dma_reason[1] & BCM43xx_DMAIRQ_NONFATALMASK) |
+		     (dma_reason[2] & BCM43xx_DMAIRQ_NONFATALMASK) |
+		     (dma_reason[3] & BCM43xx_DMAIRQ_NONFATALMASK))) {
+		printkl(KERN_ERR PFX "DMA error: "
+				     "0x%08X, 0x%08X, 0x%08X, 0x%08X\n",
+		        dma_reason[0], dma_reason[1],
+			dma_reason[2], dma_reason[3]);
 	}
 
 	if (reason & BCM43xx_IRQ_PS) {
@@ -1779,8 +1808,6 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 	bcm43xx_interrupt_enable(bcm, bcm->irq_savedstate);
 	bcm43xx_unlock_mmio(bcm, flags);
 }
-
-#undef bcmirq_print_reasons
 
 static void bcm43xx_interrupt_ack(struct bcm43xx_private *bcm,
 				  u32 reason, u32 mask)
@@ -3875,6 +3902,7 @@ failure:
 void bcm43xx_controller_restart(struct bcm43xx_private *bcm, const char *reason)
 {
 	bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
+	bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD); /* dummy read */
 	printk(KERN_ERR PFX "Controller RESET (%s) ...\n", reason);
 	INIT_WORK(&bcm->restart_work, bcm43xx_chip_reset, bcm);
 	schedule_work(&bcm->restart_work);

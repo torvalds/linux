@@ -312,56 +312,26 @@ const u16 bcm43xx_ilt_sigmasqr2[BCM43xx_ILT_SIGMASQR_SIZE] = {
 
 /**** Helper functions to access the device Internal Lookup Tables ****/
 
-void bcm43xx_ilt_write16(struct bcm43xx_private *bcm, u16 offset, u16 val)
+void bcm43xx_ilt_write(struct bcm43xx_private *bcm, u16 offset, u16 val)
 {
-	if ( bcm->current_core->phy->type == BCM43xx_PHYTYPE_A ) {
+	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A) {
 		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_CTRL, offset);
+		mmiowb();
 		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_DATA1, val);
 	} else {
 		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_G_CTRL, offset);
+		mmiowb();
 		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_G_DATA1, val);
 	}
 }
 
-u16 bcm43xx_ilt_read16(struct bcm43xx_private *bcm, u16 offset)
+u16 bcm43xx_ilt_read(struct bcm43xx_private *bcm, u16 offset)
 {
-	if ( bcm->current_core->phy->type == BCM43xx_PHYTYPE_A ) {
+	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A) {
 		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_CTRL, offset);
 		return bcm43xx_phy_read(bcm, BCM43xx_PHY_ILT_A_DATA1);
 	} else {
 		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_G_CTRL, offset);
 		return bcm43xx_phy_read(bcm, BCM43xx_PHY_ILT_G_DATA1);
 	}
-}
-
-void bcm43xx_ilt_write32(struct bcm43xx_private *bcm, u16 offset, u32 val)
-{
-	if ( bcm->current_core->phy->type == BCM43xx_PHYTYPE_A ) {
-		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_CTRL, offset);
-		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_DATA2, (u16)(val >> 16));
-		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_DATA1, (u16)(val & 0x0000FFFF));
-	} else {
-		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_G_CTRL, offset);
-		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_G_DATA2, (u16)(val >> 16));
-		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_G_DATA1, (u16)(val & 0x0000FFFF));
-	}
-}
-
-u32 bcm43xx_ilt_read32(struct bcm43xx_private *bcm, u16 offset)
-{
-	u32 ret;
-
-	if ( bcm->current_core->phy->type == BCM43xx_PHYTYPE_A ) {
-		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_CTRL, offset);
-		ret = bcm43xx_phy_read(bcm, BCM43xx_PHY_ILT_A_DATA2);
-		ret <<= 16;
-		ret |= bcm43xx_phy_read(bcm, BCM43xx_PHY_ILT_A_DATA1);
-	} else {
-		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_G_CTRL, offset);
-		ret = bcm43xx_phy_read(bcm, BCM43xx_PHY_ILT_G_DATA2);
-		ret <<= 16;
-		ret |= bcm43xx_phy_read(bcm, BCM43xx_PHY_ILT_G_DATA1);
-	}
-
-	return ret;
 }

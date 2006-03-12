@@ -126,6 +126,7 @@ u16 bcm43xx_phy_read(struct bcm43xx_private *bcm, u16 offset)
 void bcm43xx_phy_write(struct bcm43xx_private *bcm, u16 offset, u16 val)
 {
 	bcm43xx_write16(bcm, BCM43xx_MMIO_PHY_CONTROL, offset);
+	mmiowb();
 	bcm43xx_write16(bcm, BCM43xx_MMIO_PHY_DATA, val);
 }
 
@@ -255,16 +256,16 @@ static void bcm43xx_phy_agcsetup(struct bcm43xx_private *bcm)
 	if (phy->rev == 1)
 		offset = 0x4C00;
 
-	bcm43xx_ilt_write16(bcm, offset, 0x00FE);
-	bcm43xx_ilt_write16(bcm, offset + 1, 0x000D);
-	bcm43xx_ilt_write16(bcm, offset + 2, 0x0013);
-	bcm43xx_ilt_write16(bcm, offset + 3, 0x0019);
+	bcm43xx_ilt_write(bcm, offset, 0x00FE);
+	bcm43xx_ilt_write(bcm, offset + 1, 0x000D);
+	bcm43xx_ilt_write(bcm, offset + 2, 0x0013);
+	bcm43xx_ilt_write(bcm, offset + 3, 0x0019);
 
 	if (phy->rev == 1) {
-		bcm43xx_ilt_write16(bcm, 0x1800, 0x2710);
-		bcm43xx_ilt_write16(bcm, 0x1801, 0x9B83);
-		bcm43xx_ilt_write16(bcm, 0x1802, 0x9B83);
-		bcm43xx_ilt_write16(bcm, 0x1803, 0x0F8D);
+		bcm43xx_ilt_write(bcm, 0x1800, 0x2710);
+		bcm43xx_ilt_write(bcm, 0x1801, 0x9B83);
+		bcm43xx_ilt_write(bcm, 0x1802, 0x9B83);
+		bcm43xx_ilt_write(bcm, 0x1803, 0x0F8D);
 		bcm43xx_phy_write(bcm, 0x0455, 0x0004);
 	}
 
@@ -317,10 +318,10 @@ static void bcm43xx_phy_agcsetup(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x048D, 0x0002);
 	}
 
-	bcm43xx_ilt_write16(bcm, offset + 0x0800, 0);
-	bcm43xx_ilt_write16(bcm, offset + 0x0801, 7);
-	bcm43xx_ilt_write16(bcm, offset + 0x0802, 16);
-	bcm43xx_ilt_write16(bcm, offset + 0x0803, 28);
+	bcm43xx_ilt_write(bcm, offset + 0x0800, 0);
+	bcm43xx_ilt_write(bcm, offset + 0x0801, 7);
+	bcm43xx_ilt_write(bcm, offset + 0x0802, 16);
+	bcm43xx_ilt_write(bcm, offset + 0x0803, 28);
 }
 
 static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
@@ -337,11 +338,11 @@ static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x0427, 0x001A);
 
 		for (i = 0; i < BCM43xx_ILT_FINEFREQG_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x5800 + i, bcm43xx_ilt_finefreqg[i]);
+			bcm43xx_ilt_write(bcm, 0x5800 + i, bcm43xx_ilt_finefreqg[i]);
 		for (i = 0; i < BCM43xx_ILT_NOISEG1_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x1800 + i, bcm43xx_ilt_noiseg1[i]);
+			bcm43xx_ilt_write(bcm, 0x1800 + i, bcm43xx_ilt_noiseg1[i]);
 		for (i = 0; i < BCM43xx_ILT_ROTOR_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x2000 + i, bcm43xx_ilt_rotor[i]);
+			bcm43xx_ilt_write(bcm, 0x2000 + i, bcm43xx_ilt_rotor[i]);
 	} else {
 		/* nrssi values are signed 6-bit values. Not sure why we write 0x7654 here... */
 		bcm43xx_nrssi_hw_write(bcm, 0xBA98, (s16)0x7654);
@@ -357,36 +358,36 @@ static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x042B, bcm43xx_phy_read(bcm, 0x042B) | 0x800);
 
 		for (i = 0; i < 64; i++)
-			bcm43xx_ilt_write16(bcm, 0x4000 + i, i);
+			bcm43xx_ilt_write(bcm, 0x4000 + i, i);
 		for (i = 0; i < BCM43xx_ILT_NOISEG2_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x1800 + i, bcm43xx_ilt_noiseg2[i]);
+			bcm43xx_ilt_write(bcm, 0x1800 + i, bcm43xx_ilt_noiseg2[i]);
 	}
 	
 	if (phy->rev <= 2)
 		for (i = 0; i < BCM43xx_ILT_NOISESCALEG_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x1400 + i, bcm43xx_ilt_noisescaleg1[i]);
+			bcm43xx_ilt_write(bcm, 0x1400 + i, bcm43xx_ilt_noisescaleg1[i]);
 	else if ((phy->rev == 7) && (bcm43xx_phy_read(bcm, 0x0449) & 0x0200))
 		for (i = 0; i < BCM43xx_ILT_NOISESCALEG_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x1400 + i, bcm43xx_ilt_noisescaleg3[i]);
+			bcm43xx_ilt_write(bcm, 0x1400 + i, bcm43xx_ilt_noisescaleg3[i]);
 	else
 		for (i = 0; i < BCM43xx_ILT_NOISESCALEG_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x1400 + i, bcm43xx_ilt_noisescaleg2[i]);
+			bcm43xx_ilt_write(bcm, 0x1400 + i, bcm43xx_ilt_noisescaleg2[i]);
 	
 	if (phy->rev == 2)
 		for (i = 0; i < BCM43xx_ILT_SIGMASQR_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x5000 + i, bcm43xx_ilt_sigmasqr1[i]);
+			bcm43xx_ilt_write(bcm, 0x5000 + i, bcm43xx_ilt_sigmasqr1[i]);
 	else if ((phy->rev > 2) && (phy->rev <= 7))
 		for (i = 0; i < BCM43xx_ILT_SIGMASQR_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x5000 + i, bcm43xx_ilt_sigmasqr2[i]);
+			bcm43xx_ilt_write(bcm, 0x5000 + i, bcm43xx_ilt_sigmasqr2[i]);
 	
 	if (phy->rev == 1) {
 		for (i = 0; i < BCM43xx_ILT_RETARD_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x2400 + i, bcm43xx_ilt_retard[i]);
+			bcm43xx_ilt_write(bcm, 0x2400 + i, bcm43xx_ilt_retard[i]);
 		for (i = 0; i < 4; i++) {
-			bcm43xx_ilt_write16(bcm, 0x5404 + i, 0x0020);
-			bcm43xx_ilt_write16(bcm, 0x5408 + i, 0x0020);
-			bcm43xx_ilt_write16(bcm, 0x540C + i, 0x0020);
-			bcm43xx_ilt_write16(bcm, 0x5410 + i, 0x0020);
+			bcm43xx_ilt_write(bcm, 0x5404 + i, 0x0020);
+			bcm43xx_ilt_write(bcm, 0x5408 + i, 0x0020);
+			bcm43xx_ilt_write(bcm, 0x540C + i, 0x0020);
+			bcm43xx_ilt_write(bcm, 0x5410 + i, 0x0020);
 		}
 		bcm43xx_phy_agcsetup(bcm);
 
@@ -395,24 +396,24 @@ static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
 		    (bcm->board_revision == 0x0017))
 			return;
 
-		bcm43xx_ilt_write16(bcm, 0x5001, 0x0002);
-		bcm43xx_ilt_write16(bcm, 0x5002, 0x0001);
+		bcm43xx_ilt_write(bcm, 0x5001, 0x0002);
+		bcm43xx_ilt_write(bcm, 0x5002, 0x0001);
 	} else {
 		for (i = 0; i <= 0x2F; i++)
-			bcm43xx_ilt_write16(bcm, 0x1000 + i, 0x0820);
+			bcm43xx_ilt_write(bcm, 0x1000 + i, 0x0820);
 		bcm43xx_phy_agcsetup(bcm);
 		bcm43xx_phy_read(bcm, 0x0400); /* dummy read */
 		bcm43xx_phy_write(bcm, 0x0403, 0x1000);
-		bcm43xx_ilt_write16(bcm, 0x3C02, 0x000F);
-		bcm43xx_ilt_write16(bcm, 0x3C03, 0x0014);
+		bcm43xx_ilt_write(bcm, 0x3C02, 0x000F);
+		bcm43xx_ilt_write(bcm, 0x3C03, 0x0014);
 
 		if ((bcm->board_vendor == PCI_VENDOR_ID_BROADCOM) &&
 		    (bcm->board_type == 0x0416) &&
 		    (bcm->board_revision == 0x0017))
 			return;
 
-		bcm43xx_ilt_write16(bcm, 0x0401, 0x0002);
-		bcm43xx_ilt_write16(bcm, 0x0402, 0x0001);
+		bcm43xx_ilt_write(bcm, 0x0401, 0x0002);
+		bcm43xx_ilt_write(bcm, 0x0402, 0x0001);
 	}
 }
 
@@ -456,11 +457,11 @@ static void bcm43xx_phy_setupa(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x0035, 0x03FF);
 		bcm43xx_phy_write(bcm, 0x0036, 0x0400);
 
-		bcm43xx_ilt_write16(bcm, 0x3807, 0x0051);
+		bcm43xx_ilt_write(bcm, 0x3807, 0x0051);
 
 		bcm43xx_phy_write(bcm, 0x001C, 0x0FF9);
 		bcm43xx_phy_write(bcm, 0x0020, bcm43xx_phy_read(bcm, 0x0020) & 0xFF0F);
-		bcm43xx_ilt_write16(bcm, 0x3C0C, 0x07BF);
+		bcm43xx_ilt_write(bcm, 0x3C0C, 0x07BF);
 		bcm43xx_radio_write16(bcm, 0x0002, 0x07BF);
 
 		bcm43xx_phy_write(bcm, 0x0024, 0x4680);
@@ -472,47 +473,47 @@ static void bcm43xx_phy_setupa(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x002B, bcm43xx_phy_read(bcm, 0x002B) & 0xFBFF);
 		bcm43xx_phy_write(bcm, 0x008E, 0x58C1);
 
-		bcm43xx_ilt_write16(bcm, 0x0803, 0x000F);
-		bcm43xx_ilt_write16(bcm, 0x0804, 0x001F);
-		bcm43xx_ilt_write16(bcm, 0x0805, 0x002A);
-		bcm43xx_ilt_write16(bcm, 0x0805, 0x0030);
-		bcm43xx_ilt_write16(bcm, 0x0807, 0x003A);
+		bcm43xx_ilt_write(bcm, 0x0803, 0x000F);
+		bcm43xx_ilt_write(bcm, 0x0804, 0x001F);
+		bcm43xx_ilt_write(bcm, 0x0805, 0x002A);
+		bcm43xx_ilt_write(bcm, 0x0805, 0x0030);
+		bcm43xx_ilt_write(bcm, 0x0807, 0x003A);
 
-		bcm43xx_ilt_write16(bcm, 0x0000, 0x0013);
-		bcm43xx_ilt_write16(bcm, 0x0001, 0x0013);
-		bcm43xx_ilt_write16(bcm, 0x0002, 0x0013);
-		bcm43xx_ilt_write16(bcm, 0x0003, 0x0013);
-		bcm43xx_ilt_write16(bcm, 0x0004, 0x0015);
-		bcm43xx_ilt_write16(bcm, 0x0005, 0x0015);
-		bcm43xx_ilt_write16(bcm, 0x0006, 0x0019);
+		bcm43xx_ilt_write(bcm, 0x0000, 0x0013);
+		bcm43xx_ilt_write(bcm, 0x0001, 0x0013);
+		bcm43xx_ilt_write(bcm, 0x0002, 0x0013);
+		bcm43xx_ilt_write(bcm, 0x0003, 0x0013);
+		bcm43xx_ilt_write(bcm, 0x0004, 0x0015);
+		bcm43xx_ilt_write(bcm, 0x0005, 0x0015);
+		bcm43xx_ilt_write(bcm, 0x0006, 0x0019);
 
-		bcm43xx_ilt_write16(bcm, 0x0404, 0x0003);
-		bcm43xx_ilt_write16(bcm, 0x0405, 0x0003);
-		bcm43xx_ilt_write16(bcm, 0x0406, 0x0007);
+		bcm43xx_ilt_write(bcm, 0x0404, 0x0003);
+		bcm43xx_ilt_write(bcm, 0x0405, 0x0003);
+		bcm43xx_ilt_write(bcm, 0x0406, 0x0007);
 
 		for (i = 0; i < 16; i++)
-			bcm43xx_ilt_write16(bcm, 0x4000 + i, (0x8 + i) & 0x000F);
+			bcm43xx_ilt_write(bcm, 0x4000 + i, (0x8 + i) & 0x000F);
 
-		bcm43xx_ilt_write16(bcm, 0x3003, 0x1044);
-		bcm43xx_ilt_write16(bcm, 0x3004, 0x7201);
-		bcm43xx_ilt_write16(bcm, 0x3006, 0x0040);
-		bcm43xx_ilt_write16(bcm, 0x3001, (bcm43xx_ilt_read16(bcm, 0x3001) & 0x0010) | 0x0008);
+		bcm43xx_ilt_write(bcm, 0x3003, 0x1044);
+		bcm43xx_ilt_write(bcm, 0x3004, 0x7201);
+		bcm43xx_ilt_write(bcm, 0x3006, 0x0040);
+		bcm43xx_ilt_write(bcm, 0x3001, (bcm43xx_ilt_read(bcm, 0x3001) & 0x0010) | 0x0008);
 
 		for (i = 0; i < BCM43xx_ILT_FINEFREQA_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x5800 + i, bcm43xx_ilt_finefreqa[i]);
+			bcm43xx_ilt_write(bcm, 0x5800 + i, bcm43xx_ilt_finefreqa[i]);
 		for (i = 0; i < BCM43xx_ILT_NOISEA2_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x1800 + i, bcm43xx_ilt_noisea2[i]);
+			bcm43xx_ilt_write(bcm, 0x1800 + i, bcm43xx_ilt_noisea2[i]);
 		for (i = 0; i < BCM43xx_ILT_ROTOR_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x2000 + i, bcm43xx_ilt_rotor[i]);
+			bcm43xx_ilt_write(bcm, 0x2000 + i, bcm43xx_ilt_rotor[i]);
 		bcm43xx_phy_init_noisescaletbl(bcm);
 		for (i = 0; i < BCM43xx_ILT_RETARD_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x2400 + i, bcm43xx_ilt_retard[i]);
+			bcm43xx_ilt_write(bcm, 0x2400 + i, bcm43xx_ilt_retard[i]);
 		break;
 	case 3:
 		for (i = 0; i < 64; i++)
-			bcm43xx_ilt_write16(bcm, 0x4000 + i, i);
+			bcm43xx_ilt_write(bcm, 0x4000 + i, i);
 
-		bcm43xx_ilt_write16(bcm, 0x3807, 0x0051);
+		bcm43xx_ilt_write(bcm, 0x3807, 0x0051);
 
 		bcm43xx_phy_write(bcm, 0x001C, 0x0FF9);
 		bcm43xx_phy_write(bcm, 0x0020, bcm43xx_phy_read(bcm, 0x0020) & 0xFF0F);
@@ -524,35 +525,35 @@ static void bcm43xx_phy_setupa(struct bcm43xx_private *bcm)
 		bcm43xx_phy_write(bcm, 0x001F, 0x1C00);
 		bcm43xx_phy_write(bcm, 0x002A, (bcm43xx_phy_read(bcm, 0x002A) & 0x00FF) | 0x0400);
 
-		bcm43xx_ilt_write16(bcm, 0x3001, (bcm43xx_ilt_read16(bcm, 0x3001) & 0x0010) | 0x0008);
+		bcm43xx_ilt_write(bcm, 0x3001, (bcm43xx_ilt_read(bcm, 0x3001) & 0x0010) | 0x0008);
 		for (i = 0; i < BCM43xx_ILT_NOISEA3_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x1800 + i, bcm43xx_ilt_noisea3[i]);
+			bcm43xx_ilt_write(bcm, 0x1800 + i, bcm43xx_ilt_noisea3[i]);
 		bcm43xx_phy_init_noisescaletbl(bcm);
 		for (i = 0; i < BCM43xx_ILT_SIGMASQR_SIZE; i++)
-			bcm43xx_ilt_write16(bcm, 0x5000 + i, bcm43xx_ilt_sigmasqr1[i]);
+			bcm43xx_ilt_write(bcm, 0x5000 + i, bcm43xx_ilt_sigmasqr1[i]);
 
 		bcm43xx_phy_write(bcm, 0x0003, 0x1808);
 
-		bcm43xx_ilt_write16(bcm, 0x0803, 0x000F);
-		bcm43xx_ilt_write16(bcm, 0x0804, 0x001F);
-		bcm43xx_ilt_write16(bcm, 0x0805, 0x002A);
-		bcm43xx_ilt_write16(bcm, 0x0805, 0x0030);
-		bcm43xx_ilt_write16(bcm, 0x0807, 0x003A);
+		bcm43xx_ilt_write(bcm, 0x0803, 0x000F);
+		bcm43xx_ilt_write(bcm, 0x0804, 0x001F);
+		bcm43xx_ilt_write(bcm, 0x0805, 0x002A);
+		bcm43xx_ilt_write(bcm, 0x0805, 0x0030);
+		bcm43xx_ilt_write(bcm, 0x0807, 0x003A);
 
-		bcm43xx_ilt_write16(bcm, 0x0000, 0x0013);
-		bcm43xx_ilt_write16(bcm, 0x0001, 0x0013);
-		bcm43xx_ilt_write16(bcm, 0x0002, 0x0013);
-		bcm43xx_ilt_write16(bcm, 0x0003, 0x0013);
-		bcm43xx_ilt_write16(bcm, 0x0004, 0x0015);
-		bcm43xx_ilt_write16(bcm, 0x0005, 0x0015);
-		bcm43xx_ilt_write16(bcm, 0x0006, 0x0019);
+		bcm43xx_ilt_write(bcm, 0x0000, 0x0013);
+		bcm43xx_ilt_write(bcm, 0x0001, 0x0013);
+		bcm43xx_ilt_write(bcm, 0x0002, 0x0013);
+		bcm43xx_ilt_write(bcm, 0x0003, 0x0013);
+		bcm43xx_ilt_write(bcm, 0x0004, 0x0015);
+		bcm43xx_ilt_write(bcm, 0x0005, 0x0015);
+		bcm43xx_ilt_write(bcm, 0x0006, 0x0019);
 
-		bcm43xx_ilt_write16(bcm, 0x0404, 0x0003);
-		bcm43xx_ilt_write16(bcm, 0x0405, 0x0003);
-		bcm43xx_ilt_write16(bcm, 0x0406, 0x0007);
+		bcm43xx_ilt_write(bcm, 0x0404, 0x0003);
+		bcm43xx_ilt_write(bcm, 0x0405, 0x0003);
+		bcm43xx_ilt_write(bcm, 0x0406, 0x0007);
 
-		bcm43xx_ilt_write16(bcm, 0x3C02, 0x000F);
-		bcm43xx_ilt_write16(bcm, 0x3C03, 0x0014);
+		bcm43xx_ilt_write(bcm, 0x3C02, 0x000F);
+		bcm43xx_ilt_write(bcm, 0x3C03, 0x0014);
 		break;
 	default:
 		assert(0);
@@ -598,19 +599,19 @@ static void bcm43xx_phy_inita(struct bcm43xx_private *bcm)
 		bcm43xx_radio_write16(bcm, 0x0019, 0x0000);
 		bcm43xx_radio_write16(bcm, 0x0017, 0x0020);
 
-		tval = bcm43xx_ilt_read16(bcm, 0x3001);
+		tval = bcm43xx_ilt_read(bcm, 0x3001);
 		if (phy->rev == 1) {
-			bcm43xx_ilt_write16(bcm, 0x3001,
-					    (bcm43xx_ilt_read16(bcm, 0x3001) & 0xFF87)
-					    | 0x0058);
+			bcm43xx_ilt_write(bcm, 0x3001,
+					  (bcm43xx_ilt_read(bcm, 0x3001) & 0xFF87)
+					  | 0x0058);
 		} else {
-			bcm43xx_ilt_write16(bcm, 0x3001,
-					    (bcm43xx_ilt_read16(bcm, 0x3001) & 0xFFC3)
-					    | 0x002C);
+			bcm43xx_ilt_write(bcm, 0x3001,
+					  (bcm43xx_ilt_read(bcm, 0x3001) & 0xFFC3)
+					  | 0x002C);
 		}
 		bcm43xx_dummy_transmission(bcm);
 		phy->savedpctlreg = bcm43xx_phy_read(bcm, BCM43xx_PHY_A_PCTL);
-		bcm43xx_ilt_write16(bcm, 0x3001, tval);
+		bcm43xx_ilt_write(bcm, 0x3001, tval);
 
 		bcm43xx_radio_set_txpower_a(bcm, 0x0018);
 	}
