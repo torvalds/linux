@@ -32,7 +32,6 @@
 #endif /* __GNU_LIBRARY__ */
 
 #include "genksyms.h"
-#include "../mod/elfconfig.h"
 /*----------------------------------------------------------------------*/
 
 #define HASH_BUCKETS  4096
@@ -44,6 +43,8 @@ int cur_line = 1;
 char *cur_filename, *output_directory;
 
 int flag_debug, flag_dump_defs, flag_warnings;
+const char *arch = "";
+const char *mod_prefix = "";
 
 static int errors;
 static int nsyms;
@@ -458,7 +459,7 @@ export_symbol(const char *name)
 	fputs(">\n", debugfile);
 
       /* Used as a linker script. */
-      printf("%s__crc_%s = 0x%08lx ;\n", MODULE_SYMBOL_PREFIX, name, crc);
+      printf("%s__crc_%s = 0x%08lx ;\n", mod_prefix, name, crc);
     }
 }
 
@@ -529,6 +530,7 @@ main(int argc, char **argv)
 
 #ifdef __GNU_LIBRARY__
   struct option long_opts[] = {
+    {"arch", 1, 0, 'a'},
     {"debug", 0, 0, 'd'},
     {"warnings", 0, 0, 'w'},
     {"quiet", 0, 0, 'q'},
@@ -538,13 +540,16 @@ main(int argc, char **argv)
     {0, 0, 0, 0}
   };
 
-  while ((o = getopt_long(argc, argv, "dwqVDk:p:",
+  while ((o = getopt_long(argc, argv, "a:dwqVDk:p:",
 			  &long_opts[0], NULL)) != EOF)
 #else  /* __GNU_LIBRARY__ */
-  while ((o = getopt(argc, argv, "dwqVDk:p:")) != EOF)
+  while ((o = getopt(argc, argv, "a:dwqVDk:p:")) != EOF)
 #endif /* __GNU_LIBRARY__ */
     switch (o)
       {
+      case 'a':
+	arch = optarg;
+	break;
       case 'd':
 	flag_debug++;
 	break;
@@ -567,7 +572,9 @@ main(int argc, char **argv)
 	genksyms_usage();
 	return 1;
       }
-
+    if ((strcmp(arch, "v850") == 0) ||
+        (strcmp(arch, "h8300") == 0))
+      mod_prefix = "_";
     {
       extern int yydebug;
       extern int yy_flex_debug;
