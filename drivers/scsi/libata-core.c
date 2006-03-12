@@ -1344,31 +1344,29 @@ static int ata_bus_probe(struct ata_port *ap)
 
 	ata_port_probe(ap);
 
-	/* reset */
-	if (ap->ops->probe_reset) {
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			classes[i] = ATA_DEV_UNKNOWN;
+	/* reset and determine device classes */
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		classes[i] = ATA_DEV_UNKNOWN;
 
+	if (ap->ops->probe_reset) {
 		rc = ap->ops->probe_reset(ap, classes);
 		if (rc) {
 			printk("ata%u: reset failed (errno=%d)\n", ap->id, rc);
 			return rc;
 		}
-
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			if (classes[i] == ATA_DEV_UNKNOWN)
-				classes[i] = ATA_DEV_NONE;
 	} else {
 		ap->ops->phy_reset(ap);
 
-		for (i = 0; i < ATA_MAX_DEVICES; i++) {
-			if (!(ap->flags & ATA_FLAG_PORT_DISABLED))
+		if (!(ap->flags & ATA_FLAG_PORT_DISABLED))
+			for (i = 0; i < ATA_MAX_DEVICES; i++)
 				classes[i] = ap->device[i].class;
-			else
-				ap->device[i].class = ATA_DEV_UNKNOWN;
-		}
+
 		ata_port_probe(ap);
 	}
+
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		if (classes[i] == ATA_DEV_UNKNOWN)
+			classes[i] = ATA_DEV_NONE;
 
 	/* read IDENTIFY page and configure devices */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
