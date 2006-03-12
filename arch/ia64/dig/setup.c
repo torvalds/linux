@@ -69,8 +69,3 @@ dig_setup (char **cmdline_p)
 	screen_info.orig_video_isVGA = 1;	/* XXX fake */
 	screen_info.orig_video_ega_bx = 3;	/* XXX fake */
 }
-
-void __init
-dig_irq_init (void)
-{
-}
