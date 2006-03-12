@@ -294,7 +294,7 @@ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 	return page;
 }
 
-static void
+static void __init
 setup_gate (void)
 {
 	struct page *page;
