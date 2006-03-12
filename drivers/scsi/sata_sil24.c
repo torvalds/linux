@@ -435,10 +435,16 @@ static int sil24_softreset(struct ata_port *ap, int verbose,
 	struct sil24_port_priv *pp = ap->private_data;
 	struct sil24_prb *prb = &pp->cmd_block[0].ata.prb;
 	dma_addr_t paddr = pp->cmd_block_dma;
+	unsigned long timeout = jiffies + ATA_TMOUT_BOOT * HZ;
 	u32 irq_enable, irq_stat;
-	int cnt;
 
 	DPRINTK("ENTER\n");
+
+	if (!sata_dev_present(ap)) {
+		DPRINTK("PHY reports no device\n");
+		*class = ATA_DEV_NONE;
+		goto out;
+	}
 
 	/* temporarily turn off IRQs during SRST */
 	irq_enable = readl(port + PORT_IRQ_ENABLE_SET);
@@ -455,7 +461,7 @@ static int sil24_softreset(struct ata_port *ap, int verbose,
 
 	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
 
-	for (cnt = 0; cnt < 100; cnt++) {
+	do {
 		irq_stat = readl(port + PORT_IRQ_STAT);
 		writel(irq_stat, port + PORT_IRQ_STAT);		/* clear irq */
 
@@ -463,24 +469,24 @@ static int sil24_softreset(struct ata_port *ap, int verbose,
 		if (irq_stat & (PORT_IRQ_COMPLETE | PORT_IRQ_ERROR))
 			break;
 
-		msleep(1);
-	}
+		msleep(100);
+	} while (time_before(jiffies, timeout));
 
 	/* restore IRQs */
 	writel(irq_enable, port + PORT_IRQ_ENABLE_SET);
 
-	if (sata_dev_present(ap)) {
-		if (!(irq_stat & PORT_IRQ_COMPLETE)) {
-			DPRINTK("EXIT, srst failed\n");
-			return -EIO;
-		}
-
-		sil24_update_tf(ap);
-		*class = ata_dev_classify(&pp->tf);
+	if (!(irq_stat & PORT_IRQ_COMPLETE)) {
+		DPRINTK("EXIT, srst failed\n");
+		return -EIO;
 	}
+
+	sil24_update_tf(ap);
+	*class = ata_dev_classify(&pp->tf);
+
 	if (*class == ATA_DEV_UNKNOWN)
 		*class = ATA_DEV_NONE;
 
+ out:
 	DPRINTK("EXIT, class=%u\n", *class);
 	return 0;
 }

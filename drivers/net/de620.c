@@ -1012,7 +1012,7 @@ static int __init read_eeprom(struct net_device *dev)
 #ifdef MODULE
 static struct net_device *de620_dev;
 
-int init_module(void)
+int __init init_module(void)
 {
 	de620_dev = de620_probe(-1);
 	if (IS_ERR(de620_dev))
