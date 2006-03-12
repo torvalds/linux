@@ -556,7 +556,7 @@ count_reserved_pages (u64 start, u64 end, void *arg)
  * purposes.
  */
 
-static int nolwsys;
+static int nolwsys __initdata;
 
 static int __init
 nolwsys_setup (char *s)
