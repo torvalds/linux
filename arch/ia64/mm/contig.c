@@ -176,7 +176,7 @@ find_memory (void)
  *
  * Allocate and setup per-cpu data areas.
  */
-void *
+void * __cpuinit
 per_cpu_init (void)
 {
 	void *cpu_data;

@@ -362,7 +362,7 @@ mark_bsp_online (void)
 }
 
 #ifdef CONFIG_SMP
-static void
+static void __init
 check_for_logical_procs (void)
 {
 	pal_logical_to_physical_t info;
@@ -623,7 +623,7 @@ struct seq_operations cpuinfo_op = {
 	.show =		show_cpuinfo
 };
 
-void
+static void __cpuinit
 identify_cpu (struct cpuinfo_ia64 *c)
 {
 	union {
@@ -700,7 +700,7 @@ setup_per_cpu_areas (void)
  * In addition, the minimum of the i-cache stride sizes is calculated for
  * "flush_icache_range()".
  */
-static void
+static void __cpuinit
 get_max_cacheline_size (void)
 {
 	unsigned long line_size, max = 1;
@@ -763,10 +763,10 @@ get_max_cacheline_size (void)
  * cpu_init() initializes state that is per-CPU.  This function acts
  * as a 'CPU state barrier', nothing should get across.
  */
-void
+void __cpuinit
 cpu_init (void)
 {
-	extern void __devinit ia64_mmu_init (void *);
+	extern void __cpuinit ia64_mmu_init (void *);
 	unsigned long num_phys_stacked;
 	pal_vm_info_2_u_t vmi;
 	unsigned int max_ctx;
@@ -894,7 +894,7 @@ void sched_cacheflush(void)
 	ia64_sal_cache_flush(3);
 }
 
-void
+void __init
 check_bugs (void)
 {
 	ia64_patch_mckinley_e9((unsigned long) __start___mckinley_e9_bundles,
