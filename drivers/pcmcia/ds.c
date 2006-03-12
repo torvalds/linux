@@ -236,11 +236,11 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 /**
  * pcmcia_load_firmware - load CIS from userspace if device-provided is broken
  * @dev - the pcmcia device which needs a CIS override
- * @filename - requested filename in /lib/firmware/cis/
+ * @filename - requested filename in /lib/firmware/
  *
  * This uses the in-kernel firmware loading mechanism to use a "fake CIS" if
  * the one provided by the card is broken. The firmware files reside in
- * /lib/firmware/cis/ in userspace.
+ * /lib/firmware/ in userspace.
  */
 static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 {
