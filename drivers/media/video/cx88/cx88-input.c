@@ -186,6 +186,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->mask_keydown = 0x02;
 		ir->polling = 5; /* ms */
 		break;
+       case CX88_BOARD_PROLINK_PLAYTVPVR:
 	case CX88_BOARD_PIXELVIEW_PLAYTV_ULTRA_PRO:
 		ir_codes = ir_codes_pixelview;
 		ir->gpio_addr = MO_GP1_IO;
