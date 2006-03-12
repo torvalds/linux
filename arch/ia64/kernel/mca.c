@@ -133,7 +133,7 @@ static int cpe_poll_enabled = 1;
 
 extern void salinfo_log_wakeup(int type, u8 *buffer, u64 size, int irqsafe);
 
-static int mca_init;
+static int mca_init __initdata;
 
 
 static void inline
@@ -184,7 +184,7 @@ static ia64_state_log_t ia64_state_log[IA64_MAX_LOG_TYPES];
  * Inputs   :   info_type   (SAL_INFO_TYPE_{MCA,INIT,CMC,CPE})
  * Outputs	:	None
  */
-static void
+static void __init
 ia64_log_init(int sal_info_type)
 {
 	u64	max_size = 0;
@@ -355,7 +355,7 @@ ia64_mca_cpe_int_handler (int cpe_irq, void *arg, struct pt_regs *ptregs)
  *  Outputs
  *      None
  */
-static void
+static void __init
 ia64_mca_register_cpev (int cpev)
 {
 	/* Register the CPE interrupt vector with SAL */
@@ -386,7 +386,7 @@ ia64_mca_register_cpev (int cpev)
  * Outputs
  *	None
  */
-void
+void __cpuinit
 ia64_mca_cmc_vector_setup (void)
 {
 	cmcv_reg_t	cmcv;
@@ -1443,7 +1443,7 @@ static struct irqaction mca_cpep_irqaction = {
  * format most of the fields.
  */
 
-static void
+static void __cpuinit
 format_mca_init_stack(void *mca_data, unsigned long offset,
 		const char *type, int cpu)
 {
@@ -1467,7 +1467,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 
 /* Do per-CPU MCA-related initialization.  */
 
-void __devinit
+void __cpuinit
 ia64_mca_cpu_init(void *cpu_data)
 {
 	void *pal_vaddr;
