@@ -658,7 +658,11 @@ static int snd_ctl_elem_info_user(struct snd_ctl_file *ctl,
 
 	if (copy_from_user(&info, _info, sizeof(info)))
 		return -EFAULT;
-	result = snd_ctl_elem_info(ctl, &info);
+	snd_power_lock(ctl->card);
+	result = snd_power_wait(ctl->card, SNDRV_CTL_POWER_D0, NULL);
+	if (result >= 0)
+		result = snd_ctl_elem_info(ctl, &info);
+	snd_power_unlock(ctl->card);
 	if (result >= 0)
 		if (copy_to_user(_info, &info, sizeof(info)))
 			return -EFAULT;
@@ -708,7 +712,11 @@ static int snd_ctl_elem_read_user(struct snd_card *card,
 		kfree(control);
 		return -EFAULT;
 	}
-	result = snd_ctl_elem_read(card, control);
+	snd_power_lock(card);
+	result = snd_power_wait(card, SNDRV_CTL_POWER_D0, NULL);
+	if (result >= 0)
+		result = snd_ctl_elem_read(card, control);
+	snd_power_unlock(card);
 	if (result >= 0)
 		if (copy_to_user(_control, control, sizeof(*control)))
 			result = -EFAULT;
@@ -758,6 +766,7 @@ static int snd_ctl_elem_write_user(struct snd_ctl_file *file,
 				   struct snd_ctl_elem_value __user *_control)
 {
 	struct snd_ctl_elem_value *control;
+	struct snd_card *card;
 	int result;
 
 	control = kmalloc(sizeof(*control), GFP_KERNEL);
@@ -767,7 +776,12 @@ static int snd_ctl_elem_write_user(struct snd_ctl_file *file,
 		kfree(control);
 		return -EFAULT;
 	}
-	result = snd_ctl_elem_write(file->card, file, control);
+	card = file->card;
+	snd_power_lock(card);
+	result = snd_power_wait(card, SNDRV_CTL_POWER_D0, NULL);
+	if (result >= 0)
+		result = snd_ctl_elem_write(card, file, control);
+	snd_power_unlock(card);
 	if (result >= 0)
 		if (copy_to_user(_control, control, sizeof(*control)))
 			result = -EFAULT;
