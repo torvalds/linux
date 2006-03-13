@@ -29,6 +29,7 @@
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_eh.h>
+#include <scsi/scsi_transport.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi_request.h>
@@ -163,16 +164,12 @@ void scsi_times_out(struct scsi_cmnd *scmd)
 {
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
-	if (scmd->device->host->hostt->eh_timed_out)
-		switch (scmd->device->host->hostt->eh_timed_out(scmd)) {
+	if (scmd->device->host->transportt->eh_timed_out)
+		switch (scmd->device->host->transportt->eh_timed_out(scmd)) {
 		case EH_HANDLED:
 			__scsi_done(scmd);
 			return;
 		case EH_RESET_TIMER:
-			/* This allows a single retry even of a command
-			 * with allowed == 0 */
-			if (scmd->retries++ > scmd->allowed)
-				break;
 			scsi_add_timer(scmd, scmd->timeout_per_command,
 				       scsi_times_out);
 			return;
