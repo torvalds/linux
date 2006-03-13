@@ -45,6 +45,7 @@ void dvb_ringbuffer_init(struct dvb_ringbuffer *rbuf, void *data, size_t len)
 	rbuf->pread=rbuf->pwrite=0;
 	rbuf->data=data;
 	rbuf->size=len;
+	rbuf->error=0;
 
 	init_waitqueue_head(&rbuf->queue);
 
@@ -86,7 +87,8 @@ ssize_t dvb_ringbuffer_avail(struct dvb_ringbuffer *rbuf)
 
 void dvb_ringbuffer_flush(struct dvb_ringbuffer *rbuf)
 {
-	rbuf->pread = rbuf->pwrite;
+	rbuf->pread = rbuf->pwrite = 0;
+	rbuf->error = 0;
 }
 
 
