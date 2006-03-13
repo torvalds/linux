@@ -1120,12 +1120,6 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 
 	swap_buf_le16(id, ATA_ID_WORDS);
 
-	/* print device capabilities */
-	printk(KERN_DEBUG "ata%u: dev %u cfg "
-	       "49:%04x 82:%04x 83:%04x 84:%04x 85:%04x 86:%04x 87:%04x 88:%04x\n",
-	       ap->id, dev->devno,
-	       id[49], id[82], id[83], id[84], id[85], id[86], id[87], id[88]);
-
 	/* sanity check */
 	if ((class == ATA_DEV_ATA) != ata_id_is_ata(id)) {
 		rc = -EINVAL;
@@ -1204,6 +1198,13 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 	}
 
 	DPRINTK("ENTER, host %u, dev %u\n", ap->id, dev->devno);
+
+	/* print device capabilities */
+	if (print_info)
+		printk(KERN_DEBUG "ata%u: dev %u cfg 49:%04x 82:%04x 83:%04x "
+		       "84:%04x 85:%04x 86:%04x 87:%04x 88:%04x\n",
+		       ap->id, dev->devno, id[49], id[82], id[83],
+		       id[84], id[85], id[86], id[87], id[88]);
 
 	/* initialize to-be-configured parameters */
 	dev->flags = 0;
