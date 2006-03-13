@@ -2273,6 +2273,11 @@ void do_illegal_instruction(struct pt_regs *regs)
 		} else if ((insn & 0xc1580000) == 0xc1100000) /* LDQ/STQ */ {
 			if (handle_ldf_stq(insn, regs))
 				return;
+		} else if (tlb_type == hypervisor) {
+			extern int vis_emul(struct pt_regs *, unsigned int);
+
+			if (!vis_emul(regs, insn))
+				return;
 		}
 	}
 	info.si_signo = SIGILL;
