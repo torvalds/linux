@@ -284,7 +284,7 @@ void bcm43xx_generate_txhdr(struct bcm43xx_private *bcm,
 			    const int is_first_fragment,
 			    const u16 cookie)
 {
-	const struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	const struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	const struct ieee80211_hdr_4addr *wireless_header = (const struct ieee80211_hdr_4addr *)fragment_data;
 	const struct ieee80211_security *secinfo = &bcm->ieee->sec;
 	u8 bitrate;
@@ -382,8 +382,8 @@ static s8 bcm43xx_rssi_postprocess(struct bcm43xx_private *bcm,
 				   u8 in_rssi, int ofdm,
 				   int adjust_2053, int adjust_2050)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	s32 tmp;
 
 	switch (radio->version) {
@@ -442,7 +442,7 @@ static s8 bcm43xx_rssi_postprocess(struct bcm43xx_private *bcm,
 static s8 bcm43xx_rssinoise_postprocess(struct bcm43xx_private *bcm,
 					u8 in_rssi)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	s8 ret;
 
 	if (phy->type == BCM43xx_PHYTYPE_A) {
@@ -458,6 +458,8 @@ int bcm43xx_rx(struct bcm43xx_private *bcm,
 	       struct sk_buff *skb,
 	       struct bcm43xx_rxhdr *rxhdr)
 {
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	struct bcm43xx_plcp_hdr4 *plcp;
 	struct ieee80211_rx_stats stats;
 	struct ieee80211_hdr_4addr *wlhdr;
@@ -494,13 +496,13 @@ int bcm43xx_rx(struct bcm43xx_private *bcm,
 	else
 		stats.rate = bcm43xx_plcp_get_bitrate_cck(plcp);
 //printk("RX ofdm %d, rate == %u\n", is_ofdm, stats.rate);
-	stats.received_channel = bcm->current_core->radio->channel;
+	stats.received_channel = radio->channel;
 //TODO	stats.control = 
 	stats.mask = IEEE80211_STATMASK_SIGNAL |
 //TODO		     IEEE80211_STATMASK_NOISE |
 		     IEEE80211_STATMASK_RATE |
 		     IEEE80211_STATMASK_RSSI;
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A)
+	if (phy->type == BCM43xx_PHYTYPE_A)
 		stats.freq = IEEE80211_52GHZ_BAND;
 	else
 		stats.freq = IEEE80211_24GHZ_BAND;

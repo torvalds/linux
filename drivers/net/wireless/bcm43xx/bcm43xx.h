@@ -556,33 +556,37 @@ struct bcm43xx_pio {
 
 #define BCM43xx_MAX_80211_CORES		2
 
-#define BCM43xx_COREFLAG_AVAILABLE	(1 << 0)
-#define BCM43xx_COREFLAG_ENABLED	(1 << 1)
-#define BCM43xx_COREFLAG_INITIALIZED	(1 << 2)
-
 #ifdef CONFIG_BCM947XX
 #define core_offset(bcm) (bcm)->current_core_offset
 #else
 #define core_offset(bcm) 0
 #endif
 
+/* Generic information about a core. */
 struct bcm43xx_coreinfo {
-	/** Driver internal flags. See BCM43xx_COREFLAG_* */
-	u32 flags;
+	u8 available:1,
+	   enabled:1,
+	   initialized:1;
 	/** core_id ID number */
 	u16 id;
 	/** core_rev revision number */
 	u8 rev;
 	/** Index number for _switch_core() */
 	u8 index;
-	/* Pointer to the PHYinfo, which belongs to this core (if 80211 core) */
-	struct bcm43xx_phyinfo *phy;
-	/* Pointer to the RadioInfo, which belongs to this core (if 80211 core) */
-	struct bcm43xx_radioinfo *radio;
-	/* Pointer to the DMA rings, which belong to this core (if 80211 core) */
-	struct bcm43xx_dma *dma;
-	/* Pointer to the PIO queues, which belong to this core (if 80211 core) */
-	struct bcm43xx_pio *pio;
+};
+
+/* Additional information for each 80211 core. */
+struct bcm43xx_coreinfo_80211 {
+	/* PHY device. */
+	struct bcm43xx_phyinfo phy;
+	/* Radio device. */
+	struct bcm43xx_radioinfo radio;
+	union {
+		/* DMA context. */
+		struct bcm43xx_dma dma;
+		/* PIO context. */
+		struct bcm43xx_pio pio;
+	};
 };
 
 /* Context information for a noise calculation (Link Quality). */
@@ -652,7 +656,7 @@ struct bcm43xx_private {
 #define BCM43xx_NR_LEDS		4
 	struct bcm43xx_led leds[BCM43xx_NR_LEDS];
 
-	/* The currently active core. NULL if not initialized, yet. */
+	/* The currently active core. */
 	struct bcm43xx_coreinfo *current_core;
 #ifdef CONFIG_BCM947XX
 	/** current core memory offset */
@@ -665,18 +669,15 @@ struct bcm43xx_private {
 	 */
 	struct bcm43xx_coreinfo core_chipcommon;
 	struct bcm43xx_coreinfo core_pci;
-	struct bcm43xx_coreinfo core_v90;
-	struct bcm43xx_coreinfo core_pcmcia;
-	struct bcm43xx_coreinfo core_ethernet;
 	struct bcm43xx_coreinfo core_80211[ BCM43xx_MAX_80211_CORES ];
-	/* Info about the PHY for each 80211 core. */
-	struct bcm43xx_phyinfo phy[ BCM43xx_MAX_80211_CORES ];
-	/* Info about the Radio for each 80211 core. */
-	struct bcm43xx_radioinfo radio[ BCM43xx_MAX_80211_CORES ];
-	/* DMA */
-	struct bcm43xx_dma dma[ BCM43xx_MAX_80211_CORES ];
-	/* PIO */
-	struct bcm43xx_pio pio[ BCM43xx_MAX_80211_CORES ];
+	/* Additional information, specific to the 80211 cores. */
+	struct bcm43xx_coreinfo_80211 core_80211_ext[ BCM43xx_MAX_80211_CORES ];
+	/* Index of the current 80211 core. If current_core is not
+	 * an 80211 core, this is -1.
+	 */
+	int current_80211_core_idx;
+	/* Number of available 80211 cores. */
+	int nr_80211_available;
 
 	u32 chipcommon_capabilities;
 
@@ -769,18 +770,39 @@ int bcm43xx_using_pio(struct bcm43xx_private *bcm)
 # error "Using neither DMA nor PIO? Confused..."
 #endif
 
-
+/* Helper functions to access data structures private to the 80211 cores.
+ * Note that we _must_ have an 80211 core mapped when calling
+ * any of these functions.
+ */
 static inline
-int bcm43xx_num_80211_cores(struct bcm43xx_private *bcm)
+struct bcm43xx_pio * bcm43xx_current_pio(struct bcm43xx_private *bcm)
 {
-	int i, cnt = 0;
-
-	for (i = 0; i < BCM43xx_MAX_80211_CORES; i++) {
-		if (bcm->core_80211[i].flags & BCM43xx_COREFLAG_AVAILABLE)
-			cnt++;
-	}
-
-	return cnt;
+	assert(bcm43xx_using_pio(bcm));
+	assert(bcm->current_80211_core_idx >= 0);
+	assert(bcm->current_80211_core_idx < BCM43xx_MAX_80211_CORES);
+	return &(bcm->core_80211_ext[bcm->current_80211_core_idx].pio);
+}
+static inline
+struct bcm43xx_dma * bcm43xx_current_dma(struct bcm43xx_private *bcm)
+{
+	assert(!bcm43xx_using_pio(bcm));
+	assert(bcm->current_80211_core_idx >= 0);
+	assert(bcm->current_80211_core_idx < BCM43xx_MAX_80211_CORES);
+	return &(bcm->core_80211_ext[bcm->current_80211_core_idx].dma);
+}
+static inline
+struct bcm43xx_phyinfo * bcm43xx_current_phy(struct bcm43xx_private *bcm)
+{
+	assert(bcm->current_80211_core_idx >= 0);
+	assert(bcm->current_80211_core_idx < BCM43xx_MAX_80211_CORES);
+	return &(bcm->core_80211_ext[bcm->current_80211_core_idx].phy);
+}
+static inline
+struct bcm43xx_radioinfo * bcm43xx_current_radio(struct bcm43xx_private *bcm)
+{
+	assert(bcm->current_80211_core_idx >= 0);
+	assert(bcm->current_80211_core_idx < BCM43xx_MAX_80211_CORES);
+	return &(bcm->core_80211_ext[bcm->current_80211_core_idx].radio);
 }
 
 /* Are we running in init_board() context? */

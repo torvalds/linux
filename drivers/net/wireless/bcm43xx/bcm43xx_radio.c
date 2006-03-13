@@ -114,8 +114,8 @@ void bcm43xx_radio_unlock(struct bcm43xx_private *bcm)
 
 u16 bcm43xx_radio_read16(struct bcm43xx_private *bcm, u16 offset)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 
 	switch (phy->type) {
 	case BCM43xx_PHYTYPE_A:
@@ -151,7 +151,7 @@ void bcm43xx_radio_write16(struct bcm43xx_private *bcm, u16 offset, u16 val)
 static void bcm43xx_set_all_gains(struct bcm43xx_private *bcm,
 				  s16 first, s16 second, s16 third)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 i;
 	u16 start = 0x08, end = 0x18;
 	u16 offset = 0x0400;
@@ -183,7 +183,7 @@ static void bcm43xx_set_all_gains(struct bcm43xx_private *bcm,
 
 static void bcm43xx_set_original_gains(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 i, tmp;
 	u16 offset = 0x0400;
 	u16 start = 0x0008, end = 0x0018;
@@ -217,7 +217,7 @@ static void bcm43xx_set_original_gains(struct bcm43xx_private *bcm)
 /* Synthetic PU workaround */
 static void bcm43xx_synth_pu_workaround(struct bcm43xx_private *bcm, u8 channel)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	
 	if (radio->version != 0x2050 || radio->revision >= 6) {
 		/* We do not need the workaround. */
@@ -238,7 +238,7 @@ static void bcm43xx_synth_pu_workaround(struct bcm43xx_private *bcm, u8 channel)
 
 u8 bcm43xx_radio_aci_detect(struct bcm43xx_private *bcm, u8 channel)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u8 ret = 0;
 	u16 saved, rssi, temp;
 	int i, j = 0;
@@ -269,8 +269,8 @@ u8 bcm43xx_radio_aci_detect(struct bcm43xx_private *bcm, u8 channel)
 
 u8 bcm43xx_radio_aci_scan(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u8 ret[13];
 	unsigned int channel = radio->channel;
 	unsigned int i, j, start, end;
@@ -351,22 +351,23 @@ void bcm43xx_nrssi_hw_update(struct bcm43xx_private *bcm, u16 val)
 /* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
 void bcm43xx_nrssi_mem_update(struct bcm43xx_private *bcm)
 {
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	s16 i, delta;
 	s32 tmp;
 
-	delta = 0x1F - bcm->current_core->radio->nrssi[0];
+	delta = 0x1F - radio->nrssi[0];
 	for (i = 0; i < 64; i++) {
-		tmp = (i - delta) * bcm->current_core->radio->nrssislope;
+		tmp = (i - delta) * radio->nrssislope;
 		tmp /= 0x10000;
 		tmp += 0x3A;
 		tmp = limit_value(tmp, 0, 0x3F);
-		bcm->current_core->radio->nrssi_lt[i] = tmp;
+		radio->nrssi_lt[i] = tmp;
 	}
 }
 
 static void bcm43xx_calc_nrssi_offset(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 backup[20] = { 0 };
 	s16 v47F;
 	u16 i;
@@ -531,8 +532,8 @@ static void bcm43xx_calc_nrssi_offset(struct bcm43xx_private *bcm)
 
 void bcm43xx_calc_nrssi_slope(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 backup[18] = { 0 };
 	u16 tmp;
 	s16 nrssi0, nrssi1;
@@ -779,8 +780,8 @@ void bcm43xx_calc_nrssi_slope(struct bcm43xx_private *bcm)
 
 void bcm43xx_calc_nrssi_threshold(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	s16 threshold;
 	s32 a, b;
 	int tmp;
@@ -804,7 +805,7 @@ void bcm43xx_calc_nrssi_threshold(struct bcm43xx_private *bcm)
 			radiotype = 1;
 
 		if (radiotype == 1) {
-			threshold = bcm->current_core->radio->nrssi[1] - 5;
+			threshold = radio->nrssi[1] - 5;
 		} else {
 			threshold = 40 * radio->nrssi[0];
 			threshold += 33 * (radio->nrssi[1] - radio->nrssi[0]);
@@ -901,8 +902,8 @@ static void
 bcm43xx_radio_interference_mitigation_enable(struct bcm43xx_private *bcm,
 					     int mode)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	int i = 0;
 	u16 *stack = radio->interfstack;
 	u16 tmp, flipped;
@@ -1052,8 +1053,8 @@ static void
 bcm43xx_radio_interference_mitigation_disable(struct bcm43xx_private *bcm,
 					      int mode)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	int i = 0;
 	u16 *stack = radio->interfstack;
 	u16 tmp, flipped;
@@ -1142,8 +1143,8 @@ bcm43xx_radio_interference_mitigation_disable(struct bcm43xx_private *bcm,
 int bcm43xx_radio_set_interference_mitigation(struct bcm43xx_private *bcm,
 					      int mode)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	int currentmode;
 
 	if ((phy->type != BCM43xx_PHYTYPE_G) ||
@@ -1199,8 +1200,8 @@ u16 bcm43xx_radio_calibrationvalue(struct bcm43xx_private *bcm)
 
 u16 bcm43xx_radio_init2050(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 backup[19] = { 0 };
 	u16 ret;
 	u16 i, j;
@@ -1444,7 +1445,7 @@ int bcm43xx_radio_selectchannel(struct bcm43xx_private *bcm,
 				u8 channel,
 				int synthetic_pu_workaround)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 r8, tmp;
 	u16 freq;
 
@@ -1628,6 +1629,7 @@ static u16 bcm43xx_get_txgain_dac(u16 txpower)
 
 void bcm43xx_radio_set_txpower_a(struct bcm43xx_private *bcm, u16 txpower)
 {
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 pamp, base, dac, ilt;
 
 	txpower = limit_value(txpower, 0, 63);
@@ -1650,7 +1652,7 @@ void bcm43xx_radio_set_txpower_a(struct bcm43xx_private *bcm, u16 txpower)
 
 	bcm43xx_ilt_write(bcm, 0x3001, dac);
 
-	bcm->current_core->radio->txpower[0] = txpower;
+	radio->txpower[0] = txpower;
 
 	TODO();
 	//TODO: FuncPlaceholder (Adjust BB loft cancel)
@@ -1660,8 +1662,8 @@ void bcm43xx_radio_set_txpower_bg(struct bcm43xx_private *bcm,
                                  u16 baseband_attenuation, u16 radio_attenuation,
                                  u16 txpower)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 
 	if (baseband_attenuation == 0xFFFF)
 		baseband_attenuation = radio->txpower[0];
@@ -1698,8 +1700,8 @@ void bcm43xx_radio_set_txpower_bg(struct bcm43xx_private *bcm,
 
 void bcm43xx_radio_turn_on(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	int err;
 
 	if (radio->enabled)
@@ -1730,8 +1732,8 @@ void bcm43xx_radio_turn_on(struct bcm43xx_private *bcm)
 	
 void bcm43xx_radio_turn_off(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 
 	if (phy->type == BCM43xx_PHYTYPE_A) {
 		bcm43xx_radio_write16(bcm, 0x0004, 0x00FF);
@@ -1750,7 +1752,9 @@ void bcm43xx_radio_turn_off(struct bcm43xx_private *bcm)
 
 void bcm43xx_radio_clear_tssi(struct bcm43xx_private *bcm)
 {
-	switch (bcm->current_core->phy->type) {
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+
+	switch (phy->type) {
 	case BCM43xx_PHYTYPE_A:
 		bcm43xx_shm_write16(bcm, BCM43xx_SHM_SHARED, 0x0068, 0x7F7F);
 		bcm43xx_shm_write16(bcm, BCM43xx_SHM_SHARED, 0x006a, 0x7F7F);

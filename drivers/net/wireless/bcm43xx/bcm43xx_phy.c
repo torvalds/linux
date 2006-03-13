@@ -83,7 +83,7 @@ static void bcm43xx_phy_initg(struct bcm43xx_private *bcm);
 
 void bcm43xx_raw_phy_lock(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 
 	assert(irqs_disabled());
 	if (bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD) == 0x00000000) {
@@ -102,7 +102,7 @@ void bcm43xx_raw_phy_lock(struct bcm43xx_private *bcm)
 
 void bcm43xx_raw_phy_unlock(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 
 	assert(irqs_disabled());
 	if (bcm->current_core->rev < 3) {
@@ -132,7 +132,7 @@ void bcm43xx_phy_write(struct bcm43xx_private *bcm, u16 offset, u16 val)
 
 void bcm43xx_phy_calibrate(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	unsigned long flags;
 
 	bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD); /* Dummy read. */
@@ -158,39 +158,32 @@ void bcm43xx_phy_calibrate(struct bcm43xx_private *bcm)
  */
 int bcm43xx_phy_connect(struct bcm43xx_private *bcm, int connect)
 {
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u32 flags;
 
-	if (bcm->current_core->rev < 5) {
-		if (connect) {
-			bcm->current_core->phy->connected = 1;
-			dprintk(KERN_INFO PFX "PHY connected\n");
-		} else {
-			bcm->current_core->phy->connected = 0;
-			dprintk(KERN_INFO PFX "PHY disconnected\n");
-		}
-		return 0;
-	}
-		
+	if (bcm->current_core->rev < 5)
+		goto out;
+
 	flags = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATEHIGH);
 	if (connect) {
 		if (!(flags & 0x00010000))
 			return -ENODEV;
-		bcm->current_core->phy->connected = 1;
-
 		flags = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATELOW);
 		flags |= (0x800 << 18);
 		bcm43xx_write32(bcm, BCM43xx_CIR_SBTMSTATELOW, flags);
-		dprintk(KERN_INFO PFX "PHY connected\n");
 	} else {
 		if (!(flags & 0x00020000))
 			return -ENODEV;
-		bcm->current_core->phy->connected = 0;
-
 		flags = bcm43xx_read32(bcm, BCM43xx_CIR_SBTMSTATELOW);
 		flags &= ~(0x800 << 18);
 		bcm43xx_write32(bcm, BCM43xx_CIR_SBTMSTATELOW, flags);
-		dprintk(KERN_INFO PFX "PHY disconnected\n");
 	}
+out:
+	phy->connected = connect;
+	if (connect)
+		dprintk(KERN_INFO PFX "PHY connected\n");
+	else
+		dprintk(KERN_INFO PFX "PHY disconnected\n");
 
 	return 0;
 }
@@ -200,8 +193,8 @@ int bcm43xx_phy_connect(struct bcm43xx_private *bcm, int connect)
  */
 static void bcm43xx_phy_init_pctl(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 saved_batt = 0, saved_ratt = 0, saved_txctl1 = 0;
 	int must_reset_txpower = 0;
 
@@ -250,7 +243,7 @@ static void bcm43xx_phy_init_pctl(struct bcm43xx_private *bcm)
 
 static void bcm43xx_phy_agcsetup(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 offset = 0x0000;
 
 	if (phy->rev == 1)
@@ -326,7 +319,7 @@ static void bcm43xx_phy_agcsetup(struct bcm43xx_private *bcm)
 
 static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 i;
 
 	assert(phy->type == BCM43xx_PHYTYPE_G);
@@ -420,7 +413,7 @@ static void bcm43xx_phy_setupg(struct bcm43xx_private *bcm)
 /* Initialize the noisescaletable for APHY */
 static void bcm43xx_phy_init_noisescaletbl(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	int i;
 
 	bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_CTRL, 0x1400);
@@ -448,10 +441,11 @@ static void bcm43xx_phy_init_noisescaletbl(struct bcm43xx_private *bcm)
 
 static void bcm43xx_phy_setupa(struct bcm43xx_private *bcm)
 {
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 i;
 
-	assert(bcm->current_core->phy->type == BCM43xx_PHYTYPE_A);
-	switch (bcm->current_core->phy->rev) {
+	assert(phy->type == BCM43xx_PHYTYPE_A);
+	switch (phy->rev) {
 	case 2:
 		bcm43xx_phy_write(bcm, 0x008E, 0x3800);
 		bcm43xx_phy_write(bcm, 0x0035, 0x03FF);
@@ -563,7 +557,8 @@ static void bcm43xx_phy_setupa(struct bcm43xx_private *bcm)
 /* Initialize APHY. This is also called for the GPHY in some cases. */
 static void bcm43xx_phy_inita(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 tval;
 
 	if (phy->type == BCM43xx_PHYTYPE_A) {
@@ -586,11 +581,11 @@ static void bcm43xx_phy_inita(struct bcm43xx_private *bcm)
 
 	if ((bcm->board_vendor == PCI_VENDOR_ID_BROADCOM)
 	    && ((bcm->board_type == 0x0416) || (bcm->board_type == 0x040A))) {
-		if (bcm->current_core->radio->lofcal == 0xFFFF) {
+		if (radio->lofcal == 0xFFFF) {
 			TODO();//TODO: LOF Cal
 			bcm43xx_radio_set_tx_iq(bcm);
 		} else
-			bcm43xx_radio_write16(bcm, 0x001E, bcm->current_core->radio->lofcal);
+			bcm43xx_radio_write16(bcm, 0x001E, radio->lofcal);
 	}
 
 	bcm43xx_phy_write(bcm, 0x007A, 0xF111);
@@ -620,7 +615,7 @@ static void bcm43xx_phy_inita(struct bcm43xx_private *bcm)
 
 static void bcm43xx_phy_initb2(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 offset, val;
 
 	bcm43xx_write16(bcm, 0x03EC, 0x3F22);
@@ -671,7 +666,7 @@ static void bcm43xx_phy_initb2(struct bcm43xx_private *bcm)
 
 static void bcm43xx_phy_initb4(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 offset, val;
 
 	bcm43xx_write16(bcm, 0x03EC, 0x3F22);
@@ -729,8 +724,8 @@ static void bcm43xx_phy_initb4(struct bcm43xx_private *bcm)
 
 static void bcm43xx_phy_initb5(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 offset;
 
 	if (phy->version == 1 &&
@@ -835,8 +830,8 @@ static void bcm43xx_phy_initb5(struct bcm43xx_private *bcm)
 
 static void bcm43xx_phy_initb6(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 offset, val;
 
 	bcm43xx_phy_write(bcm, 0x003E, 0x817A);
@@ -946,9 +941,9 @@ static void bcm43xx_phy_initb6(struct bcm43xx_private *bcm)
 	udelay(40);
 	bcm43xx_radio_write16(bcm, 0x007C, (bcm43xx_radio_read16(bcm, 0x007C) | 0x0002));
 	bcm43xx_radio_write16(bcm, 0x0050, 0x0020);
-	if ((bcm->current_core->radio->manufact == 0x17F) &&
-	    (bcm->current_core->radio->version == 0x2050) &&
-	    (bcm->current_core->radio->revision <= 2)) {
+	if (radio->manufact == 0x17F &&
+	    radio->version == 0x2050 &&
+	    radio->revision <= 2) {
 		bcm43xx_radio_write16(bcm, 0x0050, 0x0020);
 		bcm43xx_radio_write16(bcm, 0x005A, 0x0070);
 		bcm43xx_radio_write16(bcm, 0x005B, 0x007B);
@@ -1001,8 +996,8 @@ static void bcm43xx_phy_initb6(struct bcm43xx_private *bcm)
 
 static void bcm43xx_phy_initg(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 tmp;
 	
 	if (phy->rev == 1)
@@ -1096,8 +1091,8 @@ static u16 bcm43xx_phy_lo_b_r15_loop(struct bcm43xx_private *bcm)
 
 void bcm43xx_phy_lo_b_measure(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 regstack[12] = { 0 };
 	u16 mls;
 	u16 fval;
@@ -1190,7 +1185,9 @@ void bcm43xx_phy_lo_b_measure(struct bcm43xx_private *bcm)
 static inline
 u16 bcm43xx_phy_lo_g_deviation_subval(struct bcm43xx_private *bcm, u16 control)
 {
-	if (bcm->current_core->phy->connected) {
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+
+	if (phy->connected) {
 		bcm43xx_phy_write(bcm, 0x15, 0xE300);
 		control <<= 8;
 		bcm43xx_phy_write(bcm, 0x0812, control | 0x00B0);
@@ -1242,7 +1239,7 @@ void bcm43xx_lo_write(struct bcm43xx_private *bcm,
 		       "WARNING: Writing invalid LOpair "
 		       "(low: %d, high: %d, index: %lu)\n",
 		       pair->low, pair->high,
-		       (unsigned long)(pair - bcm->current_core->phy->_lo_pairs));
+		       (unsigned long)(pair - bcm43xx_current_phy(bcm)->_lo_pairs));
 		dump_stack();
 	}
 #endif
@@ -1257,7 +1254,7 @@ struct bcm43xx_lopair * bcm43xx_find_lopair(struct bcm43xx_private *bcm,
 					    u16 tx)
 {
 	static const u8 dict[10] = { 11, 10, 11, 12, 13, 12, 13, 12, 13, 12 };
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 
 	if (baseband_attenuation > 6)
 		baseband_attenuation = 6;
@@ -1275,10 +1272,12 @@ struct bcm43xx_lopair * bcm43xx_find_lopair(struct bcm43xx_private *bcm,
 static inline
 struct bcm43xx_lopair * bcm43xx_current_lopair(struct bcm43xx_private *bcm)
 {
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+
 	return bcm43xx_find_lopair(bcm,
-				   bcm->current_core->radio->txpower[0],
-				   bcm->current_core->radio->txpower[1],
-				   bcm->current_core->radio->txpower[2]);
+				   radio->txpower[0],
+				   radio->txpower[1],
+				   radio->txpower[2]);
 }
 
 /* Adjust B/G LO */
@@ -1294,9 +1293,9 @@ void bcm43xx_phy_lo_adjust(struct bcm43xx_private *bcm, int fixed)
 	bcm43xx_lo_write(bcm, pair);
 }
 
-static inline
-void bcm43xx_phy_lo_g_measure_txctl2(struct bcm43xx_private *bcm)
+static void bcm43xx_phy_lo_g_measure_txctl2(struct bcm43xx_private *bcm)
 {
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 txctl2 = 0, i;
 	u32 smallest, tmp;
 
@@ -1312,7 +1311,7 @@ void bcm43xx_phy_lo_g_measure_txctl2(struct bcm43xx_private *bcm)
 			txctl2 = i;
 		}
 	}
-	bcm->current_core->radio->txpower[3] = txctl2;
+	radio->txpower[3] = txctl2;
 }
 
 static
@@ -1402,16 +1401,17 @@ void bcm43xx_phy_lo_g_state(struct bcm43xx_private *bcm,
 void bcm43xx_phy_set_baseband_attenuation(struct bcm43xx_private *bcm,
 					  u16 baseband_attenuation)
 {
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 value;
 
-	if (bcm->current_core->phy->version == 0) {
+	if (phy->version == 0) {
 		value = (bcm43xx_read16(bcm, 0x03E6) & 0xFFF0);
 		value |= (baseband_attenuation & 0x000F);
 		bcm43xx_write16(bcm, 0x03E6, value);
 		return;
 	}
 
-	if (bcm->current_core->phy->version > 1) {
+	if (phy->version > 1) {
 		value = bcm43xx_phy_read(bcm, 0x0060) & ~0x003C;
 		value |= (baseband_attenuation << 2) & 0x003C;
 	} else {
@@ -1426,8 +1426,8 @@ void bcm43xx_phy_lo_g_measure(struct bcm43xx_private *bcm)
 {
 	static const u8 pairorder[10] = { 3, 1, 5, 7, 9, 2, 0, 4, 6, 8 };
 	const int is_initializing = bcm43xx_is_initializing(bcm);
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 h, i, oldi = 0, j;
 	struct bcm43xx_lopair control;
 	struct bcm43xx_lopair *tmp_control;
@@ -1653,7 +1653,7 @@ void bcm43xx_phy_lo_mark_current_used(struct bcm43xx_private *bcm)
 
 void bcm43xx_phy_lo_mark_all_unused(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	struct bcm43xx_lopair *pair;
 	int i;
 
@@ -1668,7 +1668,7 @@ void bcm43xx_phy_lo_mark_all_unused(struct bcm43xx_private *bcm)
  */
 static s8 bcm43xx_phy_estimate_power_out(struct bcm43xx_private *bcm, s8 tssi)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	s8 dbm = 0;
 	s32 tmp;
 
@@ -1698,8 +1698,8 @@ static s8 bcm43xx_phy_estimate_power_out(struct bcm43xx_private *bcm, s8 tssi)
 /* http://bcm-specs.sipsolutions.net/RecalculateTransmissionPower */
 void bcm43xx_phy_xmitpower(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	
 	if (phy->savedpctlreg == 0xFFFF)
 		return;
@@ -1880,8 +1880,8 @@ s8 bcm43xx_tssi2dbm_entry(s8 entry [], u8 index, s16 pab0, s16 pab1, s16 pab2)
 /* http://bcm-specs.sipsolutions.net/TSSI_to_DBM_Table */
 int bcm43xx_phy_init_tssi2dbm_table(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	s16 pab0, pab1, pab2;
 	u8 idx;
 	s8 *dyn_tssi2dbm;
@@ -1958,7 +1958,7 @@ int bcm43xx_phy_init_tssi2dbm_table(struct bcm43xx_private *bcm)
 
 int bcm43xx_phy_init(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	int err = -ENODEV;
 	unsigned long flags;
 
@@ -2008,7 +2008,7 @@ int bcm43xx_phy_init(struct bcm43xx_private *bcm)
 
 void bcm43xx_phy_set_antenna_diversity(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 antennadiv;
 	u16 offset;
 	u16 value;

@@ -146,7 +146,7 @@ struct bcm43xx_pioqueue * parse_cookie(struct bcm43xx_private *bcm,
 				       u16 cookie,
 				       struct bcm43xx_pio_txpacket **packet)
 {
-	struct bcm43xx_pio *pio = bcm->current_core->pio;
+	struct bcm43xx_pio *pio = bcm43xx_current_pio(bcm);
 	struct bcm43xx_pioqueue *queue = NULL;
 	int packetindex;
 
@@ -377,7 +377,7 @@ static void bcm43xx_destroy_pioqueue(struct bcm43xx_pioqueue *queue)
 
 void bcm43xx_pio_free(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_pio *pio = bcm->current_core->pio;
+	struct bcm43xx_pio *pio = bcm43xx_current_pio(bcm);
 
 	bcm43xx_destroy_pioqueue(pio->queue3);
 	pio->queue3 = NULL;
@@ -391,7 +391,7 @@ void bcm43xx_pio_free(struct bcm43xx_private *bcm)
 
 int bcm43xx_pio_init(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_pio *pio = bcm->current_core->pio;
+	struct bcm43xx_pio *pio = bcm43xx_current_pio(bcm);
 	struct bcm43xx_pioqueue *queue;
 	int err = -ENOMEM;
 
@@ -438,7 +438,7 @@ err_destroy0:
 int bcm43xx_pio_tx(struct bcm43xx_private *bcm,
 		   struct ieee80211_txb *txb)
 {
-	struct bcm43xx_pioqueue *queue = bcm->current_core->pio->queue1;
+	struct bcm43xx_pioqueue *queue = bcm43xx_current_pio(bcm)->queue1;
 	struct bcm43xx_pio_txpacket *packet;
 	u16 tmp;
 

@@ -314,7 +314,7 @@ const u16 bcm43xx_ilt_sigmasqr2[BCM43xx_ILT_SIGMASQR_SIZE] = {
 
 void bcm43xx_ilt_write(struct bcm43xx_private *bcm, u16 offset, u16 val)
 {
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A) {
+	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_A) {
 		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_CTRL, offset);
 		mmiowb();
 		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_DATA1, val);
@@ -327,7 +327,7 @@ void bcm43xx_ilt_write(struct bcm43xx_private *bcm, u16 offset, u16 val)
 
 u16 bcm43xx_ilt_read(struct bcm43xx_private *bcm, u16 offset)
 {
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A) {
+	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_A) {
 		bcm43xx_phy_write(bcm, BCM43xx_PHY_ILT_A_CTRL, offset);
 		return bcm43xx_phy_read(bcm, BCM43xx_PHY_ILT_A_DATA1);
 	} else {

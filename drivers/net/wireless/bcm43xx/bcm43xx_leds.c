@@ -171,8 +171,8 @@ void bcm43xx_leds_exit(struct bcm43xx_private *bcm)
 void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity)
 {
 	struct bcm43xx_led *led;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	const int transferring = (jiffies - bcm->stats.last_tx) < BCM43xx_LED_XFER_THRES;
 	int i, turn_on;
 	unsigned long interval = 0;

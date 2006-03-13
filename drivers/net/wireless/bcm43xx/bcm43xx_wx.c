@@ -56,15 +56,14 @@ static int bcm43xx_wx_get_name(struct net_device *net_dev,
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
 	unsigned long flags;
-	int i, nr_80211;
+	int i;
 	struct bcm43xx_phyinfo *phy;
 	char suffix[7] = { 0 };
 	int have_a = 0, have_b = 0, have_g = 0;
 
 	bcm43xx_lock(bcm, flags);
-	nr_80211 = bcm43xx_num_80211_cores(bcm);
-	for (i = 0; i < nr_80211; i++) {
-		phy = bcm->phy + i;
+	for (i = 0; i < bcm->nr_80211_available; i++) {
+		phy = &(bcm->core_80211_ext[i].phy);
 		switch (phy->type) {
 		case BCM43xx_PHYTYPE_A:
 			have_a = 1;
@@ -129,7 +128,7 @@ static int bcm43xx_wx_set_channelfreq(struct net_device *net_dev,
 		err = bcm43xx_radio_selectchannel(bcm, channel, 0);
 		bcm43xx_mac_enable(bcm);
 	} else {
-		bcm->current_core->radio->initial_channel = channel;
+		bcm43xx_current_radio(bcm)->initial_channel = channel;
 		err = 0;
 	}
 out_unlock:
@@ -144,15 +143,17 @@ static int bcm43xx_wx_get_channelfreq(struct net_device *net_dev,
 				      char *extra)
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
+	struct bcm43xx_radioinfo *radio;
 	unsigned long flags;
 	int err = -ENODEV;
 	u16 channel;
 
 	bcm43xx_lock(bcm, flags);
-	channel = bcm->current_core->radio->channel;
+	radio = bcm43xx_current_radio(bcm);
+	channel = radio->channel;
 	if (channel == 0xFF) {
 		assert(!bcm->initialized);
-		channel = bcm->current_core->radio->initial_channel;
+		channel = radio->initial_channel;
 		if (channel == 0xFF)
 			goto out_unlock;
 	}
@@ -232,6 +233,7 @@ static int bcm43xx_wx_get_rangeparams(struct net_device *net_dev,
 	const struct ieee80211_geo *geo;
 	unsigned long flags;
 	int i, j;
+	struct bcm43xx_phyinfo *phy;
 
 	data->data.length = sizeof(*range);
 	memset(range, 0, sizeof(*range));
@@ -270,11 +272,12 @@ static int bcm43xx_wx_get_rangeparams(struct net_device *net_dev,
 			  IW_ENC_CAPA_CIPHER_CCMP;
 
 	bcm43xx_lock(bcm, flags);
+	phy = bcm43xx_current_phy(bcm);
 
 	range->num_bitrates = 0;
 	i = 0;
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A ||
-	    bcm->current_core->phy->type == BCM43xx_PHYTYPE_G) {
+	if (phy->type == BCM43xx_PHYTYPE_A ||
+	    phy->type == BCM43xx_PHYTYPE_G) {
 		range->num_bitrates = 8;
 		range->bitrate[i++] = IEEE80211_OFDM_RATE_6MB;
 		range->bitrate[i++] = IEEE80211_OFDM_RATE_9MB;
@@ -285,8 +288,8 @@ static int bcm43xx_wx_get_rangeparams(struct net_device *net_dev,
 		range->bitrate[i++] = IEEE80211_OFDM_RATE_48MB;
 		range->bitrate[i++] = IEEE80211_OFDM_RATE_54MB;
 	}
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_B ||
-	    bcm->current_core->phy->type == BCM43xx_PHYTYPE_G) {
+	if (phy->type == BCM43xx_PHYTYPE_B ||
+	    phy->type == BCM43xx_PHYTYPE_G) {
 		range->num_bitrates += 4;
 		range->bitrate[i++] = IEEE80211_CCK_RATE_1MB;
 		range->bitrate[i++] = IEEE80211_CCK_RATE_2MB;
@@ -461,8 +464,8 @@ static int bcm43xx_wx_set_xmitpower(struct net_device *net_dev,
 	bcm43xx_lock_mmio(bcm, flags);
 	if (!bcm->initialized)
 		goto out_unlock;
-	radio = bcm->current_core->radio;
-	phy = bcm->current_core->phy;
+	radio = bcm43xx_current_radio(bcm);
+	phy = bcm43xx_current_phy(bcm);
 	if (data->txpower.disabled != (!(radio->enabled))) {
 		if (data->txpower.disabled)
 			bcm43xx_radio_turn_off(bcm);
@@ -500,7 +503,7 @@ static int bcm43xx_wx_get_xmitpower(struct net_device *net_dev,
 	bcm43xx_lock(bcm, flags);
 	if (!bcm->initialized)
 		goto out_unlock;
-	radio = bcm->current_core->radio;
+	radio = bcm43xx_current_radio(bcm);
 	/* desired dBm value is in Q5.2 */
 	data->txpower.value = radio->txpower_desired >> 2;
 	data->txpower.fixed = 1;
@@ -645,7 +648,7 @@ static int bcm43xx_wx_set_interfmode(struct net_device *net_dev,
 					    "not supported while the interface is down.\n");
 			err = -ENODEV;
 		} else
-			bcm->current_core->radio->interfmode = mode;
+			bcm43xx_current_radio(bcm)->interfmode = mode;
 	}
 	bcm43xx_unlock_mmio(bcm, flags);
 
@@ -662,7 +665,7 @@ static int bcm43xx_wx_get_interfmode(struct net_device *net_dev,
 	int mode;
 
 	bcm43xx_lock(bcm, flags);
-	mode = bcm->current_core->radio->interfmode;
+	mode = bcm43xx_current_radio(bcm)->interfmode;
 	bcm43xx_unlock(bcm, flags);
 
 	switch (mode) {

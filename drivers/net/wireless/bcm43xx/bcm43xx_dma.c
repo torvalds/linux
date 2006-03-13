@@ -531,7 +531,7 @@ static void bcm43xx_destroy_dmaring(struct bcm43xx_dmaring *ring)
 
 void bcm43xx_dma_free(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_dma *dma = bcm->current_core->dma;
+	struct bcm43xx_dma *dma = bcm43xx_current_dma(bcm);
 
 	bcm43xx_destroy_dmaring(dma->rx_ring1);
 	dma->rx_ring1 = NULL;
@@ -549,7 +549,7 @@ void bcm43xx_dma_free(struct bcm43xx_private *bcm)
 
 int bcm43xx_dma_init(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_dma *dma = bcm->current_core->dma;
+	struct bcm43xx_dma *dma = bcm43xx_current_dma(bcm);
 	struct bcm43xx_dmaring *ring;
 	int err = -ENOMEM;
 
@@ -652,7 +652,7 @@ static
 struct bcm43xx_dmaring * parse_cookie(struct bcm43xx_private *bcm,
 				      u16 cookie, int *slot)
 {
-	struct bcm43xx_dma *dma = bcm->current_core->dma;
+	struct bcm43xx_dma *dma = bcm43xx_current_dma(bcm);
 	struct bcm43xx_dmaring *ring = NULL;
 
 	switch (cookie & 0xF000) {
@@ -755,7 +755,7 @@ int bcm43xx_dma_tx(struct bcm43xx_private *bcm,
 	 * the device to send the stuff.
 	 * Note that this is called from atomic context.
 	 */
-	struct bcm43xx_dmaring *ring = bcm->current_core->dma->tx_ring1;
+	struct bcm43xx_dmaring *ring = bcm43xx_current_dma(bcm)->tx_ring1;
 	u8 i;
 	struct sk_buff *skb;
 
@@ -784,6 +784,7 @@ int bcm43xx_dma_tx(struct bcm43xx_private *bcm,
 void bcm43xx_dma_handle_xmitstatus(struct bcm43xx_private *bcm,
 				   struct bcm43xx_xmitstatus *status)
 {
+	struct bcm43xx_dma *dma = bcm43xx_current_dma(bcm);
 	struct bcm43xx_dmaring *ring;
 	struct bcm43xx_dmadesc *desc;
 	struct bcm43xx_dmadesc_meta *meta;

@@ -104,16 +104,13 @@ static ssize_t devinfo_read_file(struct file *file, char __user *userbuf,
 	fappend("\nCores:\n");
 #define fappend_core(name, info) fappend("core \"" name "\" %s, %s, id: 0x%04x, "	\
 					 "rev: 0x%02x, index: 0x%02x\n",		\
-					 (info).flags & BCM43xx_COREFLAG_AVAILABLE	\
+					 (info).available				\
 						? "available" : "nonavailable",		\
-					 (info).flags & BCM43xx_COREFLAG_ENABLED	\
+					 (info).enabled					\
 						? "enabled" : "disabled",		\
 					 (info).id, (info).rev, (info).index)
 	fappend_core("CHIPCOMMON", bcm->core_chipcommon);
 	fappend_core("PCI", bcm->core_pci);
-	fappend_core("V90", bcm->core_v90);
-	fappend_core("PCMCIA", bcm->core_pcmcia);
-	fappend_core("ETHERNET", bcm->core_ethernet);
 	fappend_core("first 80211", bcm->core_80211[0]);
 	fappend_core("second 80211", bcm->core_80211[1]);
 #undef fappend_core

@@ -406,7 +406,7 @@ static void bcm43xx_write_mac_bssid_templates(struct bcm43xx_private *bcm)
 static void bcm43xx_set_slot_time(struct bcm43xx_private *bcm, u16 slot_time)
 {
 	/* slot_time is in usec. */
-	if (bcm->current_core->phy->type != BCM43xx_PHYTYPE_G)
+	if (bcm43xx_current_phy(bcm)->type != BCM43xx_PHYTYPE_G)
 		return;
 	bcm43xx_write16(bcm, 0x684, 510 + slot_time);
 	bcm43xx_shm_write16(bcm, BCM43xx_SHM_SHARED, 0x0010, slot_time);
@@ -443,7 +443,7 @@ static void bcm43xx_disassociate(struct bcm43xx_private *bcm)
 
 	bcm43xx_shm_write32(bcm, BCM43xx_SHM_WIRELESS, 0x0004, 0x000003ff);
 
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_G &&
+	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_G &&
 	    ieee80211_is_ofdm_rate(bcm->softmac->txrates.default_rate))
 		bcm43xx_short_slot_timing_enable(bcm);
 
@@ -510,8 +510,8 @@ static int bcm43xx_disable_interrupts_sync(struct bcm43xx_private *bcm, u32 *old
 
 static int bcm43xx_read_radioinfo(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u32 radio_id;
 	u16 manufact;
 	u16 version;
@@ -566,10 +566,10 @@ static int bcm43xx_read_radioinfo(struct bcm43xx_private *bcm)
 		radio->txpower[2] = 3;
 	else
 		radio->txpower[2] = 0;
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A)
+	if (phy->type == BCM43xx_PHYTYPE_A)
 		radio->txpower_desired = bcm->sprom.maxpower_aphy;
 	else
-		bcm->current_core->radio->txpower_desired = bcm->sprom.maxpower_bgphy;
+		radio->txpower_desired = bcm->sprom.maxpower_bgphy;
 
 	/* Initialize the in-memory nrssi Lookup Table. */
 	for (i = 0; i < 64; i++)
@@ -929,15 +929,14 @@ static void bcm43xx_geo_init(struct bcm43xx_private *bcm)
 	struct ieee80211_geo geo;
 	struct ieee80211_channel *chan;
 	int have_a = 0, have_bg = 0;
-	int i, num80211;
+	int i;
 	u8 channel;
 	struct bcm43xx_phyinfo *phy;
 	const char *iso_country;
 
 	memset(&geo, 0, sizeof(geo));
-	num80211 = bcm43xx_num_80211_cores(bcm);
-	for (i = 0; i < num80211; i++) {
-		phy = bcm->phy + i;
+	for (i = 0; i < bcm->nr_80211_available; i++) {
+		phy = &(bcm->core_80211_ext[i].phy);
 		switch (phy->type) {
 		case BCM43xx_PHYTYPE_B:
 		case BCM43xx_PHYTYPE_G:
@@ -985,8 +984,8 @@ static void bcm43xx_geo_init(struct bcm43xx_private *bcm)
  */
 void bcm43xx_dummy_transmission(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	unsigned int i, max_loop;
 	u16 value = 0;
 	u32 buffer[5] = {
@@ -1213,14 +1212,20 @@ int bcm43xx_switch_core(struct bcm43xx_private *bcm, struct bcm43xx_coreinfo *ne
 
 	if (unlikely(!new_core))
 		return 0;
-	if (!(new_core->flags & BCM43xx_COREFLAG_AVAILABLE))
+	if (!new_core->available)
 		return -ENODEV;
 	if (bcm->current_core == new_core)
 		return 0;
 	err = _switch_core(bcm, new_core->index);
-	if (likely(!err))
-		bcm->current_core = new_core;
+	if (unlikely(err))
+		goto out;
 
+	bcm->current_core = new_core;
+	bcm->current_80211_core_idx = -1;
+	if (new_core->id == BCM43xx_COREID_80211)
+		bcm->current_80211_core_idx = (int)(new_core - &(bcm->core_80211[0]));
+
+out:
 	return err;
 }
 
@@ -1295,7 +1300,8 @@ static int bcm43xx_core_disable(struct bcm43xx_private *bcm, u32 core_flags)
 	bcm43xx_write32(bcm, BCM43xx_CIR_SBTMSTATELOW, sbtmstatelow);
 
 out:
-	bcm->current_core->flags &= ~ BCM43xx_COREFLAG_ENABLED;
+	bcm->current_core->enabled = 0;
+
 	return 0;
 }
 
@@ -1340,7 +1346,7 @@ static int bcm43xx_core_enable(struct bcm43xx_private *bcm, u32 core_flags)
 	bcm43xx_write32(bcm, BCM43xx_CIR_SBTMSTATELOW, sbtmstatelow);
 	udelay(1);
 
-	bcm->current_core->flags |= BCM43xx_COREFLAG_ENABLED;
+	bcm->current_core->enabled = 1;
 	assert(err == 0);
 out:
 	return err;
@@ -1411,7 +1417,7 @@ static int bcm43xx_wireless_core_mark_inactive(struct bcm43xx_private *bcm,
 	bcm43xx_write32(bcm, BCM43xx_CIR_SBTMSTATELOW, sbtmstatelow);
 	udelay(1);
 
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_G) {
+	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_G) {
 		old_core = bcm->current_core;
 		err = bcm43xx_switch_core(bcm, active_80211_core);
 		if (err)
@@ -1432,9 +1438,6 @@ static void handle_irq_transmit_status(struct bcm43xx_private *bcm)
 	u32 v0, v1;
 	u16 tmp;
 	struct bcm43xx_xmitstatus stat;
-
-	assert(bcm->current_core->id == BCM43xx_COREID_80211);
-	assert(bcm->current_core->rev >= 5);
 
 	while (1) {
 		v0 = bcm43xx_read32(bcm, BCM43xx_MMIO_XMITSTAT_0);
@@ -1473,7 +1476,7 @@ static void bcm43xx_generate_noise_sample(struct bcm43xx_private *bcm)
 	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS2_BITFIELD,
 			bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS2_BITFIELD) | (1 << 4));
 	assert(bcm->noisecalc.core_at_start == bcm->current_core);
-	assert(bcm->noisecalc.channel_at_start == bcm->current_core->radio->channel);
+	assert(bcm->noisecalc.channel_at_start == bcm43xx_current_radio(bcm)->channel);
 }
 
 static void bcm43xx_calculate_link_quality(struct bcm43xx_private *bcm)
@@ -1483,7 +1486,7 @@ static void bcm43xx_calculate_link_quality(struct bcm43xx_private *bcm)
 	if (bcm->noisecalc.calculation_running)
 		return;
 	bcm->noisecalc.core_at_start = bcm->current_core;
-	bcm->noisecalc.channel_at_start = bcm->current_core->radio->channel;
+	bcm->noisecalc.channel_at_start = bcm43xx_current_radio(bcm)->channel;
 	bcm->noisecalc.calculation_running = 1;
 	bcm->noisecalc.nr_samples = 0;
 
@@ -1492,7 +1495,7 @@ static void bcm43xx_calculate_link_quality(struct bcm43xx_private *bcm)
 
 static void handle_irq_noise(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u16 tmp;
 	u8 noise[4];
 	u8 i, j;
@@ -1759,16 +1762,16 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 	assert(!(dma_reason[2] & BCM43xx_DMAIRQ_RX_DONE));
 	if (dma_reason[0] & BCM43xx_DMAIRQ_RX_DONE) {
 		if (bcm43xx_using_pio(bcm))
-			bcm43xx_pio_rx(bcm->current_core->pio->queue0);
+			bcm43xx_pio_rx(bcm43xx_current_pio(bcm)->queue0);
 		else
-			bcm43xx_dma_rx(bcm->current_core->dma->rx_ring0);
+			bcm43xx_dma_rx(bcm43xx_current_dma(bcm)->rx_ring0);
 		/* We intentionally don't set "activity" to 1, here. */
 	}
 	if (dma_reason[3] & BCM43xx_DMAIRQ_RX_DONE) {
 		if (bcm43xx_using_pio(bcm))
-			bcm43xx_pio_rx(bcm->current_core->pio->queue3);
+			bcm43xx_pio_rx(bcm43xx_current_pio(bcm)->queue3);
 		else
-			bcm43xx_dma_rx(bcm->current_core->dma->rx_ring1);
+			bcm43xx_dma_rx(bcm43xx_current_dma(bcm)->rx_ring1);
 		activity = 1;
 	}
 	bcmirq_handled(BCM43xx_IRQ_RX);
@@ -1911,7 +1914,7 @@ static void bcm43xx_release_firmware(struct bcm43xx_private *bcm, int force)
 
 static int bcm43xx_request_firmware(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u8 rev = bcm->current_core->rev;
 	int err = 0;
 	int nr;
@@ -2349,6 +2352,8 @@ static void bcm43xx_chip_cleanup(struct bcm43xx_private *bcm)
  */
 static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 {
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	int err;
 	int iw_mode = bcm->ieee->iw_mode;
 	int tmp;
@@ -2388,13 +2393,13 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 		goto err_radio_off;
 
 	/* Select initial Interference Mitigation. */
-	tmp = bcm->current_core->radio->interfmode;
-	bcm->current_core->radio->interfmode = BCM43xx_RADIO_INTERFMODE_NONE;
+	tmp = radio->interfmode;
+	radio->interfmode = BCM43xx_RADIO_INTERFMODE_NONE;
 	bcm43xx_radio_set_interference_mitigation(bcm, tmp);
 
 	bcm43xx_phy_set_antenna_diversity(bcm);
 	bcm43xx_radio_set_txantenna(bcm, BCM43xx_RADIO_TXANTENNA_DEFAULT);
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_B) {
+	if (phy->type == BCM43xx_PHYTYPE_B) {
 		value16 = bcm43xx_read16(bcm, 0x005E);
 		value16 |= 0x0004;
 		bcm43xx_write16(bcm, 0x005E, value16);
@@ -2512,6 +2517,32 @@ error:
 	return -ENODEV;
 }
 
+void bcm43xx_init_struct_phyinfo(struct bcm43xx_phyinfo *phy)
+{
+	/* Initialize a "phyinfo" structure. The structure is already
+	 * zeroed out.
+	 */
+	phy->antenna_diversity = 0xFFFF;
+	phy->savedpctlreg = 0xFFFF;
+	phy->minlowsig[0] = 0xFFFF;
+	phy->minlowsig[1] = 0xFFFF;
+	spin_lock_init(&phy->lock);
+}
+
+void bcm43xx_init_struct_radioinfo(struct bcm43xx_radioinfo *radio)
+{
+	/* Initialize a "radioinfo" structure. The structure is already
+	 * zeroed out.
+	 */
+	radio->interfmode = BCM43xx_RADIO_INTERFMODE_NONE;
+	radio->channel = 0xFF;
+	radio->initial_channel = 0xFF;
+	radio->lofcal = 0xFFFF;
+	radio->initval = 0xFFFF;
+	radio->nrssi[0] = -1000;
+	radio->nrssi[1] = -1000;
+}
+
 static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 {
 	int err, i;
@@ -2523,15 +2554,14 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 
 	memset(&bcm->core_chipcommon, 0, sizeof(struct bcm43xx_coreinfo));
 	memset(&bcm->core_pci, 0, sizeof(struct bcm43xx_coreinfo));
-	memset(&bcm->core_v90, 0, sizeof(struct bcm43xx_coreinfo));
-	memset(&bcm->core_pcmcia, 0, sizeof(struct bcm43xx_coreinfo));
 	memset(&bcm->core_80211, 0, sizeof(struct bcm43xx_coreinfo)
 				    * BCM43xx_MAX_80211_CORES);
-
-	memset(&bcm->phy, 0, sizeof(struct bcm43xx_phyinfo)
-			     * BCM43xx_MAX_80211_CORES);
-	memset(&bcm->radio, 0, sizeof(struct bcm43xx_radioinfo)
-			       * BCM43xx_MAX_80211_CORES);
+	memset(&bcm->core_80211_ext, 0, sizeof(struct bcm43xx_coreinfo_80211)
+					* BCM43xx_MAX_80211_CORES);
+	bcm->current_80211_core_idx = -1;
+	bcm->nr_80211_available = 0;
+	bcm->current_core = NULL;
+	bcm->active_80211_core = NULL;
 
 	/* map core 0 */
 	err = _switch_core(bcm, 0);
@@ -2549,7 +2579,7 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 	if (core_id == BCM43xx_COREID_CHIPCOMMON) {
 		chip_id_32 = bcm43xx_read32(bcm, 0);
 		chip_id_16 = chip_id_32 & 0xFFFF;
-		bcm->core_chipcommon.flags |= BCM43xx_COREFLAG_AVAILABLE;
+		bcm->core_chipcommon.available = 1;
 		bcm->core_chipcommon.id = core_id;
 		bcm->core_chipcommon.rev = core_rev;
 		bcm->core_chipcommon.index = 0;
@@ -2618,18 +2648,19 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 	dprintk(KERN_INFO PFX "Chip ID 0x%x, rev 0x%x\n",
 		bcm->chip_id, bcm->chip_rev);
 	dprintk(KERN_INFO PFX "Number of cores: %d\n", core_count);
-	if (bcm->core_chipcommon.flags & BCM43xx_COREFLAG_AVAILABLE) {
+	if (bcm->core_chipcommon.available) {
 		dprintk(KERN_INFO PFX "Core 0: ID 0x%x, rev 0x%x, vendor 0x%x, %s\n",
 			core_id, core_rev, core_vendor,
 			bcm43xx_core_enabled(bcm) ? "enabled" : "disabled");
 	}
 
-	if (bcm->core_chipcommon.flags & BCM43xx_COREFLAG_AVAILABLE)
+	if (bcm->core_chipcommon.available)
 		current_core = 1;
 	else
 		current_core = 0;
 	for ( ; current_core < core_count; current_core++) {
 		struct bcm43xx_coreinfo *core;
+		struct bcm43xx_coreinfo_80211 *ext_80211;
 
 		err = _switch_core(bcm, current_core);
 		if (err)
@@ -2651,36 +2682,16 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 		switch (core_id) {
 		case BCM43xx_COREID_PCI:
 			core = &bcm->core_pci;
-			if (core->flags & BCM43xx_COREFLAG_AVAILABLE) {
+			if (core->available) {
 				printk(KERN_WARNING PFX "Multiple PCI cores found.\n");
-				continue;
-			}
-			break;
-		case BCM43xx_COREID_V90:
-			core = &bcm->core_v90;
-			if (core->flags & BCM43xx_COREFLAG_AVAILABLE) {
-				printk(KERN_WARNING PFX "Multiple V90 cores found.\n");
-				continue;
-			}
-			break;
-		case BCM43xx_COREID_PCMCIA:
-			core = &bcm->core_pcmcia;
-			if (core->flags & BCM43xx_COREFLAG_AVAILABLE) {
-				printk(KERN_WARNING PFX "Multiple PCMCIA cores found.\n");
-				continue;
-			}
-			break;
-		case BCM43xx_COREID_ETHERNET:
-			core = &bcm->core_ethernet;
-			if (core->flags & BCM43xx_COREFLAG_AVAILABLE) {
-				printk(KERN_WARNING PFX "Multiple Ethernet cores found.\n");
 				continue;
 			}
 			break;
 		case BCM43xx_COREID_80211:
 			for (i = 0; i < BCM43xx_MAX_80211_CORES; i++) {
 				core = &(bcm->core_80211[i]);
-				if (!(core->flags & BCM43xx_COREFLAG_AVAILABLE))
+				ext_80211 = &(bcm->core_80211_ext[i]);
+				if (!core->available)
 					break;
 				core = NULL;
 			}
@@ -2715,40 +2726,23 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 				err = -ENODEV;
 				goto out;
 			}
-			core->phy = &bcm->phy[i];
-			core->phy->antenna_diversity = 0xffff;
-			core->phy->savedpctlreg = 0xFFFF;
-			core->phy->minlowsig[0] = 0xFFFF;
-			core->phy->minlowsig[1] = 0xFFFF;
-			core->phy->minlowsigpos[0] = 0;
-			core->phy->minlowsigpos[1] = 0;
-			spin_lock_init(&core->phy->lock);
-			core->radio = &bcm->radio[i];
-			core->radio->interfmode = BCM43xx_RADIO_INTERFMODE_NONE;
-			core->radio->channel = 0xFF;
-			core->radio->initial_channel = 0xFF;
-			core->radio->lofcal = 0xFFFF;
-			core->radio->initval = 0xFFFF;
-			core->radio->nrssi[0] = -1000;
-			core->radio->nrssi[1] = -1000;
-			core->dma = &bcm->dma[i];
-			core->pio = &bcm->pio[i];
+			bcm->nr_80211_available++;
+			bcm43xx_init_struct_phyinfo(&ext_80211->phy);
+			bcm43xx_init_struct_radioinfo(&ext_80211->radio);
 			break;
 		case BCM43xx_COREID_CHIPCOMMON:
 			printk(KERN_WARNING PFX "Multiple CHIPCOMMON cores found.\n");
 			break;
-		default:
-			printk(KERN_WARNING PFX "Unknown core found (ID 0x%x)\n", core_id);
 		}
 		if (core) {
-			core->flags |= BCM43xx_COREFLAG_AVAILABLE;
+			core->available = 1;
 			core->id = core_id;
 			core->rev = core_rev;
 			core->index = current_core;
 		}
 	}
 
-	if (!(bcm->core_80211[0].flags & BCM43xx_COREFLAG_AVAILABLE)) {
+	if (!bcm->core_80211[0].available) {
 		printk(KERN_ERR PFX "Error: No 80211 core found!\n");
 		err = -ENODEV;
 		goto out;
@@ -2802,7 +2796,7 @@ static void bcm43xx_rate_memory_write(struct bcm43xx_private *bcm,
 
 static void bcm43xx_rate_memory_init(struct bcm43xx_private *bcm)
 {
-	switch (bcm->current_core->phy->type) {
+	switch (bcm43xx_current_phy(bcm)->type) {
 	case BCM43xx_PHYTYPE_A:
 	case BCM43xx_PHYTYPE_G:
 		bcm43xx_rate_memory_write(bcm, IEEE80211_OFDM_RATE_6MB, 1);
@@ -2829,12 +2823,14 @@ static void bcm43xx_wireless_core_cleanup(struct bcm43xx_private *bcm)
 	bcm43xx_pio_free(bcm);
 	bcm43xx_dma_free(bcm);
 
-	bcm->current_core->flags &= ~ BCM43xx_COREFLAG_INITIALIZED;
+	bcm->current_core->initialized = 0;
 }
 
 /* http://bcm-specs.sipsolutions.net/80211Init */
 static int bcm43xx_wireless_core_init(struct bcm43xx_private *bcm)
 {
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	u32 ucodeflags;
 	int err;
 	u32 sbimconfiglow;
@@ -2867,16 +2863,15 @@ static int bcm43xx_wireless_core_init(struct bcm43xx_private *bcm)
 	/* HW decryption needs to be set now */
 	ucodeflags |= 0x40000000;
 	
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_G) {
+	if (phy->type == BCM43xx_PHYTYPE_G) {
 		ucodeflags |= BCM43xx_UCODEFLAG_UNKBGPHY;
-		if (bcm->current_core->phy->rev == 1)
+		if (phy->rev == 1)
 			ucodeflags |= BCM43xx_UCODEFLAG_UNKGPHY;
 		if (bcm->sprom.boardflags & BCM43xx_BFL_PACTRL)
 			ucodeflags |= BCM43xx_UCODEFLAG_UNKPACTRL;
-	} else if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_B) {
+	} else if (phy->type == BCM43xx_PHYTYPE_B) {
 		ucodeflags |= BCM43xx_UCODEFLAG_UNKBGPHY;
-		if ((bcm->current_core->phy->rev >= 2) &&
-		    (bcm->current_core->radio->version == 0x2050))
+		if (phy->rev >= 2 && radio->version == 0x2050)
 			ucodeflags &= ~BCM43xx_UCODEFLAG_UNKGPHY;
 	}
 
@@ -2901,7 +2896,7 @@ static int bcm43xx_wireless_core_init(struct bcm43xx_private *bcm)
 	bcm43xx_rate_memory_init(bcm);
 
 	/* Minimum Contention Window */
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_B)
+	if (phy->type == BCM43xx_PHYTYPE_B)
 		bcm43xx_shm_write32(bcm, BCM43xx_SHM_WIRELESS, 0x0003, 0x0000001f);
 	else
 		bcm43xx_shm_write32(bcm, BCM43xx_SHM_WIRELESS, 0x0003, 0x0000000f);
@@ -2927,7 +2922,7 @@ static int bcm43xx_wireless_core_init(struct bcm43xx_private *bcm)
 	bcm43xx_mac_enable(bcm);
 	bcm43xx_interrupt_enable(bcm, bcm->irq_savedstate);
 
-	bcm->current_core->flags |= BCM43xx_COREFLAG_INITIALIZED;
+	bcm->current_core->initialized = 1;
 out:
 	return err;
 
@@ -3048,7 +3043,7 @@ static void bcm43xx_softmac_init(struct bcm43xx_private *bcm)
 
 static void bcm43xx_periodic_every120sec(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 
 	if (phy->type != BCM43xx_PHYTYPE_G || phy->rev < 2)
 		return;
@@ -3076,8 +3071,8 @@ static void bcm43xx_periodic_every30sec(struct bcm43xx_private *bcm)
 
 static void bcm43xx_periodic_every15sec(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
-	struct bcm43xx_radioinfo *radio = bcm->current_core->radio;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 
 	if (phy->type == BCM43xx_PHYTYPE_G) {
 		//TODO: update_aci_moving_average
@@ -3170,9 +3165,9 @@ static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 	bcm43xx_unlock(bcm, flags);
 
 	for (i = 0; i < BCM43xx_MAX_80211_CORES; i++) {
-		if (!(bcm->core_80211[i].flags & BCM43xx_COREFLAG_AVAILABLE))
+		if (!bcm->core_80211[i].available)
 			continue;
-		if (!(bcm->core_80211[i].flags & BCM43xx_COREFLAG_INITIALIZED))
+		if (!bcm->core_80211[i].initialized)
 			continue;
 
 		err = bcm43xx_switch_core(bcm, &bcm->core_80211[i]);
@@ -3190,7 +3185,6 @@ static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 {
 	int i, err;
-	int num_80211_cores;
 	int connect_phy;
 	unsigned long flags;
 
@@ -3212,8 +3206,7 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 		goto err_crystal_off;
 
 	tasklet_enable(&bcm->isr_tasklet);
-	num_80211_cores = bcm43xx_num_80211_cores(bcm);
-	for (i = 0; i < num_80211_cores; i++) {
+	for (i = 0; i < bcm->nr_80211_available; i++) {
 		err = bcm43xx_switch_core(bcm, &bcm->core_80211[i]);
 		assert(err != -ENODEV);
 		if (err)
@@ -3223,8 +3216,8 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 		 * Connect PHY only on the first core.
 		 */
 		if (!bcm43xx_core_enabled(bcm)) {
-			if (num_80211_cores == 1) {
-				connect_phy = bcm->current_core->phy->connected;
+			if (bcm->nr_80211_available == 1) {
+				connect_phy = bcm43xx_current_phy(bcm)->connected;
 			} else {
 				if (i == 0)
 					connect_phy = 1;
@@ -3248,7 +3241,7 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 		}
 	}
 	bcm->active_80211_core = &bcm->core_80211[0];
-	if (num_80211_cores >= 2) {
+	if (bcm->nr_80211_available >= 2) {
 		bcm43xx_switch_core(bcm, &bcm->core_80211[0]);
 		bcm43xx_mac_enable(bcm);
 	}
@@ -3260,9 +3253,9 @@ static int bcm43xx_init_board(struct bcm43xx_private *bcm)
 
 	bcm43xx_pctl_set_clock(bcm, BCM43xx_PCTL_CLK_DYNAMIC);
 
-	if (bcm->current_core->radio->initial_channel != 0xFF) {
+	if (bcm43xx_current_radio(bcm)->initial_channel != 0xFF) {
 		bcm43xx_mac_suspend(bcm);
-		bcm43xx_radio_selectchannel(bcm, bcm->current_core->radio->initial_channel, 0);
+		bcm43xx_radio_selectchannel(bcm, bcm43xx_current_radio(bcm)->initial_channel, 0);
 		bcm43xx_mac_enable(bcm);
 	}
 
@@ -3282,8 +3275,8 @@ out:
 err_80211_unwind:
 	tasklet_disable(&bcm->isr_tasklet);
 	/* unwind all 80211 initialization */
-	for (i = 0; i < num_80211_cores; i++) {
-		if (!(bcm->core_80211[i].flags & BCM43xx_COREFLAG_INITIALIZED))
+	for (i = 0; i < bcm->nr_80211_available; i++) {
+		if (!bcm->core_80211[i].initialized)
 			continue;
 		bcm43xx_interrupt_disable(bcm, BCM43xx_IRQ_ALL);
 		bcm43xx_wireless_core_cleanup(bcm);
@@ -3307,15 +3300,15 @@ static void bcm43xx_detach_board(struct bcm43xx_private *bcm)
 
 	/* Free allocated structures/fields */
 	for (i = 0; i < BCM43xx_MAX_80211_CORES; i++) {
-		kfree(bcm->phy[i]._lo_pairs);
-		if (bcm->phy[i].dyn_tssi_tbl)
-			kfree(bcm->phy[i].tssi2dbm);
+		kfree(bcm->core_80211_ext[i].phy._lo_pairs);
+		if (bcm->core_80211_ext[i].phy.dyn_tssi_tbl)
+			kfree(bcm->core_80211_ext[i].phy.tssi2dbm);
 	}
 }	
 
 static int bcm43xx_read_phyinfo(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_phyinfo *phy = bcm->current_core->phy;
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	u16 value;
 	u8 phy_version;
 	u8 phy_type;
@@ -3393,7 +3386,6 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	int i;
 	void __iomem *ioaddr;
 	unsigned long mmio_start, mmio_end, mmio_flags, mmio_len;
-	int num_80211_cores;
 	u32 coremask;
 
 	err = pci_enable_device(pci_dev);
@@ -3467,11 +3459,9 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	if (err)
 		goto err_chipset_detach;
 	
-	num_80211_cores = bcm43xx_num_80211_cores(bcm);
-
 	/* Attach all IO cores to the backplane. */
 	coremask = 0;
-	for (i = 0; i < num_80211_cores; i++)
+	for (i = 0; i < bcm->nr_80211_available; i++)
 		coremask |= (1 << bcm->core_80211[i].index);
 	//FIXME: Also attach some non80211 cores?
 	err = bcm43xx_setup_backplane_pci_connection(bcm, coremask);
@@ -3487,7 +3477,7 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	if (err)
 		goto err_chipset_detach;
 
-	for (i = 0; i < num_80211_cores; i++) {
+	for (i = 0; i < bcm->nr_80211_available; i++) {
 		err = bcm43xx_switch_core(bcm, &bcm->core_80211[i]);
 		assert(err != -ENODEV);
 		if (err)
@@ -3519,7 +3509,7 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	bcm43xx_pctl_set_crystal(bcm, 0);
 
 	/* Set the MAC address in the networking subsystem */
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A)
+	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_A)
 		memcpy(bcm->net_dev->dev_addr, bcm->sprom.et1macaddr, 6);
 	else
 		memcpy(bcm->net_dev->dev_addr, bcm->sprom.il0macaddr, 6);
@@ -3535,9 +3525,9 @@ out:
 
 err_80211_unwind:
 	for (i = 0; i < BCM43xx_MAX_80211_CORES; i++) {
-		kfree(bcm->phy[i]._lo_pairs);
-		if (bcm->phy[i].dyn_tssi_tbl)
-			kfree(bcm->phy[i].tssi2dbm);
+		kfree(bcm->core_80211_ext[i].phy._lo_pairs);
+		if (bcm->core_80211_ext[i].phy.dyn_tssi_tbl)
+			kfree(bcm->core_80211_ext[i].phy.tssi2dbm);
 	}
 err_chipset_detach:
 	bcm43xx_chipset_detach(bcm);

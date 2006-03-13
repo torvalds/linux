@@ -150,7 +150,7 @@ static ssize_t bcm43xx_attr_interfmode_show(struct device *dev,
 	bcm43xx_lock(bcm, flags);
 	assert(bcm->initialized);
 
-	switch (bcm->current_core->radio->interfmode) {
+	switch (bcm43xx_current_radio(bcm)->interfmode) {
 	case BCM43xx_RADIO_INTERFMODE_NONE:
 		count = snprintf(buf, PAGE_SIZE, "0 (No Interference Mitigation)\n");
 		break;

@@ -80,7 +80,7 @@ static inline
 u8 bcm43xx_freq_to_channel(struct bcm43xx_private *bcm,
 			   int freq)
 {
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A)
+	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_A)
 		return bcm43xx_freq_to_channel_a(freq);
 	return bcm43xx_freq_to_channel_bg(freq);
 }
@@ -107,7 +107,7 @@ static inline
 int bcm43xx_channel_to_freq(struct bcm43xx_private *bcm,
 			    u8 channel)
 {
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A)
+	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_A)
 		return bcm43xx_channel_to_freq_a(channel);
 	return bcm43xx_channel_to_freq_bg(channel);
 }
@@ -129,7 +129,7 @@ static inline
 int bcm43xx_is_valid_channel(struct bcm43xx_private *bcm,
 			     u8 channel)
 {
-	if (bcm->current_core->phy->type == BCM43xx_PHYTYPE_A)
+	if (bcm43xx_current_phy(bcm)->type == BCM43xx_PHYTYPE_A)
 		return bcm43xx_is_valid_channel_a(channel);
 	return bcm43xx_is_valid_channel_bg(channel);
 }
