@@ -103,6 +103,7 @@ enum v4l2_chip_ident {
 	V4L2_IDENT_UNKNOWN = 0,
 
 	/* module saa7115: reserved range 100-149 */
+	V4L2_IDENT_SAA7113 = 103,
 	V4L2_IDENT_SAA7114 = 104,
 	V4L2_IDENT_SAA7115 = 105,
 

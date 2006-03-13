@@ -101,23 +101,6 @@ static struct em28xx_tvnorm tvnorms[] = {
 	}
 };
 
-static const unsigned char saa7114_i2c_init[] = {
-	0x00,0x00,0x01,0x08,0x02,0xc4,0x03,0x30,0x04,0x90,0x05,0x90,0x06,0xeb,0x07,0xe0,
-	0x08,0x88,0x09,0x40,0x0a,0x80,0x0b,0x44,0x0c,0x40,0x0d,0x00,0x0e,0x81,0x0f,0x2a,
-	0x10,0x06,0x11,0x00,0x12,0xc8,0x13,0x80,0x14,0x00,0x15,0x11,0x16,0x01,0x17,0x42,
-	0x18,0x40,0x19,0x80,0x40,0x00,0x41,0xff,0x42,0xff,0x43,0xff,0x44,0xff,0x45,0xff,
-	0x46,0xff,0x47,0xff,0x48,0xff,0x49,0xff,0x4a,0xff,0x4b,0xff,0x4c,0xff,0x4d,0xff,
-	0x4e,0xff,0x4f,0xff,0x50,0xff,0x51,0xff,0x52,0xff,0x53,0xff,0x54,0x5f,0x55,0xff,
-	0x56,0xff,0x57,0xff,0x58,0x00,0x59,0x47,0x5a,0x03,0x5b,0x03,0x5d,0x3e,0x5e,0x00,
-	0x80,0x1c,0x83,0x01,0x84,0xa5,0x85,0x10,0x86,0x45,0x87,0x41,0x88,0xf0,0x88,0x00,
-	0x88,0xf0,0x90,0x00,0x91,0x08,0x92,0x00,0x93,0x80,0x94,0x08,0x95,0x00,0x96,0xc0,
-	0x97,0x02,0x98,0x13,0x99,0x00,0x9a,0x38,0x9b,0x01,0x9c,0x80,0x9d,0x02,0x9e,0x06,
-	0x9f,0x01,0xa0,0x01,0xa1,0x00,0xa2,0x00,0xa4,0x80,0xa5,0x36,0xa6,0x36,0xa8,0x67,
-	0xa9,0x04,0xaa,0x00,0xac,0x33,0xad,0x02,0xae,0x00,0xb0,0xcd,0xb1,0x04,0xb2,0xcd,
-	0xb3,0x04,0xb4,0x01,0xb8,0x00,0xb9,0x00,0xba,0x00,0xbb,0x00,0xbc,0x00,0xbd,0x00,
-	0xbe,0x00,0xbf,0x00
-};
-
 #define TVNORMS ARRAY_SIZE(tvnorms)
 
 /* supported controls */
@@ -140,65 +123,6 @@ static struct v4l2_queryctrl em28xx_qctrl[] = {
 		.maximum = 1,
 		.step = 1,
 		.default_value = 1,
-		.flags = 0,
-	}
-};
-
-/* FIXME: These are specific to saa711x - should be moved to its code */
-static struct v4l2_queryctrl saa711x_qctrl[] = {
-	{
-		.id = V4L2_CID_BRIGHTNESS,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Brightness",
-		.minimum = -128,
-		.maximum = 127,
-		.step = 1,
-		.default_value = 0,
-		.flags = 0,
-	},{
-		.id = V4L2_CID_CONTRAST,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Contrast",
-		.minimum = 0x0,
-		.maximum = 0x1f,
-		.step = 0x1,
-		.default_value = 0x10,
-		.flags = 0,
-	},{
-		.id = V4L2_CID_SATURATION,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Saturation",
-		.minimum = 0x0,
-		.maximum = 0x1f,
-		.step = 0x1,
-		.default_value = 0x10,
-		.flags = 0,
-	},{
-		.id = V4L2_CID_RED_BALANCE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Red chroma balance",
-		.minimum = -128,
-		.maximum = 127,
-		.step = 1,
-		.default_value = 0,
-		.flags = 0,
-	},{
-		.id = V4L2_CID_BLUE_BALANCE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Blue chroma balance",
-		.minimum = -128,
-		.maximum = 127,
-		.step = 1,
-		.default_value = 0,
-		.flags = 0,
-	},{
-		.id = V4L2_CID_GAMMA,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Gamma",
-		.minimum = 0x0,
-		.maximum = 0x3f,
-		.step = 0x1,
-		.default_value = 0x20,
 		.flags = 0,
 	}
 };
@@ -245,22 +169,9 @@ static int em28xx_config(struct em28xx *dev)
 static void em28xx_config_i2c(struct em28xx *dev)
 {
 	struct v4l2_frequency f;
-	struct video_decoder_init em28xx_vdi = {.data = NULL };
-
-
-	/* configure decoder */
-	if(dev->model == EM2820_BOARD_MSI_VOX_USB_2){
-		em28xx_vdi.data=saa7114_i2c_init;
-		em28xx_vdi.len=sizeof(saa7114_i2c_init);
-	}
-
-
-	em28xx_i2c_call_clients(dev, DECODER_INIT, &em28xx_vdi);
-	em28xx_i2c_call_clients(dev, DECODER_SET_INPUT, &dev->ctl_input);
-/*	em28xx_i2c_call_clients(dev,DECODER_SET_PICTURE, &dev->vpic); */
-/*	em28xx_i2c_call_clients(dev,DECODER_SET_NORM,&dev->tvnorm->id); */
-/*	em28xx_i2c_call_clients(dev,DECODER_ENABLE_OUTPUT,&output); */
-/*	em28xx_i2c_call_clients(dev,DECODER_DUMP, NULL); */
+	em28xx_i2c_call_clients(dev, VIDIOC_INT_RESET, NULL);
+	em28xx_i2c_call_clients(dev, VIDIOC_S_INPUT, &dev->ctl_input);
+	em28xx_i2c_call_clients(dev, VIDIOC_STREAMON, NULL);
 
 	/* configure tuner */
 	f.tuner = 0;
@@ -300,8 +211,7 @@ static void video_mux(struct em28xx *dev, int index)
 	dev->ctl_input = index;
 	dev->ctl_ainput = INPUT(index)->amux;
 
-	em28xx_i2c_call_clients(dev, DECODER_SET_INPUT, &input);
-
+	em28xx_i2c_call_clients(dev, VIDIOC_S_INPUT, &input);
 
 	em28xx_videodbg("Setting input index=%d, vmux=%d, amux=%d\n",index,input,dev->ctl_ainput);
 
@@ -747,43 +657,6 @@ static int em28xx_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
 	}
 }
 
-/*FIXME: should be moved to saa711x */
-static int saa711x_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
-{
-	s32 tmp;
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		if ((tmp = em28xx_brightness_get(dev)) < 0)
-			return -EIO;
-		ctrl->value = (s32) ((s8) tmp);	/* FIXME: clenaer way to extend sign? */
-		return 0;
-	case V4L2_CID_CONTRAST:
-		if ((ctrl->value = em28xx_contrast_get(dev)) < 0)
-			return -EIO;
-		return 0;
-	case V4L2_CID_SATURATION:
-		if ((ctrl->value = em28xx_saturation_get(dev)) < 0)
-			return -EIO;
-		return 0;
-	case V4L2_CID_RED_BALANCE:
-		if ((tmp = em28xx_v_balance_get(dev)) < 0)
-			return -EIO;
-		ctrl->value = (s32) ((s8) tmp);	/* FIXME: clenaer way to extend sign? */
-		return 0;
-	case V4L2_CID_BLUE_BALANCE:
-		if ((tmp = em28xx_u_balance_get(dev)) < 0)
-			return -EIO;
-		ctrl->value = (s32) ((s8) tmp);	/* FIXME: clenaer way to extend sign? */
-		return 0;
-	case V4L2_CID_GAMMA:
-		if ((ctrl->value = em28xx_gamma_get(dev)) < 0)
-			return -EIO;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
 /*
  * em28xx_set_ctrl()
  * mute or set new saturation, brightness or contrast
@@ -801,27 +674,6 @@ static int em28xx_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_VOLUME:
 		dev->volume = ctrl->value;
 		return em28xx_audio_analog_set(dev);
-	default:
-		return -EINVAL;
-	}
-}
-
-/*FIXME: should be moved to saa711x */
-static int saa711x_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
-{
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		return em28xx_brightness_set(dev, ctrl->value);
-	case V4L2_CID_CONTRAST:
-		return em28xx_contrast_set(dev, ctrl->value);
-	case V4L2_CID_SATURATION:
-		return em28xx_saturation_set(dev, ctrl->value);
-	case V4L2_CID_RED_BALANCE:
-		return em28xx_v_balance_set(dev, ctrl->value);
-	case V4L2_CID_BLUE_BALANCE:
-		return em28xx_u_balance_set(dev, ctrl->value);
-	case V4L2_CID_GAMMA:
-		return em28xx_gamma_set(dev, ctrl->value);
 	default:
 		return -EINVAL;
 	}
@@ -1130,8 +982,6 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 
 		em28xx_set_norm(dev, dev->width, dev->height);
 
-		em28xx_i2c_call_clients(dev, DECODER_SET_NORM,
-					&tvnorms[i].mode);
 		em28xx_i2c_call_clients(dev, VIDIOC_S_STD,
 					&dev->tvnorm->id);
 
@@ -1242,22 +1092,11 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 				}
 			}
 		}
-		if (dev->decoder == EM28XX_TVP5150) {
-			em28xx_i2c_call_clients(dev,cmd,qc);
-			if (qc->type)
-				return 0;
-			else
-				return -EINVAL;
-		}
-		for (i = 0; i < ARRAY_SIZE(saa711x_qctrl); i++) {
-			if (qc->id && qc->id == saa711x_qctrl[i].id) {
-				memcpy(qc, &(saa711x_qctrl[i]),
-					sizeof(*qc));
-				return 0;
-			}
-		}
-
-		return -EINVAL;
+		em28xx_i2c_call_clients(dev,cmd,qc);
+		if (qc->type)
+			return 0;
+		else
+			return -EINVAL;
 	}
 	case VIDIOC_G_CTRL:
 	{
@@ -1267,12 +1106,8 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 		if (!dev->has_msp34xx)
 			retval=em28xx_get_ctrl(dev, ctrl);
 		if (retval==-EINVAL) {
-			if (dev->decoder == EM28XX_TVP5150) {
-				em28xx_i2c_call_clients(dev,cmd,arg);
-				return 0;
-			}
-
-			return saa711x_get_ctrl(dev, ctrl);
+			em28xx_i2c_call_clients(dev,cmd,arg);
+			return 0;
 		} else return retval;
 	}
 	case VIDIOC_S_CTRL:
@@ -1293,33 +1128,8 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 			}
 		}
 
-		if (dev->decoder == EM28XX_TVP5150) {
-			em28xx_i2c_call_clients(dev,cmd,arg);
-			return 0;
-		} else if (!dev->has_msp34xx) {
-			for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
-				if (ctrl->id == em28xx_qctrl[i].id) {
-					if (ctrl->value <
-					em28xx_qctrl[i].minimum
-					|| ctrl->value >
-					em28xx_qctrl[i].maximum)
-						return -ERANGE;
-					return em28xx_set_ctrl(dev, ctrl);
-				}
-			}
-			for (i = 0; i < ARRAY_SIZE(saa711x_qctrl); i++) {
-				if (ctrl->id == saa711x_qctrl[i].id) {
-					if (ctrl->value <
-					saa711x_qctrl[i].minimum
-					|| ctrl->value >
-					saa711x_qctrl[i].maximum)
-						return -ERANGE;
-					return saa711x_set_ctrl(dev, ctrl);
-				}
-			}
-		}
-
-		return -EINVAL;
+		em28xx_i2c_call_clients(dev,cmd,arg);
+		return 0;
 	}
 	/* --- tuner ioctls ------------------------------------------ */
 	case VIDIOC_G_TUNER:
@@ -1772,7 +1582,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 #ifdef CONFIG_MODULES
 	/* request some modules */
 	if (dev->decoder == EM28XX_SAA7113 || dev->decoder == EM28XX_SAA7114)
-		request_module("saa711x");
+		request_module("saa7115");
 	if (dev->decoder == EM28XX_TVP5150)
 		request_module("tvp5150");
 	if (dev->has_tuner)
