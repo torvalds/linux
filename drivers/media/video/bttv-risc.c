@@ -511,8 +511,7 @@ bttv_risc_hook(struct bttv *btv, int slot, struct btcx_riscmem *risc,
 void
 bttv_dma_free(struct bttv *btv, struct bttv_buffer *buf)
 {
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_dma_pci_unmap(btv->c.pci, &buf->vb.dma);
 	videobuf_dma_free(&buf->vb.dma);

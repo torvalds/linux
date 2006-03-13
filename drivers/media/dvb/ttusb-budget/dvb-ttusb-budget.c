@@ -688,8 +688,7 @@ static void ttusb_process_frame(struct ttusb *ttusb, u8 * data, int len)
 				memcpy(ttusb->muxpack + ttusb->muxpack_ptr,
 				       data, avail);
 				ttusb->muxpack_ptr += avail;
-				if (ttusb->muxpack_ptr > 264)
-					BUG();
+				BUG_ON(ttusb->muxpack_ptr > 264);
 				data += avail;
 				len -= avail;
 				/* determine length */

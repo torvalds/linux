@@ -215,8 +215,7 @@ int cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 void
 cx88_free_buffer(struct pci_dev *pci, struct cx88_buffer *buf)
 {
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_dma_pci_unmap(pci, &buf->vb.dma);
 	videobuf_dma_free(&buf->vb.dma);

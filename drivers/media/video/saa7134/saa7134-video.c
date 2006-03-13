@@ -489,8 +489,7 @@ int res_locked(struct saa7134_dev *dev, unsigned int bit)
 static
 void res_free(struct saa7134_dev *dev, struct saa7134_fh *fh, unsigned int bits)
 {
-	if ((fh->resources & bits) != bits)
-		BUG();
+	BUG_ON((fh->resources & bits) != bits);
 
 	mutex_lock(&dev->lock);
 	fh->resources  &= ~bits;

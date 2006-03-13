@@ -256,8 +256,7 @@ void saa7134_pgtable_free(struct pci_dev *pci, struct saa7134_pgtable *pt)
 
 void saa7134_dma_free(struct saa7134_dev *dev,struct saa7134_buf *buf)
 {
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_dma_pci_unmap(dev->pci, &buf->vb.dma);

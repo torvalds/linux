@@ -366,8 +366,7 @@ static
 void res_free(struct cx8800_dev *dev, struct cx8800_fh *fh, unsigned int bits)
 {
 	struct cx88_core *core = dev->core;
-	if ((fh->resources & bits) != bits)
-		BUG();
+	BUG_ON((fh->resources & bits) != bits);
 
 	mutex_lock(&core->lock);
 	fh->resources  &= ~bits;

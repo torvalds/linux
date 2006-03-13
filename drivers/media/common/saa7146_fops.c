@@ -37,8 +37,7 @@ void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits)
 	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 
-	if ((fh->resources & bits) != bits)
-		BUG();
+	BUG_ON((fh->resources & bits) != bits);
 
 	mutex_lock(&dev->lock);
 	fh->resources  &= ~bits;
@@ -55,8 +54,7 @@ void saa7146_dma_free(struct saa7146_dev *dev,struct saa7146_buf *buf)
 {
 	DEB_EE(("dev:%p, buf:%p\n",dev,buf));
 
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_dma_pci_unmap(dev->pci, &buf->vb.dma);

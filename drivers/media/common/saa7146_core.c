@@ -116,8 +116,7 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 		pg = vmalloc_to_page(virt);
 		if (NULL == pg)
 			goto err;
-		if (PageHighMem(pg))
-			BUG();
+		BUG_ON(PageHighMem(pg));
 		sglist[i].page   = pg;
 		sglist[i].length = PAGE_SIZE;
 	}
