@@ -108,6 +108,25 @@ struct sas_end_device {
 #define rphy_to_end_device(r) \
 	container_of((r), struct sas_end_device, rphy)
 
+struct sas_expander_device {
+	int    level;
+
+	#define SAS_EXPANDER_VENDOR_ID_LEN	8
+	char   vendor_id[SAS_EXPANDER_VENDOR_ID_LEN+1];
+	#define SAS_EXPANDER_PRODUCT_ID_LEN	16
+	char   product_id[SAS_EXPANDER_PRODUCT_ID_LEN+1];
+	#define SAS_EXPANDER_PRODUCT_REV_LEN	4
+	char   product_rev[SAS_EXPANDER_PRODUCT_REV_LEN+1];
+	#define SAS_EXPANDER_COMPONENT_VENDOR_ID_LEN	8
+	char   component_vendor_id[SAS_EXPANDER_COMPONENT_VENDOR_ID_LEN+1];
+	u16    component_id;
+	u8     component_revision_id;
+
+	struct sas_rphy		rphy;
+
+};
+#define rphy_to_expander_device(r) \
+	container_of((r), struct sas_expander_device, rphy)
 
 /* The functions by which the transport class and the driver communicate */
 struct sas_function_template {
@@ -128,6 +147,7 @@ extern int scsi_is_sas_phy(const struct device *);
 
 extern struct sas_rphy *sas_rphy_alloc(struct sas_phy *);
 extern struct sas_rphy *sas_end_device_alloc(struct sas_phy *);
+extern struct sas_rphy *sas_expander_alloc(struct sas_phy *, enum sas_device_type);
 void sas_rphy_free(struct sas_rphy *);
 extern int sas_rphy_add(struct sas_rphy *);
 extern void sas_rphy_delete(struct sas_rphy *);
@@ -137,5 +157,16 @@ extern struct scsi_transport_template *
 sas_attach_transport(struct sas_function_template *);
 extern void sas_release_transport(struct scsi_transport_template *);
 int sas_read_port_mode_page(struct scsi_device *);
+
+static inline int
+scsi_is_sas_expander_device(struct device *dev)
+{
+	struct sas_rphy *rphy;
+	if (!scsi_is_sas_rphy(dev))
+		return 0;
+	rphy = dev_to_rphy(dev);
+	return rphy->identify.device_type == SAS_FANOUT_EXPANDER_DEVICE ||
+		rphy->identify.device_type == SAS_EDGE_EXPANDER_DEVICE;
+}
 
 #endif /* SCSI_TRANSPORT_SAS_H */
