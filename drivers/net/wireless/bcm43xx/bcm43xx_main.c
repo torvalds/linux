@@ -1765,22 +1765,17 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 		/* We intentionally don't set "activity" to 1, here. */
 	}
 	if (dma_reason[3] & BCM43xx_DMAIRQ_RX_DONE) {
-		if (likely(bcm->current_core->rev < 5)) {
-			if (bcm43xx_using_pio(bcm))
-				bcm43xx_pio_rx(bcm->current_core->pio->queue3);
-			else
-				bcm43xx_dma_rx(bcm->current_core->dma->rx_ring1);
-			activity = 1;
-		} else
-			assert(0);
+		if (bcm43xx_using_pio(bcm))
+			bcm43xx_pio_rx(bcm->current_core->pio->queue3);
+		else
+			bcm43xx_dma_rx(bcm->current_core->dma->rx_ring1);
+		activity = 1;
 	}
 	bcmirq_handled(BCM43xx_IRQ_RX);
 
 	if (reason & BCM43xx_IRQ_XMIT_STATUS) {
-		if (bcm->current_core->rev >= 5) {
-			handle_irq_transmit_status(bcm);
-			activity = 1;
-		}
+		handle_irq_transmit_status(bcm);
+		activity = 1;
 		//TODO: In AP mode, this also causes sending of powersave responses.
 		bcmirq_handled(BCM43xx_IRQ_XMIT_STATUS);
 	}
