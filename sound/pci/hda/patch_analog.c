@@ -379,6 +379,14 @@ static int ad198x_eapd_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int ad198x_ch_mode_info(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_info *uinfo);
+static int ad198x_ch_mode_get(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol);
+static int ad198x_ch_mode_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol);
+
+
 /*
  * AD1986A specific
  */
@@ -527,6 +535,52 @@ static struct snd_kcontrol_new ad1986a_mixers[] = {
 	{ } /* end */
 };
 
+/* additional mixers for 3stack mode */
+static struct snd_kcontrol_new ad1986a_3st_mixers[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Channel Mode",
+		.info = ad198x_ch_mode_info,
+		.get = ad198x_ch_mode_get,
+		.put = ad198x_ch_mode_put,
+	},
+	{ } /* end */
+};
+
+/* laptop model - 2ch only */
+static hda_nid_t ad1986a_laptop_dac_nids[1] = { AD1986A_FRONT_DAC };
+
+static struct snd_kcontrol_new ad1986a_laptop_mixers[] = {
+	HDA_CODEC_VOLUME("PCM Playback Volume", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Master Playback Volume", 0x1b, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Master Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+	/* HDA_CODEC_VOLUME("Headphone Playback Volume", 0x1a, 0x0, HDA_OUTPUT),
+	   HDA_CODEC_MUTE("Headphone Playback Switch", 0x1a, 0x0, HDA_OUTPUT), */
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x17, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x17, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Aux Playback Volume", 0x16, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Aux Playback Switch", 0x16, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x13, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x13, 0x0, HDA_OUTPUT),
+	/* HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x18, 0x0, HDA_OUTPUT),
+	   HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x18, 0x0, HDA_OUTPUT),
+	   HDA_CODEC_VOLUME("Mono Playback Volume", 0x1e, 0x0, HDA_OUTPUT),
+	   HDA_CODEC_MUTE("Mono Playback Switch", 0x1e, 0x0, HDA_OUTPUT), */
+	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.info = ad198x_mux_enum_info,
+		.get = ad198x_mux_enum_get,
+		.put = ad198x_mux_enum_put,
+	},
+	{ } /* end */
+};
+
 /*
  * initialization verbs
  */
@@ -585,10 +639,68 @@ static struct hda_verb ad1986a_init_verbs[] = {
 	{ } /* end */
 };
 
+/* additional verbs for 3-stack model */
+static struct hda_verb ad1986a_3st_init_verbs[] = {
+ 	/* Mic and line-in selectors */
+	{0x0f, AC_VERB_SET_CONNECT_SEL, 0x2},
+	{0x10, AC_VERB_SET_CONNECT_SEL, 0x1},
+ 	{ } /* end */
+};
+
+static struct hda_verb ad1986a_ch2_init[] = {
+	/* Surround out -> Line In */
+	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x1c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	/* CLFE -> Mic in */
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{ } /* end */
+};
+
+static struct hda_verb ad1986a_ch4_init[] = {
+	/* Surround out -> Surround */
+	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
+	{ 0x1c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	/* CLFE -> Mic in */
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24 },
+	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
+	{ } /* end */
+};
+
+static struct hda_verb ad1986a_ch6_init[] = {
+	/* Surround out -> Surround out */
+	{ 0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
+	{ 0x1c, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	/* CLFE -> CLFE */
+	{ 0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40 },
+	{ 0x1d, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{ } /* end */
+};
+
+static struct hda_channel_mode ad1986a_modes[3] = {
+	{ 2, ad1986a_ch2_init },
+	{ 4, ad1986a_ch4_init },
+	{ 6, ad1986a_ch6_init },
+};
+
+/* models */
+enum { AD1986A_6STACK, AD1986A_3STACK, AD1986A_LAPTOP };
+
+static struct hda_board_config ad1986a_cfg_tbl[] = {
+	{ .modelname = "6stack",	.config = AD1986A_6STACK },
+	{ .modelname = "3stack",	.config = AD1986A_3STACK },
+	{ .modelname = "laptop",	.config = AD1986A_LAPTOP },
+	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc01e,
+	  .config = AD1986A_LAPTOP }, /* FSC V2060 */
+	{ .pci_subvendor = 0x17c0, .pci_subdevice = 0x2017,
+	  .config = AD1986A_LAPTOP }, /* Samsung M50 */
+	{}
+};
 
 static int patch_ad1986a(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
+	int board_config;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -611,6 +723,25 @@ static int patch_ad1986a(struct hda_codec *codec)
 	spec->init_verbs[0] = ad1986a_init_verbs;
 
 	codec->patch_ops = ad198x_patch_ops;
+
+	/* override some parameters */
+	board_config = snd_hda_check_board_config(codec, ad1986a_cfg_tbl);
+	switch (board_config) {
+	case AD1986A_3STACK:
+		spec->num_mixers = 2;
+		spec->mixers[1] = ad1986a_3st_mixers;
+		spec->num_init_verbs = 2;
+		spec->init_verbs[1] = ad1986a_3st_init_verbs;
+		spec->channel_mode = ad1986a_modes;
+		spec->num_channel_mode = ARRAY_SIZE(ad1986a_modes);
+		break;
+	case AD1986A_LAPTOP:
+		spec->mixers[0] = ad1986a_laptop_mixers;
+		spec->multiout.max_channels = 2;
+		spec->multiout.num_dacs = 1;
+		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
+		break;
+	}
 
 	return 0;
 }

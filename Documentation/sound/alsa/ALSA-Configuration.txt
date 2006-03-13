@@ -737,6 +737,24 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  allout	5-jack in back, 2-jack in front, SPDIF out
 	  auto		auto-config reading BIOS (default)
 
+	AD1981
+	  basic		3-jack (default)
+	  hp		HP nx6320
+
+	AD1986A
+	  6stack	6-jack, separate surrounds (default)
+	  3stack	3-stack, shared surrounds
+	  laptop	2-channel only (FSC V2060, Samsung M50)
+
+	AD1988
+	  6stack	6-jack
+	  6stack-dig	ditto with SPDIF
+	  3stack	3-jack
+	  3stack-dig	ditto with SPDIF
+	  laptop	3-jack with hp-jack automute
+	  laptop-dig	ditto with SPDIF
+	  auto		auto-confgi reading BIOS (default)
+
     If the default configuration doesn't work and one of the above
     matches with your device, report it together with the PCI
     subsystem ID (output of "lspci -nv") to ALSA BTS or alsa-devel
