@@ -140,6 +140,21 @@ struct bcm43xx_dmaring {
 };
 
 
+static inline
+u32 bcm43xx_dma_read(struct bcm43xx_dmaring *ring,
+		     u16 offset)
+{
+	return bcm43xx_read32(ring->bcm, ring->mmio_base + offset);
+}
+
+static inline
+void bcm43xx_dma_write(struct bcm43xx_dmaring *ring,
+		       u16 offset, u32 value)
+{
+	bcm43xx_write32(ring->bcm, ring->mmio_base + offset, value);
+}
+
+
 int bcm43xx_dma_init(struct bcm43xx_private *bcm);
 void bcm43xx_dma_free(struct bcm43xx_private *bcm);
 
@@ -147,6 +162,9 @@ int bcm43xx_dmacontroller_rx_reset(struct bcm43xx_private *bcm,
 				   u16 dmacontroller_mmio_base);
 int bcm43xx_dmacontroller_tx_reset(struct bcm43xx_private *bcm,
 				   u16 dmacontroller_mmio_base);
+
+void bcm43xx_dma_tx_suspend(struct bcm43xx_dmaring *ring);
+void bcm43xx_dma_tx_resume(struct bcm43xx_dmaring *ring);
 
 void bcm43xx_dma_handle_xmitstatus(struct bcm43xx_private *bcm,
 				   struct bcm43xx_xmitstatus *status);

@@ -374,13 +374,11 @@ static int dmacontroller_setup(struct bcm43xx_dmaring *ring)
 
 	if (ring->tx) {
 		/* Set Transmit Control register to "transmit enable" */
-		bcm43xx_write32(ring->bcm,
-				ring->mmio_base + BCM43xx_DMA_TX_CONTROL,
-				BCM43xx_DMA_TXCTRL_ENABLE);
+		bcm43xx_dma_write(ring, BCM43xx_DMA_TX_CONTROL,
+				  BCM43xx_DMA_TXCTRL_ENABLE);
 		/* Set Transmit Descriptor ring address. */
-		bcm43xx_write32(ring->bcm,
-				ring->mmio_base + BCM43xx_DMA_TX_DESC_RING,
-				ring->dmabase + ring->memoffset);
+		bcm43xx_dma_write(ring, BCM43xx_DMA_TX_DESC_RING,
+				  ring->dmabase + ring->memoffset);
 	} else {
 		err = alloc_initial_descbuffers(ring);
 		if (err)
@@ -388,17 +386,12 @@ static int dmacontroller_setup(struct bcm43xx_dmaring *ring)
 		/* Set Receive Control "receive enable" and frame offset */
 		value = (ring->frameoffset << BCM43xx_DMA_RXCTRL_FRAMEOFF_SHIFT);
 		value |= BCM43xx_DMA_RXCTRL_ENABLE;
-		bcm43xx_write32(ring->bcm,
-				ring->mmio_base + BCM43xx_DMA_RX_CONTROL,
-				value);
+		bcm43xx_dma_write(ring, BCM43xx_DMA_RX_CONTROL, value);
 		/* Set Receive Descriptor ring address. */
-		bcm43xx_write32(ring->bcm,
-				ring->mmio_base + BCM43xx_DMA_RX_DESC_RING,
-				ring->dmabase + ring->memoffset);
+		bcm43xx_dma_write(ring, BCM43xx_DMA_RX_DESC_RING,
+				  ring->dmabase + ring->memoffset);
 		/* Init the descriptor pointer. */
-		bcm43xx_write32(ring->bcm,
-				ring->mmio_base + BCM43xx_DMA_RX_DESC_INDEX,
-				200);
+		bcm43xx_dma_write(ring, BCM43xx_DMA_RX_DESC_INDEX, 200);
 	}
 
 out:
@@ -411,15 +404,11 @@ static void dmacontroller_cleanup(struct bcm43xx_dmaring *ring)
 	if (ring->tx) {
 		bcm43xx_dmacontroller_tx_reset(ring->bcm, ring->mmio_base);
 		/* Zero out Transmit Descriptor ring address. */
-		bcm43xx_write32(ring->bcm,
-				ring->mmio_base + BCM43xx_DMA_TX_DESC_RING,
-				0x00000000);
+		bcm43xx_dma_write(ring, BCM43xx_DMA_TX_DESC_RING, 0);
 	} else {
 		bcm43xx_dmacontroller_rx_reset(ring->bcm, ring->mmio_base);
 		/* Zero out Receive Descriptor ring address. */
-		bcm43xx_write32(ring->bcm,
-				ring->mmio_base + BCM43xx_DMA_RX_DESC_RING,
-				0x00000000);
+		bcm43xx_dma_write(ring, BCM43xx_DMA_RX_DESC_RING, 0);
 	}
 }
 
@@ -698,9 +687,8 @@ static void dmacontroller_poke_tx(struct bcm43xx_dmaring *ring,
 	 */
 	wmb();
 	slot = next_slot(ring, slot);
-	bcm43xx_write32(ring->bcm,
-			ring->mmio_base + BCM43xx_DMA_TX_DESC_INDEX,
-			(u32)(slot * sizeof(struct bcm43xx_dmadesc)));
+	bcm43xx_dma_write(ring, BCM43xx_DMA_TX_DESC_INDEX,
+			  (u32)(slot * sizeof(struct bcm43xx_dmadesc)));
 }
 
 static int dma_tx_fragment(struct bcm43xx_dmaring *ring,
@@ -940,7 +928,7 @@ void bcm43xx_dma_rx(struct bcm43xx_dmaring *ring)
 #endif
 
 	assert(!ring->tx);
-	status = bcm43xx_read32(ring->bcm, ring->mmio_base + BCM43xx_DMA_RX_STATUS);
+	status = bcm43xx_dma_read(ring, BCM43xx_DMA_RX_STATUS);
 	descptr = (status & BCM43xx_DMA_RXSTAT_DPTR_MASK);
 	current_slot = descptr / sizeof(struct bcm43xx_dmadesc);
 	assert(current_slot >= 0 && current_slot < ring->nr_slots);
@@ -953,10 +941,27 @@ void bcm43xx_dma_rx(struct bcm43xx_dmaring *ring)
 			ring->max_used_slots = used_slots;
 #endif
 	}
-	bcm43xx_write32(ring->bcm,
-			ring->mmio_base + BCM43xx_DMA_RX_DESC_INDEX,
-			(u32)(slot * sizeof(struct bcm43xx_dmadesc)));
+	bcm43xx_dma_write(ring, BCM43xx_DMA_RX_DESC_INDEX,
+			  (u32)(slot * sizeof(struct bcm43xx_dmadesc)));
 	ring->current_slot = slot;
+}
+
+void bcm43xx_dma_tx_suspend(struct bcm43xx_dmaring *ring)
+{
+	assert(ring->tx);
+	bcm43xx_power_saving_ctl_bits(ring->bcm, -1, 1);
+	bcm43xx_dma_write(ring, BCM43xx_DMA_TX_CONTROL,
+			  bcm43xx_dma_read(ring, BCM43xx_DMA_TX_CONTROL)
+			  | BCM43xx_DMA_TXCTRL_SUSPEND);
+}
+
+void bcm43xx_dma_tx_resume(struct bcm43xx_dmaring *ring)
+{
+	assert(ring->tx);
+	bcm43xx_dma_write(ring, BCM43xx_DMA_TX_CONTROL,
+			  bcm43xx_dma_read(ring, BCM43xx_DMA_TX_CONTROL)
+			  & ~BCM43xx_DMA_TXCTRL_SUSPEND);
+	bcm43xx_power_saving_ctl_bits(ring->bcm, -1, -1);
 }
 
 /* vim: set ts=8 sw=8 sts=8: */
