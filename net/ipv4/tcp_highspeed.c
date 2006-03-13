@@ -125,7 +125,7 @@ static void hstcp_cong_avoid(struct sock *sk, u32 adk, u32 rtt,
 		/* Update AIMD parameters */
 		if (tp->snd_cwnd > hstcp_aimd_vals[ca->ai].cwnd) {
 			while (tp->snd_cwnd > hstcp_aimd_vals[ca->ai].cwnd &&
-			       ca->ai < HSTCP_AIMD_MAX)
+			       ca->ai < HSTCP_AIMD_MAX - 1)
 				ca->ai++;
 		} else if (tp->snd_cwnd < hstcp_aimd_vals[ca->ai].cwnd) {
 			while (tp->snd_cwnd > hstcp_aimd_vals[ca->ai].cwnd &&
