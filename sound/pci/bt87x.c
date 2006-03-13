@@ -795,12 +795,15 @@ static struct {
 	unsigned short subvendor, subdevice;
 } blacklist[] __devinitdata = {
 	{0x0071, 0x0101}, /* Nebula Electronics DigiTV */
+	{0x11bd, 0x001c}, /* Pinnacle PCTV Sat */
 	{0x11bd, 0x0026}, /* Pinnacle PCTV SAT CI */
 	{0x1461, 0x0761}, /* AVermedia AverTV DVB-T */
 	{0x1461, 0x0771}, /* AVermedia DVB-T 771 */
 	{0x1822, 0x0001}, /* Twinhan VisionPlus DVB-T */
+	{0x18ac, 0xd500}, /* DVICO FusionHDTV 5 Lite */
 	{0x18ac, 0xdb10}, /* DVICO FusionHDTV DVB-T Lite */
 	{0x270f, 0xfc00}, /* Chaintech Digitop DST-1000 DVB-S */
+	{0x7063, 0x2000}, /* pcHDTV HD-2000 TV */
 };
 
 static struct pci_driver driver;
