@@ -49,7 +49,8 @@ struct mthca_tavor_srq_context {
 	__be32 state_pd;
 	__be32 lkey;
 	__be32 uar;
-	__be32 wqe_cnt;
+	__be16 limit_watermark;
+	__be16 wqe_cnt;
 	u32    reserved[2];
 };
 
@@ -369,6 +370,7 @@ int mthca_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	struct mthca_srq *srq = to_msrq(ibsrq);
 	struct mthca_mailbox *mailbox;
 	struct mthca_arbel_srq_context *arbel_ctx;
+	struct mthca_tavor_srq_context *tavor_ctx;
 	u8 status;
 	int err;
 
@@ -382,9 +384,11 @@ int mthca_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 
 	if (mthca_is_memfree(dev)) {
 		arbel_ctx = mailbox->buf;
-		srq_attr->srq_limit = arbel_ctx->limit_watermark;
-	} else
-		srq_attr->srq_limit = 0;
+		srq_attr->srq_limit = be16_to_cpu(arbel_ctx->limit_watermark);
+	} else {
+		tavor_ctx = mailbox->buf;
+		srq_attr->srq_limit = be16_to_cpu(tavor_ctx->limit_watermark);
+	}
 
 	srq_attr->max_wr  = (mthca_is_memfree(dev)) ? srq->max - 1 : srq->max;
 	srq_attr->max_sge = srq->max_gs;
