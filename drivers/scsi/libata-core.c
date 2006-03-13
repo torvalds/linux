@@ -1193,6 +1193,7 @@ static inline u8 ata_dev_knobble(const struct ata_port *ap,
 static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 			     int print_info)
 {
+	const u16 *id = dev->id;
 	unsigned int xfer_mask;
 	int i, rc;
 
@@ -1218,27 +1219,27 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 	 */
 
 	/* we require DMA support (bits 8 of word 49) */
-	if (!ata_id_has_dma(dev->id)) {
+	if (!ata_id_has_dma(id)) {
 		printk(KERN_DEBUG "ata%u: no dma\n", ap->id);
 		rc = -EINVAL;
 		goto err_out_nosup;
 	}
 
 	/* find max transfer mode; for printk only */
-	xfer_mask = ata_id_xfermask(dev->id);
+	xfer_mask = ata_id_xfermask(id);
 
-	ata_dump_id(dev->id);
+	ata_dump_id(id);
 
 	/* ATA-specific feature tests */
 	if (dev->class == ATA_DEV_ATA) {
-		dev->n_sectors = ata_id_n_sectors(dev->id);
+		dev->n_sectors = ata_id_n_sectors(id);
 
-		if (ata_id_has_lba(dev->id)) {
+		if (ata_id_has_lba(id)) {
 			const char *lba_desc;
 
 			lba_desc = "LBA";
 			dev->flags |= ATA_DFLAG_LBA;
-			if (ata_id_has_lba48(dev->id)) {
+			if (ata_id_has_lba48(id)) {
 				dev->flags |= ATA_DFLAG_LBA48;
 				lba_desc = "LBA48";
 			}
@@ -1248,7 +1249,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 				printk(KERN_INFO "ata%u: dev %u ATA-%d, "
 				       "max %s, %Lu sectors: %s\n",
 				       ap->id, dev->devno,
-				       ata_id_major_version(dev->id),
+				       ata_id_major_version(id),
 				       ata_mode_string(xfer_mask),
 				       (unsigned long long)dev->n_sectors,
 				       lba_desc);
@@ -1256,15 +1257,15 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 			/* CHS */
 
 			/* Default translation */
-			dev->cylinders	= dev->id[1];
-			dev->heads	= dev->id[3];
-			dev->sectors	= dev->id[6];
+			dev->cylinders	= id[1];
+			dev->heads	= id[3];
+			dev->sectors	= id[6];
 
-			if (ata_id_current_chs_valid(dev->id)) {
+			if (ata_id_current_chs_valid(id)) {
 				/* Current CHS translation is valid. */
-				dev->cylinders = dev->id[54];
-				dev->heads     = dev->id[55];
-				dev->sectors   = dev->id[56];
+				dev->cylinders = id[54];
+				dev->heads     = id[55];
+				dev->sectors   = id[56];
 			}
 
 			/* print device info to dmesg */
@@ -1272,7 +1273,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 				printk(KERN_INFO "ata%u: dev %u ATA-%d, "
 				       "max %s, %Lu sectors: CHS %u/%u/%u\n",
 				       ap->id, dev->devno,
-				       ata_id_major_version(dev->id),
+				       ata_id_major_version(id),
 				       ata_mode_string(xfer_mask),
 				       (unsigned long long)dev->n_sectors,
 				       dev->cylinders, dev->heads, dev->sectors);
@@ -1283,7 +1284,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 
 	/* ATAPI-specific feature tests */
 	else if (dev->class == ATA_DEV_ATAPI) {
-		rc = atapi_cdb_len(dev->id);
+		rc = atapi_cdb_len(id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
 			printk(KERN_WARNING "ata%u: unsupported CDB len\n", ap->id);
 			rc = -EINVAL;
