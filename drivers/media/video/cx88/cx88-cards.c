@@ -323,19 +323,19 @@ struct cx88_board cx88_boards[] = {
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-                       .gpio0  = 0xbff0,
+			.gpio0  = 0xbff0,
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
-                       .gpio0  = 0xbff3,
+			.gpio0  = 0xbff3,
 		},{
 			.type   = CX88_VMUX_SVIDEO,
 			.vmux   = 2,
-                       .gpio0  = 0xbff3,
+			.gpio0  = 0xbff3,
 		}},
 		.radio = {
 			.type   = CX88_RADIO,
-                       .gpio0  = 0xbff0,
+			.gpio0  = 0xbff0,
 		},
 	},
 	[CX88_BOARD_ASUS_PVR_416] = {
