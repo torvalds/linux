@@ -43,7 +43,6 @@
 #include <linux/pagevec.h>
 #include <linux/writeback.h>
 
-
 STATIC void
 xfs_count_page_state(
 	struct page		*page,
@@ -67,8 +66,6 @@ xfs_count_page_state(
 			(*delalloc) = 1;
 	} while ((bh = bh->b_this_page) != head);
 }
-
-
 
 #if defined(XFS_RW_TRACE)
 void
@@ -1095,7 +1092,7 @@ error:
  */
 
 STATIC int
-linvfs_writepage(
+xfs_vm_writepage(
 	struct page		*page,
 	struct writeback_control *wbc)
 {
@@ -1181,7 +1178,7 @@ out_unlock:
  *    free them and we should come back later via writepage.
  */
 STATIC int
-linvfs_release_page(
+xfs_vm_release_page(
 	struct page		*page,
 	gfp_t			gfp_mask)
 {
@@ -1223,7 +1220,7 @@ free_buffers:
 }
 
 STATIC int
-__linvfs_get_block(
+__xfs_get_block(
 	struct inode		*inode,
 	sector_t		iblock,
 	unsigned long		blocks,
@@ -1304,30 +1301,30 @@ __linvfs_get_block(
 }
 
 int
-linvfs_get_block(
+xfs_get_block(
 	struct inode		*inode,
 	sector_t		iblock,
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __linvfs_get_block(inode, iblock, 0, bh_result,
+	return __xfs_get_block(inode, iblock, 0, bh_result,
 					create, 0, BMAPI_WRITE);
 }
 
 STATIC int
-linvfs_get_blocks_direct(
+xfs_get_blocks_direct(
 	struct inode		*inode,
 	sector_t		iblock,
 	unsigned long		max_blocks,
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __linvfs_get_block(inode, iblock, max_blocks, bh_result,
+	return __xfs_get_block(inode, iblock, max_blocks, bh_result,
 					create, 1, BMAPI_WRITE|BMAPI_DIRECT);
 }
 
 STATIC void
-linvfs_end_io_direct(
+xfs_end_io_direct(
 	struct kiocb	*iocb,
 	loff_t		offset,
 	ssize_t		size,
@@ -1365,7 +1362,7 @@ linvfs_end_io_direct(
 }
 
 STATIC ssize_t
-linvfs_direct_IO(
+xfs_vm_direct_IO(
 	int			rw,
 	struct kiocb		*iocb,
 	const struct iovec	*iov,
@@ -1389,8 +1386,8 @@ linvfs_direct_IO(
 	ret = blockdev_direct_IO_own_locking(rw, iocb, inode,
 		iomap.iomap_target->bt_bdev,
 		iov, offset, nr_segs,
-		linvfs_get_blocks_direct,
-		linvfs_end_io_direct);
+		xfs_get_blocks_direct,
+		xfs_end_io_direct);
 
 	if (unlikely(ret <= 0 && iocb->private))
 		xfs_destroy_ioend(iocb->private);
@@ -1398,17 +1395,17 @@ linvfs_direct_IO(
 }
 
 STATIC int
-linvfs_prepare_write(
+xfs_vm_prepare_write(
 	struct file		*file,
 	struct page		*page,
 	unsigned int		from,
 	unsigned int		to)
 {
-	return block_prepare_write(page, from, to, linvfs_get_block);
+	return block_prepare_write(page, from, to, xfs_get_block);
 }
 
 STATIC sector_t
-linvfs_bmap(
+xfs_vm_bmap(
 	struct address_space	*mapping,
 	sector_t		block)
 {
@@ -1416,34 +1413,34 @@ linvfs_bmap(
 	vnode_t			*vp = LINVFS_GET_VP(inode);
 	int			error;
 
-	vn_trace_entry(vp, "linvfs_bmap", (inst_t *)__return_address);
+	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
 
 	VOP_RWLOCK(vp, VRWLOCK_READ);
 	VOP_FLUSH_PAGES(vp, (xfs_off_t)0, -1, 0, FI_REMAPF, error);
 	VOP_RWUNLOCK(vp, VRWLOCK_READ);
-	return generic_block_bmap(mapping, block, linvfs_get_block);
+	return generic_block_bmap(mapping, block, xfs_get_block);
 }
 
 STATIC int
-linvfs_readpage(
+xfs_vm_readpage(
 	struct file		*unused,
 	struct page		*page)
 {
-	return mpage_readpage(page, linvfs_get_block);
+	return mpage_readpage(page, xfs_get_block);
 }
 
 STATIC int
-linvfs_readpages(
+xfs_vm_readpages(
 	struct file		*unused,
 	struct address_space	*mapping,
 	struct list_head	*pages,
 	unsigned		nr_pages)
 {
-	return mpage_readpages(mapping, pages, nr_pages, linvfs_get_block);
+	return mpage_readpages(mapping, pages, nr_pages, xfs_get_block);
 }
 
 STATIC int
-linvfs_invalidate_page(
+xfs_vm_invalidate_page(
 	struct page		*page,
 	unsigned long		offset)
 {
@@ -1452,16 +1449,16 @@ linvfs_invalidate_page(
 	return block_invalidatepage(page, offset);
 }
 
-struct address_space_operations linvfs_aops = {
-	.readpage		= linvfs_readpage,
-	.readpages		= linvfs_readpages,
-	.writepage		= linvfs_writepage,
+struct address_space_operations xfs_address_space_operations = {
+	.readpage		= xfs_vm_readpage,
+	.readpages		= xfs_vm_readpages,
+	.writepage		= xfs_vm_writepage,
 	.sync_page		= block_sync_page,
-	.releasepage		= linvfs_release_page,
-	.invalidatepage		= linvfs_invalidate_page,
-	.prepare_write		= linvfs_prepare_write,
+	.releasepage		= xfs_vm_release_page,
+	.invalidatepage		= xfs_vm_invalidate_page,
+	.prepare_write		= xfs_vm_prepare_write,
 	.commit_write		= generic_commit_write,
-	.bmap			= linvfs_bmap,
-	.direct_IO		= linvfs_direct_IO,
+	.bmap			= xfs_vm_bmap,
+	.direct_IO		= xfs_vm_direct_IO,
 	.migratepage		= buffer_migrate_page,
 };

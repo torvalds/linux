@@ -129,7 +129,7 @@ xfs_set_inodeops(
 	case S_IFREG:
 		inode->i_op = &linvfs_file_inode_operations;
 		inode->i_fop = &linvfs_file_operations;
-		inode->i_mapping->a_ops = &linvfs_aops;
+		inode->i_mapping->a_ops = &xfs_address_space_operations;
 		break;
 	case S_IFDIR:
 		inode->i_op = &linvfs_dir_inode_operations;
@@ -138,7 +138,7 @@ xfs_set_inodeops(
 	case S_IFLNK:
 		inode->i_op = &linvfs_symlink_inode_operations;
 		if (inode->i_blocks)
-			inode->i_mapping->a_ops = &linvfs_aops;
+			inode->i_mapping->a_ops = &xfs_address_space_operations;
 		break;
 	default:
 		inode->i_op = &linvfs_file_inode_operations;
