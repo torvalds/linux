@@ -1179,7 +1179,7 @@ __cfq_find_cfq_hash(struct cfq_data *cfqd, unsigned int key, unsigned int prio,
 
 	hlist_for_each_safe(entry, next, hash_list) {
 		struct cfq_queue *__cfqq = list_entry_qhash(entry);
-		const unsigned short __p = IOPRIO_PRIO_VALUE(__cfqq->ioprio_class, __cfqq->ioprio);
+		const unsigned short __p = IOPRIO_PRIO_VALUE(__cfqq->org_ioprio_class, __cfqq->org_ioprio);
 
 		if (__cfqq->key == key && (__p == prio || prio == CFQ_KEY_ANY))
 			return __cfqq;
