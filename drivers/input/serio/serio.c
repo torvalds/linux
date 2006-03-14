@@ -196,6 +196,7 @@ static void serio_queue_event(void *object, struct module *owner,
 	if ((event = kmalloc(sizeof(struct serio_event), GFP_ATOMIC))) {
 		if (!try_module_get(owner)) {
 			printk(KERN_WARNING "serio: Can't get module reference, dropping event %d\n", event_type);
+			kfree(event);
 			goto out;
 		}
 
