@@ -536,7 +536,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio = {
 			.name = name_radio,
 			.amux = LINE2,
-	},
+		},
 	},
 	[SAA7134_BOARD_MD7134] = {
 		.name           = "Medion 7134",
