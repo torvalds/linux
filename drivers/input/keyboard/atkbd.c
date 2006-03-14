@@ -863,9 +863,6 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd->softrepeat = atkbd_softrepeat;
 	atkbd->scroll = atkbd_scroll;
 
-	if (!atkbd->write)
-		atkbd->softrepeat = 1;
-
 	if (atkbd->softrepeat)
 		atkbd->softraw = 1;
 
