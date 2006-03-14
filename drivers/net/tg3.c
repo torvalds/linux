@@ -9097,6 +9097,10 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 	tp->phy_id = PHY_ID_INVALID;
 	tp->led_ctrl = LED_CTRL_MODE_PHY_1;
 
+	/* Do not even try poking around in here on Sun parts.  */
+	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X)
+		return;
+
 	tg3_read_mem(tp, NIC_SRAM_DATA_SIG, &val);
 	if (val == NIC_SRAM_DATA_SIG_MAGIC) {
 		u32 nic_cfg, led_cfg;
