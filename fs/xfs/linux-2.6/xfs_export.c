@@ -78,7 +78,7 @@ linvfs_decode_fh(
 	}
 
 	fh = (__u32 *)&ifid;
-	return find_exported_dentry(sb, fh, parent, acceptable, context);
+	return sb->s_export_op->find_exported_dentry(sb, fh, parent, acceptable, context);
 }
 
 
