@@ -2797,6 +2797,17 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE1,
 		}},
 	},
+	[SAA7134_BOARD_MD7134_BRIDGE_2] = {
+		/* This card has two saa7134 chips on it,
+		   but only one of them is currently working.
+		   The programming for the primary decoder is
+		   in SAA7134_BOARD_MD7134 */
+		.name           = "Medion 7134 Bridge #2",
+		.audio_clock    = 0x00187de7,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3316,6 +3327,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x6360,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_A169_B1,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x16be,
+		.subdevice    = 0x0005,
+		.driver_data  = SAA7134_BOARD_MD7134_BRIDGE_2,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3471,6 +3488,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A169_B:
+	case SAA7134_BOARD_MD7134_BRIDGE_2:
 		printk("%s: %s: dual saa713x broadcast decoders\n"
 		       "%s: Sorry, none of the inputs to this chip are supported yet.\n"
 		       "%s: Dual decoder functionality is disabled for now, use the other chip.\n",
