@@ -120,6 +120,6 @@ extern int  xfs_blkdev_get(struct xfs_mount *, const char *,
 extern void xfs_blkdev_put(struct block_device *);
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
-extern struct export_operations linvfs_export_ops;
+extern struct export_operations xfs_export_operations;
 
 #endif	/* __XFS_SUPER_H__ */

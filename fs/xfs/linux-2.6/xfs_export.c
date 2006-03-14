@@ -39,7 +39,7 @@ STATIC struct dentry dotdot = { .d_name.name = "..", .d_name.len = 2, };
  */
 
 STATIC struct dentry *
-linvfs_decode_fh(
+xfs_fs_decode_fh(
 	struct super_block	*sb,
 	__u32			*fh,
 	int			fh_len,
@@ -85,7 +85,7 @@ linvfs_decode_fh(
 
 
 STATIC int
-linvfs_encode_fh(
+xfs_fs_encode_fh(
 	struct dentry		*dentry,
 	__u32			*fh,
 	int			*max_len,
@@ -132,7 +132,7 @@ linvfs_encode_fh(
 }
 
 STATIC struct dentry *
-linvfs_get_dentry(
+xfs_fs_get_dentry(
 	struct super_block	*sb,
 	void			*data)
 {
@@ -156,7 +156,7 @@ linvfs_get_dentry(
 }
 
 STATIC struct dentry *
-linvfs_get_parent(
+xfs_fs_get_parent(
 	struct dentry		*child)
 {
 	int			error;
@@ -177,9 +177,9 @@ linvfs_get_parent(
 	return parent;
 }
 
-struct export_operations linvfs_export_ops = {
-	.decode_fh		= linvfs_decode_fh,
-	.encode_fh		= linvfs_encode_fh,
-	.get_parent		= linvfs_get_parent,
-	.get_dentry		= linvfs_get_dentry,
+struct export_operations xfs_export_operations = {
+	.decode_fh		= xfs_fs_decode_fh,
+	.encode_fh		= xfs_fs_encode_fh,
+	.get_parent		= xfs_fs_get_parent,
+	.get_dentry		= xfs_fs_get_dentry,
 };

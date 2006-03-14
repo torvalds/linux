@@ -107,7 +107,7 @@ xfs_ioctl32_bulkstat(
 #endif
 
 STATIC long
-__linvfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
+xfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 {
 	int		error;
 	struct		inode *inode = f->f_dentry->d_inode;
@@ -196,19 +196,19 @@ __linvfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 }
 
 long
-linvfs_compat_ioctl(
+xfs_file_compat_ioctl(
 	struct file		*f,
 	unsigned		cmd,
 	unsigned long		arg)
 {
-	return __linvfs_compat_ioctl(0, f, cmd, arg);
+	return xfs_compat_ioctl(0, f, cmd, arg);
 }
 
 long
-linvfs_compat_invis_ioctl(
+xfs_file_compat_invis_ioctl(
 	struct file		*f,
 	unsigned		cmd,
 	unsigned long		arg)
 {
-	return __linvfs_compat_ioctl(IO_INVIS, f, cmd, arg);
+	return xfs_compat_ioctl(IO_INVIS, f, cmd, arg);
 }
