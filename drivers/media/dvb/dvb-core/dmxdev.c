@@ -40,110 +40,72 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
 #define dprintk	if (debug) printk
 
-static inline void dvb_dmxdev_buffer_init(struct dmxdev_buffer *buffer)
+static int dvb_dmxdev_buffer_write(struct dvb_ringbuffer *buf,
+				   const u8 *src, size_t len)
 {
-	buffer->data = NULL;
-	buffer->size = 8192;
-	buffer->pread = 0;
-	buffer->pwrite = 0;
-	buffer->error = 0;
-	init_waitqueue_head(&buffer->queue);
-}
-
-static inline int dvb_dmxdev_buffer_write(struct dmxdev_buffer *buf,
-					  const u8 *src, int len)
-{
-	int split;
-	int free;
-	int todo;
+	ssize_t free;
 
 	if (!len)
 		return 0;
 	if (!buf->data)
 		return 0;
 
-	free = buf->pread - buf->pwrite;
-	split = 0;
-	if (free <= 0) {
-		free += buf->size;
-		split = buf->size - buf->pwrite;
-	}
-	if (len >= free) {
+	free = dvb_ringbuffer_free(buf);
+	if (len > free) {
 		dprintk("dmxdev: buffer overflow\n");
-		return -1;
+		return -EOVERFLOW;
 	}
-	if (split >= len)
-		split = 0;
-	todo = len;
-	if (split) {
-		memcpy(buf->data + buf->pwrite, src, split);
-		todo -= split;
-		buf->pwrite = 0;
-	}
-	memcpy(buf->data + buf->pwrite, src + split, todo);
-	buf->pwrite = (buf->pwrite + todo) % buf->size;
-	return len;
+
+	return dvb_ringbuffer_write(buf, src, len);
 }
 
-static ssize_t dvb_dmxdev_buffer_read(struct dmxdev_buffer *src,
+static ssize_t dvb_dmxdev_buffer_read(struct dvb_ringbuffer *src,
 				      int non_blocking, char __user *buf,
 				      size_t count, loff_t *ppos)
 {
-	unsigned long todo = count;
-	int split, avail, error;
+	size_t todo;
+	ssize_t avail;
+	ssize_t ret = 0;
 
 	if (!src->data)
 		return 0;
 
-	if ((error = src->error)) {
-		src->pwrite = src->pread;
-		src->error = 0;
-		return error;
+	if (src->error) {
+		ret = src->error;
+		dvb_ringbuffer_flush(src);
+		return ret;
 	}
 
-	if (non_blocking && (src->pwrite == src->pread))
-		return -EWOULDBLOCK;
-
-	while (todo > 0) {
-		if (non_blocking && (src->pwrite == src->pread))
-			return (count - todo) ? (count - todo) : -EWOULDBLOCK;
-
-		if (wait_event_interruptible(src->queue,
-					     (src->pread != src->pwrite) ||
-					     (src->error)) < 0)
-			return count - todo;
-
-		if ((error = src->error)) {
-			src->pwrite = src->pread;
-			src->error = 0;
-			return error;
+	for (todo = count; todo > 0; todo -= ret) {
+		if (non_blocking && dvb_ringbuffer_empty(src)) {
+			ret = -EWOULDBLOCK;
+			break;
 		}
 
-		split = src->size;
-		avail = src->pwrite - src->pread;
-		if (avail < 0) {
-			avail += src->size;
-			split = src->size - src->pread;
+		ret = wait_event_interruptible(src->queue,
+					       !dvb_ringbuffer_empty(src) ||
+					       (src->error != 0));
+		if (ret < 0)
+			break;
+
+		if (src->error) {
+			ret = src->error;
+			dvb_ringbuffer_flush(src);
+			break;
 		}
+
+		avail = dvb_ringbuffer_avail(src);
 		if (avail > todo)
 			avail = todo;
-		if (split < avail) {
-			if (copy_to_user(buf, src->data + src->pread, split))
-				return -EFAULT;
-			buf += split;
-			src->pread = 0;
-			todo -= split;
-			avail -= split;
-		}
-		if (avail) {
-			if (copy_to_user(buf, src->data + src->pread, avail))
-				return -EFAULT;
-			src->pread = (src->pread + avail) % src->size;
-			todo -= avail;
-			buf += avail;
-		}
+
+		ret = dvb_ringbuffer_read(src, buf, avail, 1);
+		if (ret < 0)
+			break;
+
+		buf += ret;
 	}
-	return count;
+
+	return (count - todo) ? (count - todo) : ret;
 }
 
 static struct dmx_frontend *get_fe(struct dmx_demux *demux, int type)
@@ -179,13 +141,12 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 	}
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
-		dvb_dmxdev_buffer_init(&dmxdev->dvr_buffer);
-		dmxdev->dvr_buffer.size = DVR_BUFFER_SIZE;
-		dmxdev->dvr_buffer.data = vmalloc(DVR_BUFFER_SIZE);
-		if (!dmxdev->dvr_buffer.data) {
+		void *mem = vmalloc(DVR_BUFFER_SIZE);
+		if (!mem) {
 			mutex_unlock(&dmxdev->mutex);
 			return -ENOMEM;
 		}
+		dvb_ringbuffer_init(&dmxdev->dvr_buffer, mem, DVR_BUFFER_SIZE);
 	}
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
@@ -280,7 +241,7 @@ static inline void dvb_dmxdev_filter_state_set(struct dmxdev_filter
 static int dvb_dmxdev_set_buffer_size(struct dmxdev_filter *dmxdevfilter,
 				      unsigned long size)
 {
-	struct dmxdev_buffer *buf = &dmxdevfilter->buffer;
+	struct dvb_ringbuffer *buf = &dmxdevfilter->buffer;
 	void *mem;
 
 	if (buf->size == size)
@@ -291,7 +252,7 @@ static int dvb_dmxdev_set_buffer_size(struct dmxdev_filter *dmxdevfilter,
 	mem = buf->data;
 	buf->data = NULL;
 	buf->size = size;
-	buf->pwrite = buf->pread = 0;
+	dvb_ringbuffer_flush(buf);
 	spin_unlock_irq(&dmxdevfilter->dev->lock);
 	vfree(mem);
 
@@ -359,8 +320,8 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 					      buffer2_len);
 	}
 	if (ret < 0) {
-		dmxdevfilter->buffer.pwrite = dmxdevfilter->buffer.pread;
-		dmxdevfilter->buffer.error = -EOVERFLOW;
+		dvb_ringbuffer_flush(&dmxdevfilter->buffer);
+		dmxdevfilter->buffer.error = ret;
 	}
 	if (dmxdevfilter->params.sec.flags & DMX_ONESHOT)
 		dmxdevfilter->state = DMXDEV_STATE_DONE;
@@ -375,7 +336,7 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 				  enum dmx_success success)
 {
 	struct dmxdev_filter *dmxdevfilter = feed->priv;
-	struct dmxdev_buffer *buffer;
+	struct dvb_ringbuffer *buffer;
 	int ret;
 
 	spin_lock(&dmxdevfilter->dev->lock);
@@ -397,8 +358,8 @@ static int dvb_dmxdev_ts_callback(const u8 *buffer1, size_t buffer1_len,
 	if (ret == buffer1_len)
 		ret = dvb_dmxdev_buffer_write(buffer, buffer2, buffer2_len);
 	if (ret < 0) {
-		buffer->pwrite = buffer->pread;
-		buffer->error = -EOVERFLOW;
+		dvb_ringbuffer_flush(buffer);
+		buffer->error = ret;
 	}
 	spin_unlock(&dmxdevfilter->dev->lock);
 	wake_up(&buffer->queue);
@@ -494,7 +455,8 @@ static int dvb_dmxdev_filter_stop(struct dmxdev_filter *dmxdevfilter)
 			return 0;
 		return -EINVAL;
 	}
-	dmxdevfilter->buffer.pwrite = dmxdevfilter->buffer.pread = 0;
+
+	dvb_ringbuffer_flush(&dmxdevfilter->buffer);
 	return 0;
 }
 
@@ -520,16 +482,16 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 	if (filter->state >= DMXDEV_STATE_GO)
 		dvb_dmxdev_filter_stop(filter);
 
-	if (!(mem = filter->buffer.data)) {
+	if (!filter->buffer.data) {
 		mem = vmalloc(filter->buffer.size);
+		if (!mem)
+			return -ENOMEM;
 		spin_lock_irq(&filter->dev->lock);
 		filter->buffer.data = mem;
 		spin_unlock_irq(&filter->dev->lock);
-		if (!filter->buffer.data)
-			return -ENOMEM;
 	}
 
-	filter->buffer.pwrite = filter->buffer.pread = 0;
+	dvb_ringbuffer_flush(&filter->buffer);
 
 	switch (filter->type) {
 	case DMXDEV_TYPE_SEC:
@@ -692,7 +654,7 @@ static int dvb_demux_open(struct inode *inode, struct file *file)
 	mutex_init(&dmxdevfilter->mutex);
 	file->private_data = dmxdevfilter;
 
-	dvb_dmxdev_buffer_init(&dmxdevfilter->buffer);
+	dvb_ringbuffer_init(&dmxdevfilter->buffer, NULL, 8192);
 	dmxdevfilter->type = DMXDEV_TYPE_NONE;
 	dvb_dmxdev_filter_state_set(dmxdevfilter, DMXDEV_STATE_ALLOCATED);
 	dmxdevfilter->feed.ts = NULL;
@@ -973,7 +935,7 @@ static unsigned int dvb_demux_poll(struct file *file, poll_table *wait)
 	if (dmxdevfilter->buffer.error)
 		mask |= (POLLIN | POLLRDNORM | POLLPRI | POLLERR);
 
-	if (dmxdevfilter->buffer.pread != dmxdevfilter->buffer.pwrite)
+	if (!dvb_ringbuffer_empty(&dmxdevfilter->buffer))
 		mask |= (POLLIN | POLLRDNORM | POLLPRI);
 
 	return mask;
@@ -1047,7 +1009,7 @@ static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
 		if (dmxdev->dvr_buffer.error)
 			mask |= (POLLIN | POLLRDNORM | POLLPRI | POLLERR);
 
-		if (dmxdev->dvr_buffer.pread != dmxdev->dvr_buffer.pwrite)
+		if (!dvb_ringbuffer_empty(&dmxdev->dvr_buffer))
 			mask |= (POLLIN | POLLRDNORM | POLLPRI);
 	} else
 		mask |= (POLLOUT | POLLWRNORM | POLLPRI);
@@ -1097,7 +1059,7 @@ int dvb_dmxdev_init(struct dmxdev *dmxdev, struct dvb_adapter *dvb_adapter)
 	dvb_register_device(dvb_adapter, &dmxdev->dvr_dvbdev, &dvbdev_dvr,
 			    dmxdev, DVB_DEVICE_DVR);
 
-	dvb_dmxdev_buffer_init(&dmxdev->dvr_buffer);
+	dvb_ringbuffer_init(&dmxdev->dvr_buffer, NULL, 8192);
 
 	return 0;
 }

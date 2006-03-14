@@ -36,6 +36,7 @@
 
 #include "dvbdev.h"
 #include "demux.h"
+#include "dvb_ringbuffer.h"
 
 enum dmxdev_type {
 	DMXDEV_TYPE_NONE,
@@ -50,15 +51,6 @@ enum dmxdev_state {
 	DMXDEV_STATE_GO,
 	DMXDEV_STATE_DONE,
 	DMXDEV_STATE_TIMEDOUT
-};
-
-struct dmxdev_buffer {
-	u8 *data;
-	int size;
-	int pread;
-	int pwrite;
-	wait_queue_head_t queue;
-	int error;
 };
 
 struct dmxdev_filter {
@@ -79,7 +71,7 @@ struct dmxdev_filter {
 	enum dmxdev_type type;
 	enum dmxdev_state state;
 	struct dmxdev *dev;
-	struct dmxdev_buffer buffer;
+	struct dvb_ringbuffer buffer;
 
 	struct mutex mutex;
 
@@ -102,7 +94,7 @@ struct dmxdev {
 #define DMXDEV_CAP_DUPLEX 1
 	struct dmx_frontend *dvr_orig_fe;
 
-	struct dmxdev_buffer dvr_buffer;
+	struct dvb_ringbuffer dvr_buffer;
 #define DVR_BUFFER_SIZE (10*188*1024)
 
 	struct mutex mutex;
