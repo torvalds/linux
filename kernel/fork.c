@@ -1062,6 +1062,12 @@ static task_t *copy_process(unsigned long clone_flags,
 	p->clear_child_tid = (clone_flags & CLONE_CHILD_CLEARTID) ? child_tidptr: NULL;
 
 	/*
+	 * sigaltstack should be cleared when sharing the same VM
+	 */
+	if ((clone_flags & (CLONE_VM|CLONE_VFORK)) == CLONE_VM)
+		p->sas_ss_sp = p->sas_ss_size = 0;
+
+	/*
 	 * Syscall tracing should be turned off in the child regardless
 	 * of CLONE_PTRACE.
 	 */
