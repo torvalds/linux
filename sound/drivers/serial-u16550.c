@@ -789,6 +789,7 @@ static int __init snd_uart16550_create(struct snd_card *card,
 
 	if ((err = snd_uart16550_detect(uart)) <= 0) {
 		printk(KERN_ERR "no UART detected at 0x%lx\n", iobase);
+		snd_uart16550_free(uart);
 		return -ENODEV;
 	}
 

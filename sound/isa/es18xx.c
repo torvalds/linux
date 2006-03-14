@@ -2083,6 +2083,7 @@ static int __devinit snd_audiodrive_pnp(int dev, struct snd_audiodrive *acard,
 	err = pnp_activate_dev(acard->devc);
 	if (err < 0) {
 		snd_printk(KERN_ERR PFX "PnP control configure failure (out of resources?)\n");
+		kfree(cfg);
 		return -EAGAIN;
 	}
 	snd_printdd("pnp: port=0x%lx\n", pnp_port_start(acard->devc, 0));

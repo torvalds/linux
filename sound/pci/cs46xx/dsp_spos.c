@@ -237,7 +237,7 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 
 	if (ins->symbol_table.symbols == NULL) {
 		cs46xx_dsp_spos_destroy(chip);
-		return NULL;
+		goto error;
 	}
 
 	ins->code.offset = 0;
@@ -246,7 +246,7 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 
 	if (ins->code.data == NULL) {
 		cs46xx_dsp_spos_destroy(chip);
-		return NULL;
+		goto error;
 	}
 
 	ins->nscb = 0;
@@ -257,7 +257,7 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 
 	if (ins->modules == NULL) {
 		cs46xx_dsp_spos_destroy(chip);
-		return NULL;
+		goto error;
 	}
 
 	/* default SPDIF input sample rate
@@ -280,6 +280,10 @@ struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 	 /* left and right validity bits */ (1 << 13) | (1 << 12);
 
 	return ins;
+
+error:
+	kfree(ins);
+	return NULL;
 }
 
 void  cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip)
