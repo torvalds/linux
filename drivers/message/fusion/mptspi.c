@@ -343,9 +343,9 @@ static int mptspi_slave_alloc(struct scsi_device *sdev)
 		sdev->no_uld_attach = 1;
 		vdev->vtarget->tflags |= MPT_TARGET_FLAGS_RAID_COMPONENT;
 		/* The real channel for this device is zero */
-		vdev->bus_id = 0;
+		vdev->vtarget->bus_id = 0;
 		/* The actual physdisknum (for RAID passthrough) */
-		vdev->target_id = physdisknum;
+		vdev->vtarget->target_id = physdisknum;
 	}
 
 	return 0;

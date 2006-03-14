@@ -347,10 +347,7 @@ typedef struct _VirtTarget {
 } VirtTarget;
 
 typedef struct _VirtDevice {
-	VirtTarget	 	*vtarget;
-	u8			 ioc_id;
-	u8			 bus_id;
-	u8			 target_id;
+	VirtTarget		*vtarget;
 	u8			 configured_lun;
 	u32			 lun;
 } VirtDevice;

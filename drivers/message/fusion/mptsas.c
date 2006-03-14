@@ -350,6 +350,7 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	VirtTarget		*vtarget;
 	VirtDevice		*vdev;
 	struct scsi_target 	*starget;
+	u32			target_id;
 	int i;
 
 	vdev = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
@@ -358,10 +359,10 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 				hd->ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
-	vdev->ioc_id = hd->ioc->id;
 	sdev->hostdata = vdev;
 	starget = scsi_target(sdev);
 	vtarget = starget->hostdata;
+	vtarget->ioc_id = hd->ioc->id;
 	vdev->vtarget = vtarget;
 	if (vtarget->num_luns == 0) {
 		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES|MPT_TARGET_FLAGS_VALID_INQUIRY;
@@ -372,8 +373,8 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	  RAID volumes placed beyond the last expected port.
 	*/
 	if (sdev->channel == hd->ioc->num_ports) {
-		vdev->target_id = sdev->id;
-		vdev->bus_id = 0;
+		target_id = sdev->id;
+		vtarget->bus_id = 0;
 		vdev->lun = 0;
 		goto out;
 	}
@@ -384,11 +385,10 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 		for (i = 0; i < p->num_phys; i++) {
 			if (p->phy_info[i].attached.sas_address ==
 					rphy->identify.sas_address) {
-				vdev->target_id =
-					p->phy_info[i].attached.id;
-				vdev->bus_id = p->phy_info[i].attached.channel;
+				target_id = p->phy_info[i].attached.id;
+				vtarget->bus_id = p->phy_info[i].attached.channel;
 				vdev->lun = sdev->lun;
- 	mutex_unlock(&hd->ioc->sas_topology_mutex);
+				mutex_unlock(&hd->ioc->sas_topology_mutex);
 				goto out;
 			}
 		}
@@ -399,9 +399,7 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	return -ENXIO;
 
  out:
-	vtarget->ioc_id = vdev->ioc_id;
-	vtarget->target_id = vdev->target_id;
-	vtarget->bus_id = vdev->bus_id;
+	vtarget->target_id = target_id;
 	vtarget->num_luns++;
 	return 0;
 }
@@ -444,8 +442,8 @@ mptsas_slave_destroy(struct scsi_device *sdev)
 	if (vdev->configured_lun){
 		if (mptscsih_TMHandler(hd,
 		     MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
-		     vdev->bus_id,
-		     vdev->target_id,
+		     vdev->vtarget->bus_id,
+		     vdev->vtarget->target_id,
 		     0, 0, 5 /* 5 second timeout */)
 		     < 0){
 
@@ -455,7 +453,7 @@ mptsas_slave_destroy(struct scsi_device *sdev)
 			printk(MYIOC_s_WARN_FMT
 		       "Error processing TaskMgmt id=%d TARGET_RESET\n",
 				hd->ioc->name,
-				vdev->target_id);
+				vdev->vtarget->target_id);
 
 			hd->tmPending = 0;
 			hd->tmState = TM_STATE_NONE;

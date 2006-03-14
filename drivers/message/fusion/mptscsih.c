@@ -887,7 +887,7 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 			dsprintk(( "search_running: found (sc=%p, mf = %p) target %d, lun %d \n",
 					hd->ScsiLookup[ii], mf, mf->TargetID, mf->LUN[1]));
 
-			if ((mf->TargetID != ((u8)vdevice->target_id)) || (mf->LUN[1] != ((u8) vdevice->lun)))
+			if ((mf->TargetID != ((u8)vdevice->vtarget->target_id)) || (mf->LUN[1] != ((u8) vdevice->lun)))
 				continue;
 
 			/* Cleanup
@@ -1285,8 +1285,8 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	/* Use the above information to set up the message frame
 	 */
-	pScsiReq->TargetID = (u8) vdev->target_id;
-	pScsiReq->Bus = vdev->bus_id;
+	pScsiReq->TargetID = (u8) vdev->vtarget->target_id;
+	pScsiReq->Bus = vdev->vtarget->bus_id;
 	pScsiReq->ChainOffset = 0;
 	if (vdev->vtarget->tflags &  MPT_TARGET_FLAGS_RAID_COMPONENT)
 		pScsiReq->Function = MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH;
@@ -1701,7 +1701,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 
 	vdev = SCpnt->device->hostdata;
 	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_ABORT_TASK,
-		vdev->bus_id, vdev->target_id, vdev->lun,
+		vdev->vtarget->bus_id, vdev->vtarget->target_id, vdev->lun,
 		ctx2abort, mptscsih_get_tm_timeout(ioc));
 
 	printk (KERN_WARNING MYNAM ": %s: task abort: %s (sc=%p)\n",
@@ -1752,7 +1752,7 @@ mptscsih_dev_reset(struct scsi_cmnd * SCpnt)
 
 	vdev = SCpnt->device->hostdata;
 	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET,
-		vdev->bus_id, vdev->target_id,
+		vdev->vtarget->bus_id, vdev->vtarget->target_id,
 		0, 0, mptscsih_get_tm_timeout(hd->ioc));
 
 	printk (KERN_WARNING MYNAM ": %s: target reset: %s (sc=%p)\n",
@@ -1803,7 +1803,7 @@ mptscsih_bus_reset(struct scsi_cmnd * SCpnt)
 
 	vdev = SCpnt->device->hostdata;
 	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
-		vdev->bus_id, 0, 0, 0, mptscsih_get_tm_timeout(hd->ioc));
+		vdev->vtarget->bus_id, 0, 0, 0, mptscsih_get_tm_timeout(hd->ioc));
 
 	printk (KERN_WARNING MYNAM ": %s: bus reset: %s (sc=%p)\n",
 		hd->ioc->name,
@@ -2162,9 +2162,6 @@ mptscsih_slave_alloc(struct scsi_device *sdev)
 		return -ENOMEM;
 	}
 
-	vdev->ioc_id = hd->ioc->id;
-	vdev->target_id = sdev->id;
-	vdev->bus_id = sdev->channel;
 	vdev->lun = sdev->lun;
 	sdev->hostdata = vdev;
 
@@ -3366,8 +3363,8 @@ mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 	iocmd.data_dma = -1;
 	iocmd.size = 0;
 	iocmd.rsvd = iocmd.rsvd2 = 0;
-	iocmd.bus = vdevice->bus_id;
-	iocmd.id = vdevice->target_id;
+	iocmd.bus = vdevice->vtarget->bus_id;
+	iocmd.id = vdevice->vtarget->target_id;
 	iocmd.lun = (u8)vdevice->lun;
 
 	if ((vdevice->vtarget->type == TYPE_DISK) &&
