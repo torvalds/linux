@@ -766,7 +766,7 @@ xfs_dir2_leaf_getdents(
 	xfs_dir2_data_entry_t	*dep;		/* data entry */
 	xfs_dir2_data_unused_t	*dup;		/* unused entry */
 	int			eof;		/* reached end of directory */
-	int			error=0;		/* error return value */
+	int			error = 0;	/* error return value */
 	int			i;		/* temporary loop index */
 	int			j;		/* temporary loop index */
 	int			length;		/* temporary length value */
@@ -778,8 +778,8 @@ xfs_dir2_leaf_getdents(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_dir2_off_t		newoff;		/* new curoff after new blk */
 	int			nmap;		/* mappings to ask xfs_bmapi */
-	xfs_dir2_put_args_t	p;		/* formatting arg bundle */
-	char			*ptr=NULL;		/* pointer to current data */
+	xfs_dir2_put_args_t	*p;		/* formatting arg bundle */
+	char			*ptr = NULL;	/* pointer to current data */
 	int			ra_current;	/* number of read-ahead blks */
 	int			ra_index;	/* *map index for read-ahead */
 	int			ra_offset;	/* map entry offset for ra */
@@ -797,9 +797,10 @@ xfs_dir2_leaf_getdents(
 	/*
 	 * Setup formatting arguments.
 	 */
-	p.dbp = dbp;
-	p.put = put;
-	p.uio = uio;
+	p = kmem_alloc(sizeof(*p), KM_SLEEP);
+	p->dbp = dbp;
+	p->put = put;
+	p->uio = uio;
 	/*
 	 * Set up to bmap a number of blocks based on the caller's
 	 * buffer size, the directory block size, and the filesystem
@@ -1092,24 +1093,24 @@ xfs_dir2_leaf_getdents(
 		 */
 		dep = (xfs_dir2_data_entry_t *)ptr;
 
-		p.namelen = dep->namelen;
+		p->namelen = dep->namelen;
 
-		length = XFS_DIR2_DATA_ENTSIZE(p.namelen);
+		length = XFS_DIR2_DATA_ENTSIZE(p->namelen);
 
-		p.cook = XFS_DIR2_BYTE_TO_DATAPTR(mp, curoff + length);
+		p->cook = XFS_DIR2_BYTE_TO_DATAPTR(mp, curoff + length);
 
-		p.ino = INT_GET(dep->inumber, ARCH_CONVERT);
+		p->ino = INT_GET(dep->inumber, ARCH_CONVERT);
 #if XFS_BIG_INUMS
-		p.ino += mp->m_inoadd;
+		p->ino += mp->m_inoadd;
 #endif
-		p.name = (char *)dep->name;
+		p->name = (char *)dep->name;
 
-		error = p.put(&p);
+		error = p->put(p);
 
 		/*
 		 * Won't fit.  Return to caller.
 		 */
-		if (!p.done) {
+		if (!p->done) {
 			eof = 0;
 			break;
 		}
@@ -1129,6 +1130,7 @@ xfs_dir2_leaf_getdents(
 	else
 		uio->uio_offset = XFS_DIR2_BYTE_TO_DATAPTR(mp, curoff);
 	kmem_free(map, map_size * sizeof(*map));
+	kmem_free(p, sizeof(*p));
 	if (bp)
 		xfs_da_brelse(tp, bp);
 	return error;
