@@ -25,6 +25,8 @@
 #include "xfs_mount.h"
 #include "xfs_export.h"
 
+STATIC struct dentry dotdot = { .d_name.name = "..", .d_name.len = 2, };
+
 /*
  * XFS encodes and decodes the fileid portion of NFS filehandles
  * itself instead of letting the generic NFS code do it.  This
@@ -160,11 +162,6 @@ linvfs_get_parent(
 	int			error;
 	vnode_t			*vp, *cvp;
 	struct dentry		*parent;
-	struct dentry		dotdot;
-
-	dotdot.d_name.name = "..";
-	dotdot.d_name.len = 2;
-	dotdot.d_inode = NULL;
 
 	cvp = NULL;
 	vp = LINVFS_GET_VP(child->d_inode);
