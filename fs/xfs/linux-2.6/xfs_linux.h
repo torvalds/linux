@@ -73,6 +73,8 @@
 #include <linux/list.h>
 #include <linux/proc_fs.h>
 #include <linux/sort.h>
+#include <linux/cpu.h>
+#include <linux/notifier.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>

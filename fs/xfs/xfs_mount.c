@@ -60,6 +60,7 @@ STATIC int	xfs_icsb_modify_counters(xfs_mount_t *, xfs_sb_field_t,
 						int, int);
 STATIC int	xfs_icsb_modify_counters_locked(xfs_mount_t *, xfs_sb_field_t,
 						int, int);
+STATIC int	xfs_icsb_disable_counter(xfs_mount_t *, xfs_sb_field_t);
 
 #else
 
@@ -1716,9 +1717,72 @@ xfs_mount_log_sbunit(
  * To ensure counters don't remain disabled, they are rebalanced when
  * the global resource goes above a higher threshold (i.e. some hysteresis
  * is present to prevent thrashing).
- *
- * Note: hotplug CPUs not yet supported
  */
+
+/*
+ * hot-plug CPU notifier support.
+ *
+ * We cannot use the hotcpu_register() function because it does
+ * not allow notifier instances. We need a notifier per filesystem
+ * as we need to be able to identify the filesystem to balance
+ * the counters out. This is acheived by having a notifier block
+ * embedded in the xfs_mount_t and doing pointer magic to get the
+ * mount pointer from the notifier block address.
+ */
+STATIC int
+xfs_icsb_cpu_notify(
+	struct notifier_block *nfb,
+	unsigned long action,
+	void *hcpu)
+{
+	xfs_icsb_cnts_t *cntp;
+	xfs_mount_t	*mp;
+	int		s;
+
+	mp = (xfs_mount_t *)container_of(nfb, xfs_mount_t, m_icsb_notifier);
+	cntp = (xfs_icsb_cnts_t *)
+			per_cpu_ptr(mp->m_sb_cnts, (unsigned long)hcpu);
+	switch (action) {
+	case CPU_UP_PREPARE:
+		/* Easy Case - initialize the area and locks, and
+		 * then rebalance when online does everything else for us. */
+		spin_lock_init(&cntp->icsb_lock);
+		cntp->icsb_icount = 0;
+		cntp->icsb_ifree = 0;
+		cntp->icsb_fdblocks = 0;
+		break;
+	case CPU_ONLINE:
+		xfs_icsb_balance_counter(mp, XFS_SBS_ICOUNT, 0);
+		xfs_icsb_balance_counter(mp, XFS_SBS_IFREE, 0);
+		xfs_icsb_balance_counter(mp, XFS_SBS_FDBLOCKS, 0);
+		break;
+	case CPU_DEAD:
+		/* Disable all the counters, then fold the dead cpu's
+		 * count into the total on the global superblock and
+		 * re-enable the counters. */
+		s = XFS_SB_LOCK(mp);
+		xfs_icsb_disable_counter(mp, XFS_SBS_ICOUNT);
+		xfs_icsb_disable_counter(mp, XFS_SBS_IFREE);
+		xfs_icsb_disable_counter(mp, XFS_SBS_FDBLOCKS);
+
+		mp->m_sb.sb_icount += cntp->icsb_icount;
+		mp->m_sb.sb_ifree += cntp->icsb_ifree;
+		mp->m_sb.sb_fdblocks += cntp->icsb_fdblocks;
+
+		cntp->icsb_icount = 0;
+		cntp->icsb_ifree = 0;
+		cntp->icsb_fdblocks = 0;
+
+		xfs_icsb_balance_counter(mp, XFS_SBS_ICOUNT, XFS_ICSB_SB_LOCKED);
+		xfs_icsb_balance_counter(mp, XFS_SBS_IFREE, XFS_ICSB_SB_LOCKED);
+		xfs_icsb_balance_counter(mp, XFS_SBS_FDBLOCKS, XFS_ICSB_SB_LOCKED);
+		XFS_SB_UNLOCK(mp, s);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
 int
 xfs_icsb_init_counters(
 	xfs_mount_t	*mp)
@@ -1729,6 +1793,10 @@ xfs_icsb_init_counters(
 	mp->m_sb_cnts = alloc_percpu(xfs_icsb_cnts_t);
 	if (mp->m_sb_cnts == NULL)
 		return -ENOMEM;
+
+	mp->m_icsb_notifier.notifier_call = xfs_icsb_cpu_notify;
+	mp->m_icsb_notifier.priority = 0;
+	register_cpu_notifier(&mp->m_icsb_notifier);
 
 	for_each_online_cpu(i) {
 		cntp = (xfs_icsb_cnts_t *)per_cpu_ptr(mp->m_sb_cnts, i);
@@ -1746,8 +1814,10 @@ STATIC void
 xfs_icsb_destroy_counters(
 	xfs_mount_t	*mp)
 {
-	if (mp->m_sb_cnts)
+	if (mp->m_sb_cnts) {
+		unregister_cpu_notifier(&mp->m_icsb_notifier);
 		free_percpu(mp->m_sb_cnts);
+	}
 }
 
 
