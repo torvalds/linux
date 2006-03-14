@@ -145,17 +145,22 @@ __linvfs_readv(
 {
 	struct inode	*inode = file->f_mapping->host;
 	vnode_t		*vp = LINVFS_GET_VP(inode);
-	struct		kiocb kiocb;
+	struct kiocb	*kiocb;
 	ssize_t		rval;
 
-	init_sync_kiocb(&kiocb, file);
-	kiocb.ki_pos = *ppos;
+	kiocb = kmalloc(sizeof(*kiocb), GFP_KERNEL);
+	if (unlikely(!kiocb))
+		return -ENOMEM;
+
+	init_sync_kiocb(kiocb, file);
+	kiocb->ki_pos = *ppos;
 
 	if (unlikely(file->f_flags & O_DIRECT))
 		ioflags |= IO_ISDIRECT;
-	VOP_READ(vp, &kiocb, iov, nr_segs, &kiocb.ki_pos, ioflags, NULL, rval);
+	VOP_READ(vp, kiocb, iov, nr_segs, &kiocb->ki_pos, ioflags, NULL, rval);
 
-	*ppos = kiocb.ki_pos;
+	*ppos = kiocb->ki_pos;
+	kfree(kiocb);
 	return rval;
 }
 
@@ -190,17 +195,22 @@ __linvfs_writev(
 {
 	struct inode	*inode = file->f_mapping->host;
 	vnode_t		*vp = LINVFS_GET_VP(inode);
-	struct		kiocb kiocb;
+	struct kiocb	*kiocb;
 	ssize_t		rval;
 
-	init_sync_kiocb(&kiocb, file);
-	kiocb.ki_pos = *ppos;
+	kiocb = kmalloc(sizeof(*kiocb), GFP_KERNEL);
+	if (unlikely(!kiocb))
+		return -ENOMEM;
+
+	init_sync_kiocb(kiocb, file);
+	kiocb->ki_pos = *ppos;
 	if (unlikely(file->f_flags & O_DIRECT))
 		ioflags |= IO_ISDIRECT;
 
-	VOP_WRITE(vp, &kiocb, iov, nr_segs, &kiocb.ki_pos, ioflags, NULL, rval);
+	VOP_WRITE(vp, kiocb, iov, nr_segs, &kiocb->ki_pos, ioflags, NULL, rval);
 
-	*ppos = kiocb.ki_pos;
+	*ppos = kiocb->ki_pos;
+	kfree(kiocb);
 	return rval;
 }
 
@@ -435,7 +445,7 @@ linvfs_ioctl(
 	unsigned long	arg)
 {
 	int		error;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode	*inode = filp->f_dentry->d_inode;
 	vnode_t		*vp = LINVFS_GET_VP(inode);
 
 	VOP_IOCTL(vp, inode, filp, 0, cmd, (void __user *)arg, error);
@@ -457,7 +467,7 @@ linvfs_ioctl_invis(
 	unsigned long	arg)
 {
 	int		error;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode	*inode = filp->f_dentry->d_inode;
 	vnode_t		*vp = LINVFS_GET_VP(inode);
 
 	ASSERT(vp);
