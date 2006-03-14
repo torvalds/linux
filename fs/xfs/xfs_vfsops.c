@@ -258,8 +258,6 @@ xfs_start_flags(
 		mp->m_inoadd = XFS_INO64_OFFSET;
 	}
 #endif
-	if (ap->flags & XFSMNT_NOATIME)
-		mp->m_flags |= XFS_MOUNT_NOATIME;
 	if (ap->flags & XFSMNT_RETERR)
 		mp->m_flags |= XFS_MOUNT_RETERR;
 	if (ap->flags & XFSMNT_NOALIGN)
@@ -653,11 +651,6 @@ xfs_mntupdate(
 	struct vfs	*vfsp = bhvtovfs(bdp);
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 	int		error;
-
-	if (args->flags & XFSMNT_NOATIME)
-		mp->m_flags |= XFS_MOUNT_NOATIME;
-	else
-		mp->m_flags &= ~XFS_MOUNT_NOATIME;
 
 	if (args->flags & XFSMNT_BARRIER)
 		mp->m_flags |= XFS_MOUNT_BARRIER;

@@ -76,8 +76,6 @@ xfs_args_allocate(
 	strncpy(args->fsname, sb->s_id, MAXNAMELEN);
 
 	/* Copy the already-parsed mount(2) flags we're interested in */
-	if (sb->s_flags & MS_NOATIME)
-		args->flags |= XFSMNT_NOATIME;
 	if (sb->s_flags & MS_DIRSYNC)
 		args->flags |= XFSMNT_DIRSYNC;
 	if (sb->s_flags & MS_SYNCHRONOUS)
