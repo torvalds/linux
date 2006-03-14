@@ -1252,8 +1252,7 @@ int igmp6_event_query(struct sk_buff *skb)
 		}
 	} else {
 		for (ma = idev->mc_list; ma; ma=ma->next) {
-			if (group_type != IPV6_ADDR_ANY &&
-			    !ipv6_addr_equal(group, &ma->mca_addr))
+			if (!ipv6_addr_equal(group, &ma->mca_addr))
 				continue;
 			spin_lock_bh(&ma->mca_lock);
 			if (ma->mca_flags & MAF_TIMER_RUNNING) {
@@ -1268,11 +1267,10 @@ int igmp6_event_query(struct sk_buff *skb)
 					ma->mca_flags &= ~MAF_GSQUERY;
 			}
 			if (!(ma->mca_flags & MAF_GSQUERY) ||
-			   mld_marksources(ma, ntohs(mlh2->nsrcs), mlh2->srcs))
+			    mld_marksources(ma, ntohs(mlh2->nsrcs), mlh2->srcs))
 				igmp6_group_queried(ma, max_delay);
 			spin_unlock_bh(&ma->mca_lock);
-			if (group_type != IPV6_ADDR_ANY)
-				break;
+			break;
 		}
 	}
 	read_unlock_bh(&idev->lock);
@@ -1351,7 +1349,7 @@ static int is_in(struct ifmcaddr6 *pmc, struct ip6_sf_list *psf, int type,
 			 * in all filters
 			 */
 			if (psf->sf_count[MCAST_INCLUDE])
-				return 0;
+				return type == MLD2_MODE_IS_INCLUDE;
 			return pmc->mca_sfcount[MCAST_EXCLUDE] ==
 				psf->sf_count[MCAST_EXCLUDE];
 		}
@@ -1966,7 +1964,7 @@ static void sf_markstate(struct ifmcaddr6 *pmc)
 
 static int sf_setstate(struct ifmcaddr6 *pmc)
 {
-	struct ip6_sf_list *psf;
+	struct ip6_sf_list *psf, *dpsf;
 	int mca_xcount = pmc->mca_sfcount[MCAST_EXCLUDE];
 	int qrv = pmc->idev->mc_qrv;
 	int new_in, rv;
@@ -1978,8 +1976,48 @@ static int sf_setstate(struct ifmcaddr6 *pmc)
 				!psf->sf_count[MCAST_INCLUDE];
 		} else
 			new_in = psf->sf_count[MCAST_INCLUDE] != 0;
-		if (new_in != psf->sf_oldin) {
-			psf->sf_crcount = qrv;
+		if (new_in) {
+			if (!psf->sf_oldin) {
+				struct ip6_sf_list *prev = NULL;
+
+				for (dpsf=pmc->mca_tomb; dpsf;
+				     dpsf=dpsf->sf_next) {
+					if (ipv6_addr_equal(&dpsf->sf_addr,
+					    &psf->sf_addr))
+						break;
+					prev = dpsf;
+				}
+				if (dpsf) {
+					if (prev)
+						prev->sf_next = dpsf->sf_next;
+					else
+						pmc->mca_tomb = dpsf->sf_next;
+					kfree(dpsf);
+				}
+				psf->sf_crcount = qrv;
+				rv++;
+			}
+		} else if (psf->sf_oldin) {
+			psf->sf_crcount = 0;
+			/*
+			 * add or update "delete" records if an active filter
+			 * is now inactive
+			 */
+			for (dpsf=pmc->mca_tomb; dpsf; dpsf=dpsf->sf_next)
+				if (ipv6_addr_equal(&dpsf->sf_addr,
+				    &psf->sf_addr))
+					break;
+			if (!dpsf) {
+				dpsf = (struct ip6_sf_list *)
+					kmalloc(sizeof(*dpsf), GFP_ATOMIC);
+				if (!dpsf)
+					continue;
+				*dpsf = *psf;
+				/* pmc->mca_lock held by callers */
+				dpsf->sf_next = pmc->mca_tomb;
+				pmc->mca_tomb = dpsf;
+			}
+			dpsf->sf_crcount = qrv;
 			rv++;
 		}
 	}

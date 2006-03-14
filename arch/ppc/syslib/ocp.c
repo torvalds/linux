@@ -189,8 +189,8 @@ ocp_device_resume(struct device *dev)
 struct bus_type ocp_bus_type = {
 	.name = "ocp",
 	.match = ocp_device_match,
-	.probe = ocp_driver_probe,
-	.remove = ocp_driver_remove,
+	.probe = ocp_device_probe,
+	.remove = ocp_device_remove,
 	.suspend = ocp_device_suspend,
 	.resume = ocp_device_resume,
 };

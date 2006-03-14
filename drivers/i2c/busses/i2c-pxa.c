@@ -861,7 +861,7 @@ static irqreturn_t i2c_pxa_handler(int this_irq, void *dev_id, struct pt_regs *r
 		decode_ISR(isr);
 	}
 
-	if (i2c->irqlogidx < sizeof(i2c->isrlog)/sizeof(u32))
+	if (i2c->irqlogidx < ARRAY_SIZE(i2c->isrlog))
 		i2c->isrlog[i2c->irqlogidx++] = isr;
 
 	show_state(i2c);

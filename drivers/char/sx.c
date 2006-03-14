@@ -931,7 +931,7 @@ static int sx_set_real_termios (void *ptr)
 	case CS6:sx_write_channel_byte (port, hi_mask, 0x3f);break;
 	case CS5:sx_write_channel_byte (port, hi_mask, 0x1f);break;
 	default:
-		printk (KERN_INFO "sx: Invalid wordsize: %d\n", CFLAG & CSIZE);
+		printk (KERN_INFO "sx: Invalid wordsize: %u\n", CFLAG & CSIZE);
 		break;
 	}
 
@@ -958,7 +958,7 @@ static int sx_set_real_termios (void *ptr)
 	} else {
 		set_bit(TTY_HW_COOK_IN, &port->gs.tty->flags);
 	}
-	sx_dprintk (SX_DEBUG_TERMIOS, "iflags: %x(%d) ", 
+	sx_dprintk (SX_DEBUG_TERMIOS, "iflags: %x(%d) ",
 	            port->gs.tty->termios->c_iflag, 
 	            I_OTHER(port->gs.tty));
 
@@ -973,7 +973,7 @@ static int sx_set_real_termios (void *ptr)
 	} else {
 		clear_bit(TTY_HW_COOK_OUT, &port->gs.tty->flags);
 	}
-	sx_dprintk (SX_DEBUG_TERMIOS, "oflags: %x(%d)\n", 
+	sx_dprintk (SX_DEBUG_TERMIOS, "oflags: %x(%d)\n",
 	            port->gs.tty->termios->c_oflag, 
 	            O_OTHER(port->gs.tty));
 	/* port->c_dcd = sx_get_CD (port); */
@@ -1095,16 +1095,16 @@ static inline void sx_receive_chars (struct sx_port *port)
 
 		sx_dprintk (SX_DEBUG_RECEIVE, "rxop=%d, c = %d.\n", rx_op, c); 
 
+		/* Don't copy past the end of the hardware receive buffer */
+		if (rx_op + c > 0x100) c = 0x100 - rx_op;
+
+		sx_dprintk (SX_DEBUG_RECEIVE, "c = %d.\n", c);
+
 		/* Don't copy more bytes than there is room for in the buffer */
 
 		c = tty_prepare_flip_string(tty, &rp, c);
 
 		sx_dprintk (SX_DEBUG_RECEIVE, "c = %d.\n", c); 
-
-		/* Don't copy past the end of the hardware receive buffer */
-		if (rx_op + c > 0x100) c = 0x100 - rx_op;
-
-		sx_dprintk (SX_DEBUG_RECEIVE, "c = %d.\n", c);
 
 		/* If for one reason or another, we can't copy more data, we're done! */
 		if (c == 0) break;
@@ -2173,15 +2173,17 @@ static int probe_si (struct sx_board *board)
 	if ( IS_SI1_BOARD(board)) {
 		/* This should be an SI1 board, which has this
 		   location writable... */
-		if (read_sx_byte (board, SI2_ISA_ID_BASE) != 0x10)
+		if (read_sx_byte (board, SI2_ISA_ID_BASE) != 0x10) {
 			func_exit ();
 			return 0; 
+		}
 	} else {
 		/* This should be an SI2 board, which has the bottom
 		   3 bits non-writable... */
-		if (read_sx_byte (board, SI2_ISA_ID_BASE) == 0x10)
+		if (read_sx_byte (board, SI2_ISA_ID_BASE) == 0x10) {
 			func_exit ();
 			return 0; 
+		}
 	}
 
 	/* Now we're pretty much convinced that there is an SI board here, 
@@ -2192,15 +2194,17 @@ static int probe_si (struct sx_board *board)
 	if ( IS_SI1_BOARD(board)) {
 		/* This should be an SI1 board, which has this
 		   location writable... */
-		if (read_sx_byte (board, SI2_ISA_ID_BASE) != 0x10)
+		if (read_sx_byte (board, SI2_ISA_ID_BASE) != 0x10) {
 			func_exit();
 			return 0; 
+		}
 	} else {
 		/* This should be an SI2 board, which has the bottom
 		   3 bits non-writable... */
-		if (read_sx_byte (board, SI2_ISA_ID_BASE) == 0x10)
+		if (read_sx_byte (board, SI2_ISA_ID_BASE) == 0x10) {
 			func_exit ();
 			return 0; 
+		}
 	}
 
 	printheader ();

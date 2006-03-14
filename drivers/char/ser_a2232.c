@@ -103,6 +103,7 @@
 
 #include <linux/serial.h>
 #include <linux/generic_serial.h>
+#include <linux/tty_flip.h>
 
 #include "ser_a2232.h"
 #include "ser_a2232fw.h"

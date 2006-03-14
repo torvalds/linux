@@ -95,6 +95,9 @@
 #define MPOL_MF_INVERT (MPOL_MF_INTERNAL << 1)		/* Invert check for nodemask */
 #define MPOL_MF_STATS (MPOL_MF_INTERNAL << 2)		/* Gather statistics */
 
+/* The number of pages to migrate per call to migrate_pages() */
+#define MIGRATE_CHUNK_SIZE 256
+
 static kmem_cache_t *policy_cache;
 static kmem_cache_t *sn_cache;
 
@@ -129,19 +132,29 @@ static int mpol_check_policy(int mode, nodemask_t *nodes)
 	}
 	return nodes_subset(*nodes, node_online_map) ? 0 : -EINVAL;
 }
+
 /* Generate a custom zonelist for the BIND policy. */
 static struct zonelist *bind_zonelist(nodemask_t *nodes)
 {
 	struct zonelist *zl;
-	int num, max, nd;
+	int num, max, nd, k;
 
 	max = 1 + MAX_NR_ZONES * nodes_weight(*nodes);
-	zl = kmalloc(sizeof(void *) * max, GFP_KERNEL);
+	zl = kmalloc(sizeof(struct zone *) * max, GFP_KERNEL);
 	if (!zl)
 		return NULL;
 	num = 0;
-	for_each_node_mask(nd, *nodes)
-		zl->zones[num++] = &NODE_DATA(nd)->node_zones[policy_zone];
+	/* First put in the highest zones from all nodes, then all the next 
+	   lower zones etc. Avoid empty zones because the memory allocator
+	   doesn't like them. If you implement node hot removal you
+	   have to fix that. */
+	for (k = policy_zone; k >= 0; k--) { 
+		for_each_node_mask(nd, *nodes) { 
+			struct zone *z = &NODE_DATA(nd)->node_zones[k];
+			if (z->present_pages > 0) 
+				zl->zones[num++] = z;
+		}
+	}
 	zl->zones[num] = NULL;
 	return zl;
 }
@@ -184,7 +197,7 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 	return policy;
 }
 
-static void gather_stats(struct page *, void *);
+static void gather_stats(struct page *, void *, int pte_dirty);
 static void migrate_page_add(struct page *page, struct list_head *pagelist,
 				unsigned long flags);
 
@@ -226,7 +239,7 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 			continue;
 
 		if (flags & MPOL_MF_STATS)
-			gather_stats(page, private);
+			gather_stats(page, private, pte_dirty(*pte));
 		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
 			migrate_page_add(page, private, flags);
 		else
@@ -539,28 +552,109 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
 	 */
 	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
 		if (isolate_lru_page(page))
-			list_add(&page->lru, pagelist);
+			list_add_tail(&page->lru, pagelist);
 	}
 }
 
-static int swap_pages(struct list_head *pagelist)
+/*
+ * Migrate the list 'pagelist' of pages to a certain destination.
+ *
+ * Specify destination with either non-NULL vma or dest_node >= 0
+ * Return the number of pages not migrated or error code
+ */
+static int migrate_pages_to(struct list_head *pagelist,
+			struct vm_area_struct *vma, int dest)
 {
+	LIST_HEAD(newlist);
 	LIST_HEAD(moved);
 	LIST_HEAD(failed);
-	int n;
+	int err = 0;
+	unsigned long offset = 0;
+	int nr_pages;
+	struct page *page;
+	struct list_head *p;
 
-	n = migrate_pages(pagelist, NULL, &moved, &failed);
-	putback_lru_pages(&failed);
-	putback_lru_pages(&moved);
+redo:
+	nr_pages = 0;
+	list_for_each(p, pagelist) {
+		if (vma) {
+			/*
+			 * The address passed to alloc_page_vma is used to
+			 * generate the proper interleave behavior. We fake
+			 * the address here by an increasing offset in order
+			 * to get the proper distribution of pages.
+			 *
+			 * No decision has been made as to which page
+			 * a certain old page is moved to so we cannot
+			 * specify the correct address.
+			 */
+			page = alloc_page_vma(GFP_HIGHUSER, vma,
+					offset + vma->vm_start);
+			offset += PAGE_SIZE;
+		}
+		else
+			page = alloc_pages_node(dest, GFP_HIGHUSER, 0);
 
-	return n;
+		if (!page) {
+			err = -ENOMEM;
+			goto out;
+		}
+		list_add_tail(&page->lru, &newlist);
+		nr_pages++;
+		if (nr_pages > MIGRATE_CHUNK_SIZE)
+			break;
+	}
+	err = migrate_pages(pagelist, &newlist, &moved, &failed);
+
+	putback_lru_pages(&moved);	/* Call release pages instead ?? */
+
+	if (err >= 0 && list_empty(&newlist) && !list_empty(pagelist))
+		goto redo;
+out:
+	/* Return leftover allocated pages */
+	while (!list_empty(&newlist)) {
+		page = list_entry(newlist.next, struct page, lru);
+		list_del(&page->lru);
+		__free_page(page);
+	}
+	list_splice(&failed, pagelist);
+	if (err < 0)
+		return err;
+
+	/* Calculate number of leftover pages */
+	nr_pages = 0;
+	list_for_each(p, pagelist)
+		nr_pages++;
+	return nr_pages;
 }
 
 /*
- * For now migrate_pages simply swaps out the pages from nodes that are in
- * the source set but not in the target set. In the future, we would
- * want a function that moves pages between the two nodesets in such
- * a way as to preserve the physical layout as much as possible.
+ * Migrate pages from one node to a target node.
+ * Returns error or the number of pages not migrated.
+ */
+int migrate_to_node(struct mm_struct *mm, int source, int dest, int flags)
+{
+	nodemask_t nmask;
+	LIST_HEAD(pagelist);
+	int err = 0;
+
+	nodes_clear(nmask);
+	node_set(source, nmask);
+
+	check_range(mm, mm->mmap->vm_start, TASK_SIZE, &nmask,
+			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+
+	if (!list_empty(&pagelist)) {
+		err = migrate_pages_to(&pagelist, NULL, dest);
+		if (!list_empty(&pagelist))
+			putback_lru_pages(&pagelist);
+	}
+	return err;
+}
+
+/*
+ * Move pages between the two nodesets so as to preserve the physical
+ * layout as much as possible.
  *
  * Returns the number of page that could not be moved.
  */
@@ -568,22 +662,76 @@ int do_migrate_pages(struct mm_struct *mm,
 	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags)
 {
 	LIST_HEAD(pagelist);
-	int count = 0;
-	nodemask_t nodes;
+	int busy = 0;
+	int err = 0;
+	nodemask_t tmp;
 
-	nodes_andnot(nodes, *from_nodes, *to_nodes);
+  	down_read(&mm->mmap_sem);
 
-	down_read(&mm->mmap_sem);
-	check_range(mm, mm->mmap->vm_start, TASK_SIZE, &nodes,
-			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+/*
+ * Find a 'source' bit set in 'tmp' whose corresponding 'dest'
+ * bit in 'to' is not also set in 'tmp'.  Clear the found 'source'
+ * bit in 'tmp', and return that <source, dest> pair for migration.
+ * The pair of nodemasks 'to' and 'from' define the map.
+ *
+ * If no pair of bits is found that way, fallback to picking some
+ * pair of 'source' and 'dest' bits that are not the same.  If the
+ * 'source' and 'dest' bits are the same, this represents a node
+ * that will be migrating to itself, so no pages need move.
+ *
+ * If no bits are left in 'tmp', or if all remaining bits left
+ * in 'tmp' correspond to the same bit in 'to', return false
+ * (nothing left to migrate).
+ *
+ * This lets us pick a pair of nodes to migrate between, such that
+ * if possible the dest node is not already occupied by some other
+ * source node, minimizing the risk of overloading the memory on a
+ * node that would happen if we migrated incoming memory to a node
+ * before migrating outgoing memory source that same node.
+ *
+ * A single scan of tmp is sufficient.  As we go, we remember the
+ * most recent <s, d> pair that moved (s != d).  If we find a pair
+ * that not only moved, but what's better, moved to an empty slot
+ * (d is not set in tmp), then we break out then, with that pair.
+ * Otherwise when we finish scannng from_tmp, we at least have the
+ * most recent <s, d> pair that moved.  If we get all the way through
+ * the scan of tmp without finding any node that moved, much less
+ * moved to an empty node, then there is nothing left worth migrating.
+ */
 
-	if (!list_empty(&pagelist)) {
-		count = swap_pages(&pagelist);
-		putback_lru_pages(&pagelist);
+	tmp = *from_nodes;
+	while (!nodes_empty(tmp)) {
+		int s,d;
+		int source = -1;
+		int dest = 0;
+
+		for_each_node_mask(s, tmp) {
+			d = node_remap(s, *from_nodes, *to_nodes);
+			if (s == d)
+				continue;
+
+			source = s;	/* Node moved. Memorize */
+			dest = d;
+
+			/* dest not in remaining from nodes? */
+			if (!node_isset(dest, tmp))
+				break;
+		}
+		if (source == -1)
+			break;
+
+		node_clear(source, tmp);
+		err = migrate_to_node(mm, source, dest, flags);
+		if (err > 0)
+			busy += err;
+		if (err < 0)
+			break;
 	}
 
 	up_read(&mm->mmap_sem);
-	return count;
+	if (err < 0)
+		return err;
+	return busy;
 }
 
 long do_mbind(unsigned long start, unsigned long len,
@@ -643,8 +791,9 @@ long do_mbind(unsigned long start, unsigned long len,
 		int nr_failed = 0;
 
 		err = mbind_range(vma, start, end, new);
+
 		if (!list_empty(&pagelist))
-			nr_failed = swap_pages(&pagelist);
+			nr_failed = migrate_pages_to(&pagelist, vma, -1);
 
 		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
 			err = -EIO;
@@ -673,6 +822,8 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
 	nodes_clear(*nodes);
 	if (maxnode == 0 || !nmask)
 		return 0;
+	if (maxnode > PAGE_SIZE*BITS_PER_BYTE)
+		return -EINVAL;
 
 	nlongs = BITS_TO_LONGS(maxnode);
 	if ((maxnode % BITS_PER_LONG) == 0)
@@ -803,7 +954,8 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 		goto out;
 	}
 
-	err = do_migrate_pages(mm, &old, &new, MPOL_MF_MOVE);
+	err = do_migrate_pages(mm, &old, &new,
+		capable(CAP_SYS_ADMIN) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
 out:
 	mmput(mm);
 	return err;
@@ -1034,6 +1186,7 @@ static inline unsigned interleave_nid(struct mempolicy *pol,
 		return interleave_nodes(pol);
 }
 
+#ifdef CONFIG_HUGETLBFS
 /* Return a zonelist suitable for a huge page allocation. */
 struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr)
 {
@@ -1047,6 +1200,7 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr)
 	}
 	return zonelist_policy(GFP_HIGHUSER, pol);
 }
+#endif
 
 /* Allocate a page in interleaved policy.
    Own path because it needs to do special accounting. */
@@ -1599,66 +1753,145 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 struct numa_maps {
 	unsigned long pages;
 	unsigned long anon;
-	unsigned long mapped;
+	unsigned long active;
+	unsigned long writeback;
 	unsigned long mapcount_max;
+	unsigned long dirty;
+	unsigned long swapcache;
 	unsigned long node[MAX_NUMNODES];
 };
 
-static void gather_stats(struct page *page, void *private)
+static void gather_stats(struct page *page, void *private, int pte_dirty)
 {
 	struct numa_maps *md = private;
 	int count = page_mapcount(page);
 
-	if (count)
-		md->mapped++;
-
-	if (count > md->mapcount_max)
-		md->mapcount_max = count;
-
 	md->pages++;
+	if (pte_dirty || PageDirty(page))
+		md->dirty++;
+
+	if (PageSwapCache(page))
+		md->swapcache++;
+
+	if (PageActive(page))
+		md->active++;
+
+	if (PageWriteback(page))
+		md->writeback++;
 
 	if (PageAnon(page))
 		md->anon++;
 
+	if (count > md->mapcount_max)
+		md->mapcount_max = count;
+
 	md->node[page_to_nid(page)]++;
 	cond_resched();
 }
+
+#ifdef CONFIG_HUGETLB_PAGE
+static void check_huge_range(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end,
+		struct numa_maps *md)
+{
+	unsigned long addr;
+	struct page *page;
+
+	for (addr = start; addr < end; addr += HPAGE_SIZE) {
+		pte_t *ptep = huge_pte_offset(vma->vm_mm, addr & HPAGE_MASK);
+		pte_t pte;
+
+		if (!ptep)
+			continue;
+
+		pte = *ptep;
+		if (pte_none(pte))
+			continue;
+
+		page = pte_page(pte);
+		if (!page)
+			continue;
+
+		gather_stats(page, md, pte_dirty(*ptep));
+	}
+}
+#else
+static inline void check_huge_range(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end,
+		struct numa_maps *md)
+{
+}
+#endif
 
 int show_numa_map(struct seq_file *m, void *v)
 {
 	struct task_struct *task = m->private;
 	struct vm_area_struct *vma = v;
 	struct numa_maps *md;
+	struct file *file = vma->vm_file;
+	struct mm_struct *mm = vma->vm_mm;
 	int n;
 	char buffer[50];
 
-	if (!vma->vm_mm)
+	if (!mm)
 		return 0;
 
 	md = kzalloc(sizeof(struct numa_maps), GFP_KERNEL);
 	if (!md)
 		return 0;
 
-	check_pgd_range(vma, vma->vm_start, vma->vm_end,
-		    &node_online_map, MPOL_MF_STATS, md);
+	mpol_to_str(buffer, sizeof(buffer),
+			get_vma_policy(task, vma, vma->vm_start));
 
-	if (md->pages) {
-		mpol_to_str(buffer, sizeof(buffer),
-			    get_vma_policy(task, vma, vma->vm_start));
+	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
 
-		seq_printf(m, "%08lx %s pages=%lu mapped=%lu maxref=%lu",
-			   vma->vm_start, buffer, md->pages,
-			   md->mapped, md->mapcount_max);
-
-		if (md->anon)
-			seq_printf(m," anon=%lu",md->anon);
-
-		for_each_online_node(n)
-			if (md->node[n])
-				seq_printf(m, " N%d=%lu", n, md->node[n]);
-
-		seq_putc(m, '\n');
+	if (file) {
+		seq_printf(m, " file=");
+		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n\t= ");
+	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
+		seq_printf(m, " heap");
+	} else if (vma->vm_start <= mm->start_stack &&
+			vma->vm_end >= mm->start_stack) {
+		seq_printf(m, " stack");
 	}
+
+	if (is_vm_hugetlb_page(vma)) {
+		check_huge_range(vma, vma->vm_start, vma->vm_end, md);
+		seq_printf(m, " huge");
+	} else {
+		check_pgd_range(vma, vma->vm_start, vma->vm_end,
+				&node_online_map, MPOL_MF_STATS, md);
+	}
+
+	if (!md->pages)
+		goto out;
+
+	if (md->anon)
+		seq_printf(m," anon=%lu",md->anon);
+
+	if (md->dirty)
+		seq_printf(m," dirty=%lu",md->dirty);
+
+	if (md->pages != md->anon && md->pages != md->dirty)
+		seq_printf(m, " mapped=%lu", md->pages);
+
+	if (md->mapcount_max > 1)
+		seq_printf(m, " mapmax=%lu", md->mapcount_max);
+
+	if (md->swapcache)
+		seq_printf(m," swapcache=%lu", md->swapcache);
+
+	if (md->active < md->pages && !is_vm_hugetlb_page(vma))
+		seq_printf(m," active=%lu", md->active);
+
+	if (md->writeback)
+		seq_printf(m," writeback=%lu", md->writeback);
+
+	for_each_online_node(n)
+		if (md->node[n])
+			seq_printf(m, " N%d=%lu", n, md->node[n]);
+out:
+	seq_putc(m, '\n');
 	kfree(md);
 
 	if (m->count < m->size)

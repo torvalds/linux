@@ -57,20 +57,16 @@ struct timer_list mcfrs_timer_struct;
  *	keep going.  Perhaps one day the cflag settings for the
  *	console can be used instead.
  */
-#if defined(CONFIG_ARNEWSH) || defined(CONFIG_FREESCALE) || \
-    defined(CONFIG_senTec) || defined(CONFIG_SNEHA)
-#define	CONSOLE_BAUD_RATE	19200
-#define	DEFAULT_CBAUD		B19200
-#endif
-
 #if defined(CONFIG_HW_FEITH)
 #define	CONSOLE_BAUD_RATE	38400
 #define	DEFAULT_CBAUD		B38400
-#endif
-
-#if defined(CONFIG_MOD5272) || defined(CONFIG_M5208EVB)
+#elif defined(CONFIG_MOD5272) || defined(CONFIG_M5208EVB)
 #define CONSOLE_BAUD_RATE 	115200
 #define DEFAULT_CBAUD		B115200
+#elif defined(CONFIG_ARNEWSH) || defined(CONFIG_FREESCALE) || \
+      defined(CONFIG_senTec) || defined(CONFIG_SNEHA)
+#define	CONSOLE_BAUD_RATE	19200
+#define	DEFAULT_CBAUD		B19200
 #endif
 
 #ifndef CONSOLE_BAUD_RATE
@@ -350,8 +346,7 @@ static inline void receive_chars(struct mcf_serial *info)
 		}
 		tty_insert_flip_char(tty, ch, flag);
 	}
-
-	schedule_work(&tty->flip.work);
+	tty_schedule_flip(tty);
 	return;
 }
 

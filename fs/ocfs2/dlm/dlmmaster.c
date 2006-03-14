@@ -564,7 +564,7 @@ static void dlm_lockres_release(struct kref *kref)
 
 	/* By the time we're ready to blow this guy away, we shouldn't
 	 * be on any lists. */
-	BUG_ON(!list_empty(&res->list));
+	BUG_ON(!hlist_unhashed(&res->hash_node));
 	BUG_ON(!list_empty(&res->granted));
 	BUG_ON(!list_empty(&res->converting));
 	BUG_ON(!list_empty(&res->blocked));
@@ -605,7 +605,7 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 
 	init_waitqueue_head(&res->wq);
 	spin_lock_init(&res->spinlock);
-	INIT_LIST_HEAD(&res->list);
+	INIT_HLIST_NODE(&res->hash_node);
 	INIT_LIST_HEAD(&res->granted);
 	INIT_LIST_HEAD(&res->converting);
 	INIT_LIST_HEAD(&res->blocked);
@@ -1050,17 +1050,10 @@ static int dlm_restart_lock_mastery(struct dlm_ctxt *dlm,
 	node = dlm_bitmap_diff_iter_next(&bdi, &sc);
 	while (node >= 0) {
 		if (sc == NODE_UP) {
-			/* a node came up.  easy.  might not even need
-			 * to talk to it if its node number is higher
-			 * or if we are already blocked. */
-			mlog(0, "node up! %d\n", node);
-			if (blocked)
-				goto next;
-
-			if (node > dlm->node_num) {
-				mlog(0, "node > this node. skipping.\n");
-				goto next;
-			}
+			/* a node came up.  clear any old vote from
+			 * the response map and set it in the vote map
+			 * then restart the mastery. */
+			mlog(ML_NOTICE, "node %d up while restarting\n", node);
 
 			/* redo the master request, but only for the new node */
 			mlog(0, "sending request to new node\n");
@@ -2005,6 +1998,15 @@ fail:
 				break;
 
 			mlog(0, "timed out during migration\n");
+			/* avoid hang during shutdown when migrating lockres 
+			 * to a node which also goes down */
+			if (dlm_is_node_dead(dlm, target)) {
+				mlog(0, "%s:%.*s: expected migration target %u "
+				     "is no longer up.  restarting.\n",
+				     dlm->name, res->lockname.len,
+				     res->lockname.name, target);
+				ret = -ERESTARTSYS;
+			}
 		}
 		if (ret == -ERESTARTSYS) {
 			/* migration failed, detach and clean up mle */
@@ -2480,7 +2482,9 @@ top:
 				atomic_set(&mle->woken, 1);
 				spin_unlock(&mle->spinlock);
 				wake_up(&mle->wq);
-				/* final put will take care of list removal */
+				/* do not need events any longer, so detach 
+				 * from heartbeat */
+				__dlm_mle_detach_hb_events(dlm, mle);
 				__dlm_put_mle(mle);
 			}
 			continue;
@@ -2534,6 +2538,9 @@ top:
 			dlm_move_lockres_to_recovery_list(dlm, res);
 			spin_unlock(&res->spinlock);
 			dlm_lockres_put(res);
+
+			/* about to get rid of mle, detach from heartbeat */
+			__dlm_mle_detach_hb_events(dlm, mle);
 
 			/* dump the mle */
 			spin_lock(&dlm->master_lock);

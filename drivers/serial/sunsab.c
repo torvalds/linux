@@ -1036,7 +1036,7 @@ static void __init sab_attach_callback(struct linux_ebus_device *edev, void *arg
 		up->port.irq = edev->irqs[0];
 		up->port.fifosize = SAB82532_XMIT_FIFO_SIZE;
 		up->port.mapbase = (unsigned long)up->regs;
-		up->port.iotype = SERIAL_IO_MEM;
+		up->port.iotype = UPIO_MEM;
 
 		writeb(SAB82532_IPC_IC_ACT_LOW, &up->regs->w.ipc);
 

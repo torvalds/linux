@@ -202,10 +202,15 @@ void i915_driver_irq_postinstall(drm_device_t * dev)
 void i915_driver_irq_uninstall(drm_device_t * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u16 temp;
+
 	if (!dev_priv)
 		return;
 
 	I915_WRITE16(I915REG_HWSTAM, 0xffff);
 	I915_WRITE16(I915REG_INT_MASK_R, 0xffff);
 	I915_WRITE16(I915REG_INT_ENABLE_R, 0x0);
+
+	temp = I915_READ16(I915REG_INT_IDENTITY_R);
+	I915_WRITE16(I915REG_INT_IDENTITY_R, temp);
 }

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005 by Ralf Baechle
+ * Copyright (C) 2005, 06 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2005 MIPS Technologies, Inc.
  */
 #ifndef _ASM_ABI_H
@@ -13,7 +13,7 @@
 #include <asm/siginfo.h>
 
 struct mips_abi {
-	int (* const do_signal)(sigset_t *oldset, struct pt_regs *regs);
+	void (* const do_signal)(struct pt_regs *regs);
 	int (* const setup_frame)(struct k_sigaction * ka,
 	                          struct pt_regs *regs, int signr,
 	                          sigset_t *set);

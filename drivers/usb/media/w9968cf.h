@@ -195,7 +195,6 @@ enum w9968cf_vpp_flag {
 };
 
 static struct w9968cf_vpp_t* w9968cf_vpp;
-static DECLARE_MUTEX(w9968cf_vppmod_lock);
 static DECLARE_WAIT_QUEUE_HEAD(w9968cf_vppmod_wait);
 
 static LIST_HEAD(w9968cf_dev_list); /* head of V4L registered cameras list */

@@ -64,3 +64,14 @@
 /* Nokia CA-42 Cable */
 #define NOKIA_CA42_VENDOR_ID	0x078b
 #define NOKIA_CA42_PRODUCT_ID	0x1234
+
+/* CA-42 CLONE Cable www.ca-42.com chipset: Prolific Technology Inc */
+#define CA_42_CA42_VENDOR_ID	0x10b5
+#define CA_42_CA42_PRODUCT_ID	0xac70
+
+#define SAGEM_VENDOR_ID		0x079b
+#define SAGEM_PRODUCT_ID	0x0027
+
+/* Leadtek GPS 9531 (ID 0413:2101) */
+#define LEADTEK_VENDOR_ID	0x0413
+#define LEADTEK_9531_PRODUCT_ID	0x2101

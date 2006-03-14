@@ -31,6 +31,7 @@ struct dm_io {
 	int error;
 	struct bio *bio;
 	atomic_t io_count;
+	unsigned long start_time;
 };
 
 /*
@@ -244,6 +245,36 @@ static inline void free_tio(struct mapped_device *md, struct target_io *tio)
 	mempool_free(tio, md->tio_pool);
 }
 
+static void start_io_acct(struct dm_io *io)
+{
+	struct mapped_device *md = io->md;
+
+	io->start_time = jiffies;
+
+	preempt_disable();
+	disk_round_stats(dm_disk(md));
+	preempt_enable();
+	dm_disk(md)->in_flight = atomic_inc_return(&md->pending);
+}
+
+static int end_io_acct(struct dm_io *io)
+{
+	struct mapped_device *md = io->md;
+	struct bio *bio = io->bio;
+	unsigned long duration = jiffies - io->start_time;
+	int pending;
+	int rw = bio_data_dir(bio);
+
+	preempt_disable();
+	disk_round_stats(dm_disk(md));
+	preempt_enable();
+	dm_disk(md)->in_flight = pending = atomic_dec_return(&md->pending);
+
+	disk_stat_add(dm_disk(md), ticks[rw], duration);
+
+	return !pending;
+}
+
 /*
  * Add the bio to the list of deferred io.
  */
@@ -299,7 +330,7 @@ static void dec_pending(struct dm_io *io, int error)
 		io->error = error;
 
 	if (atomic_dec_and_test(&io->io_count)) {
-		if (atomic_dec_and_test(&io->md->pending))
+		if (end_io_acct(io))
 			/* nudge anyone waiting on suspend queue */
 			wake_up(&io->md->wait);
 
@@ -554,7 +585,7 @@ static void __split_bio(struct mapped_device *md, struct bio *bio)
 	ci.sector_count = bio_sectors(bio);
 	ci.idx = bio->bi_idx;
 
-	atomic_inc(&md->pending);
+	start_io_acct(ci.io);
 	while (ci.sector_count)
 		__clone_and_map(&ci);
 
@@ -573,9 +604,13 @@ static void __split_bio(struct mapped_device *md, struct bio *bio)
 static int dm_request(request_queue_t *q, struct bio *bio)
 {
 	int r;
+	int rw = bio_data_dir(bio);
 	struct mapped_device *md = q->queuedata;
 
 	down_read(&md->io_lock);
+
+	disk_stat_inc(dm_disk(md), ios[rw]);
+	disk_stat_add(dm_disk(md), sectors[rw], bio_sectors(bio));
 
 	/*
 	 * If we're suspended we have to queue
@@ -814,10 +849,16 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 
 static void free_dev(struct mapped_device *md)
 {
-	free_minor(md->disk->first_minor);
+	unsigned int minor = md->disk->first_minor;
+
+	if (md->suspended_bdev) {
+		thaw_bdev(md->suspended_bdev, NULL);
+		bdput(md->suspended_bdev);
+	}
 	mempool_destroy(md->tio_pool);
 	mempool_destroy(md->io_pool);
 	del_gendisk(md->disk);
+	free_minor(minor);
 	put_disk(md->disk);
 	blk_put_queue(md->queue);
 	kfree(md);

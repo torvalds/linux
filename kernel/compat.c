@@ -23,7 +23,6 @@
 #include <linux/security.h>
 
 #include <asm/uaccess.h>
-#include <asm/bug.h>
 
 int get_compat_timespec(struct timespec *ts, const struct compat_timespec __user *cts)
 {

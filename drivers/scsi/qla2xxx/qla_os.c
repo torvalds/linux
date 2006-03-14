@@ -366,6 +366,12 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 		goto qc_fail_command;
 	}
 
+	/* Close window on fcport/rport state-transitioning. */
+	if (!*(fc_port_t **)rport->dd_data) {
+		cmd->result = DID_IMM_RETRY << 16;
+		goto qc_fail_command;
+	}
+
 	if (atomic_read(&fcport->state) != FCS_ONLINE) {
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD ||
 		    atomic_read(&ha->loop_state) == LOOP_DEAD) {
@@ -418,6 +424,12 @@ qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
 		cmd->result = rval;
+		goto qc24_fail_command;
+	}
+
+	/* Close window on fcport/rport state-transitioning. */
+	if (!*(fc_port_t **)rport->dd_data) {
+		cmd->result = DID_IMM_RETRY << 16;
 		goto qc24_fail_command;
 	}
 
@@ -513,7 +525,7 @@ qla2x00_eh_wait_on_command(scsi_qla_host_t *ha, struct scsi_cmnd *cmd)
  *    Success (Adapter is online) : 0
  *    Failed  (Adapter is offline/disabled) : 1
  */
-static int
+int
 qla2x00_wait_for_hba_online(scsi_qla_host_t *ha)
 {
 	int		return_status;
@@ -756,7 +768,7 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 		if (ret == SUCCESS) {
 			if (fcport->flags & FC_FABRIC_DEVICE) {
 				ha->isp_ops.fabric_logout(ha, fcport->loop_id);
-				qla2x00_mark_device_lost(ha, fcport);
+				qla2x00_mark_device_lost(ha, fcport, 0, 0);
 			}
 		}
 #endif
@@ -1312,6 +1324,8 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->ports = MAX_BUSES;
 	ha->init_cb_size = sizeof(init_cb_t);
 	ha->mgmt_svr_loop_id = MANAGEMENT_SERVER;
+	ha->link_data_rate = LDR_UNKNOWN;
+	ha->optrom_size = OPTROM_SIZE_2300;
 
 	/* Assign ISP specific operations. */
 	ha->isp_ops.pci_config		= qla2100_pci_config;
@@ -1339,6 +1353,8 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 	ha->isp_ops.write_nvram		= qla2x00_write_nvram_data;
 	ha->isp_ops.fw_dump		= qla2100_fw_dump;
 	ha->isp_ops.ascii_fw_dump	= qla2100_ascii_fw_dump;
+	ha->isp_ops.read_optrom		= qla2x00_read_optrom_data;
+	ha->isp_ops.write_optrom	= qla2x00_write_optrom_data;
 	if (IS_QLA2100(ha)) {
 		host->max_id = MAX_TARGETS_2100;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT_2100;
@@ -1364,7 +1380,12 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->isp_ops.intr_handler = qla2300_intr_handler;
 		ha->isp_ops.fw_dump = qla2300_fw_dump;
 		ha->isp_ops.ascii_fw_dump = qla2300_ascii_fw_dump;
+		ha->isp_ops.beacon_on = qla2x00_beacon_on;
+		ha->isp_ops.beacon_off = qla2x00_beacon_off;
+		ha->isp_ops.beacon_blink = qla2x00_beacon_blink;
 		ha->gid_list_info_size = 6;
+		if (IS_QLA2322(ha) || IS_QLA6322(ha))
+			ha->optrom_size = OPTROM_SIZE_2322;
 	} else if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
 		host->max_id = MAX_TARGETS_2200;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
@@ -1400,7 +1421,13 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->isp_ops.write_nvram = qla24xx_write_nvram_data;
 		ha->isp_ops.fw_dump = qla24xx_fw_dump;
 		ha->isp_ops.ascii_fw_dump = qla24xx_ascii_fw_dump;
+		ha->isp_ops.read_optrom	= qla24xx_read_optrom_data;
+		ha->isp_ops.write_optrom = qla24xx_write_optrom_data;
+		ha->isp_ops.beacon_on = qla24xx_beacon_on;
+		ha->isp_ops.beacon_off = qla24xx_beacon_off;
+		ha->isp_ops.beacon_blink = qla24xx_beacon_blink;
 		ha->gid_list_info_size = 8;
+		ha->optrom_size = OPTROM_SIZE_24XX;
 	}
 	host->can_queue = ha->request_q_length + 128;
 
@@ -1642,6 +1669,33 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 	pci_disable_device(ha->pdev);
 }
 
+static inline void
+qla2x00_schedule_rport_del(struct scsi_qla_host *ha, fc_port_t *fcport,
+    int defer)
+{
+	unsigned long flags;
+	struct fc_rport *rport;
+
+	if (!fcport->rport)
+		return;
+
+	rport = fcport->rport;
+	if (defer) {
+		spin_lock_irqsave(&fcport->rport_lock, flags);
+		fcport->drport = rport;
+		fcport->rport = NULL;
+		*(fc_port_t **)rport->dd_data = NULL;
+		spin_unlock_irqrestore(&fcport->rport_lock, flags);
+		set_bit(FCPORT_UPDATE_NEEDED, &ha->dpc_flags);
+	} else {
+		spin_lock_irqsave(&fcport->rport_lock, flags);
+		fcport->rport = NULL;
+		*(fc_port_t **)rport->dd_data = NULL;
+		spin_unlock_irqrestore(&fcport->rport_lock, flags);
+		fc_remote_port_delete(rport);
+	}
+}
+
 /*
  * qla2x00_mark_device_lost Updates fcport state when device goes offline.
  *
@@ -1652,10 +1706,10 @@ qla2x00_free_device(scsi_qla_host_t *ha)
  * Context:
  */
 void qla2x00_mark_device_lost(scsi_qla_host_t *ha, fc_port_t *fcport,
-    int do_login)
+    int do_login, int defer)
 {
-	if (atomic_read(&fcport->state) == FCS_ONLINE && fcport->rport)
-		schedule_work(&fcport->rport_del_work);
+	if (atomic_read(&fcport->state) == FCS_ONLINE)
+		qla2x00_schedule_rport_del(ha, fcport, defer);
 
 	/*
 	 * We may need to retry the login, so don't change the state of the
@@ -1702,7 +1756,7 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *ha, fc_port_t *fcport,
  * Context:
  */
 void
-qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha)
+qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha, int defer)
 {
 	fc_port_t *fcport;
 
@@ -1716,10 +1770,13 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha)
 		 */
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD)
 			continue;
-		if (atomic_read(&fcport->state) == FCS_ONLINE && fcport->rport)
-			schedule_work(&fcport->rport_del_work);
+		if (atomic_read(&fcport->state) == FCS_ONLINE)
+			qla2x00_schedule_rport_del(ha, fcport, defer);
 		atomic_set(&fcport->state, FCS_DEVICE_LOST);
 	}
+
+	if (defer && ha->dpc_wait && !ha->dpc_active)
+		up(ha->dpc_wait);
 }
 
 /*
@@ -2038,6 +2095,8 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 	ha->fw_dumped = 0;
 	ha->fw_dump_reading = 0;
 	ha->fw_dump_buffer = NULL;
+
+	vfree(ha->optrom_buffer);
 }
 
 /*
@@ -2161,6 +2220,9 @@ qla2x00_do_dpc(void *data)
 			    ha->host_no));
 		}
 
+		if (test_and_clear_bit(FCPORT_UPDATE_NEEDED, &ha->dpc_flags))
+			qla2x00_update_fcports(ha);
+
 		if (test_and_clear_bit(LOOP_RESET_NEEDED, &ha->dpc_flags)) {
 			DEBUG(printk("scsi(%ld): dpc: sched loop_reset()\n",
 			    ha->host_no));
@@ -2219,13 +2281,8 @@ qla2x00_do_dpc(void *data)
 						DEBUG(printk("scsi(%ld): port login OK: logged in ID 0x%x\n",
 						    ha->host_no, fcport->loop_id));
 
-						fcport->port_login_retry_count =
-						    ha->port_down_retry_count * PORT_RETRY_TIME;
-						atomic_set(&fcport->state, FCS_ONLINE);
-						atomic_set(&fcport->port_down_timer,
-						    ha->port_down_retry_count * PORT_RETRY_TIME);
-
-						fcport->login_retry = 0;
+						qla2x00_update_fcport(ha,
+						    fcport);
 					} else if (status == 1) {
 						set_bit(RELOGIN_NEEDED, &ha->dpc_flags);
 						/* retry the login again */
@@ -2287,6 +2344,9 @@ qla2x00_do_dpc(void *data)
 
 		if (!ha->interrupts_on)
 			ha->isp_ops.enable_intrs(ha);
+
+		if (test_and_clear_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags))
+			ha->isp_ops.beacon_blink(ha);
 
 		ha->dpc_active = 0;
 	} /* End of while(1) */
@@ -2465,13 +2525,21 @@ qla2x00_timer(scsi_qla_host_t *ha)
 		    atomic_read(&ha->loop_down_timer)));
 	}
 
+	/* Check if beacon LED needs to be blinked */
+	if (ha->beacon_blink_led == 1) {
+		set_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags);
+		start_dpc++;
+	}
+
 	/* Schedule the DPC routine if needed */
 	if ((test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) ||
 	    test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) ||
 	    test_bit(LOOP_RESET_NEEDED, &ha->dpc_flags) ||
+	    test_bit(FCPORT_UPDATE_NEEDED, &ha->dpc_flags) ||
 	    start_dpc ||
 	    test_bit(LOGIN_RETRY_NEEDED, &ha->dpc_flags) ||
 	    test_bit(RESET_MARKER_NEEDED, &ha->dpc_flags) ||
+	    test_bit(BEACON_BLINK_NEEDED, &ha->dpc_flags) ||
 	    test_bit(RELOGIN_NEEDED, &ha->dpc_flags)) &&
 	    ha->dpc_wait && !ha->dpc_active) {
 

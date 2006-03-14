@@ -72,7 +72,7 @@ static struct configfs_dirent *configfs_new_dirent(struct configfs_dirent * pare
 {
 	struct configfs_dirent * sd;
 
-	sd = kmalloc(sizeof(*sd), GFP_KERNEL);
+	sd = kmem_cache_alloc(configfs_dir_cachep, GFP_KERNEL);
 	if (!sd)
 		return NULL;
 
@@ -136,13 +136,19 @@ static int create_dir(struct config_item * k, struct dentry * p,
 	int error;
 	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
 
-	error = configfs_create(d, mode, init_dir);
+	error = configfs_make_dirent(p->d_fsdata, d, k, mode,
+				     CONFIGFS_DIR);
 	if (!error) {
-		error = configfs_make_dirent(p->d_fsdata, d, k, mode,
-					   CONFIGFS_DIR);
+		error = configfs_create(d, mode, init_dir);
 		if (!error) {
 			p->d_inode->i_nlink++;
 			(d)->d_op = &configfs_dentry_ops;
+		} else {
+			struct configfs_dirent *sd = d->d_fsdata;
+			if (sd) {
+				list_del_init(&sd->s_sibling);
+				configfs_put(sd);
+			}
 		}
 	}
 	return error;
@@ -182,12 +188,19 @@ int configfs_create_link(struct configfs_symlink *sl,
 	int err = 0;
 	umode_t mode = S_IFLNK | S_IRWXUGO;
 
-	err = configfs_create(dentry, mode, init_symlink);
+	err = configfs_make_dirent(parent->d_fsdata, dentry, sl, mode,
+				   CONFIGFS_ITEM_LINK);
 	if (!err) {
-		err = configfs_make_dirent(parent->d_fsdata, dentry, sl,
-					 mode, CONFIGFS_ITEM_LINK);
+		err = configfs_create(dentry, mode, init_symlink);
 		if (!err)
 			dentry->d_op = &configfs_dentry_ops;
+		else {
+			struct configfs_dirent *sd = dentry->d_fsdata;
+			if (sd) {
+				list_del_init(&sd->s_sibling);
+				configfs_put(sd);
+			}
+		}
 	}
 	return err;
 }
@@ -241,13 +254,15 @@ static int configfs_attach_attr(struct configfs_dirent * sd, struct dentry * den
 	struct configfs_attribute * attr = sd->s_element;
 	int error;
 
-	error = configfs_create(dentry, (attr->ca_mode & S_IALLUGO) | S_IFREG, init_file);
-	if (error)
-		return error;
-
-	dentry->d_op = &configfs_dentry_ops;
 	dentry->d_fsdata = configfs_get(sd);
 	sd->s_dentry = dentry;
+	error = configfs_create(dentry, (attr->ca_mode & S_IALLUGO) | S_IFREG, init_file);
+	if (error) {
+		configfs_put(sd);
+		return error;
+	}
+
+	dentry->d_op = &configfs_dentry_ops;
 	d_rehash(dentry);
 
 	return 0;
@@ -839,6 +854,7 @@ struct inode_operations configfs_dir_inode_operations = {
 	.symlink	= configfs_symlink,
 	.unlink		= configfs_unlink,
 	.lookup		= configfs_lookup,
+	.setattr	= configfs_setattr,
 };
 
 #if 0

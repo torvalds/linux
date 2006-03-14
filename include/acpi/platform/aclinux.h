@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,6 +71,10 @@
 #define acpi_cache_t	kmem_cache_t
 #endif
 
+/* Full namespace pathname length limit - arbitrary */
+
+#define ACPI_PATHNAME_MAX              256
+
 #else				/* !__KERNEL__ */
 
 #include <stdarg.h>
@@ -97,5 +101,7 @@
 /* Linux uses GCC */
 
 #include "acgcc.h"
+
+#define acpi_cpu_flags unsigned long
 
 #endif				/* __ACLINUX_H__ */

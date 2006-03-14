@@ -1039,10 +1039,10 @@ MODULE_DEVICE_TABLE(pci, e752x_pci_tbl);
 
 
 static struct pci_driver e752x_driver = {
-      name: BS_MOD_STR,
-      probe: e752x_init_one,
-      remove: __devexit_p(e752x_remove_one),
-      id_table: e752x_pci_tbl,
+	.name = BS_MOD_STR,
+	.probe = e752x_init_one,
+	.remove = __devexit_p(e752x_remove_one),
+	.id_table = e752x_pci_tbl,
 };
 
 

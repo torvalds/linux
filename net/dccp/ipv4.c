@@ -119,7 +119,8 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (err != 0)
 		goto failure;
 
-	err = ip_route_newports(&rt, inet->sport, inet->dport, sk);
+	err = ip_route_newports(&rt, IPPROTO_DCCP, inet->sport, inet->dport,
+	                        sk);
 	if (err != 0)
 		goto failure;
 

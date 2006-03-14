@@ -9,7 +9,6 @@
  *
  * /proc interface for the dasd driver.
  *
- * $Revision: 1.33 $
  */
 
 #include <linux/config.h>
@@ -93,6 +92,9 @@ dasd_devices_show(struct seq_file *m, void *v)
 		break;
 	case DASD_STATE_BASIC:
 		seq_printf(m, "basic");
+		break;
+	case DASD_STATE_UNFMT:
+		seq_printf(m, "unformatted");
 		break;
 	case DASD_STATE_READY:
 	case DASD_STATE_ONLINE:

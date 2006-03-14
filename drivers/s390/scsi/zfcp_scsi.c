@@ -31,8 +31,6 @@
 
 #define ZFCP_LOG_AREA			ZFCP_LOG_AREA_SCSI
 
-#define ZFCP_SCSI_REVISION "$Revision: 1.74 $"
-
 #include "zfcp_ext.h"
 
 static void zfcp_scsi_slave_destroy(struct scsi_device *sdp);
@@ -70,7 +68,7 @@ struct zfcp_data zfcp_data = {
 	      eh_host_reset_handler:   zfcp_scsi_eh_host_reset_handler,
 			               /* FIXME(openfcp): Tune */
 	      can_queue:               4096,
-	      this_id:	               0,
+	      this_id:	               -1,
 	      /*
 	       * FIXME:
 	       * one less? can zfcp_create_sbale cope with it?
@@ -185,7 +183,8 @@ zfcp_scsi_slave_alloc(struct scsi_device *sdp)
 
 	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	unit = zfcp_unit_lookup(adapter, sdp->channel, sdp->id, sdp->lun);
-	if (unit) {
+	if (unit && atomic_test_mask(ZFCP_STATUS_UNIT_REGISTERED,
+				     &unit->status)) {
 		sdp->hostdata = unit;
 		unit->device = sdp;
 		zfcp_unit_get(unit);
@@ -210,6 +209,7 @@ zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 
 	if (unit) {
+		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
 		sdpnt->hostdata = NULL;
 		unit->device = NULL;
 		zfcp_unit_put(unit);
@@ -244,7 +244,7 @@ zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
 	if ((scpnt->device != NULL) && (scpnt->device->host != NULL))
 		zfcp_scsi_dbf_event_result("fail", 4,
 			(struct zfcp_adapter*) scpnt->device->host->hostdata[0],
-			scpnt);
+			scpnt, NULL);
 	/* return directly */
 	scpnt->scsi_done(scpnt);
 }
@@ -293,7 +293,7 @@ zfcp_scsi_command_async(struct zfcp_adapter *adapter, struct zfcp_unit *unit,
 			       "on port 0x%016Lx in recovery\n",
 			       zfcp_get_busid_by_unit(unit),
 			       unit->fcp_lun, unit->port->wwpn);
-		retval = SCSI_MLQUEUE_DEVICE_BUSY;
+		zfcp_scsi_command_fail(scpnt, DID_NO_CONNECT);
 		goto out;
 	}
 
@@ -448,7 +448,7 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	old_fsf_req = (struct zfcp_fsf_req *) scpnt->host_scribble;
 	if (!old_fsf_req) {
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
-		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, new_fsf_req);
+		zfcp_scsi_dbf_event_abort("lte1", adapter, scpnt, NULL, NULL);
 		retval = SUCCESS;
 		goto out;
 	}
@@ -462,6 +462,8 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 						 adapter, unit, 0);
 	if (!new_fsf_req) {
 		ZFCP_LOG_INFO("error: initiation of Abort FCP Cmnd failed\n");
+		zfcp_scsi_dbf_event_abort("nres", adapter, scpnt, NULL,
+					  old_fsf_req);
 		retval = FAILED;
 		goto out;
 	}
@@ -472,13 +474,16 @@ zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 
 	/* status should be valid since signals were not permitted */
 	if (new_fsf_req->status & ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED) {
-		zfcp_scsi_dbf_event_abort("okay", adapter, scpnt, new_fsf_req);
+		zfcp_scsi_dbf_event_abort("okay", adapter, scpnt, new_fsf_req,
+					  NULL);
 		retval = SUCCESS;
 	} else if (new_fsf_req->status & ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED) {
-		zfcp_scsi_dbf_event_abort("lte2", adapter, scpnt, new_fsf_req);
+		zfcp_scsi_dbf_event_abort("lte2", adapter, scpnt, new_fsf_req,
+					  NULL);
 		retval = SUCCESS;
 	} else {
-		zfcp_scsi_dbf_event_abort("fail", adapter, scpnt, new_fsf_req);
+		zfcp_scsi_dbf_event_abort("fail", adapter, scpnt, new_fsf_req,
+					  NULL);
 		retval = FAILED;
 	}
 	zfcp_fsf_req_free(new_fsf_req);

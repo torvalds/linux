@@ -1053,7 +1053,7 @@ static int fc_do_els(fc_channel *fc, unsigned int alpa, void *data, int len)
 	int i;
 
 	fcmd = &_fcmd;
-	memset(fcmd, 0, sizeof(fcmd));
+	memset(fcmd, 0, sizeof(fcp_cmnd));
 	FCD(("PLOGI SID %d DID %d\n", fc->sid, alpa))
 	fch = &fcmd->fch;
 	FILL_FCHDR_RCTL_DID(fch, R_CTL_ELS_REQ, alpa);

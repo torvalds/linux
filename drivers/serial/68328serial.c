@@ -332,7 +332,7 @@ static _INLINE_ void receive_chars(struct m68k_serial *info, struct pt_regs *reg
 		 * Make sure that we do not overflow the buffer
 		 */
 		if (tty_request_buffer_room(tty, 1) == 0) {
-			schedule_work(&tty->flip.work);
+			tty_schedule_flip(tty);
 			return;
 		}
 
@@ -353,7 +353,7 @@ static _INLINE_ void receive_chars(struct m68k_serial *info, struct pt_regs *reg
 	} while((rx = uart->urx.w) & URX_DATA_READY);
 #endif
 
-	schedule_work(&tty->flip.work);
+	tty_schedule_flip(tty);
 
 clear_and_exit:
 	return;

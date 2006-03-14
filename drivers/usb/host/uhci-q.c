@@ -672,9 +672,9 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 	/* Low-speed transfers get a different queue, and won't hog the bus.
 	 * Also, some devices enumerate better without FSBR; the easiest way
 	 * to do that is to put URBs on the low-speed queue while the device
-	 * is in the DEFAULT state. */
+	 * isn't in the CONFIGURED state. */
 	if (urb->dev->speed == USB_SPEED_LOW ||
-			urb->dev->state == USB_STATE_DEFAULT)
+			urb->dev->state != USB_STATE_CONFIGURED)
 		skelqh = uhci->skel_ls_control_qh;
 	else {
 		skelqh = uhci->skel_fs_control_qh;

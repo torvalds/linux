@@ -8,8 +8,6 @@
  * any future changes wrt the API will result in a change of the APIVERSION reported
  * to userspace by the DASDAPIVER-ioctl
  *
- * $Revision: 1.6 $
- *
  */
 
 #ifndef DASD_H

@@ -599,8 +599,14 @@ __SYSCALL(__NR_readlinkat, sys_readlinkat)
 __SYSCALL(__NR_fchmodat, sys_fchmodat)
 #define __NR_faccessat		269
 __SYSCALL(__NR_faccessat, sys_faccessat)
+#define __NR_pselect6		270
+__SYSCALL(__NR_pselect6, sys_ni_syscall)	/* for now */
+#define __NR_ppoll		271
+__SYSCALL(__NR_ppoll,	sys_ni_syscall)		/* for now */
+#define __NR_unshare		272
+__SYSCALL(__NR_unshare,	sys_unshare)
 
-#define __NR_syscall_max __NR_faccessat
+#define __NR_syscall_max __NR_unshare
 
 #ifndef __NO_STUBS
 

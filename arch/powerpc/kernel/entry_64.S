@@ -160,7 +160,7 @@ syscall_exit:
 	mtmsrd	r10,1
 	ld	r9,TI_FLAGS(r12)
 	li	r11,-_LAST_ERRNO
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_SIGPENDING|_TIF_NEED_RESCHED|_TIF_RESTOREALL|_TIF_SAVE_NVGPRS|_TIF_NOERROR|_TIF_RESTORE_SIGMASK)
+	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_USER_WORK_MASK|_TIF_PERSYSCALL_MASK)
 	bne-	syscall_exit_work
 	cmpld	r3,r11
 	ld	r5,_CCR(r1)
@@ -216,8 +216,10 @@ syscall_exit_work:
 	 If TIF_NOERROR is set, just save r3 as it is. */
 
 	andi.	r0,r9,_TIF_RESTOREALL
-	bne-	2f
-	cmpld	r3,r11		/* r10 is -LAST_ERRNO */
+	beq+	0f
+	REST_NVGPRS(r1)
+	b	2f
+0:	cmpld	r3,r11		/* r10 is -LAST_ERRNO */
 	blt+	1f
 	andi.	r0,r9,_TIF_NOERROR
 	bne-	1f
@@ -229,9 +231,7 @@ syscall_exit_work:
 2:	andi.	r0,r9,(_TIF_PERSYSCALL_MASK)
 	beq	4f
 
-	/* Clear per-syscall TIF flags if any are set, but _leave_
-	_TIF_SAVE_NVGPRS set in r9 since we haven't dealt with that
-	yet.  */
+	/* Clear per-syscall TIF flags if any are set.  */
 
 	li	r11,_TIF_PERSYSCALL_MASK
 	addi	r12,r12,TI_FLAGS
@@ -240,10 +240,9 @@ syscall_exit_work:
 	stdcx.	r10,0,r12
 	bne-	3b
 	subi	r12,r12,TI_FLAGS
-	
-4:	bl	.save_nvgprs
-	/* Anything else left to do? */
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_SAVE_NVGPRS)
+
+4:	/* Anything else left to do? */
+	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
 	beq	.ret_from_except_lite
 
 	/* Re-enable interrupts */
@@ -251,26 +250,10 @@ syscall_exit_work:
 	ori	r10,r10,MSR_EE
 	mtmsrd	r10,1
 
-	andi.	r0,r9,_TIF_SAVE_NVGPRS
-	bne	save_user_nvgprs
-
-	/* If tracing, re-enable interrupts and do it */
-save_user_nvgprs_cont:	
-	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP)
-	beq	5f
-	
+	bl	.save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_syscall_trace_leave
-	REST_NVGPRS(r1)
-	clrrdi	r12,r1,THREAD_SHIFT
-
-	/* Disable interrupts again and handle other work if any */
-5:	mfmsr	r10
-	rldicl	r10,r10,48,1
-	rotldi	r10,r10,16
-	mtmsrd	r10,1
-
-	b	.ret_from_except_lite
+	b	.ret_from_except
 
 /* Save non-volatile GPRs, if not already saved. */
 _GLOBAL(save_nvgprs)
@@ -282,51 +265,6 @@ _GLOBAL(save_nvgprs)
 	std	r0,_TRAP(r1)
 	blr
 
-
-save_user_nvgprs:
-	ld	r10,TI_SIGFRAME(r12)
-	andi.	r0,r9,_TIF_32BIT
-	beq-	save_user_nvgprs_64
-
-	/* 32-bit save to userspace */
-
-.macro savewords start, end
-  1:	stw \start,4*(\start)(r10)
-	.section __ex_table,"a"
-	.align	3
-	.llong	1b,save_user_nvgprs_fault
-	.previous
-	.if \end - \start
-	savewords "(\start+1)",\end
-	.endif
-.endm	
-	savewords 14,31
-	b	save_user_nvgprs_cont
-
-save_user_nvgprs_64:
-	/* 64-bit save to userspace */
-
-.macro savelongs start, end
-  1:	std \start,8*(\start)(r10)
-	.section __ex_table,"a"
-	.align	3
-	.llong	1b,save_user_nvgprs_fault
-	.previous
-	.if \end - \start
-	savelongs "(\start+1)",\end
-	.endif
-.endm	
-	savelongs 14,31
-	b	save_user_nvgprs_cont
-
-save_user_nvgprs_fault:
-	li	r3,11		/* SIGSEGV */
-	ld	r4,TI_TASK(r12)
-	bl	.force_sigsegv
-
-	clrrdi	r12,r1,THREAD_SHIFT
-	ld	r9,TI_FLAGS(r12)
-	b	save_user_nvgprs_cont
 	
 /*
  * The sigsuspend and rt_sigsuspend system calls can call do_signal
@@ -350,6 +288,16 @@ _GLOBAL(ppc_vfork)
 _GLOBAL(ppc_clone)
 	bl	.save_nvgprs
 	bl	.sys_clone
+	b	syscall_exit
+
+_GLOBAL(ppc32_swapcontext)
+	bl	.save_nvgprs
+	bl	.compat_sys_swapcontext
+	b	syscall_exit
+
+_GLOBAL(ppc64_swapcontext)
+	bl	.save_nvgprs
+	bl	.sys_swapcontext
 	b	syscall_exit
 
 _GLOBAL(ret_from_fork)

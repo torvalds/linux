@@ -57,7 +57,7 @@ struct ifb_private {
 	struct sk_buff_head     tq;
 };
 
-static int numifbs = 1;
+static int numifbs = 2;
 
 static void ri_tasklet(unsigned long dev);
 static int ifb_xmit(struct sk_buff *skb, struct net_device *dev);

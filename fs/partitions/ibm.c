@@ -52,6 +52,7 @@ int
 ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 {
 	int blocksize, offset, size;
+	loff_t i_size;
 	dasd_information_t *info;
 	struct hd_geometry *geo;
 	char type[5] = {0,};
@@ -63,6 +64,13 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 	unsigned char *data;
 	Sector sect;
 
+	blocksize = bdev_hardsect_size(bdev);
+	if (blocksize <= 0)
+		return 0;
+	i_size = i_size_read(bdev->bd_inode);
+	if (i_size == 0)
+		return 0;
+
 	if ((info = kmalloc(sizeof(dasd_information_t), GFP_KERNEL)) == NULL)
 		goto out_noinfo;
 	if ((geo = kmalloc(sizeof(struct hd_geometry), GFP_KERNEL)) == NULL)
@@ -73,9 +81,6 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 	if (ioctl_by_bdev(bdev, BIODASDINFO, (unsigned long)info) != 0 ||
 	    ioctl_by_bdev(bdev, HDIO_GETGEO, (unsigned long)geo) != 0)
 		goto out_noioctl;
-	
-	if ((blocksize = bdev_hardsect_size(bdev)) <= 0)
-		goto out_badsect;
 
 	/*
 	 * Get volume label, extract name and type.
@@ -111,7 +116,7 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 		} else {
 			printk("CMS1/%8s:", name);
 			offset = (info->label_block + 1);
-			size = bdev->bd_inode->i_size >> 9;
+			size = i_size >> 9;
 		}
 		put_partition(state, 1, offset*(blocksize >> 9),
 				 size-offset*(blocksize >> 9));
@@ -168,7 +173,7 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 		else
 			printk("(nonl)/%8s:", name);
 		offset = (info->label_block + 1);
-		size = (bdev->bd_inode->i_size >> 9);
+		size = i_size >> 9;
 		put_partition(state, 1, offset*(blocksize >> 9),
 				 size-offset*(blocksize >> 9));
 	}
@@ -180,7 +185,6 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 	return 1;
 	
 out_readerr:
-out_badsect:
 out_noioctl:
 	kfree(label);
 out_nolab:

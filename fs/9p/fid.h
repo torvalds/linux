@@ -33,7 +33,6 @@ struct v9fs_fid {
 
 	u32 fid;
 	unsigned char fidopen;	  /* set when fid is opened */
-	unsigned char fidcreate;  /* set when fid was just created */
 	unsigned char fidclunked; /* set when fid has already been clunked */
 
 	struct v9fs_qid qid;
@@ -45,7 +44,6 @@ struct v9fs_fid {
 	struct v9fs_fcall *rdir_fcall;
 
 	/* management stuff */
-	pid_t pid;		/* thread associated with this fid */
 	uid_t uid;		/* user associated with this fid */
 
 	/* private data */
@@ -56,5 +54,5 @@ struct v9fs_fid {
 struct v9fs_fid *v9fs_fid_lookup(struct dentry *dentry);
 struct v9fs_fid *v9fs_fid_get_created(struct dentry *);
 void v9fs_fid_destroy(struct v9fs_fid *fid);
-struct v9fs_fid *v9fs_fid_create(struct dentry *,
-	struct v9fs_session_info *v9ses, int fid, int create);
+struct v9fs_fid *v9fs_fid_create(struct v9fs_session_info *, int fid);
+int v9fs_fid_insert(struct v9fs_fid *fid, struct dentry *dentry);

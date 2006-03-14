@@ -34,19 +34,22 @@
 /* How many pages do we try to swap or page in/out together? */
 int page_cluster;
 
+static void put_compound_page(struct page *page)
+{
+	page = (struct page *)page_private(page);
+	if (put_page_testzero(page)) {
+		void (*dtor)(struct page *page);
+
+		dtor = (void (*)(struct page *))page[1].lru.next;
+		(*dtor)(page);
+	}
+}
+
 void put_page(struct page *page)
 {
-	if (unlikely(PageCompound(page))) {
-		page = (struct page *)page_private(page);
-		if (put_page_testzero(page)) {
-			void (*dtor)(struct page *page);
-
-			dtor = (void (*)(struct page *))page[1].mapping;
-			(*dtor)(page);
-		}
-		return;
-	}
-	if (put_page_testzero(page))
+	if (unlikely(PageCompound(page)))
+		put_compound_page(page);
+	else if (put_page_testzero(page))
 		__page_cache_release(page);
 }
 EXPORT_SYMBOL(put_page);
@@ -243,6 +246,15 @@ void release_pages(struct page **pages, int nr, int cold)
 	for (i = 0; i < nr; i++) {
 		struct page *page = pages[i];
 		struct zone *pagezone;
+
+		if (unlikely(PageCompound(page))) {
+			if (zone) {
+				spin_unlock_irq(&zone->lru_lock);
+				zone = NULL;
+			}
+			put_compound_page(page);
+			continue;
+		}
 
 		if (!put_page_testzero(page))
 			continue;
@@ -477,13 +489,34 @@ void percpu_counter_mod(struct percpu_counter *fbc, long amount)
 	if (count >= FBC_BATCH || count <= -FBC_BATCH) {
 		spin_lock(&fbc->lock);
 		fbc->count += count;
+		*pcount = 0;
 		spin_unlock(&fbc->lock);
-		count = 0;
+	} else {
+		*pcount = count;
 	}
-	*pcount = count;
 	put_cpu();
 }
 EXPORT_SYMBOL(percpu_counter_mod);
+
+/*
+ * Add up all the per-cpu counts, return the result.  This is a more accurate
+ * but much slower version of percpu_counter_read_positive()
+ */
+long percpu_counter_sum(struct percpu_counter *fbc)
+{
+	long ret;
+	int cpu;
+
+	spin_lock(&fbc->lock);
+	ret = fbc->count;
+	for_each_cpu(cpu) {
+		long *pcount = per_cpu_ptr(fbc->counters, cpu);
+		ret += *pcount;
+	}
+	spin_unlock(&fbc->lock);
+	return ret < 0 ? 0 : ret;
+}
+EXPORT_SYMBOL(percpu_counter_sum);
 #endif
 
 /*

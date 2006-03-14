@@ -72,7 +72,7 @@ ENTRY(s3c2410_cpu_suspend)
 	@@ prepare cpu to sleep
 
 	ldr	r4, =S3C2410_REFRESH
-	ldr	r5, =S3C2410_MISCCR
+	ldr	r5, =S3C24XX_MISCCR
 	ldr	r6, =S3C2410_CLKCON
 	ldr	r7, [ r4 ]		@ get REFRESH (and ensure in TLB)
 	ldr	r8, [ r5 ]		@ get MISCCR (and ensure in TLB)
@@ -133,12 +133,12 @@ ENTRY(s3c2410_cpu_resume)
 	@@ load UART to allow us to print the two characters for
 	@@ resume debug
 
-	mov	r2, #S3C2410_PA_UART & 0xff000000
-	orr	r2, r2, #S3C2410_PA_UART & 0xff000
+	mov	r2, #S3C24XX_PA_UART & 0xff000000
+	orr	r2, r2, #S3C24XX_PA_UART & 0xff000
 
 #if 0
 	/* SMDK2440 LED set */
-	mov	r14, #S3C2410_PA_GPIO
+	mov	r14, #S3C24XX_PA_GPIO
 	ldr	r12, [ r14, #0x54 ]
 	bic	r12, r12, #3<<4
 	orr	r12, r12, #1<<7

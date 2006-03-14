@@ -33,15 +33,17 @@
 #define ORB_DIRECTION_NO_DATA_TRANSFER  0x2
 
 #define ORB_SET_NULL_PTR(value)			((value & 0x1) << 31)
-#define ORB_SET_NOTIFY(value)                   ((value & 0x1) << 31)
-#define ORB_SET_RQ_FMT(value)                   ((value & 0x3) << 29)	/* unused ? */
+#define ORB_SET_NOTIFY(value)			((value & 0x1) << 31)
+#define ORB_SET_RQ_FMT(value)			((value & 0x3) << 29)	/* unused ? */
 #define ORB_SET_NODE_ID(value)			((value & 0xffff) << 16)
-#define ORB_SET_DATA_SIZE(value)                (value & 0xffff)
-#define ORB_SET_PAGE_SIZE(value)                ((value & 0x7) << 16)
-#define ORB_SET_PAGE_TABLE_PRESENT(value)       ((value & 0x1) << 19)
-#define ORB_SET_MAX_PAYLOAD(value)              ((value & 0xf) << 20)
-#define ORB_SET_SPEED(value)                    ((value & 0x7) << 24)
-#define ORB_SET_DIRECTION(value)                ((value & 0x1) << 27)
+#define ORB_SET_STATUS_FIFO_HI(value, id)	(value >> 32 | ORB_SET_NODE_ID(id))
+#define ORB_SET_STATUS_FIFO_LO(value)		(value & 0xffffffff)
+#define ORB_SET_DATA_SIZE(value)		(value & 0xffff)
+#define ORB_SET_PAGE_SIZE(value)		((value & 0x7) << 16)
+#define ORB_SET_PAGE_TABLE_PRESENT(value)	((value & 0x1) << 19)
+#define ORB_SET_MAX_PAYLOAD(value)		((value & 0xf) << 20)
+#define ORB_SET_SPEED(value)			((value & 0x7) << 24)
+#define ORB_SET_DIRECTION(value)		((value & 0x1) << 27)
 
 struct sbp2_command_orb {
 	volatile u32 next_ORB_hi;
@@ -76,8 +78,8 @@ struct sbp2_login_orb {
 	u32 login_response_lo;
 	u32 lun_misc;
 	u32 passwd_resp_lengths;
-	u32 status_FIFO_hi;
-	u32 status_FIFO_lo;
+	u32 status_fifo_hi;
+	u32 status_fifo_lo;
 };
 
 #define RESPONSE_GET_LOGIN_ID(value)            (value & 0xffff)
@@ -102,8 +104,8 @@ struct sbp2_query_logins_orb {
 	u32 query_response_lo;
 	u32 lun_misc;
 	u32 reserved_resp_length;
-	u32 status_FIFO_hi;
-	u32 status_FIFO_lo;
+	u32 status_fifo_hi;
+	u32 status_fifo_lo;
 };
 
 #define RESPONSE_GET_MAX_LOGINS(value)          (value & 0xffff)
@@ -123,8 +125,8 @@ struct sbp2_reconnect_orb {
 	u32 reserved4;
 	u32 login_ID_misc;
 	u32 reserved5;
-	u32 status_FIFO_hi;
-	u32 status_FIFO_lo;
+	u32 status_fifo_hi;
+	u32 status_fifo_lo;
 };
 
 struct sbp2_logout_orb {
@@ -134,8 +136,8 @@ struct sbp2_logout_orb {
 	u32 reserved4;
 	u32 login_ID_misc;
 	u32 reserved5;
-	u32 status_FIFO_hi;
-	u32 status_FIFO_lo;
+	u32 status_fifo_hi;
+	u32 status_fifo_lo;
 };
 
 #define PAGE_TABLE_SET_SEGMENT_BASE_HI(value)   (value & 0xffff)
@@ -195,30 +197,6 @@ struct sbp2_status_block {
  * Miscellaneous SBP2 related config rom defines
  */
 
-/* The status fifo address definition below is used as a base for each
- * node, which a chunk seperately assigned to each unit directory in the
- * node.  For example, 0xfffe00000000ULL is used for the first sbp2 device
- * detected on node 0, 0xfffe00000020ULL for the next sbp2 device on node
- * 0, and so on.
- *
- * Note: We could use a single status fifo address for all sbp2 devices,
- * and figure out which sbp2 device the status belongs to by looking at
- * the source node id of the status write... but, using separate addresses
- * for each sbp2 unit directory allows for better code and the ability to
- * support multiple luns within a single 1394 node.
- *
- * Also note that we choose the address range below as it is a region
- * specified for write posting, where the ohci controller will
- * automatically send an ack_complete when the status is written by the
- * sbp2 device... saving a split transaction.   =)
- */
-#define SBP2_STATUS_FIFO_ADDRESS				0xfffe00000000ULL
-#define SBP2_STATUS_FIFO_ADDRESS_HI                             0xfffe
-#define SBP2_STATUS_FIFO_ADDRESS_LO                             0x0
-
-#define SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(entry)			((entry) << 5)
-#define SBP2_STATUS_FIFO_OFFSET_TO_ENTRY(offset)		((offset) >> 5)
-
 #define SBP2_UNIT_DIRECTORY_OFFSET_KEY				0xd1
 #define SBP2_CSR_OFFSET_KEY					0x54
 #define SBP2_UNIT_SPEC_ID_KEY					0x12
@@ -258,7 +236,6 @@ struct sbp2_status_block {
  */
 
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
-#define SBP2_MAX_UDS_PER_NODE		16	/* Maximum scsi devices per node */
 #define SBP2_MAX_SECTORS		255	/* Max sectors supported */
 #define SBP2_MAX_CMDS			8	/* This should be safe */
 
@@ -336,6 +313,11 @@ struct scsi_id_instance_data {
 	u32 sbp2_unit_characteristics;
 	u32 sbp2_lun;
 	u32 sbp2_firmware_revision;
+
+	/*
+	 * Address for the device to write status blocks to
+	 */
+	u64 status_fifo_addr;
 
 	/*
 	 * Variable used for logins, reconnects, logouts, query logins

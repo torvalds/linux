@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2001-2006 Silicon Graphics, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -12,7 +12,7 @@
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
 
-int pcibr_invalidate_ate = 0;	/* by default don't invalidate ATE on free */
+int pcibr_invalidate_ate;	/* by default don't invalidate ATE on free */
 
 /*
  * mark_ate: Mark the ate as either free or inuse.
@@ -20,14 +20,12 @@ int pcibr_invalidate_ate = 0;	/* by default don't invalidate ATE on free */
 static void mark_ate(struct ate_resource *ate_resource, int start, int number,
 		     u64 value)
 {
-
 	u64 *ate = ate_resource->ate;
 	int index;
 	int length = 0;
 
 	for (index = start; length < number; index++, length++)
 		ate[index] = value;
-
 }
 
 /*
@@ -37,7 +35,6 @@ static void mark_ate(struct ate_resource *ate_resource, int start, int number,
 static int find_free_ate(struct ate_resource *ate_resource, int start,
 			 int count)
 {
-
 	u64 *ate = ate_resource->ate;
 	int index;
 	int start_free;
@@ -70,12 +67,10 @@ static int find_free_ate(struct ate_resource *ate_resource, int start,
 static inline void free_ate_resource(struct ate_resource *ate_resource,
 				     int start)
 {
-
 	mark_ate(ate_resource, start, ate_resource->ate[start], 0);
 	if ((ate_resource->lowest_free_index > start) ||
 	    (ate_resource->lowest_free_index < 0))
 		ate_resource->lowest_free_index = start;
-
 }
 
 /*
@@ -84,7 +79,6 @@ static inline void free_ate_resource(struct ate_resource *ate_resource,
 static inline int alloc_ate_resource(struct ate_resource *ate_resource,
 				     int ate_needed)
 {
-
 	int start_index;
 
 	/*
@@ -118,19 +112,12 @@ static inline int alloc_ate_resource(struct ate_resource *ate_resource,
  */
 int pcibr_ate_alloc(struct pcibus_info *pcibus_info, int count)
 {
-	int status = 0;
-	u64 flag;
+	int status;
+	unsigned long flags;
 
-	flag = pcibr_lock(pcibus_info);
+	spin_lock_irqsave(&pcibus_info->pbi_lock, flags);
 	status = alloc_ate_resource(&pcibus_info->pbi_int_ate_resource, count);
-
-	if (status < 0) {
-		/* Failed to allocate */
-		pcibr_unlock(pcibus_info, flag);
-		return -1;
-	}
-
-	pcibr_unlock(pcibus_info, flag);
+	spin_unlock_irqrestore(&pcibus_info->pbi_lock, flags);
 
 	return status;
 }
@@ -182,7 +169,7 @@ void pcibr_ate_free(struct pcibus_info *pcibus_info, int index)
 		ate_write(pcibus_info, index, count, (ate & ~PCI32_ATE_V));
 	}
 
-	flags = pcibr_lock(pcibus_info);
+	spin_lock_irqsave(&pcibus_info->pbi_lock, flags);
 	free_ate_resource(&pcibus_info->pbi_int_ate_resource, index);
-	pcibr_unlock(pcibus_info, flags);
+	spin_unlock_irqrestore(&pcibus_info->pbi_lock, flags);
 }

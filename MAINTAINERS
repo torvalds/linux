@@ -540,7 +540,8 @@ S:	Supported
 
 BTTV VIDEO4LINUX DRIVER
 P:	Mauro Carvalho Chehab
-M:	mchehab@brturbo.com.br
+M:	mchehab@infradead.org
+M:	v4l-dvb-maintainer@linuxtv.org
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
@@ -557,7 +558,8 @@ S:	Supported
 
 CONFIGFS
 P:	Joel Becker
-M:	Joel Becker <joel.becker@oracle.com>
+M:	joel.becker@oracle.com
+L:	linux-kernel@vger.kernel.org
 S:	Supported
 
 CIRRUS LOGIC GENERIC FBDEV DRIVER
@@ -836,11 +838,11 @@ S:	Maintained
 
 DVB SUBSYSTEM AND DRIVERS
 P:	LinuxTV.org Project
-M: 	linux-dvb-maintainer@linuxtv.org
+M:	v4l-dvb-maintainer@linuxtv.org
 L: 	linux-dvb@linuxtv.org (subscription required)
 W:	http://linuxtv.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
-S:	Supported
+S:	Maintained
 
 EATA-DMA SCSI DRIVER
 P:	Michael Neuffer
@@ -926,6 +928,12 @@ EXT3 FILE SYSTEM
 P:	Stephen Tweedie, Andrew Morton
 M:	sct@redhat.com, akpm@osdl.org, adilger@clusterfs.com
 L:	ext3-users@redhat.com
+S:	Maintained
+
+F71805F HARDWARE MONITORING DRIVER
+P:	Jean Delvare
+M:	khali@linux-fr.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 FARSYNC SYNCHRONOUS DRIVER
@@ -1176,8 +1184,8 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/aegl/linux-2.6.git
 S:	Maintained
 
 SN-IA64 (Itanium) SUB-PLATFORM
-P:	Greg Edwards
-M:	edwardsg@sgi.com
+P:	Jes Sorensen
+M:	jes@sgi.com
 L:	linux-altix@sgi.com
 L:	linux-ia64@vger.kernel.org
 W:	http://www.sgi.com/altix
@@ -1623,8 +1631,8 @@ S:	Supported
 
 LINUX SECURITY MODULE (LSM) FRAMEWORK
 P:	Chris Wright
-M:	chrisw@osdl.org
-L:	linux-security-module@wirex.com
+M:	chrisw@sous-sol.org
+L:	linux-security-module@vger.kernel.org
 W:	http://lsm.immunix.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/chrisw/lsm-2.6.git
 S:	Supported
@@ -1984,7 +1992,6 @@ M:	philb@gnu.org
 P:	Tim Waugh
 M:	tim@cyberelk.net
 P:	David Campbell
-M:	campbell@torque.net
 P:	Andrea Arcangeli
 M:	andrea@suse.de
 L:	linux-parport@lists.infradead.org
@@ -2224,7 +2231,23 @@ P:	Martin Schwidefsky
 M:	schwidefsky@de.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-390@vm.marist.edu
-W:	http://oss.software.ibm.com/developerworks/opensource/linux390
+W:	http://www.ibm.com/developerworks/linux/linux390/
+S:	Supported
+
+S390 NETWORK DRIVERS
+P:	Frank Pavlic
+M:	fpavlic@de.ibm.com
+M:	linux390@de.ibm.com
+L:	linux-390@vm.marist.edu
+W:	http://www.ibm.com/developerworks/linux/linux390/
+S:	Supported
+
+S390 ZFCP DRIVER
+P:	Andreas Herrmann
+M:	aherrman@de.ibm.com
+M:	linux390@de.ibm.com
+L:	linux-390@vm.marist.edu
+W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 
 SAA7146 VIDEO4LINUX-2 DRIVER
@@ -2298,7 +2321,7 @@ S:	Supported
 
 SELINUX SECURITY MODULE
 P:	Stephen Smalley
-M:	sds@epoch.ncsc.mil
+M:	sds@tycho.nsa.gov
 P:	James Morris
 M:	jmorris@namei.org
 L:	linux-kernel@vger.kernel.org (kernel issues)
@@ -2673,6 +2696,14 @@ M:	dbrownell@users.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 
+USB ET61X[12]51 DRIVER
+P:	Luca Risolia
+M:	luca.risolia@studio.unibo.it
+L:	linux-usb-devel@lists.sourceforge.net
+L:	video4linux-list@redhat.com
+W:	http://www.linux-projects.org
+S:	Maintained
+
 USB HID/HIDBP DRIVERS
 P:	Vojtech Pavlik
 M:	vojtech@suse.cz
@@ -2836,6 +2867,7 @@ USB SN9C10x DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
 L:	linux-usb-devel@lists.sourceforge.net
+L:	video4linux-list@redhat.com
 W:	http://www.linux-projects.org
 S:	Maintained
 
@@ -2865,6 +2897,7 @@ USB W996[87]CF DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
 L:	linux-usb-devel@lists.sourceforge.net
+L:	video4linux-list@redhat.com
 W:	http://www.linux-projects.org
 S:	Maintained
 
@@ -2946,7 +2979,8 @@ S:      Maintained
 
 VIDEO FOR LINUX
 P:	Mauro Carvalho Chehab
-M:	mchehab@brturbo.com.br
+M:	mchehab@infradead.org
+M:	v4l-dvb-maintainer@linuxtv.org
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git

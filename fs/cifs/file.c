@@ -1190,7 +1190,6 @@ retry:
 					/* BB what if continued retry is
 					   requested via mount flags? */
 					set_bit(AS_EIO, &mapping->flags);
-					SetPageError(page);
 				} else {
 					cifs_stats_bytes_written(cifs_sb->tcon,
 								 bytes_written);
@@ -1198,6 +1197,13 @@ retry:
 			}
 			for (i = 0; i < n_iov; i++) {
 				page = pvec.pages[first + i];
+				/* Should we also set page error on
+				success rc but too little data written? */
+				/* BB investigate retry logic on temporary
+				server crash cases and how recovery works
+				when page marked as error */ 
+				if(rc)
+					SetPageError(page);
 				kunmap(page);
 				unlock_page(page);
 				page_cache_release(page);
@@ -1436,13 +1442,15 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 					 &bytes_read, &smb_read_data,
 					 &buf_type);
 			pSMBr = (struct smb_com_read_rsp *)smb_read_data;
-			if (copy_to_user(current_offset, 
-					 smb_read_data + 4 /* RFC1001 hdr */
-					 + le16_to_cpu(pSMBr->DataOffset), 
-					 bytes_read)) {
-				rc = -EFAULT;
-			}
 			if (smb_read_data) {
+				if (copy_to_user(current_offset,
+						smb_read_data +
+						4 /* RFC1001 length field */ +
+						le16_to_cpu(pSMBr->DataOffset),
+						bytes_read)) {
+					rc = -EFAULT;
+				}
+
 				if(buf_type == CIFS_SMALL_BUFFER)
 					cifs_small_buf_release(smb_read_data);
 				else if(buf_type == CIFS_LARGE_BUFFER)

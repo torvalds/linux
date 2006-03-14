@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -233,7 +233,11 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 							 */
 							status = AE_OK;
 						} else {
-							ACPI_REPORT_ERROR(("Could not install pci_config handler for Root Bridge %4.4s, %s\n", acpi_ut_get_node_name(pci_root_node), acpi_format_exception(status)));
+							ACPI_EXCEPTION((AE_INFO,
+									status,
+									"Could not install pci_config handler for Root Bridge %4.4s",
+									acpi_ut_get_node_name
+									(pci_root_node)));
 						}
 					}
 					break;

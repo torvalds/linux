@@ -24,6 +24,7 @@
 #include <linux/sysdev.h>
 #include <linux/nmi.h>
 #include <linux/sysctl.h>
+#include <linux/kprobes.h>
 
 #include <asm/smp.h>
 #include <asm/mtrr.h>
@@ -235,6 +236,7 @@ static void enable_lapic_nmi_watchdog(void)
 {
 	if (nmi_active < 0) {
 		nmi_watchdog = NMI_LOCAL_APIC;
+		touch_nmi_watchdog();
 		setup_apic_nmi_watchdog();
 	}
 }
@@ -455,20 +457,22 @@ static DEFINE_PER_CPU(int, nmi_touch);
 
 void touch_nmi_watchdog (void)
 {
-	int i;
+	if (nmi_watchdog > 0) {
+		unsigned cpu;
 
-	/*
- 	 * Tell other CPUs to reset their alert counters. We cannot
-	 * do it ourselves because the alert count increase is not
-	 * atomic.
-	 */
-	for (i = 0; i < NR_CPUS; i++)
-		per_cpu(nmi_touch, i) = 1;
+		/*
+ 		 * Tell other CPUs to reset their alert counters. We cannot
+		 * do it ourselves because the alert count increase is not
+		 * atomic.
+		 */
+		for_each_present_cpu (cpu)
+			per_cpu(nmi_touch, cpu) = 1;
+	}
 
  	touch_softlockup_watchdog();
 }
 
-void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
+void __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 {
 	int sum;
 	int touched = 0;
@@ -512,14 +516,14 @@ void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
 	}
 }
 
-static int dummy_nmi_callback(struct pt_regs * regs, int cpu)
+static __kprobes int dummy_nmi_callback(struct pt_regs * regs, int cpu)
 {
 	return 0;
 }
  
 static nmi_callback_t nmi_callback = dummy_nmi_callback;
  
-asmlinkage void do_nmi(struct pt_regs * regs, long error_code)
+asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 {
 	int cpu = safe_smp_processor_id();
 

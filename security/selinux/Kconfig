@@ -1,6 +1,6 @@
 config SECURITY_SELINUX
 	bool "NSA SELinux Support"
-	depends on SECURITY && NET && INET
+	depends on SECURITY_NETWORK && AUDIT && NET && INET
 	default n
 	help
 	  This selects NSA Security-Enhanced Linux (SELinux).

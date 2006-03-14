@@ -155,6 +155,19 @@ static void input_repeat_key(unsigned long data)
 }
 
 
+static int av7110_setup_irc_config(struct av7110 *av7110, u32 ir_config)
+{
+	int ret = 0;
+
+	dprintk(4, "%p\n", av7110);
+	if (av7110) {
+		ret = av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetIR, 1, ir_config);
+		av7110->ir_config = ir_config;
+	}
+	return ret;
+}
+
+
 static int av7110_ir_write_proc(struct file *file, const char __user *buffer,
 				unsigned long count, void *data)
 {
@@ -187,19 +200,6 @@ static int av7110_ir_write_proc(struct file *file, const char __user *buffer,
 }
 
 
-int av7110_setup_irc_config(struct av7110 *av7110, u32 ir_config)
-{
-	int ret = 0;
-
-	dprintk(4, "%p\n", av7110);
-	if (av7110) {
-		ret = av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetIR, 1, ir_config);
-		av7110->ir_config = ir_config;
-	}
-	return ret;
-}
-
-
 static void ir_handler(struct av7110 *av7110, u32 ircom)
 {
 	dprintk(4, "ircommand = %08x\n", ircom);
@@ -208,7 +208,7 @@ static void ir_handler(struct av7110 *av7110, u32 ircom)
 }
 
 
-int __init av7110_ir_init(struct av7110 *av7110)
+int __devinit av7110_ir_init(struct av7110 *av7110)
 {
 	static struct proc_dir_entry *e;
 
@@ -248,7 +248,7 @@ int __init av7110_ir_init(struct av7110 *av7110)
 }
 
 
-void __exit av7110_ir_exit(struct av7110 *av7110)
+void __devexit av7110_ir_exit(struct av7110 *av7110)
 {
 	int i;
 

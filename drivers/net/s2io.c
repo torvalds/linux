@@ -3586,7 +3586,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Buffer_Pointer = (u64) pci_map_page
 		    (sp->pdev, frag->page, frag->page_offset,
 		     frag->size, PCI_DMA_TODEVICE);
-		txdp->Control_1 |= TXD_BUFFER0_SIZE(frag->size);
+		txdp->Control_1 = TXD_BUFFER0_SIZE(frag->size);
 		if (skb_shinfo(skb)->ufo_size)
 			txdp->Control_1 |= TXD_UFO_EN;
 	}
@@ -4092,6 +4092,7 @@ static void s2io_set_multicast(struct net_device *dev)
 		     i++, mclist = mclist->next) {
 			memcpy(sp->usr_addrs[i].addr, mclist->dmi_addr,
 			       ETH_ALEN);
+			mac_addr = 0;
 			for (j = 0; j < ETH_ALEN; j++) {
 				mac_addr |= mclist->dmi_addr[j];
 				mac_addr <<= 8;

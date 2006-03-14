@@ -5,6 +5,7 @@
 #include <linux/signal.h>
 #include <linux/time.h>
 #include <linux/user.h>
+#include <linux/ptrace.h>
 
 struct elf_siginfo
 {

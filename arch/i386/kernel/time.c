@@ -412,9 +412,9 @@ static int timer_resume(struct sys_device *dev)
 	write_seqlock_irqsave(&xtime_lock, flags);
 	xtime.tv_sec = sec;
 	xtime.tv_nsec = 0;
-	write_sequnlock_irqrestore(&xtime_lock, flags);
-	jiffies += sleep_length;
+	jiffies_64 += sleep_length;
 	wall_jiffies += sleep_length;
+	write_sequnlock_irqrestore(&xtime_lock, flags);
 	if (last_timer->resume)
 		last_timer->resume();
 	cur_timer = last_timer;

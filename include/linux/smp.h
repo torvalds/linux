@@ -17,7 +17,6 @@ extern void cpu_idle(void);
 #include <linux/compiler.h>
 #include <linux/thread_info.h>
 #include <asm/smp.h>
-#include <asm/bug.h>
 
 /*
  * main cross-CPU interfaces, handles INIT, TLB flush, STOP, etc.

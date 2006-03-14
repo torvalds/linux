@@ -40,6 +40,7 @@ enum hrtimer_restart {
 enum hrtimer_state {
 	HRTIMER_INACTIVE,	/* Timer is inactive */
 	HRTIMER_EXPIRED,		/* Timer is expired */
+	HRTIMER_RUNNING,		/* Timer is running the callback function */
 	HRTIMER_PENDING,		/* Timer is pending */
 };
 
@@ -100,9 +101,8 @@ struct hrtimer_base {
 /* Exported timer functions: */
 
 /* Initialize timers: */
-extern void hrtimer_init(struct hrtimer *timer, const clockid_t which_clock);
-extern void hrtimer_rebase(struct hrtimer *timer, const clockid_t which_clock);
-
+extern void hrtimer_init(struct hrtimer *timer, clockid_t which_clock,
+			 enum hrtimer_mode mode);
 
 /* Basic timer operations: */
 extern int hrtimer_start(struct hrtimer *timer, ktime_t tim,
@@ -115,6 +115,10 @@ extern int hrtimer_try_to_cancel(struct hrtimer *timer);
 /* Query timers: */
 extern ktime_t hrtimer_get_remaining(const struct hrtimer *timer);
 extern int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp);
+
+#ifdef CONFIG_NO_IDLE_HZ
+extern ktime_t hrtimer_get_next_event(void);
+#endif
 
 static inline int hrtimer_active(const struct hrtimer *timer)
 {

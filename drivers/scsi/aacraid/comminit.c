@@ -185,17 +185,17 @@ int aac_send_shutdown(struct aac_dev * dev)
 	struct aac_close *cmd;
 	int status;
 
-	fibctx = fib_alloc(dev);
+	fibctx = aac_fib_alloc(dev);
 	if (!fibctx)
 		return -ENOMEM;
-	fib_init(fibctx);
+	aac_fib_init(fibctx);
 
 	cmd = (struct aac_close *) fib_data(fibctx);
 
 	cmd->command = cpu_to_le32(VM_CloseAll);
 	cmd->cid = cpu_to_le32(0xffffffff);
 
-	status = fib_send(ContainerCommand,
+	status = aac_fib_send(ContainerCommand,
 			  fibctx,
 			  sizeof(struct aac_close),
 			  FsaNormal,
@@ -203,8 +203,8 @@ int aac_send_shutdown(struct aac_dev * dev)
 			  NULL, NULL);
 
 	if (status == 0)
-		fib_complete(fibctx);
-	fib_free(fibctx);
+		aac_fib_complete(fibctx);
+	aac_fib_free(fibctx);
 	return status;
 }
 
@@ -427,7 +427,7 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 	/*
 	 *	Initialize the list of fibs
 	 */
-	if(fib_setup(dev)<0){
+	if (aac_fib_setup(dev) < 0) {
 		kfree(dev->queues);
 		return NULL;
 	}

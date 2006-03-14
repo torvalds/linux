@@ -32,6 +32,8 @@
 #define SAVAGE_EVENT_USEC_TIMEOUT	5000000	/* 5s */
 #define SAVAGE_FREELIST_DEBUG		0
 
+static int savage_do_cleanup_bci(drm_device_t *dev);
+
 static int
 savage_bci_wait_fifo_shadow(drm_savage_private_t * dev_priv, unsigned int n)
 {
@@ -895,7 +897,7 @@ static int savage_do_init_bci(drm_device_t * dev, drm_savage_init_t * init)
 	return 0;
 }
 
-int savage_do_cleanup_bci(drm_device_t * dev)
+static int savage_do_cleanup_bci(drm_device_t * dev)
 {
 	drm_savage_private_t *dev_priv = dev->dev_private;
 

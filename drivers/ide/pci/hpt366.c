@@ -1288,6 +1288,10 @@ static void __devinit hpt37x_clocking(ide_hwif_t *hwif)
 				goto init_hpt37X_done;
 			}
 		}
+		if (!pci_get_drvdata(dev)) {
+			printk("No Clock Stabilization!!!\n");
+			return;
+		}
 pll_recal:
 		if (adjust & 1)
 			pll -= (adjust >> 1);

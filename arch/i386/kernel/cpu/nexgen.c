@@ -61,3 +61,11 @@ int __init nexgen_init_cpu(void)
 }
 
 //early_arch_initcall(nexgen_init_cpu);
+
+static int __init nexgen_exit_cpu(void)
+{
+	cpu_devs[X86_VENDOR_NEXGEN] = NULL;
+	return 0;
+}
+
+late_initcall(nexgen_exit_cpu);

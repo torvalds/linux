@@ -7,13 +7,21 @@
 #include <linux/pci.h>
 #include <asm/pci-direct.h>
 #include <asm/acpi.h>
+#include <asm/apic.h>
 
 static int __init check_bridge(int vendor, int device)
 {
+#ifdef CONFIG_ACPI
 	/* According to Nvidia all timer overrides are bogus. Just ignore
 	   them all. */
 	if (vendor == PCI_VENDOR_ID_NVIDIA) {
 		acpi_skip_timer_override = 1;
+	}
+#endif
+	if (vendor == PCI_VENDOR_ID_ATI && timer_over_8254 == 1) {
+		timer_over_8254 = 0;
+		printk(KERN_INFO "ATI board detected. Disabling timer routing "
+				"over 8254.\n");
 	}
 	return 0;
 }

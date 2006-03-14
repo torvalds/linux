@@ -234,7 +234,7 @@ static struct file_operations skel_fops = {
 
 /* 
  * usb class driver info in order to get a minor number from the usb core,
- * and to have the device registered with devfs and the driver core
+ * and to have the device registered with the driver core
  */
 static struct usb_class_driver skel_class = {
 	.name =		"skel%d",

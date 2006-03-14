@@ -67,9 +67,10 @@ asmlinkage long sys_add_key(const char __user *_type,
 	description = kmalloc(dlen + 1, GFP_KERNEL);
 	if (!description)
 		goto error;
+	description[dlen] = '\0';
 
 	ret = -EFAULT;
-	if (copy_from_user(description, _description, dlen + 1) != 0)
+	if (copy_from_user(description, _description, dlen) != 0)
 		goto error2;
 
 	/* pull the payload in if one was supplied */
@@ -161,9 +162,10 @@ asmlinkage long sys_request_key(const char __user *_type,
 	description = kmalloc(dlen + 1, GFP_KERNEL);
 	if (!description)
 		goto error;
+	description[dlen] = '\0';
 
 	ret = -EFAULT;
-	if (copy_from_user(description, _description, dlen + 1) != 0)
+	if (copy_from_user(description, _description, dlen) != 0)
 		goto error2;
 
 	/* pull the callout info into kernel space */
@@ -182,9 +184,10 @@ asmlinkage long sys_request_key(const char __user *_type,
 		callout_info = kmalloc(dlen + 1, GFP_KERNEL);
 		if (!callout_info)
 			goto error2;
+		callout_info[dlen] = '\0';
 
 		ret = -EFAULT;
-		if (copy_from_user(callout_info, _callout_info, dlen + 1) != 0)
+		if (copy_from_user(callout_info, _callout_info, dlen) != 0)
 			goto error3;
 	}
 
@@ -279,9 +282,10 @@ long keyctl_join_session_keyring(const char __user *_name)
 		name = kmalloc(nlen + 1, GFP_KERNEL);
 		if (!name)
 			goto error;
+		name[nlen] = '\0';
 
 		ret = -EFAULT;
-		if (copy_from_user(name, _name, nlen + 1) != 0)
+		if (copy_from_user(name, _name, nlen) != 0)
 			goto error2;
 	}
 
@@ -583,9 +587,10 @@ long keyctl_keyring_search(key_serial_t ringid,
 	description = kmalloc(dlen + 1, GFP_KERNEL);
 	if (!description)
 		goto error;
+	description[dlen] = '\0';
 
 	ret = -EFAULT;
-	if (copy_from_user(description, _description, dlen + 1) != 0)
+	if (copy_from_user(description, _description, dlen) != 0)
 		goto error2;
 
 	/* get the keyring at which to begin the search */

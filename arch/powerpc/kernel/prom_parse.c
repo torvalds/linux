@@ -465,8 +465,10 @@ u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 	if (parent == NULL)
 		return NULL;
 	bus = of_match_bus(parent);
-	if (strcmp(bus->name, "pci"))
+	if (strcmp(bus->name, "pci")) {
+		of_node_put(parent);
 		return NULL;
+	}
 	bus->count_cells(dev, &na, &ns);
 	of_node_put(parent);
 	if (!OF_CHECK_COUNTS(na, ns))

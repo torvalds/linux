@@ -537,9 +537,9 @@ static int mac53c94_remove(struct macio_dev *mdev)
 	free_irq(fp->intr, fp);
 
 	if (fp->regs)
-		iounmap((void *) fp->regs);
+		iounmap(fp->regs);
 	if (fp->dma)
-		iounmap((void *) fp->dma);
+		iounmap(fp->dma);
 	kfree(fp->dma_cmd_space);
 
 	scsi_host_put(host);

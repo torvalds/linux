@@ -540,6 +540,9 @@ int __devinit start_secondary(void *unused)
 	if (smp_ops->take_timebase)
 		smp_ops->take_timebase();
 
+	if (system_state > SYSTEM_BOOTING)
+		per_cpu(last_jiffy, cpu) = get_tb();
+
 	spin_lock(&call_lock);
 	cpu_set(cpu, cpu_online_map);
 	spin_unlock(&call_lock);

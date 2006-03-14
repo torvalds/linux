@@ -42,8 +42,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-#include <asm/bug.h>
-
 #include <asm/vio.h>
 #include <asm/scatterlist.h>
 #include <asm/iseries/hv_types.h>

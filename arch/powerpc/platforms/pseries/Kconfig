@@ -9,13 +9,6 @@ config PPC_SPLPAR
 	  processors, that is, which share physical processors between
 	  two or more partitions.
 
-config HMT
-	bool "Hardware multithreading"
-	depends on SMP && PPC_PSERIES && BROKEN
-	help
-	  This option enables hardware multithreading on RS64 cpus.
-	  pSeries systems p620 and p660 have such a cpu type.
-
 config EEH
 	bool "PCI Extended Error Handling (EEH)" if EMBEDDED
 	depends on PPC_PSERIES

@@ -152,10 +152,16 @@ error_nolock:
 	goto out_exit;
 }
 
-int xfrm4_output_finish(struct sk_buff *skb)
+static int xfrm4_output_finish(struct sk_buff *skb)
 {
 	int err;
 
+#ifdef CONFIG_NETFILTER
+	if (!skb->dst->xfrm) {
+		IPCB(skb)->flags |= IPSKB_REROUTED;
+		return dst_output(skb);
+	}
+#endif
 	while (likely((err = xfrm4_output_one(skb)) == 0)) {
 		nf_reset(skb);
 
@@ -178,6 +184,7 @@ int xfrm4_output_finish(struct sk_buff *skb)
 
 int xfrm4_output(struct sk_buff *skb)
 {
-	return NF_HOOK(PF_INET, NF_IP_POST_ROUTING, skb, NULL, skb->dst->dev,
-		       xfrm4_output_finish);
+	return NF_HOOK_COND(PF_INET, NF_IP_POST_ROUTING, skb, NULL, skb->dst->dev,
+			    xfrm4_output_finish,
+			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }

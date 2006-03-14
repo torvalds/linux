@@ -128,19 +128,27 @@ EXPORT_SYMBOL(rtc_tm_to_time);
 /*
  * Calculate the next alarm time given the requested alarm time mask
  * and the current time.
- *
- * FIXME: for now, we just copy the alarm time because we're lazy (and
- * is therefore buggy - setting a 10am alarm at 8pm will not result in
- * the alarm triggering.)
  */
 void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now, struct rtc_time *alrm)
 {
+	unsigned long next_time;
+	unsigned long now_time;
+
 	next->tm_year = now->tm_year;
 	next->tm_mon = now->tm_mon;
 	next->tm_mday = now->tm_mday;
 	next->tm_hour = alrm->tm_hour;
 	next->tm_min = alrm->tm_min;
 	next->tm_sec = alrm->tm_sec;
+
+	rtc_tm_to_time(now, &now_time);
+	rtc_tm_to_time(next, &next_time);
+
+	if (next_time < now_time) {
+		/* Advance one day */
+		next_time += 60 * 60 * 24;
+		rtc_time_to_tm(next_time, next);
+	}
 }
 
 static inline int rtc_read_time(struct rtc_ops *ops, struct rtc_time *tm)

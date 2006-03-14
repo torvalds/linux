@@ -95,7 +95,6 @@ static void iforce_usb_irq(struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-	wake_up(&iforce->wait);
 	iforce_process_packet(iforce,
 		(iforce->data[0] << 8) | (urb->actual_length - 1), iforce->data + 1, regs);
 

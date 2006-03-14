@@ -393,10 +393,6 @@ static int stv0297_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 		break;
 
 	case QAM_128:
-		delay = 150;
-		sweeprate = 1000;
-		break;
-
 	case QAM_256:
 		delay = 200;
 		sweeprate = 500;

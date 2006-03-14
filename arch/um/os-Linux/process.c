@@ -19,6 +19,7 @@
 #include "irq_user.h"
 #include "kern_util.h"
 #include "longjmp.h"
+#include "skas_ptrace.h"
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1
@@ -98,6 +99,21 @@ void os_kill_process(int pid, int reap_child)
 	if(reap_child)
 		CATCH_EINTR(waitpid(pid, NULL, 0));
 		
+}
+
+/* This is here uniquely to have access to the userspace errno, i.e. the one
+ * used by ptrace in case of error.
+ */
+
+long os_ptrace_ldt(long pid, long addr, long data)
+{
+	int ret;
+
+	ret = ptrace(PTRACE_LDT, pid, addr, data);
+
+	if (ret < 0)
+		return -errno;
+	return ret;
 }
 
 /* Kill off a ptraced child by all means available.  kill it normally first,

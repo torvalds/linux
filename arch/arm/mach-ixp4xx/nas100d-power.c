@@ -56,6 +56,9 @@ static int __init nas100d_power_init(void)
 
 static void __exit nas100d_power_exit(void)
 {
+	if (!(machine_is_nas100d()))
+		return;
+
 	free_irq(NAS100D_RB_IRQ, NULL);
 }
 

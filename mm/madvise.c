@@ -22,16 +22,23 @@ static long madvise_behavior(struct vm_area_struct * vma,
 	struct mm_struct * mm = vma->vm_mm;
 	int error = 0;
 	pgoff_t pgoff;
-	int new_flags = vma->vm_flags & ~VM_READHINTMASK;
+	int new_flags = vma->vm_flags;
 
 	switch (behavior) {
+	case MADV_NORMAL:
+		new_flags = new_flags & ~VM_RAND_READ & ~VM_SEQ_READ;
+		break;
 	case MADV_SEQUENTIAL:
-		new_flags |= VM_SEQ_READ;
+		new_flags = (new_flags & ~VM_RAND_READ) | VM_SEQ_READ;
 		break;
 	case MADV_RANDOM:
-		new_flags |= VM_RAND_READ;
+		new_flags = (new_flags & ~VM_SEQ_READ) | VM_RAND_READ;
 		break;
-	default:
+	case MADV_DONTFORK:
+		new_flags |= VM_DONTCOPY;
+		break;
+	case MADV_DOFORK:
+		new_flags &= ~VM_DONTCOPY;
 		break;
 	}
 
@@ -177,6 +184,12 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
 	long error;
 
 	switch (behavior) {
+	case MADV_DOFORK:
+		if (vma->vm_flags & VM_IO) {
+			error = -EINVAL;
+			break;
+		}
+	case MADV_DONTFORK:
 	case MADV_NORMAL:
 	case MADV_SEQUENTIAL:
 	case MADV_RANDOM:

@@ -138,7 +138,7 @@ static int __init check_nmi_watchdog(void)
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		smp_call_function(nmi_cpu_busy, (void *)&endflag, 0, 0);
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
+	for_each_cpu(cpu)
 		prev_nmi_count[cpu] = per_cpu(irq_stat, cpu).__nmi_count;
 	local_irq_enable();
 	mdelay((10*1000)/nmi_hz); // wait 10 ticks
@@ -357,7 +357,7 @@ static void clear_msr_range(unsigned int base, unsigned int n)
 		wrmsr(base+i, 0, 0);
 }
 
-static inline void write_watchdog_counter(const char *descr)
+static void write_watchdog_counter(const char *descr)
 {
 	u64 count = (u64)cpu_khz * 1000;
 
@@ -544,7 +544,7 @@ void nmi_watchdog_tick (struct pt_regs * regs)
 			 * die_nmi will return ONLY if NOTIFY_STOP happens..
 			 */
 			die_nmi(regs, "NMI Watchdog detected LOCKUP");
-
+	} else {
 		last_irq_sums[cpu] = sum;
 		alert_counter[cpu] = 0;
 	}

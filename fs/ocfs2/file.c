@@ -933,9 +933,6 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	struct file *filp = iocb->ki_filp;
 	struct inode *inode = filp->f_dentry->d_inode;
 	loff_t newsize, saved_pos;
-#ifdef OCFS2_ORACORE_WORKAROUNDS
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-#endif
 
 	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", filp, buf,
 		   (unsigned int)count,
@@ -950,14 +947,6 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		mlog(0, "bad inode\n");
 		return -EIO;
 	}
-
-#ifdef OCFS2_ORACORE_WORKAROUNDS
-	/* ugh, work around some applications which open everything O_DIRECT +
-	 * O_APPEND and really don't mean to use O_DIRECT. */
-	if (osb->s_mount_opt & OCFS2_MOUNT_COMPAT_OCFS &&
-	    (filp->f_flags & O_APPEND) && (filp->f_flags & O_DIRECT)) 
-		filp->f_flags &= ~O_DIRECT;
-#endif
 
 	mutex_lock(&inode->i_mutex);
 	/* to match setattr's i_mutex -> i_alloc_sem -> rw_lock ordering */
@@ -1022,8 +1011,9 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		}
 		newsize = count + saved_pos;
 
-		mlog(0, "pos=%lld newsize=%"MLFu64" cursize=%lld\n",
-		     saved_pos, newsize, i_size_read(inode));
+		mlog(0, "pos=%lld newsize=%lld cursize=%lld\n",
+		     (long long) saved_pos, (long long) newsize,
+		     (long long) i_size_read(inode));
 
 		/* No need for a higher level metadata lock if we're
 		 * never going past i_size. */
@@ -1042,8 +1032,9 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 		spin_unlock(&OCFS2_I(inode)->ip_lock);
 
 		mlog(0, "Writing at EOF, may need more allocation: "
-		     "i_size = %lld, newsize = %"MLFu64", need %u clusters\n",
-		     i_size_read(inode), newsize, clusters);
+		     "i_size = %lld, newsize = %lld, need %u clusters\n",
+		     (long long) i_size_read(inode), (long long) newsize,
+		     clusters);
 
 		/* We only want to continue the rest of this loop if
 		 * our extend will actually require more
@@ -1077,27 +1068,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	/* communicate with ocfs2_dio_end_io */
 	ocfs2_iocb_set_rw_locked(iocb);
 
-#ifdef OCFS2_ORACORE_WORKAROUNDS
-	if (osb->s_mount_opt & OCFS2_MOUNT_COMPAT_OCFS &&
-	    filp->f_flags & O_DIRECT) {
-		unsigned int saved_flags = filp->f_flags;
-		int sector_size = 1 << osb->s_sectsize_bits;
-
-		if ((saved_pos & (sector_size - 1)) ||
-		    (count & (sector_size - 1)) ||
-		    ((unsigned long)buf & (sector_size - 1))) {
-			filp->f_flags |= O_SYNC;
-			filp->f_flags &= ~O_DIRECT;
-		}
-
-		ret = generic_file_aio_write_nolock(iocb, &local_iov, 1,
-						    &iocb->ki_pos);
-
-		filp->f_flags = saved_flags;
-	} else
-#endif
-		ret = generic_file_aio_write_nolock(iocb, &local_iov, 1,
-						    &iocb->ki_pos);
+	ret = generic_file_aio_write_nolock(iocb, &local_iov, 1, &iocb->ki_pos);
 
 	/* buffered aio wouldn't have proper lock coverage today */
 	BUG_ON(ret == -EIOCBQUEUED && !(filp->f_flags & O_DIRECT));
@@ -1138,9 +1109,6 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 	int ret = 0, rw_level = -1, have_alloc_sem = 0;
 	struct file *filp = iocb->ki_filp;
 	struct inode *inode = filp->f_dentry->d_inode;
-#ifdef OCFS2_ORACORE_WORKAROUNDS
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-#endif
 
 	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", filp, buf,
 		   (unsigned int)count,
@@ -1152,21 +1120,6 @@ static ssize_t ocfs2_file_aio_read(struct kiocb *iocb,
 		mlog_errno(ret);
 		goto bail;
 	}
-
-#ifdef OCFS2_ORACORE_WORKAROUNDS
-	if (osb->s_mount_opt & OCFS2_MOUNT_COMPAT_OCFS) {
-		if (filp->f_flags & O_DIRECT) {
-			int sector_size = 1 << osb->s_sectsize_bits;
-
-			if ((pos & (sector_size - 1)) ||
-			    (count & (sector_size - 1)) ||
-			    ((unsigned long)buf & (sector_size - 1)) ||
-			    (i_size_read(inode) & (sector_size -1))) {
-				filp->f_flags &= ~O_DIRECT;
-			}
-		}
-	}
-#endif
 
 	/* 
 	 * buffered reads protect themselves in ->readpage().  O_DIRECT reads

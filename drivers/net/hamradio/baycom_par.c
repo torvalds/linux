@@ -86,7 +86,6 @@
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 
-#include <asm/bug.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 

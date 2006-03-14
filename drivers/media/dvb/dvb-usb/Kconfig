@@ -83,12 +83,18 @@ config DVB_USB_UMT_010
 	  Say Y here to support the HanfTek UMT-010 USB2.0 stick-sized DVB-T receiver.
 
 config DVB_USB_CXUSB
-	tristate "Medion MD95700 hybrid USB2.0 (Conexant) support"
+	tristate "Conexant USB2.0 hybrid reference design support"
 	depends on DVB_USB
 	select DVB_CX22702
+	select DVB_LGDT330X
+	select DVB_MT352
 	help
-	  Say Y here to support the Medion MD95700 hybrid USB2.0 device. Currently
-	  only the DVB-T part is supported.
+	  Say Y here to support the Conexant USB2.0 hybrid reference design.
+	  Currently, only DVB and ATSC modes are supported, analog mode
+	  shall be added in the future. Devices that require this module:
+
+	  Medion MD95700 hybrid USB2.0 device.
+	  DViCO FusionHDTV (Bluebird) USB2.0 devices
 
 config DVB_USB_DIGITV
 	tristate "Nebula Electronics uDigiTV DVB-T USB2.0 support"

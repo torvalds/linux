@@ -521,6 +521,11 @@ struct smu_sdbp_cpupiddata {
 extern struct smu_sdbp_header *smu_get_sdb_partition(int id,
 					unsigned int *size);
 
+/* Get "sdb" partition data from an SMU satellite */
+extern struct smu_sdbp_header *smu_sat_get_sdb_partition(unsigned int sat_id,
+					int id, unsigned int *size);
+
+
 #endif /* __KERNEL__ */
 
 

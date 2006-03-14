@@ -78,14 +78,9 @@ struct PARM_MAP {
 	WORD idle_count;	/* Idle time counter */
 	WORD busy_count;	/* Busy counter */
 	WORD idle_control;	/* Control Idle Process */
-#if defined(HOST) || defined(INKERNEL)
 	WORD tx_intr;		/* TX interrupt pending */
 	WORD rx_intr;		/* RX interrupt pending */
 	WORD rup_intr;		/* RUP interrupt pending */
-#endif
-#if defined(RTA)
-	WORD dying_count;	/* Count of processes dead */
-#endif
 };
 
 #endif

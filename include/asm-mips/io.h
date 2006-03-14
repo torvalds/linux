@@ -18,7 +18,6 @@
 #include <linux/types.h>
 
 #include <asm/addrspace.h>
-#include <asm/bug.h>
 #include <asm/byteorder.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
@@ -57,38 +56,38 @@
  * variations of functions: non-prefixed ones that preserve the value
  * and prefixed ones that preserve byte addresses.  The latters are
  * typically used for moving raw data between a peripheral and memory (cf.
- * string I/O functions), hence the "mem_" prefix.
+ * string I/O functions), hence the "__mem_" prefix.
  */
 #if defined(CONFIG_SWAP_IO_SPACE)
 
 # define ioswabb(x)		(x)
-# define mem_ioswabb(x)		(x)
+# define __mem_ioswabb(x)	(x)
 # ifdef CONFIG_SGI_IP22
 /*
  * IP22 seems braindead enough to swap 16bits values in hardware, but
  * not 32bits.  Go figure... Can't tell without documentation.
  */
 #  define ioswabw(x)		(x)
-#  define mem_ioswabw(x)	le16_to_cpu(x)
+#  define __mem_ioswabw(x)	le16_to_cpu(x)
 # else
 #  define ioswabw(x)		le16_to_cpu(x)
-#  define mem_ioswabw(x)	(x)
+#  define __mem_ioswabw(x)	(x)
 # endif
 # define ioswabl(x)		le32_to_cpu(x)
-# define mem_ioswabl(x)		(x)
+# define __mem_ioswabl(x)	(x)
 # define ioswabq(x)		le64_to_cpu(x)
-# define mem_ioswabq(x)		(x)
+# define __mem_ioswabq(x)	(x)
 
 #else
 
 # define ioswabb(x)		(x)
-# define mem_ioswabb(x)		(x)
+# define __mem_ioswabb(x)	(x)
 # define ioswabw(x)		(x)
-# define mem_ioswabw(x)		cpu_to_le16(x)
+# define __mem_ioswabw(x)	cpu_to_le16(x)
 # define ioswabl(x)		(x)
-# define mem_ioswabl(x)		cpu_to_le32(x)
+# define __mem_ioswabl(x)	cpu_to_le32(x)
 # define ioswabq(x)		(x)
-# define mem_ioswabq(x)		cpu_to_le32(x)
+# define __mem_ioswabq(x)	cpu_to_le32(x)
 
 #endif
 
@@ -284,6 +283,24 @@ static inline void __iomem * __ioremap_mode(phys_t offset, unsigned long size,
 	__ioremap_mode((offset), (size), _CACHE_UNCACHED)
 
 /*
+ * ioremap_cachable -   map bus memory into CPU space
+ * @offset:         bus address of the memory
+ * @size:           size of the resource to map
+ *
+ * ioremap_nocache performs a platform specific sequence of operations to
+ * make bus memory CPU accessible via the readb/readw/readl/writeb/
+ * writew/writel functions and the other mmio helpers. The returned
+ * address is not guaranteed to be usable directly as a virtual
+ * address.
+ *
+ * This version of ioremap ensures that the memory is marked cachable by
+ * the CPU.  Also enables full write-combining.  Useful for some
+ * memory-like regions on I/O busses.
+ */
+#define ioremap_cachable(offset, size)					\
+	__ioremap_mode((offset), (size), PAGE_CACHABLE_DEFAULT)
+
+/*
  * These two are MIPS specific ioremap variant.  ioremap_cacheable_cow
  * requests a cachable mapping, ioremap_uncached_accelerated requests a
  * mapping using the uncached accelerated mode which isn't supported on
@@ -343,7 +360,7 @@ static inline void pfx##write##bwlq(type val,				\
 		BUG();							\
 }									\
 									\
-static inline type pfx##read##bwlq(volatile void __iomem *mem)		\
+static inline type pfx##read##bwlq(const volatile void __iomem *mem)	\
 {									\
 	volatile type *__mem;						\
 	type __val;							\
@@ -418,7 +435,7 @@ __BUILD_MEMORY_SINGLE(bus, bwlq, type, 1)
 									\
 __BUILD_MEMORY_PFX(__raw_, bwlq, type)					\
 __BUILD_MEMORY_PFX(, bwlq, type)					\
-__BUILD_MEMORY_PFX(mem_, bwlq, type)					\
+__BUILD_MEMORY_PFX(__mem_, bwlq, type)					\
 
 BUILDIO_MEM(b, u8)
 BUILDIO_MEM(w, u16)
@@ -431,7 +448,7 @@ BUILDIO_MEM(q, u64)
 
 #define BUILDIO_IOPORT(bwlq, type)					\
 	__BUILD_IOPORT_PFX(, bwlq, type)				\
-	__BUILD_IOPORT_PFX(mem_, bwlq, type)
+	__BUILD_IOPORT_PFX(__mem_, bwlq, type)
 
 BUILDIO_IOPORT(b, u8)
 BUILDIO_IOPORT(w, u16)
@@ -465,7 +482,7 @@ static inline void writes##bwlq(volatile void __iomem *mem,		\
 	const volatile type *__addr = addr;				\
 									\
 	while (count--) {						\
-		mem_write##bwlq(*__addr, mem);				\
+		__mem_write##bwlq(*__addr, mem);			\
 		__addr++;						\
 	}								\
 }									\
@@ -476,7 +493,7 @@ static inline void reads##bwlq(volatile void __iomem *mem, void *addr,	\
 	volatile type *__addr = addr;					\
 									\
 	while (count--) {						\
-		*__addr = mem_read##bwlq(mem);				\
+		*__addr = __mem_read##bwlq(mem);			\
 		__addr++;						\
 	}								\
 }
@@ -489,7 +506,7 @@ static inline void outs##bwlq(unsigned long port, const void *addr,	\
 	const volatile type *__addr = addr;				\
 									\
 	while (count--) {						\
-		mem_out##bwlq(*__addr, port);				\
+		__mem_out##bwlq(*__addr, port);				\
 		__addr++;						\
 	}								\
 }									\
@@ -500,7 +517,7 @@ static inline void ins##bwlq(unsigned long port, void *addr,		\
 	volatile type *__addr = addr;					\
 									\
 	while (count--) {						\
-		*__addr = mem_in##bwlq(port);				\
+		*__addr = __mem_in##bwlq(port);				\
 		__addr++;						\
 	}								\
 }

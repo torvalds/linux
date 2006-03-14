@@ -106,6 +106,13 @@ UNUSUAL_DEV(  0x0411, 0x001c, 0x0113, 0x0113,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
 
+/* Reported by Christian Leber <christian@leber.de> */
+UNUSUAL_DEV(  0x0419, 0xaaf5, 0x0100, 0x0100,
+		"TrekStor",
+		"i.Beat 115 2.0",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE | US_FL_NOT_LOCKABLE ),
+
 /* Reported by Stefan Werner <dustbln@gmx.de> */
 UNUSUAL_DEV(  0x0419, 0xaaf6, 0x0100, 0x0100,
 		"TrekStor",
@@ -127,6 +134,14 @@ UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
  		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
 #endif
 
+/* Patch submitted by Daniel Drake <dsd@gentoo.org>
+ * Device reports nonsense bInterfaceProtocol 6 when connected over USB2 */
+UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
+		"Neuros Audio",
+		"USB 2.0 HD 2.5",
+		US_SC_DEVICE, US_PR_BULK, NULL,
+		US_FL_NEED_OVERRIDE ),
+
 /*
  * Pete Zaitcev <zaitcev@yahoo.com>, from Patrick C. F. Ernzer, bz#162559.
  * The key does not actually break, but it returns zero sense which
@@ -137,13 +152,21 @@ UNUSUAL_DEV(  0x0457, 0x0150, 0x0100, 0x0100,
 		"USB Mass Storage Device",
 		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
 
-/* Patch submitted by Daniel Drake <dsd@gentoo.org>
- * Device reports nonsense bInterfaceProtocol 6 when connected over USB2 */
-UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
-		"Neuros Audio",
-		"USB 2.0 HD 2.5",
-		US_SC_DEVICE, US_PR_BULK, NULL,
-		US_FL_NEED_OVERRIDE ),
+/*
+* Bohdan Linda <bohdan.linda@gmail.com>
+* 1GB USB sticks MyFlash High Speed. I have restricted
+* the revision to my model only
+*/
+UNUSUAL_DEV(  0x0457, 0x0151, 0x0100, 0x0100,
+                "USB 2.0",
+                "Flash Disk",
+                US_SC_DEVICE, US_PR_DEVICE, NULL,
+                US_FL_NOT_LOCKABLE ),
+
+UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
+		"Rio",
+		"Rio Karma",
+		US_SC_SCSI, US_PR_BULK, rio_karma_init, 0),
 
 /* Patch submitted by Philipp Friedrich <philipp@void.at> */
 UNUSUAL_DEV(  0x0482, 0x0100, 0x0100, 0x0100,
@@ -424,11 +447,11 @@ UNUSUAL_DEV(  0x054c, 0x0010, 0x0106, 0x0450,
 		US_FL_SINGLE_LUN | US_FL_NOT_LOCKABLE | US_FL_NO_WP_DETECT ),
 
 /* This entry is needed because the device reports Sub=ff */
-UNUSUAL_DEV(  0x054c, 0x0010, 0x0500, 0x0500, 
-               "Sony",
-               "DSC-T1", 
-               US_SC_8070, US_PR_DEVICE, NULL,
-               US_FL_SINGLE_LUN ),
+UNUSUAL_DEV(  0x054c, 0x0010, 0x0500, 0x0600,
+		"Sony",
+		"DSC-T1/T5",
+		US_SC_8070, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
 
 
 /* Reported by wim@geeks.nl */
@@ -730,6 +753,13 @@ UNUSUAL_DEV(  0x0693, 0x0005, 0x0100, 0x0100,
 		"Flashgate",
 		US_SC_SCSI, US_PR_BULK, NULL, 0 ), 
 
+/* Reported by David Hamilton <niftimusmaximus@lycos.com> */
+UNUSUAL_DEV(  0x069b, 0x3004, 0x0001, 0x0001,
+		"Thomson Multimedia Inc.",
+		"RCA RD1080 MP3 Player",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 UNUSUAL_DEV(  0x0781, 0x0001, 0x0200, 0x0200, 
 		"Sandisk",
 		"ImageMate SDDR-05a",
@@ -941,6 +971,12 @@ UNUSUAL_DEV(  0x084d, 0x0011, 0x0110, 0x0110,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_BULK32),
 
+/* Submitted by Jan De Luyck <lkml@kcore.org> */
+UNUSUAL_DEV(  0x08bd, 0x1100, 0x0000, 0x0000,
+		"CITIZEN",
+		"X1DE-USB",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN),
 
 /* Entry needed for flags. Moreover, all devices with this ID use
  * bulk-only transport, but _some_ falsely report Control/Bulk instead.
@@ -1080,6 +1116,13 @@ UNUSUAL_DEV(  0x0dda, 0x0301, 0x0012, 0x0012,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by Jim McCloskey <mcclosk@ucsc.edu> */
+UNUSUAL_DEV( 0x0e21, 0x0520, 0x0100, 0x0100,
+		"Cowon Systems",
+		"iAUDIO M5",
+		US_SC_DEVICE, US_PR_BULK, NULL,
+		0 ),
+
 /* Submitted by Antoine Mairesse <antoine.mairesse@free.fr> */
 UNUSUAL_DEV( 0x0ed1, 0x6660, 0x0100, 0x0300,
 		"USB",
@@ -1156,6 +1199,13 @@ UNUSUAL_DEV(  0x55aa, 0xa103, 0x0000, 0x9999,
 		US_SC_SCSI, US_PR_SDDR55, NULL,
 		US_FL_SINGLE_LUN),
 #endif
+
+/* Reported by Andrew Simmons <andrew.simmons@gmail.com> */
+UNUSUAL_DEV(  0xed06, 0x4500, 0x0001, 0x0001,
+		"DataStor",
+		"USB4500 FW1.04",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
 
 /* Control/Bulk transport for all SubClass values */
 USUAL_DEV(US_SC_RBC, US_PR_CB, USB_US_TYPE_STOR),

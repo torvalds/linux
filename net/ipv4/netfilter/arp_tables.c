@@ -771,7 +771,7 @@ static int get_entries(const struct arpt_get_entries *entries,
 	struct arpt_table *t;
 
 	t = xt_find_table_lock(NF_ARP, entries->name);
-	if (t || !IS_ERR(t)) {
+	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		duprintf("t->private->number = %u\n",
 			 private->number);
@@ -806,6 +806,13 @@ static int do_replace(void __user *user, unsigned int len)
 	/* Hack: Causes ipchains to give correct error msg --RR */
 	if (len != sizeof(tmp) + tmp.size)
 		return -ENOPROTOOPT;
+
+	/* overflow check */
+	if (tmp.size >= (INT_MAX - sizeof(struct xt_table_info)) / NR_CPUS -
+			SMP_CACHE_BYTES)
+		return -ENOMEM;
+	if (tmp.num_counters >= INT_MAX / sizeof(struct xt_counters))
+		return -ENOMEM;
 
 	newinfo = xt_alloc_table_info(tmp.size);
 	if (!newinfo)

@@ -134,7 +134,6 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	return add_legacy_port(np, -1, UPIO_MEM, addr, addr, NO_IRQ, flags);
 }
 
-#ifdef CONFIG_ISA
 static int __init add_legacy_isa_port(struct device_node *np,
 				      struct device_node *isa_brg)
 {
@@ -168,7 +167,6 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	return add_legacy_port(np, index, UPIO_PORT, reg[1], taddr, NO_IRQ, UPF_BOOT_AUTOCONF);
 
 }
-#endif
 
 #ifdef CONFIG_PCI
 static int __init add_legacy_pci_port(struct device_node *np,
@@ -276,7 +274,6 @@ void __init find_legacy_serial_ports(void)
 		of_node_put(soc);
 	}
 
-#ifdef CONFIG_ISA
 	/* First fill our array with ISA ports */
 	for (np = NULL; (np = of_find_node_by_type(np, "serial"));) {
 		struct device_node *isa = of_get_parent(np);
@@ -287,7 +284,6 @@ void __init find_legacy_serial_ports(void)
 		}
 		of_node_put(isa);
 	}
-#endif
 
 #ifdef CONFIG_PCI
 	/* Next, try to locate PCI ports */

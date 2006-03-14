@@ -58,8 +58,12 @@ extern struct reiserfs_xattr_handler posix_acl_default_handler;
 extern struct reiserfs_xattr_handler posix_acl_access_handler;
 #else
 
-#define reiserfs_get_acl NULL
 #define reiserfs_cache_default_acl(inode) 0
+
+static inline struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
+{
+	return NULL;
+}
 
 static inline int reiserfs_xattr_posix_acl_init(void)
 {

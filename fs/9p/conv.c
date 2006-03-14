@@ -116,13 +116,19 @@ static void buf_put_int64(struct cbuf *buf, u64 val)
 	}
 }
 
-static void buf_put_stringn(struct cbuf *buf, const char *s, u16 slen)
+static char *buf_put_stringn(struct cbuf *buf, const char *s, u16 slen)
 {
+	char *ret;
+
+	ret = NULL;
 	if (buf_check_size(buf, slen + 2)) {
 		buf_put_int16(buf, slen);
+		ret = buf->p;
 		memcpy(buf->p, s, slen);
 		buf->p += slen;
 	}
+
+	return ret;
 }
 
 static inline void buf_put_string(struct cbuf *buf, const char *s)
@@ -430,15 +436,19 @@ static inline void v9fs_put_int64(struct cbuf *bufp, u64 val, u64 * p)
 static void
 v9fs_put_str(struct cbuf *bufp, char *data, struct v9fs_str *str)
 {
-	if (data) {
-		str->len = strlen(data);
-		str->str = bufp->p;
-	} else {
-		str->len = 0;
-		str->str = NULL;
-	}
+	int len;
+	char *s;
 
-	buf_put_stringn(bufp, data, str->len);
+	if (data)
+		len = strlen(data);
+	else
+		len = 0;
+
+	s = buf_put_stringn(bufp, data, len);
+	if (str) {
+		str->len = len;
+		str->str = s;
+	}
 }
 
 static int

@@ -18,7 +18,7 @@
 #include <asm/gt64120.h>
 #include <asm/ptrace.h>
 
-#include <asm/cobalt/cobalt.h>
+#include <asm/mach-cobalt/cobalt.h>
 
 extern void cobalt_handle_int(void);
 

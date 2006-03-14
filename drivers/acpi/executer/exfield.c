@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -249,13 +249,18 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 		 * Source must be a buffer of sufficient size (ACPI_SMBUS_BUFFER_SIZE).
 		 */
 		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_BUFFER) {
-			ACPI_REPORT_ERROR(("SMBus write requires Buffer, found type %s\n", acpi_ut_get_object_type_name(source_desc)));
+			ACPI_ERROR((AE_INFO,
+				    "SMBus write requires Buffer, found type %s",
+				    acpi_ut_get_object_type_name(source_desc)));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
 		if (source_desc->buffer.length < ACPI_SMBUS_BUFFER_SIZE) {
-			ACPI_REPORT_ERROR(("SMBus write requires Buffer of length %X, found length %X\n", ACPI_SMBUS_BUFFER_SIZE, source_desc->buffer.length));
+			ACPI_ERROR((AE_INFO,
+				    "SMBus write requires Buffer of length %X, found length %X",
+				    ACPI_SMBUS_BUFFER_SIZE,
+				    source_desc->buffer.length));
 
 			return_ACPI_STATUS(AE_AML_BUFFER_LIMIT);
 		}

@@ -627,11 +627,6 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 	reiserfs_write_lock(inode->i_sb);
 	version = get_inode_item_key_version(inode);
 
-	if (block < 0) {
-		reiserfs_write_unlock(inode->i_sb);
-		return -EIO;
-	}
-
 	if (!file_capable(inode, block)) {
 		reiserfs_write_unlock(inode->i_sb);
 		return -EFBIG;
@@ -934,12 +929,13 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 				     //pos_in_item * inode->i_sb->s_blocksize,
 				     TYPE_INDIRECT, 3);	// key type is unimportant
 
+			RFALSE(cpu_key_k_offset(&tmp_key) > cpu_key_k_offset(&key),
+			       "green-805: invalid offset");
 			blocks_needed =
 			    1 +
 			    ((cpu_key_k_offset(&key) -
 			      cpu_key_k_offset(&tmp_key)) >> inode->i_sb->
 			     s_blocksize_bits);
-			RFALSE(blocks_needed < 0, "green-805: invalid offset");
 
 			if (blocks_needed == 1) {
 				un = &unf_single;
@@ -2363,6 +2359,13 @@ static int reiserfs_write_full_page(struct page *page,
 	int bh_per_page = PAGE_CACHE_SIZE / s->s_blocksize;
 	th.t_trans_id = 0;
 
+	/* no logging allowed when nonblocking or from PF_MEMALLOC */
+	if (checked && (current->flags & PF_MEMALLOC)) {
+		redirty_page_for_writepage(wbc, page);
+		unlock_page(page);
+		return 0;
+	}
+
 	/* The page dirty bit is cleared before writepage is called, which
 	 * means we have to tell create_empty_buffers to make dirty buffers
 	 * The page really should be up to date at this point, so tossing
@@ -2743,6 +2746,7 @@ static int invalidatepage_can_drop(struct inode *inode, struct buffer_head *bh)
 	int ret = 1;
 	struct reiserfs_journal *j = SB_JOURNAL(inode->i_sb);
 
+	lock_buffer(bh);
 	spin_lock(&j->j_dirty_buffers_lock);
 	if (!buffer_mapped(bh)) {
 		goto free_jh;
@@ -2758,7 +2762,7 @@ static int invalidatepage_can_drop(struct inode *inode, struct buffer_head *bh)
 		if (buffer_journaled(bh) || buffer_journal_dirty(bh)) {
 			ret = 0;
 		}
-	} else if (buffer_dirty(bh) || buffer_locked(bh)) {
+	} else  if (buffer_dirty(bh)) {
 		struct reiserfs_journal_list *jl;
 		struct reiserfs_jh *jh = bh->b_private;
 
@@ -2784,6 +2788,7 @@ static int invalidatepage_can_drop(struct inode *inode, struct buffer_head *bh)
 		reiserfs_free_jh(bh);
 	}
 	spin_unlock(&j->j_dirty_buffers_lock);
+	unlock_buffer(bh);
 	return ret;
 }
 

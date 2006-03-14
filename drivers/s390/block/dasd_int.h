@@ -6,7 +6,6 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.68 $
  */
 
 #ifndef DASD_INT_H
@@ -27,7 +26,7 @@
  *   new: the dasd_device structure is allocated.
  *   known: the discipline for the device is identified.
  *   basic: the device can do basic i/o.
- *   accept: the device is analysed (format is known).
+ *   unfmt: the device could not be analyzed (format is unknown).
  *   ready: partition detection is done and the device is can do block io.
  *   online: the device accepts requests from the block device queue.
  *
@@ -48,8 +47,9 @@
 #define DASD_STATE_NEW	  0
 #define DASD_STATE_KNOWN  1
 #define DASD_STATE_BASIC  2
-#define DASD_STATE_READY  3
-#define DASD_STATE_ONLINE 4
+#define DASD_STATE_UNFMT  3
+#define DASD_STATE_READY  4
+#define DASD_STATE_ONLINE 5
 
 #include <linux/module.h>
 #include <linux/wait.h>
@@ -291,6 +291,7 @@ struct dasd_device {
 
 	/* Device discipline stuff. */
 	struct dasd_discipline *discipline;
+	struct dasd_discipline *base_discipline;
 	char *private;
 
 	/* Device state and target state. */

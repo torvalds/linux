@@ -11,8 +11,7 @@ config HOTPLUG_PCI
 	---help---
 	  Say Y here if you have a motherboard with a PCI Hotplug controller.
 	  This allows you to add and remove PCI cards while the machine is
-	  powered up and running.  The file system pcihpfs must be mounted
-	  in order to interact with any PCI Hotplug controllers.
+	  powered up and running.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pci_hotplug.

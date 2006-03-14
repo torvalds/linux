@@ -91,10 +91,8 @@ static int save_highmem_zone(struct zone *zone)
 		 * corrected eventually when the cases giving rise to this
 		 * are better understood.
 		 */
-		if (PageReserved(page)) {
-			printk("highmem reserved page?!\n");
+		if (PageReserved(page))
 			continue;
-		}
 		BUG_ON(PageNosave(page));
 		if (PageNosaveFree(page))
 			continue;
