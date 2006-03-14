@@ -531,7 +531,11 @@ static void bcm43xx_destroy_dmaring(struct bcm43xx_dmaring *ring)
 
 void bcm43xx_dma_free(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_dma *dma = bcm43xx_current_dma(bcm);
+	struct bcm43xx_dma *dma;
+
+	if (bcm43xx_using_pio(bcm))
+		return;
+	dma = bcm43xx_current_dma(bcm);
 
 	bcm43xx_destroy_dmaring(dma->rx_ring1);
 	dma->rx_ring1 = NULL;

@@ -377,7 +377,11 @@ static void bcm43xx_destroy_pioqueue(struct bcm43xx_pioqueue *queue)
 
 void bcm43xx_pio_free(struct bcm43xx_private *bcm)
 {
-	struct bcm43xx_pio *pio = bcm43xx_current_pio(bcm);
+	struct bcm43xx_pio *pio;
+
+	if (!bcm43xx_using_pio(bcm))
+		return;
+	pio = bcm43xx_current_pio(bcm);
 
 	bcm43xx_destroy_pioqueue(pio->queue3);
 	pio->queue3 = NULL;
