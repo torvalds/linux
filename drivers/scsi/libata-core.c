@@ -962,6 +962,8 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	if (!wait_for_completion_timeout(&wait, ATA_TMOUT_INTERNAL)) {
+		ata_port_flush_task(ap);
+
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 
 		/* We're racing with irq here.  If we lose, the
