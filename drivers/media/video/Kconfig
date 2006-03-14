@@ -359,8 +359,11 @@ config VIDEO_AUDIO_DECODER
 config VIDEO_DECODER
 	tristate "Add support for additional video chipsets"
 	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	select VIDEO_CX25840
 	---help---
 	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
 	  video decoders.
+
+source "drivers/media/video/cx25840/Kconfig"
 
 endmenu
