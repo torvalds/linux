@@ -87,7 +87,7 @@ ssize_t dvb_ringbuffer_avail(struct dvb_ringbuffer *rbuf)
 
 void dvb_ringbuffer_flush(struct dvb_ringbuffer *rbuf)
 {
-	rbuf->pread = rbuf->pwrite = 0;
+	rbuf->pread = rbuf->pwrite;
 	rbuf->error = 0;
 }
 
