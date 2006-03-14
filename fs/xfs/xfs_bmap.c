@@ -2294,25 +2294,15 @@ xfs_bmap_extsize_align(
 
 #define XFS_ALLOC_GAP_UNITS	4
 
-/*
- * xfs_bmap_alloc is called by xfs_bmapi to allocate an extent for a file.
- * It figures out where to ask the underlying allocator to put the new extent.
- */
 STATIC int
-xfs_bmap_alloc(
+xfs_bmap_adjacent(
 	xfs_bmalloca_t	*ap)		/* bmap alloc argument struct */
 {
 	xfs_fsblock_t	adjust;		/* adjustment to block numbers */
-	xfs_alloctype_t	atype=0;	/* type for allocation routines */
-	int		error;		/* error return value */
 	xfs_agnumber_t	fb_agno;	/* ag number of ap->firstblock */
 	xfs_mount_t	*mp;		/* mount point structure */
 	int		nullfb;		/* true if ap->firstblock isn't set */
 	int		rt;		/* true if inode is realtime */
-	xfs_extlen_t	prod = 0;	/* product factor for allocators */
-	xfs_extlen_t	ralen = 0;	/* realtime allocation length */
-	xfs_extlen_t	align;		/* minimum allocation alignment */
-	xfs_rtblock_t	rtx;
 
 #define	ISVALID(x,y)	\
 	(rt ? \
@@ -2321,75 +2311,10 @@ xfs_bmap_alloc(
 		XFS_FSB_TO_AGNO(mp, x) < mp->m_sb.sb_agcount && \
 		XFS_FSB_TO_AGBNO(mp, x) < mp->m_sb.sb_agblocks)
 
-	/*
-	 * Set up variables.
-	 */
 	mp = ap->ip->i_mount;
 	nullfb = ap->firstblock == NULLFSBLOCK;
 	rt = XFS_IS_REALTIME_INODE(ap->ip) && ap->userdata;
 	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp, ap->firstblock);
-	if (rt) {
-		align = ap->ip->i_d.di_extsize ?
-			ap->ip->i_d.di_extsize : mp->m_sb.sb_rextsize;
-		/* Set prod to match the extent size */
-		prod = align / mp->m_sb.sb_rextsize;
-
-		error = xfs_bmap_extsize_align(mp, ap->gotp, ap->prevp,
-						align, rt, ap->eof, 0,
-						ap->conv, &ap->off, &ap->alen);
-		if (error)
-			return error;
-		ASSERT(ap->alen);
-		ASSERT(ap->alen % mp->m_sb.sb_rextsize == 0);
-
-		/*
-		 * If the offset & length are not perfectly aligned
-		 * then kill prod, it will just get us in trouble.
-		 */
-		if (do_mod(ap->off, align) || ap->alen % align)
-			prod = 1;
-		/*
-		 * Set ralen to be the actual requested length in rtextents.
-		 */
-		ralen = ap->alen / mp->m_sb.sb_rextsize;
-		/*
-		 * If the old value was close enough to MAXEXTLEN that
-		 * we rounded up to it, cut it back so it's valid again.
-		 * Note that if it's a really large request (bigger than
-		 * MAXEXTLEN), we don't hear about that number, and can't
-		 * adjust the starting point to match it.
-		 */
-		if (ralen * mp->m_sb.sb_rextsize >= MAXEXTLEN)
-			ralen = MAXEXTLEN / mp->m_sb.sb_rextsize;
-		/*
-		 * If it's an allocation to an empty file at offset 0,
-		 * pick an extent that will space things out in the rt area.
-		 */
-		if (ap->eof && ap->off == 0) {
-			error = xfs_rtpick_extent(mp, ap->tp, ralen, &rtx);
-			if (error)
-				return error;
-			ap->rval = rtx * mp->m_sb.sb_rextsize;
-		} else
-			ap->rval = 0;
-	} else {
-		align = (ap->userdata && ap->ip->i_d.di_extsize &&
-			(ap->ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)) ?
-			ap->ip->i_d.di_extsize : 0;
-		if (unlikely(align)) {
-			error = xfs_bmap_extsize_align(mp, ap->gotp, ap->prevp,
-							align, rt,
-							ap->eof, 0, ap->conv,
-							&ap->off, &ap->alen);
-			ASSERT(!error);
-			ASSERT(ap->alen);
-		}
-		if (nullfb)
-			ap->rval = XFS_INO_TO_FSB(mp, ap->ip->i_ino);
-		else
-			ap->rval = ap->firstblock;
-	}
-
 	/*
 	 * If allocating at eof, and there's a previous real block,
 	 * try to use it's last block as our starting point.
@@ -2514,281 +2439,378 @@ xfs_bmap_alloc(
 		else if (gotbno != NULLFSBLOCK)
 			ap->rval = gotbno;
 	}
+#undef ISVALID
+	return 0;
+}
+
+STATIC int
+xfs_bmap_rtalloc(
+	xfs_bmalloca_t	*ap)		/* bmap alloc argument struct */
+{
+	xfs_alloctype_t	atype = 0;	/* type for allocation routines */
+	int		error;		/* error return value */
+	xfs_mount_t	*mp;		/* mount point structure */
+	xfs_extlen_t	prod = 0;	/* product factor for allocators */
+	xfs_extlen_t	ralen = 0;	/* realtime allocation length */
+	xfs_extlen_t	align;		/* minimum allocation alignment */
+	xfs_rtblock_t	rtx;		/* realtime extent number */
+	xfs_rtblock_t	rtb;
+
+	mp = ap->ip->i_mount;
+	align = ap->ip->i_d.di_extsize ?
+		ap->ip->i_d.di_extsize : mp->m_sb.sb_rextsize;
+	prod = align / mp->m_sb.sb_rextsize;
+	error = xfs_bmap_extsize_align(mp, ap->gotp, ap->prevp,
+					align, 1, ap->eof, 0,
+					ap->conv, &ap->off, &ap->alen);
+	if (error)
+		return error;
+	ASSERT(ap->alen);
+	ASSERT(ap->alen % mp->m_sb.sb_rextsize == 0);
+
+	/*
+	 * If the offset & length are not perfectly aligned
+	 * then kill prod, it will just get us in trouble.
+	 */
+	if (do_mod(ap->off, align) || ap->alen % align)
+		prod = 1;
+	/*
+	 * Set ralen to be the actual requested length in rtextents.
+	 */
+	ralen = ap->alen / mp->m_sb.sb_rextsize;
+	/*
+	 * If the old value was close enough to MAXEXTLEN that
+	 * we rounded up to it, cut it back so it's valid again.
+	 * Note that if it's a really large request (bigger than
+	 * MAXEXTLEN), we don't hear about that number, and can't
+	 * adjust the starting point to match it.
+	 */
+	if (ralen * mp->m_sb.sb_rextsize >= MAXEXTLEN)
+		ralen = MAXEXTLEN / mp->m_sb.sb_rextsize;
+	/*
+	 * If it's an allocation to an empty file at offset 0,
+	 * pick an extent that will space things out in the rt area.
+	 */
+	if (ap->eof && ap->off == 0) {
+		error = xfs_rtpick_extent(mp, ap->tp, ralen, &rtx);
+		if (error)
+			return error;
+		ap->rval = rtx * mp->m_sb.sb_rextsize;
+	} else {
+		ap->rval = 0;
+	}
+
+	xfs_bmap_adjacent(ap);
+
+	/*
+	 * Realtime allocation, done through xfs_rtallocate_extent.
+	 */
+	atype = ap->rval == 0 ?  XFS_ALLOCTYPE_ANY_AG : XFS_ALLOCTYPE_NEAR_BNO;
+	do_div(ap->rval, mp->m_sb.sb_rextsize);
+	rtb = ap->rval;
+	ap->alen = ralen;
+	if ((error = xfs_rtallocate_extent(ap->tp, ap->rval, 1, ap->alen,
+				&ralen, atype, ap->wasdel, prod, &rtb)))
+		return error;
+	if (rtb == NULLFSBLOCK && prod > 1 &&
+	    (error = xfs_rtallocate_extent(ap->tp, ap->rval, 1,
+					   ap->alen, &ralen, atype,
+					   ap->wasdel, 1, &rtb)))
+		return error;
+	ap->rval = rtb;
+	if (ap->rval != NULLFSBLOCK) {
+		ap->rval *= mp->m_sb.sb_rextsize;
+		ralen *= mp->m_sb.sb_rextsize;
+		ap->alen = ralen;
+		ap->ip->i_d.di_nblocks += ralen;
+		xfs_trans_log_inode(ap->tp, ap->ip, XFS_ILOG_CORE);
+		if (ap->wasdel)
+			ap->ip->i_delayed_blks -= ralen;
+		/*
+		 * Adjust the disk quota also. This was reserved
+		 * earlier.
+		 */
+		XFS_TRANS_MOD_DQUOT_BYINO(mp, ap->tp, ap->ip,
+			ap->wasdel ? XFS_TRANS_DQ_DELRTBCOUNT :
+					XFS_TRANS_DQ_RTBCOUNT, (long) ralen);
+	} else {
+		ap->alen = 0;
+	}
+	return 0;
+}
+
+STATIC int
+xfs_bmap_btalloc(
+	xfs_bmalloca_t	*ap)		/* bmap alloc argument struct */
+{
+	xfs_mount_t	*mp;		/* mount point structure */
+	xfs_alloctype_t	atype = 0;	/* type for allocation routines */
+	xfs_extlen_t	align;		/* minimum allocation alignment */
+	xfs_agnumber_t	ag;
+	xfs_agnumber_t	fb_agno;	/* ag number of ap->firstblock */
+	xfs_agnumber_t	startag;
+	xfs_alloc_arg_t	args;
+	xfs_extlen_t	blen;
+	xfs_extlen_t	delta;
+	xfs_extlen_t	longest;
+	xfs_extlen_t	need;
+	xfs_extlen_t	nextminlen = 0;
+	xfs_perag_t	*pag;
+	int		nullfb;		/* true if ap->firstblock isn't set */
+	int		isaligned;
+	int		notinit;
+	int		tryagain;
+	int		error;
+
+	mp = ap->ip->i_mount;
+	align = (ap->userdata && ap->ip->i_d.di_extsize &&
+		(ap->ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)) ?
+		ap->ip->i_d.di_extsize : 0;
+	if (unlikely(align)) {
+		error = xfs_bmap_extsize_align(mp, ap->gotp, ap->prevp,
+						align, 0, ap->eof, 0, ap->conv,
+						&ap->off, &ap->alen);
+		ASSERT(!error);
+		ASSERT(ap->alen);
+	}
+	nullfb = ap->firstblock == NULLFSBLOCK;
+	fb_agno = nullfb ? NULLAGNUMBER : XFS_FSB_TO_AGNO(mp, ap->firstblock);
+	if (nullfb)
+		ap->rval = XFS_INO_TO_FSB(mp, ap->ip->i_ino);
+	else
+		ap->rval = ap->firstblock;
+
+	xfs_bmap_adjacent(ap);
+
 	/*
 	 * If allowed, use ap->rval; otherwise must use firstblock since
 	 * it's in the right allocation group.
 	 */
-	if (nullfb || rt || XFS_FSB_TO_AGNO(mp, ap->rval) == fb_agno)
+	if (nullfb || XFS_FSB_TO_AGNO(mp, ap->rval) == fb_agno)
 		;
 	else
 		ap->rval = ap->firstblock;
 	/*
-	 * Realtime allocation, done through xfs_rtallocate_extent.
-	 */
-	if (rt) {
-#ifndef __KERNEL__
-		ASSERT(0);
-#else
-		xfs_rtblock_t	rtb;
-
-		atype = ap->rval == 0 ?
-			XFS_ALLOCTYPE_ANY_AG : XFS_ALLOCTYPE_NEAR_BNO;
-		do_div(ap->rval, mp->m_sb.sb_rextsize);
-		rtb = ap->rval;
-		ap->alen = ralen;
-		if ((error = xfs_rtallocate_extent(ap->tp, ap->rval, 1, ap->alen,
-				&ralen, atype, ap->wasdel, prod, &rtb)))
-			return error;
-		if (rtb == NULLFSBLOCK && prod > 1 &&
-		    (error = xfs_rtallocate_extent(ap->tp, ap->rval, 1,
-						   ap->alen, &ralen, atype,
-						   ap->wasdel, 1, &rtb)))
-			return error;
-		ap->rval = rtb;
-		if (ap->rval != NULLFSBLOCK) {
-			ap->rval *= mp->m_sb.sb_rextsize;
-			ralen *= mp->m_sb.sb_rextsize;
-			ap->alen = ralen;
-			ap->ip->i_d.di_nblocks += ralen;
-			xfs_trans_log_inode(ap->tp, ap->ip, XFS_ILOG_CORE);
-			if (ap->wasdel)
-				ap->ip->i_delayed_blks -= ralen;
-			/*
-			 * Adjust the disk quota also. This was reserved
-			 * earlier.
-			 */
-			XFS_TRANS_MOD_DQUOT_BYINO(mp, ap->tp, ap->ip,
-				ap->wasdel ? XFS_TRANS_DQ_DELRTBCOUNT :
-						XFS_TRANS_DQ_RTBCOUNT,
-				(long) ralen);
-		} else
-			ap->alen = 0;
-#endif	/* __KERNEL__ */
-	}
-	/*
 	 * Normal allocation, done through xfs_alloc_vextent.
 	 */
-	else {
-		xfs_agnumber_t	ag;
-		xfs_alloc_arg_t	args;
-		xfs_extlen_t	blen;
-		xfs_extlen_t	delta;
-		int		isaligned;
-		xfs_extlen_t	longest;
-		xfs_extlen_t	need;
-		xfs_extlen_t	nextminlen=0;
-		int		notinit;
-		xfs_perag_t	*pag;
-		xfs_agnumber_t	startag;
-		int		tryagain;
-
-		tryagain = isaligned = 0;
-		args.tp = ap->tp;
-		args.mp = mp;
-		args.fsbno = ap->rval;
-		args.maxlen = MIN(ap->alen, mp->m_sb.sb_agblocks);
-		blen = 0;
-		if (nullfb) {
-			args.type = XFS_ALLOCTYPE_START_BNO;
-			args.total = ap->total;
-			/*
-			 * Find the longest available space.
-			 * We're going to try for the whole allocation at once.
-			 */
-			startag = ag = XFS_FSB_TO_AGNO(mp, args.fsbno);
-			notinit = 0;
-			down_read(&mp->m_peraglock);
-			while (blen < ap->alen) {
-				pag = &mp->m_perag[ag];
-				if (!pag->pagf_init &&
-				    (error = xfs_alloc_pagf_init(mp, args.tp,
-					    ag, XFS_ALLOC_FLAG_TRYLOCK))) {
-					up_read(&mp->m_peraglock);
-					return error;
-				}
-				/*
-				 * See xfs_alloc_fix_freelist...
-				 */
-				if (pag->pagf_init) {
-					need = XFS_MIN_FREELIST_PAG(pag, mp);
-					delta = need > pag->pagf_flcount ?
-						need - pag->pagf_flcount : 0;
-					longest = (pag->pagf_longest > delta) ?
-						(pag->pagf_longest - delta) :
-						(pag->pagf_flcount > 0 ||
-						 pag->pagf_longest > 0);
-					if (blen < longest)
-						blen = longest;
-				} else
-					notinit = 1;
-				if (++ag == mp->m_sb.sb_agcount)
-					ag = 0;
-				if (ag == startag)
-					break;
-			}
-			up_read(&mp->m_peraglock);
-			/*
-			 * Since the above loop did a BUF_TRYLOCK, it is
-			 * possible that there is space for this request.
-			 */
-			if (notinit || blen < ap->minlen)
-				args.minlen = ap->minlen;
-			/*
-			 * If the best seen length is less than the request
-			 * length, use the best as the minimum.
-			 */
-			else if (blen < ap->alen)
-				args.minlen = blen;
-			/*
-			 * Otherwise we've seen an extent as big as alen,
-			 * use that as the minimum.
-			 */
-			else
-				args.minlen = ap->alen;
-		} else if (ap->low) {
-			args.type = XFS_ALLOCTYPE_FIRST_AG;
-			args.total = args.minlen = ap->minlen;
-		} else {
-			args.type = XFS_ALLOCTYPE_NEAR_BNO;
-			args.total = ap->total;
-			args.minlen = ap->minlen;
-		}
-		if (unlikely(ap->userdata && ap->ip->i_d.di_extsize &&
-			    (ap->ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE))) {
-			args.prod = ap->ip->i_d.di_extsize;
-			if ((args.mod = (xfs_extlen_t)do_mod(ap->off, args.prod)))
-				args.mod = (xfs_extlen_t)(args.prod - args.mod);
-		} else if (unlikely(mp->m_sb.sb_blocksize >= NBPP)) {
-			args.prod = 1;
-			args.mod = 0;
-		} else {
-			args.prod = NBPP >> mp->m_sb.sb_blocklog;
-			if ((args.mod = (xfs_extlen_t)(do_mod(ap->off, args.prod))))
-				args.mod = (xfs_extlen_t)(args.prod - args.mod);
-		}
+	tryagain = isaligned = 0;
+	args.tp = ap->tp;
+	args.mp = mp;
+	args.fsbno = ap->rval;
+	args.maxlen = MIN(ap->alen, mp->m_sb.sb_agblocks);
+	blen = 0;
+	if (nullfb) {
+		args.type = XFS_ALLOCTYPE_START_BNO;
+		args.total = ap->total;
 		/*
-		 * If we are not low on available data blocks, and the
-		 * underlying logical volume manager is a stripe, and
-		 * the file offset is zero then try to allocate data
-		 * blocks on stripe unit boundary.
-		 * NOTE: ap->aeof is only set if the allocation length
-		 * is >= the stripe unit and the allocation offset is
-		 * at the end of file.
+		 * Find the longest available space.
+		 * We're going to try for the whole allocation at once.
 		 */
-		if (!ap->low && ap->aeof) {
-			if (!ap->off) {
-				args.alignment = mp->m_dalign;
-				atype = args.type;
-				isaligned = 1;
-				/*
-				 * Adjust for alignment
-				 */
-				if (blen > args.alignment && blen <= ap->alen)
-					args.minlen = blen - args.alignment;
-				args.minalignslop = 0;
-			} else {
-				/*
-				 * First try an exact bno allocation.
-				 * If it fails then do a near or start bno
-				 * allocation with alignment turned on.
-				 */
-				atype = args.type;
-				tryagain = 1;
-				args.type = XFS_ALLOCTYPE_THIS_BNO;
-				args.alignment = 1;
-				/*
-				 * Compute the minlen+alignment for the
-				 * next case.  Set slop so that the value
-				 * of minlen+alignment+slop doesn't go up
-				 * between the calls.
-				 */
-				if (blen > mp->m_dalign && blen <= ap->alen)
-					nextminlen = blen - mp->m_dalign;
-				else
-					nextminlen = args.minlen;
-				if (nextminlen + mp->m_dalign > args.minlen + 1)
-					args.minalignslop =
-						nextminlen + mp->m_dalign -
-						args.minlen - 1;
-				else
-					args.minalignslop = 0;
+		startag = ag = XFS_FSB_TO_AGNO(mp, args.fsbno);
+		notinit = 0;
+		down_read(&mp->m_peraglock);
+		while (blen < ap->alen) {
+			pag = &mp->m_perag[ag];
+			if (!pag->pagf_init &&
+			    (error = xfs_alloc_pagf_init(mp, args.tp,
+				    ag, XFS_ALLOC_FLAG_TRYLOCK))) {
+				up_read(&mp->m_peraglock);
+				return error;
 			}
-		} else {
-			args.alignment = 1;
-			args.minalignslop = 0;
+			/*
+			 * See xfs_alloc_fix_freelist...
+			 */
+			if (pag->pagf_init) {
+				need = XFS_MIN_FREELIST_PAG(pag, mp);
+				delta = need > pag->pagf_flcount ?
+					need - pag->pagf_flcount : 0;
+				longest = (pag->pagf_longest > delta) ?
+					(pag->pagf_longest - delta) :
+					(pag->pagf_flcount > 0 ||
+					 pag->pagf_longest > 0);
+				if (blen < longest)
+					blen = longest;
+			} else
+				notinit = 1;
+			if (++ag == mp->m_sb.sb_agcount)
+				ag = 0;
+			if (ag == startag)
+				break;
 		}
-		args.minleft = ap->minleft;
-		args.wasdel = ap->wasdel;
-		args.isfl = 0;
-		args.userdata = ap->userdata;
+		up_read(&mp->m_peraglock);
+		/*
+		 * Since the above loop did a BUF_TRYLOCK, it is
+		 * possible that there is space for this request.
+		 */
+		if (notinit || blen < ap->minlen)
+			args.minlen = ap->minlen;
+		/*
+		 * If the best seen length is less than the request
+		 * length, use the best as the minimum.
+		 */
+		else if (blen < ap->alen)
+			args.minlen = blen;
+		/*
+		 * Otherwise we've seen an extent as big as alen,
+		 * use that as the minimum.
+		 */
+		else
+			args.minlen = ap->alen;
+	} else if (ap->low) {
+		args.type = XFS_ALLOCTYPE_FIRST_AG;
+		args.total = args.minlen = ap->minlen;
+	} else {
+		args.type = XFS_ALLOCTYPE_NEAR_BNO;
+		args.total = ap->total;
+		args.minlen = ap->minlen;
+	}
+	if (unlikely(ap->userdata && ap->ip->i_d.di_extsize &&
+		    (ap->ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE))) {
+		args.prod = ap->ip->i_d.di_extsize;
+		if ((args.mod = (xfs_extlen_t)do_mod(ap->off, args.prod)))
+			args.mod = (xfs_extlen_t)(args.prod - args.mod);
+	} else if (unlikely(mp->m_sb.sb_blocksize >= NBPP)) {
+		args.prod = 1;
+		args.mod = 0;
+	} else {
+		args.prod = NBPP >> mp->m_sb.sb_blocklog;
+		if ((args.mod = (xfs_extlen_t)(do_mod(ap->off, args.prod))))
+			args.mod = (xfs_extlen_t)(args.prod - args.mod);
+	}
+	/*
+	 * If we are not low on available data blocks, and the
+	 * underlying logical volume manager is a stripe, and
+	 * the file offset is zero then try to allocate data
+	 * blocks on stripe unit boundary.
+	 * NOTE: ap->aeof is only set if the allocation length
+	 * is >= the stripe unit and the allocation offset is
+	 * at the end of file.
+	 */
+	if (!ap->low && ap->aeof) {
+		if (!ap->off) {
+			args.alignment = mp->m_dalign;
+			atype = args.type;
+			isaligned = 1;
+			/*
+			 * Adjust for alignment
+			 */
+			if (blen > args.alignment && blen <= ap->alen)
+				args.minlen = blen - args.alignment;
+			args.minalignslop = 0;
+		} else {
+			/*
+			 * First try an exact bno allocation.
+			 * If it fails then do a near or start bno
+			 * allocation with alignment turned on.
+			 */
+			atype = args.type;
+			tryagain = 1;
+			args.type = XFS_ALLOCTYPE_THIS_BNO;
+			args.alignment = 1;
+			/*
+			 * Compute the minlen+alignment for the
+			 * next case.  Set slop so that the value
+			 * of minlen+alignment+slop doesn't go up
+			 * between the calls.
+			 */
+			if (blen > mp->m_dalign && blen <= ap->alen)
+				nextminlen = blen - mp->m_dalign;
+			else
+				nextminlen = args.minlen;
+			if (nextminlen + mp->m_dalign > args.minlen + 1)
+				args.minalignslop =
+					nextminlen + mp->m_dalign -
+					args.minlen - 1;
+			else
+				args.minalignslop = 0;
+		}
+	} else {
+		args.alignment = 1;
+		args.minalignslop = 0;
+	}
+	args.minleft = ap->minleft;
+	args.wasdel = ap->wasdel;
+	args.isfl = 0;
+	args.userdata = ap->userdata;
+	if ((error = xfs_alloc_vextent(&args)))
+		return error;
+	if (tryagain && args.fsbno == NULLFSBLOCK) {
+		/*
+		 * Exact allocation failed. Now try with alignment
+		 * turned on.
+		 */
+		args.type = atype;
+		args.fsbno = ap->rval;
+		args.alignment = mp->m_dalign;
+		args.minlen = nextminlen;
+		args.minalignslop = 0;
+		isaligned = 1;
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
-		if (tryagain && args.fsbno == NULLFSBLOCK) {
-			/*
-			 * Exact allocation failed. Now try with alignment
-			 * turned on.
-			 */
-			args.type = atype;
-			args.fsbno = ap->rval;
-			args.alignment = mp->m_dalign;
-			args.minlen = nextminlen;
-			args.minalignslop = 0;
-			isaligned = 1;
-			if ((error = xfs_alloc_vextent(&args)))
-				return error;
-		}
-		if (isaligned && args.fsbno == NULLFSBLOCK) {
-			/*
-			 * allocation failed, so turn off alignment and
-			 * try again.
-			 */
-			args.type = atype;
-			args.fsbno = ap->rval;
-			args.alignment = 0;
-			if ((error = xfs_alloc_vextent(&args)))
-				return error;
-		}
-		if (args.fsbno == NULLFSBLOCK && nullfb &&
-		    args.minlen > ap->minlen) {
-			args.minlen = ap->minlen;
-			args.type = XFS_ALLOCTYPE_START_BNO;
-			args.fsbno = ap->rval;
-			if ((error = xfs_alloc_vextent(&args)))
-				return error;
-		}
-		if (args.fsbno == NULLFSBLOCK && nullfb) {
-			args.fsbno = 0;
-			args.type = XFS_ALLOCTYPE_FIRST_AG;
-			args.total = ap->minlen;
-			args.minleft = 0;
-			if ((error = xfs_alloc_vextent(&args)))
-				return error;
-			ap->low = 1;
-		}
-		if (args.fsbno != NULLFSBLOCK) {
-			ap->firstblock = ap->rval = args.fsbno;
-			ASSERT(nullfb || fb_agno == args.agno ||
-			       (ap->low && fb_agno < args.agno));
-			ap->alen = args.len;
-			ap->ip->i_d.di_nblocks += args.len;
-			xfs_trans_log_inode(ap->tp, ap->ip, XFS_ILOG_CORE);
-			if (ap->wasdel)
-				ap->ip->i_delayed_blks -= args.len;
-			/*
-			 * Adjust the disk quota also. This was reserved
-			 * earlier.
-			 */
-			XFS_TRANS_MOD_DQUOT_BYINO(mp, ap->tp, ap->ip,
-				ap->wasdel ? XFS_TRANS_DQ_DELBCOUNT :
-						XFS_TRANS_DQ_BCOUNT,
-				(long) args.len);
-		} else {
-			ap->rval = NULLFSBLOCK;
-			ap->alen = 0;
-		}
+	}
+	if (isaligned && args.fsbno == NULLFSBLOCK) {
+		/*
+		 * allocation failed, so turn off alignment and
+		 * try again.
+		 */
+		args.type = atype;
+		args.fsbno = ap->rval;
+		args.alignment = 0;
+		if ((error = xfs_alloc_vextent(&args)))
+			return error;
+	}
+	if (args.fsbno == NULLFSBLOCK && nullfb &&
+	    args.minlen > ap->minlen) {
+		args.minlen = ap->minlen;
+		args.type = XFS_ALLOCTYPE_START_BNO;
+		args.fsbno = ap->rval;
+		if ((error = xfs_alloc_vextent(&args)))
+			return error;
+	}
+	if (args.fsbno == NULLFSBLOCK && nullfb) {
+		args.fsbno = 0;
+		args.type = XFS_ALLOCTYPE_FIRST_AG;
+		args.total = ap->minlen;
+		args.minleft = 0;
+		if ((error = xfs_alloc_vextent(&args)))
+			return error;
+		ap->low = 1;
+	}
+	if (args.fsbno != NULLFSBLOCK) {
+		ap->firstblock = ap->rval = args.fsbno;
+		ASSERT(nullfb || fb_agno == args.agno ||
+		       (ap->low && fb_agno < args.agno));
+		ap->alen = args.len;
+		ap->ip->i_d.di_nblocks += args.len;
+		xfs_trans_log_inode(ap->tp, ap->ip, XFS_ILOG_CORE);
+		if (ap->wasdel)
+			ap->ip->i_delayed_blks -= args.len;
+		/*
+		 * Adjust the disk quota also. This was reserved
+		 * earlier.
+		 */
+		XFS_TRANS_MOD_DQUOT_BYINO(mp, ap->tp, ap->ip,
+			ap->wasdel ? XFS_TRANS_DQ_DELBCOUNT :
+					XFS_TRANS_DQ_BCOUNT,
+			(long) args.len);
+	} else {
+		ap->rval = NULLFSBLOCK;
+		ap->alen = 0;
 	}
 	return 0;
-#undef	ISVALID
+}
+
+/*
+ * xfs_bmap_alloc is called by xfs_bmapi to allocate an extent for a file.
+ * It figures out where to ask the underlying allocator to put the new extent.
+ */
+STATIC int
+xfs_bmap_alloc(
+	xfs_bmalloca_t	*ap)		/* bmap alloc argument struct */
+{
+	if ((ap->ip->i_d.di_flags & XFS_DIFLAG_REALTIME) && ap->userdata)
+		return xfs_bmap_rtalloc(ap);
+	return xfs_bmap_btalloc(ap);
 }
 
 /*
