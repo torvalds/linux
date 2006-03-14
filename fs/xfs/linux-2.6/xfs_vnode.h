@@ -490,6 +490,7 @@ typedef struct vnode_map {
 			 (vmap).v_ino	 = (vp)->v_inode.i_ino; }
 
 extern int	vn_revalidate(struct vnode *);
+extern int	__vn_revalidate(struct vnode *, vattr_t *);
 extern void	vn_revalidate_core(struct vnode *, vattr_t *);
 
 extern void	vn_iowait(struct vnode *vp);

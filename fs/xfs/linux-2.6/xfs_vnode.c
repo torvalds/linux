@@ -83,7 +83,7 @@ vn_initialize(
 	vp->v_trace = ktrace_alloc(VNODE_TRACE_SIZE, KM_SLEEP);
 #endif	/* XFS_VNODE_TRACE */
 
-	vn_trace_exit(vp, "vn_initialize", (inst_t *)__return_address);
+	vn_trace_exit(vp, __FUNCTION__, (inst_t *)__return_address);
 	return vp;
 }
 
@@ -129,22 +129,29 @@ vn_revalidate_core(
  * Revalidate the Linux inode from the vnode.
  */
 int
-vn_revalidate(
-	struct vnode	*vp)
+__vn_revalidate(
+	struct vnode	*vp,
+	struct vattr	*vattr)
 {
-	vattr_t		va;
 	int		error;
 
-	vn_trace_entry(vp, "vn_revalidate", (inst_t *)__return_address);
-	ASSERT(vp->v_fbhv != NULL);
-
-	va.va_mask = XFS_AT_STAT|XFS_AT_XFLAGS;
-	VOP_GETATTR(vp, &va, 0, NULL, error);
-	if (!error) {
-		vn_revalidate_core(vp, &va);
+	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
+	vattr->va_mask = XFS_AT_STAT | XFS_AT_XFLAGS;
+	VOP_GETATTR(vp, vattr, 0, NULL, error);
+	if (likely(!error)) {
+		vn_revalidate_core(vp, vattr);
 		VUNMODIFY(vp);
 	}
 	return -error;
+}
+
+int
+vn_revalidate(
+	struct vnode	*vp)
+{
+	vattr_t		vattr;
+
+	return __vn_revalidate(vp, &vattr);
 }
 
 /*

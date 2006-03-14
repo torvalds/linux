@@ -420,7 +420,7 @@ linvfs_file_mmap(
 {
 	struct inode	*ip = filp->f_dentry->d_inode;
 	vnode_t		*vp = LINVFS_GET_VP(ip);
-	vattr_t		va = { .va_mask = XFS_AT_UPDATIME };
+	vattr_t		*vattr;
 	int		error;
 
 	vma->vm_ops = &linvfs_file_vm_ops;
@@ -431,9 +431,14 @@ linvfs_file_mmap(
 	}
 #endif /* CONFIG_XFS_DMAPI */
 
-	VOP_SETATTR(vp, &va, XFS_AT_UPDATIME, NULL, error);
-	if (!error)
-		vn_revalidate(vp);	/* update Linux inode flags */
+	vattr = kmalloc(sizeof(*vattr), GFP_KERNEL);
+	if (unlikely(!vattr))
+		return -ENOMEM;
+	vattr->va_mask = XFS_AT_UPDATIME;
+	VOP_SETATTR(vp, vattr, XFS_AT_UPDATIME, NULL, error);
+	if (likely(!error))
+		__vn_revalidate(vp, vattr);	/* update flags */
+	kfree(vattr);
 	return 0;
 }
 

@@ -1160,105 +1160,129 @@ xfs_ioc_xattr(
 	void			__user *arg)
 {
 	struct fsxattr		fa;
-	vattr_t			va;
-	int			error;
+	struct vattr		*vattr;
+	int			error = 0;
 	int			attr_flags;
 	unsigned int		flags;
 
+	vattr = kmalloc(sizeof(*vattr), GFP_KERNEL);
+	if (unlikely(!vattr))
+		return -ENOMEM;
+
 	switch (cmd) {
 	case XFS_IOC_FSGETXATTR: {
-		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
-			     XFS_AT_NEXTENTS | XFS_AT_PROJID;
-		VOP_GETATTR(vp, &va, 0, NULL, error);
-		if (error)
-			return -error;
+		vattr->va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
+				 XFS_AT_NEXTENTS | XFS_AT_PROJID;
+		VOP_GETATTR(vp, vattr, 0, NULL, error);
+		if (unlikely(error)) {
+			error = -error;
+			break;
+		}
 
-		fa.fsx_xflags	= va.va_xflags;
-		fa.fsx_extsize	= va.va_extsize;
-		fa.fsx_nextents = va.va_nextents;
-		fa.fsx_projid	= va.va_projid;
+		fa.fsx_xflags	= vattr->va_xflags;
+		fa.fsx_extsize	= vattr->va_extsize;
+		fa.fsx_nextents = vattr->va_nextents;
+		fa.fsx_projid	= vattr->va_projid;
 
-		if (copy_to_user(arg, &fa, sizeof(fa)))
-			return -XFS_ERROR(EFAULT);
-		return 0;
+		if (copy_to_user(arg, &fa, sizeof(fa))) {
+			error = -EFAULT;
+			break;
+		}
+		break;
 	}
 
 	case XFS_IOC_FSSETXATTR: {
-		if (copy_from_user(&fa, arg, sizeof(fa)))
-			return -XFS_ERROR(EFAULT);
+		if (copy_from_user(&fa, arg, sizeof(fa))) {
+			error = -EFAULT;
+			break;
+		}
 
 		attr_flags = 0;
 		if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
 			attr_flags |= ATTR_NONBLOCK;
 
-		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | XFS_AT_PROJID;
-		va.va_xflags  = fa.fsx_xflags;
-		va.va_extsize = fa.fsx_extsize;
-		va.va_projid  = fa.fsx_projid;
+		vattr->va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | XFS_AT_PROJID;
+		vattr->va_xflags  = fa.fsx_xflags;
+		vattr->va_extsize = fa.fsx_extsize;
+		vattr->va_projid  = fa.fsx_projid;
 
-		VOP_SETATTR(vp, &va, attr_flags, NULL, error);
-		if (!error)
-			vn_revalidate(vp);	/* update Linux inode flags */
-		return -error;
+		VOP_SETATTR(vp, vattr, attr_flags, NULL, error);
+		if (likely(!error))
+			__vn_revalidate(vp, vattr);	/* update flags */
+		error = -error;
+		break;
 	}
 
 	case XFS_IOC_FSGETXATTRA: {
-		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
-			     XFS_AT_ANEXTENTS | XFS_AT_PROJID;
-		VOP_GETATTR(vp, &va, 0, NULL, error);
-		if (error)
-			return -error;
+		vattr->va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
+				 XFS_AT_ANEXTENTS | XFS_AT_PROJID;
+		VOP_GETATTR(vp, vattr, 0, NULL, error);
+		if (unlikely(error)) {
+			error = -error;
+			break;
+		}
 
-		fa.fsx_xflags	= va.va_xflags;
-		fa.fsx_extsize	= va.va_extsize;
-		fa.fsx_nextents = va.va_anextents;
-		fa.fsx_projid	= va.va_projid;
+		fa.fsx_xflags	= vattr->va_xflags;
+		fa.fsx_extsize	= vattr->va_extsize;
+		fa.fsx_nextents = vattr->va_anextents;
+		fa.fsx_projid	= vattr->va_projid;
 
-		if (copy_to_user(arg, &fa, sizeof(fa)))
-			return -XFS_ERROR(EFAULT);
-		return 0;
+		if (copy_to_user(arg, &fa, sizeof(fa))) {
+			error = -EFAULT;
+			break;
+		}
+		break;
 	}
 
 	case XFS_IOC_GETXFLAGS: {
 		flags = xfs_di2lxflags(ip->i_d.di_flags);
 		if (copy_to_user(arg, &flags, sizeof(flags)))
-			return -XFS_ERROR(EFAULT);
-		return 0;
+			error = -EFAULT;
+		break;
 	}
 
 	case XFS_IOC_SETXFLAGS: {
-		if (copy_from_user(&flags, arg, sizeof(flags)))
-			return -XFS_ERROR(EFAULT);
+		if (copy_from_user(&flags, arg, sizeof(flags))) {
+			error = -EFAULT;
+			break;
+		}
 
 		if (flags & ~(LINUX_XFLAG_IMMUTABLE | LINUX_XFLAG_APPEND | \
 			      LINUX_XFLAG_NOATIME | LINUX_XFLAG_NODUMP | \
-			      LINUX_XFLAG_SYNC))
-			return -XFS_ERROR(EOPNOTSUPP);
+			      LINUX_XFLAG_SYNC)) {
+			error = -EOPNOTSUPP;
+			break;
+		}
 
 		attr_flags = 0;
 		if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
 			attr_flags |= ATTR_NONBLOCK;
 
-		va.va_mask = XFS_AT_XFLAGS;
-		va.va_xflags = xfs_merge_ioc_xflags(flags,
-				xfs_ip2xflags(ip));
+		vattr->va_mask = XFS_AT_XFLAGS;
+		vattr->va_xflags = xfs_merge_ioc_xflags(flags,
+							xfs_ip2xflags(ip));
 
-		VOP_SETATTR(vp, &va, attr_flags, NULL, error);
-		if (!error)
-			vn_revalidate(vp);	/* update Linux inode flags */
-		return -error;
+		VOP_SETATTR(vp, vattr, attr_flags, NULL, error);
+		if (likely(!error))
+			__vn_revalidate(vp, vattr);	/* update flags */
+		error = -error;
+		break;
 	}
 
 	case XFS_IOC_GETVERSION: {
 		flags = LINVFS_GET_IP(vp)->i_generation;
 		if (copy_to_user(arg, &flags, sizeof(flags)))
-			return -XFS_ERROR(EFAULT);
-		return 0;
+			error = -EFAULT;
+		break;
 	}
 
 	default:
-		return -ENOTTY;
+		error = -ENOTTY;
+		break;
 	}
+
+	kfree(vattr);
+	return error;
 }
 
 STATIC int
