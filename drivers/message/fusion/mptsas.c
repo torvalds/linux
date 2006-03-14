@@ -108,6 +108,11 @@ struct mptsas_hotplug_event {
 	u8			phys_disk_num_valid;
 };
 
+struct mptsas_discovery_event {
+	struct work_struct	work;
+	MPT_ADAPTER		*ioc;
+};
+
 /*
  * SAS topology structures
  *
@@ -162,7 +167,6 @@ struct mptsas_enclosure {
 	u8	sep_id;			/* SEP device logical target id */
 	u8	sep_channel;		/* SEP channel logical channel id */
 };
-
 
 #ifdef SASDEBUG
 static void mptsas_print_phy_data(MPI_SAS_IO_UNIT0_PHY_DATA *phy_data)
@@ -271,6 +275,27 @@ static inline MPT_ADAPTER *rphy_to_ioc(struct sas_rphy *rphy)
 {
 	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent->parent);
 	return ((MPT_SCSI_HOST *)shost->hostdata)->ioc;
+}
+
+/*
+ * mptsas_find_portinfo_by_handle
+ *
+ * This function should be called with the sas_topology_mutex already held
+ */
+static struct mptsas_portinfo *
+mptsas_find_portinfo_by_handle(MPT_ADAPTER *ioc, u16 handle)
+{
+	struct mptsas_portinfo *port_info, *rc=NULL;
+	int i;
+
+	list_for_each_entry(port_info, &ioc->sas_topology, list)
+		for (i = 0; i < port_info->num_phys; i++)
+			if (port_info->phy_info[i].identify.handle == handle) {
+				rc = port_info;
+				goto out;
+			}
+ out:
+	return rc;
 }
 
 static int
@@ -423,32 +448,8 @@ mptsas_slave_destroy(struct scsi_device *sdev)
 {
 	struct Scsi_Host *host = sdev->host;
 	MPT_SCSI_HOST *hd = (MPT_SCSI_HOST *)host->hostdata;
-	struct sas_rphy *rphy;
-	struct mptsas_portinfo *p;
-	int i;
 	VirtDevice *vdev;
 
-	/*
-	 * Handle hotplug removal case.
-	 * We need to clear out attached data structure.
-	 */
-	rphy = dev_to_rphy(sdev->sdev_target->dev.parent);
-
-	mutex_lock(&hd->ioc->sas_topology_mutex);
-	list_for_each_entry(p, &hd->ioc->sas_topology, list) {
-		for (i = 0; i < p->num_phys; i++) {
-			if (p->phy_info[i].attached.sas_address ==
-					rphy->identify.sas_address) {
-				memset(&p->phy_info[i].attached, 0,
-				    sizeof(struct mptsas_devinfo));
-				p->phy_info[i].rphy = NULL;
-				goto out;
-			}
-		}
-	}
-
- out:
-	mutex_unlock(&hd->ioc->sas_topology_mutex);
 	/*
 	 * Issue target reset to flush firmware outstanding commands.
 	 */
@@ -1044,7 +1045,6 @@ mptsas_sas_expander_pg1(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info,
 	phy_info->identify.handle = le16_to_cpu(buffer->OwnerDevHandle);
 	phy_info->attached.handle = le16_to_cpu(buffer->AttachedDevHandle);
 
-
  out_free_consistent:
 	pci_free_consistent(ioc->pcidev, hdr.ExtPageLength * 4,
 			    buffer, dma_handle);
@@ -1134,12 +1134,19 @@ mptsas_parse_device_info(struct sas_identify *identify,
 static int mptsas_probe_one_phy(struct device *dev,
 		struct mptsas_phyinfo *phy_info, int index, int local)
 {
+	MPT_ADAPTER *ioc;
 	struct sas_phy *phy;
 	int error;
 
-	phy = sas_phy_alloc(dev, index);
-	if (!phy)
-		return -ENOMEM;
+	if (!dev)
+		return -ENODEV;
+
+	if (!phy_info->phy) {
+		phy = sas_phy_alloc(dev, index);
+		if (!phy)
+			return -ENOMEM;
+	} else
+		phy = phy_info->phy;
 
 	phy->port_identifier = phy_info->port_id;
 	mptsas_parse_device_info(&phy->identify, &phy_info->identify);
@@ -1225,18 +1232,34 @@ static int mptsas_probe_one_phy(struct device *dev,
 		break;
 	}
 
-	if (local)
-		phy->local_attached = 1;
+	if (!phy_info->phy) {
 
-	error = sas_phy_add(phy);
-	if (error) {
-		sas_phy_free(phy);
-		return error;
+		if (local)
+			phy->local_attached = 1;
+
+		error = sas_phy_add(phy);
+		if (error) {
+			sas_phy_free(phy);
+			return error;
+		}
+		phy_info->phy = phy;
 	}
-	phy_info->phy = phy;
 
-	if (phy_info->attached.handle) {
+	if ((phy_info->attached.handle) &&
+	    (!phy_info->rphy)) {
+
 		struct sas_rphy *rphy;
+
+		ioc = phy_to_ioc(phy_info->phy);
+
+		/*
+		 * Let the hotplug_work thread handle processing
+		 * the adding/removing of devices that occur
+		 * after start of day.
+		 */
+		if (ioc->sas_discovery_runtime &&
+			mptsas_is_end_device(&phy_info->attached))
+			return 0;
 
 		rphy = sas_rphy_alloc(phy);
 		if (!rphy)
@@ -1256,24 +1279,37 @@ static int mptsas_probe_one_phy(struct device *dev,
 }
 
 static int
-mptsas_probe_hba_phys(MPT_ADAPTER *ioc, int *index)
+mptsas_probe_hba_phys(MPT_ADAPTER *ioc)
 {
-	struct mptsas_portinfo *port_info;
+	struct mptsas_portinfo *port_info, *hba;
 	u32 handle = 0xFFFF;
 	int error = -ENOMEM, i;
 
-	port_info = kzalloc(sizeof(*port_info), GFP_KERNEL);
-	if (!port_info)
+	hba = kzalloc(sizeof(*port_info), GFP_KERNEL);
+	if (! hba)
 		goto out;
 
-	error = mptsas_sas_io_unit_pg0(ioc, port_info);
+	error = mptsas_sas_io_unit_pg0(ioc, hba);
 	if (error)
 		goto out_free_port_info;
 
-	ioc->num_ports = port_info->num_phys;
 	mutex_lock(&ioc->sas_topology_mutex);
-	list_add_tail(&port_info->list, &ioc->sas_topology);
+	port_info = mptsas_find_portinfo_by_handle(ioc, hba->handle);
+	if (!port_info) {
+		port_info = hba;
+		list_add_tail(&port_info->list, &ioc->sas_topology);
+	} else {
+		port_info->handle = hba->handle;
+		for (i = 0; i < hba->num_phys; i++)
+			port_info->phy_info[i].negotiated_link_rate =
+				hba->phy_info[i].negotiated_link_rate;
+		if (hba->phy_info)
+			kfree(hba->phy_info);
+		kfree(hba);
+		hba = NULL;
+	}
 	mutex_unlock(&ioc->sas_topology_mutex);
+	ioc->num_ports = port_info->num_phys;
 
 	for (i = 0; i < port_info->num_phys; i++) {
 		mptsas_sas_phy_pg0(ioc, &port_info->phy_info[i],
@@ -1296,38 +1332,49 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc, int *index)
 		}
 
 		mptsas_probe_one_phy(&ioc->sh->shost_gendev,
-				     &port_info->phy_info[i], *index, 1);
-		(*index)++;
+		    &port_info->phy_info[i], ioc->sas_index, 1);
+		ioc->sas_index++;
 	}
 
 	return 0;
 
  out_free_port_info:
-	kfree(port_info);
+	if (hba)
+		kfree(hba);
  out:
 	return error;
 }
 
 static int
-mptsas_probe_expander_phys(MPT_ADAPTER *ioc, u32 *handle, int *index)
+mptsas_probe_expander_phys(MPT_ADAPTER *ioc, u32 *handle)
 {
-	struct mptsas_portinfo *port_info, *p;
+	struct mptsas_portinfo *port_info, *p, *ex;
 	int error = -ENOMEM, i, j;
 
-	port_info = kzalloc(sizeof(*port_info), GFP_KERNEL);
-	if (!port_info)
+	ex = kzalloc(sizeof(*port_info), GFP_KERNEL);
+	if (!ex)
 		goto out;
 
-	error = mptsas_sas_expander_pg0(ioc, port_info,
+	error = mptsas_sas_expander_pg0(ioc, ex,
 		(MPI_SAS_EXPAND_PGAD_FORM_GET_NEXT_HANDLE <<
 		 MPI_SAS_EXPAND_PGAD_FORM_SHIFT), *handle);
 	if (error)
 		goto out_free_port_info;
 
-	*handle = port_info->handle;
+	*handle = ex->handle;
 
 	mutex_lock(&ioc->sas_topology_mutex);
-	list_add_tail(&port_info->list, &ioc->sas_topology);
+	port_info = mptsas_find_portinfo_by_handle(ioc, *handle);
+	if (!port_info) {
+		port_info = ex;
+		list_add_tail(&port_info->list, &ioc->sas_topology);
+	} else {
+		port_info->handle = ex->handle;
+		if (ex->phy_info)
+			kfree(ex->phy_info);
+		kfree(ex);
+		ex = NULL;
+	}
 	mutex_unlock(&ioc->sas_topology_mutex);
 
 	for (i = 0; i < port_info->num_phys; i++) {
@@ -1374,28 +1421,101 @@ mptsas_probe_expander_phys(MPT_ADAPTER *ioc, u32 *handle, int *index)
 		mutex_unlock(&ioc->sas_topology_mutex);
 
 		mptsas_probe_one_phy(parent, &port_info->phy_info[i],
-				     *index, 0);
-		(*index)++;
+		    ioc->sas_index, 0);
+		ioc->sas_index++;
 	}
 
 	return 0;
 
  out_free_port_info:
-	kfree(port_info->phy_info);
-	kfree(port_info);
+	if (ex) {
+		if (ex->phy_info)
+			kfree(ex->phy_info);
+		kfree(ex);
+	}
  out:
 	return error;
 }
 
+/*
+ * mptsas_delete_expander_phys
+ *
+ *
+ * This will traverse topology, and remove expanders
+ * that are no longer present
+ */
+static void
+mptsas_delete_expander_phys(MPT_ADAPTER *ioc)
+{
+	struct mptsas_portinfo buffer;
+	struct mptsas_portinfo *port_info, *n, *parent;
+	int i;
+
+	mutex_lock(&ioc->sas_topology_mutex);
+	list_for_each_entry_safe(port_info, n, &ioc->sas_topology, list) {
+
+		if (port_info->phy_info &&
+		    (!(port_info->phy_info[0].identify.device_info &
+		    MPI_SAS_DEVICE_INFO_SMP_TARGET)))
+			continue;
+
+		if (mptsas_sas_expander_pg0(ioc, &buffer,
+		     (MPI_SAS_EXPAND_PGAD_FORM_HANDLE <<
+		     MPI_SAS_EXPAND_PGAD_FORM_SHIFT), port_info->handle)) {
+
+			/*
+			 * Obtain the port_info instance to the parent port
+			 */
+			parent = mptsas_find_portinfo_by_handle(ioc,
+			    port_info->phy_info[0].identify.handle_parent);
+
+			if (!parent)
+				goto next_port;
+
+			/*
+			 * Delete rphys in the parent that point
+			 * to this expander.  The transport layer will
+			 * cleanup all the children.
+			 */
+			for (i = 0; i < parent->num_phys; i++) {
+				if ((!parent->phy_info[i].rphy) ||
+				    (parent->phy_info[i].attached.sas_address !=
+				   port_info->phy_info[i].identify.sas_address))
+					continue;
+				sas_rphy_delete(parent->phy_info[i].rphy);
+				memset(&parent->phy_info[i].attached, 0,
+				    sizeof(struct mptsas_devinfo));
+				parent->phy_info[i].rphy = NULL;
+				parent->phy_info[i].starget = NULL;
+			}
+ next_port:
+			list_del(&port_info->list);
+			if (port_info->phy_info)
+				kfree(port_info->phy_info);
+			kfree(port_info);
+		}
+		/*
+		* Free this memory allocated from inside
+		* mptsas_sas_expander_pg0
+		*/
+		if (buffer.phy_info)
+			kfree(buffer.phy_info);
+	}
+	mutex_unlock(&ioc->sas_topology_mutex);
+}
+
+/*
+ * Start of day discovery
+ */
 static void
 mptsas_scan_sas_topology(MPT_ADAPTER *ioc)
 {
 	u32 handle = 0xFFFF;
-	int index = 0;
 	int i;
 
-	mptsas_probe_hba_phys(ioc, &index);
-	while (!mptsas_probe_expander_phys(ioc, &handle, &index))
+	mutex_lock(&ioc->sas_discovery_mutex);
+	mptsas_probe_hba_phys(ioc);
+	while (!mptsas_probe_expander_phys(ioc, &handle))
 		;
 	/*
 	  Reporting RAID volumes.
@@ -1409,7 +1529,29 @@ mptsas_scan_sas_topology(MPT_ADAPTER *ioc)
 		    ioc->raid_data.pIocPg2->RaidVolume[i].VolumeID, 0);
 	}
  out:
-	return;
+	mutex_unlock(&ioc->sas_discovery_mutex);
+}
+
+/*
+ * Work queue thread to handle Runtime discovery
+ * Mere purpose is the hot add/delete of expanders
+ */
+static void
+mptscsih_discovery_work(void * arg)
+{
+	struct mptsas_discovery_event *ev = arg;
+	MPT_ADAPTER *ioc = ev->ioc;
+	u32 handle = 0xFFFF;
+
+	mutex_lock(&ioc->sas_discovery_mutex);
+	ioc->sas_discovery_runtime=1;
+	mptsas_delete_expander_phys(ioc);
+	mptsas_probe_hba_phys(ioc);
+	while (!mptsas_probe_expander_phys(ioc, &handle))
+		;
+	kfree(ev);
+	ioc->sas_discovery_runtime=0;
+	mutex_unlock(&ioc->sas_discovery_mutex);
 }
 
 static struct mptsas_phyinfo *
@@ -1427,10 +1569,8 @@ mptsas_find_phyinfo_by_parent(MPT_ADAPTER *ioc, u16 parent_handle, u8 phy_id)
 		(MPI_SAS_DEVICE_PGAD_FORM_HANDLE <<
 		 MPI_SAS_DEVICE_PGAD_FORM_SHIFT),
 		parent_handle);
-	if (error) {
-		printk("mptsas: failed to retrieve device page\n");
+	if (error)
 		return NULL;
-	}
 
 	/*
 	 * The phy_info structures are never deallocated during lifetime of
@@ -1502,6 +1642,10 @@ mptsas_reprobe_target(struct scsi_target *starget, int uld_attach)
 			mptsas_reprobe_lun);
 }
 
+
+/*
+ * Work queue thread to handle SAS hotplug events
+ */
 static void
 mptsas_hotplug_work(void *arg)
 {
@@ -1514,10 +1658,13 @@ mptsas_hotplug_work(void *arg)
 	struct mptsas_devinfo sas_device;
 	VirtTarget *vtarget;
 
+	mutex_lock(&ioc->sas_discovery_mutex);
+
 	switch (ev->event_type) {
 	case MPTSAS_DEL_DEVICE:
 
 		phy_info = mptsas_find_phyinfo_by_target(ioc, ev->id);
+
 		/*
 		 * Sanity checks, for non-existing phys and remote rphys.
 		 */
@@ -1569,8 +1716,36 @@ mptsas_hotplug_work(void *arg)
 
 		phy_info = mptsas_find_phyinfo_by_parent(ioc,
 				sas_device.handle_parent, sas_device.phy_id);
-		if (!phy_info)
-			break;
+
+		if (!phy_info) {
+			u32 handle = 0xFFFF;
+
+			/*
+			* Its possible when an expander has been hot added
+			* containing attached devices, the sas firmware
+			* may send a RC_ADDED event prior to the
+			* DISCOVERY STOP event. If that occurs, our
+			* view of the topology in the driver in respect to this
+			* expander might of not been setup, and we hit this
+			* condition.
+			* Therefore, this code kicks off discovery to
+			* refresh the data.
+			* Then again, we check whether the parent phy has
+			* been created.
+			*/
+			ioc->sas_discovery_runtime=1;
+			mptsas_delete_expander_phys(ioc);
+			mptsas_probe_hba_phys(ioc);
+			while (!mptsas_probe_expander_phys(ioc, &handle))
+				;
+			ioc->sas_discovery_runtime=0;
+
+			phy_info = mptsas_find_phyinfo_by_parent(ioc,
+				sas_device.handle_parent, sas_device.phy_id);
+			if (!phy_info)
+				break;
+		}
+
 		if (phy_info->starget) {
 			vtarget = phy_info->starget->hostdata;
 
@@ -1603,7 +1778,6 @@ mptsas_hotplug_work(void *arg)
 		printk(MYIOC_s_INFO_FMT
 		       "attaching %s device, channel %d, id %d, phy %d\n",
 		       ioc->name, ds, ev->channel, ev->id, ev->phy_id);
-
 
 		rphy = sas_rphy_alloc(phy_info->phy);
 		if (!rphy)
@@ -1654,6 +1828,7 @@ mptsas_hotplug_work(void *arg)
 	}
 
 	kfree(ev);
+	mutex_unlock(&ioc->sas_discovery_mutex);
 }
 
 static void
@@ -1767,6 +1942,32 @@ mptscsih_send_raid_event(MPT_ADAPTER *ioc,
 	schedule_work(&ev->work);
 }
 
+static void
+mptscsih_send_discovery(MPT_ADAPTER *ioc,
+	EVENT_DATA_SAS_DISCOVERY *discovery_data)
+{
+	struct mptsas_discovery_event *ev;
+
+	/*
+	 * DiscoveryStatus
+	 *
+	 * This flag will be non-zero when firmware
+	 * kicks off discovery, and return to zero
+	 * once its completed.
+	 */
+	if (discovery_data->DiscoveryStatus)
+		return;
+
+	ev = kmalloc(sizeof(*ev), GFP_ATOMIC);
+	if (!ev)
+		return;
+	memset(ev,0,sizeof(struct mptsas_discovery_event));
+	INIT_WORK(&ev->work, mptscsih_discovery_work, ev);
+	ev->ioc = ioc;
+	schedule_work(&ev->work);
+};
+
+
 static int
 mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 {
@@ -1775,6 +1976,17 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 
 	if (!ioc->sh)
 		goto out;
+
+	/*
+	 * sas_discovery_ignore_events
+	 *
+	 * This flag is to prevent anymore processing of
+	 * sas events once mptsas_remove function is called.
+	 */
+	if (ioc->sas_discovery_ignore_events) {
+		rc = mptscsih_event_process(ioc, reply);
+		goto out;
+	}
 
 	switch (event) {
 	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
@@ -1792,6 +2004,9 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 		schedule_work(&ioc->mptscsih_persistTask);
 		break;
 	 case MPI_EVENT_SAS_DISCOVERY:
+		mptscsih_send_discovery(ioc,
+			(EVENT_DATA_SAS_DISCOVERY *)reply->Data);
+		break;
 	default:
 		rc = mptscsih_event_process(ioc, reply);
 		break;
@@ -1893,7 +2108,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	INIT_LIST_HEAD(&ioc->sas_topology);
 	mutex_init(&ioc->sas_topology_mutex);
-
+	mutex_init(&ioc->sas_discovery_mutex);
 	mutex_init(&ioc->sas_mgmt.mutex);
 	init_completion(&ioc->sas_mgmt.done);
 
@@ -2019,6 +2234,7 @@ static void __devexit mptsas_remove(struct pci_dev *pdev)
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
 	struct mptsas_portinfo *p, *n;
 
+	ioc->sas_discovery_ignore_events=1;
 	sas_remove_host(ioc->sh);
 
 	mutex_lock(&ioc->sas_topology_mutex);

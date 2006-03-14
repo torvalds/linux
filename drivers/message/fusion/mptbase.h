@@ -619,6 +619,10 @@ typedef struct _MPT_ADAPTER
 	struct net_device	*netdev;
 	struct list_head	 sas_topology;
 	struct mutex		 sas_topology_mutex;
+	struct mutex		 sas_discovery_mutex;
+	u8			 sas_discovery_runtime;
+	u8			 sas_discovery_ignore_events;
+	int			 sas_index; /* index refrencing */
 	MPT_SAS_MGMT		 sas_mgmt;
 	int			 num_ports;
 	struct work_struct	 mptscsih_persistTask;
