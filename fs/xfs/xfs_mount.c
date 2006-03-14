@@ -1746,10 +1746,7 @@ xfs_icsb_cpu_notify(
 	case CPU_UP_PREPARE:
 		/* Easy Case - initialize the area and locks, and
 		 * then rebalance when online does everything else for us. */
-		spin_lock_init(&cntp->icsb_lock);
-		cntp->icsb_icount = 0;
-		cntp->icsb_ifree = 0;
-		cntp->icsb_fdblocks = 0;
+		memset(cntp, 0, sizeof(xfs_icsb_cnts_t));
 		break;
 	case CPU_ONLINE:
 		xfs_icsb_balance_counter(mp, XFS_SBS_ICOUNT, 0);
@@ -1769,9 +1766,7 @@ xfs_icsb_cpu_notify(
 		mp->m_sb.sb_ifree += cntp->icsb_ifree;
 		mp->m_sb.sb_fdblocks += cntp->icsb_fdblocks;
 
-		cntp->icsb_icount = 0;
-		cntp->icsb_ifree = 0;
-		cntp->icsb_fdblocks = 0;
+		memset(cntp, 0, sizeof(xfs_icsb_cnts_t));
 
 		xfs_icsb_balance_counter(mp, XFS_SBS_ICOUNT, XFS_ICSB_SB_LOCKED);
 		xfs_icsb_balance_counter(mp, XFS_SBS_IFREE, XFS_ICSB_SB_LOCKED);
@@ -1800,7 +1795,7 @@ xfs_icsb_init_counters(
 
 	for_each_online_cpu(i) {
 		cntp = (xfs_icsb_cnts_t *)per_cpu_ptr(mp->m_sb_cnts, i);
-		spin_lock_init(&cntp->icsb_lock);
+		memset(cntp, 0, sizeof(xfs_icsb_cnts_t));
 	}
 	/*
 	 * start with all counters disabled so that the
@@ -1820,6 +1815,22 @@ xfs_icsb_destroy_counters(
 	}
 }
 
+STATIC inline void
+xfs_icsb_lock_cntr(
+	xfs_icsb_cnts_t	*icsbp)
+{
+	while (test_and_set_bit(XFS_ICSB_FLAG_LOCK, &icsbp->icsb_flags)) {
+		ndelay(1000);
+	}
+}
+
+STATIC inline void
+xfs_icsb_unlock_cntr(
+	xfs_icsb_cnts_t	*icsbp)
+{
+	clear_bit(XFS_ICSB_FLAG_LOCK, &icsbp->icsb_flags);
+}
+
 
 STATIC inline void
 xfs_icsb_lock_all_counters(
@@ -1830,7 +1841,7 @@ xfs_icsb_lock_all_counters(
 
 	for_each_online_cpu(i) {
 		cntp = (xfs_icsb_cnts_t *)per_cpu_ptr(mp->m_sb_cnts, i);
-		spin_lock(&cntp->icsb_lock);
+		xfs_icsb_lock_cntr(cntp);
 	}
 }
 
@@ -1843,7 +1854,7 @@ xfs_icsb_unlock_all_counters(
 
 	for_each_online_cpu(i) {
 		cntp = (xfs_icsb_cnts_t *)per_cpu_ptr(mp->m_sb_cnts, i);
-		spin_unlock(&cntp->icsb_lock);
+		xfs_icsb_unlock_cntr(cntp);
 	}
 }
 
@@ -2070,7 +2081,7 @@ xfs_icsb_modify_counters_int(
 again:
 	cpu = get_cpu();
 	icsbp = (xfs_icsb_cnts_t *)per_cpu_ptr(mp->m_sb_cnts, cpu),
-	spin_lock(&icsbp->icsb_lock);
+	xfs_icsb_lock_cntr(icsbp);
 	if (unlikely(xfs_icsb_counter_disabled(mp, field)))
 		goto slow_path;
 
@@ -2104,7 +2115,7 @@ again:
 		BUG();
 		break;
 	}
-	spin_unlock(&icsbp->icsb_lock);
+	xfs_icsb_unlock_cntr(icsbp);
 	put_cpu();
 	if (locked)
 		XFS_SB_UNLOCK(mp, s);
@@ -2120,7 +2131,7 @@ again:
 	 * manner.
 	 */
 slow_path:
-	spin_unlock(&icsbp->icsb_lock);
+	xfs_icsb_unlock_cntr(icsbp);
 	put_cpu();
 
 	/* need to hold superblock incase we need

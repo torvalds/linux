@@ -75,6 +75,7 @@
 #include <linux/sort.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
+#include <linux/delay.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>

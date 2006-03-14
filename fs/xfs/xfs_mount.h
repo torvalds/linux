@@ -280,8 +280,10 @@ typedef struct xfs_icsb_cnts {
 	uint64_t	icsb_fdblocks;
 	uint64_t	icsb_ifree;
 	uint64_t	icsb_icount;
-	spinlock_t	icsb_lock;
+	unsigned long	icsb_flags;
 } xfs_icsb_cnts_t;
+
+#define XFS_ICSB_FLAG_LOCK	(1 << 0)	/* counter lock bit */
 
 #define XFS_ICSB_SB_LOCKED	(1 << 0)	/* sb already locked */
 #define XFS_ICSB_LAZY_COUNT	(1 << 1)	/* accuracy not needed */
