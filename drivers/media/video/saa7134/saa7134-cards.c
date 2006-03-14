@@ -3471,10 +3471,10 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A169_B:
-		printk("%s: AVerMedia A169: dual saa7134 broadcast decoders\n"
+		printk("%s: %s: dual saa713x broadcast decoders\n"
 		       "%s: Sorry, none of the inputs to this chip are supported yet.\n"
 		       "%s: Dual decoder functionality is disabled for now, use the other chip.\n",
-		       dev->name,dev->name,dev->name);
+		       dev->name,card(dev).name,dev->name,dev->name);
 		break;
 	}
 	return 0;
