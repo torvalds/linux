@@ -145,22 +145,17 @@ __xfs_file_readv(
 {
 	struct inode	*inode = file->f_mapping->host;
 	vnode_t		*vp = LINVFS_GET_VP(inode);
-	struct kiocb	*kiocb;
+	struct kiocb	kiocb;
 	ssize_t		rval;
 
-	kiocb = kmalloc(sizeof(*kiocb), GFP_KERNEL);
-	if (unlikely(!kiocb))
-		return -ENOMEM;
-
-	init_sync_kiocb(kiocb, file);
-	kiocb->ki_pos = *ppos;
+	init_sync_kiocb(&kiocb, file);
+	kiocb.ki_pos = *ppos;
 
 	if (unlikely(file->f_flags & O_DIRECT))
 		ioflags |= IO_ISDIRECT;
-	VOP_READ(vp, kiocb, iov, nr_segs, &kiocb->ki_pos, ioflags, NULL, rval);
+	VOP_READ(vp, &kiocb, iov, nr_segs, &kiocb.ki_pos, ioflags, NULL, rval);
 
-	*ppos = kiocb->ki_pos;
-	kfree(kiocb);
+	*ppos = kiocb.ki_pos;
 	return rval;
 }
 
@@ -195,22 +190,17 @@ __xfs_file_writev(
 {
 	struct inode	*inode = file->f_mapping->host;
 	vnode_t		*vp = LINVFS_GET_VP(inode);
-	struct kiocb	*kiocb;
+	struct kiocb	kiocb;
 	ssize_t		rval;
 
-	kiocb = kmalloc(sizeof(*kiocb), GFP_KERNEL);
-	if (unlikely(!kiocb))
-		return -ENOMEM;
-
-	init_sync_kiocb(kiocb, file);
-	kiocb->ki_pos = *ppos;
+	init_sync_kiocb(&kiocb, file);
+	kiocb.ki_pos = *ppos;
 	if (unlikely(file->f_flags & O_DIRECT))
 		ioflags |= IO_ISDIRECT;
 
-	VOP_WRITE(vp, kiocb, iov, nr_segs, &kiocb->ki_pos, ioflags, NULL, rval);
+	VOP_WRITE(vp, &kiocb, iov, nr_segs, &kiocb.ki_pos, ioflags, NULL, rval);
 
-	*ppos = kiocb->ki_pos;
-	kfree(kiocb);
+	*ppos = kiocb.ki_pos;
 	return rval;
 }
 
@@ -420,7 +410,7 @@ xfs_file_mmap(
 {
 	struct inode	*ip = filp->f_dentry->d_inode;
 	vnode_t		*vp = LINVFS_GET_VP(ip);
-	vattr_t		*vattr;
+	vattr_t		vattr;
 	int		error;
 
 	vma->vm_ops = &xfs_file_vm_ops;
@@ -431,14 +421,10 @@ xfs_file_mmap(
 	}
 #endif /* CONFIG_XFS_DMAPI */
 
-	vattr = kmalloc(sizeof(*vattr), GFP_KERNEL);
-	if (unlikely(!vattr))
-		return -ENOMEM;
-	vattr->va_mask = XFS_AT_UPDATIME;
-	VOP_SETATTR(vp, vattr, XFS_AT_UPDATIME, NULL, error);
+	vattr.va_mask = XFS_AT_UPDATIME;
+	VOP_SETATTR(vp, &vattr, XFS_AT_UPDATIME, NULL, error);
 	if (likely(!error))
-		__vn_revalidate(vp, vattr);	/* update flags */
-	kfree(vattr);
+		__vn_revalidate(vp, &vattr);	/* update flags */
 	return 0;
 }
 

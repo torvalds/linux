@@ -295,7 +295,7 @@ xfs_vn_mknod(
 	dev_t		rdev)
 {
 	struct inode	*ip;
-	vattr_t		*vattr;
+	vattr_t		vattr = { 0 };
 	vnode_t		*vp = NULL, *dvp = LINVFS_GET_VP(dir);
 	xfs_acl_t	*default_acl = NULL;
 	attrexists_t	test_default_acl = _ACL_DEFAULT_EXISTS;
@@ -308,13 +308,8 @@ xfs_vn_mknod(
 	if (unlikely(!sysv_valid_dev(rdev) || MAJOR(rdev) & ~0x1ff))
 		return -EINVAL;
 
-	vattr = kmalloc(sizeof(*vattr), GFP_KERNEL);
-	if (unlikely(!vattr))
-		return -ENOMEM;
-
 	if (unlikely(test_default_acl && test_default_acl(dvp))) {
 		if (!_ACL_ALLOC(default_acl)) {
-			kfree(vattr);
 			return -ENOMEM;
 		}
 		if (!_ACL_GET_DEFAULT(dvp, default_acl)) {
@@ -326,20 +321,19 @@ xfs_vn_mknod(
 	if (IS_POSIXACL(dir) && !default_acl && xfs_has_fs_struct(current))
 		mode &= ~current->fs->umask;
 
-	memset(vattr, 0, sizeof(*vattr));
-	vattr->va_mask = XFS_AT_TYPE|XFS_AT_MODE;
-	vattr->va_mode = mode;
+	vattr.va_mask = XFS_AT_TYPE|XFS_AT_MODE;
+	vattr.va_mode = mode;
 
 	switch (mode & S_IFMT) {
 	case S_IFCHR: case S_IFBLK: case S_IFIFO: case S_IFSOCK:
-		vattr->va_rdev = sysv_encode_dev(rdev);
-		vattr->va_mask |= XFS_AT_RDEV;
+		vattr.va_rdev = sysv_encode_dev(rdev);
+		vattr.va_mask |= XFS_AT_RDEV;
 		/*FALLTHROUGH*/
 	case S_IFREG:
-		VOP_CREATE(dvp, dentry, vattr, &vp, NULL, error);
+		VOP_CREATE(dvp, dentry, &vattr, &vp, NULL, error);
 		break;
 	case S_IFDIR:
-		VOP_MKDIR(dvp, dentry, vattr, &vp, NULL, error);
+		VOP_MKDIR(dvp, dentry, &vattr, &vp, NULL, error);
 		break;
 	default:
 		error = EINVAL;
@@ -354,7 +348,7 @@ xfs_vn_mknod(
 
 	if (unlikely(default_acl)) {
 		if (!error) {
-			error = _ACL_INHERIT(vp, vattr, default_acl);
+			error = _ACL_INHERIT(vp, &vattr, default_acl);
 			if (!error)
 				VMODIFY(vp);
 			else
@@ -370,11 +364,10 @@ xfs_vn_mknod(
 		if (S_ISCHR(mode) || S_ISBLK(mode))
 			ip->i_rdev = rdev;
 		else if (S_ISDIR(mode))
-			xfs_validate_fields(ip, vattr);
+			xfs_validate_fields(ip, &vattr);
 		d_instantiate(dentry, ip);
-		xfs_validate_fields(dir, vattr);
+		xfs_validate_fields(dir, &vattr);
 	}
-	kfree(vattr);
 	return -error;
 }
 
@@ -429,16 +422,12 @@ xfs_vn_link(
 	struct inode	*ip;	/* inode of guy being linked to */
 	vnode_t		*tdvp;	/* target directory for new name/link */
 	vnode_t		*vp;	/* vp of name being linked */
-	vattr_t		*vattr;
+	vattr_t		vattr;
 	int		error;
 
 	ip = old_dentry->d_inode;	/* inode being linked to */
 	if (S_ISDIR(ip->i_mode))
 		return -EPERM;
-
-	vattr = kmalloc(sizeof(*vattr), GFP_KERNEL);
-	if (unlikely(!vattr))
-		return -ENOMEM;
 
 	tdvp = LINVFS_GET_VP(dir);
 	vp = LINVFS_GET_VP(ip);
@@ -447,10 +436,9 @@ xfs_vn_link(
 	if (likely(!error)) {
 		VMODIFY(tdvp);
 		VN_HOLD(vp);
-		xfs_validate_fields(ip, vattr);
+		xfs_validate_fields(ip, &vattr);
 		d_instantiate(dentry, ip);
 	}
-	kfree(vattr);
 	return -error;
 }
 
@@ -461,22 +449,17 @@ xfs_vn_unlink(
 {
 	struct inode	*inode;
 	vnode_t		*dvp;	/* directory containing name to remove */
-	vattr_t		*vattr;
+	vattr_t		vattr;
 	int		error;
-
-	vattr = kmalloc(sizeof(*vattr), GFP_KERNEL);
-	if (unlikely(!vattr))
-		return -ENOMEM;
 
 	inode = dentry->d_inode;
 	dvp = LINVFS_GET_VP(dir);
 
 	VOP_REMOVE(dvp, dentry, NULL, error);
 	if (likely(!error)) {
-		xfs_validate_fields(dir, vattr);	/* size needs update */
-		xfs_validate_fields(inode, vattr);
+		xfs_validate_fields(dir, &vattr);	/* size needs update */
+		xfs_validate_fields(inode, &vattr);
 	}
-	kfree(vattr);
 	return -error;
 }
 
@@ -487,7 +470,7 @@ xfs_vn_symlink(
 	const char	*symname)
 {
 	struct inode	*ip;
-	vattr_t		*vattr;
+	vattr_t		vattr = { 0 };
 	vnode_t		*dvp;	/* directory containing name of symlink */
 	vnode_t		*cvp;	/* used to lookup symlink to put in dentry */
 	int		error;
@@ -495,27 +478,21 @@ xfs_vn_symlink(
 	dvp = LINVFS_GET_VP(dir);
 	cvp = NULL;
 
-	vattr = kmalloc(sizeof(*vattr), GFP_KERNEL);
-	if (unlikely(!vattr))
-		return -ENOMEM;
-
-	memset(vattr, 0, sizeof(*vattr));
-	vattr->va_mode = S_IFLNK |
+	vattr.va_mode = S_IFLNK |
 		(irix_symlink_mode ? 0777 & ~current->fs->umask : S_IRWXUGO);
-	vattr->va_mask = XFS_AT_TYPE|XFS_AT_MODE;
+	vattr.va_mask = XFS_AT_TYPE|XFS_AT_MODE;
 
 	error = 0;
-	VOP_SYMLINK(dvp, dentry, vattr, (char *)symname, &cvp, NULL, error);
+	VOP_SYMLINK(dvp, dentry, &vattr, (char *)symname, &cvp, NULL, error);
 	if (likely(!error && cvp)) {
 		error = xfs_init_security(cvp, dir);
 		if (likely(!error)) {
 			ip = LINVFS_GET_IP(cvp);
 			d_instantiate(dentry, ip);
-			xfs_validate_fields(dir, vattr);
-			xfs_validate_fields(ip, vattr);
+			xfs_validate_fields(dir, &vattr);
+			xfs_validate_fields(ip, &vattr);
 		}
 	}
-	kfree(vattr);
 	return -error;
 }
 
@@ -526,19 +503,14 @@ xfs_vn_rmdir(
 {
 	struct inode	*inode = dentry->d_inode;
 	vnode_t		*dvp = LINVFS_GET_VP(dir);
-	vattr_t		*vattr;
+	vattr_t		vattr;
 	int		error;
-
-	vattr = kmalloc(sizeof(*vattr), GFP_KERNEL);
-	if (unlikely(!vattr))
-		return -ENOMEM;
 
 	VOP_RMDIR(dvp, dentry, NULL, error);
 	if (likely(!error)) {
-		xfs_validate_fields(inode, vattr);
-		xfs_validate_fields(dir, vattr);
+		xfs_validate_fields(inode, &vattr);
+		xfs_validate_fields(dir, &vattr);
 	}
-	kfree(vattr);
 	return -error;
 }
 
@@ -552,12 +524,8 @@ xfs_vn_rename(
 	struct inode	*new_inode = ndentry->d_inode;
 	vnode_t		*fvp;	/* from directory */
 	vnode_t		*tvp;	/* target directory */
-	vattr_t		*vattr;
+	vattr_t		vattr;
 	int		error;
-
-	vattr = kmalloc(sizeof(*vattr), GFP_KERNEL);
-	if (unlikely(!vattr))
-		return -ENOMEM;
 
 	fvp = LINVFS_GET_VP(odir);
 	tvp = LINVFS_GET_VP(ndir);
@@ -565,12 +533,11 @@ xfs_vn_rename(
 	VOP_RENAME(fvp, odentry, tvp, ndentry, NULL, error);
 	if (likely(!error)) {
 		if (new_inode)
-			xfs_validate_fields(new_inode, vattr);
-		xfs_validate_fields(odir, vattr);
+			xfs_validate_fields(new_inode, &vattr);
+		xfs_validate_fields(odir, &vattr);
 		if (ndir != odir)
-			xfs_validate_fields(ndir, vattr);
+			xfs_validate_fields(ndir, &vattr);
 	}
-	kfree(vattr);
 	return -error;
 }
 
