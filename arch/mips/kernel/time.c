@@ -424,6 +424,8 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	unsigned long j;
 	unsigned int count;
 
+	write_seqlock(&xtime_lock);
+
 	count = mips_hpt_read();
 	mips_timer_ack();
 
@@ -441,7 +443,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * CMOS clock accordingly every ~11 minutes. rtc_set_time() has to be
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
-	write_seqlock(&xtime_lock);
 	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
@@ -453,7 +454,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			last_rtc_update = xtime.tv_sec - 600;
 		}
 	}
-	write_sequnlock(&xtime_lock);
 
 	/*
 	 * If jiffies has overflown in this timer_interrupt, we must
@@ -495,6 +495,8 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			break;
 		}
 	}
+
+	write_sequnlock(&xtime_lock);
 
 	/*
 	 * In UP mode, we call local_timer_interrupt() to do profiling
