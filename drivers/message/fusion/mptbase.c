@@ -180,6 +180,7 @@ static void	mpt_sp_ioc_info(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf)
 static void	mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info);
 static void	mpt_sas_log_info(MPT_ADAPTER *ioc, u32 log_info);
+static int	mpt_read_ioc_pg_3(MPT_ADAPTER *ioc);
 
 /* module entry point */
 static int  __init    fusion_init  (void);
@@ -4871,7 +4872,7 @@ done_and_free:
 	return rc;
 }
 
-int
+static int
 mpt_read_ioc_pg_3(MPT_ADAPTER *ioc)
 {
 	IOCPage3_t		*pIoc3;
@@ -6453,7 +6454,6 @@ EXPORT_SYMBOL(mpt_stm_index);
 EXPORT_SYMBOL(mpt_HardResetHandler);
 EXPORT_SYMBOL(mpt_config);
 EXPORT_SYMBOL(mpt_findImVolumes);
-EXPORT_SYMBOL(mpt_read_ioc_pg_3);
 EXPORT_SYMBOL(mpt_alloc_fw_memory);
 EXPORT_SYMBOL(mpt_free_fw_memory);
 EXPORT_SYMBOL(mptbase_sas_persist_operation);
