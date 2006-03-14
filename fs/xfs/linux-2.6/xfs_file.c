@@ -43,13 +43,13 @@
 #include <linux/dcache.h>
 #include <linux/smp_lock.h>
 
-static struct vm_operations_struct linvfs_file_vm_ops;
+static struct vm_operations_struct xfs_file_vm_ops;
 #ifdef CONFIG_XFS_DMAPI
-static struct vm_operations_struct linvfs_dmapi_file_vm_ops;
+static struct vm_operations_struct xfs_dmapi_file_vm_ops;
 #endif
 
 STATIC inline ssize_t
-__linvfs_read(
+__xfs_file_read(
 	struct kiocb		*iocb,
 	char			__user *buf,
 	int			ioflags,
@@ -71,28 +71,28 @@ __linvfs_read(
 
 
 STATIC ssize_t
-linvfs_aio_read(
+xfs_file_aio_read(
 	struct kiocb		*iocb,
 	char			__user *buf,
 	size_t			count,
 	loff_t			pos)
 {
-	return __linvfs_read(iocb, buf, IO_ISAIO, count, pos);
+	return __xfs_file_read(iocb, buf, IO_ISAIO, count, pos);
 }
 
 STATIC ssize_t
-linvfs_aio_read_invis(
+xfs_file_aio_read_invis(
 	struct kiocb		*iocb,
 	char			__user *buf,
 	size_t			count,
 	loff_t			pos)
 {
-	return __linvfs_read(iocb, buf, IO_ISAIO|IO_INVIS, count, pos);
+	return __xfs_file_read(iocb, buf, IO_ISAIO|IO_INVIS, count, pos);
 }
 
 
 STATIC inline ssize_t
-__linvfs_write(
+__xfs_file_write(
 	struct kiocb	*iocb,
 	const char	__user *buf,
 	int		ioflags,
@@ -115,28 +115,28 @@ __linvfs_write(
 
 
 STATIC ssize_t
-linvfs_aio_write(
+xfs_file_aio_write(
 	struct kiocb		*iocb,
 	const char		__user *buf,
 	size_t			count,
 	loff_t			pos)
 {
-	return __linvfs_write(iocb, buf, IO_ISAIO, count, pos);
+	return __xfs_file_write(iocb, buf, IO_ISAIO, count, pos);
 }
 
 STATIC ssize_t
-linvfs_aio_write_invis(
+xfs_file_aio_write_invis(
 	struct kiocb		*iocb,
 	const char		__user *buf,
 	size_t			count,
 	loff_t			pos)
 {
-	return __linvfs_write(iocb, buf, IO_ISAIO|IO_INVIS, count, pos);
+	return __xfs_file_write(iocb, buf, IO_ISAIO|IO_INVIS, count, pos);
 }
 
 
 STATIC inline ssize_t
-__linvfs_readv(
+__xfs_file_readv(
 	struct file		*file,
 	const struct iovec 	*iov,
 	int			ioflags,
@@ -165,28 +165,28 @@ __linvfs_readv(
 }
 
 STATIC ssize_t
-linvfs_readv(
+xfs_file_readv(
 	struct file		*file,
 	const struct iovec 	*iov,
 	unsigned long		nr_segs,
 	loff_t			*ppos)
 {
-	return __linvfs_readv(file, iov, 0, nr_segs, ppos);
+	return __xfs_file_readv(file, iov, 0, nr_segs, ppos);
 }
 
 STATIC ssize_t
-linvfs_readv_invis(
+xfs_file_readv_invis(
 	struct file		*file,
 	const struct iovec 	*iov,
 	unsigned long		nr_segs,
 	loff_t			*ppos)
 {
-	return __linvfs_readv(file, iov, IO_INVIS, nr_segs, ppos);
+	return __xfs_file_readv(file, iov, IO_INVIS, nr_segs, ppos);
 }
 
 
 STATIC inline ssize_t
-__linvfs_writev(
+__xfs_file_writev(
 	struct file		*file,
 	const struct iovec 	*iov,
 	int			ioflags,
@@ -216,27 +216,27 @@ __linvfs_writev(
 
 
 STATIC ssize_t
-linvfs_writev(
+xfs_file_writev(
 	struct file		*file,
 	const struct iovec 	*iov,
 	unsigned long		nr_segs,
 	loff_t			*ppos)
 {
-	return __linvfs_writev(file, iov, 0, nr_segs, ppos);
+	return __xfs_file_writev(file, iov, 0, nr_segs, ppos);
 }
 
 STATIC ssize_t
-linvfs_writev_invis(
+xfs_file_writev_invis(
 	struct file		*file,
 	const struct iovec 	*iov,
 	unsigned long		nr_segs,
 	loff_t			*ppos)
 {
-	return __linvfs_writev(file, iov, IO_INVIS, nr_segs, ppos);
+	return __xfs_file_writev(file, iov, IO_INVIS, nr_segs, ppos);
 }
 
 STATIC ssize_t
-linvfs_sendfile(
+xfs_file_sendfile(
 	struct file		*filp,
 	loff_t			*ppos,
 	size_t			count,
@@ -252,7 +252,7 @@ linvfs_sendfile(
 
 
 STATIC int
-linvfs_open(
+xfs_file_open(
 	struct inode	*inode,
 	struct file	*filp)
 {
@@ -269,7 +269,7 @@ linvfs_open(
 
 
 STATIC int
-linvfs_release(
+xfs_file_release(
 	struct inode	*inode,
 	struct file	*filp)
 {
@@ -283,7 +283,7 @@ linvfs_release(
 
 
 STATIC int
-linvfs_fsync(
+xfs_file_fsync(
 	struct file	*filp,
 	struct dentry	*dentry,
 	int		datasync)
@@ -302,7 +302,7 @@ linvfs_fsync(
 }
 
 /*
- * linvfs_readdir maps to VOP_READDIR().
+ * xfs_file_readdir maps to VOP_READDIR().
  * We need to build a uio, cred, ...
  */
 
@@ -311,7 +311,7 @@ linvfs_fsync(
 #ifdef CONFIG_XFS_DMAPI
 
 STATIC struct page *
-linvfs_filemap_nopage(
+xfs_vm_nopage(
 	struct vm_area_struct	*area,
 	unsigned long		address,
 	int			*type)
@@ -334,7 +334,7 @@ linvfs_filemap_nopage(
 
 
 STATIC int
-linvfs_readdir(
+xfs_file_readdir(
 	struct file	*filp,
 	void		*dirent,
 	filldir_t	filldir)
@@ -414,7 +414,7 @@ done:
 
 
 STATIC int
-linvfs_file_mmap(
+xfs_file_mmap(
 	struct file	*filp,
 	struct vm_area_struct *vma)
 {
@@ -423,11 +423,11 @@ linvfs_file_mmap(
 	vattr_t		*vattr;
 	int		error;
 
-	vma->vm_ops = &linvfs_file_vm_ops;
+	vma->vm_ops = &xfs_file_vm_ops;
 
 #ifdef CONFIG_XFS_DMAPI
 	if (vp->v_vfsp->vfs_flag & VFS_DMI) {
-		vma->vm_ops = &linvfs_dmapi_file_vm_ops;
+		vma->vm_ops = &xfs_dmapi_file_vm_ops;
 	}
 #endif /* CONFIG_XFS_DMAPI */
 
@@ -444,7 +444,7 @@ linvfs_file_mmap(
 
 
 STATIC long
-linvfs_ioctl(
+xfs_file_ioctl(
 	struct file	*filp,
 	unsigned int	cmd,
 	unsigned long	arg)
@@ -466,7 +466,7 @@ linvfs_ioctl(
 }
 
 STATIC long
-linvfs_ioctl_invis(
+xfs_file_ioctl_invis(
 	struct file	*filp,
 	unsigned int	cmd,
 	unsigned long	arg)
@@ -491,7 +491,7 @@ linvfs_ioctl_invis(
 #ifdef CONFIG_XFS_DMAPI
 #ifdef HAVE_VMOP_MPROTECT
 STATIC int
-linvfs_mprotect(
+xfs_vm_mprotect(
 	struct vm_area_struct *vma,
 	unsigned int	newflags)
 {
@@ -518,7 +518,7 @@ linvfs_mprotect(
  * it back online.
  */
 STATIC int
-linvfs_open_exec(
+xfs_file_open_exec(
 	struct inode	*inode)
 {
 	vnode_t		*vp = LINVFS_GET_VP(inode);
@@ -542,69 +542,69 @@ open_exec_out:
 }
 #endif /* HAVE_FOP_OPEN_EXEC */
 
-struct file_operations linvfs_file_operations = {
+struct file_operations xfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
-	.readv		= linvfs_readv,
-	.writev		= linvfs_writev,
-	.aio_read	= linvfs_aio_read,
-	.aio_write	= linvfs_aio_write,
-	.sendfile	= linvfs_sendfile,
-	.unlocked_ioctl	= linvfs_ioctl,
+	.readv		= xfs_file_readv,
+	.writev		= xfs_file_writev,
+	.aio_read	= xfs_file_aio_read,
+	.aio_write	= xfs_file_aio_write,
+	.sendfile	= xfs_file_sendfile,
+	.unlocked_ioctl	= xfs_file_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= linvfs_compat_ioctl,
+	.compat_ioctl	= xfs_file_compat_ioctl,
 #endif
-	.mmap		= linvfs_file_mmap,
-	.open		= linvfs_open,
-	.release	= linvfs_release,
-	.fsync		= linvfs_fsync,
+	.mmap		= xfs_file_mmap,
+	.open		= xfs_file_open,
+	.release	= xfs_file_release,
+	.fsync		= xfs_file_fsync,
 #ifdef HAVE_FOP_OPEN_EXEC
-	.open_exec	= linvfs_open_exec,
+	.open_exec	= xfs_file_open_exec,
 #endif
 };
 
-struct file_operations linvfs_invis_file_operations = {
+struct file_operations xfs_invis_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
-	.readv		= linvfs_readv_invis,
-	.writev		= linvfs_writev_invis,
-	.aio_read	= linvfs_aio_read_invis,
-	.aio_write	= linvfs_aio_write_invis,
-	.sendfile	= linvfs_sendfile,
-	.unlocked_ioctl	= linvfs_ioctl_invis,
+	.readv		= xfs_file_readv_invis,
+	.writev		= xfs_file_writev_invis,
+	.aio_read	= xfs_file_aio_read_invis,
+	.aio_write	= xfs_file_aio_write_invis,
+	.sendfile	= xfs_file_sendfile,
+	.unlocked_ioctl	= xfs_file_ioctl_invis,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= linvfs_compat_invis_ioctl,
+	.compat_ioctl	= xfs_file_compat_invis_ioctl,
 #endif
-	.mmap		= linvfs_file_mmap,
-	.open		= linvfs_open,
-	.release	= linvfs_release,
-	.fsync		= linvfs_fsync,
+	.mmap		= xfs_file_mmap,
+	.open		= xfs_file_open,
+	.release	= xfs_file_release,
+	.fsync		= xfs_file_fsync,
 };
 
 
-struct file_operations linvfs_dir_operations = {
+struct file_operations xfs_dir_file_operations = {
 	.read		= generic_read_dir,
-	.readdir	= linvfs_readdir,
-	.unlocked_ioctl	= linvfs_ioctl,
+	.readdir	= xfs_file_readdir,
+	.unlocked_ioctl	= xfs_file_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= linvfs_compat_ioctl,
+	.compat_ioctl	= xfs_file_compat_ioctl,
 #endif
-	.fsync		= linvfs_fsync,
+	.fsync		= xfs_file_fsync,
 };
 
-static struct vm_operations_struct linvfs_file_vm_ops = {
+static struct vm_operations_struct xfs_file_vm_ops = {
 	.nopage		= filemap_nopage,
 	.populate	= filemap_populate,
 };
 
 #ifdef CONFIG_XFS_DMAPI
-static struct vm_operations_struct linvfs_dmapi_file_vm_ops = {
-	.nopage		= linvfs_filemap_nopage,
+static struct vm_operations_struct xfs_dmapi_file_vm_ops = {
+	.nopage		= xfs_vm_nopage,
 	.populate	= filemap_populate,
 #ifdef HAVE_VMOP_MPROTECT
-	.mprotect	= linvfs_mprotect,
+	.mprotect	= xfs_vm_mprotect,
 #endif
 };
 #endif /* CONFIG_XFS_DMAPI */

@@ -344,7 +344,7 @@ xfs_open_by_handle(
 		return -XFS_ERROR(-PTR_ERR(filp));
 	}
 	if (inode->i_mode & S_IFREG)
-		filp->f_op = &linvfs_invis_file_operations;
+		filp->f_op = &xfs_invis_file_operations;
 
 	fd_install(new_fd, filp);
 	return new_fd;
