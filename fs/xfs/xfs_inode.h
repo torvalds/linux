@@ -70,12 +70,6 @@ typedef struct xfs_ifork {
  */
 #define	XFS_IMAP_LOOKUP		0x1
 
-/*
- * Maximum number of extent pointers in if_u1.if_extents.
- */
-#define	XFS_MAX_INCORE_EXTENTS	32768
-
-
 #ifdef __KERNEL__
 struct bhv_desc;
 struct cred;
@@ -439,6 +433,18 @@ void		xfs_lock_inodes(xfs_inode_t **, int, int, uint);
 xfs_inode_t	*xfs_vtoi(struct vnode *vp);
 
 void		xfs_synchronize_atime(xfs_inode_t *);
+
+xfs_bmbt_rec_t	*xfs_iext_get_ext(xfs_ifork_t *, xfs_extnum_t);
+void		xfs_iext_insert(xfs_ifork_t *, xfs_extnum_t, xfs_extnum_t,
+				xfs_bmbt_irec_t *);
+void		xfs_iext_add(xfs_ifork_t *, xfs_extnum_t, int);
+void		xfs_iext_remove(xfs_ifork_t *, xfs_extnum_t, int);
+void		xfs_iext_remove_inline(xfs_ifork_t *, xfs_extnum_t, int);
+void		xfs_iext_remove_direct(xfs_ifork_t *, xfs_extnum_t, int);
+void		xfs_iext_realloc_direct(xfs_ifork_t *, int);
+void		xfs_iext_direct_to_inline(xfs_ifork_t *, xfs_extnum_t);
+void		xfs_iext_inline_to_direct(xfs_ifork_t *, int);
+void		xfs_iext_destroy(xfs_ifork_t *);
 
 #define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
 

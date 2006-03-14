@@ -20,6 +20,7 @@
 
 struct getbmap;
 struct xfs_bmbt_irec;
+struct xfs_ifork;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
@@ -347,7 +348,8 @@ xfs_bmap_count_blocks(
  */
 int
 xfs_check_nostate_extents(
-	xfs_bmbt_rec_t		*ep,
+	struct xfs_ifork	*ifp,
+	xfs_extnum_t		idx,
 	xfs_extnum_t		num);
 
 #endif	/* __KERNEL__ */
