@@ -1949,7 +1949,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	model=id->driver_info;
 
-	if (nr > EM28XX_MAXBOARDS) {
+	if (nr >= EM28XX_MAXBOARDS) {
 		printk (DRIVER_NAME ": Supports only %i em28xx boards.\n",EM28XX_MAXBOARDS);
 		em28xx_devused&=~(1<<nr);
 		return -ENOMEM;
