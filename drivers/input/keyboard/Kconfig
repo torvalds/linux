@@ -13,7 +13,7 @@ menuconfig INPUT_KEYBOARD
 if INPUT_KEYBOARD
 
 config KEYBOARD_ATKBD
-	tristate "AT keyboard" if !X86_PC
+	tristate "AT keyboard" if EMBEDDED || !X86_PC
 	default y
 	select SERIO
 	select SERIO_LIBPS2
