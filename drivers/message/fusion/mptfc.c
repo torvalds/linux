@@ -941,7 +941,7 @@ mptfc_init(void)
 	mptfcInternalCtx = mpt_register(mptscsih_scandv_complete, MPTFC_DRIVER);
 
 	if (mpt_event_register(mptfcDoneCtx, mptscsih_event_process) == 0) {
-		devtprintk((KERN_INFO MYNAM
+		devtverboseprintk((KERN_INFO MYNAM
 		  ": Registered for IOC event notifications\n"));
 	}
 

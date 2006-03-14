@@ -719,10 +719,16 @@ typedef struct _mpt_sge {
 #define dhsprintk(x)
 #endif
 
-#ifdef MPT_DEBUG_EVENTS
+#if defined(MPT_DEBUG_EVENTS) || defined(MPT_DEBUG_VERBOSE_EVENTS)
 #define devtprintk(x)  printk x
 #else
 #define devtprintk(x)
+#endif
+
+#ifdef MPT_DEBUG_VERBOSE_EVENTS
+#define devtverboseprintk(x)  printk x
+#else
+#define devtverboseprintk(x)
 #endif
 
 #ifdef MPT_DEBUG_RESET

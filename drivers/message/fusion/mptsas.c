@@ -1993,7 +1993,7 @@ mptsas_init(void)
 	mptsasMgmtCtx = mpt_register(mptsas_mgmt_done, MPTSAS_DRIVER);
 
 	if (mpt_event_register(mptsasDoneCtx, mptsas_event_process) == 0) {
-		devtprintk((KERN_INFO MYNAM
+		devtverboseprintk((KERN_INFO MYNAM
 		  ": Registered for IOC event notifications\n"));
 	}
 

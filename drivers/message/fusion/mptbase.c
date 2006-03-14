@@ -428,7 +428,7 @@ mpt_base_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 		results = ProcessEventNotification(ioc, pEvReply, &evHandlers);
 		if (results != evHandlers) {
 			/* CHECKME! Any special handling needed here? */
-			devtprintk((MYIOC_s_WARN_FMT "Called %d event handlers, sum results = %d\n",
+			devtverboseprintk((MYIOC_s_WARN_FMT "Called %d event handlers, sum results = %d\n",
 					ioc->name, evHandlers, results));
 		}
 
@@ -438,10 +438,10 @@ mpt_base_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 		 */
 		if (pEvReply->MsgFlags & MPI_MSGFLAGS_CONTINUATION_REPLY) {
 			freereq = 0;
-			devtprintk((MYIOC_s_WARN_FMT "EVENT_NOTIFICATION reply %p does not return Request frame\n",
+			devtverboseprintk((MYIOC_s_WARN_FMT "EVENT_NOTIFICATION reply %p does not return Request frame\n",
 				ioc->name, pEvReply));
 		} else {
-			devtprintk((MYIOC_s_WARN_FMT "EVENT_NOTIFICATION reply %p returns Request frame\n",
+			devtverboseprintk((MYIOC_s_WARN_FMT "EVENT_NOTIFICATION reply %p returns Request frame\n",
 				ioc->name, pEvReply));
 		}
 
@@ -5079,13 +5079,13 @@ SendEventNotification(MPT_ADAPTER *ioc, u8 EvSwitch)
 
 	evnp = (EventNotification_t *) mpt_get_msg_frame(mpt_base_index, ioc);
 	if (evnp == NULL) {
-		devtprintk((MYIOC_s_WARN_FMT "Unable to allocate event request frame!\n",
+		devtverboseprintk((MYIOC_s_WARN_FMT "Unable to allocate event request frame!\n",
 				ioc->name));
 		return 0;
 	}
 	memset(evnp, 0, sizeof(*evnp));
 
-	devtprintk((MYIOC_s_INFO_FMT "Sending EventNotification (%d) request %p\n", ioc->name, EvSwitch, evnp));
+	devtverboseprintk((MYIOC_s_INFO_FMT "Sending EventNotification (%d) request %p\n", ioc->name, EvSwitch, evnp));
 
 	evnp->Function = MPI_FUNCTION_EVENT_NOTIFICATION;
 	evnp->ChainOffset = 0;
@@ -5840,24 +5840,27 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 		break;
 	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
 	{
+		char buf[50];
+		u8 id = (u8)(evData0);
 		u8 ReasonCode = (u8)(evData0 >> 16);
 		switch (ReasonCode) {
 		case MPI_EVENT_SAS_DEV_STAT_RC_ADDED:
-			ds = "SAS Device Status Change: Added";
+			sprintf(buf,"SAS Device Status Change: Added: id=%d", id);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING:
-			ds = "SAS Device Status Change: Deleted";
+			sprintf(buf,"SAS Device Status Change: Deleted: id=%d", id);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_SMART_DATA:
-			ds = "SAS Device Status Change: SMART Data";
+			sprintf(buf,"SAS Device Status Change: SMART Data: id=%d", id);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED:
-			ds = "SAS Device Status Change: No Persistancy Added";
+			sprintf(buf,"SAS Device Status Change: No Persistancy Added: id=%d", id);
 			break;
 		default:
-			ds = "SAS Device Status Change: Unknown";
+			sprintf(buf,"SAS Device Status Change: Unknown: id=%d", id);
 		break;
 		}
+		ds = buf;
 		break;
 	}
 	case MPI_EVENT_ON_BUS_TIMER_EXPIRED:
@@ -5873,10 +5876,96 @@ EventDescriptionStr(u8 event, u32 evData0, char *evStr)
 		ds = "Persistent Table Full";
 		break;
 	case MPI_EVENT_SAS_PHY_LINK_STATUS:
-		ds = "SAS PHY Link Status";
+	{
+		char buf[50];
+		u8 LinkRates = (u8)(evData0 >> 8);
+		u8 PhyNumber = (u8)(evData0);
+		LinkRates = (LinkRates & MPI_EVENT_SAS_PLS_LR_CURRENT_MASK) >>
+			MPI_EVENT_SAS_PLS_LR_CURRENT_SHIFT;
+		switch (LinkRates) {
+		case MPI_EVENT_SAS_PLS_LR_RATE_UNKNOWN:
+			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			   " Rate Unknown",PhyNumber);
+			break;
+		case MPI_EVENT_SAS_PLS_LR_RATE_PHY_DISABLED:
+			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			   " Phy Disabled",PhyNumber);
+			break;
+		case MPI_EVENT_SAS_PLS_LR_RATE_FAILED_SPEED_NEGOTIATION:
+			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			   " Failed Speed Nego",PhyNumber);
+			break;
+		case MPI_EVENT_SAS_PLS_LR_RATE_SATA_OOB_COMPLETE:
+			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			   " Sata OOB Completed",PhyNumber);
+			break;
+		case MPI_EVENT_SAS_PLS_LR_RATE_1_5:
+			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			   " Rate 1.5 Gbps",PhyNumber);
+			break;
+		case MPI_EVENT_SAS_PLS_LR_RATE_3_0:
+			sprintf(buf,"SAS PHY Link Status: Phy=%d:"
+			   " Rate 3.0 Gpbs",PhyNumber);
+			break;
+		default:
+			sprintf(buf,"SAS PHY Link Status: Phy=%d", PhyNumber);
+			break;
+		}
+		ds = buf;
 		break;
+	}
 	case MPI_EVENT_SAS_DISCOVERY_ERROR:
 		ds = "SAS Discovery Error";
+		break;
+	case MPI_EVENT_IR_RESYNC_UPDATE:
+	{
+		u8 resync_complete = (u8)(evData0 >> 16);
+		char buf[40];
+		sprintf(buf,"IR Resync Update: Complete = %d:",resync_complete);
+		ds = buf;
+		break;
+	}
+	case MPI_EVENT_IR2:
+	{
+		u8 ReasonCode = (u8)(evData0 >> 16);
+		switch (ReasonCode) {
+		case MPI_EVENT_IR2_RC_LD_STATE_CHANGED:
+			ds = "IR2: LD State Changed";
+			break;
+		case MPI_EVENT_IR2_RC_PD_STATE_CHANGED:
+			ds = "IR2: PD State Changed";
+			break;
+		case MPI_EVENT_IR2_RC_BAD_BLOCK_TABLE_FULL:
+			ds = "IR2: Bad Block Table Full";
+			break;
+		case MPI_EVENT_IR2_RC_PD_INSERTED:
+			ds = "IR2: PD Inserted";
+			break;
+		case MPI_EVENT_IR2_RC_PD_REMOVED:
+			ds = "IR2: PD Removed";
+			break;
+		case MPI_EVENT_IR2_RC_FOREIGN_CFG_DETECTED:
+			ds = "IR2: Foreign CFG Detected";
+			break;
+		case MPI_EVENT_IR2_RC_REBUILD_MEDIUM_ERROR:
+			ds = "IR2: Rebuild Medium Error";
+			break;
+		default:
+			ds = "IR2";
+		break;
+		}
+		break;
+	}
+	case MPI_EVENT_SAS_DISCOVERY:
+	{
+		if (evData0)
+			ds = "SAS Discovery: Start";
+		else
+			ds = "SAS Discovery: Stop";
+		break;
+	}
+	case MPI_EVENT_LOG_ENTRY_ADDED:
+		ds = "SAS Log Entry Added";
 		break;
 
 	/*
@@ -5922,12 +6011,12 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 	}
 
 	EventDescriptionStr(event, evData0, evStr);
-	devtprintk((MYIOC_s_INFO_FMT "MPT event (%s=%02Xh) detected!\n",
+	devtprintk((MYIOC_s_INFO_FMT "MPT event:(%02Xh) : %s\n",
 			ioc->name,
-			evStr,
-			event));
+			event,
+			evStr));
 
-#if defined(MPT_DEBUG) || defined(MPT_DEBUG_EVENTS)
+#if defined(MPT_DEBUG) || defined(MPT_DEBUG_VERBOSE_EVENTS)
 	printk(KERN_INFO MYNAM ": Event data:\n" KERN_INFO);
 	for (ii = 0; ii < evDataLen; ii++)
 		printk(" %08x", le32_to_cpu(pEventReply->Data[ii]));
@@ -5986,7 +6075,7 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 	 */
 	for (ii=MPT_MAX_PROTOCOL_DRIVERS-1; ii; ii--) {
 		if (MptEvHandlers[ii]) {
-			devtprintk((MYIOC_s_INFO_FMT "Routing Event to event handler #%d\n",
+			devtverboseprintk((MYIOC_s_INFO_FMT "Routing Event to event handler #%d\n",
 					ioc->name, ii));
 			r += (*(MptEvHandlers[ii]))(ioc, pEventReply);
 			handlers++;
@@ -5998,10 +6087,10 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 	 *  If needed, send (a single) EventAck.
 	 */
 	if (pEventReply->AckRequired == MPI_EVENT_NOTIFICATION_ACK_REQUIRED) {
-		devtprintk((MYIOC_s_WARN_FMT
+		devtverboseprintk((MYIOC_s_WARN_FMT
 			"EventAck required\n",ioc->name));
 		if ((ii = SendEventAck(ioc, pEventReply)) != 0) {
-			devtprintk((MYIOC_s_WARN_FMT "SendEventAck returned %d\n",
+			devtverboseprintk((MYIOC_s_WARN_FMT "SendEventAck returned %d\n",
 					ioc->name, ii));
 		}
 	}

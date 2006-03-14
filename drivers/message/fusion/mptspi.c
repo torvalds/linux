@@ -1057,7 +1057,7 @@ mptspi_init(void)
 	mptspiInternalCtx = mpt_register(mptscsih_scandv_complete, MPTSPI_DRIVER);
 
 	if (mpt_event_register(mptspiDoneCtx, mptspi_event_process) == 0) {
-		devtprintk((KERN_INFO MYNAM
+		devtverboseprintk((KERN_INFO MYNAM
 		  ": Registered for IOC event notifications\n"));
 	}
 

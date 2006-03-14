@@ -497,7 +497,7 @@ mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	 if (event == 0x21 ) {
 		ioc->aen_event_read_flag=1;
 		dctlprintk(("Raised SIGIO to application\n"));
-		devtprintk(("Raised SIGIO to application\n"));
+		devtverboseprintk(("Raised SIGIO to application\n"));
 		kill_fasync(&async_queue, SIGIO, POLL_IN);
 		return 1;
 	 }
@@ -515,7 +515,7 @@ mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	if (ioc->events && (ioc->eventTypes & ( 1 << event))) {
 		ioc->aen_event_read_flag=1;
 		dctlprintk(("Raised SIGIO to application\n"));
-		devtprintk(("Raised SIGIO to application\n"));
+		devtverboseprintk(("Raised SIGIO to application\n"));
 		kill_fasync(&async_queue, SIGIO, POLL_IN);
 	}
 	return 1;
@@ -2968,7 +2968,7 @@ static int __init mptctl_init(void)
 	}
 
 	if (mpt_event_register(mptctl_id, mptctl_event_process) == 0) {
-		devtprintk((KERN_INFO MYNAM
+		devtverboseprintk((KERN_INFO MYNAM
 		  ": Registered for IOC event notifications\n"));
 	}
 
