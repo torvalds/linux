@@ -510,7 +510,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x025: map_key_clear(KEY_TV);		break;
 				case 0x026: map_key_clear(KEY_MENU);		break;
 				case 0x031: map_key_clear(KEY_AUDIO);		break;
-				case 0x032: map_key_clear(KEY_SUBTITLE);	break;
+				case 0x032: map_key_clear(KEY_TEXT);		break;
 				case 0x033: map_key_clear(KEY_LAST);		break;
 				case 0x047: map_key_clear(KEY_MP3);		break;
 				case 0x048: map_key_clear(KEY_DVD);		break;
