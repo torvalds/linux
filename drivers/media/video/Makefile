@@ -15,7 +15,7 @@ msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
 obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o v4l1-compat.o compat_ioctl32.o
 
-obj-$(CONFIG_VIDEO_BT848) += bttv.o msp3400.o tvaudio.o \
+obj-$(CONFIG_VIDEO_BT848) += bttv.o tvaudio.o \
 	tda7432.o tda9875.o ir-kbd-i2c.o
 obj-$(CONFIG_SOUND_TVMIXER) += tvmixer.o
 
@@ -45,6 +45,7 @@ obj-$(CONFIG_VIDEO_SAA7134) += ir-kbd-i2c.o saa7134/
 obj-$(CONFIG_VIDEO_CX88) += cx88/
 obj-$(CONFIG_VIDEO_EM28XX) += em28xx/
 obj-$(CONFIG_VIDEO_EM28XX) += saa7115.o tvp5150.o
+obj-$(CONFIG_VIDEO_MSP3400) += msp3400.o
 obj-$(CONFIG_VIDEO_AUDIO_DECODER) += wm8775.o cs53l32a.o
 obj-$(CONFIG_VIDEO_OVCAMCHIP) += ovcamchip/
 obj-$(CONFIG_VIDEO_CPIA2) += cpia2/

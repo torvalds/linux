@@ -26,6 +26,7 @@ config VIDEO_BT848
 	select VIDEO_IR
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
+	select VIDEO_MSP3400
 	---help---
 	  Support for BT848 based frame grabber/overlay boards. This includes
 	  the Miro, Hauppauge and STB boards. Please read the material in
@@ -344,9 +345,19 @@ config VIDEO_M32R_AR_M64278
 config VIDEO_AUDIO_DECODER
 	tristate "Add support for additional audio chipsets"
 	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	select VIDEO_MSP3400
 	---help---
-	  Say Y here to compile drivers for WM8775 and CS53L32A audio
-	  decoders.
+	  Say Y here to compile drivers for WM8775, CS53L32A and
+	  MSP34xx audio decoders.
+
+config VIDEO_MSP3400
+	tristate "Micronas MSP34xx audio decoders"
+	depends on VIDEO_DEV && I2C
+	---help---
+	  Support for the Micronas MSP34xx series of audio decoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called msp3400
 
 config VIDEO_DECODER
 	tristate "Add support for additional video chipsets"
