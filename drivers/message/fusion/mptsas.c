@@ -749,6 +749,9 @@ mptsas_sas_io_unit_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info)
 		goto out_free_consistent;
 	}
 
+	if (port_info->num_phys)
+		port_info->handle =
+		    le16_to_cpu(buffer->PhyData[0].ControllerDevHandle);
 	for (i = 0; i < port_info->num_phys; i++) {
 		mptsas_print_phy_data(&buffer->PhyData[i]);
 		port_info->phy_info[i].phy_id = i;
@@ -855,6 +858,7 @@ mptsas_sas_device_pg0(MPT_ADAPTER *ioc, struct mptsas_devinfo *device_info,
 	cfg.dir = 0;	/* read */
 	cfg.timeout = 10;
 
+	memset(device_info, 0, sizeof(struct mptsas_devinfo));
 	error = mpt_config(ioc, &cfg);
 	if (error)
 		goto out;
@@ -925,6 +929,7 @@ mptsas_sas_expander_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info,
 	cfg.dir = 0;	/* read */
 	cfg.timeout = 10;
 
+	memset(port_info, 0, sizeof(struct mptsas_portinfo));
 	error = mpt_config(ioc, &cfg);
 	if (error)
 		goto out;
@@ -1334,6 +1339,8 @@ mptsas_probe_expander_phys(MPT_ADAPTER *ioc, u32 *handle, int *index)
 				(MPI_SAS_DEVICE_PGAD_FORM_HANDLE <<
 				 MPI_SAS_DEVICE_PGAD_FORM_SHIFT),
 				port_info->phy_info[i].attached.handle);
+			port_info->phy_info[i].attached.phy_id =
+			    port_info->phy_info[i].phy_id;
 		}
 
 		/*
@@ -1360,6 +1367,7 @@ mptsas_probe_expander_phys(MPT_ADAPTER *ioc, u32 *handle, int *index)
 	return 0;
 
  out_free_port_info:
+	kfree(port_info->phy_info);
 	kfree(port_info);
  out:
 	return error;
@@ -1485,6 +1493,7 @@ mptsas_hotplug_work(void *arg)
 
 		if (phy_info->rphy) {
 			sas_rphy_delete(phy_info->rphy);
+			memset(&phy_info->attached, 0, sizeof(struct mptsas_devinfo));
 			phy_info->rphy = NULL;
 		}
 		break;
@@ -1955,6 +1964,8 @@ static void __devexit mptsas_remove(struct pci_dev *pdev)
 	mutex_lock(&ioc->sas_topology_mutex);
 	list_for_each_entry_safe(p, n, &ioc->sas_topology, list) {
 		list_del(&p->list);
+		if (p->phy_info)
+			kfree(p->phy_info);
 		kfree(p);
 	}
 	mutex_unlock(&ioc->sas_topology_mutex);
