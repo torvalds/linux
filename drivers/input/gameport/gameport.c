@@ -266,6 +266,7 @@ static void gameport_queue_event(void *object, struct module *owner,
 	if ((event = kmalloc(sizeof(struct gameport_event), GFP_ATOMIC))) {
 		if (!try_module_get(owner)) {
 			printk(KERN_WARNING "gameport: Can't get module reference, dropping event %d\n", event_type);
+			kfree(event);
 			goto out;
 		}
 
