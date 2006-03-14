@@ -18,6 +18,7 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/initrd.h>
+#include <linux/platform_device.h>
 #include <linux/ide.h>
 #include <linux/seq_file.h>
 #include <linux/ioport.h>
@@ -469,3 +470,26 @@ static int __init early_xmon(char *p)
 }
 early_param("xmon", early_xmon);
 #endif
+
+static __init int add_pcspkr(void)
+{
+	struct device_node *np;
+	struct platform_device *pd;
+	int ret;
+
+	np = of_find_compatible_node(NULL, NULL, "pnpPNP,100");
+	of_node_put(np);
+	if (!np)
+		return -ENODEV;
+
+	pd = platform_device_alloc("pcspkr", -1);
+	if (!pd)
+		return -ENOMEM;
+
+	ret = platform_device_add(pd);
+	if (ret)
+		platform_device_put(pd);
+
+	return ret;
+}
+device_initcall(add_pcspkr);

@@ -24,7 +24,6 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("PC Speaker beeper driver");
 MODULE_LICENSE("GPL");
 
-static struct platform_device *pcspkr_platform_device;
 static DEFINE_SPINLOCK(i8253_beep_lock);
 
 static int pcspkr_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
@@ -135,35 +134,11 @@ static struct platform_driver pcspkr_platform_driver = {
 
 static int __init pcspkr_init(void)
 {
-	int err;
-
-	err = platform_driver_register(&pcspkr_platform_driver);
-	if (err)
-		return err;
-
-	pcspkr_platform_device = platform_device_alloc("pcspkr", -1);
-	if (!pcspkr_platform_device) {
-		err = -ENOMEM;
-		goto err_unregister_driver;
-	}
-
-	err = platform_device_add(pcspkr_platform_device);
-	if (err)
-		goto err_free_device;
-
-	return 0;
-
- err_free_device:
-	platform_device_put(pcspkr_platform_device);
- err_unregister_driver:
-	platform_driver_unregister(&pcspkr_platform_driver);
-
-	return err;
+	return platform_driver_register(&pcspkr_platform_driver);
 }
 
 static void __exit pcspkr_exit(void)
 {
-	platform_device_unregister(pcspkr_platform_device);
 	platform_driver_unregister(&pcspkr_platform_driver);
 }
 
