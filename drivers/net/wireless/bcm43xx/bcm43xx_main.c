@@ -996,13 +996,6 @@ void bcm43xx_dummy_transmission(struct bcm43xx_private *bcm)
 		0x00000000,
 	};
 
-/* FIXME: It seems like a dummy_transmission corrupts the DMA engines,
- *        once they are initialized. So avoid doing a dummy_transmission,
- *        if the DMA engines are running.
- */
-if (bcm->initialized)
-return;
-
 	switch (phy->type) {
 	case BCM43xx_PHYTYPE_A:
 		max_loop = 0x1E;
