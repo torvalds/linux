@@ -1441,6 +1441,17 @@ mptsas_find_phyinfo_by_target(MPT_ADAPTER *ioc, u32 id)
 	return phy_info;
 }
 
+/*
+ * Work queue thread to clear the persitency table
+ */
+static void
+mptscsih_sas_persist_clear_table(void * arg)
+{
+	MPT_ADAPTER *ioc = (MPT_ADAPTER *)arg;
+
+	mptbase_sas_persist_operation(ioc, MPI_SAS_OP_CLEAR_NOT_PRESENT);
+}
+
 static void
 mptsas_hotplug_work(void *arg)
 {
@@ -1537,7 +1548,7 @@ mptsas_hotplug_work(void *arg)
 			break;
 		}
 		printk(MYIOC_s_INFO_FMT
-		       "attaching device, channel %d, id %d\n",
+		       "attaching raid volume, channel %d, id %d\n",
 		       ioc->name, ioc->num_ports, ev->id);
 		scsi_add_device(ioc->sh,
 			ioc->num_ports,
@@ -1554,7 +1565,7 @@ mptsas_hotplug_work(void *arg)
 		if (!sdev)
 			break;
 		printk(MYIOC_s_INFO_FMT
-		       "removing device, channel %d, id %d\n",
+		       "removing raid volume, channel %d, id %d\n",
 		       ioc->name, ioc->num_ports, ev->id);
 		scsi_remove_device(sdev);
 		scsi_device_put(sdev);
@@ -1579,35 +1590,51 @@ mptscsih_send_sas_event(MPT_ADAPTER *ioc,
 	      MPI_SAS_DEVICE_INFO_SATA_DEVICE )) == 0)
 		return;
 
-	if ((sas_event_data->ReasonCode &
-	     (MPI_EVENT_SAS_DEV_STAT_RC_ADDED |
-	      MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING)) == 0)
-		return;
+	switch (sas_event_data->ReasonCode) {
+	case MPI_EVENT_SAS_DEV_STAT_RC_ADDED:
+	case MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING:
+		ev = kmalloc(sizeof(*ev), GFP_ATOMIC);
+		if (!ev) {
+			printk(KERN_WARNING "mptsas: lost hotplug event\n");
+			break;
+		}
 
-	ev = kmalloc(sizeof(*ev), GFP_ATOMIC);
-	if (!ev) {
-		printk(KERN_WARNING "mptsas: lost hotplug event\n");
-		return;
+		INIT_WORK(&ev->work, mptsas_hotplug_work, ev);
+		ev->ioc = ioc;
+		ev->handle = le16_to_cpu(sas_event_data->DevHandle);
+		ev->parent_handle =
+		    le16_to_cpu(sas_event_data->ParentDevHandle);
+		ev->channel = sas_event_data->Bus;
+		ev->id = sas_event_data->TargetID;
+		ev->phy_id = sas_event_data->PhyNum;
+		memcpy(&sas_address, &sas_event_data->SASAddress,
+		    sizeof(__le64));
+		ev->sas_address = le64_to_cpu(sas_address);
+		ev->device_info = device_info;
+
+		if (sas_event_data->ReasonCode &
+		    MPI_EVENT_SAS_DEV_STAT_RC_ADDED)
+			ev->event_type = MPTSAS_ADD_DEVICE;
+		else
+			ev->event_type = MPTSAS_DEL_DEVICE;
+		schedule_work(&ev->work);
+		break;
+	case MPI_EVENT_SAS_DEV_STAT_RC_NO_PERSIST_ADDED:
+	/*
+	 * Persistent table is full.
+	 */
+		INIT_WORK(&ioc->mptscsih_persistTask,
+		    mptscsih_sas_persist_clear_table,
+		    (void *)ioc);
+		schedule_work(&ioc->mptscsih_persistTask);
+		break;
+	case MPI_EVENT_SAS_DEV_STAT_RC_SMART_DATA:
+	/* TODO */
+	case MPI_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET:
+	/* TODO */
+	default:
+		break;
 	}
-
-
-	INIT_WORK(&ev->work, mptsas_hotplug_work, ev);
-	ev->ioc = ioc;
-	ev->handle = le16_to_cpu(sas_event_data->DevHandle);
-	ev->parent_handle = le16_to_cpu(sas_event_data->ParentDevHandle);
-	ev->channel = sas_event_data->Bus;
-	ev->id = sas_event_data->TargetID;
-	ev->phy_id = sas_event_data->PhyNum;
-	memcpy(&sas_address, &sas_event_data->SASAddress, sizeof(__le64));
-	ev->sas_address = le64_to_cpu(sas_address);
-	ev->device_info = device_info;
-
-	if (sas_event_data->ReasonCode & MPI_EVENT_SAS_DEV_STAT_RC_ADDED)
-		ev->event_type = MPTSAS_ADD_DEVICE;
-	else
-		ev->event_type = MPTSAS_DEL_DEVICE;
-
-	schedule_work(&ev->work);
 }
 
 static void
@@ -1657,16 +1684,6 @@ mptscsih_send_raid_event(MPT_ADAPTER *ioc,
 	schedule_work(&ev->work);
 }
 
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/* work queue thread to clear the persitency table */
-static void
-mptscsih_sas_persist_clear_table(void * arg)
-{
-	MPT_ADAPTER *ioc = (MPT_ADAPTER *)arg;
-
-	mptbase_sas_persist_operation(ioc, MPI_SAS_OP_CLEAR_NOT_PRESENT);
-}
-
 static int
 mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 {
@@ -1691,6 +1708,7 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 		    (void *)ioc);
 		schedule_work(&ioc->mptscsih_persistTask);
 		break;
+	 case MPI_EVENT_SAS_DISCOVERY:
 	default:
 		rc = mptscsih_event_process(ioc, reply);
 		break;
