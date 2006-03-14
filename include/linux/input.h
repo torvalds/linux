@@ -421,7 +421,7 @@ struct input_absinfo {
 #define BTN_GEAR_UP		0x151
 
 #define KEY_OK			0x160
-#define KEY_SELECT 		0x161
+#define KEY_SELECT		0x161
 #define KEY_GOTO		0x162
 #define KEY_CLEAR		0x163
 #define KEY_POWER2		0x164
@@ -995,11 +995,6 @@ static inline void init_input_dev(struct input_dev *dev)
 
 struct input_dev *input_allocate_device(void);
 
-static inline void input_free_device(struct input_dev *dev)
-{
-	kfree(dev);
-}
-
 static inline struct input_dev *input_get_device(struct input_dev *dev)
 {
 	return to_input_dev(class_device_get(&dev->cdev));
@@ -1008,6 +1003,11 @@ static inline struct input_dev *input_get_device(struct input_dev *dev)
 static inline void input_put_device(struct input_dev *dev)
 {
 	class_device_put(&dev->cdev);
+}
+
+static inline void input_free_device(struct input_dev *dev)
+{
+	input_put_device(dev);
 }
 
 int input_register_device(struct input_dev *);
