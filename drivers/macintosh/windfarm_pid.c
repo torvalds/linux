@@ -143,3 +143,7 @@ s32 wf_cpu_pid_run(struct wf_cpu_pid_state *st, s32 new_power, s32 new_temp)
 	return st->target;
 }
 EXPORT_SYMBOL_GPL(wf_cpu_pid_run);
+
+MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
+MODULE_DESCRIPTION("PID algorithm for PowerMacs thermal control");
+MODULE_LICENSE("GPL");

@@ -486,10 +486,8 @@ static void vgaHWRestore(const struct fb_info *info,
 static inline int neo2200_sync(struct fb_info *info)
 {
 	struct neofb_par *par = info->par;
-	int waitcycles;
 
-	while (readl(&par->neo2200->bltStat) & 1)
-		waitcycles++;
+	while (readl(&par->neo2200->bltStat) & 1);
 	return 0;
 }
 

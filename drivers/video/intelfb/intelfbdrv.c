@@ -1333,33 +1333,35 @@ intelfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (regno > 255)
 		return 1;
 
-	switch (dinfo->depth) {
-	case 8:
-		{
-			red >>= 8;
-			green >>= 8;
-			blue >>= 8;
+	if (dinfo->depth == 8) {
+		red >>= 8;
+		green >>= 8;
+		blue >>= 8;
 
-			intelfbhw_setcolreg(dinfo, regno, red, green, blue,
-					    transp);
-		}
-		break;
-	case 15:
-		dinfo->pseudo_palette[regno] = ((red & 0xf800) >>  1) |
-					       ((green & 0xf800) >>  6) |
-					       ((blue & 0xf800) >> 11);
-		break;
-	case 16:
-		dinfo->pseudo_palette[regno] = (red & 0xf800) |
-					       ((green & 0xfc00) >>  5) |
-					       ((blue  & 0xf800) >> 11);
-		break;
-	case 24:
-		dinfo->pseudo_palette[regno] = ((red & 0xff00) << 8) |
-					       (green & 0xff00) |
-					       ((blue  & 0xff00) >> 8);
-		break;
+		intelfbhw_setcolreg(dinfo, regno, red, green, blue,
+				    transp);
 	}
+
+	if (regno < 16) {
+		switch (dinfo->depth) {
+		case 15:
+			dinfo->pseudo_palette[regno] = ((red & 0xf800) >>  1) |
+				((green & 0xf800) >>  6) |
+				((blue & 0xf800) >> 11);
+			break;
+		case 16:
+			dinfo->pseudo_palette[regno] = (red & 0xf800) |
+				((green & 0xfc00) >>  5) |
+				((blue  & 0xf800) >> 11);
+			break;
+		case 24:
+			dinfo->pseudo_palette[regno] = ((red & 0xff00) << 8) |
+				(green & 0xff00) |
+				((blue  & 0xff00) >> 8);
+			break;
+		}
+	}
+
 	return 0;
 }
 

@@ -13,7 +13,7 @@
  12 -> Medion 7134                              [16be:0003]
  13 -> Typhoon TV+Radio 90031
  14 -> ELSA EX-VISION 300TV                     [1048:226b]
- 15 -> ELSA EX-VISION 500TV                     [1048:226b]
+ 15 -> ELSA EX-VISION 500TV                     [1048:226a]
  16 -> ASUS TV-FM 7134                          [1043:4842,1043:4830,1043:4840]
  17 -> AOPEN VA1000 POWER                       [1131:7133]
  18 -> BMK MPEX No Tuner
@@ -75,7 +75,7 @@
  74 -> LifeView FlyTV Platinum Mini2            [14c0:1212]
  75 -> AVerMedia AVerTVHD MCE A180              [1461:1044]
  76 -> SKNet MonsterTV Mobile                   [1131:4ee9]
- 77 -> Pinnacle PCTV 110i (saa7133)             [11bd:002e]
+ 77 -> Pinnacle PCTV 40i/50i/110i (saa7133)     [11bd:002e]
  78 -> ASUSTeK P7131 Dual                       [1043:4862]
  79 -> Sedna/MuchTV PC TV Cardbus TV/Radio (ITO25 Rev:2B)
  80 -> ASUS Digimatrix TV                       [1043:0210]

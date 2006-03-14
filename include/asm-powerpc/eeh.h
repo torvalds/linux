@@ -27,6 +27,7 @@
 #include <linux/string.h>
 
 struct pci_dev;
+struct pci_bus;
 struct device_node;
 
 #ifdef CONFIG_EEH
@@ -60,8 +61,9 @@ void __init pci_addr_cache_build(void);
  * to finish the eeh setup for this device.
  */
 void eeh_add_device_early(struct device_node *);
+void eeh_add_device_late(struct pci_dev *dev);
 void eeh_add_device_tree_early(struct device_node *);
-void eeh_add_device_late(struct pci_dev *);
+void eeh_add_device_tree_late(struct pci_bus *);
 
 /**
  * eeh_remove_device - undo EEH setup for the indicated pci device
@@ -121,6 +123,8 @@ static inline void eeh_add_device_late(struct pci_dev *dev) { }
 static inline void eeh_remove_device(struct pci_dev *dev) { }
 
 static inline void eeh_add_device_tree_early(struct device_node *dn) { }
+
+static inline void eeh_add_device_tree_late(struct pci_bus *bus) { }
 
 static inline void eeh_remove_bus_device(struct pci_dev *dev) { }
 #define EEH_POSSIBLE_ERROR(val, type) (0)

@@ -275,10 +275,8 @@ static int aha152x_resume(struct pcmcia_device *dev)
 
 	link->state &= ~DEV_SUSPEND;
 	if (link->state & DEV_CONFIG) {
-		Scsi_Cmnd tmp;
 		pcmcia_request_configuration(link->handle, &link->conf);
-		tmp.device->host = info->host;
-		aha152x_host_reset(&tmp);
+		aha152x_host_reset_host(info->host);
 	}
 
 	return 0;

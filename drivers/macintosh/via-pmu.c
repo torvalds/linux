@@ -825,7 +825,7 @@ proc_get_info(char *page, char **start, off_t off,
 	p += sprintf(p, "PMU driver version     : %d\n", PMU_DRIVER_VERSION);
 	p += sprintf(p, "PMU firmware version   : %02x\n", pmu_version);
 	p += sprintf(p, "AC Power               : %d\n",
-		((pmu_power_flags & PMU_PWR_AC_PRESENT) != 0));
+		((pmu_power_flags & PMU_PWR_AC_PRESENT) != 0) || pmu_battery_count == 0);
 	p += sprintf(p, "Battery count          : %d\n", pmu_battery_count);
 
 	return p - page;

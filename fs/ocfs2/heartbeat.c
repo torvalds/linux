@@ -67,6 +67,7 @@ void ocfs2_init_node_maps(struct ocfs2_super *osb)
 	ocfs2_node_map_init(&osb->mounted_map);
 	ocfs2_node_map_init(&osb->recovery_map);
 	ocfs2_node_map_init(&osb->umount_map);
+	ocfs2_node_map_init(&osb->osb_recovering_orphan_dirs);
 }
 
 static void ocfs2_do_node_down(int node_num,

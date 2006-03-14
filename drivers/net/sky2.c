@@ -74,7 +74,7 @@
 #define TX_RING_SIZE		512
 #define TX_DEF_PENDING		(TX_RING_SIZE - 1)
 #define TX_MIN_PENDING		64
-#define MAX_SKB_TX_LE		(4 + 2*MAX_SKB_FRAGS)
+#define MAX_SKB_TX_LE		(4 + (sizeof(dma_addr_t)/sizeof(u32))*MAX_SKB_FRAGS)
 
 #define STATUS_RING_SIZE	2048	/* 2 ports * (TX + 2*RX) */
 #define STATUS_LE_BYTES		(STATUS_RING_SIZE*sizeof(struct sky2_status_le))
@@ -95,10 +95,6 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 static int copybreak __read_mostly = 256;
 module_param(copybreak, int, 0);
 MODULE_PARM_DESC(copybreak, "Receive copy threshold");
-
-static int disable_msi = 0;
-module_param(disable_msi, int, 0);
-MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
 
 static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9000) },
@@ -626,8 +622,8 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	/* Configure Rx MAC FIFO */
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
-	sky2_write16(hw, SK_REG(port, RX_GMF_CTRL_T),
-		     GMF_RX_CTRL_DEF);
+	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T),
+		     GMF_OPER_ON | GMF_RX_F_FL_ON);
 
 	/* Flush Rx MAC FIFO on any flow control or error */
 	sky2_write16(hw, SK_REG(port, RX_GMF_FL_MSK), GMR_FS_ANY_ERR);
@@ -999,6 +995,10 @@ static int sky2_rx_start(struct sky2_port *sky2)
 		sky2_rx_add(sky2, re->mapaddr);
 	}
 
+ 	/* Truncate oversize frames */
+ 	sky2_write16(hw, SK_REG(sky2->port, RX_GMF_TR_THR), sky2->rx_bufsize - 8);
+ 	sky2_write32(hw, SK_REG(sky2->port, RX_GMF_CTRL_T), RX_TRUNC_ON);
+
 	/* Tell chip about available buffers */
 	sky2_write16(hw, Y2_QADDR(rxq, PREF_UNIT_PUT_IDX), sky2->rx_put);
 	sky2->rx_last_put = sky2_read16(hw, Y2_QADDR(rxq, PREF_UNIT_PUT_IDX));
@@ -1149,6 +1149,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	struct sky2_tx_le *le = NULL;
 	struct tx_ring_info *re;
 	unsigned i, len;
+	int avail;
 	dma_addr_t mapping;
 	u32 addr64;
 	u16 mss;
@@ -1291,11 +1292,15 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	re->idx = sky2->tx_prod;
 	le->ctrl |= EOP;
 
+	avail = tx_avail(sky2);
+	if (mss != 0 || avail < TX_MIN_PENDING) {
+ 		le->ctrl |= FRC_STAT;
+		if (avail <= MAX_SKB_TX_LE)
+			netif_stop_queue(dev);
+	}
+
 	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod,
 		     &sky2->tx_last_put, TX_RING_SIZE);
-
-	if (tx_avail(sky2) <= MAX_SKB_TX_LE)
-		netif_stop_queue(dev);
 
 out_unlock:
 	spin_unlock(&sky2->tx_lock);
@@ -1711,10 +1716,12 @@ static void sky2_tx_timeout(struct net_device *dev)
 
 
 #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
-/* Want receive buffer size to be multiple of 64 bits, and incl room for vlan */
+/* Want receive buffer size to be multiple of 64 bits
+ * and incl room for vlan and truncation
+ */
 static inline unsigned sky2_buf_size(int mtu)
 {
-	return roundup(mtu + ETH_HLEN + 4, 8);
+	return roundup(mtu + ETH_HLEN + VLAN_HLEN, 8) + 8;
 }
 
 static int sky2_change_mtu(struct net_device *dev, int new_mtu)
@@ -1797,7 +1804,7 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 	if (!(status & GMR_FS_RX_OK))
 		goto resubmit;
 
-	if ((status >> 16) != length || length > sky2->rx_bufsize)
+	if (length > sky2->netdev->mtu + ETH_HLEN)
 		goto oversize;
 
 	if (length < copybreak) {
@@ -3126,61 +3133,6 @@ static void __devinit sky2_show_addr(struct net_device *dev)
 		       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
 }
 
-/* Handle software interrupt used during MSI test */
-static irqreturn_t __devinit sky2_test_intr(int irq, void *dev_id,
-					    struct pt_regs *regs)
-{
-	struct sky2_hw *hw = dev_id;
-	u32 status = sky2_read32(hw, B0_Y2_SP_ISRC2);
-
-	if (status == 0)
-		return IRQ_NONE;
-
-	if (status & Y2_IS_IRQ_SW) {
-		sky2_write8(hw, B0_CTST, CS_CL_SW_IRQ);
-		hw->msi = 1;
-	}
-	sky2_write32(hw, B0_Y2_SP_ICR, 2);
-
-	sky2_read32(hw, B0_IMSK);
-	return IRQ_HANDLED;
-}
-
-/* Test interrupt path by forcing a a software IRQ */
-static int __devinit sky2_test_msi(struct sky2_hw *hw)
-{
-	struct pci_dev *pdev = hw->pdev;
-	int i, err;
-
-	sky2_write32(hw, B0_IMSK, Y2_IS_IRQ_SW);
-
-	err = request_irq(pdev->irq, sky2_test_intr, SA_SHIRQ, DRV_NAME, hw);
-	if (err) {
-		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
-		       pci_name(pdev), pdev->irq);
-		return err;
-	}
-
-	sky2_write8(hw, B0_CTST, CS_ST_SW_IRQ);
-	wmb();
-
-	for (i = 0; i < 10; i++) {
-		barrier();
-		if (hw->msi)
-			goto found;
-		mdelay(1);
-	}
-
-	err = -EOPNOTSUPP;
-	sky2_write8(hw, B0_CTST, CS_CL_SW_IRQ);
- found:
-	sky2_write32(hw, B0_IMSK, 0);
-
-	free_irq(pdev->irq, hw);
-
-	return err;
-}
-
 static int __devinit sky2_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
@@ -3302,22 +3254,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		}
 	}
 
-	if (!disable_msi && pci_enable_msi(pdev) == 0) {
-		err = sky2_test_msi(hw);
-		if (err == -EOPNOTSUPP) {
-			/* MSI test failed, go back to INTx mode */
-			printk(KERN_WARNING PFX "%s: No interrupt was generated using MSI, "
-			       "switching to INTx mode. Please report this failure to "
-			       "the PCI maintainer and include system chipset information.\n",
-			       pci_name(pdev));
-			pci_disable_msi(pdev);
-		}
-		else if (err)
-			goto err_out_unregister;
-	}
-
-	err = request_irq(pdev->irq, sky2_intr, SA_SHIRQ | SA_SAMPLE_RANDOM,
-			  DRV_NAME, hw);
+	err = request_irq(pdev->irq, sky2_intr, SA_SHIRQ, DRV_NAME, hw);
 	if (err) {
 		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
 		       pci_name(pdev), pdev->irq);
@@ -3332,8 +3269,6 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	return 0;
 
 err_out_unregister:
-	if (hw->msi)
-		pci_disable_msi(pdev);
 	if (dev1) {
 		unregister_netdev(dev1);
 		free_netdev(dev1);
@@ -3376,8 +3311,6 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	sky2_read8(hw, B0_CTST);
 
 	free_irq(pdev->irq, hw);
-	if (hw->msi)
-		pci_disable_msi(pdev);
 	pci_free_consistent(pdev, STATUS_LE_BYTES, hw->st_le, hw->st_dma);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

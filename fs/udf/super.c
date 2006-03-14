@@ -269,7 +269,7 @@ enum {
 	Opt_gid, Opt_uid, Opt_umask, Opt_session, Opt_lastblock,
 	Opt_anchor, Opt_volume, Opt_partition, Opt_fileset,
 	Opt_rootdir, Opt_utf8, Opt_iocharset,
-	Opt_err
+	Opt_err, Opt_uforget, Opt_uignore, Opt_gforget, Opt_gignore
 };
 
 static match_table_t tokens = {
@@ -282,6 +282,10 @@ static match_table_t tokens = {
 	{Opt_adinicb, "adinicb"},
 	{Opt_shortad, "shortad"},
 	{Opt_longad, "longad"},
+	{Opt_uforget, "uid=forget"},
+	{Opt_uignore, "uid=ignore"},
+	{Opt_gforget, "gid=forget"},
+	{Opt_gignore, "gid=ignore"},
 	{Opt_gid, "gid=%u"},
 	{Opt_uid, "uid=%u"},
 	{Opt_umask, "umask=%o"},
@@ -414,6 +418,18 @@ udf_parse_options(char *options, struct udf_options *uopt)
 				uopt->flags |= (1 << UDF_FLAG_NLS_MAP);
 				break;
 #endif
+			case Opt_uignore:
+				uopt->flags |= (1 << UDF_FLAG_UID_IGNORE);
+				break;
+			case Opt_uforget:
+				uopt->flags |= (1 << UDF_FLAG_UID_FORGET);
+				break;
+			case Opt_gignore:
+			    uopt->flags |= (1 << UDF_FLAG_GID_IGNORE);
+				break;
+			case Opt_gforget:
+			    uopt->flags |= (1 << UDF_FLAG_GID_FORGET);
+				break;
 			default:
 				printk(KERN_ERR "udf: bad mount option \"%s\" "
 						"or missing value\n", p);
