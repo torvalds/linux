@@ -3414,7 +3414,8 @@ xfs_bmap_local_to_extents(
 
 		args.tp = tp;
 		args.mp = ip->i_mount;
-		ASSERT(ifp->if_flags & XFS_IFINLINE);
+		ASSERT((ifp->if_flags &
+			(XFS_IFINLINE|XFS_IFEXTENTS|XFS_IFEXTIREC)) == XFS_IFINLINE);
 		/*
 		 * Allocate a block.  We know we need only one, since the
 		 * file currently fits in an inode.
@@ -3445,7 +3446,6 @@ xfs_bmap_local_to_extents(
 		xfs_bmap_forkoff_reset(args.mp, ip, whichfork);
 		xfs_idata_realloc(ip, -ifp->if_bytes, whichfork);
 		xfs_iext_add(ifp, 0, 1);
-		ASSERT((ifp->if_flags & (XFS_IFEXTENTS|XFS_IFEXTIREC)) == XFS_IFEXTENTS);
 		ep = xfs_iext_get_ext(ifp, 0);
 		xfs_bmbt_set_allf(ep, 0, args.fsbno, 1, XFS_EXT_NORM);
 		xfs_bmap_trace_post_update(fname, "new", ip, 0, whichfork);
