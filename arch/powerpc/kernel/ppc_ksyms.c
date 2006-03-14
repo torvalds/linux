@@ -110,15 +110,6 @@ EXPORT_SYMBOL(_insw_ns);
 EXPORT_SYMBOL(_outsw_ns);
 EXPORT_SYMBOL(_insl_ns);
 EXPORT_SYMBOL(_outsl_ns);
-EXPORT_SYMBOL(ioremap);
-#ifdef CONFIG_44x
-EXPORT_SYMBOL(ioremap64);
-#endif
-EXPORT_SYMBOL(__ioremap);
-EXPORT_SYMBOL(iounmap);
-#ifdef CONFIG_PPC32
-EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
-#endif
 
 #if defined(CONFIG_PPC32) && (defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE))
 EXPORT_SYMBOL(ppc_ide_md);
@@ -161,7 +152,6 @@ EXPORT_SYMBOL(__flush_icache_range);
 EXPORT_SYMBOL(flush_dcache_range);
 
 #ifdef CONFIG_SMP
-EXPORT_SYMBOL(smp_call_function);
 #ifdef CONFIG_PPC32
 EXPORT_SYMBOL(smp_hw_index);
 #endif
