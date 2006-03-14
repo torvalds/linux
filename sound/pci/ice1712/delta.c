@@ -393,7 +393,7 @@ static void delta_setup_spdif(struct snd_ice1712 *ice, int rate)
 	snd_ice1712_delta_cs8403_spdif_write(ice, tmp);
 }
 
-int snd_ice1712_delta1010lt_wordclock_status_info(struct snd_kcontrol *kcontrol,
+static int snd_ice1712_delta1010lt_wordclock_status_info(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
@@ -403,7 +403,7 @@ int snd_ice1712_delta1010lt_wordclock_status_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int snd_ice1712_delta1010lt_wordclock_status_get(struct snd_kcontrol *kcontrol,
+static int snd_ice1712_delta1010lt_wordclock_status_get(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
 	char reg = 0x10; // cs8427 receiver error register
