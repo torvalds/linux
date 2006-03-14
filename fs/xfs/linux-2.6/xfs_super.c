@@ -337,8 +337,8 @@ linvfs_alloc_inode(
 {
 	vnode_t			*vp;
 
-	vp = kmem_cache_alloc(xfs_vnode_zone, kmem_flags_convert(KM_SLEEP));
-	if (!vp)
+	vp = kmem_zone_alloc(xfs_vnode_zone, KM_SLEEP);
+	if (unlikely(!vp))
 		return NULL;
 	return LINVFS_GET_IP(vp);
 }
@@ -352,23 +352,21 @@ linvfs_destroy_inode(
 
 STATIC void
 linvfs_inode_init_once(
-	void			*data,
-	kmem_cache_t		*cachep,
+	void			*vnode,
+	kmem_zone_t		*zonep,
 	unsigned long		flags)
 {
-	vnode_t			*vp = (vnode_t *)data;
-
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
-		inode_init_once(LINVFS_GET_IP(vp));
+		      SLAB_CTOR_CONSTRUCTOR)
+		inode_init_once(LINVFS_GET_IP((vnode_t *)vnode));
 }
 
 STATIC int
-linvfs_init_zones(void)
+xfs_init_zones(void)
 {
-	xfs_vnode_zone = kmem_cache_create("xfs_vnode",
-				sizeof(vnode_t), 0, SLAB_RECLAIM_ACCOUNT,
-				linvfs_inode_init_once, NULL);
+	xfs_vnode_zone = kmem_zone_init_flags(sizeof(vnode_t), "xfs_vnode_t",
+					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM,
+					linvfs_inode_init_once);
 	if (!xfs_vnode_zone)
 		goto out;
 
@@ -377,13 +375,11 @@ linvfs_init_zones(void)
 		goto out_destroy_vnode_zone;
 
 	xfs_ioend_pool = mempool_create(4 * MAX_BUF_PER_PAGE,
-			mempool_alloc_slab, mempool_free_slab,
-			xfs_ioend_zone);
+					mempool_alloc_slab, mempool_free_slab,
+					xfs_ioend_zone);
 	if (!xfs_ioend_pool)
 		goto out_free_ioend_zone;
-
 	return 0;
-
 
  out_free_ioend_zone:
 	kmem_zone_destroy(xfs_ioend_zone);
@@ -394,7 +390,7 @@ linvfs_init_zones(void)
 }
 
 STATIC void
-linvfs_destroy_zones(void)
+xfs_destroy_zones(void)
 {
 	mempool_destroy(xfs_ioend_pool);
 	kmem_zone_destroy(xfs_vnode_zone);
@@ -405,7 +401,7 @@ linvfs_destroy_zones(void)
  * Attempt to flush the inode, this will actually fail
  * if the inode is pinned, but we dirty the inode again
  * at the point when it is unpinned after a log write,
- * since this is when the inode itself becomes flushable. 
+ * since this is when the inode itself becomes flushable.
  */
 STATIC int
 linvfs_write_inode(
@@ -963,7 +959,7 @@ init_xfs_fs( void )
 
 	ktrace_init(64);
 
-	error = linvfs_init_zones();
+	error = xfs_init_zones();
 	if (error < 0)
 		goto undo_zones;
 
@@ -986,7 +982,7 @@ undo_register:
 	xfs_buf_terminate();
 
 undo_buffers:
-	linvfs_destroy_zones();
+	xfs_destroy_zones();
 
 undo_zones:
 	return error;
@@ -1000,7 +996,7 @@ exit_xfs_fs( void )
 	unregister_filesystem(&xfs_fs_type);
 	xfs_cleanup();
 	xfs_buf_terminate();
-	linvfs_destroy_zones();
+	xfs_destroy_zones();
 	ktrace_uninit();
 }
 

@@ -77,11 +77,12 @@ xfs_init(void)
 						 "xfs_bmap_free_item");
 	xfs_btree_cur_zone = kmem_zone_init(sizeof(xfs_btree_cur_t),
 					    "xfs_btree_cur");
-	xfs_inode_zone = kmem_zone_init(sizeof(xfs_inode_t), "xfs_inode");
 	xfs_trans_zone = kmem_zone_init(sizeof(xfs_trans_t), "xfs_trans");
 	xfs_da_state_zone =
 		kmem_zone_init(sizeof(xfs_da_state_t), "xfs_da_state");
 	xfs_dabuf_zone = kmem_zone_init(sizeof(xfs_dabuf_t), "xfs_dabuf");
+	xfs_ifork_zone = kmem_zone_init(sizeof(xfs_ifork_t), "xfs_ifork");
+	xfs_acl_zone_init(xfs_acl_zone, "xfs_acl");
 
 	/*
 	 * The size of the zone allocated buf log item is the maximum
@@ -93,17 +94,30 @@ xfs_init(void)
 				(((XFS_MAX_BLOCKSIZE / XFS_BLI_CHUNK) /
 				  NBWORD) * sizeof(int))),
 			       "xfs_buf_item");
-	xfs_efd_zone = kmem_zone_init((sizeof(xfs_efd_log_item_t) +
-				       ((XFS_EFD_MAX_FAST_EXTENTS - 1) * sizeof(xfs_extent_t))),
+	xfs_efd_zone =
+		kmem_zone_init((sizeof(xfs_efd_log_item_t) +
+			       ((XFS_EFD_MAX_FAST_EXTENTS - 1) *
+				 sizeof(xfs_extent_t))),
 				      "xfs_efd_item");
-	xfs_efi_zone = kmem_zone_init((sizeof(xfs_efi_log_item_t) +
-				       ((XFS_EFI_MAX_FAST_EXTENTS - 1) * sizeof(xfs_extent_t))),
+	xfs_efi_zone =
+		kmem_zone_init((sizeof(xfs_efi_log_item_t) +
+			       ((XFS_EFI_MAX_FAST_EXTENTS - 1) *
+				 sizeof(xfs_extent_t))),
 				      "xfs_efi_item");
-	xfs_ifork_zone = kmem_zone_init(sizeof(xfs_ifork_t), "xfs_ifork");
-	xfs_ili_zone = kmem_zone_init(sizeof(xfs_inode_log_item_t), "xfs_ili");
-	xfs_chashlist_zone = kmem_zone_init(sizeof(xfs_chashlist_t),
-					    "xfs_chashlist");
-	xfs_acl_zone_init(xfs_acl_zone, "xfs_acl");
+
+	/*
+	 * These zones warrant special memory allocator hints
+	 */
+	xfs_inode_zone =
+		kmem_zone_init_flags(sizeof(xfs_inode_t), "xfs_inode",
+					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
+					KM_ZONE_SPREAD, NULL);
+	xfs_ili_zone =
+		kmem_zone_init_flags(sizeof(xfs_inode_log_item_t), "xfs_ili",
+					KM_ZONE_SPREAD, NULL);
+	xfs_chashlist_zone =
+		kmem_zone_init_flags(sizeof(xfs_chashlist_t), "xfs_chashlist",
+					KM_ZONE_SPREAD, NULL);
 
 	/*
 	 * Allocate global trace buffers.
