@@ -252,14 +252,14 @@ static struct pnp_driver ns558_pnp_driver;
 
 #endif
 
-static int pnp_registered = 0;
-
 static int __init ns558_init(void)
 {
 	int i = 0;
+	int error;
 
-	if (pnp_register_driver(&ns558_pnp_driver) >= 0)
-		pnp_registered = 1;
+	error = pnp_register_driver(&ns558_pnp_driver);
+	if (error && error != -ENODEV)	/* should be ENOSYS really */
+		return error;
 
 /*
  * Probe ISA ports after PnP, so that PnP ports that are already
@@ -270,7 +270,7 @@ static int __init ns558_init(void)
 	while (ns558_isa_portlist[i])
 		ns558_isa_probe(ns558_isa_portlist[i++]);
 
-	return (list_empty(&ns558_list) && !pnp_registered) ? -ENODEV : 0;
+	return list_empty(&ns558_list) && error ? -ENODEV : 0;
 }
 
 static void __exit ns558_exit(void)
@@ -283,8 +283,7 @@ static void __exit ns558_exit(void)
 		kfree(ns558);
 	}
 
-	if (pnp_registered)
-		pnp_unregister_driver(&ns558_pnp_driver);
+	pnp_unregister_driver(&ns558_pnp_driver);
 }
 
 module_init(ns558_init);
