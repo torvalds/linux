@@ -4629,10 +4629,6 @@ xfs_bmapi(
 	xfs_btree_cur_t	*cur;		/* bmap btree cursor */
 	xfs_fileoff_t	end;		/* end of mapped file region */
 	int		eof;		/* we've hit the end of extents */
-	char		contig;		/* allocation must be one extent */
-	char		delay;		/* this request is for delayed alloc */
-	char		exact;		/* don't do all of wasdelayed extent */
-	char		convert;	/* unwritten extent I/O completion */
 	xfs_bmbt_rec_t	*ep;		/* extent record pointer */
 	int		error;		/* error return */
 	xfs_bmbt_irec_t	got;		/* current file extent record */
@@ -4651,13 +4647,9 @@ xfs_bmapi(
 	int		tmp_logflags;	/* temp flags holder */
 	int		whichfork;	/* data or attr fork */
 	char		inhole;		/* current location is hole in file */
-	char		stateless;	/* ignore state flag set */
-	char		trim;		/* output trimmed to match range */
-	char		userdata;	/* allocating non-metadata */
 	char		wasdelay;	/* old extent was delayed */
 	char		wr;		/* this is a write request */
 	char		rt;		/* this is a realtime file */
-	char		rsvd;		/* OK to allocate reserved blocks */
 #ifdef DEBUG
 	xfs_fileoff_t	orig_bno;	/* original block number value */
 	int		orig_flags;	/* original flags arg value */
@@ -4694,15 +4686,8 @@ xfs_bmapi(
 		XFS_STATS_INC(xs_blk_mapw);
 	else
 		XFS_STATS_INC(xs_blk_mapr);
-	delay = (flags & XFS_BMAPI_DELAY) != 0;
-	trim = (flags & XFS_BMAPI_ENTIRE) == 0;
-	userdata = (flags & XFS_BMAPI_METADATA) == 0;
-	convert = (flags & XFS_BMAPI_CONVERT) != 0;
-	exact = (flags & XFS_BMAPI_EXACT) != 0;
-	rsvd = (flags & XFS_BMAPI_RSVBLOCKS) != 0;
-	contig = (flags & XFS_BMAPI_CONTIG) != 0;
 	/*
-	 * stateless is used to combine extents which
+	 * IGSTATE flag is used to combine extents which
 	 * differ only due to the state of the extents.
 	 * This technique is used from xfs_getbmap()
 	 * when the caller does not wish to see the
@@ -4718,10 +4703,9 @@ xfs_bmapi(
 	 * xfs_strat_comp(), where the xfs_bmapi() call
 	 * is transactioned, and the extents combined.
 	 */
-	stateless = (flags & XFS_BMAPI_IGSTATE) != 0;
-	if (stateless && wr)	/* if writing unwritten space, no */
-		wr = 0;		/* allocations are allowed */
-	ASSERT(wr || !delay);
+	if ((flags & XFS_BMAPI_IGSTATE) && wr)	/* if writing unwritten space */
+		wr = 0;				/* no allocations are allowed */
+	ASSERT(wr || !(flags & XFS_BMAPI_DELAY));
 	logflags = 0;
 	nallocs = 0;
 	cur = NULL;
@@ -4756,7 +4740,7 @@ xfs_bmapi(
 		if (eof && !wr)
 			got.br_startoff = end;
 		inhole = eof || got.br_startoff > bno;
-		wasdelay = wr && !inhole && !delay &&
+		wasdelay = wr && !inhole && !(flags & XFS_BMAPI_DELAY) &&
 			ISNULLSTARTBLOCK(got.br_startblock);
 		/*
 		 * First, deal with the hole before the allocated space
@@ -4768,7 +4752,7 @@ xfs_bmapi(
 			 * allocate the stuff asked for in this bmap call
 			 * but that wouldn't be as good.
 			 */
-			if (wasdelay && !exact) {
+			if (wasdelay && !(flags & XFS_BMAPI_EXACT)) {
 				alen = (xfs_extlen_t)got.br_blockcount;
 				aoff = got.br_startoff;
 				if (lastx != NULLEXTNUM && lastx) {
@@ -4790,8 +4774,8 @@ xfs_bmapi(
 							got.br_startoff - bno);
 				aoff = bno;
 			}
-			minlen = contig ? alen : 1;
-			if (delay) {
+			minlen = (flags & XFS_BMAPI_CONTIG) ? alen : 1;
+			if (flags & XFS_BMAPI_DELAY) {
 				xfs_extlen_t	extsz;
 
 				/* Figure out the extent size, adjust alen */
@@ -4804,7 +4788,9 @@ xfs_bmapi(
 				if (extsz) {
 					error = xfs_bmap_extsize_align(mp,
 							&got, &prev, extsz,
-							rt, eof, delay, convert,
+							rt, eof,
+							flags&XFS_BMAPI_DELAY,
+							flags&XFS_BMAPI_CONVERT,
 							&aoff, &alen);
 					ASSERT(!error);
 				}
@@ -4842,24 +4828,29 @@ xfs_bmapi(
 				if (rt) {
 					error = xfs_mod_incore_sb(mp,
 							XFS_SBS_FREXTENTS,
-							-(extsz), rsvd);
+							-(extsz), (flags &
+							XFS_BMAPI_RSVBLOCKS));
 				} else {
 					error = xfs_mod_incore_sb(mp,
 							XFS_SBS_FDBLOCKS,
-							-(alen), rsvd);
+							-(alen), (flags &
+							XFS_BMAPI_RSVBLOCKS));
 				}
 				if (!error) {
 					error = xfs_mod_incore_sb(mp,
 							XFS_SBS_FDBLOCKS,
-							-(indlen), rsvd);
+							-(indlen), (flags &
+							XFS_BMAPI_RSVBLOCKS));
 					if (error && rt)
 						xfs_mod_incore_sb(mp,
 							XFS_SBS_FREXTENTS,
-							extsz, rsvd);
+							extsz, (flags &
+							XFS_BMAPI_RSVBLOCKS));
 					else if (error)
 						xfs_mod_incore_sb(mp,
 							XFS_SBS_FDBLOCKS,
-							alen, rsvd);
+							alen, (flags &
+							XFS_BMAPI_RSVBLOCKS));
 				}
 
 				if (error) {
@@ -4892,7 +4883,7 @@ xfs_bmapi(
 				/* Indicate if this is the first user data
 				 * in the file, or just any user data.
 				 */
-				if (userdata) {
+				if (!(flags & XFS_BMAPI_METADATA)) {
 					bma.userdata = (aoff == 0) ?
 						XFS_ALLOC_INITIAL_USER_DATA :
 						XFS_ALLOC_USERDATA;
@@ -4904,7 +4895,7 @@ xfs_bmapi(
 				bma.firstblock = *firstblock;
 				bma.alen = alen;
 				bma.off = aoff;
-				bma.conv = convert;
+				bma.conv = (flags & XFS_BMAPI_CONVERT);
 				bma.wasdel = wasdelay;
 				bma.minlen = minlen;
 				bma.low = flist->xbf_low;
@@ -4915,7 +4906,8 @@ xfs_bmapi(
 				 * is larger than a stripe unit.
 				 */
 				if (mp->m_dalign && alen >= mp->m_dalign &&
-				    userdata && whichfork == XFS_DATA_FORK) {
+				    (!(flags & XFS_BMAPI_METADATA)) &&
+				    (whichfork == XFS_DATA_FORK)) {
 					if ((error = xfs_bmap_isaeof(ip, aoff,
 							whichfork, &bma.aeof)))
 						goto error0;
@@ -4978,7 +4970,7 @@ xfs_bmapi(
 			}
 			error = xfs_bmap_add_extent(ip, lastx, &cur, &got,
 				firstblock, flist, &tmp_logflags, whichfork,
-				rsvd);
+				(flags & XFS_BMAPI_RSVBLOCKS));
 			logflags |= tmp_logflags;
 			if (error)
 				goto error0;
@@ -4990,7 +4982,7 @@ xfs_bmapi(
 			ASSERT(got.br_startoff + got.br_blockcount >=
 				aoff + alen);
 #ifdef DEBUG
-			if (delay) {
+			if (flags & XFS_BMAPI_DELAY) {
 				ASSERT(ISNULLSTARTBLOCK(got.br_startblock));
 				ASSERT(STARTBLOCKVAL(got.br_startblock) > 0);
 			}
@@ -5019,14 +5011,15 @@ xfs_bmapi(
 		 * Then deal with the allocated space we found.
 		 */
 		ASSERT(ep != NULL);
-		if (trim && (got.br_startoff + got.br_blockcount > obno)) {
+		if (!(flags & XFS_BMAPI_ENTIRE) &&
+		    (got.br_startoff + got.br_blockcount > obno)) {
 			if (obno > bno)
 				bno = obno;
 			ASSERT((bno >= obno) || (n == 0));
 			ASSERT(bno < end);
 			mval->br_startoff = bno;
 			if (ISNULLSTARTBLOCK(got.br_startblock)) {
-				ASSERT(!wr || delay);
+				ASSERT(!wr || (flags & XFS_BMAPI_DELAY));
 				mval->br_startblock = DELAYSTARTBLOCK;
 			} else
 				mval->br_startblock =
@@ -5048,7 +5041,7 @@ xfs_bmapi(
 		} else {
 			*mval = got;
 			if (ISNULLSTARTBLOCK(mval->br_startblock)) {
-				ASSERT(!wr || delay);
+				ASSERT(!wr || (flags & XFS_BMAPI_DELAY));
 				mval->br_startblock = DELAYSTARTBLOCK;
 			}
 		}
@@ -5074,7 +5067,7 @@ xfs_bmapi(
 			mval->br_state = XFS_EXT_NORM;
 			error = xfs_bmap_add_extent(ip, lastx, &cur, mval,
 				firstblock, flist, &tmp_logflags, whichfork,
-				rsvd);
+				(flags & XFS_BMAPI_RSVBLOCKS));
 			logflags |= tmp_logflags;
 			if (error)
 				goto error0;
@@ -5091,9 +5084,10 @@ xfs_bmapi(
 				continue;
 		}
 
-		ASSERT(!trim ||
+		ASSERT((flags & XFS_BMAPI_ENTIRE) ||
 		       ((mval->br_startoff + mval->br_blockcount) <= end));
-		ASSERT(!trim || (mval->br_blockcount <= len) ||
+		ASSERT((flags & XFS_BMAPI_ENTIRE) ||
+		       (mval->br_blockcount <= len) ||
 		       (mval->br_startoff < obno));
 		bno = mval->br_startoff + mval->br_blockcount;
 		len = end - bno;
@@ -5108,7 +5102,8 @@ xfs_bmapi(
 			   mval[-1].br_startblock != HOLESTARTBLOCK &&
 			   mval->br_startblock ==
 			   mval[-1].br_startblock + mval[-1].br_blockcount &&
-			   (stateless || mval[-1].br_state == mval->br_state)) {
+			   ((flags & XFS_BMAPI_IGSTATE) ||
+				mval[-1].br_state == mval->br_state)) {
 			ASSERT(mval->br_startoff ==
 			       mval[-1].br_startoff + mval[-1].br_blockcount);
 			mval[-1].br_blockcount += mval->br_blockcount;
