@@ -271,7 +271,7 @@ static inline MPT_ADAPTER *rphy_to_ioc(struct sas_rphy *rphy)
 }
 
 static int
-mptsas_sas_exclosure_pg0(MPT_ADAPTER *ioc, struct mptsas_enclosure *enclosure,
+mptsas_sas_enclosure_pg0(MPT_ADAPTER *ioc, struct mptsas_enclosure *enclosure,
 		u32 form, u32 form_specific)
 {
 	ConfigExtendedPageHeader_t hdr;
@@ -655,7 +655,7 @@ mptsas_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
  found_info:
 	mutex_unlock(&ioc->sas_topology_mutex);
 	memset(&enclosure_info, 0, sizeof(struct mptsas_enclosure));
-	error = mptsas_sas_exclosure_pg0(ioc, &enclosure_info,
+	error = mptsas_sas_enclosure_pg0(ioc, &enclosure_info,
 			(MPI_SAS_ENCLOS_PGAD_FORM_HANDLE <<
 			 MPI_SAS_ENCLOS_PGAD_FORM_SHIFT), enclosure_handle);
 	if (!error)
