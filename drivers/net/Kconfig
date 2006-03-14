@@ -1087,7 +1087,8 @@ config NE2000
 	  without a specific driver are compatible with NE2000.
 
 	  If you have a PCI NE2000 card however, say N here and Y to "PCI
-	  NE2000 support", above. If you have a NE2000 card and are running on
+	  NE2000 and clone support" under "EISA, VLB, PCI and on board
+	  controllers" below. If you have a NE2000 card and are running on
 	  an MCA system (a bus system used on some IBM PS/2 computers and
 	  laptops), say N here and Y to "NE/2 (ne2000 MCA version) support",
 	  below.
@@ -2020,8 +2021,8 @@ config SIS190
 	  will be called sis190.  This is recommended.
 
 config SKGE
-	tristate "New SysKonnect GigaEthernet support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "New SysKonnect GigaEthernet support"
+	depends on PCI
 	select CRC32
 	---help---
 	  This driver support the Marvell Yukon or SysKonnect SK-98xx/SK-95xx
@@ -2082,7 +2083,6 @@ config SK98LIN
 	    - Allied Telesyn AT-2971SX Gigabit Ethernet Adapter
 	    - Allied Telesyn AT-2971T Gigabit Ethernet Adapter
 	    - Belkin Gigabit Desktop Card 10/100/1000Base-T Adapter, Copper RJ-45
-	    - DGE-530T Gigabit Ethernet Adapter
 	    - EG1032 v2 Instant Gigabit Network Adapter
 	    - EG1064 v2 Instant Gigabit Network Adapter
 	    - Marvell 88E8001 Gigabit LOM Ethernet Adapter (Abit)

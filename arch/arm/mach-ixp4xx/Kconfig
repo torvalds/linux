@@ -8,11 +8,9 @@ menu "Intel IXP4xx Implementation Options"
 
 comment "IXP4xx Platforms"
 
-# This entry is placed on top because otherwise it would have
-# been shown as a submenu.
 config MACH_NSLU2
 	bool
-	prompt "NSLU2" if !(MACH_IXDP465 || MACH_IXDPG425 || ARCH_IXDP425 || ARCH_ADI_COYOTE || ARCH_AVILA || ARCH_IXCDP1100 || ARCH_PRPMC1100 || MACH_GTWX5715)
+	prompt "Linksys NSLU2"
 	help
 	  Say 'Y' here if you want your kernel to support Linksys's
 	  NSLU2 NAS device. For more information on this platform,

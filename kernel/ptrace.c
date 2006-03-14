@@ -72,8 +72,8 @@ void ptrace_untrace(task_t *child)
  */
 void __ptrace_unlink(task_t *child)
 {
-	if (!child->ptrace)
-		BUG();
+	BUG_ON(!child->ptrace);
+
 	child->ptrace = 0;
 	if (!list_empty(&child->ptrace_list)) {
 		list_del_init(&child->ptrace_list);
@@ -184,22 +184,27 @@ bad:
 	return retval;
 }
 
-int ptrace_detach(struct task_struct *child, unsigned int data)
+void __ptrace_detach(struct task_struct *child, unsigned int data)
 {
-	if (!valid_signal(data))
-		return	-EIO;
-
-	/* Architecture-specific hardware disable .. */
-	ptrace_disable(child);
-
-	/* .. re-parent .. */
 	child->exit_code = data;
-
-	write_lock_irq(&tasklist_lock);
+	/* .. re-parent .. */
 	__ptrace_unlink(child);
 	/* .. and wake it up. */
 	if (child->exit_state != EXIT_ZOMBIE)
 		wake_up_process(child);
+}
+
+int ptrace_detach(struct task_struct *child, unsigned int data)
+{
+	if (!valid_signal(data))
+		return -EIO;
+
+	/* Architecture-specific hardware disable .. */
+	ptrace_disable(child);
+
+	write_lock_irq(&tasklist_lock);
+	if (child->ptrace)
+		__ptrace_detach(child, data);
 	write_unlock_irq(&tasklist_lock);
 
 	return 0;

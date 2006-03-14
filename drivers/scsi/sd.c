@@ -89,6 +89,11 @@
 #define SD_MAX_RETRIES		5
 #define SD_PASSTHROUGH_RETRIES	1
 
+/*
+ * Size of the initial data buffer for mode and read capacity data
+ */
+#define SD_BUF_SIZE		512
+
 static void scsi_disk_release(struct kref *kref);
 
 struct scsi_disk {
@@ -1239,7 +1244,7 @@ sd_do_mode_sense(struct scsi_device *sdp, int dbd, int modepage,
 
 /*
  * read write protect setting, if possible - called only in sd_revalidate_disk()
- * called with buffer of length 512
+ * called with buffer of length SD_BUF_SIZE
  */
 static void
 sd_read_write_protect_flag(struct scsi_disk *sdkp, char *diskname,
@@ -1297,7 +1302,7 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, char *diskname,
 
 /*
  * sd_read_cache_type - called only from sd_revalidate_disk()
- * called with buffer of length 512
+ * called with buffer of length SD_BUF_SIZE
  */
 static void
 sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
@@ -1342,6 +1347,8 @@ sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
 
 	/* Take headers and block descriptors into account */
 	len += data.header_length + data.block_descriptor_length;
+	if (len > SD_BUF_SIZE)
+		goto bad_sense;
 
 	/* Get the data */
 	res = sd_do_mode_sense(sdp, dbd, modepage, buffer, len, &data, &sshdr);
@@ -1353,6 +1360,12 @@ sd_read_cache_type(struct scsi_disk *sdkp, char *diskname,
 		};
 		int ct = 0;
 		int offset = data.header_length + data.block_descriptor_length;
+
+		if (offset >= SD_BUF_SIZE - 2) {
+			printk(KERN_ERR "%s: malformed MODE SENSE response",
+				diskname);
+			goto defaults;
+		}
 
 		if ((buffer[offset] & 0x3f) != modepage) {
 			printk(KERN_ERR "%s: got wrong page\n", diskname);
@@ -1398,6 +1411,7 @@ defaults:
 	       diskname);
 	sdkp->WCE = 0;
 	sdkp->RCD = 0;
+	sdkp->DPOFUA = 0;
 }
 
 /**
@@ -1421,7 +1435,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	if (!scsi_device_online(sdp))
 		goto out;
 
-	buffer = kmalloc(512, GFP_KERNEL | __GFP_DMA);
+	buffer = kmalloc(SD_BUF_SIZE, GFP_KERNEL | __GFP_DMA);
 	if (!buffer) {
 		printk(KERN_WARNING "(sd_revalidate_disk:) Memory allocation "
 		       "failure.\n");

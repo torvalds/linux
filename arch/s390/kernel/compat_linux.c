@@ -905,8 +905,8 @@ asmlinkage long sys32_fstat64(unsigned long fd, struct stat64_emu31 __user * sta
 	return ret;
 }
 
-asmlinkage long sys32_fstatat(unsigned int dfd, char __user *filename,
-			      struct stat64_emu31 __user* statbuf, int flag)
+asmlinkage long sys32_fstatat64(unsigned int dfd, char __user *filename,
+				struct stat64_emu31 __user* statbuf, int flag)
 {
 	struct kstat stat;
 	int error = -EINVAL;

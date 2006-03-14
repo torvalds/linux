@@ -44,13 +44,14 @@
 #include <linux/limits.h>
 #include <linux/dcache.h>
 #include <linux/syscalls.h>
+#include <linux/nfs_fs.h>
+#include <linux/acpi.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 
-#ifdef CONFIG_ROOT_NFS
-#include <linux/nfs_fs.h>
-#endif
+extern int proc_nr_files(ctl_table *table, int write, struct file *filp,
+                     void __user *buffer, size_t *lenp, loff_t *ppos);
 
 #if defined(CONFIG_SYSCTL)
 
@@ -126,7 +127,9 @@ extern int sysctl_hz_timer;
 extern int acct_parm[];
 #endif
 
-int randomize_va_space = 1;
+#ifdef CONFIG_IA64
+extern int no_unaligned_warning;
+#endif
 
 static int parse_table(int __user *, int, void __user *, size_t __user *, void __user *, size_t,
 		       ctl_table *, void **);
@@ -640,6 +643,7 @@ static ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
+#if defined(CONFIG_MMU)
 	{
 		.ctl_name	= KERN_RANDOMIZE,
 		.procname	= "randomize_va_space",
@@ -648,6 +652,7 @@ static ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+#endif
 #if defined(CONFIG_S390) && defined(CONFIG_SMP)
 	{
 		.ctl_name	= KERN_SPIN_RETRY,
@@ -655,6 +660,26 @@ static ctl_table kern_table[] = {
 		.data		= &spin_retry,
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_ACPI_SLEEP
+	{
+		.ctl_name	= KERN_ACPI_VIDEO_FLAGS,
+		.procname	= "acpi_video_flags",
+		.data		= &acpi_video_flags,
+		.maxlen		= sizeof (unsigned long),
+		.mode		= 0644,
+		.proc_handler	= &proc_doulongvec_minmax,
+	},
+#endif
+#ifdef CONFIG_IA64
+	{
+		.ctl_name	= KERN_IA64_UNALIGNED,
+		.procname	= "ignore-unaligned-usertrap",
+		.data		= &no_unaligned_warning,
+		.maxlen		= sizeof (int),
+	 	.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
@@ -921,7 +946,7 @@ static ctl_table fs_table[] = {
 		.data		= &files_stat,
 		.maxlen		= 3*sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_nr_files,
 	},
 	{
 		.ctl_name	= FS_MAXFILE,

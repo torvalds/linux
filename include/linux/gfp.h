@@ -157,9 +157,9 @@ extern void FASTCALL(free_cold_page(struct page *page));
 
 void page_alloc_init(void);
 #ifdef CONFIG_NUMA
-void drain_remote_pages(void);
+void drain_node_pages(int node);
 #else
-static inline void drain_remote_pages(void) { };
+static inline void drain_node_pages(int node) { };
 #endif
 
 #endif /* __LINUX_GFP_H */

@@ -260,12 +260,13 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 						offset + EHCI_USBLEGCTLSTS,
 						val | EHCI_USBLEGCTLSTS_SOOE);
 #endif
-			}
 
-			/* always say Linux will own the hardware
-			 * by setting EHCI_USBLEGSUP_OS.
-			 */
-			pci_write_config_byte(pdev, offset + 3, 1);
+				/* some systems get upset if this semaphore is
+				 * set for any other reason than forcing a BIOS
+				 * handoff..
+				 */
+				pci_write_config_byte(pdev, offset + 3, 1);
+			}
 
 			/* if boot firmware now owns EHCI, spin till
 			 * it hands it over.

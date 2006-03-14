@@ -505,6 +505,41 @@ ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
 	return rem;
 }
 
+#ifdef CONFIG_NO_IDLE_HZ
+/**
+ * hrtimer_get_next_event - get the time until next expiry event
+ *
+ * Returns the delta to the next expiry event or KTIME_MAX if no timer
+ * is pending.
+ */
+ktime_t hrtimer_get_next_event(void)
+{
+	struct hrtimer_base *base = __get_cpu_var(hrtimer_bases);
+	ktime_t delta, mindelta = { .tv64 = KTIME_MAX };
+	unsigned long flags;
+	int i;
+
+	for (i = 0; i < MAX_HRTIMER_BASES; i++, base++) {
+		struct hrtimer *timer;
+
+		spin_lock_irqsave(&base->lock, flags);
+		if (!base->first) {
+			spin_unlock_irqrestore(&base->lock, flags);
+			continue;
+		}
+		timer = rb_entry(base->first, struct hrtimer, node);
+		delta.tv64 = timer->expires.tv64;
+		spin_unlock_irqrestore(&base->lock, flags);
+		delta = ktime_sub(delta, base->get_time());
+		if (delta.tv64 < mindelta.tv64)
+			mindelta.tv64 = delta.tv64;
+	}
+	if (mindelta.tv64 < 0)
+		mindelta.tv64 = 0;
+	return mindelta;
+}
+#endif
+
 /**
  * hrtimer_init - initialize a timer to the given clock
  *

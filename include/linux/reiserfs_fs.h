@@ -1052,7 +1052,7 @@ struct reiserfs_dir_entry {
 	int de_entrylen;
 	int de_namelen;
 	char *de_name;
-	char *de_gen_number_bit_string;
+	unsigned long *de_gen_number_bit_string;
 
 	__u32 de_dir_id;
 	__u32 de_objectid;

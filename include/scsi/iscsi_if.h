@@ -163,9 +163,6 @@ enum iscsi_param {
 };
 #define ISCSI_PARAM_MAX			14
 
-typedef uint64_t iscsi_sessionh_t;	/* iSCSI Data-Path session handle */
-typedef uint64_t iscsi_connh_t;		/* iSCSI Data-Path connection handle */
-
 #define iscsi_ptr(_handle) ((void*)(unsigned long)_handle)
 #define iscsi_handle(_ptr) ((uint64_t)(unsigned long)_ptr)
 #define hostdata_session(_hostdata) (iscsi_ptr(*(unsigned long *)_hostdata))

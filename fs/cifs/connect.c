@@ -630,7 +630,7 @@ multi_t2_fnd:
 					smallbuf = NULL;
 			}
 			wake_up_process(task_to_wake);
-		} else if ((is_valid_oplock_break(smb_buffer) == FALSE)
+		} else if ((is_valid_oplock_break(smb_buffer, server) == FALSE)
 		    && (isMultiRsp == FALSE)) {                          
 			cERROR(1, ("No task to wake, unknown frame rcvd!"));
 			cifs_dump_mem("Received Data is: ",(char *)smb_buffer,
@@ -1795,10 +1795,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			   conjunction with 52K kvec constraint on arch with 4K
 			   page size  */
 
-		if(cifs_sb->rsize < PAGE_CACHE_SIZE) {
-			cifs_sb->rsize = PAGE_CACHE_SIZE; 
-			/* Windows ME does this */
-			cFYI(1,("Attempt to set readsize for mount to less than one page (4096)"));
+		if(cifs_sb->rsize < 2048) {
+			cifs_sb->rsize = 2048; 
+			/* Windows ME may prefer this */
+			cFYI(1,("readsize set to minimum 2048"));
 		}
 		cifs_sb->mnt_uid = volume_info.linux_uid;
 		cifs_sb->mnt_gid = volume_info.linux_gid;

@@ -838,7 +838,6 @@ S:	Maintained
 
 DVB SUBSYSTEM AND DRIVERS
 P:	LinuxTV.org Project
-M:	mchehab@infradead.org
 M:	v4l-dvb-maintainer@linuxtv.org
 L: 	linux-dvb@linuxtv.org (subscription required)
 W:	http://linuxtv.org/
@@ -1632,8 +1631,8 @@ S:	Supported
 
 LINUX SECURITY MODULE (LSM) FRAMEWORK
 P:	Chris Wright
-M:	chrisw@osdl.org
-L:	linux-security-module@wirex.com
+M:	chrisw@sous-sol.org
+L:	linux-security-module@vger.kernel.org
 W:	http://lsm.immunix.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/chrisw/lsm-2.6.git
 S:	Supported

@@ -771,7 +771,7 @@ static int get_entries(const struct arpt_get_entries *entries,
 	struct arpt_table *t;
 
 	t = xt_find_table_lock(NF_ARP, entries->name);
-	if (t || !IS_ERR(t)) {
+	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		duprintf("t->private->number = %u\n",
 			 private->number);

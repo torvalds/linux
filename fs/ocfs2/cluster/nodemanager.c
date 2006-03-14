@@ -756,7 +756,7 @@ static int __init init_o2nm(void)
 	if (!ocfs2_table_header) {
 		printk(KERN_ERR "nodemanager: unable to register sysctl\n");
 		ret = -ENOMEM; /* or something. */
-		goto out;
+		goto out_o2net;
 	}
 
 	ret = o2net_register_hb_callbacks();
@@ -780,6 +780,8 @@ out_callbacks:
 	o2net_unregister_hb_callbacks();
 out_sysctl:
 	unregister_sysctl_table(ocfs2_table_header);
+out_o2net:
+	o2net_exit();
 out:
 	return ret;
 }

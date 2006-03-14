@@ -64,6 +64,7 @@
  * sys_connect:
  * sys_sendmsg:
  * sys_sendto:
+ * sys_socketcall:
  *
  *   struct sockaddr_un loses its padding with EABI.  Since the size of the
  *   structure is used as a validation test in unix_mkname(), we need to
@@ -78,6 +79,7 @@
 #include <linux/eventpoll.h>
 #include <linux/sem.h>
 #include <linux/socket.h>
+#include <linux/net.h>
 #include <asm/ipc.h>
 #include <asm/uaccess.h>
 
@@ -408,3 +410,31 @@ asmlinkage long sys_oabi_sendmsg(int fd, struct msghdr __user *msg, unsigned fla
 	return sys_sendmsg(fd, msg, flags);
 }
 
+asmlinkage long sys_oabi_socketcall(int call, unsigned long __user *args)
+{
+	unsigned long r = -EFAULT, a[6];
+
+	switch (call) {
+	case SYS_BIND:
+		if (copy_from_user(a, args, 3 * sizeof(long)) == 0)
+			r = sys_oabi_bind(a[0], (struct sockaddr __user *)a[1], a[2]);
+		break;
+	case SYS_CONNECT:
+		if (copy_from_user(a, args, 3 * sizeof(long)) == 0)
+			r = sys_oabi_connect(a[0], (struct sockaddr __user *)a[1], a[2]);
+		break;
+	case SYS_SENDTO:
+		if (copy_from_user(a, args, 6 * sizeof(long)) == 0)
+			r = sys_oabi_sendto(a[0], (void __user *)a[1], a[2], a[3],
+					    (struct sockaddr __user *)a[4], a[5]);
+		break;
+	case SYS_SENDMSG:
+		if (copy_from_user(a, args, 3 * sizeof(long)) == 0)
+			r = sys_oabi_sendmsg(a[0], (struct msghdr __user *)a[1], a[2]);
+		break;
+	default:
+		r = sys_socketcall(call, args);
+	}
+
+	return r;
+}

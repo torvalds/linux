@@ -335,6 +335,12 @@ running once the system is up.
 			timesource is not avalible, it defaults to PIT.
 			Format: { pit | tsc | cyclone | pmtmr }
 
+	disable_8254_timer
+	enable_8254_timer
+			[IA32/X86_64] Disable/Enable interrupt 0 timer routing
+			over the 8254 in addition to over the IO-APIC. The
+			kernel tries to set a sensible default.
+
 	hpet=		[IA-32,HPET] option to disable HPET and use PIT.
 			Format: disable
 
@@ -1034,6 +1040,8 @@ running once the system is up.
 
 	nomce		[IA-32] Machine Check Exception
 
+	nomca		[IA-64] Disable machine check abort handling
+
 	noresidual	[PPC] Don't use residual data on PReP machines.
 
 	noresume	[SWSUSP] Disables resume and restores original swap
@@ -1133,6 +1141,8 @@ running once the system is up.
 				Mechanism 1.
 		conf2		[IA-32] Force use of PCI Configuration
 				Mechanism 2.
+		nommconf	[IA-32,X86_64] Disable use of MMCONFIG for PCI
+				Configuration
 		nosort		[IA-32] Don't sort PCI devices according to
 				order given by the PCI BIOS. This sorting is
 				done to get a device order compatible with
@@ -1279,6 +1289,19 @@ running once the system is up.
 	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
 			New name for the ramdisk parameter.
 			See Documentation/ramdisk.txt.
+
+	rcu.blimit=	[KNL,BOOT] Set maximum number of finished
+			RCU callbacks to process in one batch.
+
+	rcu.qhimark=	[KNL,BOOT] Set threshold of queued
+			RCU callbacks over which batch limiting is disabled.
+
+	rcu.qlowmark=	[KNL,BOOT] Set threshold of queued
+			RCU callbacks below which batch limiting is re-enabled.
+
+	rcu.rsinterval=	[KNL,BOOT,SMP] Set the number of additional
+			RCU callbacks to queued before forcing reschedule
+			on all cpus.
 
 	rdinit=		[KNL]
 			Format: <full_path>
@@ -1635,6 +1658,9 @@ running once the system is up.
 	xirc2ps_cs=	[NET,PCMCIA]
 			Format:
 			<irq>,<irq_mask>,<io>,<full_duplex>,<do_sound>,<lockup_hack>[,<irq2>[,<irq3>[,<irq4>]]]
+
+	norandmaps	Don't use address space randomization
+			Equivalent to echo 0 > /proc/sys/kernel/randomize_va_space
 
 
 ______________________________________________________________________

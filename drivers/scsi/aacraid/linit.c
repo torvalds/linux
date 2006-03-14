@@ -385,16 +385,44 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 
 static int aac_slave_configure(struct scsi_device *sdev)
 {
-	struct Scsi_Host *host = sdev->host;
+	if (sdev_channel(sdev) == CONTAINER_CHANNEL) {
+		sdev->skip_ms_page_8 = 1;
+		sdev->skip_ms_page_3f = 1;
+	}
+	if ((sdev->type == TYPE_DISK) &&
+			(sdev_channel(sdev) != CONTAINER_CHANNEL)) {
+		struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
+		if (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
+			sdev->no_uld_attach = 1;
+	}
+	if (sdev->tagged_supported && (sdev->type == TYPE_DISK) &&
+			(sdev_channel(sdev) == CONTAINER_CHANNEL)) {
+		struct scsi_device * dev;
+		struct Scsi_Host *host = sdev->host;
+		unsigned num_lsu = 0;
+		unsigned num_one = 0;
+		unsigned depth;
 
-	if (sdev->tagged_supported)
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, 128);
-	else
+		__shost_for_each_device(dev, host) {
+			if (dev->tagged_supported && (dev->type == TYPE_DISK) &&
+				(sdev_channel(dev) == CONTAINER_CHANNEL))
+				++num_lsu;
+			else
+				++num_one;
+		}
+		if (num_lsu == 0)
+			++num_lsu;
+		depth = (host->can_queue - num_one) / num_lsu;
+		if (depth > 256)
+			depth = 256;
+		else if (depth < 2)
+			depth = 2;
+		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, depth);
+		if (!(((struct aac_dev *)host->hostdata)->adapter_info.options &
+				AAC_OPT_NEW_COMM))
+			blk_queue_max_segment_size(sdev->request_queue, 65536);
+	} else
 		scsi_adjust_queue_depth(sdev, 0, 1);
-
-	if (!(((struct aac_dev *)host->hostdata)->adapter_info.options
-	  & AAC_OPT_NEW_COMM))
-		blk_queue_max_segment_size(sdev->request_queue, 65536);
 
 	return 0;
 }
@@ -870,7 +898,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
  
  	/*
 	 * max channel will be the physical channels plus 1 virtual channel
-	 * all containers are on the virtual channel 0
+	 * all containers are on the virtual channel 0 (CONTAINER_CHANNEL)
 	 * physical channels are address by their actual physical number+1
 	 */
 	if (aac->nondasd_support == 1)
@@ -913,7 +941,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	aac_adapter_disable_int(aac);
 	free_irq(pdev->irq, aac);
  out_unmap:
-	fib_map_free(aac);
+	aac_fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
 	kfree(aac->queues);
 	iounmap(aac->regs.sa);
@@ -947,7 +975,7 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
-	fib_map_free(aac);
+	aac_fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr,
 			aac->comm_phys);
 	kfree(aac->queues);

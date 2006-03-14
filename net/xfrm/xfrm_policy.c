@@ -782,7 +782,7 @@ int xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
 	int nx = 0;
 	int err;
 	u32 genid;
-	u16 family = dst_orig->ops->family;
+	u16 family;
 	u8 dir = policy_to_flow_dir(XFRM_POLICY_OUT);
 	u32 sk_sid = security_sk_sid(sk, fl, dir);
 restart:
@@ -796,13 +796,14 @@ restart:
 		if ((dst_orig->flags & DST_NOXFRM) || !xfrm_policy_list[XFRM_POLICY_OUT])
 			return 0;
 
-		policy = flow_cache_lookup(fl, sk_sid, family, dir,
-					   xfrm_policy_lookup);
+		policy = flow_cache_lookup(fl, sk_sid, dst_orig->ops->family,
+					   dir, xfrm_policy_lookup);
 	}
 
 	if (!policy)
 		return 0;
 
+	family = dst_orig->ops->family;
 	policy->curlft.use_time = (unsigned long)xtime.tv_sec;
 
 	switch (policy->action) {
@@ -885,8 +886,6 @@ restart:
 			 * We can't enlist stable bundles either.
 			 */
 			write_unlock_bh(&policy->lock);
-
-			xfrm_pol_put(policy);
 			if (dst)
 				dst_free(dst);
 
@@ -996,13 +995,6 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 		for (i=skb->sp->len-1; i>=0; i--) {
 			struct sec_decap_state *xvec = &(skb->sp->x[i]);
 			if (!xfrm_selector_match(&xvec->xvec->sel, &fl, family))
-				return 0;
-
-			/* If there is a post_input processor, try running it */
-			if (xvec->xvec->type->post_input &&
-			    (xvec->xvec->type->post_input)(xvec->xvec,
-							   &(xvec->decap),
-							   skb) != 0)
 				return 0;
 		}
 	}

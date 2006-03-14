@@ -950,16 +950,8 @@ wv_82593_cmd(struct net_device *	dev,
 static inline int
 wv_diag(struct net_device *	dev)
 {
-  int		ret = FALSE;
-
-  if(wv_82593_cmd(dev, "wv_diag(): diagnose",
-		  OP0_DIAGNOSE, SR0_DIAGNOSE_PASSED))
-    ret = TRUE;
-
-#ifdef DEBUG_CONFIG_ERRORS
-  printk(KERN_INFO "wavelan_cs: i82593 Self Test failed!\n");
-#endif
-  return(ret);
+  return(wv_82593_cmd(dev, "wv_diag(): diagnose",
+		      OP0_DIAGNOSE, SR0_DIAGNOSE_PASSED));
 } /* wv_diag */
 
 /*------------------------------------------------------------------*/
@@ -3604,8 +3596,8 @@ wv_82593_config(struct net_device *	dev)
   cfblk.lin_prio = 0;   	/* conform to 802.3 backoff algoritm */
   cfblk.exp_prio = 5;	        /* conform to 802.3 backoff algoritm */
   cfblk.bof_met = 1;	        /* conform to 802.3 backoff algoritm */
-  cfblk.ifrm_spc = 0x20;	/* 32 bit times interframe spacing */
-  cfblk.slottim_low = 0x20;	/* 32 bit times slot time */
+  cfblk.ifrm_spc = 0x20 >> 4;	/* 32 bit times interframe spacing */
+  cfblk.slottim_low = 0x20 >> 5;	/* 32 bit times slot time */
   cfblk.slottim_hi = 0x0;
   cfblk.max_retr = 15;
   cfblk.prmisc = ((lp->promiscuous) ? TRUE: FALSE);	/* Promiscuous mode */

@@ -100,8 +100,10 @@ void __init at91_add_device_udc(struct at91_udc_data *data)
 		at91_set_gpio_input(data->vbus_pin, 0);
 		at91_set_deglitch(data->vbus_pin, 1);
 	}
-	if (data->pullup_pin)
+	if (data->pullup_pin) {
 		at91_set_gpio_output(data->pullup_pin, 0);
+		at91_set_multi_drive(data->pullup_pin, 1);
+	}
 
 	udc_data = *data;
 	platform_device_register(&at91rm9200_udc_device);

@@ -67,27 +67,27 @@ static int fib_map_alloc(struct aac_dev *dev)
 }
 
 /**
- *	fib_map_free		-	free the fib objects
+ *	aac_fib_map_free		-	free the fib objects
  *	@dev: Adapter to free
  *
  *	Free the PCI mappings and the memory allocated for FIB blocks
  *	on this adapter.
  */
 
-void fib_map_free(struct aac_dev *dev)
+void aac_fib_map_free(struct aac_dev *dev)
 {
 	pci_free_consistent(dev->pdev, dev->max_fib_size * (dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB), dev->hw_fib_va, dev->hw_fib_pa);
 }
 
 /**
- *	fib_setup	-	setup the fibs
+ *	aac_fib_setup	-	setup the fibs
  *	@dev: Adapter to set up
  *
  *	Allocate the PCI space for the fibs, map it and then intialise the
  *	fib area, the unmapped fib data and also the free list
  */
 
-int fib_setup(struct aac_dev * dev)
+int aac_fib_setup(struct aac_dev * dev)
 {
 	struct fib *fibptr;
 	struct hw_fib *hw_fib_va;
@@ -134,14 +134,14 @@ int fib_setup(struct aac_dev * dev)
 }
 
 /**
- *	fib_alloc	-	allocate a fib
+ *	aac_fib_alloc	-	allocate a fib
  *	@dev: Adapter to allocate the fib for
  *
  *	Allocate a fib from the adapter fib pool. If the pool is empty we
  *	return NULL.
  */
  
-struct fib * fib_alloc(struct aac_dev *dev)
+struct fib *aac_fib_alloc(struct aac_dev *dev)
 {
 	struct fib * fibptr;
 	unsigned long flags;
@@ -170,14 +170,14 @@ struct fib * fib_alloc(struct aac_dev *dev)
 }
 
 /**
- *	fib_free	-	free a fib
+ *	aac_fib_free	-	free a fib
  *	@fibptr: fib to free up
  *
  *	Frees up a fib and places it on the appropriate queue
  *	(either free or timed out)
  */
  
-void fib_free(struct fib * fibptr)
+void aac_fib_free(struct fib *fibptr)
 {
 	unsigned long flags;
 
@@ -188,7 +188,7 @@ void fib_free(struct fib * fibptr)
 		fibptr->dev->timeout_fib = fibptr;
 	} else {
 		if (fibptr->hw_fib->header.XferState != 0) {
-			printk(KERN_WARNING "fib_free, XferState != 0, fibptr = 0x%p, XferState = 0x%x\n", 
+			printk(KERN_WARNING "aac_fib_free, XferState != 0, fibptr = 0x%p, XferState = 0x%x\n",
 				 (void*)fibptr, 
 				 le32_to_cpu(fibptr->hw_fib->header.XferState));
 		}
@@ -199,13 +199,13 @@ void fib_free(struct fib * fibptr)
 }
 
 /**
- *	fib_init	-	initialise a fib
+ *	aac_fib_init	-	initialise a fib
  *	@fibptr: The fib to initialize
  *	
  *	Set up the generic fib fields ready for use
  */
  
-void fib_init(struct fib *fibptr)
+void aac_fib_init(struct fib *fibptr)
 {
 	struct hw_fib *hw_fib = fibptr->hw_fib;
 
@@ -362,7 +362,7 @@ static int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_f
  */
 
 /**
- *	fib_send	-	send a fib to the adapter
+ *	aac_fib_send	-	send a fib to the adapter
  *	@command: Command to send
  *	@fibptr: The fib
  *	@size: Size of fib data area
@@ -378,7 +378,9 @@ static int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_f
  *	response FIB is received from the adapter.
  */
  
-int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority, int wait, int reply, fib_callback callback, void * callback_data)
+int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
+		int priority, int wait, int reply, fib_callback callback,
+		void *callback_data)
 {
 	struct aac_dev * dev = fibptr->dev;
 	struct hw_fib * hw_fib = fibptr->hw_fib;
@@ -493,7 +495,7 @@ int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority
 		q->numpending++;
 		*(q->headers.producer) = cpu_to_le32(index + 1);
 		spin_unlock_irqrestore(q->lock, qflags);
-		dprintk((KERN_DEBUG "fib_send: inserting a queue entry at index %d.\n",index));
+		dprintk((KERN_DEBUG "aac_fib_send: inserting a queue entry at index %d.\n",index));
 		if (!(nointr & aac_config.irq_mod))
 			aac_adapter_notify(dev, AdapNormCmdQueue);
 	}
@@ -520,7 +522,7 @@ int fib_send(u16 command, struct fib * fibptr, unsigned long size,  int priority
 					list_del(&fibptr->queue);
 					spin_unlock_irqrestore(q->lock, qflags);
 					if (wait == -1) {
-	        				printk(KERN_ERR "aacraid: fib_send: first asynchronous command timed out.\n"
+	        				printk(KERN_ERR "aacraid: aac_fib_send: first asynchronous command timed out.\n"
 						  "Usually a result of a PCI interrupt routing problem;\n"
 						  "update mother board BIOS or consider utilizing one of\n"
 						  "the SAFE mode kernel options (acpi, apic etc)\n");
@@ -624,7 +626,7 @@ void aac_consumer_free(struct aac_dev * dev, struct aac_queue *q, u32 qid)
 }        
 
 /**
- *	fib_adapter_complete	-	complete adapter issued fib
+ *	aac_fib_adapter_complete	-	complete adapter issued fib
  *	@fibptr: fib to complete
  *	@size: size of fib
  *
@@ -632,7 +634,7 @@ void aac_consumer_free(struct aac_dev * dev, struct aac_queue *q, u32 qid)
  *	the adapter.
  */
 
-int fib_adapter_complete(struct fib * fibptr, unsigned short size)
+int aac_fib_adapter_complete(struct fib *fibptr, unsigned short size)
 {
 	struct hw_fib * hw_fib = fibptr->hw_fib;
 	struct aac_dev * dev = fibptr->dev;
@@ -683,20 +685,20 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size)
 	}
 	else 
 	{
-        	printk(KERN_WARNING "fib_adapter_complete: Unknown xferstate detected.\n");
+        	printk(KERN_WARNING "aac_fib_adapter_complete: Unknown xferstate detected.\n");
         	BUG();
 	}   
 	return 0;
 }
 
 /**
- *	fib_complete	-	fib completion handler
+ *	aac_fib_complete	-	fib completion handler
  *	@fib: FIB to complete
  *
  *	Will do all necessary work to complete a FIB.
  */
  
-int fib_complete(struct fib * fibptr)
+int aac_fib_complete(struct fib *fibptr)
 {
 	struct hw_fib * hw_fib = fibptr->hw_fib;
 
@@ -995,14 +997,14 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 	if (!dev || !dev->scsi_host_ptr)
 		return;
 	/*
-	 * force reload of disk info via probe_container
+	 * force reload of disk info via aac_probe_container
 	 */
 	if ((device_config_needed == CHANGE)
 	 && (dev->fsa_dev[container].valid == 1))
 		dev->fsa_dev[container].valid = 2;
 	if ((device_config_needed == CHANGE) ||
 			(device_config_needed == ADD))
-		probe_container(dev, container);
+		aac_probe_container(dev, container);
 	device = scsi_device_lookup(dev->scsi_host_ptr, 
 		CONTAINER_TO_CHANNEL(container), 
 		CONTAINER_TO_ID(container), 
@@ -1104,7 +1106,7 @@ int aac_command_thread(struct aac_dev * dev)
 				/* Handle Driver Notify Events */
 				aac_handle_aif(dev, fib);
 				*(__le32 *)hw_fib->data = cpu_to_le32(ST_OK);
-				fib_adapter_complete(fib, (u16)sizeof(u32));
+				aac_fib_adapter_complete(fib, (u16)sizeof(u32));
 			} else {
 				struct list_head *entry;
 				/* The u32 here is important and intended. We are using
@@ -1241,7 +1243,7 @@ int aac_command_thread(struct aac_dev * dev)
 				 *	Set the status of this FIB
 				 */
 				*(__le32 *)hw_fib->data = cpu_to_le32(ST_OK);
-				fib_adapter_complete(fib, sizeof(u32));
+				aac_fib_adapter_complete(fib, sizeof(u32));
 				spin_unlock_irqrestore(&dev->fib_lock, flagv);
 				/* Free up the remaining resources */
 				hw_fib_p = hw_fib_pool;

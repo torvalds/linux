@@ -192,7 +192,7 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 	SDev = cd->device;
 
 	if (!sense) {
-		sense = kmalloc(sizeof(*sense), GFP_KERNEL);
+		sense = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
 		if (!sense) {
 			err = -ENOMEM;
 			goto out;

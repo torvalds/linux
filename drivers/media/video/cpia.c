@@ -3369,7 +3369,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 	//DBG("cpia_ioctl: %u\n", ioctlnr);
 
 	switch (ioctlnr) {
-	/* query capabilites */
+	/* query capabilities */
 	case VIDIOCGCAP:
 	{
 		struct video_capability *b = arg;

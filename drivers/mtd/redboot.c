@@ -1,5 +1,5 @@
 /*
- * $Id: redboot.c,v 1.18 2005/11/07 11:14:21 gleixner Exp $
+ * $Id: redboot.c,v 1.19 2005/12/01 10:03:51 dwmw2 Exp $
  *
  * Parse RedBoot-style Flash Image System (FIS) tables and
  * produce a Linux partition array to match.
@@ -89,8 +89,32 @@ static int parse_redboot_partitions(struct mtd_info *master,
 			i = numslots;
 			break;
 		}
-		if (!memcmp(buf[i].name, "FIS directory", 14))
+		if (!memcmp(buf[i].name, "FIS directory", 14)) {
+			/* This is apparently the FIS directory entry for the
+			 * FIS directory itself.  The FIS directory size is
+			 * one erase block; if the buf[i].size field is
+			 * swab32(erasesize) then we know we are looking at
+			 * a byte swapped FIS directory - swap all the entries!
+			 * (NOTE: this is 'size' not 'data_length'; size is
+			 * the full size of the entry.)
+			 */
+			if (swab32(buf[i].size) == master->erasesize) {
+				int j;
+				for (j = 0; j < numslots && buf[j].name[0] != 0xff; ++j) {
+					/* The unsigned long fields were written with the
+					 * wrong byte sex, name and pad have no byte sex.
+					 */
+					swab32s(&buf[j].flash_base);
+					swab32s(&buf[j].mem_base);
+					swab32s(&buf[j].size);
+					swab32s(&buf[j].entry_point);
+					swab32s(&buf[j].data_length);
+					swab32s(&buf[j].desc_cksum);
+					swab32s(&buf[j].file_cksum);
+				}
+			}
 			break;
+		}
 	}
 	if (i == numslots) {
 		/* Didn't find it */

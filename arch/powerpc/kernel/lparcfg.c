@@ -341,7 +341,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 	const char *system_id = "";
 	unsigned int *lp_index_ptr, lp_index = 0;
 	struct device_node *rtas_node;
-	int *lrdrp;
+	int *lrdrp = NULL;
 
 	rootdn = find_path_device("/");
 	if (rootdn) {
@@ -362,7 +362,9 @@ static int lparcfg_data(struct seq_file *m, void *v)
 	seq_printf(m, "partition_id=%d\n", (int)lp_index);
 
 	rtas_node = find_path_device("/rtas");
-	lrdrp = (int *)get_property(rtas_node, "ibm,lrdr-capacity", NULL);
+	if (rtas_node)
+		lrdrp = (int *)get_property(rtas_node, "ibm,lrdr-capacity",
+		                            NULL);
 
 	if (lrdrp == NULL) {
 		partition_potential_processors = vdso_data->processorCount;

@@ -707,7 +707,7 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 
 rtattr_failure:
 nlmsg_failure:
-	skb_trim(skb, b - skb->data);
+	kfree_skb(skb);
 	return -1;
 }
 

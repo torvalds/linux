@@ -65,7 +65,7 @@ void attach_inform(struct i2c_bus *bus, int id)
 	 case I2C_DRIVERID_VIDEODECODER:
 		DEBUG(printk(CARD_INFO "decoder attached\n",CARD));
 
-		/* fetch the capabilites of the decoder */
+		/* fetch the capabilities of the decoder */
 		rv = i2c_control_device(&ztv->i2c, I2C_DRIVERID_VIDEODECODER, DECODER_GET_CAPABILITIES, &dc);
 		if (rv) {
 			DEBUG(printk(CARD_DEBUG "decoder is not V4L aware!\n",CARD));

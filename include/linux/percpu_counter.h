@@ -39,6 +39,7 @@ static inline void percpu_counter_destroy(struct percpu_counter *fbc)
 }
 
 void percpu_counter_mod(struct percpu_counter *fbc, long amount);
+long percpu_counter_sum(struct percpu_counter *fbc);
 
 static inline long percpu_counter_read(struct percpu_counter *fbc)
 {
@@ -90,6 +91,11 @@ static inline long percpu_counter_read(struct percpu_counter *fbc)
 static inline long percpu_counter_read_positive(struct percpu_counter *fbc)
 {
 	return fbc->count;
+}
+
+static inline long percpu_counter_sum(struct percpu_counter *fbc)
+{
+	return percpu_counter_read_positive(fbc);
 }
 
 #endif	/* CONFIG_SMP */

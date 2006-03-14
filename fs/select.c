@@ -404,7 +404,7 @@ asmlinkage long sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 			goto sticky;
 		rtv.tv_usec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ));
 		rtv.tv_sec = timeout;
-		if (timeval_compare(&rtv, &tv) < 0)
+		if (timeval_compare(&rtv, &tv) >= 0)
 			rtv = tv;
 		if (copy_to_user(tvp, &rtv, sizeof(rtv))) {
 sticky:
@@ -471,7 +471,7 @@ asmlinkage long sys_pselect7(int n, fd_set __user *inp, fd_set __user *outp,
 		rts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) *
 						1000;
 		rts.tv_sec = timeout;
-		if (timespec_compare(&rts, &ts) < 0)
+		if (timespec_compare(&rts, &ts) >= 0)
 			rts = ts;
 		if (copy_to_user(tsp, &rts, sizeof(rts))) {
 sticky:
@@ -775,7 +775,7 @@ asmlinkage long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
 		rts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) *
 						1000;
 		rts.tv_sec = timeout;
-		if (timespec_compare(&rts, &ts) < 0)
+		if (timespec_compare(&rts, &ts) >= 0)
 			rts = ts;
 		if (copy_to_user(tsp, &rts, sizeof(rts))) {
 		sticky:

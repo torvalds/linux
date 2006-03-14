@@ -878,8 +878,7 @@ fsyscall_table:
 	data8 0				// timer_delete
 	data8 0				// clock_settime
 	data8 fsys_clock_gettime	// clock_gettime
-	#define __NR_syscall_last	1255
 
-	.space 8*(NR_syscalls + 1024 - __NR_syscall_last), 0
-
-	.org fsyscall_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls
+	// fill in zeros for the remaining entries
+	.zero:
+	.space fsyscall_table + 8*NR_syscalls - .zero, 0

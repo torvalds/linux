@@ -39,7 +39,6 @@ extern void config_acpi_tables(void);
 extern void ia32_syscall(void);
 extern void iommu_hole_init(void);
 
-extern void time_init_gtod(void);
 extern int pmtimer_mark_offset(void);
 extern void pmtimer_resume(void);
 extern void pmtimer_wait(unsigned);
@@ -133,6 +132,8 @@ extern int fix_aperture;
 extern int force_iommu;
 
 extern int reboot_force;
+extern int notsc_setup(char *);
+extern int setup_additional_cpus(char *);
 
 extern void smp_local_timer_interrupt(struct pt_regs * regs);
 

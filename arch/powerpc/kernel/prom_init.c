@@ -205,14 +205,6 @@ static cell_t __initdata regbuf[1024];
 
 #define MAX_CPU_THREADS 2
 
-/* TO GO */
-#ifdef CONFIG_HMT
-struct {
-	unsigned int pir;
-	unsigned int threadid;
-} hmt_thread_data[NR_CPUS];
-#endif /* CONFIG_HMT */
-
 /*
  * Error results ... some OF calls will return "-1" on error, some
  * will return 0, some will return either. To simplify, here are
@@ -986,7 +978,7 @@ static void __init prom_init_mem(void)
 			if (size == 0)
 				continue;
 			prom_debug("    %x %x\n", base, size);
-			if (base == 0)
+			if (base == 0 && (RELOC(of_platform) & PLATFORM_LPAR))
 				RELOC(rmo_top) = size;
 			if ((base + size) > RELOC(ram_top))
 				RELOC(ram_top) = base + size;
@@ -1319,10 +1311,6 @@ static void __init prom_hold_cpus(void)
 	 */
 	*spinloop = 0;
 
-#ifdef CONFIG_HMT
-	for (i = 0; i < NR_CPUS; i++)
-		RELOC(hmt_thread_data)[i].pir = 0xdeadbeef;
-#endif
 	/* look for cpus */
 	for (node = 0; prom_next_node(&node); ) {
 		type[0] = 0;
@@ -1389,32 +1377,6 @@ static void __init prom_hold_cpus(void)
 		/* Reserve cpu #s for secondary threads.   They start later. */
 		cpuid += cpu_threads;
 	}
-#ifdef CONFIG_HMT
-	/* Only enable HMT on processors that provide support. */
-	if (__is_processor(PV_PULSAR) || 
-	    __is_processor(PV_ICESTAR) ||
-	    __is_processor(PV_SSTAR)) {
-		prom_printf("    starting secondary threads\n");
-
-		for (i = 0; i < NR_CPUS; i += 2) {
-			if (!cpu_online(i))
-				continue;
-
-			if (i == 0) {
-				unsigned long pir = mfspr(SPRN_PIR);
-				if (__is_processor(PV_PULSAR)) {
-					RELOC(hmt_thread_data)[i].pir = 
-						pir & 0x1f;
-				} else {
-					RELOC(hmt_thread_data)[i].pir = 
-						pir & 0x3ff;
-				}
-			}
-		}
-	} else {
-		prom_printf("Processor is not HMT capable\n");
-	}
-#endif
 
 	if (cpuid > NR_CPUS)
 		prom_printf("WARNING: maximum CPUs (" __stringify(NR_CPUS)

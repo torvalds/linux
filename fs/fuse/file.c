@@ -116,9 +116,14 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 /* Special case for failed iget in CREATE */
 static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
 {
-	u64 nodeid = req->in.h.nodeid;
-	fuse_reset_request(req);
-	fuse_send_forget(fc, req, nodeid, 1);
+	/* If called from end_io_requests(), req has more than one
+	   reference and fuse_reset_request() cannot work */
+	if (fc->connected) {
+		u64 nodeid = req->in.h.nodeid;
+		fuse_reset_request(req);
+		fuse_send_forget(fc, req, nodeid, 1);
+	} else
+		fuse_put_request(fc, req);
 }
 
 void fuse_send_release(struct fuse_conn *fc, struct fuse_file *ff,

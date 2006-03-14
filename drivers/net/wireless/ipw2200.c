@@ -4616,9 +4616,9 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 		}
 
 	default:
-		IPW_ERROR("Unknown notification: "
-			  "subtype=%d,flags=0x%2x,size=%d\n",
-			  notif->subtype, notif->flags, notif->size);
+		IPW_DEBUG_NOTIF("Unknown notification: "
+				"subtype=%d,flags=0x%2x,size=%d\n",
+				notif->subtype, notif->flags, notif->size);
 	}
 }
 

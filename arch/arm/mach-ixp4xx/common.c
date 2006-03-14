@@ -111,24 +111,30 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 	if (line < 0)
 		return -EINVAL;
 
-	if (type & IRQT_BOTHEDGE) {
+	switch (type){
+	case IRQT_BOTHEDGE:
 		int_style = IXP4XX_GPIO_STYLE_TRANSITIONAL;
 		irq_type = IXP4XX_IRQ_EDGE;
-	} else  if (type & IRQT_RISING) {
+		break;
+	case IRQT_RISING:
 		int_style = IXP4XX_GPIO_STYLE_RISING_EDGE;
 		irq_type = IXP4XX_IRQ_EDGE;
-	} else if (type & IRQT_FALLING) {
+		break;
+	case IRQT_FALLING:
 		int_style = IXP4XX_GPIO_STYLE_FALLING_EDGE;
 		irq_type = IXP4XX_IRQ_EDGE;
-	} else if (type & IRQT_HIGH) {
+		break;
+	case IRQT_HIGH:
 		int_style = IXP4XX_GPIO_STYLE_ACTIVE_HIGH;
 		irq_type = IXP4XX_IRQ_LEVEL;
-	} else if (type & IRQT_LOW) {
+		break;
+	case IRQT_LOW:
 		int_style = IXP4XX_GPIO_STYLE_ACTIVE_LOW;
 		irq_type = IXP4XX_IRQ_LEVEL;
-	} else
+		break;
+	default:
 		return -EINVAL;
-
+	}
 	ixp4xx_config_irq(irq, irq_type);
 
 	if (line >= 8) {	/* pins 8-15 */

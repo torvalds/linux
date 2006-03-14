@@ -96,15 +96,16 @@ ENTRY(v6_coherent_user_range)
 #ifdef HARVARD_CACHE
 	bic	r0, r0, #CACHE_LINE_SIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D line
-	mcr	p15, 0, r0, c7, c5, 1		@ invalidate I line
 	add	r0, r0, #CACHE_LINE_SIZE
 	cmp	r0, r1
 	blo	1b
 #endif
-	mcr	p15, 0, r0, c7, c5, 6		@ invalidate BTB
-#ifdef HARVARD_CACHE
 	mov	r0, #0
+#ifdef HARVARD_CACHE
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
+	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
+#else
+	mcr	p15, 0, r0, c7, c5, 6		@ invalidate BTB
 #endif
 	mov	pc, lr
 

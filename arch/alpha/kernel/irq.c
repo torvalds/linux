@@ -151,8 +151,13 @@ handle_irq(int irq, struct pt_regs * regs)
 	}
 
 	irq_enter();
+	/*
+	 * __do_IRQ() must be called with IPL_MAX. Note that we do not
+	 * explicitly enable interrupts afterwards - some MILO PALcode
+	 * (namely LX164 one) seems to have severe problems with RTI
+	 * at IPL 0.
+	 */
 	local_irq_disable();
 	__do_IRQ(irq, regs);
-	local_irq_enable();
 	irq_exit();
 }

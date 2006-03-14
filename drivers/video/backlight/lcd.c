@@ -171,7 +171,7 @@ struct lcd_device *lcd_device_register(const char *name, void *devdata,
 
 	new_ld = kmalloc(sizeof(struct lcd_device), GFP_KERNEL);
 	if (unlikely(!new_ld))
-		return ERR_PTR(ENOMEM);
+		return ERR_PTR(-ENOMEM);
 
 	init_MUTEX(&new_ld->sem);
 	new_ld->props = lp;

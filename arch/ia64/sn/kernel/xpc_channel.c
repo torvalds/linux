@@ -738,7 +738,9 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	/* make sure all activity has settled down first */
 
-	if (atomic_read(&ch->references) > 0) {
+	if (atomic_read(&ch->references) > 0 ||
+			((ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) &&
+			!(ch->flags & XPC_C_DISCONNECTINGCALLOUT_MADE))) {
 		return;
 	}
 	DBUG_ON(atomic_read(&ch->kthreads_assigned) != 0);
@@ -775,7 +777,7 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	/* both sides are disconnected now */
 
-	if (ch->flags & XPC_C_CONNECTCALLOUT) {
+	if (ch->flags & XPC_C_DISCONNECTINGCALLOUT_MADE) {
 		spin_unlock_irqrestore(&ch->lock, *irq_flags);
 		xpc_disconnect_callout(ch, xpcDisconnected);
 		spin_lock_irqsave(&ch->lock, *irq_flags);
@@ -1300,7 +1302,7 @@ xpc_process_msg_IPI(struct xpc_partition *part, int ch_number)
 				"delivered=%d, partid=%d, channel=%d\n",
 				nmsgs_sent, ch->partid, ch->number);
 
-			if (ch->flags & XPC_C_CONNECTCALLOUT) {
+			if (ch->flags & XPC_C_CONNECTEDCALLOUT_MADE) {
 				xpc_activate_kthreads(ch, nmsgs_sent);
 			}
 		}

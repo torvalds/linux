@@ -37,9 +37,7 @@
 #define DLM_THREAD_SHUFFLE_INTERVAL    5     // flush everything every 5 passes
 #define DLM_THREAD_MS                  200   // flush at least every 200 ms
 
-#define DLM_HASH_BITS     7
-#define DLM_HASH_SIZE     (1 << DLM_HASH_BITS)
-#define DLM_HASH_MASK     (DLM_HASH_SIZE - 1)
+#define DLM_HASH_BUCKETS     (PAGE_SIZE / sizeof(struct hlist_head))
 
 enum dlm_ast_type {
 	DLM_AST = 0,
@@ -87,7 +85,7 @@ enum dlm_ctxt_state {
 struct dlm_ctxt
 {
 	struct list_head list;
-	struct list_head *resources;
+	struct hlist_head *lockres_hash;
 	struct list_head dirty_list;
 	struct list_head purge_list;
 	struct list_head pending_asts;
@@ -208,13 +206,16 @@ static inline void __dlm_set_joining_node(struct dlm_ctxt *dlm,
 #define DLM_LOCK_RES_IN_PROGRESS          0x00000010
 #define DLM_LOCK_RES_MIGRATING            0x00000020
 
+/* max milliseconds to wait to sync up a network failure with a node death */
+#define DLM_NODE_DEATH_WAIT_MAX (5 * 1000)
+
 #define DLM_PURGE_INTERVAL_MS   (8 * 1000)
 
 struct dlm_lock_resource
 {
 	/* WARNING: Please see the comment in dlm_init_lockres before
 	 * adding fields here. */
-	struct list_head list;
+	struct hlist_node hash_node;
 	struct kref      refs;
 
 	/* please keep these next 3 in this order
@@ -658,6 +659,7 @@ int dlm_launch_recovery_thread(struct dlm_ctxt *dlm);
 void dlm_complete_recovery_thread(struct dlm_ctxt *dlm);
 void dlm_wait_for_recovery(struct dlm_ctxt *dlm);
 int dlm_is_node_dead(struct dlm_ctxt *dlm, u8 node);
+int dlm_wait_for_node_death(struct dlm_ctxt *dlm, u8 node, int timeout);
 
 void dlm_put(struct dlm_ctxt *dlm);
 struct dlm_ctxt *dlm_grab(struct dlm_ctxt *dlm);

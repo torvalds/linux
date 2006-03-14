@@ -17,7 +17,7 @@
 
 #include "windfarm.h"
 
-#define VERSION "0.1"
+#define VERSION "0.2"
 
 /* This currently only exports the external temperature sensor,
    since that's all the control loops need. */
@@ -81,7 +81,7 @@ static struct wf_sensor_ops wf_max6690_ops = {
 static void wf_max6690_create(struct i2c_adapter *adapter, u8 addr)
 {
 	struct wf_6690_sensor *max;
-	char *name = "u4-temp";
+	char *name = "backside-temp";
 
 	max = kzalloc(sizeof(struct wf_6690_sensor), GFP_KERNEL);
 	if (max == NULL) {
@@ -118,7 +118,6 @@ static int wf_max6690_attach(struct i2c_adapter *adapter)
 	struct device_node *busnode, *dev = NULL;
 	struct pmac_i2c_bus *bus;
 	const char *loc;
-	u32 *reg;
 
 	bus = pmac_i2c_adapter_to_bus(adapter);
 	if (bus == NULL)
@@ -126,16 +125,23 @@ static int wf_max6690_attach(struct i2c_adapter *adapter)
 	busnode = pmac_i2c_get_bus_node(bus);
 
 	while ((dev = of_get_next_child(busnode, dev)) != NULL) {
+		u8 addr;
+
+		/* We must re-match the adapter in order to properly check
+		 * the channel on multibus setups
+		 */
+		if (!pmac_i2c_match_adapter(dev, adapter))
+			continue;
 		if (!device_is_compatible(dev, "max6690"))
 			continue;
+		addr = pmac_i2c_get_dev_addr(dev);
 		loc = get_property(dev, "hwsensor-location", NULL);
-		reg = (u32 *) get_property(dev, "reg", NULL);
-		if (!loc || !reg)
+		if (loc == NULL || addr == 0)
 			continue;
-		printk("found max6690, loc=%s reg=%x\n", loc, *reg);
+		printk("found max6690, loc=%s addr=0x%02x\n", loc, addr);
 		if (strcmp(loc, "BACKSIDE"))
 			continue;
-		wf_max6690_create(adapter, *reg);
+		wf_max6690_create(adapter, addr);
 	}
 
 	return 0;
@@ -153,6 +159,11 @@ static int wf_max6690_detach(struct i2c_client *client)
 
 static int __init wf_max6690_sensor_init(void)
 {
+	/* Don't register on old machines that use therm_pm72 for now */
+	if (machine_is_compatible("PowerMac7,2") ||
+	    machine_is_compatible("PowerMac7,3") ||
+	    machine_is_compatible("RackMac3,1"))
+		return -ENODEV;
 	return i2c_add_driver(&wf_max6690_driver);
 }
 

@@ -178,13 +178,6 @@ static unsigned int task_timeslice(task_t *p)
 #define task_hot(p, now, sd) ((long long) ((now) - (p)->last_ran)	\
 				< (long long) (sd)->cache_hot_time)
 
-void __put_task_struct_cb(struct rcu_head *rhp)
-{
-	__put_task_struct(container_of(rhp, struct task_struct, rcu));
-}
-
-EXPORT_SYMBOL_GPL(__put_task_struct_cb);
-
 /*
  * These are the runqueue data structures:
  */
@@ -4028,6 +4021,8 @@ static inline void __cond_resched(void)
 	 */
 	if (unlikely(preempt_count()))
 		return;
+	if (unlikely(system_state != SYSTEM_RUNNING))
+		return;
 	do {
 		add_preempt_count(PREEMPT_ACTIVE);
 		schedule();
@@ -4333,6 +4328,7 @@ void __devinit init_idle(task_t *idle, int cpu)
 	runqueue_t *rq = cpu_rq(cpu);
 	unsigned long flags;
 
+	idle->timestamp = sched_clock();
 	idle->sleep_avg = 0;
 	idle->array = NULL;
 	idle->prio = MAX_PRIO;
@@ -5058,7 +5054,18 @@ static void init_sched_build_groups(struct sched_group groups[], cpumask_t span,
 #define MAX_DOMAIN_DISTANCE 32
 
 static unsigned long long migration_cost[MAX_DOMAIN_DISTANCE] =
-		{ [ 0 ... MAX_DOMAIN_DISTANCE-1 ] = -1LL };
+		{ [ 0 ... MAX_DOMAIN_DISTANCE-1 ] =
+/*
+ * Architectures may override the migration cost and thus avoid
+ * boot-time calibration. Unit is nanoseconds. Mostly useful for
+ * virtualized hardware:
+ */
+#ifdef CONFIG_DEFAULT_MIGRATION_COST
+			CONFIG_DEFAULT_MIGRATION_COST
+#else
+			-1LL
+#endif
+};
 
 /*
  * Allow override of migration cost - in units of microseconds.

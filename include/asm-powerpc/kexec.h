@@ -93,7 +93,8 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 			"mfxer  %0\n"
 			"std    %0, 296(%2)\n"
 			: "=&r" (tmp1), "=&r" (tmp2)
-			: "b" (newregs));
+			: "b" (newregs)
+			: "memory");
 	}
 }
 #else

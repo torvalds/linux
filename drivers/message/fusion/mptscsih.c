@@ -2489,7 +2489,7 @@ mptscsih_copy_sense_data(struct scsi_cmnd *sc, MPT_SCSI_HOST *hd, MPT_FRAME_HDR 
 				int idx;
 				MPT_ADAPTER *ioc = hd->ioc;
 
-				idx = ioc->eventContext % ioc->eventLogSize;
+				idx = ioc->eventContext % MPTCTL_EVENT_LOG_SIZE;
 				ioc->events[idx].event = MPI_EVENT_SCSI_DEVICE_STATUS_CHANGE;
 				ioc->events[idx].eventContext = ioc->eventContext;
 
