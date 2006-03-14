@@ -6138,8 +6138,8 @@ mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
 		"Abort",					/* 12h */
 		"IO Not Yet Executed",				/* 13h */
 		"IO Executed",					/* 14h */
-		NULL,						/* 15h */
-		NULL,						/* 16h */
+		"Persistant Reservation Out Not Affiliation Owner", /* 15h */
+		"Open Transmit DMA Abort",			/* 16h */
 		NULL,						/* 17h */
 		NULL,						/* 18h */
 		NULL,						/* 19h */
