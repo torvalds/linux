@@ -1235,7 +1235,8 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
-	if (vdev->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT &&
+	if ((hd->ioc->bus_type == SPI) &&
+	    vdev->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT &&
 	    mptscsih_raid_id_to_num(hd, SCpnt->device->id) < 0) {
 		SCpnt->result = DID_NO_CONNECT << 16;
 		done(SCpnt);
@@ -2102,6 +2103,24 @@ mptscsih_bios_param(struct scsi_device * sdev, struct block_device *bdev,
 
 	return 0;
 }
+
+/* Search IOC page 3 to determine if this is hidden physical disk
+ *
+ */
+int
+mptscsih_is_phys_disk(MPT_ADAPTER *ioc, int id)
+{
+	int i;
+
+	if (!ioc->raid_data.isRaid || !ioc->raid_data.pIocPg3)
+		return 0;
+	for (i = 0; i < ioc->raid_data.pIocPg3->NumPhysDisks; i++) {
+                if (id == ioc->raid_data.pIocPg3->PhysDisk[i].PhysDiskID)
+                        return 1;
+        }
+        return 0;
+}
+EXPORT_SYMBOL(mptscsih_is_phys_disk);
 
 int
 mptscsih_raid_id_to_num(MPT_SCSI_HOST *hd, uint physdiskid)

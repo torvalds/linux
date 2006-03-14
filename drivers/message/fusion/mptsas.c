@@ -104,6 +104,8 @@ struct mptsas_hotplug_event {
 	u16			handle;
 	u16			parent_handle;
 	u8			phy_id;
+	u8			phys_disk_num;
+	u8			phys_disk_num_valid;
 };
 
 /*
@@ -139,6 +141,7 @@ struct mptsas_phyinfo {
 	struct mptsas_devinfo attached;	/* point to attached device info */
 	struct sas_phy *phy;
 	struct sas_rphy *rphy;
+	struct scsi_target *starget;
 };
 
 struct mptsas_portinfo {
@@ -388,6 +391,17 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 				target_id = p->phy_info[i].attached.id;
 				vtarget->bus_id = p->phy_info[i].attached.channel;
 				vdev->lun = sdev->lun;
+				p->phy_info[i].starget = sdev->sdev_target;
+				/*
+				 * Exposing hidden disk (RAID)
+				 */
+				if (mptscsih_is_phys_disk(hd->ioc, target_id)) {
+					target_id = mptscsih_raid_id_to_num(hd,
+							target_id);
+					vdev->vtarget->tflags |=
+					    MPT_TARGET_FLAGS_RAID_COMPONENT;
+					sdev->no_uld_attach = 1;
+				}
 				mutex_unlock(&hd->ioc->sas_topology_mutex);
 				goto out;
 			}
@@ -1378,10 +1392,24 @@ mptsas_scan_sas_topology(MPT_ADAPTER *ioc)
 {
 	u32 handle = 0xFFFF;
 	int index = 0;
+	int i;
 
 	mptsas_probe_hba_phys(ioc, &index);
 	while (!mptsas_probe_expander_phys(ioc, &handle, &index))
 		;
+	/*
+	  Reporting RAID volumes.
+	*/
+	if (!ioc->raid_data.pIocPg2)
+		goto out;
+	if (!ioc->raid_data.pIocPg2->NumActiveVolumes)
+		goto out;
+	for (i=0; i<ioc->raid_data.pIocPg2->NumActiveVolumes; i++) {
+		scsi_add_device(ioc->sh, ioc->num_ports,
+		    ioc->raid_data.pIocPg2->RaidVolume[i].VolumeID, 0);
+	}
+ out:
+	return;
 }
 
 static struct mptsas_phyinfo *
@@ -1461,6 +1489,20 @@ mptscsih_sas_persist_clear_table(void * arg)
 }
 
 static void
+mptsas_reprobe_lun(struct scsi_device *sdev, void *data)
+{
+	sdev->no_uld_attach = data ? 1 : 0;
+	scsi_device_reprobe(sdev);
+}
+
+static void
+mptsas_reprobe_target(struct scsi_target *starget, int uld_attach)
+{
+	starget_for_each_device(starget, uld_attach ? (void *)1 : NULL,
+			mptsas_reprobe_lun);
+}
+
+static void
 mptsas_hotplug_work(void *arg)
 {
 	struct mptsas_hotplug_event *ev = arg;
@@ -1470,14 +1512,33 @@ mptsas_hotplug_work(void *arg)
 	struct scsi_device *sdev;
 	char *ds = NULL;
 	struct mptsas_devinfo sas_device;
+	VirtTarget *vtarget;
 
 	switch (ev->event_type) {
 	case MPTSAS_DEL_DEVICE:
 
 		phy_info = mptsas_find_phyinfo_by_target(ioc, ev->id);
-		if (!phy_info) {
-			printk("mptsas: remove event for non-existant PHY.\n");
+		/*
+		 * Sanity checks, for non-existing phys and remote rphys.
+		 */
+		if (!phy_info)
 			break;
+		if (!phy_info->rphy)
+			break;
+		if (phy_info->starget) {
+			vtarget = phy_info->starget->hostdata;
+
+			if (!vtarget)
+				break;
+			/*
+			 * Handling  RAID components
+			 */
+			if (ev->phys_disk_num_valid) {
+				vtarget->target_id = ev->phys_disk_num;
+				vtarget->tflags |= MPT_TARGET_FLAGS_RAID_COMPONENT;
+				mptsas_reprobe_target(vtarget->starget, 1);
+				break;
+			}
 		}
 
 		if (phy_info->attached.device_info & MPI_SAS_DEVICE_INFO_SSP_TARGET)
@@ -1491,11 +1552,10 @@ mptsas_hotplug_work(void *arg)
 		       "removing %s device, channel %d, id %d, phy %d\n",
 		       ioc->name, ds, ev->channel, ev->id, phy_info->phy_id);
 
-		if (phy_info->rphy) {
-			sas_rphy_delete(phy_info->rphy);
-			memset(&phy_info->attached, 0, sizeof(struct mptsas_devinfo));
-			phy_info->rphy = NULL;
-		}
+		sas_rphy_delete(phy_info->rphy);
+		memset(&phy_info->attached, 0, sizeof(struct mptsas_devinfo));
+		phy_info->rphy = NULL;
+		phy_info->starget = NULL;
 		break;
 	case MPTSAS_ADD_DEVICE:
 
@@ -1509,15 +1569,26 @@ mptsas_hotplug_work(void *arg)
 
 		phy_info = mptsas_find_phyinfo_by_parent(ioc,
 				sas_device.handle_parent, sas_device.phy_id);
-		if (!phy_info) {
-			printk("mptsas: add event for non-existant PHY.\n");
+		if (!phy_info)
+			break;
+		if (phy_info->starget) {
+			vtarget = phy_info->starget->hostdata;
+
+			if (!vtarget)
+				break;
+			/*
+			 * Handling  RAID components
+			 */
+			if (vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT) {
+				vtarget->tflags &= ~MPT_TARGET_FLAGS_RAID_COMPONENT;
+				vtarget->target_id = ev->id;
+				mptsas_reprobe_target(phy_info->starget, 0);
+			}
 			break;
 		}
 
-		if (phy_info->rphy) {
-			printk("mptsas: trying to add existing device.\n");
+		if (phy_info->rphy)
 			break;
-		}
 
 		memcpy(&phy_info->attached, &sas_device,
 		    sizeof(struct mptsas_devinfo));
@@ -1672,6 +1743,9 @@ mptscsih_send_raid_event(MPT_ADAPTER *ioc,
 		ev->event_type = MPTSAS_ADD_DEVICE;
 		break;
 	case MPI_EVENT_RAID_RC_PHYSDISK_CREATED:
+		ioc->raid_data.isRaid = 1;
+		ev->phys_disk_num_valid = 1;
+		ev->phys_disk_num = raid_event_data->PhysDiskNum;
 		ev->event_type = MPTSAS_DEL_DEVICE;
 		break;
 	case MPI_EVENT_RAID_RC_VOLUME_DELETED:
@@ -1931,20 +2005,6 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	mptsas_scan_sas_topology(ioc);
-
-	/*
-	  Reporting RAID volumes.
-	*/
-	if (!ioc->raid_data.pIocPg2)
-		return 0;
-	if (!ioc->raid_data.pIocPg2->NumActiveVolumes)
-		return 0;
-	for (ii=0;ii<ioc->raid_data.pIocPg2->NumActiveVolumes;ii++) {
-		scsi_add_device(sh,
-			ioc->num_ports,
-			ioc->raid_data.pIocPg2->RaidVolume[ii].VolumeID,
-			0);
-	}
 
 	return 0;
 
