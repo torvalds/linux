@@ -487,28 +487,37 @@ xfs_add_to_ioend(
 }
 
 STATIC void
+xfs_map_buffer(
+	struct buffer_head	*bh,
+	xfs_iomap_t		*mp,
+	xfs_off_t		offset,
+	uint			block_bits)
+{
+	sector_t		bn;
+
+	ASSERT(mp->iomap_bn != IOMAP_DADDR_NULL);
+
+	bn = (mp->iomap_bn >> (block_bits - BBSHIFT)) +
+	      ((offset - mp->iomap_offset) >> block_bits);
+
+	ASSERT(bn || (mp->iomap_flags & IOMAP_REALTIME));
+
+	bh->b_blocknr = bn;
+	set_buffer_mapped(bh);
+}
+
+STATIC void
 xfs_map_at_offset(
 	struct buffer_head	*bh,
 	loff_t			offset,
 	int			block_bits,
 	xfs_iomap_t		*iomapp)
 {
-	xfs_daddr_t		bn;
-	int			sector_shift;
-
 	ASSERT(!(iomapp->iomap_flags & IOMAP_HOLE));
 	ASSERT(!(iomapp->iomap_flags & IOMAP_DELAY));
-	ASSERT(iomapp->iomap_bn != IOMAP_DADDR_NULL);
-
-	sector_shift = block_bits - BBSHIFT;
-	bn = (iomapp->iomap_bn >> sector_shift) +
-	      ((offset - iomapp->iomap_offset) >> block_bits);
-
-	ASSERT(bn || (iomapp->iomap_flags & IOMAP_REALTIME));
-	ASSERT((bn << sector_shift) >= iomapp->iomap_bn);
 
 	lock_buffer(bh);
-	bh->b_blocknr = bn;
+	xfs_map_buffer(bh, iomapp, offset, block_bits);
 	bh->b_bdev = iomapp->iomap_target->bt_bdev;
 	set_buffer_mapped(bh);
 	clear_buffer_delay(bh);
@@ -1246,21 +1255,13 @@ __linvfs_get_block(
 		return 0;
 
 	if (iomap.iomap_bn != IOMAP_DADDR_NULL) {
-		xfs_daddr_t	bn;
-		xfs_off_t	delta;
-
-		/* For unwritten extents do not report a disk address on
+		/*
+		 * For unwritten extents do not report a disk address on
 		 * the read case (treat as if we're reading into a hole).
 		 */
 		if (create || !(iomap.iomap_flags & IOMAP_UNWRITTEN)) {
-			delta = offset - iomap.iomap_offset;
-			delta >>= inode->i_blkbits;
-
-			bn = iomap.iomap_bn >> (inode->i_blkbits - BBSHIFT);
-			bn += delta;
-			BUG_ON(!bn && !(iomap.iomap_flags & IOMAP_REALTIME));
-			bh_result->b_blocknr = bn;
-			set_buffer_mapped(bh_result);
+			xfs_map_buffer(bh_result, &iomap, offset,
+				       inode->i_blkbits);
 		}
 		if (create && (iomap.iomap_flags & IOMAP_UNWRITTEN)) {
 			if (direct)
