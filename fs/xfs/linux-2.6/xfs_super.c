@@ -365,7 +365,8 @@ STATIC int
 xfs_init_zones(void)
 {
 	xfs_vnode_zone = kmem_zone_init_flags(sizeof(vnode_t), "xfs_vnode_t",
-					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM,
+					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
+					KM_ZONE_SPREAD,
 					linvfs_inode_init_once);
 	if (!xfs_vnode_zone)
 		goto out;
