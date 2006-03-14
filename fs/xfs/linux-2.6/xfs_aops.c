@@ -43,7 +43,32 @@
 #include <linux/pagevec.h>
 #include <linux/writeback.h>
 
-STATIC void xfs_count_page_state(struct page *, int *, int *, int *);
+
+STATIC void
+xfs_count_page_state(
+	struct page		*page,
+	int			*delalloc,
+	int			*unmapped,
+	int			*unwritten)
+{
+	struct buffer_head	*bh, *head;
+
+	*delalloc = *unmapped = *unwritten = 0;
+
+	bh = head = page_buffers(page);
+	do {
+		if (buffer_uptodate(bh) && !buffer_mapped(bh))
+			(*unmapped) = 1;
+		else if (buffer_unwritten(bh) && !buffer_delay(bh))
+			clear_buffer_unwritten(bh);
+		else if (buffer_unwritten(bh))
+			(*unwritten) = 1;
+		else if (buffer_delay(bh))
+			(*delalloc) = 1;
+	} while ((bh = bh->b_this_page) != head);
+}
+
+
 
 #if defined(XFS_RW_TRACE)
 void
@@ -1040,6 +1065,154 @@ error:
 	return err;
 }
 
+/*
+ * writepage: Called from one of two places:
+ *
+ * 1. we are flushing a delalloc buffer head.
+ *
+ * 2. we are writing out a dirty page. Typically the page dirty
+ *    state is cleared before we get here. In this case is it
+ *    conceivable we have no buffer heads.
+ *
+ * For delalloc space on the page we need to allocate space and
+ * flush it. For unmapped buffer heads on the page we should
+ * allocate space if the page is uptodate. For any other dirty
+ * buffer heads on the page we should flush them.
+ *
+ * If we detect that a transaction would be required to flush
+ * the page, we have to check the process flags first, if we
+ * are already in a transaction or disk I/O during allocations
+ * is off, we need to fail the writepage and redirty the page.
+ */
+
+STATIC int
+linvfs_writepage(
+	struct page		*page,
+	struct writeback_control *wbc)
+{
+	int			error;
+	int			need_trans;
+	int			delalloc, unmapped, unwritten;
+	struct inode		*inode = page->mapping->host;
+
+	xfs_page_trace(XFS_WRITEPAGE_ENTER, inode, page, 0);
+
+	/*
+	 * We need a transaction if:
+	 *  1. There are delalloc buffers on the page
+	 *  2. The page is uptodate and we have unmapped buffers
+	 *  3. The page is uptodate and we have no buffers
+	 *  4. There are unwritten buffers on the page
+	 */
+
+	if (!page_has_buffers(page)) {
+		unmapped = 1;
+		need_trans = 1;
+	} else {
+		xfs_count_page_state(page, &delalloc, &unmapped, &unwritten);
+		if (!PageUptodate(page))
+			unmapped = 0;
+		need_trans = delalloc + unmapped + unwritten;
+	}
+
+	/*
+	 * If we need a transaction and the process flags say
+	 * we are already in a transaction, or no IO is allowed
+	 * then mark the page dirty again and leave the page
+	 * as is.
+	 */
+	if (PFLAGS_TEST_FSTRANS() && need_trans)
+		goto out_fail;
+
+	/*
+	 * Delay hooking up buffer heads until we have
+	 * made our go/no-go decision.
+	 */
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, 1 << inode->i_blkbits, 0);
+
+	/*
+	 * Convert delayed allocate, unwritten or unmapped space
+	 * to real space and flush out to disk.
+	 */
+	error = xfs_page_state_convert(inode, page, wbc, 1, unmapped);
+	if (error == -EAGAIN)
+		goto out_fail;
+	if (unlikely(error < 0))
+		goto out_unlock;
+
+	return 0;
+
+out_fail:
+	redirty_page_for_writepage(wbc, page);
+	unlock_page(page);
+	return 0;
+out_unlock:
+	unlock_page(page);
+	return error;
+}
+
+/*
+ * Called to move a page into cleanable state - and from there
+ * to be released. Possibly the page is already clean. We always
+ * have buffer heads in this call.
+ *
+ * Returns 0 if the page is ok to release, 1 otherwise.
+ *
+ * Possible scenarios are:
+ *
+ * 1. We are being called to release a page which has been written
+ *    to via regular I/O. buffer heads will be dirty and possibly
+ *    delalloc. If no delalloc buffer heads in this case then we
+ *    can just return zero.
+ *
+ * 2. We are called to release a page which has been written via
+ *    mmap, all we need to do is ensure there is no delalloc
+ *    state in the buffer heads, if not we can let the caller
+ *    free them and we should come back later via writepage.
+ */
+STATIC int
+linvfs_release_page(
+	struct page		*page,
+	gfp_t			gfp_mask)
+{
+	struct inode		*inode = page->mapping->host;
+	int			dirty, delalloc, unmapped, unwritten;
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = 1,
+	};
+
+	xfs_page_trace(XFS_RELEASEPAGE_ENTER, inode, page, gfp_mask);
+
+	xfs_count_page_state(page, &delalloc, &unmapped, &unwritten);
+	if (!delalloc && !unwritten)
+		goto free_buffers;
+
+	if (!(gfp_mask & __GFP_FS))
+		return 0;
+
+	/* If we are already inside a transaction or the thread cannot
+	 * do I/O, we cannot release this page.
+	 */
+	if (PFLAGS_TEST_FSTRANS())
+		return 0;
+
+	/*
+	 * Convert delalloc space to real space, do not flush the
+	 * data out to disk, that will be done by the caller.
+	 * Never need to allocate space here - we will always
+	 * come back to writepage in that case.
+	 */
+	dirty = xfs_page_state_convert(inode, page, &wbc, 0, 0);
+	if (dirty == 0 && !unwritten)
+		goto free_buffers;
+	return 0;
+
+free_buffers:
+	return try_to_free_buffers(page);
+}
+
 STATIC int
 __linvfs_get_block(
 	struct inode		*inode,
@@ -1223,6 +1396,15 @@ linvfs_direct_IO(
 	return ret;
 }
 
+STATIC int
+linvfs_prepare_write(
+	struct file		*file,
+	struct page		*page,
+	unsigned int		from,
+	unsigned int		to)
+{
+	return block_prepare_write(page, from, to, linvfs_get_block);
+}
 
 STATIC sector_t
 linvfs_bmap(
@@ -1259,118 +1441,6 @@ linvfs_readpages(
 	return mpage_readpages(mapping, pages, nr_pages, linvfs_get_block);
 }
 
-STATIC void
-xfs_count_page_state(
-	struct page		*page,
-	int			*delalloc,
-	int			*unmapped,
-	int			*unwritten)
-{
-	struct buffer_head	*bh, *head;
-
-	*delalloc = *unmapped = *unwritten = 0;
-
-	bh = head = page_buffers(page);
-	do {
-		if (buffer_uptodate(bh) && !buffer_mapped(bh))
-			(*unmapped) = 1;
-		else if (buffer_unwritten(bh) && !buffer_delay(bh))
-			clear_buffer_unwritten(bh);
-		else if (buffer_unwritten(bh))
-			(*unwritten) = 1;
-		else if (buffer_delay(bh))
-			(*delalloc) = 1;
-	} while ((bh = bh->b_this_page) != head);
-}
-
-
-/*
- * writepage: Called from one of two places:
- *
- * 1. we are flushing a delalloc buffer head.
- *
- * 2. we are writing out a dirty page. Typically the page dirty
- *    state is cleared before we get here. In this case is it
- *    conceivable we have no buffer heads.
- *
- * For delalloc space on the page we need to allocate space and
- * flush it. For unmapped buffer heads on the page we should
- * allocate space if the page is uptodate. For any other dirty
- * buffer heads on the page we should flush them.
- *
- * If we detect that a transaction would be required to flush
- * the page, we have to check the process flags first, if we
- * are already in a transaction or disk I/O during allocations
- * is off, we need to fail the writepage and redirty the page.
- */
-
-STATIC int
-linvfs_writepage(
-	struct page		*page,
-	struct writeback_control *wbc)
-{
-	int			error;
-	int			need_trans;
-	int			delalloc, unmapped, unwritten;
-	struct inode		*inode = page->mapping->host;
-
-	xfs_page_trace(XFS_WRITEPAGE_ENTER, inode, page, 0);
-
-	/*
-	 * We need a transaction if:
-	 *  1. There are delalloc buffers on the page
-	 *  2. The page is uptodate and we have unmapped buffers
-	 *  3. The page is uptodate and we have no buffers
-	 *  4. There are unwritten buffers on the page
-	 */
-
-	if (!page_has_buffers(page)) {
-		unmapped = 1;
-		need_trans = 1;
-	} else {
-		xfs_count_page_state(page, &delalloc, &unmapped, &unwritten);
-		if (!PageUptodate(page))
-			unmapped = 0;
-		need_trans = delalloc + unmapped + unwritten;
-	}
-
-	/*
-	 * If we need a transaction and the process flags say
-	 * we are already in a transaction, or no IO is allowed
-	 * then mark the page dirty again and leave the page
-	 * as is.
-	 */
-	if (PFLAGS_TEST_FSTRANS() && need_trans)
-		goto out_fail;
-
-	/*
-	 * Delay hooking up buffer heads until we have
-	 * made our go/no-go decision.
-	 */
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, 1 << inode->i_blkbits, 0);
-
-	/*
-	 * Convert delayed allocate, unwritten or unmapped space
-	 * to real space and flush out to disk.
-	 */
-	error = xfs_page_state_convert(inode, page, wbc, 1, unmapped);
-	if (error == -EAGAIN)
-		goto out_fail;
-	if (unlikely(error < 0))
-		goto out_unlock;
-
-	return 0;
-
-out_fail:
-	redirty_page_for_writepage(wbc, page);
-	unlock_page(page);
-	return 0;
-out_unlock:
-	unlock_page(page);
-	return error;
-}
-
 STATIC int
 linvfs_invalidate_page(
 	struct page		*page,
@@ -1379,77 +1449,6 @@ linvfs_invalidate_page(
 	xfs_page_trace(XFS_INVALIDPAGE_ENTER,
 			page->mapping->host, page, offset);
 	return block_invalidatepage(page, offset);
-}
-
-/*
- * Called to move a page into cleanable state - and from there
- * to be released. Possibly the page is already clean. We always
- * have buffer heads in this call.
- *
- * Returns 0 if the page is ok to release, 1 otherwise.
- *
- * Possible scenarios are:
- *
- * 1. We are being called to release a page which has been written
- *    to via regular I/O. buffer heads will be dirty and possibly
- *    delalloc. If no delalloc buffer heads in this case then we
- *    can just return zero.
- *
- * 2. We are called to release a page which has been written via
- *    mmap, all we need to do is ensure there is no delalloc
- *    state in the buffer heads, if not we can let the caller
- *    free them and we should come back later via writepage.
- */
-STATIC int
-linvfs_release_page(
-	struct page		*page,
-	gfp_t			gfp_mask)
-{
-	struct inode		*inode = page->mapping->host;
-	int			dirty, delalloc, unmapped, unwritten;
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = 1,
-	};
-
-	xfs_page_trace(XFS_RELEASEPAGE_ENTER, inode, page, gfp_mask);
-
-	xfs_count_page_state(page, &delalloc, &unmapped, &unwritten);
-	if (!delalloc && !unwritten)
-		goto free_buffers;
-
-	if (!(gfp_mask & __GFP_FS))
-		return 0;
-
-	/* If we are already inside a transaction or the thread cannot
-	 * do I/O, we cannot release this page.
-	 */
-	if (PFLAGS_TEST_FSTRANS())
-		return 0;
-
-	/*
-	 * Convert delalloc space to real space, do not flush the
-	 * data out to disk, that will be done by the caller.
-	 * Never need to allocate space here - we will always
-	 * come back to writepage in that case.
-	 */
-	dirty = xfs_page_state_convert(inode, page, &wbc, 0, 0);
-	if (dirty == 0 && !unwritten)
-		goto free_buffers;
-	return 0;
-
-free_buffers:
-	return try_to_free_buffers(page);
-}
-
-STATIC int
-linvfs_prepare_write(
-	struct file		*file,
-	struct page		*page,
-	unsigned int		from,
-	unsigned int		to)
-{
-	return block_prepare_write(page, from, to, linvfs_get_block);
 }
 
 struct address_space_operations linvfs_aops = {
