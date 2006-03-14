@@ -70,6 +70,7 @@ static int vid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 }; /* Vendor ID for
 static int pid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 }; /* Product ID for this card */
 static int nrpacks = 4;		/* max. number of packets per urb */
 static int async_unlink = 1;
+static int device_setup[SNDRV_CARDS]; /* device parameter for this card*/
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the USB audio adapter.");
@@ -85,6 +86,8 @@ module_param(nrpacks, int, 0644);
 MODULE_PARM_DESC(nrpacks, "Max. number of packets per URB.");
 module_param(async_unlink, bool, 0444);
 MODULE_PARM_DESC(async_unlink, "Use async unlink mode.");
+module_param_array(device_setup, int, NULL, 0444);
+MODULE_PARM_DESC(device_setup, "Specific device setup (if needed).");
 
 
 /*
@@ -2547,6 +2550,8 @@ static int parse_audio_format(struct snd_usb_audio *chip, struct audioformat *fp
 	return 0;
 }
 
+static int audiophile_skip_setting_quirk(struct snd_usb_audio *chip,
+					 int iface, int altno);
 static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 {
 	struct usb_device *dev;
@@ -2581,6 +2586,12 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		stream = (get_endpoint(alts, 0)->bEndpointAddress & USB_DIR_IN) ?
 			SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
 		altno = altsd->bAlternateSetting;
+	
+		/* audiophile usb: skip altsets incompatible with device_setup
+		 */
+		if (chip->usb_id == USB_ID(0x0763, 0x2003) && 
+		    audiophile_skip_setting_quirk(chip, iface_no, altno))
+			continue;
 
 		/* get audio formats */
 		fmt = snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, AS_GENERAL);
@@ -2675,7 +2686,7 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			continue;
 		}
 
-		snd_printdd(KERN_INFO "%d:%u:%d: add audio endpoint 0x%x\n", dev->devnum, iface_no, i, fp->endpoint);
+		snd_printdd(KERN_INFO "%d:%u:%d: add audio endpoint 0x%x\n", dev->devnum, iface_no, altno, fp->endpoint);
 		err = add_audio_endpoint(chip, stream, fp);
 		if (err < 0) {
 			kfree(fp->rate_table);
@@ -3083,6 +3094,45 @@ static int snd_usb_audigy2nx_boot_quirk(struct usb_device *dev)
 	return 0;
 }
 
+/*
+ * Setup quirks
+ */
+#define AUDIOPHILE_SET			0x01 /* if set, parse device_setup */
+#define AUDIOPHILE_SET_DTS              0x02 /* if set, enable DTS Digital Output */
+#define AUDIOPHILE_SET_96K              0x04 /* 48-96KHz rate if set, 8-48KHz otherwise */
+#define AUDIOPHILE_SET_24B		0x08 /* 24bits sample if set, 16bits otherwise */
+#define AUDIOPHILE_SET_DI		0x10 /* if set, enable Digital Input */
+#define AUDIOPHILE_SET_MASK		0x1F /* bit mask for setup value */
+#define AUDIOPHILE_SET_24B_48K_DI	0x19 /* value for 24bits+48KHz+Digital Input */
+#define AUDIOPHILE_SET_24B_48K_NOTDI	0x09 /* value for 24bits+48KHz+No Digital Input */
+#define AUDIOPHILE_SET_16B_48K_DI	0x11 /* value for 16bits+48KHz+Digital Input */
+#define AUDIOPHILE_SET_16B_48K_NOTDI	0x01 /* value for 16bits+48KHz+No Digital Input */
+
+static int audiophile_skip_setting_quirk(struct snd_usb_audio *chip,
+					 int iface, int altno)
+{
+	if (device_setup[chip->index] & AUDIOPHILE_SET) {
+		if ((device_setup[chip->index] & AUDIOPHILE_SET_DTS)
+		    && altno != 6)
+			return 1; /* skip this altsetting */
+		if ((device_setup[chip->index] & AUDIOPHILE_SET_96K)
+		    && altno != 1)
+			return 1; /* skip this altsetting */
+		if ((device_setup[chip->index] & AUDIOPHILE_SET_MASK) ==
+		    AUDIOPHILE_SET_24B_48K_DI && altno != 2)
+			return 1; /* skip this altsetting */
+		if ((device_setup[chip->index] & AUDIOPHILE_SET_MASK) ==
+		    AUDIOPHILE_SET_24B_48K_NOTDI && altno != 3)
+			return 1; /* skip this altsetting */
+		if ((device_setup[chip->index] & AUDIOPHILE_SET_MASK) ==
+		    AUDIOPHILE_SET_16B_48K_DI && altno != 4)
+			return 1; /* skip this altsetting */
+		if ((device_setup[chip->index] & AUDIOPHILE_SET_MASK) ==
+		    AUDIOPHILE_SET_16B_48K_NOTDI && altno != 5)
+			return 1; /* skip this altsetting */
+	}	
+	return 0; /* keep this altsetting */
+}
 
 /*
  * audio-interface quirks
