@@ -288,10 +288,7 @@ static void scsi_target_dev_release(struct device *dev)
 {
 	struct device *parent = dev->parent;
 	struct scsi_target *starget = to_scsi_target(dev);
-	struct Scsi_Host *shost = dev_to_shost(parent);
 
-	if (shost->hostt->target_destroy)
-		shost->hostt->target_destroy(starget);
 	kfree(starget);
 	put_device(parent);
 }
@@ -416,6 +413,8 @@ static void scsi_target_reap_usercontext(void *data)
 	device_del(&starget->dev);
 	transport_destroy_device(&starget->dev);
 	spin_lock_irqsave(shost->host_lock, flags);
+	if (shost->hostt->target_destroy)
+		shost->hostt->target_destroy(starget);
 	list_del_init(&starget->siblings);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	put_device(&starget->dev);
