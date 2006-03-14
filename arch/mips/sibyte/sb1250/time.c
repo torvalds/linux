@@ -75,10 +75,10 @@ void sb1250_time_init(void)
 	/* Disable the timer and set up the count */
 	__raw_writeq(0, IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
 #ifdef CONFIG_SIMULATION
-	__raw_writeq(50000 / HZ,
+	__raw_writeq((50000 / HZ) - 1,
 		     IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT)));
 #else
-	__raw_writeq(1000000 / HZ,
+	__raw_writeq((V_SCD_TIMER_FREQ / HZ) - 1,
 		     IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT)));
 #endif
 
