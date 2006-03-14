@@ -2788,9 +2788,7 @@ xfs_qm_freelist_destroy(xfs_frlist_t *ql)
 		xfs_qm_dqdestroy(dqp);
 		dqp = nextdqp;
 	}
-	/*
-	 * Don't bother about unlocking.
-	 */
+	mutex_unlock(&ql->qh_lock);
 	mutex_destroy(&ql->qh_lock);
 
 	ASSERT(ql->qh_nelems == 0);
