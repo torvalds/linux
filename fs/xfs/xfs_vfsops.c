@@ -55,7 +55,7 @@
 #include "xfs_clnt.h"
 #include "xfs_fsops.h"
 
-STATIC int xfs_sync(bhv_desc_t *, int, cred_t *);
+STATIC int	xfs_sync(bhv_desc_t *, int, cred_t *);
 
 int
 xfs_init(void)
@@ -807,6 +807,7 @@ xfs_statvfs(
 
 	statp->f_type = XFS_SB_MAGIC;
 
+	xfs_icsb_sync_counters_lazy(mp);
 	s = XFS_SB_LOCK(mp);
 	statp->f_bsize = sbp->sb_blocksize;
 	lsize = sbp->sb_logstart ? sbp->sb_logblocks : 0;
