@@ -506,11 +506,6 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 #define XFS_SHUTDOWN_REMOTE_REQ 0x10	/* Shutdown came from remote cell */
 
 /*
- * xflags for xfs_syncsub
- */
-#define XFS_XSYNC_RELOC		0x01
-
-/*
  * Flags for xfs_mountfs
  */
 #define XFS_MFSI_SECOND		0x01	/* Secondary mount -- skip stuff */
