@@ -713,6 +713,35 @@ static void saa7115_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 		saa7115_writeregs(client, saa7115_cfg_50hz_video);
 	}
 
+	/* Register 0E - Bits D6-D4 on NO-AUTO mode
+		(SAA7113 doesn't have auto mode)
+	    50 Hz / 625 lines           60 Hz / 525 lines
+	000 PAL BGDHI (4.43Mhz)         NTSC M (3.58MHz)
+	001 NTSC 4.43 (50 Hz)           PAL 4.43 (60 Hz)
+	010 Combination-PAL N (3.58MHz) NTSC 4.43 (60 Hz)
+	011 NTSC N (3.58MHz)            PAL M (3.58MHz)
+	100 reserved                    NTSC-Japan (3.58MHz)
+	*/
+	if (state->ident == V4L2_IDENT_SAA7113) {
+		u8 reg =  saa7115_read(client, 0x0e) & 0x8f;
+
+		if (std & V4L2_STD_PAL) {
+			if (std == V4L2_STD_PAL_M) {
+				reg|=0x30;
+			} else if (std == V4L2_STD_PAL_N) {
+				reg|=0x20;
+			} else if (std == V4L2_STD_PAL_60) {
+				reg|=0x10;
+			}
+		} else if (std & V4L2_STD_NTSC) {
+			if (std == V4L2_STD_NTSC_M_JP) {
+				reg|=0x40;
+			}
+		}
+		saa7115_write(client, 0x0e, reg);
+	}
+
+
 	state->std = std;
 
 	/* restart task B if needed */
