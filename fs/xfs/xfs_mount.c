@@ -268,9 +268,12 @@ xfs_mount_validate_sb(
 	    sbp->sb_blocklog > XFS_MAX_BLOCKSIZE_LOG			||
 	    sbp->sb_inodesize < XFS_DINODE_MIN_SIZE			||
 	    sbp->sb_inodesize > XFS_DINODE_MAX_SIZE			||
+	    sbp->sb_inodelog < XFS_DINODE_MIN_LOG			||
+	    sbp->sb_inodelog > XFS_DINODE_MAX_LOG			||
+	    (sbp->sb_blocklog - sbp->sb_inodelog != sbp->sb_inopblog)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize > XFS_MAX_RTEXTSIZE)	||
 	    (sbp->sb_rextsize * sbp->sb_blocksize < XFS_MIN_RTEXTSIZE)	||
-	    sbp->sb_imax_pct > 100)) {
+	    (sbp->sb_imax_pct > 100 || sbp->sb_imax_pct < 1))) {
 		cmn_err(CE_WARN, "XFS: SB sanity check 1 failed");
 		XFS_CORRUPTION_ERROR("xfs_mount_validate_sb(3)",
 				     XFS_ERRLEVEL_LOW, mp, sbp);
