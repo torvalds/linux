@@ -25,10 +25,37 @@
 #define	XFS_ATTR_FORK	1
 
 /*
+ * The following xfs_ext_irec_t struct introduces a second (top) level
+ * to the in-core extent allocation scheme. These structs are allocated
+ * in a contiguous block, creating an indirection array where each entry
+ * (irec) contains a pointer to a buffer of in-core extent records which
+ * it manages. Each extent buffer is 4k in size, since 4k is the system
+ * page size on Linux i386 and systems with larger page sizes don't seem
+ * to gain much, if anything, by using their native page size as the
+ * extent buffer size. Also, using 4k extent buffers everywhere provides
+ * a consistent interface for CXFS across different platforms.
+ *
+ * There is currently no limit on the number of irec's (extent lists)
+ * allowed, so heavily fragmented files may require an indirection array
+ * which spans multiple system pages of memory. The number of extents
+ * which would require this amount of contiguous memory is very large
+ * and should not cause problems in the foreseeable future. However,
+ * if the memory needed for the contiguous array ever becomes a problem,
+ * it is possible that a third level of indirection may be required.
+ */
+typedef struct xfs_ext_irec {
+	xfs_bmbt_rec_t	*er_extbuf;	/* block of extent records */
+	xfs_extnum_t	er_extoff;	/* extent offset in file */
+	xfs_extnum_t	er_extcount;	/* number of extents in page/block */
+} xfs_ext_irec_t;
+
+/*
  * File incore extent information, present for each of data & attr forks.
  */
-#define	XFS_INLINE_EXTS	2
-#define	XFS_INLINE_DATA	32
+#define	XFS_IEXT_BUFSZ		4096
+#define	XFS_LINEAR_EXTS		(XFS_IEXT_BUFSZ / (uint)sizeof(xfs_bmbt_rec_t))
+#define	XFS_INLINE_EXTS		2
+#define	XFS_INLINE_DATA		32
 typedef struct xfs_ifork {
 	int			if_bytes;	/* bytes in if_u1 */
 	int			if_real_bytes;	/* bytes allocated in if_u1 */
@@ -39,6 +66,7 @@ typedef struct xfs_ifork {
 	xfs_extnum_t		if_lastex;	/* last if_extents used */
 	union {
 		xfs_bmbt_rec_t	*if_extents;	/* linear map file exts */
+		xfs_ext_irec_t	*if_ext_irec;	/* irec map file exts */
 		char		*if_data;	/* inline file data */
 	} if_u1;
 	union {
@@ -61,9 +89,10 @@ typedef struct xfs_ifork {
 /*
  * Per-fork incore inode flags.
  */
-#define	XFS_IFINLINE	0x0001	/* Inline data is read in */
-#define	XFS_IFEXTENTS	0x0002	/* All extent pointers are read in */
-#define	XFS_IFBROOT	0x0004	/* i_broot points to the bmap b-tree root */
+#define	XFS_IFINLINE	0x01	/* Inline data is read in */
+#define	XFS_IFEXTENTS	0x02	/* All extent pointers are read in */
+#define	XFS_IFBROOT	0x04	/* i_broot points to the bmap b-tree root */
+#define	XFS_IFEXTIREC	0x08	/* Indirection array of extent blocks */
 
 /*
  * Flags for xfs_imap() and xfs_dilocate().
@@ -438,13 +467,26 @@ xfs_bmbt_rec_t	*xfs_iext_get_ext(xfs_ifork_t *, xfs_extnum_t);
 void		xfs_iext_insert(xfs_ifork_t *, xfs_extnum_t, xfs_extnum_t,
 				xfs_bmbt_irec_t *);
 void		xfs_iext_add(xfs_ifork_t *, xfs_extnum_t, int);
+void		xfs_iext_add_indirect_multi(xfs_ifork_t *, int, xfs_extnum_t, int);
 void		xfs_iext_remove(xfs_ifork_t *, xfs_extnum_t, int);
 void		xfs_iext_remove_inline(xfs_ifork_t *, xfs_extnum_t, int);
 void		xfs_iext_remove_direct(xfs_ifork_t *, xfs_extnum_t, int);
+void		xfs_iext_remove_indirect(xfs_ifork_t *, xfs_extnum_t, int);
 void		xfs_iext_realloc_direct(xfs_ifork_t *, int);
+void		xfs_iext_realloc_indirect(xfs_ifork_t *, int);
+void		xfs_iext_indirect_to_direct(xfs_ifork_t *);
 void		xfs_iext_direct_to_inline(xfs_ifork_t *, xfs_extnum_t);
 void		xfs_iext_inline_to_direct(xfs_ifork_t *, int);
 void		xfs_iext_destroy(xfs_ifork_t *);
+xfs_ext_irec_t	*xfs_iext_bno_to_irec(xfs_ifork_t *, xfs_fileoff_t, int *);
+xfs_ext_irec_t	*xfs_iext_idx_to_irec(xfs_ifork_t *, xfs_extnum_t *, int *, int);
+void		xfs_iext_irec_init(xfs_ifork_t *);
+xfs_ext_irec_t *xfs_iext_irec_new(xfs_ifork_t *, int);
+void		xfs_iext_irec_remove(xfs_ifork_t *, int);
+void		xfs_iext_irec_compact(xfs_ifork_t *);
+void		xfs_iext_irec_compact_pages(xfs_ifork_t *);
+void		xfs_iext_irec_compact_full(xfs_ifork_t *);
+void		xfs_iext_irec_update_extoffs(xfs_ifork_t *, int, int);
 
 #define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
 

@@ -3423,6 +3423,7 @@ xfs_bmap_local_to_extents(
 		xfs_bmap_forkoff_reset(args.mp, ip, whichfork);
 		xfs_idata_realloc(ip, -ifp->if_bytes, whichfork);
 		xfs_iext_add(ifp, 0, 1);
+		ASSERT((ifp->if_flags & (XFS_IFEXTENTS|XFS_IFEXTIREC)) == XFS_IFEXTENTS);
 		ep = xfs_iext_get_ext(ifp, 0);
 		xfs_bmbt_set_allf(ep, 0, args.fsbno, 1, XFS_EXT_NORM);
 		xfs_bmap_trace_post_update(fname, "new", ip, 0, whichfork);
@@ -3552,6 +3553,54 @@ xfs_bmap_do_search_extents(
 }
 
 /*
+ * Call xfs_bmap_do_search_extents() to search for the extent
+ * record containing block bno. If in multi-level in-core extent
+ * allocation mode, find and extract the target extent buffer,
+ * otherwise just use the direct extent list.
+ */
+xfs_bmbt_rec_t *			/* pointer to found extent entry */
+xfs_bmap_search_multi_extents(
+	xfs_ifork_t	*ifp,		/* inode fork pointer */
+	xfs_fileoff_t	bno,		/* block number searched for */
+	int		*eofp,		/* out: end of file found */
+	xfs_extnum_t	*lastxp,	/* out: last extent index */
+	xfs_bmbt_irec_t	*gotp,		/* out: extent entry found */
+	xfs_bmbt_irec_t	*prevp)		/* out: previous extent entry found */
+{
+	xfs_bmbt_rec_t	*base;		/* base of extent records */
+	xfs_bmbt_rec_t	*ep;		/* extent record pointer */
+	xfs_ext_irec_t	*erp = NULL;	/* indirection array pointer */
+	xfs_extnum_t	lastx;		/* last extent index */
+	xfs_extnum_t	nextents;	/* number of file extents */
+
+	/*
+	 * For multi-level extent allocation mode, find the
+	 * target extent list and pass only the contiguous
+	 * list to xfs_bmap_do_search_extents. Convert lastx
+	 * from a file extent index to an index within the
+	 * target extent list.
+	 */
+	if (ifp->if_flags & XFS_IFEXTIREC) {
+		int	erp_idx = 0;
+		erp = xfs_iext_bno_to_irec(ifp, bno, &erp_idx);
+		base = erp->er_extbuf;
+		nextents = erp->er_extcount;
+		lastx = ifp->if_lastex - erp->er_extoff;
+	} else {
+		base = &ifp->if_u1.if_extents[0];
+		nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
+		lastx = ifp->if_lastex;
+	}
+	ep = xfs_bmap_do_search_extents(base, lastx, nextents, bno,
+					eofp, lastxp, gotp, prevp);
+	/* Convert lastx back to file-based index */
+	if (ifp->if_flags & XFS_IFEXTIREC) {
+		*lastxp += erp->er_extoff;
+	}
+	return ep;
+}
+
+/*
  * Search the extents list for the inode, for the extent containing bno.
  * If bno lies in a hole, point to the next entry.  If bno lies past eof,
  * *eofp will be set, and *prevp will contain the last entry (null if none).
@@ -3569,20 +3618,14 @@ xfs_bmap_search_extents(
 	xfs_bmbt_irec_t *prevp)         /* out: previous extent entry found */
 {
 	xfs_ifork_t	*ifp;		/* inode fork pointer */
-	xfs_bmbt_rec_t  *base;          /* base of extent list */
-	xfs_extnum_t    lastx;          /* last extent index used */
-	xfs_extnum_t    nextents;       /* number of file extents */
 	xfs_bmbt_rec_t  *ep;            /* extent record pointer */
 	int		rt;		/* realtime flag    */
 
 	XFS_STATS_INC(xs_look_exlist);
 	ifp = XFS_IFORK_PTR(ip, whichfork);
-	lastx = ifp->if_lastex;
-	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
-	base = &ifp->if_u1.if_extents[0];
 
-	ep = xfs_bmap_do_search_extents(base, lastx, nextents, bno, eofp,
-					  lastxp, gotp, prevp);
+	ep = xfs_bmap_search_multi_extents(ifp, bno, eofp, lastxp, gotp, prevp);
+
 	rt = (whichfork == XFS_DATA_FORK) && XFS_IS_REALTIME_INODE(ip);
 	if (unlikely(!rt && !gotp->br_startblock && (*lastxp != NULLEXTNUM))) {
                 cmn_err(CE_PANIC,"Access to block zero: fs: <%s> inode: %lld "
