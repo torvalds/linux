@@ -198,7 +198,7 @@ xfs_ichgtime_fast(
  * Pull the link count and size up from the xfs inode to the linux inode
  */
 STATIC void
-__linvfs_validate_fields(
+xfs_validate_fields(
 	struct inode	*ip,
 	struct vattr	*vattr)
 {
@@ -224,7 +224,7 @@ __linvfs_validate_fields(
  * inode, of course, such that log replay can't cause these to be lost).
  */
 STATIC int
-__linvfs_init_security(
+xfs_init_security(
 	struct vnode	*vp,
 	struct inode	*dir)
 {
@@ -257,13 +257,13 @@ __linvfs_init_security(
  * XXX(hch):  nfsd is broken, better fix it instead.
  */
 STATIC inline int
-__linvfs_has_fs_struct(struct task_struct *task)
+xfs_has_fs_struct(struct task_struct *task)
 {
 	return (task->fs != init_task.fs);
 }
 
 STATIC inline void
-__linvfs_cleanup_inode(
+xfs_cleanup_inode(
 	vnode_t		*dvp,
 	vnode_t		*vp,
 	struct dentry	*dentry,
@@ -274,7 +274,7 @@ __linvfs_cleanup_inode(
 
 	/* Oh, the horror.
 	 * If we can't add the ACL or we fail in
-	 * linvfs_init_security we must back out.
+	 * xfs_init_security we must back out.
 	 * ENOSPC can hit here, among other things.
 	 */
 	teardown.d_inode = LINVFS_GET_IP(vp);
@@ -288,7 +288,7 @@ __linvfs_cleanup_inode(
 }
 
 STATIC int
-linvfs_mknod(
+xfs_vn_mknod(
 	struct inode	*dir,
 	struct dentry	*dentry,
 	int		mode,
@@ -323,7 +323,7 @@ linvfs_mknod(
 		}
 	}
 
-	if (IS_POSIXACL(dir) && !default_acl && __linvfs_has_fs_struct(current))
+	if (IS_POSIXACL(dir) && !default_acl && xfs_has_fs_struct(current))
 		mode &= ~current->fs->umask;
 
 	memset(vattr, 0, sizeof(*vattr));
@@ -347,9 +347,9 @@ linvfs_mknod(
 	}
 
 	if (unlikely(!error)) {
-		error = __linvfs_init_security(vp, dir);
+		error = xfs_init_security(vp, dir);
 		if (error)
-			__linvfs_cleanup_inode(dvp, vp, dentry, mode);
+			xfs_cleanup_inode(dvp, vp, dentry, mode);
 	}
 
 	if (unlikely(default_acl)) {
@@ -358,7 +358,7 @@ linvfs_mknod(
 			if (!error)
 				VMODIFY(vp);
 			else
-				__linvfs_cleanup_inode(dvp, vp, dentry, mode);
+				xfs_cleanup_inode(dvp, vp, dentry, mode);
 		}
 		_ACL_FREE(default_acl);
 	}
@@ -370,35 +370,35 @@ linvfs_mknod(
 		if (S_ISCHR(mode) || S_ISBLK(mode))
 			ip->i_rdev = rdev;
 		else if (S_ISDIR(mode))
-			__linvfs_validate_fields(ip, vattr);
+			xfs_validate_fields(ip, vattr);
 		d_instantiate(dentry, ip);
-		__linvfs_validate_fields(dir, vattr);
+		xfs_validate_fields(dir, vattr);
 	}
 	kfree(vattr);
 	return -error;
 }
 
 STATIC int
-linvfs_create(
+xfs_vn_create(
 	struct inode	*dir,
 	struct dentry	*dentry,
 	int		mode,
 	struct nameidata *nd)
 {
-	return linvfs_mknod(dir, dentry, mode, 0);
+	return xfs_vn_mknod(dir, dentry, mode, 0);
 }
 
 STATIC int
-linvfs_mkdir(
+xfs_vn_mkdir(
 	struct inode	*dir,
 	struct dentry	*dentry,
 	int		mode)
 {
-	return linvfs_mknod(dir, dentry, mode|S_IFDIR, 0);
+	return xfs_vn_mknod(dir, dentry, mode|S_IFDIR, 0);
 }
 
 STATIC struct dentry *
-linvfs_lookup(
+xfs_vn_lookup(
 	struct inode	*dir,
 	struct dentry	*dentry,
 	struct nameidata *nd)
@@ -421,7 +421,7 @@ linvfs_lookup(
 }
 
 STATIC int
-linvfs_link(
+xfs_vn_link(
 	struct dentry	*old_dentry,
 	struct inode	*dir,
 	struct dentry	*dentry)
@@ -447,7 +447,7 @@ linvfs_link(
 	if (likely(!error)) {
 		VMODIFY(tdvp);
 		VN_HOLD(vp);
-		__linvfs_validate_fields(ip, vattr);
+		xfs_validate_fields(ip, vattr);
 		d_instantiate(dentry, ip);
 	}
 	kfree(vattr);
@@ -455,7 +455,7 @@ linvfs_link(
 }
 
 STATIC int
-linvfs_unlink(
+xfs_vn_unlink(
 	struct inode	*dir,
 	struct dentry	*dentry)
 {
@@ -473,15 +473,15 @@ linvfs_unlink(
 
 	VOP_REMOVE(dvp, dentry, NULL, error);
 	if (likely(!error)) {
-		__linvfs_validate_fields(dir, vattr);	/* size needs update */
-		__linvfs_validate_fields(inode, vattr);
+		xfs_validate_fields(dir, vattr);	/* size needs update */
+		xfs_validate_fields(inode, vattr);
 	}
 	kfree(vattr);
 	return -error;
 }
 
 STATIC int
-linvfs_symlink(
+xfs_vn_symlink(
 	struct inode	*dir,
 	struct dentry	*dentry,
 	const char	*symname)
@@ -507,12 +507,12 @@ linvfs_symlink(
 	error = 0;
 	VOP_SYMLINK(dvp, dentry, vattr, (char *)symname, &cvp, NULL, error);
 	if (likely(!error && cvp)) {
-		error = __linvfs_init_security(cvp, dir);
+		error = xfs_init_security(cvp, dir);
 		if (likely(!error)) {
 			ip = LINVFS_GET_IP(cvp);
 			d_instantiate(dentry, ip);
-			__linvfs_validate_fields(dir, vattr);
-			__linvfs_validate_fields(ip, vattr);
+			xfs_validate_fields(dir, vattr);
+			xfs_validate_fields(ip, vattr);
 		}
 	}
 	kfree(vattr);
@@ -520,7 +520,7 @@ linvfs_symlink(
 }
 
 STATIC int
-linvfs_rmdir(
+xfs_vn_rmdir(
 	struct inode	*dir,
 	struct dentry	*dentry)
 {
@@ -535,15 +535,15 @@ linvfs_rmdir(
 
 	VOP_RMDIR(dvp, dentry, NULL, error);
 	if (likely(!error)) {
-		__linvfs_validate_fields(inode, vattr);
-		__linvfs_validate_fields(dir, vattr);
+		xfs_validate_fields(inode, vattr);
+		xfs_validate_fields(dir, vattr);
 	}
 	kfree(vattr);
 	return -error;
 }
 
 STATIC int
-linvfs_rename(
+xfs_vn_rename(
 	struct inode	*odir,
 	struct dentry	*odentry,
 	struct inode	*ndir,
@@ -565,10 +565,10 @@ linvfs_rename(
 	VOP_RENAME(fvp, odentry, tvp, ndentry, NULL, error);
 	if (likely(!error)) {
 		if (new_inode)
-			__linvfs_validate_fields(new_inode, vattr);
-		__linvfs_validate_fields(odir, vattr);
+			xfs_validate_fields(new_inode, vattr);
+		xfs_validate_fields(odir, vattr);
 		if (ndir != odir)
-			__linvfs_validate_fields(ndir, vattr);
+			xfs_validate_fields(ndir, vattr);
 	}
 	kfree(vattr);
 	return -error;
@@ -580,7 +580,7 @@ linvfs_rename(
  * uio is kmalloced for this reason...
  */
 STATIC void *
-linvfs_follow_link(
+xfs_vn_follow_link(
 	struct dentry		*dentry,
 	struct nameidata	*nd)
 {
@@ -631,7 +631,7 @@ linvfs_follow_link(
 }
 
 STATIC void
-linvfs_put_link(
+xfs_vn_put_link(
 	struct dentry	*dentry,
 	struct nameidata *nd,
 	void		*p)
@@ -644,7 +644,7 @@ linvfs_put_link(
 
 #ifdef CONFIG_XFS_POSIX_ACL
 STATIC int
-linvfs_permission(
+xfs_vn_permission(
 	struct inode	*inode,
 	int		mode,
 	struct nameidata *nd)
@@ -657,11 +657,11 @@ linvfs_permission(
 	return -error;
 }
 #else
-#define linvfs_permission NULL
+#define xfs_vn_permission NULL
 #endif
 
 STATIC int
-linvfs_getattr(
+xfs_vn_getattr(
 	struct vfsmount	*mnt,
 	struct dentry	*dentry,
 	struct kstat	*stat)
@@ -678,7 +678,7 @@ linvfs_getattr(
 }
 
 STATIC int
-linvfs_setattr(
+xfs_vn_setattr(
 	struct dentry	*dentry,
 	struct iattr	*attr)
 {
@@ -736,14 +736,14 @@ linvfs_setattr(
 }
 
 STATIC void
-linvfs_truncate(
+xfs_vn_truncate(
 	struct inode	*inode)
 {
 	block_truncate_page(inode->i_mapping, inode->i_size, xfs_get_block);
 }
 
 STATIC int
-linvfs_setxattr(
+xfs_vn_setxattr(
 	struct dentry	*dentry,
 	const char	*name,
 	const void	*data,
@@ -774,7 +774,7 @@ linvfs_setxattr(
 }
 
 STATIC ssize_t
-linvfs_getxattr(
+xfs_vn_getxattr(
 	struct dentry	*dentry,
 	const char	*name,
 	void		*data,
@@ -804,7 +804,7 @@ linvfs_getxattr(
 }
 
 STATIC ssize_t
-linvfs_listxattr(
+xfs_vn_listxattr(
 	struct dentry		*dentry,
 	char			*data,
 	size_t			size)
@@ -824,7 +824,7 @@ linvfs_listxattr(
 }
 
 STATIC int
-linvfs_removexattr(
+xfs_vn_removexattr(
 	struct dentry	*dentry,
 	const char	*name)
 {
@@ -846,45 +846,45 @@ linvfs_removexattr(
 }
 
 
-struct inode_operations linvfs_file_inode_operations = {
-	.permission		= linvfs_permission,
-	.truncate		= linvfs_truncate,
-	.getattr		= linvfs_getattr,
-	.setattr		= linvfs_setattr,
-	.setxattr		= linvfs_setxattr,
-	.getxattr		= linvfs_getxattr,
-	.listxattr		= linvfs_listxattr,
-	.removexattr		= linvfs_removexattr,
+struct inode_operations xfs_inode_operations = {
+	.permission		= xfs_vn_permission,
+	.truncate		= xfs_vn_truncate,
+	.getattr		= xfs_vn_getattr,
+	.setattr		= xfs_vn_setattr,
+	.setxattr		= xfs_vn_setxattr,
+	.getxattr		= xfs_vn_getxattr,
+	.listxattr		= xfs_vn_listxattr,
+	.removexattr		= xfs_vn_removexattr,
 };
 
-struct inode_operations linvfs_dir_inode_operations = {
-	.create			= linvfs_create,
-	.lookup			= linvfs_lookup,
-	.link			= linvfs_link,
-	.unlink			= linvfs_unlink,
-	.symlink		= linvfs_symlink,
-	.mkdir			= linvfs_mkdir,
-	.rmdir			= linvfs_rmdir,
-	.mknod			= linvfs_mknod,
-	.rename			= linvfs_rename,
-	.permission		= linvfs_permission,
-	.getattr		= linvfs_getattr,
-	.setattr		= linvfs_setattr,
-	.setxattr		= linvfs_setxattr,
-	.getxattr		= linvfs_getxattr,
-	.listxattr		= linvfs_listxattr,
-	.removexattr		= linvfs_removexattr,
+struct inode_operations xfs_dir_inode_operations = {
+	.create			= xfs_vn_create,
+	.lookup			= xfs_vn_lookup,
+	.link			= xfs_vn_link,
+	.unlink			= xfs_vn_unlink,
+	.symlink		= xfs_vn_symlink,
+	.mkdir			= xfs_vn_mkdir,
+	.rmdir			= xfs_vn_rmdir,
+	.mknod			= xfs_vn_mknod,
+	.rename			= xfs_vn_rename,
+	.permission		= xfs_vn_permission,
+	.getattr		= xfs_vn_getattr,
+	.setattr		= xfs_vn_setattr,
+	.setxattr		= xfs_vn_setxattr,
+	.getxattr		= xfs_vn_getxattr,
+	.listxattr		= xfs_vn_listxattr,
+	.removexattr		= xfs_vn_removexattr,
 };
 
-struct inode_operations linvfs_symlink_inode_operations = {
+struct inode_operations xfs_symlink_inode_operations = {
 	.readlink		= generic_readlink,
-	.follow_link		= linvfs_follow_link,
-	.put_link		= linvfs_put_link,
-	.permission		= linvfs_permission,
-	.getattr		= linvfs_getattr,
-	.setattr		= linvfs_setattr,
-	.setxattr		= linvfs_setxattr,
-	.getxattr		= linvfs_getxattr,
-	.listxattr		= linvfs_listxattr,
-	.removexattr		= linvfs_removexattr,
+	.follow_link		= xfs_vn_follow_link,
+	.put_link		= xfs_vn_put_link,
+	.permission		= xfs_vn_permission,
+	.getattr		= xfs_vn_getattr,
+	.setattr		= xfs_vn_setattr,
+	.setxattr		= xfs_vn_setxattr,
+	.getxattr		= xfs_vn_getxattr,
+	.listxattr		= xfs_vn_listxattr,
+	.removexattr		= xfs_vn_removexattr,
 };

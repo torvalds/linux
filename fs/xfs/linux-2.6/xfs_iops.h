@@ -18,9 +18,9 @@
 #ifndef __XFS_IOPS_H__
 #define __XFS_IOPS_H__
 
-extern struct inode_operations linvfs_file_inode_operations;
-extern struct inode_operations linvfs_dir_inode_operations;
-extern struct inode_operations linvfs_symlink_inode_operations;
+extern struct inode_operations xfs_inode_operations;
+extern struct inode_operations xfs_dir_inode_operations;
+extern struct inode_operations xfs_symlink_inode_operations;
 
 extern struct file_operations xfs_file_operations;
 extern struct file_operations xfs_dir_file_operations;
