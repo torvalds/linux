@@ -30,6 +30,7 @@
 #define SCANCODE(r,c)		(((r)<<4) + (c) + 1)
 #define	NR_SCANCODES		((KB_ROWS<<4) + 1)
 
+#define SCAN_INTERVAL		(50) /* ms */
 #define HINGE_SCAN_INTERVAL	(150) /* ms */
 
 #define SPITZ_KEY_CALENDER	KEY_F1
@@ -230,7 +231,7 @@ static void spitzkbd_scankeyboard(struct spitzkbd *spitzkbd_data, struct pt_regs
 
 	/* if any keys are pressed, enable the timer */
 	if (num_pressed)
-		mod_timer(&spitzkbd_data->timer, jiffies + msecs_to_jiffies(100));
+		mod_timer(&spitzkbd_data->timer, jiffies + msecs_to_jiffies(SCAN_INTERVAL));
 
 	spin_unlock_irqrestore(&spitzkbd_data->lock, flags);
 }
@@ -287,6 +288,7 @@ static void spitzkbd_hinge_timer(unsigned long data)
 	unsigned long flags;
 
 	state = GPLR(SPITZ_GPIO_SWA) & (GPIO_bit(SPITZ_GPIO_SWA)|GPIO_bit(SPITZ_GPIO_SWB));
+	state |= (GPLR(SPITZ_GPIO_AK_INT) & GPIO_bit(SPITZ_GPIO_AK_INT));
 	if (state != sharpsl_hinge_state) {
 		hinge_count = 0;
 		sharpsl_hinge_state = state;
@@ -299,6 +301,7 @@ static void spitzkbd_hinge_timer(unsigned long data)
 
 		input_report_switch(spitzkbd_data->input, SW_0, ((GPLR(SPITZ_GPIO_SWA) & GPIO_bit(SPITZ_GPIO_SWA)) != 0));
 		input_report_switch(spitzkbd_data->input, SW_1, ((GPLR(SPITZ_GPIO_SWB) & GPIO_bit(SPITZ_GPIO_SWB)) != 0));
+		input_report_switch(spitzkbd_data->input, SW_2, ((GPLR(SPITZ_GPIO_AK_INT) & GPIO_bit(SPITZ_GPIO_AK_INT)) != 0));
 		input_sync(spitzkbd_data->input);
 
 		spin_unlock_irqrestore(&spitzkbd_data->lock, flags);
@@ -397,6 +400,7 @@ static int __init spitzkbd_probe(struct platform_device *dev)
 	clear_bit(0, input_dev->keybit);
 	set_bit(SW_0, input_dev->swbit);
 	set_bit(SW_1, input_dev->swbit);
+	set_bit(SW_2, input_dev->swbit);
 
 	input_register_device(input_dev);
 
@@ -432,6 +436,9 @@ static int __init spitzkbd_probe(struct platform_device *dev)
 	request_irq(SPITZ_IRQ_GPIO_SWB, spitzkbd_hinge_isr,
 		    SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
 		    "Spitzkbd SWB", spitzkbd);
+ 	request_irq(SPITZ_IRQ_GPIO_AK_INT, spitzkbd_hinge_isr,
+		    SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+		    "Spitzkbd HP", spitzkbd);
 
 	printk(KERN_INFO "input: Spitz Keyboard Registered\n");
 
@@ -450,6 +457,7 @@ static int spitzkbd_remove(struct platform_device *dev)
 	free_irq(SPITZ_IRQ_GPIO_ON_KEY, spitzkbd);
 	free_irq(SPITZ_IRQ_GPIO_SWA, spitzkbd);
 	free_irq(SPITZ_IRQ_GPIO_SWB, spitzkbd);
+	free_irq(SPITZ_IRQ_GPIO_AK_INT, spitzkbd);
 
 	del_timer_sync(&spitzkbd->htimer);
 	del_timer_sync(&spitzkbd->timer);
