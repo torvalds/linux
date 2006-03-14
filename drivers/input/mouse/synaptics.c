@@ -247,13 +247,11 @@ static void synaptics_pt_create(struct psmouse *psmouse)
 {
 	struct serio *serio;
 
-	serio = kmalloc(sizeof(struct serio), GFP_KERNEL);
+	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!serio) {
 		printk(KERN_ERR "synaptics: not enough memory to allocate pass-through port\n");
 		return;
 	}
-
-	memset(serio, 0, sizeof(struct serio));
 
 	serio->id.type = SERIO_PS_PSTHRU;
 	strlcpy(serio->name, "Synaptics pass-through", sizeof(serio->name));
@@ -623,10 +621,9 @@ int synaptics_init(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv;
 
-	psmouse->private = priv = kmalloc(sizeof(struct synaptics_data), GFP_KERNEL);
+	psmouse->private = priv = kzalloc(sizeof(struct synaptics_data), GFP_KERNEL);
 	if (!priv)
 		return -1;
-	memset(priv, 0, sizeof(struct synaptics_data));
 
 	if (synaptics_query_hardware(psmouse)) {
 		printk(KERN_ERR "Unable to query Synaptics hardware.\n");

@@ -245,10 +245,11 @@ static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 	unsigned int	i, naxsets, btntype;
 	uint8_t		did, *idd;
 
-	if (!(ptr = kmalloc(sizeof(struct hil_ptr), GFP_KERNEL))) return -ENOMEM;
-	memset(ptr, 0, sizeof(struct hil_ptr));
+	if (!(ptr = kzalloc(sizeof(struct hil_ptr), GFP_KERNEL)))
+		return -ENOMEM;
 
-	if (serio_open(serio, driver)) goto bail0;
+	if (serio_open(serio, driver))
+		goto bail0;
 
 	serio_set_drvdata(serio, ptr);
 	ptr->serio = serio;

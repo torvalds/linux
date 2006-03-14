@@ -251,10 +251,9 @@ static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	uint8_t		did, *idd;
 	int		i;
 	
-	kbd = kmalloc(sizeof(*kbd), GFP_KERNEL);
+	kbd = kzalloc(sizeof(*kbd), GFP_KERNEL);
 	if (!kbd)
 		return -ENOMEM;
-	memset(kbd, 0, sizeof(struct hil_kbd));
 
 	if (serio_open(serio, drv)) goto bail0;
 

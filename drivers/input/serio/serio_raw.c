@@ -96,12 +96,11 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	if (!(list = kmalloc(sizeof(struct serio_raw_list), GFP_KERNEL))) {
+	if (!(list = kzalloc(sizeof(struct serio_raw_list), GFP_KERNEL))) {
 		retval = -ENOMEM;
 		goto out;
 	}
 
-	memset(list, 0, sizeof(struct serio_raw_list));
 	list->serio_raw = serio_raw;
 	file->private_data = list;
 
@@ -276,14 +275,13 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 	struct serio_raw *serio_raw;
 	int err;
 
-	if (!(serio_raw = kmalloc(sizeof(struct serio_raw), GFP_KERNEL))) {
+	if (!(serio_raw = kzalloc(sizeof(struct serio_raw), GFP_KERNEL))) {
 		printk(KERN_ERR "serio_raw.c: can't allocate memory for a device\n");
 		return -ENOMEM;
 	}
 
 	mutex_lock(&serio_raw_mutex);
 
-	memset(serio_raw, 0, sizeof(struct serio_raw));
 	snprintf(serio_raw->name, sizeof(serio_raw->name), "serio_raw%d", serio_raw_no++);
 	serio_raw->refcnt = 1;
 	serio_raw->serio = serio;
