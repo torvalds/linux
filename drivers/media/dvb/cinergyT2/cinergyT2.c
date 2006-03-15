@@ -506,6 +506,9 @@ static int cinergyt2_open (struct inode *inode, struct file *file)
 
 static void cinergyt2_unregister(struct cinergyt2 *cinergyt2)
 {
+	dvb_net_release(&cinergyt2->dvbnet);
+	dvb_dmxdev_release(&cinergyt2->dmxdev);
+	dvb_dmx_release(&cinergyt2->demux);
 	dvb_unregister_device(cinergyt2->fedev);
 	dvb_unregister_adapter(&cinergyt2->adapter);
 
@@ -938,6 +941,7 @@ static int cinergyt2_probe (struct usb_interface *intf,
 	return 0;
 
 bailout:
+	dvb_net_release(&cinergyt2->dvbnet);
 	dvb_dmxdev_release(&cinergyt2->dmxdev);
 	dvb_dmx_release(&cinergyt2->demux);
 	dvb_unregister_adapter(&cinergyt2->adapter);
