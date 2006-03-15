@@ -70,6 +70,12 @@ const char *get_system_type(void)
 	return "SiByte " SIBYTE_BOARD_NAME;
 }
 
+void __init swarm_time_init(void)
+{
+	/* Setup HPT */
+	sb1250_hpt_setup();
+}
+
 void __init swarm_timer_setup(struct irqaction *irq)
 {
         /*
@@ -109,6 +115,7 @@ void __init plat_setup(void)
 
 	panic_timeout = 5;  /* For debug.  */
 
+	board_time_init = swarm_time_init;
 	board_timer_setup = swarm_timer_setup;
 	board_be_handler = swarm_be_handler;
 
