@@ -88,7 +88,7 @@ static int zl10353_read_register(struct zl10353_state *state, u8 reg)
 	return b1[0];
 }
 
-void zl10353_dump_regs(struct dvb_frontend *fe)
+static void zl10353_dump_regs(struct dvb_frontend *fe)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
 	char buf[52], buf2[4];
