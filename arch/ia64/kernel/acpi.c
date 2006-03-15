@@ -443,6 +443,9 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
 void __init
 acpi_numa_processor_affinity_init(struct acpi_table_processor_affinity *pa)
 {
+	if (!pa->flags.enabled)
+		return;
+
 	/* record this node in proximity bitmap */
 	pxm_bit_set(pa->proximity_domain);
 
