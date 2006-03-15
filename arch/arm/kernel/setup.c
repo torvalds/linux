@@ -37,6 +37,8 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
+#include "compat.h"
+
 #ifndef MEM_SIZE
 #define MEM_SIZE	(16*1024*1024)
 #endif
@@ -55,8 +57,6 @@ __setup("fpe=", fpe_setup);
 
 extern unsigned int mem_fclk_21285;
 extern void paging_init(struct meminfo *, struct machine_desc *desc);
-extern void convert_to_tag_list(struct tag *tags);
-extern void squash_mem_tags(struct tag *tag);
 extern void reboot_setup(char *str);
 extern int root_mountflags;
 extern void _stext, _text, _etext, __data_start, _edata, _end;
