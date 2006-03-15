@@ -409,6 +409,9 @@ __init_channel_subsystem(struct subchannel_id schid, void *data)
 		/* -ENXIO: no more subchannels. */
 		case -ENXIO:
 			return ret;
+		/* -EIO: this subchannel set not supported. */
+		case -EIO:
+			return ret;
 		default:
 			return 0;
 		}

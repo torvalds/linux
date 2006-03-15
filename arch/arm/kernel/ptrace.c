@@ -610,15 +610,12 @@ static int ptrace_setfpregs(struct task_struct *tsk, void __user *ufp)
 static int ptrace_getwmmxregs(struct task_struct *tsk, void __user *ufp)
 {
 	struct thread_info *thread = task_thread_info(tsk);
-	void *ptr = &thread->fpstate;
 
 	if (!test_ti_thread_flag(thread, TIF_USING_IWMMXT))
 		return -ENODATA;
 	iwmmxt_task_disable(thread);  /* force it to ram */
-	/* The iWMMXt state is stored doubleword-aligned.  */
-	if (((long) ptr) & 4)
-		ptr += 4;
-	return copy_to_user(ufp, ptr, 0x98) ? -EFAULT : 0;
+	return copy_to_user(ufp, &thread->fpstate.iwmmxt, IWMMXT_SIZE)
+		? -EFAULT : 0;
 }
 
 /*
@@ -627,15 +624,12 @@ static int ptrace_getwmmxregs(struct task_struct *tsk, void __user *ufp)
 static int ptrace_setwmmxregs(struct task_struct *tsk, void __user *ufp)
 {
 	struct thread_info *thread = task_thread_info(tsk);
-	void *ptr = &thread->fpstate;
 
 	if (!test_ti_thread_flag(thread, TIF_USING_IWMMXT))
 		return -EACCES;
 	iwmmxt_task_release(thread);  /* force a reload */
-	/* The iWMMXt state is stored doubleword-aligned.  */
-	if (((long) ptr) & 4)
-		ptr += 4;
-	return copy_from_user(ptr, ufp, 0x98) ? -EFAULT : 0;
+	return copy_from_user(&thead->fpstate.iwmmxt, ufp, IWMMXT_SIZE)
+		? -EFAULT : 0;
 }
 
 #endif

@@ -1194,6 +1194,9 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 		msg->msg_namelen = sizeof(*addr);
 	}
 
+	if (nlk->flags & NETLINK_RECV_PKTINFO)
+		netlink_cmsg_recv_pktinfo(msg, skb);
+
 	if (NULL == siocb->scm) {
 		memset(&scm, 0, sizeof(scm));
 		siocb->scm = &scm;
@@ -1205,8 +1208,6 @@ static int netlink_recvmsg(struct kiocb *kiocb, struct socket *sock,
 		netlink_dump(sk);
 
 	scm_recv(sock, msg, siocb->scm, flags);
-	if (nlk->flags & NETLINK_RECV_PKTINFO)
-		netlink_cmsg_recv_pktinfo(msg, skb);
 
 out:
 	netlink_rcv_wake(sk);

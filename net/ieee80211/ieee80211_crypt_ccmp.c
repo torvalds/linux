@@ -131,7 +131,7 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	a4_included = ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 		       (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS));
 	qc_included = ((WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) &&
-		       (WLAN_FC_GET_STYPE(fc) & 0x08));
+		       (WLAN_FC_GET_STYPE(fc) & IEEE80211_STYPE_QOS_DATA));
 	aad_len = 22;
 	if (a4_included)
 		aad_len += 6;

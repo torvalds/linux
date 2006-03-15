@@ -944,10 +944,11 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&
 	    (rt->u.dst.dev->features & NETIF_F_UFO)) {
 
-		if(ip6_ufo_append_data(sk, getfrag, from, length, hh_len,
-				fragheaderlen, transhdrlen, mtu, flags))
+		err = ip6_ufo_append_data(sk, getfrag, from, length, hh_len,
+					  fragheaderlen, transhdrlen, mtu,
+					  flags);
+		if (err)
 			goto error;
-
 		return 0;
 	}
 
