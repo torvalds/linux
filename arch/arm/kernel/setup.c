@@ -55,7 +55,6 @@ static int __init fpe_setup(char *line)
 __setup("fpe=", fpe_setup);
 #endif
 
-extern unsigned int mem_fclk_21285;
 extern void paging_init(struct meminfo *, struct machine_desc *desc);
 extern void reboot_setup(char *str);
 extern int root_mountflags;
