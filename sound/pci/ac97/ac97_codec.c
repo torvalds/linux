@@ -1868,6 +1868,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	ac97->scaps = template->scaps;
 	ac97->limited_regs = template->limited_regs;
 	memcpy(ac97->reg_accessed, template->reg_accessed, sizeof(ac97->reg_accessed));
+	ac97->res_table = template->res_table;
 	bus->codec[ac97->num] = ac97;
 	mutex_init(&ac97->reg_mutex);
 	mutex_init(&ac97->page_mutex);

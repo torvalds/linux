@@ -433,6 +433,12 @@ struct snd_ac97_bus {
 	struct snd_info_entry *proc;
 };
 
+/* static resolution table */
+struct snd_ac97_res_table {
+	unsigned short reg;	/* register */
+	unsigned short bits;	/* resolution bitmask */
+};
+
 struct snd_ac97_template {
 	void *private_data;
 	void (*private_free) (struct snd_ac97 *ac97);
@@ -442,12 +448,7 @@ struct snd_ac97_template {
 	unsigned int scaps;	/* driver capabilities */
 	unsigned int limited_regs; /* allow limited registers only */
 	DECLARE_BITMAP(reg_accessed, 0x80); /* bit flags */
-};
-
-/* static resolution table */
-struct snd_ac97_res_table {
-	unsigned short reg;	/* register */
-	unsigned short bits;	/* resolution bitmask */
+	const struct snd_ac97_res_table *res_table;	/* static resolution */
 };
 
 struct snd_ac97 {
