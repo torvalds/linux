@@ -748,7 +748,7 @@ long do_mbind(unsigned long start, unsigned long len,
 				      MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
 	    || mode > MPOL_MAX)
 		return -EINVAL;
-	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_RESOURCE))
+	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
 		return -EPERM;
 
 	if (start & ~PAGE_MASK)
@@ -942,20 +942,20 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 	 */
 	if ((current->euid != task->suid) && (current->euid != task->uid) &&
 	    (current->uid != task->suid) && (current->uid != task->uid) &&
-	    !capable(CAP_SYS_ADMIN)) {
+	    !capable(CAP_SYS_NICE)) {
 		err = -EPERM;
 		goto out;
 	}
 
 	task_nodes = cpuset_mems_allowed(task);
 	/* Is the user allowed to access the target nodes? */
-	if (!nodes_subset(new, task_nodes) && !capable(CAP_SYS_ADMIN)) {
+	if (!nodes_subset(new, task_nodes) && !capable(CAP_SYS_NICE)) {
 		err = -EPERM;
 		goto out;
 	}
 
 	err = do_migrate_pages(mm, &old, &new,
-		capable(CAP_SYS_ADMIN) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
+		capable(CAP_SYS_NICE) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
 out:
 	mmput(mm);
 	return err;
