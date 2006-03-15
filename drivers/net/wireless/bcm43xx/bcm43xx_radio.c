@@ -1690,8 +1690,8 @@ void bcm43xx_radio_set_txpower_bg(struct bcm43xx_private *bcm,
 	bcm43xx_shm_write16(bcm, BCM43xx_SHM_SHARED, 0x0064, radio_attenuation);
 	if (radio->version == 0x2050) {
 		bcm43xx_radio_write16(bcm, 0x0052,
-		                      (bcm43xx_radio_read16(bcm, 0x0052) & 0xFF8F)
-				       | (txpower << 4));
+		                      (bcm43xx_radio_read16(bcm, 0x0052) & ~0x0070)
+				       | ((txpower << 4) & 0x0070));
 	}
 	if (phy->type == BCM43xx_PHYTYPE_G)
 		bcm43xx_phy_lo_adjust(bcm, 0);
