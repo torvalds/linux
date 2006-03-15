@@ -944,7 +944,7 @@ static int __init ebda_rsrc_controller (void)
 				goto error_no_slot;
 			}
 
-			tmp_slot->flag = TRUE;
+			tmp_slot->flag = 1;
 
 			tmp_slot->capabilities = hpc_ptr->slots[index].slot_cap;
 			if ((hpc_ptr->slots[index].slot_cap & EBDA_SLOT_133_MAX) == EBDA_SLOT_133_MAX)

@@ -325,7 +325,7 @@ int __init ibmphp_rsrc_init (void)
 				if (!new_pfmem)
 					return -ENOMEM;
 				new_pfmem->type = PFMEM;
-				new_pfmem->fromMem = FALSE;
+				new_pfmem->fromMem = 0;
 				if (ibmphp_add_resource (new_pfmem) < 0) {
 					newbus = alloc_error_bus (curr, 0, 0);
 					if (!newbus)
@@ -462,7 +462,7 @@ static int add_range (int type, struct range_node *range, struct bus_node *bus_c
 static void update_resources (struct bus_node *bus_cur, int type, int rangeno)
 {
 	struct resource_node *res = NULL;
-	u8 eol = FALSE;	/* end of list indicator */
+	u8 eol = 0;	/* end of list indicator */
 
 	switch (type) {
 		case MEM:
@@ -488,7 +488,7 @@ static void update_resources (struct bus_node *bus_cur, int type, int rangeno)
 			else if (res->nextRange)
 				res = res->nextRange;
 			else {
-				eol = TRUE;
+				eol = 1;
 				break;
 			}
 		}
@@ -979,7 +979,7 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 	int noranges = 0;
 	u32 tmp_start;		/* this is to make sure start address is divisible by the length needed */
 	u32 tmp_divide;
-	u8 flag = FALSE;
+	u8 flag = 0;
 
 	if (!res)
 		return -EINVAL;
@@ -1046,17 +1046,17 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 
 					if ((range->start % tmp_divide) == 0) {
 						/* just perfect, starting address is divisible by length */
-						flag = TRUE;
+						flag = 1;
 						len_cur = len_tmp;
 						start_cur = range->start;
 					} else {
 						/* Needs adjusting */
 						tmp_start = range->start;
-						flag = FALSE;
+						flag = 0;
 
 						while ((len_tmp = res_cur->start - 1 - tmp_start) >= res->len) {
 							if ((tmp_start % tmp_divide) == 0) {
-								flag = TRUE;
+								flag = 1;
 								len_cur = len_tmp;
 								start_cur = tmp_start;
 								break;
@@ -1085,17 +1085,17 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 
 					if (((res_cur->end + 1) % tmp_divide) == 0) {
 						/* just perfect, starting address is divisible by length */
-						flag = TRUE;
+						flag = 1;
 						len_cur = len_tmp;
 						start_cur = res_cur->end + 1;
 					} else {
 						/* Needs adjusting */
 						tmp_start = res_cur->end + 1;
-						flag = FALSE;
+						flag = 0;
 
 						while ((len_tmp = range->end - tmp_start) >= res->len) {
 							if ((tmp_start % tmp_divide) == 0) {
-								flag = TRUE;
+								flag = 1;
 								len_cur = len_tmp;
 								start_cur = tmp_start;
 								break;
@@ -1123,17 +1123,17 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 					if ((len_tmp < len_cur) || (len_cur == 0)) {
 						if ((range->start % tmp_divide) == 0) {	
 							/* just perfect, starting address is divisible by length */
-							flag = TRUE;
+							flag = 1;
 							len_cur = len_tmp;
 							start_cur = range->start;
 						} else {
 							/* Needs adjusting */
 							tmp_start = range->start;
-							flag = FALSE;
+							flag = 0;
 
 							while ((len_tmp = res_cur->start - 1 - tmp_start) >= res->len) {
 								if ((tmp_start % tmp_divide) == 0) {
-									flag = TRUE;
+									flag = 1;
 									len_cur = len_tmp;
 									start_cur = tmp_start;
 									break;
@@ -1158,17 +1158,17 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 					if ((len_tmp < len_cur) || (len_cur == 0)) {
 						if (((res_prev->end + 1) % tmp_divide) == 0) {
 							/* just perfect, starting address's divisible by length */
-							flag = TRUE;
+							flag = 1;
 							len_cur = len_tmp;
 							start_cur = res_prev->end + 1;
 						} else {
 							/* Needs adjusting */
 							tmp_start = res_prev->end + 1;
-							flag = FALSE;
+							flag = 0;
 
 							while ((len_tmp = res_cur->start - 1 - tmp_start) >= res->len) {
 								if ((tmp_start % tmp_divide) == 0) {
-									flag = TRUE;
+									flag = 1;
 									len_cur = len_tmp;
 									start_cur = tmp_start;
 									break;
@@ -1217,17 +1217,17 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 				if ((len_tmp < len_cur) || (len_cur == 0)) {
 					if ((range->start % tmp_divide) == 0) {
 						/* just perfect, starting address's divisible by length */
-						flag = TRUE;
+						flag = 1;
 						len_cur = len_tmp;
 						start_cur = range->start;
 					} else {
 						/* Needs adjusting */
 						tmp_start = range->start;
-						flag = FALSE;
+						flag = 0;
 
 						while ((len_tmp = range->end - tmp_start) >= res->len) {
 							if ((tmp_start % tmp_divide) == 0) {
-								flag = TRUE;
+								flag = 1;
 								len_cur = len_tmp;
 								start_cur = tmp_start;
 								break;
@@ -1281,17 +1281,17 @@ int ibmphp_check_resource (struct resource_node *res, u8 bridge)
 					if ((len_tmp < len_cur) || (len_cur == 0)) {
 						if ((range->start % tmp_divide) == 0) {
 							/* just perfect, starting address's divisible by length */
-							flag = TRUE;
+							flag = 1;
 							len_cur = len_tmp;
 							start_cur = range->start;
 						} else {
 							/* Needs adjusting */
 							tmp_start = range->start;
-							flag = FALSE;
+							flag = 0;
 
 							while ((len_tmp = range->end - tmp_start) >= res->len) {
 								if ((tmp_start % tmp_divide) == 0) {
-									flag = TRUE;
+									flag = 1;
 									len_cur = len_tmp;
 									start_cur = tmp_start;
 									break;
@@ -1684,7 +1684,7 @@ static int __init once_over (void)
 		bus_cur = list_entry (tmp, struct bus_node, bus_list);
 		if ((!bus_cur->rangePFMem) && (bus_cur->firstPFMem)) {
 			for (pfmem_cur = bus_cur->firstPFMem, pfmem_prev = NULL; pfmem_cur; pfmem_prev = pfmem_cur, pfmem_cur = pfmem_cur->next) {
-				pfmem_cur->fromMem = TRUE;
+				pfmem_cur->fromMem = 1;
 				if (pfmem_prev)
 					pfmem_prev->next = pfmem_cur->next;
 				else
@@ -2129,7 +2129,7 @@ static int __init update_bridge_ranges (struct bus_node **bus)
 								pfmem->start = start_address;
 								pfmem->end = end_address + 0xfffff;
 								pfmem->len = pfmem->end - pfmem->start + 1;
-								pfmem->fromMem = FALSE;
+								pfmem->fromMem = 0;
 
 								ibmphp_add_resource (pfmem);
 							}

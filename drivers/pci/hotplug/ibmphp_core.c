@@ -1239,9 +1239,9 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 	}
 	
 	flag = slot_cur->flag;
-	slot_cur->flag = TRUE;
+	slot_cur->flag = 1;
 
-	if (flag == TRUE) {
+	if (flag == 1) {
 		rc = validate(slot_cur, DISABLE);
 			/* checking if powered off already & valid slot # */
 		if (rc)
