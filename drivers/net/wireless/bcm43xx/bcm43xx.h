@@ -120,6 +120,10 @@
 #define BCM43xx_BFL_AFTERBURNER		0x0200 /* supports Afterburner mode */
 #define BCM43xx_BFL_NOPCI		0x0400 /* leaves PCI floating */
 #define BCM43xx_BFL_FEM			0x0800 /* supports the Front End Module */
+#define BCM43xx_BFL_EXTLNA		0x1000 /* has an external LNA */
+#define BCM43xx_BFL_HGPA		0x2000 /* had high gain PA */
+#define BCM43xx_BFL_BTCMOD		0x4000 /* BFL_BTCOEXIST is given in alternate GPIOs */
+#define BCM43xx_BFL_ALTIQ		0x8000 /* alternate I/Q settings */
 
 /* GPIO register offset, in both ChipCommon and PCI core. */
 #define BCM43xx_GPIO_CONTROL		0x6c

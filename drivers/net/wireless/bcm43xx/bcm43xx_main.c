@@ -910,6 +910,15 @@ static int bcm43xx_sprom_extract(struct bcm43xx_private *bcm)
 	if (value == 0xFFFF)
 		value = 0x0000;
 	bcm->sprom.boardflags = value;
+	/* boardflags workarounds */
+	if (bcm->board_vendor == PCI_VENDOR_ID_DELL &&
+	    bcm->chip_id == 0x4301 &&
+	    bcm->board_revision == 0x74)
+		bcm->sprom.boardflags |= BCM43xx_BFL_BTCOEXIST;
+	if (bcm->board_vendor == PCI_VENDOR_ID_APPLE &&
+	    bcm->board_type == 0x4E &&
+	    bcm->board_revision > 0x40)
+		bcm->sprom.boardflags |= BCM43xx_BFL_PACTRL;
 
 	/* antenna gain */
 	value = sprom[BCM43xx_SPROM_ANTENNA_GAIN];
