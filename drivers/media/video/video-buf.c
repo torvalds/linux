@@ -427,7 +427,7 @@ videobuf_queue_is_busy(struct videobuf_queue *q)
 void
 videobuf_queue_cancel(struct videobuf_queue *q)
 {
-	unsigned long flags;
+	unsigned long flags=0;
 	int i;
 
 	/* remove queued buffers from list */
@@ -588,7 +588,7 @@ videobuf_qbuf(struct videobuf_queue *q,
 {
 	struct videobuf_buffer *buf;
 	enum v4l2_field field;
-	unsigned long flags;
+	unsigned long flags=0;
 	int retval;
 
 	mutex_lock(&q->lock);
@@ -700,7 +700,7 @@ int videobuf_streamon(struct videobuf_queue *q)
 {
 	struct videobuf_buffer *buf;
 	struct list_head *list;
-	unsigned long flags;
+	unsigned long flags=0;
 	int retval;
 
 	mutex_lock(&q->lock);
@@ -745,7 +745,7 @@ videobuf_read_zerocopy(struct videobuf_queue *q, char __user *data,
 		       size_t count, loff_t *ppos)
 {
 	enum v4l2_field field;
-	unsigned long flags;
+	unsigned long flags=0;
 	int retval;
 
 	/* setup stuff */
@@ -787,7 +787,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 			  int nonblocking)
 {
 	enum v4l2_field field;
-	unsigned long flags;
+	unsigned long flags=0;
 	unsigned size, nbufs, bytes;
 	int retval;
 
@@ -866,7 +866,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 int videobuf_read_start(struct videobuf_queue *q)
 {
 	enum v4l2_field field;
-	unsigned long flags;
+	unsigned long flags=0;
 	int count = 0, size = 0;
 	int err, i;
 
@@ -918,7 +918,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 {
 	unsigned int *fc, bytes;
 	int err, retval;
-	unsigned long flags;
+	unsigned long flags=0;
 
 	dprintk(2,"%s\n",__FUNCTION__);
 	mutex_lock(&q->lock);
