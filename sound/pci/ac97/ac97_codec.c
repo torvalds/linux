@@ -192,9 +192,6 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 
 static int snd_ac97_valid_reg(struct snd_ac97 *ac97, unsigned short reg)
 {
-	if (ac97->limited_regs && ! test_bit(reg, ac97->reg_accessed))
-  		return 0;
-
 	/* filter some registers for buggy codecs */
 	switch (ac97->id) {
 	case AC97_ID_AK4540:
@@ -1007,9 +1004,6 @@ static int snd_ac97_try_volume_mix(struct snd_ac97 * ac97, int reg)
 			return 0;
 		break;
 	}
-
-	if (ac97->limited_regs && test_bit(reg, ac97->reg_accessed))
-		return 1; /* allow without check */
 
 	val = snd_ac97_read(ac97, reg);
 	if (!(val & mask)) {
@@ -1866,8 +1860,6 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	ac97->num = template->num;
 	ac97->addr = template->addr;
 	ac97->scaps = template->scaps;
-	ac97->limited_regs = template->limited_regs;
-	memcpy(ac97->reg_accessed, template->reg_accessed, sizeof(ac97->reg_accessed));
 	ac97->res_table = template->res_table;
 	bus->codec[ac97->num] = ac97;
 	mutex_init(&ac97->reg_mutex);

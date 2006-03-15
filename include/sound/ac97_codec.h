@@ -446,8 +446,6 @@ struct snd_ac97_template {
 	unsigned short num;	/* number of codec: 0 = primary, 1 = secondary */
 	unsigned short addr;	/* physical address of codec [0-3] */
 	unsigned int scaps;	/* driver capabilities */
-	unsigned int limited_regs; /* allow limited registers only */
-	DECLARE_BITMAP(reg_accessed, 0x80); /* bit flags */
 	const struct snd_ac97_res_table *res_table;	/* static resolution */
 };
 
@@ -477,7 +475,6 @@ struct snd_ac97 {
 	unsigned int rates[6];	/* see AC97_RATES_* defines */
 	unsigned int spdif_status;
 	unsigned short regs[0x80]; /* register cache */
-	unsigned int limited_regs; /* allow limited registers only */
 	DECLARE_BITMAP(reg_accessed, 0x80); /* bit flags */
 	union {			/* vendor specific code */
 		struct {
