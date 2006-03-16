@@ -1410,6 +1410,15 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 
 /* Casio devices */
 {
+	USB_DEVICE(0x07cf, 0x6801),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Casio",
+		.product_name = "PL-40R",
+		.ifnum = 0,
+		.type = QUIRK_MIDI_YAMAHA
+	}
+},
+{
 	/* this ID is used by several devices without a product ID */
 	USB_DEVICE(0x07cf, 0x6802),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
