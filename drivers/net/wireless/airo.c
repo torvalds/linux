@@ -770,6 +770,11 @@ typedef struct {
 } BSSListRid;
 
 typedef struct {
+  BSSListRid bss;
+  struct list_head list;
+} BSSListElement;
+
+typedef struct {
   u8 rssipct;
   u8 rssidBm;
 } tdsRssiEntry;
@@ -1120,6 +1125,8 @@ static int decapsulate(struct airo_info *ai, MICBuffer *mic, etherHead *pPacket,
 static u8 airo_rssi_to_dbm (tdsRssiEntry *rssi_rid, u8 rssi);
 static u8 airo_dbm_to_pct (tdsRssiEntry *rssi_rid, u8 dbm);
 
+static void airo_networks_free(struct airo_info *ai);
+
 struct airo_info {
 	struct net_device_stats	stats;
 	struct net_device             *dev;
@@ -1151,7 +1158,7 @@ struct airo_info {
 #define FLAG_COMMIT	13
 #define FLAG_RESET	14
 #define FLAG_FLASHING	15
-#define JOB_MASK	0x1ff0000
+#define JOB_MASK	0x2ff0000
 #define JOB_DIE		16
 #define JOB_XMIT	17
 #define JOB_XMIT11	18
@@ -1161,6 +1168,7 @@ struct airo_info {
 #define JOB_EVENT	22
 #define JOB_AUTOWEP	23
 #define JOB_WSTATS	24
+#define JOB_SCAN_RESULTS  25
 	int (*bap_read)(struct airo_info*, u16 *pu16Dst, int bytelen,
 			int whichbap);
 	unsigned short *flash;
@@ -1177,7 +1185,7 @@ struct airo_info {
 	} xmit, xmit11;
 	struct net_device *wifidev;
 	struct iw_statistics	wstats;		// wireless stats
-	unsigned long		scan_timestamp;	/* Time started to scan */
+	unsigned long		scan_timeout;	/* Time scan should be read */
 	struct iw_spy_data	spy_data;
 	struct iw_public_data	wireless_data;
 	/* MIC stuff */
@@ -1199,6 +1207,10 @@ struct airo_info {
 	APListRid		*APList;
 #define	PCI_SHARED_LEN		2*MPI_MAX_FIDS*PKTSIZE+RIDSIZE
 	char			proc_name[IFNAMSIZ];
+
+	struct list_head network_list;
+	struct list_head network_free_list;
+	BSSListElement *networks;
 };
 
 static inline int bap_read(struct airo_info *ai, u16 *pu16Dst, int bytelen,
@@ -2381,6 +2393,8 @@ void stop_airo_card( struct net_device *dev, int freeres )
 			dev_kfree_skb(skb);
 	}
 
+	airo_networks_free (ai);
+
 	kfree(ai->flash);
 	kfree(ai->rssi);
 	kfree(ai->APList);
@@ -2687,6 +2701,42 @@ static int reset_card( struct net_device *dev , int lock) {
 	return 0;
 }
 
+#define MAX_NETWORK_COUNT	64
+static int airo_networks_allocate(struct airo_info *ai)
+{
+	if (ai->networks)
+		return 0;
+
+	ai->networks =
+	    kzalloc(MAX_NETWORK_COUNT * sizeof(BSSListElement),
+		    GFP_KERNEL);
+	if (!ai->networks) {
+		airo_print_warn(ai->dev->name, "Out of memory allocating beacons");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void airo_networks_free(struct airo_info *ai)
+{
+	if (!ai->networks)
+		return;
+	kfree(ai->networks);
+	ai->networks = NULL;
+}
+
+static void airo_networks_initialize(struct airo_info *ai)
+{
+	int i;
+
+	INIT_LIST_HEAD(&ai->network_free_list);
+	INIT_LIST_HEAD(&ai->network_list);
+	for (i = 0; i < MAX_NETWORK_COUNT; i++)
+		list_add_tail(&ai->networks[i].list,
+			      &ai->network_free_list);
+}
+
 static struct net_device *_init_airo_card( unsigned short irq, int port,
 					   int is_pcmcia, struct pci_dev *pci,
 					   struct device *dmdev )
@@ -2728,6 +2778,10 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	if (rc)
 		goto err_out_thr;
 
+	if (airo_networks_allocate (ai))
+		goto err_out_unlink;
+	airo_networks_initialize (ai);
+
 	/* The Airo-specific entries in the device structure. */
 	if (test_bit(FLAG_MPI,&ai->flags)) {
 		skb_queue_head_init (&ai->txq);
@@ -2748,7 +2802,6 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	dev->base_addr = port;
 
 	SET_NETDEV_DEV(dev, dmdev);
-
 
 	reset_card (dev, 1);
 	msleep(400);
@@ -2892,6 +2945,65 @@ static void airo_send_event(struct net_device *dev) {
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 }
 
+static void airo_process_scan_results (struct airo_info *ai) {
+	union iwreq_data	wrqu;
+	BSSListRid BSSList;
+	int rc;
+	BSSListElement * loop_net;
+	BSSListElement * tmp_net;
+
+	/* Blow away current list of scan results */
+	list_for_each_entry_safe (loop_net, tmp_net, &ai->network_list, list) {
+		list_move_tail (&loop_net->list, &ai->network_free_list);
+		/* Don't blow away ->list, just BSS data */
+		memset (loop_net, 0, sizeof (loop_net->bss));
+	}
+
+	/* Try to read the first entry of the scan result */
+	rc = PC4500_readrid(ai, RID_BSSLISTFIRST, &BSSList, sizeof(BSSList), 0);
+	if((rc) || (BSSList.index == 0xffff)) {
+		/* No scan results */
+		goto out;
+	}
+
+	/* Read and parse all entries */
+	tmp_net = NULL;
+	while((!rc) && (BSSList.index != 0xffff)) {
+		/* Grab a network off the free list */
+		if (!list_empty(&ai->network_free_list)) {
+			tmp_net = list_entry(ai->network_free_list.next,
+					    BSSListElement, list);
+			list_del(ai->network_free_list.next);
+		}
+
+		if (tmp_net != NULL) {
+			memcpy(tmp_net, &BSSList, sizeof(tmp_net->bss));
+			list_add_tail(&tmp_net->list, &ai->network_list);
+			tmp_net = NULL;
+		}
+
+		/* Read next entry */
+		rc = PC4500_readrid(ai, RID_BSSLISTNEXT,
+				    &BSSList, sizeof(BSSList), 0);
+	}
+
+out:
+	ai->scan_timeout = 0;
+	clear_bit(JOB_SCAN_RESULTS, &ai->flags);
+	up(&ai->sem);
+
+	/* Send an empty event to user space.
+	 * We don't send the received data on
+	 * the event because it would require
+	 * us to do complex transcoding, and
+	 * we want to minimise the work done in
+	 * the irq handler. Use a request to
+	 * extract the data - Jean II */
+	wrqu.data.length = 0;
+	wrqu.data.flags = 0;
+	wireless_send_event(ai->dev, SIOCGIWSCAN, &wrqu, NULL);
+}
+
 static int airo_thread(void *data) {
 	struct net_device *dev = data;
 	struct airo_info *ai = dev->priv;
@@ -2921,13 +3033,26 @@ static int airo_thread(void *data) {
 				set_current_state(TASK_INTERRUPTIBLE);
 				if (ai->flags & JOB_MASK)
 					break;
-				if (ai->expires) {
-					if (time_after_eq(jiffies,ai->expires)){
+				if (ai->expires || ai->scan_timeout) {
+					if (ai->scan_timeout &&
+							time_after_eq(jiffies,ai->scan_timeout)){
+						set_bit(JOB_SCAN_RESULTS,&ai->flags);
+						break;
+					} else if (ai->expires &&
+							time_after_eq(jiffies,ai->expires)){
 						set_bit(JOB_AUTOWEP,&ai->flags);
 						break;
 					}
 					if (!signal_pending(current)) {
-						schedule_timeout(ai->expires - jiffies);
+						unsigned long wake_at;
+						if (!ai->expires || !ai->scan_timeout) {
+							wake_at = max(ai->expires,
+								ai->scan_timeout);
+						} else {
+							wake_at = min(ai->expires,
+								ai->scan_timeout);
+						}
+						schedule_timeout(wake_at - jiffies);
 						continue;
 					}
 				} else if (!signal_pending(current)) {
@@ -2970,6 +3095,10 @@ static int airo_thread(void *data) {
 			airo_send_event(dev);
 		else if (test_bit(JOB_AUTOWEP, &ai->flags))
 			timer_func(dev);
+		else if (test_bit(JOB_SCAN_RESULTS, &ai->flags))
+			airo_process_scan_results(ai);
+		else  /* Shouldn't get here, but we make sure to unlock */
+			up(&ai->sem);
 	}
 	complete_and_exit (&ai->thr_exited, 0);
 }
@@ -3064,19 +3193,15 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 			 * and reassociations as valid status
 			 * Jean II */
 			if(newStatus == ASSOCIATED) {
-				if (apriv->scan_timestamp) {
-					/* Send an empty event to user space.
-					 * We don't send the received data on
-					 * the event because it would require
-					 * us to do complex transcoding, and
-					 * we want to minimise the work done in
-					 * the irq handler. Use a request to
-					 * extract the data - Jean II */
-					wrqu.data.length = 0;
-					wrqu.data.flags = 0;
-					wireless_send_event(dev, SIOCGIWSCAN, &wrqu, NULL);
-					apriv->scan_timestamp = 0;
+#if 0
+				/* FIXME: Grabbing scan results here
+				 * seems to be too early???  Just wait for
+				 * timeout instead. */
+				if (apriv->scan_timeout > 0) {
+					set_bit(JOB_SCAN_RESULTS, &apriv->flags);
+					wake_up_interruptible(&apriv->thr_wait);
 				}
+#endif
 				if (down_trylock(&apriv->sem) != 0) {
 					set_bit(JOB_EVENT, &apriv->flags);
 					wake_up_interruptible(&apriv->thr_wait);
@@ -6992,6 +7117,7 @@ static int airo_set_scan(struct net_device *dev,
 	struct airo_info *ai = dev->priv;
 	Cmd cmd;
 	Resp rsp;
+	int wake = 0;
 
 	/* Note : you may have realised that, as this is a SET operation,
 	 * this is privileged and therefore a normal user can't
@@ -7001,17 +7127,25 @@ static int airo_set_scan(struct net_device *dev,
 	 * Jean II */
 	if (ai->flags & FLAG_RADIO_MASK) return -ENETDOWN;
 
+	if (down_interruptible(&ai->sem))
+		return -ERESTARTSYS;
+
+	/* If there's already a scan in progress, don't
+	 * trigger another one. */
+	if (ai->scan_timeout > 0)
+		goto out;
+
 	/* Initiate a scan command */
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd=CMD_LISTBSS;
-	if (down_interruptible(&ai->sem))
-		return -ERESTARTSYS;
 	issuecommand(ai, &cmd, &rsp);
-	ai->scan_timestamp = jiffies;
+	ai->scan_timeout = RUN_AT(3*HZ);
+	wake = 1;
+
+out:
 	up(&ai->sem);
-
-	/* At this point, just return to the user. */
-
+	if (wake)
+		wake_up_interruptible(&ai->thr_wait);
 	return 0;
 }
 
@@ -7131,59 +7265,38 @@ static int airo_get_scan(struct net_device *dev,
 			 char *extra)
 {
 	struct airo_info *ai = dev->priv;
-	BSSListRid BSSList;
-	int rc;
+	BSSListElement *net;
+	int err = 0;
 	char *current_ev = extra;
 
-	/* When we are associated again, the scan has surely finished.
-	 * Just in case, let's make sure enough time has elapsed since
-	 * we started the scan. - Javier */
-	if(ai->scan_timestamp && time_before(jiffies,ai->scan_timestamp+3*HZ)) {
-		/* Important note : we don't want to block the caller
-		 * until results are ready for various reasons.
-		 * First, managing wait queues is complex and racy
-		 * (there may be multiple simultaneous callers).
-		 * Second, we grab some rtnetlink lock before comming
-		 * here (in dev_ioctl()).
-		 * Third, the caller can wait on the Wireless Event
-		 * - Jean II */
+	/* If a scan is in-progress, return -EAGAIN */
+	if (ai->scan_timeout > 0)
 		return -EAGAIN;
-	}
-	ai->scan_timestamp = 0;
 
-	/* There's only a race with proc_BSSList_open(), but its
-	 * consequences are begnign. So I don't bother fixing it - Javier */
+	if (down_interruptible(&ai->sem))
+		return -EAGAIN;
 
-	/* Try to read the first entry of the scan result */
-	rc = PC4500_readrid(ai, RID_BSSLISTFIRST, &BSSList, sizeof(BSSList), 1);
-	if((rc) || (BSSList.index == 0xffff)) {
-		/* Client error, no scan results...
-		 * The caller need to restart the scan. */
-		return -ENODATA;
-	}
-
-	/* Read and parse all entries */
-	while((!rc) && (BSSList.index != 0xffff)) {
+	list_for_each_entry (net, &ai->network_list, list) {
 		/* Translate to WE format this entry */
 		current_ev = airo_translate_scan(dev, current_ev,
 						 extra + dwrq->length,
-						 &BSSList);
+						 &net->bss);
 
 		/* Check if there is space for one more entry */
 		if((extra + dwrq->length - current_ev) <= IW_EV_ADDR_LEN) {
 			/* Ask user space to try again with a bigger buffer */
-			return -E2BIG;
+			err = -E2BIG;
+			goto out;
 		}
-
-		/* Read next entry */
-		rc = PC4500_readrid(ai, RID_BSSLISTNEXT,
-				    &BSSList, sizeof(BSSList), 1);
 	}
+
 	/* Length of data */
 	dwrq->length = (current_ev - extra);
 	dwrq->flags = 0;	/* todo */
 
-	return 0;
+out:
+	up(&ai->sem);
+	return err;
 }
 
 /*------------------------------------------------------------------*/
