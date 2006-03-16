@@ -363,10 +363,30 @@ config VIDEO_DECODER
 	tristate "Add support for additional video chipsets"
 	depends on VIDEO_DEV && I2C && EXPERIMENTAL
 	select VIDEO_CX25840
+	select VIDEO_SAA711X
+	select VIDEO_SAA7127
 	---help---
 	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
 	  video decoders.
 
 source "drivers/media/video/cx25840/Kconfig"
+
+config VIDEO_SAA711X
+	tristate "Philips SAA7113/4/5 video decoders"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Philips SAA7113/4/5 video decoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7115
+
+config VIDEO_SAA7127
+	tristate "Philips SAA7127/9 digital video encoders"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Philips SAA7127/9 digital video encoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7127
 
 endmenu

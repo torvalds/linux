@@ -44,7 +44,7 @@ obj-$(CONFIG_VIDEO_MEYE) += meye.o
 obj-$(CONFIG_VIDEO_SAA7134) += ir-kbd-i2c.o saa7134/
 obj-$(CONFIG_VIDEO_CX88) += cx88/
 obj-$(CONFIG_VIDEO_EM28XX) += em28xx/
-obj-$(CONFIG_VIDEO_EM28XX) += saa7115.o tvp5150.o
+obj-$(CONFIG_VIDEO_EM28XX) += tvp5150.o
 obj-$(CONFIG_VIDEO_MSP3400) += msp3400.o
 obj-$(CONFIG_VIDEO_AUDIO_DECODER) += wm8775.o cs53l32a.o
 obj-$(CONFIG_VIDEO_OVCAMCHIP) += ovcamchip/
@@ -63,7 +63,8 @@ obj-$(CONFIG_VIDEO_TVEEPROM) += tveeprom.o
 
 obj-$(CONFIG_VIDEO_M32R_AR_M64278) += arv.o
 
-obj-$(CONFIG_VIDEO_DECODER)     += saa7115.o saa7127.o
 obj-$(CONFIG_VIDEO_CX25840) += cx25840/
+obj-$(CONFIG_VIDEO_SAA711X) += saa7115.o
+obj-$(CONFIG_VIDEO_SAA7127) += saa7127.o
 
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core
