@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/oprofile.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/sysdev.h>
 #include <linux/mutex.h>
 
@@ -20,7 +21,7 @@ static struct op_arm_model_spec *op_arm_model;
 static int op_arm_enabled;
 static DEFINE_MUTEX(op_arm_mutex);
 
-struct op_counter_config counter_config[OP_MAX_COUNTER];
+struct op_counter_config *counter_config;
 
 static int op_arm_create_files(struct super_block *sb, struct dentry *root)
 {
@@ -28,7 +29,7 @@ static int op_arm_create_files(struct super_block *sb, struct dentry *root)
 
 	for (i = 0; i < op_arm_model->num_counters; i++) {
 		struct dentry *dir;
-		char buf[2];
+		char buf[4];
 
 		snprintf(buf, sizeof buf, "%d", i);
 		dir = oprofilefs_mkdir(sb, root, buf);
@@ -139,6 +140,11 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		if (ret < 0)
 			return ret;
 
+		counter_config = kmalloc(sizeof(struct op_counter_config) * spec->num_counters,
+					 GFP_KERNEL);
+		if (!counter_config)
+			return -ENOMEM;
+
 		op_arm_model = spec;
 		init_driverfs();
 		ops->create_files = op_arm_create_files;
@@ -160,4 +166,5 @@ void oprofile_arch_exit(void)
 		exit_driverfs();
 		op_arm_model = NULL;
 	}
+	kfree(counter_config);
 }
