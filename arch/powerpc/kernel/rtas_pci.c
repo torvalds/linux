@@ -280,8 +280,7 @@ static int phb_set_bus_ranges(struct device_node *dev,
 	return 0;
 }
 
-static int __devinit setup_phb(struct device_node *dev,
-			       struct pci_controller *phb)
+int __devinit setup_phb(struct device_node *dev, struct pci_controller *phb)
 {
 	if (is_python(dev))
 		python_countermeasures(dev);
@@ -358,27 +357,6 @@ unsigned long __init find_and_init_phbs(void)
 
 	return 0;
 }
-
-struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
-{
-	struct pci_controller *phb;
-	int primary;
-
-	primary = list_empty(&hose_list);
-	phb = pcibios_alloc_controller(dn);
-	if (!phb)
-		return NULL;
-	setup_phb(dn, phb);
-	pci_process_bridge_OF_ranges(phb, dn, primary);
-
-	pci_setup_phb_io_dynamic(phb, primary);
-
-	pci_devs_phb_init_dynamic(phb);
-	scan_phb(phb);
-
-	return phb;
-}
-EXPORT_SYMBOL(init_phb_dynamic);
 
 /* RPA-specific bits for removing PHBs */
 int pcibios_remove_root_bus(struct pci_controller *phb)
