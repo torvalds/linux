@@ -902,6 +902,7 @@ static char swversion[] = "2.1";
 #define NUM_MODULES       2
 #define MIC_MSGLEN_MAX    2400
 #define EMMH32_MSGLEN_MAX MIC_MSGLEN_MAX
+#define AIRO_DEF_MTU      2312
 
 typedef struct {
 	u32   size;            // size
@@ -2642,7 +2643,7 @@ static void wifi_setup(struct net_device *dev)
 
 	dev->type               = ARPHRD_IEEE80211;
 	dev->hard_header_len    = ETH_HLEN;
-	dev->mtu                = 2312;
+	dev->mtu                = AIRO_DEF_MTU;
 	dev->addr_len           = ETH_ALEN;
 	dev->tx_queue_len       = 100; 
 
@@ -2799,7 +2800,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	/* Allocate the transmit buffers */
 	if (probe && !test_bit(FLAG_MPI,&ai->flags))
 		for( i = 0; i < MAX_FIDS; i++ )
-			ai->fids[i] = transmit_allocate(ai,2312,i>=MAX_FIDS/2);
+			ai->fids[i] = transmit_allocate(ai,AIRO_DEF_MTU,i>=MAX_FIDS/2);
 
 	setup_proc_entry( dev, dev->priv ); /* XXX check for failure */
 	netif_start_queue(dev);
@@ -2865,7 +2866,7 @@ int reset_airo_card( struct net_device *dev )
 	/* Allocate the transmit buffers if needed */
 	if (!test_bit(FLAG_MPI,&ai->flags))
 		for( i = 0; i < MAX_FIDS; i++ )
-			ai->fids[i] = transmit_allocate (ai,2312,i>=MAX_FIDS/2);
+			ai->fids[i] = transmit_allocate (ai,AIRO_DEF_MTU,i>=MAX_FIDS/2);
 
 	enable_interrupts( ai );
 	netif_wake_queue(dev);
@@ -3133,7 +3134,7 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 			}
 			len = le16_to_cpu(hdr.len);
 
-			if (len > 2312) {
+			if (len > AIRO_DEF_MTU) {
 				airo_print_err(apriv->dev->name, "Bad size %d", len);
 				goto badrx;
 			}
@@ -3508,7 +3509,7 @@ void mpi_receive_802_11 (struct airo_info *ai)
 	if (ai->wifidev == NULL)
 		hdr.len = 0;
 	len = le16_to_cpu(hdr.len);
-	if (len > 2312) {
+	if (len > AIRO_DEF_MTU) {
 		airo_print_err(ai->dev->name, "Bad size %d", len);
 		goto badrx;
 	}
@@ -4774,7 +4775,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 
 			line += 14;
 			v = get_dec_u16(line, &i, 4);
-			v = (v<0) ? 0 : ((v>2312) ? 2312 : v);
+			v = (v<0) ? 0 : ((v>AIRO_DEF_MTU) ? AIRO_DEF_MTU : v);
 			ai->config.rtsThres = (u16)v;
 			set_bit (FLAG_COMMIT, &ai->flags);
 		} else if ( !strncmp( line, "TXMSDULifetime: ", 16 ) ) {
@@ -4808,7 +4809,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 
 			line += 15;
 			v = get_dec_u16(line, &i, 4);
-			v = (v<256) ? 256 : ((v>2312) ? 2312 : v);
+			v = (v<256) ? 256 : ((v>AIRO_DEF_MTU) ? AIRO_DEF_MTU : v);
 			v = v & 0xfffe; /* Make sure its even */
 			ai->config.fragThresh = (u16)v;
 			set_bit (FLAG_COMMIT, &ai->flags);
@@ -5965,8 +5966,8 @@ static int airo_set_rts(struct net_device *dev,
 	int rthr = vwrq->value;
 
 	if(vwrq->disabled)
-		rthr = 2312;
-	if((rthr < 0) || (rthr > 2312)) {
+		rthr = AIRO_DEF_MTU;
+	if((rthr < 0) || (rthr > AIRO_DEF_MTU)) {
 		return -EINVAL;
 	}
 	readConfigRid(local, 1);
@@ -5989,7 +5990,7 @@ static int airo_get_rts(struct net_device *dev,
 
 	readConfigRid(local, 1);
 	vwrq->value = local->config.rtsThres;
-	vwrq->disabled = (vwrq->value >= 2312);
+	vwrq->disabled = (vwrq->value >= AIRO_DEF_MTU);
 	vwrq->fixed = 1;
 
 	return 0;
@@ -6008,8 +6009,8 @@ static int airo_set_frag(struct net_device *dev,
 	int fthr = vwrq->value;
 
 	if(vwrq->disabled)
-		fthr = 2312;
-	if((fthr < 256) || (fthr > 2312)) {
+		fthr = AIRO_DEF_MTU;
+	if((fthr < 256) || (fthr > AIRO_DEF_MTU)) {
 		return -EINVAL;
 	}
 	fthr &= ~0x1;	/* Get an even value - is it really needed ??? */
@@ -6033,7 +6034,7 @@ static int airo_get_frag(struct net_device *dev,
 
 	readConfigRid(local, 1);
 	vwrq->value = local->config.fragThresh;
-	vwrq->disabled = (vwrq->value >= 2312);
+	vwrq->disabled = (vwrq->value >= AIRO_DEF_MTU);
 	vwrq->fixed = 1;
 
 	return 0;
@@ -6728,9 +6729,9 @@ static int airo_get_range(struct net_device *dev,
 		range->throughput = 1500 * 1000;
 
 	range->min_rts = 0;
-	range->max_rts = 2312;
+	range->max_rts = AIRO_DEF_MTU;
 	range->min_frag = 256;
-	range->max_frag = 2312;
+	range->max_frag = AIRO_DEF_MTU;
 
 	if(cap_rid.softCap & 2) {
 		// WEP: RC4 40 bits
@@ -7885,7 +7886,7 @@ static int flashrestart(struct airo_info *ai,struct net_device *dev){
 	if (!test_bit(FLAG_MPI,&ai->flags))
 		for( i = 0; i < MAX_FIDS; i++ ) {
 			ai->fids[i] = transmit_allocate
-				( ai, 2312, i >= MAX_FIDS / 2 );
+				( ai, AIRO_DEF_MTU, i >= MAX_FIDS / 2 );
 		}
 
 	ssleep(1);			/* Added 12/7/00 */
