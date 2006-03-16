@@ -279,7 +279,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 {
 	struct mm_struct *mm;
 	struct tsb *tsb;
-	unsigned long tag;
+	unsigned long tag, flags;
 
 	if (tlb_type != hypervisor) {
 		unsigned long pfn = pte_pfn(pte);
@@ -308,10 +308,15 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 	}
 
 	mm = vma->vm_mm;
+
+	spin_lock_irqsave(&mm->context.lock, flags);
+
 	tsb = &mm->context.tsb[(address >> PAGE_SHIFT) &
 			       (mm->context.tsb_nentries - 1UL)];
 	tag = (address >> 22UL);
 	tsb_insert(tsb, tag, pte_val(pte));
+
+	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
 
 void flush_dcache_page(struct page *page)

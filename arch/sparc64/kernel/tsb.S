@@ -34,8 +34,9 @@ tsb_miss_itlb:
 	 ldxa		[%g4] ASI_IMMU, %g4
 
 	/* At this point we have:
-	 * %g4 --	missing virtual address
 	 * %g1 --	TSB entry address
+	 * %g3 --	FAULT_CODE_{D,I}TLB
+	 * %g4 --	missing virtual address
 	 * %g6 --	TAG TARGET (vaddr >> 22)
 	 */
 tsb_miss_page_table_walk:
@@ -45,6 +46,12 @@ tsb_miss_page_table_walk:
 tsb_miss_page_table_walk_sun4v_fastpath:
 	USER_PGTABLE_WALK_TL1(%g4, %g7, %g5, %g2, tsb_do_fault)
 
+	/* At this point we have:
+	 * %g1 --	TSB entry address
+	 * %g3 --	FAULT_CODE_{D,I}TLB
+	 * %g5 --	physical address of PTE in Linux page tables
+	 * %g6 --	TAG TARGET (vaddr >> 22)
+	 */
 tsb_reload:
 	TSB_LOCK_TAG(%g1, %g2, %g7)
 
@@ -199,6 +206,7 @@ __tsb_insert:
 	wrpr	%o5, %pstate
 	retl
 	 nop
+	.size	__tsb_insert, .-__tsb_insert
 
 	/* Flush the given TSB entry if it has the matching
 	 * tag.
@@ -208,6 +216,7 @@ __tsb_insert:
 	 */
 	.align	32
 	.globl	tsb_flush
+	.type	tsb_flush,#function
 tsb_flush:
 	sethi	%hi(TSB_TAG_LOCK_HIGH), %g2
 1:	TSB_LOAD_TAG(%o0, %g1)
@@ -225,6 +234,7 @@ tsb_flush:
 	 nop
 2:	retl
 	 TSB_MEMBAR
+	.size	tsb_flush, .-tsb_flush
 
 	/* Reload MMU related context switch state at
 	 * schedule() time.
@@ -241,6 +251,7 @@ tsb_flush:
 	 */
 	.align	32
 	.globl	__tsb_context_switch
+	.type	__tsb_context_switch,#function
 __tsb_context_switch:
 	rdpr	%pstate, %o5
 	wrpr	%o5, PSTATE_IE, %pstate
@@ -302,3 +313,61 @@ __tsb_context_switch:
 
 	retl
 	 nop
+	.size	__tsb_context_switch, .-__tsb_context_switch
+
+#define TSB_PASS_BITS	((1 << TSB_TAG_LOCK_BIT) | \
+			 (1 << TSB_TAG_INVALID_BIT))
+
+	.align	32
+	.globl	copy_tsb
+	.type	copy_tsb,#function
+copy_tsb:		/* %o0=old_tsb_base, %o1=old_tsb_size
+			 * %o2=new_tsb_base, %o3=new_tsb_size
+			 */
+	sethi		%uhi(TSB_PASS_BITS), %g7
+	srlx		%o3, 4, %o3
+	add		%o0, %o1, %g1	/* end of old tsb */
+	sllx		%g7, 32, %g7
+	sub		%o3, 1, %o3	/* %o3 == new tsb hash mask */
+
+661:	prefetcha	[%o0] ASI_N, #one_read
+	.section	.tsb_phys_patch, "ax"
+	.word		661b
+	prefetcha	[%o0] ASI_PHYS_USE_EC, #one_read
+	.previous
+
+90:	andcc		%o0, (64 - 1), %g0
+	bne		1f
+	 add		%o0, 64, %o5
+
+661:	prefetcha	[%o5] ASI_N, #one_read
+	.section	.tsb_phys_patch, "ax"
+	.word		661b
+	prefetcha	[%o5] ASI_PHYS_USE_EC, #one_read
+	.previous
+
+1:	TSB_LOAD_QUAD(%o0, %g2)		/* %g2/%g3 == TSB entry */
+	andcc		%g2, %g7, %g0	/* LOCK or INVALID set? */
+	bne,pn		%xcc, 80f	/* Skip it */
+	 sllx		%g2, 22, %o4	/* TAG --> VADDR */
+
+	/* This can definitely be computed faster... */
+	srlx		%o0, 4, %o5	/* Build index */
+	and		%o5, 511, %o5	/* Mask index */
+	sllx		%o5, PAGE_SHIFT, %o5 /* Put into vaddr position */
+	or		%o4, %o5, %o4	/* Full VADDR. */
+	srlx		%o4, PAGE_SHIFT, %o4 /* Shift down to create index */
+	and		%o4, %o3, %o4	/* Mask with new_tsb_nents-1 */
+	sllx		%o4, 4, %o4	/* Shift back up into tsb ent offset */
+	TSB_STORE(%o2 + %o4, %g2)	/* Store TAG */
+	add		%o4, 0x8, %o4	/* Advance to TTE */
+	TSB_STORE(%o2 + %o4, %g3)	/* Store TTE */
+
+80:	add		%o0, 16, %o0
+	cmp		%o0, %g1
+	bne,pt		%xcc, 90b
+	 nop
+
+	retl
+	 TSB_MEMBAR
+	.size		copy_tsb, .-copy_tsb

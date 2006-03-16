@@ -48,10 +48,14 @@ void flush_tsb_kernel_range(unsigned long start, unsigned long end)
 void flush_tsb_user(struct mmu_gather *mp)
 {
 	struct mm_struct *mm = mp->mm;
-	struct tsb *tsb = mm->context.tsb;
-	unsigned long nentries = mm->context.tsb_nentries;
-	unsigned long base;
+	unsigned long nentries, base, flags;
+	struct tsb *tsb;
 	int i;
+
+	spin_lock_irqsave(&mm->context.lock, flags);
+
+	tsb = mm->context.tsb;
+	nentries = mm->context.tsb_nentries;
 
 	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
 		base = __pa(tsb);
@@ -70,6 +74,8 @@ void flush_tsb_user(struct mmu_gather *mp)
 
 		tsb_flush(ent, tag);
 	}
+
+	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
 
 static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
@@ -201,86 +207,9 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 	}
 }
 
-/* The page tables are locked against modifications while this
- * runs.
- *
- * XXX do some prefetching...
- */
-static void copy_tsb(struct tsb *old_tsb, unsigned long old_size,
-		     struct tsb *new_tsb, unsigned long new_size)
-{
-	unsigned long old_nentries = old_size / sizeof(struct tsb);
-	unsigned long new_nentries = new_size / sizeof(struct tsb);
-	unsigned long i;
-
-	for (i = 0; i < old_nentries; i++) {
-		register unsigned long tag asm("o4");
-		register unsigned long pte asm("o5");
-		unsigned long v, hash;
-
-		if (tlb_type == hypervisor) {
-			__asm__ __volatile__(
-				"ldda [%2] %3, %0"
-				: "=r" (tag), "=r" (pte)
-				: "r" (__pa(&old_tsb[i])),
-				  "i" (ASI_QUAD_LDD_PHYS_4V));
-		} else if (tlb_type == cheetah_plus) {
-			__asm__ __volatile__(
-				"ldda [%2] %3, %0"
-				: "=r" (tag), "=r" (pte)
-				: "r" (__pa(&old_tsb[i])),
-				  "i" (ASI_QUAD_LDD_PHYS));
-		} else {
-			__asm__ __volatile__(
-				"ldda [%2] %3, %0"
-				: "=r" (tag), "=r" (pte)
-				: "r" (&old_tsb[i]),
-				  "i" (ASI_NUCLEUS_QUAD_LDD));
-		}
-
-		if (tag & ((1UL << TSB_TAG_LOCK_BIT) |
-			   (1UL << TSB_TAG_INVALID_BIT)))
-			continue;
-
-		/* We only put base page size PTEs into the TSB,
-		 * but that might change in the future.  This code
-		 * would need to be changed if we start putting larger
-		 * page size PTEs into there.
-		 */
-		WARN_ON((pte & _PAGE_ALL_SZ_BITS) != _PAGE_SZBITS);
-
-		/* The tag holds bits 22 to 63 of the virtual address
-		 * and the context.  Clear out the context, and shift
-		 * up to make a virtual address.
-		 */
-		v = (tag & ((1UL << 42UL) - 1UL)) << 22UL;
-
-		/* The implied bits of the tag (bits 13 to 21) are
-		 * determined by the TSB entry index, so fill that in.
-		 */
-		v |= (i & (512UL - 1UL)) << 13UL;
-
-		hash = tsb_hash(v, new_nentries);
-		if (tlb_type == cheetah_plus ||
-		    tlb_type == hypervisor) {
-			__asm__ __volatile__(
-				"stxa	%0, [%1] %2\n\t"
-				"stxa	%3, [%4] %2"
-				: /* no outputs */
-				: "r" (tag),
-				  "r" (__pa(&new_tsb[hash].tag)),
-				  "i" (ASI_PHYS_USE_EC),
-				  "r" (pte),
-				  "r" (__pa(&new_tsb[hash].pte)));
-		} else {
-			new_tsb[hash].tag = tag;
-			new_tsb[hash].pte = pte;
-		}
-	}
-}
-
 /* When the RSS of an address space exceeds mm->context.tsb_rss_limit,
- * update_mmu_cache() invokes this routine to try and grow the TSB.
+ * do_sparc64_fault() invokes this routine to try and grow the TSB.
+ *
  * When we reach the maximum TSB size supported, we stick ~0UL into
  * mm->context.tsb_rss_limit so the grow checks in update_mmu_cache()
  * will not trigger any longer.
@@ -293,12 +222,12 @@ static void copy_tsb(struct tsb *old_tsb, unsigned long old_size,
  * the number of entries that the current TSB can hold at once.  Currently,
  * we trigger when the RSS hits 3/4 of the TSB capacity.
  */
-void tsb_grow(struct mm_struct *mm, unsigned long rss, gfp_t gfp_flags)
+void tsb_grow(struct mm_struct *mm, unsigned long rss)
 {
 	unsigned long max_tsb_size = 1 * 1024 * 1024;
-	unsigned long size, old_size;
+	unsigned long size, old_size, flags;
 	struct page *page;
-	struct tsb *old_tsb;
+	struct tsb *old_tsb, *new_tsb;
 
 	if (max_tsb_size > (PAGE_SIZE << MAX_ORDER))
 		max_tsb_size = (PAGE_SIZE << MAX_ORDER);
@@ -311,12 +240,51 @@ void tsb_grow(struct mm_struct *mm, unsigned long rss, gfp_t gfp_flags)
 			break;
 	}
 
-	page = alloc_pages(gfp_flags, get_order(size));
+	page = alloc_pages(GFP_KERNEL, get_order(size));
 	if (unlikely(!page))
 		return;
 
 	/* Mark all tags as invalid.  */
-	memset(page_address(page), 0x40, size);
+	new_tsb = page_address(page);
+	memset(new_tsb, 0x40, size);
+
+	/* Ok, we are about to commit the changes.  If we are
+	 * growing an existing TSB the locking is very tricky,
+	 * so WATCH OUT!
+	 *
+	 * We have to hold mm->context.lock while committing to the
+	 * new TSB, this synchronizes us with processors in
+	 * flush_tsb_user() and switch_mm() for this address space.
+	 *
+	 * But even with that lock held, processors run asynchronously
+	 * accessing the old TSB via TLB miss handling.  This is OK
+	 * because those actions are just propagating state from the
+	 * Linux page tables into the TSB, page table mappings are not
+	 * being changed.  If a real fault occurs, the processor will
+	 * synchronize with us when it hits flush_tsb_user(), this is
+	 * also true for the case where vmscan is modifying the page
+	 * tables.  The only thing we need to be careful with is to
+	 * skip any locked TSB entries during copy_tsb().
+	 *
+	 * When we finish committing to the new TSB, we have to drop
+	 * the lock and ask all other cpus running this address space
+	 * to run tsb_context_switch() to see the new TSB table.
+	 */
+	spin_lock_irqsave(&mm->context.lock, flags);
+
+	old_tsb = mm->context.tsb;
+	old_size = mm->context.tsb_nentries * sizeof(struct tsb);
+
+	/* Handle multiple threads trying to grow the TSB at the same time.
+	 * One will get in here first, and bump the size and the RSS limit.
+	 * The others will get in here next and hit this check.
+	 */
+	if (unlikely(old_tsb && (rss < mm->context.tsb_rss_limit))) {
+		spin_unlock_irqrestore(&mm->context.lock, flags);
+
+		free_pages((unsigned long) new_tsb, get_order(size));
+		return;
+	}
 
 	if (size == max_tsb_size)
 		mm->context.tsb_rss_limit = ~0UL;
@@ -324,30 +292,37 @@ void tsb_grow(struct mm_struct *mm, unsigned long rss, gfp_t gfp_flags)
 		mm->context.tsb_rss_limit =
 			((size / sizeof(struct tsb)) * 3) / 4;
 
-	old_tsb = mm->context.tsb;
-	old_size = mm->context.tsb_nentries * sizeof(struct tsb);
+	if (old_tsb) {
+		extern void copy_tsb(unsigned long old_tsb_base,
+				     unsigned long old_tsb_size,
+				     unsigned long new_tsb_base,
+				     unsigned long new_tsb_size);
+		unsigned long old_tsb_base = (unsigned long) old_tsb;
+		unsigned long new_tsb_base = (unsigned long) new_tsb;
 
-	if (old_tsb)
-		copy_tsb(old_tsb, old_size, page_address(page), size);
+		if (tlb_type == cheetah_plus || tlb_type == hypervisor) {
+			old_tsb_base = __pa(old_tsb_base);
+			new_tsb_base = __pa(new_tsb_base);
+		}
+		copy_tsb(old_tsb_base, old_size, new_tsb_base, size);
+	}
 
-	mm->context.tsb = page_address(page);
+	mm->context.tsb = new_tsb;
 	setup_tsb_params(mm, size);
+
+	spin_unlock_irqrestore(&mm->context.lock, flags);
 
 	/* If old_tsb is NULL, we're being invoked for the first time
 	 * from init_new_context().
 	 */
 	if (old_tsb) {
-		/* Now force all other processors to reload the new
-		 * TSB state.
-		 */
-		smp_tsb_sync(mm);
-
-		/* Finally reload it on the local cpu.  No further
-		 * references will remain to the old TSB and we can
-		 * thus free it up.
-		 */
+		/* Reload it on the local cpu.  */
 		tsb_context_switch(mm);
 
+		/* Now force other processors to do the same.  */
+		smp_tsb_sync(mm);
+
+		/* Now it is safe to free the old tsb.  */
 		free_pages((unsigned long) old_tsb, get_order(old_size));
 	}
 }
@@ -363,7 +338,11 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	 * will be confused and think there is an older TSB to free up.
 	 */
 	mm->context.tsb = NULL;
-	tsb_grow(mm, 0, GFP_KERNEL);
+
+	/* If this is fork, inherit the parent's TSB size.  We would
+	 * grow it to that size on the first page fault anyways.
+	 */
+	tsb_grow(mm, get_mm_rss(mm));
 
 	if (unlikely(!mm->context.tsb))
 		return -ENOMEM;

@@ -29,6 +29,7 @@
 #include <asm/lsu.h>
 #include <asm/sections.h>
 #include <asm/kdebug.h>
+#include <asm/mmu_context.h>
 
 /*
  * To debug kernel to catch accesses to certain virtual/physical addresses.
@@ -258,7 +259,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 	struct vm_area_struct *vma;
 	unsigned int insn = 0;
 	int si_code, fault_code;
-	unsigned long address;
+	unsigned long address, mm_rss;
 
 	fault_code = get_thread_fault_code();
 
@@ -407,6 +408,11 @@ good_area:
 	}
 
 	up_read(&mm->mmap_sem);
+
+	mm_rss = get_mm_rss(mm);
+	if (unlikely(mm_rss >= mm->context.tsb_rss_limit))
+		tsb_grow(mm, mm_rss);
+
 	return;
 
 	/*
