@@ -1216,6 +1216,22 @@ static int flashgchar(struct airo_info *ai,int matchbyte,int dwelltime);
 static int flashputbuf(struct airo_info *ai);
 static int flashrestart(struct airo_info *ai,struct net_device *dev);
 
+#define airo_print(type, name, fmt, args...) \
+	{ printk(type "airo(%s): " fmt "\n", name, ##args); }
+
+#define airo_print_info(name, fmt, args...) \
+	airo_print(KERN_INFO, name, fmt, ##args)
+
+#define airo_print_dbg(name, fmt, args...) \
+	airo_print(KERN_DEBUG, name, fmt, ##args)
+
+#define airo_print_warn(name, fmt, args...) \
+	airo_print(KERN_WARNING, name, fmt, ##args)
+
+#define airo_print_err(name, fmt, args...) \
+	airo_print(KERN_ERR, name, fmt, ##args)
+
+
 /***********************************************************************
  *                              MIC ROUTINES                           *
  ***********************************************************************
@@ -1294,7 +1310,7 @@ static int micsetup(struct airo_info *ai) {
 	        ai->tfm = crypto_alloc_tfm("aes", CRYPTO_TFM_REQ_MAY_SLEEP);
 
         if (ai->tfm == NULL) {
-                printk(KERN_ERR "airo: failed to load transform for AES\n");
+                airo_print_err(ai->dev->name, "failed to load transform for AES");
                 return ERROR;
         }
 
@@ -1726,11 +1742,11 @@ static int writeWepKeyRid(struct airo_info*ai, WepKeyRid *pwkr, int perm, int lo
 	wkr.kindex = cpu_to_le16(wkr.kindex);
 	wkr.klen = cpu_to_le16(wkr.klen);
 	rc = PC4500_writerid(ai, RID_WEP_TEMP, &wkr, sizeof(wkr), lock);
-	if (rc!=SUCCESS) printk(KERN_ERR "airo:  WEP_TEMP set %x\n", rc);
+	if (rc!=SUCCESS) airo_print_err(ai->dev->name, "WEP_TEMP set %x", rc);
 	if (perm) {
 		rc = PC4500_writerid(ai, RID_WEP_PERM, &wkr, sizeof(wkr), lock);
 		if (rc!=SUCCESS) {
-			printk(KERN_ERR "airo:  WEP_PERM set %x\n", rc);
+			airo_print_err(ai->dev->name, "WEP_PERM set %x", rc);
 		}
 	}
 	return rc;
@@ -1909,7 +1925,7 @@ static int mpi_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 	struct airo_info *ai = dev->priv;
 
 	if (!skb) {
-		printk(KERN_ERR "airo: %s: skb==NULL\n",__FUNCTION__);
+		airo_print_err(dev->name, "%s: skb == NULL!",__FUNCTION__);
 		return 0;
 	}
 	npacks = skb_queue_len (&ai->txq);
@@ -1955,8 +1971,8 @@ static int mpi_send_packet (struct net_device *dev)
 	/* get a packet to send */
 
 	if ((skb = skb_dequeue(&ai->txq)) == 0) {
-		printk (KERN_ERR
-			"airo: %s: Dequeue'd zero in send_packet()\n",
+		airo_print_err(dev->name,
+			"%s: Dequeue'd zero in send_packet()",
 			__FUNCTION__);
 		return 0;
 	}
@@ -2108,7 +2124,7 @@ static int airo_start_xmit(struct sk_buff *skb, struct net_device *dev) {
 	u32 *fids = priv->fids;
 
 	if ( skb == NULL ) {
-		printk( KERN_ERR "airo:  skb == NULL!!!\n" );
+		airo_print_err(dev->name, "%s: skb == NULL!", __FUNCTION__);
 		return 0;
 	}
 
@@ -2179,7 +2195,7 @@ static int airo_start_xmit11(struct sk_buff *skb, struct net_device *dev) {
 	}
 
 	if ( skb == NULL ) {
-		printk( KERN_ERR "airo:  skb == NULL!!!\n" );
+		airo_print_err(dev->name, "%s: skb == NULL!", __FUNCTION__);
 		return 0;
 	}
 
@@ -2434,7 +2450,7 @@ static int mpi_init_descriptors (struct airo_info *ai)
 	cmd.parm2 = MPI_MAX_FIDS;
 	rc=issuecommand(ai, &cmd, &rsp);
 	if (rc != SUCCESS) {
-		printk(KERN_ERR "airo:  Couldn't allocate RX FID\n");
+		airo_print_err(ai->dev->name, "Couldn't allocate RX FID");
 		return rc;
 	}
 
@@ -2462,7 +2478,7 @@ static int mpi_init_descriptors (struct airo_info *ai)
 
 	rc=issuecommand(ai, &cmd, &rsp);
 	if (rc != SUCCESS) {
-		printk(KERN_ERR "airo:  Couldn't allocate TX FID\n");
+		airo_print_err(ai->dev->name, "Couldn't allocate TX FID");
 		return rc;
 	}
 
@@ -2476,7 +2492,7 @@ static int mpi_init_descriptors (struct airo_info *ai)
 	cmd.parm2 = 1; /* Magic number... */
 	rc=issuecommand(ai, &cmd, &rsp);
 	if (rc != SUCCESS) {
-		printk(KERN_ERR "airo:  Couldn't allocate RID\n");
+		airo_print_err(ai->dev->name, "Couldn't allocate RID");
 		return rc;
 	}
 
@@ -2508,25 +2524,25 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 	aux_len = AUXMEMSIZE;
 
 	if (!request_mem_region(mem_start, mem_len, name)) {
-		printk(KERN_ERR "airo: Couldn't get region %x[%x] for %s\n",
+		airo_print_err(ai->dev->name, "Couldn't get region %x[%x] for %s",
 		       (int)mem_start, (int)mem_len, name);
 		goto out;
 	}
 	if (!request_mem_region(aux_start, aux_len, name)) {
-		printk(KERN_ERR "airo: Couldn't get region %x[%x] for %s\n",
+		airo_print_err(ai->dev->name, "Couldn't get region %x[%x] for %s",
 		       (int)aux_start, (int)aux_len, name);
 		goto free_region1;
 	}
 
 	ai->pcimem = ioremap(mem_start, mem_len);
 	if (!ai->pcimem) {
-		printk(KERN_ERR "airo: Couldn't map region %x[%x] for %s\n",
+		airo_print_err(ai->dev->name, "Couldn't map region %x[%x] for %s",
 		       (int)mem_start, (int)mem_len, name);
 		goto free_region2;
 	}
 	ai->pciaux = ioremap(aux_start, aux_len);
 	if (!ai->pciaux) {
-		printk(KERN_ERR "airo: Couldn't map region %x[%x] for %s\n",
+		airo_print_err(ai->dev->name, "Couldn't map region %x[%x] for %s",
 		       (int)aux_start, (int)aux_len, name);
 		goto free_memmap;
 	}
@@ -2534,7 +2550,7 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci,
 	/* Reserve PKTSIZE for each fid and 2K for the Rids */
 	ai->shared = pci_alloc_consistent(pci, PCI_SHARED_LEN, &ai->shared_dma);
 	if (!ai->shared) {
-		printk(KERN_ERR "airo: Couldn't alloc_consistent %d\n",
+		airo_print_err(ai->dev->name, "Couldn't alloc_consistent %d",
 		       PCI_SHARED_LEN);
 		goto free_auxmap;
 	}
@@ -2681,22 +2697,22 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	/* Create the network device object. */
         dev = alloc_etherdev(sizeof(*ai));
         if (!dev) {
-		printk(KERN_ERR "airo:  Couldn't alloc_etherdev\n");
+		airo_print_err("", "Couldn't alloc_etherdev");
 		return NULL;
         }
 	if (dev_alloc_name(dev, dev->name) < 0) {
-		printk(KERN_ERR "airo:  Couldn't get name!\n");
+		airo_print_err("", "Couldn't get name!");
 		goto err_out_free;
 	}
 
 	ai = dev->priv;
 	ai->wifidev = NULL;
 	ai->flags = 0;
+	ai->dev = dev;
 	if (pci && (pci->device == 0x5000 || pci->device == 0xa504)) {
-		printk(KERN_DEBUG "airo: Found an MPI350 card\n");
+		airo_print_dbg(dev->name, "Found an MPI350 card");
 		set_bit(FLAG_MPI, &ai->flags);
 	}
-        ai->dev = dev;
 	spin_lock_init(&ai->aux_lock);
 	sema_init(&ai->sem, 1);
 	ai->config.len = 0;
@@ -2738,27 +2754,28 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 
 	rc = request_irq( dev->irq, airo_interrupt, SA_SHIRQ, dev->name, dev );
 	if (rc) {
-		printk(KERN_ERR "airo: register interrupt %d failed, rc %d\n", irq, rc );
+		airo_print_err(dev->name, "register interrupt %d failed, rc %d",
+				irq, rc);
 		goto err_out_unlink;
 	}
 	if (!is_pcmcia) {
 		if (!request_region( dev->base_addr, 64, dev->name )) {
 			rc = -EBUSY;
-			printk(KERN_ERR "airo: Couldn't request region\n");
+			airo_print_err(dev->name, "Couldn't request region");
 			goto err_out_irq;
 		}
 	}
 
 	if (test_bit(FLAG_MPI,&ai->flags)) {
 		if (mpi_map_card(ai, pci, dev->name)) {
-			printk(KERN_ERR "airo: Could not map memory\n");
+			airo_print_err(dev->name, "Could not map memory");
 			goto err_out_res;
 		}
 	}
 
 	if (probe) {
 		if ( setup_card( ai, dev->dev_addr, 1 ) != SUCCESS ) {
-			printk( KERN_ERR "airo: MAC could not be enabled\n" );
+			airo_print_err(dev->name, "MAC could not be enabled" );
 			rc = -EIO;
 			goto err_out_map;
 		}
@@ -2769,14 +2786,13 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 
 	rc = register_netdev(dev);
 	if (rc) {
-		printk(KERN_ERR "airo: Couldn't register_netdev\n");
+		airo_print_err(dev->name, "Couldn't register_netdev");
 		goto err_out_map;
 	}
 	ai->wifidev = init_wifidev(ai, dev);
 
 	set_bit(FLAG_REGISTERED,&ai->flags);
-	printk( KERN_INFO "airo: MAC enabled %s %x:%x:%x:%x:%x:%x\n",
-		dev->name,
+	airo_print_info(dev->name, "MAC enabled %x:%x:%x:%x:%x:%x",
 		dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
 		dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5] );
 
@@ -2840,10 +2856,10 @@ int reset_airo_card( struct net_device *dev )
 		return -1;
 
 	if ( setup_card(ai, dev->dev_addr, 1 ) != SUCCESS ) {
-		printk( KERN_ERR "airo: MAC could not be enabled\n" );
+		airo_print_err(dev->name, "MAC could not be enabled");
 		return -1;
 	}
-	printk( KERN_INFO "airo: MAC enabled %s %x:%x:%x:%x:%x:%x\n", dev->name,
+	airo_print_info(dev->name, "MAC enabled %x:%x:%x:%x:%x:%x",
 			dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
 			dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
 	/* Allocate the transmit buffers if needed */
@@ -3118,7 +3134,7 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 			len = le16_to_cpu(hdr.len);
 
 			if (len > 2312) {
-				printk( KERN_ERR "airo: Bad size %d\n", len );
+				airo_print_err(apriv->dev->name, "Bad size %d", len);
 				goto badrx;
 			}
 			if (len == 0)
@@ -3161,10 +3177,12 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 				bap_read (apriv, &gap, sizeof(gap), BAP0);
 				gap = le16_to_cpu(gap);
 				if (gap) {
-					if (gap <= 8)
+					if (gap <= 8) {
 						bap_read (apriv, tmpbuf, gap, BAP0);
-					else
-						printk(KERN_ERR "airo: gaplen too big. Problems will follow...\n");
+					} else {
+						airo_print_err(apriv->dev->name, "gaplen too "
+							"big. Problems will follow...");
+					}
 				}
 				bap_read (apriv, buffer + hdrlen/2, len, BAP0);
 			} else {
@@ -3281,12 +3299,13 @@ exitrx:
 				}
 			} else {
 				OUT4500( apriv, EVACK, status & (EV_TX | EV_TXCPY | EV_TXEXC));
-				printk( KERN_ERR "airo: Unallocated FID was used to xmit\n" );
+				airo_print_err(apriv->dev->name, "Unallocated FID was "
+					"used to xmit" );
 			}
 		}
 exittx:
 		if ( status & ~STATUS_INTS & ~IGNORE_INTS )
-			printk( KERN_WARNING "airo: Got weird status %x\n",
+			airo_print_warn(apriv->dev->name, "Got weird status %x",
 				status & ~STATUS_INTS & ~IGNORE_INTS );
 	}
 
@@ -3359,8 +3378,8 @@ static int enable_MAC( struct airo_info *ai, Resp *rsp, int lock ) {
 	    up(&ai->sem);
 
 	if (rc)
-		printk(KERN_ERR "%s: Cannot enable MAC, err=%d\n",
-			__FUNCTION__,rc);
+		airo_print_err(ai->dev->name, "%s: Cannot enable MAC, err=%d",
+			__FUNCTION__, rc);
 	return rc;
 }
 
@@ -3490,7 +3509,7 @@ void mpi_receive_802_11 (struct airo_info *ai)
 		hdr.len = 0;
 	len = le16_to_cpu(hdr.len);
 	if (len > 2312) {
-		printk( KERN_ERR "airo: Bad size %d\n", len );
+		airo_print_err(ai->dev->name, "Bad size %d", len);
 		goto badrx;
 	}
 	if (len == 0)
@@ -3531,8 +3550,8 @@ void mpi_receive_802_11 (struct airo_info *ai)
 		if (gap <= 8)
 			ptr += gap;
 		else
-			printk(KERN_ERR
-			    "airo: gaplen too big. Problems will follow...\n");
+			airo_print_err(ai->dev->name,
+			    "gaplen too big. Problems will follow...");
 	}
 	memcpy ((char *)buffer + hdrlen, ptr, len);
 	ptr += len;
@@ -3604,15 +3623,15 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 		if (issuecommand(ai, &cmd, &rsp) != SUCCESS) {
 			if (lock)
 				up(&ai->sem);
-			printk(KERN_ERR "airo: Error checking for AUX port\n");
+			airo_print_err(ai->dev->name, "Error checking for AUX port");
 			return ERROR;
 		}
 		if (!aux_bap || rsp.status & 0xff00) {
 			ai->bap_read = fast_bap_read;
-			printk(KERN_DEBUG "airo: Doing fast bap_reads\n");
+			airo_print_dbg(ai->dev->name, "Doing fast bap_reads");
 		} else {
 			ai->bap_read = aux_bap_read;
-			printk(KERN_DEBUG "airo: Doing AUX bap_reads\n");
+			airo_print_dbg(ai->dev->name, "Doing AUX bap_reads");
 		}
 	}
 	if (lock)
@@ -3643,7 +3662,8 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 			if (cap_rid.softCap & 8)
 				ai->config.rmode |= RXMODE_NORMALIZED_RSSI;
 			else
-				printk(KERN_WARNING "airo: unknown received signal level scale\n");
+				airo_print_warn(ai->dev->name, "unknown received signal "
+						"level scale");
 		}
 		ai->config.opmode = adhoc ? MODE_STA_IBSS : MODE_STA_ESS;
 		ai->config.authType = AUTH_OPEN;
@@ -3706,7 +3726,8 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 
 	status = enable_MAC(ai, &rsp, lock);
 	if ( status != SUCCESS || (rsp.status & 0xFF00) != 0) {
-		printk( KERN_ERR "airo: Bad MAC enable reason = %x, rid = %x, offset = %d\n", rsp.rsp0, rsp.rsp1, rsp.rsp2 );
+		airo_print_err(ai->dev->name, "Bad MAC enable reason = %x, rid = %x,"
+			" offset = %d", rsp.rsp0, rsp.rsp1, rsp.rsp2 );
 		return ERROR;
 	}
 
@@ -3749,8 +3770,8 @@ static u16 issuecommand(struct airo_info *ai, Cmd *pCmd, Resp *pRsp) {
 	}
 
 	if ( max_tries == -1 ) {
-		printk( KERN_ERR
-			"airo: Max tries exceeded when issueing command\n" );
+		airo_print_err(ai->dev->name,
+			"Max tries exceeded when issueing command");
 		if (IN4500(ai, COMMAND) & COMMAND_BUSY)
 			OUT4500(ai, EVACK, EV_CLEARCOMMANDBUSY);
 		return ERROR;
@@ -3762,11 +3783,11 @@ static u16 issuecommand(struct airo_info *ai, Cmd *pCmd, Resp *pRsp) {
 	pRsp->rsp1 = IN4500(ai, RESP1);
 	pRsp->rsp2 = IN4500(ai, RESP2);
 	if ((pRsp->status & 0xff00)!=0 && pCmd->cmd != CMD_SOFTRESET) {
-		printk (KERN_ERR "airo: cmd= %x\n", pCmd->cmd);
-		printk (KERN_ERR "airo: status= %x\n", pRsp->status);
-		printk (KERN_ERR "airo: Rsp0= %x\n", pRsp->rsp0);
-		printk (KERN_ERR "airo: Rsp1= %x\n", pRsp->rsp1);
-		printk (KERN_ERR "airo: Rsp2= %x\n", pRsp->rsp2);
+		airo_print_err(ai->dev->name, "cmd= %x\n", pCmd->cmd);
+		airo_print_err(ai->dev->name, "status= %x\n", pRsp->status);
+		airo_print_err(ai->dev->name, "Rsp0= %x\n", pRsp->rsp0);
+		airo_print_err(ai->dev->name, "Rsp1= %x\n", pRsp->rsp1);
+		airo_print_err(ai->dev->name, "Rsp2= %x\n", pRsp->rsp2);
 	}
 
 	// clear stuck command busy if necessary
@@ -3799,15 +3820,15 @@ static int bap_setup(struct airo_info *ai, u16 rid, u16 offset, int whichbap )
 			}
 		} else if ( status & BAP_ERR ) {
 			/* invalid rid or offset */
-			printk( KERN_ERR "airo: BAP error %x %d\n",
+			airo_print_err(ai->dev->name, "BAP error %x %d",
 				status, whichbap );
 			return ERROR;
 		} else if (status & BAP_DONE) { // success
 			return SUCCESS;
 		}
 		if ( !(max_tries--) ) {
-			printk( KERN_ERR
-				"airo: BAP setup error too many retries\n" );
+			airo_print_err(ai->dev->name,
+				"airo: BAP setup error too many retries\n");
 			return ERROR;
 		}
 		// -- PC4500 missed it, try again
@@ -3962,8 +3983,8 @@ static int PC4500_readrid(struct airo_info *ai, u16 rid, void *pBuf, int len, in
 		len = min(len, (int)le16_to_cpu(*(u16*)pBuf)) - 2;
 
 		if ( len <= 2 ) {
-			printk( KERN_ERR
-			"airo: Rid %x has a length of %d which is too short\n",
+			airo_print_err(ai->dev->name,
+				"Rid %x has a length of %d which is too short",
 				(int)rid, (int)len );
 			rc = ERROR;
 	                goto done;
@@ -3996,8 +4017,8 @@ static int PC4500_writerid(struct airo_info *ai, u16 rid,
 		Resp rsp;
 
 		if (test_bit(FLAG_ENABLED, &ai->flags) && (RID_WEP_TEMP != rid))
-			printk(KERN_ERR
-				"%s: MAC should be disabled (rid=%04x)\n",
+			airo_print_err(ai->dev->name,
+				"%s: MAC should be disabled (rid=%04x)",
 				__FUNCTION__, rid);
 		memset(&cmd, 0, sizeof(cmd));
 		memset(&rsp, 0, sizeof(rsp));
@@ -4013,7 +4034,7 @@ static int PC4500_writerid(struct airo_info *ai, u16 rid,
 			&ai->config_desc.rid_desc, sizeof(Rid));
 
 		if (len < 4 || len > 2047) {
-			printk(KERN_ERR "%s: len=%d\n",__FUNCTION__,len);
+			airo_print_err(ai->dev->name, "%s: len=%d", __FUNCTION__, len);
 			rc = -1;
 		} else {
 			memcpy((char *)ai->config_desc.virtual_host_addr,
@@ -4021,10 +4042,10 @@ static int PC4500_writerid(struct airo_info *ai, u16 rid,
 
 			rc = issuecommand(ai, &cmd, &rsp);
 			if ((rc & 0xff00) != 0) {
-				printk(KERN_ERR "%s: Write rid Error %d\n",
-					__FUNCTION__,rc);
-				printk(KERN_ERR "%s: Cmd=%04x\n",
-						__FUNCTION__,cmd.cmd);
+				airo_print_err(ai->dev->name, "%s: Write rid Error %d",
+						__FUNCTION__, rc);
+				airo_print_err(ai->dev->name, "%s: Cmd=%04x",
+						__FUNCTION__, cmd.cmd);
 			}
 
 			if ((rsp.status & 0x7f00))
@@ -4123,7 +4144,7 @@ static int transmit_802_3_packet(struct airo_info *ai, int len, char *pPacket)
 	len >>= 16;
 
 	if (len <= ETH_ALEN * 2) {
-		printk( KERN_WARNING "Short packet %d\n", len );
+		airo_print_warn(ai->dev->name, "Short packet %d", len);
 		return ERROR;
 	}
 	len -= ETH_ALEN * 2;
@@ -4187,7 +4208,7 @@ static int transmit_802_11_packet(struct airo_info *ai, int len, char *pPacket)
 	}
 
 	if (len < hdrlen) {
-		printk( KERN_WARNING "Short packet %d\n", len );
+		airo_print_warn(ai->dev->name, "Short packet %d", len);
 		return ERROR;
 	}
 
@@ -4584,15 +4605,14 @@ static int proc_stats_rid_open( struct inode *inode,
 		    i*4<stats.len; i++){
 		if (!statsLabels[i]) continue;
 		if (j+strlen(statsLabels[i])+16>4096) {
-			printk(KERN_WARNING
-			       "airo: Potentially disasterous buffer overflow averted!\n");
+			airo_print_warn(apriv->dev->name,
+			       "Potentially disasterous buffer overflow averted!");
 			break;
 		}
 		j+=sprintf(data->rbuffer+j, "%s: %u\n", statsLabels[i], vals[i]);
 	}
 	if (i*4>=stats.len){
-		printk(KERN_WARNING
-		       "airo: Got a short rid\n");
+		airo_print_warn(apriv->dev->name, "Got a short rid");
 	}
 	data->readlen = j;
 	return 0;
@@ -4798,8 +4818,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			case 'd':  ai->config.modulation=MOD_DEFAULT; set_bit(FLAG_COMMIT, &ai->flags); break;
 			case 'c':  ai->config.modulation=MOD_CCK; set_bit(FLAG_COMMIT, &ai->flags); break;
 			case 'm':  ai->config.modulation=MOD_MOK; set_bit(FLAG_COMMIT, &ai->flags); break;
-			default:
-				printk( KERN_WARNING "airo: Unknown modulation\n" );
+			default: airo_print_warn(ai->dev->name, "Unknown modulation");
 			}
 		} else if (!strncmp(line, "Preamble: ", 10)) {
 			line += 10;
@@ -4807,10 +4826,10 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			case 'a': ai->config.preamble=PREAMBLE_AUTO; set_bit(FLAG_COMMIT, &ai->flags); break;
 			case 'l': ai->config.preamble=PREAMBLE_LONG; set_bit(FLAG_COMMIT, &ai->flags); break;
 			case 's': ai->config.preamble=PREAMBLE_SHORT; set_bit(FLAG_COMMIT, &ai->flags); break;
-		        default: printk(KERN_WARNING "airo: Unknown preamble\n");
+			default: airo_print_warn(ai->dev->name, "Unknown preamble");
 			}
 		} else {
-			printk( KERN_WARNING "Couldn't figure out %s\n", line );
+			airo_print_warn(ai->dev->name, "Couldn't figure out %s", line);
 		}
 		while( line[0] && line[0] != '\n' ) line++;
 		if ( line[0] ) line++;
@@ -5076,7 +5095,7 @@ static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 		}
 		j = 2;
 	} else {
-		printk(KERN_ERR "airo:  WepKey passed invalid key index\n");
+		airo_print_err(ai->dev->name, "WepKey passed invalid key index");
 		return;
 	}
 
@@ -5489,17 +5508,16 @@ static int __init airo_init_module( void )
         airo_entry->gid = proc_gid;
 
 	for( i = 0; i < 4 && io[i] && irq[i]; i++ ) {
-		printk( KERN_INFO
-			"airo:  Trying to configure ISA adapter at irq=%d io=0x%x\n",
-			irq[i], io[i] );
+		airo_print_info("", "Trying to configure ISA adapter at irq=%d "
+			"io=0x%x", irq[i], io[i] );
 		if (init_airo_card( irq[i], io[i], 0, NULL ))
 			have_isa_dev = 1;
 	}
 
 #ifdef CONFIG_PCI
-	printk( KERN_INFO "airo:  Probing for PCI adapters\n" );
+	airo_print_info("", "Probing for PCI adapters");
 	pci_register_driver(&airo_driver);
-	printk( KERN_INFO "airo:  Finished probing for PCI adapters\n" );
+	airo_print_info("", "Finished probing for PCI adapters");
 #endif
 
 	/* Always exit with success, as we are a library module
@@ -5511,7 +5529,7 @@ static int __init airo_init_module( void )
 static void __exit airo_cleanup_module( void )
 {
 	while( airo_devices ) {
-		printk( KERN_INFO "airo: Unregistering %s\n", airo_devices->dev->name );
+		airo_print_info(airo_devices->dev->name, "Unregistering...\n");
 		stop_airo_card( airo_devices->dev, 1 );
 	}
 #ifdef CONFIG_PCI
@@ -5622,7 +5640,8 @@ static int airo_set_freq(struct net_device *dev,
 		/* We should do a better check than that,
 		 * based on the card capability !!! */
 		if((channel < 1) || (channel > 14)) {
-			printk(KERN_DEBUG "%s: New channel value of %d is invalid!\n", dev->name, fwrq->m);
+			airo_print_dbg(dev->name, "New channel value of %d is invalid!",
+				fwrq->m);
 			rc = -EINVAL;
 		} else {
 			readConfigRid(local, 1);
@@ -7711,7 +7730,7 @@ static int cmdreset(struct airo_info *ai) {
 	disable_MAC(ai, 1);
 
 	if(!waitbusy (ai)){
-		printk(KERN_INFO "Waitbusy hang before RESET\n");
+		airo_print_info(ai->dev->name, "Waitbusy hang before RESET");
 		return -EBUSY;
 	}
 
@@ -7720,7 +7739,7 @@ static int cmdreset(struct airo_info *ai) {
 	ssleep(1);			/* WAS 600 12/7/00 */
 
 	if(!waitbusy (ai)){
-		printk(KERN_INFO "Waitbusy hang AFTER RESET\n");
+		airo_print_info(ai->dev->name, "Waitbusy hang AFTER RESET");
 		return -EBUSY;
 	}
 	return 0;
@@ -7748,7 +7767,7 @@ static int setflashmode (struct airo_info *ai) {
 
 	if(!waitbusy(ai)) {
 		clear_bit (FLAG_FLASHING, &ai->flags);
-		printk(KERN_INFO "Waitbusy hang after setflash mode\n");
+		airo_print_info(ai->dev->name, "Waitbusy hang after setflash mode");
 		return -EIO;
 	}
 	return 0;
@@ -7777,7 +7796,7 @@ static int flashpchar(struct airo_info *ai,int byte,int dwelltime) {
 
 	/* timeout for busy clear wait */
 	if(waittime <= 0 ){
-		printk(KERN_INFO "flash putchar busywait timeout! \n");
+		airo_print_info(ai->dev->name, "flash putchar busywait timeout!");
 		return -EBUSY;
 	}
 
