@@ -11,14 +11,14 @@
 #include <linux/oprofile.h>
 #include <linux/errno.h>
 #include <linux/sysdev.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include "op_counter.h"
 #include "op_arm_model.h"
 
 static struct op_arm_model_spec *op_arm_model;
 static int op_arm_enabled;
-static struct semaphore op_arm_sem;
+static DEFINE_MUTEX(op_arm_mutex);
 
 struct op_counter_config counter_config[OP_MAX_COUNTER];
 
@@ -57,40 +57,40 @@ static int op_arm_start(void)
 {
 	int ret = -EBUSY;
 
-	down(&op_arm_sem);
+	mutex_lock(&op_arm_mutex);
 	if (!op_arm_enabled) {
 		ret = op_arm_model->start();
 		op_arm_enabled = !ret;
 	}
-	up(&op_arm_sem);
+	mutex_unlock(&op_arm_mutex);
 	return ret;
 }
 
 static void op_arm_stop(void)
 {
-	down(&op_arm_sem);
+	mutex_lock(&op_arm_mutex);
 	if (op_arm_enabled)
 		op_arm_model->stop();
 	op_arm_enabled = 0;
-	up(&op_arm_sem);
+	mutex_unlock(&op_arm_mutex);
 }
 
 #ifdef CONFIG_PM
 static int op_arm_suspend(struct sys_device *dev, pm_message_t state)
 {
-	down(&op_arm_sem);
+	mutex_lock(&op_arm_mutex);
 	if (op_arm_enabled)
 		op_arm_model->stop();
-	up(&op_arm_sem);
+	mutex_unlock(&op_arm_mutex);
 	return 0;
 }
 
 static int op_arm_resume(struct sys_device *dev)
 {
-	down(&op_arm_sem);
+	mutex_lock(&op_arm_mutex);
 	if (op_arm_enabled && op_arm_model->start())
 		op_arm_enabled = 0;
-	up(&op_arm_sem);
+	mutex_unlock(&op_arm_mutex);
 	return 0;
 }
 
@@ -135,8 +135,6 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 #endif
 
 	if (spec) {
-		init_MUTEX(&op_arm_sem);
-
 		ret = spec->init();
 		if (ret < 0)
 			return ret;
@@ -163,4 +161,3 @@ void oprofile_arch_exit(void)
 		op_arm_model = NULL;
 	}
 }
-
