@@ -176,9 +176,9 @@ static void cx25840_initialize(struct i2c_client *client, int loadfw)
 	cx25840_write(client, 0x4a5, 0x00);
 	cx25840_write(client, 0x402, 0x00);
 	/* 8. */
-	cx25840_write(client, 0x401, 0x18);
-	cx25840_write(client, 0x4a2, 0x10);
-	cx25840_write(client, 0x402, 0x04);
+	cx25840_and_or(client, 0x401, ~0x18, 0);
+	cx25840_and_or(client, 0x4a2, ~0x10, 0x10);
+	/* steps 8c and 8d are done in change_input() */
 	/* 10. */
 	cx25840_write(client, 0x8d3, 0x1f);
 	cx25840_write(client, 0x8e3, 0x03);
@@ -208,6 +208,17 @@ static void input_change(struct i2c_client *client)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
 	v4l2_std_id std = cx25840_get_v4lstd(client);
+
+	/* Follow step 8c and 8d of section 3.16 in the cx25840 datasheet */
+	if (std & V4L2_STD_SECAM) {
+		cx25840_write(client, 0x402, 0);
+	}
+	else {
+		cx25840_write(client, 0x402, 0x04);
+		cx25840_write(client, 0x49f, (std & V4L2_STD_NTSC) ? 0x14 : 0x11);
+	}
+	cx25840_and_or(client, 0x401, ~0x60, 0);
+	cx25840_and_or(client, 0x401, ~0x60, 0x60);
 
 	/* Note: perhaps V4L2_STD_PAL_M should be handled as V4L2_STD_NTSC
 	   instead of V4L2_STD_PAL. Someone needs to test this. */
@@ -343,6 +354,15 @@ static int set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 		}
 	}
 
+	/* Follow step 9 of section 3.16 in the cx25840 datasheet.
+	   Without this PAL may display a vertical ghosting effect.
+	   This happens for example with the Yuan MPC622. */
+	if (fmt >= 4 && fmt < 8) {
+		/* Set format to NTSC-M */
+		cx25840_and_or(client, 0x400, ~0xf, 1);
+		/* Turn off LCOMB */
+		cx25840_and_or(client, 0x47b, ~6, 0);
+	}
 	cx25840_and_or(client, 0x400, ~0xf, fmt);
 	cx25840_vbi_setup(client);
 	return 0;
@@ -359,7 +379,14 @@ v4l2_std_id cx25840_get_v4lstd(struct i2c_client * client)
 	}
 
 	switch (fmt) {
-	case 0x1: return V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_KR;
+	case 0x1:
+	{
+		/* if the audio std is A2-M, then this is the South Korean
+		   NTSC standard */
+		if (cx25840_read(client, 0x805) == 2)
+			return V4L2_STD_NTSC_M_KR;
+		return V4L2_STD_NTSC_M;
+	}
 	case 0x2: return V4L2_STD_NTSC_M_JP;
 	case 0x3: return V4L2_STD_NTSC_443;
 	case 0x4: return V4L2_STD_PAL;
