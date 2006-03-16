@@ -266,12 +266,18 @@ config CPU_32v6K
 # This defines the compiler instruction set which depends on the machine type.
 config CPU_32v3
 	bool
+	select TLS_REG_EMUL if SMP
+	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v4
 	bool
+	select TLS_REG_EMUL if SMP
+	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v5
 	bool
+	select TLS_REG_EMUL if SMP
+	select NEEDS_SYSCALL_FOR_CMPXCHG if SMP
 
 config CPU_32v6
 	bool
@@ -417,7 +423,6 @@ config CPU_BPREDICT_DISABLE
 
 config TLS_REG_EMUL
 	bool
-	default y if SMP && (CPU_32v5 || CPU_32v4 || CPU_32v3)
 	help
 	  An SMP system using a pre-ARMv6 processor (there are apparently
 	  a few prototypes like that in existence) and therefore access to
@@ -436,7 +441,6 @@ config HAS_TLS_REG
 
 config NEEDS_SYSCALL_FOR_CMPXCHG
 	bool
-	default y if SMP && (CPU_32v5 || CPU_32v4 || CPU_32v3)
 	help
 	  SMP on a pre-ARMv6 processor?  Well OK then.
 	  Forget about fast user space cmpxchg support.
