@@ -10,13 +10,20 @@
  * published by the Free Software Foundation.
  *
 */
+#include <linux/amba/serial.h>
 
-		.macro	addruart,rx
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		moveq	\rx, #0x16000000	@ physical base address
-		movne	\rx, #0xf0000000	@ virtual base
-		addne	\rx, \rx, #0x16000000 >> 4
+		.macro	senduart,rd,rx
+		strb	\rd, [\rx, #UART01x_DR]
 		.endm
 
-#include <asm/hardware/debug-pl01x.S>
+		.macro	waituart,rd,rx
+1001:		ldr	\rd, [\rx, #UART01x_FR]
+		tst	\rd, #UART01x_FR_TXFF
+		bne	1001b
+		.endm
+
+		.macro	busyuart,rd,rx
+1001:		ldr	\rd, [\rx, #UART01x_FR]
+		tst	\rd, #UART01x_FR_BUSY
+		bne	1001b
+		.endm
