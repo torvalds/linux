@@ -302,6 +302,7 @@ void sysfs_remove_dir(struct kobject * kobj)
 	 * Drop reference from dget() on entrance.
 	 */
 	dput(dentry);
+	kobj->dentry = NULL;
 }
 
 int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
