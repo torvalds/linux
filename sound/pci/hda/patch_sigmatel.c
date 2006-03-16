@@ -1148,6 +1148,166 @@ static int patch_stac927x(struct hda_codec *codec)
 }
 
 /*
+ * STAC 7661(?) hack
+ */
+
+/* static config for Sony VAIO FE550G */
+static hda_nid_t vaio_dacs[] = { 0x2 };
+#define VAIO_HP_DAC	0x5
+static hda_nid_t vaio_adcs[] = { 0x8 /*,0x6*/ };
+static hda_nid_t vaio_mux_nids[] = { 0x15 };
+
+static struct hda_input_mux vaio_mux = {
+	.num_items = 2,
+	.items = {
+		/* { "HP", 0x0 },
+		   { "Unknown", 0x1 }, */
+		{ "Mic", 0x2 },
+		{ "PCM", 0x3 },
+	}
+};
+
+static struct hda_verb vaio_init[] = {
+	{0x0a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP }, /* HP <- 0x2 */
+	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT }, /* Speaker <- 0x5 */
+	{0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 }, /* Mic? (<- 0x2) */
+	{0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN }, /* CD */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 }, /* Mic? */
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x2}, /* mic-sel: 0a,0d,14,02 */
+	{0x02, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE}, /* HP */
+	{0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE}, /* Speaker */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)}, /* capture sw/vol -> 0x8 */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)}, /* CD-in -> 0x6 */
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE}, /* Mic-in -> 0x9 */
+	{}
+};
+
+/* bind volumes of both NID 0x02 and 0x05 */
+static int vaio_master_vol_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int change;
+
+	change = snd_hda_codec_amp_update(codec, 0x02, 0, HDA_OUTPUT, 0,
+					  0x7f, valp[0] & 0x7f);
+	change |= snd_hda_codec_amp_update(codec, 0x02, 1, HDA_OUTPUT, 0,
+					   0x7f, valp[1] & 0x7f);
+	snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
+				 0x7f, valp[0] & 0x7f);
+	snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
+				 0x7f, valp[1] & 0x7f);
+	return change;
+}
+
+/* bind volumes of both NID 0x02 and 0x05 */
+static int vaio_master_sw_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int change;
+
+	change = snd_hda_codec_amp_update(codec, 0x02, 0, HDA_OUTPUT, 0,
+					  0x80, valp[0] & 0x80);
+	change |= snd_hda_codec_amp_update(codec, 0x02, 1, HDA_OUTPUT, 0,
+					   0x80, valp[1] & 0x80);
+	snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
+				 0x80, valp[0] & 0x80);
+	snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
+				 0x80, valp[1] & 0x80);
+	return change;
+}
+
+static struct snd_kcontrol_new vaio_mixer[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Volume",
+		.info = snd_hda_mixer_amp_volume_info,
+		.get = snd_hda_mixer_amp_volume_get,
+		.put = vaio_master_vol_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = snd_hda_mixer_amp_switch_info,
+		.get = snd_hda_mixer_amp_switch_get,
+		.put = vaio_master_sw_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
+	},
+	/* HDA_CODEC_VOLUME("CD Capture Volume", 0x07, 0, HDA_INPUT), */
+	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x09, 0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.count = 1,
+		.info = stac92xx_mux_enum_info,
+		.get = stac92xx_mux_enum_get,
+		.put = stac92xx_mux_enum_put,
+	},
+	{}
+};
+
+static struct hda_codec_ops stac7661_patch_ops = {
+	.build_controls = stac92xx_build_controls,
+	.build_pcms = stac92xx_build_pcms,
+	.init = stac92xx_init,
+	.free = stac92xx_free,
+#ifdef CONFIG_PM
+	.resume = stac92xx_resume,
+#endif
+};
+
+enum { STAC7661_VAIO };
+
+static struct hda_board_config stac7661_cfg_tbl[] = {
+	{ .modelname = "vaio", .config = STAC7661_VAIO },
+	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81e6,
+	  .config = STAC7661_VAIO },
+	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81ef,
+	  .config = STAC7661_VAIO },
+	{}
+};
+
+static int patch_stac7661(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec;
+	int board_config;
+
+	board_config = snd_hda_check_board_config(codec, stac7661_cfg_tbl);
+	if (board_config < 0)
+		/* unknown config, let generic-parser do its job... */
+		return snd_hda_parse_generic_codec(codec);
+	
+	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (spec == NULL)
+		return -ENOMEM;
+
+	codec->spec = spec;
+	switch (board_config) {
+	case STAC7661_VAIO:
+		spec->mixer = vaio_mixer;
+		spec->init = vaio_init;
+		spec->multiout.max_channels = 2;
+		spec->multiout.num_dacs = ARRAY_SIZE(vaio_dacs);
+		spec->multiout.dac_nids = vaio_dacs;
+		spec->multiout.hp_nid = VAIO_HP_DAC;
+		spec->num_adcs = ARRAY_SIZE(vaio_adcs);
+		spec->adc_nids = vaio_adcs;
+		spec->input_mux = &vaio_mux;
+		spec->mux_nids = vaio_mux_nids;
+		break;
+	}
+
+	codec->patch_ops = stac7661_patch_ops;
+	return 0;
+}
+
+
+/*
  * patch entries
  */
 struct hda_codec_preset snd_hda_preset_sigmatel[] = {
@@ -1168,5 +1328,6 @@ struct hda_codec_preset snd_hda_preset_sigmatel[] = {
  	{ .id = 0x83847627, .name = "STAC9271D", .patch = patch_stac927x },
  	{ .id = 0x83847628, .name = "STAC9274X5NH", .patch = patch_stac927x },
  	{ .id = 0x83847629, .name = "STAC9274D5NH", .patch = patch_stac927x },
+ 	{ .id = 0x83847661, .name = "STAC7661", .patch = patch_stac7661 },
 	{} /* terminator */
 };
