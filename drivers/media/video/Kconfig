@@ -359,16 +359,6 @@ config VIDEO_MSP3400
 	  To compile this driver as a module, choose M here: the
 	  module will be called msp3400
 
-config VIDEO_DECODER
-	tristate "Add support for additional video chipsets"
-	depends on VIDEO_DEV && I2C && EXPERIMENTAL
-	select VIDEO_CX25840
-	select VIDEO_SAA711X
-	select VIDEO_SAA7127
-	---help---
-	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
-	  video decoders.
-
 source "drivers/media/video/cx25840/Kconfig"
 
 config VIDEO_SAA711X
