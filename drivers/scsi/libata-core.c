@@ -3909,7 +3909,6 @@ static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
 
 	case ATA_PROT_ATAPI:
 	case ATA_PROT_PIO:
-	case ATA_PROT_PIO_MULT:
 		if (ap->flags & ATA_FLAG_PIO_DMA)
 			return 1;
 
