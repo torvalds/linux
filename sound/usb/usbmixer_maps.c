@@ -195,6 +195,22 @@ static struct usbmix_name_map linex_map[] = {
 	{ 0 } /* terminator */
 };
 
+static struct usbmix_name_map maya44_map[] = {
+	/* 1: IT line */
+	{ 2, "Line Playback" }, /* FU */
+	/* 3: IT line */
+	{ 4, "Line Playback" }, /* FU */
+	/* 5: IT pcm playback */
+	/* 6: MU */
+	{ 7, "Master Playback" }, /* FU */
+	/* 8: OT speaker */
+	/* 9: IT line */
+	{ 10, "Line Capture" }, /* FU */
+	/* 11: MU */
+	/* 12: OT pcm capture */
+	{ }
+};
+
 /* Section "justlink_map" below added by James Courtier-Dutton <James@superbug.demon.co.uk>
  * sourced from Maplin Electronics (http://www.maplin.co.uk), part number A56AK
  * Part has 2 connectors that act as a single output. (TOSLINK Optical for digital out, and 3.5mm Jack for Analogue out.)
@@ -251,6 +267,10 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.id = USB_ID(0x08bb, 0x2702),
 		.map = linex_map,
 		.ignore_ctl_error = 1,
+	},
+	{
+		.id = USB_ID(0x0a92, 0x0091),
+		.map = maya44_map,
 	},
 	{
 		.id = USB_ID(0x0c45, 0x1158),
