@@ -1280,6 +1280,7 @@ static int __init sunsu_kbd_ms_init(struct uart_sunsu_port *up, int channel)
 	struct serio *serio;
 #endif
 
+	spin_lock_init(&up->port.lock);
 	up->port.line = channel;
 	up->port.type = PORT_UNKNOWN;
 	up->port.uartclk = (SU_BASE_BAUD * 16);
@@ -1509,6 +1510,7 @@ static int __init sunsu_serial_init(void)
 		    up->su_type == SU_PORT_KBD)
 			continue;
 
+		spin_lock_init(&up->port.lock);
 		up->port.flags |= UPF_BOOT_AUTOCONF;
 		up->port.type = PORT_UNKNOWN;
 		up->port.uartclk = (SU_BASE_BAUD * 16);
