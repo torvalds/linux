@@ -346,6 +346,8 @@ config VIDEO_AUDIO_DECODER
 	tristate "Add support for additional audio chipsets"
 	depends on VIDEO_DEV && I2C && EXPERIMENTAL
 	select VIDEO_MSP3400
+	select VIDEO_CS53L32A
+	select VIDEO_WM8775
 	---help---
 	  Say Y here to compile drivers for WM8775, CS53L32A and
 	  MSP34xx audio decoders.
@@ -358,6 +360,26 @@ config VIDEO_MSP3400
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called msp3400
+
+config VIDEO_CS53L32A
+	tristate "Cirrus Logic CS53L32A audio ADC"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Cirrus Logic CS53L32A low voltage
+	  stereo A/D converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cs53l32a
+
+config VIDEO_WM8775
+	tristate "Wolfson Microelectronics WM8775 audio ADC"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Wolfson Microelectronics WM8775
+	  high performance stereo A/D Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wm8775
 
 source "drivers/media/video/cx25840/Kconfig"
 
