@@ -725,18 +725,14 @@ static void saa7115_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 	if (state->ident == V4L2_IDENT_SAA7113) {
 		u8 reg =  saa7115_read(client, 0x0e) & 0x8f;
 
-		if (std & V4L2_STD_PAL) {
-			if (std == V4L2_STD_PAL_M) {
-				reg|=0x30;
-			} else if (std == V4L2_STD_PAL_N) {
-				reg|=0x20;
-			} else if (std == V4L2_STD_PAL_60) {
-				reg|=0x10;
-			}
-		} else if (std & V4L2_STD_NTSC) {
-			if (std == V4L2_STD_NTSC_M_JP) {
-				reg|=0x40;
-			}
+		if (std == V4L2_STD_PAL_M) {
+			reg|=0x30;
+		} else if (std == V4L2_STD_PAL_N) {
+			reg|=0x20;
+		} else if (std == V4L2_STD_PAL_60) {
+			reg|=0x10;
+		} else if (std == V4L2_STD_NTSC_M_JP) {
+			reg|=0x40;
 		}
 		saa7115_write(client, 0x0e, reg);
 	}
