@@ -510,7 +510,3 @@ struct file_operations sysfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= sysfs_readdir,
 };
-
-EXPORT_SYMBOL_GPL(sysfs_create_dir);
-EXPORT_SYMBOL_GPL(sysfs_remove_dir);
-EXPORT_SYMBOL_GPL(sysfs_rename_dir);
