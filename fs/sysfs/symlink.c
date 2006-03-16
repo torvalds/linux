@@ -66,6 +66,7 @@ static int sysfs_add_link(struct dentry * parent, const char * name, struct kobj
 	if (!error)
 		return 0;
 
+	kobject_put(target);
 	kfree(sl->link_name);
 exit2:
 	kfree(sl);
