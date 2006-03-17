@@ -880,7 +880,7 @@ xfs_dir2_leaf_to_block(
 	xfs_dabuf_t		*lbp,		/* leaf buffer */
 	xfs_dabuf_t		*dbp)		/* data buffer */
 {
-	xfs_dir2_data_off_t	*bestsp;	/* leaf bests table */
+	__be16			*bestsp;	/* leaf bests table */
 	xfs_dir2_block_t	*block;		/* block structure */
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
 	xfs_inode_t		*dp;		/* incore directory inode */
@@ -914,7 +914,7 @@ xfs_dir2_leaf_to_block(
 	 */
 	while (dp->i_d.di_size > mp->m_dirblksize) {
 		bestsp = XFS_DIR2_LEAF_BESTS_P(ltp);
-		if (INT_GET(bestsp[INT_GET(ltp->bestcount, ARCH_CONVERT) - 1], ARCH_CONVERT) ==
+		if (be16_to_cpu(bestsp[INT_GET(ltp->bestcount, ARCH_CONVERT) - 1]) ==
 		    mp->m_dirblksize - (uint)sizeof(block->hdr)) {
 			if ((error =
 			    xfs_dir2_leaf_trim_data(args, lbp,

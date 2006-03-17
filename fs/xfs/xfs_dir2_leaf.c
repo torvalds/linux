@@ -66,7 +66,7 @@ xfs_dir2_block_to_leaf(
 	xfs_da_args_t		*args,		/* operation arguments */
 	xfs_dabuf_t		*dbp)		/* input block's buffer */
 {
-	xfs_dir2_data_off_t	*bestsp;	/* leaf's bestsp entries */
+	__be16			*bestsp;	/* leaf's bestsp entries */
 	xfs_dablk_t		blkno;		/* leaf block's bno */
 	xfs_dir2_block_t	*block;		/* block structure */
 	xfs_dir2_leaf_entry_t	*blp;		/* block's leaf entries */
@@ -163,7 +163,7 @@ int						/* error */
 xfs_dir2_leaf_addname(
 	xfs_da_args_t		*args)		/* operation arguments */
 {
-	xfs_dir2_data_off_t	*bestsp;	/* freespace table in leaf */
+	__be16			*bestsp;	/* freespace table in leaf */
 	int			compact;	/* need to compact leaves */
 	xfs_dir2_data_t		*data;		/* data block structure */
 	xfs_dabuf_t		*dbp;		/* data block buffer */
@@ -228,8 +228,8 @@ xfs_dir2_leaf_addname(
 			continue;
 		i = XFS_DIR2_DATAPTR_TO_DB(mp, INT_GET(lep->address, ARCH_CONVERT));
 		ASSERT(i < INT_GET(ltp->bestcount, ARCH_CONVERT));
-		ASSERT(INT_GET(bestsp[i], ARCH_CONVERT) != NULLDATAOFF);
-		if (INT_GET(bestsp[i], ARCH_CONVERT) >= length) {
+		ASSERT(be16_to_cpu(bestsp[i]) != NULLDATAOFF);
+		if (be16_to_cpu(bestsp[i]) >= length) {
 			use_block = i;
 			break;
 		}
@@ -242,9 +242,9 @@ xfs_dir2_leaf_addname(
 			/*
 			 * Remember a block we see that's missing.
 			 */
-			if (INT_GET(bestsp[i], ARCH_CONVERT) == NULLDATAOFF && use_block == -1)
+			if (be16_to_cpu(bestsp[i]) == NULLDATAOFF && use_block == -1)
 				use_block = i;
-			else if (INT_GET(bestsp[i], ARCH_CONVERT) >= length) {
+			else if (be16_to_cpu(bestsp[i]) >= length) {
 				use_block = i;
 				break;
 			}
@@ -260,7 +260,7 @@ xfs_dir2_leaf_addname(
 	 * Now kill use_block if it refers to a missing block, so we
 	 * can use it as an indication of allocation needed.
 	 */
-	if (use_block != -1 && INT_GET(bestsp[use_block], ARCH_CONVERT) == NULLDATAOFF)
+	if (use_block != -1 && be16_to_cpu(bestsp[use_block]) == NULLDATAOFF)
 		use_block = -1;
 	/*
 	 * If we don't have enough free bytes but we can make enough
@@ -427,7 +427,7 @@ xfs_dir2_leaf_addname(
 	 * If the bests table needs to be changed, do it.
 	 * Log the change unless we've already done that.
 	 */
-	if (INT_GET(bestsp[use_block], ARCH_CONVERT) != be16_to_cpu(data->hdr.bestfree[0].length)) {
+	if (be16_to_cpu(bestsp[use_block]) != be16_to_cpu(data->hdr.bestfree[0].length)) {
 		bestsp[use_block] = data->hdr.bestfree[0].length;
 		if (!grown)
 			xfs_dir2_leaf_log_bests(tp, lbp, use_block, use_block);
@@ -1203,8 +1203,8 @@ xfs_dir2_leaf_log_bests(
 	int			first,		/* first entry to log */
 	int			last)		/* last entry to log */
 {
-	xfs_dir2_data_off_t	*firstb;	/* pointer to first entry */
-	xfs_dir2_data_off_t	*lastb;		/* pointer to last entry */
+	__be16			*firstb;	/* pointer to first entry */
+	__be16			*lastb;		/* pointer to last entry */
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
 	xfs_dir2_leaf_tail_t	*ltp;		/* leaf tail structure */
 
@@ -1437,7 +1437,7 @@ int						/* error */
 xfs_dir2_leaf_removename(
 	xfs_da_args_t		*args)		/* operation arguments */
 {
-	xfs_dir2_data_off_t	*bestsp;	/* leaf block best freespace */
+	__be16			*bestsp;	/* leaf block best freespace */
 	xfs_dir2_data_t		*data;		/* data block structure */
 	xfs_dir2_db_t		db;		/* data block number */
 	xfs_dabuf_t		*dbp;		/* data block buffer */
@@ -1480,7 +1480,7 @@ xfs_dir2_leaf_removename(
 	oldbest = be16_to_cpu(data->hdr.bestfree[0].length);
 	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
 	bestsp = XFS_DIR2_LEAF_BESTS_P(ltp);
-	ASSERT(INT_GET(bestsp[db], ARCH_CONVERT) == oldbest);
+	ASSERT(be16_to_cpu(bestsp[db]) == oldbest);
 	/*
 	 * Mark the former data entry unused.
 	 */
@@ -1542,7 +1542,7 @@ xfs_dir2_leaf_removename(
 			 * Look for the last active entry (i).
 			 */
 			for (i = db - 1; i > 0; i--) {
-				if (INT_GET(bestsp[i], ARCH_CONVERT) != NULLDATAOFF)
+				if (be16_to_cpu(bestsp[i]) != NULLDATAOFF)
 					break;
 			}
 			/*
@@ -1555,7 +1555,7 @@ xfs_dir2_leaf_removename(
 			xfs_dir2_leaf_log_tail(tp, lbp);
 			xfs_dir2_leaf_log_bests(tp, lbp, 0, INT_GET(ltp->bestcount, ARCH_CONVERT) - 1);
 		} else
-			INT_SET(bestsp[db], ARCH_CONVERT, NULLDATAOFF);
+			bestsp[db] = cpu_to_be16(NULLDATAOFF);
 	}
 	/*
 	 * If the data block was not the first one, drop it.
@@ -1684,7 +1684,7 @@ xfs_dir2_leaf_trim_data(
 	xfs_dabuf_t		*lbp,		/* leaf buffer */
 	xfs_dir2_db_t		db)		/* data block number */
 {
-	xfs_dir2_data_off_t	*bestsp;	/* leaf bests table */
+	__be16			*bestsp;	/* leaf bests table */
 #ifdef DEBUG
 	xfs_dir2_data_t		*data;		/* data block structure */
 #endif

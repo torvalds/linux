@@ -114,7 +114,7 @@ xfs_dir2_leaf_to_node(
 	xfs_dabuf_t		*fbp;		/* freespace buffer */
 	xfs_dir2_db_t		fdb;		/* freespace block number */
 	xfs_dir2_free_t		*free;		/* freespace structure */
-	xfs_dir2_data_off_t	*from;		/* pointer to freespace entry */
+	__be16			*from;		/* pointer to freespace entry */
 	int			i;		/* leaf freespace index */
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
 	xfs_dir2_leaf_tail_t	*ltp;		/* leaf tail structure */
@@ -159,7 +159,7 @@ xfs_dir2_leaf_to_node(
 	 */
 	for (i = n = 0, from = XFS_DIR2_LEAF_BESTS_P(ltp), to = free->bests;
 	     i < INT_GET(ltp->bestcount, ARCH_CONVERT); i++, from++, to++) {
-		if ((off = INT_GET(*from, ARCH_CONVERT)) != NULLDATAOFF)
+		if ((off = be16_to_cpu(*from)) != NULLDATAOFF)
 			n++;
 		*to = cpu_to_be16(off);
 	}
