@@ -1178,8 +1178,7 @@ xfs_dir2_sf_to_block(
 			      ((char *)block + offset);
 			dup->freetag = cpu_to_be16(XFS_DIR2_DATA_FREE_TAG);
 			dup->length = cpu_to_be16(newoffset - offset);
-			INT_SET(*XFS_DIR2_DATA_UNUSED_TAG_P(dup), ARCH_CONVERT,
-				(xfs_dir2_data_off_t)
+			*XFS_DIR2_DATA_UNUSED_TAG_P(dup) = cpu_to_be16(
 				((char *)dup - (char *)block));
 			xfs_dir2_data_log_unused(tp, bp, dup);
 			(void)xfs_dir2_data_freeinsert((xfs_dir2_data_t *)block,

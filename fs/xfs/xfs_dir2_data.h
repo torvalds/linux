@@ -147,12 +147,11 @@ xfs_dir2_data_entry_tag_p(xfs_dir2_data_entry_t *dep)
  */
 #define	XFS_DIR2_DATA_UNUSED_TAG_P(dup) \
 	xfs_dir2_data_unused_tag_p(dup)
-static inline xfs_dir2_data_off_t *
+static inline __be16 *
 xfs_dir2_data_unused_tag_p(xfs_dir2_data_unused_t *dup)
 {
-	return (xfs_dir2_data_off_t *) \
-		 ((char *)(dup) + be16_to_cpu((dup)->length) \
-				- (uint)sizeof(xfs_dir2_data_off_t));
+	return (__be16 *)((char *)dup +
+			be16_to_cpu(dup->length) - sizeof(__be16));
 }
 
 /*
