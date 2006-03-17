@@ -239,6 +239,8 @@ static int load_aout32_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 		(current->mm->start_data = N_DATADDR(ex));
 	current->mm->brk = ex.a_bss +
 		(current->mm->start_brk = N_BSSADDR(ex));
+	current->mm->free_area_cache = current->mm->mmap_base;
+	current->mm->cached_hole_size = 0;
 
 	current->mm->mmap = NULL;
 	compute_creds(bprm);

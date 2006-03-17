@@ -752,8 +752,11 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 
 #include <asm-generic/pgtable.h>
 
-/* We provide our own get_unmapped_area to cope with VA holes for userland */
+/* We provide our own get_unmapped_area to cope with VA holes and
+ * SHM area cache aliasing for userland.
+ */
 #define HAVE_ARCH_UNMAPPED_AREA
+#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
 /* We provide a special get_unmapped_area for framebuffer mmaps to try and use
  * the largest alignment possible such that larget PTEs can be used.

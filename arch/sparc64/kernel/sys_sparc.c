@@ -82,9 +82,34 @@ static inline int straddles_64bit_va_hole(unsigned long start, unsigned long end
 	return 1;
 }
 
-#define COLOUR_ALIGN(addr,pgoff)		\
-	((((addr)+SHMLBA-1)&~(SHMLBA-1)) +	\
-	 (((pgoff)<<PAGE_SHIFT) & (SHMLBA-1)))
+/* These functions differ from the default implementations in
+ * mm/mmap.c in two ways:
+ *
+ * 1) For file backed MAP_SHARED mmap()'s we D-cache color align,
+ *    for fixed such mappings we just validate what the user gave us.
+ * 2) For 64-bit tasks we avoid mapping anything within 4GB of
+ *    the spitfire/niagara VA-hole.
+ */
+
+static inline unsigned long COLOUR_ALIGN(unsigned long addr,
+					 unsigned long pgoff)
+{
+	unsigned long base = (addr+SHMLBA-1)&~(SHMLBA-1);
+	unsigned long off = (pgoff<<PAGE_SHIFT) & (SHMLBA-1);
+
+	return base + off;
+}
+
+static inline unsigned long COLOUR_ALIGN_DOWN(unsigned long addr,
+					      unsigned long pgoff)
+{
+	unsigned long base = addr & ~(SHMLBA-1);
+	unsigned long off = (pgoff<<PAGE_SHIFT) & (SHMLBA-1);
+
+	if (base + off <= addr)
+		return base + off;
+	return base - off;
+}
 
 unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsigned long len, unsigned long pgoff, unsigned long flags)
 {
@@ -106,7 +131,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 
 	if (test_thread_flag(TIF_32BIT))
 		task_size = 0xf0000000UL;
-	if (len > task_size || len >= VA_EXCLUDE_START)
+	if (unlikely(len > task_size || len >= VA_EXCLUDE_START))
 		return -ENOMEM;
 
 	do_color_align = 0;
@@ -125,11 +150,12 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 			return addr;
 	}
 
-	if (len <= mm->cached_hole_size) {
+	if (len > mm->cached_hole_size) {
+	        start_addr = addr = mm->free_area_cache;
+	} else {
+	        start_addr = addr = TASK_UNMAPPED_BASE;
 	        mm->cached_hole_size = 0;
-		mm->free_area_cache = TASK_UNMAPPED_BASE;
 	}
-	start_addr = addr = mm->free_area_cache;
 
 	task_size -= len;
 
@@ -146,7 +172,7 @@ full_search:
 			addr = VA_EXCLUDE_END;
 			vma = find_vma(mm, VA_EXCLUDE_END);
 		}
-		if (task_size < addr) {
+		if (unlikely(task_size < addr)) {
 			if (start_addr != TASK_UNMAPPED_BASE) {
 				start_addr = addr = TASK_UNMAPPED_BASE;
 				mm->cached_hole_size = 0;
@@ -154,7 +180,7 @@ full_search:
 			}
 			return -ENOMEM;
 		}
-		if (!vma || addr + len <= vma->vm_start) {
+		if (likely(!vma || addr + len <= vma->vm_start)) {
 			/*
 			 * Remember the place where we stopped the search:
 			 */
@@ -168,6 +194,121 @@ full_search:
 		if (do_color_align)
 			addr = COLOUR_ALIGN(addr, pgoff);
 	}
+}
+
+unsigned long
+arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+			  const unsigned long len, const unsigned long pgoff,
+			  const unsigned long flags)
+{
+	struct vm_area_struct *vma;
+	struct mm_struct *mm = current->mm;
+	unsigned long task_size = 0xf0000000UL;
+	unsigned long addr = addr0;
+	int do_color_align;
+
+	/* This should only ever run for 32-bit processes.  */
+	BUG_ON(!test_thread_flag(TIF_32BIT));
+
+	if (flags & MAP_FIXED) {
+		/* We do not accept a shared mapping if it would violate
+		 * cache aliasing constraints.
+		 */
+		if ((flags & MAP_SHARED) &&
+		    ((addr - (pgoff << PAGE_SHIFT)) & (SHMLBA - 1)))
+			return -EINVAL;
+		return addr;
+	}
+
+	if (unlikely(len > task_size))
+		return -ENOMEM;
+
+	do_color_align = 0;
+	if (filp || (flags & MAP_SHARED))
+		do_color_align = 1;
+
+	/* requesting a specific address */
+	if (addr) {
+		if (do_color_align)
+			addr = COLOUR_ALIGN(addr, pgoff);
+		else
+			addr = PAGE_ALIGN(addr);
+
+		vma = find_vma(mm, addr);
+		if (task_size - len >= addr &&
+		    (!vma || addr + len <= vma->vm_start))
+			return addr;
+	}
+
+	/* check if free_area_cache is useful for us */
+	if (len <= mm->cached_hole_size) {
+ 	        mm->cached_hole_size = 0;
+ 		mm->free_area_cache = mm->mmap_base;
+ 	}
+
+	/* either no address requested or can't fit in requested address hole */
+	addr = mm->free_area_cache;
+	if (do_color_align) {
+		unsigned long base = COLOUR_ALIGN_DOWN(addr-len, pgoff);
+
+		addr = base + len;
+	}
+
+	/* make sure it can fit in the remaining address space */
+	if (likely(addr > len)) {
+		vma = find_vma(mm, addr-len);
+		if (!vma || addr <= vma->vm_start) {
+			/* remember the address as a hint for next time */
+			return (mm->free_area_cache = addr-len);
+		}
+	}
+
+	if (unlikely(mm->mmap_base < len))
+		goto bottomup;
+
+	addr = mm->mmap_base-len;
+	if (do_color_align)
+		addr = COLOUR_ALIGN_DOWN(addr, pgoff);
+
+	do {
+		/*
+		 * Lookup failure means no vma is above this address,
+		 * else if new region fits below vma->vm_start,
+		 * return with success:
+		 */
+		vma = find_vma(mm, addr);
+		if (likely(!vma || addr+len <= vma->vm_start)) {
+			/* remember the address as a hint for next time */
+			return (mm->free_area_cache = addr);
+		}
+
+ 		/* remember the largest hole we saw so far */
+ 		if (addr + mm->cached_hole_size < vma->vm_start)
+ 		        mm->cached_hole_size = vma->vm_start - addr;
+
+		/* try just below the current vma->vm_start */
+		addr = vma->vm_start-len;
+		if (do_color_align)
+			addr = COLOUR_ALIGN_DOWN(addr, pgoff);
+	} while (likely(len < vma->vm_start));
+
+bottomup:
+	/*
+	 * A failed mmap() very likely causes application failure,
+	 * so fall back to the bottom-up function here. This scenario
+	 * can happen with large stack limits and large mmap()
+	 * allocations.
+	 */
+	mm->cached_hole_size = ~0UL;
+  	mm->free_area_cache = TASK_UNMAPPED_BASE;
+	addr = arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
+	/*
+	 * Restore the topdown base:
+	 */
+	mm->free_area_cache = mm->mmap_base;
+	mm->cached_hole_size = ~0UL;
+
+	return addr;
 }
 
 /* Try to align mapping such that we align it as much as possible. */
@@ -211,6 +352,37 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, u
 		addr = get_unmapped_area(NULL, orig_addr, len, pgoff, flags);
 
 	return addr;
+}
+
+/* Essentially the same as PowerPC... */
+void arch_pick_mmap_layout(struct mm_struct *mm)
+{
+	/*
+	 * Fall back to the standard layout if the personality
+	 * bit is set, or if the expected stack growth is unlimited:
+	 */
+	if (!test_thread_flag(TIF_32BIT) ||
+	    (current->personality & ADDR_COMPAT_LAYOUT) ||
+	    current->signal->rlim[RLIMIT_STACK].rlim_cur == RLIM_INFINITY ||
+	    sysctl_legacy_va_layout) {
+		mm->mmap_base = TASK_UNMAPPED_BASE;
+		mm->get_unmapped_area = arch_get_unmapped_area;
+		mm->unmap_area = arch_unmap_area;
+	} else {
+		/* We know it's 32-bit */
+		unsigned long task_size = 0xf0000000UL;
+		unsigned long gap;
+
+		gap = current->signal->rlim[RLIMIT_STACK].rlim_cur;
+		if (gap < 128 * 1024 * 1024)
+			gap = 128 * 1024 * 1024;
+		if (gap > (task_size / 6 * 5))
+			gap = (task_size / 6 * 5);
+
+		mm->mmap_base = task_size - (gap & PAGE_MASK);
+		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
+		mm->unmap_area = arch_unmap_area_topdown;
+	}
 }
 
 asmlinkage unsigned long sparc_brk(unsigned long brk)

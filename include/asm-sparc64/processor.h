@@ -217,6 +217,8 @@ static inline void prefetchw(const void *x)
 
 #define spin_lock_prefetch(x)	prefetchw(x)
 
+#define HAVE_ARCH_PICK_MMAP_LAYOUT
+
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* !(__ASM_SPARC64_PROCESSOR_H) */
