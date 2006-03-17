@@ -194,7 +194,7 @@ xfs_attr_shortform_create(xfs_da_args_t *args)
 	xfs_idata_realloc(dp, sizeof(*hdr), XFS_ATTR_FORK);
 	hdr = (xfs_attr_sf_hdr_t *)ifp->if_u1.if_data;
 	hdr->count = 0;
-	INT_SET(hdr->totsize, ARCH_CONVERT, sizeof(*hdr));
+	hdr->totsize = cpu_to_be16(sizeof(*hdr));
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
 }
 
@@ -224,8 +224,7 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
 	ASSERT(ifp->if_flags & XFS_IFINLINE);
 	sf = (xfs_attr_shortform_t *)ifp->if_u1.if_data;
 	sfe = &sf->list[0];
-	for (i = 0; i < INT_GET(sf->hdr.count, ARCH_CONVERT);
-				sfe = XFS_ATTR_SF_NEXTENTRY(sfe), i++) {
+	for (i = 0; i < sf->hdr.count; sfe = XFS_ATTR_SF_NEXTENTRY(sfe), i++) {
 #ifdef DEBUG
 		if (sfe->namelen != args->namelen)
 			continue;
@@ -248,13 +247,13 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
 	sfe = (xfs_attr_sf_entry_t *)((char *)sf + offset);
 
 	sfe->namelen = args->namelen;
-	INT_SET(sfe->valuelen, ARCH_CONVERT, args->valuelen);
+	sfe->valuelen = args->valuelen;
 	sfe->flags = (args->flags & ATTR_SECURE) ? XFS_ATTR_SECURE :
 			((args->flags & ATTR_ROOT) ? XFS_ATTR_ROOT : 0);
 	memcpy(sfe->nameval, args->name, args->namelen);
 	memcpy(&sfe->nameval[args->namelen], args->value, args->valuelen);
-	INT_MOD(sf->hdr.count, ARCH_CONVERT, 1);
-	INT_MOD(sf->hdr.totsize, ARCH_CONVERT, size);
+	sf->hdr.count++;
+	be16_add(&sf->hdr.totsize, size);
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
 
 	xfs_sbversion_add_attr2(mp, args->trans);
@@ -277,7 +276,7 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 	base = sizeof(xfs_attr_sf_hdr_t);
 	sf = (xfs_attr_shortform_t *)dp->i_afp->if_u1.if_data;
 	sfe = &sf->list[0];
-	end = INT_GET(sf->hdr.count, ARCH_CONVERT);
+	end = sf->hdr.count;
 	for (i = 0; i < end; sfe = XFS_ATTR_SF_NEXTENTRY(sfe),
 					base += size, i++) {
 		size = XFS_ATTR_SF_ENTSIZE(sfe);
@@ -300,11 +299,11 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 	 * Fix up the attribute fork data, covering the hole
 	 */
 	end = base + size;
-	totsize = INT_GET(sf->hdr.totsize, ARCH_CONVERT);
+	totsize = be16_to_cpu(sf->hdr.totsize);
 	if (end != totsize)
 		memmove(&((char *)sf)[base], &((char *)sf)[end], totsize - end);
-	INT_MOD(sf->hdr.count, ARCH_CONVERT, -1);
-	INT_MOD(sf->hdr.totsize, ARCH_CONVERT, -size);
+	sf->hdr.count--;
+	be16_add(&sf->hdr.totsize, -size);
 
 	/*
 	 * Fix up the start offset of the attribute fork
@@ -360,7 +359,7 @@ xfs_attr_shortform_lookup(xfs_da_args_t *args)
 	ASSERT(ifp->if_flags & XFS_IFINLINE);
 	sf = (xfs_attr_shortform_t *)ifp->if_u1.if_data;
 	sfe = &sf->list[0];
-	for (i = 0; i < INT_GET(sf->hdr.count, ARCH_CONVERT);
+	for (i = 0; i < sf->hdr.count;
 				sfe = XFS_ATTR_SF_NEXTENTRY(sfe), i++) {
 		if (sfe->namelen != args->namelen)
 			continue;
@@ -391,7 +390,7 @@ xfs_attr_shortform_getvalue(xfs_da_args_t *args)
 	ASSERT(args->dp->i_d.di_aformat == XFS_IFINLINE);
 	sf = (xfs_attr_shortform_t *)args->dp->i_afp->if_u1.if_data;
 	sfe = &sf->list[0];
-	for (i = 0; i < INT_GET(sf->hdr.count, ARCH_CONVERT);
+	for (i = 0; i < sf->hdr.count;
 				sfe = XFS_ATTR_SF_NEXTENTRY(sfe), i++) {
 		if (sfe->namelen != args->namelen)
 			continue;
@@ -404,14 +403,14 @@ xfs_attr_shortform_getvalue(xfs_da_args_t *args)
 		    ((sfe->flags & XFS_ATTR_ROOT) != 0))
 			continue;
 		if (args->flags & ATTR_KERNOVAL) {
-			args->valuelen = INT_GET(sfe->valuelen, ARCH_CONVERT);
+			args->valuelen = sfe->valuelen;
 			return(XFS_ERROR(EEXIST));
 		}
-		if (args->valuelen < INT_GET(sfe->valuelen, ARCH_CONVERT)) {
-			args->valuelen = INT_GET(sfe->valuelen, ARCH_CONVERT);
+		if (args->valuelen < sfe->valuelen) {
+			args->valuelen = sfe->valuelen;
 			return(XFS_ERROR(ERANGE));
 		}
-		args->valuelen = INT_GET(sfe->valuelen, ARCH_CONVERT);
+		args->valuelen = sfe->valuelen;
 		memcpy(args->value, &sfe->nameval[args->namelen],
 						    args->valuelen);
 		return(XFS_ERROR(EEXIST));
@@ -438,7 +437,7 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 	dp = args->dp;
 	ifp = dp->i_afp;
 	sf = (xfs_attr_shortform_t *)ifp->if_u1.if_data;
-	size = INT_GET(sf->hdr.totsize, ARCH_CONVERT);
+	size = be16_to_cpu(sf->hdr.totsize);
 	tmpbuffer = kmem_alloc(size, KM_SLEEP);
 	ASSERT(tmpbuffer != NULL);
 	memcpy(tmpbuffer, ifp->if_u1.if_data, size);
@@ -481,11 +480,11 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 	nargs.oknoent = 1;
 
 	sfe = &sf->list[0];
-	for (i = 0; i < INT_GET(sf->hdr.count, ARCH_CONVERT); i++) {
+	for (i = 0; i < sf->hdr.count; i++) {
 		nargs.name = (char *)sfe->nameval;
 		nargs.namelen = sfe->namelen;
 		nargs.value = (char *)&sfe->nameval[nargs.namelen];
-		nargs.valuelen = INT_GET(sfe->valuelen, ARCH_CONVERT);
+		nargs.valuelen = sfe->valuelen;
 		nargs.hashval = xfs_da_hashname((char *)sfe->nameval,
 						sfe->namelen);
 		nargs.flags = (sfe->flags & XFS_ATTR_SECURE) ? ATTR_SECURE :
@@ -560,10 +559,8 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	 * If the buffer is large enough, do not bother with sorting.
 	 * Note the generous fudge factor of 16 overhead bytes per entry.
 	 */
-	if ((dp->i_afp->if_bytes + INT_GET(sf->hdr.count, ARCH_CONVERT) * 16)
-							< context->bufsize) {
-		for (i = 0, sfe = &sf->list[0];
-				i < INT_GET(sf->hdr.count, ARCH_CONVERT); i++) {
+	if ((dp->i_afp->if_bytes + sf->hdr.count * 16) < context->bufsize) {
+		for (i = 0, sfe = &sf->list[0]; i < sf->hdr.count; i++) {
 			attrnames_t	*namesp;
 
 			if (((context->flags & ATTR_SECURE) != 0) !=
@@ -584,14 +581,13 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 			if (context->flags & ATTR_KERNOVAL) {
 				ASSERT(context->flags & ATTR_KERNAMELS);
 				context->count += namesp->attr_namelen +
-					INT_GET(sfe->namelen, ARCH_CONVERT) + 1;
+					sfe->namelen + 1;
 			}
 			else {
 				if (xfs_attr_put_listent(context, namesp,
 						   (char *)sfe->nameval,
 						   (int)sfe->namelen,
-						   (int)INT_GET(sfe->valuelen,
-								ARCH_CONVERT)))
+						   (int)sfe->valuelen))
 					break;
 			}
 			sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
@@ -603,7 +599,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	/*
 	 * It didn't all fit, so we have to sort everything on hashval.
 	 */
-	sbsize = INT_GET(sf->hdr.count, ARCH_CONVERT) * sizeof(*sbuf);
+	sbsize = sf->hdr.count * sizeof(*sbuf);
 	sbp = sbuf = kmem_alloc(sbsize, KM_SLEEP);
 
 	/*
@@ -611,8 +607,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	 * the relevant info from only those that match into a buffer.
 	 */
 	nsbuf = 0;
-	for (i = 0, sfe = &sf->list[0];
-			i < INT_GET(sf->hdr.count, ARCH_CONVERT); i++) {
+	for (i = 0, sfe = &sf->list[0]; i < sf->hdr.count; i++) {
 		if (unlikely(
 		    ((char *)sfe < (char *)sf) ||
 		    ((char *)sfe >= ((char *)sf + dp->i_afp->if_bytes)))) {
@@ -696,7 +691,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 		} else {
 			if (xfs_attr_put_listent(context, namesp,
 					sbp->name, sbp->namelen,
-					INT_GET(sbp->valuelen, ARCH_CONVERT)))
+					sbp->valuelen))
 				break;
 		}
 		cursor->offset++;

@@ -506,7 +506,7 @@ xfs_iformat(
 	switch (INT_GET(dip->di_core.di_aformat, ARCH_CONVERT)) {
 	case XFS_DINODE_FMT_LOCAL:
 		atp = (xfs_attr_shortform_t *)XFS_DFORK_APTR(dip);
-		size = (int)INT_GET(atp->hdr.totsize, ARCH_CONVERT);
+		size = be16_to_cpu(atp->hdr.totsize);
 		error = xfs_iformat_local(ip, dip, XFS_ATTR_FORK, size);
 		break;
 	case XFS_DINODE_FMT_EXTENTS:
