@@ -85,6 +85,8 @@ static int hw_sections;
 static int rgb_on;
 static int volume = 255;
 static int budgetpatch;
+static int wss_cfg_4_3 = 0x4008;
+static int wss_cfg_16_9 = 0x0007;
 
 module_param_named(debug, av7110_debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (bitmask, default 0)");
@@ -103,6 +105,10 @@ module_param(volume, int, 0444);
 MODULE_PARM_DESC(volume, "initial volume: default 255 (range 0-255)");
 module_param(budgetpatch, int, 0444);
 MODULE_PARM_DESC(budgetpatch, "use budget-patch hardware modification: default 0 (0 no, 1 autodetect, 2 always)");
+module_param(wss_cfg_4_3, int, 0444);
+MODULE_PARM_DESC(wss_cfg_4_3, "WSS 4:3 - default 0x4008 - bit 15: disable, 14: burst mode, 13..0: wss data");
+module_param(wss_cfg_16_9, int, 0444);
+MODULE_PARM_DESC(wss_cfg_16_9, "WSS 16:9 - default 0x0007 - bit 15: disable, 14: burst mode, 13..0: wss data");
 
 static void restart_feeds(struct av7110 *av7110);
 
@@ -127,6 +133,13 @@ static void init_av7110_av(struct av7110 *av7110)
 	ret = av7110_set_volume(av7110, av7110->mixer.volume_left, av7110->mixer.volume_right);
 	if (ret < 0)
 		printk("dvb-ttpci:cannot set internal volume to maximum:%d\n",ret);
+
+	ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetWSSConfig, 2, 2, wss_cfg_4_3);
+	if (ret < 0)
+		printk("dvb-ttpci: unable to configure 4:3 wss\n");
+	ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetWSSConfig, 2, 3, wss_cfg_16_9);
+	if (ret < 0)
+		printk("dvb-ttpci: unable to configure 16:9 wss\n");
 
 	ret = av7710_set_video_mode(av7110, vidmode);
 	if (ret < 0)
