@@ -270,6 +270,10 @@ xfs_read(
 		}
 	}
 
+	if (unlikely((ioflags & IO_ISDIRECT) && VN_CACHED(vp)))
+		VOP_FLUSHINVAL_PAGES(vp, ctooff(offtoct(*offset)),
+						-1, FI_REMAPF_LOCKED);
+
 	xfs_rw_enter_trace(XFS_READ_ENTER, &ip->i_iocore,
 				(void *)iovp, segs, *offset, ioflags);
 	ret = __generic_file_aio_read(iocb, iovp, segs, offset);
