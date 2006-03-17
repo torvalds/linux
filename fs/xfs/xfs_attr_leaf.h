@@ -102,10 +102,10 @@ typedef struct xfs_attr_leaf_name_local {
 } xfs_attr_leaf_name_local_t;
 
 typedef struct xfs_attr_leaf_name_remote {
-	xfs_dablk_t	valueblk;	/* block number of value bytes */
-	__uint32_t	valuelen;	/* number of bytes in value */
-	__uint8_t	namelen;	/* length of name bytes */
-	__uint8_t	name[1];	/* name bytes */
+	__be32	valueblk;		/* block number of value bytes */
+	__be32	valuelen;		/* number of bytes in value */
+	__u8	namelen;		/* length of name bytes */
+	__u8	name[1];		/* name bytes */
 } xfs_attr_leaf_name_remote_t;
 
 typedef struct xfs_attr_leafblock {
