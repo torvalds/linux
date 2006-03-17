@@ -1417,10 +1417,10 @@ static void ieee80211_process_probe_response(struct ieee80211_device
 
 	if (is_beacon(beacon->header.frame_ctl)) {
 		if (ieee->handle_beacon != NULL)
-			ieee->handle_beacon(dev, beacon, &network);
+			ieee->handle_beacon(dev, beacon, target);
 	} else {
 		if (ieee->handle_probe_response != NULL)
-			ieee->handle_probe_response(dev, beacon, &network);
+			ieee->handle_probe_response(dev, beacon, target);
 	}
 }
 
