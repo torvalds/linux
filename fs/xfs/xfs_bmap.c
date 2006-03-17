@@ -3575,10 +3575,11 @@ xfs_bmap_do_search_extents(
 }
 
 /*
- * Call xfs_bmap_do_search_extents() to search for the extent
- * record containing block bno. If in multi-level in-core extent
- * allocation mode, find and extract the target extent buffer,
- * otherwise just use the direct extent list.
+ * Search the extent records for the entry containing block bno.
+ * If bno lies in a hole, point to the next entry.  If bno lies
+ * past eof, *eofp will be set, and *prevp will contain the last
+ * entry (null if none).  Else, *lastxp will be set to the index
+ * of the found entry; *gotp will contain the entry.
  */
 xfs_bmbt_rec_t *			/* pointer to found extent entry */
 xfs_bmap_search_multi_extents(
@@ -3589,36 +3590,38 @@ xfs_bmap_search_multi_extents(
 	xfs_bmbt_irec_t	*gotp,		/* out: extent entry found */
 	xfs_bmbt_irec_t	*prevp)		/* out: previous extent entry found */
 {
-	xfs_bmbt_rec_t	*base;		/* base of extent records */
 	xfs_bmbt_rec_t	*ep;		/* extent record pointer */
-	xfs_ext_irec_t	*erp = NULL;	/* indirection array pointer */
 	xfs_extnum_t	lastx;		/* last extent index */
-	xfs_extnum_t	nextents;	/* number of file extents */
 
 	/*
-	 * For multi-level extent allocation mode, find the
-	 * target extent list and pass only the contiguous
-	 * list to xfs_bmap_do_search_extents. Convert lastx
-	 * from a file extent index to an index within the
-	 * target extent list.
+	 * Initialize the extent entry structure to catch access to
+	 * uninitialized br_startblock field.
 	 */
-	if (ifp->if_flags & XFS_IFEXTIREC) {
-		int	erp_idx = 0;
-		erp = xfs_iext_bno_to_irec(ifp, bno, &erp_idx);
-		base = erp->er_extbuf;
-		nextents = erp->er_extcount;
-		lastx = ifp->if_lastex - erp->er_extoff;
+	gotp->br_startoff = 0xffa5a5a5a5a5a5a5LL;
+	gotp->br_blockcount = 0xa55a5a5a5a5a5a5aLL;
+	gotp->br_state = XFS_EXT_INVALID;
+#if XFS_BIG_BLKNOS
+	gotp->br_startblock = 0xffffa5a5a5a5a5a5LL;
+#else
+	gotp->br_startblock = 0xffffa5a5;
+#endif
+	prevp->br_startoff = NULLFILEOFF;
+
+	ep = xfs_iext_bno_to_ext(ifp, bno, &lastx);
+	if (lastx > 0) {
+		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, lastx - 1), prevp);
+	}
+	if (lastx < (ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t))) {
+		xfs_bmbt_get_all(ep, gotp);
+		*eofp = 0;
 	} else {
-		base = &ifp->if_u1.if_extents[0];
-		nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
-		lastx = ifp->if_lastex;
+		if (lastx > 0) {
+			*gotp = *prevp;
+		}
+		*eofp = 1;
+		ep = NULL;
 	}
-	ep = xfs_bmap_do_search_extents(base, lastx, nextents, bno,
-					eofp, lastxp, gotp, prevp);
-	/* Convert lastx back to file-based index */
-	if (ifp->if_flags & XFS_IFEXTIREC) {
-		*lastxp += erp->er_extoff;
-	}
+	*lastxp = lastx;
 	return ep;
 }
 

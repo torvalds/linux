@@ -4266,11 +4266,80 @@ xfs_iext_destroy(
 }
 
 /*
+ * Return a pointer to the extent record for file system block bno.
+ */
+xfs_bmbt_rec_t *			/* pointer to found extent record */
+xfs_iext_bno_to_ext(
+	xfs_ifork_t	*ifp,		/* inode fork pointer */
+	xfs_fileoff_t	bno,		/* block number to search for */
+	xfs_extnum_t	*idxp)		/* index of target extent */
+{
+	xfs_bmbt_rec_t	*base;		/* pointer to first extent */
+	xfs_filblks_t	blockcount = 0;	/* number of blocks in extent */
+	xfs_bmbt_rec_t	*ep = NULL;	/* pointer to target extent */
+	xfs_ext_irec_t	*erp = NULL;	/* indirection array pointer */
+	int		high;		/* upper boundry in search */
+	xfs_extnum_t	idx = 0;	/* index of target extent */
+	int		low;		/* lower boundry in search */
+	xfs_extnum_t	nextents;	/* number of file extents */
+	xfs_fileoff_t	startoff = 0;	/* start offset of extent */
+
+	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
+	if (nextents == 0) {
+		*idxp = 0;
+		return NULL;
+	}
+	low = 0;
+	if (ifp->if_flags & XFS_IFEXTIREC) {
+		/* Find target extent list */
+		int	erp_idx = 0;
+		erp = xfs_iext_bno_to_irec(ifp, bno, &erp_idx);
+		base = erp->er_extbuf;
+		high = erp->er_extcount - 1;
+	} else {
+		base = ifp->if_u1.if_extents;
+		high = nextents - 1;
+	}
+	/* Binary search extent records */
+	while (low <= high) {
+		idx = (low + high) >> 1;
+		ep = base + idx;
+		startoff = xfs_bmbt_get_startoff(ep);
+		blockcount = xfs_bmbt_get_blockcount(ep);
+		if (bno < startoff) {
+			high = idx - 1;
+		} else if (bno >= startoff + blockcount) {
+			low = idx + 1;
+		} else {
+			/* Convert back to file-based extent index */
+			if (ifp->if_flags & XFS_IFEXTIREC) {
+				idx += erp->er_extoff;
+			}
+			*idxp = idx;
+			return ep;
+		}
+	}
+	/* Convert back to file-based extent index */
+	if (ifp->if_flags & XFS_IFEXTIREC) {
+		idx += erp->er_extoff;
+	}
+	if (bno >= startoff + blockcount) {
+		if (++idx == nextents) {
+			ep = NULL;
+		} else {
+			ep = xfs_iext_get_ext(ifp, idx);
+		}
+	}
+	*idxp = idx;
+	return ep;
+}
+
+/*
  * Return a pointer to the indirection array entry containing the
  * extent record for filesystem block bno. Store the index of the
  * target irec in *erp_idxp.
  */
-xfs_ext_irec_t *
+xfs_ext_irec_t *			/* pointer to found extent record */
 xfs_iext_bno_to_irec(
 	xfs_ifork_t	*ifp,		/* inode fork pointer */
 	xfs_fileoff_t	bno,		/* block number to search for */
@@ -4278,7 +4347,7 @@ xfs_iext_bno_to_irec(
 {
 	xfs_ext_irec_t	*erp = NULL;	/* indirection array pointer */
 	xfs_ext_irec_t	*erp_next;	/* next indirection array entry */
-	xfs_extnum_t	erp_idx;	/* indirection array index */
+	int		erp_idx;	/* indirection array index */
 	int		nlists;		/* number of extent irec's (lists) */
 	int		high;		/* binary search upper limit */
 	int		low;		/* binary search lower limit */
