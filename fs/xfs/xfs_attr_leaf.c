@@ -2938,11 +2938,9 @@ xfs_attr_leaf_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp)
 		    ((entry->flags & XFS_ATTR_LOCAL) == 0)) {
 			name_rmt = XFS_ATTR_LEAF_NAME_REMOTE(leaf, i);
 			if (name_rmt->valueblk) {
-				/* both on-disk, don't endian flip twice */
-				lp->valueblk = name_rmt->valueblk;
-				INT_SET(lp->valuelen, ARCH_CONVERT,
-						XFS_B_TO_FSB(dp->i_mount,
-						    be32_to_cpu(name_rmt->valuelen)));
+				lp->valueblk = be32_to_cpu(name_rmt->valueblk);
+				lp->valuelen = XFS_B_TO_FSB(dp->i_mount,
+						    be32_to_cpu(name_rmt->valuelen));
 				lp++;
 			}
 		}
@@ -2955,10 +2953,8 @@ xfs_attr_leaf_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp)
 	error = 0;
 	for (lp = list, i = 0; i < count; i++, lp++) {
 		tmp = xfs_attr_leaf_freextent(trans, dp,
-						     INT_GET(lp->valueblk,
-								ARCH_CONVERT),
-						     INT_GET(lp->valuelen,
-								ARCH_CONVERT));
+				lp->valueblk, lp->valuelen);
+
 		if (error == 0)
 			error = tmp;	/* save only the 1st errno */
 	}
