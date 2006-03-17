@@ -1770,17 +1770,14 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				break;
 			case XFS_ATTR_LEAF_MAGIC:
 				leaf = bp->data;
-				if (cursor->hashval >
-				    INT_GET(leaf->entries[
-					be16_to_cpu(leaf->hdr.count)-1].hashval,
-							ARCH_CONVERT)) {
+				if (cursor->hashval > be32_to_cpu(leaf->entries[
+				    be16_to_cpu(leaf->hdr.count)-1].hashval)) {
 					xfs_attr_trace_l_cl("wrong blk",
 							   context, leaf);
 					xfs_da_brelse(NULL, bp);
 					bp = NULL;
 				} else if (cursor->hashval <=
-					     INT_GET(leaf->entries[0].hashval,
-							ARCH_CONVERT)) {
+					     be32_to_cpu(leaf->entries[0].hashval)) {
 					xfs_attr_trace_l_cl("maybe wrong blk",
 							   context, leaf);
 					xfs_da_brelse(NULL, bp);
@@ -2289,8 +2286,9 @@ xfs_attr_trace_l_cl(char *where, struct xfs_attr_list_context *context,
 		(__psunsigned_t)context->dupcnt,
 		(__psunsigned_t)context->flags,
 		(__psunsigned_t)be16_to_cpu(leaf->hdr.count),
-		(__psunsigned_t)INT_GET(leaf->entries[0].hashval, ARCH_CONVERT),
-		(__psunsigned_t)INT_GET(leaf->entries[be16_to_cpu(leaf->hdr.count)-1].hashval, ARCH_CONVERT));
+		(__psunsigned_t)be32_to_cpu(leaf->entries[0].hashval),
+		(__psunsigned_t)be32_to_cpu(leaf->entries[
+				be16_to_cpu(leaf->hdr.count)-1].hashval));
 }
 
 /*

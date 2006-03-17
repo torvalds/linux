@@ -89,10 +89,10 @@ typedef struct xfs_attr_leaf_hdr {	/* constant-structure header block */
 } xfs_attr_leaf_hdr_t;
 
 typedef struct xfs_attr_leaf_entry {	/* sorted on key, not name */
-	xfs_dahash_t	hashval;	/* hash value of name */
-	__uint16_t	nameidx;	/* index into buffer of name/value */
-	__uint8_t	flags;		/* LOCAL/ROOT/SECURE/INCOMPLETE flag */
-	__uint8_t	pad2;		/* unused pad byte */
+	__be32	hashval;		/* hash value of name */
+ 	__be16	nameidx;		/* index into buffer of name/value */
+	__u8	flags;			/* LOCAL/ROOT/SECURE/INCOMPLETE flag */
+	__u8	pad2;			/* unused pad byte */
 } xfs_attr_leaf_entry_t;
 
 typedef struct xfs_attr_leaf_name_local {
@@ -143,8 +143,8 @@ typedef struct xfs_attr_leafblock {
 static inline xfs_attr_leaf_name_remote_t *
 xfs_attr_leaf_name_remote(xfs_attr_leafblock_t *leafp, int idx)
 {
-	return (xfs_attr_leaf_name_remote_t *) &((char *)
-		(leafp))[INT_GET((leafp)->entries[idx].nameidx, ARCH_CONVERT)];
+	return (xfs_attr_leaf_name_remote_t *)
+		&((char *)leafp)[be16_to_cpu(leafp->entries[idx].nameidx)];
 }
 
 #define XFS_ATTR_LEAF_NAME_LOCAL(leafp,idx)	\
@@ -152,16 +152,15 @@ xfs_attr_leaf_name_remote(xfs_attr_leafblock_t *leafp, int idx)
 static inline xfs_attr_leaf_name_local_t *
 xfs_attr_leaf_name_local(xfs_attr_leafblock_t *leafp, int idx)
 {
-	return (xfs_attr_leaf_name_local_t *) &((char *)
-		(leafp))[INT_GET((leafp)->entries[idx].nameidx, ARCH_CONVERT)];
+	return (xfs_attr_leaf_name_local_t *)
+		&((char *)leafp)[be16_to_cpu(leafp->entries[idx].nameidx)];
 }
 
 #define XFS_ATTR_LEAF_NAME(leafp,idx)		\
 	xfs_attr_leaf_name(leafp,idx)
 static inline char *xfs_attr_leaf_name(xfs_attr_leafblock_t *leafp, int idx)
 {
-	return (&((char *)
-		(leafp))[INT_GET((leafp)->entries[idx].nameidx, ARCH_CONVERT)]);
+	return &((char *)leafp)[be16_to_cpu(leafp->entries[idx].nameidx)];
 }
 
 /*
