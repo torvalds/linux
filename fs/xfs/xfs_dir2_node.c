@@ -164,7 +164,7 @@ xfs_dir2_leaf_to_node(
 		*to = cpu_to_be16(off);
 	}
 	free->hdr.nused = cpu_to_be32(n);
-	INT_SET(leaf->hdr.info.magic, ARCH_CONVERT, XFS_DIR2_LEAFN_MAGIC);
+	leaf->hdr.info.magic = cpu_to_be16(XFS_DIR2_LEAFN_MAGIC);
 	/*
 	 * Log everything.
 	 */
@@ -353,7 +353,7 @@ xfs_dir2_leafn_check(
 
 	leaf = bp->data;
 	mp = dp->i_mount;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 	ASSERT(be16_to_cpu(leaf->hdr.count) <= XFS_DIR2_MAX_LEAF_ENTS(mp));
 	for (i = stale = 0; i < be16_to_cpu(leaf->hdr.count); i++) {
 		if (i + 1 < be16_to_cpu(leaf->hdr.count)) {
@@ -379,7 +379,7 @@ xfs_dir2_leafn_lasthash(
 	xfs_dir2_leaf_t	*leaf;			/* leaf structure */
 
 	leaf = bp->data;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 	if (count)
 		*count = be16_to_cpu(leaf->hdr.count);
 	if (!leaf->hdr.count)
@@ -420,7 +420,7 @@ xfs_dir2_leafn_lookup_int(
 	tp = args->trans;
 	mp = dp->i_mount;
 	leaf = bp->data;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 #ifdef __KERNEL__
 	ASSERT(be16_to_cpu(leaf->hdr.count) > 0);
 #endif
@@ -720,8 +720,8 @@ xfs_dir2_leafn_order(
 
 	leaf1 = leaf1_bp->data;
 	leaf2 = leaf2_bp->data;
-	ASSERT(INT_GET(leaf1->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
-	ASSERT(INT_GET(leaf2->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(leaf1->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(leaf2->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 	if (be16_to_cpu(leaf1->hdr.count) > 0 &&
 	    be16_to_cpu(leaf2->hdr.count) > 0 &&
 	    (be32_to_cpu(leaf2->ents[0].hashval) < be32_to_cpu(leaf1->ents[0].hashval) ||
@@ -868,7 +868,7 @@ xfs_dir2_leafn_remove(
 	tp = args->trans;
 	mp = dp->i_mount;
 	leaf = bp->data;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 	/*
 	 * Point to the entry we're removing.
 	 */
@@ -1139,7 +1139,7 @@ xfs_dir2_leafn_toosmall(
 	 */
 	blk = &state->path.blk[state->path.active - 1];
 	info = blk->bp->data;
-	ASSERT(INT_GET(info->magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(info->magic) == XFS_DIR2_LEAFN_MAGIC);
 	leaf = (xfs_dir2_leaf_t *)info;
 	count = be16_to_cpu(leaf->hdr.count) - be16_to_cpu(leaf->hdr.stale);
 	bytes = (uint)sizeof(leaf->hdr) + count * (uint)sizeof(leaf->ents[0]);
@@ -1161,7 +1161,7 @@ xfs_dir2_leafn_toosmall(
 		 * Make altpath point to the block we want to keep and
 		 * path point to the block we want to drop (this one).
 		 */
-		forward = info->forw;
+		forward = (info->forw != 0);
 		memcpy(&state->altpath, &state->path, sizeof(state->path));
 		error = xfs_da_path_shift(state, &state->altpath, forward, 0,
 			&rval);
@@ -1177,9 +1177,9 @@ xfs_dir2_leafn_toosmall(
 	 * We prefer coalescing with the lower numbered sibling so as
 	 * to shrink a directory over time.
 	 */
-	forward = INT_GET(info->forw, ARCH_CONVERT) < INT_GET(info->back, ARCH_CONVERT);
+	forward = be32_to_cpu(info->forw) < be32_to_cpu(info->back);
 	for (i = 0, bp = NULL; i < 2; forward = !forward, i++) {
-		blkno = forward ?INT_GET( info->forw, ARCH_CONVERT) : INT_GET(info->back, ARCH_CONVERT);
+		blkno = forward ? be32_to_cpu(info->forw) : be32_to_cpu(info->back);
 		if (blkno == 0)
 			continue;
 		/*
@@ -1198,7 +1198,7 @@ xfs_dir2_leafn_toosmall(
 		count = be16_to_cpu(leaf->hdr.count) - be16_to_cpu(leaf->hdr.stale);
 		bytes = state->blocksize - (state->blocksize >> 2);
 		leaf = bp->data;
-		ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+		ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 		count += be16_to_cpu(leaf->hdr.count) - be16_to_cpu(leaf->hdr.stale);
 		bytes -= count * (uint)sizeof(leaf->ents[0]);
 		/*
@@ -1257,8 +1257,8 @@ xfs_dir2_leafn_unbalance(
 	ASSERT(save_blk->magic == XFS_DIR2_LEAFN_MAGIC);
 	drop_leaf = drop_blk->bp->data;
 	save_leaf = save_blk->bp->data;
-	ASSERT(INT_GET(drop_leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
-	ASSERT(INT_GET(save_leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(drop_leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(save_leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 	/*
 	 * If there are any stale leaf entries, take this opportunity
 	 * to purge them.

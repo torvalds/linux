@@ -564,7 +564,7 @@ xfs_dir2_leaf_check(
 
 	leaf = bp->data;
 	mp = dp->i_mount;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAF1_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAF1_MAGIC);
 	/*
 	 * This value is not restrictive enough.
 	 * Should factor in the size of the bests table as well.
@@ -1172,7 +1172,7 @@ xfs_dir2_leaf_init(
 	/*
 	 * Initialize the header.
 	 */
-	INT_SET(leaf->hdr.info.magic, ARCH_CONVERT, magic);
+	leaf->hdr.info.magic = cpu_to_be16(magic);
 	leaf->hdr.info.forw = 0;
 	leaf->hdr.info.back = 0;
 	leaf->hdr.count = 0;
@@ -1208,7 +1208,7 @@ xfs_dir2_leaf_log_bests(
 	xfs_dir2_leaf_tail_t	*ltp;		/* leaf tail structure */
 
 	leaf = bp->data;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAF1_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAF1_MAGIC);
 	ltp = XFS_DIR2_LEAF_TAIL_P(tp->t_mountp, leaf);
 	firstb = XFS_DIR2_LEAF_BESTS_P(ltp) + first;
 	lastb = XFS_DIR2_LEAF_BESTS_P(ltp) + last;
@@ -1231,8 +1231,8 @@ xfs_dir2_leaf_log_ents(
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
 
 	leaf = bp->data;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAF1_MAGIC ||
-	       INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAF1_MAGIC ||
+	       be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 	firstlep = &leaf->ents[first];
 	lastlep = &leaf->ents[last];
 	xfs_da_log_buf(tp, bp, (uint)((char *)firstlep - (char *)leaf),
@@ -1250,8 +1250,8 @@ xfs_dir2_leaf_log_header(
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
 
 	leaf = bp->data;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAF1_MAGIC ||
-	       INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAF1_MAGIC ||
+	       be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 	xfs_da_log_buf(tp, bp, (uint)((char *)&leaf->hdr - (char *)leaf),
 		(uint)(sizeof(leaf->hdr) - 1));
 }
@@ -1270,7 +1270,7 @@ xfs_dir2_leaf_log_tail(
 
 	mp = tp->t_mountp;
 	leaf = bp->data;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAF1_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAF1_MAGIC);
 	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
 	xfs_da_log_buf(tp, bp, (uint)((char *)ltp - (char *)leaf),
 		(uint)(mp->m_dirblksize - 1));
@@ -1806,7 +1806,7 @@ xfs_dir2_node_to_leaf(
 		return 0;
 	lbp = state->path.blk[0].bp;
 	leaf = lbp->data;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC);
 	/*
 	 * Read the freespace block.
 	 */
@@ -1837,7 +1837,7 @@ xfs_dir2_node_to_leaf(
 		xfs_dir2_leaf_compact(args, lbp);
 	else
 		xfs_dir2_leaf_log_header(tp, lbp);
-	INT_SET(leaf->hdr.info.magic, ARCH_CONVERT, XFS_DIR2_LEAF1_MAGIC);
+	leaf->hdr.info.magic = cpu_to_be16(XFS_DIR2_LEAF1_MAGIC);
 	/*
 	 * Set up the leaf tail from the freespace block.
 	 */

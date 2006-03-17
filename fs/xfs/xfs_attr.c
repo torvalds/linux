@@ -1127,8 +1127,7 @@ xfs_attr_leaf_list(xfs_attr_list_context_t *context)
 		return(error);
 	ASSERT(bp != NULL);
 	leaf = bp->data;
-	if (unlikely(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT)
-						!= XFS_ATTR_LEAF_MAGIC)) {
+	if (unlikely(be16_to_cpu(leaf->hdr.info.magic) != XFS_ATTR_LEAF_MAGIC)) {
 		XFS_CORRUPTION_ERROR("xfs_attr_leaf_list", XFS_ERRLEVEL_LOW,
 				     context->dp->i_mount, leaf);
 		xfs_da_brelse(NULL, bp);
@@ -1541,8 +1540,8 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 						     XFS_ATTR_FORK);
 		if (error)
 			goto out;
-		ASSERT(INT_GET(((xfs_attr_leafblock_t *)
-				      bp->data)->hdr.info.magic, ARCH_CONVERT)
+		ASSERT(be16_to_cpu(((xfs_attr_leafblock_t *)
+				      bp->data)->hdr.info.magic)
 						       == XFS_ATTR_LEAF_MAGIC);
 
 		if ((forkoff = xfs_attr_shortform_allfit(bp, dp))) {
@@ -1763,7 +1762,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 			return(error);
 		if (bp) {
 			node = bp->data;
-			switch (INT_GET(node->hdr.info.magic, ARCH_CONVERT)) {
+			switch (be16_to_cpu(node->hdr.info.magic)) {
 			case XFS_DA_NODE_MAGIC:
 				xfs_attr_trace_l_cn("wrong blk", context, node);
 				xfs_da_brelse(NULL, bp);
@@ -1817,10 +1816,10 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				return(XFS_ERROR(EFSCORRUPTED));
 			}
 			node = bp->data;
-			if (INT_GET(node->hdr.info.magic, ARCH_CONVERT)
+			if (be16_to_cpu(node->hdr.info.magic)
 							== XFS_ATTR_LEAF_MAGIC)
 				break;
-			if (unlikely(INT_GET(node->hdr.info.magic, ARCH_CONVERT)
+			if (unlikely(be16_to_cpu(node->hdr.info.magic)
 							!= XFS_DA_NODE_MAGIC)) {
 				XFS_CORRUPTION_ERROR("xfs_attr_node_list(3)",
 						     XFS_ERRLEVEL_LOW,
@@ -1858,7 +1857,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	 */
 	for (;;) {
 		leaf = bp->data;
-		if (unlikely(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT)
+		if (unlikely(be16_to_cpu(leaf->hdr.info.magic)
 						!= XFS_ATTR_LEAF_MAGIC)) {
 			XFS_CORRUPTION_ERROR("xfs_attr_node_list(4)",
 					     XFS_ERRLEVEL_LOW,
@@ -1869,7 +1868,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 		error = xfs_attr_leaf_list_int(bp, context);
 		if (error || !leaf->hdr.info.forw)
 			break;	/* not really an error, buffer full or EOF */
-		cursor->blkno = INT_GET(leaf->hdr.info.forw, ARCH_CONVERT);
+		cursor->blkno = be32_to_cpu(leaf->hdr.info.forw);
 		xfs_da_brelse(NULL, bp);
 		error = xfs_da_read_buf(NULL, context->dp, cursor->blkno, -1,
 					      &bp, XFS_ATTR_FORK);

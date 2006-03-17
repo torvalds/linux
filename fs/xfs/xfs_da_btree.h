@@ -45,10 +45,10 @@ struct zone;
 	(XFS_DIR_IS_V1(mp) ? XFS_DIR_LEAF_MAGIC : XFS_DIR2_LEAFN_MAGIC)
 
 typedef struct xfs_da_blkinfo {
-	xfs_dablk_t forw;			/* previous block in list */
-	xfs_dablk_t back;			/* following block in list */
-	__uint16_t magic;			/* validity check on block */
-	__uint16_t pad;				/* unused */
+	__be32		forw;			/* previous block in list */
+	__be32		back;			/* following block in list */
+	__be16		magic;			/* validity check on block */
+	__be16		pad;			/* unused */
 } xfs_da_blkinfo_t;
 
 /*
