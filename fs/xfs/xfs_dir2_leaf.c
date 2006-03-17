@@ -1816,7 +1816,7 @@ xfs_dir2_node_to_leaf(
 		return error;
 	}
 	free = fbp->data;
-	ASSERT(INT_GET(free->hdr.magic, ARCH_CONVERT) == XFS_DIR2_FREE_MAGIC);
+	ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
 	ASSERT(!free->hdr.firstdb);
 	/*
 	 * Now see if the leafn and free data will fit in a leaf1.
@@ -1824,7 +1824,7 @@ xfs_dir2_node_to_leaf(
 	 */
 	if ((uint)sizeof(leaf->hdr) +
 	    (INT_GET(leaf->hdr.count, ARCH_CONVERT) - INT_GET(leaf->hdr.stale, ARCH_CONVERT)) * (uint)sizeof(leaf->ents[0]) +
-	    INT_GET(free->hdr.nvalid, ARCH_CONVERT) * (uint)sizeof(leaf->bests[0]) +
+	    be32_to_cpu(free->hdr.nvalid) * (uint)sizeof(leaf->bests[0]) +
 	    (uint)sizeof(leaf->tail) >
 	    mp->m_dirblksize) {
 		xfs_da_brelse(tp, fbp);
@@ -1843,7 +1843,7 @@ xfs_dir2_node_to_leaf(
 	 * Set up the leaf tail from the freespace block.
 	 */
 	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
-	INT_COPY(ltp->bestcount, free->hdr.nvalid, ARCH_CONVERT);
+	ltp->bestcount = free->hdr.nvalid;
 	/*
 	 * Set up the leaf bests table.
 	 */

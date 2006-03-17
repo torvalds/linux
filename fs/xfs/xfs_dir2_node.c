@@ -76,7 +76,7 @@ xfs_dir2_free_log_bests(
 	xfs_dir2_free_t		*free;		/* freespace structure */
 
 	free = bp->data;
-	ASSERT(INT_GET(free->hdr.magic, ARCH_CONVERT) == XFS_DIR2_FREE_MAGIC);
+	ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
 	xfs_da_log_buf(tp, bp,
 		(uint)((char *)&free->bests[first] - (char *)free),
 		(uint)((char *)&free->bests[last] - (char *)free +
@@ -94,7 +94,7 @@ xfs_dir2_free_log_header(
 	xfs_dir2_free_t		*free;		/* freespace structure */
 
 	free = bp->data;
-	ASSERT(INT_GET(free->hdr.magic, ARCH_CONVERT) == XFS_DIR2_FREE_MAGIC);
+	ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
 	xfs_da_log_buf(tp, bp, (uint)((char *)&free->hdr - (char *)free),
 		(uint)(sizeof(xfs_dir2_free_hdr_t) - 1));
 }
@@ -121,7 +121,7 @@ xfs_dir2_leaf_to_node(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			n;		/* count of live freespc ents */
 	xfs_dir2_data_off_t	off;		/* freespace entry value */
-	xfs_dir2_data_off_t	*to;		/* pointer to freespace entry */
+	__be16			*to;		/* pointer to freespace entry */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
 	xfs_dir2_trace_args_b("leaf_to_node", args, lbp);
@@ -149,10 +149,10 @@ xfs_dir2_leaf_to_node(
 	/*
 	 * Initialize the freespace block header.
 	 */
-	INT_SET(free->hdr.magic, ARCH_CONVERT, XFS_DIR2_FREE_MAGIC);
+	free->hdr.magic = cpu_to_be32(XFS_DIR2_FREE_MAGIC);
 	free->hdr.firstdb = 0;
 	ASSERT(INT_GET(ltp->bestcount, ARCH_CONVERT) <= (uint)dp->i_d.di_size / mp->m_dirblksize);
-	INT_COPY(free->hdr.nvalid, ltp->bestcount, ARCH_CONVERT);
+	free->hdr.nvalid = ltp->bestcount;
 	/*
 	 * Copy freespace entries from the leaf block to the new block.
 	 * Count active entries.
@@ -161,16 +161,16 @@ xfs_dir2_leaf_to_node(
 	     i < INT_GET(ltp->bestcount, ARCH_CONVERT); i++, from++, to++) {
 		if ((off = INT_GET(*from, ARCH_CONVERT)) != NULLDATAOFF)
 			n++;
-		INT_SET(*to, ARCH_CONVERT, off);
+		*to = cpu_to_be16(off);
 	}
-	INT_SET(free->hdr.nused, ARCH_CONVERT, n);
+	free->hdr.nused = cpu_to_be32(n);
 	INT_SET(leaf->hdr.info.magic, ARCH_CONVERT, XFS_DIR2_LEAFN_MAGIC);
 	/*
 	 * Log everything.
 	 */
 	xfs_dir2_leaf_log_header(tp, lbp);
 	xfs_dir2_free_log_header(tp, fbp);
-	xfs_dir2_free_log_bests(tp, fbp, 0, INT_GET(free->hdr.nvalid, ARCH_CONVERT) - 1);
+	xfs_dir2_free_log_bests(tp, fbp, 0, be32_to_cpu(free->hdr.nvalid) - 1);
 	xfs_da_buf_done(fbp);
 	xfs_dir2_leafn_check(dp, lbp);
 	return 0;
@@ -443,7 +443,7 @@ xfs_dir2_leafn_lookup_int(
 		curdb = -1;
 		length = XFS_DIR2_DATA_ENTSIZE(args->namelen);
 		if ((free = (curbp ? curbp->data : NULL)))
-			ASSERT(INT_GET(free->hdr.magic, ARCH_CONVERT) == XFS_DIR2_FREE_MAGIC);
+			ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
 	}
 	/*
 	 * For others, it's a data block buffer, get the block number.
@@ -506,15 +506,15 @@ xfs_dir2_leafn_lookup_int(
 					}
 					curfdb = newfdb;
 					free = curbp->data;
-					ASSERT(INT_GET(free->hdr.magic, ARCH_CONVERT) ==
+					ASSERT(be32_to_cpu(free->hdr.magic) ==
 					       XFS_DIR2_FREE_MAGIC);
-					ASSERT((INT_GET(free->hdr.firstdb, ARCH_CONVERT) %
+					ASSERT((be32_to_cpu(free->hdr.firstdb) %
 						XFS_DIR2_MAX_FREE_BESTS(mp)) ==
 					       0);
-					ASSERT(INT_GET(free->hdr.firstdb, ARCH_CONVERT) <= curdb);
+					ASSERT(be32_to_cpu(free->hdr.firstdb) <= curdb);
 					ASSERT(curdb <
-					       INT_GET(free->hdr.firstdb, ARCH_CONVERT) +
-					       INT_GET(free->hdr.nvalid, ARCH_CONVERT));
+					       be32_to_cpu(free->hdr.firstdb) +
+					       be32_to_cpu(free->hdr.nvalid));
 				}
 				/*
 				 * Get the index for our entry.
@@ -523,12 +523,12 @@ xfs_dir2_leafn_lookup_int(
 				/*
 				 * If it has room, return it.
 				 */
-				if (unlikely(INT_GET(free->bests[fi], ARCH_CONVERT) == NULLDATAOFF)) {
+				if (unlikely(be16_to_cpu(free->bests[fi]) == NULLDATAOFF)) {
 					XFS_ERROR_REPORT("xfs_dir2_leafn_lookup_int",
 							 XFS_ERRLEVEL_LOW, mp);
 					return XFS_ERROR(EFSCORRUPTED);
 				}
-				if (INT_GET(free->bests[fi], ARCH_CONVERT) >= length) {
+				if (be16_to_cpu(free->bests[fi]) >= length) {
 					*indexp = index;
 					state->extravalid = 1;
 					state->extrablk.bp = curbp;
@@ -929,8 +929,8 @@ xfs_dir2_leafn_remove(
 			return error;
 		}
 		free = fbp->data;
-		ASSERT(INT_GET(free->hdr.magic, ARCH_CONVERT) == XFS_DIR2_FREE_MAGIC);
-		ASSERT(INT_GET(free->hdr.firstdb, ARCH_CONVERT) ==
+		ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
+		ASSERT(be32_to_cpu(free->hdr.firstdb) ==
 		       XFS_DIR2_MAX_FREE_BESTS(mp) *
 		       (fdb - XFS_DIR2_FREE_FIRSTDB(mp)));
 		/*
@@ -969,7 +969,7 @@ xfs_dir2_leafn_remove(
 			/*
 			 * One less used entry in the free table.
 			 */
-			INT_MOD(free->hdr.nused, ARCH_CONVERT, -1);
+			free->hdr.nused = cpu_to_be32(-1);
 			xfs_dir2_free_log_header(tp, fbp);
 			/*
 			 * If this was the last entry in the table, we can
@@ -977,21 +977,21 @@ xfs_dir2_leafn_remove(
 			 * entries at the end referring to non-existent
 			 * data blocks, get those too.
 			 */
-			if (findex == INT_GET(free->hdr.nvalid, ARCH_CONVERT) - 1) {
+			if (findex == be32_to_cpu(free->hdr.nvalid) - 1) {
 				int	i;		/* free entry index */
 
 				for (i = findex - 1;
-				     i >= 0 && INT_GET(free->bests[i], ARCH_CONVERT) == NULLDATAOFF;
+				     i >= 0 && be16_to_cpu(free->bests[i]) == NULLDATAOFF;
 				     i--)
 					continue;
-				INT_SET(free->hdr.nvalid, ARCH_CONVERT, i + 1);
+				free->hdr.nvalid = cpu_to_be32(i + 1);
 				logfree = 0;
 			}
 			/*
 			 * Not the last entry, just punch it out.
 			 */
 			else {
-				INT_SET(free->bests[findex], ARCH_CONVERT, NULLDATAOFF);
+				free->bests[findex] = cpu_to_be16(NULLDATAOFF);
 				logfree = 1;
 			}
 			/*
@@ -1017,7 +1017,7 @@ xfs_dir2_leafn_remove(
 		 * the new value.
 		 */
 		else {
-			INT_SET(free->bests[findex], ARCH_CONVERT, longest);
+			free->bests[findex] = cpu_to_be16(longest);
 			logfree = 1;
 		}
 		/*
@@ -1397,7 +1397,7 @@ xfs_dir2_node_addname_int(
 		 */
 		ifbno = fblk->blkno;
 		free = fbp->data;
-		ASSERT(INT_GET(free->hdr.magic, ARCH_CONVERT) == XFS_DIR2_FREE_MAGIC);
+		ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
 		findex = fblk->index;
 		/*
 		 * This means the free entry showed that the data block had
@@ -1405,10 +1405,10 @@ xfs_dir2_node_addname_int(
 		 * Use that data block.
 		 */
 		if (findex >= 0) {
-			ASSERT(findex < INT_GET(free->hdr.nvalid, ARCH_CONVERT));
-			ASSERT(INT_GET(free->bests[findex], ARCH_CONVERT) != NULLDATAOFF);
-			ASSERT(INT_GET(free->bests[findex], ARCH_CONVERT) >= length);
-			dbno = INT_GET(free->hdr.firstdb, ARCH_CONVERT) + findex;
+			ASSERT(findex < be32_to_cpu(free->hdr.nvalid));
+			ASSERT(be16_to_cpu(free->bests[findex]) != NULLDATAOFF);
+			ASSERT(be16_to_cpu(free->bests[findex]) >= length);
+			dbno = be32_to_cpu(free->hdr.firstdb) + findex;
 		}
 		/*
 		 * The data block looked at didn't have enough room.
@@ -1481,20 +1481,20 @@ xfs_dir2_node_addname_int(
 				continue;
 			}
 			free = fbp->data;
-			ASSERT(INT_GET(free->hdr.magic, ARCH_CONVERT) == XFS_DIR2_FREE_MAGIC);
+			ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
 			findex = 0;
 		}
 		/*
 		 * Look at the current free entry.  Is it good enough?
 		 */
-		if (INT_GET(free->bests[findex], ARCH_CONVERT) != NULLDATAOFF &&
-		    INT_GET(free->bests[findex], ARCH_CONVERT) >= length)
-			dbno = INT_GET(free->hdr.firstdb, ARCH_CONVERT) + findex;
+		if (be16_to_cpu(free->bests[findex]) != NULLDATAOFF &&
+		    be16_to_cpu(free->bests[findex]) >= length)
+			dbno = be32_to_cpu(free->hdr.firstdb) + findex;
 		else {
 			/*
 			 * Are we done with the freeblock?
 			 */
-			if (++findex == INT_GET(free->hdr.nvalid, ARCH_CONVERT)) {
+			if (++findex == be32_to_cpu(free->hdr.nvalid)) {
 				/*
 				 * Drop the block.
 				 */
@@ -1608,15 +1608,15 @@ xfs_dir2_node_addname_int(
 			 * its first slot as our empty slot.
 			 */
 			free = fbp->data;
-			INT_SET(free->hdr.magic, ARCH_CONVERT, XFS_DIR2_FREE_MAGIC);
-			INT_SET(free->hdr.firstdb, ARCH_CONVERT,
+			free->hdr.magic = cpu_to_be32(XFS_DIR2_FREE_MAGIC);
+			free->hdr.firstdb = cpu_to_be32(
 				(fbno - XFS_DIR2_FREE_FIRSTDB(mp)) *
 				XFS_DIR2_MAX_FREE_BESTS(mp));
 			free->hdr.nvalid = 0;
 			free->hdr.nused = 0;
 		} else {
 			free = fbp->data;
-			ASSERT(INT_GET(free->hdr.magic, ARCH_CONVERT) == XFS_DIR2_FREE_MAGIC);
+			ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
 		}
 
 		/*
@@ -1627,20 +1627,20 @@ xfs_dir2_node_addname_int(
 		 * If it's after the end of the current entries in the
 		 * freespace block, extend that table.
 		 */
-		if (findex >= INT_GET(free->hdr.nvalid, ARCH_CONVERT)) {
+		if (findex >= be32_to_cpu(free->hdr.nvalid)) {
 			ASSERT(findex < XFS_DIR2_MAX_FREE_BESTS(mp));
-			INT_SET(free->hdr.nvalid, ARCH_CONVERT, findex + 1);
+			free->hdr.nvalid = cpu_to_be32(findex + 1);
 			/*
 			 * Tag new entry so nused will go up.
 			 */
-			INT_SET(free->bests[findex], ARCH_CONVERT, NULLDATAOFF);
+			free->bests[findex] = cpu_to_be16(NULLDATAOFF);
 		}
 		/*
 		 * If this entry was for an empty data block
 		 * (this should always be true) then update the header.
 		 */
-		if (INT_GET(free->bests[findex], ARCH_CONVERT) == NULLDATAOFF) {
-			INT_MOD(free->hdr.nused, ARCH_CONVERT, +1);
+		if (be16_to_cpu(free->bests[findex]) == NULLDATAOFF) {
+			be32_add(&free->hdr.nused, 1);
 			xfs_dir2_free_log_header(tp, fbp);
 		}
 		/*
@@ -1713,7 +1713,7 @@ xfs_dir2_node_addname_int(
 	/*
 	 * If the freespace entry is now wrong, update it.
 	 */
-	if (INT_GET(free->bests[findex], ARCH_CONVERT) != be16_to_cpu(data->hdr.bestfree[0].length)) {
+	if (be16_to_cpu(free->bests[findex]) != be16_to_cpu(data->hdr.bestfree[0].length)) {
 		free->bests[findex] = data->hdr.bestfree[0].length;
 		logfree = 1;
 	}
@@ -1966,11 +1966,11 @@ xfs_dir2_node_trim_free(
 		return 0;
 	}
 	free = bp->data;
-	ASSERT(INT_GET(free->hdr.magic, ARCH_CONVERT) == XFS_DIR2_FREE_MAGIC);
+	ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
 	/*
 	 * If there are used entries, there's nothing to do.
 	 */
-	if (INT_GET(free->hdr.nused, ARCH_CONVERT) > 0) {
+	if (be32_to_cpu(free->hdr.nused) > 0) {
 		xfs_da_brelse(tp, bp);
 		*rvalp = 0;
 		return 0;
