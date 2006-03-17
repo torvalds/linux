@@ -1379,7 +1379,7 @@ xfs_dir2_node_addname_int(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			needlog;	/* need to log data header */
 	int			needscan;	/* need to rescan data frees */
-	xfs_dir2_data_off_t	*tagp;		/* data entry tag pointer */
+	__be16			*tagp;		/* data entry tag pointer */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
 	dp = args->dp;
@@ -1699,7 +1699,7 @@ xfs_dir2_node_addname_int(
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, dep->namelen);
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
-	INT_SET(*tagp, ARCH_CONVERT, (xfs_dir2_data_off_t)((char *)dep - (char *)data));
+	*tagp = cpu_to_be16((char *)dep - (char *)data);
 	xfs_dir2_data_log_entry(tp, dbp, dep);
 	/*
 	 * Rescan the block for bestfree if needed.
@@ -1732,7 +1732,7 @@ xfs_dir2_node_addname_int(
 	 * Return the data block and offset in args, then drop the data block.
 	 */
 	args->blkno = (xfs_dablk_t)dbno;
-	args->index = INT_GET(*tagp, ARCH_CONVERT);
+	args->index = be16_to_cpu(*tagp);
 	xfs_da_buf_done(dbp);
 	return 0;
 }

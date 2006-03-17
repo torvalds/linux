@@ -134,7 +134,7 @@ xfs_dir2_data_check(
 		dep = (xfs_dir2_data_entry_t *)p;
 		ASSERT(dep->namelen != 0);
 		ASSERT(xfs_dir_ino_validate(mp, INT_GET(dep->inumber, ARCH_CONVERT)) == 0);
-		ASSERT(INT_GET(*XFS_DIR2_DATA_ENTRY_TAG_P(dep), ARCH_CONVERT) ==
+		ASSERT(be16_to_cpu(*XFS_DIR2_DATA_ENTRY_TAG_P(dep)) ==
 		       (char *)dep - (char *)d);
 		count++;
 		lastfree = 0;
@@ -376,7 +376,7 @@ xfs_dir2_data_freescan(
 		else {
 			dep = (xfs_dir2_data_entry_t *)p;
 			ASSERT((char *)dep - (char *)d ==
-			       INT_GET(*XFS_DIR2_DATA_ENTRY_TAG_P(dep), ARCH_CONVERT));
+			       be16_to_cpu(*XFS_DIR2_DATA_ENTRY_TAG_P(dep)));
 			p += XFS_DIR2_DATA_ENTSIZE(dep->namelen);
 		}
 	}
@@ -549,10 +549,10 @@ xfs_dir2_data_make_free(
 	 * the previous entry and see if it's free.
 	 */
 	if (offset > sizeof(d->hdr)) {
-		xfs_dir2_data_off_t	*tagp;	/* tag just before us */
+		__be16			*tagp;	/* tag just before us */
 
-		tagp = (xfs_dir2_data_off_t *)((char *)d + offset) - 1;
-		prevdup = (xfs_dir2_data_unused_t *)((char *)d + INT_GET(*tagp, ARCH_CONVERT));
+		tagp = (__be16 *)((char *)d + offset) - 1;
+		prevdup = (xfs_dir2_data_unused_t *)((char *)d + be16_to_cpu(*tagp));
 		if (be16_to_cpu(prevdup->freetag) != XFS_DIR2_DATA_FREE_TAG)
 			prevdup = NULL;
 	} else

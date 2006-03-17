@@ -81,7 +81,7 @@ xfs_dir2_block_addname(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			needlog;	/* need to log header */
 	int			needscan;	/* need to rescan freespace */
-	xfs_dir2_data_off_t	*tagp;		/* pointer to tag value */
+	__be16			*tagp;		/* pointer to tag value */
 	xfs_trans_t		*tp;		/* transaction structure */
 
 	xfs_dir2_trace_args("block_addname", args);
@@ -120,11 +120,11 @@ xfs_dir2_block_addname(
 		/*
 		 * Tag just before the first leaf entry.
 		 */
-		tagp = (xfs_dir2_data_off_t *)blp - 1;
+		tagp = (__be16 *)blp - 1;
 		/*
 		 * Data object just before the first leaf entry.
 		 */
-		enddup = (xfs_dir2_data_unused_t *)((char *)block + INT_GET(*tagp, ARCH_CONVERT));
+		enddup = (xfs_dir2_data_unused_t *)((char *)block + be16_to_cpu(*tagp));
 		/*
 		 * If it's not free then can't do this add without cleaning up:
 		 * the space before the first leaf entry needs to be free so it
@@ -183,11 +183,11 @@ xfs_dir2_block_addname(
 		/*
 		 * Tag just before the first leaf entry.
 		 */
-		tagp = (xfs_dir2_data_off_t *)blp - 1;
+		tagp = (__be16 *)blp - 1;
 		/*
 		 * Data object just before the first leaf entry.
 		 */
-		dup = (xfs_dir2_data_unused_t *)((char *)block + INT_GET(*tagp, ARCH_CONVERT));
+		dup = (xfs_dir2_data_unused_t *)((char *)block + be16_to_cpu(*tagp));
 		/*
 		 * If it's not free then the data will go where the
 		 * leaf data starts now, if it works at all.
@@ -404,7 +404,7 @@ xfs_dir2_block_addname(
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, args->namelen);
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
-	INT_SET(*tagp, ARCH_CONVERT, (xfs_dir2_data_off_t)((char *)dep - (char *)block));
+	*tagp = cpu_to_be16((char *)dep - (char *)block);
 	/*
 	 * Clean up the bestfree array and log the header, tail, and entry.
 	 */
@@ -896,7 +896,7 @@ xfs_dir2_leaf_to_block(
 	int			needscan;	/* need to scan for bestfree */
 	xfs_dir2_sf_hdr_t	sfh;		/* shortform header */
 	int			size;		/* bytes used */
-	xfs_dir2_data_off_t	*tagp;		/* end of entry (tag) */
+	__be16			*tagp;		/* end of entry (tag) */
 	int			to;		/* block/leaf to index */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
@@ -944,8 +944,8 @@ xfs_dir2_leaf_to_block(
 	/*
 	 * Look at the last data entry.
 	 */
-	tagp = (xfs_dir2_data_off_t *)((char *)block + mp->m_dirblksize) - 1;
-	dup = (xfs_dir2_data_unused_t *)((char *)block + INT_GET(*tagp, ARCH_CONVERT));
+	tagp = (__be16 *)((char *)block + mp->m_dirblksize) - 1;
+	dup = (xfs_dir2_data_unused_t *)((char *)block + be16_to_cpu(*tagp));
 	/*
 	 * If it's not free or is too short we can't do it.
 	 */
@@ -1044,7 +1044,7 @@ xfs_dir2_sf_to_block(
 	int			offset;		/* target block offset */
 	xfs_dir2_sf_entry_t	*sfep;		/* sf entry pointer */
 	xfs_dir2_sf_t		*sfp;		/* shortform structure */
-	xfs_dir2_data_off_t	*tagp;		/* end of data entry */
+	__be16			*tagp;		/* end of data entry */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
 	xfs_dir2_trace_args("sf_to_block", args);
@@ -1134,7 +1134,7 @@ xfs_dir2_sf_to_block(
 	dep->namelen = 1;
 	dep->name[0] = '.';
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
-	INT_SET(*tagp, ARCH_CONVERT, (xfs_dir2_data_off_t)((char *)dep - (char *)block));
+	*tagp = cpu_to_be16((char *)dep - (char *)block);
 	xfs_dir2_data_log_entry(tp, bp, dep);
 	blp[0].hashval = cpu_to_be32(xfs_dir_hash_dot);
 	blp[0].address = cpu_to_be32(XFS_DIR2_BYTE_TO_DATAPTR(mp,
@@ -1148,7 +1148,7 @@ xfs_dir2_sf_to_block(
 	dep->namelen = 2;
 	dep->name[0] = dep->name[1] = '.';
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
-	INT_SET(*tagp, ARCH_CONVERT, (xfs_dir2_data_off_t)((char *)dep - (char *)block));
+	*tagp = cpu_to_be16((char *)dep - (char *)block);
 	xfs_dir2_data_log_entry(tp, bp, dep);
 	blp[1].hashval = cpu_to_be32(xfs_dir_hash_dotdot);
 	blp[1].address = cpu_to_be32(XFS_DIR2_BYTE_TO_DATAPTR(mp,
@@ -1198,7 +1198,7 @@ xfs_dir2_sf_to_block(
 		dep->namelen = sfep->namelen;
 		memcpy(dep->name, sfep->name, dep->namelen);
 		tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
-		INT_SET(*tagp, ARCH_CONVERT, (xfs_dir2_data_off_t)((char *)dep - (char *)block));
+		*tagp = cpu_to_be16((char *)dep - (char *)block);
 		xfs_dir2_data_log_entry(tp, bp, dep);
 		blp[2 + i].hashval = cpu_to_be32(xfs_da_hashname(
 					(char *)sfep->name, sfep->namelen));

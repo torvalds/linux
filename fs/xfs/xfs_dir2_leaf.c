@@ -187,7 +187,7 @@ xfs_dir2_leaf_addname(
 	int			needbytes;	/* leaf block bytes needed */
 	int			needlog;	/* need to log data header */
 	int			needscan;	/* need to rescan data free */
-	xfs_dir2_data_off_t	*tagp;		/* end of data entry */
+	__be16			*tagp;		/* end of data entry */
 	xfs_trans_t		*tp;		/* transaction pointer */
 	xfs_dir2_db_t		use_block;	/* data block number */
 
@@ -411,7 +411,7 @@ xfs_dir2_leaf_addname(
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, dep->namelen);
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
-	INT_SET(*tagp, ARCH_CONVERT, (xfs_dir2_data_off_t)((char *)dep - (char *)data));
+	*tagp = cpu_to_be16((char *)dep - (char *)data);
 	/*
 	 * Need to scan fix up the bestfree table.
 	 */
@@ -533,7 +533,7 @@ xfs_dir2_leaf_addname(
 	 */
 	lep->hashval = cpu_to_be32(args->hashval);
 	lep->address = cpu_to_be32(XFS_DIR2_DB_OFF_TO_DATAPTR(mp, use_block,
-				INT_GET(*tagp, ARCH_CONVERT)));
+				be16_to_cpu(*tagp)));
 	/*
 	 * Log the leaf fields and give up the buffers.
 	 */

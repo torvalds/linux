@@ -134,12 +134,11 @@ static inline int xfs_dir2_data_entsize(int n)
  * Pointer to an entry's tag word.
  */
 #define	XFS_DIR2_DATA_ENTRY_TAG_P(dep)	xfs_dir2_data_entry_tag_p(dep)
-static inline xfs_dir2_data_off_t *
+static inline __be16 *
 xfs_dir2_data_entry_tag_p(xfs_dir2_data_entry_t *dep)
 {
-	return (xfs_dir2_data_off_t *) \
-		 ((char *)(dep) + XFS_DIR2_DATA_ENTSIZE((dep)->namelen) - \
-		  (uint)sizeof(xfs_dir2_data_off_t));
+	return (__be16 *)((char *)dep +
+		XFS_DIR2_DATA_ENTSIZE(dep->namelen) - sizeof(__be16));
 }
 
 /*
