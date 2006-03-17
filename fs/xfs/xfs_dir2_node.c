@@ -151,14 +151,14 @@ xfs_dir2_leaf_to_node(
 	 */
 	free->hdr.magic = cpu_to_be32(XFS_DIR2_FREE_MAGIC);
 	free->hdr.firstdb = 0;
-	ASSERT(INT_GET(ltp->bestcount, ARCH_CONVERT) <= (uint)dp->i_d.di_size / mp->m_dirblksize);
+	ASSERT(be32_to_cpu(ltp->bestcount) <= (uint)dp->i_d.di_size / mp->m_dirblksize);
 	free->hdr.nvalid = ltp->bestcount;
 	/*
 	 * Copy freespace entries from the leaf block to the new block.
 	 * Count active entries.
 	 */
 	for (i = n = 0, from = XFS_DIR2_LEAF_BESTS_P(ltp), to = free->bests;
-	     i < INT_GET(ltp->bestcount, ARCH_CONVERT); i++, from++, to++) {
+	     i < be32_to_cpu(ltp->bestcount); i++, from++, to++) {
 		if ((off = be16_to_cpu(*from)) != NULLDATAOFF)
 			n++;
 		*to = cpu_to_be16(off);

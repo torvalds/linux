@@ -62,7 +62,7 @@ typedef struct xfs_dir2_leaf_entry {
  * Leaf block tail.
  */
 typedef struct xfs_dir2_leaf_tail {
-	__uint32_t		bestcount;
+	__be32			bestcount;
 } xfs_dir2_leaf_tail_t;
 
 /*
@@ -108,7 +108,7 @@ xfs_dir2_leaf_tail_p(struct xfs_mount *mp, xfs_dir2_leaf_t *lp)
 static inline __be16 *
 xfs_dir2_leaf_bests_p(xfs_dir2_leaf_tail_t *ltp)
 {
-	return (__be16 *)(ltp) - INT_GET((ltp)->bestcount, ARCH_CONVERT);
+	return (__be16 *)ltp - be32_to_cpu(ltp->bestcount);
 }
 
 /*

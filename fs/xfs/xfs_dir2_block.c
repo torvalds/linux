@@ -914,11 +914,11 @@ xfs_dir2_leaf_to_block(
 	 */
 	while (dp->i_d.di_size > mp->m_dirblksize) {
 		bestsp = XFS_DIR2_LEAF_BESTS_P(ltp);
-		if (be16_to_cpu(bestsp[INT_GET(ltp->bestcount, ARCH_CONVERT) - 1]) ==
+		if (be16_to_cpu(bestsp[be32_to_cpu(ltp->bestcount) - 1]) ==
 		    mp->m_dirblksize - (uint)sizeof(block->hdr)) {
 			if ((error =
 			    xfs_dir2_leaf_trim_data(args, lbp,
-				    (xfs_dir2_db_t)(INT_GET(ltp->bestcount, ARCH_CONVERT) - 1))))
+				    (xfs_dir2_db_t)(be32_to_cpu(ltp->bestcount) - 1))))
 				goto out;
 		} else {
 			error = 0;

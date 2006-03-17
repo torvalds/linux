@@ -141,7 +141,7 @@ xfs_dir2_block_to_leaf(
 	 * Set up leaf tail and bests table.
 	 */
 	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
-	INT_SET(ltp->bestcount, ARCH_CONVERT, 1);
+	ltp->bestcount = cpu_to_be32(1);
 	bestsp = XFS_DIR2_LEAF_BESTS_P(ltp);
 	bestsp[0] =  block->hdr.bestfree[0].length;
 	/*
@@ -227,7 +227,7 @@ xfs_dir2_leaf_addname(
 		if (INT_GET(lep->address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		i = XFS_DIR2_DATAPTR_TO_DB(mp, INT_GET(lep->address, ARCH_CONVERT));
-		ASSERT(i < INT_GET(ltp->bestcount, ARCH_CONVERT));
+		ASSERT(i < be32_to_cpu(ltp->bestcount));
 		ASSERT(be16_to_cpu(bestsp[i]) != NULLDATAOFF);
 		if (be16_to_cpu(bestsp[i]) >= length) {
 			use_block = i;
@@ -238,7 +238,7 @@ xfs_dir2_leaf_addname(
 	 * Didn't find a block yet, linear search all the data blocks.
 	 */
 	if (use_block == -1) {
-		for (i = 0; i < INT_GET(ltp->bestcount, ARCH_CONVERT); i++) {
+		for (i = 0; i < be32_to_cpu(ltp->bestcount); i++) {
 			/*
 			 * Remember a block we see that's missing.
 			 */
@@ -358,13 +358,13 @@ xfs_dir2_leaf_addname(
 		 * If we're adding a new data block on the end we need to
 		 * extend the bests table.  Copy it up one entry.
 		 */
-		if (use_block >= INT_GET(ltp->bestcount, ARCH_CONVERT)) {
+		if (use_block >= be32_to_cpu(ltp->bestcount)) {
 			bestsp--;
 			memmove(&bestsp[0], &bestsp[1],
-				INT_GET(ltp->bestcount, ARCH_CONVERT) * sizeof(bestsp[0]));
-			INT_MOD(ltp->bestcount, ARCH_CONVERT, +1);
+				be32_to_cpu(ltp->bestcount) * sizeof(bestsp[0]));
+			be32_add(&ltp->bestcount, 1);
 			xfs_dir2_leaf_log_tail(tp, lbp);
-			xfs_dir2_leaf_log_bests(tp, lbp, 0, INT_GET(ltp->bestcount, ARCH_CONVERT) - 1);
+			xfs_dir2_leaf_log_bests(tp, lbp, 0, be32_to_cpu(ltp->bestcount) - 1);
 		}
 		/*
 		 * If we're filling in a previously empty block just log it.
@@ -1537,7 +1537,7 @@ xfs_dir2_leaf_removename(
 		 * If this is the last data block then compact the
 		 * bests table by getting rid of entries.
 		 */
-		if (db == INT_GET(ltp->bestcount, ARCH_CONVERT) - 1) {
+		if (db == be32_to_cpu(ltp->bestcount) - 1) {
 			/*
 			 * Look for the last active entry (i).
 			 */
@@ -1550,10 +1550,10 @@ xfs_dir2_leaf_removename(
 			 * end are removed.
 			 */
 			memmove(&bestsp[db - i], bestsp,
-				(INT_GET(ltp->bestcount, ARCH_CONVERT) - (db - i)) * sizeof(*bestsp));
-			INT_MOD(ltp->bestcount, ARCH_CONVERT, -(db - i));
+				(be32_to_cpu(ltp->bestcount) - (db - i)) * sizeof(*bestsp));
+			be32_add(&ltp->bestcount, -(db - i));
 			xfs_dir2_leaf_log_tail(tp, lbp);
-			xfs_dir2_leaf_log_bests(tp, lbp, 0, INT_GET(ltp->bestcount, ARCH_CONVERT) - 1);
+			xfs_dir2_leaf_log_bests(tp, lbp, 0, be32_to_cpu(ltp->bestcount) - 1);
 		} else
 			bestsp[db] = cpu_to_be16(NULLDATAOFF);
 	}
@@ -1719,7 +1719,7 @@ xfs_dir2_leaf_trim_data(
 	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
 	ASSERT(be16_to_cpu(data->hdr.bestfree[0].length) ==
 	       mp->m_dirblksize - (uint)sizeof(data->hdr));
-	ASSERT(db == INT_GET(ltp->bestcount, ARCH_CONVERT) - 1);
+	ASSERT(db == be32_to_cpu(ltp->bestcount) - 1);
 	/*
 	 * Get rid of the data block.
 	 */
@@ -1732,10 +1732,10 @@ xfs_dir2_leaf_trim_data(
 	 * Eliminate the last bests entry from the table.
 	 */
 	bestsp = XFS_DIR2_LEAF_BESTS_P(ltp);
-	INT_MOD(ltp->bestcount, ARCH_CONVERT, -1);
-	memmove(&bestsp[1], &bestsp[0], INT_GET(ltp->bestcount, ARCH_CONVERT) * sizeof(*bestsp));
+	be32_add(&ltp->bestcount, -1);
+	memmove(&bestsp[1], &bestsp[0], be32_to_cpu(ltp->bestcount) * sizeof(*bestsp));
 	xfs_dir2_leaf_log_tail(tp, lbp);
-	xfs_dir2_leaf_log_bests(tp, lbp, 0, INT_GET(ltp->bestcount, ARCH_CONVERT) - 1);
+	xfs_dir2_leaf_log_bests(tp, lbp, 0, be32_to_cpu(ltp->bestcount) - 1);
 	return 0;
 }
 
@@ -1848,8 +1848,8 @@ xfs_dir2_node_to_leaf(
 	 * Set up the leaf bests table.
 	 */
 	memcpy(XFS_DIR2_LEAF_BESTS_P(ltp), free->bests,
-		INT_GET(ltp->bestcount, ARCH_CONVERT) * sizeof(leaf->bests[0]));
-	xfs_dir2_leaf_log_bests(tp, lbp, 0, INT_GET(ltp->bestcount, ARCH_CONVERT) - 1);
+		be32_to_cpu(ltp->bestcount) * sizeof(leaf->bests[0]));
+	xfs_dir2_leaf_log_bests(tp, lbp, 0, be32_to_cpu(ltp->bestcount) - 1);
 	xfs_dir2_leaf_log_tail(tp, lbp);
 	xfs_dir2_leaf_check(dp, lbp);
 	/*
