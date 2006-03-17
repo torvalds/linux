@@ -939,7 +939,7 @@ xfs_dir2_leaf_to_block(
 	 * Size of the "leaf" area in the block.
 	 */
 	size = (uint)sizeof(block->tail) +
-	       (uint)sizeof(*lep) * (INT_GET(leaf->hdr.count, ARCH_CONVERT) - INT_GET(leaf->hdr.stale, ARCH_CONVERT));
+	       (uint)sizeof(*lep) * (be16_to_cpu(leaf->hdr.count) - be16_to_cpu(leaf->hdr.stale));
 	/*
 	 * Look at the last data entry.
 	 */
@@ -968,14 +968,14 @@ xfs_dir2_leaf_to_block(
 	 * Initialize the block tail.
 	 */
 	btp = XFS_DIR2_BLOCK_TAIL_P(mp, block);
-	btp->count = cpu_to_be32(INT_GET(leaf->hdr.count, ARCH_CONVERT) - INT_GET(leaf->hdr.stale, ARCH_CONVERT));
+	btp->count = cpu_to_be32(be16_to_cpu(leaf->hdr.count) - be16_to_cpu(leaf->hdr.stale));
 	btp->stale = 0;
 	xfs_dir2_block_log_tail(tp, dbp);
 	/*
 	 * Initialize the block leaf area.  We compact out stale entries.
 	 */
 	lep = XFS_DIR2_BLOCK_LEAF_P(btp);
-	for (from = to = 0; from < INT_GET(leaf->hdr.count, ARCH_CONVERT); from++) {
+	for (from = to = 0; from < be16_to_cpu(leaf->hdr.count); from++) {
 		if (INT_GET(leaf->ents[from].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		lep[to++] = leaf->ents[from];

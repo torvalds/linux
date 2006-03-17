@@ -111,14 +111,14 @@ xfs_dir2_block_to_leaf(
 	/*
 	 * Set the counts in the leaf header.
 	 */
-	leaf->hdr.count = btp->count;
-	leaf->hdr.stale = btp->stale;
+	leaf->hdr.count = cpu_to_be16(be32_to_cpu(btp->count));
+	leaf->hdr.stale = cpu_to_be16(be32_to_cpu(btp->stale));
 	/*
 	 * Could compact these but I think we always do the conversion
 	 * after squeezing out stale entries.
 	 */
 	memcpy(leaf->ents, blp, be32_to_cpu(btp->count) * sizeof(xfs_dir2_leaf_entry_t));
-	xfs_dir2_leaf_log_ents(tp, lbp, 0, INT_GET(leaf->hdr.count, ARCH_CONVERT) - 1);
+	xfs_dir2_leaf_log_ents(tp, lbp, 0, be16_to_cpu(leaf->hdr.count) - 1);
 	needscan = 0;
 	needlog = 1;
 	/*
@@ -222,7 +222,7 @@ xfs_dir2_leaf_addname(
 	 * in a data block, improving the lookup of those entries.
 	 */
 	for (use_block = -1, lep = &leaf->ents[index];
-	     index < INT_GET(leaf->hdr.count, ARCH_CONVERT) && INT_GET(lep->hashval, ARCH_CONVERT) == args->hashval;
+	     index < be16_to_cpu(leaf->hdr.count) && INT_GET(lep->hashval, ARCH_CONVERT) == args->hashval;
 	     index++, lep++) {
 		if (INT_GET(lep->address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
 			continue;
@@ -266,15 +266,15 @@ xfs_dir2_leaf_addname(
 	 * If we don't have enough free bytes but we can make enough
 	 * by compacting out stale entries, we'll do that.
 	 */
-	if ((char *)bestsp - (char *)&leaf->ents[INT_GET(leaf->hdr.count, ARCH_CONVERT)] < needbytes &&
-	    INT_GET(leaf->hdr.stale, ARCH_CONVERT) > 1) {
+	if ((char *)bestsp - (char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] < needbytes &&
+	    be16_to_cpu(leaf->hdr.stale) > 1) {
 		compact = 1;
 	}
 	/*
 	 * Otherwise if we don't have enough free bytes we need to
 	 * convert to node form.
 	 */
-	else if ((char *)bestsp - (char *)&leaf->ents[INT_GET(leaf->hdr.count, ARCH_CONVERT)] <
+	else if ((char *)bestsp - (char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] <
 		 needbytes) {
 		/*
 		 * Just checking or no space reservation, give up.
@@ -330,8 +330,8 @@ xfs_dir2_leaf_addname(
 	 * There are stale entries, so we'll need log-low and log-high
 	 * impossibly bad values later.
 	 */
-	else if (INT_GET(leaf->hdr.stale, ARCH_CONVERT)) {
-		lfloglow = INT_GET(leaf->hdr.count, ARCH_CONVERT);
+	else if (be16_to_cpu(leaf->hdr.stale)) {
+		lfloglow = be16_to_cpu(leaf->hdr.count);
 		lfloghigh = -1;
 	}
 	/*
@@ -440,15 +440,15 @@ xfs_dir2_leaf_addname(
 		/*
 		 * lep is still good as the index leaf entry.
 		 */
-		if (index < INT_GET(leaf->hdr.count, ARCH_CONVERT))
+		if (index < be16_to_cpu(leaf->hdr.count))
 			memmove(lep + 1, lep,
-				(INT_GET(leaf->hdr.count, ARCH_CONVERT) - index) * sizeof(*lep));
+				(be16_to_cpu(leaf->hdr.count) - index) * sizeof(*lep));
 		/*
 		 * Record low and high logging indices for the leaf.
 		 */
 		lfloglow = index;
-		lfloghigh = INT_GET(leaf->hdr.count, ARCH_CONVERT);
-		INT_MOD(leaf->hdr.count, ARCH_CONVERT, +1);
+		lfloghigh = be16_to_cpu(leaf->hdr.count);
+		be16_add(&leaf->hdr.count, 1);
 	}
 	/*
 	 * There are stale entries.
@@ -478,7 +478,7 @@ xfs_dir2_leaf_addname(
 			 * lowstale entry would be better.
 			 */
 			for (highstale = index;
-			     highstale < INT_GET(leaf->hdr.count, ARCH_CONVERT) &&
+			     highstale < be16_to_cpu(leaf->hdr.count) &&
 				INT_GET(leaf->ents[highstale].address, ARCH_CONVERT) !=
 				XFS_DIR2_NULL_DATAPTR &&
 				(lowstale < 0 ||
@@ -490,7 +490,7 @@ xfs_dir2_leaf_addname(
 		 * If the low one is better, use it.
 		 */
 		if (lowstale >= 0 &&
-		    (highstale == INT_GET(leaf->hdr.count, ARCH_CONVERT) ||
+		    (highstale == be16_to_cpu(leaf->hdr.count) ||
 		     index - lowstale - 1 < highstale - index)) {
 			ASSERT(index - lowstale - 1 >= 0);
 			ASSERT(INT_GET(leaf->ents[lowstale].address, ARCH_CONVERT) ==
@@ -526,7 +526,7 @@ xfs_dir2_leaf_addname(
 			lfloglow = MIN(index, lfloglow);
 			lfloghigh = MAX(highstale, lfloghigh);
 		}
-		INT_MOD(leaf->hdr.stale, ARCH_CONVERT, -1);
+		be16_add(&leaf->hdr.stale, -1);
 	}
 	/*
 	 * Fill in the new leaf entry.
@@ -569,24 +569,24 @@ xfs_dir2_leaf_check(
 	 * Should factor in the size of the bests table as well.
 	 * We can deduce a value for that from di_size.
 	 */
-	ASSERT(INT_GET(leaf->hdr.count, ARCH_CONVERT) <= XFS_DIR2_MAX_LEAF_ENTS(mp));
+	ASSERT(be16_to_cpu(leaf->hdr.count) <= XFS_DIR2_MAX_LEAF_ENTS(mp));
 	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
 	/*
 	 * Leaves and bests don't overlap.
 	 */
-	ASSERT((char *)&leaf->ents[INT_GET(leaf->hdr.count, ARCH_CONVERT)] <=
+	ASSERT((char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] <=
 	       (char *)XFS_DIR2_LEAF_BESTS_P(ltp));
 	/*
 	 * Check hash value order, count stale entries.
 	 */
-	for (i = stale = 0; i < INT_GET(leaf->hdr.count, ARCH_CONVERT); i++) {
-		if (i + 1 < INT_GET(leaf->hdr.count, ARCH_CONVERT))
+	for (i = stale = 0; i < be16_to_cpu(leaf->hdr.count); i++) {
+		if (i + 1 < be16_to_cpu(leaf->hdr.count))
 			ASSERT(INT_GET(leaf->ents[i].hashval, ARCH_CONVERT) <=
 			       INT_GET(leaf->ents[i + 1].hashval, ARCH_CONVERT));
 		if (INT_GET(leaf->ents[i].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
 			stale++;
 	}
-	ASSERT(INT_GET(leaf->hdr.stale, ARCH_CONVERT) == stale);
+	ASSERT(be16_to_cpu(leaf->hdr.stale) == stale);
 }
 #endif	/* DEBUG */
 
@@ -611,7 +611,7 @@ xfs_dir2_leaf_compact(
 	/*
 	 * Compress out the stale entries in place.
 	 */
-	for (from = to = 0, loglow = -1; from < INT_GET(leaf->hdr.count, ARCH_CONVERT); from++) {
+	for (from = to = 0, loglow = -1; from < be16_to_cpu(leaf->hdr.count); from++) {
 		if (INT_GET(leaf->ents[from].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		/*
@@ -627,8 +627,8 @@ xfs_dir2_leaf_compact(
 	/*
 	 * Update and log the header, log the leaf entries.
 	 */
-	ASSERT(INT_GET(leaf->hdr.stale, ARCH_CONVERT) == from - to);
-	INT_MOD(leaf->hdr.count, ARCH_CONVERT, -(INT_GET(leaf->hdr.stale, ARCH_CONVERT)));
+	ASSERT(be16_to_cpu(leaf->hdr.stale) == from - to);
+	be16_add(&leaf->hdr.count, -(be16_to_cpu(leaf->hdr.stale)));
 	leaf->hdr.stale = 0;
 	xfs_dir2_leaf_log_header(args->trans, bp);
 	if (loglow != -1)
@@ -662,7 +662,7 @@ xfs_dir2_leaf_compact_x1(
 	int		to;		/* destination copy index */
 
 	leaf = bp->data;
-	ASSERT(INT_GET(leaf->hdr.stale, ARCH_CONVERT) > 1);
+	ASSERT(be16_to_cpu(leaf->hdr.stale) > 1);
 	index = *indexp;
 	/*
 	 * Find the first stale entry before our index, if any.
@@ -677,7 +677,7 @@ xfs_dir2_leaf_compact_x1(
 	 * Stop if the answer would be worse than lowstale.
 	 */
 	for (highstale = index;
-	     highstale < INT_GET(leaf->hdr.count, ARCH_CONVERT) &&
+	     highstale < be16_to_cpu(leaf->hdr.count) &&
 		INT_GET(leaf->ents[highstale].address, ARCH_CONVERT) != XFS_DIR2_NULL_DATAPTR &&
 		(lowstale < 0 || index - lowstale > highstale - index);
 	     highstale++)
@@ -686,7 +686,7 @@ xfs_dir2_leaf_compact_x1(
 	 * Pick the better of lowstale and highstale.
 	 */
 	if (lowstale >= 0 &&
-	    (highstale == INT_GET(leaf->hdr.count, ARCH_CONVERT) ||
+	    (highstale == be16_to_cpu(leaf->hdr.count) ||
 	     index - lowstale <= highstale - index))
 		keepstale = lowstale;
 	else
@@ -695,7 +695,7 @@ xfs_dir2_leaf_compact_x1(
 	 * Copy the entries in place, removing all the stale entries
 	 * except keepstale.
 	 */
-	for (from = to = 0; from < INT_GET(leaf->hdr.count, ARCH_CONVERT); from++) {
+	for (from = to = 0; from < be16_to_cpu(leaf->hdr.count); from++) {
 		/*
 		 * Notice the new value of index.
 		 */
@@ -730,8 +730,8 @@ xfs_dir2_leaf_compact_x1(
 	/*
 	 * Adjust the leaf header values.
 	 */
-	INT_MOD(leaf->hdr.count, ARCH_CONVERT, -(from - to));
-	INT_SET(leaf->hdr.stale, ARCH_CONVERT, 1);
+	be16_add(&leaf->hdr.count, -(from - to));
+	leaf->hdr.stale = cpu_to_be16(1);
 	/*
 	 * Remember the low/high stale value only in the "right"
 	 * direction.
@@ -739,8 +739,8 @@ xfs_dir2_leaf_compact_x1(
 	if (lowstale >= newindex)
 		lowstale = -1;
 	else
-		highstale = INT_GET(leaf->hdr.count, ARCH_CONVERT);
-	*highlogp = INT_GET(leaf->hdr.count, ARCH_CONVERT) - 1;
+		highstale = be16_to_cpu(leaf->hdr.count);
+	*highlogp = be16_to_cpu(leaf->hdr.count) - 1;
 	*lowstalep = lowstale;
 	*highstalep = highstale;
 }
@@ -1373,7 +1373,7 @@ xfs_dir2_leaf_lookup_int(
 	 * looking to match the name.
 	 */
 	for (lep = &leaf->ents[index], dbp = NULL, curdb = -1;
-	     index < INT_GET(leaf->hdr.count, ARCH_CONVERT) && INT_GET(lep->hashval, ARCH_CONVERT) == args->hashval;
+	     index < be16_to_cpu(leaf->hdr.count) && INT_GET(lep->hashval, ARCH_CONVERT) == args->hashval;
 	     lep++, index++) {
 		/*
 		 * Skip over stale leaf entries.
@@ -1488,7 +1488,7 @@ xfs_dir2_leaf_removename(
 	/*
 	 * We just mark the leaf entry stale by putting a null in it.
 	 */
-	INT_MOD(leaf->hdr.stale, ARCH_CONVERT, +1);
+	be16_add(&leaf->hdr.stale, 1);
 	xfs_dir2_leaf_log_header(tp, lbp);
 	INT_SET(lep->address, ARCH_CONVERT, XFS_DIR2_NULL_DATAPTR);
 	xfs_dir2_leaf_log_ents(tp, lbp, index, index);
@@ -1645,7 +1645,7 @@ xfs_dir2_leaf_search_hash(
 	 * Note, the table cannot be empty, so we have to go through the loop.
 	 * Binary search the leaf entries looking for our hash value.
 	 */
-	for (lep = leaf->ents, low = 0, high = INT_GET(leaf->hdr.count, ARCH_CONVERT) - 1,
+	for (lep = leaf->ents, low = 0, high = be16_to_cpu(leaf->hdr.count) - 1,
 		hashwant = args->hashval;
 	     low <= high; ) {
 		mid = (low + high) >> 1;
@@ -1821,7 +1821,7 @@ xfs_dir2_node_to_leaf(
 	 * If not, release the buffer and give up.
 	 */
 	if ((uint)sizeof(leaf->hdr) +
-	    (INT_GET(leaf->hdr.count, ARCH_CONVERT) - INT_GET(leaf->hdr.stale, ARCH_CONVERT)) * (uint)sizeof(leaf->ents[0]) +
+	    (be16_to_cpu(leaf->hdr.count) - be16_to_cpu(leaf->hdr.stale)) * (uint)sizeof(leaf->ents[0]) +
 	    be32_to_cpu(free->hdr.nvalid) * (uint)sizeof(leaf->bests[0]) +
 	    (uint)sizeof(leaf->tail) >
 	    mp->m_dirblksize) {
@@ -1832,7 +1832,7 @@ xfs_dir2_node_to_leaf(
 	 * If the leaf has any stale entries in it, compress them out.
 	 * The compact routine will log the header.
 	 */
-	if (INT_GET(leaf->hdr.stale, ARCH_CONVERT))
+	if (be16_to_cpu(leaf->hdr.stale))
 		xfs_dir2_leaf_compact(args, lbp);
 	else
 		xfs_dir2_leaf_log_header(tp, lbp);

@@ -46,8 +46,8 @@ typedef	__uint32_t	xfs_dir2_dataptr_t;
  */
 typedef struct xfs_dir2_leaf_hdr {
 	xfs_da_blkinfo_t	info;		/* header for da routines */
-	__uint16_t		count;		/* count of entries */
-	__uint16_t		stale;		/* count of stale entries */
+	__be16			count;		/* count of entries */
+	__be16			stale;		/* count of stale entries */
 } xfs_dir2_leaf_hdr_t;
 
 /*
