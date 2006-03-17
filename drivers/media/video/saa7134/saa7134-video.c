@@ -1462,6 +1462,10 @@ static int saa7134_g_fmt(struct saa7134_dev *dev, struct saa7134_fh *fh,
 			f->fmt.pix.height * f->fmt.pix.bytesperline;
 		return 0;
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+		if (saa7134_no_overlay > 0) {
+			printk ("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+			return -EINVAL;
+		}
 		f->fmt.win = fh->win;
 		return 0;
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
@@ -1526,6 +1530,10 @@ static int saa7134_try_fmt(struct saa7134_dev *dev, struct saa7134_fh *fh,
 		return 0;
 	}
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+		if (saa7134_no_overlay > 0) {
+			printk ("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+			return -EINVAL;
+		}
 		err = verify_preview(dev,&f->fmt.win);
 		if (0 != err)
 			return err;
@@ -1556,6 +1564,10 @@ static int saa7134_s_fmt(struct saa7134_dev *dev, struct saa7134_fh *fh,
 		fh->cap.field = f->fmt.pix.field;
 		return 0;
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+		if (saa7134_no_overlay > 0) {
+			printk ("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+			return -EINVAL;
+		}
 		err = verify_preview(dev,&f->fmt.win);
 		if (0 != err)
 			return err;
@@ -1715,11 +1727,13 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		cap->version = SAA7134_VERSION_CODE;
 		cap->capabilities =
 			V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_VIDEO_OVERLAY |
 			V4L2_CAP_VBI_CAPTURE |
 			V4L2_CAP_READWRITE |
 			V4L2_CAP_STREAMING |
 			V4L2_CAP_TUNER;
+		if (saa7134_no_overlay <= 0) {
+			cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
+		}
 
 		if ((tuner_type == TUNER_ABSENT) || (tuner_type == UNSET))
 			cap->capabilities &= ~V4L2_CAP_TUNER;
@@ -1970,6 +1984,10 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		switch (type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+			if (saa7134_no_overlay > 0) {
+				printk ("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+				return -EINVAL;
+			}
 			if (index >= FORMATS)
 				return -EINVAL;
 			if (f->type == V4L2_BUF_TYPE_VIDEO_OVERLAY &&
@@ -2030,6 +2048,11 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		int *on = arg;
 
 		if (*on) {
+			if (saa7134_no_overlay > 0) {
+				printk ("no_overlay\n");
+				return -EINVAL;
+			}
+
 			if (!res_get(dev,fh,RESOURCE_OVERLAY))
 				return -EBUSY;
 			spin_lock_irqsave(&dev->slock,flags);
@@ -2281,7 +2304,7 @@ static struct file_operations radio_fops =
 struct video_device saa7134_video_template =
 {
 	.name          = "saa7134-video",
-	.type          = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_OVERLAY|
+	.type          = VID_TYPE_CAPTURE|VID_TYPE_TUNER|
 			 VID_TYPE_CLIPPING|VID_TYPE_SCALES,
 	.hardware      = 0,
 	.fops          = &video_fops,

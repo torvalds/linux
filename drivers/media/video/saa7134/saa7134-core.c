@@ -66,8 +66,8 @@ static unsigned int latency = UNSET;
 module_param(latency, int, 0444);
 MODULE_PARM_DESC(latency,"pci latency timer");
 
-static int no_overlay=-1;
-module_param(no_overlay, int, 0444);
+int saa7134_no_overlay=-1;
+module_param_named(no_overlay, saa7134_no_overlay, int, 0444);
 MODULE_PARM_DESC(no_overlay,"allow override overlay default (0 disables, 1 enables)"
 		" [some VIA/SIS chipsets are known to have problem with overlay]");
 
@@ -843,11 +843,11 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 			printk(KERN_INFO "%s: quirk: this driver and your "
 					"chipset may not work together"
 					" in overlay mode.\n",dev->name);
-			if (!no_overlay) {
+			if (!saa7134_no_overlay) {
 				printk(KERN_INFO "%s: quirk: overlay "
 						"mode will be disabled.\n",
 						dev->name);
-				no_overlay = 1;
+				saa7134_no_overlay = 1;
 			} else {
 				printk(KERN_INFO "%s: quirk: overlay "
 						"mode will be forced. Use this"
@@ -957,6 +957,11 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	v4l2_prio_init(&dev->prio);
 
 	/* register v4l devices */
+	if (saa7134_no_overlay <= 0) {
+		saa7134_video_template.type |= VID_TYPE_OVERLAY;
+	} else {
+		printk("bttv: Overlay support disabled.\n");
+	}
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);

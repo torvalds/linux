@@ -557,6 +557,7 @@ struct saa7134_dev {
 /* saa7134-core.c                                              */
 
 extern struct list_head  saa7134_devlist;
+extern int saa7134_no_overlay;
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
 
