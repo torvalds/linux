@@ -176,7 +176,7 @@ xfs_dir_shortform_addname(xfs_da_args_t *args)
 	ASSERT(dp->i_df.if_u1.if_data != NULL);
 	sf = (xfs_dir_shortform_t *)dp->i_df.if_u1.if_data;
 	sfe = &sf->list[0];
-	for (i = INT_GET(sf->hdr.count, ARCH_CONVERT)-1; i >= 0; i--) {
+	for (i = sf->hdr.count-1; i >= 0; i--) {
 		if (sfe->namelen == args->namelen &&
 		    args->name[0] == sfe->name[0] &&
 		    memcmp(args->name, sfe->name, args->namelen) == 0)
@@ -193,7 +193,7 @@ xfs_dir_shortform_addname(xfs_da_args_t *args)
 	XFS_DIR_SF_PUT_DIRINO(&args->inumber, &sfe->inumber);
 	sfe->namelen = args->namelen;
 	memcpy(sfe->name, args->name, sfe->namelen);
-	INT_MOD(sf->hdr.count, ARCH_CONVERT, +1);
+	sf->hdr.count++;
 
 	dp->i_d.di_size += size;
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_DDATA);
@@ -227,7 +227,7 @@ xfs_dir_shortform_removename(xfs_da_args_t *args)
 	base = sizeof(xfs_dir_sf_hdr_t);
 	sf = (xfs_dir_shortform_t *)dp->i_df.if_u1.if_data;
 	sfe = &sf->list[0];
-	for (i = INT_GET(sf->hdr.count, ARCH_CONVERT)-1; i >= 0; i--) {
+	for (i = sf->hdr.count-1; i >= 0; i--) {
 		size = XFS_DIR_SF_ENTSIZE_BYENTRY(sfe);
 		if (sfe->namelen == args->namelen &&
 		    sfe->name[0] == args->name[0] &&
@@ -245,7 +245,7 @@ xfs_dir_shortform_removename(xfs_da_args_t *args)
 		memmove(&((char *)sf)[base], &((char *)sf)[base+size],
 					      dp->i_d.di_size - (base+size));
 	}
-	INT_MOD(sf->hdr.count, ARCH_CONVERT, -1);
+	sf->hdr.count--;
 
 	xfs_idata_realloc(dp, -size, XFS_DATA_FORK);
 	dp->i_d.di_size -= size;
@@ -288,7 +288,7 @@ xfs_dir_shortform_lookup(xfs_da_args_t *args)
 		return(XFS_ERROR(EEXIST));
 	}
 	sfe = &sf->list[0];
-	for (i = INT_GET(sf->hdr.count, ARCH_CONVERT)-1; i >= 0; i--) {
+	for (i = sf->hdr.count-1; i >= 0; i--) {
 		if (sfe->namelen == args->namelen &&
 		    sfe->name[0] == args->name[0] &&
 		    memcmp(args->name, sfe->name, args->namelen) == 0) {
@@ -375,7 +375,7 @@ xfs_dir_shortform_to_leaf(xfs_da_args_t *iargs)
 		goto out;
 
 	sfe = &sf->list[0];
-	for (i = 0; i < INT_GET(sf->hdr.count, ARCH_CONVERT); i++) {
+	for (i = 0; i < sf->hdr.count; i++) {
 		args.name = (char *)(sfe->name);
 		args.namelen = sfe->namelen;
 		args.hashval = xfs_da_hashname((char *)(sfe->name),
@@ -428,7 +428,7 @@ xfs_dir_shortform_getdents(xfs_inode_t *dp, uio_t *uio, int *eofp,
 	sf = (xfs_dir_shortform_t *)dp->i_df.if_u1.if_data;
 	cookhash = XFS_DA_COOKIE_HASH(mp, uio->uio_offset);
 	want_entno = XFS_DA_COOKIE_ENTRY(mp, uio->uio_offset);
-	nsbuf = INT_GET(sf->hdr.count, ARCH_CONVERT) + 2;
+	nsbuf = sf->hdr.count + 2;
 	sbsize = (nsbuf + 1) * sizeof(*sbuf);
 	sbp = sbuf = kmem_alloc(sbsize, KM_SLEEP);
 
@@ -460,8 +460,7 @@ xfs_dir_shortform_getdents(xfs_inode_t *dp, uio_t *uio, int *eofp,
 	/*
 	 * Scan the directory data for the rest of the entries.
 	 */
-	for (i = 0, sfe = &sf->list[0];
-			i < INT_GET(sf->hdr.count, ARCH_CONVERT); i++) {
+	for (i = 0, sfe = &sf->list[0]; i < sf->hdr.count; i++) {
 
 		if (unlikely(
 		    ((char *)sfe < (char *)sf) ||
@@ -600,7 +599,7 @@ xfs_dir_shortform_replace(xfs_da_args_t *args)
 	}
 	ASSERT(args->namelen != 1 || args->name[0] != '.');
 	sfe = &sf->list[0];
-	for (i = INT_GET(sf->hdr.count, ARCH_CONVERT)-1; i >= 0; i--) {
+	for (i = sf->hdr.count-1; i >= 0; i--) {
 		if (sfe->namelen == args->namelen &&
 		    sfe->name[0] == args->name[0] &&
 		    memcmp(args->name, sfe->name, args->namelen) == 0) {
