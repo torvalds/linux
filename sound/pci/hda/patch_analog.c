@@ -581,6 +581,97 @@ static struct snd_kcontrol_new ad1986a_laptop_mixers[] = {
 	{ } /* end */
 };
 
+/* laptop-eapd model - 2ch only */
+
+/* master controls both pins 0x1a and 0x1b */
+static int ad1986a_laptop_master_vol_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int change;
+
+	change = snd_hda_codec_amp_update(codec, 0x1a, 0, HDA_OUTPUT, 0,
+					  0x7f, valp[0] & 0x7f);
+	change |= snd_hda_codec_amp_update(codec, 0x1a, 1, HDA_OUTPUT, 0,
+					   0x7f, valp[1] & 0x7f);
+	snd_hda_codec_amp_update(codec, 0x1b, 0, HDA_OUTPUT, 0,
+				 0x7f, valp[0] & 0x7f);
+	snd_hda_codec_amp_update(codec, 0x1b, 1, HDA_OUTPUT, 0,
+				 0x7f, valp[1] & 0x7f);
+	return change;
+}
+
+static int ad1986a_laptop_master_sw_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int change;
+
+	change = snd_hda_codec_amp_update(codec, 0x1a, 0, HDA_OUTPUT, 0,
+					  0x80, valp[0] ? 0 : 0x80);
+	change |= snd_hda_codec_amp_update(codec, 0x1a, 1, HDA_OUTPUT, 0,
+					   0x80, valp[1] ? 0 : 0x80);
+	snd_hda_codec_amp_update(codec, 0x1b, 0, HDA_OUTPUT, 0,
+				 0x80, valp[0] ? 0 : 0x80);
+	snd_hda_codec_amp_update(codec, 0x1b, 1, HDA_OUTPUT, 0,
+				 0x80, valp[1] ? 0 : 0x80);
+	return change;
+}
+
+static struct hda_input_mux ad1986a_laptop_eapd_capture_source = {
+	.num_items = 3,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "Internal Mic", 0x4 },
+		{ "Mix", 0x5 },
+	},
+};
+
+static struct snd_kcontrol_new ad1986a_laptop_eapd_mixers[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Volume",
+		.info = snd_hda_mixer_amp_volume_info,
+		.get = snd_hda_mixer_amp_volume_get,
+		.put = ad1986a_laptop_master_vol_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x1a, 3, 0, HDA_OUTPUT),
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = snd_hda_mixer_amp_switch_info,
+		.get = snd_hda_mixer_amp_switch_get,
+		.put = ad1986a_laptop_master_sw_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x1a, 3, 0, HDA_OUTPUT),
+	},
+	HDA_CODEC_VOLUME("PCM Playback Volume", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x17, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x17, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x13, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x13, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Capture Source",
+		.info = ad198x_mux_enum_info,
+		.get = ad198x_mux_enum_get,
+		.put = ad198x_mux_enum_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "External Amplifier",
+		.info = ad198x_eapd_info,
+		.get = ad198x_eapd_get,
+		.put = ad198x_eapd_put,
+		.private_value = 0x1b | (1 << 8), /* port-D, inversed */
+	},
+	{ } /* end */
+};
+
 /*
  * initialization verbs
  */
@@ -683,8 +774,14 @@ static struct hda_channel_mode ad1986a_modes[3] = {
 	{ 6, ad1986a_ch6_init },
 };
 
+/* eapd initialization */
+static struct hda_verb ad1986a_eapd_init_verbs[] = {
+	{0x1b, AC_VERB_SET_EAPD_BTLENABLE, 0x00},
+	{}
+};
+
 /* models */
-enum { AD1986A_6STACK, AD1986A_3STACK, AD1986A_LAPTOP };
+enum { AD1986A_6STACK, AD1986A_3STACK, AD1986A_LAPTOP, AD1986A_LAPTOP_EAPD };
 
 static struct hda_board_config ad1986a_cfg_tbl[] = {
 	{ .modelname = "6stack",	.config = AD1986A_6STACK },
@@ -694,6 +791,13 @@ static struct hda_board_config ad1986a_cfg_tbl[] = {
 	  .config = AD1986A_LAPTOP }, /* FSC V2060 */
 	{ .pci_subvendor = 0x17c0, .pci_subdevice = 0x2017,
 	  .config = AD1986A_LAPTOP }, /* Samsung M50 */
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x818f,
+	  .config = AD1986A_LAPTOP }, /* ASUS P5GV-MX */
+	{ .modelname = "laptop-eapd",	.config = AD1986A_LAPTOP_EAPD },
+	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc024,
+	  .config = AD1986A_LAPTOP_EAPD }, /* Samsung R65-T2300 Charis */
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1213,
+	  .config = AD1986A_LAPTOP_EAPD }, /* ASUS A6J */
 	{}
 };
 
@@ -740,6 +844,16 @@ static int patch_ad1986a(struct hda_codec *codec)
 		spec->multiout.max_channels = 2;
 		spec->multiout.num_dacs = 1;
 		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
+		break;
+	case AD1986A_LAPTOP_EAPD:
+		spec->mixers[0] = ad1986a_laptop_eapd_mixers;
+		spec->num_init_verbs = 2;
+		spec->init_verbs[1] = ad1986a_eapd_init_verbs;
+		spec->multiout.max_channels = 2;
+		spec->multiout.num_dacs = 1;
+		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
+		spec->multiout.dig_out_nid = 0;
+		spec->input_mux = &ad1986a_laptop_eapd_capture_source;
 		break;
 	}
 
