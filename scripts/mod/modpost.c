@@ -508,12 +508,7 @@ buf_printf(struct buffer *buf, const char *fmt, ...)
 	
 	va_start(ap, fmt);
 	len = vsnprintf(tmp, SZ, fmt, ap);
-	if (buf->size - buf->pos < len + 1) {
-		buf->size += 128;
-		buf->p = realloc(buf->p, buf->size);
-	}
-	strncpy(buf->p + buf->pos, tmp, len + 1);
-	buf->pos += len;
+	buf_write(buf, tmp, len);
 	va_end(ap);
 }
 
@@ -521,7 +516,7 @@ void
 buf_write(struct buffer *buf, const char *s, int len)
 {
 	if (buf->size - buf->pos < len) {
-		buf->size += len;
+		buf->size += len + SZ;
 		buf->p = realloc(buf->p, buf->size);
 	}
 	strncpy(buf->p + buf->pos, s, len);
