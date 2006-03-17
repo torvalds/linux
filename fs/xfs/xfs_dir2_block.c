@@ -246,7 +246,7 @@ xfs_dir2_block_addname(
 			highstale = lfloghigh = -1;
 		     fromidx >= 0;
 		     fromidx--) {
-			if (INT_GET(blp[fromidx].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR) {
+			if (be32_to_cpu(blp[fromidx].address) == XFS_DIR2_NULL_DATAPTR) {
 				if (highstale == -1)
 					highstale = toidx;
 				else {
@@ -291,14 +291,14 @@ xfs_dir2_block_addname(
 	 */
 	for (low = 0, high = be32_to_cpu(btp->count) - 1; low <= high; ) {
 		mid = (low + high) >> 1;
-		if ((hash = INT_GET(blp[mid].hashval, ARCH_CONVERT)) == args->hashval)
+		if ((hash = be32_to_cpu(blp[mid].hashval)) == args->hashval)
 			break;
 		if (hash < args->hashval)
 			low = mid + 1;
 		else
 			high = mid - 1;
 	}
-	while (mid >= 0 && INT_GET(blp[mid].hashval, ARCH_CONVERT) >= args->hashval) {
+	while (mid >= 0 && be32_to_cpu(blp[mid].hashval) >= args->hashval) {
 		mid--;
 	}
 	/*
@@ -345,12 +345,12 @@ xfs_dir2_block_addname(
 	else {
 		for (lowstale = mid;
 		     lowstale >= 0 &&
-			INT_GET(blp[lowstale].address, ARCH_CONVERT) != XFS_DIR2_NULL_DATAPTR;
+			be32_to_cpu(blp[lowstale].address) != XFS_DIR2_NULL_DATAPTR;
 		     lowstale--)
 			continue;
 		for (highstale = mid + 1;
 		     highstale < be32_to_cpu(btp->count) &&
-			INT_GET(blp[highstale].address, ARCH_CONVERT) != XFS_DIR2_NULL_DATAPTR &&
+			be32_to_cpu(blp[highstale].address) != XFS_DIR2_NULL_DATAPTR &&
 			(lowstale < 0 || mid - lowstale > highstale - mid);
 		     highstale++)
 			continue;
@@ -387,8 +387,9 @@ xfs_dir2_block_addname(
 	/*
 	 * Fill in the leaf entry.
 	 */
-	INT_SET(blp[mid].hashval, ARCH_CONVERT, args->hashval);
-	INT_SET(blp[mid].address, ARCH_CONVERT, XFS_DIR2_BYTE_TO_DATAPTR(mp, (char *)dep - (char *)block));
+	blp[mid].hashval = cpu_to_be32(args->hashval);
+	blp[mid].address = cpu_to_be32(XFS_DIR2_BYTE_TO_DATAPTR(mp,
+				(char *)dep - (char *)block));
 	xfs_dir2_block_log_leaf(tp, bp, lfloglow, lfloghigh);
 	/*
 	 * Mark space for the data entry used.
@@ -621,7 +622,7 @@ xfs_dir2_block_lookup(
 	 * Get the offset from the leaf entry, to point to the data.
 	 */
 	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)block + XFS_DIR2_DATAPTR_TO_OFF(mp, INT_GET(blp[ent].address, ARCH_CONVERT)));
+	      ((char *)block + XFS_DIR2_DATAPTR_TO_OFF(mp, be32_to_cpu(blp[ent].address)));
 	/*
 	 * Fill in inode number, release the block.
 	 */
@@ -676,7 +677,7 @@ xfs_dir2_block_lookup_int(
 	for (low = 0, high = be32_to_cpu(btp->count) - 1; ; ) {
 		ASSERT(low <= high);
 		mid = (low + high) >> 1;
-		if ((hash = INT_GET(blp[mid].hashval, ARCH_CONVERT)) == args->hashval)
+		if ((hash = be32_to_cpu(blp[mid].hashval)) == args->hashval)
 			break;
 		if (hash < args->hashval)
 			low = mid + 1;
@@ -691,7 +692,7 @@ xfs_dir2_block_lookup_int(
 	/*
 	 * Back up to the first one with the right hash value.
 	 */
-	while (mid > 0 && INT_GET(blp[mid - 1].hashval, ARCH_CONVERT) == args->hashval) {
+	while (mid > 0 && be32_to_cpu(blp[mid - 1].hashval) == args->hashval) {
 		mid--;
 	}
 	/*
@@ -699,7 +700,7 @@ xfs_dir2_block_lookup_int(
 	 * right hash value looking for our name.
 	 */
 	do {
-		if ((addr = INT_GET(blp[mid].address, ARCH_CONVERT)) == XFS_DIR2_NULL_DATAPTR)
+		if ((addr = be32_to_cpu(blp[mid].address)) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		/*
 		 * Get pointer to the entry from the leaf.
@@ -716,7 +717,7 @@ xfs_dir2_block_lookup_int(
 			*entno = mid;
 			return 0;
 		}
-	} while (++mid < be32_to_cpu(btp->count) && INT_GET(blp[mid].hashval, ARCH_CONVERT) == hash);
+	} while (++mid < be32_to_cpu(btp->count) && be32_to_cpu(blp[mid].hashval) == hash);
 	/*
 	 * No match, release the buffer and return ENOENT.
 	 */
@@ -766,7 +767,7 @@ xfs_dir2_block_removename(
 	 * Point to the data entry using the leaf entry.
 	 */
 	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)block + XFS_DIR2_DATAPTR_TO_OFF(mp, INT_GET(blp[ent].address, ARCH_CONVERT)));
+	      ((char *)block + XFS_DIR2_DATAPTR_TO_OFF(mp, be32_to_cpu(blp[ent].address)));
 	/*
 	 * Mark the data entry's space free.
 	 */
@@ -782,7 +783,7 @@ xfs_dir2_block_removename(
 	/*
 	 * Remove the leaf entry by marking it stale.
 	 */
-	INT_SET(blp[ent].address, ARCH_CONVERT, XFS_DIR2_NULL_DATAPTR);
+	blp[ent].address = cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
 	xfs_dir2_block_log_leaf(tp, bp, ent, ent);
 	/*
 	 * Fix up bestfree, log the header if necessary.
@@ -842,7 +843,7 @@ xfs_dir2_block_replace(
 	 * Point to the data entry we need to change.
 	 */
 	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)block + XFS_DIR2_DATAPTR_TO_OFF(mp, INT_GET(blp[ent].address, ARCH_CONVERT)));
+	      ((char *)block + XFS_DIR2_DATAPTR_TO_OFF(mp, be32_to_cpu(blp[ent].address)));
 	ASSERT(INT_GET(dep->inumber, ARCH_CONVERT) != args->inumber);
 	/*
 	 * Change the inode number to the new value.
@@ -867,8 +868,8 @@ xfs_dir2_block_sort(
 
 	la = a;
 	lb = b;
-	return INT_GET(la->hashval, ARCH_CONVERT) < INT_GET(lb->hashval, ARCH_CONVERT) ? -1 :
-		(INT_GET(la->hashval, ARCH_CONVERT) > INT_GET(lb->hashval, ARCH_CONVERT) ? 1 : 0);
+	return be32_to_cpu(la->hashval) < be32_to_cpu(lb->hashval) ? -1 :
+		(be32_to_cpu(la->hashval) > be32_to_cpu(lb->hashval) ? 1 : 0);
 }
 
 /*
@@ -976,7 +977,7 @@ xfs_dir2_leaf_to_block(
 	 */
 	lep = XFS_DIR2_BLOCK_LEAF_P(btp);
 	for (from = to = 0; from < be16_to_cpu(leaf->hdr.count); from++) {
-		if (INT_GET(leaf->ents[from].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
+		if (be32_to_cpu(leaf->ents[from].address) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		lep[to++] = leaf->ents[from];
 	}
@@ -1135,8 +1136,9 @@ xfs_dir2_sf_to_block(
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
 	INT_SET(*tagp, ARCH_CONVERT, (xfs_dir2_data_off_t)((char *)dep - (char *)block));
 	xfs_dir2_data_log_entry(tp, bp, dep);
-	INT_SET(blp[0].hashval, ARCH_CONVERT, xfs_dir_hash_dot);
-	INT_SET(blp[0].address, ARCH_CONVERT, XFS_DIR2_BYTE_TO_DATAPTR(mp, (char *)dep - (char *)block));
+	blp[0].hashval = cpu_to_be32(xfs_dir_hash_dot);
+	blp[0].address = cpu_to_be32(XFS_DIR2_BYTE_TO_DATAPTR(mp,
+				(char *)dep - (char *)block));
 	/*
 	 * Create entry for ..
 	 */
@@ -1148,8 +1150,9 @@ xfs_dir2_sf_to_block(
 	tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
 	INT_SET(*tagp, ARCH_CONVERT, (xfs_dir2_data_off_t)((char *)dep - (char *)block));
 	xfs_dir2_data_log_entry(tp, bp, dep);
-	INT_SET(blp[1].hashval, ARCH_CONVERT, xfs_dir_hash_dotdot);
-	INT_SET(blp[1].address, ARCH_CONVERT, XFS_DIR2_BYTE_TO_DATAPTR(mp, (char *)dep - (char *)block));
+	blp[1].hashval = cpu_to_be32(xfs_dir_hash_dotdot);
+	blp[1].address = cpu_to_be32(XFS_DIR2_BYTE_TO_DATAPTR(mp,
+				(char *)dep - (char *)block));
 	offset = XFS_DIR2_DATA_FIRST_OFFSET;
 	/*
 	 * Loop over existing entries, stuff them in.
@@ -1197,8 +1200,9 @@ xfs_dir2_sf_to_block(
 		tagp = XFS_DIR2_DATA_ENTRY_TAG_P(dep);
 		INT_SET(*tagp, ARCH_CONVERT, (xfs_dir2_data_off_t)((char *)dep - (char *)block));
 		xfs_dir2_data_log_entry(tp, bp, dep);
-		INT_SET(blp[2 + i].hashval, ARCH_CONVERT, xfs_da_hashname((char *)sfep->name, sfep->namelen));
-		INT_SET(blp[2 + i].address, ARCH_CONVERT, XFS_DIR2_BYTE_TO_DATAPTR(mp,
+		blp[2 + i].hashval = cpu_to_be32(xfs_da_hashname(
+					(char *)sfep->name, sfep->namelen));
+		blp[2 + i].address = cpu_to_be32(XFS_DIR2_BYTE_TO_DATAPTR(mp,
 						 (char *)dep - (char *)block));
 		offset = (int)((char *)(tagp + 1) - (char *)block);
 		if (++i == INT_GET(sfp->hdr.count, ARCH_CONVERT))

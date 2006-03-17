@@ -223,9 +223,9 @@ xfs_dir2_leafn_add(
 		compact = be16_to_cpu(leaf->hdr.stale) > 1;
 	} else
 		compact = 0;
-	ASSERT(index == 0 || INT_GET(leaf->ents[index - 1].hashval, ARCH_CONVERT) <= args->hashval);
+	ASSERT(index == 0 || be32_to_cpu(leaf->ents[index - 1].hashval) <= args->hashval);
 	ASSERT(index == be16_to_cpu(leaf->hdr.count) ||
-	       INT_GET(leaf->ents[index].hashval, ARCH_CONVERT) >= args->hashval);
+	       be32_to_cpu(leaf->ents[index].hashval) >= args->hashval);
 
 	if (args->justcheck)
 		return 0;
@@ -271,7 +271,7 @@ xfs_dir2_leafn_add(
 			 */
 			for (lowstale = index - 1;
 			     lowstale >= 0 &&
-				INT_GET(leaf->ents[lowstale].address, ARCH_CONVERT) !=
+				be32_to_cpu(leaf->ents[lowstale].address) !=
 				XFS_DIR2_NULL_DATAPTR;
 			     lowstale--)
 				continue;
@@ -282,7 +282,7 @@ xfs_dir2_leafn_add(
 			 */
 			for (highstale = index;
 			     highstale < be16_to_cpu(leaf->hdr.count) &&
-				INT_GET(leaf->ents[highstale].address, ARCH_CONVERT) !=
+				be32_to_cpu(leaf->ents[highstale].address) !=
 				XFS_DIR2_NULL_DATAPTR &&
 				(lowstale < 0 ||
 				 index - lowstale - 1 >= highstale - index);
@@ -296,7 +296,7 @@ xfs_dir2_leafn_add(
 		if (lowstale >= 0 &&
 		    (highstale == be16_to_cpu(leaf->hdr.count) ||
 		     index - lowstale - 1 < highstale - index)) {
-			ASSERT(INT_GET(leaf->ents[lowstale].address, ARCH_CONVERT) ==
+			ASSERT(be32_to_cpu(leaf->ents[lowstale].address) ==
 			       XFS_DIR2_NULL_DATAPTR);
 			ASSERT(index - lowstale - 1 >= 0);
 			if (index - lowstale - 1 > 0)
@@ -312,7 +312,7 @@ xfs_dir2_leafn_add(
 		 * Shift entries down toward the stale slot.
 		 */
 		else {
-			ASSERT(INT_GET(leaf->ents[highstale].address, ARCH_CONVERT) ==
+			ASSERT(be32_to_cpu(leaf->ents[highstale].address) ==
 			       XFS_DIR2_NULL_DATAPTR);
 			ASSERT(highstale - index >= 0);
 			if (highstale - index > 0)
@@ -328,8 +328,9 @@ xfs_dir2_leafn_add(
 	/*
 	 * Insert the new entry, log everything.
 	 */
-	INT_SET(lep->hashval, ARCH_CONVERT, args->hashval);
-	INT_SET(lep->address, ARCH_CONVERT, XFS_DIR2_DB_OFF_TO_DATAPTR(mp, args->blkno, args->index));
+	lep->hashval = cpu_to_be32(args->hashval);
+	lep->address = cpu_to_be32(XFS_DIR2_DB_OFF_TO_DATAPTR(mp,
+				args->blkno, args->index));
 	xfs_dir2_leaf_log_header(tp, bp);
 	xfs_dir2_leaf_log_ents(tp, bp, lfloglow, lfloghigh);
 	xfs_dir2_leafn_check(dp, bp);
@@ -356,10 +357,10 @@ xfs_dir2_leafn_check(
 	ASSERT(be16_to_cpu(leaf->hdr.count) <= XFS_DIR2_MAX_LEAF_ENTS(mp));
 	for (i = stale = 0; i < be16_to_cpu(leaf->hdr.count); i++) {
 		if (i + 1 < be16_to_cpu(leaf->hdr.count)) {
-			ASSERT(INT_GET(leaf->ents[i].hashval, ARCH_CONVERT) <=
-			       INT_GET(leaf->ents[i + 1].hashval, ARCH_CONVERT));
+			ASSERT(be32_to_cpu(leaf->ents[i].hashval) <=
+			       be32_to_cpu(leaf->ents[i + 1].hashval));
 		}
-		if (INT_GET(leaf->ents[i].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
+		if (be32_to_cpu(leaf->ents[i].address) == XFS_DIR2_NULL_DATAPTR)
 			stale++;
 	}
 	ASSERT(be16_to_cpu(leaf->hdr.stale) == stale);
@@ -383,7 +384,7 @@ xfs_dir2_leafn_lasthash(
 		*count = be16_to_cpu(leaf->hdr.count);
 	if (!leaf->hdr.count)
 		return 0;
-	return INT_GET(leaf->ents[be16_to_cpu(leaf->hdr.count) - 1].hashval, ARCH_CONVERT);
+	return be32_to_cpu(leaf->ents[be16_to_cpu(leaf->hdr.count) - 1].hashval);
 }
 
 /*
@@ -456,17 +457,17 @@ xfs_dir2_leafn_lookup_int(
 	 * Loop over leaf entries with the right hash value.
 	 */
 	for (lep = &leaf->ents[index];
-	     index < be16_to_cpu(leaf->hdr.count) && INT_GET(lep->hashval, ARCH_CONVERT) == args->hashval;
+	     index < be16_to_cpu(leaf->hdr.count) && be32_to_cpu(lep->hashval) == args->hashval;
 	     lep++, index++) {
 		/*
 		 * Skip stale leaf entries.
 		 */
-		if (INT_GET(lep->address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
+		if (be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		/*
 		 * Pull the data block number from the entry.
 		 */
-		newdb = XFS_DIR2_DATAPTR_TO_DB(mp, INT_GET(lep->address, ARCH_CONVERT));
+		newdb = XFS_DIR2_DATAPTR_TO_DB(mp, be32_to_cpu(lep->address));
 		/*
 		 * For addname, we're looking for a place to put the new entry.
 		 * We want to use a data block with an entry of equal
@@ -572,7 +573,7 @@ xfs_dir2_leafn_lookup_int(
 			 */
 			dep = (xfs_dir2_data_entry_t *)
 			      ((char *)curbp->data +
-			       XFS_DIR2_DATAPTR_TO_OFF(mp, INT_GET(lep->address, ARCH_CONVERT)));
+			       XFS_DIR2_DATAPTR_TO_OFF(mp, be32_to_cpu(lep->address)));
 			/*
 			 * Compare the entry, return it if it matches.
 			 */
@@ -672,7 +673,7 @@ xfs_dir2_leafn_moveents(
 		int	i;			/* temp leaf index */
 
 		for (i = start_s, stale = 0; i < start_s + count; i++) {
-			if (INT_GET(leaf_s->ents[i].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
+			if (be32_to_cpu(leaf_s->ents[i].address) == XFS_DIR2_NULL_DATAPTR)
 				stale++;
 		}
 	} else
@@ -723,9 +724,9 @@ xfs_dir2_leafn_order(
 	ASSERT(INT_GET(leaf2->hdr.info.magic, ARCH_CONVERT) == XFS_DIR2_LEAFN_MAGIC);
 	if (be16_to_cpu(leaf1->hdr.count) > 0 &&
 	    be16_to_cpu(leaf2->hdr.count) > 0 &&
-	    (INT_GET(leaf2->ents[0].hashval, ARCH_CONVERT) < INT_GET(leaf1->ents[0].hashval, ARCH_CONVERT) ||
-	     INT_GET(leaf2->ents[be16_to_cpu(leaf2->hdr.count) - 1].hashval, ARCH_CONVERT) <
-	     INT_GET(leaf1->ents[be16_to_cpu(leaf1->hdr.count) - 1].hashval, ARCH_CONVERT)))
+	    (be32_to_cpu(leaf2->ents[0].hashval) < be32_to_cpu(leaf1->ents[0].hashval) ||
+	     be32_to_cpu(leaf2->ents[be16_to_cpu(leaf2->hdr.count) - 1].hashval) <
+	     be32_to_cpu(leaf1->ents[be16_to_cpu(leaf1->hdr.count) - 1].hashval)))
 		return 1;
 	return 0;
 }
@@ -781,9 +782,9 @@ xfs_dir2_leafn_rebalance(
 		xfs_dahash_t	midhash;	/* middle entry hash value */
 
 		if (mid >= be16_to_cpu(leaf1->hdr.count))
-			midhash = INT_GET(leaf2->ents[mid - be16_to_cpu(leaf1->hdr.count)].hashval, ARCH_CONVERT);
+			midhash = be32_to_cpu(leaf2->ents[mid - be16_to_cpu(leaf1->hdr.count)].hashval);
 		else
-			midhash = INT_GET(leaf1->ents[mid].hashval, ARCH_CONVERT);
+			midhash = be32_to_cpu(leaf1->ents[mid].hashval);
 		isleft = args->hashval <= midhash;
 	}
 	/*
@@ -875,9 +876,9 @@ xfs_dir2_leafn_remove(
 	/*
 	 * Extract the data block and offset from the entry.
 	 */
-	db = XFS_DIR2_DATAPTR_TO_DB(mp, INT_GET(lep->address, ARCH_CONVERT));
+	db = XFS_DIR2_DATAPTR_TO_DB(mp, be32_to_cpu(lep->address));
 	ASSERT(dblk->blkno == db);
-	off = XFS_DIR2_DATAPTR_TO_OFF(mp, INT_GET(lep->address, ARCH_CONVERT));
+	off = XFS_DIR2_DATAPTR_TO_OFF(mp, be32_to_cpu(lep->address));
 	ASSERT(dblk->index == off);
 	/*
 	 * Kill the leaf entry by marking it stale.
@@ -885,7 +886,7 @@ xfs_dir2_leafn_remove(
 	 */
 	be16_add(&leaf->hdr.stale, 1);
 	xfs_dir2_leaf_log_header(tp, bp);
-	INT_SET(lep->address, ARCH_CONVERT, XFS_DIR2_NULL_DATAPTR);
+	lep->address = cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
 	xfs_dir2_leaf_log_ents(tp, bp, index, index);
 	/*
 	 * Make the data entry free.  Keep track of the longest freespace
@@ -1269,14 +1270,14 @@ xfs_dir2_leafn_unbalance(
 	/*
 	 * Move the entries from drop to the appropriate end of save.
 	 */
-	drop_blk->hashval = INT_GET(drop_leaf->ents[be16_to_cpu(drop_leaf->hdr.count) - 1].hashval, ARCH_CONVERT);
+	drop_blk->hashval = be32_to_cpu(drop_leaf->ents[be16_to_cpu(drop_leaf->hdr.count) - 1].hashval);
 	if (xfs_dir2_leafn_order(save_blk->bp, drop_blk->bp))
 		xfs_dir2_leafn_moveents(args, drop_blk->bp, 0, save_blk->bp, 0,
 			be16_to_cpu(drop_leaf->hdr.count));
 	else
 		xfs_dir2_leafn_moveents(args, drop_blk->bp, 0, save_blk->bp,
 			be16_to_cpu(save_leaf->hdr.count), be16_to_cpu(drop_leaf->hdr.count));
-	save_blk->hashval = INT_GET(save_leaf->ents[be16_to_cpu(save_leaf->hdr.count) - 1].hashval, ARCH_CONVERT);
+	save_blk->hashval = be32_to_cpu(save_leaf->ents[be16_to_cpu(save_leaf->hdr.count) - 1].hashval);
 	xfs_dir2_leafn_check(args->dp, save_blk->bp);
 }
 
@@ -1903,7 +1904,7 @@ xfs_dir2_node_replace(
 		ASSERT(be32_to_cpu(data->hdr.magic) == XFS_DIR2_DATA_MAGIC);
 		dep = (xfs_dir2_data_entry_t *)
 		      ((char *)data +
-		       XFS_DIR2_DATAPTR_TO_OFF(state->mp, INT_GET(lep->address, ARCH_CONVERT)));
+		       XFS_DIR2_DATAPTR_TO_OFF(state->mp, be32_to_cpu(lep->address)));
 		ASSERT(inum != INT_GET(dep->inumber, ARCH_CONVERT));
 		/*
 		 * Fill in the new inode number and log the entry.

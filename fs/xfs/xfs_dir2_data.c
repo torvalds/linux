@@ -144,8 +144,8 @@ xfs_dir2_data_check(
 				((char *)dep - (char *)d));
 			hash = xfs_da_hashname((char *)dep->name, dep->namelen);
 			for (i = 0; i < be32_to_cpu(btp->count); i++) {
-				if (INT_GET(lep[i].address, ARCH_CONVERT) == addr &&
-				    INT_GET(lep[i].hashval, ARCH_CONVERT) == hash)
+				if (be32_to_cpu(lep[i].address) == addr &&
+				    be32_to_cpu(lep[i].hashval) == hash)
 					break;
 			}
 			ASSERT(i < be32_to_cpu(btp->count));
@@ -158,10 +158,10 @@ xfs_dir2_data_check(
 	ASSERT(freeseen == 7);
 	if (be32_to_cpu(d->hdr.magic) == XFS_DIR2_BLOCK_MAGIC) {
 		for (i = stale = 0; i < be32_to_cpu(btp->count); i++) {
-			if (INT_GET(lep[i].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
+			if (be32_to_cpu(lep[i].address) == XFS_DIR2_NULL_DATAPTR)
 				stale++;
 			if (i > 0)
-				ASSERT(INT_GET(lep[i].hashval, ARCH_CONVERT) >= INT_GET(lep[i - 1].hashval, ARCH_CONVERT));
+				ASSERT(be32_to_cpu(lep[i].hashval) >= be32_to_cpu(lep[i - 1].hashval));
 		}
 		ASSERT(count == be32_to_cpu(btp->count) - be32_to_cpu(btp->stale));
 		ASSERT(stale == be32_to_cpu(btp->stale));

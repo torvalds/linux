@@ -99,7 +99,7 @@ xfs_dir2_block_sfsize(
 	 * Iterate over the block's data entries by using the leaf pointers.
 	 */
 	for (i = 0; i < be32_to_cpu(btp->count); i++) {
-		if ((addr = INT_GET(blp[i].address, ARCH_CONVERT)) == XFS_DIR2_NULL_DATAPTR)
+		if ((addr = be32_to_cpu(blp[i].address)) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		/*
 		 * Calculate the pointer to the entry at hand.

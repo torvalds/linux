@@ -222,11 +222,11 @@ xfs_dir2_leaf_addname(
 	 * in a data block, improving the lookup of those entries.
 	 */
 	for (use_block = -1, lep = &leaf->ents[index];
-	     index < be16_to_cpu(leaf->hdr.count) && INT_GET(lep->hashval, ARCH_CONVERT) == args->hashval;
+	     index < be16_to_cpu(leaf->hdr.count) && be32_to_cpu(lep->hashval) == args->hashval;
 	     index++, lep++) {
-		if (INT_GET(lep->address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
+		if (be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR)
 			continue;
-		i = XFS_DIR2_DATAPTR_TO_DB(mp, INT_GET(lep->address, ARCH_CONVERT));
+		i = XFS_DIR2_DATAPTR_TO_DB(mp, be32_to_cpu(lep->address));
 		ASSERT(i < be32_to_cpu(ltp->bestcount));
 		ASSERT(be16_to_cpu(bestsp[i]) != NULLDATAOFF);
 		if (be16_to_cpu(bestsp[i]) >= length) {
@@ -468,7 +468,7 @@ xfs_dir2_leaf_addname(
 			 */
 			for (lowstale = index - 1;
 			     lowstale >= 0 &&
-				INT_GET(leaf->ents[lowstale].address, ARCH_CONVERT) !=
+				be32_to_cpu(leaf->ents[lowstale].address) !=
 				XFS_DIR2_NULL_DATAPTR;
 			     lowstale--)
 				continue;
@@ -479,7 +479,7 @@ xfs_dir2_leaf_addname(
 			 */
 			for (highstale = index;
 			     highstale < be16_to_cpu(leaf->hdr.count) &&
-				INT_GET(leaf->ents[highstale].address, ARCH_CONVERT) !=
+				be32_to_cpu(leaf->ents[highstale].address) !=
 				XFS_DIR2_NULL_DATAPTR &&
 				(lowstale < 0 ||
 				 index - lowstale - 1 >= highstale - index);
@@ -493,7 +493,7 @@ xfs_dir2_leaf_addname(
 		    (highstale == be16_to_cpu(leaf->hdr.count) ||
 		     index - lowstale - 1 < highstale - index)) {
 			ASSERT(index - lowstale - 1 >= 0);
-			ASSERT(INT_GET(leaf->ents[lowstale].address, ARCH_CONVERT) ==
+			ASSERT(be32_to_cpu(leaf->ents[lowstale].address) ==
 			       XFS_DIR2_NULL_DATAPTR);
 			/*
 			 * Copy entries up to cover the stale entry
@@ -512,7 +512,7 @@ xfs_dir2_leaf_addname(
 		 */
 		else {
 			ASSERT(highstale - index >= 0);
-			ASSERT(INT_GET(leaf->ents[highstale].address, ARCH_CONVERT) ==
+			ASSERT(be32_to_cpu(leaf->ents[highstale].address) ==
 			       XFS_DIR2_NULL_DATAPTR);
 			/*
 			 * Copy entries down to copver the stale entry
@@ -531,8 +531,9 @@ xfs_dir2_leaf_addname(
 	/*
 	 * Fill in the new leaf entry.
 	 */
-	INT_SET(lep->hashval, ARCH_CONVERT, args->hashval);
-	INT_SET(lep->address, ARCH_CONVERT, XFS_DIR2_DB_OFF_TO_DATAPTR(mp, use_block, INT_GET(*tagp, ARCH_CONVERT)));
+	lep->hashval = cpu_to_be32(args->hashval);
+	lep->address = cpu_to_be32(XFS_DIR2_DB_OFF_TO_DATAPTR(mp, use_block,
+				INT_GET(*tagp, ARCH_CONVERT)));
 	/*
 	 * Log the leaf fields and give up the buffers.
 	 */
@@ -581,9 +582,9 @@ xfs_dir2_leaf_check(
 	 */
 	for (i = stale = 0; i < be16_to_cpu(leaf->hdr.count); i++) {
 		if (i + 1 < be16_to_cpu(leaf->hdr.count))
-			ASSERT(INT_GET(leaf->ents[i].hashval, ARCH_CONVERT) <=
-			       INT_GET(leaf->ents[i + 1].hashval, ARCH_CONVERT));
-		if (INT_GET(leaf->ents[i].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
+			ASSERT(be32_to_cpu(leaf->ents[i].hashval) <=
+			       be32_to_cpu(leaf->ents[i + 1].hashval));
+		if (be32_to_cpu(leaf->ents[i].address) == XFS_DIR2_NULL_DATAPTR)
 			stale++;
 	}
 	ASSERT(be16_to_cpu(leaf->hdr.stale) == stale);
@@ -612,7 +613,7 @@ xfs_dir2_leaf_compact(
 	 * Compress out the stale entries in place.
 	 */
 	for (from = to = 0, loglow = -1; from < be16_to_cpu(leaf->hdr.count); from++) {
-		if (INT_GET(leaf->ents[from].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
+		if (be32_to_cpu(leaf->ents[from].address) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		/*
 		 * Only actually copy the entries that are different.
@@ -669,7 +670,7 @@ xfs_dir2_leaf_compact_x1(
 	 */
 	for (lowstale = index - 1;
 	     lowstale >= 0 &&
-		INT_GET(leaf->ents[lowstale].address, ARCH_CONVERT) != XFS_DIR2_NULL_DATAPTR;
+		be32_to_cpu(leaf->ents[lowstale].address) != XFS_DIR2_NULL_DATAPTR;
 	     lowstale--)
 		continue;
 	/*
@@ -678,7 +679,7 @@ xfs_dir2_leaf_compact_x1(
 	 */
 	for (highstale = index;
 	     highstale < be16_to_cpu(leaf->hdr.count) &&
-		INT_GET(leaf->ents[highstale].address, ARCH_CONVERT) != XFS_DIR2_NULL_DATAPTR &&
+		be32_to_cpu(leaf->ents[highstale].address) != XFS_DIR2_NULL_DATAPTR &&
 		(lowstale < 0 || index - lowstale > highstale - index);
 	     highstale++)
 		continue;
@@ -702,7 +703,7 @@ xfs_dir2_leaf_compact_x1(
 		if (index == from)
 			newindex = to;
 		if (from != keepstale &&
-		    INT_GET(leaf->ents[from].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR) {
+		    be32_to_cpu(leaf->ents[from].address) == XFS_DIR2_NULL_DATAPTR) {
 			if (from == to)
 				*lowlogp = to;
 			continue;
@@ -1314,7 +1315,7 @@ xfs_dir2_leaf_lookup(
 	 */
 	dep = (xfs_dir2_data_entry_t *)
 	      ((char *)dbp->data +
-	       XFS_DIR2_DATAPTR_TO_OFF(dp->i_mount, INT_GET(lep->address, ARCH_CONVERT)));
+	       XFS_DIR2_DATAPTR_TO_OFF(dp->i_mount, be32_to_cpu(lep->address)));
 	/*
 	 * Return the found inode number.
 	 */
@@ -1373,17 +1374,17 @@ xfs_dir2_leaf_lookup_int(
 	 * looking to match the name.
 	 */
 	for (lep = &leaf->ents[index], dbp = NULL, curdb = -1;
-	     index < be16_to_cpu(leaf->hdr.count) && INT_GET(lep->hashval, ARCH_CONVERT) == args->hashval;
+	     index < be16_to_cpu(leaf->hdr.count) && be32_to_cpu(lep->hashval) == args->hashval;
 	     lep++, index++) {
 		/*
 		 * Skip over stale leaf entries.
 		 */
-		if (INT_GET(lep->address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
+		if (be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		/*
 		 * Get the new data block number.
 		 */
-		newdb = XFS_DIR2_DATAPTR_TO_DB(mp, INT_GET(lep->address, ARCH_CONVERT));
+		newdb = XFS_DIR2_DATAPTR_TO_DB(mp, be32_to_cpu(lep->address));
 		/*
 		 * If it's not the same as the old data block number,
 		 * need to pitch the old one and read the new one.
@@ -1406,7 +1407,7 @@ xfs_dir2_leaf_lookup_int(
 		 */
 		dep = (xfs_dir2_data_entry_t *)
 		      ((char *)dbp->data +
-		       XFS_DIR2_DATAPTR_TO_OFF(mp, INT_GET(lep->address, ARCH_CONVERT)));
+		       XFS_DIR2_DATAPTR_TO_OFF(mp, be32_to_cpu(lep->address)));
 		/*
 		 * If it matches then return it.
 		 */
@@ -1471,9 +1472,9 @@ xfs_dir2_leaf_removename(
 	 * Point to the leaf entry, use that to point to the data entry.
 	 */
 	lep = &leaf->ents[index];
-	db = XFS_DIR2_DATAPTR_TO_DB(mp, INT_GET(lep->address, ARCH_CONVERT));
+	db = XFS_DIR2_DATAPTR_TO_DB(mp, be32_to_cpu(lep->address));
 	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)data + XFS_DIR2_DATAPTR_TO_OFF(mp, INT_GET(lep->address, ARCH_CONVERT)));
+	      ((char *)data + XFS_DIR2_DATAPTR_TO_OFF(mp, be32_to_cpu(lep->address)));
 	needscan = needlog = 0;
 	oldbest = be16_to_cpu(data->hdr.bestfree[0].length);
 	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
@@ -1490,7 +1491,7 @@ xfs_dir2_leaf_removename(
 	 */
 	be16_add(&leaf->hdr.stale, 1);
 	xfs_dir2_leaf_log_header(tp, lbp);
-	INT_SET(lep->address, ARCH_CONVERT, XFS_DIR2_NULL_DATAPTR);
+	lep->address = cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
 	xfs_dir2_leaf_log_ents(tp, lbp, index, index);
 	/*
 	 * Scan the freespace in the data block again if necessary,
@@ -1604,7 +1605,7 @@ xfs_dir2_leaf_replace(
 	 */
 	dep = (xfs_dir2_data_entry_t *)
 	      ((char *)dbp->data +
-	       XFS_DIR2_DATAPTR_TO_OFF(dp->i_mount, INT_GET(lep->address, ARCH_CONVERT)));
+	       XFS_DIR2_DATAPTR_TO_OFF(dp->i_mount, be32_to_cpu(lep->address)));
 	ASSERT(args->inumber != INT_GET(dep->inumber, ARCH_CONVERT));
 	/*
 	 * Put the new inode number in, log it.
@@ -1649,7 +1650,7 @@ xfs_dir2_leaf_search_hash(
 		hashwant = args->hashval;
 	     low <= high; ) {
 		mid = (low + high) >> 1;
-		if ((hash = INT_GET(lep[mid].hashval, ARCH_CONVERT)) == hashwant)
+		if ((hash = be32_to_cpu(lep[mid].hashval)) == hashwant)
 			break;
 		if (hash < hashwant)
 			low = mid + 1;
@@ -1660,7 +1661,7 @@ xfs_dir2_leaf_search_hash(
 	 * Found one, back up through all the equal hash values.
 	 */
 	if (hash == hashwant) {
-		while (mid > 0 && INT_GET(lep[mid - 1].hashval, ARCH_CONVERT) == hashwant) {
+		while (mid > 0 && be32_to_cpu(lep[mid - 1].hashval) == hashwant) {
 			mid--;
 		}
 	}

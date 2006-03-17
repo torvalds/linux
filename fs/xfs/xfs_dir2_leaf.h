@@ -54,8 +54,8 @@ typedef struct xfs_dir2_leaf_hdr {
  * Leaf block entry.
  */
 typedef struct xfs_dir2_leaf_entry {
-	xfs_dahash_t		hashval;	/* hash value of name */
-	xfs_dir2_dataptr_t	address;	/* address of data entry */
+	__be32			hashval;	/* hash value of name */
+	__be32			address;	/* address of data entry */
 } xfs_dir2_leaf_entry_t;
 
 /*
