@@ -549,12 +549,12 @@ void formac_tx_restart(struct s_smc *smc)
 static void enable_formac(struct s_smc *smc)
 {
 	/* set formac IMSK : 0 enables irq */
-	outpw(FM_A(FM_IMSK1U),~mac_imsk1u) ;
-	outpw(FM_A(FM_IMSK1L),~mac_imsk1l) ;
-	outpw(FM_A(FM_IMSK2U),~mac_imsk2u) ;
-	outpw(FM_A(FM_IMSK2L),~mac_imsk2l) ;
-	outpw(FM_A(FM_IMSK3U),~mac_imsk3u) ;
-	outpw(FM_A(FM_IMSK3L),~mac_imsk3l) ;
+	outpw(FM_A(FM_IMSK1U),(unsigned short)~mac_imsk1u);
+	outpw(FM_A(FM_IMSK1L),(unsigned short)~mac_imsk1l);
+	outpw(FM_A(FM_IMSK2U),(unsigned short)~mac_imsk2u);
+	outpw(FM_A(FM_IMSK2L),(unsigned short)~mac_imsk2l);
+	outpw(FM_A(FM_IMSK3U),(unsigned short)~mac_imsk3u);
+	outpw(FM_A(FM_IMSK3L),(unsigned short)~mac_imsk3l);
 }
 
 #if 0	/* Removed because the driver should use the ASICs TX complete IRQ. */
