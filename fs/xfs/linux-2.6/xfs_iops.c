@@ -491,6 +491,8 @@ xfs_vn_symlink(
 			d_instantiate(dentry, ip);
 			xfs_validate_fields(dir, &vattr);
 			xfs_validate_fields(ip, &vattr);
+		} else {
+			xfs_cleanup_inode(dvp, cvp, dentry, 0);
 		}
 	}
 	return -error;
