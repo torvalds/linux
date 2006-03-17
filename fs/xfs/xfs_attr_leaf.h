@@ -96,9 +96,9 @@ typedef struct xfs_attr_leaf_entry {	/* sorted on key, not name */
 } xfs_attr_leaf_entry_t;
 
 typedef struct xfs_attr_leaf_name_local {
-	__uint16_t	valuelen;	/* number of bytes in value */
-	__uint8_t	namelen;	/* length of name bytes */
-	__uint8_t	nameval[1];	/* name/value bytes */
+	__be16	valuelen;		/* number of bytes in value */
+	__u8	namelen;		/* length of name bytes */
+	__u8	nameval[1];		/* name/value bytes */
 } xfs_attr_leaf_name_local_t;
 
 typedef struct xfs_attr_leaf_name_remote {

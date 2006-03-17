@@ -732,11 +732,11 @@ xfs_attr_shortform_allfit(xfs_dabuf_t *bp, xfs_inode_t *dp)
 		name_loc = XFS_ATTR_LEAF_NAME_LOCAL(leaf, i);
 		if (name_loc->namelen >= XFS_ATTR_SF_ENTSIZE_MAX)
 			return(0);
-		if (INT_GET(name_loc->valuelen, ARCH_CONVERT) >= XFS_ATTR_SF_ENTSIZE_MAX)
+		if (be16_to_cpu(name_loc->valuelen) >= XFS_ATTR_SF_ENTSIZE_MAX)
 			return(0);
 		bytes += sizeof(struct xfs_attr_sf_entry)-1
 				+ name_loc->namelen
-				+ INT_GET(name_loc->valuelen, ARCH_CONVERT);
+				+ be16_to_cpu(name_loc->valuelen);
 	}
 	if ((dp->i_mount->m_flags & XFS_MOUNT_ATTR2) &&
 	    (bytes == sizeof(struct xfs_attr_sf_hdr)))
@@ -818,7 +818,7 @@ xfs_attr_leaf_to_shortform(xfs_dabuf_t *bp, xfs_da_args_t *args, int forkoff)
 		nargs.name = (char *)name_loc->nameval;
 		nargs.namelen = name_loc->namelen;
 		nargs.value = (char *)&name_loc->nameval[nargs.namelen];
-		nargs.valuelen = INT_GET(name_loc->valuelen, ARCH_CONVERT);
+		nargs.valuelen = be16_to_cpu(name_loc->valuelen);
 		nargs.hashval = be32_to_cpu(entry->hashval);
 		nargs.flags = (entry->flags & XFS_ATTR_SECURE) ? ATTR_SECURE :
 			      ((entry->flags & XFS_ATTR_ROOT) ? ATTR_ROOT : 0);
@@ -1136,10 +1136,10 @@ xfs_attr_leaf_add_work(xfs_dabuf_t *bp, xfs_da_args_t *args, int mapindex)
 	if (entry->flags & XFS_ATTR_LOCAL) {
 		name_loc = XFS_ATTR_LEAF_NAME_LOCAL(leaf, args->index);
 		name_loc->namelen = args->namelen;
-		INT_SET(name_loc->valuelen, ARCH_CONVERT, args->valuelen);
+		name_loc->valuelen = cpu_to_be16(args->valuelen);
 		memcpy((char *)name_loc->nameval, args->name, args->namelen);
 		memcpy((char *)&name_loc->nameval[args->namelen], args->value,
-				   INT_GET(name_loc->valuelen, ARCH_CONVERT));
+				   be16_to_cpu(name_loc->valuelen));
 	} else {
 		name_rmt = XFS_ATTR_LEAF_NAME_REMOTE(leaf, args->index);
 		name_rmt->namelen = args->namelen;
@@ -2042,7 +2042,7 @@ xfs_attr_leaf_getvalue(xfs_dabuf_t *bp, xfs_da_args_t *args)
 		name_loc = XFS_ATTR_LEAF_NAME_LOCAL(leaf, args->index);
 		ASSERT(name_loc->namelen == args->namelen);
 		ASSERT(memcmp(args->name, name_loc->nameval, args->namelen) == 0);
-		valuelen = INT_GET(name_loc->valuelen, ARCH_CONVERT);
+		valuelen = be16_to_cpu(name_loc->valuelen);
 		if (args->flags & ATTR_KERNOVAL) {
 			args->valuelen = valuelen;
 			return(0);
@@ -2282,8 +2282,7 @@ xfs_attr_leaf_entsize(xfs_attr_leafblock_t *leaf, int index)
 	if (leaf->entries[index].flags & XFS_ATTR_LOCAL) {
 		name_loc = XFS_ATTR_LEAF_NAME_LOCAL(leaf, index);
 		size = XFS_ATTR_LEAF_ENTSIZE_LOCAL(name_loc->namelen,
-						   INT_GET(name_loc->valuelen,
-								ARCH_CONVERT));
+						   be16_to_cpu(name_loc->valuelen));
 	} else {
 		name_rmt = XFS_ATTR_LEAF_NAME_REMOTE(leaf, index);
 		size = XFS_ATTR_LEAF_ENTSIZE_REMOTE(name_rmt->namelen);
@@ -2402,8 +2401,7 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 				retval = xfs_attr_put_listent(context, namesp,
 					(char *)name_loc->nameval,
 					(int)name_loc->namelen,
-					(int)INT_GET(name_loc->valuelen,
-								ARCH_CONVERT));
+					be16_to_cpu(name_loc->valuelen));
 			}
 		} else {
 			name_rmt = XFS_ATTR_LEAF_NAME_REMOTE(leaf, i);
