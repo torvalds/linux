@@ -1101,7 +1101,7 @@ xfs_dir2_sf_to_block(
 	 * Compute size of block "tail" area.
 	 */
 	i = (uint)sizeof(*btp) +
-	    (INT_GET(sfp->hdr.count, ARCH_CONVERT) + 2) * (uint)sizeof(xfs_dir2_leaf_entry_t);
+	    (sfp->hdr.count + 2) * (uint)sizeof(xfs_dir2_leaf_entry_t);
 	/*
 	 * The whole thing is initialized to free by the init routine.
 	 * Say we're using the leaf and tail area.
@@ -1115,7 +1115,7 @@ xfs_dir2_sf_to_block(
 	 * Fill in the tail.
 	 */
 	btp = XFS_DIR2_BLOCK_TAIL_P(mp, block);
-	btp->count = cpu_to_be32(INT_GET(sfp->hdr.count, ARCH_CONVERT) + 2);	/* ., .. */
+	btp->count = cpu_to_be32(sfp->hdr.count + 2);	/* ., .. */
 	btp->stale = 0;
 	blp = XFS_DIR2_BLOCK_LEAF_P(btp);
 	endoffset = (uint)((char *)blp - (char *)block);
@@ -1157,7 +1157,7 @@ xfs_dir2_sf_to_block(
 	/*
 	 * Loop over existing entries, stuff them in.
 	 */
-	if ((i = 0) == INT_GET(sfp->hdr.count, ARCH_CONVERT))
+	if ((i = 0) == sfp->hdr.count)
 		sfep = NULL;
 	else
 		sfep = XFS_DIR2_SF_FIRSTENTRY(sfp);
@@ -1205,7 +1205,7 @@ xfs_dir2_sf_to_block(
 		blp[2 + i].address = cpu_to_be32(XFS_DIR2_BYTE_TO_DATAPTR(mp,
 						 (char *)dep - (char *)block));
 		offset = (int)((char *)(tagp + 1) - (char *)block);
-		if (++i == INT_GET(sfp->hdr.count, ARCH_CONVERT))
+		if (++i == sfp->hdr.count)
 			sfep = NULL;
 		else
 			sfep = XFS_DIR2_SF_NEXTENTRY(sfp, sfep);
