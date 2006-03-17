@@ -67,6 +67,9 @@ static void **dlm_alloc_pagevec(int pages)
 	for (i = 0; i < pages; i++)
 		if (!(vec[i] = (void *)__get_free_page(GFP_KERNEL)))
 			goto out_free;
+
+	mlog(0, "Allocated DLM hash pagevec; %d pages (%lu expected), %Zd buckets per page\n",
+	     pages, DLM_HASH_PAGES, DLM_BUCKETS_PER_PAGE);
 	return vec;
 out_free:
 	dlm_free_pagevec(vec, i);
