@@ -789,6 +789,47 @@ static void __slab_error(const char *function, struct kmem_cache *cachep, char *
 	dump_stack();
 }
 
+#ifdef CONFIG_NUMA
+/*
+ * Special reaping functions for NUMA systems called from cache_reap().
+ * These take care of doing round robin flushing of alien caches (containing
+ * objects freed on different nodes from which they were allocated) and the
+ * flushing of remote pcps by calling drain_node_pages.
+ */
+static DEFINE_PER_CPU(unsigned long, reap_node);
+
+static void init_reap_node(int cpu)
+{
+	int node;
+
+	node = next_node(cpu_to_node(cpu), node_online_map);
+	if (node == MAX_NUMNODES)
+		node = 0;
+
+	__get_cpu_var(reap_node) = node;
+}
+
+static void next_reap_node(void)
+{
+	int node = __get_cpu_var(reap_node);
+
+	/*
+	 * Also drain per cpu pages on remote zones
+	 */
+	if (node != numa_node_id())
+		drain_node_pages(node);
+
+	node = next_node(node, node_online_map);
+	if (unlikely(node >= MAX_NUMNODES))
+		node = first_node(node_online_map);
+	__get_cpu_var(reap_node) = node;
+}
+
+#else
+#define init_reap_node(cpu) do { } while (0)
+#define next_reap_node(void) do { } while (0)
+#endif
+
 /*
  * Initiate the reap timer running on the target CPU.  We run at around 1 to 2Hz
  * via the workqueue/eventd.
@@ -806,6 +847,7 @@ static void __devinit start_cpu_timer(int cpu)
 	 * at that time.
 	 */
 	if (keventd_up() && reap_work->func == NULL) {
+		init_reap_node(cpu);
 		INIT_WORK(reap_work, cache_reap, NULL);
 		schedule_delayed_work_on(cpu, reap_work, HZ + 3 * cpu);
 	}
@@ -884,6 +926,23 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
 	}
 }
 
+/*
+ * Called from cache_reap() to regularly drain alien caches round robin.
+ */
+static void reap_alien(struct kmem_cache *cachep, struct kmem_list3 *l3)
+{
+	int node = __get_cpu_var(reap_node);
+
+	if (l3->alien) {
+		struct array_cache *ac = l3->alien[node];
+		if (ac && ac->avail) {
+			spin_lock_irq(&ac->lock);
+			__drain_alien_cache(cachep, ac, node);
+			spin_unlock_irq(&ac->lock);
+		}
+	}
+}
+
 static void drain_alien_cache(struct kmem_cache *cachep, struct array_cache **alien)
 {
 	int i = 0;
@@ -902,6 +961,7 @@ static void drain_alien_cache(struct kmem_cache *cachep, struct array_cache **al
 #else
 
 #define drain_alien_cache(cachep, alien) do { } while (0)
+#define reap_alien(cachep, l3) do { } while (0)
 
 static inline struct array_cache **alloc_alien_cache(int node, int limit)
 {
@@ -3497,8 +3557,7 @@ static void cache_reap(void *unused)
 		check_irq_on();
 
 		l3 = searchp->nodelists[numa_node_id()];
-		if (l3->alien)
-			drain_alien_cache(searchp, l3->alien);
+		reap_alien(searchp, l3);
 		spin_lock_irq(&l3->list_lock);
 
 		drain_array_locked(searchp, cpu_cache_get(searchp), 0,
@@ -3548,7 +3607,7 @@ static void cache_reap(void *unused)
 	}
 	check_irq_on();
 	mutex_unlock(&cache_chain_mutex);
-	drain_remote_pages();
+	next_reap_node();
 	/* Setup the next iteration */
 	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
 }

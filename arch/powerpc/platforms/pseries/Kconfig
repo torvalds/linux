@@ -19,7 +19,7 @@ config SCANLOG
 	depends on RTAS_PROC && PPC_PSERIES
 
 config LPARCFG
-	tristate "LPAR Configuration Data"
+	bool "LPAR Configuration Data"
 	depends on PPC_PSERIES || PPC_ISERIES
 	help
 	Provide system capacity information via human readable

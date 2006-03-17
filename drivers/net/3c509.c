@@ -1574,6 +1574,7 @@ MODULE_LICENSE("GPL");
 
 static int __init el3_init_module(void)
 {
+	int ret = 0;
 	el3_cards = 0;
 
 	if (debug >= 0)
@@ -1589,14 +1590,16 @@ static int __init el3_init_module(void)
 	}
 
 #ifdef CONFIG_EISA
-	if (eisa_driver_register (&el3_eisa_driver) < 0) {
-		eisa_driver_unregister (&el3_eisa_driver);
-	}
+	ret = eisa_driver_register(&el3_eisa_driver);
 #endif
 #ifdef CONFIG_MCA
-	mca_register_driver(&el3_mca_driver);
+	{
+		int err = mca_register_driver(&el3_mca_driver);
+		if (ret == 0)
+			ret = err;
+	}
 #endif
-	return 0;
+	return ret;
 }
 
 static void __exit el3_cleanup_module(void)
