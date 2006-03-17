@@ -894,7 +894,7 @@ xfs_dir2_leafn_remove(
 	dbp = dblk->bp;
 	data = dbp->data;
 	dep = (xfs_dir2_data_entry_t *)((char *)data + off);
-	longest = INT_GET(data->hdr.bestfree[0].length, ARCH_CONVERT);
+	longest = be16_to_cpu(data->hdr.bestfree[0].length);
 	needlog = needscan = 0;
 	xfs_dir2_data_make_free(tp, dbp, off,
 		XFS_DIR2_DATA_ENTSIZE(dep->namelen), &needlog, &needscan);
@@ -911,7 +911,7 @@ xfs_dir2_leafn_remove(
 	 * If the longest data block freespace changes, need to update
 	 * the corresponding freeblock entry.
 	 */
-	if (longest < INT_GET(data->hdr.bestfree[0].length, ARCH_CONVERT)) {
+	if (longest < be16_to_cpu(data->hdr.bestfree[0].length)) {
 		int		error;		/* error return value */
 		xfs_dabuf_t	*fbp;		/* freeblock buffer */
 		xfs_dir2_db_t	fdb;		/* freeblock block number */
@@ -937,7 +937,7 @@ xfs_dir2_leafn_remove(
 		 * Calculate which entry we need to fix.
 		 */
 		findex = XFS_DIR2_DB_TO_FDINDEX(mp, db);
-		longest = INT_GET(data->hdr.bestfree[0].length, ARCH_CONVERT);
+		longest = be16_to_cpu(data->hdr.bestfree[0].length);
 		/*
 		 * If the data block is now empty we can get rid of it
 		 * (usually).
@@ -1649,7 +1649,7 @@ xfs_dir2_node_addname_int(
 		 * change again.
 		 */
 		data = dbp->data;
-		INT_COPY(free->bests[findex], data->hdr.bestfree[0].length, ARCH_CONVERT);
+		free->bests[findex] = data->hdr.bestfree[0].length;
 		logfree = 1;
 	}
 	/*
@@ -1677,12 +1677,12 @@ xfs_dir2_node_addname_int(
 		data = dbp->data;
 		logfree = 0;
 	}
-	ASSERT(INT_GET(data->hdr.bestfree[0].length, ARCH_CONVERT) >= length);
+	ASSERT(be16_to_cpu(data->hdr.bestfree[0].length) >= length);
 	/*
 	 * Point to the existing unused space.
 	 */
 	dup = (xfs_dir2_data_unused_t *)
-	      ((char *)data + INT_GET(data->hdr.bestfree[0].offset, ARCH_CONVERT));
+	      ((char *)data + be16_to_cpu(data->hdr.bestfree[0].offset));
 	needscan = needlog = 0;
 	/*
 	 * Mark the first part of the unused space, inuse for us.
@@ -1713,8 +1713,8 @@ xfs_dir2_node_addname_int(
 	/*
 	 * If the freespace entry is now wrong, update it.
 	 */
-	if (INT_GET(free->bests[findex], ARCH_CONVERT) != INT_GET(data->hdr.bestfree[0].length, ARCH_CONVERT)) {
-		INT_COPY(free->bests[findex], data->hdr.bestfree[0].length, ARCH_CONVERT);
+	if (INT_GET(free->bests[findex], ARCH_CONVERT) != be16_to_cpu(data->hdr.bestfree[0].length)) {
+		free->bests[findex] = data->hdr.bestfree[0].length;
 		logfree = 1;
 	}
 	/*
@@ -1900,7 +1900,7 @@ xfs_dir2_node_replace(
 		 * Point to the data entry.
 		 */
 		data = state->extrablk.bp->data;
-		ASSERT(INT_GET(data->hdr.magic, ARCH_CONVERT) == XFS_DIR2_DATA_MAGIC);
+		ASSERT(be32_to_cpu(data->hdr.magic) == XFS_DIR2_DATA_MAGIC);
 		dep = (xfs_dir2_data_entry_t *)
 		      ((char *)data +
 		       XFS_DIR2_DATAPTR_TO_OFF(state->mp, INT_GET(lep->address, ARCH_CONVERT)));

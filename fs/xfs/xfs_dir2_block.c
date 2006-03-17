@@ -100,8 +100,7 @@ xfs_dir2_block_addname(
 	/*
 	 * Check the magic number, corrupted if wrong.
 	 */
-	if (unlikely(INT_GET(block->hdr.magic, ARCH_CONVERT)
-						!= XFS_DIR2_BLOCK_MAGIC)) {
+	if (unlikely(be32_to_cpu(block->hdr.magic) != XFS_DIR2_BLOCK_MAGIC)) {
 		XFS_CORRUPTION_ERROR("xfs_dir2_block_addname",
 				     XFS_ERRLEVEL_LOW, mp, block);
 		xfs_da_brelse(tp, bp);
@@ -138,7 +137,7 @@ xfs_dir2_block_addname(
 		 */
 		else {
 			dup = (xfs_dir2_data_unused_t *)
-			      ((char *)block + INT_GET(bf[0].offset, ARCH_CONVERT));
+			      ((char *)block + be16_to_cpu(bf[0].offset));
 			if (dup == enddup) {
 				/*
 				 * It is the biggest freespace, is it too small
@@ -149,10 +148,10 @@ xfs_dir2_block_addname(
 					 * Yes, we use the second-largest
 					 * entry instead if it works.
 					 */
-					if (INT_GET(bf[1].length, ARCH_CONVERT) >= len)
+					if (be16_to_cpu(bf[1].length) >= len)
 						dup = (xfs_dir2_data_unused_t *)
 						      ((char *)block +
-						       INT_GET(bf[1].offset, ARCH_CONVERT));
+						       be16_to_cpu(bf[1].offset));
 					else
 						dup = NULL;
 				}
@@ -172,9 +171,9 @@ xfs_dir2_block_addname(
 	 * If there are stale entries we'll use one for the leaf.
 	 * Is the biggest entry enough to avoid compaction?
 	 */
-	else if (INT_GET(bf[0].length, ARCH_CONVERT) >= len) {
+	else if (be16_to_cpu(bf[0].length) >= len) {
 		dup = (xfs_dir2_data_unused_t *)
-		      ((char *)block + INT_GET(bf[0].offset, ARCH_CONVERT));
+		      ((char *)block + be16_to_cpu(bf[0].offset));
 		compact = 0;
 	}
 	/*
@@ -935,7 +934,7 @@ xfs_dir2_leaf_to_block(
 		goto out;
 	}
 	block = dbp->data;
-	ASSERT(INT_GET(block->hdr.magic, ARCH_CONVERT) == XFS_DIR2_DATA_MAGIC);
+	ASSERT(be32_to_cpu(block->hdr.magic) == XFS_DIR2_DATA_MAGIC);
 	/*
 	 * Size of the "leaf" area in the block.
 	 */
@@ -956,7 +955,7 @@ xfs_dir2_leaf_to_block(
 	/*
 	 * Start converting it to block form.
 	 */
-	INT_SET(block->hdr.magic, ARCH_CONVERT, XFS_DIR2_BLOCK_MAGIC);
+	block->hdr.magic = cpu_to_be32(XFS_DIR2_BLOCK_MAGIC);
 	needlog = 1;
 	needscan = 0;
 	/*
@@ -1095,7 +1094,7 @@ xfs_dir2_sf_to_block(
 		return error;
 	}
 	block = bp->data;
-	INT_SET(block->hdr.magic, ARCH_CONVERT, XFS_DIR2_BLOCK_MAGIC);
+	block->hdr.magic = cpu_to_be32(XFS_DIR2_BLOCK_MAGIC);
 	/*
 	 * Compute size of block "tail" area.
 	 */

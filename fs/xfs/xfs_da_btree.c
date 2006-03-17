@@ -2204,7 +2204,7 @@ xfs_da_do_buf(
 		data = rbp->data;
 		free = rbp->data;
 		magic = INT_GET(info->magic, ARCH_CONVERT);
-		magic1 = INT_GET(data->hdr.magic, ARCH_CONVERT);
+		magic1 = be32_to_cpu(data->hdr.magic);
 		if (unlikely(
 		    XFS_TEST_ERROR((magic != XFS_DA_NODE_MAGIC) &&
 				   (magic != XFS_DIR_LEAF_MAGIC) &&

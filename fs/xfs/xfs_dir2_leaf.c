@@ -133,7 +133,7 @@ xfs_dir2_block_to_leaf(
 	/*
 	 * Fix up the block header, make it a data block.
 	 */
-	INT_SET(block->hdr.magic, ARCH_CONVERT, XFS_DIR2_DATA_MAGIC);
+	block->hdr.magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 	if (needscan)
 		xfs_dir2_data_freescan(mp, (xfs_dir2_data_t *)block, &needlog,
 			NULL);
@@ -143,7 +143,7 @@ xfs_dir2_block_to_leaf(
 	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
 	INT_SET(ltp->bestcount, ARCH_CONVERT, 1);
 	bestsp = XFS_DIR2_LEAF_BESTS_P(ltp);
-	INT_COPY(bestsp[0], block->hdr.bestfree[0].length, ARCH_CONVERT);
+	bestsp[0] =  block->hdr.bestfree[0].length;
 	/*
 	 * Log the data header and leaf bests table.
 	 */
@@ -372,7 +372,7 @@ xfs_dir2_leaf_addname(
 		else
 			xfs_dir2_leaf_log_bests(tp, lbp, use_block, use_block);
 		data = dbp->data;
-		INT_COPY(bestsp[use_block], data->hdr.bestfree[0].length, ARCH_CONVERT);
+		bestsp[use_block] = data->hdr.bestfree[0].length;
 		grown = 1;
 	}
 	/*
@@ -394,7 +394,7 @@ xfs_dir2_leaf_addname(
 	 * Point to the biggest freespace in our data block.
 	 */
 	dup = (xfs_dir2_data_unused_t *)
-	      ((char *)data + INT_GET(data->hdr.bestfree[0].offset, ARCH_CONVERT));
+	      ((char *)data + be16_to_cpu(data->hdr.bestfree[0].offset));
 	ASSERT(INT_GET(dup->length, ARCH_CONVERT) >= length);
 	needscan = needlog = 0;
 	/*
@@ -427,8 +427,8 @@ xfs_dir2_leaf_addname(
 	 * If the bests table needs to be changed, do it.
 	 * Log the change unless we've already done that.
 	 */
-	if (INT_GET(bestsp[use_block], ARCH_CONVERT) != INT_GET(data->hdr.bestfree[0].length, ARCH_CONVERT)) {
-		INT_COPY(bestsp[use_block], data->hdr.bestfree[0].length, ARCH_CONVERT);
+	if (INT_GET(bestsp[use_block], ARCH_CONVERT) != be16_to_cpu(data->hdr.bestfree[0].length)) {
+		bestsp[use_block] = data->hdr.bestfree[0].length;
 		if (!grown)
 			xfs_dir2_leaf_log_bests(tp, lbp, use_block, use_block);
 	}
@@ -1477,7 +1477,7 @@ xfs_dir2_leaf_removename(
 	dep = (xfs_dir2_data_entry_t *)
 	      ((char *)data + XFS_DIR2_DATAPTR_TO_OFF(mp, INT_GET(lep->address, ARCH_CONVERT)));
 	needscan = needlog = 0;
-	oldbest = INT_GET(data->hdr.bestfree[0].length, ARCH_CONVERT);
+	oldbest = be16_to_cpu(data->hdr.bestfree[0].length);
 	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
 	bestsp = XFS_DIR2_LEAF_BESTS_P(ltp);
 	ASSERT(INT_GET(bestsp[db], ARCH_CONVERT) == oldbest);
@@ -1506,15 +1506,15 @@ xfs_dir2_leaf_removename(
 	 * If the longest freespace in the data block has changed,
 	 * put the new value in the bests table and log that.
 	 */
-	if (INT_GET(data->hdr.bestfree[0].length, ARCH_CONVERT) != oldbest) {
-		INT_COPY(bestsp[db], data->hdr.bestfree[0].length, ARCH_CONVERT);
+	if (be16_to_cpu(data->hdr.bestfree[0].length) != oldbest) {
+		bestsp[db] = data->hdr.bestfree[0].length;
 		xfs_dir2_leaf_log_bests(tp, lbp, db, db);
 	}
 	xfs_dir2_data_check(dp, dbp);
 	/*
 	 * If the data block is now empty then get rid of the data block.
 	 */
-	if (INT_GET(data->hdr.bestfree[0].length, ARCH_CONVERT) ==
+	if (be16_to_cpu(data->hdr.bestfree[0].length) ==
 	    mp->m_dirblksize - (uint)sizeof(data->hdr)) {
 		ASSERT(db != mp->m_dirdatablk);
 		if ((error = xfs_dir2_shrink_inode(args, db, dbp))) {
@@ -1708,7 +1708,7 @@ xfs_dir2_leaf_trim_data(
 	}
 #ifdef DEBUG
 	data = dbp->data;
-	ASSERT(INT_GET(data->hdr.magic, ARCH_CONVERT) == XFS_DIR2_DATA_MAGIC);
+	ASSERT(be32_to_cpu(data->hdr.magic) == XFS_DIR2_DATA_MAGIC);
 #endif
 	/* this seems to be an error
 	 * data is only valid if DEBUG is defined?
@@ -1717,7 +1717,7 @@ xfs_dir2_leaf_trim_data(
 
 	leaf = lbp->data;
 	ltp = XFS_DIR2_LEAF_TAIL_P(mp, leaf);
-	ASSERT(INT_GET(data->hdr.bestfree[0].length, ARCH_CONVERT) ==
+	ASSERT(be16_to_cpu(data->hdr.bestfree[0].length) ==
 	       mp->m_dirblksize - (uint)sizeof(data->hdr));
 	ASSERT(db == INT_GET(ltp->bestcount, ARCH_CONVERT) - 1);
 	/*

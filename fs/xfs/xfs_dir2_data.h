@@ -65,8 +65,8 @@ struct xfs_trans;
  * The freespace will be formatted as a xfs_dir2_data_unused_t.
  */
 typedef struct xfs_dir2_data_free {
-	xfs_dir2_data_off_t	offset;		/* start of freespace */
-	xfs_dir2_data_off_t	length;		/* length of freespace */
+	__be16			offset;		/* start of freespace */
+	__be16			length;		/* length of freespace */
 } xfs_dir2_data_free_t;
 
 /*
@@ -75,7 +75,7 @@ typedef struct xfs_dir2_data_free {
  * The code knows that XFS_DIR2_DATA_FD_COUNT is 3.
  */
 typedef struct xfs_dir2_data_hdr {
-	__uint32_t		magic;		/* XFS_DIR2_DATA_MAGIC */
+	__be32			magic;		/* XFS_DIR2_DATA_MAGIC */
 						/* or XFS_DIR2_BLOCK_MAGIC */
 	xfs_dir2_data_free_t	bestfree[XFS_DIR2_DATA_FD_COUNT];
 } xfs_dir2_data_hdr_t;
