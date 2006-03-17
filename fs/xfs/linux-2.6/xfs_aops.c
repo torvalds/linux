@@ -1178,7 +1178,7 @@ out_unlock:
  *    free them and we should come back later via writepage.
  */
 STATIC int
-xfs_vm_release_page(
+xfs_vm_releasepage(
 	struct page		*page,
 	gfp_t			gfp_mask)
 {
@@ -1190,6 +1190,9 @@ xfs_vm_release_page(
 	};
 
 	xfs_page_trace(XFS_RELEASEPAGE_ENTER, inode, page, gfp_mask);
+
+	if (!page_has_buffers(page))
+		return 0;
 
 	xfs_count_page_state(page, &delalloc, &unmapped, &unwritten);
 	if (!delalloc && !unwritten)
@@ -1440,7 +1443,7 @@ xfs_vm_readpages(
 }
 
 STATIC int
-xfs_vm_invalidate_page(
+xfs_vm_invalidatepage(
 	struct page		*page,
 	unsigned long		offset)
 {
@@ -1454,8 +1457,8 @@ struct address_space_operations xfs_address_space_operations = {
 	.readpages		= xfs_vm_readpages,
 	.writepage		= xfs_vm_writepage,
 	.sync_page		= block_sync_page,
-	.releasepage		= xfs_vm_release_page,
-	.invalidatepage		= xfs_vm_invalidate_page,
+	.releasepage		= xfs_vm_releasepage,
+	.invalidatepage		= xfs_vm_invalidatepage,
 	.prepare_write		= xfs_vm_prepare_write,
 	.commit_write		= generic_commit_write,
 	.bmap			= xfs_vm_bmap,
