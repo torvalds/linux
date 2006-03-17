@@ -106,7 +106,7 @@ xfs_ichgtime(
 	xfs_inode_t	*ip,
 	int		flags)
 {
-	struct inode	*inode = LINVFS_GET_IP(XFS_ITOV(ip));
+	struct inode	*inode = vn_to_inode(XFS_ITOV(ip));
 	timespec_t	tv;
 
 	nanotime(&tv);
@@ -202,7 +202,7 @@ xfs_validate_fields(
 	struct inode	*ip,
 	struct vattr	*vattr)
 {
-	vnode_t		*vp = LINVFS_GET_VP(ip);
+	vnode_t		*vp = vn_from_inode(ip);
 	int		error;
 
 	vattr->va_mask = XFS_AT_NLINK|XFS_AT_SIZE|XFS_AT_NBLOCKS;
@@ -228,7 +228,7 @@ xfs_init_security(
 	struct vnode	*vp,
 	struct inode	*dir)
 {
-	struct inode	*ip = LINVFS_GET_IP(vp);
+	struct inode	*ip = vn_to_inode(vp);
 	size_t		length;
 	void		*value;
 	char		*name;
@@ -277,7 +277,7 @@ xfs_cleanup_inode(
 	 * xfs_init_security we must back out.
 	 * ENOSPC can hit here, among other things.
 	 */
-	teardown.d_inode = LINVFS_GET_IP(vp);
+	teardown.d_inode = vn_to_inode(vp);
 	teardown.d_name = dentry->d_name;
 
 	if (S_ISDIR(mode))
@@ -296,7 +296,7 @@ xfs_vn_mknod(
 {
 	struct inode	*ip;
 	vattr_t		vattr = { 0 };
-	vnode_t		*vp = NULL, *dvp = LINVFS_GET_VP(dir);
+	vnode_t		*vp = NULL, *dvp = vn_from_inode(dir);
 	xfs_acl_t	*default_acl = NULL;
 	attrexists_t	test_default_acl = _ACL_DEFAULT_EXISTS;
 	int		error;
@@ -359,7 +359,7 @@ xfs_vn_mknod(
 
 	if (likely(!error)) {
 		ASSERT(vp);
-		ip = LINVFS_GET_IP(vp);
+		ip = vn_to_inode(vp);
 
 		if (S_ISCHR(mode) || S_ISBLK(mode))
 			ip->i_rdev = rdev;
@@ -396,7 +396,7 @@ xfs_vn_lookup(
 	struct dentry	*dentry,
 	struct nameidata *nd)
 {
-	struct vnode	*vp = LINVFS_GET_VP(dir), *cvp;
+	struct vnode	*vp = vn_from_inode(dir), *cvp;
 	int		error;
 
 	if (dentry->d_name.len >= MAXNAMELEN)
@@ -410,7 +410,7 @@ xfs_vn_lookup(
 		return NULL;
 	}
 
-	return d_splice_alias(LINVFS_GET_IP(cvp), dentry);
+	return d_splice_alias(vn_to_inode(cvp), dentry);
 }
 
 STATIC int
@@ -429,8 +429,8 @@ xfs_vn_link(
 	if (S_ISDIR(ip->i_mode))
 		return -EPERM;
 
-	tdvp = LINVFS_GET_VP(dir);
-	vp = LINVFS_GET_VP(ip);
+	tdvp = vn_from_inode(dir);
+	vp = vn_from_inode(ip);
 
 	VOP_LINK(tdvp, vp, dentry, NULL, error);
 	if (likely(!error)) {
@@ -453,7 +453,7 @@ xfs_vn_unlink(
 	int		error;
 
 	inode = dentry->d_inode;
-	dvp = LINVFS_GET_VP(dir);
+	dvp = vn_from_inode(dir);
 
 	VOP_REMOVE(dvp, dentry, NULL, error);
 	if (likely(!error)) {
@@ -475,7 +475,7 @@ xfs_vn_symlink(
 	vnode_t		*cvp;	/* used to lookup symlink to put in dentry */
 	int		error;
 
-	dvp = LINVFS_GET_VP(dir);
+	dvp = vn_from_inode(dir);
 	cvp = NULL;
 
 	vattr.va_mode = S_IFLNK |
@@ -487,7 +487,7 @@ xfs_vn_symlink(
 	if (likely(!error && cvp)) {
 		error = xfs_init_security(cvp, dir);
 		if (likely(!error)) {
-			ip = LINVFS_GET_IP(cvp);
+			ip = vn_to_inode(cvp);
 			d_instantiate(dentry, ip);
 			xfs_validate_fields(dir, &vattr);
 			xfs_validate_fields(ip, &vattr);
@@ -502,7 +502,7 @@ xfs_vn_rmdir(
 	struct dentry	*dentry)
 {
 	struct inode	*inode = dentry->d_inode;
-	vnode_t		*dvp = LINVFS_GET_VP(dir);
+	vnode_t		*dvp = vn_from_inode(dir);
 	vattr_t		vattr;
 	int		error;
 
@@ -527,8 +527,8 @@ xfs_vn_rename(
 	vattr_t		vattr;
 	int		error;
 
-	fvp = LINVFS_GET_VP(odir);
-	tvp = LINVFS_GET_VP(ndir);
+	fvp = vn_from_inode(odir);
+	tvp = vn_from_inode(ndir);
 
 	VOP_RENAME(fvp, odentry, tvp, ndentry, NULL, error);
 	if (likely(!error)) {
@@ -573,7 +573,7 @@ xfs_vn_follow_link(
 		return NULL;
 	}
 
-	vp = LINVFS_GET_VP(dentry->d_inode);
+	vp = vn_from_inode(dentry->d_inode);
 
 	iov.iov_base = link;
 	iov.iov_len = MAXPATHLEN;
@@ -616,7 +616,7 @@ xfs_vn_permission(
 	int		mode,
 	struct nameidata *nd)
 {
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	int		error;
 
 	mode <<= 6;		/* convert from linux to vnode access bits */
@@ -634,7 +634,7 @@ xfs_vn_getattr(
 	struct kstat	*stat)
 {
 	struct inode	*inode = dentry->d_inode;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	int		error = 0;
 
 	if (unlikely(vp->v_flag & VMODIFIED))
@@ -651,7 +651,7 @@ xfs_vn_setattr(
 {
 	struct inode	*inode = dentry->d_inode;
 	unsigned int	ia_valid = attr->ia_valid;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	vattr_t		vattr = { 0 };
 	int		flags = 0;
 	int		error;
@@ -717,7 +717,7 @@ xfs_vn_setxattr(
 	size_t		size,
 	int		flags)
 {
-	vnode_t		*vp = LINVFS_GET_VP(dentry->d_inode);
+	vnode_t		*vp = vn_from_inode(dentry->d_inode);
 	char		*attr = (char *)name;
 	attrnames_t	*namesp;
 	int		xflags = 0;
@@ -747,7 +747,7 @@ xfs_vn_getxattr(
 	void		*data,
 	size_t		size)
 {
-	vnode_t		*vp = LINVFS_GET_VP(dentry->d_inode);
+	vnode_t		*vp = vn_from_inode(dentry->d_inode);
 	char		*attr = (char *)name;
 	attrnames_t	*namesp;
 	int		xflags = 0;
@@ -776,7 +776,7 @@ xfs_vn_listxattr(
 	char			*data,
 	size_t			size)
 {
-	vnode_t			*vp = LINVFS_GET_VP(dentry->d_inode);
+	vnode_t			*vp = vn_from_inode(dentry->d_inode);
 	int			error, xflags = ATTR_KERNAMELS;
 	ssize_t			result;
 
@@ -795,7 +795,7 @@ xfs_vn_removexattr(
 	struct dentry	*dentry,
 	const char	*name)
 {
-	vnode_t		*vp = LINVFS_GET_VP(dentry->d_inode);
+	vnode_t		*vp = vn_from_inode(dentry->d_inode);
 	char		*attr = (char *)name;
 	attrnames_t	*namesp;
 	int		xflags = 0;

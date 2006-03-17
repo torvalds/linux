@@ -58,7 +58,7 @@ __xfs_file_read(
 {
 	struct iovec		iov = {buf, count};
 	struct file		*file = iocb->ki_filp;
-	vnode_t			*vp = LINVFS_GET_VP(file->f_dentry->d_inode);
+	vnode_t			*vp = vn_from_inode(file->f_dentry->d_inode);
 	ssize_t			rval;
 
 	BUG_ON(iocb->ki_pos != pos);
@@ -102,7 +102,7 @@ __xfs_file_write(
 	struct iovec	iov = {(void __user *)buf, count};
 	struct file	*file = iocb->ki_filp;
 	struct inode	*inode = file->f_mapping->host;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	ssize_t		rval;
 
 	BUG_ON(iocb->ki_pos != pos);
@@ -144,7 +144,7 @@ __xfs_file_readv(
 	loff_t			*ppos)
 {
 	struct inode	*inode = file->f_mapping->host;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	struct kiocb	kiocb;
 	ssize_t		rval;
 
@@ -189,7 +189,7 @@ __xfs_file_writev(
 	loff_t			*ppos)
 {
 	struct inode	*inode = file->f_mapping->host;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	struct kiocb	kiocb;
 	ssize_t		rval;
 
@@ -233,7 +233,7 @@ xfs_file_sendfile(
 	read_actor_t		actor,
 	void			*target)
 {
-	vnode_t			*vp = LINVFS_GET_VP(filp->f_dentry->d_inode);
+	vnode_t			*vp = vn_from_inode(filp->f_dentry->d_inode);
 	ssize_t			rval;
 
 	VOP_SENDFILE(vp, filp, ppos, 0, count, actor, target, NULL, rval);
@@ -246,7 +246,7 @@ xfs_file_open(
 	struct inode	*inode,
 	struct file	*filp)
 {
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	int		error;
 
 	if (!(filp->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
@@ -263,7 +263,7 @@ xfs_file_release(
 	struct inode	*inode,
 	struct file	*filp)
 {
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	int		error = 0;
 
 	if (vp)
@@ -279,7 +279,7 @@ xfs_file_fsync(
 	int		datasync)
 {
 	struct inode	*inode = dentry->d_inode;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	int		error;
 	int		flags = FSYNC_WAIT;
 
@@ -307,7 +307,7 @@ xfs_vm_nopage(
 	int			*type)
 {
 	struct inode	*inode = area->vm_file->f_dentry->d_inode;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	xfs_mount_t	*mp = XFS_VFSTOM(vp->v_vfsp);
 	int		error;
 
@@ -340,7 +340,7 @@ xfs_file_readdir(
 	xfs_off_t	start_offset, curr_offset;
 	xfs_dirent_t	*dbp = NULL;
 
-	vp = LINVFS_GET_VP(filp->f_dentry->d_inode);
+	vp = vn_from_inode(filp->f_dentry->d_inode);
 	ASSERT(vp);
 
 	/* Try fairly hard to get memory */
@@ -409,7 +409,7 @@ xfs_file_mmap(
 	struct vm_area_struct *vma)
 {
 	struct inode	*ip = filp->f_dentry->d_inode;
-	vnode_t		*vp = LINVFS_GET_VP(ip);
+	vnode_t		*vp = vn_from_inode(ip);
 	vattr_t		vattr;
 	int		error;
 
@@ -437,7 +437,7 @@ xfs_file_ioctl(
 {
 	int		error;
 	struct inode	*inode = filp->f_dentry->d_inode;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 
 	VOP_IOCTL(vp, inode, filp, 0, cmd, (void __user *)arg, error);
 	VMODIFY(vp);
@@ -459,7 +459,7 @@ xfs_file_ioctl_invis(
 {
 	int		error;
 	struct inode	*inode = filp->f_dentry->d_inode;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 
 	ASSERT(vp);
 	VOP_IOCTL(vp, inode, filp, IO_INVIS, cmd, (void __user *)arg, error);
@@ -481,7 +481,7 @@ xfs_vm_mprotect(
 	struct vm_area_struct *vma,
 	unsigned int	newflags)
 {
-	vnode_t		*vp = LINVFS_GET_VP(vma->vm_file->f_dentry->d_inode);
+	vnode_t		*vp = vn_from_inode(vma->vm_file->f_dentry->d_inode);
 	int		error = 0;
 
 	if (vp->v_vfsp->vfs_flag & VFS_DMI) {
@@ -507,7 +507,7 @@ STATIC int
 xfs_file_open_exec(
 	struct inode	*inode)
 {
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	xfs_mount_t	*mp = XFS_VFSTOM(vp->v_vfsp);
 	int		error = 0;
 	xfs_inode_t	*ip;

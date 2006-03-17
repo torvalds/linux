@@ -98,11 +98,6 @@ extern void xfs_qm_exit(void);
 				XFS_DMAPI_STRING \
 				XFS_DBG_STRING /* DBG must be last */
 
-#define LINVFS_GET_VFS(s) \
-	(vfs_t *)((s)->s_fs_info)
-#define LINVFS_SET_VFS(s, vfsp) \
-	((s)->s_fs_info = vfsp)
-
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_buftarg;

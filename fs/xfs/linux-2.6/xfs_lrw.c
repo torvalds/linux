@@ -432,7 +432,7 @@ xfs_zero_eof(
 	xfs_fsize_t	isize,		/* current inode size */
 	xfs_fsize_t	end_size)	/* terminal inode size */
 {
-	struct inode	*ip = LINVFS_GET_IP(vp);
+	struct inode	*ip = vn_to_inode(vp);
 	xfs_fileoff_t	start_zero_fsb;
 	xfs_fileoff_t	end_zero_fsb;
 	xfs_fileoff_t	zero_count_fsb;

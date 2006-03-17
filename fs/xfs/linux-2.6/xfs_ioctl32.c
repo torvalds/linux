@@ -111,7 +111,7 @@ xfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 {
 	int		error;
 	struct		inode *inode = f->f_dentry->d_inode;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_to_inode(inode);
 
 	switch (cmd) {
 	case XFS_IOC_DIOINFO:

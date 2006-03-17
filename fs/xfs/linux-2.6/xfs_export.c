@@ -97,7 +97,7 @@ xfs_fs_encode_fh(
 	int			len;
 	int			is64 = 0;
 #if XFS_BIG_INUMS
-	vfs_t			*vfs = LINVFS_GET_VFS(inode->i_sb);
+	vfs_t			*vfs = vfs_from_sb(inode->i_sb);
 
 	if (!(vfs->vfs_flag & VFS_32BITINODES)) {
 		/* filesystem may contain 64bit inode numbers */
@@ -139,14 +139,14 @@ xfs_fs_get_dentry(
 	vnode_t			*vp;
 	struct inode		*inode;
 	struct dentry		*result;
-	vfs_t			*vfsp = LINVFS_GET_VFS(sb);
+	vfs_t			*vfsp = vfs_from_sb(sb);
 	int			error;
 
 	VFS_VGET(vfsp, &vp, (fid_t *)data, error);
 	if (error || vp == NULL)
 		return ERR_PTR(-ESTALE) ;
 
-	inode = LINVFS_GET_IP(vp);
+	inode = vn_to_inode(vp);
 	result = d_alloc_anon(inode);
         if (!result) {
 		iput(inode);
@@ -164,12 +164,12 @@ xfs_fs_get_parent(
 	struct dentry		*parent;
 
 	cvp = NULL;
-	vp = LINVFS_GET_VP(child->d_inode);
+	vp = vn_from_inode(child->d_inode);
 	VOP_LOOKUP(vp, &dotdot, &cvp, 0, NULL, NULL, error);
 	if (unlikely(error))
 		return ERR_PTR(-error);
 
-	parent = d_alloc_anon(LINVFS_GET_IP(cvp));
+	parent = d_alloc_anon(vn_to_inode(cvp));
 	if (unlikely(!parent)) {
 		VN_RELE(cvp);
 		return ERR_PTR(-ENOMEM);

@@ -58,7 +58,7 @@ struct vnode *
 vn_initialize(
 	struct inode	*inode)
 {
-	struct vnode	*vp = LINVFS_GET_VP(inode);
+	struct vnode	*vp = vn_from_inode(inode);
 
 	XFS_STATS_INC(vn_active);
 	XFS_STATS_INC(vn_alloc);
@@ -97,7 +97,7 @@ vn_revalidate_core(
 	struct vnode	*vp,
 	vattr_t		*vap)
 {
-	struct inode	*inode = LINVFS_GET_IP(vp);
+	struct inode	*inode = vn_to_inode(vp);
 
 	inode->i_mode	    = vap->va_mode;
 	inode->i_nlink	    = vap->va_nlink;
@@ -166,7 +166,7 @@ vn_hold(
 	XFS_STATS_INC(vn_hold);
 
 	VN_LOCK(vp);
-	inode = igrab(LINVFS_GET_IP(vp));
+	inode = igrab(vn_to_inode(vp));
 	ASSERT(inode);
 	VN_UNLOCK(vp, 0);
 

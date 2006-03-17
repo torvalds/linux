@@ -138,7 +138,7 @@ xfs_find_handle(
 	}
 
 	/* we need the vnode */
-	vp = LINVFS_GET_VP(inode);
+	vp = vn_from_inode(inode);
 
 	/* now we can grab the fsid */
 	memcpy(&handle.ha_fsid, vp->v_vfsp->vfs_altfsid, sizeof(xfs_fsid_t));
@@ -256,7 +256,7 @@ xfs_vget_fsop_handlereq(
 	}
 
 	vpp = XFS_ITOV(ip);
-	inodep = LINVFS_GET_IP(vpp);
+	inodep = vn_to_inode(vpp);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 	*vp = vpp;
@@ -715,7 +715,7 @@ xfs_ioctl(
 	xfs_inode_t		*ip;
 	xfs_mount_t		*mp;
 
-	vp = LINVFS_GET_VP(inode);
+	vp = vn_from_inode(inode);
 
 	vn_trace_entry(vp, "xfs_ioctl", (inst_t *)__return_address);
 
@@ -1270,7 +1270,7 @@ xfs_ioc_xattr(
 	}
 
 	case XFS_IOC_GETVERSION: {
-		flags = LINVFS_GET_IP(vp)->i_generation;
+		flags = vn_to_inode(vp)->i_generation;
 		if (copy_to_user(arg, &flags, sizeof(flags)))
 			error = -EFAULT;
 		break;

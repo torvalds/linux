@@ -76,7 +76,7 @@ xfs_page_trace(
 	int		mask)
 {
 	xfs_inode_t	*ip;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	loff_t		isize = i_size_read(inode);
 	loff_t		offset = page_offset(page);
 	int		delalloc = -1, unmapped = -1, unwritten = -1;
@@ -214,7 +214,7 @@ xfs_alloc_ioend(
 	ioend->io_uptodate = 1; /* cleared if any I/O fails */
 	ioend->io_list = NULL;
 	ioend->io_type = type;
-	ioend->io_vnode = LINVFS_GET_VP(inode);
+	ioend->io_vnode = vn_from_inode(inode);
 	ioend->io_buffer_head = NULL;
 	ioend->io_buffer_tail = NULL;
 	atomic_inc(&ioend->io_vnode->v_iocount);
@@ -239,7 +239,7 @@ xfs_map_blocks(
 	xfs_iomap_t		*mapp,
 	int			flags)
 {
-	vnode_t			*vp = LINVFS_GET_VP(inode);
+	vnode_t			*vp = vn_from_inode(inode);
 	int			error, nmaps = 1;
 
 	VOP_BMAP(vp, offset, count, flags, mapp, &nmaps, error);
@@ -1229,7 +1229,7 @@ __xfs_get_block(
 	int			direct,
 	bmapi_flags_t		flags)
 {
-	vnode_t			*vp = LINVFS_GET_VP(inode);
+	vnode_t			*vp = vn_from_inode(inode);
 	xfs_iomap_t		iomap;
 	xfs_off_t		offset;
 	ssize_t			size;
@@ -1371,7 +1371,7 @@ xfs_vm_direct_IO(
 {
 	struct file	*file = iocb->ki_filp;
 	struct inode	*inode = file->f_mapping->host;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	vnode_t		*vp = vn_from_inode(inode);
 	xfs_iomap_t	iomap;
 	int		maps = 1;
 	int		error;
@@ -1410,7 +1410,7 @@ xfs_vm_bmap(
 	sector_t		block)
 {
 	struct inode		*inode = (struct inode *)mapping->host;
-	vnode_t			*vp = LINVFS_GET_VP(inode);
+	vnode_t			*vp = vn_from_inode(inode);
 	int			error;
 
 	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);

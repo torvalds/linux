@@ -258,7 +258,7 @@ again:
 				goto finish_inode;
 
 			} else if (vp != inode_vp) {
-				struct inode *inode = LINVFS_GET_IP(inode_vp);
+				struct inode *inode = vn_to_inode(inode_vp);
 
 				/* The inode is being torn down, pause and
 				 * try again.
@@ -495,7 +495,7 @@ retry:
 	if ((inode = iget_locked(XFS_MTOVFS(mp)->vfs_super, ino))) {
 		xfs_inode_t	*ip;
 
-		vp = LINVFS_GET_VP(inode);
+		vp = vn_from_inode(inode);
 		if (inode->i_state & I_NEW) {
 			vn_initialize(inode);
 			error = xfs_iget_core(vp, mp, tp, ino, flags,
@@ -617,7 +617,7 @@ xfs_iput_new(xfs_inode_t	*ip,
 	     uint		lock_flags)
 {
 	vnode_t		*vp = XFS_ITOV(ip);
-	struct inode	*inode = LINVFS_GET_IP(vp);
+	struct inode	*inode = vn_to_inode(vp);
 
 	vn_trace_entry(vp, "xfs_iput_new", (inst_t *)__return_address);
 

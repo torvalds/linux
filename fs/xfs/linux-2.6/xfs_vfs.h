@@ -193,7 +193,8 @@ typedef struct bhv_vfsops {
 #define vfs_bhv_set_custom(b,o)	( (b)->bhv_custom = (void *)(o))
 #define vfs_bhv_clr_custom(b)	( (b)->bhv_custom = NULL )
 
-extern vfs_t *vfs_allocate(void);
+extern vfs_t *vfs_allocate(struct super_block *);
+extern vfs_t *vfs_from_sb(struct super_block *);
 extern void vfs_deallocate(vfs_t *);
 extern void vfs_insertops(vfs_t *, bhv_vfsops_t *);
 extern void vfs_insertbhv(vfs_t *, bhv_desc_t *, vfsops_t *, void *);

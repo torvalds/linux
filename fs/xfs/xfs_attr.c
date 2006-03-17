@@ -2522,7 +2522,7 @@ attr_user_capable(
 	struct vnode	*vp,
 	cred_t		*cred)
 {
-	struct inode	*inode = LINVFS_GET_IP(vp);
+	struct inode	*inode = vn_to_inode(vp);
 
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		return -EPERM;
@@ -2540,7 +2540,7 @@ attr_trusted_capable(
 	struct vnode	*vp,
 	cred_t		*cred)
 {
-	struct inode	*inode = LINVFS_GET_IP(vp);
+	struct inode	*inode = vn_to_inode(vp);
 
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		return -EPERM;

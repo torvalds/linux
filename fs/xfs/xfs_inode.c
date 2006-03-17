@@ -2723,7 +2723,7 @@ xfs_iunpin(
 
 		/* make sync come back and flush this inode */
 		if (vp) {
-			struct inode	*inode = LINVFS_GET_IP(vp);
+			struct inode	*inode = vn_to_inode(vp);
 
 			if (!(inode->i_state & I_NEW))
 				mark_inode_dirty_sync(inode);
@@ -3519,7 +3519,7 @@ xfs_iaccess(
 {
 	int		error;
 	mode_t		orgmode = mode;
-	struct inode	*inode = LINVFS_GET_IP(XFS_ITOV(ip));
+	struct inode	*inode = vn_to_inode(XFS_ITOV(ip));
 
 	if (mode & S_IWUSR) {
 		umode_t		imode = inode->i_mode;
