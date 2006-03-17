@@ -330,9 +330,19 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 	int err;
 	struct vm_area_struct *first, *vma, *prev;
 
-	/* Clear the LRU lists so pages can be isolated */
-	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+		/* Must have swap device for migration */
+		if (nr_swap_pages <= 0)
+			return ERR_PTR(-ENODEV);
+
+		/*
+		 * Clear the LRU lists so pages can be isolated.
+		 * Note that pages may be moved off the LRU after we have
+		 * drained them. Those pages will fail to migrate like other
+		 * pages that may be busy.
+		 */
 		lru_add_drain_all();
+	}
 
 	first = find_vma(mm, start);
 	if (!first)
