@@ -84,7 +84,7 @@ xfs_calc_rename_reservation(xfs_mount_t *mp)
 STATIC uint
 xfs_calc_link_reservation(xfs_mount_t *mp)
 {
-	return XFS_CALC_LINK_LOG_RES(mp);
+	return XFS_CALC_LINK_LOG_RES(mp) + XFS_DQUOT_LOGRES(mp);
 }
 
 STATIC uint
