@@ -283,9 +283,9 @@ static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
 	 * the two values of tb_update_count match and are even then the
 	 * tb_to_xs and stamp_xsec values are consistent.  If not, then it
 	 * loops back and reads them again until this criteria is met.
+	 * We expect the caller to have done the first increment of
+	 * vdso_data->tb_update_count already.
 	 */
-	++(vdso_data->tb_update_count);
-	smp_wmb();
 	vdso_data->tb_orig_stamp = new_tb_stamp;
 	vdso_data->stamp_xsec = new_stamp_xsec;
 	vdso_data->tb_to_xs = new_tb_to_xs;
@@ -310,20 +310,15 @@ static __inline__ void timer_recalc_offset(u64 cur_tb)
 	unsigned long offset;
 	u64 new_stamp_xsec;
 	u64 tlen, t2x;
+	u64 tb, xsec_old, xsec_new;
+	struct gettimeofday_vars *varp;
 
 	if (__USE_RTC())
 		return;
 	tlen = current_tick_length();
 	offset = cur_tb - do_gtod.varp->tb_orig_stamp;
-	if (tlen == last_tick_len && offset < 0x80000000u) {
-		/* check that we're still in sync; if not, resync */
-		struct timeval tv;
-		__do_gettimeofday(&tv, cur_tb);
-		if (tv.tv_sec <= xtime.tv_sec &&
-		    (tv.tv_sec < xtime.tv_sec ||
-		     tv.tv_usec * 1000 <= xtime.tv_nsec))
-			return;
-	}
+	if (tlen == last_tick_len && offset < 0x80000000u)
+		return;
 	if (tlen != last_tick_len) {
 		t2x = mulhdu(tlen << TICKLEN_SHIFT, ticklen_to_xs);
 		last_tick_len = tlen;
@@ -332,6 +327,21 @@ static __inline__ void timer_recalc_offset(u64 cur_tb)
 	new_stamp_xsec = (u64) xtime.tv_nsec * XSEC_PER_SEC;
 	do_div(new_stamp_xsec, 1000000000);
 	new_stamp_xsec += (u64) xtime.tv_sec * XSEC_PER_SEC;
+
+	++vdso_data->tb_update_count;
+	smp_mb();
+
+	/*
+	 * Make sure time doesn't go backwards for userspace gettimeofday.
+	 */
+	tb = get_tb();
+	varp = do_gtod.varp;
+	xsec_old = mulhdu(tb - varp->tb_orig_stamp, varp->tb_to_xs)
+		+ varp->stamp_xsec;
+	xsec_new = mulhdu(tb - cur_tb, t2x) + new_stamp_xsec;
+	if (xsec_new < xsec_old)
+		new_stamp_xsec += xsec_old - xsec_new;
+
 	update_gtod(cur_tb, new_stamp_xsec, t2x);
 }
 
@@ -564,6 +574,10 @@ int do_settimeofday(struct timespec *tv)
 	}
 #endif
 
+	/* Make userspace gettimeofday spin until we're done. */
+	++vdso_data->tb_update_count;
+	smp_mb();
+
 	/*
 	 * Subtract off the number of nanoseconds since the
 	 * beginning of the last tick.
@@ -724,10 +738,16 @@ void __init time_init(void)
 	 * It is computed as:
 	 * ticklen_to_xs = 2^N / (tb_ticks_per_jiffy * 1e9)
 	 * where N = 64 + 20 - TICKLEN_SCALE - TICKLEN_SHIFT
-	 * so as to give the result as a 0.64 fixed-point fraction.
+	 * which turns out to be N = 51 - SHIFT_HZ.
+	 * This gives the result as a 0.64 fixed-point fraction.
+	 * That value is reduced by an offset amounting to 1 xsec per
+	 * 2^31 timebase ticks to avoid problems with time going backwards
+	 * by 1 xsec when we do timer_recalc_offset due to losing the
+	 * fractional xsec.  That offset is equal to ppc_tb_freq/2^51
+	 * since there are 2^20 xsec in a second.
 	 */
-	div128_by_32(1ULL << (64 + 20 - TICKLEN_SCALE - TICKLEN_SHIFT), 0,
-		     tb_ticks_per_jiffy, &res);
+	div128_by_32((1ULL << 51) - ppc_tb_freq, 0,
+		     tb_ticks_per_jiffy << SHIFT_HZ, &res);
 	div128_by_32(res.result_high, res.result_low, NSEC_PER_SEC, &res);
 	ticklen_to_xs = res.result_low;
 

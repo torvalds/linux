@@ -27,6 +27,7 @@
 
 #include <linux/pci.h>
 #include <asm/pci-bridge.h>
+#include <asm/ppc-pci.h>
 
 static struct pci_bus *
 find_bus_among_children(struct pci_bus *bus,
@@ -179,3 +180,30 @@ pcibios_add_pci_devices(struct pci_bus * bus)
 	}
 }
 EXPORT_SYMBOL_GPL(pcibios_add_pci_devices);
+
+struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
+{
+	struct pci_controller *phb;
+	int primary;
+
+	primary = list_empty(&hose_list);
+	phb = pcibios_alloc_controller(dn);
+	if (!phb)
+		return NULL;
+	setup_phb(dn, phb);
+	pci_process_bridge_OF_ranges(phb, dn, 0);
+
+	pci_setup_phb_io_dynamic(phb, primary);
+
+	pci_devs_phb_init_dynamic(phb);
+
+	if (dn->child)
+		eeh_add_device_tree_early(dn);
+
+	scan_phb(phb);
+	pcibios_fixup_new_pci_devices(phb->bus, 0);
+	pci_bus_add_devices(phb->bus);
+
+	return phb;
+}
+EXPORT_SYMBOL_GPL(init_phb_dynamic);
