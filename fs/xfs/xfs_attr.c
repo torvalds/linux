@@ -1772,8 +1772,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				leaf = bp->data;
 				if (cursor->hashval >
 				    INT_GET(leaf->entries[
-					 INT_GET(leaf->hdr.count,
-						ARCH_CONVERT)-1].hashval,
+					be16_to_cpu(leaf->hdr.count)-1].hashval,
 							ARCH_CONVERT)) {
 					xfs_attr_trace_l_cl("wrong blk",
 							   context, leaf);
@@ -2289,9 +2288,9 @@ xfs_attr_trace_l_cl(char *where, struct xfs_attr_list_context *context,
 				: 0,
 		(__psunsigned_t)context->dupcnt,
 		(__psunsigned_t)context->flags,
-		(__psunsigned_t)INT_GET(leaf->hdr.count, ARCH_CONVERT),
+		(__psunsigned_t)be16_to_cpu(leaf->hdr.count),
 		(__psunsigned_t)INT_GET(leaf->entries[0].hashval, ARCH_CONVERT),
-		(__psunsigned_t)INT_GET(leaf->entries[INT_GET(leaf->hdr.count, ARCH_CONVERT)-1].hashval, ARCH_CONVERT));
+		(__psunsigned_t)INT_GET(leaf->entries[be16_to_cpu(leaf->hdr.count)-1].hashval, ARCH_CONVERT));
 }
 
 /*
