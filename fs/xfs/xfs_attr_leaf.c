@@ -513,11 +513,9 @@ xfs_attr_shortform_compare(const void *a, const void *b)
 
 	sa = (xfs_attr_sf_sort_t *)a;
 	sb = (xfs_attr_sf_sort_t *)b;
-	if (INT_GET(sa->hash, ARCH_CONVERT)
-				< INT_GET(sb->hash, ARCH_CONVERT)) {
+	if (sa->hash < sb->hash) {
 		return(-1);
-	} else if (INT_GET(sa->hash, ARCH_CONVERT)
-				> INT_GET(sb->hash, ARCH_CONVERT)) {
+	} else if (sa->hash > sb->hash) {
 		return(1);
 	} else {
 		return(sa->entno - sb->entno);
@@ -631,8 +629,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 			continue;
 		}
 		sbp->entno = i;
-		INT_SET(sbp->hash, ARCH_CONVERT,
-			xfs_da_hashname((char *)sfe->nameval, sfe->namelen));
+		sbp->hash = xfs_da_hashname((char *)sfe->nameval, sfe->namelen);
 		sbp->name = (char *)sfe->nameval;
 		sbp->namelen = sfe->namelen;
 		/* These are bytes, and both on-disk, don't endian-flip */
@@ -655,12 +652,12 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	cursor->initted = 1;
 	cursor->blkno = 0;
 	for (sbp = sbuf, i = 0; i < nsbuf; i++, sbp++) {
-		if (INT_GET(sbp->hash, ARCH_CONVERT) == cursor->hashval) {
+		if (sbp->hash == cursor->hashval) {
 			if (cursor->offset == count) {
 				break;
 			}
 			count++;
-		} else if (INT_GET(sbp->hash, ARCH_CONVERT) > cursor->hashval) {
+		} else if (sbp->hash > cursor->hashval) {
 			break;
 		}
 	}
@@ -680,8 +677,8 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 			((sbp->flags & XFS_ATTR_ROOT) ? &attr_trusted :
 			  &attr_user);
 
-		if (cursor->hashval != INT_GET(sbp->hash, ARCH_CONVERT)) {
-			cursor->hashval = INT_GET(sbp->hash, ARCH_CONVERT);
+		if (cursor->hashval != sbp->hash) {
+			cursor->hashval = sbp->hash;
 			cursor->offset = 0;
 		}
 		if (context->flags & ATTR_KERNOVAL) {
