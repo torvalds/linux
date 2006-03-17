@@ -190,7 +190,6 @@ struct hotplug_params {
 extern acpi_status acpi_run_oshp(acpi_handle handle);
 extern acpi_status acpi_get_hp_params_from_firmware(struct pci_dev *dev,
 				struct hotplug_params *hpp);
-extern u8 * acpi_path_name(acpi_handle handle);
 int acpi_root_bridge(acpi_handle handle);
 #endif
 #endif

@@ -37,28 +37,6 @@
 #define	METHOD_NAME__HPP	"_HPP"
 #define	METHOD_NAME_OSHP	"OSHP"
 
-/* acpi_path_name
- *
- * @handle - the acpi_handle of the object who's name you want.
- *
- * Caller must free buffer.
- */
-u8 * acpi_path_name(acpi_handle handle)
-{
-	acpi_status status;
-	struct acpi_buffer ret_buf = {ACPI_ALLOCATE_BUFFER, NULL};
-	union acpi_object *obj;
-
-	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &ret_buf);
-	if (ACPI_FAILURE(status)) {
-		return NULL;
-	}
-	obj = ret_buf.pointer;
-	return obj->string.pointer;
-}
-EXPORT_SYMBOL_GPL(acpi_path_name);
-
-
 
 static acpi_status
 acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
@@ -66,9 +44,11 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 	acpi_status		status;
 	u8			nui[4];
 	struct acpi_buffer	ret_buf = { 0, NULL};
+	struct acpi_buffer	string = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object	*ext_obj, *package;
-	u8			*path_name = acpi_path_name(handle);
 	int			i, len = 0;
+
+	acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
 
 	/* get _hpp */
 	status = acpi_evaluate_object(handle, METHOD_NAME__HPP, NULL, &ret_buf);
@@ -77,8 +57,8 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 		ret_buf.pointer = kmalloc (ret_buf.length, GFP_KERNEL);
 		if (!ret_buf.pointer) {
 			printk(KERN_ERR "%s:%s alloc for _HPP fail\n",
-				__FUNCTION__, path_name);
-			acpi_os_free(path_name);
+				__FUNCTION__, (char *)string.pointer);
+			acpi_os_free(string.pointer);
 			return AE_NO_MEMORY;
 		}
 		status = acpi_evaluate_object(handle, METHOD_NAME__HPP,
@@ -88,8 +68,8 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 	default:
 		if (ACPI_FAILURE(status)) {
 			pr_debug("%s:%s _HPP fail=0x%x\n", __FUNCTION__,
-					path_name, status);
-			acpi_os_free(path_name);
+				(char *)string.pointer, status);
+			acpi_os_free(string.pointer);
 			return status;
 		}
 	}
@@ -97,7 +77,7 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 	ext_obj = (union acpi_object *) ret_buf.pointer;
 	if (ext_obj->type != ACPI_TYPE_PACKAGE) {
 		printk(KERN_ERR "%s:%s _HPP obj not a package\n", __FUNCTION__,
-				path_name);
+				(char *)string.pointer);
 		status = AE_ERROR;
 		goto free_and_return;
 	}
@@ -112,7 +92,7 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 			break;
 		default:
 			printk(KERN_ERR "%s:%s _HPP obj type incorrect\n",
-				__FUNCTION__, path_name);
+				__FUNCTION__, (char *)string.pointer);
 			status = AE_ERROR;
 			goto free_and_return;
 		}
@@ -129,8 +109,8 @@ acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 	pr_debug("  _HPP: enable PERR    =0x%x\n", hpp->enable_perr);
 
 free_and_return:
-	acpi_os_free(path_name);
-	kfree(ret_buf.pointer);
+	acpi_os_free(string.pointer);
+	acpi_os_free(ret_buf.pointer);
 	return status;
 }
 
@@ -143,16 +123,20 @@ free_and_return:
 acpi_status acpi_run_oshp(acpi_handle handle)
 {
 	acpi_status		status;
-	u8			*path_name = acpi_path_name(handle);
+	struct acpi_buffer	string = { ACPI_ALLOCATE_BUFFER, NULL };
+
+	acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
 
 	/* run OSHP */
 	status = acpi_evaluate_object(handle, METHOD_NAME_OSHP, NULL, NULL);
 	if (ACPI_FAILURE(status))
 		printk(KERN_ERR "%s:%s OSHP fails=0x%x\n", __FUNCTION__,
-			path_name, status);
+			(char *)string.pointer, status);
 	else
-		pr_debug("%s:%s OSHP passes\n", __FUNCTION__, path_name);
-	acpi_os_free(path_name);
+		pr_debug("%s:%s OSHP passes\n", __FUNCTION__,
+			(char *)string.pointer);
+
+	acpi_os_free(string.pointer);
 	return status;
 }
 EXPORT_SYMBOL_GPL(acpi_run_oshp);

@@ -1246,7 +1246,7 @@ int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 	acpi_handle chandle, handle = DEVICE_ACPI_HANDLE(&(dev->dev));
 	struct pci_dev *pdev = dev;
 	struct pci_bus *parent;
-	u8 *path_name = NULL;
+	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
 
 	/*
 	 * Per PCI firmware specification, we should run the ACPI _OSC
@@ -1278,16 +1278,17 @@ int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 	}
 
 	while (handle) {
-		path_name = acpi_path_name(handle);
-		dbg("Trying to get hotplug control for %s \n", path_name);
+		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
+		dbg("Trying to get hotplug control for %s \n",
+			(char *)string.pointer);
 		status = pci_osc_control_set(handle,
 				OSC_PCI_EXPRESS_NATIVE_HP_CONTROL);
 		if (status == AE_NOT_FOUND)
 			status = acpi_run_oshp(handle);
 		if (ACPI_SUCCESS(status)) {
 			dbg("Gained control for hotplug HW for pci %s (%s)\n",
-				pci_name(dev), path_name);
-			acpi_os_free(path_name);
+				pci_name(dev), (char *)string.pointer);
+			acpi_os_free(string.pointer);
 			return 0;
 		}
 		if (acpi_root_bridge(handle))
@@ -1300,8 +1301,8 @@ int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 
 	err("Cannot get control of hotplug hardware for pci %s\n",
 			pci_name(dev));
-	if (path_name)
-		acpi_os_free(path_name);
+
+	acpi_os_free(string.pointer);
 	return -1;
 }
 #endif
