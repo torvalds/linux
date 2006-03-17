@@ -1829,9 +1829,8 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				i < INT_GET(node->hdr.count, ARCH_CONVERT);
 								btree++, i++) {
 				if (cursor->hashval
-						<= INT_GET(btree->hashval,
-							    ARCH_CONVERT)) {
-					cursor->blkno = INT_GET(btree->before, ARCH_CONVERT);
+						<= be32_to_cpu(btree->hashval)) {
+					cursor->blkno = be32_to_cpu(btree->before);
 					xfs_attr_trace_l_cb("descending",
 							    context, btree);
 					break;
@@ -2228,8 +2227,8 @@ xfs_attr_trace_l_cn(char *where, struct xfs_attr_list_context *context,
 		(__psunsigned_t)context->dupcnt,
 		(__psunsigned_t)context->flags,
 		(__psunsigned_t)INT_GET(node->hdr.count, ARCH_CONVERT),
-		(__psunsigned_t)INT_GET(node->btree[0].hashval, ARCH_CONVERT),
-		(__psunsigned_t)INT_GET(node->btree[INT_GET(node->hdr.count, ARCH_CONVERT)-1].hashval, ARCH_CONVERT));
+		(__psunsigned_t)be32_to_cpu(node->btree[0].hashval),
+		(__psunsigned_t)be32_to_cpu(node->btree[INT_GET(node->hdr.count, ARCH_CONVERT)-1].hashval));
 }
 
 /*
@@ -2256,8 +2255,8 @@ xfs_attr_trace_l_cb(char *where, struct xfs_attr_list_context *context,
 				: 0,
 		(__psunsigned_t)context->dupcnt,
 		(__psunsigned_t)context->flags,
-		(__psunsigned_t)INT_GET(btree->hashval, ARCH_CONVERT),
-		(__psunsigned_t)INT_GET(btree->before, ARCH_CONVERT),
+		(__psunsigned_t)be32_to_cpu(btree->hashval),
+		(__psunsigned_t)be32_to_cpu(btree->before),
 		(__psunsigned_t)NULL);
 }
 

@@ -869,7 +869,7 @@ xfs_attr_leaf_to_node(xfs_da_args_t *args)
 	/* both on-disk, don't endian-flip twice */
 	node->btree[0].hashval =
 		leaf->entries[be16_to_cpu(leaf->hdr.count)-1 ].hashval;
-	INT_SET(node->btree[0].before, ARCH_CONVERT, blkno);
+	node->btree[0].before = cpu_to_be32(blkno);
 	INT_SET(node->hdr.count, ARCH_CONVERT, 1);
 	xfs_da_log_buf(args->trans, bp1, 0, XFS_LBSIZE(dp->i_mount) - 1);
 	error = 0;
@@ -2809,7 +2809,7 @@ xfs_attr_node_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp,
 		xfs_da_brelse(*trans, bp);
 		return(0);
 	}
-	child_fsb = INT_GET(node->btree[0].before, ARCH_CONVERT);
+	child_fsb = be32_to_cpu(node->btree[0].before);
 	xfs_da_brelse(*trans, bp);	/* no locks for later trans */
 
 	/*
@@ -2869,7 +2869,7 @@ xfs_attr_node_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp,
 				&bp, XFS_ATTR_FORK);
 			if (error)
 				return(error);
-			child_fsb = INT_GET(node->btree[i+1].before, ARCH_CONVERT);
+			child_fsb = be32_to_cpu(node->btree[i+1].before);
 			xfs_da_brelse(*trans, bp);
 		}
 		/*

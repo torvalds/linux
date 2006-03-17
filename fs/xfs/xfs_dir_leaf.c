@@ -745,7 +745,7 @@ xfs_dir_leaf_to_node(xfs_da_args_t *args)
 	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR_LEAF_MAGIC);
 	INT_SET(node->btree[0].hashval, ARCH_CONVERT, INT_GET(leaf->entries[ INT_GET(leaf->hdr.count, ARCH_CONVERT)-1 ].hashval, ARCH_CONVERT));
 	xfs_da_buf_done(bp2);
-	INT_SET(node->btree[0].before, ARCH_CONVERT, blkno);
+	node->btree[0].before = cpu_to_be32(blkno);
 	INT_SET(node->hdr.count, ARCH_CONVERT, 1);
 	xfs_da_log_buf(args->trans, bp1,
 		XFS_DA_LOGRANGE(node, &node->btree[0], sizeof(node->btree[0])));

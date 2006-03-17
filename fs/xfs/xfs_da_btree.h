@@ -69,8 +69,8 @@ typedef struct xfs_da_intnode {
 		__uint16_t level;	/* level above leaves (leaf == 0) */
 	} hdr;
 	struct xfs_da_node_entry {
-		xfs_dahash_t hashval;	/* hash value for this descendant */
-		xfs_dablk_t before;	/* Btree block before this key */
+		__be32	hashval;	/* hash value for this descendant */
+		__be32	before;		/* Btree block before this key */
 	} btree[1];			/* variable sized array of keys */
 } xfs_da_intnode_t;
 typedef struct xfs_da_node_hdr xfs_da_node_hdr_t;

@@ -954,8 +954,8 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 			btree = &node->btree[0];
 			xfs_dir_trace_g_dun("node: node detail", dp, uio, node);
 			for (i = 0; i < INT_GET(node->hdr.count, ARCH_CONVERT); btree++, i++) {
-				if (INT_GET(btree->hashval, ARCH_CONVERT) >= cookhash) {
-					bno = INT_GET(btree->before, ARCH_CONVERT);
+				if (be32_to_cpu(btree->hashval) >= cookhash) {
+					bno = be32_to_cpu(btree->before);
 					break;
 				}
 			}
@@ -1129,9 +1129,9 @@ xfs_dir_trace_g_dun(char *where, xfs_inode_t *dp, uio_t *uio,
 		     (void *)(unsigned long)
 			INT_GET(node->hdr.count, ARCH_CONVERT),
 		     (void *)(unsigned long)
-			INT_GET(node->btree[0].hashval, ARCH_CONVERT),
+			be32_to_cpu(node->btree[0].hashval),
 		     (void *)(unsigned long)
-			INT_GET(node->btree[last].hashval, ARCH_CONVERT),
+			be32_to_cpu(node->btree[last].hashval),
 		     NULL, NULL, NULL);
 }
 
