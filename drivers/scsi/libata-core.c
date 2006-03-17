@@ -2865,6 +2865,8 @@ void ata_qc_prep(struct ata_queued_cmd *qc)
 	ata_fill_sg(qc);
 }
 
+void ata_noop_qc_prep(struct ata_queued_cmd *qc) { }
+
 /**
  *	ata_sg_init_one - Associate command with memory buffer
  *	@qc: Command to be associated
@@ -5063,6 +5065,7 @@ EXPORT_SYMBOL_GPL(ata_port_stop);
 EXPORT_SYMBOL_GPL(ata_host_stop);
 EXPORT_SYMBOL_GPL(ata_interrupt);
 EXPORT_SYMBOL_GPL(ata_qc_prep);
+EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
 EXPORT_SYMBOL_GPL(ata_bmdma_setup);
 EXPORT_SYMBOL_GPL(ata_bmdma_start);
 EXPORT_SYMBOL_GPL(ata_bmdma_irq_clear);
