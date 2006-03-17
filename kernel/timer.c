@@ -1354,8 +1354,8 @@ void __init init_timers(void)
 
 #ifdef CONFIG_TIME_INTERPOLATION
 
-struct time_interpolator *time_interpolator;
-static struct time_interpolator *time_interpolator_list;
+struct time_interpolator *time_interpolator __read_mostly;
+static struct time_interpolator *time_interpolator_list __read_mostly;
 static DEFINE_SPINLOCK(time_interpolator_lock);
 
 static inline u64 time_interpolator_get_cycles(unsigned int src)
