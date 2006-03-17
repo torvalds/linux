@@ -129,7 +129,7 @@ xfs_da_node_create(xfs_da_args_t *args, xfs_dablk_t blkno, int level,
 	node->hdr.info.magic = cpu_to_be16(XFS_DA_NODE_MAGIC);
 	node->hdr.info.pad = 0;
 	node->hdr.count = 0;
-	INT_SET(node->hdr.level, ARCH_CONVERT, level);
+	node->hdr.level = cpu_to_be16(level);
 
 	xfs_da_log_buf(tp, bp,
 		XFS_DA_LOGRANGE(node, &node->hdr, sizeof(node->hdr)));
@@ -360,7 +360,7 @@ xfs_da_root_split(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	node = bp->data;
 	oldroot = blk1->bp->data;
 	if (be16_to_cpu(oldroot->hdr.info.magic) == XFS_DA_NODE_MAGIC) {
-		size = (int)((char *)&oldroot->btree[INT_GET(oldroot->hdr.count, ARCH_CONVERT)] -
+		size = (int)((char *)&oldroot->btree[be16_to_cpu(oldroot->hdr.count)] -
 			     (char *)oldroot);
 	} else {
 		ASSERT(XFS_DIR_IS_V2(mp));
@@ -381,7 +381,7 @@ xfs_da_root_split(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	error = xfs_da_node_create(args,
 		args->whichfork == XFS_DATA_FORK &&
 		XFS_DIR_IS_V2(mp) ? mp->m_dirleafblk : 0,
-		INT_GET(node->hdr.level, ARCH_CONVERT) + 1, &bp, args->whichfork);
+		be16_to_cpu(node->hdr.level) + 1, &bp, args->whichfork);
 	if (error)
 		return(error);
 	node = bp->data;
@@ -389,7 +389,7 @@ xfs_da_root_split(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	node->btree[0].before = cpu_to_be32(blk1->blkno);
 	node->btree[1].hashval = cpu_to_be32(blk2->hashval);
 	node->btree[1].before = cpu_to_be32(blk2->blkno);
-	INT_SET(node->hdr.count, ARCH_CONVERT, 2);
+	node->hdr.count = cpu_to_be16(2);
 
 #ifdef DEBUG
 	if (be16_to_cpu(oldroot->hdr.info.magic) == XFS_DIR2_LEAFN_MAGIC) {
@@ -435,7 +435,7 @@ xfs_da_node_split(xfs_da_state_t *state, xfs_da_state_blk_t *oldblk,
 	/*
 	 * Do we have to split the node?
 	 */
-	if ((INT_GET(node->hdr.count, ARCH_CONVERT) + newcount) > state->node_ents) {
+	if ((be16_to_cpu(node->hdr.count) + newcount) > state->node_ents) {
 		/*
 		 * Allocate a new node, add to the doubly linked chain of
 		 * nodes, then move some of our excess entries into it.
@@ -472,7 +472,7 @@ xfs_da_node_split(xfs_da_state_t *state, xfs_da_state_blk_t *oldblk,
 	 * If we had double-split op below us, then add the extra block too.
 	 */
 	node = oldblk->bp->data;
-	if (oldblk->index <= INT_GET(node->hdr.count, ARCH_CONVERT)) {
+	if (oldblk->index <= be16_to_cpu(node->hdr.count)) {
 		oldblk->index++;
 		xfs_da_node_add(state, oldblk, addblk);
 		if (useextra) {
@@ -516,17 +516,17 @@ xfs_da_node_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	 * Figure out how many entries need to move, and in which direction.
 	 * Swap the nodes around if that makes it simpler.
 	 */
-	if ((INT_GET(node1->hdr.count, ARCH_CONVERT) > 0) && (INT_GET(node2->hdr.count, ARCH_CONVERT) > 0) &&
+	if ((be16_to_cpu(node1->hdr.count) > 0) && (be16_to_cpu(node2->hdr.count) > 0) &&
 	    ((be32_to_cpu(node2->btree[0].hashval) < be32_to_cpu(node1->btree[0].hashval)) ||
-	     (be32_to_cpu(node2->btree[INT_GET(node2->hdr.count, ARCH_CONVERT)-1].hashval) <
-	      be32_to_cpu(node1->btree[INT_GET(node1->hdr.count, ARCH_CONVERT)-1].hashval)))) {
+	     (be32_to_cpu(node2->btree[be16_to_cpu(node2->hdr.count)-1].hashval) <
+	      be32_to_cpu(node1->btree[be16_to_cpu(node1->hdr.count)-1].hashval)))) {
 		tmpnode = node1;
 		node1 = node2;
 		node2 = tmpnode;
 	}
 	ASSERT(be16_to_cpu(node1->hdr.info.magic) == XFS_DA_NODE_MAGIC);
 	ASSERT(be16_to_cpu(node2->hdr.info.magic) == XFS_DA_NODE_MAGIC);
-	count = (INT_GET(node1->hdr.count, ARCH_CONVERT) - INT_GET(node2->hdr.count, ARCH_CONVERT)) / 2;
+	count = (be16_to_cpu(node1->hdr.count) - be16_to_cpu(node2->hdr.count)) / 2;
 	if (count == 0)
 		return;
 	tp = state->args->trans;
@@ -537,7 +537,7 @@ xfs_da_node_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		/*
 		 * Move elements in node2 up to make a hole.
 		 */
-		if ((tmp = INT_GET(node2->hdr.count, ARCH_CONVERT)) > 0) {
+		if ((tmp = be16_to_cpu(node2->hdr.count)) > 0) {
 			tmp *= (uint)sizeof(xfs_da_node_entry_t);
 			btree_s = &node2->btree[0];
 			btree_d = &node2->btree[count];
@@ -548,13 +548,12 @@ xfs_da_node_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		 * Move the req'd B-tree elements from high in node1 to
 		 * low in node2.
 		 */
-		INT_MOD(node2->hdr.count, ARCH_CONVERT, count);
+		be16_add(&node2->hdr.count, count);
 		tmp = count * (uint)sizeof(xfs_da_node_entry_t);
-		btree_s = &node1->btree[INT_GET(node1->hdr.count, ARCH_CONVERT) - count];
+		btree_s = &node1->btree[be16_to_cpu(node1->hdr.count) - count];
 		btree_d = &node2->btree[0];
 		memcpy(btree_d, btree_s, tmp);
-		INT_MOD(node1->hdr.count, ARCH_CONVERT, -(count));
-
+		be16_add(&node1->hdr.count, -count);
 	} else {
 		/*
 		 * Move the req'd B-tree elements from low in node2 to
@@ -563,21 +562,21 @@ xfs_da_node_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		count = -count;
 		tmp = count * (uint)sizeof(xfs_da_node_entry_t);
 		btree_s = &node2->btree[0];
-		btree_d = &node1->btree[INT_GET(node1->hdr.count, ARCH_CONVERT)];
+		btree_d = &node1->btree[be16_to_cpu(node1->hdr.count)];
 		memcpy(btree_d, btree_s, tmp);
-		INT_MOD(node1->hdr.count, ARCH_CONVERT, count);
+		be16_add(&node1->hdr.count, count);
 		xfs_da_log_buf(tp, blk1->bp,
 			XFS_DA_LOGRANGE(node1, btree_d, tmp));
 
 		/*
 		 * Move elements in node2 down to fill the hole.
 		 */
-		tmp  = INT_GET(node2->hdr.count, ARCH_CONVERT) - count;
+		tmp  = be16_to_cpu(node2->hdr.count) - count;
 		tmp *= (uint)sizeof(xfs_da_node_entry_t);
 		btree_s = &node2->btree[count];
 		btree_d = &node2->btree[0];
 		memmove(btree_d, btree_s, tmp);
-		INT_MOD(node2->hdr.count, ARCH_CONVERT, -(count));
+		be16_add(&node2->hdr.count, -count);
 	}
 
 	/*
@@ -588,7 +587,7 @@ xfs_da_node_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	xfs_da_log_buf(tp, blk2->bp,
 		XFS_DA_LOGRANGE(node2, &node2->hdr,
 			sizeof(node2->hdr) +
-			sizeof(node2->btree[0]) * INT_GET(node2->hdr.count, ARCH_CONVERT)));
+			sizeof(node2->btree[0]) * be16_to_cpu(node2->hdr.count)));
 
 	/*
 	 * Record the last hashval from each block for upward propagation.
@@ -596,15 +595,15 @@ xfs_da_node_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	 */
 	node1 = blk1->bp->data;
 	node2 = blk2->bp->data;
-	blk1->hashval = be32_to_cpu(node1->btree[ INT_GET(node1->hdr.count, ARCH_CONVERT)-1 ].hashval);
-	blk2->hashval = be32_to_cpu(node2->btree[ INT_GET(node2->hdr.count, ARCH_CONVERT)-1 ].hashval);
+	blk1->hashval = be32_to_cpu(node1->btree[be16_to_cpu(node1->hdr.count)-1].hashval);
+	blk2->hashval = be32_to_cpu(node2->btree[be16_to_cpu(node2->hdr.count)-1].hashval);
 
 	/*
 	 * Adjust the expected index for insertion.
 	 */
-	if (blk1->index >= INT_GET(node1->hdr.count, ARCH_CONVERT)) {
-		blk2->index = blk1->index - INT_GET(node1->hdr.count, ARCH_CONVERT);
-		blk1->index = INT_GET(node1->hdr.count, ARCH_CONVERT) + 1;	/* make it invalid */
+	if (blk1->index >= be16_to_cpu(node1->hdr.count)) {
+		blk2->index = blk1->index - be16_to_cpu(node1->hdr.count);
+		blk1->index = be16_to_cpu(node1->hdr.count) + 1;	/* make it invalid */
 	}
 }
 
@@ -623,7 +622,7 @@ xfs_da_node_add(xfs_da_state_t *state, xfs_da_state_blk_t *oldblk,
 	node = oldblk->bp->data;
 	mp = state->mp;
 	ASSERT(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
-	ASSERT((oldblk->index >= 0) && (oldblk->index <= INT_GET(node->hdr.count, ARCH_CONVERT)));
+	ASSERT((oldblk->index >= 0) && (oldblk->index <= be16_to_cpu(node->hdr.count)));
 	ASSERT(newblk->blkno != 0);
 	if (state->args->whichfork == XFS_DATA_FORK && XFS_DIR_IS_V2(mp))
 		ASSERT(newblk->blkno >= mp->m_dirleafblk &&
@@ -634,22 +633,22 @@ xfs_da_node_add(xfs_da_state_t *state, xfs_da_state_blk_t *oldblk,
 	 */
 	tmp = 0;
 	btree = &node->btree[ oldblk->index ];
-	if (oldblk->index < INT_GET(node->hdr.count, ARCH_CONVERT)) {
-		tmp = (INT_GET(node->hdr.count, ARCH_CONVERT) - oldblk->index) * (uint)sizeof(*btree);
+	if (oldblk->index < be16_to_cpu(node->hdr.count)) {
+		tmp = (be16_to_cpu(node->hdr.count) - oldblk->index) * (uint)sizeof(*btree);
 		memmove(btree + 1, btree, tmp);
 	}
 	btree->hashval = cpu_to_be32(newblk->hashval);
 	btree->before = cpu_to_be32(newblk->blkno);
 	xfs_da_log_buf(state->args->trans, oldblk->bp,
 		XFS_DA_LOGRANGE(node, btree, tmp + sizeof(*btree)));
-	INT_MOD(node->hdr.count, ARCH_CONVERT, +1);
+	be16_add(&node->hdr.count, 1);
 	xfs_da_log_buf(state->args->trans, oldblk->bp,
 		XFS_DA_LOGRANGE(node, &node->hdr, sizeof(node->hdr)));
 
 	/*
 	 * Copy the last hash value from the oldblk to propagate upwards.
 	 */
-	oldblk->hashval = be32_to_cpu(node->btree[ INT_GET(node->hdr.count, ARCH_CONVERT)-1 ].hashval);
+	oldblk->hashval = be32_to_cpu(node->btree[be16_to_cpu(node->hdr.count)-1 ].hashval);
 }
 
 /*========================================================================
@@ -775,7 +774,7 @@ xfs_da_root_join(xfs_da_state_t *state, xfs_da_state_blk_t *root_blk)
 	/*
 	 * If the root has more than one child, then don't do anything.
 	 */
-	if (INT_GET(oldroot->hdr.count, ARCH_CONVERT) > 1)
+	if (be16_to_cpu(oldroot->hdr.count) > 1)
 		return(0);
 
 	/*
@@ -790,7 +789,7 @@ xfs_da_root_join(xfs_da_state_t *state, xfs_da_state_blk_t *root_blk)
 		return(error);
 	ASSERT(bp != NULL);
 	blkinfo = bp->data;
-	if (INT_GET(oldroot->hdr.level, ARCH_CONVERT) == 1) {
+	if (be16_to_cpu(oldroot->hdr.level) == 1) {
 		ASSERT(be16_to_cpu(blkinfo->magic) == XFS_DIRX_LEAF_MAGIC(state->mp) ||
 		       be16_to_cpu(blkinfo->magic) == XFS_ATTR_LEAF_MAGIC);
 	} else {
@@ -832,7 +831,7 @@ xfs_da_node_toosmall(xfs_da_state_t *state, int *action)
 	info = blk->bp->data;
 	ASSERT(be16_to_cpu(info->magic) == XFS_DA_NODE_MAGIC);
 	node = (xfs_da_intnode_t *)info;
-	count = INT_GET(node->hdr.count, ARCH_CONVERT);
+	count = be16_to_cpu(node->hdr.count);
 	if (count > (state->node_ents >> 1)) {
 		*action = 0;	/* blk over 50%, don't try to join */
 		return(0);	/* blk over 50%, don't try to join */
@@ -888,10 +887,10 @@ xfs_da_node_toosmall(xfs_da_state_t *state, int *action)
 		node = (xfs_da_intnode_t *)info;
 		count  = state->node_ents;
 		count -= state->node_ents >> 2;
-		count -= INT_GET(node->hdr.count, ARCH_CONVERT);
+		count -= be16_to_cpu(node->hdr.count);
 		node = bp->data;
 		ASSERT(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
-		count -= INT_GET(node->hdr.count, ARCH_CONVERT);
+		count -= be16_to_cpu(node->hdr.count);
 		xfs_da_brelse(state->args->trans, bp);
 		if (count >= 0)
 			break;	/* fits with at least 25% to spare */
@@ -981,7 +980,7 @@ xfs_da_fixhashpath(xfs_da_state_t *state, xfs_da_state_path_t *path)
 		xfs_da_log_buf(state->args->trans, blk->bp,
 				  XFS_DA_LOGRANGE(node, btree, sizeof(*btree)));
 
-		lasthash = be32_to_cpu(node->btree[ INT_GET(node->hdr.count, ARCH_CONVERT)-1 ].hashval);
+		lasthash = be32_to_cpu(node->btree[be16_to_cpu(node->hdr.count)-1].hashval);
 	}
 }
 
@@ -996,25 +995,25 @@ xfs_da_node_remove(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk)
 	int tmp;
 
 	node = drop_blk->bp->data;
-	ASSERT(drop_blk->index < INT_GET(node->hdr.count, ARCH_CONVERT));
+	ASSERT(drop_blk->index < be16_to_cpu(node->hdr.count));
 	ASSERT(drop_blk->index >= 0);
 
 	/*
 	 * Copy over the offending entry, or just zero it out.
 	 */
 	btree = &node->btree[drop_blk->index];
-	if (drop_blk->index < (INT_GET(node->hdr.count, ARCH_CONVERT)-1)) {
-		tmp  = INT_GET(node->hdr.count, ARCH_CONVERT) - drop_blk->index - 1;
+	if (drop_blk->index < (be16_to_cpu(node->hdr.count)-1)) {
+		tmp  = be16_to_cpu(node->hdr.count) - drop_blk->index - 1;
 		tmp *= (uint)sizeof(xfs_da_node_entry_t);
 		memmove(btree, btree + 1, tmp);
 		xfs_da_log_buf(state->args->trans, drop_blk->bp,
 		    XFS_DA_LOGRANGE(node, btree, tmp));
-		btree = &node->btree[ INT_GET(node->hdr.count, ARCH_CONVERT)-1 ];
+		btree = &node->btree[be16_to_cpu(node->hdr.count)-1];
 	}
 	memset((char *)btree, 0, sizeof(xfs_da_node_entry_t));
 	xfs_da_log_buf(state->args->trans, drop_blk->bp,
 	    XFS_DA_LOGRANGE(node, btree, sizeof(*btree)));
-	INT_MOD(node->hdr.count, ARCH_CONVERT, -1);
+	be16_add(&node->hdr.count, -1);
 	xfs_da_log_buf(state->args->trans, drop_blk->bp,
 	    XFS_DA_LOGRANGE(node, &node->hdr, sizeof(node->hdr)));
 
@@ -1049,31 +1048,31 @@ xfs_da_node_unbalance(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
 	 * elements in the remaining block up to make a hole.
 	 */
 	if ((be32_to_cpu(drop_node->btree[0].hashval) < be32_to_cpu(save_node->btree[ 0 ].hashval)) ||
-	    (be32_to_cpu(drop_node->btree[INT_GET(drop_node->hdr.count, ARCH_CONVERT)-1].hashval) <
-	     be32_to_cpu(save_node->btree[INT_GET(save_node->hdr.count, ARCH_CONVERT)-1 ].hashval)))
+	    (be32_to_cpu(drop_node->btree[be16_to_cpu(drop_node->hdr.count)-1].hashval) <
+	     be32_to_cpu(save_node->btree[be16_to_cpu(save_node->hdr.count)-1].hashval)))
 	{
-		btree = &save_node->btree[ INT_GET(drop_node->hdr.count, ARCH_CONVERT) ];
-		tmp = INT_GET(save_node->hdr.count, ARCH_CONVERT) * (uint)sizeof(xfs_da_node_entry_t);
+		btree = &save_node->btree[be16_to_cpu(drop_node->hdr.count)];
+		tmp = be16_to_cpu(save_node->hdr.count) * (uint)sizeof(xfs_da_node_entry_t);
 		memmove(btree, &save_node->btree[0], tmp);
 		btree = &save_node->btree[0];
 		xfs_da_log_buf(tp, save_blk->bp,
 			XFS_DA_LOGRANGE(save_node, btree,
-				(INT_GET(save_node->hdr.count, ARCH_CONVERT) + INT_GET(drop_node->hdr.count, ARCH_CONVERT)) *
+				(be16_to_cpu(save_node->hdr.count) + be16_to_cpu(drop_node->hdr.count)) *
 				sizeof(xfs_da_node_entry_t)));
 	} else {
-		btree = &save_node->btree[ INT_GET(save_node->hdr.count, ARCH_CONVERT) ];
+		btree = &save_node->btree[be16_to_cpu(save_node->hdr.count)];
 		xfs_da_log_buf(tp, save_blk->bp,
 			XFS_DA_LOGRANGE(save_node, btree,
-				INT_GET(drop_node->hdr.count, ARCH_CONVERT) *
+				be16_to_cpu(drop_node->hdr.count) *
 				sizeof(xfs_da_node_entry_t)));
 	}
 
 	/*
 	 * Move all the B-tree elements from drop_blk to save_blk.
 	 */
-	tmp = INT_GET(drop_node->hdr.count, ARCH_CONVERT) * (uint)sizeof(xfs_da_node_entry_t);
+	tmp = be16_to_cpu(drop_node->hdr.count) * (uint)sizeof(xfs_da_node_entry_t);
 	memcpy(btree, &drop_node->btree[0], tmp);
-	INT_MOD(save_node->hdr.count, ARCH_CONVERT, INT_GET(drop_node->hdr.count, ARCH_CONVERT));
+	be16_add(&save_node->hdr.count, be16_to_cpu(drop_node->hdr.count));
 
 	xfs_da_log_buf(tp, save_blk->bp,
 		XFS_DA_LOGRANGE(save_node, &save_node->hdr,
@@ -1082,7 +1081,7 @@ xfs_da_node_unbalance(xfs_da_state_t *state, xfs_da_state_blk_t *drop_blk,
 	/*
 	 * Save the last hashval in the remaining block for upward propagation.
 	 */
-	save_blk->hashval = be32_to_cpu(save_node->btree[ INT_GET(save_node->hdr.count, ARCH_CONVERT)-1 ].hashval);
+	save_blk->hashval = be32_to_cpu(save_node->btree[be16_to_cpu(save_node->hdr.count)-1].hashval);
 }
 
 /*========================================================================
@@ -1147,12 +1146,12 @@ xfs_da_node_lookup_int(xfs_da_state_t *state, int *result)
 		blk->magic = be16_to_cpu(curr->magic);
 		if (blk->magic == XFS_DA_NODE_MAGIC) {
 			node = blk->bp->data;
-			blk->hashval = be32_to_cpu(node->btree[INT_GET(node->hdr.count, ARCH_CONVERT)-1].hashval);
+			blk->hashval = be32_to_cpu(node->btree[be16_to_cpu(node->hdr.count)-1].hashval);
 
 			/*
 			 * Binary search.  (note: small blocks will skip loop)
 			 */
-			max = INT_GET(node->hdr.count, ARCH_CONVERT);
+			max = be16_to_cpu(node->hdr.count);
 			probe = span = max / 2;
 			hashval = args->hashval;
 			for (btree = &node->btree[probe]; span > 4;
@@ -1358,11 +1357,11 @@ xfs_da_node_order(xfs_dabuf_t *node1_bp, xfs_dabuf_t *node2_bp)
 	node2 = node2_bp->data;
 	ASSERT((be16_to_cpu(node1->hdr.info.magic) == XFS_DA_NODE_MAGIC) &&
 	       (be16_to_cpu(node2->hdr.info.magic) == XFS_DA_NODE_MAGIC));
-	if ((INT_GET(node1->hdr.count, ARCH_CONVERT) > 0) && (INT_GET(node2->hdr.count, ARCH_CONVERT) > 0) &&
+	if ((be16_to_cpu(node1->hdr.count) > 0) && (be16_to_cpu(node2->hdr.count) > 0) &&
 	    ((be32_to_cpu(node2->btree[0].hashval) <
 	      be32_to_cpu(node1->btree[0].hashval)) ||
-	     (be32_to_cpu(node2->btree[INT_GET(node2->hdr.count, ARCH_CONVERT)-1].hashval) <
-	      be32_to_cpu(node1->btree[INT_GET(node1->hdr.count, ARCH_CONVERT)-1].hashval)))) {
+	     (be32_to_cpu(node2->btree[be16_to_cpu(node2->hdr.count)-1].hashval) <
+	      be32_to_cpu(node1->btree[be16_to_cpu(node1->hdr.count)-1].hashval)))) {
 		return(1);
 	}
 	return(0);
@@ -1379,10 +1378,10 @@ xfs_da_node_lasthash(xfs_dabuf_t *bp, int *count)
 	node = bp->data;
 	ASSERT(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
 	if (count)
-		*count = INT_GET(node->hdr.count, ARCH_CONVERT);
+		*count = be16_to_cpu(node->hdr.count);
 	if (!node->hdr.count)
 		return(0);
-	return be32_to_cpu(node->btree[INT_GET(node->hdr.count, ARCH_CONVERT)-1].hashval);
+	return be32_to_cpu(node->btree[be16_to_cpu(node->hdr.count)-1].hashval);
 }
 
 /*
@@ -1491,7 +1490,7 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 		ASSERT(blk->bp != NULL);
 		node = blk->bp->data;
 		ASSERT(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
-		if (forward && (blk->index < INT_GET(node->hdr.count, ARCH_CONVERT)-1)) {
+		if (forward && (blk->index < be16_to_cpu(node->hdr.count)-1)) {
 			blk->index++;
 			blkno = be32_to_cpu(node->btree[blk->index].before);
 			break;
@@ -1535,11 +1534,11 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 		blk->magic = be16_to_cpu(info->magic);
 		if (blk->magic == XFS_DA_NODE_MAGIC) {
 			node = (xfs_da_intnode_t *)info;
-			blk->hashval = be32_to_cpu(node->btree[INT_GET(node->hdr.count, ARCH_CONVERT)-1].hashval);
+			blk->hashval = be32_to_cpu(node->btree[be16_to_cpu(node->hdr.count)-1].hashval);
 			if (forward)
 				blk->index = 0;
 			else
-				blk->index = INT_GET(node->hdr.count, ARCH_CONVERT)-1;
+				blk->index = be16_to_cpu(node->hdr.count)-1;
 			blkno = be32_to_cpu(node->btree[blk->index].before);
 		} else {
 			ASSERT(level == path->active-1);
@@ -1795,8 +1794,8 @@ xfs_da_swap_lastblock(xfs_da_args_t *args, xfs_dablk_t *dead_blknop,
 	} else {
 		ASSERT(be16_to_cpu(dead_info->magic) == XFS_DA_NODE_MAGIC);
 		dead_node = (xfs_da_intnode_t *)dead_info;
-		dead_level = INT_GET(dead_node->hdr.level, ARCH_CONVERT);
-		dead_hash = be32_to_cpu(dead_node->btree[INT_GET(dead_node->hdr.count, ARCH_CONVERT) - 1].hashval);
+		dead_level = be16_to_cpu(dead_node->hdr.level);
+		dead_hash = be32_to_cpu(dead_node->btree[be16_to_cpu(dead_node->hdr.count) - 1].hashval);
 	}
 	sib_buf = par_buf = NULL;
 	/*
@@ -1854,19 +1853,19 @@ xfs_da_swap_lastblock(xfs_da_args_t *args, xfs_dablk_t *dead_blknop,
 		par_node = par_buf->data;
 		if (unlikely(
 		    be16_to_cpu(par_node->hdr.info.magic) != XFS_DA_NODE_MAGIC ||
-		    (level >= 0 && level != INT_GET(par_node->hdr.level, ARCH_CONVERT) + 1))) {
+		    (level >= 0 && level != be16_to_cpu(par_node->hdr.level) + 1))) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(4)",
 					 XFS_ERRLEVEL_LOW, mp);
 			error = XFS_ERROR(EFSCORRUPTED);
 			goto done;
 		}
-		level = INT_GET(par_node->hdr.level, ARCH_CONVERT);
+		level = be16_to_cpu(par_node->hdr.level);
 		for (entno = 0;
-		     entno < INT_GET(par_node->hdr.count, ARCH_CONVERT) &&
+		     entno < be16_to_cpu(par_node->hdr.count) &&
 		     be32_to_cpu(par_node->btree[entno].hashval) < dead_hash;
 		     entno++)
 			continue;
-		if (unlikely(entno == INT_GET(par_node->hdr.count, ARCH_CONVERT))) {
+		if (unlikely(entno == be16_to_cpu(par_node->hdr.count))) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(5)",
 					 XFS_ERRLEVEL_LOW, mp);
 			error = XFS_ERROR(EFSCORRUPTED);
@@ -1884,11 +1883,11 @@ xfs_da_swap_lastblock(xfs_da_args_t *args, xfs_dablk_t *dead_blknop,
 	 */
 	for (;;) {
 		for (;
-		     entno < INT_GET(par_node->hdr.count, ARCH_CONVERT) &&
+		     entno < be16_to_cpu(par_node->hdr.count) &&
 		     be32_to_cpu(par_node->btree[entno].before) != last_blkno;
 		     entno++)
 			continue;
-		if (entno < INT_GET(par_node->hdr.count, ARCH_CONVERT))
+		if (entno < be16_to_cpu(par_node->hdr.count))
 			break;
 		par_blkno = be32_to_cpu(par_node->hdr.info.forw);
 		xfs_da_brelse(tp, par_buf);
@@ -1903,7 +1902,7 @@ xfs_da_swap_lastblock(xfs_da_args_t *args, xfs_dablk_t *dead_blknop,
 			goto done;
 		par_node = par_buf->data;
 		if (unlikely(
-		    INT_GET(par_node->hdr.level, ARCH_CONVERT) != level ||
+		    be16_to_cpu(par_node->hdr.level) != level ||
 		    be16_to_cpu(par_node->hdr.info.magic) != XFS_DA_NODE_MAGIC)) {
 			XFS_ERROR_REPORT("xfs_da_swap_lastblock(7)",
 					 XFS_ERRLEVEL_LOW, mp);

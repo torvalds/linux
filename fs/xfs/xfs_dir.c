@@ -953,13 +953,13 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 				break;
 			btree = &node->btree[0];
 			xfs_dir_trace_g_dun("node: node detail", dp, uio, node);
-			for (i = 0; i < INT_GET(node->hdr.count, ARCH_CONVERT); btree++, i++) {
+			for (i = 0; i < be16_to_cpu(node->hdr.count); btree++, i++) {
 				if (be32_to_cpu(btree->hashval) >= cookhash) {
 					bno = be32_to_cpu(btree->before);
 					break;
 				}
 			}
-			if (i == INT_GET(node->hdr.count, ARCH_CONVERT)) {
+			if (i == be16_to_cpu(node->hdr.count)) {
 				xfs_da_brelse(trans, bp);
 				xfs_dir_trace_g_du("node: hash beyond EOF",
 							  dp, uio);
@@ -1118,7 +1118,7 @@ void
 xfs_dir_trace_g_dun(char *where, xfs_inode_t *dp, uio_t *uio,
 			xfs_da_intnode_t *node)
 {
-	int	last = INT_GET(node->hdr.count, ARCH_CONVERT) - 1;
+	int	last = be16_to_cpu(node->hdr.count) - 1;
 
 	xfs_dir_trace_enter(XFS_DIR_KTRACE_G_DUN, where,
 		     (void *)dp, (void *)dp->i_mount,
@@ -1127,7 +1127,7 @@ xfs_dir_trace_g_dun(char *where, xfs_inode_t *dp, uio_t *uio,
 		     (void *)(unsigned long)uio->uio_resid,
 		     (void *)(unsigned long)be32_to_cpu(node->hdr.info.forw),
 		     (void *)(unsigned long)
-			INT_GET(node->hdr.count, ARCH_CONVERT),
+			be16_to_cpu(node->hdr.count),
 		     (void *)(unsigned long)
 			be32_to_cpu(node->btree[0].hashval),
 		     (void *)(unsigned long)

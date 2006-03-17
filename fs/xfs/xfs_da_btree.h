@@ -65,8 +65,8 @@ typedef struct xfs_da_blkinfo {
 typedef struct xfs_da_intnode {
 	struct xfs_da_node_hdr {	/* constant-structure header block */
 		xfs_da_blkinfo_t info;	/* block type, links, etc. */
-		__uint16_t count;	/* count of active entries */
-		__uint16_t level;	/* level above leaves (leaf == 0) */
+		__be16	count;		/* count of active entries */
+		__be16	level;		/* level above leaves (leaf == 0) */
 	} hdr;
 	struct xfs_da_node_entry {
 		__be32	hashval;	/* hash value for this descendant */

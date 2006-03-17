@@ -1825,8 +1825,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				return(XFS_ERROR(EFSCORRUPTED));
 			}
 			btree = node->btree;
-			for (i = 0;
-				i < INT_GET(node->hdr.count, ARCH_CONVERT);
+			for (i = 0; i < be16_to_cpu(node->hdr.count);
 								btree++, i++) {
 				if (cursor->hashval
 						<= be32_to_cpu(btree->hashval)) {
@@ -1836,7 +1835,7 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 					break;
 				}
 			}
-			if (i == INT_GET(node->hdr.count, ARCH_CONVERT)) {
+			if (i == be16_to_cpu(node->hdr.count)) {
 				xfs_da_brelse(NULL, bp);
 				return(0);
 			}
@@ -2226,9 +2225,10 @@ xfs_attr_trace_l_cn(char *where, struct xfs_attr_list_context *context,
 				: 0,
 		(__psunsigned_t)context->dupcnt,
 		(__psunsigned_t)context->flags,
-		(__psunsigned_t)INT_GET(node->hdr.count, ARCH_CONVERT),
+		(__psunsigned_t)be16_to_cpu(node->hdr.count),
 		(__psunsigned_t)be32_to_cpu(node->btree[0].hashval),
-		(__psunsigned_t)be32_to_cpu(node->btree[INT_GET(node->hdr.count, ARCH_CONVERT)-1].hashval));
+		(__psunsigned_t)be32_to_cpu(node->btree[
+				    be16_to_cpu(node->hdr.count)-1].hashval));
 }
 
 /*

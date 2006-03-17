@@ -870,7 +870,7 @@ xfs_attr_leaf_to_node(xfs_da_args_t *args)
 	node->btree[0].hashval =
 		leaf->entries[be16_to_cpu(leaf->hdr.count)-1 ].hashval;
 	node->btree[0].before = cpu_to_be32(blkno);
-	INT_SET(node->hdr.count, ARCH_CONVERT, 1);
+	node->hdr.count = cpu_to_be16(1);
 	xfs_da_log_buf(args->trans, bp1, 0, XFS_LBSIZE(dp->i_mount) - 1);
 	error = 0;
 out:
@@ -2804,7 +2804,7 @@ xfs_attr_node_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp,
 	node = bp->data;
 	ASSERT(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
 	parent_blkno = xfs_da_blkno(bp);	/* save for re-read later */
-	count = INT_GET(node->hdr.count, ARCH_CONVERT);
+	count = be16_to_cpu(node->hdr.count);
 	if (!count) {
 		xfs_da_brelse(*trans, bp);
 		return(0);
