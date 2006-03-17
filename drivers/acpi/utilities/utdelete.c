@@ -200,8 +200,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 			 */
 			handler_desc = object->region.handler;
 			if (handler_desc) {
-				if (handler_desc->address_space.
-				    hflags &
+				if (handler_desc->address_space.handler_flags &
 				    ACPI_ADDR_HANDLER_DEFAULT_INSTALLED) {
 					obj_pointer =
 					    second_desc->extra.region_context;

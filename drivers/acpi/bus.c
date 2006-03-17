@@ -596,6 +596,8 @@ void __init acpi_early_init(void)
 	if (acpi_disabled)
 		return_VOID;
 
+	printk(KERN_INFO PREFIX "Core revision %08x\n", ACPI_CA_VERSION);
+
 	/* enable workarounds, unless strict ACPI spec. compliance */
 	if (!acpi_strict)
 		acpi_gbl_enable_interpreter_slack = TRUE;
@@ -742,8 +744,6 @@ static int __init acpi_init(void)
 	int result = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_init");
-
-	printk(KERN_INFO PREFIX "Subsystem revision %08x\n", ACPI_CA_VERSION);
 
 	if (acpi_disabled) {
 		printk(KERN_INFO PREFIX "Interpreter disabled.\n");

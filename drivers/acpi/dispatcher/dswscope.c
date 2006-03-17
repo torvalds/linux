@@ -128,7 +128,7 @@ acpi_ds_scope_stack_push(struct acpi_namespace_node *node,
 
 	/* Init new scope object */
 
-	scope_info->common.data_type = ACPI_DESC_TYPE_STATE_WSCOPE;
+	scope_info->common.descriptor_type = ACPI_DESC_TYPE_STATE_WSCOPE;
 	scope_info->scope.node = node;
 	scope_info->common.value = (u16) type;
 

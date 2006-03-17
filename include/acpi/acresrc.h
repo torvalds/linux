@@ -198,8 +198,9 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 				     acpi_size * buffer_size_needed);
 
 acpi_status
-acpi_rs_convert_aml_to_resources(u8 * aml_buffer,
-				 u32 aml_buffer_length, u8 * output_buffer);
+acpi_rs_convert_aml_to_resources(u8 * aml,
+				 u32 length,
+				 u32 offset, u8 resource_index, void **context);
 
 acpi_status
 acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,

@@ -267,8 +267,6 @@ static struct acpi_exdump_info acpi_ex_dump_node[6] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_node), NULL},
 	{ACPI_EXD_UINT8, ACPI_EXD_NSOFFSET(flags), "Flags"},
 	{ACPI_EXD_UINT8, ACPI_EXD_NSOFFSET(owner_id), "Owner Id"},
-	{ACPI_EXD_UINT16, ACPI_EXD_NSOFFSET(reference_count),
-	 "Reference Count"},
 	{ACPI_EXD_POINTER, ACPI_EXD_NSOFFSET(child), "Child List"},
 	{ACPI_EXD_POINTER, ACPI_EXD_NSOFFSET(peer), "Next Peer"}
 };

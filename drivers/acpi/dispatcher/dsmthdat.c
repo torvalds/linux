@@ -100,10 +100,10 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 		ACPI_MOVE_32_TO_32(&walk_state->arguments[i].name,
 				   NAMEOF_ARG_NTE);
 		walk_state->arguments[i].name.integer |= (i << 24);
-		walk_state->arguments[i].descriptor = ACPI_DESC_TYPE_NAMED;
+		walk_state->arguments[i].descriptor_type = ACPI_DESC_TYPE_NAMED;
 		walk_state->arguments[i].type = ACPI_TYPE_ANY;
-		walk_state->arguments[i].flags = ANOBJ_END_OF_PEER_LIST |
-		    ANOBJ_METHOD_ARG;
+		walk_state->arguments[i].flags =
+		    ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_ARG;
 	}
 
 	/* Init the method locals */
@@ -113,11 +113,11 @@ void acpi_ds_method_data_init(struct acpi_walk_state *walk_state)
 				   NAMEOF_LOCAL_NTE);
 
 		walk_state->local_variables[i].name.integer |= (i << 24);
-		walk_state->local_variables[i].descriptor =
+		walk_state->local_variables[i].descriptor_type =
 		    ACPI_DESC_TYPE_NAMED;
 		walk_state->local_variables[i].type = ACPI_TYPE_ANY;
-		walk_state->local_variables[i].flags = ANOBJ_END_OF_PEER_LIST |
-		    ANOBJ_METHOD_LOCAL;
+		walk_state->local_variables[i].flags =
+		    ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_LOCAL;
 	}
 
 	return_VOID;

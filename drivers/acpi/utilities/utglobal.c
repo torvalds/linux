@@ -191,12 +191,14 @@ const char *acpi_gbl_valid_osi_strings[ACPI_NUM_OSI_STRINGS] = {
 	"Linux",
 	"Windows 2000",
 	"Windows 2001",
-	"Windows 2001.1",
 	"Windows 2001 SP0",
 	"Windows 2001 SP1",
 	"Windows 2001 SP2",
 	"Windows 2001 SP3",
 	"Windows 2001 SP4",
+	"Windows 2001.1",
+	"Windows 2001.1 SP1",	/* Added 03/2006 */
+	"Windows 2006",		/* Added 03/2006 */
 
 	/* Feature Group Strings */
 
@@ -633,7 +635,7 @@ char *acpi_ut_get_node_name(void *object)
 
 	/* Descriptor must be a namespace node */
 
-	if (node->descriptor != ACPI_DESC_TYPE_NAMED) {
+	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
 		return ("####");
 	}
 
@@ -855,7 +857,7 @@ void acpi_ut_init_globals(void)
 
 	acpi_gbl_root_node = NULL;
 	acpi_gbl_root_node_struct.name.integer = ACPI_ROOT_NAME;
-	acpi_gbl_root_node_struct.descriptor = ACPI_DESC_TYPE_NAMED;
+	acpi_gbl_root_node_struct.descriptor_type = ACPI_DESC_TYPE_NAMED;
 	acpi_gbl_root_node_struct.type = ACPI_TYPE_DEVICE;
 	acpi_gbl_root_node_struct.child = NULL;
 	acpi_gbl_root_node_struct.peer = NULL;

@@ -48,7 +48,7 @@
 
 /* variable # arguments */
 
-#define ACPI_VAR_ARGS                   ACPI_UINT32_MAX
+#define ACPI_VAR_ARGS                   ACPI_UINT8_MAX
 
 #define ACPI_PARSE_DELETE_TREE          0x0001
 #define ACPI_PARSE_NO_TREE_DELETE       0x0000
@@ -146,13 +146,12 @@ u8 acpi_ps_has_completed_scope(struct acpi_parse_state *parser_state);
 
 void
 acpi_ps_pop_scope(struct acpi_parse_state *parser_state,
-		  union acpi_parse_object **op,
-		  u32 * arg_list, u32 * arg_count);
+		  union acpi_parse_object **op, u32 * arg_list, u8 * arg_count);
 
 acpi_status
 acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 		   union acpi_parse_object *op,
-		   u32 remaining_args, u32 arg_count);
+		   u32 remaining_args, u8 arg_count);
 
 void acpi_ps_cleanup_scope(struct acpi_parse_state *state);
 

@@ -240,6 +240,104 @@ static const u8 acpi_gbl_resource_types[] = {
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_walk_aml_resources
+ *
+ * PARAMETERS:  Aml             - Pointer to the raw AML resource template
+ *              aml_length      - Length of the entire template
+ *              user_function   - Called once for each descriptor found. If
+ *                                NULL, a pointer to the end_tag is returned
+ *              Context         - Passed to user_function
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Walk a raw AML resource list(buffer). User function called
+ *              once for each resource found.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ut_walk_aml_resources(u8 * aml,
+			   acpi_size aml_length,
+			   acpi_walk_aml_callback user_function, void *context)
+{
+	acpi_status status;
+	u8 *end_aml;
+	u8 resource_index;
+	u32 length;
+	u32 offset = 0;
+
+	ACPI_FUNCTION_TRACE("ut_walk_aml_resources");
+
+	/* The absolute minimum resource template is one end_tag descriptor */
+
+	if (aml_length < sizeof(struct aml_resource_end_tag)) {
+		return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+	}
+
+	/* Point to the end of the resource template buffer */
+
+	end_aml = aml + aml_length;
+
+	/* Walk the byte list, abort on any invalid descriptor type or length */
+
+	while (aml < end_aml) {
+
+		/* Validate the Resource Type and Resource Length */
+
+		status = acpi_ut_validate_resource(aml, &resource_index);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+
+		/* Get the length of this descriptor */
+
+		length = acpi_ut_get_descriptor_length(aml);
+
+		/* Invoke the user function */
+
+		if (user_function) {
+			status =
+			    user_function(aml, length, offset, resource_index,
+					  context);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+		}
+
+		/* An end_tag descriptor terminates this resource template */
+
+		if (acpi_ut_get_resource_type(aml) ==
+		    ACPI_RESOURCE_NAME_END_TAG) {
+			/*
+			 * There must be at least one more byte in the buffer for
+			 * the 2nd byte of the end_tag
+			 */
+			if ((aml + 1) >= end_aml) {
+				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+			}
+
+			/* Return the pointer to the end_tag if requested */
+
+			if (!user_function) {
+				*(void **)context = aml;
+			}
+
+			/* Normal exit */
+
+			return_ACPI_STATUS(AE_OK);
+		}
+
+		aml += length;
+		offset += length;
+	}
+
+	/* Did not find an end_tag descriptor */
+
+	return (AE_AML_NO_RESOURCE_END_TAG);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_validate_resource
  *
  * PARAMETERS:  Aml             - Pointer to the raw AML resource descriptor
@@ -498,61 +596,21 @@ acpi_ut_get_resource_end_tag(union acpi_operand_object * obj_desc,
 			     u8 ** end_tag)
 {
 	acpi_status status;
-	u8 *aml;
-	u8 *end_aml;
 
 	ACPI_FUNCTION_TRACE("ut_get_resource_end_tag");
-
-	/* Get start and end pointers */
-
-	aml = obj_desc->buffer.pointer;
-	end_aml = aml + obj_desc->buffer.length;
 
 	/* Allow a buffer length of zero */
 
 	if (!obj_desc->buffer.length) {
-		*end_tag = aml;
+		*end_tag = obj_desc->buffer.pointer;
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Walk the resource template, one descriptor per iteration */
+	/* Validate the template and get a pointer to the end_tag */
 
-	while (aml < end_aml) {
+	status = acpi_ut_walk_aml_resources(obj_desc->buffer.pointer,
+					    obj_desc->buffer.length, NULL,
+					    end_tag);
 
-		/* Validate the Resource Type and Resource Length */
-
-		status = acpi_ut_validate_resource(aml, NULL);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-
-		/* end_tag resource indicates the end of the resource template */
-
-		if (acpi_ut_get_resource_type(aml) ==
-		    ACPI_RESOURCE_NAME_END_TAG) {
-			/*
-			 * There must be at least one more byte in the buffer for
-			 * the 2nd byte of the end_tag
-			 */
-			if ((aml + 1) >= end_aml) {
-				return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
-			}
-
-			/* Return the pointer to the end_tag */
-
-			*end_tag = aml;
-			return_ACPI_STATUS(AE_OK);
-		}
-
-		/*
-		 * Point to the next resource descriptor in the AML buffer. The
-		 * descriptor length is guaranteed to be non-zero by resource
-		 * validation above.
-		 */
-		aml += acpi_ut_get_descriptor_length(aml);
-	}
-
-	/* Did not find an end_tag resource descriptor */
-
-	return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+	return_ACPI_STATUS(status);
 }

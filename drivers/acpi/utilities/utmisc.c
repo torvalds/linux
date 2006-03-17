@@ -881,36 +881,3 @@ acpi_ut_info(char *module_name, u32 line_number, char *format, ...)
 	acpi_os_vprintf(format, args);
 	acpi_os_printf(" [%X]\n", ACPI_CA_VERSION);
 }
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_report_error, Warning, Info
- *
- * PARAMETERS:  module_name         - Caller's module name (for error output)
- *              line_number         - Caller's line number (for error output)
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print error message
- *
- * Note: Legacy only, should be removed when no longer used by drivers.
- *
- ******************************************************************************/
-
-void acpi_ut_report_error(char *module_name, u32 line_number)
-{
-
-	acpi_os_printf("ACPI Error (%s-%04d): ", module_name, line_number);
-}
-
-void acpi_ut_report_warning(char *module_name, u32 line_number)
-{
-
-	acpi_os_printf("ACPI Warning (%s-%04d): ", module_name, line_number);
-}
-
-void acpi_ut_report_info(char *module_name, u32 line_number)
-{
-
-	acpi_os_printf("ACPI (%s-%04d): ", module_name, line_number);
-}

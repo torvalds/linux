@@ -63,7 +63,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20060310
+#define ACPI_CA_VERSION                 0x20060317
 
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,
@@ -81,6 +81,7 @@
 #define ACPI_MAX_PARSE_CACHE_DEPTH      96	/* Parse tree objects */
 #define ACPI_MAX_EXTPARSE_CACHE_DEPTH   96	/* Parse tree objects */
 #define ACPI_MAX_OBJECT_CACHE_DEPTH     96	/* Interpreter operand objects */
+#define ACPI_MAX_NAMESPACE_CACHE_DEPTH  96	/* Namespace objects */
 
 /*
  * Should the subsystem abort the loading of an ACPI table if the
@@ -189,7 +190,7 @@
 
 /* Number of strings associated with the _OSI reserved method */
 
-#define ACPI_NUM_OSI_STRINGS            10
+#define ACPI_NUM_OSI_STRINGS            12
 
 /******************************************************************************
  *

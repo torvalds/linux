@@ -242,7 +242,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_possible_resources)
 acpi_status
 acpi_walk_resources(acpi_handle device_handle,
 		    char *name,
-		    ACPI_WALK_RESOURCE_CALLBACK user_function, void *context)
+		    acpi_walk_resource_callback user_function, void *context)
 {
 	acpi_status status;
 	struct acpi_buffer buffer;
@@ -469,7 +469,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_vendor_resource)
  *
  * FUNCTION:    acpi_rs_match_vendor_resource
  *
- * PARAMETERS:  ACPI_WALK_RESOURCE_CALLBACK
+ * PARAMETERS:  acpi_walk_resource_callback
  *
  * RETURN:      Status
  *

@@ -456,7 +456,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 		*size_needed += buffer_size;
 
 		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
-				  "Type %.2X, Aml %.2X internal %.2X\n",
+				  "Type %.2X, aml_length %.2X internal_length %.2X\n",
 				  acpi_ut_get_resource_type(aml_buffer),
 				  acpi_ut_get_descriptor_length(aml_buffer),
 				  buffer_size));

@@ -400,8 +400,8 @@
  *
  * The "Descriptor" field is the first field in both structures.
  */
-#define ACPI_GET_DESCRIPTOR_TYPE(d)     (((union acpi_descriptor *)(void *)(d))->descriptor_id)
-#define ACPI_SET_DESCRIPTOR_TYPE(d,t)   (((union acpi_descriptor *)(void *)(d))->descriptor_id = t)
+#define ACPI_GET_DESCRIPTOR_TYPE(d)     (((union acpi_descriptor *)(void *)(d))->common.descriptor_type)
+#define ACPI_SET_DESCRIPTOR_TYPE(d,t)   (((union acpi_descriptor *)(void *)(d))->common.descriptor_type = t)
 
 /* Macro to test the object type */
 
@@ -490,7 +490,6 @@
 #define ACPI_ERROR(plist)
 #define ACPI_ERROR_NAMESPACE(s,e)
 #define ACPI_ERROR_METHOD(s,n,p,e)
-
 #endif
 
 /*
@@ -532,13 +531,13 @@
 #endif
 
 #define ACPI_FUNCTION_TRACE(a)          ACPI_FUNCTION_NAME(a) \
-									  acpi_ut_trace(ACPI_DEBUG_PARAMETERS)
+			  acpi_ut_trace(ACPI_DEBUG_PARAMETERS)
 #define ACPI_FUNCTION_TRACE_PTR(a,b)    ACPI_FUNCTION_NAME(a) \
-											acpi_ut_trace_ptr(ACPI_DEBUG_PARAMETERS,(void *)b)
+					   acpi_ut_trace_ptr(ACPI_DEBUG_PARAMETERS,(void *)b)
 #define ACPI_FUNCTION_TRACE_U32(a,b)    ACPI_FUNCTION_NAME(a) \
-											acpi_ut_trace_u32(ACPI_DEBUG_PARAMETERS,(u32)b)
+							 acpi_ut_trace_u32(ACPI_DEBUG_PARAMETERS,(u32)b)
 #define ACPI_FUNCTION_TRACE_STR(a,b)    ACPI_FUNCTION_NAME(a) \
-											acpi_ut_trace_str(ACPI_DEBUG_PARAMETERS,(char *)b)
+									  acpi_ut_trace_str(ACPI_DEBUG_PARAMETERS,(char *)b)
 
 #define ACPI_FUNCTION_ENTRY()           acpi_ut_track_stack_ptr()
 
@@ -658,6 +657,7 @@
 #define ACPI_DUMP_STACK_ENTRY(a)
 #define ACPI_DUMP_OPERANDS(a,b,c,d,e)
 #define ACPI_DUMP_ENTRY(a,b)
+#define ACPI_DUMP_TABLES(a,b)
 #define ACPI_DUMP_PATHNAME(a,b,c,d)
 #define ACPI_DUMP_RESOURCE_LIST(a)
 #define ACPI_DUMP_BUFFER(a,b)
@@ -714,7 +714,7 @@
 /* Memory allocation */
 
 #define ACPI_ALLOCATE(a)            acpi_ut_allocate((acpi_size)(a),_COMPONENT,_acpi_module_name,__LINE__)
-#define ACPI_ALLOCATE_ZEROED(a)           acpi_ut_callocate((acpi_size)(a), _COMPONENT,_acpi_module_name,__LINE__)
+#define ACPI_ALLOCATE_ZEROED(a)     acpi_ut_allocate_zeroed((acpi_size)(a), _COMPONENT,_acpi_module_name,__LINE__)
 #define ACPI_FREE(a)                acpi_os_free(a)
 #define ACPI_MEM_TRACKING(a)
 
@@ -723,9 +723,9 @@
 /* Memory allocation */
 
 #define ACPI_ALLOCATE(a)            acpi_ut_allocate_and_track((acpi_size)(a),_COMPONENT,_acpi_module_name,__LINE__)
-#define ACPI_ALLOCATE_ZEROED(a)           acpi_ut_callocate_and_track((acpi_size)(a), _COMPONENT,_acpi_module_name,__LINE__)
+#define ACPI_ALLOCATE_ZEROED(a)     acpi_ut_allocate_zeroed_and_track((acpi_size)(a), _COMPONENT,_acpi_module_name,__LINE__)
 #define ACPI_FREE(a)                acpi_ut_free_and_track(a,_COMPONENT,_acpi_module_name,__LINE__)
-#define ACPI_MEM_TRACKING(a)            a
+#define ACPI_MEM_TRACKING(a)        a
 
 #endif				/* ACPI_DBG_TRACK_ALLOCATIONS */
 

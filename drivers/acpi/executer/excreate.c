@@ -243,8 +243,9 @@ acpi_status acpi_ex_create_mutex(struct acpi_walk_state *walk_state)
 	obj_desc->mutex.node =
 	    (struct acpi_namespace_node *)walk_state->operands[0];
 
-	status = acpi_ns_attach_object(obj_desc->mutex.node,
-				       obj_desc, ACPI_TYPE_MUTEX);
+	status =
+	    acpi_ns_attach_object(obj_desc->mutex.node, obj_desc,
+				  ACPI_TYPE_MUTEX);
 
       cleanup:
 	/*
@@ -464,9 +465,9 @@ acpi_status acpi_ex_create_processor(struct acpi_walk_state *walk_state)
 	/* Initialize the processor object from the operands */
 
 	obj_desc->processor.proc_id = (u8) operand[1]->integer.value;
+	obj_desc->processor.length = (u8) operand[3]->integer.value;
 	obj_desc->processor.address =
 	    (acpi_io_address) operand[2]->integer.value;
-	obj_desc->processor.length = (u8) operand[3]->integer.value;
 
 	/* Install the processor object in the parent Node */
 

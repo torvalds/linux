@@ -162,7 +162,7 @@ union acpi_generic_state *acpi_ut_create_generic_state(void)
 
 		/* Initialize */
 		memset(state, 0, sizeof(union acpi_generic_state));
-		state->common.data_type = ACPI_DESC_TYPE_STATE;
+		state->common.descriptor_type = ACPI_DESC_TYPE_STATE;
 	}
 
 	return (state);
@@ -196,7 +196,7 @@ struct acpi_thread_state *acpi_ut_create_thread_state(void)
 
 	/* Init fields specific to the update struct */
 
-	state->common.data_type = ACPI_DESC_TYPE_STATE_THREAD;
+	state->common.descriptor_type = ACPI_DESC_TYPE_STATE_THREAD;
 	state->thread.thread_id = acpi_os_get_thread_id();
 
 	return_PTR((struct acpi_thread_state *)state);
@@ -233,7 +233,7 @@ union acpi_generic_state *acpi_ut_create_update_state(union acpi_operand_object
 
 	/* Init fields specific to the update struct */
 
-	state->common.data_type = ACPI_DESC_TYPE_STATE_UPDATE;
+	state->common.descriptor_type = ACPI_DESC_TYPE_STATE_UPDATE;
 	state->update.object = object;
 	state->update.value = action;
 
@@ -270,7 +270,7 @@ union acpi_generic_state *acpi_ut_create_pkg_state(void *internal_object,
 
 	/* Init fields specific to the update struct */
 
-	state->common.data_type = ACPI_DESC_TYPE_STATE_PACKAGE;
+	state->common.descriptor_type = ACPI_DESC_TYPE_STATE_PACKAGE;
 	state->pkg.source_object = (union acpi_operand_object *)internal_object;
 	state->pkg.dest_object = external_object;
 	state->pkg.index = index;
@@ -307,7 +307,7 @@ union acpi_generic_state *acpi_ut_create_control_state(void)
 
 	/* Init fields specific to the control struct */
 
-	state->common.data_type = ACPI_DESC_TYPE_STATE_CONTROL;
+	state->common.descriptor_type = ACPI_DESC_TYPE_STATE_CONTROL;
 	state->common.state = ACPI_CONTROL_CONDITIONAL_EXECUTING;
 
 	return_PTR(state);

@@ -44,6 +44,8 @@
 #ifndef __ACTYPES_H__
 #define __ACTYPES_H__
 
+/* acpisrc:struct_defs -- for acpisrc conversion */
+
 /*
  * ACPI_MACHINE_WIDTH must be specified in an OS- or compiler-dependent header
  * and must be either 16, 32, or 64
@@ -250,7 +252,7 @@ typedef acpi_native_uint acpi_size;
 /* Use C99 uintptr_t for pointer casting if available, "void *" otherwise */
 
 #ifndef acpi_uintptr_t
-#define acpi_uintptr_t                          void *
+#define acpi_uintptr_t                  void *
 #endif
 
 /*
@@ -259,7 +261,7 @@ typedef acpi_native_uint acpi_size;
  * manager implementation is to be used (ACPI_USE_LOCAL_CACHE)
  */
 #ifndef acpi_cache_t
-#define acpi_cache_t                            struct acpi_memory_list
+#define acpi_cache_t                    struct acpi_memory_list
 #endif
 
 /*
@@ -267,7 +269,7 @@ typedef acpi_native_uint acpi_size;
  * lock and unlock OSL interfaces.
  */
 #ifndef acpi_cpu_flags
-#define acpi_cpu_flags                          acpi_native_uint
+#define acpi_cpu_flags                  acpi_native_uint
 #endif
 
 /*
@@ -300,7 +302,7 @@ typedef acpi_native_uint acpi_size;
  * thread_id is returned by acpi_os_get_thread_id.
  */
 #ifndef acpi_thread_id
-#define acpi_thread_id                          acpi_native_uint
+#define acpi_thread_id                  acpi_native_uint
 #endif
 
 /*******************************************************************************
@@ -869,7 +871,7 @@ acpi_status(*acpi_adr_space_handler) (u32 function,
 				      void *handler_context,
 				      void *region_context);
 
-#define ACPI_DEFAULT_HANDLER        NULL
+#define ACPI_DEFAULT_HANDLER            NULL
 
 typedef
 acpi_status(*acpi_adr_space_setup) (acpi_handle region_handle,
@@ -926,8 +928,8 @@ struct acpi_compatible_id_list {
 #define ACPI_STA_BATTERY_PRESENT        0x10
 
 #define ACPI_COMMON_OBJ_INFO \
-	acpi_object_type                    type;           /* ACPI object type */ \
-	acpi_name                           name	/* ACPI object Name */
+	acpi_object_type                type;           /* ACPI object type */ \
+	acpi_name                       name	/* ACPI object Name */
 
 struct acpi_obj_info_header {
 	ACPI_COMMON_OBJ_INFO;
@@ -1182,12 +1184,12 @@ struct acpi_resource_source {
 /* Fields common to all address descriptors, 16/32/64 bit */
 
 #define ACPI_RESOURCE_ADDRESS_COMMON \
-	u8                                  resource_type; \
-	u8                                  producer_consumer; \
-	u8                                  decode; \
-	u8                                  min_address_fixed; \
-	u8                                  max_address_fixed; \
-	union acpi_resource_attribute       info;
+	u8                              resource_type; \
+	u8                              producer_consumer; \
+	u8                              decode; \
+	u8                              min_address_fixed; \
+	u8                              max_address_fixed; \
+	union acpi_resource_attribute   info;
 
 struct acpi_resource_address {
 ACPI_RESOURCE_ADDRESS_COMMON};
@@ -1308,10 +1310,6 @@ struct acpi_resource {
 
 #define ACPI_NEXT_RESOURCE(res)             (struct acpi_resource *)((u8 *) res + res->length)
 
-/*
- * END: of definitions for Resource Attributes
- */
-
 struct acpi_pci_routing_table {
 	u32 length;
 	u32 pin;
@@ -1319,9 +1317,5 @@ struct acpi_pci_routing_table {
 	u32 source_index;
 	char source[4];		/* pad to 64 bits so sizeof() works in all cases */
 };
-
-/*
- * END: of definitions for PCI Routing tables
- */
 
 #endif				/* __ACTYPES_H__ */

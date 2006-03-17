@@ -51,92 +51,60 @@ ACPI_MODULE_NAME("rslist")
  *
  * FUNCTION:    acpi_rs_convert_aml_to_resources
  *
- * PARAMETERS:  Aml                 - Pointer to the resource byte stream
- *              aml_length          - Length of Aml
- *              output_buffer       - Pointer to the buffer that will
- *                                    contain the output structures
+ * PARAMETERS:  acpi_walk_aml_callback
+ *              resource_ptr            - Pointer to the buffer that will
+ *                                        contain the output structures
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Takes the resource byte stream and parses it, creating a
- *              linked list of resources in the caller's output buffer
+ * DESCRIPTION: Convert an AML resource to an internal representation of the
+ *              resource that is aligned and easier to access.
  *
  ******************************************************************************/
 acpi_status
-acpi_rs_convert_aml_to_resources(u8 * aml, u32 aml_length, u8 * output_buffer)
+acpi_rs_convert_aml_to_resources(u8 * aml,
+				 u32 length,
+				 u32 offset,
+				 u8 resource_index, void **resource_ptr)
 {
-	struct acpi_resource *resource = (void *)output_buffer;
+	struct acpi_resource *resource = *resource_ptr;
 	acpi_status status;
-	u8 resource_index;
-	u8 *end_aml;
 
 	ACPI_FUNCTION_TRACE("rs_convert_aml_to_resources");
 
-	end_aml = aml + aml_length;
-
-	/* Loop until end-of-buffer or an end_tag is found */
-
-	while (aml < end_aml) {
-		/*
-		 * Check that the input buffer and all subsequent pointers into it
-		 * are aligned on a native word boundary. Most important on IA64
-		 */
-		if (ACPI_IS_MISALIGNED(resource)) {
-			ACPI_WARNING((AE_INFO,
-				      "Misaligned resource pointer %p",
-				      resource));
-		}
-
-		/* Validate the Resource Type and Resource Length */
-
-		status = acpi_ut_validate_resource(aml, &resource_index);
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
-
-		/* Convert the AML byte stream resource to a local resource struct */
-
-		status =
-		    acpi_rs_convert_aml_to_resource(resource,
-						    ACPI_CAST_PTR(union
-								  aml_resource,
-								  aml),
-						    acpi_gbl_get_resource_dispatch
-						    [resource_index]);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not convert AML resource (Type %X)",
-					*aml));
-			return_ACPI_STATUS(status);
-		}
-
-		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
-				  "Type %.2X, Aml %.2X internal %.2X\n",
-				  acpi_ut_get_resource_type(aml),
-				  acpi_ut_get_descriptor_length(aml),
-				  resource->length));
-
-		/* Normal exit on completion of an end_tag resource descriptor */
-
-		if (acpi_ut_get_resource_type(aml) ==
-		    ACPI_RESOURCE_NAME_END_TAG) {
-			return_ACPI_STATUS(AE_OK);
-		}
-
-		/* Point to the next input AML resource */
-
-		aml += acpi_ut_get_descriptor_length(aml);
-
-		/* Point to the next structure in the output buffer */
-
-		resource =
-		    ACPI_ADD_PTR(struct acpi_resource, resource,
-				 resource->length);
+	/*
+	 * Check that the input buffer and all subsequent pointers into it
+	 * are aligned on a native word boundary. Most important on IA64
+	 */
+	if (ACPI_IS_MISALIGNED(resource)) {
+		ACPI_WARNING((AE_INFO,
+			      "Misaligned resource pointer %p", resource));
 	}
 
-	/* Did not find an end_tag resource descriptor */
+	/* Convert the AML byte stream resource to a local resource struct */
 
-	return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
+	status =
+	    acpi_rs_convert_aml_to_resource(resource,
+					    ACPI_CAST_PTR(union aml_resource,
+							  aml),
+					    acpi_gbl_get_resource_dispatch
+					    [resource_index]);
+	if (ACPI_FAILURE(status)) {
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Could not convert AML resource (Type %X)",
+				*aml));
+		return_ACPI_STATUS(status);
+	}
+
+	ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES,
+			  "Type %.2X, aml_length %.2X internal_length %.2X\n",
+			  acpi_ut_get_resource_type(aml), length,
+			  resource->length));
+
+	/* Point to the next structure in the output buffer */
+
+	*resource_ptr = ACPI_ADD_PTR(void, resource, resource->length);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************

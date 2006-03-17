@@ -250,7 +250,6 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 
       cleanup:
 	acpi_ut_remove_reference(params[0]);
-
 	return_ACPI_STATUS(status);
 }
 
@@ -389,9 +388,8 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			  acpi_ut_get_region_name(region_obj->region.
 						  space_id)));
 
-	if (!
-	    (handler_desc->address_space.
-	     hflags & ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)) {
+	if (!(handler_desc->address_space.handler_flags &
+	      ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)) {
 		/*
 		 * For handlers other than the default (supplied) handlers, we must
 		 * exit the interpreter because the handler *might* block -- we don't
@@ -412,9 +410,8 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 							space_id)));
 	}
 
-	if (!
-	    (handler_desc->address_space.
-	     hflags & ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)) {
+	if (!(handler_desc->address_space.handler_flags &
+	      ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)) {
 		/*
 		 * We just returned from a non-default handler, we must re-enter the
 		 * interpreter
@@ -772,7 +769,7 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 	union acpi_operand_object *handler_obj;
 	acpi_status status;
 	acpi_object_type type;
-	u16 flags = 0;
+	u8 flags = 0;
 
 	ACPI_FUNCTION_TRACE("ev_install_space_handler");
 
@@ -930,7 +927,7 @@ acpi_ev_install_space_handler(struct acpi_namespace_node * node,
 	/* Init handler obj */
 
 	handler_obj->address_space.space_id = (u8) space_id;
-	handler_obj->address_space.hflags = flags;
+	handler_obj->address_space.handler_flags = flags;
 	handler_obj->address_space.region_list = NULL;
 	handler_obj->address_space.node = node;
 	handler_obj->address_space.handler = handler;

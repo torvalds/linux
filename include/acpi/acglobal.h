@@ -203,6 +203,7 @@ ACPI_EXTERN struct acpi_memory_list *acpi_gbl_ns_node_list;
 
 /* Object caches */
 
+ACPI_EXTERN acpi_cache_t *acpi_gbl_namespace_cache;
 ACPI_EXTERN acpi_cache_t *acpi_gbl_state_cache;
 ACPI_EXTERN acpi_cache_t *acpi_gbl_ps_node_cache;
 ACPI_EXTERN acpi_cache_t *acpi_gbl_ps_node_ext_cache;

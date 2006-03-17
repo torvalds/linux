@@ -75,6 +75,7 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 	u8 *aml_start;
 	acpi_size list_size_needed = 0;
 	u32 aml_buffer_length;
+	void *resource;
 
 	ACPI_FUNCTION_TRACE("rs_create_resource_list");
 
@@ -107,8 +108,10 @@ acpi_rs_create_resource_list(union acpi_operand_object *aml_buffer,
 
 	/* Do the conversion */
 
-	status = acpi_rs_convert_aml_to_resources(aml_start, aml_buffer_length,
-						  output_buffer->pointer);
+	resource = output_buffer->pointer;
+	status = acpi_ut_walk_aml_resources(aml_start, aml_buffer_length,
+					    acpi_rs_convert_aml_to_resources,
+					    &resource);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}

@@ -44,6 +44,8 @@
 #ifndef __ACSTRUCT_H__
 #define __ACSTRUCT_H__
 
+/* acpisrc:struct_defs -- for acpisrc conversion */
+
 /*****************************************************************************
  *
  * Tree walking typedefs and structs
@@ -64,54 +66,55 @@
 #define ACPI_WALK_CONST_OPTIONAL    4
 
 struct acpi_walk_state {
-	u8 data_type;		/* To differentiate various internal objs MUST BE FIRST! */
+	struct acpi_walk_state *next;	/* Next walk_state in list */
+	u8 descriptor_type;	/* To differentiate various internal objs */
 	u8 walk_type;
-	acpi_owner_id owner_id;	/* Owner of objects created during the walk */
-	u8 last_predicate;	/* Result of last predicate */
-	u8 current_result;	/* */
+	u16 opcode;		/* Current AML opcode */
 	u8 next_op_info;	/* Info about next_op */
 	u8 num_operands;	/* Stack pointer for Operands[] array */
+	acpi_owner_id owner_id;	/* Owner of objects created during the walk */
+	u8 last_predicate;	/* Result of last predicate */
+	u8 current_result;
 	u8 return_used;
-	u16 opcode;		/* Current AML opcode */
 	u8 scope_depth;
 	u8 pass_number;		/* Parse pass during table load */
-	u32 arg_count;		/* push for fixed or var args */
 	u32 aml_offset;
 	u32 arg_types;
 	u32 method_breakpoint;	/* For single stepping */
 	u32 user_breakpoint;	/* User AML breakpoint */
 	u32 parse_flags;
+
+	struct acpi_parse_state parser_state;	/* Current state of parser */
 	u32 prev_arg_types;
+	u8 arg_count;		/* push for fixed or var args */
+
+	struct acpi_namespace_node arguments[ACPI_METHOD_NUM_ARGS];	/* Control method arguments */
+	struct acpi_namespace_node local_variables[ACPI_METHOD_NUM_LOCALS];	/* Control method locals */
+	union acpi_operand_object *operands[ACPI_OBJ_NUM_OPERANDS + 1];	/* Operands passed to the interpreter (+1 for NULL terminator) */
+	union acpi_operand_object **params;
 
 	u8 *aml_last_while;
-	struct acpi_namespace_node arguments[ACPI_METHOD_NUM_ARGS];	/* Control method arguments */
 	union acpi_operand_object **caller_return_desc;
 	union acpi_generic_state *control_state;	/* List of control states (nested IFs) */
 	struct acpi_namespace_node *deferred_node;	/* Used when executing deferred opcodes */
 	struct acpi_gpe_event_info *gpe_event_info;	/* Info for GPE (_Lxx/_Exx methods only */
 	union acpi_operand_object *implicit_return_obj;
-	struct acpi_namespace_node local_variables[ACPI_METHOD_NUM_LOCALS];	/* Control method locals */
 	struct acpi_namespace_node *method_call_node;	/* Called method Node */
 	union acpi_parse_object *method_call_op;	/* method_call Op if running a method */
 	union acpi_operand_object *method_desc;	/* Method descriptor if running a method */
 	struct acpi_namespace_node *method_node;	/* Method node if running a method. */
 	union acpi_parse_object *op;	/* Current parser op */
-	union acpi_operand_object *operands[ACPI_OBJ_NUM_OPERANDS + 1];	/* Operands passed to the interpreter (+1 for NULL terminator) */
 	const struct acpi_opcode_info *op_info;	/* Info on current opcode */
 	union acpi_parse_object *origin;	/* Start of walk [Obsolete] */
-	union acpi_operand_object **params;
-	struct acpi_parse_state parser_state;	/* Current state of parser */
 	union acpi_operand_object *result_obj;
 	union acpi_generic_state *results;	/* Stack of accumulated results */
 	union acpi_operand_object *return_desc;	/* Return object, if any */
 	union acpi_generic_state *scope_info;	/* Stack of nested scopes */
-
 	union acpi_parse_object *prev_op;	/* Last op that was processed */
 	union acpi_parse_object *next_op;	/* next op to be processed */
+	struct acpi_thread_state *thread;
 	acpi_parse_downwards descending_callback;
 	acpi_parse_upwards ascending_callback;
-	struct acpi_thread_state *thread;
-	struct acpi_walk_state *next;	/* Next walk_state in list */
 };
 
 /* Info used by acpi_ps_init_objects */
@@ -151,11 +154,11 @@ struct acpi_walk_info {
 
 /* Display Types */
 
-#define ACPI_DISPLAY_SUMMARY    (u8) 0
-#define ACPI_DISPLAY_OBJECTS    (u8) 1
-#define ACPI_DISPLAY_MASK       (u8) 1
+#define ACPI_DISPLAY_SUMMARY        (u8) 0
+#define ACPI_DISPLAY_OBJECTS        (u8) 1
+#define ACPI_DISPLAY_MASK           (u8) 1
 
-#define ACPI_DISPLAY_SHORT      (u8) 2
+#define ACPI_DISPLAY_SHORT          (u8) 2
 
 struct acpi_get_devices_info {
 	acpi_walk_callback user_function;

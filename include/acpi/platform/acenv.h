@@ -70,6 +70,7 @@
 #define ACPI_DEBUGGER
 #define ACPI_DISASSEMBLER
 #define ACPI_MUTEX_DEBUG
+#define ACPI_DBG_TRACK_ALLOCATIONS
 #endif
 
 #ifdef ACPI_ASL_COMPILER
@@ -163,17 +164,6 @@
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
 
-#endif
-
-/*
- * Memory allocation tracking.  Used only if
- * 1) This is the debug version
- * 2) This is NOT a 16-bit version of the code (not enough real-mode memory)
- */
-#ifdef ACPI_DEBUG_OUTPUT
-#if ACPI_MACHINE_WIDTH != 16
-#define ACPI_DBG_TRACK_ALLOCATIONS
-#endif
 #endif
 
 /*! [End] no source code translation !*/

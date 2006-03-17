@@ -47,9 +47,6 @@
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsalloc")
 
-/* Local prototypes */
-static void acpi_ns_remove_reference(struct acpi_namespace_node *node);
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_create_node
@@ -61,14 +58,13 @@ static void acpi_ns_remove_reference(struct acpi_namespace_node *node);
  * DESCRIPTION: Create a namespace node
  *
  ******************************************************************************/
-
 struct acpi_namespace_node *acpi_ns_create_node(u32 name)
 {
 	struct acpi_namespace_node *node;
 
 	ACPI_FUNCTION_TRACE("ns_create_node");
 
-	node = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_namespace_node));
+	node = acpi_os_acquire_object(acpi_gbl_namespace_cache);
 	if (!node) {
 		return_PTR(NULL);
 	}
@@ -76,9 +72,7 @@ struct acpi_namespace_node *acpi_ns_create_node(u32 name)
 	ACPI_MEM_TRACKING(acpi_gbl_ns_node_list->total_allocated++);
 
 	node->name.integer = name;
-	node->reference_count = 1;
 	ACPI_SET_DESCRIPTOR_TYPE(node, ACPI_DESC_TYPE_NAMED);
-
 	return_PTR(node);
 }
 
@@ -139,10 +133,10 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
 	ACPI_MEM_TRACKING(acpi_gbl_ns_node_list->total_freed++);
 
 	/*
-	 * Detach an object if there is one then delete the node
+	 * Detach an object if there is one, then delete the node
 	 */
 	acpi_ns_detach_object(node);
-	ACPI_FREE(node);
+	(void)acpi_os_release_object(acpi_gbl_namespace_cache, node);
 	return_VOID;
 }
 
@@ -217,16 +211,6 @@ void acpi_ns_install_node(struct acpi_walk_state *walk_state, struct acpi_namesp
 			  acpi_ut_get_node_name(parent_node),
 			  acpi_ut_get_type_name(parent_node->type),
 			  parent_node));
-
-	/*
-	 * Increment the reference count(s) of all parents up to
-	 * the root!
-	 */
-	while ((node = acpi_ns_get_parent_node(node)) != NULL) {
-		node->reference_count++;
-	}
-
-	return_VOID;
 }
 
 /*******************************************************************************
@@ -246,7 +230,6 @@ void acpi_ns_delete_children(struct acpi_namespace_node *parent_node)
 {
 	struct acpi_namespace_node *child_node;
 	struct acpi_namespace_node *next_node;
-	struct acpi_namespace_node *node;
 	u8 flags;
 
 	ACPI_FUNCTION_TRACE_PTR("ns_delete_children", parent_node);
@@ -292,26 +275,10 @@ void acpi_ns_delete_children(struct acpi_namespace_node *parent_node)
 		 */
 		acpi_ns_detach_object(child_node);
 
-		/*
-		 * Decrement the reference count(s) of all parents up to
-		 * the root! (counts were incremented when the node was created)
-		 */
-		node = child_node;
-		while ((node = acpi_ns_get_parent_node(node)) != NULL) {
-			node->reference_count--;
-		}
-
-		/* There should be only one reference remaining on this node */
-
-		if (child_node->reference_count != 1) {
-			ACPI_WARNING((AE_INFO,
-				      "Existing references (%d) on node being deleted (%p)",
-				      child_node->reference_count, child_node));
-		}
-
 		/* Now we can delete the node */
 
-		ACPI_FREE(child_node);
+		(void)acpi_os_release_object(acpi_gbl_namespace_cache,
+					     child_node);
 
 		/* And move on to the next child in the list */
 
@@ -358,8 +325,9 @@ void acpi_ns_delete_namespace_subtree(struct acpi_namespace_node *parent_node)
 
 		/* Get the next node in this scope (NULL if none) */
 
-		child_node = acpi_ns_get_next_node(ACPI_TYPE_ANY, parent_node,
-						   child_node);
+		child_node =
+		    acpi_ns_get_next_node(ACPI_TYPE_ANY, parent_node,
+					  child_node);
 		if (child_node) {
 
 			/* Found a child node - detach any attached object */
@@ -406,57 +374,6 @@ void acpi_ns_delete_namespace_subtree(struct acpi_namespace_node *parent_node)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_remove_reference
- *
- * PARAMETERS:  Node           - Named node whose reference count is to be
- *                               decremented
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Remove a Node reference.  Decrements the reference count
- *              of all parent Nodes up to the root.  Any node along
- *              the way that reaches zero references is freed.
- *
- ******************************************************************************/
-
-static void acpi_ns_remove_reference(struct acpi_namespace_node *node)
-{
-	struct acpi_namespace_node *parent_node;
-	struct acpi_namespace_node *this_node;
-
-	ACPI_FUNCTION_ENTRY();
-
-	/*
-	 * Decrement the reference count(s) of this node and all
-	 * nodes up to the root,  Delete anything with zero remaining references.
-	 */
-	this_node = node;
-	while (this_node) {
-
-		/* Prepare to move up to parent */
-
-		parent_node = acpi_ns_get_parent_node(this_node);
-
-		/* Decrement the reference count on this node */
-
-		this_node->reference_count--;
-
-		/* Delete the node if no more references */
-
-		if (!this_node->reference_count) {
-
-			/* Delete all children and delete the node */
-
-			acpi_ns_delete_children(this_node);
-			acpi_ns_delete_node(this_node);
-		}
-
-		this_node = parent_node;
-	}
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ns_delete_namespace_by_owner
  *
  * PARAMETERS:  owner_id    - All nodes with this owner will be deleted
@@ -482,9 +399,9 @@ void acpi_ns_delete_namespace_by_owner(acpi_owner_id owner_id)
 		return_VOID;
 	}
 
+	deletion_node = NULL;
 	parent_node = acpi_gbl_root_node;
 	child_node = NULL;
-	deletion_node = NULL;
 	level = 1;
 
 	/*
@@ -501,7 +418,8 @@ void acpi_ns_delete_namespace_by_owner(acpi_owner_id owner_id)
 					  child_node);
 
 		if (deletion_node) {
-			acpi_ns_remove_reference(deletion_node);
+			acpi_ns_delete_children(deletion_node);
+			acpi_ns_delete_node(deletion_node);
 			deletion_node = NULL;
 		}
 

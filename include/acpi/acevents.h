@@ -93,7 +93,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
  */
 u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info);
 
-acpi_status acpi_ev_walk_gpe_list(ACPI_GPE_CALLBACK gpe_walk_callback);
+acpi_status acpi_ev_walk_gpe_list(acpi_gpe_callback gpe_walk_callback);
 
 acpi_status
 acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,

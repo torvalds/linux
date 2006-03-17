@@ -1126,14 +1126,13 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Get an object from the specified cache.  If cache is empty,
- *              the object is allocated.
+ * DESCRIPTION: Return a zero-filled object.
  *
  ******************************************************************************/
 
 void *acpi_os_acquire_object(acpi_cache_t * cache)
 {
-	void *object = kmem_cache_alloc(cache, GFP_KERNEL);
+	void *object = kmem_cache_zalloc(cache, GFP_KERNEL);
 	WARN_ON(!object);
 	return object;
 }

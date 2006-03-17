@@ -337,7 +337,7 @@ acpi_status acpi_ds_result_stack_push(struct acpi_walk_state * walk_state)
 		return (AE_NO_MEMORY);
 	}
 
-	state->common.data_type = ACPI_DESC_TYPE_STATE_RESULT;
+	state->common.descriptor_type = ACPI_DESC_TYPE_STATE_RESULT;
 	acpi_ut_push_generic_state(&walk_state->results, state);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Results=%p State=%p\n",
@@ -620,7 +620,7 @@ struct acpi_walk_state *acpi_ds_pop_walk_state(struct acpi_thread_state *thread)
  *
  * PARAMETERS:  owner_id        - ID for object creation
  *              Origin          - Starting point for this walk
- *              mth_desc        - Method object
+ *              method_desc     - Method object
  *              Thread          - Current thread state
  *
  * RETURN:      Pointer to the new walk state.
@@ -634,7 +634,7 @@ struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id,
 						  union acpi_parse_object
 						  *origin,
 						  union acpi_operand_object
-						  *mth_desc,
+						  *method_desc,
 						  struct acpi_thread_state
 						  *thread)
 {
@@ -648,10 +648,10 @@ struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id,
 		return_PTR(NULL);
 	}
 
-	walk_state->data_type = ACPI_DESC_TYPE_WALK;
+	walk_state->descriptor_type = ACPI_DESC_TYPE_WALK;
+	walk_state->method_desc = method_desc;
 	walk_state->owner_id = owner_id;
 	walk_state->origin = origin;
-	walk_state->method_desc = mth_desc;
 	walk_state->thread = thread;
 
 	walk_state->parser_state.start_op = origin;
@@ -819,7 +819,7 @@ void acpi_ds_delete_walk_state(struct acpi_walk_state *walk_state)
 		return;
 	}
 
-	if (walk_state->data_type != ACPI_DESC_TYPE_WALK) {
+	if (walk_state->descriptor_type != ACPI_DESC_TYPE_WALK) {
 		ACPI_ERROR((AE_INFO, "%p is not a valid walk state",
 			    walk_state));
 		return;

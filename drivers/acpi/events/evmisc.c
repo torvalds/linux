@@ -185,7 +185,8 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 			return (AE_NO_MEMORY);
 		}
 
-		notify_info->common.data_type = ACPI_DESC_TYPE_STATE_NOTIFY;
+		notify_info->common.descriptor_type =
+		    ACPI_DESC_TYPE_STATE_NOTIFY;
 		notify_info->notify.node = node;
 		notify_info->notify.value = (u16) notify_value;
 		notify_info->notify.handler_obj = handler_obj;

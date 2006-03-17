@@ -113,7 +113,7 @@ acpi_ps_init_scope(struct acpi_parse_state * parser_state,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	scope->common.data_type = ACPI_DESC_TYPE_STATE_RPSCOPE;
+	scope->common.descriptor_type = ACPI_DESC_TYPE_STATE_RPSCOPE;
 	scope->parse_scope.op = root_op;
 	scope->parse_scope.arg_count = ACPI_VAR_ARGS;
 	scope->parse_scope.arg_end = parser_state->aml_end;
@@ -143,7 +143,7 @@ acpi_ps_init_scope(struct acpi_parse_state * parser_state,
 acpi_status
 acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 		   union acpi_parse_object *op,
-		   u32 remaining_args, u32 arg_count)
+		   u32 remaining_args, u8 arg_count)
 {
 	union acpi_generic_state *scope;
 
@@ -154,7 +154,7 @@ acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	scope->common.data_type = ACPI_DESC_TYPE_STATE_PSCOPE;
+	scope->common.descriptor_type = ACPI_DESC_TYPE_STATE_PSCOPE;
 	scope->parse_scope.op = op;
 	scope->parse_scope.arg_list = remaining_args;
 	scope->parse_scope.arg_count = arg_count;
@@ -196,7 +196,7 @@ acpi_ps_push_scope(struct acpi_parse_state *parser_state,
 
 void
 acpi_ps_pop_scope(struct acpi_parse_state *parser_state,
-		  union acpi_parse_object **op, u32 * arg_list, u32 * arg_count)
+		  union acpi_parse_object **op, u32 * arg_list, u8 * arg_count)
 {
 	union acpi_generic_state *scope = parser_state->scope;
 
@@ -207,7 +207,7 @@ acpi_ps_pop_scope(struct acpi_parse_state *parser_state,
 	if (scope->common.next) {
 		scope = acpi_ut_pop_generic_state(&parser_state->scope);
 
-		/* return to parsing previous op */
+		/* Return to parsing previous op */
 
 		*op = scope->parse_scope.op;
 		*arg_list = scope->parse_scope.arg_list;
@@ -218,7 +218,7 @@ acpi_ps_pop_scope(struct acpi_parse_state *parser_state,
 
 		acpi_ut_delete_generic_state(scope);
 	} else {
-		/* empty parse stack, prepare to fetch next opcode */
+		/* Empty parse stack, prepare to fetch next opcode */
 
 		*op = NULL;
 		*arg_list = 0;

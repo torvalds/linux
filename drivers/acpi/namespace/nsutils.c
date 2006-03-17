@@ -81,7 +81,7 @@ acpi_ns_report_error(char *module_name,
 	u32 bad_name;
 	char *name = NULL;
 
-	acpi_ut_report_error(module_name, line_number);
+	acpi_os_printf("ACPI Error (%s-%04d): ", module_name, line_number);
 
 	if (lookup_status == AE_BAD_CHARACTER) {
 
@@ -139,7 +139,7 @@ acpi_ns_report_method_error(char *module_name,
 	acpi_status status;
 	struct acpi_namespace_node *node = prefix_node;
 
-	acpi_ut_report_error(module_name, line_number);
+	acpi_os_printf("ACPI Error (%s-%04d): ", module_name, line_number);
 
 	if (path) {
 		status = acpi_ns_get_node_by_path(path, prefix_node,

@@ -42,9 +42,17 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
+/* acpisrc:struct_defs -- for acpisrc conversion */
+
 #ifndef __AMLRESRC_H
 #define __AMLRESRC_H
 
+/*! [Begin] no source code translation */
+
+/*
+ * Resource descriptor tags, as defined in the ACPI specification.
+ * Used to symbolically reference fields within a descriptor.
+ */
 #define ACPI_RESTAG_ADDRESS                     "_ADR"
 #define ACPI_RESTAG_ALIGNMENT                   "_ALN"
 #define ACPI_RESTAG_ADDRESSSPACE                "_ASI"
@@ -57,12 +65,12 @@
 #define ACPI_RESTAG_DMATYPE                     "_TYP"	/* Compatible(0), A(1), B(2), F(3) */
 #define ACPI_RESTAG_GRANULARITY                 "_GRA"
 #define ACPI_RESTAG_INTERRUPT                   "_INT"
-#define ACPI_RESTAG_INTERRUPTLEVEL              "_LL_"	/* active_lo(1), active_hi(0) */
-#define ACPI_RESTAG_INTERRUPTSHARE              "_SHR"	/* Shareable(1), no_share(0) */
+#define ACPI_RESTAG_INTERRUPTLEVEL              "_LL_"	/* ActiveLo(1), ActiveHi(0) */
+#define ACPI_RESTAG_INTERRUPTSHARE              "_SHR"	/* Shareable(1), NoShare(0) */
 #define ACPI_RESTAG_INTERRUPTTYPE               "_HE_"	/* Edge(1), Level(0) */
 #define ACPI_RESTAG_LENGTH                      "_LEN"
 #define ACPI_RESTAG_MEMATTRIBUTES               "_MTP"	/* Memory(0), Reserved(1), ACPI(2), NVS(3) */
-#define ACPI_RESTAG_MEMTYPE                     "_MEM"	/* non_cache(0), Cacheable(1) Cache+combine(2), Cache+prefetch(3) */
+#define ACPI_RESTAG_MEMTYPE                     "_MEM"	/* NonCache(0), Cacheable(1) Cache+combine(2), Cache+prefetch(3) */
 #define ACPI_RESTAG_MAXADDR                     "_MAX"
 #define ACPI_RESTAG_MINADDR                     "_MIN"
 #define ACPI_RESTAG_MAXTYPE                     "_MAF"
@@ -70,11 +78,12 @@
 #define ACPI_RESTAG_REGISTERBITOFFSET           "_RBO"
 #define ACPI_RESTAG_REGISTERBITWIDTH            "_RBW"
 #define ACPI_RESTAG_RANGETYPE                   "_RNG"
-#define ACPI_RESTAG_READWRITETYPE               "_RW_"	/* read_only(0), Writeable (1) */
+#define ACPI_RESTAG_READWRITETYPE               "_RW_"	/* ReadOnly(0), Writeable (1) */
 #define ACPI_RESTAG_TRANSLATION                 "_TRA"
 #define ACPI_RESTAG_TRANSTYPE                   "_TRS"	/* Sparse(1), Dense(0) */
 #define ACPI_RESTAG_TYPE                        "_TTP"	/* Translation(1), Static (0) */
-#define ACPI_RESTAG_XFERTYPE                    "_SIz"	/* 8(0), 8_and16(1), 16(2) */
+#define ACPI_RESTAG_XFERTYPE                    "_SIZ"	/* 8(0), 8And16(1), 16(2) */
+/*! [End] no source code translation !*/
 
 /* Default sizes for "small" resource descriptors */
 
@@ -109,7 +118,7 @@ struct asl_resource_node {
  * SMALL descriptors
  */
 #define AML_RESOURCE_SMALL_HEADER_COMMON \
-	u8                                  descriptor_type;
+	u8                              descriptor_type;
 
 struct aml_resource_small_header {
 AML_RESOURCE_SMALL_HEADER_COMMON};
@@ -162,8 +171,8 @@ struct aml_resource_end_tag {
  * LARGE descriptors
  */
 #define AML_RESOURCE_LARGE_HEADER_COMMON \
-	u8                                  descriptor_type;\
-	u16                                 resource_length;
+	u8                              descriptor_type;\
+	u16                             resource_length;
 
 struct aml_resource_large_header {
 AML_RESOURCE_LARGE_HEADER_COMMON};
@@ -194,9 +203,9 @@ struct aml_resource_fixed_memory32 {
 };
 
 #define AML_RESOURCE_ADDRESS_COMMON \
-	u8                                  resource_type; \
-	u8                                  flags; \
-	u8                                  specific_flags;
+	u8                              resource_type; \
+	u8                              flags; \
+	u8                              specific_flags;
 
 struct aml_resource_address {
 AML_RESOURCE_LARGE_HEADER_COMMON AML_RESOURCE_ADDRESS_COMMON};

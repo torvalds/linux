@@ -78,6 +78,12 @@ extern const char *acpi_gbl_TYPdecode[4];
 #define ACPI_SMALL_VARIABLE_LENGTH      3
 
 typedef
+acpi_status(*acpi_walk_aml_callback) (u8 * aml,
+				      u32 length,
+				      u32 offset,
+				      u8 resource_index, void *context);
+
+typedef
 acpi_status(*acpi_pkg_callback) (u8 object_type,
 				 union acpi_operand_object * source_object,
 				 union acpi_generic_state * state,
@@ -469,6 +475,25 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);
 
 #define ACPI_ANY_BASE        0
 
+u32 acpi_ut_dword_byte_swap(u32 value);
+
+void acpi_ut_set_integer_width(u8 revision);
+
+#ifdef ACPI_DEBUG_OUTPUT
+void
+acpi_ut_display_init_pathname(u8 type,
+			      struct acpi_namespace_node *obj_handle,
+			      char *path);
+#endif
+
+/*
+ * utresrc
+ */
+acpi_status
+acpi_ut_walk_aml_resources(u8 * aml,
+			   acpi_size aml_length,
+			   acpi_walk_aml_callback user_function, void *context);
+
 acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index);
 
 u32 acpi_ut_get_descriptor_length(void *aml);
@@ -482,18 +507,6 @@ u8 acpi_ut_get_resource_type(void *aml);
 acpi_status
 acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc,
 			     u8 ** end_tag);
-
-u32 acpi_ut_dword_byte_swap(u32 value);
-
-void acpi_ut_set_integer_width(u8 revision);
-
-#ifdef ACPI_DEBUG_OUTPUT
-void
-acpi_ut_display_init_pathname(u8 type,
-			      struct acpi_namespace_node *obj_handle,
-			      char *path);
-
-#endif
 
 /*
  * utmutex - mutex support
@@ -521,14 +534,15 @@ acpi_ut_initialize_buffer(struct acpi_buffer *buffer,
 
 void *acpi_ut_allocate(acpi_size size, u32 component, char *module, u32 line);
 
-void *acpi_ut_callocate(acpi_size size, u32 component, char *module, u32 line);
+void *acpi_ut_allocate_zeroed(acpi_size size,
+			      u32 component, char *module, u32 line);
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 void *acpi_ut_allocate_and_track(acpi_size size,
 				 u32 component, char *module, u32 line);
 
-void *acpi_ut_callocate_and_track(acpi_size size,
-				  u32 component, char *module, u32 line);
+void *acpi_ut_allocate_zeroed_and_track(acpi_size size,
+					u32 component, char *module, u32 line);
 
 void
 acpi_ut_free_and_track(void *address, u32 component, char *module, u32 line);
@@ -538,6 +552,11 @@ void acpi_ut_dump_allocation_info(void);
 #endif				/* ACPI_FUTURE_USAGE */
 
 void acpi_ut_dump_allocations(u32 component, char *module);
+
+acpi_status
+acpi_ut_create_list(char *list_name,
+		    u16 object_size, struct acpi_memory_list **return_cache);
+
 #endif
 
 #endif				/* _ACUTILS_H */
