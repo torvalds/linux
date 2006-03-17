@@ -1229,7 +1229,7 @@ xfs_sync_inodes(
 					xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 					error = xfs_itobp(mp, NULL, ip,
-							  &dip, &bp, 0);
+							  &dip, &bp, 0, 0);
 					if (!error) {
 						xfs_buf_relse(bp);
 					} else {

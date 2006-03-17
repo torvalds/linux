@@ -95,9 +95,10 @@ typedef struct xfs_ifork {
 #define	XFS_IFEXTIREC	0x08	/* Indirection array of extent blocks */
 
 /*
- * Flags for xfs_imap() and xfs_dilocate().
+ * Flags for xfs_itobp(), xfs_imap() and xfs_dilocate().
  */
-#define	XFS_IMAP_LOOKUP		0x1
+#define XFS_IMAP_LOOKUP		0x1
+#define XFS_IMAP_BULKSTAT	0x2
 
 #ifdef __KERNEL__
 struct bhv_desc;
@@ -421,7 +422,7 @@ int		xfs_finish_reclaim_all(struct xfs_mount *, int);
  */
 int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
 			  xfs_inode_t *, xfs_dinode_t **, struct xfs_buf **,
-			  xfs_daddr_t);
+			  xfs_daddr_t, uint);
 int		xfs_iread(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
 			  xfs_inode_t **, xfs_daddr_t);
 int		xfs_iread_extents(struct xfs_trans *, xfs_inode_t *, int);

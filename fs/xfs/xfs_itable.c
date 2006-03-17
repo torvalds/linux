@@ -562,7 +562,8 @@ xfs_bulkstat(
 						if (bp)
 							xfs_buf_relse(bp);
 						error = xfs_itobp(mp, NULL, ip,
-								  &dip, &bp, bno);
+								&dip, &bp, bno,
+								XFS_IMAP_BULKSTAT);
 						if (!error)
 							clustidx = ip->i_boffset / mp->m_sb.sb_inodesize;
 						kmem_zone_free(xfs_inode_zone, ip);
@@ -570,6 +571,8 @@ xfs_bulkstat(
 								   mp, XFS_ERRTAG_BULKSTAT_READ_CHUNK,
 								   XFS_RANDOM_BULKSTAT_READ_CHUNK)) {
 							bp = NULL;
+							ubleft = 0;
+							rval = error;
 							break;
 						}
 					}
