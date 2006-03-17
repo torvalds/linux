@@ -589,7 +589,6 @@ void __devinit scan_phb(struct pci_controller *hose)
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 	if (mode == PCI_PROBE_NORMAL)
 		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
-	pci_bus_add_devices(bus);
 }
 
 static int __init pcibios_init(void)
@@ -608,8 +607,10 @@ static int __init pcibios_init(void)
 	printk("PCI: Probing PCI hardware\n");
 
 	/* Scan all of the recorded PCI controllers.  */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		scan_phb(hose);
+		pci_bus_add_devices(hose->bus);
+	}
 
 #ifndef CONFIG_PPC_ISERIES
 	if (pci_probe_only)

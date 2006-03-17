@@ -2154,6 +2154,9 @@ static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
 
 	msleep(10);
 
+	pci_dma_sync_single_for_cpu(nic->pdev, nic->rx_to_clean->dma_addr,
+			RFD_BUF_LEN, PCI_DMA_FROMDEVICE);
+
 	if(memcmp(nic->rx_to_clean->skb->data + sizeof(struct rfd),
 	   skb->data, ETH_DATA_LEN))
 		err = -EAGAIN;
@@ -2161,8 +2164,8 @@ static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
 err_loopback_none:
 	mdio_write(nic->netdev, nic->mii.phy_id, MII_BMCR, 0);
 	nic->loopback = lb_none;
-	e100_hw_init(nic);
 	e100_clean_cbs(nic);
+	e100_hw_reset(nic);
 err_clean_rx:
 	e100_rx_clean_list(nic);
 	return err;

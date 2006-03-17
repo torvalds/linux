@@ -662,12 +662,18 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 	 * reclaimed while we're stuck in the unlock call. */
 	fl->fl_u.nfs_fl.flags &= ~NFS_LCK_GRANTED;
 
+	/*
+	 * Note: the server is supposed to either grant us the unlock
+	 * request, or to deny it with NLM_LCK_DENIED_GRACE_PERIOD. In either
+	 * case, we want to unlock.
+	 */
+	do_vfs_lock(fl);
+
 	if (req->a_flags & RPC_TASK_ASYNC) {
 		status = nlmclnt_async_call(req, NLMPROC_UNLOCK,
 					&nlmclnt_unlock_ops);
 		/* Hrmf... Do the unlock early since locks_remove_posix()
 		 * really expects us to free the lock synchronously */
-		do_vfs_lock(fl);
 		if (status < 0) {
 			nlmclnt_release_lockargs(req);
 			kfree(req);
@@ -680,7 +686,6 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 	if (status < 0)
 		return status;
 
-	do_vfs_lock(fl);
 	if (resp->status == NLM_LCK_GRANTED)
 		return 0;
 

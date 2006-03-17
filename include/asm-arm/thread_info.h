@@ -59,7 +59,7 @@ struct thread_info {
 	struct cpu_context_save	cpu_context;	/* cpu context */
 	__u8			used_cp[16];	/* thread used copro */
 	unsigned long		tp_value;
-	union fp_state		fpstate;
+	union fp_state		fpstate __attribute__((aligned(8)));
 	union vfp_state		vfpstate;
 	struct restart_block	restart_block;
 };

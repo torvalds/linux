@@ -822,7 +822,7 @@ struct ipv6_saddr_score {
 	int		addr_type;
 	unsigned int	attrs;
 	int		matchlen;
-	unsigned int	scope;
+	int		scope;
 	unsigned int	rule;
 };
 
