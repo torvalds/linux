@@ -395,7 +395,7 @@ xfs_dir2_leaf_addname(
 	 */
 	dup = (xfs_dir2_data_unused_t *)
 	      ((char *)data + be16_to_cpu(data->hdr.bestfree[0].offset));
-	ASSERT(INT_GET(dup->length, ARCH_CONVERT) >= length);
+	ASSERT(be16_to_cpu(dup->length) >= length);
 	needscan = needlog = 0;
 	/*
 	 * Mark the initial part of our freespace in use for the new entry.
@@ -1047,11 +1047,10 @@ xfs_dir2_leaf_getdents(
 				while ((char *)ptr - (char *)data < byteoff) {
 					dup = (xfs_dir2_data_unused_t *)ptr;
 
-					if (INT_GET(dup->freetag, ARCH_CONVERT)
+					if (be16_to_cpu(dup->freetag)
 						  == XFS_DIR2_DATA_FREE_TAG) {
 
-						length = INT_GET(dup->length,
-								 ARCH_CONVERT);
+						length = be16_to_cpu(dup->length);
 						ptr += length;
 						continue;
 					}
@@ -1080,9 +1079,8 @@ xfs_dir2_leaf_getdents(
 		/*
 		 * No, it's unused, skip over it.
 		 */
-		if (INT_GET(dup->freetag, ARCH_CONVERT)
-						== XFS_DIR2_DATA_FREE_TAG) {
-			length = INT_GET(dup->length, ARCH_CONVERT);
+		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
+			length = be16_to_cpu(dup->length);
 			ptr += length;
 			curoff += length;
 			continue;

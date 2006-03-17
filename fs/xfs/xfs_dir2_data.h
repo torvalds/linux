@@ -97,10 +97,10 @@ typedef struct xfs_dir2_data_entry {
  * Tag appears as the last 2 bytes.
  */
 typedef struct xfs_dir2_data_unused {
-	__uint16_t		freetag;	/* XFS_DIR2_DATA_FREE_TAG */
-	xfs_dir2_data_off_t	length;		/* total free length */
+	__be16			freetag;	/* XFS_DIR2_DATA_FREE_TAG */
+	__be16			length;		/* total free length */
 						/* variable offset */
-	xfs_dir2_data_off_t	tag;		/* starting offset of us */
+	__be16			tag;		/* starting offset of us */
 } xfs_dir2_data_unused_t;
 
 typedef union {
@@ -151,7 +151,7 @@ static inline xfs_dir2_data_off_t *
 xfs_dir2_data_unused_tag_p(xfs_dir2_data_unused_t *dup)
 {
 	return (xfs_dir2_data_off_t *) \
-		 ((char *)(dup) + INT_GET((dup)->length, ARCH_CONVERT) \
+		 ((char *)(dup) + be16_to_cpu((dup)->length) \
 				- (uint)sizeof(xfs_dir2_data_off_t));
 }
 

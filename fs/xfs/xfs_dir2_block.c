@@ -130,7 +130,7 @@ xfs_dir2_block_addname(
 		 * the space before the first leaf entry needs to be free so it
 		 * can be expanded to hold the pointer to the new entry.
 		 */
-		if (INT_GET(enddup->freetag, ARCH_CONVERT) != XFS_DIR2_DATA_FREE_TAG)
+		if (be16_to_cpu(enddup->freetag) != XFS_DIR2_DATA_FREE_TAG)
 			dup = enddup = NULL;
 		/*
 		 * Check out the biggest freespace and see if it's the same one.
@@ -143,7 +143,7 @@ xfs_dir2_block_addname(
 				 * It is the biggest freespace, is it too small
 				 * to hold the new leaf too?
 				 */
-				if (INT_GET(dup->length, ARCH_CONVERT) < len + (uint)sizeof(*blp)) {
+				if (be16_to_cpu(dup->length) < len + (uint)sizeof(*blp)) {
 					/*
 					 * Yes, we use the second-largest
 					 * entry instead if it works.
@@ -160,7 +160,7 @@ xfs_dir2_block_addname(
 				 * Not the same free entry,
 				 * just check its length.
 				 */
-				if (INT_GET(dup->length, ARCH_CONVERT) < len) {
+				if (be16_to_cpu(dup->length) < len) {
 					dup = NULL;
 				}
 			}
@@ -192,8 +192,8 @@ xfs_dir2_block_addname(
 		 * If it's not free then the data will go where the
 		 * leaf data starts now, if it works at all.
 		 */
-		if (INT_GET(dup->freetag, ARCH_CONVERT) == XFS_DIR2_DATA_FREE_TAG) {
-			if (INT_GET(dup->length, ARCH_CONVERT) + (INT_GET(btp->stale, ARCH_CONVERT) - 1) *
+		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
+			if (be16_to_cpu(dup->length) + (INT_GET(btp->stale, ARCH_CONVERT) - 1) *
 			    (uint)sizeof(*blp) < len)
 				dup = NULL;
 		} else if ((INT_GET(btp->stale, ARCH_CONVERT) - 1) * (uint)sizeof(*blp) < len)
@@ -310,7 +310,7 @@ xfs_dir2_block_addname(
 		 */
 		xfs_dir2_data_use_free(tp, bp, enddup,
 			(xfs_dir2_data_aoff_t)
-			((char *)enddup - (char *)block + INT_GET(enddup->length, ARCH_CONVERT) -
+			((char *)enddup - (char *)block + be16_to_cpu(enddup->length) -
 			 sizeof(*blp)),
 			(xfs_dir2_data_aoff_t)sizeof(*blp),
 			&needlog, &needscan);
@@ -484,8 +484,8 @@ xfs_dir2_block_getdents(
 		/*
 		 * Unused, skip it.
 		 */
-		if (INT_GET(dup->freetag, ARCH_CONVERT) == XFS_DIR2_DATA_FREE_TAG) {
-			ptr += INT_GET(dup->length, ARCH_CONVERT);
+		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
+			ptr += be16_to_cpu(dup->length);
 			continue;
 		}
 
@@ -948,7 +948,8 @@ xfs_dir2_leaf_to_block(
 	/*
 	 * If it's not free or is too short we can't do it.
 	 */
-	if (INT_GET(dup->freetag, ARCH_CONVERT) != XFS_DIR2_DATA_FREE_TAG || INT_GET(dup->length, ARCH_CONVERT) < size) {
+	if (be16_to_cpu(dup->freetag) != XFS_DIR2_DATA_FREE_TAG ||
+	    be16_to_cpu(dup->length) < size) {
 		error = 0;
 		goto out;
 	}
@@ -1122,7 +1123,7 @@ xfs_dir2_sf_to_block(
 	 */
 	xfs_dir2_data_use_free(tp, bp, dup,
 		(xfs_dir2_data_aoff_t)((char *)dup - (char *)block),
-		INT_GET(dup->length, ARCH_CONVERT), &needlog, &needscan);
+		be16_to_cpu(dup->length), &needlog, &needscan);
 	/*
 	 * Create entry for .
 	 */
@@ -1175,15 +1176,15 @@ xfs_dir2_sf_to_block(
 		if (offset < newoffset) {
 			dup = (xfs_dir2_data_unused_t *)
 			      ((char *)block + offset);
-			INT_SET(dup->freetag, ARCH_CONVERT, XFS_DIR2_DATA_FREE_TAG);
-			INT_SET(dup->length, ARCH_CONVERT, newoffset - offset);
+			dup->freetag = cpu_to_be16(XFS_DIR2_DATA_FREE_TAG);
+			dup->length = cpu_to_be16(newoffset - offset);
 			INT_SET(*XFS_DIR2_DATA_UNUSED_TAG_P(dup), ARCH_CONVERT,
 				(xfs_dir2_data_off_t)
 				((char *)dup - (char *)block));
 			xfs_dir2_data_log_unused(tp, bp, dup);
 			(void)xfs_dir2_data_freeinsert((xfs_dir2_data_t *)block,
 				dup, &dummy);
-			offset += INT_GET(dup->length, ARCH_CONVERT);
+			offset += be16_to_cpu(dup->length);
 			continue;
 		}
 		/*

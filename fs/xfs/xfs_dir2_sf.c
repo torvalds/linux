@@ -220,8 +220,8 @@ xfs_dir2_block_to_sf(
 		 * If it's unused, just skip over it.
 		 */
 		dup = (xfs_dir2_data_unused_t *)ptr;
-		if (INT_GET(dup->freetag, ARCH_CONVERT) == XFS_DIR2_DATA_FREE_TAG) {
-			ptr += INT_GET(dup->length, ARCH_CONVERT);
+		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
+			ptr += be16_to_cpu(dup->length);
 			continue;
 		}
 		dep = (xfs_dir2_data_entry_t *)ptr;
