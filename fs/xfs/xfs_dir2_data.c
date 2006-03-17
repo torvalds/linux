@@ -143,12 +143,12 @@ xfs_dir2_data_check(
 				(xfs_dir2_data_aoff_t)
 				((char *)dep - (char *)d));
 			hash = xfs_da_hashname((char *)dep->name, dep->namelen);
-			for (i = 0; i < INT_GET(btp->count, ARCH_CONVERT); i++) {
+			for (i = 0; i < be32_to_cpu(btp->count); i++) {
 				if (INT_GET(lep[i].address, ARCH_CONVERT) == addr &&
 				    INT_GET(lep[i].hashval, ARCH_CONVERT) == hash)
 					break;
 			}
-			ASSERT(i < INT_GET(btp->count, ARCH_CONVERT));
+			ASSERT(i < be32_to_cpu(btp->count));
 		}
 		p += XFS_DIR2_DATA_ENTSIZE(dep->namelen);
 	}
@@ -157,14 +157,14 @@ xfs_dir2_data_check(
 	 */
 	ASSERT(freeseen == 7);
 	if (be32_to_cpu(d->hdr.magic) == XFS_DIR2_BLOCK_MAGIC) {
-		for (i = stale = 0; i < INT_GET(btp->count, ARCH_CONVERT); i++) {
+		for (i = stale = 0; i < be32_to_cpu(btp->count); i++) {
 			if (INT_GET(lep[i].address, ARCH_CONVERT) == XFS_DIR2_NULL_DATAPTR)
 				stale++;
 			if (i > 0)
 				ASSERT(INT_GET(lep[i].hashval, ARCH_CONVERT) >= INT_GET(lep[i - 1].hashval, ARCH_CONVERT));
 		}
-		ASSERT(count == INT_GET(btp->count, ARCH_CONVERT) - INT_GET(btp->stale, ARCH_CONVERT));
-		ASSERT(stale == INT_GET(btp->stale, ARCH_CONVERT));
+		ASSERT(count == be32_to_cpu(btp->count) - be32_to_cpu(btp->stale));
+		ASSERT(stale == be32_to_cpu(btp->stale));
 	}
 }
 #endif

@@ -111,13 +111,13 @@ xfs_dir2_block_to_leaf(
 	/*
 	 * Set the counts in the leaf header.
 	 */
-	INT_COPY(leaf->hdr.count, btp->count, ARCH_CONVERT); /* INT_: type change */
-	INT_COPY(leaf->hdr.stale, btp->stale, ARCH_CONVERT); /* INT_: type change */
+	leaf->hdr.count = btp->count;
+	leaf->hdr.stale = btp->stale;
 	/*
 	 * Could compact these but I think we always do the conversion
 	 * after squeezing out stale entries.
 	 */
-	memcpy(leaf->ents, blp, INT_GET(btp->count, ARCH_CONVERT) * sizeof(xfs_dir2_leaf_entry_t));
+	memcpy(leaf->ents, blp, be32_to_cpu(btp->count) * sizeof(xfs_dir2_leaf_entry_t));
 	xfs_dir2_leaf_log_ents(tp, lbp, 0, INT_GET(leaf->hdr.count, ARCH_CONVERT) - 1);
 	needscan = 0;
 	needlog = 1;

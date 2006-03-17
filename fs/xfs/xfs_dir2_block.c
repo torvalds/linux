@@ -193,10 +193,10 @@ xfs_dir2_block_addname(
 		 * leaf data starts now, if it works at all.
 		 */
 		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
-			if (be16_to_cpu(dup->length) + (INT_GET(btp->stale, ARCH_CONVERT) - 1) *
+			if (be16_to_cpu(dup->length) + (be32_to_cpu(btp->stale) - 1) *
 			    (uint)sizeof(*blp) < len)
 				dup = NULL;
-		} else if ((INT_GET(btp->stale, ARCH_CONVERT) - 1) * (uint)sizeof(*blp) < len)
+		} else if ((be32_to_cpu(btp->stale) - 1) * (uint)sizeof(*blp) < len)
 			dup = NULL;
 		else
 			dup = (xfs_dir2_data_unused_t *)blp;
@@ -242,7 +242,7 @@ xfs_dir2_block_addname(
 		int	fromidx;		/* source leaf index */
 		int	toidx;			/* target leaf index */
 
-		for (fromidx = toidx = INT_GET(btp->count, ARCH_CONVERT) - 1,
+		for (fromidx = toidx = be32_to_cpu(btp->count) - 1,
 			highstale = lfloghigh = -1;
 		     fromidx >= 0;
 		     fromidx--) {
@@ -259,15 +259,15 @@ xfs_dir2_block_addname(
 				blp[toidx] = blp[fromidx];
 			toidx--;
 		}
-		lfloglow = toidx + 1 - (INT_GET(btp->stale, ARCH_CONVERT) - 1);
-		lfloghigh -= INT_GET(btp->stale, ARCH_CONVERT) - 1;
-		INT_MOD(btp->count, ARCH_CONVERT, -(INT_GET(btp->stale, ARCH_CONVERT) - 1));
+		lfloglow = toidx + 1 - (be32_to_cpu(btp->stale) - 1);
+		lfloghigh -= be32_to_cpu(btp->stale) - 1;
+		be32_add(&btp->count, -(be32_to_cpu(btp->stale) - 1));
 		xfs_dir2_data_make_free(tp, bp,
 			(xfs_dir2_data_aoff_t)((char *)blp - (char *)block),
-			(xfs_dir2_data_aoff_t)((INT_GET(btp->stale, ARCH_CONVERT) - 1) * sizeof(*blp)),
+			(xfs_dir2_data_aoff_t)((be32_to_cpu(btp->stale) - 1) * sizeof(*blp)),
 			&needlog, &needscan);
-		blp += INT_GET(btp->stale, ARCH_CONVERT) - 1;
-		INT_SET(btp->stale, ARCH_CONVERT, 1);
+		blp += be32_to_cpu(btp->stale) - 1;
+		btp->stale = cpu_to_be32(1);
 		/*
 		 * If we now need to rebuild the bestfree map, do so.
 		 * This needs to happen before the next call to use_free.
@@ -282,14 +282,14 @@ xfs_dir2_block_addname(
 	 * Set leaf logging boundaries to impossible state.
 	 * For the no-stale case they're set explicitly.
 	 */
-	else if (INT_GET(btp->stale, ARCH_CONVERT)) {
-		lfloglow = INT_GET(btp->count, ARCH_CONVERT);
+	else if (btp->stale) {
+		lfloglow = be32_to_cpu(btp->count);
 		lfloghigh = -1;
 	}
 	/*
 	 * Find the slot that's first lower than our hash value, -1 if none.
 	 */
-	for (low = 0, high = INT_GET(btp->count, ARCH_CONVERT) - 1; low <= high; ) {
+	for (low = 0, high = be32_to_cpu(btp->count) - 1; low <= high; ) {
 		mid = (low + high) >> 1;
 		if ((hash = INT_GET(blp[mid].hashval, ARCH_CONVERT)) == args->hashval)
 			break;
@@ -317,7 +317,7 @@ xfs_dir2_block_addname(
 		/*
 		 * Update the tail (entry count).
 		 */
-		INT_MOD(btp->count, ARCH_CONVERT, +1);
+		be32_add(&btp->count, 1);
 		/*
 		 * If we now need to rebuild the bestfree map, do so.
 		 * This needs to happen before the next call to use_free.
@@ -349,7 +349,7 @@ xfs_dir2_block_addname(
 		     lowstale--)
 			continue;
 		for (highstale = mid + 1;
-		     highstale < INT_GET(btp->count, ARCH_CONVERT) &&
+		     highstale < be32_to_cpu(btp->count) &&
 			INT_GET(blp[highstale].address, ARCH_CONVERT) != XFS_DIR2_NULL_DATAPTR &&
 			(lowstale < 0 || mid - lowstale > highstale - mid);
 		     highstale++)
@@ -358,7 +358,7 @@ xfs_dir2_block_addname(
 		 * Move entries toward the low-numbered stale entry.
 		 */
 		if (lowstale >= 0 &&
-		    (highstale == INT_GET(btp->count, ARCH_CONVERT) ||
+		    (highstale == be32_to_cpu(btp->count) ||
 		     mid - lowstale <= highstale - mid)) {
 			if (mid - lowstale)
 				memmove(&blp[lowstale], &blp[lowstale + 1],
@@ -370,7 +370,7 @@ xfs_dir2_block_addname(
 		 * Move entries toward the high-numbered stale entry.
 		 */
 		else {
-			ASSERT(highstale < INT_GET(btp->count, ARCH_CONVERT));
+			ASSERT(highstale < be32_to_cpu(btp->count));
 			mid++;
 			if (highstale - mid)
 				memmove(&blp[mid + 1], &blp[mid],
@@ -378,7 +378,7 @@ xfs_dir2_block_addname(
 			lfloglow = MIN(mid, lfloglow);
 			lfloghigh = MAX(highstale, lfloghigh);
 		}
-		INT_MOD(btp->stale, ARCH_CONVERT, -1);
+		be32_add(&btp->stale, -1);
 	}
 	/*
 	 * Point to the new data entry.
@@ -673,7 +673,7 @@ xfs_dir2_block_lookup_int(
 	 * Loop doing a binary search for our hash value.
 	 * Find our entry, ENOENT if it's not there.
 	 */
-	for (low = 0, high = INT_GET(btp->count, ARCH_CONVERT) - 1; ; ) {
+	for (low = 0, high = be32_to_cpu(btp->count) - 1; ; ) {
 		ASSERT(low <= high);
 		mid = (low + high) >> 1;
 		if ((hash = INT_GET(blp[mid].hashval, ARCH_CONVERT)) == args->hashval)
@@ -716,7 +716,7 @@ xfs_dir2_block_lookup_int(
 			*entno = mid;
 			return 0;
 		}
-	} while (++mid < INT_GET(btp->count, ARCH_CONVERT) && INT_GET(blp[mid].hashval, ARCH_CONVERT) == hash);
+	} while (++mid < be32_to_cpu(btp->count) && INT_GET(blp[mid].hashval, ARCH_CONVERT) == hash);
 	/*
 	 * No match, release the buffer and return ENOENT.
 	 */
@@ -777,7 +777,7 @@ xfs_dir2_block_removename(
 	/*
 	 * Fix up the block tail.
 	 */
-	INT_MOD(btp->stale, ARCH_CONVERT, +1);
+	be32_add(&btp->stale, 1);
 	xfs_dir2_block_log_tail(tp, bp);
 	/*
 	 * Remove the leaf entry by marking it stale.
@@ -968,7 +968,7 @@ xfs_dir2_leaf_to_block(
 	 * Initialize the block tail.
 	 */
 	btp = XFS_DIR2_BLOCK_TAIL_P(mp, block);
-	INT_SET(btp->count, ARCH_CONVERT, INT_GET(leaf->hdr.count, ARCH_CONVERT) - INT_GET(leaf->hdr.stale, ARCH_CONVERT));
+	btp->count = cpu_to_be32(INT_GET(leaf->hdr.count, ARCH_CONVERT) - INT_GET(leaf->hdr.stale, ARCH_CONVERT));
 	btp->stale = 0;
 	xfs_dir2_block_log_tail(tp, dbp);
 	/*
@@ -980,8 +980,8 @@ xfs_dir2_leaf_to_block(
 			continue;
 		lep[to++] = leaf->ents[from];
 	}
-	ASSERT(to == INT_GET(btp->count, ARCH_CONVERT));
-	xfs_dir2_block_log_leaf(tp, dbp, 0, INT_GET(btp->count, ARCH_CONVERT) - 1);
+	ASSERT(to == be32_to_cpu(btp->count));
+	xfs_dir2_block_log_leaf(tp, dbp, 0, be32_to_cpu(btp->count) - 1);
 	/*
 	 * Scan the bestfree if we need it and log the data block header.
 	 */
@@ -1114,7 +1114,7 @@ xfs_dir2_sf_to_block(
 	 * Fill in the tail.
 	 */
 	btp = XFS_DIR2_BLOCK_TAIL_P(mp, block);
-	INT_SET(btp->count, ARCH_CONVERT, INT_GET(sfp->hdr.count, ARCH_CONVERT) + 2);	/* ., .. */
+	btp->count = cpu_to_be32(INT_GET(sfp->hdr.count, ARCH_CONVERT) + 2);	/* ., .. */
 	btp->stale = 0;
 	blp = XFS_DIR2_BLOCK_LEAF_P(btp);
 	endoffset = (uint)((char *)blp - (char *)block);
@@ -1211,13 +1211,13 @@ xfs_dir2_sf_to_block(
 	/*
 	 * Sort the leaf entries by hash value.
 	 */
-	xfs_sort(blp, INT_GET(btp->count, ARCH_CONVERT), sizeof(*blp), xfs_dir2_block_sort);
+	xfs_sort(blp, be32_to_cpu(btp->count), sizeof(*blp), xfs_dir2_block_sort);
 	/*
 	 * Log the leaf entry area and tail.
 	 * Already logged the header in data_init, ignore needlog.
 	 */
 	ASSERT(needscan == 0);
-	xfs_dir2_block_log_leaf(tp, bp, 0, INT_GET(btp->count, ARCH_CONVERT) - 1);
+	xfs_dir2_block_log_leaf(tp, bp, 0, be32_to_cpu(btp->count) - 1);
 	xfs_dir2_block_log_tail(tp, bp);
 	xfs_dir2_data_check(dp, bp);
 	xfs_da_buf_done(bp);
