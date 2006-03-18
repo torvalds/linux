@@ -6,21 +6,13 @@
  *
  *  Copyright (C) 2003 Jens Axboe <axboe@suse.de>
  */
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/blkdev.h>
-#include <linux/elevator.h>
-#include <linux/bio.h>
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/compiler.h>
+#include <linux/blkdev.h>
+#include <linux/elevator.h>
 #include <linux/hash.h>
 #include <linux/rbtree.h>
-#include <linux/mempool.h>
 #include <linux/ioprio.h>
-#include <linux/writeback.h>
 
 /*
  * tunables
@@ -1258,10 +1250,6 @@ static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 	spin_unlock(q->queue_lock);
 }
 
-/*
- * Another task may update the task cic list, if it is doing a queue lookup
- * on its behalf. cfq_cic_lock excludes such concurrent updates
- */
 static void cfq_exit_io_context(struct cfq_io_context *cic)
 {
 	struct cfq_io_context *__cic;
