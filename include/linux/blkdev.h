@@ -406,8 +406,6 @@ struct request_queue
 
 	struct blk_queue_tag	*queue_tags;
 
-	atomic_t		refcnt;
-
 	unsigned int		nr_sorted;
 	unsigned int		in_flight;
 
@@ -426,6 +424,8 @@ struct request_queue
 	struct request		pre_flush_rq, bar_rq, post_flush_rq;
 	struct request		*orig_bar_rq;
 	unsigned int		bi_size;
+
+	struct mutex		sysfs_lock;
 };
 
 #define RQ_INACTIVE		(-1)
@@ -727,7 +727,7 @@ extern long nr_blockdev_pages(void);
 int blk_get_queue(request_queue_t *);
 request_queue_t *blk_alloc_queue(gfp_t);
 request_queue_t *blk_alloc_queue_node(gfp_t, int);
-#define blk_put_queue(q) blk_cleanup_queue((q))
+extern void blk_put_queue(request_queue_t *);
 
 /*
  * tag stuff
