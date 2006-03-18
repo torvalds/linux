@@ -82,10 +82,6 @@ struct sas_rphy {
 	struct sas_identify	identify;
 	struct list_head	list;
 	u32			scsi_target_id;
-	/* temporary expedient: mark the rphy as being contained
-	 * within a type specific rphy
-	 * FIXME: pull this out when everything uses the containers */
-	unsigned		contained:1;
 };
 
 #define dev_to_rphy(d) \
@@ -145,7 +141,6 @@ extern int sas_phy_add(struct sas_phy *);
 extern void sas_phy_delete(struct sas_phy *);
 extern int scsi_is_sas_phy(const struct device *);
 
-extern struct sas_rphy *sas_rphy_alloc(struct sas_phy *);
 extern struct sas_rphy *sas_end_device_alloc(struct sas_phy *);
 extern struct sas_rphy *sas_expander_alloc(struct sas_phy *, enum sas_device_type);
 void sas_rphy_free(struct sas_rphy *);
