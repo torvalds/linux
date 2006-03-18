@@ -216,7 +216,8 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
  *
  * The TSB can be anywhere from 8K to 1MB in size, in increasing powers
  * of two.  The TSB must be aligned to it's size, so f.e. a 512K TSB
- * must be 512K aligned.
+ * must be 512K aligned.  It also must be physically contiguous, so we
+ * cannot use vmalloc().
  *
  * The idea here is to grow the TSB when the RSS of the process approaches
  * the number of entries that the current TSB can hold at once.  Currently,
@@ -228,6 +229,8 @@ void tsb_grow(struct mm_struct *mm, unsigned long rss)
 	unsigned long size, old_size, flags;
 	struct page *page;
 	struct tsb *old_tsb, *new_tsb;
+	unsigned long order, new_rss_limit;
+	gfp_t gfp_flags;
 
 	if (max_tsb_size > (PAGE_SIZE << MAX_ORDER))
 		max_tsb_size = (PAGE_SIZE << MAX_ORDER);
@@ -240,9 +243,37 @@ void tsb_grow(struct mm_struct *mm, unsigned long rss)
 			break;
 	}
 
-	page = alloc_pages(GFP_KERNEL, get_order(size));
-	if (unlikely(!page))
+	if (size == max_tsb_size)
+		new_rss_limit = ~0UL;
+	else
+		new_rss_limit = ((size / sizeof(struct tsb)) * 3) / 4;
+
+retry_page_alloc:
+	order = get_order(size);
+	gfp_flags = GFP_KERNEL;
+	if (order > 1)
+		gfp_flags = __GFP_NOWARN | __GFP_NORETRY;
+
+	page = alloc_pages(gfp_flags, order);
+	if (unlikely(!page)) {
+		/* Not being able to fork due to a high-order TSB
+		 * allocation failure is very bad behavior.  Just back
+		 * down to a 0-order allocation and force no TSB
+		 * growing for this address space.
+		 */
+		if (mm->context.tsb == NULL && order > 0) {
+			size = PAGE_SIZE;
+			new_rss_limit = ~0UL;
+			goto retry_page_alloc;
+		}
+
+		/* If we failed on a TSB grow, we are under serious
+		 * memory pressure so don't try to grow any more.
+		 */
+		if (mm->context.tsb != NULL)
+			mm->context.tsb_rss_limit = ~0UL;
 		return;
+	}
 
 	/* Mark all tags as invalid.  */
 	new_tsb = page_address(page);
@@ -286,11 +317,7 @@ void tsb_grow(struct mm_struct *mm, unsigned long rss)
 		return;
 	}
 
-	if (size == max_tsb_size)
-		mm->context.tsb_rss_limit = ~0UL;
-	else
-		mm->context.tsb_rss_limit =
-			((size / sizeof(struct tsb)) * 3) / 4;
+	mm->context.tsb_rss_limit = new_rss_limit;
 
 	if (old_tsb) {
 		extern void copy_tsb(unsigned long old_tsb_base,
