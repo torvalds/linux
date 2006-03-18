@@ -2182,13 +2182,10 @@ static int switch_to_gpio_core(struct bcm43xx_private *bcm)
 		if (unlikely(err == -ENODEV)) {
 			printk(KERN_ERR PFX "gpio error: "
 			       "Neither ChipCommon nor PCI core available!\n");
-			return -ENODEV;
-		} else if (unlikely(err != 0))
-			return -ENODEV;
-	} else if (unlikely(err != 0))
-		return -ENODEV;
+		}
+	}
 
-	return 0;
+	return err;
 }
 
 /* Initialize the GPIOs
@@ -2198,45 +2195,48 @@ static int bcm43xx_gpio_init(struct bcm43xx_private *bcm)
 {
 	struct bcm43xx_coreinfo *old_core;
 	int err;
-	u32 mask, value;
+	u32 mask, set;
 
-	value = bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD);
-	value &= ~0xc000;
-	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD, value);
+	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD,
+			bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD)
+			& 0xFFFF3FFF);
 
-	mask = 0x0000001F;
-	value = 0x0000000F;
-	bcm43xx_write16(bcm, BCM43xx_MMIO_GPIO_CONTROL,
-			bcm43xx_read16(bcm, BCM43xx_MMIO_GPIO_CONTROL) & 0xFFF0);
+	bcm43xx_leds_switch_all(bcm, 0);
 	bcm43xx_write16(bcm, BCM43xx_MMIO_GPIO_MASK,
 			bcm43xx_read16(bcm, BCM43xx_MMIO_GPIO_MASK) | 0x000F);
 
-	old_core = bcm->current_core;
-	
-	err = switch_to_gpio_core(bcm);
-	if (err)
-		return err;
-
-	if (bcm->current_core->rev >= 2){
-		mask  |= 0x10;
-		value |= 0x10;
-	}
+	mask = 0x0000001F;
+	set = 0x0000000F;
 	if (bcm->chip_id == 0x4301) {
-		mask  |= 0x60;
-		value |= 0x60;
+		mask |= 0x0060;
+		set |= 0x0060;
+	}
+	if (0 /* FIXME: conditional unknown */) {
+		bcm43xx_write16(bcm, BCM43xx_MMIO_GPIO_MASK,
+				bcm43xx_read16(bcm, BCM43xx_MMIO_GPIO_MASK)
+				| 0x0100);
+		mask |= 0x0180;
+		set |= 0x0180;
 	}
 	if (bcm->sprom.boardflags & BCM43xx_BFL_PACTRL) {
-		mask  |= 0x200;
-		value |= 0x200;
+		bcm43xx_write16(bcm, BCM43xx_MMIO_GPIO_MASK,
+				bcm43xx_read16(bcm, BCM43xx_MMIO_GPIO_MASK)
+				| 0x0200);
+		mask |= 0x0200;
+		set |= 0x0200;
 	}
+	if (bcm->current_core->rev >= 2)
+		mask  |= 0x0010; /* FIXME: This is redundant. */
 
+	old_core = bcm->current_core;
+	err = switch_to_gpio_core(bcm);
+	if (err)
+		goto out;
 	bcm43xx_write32(bcm, BCM43xx_GPIO_CONTROL,
-	                (bcm43xx_read32(bcm, BCM43xx_GPIO_CONTROL) & mask) | value);
-
+	                (bcm43xx_read32(bcm, BCM43xx_GPIO_CONTROL) & mask) | set);
 	err = bcm43xx_switch_core(bcm, old_core);
-	assert(err == 0);
-
-	return 0;
+out:
+	return err;
 }
 
 /* Turn off all GPIO stuff. Call this on module unload, for example. */
@@ -2383,11 +2383,6 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 	if (err)
 		goto err_gpio_cleanup;
 	bcm43xx_radio_turn_on(bcm);
-
-	if (modparam_noleds)
-		bcm43xx_leds_turn_off(bcm);
-	else
-		bcm43xx_leds_update(bcm, 0);
 
 	bcm43xx_write16(bcm, 0x03E6, 0x0000);
 	err = bcm43xx_phy_init(bcm);

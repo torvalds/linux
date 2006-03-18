@@ -51,6 +51,6 @@ enum { /* LED behaviour values */
 int bcm43xx_leds_init(struct bcm43xx_private *bcm);
 void bcm43xx_leds_exit(struct bcm43xx_private *bcm);
 void bcm43xx_leds_update(struct bcm43xx_private *bcm, int activity);
-void bcm43xx_leds_turn_off(struct bcm43xx_private *bcm);
+void bcm43xx_leds_switch_all(struct bcm43xx_private *bcm, int on);
 
 #endif /* BCM43xx_LEDS_H_ */
