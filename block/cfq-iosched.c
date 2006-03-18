@@ -177,6 +177,8 @@ struct cfq_data {
 	unsigned int cfq_slice_async_rq;
 	unsigned int cfq_slice_idle;
 	unsigned int cfq_max_depth;
+
+	struct list_head cic_list;
 };
 
 /*
@@ -1215,7 +1217,12 @@ static void cfq_free_io_context(struct cfq_io_context *cic)
 static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 {
 	struct cfq_data *cfqd = cic->key;
-	request_queue_t *q = cfqd->queue;
+	request_queue_t *q;
+
+	if (!cfqd)
+		return;
+
+	q = cfqd->queue;
 
 	WARN_ON(!irqs_disabled());
 
@@ -1236,6 +1243,7 @@ static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 	}
 
 	cic->key = NULL;
+	list_del_init(&cic->queue_list);
 	spin_unlock(q->queue_lock);
 }
 
@@ -1254,12 +1262,14 @@ static void cfq_exit_io_context(struct cfq_io_context *cic)
 	/*
 	 * put the reference this task is holding to the various queues
 	 */
+	read_lock(&cfq_exit_lock);
 	list_for_each(entry, &cic->list) {
 		__cic = list_entry(entry, struct cfq_io_context, list);
 		cfq_exit_single_io_context(__cic);
 	}
 
 	cfq_exit_single_io_context(cic);
+	read_unlock(&cfq_exit_lock);
 	local_irq_restore(flags);
 }
 
@@ -1279,6 +1289,7 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 		cic->ttime_mean = 0;
 		cic->dtor = cfq_free_io_context;
 		cic->exit = cfq_exit_io_context;
+		INIT_LIST_HEAD(&cic->queue_list);
 	}
 
 	return cic;
@@ -1446,6 +1457,7 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 	if (!ioc)
 		return NULL;
 
+restart:
 	if ((cic = ioc->cic) == NULL) {
 		cic = cfq_alloc_io_context(cfqd, gfp_mask);
 
@@ -1461,6 +1473,7 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 		read_lock(&cfq_exit_lock);
 		ioc->set_ioprio = cfq_ioc_set_ioprio;
 		ioc->cic = cic;
+		list_add(&cic->queue_list, &cfqd->cic_list);
 		read_unlock(&cfq_exit_lock);
 	} else {
 		struct cfq_io_context *__cic;
@@ -1470,6 +1483,19 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 		 */
 		if (cic->key == cfqd)
 			goto out;
+
+		if (unlikely(!cic->key)) {
+			read_lock(&cfq_exit_lock);
+			if (list_empty(&cic->list))
+				ioc->cic = NULL;
+			else
+				ioc->cic = list_entry(cic->list.next,
+						      struct cfq_io_context,
+						      list);
+			read_unlock(&cfq_exit_lock);
+			kmem_cache_free(cfq_ioc_pool, cic);
+			goto restart;
+		}
 
 		/*
 		 * cic exists, check if we already are there. linear search
@@ -1485,6 +1511,13 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 				cic = __cic;
 				goto out;
 			}
+			if (unlikely(!__cic->key)) {
+				read_lock(&cfq_exit_lock);
+				list_del(&__cic->list);
+				read_unlock(&cfq_exit_lock);
+				kmem_cache_free(cfq_ioc_pool, __cic);
+				goto restart;
+			}
 		}
 
 		/*
@@ -1499,6 +1532,7 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 		__cic->key = cfqd;
 		read_lock(&cfq_exit_lock);
 		list_add(&__cic->list, &cic->list);
+		list_add(&__cic->queue_list, &cfqd->cic_list);
 		read_unlock(&cfq_exit_lock);
 		cic = __cic;
 	}
@@ -2104,8 +2138,30 @@ static void cfq_put_cfqd(struct cfq_data *cfqd)
 static void cfq_exit_queue(elevator_t *e)
 {
 	struct cfq_data *cfqd = e->elevator_data;
+	request_queue_t *q = cfqd->queue;
 
 	cfq_shutdown_timer_wq(cfqd);
+	write_lock(&cfq_exit_lock);
+	spin_lock_irq(q->queue_lock);
+	if (cfqd->active_queue)
+		__cfq_slice_expired(cfqd, cfqd->active_queue, 0);
+	while(!list_empty(&cfqd->cic_list)) {
+		struct cfq_io_context *cic = list_entry(cfqd->cic_list.next,
+							struct cfq_io_context,
+							queue_list);
+		if (cic->cfqq[ASYNC]) {
+			cfq_put_queue(cic->cfqq[ASYNC]);
+			cic->cfqq[ASYNC] = NULL;
+		}
+		if (cic->cfqq[SYNC]) {
+			cfq_put_queue(cic->cfqq[SYNC]);
+			cic->cfqq[SYNC] = NULL;
+		}
+		cic->key = NULL;
+		list_del_init(&cic->queue_list);
+	}
+	spin_unlock_irq(q->queue_lock);
+	write_unlock(&cfq_exit_lock);
 	cfq_put_cfqd(cfqd);
 }
 
@@ -2127,6 +2183,7 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	INIT_LIST_HEAD(&cfqd->cur_rr);
 	INIT_LIST_HEAD(&cfqd->idle_rr);
 	INIT_LIST_HEAD(&cfqd->empty_list);
+	INIT_LIST_HEAD(&cfqd->cic_list);
 
 	cfqd->crq_hash = kmalloc(sizeof(struct hlist_head) * CFQ_MHASH_ENTRIES, GFP_KERNEL);
 	if (!cfqd->crq_hash)

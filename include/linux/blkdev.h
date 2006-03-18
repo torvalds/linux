@@ -69,6 +69,8 @@ struct cfq_io_context {
 	unsigned long ttime_samples;
 	unsigned long ttime_mean;
 
+	struct list_head queue_list;
+
 	void (*dtor)(struct cfq_io_context *);
 	void (*exit)(struct cfq_io_context *);
 };
