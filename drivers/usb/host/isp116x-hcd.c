@@ -1552,7 +1552,7 @@ static struct hc_driver isp116x_hc_driver = {
 
 /*----------------------------------------------------------------*/
 
-static int __init_or_module isp116x_remove(struct platform_device *pdev)
+static int isp116x_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct isp116x *isp116x;
