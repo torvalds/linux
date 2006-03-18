@@ -1212,7 +1212,7 @@ static void cfq_free_io_context(struct cfq_io_context *cic)
  */
 static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 {
-	struct cfq_data *cfqd = cic->cfqq->cfqd;
+	struct cfq_data *cfqd = cic->key;
 	request_queue_t *q = cfqd->queue;
 
 	WARN_ON(!irqs_disabled());
@@ -1224,6 +1224,7 @@ static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 
 	cfq_put_queue(cic->cfqq);
 	cic->cfqq = NULL;
+	cic->key = NULL;
 	spin_unlock(q->queue_lock);
 }
 
@@ -1318,14 +1319,17 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq)
 	cfq_clear_cfqq_prio_changed(cfqq);
 }
 
-static inline void changed_ioprio(struct cfq_queue *cfqq)
+static inline void changed_ioprio(struct cfq_io_context *cic)
 {
-	if (cfqq) {
-		struct cfq_data *cfqd = cfqq->cfqd;
-
+	struct cfq_data *cfqd = cic->key;
+	struct cfq_queue *cfqq;
+	if (cfqd) {
 		spin_lock(cfqd->queue->queue_lock);
-		cfq_mark_cfqq_prio_changed(cfqq);
-		cfq_init_prio_data(cfqq);
+		cfqq = cic->cfqq;
+		if (cfqq) {
+			cfq_mark_cfqq_prio_changed(cfqq);
+			cfq_init_prio_data(cfqq);
+		}
 		spin_unlock(cfqd->queue->queue_lock);
 	}
 }
@@ -1337,10 +1341,10 @@ static int cfq_ioc_set_ioprio(struct io_context *ioc, unsigned int ioprio)
 {
 	struct cfq_io_context *cic = ioc->cic;
 
-	changed_ioprio(cic->cfqq);
+	changed_ioprio(cic);
 
 	list_for_each_entry(cic, &cic->list, list)
-		changed_ioprio(cic->cfqq);
+		changed_ioprio(cic);
 
 	return 0;
 }
@@ -1429,10 +1433,10 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 		 * manually increment generic io_context usage count, it
 		 * cannot go away since we are already holding one ref to it
 		 */
-		ioc->cic = cic;
-		ioc->set_ioprio = cfq_ioc_set_ioprio;
 		cic->ioc = ioc;
 		cic->key = cfqd;
+		ioc->set_ioprio = cfq_ioc_set_ioprio;
+		ioc->cic = cic;
 	} else {
 		struct cfq_io_context *__cic;
 
