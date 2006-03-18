@@ -1211,6 +1211,13 @@ static void cfq_free_io_context(struct cfq_io_context *cic)
 	kmem_cache_free(cfq_ioc_pool, cic);
 }
 
+static void cfq_trim(struct io_context *ioc)
+{
+	ioc->set_ioprio = NULL;
+	if (ioc->cic)
+		cfq_free_io_context(ioc->cic);
+}
+
 /*
  * Called with interrupts disabled
  */
@@ -2472,6 +2479,7 @@ static struct elevator_type iosched_cfq = {
 		.elevator_may_queue_fn =	cfq_may_queue,
 		.elevator_init_fn =		cfq_init_queue,
 		.elevator_exit_fn =		cfq_exit_queue,
+		.trim =				cfq_trim,
 	},
 	.elevator_ktype =	&cfq_ktype,
 	.elevator_name =	"cfq",

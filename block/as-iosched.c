@@ -195,6 +195,12 @@ static void free_as_io_context(struct as_io_context *aic)
 	kfree(aic);
 }
 
+static void as_trim(struct io_context *ioc)
+{
+	kfree(ioc->aic);
+	ioc->aic = NULL;
+}
+
 /* Called when the task exits */
 static void exit_as_io_context(struct as_io_context *aic)
 {
@@ -1860,6 +1866,7 @@ static struct elevator_type iosched_as = {
 		.elevator_may_queue_fn =	as_may_queue,
 		.elevator_init_fn =		as_init_queue,
 		.elevator_exit_fn =		as_exit_queue,
+		.trim =				as_trim,
 	},
 
 	.elevator_ktype = &as_ktype,
