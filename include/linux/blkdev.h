@@ -58,7 +58,7 @@ struct cfq_io_context {
 	 * circular list of cfq_io_contexts belonging to a process io context
 	 */
 	struct list_head list;
-	struct cfq_queue *cfqq;
+	struct cfq_queue *cfqq[2];
 	void *key;
 
 	struct io_context *ioc;

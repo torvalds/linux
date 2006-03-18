@@ -1219,11 +1219,20 @@ static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 
 	spin_lock(q->queue_lock);
 
-	if (unlikely(cic->cfqq == cfqd->active_queue))
-		__cfq_slice_expired(cfqd, cic->cfqq, 0);
+	if (cic->cfqq[ASYNC]) {
+		if (unlikely(cic->cfqq[ASYNC] == cfqd->active_queue))
+			__cfq_slice_expired(cfqd, cic->cfqq[ASYNC], 0);
+		cfq_put_queue(cic->cfqq[ASYNC]);
+		cic->cfqq[ASYNC] = NULL;
+	}
 
-	cfq_put_queue(cic->cfqq);
-	cic->cfqq = NULL;
+	if (cic->cfqq[SYNC]) {
+		if (unlikely(cic->cfqq[SYNC] == cfqd->active_queue))
+			__cfq_slice_expired(cfqd, cic->cfqq[SYNC], 0);
+		cfq_put_queue(cic->cfqq[SYNC]);
+		cic->cfqq[SYNC] = NULL;
+	}
+
 	cic->key = NULL;
 	spin_unlock(q->queue_lock);
 }
@@ -1259,7 +1268,8 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 
 	if (cic) {
 		INIT_LIST_HEAD(&cic->list);
-		cic->cfqq = NULL;
+		cic->cfqq[ASYNC] = NULL;
+		cic->cfqq[SYNC] = NULL;
 		cic->key = NULL;
 		cic->last_end_request = jiffies;
 		cic->ttime_total = 0;
@@ -1325,7 +1335,12 @@ static inline void changed_ioprio(struct cfq_io_context *cic)
 	struct cfq_queue *cfqq;
 	if (cfqd) {
 		spin_lock(cfqd->queue->queue_lock);
-		cfqq = cic->cfqq;
+		cfqq = cic->cfqq[ASYNC];
+		if (cfqq) {
+			cfq_mark_cfqq_prio_changed(cfqq);
+			cfq_init_prio_data(cfqq);
+		}
+		cfqq = cic->cfqq[SYNC];
 		if (cfqq) {
 			cfq_mark_cfqq_prio_changed(cfqq);
 			cfq_init_prio_data(cfqq);
@@ -1892,6 +1907,7 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 	struct cfq_queue *cfqq;
 	struct cfq_rq *crq;
 	unsigned long flags;
+	int is_sync = key != CFQ_KEY_ASYNC;
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
@@ -1902,14 +1918,14 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 	if (!cic)
 		goto queue_fail;
 
-	if (!cic->cfqq) {
+	if (!cic->cfqq[is_sync]) {
 		cfqq = cfq_get_queue(cfqd, key, tsk->ioprio, gfp_mask);
 		if (!cfqq)
 			goto queue_fail;
 
-		cic->cfqq = cfqq;
+		cic->cfqq[is_sync] = cfqq;
 	} else
-		cfqq = cic->cfqq;
+		cfqq = cic->cfqq[is_sync];
 
 	cfqq->allocated[rw]++;
 	cfq_clear_cfqq_must_alloc(cfqq);
@@ -1926,7 +1942,7 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 		crq->cfq_queue = cfqq;
 		crq->io_context = cic;
 
-		if (rw == READ || process_sync(tsk))
+		if (is_sync)
 			cfq_mark_crq_is_sync(crq);
 		else
 			cfq_clear_crq_is_sync(crq);
