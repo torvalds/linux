@@ -61,7 +61,7 @@ struct elevator_type
 	struct list_head list;
 	struct elevator_ops ops;
 	struct elevator_type *elevator_type;
-	struct kobj_type *elevator_ktype;
+	struct attribute **elevator_attrs;
 	char elevator_name[ELV_NAME_MAX];
 	struct module *elevator_owner;
 };
@@ -75,6 +75,7 @@ struct elevator_queue
 	void *elevator_data;
 	struct kobject kobj;
 	struct elevator_type *elevator_type;
+	struct mutex sysfs_lock;
 };
 
 /*
@@ -139,6 +140,12 @@ enum {
 	ELV_MQUEUE_MAY,
 	ELV_MQUEUE_NO,
 	ELV_MQUEUE_MUST,
+};
+
+struct elv_fs_entry {
+	struct attribute attr;
+	ssize_t (*show)(elevator_t *, char *);
+	ssize_t (*store)(elevator_t *, const char *, size_t);
 };
 
 #define rq_end_sector(rq)	((rq)->sector + (rq)->nr_sectors)

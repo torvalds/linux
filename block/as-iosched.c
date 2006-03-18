@@ -1709,11 +1709,6 @@ static int as_init_queue(request_queue_t *q, elevator_t *e)
 /*
  * sysfs parts below
  */
-struct as_fs_entry {
-	struct attribute attr;
-	ssize_t (*show)(struct as_data *, char *);
-	ssize_t (*store)(struct as_data *, const char *, size_t);
-};
 
 static ssize_t
 as_var_show(unsigned int var, char *page)
@@ -1730,8 +1725,9 @@ as_var_store(unsigned long *var, const char *page, size_t count)
 	return count;
 }
 
-static ssize_t as_est_show(struct as_data *ad, char *page)
+static ssize_t as_est_show(elevator_t *e, char *page)
 {
+	struct as_data *ad = e->elevator_data;
 	int pos = 0;
 
 	pos += sprintf(page+pos, "%lu %% exit probability\n",
@@ -1747,8 +1743,9 @@ static ssize_t as_est_show(struct as_data *ad, char *page)
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR)				\
-static ssize_t __FUNC(struct as_data *ad, char *page)		\
+static ssize_t __FUNC(elevator_t *e, char *page)		\
 {								\
+	struct as_data *ad = e->elevator_data;			\
 	return as_var_show(jiffies_to_msecs((__VAR)), (page));	\
 }
 SHOW_FUNCTION(as_readexpire_show, ad->fifo_expire[REQ_SYNC]);
@@ -1759,9 +1756,10 @@ SHOW_FUNCTION(as_write_batchexpire_show, ad->batch_expire[REQ_ASYNC]);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX)				\
-static ssize_t __FUNC(struct as_data *ad, const char *page, size_t count)	\
+static ssize_t __FUNC(elevator_t *e, const char *page, size_t count)	\
 {									\
-	int ret = as_var_store(__PTR, (page), count);		\
+	struct as_data *ad = e->elevator_data;				\
+	int ret = as_var_store(__PTR, (page), count);			\
 	if (*(__PTR) < (MIN))						\
 		*(__PTR) = (MIN);					\
 	else if (*(__PTR) > (MAX))					\
@@ -1778,37 +1776,37 @@ STORE_FUNCTION(as_write_batchexpire_store,
 			&ad->batch_expire[REQ_ASYNC], 0, INT_MAX);
 #undef STORE_FUNCTION
 
-static struct as_fs_entry as_est_entry = {
+static struct elv_fs_entry as_est_entry = {
 	.attr = {.name = "est_time", .mode = S_IRUGO },
 	.show = as_est_show,
 };
-static struct as_fs_entry as_readexpire_entry = {
+static struct elv_fs_entry as_readexpire_entry = {
 	.attr = {.name = "read_expire", .mode = S_IRUGO | S_IWUSR },
 	.show = as_readexpire_show,
 	.store = as_readexpire_store,
 };
-static struct as_fs_entry as_writeexpire_entry = {
+static struct elv_fs_entry as_writeexpire_entry = {
 	.attr = {.name = "write_expire", .mode = S_IRUGO | S_IWUSR },
 	.show = as_writeexpire_show,
 	.store = as_writeexpire_store,
 };
-static struct as_fs_entry as_anticexpire_entry = {
+static struct elv_fs_entry as_anticexpire_entry = {
 	.attr = {.name = "antic_expire", .mode = S_IRUGO | S_IWUSR },
 	.show = as_anticexpire_show,
 	.store = as_anticexpire_store,
 };
-static struct as_fs_entry as_read_batchexpire_entry = {
+static struct elv_fs_entry as_read_batchexpire_entry = {
 	.attr = {.name = "read_batch_expire", .mode = S_IRUGO | S_IWUSR },
 	.show = as_read_batchexpire_show,
 	.store = as_read_batchexpire_store,
 };
-static struct as_fs_entry as_write_batchexpire_entry = {
+static struct elv_fs_entry as_write_batchexpire_entry = {
 	.attr = {.name = "write_batch_expire", .mode = S_IRUGO | S_IWUSR },
 	.show = as_write_batchexpire_show,
 	.store = as_write_batchexpire_store,
 };
 
-static struct attribute *default_attrs[] = {
+static struct attribute *as_attrs[] = {
 	&as_est_entry.attr,
 	&as_readexpire_entry.attr,
 	&as_writeexpire_entry.attr,
@@ -1816,43 +1814,6 @@ static struct attribute *default_attrs[] = {
 	&as_read_batchexpire_entry.attr,
 	&as_write_batchexpire_entry.attr,
 	NULL,
-};
-
-#define to_as(atr) container_of((atr), struct as_fs_entry, attr)
-
-static ssize_t
-as_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
-{
-	elevator_t *e = container_of(kobj, elevator_t, kobj);
-	struct as_fs_entry *entry = to_as(attr);
-
-	if (!entry->show)
-		return -EIO;
-
-	return entry->show(e->elevator_data, page);
-}
-
-static ssize_t
-as_attr_store(struct kobject *kobj, struct attribute *attr,
-		    const char *page, size_t length)
-{
-	elevator_t *e = container_of(kobj, elevator_t, kobj);
-	struct as_fs_entry *entry = to_as(attr);
-
-	if (!entry->store)
-		return -EIO;
-
-	return entry->store(e->elevator_data, page, length);
-}
-
-static struct sysfs_ops as_sysfs_ops = {
-	.show	= as_attr_show,
-	.store	= as_attr_store,
-};
-
-static struct kobj_type as_ktype = {
-	.sysfs_ops	= &as_sysfs_ops,
-	.default_attrs	= default_attrs,
 };
 
 static struct elevator_type iosched_as = {
@@ -1876,7 +1837,7 @@ static struct elevator_type iosched_as = {
 		.trim =				as_trim,
 	},
 
-	.elevator_ktype = &as_ktype,
+	.elevator_attrs = as_attrs,
 	.elevator_name = "anticipatory",
 	.elevator_owner = THIS_MODULE,
 };

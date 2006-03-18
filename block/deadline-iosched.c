@@ -694,11 +694,6 @@ deadline_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 /*
  * sysfs parts below
  */
-struct deadline_fs_entry {
-	struct attribute attr;
-	ssize_t (*show)(struct deadline_data *, char *);
-	ssize_t (*store)(struct deadline_data *, const char *, size_t);
-};
 
 static ssize_t
 deadline_var_show(int var, char *page)
@@ -716,9 +711,10 @@ deadline_var_store(int *var, const char *page, size_t count)
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR, __CONV)				\
-static ssize_t __FUNC(struct deadline_data *dd, char *page)		\
+static ssize_t __FUNC(elevator_t *e, char *page)			\
 {									\
-	int __data = __VAR;					\
+	struct deadline_data *dd = e->elevator_data;			\
+	int __data = __VAR;						\
 	if (__CONV)							\
 		__data = jiffies_to_msecs(__data);			\
 	return deadline_var_show(__data, (page));			\
@@ -731,8 +727,9 @@ SHOW_FUNCTION(deadline_fifobatch_show, dd->fifo_batch, 0);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
-static ssize_t __FUNC(struct deadline_data *dd, const char *page, size_t count)	\
+static ssize_t __FUNC(elevator_t *e, const char *page, size_t count)	\
 {									\
+	struct deadline_data *dd = e->elevator_data;			\
 	int __data;							\
 	int ret = deadline_var_store(&__data, (page), count);		\
 	if (__data < (MIN))						\
@@ -752,76 +749,39 @@ STORE_FUNCTION(deadline_frontmerges_store, &dd->front_merges, 0, 1, 0);
 STORE_FUNCTION(deadline_fifobatch_store, &dd->fifo_batch, 0, INT_MAX, 0);
 #undef STORE_FUNCTION
 
-static struct deadline_fs_entry deadline_readexpire_entry = {
+static struct elv_fs_entry deadline_readexpire_entry = {
 	.attr = {.name = "read_expire", .mode = S_IRUGO | S_IWUSR },
 	.show = deadline_readexpire_show,
 	.store = deadline_readexpire_store,
 };
-static struct deadline_fs_entry deadline_writeexpire_entry = {
+static struct elv_fs_entry deadline_writeexpire_entry = {
 	.attr = {.name = "write_expire", .mode = S_IRUGO | S_IWUSR },
 	.show = deadline_writeexpire_show,
 	.store = deadline_writeexpire_store,
 };
-static struct deadline_fs_entry deadline_writesstarved_entry = {
+static struct elv_fs_entry deadline_writesstarved_entry = {
 	.attr = {.name = "writes_starved", .mode = S_IRUGO | S_IWUSR },
 	.show = deadline_writesstarved_show,
 	.store = deadline_writesstarved_store,
 };
-static struct deadline_fs_entry deadline_frontmerges_entry = {
+static struct elv_fs_entry deadline_frontmerges_entry = {
 	.attr = {.name = "front_merges", .mode = S_IRUGO | S_IWUSR },
 	.show = deadline_frontmerges_show,
 	.store = deadline_frontmerges_store,
 };
-static struct deadline_fs_entry deadline_fifobatch_entry = {
+static struct elv_fs_entry deadline_fifobatch_entry = {
 	.attr = {.name = "fifo_batch", .mode = S_IRUGO | S_IWUSR },
 	.show = deadline_fifobatch_show,
 	.store = deadline_fifobatch_store,
 };
 
-static struct attribute *default_attrs[] = {
+static struct attribute *deadline_attrs[] = {
 	&deadline_readexpire_entry.attr,
 	&deadline_writeexpire_entry.attr,
 	&deadline_writesstarved_entry.attr,
 	&deadline_frontmerges_entry.attr,
 	&deadline_fifobatch_entry.attr,
 	NULL,
-};
-
-#define to_deadline(atr) container_of((atr), struct deadline_fs_entry, attr)
-
-static ssize_t
-deadline_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
-{
-	elevator_t *e = container_of(kobj, elevator_t, kobj);
-	struct deadline_fs_entry *entry = to_deadline(attr);
-
-	if (!entry->show)
-		return -EIO;
-
-	return entry->show(e->elevator_data, page);
-}
-
-static ssize_t
-deadline_attr_store(struct kobject *kobj, struct attribute *attr,
-		    const char *page, size_t length)
-{
-	elevator_t *e = container_of(kobj, elevator_t, kobj);
-	struct deadline_fs_entry *entry = to_deadline(attr);
-
-	if (!entry->store)
-		return -EIO;
-
-	return entry->store(e->elevator_data, page, length);
-}
-
-static struct sysfs_ops deadline_sysfs_ops = {
-	.show	= deadline_attr_show,
-	.store	= deadline_attr_store,
-};
-
-static struct kobj_type deadline_ktype = {
-	.sysfs_ops	= &deadline_sysfs_ops,
-	.default_attrs	= default_attrs,
 };
 
 static struct elevator_type iosched_deadline = {
@@ -840,7 +800,7 @@ static struct elevator_type iosched_deadline = {
 		.elevator_exit_fn =		deadline_exit_queue,
 	},
 
-	.elevator_ktype = &deadline_ktype,
+	.elevator_attrs = deadline_attrs,
 	.elevator_name = "deadline",
 	.elevator_owner = THIS_MODULE,
 };
