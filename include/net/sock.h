@@ -478,9 +478,9 @@ static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 	rc = __condition;					\
 	if (!rc) {						\
 		*(__timeo) = schedule_timeout(*(__timeo));	\
-		rc = __condition;				\
 	}							\
 	lock_sock(__sk);					\
+	rc = __condition;					\
 	rc;							\
 })
 
