@@ -47,6 +47,8 @@ static int cfq_slice_idle = HZ / 100;
  */
 static const int cfq_max_depth = 2;
 
+static DEFINE_RWLOCK(cfq_exit_lock);
+
 /*
  * for the hash of cfqq inside the cfqd
  */
@@ -1354,12 +1356,18 @@ static inline void changed_ioprio(struct cfq_io_context *cic)
  */
 static int cfq_ioc_set_ioprio(struct io_context *ioc, unsigned int ioprio)
 {
-	struct cfq_io_context *cic = ioc->cic;
+	struct cfq_io_context *cic;
+
+	write_lock(&cfq_exit_lock);
+
+	cic = ioc->cic;
 
 	changed_ioprio(cic);
 
 	list_for_each_entry(cic, &cic->list, list)
 		changed_ioprio(cic);
+
+	write_unlock(&cfq_exit_lock);
 
 	return 0;
 }
@@ -1450,8 +1458,10 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 		 */
 		cic->ioc = ioc;
 		cic->key = cfqd;
+		read_lock(&cfq_exit_lock);
 		ioc->set_ioprio = cfq_ioc_set_ioprio;
 		ioc->cic = cic;
+		read_unlock(&cfq_exit_lock);
 	} else {
 		struct cfq_io_context *__cic;
 
@@ -1487,7 +1497,9 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 
 		__cic->ioc = ioc;
 		__cic->key = cfqd;
+		read_lock(&cfq_exit_lock);
 		list_add(&__cic->list, &cic->list);
+		read_unlock(&cfq_exit_lock);
 		cic = __cic;
 	}
 
