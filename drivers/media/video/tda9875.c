@@ -40,7 +40,7 @@ MODULE_LICENSE("GPL");
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] =  {
-    I2C_TDA9875 >> 1,
+    I2C_ADDR_TDA9875 >> 1,
     I2C_CLIENT_END
 };
 I2C_CLIENT_INSMOD;

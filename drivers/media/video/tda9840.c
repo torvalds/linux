@@ -43,7 +43,7 @@ MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 #define	TEST		0x04
 
 /* addresses to scan, found only at 0x42 (7-Bit) */
-static unsigned short normal_i2c[] = { I2C_TDA9840, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { I2C_ADDR_TDA9840, I2C_CLIENT_END };
 
 /* magic definition of all other variables and things */
 I2C_CLIENT_INSMOD;

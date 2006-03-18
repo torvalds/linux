@@ -39,7 +39,7 @@
 MODULE_LICENSE("GPL");
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { I2C_BT832_ALT1>>1, I2C_BT832_ALT2>>1,
+static unsigned short normal_i2c[] = { I2C_ADDR_BT832_ALT1>>1, I2C_ADDR_BT832_ALT2>>1,
 				       I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 

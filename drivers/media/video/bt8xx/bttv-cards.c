@@ -3046,7 +3046,7 @@ static void miro_pinnacle_gpio(struct bttv *btv)
 	gpio_inout(0xffffff, 0);
 	gpio = gpio_read();
 	id   = ((gpio>>10) & 63) -1;
-	msp  = bttv_I2CRead(btv, I2C_MSP3400, "MSP34xx");
+	msp  = bttv_I2CRead(btv, I2C_ADDR_MSP3400, "MSP34xx");
 	if (id < 32) {
 		btv->tuner_type = miro_tunermap[id];
 		if (0 == (gpio & 0x20)) {
@@ -3442,8 +3442,8 @@ void __devinit bttv_init_card2(struct bttv *btv)
 
 	if (bttv_tvcards[btv->c.type].digital_mode == DIGITAL_MODE_CAMERA) {
 		/* detect Bt832 chip for quartzsight digital camera */
-		if ((bttv_I2CRead(btv, I2C_BT832_ALT1, "Bt832") >=0) ||
-		    (bttv_I2CRead(btv, I2C_BT832_ALT2, "Bt832") >=0))
+		if ((bttv_I2CRead(btv, I2C_ADDR_BT832_ALT1, "Bt832") >=0) ||
+		    (bttv_I2CRead(btv, I2C_ADDR_BT832_ALT2, "Bt832") >=0))
 			boot_bt832(btv);
 	}
 
@@ -3452,19 +3452,19 @@ void __devinit bttv_init_card2(struct bttv *btv)
 
 	/* try to detect audio/fader chips */
 	if (!bttv_tvcards[btv->c.type].no_msp34xx &&
-	    bttv_I2CRead(btv, I2C_MSP3400, "MSP34xx") >=0)
+	    bttv_I2CRead(btv, I2C_ADDR_MSP3400, "MSP34xx") >=0)
 		request_module("msp3400");
 
 	if (bttv_tvcards[btv->c.type].msp34xx_alt &&
-	    bttv_I2CRead(btv, I2C_MSP3400_ALT, "MSP34xx (alternate address)") >=0)
+	    bttv_I2CRead(btv, I2C_ADDR_MSP3400_ALT, "MSP34xx (alternate address)") >=0)
 		request_module("msp3400");
 
 	if (!bttv_tvcards[btv->c.type].no_tda9875 &&
-	    bttv_I2CRead(btv, I2C_TDA9875, "TDA9875") >=0)
+	    bttv_I2CRead(btv, I2C_ADDR_TDA9875, "TDA9875") >=0)
 		request_module("tda9875");
 
 	if (!bttv_tvcards[btv->c.type].no_tda7432 &&
-	    bttv_I2CRead(btv, I2C_TDA7432, "TDA7432") >=0)
+	    bttv_I2CRead(btv, I2C_ADDR_TDA7432, "TDA7432") >=0)
 		request_module("tda7432");
 
 	if (bttv_tvcards[btv->c.type].needs_tvaudio)
@@ -3475,7 +3475,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (btv->tda9887_conf)
 		tda9887 = 1;
 	if (0 == tda9887 && 0 == bttv_tvcards[btv->c.type].has_dvb &&
-	    bttv_I2CRead(btv, I2C_TDA9887, "TDA9887") >=0)
+	    bttv_I2CRead(btv, I2C_ADDR_TDA9887, "TDA9887") >=0)
 		tda9887 = 1;
 	/* Hybrid DVB card, DOES have a tda9887 */
 	if (btv->c.type == BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE)

@@ -71,7 +71,7 @@ module_param(maxvol, int, S_IRUGO | S_IWUSR);
 
 /* Address to scan (I2C address of this chip) */
 static unsigned short normal_i2c[] = {
-	I2C_TDA7432 >> 1,
+	I2C_ADDR_TDA7432 >> 1,
 	I2C_CLIENT_END,
 };
 I2C_CLIENT_INSMOD;
