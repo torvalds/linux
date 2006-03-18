@@ -3386,23 +3386,17 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 	struct net_device *net_dev = bcm->net_dev;
 	int err;
 	int i;
-	void __iomem *ioaddr;
-	unsigned long mmio_start, mmio_end, mmio_flags, mmio_len;
+	unsigned long mmio_start, mmio_flags, mmio_len;
 	u32 coremask;
 
 	err = pci_enable_device(pci_dev);
 	if (err) {
 		printk(KERN_ERR PFX "unable to wake up pci device (%i)\n", err);
-		err = -ENODEV;
 		goto out;
 	}
-
 	mmio_start = pci_resource_start(pci_dev, 0);
-	mmio_end = pci_resource_end(pci_dev, 0);
 	mmio_flags = pci_resource_flags(pci_dev, 0);
 	mmio_len = pci_resource_len(pci_dev, 0);
-
-	/* make sure PCI base addr is MMIO */
 	if (!(mmio_flags & IORESOURCE_MEM)) {
 		printk(KERN_ERR PFX
 		       "%s, region #0 not an MMIO resource, aborting\n",
@@ -3410,39 +3404,23 @@ static int bcm43xx_attach_board(struct bcm43xx_private *bcm)
 		err = -ENODEV;
 		goto err_pci_disable;
 	}
-//FIXME: Why is this check disabled for BCM947XX? What is the IO_SIZE there?
-#ifndef CONFIG_BCM947XX
-	if (mmio_len != BCM43xx_IO_SIZE) {
-		printk(KERN_ERR PFX
-		       "%s: invalid PCI mem region size(s), aborting\n",
-		       pci_name(pci_dev));
-		err = -ENODEV;
-		goto err_pci_disable;
-	}
-#endif
-
 	err = pci_request_regions(pci_dev, KBUILD_MODNAME);
 	if (err) {
 		printk(KERN_ERR PFX
 		       "could not access PCI resources (%i)\n", err);
 		goto err_pci_disable;
 	}
-
 	/* enable PCI bus-mastering */
 	pci_set_master(pci_dev);
-
-	/* ioremap MMIO region */
-	ioaddr = ioremap(mmio_start, mmio_len);
-	if (!ioaddr) {
+	bcm->mmio_addr = ioremap(mmio_start, mmio_len);
+	if (!bcm->mmio_addr) {
 		printk(KERN_ERR PFX "%s: cannot remap MMIO, aborting\n",
 		       pci_name(pci_dev));
 		err = -EIO;
 		goto err_pci_release;
 	}
-
-	net_dev->base_addr = (unsigned long)ioaddr;
-	bcm->mmio_addr = ioaddr;
 	bcm->mmio_len = mmio_len;
+	net_dev->base_addr = (unsigned long)bcm->mmio_addr;
 
 	bcm43xx_pci_read_config16(bcm, PCI_SUBSYSTEM_VENDOR_ID,
 	                          &bcm->board_vendor);
