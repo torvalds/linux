@@ -33,7 +33,7 @@
 #include <media/audiochip.h>
 #include <media/v4l2-common.h>
 
-#include "tvaudio.h"
+#include <media/i2c-addr.h>
 
 /* ---------------------------------------------------------------------- */
 /* insmod args                                                            */
