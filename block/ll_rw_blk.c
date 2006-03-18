@@ -1854,8 +1854,10 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 		return NULL;
 
 	q->node = node_id;
-	if (blk_init_free_list(q))
-		goto out_init;
+	if (blk_init_free_list(q)) {
+		kmem_cache_free(requestq_cachep, q);
+		return NULL;
+	}
 
 	/*
 	 * if caller didn't supply a lock, they get per-queue locking with
@@ -1891,9 +1893,7 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 		return q;
 	}
 
-	blk_cleanup_queue(q);
-out_init:
-	kmem_cache_free(requestq_cachep, q);
+	blk_put_queue(q);
 	return NULL;
 }
 EXPORT_SYMBOL(blk_init_queue_node);
