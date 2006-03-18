@@ -810,13 +810,14 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 			   bilingual -> lang1 */
 			cx25840_and_or(client, 0x809, ~0xf, 0x00);
 			break;
+		case V4L2_TUNER_MODE_STEREO:
 		case V4L2_TUNER_MODE_LANG1:
 			/* mono      -> mono
 			   stereo    -> stereo
 			   bilingual -> lang1 */
 			cx25840_and_or(client, 0x809, ~0xf, 0x04);
 			break;
-		case V4L2_TUNER_MODE_STEREO:
+		case V4L2_TUNER_MODE_LANG1_LANG2:
 			/* mono      -> mono
 			   stereo    -> stereo
 			   bilingual -> lang1/lang2 */
@@ -824,7 +825,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 			break;
 		case V4L2_TUNER_MODE_LANG2:
 			/* mono      -> mono
-			   stereo    ->stereo
+			   stereo    -> stereo
 			   bilingual -> lang2 */
 			cx25840_and_or(client, 0x809, ~0xf, 0x01);
 			break;

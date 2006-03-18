@@ -1733,6 +1733,7 @@ static int chip_command(struct i2c_client *client,
 			mode = VIDEO_SOUND_MONO;
 			break;
 		case V4L2_TUNER_MODE_STEREO:
+		case V4L2_TUNER_MODE_LANG1_LANG2:
 			mode = VIDEO_SOUND_STEREO;
 			break;
 		case V4L2_TUNER_MODE_LANG1:

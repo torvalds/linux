@@ -482,12 +482,14 @@ static int tvaudio_setstereo(struct saa7134_dev *dev, struct saa7134_tvaudio *au
 		[ V4L2_TUNER_MODE_STEREO ] = "stereo",
 		[ V4L2_TUNER_MODE_LANG1  ] = "lang1",
 		[ V4L2_TUNER_MODE_LANG2  ] = "lang2",
+		[ V4L2_TUNER_MODE_LANG1_LANG2  ] = "lang1+lang2",
 	};
 	static u32 fm[] = {
 		[ V4L2_TUNER_MODE_MONO   ] = 0x00,  /* ch1  */
 		[ V4L2_TUNER_MODE_STEREO ] = 0x80,  /* auto */
 		[ V4L2_TUNER_MODE_LANG1  ] = 0x00,  /* ch1  */
 		[ V4L2_TUNER_MODE_LANG2  ] = 0x01,  /* ch2  */
+		[ V4L2_TUNER_MODE_LANG1_LANG2 ] = 0x80,  /* auto */
 	};
 	u32 reg;
 

@@ -790,6 +790,12 @@ static int mxb_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 				DEB_D(("VIDIOC_S_TUNER: V4L2_TUNER_MODE_STEREO\n"));
 				break;
 			}
+			case V4L2_TUNER_MODE_LANG1_LANG2: {
+				mxb->cur_mode = V4L2_TUNER_MODE_LANG1_LANG2;
+				byte = TDA9840_SET_BOTH;
+				DEB_D(("VIDIOC_S_TUNER: V4L2_TUNER_MODE_LANG1_LANG2\n"));
+				break;
+			}
 			case V4L2_TUNER_MODE_LANG1: {
 				mxb->cur_mode = V4L2_TUNER_MODE_LANG1;
 				byte = TDA9840_SET_LANG1;

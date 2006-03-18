@@ -1878,7 +1878,8 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 			bttv_call_i2c_clients(btv, VIDIOCGAUDIO, &va);
 			if (t->audmode == V4L2_TUNER_MODE_MONO)
 				va.mode = VIDEO_SOUND_MONO;
-			else if (t->audmode == V4L2_TUNER_MODE_STEREO)
+			else if (t->audmode == V4L2_TUNER_MODE_STEREO ||
+				 t->audmode == V4L2_TUNER_MODE_LANG1_LANG2)
 				va.mode = VIDEO_SOUND_STEREO;
 			else if (t->audmode == V4L2_TUNER_MODE_LANG1)
 				va.mode = VIDEO_SOUND_LANG1;

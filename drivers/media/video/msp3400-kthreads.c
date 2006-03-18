@@ -223,9 +223,9 @@ void msp3400c_set_mode(struct i2c_client *client, int mode)
    nor do they support stereo BTSC. */
 static void msp3400c_set_audmode(struct i2c_client *client)
 {
-	static char *strmode[] = { "mono", "stereo", "lang2", "lang1" };
+	static char *strmode[] = { "mono", "stereo", "lang2", "lang1", "lang1+lang2" };
 	struct msp_state *state = i2c_get_clientdata(client);
-	char *modestr = (state->audmode >= 0 && state->audmode < 4) ?
+	char *modestr = (state->audmode >= 0 && state->audmode < 5) ?
 		strmode[state->audmode] : "unknown";
 	int src = 0;	/* channel source: FM/AM, nicam or SCART */
 
@@ -250,6 +250,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 		case V4L2_TUNER_MODE_MONO:
 		case V4L2_TUNER_MODE_LANG1:
 		case V4L2_TUNER_MODE_LANG2:
+		case V4L2_TUNER_MODE_LANG1_LANG2:
 			msp_write_dsp(client, 0x000e, 0x3000);
 			break;
 		}
@@ -261,6 +262,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 			msp3400c_set_carrier(client, MSP_CARRIER(6.5), MSP_CARRIER(6.5));
 			break;
 		case V4L2_TUNER_MODE_STEREO:
+		case V4L2_TUNER_MODE_LANG1_LANG2:
 			msp3400c_set_carrier(client, MSP_CARRIER(7.2), MSP_CARRIER(7.02));
 			break;
 		case V4L2_TUNER_MODE_LANG1:
@@ -296,6 +298,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 	/* switch audio */
 	switch (state->audmode) {
 	case V4L2_TUNER_MODE_STEREO:
+	case V4L2_TUNER_MODE_LANG1_LANG2:
 		src |= 0x0020;
 		break;
 	case V4L2_TUNER_MODE_MONO:
@@ -835,6 +838,7 @@ static void msp34xxg_set_source(struct i2c_client *client, u16 reg, int in)
 		matrix = 0x10;
 		break;
 	case V4L2_TUNER_MODE_STEREO:
+	case V4L2_TUNER_MODE_LANG1_LANG2:
 	default:
 		source = 1; /* stereo or A|B */
 		matrix = 0x20;
