@@ -30,6 +30,7 @@
 #include <asm/ipc.h>
 #include <asm/utrap.h>
 #include <asm/perfctr.h>
+#include <asm/a.out.h>
 
 /* #define DEBUG_UNIMP_SYSCALL */
 
@@ -130,7 +131,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	}
 
 	if (test_thread_flag(TIF_32BIT))
-		task_size = 0xf0000000UL;
+		task_size = STACK_TOP32;
 	if (unlikely(len > task_size || len >= VA_EXCLUDE_START))
 		return -ENOMEM;
 
@@ -203,7 +204,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
-	unsigned long task_size = 0xf0000000UL;
+	unsigned long task_size = STACK_TOP32;
 	unsigned long addr = addr0;
 	int do_color_align;
 
@@ -370,7 +371,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 		mm->unmap_area = arch_unmap_area;
 	} else {
 		/* We know it's 32-bit */
-		unsigned long task_size = 0xf0000000UL;
+		unsigned long task_size = STACK_TOP32;
 		unsigned long gap;
 
 		gap = current->signal->rlim[RLIMIT_STACK].rlim_cur;
@@ -388,7 +389,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 asmlinkage unsigned long sparc_brk(unsigned long brk)
 {
 	/* People could try to be nasty and use ta 0x6d in 32bit programs */
-	if (test_thread_flag(TIF_32BIT) && brk >= 0xf0000000UL)
+	if (test_thread_flag(TIF_32BIT) && brk >= STACK_TOP32)
 		return current->mm->brk;
 
 	if (unlikely(straddles_64bit_va_hole(current->mm->brk, brk)))
@@ -554,10 +555,10 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 	retval = -EINVAL;
 
 	if (test_thread_flag(TIF_32BIT)) {
-		if (len >= 0xf0000000UL)
+		if (len >= STACK_TOP32)
 			goto out_putf;
 
-		if ((flags & MAP_FIXED) && addr > 0xf0000000UL - len)
+		if ((flags & MAP_FIXED) && addr > STACK_TOP32 - len)
 			goto out_putf;
 	} else {
 		if (len >= VA_EXCLUDE_START)
