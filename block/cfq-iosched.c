@@ -114,7 +114,6 @@ static struct completion *ioc_gone;
  * Per block device queue structure
  */
 struct cfq_data {
-	atomic_t ref;
 	request_queue_t *queue;
 
 	/*
@@ -295,7 +294,6 @@ CFQ_CRQ_FNS(is_sync);
 
 static struct cfq_queue *cfq_find_cfq_hash(struct cfq_data *, unsigned int, unsigned short);
 static void cfq_dispatch_insert(request_queue_t *, struct cfq_rq *);
-static void cfq_put_cfqd(struct cfq_data *cfqd);
 static struct cfq_queue *cfq_get_queue(struct cfq_data *cfqd, unsigned int key, struct task_struct *tsk, gfp_t gfp_mask);
 
 #define process_sync(tsk)	((tsk)->flags & PF_SYNCWRITE)
@@ -1168,8 +1166,6 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	if (unlikely(cfqd->active_queue == cfqq))
 		__cfq_slice_expired(cfqd, cfqq, 0);
 
-	cfq_put_cfqd(cfqq->cfqd);
-
 	/*
 	 * it's on the empty list and still hashed
 	 */
@@ -1442,7 +1438,6 @@ retry:
 		hlist_add_head(&cfqq->cfq_hash, &cfqd->cfq_hash[hashval]);
 		atomic_set(&cfqq->ref, 0);
 		cfqq->cfqd = cfqd;
-		atomic_inc(&cfqd->ref);
 		cfqq->service_last = 0;
 		/*
 		 * set ->slice_left to allow preemption for a new process
@@ -2144,19 +2139,6 @@ static void cfq_shutdown_timer_wq(struct cfq_data *cfqd)
 	blk_sync_queue(cfqd->queue);
 }
 
-static void cfq_put_cfqd(struct cfq_data *cfqd)
-{
-	if (!atomic_dec_and_test(&cfqd->ref))
-		return;
-
-	cfq_shutdown_timer_wq(cfqd);
-
-	mempool_destroy(cfqd->crq_pool);
-	kfree(cfqd->crq_hash);
-	kfree(cfqd->cfq_hash);
-	kfree(cfqd);
-}
-
 static void cfq_exit_queue(elevator_t *e)
 {
 	struct cfq_data *cfqd = e->elevator_data;
@@ -2184,7 +2166,13 @@ static void cfq_exit_queue(elevator_t *e)
 	}
 	spin_unlock_irq(q->queue_lock);
 	write_unlock(&cfq_exit_lock);
-	cfq_put_cfqd(cfqd);
+
+	cfq_shutdown_timer_wq(cfqd);
+
+	mempool_destroy(cfqd->crq_pool);
+	kfree(cfqd->crq_hash);
+	kfree(cfqd->cfq_hash);
+	kfree(cfqd);
 }
 
 static int cfq_init_queue(request_queue_t *q, elevator_t *e)
@@ -2240,8 +2228,6 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	cfqd->idle_class_timer.data = (unsigned long) cfqd;
 
 	INIT_WORK(&cfqd->unplug_work, cfq_kick_queue, q);
-
-	atomic_set(&cfqd->ref, 1);
 
 	cfqd->cfq_queued = cfq_queued;
 	cfqd->cfq_quantum = cfq_quantum;
