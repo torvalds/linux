@@ -3614,10 +3614,13 @@ static ssize_t
 queue_requests_store(struct request_queue *q, const char *page, size_t count)
 {
 	struct request_list *rl = &q->rq;
+	unsigned long nr;
+	int ret = queue_var_store(&nr, page, count);
+	if (nr < BLKDEV_MIN_RQ)
+		nr = BLKDEV_MIN_RQ;
 
-	int ret = queue_var_store(&q->nr_requests, page, count);
-	if (q->nr_requests < BLKDEV_MIN_RQ)
-		q->nr_requests = BLKDEV_MIN_RQ;
+	spin_lock_irq(q->queue_lock);
+	q->nr_requests = nr;
 	blk_queue_congestion_threshold(q);
 
 	if (rl->count[READ] >= queue_congestion_on_threshold(q))
@@ -3643,6 +3646,7 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 		blk_clear_queue_full(q, WRITE);
 		wake_up(&rl->wait[WRITE]);
 	}
+	spin_unlock_irq(q->queue_lock);
 	return ret;
 }
 
