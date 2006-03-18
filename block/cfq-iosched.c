@@ -91,6 +91,9 @@ static kmem_cache_t *crq_pool;
 static kmem_cache_t *cfq_pool;
 static kmem_cache_t *cfq_ioc_pool;
 
+static atomic_t ioc_count = ATOMIC_INIT(0);
+static struct completion *ioc_gone;
+
 #define CFQ_PRIO_LISTS		IOPRIO_BE_NR
 #define cfq_class_idle(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_IDLE)
 #define cfq_class_be(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_BE)
@@ -1202,13 +1205,17 @@ static void cfq_free_io_context(struct cfq_io_context *cic)
 {
 	struct cfq_io_context *__cic;
 	struct list_head *entry, *next;
+	int freed = 1;
 
 	list_for_each_safe(entry, next, &cic->list) {
 		__cic = list_entry(entry, struct cfq_io_context, list);
 		kmem_cache_free(cfq_ioc_pool, __cic);
+		freed++;
 	}
 
 	kmem_cache_free(cfq_ioc_pool, cic);
+	if (atomic_sub_and_test(freed, &ioc_count) && ioc_gone)
+		complete(ioc_gone);
 }
 
 static void cfq_trim(struct io_context *ioc)
@@ -1297,6 +1304,7 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 		cic->dtor = cfq_free_io_context;
 		cic->exit = cfq_exit_io_context;
 		INIT_LIST_HEAD(&cic->queue_list);
+		atomic_inc(&ioc_count);
 	}
 
 	return cic;
@@ -1501,6 +1509,7 @@ restart:
 						      list);
 			read_unlock(&cfq_exit_lock);
 			kmem_cache_free(cfq_ioc_pool, cic);
+			atomic_dec(&ioc_count);
 			goto restart;
 		}
 
@@ -1523,6 +1532,7 @@ restart:
 				list_del(&__cic->list);
 				read_unlock(&cfq_exit_lock);
 				kmem_cache_free(cfq_ioc_pool, __cic);
+				atomic_dec(&ioc_count);
 				goto restart;
 			}
 		}
@@ -2510,7 +2520,13 @@ static int __init cfq_init(void)
 
 static void __exit cfq_exit(void)
 {
+	DECLARE_COMPLETION(all_gone);
 	elv_unregister(&iosched_cfq);
+	ioc_gone = &all_gone;
+	barrier();
+	if (atomic_read(&ioc_count))
+		complete(ioc_gone);
+	synchronize_rcu();
 	cfq_slab_kill();
 }
 

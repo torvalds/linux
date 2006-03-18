@@ -182,6 +182,9 @@ struct as_rq {
 
 static kmem_cache_t *arq_pool;
 
+static atomic_t ioc_count = ATOMIC_INIT(0);
+static struct completion *ioc_gone;
+
 static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq);
 static void as_antic_stop(struct as_data *ad);
 
@@ -193,11 +196,14 @@ static void as_antic_stop(struct as_data *ad);
 static void free_as_io_context(struct as_io_context *aic)
 {
 	kfree(aic);
+	if (atomic_dec_and_test(&ioc_count) && ioc_gone)
+		complete(ioc_gone);
 }
 
 static void as_trim(struct io_context *ioc)
 {
-	kfree(ioc->aic);
+	if (ioc->aic)
+		free_as_io_context(ioc->aic);
 	ioc->aic = NULL;
 }
 
@@ -226,6 +232,7 @@ static struct as_io_context *alloc_as_io_context(void)
 		ret->seek_total = 0;
 		ret->seek_samples = 0;
 		ret->seek_mean = 0;
+		atomic_inc(&ioc_count);
 	}
 
 	return ret;
@@ -1900,7 +1907,13 @@ static int __init as_init(void)
 
 static void __exit as_exit(void)
 {
+	DECLARE_COMPLETION(all_gone);
 	elv_unregister(&iosched_as);
+	ioc_gone = &all_gone;
+	barrier();
+	if (atomic_read(&ioc_count))
+		complete(ioc_gone);
+	synchronize_rcu();
 	kmem_cache_destroy(arq_pool);
 }
 

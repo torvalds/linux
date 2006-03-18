@@ -3477,10 +3477,12 @@ void put_io_context(struct io_context *ioc)
 	BUG_ON(atomic_read(&ioc->refcount) == 0);
 
 	if (atomic_dec_and_test(&ioc->refcount)) {
+		rcu_read_lock();
 		if (ioc->aic && ioc->aic->dtor)
 			ioc->aic->dtor(ioc->aic);
 		if (ioc->cic && ioc->cic->dtor)
 			ioc->cic->dtor(ioc->cic);
+		rcu_read_unlock();
 
 		kmem_cache_free(iocontext_cachep, ioc);
 	}
