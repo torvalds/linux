@@ -296,6 +296,7 @@ CFQ_CRQ_FNS(is_sync);
 static struct cfq_queue *cfq_find_cfq_hash(struct cfq_data *, unsigned int, unsigned short);
 static void cfq_dispatch_insert(request_queue_t *, struct cfq_rq *);
 static void cfq_put_cfqd(struct cfq_data *cfqd);
+static struct cfq_queue *cfq_get_queue(struct cfq_data *cfqd, unsigned int key, struct task_struct *tsk, gfp_t gfp_mask);
 
 #define process_sync(tsk)	((tsk)->flags & PF_SYNCWRITE)
 
@@ -1365,8 +1366,13 @@ static inline void changed_ioprio(struct cfq_io_context *cic)
 		spin_lock(cfqd->queue->queue_lock);
 		cfqq = cic->cfqq[ASYNC];
 		if (cfqq) {
-			cfq_mark_cfqq_prio_changed(cfqq);
-			cfq_init_prio_data(cfqq);
+			struct cfq_queue *new_cfqq;
+			new_cfqq = cfq_get_queue(cfqd, CFQ_KEY_ASYNC,
+						cic->ioc->task, GFP_ATOMIC);
+			if (new_cfqq) {
+				cic->cfqq[ASYNC] = new_cfqq;
+				cfq_put_queue(cfqq);
+			}
 		}
 		cfqq = cic->cfqq[SYNC];
 		if (cfqq) {
@@ -1399,13 +1405,15 @@ static int cfq_ioc_set_ioprio(struct io_context *ioc, unsigned int ioprio)
 }
 
 static struct cfq_queue *
-cfq_get_queue(struct cfq_data *cfqd, unsigned int key, unsigned short ioprio,
+cfq_get_queue(struct cfq_data *cfqd, unsigned int key, struct task_struct *tsk,
 	      gfp_t gfp_mask)
 {
 	const int hashval = hash_long(key, CFQ_QHASH_SHIFT);
 	struct cfq_queue *cfqq, *new_cfqq = NULL;
+	unsigned short ioprio;
 
 retry:
+	ioprio = tsk->ioprio;
 	cfqq = __cfq_find_cfq_hash(cfqd, key, ioprio, hashval);
 
 	if (!cfqq) {
@@ -1982,7 +1990,7 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 		goto queue_fail;
 
 	if (!cic->cfqq[is_sync]) {
-		cfqq = cfq_get_queue(cfqd, key, tsk->ioprio, gfp_mask);
+		cfqq = cfq_get_queue(cfqd, key, tsk, gfp_mask);
 		if (!cfqq)
 			goto queue_fail;
 
