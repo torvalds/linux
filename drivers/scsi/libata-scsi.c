@@ -41,6 +41,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_request.h>
+#include <scsi/scsi_transport.h>
 #include <linux/libata.h>
 #include <linux/hdreg.h>
 #include <asm/uaccess.h>
@@ -52,6 +53,7 @@
 typedef unsigned int (*ata_xlat_func_t)(struct ata_queued_cmd *qc, const u8 *scsicmd);
 static struct ata_device *
 ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev);
+enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd);
 
 #define RW_RECOVERY_MPAGE 0x1
 #define RW_RECOVERY_MPAGE_LEN 12
@@ -90,6 +92,14 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
 	0,	/* [QAM+QERR may be 1, see 05-359r1] */
 	0, 0, 0, 0, 0xff, 0xff,
 	0, 30	/* extended self test time, see 05-359r1 */
+};
+
+/*
+ * libata transport template.  libata doesn't do real transport stuff.
+ * It just needs the eh_timed_out hook.
+ */
+struct scsi_transport_template ata_scsi_transport_template = {
+	.eh_timed_out		= ata_scsi_timed_out,
 };
 
 
