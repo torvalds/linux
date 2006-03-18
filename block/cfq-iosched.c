@@ -1433,7 +1433,6 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 		ioc->set_ioprio = cfq_ioc_set_ioprio;
 		cic->ioc = ioc;
 		cic->key = cfqd;
-		atomic_inc(&cfqd->ref);
 	} else {
 		struct cfq_io_context *__cic;
 
@@ -1469,7 +1468,6 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 
 		__cic->ioc = ioc;
 		__cic->key = cfqd;
-		atomic_inc(&cfqd->ref);
 		list_add(&__cic->list, &cic->list);
 		cic = __cic;
 	}
