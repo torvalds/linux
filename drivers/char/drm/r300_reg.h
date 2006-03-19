@@ -711,8 +711,22 @@ I am fairly certain that they are correct unless stated otherwise in comments.
 #	define R300_TX_MAX_ANISO_16_TO_1 (8 << 21)
 #	define R300_TX_MAX_ANISO_MASK    (14 << 21)
 
-#define R300_TX_UNK1_0                      0x4440
+#define R300_TX_FILTER1_0                      0x4440
+#	define R300_CHROMA_KEY_MODE_DISABLE    0
+#	define R300_CHROMA_KEY_FORCE	       1
+#	define R300_CHROMA_KEY_BLEND           2
+#	define R300_MC_ROUND_NORMAL            (0<<2)
+#	define R300_MC_ROUND_MPEG4             (1<<2)
 #	define R300_LOD_BIAS_MASK	    0x1fff
+#	define R300_EDGE_ANISO_EDGE_DIAG       (0<<13)
+#	define R300_EDGE_ANISO_EDGE_ONLY       (1<<13)
+#	define R300_MC_COORD_TRUNCATE_DISABLE  (0<<14)
+#	define R300_MC_COORD_TRUNCATE_MPEG     (1<<14)
+#	define R300_TX_TRI_PERF_0_8            (0<<15)
+#	define R300_TX_TRI_PERF_1_8            (1<<15)
+#	define R300_TX_TRI_PERF_1_4            (2<<15)
+#	define R300_TX_TRI_PERF_3_8            (3<<15)
+#	define R300_ANISO_THRESHOLD_MASK       (7<<17)
 
 #define R300_TX_SIZE_0                      0x4480
 #       define R300_TX_WIDTHMASK_SHIFT           0
@@ -722,6 +736,8 @@ I am fairly certain that they are correct unless stated otherwise in comments.
 #       define R300_TX_UNK23                     (1 << 23)
 #       define R300_TX_SIZE_SHIFT                26	/* largest of width, height */
 #       define R300_TX_SIZE_MASK                 (15 << 26)
+#       define R300_TX_SIZE_PROJECTED                     (1<<30)
+#       define R300_TX_SIZE_TXPITCH_EN                     (1<<31)
 #define R300_TX_FORMAT_0                    0x44C0
 	/* The interpretation of the format word by Wladimir van der Laan */
 	/* The X, Y, Z and W refer to the layout of the components.
@@ -750,7 +766,8 @@ I am fairly certain that they are correct unless stated otherwise in comments.
 #	define R300_TX_FORMAT_B8G8_B8G8	    	    0x14	/* no swizzle */
 #	define R300_TX_FORMAT_G8R8_G8B8	    	    0x15	/* no swizzle */
 						  /* 0x16 - some 16 bit green format.. ?? */
-#	define R300_TX_FORMAT_UNK25		   (1 << 25)	/* no swizzle */
+#	define R300_TX_FORMAT_UNK25		   (1 << 25) /* no swizzle */
+#	define R300_TX_FORMAT_CUBIC_MAP		   (1 << 26)
 
 	/* gap */
 	/* Floating point formats */
@@ -800,18 +817,20 @@ I am fairly certain that they are correct unless stated otherwise in comments.
 
 #	define R300_TX_FORMAT_YUV_MODE		0x00800000
 
-#define R300_TX_PITCH_0			    0x4500
+#define R300_TX_PITCH_0			    0x4500 /* obvious missing in gap */
 #define R300_TX_OFFSET_0                    0x4540
 /* BEGIN: Guess from R200 */
 #       define R300_TXO_ENDIAN_NO_SWAP           (0 << 0)
 #       define R300_TXO_ENDIAN_BYTE_SWAP         (1 << 0)
 #       define R300_TXO_ENDIAN_WORD_SWAP         (2 << 0)
 #       define R300_TXO_ENDIAN_HALFDW_SWAP       (3 << 0)
+#       define R300_TXO_MACRO_TILE               (1 << 2)
+#       define R300_TXO_MICRO_TILE               (1 << 3)
 #       define R300_TXO_OFFSET_MASK              0xffffffe0
 #       define R300_TXO_OFFSET_SHIFT             5
 /* END */
-#define R300_TX_UNK4_0                      0x4580
-#define R300_TX_BORDER_COLOR_0              0x45C0	//ff00ff00 == { 0, 1.0, 0, 1.0 }
+#define R300_TX_CHROMA_KEY_0                      0x4580 /* 32 bit chroma key */
+#define R300_TX_BORDER_COLOR_0              0x45C0 //ff00ff00 == { 0, 1.0, 0, 1.0 }
 
 /* END */
 
@@ -868,7 +887,9 @@ I am fairly certain that they are correct unless stated otherwise in comments.
 #       define R300_PFS_NODE_TEX_OFFSET_MASK     (31 << 12)
 #       define R300_PFS_NODE_TEX_END_SHIFT       17
 #       define R300_PFS_NODE_TEX_END_MASK        (31 << 17)
-#       define R300_PFS_NODE_LAST_NODE           (1 << 22)
+/*#       define R300_PFS_NODE_LAST_NODE           (1 << 22) */
+#		define R300_PFS_NODE_OUTPUT_COLOR        (1 << 22)
+#		define R300_PFS_NODE_OUTPUT_DEPTH        (1 << 23)
 
 /* TEX
 // As far as I can tell, texture instructions cannot write into output
@@ -887,6 +908,7 @@ I am fairly certain that they are correct unless stated otherwise in comments.
  */
 #		define R300_FPITX_OPCODE_SHIFT			15
 #			define R300_FPITX_OP_TEX			1
+#			define R300_FPITX_OP_KIL			2
 #			define R300_FPITX_OP_TXP			3
 #			define R300_FPITX_OP_TXB			4
 
@@ -962,9 +984,11 @@ I am fairly certain that they are correct unless stated otherwise in comments.
 #       define R300_FPI1_SRC2C_CONST             (1 << 17)
 #       define R300_FPI1_DSTC_SHIFT              18
 #       define R300_FPI1_DSTC_MASK               (31 << 18)
+#		define R300_FPI1_DSTC_REG_MASK_SHIFT     23
 #       define R300_FPI1_DSTC_REG_X              (1 << 23)
 #       define R300_FPI1_DSTC_REG_Y              (1 << 24)
 #       define R300_FPI1_DSTC_REG_Z              (1 << 25)
+#		define R300_FPI1_DSTC_OUTPUT_MASK_SHIFT  26
 #       define R300_FPI1_DSTC_OUTPUT_X           (1 << 26)
 #       define R300_FPI1_DSTC_OUTPUT_Y           (1 << 27)
 #       define R300_FPI1_DSTC_OUTPUT_Z           (1 << 28)
@@ -983,6 +1007,7 @@ I am fairly certain that they are correct unless stated otherwise in comments.
 #       define R300_FPI3_DSTA_MASK               (31 << 18)
 #       define R300_FPI3_DSTA_REG                (1 << 23)
 #       define R300_FPI3_DSTA_OUTPUT             (1 << 24)
+#		define R300_FPI3_DSTA_DEPTH              (1 << 27)
 
 #define R300_PFS_INSTR0_0                   0x48C0
 #       define R300_FPI0_ARGC_SRC0C_XYZ          0
@@ -1036,7 +1061,7 @@ I am fairly certain that they are correct unless stated otherwise in comments.
 #       define R300_FPI0_OUTC_FRC                (9 << 23)
 #       define R300_FPI0_OUTC_REPL_ALPHA         (10 << 23)
 #       define R300_FPI0_OUTC_SAT                (1 << 30)
-#       define R300_FPI0_UNKNOWN_31              (1 << 31)
+#       define R300_FPI0_INSERT_NOP              (1 << 31)
 
 #define R300_PFS_INSTR2_0                   0x49C0
 #       define R300_FPI2_ARGA_SRC0C_X            0
