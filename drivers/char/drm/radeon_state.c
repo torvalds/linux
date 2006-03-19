@@ -1996,7 +1996,7 @@ static int radeon_surface_free(DRM_IOCTL_ARGS)
 		return DRM_ERR(EINVAL);
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_radeon_mem_free_t __user *) data,
+	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_radeon_surface_free_t __user *) data,
 				 sizeof(memfree));
 
 	if (free_surface(filp, dev_priv, memfree.address))
