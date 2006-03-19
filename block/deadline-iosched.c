@@ -719,11 +719,11 @@ static ssize_t __FUNC(elevator_t *e, char *page)			\
 		__data = jiffies_to_msecs(__data);			\
 	return deadline_var_show(__data, (page));			\
 }
-SHOW_FUNCTION(deadline_readexpire_show, dd->fifo_expire[READ], 1);
-SHOW_FUNCTION(deadline_writeexpire_show, dd->fifo_expire[WRITE], 1);
-SHOW_FUNCTION(deadline_writesstarved_show, dd->writes_starved, 0);
-SHOW_FUNCTION(deadline_frontmerges_show, dd->front_merges, 0);
-SHOW_FUNCTION(deadline_fifobatch_show, dd->fifo_batch, 0);
+SHOW_FUNCTION(deadline_read_expire_show, dd->fifo_expire[READ], 1);
+SHOW_FUNCTION(deadline_write_expire_show, dd->fifo_expire[WRITE], 1);
+SHOW_FUNCTION(deadline_writes_starved_show, dd->writes_starved, 0);
+SHOW_FUNCTION(deadline_front_merges_show, dd->front_merges, 0);
+SHOW_FUNCTION(deadline_fifo_batch_show, dd->fifo_batch, 0);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
@@ -742,46 +742,24 @@ static ssize_t __FUNC(elevator_t *e, const char *page, size_t count)	\
 		*(__PTR) = __data;					\
 	return ret;							\
 }
-STORE_FUNCTION(deadline_readexpire_store, &dd->fifo_expire[READ], 0, INT_MAX, 1);
-STORE_FUNCTION(deadline_writeexpire_store, &dd->fifo_expire[WRITE], 0, INT_MAX, 1);
-STORE_FUNCTION(deadline_writesstarved_store, &dd->writes_starved, INT_MIN, INT_MAX, 0);
-STORE_FUNCTION(deadline_frontmerges_store, &dd->front_merges, 0, 1, 0);
-STORE_FUNCTION(deadline_fifobatch_store, &dd->fifo_batch, 0, INT_MAX, 0);
+STORE_FUNCTION(deadline_read_expire_store, &dd->fifo_expire[READ], 0, INT_MAX, 1);
+STORE_FUNCTION(deadline_write_expire_store, &dd->fifo_expire[WRITE], 0, INT_MAX, 1);
+STORE_FUNCTION(deadline_writes_starved_store, &dd->writes_starved, INT_MIN, INT_MAX, 0);
+STORE_FUNCTION(deadline_front_merges_store, &dd->front_merges, 0, 1, 0);
+STORE_FUNCTION(deadline_fifo_batch_store, &dd->fifo_batch, 0, INT_MAX, 0);
 #undef STORE_FUNCTION
 
-static struct elv_fs_entry deadline_readexpire_entry = {
-	.attr = {.name = "read_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = deadline_readexpire_show,
-	.store = deadline_readexpire_store,
-};
-static struct elv_fs_entry deadline_writeexpire_entry = {
-	.attr = {.name = "write_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = deadline_writeexpire_show,
-	.store = deadline_writeexpire_store,
-};
-static struct elv_fs_entry deadline_writesstarved_entry = {
-	.attr = {.name = "writes_starved", .mode = S_IRUGO | S_IWUSR },
-	.show = deadline_writesstarved_show,
-	.store = deadline_writesstarved_store,
-};
-static struct elv_fs_entry deadline_frontmerges_entry = {
-	.attr = {.name = "front_merges", .mode = S_IRUGO | S_IWUSR },
-	.show = deadline_frontmerges_show,
-	.store = deadline_frontmerges_store,
-};
-static struct elv_fs_entry deadline_fifobatch_entry = {
-	.attr = {.name = "fifo_batch", .mode = S_IRUGO | S_IWUSR },
-	.show = deadline_fifobatch_show,
-	.store = deadline_fifobatch_store,
-};
+#define DD_ATTR(name) \
+	__ATTR(name, S_IRUGO|S_IWUSR, deadline_##name##_show, \
+				      deadline_##name##_store)
 
-static struct attribute *deadline_attrs[] = {
-	&deadline_readexpire_entry.attr,
-	&deadline_writeexpire_entry.attr,
-	&deadline_writesstarved_entry.attr,
-	&deadline_frontmerges_entry.attr,
-	&deadline_fifobatch_entry.attr,
-	NULL,
+static struct elv_fs_entry deadline_attrs[] = {
+	DD_ATTR(read_expire),
+	DD_ATTR(write_expire),
+	DD_ATTR(writes_starved),
+	DD_ATTR(front_merges),
+	DD_ATTR(fifo_batch),
+	__ATTR_NULL
 };
 
 static struct elevator_type iosched_deadline = {

@@ -2304,8 +2304,8 @@ SHOW_FUNCTION(cfq_quantum_show, cfqd->cfq_quantum, 0);
 SHOW_FUNCTION(cfq_queued_show, cfqd->cfq_queued, 0);
 SHOW_FUNCTION(cfq_fifo_expire_sync_show, cfqd->cfq_fifo_expire[1], 1);
 SHOW_FUNCTION(cfq_fifo_expire_async_show, cfqd->cfq_fifo_expire[0], 1);
-SHOW_FUNCTION(cfq_back_max_show, cfqd->cfq_back_max, 0);
-SHOW_FUNCTION(cfq_back_penalty_show, cfqd->cfq_back_penalty, 0);
+SHOW_FUNCTION(cfq_back_seek_max_show, cfqd->cfq_back_max, 0);
+SHOW_FUNCTION(cfq_back_seek_penalty_show, cfqd->cfq_back_penalty, 0);
 SHOW_FUNCTION(cfq_slice_idle_show, cfqd->cfq_slice_idle, 1);
 SHOW_FUNCTION(cfq_slice_sync_show, cfqd->cfq_slice[1], 1);
 SHOW_FUNCTION(cfq_slice_async_show, cfqd->cfq_slice[0], 1);
@@ -2333,8 +2333,8 @@ STORE_FUNCTION(cfq_quantum_store, &cfqd->cfq_quantum, 1, UINT_MAX, 0);
 STORE_FUNCTION(cfq_queued_store, &cfqd->cfq_queued, 1, UINT_MAX, 0);
 STORE_FUNCTION(cfq_fifo_expire_sync_store, &cfqd->cfq_fifo_expire[1], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_fifo_expire_async_store, &cfqd->cfq_fifo_expire[0], 1, UINT_MAX, 1);
-STORE_FUNCTION(cfq_back_max_store, &cfqd->cfq_back_max, 0, UINT_MAX, 0);
-STORE_FUNCTION(cfq_back_penalty_store, &cfqd->cfq_back_penalty, 1, UINT_MAX, 0);
+STORE_FUNCTION(cfq_back_seek_max_store, &cfqd->cfq_back_max, 0, UINT_MAX, 0);
+STORE_FUNCTION(cfq_back_seek_penalty_store, &cfqd->cfq_back_penalty, 1, UINT_MAX, 0);
 STORE_FUNCTION(cfq_slice_idle_store, &cfqd->cfq_slice_idle, 0, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_sync_store, &cfqd->cfq_slice[1], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_async_store, &cfqd->cfq_slice[0], 1, UINT_MAX, 1);
@@ -2342,75 +2342,22 @@ STORE_FUNCTION(cfq_slice_async_rq_store, &cfqd->cfq_slice_async_rq, 1, UINT_MAX,
 STORE_FUNCTION(cfq_max_depth_store, &cfqd->cfq_max_depth, 1, UINT_MAX, 0);
 #undef STORE_FUNCTION
 
-static struct elv_fs_entry cfq_quantum_entry = {
-	.attr = {.name = "quantum", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_quantum_show,
-	.store = cfq_quantum_store,
-};
-static struct elv_fs_entry cfq_queued_entry = {
-	.attr = {.name = "queued", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_queued_show,
-	.store = cfq_queued_store,
-};
-static struct elv_fs_entry cfq_fifo_expire_sync_entry = {
-	.attr = {.name = "fifo_expire_sync", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_fifo_expire_sync_show,
-	.store = cfq_fifo_expire_sync_store,
-};
-static struct elv_fs_entry cfq_fifo_expire_async_entry = {
-	.attr = {.name = "fifo_expire_async", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_fifo_expire_async_show,
-	.store = cfq_fifo_expire_async_store,
-};
-static struct elv_fs_entry cfq_back_max_entry = {
-	.attr = {.name = "back_seek_max", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_back_max_show,
-	.store = cfq_back_max_store,
-};
-static struct elv_fs_entry cfq_back_penalty_entry = {
-	.attr = {.name = "back_seek_penalty", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_back_penalty_show,
-	.store = cfq_back_penalty_store,
-};
-static struct elv_fs_entry cfq_slice_sync_entry = {
-	.attr = {.name = "slice_sync", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_slice_sync_show,
-	.store = cfq_slice_sync_store,
-};
-static struct elv_fs_entry cfq_slice_async_entry = {
-	.attr = {.name = "slice_async", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_slice_async_show,
-	.store = cfq_slice_async_store,
-};
-static struct elv_fs_entry cfq_slice_async_rq_entry = {
-	.attr = {.name = "slice_async_rq", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_slice_async_rq_show,
-	.store = cfq_slice_async_rq_store,
-};
-static struct elv_fs_entry cfq_slice_idle_entry = {
-	.attr = {.name = "slice_idle", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_slice_idle_show,
-	.store = cfq_slice_idle_store,
-};
-static struct elv_fs_entry cfq_max_depth_entry = {
-	.attr = {.name = "max_depth", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_max_depth_show,
-	.store = cfq_max_depth_store,
-};
+#define CFQ_ATTR(name) \
+	__ATTR(name, S_IRUGO|S_IWUSR, cfq_##name##_show, cfq_##name##_store)
 
-static struct attribute *cfq_attrs[] = {
-	&cfq_quantum_entry.attr,
-	&cfq_queued_entry.attr,
-	&cfq_fifo_expire_sync_entry.attr,
-	&cfq_fifo_expire_async_entry.attr,
-	&cfq_back_max_entry.attr,
-	&cfq_back_penalty_entry.attr,
-	&cfq_slice_sync_entry.attr,
-	&cfq_slice_async_entry.attr,
-	&cfq_slice_async_rq_entry.attr,
-	&cfq_slice_idle_entry.attr,
-	&cfq_max_depth_entry.attr,
-	NULL,
+static struct elv_fs_entry cfq_attrs[] = {
+	CFQ_ATTR(quantum),
+	CFQ_ATTR(queued),
+	CFQ_ATTR(fifo_expire_sync),
+	CFQ_ATTR(fifo_expire_async),
+	CFQ_ATTR(back_seek_max),
+	CFQ_ATTR(back_seek_penalty),
+	CFQ_ATTR(slice_sync),
+	CFQ_ATTR(slice_async),
+	CFQ_ATTR(slice_async_rq),
+	CFQ_ATTR(slice_idle),
+	CFQ_ATTR(max_depth),
+	__ATTR_NULL
 };
 
 static struct elevator_type iosched_cfq = {

@@ -1725,7 +1725,7 @@ as_var_store(unsigned long *var, const char *page, size_t count)
 	return count;
 }
 
-static ssize_t as_est_show(elevator_t *e, char *page)
+static ssize_t est_time_show(elevator_t *e, char *page)
 {
 	struct as_data *ad = e->elevator_data;
 	int pos = 0;
@@ -1748,11 +1748,11 @@ static ssize_t __FUNC(elevator_t *e, char *page)		\
 	struct as_data *ad = e->elevator_data;			\
 	return as_var_show(jiffies_to_msecs((__VAR)), (page));	\
 }
-SHOW_FUNCTION(as_readexpire_show, ad->fifo_expire[REQ_SYNC]);
-SHOW_FUNCTION(as_writeexpire_show, ad->fifo_expire[REQ_ASYNC]);
-SHOW_FUNCTION(as_anticexpire_show, ad->antic_expire);
-SHOW_FUNCTION(as_read_batchexpire_show, ad->batch_expire[REQ_SYNC]);
-SHOW_FUNCTION(as_write_batchexpire_show, ad->batch_expire[REQ_ASYNC]);
+SHOW_FUNCTION(as_read_expire_show, ad->fifo_expire[REQ_SYNC]);
+SHOW_FUNCTION(as_write_expire_show, ad->fifo_expire[REQ_ASYNC]);
+SHOW_FUNCTION(as_antic_expire_show, ad->antic_expire);
+SHOW_FUNCTION(as_read_batch_expire_show, ad->batch_expire[REQ_SYNC]);
+SHOW_FUNCTION(as_write_batch_expire_show, ad->batch_expire[REQ_ASYNC]);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX)				\
@@ -1767,53 +1767,26 @@ static ssize_t __FUNC(elevator_t *e, const char *page, size_t count)	\
 	*(__PTR) = msecs_to_jiffies(*(__PTR));				\
 	return ret;							\
 }
-STORE_FUNCTION(as_readexpire_store, &ad->fifo_expire[REQ_SYNC], 0, INT_MAX);
-STORE_FUNCTION(as_writeexpire_store, &ad->fifo_expire[REQ_ASYNC], 0, INT_MAX);
-STORE_FUNCTION(as_anticexpire_store, &ad->antic_expire, 0, INT_MAX);
-STORE_FUNCTION(as_read_batchexpire_store,
+STORE_FUNCTION(as_read_expire_store, &ad->fifo_expire[REQ_SYNC], 0, INT_MAX);
+STORE_FUNCTION(as_write_expire_store, &ad->fifo_expire[REQ_ASYNC], 0, INT_MAX);
+STORE_FUNCTION(as_antic_expire_store, &ad->antic_expire, 0, INT_MAX);
+STORE_FUNCTION(as_read_batch_expire_store,
 			&ad->batch_expire[REQ_SYNC], 0, INT_MAX);
-STORE_FUNCTION(as_write_batchexpire_store,
+STORE_FUNCTION(as_write_batch_expire_store,
 			&ad->batch_expire[REQ_ASYNC], 0, INT_MAX);
 #undef STORE_FUNCTION
 
-static struct elv_fs_entry as_est_entry = {
-	.attr = {.name = "est_time", .mode = S_IRUGO },
-	.show = as_est_show,
-};
-static struct elv_fs_entry as_readexpire_entry = {
-	.attr = {.name = "read_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = as_readexpire_show,
-	.store = as_readexpire_store,
-};
-static struct elv_fs_entry as_writeexpire_entry = {
-	.attr = {.name = "write_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = as_writeexpire_show,
-	.store = as_writeexpire_store,
-};
-static struct elv_fs_entry as_anticexpire_entry = {
-	.attr = {.name = "antic_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = as_anticexpire_show,
-	.store = as_anticexpire_store,
-};
-static struct elv_fs_entry as_read_batchexpire_entry = {
-	.attr = {.name = "read_batch_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = as_read_batchexpire_show,
-	.store = as_read_batchexpire_store,
-};
-static struct elv_fs_entry as_write_batchexpire_entry = {
-	.attr = {.name = "write_batch_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = as_write_batchexpire_show,
-	.store = as_write_batchexpire_store,
-};
+#define AS_ATTR(name) \
+	__ATTR(name, S_IRUGO|S_IWUSR, as_##name##_show, as_##name##_store)
 
-static struct attribute *as_attrs[] = {
-	&as_est_entry.attr,
-	&as_readexpire_entry.attr,
-	&as_writeexpire_entry.attr,
-	&as_anticexpire_entry.attr,
-	&as_read_batchexpire_entry.attr,
-	&as_write_batchexpire_entry.attr,
-	NULL,
+static struct elv_fs_entry as_attrs[] = {
+	__ATTR_RO(est_time),
+	AS_ATTR(read_expire),
+	AS_ATTR(write_expire),
+	AS_ATTR(antic_expire),
+	AS_ATTR(read_batch_expire),
+	AS_ATTR(write_batch_expire),
+	__ATTR_NULL
 };
 
 static struct elevator_type iosched_as = {

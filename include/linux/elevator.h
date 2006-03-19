@@ -53,6 +53,12 @@ struct elevator_ops
 
 #define ELV_NAME_MAX	(16)
 
+struct elv_fs_entry {
+	struct attribute attr;
+	ssize_t (*show)(elevator_t *, char *);
+	ssize_t (*store)(elevator_t *, const char *, size_t);
+};
+
 /*
  * identifies an elevator type, such as AS or deadline
  */
@@ -61,7 +67,7 @@ struct elevator_type
 	struct list_head list;
 	struct elevator_ops ops;
 	struct elevator_type *elevator_type;
-	struct attribute **elevator_attrs;
+	struct elv_fs_entry *elevator_attrs;
 	char elevator_name[ELV_NAME_MAX];
 	struct module *elevator_owner;
 };
@@ -140,12 +146,6 @@ enum {
 	ELV_MQUEUE_MAY,
 	ELV_MQUEUE_NO,
 	ELV_MQUEUE_MUST,
-};
-
-struct elv_fs_entry {
-	struct attribute attr;
-	ssize_t (*show)(elevator_t *, char *);
-	ssize_t (*store)(elevator_t *, const char *, size_t);
 };
 
 #define rq_end_sector(rq)	((rq)->sector + (rq)->nr_sectors)
