@@ -1785,10 +1785,6 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 		bcmirq_handled(BCM43xx_IRQ_XMIT_STATUS);
 	}
 
-	/* We get spurious IRQs, althought they are masked.
-	 * Assume they are void and ignore them.
-	 */
-	bcmirq_handled(~(bcm->irq_savedstate));
 	/* IRQ_PIO_WORKAROUND is handled in the top-half. */
 	bcmirq_handled(BCM43xx_IRQ_PIO_WORKAROUND);
 #ifdef CONFIG_BCM43XX_DEBUG
@@ -1809,41 +1805,31 @@ static void bcm43xx_interrupt_tasklet(struct bcm43xx_private *bcm)
 	bcm43xx_unlock_mmio(bcm, flags);
 }
 
-static void bcm43xx_interrupt_ack(struct bcm43xx_private *bcm,
-				  u32 reason, u32 mask)
+static void pio_irq_workaround(struct bcm43xx_private *bcm,
+			       u16 base, int queueidx)
 {
-	bcm->dma_reason[0] = bcm43xx_read32(bcm, BCM43xx_MMIO_DMA1_REASON)
-			     & 0x0001dc00;
-	bcm->dma_reason[1] = bcm43xx_read32(bcm, BCM43xx_MMIO_DMA2_REASON)
-			     & 0x0000dc00;
-	bcm->dma_reason[2] = bcm43xx_read32(bcm, BCM43xx_MMIO_DMA3_REASON)
-			     & 0x0000dc00;
-	bcm->dma_reason[3] = bcm43xx_read32(bcm, BCM43xx_MMIO_DMA4_REASON)
-			     & 0x0001dc00;
+	u16 rxctl;
 
+	rxctl = bcm43xx_read16(bcm, base + BCM43xx_PIO_RXCTL);
+	if (rxctl & BCM43xx_PIO_RXCTL_DATAAVAILABLE)
+		bcm->dma_reason[queueidx] |= BCM43xx_DMAIRQ_RX_DONE;
+	else
+		bcm->dma_reason[queueidx] &= ~BCM43xx_DMAIRQ_RX_DONE;
+}
+
+static void bcm43xx_interrupt_ack(struct bcm43xx_private *bcm, u32 reason)
+{
 	if (bcm43xx_using_pio(bcm) &&
 	    (bcm->current_core->rev < 3) &&
 	    (!(reason & BCM43xx_IRQ_PIO_WORKAROUND))) {
 		/* Apply a PIO specific workaround to the dma_reasons */
-
-#define apply_pio_workaround(BASE, QNUM) \
-	do {											\
-	if (bcm43xx_read16(bcm, BASE + BCM43xx_PIO_RXCTL) & BCM43xx_PIO_RXCTL_DATAAVAILABLE)	\
-		bcm->dma_reason[QNUM] |= 0x00010000;						\
-	else											\
-		bcm->dma_reason[QNUM] &= ~0x00010000;						\
-	} while (0)
-
-		apply_pio_workaround(BCM43xx_MMIO_PIO1_BASE, 0);
-		apply_pio_workaround(BCM43xx_MMIO_PIO2_BASE, 1);
-		apply_pio_workaround(BCM43xx_MMIO_PIO3_BASE, 2);
-		apply_pio_workaround(BCM43xx_MMIO_PIO4_BASE, 3);
-
-#undef apply_pio_workaround
+		pio_irq_workaround(bcm, BCM43xx_MMIO_PIO1_BASE, 0);
+		pio_irq_workaround(bcm, BCM43xx_MMIO_PIO2_BASE, 1);
+		pio_irq_workaround(bcm, BCM43xx_MMIO_PIO3_BASE, 2);
+		pio_irq_workaround(bcm, BCM43xx_MMIO_PIO4_BASE, 3);
 	}
 
-	bcm43xx_write32(bcm, BCM43xx_MMIO_GEN_IRQ_REASON,
-			reason & mask);
+	bcm43xx_write32(bcm, BCM43xx_MMIO_GEN_IRQ_REASON, reason);
 
 	bcm43xx_write32(bcm, BCM43xx_MMIO_DMA1_REASON,
 			bcm->dma_reason[0]);
@@ -1860,7 +1846,7 @@ static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id, struct pt_re
 {
 	irqreturn_t ret = IRQ_HANDLED;
 	struct bcm43xx_private *bcm = dev_id;
-	u32 reason, mask;
+	u32 reason;
 
 	if (!bcm)
 		return IRQ_NONE;
@@ -1873,11 +1859,20 @@ static irqreturn_t bcm43xx_interrupt_handler(int irq, void *dev_id, struct pt_re
 		ret = IRQ_NONE;
 		goto out;
 	}
-	mask = bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_MASK);
-	if (!(reason & mask))
+	reason &= bcm43xx_read32(bcm, BCM43xx_MMIO_GEN_IRQ_MASK);
+	if (!reason)
 		goto out;
 
-	bcm43xx_interrupt_ack(bcm, reason, mask);
+	bcm->dma_reason[0] = bcm43xx_read32(bcm, BCM43xx_MMIO_DMA1_REASON)
+			     & 0x0001dc00;
+	bcm->dma_reason[1] = bcm43xx_read32(bcm, BCM43xx_MMIO_DMA2_REASON)
+			     & 0x0000dc00;
+	bcm->dma_reason[2] = bcm43xx_read32(bcm, BCM43xx_MMIO_DMA3_REASON)
+			     & 0x0000dc00;
+	bcm->dma_reason[3] = bcm43xx_read32(bcm, BCM43xx_MMIO_DMA4_REASON)
+			     & 0x0001dc00;
+
+	bcm43xx_interrupt_ack(bcm, reason);
 
 	/* Only accept IRQs, if we are initialized properly.
 	 * This avoids an RX race while initializing.
