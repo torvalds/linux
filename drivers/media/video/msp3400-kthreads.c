@@ -806,6 +806,38 @@ static void msp34xxg_set_source(struct i2c_client *client, int source)
 	state->source = source;
 }
 
+static int msp34xxg_modus(struct i2c_client *client)
+{
+	struct msp_state *state = i2c_get_clientdata(client);
+
+	if (state->radio) {
+		v4l_dbg(1, msp_debug, client, "selected radio modus\n");
+		return 0x0001;
+	}
+
+	if (state->v4l2_std & V4L2_STD_PAL) {
+		v4l_dbg(1, msp_debug, client, "selected PAL modus\n");
+		return 0x7001;
+	}
+	if (state->v4l2_std == V4L2_STD_NTSC_M_JP) {
+		v4l_dbg(1, msp_debug, client, "selected M (EIA-J) modus\n");
+		return 0x4001;
+	}
+	if (state->v4l2_std == V4L2_STD_NTSC_M_KR) {
+		v4l_dbg(1, msp_debug, client, "selected M (A2) modus\n");
+		return 0x0001;
+	}
+	if (state->v4l2_std & V4L2_STD_MN) {
+		v4l_dbg(1, msp_debug, client, "selected M (BTSC) modus\n");
+		return 0x2001;
+	}
+	if (state->v4l2_std & V4L2_STD_SECAM) {
+		v4l_dbg(1, msp_debug, client, "selected SECAM modus\n");
+		return 0x6001;
+	}
+	return 0x0001;
+}
+
 /* (re-)initialize the msp34xxg, according to the current norm in state->norm
  * return 0 if it worked, -1 if it failed
  */
@@ -826,7 +858,7 @@ static int msp34xxg_reset(struct i2c_client *client)
 		msp_write_dem(client, 0x40, state->i2s_mode);
 
 	/* step-by-step initialisation, as described in the manual */
-	modus = msp_modus(client);
+	modus = msp34xxg_modus(client);
 	if (state->radio)
 		std = 0x40;
 	else

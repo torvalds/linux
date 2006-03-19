@@ -336,37 +336,6 @@ void msp_set_audio(struct i2c_client *client)
 	msp_write_dsp(client, 0x0033, loudness);
 }
 
-int msp_modus(struct i2c_client *client)
-{
-	struct msp_state *state = i2c_get_clientdata(client);
-
-	if (state->radio) {
-		v4l_dbg(1, msp_debug, client, "video mode selected to Radio\n");
-		return 0x0003;
-	}
-
-	if (state->v4l2_std & V4L2_STD_PAL) {
-		v4l_dbg(1, msp_debug, client, "video mode selected to PAL\n");
-
-#if 1
-		/* experimental: not sure this works with all chip versions */
-		return 0x7003;
-#else
-		/* previous value, try this if it breaks ... */
-		return 0x1003;
-#endif
-	}
-	if (state->v4l2_std & V4L2_STD_NTSC) {
-		v4l_dbg(1, msp_debug, client, "video mode selected to NTSC\n");
-		return 0x2003;
-	}
-	if (state->v4l2_std & V4L2_STD_SECAM) {
-		v4l_dbg(1, msp_debug, client, "video mode selected to SECAM\n");
-		return 0x0003;
-	}
-	return 0x0003;
-}
-
 /* ------------------------------------------------------------------------ */
 
 

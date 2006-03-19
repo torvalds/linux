@@ -98,7 +98,6 @@ int msp_reset(struct i2c_client *client);
 void msp_set_scart(struct i2c_client *client, int in, int out);
 void msp_set_mute(struct i2c_client *client);
 void msp_set_audio(struct i2c_client *client);
-int msp_modus(struct i2c_client *client);
 int msp_sleep(struct msp_state *state, int timeout);
 
 /* msp3400-kthreads.c */
