@@ -1805,3 +1805,21 @@ void __flush_tlb_all(void)
 	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
 			     : : "r" (pstate));
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+
+void online_page(struct page *page)
+{
+	ClearPageReserved(page);
+	set_page_count(page, 0);
+	free_cold_page(page);
+	totalram_pages++;
+	num_physpages++;
+}
+
+int remove_memory(u64 start, u64 size)
+{
+	return -EINVAL;
+}
+
+#endif /* CONFIG_MEMORY_HOTPLUG */
