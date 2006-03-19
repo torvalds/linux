@@ -157,6 +157,7 @@ niagara_patch_bzero:
 	NG_DO_PATCH(memset, NGmemset)
 	NG_DO_PATCH(__bzero, NGbzero)
 	NG_DO_PATCH(__clear_user, NGclear_user)
+	NG_DO_PATCH(tsb_init, NGtsb_init)
 	retl
 	 nop
 	.size	niagara_patch_bzero,.-niagara_patch_bzero

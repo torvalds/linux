@@ -88,6 +88,7 @@ struct tsb {
 
 extern void __tsb_insert(unsigned long ent, unsigned long tag, unsigned long pte);
 extern void tsb_flush(unsigned long ent, unsigned long tag);
+extern void tsb_init(struct tsb *tsb, unsigned long size);
 
 typedef struct {
 	spinlock_t		lock;

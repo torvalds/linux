@@ -313,7 +313,7 @@ retry_tsb_alloc:
 	}
 
 	/* Mark all tags as invalid.  */
-	memset(new_tsb, 0x40, new_size);
+	tsb_init(new_tsb, new_size);
 
 	/* Ok, we are about to commit the changes.  If we are
 	 * growing an existing TSB the locking is very tricky,

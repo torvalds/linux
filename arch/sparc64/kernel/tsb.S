@@ -371,3 +371,72 @@ copy_tsb:		/* %o0=old_tsb_base, %o1=old_tsb_size
 	retl
 	 TSB_MEMBAR
 	.size		copy_tsb, .-copy_tsb
+
+	/* Set the invalid bit in all TSB entries.  */
+	.align		32
+	.globl		tsb_init
+	.type		tsb_init,#function
+tsb_init:		/* %o0 = TSB vaddr, %o1 = size in bytes */
+	prefetch	[%o0 + 0x000], #n_writes
+	mov		1, %g1
+	prefetch	[%o0 + 0x040], #n_writes
+	sllx		%g1, TSB_TAG_INVALID_BIT, %g1
+	prefetch	[%o0 + 0x080], #n_writes
+1:	prefetch	[%o0 + 0x0c0], #n_writes
+	stx		%g1, [%o0 + 0x00]
+	stx		%g1, [%o0 + 0x10]
+	stx		%g1, [%o0 + 0x20]
+	stx		%g1, [%o0 + 0x30]
+	prefetch	[%o0 + 0x100], #n_writes
+	stx		%g1, [%o0 + 0x40]
+	stx		%g1, [%o0 + 0x50]
+	stx		%g1, [%o0 + 0x60]
+	stx		%g1, [%o0 + 0x70]
+	prefetch	[%o0 + 0x140], #n_writes
+	stx		%g1, [%o0 + 0x80]
+	stx		%g1, [%o0 + 0x90]
+	stx		%g1, [%o0 + 0xa0]
+	stx		%g1, [%o0 + 0xb0]
+	prefetch	[%o0 + 0x180], #n_writes
+	stx		%g1, [%o0 + 0xc0]
+	stx		%g1, [%o0 + 0xd0]
+	stx		%g1, [%o0 + 0xe0]
+	stx		%g1, [%o0 + 0xf0]
+	subcc		%o1, 0x100, %o1
+	bne,pt		%xcc, 1b
+	 add		%o0, 0x100, %o0
+	retl
+	 nop
+	nop
+	nop
+	.size		tsb_init, .-tsb_init
+
+	.globl		NGtsb_init
+	.type		NGtsb_init,#function
+NGtsb_init:
+	rd		%asi, %g2
+	mov		1, %g1
+	wr		%g0, ASI_BLK_INIT_QUAD_LDD_P, %asi
+	sllx		%g1, TSB_TAG_INVALID_BIT, %g1
+1:	stxa		%g1, [%o0 + 0x00] %asi
+	stxa		%g1, [%o0 + 0x10] %asi
+	stxa		%g1, [%o0 + 0x20] %asi
+	stxa		%g1, [%o0 + 0x30] %asi
+	stxa		%g1, [%o0 + 0x40] %asi
+	stxa		%g1, [%o0 + 0x50] %asi
+	stxa		%g1, [%o0 + 0x60] %asi
+	stxa		%g1, [%o0 + 0x70] %asi
+	stxa		%g1, [%o0 + 0x80] %asi
+	stxa		%g1, [%o0 + 0x90] %asi
+	stxa		%g1, [%o0 + 0xa0] %asi
+	stxa		%g1, [%o0 + 0xb0] %asi
+	stxa		%g1, [%o0 + 0xc0] %asi
+	stxa		%g1, [%o0 + 0xd0] %asi
+	stxa		%g1, [%o0 + 0xe0] %asi
+	stxa		%g1, [%o0 + 0xf0] %asi
+	subcc		%o1, 0x100, %o1
+	bne,pt		%xcc, 1b
+	 add		%o0, 0x100, %o0
+	retl
+	 wr		%g2, 0x0, %asi
+	.size		NGtsb_init, .-NGtsb_init
