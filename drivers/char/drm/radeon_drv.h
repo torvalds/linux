@@ -92,9 +92,10 @@
  * 1.21- Add support for card type getparam
  * 1.22- Add support for texture cache flushes (R300_TX_CNTL)
  * 1.23- Add new radeon memory map work from benh
+ * 1.24- Add general-purpose packet for manipulating scratch registers (r300)
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		23
+#define DRIVER_MINOR		24
 #define DRIVER_PATCHLEVEL	0
 
 /*
@@ -275,6 +276,8 @@ typedef struct drm_radeon_private {
 
 	unsigned long pcigart_offset;
 	drm_ati_pcigart_info gart_info;
+
+	u32 scratch_ages[5];
 
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */

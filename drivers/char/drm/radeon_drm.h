@@ -222,6 +222,7 @@ typedef union {
 #	define R300_WAIT_3D  		0x2
 #	define R300_WAIT_2D_CLEAN  	0x3
 #	define R300_WAIT_3D_CLEAN  	0x4
+#define R300_CMD_SCRATCH		8
 
 typedef union {
 	unsigned int u;
@@ -247,6 +248,9 @@ typedef union {
 	struct {
 		unsigned char cmd_type, flags, pad0, pad1;
 	} wait;
+	struct {
+		unsigned char cmd_type, reg, n_bufs, flags;
+	} scratch;
 } drm_r300_cmd_header_t;
 
 #define RADEON_FRONT			0x1
