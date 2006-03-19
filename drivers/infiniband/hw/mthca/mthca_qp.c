@@ -483,13 +483,20 @@ out:
 	return err;
 }
 
-static void mthca_path_set(struct ib_ah_attr *ah, struct mthca_qp_path *path)
+static int mthca_path_set(struct mthca_dev *dev, struct ib_ah_attr *ah,
+			  struct mthca_qp_path *path)
 {
 	path->g_mylmc     = ah->src_path_bits & 0x7f;
 	path->rlid        = cpu_to_be16(ah->dlid);
 	path->static_rate = !!ah->static_rate;
 
 	if (ah->ah_flags & IB_AH_GRH) {
+		if (ah->grh.sgid_index >= dev->limits.gid_table_len) {
+			mthca_dbg(dev, "sgid_index (%u) too large. max is %d\n",
+				  ah->grh.sgid_index, dev->limits.gid_table_len-1);
+			return -1;
+		}
+
 		path->g_mylmc   |= 1 << 7;
 		path->mgid_index = ah->grh.sgid_index;
 		path->hop_limit  = ah->grh.hop_limit;
@@ -500,6 +507,8 @@ static void mthca_path_set(struct ib_ah_attr *ah, struct mthca_qp_path *path)
 		memcpy(path->rgid, ah->grh.dgid.raw, 16);
 	} else
 		path->sl_tclass_flowlabel = cpu_to_be32(ah->sl << 28);
+
+	return 0;
 }
 
 int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
@@ -592,8 +601,14 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 
 	if (qp->transport == MLX || qp->transport == UD)
 		qp_context->mtu_msgmax = (IB_MTU_2048 << 5) | 11;
-	else if (attr_mask & IB_QP_PATH_MTU)
+	else if (attr_mask & IB_QP_PATH_MTU) {
+		if (attr->path_mtu < IB_MTU_256 || attr->path_mtu > IB_MTU_2048) {
+			mthca_dbg(dev, "path MTU (%u) is invalid\n",
+				  attr->path_mtu);
+			return -EINVAL;
+		}
 		qp_context->mtu_msgmax = (attr->path_mtu << 5) | 31;
+	}
 
 	if (mthca_is_memfree(dev)) {
 		if (qp->rq.max)
@@ -642,7 +657,9 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	if (attr_mask & IB_QP_AV) {
-		mthca_path_set(&attr->ah_attr, &qp_context->pri_path);
+		if (mthca_path_set(dev, &attr->ah_attr, &qp_context->pri_path))
+			return -EINVAL;
+
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_PRIMARY_ADDR_PATH);
 	}
 
@@ -664,7 +681,9 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 			return -EINVAL;
 		}
 
-		mthca_path_set(&attr->alt_ah_attr, &qp_context->alt_path);
+		if (mthca_path_set(dev, &attr->alt_ah_attr, &qp_context->alt_path))
+			return -EINVAL;
+
 		qp_context->alt_path.port_pkey |= cpu_to_be32(attr->alt_pkey_index |
 							      attr->alt_port_num << 24);
 		qp_context->alt_path.ackto = attr->alt_timeout << 3;
