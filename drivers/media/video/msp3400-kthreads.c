@@ -26,9 +26,10 @@
 #include <linux/videodev.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/msp3400.h>
 #include <linux/kthread.h>
 #include <linux/suspend.h>
-#include "msp3400.h"
+#include "msp3400-driver.h"
 
 /* this one uses the automatic sound standard detection of newer msp34xx
    chip versions */

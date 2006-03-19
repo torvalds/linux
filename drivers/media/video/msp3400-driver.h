@@ -1,8 +1,8 @@
 /*
  */
 
-#ifndef MSP3400_H
-#define MSP3400_H
+#ifndef MSP3400_DRIVER_H
+#define MSP3400_DRIVER_H
 
 /* ---------------------------------------------------------------------- */
 
@@ -110,4 +110,4 @@ int msp34xxg_thread(void *data);
 void msp3400c_set_mode(struct i2c_client *client, int mode);
 void msp3400c_set_carrier(struct i2c_client *client, int cdo1, int cdo2);
 
-#endif /* MSP3400_H */
+#endif /* MSP3400_DRIVER_H */

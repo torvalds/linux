@@ -31,7 +31,6 @@
 #include <media/audiochip.h>
 #include <media/tveeprom.h>
 #include <media/v4l2-common.h>
-#include "msp3400.h"
 
 #include "em28xx.h"
 
