@@ -242,8 +242,10 @@ static __inline__ int r300_check_range(unsigned reg, int count)
 	return 0;
 }
 
-  /* we expect offsets passed to the framebuffer to be either within video memory or
-     within AGP space */
+/*
+ * we expect offsets passed to the framebuffer to be either within video 
+ * memory or within AGP space 
+ */
 static __inline__ int r300_check_offset(drm_radeon_private_t *dev_priv,
 					u32 offset)
 {
@@ -251,11 +253,11 @@ static __inline__ int r300_check_offset(drm_radeon_private_t *dev_priv,
 	   but this value is not being kept.
 	   This code is correct for now (does the same thing as the
 	   code that sets MC_FB_LOCATION) in radeon_cp.c */
-	if ((offset >= dev_priv->fb_location) &&
-	    (offset < dev_priv->gart_vm_start))
+	if (offset >= dev_priv->fb_location &&
+	    offset < (dev_priv->fb_location + dev_priv->fb_size))
 		return 0;
-	if ((offset >= dev_priv->gart_vm_start) &&
-	    (offset < dev_priv->gart_vm_start + dev_priv->gart_size))
+	if (offset >= dev_priv->gart_vm_start &&
+	    offset < (dev_priv->gart_vm_start + dev_priv->gart_size))
 		return 0;
 	return 1;
 }
@@ -490,6 +492,7 @@ static __inline__ int r300_emit_3d_load_vbpntr(drm_radeon_private_t *dev_priv,
 
 	return 0;
 }
+
 static __inline__ int r300_emit_bitblt_multi(drm_radeon_private_t *dev_priv,
 					     drm_radeon_kcmd_buffer_t *cmdbuf)
 {

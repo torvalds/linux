@@ -38,7 +38,7 @@
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20051229"
+#define DRIVER_DATE		"20060225"
 
 /* Interface history:
  *
@@ -91,9 +91,10 @@
  * 1.20- Add support for r300 texrect
  * 1.21- Add support for card type getparam
  * 1.22- Add support for texture cache flushes (R300_TX_CNTL)
+ * 1.23- Add new radeon memory map work from benh
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		22
+#define DRIVER_MINOR		23
 #define DRIVER_PATCHLEVEL	0
 
 /*
@@ -138,7 +139,8 @@ enum radeon_chip_flags {
 	CHIP_IS_PCIE = 0x00200000UL,
 };
 
-#define GET_RING_HEAD(dev_priv)		DRM_READ32(  (dev_priv)->ring_rptr, 0 )
+#define GET_RING_HEAD(dev_priv)	(dev_priv->writeback_works ? \
+        DRM_READ32(  (dev_priv)->ring_rptr, 0 ) : RADEON_READ(RADEON_CP_RB_RPTR))
 #define SET_RING_HEAD(dev_priv,val)	DRM_WRITE32( (dev_priv)->ring_rptr, 0, (val) )
 
 typedef struct drm_radeon_freelist {
@@ -199,6 +201,8 @@ typedef struct drm_radeon_private {
 	drm_radeon_sarea_t *sarea_priv;
 
 	u32 fb_location;
+	u32 fb_size;
+	int new_memmap;
 
 	int gart_size;
 	u32 gart_vm_start;

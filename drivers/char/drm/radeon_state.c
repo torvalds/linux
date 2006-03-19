@@ -45,22 +45,53 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 	u32 off = *offset;
 	struct drm_radeon_driver_file_fields *radeon_priv;
 
-	if (off >= dev_priv->fb_location &&
-	    off < (dev_priv->gart_vm_start + dev_priv->gart_size))
+	/* Hrm ... the story of the offset ... So this function converts
+	 * the various ideas of what userland clients might have for an
+	 * offset in the card address space into an offset into the card
+	 * address space :) So with a sane client, it should just keep
+	 * the value intact and just do some boundary checking. However,
+	 * not all clients are sane. Some older clients pass us 0 based
+	 * offsets relative to the start of the framebuffer and some may
+	 * assume the AGP aperture it appended to the framebuffer, so we
+	 * try to detect those cases and fix them up.
+	 *
+	 * Note: It might be a good idea here to make sure the offset lands
+	 * in some "allowed" area to protect things like the PCIE GART...
+	 */
+
+	/* First, the best case, the offset already lands in either the
+	 * framebuffer or the GART mapped space
+	 */
+	if ((off >= dev_priv->fb_location &&
+	     off < (dev_priv->fb_location + dev_priv->fb_size)) ||
+	    (off >= dev_priv->gart_vm_start &&
+	     off < (dev_priv->gart_vm_start + dev_priv->gart_size)))
 		return 0;
 
-	radeon_priv = filp_priv->driver_priv;
-	off += radeon_priv->radeon_fb_delta;
+	/* Ok, that didn't happen... now check if we have a zero based
+	 * offset that fits in the framebuffer + gart space, apply the
+	 * magic offset we get from SETPARAM or calculated from fb_location
+	 */
+	if (off < (dev_priv->fb_size + dev_priv->gart_size)) {
+		radeon_priv = filp_priv->driver_priv;
+		off += radeon_priv->radeon_fb_delta;
+	}
 
-	DRM_DEBUG("offset fixed up to 0x%x\n", off);
+	/* Finally, assume we aimed at a GART offset if beyond the fb */
+	if (off > (dev_priv->fb_location + dev_priv->fb_size))
+		off = off - (dev_priv->fb_location + dev_priv->fb_size) +
+			dev_priv->gart_vm_start;
 
-	if (off < dev_priv->fb_location ||
-	    off >= (dev_priv->gart_vm_start + dev_priv->gart_size))
-		return DRM_ERR(EINVAL);
-
-	*offset = off;
-
-	return 0;
+	/* Now recheck and fail if out of bounds */
+	if ((off >= dev_priv->fb_location &&
+	     off < (dev_priv->fb_location + dev_priv->fb_size)) ||
+	    (off >= dev_priv->gart_vm_start &&
+	     off < (dev_priv->gart_vm_start + dev_priv->gart_size))) {
+		DRM_DEBUG("offset fixed up to 0x%x\n", off);
+		*offset = off;
+		return 0;
+	}
+	return DRM_ERR(EINVAL);
 }
 
 static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
@@ -3011,6 +3042,9 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
 		break;
 	case RADEON_SETPARAM_PCIGART_LOCATION:
 		dev_priv->pcigart_offset = sp.value;
+		break;
+	case RADEON_SETPARAM_NEW_MEMMAP:
+		dev_priv->new_memmap = sp.value;
 		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", sp.param);
