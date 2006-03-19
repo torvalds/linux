@@ -2292,50 +2292,60 @@ void bcm43xx_set_iwmode(struct bcm43xx_private *bcm,
 			int iw_mode)
 {
 	unsigned long flags;
+	struct net_device *net_dev = bcm->net_dev;
 	u32 status;
+	u16 value;
 
 	spin_lock_irqsave(&bcm->ieee->lock, flags);
 	bcm->ieee->iw_mode = iw_mode;
 	spin_unlock_irqrestore(&bcm->ieee->lock, flags);
 	if (iw_mode == IW_MODE_MONITOR)
-		bcm->net_dev->type = ARPHRD_IEEE80211;
+		net_dev->type = ARPHRD_IEEE80211;
 	else
-		bcm->net_dev->type = ARPHRD_ETHER;
+		net_dev->type = ARPHRD_ETHER;
 
-	if (!bcm->initialized)
-		return;
-
-	bcm43xx_mac_suspend(bcm);
 	status = bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD);
 	/* Reset status to infrastructured mode */
 	status &= ~(BCM43xx_SBF_MODE_AP | BCM43xx_SBF_MODE_MONITOR);
-	/*FIXME: We actually set promiscuous mode as well, until we don't
-	 * get the HW mac filter working */
-	status |= BCM43xx_SBF_MODE_NOTADHOC | BCM43xx_SBF_MODE_PROMISC;
+	status &= ~BCM43xx_SBF_MODE_PROMISC;
+	status |= BCM43xx_SBF_MODE_NOTADHOC;
+
+/* FIXME: Always enable promisc mode, until we get the MAC filters working correctly. */
+status |= BCM43xx_SBF_MODE_PROMISC;
 
 	switch (iw_mode) {
 	case IW_MODE_MONITOR:
-		status |= (BCM43xx_SBF_MODE_PROMISC |
-			   BCM43xx_SBF_MODE_MONITOR);
+		status |= BCM43xx_SBF_MODE_MONITOR;
+		status |= BCM43xx_SBF_MODE_PROMISC;
 		break;
 	case IW_MODE_ADHOC:
 		status &= ~BCM43xx_SBF_MODE_NOTADHOC;
 		break;
 	case IW_MODE_MASTER:
+		status |= BCM43xx_SBF_MODE_AP;
+		break;
 	case IW_MODE_SECOND:
 	case IW_MODE_REPEAT:
-		/* TODO: No AP/Repeater mode for now :-/ */
-		TODO();
+		TODO(); /* TODO */
 		break;
 	case IW_MODE_INFRA:
 		/* nothing to be done here... */
 		break;
 	default:
-		printk(KERN_ERR PFX "Unknown iwmode %d\n", iw_mode);
+		dprintk(KERN_ERR PFX "Unknown mode in set_iwmode: %d\n", iw_mode);
 	}
-
+	if (net_dev->flags & IFF_PROMISC)
+		status |= BCM43xx_SBF_MODE_PROMISC;
 	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD, status);
-	bcm43xx_mac_enable(bcm);
+
+	value = 0x0002;
+	if (iw_mode != IW_MODE_ADHOC && iw_mode != IW_MODE_MASTER) {
+		if (bcm->chip_id == 0x4306 && bcm->chip_rev == 3)
+			value = 0x0064;
+		else
+			value = 0x0032;
+	}
+	bcm43xx_write16(bcm, 0x0612, value);
 }
 
 /* This is the opposite of bcm43xx_chip_init() */
@@ -2357,7 +2367,6 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	int err;
-	int iw_mode = bcm->ieee->iw_mode;
 	int tmp;
 	u32 value32;
 	u16 value16;
@@ -2411,20 +2420,9 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 	value32 = bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD);
 	value32 |= BCM43xx_SBF_MODE_NOTADHOC;
 	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD, value32);
-	/*FIXME: For now, use promiscuous mode at all times; otherwise we don't
-	   get broadcast or multicast packets */
-	value32 = bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD);
-	value32 |= BCM43xx_SBF_MODE_PROMISC;
-	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD, value32);
 
-	if (iw_mode == IW_MODE_MONITOR) {
-		value32 = bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD);
-		value32 |= BCM43xx_SBF_MODE_PROMISC;
-		value32 |= BCM43xx_SBF_MODE_MONITOR;
-		bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD, value32);
-	}
 	value32 = bcm43xx_read32(bcm, BCM43xx_MMIO_STATUS_BITFIELD);
-	value32 |= 0x100000; //FIXME: What's this? Is this correct?
+	value32 |= 0x100000;
 	bcm43xx_write32(bcm, BCM43xx_MMIO_STATUS_BITFIELD, value32);
 
 	if (bcm43xx_using_pio(bcm)) {
@@ -2439,13 +2437,8 @@ static int bcm43xx_chip_init(struct bcm43xx_private *bcm)
 	/* FIXME: Default to 0, has to be set by ioctl probably... :-/ */
 	bcm43xx_shm_write16(bcm, BCM43xx_SHM_SHARED, 0x0074, 0x0000);
 
-	if (iw_mode != IW_MODE_ADHOC && iw_mode != IW_MODE_MASTER) {
-		if ((bcm->chip_id == 0x4306) && (bcm->chip_rev == 3))
-			bcm43xx_write16(bcm, 0x0612, 0x0064);
-		else
-			bcm43xx_write16(bcm, 0x0612, 0x0032);
-	} else
-		bcm43xx_write16(bcm, 0x0612, 0x0002);
+	/* Initially set the wireless operation mode. */
+	bcm43xx_set_iwmode(bcm, bcm->ieee->iw_mode);
 
 	if (bcm->current_core->rev < 3) {
 		bcm43xx_write16(bcm, 0x060E, 0x0000);
