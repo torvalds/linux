@@ -702,8 +702,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		msp_set_scart(client, sc1_out, 1);
 		msp_set_scart(client, sc2_out, 2);
 		msp_set_audmode(client);
-		if (tuner != old_tuner)
-			msp_wake_thread(client);
+		msp_wake_thread(client);
 		break;
 	}
 
