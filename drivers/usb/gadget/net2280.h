@@ -179,6 +179,7 @@ struct net2280_regs {
 #define     PCI_TARGET_ABORT_RECEIVED_INTERRUPT                 19
 #define     PCI_RETRY_ABORT_INTERRUPT                           17
 #define     PCI_MASTER_CYCLE_DONE_INTERRUPT                     16
+#define     SOF_DOWN_INTERRUPT                                  14
 #define     GPIO_INTERRUPT                                      13
 #define     DMA_D_INTERRUPT                                     12
 #define     DMA_C_INTERRUPT                                     11
@@ -346,6 +347,7 @@ struct net2280_dma_regs {	/* [11.7] */
 #define     DMA_ENABLE                                          1
 #define     DMA_ADDRESS_HOLD                                    0
 	u32		dmastat;
+#define     DMA_ABORT_DONE_INTERRUPT                            27
 #define     DMA_SCATTER_GATHER_DONE_INTERRUPT                   25
 #define     DMA_TRANSACTION_DONE_INTERRUPT                      24
 #define     DMA_ABORT                                           1
