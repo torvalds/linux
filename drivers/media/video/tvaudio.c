@@ -1682,6 +1682,30 @@ static int chip_command(struct i2c_client *client,
 	case VIDIOC_S_CTRL:
 		return tvaudio_set_ctrl(chip, arg);
 
+	case VIDIOC_INT_G_AUDIO_ROUTING:
+	{
+		struct v4l2_routing *rt = arg;
+
+		rt->input = chip->input;
+		rt->output = 0;
+		break;
+	}
+
+	case VIDIOC_INT_S_AUDIO_ROUTING:
+	{
+		struct v4l2_routing *rt = arg;
+
+		if (!(desc->flags & CHIP_HAS_INPUTSEL) || rt->input >= 4)
+				return -EINVAL;
+		/* There are four inputs: tuner, radio, extern and intern. */
+		chip->input = rt->input;
+		if (chip->muted)
+			break;
+		chip_write_masked(chip, desc->inputreg,
+				desc->inputmap[chip->input], desc->inputmask);
+		break;
+	}
+
 	case VIDIOC_S_AUDIO:
 	{
 		struct v4l2_audio *sarg = arg;

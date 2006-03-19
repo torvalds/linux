@@ -37,6 +37,7 @@
 #include "bttvp.h"
 #include <media/v4l2-common.h>
 #include <media/tvaudio.h>
+#include <media/msp3400.h>
 
 #include <linux/dma-mapping.h>
 
@@ -934,11 +935,9 @@ static int
 audio_mux(struct bttv *btv, int input, int mute)
 {
 	int gpio_val, signal;
-	struct v4l2_audio aud_input;
 	struct v4l2_control ctrl;
 	struct i2c_client *c;
 
-	memset(&aud_input, 0, sizeof(aud_input));
 	gpio_inout(bttv_tvcards[btv->c.type].gpiomask,
 		   bttv_tvcards[btv->c.type].gpiomask);
 	signal = btread(BT848_DSTATUS) & BT848_DSTATUS_HLOC;
@@ -953,7 +952,6 @@ audio_mux(struct bttv *btv, int input, int mute)
 		gpio_val = bttv_tvcards[btv->c.type].gpiomute;
 	else
 		gpio_val = bttv_tvcards[btv->c.type].gpiomux[input];
-	aud_input.index = btv->audio;
 
 	gpio_bits(bttv_tvcards[btv->c.type].gpiomask, gpio_val);
 	if (bttv_gpio)
@@ -962,15 +960,51 @@ audio_mux(struct bttv *btv, int input, int mute)
 		return 0;
 
 	ctrl.id = V4L2_CID_AUDIO_MUTE;
-	/* take automute into account, just btv->mute is not enough */
-	ctrl.value = mute;
+	ctrl.value = btv->mute;
 	bttv_call_i2c_clients(btv, VIDIOC_S_CTRL, &ctrl);
 	c = btv->i2c_msp34xx_client;
-	if (c)
-		c->driver->command(c, VIDIOC_S_AUDIO, &aud_input);
+	if (c) {
+		struct v4l2_routing route;
+
+		/* Note: the inputs tuner/radio/extern/intern are translated
+		   to msp routings. This assumes common behavior for all msp3400
+		   based TV cards. When this assumption fails, then the
+		   specific MSP routing must be added to the card table.
+		   For now this is sufficient. */
+		switch (input) {
+		case TVAUDIO_INPUT_RADIO:
+			route.input = MSP_INPUT(MSP_IN_SCART_2, MSP_IN_TUNER_1,
+				    MSP_DSP_OUT_SCART, MSP_DSP_OUT_SCART);
+			break;
+		case TVAUDIO_INPUT_EXTERN:
+			route.input = MSP_INPUT(MSP_IN_SCART_1, MSP_IN_TUNER_1,
+				    MSP_DSP_OUT_SCART, MSP_DSP_OUT_SCART);
+			break;
+		case TVAUDIO_INPUT_INTERN:
+			/* Yes, this is the same input as for RADIO. I doubt
+			   if this is ever used. The only board with an INTERN
+			   input is the BTTV_BOARD_AVERMEDIA98. I wonder how
+			   that was tested. My guess is that the whole INTERN
+			   input does not work. */
+			route.input = MSP_INPUT(MSP_IN_SCART_2, MSP_IN_TUNER_1,
+				    MSP_DSP_OUT_SCART, MSP_DSP_OUT_SCART);
+			break;
+		case TVAUDIO_INPUT_TUNER:
+		default:
+			route.input = MSP_INPUT_DEFAULT;
+			break;
+		}
+		route.output = MSP_OUTPUT_DEFAULT;
+		c->driver->command(c, VIDIOC_INT_S_AUDIO_ROUTING, &route);
+	}
 	c = btv->i2c_tvaudio_client;
-	if (c)
-		c->driver->command(c, VIDIOC_S_AUDIO, &aud_input);
+	if (c) {
+		struct v4l2_routing route;
+
+		route.input = input;
+		route.output = 0;
+		c->driver->command(c, VIDIOC_INT_S_AUDIO_ROUTING, &route);
+	}
 	return 0;
 }
 

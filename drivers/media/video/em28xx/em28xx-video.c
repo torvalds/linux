@@ -38,6 +38,7 @@
 #include "em28xx.h"
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
+#include <media/msp3400.h>
 
 #define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
 		      "Markus Rechberger <mrechberger@gmail.com>, " \
@@ -216,9 +217,14 @@ static void video_mux(struct em28xx *dev, int index)
 	em28xx_videodbg("Setting input index=%d, vmux=%d, amux=%d\n",index,input,dev->ctl_ainput);
 
 	if (dev->has_msp34xx) {
+		struct v4l2_routing route;
+
 		if (dev->i2s_speed)
 			em28xx_i2c_call_clients(dev, VIDIOC_INT_I2S_CLOCK_FREQ, &dev->i2s_speed);
-		em28xx_i2c_call_clients(dev, VIDIOC_S_AUDIO, &dev->ctl_ainput);
+		route.input = dev->ctl_ainput;
+		route.output = MSP_OUTPUT(MSP_OUT_SCART1_DA);
+		/* Note: this is msp3400 specific */
+		em28xx_i2c_call_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING, &route);
 		ainput = EM28XX_AUDIO_SRC_TUNER;
 		em28xx_audio_source(dev, ainput);
 	} else {

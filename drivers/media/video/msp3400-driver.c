@@ -555,7 +555,6 @@ static int msp_set_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
-	int scart = -1;
 
 	if (msp_debug >= 2)
 		v4l_i2c_print_ioctl(client, cmd);
@@ -660,15 +659,6 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 	}
 
-	/* msp34xx specific */
-	case MSP_SET_MATRIX:
-	{
-		struct msp_matrix *mspm = arg;
-
-		msp_set_scart(client, mspm->input - 1, mspm->output);
-		break;
-	}
-
 	/* --- v4l2 ioctls --- */
 	case VIDIOC_S_STD:
 	{
@@ -682,36 +672,38 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		return 0;
 	}
 
-	case VIDIOC_S_AUDIO:
+	case VIDIOC_INT_G_AUDIO_ROUTING:
 	{
-		struct v4l2_audio *sarg = arg;
+		struct v4l2_routing *rt = arg;
 
-		switch (sarg->index) {
-		case TVAUDIO_INPUT_RADIO:
-			/* Hauppauge uses IN2 for the radio */
-			state->mode = MSP_MODE_FM_RADIO;
-			scart       = SCART_IN2;
-			break;
-		case TVAUDIO_INPUT_EXTERN:
-			/* IN1 is often used for external input ... */
-			state->mode = MSP_MODE_EXTERN;
-			scart       = SCART_IN1;
-			break;
-		case TVAUDIO_INPUT_INTERN:
-			/* ... sometimes it is IN2 through ;) */
-			state->mode = MSP_MODE_EXTERN;
-			scart       = SCART_IN2;
-			break;
-		case TVAUDIO_INPUT_TUNER:
-			state->mode = -1;
-			break;
+		*rt = state->routing;
+		break;
+	}
+
+	case VIDIOC_INT_S_AUDIO_ROUTING:
+	{
+		struct v4l2_routing *rt = arg;
+		int tuner = (rt->input >> 3) & 1;
+		int old_tuner = (state->routing.input >> 3) & 1;
+		int sc_in = rt->input & 0x7;
+		int sc1_out = rt->output & 0xf;
+		int sc2_out = (rt->output >> 4) & 0xf;
+		u16 val;
+
+		state->routing = *rt;
+		if (state->opmode == OPMODE_AUTOSELECT) {
+			val = msp_read_dem(client, 0x30) & ~0x100;
+			msp_write_dem(client, 0x30, val | (tuner ? 0x100 : 0));
+		} else {
+			val = msp_read_dem(client, 0xbb) & ~0x100;
+			msp_write_dem(client, 0xbb, val | (tuner ? 0x100 : 0));
 		}
-		if (scart >= 0) {
-			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
-			msp_set_scart(client, scart, 0);
-		}
+		msp_set_scart(client, sc_in, 0);
+		msp_set_scart(client, sc1_out, 1);
+		msp_set_scart(client, sc2_out, 2);
 		msp_set_audmode(client);
-		msp_wake_thread(client);
+		if (tuner != old_tuner)
+			msp_wake_thread(client);
 		break;
 	}
 
@@ -941,6 +933,9 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	state->muted = 0;
 	state->i2s_mode = 0;
 	init_waitqueue_head(&state->wq);
+	/* These are the reset input/output positions */
+	state->routing.input = MSP_INPUT_DEFAULT;
+	state->routing.output = MSP_OUTPUT_DEFAULT;
 
 	state->rev1 = msp_read_dsp(client, 0x1e);
 	if (state->rev1 != -1)

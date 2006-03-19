@@ -4,6 +4,8 @@
 #ifndef MSP3400_DRIVER_H
 #define MSP3400_DRIVER_H
 
+#include <media/msp3400.h>
+
 /* ---------------------------------------------------------------------- */
 
 /* This macro is allowed for *constants* only, gcc must calculate it
@@ -72,7 +74,7 @@ struct msp_state {
 	int i2s_mode;
 	int main, second;	/* sound carrier */
 	int input;
-	int source;             /* see msp34xxg_set_source */
+	struct v4l2_routing routing;
 
 	/* v4l2 */
 	int audmode;

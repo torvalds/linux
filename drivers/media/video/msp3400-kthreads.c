@@ -187,13 +187,14 @@ void msp3400c_set_mode(struct i2c_client *client, int mode)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
 	struct msp3400c_init_data_dem *data = &msp3400c_init_data[mode];
+	int tuner = (state->routing.input >> 3) & 1;
 	int i;
 
 	v4l_dbg(1, msp_debug, client, "set_mode: %d\n", mode);
 	state->mode = mode;
 	state->rxsubchans = V4L2_TUNER_SUB_MONO;
 
-	msp_write_dem(client, 0x00bb, data->ad_cv);
+	msp_write_dem(client, 0x00bb, data->ad_cv | (tuner ? 0x100 : 0));
 
 	for (i = 5; i >= 0; i--)               /* fir 1 */
 		msp_write_dem(client, 0x0001, data->fir1[i]);
@@ -783,34 +784,6 @@ int msp3410d_thread(void *data)
  * struct msp: only norm, acb and source are really used in this mode
  */
 
-/* set the same 'source' for the loudspeaker, scart and quasi-peak detector
- * the value for source is the same as bit 15:8 of DSP registers 0x08,
- * 0x0a and 0x0c: 0=mono, 1=stereo or A|B, 2=SCART, 3=stereo or A, 4=stereo or B
- */
-static void msp34xxg_set_source(struct i2c_client *client, int source)
-{
-	struct msp_state *state = i2c_get_clientdata(client);
-
-	/* fix matrix mode to stereo and let the msp choose what
-	 * to output according to 'source', as recommended
-	 * for MONO (source==0) downmixing set bit[7:0] to 0x30
-	 */
-	int value = (source & 0x07) << 8 | (source == 0 ? 0x30 : 0x20);
-
-	v4l_dbg(1, msp_debug, client, "set source to %d (0x%x)\n", source, value);
-	msp_set_source(client, value);
-	/*
-	 * set identification threshold. Personally, I
-	 * I set it to a higher value that the default
-	 * of 0x190 to ignore noisy stereo signals.
-	 * this needs tuning. (recommended range 0x00a0-0x03c0)
-	 * 0x7f0 = forced mono mode
-	 */
-	/* a2 threshold for stereo/bilingual */
-	msp_write_dem(client, 0x22, msp_stereo_thresh);
-	state->source = source;
-}
-
 static int msp34xxg_modus(struct i2c_client *client)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
@@ -843,10 +816,65 @@ static int msp34xxg_modus(struct i2c_client *client)
 	return 0x0001;
 }
 
+static void msp34xxg_set_source(struct i2c_client *client, u16 reg, int in)
+ {
+	struct msp_state *state = i2c_get_clientdata(client);
+	int source, matrix;
+
+	switch (state->audmode) {
+	case V4L2_TUNER_MODE_MONO:
+		source = 0; /* mono only */
+		matrix = 0x30;
+		break;
+	case V4L2_TUNER_MODE_LANG1:
+		source = 3; /* stereo or A */
+		matrix = 0x00;
+		break;
+	case V4L2_TUNER_MODE_LANG2:
+		source = 4; /* stereo or B */
+		matrix = 0x10;
+		break;
+	case V4L2_TUNER_MODE_STEREO:
+	default:
+		source = 1; /* stereo or A|B */
+		matrix = 0x20;
+		break;
+	}
+
+	if (in == MSP_DSP_OUT_TUNER)
+		source = (source << 8) | 0x20;
+	/* the msp34x2g puts the MAIN_AVC, MAIN and AUX sources in 12, 13, 14
+	   instead of 11, 12, 13. So we add one for that msp version. */
+	else if (in >= MSP_DSP_OUT_MAIN_AVC && state->has_dolby_pro_logic)
+		source = ((in + 1) << 8) | matrix;
+	else
+		source = (in << 8) | matrix;
+
+	v4l_dbg(1, msp_debug, client, "set source to %d (0x%x) for output %02x\n",
+			in, source, reg);
+	msp_write_dsp(client, reg, source);
+}
+
+static void msp34xxg_set_sources(struct i2c_client *client)
+{
+	struct msp_state *state = i2c_get_clientdata(client);
+	u32 in = state->routing.input;
+
+	msp34xxg_set_source(client, 0x0008, (in >> 4) & 0xf);
+	/* quasi-peak detector is set to same input as the loudspeaker (MAIN) */
+	msp34xxg_set_source(client, 0x000c, (in >> 4) & 0xf);
+	msp34xxg_set_source(client, 0x0009, (in >> 8) & 0xf);
+	msp34xxg_set_source(client, 0x000a, (in >> 12) & 0xf);
+	if (state->has_scart23_in_scart2_out)
+		msp34xxg_set_source(client, 0x0041, (in >> 16) & 0xf);
+	msp34xxg_set_source(client, 0x000b, (in >> 20) & 0xf);
+}
+
 /* (re-)initialize the msp34xxg */
 static void msp34xxg_reset(struct i2c_client *client)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
+	int tuner = (state->routing.input >> 3) & 1;
 	int modus;
 
 	/* initialize std to 1 (autodetect) to signal that no standard is
@@ -864,11 +892,12 @@ static void msp34xxg_reset(struct i2c_client *client)
 
 	/* step-by-step initialisation, as described in the manual */
 	modus = msp34xxg_modus(client);
+	modus |= tuner ? 0x100 : 0;
 	msp_write_dem(client, 0x30, modus);
 
 	/* write the dsps that may have an influence on
 	   standard/audio autodetection right now */
-	msp34xxg_set_source(client, state->source);
+	msp34xxg_set_sources(client);
 
 	msp_write_dsp(client, 0x0d, 0x1900); /* scart */
 	msp_write_dsp(client, 0x0e, 0x3000); /* FM */
@@ -896,7 +925,6 @@ int msp34xxg_thread(void *data)
 
 	v4l_dbg(1, msp_debug, client, "msp34xxg daemon started\n");
 
-	state->source = 1; /* default */
 	for (;;) {
 		v4l_dbg(2, msp_debug, client, "msp34xxg thread: sleep\n");
 		msp_sleep(state, -1);
@@ -993,7 +1021,6 @@ static int msp34xxg_detect_stereo(struct i2c_client *client)
 static void msp34xxg_set_audmode(struct i2c_client *client)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
-	int source;
 
 	if (state->std == 0x20) {
 	       if ((state->rxsubchans & V4L2_TUNER_SUB_SAP) &&
@@ -1005,25 +1032,7 @@ static void msp34xxg_set_audmode(struct i2c_client *client)
 	       }
 	}
 
-	switch (state->audmode) {
-	case V4L2_TUNER_MODE_MONO:
-		source = 0; /* mono only */
-		break;
-	case V4L2_TUNER_MODE_STEREO:
-		source = 1; /* stereo or A|B, see comment in msp34xxg_get_v4l2_stereo() */
-		/* problem: that could also mean 2 (scart input) */
-		break;
-	case V4L2_TUNER_MODE_LANG1:
-		source = 3; /* stereo or A */
-		break;
-	case V4L2_TUNER_MODE_LANG2:
-		source = 4; /* stereo or B */
-		break;
-	default:
-		source  = 1;
-		break;
-	}
-	msp34xxg_set_source(client, source);
+	msp34xxg_set_sources(client);
 }
 
 void msp_set_audmode(struct i2c_client *client)

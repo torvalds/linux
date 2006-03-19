@@ -312,7 +312,6 @@ static const char *v4l2_int_ioctls[] = {
 	[_IOC_NR(DECODER_DUMP)]                = "DECODER_DUMP",
 #endif
 	[_IOC_NR(AUDC_SET_RADIO)]              = "AUDC_SET_RADIO",
-	[_IOC_NR(MSP_SET_MATRIX)]              = "MSP_SET_MATRIX",
 
 	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
 	[_IOC_NR(TUNER_SET_STANDBY)]           = "TUNER_SET_STANDBY",
@@ -431,12 +430,6 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 		printk ("%s: value=%d\n", s, *p);
 		break;
 	}
-	case MSP_SET_MATRIX:
-	{
-		struct msp_matrix *p=arg;
-		printk ("%s: input=%d, output=%d\n", s, p->input, p->output);
-		break;
-	}
 	case VIDIOC_G_AUDIO:
 	case VIDIOC_S_AUDIO:
 	case VIDIOC_ENUMAUDIO:
@@ -465,7 +458,7 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 		struct v4l2_buffer *p=arg;
 		struct v4l2_timecode *tc=&p->timecode;
 		printk ("%s: %02ld:%02d:%02d.%08ld index=%d, type=%s, "
-			"bytesused=%d, flags=0x%08d, "
+			"bytesused=%d, flags=0x%08x, "
 			"field=%0d, sequence=%d, memory=%s, offset/userptr=0x%08lx\n",
 				s,
 				(p->timestamp.tv_sec/3600),
@@ -479,7 +472,7 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 				prt_names(p->memory,v4l2_memory_names),
 				p->m.userptr);
 		printk ("%s: timecode= %02d:%02d:%02d type=%d, "
-			"flags=0x%08d, frames=%d, userbits=0x%p",
+			"flags=0x%08x, frames=%d, userbits=0x%08p\n",
 				s,tc->hours,tc->minutes,tc->seconds,
 				tc->type, tc->flags, tc->frames, tc->userbits);
 		break;
@@ -665,7 +658,7 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	case VIDIOC_INT_G_VIDEO_ROUTING:
 	{
 		struct v4l2_routing  *p=arg;
-		printk ("%s: input=%d, output=%d\n", s, p->input, p->output);
+		printk ("%s: input=0x%x, output=0x%x\n", s, p->input, p->output);
 		break;
 	}
 	case VIDIOC_G_SLICED_VBI_CAP:

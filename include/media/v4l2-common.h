@@ -123,14 +123,6 @@ enum v4l2_chip_ident {
 /* v4l device was opened in Radio mode, to be replaced by VIDIOC_INT_S_TUNER_MODE */
 #define AUDC_SET_RADIO        _IO('d',88)
 
-/* msp3400 ioctl: will be removed in the near future, to be replaced by
-   VIDIOC_INT_S_AUDIO_ROUTING. */
-struct msp_matrix {
-  int input;
-  int output;
-};
-#define MSP_SET_MATRIX     _IOW('m',17,struct msp_matrix)
-
 /* tuner ioctls */
 
 /* Sets tuner type and its I2C addr */
