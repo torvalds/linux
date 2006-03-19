@@ -622,6 +622,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 		if (va->mode != 0 && state->radio == 0) {
 			state->audmode = msp_mode_v4l1_to_v4l2(va->mode);
+			msp_set_audmode(client);
 		}
 		break;
 	}
@@ -707,7 +708,6 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (scart >= 0) {
 			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
 			msp_set_scart(client, scart, 0);
-			msp_write_dsp(client, 0x000d, 0x1900);
 		}
 		msp_set_audmode(client);
 		msp_wake_thread(client);

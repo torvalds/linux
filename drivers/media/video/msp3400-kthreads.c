@@ -44,11 +44,13 @@ static struct {
 	{ 0x0004, MSP_CARRIER(6.5), MSP_CARRIER(6.2578125), "6.5/6.25  D/K1 Dual FM-Stereo" },
 	{ 0x0005, MSP_CARRIER(6.5), MSP_CARRIER(6.7421875), "6.5/6.74  D/K2 Dual FM-Stereo" },
 	{ 0x0006, MSP_CARRIER(6.5), MSP_CARRIER(6.5), "6.5  D/K FM-Mono (HDEV3)" },
+	{ 0x0007, MSP_CARRIER(6.5), MSP_CARRIER(5.7421875), "6.5/5.74  D/K3 Dual FM-Stereo" },
 	{ 0x0008, MSP_CARRIER(5.5), MSP_CARRIER(5.85), "5.5/5.85  B/G NICAM FM" },
 	{ 0x0009, MSP_CARRIER(6.5), MSP_CARRIER(5.85), "6.5/5.85  L NICAM AM" },
 	{ 0x000a, MSP_CARRIER(6.0), MSP_CARRIER(6.55), "6.0/6.55  I NICAM FM" },
 	{ 0x000b, MSP_CARRIER(6.5), MSP_CARRIER(5.85), "6.5/5.85  D/K NICAM FM" },
 	{ 0x000c, MSP_CARRIER(6.5), MSP_CARRIER(5.85), "6.5/5.85  D/K NICAM FM (HDEV2)" },
+	{ 0x000d, MSP_CARRIER(6.5), MSP_CARRIER(5.85), "6.5/5.85  D/K NICAM FM (HDEV3)" },
 	{ 0x0020, MSP_CARRIER(4.5), MSP_CARRIER(4.5), "4.5  M BTSC-Stereo" },
 	{ 0x0021, MSP_CARRIER(4.5), MSP_CARRIER(4.5), "4.5  M BTSC-Mono + SAP" },
 	{ 0x0030, MSP_CARRIER(4.5), MSP_CARRIER(4.5), "4.5  M EIA-J Japan Stereo" },
@@ -206,12 +208,13 @@ void msp3400c_set_mode(struct i2c_client *client, int mode)
 	msp3400c_set_carrier(client, data->cdo1, data->cdo2);
 
 	msp_set_source(client, data->dsp_src);
-	msp_write_dsp(client, 0x000e, data->dsp_matrix);
+	/* set prescales */
 
-	if (state->has_nicam) {
-		/* nicam prescale */
-		msp_write_dsp(client, 0x0010, 0x5a00); /* was: 0x3000 */
-	}
+	/* volume prescale for SCART (AM mono input) */
+	msp_write_dsp(client, 0x000d, 0x1900);
+	msp_write_dsp(client, 0x000e, data->dsp_matrix);
+	if (state->has_nicam) /* nicam prescale */
+		msp_write_dsp(client, 0x0010, 0x5a00);
 }
 
 /* Set audio mode. Note that the pre-'G' models do not support BTSC+SAP,
@@ -270,7 +273,6 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 	case MSP_MODE_FM_NICAM2:
 	case MSP_MODE_AM_NICAM:
 		v4l_dbg(1, msp_debug, client, "NICAM set_audmode: %s\n",modestr);
-		msp3400c_set_carrier(client, state->second, state->main);
 		if (state->nicam_on)
 			src = 0x0100;  /* NICAM */
 		break;
@@ -426,8 +428,8 @@ static void watch_stereo(struct i2c_client *client)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
 
-	if (msp3400c_detect_stereo(client)) {
-		msp3400c_set_audmode(client);
+	if (msp_detect_stereo(client)) {
+		msp_set_audmode(client);
 	}
 
 	if (msp_once)
@@ -463,7 +465,7 @@ int msp3400c_thread(void *data)
 
 		/* mute */
 		msp_set_mute(client);
-		msp3400c_set_mode(client, MSP_MODE_AM_DETECT /* +1 */ );
+		msp3400c_set_mode(client, MSP_MODE_AM_DETECT);
 		val1 = val2 = 0;
 		max1 = max2 = -1;
 		state->watch_stereo = 0;
@@ -571,8 +573,6 @@ int msp3400c_thread(void *data)
 				state->second = msp3400c_carrier_detect_65[max2].cdo;
 				msp3400c_set_mode(client, MSP_MODE_AM_NICAM);
 				msp3400c_set_carrier(client, state->second, state->main);
-				/* volume prescale for SCART (AM mono input) */
-				msp_write_dsp(client, 0x000d, 0x1900);
 				state->watch_stereo = 1;
 			} else if (max2 == 0 && state->has_nicam) {
 				/* D/K NICAM */
@@ -650,7 +650,8 @@ int msp3410d_thread(void *data)
 		if (msp_sleep(state,200))
 			goto restart;
 
-		/* start autodetect */
+		/* start autodetect. Note: autodetect is not supported for
+		   NTSC-M and radio, hence we force the standard in those cases. */
 		if (state->radio)
 			std = 0x40;
 		else
@@ -694,23 +695,19 @@ int msp3410d_thread(void *data)
 			v4l_dbg(1, msp_debug, client, "autodetection failed,"
 				" switching to backup standard: %s (0x%04x)\n",
 				msp_stdlist[8].name ? msp_stdlist[8].name : "unknown",val);
-			val = 0x0009;
+			state->std = val = 0x0009;
 			msp_write_dem(client, 0x20, val);
 		}
-
-		/* set various prescales */
-		msp_write_dsp(client, 0x0d, 0x1900); /* scart */
-		msp_write_dsp(client, 0x0e, 0x2403); /* FM */
-		msp_write_dsp(client, 0x10, 0x5a00); /* nicam */
 
 		/* set stereo */
 		switch (val) {
 		case 0x0008: /* B/G NICAM */
 		case 0x000a: /* I NICAM */
-			if (val == 0x0008)
-				state->mode = MSP_MODE_FM_NICAM1;
-			else
+		case 0x000b: /* D/K NICAM */
+			if (val == 0x000a)
 				state->mode = MSP_MODE_FM_NICAM2;
+			else
+				state->mode = MSP_MODE_FM_NICAM1;
 			/* just turn on stereo */
 			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
 			state->nicam_on = 1;
@@ -738,6 +735,7 @@ int msp3410d_thread(void *data)
 			/* scart routing (this doesn't belong here I think) */
 			msp_set_scart(client,SCART_IN2,0);
 			break;
+		case 0x0002:
 		case 0x0003:
 		case 0x0004:
 		case 0x0005:
@@ -747,12 +745,19 @@ int msp3410d_thread(void *data)
 			break;
 		}
 
-		/* unmute, restore misc registers */
-		msp_set_audio(client);
-		msp_write_dsp(client, 0x13, state->acb);
+		/* set various prescales */
+		msp_write_dsp(client, 0x0d, 0x1900); /* scart */
+		msp_write_dsp(client, 0x0e, 0x3000); /* FM */
+		if (state->has_nicam)
+			msp_write_dsp(client, 0x10, 0x5a00); /* nicam */
+
 		if (state->has_i2s_conf)
 			msp_write_dem(client, 0x40, state->i2s_mode);
 
+		/* unmute, restore misc registers */
+		msp_set_audio(client);
+
+		msp_write_dsp(client, 0x13, state->acb);
 		msp3400c_set_audmode(client);
 
 		/* monitor tv audio mode, the first time don't wait
@@ -771,16 +776,15 @@ int msp3410d_thread(void *data)
 
 /* ----------------------------------------------------------------------- */
 
-/* msp34xxG + (autoselect no-thread)                                       */
-/* this one uses both automatic standard detection and automatic sound     */
-/* select which are available in the newer G versions                      */
-/* struct msp: only norm, acb and source are really used in this mode      */
+/* msp34xxG + (autoselect no-thread)
+ * this one uses both automatic standard detection and automatic sound
+ * select which are available in the newer G versions
+ * struct msp: only norm, acb and source are really used in this mode
+ */
 
 /* set the same 'source' for the loudspeaker, scart and quasi-peak detector
  * the value for source is the same as bit 15:8 of DSP registers 0x08,
  * 0x0a and 0x0c: 0=mono, 1=stereo or A|B, 2=SCART, 3=stereo or A, 4=stereo or B
- *
- * this function replaces msp3400c_set_audmode
  */
 static void msp34xxg_set_source(struct i2c_client *client, int source)
 {
@@ -838,58 +842,56 @@ static int msp34xxg_modus(struct i2c_client *client)
 	return 0x0001;
 }
 
-/* (re-)initialize the msp34xxg, according to the current norm in state->norm
- * return 0 if it worked, -1 if it failed
- */
-static int msp34xxg_reset(struct i2c_client *client)
+/* (re-)initialize the msp34xxg */
+static void msp34xxg_reset(struct i2c_client *client)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
-	int modus, std;
+	int modus;
 
-	if (msp_reset(client))
-		return -1;
+	/* initialize std to 1 (autodetect) to signal that no standard is
+	   selected yet. */
+	state->std = 1;
+
+	msp_reset(client);
 
 	/* make sure that input/output is muted (paranoid mode) */
 	/* ACB, mute DSP input, mute SCART 1 */
-	if (msp_write_dsp(client, 0x13, 0x0f20))
-		return -1;
+	msp_write_dsp(client, 0x13, 0x0f20);
 
 	if (state->has_i2s_conf)
 		msp_write_dem(client, 0x40, state->i2s_mode);
 
 	/* step-by-step initialisation, as described in the manual */
 	modus = msp34xxg_modus(client);
-	if (state->radio)
-		std = 0x40;
-	else
-		std = (state->v4l2_std & V4L2_STD_NTSC) ? 0x20 : 1;
-	modus &= ~0x03; /* STATUS_CHANGE = 0 */
-	modus |= 0x01;  /* AUTOMATIC_SOUND_DETECTION = 1 */
-	if (msp_write_dem(client, 0x30, modus))
-		return -1;
-	if (msp_write_dem(client, 0x20, std))
-		return -1;
+	msp_write_dem(client, 0x30, modus);
 
 	/* write the dsps that may have an influence on
 	   standard/audio autodetection right now */
 	msp34xxg_set_source(client, state->source);
 
-	/* AM/FM Prescale [15:8] 75khz deviation */
-	if (msp_write_dsp(client, 0x0e, 0x3000))
-		return -1;
+	msp_write_dsp(client, 0x0d, 0x1900); /* scart */
+	msp_write_dsp(client, 0x0e, 0x3000); /* FM */
+	if (state->has_nicam)
+		msp_write_dsp(client, 0x10, 0x5a00); /* nicam */
 
-	/* NICAM Prescale 9db gain (as recommended) */
-	if (msp_write_dsp(client, 0x10, 0x5a00))
-		return -1;
-
-	return 0;
+	/* set identification threshold. Personally, I
+	 * I set it to a higher value than the default
+	 * of 0x190 to ignore noisy stereo signals.
+	 * this needs tuning. (recommended range 0x00a0-0x03c0)
+	 * 0x7f0 = forced mono mode
+	 *
+	 * a2 threshold for stereo/bilingual.
+	 * Note: this register is part of the Manual/Compatibility mode.
+	 * It is supported by all 'G'-family chips.
+	 */
+	msp_write_dem(client, 0x22, msp_stereo_thresh);
 }
 
 int msp34xxg_thread(void *data)
 {
 	struct i2c_client *client = data;
 	struct msp_state *state = i2c_get_clientdata(client);
-	int val, std, i;
+	int val, i;
 
 	v4l_dbg(1, msp_debug, client, "msp34xxg daemon started\n");
 
@@ -907,12 +909,14 @@ int msp34xxg_thread(void *data)
 
 		/* setup the chip*/
 		msp34xxg_reset(client);
-		std = msp_standard;
-		if (std != 0x01)
+		state->std = state->radio ? 0x40 : msp_standard;
+		if (state->std != 1)
 			goto unmute;
+		/* start autodetect */
+		msp_write_dem(client, 0x20, state->std);
 
 		/* watch autodetect */
-		v4l_dbg(1, msp_debug, client, "triggered autodetect, waiting for result\n");
+		v4l_dbg(1, msp_debug, client, "started autodetect, waiting for result\n");
 		for (i = 0; i < 10; i++) {
 			if (msp_sleep(state, 100))
 				goto restart;
@@ -920,20 +924,19 @@ int msp34xxg_thread(void *data)
 			/* check results */
 			val = msp_read_dem(client, 0x7e);
 			if (val < 0x07ff) {
-				std = val;
+				state->std = val;
 				break;
 			}
 			v4l_dbg(2, msp_debug, client, "detection still in progress\n");
 		}
-		if (std == 1) {
+		if (state->std == 1) {
 			v4l_dbg(1, msp_debug, client, "detection still in progress after 10 tries. giving up.\n");
 			continue;
 		}
 
 	unmute:
-		state->std = std;
-		v4l_dbg(1, msp_debug, client, "current standard: %s (0x%04x)\n",
-			msp_standard_std_name(std), std);
+		v4l_dbg(1, msp_debug, client, "detected standard: %s (0x%04x)\n",
+			msp_standard_std_name(state->std), state->std);
 
 		/* unmute: dispatch sound to scart output, set scart volume */
 		msp_set_audio(client);
@@ -942,20 +945,33 @@ int msp34xxg_thread(void *data)
 		if (msp_write_dsp(client, 0x13, state->acb))
 			return -1;
 
-		if (state->has_i2s_conf)
-			msp_write_dem(client, 0x40, state->i2s_mode);
+		/* the periodic stereo/SAP check is only relevant for
+		   the 0x20 standard (BTSC) */
+		if (state->std != 0x20)
+			continue;
+
+		state->watch_stereo = 1;
+
+		/* monitor tv audio mode, the first time don't wait
+		   in order to get a quick stereo/SAP update */
+		watch_stereo(client);
+		while (state->watch_stereo) {
+			watch_stereo(client);
+			if (msp_sleep(state, 5000))
+				goto restart;
+		}
 	}
 	v4l_dbg(1, msp_debug, client, "thread: exit\n");
 	return 0;
 }
 
-static void msp34xxg_detect_stereo(struct i2c_client *client)
+static int msp34xxg_detect_stereo(struct i2c_client *client)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
-
 	int status = msp_read_dem(client, 0x0200);
 	int is_bilingual = status & 0x100;
 	int is_stereo = status & 0x40;
+	int oldrx = state->rxsubchans;
 
 	state->rxsubchans = 0;
 	if (is_stereo)
@@ -963,22 +979,30 @@ static void msp34xxg_detect_stereo(struct i2c_client *client)
 	else
 		state->rxsubchans = V4L2_TUNER_SUB_MONO;
 	if (is_bilingual) {
-		state->rxsubchans = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
-		/* I'm supposed to check whether it's SAP or not
-		 * and set only LANG2/SAP in this case. Yet, the MSP
-		 * does a lot of work to hide this and handle everything
-		 * the same way. I don't want to work around it so unless
-		 * this is a problem, I'll handle SAP just like lang1/lang2.
-		 */
+		if (state->std == 0x20)
+			state->rxsubchans |= V4L2_TUNER_SUB_SAP;
+		else
+			state->rxsubchans = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	}
 	v4l_dbg(1, msp_debug, client, "status=0x%x, stereo=%d, bilingual=%d -> rxsubchans=%d\n",
 		status, is_stereo, is_bilingual, state->rxsubchans);
+	return (oldrx != state->rxsubchans);
 }
 
 static void msp34xxg_set_audmode(struct i2c_client *client)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
 	int source;
+
+	if (state->std == 0x20) {
+	       if ((state->rxsubchans & V4L2_TUNER_SUB_SAP) &&
+		   (state->audmode == V4L2_TUNER_MODE_STEREO ||
+		    state->audmode == V4L2_TUNER_MODE_LANG2)) {
+			msp_write_dem(client, 0x20, 0x21);
+	       } else {
+			msp_write_dem(client, 0x20, 0x20);
+	       }
+	}
 
 	switch (state->audmode) {
 	case V4L2_TUNER_MODE_MONO:
@@ -1008,7 +1032,6 @@ void msp_set_audmode(struct i2c_client *client)
 	switch (state->opmode) {
 	case OPMODE_MANUAL:
 	case OPMODE_AUTODETECT:
-		state->watch_stereo = 0;
 		msp3400c_set_audmode(client);
 		break;
 	case OPMODE_AUTOSELECT:
@@ -1017,18 +1040,17 @@ void msp_set_audmode(struct i2c_client *client)
 	}
 }
 
-void msp_detect_stereo(struct i2c_client *client)
+int msp_detect_stereo(struct i2c_client *client)
 {
 	struct msp_state *state  = i2c_get_clientdata(client);
 
 	switch (state->opmode) {
 	case OPMODE_MANUAL:
 	case OPMODE_AUTODETECT:
-		msp3400c_detect_stereo(client);
-		break;
+		return msp3400c_detect_stereo(client);
 	case OPMODE_AUTOSELECT:
-		msp34xxg_detect_stereo(client);
-		break;
+		return msp34xxg_detect_stereo(client);
 	}
+	return 0;
 }
 
