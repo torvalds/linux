@@ -507,14 +507,23 @@ struct bcm43xx_radioinfo {
 	u16 version;
 	u8 revision;
 
-	/* 0: baseband attenuation,
-	 * 1: radio attenuation, 
-	 * 2: tx_CTL1
-	 * 3: tx_CTL2
-	 */
-	u16 txpower[4];
 	/* Desired TX power in dBm Q5.2 */
 	u16 txpower_desired;
+	/* TX Power control values. */
+	union {
+		/* B/G PHY */
+		struct {
+			u16 baseband_atten;
+			u16 radio_atten;
+			u16 txctl1;
+			u16 txctl2;
+		};
+		/* A PHY */
+		struct {
+			u16 txpwr_offset;
+		};
+	};
+
 	/* Current Interference Mitigation mode */
 	int interfmode;
 	/* Stack of saved values from the Interference Mitigation code */

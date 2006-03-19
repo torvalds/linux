@@ -72,6 +72,11 @@ void bcm43xx_radio_set_txpower_a(struct bcm43xx_private *bcm, u16 txpower);
 void bcm43xx_radio_set_txpower_bg(struct bcm43xx_private *bcm,
                                u16 baseband_attenuation, u16 attenuation,
 			       u16 txpower);
+
+u16 bcm43xx_default_baseband_attenuation(struct bcm43xx_private *bcm);
+u16 bcm43xx_default_radio_attenuation(struct bcm43xx_private *bcm);
+u16 bcm43xx_default_txctl1(struct bcm43xx_private *bcm);
+
 void bcm43xx_radio_set_txantenna(struct bcm43xx_private *bcm, u32 val);
 
 void bcm43xx_radio_clear_tssi(struct bcm43xx_private *bcm);

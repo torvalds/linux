@@ -220,9 +220,9 @@ static void bcm43xx_phy_init_pctl(struct bcm43xx_private *bcm)
 		bcm43xx_radio_write16(bcm, 0x0076,
 				      bcm43xx_radio_read16(bcm, 0x0076) | 0x0084);
 	} else {
-		saved_batt = radio->txpower[0];
-		saved_ratt = radio->txpower[1];
-		saved_txctl1 = radio->txpower[2];
+		saved_batt = radio->baseband_atten;
+		saved_ratt = radio->radio_atten;
+		saved_txctl1 = radio->txctl1;
 		if ((radio->revision >= 6) && (radio->revision <= 8)
 		    && /*FIXME: incomplete specs for 5 < revision < 9 */ 0)
 			bcm43xx_radio_set_txpower_bg(bcm, 0xB, 0x1F, 0);
@@ -1039,7 +1039,7 @@ static void bcm43xx_phy_initg(struct bcm43xx_private *bcm)
 		bcm43xx_radio_write16(bcm, 0x0078, radio->initval);
 		bcm43xx_radio_write16(bcm, 0x0052,
 				      (bcm43xx_radio_read16(bcm, 0x0052) & 0xFFF0)
-				      | radio->txpower[3]);
+				      | radio->txctl2);
 	}
 
 	if (phy->connected) {
@@ -1259,7 +1259,6 @@ struct bcm43xx_lopair * bcm43xx_find_lopair(struct bcm43xx_private *bcm,
 	if (baseband_attenuation > 6)
 		baseband_attenuation = 6;
 	assert(radio_attenuation < 10);
-	assert(tx == 0 || tx == 3);
 
 	if (tx == 3) {
 		return bcm43xx_get_lopair(phy,
@@ -1275,9 +1274,9 @@ struct bcm43xx_lopair * bcm43xx_current_lopair(struct bcm43xx_private *bcm)
 	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
 
 	return bcm43xx_find_lopair(bcm,
-				   radio->txpower[0],
-				   radio->txpower[1],
-				   radio->txpower[2]);
+				   radio->baseband_atten,
+				   radio->radio_atten,
+				   radio->txctl1);
 }
 
 /* Adjust B/G LO */
@@ -1311,7 +1310,7 @@ static void bcm43xx_phy_lo_g_measure_txctl2(struct bcm43xx_private *bcm)
 			txctl2 = i;
 		}
 	}
-	radio->txpower[3] = txctl2;
+	radio->txctl2 = txctl2;
 }
 
 static
@@ -1530,8 +1529,7 @@ void bcm43xx_phy_lo_g_measure(struct bcm43xx_private *bcm)
 				r31 = 0;
 			}
 			bcm43xx_radio_write16(bcm, 0x43, i);
-			bcm43xx_radio_write16(bcm, 0x52,
-					      radio->txpower[3]);
+			bcm43xx_radio_write16(bcm, 0x52, radio->txctl2);
 			udelay(10);
 
 			bcm43xx_phy_set_baseband_attenuation(bcm, j * 2);
@@ -1573,7 +1571,7 @@ void bcm43xx_phy_lo_g_measure(struct bcm43xx_private *bcm)
 			}
 			bcm43xx_radio_write16(bcm, 0x43, i - 9);
 			bcm43xx_radio_write16(bcm, 0x52,
-					      radio->txpower[3]
+					      radio->txctl2
 					      | (3/*txctl1*/ << 4));//FIXME: shouldn't txctl1 be zero here and 3 in the loop above?
 			udelay(10);
 
@@ -1780,9 +1778,9 @@ void bcm43xx_phy_xmitpower(struct bcm43xx_private *bcm)
 		}
 
 		/* Calculate the new attenuation values. */
-		baseband_attenuation = radio->txpower[0];
+		baseband_attenuation = radio->baseband_atten;
 		baseband_attenuation += baseband_att_delta;
-		radio_attenuation = radio->txpower[1];
+		radio_attenuation = radio->radio_atten;
 		radio_attenuation += radio_att_delta;
 
 		/* Get baseband and radio attenuation values into their permitted ranges.
@@ -1807,7 +1805,7 @@ void bcm43xx_phy_xmitpower(struct bcm43xx_private *bcm)
 		}
 		baseband_attenuation = limit_value(baseband_attenuation, 0, 11);
 
-		txpower = radio->txpower[2];
+		txpower = radio->txctl1;
 		if ((radio->version == 0x2050) && (radio->revision == 2)) {
 			if (radio_attenuation <= 1) {
 				if (txpower == 0) {
@@ -1829,7 +1827,7 @@ void bcm43xx_phy_xmitpower(struct bcm43xx_private *bcm)
 				}
 			}
 		}
-		radio->txpower[2] = txpower;
+		radio->txctl1 = txpower;
 		baseband_attenuation = limit_value(baseband_attenuation, 0, 11);
 		radio_attenuation = limit_value(radio_attenuation, 0, 9);
 

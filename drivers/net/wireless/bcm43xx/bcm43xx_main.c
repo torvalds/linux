@@ -560,12 +560,9 @@ static int bcm43xx_read_radioinfo(struct bcm43xx_private *bcm)
 	radio->revision = revision;
 
 	/* Set default attenuation values. */
-	radio->txpower[0] = 2;
-	radio->txpower[1] = 2;
-	if (revision == 1)
-		radio->txpower[2] = 3;
-	else
-		radio->txpower[2] = 0;
+	radio->baseband_atten = bcm43xx_default_baseband_attenuation(bcm);
+	radio->radio_atten = bcm43xx_default_radio_attenuation(bcm);
+	radio->txctl1 = bcm43xx_default_txctl1(bcm);
 	if (phy->type == BCM43xx_PHYTYPE_A)
 		radio->txpower_desired = bcm->sprom.maxpower_aphy;
 	else

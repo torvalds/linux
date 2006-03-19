@@ -1652,7 +1652,7 @@ void bcm43xx_radio_set_txpower_a(struct bcm43xx_private *bcm, u16 txpower)
 
 	bcm43xx_ilt_write(bcm, 0x3001, dac);
 
-	radio->txpower[0] = txpower;
+	radio->txpwr_offset = txpower;
 
 	TODO();
 	//TODO: FuncPlaceholder (Adjust BB loft cancel)
@@ -1666,17 +1666,14 @@ void bcm43xx_radio_set_txpower_bg(struct bcm43xx_private *bcm,
 	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 
 	if (baseband_attenuation == 0xFFFF)
-		baseband_attenuation = radio->txpower[0];
-	else
-		radio->txpower[0] = baseband_attenuation;
+		baseband_attenuation = radio->baseband_atten;
 	if (radio_attenuation == 0xFFFF)
-		radio_attenuation = radio->txpower[1];
-	else
-		radio->txpower[1] = radio_attenuation;
+		radio_attenuation = radio->radio_atten;
 	if (txpower == 0xFFFF)
-		txpower = radio->txpower[2];
-	else
-		radio->txpower[2] = txpower;
+		txpower = radio->txctl1;
+	radio->baseband_atten = baseband_attenuation;
+	radio->radio_atten = radio_attenuation;
+	radio->txctl1 = txpower;
 
 	assert(/*baseband_attenuation >= 0 &&*/ baseband_attenuation <= 11);
 	if (radio->revision < 6)
@@ -1693,10 +1690,124 @@ void bcm43xx_radio_set_txpower_bg(struct bcm43xx_private *bcm,
 		                      (bcm43xx_radio_read16(bcm, 0x0052) & ~0x0070)
 				       | ((txpower << 4) & 0x0070));
 	}
+	//FIXME: The spec is very weird and unclear here.
 	if (phy->type == BCM43xx_PHYTYPE_G)
 		bcm43xx_phy_lo_adjust(bcm, 0);
 }
 
+u16 bcm43xx_default_baseband_attenuation(struct bcm43xx_private *bcm)
+{
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+
+	if (radio->version == 0x2050 && radio->revision < 6)
+		return 0;
+	return 2;
+}
+
+u16 bcm43xx_default_radio_attenuation(struct bcm43xx_private *bcm)
+{
+	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+	u16 att = 0xFFFF;
+
+	if (phy->type == BCM43xx_PHYTYPE_A)
+		return 0x60;
+
+	switch (radio->version) {
+	case 0x2053:
+		switch (radio->revision) {
+		case 1:
+			att = 6;
+			break;
+		}
+		break;
+	case 0x2050:
+		switch (radio->revision) {
+		case 0:
+			att = 5;
+			break;
+		case 1:
+			if (phy->type == BCM43xx_PHYTYPE_G) {
+				if (bcm->board_vendor == PCI_VENDOR_ID_BROADCOM &&
+				    bcm->board_type == 0x421 &&
+				    bcm->board_revision >= 30)
+					att = 3;
+				else if (bcm->board_vendor == PCI_VENDOR_ID_BROADCOM &&
+					 bcm->board_type == 0x416)
+					att = 3;
+				else
+					att = 1;
+			} else {
+				if (bcm->board_vendor == PCI_VENDOR_ID_BROADCOM &&
+				    bcm->board_type == 0x421 &&
+				    bcm->board_revision >= 30)
+					att = 7;
+				else
+					att = 6;
+			}
+			break;
+		case 2:
+			if (phy->type == BCM43xx_PHYTYPE_G) {
+				if (bcm->board_vendor == PCI_VENDOR_ID_BROADCOM &&
+				    bcm->board_type == 0x421 &&
+				    bcm->board_revision >= 30)
+					att = 3;
+				else if (bcm->board_vendor == PCI_VENDOR_ID_BROADCOM &&
+					 bcm->board_type == 0x416)
+					att = 5;
+				else if (bcm->chip_id == 0x4320)
+					att = 4;
+				else
+					att = 3;
+			} else
+				att = 6;
+			break;
+		case 3:
+			att = 5;
+			break;
+		case 4:
+		case 5:
+			att = 1;
+			break;
+		case 6:
+		case 7:
+			att = 5;
+			break;
+		case 8:
+			att = 0x1A;
+			break;
+		case 9:
+		default:
+			att = 5;
+		}
+	}
+	if (bcm->board_vendor == PCI_VENDOR_ID_BROADCOM &&
+	    bcm->board_type == 0x421) {
+		if (bcm->board_revision < 0x43)
+			att = 2;
+		else if (bcm->board_revision < 0x51)
+			att = 3;
+	}
+	if (att == 0xFFFF)
+		att = 5;
+
+	return att;
+}
+
+u16 bcm43xx_default_txctl1(struct bcm43xx_private *bcm)
+{
+	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
+
+	if (radio->version != 0x2050)
+		return 0;
+	if (radio->revision == 1)
+		return 3;
+	if (radio->revision < 6)
+		return 2;
+	if (radio->revision == 8)
+		return 1;
+	return 0;
+}
 
 void bcm43xx_radio_turn_on(struct bcm43xx_private *bcm)
 {
