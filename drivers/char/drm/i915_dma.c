@@ -495,8 +495,6 @@ static int i915_dispatch_batchbuffer(drm_device_t * dev,
 		}
 	}
 
-	dev_priv->sarea_priv->last_enqueue = dev_priv->counter++;
-
 	i915_emit_breadcrumb(dev);
 
 	return 0;
