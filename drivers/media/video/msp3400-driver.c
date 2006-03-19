@@ -245,31 +245,31 @@ int msp_write_dsp(struct i2c_client *client, int addr, int val)
  * ----------------------------------------------------------------------- */
 
 static int scarts[3][9] = {
-	/* MASK    IN1     IN2     IN1_DA  IN2_DA  IN3     IN4     MONO    MUTE   */
+       /* MASK   IN1     IN2     IN3     IN4     IN1_DA  IN2_DA  MONO    MUTE   */
 	/* SCART DSP Input select */
-	{ 0x0320, 0x0000, 0x0200, -1,     -1,     0x0300, 0x0020, 0x0100, 0x0320 },
+       { 0x0320, 0x0000, 0x0200, 0x0300, 0x0020, -1,     -1,     0x0100, 0x0320 },
 	/* SCART1 Output select */
-	{ 0x0c40, 0x0440, 0x0400, 0x0c00, 0x0040, 0x0000, 0x0840, 0x0800, 0x0c40 },
+       { 0x0c40, 0x0440, 0x0400, 0x0000, 0x0840, 0x0c00, 0x0040, 0x0800, 0x0c40 },
 	/* SCART2 Output select */
-	{ 0x3080, 0x1000, 0x1080, 0x0000, 0x0080, 0x2080, 0x3080, 0x2000, 0x3000 },
+       { 0x3080, 0x1000, 0x1080, 0x2080, 0x3080, 0x0000, 0x0080, 0x2000, 0x3000 },
 };
 
 static char *scart_names[] = {
-	"mask", "in1", "in2", "in1 da", "in2 da", "in3", "in4", "mono", "mute"
+       "in1", "in2", "in3", "in4", "in1 da", "in2 da", "mono", "mute"
 };
 
 void msp_set_scart(struct i2c_client *client, int in, int out)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
 
-	state->in_scart=in;
+	state->in_scart = in;
 
-	if (in >= 1 && in <= 8 && out >= 0 && out <= 2) {
-		if (-1 == scarts[out][in])
+	if (in >= 0 && in <= 7 && out >= 0 && out <= 2) {
+		if (-1 == scarts[out][in + 1])
 			return;
 
-		state->acb &= ~scarts[out][SCART_MASK];
-		state->acb |=  scarts[out][in];
+		state->acb &= ~scarts[out][0];
+		state->acb |=  scarts[out][in + 1];
 	} else
 		state->acb = 0xf60; /* Mute Input and SCART 1 Output */
 
@@ -585,7 +585,7 @@ static int msp_set_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
-	int scart = 0;
+	int scart = -1;
 
 	if (msp_debug >= 2)
 		v4l_i2c_print_ioctl(client, cmd);
@@ -694,7 +694,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		struct msp_matrix *mspm = arg;
 
-		msp_set_scart(client, mspm->input, mspm->output);
+		msp_set_scart(client, mspm->input - 1, mspm->output);
 		break;
 	}
 
@@ -735,7 +735,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			state->mode = -1;
 			break;
 		}
-		if (scart) {
+		if (scart >= 0) {
 			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
 			msp_set_scart(client, scart, 0);
 			msp_write_dsp(client, 0x000d, 0x1900);
@@ -885,12 +885,14 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				(state->rxsubchans & V4L2_TUNER_SUB_STEREO) ? "stereo" : "mono",
 				(state->rxsubchans & V4L2_TUNER_SUB_LANG2) ? ", dual" : "");
 		} else {
-			v4l_info(client, "Mode:     %s\n", p);
+			if (state->opmode == OPMODE_AUTODETECT)
+				v4l_info(client, "Mode:     %s\n", p);
 			v4l_info(client, "Standard: %s (%s%s)\n",
 				msp_standard_std_name(state->std),
 				(state->rxsubchans & V4L2_TUNER_SUB_STEREO) ? "stereo" : "mono",
 				(state->rxsubchans & V4L2_TUNER_SUB_LANG2) ? ", dual" : "");
 		}
+		v4l_info(client, "Audmode:  0x%04x\n", state->audmode);
 		v4l_info(client, "ACB:      0x%04x\n", state->acb);
 		break;
 	}

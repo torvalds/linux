@@ -20,15 +20,14 @@
 #define MSP_MODE_BTSC        8
 #define MSP_MODE_EXTERN      9
 
-#define SCART_MASK    0
-#define SCART_IN1     1
-#define SCART_IN2     2
-#define SCART_IN1_DA  3
-#define SCART_IN2_DA  4
-#define SCART_IN3     5
-#define SCART_IN4     6
-#define SCART_MONO    7
-#define SCART_MUTE    8
+#define SCART_IN1     0
+#define SCART_IN2     1
+#define SCART_IN3     2
+#define SCART_IN4     3
+#define SCART_IN1_DA  4
+#define SCART_IN2_DA  5
+#define SCART_MONO    6
+#define SCART_MUTE    7
 
 #define SCART_DSP_IN  0
 #define SCART1_OUT    1
