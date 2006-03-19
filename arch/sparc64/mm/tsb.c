@@ -11,6 +11,7 @@
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/tsb.h>
+#include <asm/oplib.h>
 
 extern struct tsb swapper_tsb[KERNEL_TSB_NENTRIES];
 
@@ -207,6 +208,39 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 	}
 }
 
+static kmem_cache_t *tsb_caches[8] __read_mostly;
+
+static const char *tsb_cache_names[8] = {
+	"tsb_8KB",
+	"tsb_16KB",
+	"tsb_32KB",
+	"tsb_64KB",
+	"tsb_128KB",
+	"tsb_256KB",
+	"tsb_512KB",
+	"tsb_1MB",
+};
+
+void __init tsb_cache_init(void)
+{
+	unsigned long i;
+
+	for (i = 0; i < 8; i++) {
+		unsigned long size = 8192 << i;
+		const char *name = tsb_cache_names[i];
+
+		tsb_caches[i] = kmem_cache_create(name,
+						  size, size,
+						  SLAB_HWCACHE_ALIGN |
+						  SLAB_MUST_HWCACHE_ALIGN,
+						  NULL, NULL);
+		if (!tsb_caches[i]) {
+			prom_printf("Could not create %s cache\n", name);
+			prom_halt();
+		}
+	}
+}
+
 /* When the RSS of an address space exceeds mm->context.tsb_rss_limit,
  * do_sparc64_fault() invokes this routine to try and grow the TSB.
  *
@@ -226,45 +260,48 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_bytes)
 void tsb_grow(struct mm_struct *mm, unsigned long rss)
 {
 	unsigned long max_tsb_size = 1 * 1024 * 1024;
-	unsigned long size, old_size, flags;
-	struct page *page;
+	unsigned long new_size, old_size, flags;
 	struct tsb *old_tsb, *new_tsb;
-	unsigned long order, new_rss_limit;
+	unsigned long new_cache_index, old_cache_index;
+	unsigned long new_rss_limit;
 	gfp_t gfp_flags;
 
 	if (max_tsb_size > (PAGE_SIZE << MAX_ORDER))
 		max_tsb_size = (PAGE_SIZE << MAX_ORDER);
 
-	for (size = PAGE_SIZE; size < max_tsb_size; size <<= 1UL) {
-		unsigned long n_entries = size / sizeof(struct tsb);
+	new_cache_index = 0;
+	for (new_size = 8192; new_size < max_tsb_size; new_size <<= 1UL) {
+		unsigned long n_entries = new_size / sizeof(struct tsb);
 
 		n_entries = (n_entries * 3) / 4;
 		if (n_entries > rss)
 			break;
+
+		new_cache_index++;
 	}
 
-	if (size == max_tsb_size)
+	if (new_size == max_tsb_size)
 		new_rss_limit = ~0UL;
 	else
-		new_rss_limit = ((size / sizeof(struct tsb)) * 3) / 4;
+		new_rss_limit = ((new_size / sizeof(struct tsb)) * 3) / 4;
 
-retry_page_alloc:
-	order = get_order(size);
+retry_tsb_alloc:
 	gfp_flags = GFP_KERNEL;
-	if (order > 1)
+	if (new_size > (PAGE_SIZE * 2))
 		gfp_flags = __GFP_NOWARN | __GFP_NORETRY;
 
-	page = alloc_pages(gfp_flags, order);
-	if (unlikely(!page)) {
+	new_tsb = kmem_cache_alloc(tsb_caches[new_cache_index], gfp_flags);
+	if (unlikely(!new_tsb)) {
 		/* Not being able to fork due to a high-order TSB
 		 * allocation failure is very bad behavior.  Just back
 		 * down to a 0-order allocation and force no TSB
 		 * growing for this address space.
 		 */
-		if (mm->context.tsb == NULL && order > 0) {
-			size = PAGE_SIZE;
+		if (mm->context.tsb == NULL && new_cache_index > 0) {
+			new_cache_index = 0;
+			new_size = 8192;
 			new_rss_limit = ~0UL;
-			goto retry_page_alloc;
+			goto retry_tsb_alloc;
 		}
 
 		/* If we failed on a TSB grow, we are under serious
@@ -276,8 +313,7 @@ retry_page_alloc:
 	}
 
 	/* Mark all tags as invalid.  */
-	new_tsb = page_address(page);
-	memset(new_tsb, 0x40, size);
+	memset(new_tsb, 0x40, new_size);
 
 	/* Ok, we are about to commit the changes.  If we are
 	 * growing an existing TSB the locking is very tricky,
@@ -304,7 +340,9 @@ retry_page_alloc:
 	spin_lock_irqsave(&mm->context.lock, flags);
 
 	old_tsb = mm->context.tsb;
+	old_cache_index = (mm->context.tsb_reg_val & 0x7UL);
 	old_size = mm->context.tsb_nentries * sizeof(struct tsb);
+
 
 	/* Handle multiple threads trying to grow the TSB at the same time.
 	 * One will get in here first, and bump the size and the RSS limit.
@@ -313,7 +351,7 @@ retry_page_alloc:
 	if (unlikely(old_tsb && (rss < mm->context.tsb_rss_limit))) {
 		spin_unlock_irqrestore(&mm->context.lock, flags);
 
-		free_pages((unsigned long) new_tsb, get_order(size));
+		kmem_cache_free(tsb_caches[new_cache_index], new_tsb);
 		return;
 	}
 
@@ -331,11 +369,11 @@ retry_page_alloc:
 			old_tsb_base = __pa(old_tsb_base);
 			new_tsb_base = __pa(new_tsb_base);
 		}
-		copy_tsb(old_tsb_base, old_size, new_tsb_base, size);
+		copy_tsb(old_tsb_base, old_size, new_tsb_base, new_size);
 	}
 
 	mm->context.tsb = new_tsb;
-	setup_tsb_params(mm, size);
+	setup_tsb_params(mm, new_size);
 
 	spin_unlock_irqrestore(&mm->context.lock, flags);
 
@@ -350,7 +388,7 @@ retry_page_alloc:
 		smp_tsb_sync(mm);
 
 		/* Now it is safe to free the old tsb.  */
-		free_pages((unsigned long) old_tsb, get_order(old_size));
+		kmem_cache_free(tsb_caches[old_cache_index], old_tsb);
 	}
 }
 
@@ -379,10 +417,10 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 
 void destroy_context(struct mm_struct *mm)
 {
-	unsigned long size = mm->context.tsb_nentries * sizeof(struct tsb);
-	unsigned long flags;
+	unsigned long flags, cache_index;
 
-	free_pages((unsigned long) mm->context.tsb, get_order(size));
+	cache_index = (mm->context.tsb_reg_val & 0x7UL);
+	kmem_cache_free(tsb_caches[cache_index], mm->context.tsb);
 
 	/* We can remove these later, but for now it's useful
 	 * to catch any bogus post-destroy_context() references

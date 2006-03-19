@@ -192,6 +192,9 @@ config ARCH_SPARSEMEM_ENABLE
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
 
+config LARGE_ALLOCS
+	def_bool y
+
 source "mm/Kconfig"
 
 config GENERIC_ISA_DMA

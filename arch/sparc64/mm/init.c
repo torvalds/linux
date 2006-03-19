@@ -165,6 +165,8 @@ static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
 	clear_page(addr);
 }
 
+extern void tsb_cache_init(void);
+
 void pgtable_cache_init(void)
 {
 	pgtable_cache = kmem_cache_create("pgtable_cache",
@@ -174,9 +176,10 @@ void pgtable_cache_init(void)
 					  zero_ctor,
 					  NULL);
 	if (!pgtable_cache) {
-		prom_printf("pgtable_cache_init(): Could not create!\n");
+		prom_printf("Could not create pgtable_cache\n");
 		prom_halt();
 	}
+	tsb_cache_init();
 }
 
 #ifdef CONFIG_DEBUG_DCFLUSH
