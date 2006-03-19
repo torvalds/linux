@@ -30,7 +30,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <media/audiochip.h>
 #include <media/v4l2-common.h>
 
 #include "bttv.h"

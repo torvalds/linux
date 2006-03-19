@@ -26,7 +26,6 @@
 #include <linux/videodev.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
-#include <media/audiochip.h>
 #include <linux/kthread.h>
 #include <linux/suspend.h>
 #include "msp3400.h"

@@ -75,11 +75,6 @@ static int cs53l32a_command(struct i2c_client *client, unsigned int cmd,
 		cs53l32a_write(client, 0x01, 0x01 + (input->index << 4));
 		break;
 
-	case VIDIOC_G_AUDIO:
-		memset(input, 0, sizeof(*input));
-		input->index = (cs53l32a_read(client, 0x01) >> 4) & 3;
-		break;
-
 	case VIDIOC_G_CTRL:
 		if (ctrl->id == V4L2_CID_AUDIO_MUTE) {
 			ctrl->value = (cs53l32a_read(client, 0x03) & 0xc0) != 0;

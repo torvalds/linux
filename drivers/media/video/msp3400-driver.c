@@ -53,7 +53,7 @@
 #include <linux/videodev.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
-#include <media/audiochip.h>
+#include <media/tvaudio.h>
 #include <linux/kthread.h>
 #include <linux/suspend.h>
 #include "msp3400.h"
@@ -585,51 +585,12 @@ static int msp_set_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
-	u16 *sarg = arg;
 	int scart = 0;
 
 	if (msp_debug >= 2)
 		v4l_i2c_print_ioctl(client, cmd);
 
 	switch (cmd) {
-	case AUDC_SET_INPUT:
-		if (*sarg == state->input)
-			break;
-		state->input = *sarg;
-		switch (*sarg) {
-		case AUDIO_RADIO:
-			/* Hauppauge uses IN2 for the radio */
-			state->mode = MSP_MODE_FM_RADIO;
-			scart       = SCART_IN2;
-			break;
-		case AUDIO_EXTERN_1:
-			/* IN1 is often used for external input ... */
-			state->mode = MSP_MODE_EXTERN;
-			scart       = SCART_IN1;
-			break;
-		case AUDIO_EXTERN_2:
-			/* ... sometimes it is IN2 through ;) */
-			state->mode = MSP_MODE_EXTERN;
-			scart       = SCART_IN2;
-			break;
-		case AUDIO_TUNER:
-			state->mode = -1;
-			break;
-		default:
-			if (*sarg & AUDIO_MUTE)
-				msp_set_scart(client, SCART_MUTE, 0);
-			break;
-		}
-		if (scart) {
-			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
-			msp_set_scart(client, scart, 0);
-			msp_write_dsp(client, 0x000d, 0x1900);
-			if (state->opmode != OPMODE_AUTOSELECT)
-				msp_set_audmode(client);
-		}
-		msp_wake_thread(client);
-		break;
-
 	case AUDC_SET_RADIO:
 		if (state->radio)
 			return 0;
@@ -750,82 +711,27 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		return 0;
 	}
 
-	case VIDIOC_ENUMINPUT:
-	{
-		struct v4l2_input *i = arg;
-
-		if (i->index != 0)
-			return -EINVAL;
-
-		i->type = V4L2_INPUT_TYPE_TUNER;
-		switch (i->index) {
-		case AUDIO_RADIO:
-			strcpy(i->name, "Radio");
-			break;
-		case AUDIO_EXTERN_1:
-			strcpy(i->name, "Extern 1");
-			break;
-		case AUDIO_EXTERN_2:
-			strcpy(i->name, "Extern 2");
-			break;
-		case AUDIO_TUNER:
-			strcpy(i->name, "Television");
-			break;
-		default:
-			return -EINVAL;
-		}
-		return 0;
-	}
-
-	case VIDIOC_G_AUDIO:
-	{
-		struct v4l2_audio *a = arg;
-
-		memset(a, 0, sizeof(*a));
-
-		switch (a->index) {
-		case AUDIO_RADIO:
-			strcpy(a->name, "Radio");
-			break;
-		case AUDIO_EXTERN_1:
-			strcpy(a->name, "Extern 1");
-			break;
-		case AUDIO_EXTERN_2:
-			strcpy(a->name, "Extern 2");
-			break;
-		case AUDIO_TUNER:
-			strcpy(a->name, "Television");
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		a->capability = V4L2_AUDCAP_STEREO;
-		a->mode = 0;  /* TODO: add support for AVL */
-		break;
-	}
-
 	case VIDIOC_S_AUDIO:
 	{
 		struct v4l2_audio *sarg = arg;
 
 		switch (sarg->index) {
-		case AUDIO_RADIO:
+		case TVAUDIO_INPUT_RADIO:
 			/* Hauppauge uses IN2 for the radio */
 			state->mode = MSP_MODE_FM_RADIO;
 			scart       = SCART_IN2;
 			break;
-		case AUDIO_EXTERN_1:
+		case TVAUDIO_INPUT_EXTERN:
 			/* IN1 is often used for external input ... */
 			state->mode = MSP_MODE_EXTERN;
 			scart       = SCART_IN1;
 			break;
-		case AUDIO_EXTERN_2:
+		case TVAUDIO_INPUT_INTERN:
 			/* ... sometimes it is IN2 through ;) */
 			state->mode = MSP_MODE_EXTERN;
 			scart       = SCART_IN2;
 			break;
-		case AUDIO_TUNER:
+		case TVAUDIO_INPUT_TUNER:
 			state->mode = -1;
 			break;
 		}

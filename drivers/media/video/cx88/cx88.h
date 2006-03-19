@@ -27,7 +27,6 @@
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
-#include <media/audiochip.h>
 #include <media/video-buf.h>
 #include <media/video-buf-dvb.h>
 

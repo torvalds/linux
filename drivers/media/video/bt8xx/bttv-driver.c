@@ -36,6 +36,7 @@
 #include <linux/kdev_t.h>
 #include "bttvp.h"
 #include <media/v4l2-common.h>
+#include <media/tvaudio.h>
 
 #include <linux/dma-mapping.h>
 
@@ -926,43 +927,63 @@ video_mux(struct bttv *btv, unsigned int input)
 
 static char *audio_modes[] = {
 	"audio: tuner", "audio: radio", "audio: extern",
-	"audio: intern", "audio: off"
+	"audio: intern", "audio: mute"
 };
 
 static int
-audio_mux(struct bttv *btv, int mode)
+audio_mux(struct bttv *btv, int input, int mute)
 {
-	int val,mux,i2c_mux,signal;
+	int gpio_val, signal;
+	struct v4l2_audio aud_input;
+	struct v4l2_control ctrl;
+	struct i2c_client *c;
 
+	memset(&aud_input, 0, sizeof(aud_input));
 	gpio_inout(bttv_tvcards[btv->c.type].gpiomask,
 		   bttv_tvcards[btv->c.type].gpiomask);
 	signal = btread(BT848_DSTATUS) & BT848_DSTATUS_HLOC;
 
-	switch (mode) {
-	case AUDIO_MUTE:
-		btv->audio |= AUDIO_MUTE;
-		break;
-	case AUDIO_UNMUTE:
-		btv->audio &= ~AUDIO_MUTE;
-		break;
-	case AUDIO_TUNER:
-	case AUDIO_RADIO:
-	case AUDIO_EXTERN:
-	case AUDIO_INTERN:
-		btv->audio &= AUDIO_MUTE;
-		btv->audio |= mode;
-	}
-	i2c_mux = mux = (btv->audio & AUDIO_MUTE) ? AUDIO_OFF : btv->audio;
-	if (btv->opt_automute && !signal && !btv->radio_user)
-		mux = AUDIO_OFF;
+	btv->mute = mute;
+	btv->audio = input;
 
-	val = bttv_tvcards[btv->c.type].audiomux[mux];
-	gpio_bits(bttv_tvcards[btv->c.type].gpiomask,val);
+	/* automute */
+	mute = mute || (btv->opt_automute && !signal && !btv->radio_user);
+
+	if (mute)
+		gpio_val = bttv_tvcards[btv->c.type].gpiomute;
+	else
+		gpio_val = bttv_tvcards[btv->c.type].gpiomux[input];
+	aud_input.index = btv->audio;
+
+	gpio_bits(bttv_tvcards[btv->c.type].gpiomask, gpio_val);
 	if (bttv_gpio)
-		bttv_gpio_tracking(btv,audio_modes[mux]);
-	if (!in_interrupt())
-		bttv_call_i2c_clients(btv,AUDC_SET_INPUT,&(i2c_mux));
+		bttv_gpio_tracking(btv, audio_modes[mute ? 4 : input]);
+	if (in_interrupt())
+		return 0;
+
+	ctrl.id = V4L2_CID_AUDIO_MUTE;
+	/* take automute into account, just btv->mute is not enough */
+	ctrl.value = mute;
+	bttv_call_i2c_clients(btv, VIDIOC_S_CTRL, &ctrl);
+	c = btv->i2c_msp34xx_client;
+	if (c)
+		c->driver->command(c, VIDIOC_S_AUDIO, &aud_input);
+	c = btv->i2c_tvaudio_client;
+	if (c)
+		c->driver->command(c, VIDIOC_S_AUDIO, &aud_input);
 	return 0;
+}
+
+static inline int
+audio_mute(struct bttv *btv, int mute)
+{
+	return audio_mux(btv, btv->audio, mute);
+}
+
+static inline int
+audio_input(struct bttv *btv, int input)
+{
+	return audio_mux(btv, input, btv->mute);
 }
 
 static void
@@ -1023,8 +1044,8 @@ set_input(struct bttv *btv, unsigned int input)
 	} else {
 		video_mux(btv,input);
 	}
-	audio_mux(btv,(input == bttv_tvcards[btv->c.type].tuner ?
-		       AUDIO_TUNER : AUDIO_EXTERN));
+	audio_input(btv,(input == bttv_tvcards[btv->c.type].tuner ?
+		       TVAUDIO_INPUT_TUNER : TVAUDIO_INPUT_EXTERN));
 	set_tvnorm(btv,btv->tvnorm);
 	i2c_vidiocschan(btv);
 }
@@ -1236,10 +1257,10 @@ static int set_control(struct bttv *btv, struct v4l2_control *c)
 	case V4L2_CID_AUDIO_MUTE:
 		if (c->value) {
 			va.flags |= VIDEO_AUDIO_MUTE;
-			audio_mux(btv, AUDIO_MUTE);
+			audio_mute(btv, 1);
 		} else {
 			va.flags &= ~VIDEO_AUDIO_MUTE;
-			audio_mux(btv, AUDIO_UNMUTE);
+			audio_mute(btv, 0);
 		}
 		break;
 
@@ -1654,7 +1675,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 			return -EINVAL;
 
 		mutex_lock(&btv->lock);
-		audio_mux(btv, (v->flags&VIDEO_AUDIO_MUTE) ? AUDIO_MUTE : AUDIO_UNMUTE);
+		audio_mute(btv, (v->flags&VIDEO_AUDIO_MUTE) ? 1 : 0);
 		bttv_call_i2c_clients(btv,cmd,v);
 
 		/* card specific hooks */
@@ -3163,8 +3184,8 @@ static int radio_open(struct inode *inode, struct file *file)
 
 	file->private_data = btv;
 
-	bttv_call_i2c_clients(btv,AUDC_SET_RADIO,&btv->tuner_type);
-	audio_mux(btv,AUDIO_RADIO);
+	bttv_call_i2c_clients(btv,AUDC_SET_RADIO,NULL);
+	audio_input(btv,TVAUDIO_INPUT_RADIO);
 
 	mutex_unlock(&btv->lock);
 	return 0;
@@ -3750,7 +3771,7 @@ static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
 			bttv_irq_switch_video(btv);
 
 		if ((astat & BT848_INT_HLOCK)  &&  btv->opt_automute)
-			audio_mux(btv, -1);
+			audio_mute(btv, btv->mute);  /* trigger automute */
 
 		if (astat & (BT848_INT_SCERR|BT848_INT_OCERR)) {
 			printk(KERN_INFO "bttv%d: %s%s @ %08x,",btv->c.nr,
@@ -4051,7 +4072,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 		bt848_contrast(btv,32768);
 		bt848_hue(btv,32768);
 		bt848_sat(btv,32768);
-		audio_mux(btv,AUDIO_MUTE);
+		audio_mute(btv, 1);
 		set_input(btv,0);
 	}
 

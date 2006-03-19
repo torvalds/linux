@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
-#include <media/audiochip.h>
 #include <media/v4l2-common.h>
 
 #include "cx25840.h"
@@ -762,16 +761,6 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		struct v4l2_audio *input = arg;
 
 		return set_input(client, state->vid_input, input->index);
-	}
-
-	case VIDIOC_G_AUDIO:
-	{
-		struct v4l2_audio *input = arg;
-
-		memset(input, 0, sizeof(*input));
-		input->index = state->aud_input;
-		input->capability = V4L2_AUDCAP_STEREO;
-		break;
 	}
 
 	case VIDIOC_S_FREQUENCY:

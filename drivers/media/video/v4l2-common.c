@@ -312,7 +312,6 @@ static const char *v4l2_int_ioctls[] = {
 	[_IOC_NR(DECODER_DUMP)]                = "DECODER_DUMP",
 #endif
 	[_IOC_NR(AUDC_SET_RADIO)]              = "AUDC_SET_RADIO",
-	[_IOC_NR(AUDC_SET_INPUT)]              = "AUDC_SET_INPUT",
 	[_IOC_NR(MSP_SET_MATRIX)]              = "MSP_SET_MATRIX",
 
 	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
@@ -419,7 +418,6 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 	case TUNER_SET_TYPE_ADDR:
 	case TUNER_SET_STANDBY:
 	case TDA9887_SET_CONFIG:
-	case AUDC_SET_INPUT:
 	case VIDIOC_OVERLAY_OLD:
 	case VIDIOC_STREAMOFF:
 	case VIDIOC_G_OUTPUT:

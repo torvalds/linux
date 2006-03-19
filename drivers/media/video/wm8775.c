@@ -102,11 +102,6 @@ static int wm8775_command(struct i2c_client *client, unsigned int cmd,
 		wm8775_write(client, R21, 0x100 + state->input);
 		break;
 
-	case VIDIOC_G_AUDIO:
-		memset(input, 0, sizeof(*input));
-		input->index = state->input;
-		break;
-
 	case VIDIOC_G_CTRL:
 		if (ctrl->id != V4L2_CID_AUDIO_MUTE)
 			return -EINVAL;

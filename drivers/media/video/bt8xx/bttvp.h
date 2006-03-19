@@ -41,7 +41,6 @@
 
 #include <linux/device.h>
 #include <media/video-buf.h>
-#include <media/audiochip.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/ir-common.h>
@@ -299,6 +298,8 @@ struct bttv {
 	int                        i2c_state, i2c_rc;
 	int                        i2c_done;
 	wait_queue_head_t          i2c_queue;
+	struct i2c_client 	  *i2c_msp34xx_client;
+	struct i2c_client 	  *i2c_tvaudio_client;
 
 	/* video4linux (1) */
 	struct video_device *video_dev;
@@ -321,6 +322,7 @@ struct bttv {
 	/* video state */
 	unsigned int input;
 	unsigned int audio;
+	unsigned int mute;
 	unsigned long freq;
 	int tvnorm,hue,contrast,bright,saturation;
 	struct v4l2_framebuffer fbuf;

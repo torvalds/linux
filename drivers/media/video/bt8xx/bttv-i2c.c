@@ -302,6 +302,10 @@ static int attach_inform(struct i2c_client *client)
 	if (!client->driver->command)
 		return 0;
 
+	if (client->driver->id == I2C_DRIVERID_MSP3400)
+		btv->i2c_msp34xx_client = client;
+	if (client->driver->id == I2C_DRIVERID_TVAUDIO)
+		btv->i2c_tvaudio_client = client;
 	if (btv->tuner_type != UNSET) {
 		struct tuner_setup tun_setup;
 

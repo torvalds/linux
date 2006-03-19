@@ -234,7 +234,8 @@ struct tvcard
 	unsigned int digital_mode; // DIGITAL_MODE_CAMERA or DIGITAL_MODE_VIDEO
 	u32 gpiomask;
 	u32 muxsel[16];
-	u32 audiomux[6]; /* Tuner, Radio, external, internal, mute, stereo */
+	u32 gpiomux[4];  /* Tuner, Radio, external, internal */
+	u32 gpiomute;    /* GPIO mute setting */
 	u32 gpiomask2;   /* GPIO MUX mask */
 
 	/* i2c audio flags */

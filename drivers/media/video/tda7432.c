@@ -48,7 +48,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
-#include <media/audiochip.h>
 #include <media/v4l2-common.h>
 #include <media/i2c-addr.h>
 

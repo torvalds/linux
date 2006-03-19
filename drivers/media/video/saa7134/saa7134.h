@@ -34,7 +34,6 @@
 #include <asm/io.h>
 
 #include <media/tuner.h>
-#include <media/audiochip.h>
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/video-buf.h>
