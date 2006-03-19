@@ -1970,11 +1970,6 @@ static int radeon_surface_alloc(DRM_IOCTL_ARGS)
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_surface_alloc_t alloc;
 
-	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
-	}
-
 	DRM_COPY_FROM_USER_IOCTL(alloc,
 				 (drm_radeon_surface_alloc_t __user *) data,
 				 sizeof(alloc));
@@ -1990,11 +1985,6 @@ static int radeon_surface_free(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	drm_radeon_surface_free_t memfree;
-
-	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
-	}
 
 	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_radeon_surface_free_t __user *) data,
 				 sizeof(memfree));
@@ -2131,11 +2121,6 @@ static int radeon_cp_vertex(DRM_IOCTL_ARGS)
 
 	LOCK_TEST_WITH_RETURN(dev, filp);
 
-	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
-	}
-
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
 	DRM_COPY_FROM_USER_IOCTL(vertex, (drm_radeon_vertex_t __user *) data,
@@ -2219,11 +2204,6 @@ static int radeon_cp_indices(DRM_IOCTL_ARGS)
 	int count;
 
 	LOCK_TEST_WITH_RETURN(dev, filp);
-
-	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
-	}
 
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
@@ -2371,11 +2351,6 @@ static int radeon_cp_indirect(DRM_IOCTL_ARGS)
 
 	LOCK_TEST_WITH_RETURN(dev, filp);
 
-	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
-	}
-
 	DRM_COPY_FROM_USER_IOCTL(indirect,
 				 (drm_radeon_indirect_t __user *) data,
 				 sizeof(indirect));
@@ -2447,11 +2422,6 @@ static int radeon_cp_vertex2(DRM_IOCTL_ARGS)
 	unsigned char laststate;
 
 	LOCK_TEST_WITH_RETURN(dev, filp);
-
-	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
-	}
 
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
@@ -2769,11 +2739,6 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 
 	LOCK_TEST_WITH_RETURN(dev, filp);
 
-	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
-	}
-
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
 	DRM_COPY_FROM_USER_IOCTL(cmdbuf,
@@ -2928,11 +2893,6 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 	drm_radeon_getparam_t param;
 	int value;
 
-	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
-	}
-
 	DRM_COPY_FROM_USER_IOCTL(param, (drm_radeon_getparam_t __user *) data,
 				 sizeof(param));
 
@@ -3011,11 +2971,6 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
 	drm_file_t *filp_priv;
 	drm_radeon_setparam_t sp;
 	struct drm_radeon_driver_file_fields *radeon_priv;
-
-	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
-	}
 
 	DRM_GET_PRIV_WITH_RETURN(filp_priv, filp);
 
