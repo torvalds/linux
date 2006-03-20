@@ -605,11 +605,14 @@ static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
 	int status;
 
 	atomic_inc(&data->count);
+	/*
+	 * If rpc_run_task() ends up calling ->rpc_release(), we
+	 * want to ensure that it takes the 'error' code path.
+	 */
+	data->rpc_status = -ENOMEM;
 	task = rpc_run_task(server->client, RPC_TASK_ASYNC, &nfs4_open_confirm_ops, data);
-	if (IS_ERR(task)) {
-		nfs4_opendata_free(data);
+	if (IS_ERR(task))
 		return PTR_ERR(task);
-	}
 	status = nfs4_wait_for_completion_rpc_task(task);
 	if (status != 0) {
 		data->cancelled = 1;
@@ -708,11 +711,14 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	int status;
 
 	atomic_inc(&data->count);
+	/*
+	 * If rpc_run_task() ends up calling ->rpc_release(), we
+	 * want to ensure that it takes the 'error' code path.
+	 */
+	data->rpc_status = -ENOMEM;
 	task = rpc_run_task(server->client, RPC_TASK_ASYNC, &nfs4_open_ops, data);
-	if (IS_ERR(task)) {
-		nfs4_opendata_free(data);
+	if (IS_ERR(task))
 		return PTR_ERR(task);
-	}
 	status = nfs4_wait_for_completion_rpc_task(task);
 	if (status != 0) {
 		data->cancelled = 1;
@@ -2959,10 +2965,8 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	data->rpc_status = 0;
 
 	task = rpc_run_task(NFS_CLIENT(inode), RPC_TASK_ASYNC, &nfs4_delegreturn_ops, data);
-	if (IS_ERR(task)) {
-		nfs4_delegreturn_release(data);
+	if (IS_ERR(task))
 		return PTR_ERR(task);
-	}
 	status = nfs4_wait_for_completion_rpc_task(task);
 	if (status == 0) {
 		status = data->rpc_status;
@@ -3182,7 +3186,6 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 		struct nfs_seqid *seqid)
 {
 	struct nfs4_unlockdata *data;
-	struct rpc_task *task;
 
 	data = nfs4_alloc_unlockdata(fl, ctx, lsp, seqid);
 	if (data == NULL) {
@@ -3192,10 +3195,7 @@ static struct rpc_task *nfs4_do_unlck(struct file_lock *fl,
 
 	/* Unlock _before_ we do the RPC call */
 	do_vfs_lock(fl->fl_file, fl);
-	task = rpc_run_task(NFS_CLIENT(lsp->ls_state->inode), RPC_TASK_ASYNC, &nfs4_locku_ops, data);
-	if (IS_ERR(task))
-		nfs4_locku_release_calldata(data);
-	return task;
+	return rpc_run_task(NFS_CLIENT(lsp->ls_state->inode), RPC_TASK_ASYNC, &nfs4_locku_ops, data);
 }
 
 static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *request)
@@ -3376,10 +3376,8 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 		data->arg.reclaim = 1;
 	task = rpc_run_task(NFS_CLIENT(state->inode), RPC_TASK_ASYNC,
 			&nfs4_lock_ops, data);
-	if (IS_ERR(task)) {
-		nfs4_lock_release(data);
+	if (IS_ERR(task))
 		return PTR_ERR(task);
-	}
 	ret = nfs4_wait_for_completion_rpc_task(task);
 	if (ret == 0) {
 		ret = data->rpc_status;

@@ -495,15 +495,16 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	int		status;
 
 	/* If this client is slain all further I/O fails */
+	status = -EIO;
 	if (clnt->cl_dead) 
-		return -EIO;
+		goto out_release;
 
 	flags |= RPC_TASK_ASYNC;
 
 	/* Create/initialize a new RPC task */
 	status = -ENOMEM;
 	if (!(task = rpc_new_task(clnt, flags, tk_ops, data)))
-		goto out;
+		goto out_release;
 
 	/* Mask signals on GSS_AUTH upcalls */
 	rpc_task_sigmask(task, &oldset);		
@@ -518,7 +519,10 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 		rpc_release_task(task);
 
 	rpc_restore_sigmask(&oldset);		
-out:
+	return status;
+out_release:
+	if (tk_ops->rpc_release != NULL)
+		tk_ops->rpc_release(data);
 	return status;
 }
 

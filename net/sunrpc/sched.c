@@ -921,8 +921,11 @@ struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
 {
 	struct rpc_task *task;
 	task = rpc_new_task(clnt, flags, ops, data);
-	if (task == NULL)
+	if (task == NULL) {
+		if (ops->rpc_release != NULL)
+			ops->rpc_release(data);
 		return ERR_PTR(-ENOMEM);
+	}
 	atomic_inc(&task->tk_count);
 	rpc_execute(task);
 	return task;
