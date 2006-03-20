@@ -108,6 +108,13 @@ config ARCH_EBSA110
 	  Ethernet interface, two PCMCIA sockets, two serial ports and a
 	  parallel port.
 
+config ARCH_EP93XX
+	bool "EP93xx-based"
+	select ARM_AMBA
+	select ARM_VIC
+	help
+	  This enables support for the Cirrus EP93xx series of CPUs.
+
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select FOOTBRIDGE
@@ -249,6 +256,8 @@ config ARCH_AT91RM9200
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
+
+source "arch/arm/mach-ep93xx/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
 
