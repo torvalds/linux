@@ -91,7 +91,7 @@ static mempool_t *nfs_commit_mempool;
 
 static DECLARE_WAIT_QUEUE_HEAD(nfs_write_congestion);
 
-static inline struct nfs_write_data *nfs_commit_alloc(unsigned int pagecount)
+struct nfs_write_data *nfs_commit_alloc(unsigned int pagecount)
 {
 	struct nfs_write_data *p = mempool_alloc(nfs_commit_mempool, SLAB_NOFS);
 
@@ -112,7 +112,7 @@ static inline struct nfs_write_data *nfs_commit_alloc(unsigned int pagecount)
 	return p;
 }
 
-static inline void nfs_commit_free(struct nfs_write_data *p)
+void nfs_commit_free(struct nfs_write_data *p)
 {
 	if (p && (p->pagevec != &p->page_array[0]))
 		kfree(p->pagevec);

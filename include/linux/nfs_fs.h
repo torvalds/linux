@@ -410,6 +410,11 @@ extern int  nfs_updatepage(struct file *, struct page *, unsigned int, unsigned 
 extern int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
 extern void nfs_writedata_release(void *);
 
+#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+struct nfs_write_data *nfs_commit_alloc(unsigned int pagecount);
+void nfs_commit_free(struct nfs_write_data *p);
+#endif
+
 /*
  * Try to write back everything synchronously (but check the
  * return value!)
