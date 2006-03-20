@@ -1131,7 +1131,7 @@ ssize_t ib_uverbs_modify_qp(struct ib_uverbs_file *file,
 	attr->dest_qp_num 	  = cmd.dest_qp_num;
 	attr->qp_access_flags 	  = cmd.qp_access_flags;
 	attr->pkey_index 	  = cmd.pkey_index;
-	attr->alt_pkey_index 	  = cmd.pkey_index;
+	attr->alt_pkey_index 	  = cmd.alt_pkey_index;
 	attr->en_sqd_async_notify = cmd.en_sqd_async_notify;
 	attr->max_rd_atomic 	  = cmd.max_rd_atomic;
 	attr->max_dest_rd_atomic  = cmd.max_dest_rd_atomic;
