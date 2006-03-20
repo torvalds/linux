@@ -101,16 +101,7 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov, loff_
 	return -EINVAL;
 }
 
-/**
- * nfs_get_user_pages - find and set up pages underlying user's buffer
- * rw: direction (read or write)
- * user_addr: starting address of this segment of user's buffer
- * count: size of this segment
- * @pages: returned array of page struct pointers underlying user's buffer
- */
-static inline int
-nfs_get_user_pages(int rw, unsigned long user_addr, size_t size,
-		struct page ***pages)
+static inline int nfs_get_user_pages(int rw, unsigned long user_addr, size_t size, struct page ***pages)
 {
 	int result = -ENOMEM;
 	unsigned long page_count;
@@ -147,14 +138,7 @@ nfs_get_user_pages(int rw, unsigned long user_addr, size_t size,
 	return result;
 }
 
-/**
- * nfs_free_user_pages - tear down page struct array
- * @pages: array of page struct pointers underlying target buffer
- * @npages: number of pages in the array
- * @do_dirty: dirty the pages as we release them
- */
-static void
-nfs_free_user_pages(struct page **pages, int npages, int do_dirty)
+static void nfs_free_user_pages(struct page **pages, int npages, int do_dirty)
 {
 	int i;
 	for (i = 0; i < npages; i++) {
@@ -166,22 +150,13 @@ nfs_free_user_pages(struct page **pages, int npages, int do_dirty)
 	kfree(pages);
 }
 
-/**
- * nfs_direct_req_release - release  nfs_direct_req structure for direct read
- * @kref: kref object embedded in an nfs_direct_req structure
- *
- */
 static void nfs_direct_req_release(struct kref *kref)
 {
 	struct nfs_direct_req *dreq = container_of(kref, struct nfs_direct_req, kref);
 	kmem_cache_free(nfs_direct_cachep, dreq);
 }
 
-/**
- * nfs_direct_read_alloc - allocate nfs_read_data structures for direct read
- * @count: count of bytes for the read request
- * @rsize: local rsize setting
- *
+/*
  * Note we also set the number of requests we have in the dreq when we are
  * done.  This prevents races with I/O completion so we will always wait
  * until all requests have been dispatched and completed.
@@ -232,11 +207,7 @@ static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, unsigned int 
 	return dreq;
 }
 
-/**
- * nfs_direct_read_result - handle a read reply for a direct read request
- * @data: address of NFS READ operation control block
- * @status: status of this NFS READ operation
- *
+/*
  * We must hold a reference to all the pages in this direct read request
  * until the RPCs complete.  This could be long *after* we are woken up in
  * nfs_direct_read_wait (for instance, if someone hits ^C on a slow server).
@@ -265,21 +236,11 @@ static const struct rpc_call_ops nfs_read_direct_ops = {
 	.rpc_release = nfs_readdata_release,
 };
 
-/**
- * nfs_direct_read_schedule - dispatch NFS READ operations for a direct read
- * @dreq: address of nfs_direct_req struct for this request
- * @inode: target inode
- * @ctx: target file open context
- * @user_addr: starting address of this segment of user's buffer
- * @count: size of this segment
- * @file_offset: offset in file to begin the operation
- *
+/*
  * For each nfs_read_data struct that was allocated on the list, dispatch
  * an NFS READ operation
  */
-static void nfs_direct_read_schedule(struct nfs_direct_req *dreq,
-		struct inode *inode, struct nfs_open_context *ctx,
-		unsigned long user_addr, size_t count, loff_t file_offset)
+static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, struct inode *inode, struct nfs_open_context *ctx, unsigned long user_addr, size_t count, loff_t file_offset)
 {
 	struct list_head *list = &dreq->list;
 	struct page **pages = dreq->pages;
@@ -337,11 +298,7 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq,
 	} while (count != 0);
 }
 
-/**
- * nfs_direct_read_wait - wait for I/O completion for direct reads
- * @dreq: request on which we are to wait
- * @intr: whether or not this wait can be interrupted
- *
+/*
  * Collects and returns the final error value/byte-count.
  */
 static ssize_t nfs_direct_read_wait(struct nfs_direct_req *dreq, int intr)
@@ -364,22 +321,7 @@ static ssize_t nfs_direct_read_wait(struct nfs_direct_req *dreq, int intr)
 	return (ssize_t) result;
 }
 
-/**
- * nfs_direct_read_seg - Read in one iov segment.  Generate separate
- *                        read RPCs for each "rsize" bytes.
- * @inode: target inode
- * @ctx: target file open context
- * @user_addr: starting address of this segment of user's buffer
- * @count: size of this segment
- * @file_offset: offset in file to begin the operation
- * @pages: array of addresses of page structs defining user's buffer
- * @nr_pages: number of pages in the array
- *
- */
-static ssize_t nfs_direct_read_seg(struct inode *inode,
-		struct nfs_open_context *ctx, unsigned long user_addr,
-		size_t count, loff_t file_offset, struct page **pages,
-		unsigned int nr_pages)
+static ssize_t nfs_direct_read_seg(struct inode *inode, struct nfs_open_context *ctx, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, unsigned int nr_pages)
 {
 	ssize_t result;
 	sigset_t oldset;
@@ -404,22 +346,11 @@ static ssize_t nfs_direct_read_seg(struct inode *inode,
 	return result;
 }
 
-/**
- * nfs_direct_read - For each iov segment, map the user's buffer
- *                   then generate read RPCs.
- * @inode: target inode
- * @ctx: target file open context
- * @iov: array of vectors that define I/O buffer
- * file_offset: offset in file to begin the operation
- * nr_segs: size of iovec array
- *
+/*
  * We've already pushed out any non-direct writes so that this read
  * will see them when we read from the server.
  */
-static ssize_t
-nfs_direct_read(struct inode *inode, struct nfs_open_context *ctx,
-		const struct iovec *iov, loff_t file_offset,
-		unsigned long nr_segs)
+static ssize_t nfs_direct_read(struct inode *inode, struct nfs_open_context *ctx, const struct iovec *iov, loff_t file_offset, unsigned long nr_segs)
 {
 	ssize_t tot_bytes = 0;
 	unsigned long seg = 0;
@@ -457,21 +388,7 @@ nfs_direct_read(struct inode *inode, struct nfs_open_context *ctx,
 	return tot_bytes;
 }
 
-/**
- * nfs_direct_write_seg - Write out one iov segment.  Generate separate
- *                        write RPCs for each "wsize" bytes, then commit.
- * @inode: target inode
- * @ctx: target file open context
- * user_addr: starting address of this segment of user's buffer
- * count: size of this segment
- * file_offset: offset in file to begin the operation
- * @pages: array of addresses of page structs defining user's buffer
- * nr_pages: size of pages array
- */
-static ssize_t nfs_direct_write_seg(struct inode *inode,
-		struct nfs_open_context *ctx, unsigned long user_addr,
-		size_t count, loff_t file_offset, struct page **pages,
-		int nr_pages)
+static ssize_t nfs_direct_write_seg(struct inode *inode, struct nfs_open_context *ctx, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, int nr_pages)
 {
 	const unsigned int wsize = NFS_SERVER(inode)->wsize;
 	size_t request;
@@ -573,22 +490,12 @@ sync_retry:
 	goto retry;
 }
 
-/**
- * nfs_direct_write - For each iov segment, map the user's buffer
- *                    then generate write and commit RPCs.
- * @inode: target inode
- * @ctx: target file open context
- * @iov: array of vectors that define I/O buffer
- * file_offset: offset in file to begin the operation
- * nr_segs: size of iovec array
- *
+/*
  * Upon return, generic_file_direct_IO invalidates any cached pages
  * that non-direct readers might access, so they will pick up these
  * writes immediately.
  */
-static ssize_t nfs_direct_write(struct inode *inode,
-		struct nfs_open_context *ctx, const struct iovec *iov,
-		loff_t file_offset, unsigned long nr_segs)
+static ssize_t nfs_direct_write(struct inode *inode, struct nfs_open_context *ctx, const struct iovec *iov, loff_t file_offset, unsigned long nr_segs)
 {
 	ssize_t tot_bytes = 0;
 	unsigned long seg = 0;
@@ -649,8 +556,7 @@ static ssize_t nfs_direct_write(struct inode *inode,
  * client must read the updated atime from the server back into its
  * cache.
  */
-ssize_t
-nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count, loff_t pos)
+ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count, loff_t pos)
 {
 	ssize_t retval = -EINVAL;
 	loff_t *ppos = &iocb->ki_pos;
@@ -717,8 +623,7 @@ out:
  * Note that O_APPEND is not supported for NFS direct writes, as there
  * is no atomic O_APPEND write facility in the NFS protocol.
  */
-ssize_t
-nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t count, loff_t pos)
+ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t count, loff_t pos)
 {
 	ssize_t retval;
 	struct file *file = iocb->ki_filp;
