@@ -219,6 +219,7 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq)
 	} else
 		wake_up(&dreq->wait);
 
+	iput(dreq->inode);
 	kref_put(&dreq->kref, nfs_direct_req_release);
 }
 
@@ -374,6 +375,7 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 
 	dreq->pages = pages;
 	dreq->npages = nr_pages;
+	igrab(inode);
 	dreq->inode = inode;
 	dreq->filp = iocb->ki_filp;
 	if (!is_sync_kiocb(iocb))
@@ -549,6 +551,7 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 
 	dreq->pages = pages;
 	dreq->npages = nr_pages;
+	igrab(inode);
 	dreq->inode = inode;
 	dreq->filp = iocb->ki_filp;
 	if (!is_sync_kiocb(iocb))
