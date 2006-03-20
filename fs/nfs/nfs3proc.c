@@ -849,29 +849,17 @@ nfs3_proc_read_setup(struct nfs_read_data *data)
 	rpc_call_setup(task, &msg, 0);
 }
 
-static void nfs3_write_done(struct rpc_task *task, void *calldata)
+static int nfs3_write_done(struct rpc_task *task, struct nfs_write_data *data)
 {
-	struct nfs_write_data *data = calldata;
-
 	if (nfs3_async_handle_jukebox(task, data->inode))
-		return;
+		return -EAGAIN;
 	if (task->tk_status >= 0)
 		nfs_post_op_update_inode(data->inode, data->res.fattr);
-	nfs_writeback_done(task, calldata);
+	return 0;
 }
 
-static const struct rpc_call_ops nfs3_write_ops = {
-	.rpc_call_done = nfs3_write_done,
-	.rpc_release = nfs_writedata_release,
-};
-
-static void
-nfs3_proc_write_setup(struct nfs_write_data *data, int how)
+static void nfs3_proc_write_setup(struct nfs_write_data *data, int how)
 {
-	struct rpc_task		*task = &data->task;
-	struct inode		*inode = data->inode;
-	int			stable;
-	int			flags;
 	struct rpc_message	msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_WRITE],
 		.rpc_argp	= &data->args,
@@ -879,45 +867,28 @@ nfs3_proc_write_setup(struct nfs_write_data *data, int how)
 		.rpc_cred	= data->cred,
 	};
 
+	data->args.stable = NFS_UNSTABLE;
 	if (how & FLUSH_STABLE) {
-		if (!NFS_I(inode)->ncommit)
-			stable = NFS_FILE_SYNC;
-		else
-			stable = NFS_DATA_SYNC;
-	} else
-		stable = NFS_UNSTABLE;
-	data->args.stable = stable;
-
-	/* Set the initial flags for the task.  */
-	flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
+		data->args.stable = NFS_FILE_SYNC;
+		if (NFS_I(data->inode)->ncommit)
+			data->args.stable = NFS_DATA_SYNC;
+	}
 
 	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs3_write_ops, data);
-	rpc_call_setup(task, &msg, 0);
+	rpc_call_setup(&data->task, &msg, 0);
 }
 
-static void nfs3_commit_done(struct rpc_task *task, void *calldata)
+static int nfs3_commit_done(struct rpc_task *task, struct nfs_write_data *data)
 {
-	struct nfs_write_data *data = calldata;
-
 	if (nfs3_async_handle_jukebox(task, data->inode))
-		return;
+		return -EAGAIN;
 	if (task->tk_status >= 0)
 		nfs_post_op_update_inode(data->inode, data->res.fattr);
-	nfs_commit_done(task, calldata);
+	return 0;
 }
 
-static const struct rpc_call_ops nfs3_commit_ops = {
-	.rpc_call_done = nfs3_commit_done,
-	.rpc_release = nfs_commit_release,
-};
-
-static void
-nfs3_proc_commit_setup(struct nfs_write_data *data, int how)
+static void nfs3_proc_commit_setup(struct nfs_write_data *data, int how)
 {
-	struct rpc_task		*task = &data->task;
-	struct inode		*inode = data->inode;
-	int			flags;
 	struct rpc_message	msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_COMMIT],
 		.rpc_argp	= &data->args,
@@ -925,12 +896,7 @@ nfs3_proc_commit_setup(struct nfs_write_data *data, int how)
 		.rpc_cred	= data->cred,
 	};
 
-	/* Set the initial flags for the task.  */
-	flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
-
-	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs3_commit_ops, data);
-	rpc_call_setup(task, &msg, 0);
+	rpc_call_setup(&data->task, &msg, 0);
 }
 
 static int
@@ -970,7 +936,9 @@ struct nfs_rpc_ops	nfs_v3_clientops = {
 	.decode_dirent	= nfs3_decode_dirent,
 	.read_setup	= nfs3_proc_read_setup,
 	.write_setup	= nfs3_proc_write_setup,
+	.write_done	= nfs3_write_done,
 	.commit_setup	= nfs3_proc_commit_setup,
+	.commit_done	= nfs3_commit_done,
 	.file_open	= nfs_open,
 	.file_release	= nfs_release,
 	.lock		= nfs3_proc_lock,
