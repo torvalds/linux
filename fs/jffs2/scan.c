@@ -233,7 +233,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 		c->nextblock->dirty_size = 0;
 	}
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
-	if (!jffs2_can_mark_obsolete(c) && c->nextblock && (c->nextblock->free_size % c->wbuf_pagesize)) {
+	if (!jffs2_can_mark_obsolete(c) && c->wbuf_pagesize && c->nextblock && (c->nextblock->free_size % c->wbuf_pagesize)) {
 		/* If we're going to start writing into a block which already
 		   contains data, and the end of the data isn't page-aligned,
 		   skip a little and align it. */

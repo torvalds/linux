@@ -41,6 +41,7 @@
 #include <linux/timer.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/random.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include "DAC960.h"
@@ -3463,7 +3464,7 @@ static inline boolean DAC960_ProcessCompletedRequest(DAC960_Command_T *Command,
 		Command->SegmentCount, Command->DmaDirection);
 
 	 if (!end_that_request_first(Request, UpToDate, Command->BlockCount)) {
-
+		add_disk_randomness(Request->rq_disk);
  	 	end_that_request_last(Request, UpToDate);
 
 		if (Command->Completion) {

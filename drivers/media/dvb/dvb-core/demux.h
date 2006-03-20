@@ -216,7 +216,7 @@ struct dmx_frontend {
 /*--------------------------------------------------------------------------*/
 
 /*
- * Flags OR'ed in the capabilites field of struct dmx_demux.
+ * Flags OR'ed in the capabilities field of struct dmx_demux.
  */
 
 #define DMX_TS_FILTERING                        1

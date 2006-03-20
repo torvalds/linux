@@ -580,9 +580,10 @@ int tda8290_init(struct i2c_client *c)
 
 int tda8290_probe(struct i2c_client *c)
 {
-	unsigned char soft_reset[]  = { 0x00, 0x00 };
-	unsigned char easy_mode_b[] = { 0x01, 0x02 };
-	unsigned char easy_mode_g[] = { 0x01, 0x04 };
+	unsigned char soft_reset[]   = { 0x00, 0x00 };
+	unsigned char easy_mode_b[]  = { 0x01, 0x02 };
+	unsigned char easy_mode_g[]  = { 0x01, 0x04 };
+	unsigned char restore_9886[] = { 0x00, 0xd6, 0x30 };
 	unsigned char addr_dto_lsb = 0x07;
 	unsigned char data;
 
@@ -599,6 +600,7 @@ int tda8290_probe(struct i2c_client *c)
 			return 0;
 		}
 	}
+	i2c_master_send(c, restore_9886, 3);
 	return -1;
 }
 

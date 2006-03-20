@@ -52,7 +52,7 @@ void rtas_get_rtc_time(struct rtc_time *rtc_tm)
 		error = rtas_call(rtas_token("get-time-of-day"), 0, 8, ret);
 		if (error == RTAS_CLOCK_BUSY || rtas_is_extended_busy(error)) {
 			if (in_interrupt() && printk_ratelimit()) {
-				memset(&rtc_tm, 0, sizeof(struct rtc_time));
+				memset(rtc_tm, 0, sizeof(struct rtc_time));
 				printk(KERN_WARNING "error: reading clock"
 				       " would delay interrupt\n");
 				return;	/* delay not allowed */

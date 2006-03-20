@@ -588,6 +588,7 @@ s1d13xxxfb_probe(struct platform_device *pdev)
 		goto bail;
 	}
 
+	platform_set_drvdata(pdev, info);
 	default_par = info->par;
 	default_par->regs = ioremap_nocache(pdev->resource[1].start,
 			pdev->resource[1].end - pdev->resource[1].start +1);
@@ -637,8 +638,6 @@ s1d13xxxfb_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto bail;
 	}
-
-	platform_set_drvdata(pdev, info);
 
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
 	       info->node, info->fix.id);

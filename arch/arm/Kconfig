@@ -78,7 +78,7 @@ menu "System Type"
 
 choice
 	prompt "ARM system type"
-	default ARCH_RPC
+	default ARCH_VERSATILE
 
 config ARCH_CLPS7500
 	bool "Cirrus-CL-PS7500FE"
@@ -798,6 +798,8 @@ source "drivers/char/Kconfig"
 source "drivers/i2c/Kconfig"
 
 source "drivers/spi/Kconfig"
+
+source "drivers/w1/Kconfig"
 
 source "drivers/hwmon/Kconfig"
 

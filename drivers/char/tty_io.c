@@ -303,7 +303,7 @@ static struct tty_buffer *tty_buffer_find(struct tty_struct *tty, size_t size)
 			t->commit = 0;
 			t->read = 0;
 			/* DEBUG ONLY */
-			memset(t->data, '*', size);
+/*			memset(t->data, '*', size); */
 /* 			printk("Flip recycle %p\n", t); */
 			return t;
 		}

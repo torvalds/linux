@@ -182,8 +182,8 @@ static struct page * vdso_vma_nopage(struct vm_area_struct * vma,
 	unsigned long offset = address - vma->vm_start;
 	struct page *pg;
 #ifdef CONFIG_PPC64
-	void *vbase = test_thread_flag(TIF_32BIT) ?
-		vdso32_kbase : vdso64_kbase;
+	void *vbase = (vma->vm_mm->task_size > TASK_SIZE_USER32) ?
+		vdso64_kbase : vdso32_kbase;
 #else
 	void *vbase = vdso32_kbase;
 #endif

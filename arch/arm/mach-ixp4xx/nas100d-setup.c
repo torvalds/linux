@@ -113,6 +113,9 @@ static void __init nas100d_init(void)
 {
 	ixp4xx_sys_init();
 
+	/* gpio 14 and 15 are _not_ clocks */
+	*IXP4XX_GPIO_GPCLKR = 0;
+
 	nas100d_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
 	nas100d_flash_resource.end =
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;

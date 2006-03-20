@@ -625,26 +625,31 @@ static inline int ordered_bio_endio(struct request *rq, struct bio *bio,
  *    Different hardware can have different requirements as to what pages
  *    it can do I/O directly to. A low level driver can call
  *    blk_queue_bounce_limit to have lower memory pages allocated as bounce
- *    buffers for doing I/O to pages residing above @page. By default
- *    the block layer sets this to the highest numbered "low" memory page.
+ *    buffers for doing I/O to pages residing above @page.
  **/
 void blk_queue_bounce_limit(request_queue_t *q, u64 dma_addr)
 {
 	unsigned long bounce_pfn = dma_addr >> PAGE_SHIFT;
+	int dma = 0;
 
-	/*
-	 * set appropriate bounce gfp mask -- unfortunately we don't have a
-	 * full 4GB zone, so we have to resort to low memory for any bounces.
-	 * ISA has its own < 16MB zone.
-	 */
-	if (bounce_pfn < blk_max_low_pfn) {
-		BUG_ON(dma_addr < BLK_BOUNCE_ISA);
+	q->bounce_gfp = GFP_NOIO;
+#if BITS_PER_LONG == 64
+	/* Assume anything <= 4GB can be handled by IOMMU.
+	   Actually some IOMMUs can handle everything, but I don't
+	   know of a way to test this here. */
+	if (bounce_pfn < (0xffffffff>>PAGE_SHIFT))
+		dma = 1;
+	q->bounce_pfn = max_low_pfn;
+#else
+	if (bounce_pfn < blk_max_low_pfn)
+		dma = 1;
+	q->bounce_pfn = bounce_pfn;
+#endif
+	if (dma) {
 		init_emergency_isa_pool();
 		q->bounce_gfp = GFP_NOIO | GFP_DMA;
-	} else
-		q->bounce_gfp = GFP_NOIO;
-
-	q->bounce_pfn = bounce_pfn;
+		q->bounce_pfn = bounce_pfn;
+	}
 }
 
 EXPORT_SYMBOL(blk_queue_bounce_limit);

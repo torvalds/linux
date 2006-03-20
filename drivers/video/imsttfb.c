@@ -1510,6 +1510,8 @@ imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		default:
 			printk(KERN_INFO "imsttfb: Device 0x%x unknown, "
 					 "contact maintainer.\n", pdev->device);
+			release_mem_region(addr, size);
+			framebuffer_release(info);
 			return -ENODEV;
 	}
 

@@ -118,14 +118,7 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	err |= __put_user(0, &sc->v_regs);
 #endif /* CONFIG_ALTIVEC */
 	err |= __put_user(&sc->gp_regs, &sc->regs);
-	if (!FULL_REGS(regs)) {
-		/* Zero out the unsaved GPRs to avoid information
-		   leak, and set TIF_SAVE_NVGPRS to ensure that the
-		   registers do actually get saved later. */
-		memset(&regs->gpr[14], 0, 18 * sizeof(unsigned long));
-		set_thread_flag(TIF_SAVE_NVGPRS);
-		current_thread_info()->nvgprs_frame = &sc->gp_regs;
-	}
+	WARN_ON(!FULL_REGS(regs));
 	err |= __copy_to_user(&sc->gp_regs, regs, GP_REGS_SIZE);
 	err |= __copy_to_user(&sc->fp_regs, &current->thread.fpr, FP_REGS_SIZE);
 	err |= __put_user(signr, &sc->signal);

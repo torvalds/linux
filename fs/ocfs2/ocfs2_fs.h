@@ -138,7 +138,6 @@
 
 /* Journal limits (in bytes) */
 #define OCFS2_MIN_JOURNAL_SIZE		(4 * 1024 * 1024)
-#define OCFS2_MAX_JOURNAL_SIZE		(500 * 1024 * 1024)
 
 struct ocfs2_system_inode_info {
 	char	*si_name;

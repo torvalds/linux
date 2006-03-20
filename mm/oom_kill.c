@@ -302,7 +302,7 @@ void out_of_memory(struct zonelist *zonelist, gfp_t gfp_mask, int order)
 {
 	struct mm_struct *mm = NULL;
 	task_t *p;
-	unsigned long points;
+	unsigned long points = 0;
 
 	if (printk_ratelimit()) {
 		printk("oom-killer: gfp_mask=0x%x, order=%d\n",
@@ -355,6 +355,7 @@ retry:
 	}
 
 out:
+	read_unlock(&tasklist_lock);
 	cpuset_unlock();
 	if (mm)
 		mmput(mm);
@@ -364,5 +365,5 @@ out:
 	 * retry to allocate memory unless "p" is current
 	 */
 	if (!test_thread_flag(TIF_MEMDIE))
-		schedule_timeout_interruptible(1);
+		schedule_timeout_uninterruptible(1);
 }

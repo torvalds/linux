@@ -279,7 +279,7 @@ static int ah6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 		goto out;
 	memcpy(tmp_hdr, skb->nh.raw, hdr_len);
 	if (ipv6_clear_mutable_options(skb->nh.ipv6h, hdr_len))
-		goto out;
+		goto free_out;
 	skb->nh.ipv6h->priority    = 0;
 	skb->nh.ipv6h->flow_lbl[0] = 0;
 	skb->nh.ipv6h->flow_lbl[1] = 0;

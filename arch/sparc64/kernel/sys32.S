@@ -318,7 +318,7 @@ do_sys_recvmsg: /* compat_sys_recvmsg(int, struct compat_msghdr *, unsigned int)
 	nop
 	nop
 
-	.section	__ex_table
+	.section	__ex_table,"a"
 	.align		4
 	.word		1b, __retl_efault, 2b, __retl_efault
 	.word		3b, __retl_efault, 4b, __retl_efault

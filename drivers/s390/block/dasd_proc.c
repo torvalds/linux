@@ -93,6 +93,9 @@ dasd_devices_show(struct seq_file *m, void *v)
 	case DASD_STATE_BASIC:
 		seq_printf(m, "basic");
 		break;
+	case DASD_STATE_UNFMT:
+		seq_printf(m, "unformatted");
+		break;
 	case DASD_STATE_READY:
 	case DASD_STATE_ONLINE:
 		seq_printf(m, "active ");

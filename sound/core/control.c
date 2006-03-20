@@ -959,17 +959,15 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	kctl.private_free = snd_ctl_elem_user_free;
 	_kctl = snd_ctl_new(&kctl, access);
 	if (_kctl == NULL) {
-		kfree(_kctl->private_data);
+		kfree(ue);
 		return -ENOMEM;
 	}
 	_kctl->private_data = ue;
 	for (idx = 0; idx < _kctl->count; idx++)
 		_kctl->vd[idx].owner = file;
 	err = snd_ctl_add(card, _kctl);
-	if (err < 0) {
-		snd_ctl_free_one(_kctl);
+	if (err < 0)
 		return err;
-	}
 
 	down_write(&card->controls_rwsem);
 	card->user_ctl_count++;

@@ -6,16 +6,28 @@
 # $Id: Kconfig,v 1.4.2.7 2005/07/08 22:05:38 dsp_llnl Exp $
 #
 
-menu 'EDAC - error detection and reporting (RAS)'
+menu 'EDAC - error detection and reporting (RAS) (EXPERIMENTAL)'
 
 config EDAC
-	tristate "EDAC core system error reporting"
-	depends on X86
+	tristate "EDAC core system error reporting (EXPERIMENTAL)"
+	depends on X86 && EXPERIMENTAL
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or
 	  supporting chipset: memory errors, cache errors, PCI errors,
 	  thermal throttling, etc..  If unsure, select 'Y'.
+
+	  If this code is reporting problems on your system, please
+	  see the EDAC project web pages for more information at:
+
+	  <http://bluesmoke.sourceforge.net/>
+
+	  and:
+
+	  <http://buttersideup.com/edacwiki>
+
+	  There is also a mailing list for the EDAC project, which can
+	  be found via the sourceforge page.
 
 
 comment "Reporting subsystems"

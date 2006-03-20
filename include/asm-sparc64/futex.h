@@ -20,7 +20,7 @@
 	"4:	ba	3b\n"				\
 	"	 mov	%5, %0\n"			\
 	"	.previous\n"				\
-	"	.section __ex_table,#alloc\n"		\
+	"	.section __ex_table,\"a\"\n"		\
 	"	.align	4\n"				\
 	"	.word	1b, 4b\n"			\
 	"	.word	2b, 4b\n"			\

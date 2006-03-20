@@ -280,69 +280,69 @@ static void __init build_insn(u32 **buf, enum opcode opc, ...)
 }
 
 #define I_u1u2u3(op)						\
-	static inline void i##op(u32 **buf, unsigned int a,	\
+	static inline void __init i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b, unsigned int c)			\
 	{							\
 		build_insn(buf, insn##op, a, b, c);		\
 	}
 
 #define I_u2u1u3(op)						\
-	static inline void i##op(u32 **buf, unsigned int a,	\
+	static inline void __init i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b, unsigned int c)			\
 	{							\
 		build_insn(buf, insn##op, b, a, c);		\
 	}
 
 #define I_u3u1u2(op)						\
-	static inline void i##op(u32 **buf, unsigned int a,	\
+	static inline void __init i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b, unsigned int c)			\
 	{							\
 		build_insn(buf, insn##op, b, c, a);		\
 	}
 
 #define I_u1u2s3(op)						\
-	static inline void i##op(u32 **buf, unsigned int a,	\
+	static inline void __init i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b, signed int c)			\
 	{							\
 		build_insn(buf, insn##op, a, b, c);		\
 	}
 
 #define I_u2s3u1(op)						\
-	static inline void i##op(u32 **buf, unsigned int a,	\
+	static inline void __init i##op(u32 **buf, unsigned int a,	\
 	 	signed int b, unsigned int c)			\
 	{							\
 		build_insn(buf, insn##op, c, a, b);		\
 	}
 
 #define I_u2u1s3(op)						\
-	static inline void i##op(u32 **buf, unsigned int a,	\
+	static inline void __init i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b, signed int c)			\
 	{							\
 		build_insn(buf, insn##op, b, a, c);		\
 	}
 
 #define I_u1u2(op)						\
-	static inline void i##op(u32 **buf, unsigned int a,	\
+	static inline void __init i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b)					\
 	{							\
 		build_insn(buf, insn##op, a, b);		\
 	}
 
 #define I_u1s2(op)						\
-	static inline void i##op(u32 **buf, unsigned int a,	\
+	static inline void __init i##op(u32 **buf, unsigned int a,	\
 	 	signed int b)					\
 	{							\
 		build_insn(buf, insn##op, a, b);		\
 	}
 
 #define I_u1(op)						\
-	static inline void i##op(u32 **buf, unsigned int a)	\
+	static inline void __init i##op(u32 **buf, unsigned int a)	\
 	{							\
 		build_insn(buf, insn##op, a);			\
 	}
 
 #define I_0(op)							\
-	static inline void i##op(u32 **buf)			\
+	static inline void __init i##op(u32 **buf)		\
 	{							\
 		build_insn(buf, insn##op);			\
 	}
@@ -623,42 +623,42 @@ static __init int __attribute__((unused)) insn_has_bdelay(struct reloc *rel,
 }
 
 /* convenience functions for labeled branches */
-static void __attribute__((unused)) il_bltz(u32 **p, struct reloc **r,
-					    unsigned int reg, enum label_id l)
+static void __init __attribute__((unused))
+	il_bltz(u32 **p, struct reloc **r, unsigned int reg, enum label_id l)
 {
 	r_mips_pc16(r, *p, l);
 	i_bltz(p, reg, 0);
 }
 
-static void __attribute__((unused)) il_b(u32 **p, struct reloc **r,
+static void __init __attribute__((unused)) il_b(u32 **p, struct reloc **r,
 					 enum label_id l)
 {
 	r_mips_pc16(r, *p, l);
 	i_b(p, 0);
 }
 
-static void il_beqz(u32 **p, struct reloc **r, unsigned int reg,
+static void __init il_beqz(u32 **p, struct reloc **r, unsigned int reg,
 		    enum label_id l)
 {
 	r_mips_pc16(r, *p, l);
 	i_beqz(p, reg, 0);
 }
 
-static void __attribute__((unused))
+static void __init __attribute__((unused))
 il_beqzl(u32 **p, struct reloc **r, unsigned int reg, enum label_id l)
 {
 	r_mips_pc16(r, *p, l);
 	i_beqzl(p, reg, 0);
 }
 
-static void il_bnez(u32 **p, struct reloc **r, unsigned int reg,
+static void __init il_bnez(u32 **p, struct reloc **r, unsigned int reg,
 		    enum label_id l)
 {
 	r_mips_pc16(r, *p, l);
 	i_bnez(p, reg, 0);
 }
 
-static void il_bgezl(u32 **p, struct reloc **r, unsigned int reg,
+static void __init il_bgezl(u32 **p, struct reloc **r, unsigned int reg,
 		     enum label_id l)
 {
 	r_mips_pc16(r, *p, l);

@@ -118,6 +118,8 @@ static inline void sched_cacheflush(void)
 extern void account_vtime(struct task_struct *);
 extern void account_tick_vtime(struct task_struct *);
 extern void account_system_vtime(struct task_struct *);
+#else
+#define account_vtime(x) do { /* empty */ } while (0)
 #endif
 
 #define finish_arch_switch(prev) do {					     \

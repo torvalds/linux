@@ -561,10 +561,7 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 				   regs->result);
 
 	if ((test_thread_flag(TIF_SYSCALL_TRACE)
-#ifdef CONFIG_PPC64
-	     || test_thread_flag(TIF_SINGLESTEP)
-#endif
-	     )
+	     || test_thread_flag(TIF_SINGLESTEP))
 	    && (current->ptrace & PT_PTRACED))
 		do_syscall_trace();
 }
