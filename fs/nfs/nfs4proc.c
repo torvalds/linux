@@ -336,7 +336,7 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 	if (!(data->f_attr.valid & NFS_ATTR_FATTR))
 		goto out;
 	inode = nfs_fhget(data->dir->d_sb, &data->o_res.fh, &data->f_attr);
-	if (inode == NULL)
+	if (IS_ERR(inode))
 		goto out;
 	state = nfs4_get_open_state(inode, data->owner);
 	if (state == NULL)

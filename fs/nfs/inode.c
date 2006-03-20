@@ -241,7 +241,6 @@ static struct inode *
 nfs_get_root(struct super_block *sb, struct nfs_fh *rootfh, struct nfs_fsinfo *fsinfo)
 {
 	struct nfs_server	*server = NFS_SB(sb);
-	struct inode *rooti;
 	int			error;
 
 	error = server->rpc_ops->getroot(server, rootfh, fsinfo);
@@ -250,10 +249,7 @@ nfs_get_root(struct super_block *sb, struct nfs_fh *rootfh, struct nfs_fsinfo *f
 		return ERR_PTR(error);
 	}
 
-	rooti = nfs_fhget(sb, rootfh, fsinfo->fattr);
-	if (!rooti)
-		return ERR_PTR(-ENOMEM);
-	return rooti;
+	return nfs_fhget(sb, rootfh, fsinfo->fattr);
 }
 
 /*
@@ -853,7 +849,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 		.fh	= fh,
 		.fattr	= fattr
 	};
-	struct inode *inode = NULL;
+	struct inode *inode = ERR_PTR(-ENOENT);
 	unsigned long hash;
 
 	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
@@ -866,8 +862,11 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 
 	hash = nfs_fattr_to_ino_t(fattr);
 
-	if (!(inode = iget5_locked(sb, hash, nfs_find_actor, nfs_init_locked, &desc)))
+	inode = iget5_locked(sb, hash, nfs_find_actor, nfs_init_locked, &desc);
+	if (inode == NULL) {
+		inode = ERR_PTR(-ENOMEM);
 		goto out_no_inode;
+	}
 
 	if (inode->i_state & I_NEW) {
 		struct nfs_inode *nfsi = NFS_I(inode);
@@ -936,7 +935,7 @@ out:
 	return inode;
 
 out_no_inode:
-	printk("nfs_fhget: iget failed\n");
+	dprintk("nfs_fhget: iget failed with error %ld\n", PTR_ERR(inode));
 	goto out;
 }
 

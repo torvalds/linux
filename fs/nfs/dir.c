@@ -901,9 +901,9 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 		res = ERR_PTR(error);
 		goto out_unlock;
 	}
-	res = ERR_PTR(-EACCES);
 	inode = nfs_fhget(dentry->d_sb, &fhandle, &fattr);
-	if (!inode)
+	res = (struct dentry *)inode;
+	if (IS_ERR(res))
 		goto out_unlock;
 no_entry:
 	res = d_add_unique(dentry, inode);
@@ -1096,7 +1096,7 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 		return NULL;
 	dentry->d_op = NFS_PROTO(dir)->dentry_ops;
 	inode = nfs_fhget(dentry->d_sb, entry->fh, entry->fattr);
-	if (!inode) {
+	if (IS_ERR(inode)) {
 		dput(dentry);
 		return NULL;
 	}
@@ -1134,9 +1134,9 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 		if (error < 0)
 			goto out_err;
 	}
-	error = -ENOMEM;
 	inode = nfs_fhget(dentry->d_sb, fhandle, fattr);
-	if (inode == NULL)
+	error = PTR_ERR(inode);
+	if (IS_ERR(inode))
 		goto out_err;
 	d_instantiate(dentry, inode);
 	return 0;
