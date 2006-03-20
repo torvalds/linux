@@ -519,12 +519,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 			   be32_to_cpup((__be32 *) skb->dst->neighbour->ha));
 	} else {
 		neigh->ah  = NULL;
-		if (skb_queue_len(&neigh->queue) < IPOIB_MAX_PATH_REC_QUEUE) {
-			__skb_queue_tail(&neigh->queue, skb);
-		} else {
-			++priv->stats.tx_dropped;
-			dev_kfree_skb_any(skb);
-		}
+		__skb_queue_tail(&neigh->queue, skb);
 
 		if (!path->query && path_rec_start(dev, path))
 			goto err;
