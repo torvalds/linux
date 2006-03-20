@@ -321,7 +321,7 @@ static ssize_t nfs_direct_read_wait(struct nfs_direct_req *dreq, int intr)
 	return (ssize_t) result;
 }
 
-static ssize_t nfs_direct_read_seg(struct inode *inode, struct nfs_open_context *ctx, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, unsigned int nr_pages)
+static ssize_t nfs_direct_read(struct inode *inode, struct nfs_open_context *ctx, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, unsigned int nr_pages)
 {
 	ssize_t result;
 	sigset_t oldset;
@@ -344,48 +344,6 @@ static ssize_t nfs_direct_read_seg(struct inode *inode, struct nfs_open_context 
 	rpc_clnt_sigunmask(clnt, &oldset);
 
 	return result;
-}
-
-/*
- * We've already pushed out any non-direct writes so that this read
- * will see them when we read from the server.
- */
-static ssize_t nfs_direct_read(struct inode *inode, struct nfs_open_context *ctx, const struct iovec *iov, loff_t file_offset, unsigned long nr_segs)
-{
-	ssize_t tot_bytes = 0;
-	unsigned long seg = 0;
-
-	while ((seg < nr_segs) && (tot_bytes >= 0)) {
-		ssize_t result;
-		int page_count;
-		struct page **pages;
-		const struct iovec *vec = &iov[seg++];
-		unsigned long user_addr = (unsigned long) vec->iov_base;
-		size_t size = vec->iov_len;
-
-                page_count = nfs_get_user_pages(READ, user_addr, size, &pages);
-                if (page_count < 0) {
-                        nfs_free_user_pages(pages, 0, 0);
-			if (tot_bytes > 0)
-				break;
-                        return page_count;
-                }
-
-		result = nfs_direct_read_seg(inode, ctx, user_addr, size,
-				file_offset, pages, page_count);
-
-		if (result <= 0) {
-			if (tot_bytes > 0)
-				break;
-			return result;
-		}
-		tot_bytes += result;
-		file_offset += result;
-		if (result < size)
-			break;
-	}
-
-	return tot_bytes;
 }
 
 static ssize_t nfs_direct_write_seg(struct inode *inode, struct nfs_open_context *ctx, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, int nr_pages)
@@ -559,16 +517,13 @@ static ssize_t nfs_direct_write(struct inode *inode, struct nfs_open_context *ct
 ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count, loff_t pos)
 {
 	ssize_t retval = -EINVAL;
-	loff_t *ppos = &iocb->ki_pos;
+	int page_count;
+	struct page **pages;
 	struct file *file = iocb->ki_filp;
 	struct nfs_open_context *ctx =
 			(struct nfs_open_context *) file->private_data;
 	struct address_space *mapping = file->f_mapping;
 	struct inode *inode = mapping->host;
-	struct iovec iov = {
-		.iov_base = buf,
-		.iov_len = count,
-	};
 
 	dprintk("nfs: direct read(%s/%s, %lu@%Ld)\n",
 		file->f_dentry->d_parent->d_name.name,
@@ -580,7 +535,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count,
 	if (count < 0)
 		goto out;
 	retval = -EFAULT;
-	if (!access_ok(VERIFY_WRITE, iov.iov_base, iov.iov_len))
+	if (!access_ok(VERIFY_WRITE, buf, count))
 		goto out;
 	retval = 0;
 	if (!count)
@@ -590,9 +545,18 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count,
 	if (retval)
 		goto out;
 
-	retval = nfs_direct_read(inode, ctx, &iov, pos, 1);
+	page_count = nfs_get_user_pages(READ, (unsigned long) buf,
+						count, &pages);
+	if (page_count < 0) {
+		nfs_free_user_pages(pages, 0, 0);
+		retval = page_count;
+		goto out;
+	}
+
+	retval = nfs_direct_read(inode, ctx, (unsigned long) buf, count, pos,
+						pages, page_count);
 	if (retval > 0)
-		*ppos = pos + retval;
+		iocb->ki_pos = pos + retval;
 
 out:
 	return retval;
