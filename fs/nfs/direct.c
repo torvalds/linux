@@ -59,7 +59,6 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-static void nfs_free_user_pages(struct page **pages, int npages, int do_dirty);
 static kmem_cache_t *nfs_direct_cachep;
 
 /*
@@ -121,6 +120,18 @@ ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov, loff_
 	return -EINVAL;
 }
 
+static void nfs_free_user_pages(struct page **pages, int npages, int do_dirty)
+{
+	int i;
+	for (i = 0; i < npages; i++) {
+		struct page *page = pages[i];
+		if (do_dirty && !PageCompound(page))
+			set_page_dirty_lock(page);
+		page_cache_release(page);
+	}
+	kfree(pages);
+}
+
 static inline int nfs_get_user_pages(int rw, unsigned long user_addr, size_t size, struct page ***pages)
 {
 	int result = -ENOMEM;
@@ -138,29 +149,21 @@ static inline int nfs_get_user_pages(int rw, unsigned long user_addr, size_t siz
 					page_count, (rw == READ), 0,
 					*pages, NULL);
 		up_read(&current->mm->mmap_sem);
-		/*
-		 * If we got fewer pages than expected from get_user_pages(),
-		 * the user buffer runs off the end of a mapping; return EFAULT.
-		 */
-		if (result >= 0 && result < page_count) {
-			nfs_free_user_pages(*pages, result, 0);
+		if (result != page_count) {
+			/*
+			 * If we got fewer pages than expected from
+			 * get_user_pages(), the user buffer runs off the
+			 * end of a mapping; return EFAULT.
+			 */
+			if (result >= 0) {
+				nfs_free_user_pages(*pages, result, 0);
+				result = -EFAULT;
+			} else
+				kfree(*pages);
 			*pages = NULL;
-			result = -EFAULT;
 		}
 	}
 	return result;
-}
-
-static void nfs_free_user_pages(struct page **pages, int npages, int do_dirty)
-{
-	int i;
-	for (i = 0; i < npages; i++) {
-		struct page *page = pages[i];
-		if (do_dirty && !PageCompound(page))
-			set_page_dirty_lock(page);
-		page_cache_release(page);
-	}
-	kfree(pages);
 }
 
 static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
@@ -788,13 +791,11 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count,
 	if (retval)
 		goto out;
 
-	page_count = nfs_get_user_pages(READ, (unsigned long) buf,
+	retval = nfs_get_user_pages(READ, (unsigned long) buf,
 						count, &pages);
-	if (page_count < 0) {
-		nfs_free_user_pages(pages, 0, 0);
-		retval = page_count;
+	if (retval < 0)
 		goto out;
-	}
+	page_count = retval;
 
 	retval = nfs_direct_read(iocb, (unsigned long) buf, count, pos,
 						pages, page_count);
@@ -862,13 +863,11 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t
 	if (retval)
 		goto out;
 
-	page_count = nfs_get_user_pages(WRITE, (unsigned long) buf,
+	retval = nfs_get_user_pages(WRITE, (unsigned long) buf,
 						count, &pages);
-	if (page_count < 0) {
-		nfs_free_user_pages(pages, 0, 0);
-		retval = page_count;
+	if (retval < 0)
 		goto out;
-	}
+	page_count = retval;
 
 	retval = nfs_direct_write(iocb, (unsigned long) buf, count,
 					pos, pages, page_count);
