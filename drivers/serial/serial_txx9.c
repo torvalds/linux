@@ -854,6 +854,14 @@ static inline void wait_for_xmitr(struct uart_txx9_port *up)
 	}
 }
 
+static void serial_txx9_console_putchar(struct uart_port *port, int ch)
+{
+	struct uart_txx9_port *up = (struct uart_txx9_port *)port;
+
+	wait_for_xmitr(up);
+	sio_out(up, TXX9_SITFIFO, ch);
+}
+
 /*
  *	Print a string to the serial port trying not to disturb
  *	any possible real use of the port...
@@ -865,7 +873,6 @@ serial_txx9_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct uart_txx9_port *up = &serial_txx9_ports[co->index];
 	unsigned int ier, flcr;
-	int i;
 
 	/*
 	 *	First save the UER then disable the interrupts
@@ -879,22 +886,7 @@ serial_txx9_console_write(struct console *co, const char *s, unsigned int count)
 	if (!(up->port.flags & UPF_CONS_FLOW) && (flcr & TXX9_SIFLCR_TES))
 		sio_out(up, TXX9_SIFLCR, flcr & ~TXX9_SIFLCR_TES);
 
-	/*
-	 *	Now, do each character
-	 */
-	for (i = 0; i < count; i++, s++) {
-		wait_for_xmitr(up);
-
-		/*
-		 *	Send the character out.
-		 *	If a LF, also do CR...
-		 */
-		sio_out(up, TXX9_SITFIFO, *s);
-		if (*s == 10) {
-			wait_for_xmitr(up);
-			sio_out(up, TXX9_SITFIFO, 13);
-		}
-	}
+	uart_console_write(&up->port, s, count, serial_txx9_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty

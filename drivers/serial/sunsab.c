@@ -861,8 +861,9 @@ static int num_channels;
 
 #ifdef CONFIG_SERIAL_SUNSAB_CONSOLE
 
-static __inline__ void sunsab_console_putchar(struct uart_sunsab_port *up, char c)
+static void sunsab_console_putchar(struct uart_port *port, int c)
 {
+	struct uart_sunsab_port *up = (struct uart_sunsab_port *)port;
 	unsigned long flags;
 
 	spin_lock_irqsave(&up->port.lock, flags);
@@ -876,13 +877,8 @@ static __inline__ void sunsab_console_putchar(struct uart_sunsab_port *up, char 
 static void sunsab_console_write(struct console *con, const char *s, unsigned n)
 {
 	struct uart_sunsab_port *up = &sunsab_ports[con->index];
-	int i;
 
-	for (i = 0; i < n; i++) {
-		if (*s == '\n')
-			sunsab_console_putchar(up, '\r');
-		sunsab_console_putchar(up, *s++);
-	}
+	uart_console_write(&up->port, s, n, sunsab_console_putchar);
 	sunsab_tec_wait(up);
 }
 

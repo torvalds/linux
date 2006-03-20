@@ -603,15 +603,14 @@ mpc52xx_console_write(struct console *co, const char *s, unsigned int count)
 		udelay(1);
 
 	/* Write all the chars */
-	for ( i=0 ; i<count ; i++ ) {
-	
+	for (i = 0; i < count; i++, s++) {
+		/* Line return handling */
+		if (*s == '\n')
+			out_8(&psc->mpc52xx_psc_buffer_8, '\r');
+		
 		/* Send the char */
 		out_8(&psc->mpc52xx_psc_buffer_8, *s);
 
-		/* Line return handling */
-		if ( *s++ == '\n' )
-			out_8(&psc->mpc52xx_psc_buffer_8, '\r');
-		
 		/* Wait the TX buffer to be empty */
 		j = 20000;	/* Maximum wait */	
 		while (!(in_be16(&psc->mpc52xx_psc_status) & 
