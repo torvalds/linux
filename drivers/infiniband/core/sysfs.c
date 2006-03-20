@@ -112,7 +112,7 @@ static ssize_t state_show(struct ib_port *p, struct port_attribute *unused,
 		return ret;
 
 	return sprintf(buf, "%d: %s\n", attr.state,
-		       attr.state >= 0 && attr.state <= ARRAY_SIZE(state_name) ?
+		       attr.state >= 0 && attr.state < ARRAY_SIZE(state_name) ?
 		       state_name[attr.state] : "UNKNOWN");
 }
 
@@ -472,8 +472,10 @@ alloc_group_attrs(ssize_t (*show)(struct ib_port *,
 			goto err;
 
 		if (snprintf(element->name, sizeof(element->name),
-			     "%d", i) >= sizeof(element->name))
+			     "%d", i) >= sizeof(element->name)) {
+			kfree(element);
 			goto err;
+		}
 
 		element->attr.attr.name  = element->name;
 		element->attr.attr.mode  = S_IRUGO;
