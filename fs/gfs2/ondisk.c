@@ -64,7 +64,7 @@ void gfs2_inum_in(struct gfs2_inum *no, char *buf)
 	no->no_addr = be64_to_cpu(str->no_addr);
 }
 
-void gfs2_inum_out(struct gfs2_inum *no, char *buf)
+void gfs2_inum_out(const struct gfs2_inum *no, char *buf)
 {
 	struct gfs2_inum *str = (struct gfs2_inum *)buf;
 
@@ -340,17 +340,6 @@ void gfs2_dirent_print(struct gfs2_dirent *de, char *name)
 	memset(buf, 0, GFS2_FNAMESIZE + 1);
 	memcpy(buf, name, de->de_name_len);
 	printk(KERN_INFO "  name = %s\n", buf);
-}
-
-void gfs2_leaf_in(struct gfs2_leaf *lf, char *buf)
-{
-	struct gfs2_leaf *str = (struct gfs2_leaf *)buf;
-
-	gfs2_meta_header_in(&lf->lf_header, buf);
-	lf->lf_depth = be16_to_cpu(str->lf_depth);
-	lf->lf_entries = be16_to_cpu(str->lf_entries);
-	lf->lf_dirent_format = be32_to_cpu(str->lf_dirent_format);
-	lf->lf_next = be64_to_cpu(str->lf_next);
 }
 
 void gfs2_leaf_print(struct gfs2_leaf *lf)

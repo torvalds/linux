@@ -379,11 +379,10 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		goto fail_recoverd;
 	}
 
-	error = gfs2_lookup_simple(sdp->sd_master_dir, "jindex",
-				   &sdp->sd_jindex);
-	if (error) {
+	sdp->sd_jindex = gfs2_lookup_simple(sdp->sd_master_dir, "jindex");
+	if (IS_ERR(sdp->sd_jindex)) {
 		fs_err(sdp, "can't lookup journal index: %d\n", error);
-		return error;
+		return PTR_ERR(sdp->sd_jindex);
 	}
 	ip = sdp->sd_jindex->u.generic_ip;
 	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
@@ -531,26 +530,26 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		goto fail_master;
 
 	/* Read in the master inode number inode */
-	error = gfs2_lookup_simple(sdp->sd_master_dir, "inum",
-				   &sdp->sd_inum_inode);
-	if (error) {
+	sdp->sd_inum_inode = gfs2_lookup_simple(sdp->sd_master_dir, "inum");
+	if (IS_ERR(sdp->sd_inum_inode)) {
+		error = PTR_ERR(sdp->sd_inum_inode);
 		fs_err(sdp, "can't read in inum inode: %d\n", error);
 		goto fail_journal;
 	}
 
 
 	/* Read in the master statfs inode */
-	error = gfs2_lookup_simple(sdp->sd_master_dir, "statfs",
-				   &sdp->sd_statfs_inode);
-	if (error) {
+	sdp->sd_statfs_inode = gfs2_lookup_simple(sdp->sd_master_dir, "statfs");
+	if (IS_ERR(sdp->sd_statfs_inode)) {
+		error = PTR_ERR(sdp->sd_statfs_inode);
 		fs_err(sdp, "can't read in statfs inode: %d\n", error);
 		goto fail_inum;
 	}
 
 	/* Read in the resource index inode */
-	error = gfs2_lookup_simple(sdp->sd_master_dir, "rindex",
-				   &sdp->sd_rindex);
-	if (error) {
+	sdp->sd_rindex = gfs2_lookup_simple(sdp->sd_master_dir, "rindex");
+	if (IS_ERR(sdp->sd_rindex)) {
+		error = PTR_ERR(sdp->sd_rindex);
 		fs_err(sdp, "can't get resource index inode: %d\n", error);
 		goto fail_statfs;
 	}
@@ -559,9 +558,9 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	sdp->sd_rindex_vn = ip->i_gl->gl_vn - 1;
 
 	/* Read in the quota inode */
-	error = gfs2_lookup_simple(sdp->sd_master_dir, "quota",
-				   &sdp->sd_quota_inode);
-	if (error) {
+	sdp->sd_quota_inode = gfs2_lookup_simple(sdp->sd_master_dir, "quota");
+	if (IS_ERR(sdp->sd_quota_inode)) {
+		error = PTR_ERR(sdp->sd_quota_inode);
 		fs_err(sdp, "can't get quota file inode: %d\n", error);
 		goto fail_rindex;
 	}
@@ -600,36 +599,41 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	if (undo)
 		goto fail_qc_gh;
 
-	error = gfs2_lookup_simple(sdp->sd_master_dir, "per_node", &pn);
-	if (error) {
+	pn = gfs2_lookup_simple(sdp->sd_master_dir, "per_node");
+	if (IS_ERR(pn)) {
+		error = PTR_ERR(pn);
 		fs_err(sdp, "can't find per_node directory: %d\n", error);
 		return error;
 	}
 
 	sprintf(buf, "inum_range%u", sdp->sd_jdesc->jd_jid);
-	error = gfs2_lookup_simple(pn, buf, &sdp->sd_ir_inode);
-	if (error) {
+	sdp->sd_ir_inode = gfs2_lookup_simple(pn, buf);
+	if (IS_ERR(sdp->sd_ir_inode)) {
+		error = PTR_ERR(sdp->sd_ir_inode);
 		fs_err(sdp, "can't find local \"ir\" file: %d\n", error);
 		goto fail;
 	}
 
 	sprintf(buf, "statfs_change%u", sdp->sd_jdesc->jd_jid);
-	error = gfs2_lookup_simple(pn, buf, &sdp->sd_sc_inode);
-	if (error) {
+	sdp->sd_sc_inode = gfs2_lookup_simple(pn, buf);
+	if (IS_ERR(sdp->sd_sc_inode)) {
+		error = PTR_ERR(sdp->sd_sc_inode);
 		fs_err(sdp, "can't find local \"sc\" file: %d\n", error);
 		goto fail_ir_i;
 	}
 
 	sprintf(buf, "unlinked_tag%u", sdp->sd_jdesc->jd_jid);
-	error = gfs2_lookup_simple(pn, buf, &sdp->sd_ut_inode);
-	if (error) {
+	sdp->sd_ut_inode = gfs2_lookup_simple(pn, buf);
+	if (IS_ERR(sdp->sd_ut_inode)) {
+		error = PTR_ERR(sdp->sd_ut_inode);
 		fs_err(sdp, "can't find local \"ut\" file: %d\n", error);
 		goto fail_sc_i;
 	}
 
 	sprintf(buf, "quota_change%u", sdp->sd_jdesc->jd_jid);
-	error = gfs2_lookup_simple(pn, buf, &sdp->sd_qc_inode);
-	if (error) {
+	sdp->sd_qc_inode = gfs2_lookup_simple(pn, buf);
+	if (IS_ERR(sdp->sd_qc_inode)) {
+		error = PTR_ERR(sdp->sd_qc_inode);
 		fs_err(sdp, "can't find local \"qc\" file: %d\n", error);
 		goto fail_ut_i;
 	}

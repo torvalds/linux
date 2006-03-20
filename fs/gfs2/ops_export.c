@@ -24,6 +24,7 @@
 #include "inode.h"
 #include "ops_export.h"
 #include "rgrp.h"
+#include "util.h"
 
 static struct dentry *gfs2_decode_fh(struct super_block *sb,
 				     __u32 *fh,
@@ -167,11 +168,15 @@ static struct dentry *gfs2_get_parent(struct dentry *child)
 	struct qstr dotdot = { .name = "..", .len = 2 };
 	struct inode *inode;
 	struct dentry *dentry;
-	int error;
 
-	error = gfs2_lookupi(child->d_inode, &dotdot, 1, &inode);
-	if (error)
-		return ERR_PTR(error);
+	dotdot.hash = gfs2_disk_hash(dotdot.name, dotdot.len);
+
+	inode = gfs2_lookupi(child->d_inode, &dotdot, 1, NULL);
+
+	if (!inode)
+		return ERR_PTR(-ENOENT);
+	if (IS_ERR(inode))
+		return ERR_PTR(PTR_ERR(inode));
 
 	dentry = d_alloc_anon(inode);
 	if (!dentry) {

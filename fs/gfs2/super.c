@@ -299,8 +299,9 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 			break;
 
 		name.len = sprintf(buf, "journal%u", sdp->sd_journals);
+		name.hash = gfs2_disk_hash(name.name, name.len);
 
-		error = gfs2_dir_search(sdp->sd_jindex->u.generic_ip,
+		error = gfs2_dir_search(sdp->sd_jindex,
 					&name, NULL, NULL);
 		if (error == -ENOENT) {
 			error = 0;
@@ -317,8 +318,12 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 		if (!jd)
 			break;
 
-		error = gfs2_lookupi(sdp->sd_jindex, &name, 1, &jd->jd_inode);
-		if (error) {
+		jd->jd_inode = gfs2_lookupi(sdp->sd_jindex, &name, 1, NULL);
+		if (!jd->jd_inode || IS_ERR(jd->jd_inode)) {
+			if (!jd->jd_inode)
+				error = -ENOENT;
+			else
+				error = PTR_ERR(jd->jd_inode);
 			kfree(jd);
 			break;
 		}

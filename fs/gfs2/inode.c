@@ -228,12 +228,10 @@ struct inode *gfs2_iget(struct super_block *sb, struct gfs2_inum *inum)
 
 void gfs2_inode_min_init(struct gfs2_inode *ip, unsigned int type)
 {
-	spin_lock(&ip->i_spin);
 	if (!test_and_set_bit(GIF_MIN_INIT, &ip->i_flags)) {
 		ip->i_di.di_nlink = 1;
 		ip->i_di.di_mode = DT2IF(type);
 	}
-	spin_unlock(&ip->i_spin);
 }
 
 /**
@@ -257,10 +255,8 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 		return -EIO;
 	}
 
-	spin_lock(&ip->i_spin);
 	gfs2_dinode_in(&ip->i_di, dibh->b_data);
 	set_bit(GIF_MIN_INIT, &ip->i_flags);
-	spin_unlock(&ip->i_spin);
 
 	brelse(dibh);
 
@@ -702,6 +698,16 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 	return 0;
 }
 
+struct inode *gfs2_lookup_simple(struct inode *dip, const char *name)
+{
+	struct qstr qstr;
+	qstr.name = name;
+	qstr.len = strlen(name);
+	qstr.hash = gfs2_disk_hash(qstr.name, qstr.len);
+	return gfs2_lookupi(dip, &qstr, 1, NULL);
+}
+
+
 /**
  * gfs2_lookupi - Look up a filename in a directory and return its inode
  * @d_gh: An initialized holder for the directory glock
@@ -715,8 +721,9 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
  * Returns: errno
  */
 
-int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
-		 struct inode **inodep)
+struct inode *gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
+			   struct nameidata *nd)
+		 
 {
 	struct super_block *sb = dir->i_sb;
 	struct gfs2_inode *ipp;
@@ -727,14 +734,14 @@ int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 	unsigned int type;
 	struct gfs2_glock *gl;
 	int error = 0;
-
-	*inodep = NULL;
+	struct inode *inode = NULL;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
-		return -ENAMETOOLONG;
+		return ERR_PTR(-ENAMETOOLONG);
 
-	if (gfs2_filecmp(name, ".", 1) ||
-	    (gfs2_filecmp(name, "..", 2) && dir == sb->s_root->d_inode)) {
+	if ((name->len == 1 && memcmp(name->name, ".", 1) == 0) ||
+	    (name->len == 2 && memcmp(name->name, "..", 2) == 0 &&
+	     dir == sb->s_root->d_inode)) {
 		gfs2_inode_hold(dip);
 		ipp = dip;
 		goto done;
@@ -742,7 +749,7 @@ int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 
 	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
 	if (error)
-		return error;
+		return ERR_PTR(error);
 
 	if (!is_root) {
 		error = gfs2_repermission(dip->i_vnode, MAY_EXEC, NULL);
@@ -750,7 +757,7 @@ int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 			goto out;
 	}
 
-	error = gfs2_dir_search(dip, name, &inum, &type);
+	error = gfs2_dir_search(dir, name, &inum, &type);
 	if (error)
 		goto out;
 
@@ -768,13 +775,16 @@ int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
 out:
 	gfs2_glock_dq_uninit(&d_gh);
 done:
+	if (error == -ENOENT)
+		return NULL;
 	if (error == 0) {
-		*inodep = gfs2_ip2v(ipp);
-		if (!*inodep)
-			error = -ENOMEM;
+		inode = gfs2_ip2v(ipp);
 		gfs2_inode_put(ipp);
+		if (!inode)
+			return ERR_PTR(-ENOMEM);
+		return inode;
 	}
-	return error;
+	return ERR_PTR(error);
 }
 
 static int pick_formal_ino_1(struct gfs2_sbd *sdp, uint64_t *formal_ino)
@@ -918,7 +928,7 @@ static int create_ok(struct gfs2_inode *dip, struct qstr *name,
 	if (!dip->i_di.di_nlink)
 		return -EPERM;
 
-	error = gfs2_dir_search(dip, name, NULL, NULL);
+	error = gfs2_dir_search(dip->i_vnode, name, NULL, NULL);
 	switch (error) {
 	case -ENOENT:
 		error = 0;
@@ -1116,7 +1126,9 @@ static int link_dinode(struct gfs2_inode *dip, struct qstr *name,
 	if (error)
 		goto fail;
 
-	error = gfs2_diradd_alloc_required(dip, name, &alloc_required);
+	error = alloc_required = gfs2_diradd_alloc_required(dip->i_vnode, name);
+	if (alloc_required < 0)
+		goto fail;
 	if (alloc_required) {
 		error = gfs2_quota_check(dip, dip->i_di.di_uid,
 					 dip->i_di.di_gid);
@@ -1145,7 +1157,7 @@ static int link_dinode(struct gfs2_inode *dip, struct qstr *name,
 			goto fail_quota_locks;
 	}
 
-	error = gfs2_dir_add(dip, name, &ip->i_num, IF2DT(ip->i_di.di_mode));
+	error = gfs2_dir_add(dip->i_vnode, name, &ip->i_num, IF2DT(ip->i_di.di_mode));
 	if (error)
 		goto fail_end_trans;
 
@@ -1379,12 +1391,14 @@ int gfs2_rmdiri(struct gfs2_inode *dip, struct qstr *name,
 
 	dotname.len = 1;
 	dotname.name = ".";
+	dotname.hash = gfs2_disk_hash(dotname.name, dotname.len);
 	error = gfs2_dir_del(ip, &dotname);
 	if (error)
 		return error;
 
 	dotname.len = 2;
 	dotname.name = "..";
+	dotname.hash = gfs2_disk_hash(dotname.name, dotname.len);
 	error = gfs2_dir_del(ip, &dotname);
 	if (error)
 		return error;
@@ -1439,7 +1453,7 @@ int gfs2_unlink_ok(struct gfs2_inode *dip, struct qstr *name,
 	if (error)
 		return error;
 
-	error = gfs2_dir_search(dip, name, &inum, &type);
+	error = gfs2_dir_search(dip->i_vnode, name, &inum, &type);
 	if (error)
 		return error;
 
@@ -1476,6 +1490,7 @@ int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 	memset(&dotdot, 0, sizeof(struct qstr));
 	dotdot.name = "..";
 	dotdot.len = 2;
+	dotdot.hash = gfs2_disk_hash(dotdot.name, dotdot.len);
 
 	igrab(dir);
 
@@ -1489,9 +1504,11 @@ int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 			break;
 		}
 
-		error = gfs2_lookupi(dir, &dotdot, 1, &tmp);
-		if (error)
+		tmp = gfs2_lookupi(dir, &dotdot, 1, NULL);
+		if (IS_ERR(tmp)) {
+			error = PTR_ERR(tmp);
 			break;
+		}
 
 		iput(dir);
 		dir = tmp;

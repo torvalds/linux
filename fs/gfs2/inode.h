@@ -44,8 +44,8 @@ void gfs2_inode_destroy(struct gfs2_inode *ip);
 int gfs2_inode_dealloc(struct gfs2_sbd *sdp, struct gfs2_unlinked *ul);
 
 int gfs2_change_nlink(struct gfs2_inode *ip, int diff);
-int gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
-		 struct inode **ipp);
+struct inode *gfs2_lookupi(struct inode *dir, struct qstr *name, int is_root,
+			   struct nameidata *nd);
 struct inode *gfs2_createi(struct gfs2_holder *ghs, struct qstr *name,
 			   unsigned int mode);
 int gfs2_unlinki(struct gfs2_inode *dip, struct qstr *name,
@@ -66,17 +66,7 @@ int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
 
 int gfs2_repermission(struct inode *inode, int mask, struct nameidata *nd);
 
-static inline int gfs2_lookup_simple(struct inode *dip, char *name,
-				     struct inode **ipp)
-{
-	struct qstr qstr;
-	int err;
-	memset(&qstr, 0, sizeof(struct qstr));
-	qstr.name = name;
-	qstr.len = strlen(name);
-	err = gfs2_lookupi(dip, &qstr, 1, ipp);
-	return err;
-}
+struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
 
 #endif /* __INODE_DOT_H__ */
 

@@ -58,7 +58,6 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 	struct gfs2_holder ghs[2];
 	struct inode *inode;
 	int new = 1;
-	int error;
 
 	gfs2_holder_init(dip->i_gl, 0, 0, ghs);
 
@@ -78,14 +77,16 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 			return PTR_ERR(inode);
 		}
 
-		error = gfs2_lookupi(dir, &dentry->d_name, 0, &inode);
-		if (!error) {
-			new = 0;
-			gfs2_holder_uninit(ghs);
-			break;
-		} else if (error != -ENOENT) {
-			gfs2_holder_uninit(ghs);
-			return error;
+		inode = gfs2_lookupi(dir, &dentry->d_name, 0, nd);
+		if (inode) {
+			if (!IS_ERR(inode)) {
+				new = 0;
+				gfs2_holder_uninit(ghs);
+				break;
+			} else {
+				gfs2_holder_uninit(ghs);
+				return PTR_ERR(inode);
+			}
 		}
 	}
 
@@ -110,17 +111,13 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 				  struct nameidata *nd)
 {
-	struct gfs2_inode *dip = dir->u.generic_ip;
-	struct gfs2_sbd *sdp = dip->i_sbd;
 	struct inode *inode = NULL;
-	int error;
 
-	if (!sdp->sd_args.ar_localcaching)
-		dentry->d_op = &gfs2_dops;
+	dentry->d_op = &gfs2_dops;
 
-	error = gfs2_lookupi(dir, &dentry->d_name, 0, &inode);
-	if (error && error != -ENOENT)
-		return ERR_PTR(error);
+	inode = gfs2_lookupi(dir, &dentry->d_name, 0, nd);
+	if (inode && IS_ERR(inode))
+		return ERR_PTR(PTR_ERR(inode));
 
 	if (inode)
 		return d_splice_alias(inode, dentry);
@@ -166,7 +163,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	if (error)
 		goto out_gunlock;
 
-	error = gfs2_dir_search(dip, &dentry->d_name, NULL, NULL);
+	error = gfs2_dir_search(dir, &dentry->d_name, NULL, NULL);
 	switch (error) {
 	case -ENOENT:
 		break;
@@ -192,10 +189,10 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 	if (ip->i_di.di_nlink == (uint32_t)-1)
 		goto out_gunlock;
 
-	error = gfs2_diradd_alloc_required(dip, &dentry->d_name,
-					   &alloc_required);
-	if (error)
+	alloc_required = error = gfs2_diradd_alloc_required(dir, &dentry->d_name);
+	if (error < 0)
 		goto out_gunlock;
+	error = 0;
 
 	if (alloc_required) {
 		struct gfs2_alloc *al = gfs2_alloc_get(dip);
@@ -228,7 +225,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 			goto out_ipres;
 	}
 
-	error = gfs2_dir_add(dip, &dentry->d_name, &ip->i_num,
+	error = gfs2_dir_add(dir, &dentry->d_name, &ip->i_num,
 			     IF2DT(ip->i_di.di_mode));
 	if (error)
 		goto out_end_trans;
@@ -419,24 +416,24 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	if (!gfs2_assert_withdraw(sdp, !error)) {
 		struct gfs2_dinode *di = (struct gfs2_dinode *)dibh->b_data;
-		struct gfs2_dirent *dent;
+		struct gfs2_dirent *dent = (struct gfs2_dirent *)(di+1);
+		struct qstr str = { .name = ".", .len = 1 };
+		str.hash = gfs2_disk_hash(str.name, str.len);
 
-		gfs2_dirent_alloc(ip, dibh, 1, &dent);
-
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+		gfs2_qstr2dirent(&str, GFS2_DIRENT_SIZE(str.len), dent);
 		dent->de_inum = di->di_num; /* already GFS2 endian */
-		dent->de_hash = gfs2_disk_hash(".", 1);
-		dent->de_hash = cpu_to_be32(dent->de_hash);
 		dent->de_type = DT_DIR;
-		memcpy((char *) (dent + 1), ".", 1);
 		di->di_entries = cpu_to_be32(1);
 
-		gfs2_dirent_alloc(ip, dibh, 2, &dent);
+		str.name = "..";
+		str.len = 2;
+		str.hash = gfs2_disk_hash(str.name, str.len);
+		dent = (struct gfs2_dirent *)((char*)dent + GFS2_DIRENT_SIZE(1));
+		gfs2_qstr2dirent(&str, dibh->b_size - GFS2_DIRENT_SIZE(1) - sizeof(struct gfs2_dinode), dent);
 
 		gfs2_inum_out(&dip->i_num, (char *) &dent->de_inum);
-		dent->de_hash = gfs2_disk_hash("..", 2);
-		dent->de_hash = cpu_to_be32(dent->de_hash);
 		dent->de_type = DT_DIR;
-		memcpy((char *) (dent + 1), "..", 2);
 
 		gfs2_dinode_out(&ip->i_di, (char *)di);
 
@@ -687,7 +684,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_gunlock;
 
-		error = gfs2_dir_search(ndip, &ndentry->d_name, NULL, NULL);
+		error = gfs2_dir_search(ndir, &ndentry->d_name, NULL, NULL);
 		switch (error) {
 		case -ENOENT:
 			error = 0;
@@ -723,10 +720,10 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			goto out_gunlock;
 	}
 
-	error = gfs2_diradd_alloc_required(ndip, &ndentry->d_name,
-					   &alloc_required);
-	if (error)
+	alloc_required = error = gfs2_diradd_alloc_required(ndir, &ndentry->d_name);
+	if (error < 0)
 		goto out_gunlock;
+	error = 0;
 
 	if (alloc_required) {
 		struct gfs2_alloc *al = gfs2_alloc_get(ndip);
@@ -777,6 +774,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		struct qstr name;
 		name.len = 2;
 		name.name = "..";
+		name.hash = gfs2_disk_hash(name.name, name.len);
 
 		error = gfs2_change_nlink(ndip, +1);
 		if (error)
@@ -803,7 +801,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	if (error)
 		goto out_end_trans;
 
-	error = gfs2_dir_add(ndip, &ndentry->d_name, &ip->i_num,
+	error = gfs2_dir_add(ndir, &ndentry->d_name, &ip->i_num,
 			     IF2DT(ip->i_di.di_mode));
 	if (error)
 		goto out_end_trans;

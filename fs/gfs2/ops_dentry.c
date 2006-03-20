@@ -38,25 +38,26 @@
 static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 {
 	struct dentry *parent = dget_parent(dentry);
+	struct gfs2_sbd *sdp = parent->d_inode->i_sb->s_fs_info;
 	struct gfs2_inode *dip = parent->d_inode->u.generic_ip;
-	struct inode *inode;
+	struct inode *inode = dentry->d_inode;
 	struct gfs2_holder d_gh;
 	struct gfs2_inode *ip;
 	struct gfs2_inum inum;
 	unsigned int type;
 	int error;
 
-	lock_kernel();
-
-	inode = dentry->d_inode;
 	if (inode && is_bad_inode(inode))
 		goto invalid;
+
+	if (sdp->sd_args.ar_localcaching)
+		goto valid;
 
 	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
 	if (error)
 		goto fail;
 
-	error = gfs2_dir_search(dip, &dentry->d_name, &inum, &type);
+	error = gfs2_dir_search(parent->d_inode, &dentry->d_name, &inum, &type);
 	switch (error) {
 	case 0:
 		if (!inode)
@@ -84,7 +85,6 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 	gfs2_glock_dq_uninit(&d_gh);
 
  valid:
-	unlock_kernel();
 	dput(parent);
 	return 1;
 
@@ -99,7 +99,6 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 	}
 	d_drop(dentry);
 
-	unlock_kernel();
 	dput(parent);
 	return 0;
 
@@ -107,12 +106,18 @@ static int gfs2_drevalidate(struct dentry *dentry, struct nameidata *nd)
 	gfs2_glock_dq_uninit(&d_gh);
 
  fail:
-	unlock_kernel();
 	dput(parent);
+	return 0;
+}
+
+static int gfs2_dhash(struct dentry *dentry, struct qstr *str)
+{
+	str->hash = gfs2_disk_hash(str->name, str->len);
 	return 0;
 }
 
 struct dentry_operations gfs2_dops = {
 	.d_revalidate = gfs2_drevalidate,
+	.d_hash = gfs2_dhash,
 };
 
