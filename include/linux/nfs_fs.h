@@ -422,6 +422,7 @@ void nfs_commit_free(struct nfs_write_data *p);
 extern int  nfs_sync_inode(struct inode *, unsigned long, unsigned int, int);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 extern int  nfs_commit_inode(struct inode *, int);
+extern void nfs_commit_release(void *wdata);
 #else
 static inline int
 nfs_commit_inode(struct inode *inode, int how)
