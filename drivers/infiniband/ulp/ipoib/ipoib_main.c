@@ -133,7 +133,13 @@ static int ipoib_stop(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	ipoib_ib_dev_down(dev);
+	/*
+	 * Now flush workqueue to make sure a scheduled task doesn't
+	 * bring our internal state back up.
+	 */
+	flush_workqueue(ipoib_workqueue);
+
+	ipoib_ib_dev_down(dev, 1);
 	ipoib_ib_dev_stop(dev);
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
