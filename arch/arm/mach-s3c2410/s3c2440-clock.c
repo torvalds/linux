@@ -45,11 +45,6 @@
 
 /* S3C2440 extended clock support */
 
-static struct clk s3c2440_clk_upll = {
-	.name		= "upll",
-	.id		= -1,
-};
-
 static struct clk s3c2440_clk_cam = {
 	.name		= "camif",
 	.id		= -1,
@@ -66,22 +61,11 @@ static struct clk s3c2440_clk_ac97 = {
 
 static int s3c2440_clk_add(struct sys_device *sysdev)
 {
-	unsigned long upllcon = __raw_readl(S3C2410_UPLLCON);
 	unsigned long camdivn = __raw_readl(S3C2440_CAMDIVN);
 	struct clk *clk_h;
 	struct clk *clk_p;
-	struct clk *clk_xtal;
 
-	clk_xtal = clk_get(NULL, "xtal");
-	if (IS_ERR(clk_xtal)) {
-		printk(KERN_ERR "S3C2440: Failed to get clk_xtal\n");
-		return -EINVAL;
-	}
-
-	s3c2440_clk_upll.rate = s3c2410_get_pll(upllcon, clk_xtal->rate);
-
-	printk("S3C2440: Clock Support, UPLL %ld.%03ld MHz, DVS %s\n",
-	       print_mhz(s3c2440_clk_upll.rate),
+	printk("S3C2440: Clock Support, DVS %s\n",
 	       (camdivn & S3C2440_CAMDIVN_DVSEN) ? "on" : "off");
 
 	clk_p = clk_get(NULL, "pclk");
@@ -97,7 +81,6 @@ static int s3c2440_clk_add(struct sys_device *sysdev)
 
 	s3c24xx_register_clock(&s3c2440_clk_ac97);
 	s3c24xx_register_clock(&s3c2440_clk_cam);
-	s3c24xx_register_clock(&s3c2440_clk_upll);
 
 	clk_disable(&s3c2440_clk_ac97);
 	clk_disable(&s3c2440_clk_cam);

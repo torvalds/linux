@@ -38,6 +38,7 @@
 #include <linux/ioport.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
+#include <linux/delay.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
@@ -200,6 +201,28 @@ EXPORT_SYMBOL(clk_round_rate);
 EXPORT_SYMBOL(clk_set_rate);
 EXPORT_SYMBOL(clk_get_parent);
 
+/* base clock enable */
+
+static int s3c24xx_upll_enable(struct clk *clk, int enable)
+{
+	unsigned long clkslow = __raw_readl(S3C2410_CLKSLOW);
+	unsigned long orig = clkslow;
+
+	if (enable)
+		clkslow &= ~S3C2410_CLKSLOW_UCLK_OFF;
+	else
+		clkslow |= S3C2410_CLKSLOW_UCLK_OFF;
+
+	__raw_writel(clkslow, S3C2410_CLKSLOW);
+
+	/* if we started the UPLL, then allow to settle */
+
+	if (enable && !(orig & S3C2410_CLKSLOW_UCLK_OFF))
+		udelay(200);
+
+	return 0;
+}
+
 /* base clocks */
 
 static struct clk clk_xtal = {
@@ -207,6 +230,14 @@ static struct clk clk_xtal = {
 	.id		= -1,
 	.rate		= 0,
 	.parent		= NULL,
+	.ctrlbit	= 0,
+};
+
+static struct clk clk_upll = {
+	.name		= "upll",
+	.id		= -1,
+	.parent		= NULL,
+	.enable		= s3c24xx_upll_enable,
 	.ctrlbit	= 0,
 };
 
@@ -262,7 +293,7 @@ struct clk s3c24xx_uclk = {
 };
 
 
-/* clock definitions */
+/* standard clock definitions */
 
 static struct clk init_clocks[] = {
 	{
@@ -396,6 +427,7 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 				unsigned long hclk,
 				unsigned long pclk)
 {
+	unsigned long upllcon = __raw_readl(S3C2410_UPLLCON);
 	unsigned long clkslow = __raw_readl(S3C2410_CLKSLOW);
 	struct clk *clkp = init_clocks;
 	int ptr;
@@ -406,6 +438,7 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 	/* initialise the main system clocks */
 
 	clk_xtal.rate = xtal;
+	clk_upll.rate = s3c2410_get_pll(upllcon, xtal);
 
 	clk_h.rate = hclk;
 	clk_p.rate = pclk;
@@ -438,6 +471,9 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 
 	if (s3c24xx_register_clock(&clk_xtal) < 0)
 		printk(KERN_ERR "failed to register master xtal\n");
+
+	if (s3c24xx_register_clock(&clk_upll) < 0)
+		printk(KERN_ERR "failed to register upll clock\n");
 
 	if (s3c24xx_register_clock(&clk_f) < 0)
 		printk(KERN_ERR "failed to register cpu fclk\n");
