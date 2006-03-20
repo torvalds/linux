@@ -155,23 +155,8 @@
 /* PLL parameters (these are for 852GM/855GM/865G, check earlier chips). */
 /* Clock values are in units of kHz */
 #define PLL_REFCLK		48000
-#define MIN_VCO_FREQ		930000
-#define MAX_VCO_FREQ		1400000
 #define MIN_CLOCK		25000
 #define MAX_CLOCK		350000
-#define P_TRANSITION_CLOCK	165000
-#define MIN_M			108
-#define MAX_M			140
-#define MIN_M1			18
-#define MAX_M1			26
-#define MIN_M2			6
-#define MAX_M2			16
-#define MIN_P			4
-#define MAX_P			128
-#define MIN_P1			0
-#define MAX_P1			31
-#define MIN_N			3
-#define MAX_N			16
 
 #define CALC_VCLOCK(m1, m2, n, p1, p2) \
         ((PLL_REFCLK * (5 * ((m1) + 2) + ((m2) + 2)) / ((n) + 2)) / \

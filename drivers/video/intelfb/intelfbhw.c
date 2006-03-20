@@ -40,6 +40,26 @@
 #include "intelfb.h"
 #include "intelfbhw.h"
 
+struct pll_min_max {
+	int min_m, max_m;
+	int min_m1, max_m1;
+	int min_m2, max_m2;
+	int min_n, max_n;
+	int min_p, max_p;
+	int min_p1, max_p1;
+	int min_vco_freq, max_vco_freq;
+	int p_transition_clock;
+};
+
+#define PLLS_I8xx 0
+#define PLLS_I9xx 1
+#define PLLS_MAX 2
+
+struct pll_min_max plls[PLLS_MAX] = {
+	{ 108, 140, 18, 26, 6, 16, 3, 16, 4, 128, 0, 31, 930000, 1400000, 165000 }, //I8xx
+	{  75, 120, 10, 20, 5, 9, 4,  7, 5, 80, 1, 8, 930000, 2800000, 200000 }  //I9xx
+};
+
 int
 intelfbhw_get_chipset(struct pci_dev *pdev, const char **name, int *chipset,
 		      int *mobile)
@@ -697,17 +717,17 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 
 /* Split the M parameter into M1 and M2. */
 static int
-splitm(unsigned int m, unsigned int *retm1, unsigned int *retm2)
+splitm(int index, unsigned int m, unsigned int *retm1, unsigned int *retm2)
 {
 	int m1, m2;
 
-	m1 = (m - 2 - (MIN_M2 + MAX_M2) / 2) / 5 - 2;
-	if (m1 < MIN_M1)
-		m1 = MIN_M1;
-	if (m1 > MAX_M1)
-		m1 = MAX_M1;
+	m1 = (m - 2 - (plls[index].min_m1 + plls[index].max_m2) / 2) / 5 - 2;
+	if (m1 < plls[index].min_m1)
+		m1 = plls[index].min_m1;
+	if (m1 > plls[index].max_m1)
+		m1 = plls[index].max_m1;
 	m2 = m - 5 * (m1 + 2) - 2;
-	if (m2 < MIN_M2 || m2 > MAX_M2 || m2 >= m1) {
+	if (m2 < plls[index].min_m2 || m2 > plls[index].max_m2 || m2 >= m1) {
 		return 1;
 	} else {
 		*retm1 = (unsigned int)m1;
@@ -718,30 +738,34 @@ splitm(unsigned int m, unsigned int *retm1, unsigned int *retm2)
 
 /* Split the P parameter into P1 and P2. */
 static int
-splitp(unsigned int p, unsigned int *retp1, unsigned int *retp2)
+splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 {
 	int p1, p2;
 
-	if (p % 4 == 0)
-		p2 = 1;
-	else
-		p2 = 0;
-	p1 = (p / (1 << (p2 + 1))) - 2;
-	if (p % 4 == 0 && p1 < MIN_P1) {
-		p2 = 0;
+	if (index==PLLS_I8xx)
+	{
+		if (p % 4 == 0)
+			p2 = 1;
+		else
+			p2 = 0;
 		p1 = (p / (1 << (p2 + 1))) - 2;
+		if (p % 4 == 0 && p1 < plls[index].min_p1) {
+			p2 = 0;
+			p1 = (p / (1 << (p2 + 1))) - 2;
+		}
+		if (p1  < plls[index].min_p1 || p1 > plls[index].max_p1 || (p1 + 2) * (1 << (p2 + 1)) != p) {
+			return 1;
+		} else {
+			*retp1 = (unsigned int)p1;
+			*retp2 = (unsigned int)p2;
+			return 0;
+		}
 	}
-	if (p1  < MIN_P1 || p1 > MAX_P1 || (p1 + 2) * (1 << (p2 + 1)) != p) {
-		return 1;
-	} else {
-		*retp1 = (unsigned int)p1;
-		*retp2 = (unsigned int)p2;
-		return 0;
-	}
+	return 1;
 }
 
 static int
-calc_pll_params(int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *retp1,
+calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *retp1,
 		u32 *retp2, u32 *retclock)
 {
 	u32 m1, m2, n, p1, p2, n1;
@@ -756,40 +780,40 @@ calc_pll_params(int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *retp1,
 
 	DBG_MSG("Clock is %d\n", clock);
 
-	div_max = MAX_VCO_FREQ / clock;
-	div_min = ROUND_UP_TO(MIN_VCO_FREQ, clock) / clock;
+	div_max = plls[index].max_vco_freq / clock;
+	div_min = ROUND_UP_TO(plls[index].min_vco_freq, clock) / clock;
 
-	if (clock <= P_TRANSITION_CLOCK)
+	if (clock <= plls[index].p_transition_clock)
 		p_inc = 4;
 	else
 		p_inc = 2;
 	p_min = ROUND_UP_TO(div_min, p_inc);
 	p_max = ROUND_DOWN_TO(div_max, p_inc);
-	if (p_min < MIN_P)
+	if (p_min < plls[index].min_p)
 		p_min = 4;
-	if (p_max > MAX_P)
+	if (p_max > plls[index].max_p)
 		p_max = 128;
 
 	DBG_MSG("p range is %d-%d (%d)\n", p_min, p_max, p_inc);
 
 	p = p_min;
 	do {
-		if (splitp(p, &p1, &p2)) {
+		if (splitp(index, p, &p1, &p2)) {
 			WRN_MSG("cannot split p = %d\n", p);
 			p += p_inc;
 			continue;
 		}
-		n = MIN_N;
+		n = plls[index].min_n;
 		f_vco = clock * p;
 
 		do {
 			m = ROUND_UP_TO(f_vco * n, PLL_REFCLK) / PLL_REFCLK;
-			if (m < MIN_M)
-				m = MIN_M;
-			if (m > MAX_M)
-				m = MAX_M;
+			if (m < plls[index].min_m)
+				m = plls[index].min_m;
+			if (m > plls[index].max_m)
+				m = plls[index].max_m;
 			f_out = CALC_VCLOCK3(m, n, p);
-			if (splitm(m, &m1, &m2)) {
+			if (splitm(index, m, &m1, &m2)) {
 				WRN_MSG("cannot split m = %d\n", m);
 				n++;
 				continue;
@@ -807,7 +831,7 @@ calc_pll_params(int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *retp1,
 				err_best = f_err;
 			}
 			n++;
-		} while ((n <= MAX_N) && (f_out >= clock));
+		} while ((n <= plls[index].max_n) && (f_out >= clock));
 		p += p_inc;
 	} while ((p <= p_max));
 
@@ -818,8 +842,8 @@ calc_pll_params(int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *retp1,
 	m = m_best;
 	n = n_best;
 	p = p_best;
-	splitm(m, &m1, &m2);
-	splitp(p, &p1, &p2);
+	splitm(index, m, &m1, &m2);
+	splitp(index, p, &p1, &p2);
 	n1 = n - 2;
 
 	DBG_MSG("m, n, p: %d (%d,%d), %d (%d), %d (%d,%d), "
@@ -929,7 +953,7 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	/* Desired clock in kHz */
 	clock_target = 1000000000 / var->pixclock;
 
-	if (calc_pll_params(clock_target, &m1, &m2, &n, &p1, &p2, &clock)) {
+	if (calc_pll_params(PLLS_I8xx, clock_target, &m1, &m2, &n, &p1, &p2, &clock)) {
 		WRN_MSG("calc_pll_params failed\n");
 		return 1;
 	}
