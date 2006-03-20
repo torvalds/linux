@@ -7,11 +7,11 @@
  *
  * There are important applications whose performance or correctness
  * depends on uncached access to file data.  Database clusters
- * (multiple copies of the same instance running on separate hosts) 
+ * (multiple copies of the same instance running on separate hosts)
  * implement their own cache coherency protocol that subsumes file
- * system cache protocols.  Applications that process datasets 
- * considerably larger than the client's memory do not always benefit 
- * from a local cache.  A streaming video server, for instance, has no 
+ * system cache protocols.  Applications that process datasets
+ * considerably larger than the client's memory do not always benefit
+ * from a local cache.  A streaming video server, for instance, has no
  * need to cache the contents of a file.
  *
  * When an application requests uncached I/O, all read and write requests
@@ -34,6 +34,7 @@
  * 08 Jun 2003	Port to 2.5 APIs  --cel
  * 31 Mar 2004	Handle direct I/O without VFS support  --cel
  * 15 Sep 2004	Parallel async reads  --cel
+ * 04 May 2005	support O_DIRECT with aio  --cel
  *
  */
 
@@ -67,11 +68,11 @@ static kmem_cache_t *nfs_direct_cachep;
  */
 struct nfs_direct_req {
 	struct kref		kref;		/* release manager */
-	struct list_head	list;		/* nfs_read_data structs */
+	struct list_head	list;		/* nfs_read/write_data structs */
 	struct file *		filp;		/* file descriptor */
 	struct kiocb *		iocb;		/* controlling i/o request */
 	wait_queue_head_t	wait;		/* wait for i/o completion */
-	struct inode *		inode;		/* target file of I/O */
+	struct inode *		inode;		/* target file of i/o */
 	struct page **		pages;		/* pages in our buffer */
 	unsigned int		npages;		/* count of pages */
 	atomic_t		complete,	/* i/os we're waiting for */
@@ -110,7 +111,6 @@ static inline int nfs_get_user_pages(int rw, unsigned long user_addr, size_t siz
 	size_t array_size;
 
 	/* set an arbitrary limit to prevent type overflow */
-	/* XXX: this can probably be as large as INT_MAX */
 	if (size > MAX_DIRECTIO_SIZE) {
 		*pages = NULL;
 		return -EFBIG;
@@ -294,7 +294,7 @@ static const struct rpc_call_ops nfs_read_direct_ops = {
  * For each nfs_read_data struct that was allocated on the list, dispatch
  * an NFS READ operation
  */
-static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned long user_addr, size_t count, loff_t file_offset)
+static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned long user_addr, size_t count, loff_t pos)
 {
 	struct file *file = dreq->filp;
 	struct inode *inode = file->f_mapping->host;
@@ -322,7 +322,7 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned long 
 		data->cred = ctx->cred;
 		data->args.fh = NFS_FH(inode);
 		data->args.context = ctx;
-		data->args.offset = file_offset;
+		data->args.offset = pos;
 		data->args.pgbase = pgbase;
 		data->args.pages = &pages[curpage];
 		data->args.count = bytes;
@@ -347,7 +347,7 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned long 
 				bytes,
 				(unsigned long long)data->args.offset);
 
-		file_offset += bytes;
+		pos += bytes;
 		pgbase += bytes;
 		curpage += pgbase >> PAGE_SHIFT;
 		pgbase &= ~PAGE_MASK;
@@ -356,7 +356,7 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned long 
 	} while (count != 0);
 }
 
-static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, unsigned int nr_pages)
+static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t pos, struct page **pages, unsigned int nr_pages)
 {
 	ssize_t result;
 	sigset_t oldset;
@@ -377,7 +377,7 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 
 	nfs_add_stats(inode, NFSIOS_DIRECTREADBYTES, count);
 	rpc_clnt_sigmask(clnt, &oldset);
-	nfs_direct_read_schedule(dreq, user_addr, count, file_offset);
+	nfs_direct_read_schedule(dreq, user_addr, count, pos);
 	result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
 
@@ -459,7 +459,7 @@ static const struct rpc_call_ops nfs_write_direct_ops = {
  * XXX: For now, support only FILE_SYNC writes.  Later we may add
  *      support for UNSTABLE + COMMIT.
  */
-static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned long user_addr, size_t count, loff_t file_offset)
+static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned long user_addr, size_t count, loff_t pos)
 {
 	struct file *file = dreq->filp;
 	struct inode *inode = file->f_mapping->host;
@@ -487,7 +487,7 @@ static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned long
 		data->cred = ctx->cred;
 		data->args.fh = NFS_FH(inode);
 		data->args.context = ctx;
-		data->args.offset = file_offset;
+		data->args.offset = pos;
 		data->args.pgbase = pgbase;
 		data->args.pages = &pages[curpage];
 		data->args.count = bytes;
@@ -513,7 +513,7 @@ static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned long
 				bytes,
 				(unsigned long long)data->args.offset);
 
-		file_offset += bytes;
+		pos += bytes;
 		pgbase += bytes;
 		curpage += pgbase >> PAGE_SHIFT;
 		pgbase &= ~PAGE_MASK;
@@ -522,7 +522,7 @@ static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned long
 	} while (count != 0);
 }
 
-static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, int nr_pages)
+static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t pos, struct page **pages, int nr_pages)
 {
 	ssize_t result;
 	sigset_t oldset;
@@ -546,7 +546,7 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 	nfs_begin_data_update(inode);
 
 	rpc_clnt_sigmask(clnt, &oldset);
-	nfs_direct_write_schedule(dreq, user_addr, count, file_offset);
+	nfs_direct_write_schedule(dreq, user_addr, count, pos);
 	result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
 
@@ -557,18 +557,18 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
  * nfs_file_direct_read - file direct read operation for NFS files
  * @iocb: target I/O control block
  * @buf: user's buffer into which to read data
- * count: number of bytes to read
- * pos: byte offset in file where reading starts
+ * @count: number of bytes to read
+ * @pos: byte offset in file where reading starts
  *
  * We use this function for direct reads instead of calling
  * generic_file_aio_read() in order to avoid gfar's check to see if
  * the request starts before the end of the file.  For that check
  * to work, we must generate a GETATTR before each direct read, and
  * even then there is a window between the GETATTR and the subsequent
- * READ where the file size could change.  So our preference is simply
+ * READ where the file size could change.  Our preference is simply
  * to do all reads the application wants, and the server will take
  * care of managing the end of file boundary.
- * 
+ *
  * This function also eliminates unnecessarily updating the file's
  * atime locally, as the NFS server sets the file's atime, and this
  * client must read the updated atime from the server back into its
@@ -621,8 +621,8 @@ out:
  * nfs_file_direct_write - file direct write operation for NFS files
  * @iocb: target I/O control block
  * @buf: user's buffer from which to write data
- * count: number of bytes to write
- * pos: byte offset in file where writing starts
+ * @count: number of bytes to write
+ * @pos: byte offset in file where writing starts
  *
  * We use this function for direct writes instead of calling
  * generic_file_aio_write() in order to avoid taking the inode
@@ -703,6 +703,10 @@ out:
 	return retval;
 }
 
+/**
+ * nfs_init_directcache - create a slab cache for nfs_direct_req structures
+ *
+ */
 int nfs_init_directcache(void)
 {
 	nfs_direct_cachep = kmem_cache_create("nfs_direct_cache",
@@ -715,6 +719,10 @@ int nfs_init_directcache(void)
 	return 0;
 }
 
+/**
+ * nfs_init_directcache - destroy the slab cache for nfs_direct_req structures
+ *
+ */
 void nfs_destroy_directcache(void)
 {
 	if (kmem_cache_destroy(nfs_direct_cachep))
