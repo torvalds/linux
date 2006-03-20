@@ -1638,10 +1638,9 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 #endif /* CONFIG_NFS_V3 */
 
 	s = ERR_PTR(-ENOMEM);
-	server = kmalloc(sizeof(struct nfs_server), GFP_KERNEL);
+	server = kzalloc(sizeof(struct nfs_server), GFP_KERNEL);
 	if (!server)
 		goto out_err;
-	memset(server, 0, sizeof(struct nfs_server));
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
 	server->client = server->client_sys = server->client_acl = ERR_PTR(-EINVAL);
@@ -1942,10 +1941,9 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 		return ERR_PTR(-EINVAL);
 	}
 
-	server = kmalloc(sizeof(struct nfs_server), GFP_KERNEL);
+	server = kzalloc(sizeof(struct nfs_server), GFP_KERNEL);
 	if (!server)
 		return ERR_PTR(-ENOMEM);
-	memset(server, 0, sizeof(struct nfs_server));
 	/* Zero out the NFS state stuff */
 	init_nfsv4_state(server);
 	server->client = server->client_sys = server->client_acl = ERR_PTR(-EINVAL);

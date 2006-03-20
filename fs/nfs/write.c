@@ -100,10 +100,8 @@ static inline struct nfs_write_data *nfs_commit_alloc(unsigned int pagecount)
 			p->pagevec = &p->page_array[0];
 		else {
 			size_t size = ++pagecount * sizeof(struct page *);
-			p->pagevec = kmalloc(size, GFP_NOFS);
-			if (p->pagevec) {
-				memset(p->pagevec, 0, size);
-			} else {
+			p->pagevec = kzalloc(size, GFP_NOFS);
+			if (!p->pagevec) {
 				mempool_free(p, nfs_commit_mempool);
 				p = NULL;
 			}

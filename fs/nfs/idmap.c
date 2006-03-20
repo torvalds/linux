@@ -101,10 +101,8 @@ nfs_idmap_new(struct nfs4_client *clp)
 
 	if (clp->cl_idmap != NULL)
 		return;
-        if ((idmap = kmalloc(sizeof(*idmap), GFP_KERNEL)) == NULL)
+        if ((idmap = kzalloc(sizeof(*idmap), GFP_KERNEL)) == NULL)
                 return;
-
-	memset(idmap, 0, sizeof(*idmap));
 
 	snprintf(idmap->idmap_path, sizeof(idmap->idmap_path),
 	    "%s/idmap", clp->cl_rpcclient->cl_pathname);
