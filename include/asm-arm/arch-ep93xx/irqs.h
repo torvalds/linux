@@ -67,7 +67,9 @@
 #define IRQ_EP93XX_SAI			60
 #define EP93XX_VIC2_VALID_IRQ_MASK	0x1fffffff
 
-#define NR_EP93XX_IRQS			64
+#define IRQ_EP93XX_GPIO(x)		(64 + (x))
+
+#define NR_EP93XX_IRQS			IRQ_EP93XX_GPIO(16)
 
 #define EP93XX_BOARD_IRQ(x)		(NR_EP93XX_IRQS + (x))
 #define EP93XX_BOARD_IRQS		32
