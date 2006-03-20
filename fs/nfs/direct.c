@@ -365,7 +365,7 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq)
 		rpc_execute(&data->task);
 		unlock_kernel();
 
-		dfprintk(VFS, "NFS: %4d initiated direct read call (req %s/%Ld, %u bytes @ offset %Lu)\n",
+		dfprintk(VFS, "NFS: %5u initiated direct read call (req %s/%Ld, %zu bytes @ offset %Lu)\n",
 				data->task.tk_pid,
 				inode->i_sb->s_id,
 				(long long)NFS_FILEID(inode),
@@ -686,7 +686,7 @@ static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, int sync)
 		rpc_execute(&data->task);
 		unlock_kernel();
 
-		dfprintk(VFS, "NFS: %4d initiated direct write call (req %s/%Ld, %u bytes @ offset %Lu)\n",
+		dfprintk(VFS, "NFS: %5u initiated direct write call (req %s/%Ld, %zu bytes @ offset %Lu)\n",
 				data->task.tk_pid,
 				inode->i_sb->s_id,
 				(long long)NFS_FILEID(inode),
