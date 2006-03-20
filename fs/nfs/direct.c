@@ -71,7 +71,7 @@ struct nfs_direct_req {
 	/* I/O parameters */
 	struct list_head	list,		/* nfs_read/write_data structs */
 				rewrite_list;	/* saved nfs_write_data structs */
-	struct file *		filp;		/* file descriptor */
+	struct nfs_open_context	*ctx;		/* file open context info */
 	struct kiocb *		iocb;		/* controlling i/o request */
 	wait_queue_head_t	wait;		/* wait for i/o completion */
 	struct inode *		inode;		/* target file of i/o */
@@ -176,6 +176,7 @@ static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
 	INIT_LIST_HEAD(&dreq->list);
 	INIT_LIST_HEAD(&dreq->rewrite_list);
 	dreq->iocb = NULL;
+	dreq->ctx = NULL;
 	spin_lock_init(&dreq->lock);
 	dreq->outstanding = 0;
 	dreq->count = 0;
@@ -188,6 +189,9 @@ static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
 static void nfs_direct_req_release(struct kref *kref)
 {
 	struct nfs_direct_req *dreq = container_of(kref, struct nfs_direct_req, kref);
+
+	if (dreq->ctx != NULL)
+		put_nfs_open_context(dreq->ctx);
 	kmem_cache_free(nfs_direct_cachep, dreq);
 }
 
@@ -235,7 +239,6 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq)
 	} else
 		wake_up(&dreq->wait);
 
-	iput(dreq->inode);
 	kref_put(&dreq->kref, nfs_direct_req_release);
 }
 
@@ -317,10 +320,8 @@ static const struct rpc_call_ops nfs_read_direct_ops = {
  */
 static void nfs_direct_read_schedule(struct nfs_direct_req *dreq)
 {
-	struct file *file = dreq->filp;
-	struct inode *inode = file->f_mapping->host;
-	struct nfs_open_context *ctx = (struct nfs_open_context *)
-							file->private_data;
+	struct nfs_open_context *ctx = dreq->ctx;
+	struct inode *inode = ctx->dentry->d_inode;
 	struct list_head *list = &dreq->list;
 	struct page **pages = dreq->pages;
 	size_t count = dreq->user_count;
@@ -396,9 +397,8 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 	dreq->pos = pos;
 	dreq->pages = pages;
 	dreq->npages = nr_pages;
-	igrab(inode);
 	dreq->inode = inode;
-	dreq->filp = iocb->ki_filp;
+	dreq->ctx = get_nfs_open_context((struct nfs_open_context *)iocb->ki_filp->private_data);
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
@@ -462,14 +462,11 @@ static const struct rpc_call_ops nfs_commit_direct_ops = {
 
 static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 {
-	struct file *file = dreq->filp;
-	struct nfs_open_context *ctx = (struct nfs_open_context *)
-							file->private_data;
 	struct nfs_write_data *data = dreq->commit_data;
 	struct rpc_task *task = &data->task;
 
 	data->inode = dreq->inode;
-	data->cred = ctx->cred;
+	data->cred = dreq->ctx->cred;
 
 	data->args.fh = NFS_FH(data->inode);
 	data->args.offset = dreq->pos;
@@ -641,10 +638,8 @@ static const struct rpc_call_ops nfs_write_direct_ops = {
  */
 static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, int sync)
 {
-	struct file *file = dreq->filp;
-	struct inode *inode = file->f_mapping->host;
-	struct nfs_open_context *ctx = (struct nfs_open_context *)
-							file->private_data;
+	struct nfs_open_context *ctx = dreq->ctx;
+	struct inode *inode = ctx->dentry->d_inode;
 	struct list_head *list = &dreq->list;
 	struct page **pages = dreq->pages;
 	size_t count = dreq->user_count;
@@ -725,9 +720,8 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 	dreq->pos = pos;
 	dreq->pages = pages;
 	dreq->npages = nr_pages;
-	igrab(inode);
 	dreq->inode = inode;
-	dreq->filp = iocb->ki_filp;
+	dreq->ctx = get_nfs_open_context((struct nfs_open_context *)iocb->ki_filp->private_data);
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
