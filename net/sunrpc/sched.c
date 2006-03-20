@@ -64,7 +64,7 @@ static LIST_HEAD(all_tasks);
  */
 static DECLARE_MUTEX(rpciod_sema);
 static unsigned int		rpciod_users;
-static struct workqueue_struct *rpciod_workqueue;
+struct workqueue_struct *rpciod_workqueue;
 
 /*
  * Spinlock for other critical sections of code.

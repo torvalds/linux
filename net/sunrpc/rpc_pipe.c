@@ -91,7 +91,8 @@ rpc_queue_upcall(struct inode *inode, struct rpc_pipe_msg *msg)
 		res = 0;
 	} else if (rpci->flags & RPC_PIPE_WAIT_FOR_OPEN) {
 		if (list_empty(&rpci->pipe))
-			schedule_delayed_work(&rpci->queue_timeout,
+			queue_delayed_work(rpciod_workqueue,
+					&rpci->queue_timeout,
 					RPC_UPCALL_TIMEOUT);
 		list_add_tail(&msg->list, &rpci->pipe);
 		rpci->pipelen += msg->len;
@@ -132,7 +133,7 @@ rpc_close_pipes(struct inode *inode)
 		if (ops->release_pipe)
 			ops->release_pipe(inode);
 		cancel_delayed_work(&rpci->queue_timeout);
-		flush_scheduled_work();
+		flush_workqueue(rpciod_workqueue);
 	}
 	rpc_inode_setowner(inode, NULL);
 	mutex_unlock(&inode->i_mutex);

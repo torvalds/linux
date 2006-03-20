@@ -276,6 +276,7 @@ void		rpc_show_tasks(void);
 #endif
 int		rpc_init_mempool(void);
 void		rpc_destroy_mempool(void);
+extern struct workqueue_struct *rpciod_workqueue;
 
 static inline void rpc_exit(struct rpc_task *task, int status)
 {
