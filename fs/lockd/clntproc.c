@@ -354,14 +354,10 @@ in_grace_period:
 /*
  * Generic NLM call, async version.
  */
-int nlm_async_call(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *tk_ops)
+static int __nlm_async_call(struct nlm_rqst *req, u32 proc, struct rpc_message *msg, const struct rpc_call_ops *tk_ops)
 {
 	struct nlm_host	*host = req->a_host;
 	struct rpc_clnt	*clnt;
-	struct rpc_message msg = {
-		.rpc_argp	= &req->a_args,
-		.rpc_resp	= &req->a_res,
-	};
 	int status = -ENOLCK;
 
 	dprintk("lockd: call procedure %d on %s (async)\n",
@@ -371,15 +367,32 @@ int nlm_async_call(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *tk
 	clnt = nlm_bind_host(host);
 	if (clnt == NULL)
 		goto out_err;
-	msg.rpc_proc = &clnt->cl_procinfo[proc];
+	msg->rpc_proc = &clnt->cl_procinfo[proc];
 
         /* bootstrap and kick off the async RPC call */
-        status = rpc_call_async(clnt, &msg, RPC_TASK_ASYNC, tk_ops, req);
+        status = rpc_call_async(clnt, msg, RPC_TASK_ASYNC, tk_ops, req);
 	if (status == 0)
 		return 0;
 out_err:
 	nlm_release_call(req);
 	return status;
+}
+
+int nlm_async_call(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *tk_ops)
+{
+	struct rpc_message msg = {
+		.rpc_argp	= &req->a_args,
+		.rpc_resp	= &req->a_res,
+	};
+	return __nlm_async_call(req, proc, &msg, tk_ops);
+}
+
+int nlm_async_reply(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *tk_ops)
+{
+	struct rpc_message msg = {
+		.rpc_argp	= &req->a_res,
+	};
+	return __nlm_async_call(req, proc, &msg, tk_ops);
 }
 
 /*

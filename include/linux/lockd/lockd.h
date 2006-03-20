@@ -151,6 +151,7 @@ extern unsigned long		nlmsvc_timeout;
 struct nlm_rqst * nlm_alloc_call(struct nlm_host *host);
 void		  nlm_release_call(struct nlm_rqst *);
 int		  nlm_async_call(struct nlm_rqst *, u32, const struct rpc_call_ops *);
+int		  nlm_async_reply(struct nlm_rqst *, u32, const struct rpc_call_ops *);
 struct nlm_wait * nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *fl);
 void		  nlmclnt_finish_block(struct nlm_wait *block);
 int		  nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout);
