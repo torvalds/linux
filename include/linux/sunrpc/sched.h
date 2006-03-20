@@ -276,7 +276,6 @@ void *		rpc_malloc(struct rpc_task *, size_t);
 void		rpc_free(struct rpc_task *);
 int		rpciod_up(void);
 void		rpciod_down(void);
-void		rpciod_wake_up(void);
 int		__rpc_wait_for_completion_task(struct rpc_task *task, int (*)(void *));
 #ifdef RPC_DEBUG
 void		rpc_show_tasks(void);

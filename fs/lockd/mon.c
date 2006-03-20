@@ -35,6 +35,10 @@ nsm_mon_unmon(struct nlm_host *host, u32 proc, struct nsm_res *res)
 	struct rpc_clnt	*clnt;
 	int		status;
 	struct nsm_args	args;
+	struct rpc_message msg = {
+		.rpc_argp	= &args,
+		.rpc_resp	= res,
+	};
 
 	clnt = nsm_create();
 	if (IS_ERR(clnt)) {
@@ -49,7 +53,8 @@ nsm_mon_unmon(struct nlm_host *host, u32 proc, struct nsm_res *res)
 	args.proc = NLMPROC_NSM_NOTIFY;
 	memset(res, 0, sizeof(*res));
 
-	status = rpc_call(clnt, proc, &args, res, 0);
+	msg.rpc_proc = &clnt->cl_procinfo[proc];
+	status = rpc_call_sync(clnt, &msg, 0);
 	if (status < 0)
 		printk(KERN_DEBUG "nsm_mon_unmon: rpc failed, status=%d\n",
 			status);

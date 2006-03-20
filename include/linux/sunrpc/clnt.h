@@ -140,20 +140,6 @@ size_t		rpc_max_payload(struct rpc_clnt *);
 void		rpc_force_rebind(struct rpc_clnt *);
 int		rpc_ping(struct rpc_clnt *clnt, int flags);
 
-static __inline__
-int rpc_call(struct rpc_clnt *clnt, u32 proc, void *argp, void *resp, int flags)
-{
-	struct rpc_message msg = {
-		.rpc_proc	= &clnt->cl_procinfo[proc],
-		.rpc_argp	= argp,
-		.rpc_resp	= resp,
-		.rpc_cred	= NULL
-	};
-	return rpc_call_sync(clnt, &msg, flags);
-}
-		
-extern void rpciod_wake_up(void);
-
 /*
  * Helper function for NFSroot support
  */

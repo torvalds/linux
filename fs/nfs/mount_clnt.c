@@ -49,9 +49,12 @@ nfsroot_mount(struct sockaddr_in *addr, char *path, struct nfs_fh *fh,
 	struct mnt_fhstatus	result = {
 		.fh		= fh
 	};
+	struct rpc_message msg	= {
+		.rpc_argp	= path,
+		.rpc_resp	= &result,
+	};
 	char			hostname[32];
 	int			status;
-	int			call;
 
 	dprintk("NFS:      nfs_mount(%08x:%s)\n",
 			(unsigned)ntohl(addr->sin_addr.s_addr), path);
@@ -61,8 +64,12 @@ nfsroot_mount(struct sockaddr_in *addr, char *path, struct nfs_fh *fh,
 	if (IS_ERR(mnt_clnt))
 		return PTR_ERR(mnt_clnt);
 
-	call = (version == NFS_MNT3_VERSION) ? MOUNTPROC3_MNT : MNTPROC_MNT;
-	status = rpc_call(mnt_clnt, call, path, &result, 0);
+	if (version == NFS_MNT3_VERSION)
+		msg.rpc_proc = &mnt_clnt->cl_procinfo[MOUNTPROC3_MNT];
+	else
+		msg.rpc_proc = &mnt_clnt->cl_procinfo[MNTPROC_MNT];
+
+	status = rpc_call_sync(mnt_clnt, &msg, 0);
 	return status < 0? status : (result.status? -EACCES : 0);
 }
 
