@@ -155,34 +155,6 @@ u32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock)
  */
 
 /*
- * Mark the locks for reclaiming.
- * FIXME: In 2.5 we don't want to iterate through any global file_lock_list.
- *        Maintain NLM lock reclaiming lists in the nlm_host instead.
- */
-static
-void nlmclnt_mark_reclaim(struct nlm_host *host)
-{
-	struct file_lock *fl;
-	struct inode *inode;
-	struct list_head *tmp;
-
-	list_for_each(tmp, &file_lock_list) {
-		fl = list_entry(tmp, struct file_lock, fl_link);
-
-		inode = fl->fl_file->f_dentry->d_inode;
-		if (inode->i_sb->s_magic != NFS_SUPER_MAGIC)
-			continue;
-		if (fl->fl_u.nfs_fl.owner == NULL)
-			continue;
-		if (fl->fl_u.nfs_fl.owner->host != host)
-			continue;
-		if (!(fl->fl_u.nfs_fl.flags & NFS_LCK_GRANTED))
-			continue;
-		fl->fl_u.nfs_fl.flags |= NFS_LCK_RECLAIM;
-	}
-}
-
-/*
  * Someone has sent us an SM_NOTIFY. Ensure we bind to the new port number,
  * that we mark locks for reclaiming, and that we bump the pseudo NSM state.
  */
@@ -194,7 +166,12 @@ void nlmclnt_prepare_reclaim(struct nlm_host *host, u32 newstate)
 	host->h_state++;
 	host->h_nextrebind = 0;
 	nlm_rebind_host(host);
-	nlmclnt_mark_reclaim(host);
+
+	/*
+	 * Mark the locks for reclaiming.
+	 */
+	list_splice_init(&host->h_granted, &host->h_reclaim);
+
 	dprintk("NLM: reclaiming locks for host %s", host->h_name);
 }
 
@@ -223,9 +200,7 @@ reclaimer(void *ptr)
 {
 	struct nlm_host	  *host = (struct nlm_host *) ptr;
 	struct nlm_wait	  *block;
-	struct list_head *tmp;
-	struct file_lock *fl;
-	struct inode *inode;
+	struct file_lock *fl, *next;
 
 	daemonize("%s-reclaim", host->h_name);
 	allow_signal(SIGKILL);
@@ -237,20 +212,9 @@ reclaimer(void *ptr)
 
 	/* First, reclaim all locks that have been marked. */
 restart:
-	list_for_each(tmp, &file_lock_list) {
-		fl = list_entry(tmp, struct file_lock, fl_link);
+	list_for_each_entry_safe(fl, next, &host->h_reclaim, fl_u.nfs_fl.list) {
+		list_del(&fl->fl_u.nfs_fl.list);
 
-		inode = fl->fl_file->f_dentry->d_inode;
-		if (inode->i_sb->s_magic != NFS_SUPER_MAGIC)
-			continue;
-		if (fl->fl_u.nfs_fl.owner == NULL)
-			continue;
-		if (fl->fl_u.nfs_fl.owner->host != host)
-			continue;
-		if (!(fl->fl_u.nfs_fl.flags & NFS_LCK_RECLAIM))
-			continue;
-
-		fl->fl_u.nfs_fl.flags &= ~NFS_LCK_RECLAIM;
 		nlmclnt_reclaim(host, fl);
 		if (signalled())
 			break;

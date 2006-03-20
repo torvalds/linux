@@ -59,6 +59,8 @@ struct nlm_host {
 	unsigned long		h_expires;	/* eligible for GC */
 	struct list_head	h_lockowners;	/* Lockowners for the client */
 	spinlock_t		h_lock;
+	struct list_head	h_granted;	/* Locks in GRANTED state */
+	struct list_head	h_reclaim;	/* Locks in RECLAIM state */
 };
 
 /*

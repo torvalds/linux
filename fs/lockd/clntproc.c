@@ -465,7 +465,6 @@ static void nlmclnt_locks_init_private(struct file_lock *fl, struct nlm_host *ho
 {
 	BUG_ON(fl->fl_ops != NULL);
 	fl->fl_u.nfs_fl.state = 0;
-	fl->fl_u.nfs_fl.flags = 0;
 	fl->fl_u.nfs_fl.owner = nlm_find_lockowner(host, fl->fl_owner);
 	fl->fl_ops = &nlmclnt_lock_ops;
 }
@@ -552,8 +551,8 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 
 	if (resp->status == NLM_LCK_GRANTED) {
 		fl->fl_u.nfs_fl.state = host->h_state;
-		fl->fl_u.nfs_fl.flags |= NFS_LCK_GRANTED;
 		fl->fl_flags |= FL_SLEEP;
+		list_add_tail(&fl->fl_u.nfs_fl.list, &host->h_granted);
 		do_vfs_lock(fl);
 	}
 	status = nlm_stat_to_errno(resp->status);
@@ -619,9 +618,11 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 	struct nlm_res	*resp = &req->a_res;
 	int		status;
 
-	/* Clean the GRANTED flag now so the lock doesn't get
-	 * reclaimed while we're stuck in the unlock call. */
-	fl->fl_u.nfs_fl.flags &= ~NFS_LCK_GRANTED;
+	/*
+	 * Remove from the granted list now so the lock doesn't get
+	 * reclaimed while we're stuck in the unlock call.
+	 */
+	list_del(&fl->fl_u.nfs_fl.list);
 
 	/*
 	 * Note: the server is supposed to either grant us the unlock

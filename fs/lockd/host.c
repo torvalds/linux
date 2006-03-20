@@ -123,6 +123,8 @@ nlm_lookup_host(int server, struct sockaddr_in *sin,
 	nlm_hosts[hash]    = host;
 	INIT_LIST_HEAD(&host->h_lockowners);
 	spin_lock_init(&host->h_lock);
+	INIT_LIST_HEAD(&host->h_granted);
+	INIT_LIST_HEAD(&host->h_reclaim);
 
 	if (++nrhosts > NLM_HOST_MAX)
 		next_gc = 0;

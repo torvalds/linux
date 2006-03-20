@@ -139,10 +139,7 @@ int lease_break_time = 45;
 #define for_each_lock(inode, lockp) \
 	for (lockp = &inode->i_flock; *lockp != NULL; lockp = &(*lockp)->fl_next)
 
-LIST_HEAD(file_lock_list);
-
-EXPORT_SYMBOL(file_lock_list);
-
+static LIST_HEAD(file_lock_list);
 static LIST_HEAD(blocked_list);
 
 static kmem_cache_t *filelock_cache;
