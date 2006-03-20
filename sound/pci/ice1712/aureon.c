@@ -955,8 +955,8 @@ static int wm_adc_mux_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 
 	mutex_lock(&ice->gpio_mutex);
 	val = wm_get(ice, WM_ADC_MUX);
-	ucontrol->value.integer.value[0] = val & 7;
-	ucontrol->value.integer.value[1] = (val >> 4) & 7;
+	ucontrol->value.enumerated.item[0] = val & 7;
+	ucontrol->value.enumerated.item[1] = (val >> 4) & 7;
 	mutex_unlock(&ice->gpio_mutex);
 	return 0;
 }
@@ -970,8 +970,8 @@ static int wm_adc_mux_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 	snd_ice1712_save_gpio_status(ice);
 	oval = wm_get(ice, WM_ADC_MUX);
 	nval = oval & ~0x77;
-	nval |= ucontrol->value.integer.value[0] & 7;
-	nval |= (ucontrol->value.integer.value[1] & 7) << 4;
+	nval |= ucontrol->value.enumerated.item[0] & 7;
+	nval |= (ucontrol->value.enumerated.item[1] & 7) << 4;
 	change = (oval != nval);
 	if (change)
 		wm_put(ice, WM_ADC_MUX, nval);
@@ -1011,7 +1011,7 @@ static int aureon_cs8415_mux_get(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 
 	//snd_ice1712_save_gpio_status(ice);
 	//val = aureon_cs8415_get(ice, CS8415_CTRL2);
-	ucontrol->value.integer.value[0] = ice->spec.aureon.cs8415_mux;
+	ucontrol->value.enumerated.item[0] = ice->spec.aureon.cs8415_mux;
 	//snd_ice1712_restore_gpio_status(ice);
 	return 0;
 }
@@ -1025,12 +1025,12 @@ static int aureon_cs8415_mux_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	snd_ice1712_save_gpio_status(ice);
 	oval = aureon_cs8415_get(ice, CS8415_CTRL2);
 	nval = oval & ~0x07;
-	nval |= ucontrol->value.integer.value[0] & 7;
+	nval |= ucontrol->value.enumerated.item[0] & 7;
 	change = (oval != nval);
 	if (change)
 		aureon_cs8415_put(ice, CS8415_CTRL2, nval);
 	snd_ice1712_restore_gpio_status(ice);
-	ice->spec.aureon.cs8415_mux = ucontrol->value.integer.value[0];
+	ice->spec.aureon.cs8415_mux = ucontrol->value.enumerated.item[0];
 	return change;
 }
 
