@@ -203,6 +203,7 @@ struct rpc_wait_queue {
 	unsigned char		priority;		/* current priority */
 	unsigned char		count;			/* # task groups remaining serviced so far */
 	unsigned char		nr;			/* # tasks remaining for cookie */
+	unsigned short		qlen;			/* total # tasks waiting in queue */
 #ifdef RPC_DEBUG
 	const char *		name;
 #endif

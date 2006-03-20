@@ -181,6 +181,7 @@ static void __rpc_add_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *
 	else
 		list_add_tail(&task->u.tk_wait.list, &queue->tasks[0]);
 	task->u.tk_wait.rpc_waitq = queue;
+	queue->qlen++;
 	rpc_set_queued(task);
 
 	dprintk("RPC: %4d added to queue %p \"%s\"\n",
@@ -215,6 +216,7 @@ static void __rpc_remove_wait_queue(struct rpc_task *task)
 		__rpc_remove_wait_queue_priority(task);
 	else
 		list_del(&task->u.tk_wait.list);
+	queue->qlen--;
 	dprintk("RPC: %4d removed from queue %p \"%s\"\n",
 				task->tk_pid, queue, rpc_qname(queue));
 }
