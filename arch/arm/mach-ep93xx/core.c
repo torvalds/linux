@@ -45,6 +45,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
+#include <asm/arch/gpio.h>
 
 #include <asm/hardware/vic.h>
 
@@ -144,6 +145,73 @@ struct sys_timer ep93xx_timer = {
 	.init		= ep93xx_timer_init,
 	.offset		= ep93xx_gettimeoffset,
 };
+
+
+/*************************************************************************
+ * GPIO handling for EP93xx
+ *************************************************************************/
+static unsigned char data_register_offset[8] = {
+	0x00, 0x04, 0x08, 0x0c, 0x20, 0x30, 0x38, 0x40,
+};
+
+static unsigned char data_direction_register_offset[8] = {
+	0x10, 0x14, 0x18, 0x1c, 0x24, 0x34, 0x3c, 0x44,
+};
+
+void gpio_line_config(int line, int direction)
+{
+	unsigned int data_direction_register;
+	unsigned long flags;
+	unsigned char v;
+
+	data_direction_register =
+		EP93XX_GPIO_REG(data_direction_register_offset[line >> 3]);
+
+	local_irq_save(flags);
+	if (direction == GPIO_OUT) {
+		v = __raw_readb(data_direction_register);
+		v |= 1 << (line & 7);
+		__raw_writeb(v, data_direction_register);
+	} else if (direction == GPIO_IN) {
+		v = __raw_readb(data_direction_register);
+		v &= ~(1 << (line & 7));
+		__raw_writeb(v, data_direction_register);
+	}
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(gpio_line_config);
+
+int gpio_line_get(int line)
+{
+	unsigned int data_register;
+
+	data_register = EP93XX_GPIO_REG(data_register_offset[line >> 3]);
+
+	return !!(__raw_readb(data_register) & (1 << (line & 7)));
+}
+EXPORT_SYMBOL(gpio_line_get);
+
+void gpio_line_set(int line, int value)
+{
+	unsigned int data_register;
+	unsigned long flags;
+	unsigned char v;
+
+	data_register = EP93XX_GPIO_REG(data_register_offset[line >> 3]);
+
+	local_irq_save(flags);
+	if (value == EP93XX_GPIO_HIGH) {
+		v = __raw_readb(data_register);
+		v |= 1 << (line & 7);
+		__raw_writeb(v, data_register);
+	} else if (value == EP93XX_GPIO_LOW) {
+		v = __raw_readb(data_register);
+		v &= ~(1 << (line & 7));
+		__raw_writeb(v, data_register);
+	}
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(gpio_line_set);
 
 
 /*************************************************************************
