@@ -22,8 +22,8 @@
  *************************************************************************/
 
 #define DRV_NAME	"pcnet32"
-#define DRV_VERSION	"1.31c"
-#define DRV_RELDATE	"01.Nov.2005"
+#define DRV_VERSION	"1.32"
+#define DRV_RELDATE	"18.Mar.2006"
 #define PFX		DRV_NAME ": "
 
 static const char * const version =
@@ -133,7 +133,7 @@ static const char pcnet32_gstrings_test[][ETH_GSTRING_LEN] = {
 };
 #define PCNET32_TEST_LEN (sizeof(pcnet32_gstrings_test) / ETH_GSTRING_LEN)
 
-#define PCNET32_NUM_REGS 168
+#define PCNET32_NUM_REGS 136
 
 #define MAX_UNITS 8	/* More are supported, limit only on options */
 static int options[MAX_UNITS];
@@ -265,6 +265,9 @@ static int homepna[MAX_UNITS];
  * v1.31c  01 Nov 2005 Don Fry Allied Telesyn 2700/2701 FX are 100Mbit only.
  *	   Force 100Mbit FD if Auto (ASEL) is selected.
  *	   See Bugzilla 2669 and 4551.
+ * v1.32   18 Mar2006 Thomas Bogendoerfer and Don Fry added Multi-Phy
+ *	   handling for supporting AT-270x FTX cards with FX and Tx PHYs.
+ *	   Philippe Seewer assisted with auto negotiation and testing.
  */
 
 
@@ -375,6 +378,7 @@ struct pcnet32_private {
     unsigned int	dirty_rx, dirty_tx; /* The ring entries to be free()ed. */
     struct net_device_stats stats;
     char		tx_full;
+    char		phycount;	/* number of phys found */
     int			options;
     unsigned int	shared_irq:1,	/* shared irq possible */
 			dxsuflo:1,	/* disable transmit stop on uflo */
@@ -384,6 +388,9 @@ struct pcnet32_private {
     struct timer_list	watchdog_timer;
     struct timer_list	blink_timer;
     u32			msg_enable;	/* debug message level */
+
+    /* each bit indicates an available PHY */
+    u32			phymask;
 };
 
 static void pcnet32_probe_vlbus(void);
@@ -415,6 +422,7 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 static void pcnet32_purge_tx_ring(struct net_device *dev);
 static int pcnet32_alloc_ring(struct net_device *dev, char *name);
 static void pcnet32_free_ring(struct net_device *dev);
+static void pcnet32_check_media(struct net_device *dev, int verbose);
 
 
 enum pci_flags_bit {
@@ -936,9 +944,14 @@ static int pcnet32_phys_id(struct net_device *dev, u32 data)
     return 0;
 }
 
+#define PCNET32_REGS_PER_PHY	32
+#define PCNET32_MAX_PHYS	32
 static int pcnet32_get_regs_len(struct net_device *dev)
 {
-    return(PCNET32_NUM_REGS * sizeof(u16));
+    struct pcnet32_private *lp = dev->priv;
+    int j = lp->phycount * PCNET32_REGS_PER_PHY;
+
+    return((PCNET32_NUM_REGS + j) * sizeof(u16));
 }
 
 static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
@@ -998,9 +1011,14 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 
     /* read mii phy registers */
     if (lp->mii) {
-	for (i=0; i<32; i++) {
-	    lp->a.write_bcr(ioaddr, 33, ((lp->mii_if.phy_id) << 5) | i);
-	    *buff++ = lp->a.read_bcr(ioaddr, 34);
+	int j;
+	for (j=0; j<PCNET32_MAX_PHYS; j++) {
+	    if (lp->phymask & (1 << j)) {
+		for (i=0; i<PCNET32_REGS_PER_PHY; i++) {
+		    lp->a.write_bcr(ioaddr, 33, (j << 5) | i);
+		    *buff++ = lp->a.read_bcr(ioaddr, 34);
+		}
+	    }
 	}
     }
 
@@ -1008,10 +1026,6 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	/* clear SUSPEND (SPND) - CSR5 bit 0 */
 	a->write_csr(ioaddr, 5, 0x0000);
     }
-
-    i = buff - (u16 *)ptr;
-    for (; i < PCNET32_NUM_REGS; i++)
-	*buff++ = 0;
 
     spin_unlock_irqrestore(&lp->lock, flags);
 }
@@ -1185,7 +1199,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	if (cards_found < MAX_UNITS && homepna[cards_found])
 	    media |= 1; 	/* switch to home wiring mode */
 	if (pcnet32_debug & NETIF_MSG_PROBE)
-	    printk(KERN_DEBUG PFX "media set to %sMbit mode.\n", 
+	    printk(KERN_DEBUG PFX "media set to %sMbit mode.\n",
 		    (media & 1) ? "1" : "10");
 	a->write_bcr(ioaddr, 49, media);
 	break;
@@ -1401,8 +1415,34 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
     }
 
     /* Set the mii phy_id so that we can query the link state */
-    if (lp->mii)
+    if (lp->mii) {
+	/* lp->phycount and lp->phymask are set to 0 by memset above */
+
 	lp->mii_if.phy_id = ((lp->a.read_bcr (ioaddr, 33)) >> 5) & 0x1f;
+	/* scan for PHYs */
+	for (i=0; i<PCNET32_MAX_PHYS; i++) {
+	    unsigned short id1, id2;
+
+	    id1 = mdio_read(dev, i, MII_PHYSID1);
+	    if (id1 == 0xffff)
+		continue;
+	    id2 = mdio_read(dev, i, MII_PHYSID2);
+	    if (id2 == 0xffff)
+		continue;
+	    if (i == 31 && ((chip_version + 1) & 0xfffe) == 0x2624)
+		continue;	/* 79C971 & 79C972 have phantom phy at id 31 */
+	    lp->phycount++;
+	    lp->phymask |= (1 << i);
+	    lp->mii_if.phy_id = i;
+	    if (pcnet32_debug & NETIF_MSG_PROBE)
+		printk(KERN_INFO PFX "Found PHY %04x:%04x at address %d.\n",
+			id1, id2, i);
+	}
+	lp->a.write_bcr(ioaddr, 33, (lp->mii_if.phy_id) << 5);
+	if (lp->phycount > 1) {
+	    lp->options |= PCNET32_PORT_MII;
+	}
+    }
 
     init_timer (&lp->watchdog_timer);
     lp->watchdog_timer.data = (unsigned long) dev;
@@ -1625,7 +1665,7 @@ pcnet32_open(struct net_device *dev)
 			dev->name);
 	}
     }
-    {
+    if (lp->phycount < 2) {
 	/*
 	 * 24 Jun 2004 according AMD, in order to change the PHY,
 	 * DANAS (or DISPM for 79C976) must be set; then select the speed,
@@ -1651,6 +1691,62 @@ pcnet32_open(struct net_device *dev)
 		lp->a.write_bcr(ioaddr, 32, val);
 	    }
 	}
+    } else {
+ 	int first_phy = -1;
+ 	u16 bmcr;
+ 	u32 bcr9;
+ 	struct ethtool_cmd ecmd;
+
+ 	/*
+ 	 * There is really no good other way to handle multiple PHYs
+ 	 * other than turning off all automatics
+ 	 */
+	val = lp->a.read_bcr(ioaddr, 2);
+	lp->a.write_bcr(ioaddr, 2, val & ~2);
+ 	val = lp->a.read_bcr(ioaddr, 32);
+ 	lp->a.write_bcr(ioaddr, 32, val & ~(1 << 7)); /* stop MII manager */
+
+	if (!(lp->options & PCNET32_PORT_ASEL)) {
+	    /* setup ecmd */
+	    ecmd.port = PORT_MII;
+	    ecmd.transceiver = XCVR_INTERNAL;
+	    ecmd.autoneg = AUTONEG_DISABLE;
+	    ecmd.speed = lp->options & PCNET32_PORT_100 ? SPEED_100 : SPEED_10;
+	    bcr9 = lp->a.read_bcr(ioaddr, 9);
+
+	    if (lp->options & PCNET32_PORT_FD) {
+		ecmd.duplex = DUPLEX_FULL;
+		bcr9 |= (1 << 0);
+	    } else {
+		ecmd.duplex = DUPLEX_HALF;
+		bcr9 |= ~(1 << 0);
+	    }
+	    lp->a.write_bcr(ioaddr, 9, bcr9);
+	}
+
+ 	for (i=0; i<PCNET32_MAX_PHYS; i++) {
+ 	    if (lp->phymask & (1 << i)) {
+ 		/* isolate all but the first PHY */
+ 		bmcr = mdio_read(dev, i, MII_BMCR);
+ 		if (first_phy == -1) {
+ 		    first_phy = i;
+ 		    mdio_write(dev, i, MII_BMCR, bmcr & ~BMCR_ISOLATE);
+ 		} else {
+ 		    mdio_write(dev, i, MII_BMCR, bmcr | BMCR_ISOLATE);
+ 		}
+ 		/* use mii_ethtool_sset to setup PHY */
+ 		lp->mii_if.phy_id = i;
+ 		ecmd.phy_address = i;
+		if (lp->options & PCNET32_PORT_ASEL) {
+		    mii_ethtool_gset(&lp->mii_if, &ecmd);
+		    ecmd.autoneg = AUTONEG_ENABLE;
+		}
+ 		mii_ethtool_sset(&lp->mii_if, &ecmd);
+ 	    }
+ 	}
+ 	lp->mii_if.phy_id = first_phy;
+	if (netif_msg_link(lp))
+	    printk(KERN_INFO "%s: Using PHY number %d.\n", dev->name, first_phy);
     }
 
 #ifdef DO_DXSUFLO
@@ -1680,11 +1776,9 @@ pcnet32_open(struct net_device *dev)
 
     netif_start_queue(dev);
 
-    /* If we have mii, print the link status and start the watchdog */
-    if (lp->mii) {
-	mii_check_media (&lp->mii_if, netif_msg_link(lp), 1);
-	mod_timer (&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
-    }
+    /* Print the link status and start the watchdog */
+    pcnet32_check_media (dev, 1);
+    mod_timer (&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
 
     i = 0;
     while (i++ < 100)
@@ -2430,17 +2524,111 @@ static int pcnet32_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     return rc;
 }
 
+static int pcnet32_check_otherphy(struct net_device *dev)
+{
+    struct pcnet32_private *lp = dev->priv;
+    struct mii_if_info mii = lp->mii_if;
+    u16 bmcr;
+    int i;
+
+    for (i = 0; i < PCNET32_MAX_PHYS; i++) {
+	if (i == lp->mii_if.phy_id)
+	    continue; /* skip active phy */
+	if (lp->phymask & (1 << i)) {
+	    mii.phy_id = i;
+	    if (mii_link_ok(&mii)) {
+		/* found PHY with active link */
+		if (netif_msg_link(lp))
+		    printk(KERN_INFO "%s: Using PHY number %d.\n", dev->name, i);
+
+		/* isolate inactive phy */
+		bmcr = mdio_read(dev, lp->mii_if.phy_id, MII_BMCR);
+		mdio_write(dev, lp->mii_if.phy_id, MII_BMCR, bmcr | BMCR_ISOLATE);
+
+		/* de-isolate new phy */
+		bmcr = mdio_read(dev, i, MII_BMCR);
+		mdio_write(dev, i, MII_BMCR, bmcr & ~BMCR_ISOLATE);
+
+		/* set new phy address */
+		lp->mii_if.phy_id = i;
+		return 1;
+	    }
+	}
+    }
+    return 0;
+}
+
+/*
+ * Show the status of the media.  Similar to mii_check_media however it
+ * correctly shows the link speed for all (tested) pcnet32 variants.
+ * Devices with no mii just report link state without speed.
+ *
+ * Caller is assumed to hold and release the lp->lock.
+ */
+
+static void pcnet32_check_media(struct net_device *dev, int verbose)
+{
+    struct pcnet32_private *lp = dev->priv;
+    int curr_link;
+    int prev_link = netif_carrier_ok(dev) ? 1 : 0;
+    u32 bcr9;
+
+    if (lp->mii) {
+	curr_link = mii_link_ok(&lp->mii_if);
+    } else {
+	ulong ioaddr = dev->base_addr;	/* card base I/O address */
+	curr_link = (lp->a.read_bcr(ioaddr, 4) != 0xc0);
+    }
+    if (!curr_link) {
+	if (prev_link || verbose) {
+	    netif_carrier_off(dev);
+	    if (netif_msg_link(lp))
+		printk(KERN_INFO "%s: link down\n", dev->name);
+	}
+	if (lp->phycount > 1) {
+	    curr_link = pcnet32_check_otherphy(dev);
+	    prev_link = 0;
+	}
+    } else if (verbose || !prev_link) {
+	netif_carrier_on(dev);
+	if (lp->mii) {
+	    if (netif_msg_link(lp)) {
+		struct ethtool_cmd ecmd;
+		mii_ethtool_gset(&lp->mii_if, &ecmd);
+		printk(KERN_INFO "%s: link up, %sMbps, %s-duplex\n",
+		    dev->name,
+		    (ecmd.speed == SPEED_100) ? "100" : "10",
+		    (ecmd.duplex == DUPLEX_FULL) ? "full" : "half");
+	    }
+	    bcr9 = lp->a.read_bcr(dev->base_addr, 9);
+	    if ((bcr9 & (1 << 0)) != lp->mii_if.full_duplex)   {
+		if (lp->mii_if.full_duplex)
+		    bcr9 |= (1 << 0);
+		else
+		    bcr9 &= ~(1 << 0);
+		lp->a.write_bcr(dev->base_addr, 9, bcr9);
+	    }
+	} else {
+	    if (netif_msg_link(lp))
+		printk(KERN_INFO "%s: link up\n", dev->name);
+	}
+    }
+}
+
+/*
+ * Check for loss of link and link establishment.
+ * Can not use mii_check_media because it does nothing if mode is forced.
+ */
+
 static void pcnet32_watchdog(struct net_device *dev)
 {
     struct pcnet32_private *lp = dev->priv;
     unsigned long flags;
 
     /* Print the link status if it has changed */
-    if (lp->mii) {
-	spin_lock_irqsave(&lp->lock, flags);
-	mii_check_media (&lp->mii_if, netif_msg_link(lp), 0);
-	spin_unlock_irqrestore(&lp->lock, flags);
-    }
+    spin_lock_irqsave(&lp->lock, flags);
+    pcnet32_check_media(dev, 0);
+    spin_unlock_irqrestore(&lp->lock, flags);
 
     mod_timer (&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
 }
