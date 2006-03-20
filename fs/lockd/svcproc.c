@@ -508,8 +508,7 @@ nlmsvc_callback(struct svc_rqst *rqstp, u32 proc, struct nlm_res *resp)
 	if (!(call = nlmclnt_alloc_call()))
 		return rpc_system_err;
 
-	host = nlmclnt_lookup_host(&rqstp->rq_addr,
-				rqstp->rq_prot, rqstp->rq_vers);
+	host = nlmsvc_lookup_host(rqstp);
 	if (!host) {
 		kfree(call);
 		return rpc_system_err;
