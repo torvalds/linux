@@ -376,8 +376,6 @@ u32
 nlmsvc_testlock(struct nlm_file *file, struct nlm_lock *lock,
 				       struct nlm_lock *conflock)
 {
-	struct file_lock	*fl;
-
 	dprintk("lockd: nlmsvc_testlock(%s/%ld, ty=%d, %Ld-%Ld)\n",
 				file->f_file->f_dentry->d_inode->i_sb->s_id,
 				file->f_file->f_dentry->d_inode->i_ino,
@@ -385,14 +383,14 @@ nlmsvc_testlock(struct nlm_file *file, struct nlm_lock *lock,
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end);
 
-	if ((fl = posix_test_lock(file->f_file, &lock->fl)) != NULL) {
+	if (posix_test_lock(file->f_file, &lock->fl, &conflock->fl)) {
 		dprintk("lockd: conflicting lock(ty=%d, %Ld-%Ld)\n",
-				fl->fl_type, (long long)fl->fl_start,
-				(long long)fl->fl_end);
+				conflock->fl.fl_type,
+				(long long)conflock->fl.fl_start,
+				(long long)conflock->fl.fl_end);
 		conflock->caller = "somehost";	/* FIXME */
 		conflock->oh.len = 0;		/* don't return OH info */
-		conflock->svid = fl->fl_pid;
-		conflock->fl = *fl;
+		conflock->svid = conflock->fl.fl_pid;
 		return nlm_lck_denied;
 	}
 

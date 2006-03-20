@@ -672,8 +672,9 @@ static int locks_block_on_timeout(struct file_lock *blocker, struct file_lock *w
 	return result;
 }
 
-struct file_lock *
-posix_test_lock(struct file *filp, struct file_lock *fl)
+int
+posix_test_lock(struct file *filp, struct file_lock *fl,
+		struct file_lock *conflock)
 {
 	struct file_lock *cfl;
 
@@ -684,9 +685,13 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 		if (posix_locks_conflict(cfl, fl))
 			break;
 	}
+	if (cfl) {
+		locks_copy_lock(conflock, cfl);
+		unlock_kernel();
+		return 1;
+	}
 	unlock_kernel();
-
-	return (cfl);
+	return 0;
 }
 
 EXPORT_SYMBOL(posix_test_lock);
@@ -1563,7 +1568,7 @@ asmlinkage long sys_flock(unsigned int fd, unsigned int cmd)
  */
 int fcntl_getlk(struct file *filp, struct flock __user *l)
 {
-	struct file_lock *fl, file_lock;
+	struct file_lock *fl, cfl, file_lock;
 	struct flock flock;
 	int error;
 
@@ -1587,7 +1592,7 @@ int fcntl_getlk(struct file *filp, struct flock __user *l)
 		else
 		  fl = (file_lock.fl_type == F_UNLCK ? NULL : &file_lock);
 	} else {
-		fl = posix_test_lock(filp, &file_lock);
+		fl = (posix_test_lock(filp, &file_lock, &cfl) ? &cfl : NULL);
 	}
  
 	flock.l_type = F_UNLCK;
@@ -1717,7 +1722,7 @@ out:
  */
 int fcntl_getlk64(struct file *filp, struct flock64 __user *l)
 {
-	struct file_lock *fl, file_lock;
+	struct file_lock *fl, cfl, file_lock;
 	struct flock64 flock;
 	int error;
 
@@ -1741,7 +1746,7 @@ int fcntl_getlk64(struct file *filp, struct flock64 __user *l)
 		else
 		  fl = (file_lock.fl_type == F_UNLCK ? NULL : &file_lock);
 	} else {
-		fl = posix_test_lock(filp, &file_lock);
+		fl = (posix_test_lock(filp, &file_lock, &cfl) ? &cfl : NULL);
 	}
  
 	flock.l_type = F_UNLCK;
