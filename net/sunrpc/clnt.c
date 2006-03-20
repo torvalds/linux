@@ -996,6 +996,8 @@ call_timeout(struct rpc_task *task)
 	}
 
 	dprintk("RPC: %4d call_timeout (major)\n", task->tk_pid);
+	task->tk_timeouts++;
+
 	if (RPC_IS_SOFT(task)) {
 		printk(KERN_NOTICE "%s: server %s not responding, timed out\n",
 				clnt->cl_protname, clnt->cl_server);

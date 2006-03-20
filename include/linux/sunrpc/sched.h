@@ -86,6 +86,12 @@ struct rpc_task {
 		struct work_struct	tk_work;	/* Async task work queue */
 		struct rpc_wait		tk_wait;	/* RPC wait */
 	} u;
+
+	unsigned short		tk_timeouts;	/* maj timeouts */
+	size_t			tk_bytes_sent;	/* total bytes sent */
+	unsigned long		tk_start;	/* RPC task init timestamp */
+	long			tk_rtt;		/* round-trip time (jiffies) */
+
 #ifdef RPC_DEBUG
 	unsigned short		tk_pid;		/* debugging aid */
 #endif

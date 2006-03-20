@@ -817,6 +817,9 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, cons
 
 	BUG_ON(task->tk_ops == NULL);
 
+	/* starting timestamp */
+	task->tk_start = jiffies;
+
 	dprintk("RPC: %4d new task procpid %d\n", task->tk_pid,
 				current->pid);
 }

@@ -648,6 +648,8 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 			task->tk_pid, ntohl(req->rq_xid), copied);
 
 	task->tk_xprt->stat.recvs++;
+	task->tk_rtt = (long)jiffies - req->rq_xtime;
+
 	list_del_init(&req->rq_list);
 	req->rq_received = req->rq_private_buf.len = copied;
 	rpc_wake_up_task(task);
