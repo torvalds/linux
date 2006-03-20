@@ -40,9 +40,39 @@ static const struct rpc_call_ops nfs_read_partial_ops;
 static const struct rpc_call_ops nfs_read_full_ops;
 
 static kmem_cache_t *nfs_rdata_cachep;
-mempool_t *nfs_rdata_mempool;
+static mempool_t *nfs_rdata_mempool;
 
 #define MIN_POOL_READ	(32)
+
+struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
+{
+	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, SLAB_NOFS);
+
+	if (p) {
+		memset(p, 0, sizeof(*p));
+		INIT_LIST_HEAD(&p->pages);
+		if (pagecount < NFS_PAGEVEC_SIZE)
+			p->pagevec = &p->page_array[0];
+		else {
+			size_t size = ++pagecount * sizeof(struct page *);
+			p->pagevec = kmalloc(size, GFP_NOFS);
+			if (p->pagevec) {
+				memset(p->pagevec, 0, size);
+			} else {
+				mempool_free(p, nfs_rdata_mempool);
+				p = NULL;
+			}
+		}
+	}
+	return p;
+}
+
+void nfs_readdata_free(struct nfs_read_data *p)
+{
+	if (p && (p->pagevec != &p->page_array[0]))
+		kfree(p->pagevec);
+	mempool_free(p, nfs_rdata_mempool);
+}
 
 void nfs_readdata_release(void *data)
 {

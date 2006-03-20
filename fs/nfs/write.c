@@ -86,7 +86,7 @@ static const struct rpc_call_ops nfs_write_full_ops;
 static const struct rpc_call_ops nfs_commit_ops;
 
 static kmem_cache_t *nfs_wdata_cachep;
-mempool_t *nfs_wdata_mempool;
+static mempool_t *nfs_wdata_mempool;
 static mempool_t *nfs_commit_mempool;
 
 static DECLARE_WAIT_QUEUE_HEAD(nfs_write_congestion);
@@ -117,6 +117,36 @@ void nfs_commit_free(struct nfs_write_data *p)
 	if (p && (p->pagevec != &p->page_array[0]))
 		kfree(p->pagevec);
 	mempool_free(p, nfs_commit_mempool);
+}
+
+struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
+{
+	struct nfs_write_data *p = mempool_alloc(nfs_wdata_mempool, SLAB_NOFS);
+
+	if (p) {
+		memset(p, 0, sizeof(*p));
+		INIT_LIST_HEAD(&p->pages);
+		if (pagecount < NFS_PAGEVEC_SIZE)
+			p->pagevec = &p->page_array[0];
+		else {
+			size_t size = ++pagecount * sizeof(struct page *);
+			p->pagevec = kmalloc(size, GFP_NOFS);
+			if (p->pagevec) {
+				memset(p->pagevec, 0, size);
+			} else {
+				mempool_free(p, nfs_wdata_mempool);
+				p = NULL;
+			}
+		}
+	}
+	return p;
+}
+
+void nfs_writedata_free(struct nfs_write_data *p)
+{
+	if (p && (p->pagevec != &p->page_array[0]))
+		kfree(p->pagevec);
+	mempool_free(p, nfs_wdata_mempool);
 }
 
 void nfs_writedata_release(void *wdata)

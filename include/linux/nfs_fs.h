@@ -462,37 +462,8 @@ static inline int nfs_wb_page(struct inode *inode, struct page* page)
 /*
  * Allocate and free nfs_write_data structures
  */
-extern mempool_t *nfs_wdata_mempool;
-
-static inline struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
-{
-	struct nfs_write_data *p = mempool_alloc(nfs_wdata_mempool, SLAB_NOFS);
-
-	if (p) {
-		memset(p, 0, sizeof(*p));
-		INIT_LIST_HEAD(&p->pages);
-		if (pagecount < NFS_PAGEVEC_SIZE)
-			p->pagevec = &p->page_array[0];
-		else {
-			size_t size = ++pagecount * sizeof(struct page *);
-			p->pagevec = kmalloc(size, GFP_NOFS);
-			if (p->pagevec) {
-				memset(p->pagevec, 0, size);
-			} else {
-				mempool_free(p, nfs_wdata_mempool);
-				p = NULL;
-			}
-		}
-	}
-	return p;
-}
-
-static inline void nfs_writedata_free(struct nfs_write_data *p)
-{
-	if (p && (p->pagevec != &p->page_array[0]))
-		kfree(p->pagevec);
-	mempool_free(p, nfs_wdata_mempool);
-}
+extern struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount);
+extern void nfs_writedata_free(struct nfs_write_data *p);
 
 /*
  * linux/fs/nfs/read.c
@@ -503,41 +474,11 @@ extern int  nfs_readpages(struct file *, struct address_space *,
 extern int  nfs_readpage_result(struct rpc_task *, struct nfs_read_data *);
 extern void nfs_readdata_release(void *data);
 
-
 /*
  * Allocate and free nfs_read_data structures
  */
-extern mempool_t *nfs_rdata_mempool;
-
-static inline struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
-{
-	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, SLAB_NOFS);
-
-	if (p) {
-		memset(p, 0, sizeof(*p));
-		INIT_LIST_HEAD(&p->pages);
-		if (pagecount < NFS_PAGEVEC_SIZE)
-			p->pagevec = &p->page_array[0];
-		else {
-			size_t size = ++pagecount * sizeof(struct page *);
-			p->pagevec = kmalloc(size, GFP_NOFS);
-			if (p->pagevec) {
-				memset(p->pagevec, 0, size);
-			} else {
-				mempool_free(p, nfs_rdata_mempool);
-				p = NULL;
-			}
-		}
-	}
-	return p;
-}
-
-static inline void nfs_readdata_free(struct nfs_read_data *p)
-{
-	if (p && (p->pagevec != &p->page_array[0]))
-		kfree(p->pagevec);
-	mempool_free(p, nfs_rdata_mempool);
-}
+extern struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount);
+extern void nfs_readdata_free(struct nfs_read_data *p);
 
 /*
  * linux/fs/nfs3proc.c
