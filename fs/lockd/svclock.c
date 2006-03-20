@@ -117,12 +117,12 @@ nlmsvc_lookup_block(struct nlm_file *file, struct nlm_lock *lock, int remove)
 				(long long)lock->fl.fl_start,
 				(long long)lock->fl.fl_end, lock->fl.fl_type);
 	for (head = &nlm_blocked; (block = *head) != 0; head = &block->b_next) {
-		fl = &block->b_call.a_args.lock.fl;
+		fl = &block->b_call->a_args.lock.fl;
 		dprintk("lockd: check f=%p pd=%d %Ld-%Ld ty=%d cookie=%s\n",
 				block->b_file, fl->fl_pid,
 				(long long)fl->fl_start,
 				(long long)fl->fl_end, fl->fl_type,
-				nlmdbg_cookie2a(&block->b_call.a_args.cookie));
+				nlmdbg_cookie2a(&block->b_call->a_args.cookie));
 		if (block->b_file == file && nlm_compare_locks(fl, &lock->fl)) {
 			if (remove) {
 				*head = block->b_next;
@@ -156,7 +156,7 @@ nlmsvc_find_block(struct nlm_cookie *cookie,  struct sockaddr_in *sin)
 	for (block = nlm_blocked; block; block = block->b_next) {
 		dprintk("cookie: head of blocked queue %p, block %p\n", 
 			nlm_blocked, block);
-		if (nlm_cookie_match(&block->b_call.a_args.cookie,cookie)
+		if (nlm_cookie_match(&block->b_call->a_args.cookie,cookie)
 				&& nlm_cmp_addr(sin, &block->b_host->h_addr))
 			break;
 	}
@@ -182,28 +182,30 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_file *file,
 {
 	struct nlm_block	*block;
 	struct nlm_host		*host;
-	struct nlm_rqst		*call;
+	struct nlm_rqst		*call = NULL;
 
 	/* Create host handle for callback */
 	host = nlmsvc_lookup_host(rqstp);
 	if (host == NULL)
 		return NULL;
 
+	call = nlm_alloc_call(host);
+	if (call == NULL)
+		return NULL;
+
 	/* Allocate memory for block, and initialize arguments */
-	if (!(block = (struct nlm_block *) kmalloc(sizeof(*block), GFP_KERNEL)))
+	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	if (block == NULL)
 		goto failed;
-	memset(block, 0, sizeof(*block));
-	locks_init_lock(&block->b_call.a_args.lock.fl);
-	locks_init_lock(&block->b_call.a_res.lock.fl);
 	kref_init(&block->b_count);
 
-	if (!nlmsvc_setgrantargs(&block->b_call, lock))
+	if (!nlmsvc_setgrantargs(call, lock))
 		goto failed_free;
 
 	/* Set notifier function for VFS, and init args */
-	block->b_call.a_args.lock.fl.fl_flags |= FL_SLEEP;
-	block->b_call.a_args.lock.fl.fl_lmops = &nlmsvc_lock_operations;
-	block->b_call.a_args.cookie = *cookie;	/* see above */
+	call->a_args.lock.fl.fl_flags |= FL_SLEEP;
+	call->a_args.lock.fl.fl_lmops = &nlmsvc_lock_operations;
+	call->a_args.cookie = *cookie;	/* see above */
 
 	dprintk("lockd: created block %p...\n", block);
 
@@ -217,16 +219,16 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_file *file,
 	file->f_blocks  = block;
 
 	/* Set up RPC arguments for callback */
-	call = &block->b_call;
-	call->a_host    = host;
+	block->b_call = call;
 	call->a_flags   = RPC_TASK_ASYNC;
+	call->a_block = block;
 
 	return block;
 
 failed_free:
 	kfree(block);
 failed:
-	nlm_release_host(host);
+	nlm_release_call(call);
 	return NULL;
 }
 
@@ -242,7 +244,7 @@ static int nlmsvc_unlink_block(struct nlm_block *block)
 	dprintk("lockd: unlinking block %p...\n", block);
 
 	/* Remove block from list */
-	status = posix_unblock_lock(block->b_file->f_file, &block->b_call.a_args.lock.fl);
+	status = posix_unblock_lock(block->b_file->f_file, &block->b_call->a_args.lock.fl);
 	nlmsvc_remove_block(block);
 	return status;
 }
@@ -263,9 +265,8 @@ static void nlmsvc_free_block(struct kref *kref)
 		}
 	}
 
-	if (block->b_host)
-		nlm_release_host(block->b_host);
-	nlmsvc_freegrantargs(&block->b_call);
+	nlmsvc_freegrantargs(block->b_call);
+	nlm_release_call(block->b_call);
 	kfree(block);
 }
 
@@ -316,10 +317,8 @@ static int nlmsvc_setgrantargs(struct nlm_rqst *call, struct nlm_lock *lock)
 
 	if (lock->oh.len > NLMCLNT_OHSIZE) {
 		void *data = kmalloc(lock->oh.len, GFP_KERNEL);
-		if (!data) {
-			nlmsvc_freegrantargs(call);
+		if (!data)
 			return 0;
-		}
 		call->a_args.lock.oh.data = (u8 *) data;
 	}
 
@@ -329,17 +328,8 @@ static int nlmsvc_setgrantargs(struct nlm_rqst *call, struct nlm_lock *lock)
 
 static void nlmsvc_freegrantargs(struct nlm_rqst *call)
 {
-	struct file_lock *fl = &call->a_args.lock.fl;
-	/*
-	 * Check whether we allocated memory for the owner.
-	 */
-	if (call->a_args.lock.oh.data != (u8 *) call->a_owner) {
+	if (call->a_args.lock.oh.data != call->a_owner)
 		kfree(call->a_args.lock.oh.data);
-	}
-	if (fl->fl_ops && fl->fl_ops->fl_release_private)
-		fl->fl_ops->fl_release_private(fl);
-	if (fl->fl_lmops && fl->fl_lmops->fl_release_private)
-		fl->fl_lmops->fl_release_private(fl);
 }
 
 /*
@@ -371,9 +361,9 @@ again:
 	block = nlmsvc_lookup_block(file, lock, 0);
 	if (block == NULL) {
 		if (newblock != NULL)
-			lock = &newblock->b_call.a_args.lock;
+			lock = &newblock->b_call->a_args.lock;
 	} else
-		lock = &block->b_call.a_args.lock;
+		lock = &block->b_call->a_args.lock;
 
 	error = posix_lock_file(file->f_file, &lock->fl);
 	lock->fl.fl_flags &= ~FL_SLEEP;
@@ -523,7 +513,7 @@ nlmsvc_notify_blocked(struct file_lock *fl)
 
 	dprintk("lockd: VFS unblock notification for block %p\n", fl);
 	for (bp = &nlm_blocked; (block = *bp) != 0; bp = &block->b_next) {
-		if (nlm_compare_locks(&block->b_call.a_args.lock.fl, fl)) {
+		if (nlm_compare_locks(&block->b_call->a_args.lock.fl, fl)) {
 			nlmsvc_insert_block(block, 0);
 			svc_wake_up(block->b_daemon);
 			return;
@@ -558,7 +548,7 @@ static void
 nlmsvc_grant_blocked(struct nlm_block *block)
 {
 	struct nlm_file		*file = block->b_file;
-	struct nlm_lock		*lock = &block->b_call.a_args.lock;
+	struct nlm_lock		*lock = &block->b_call->a_args.lock;
 	int			error;
 
 	dprintk("lockd: grant blocked lock %p\n", block);
@@ -606,7 +596,7 @@ callback:
 
 	/* Call the client */
 	kref_get(&block->b_count);
-	if (nlmsvc_async_call(&block->b_call, NLMPROC_GRANTED_MSG,
+	if (nlm_async_call(block->b_call, NLMPROC_GRANTED_MSG,
 						&nlmsvc_grant_ops) < 0)
 		nlmsvc_release_block(block);
 out_unlock:
@@ -624,7 +614,7 @@ out_unlock:
 static void nlmsvc_grant_callback(struct rpc_task *task, void *data)
 {
 	struct nlm_rqst		*call = data;
-	struct nlm_block	*block = container_of(call, struct nlm_block, b_call);
+	struct nlm_block	*block = call->a_block;
 	unsigned long		timeout;
 
 	dprintk("lockd: GRANT_MSG RPC callback\n");

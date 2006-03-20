@@ -86,8 +86,9 @@ struct nlm_rqst {
 	struct nlm_host *	a_host;		/* host handle */
 	struct nlm_args		a_args;		/* arguments */
 	struct nlm_res		a_res;		/* result */
+	struct nlm_block *	a_block;
 	unsigned int		a_retries;	/* Retry count */
-	char			a_owner[NLMCLNT_OHSIZE];
+	u8			a_owner[NLMCLNT_OHSIZE];
 };
 
 /*
@@ -115,7 +116,7 @@ struct nlm_block {
 	struct kref		b_count;	/* Reference count */
 	struct nlm_block *	b_next;		/* linked list (all blocks) */
 	struct nlm_block *	b_fnext;	/* linked list (per file) */
-	struct nlm_rqst		b_call;		/* RPC args & callback info */
+	struct nlm_rqst	*	b_call;		/* RPC args & callback info */
 	struct svc_serv *	b_daemon;	/* NLM service */
 	struct nlm_host *	b_host;		/* host handle for RPC clnt */
 	unsigned long		b_when;		/* next re-xmit */
@@ -147,7 +148,9 @@ extern unsigned long		nlmsvc_timeout;
 /*
  * Lockd client functions
  */
-struct nlm_rqst * nlmclnt_alloc_call(void);
+struct nlm_rqst * nlm_alloc_call(struct nlm_host *host);
+void		  nlm_release_call(struct nlm_rqst *);
+int		  nlm_async_call(struct nlm_rqst *, u32, const struct rpc_call_ops *);
 struct nlm_wait * nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *fl);
 void		  nlmclnt_finish_block(struct nlm_wait *block);
 int		  nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout);
@@ -172,7 +175,6 @@ extern struct nlm_host *nlm_find_client(void);
 /*
  * Server-side lock handling
  */
-int		  nlmsvc_async_call(struct nlm_rqst *, u32, const struct rpc_call_ops *);
 u32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
 					struct nlm_lock *, int, struct nlm_cookie *);
 u32		  nlmsvc_unlock(struct nlm_file *, struct nlm_lock *);

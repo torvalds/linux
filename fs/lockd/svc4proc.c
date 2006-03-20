@@ -480,43 +480,37 @@ nlm4svc_callback(struct svc_rqst *rqstp, u32 proc, struct nlm_res *resp)
 	struct nlm_host	*host;
 	struct nlm_rqst	*call;
 
-	if (!(call = nlmclnt_alloc_call()))
+	host = nlmsvc_lookup_host(rqstp);
+	if (host == NULL)
 		return rpc_system_err;
 
-	host = nlmsvc_lookup_host(rqstp);
-	if (!host) {
-		kfree(call);
+	call = nlm_alloc_call(host);
+	if (call == NULL)
 		return rpc_system_err;
-	}
+
 
 	call->a_flags = RPC_TASK_ASYNC;
-	call->a_host  = host;
 	memcpy(&call->a_args, resp, sizeof(*resp));
 
-	if (nlmsvc_async_call(call, proc, &nlm4svc_callback_ops) < 0)
-		goto error;
-
+	if (nlm_async_call(call, proc, &nlm4svc_callback_ops) < 0)
+		return rpc_system_err;
 	return rpc_success;
- error:
-	kfree(call);
-	nlm_release_host(host);
-	return rpc_system_err;
 }
 
 static void nlm4svc_callback_exit(struct rpc_task *task, void *data)
 {
-	struct nlm_rqst	*call = data;
+	dprintk("lockd: %4d callback returned %d\n", task->tk_pid,
+			-task->tk_status);
+}
 
-	if (task->tk_status < 0) {
-		dprintk("lockd: %4d callback failed (errno = %d)\n",
-					task->tk_pid, -task->tk_status);
-	}
-	nlm_release_host(call->a_host);
-	kfree(call);
+static void nlm4svc_callback_release(void *data)
+{
+	nlm_release_call(data);
 }
 
 static const struct rpc_call_ops nlm4svc_callback_ops = {
 	.rpc_call_done = nlm4svc_callback_exit,
+	.rpc_release = nlm4svc_callback_release,
 };
 
 /*
