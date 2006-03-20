@@ -2066,6 +2066,27 @@ static void sky2_mac_intr(struct sky2_hw *hw, unsigned port)
 	}
 }
 
+/* This should never happen it is a fatal situation */
+static void sky2_descriptor_error(struct sky2_hw *hw, unsigned port,
+				  const char *rxtx, u32 mask)
+{
+	struct net_device *dev = hw->dev[port];
+	struct sky2_port *sky2 = netdev_priv(dev);
+	u32 imask;
+
+	printk(KERN_ERR PFX "%s: %s descriptor error (hardware problem)\n",
+	       dev ? dev->name : "<not registered>", rxtx);
+
+	imask = sky2_read32(hw, B0_IMSK);
+	imask &= ~mask;
+	sky2_write32(hw, B0_IMSK, imask);
+
+	if (dev) {
+		spin_lock(&sky2->phy_lock);
+		sky2_link_down(sky2);
+		spin_unlock(&sky2->phy_lock);
+	}
+}
 
 static int sky2_poll(struct net_device *dev0, int *budget)
 {
@@ -2074,20 +2095,34 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	int work_done = 0;
 	u32 status = sky2_read32(hw, B0_Y2_SP_EISR);
 
-	if (status & Y2_IS_HW_ERR)
-		sky2_hw_intr(hw);
+	if (unlikely(status & ~Y2_IS_STAT_BMU)) {
+		if (status & Y2_IS_HW_ERR)
+			sky2_hw_intr(hw);
 
-	if (status & Y2_IS_IRQ_PHY1)
-		sky2_phy_intr(hw, 0);
+		if (status & Y2_IS_IRQ_PHY1)
+			sky2_phy_intr(hw, 0);
 
-	if (status & Y2_IS_IRQ_PHY2)
-		sky2_phy_intr(hw, 1);
+		if (status & Y2_IS_IRQ_PHY2)
+			sky2_phy_intr(hw, 1);
 
-	if (status & Y2_IS_IRQ_MAC1)
-		sky2_mac_intr(hw, 0);
+		if (status & Y2_IS_IRQ_MAC1)
+			sky2_mac_intr(hw, 0);
 
-	if (status & Y2_IS_IRQ_MAC2)
-		sky2_mac_intr(hw, 1);
+		if (status & Y2_IS_IRQ_MAC2)
+			sky2_mac_intr(hw, 1);
+
+		if (status & Y2_IS_CHK_RX1)
+			sky2_descriptor_error(hw, 0, "receive", Y2_IS_CHK_RX1);
+
+		if (status & Y2_IS_CHK_RX2)
+			sky2_descriptor_error(hw, 1, "receive", Y2_IS_CHK_RX2);
+
+		if (status & Y2_IS_CHK_TXA1)
+			sky2_descriptor_error(hw, 0, "transmit", Y2_IS_CHK_TXA1);
+
+		if (status & Y2_IS_CHK_TXA2)
+			sky2_descriptor_error(hw, 1, "transmit", Y2_IS_CHK_TXA2);
+	}
 
 	if (status & Y2_IS_STAT_BMU) {
 		work_done = sky2_status_intr(hw, work_limit);
