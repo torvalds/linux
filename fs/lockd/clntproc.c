@@ -750,6 +750,7 @@ static void nlmclnt_cancel_callback(struct rpc_task *task, void *data)
 	switch (req->a_res.status) {
 	case NLM_LCK_GRANTED:
 	case NLM_LCK_DENIED_GRACE_PERIOD:
+	case NLM_LCK_DENIED:
 		/* Everything's good */
 		break;
 	case NLM_LCK_DENIED_NOLOCKS:
