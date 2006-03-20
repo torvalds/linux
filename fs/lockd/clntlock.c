@@ -44,32 +44,25 @@ static LIST_HEAD(nlm_blocked);
 /*
  * Queue up a lock for blocking so that the GRANTED request can see it
  */
-int nlmclnt_prepare_block(struct nlm_rqst *req, struct nlm_host *host, struct file_lock *fl)
+struct nlm_wait *nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *fl)
 {
 	struct nlm_wait *block;
 
-	BUG_ON(req->a_block != NULL);
 	block = kmalloc(sizeof(*block), GFP_KERNEL);
-	if (block == NULL)
-		return -ENOMEM;
-	block->b_host = host;
-	block->b_lock = fl;
-	init_waitqueue_head(&block->b_wait);
-	block->b_status = NLM_LCK_BLOCKED;
-
-	list_add(&block->b_list, &nlm_blocked);
-	req->a_block = block;
-
-	return 0;
+	if (block != NULL) {
+		block->b_host = host;
+		block->b_lock = fl;
+		init_waitqueue_head(&block->b_wait);
+		block->b_status = NLM_LCK_BLOCKED;
+		list_add(&block->b_list, &nlm_blocked);
+	}
+	return block;
 }
 
-void nlmclnt_finish_block(struct nlm_rqst *req)
+void nlmclnt_finish_block(struct nlm_wait *block)
 {
-	struct nlm_wait *block = req->a_block;
-
 	if (block == NULL)
 		return;
-	req->a_block = NULL;
 	list_del(&block->b_list);
 	kfree(block);
 }
@@ -77,15 +70,14 @@ void nlmclnt_finish_block(struct nlm_rqst *req)
 /*
  * Block on a lock
  */
-long nlmclnt_block(struct nlm_rqst *req, long timeout)
+int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 {
-	struct nlm_wait	*block = req->a_block;
 	long ret;
 
 	/* A borken server might ask us to block even if we didn't
 	 * request it. Just say no!
 	 */
-	if (!req->a_args.block)
+	if (block == NULL)
 		return -EAGAIN;
 
 	/* Go to sleep waiting for GRANT callback. Some servers seem
@@ -99,13 +91,10 @@ long nlmclnt_block(struct nlm_rqst *req, long timeout)
 	ret = wait_event_interruptible_timeout(block->b_wait,
 			block->b_status != NLM_LCK_BLOCKED,
 			timeout);
-
-	if (block->b_status != NLM_LCK_BLOCKED) {
-		req->a_res.status = block->b_status;
-		block->b_status = NLM_LCK_BLOCKED;
-	}
-
-	return ret;
+	if (ret < 0)
+		return -ERESTARTSYS;
+	req->a_res.status = block->b_status;
+	return 0;
 }
 
 /*
