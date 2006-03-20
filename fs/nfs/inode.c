@@ -2025,9 +2025,10 @@ static void nfs4_kill_super(struct super_block *sb)
 
 	if (server->client != NULL && !IS_ERR(server->client))
 		rpc_shutdown_client(server->client);
-	rpciod_down();		/* release rpciod */
 
 	destroy_nfsv4_state(server);
+
+	rpciod_down();
 
 	kfree(server->hostname);
 	kfree(server);
