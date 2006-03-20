@@ -441,8 +441,10 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 	else
 		atomic_set(&dreq->error, status);
 
-	if (unlikely(atomic_dec_and_test(&dreq->complete)))
+	if (unlikely(atomic_dec_and_test(&dreq->complete))) {
+		nfs_end_data_update(data->inode);
 		nfs_direct_complete(dreq);
+	}
 }
 
 static const struct rpc_call_ops nfs_write_direct_ops = {
@@ -547,8 +549,6 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 	nfs_direct_write_schedule(dreq, user_addr, count, file_offset);
 	result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
-
-	nfs_end_data_update(inode);
 
 	return result;
 }
@@ -655,10 +655,6 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t
 		file->f_dentry->d_name.name,
 		(unsigned long) count, (long long) pos);
 
-	retval = -EINVAL;
-	if (!is_sync_kiocb(iocb))
-		goto out;
-
 	retval = generic_write_checks(file, &pos, &count, 0);
 	if (retval)
 		goto out;
@@ -688,8 +684,18 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t
 
 	retval = nfs_direct_write(iocb, (unsigned long) buf, count,
 					pos, pages, page_count);
+
+	/*
+	 * XXX: nfs_end_data_update() already ensures this file's
+	 *      cached data is subsequently invalidated.  Do we really
+	 *      need to call invalidate_inode_pages2() again here?
+	 *
+	 *      For aio writes, this invalidation will almost certainly
+	 *      occur before the writes complete.  Kind of racey.
+	 */
 	if (mapping->nrpages)
 		invalidate_inode_pages2(mapping);
+
 	if (retval > 0)
 		iocb->ki_pos = pos + retval;
 
