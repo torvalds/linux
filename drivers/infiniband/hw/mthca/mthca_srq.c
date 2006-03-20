@@ -358,6 +358,8 @@ int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		return -EINVAL;
 
 	if (attr_mask & IB_SRQ_LIMIT) {
+		if (attr->srq_limit > srq->max)
+			return -EINVAL;
 		ret = mthca_ARM_SRQ(dev, srq->srqn, attr->srq_limit, &status);
 		if (ret)
 			return ret;
