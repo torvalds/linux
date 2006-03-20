@@ -908,7 +908,7 @@ out_put_state_owner:
 static struct nfs4_state *nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred *cred)
 {
 	struct nfs4_exception exception = { };
-	struct nfs4_state *res;
+	struct nfs4_state *res = ERR_PTR(-EIO);
 	int err;
 
 	do {
