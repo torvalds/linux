@@ -180,12 +180,24 @@ unsigned long clk_get_rate(struct clk *clk)
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
+	if (!IS_ERR(clk) && clk->round_rate)
+		return (clk->round_rate)(clk, rate);
+
 	return rate;
 }
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	return -EINVAL;
+	int ret;
+
+	if (IS_ERR(clk))
+		return -EINVAL;
+
+	mutex_lock(&clocks_mutex);
+	ret = (clk->set_rate)(clk, rate);
+	mutex_unlock(&clocks_mutex);
+
+	return ret;
 }
 
 struct clk *clk_get_parent(struct clk *clk)

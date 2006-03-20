@@ -21,6 +21,8 @@ struct clk {
 	unsigned long         ctrlbit;
 
 	int		    (*enable)(struct clk *, int enable);
+	int		    (*set_rate)(struct clk *c, unsigned long rate);
+	unsigned long	    (*round_rate)(struct clk *c, unsigned long rate);
 	int		    (*set_parent)(struct clk *c, struct clk *parent);
 };
 
