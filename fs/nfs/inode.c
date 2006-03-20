@@ -42,6 +42,7 @@
 #include "nfs4_fs.h"
 #include "callback.h"
 #include "delegation.h"
+#include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 #define NFS_PARANOIA 1
@@ -65,6 +66,7 @@ static void nfs_clear_inode(struct inode *);
 static void nfs_umount_begin(struct super_block *);
 static int  nfs_statfs(struct super_block *, struct kstatfs *);
 static int  nfs_show_options(struct seq_file *, struct vfsmount *);
+static int  nfs_show_stats(struct seq_file *, struct vfsmount *);
 static void nfs_zap_acl_cache(struct inode *);
 
 static struct rpc_program	nfs_program;
@@ -78,6 +80,7 @@ static struct super_operations nfs_sops = {
 	.clear_inode	= nfs_clear_inode,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
+	.show_stats	= nfs_show_stats,
 };
 
 /*
@@ -289,6 +292,12 @@ nfs_sb_init(struct super_block *sb, rpc_authflavor_t authflavor)
 		goto out_no_root;
 	}
 	sb->s_root->d_op = server->rpc_ops->dentry_ops;
+
+	server->io_stats = nfs_alloc_iostats();
+	if (!server->io_stats) {
+		no_root_error = -ENOMEM;
+		goto out_no_root;
+	}
 
 	/* Get some general file system info */
 	if (server->namelen == 0 &&
@@ -582,7 +591,7 @@ nfs_statfs(struct super_block *sb, struct kstatfs *buf)
 
 }
 
-static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
+static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss, int showdefaults)
 {
 	static struct proc_nfs_info {
 		int flag;
@@ -598,20 +607,19 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 		{ 0, NULL, NULL }
 	};
 	struct proc_nfs_info *nfs_infop;
-	struct nfs_server *nfss = NFS_SB(mnt->mnt_sb);
 	char buf[12];
 	char *proto;
 
 	seq_printf(m, ",vers=%d", nfss->rpc_ops->version);
 	seq_printf(m, ",rsize=%d", nfss->rsize);
 	seq_printf(m, ",wsize=%d", nfss->wsize);
-	if (nfss->acregmin != 3*HZ)
+	if (nfss->acregmin != 3*HZ || showdefaults)
 		seq_printf(m, ",acregmin=%d", nfss->acregmin/HZ);
-	if (nfss->acregmax != 60*HZ)
+	if (nfss->acregmax != 60*HZ || showdefaults)
 		seq_printf(m, ",acregmax=%d", nfss->acregmax/HZ);
-	if (nfss->acdirmin != 30*HZ)
+	if (nfss->acdirmin != 30*HZ || showdefaults)
 		seq_printf(m, ",acdirmin=%d", nfss->acdirmin/HZ);
-	if (nfss->acdirmax != 60*HZ)
+	if (nfss->acdirmax != 60*HZ || showdefaults)
 		seq_printf(m, ",acdirmax=%d", nfss->acdirmax/HZ);
 	for (nfs_infop = nfs_info; nfs_infop->flag; nfs_infop++) {
 		if (nfss->flags & nfs_infop->flag)
@@ -633,8 +641,89 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	seq_printf(m, ",proto=%s", proto);
 	seq_printf(m, ",timeo=%lu", 10U * nfss->retrans_timeo / HZ);
 	seq_printf(m, ",retrans=%u", nfss->retrans_count);
+}
+
+static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
+{
+	struct nfs_server *nfss = NFS_SB(mnt->mnt_sb);
+
+	nfs_show_mount_options(m, nfss, 0);
+
 	seq_puts(m, ",addr=");
 	seq_escape(m, nfss->hostname, " \t\n\\");
+
+	return 0;
+}
+
+static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
+{
+	int i, cpu;
+	struct nfs_server *nfss = NFS_SB(mnt->mnt_sb);
+	struct rpc_auth *auth = nfss->client->cl_auth;
+	struct nfs_iostats totals = { };
+
+	seq_printf(m, "statvers=%s", NFS_IOSTAT_VERS);
+
+	/*
+	 * Display all mount option settings
+	 */
+	seq_printf(m, "\n\topts:\t");
+	seq_puts(m, mnt->mnt_sb->s_flags & MS_RDONLY ? "ro" : "rw");
+	seq_puts(m, mnt->mnt_sb->s_flags & MS_SYNCHRONOUS ? ",sync" : "");
+	seq_puts(m, mnt->mnt_sb->s_flags & MS_NOATIME ? ",noatime" : "");
+	seq_puts(m, mnt->mnt_sb->s_flags & MS_NODIRATIME ? ",nodiratime" : "");
+	nfs_show_mount_options(m, nfss, 1);
+
+	seq_printf(m, "\n\tcaps:\t");
+	seq_printf(m, "caps=0x%x", nfss->caps);
+	seq_printf(m, ",wtmult=%d", nfss->wtmult);
+	seq_printf(m, ",dtsize=%d", nfss->dtsize);
+	seq_printf(m, ",bsize=%d", nfss->bsize);
+	seq_printf(m, ",namelen=%d", nfss->namelen);
+
+#ifdef CONFIG_NFS_V4
+	if (nfss->rpc_ops->version == 4) {
+		seq_printf(m, "\n\tnfsv4:\t");
+		seq_printf(m, "bm0=0x%x", nfss->attr_bitmask[0]);
+		seq_printf(m, ",bm1=0x%x", nfss->attr_bitmask[1]);
+		seq_printf(m, ",acl=0x%x", nfss->acl_bitmask);
+	}
+#endif
+
+	/*
+	 * Display security flavor in effect for this mount
+	 */
+	seq_printf(m, "\n\tsec:\tflavor=%d", auth->au_ops->au_flavor);
+	if (auth->au_flavor)
+		seq_printf(m, ",pseudoflavor=%d", auth->au_flavor);
+
+	/*
+	 * Display superblock I/O counters
+	 */
+	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+		struct nfs_iostats *stats;
+
+		if (!cpu_possible(cpu))
+			continue;
+
+		preempt_disable();
+		stats = per_cpu_ptr(nfss->io_stats, cpu);
+
+		for (i = 0; i < __NFSIOS_COUNTSMAX; i++)
+			totals.events[i] += stats->events[i];
+		for (i = 0; i < __NFSIOS_BYTESMAX; i++)
+			totals.bytes[i] += stats->bytes[i];
+
+		preempt_enable();
+	}
+
+	seq_printf(m, "\n\tevents:\t");
+	for (i = 0; i < __NFSIOS_COUNTSMAX; i++)
+		seq_printf(m, "%lu ", totals.events[i]);
+	seq_printf(m, "\n\tbytes:\t");
+	for (i = 0; i < __NFSIOS_BYTESMAX; i++)
+		seq_printf(m, "%Lu ", totals.bytes[i]);
+
 	return 0;
 }
 
@@ -1742,6 +1831,7 @@ static struct super_operations nfs4_sops = {
 	.clear_inode	= nfs4_clear_inode,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
+	.show_stats	= nfs_show_stats,
 };
 
 /*
@@ -2015,6 +2105,7 @@ out_err:
 out_free:
 	kfree(server->mnt_path);
 	kfree(server->hostname);
+	nfs_free_iostats(server->io_stats);
 	kfree(server);
 	return s;
 }

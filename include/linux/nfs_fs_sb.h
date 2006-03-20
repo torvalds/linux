@@ -4,6 +4,8 @@
 #include <linux/list.h>
 #include <linux/backing-dev.h>
 
+struct nfs_iostats;
+
 /*
  * NFS client parameters stored in the superblock.
  */
@@ -12,6 +14,7 @@ struct nfs_server {
 	struct rpc_clnt *	client_sys;	/* 2nd handle for FSINFO */
 	struct rpc_clnt *	client_acl;	/* ACL RPC client handle */
 	struct nfs_rpc_ops *	rpc_ops;	/* NFS protocol vector */
+	struct nfs_iostats *	io_stats;	/* I/O statistics */
 	struct backing_dev_info	backing_dev_info;
 	int			flags;		/* various flags */
 	unsigned int		caps;		/* server capabilities */
