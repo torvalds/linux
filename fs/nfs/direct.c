@@ -152,6 +152,24 @@ static void nfs_free_user_pages(struct page **pages, int npages, int do_dirty)
 	kfree(pages);
 }
 
+static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
+{
+	struct nfs_direct_req *dreq;
+
+	dreq = kmem_cache_alloc(nfs_direct_cachep, SLAB_KERNEL);
+	if (!dreq)
+		return NULL;
+
+	kref_init(&dreq->kref);
+	init_waitqueue_head(&dreq->wait);
+	INIT_LIST_HEAD(&dreq->list);
+	dreq->iocb = NULL;
+	atomic_set(&dreq->count, 0);
+	atomic_set(&dreq->error, 0);
+
+	return dreq;
+}
+
 static void nfs_direct_req_release(struct kref *kref)
 {
 	struct nfs_direct_req *dreq = container_of(kref, struct nfs_direct_req, kref);
@@ -194,16 +212,9 @@ static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, size_t rsize)
 	unsigned int reads = 0;
 	unsigned int rpages = (rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
-	dreq = kmem_cache_alloc(nfs_direct_cachep, SLAB_KERNEL);
+	dreq = nfs_direct_req_alloc();
 	if (!dreq)
 		return NULL;
-
-	kref_init(&dreq->kref);
-	init_waitqueue_head(&dreq->wait);
-	INIT_LIST_HEAD(&dreq->list);
-	dreq->iocb = NULL;
-	atomic_set(&dreq->count, 0);
-	atomic_set(&dreq->error, 0);
 
 	list = &dreq->list;
 	for(;;) {
