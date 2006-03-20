@@ -45,7 +45,8 @@ struct rpc_clnt {
 	char *			cl_server;	/* server machine name */
 	char *			cl_protname;	/* protocol name */
 	struct rpc_auth *	cl_auth;	/* authenticator */
-	struct rpc_stat *	cl_stats;	/* statistics */
+	struct rpc_stat *	cl_stats;	/* per-program statistics */
+	struct rpc_iostats *	cl_metrics;	/* per-client statistics */
 
 	unsigned int		cl_softrtry : 1,/* soft timeouts */
 				cl_intr     : 1,/* interruptible */

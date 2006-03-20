@@ -28,12 +28,11 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/utsname.h>
+#include <linux/workqueue.h>
 
 #include <linux/sunrpc/clnt.h>
-#include <linux/workqueue.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
-
-#include <linux/nfs.h>
+#include <linux/sunrpc/metrics.h>
 
 
 #define RPC_SLACK_SPACE		(1024)	/* total overkill */
@@ -147,6 +146,7 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 	clnt->cl_vers     = version->number;
 	clnt->cl_prot     = xprt->prot;
 	clnt->cl_stats    = program->stats;
+	clnt->cl_metrics  = rpc_alloc_iostats(clnt);
 	rpc_init_wait_queue(&clnt->cl_pmap_default.pm_bindwait, "bindwait");
 
 	if (!clnt->cl_port)
@@ -245,6 +245,7 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
 	new->cl_pmap		= &new->cl_pmap_default;
+	new->cl_metrics         = rpc_alloc_iostats(clnt);
 	rpc_init_wait_queue(&new->cl_pmap_default.pm_bindwait, "bindwait");
 	return new;
 out_no_clnt:
@@ -315,6 +316,8 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 	if (clnt->cl_server != clnt->cl_inline_name)
 		kfree(clnt->cl_server);
 out_free:
+	rpc_free_iostats(clnt->cl_metrics);
+	clnt->cl_metrics = NULL;
 	if (clnt->cl_dentry)
 		dput(clnt->cl_dentry);
 	kfree(clnt);

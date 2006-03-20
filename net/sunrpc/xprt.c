@@ -44,6 +44,7 @@
 #include <linux/random.h>
 
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/metrics.h>
 
 /*
  * Local variables
@@ -859,6 +860,7 @@ void xprt_release(struct rpc_task *task)
 
 	if (!(req = task->tk_rqstp))
 		return;
+	rpc_count_iostats(task);
 	spin_lock_bh(&xprt->transport_lock);
 	xprt->ops->release_xprt(xprt, task);
 	if (xprt->ops->release_request)
