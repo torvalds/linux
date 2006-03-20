@@ -192,6 +192,23 @@ struct clk *clk_get_parent(struct clk *clk)
 	return clk->parent;
 }
 
+int clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	int ret = 0;
+
+	if (IS_ERR(clk))
+		return -EINVAL;
+
+	mutex_lock(&clocks_mutex);
+
+	if (clk->set_parent)
+		ret = (clk->set_parent)(clk, parent);
+
+	mutex_unlock(&clocks_mutex);
+
+	return ret;
+}
+
 EXPORT_SYMBOL(clk_get);
 EXPORT_SYMBOL(clk_put);
 EXPORT_SYMBOL(clk_enable);
@@ -200,6 +217,7 @@ EXPORT_SYMBOL(clk_get_rate);
 EXPORT_SYMBOL(clk_round_rate);
 EXPORT_SYMBOL(clk_set_rate);
 EXPORT_SYMBOL(clk_get_parent);
+EXPORT_SYMBOL(clk_set_parent);
 
 /* base clock enable */
 

@@ -19,7 +19,9 @@ struct clk {
 	int		      usage;
 	unsigned long         rate;
 	unsigned long         ctrlbit;
+
 	int		    (*enable)(struct clk *, int enable);
+	int		    (*set_parent)(struct clk *c, struct clk *parent);
 };
 
 /* other clocks which may be registered by board support */
