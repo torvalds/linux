@@ -316,6 +316,17 @@ static int nfs_commit_write(struct file *file, struct page *page, unsigned offse
 	return status;
 }
 
+static int nfs_invalidate_page(struct page *page, unsigned long offset)
+{
+	/* FIXME: we really should cancel any unstarted writes on this page */
+	return 1;
+}
+
+static int nfs_release_page(struct page *page, gfp_t gfp)
+{
+	return !nfs_wb_page(page->mapping->host, page);
+}
+
 struct address_space_operations nfs_file_aops = {
 	.readpage = nfs_readpage,
 	.readpages = nfs_readpages,
@@ -324,6 +335,8 @@ struct address_space_operations nfs_file_aops = {
 	.writepages = nfs_writepages,
 	.prepare_write = nfs_prepare_write,
 	.commit_write = nfs_commit_write,
+	.invalidatepage = nfs_invalidate_page,
+	.releasepage = nfs_release_page,
 #ifdef CONFIG_NFS_DIRECTIO
 	.direct_IO = nfs_direct_IO,
 #endif
