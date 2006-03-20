@@ -79,6 +79,29 @@ struct nfs_direct_req {
 
 
 /**
+ * nfs_direct_IO - NFS address space operation for direct I/O
+ * @rw: direction (read or write)
+ * @iocb: target I/O control block
+ * @iov: array of vectors that define I/O buffer
+ * @pos: offset in file to begin the operation
+ * @nr_segs: size of iovec array
+ *
+ * The presence of this routine in the address space ops vector means
+ * the NFS client supports direct I/O.  However, we shunt off direct
+ * read and write requests before the VFS gets them, so this method
+ * should never be called.
+ */
+ssize_t nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov, loff_t pos, unsigned long nr_segs)
+{
+	struct dentry *dentry = iocb->ki_filp->f_dentry;
+
+	dprintk("NFS: nfs_direct_IO (%s) off/no(%Ld/%lu) EINVAL\n",
+			dentry->d_name.name, (long long) pos, nr_segs);
+
+	return -EINVAL;
+}
+
+/**
  * nfs_get_user_pages - find and set up pages underlying user's buffer
  * rw: direction (read or write)
  * user_addr: starting address of this segment of user's buffer
@@ -603,53 +626,6 @@ static ssize_t nfs_direct_write(struct inode *inode,
 			break;
 	}
 	return tot_bytes;
-}
-
-/**
- * nfs_direct_IO - NFS address space operation for direct I/O
- * rw: direction (read or write)
- * @iocb: target I/O control block
- * @iov: array of vectors that define I/O buffer
- * file_offset: offset in file to begin the operation
- * nr_segs: size of iovec array
- *
- */
-ssize_t
-nfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
-		loff_t file_offset, unsigned long nr_segs)
-{
-	ssize_t result = -EINVAL;
-	struct file *file = iocb->ki_filp;
-	struct nfs_open_context *ctx;
-	struct dentry *dentry = file->f_dentry;
-	struct inode *inode = dentry->d_inode;
-
-	/*
-	 * No support for async yet
-	 */
-	if (!is_sync_kiocb(iocb))
-		return result;
-
-	ctx = (struct nfs_open_context *)file->private_data;
-	switch (rw) {
-	case READ:
-		dprintk("NFS: direct_IO(read) (%s) off/no(%Lu/%lu)\n",
-				dentry->d_name.name, file_offset, nr_segs);
-
-		result = nfs_direct_read(inode, ctx, iov,
-						file_offset, nr_segs);
-		break;
-	case WRITE:
-		dprintk("NFS: direct_IO(write) (%s) off/no(%Lu/%lu)\n",
-				dentry->d_name.name, file_offset, nr_segs);
-
-		result = nfs_direct_write(inode, ctx, iov,
-						file_offset, nr_segs);
-		break;
-	default:
-		break;
-	}
-	return result;
 }
 
 /**
