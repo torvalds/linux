@@ -14,6 +14,7 @@
 #include <linux/config.h>
 #include <linux/in.h>
 #include <linux/fs.h>
+#include <linux/kref.h>
 #include <linux/utsname.h>
 #include <linux/nfsd/nfsfh.h>
 #include <linux/lockd/bind.h>
@@ -110,6 +111,7 @@ struct nlm_file {
  */
 #define NLM_NEVER		(~(unsigned long) 0)
 struct nlm_block {
+	struct kref		b_count;	/* Reference count */
 	struct nlm_block *	b_next;		/* linked list (all blocks) */
 	struct nlm_block *	b_fnext;	/* linked list (per file) */
 	struct nlm_rqst		b_call;		/* RPC args & callback info */
@@ -119,7 +121,6 @@ struct nlm_block {
 	unsigned int		b_id;		/* block id */
 	unsigned char		b_queued;	/* re-queued */
 	unsigned char		b_granted;	/* VFS granted lock */
-	unsigned char		b_incall;	/* doing callback */
 	unsigned char		b_done;		/* callback complete */
 	struct nlm_file *	b_file;		/* file in question */
 };
