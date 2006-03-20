@@ -584,8 +584,7 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Get the chipset info. */
 	dinfo->pci_chipset = pdev->device;
 
-	if (intelfbhw_get_chipset(pdev, &dinfo->name, &dinfo->chipset,
-				  &dinfo->mobile)) {
+	if (intelfbhw_get_chipset(pdev, dinfo)) {
 		cleanup(dinfo);
 		return -ENODEV;
 	}

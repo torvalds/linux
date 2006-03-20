@@ -277,6 +277,9 @@ struct intelfb_info {
 
 	/* driver registered */
 	int registered;
+	
+	/* index into plls */
+	int pll_index;
 };
 
 /*** function prototypes ***/

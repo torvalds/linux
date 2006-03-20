@@ -158,12 +158,6 @@
 #define MIN_CLOCK		25000
 #define MAX_CLOCK		350000
 
-#define CALC_VCLOCK(m1, m2, n, p1, p2) \
-        ((PLL_REFCLK * (5 * ((m1) + 2) + ((m2) + 2)) / ((n) + 2)) / \
-        (((p1) + 2) * (1 << (p2 + 1))))
-
-#define CALC_VCLOCK3(m, n, p)	((PLL_REFCLK * (m) / (n)) / (p))
-
 /* Two pipes */
 #define PIPE_A			0
 #define PIPE_B			1
@@ -507,8 +501,7 @@
 
 
 /* function protoypes */
-extern int intelfbhw_get_chipset(struct pci_dev *pdev, const char **name,
-				 int *chipset, int *mobile);
+extern int intelfbhw_get_chipset(struct pci_dev *pdev, struct intelfb_info *dinfo);
 extern int intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 				int *stolen_size);
 extern int intelfbhw_check_non_crt(struct intelfb_info *dinfo);

@@ -61,67 +61,71 @@ struct pll_min_max plls[PLLS_MAX] = {
 };
 
 int
-intelfbhw_get_chipset(struct pci_dev *pdev, const char **name, int *chipset,
-		      int *mobile)
+intelfbhw_get_chipset(struct pci_dev *pdev, struct intelfb_info *dinfo)
 {
 	u32 tmp;
-
-	if (!pdev || !name || !chipset || !mobile)
+	if (!pdev || !dinfo)
 		return 1;
 
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_830M:
-		*name = "Intel(R) 830M";
-		*chipset = INTEL_830M;
-		*mobile = 1;
+		dinfo->name = "Intel(R) 830M";
+		dinfo->chipset = INTEL_830M;
+		dinfo->mobile = 1;
+		dinfo->pll_index = PLLS_I8xx;
 		return 0;
 	case PCI_DEVICE_ID_INTEL_845G:
-		*name = "Intel(R) 845G";
-		*chipset = INTEL_845G;
-		*mobile = 0;
+		dinfo->name = "Intel(R) 845G";
+		dinfo->chipset = INTEL_845G;
+		dinfo->mobile = 0;
+		dinfo->pll_index = PLLS_I8xx;
 		return 0;
 	case PCI_DEVICE_ID_INTEL_85XGM:
 		tmp = 0;
-		*mobile = 1;
+		dinfo->mobile = 1;
+		dinfo->pll_index = PLLS_I8xx;
 		pci_read_config_dword(pdev, INTEL_85X_CAPID, &tmp);
 		switch ((tmp >> INTEL_85X_VARIANT_SHIFT) &
 			INTEL_85X_VARIANT_MASK) {
 		case INTEL_VAR_855GME:
-			*name = "Intel(R) 855GME";
-			*chipset = INTEL_855GME;
+			dinfo->name = "Intel(R) 855GME";
+			dinfo->chipset = INTEL_855GME;
 			return 0;
 		case INTEL_VAR_855GM:
-			*name = "Intel(R) 855GM";
-			*chipset = INTEL_855GM;
+			dinfo->name = "Intel(R) 855GM";
+			dinfo->chipset = INTEL_855GM;
 			return 0;
 		case INTEL_VAR_852GME:
-			*name = "Intel(R) 852GME";
-			*chipset = INTEL_852GME;
+			dinfo->name = "Intel(R) 852GME";
+			dinfo->chipset = INTEL_852GME;
 			return 0;
 		case INTEL_VAR_852GM:
-			*name = "Intel(R) 852GM";
-			*chipset = INTEL_852GM;
+			dinfo->name = "Intel(R) 852GM";
+			dinfo->chipset = INTEL_852GM;
 			return 0;
 		default:
-			*name = "Intel(R) 852GM/855GM";
-			*chipset = INTEL_85XGM;
+			dinfo->name = "Intel(R) 852GM/855GM";
+			dinfo->chipset = INTEL_85XGM;
 			return 0;
 		}
 		break;
 	case PCI_DEVICE_ID_INTEL_865G:
-		*name = "Intel(R) 865G";
-		*chipset = INTEL_865G;
-		*mobile = 0;
+		dinfo->name = "Intel(R) 865G";
+		dinfo->chipset = INTEL_865G;
+		dinfo->mobile = 0;
+		dinfo->pll_index = PLLS_I8xx;
 		return 0;
 	case PCI_DEVICE_ID_INTEL_915G:
-		*name = "Intel(R) 915G";
-		*chipset = INTEL_915G;
-		*mobile = 0;
+		dinfo->name = "Intel(R) 915G";
+		dinfo->chipset = INTEL_915G;
+		dinfo->mobile = 0;
+		dinfo->pll_index = PLLS_I9xx;
 		return 0;
 	case PCI_DEVICE_ID_INTEL_915GM:
-		*name = "Intel(R) 915GM";
-		*chipset = INTEL_915GM;
-		*mobile = 1;
+		dinfo->name = "Intel(R) 915GM";
+		dinfo->chipset = INTEL_915GM;
+		dinfo->mobile = 1;
+		dinfo->pll_index = PLLS_I9xx;
 		return 0;
 	default:
 		return 1;
@@ -549,14 +553,33 @@ intelfbhw_read_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 }
 
 
+static int calc_vclock3(int index, int m, int n, int p)
+{
+	return PLL_REFCLK * m / n / p;
+}
+		       
+static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2)
+{
+	switch(index)
+	{
+	case PLLS_I9xx:
+		return ((PLL_REFCLK * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) /
+			 ((p1)) * (p2 ? 10 : 5)));
+	case PLLS_I8xx:
+	default:
+		return ((PLL_REFCLK * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / 
+			 ((p1+2) * (1 << (p2 + 1)))));
+	}
+}
+
 void
 intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 {
 #if REGDUMP
 	int i, m1, m2, n, p1, p2;
-
+	int index = dinfo->pll_index;
 	DBG_MSG("intelfbhw_print_hw_state\n");
-
+	
 	if (!hw || !dinfo)
 		return;
 	/* Read in as much of the HW state as possible. */
@@ -573,9 +596,10 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 		p1 = (hw->vga_pd >> VGAPD_0_P1_SHIFT) & DPLL_P1_MASK;
 	p2 = (hw->vga_pd >> VGAPD_0_P2_SHIFT) & DPLL_P2_MASK;
 	printk("	VGA0: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
-		m1, m2, n, p1, p2);
-	printk("	VGA0: clock is %d\n", CALC_VCLOCK(m1, m2, n, p1, p2));
-
+	       m1, m2, n, p1, p2);
+	printk("	VGA0: clock is %d\n", 
+	       calc_vclock(index, m1, m2, n, p1, p2));
+	
 	n = (hw->vga1_divisor >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m1 = (hw->vga1_divisor >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->vga1_divisor >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
@@ -585,16 +609,16 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 		p1 = (hw->vga_pd >> VGAPD_1_P1_SHIFT) & DPLL_P1_MASK;
 	p2 = (hw->vga_pd >> VGAPD_1_P2_SHIFT) & DPLL_P2_MASK;
 	printk("	VGA1: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
-		m1, m2, n, p1, p2);
-	printk("	VGA1: clock is %d\n", CALC_VCLOCK(m1, m2, n, p1, p2));
-
+	       m1, m2, n, p1, p2);
+	printk("	VGA1: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2));
+	
 	printk("	DPLL_A:			0x%08x\n", hw->dpll_a);
 	printk("	DPLL_B:			0x%08x\n", hw->dpll_b);
 	printk("	FPA0:			0x%08x\n", hw->fpa0);
 	printk("	FPA1:			0x%08x\n", hw->fpa1);
 	printk("	FPB0:			0x%08x\n", hw->fpb0);
 	printk("	FPB1:			0x%08x\n", hw->fpb1);
-
+	
 	n = (hw->fpa0 >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m1 = (hw->fpa0 >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->fpa0 >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
@@ -604,9 +628,9 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 		p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & DPLL_P1_MASK;
 	p2 = (hw->dpll_a >> DPLL_P2_SHIFT) & DPLL_P2_MASK;
 	printk("	PLLA0: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
-		m1, m2, n, p1, p2);
-	printk("	PLLA0: clock is %d\n", CALC_VCLOCK(m1, m2, n, p1, p2));
-
+	       m1, m2, n, p1, p2);
+	printk("	PLLA0: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2));
+	
 	n = (hw->fpa1 >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m1 = (hw->fpa1 >> FP_M1_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
 	m2 = (hw->fpa1 >> FP_M2_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
@@ -616,16 +640,16 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 		p1 = (hw->dpll_a >> DPLL_P1_SHIFT) & DPLL_P1_MASK;
 	p2 = (hw->dpll_a >> DPLL_P2_SHIFT) & DPLL_P2_MASK;
 	printk("	PLLA1: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
-		m1, m2, n, p1, p2);
-	printk("	PLLA1: clock is %d\n", CALC_VCLOCK(m1, m2, n, p1, p2));
-
+	       m1, m2, n, p1, p2);
+	printk("	PLLA1: clock is %d\n", calc_vclock(index, m1, m2, n, p1, p2));
+	
 #if 0
 	printk("	PALETTE_A:\n");
 	for (i = 0; i < PALETTE_8_ENTRIES)
-		printk("	%3d:	0x%08x\n", i, hw->palette_a[i];
+		printk("	%3d:	0x%08x\n", i, hw->palette_a[i]);
 	printk("	PALETTE_B:\n");
 	for (i = 0; i < PALETTE_8_ENTRIES)
-		printk("	%3d:	0x%08x\n", i, hw->palette_b[i];
+		printk("	%3d:	0x%08x\n", i, hw->palette_b[i]);
 #endif
 
 	printk("	HTOTAL_A:		0x%08x\n", hw->htotal_a);
@@ -700,12 +724,12 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	}
 	for (i = 0; i < 3; i++) {
 		printk("	SWF3%d			0x%08x\n", i,
-			hw->swf3x[i]);
+		       hw->swf3x[i]);
 	}
 	for (i = 0; i < 8; i++)
 		printk("	FENCE%d			0x%08x\n", i,
-			hw->fence[i]);
-
+		       hw->fence[i]);
+		       
 	printk("	INSTPM			0x%08x\n", hw->instpm);
 	printk("	MEM_MODE		0x%08x\n", hw->mem_mode);
 	printk("	FW_BLC_0		0x%08x\n", hw->fw_blc_0);
@@ -714,6 +738,8 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	printk("hw state dump end\n");
 #endif
 }
+
+	       
 
 /* Split the M parameter into M1 and M2. */
 static int
@@ -742,7 +768,17 @@ splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 {
 	int p1, p2;
 
-	if (index==PLLS_I8xx)
+	if (index == PLLS_I9xx)
+	{
+		p1 = (p / 10) + 1;
+		p2 = 0;
+		
+		*retp1 = (unsigned int)p1;
+		*retp2 = (unsigned int)p2;
+		return 0;
+	}
+
+	if (index == PLLS_I8xx)
 	{
 		if (p % 4 == 0)
 			p2 = 1;
@@ -812,7 +848,7 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 				m = plls[index].min_m;
 			if (m > plls[index].max_m)
 				m = plls[index].max_m;
-			f_out = CALC_VCLOCK3(m, n, p);
+			f_out = calc_vclock3(index, m, n, p);
 			if (splitm(index, m, &m1, &m2)) {
 				WRN_MSG("cannot split m = %d\n", m);
 				n++;
@@ -849,14 +885,15 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 	DBG_MSG("m, n, p: %d (%d,%d), %d (%d), %d (%d,%d), "
 		"f: %d (%d), VCO: %d\n",
 		m, m1, m2, n, n1, p, p1, p2,
-		CALC_VCLOCK3(m, n, p), CALC_VCLOCK(m1, m2, n1, p1, p2),
-		CALC_VCLOCK3(m, n, p) * p);
+		calc_vclock3(index, m, n, p), 
+		calc_vclock(index, m1, m2, n1, p1, p2),
+		calc_vclock3(index, m, n, p) * p);
 	*retm1 = m1;
 	*retm2 = m2;
 	*retn = n1;
 	*retp1 = p1;
 	*retp2 = p2;
-	*retclock = CALC_VCLOCK(m1, m2, n1, p1, p2);
+	*retclock = calc_vclock(index, m1, m2, n1, p1, p2);
 
 	return 0;
 }
@@ -953,7 +990,7 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	/* Desired clock in kHz */
 	clock_target = 1000000000 / var->pixclock;
 
-	if (calc_pll_params(PLLS_I8xx, clock_target, &m1, &m2, &n, &p1, &p2, &clock)) {
+	if (calc_pll_params(dinfo->pll_index, clock_target, &m1, &m2, &n, &p1, &p2, &clock)) {
 		WRN_MSG("calc_pll_params failed\n");
 		return 1;
 	}
