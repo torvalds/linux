@@ -49,6 +49,7 @@ struct pll_min_max {
 	int min_p1, max_p1;
 	int min_vco_freq, max_vco_freq;
 	int p_transition_clock;
+	int p_inc_lo, p_inc_hi;
 };
 
 #define PLLS_I8xx 0
@@ -56,8 +57,8 @@ struct pll_min_max {
 #define PLLS_MAX 2
 
 struct pll_min_max plls[PLLS_MAX] = {
-	{ 108, 140, 18, 26, 6, 16, 3, 16, 4, 128, 0, 31, 930000, 1400000, 165000 }, //I8xx
-	{  75, 120, 10, 20, 5, 9, 4,  7, 5, 80, 1, 8, 930000, 2800000, 200000 }  //I9xx
+	{ 108, 140, 18, 26, 6, 16, 3, 16, 4, 128, 0, 31, 930000, 1400000, 165000, 4, 22 }, //I8xx
+	{  75, 120, 10, 20, 5, 9, 4,  7, 5, 80, 1, 8, 930000, 2800000, 200000, 10, 5 }  //I9xx
 };
 
 int
@@ -822,15 +823,15 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 	div_min = ROUND_UP_TO(plls[index].min_vco_freq, clock) / clock;
 
 	if (clock <= plls[index].p_transition_clock)
-		p_inc = 4;
+		p_inc = plls[index].p_inc_lo;
 	else
-		p_inc = 2;
+		p_inc = plls[index].p_inc_hi;
 	p_min = ROUND_UP_TO(div_min, p_inc);
 	p_max = ROUND_DOWN_TO(div_max, p_inc);
 	if (p_min < plls[index].min_p)
-		p_min = 4;
+		p_min = plls[index].min_p;
 	if (p_max > plls[index].max_p)
-		p_max = 128;
+		p_max = plls[index].max_p;
 
 	DBG_MSG("p range is %d-%d (%d)\n", p_min, p_max, p_inc);
 
