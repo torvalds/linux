@@ -1955,21 +1955,6 @@ void locks_remove_flock(struct file *filp)
 }
 
 /**
- *	posix_block_lock - blocks waiting for a file lock
- *	@blocker: the lock which is blocking
- *	@waiter: the lock which conflicts and has to wait
- *
- * lockd needs to block waiting for locks.
- */
-void
-posix_block_lock(struct file_lock *blocker, struct file_lock *waiter)
-{
-	locks_insert_block(blocker, waiter);
-}
-
-EXPORT_SYMBOL(posix_block_lock);
-
-/**
  *	posix_unblock_lock - stop waiting for a file lock
  *      @filp:   how the file was opened
  *	@waiter: the lock which was waiting
