@@ -186,7 +186,7 @@ void _print_name(struct seq_file *seq, unsigned int op, struct rpc_procinfo *pro
 		seq_printf(seq, "\t%12u: ", op);
 }
 
-#define MILLISECS_PER_JIFFY	(1000UL / HZ)
+#define MILLISECS_PER_JIFFY	(1000 / HZ)
 
 void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt)
 {
