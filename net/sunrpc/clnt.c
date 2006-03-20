@@ -240,6 +240,7 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new->cl_autobind = 0;
 	new->cl_oneshot = 0;
 	new->cl_dead = 0;
+	dget(new->cl_dentry);
 	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
@@ -314,6 +315,8 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 	if (clnt->cl_server != clnt->cl_inline_name)
 		kfree(clnt->cl_server);
 out_free:
+	if (clnt->cl_dentry)
+		dput(clnt->cl_dentry);
 	kfree(clnt);
 	return 0;
 }

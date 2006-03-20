@@ -669,7 +669,7 @@ rpc_mkdir(char *path, struct rpc_clnt *rpc_client)
 out:
 	mutex_unlock(&dir->i_mutex);
 	rpc_release_path(&nd);
-	return dentry;
+	return dget(dentry);
 err_depopulate:
 	rpc_depopulate(dentry);
 	__rpc_rmdir(dir, dentry);
@@ -733,7 +733,7 @@ rpc_mkpipe(char *path, void *private, struct rpc_pipe_ops *ops, int flags)
 out:
 	mutex_unlock(&dir->i_mutex);
 	rpc_release_path(&nd);
-	return dentry;
+	return dget(dentry);
 err_dput:
 	dput(dentry);
 	dentry = ERR_PTR(-ENOMEM);
