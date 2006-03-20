@@ -153,6 +153,21 @@ static struct file_lock *locks_alloc_lock(void)
 	return kmem_cache_alloc(filelock_cache, SLAB_KERNEL);
 }
 
+static void locks_release_private(struct file_lock *fl)
+{
+	if (fl->fl_ops) {
+		if (fl->fl_ops->fl_release_private)
+			fl->fl_ops->fl_release_private(fl);
+		fl->fl_ops = NULL;
+	}
+	if (fl->fl_lmops) {
+		if (fl->fl_lmops->fl_release_private)
+			fl->fl_lmops->fl_release_private(fl);
+		fl->fl_lmops = NULL;
+	}
+
+}
+
 /* Free a lock which is not in use. */
 static void locks_free_lock(struct file_lock *fl)
 {
@@ -169,18 +184,7 @@ static void locks_free_lock(struct file_lock *fl)
 	if (!list_empty(&fl->fl_link))
 		panic("Attempting to free lock on active lock list");
 
-	if (fl->fl_ops) {
-		if (fl->fl_ops->fl_release_private)
-			fl->fl_ops->fl_release_private(fl);
-		fl->fl_ops = NULL;
-	}
-
-	if (fl->fl_lmops) {
-		if (fl->fl_lmops->fl_release_private)
-			fl->fl_lmops->fl_release_private(fl);
-		fl->fl_lmops = NULL;
-	}
-
+	locks_release_private(fl);
 	kmem_cache_free(filelock_cache, fl);
 }
 
@@ -218,11 +222,27 @@ static void init_once(void *foo, kmem_cache_t *cache, unsigned long flags)
 	locks_init_lock(lock);
 }
 
+static void locks_copy_private(struct file_lock *new, struct file_lock *fl)
+{
+	if (fl->fl_ops) {
+		if (fl->fl_ops->fl_copy_lock)
+			fl->fl_ops->fl_copy_lock(new, fl);
+		new->fl_ops = fl->fl_ops;
+	}
+	if (fl->fl_lmops) {
+		if (fl->fl_lmops->fl_copy_lock)
+			fl->fl_lmops->fl_copy_lock(new, fl);
+		new->fl_lmops = fl->fl_lmops;
+	}
+}
+
 /*
  * Initialize a new lock from an existing file_lock structure.
  */
 void locks_copy_lock(struct file_lock *new, struct file_lock *fl)
 {
+	locks_release_private(new);
+
 	new->fl_owner = fl->fl_owner;
 	new->fl_pid = fl->fl_pid;
 	new->fl_file = fl->fl_file;
@@ -232,10 +252,8 @@ void locks_copy_lock(struct file_lock *new, struct file_lock *fl)
 	new->fl_end = fl->fl_end;
 	new->fl_ops = fl->fl_ops;
 	new->fl_lmops = fl->fl_lmops;
-	if (fl->fl_ops && fl->fl_ops->fl_copy_lock)
-		fl->fl_ops->fl_copy_lock(new, fl);
-	if (fl->fl_lmops && fl->fl_lmops->fl_copy_lock)
-		fl->fl_lmops->fl_copy_lock(new, fl);
+
+	locks_copy_private(new, fl);
 }
 
 EXPORT_SYMBOL(locks_copy_lock);
@@ -904,7 +922,8 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request)
 				fl->fl_start = request->fl_start;
 				fl->fl_end = request->fl_end;
 				fl->fl_type = request->fl_type;
-				fl->fl_u = request->fl_u;
+				locks_release_private(fl);
+				locks_copy_private(fl, request);
 				request = fl;
 				added = 1;
 			}
