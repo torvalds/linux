@@ -746,20 +746,22 @@ static int
 splitm(int index, unsigned int m, unsigned int *retm1, unsigned int *retm2)
 {
 	int m1, m2;
-
-	m1 = (m - 2 - (plls[index].min_m1 + plls[index].max_m2) / 2) / 5 - 2;
-	if (m1 < plls[index].min_m1)
-		m1 = plls[index].min_m1;
-	if (m1 > plls[index].max_m1)
-		m1 = plls[index].max_m1;
-	m2 = m - 5 * (m1 + 2) - 2;
-	if (m2 < plls[index].min_m2 || m2 > plls[index].max_m2 || m2 >= m1) {
-		return 1;
-	} else {
+	int testm;
+	/* no point optimising too much - brute force m */
+	for (m1 = plls[index].min_m1; m1 < plls[index].max_m1+1; m1++)
+	{
+	  for (m2 = plls[index].min_m2; m2 < plls[index].max_m2+1; m2++)
+	  {
+	    testm  = ( 5 * ( m1 + 2 )) + (m2 + 2);
+	    if (testm == m)
+	    {
 		*retm1 = (unsigned int)m1;
-		*retm2 = (unsigned int)m2;
+		*retm2 = (unsigned int)m2;	      
 		return 0;
+	    }
+	  }
 	}
+	return 1;
 }
 
 /* Split the P parameter into P1 and P2. */
