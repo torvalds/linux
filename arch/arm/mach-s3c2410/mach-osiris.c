@@ -123,7 +123,7 @@ static int external_map[]   = { 2 };
 static int chip0_map[]      = { 0 };
 static int chip1_map[]      = { 1 };
 
-struct mtd_partition osiris_default_nand_part[] = {
+static struct mtd_partition osiris_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
@@ -249,8 +249,10 @@ static struct s3c24xx_board osiris_board __initdata = {
 	.clocks_count  = ARRAY_SIZE(osiris_clocks)
 };
 
-void __init osiris_map_io(void)
+static void __init osiris_map_io(void)
 {
+	unsigned long flags;
+
 	/* initialise the clocks */
 
 	s3c24xx_dclk0.parent = NULL;
@@ -272,7 +274,10 @@ void __init osiris_map_io(void)
 	s3c24xx_set_board(&osiris_board);
 
 	/* fix bus configuration (nBE settings wrong on ABLE pre v2.20) */
+
+	local_irq_save(flags);
 	__raw_writel(__raw_readl(S3C2410_BWSCON) | S3C2410_BWSCON_ST1 | S3C2410_BWSCON_ST2 | S3C2410_BWSCON_ST3 | S3C2410_BWSCON_ST4 | S3C2410_BWSCON_ST5, S3C2410_BWSCON);
+	local_irq_restore(flags);
 
 	/* write-protect line to the NAND */
 	s3c2410_gpio_setpin(S3C2410_GPA0, 1);
@@ -280,7 +285,6 @@ void __init osiris_map_io(void)
 
 MACHINE_START(OSIRIS, "Simtec-OSIRIS")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
-	.phys_ram	= S3C2410_SDRAM_PA,
 	.phys_io	= S3C2410_PA_UART,
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
