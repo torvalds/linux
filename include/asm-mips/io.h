@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 1994, 1995 Waldorf GmbH
- * Copyright (C) 1994 - 2000 Ralf Baechle
+ * Copyright (C) 1994 - 2000, 06 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2004, 2005  MIPS Technologies, Inc.  All rights reserved.
  *	Author:	Maciej W. Rozycki <macro@mips.com>
@@ -103,8 +103,20 @@
  */
 extern const unsigned long mips_io_port_base;
 
-#define set_io_port_base(base)	\
-	do { * (unsigned long *) &mips_io_port_base = (base); } while (0)
+/*
+ * Gcc will generate code to load the value of mips_io_port_base after each
+ * function call which may be fairly wasteful in some cases.  So we don't
+ * play quite by the book.  We tell gcc mips_io_port_base is a long variable
+ * which solves the code generation issue.  Now we need to violate the
+ * aliasing rules a little to make initialization possible and finally we
+ * will need the barrier() to fight side effects of the aliasing chat.
+ * This trickery will eventually collapse under gcc's optimizer.  Oh well.
+ */
+static inline void set_io_port_base(unsigned long base)
+{
+	* (unsigned long *) &mips_io_port_base = base;
+	barrier();
+}
 
 /*
  * Thanks to James van Artsdalen for a better timing-fix than

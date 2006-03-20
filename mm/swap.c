@@ -393,7 +393,8 @@ void pagevec_strip(struct pagevec *pvec)
 		struct page *page = pvec->pages[i];
 
 		if (PagePrivate(page) && !TestSetPageLocked(page)) {
-			try_to_release_page(page, 0);
+			if (PagePrivate(page))
+				try_to_release_page(page, 0);
 			unlock_page(page);
 		}
 	}
