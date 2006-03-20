@@ -239,17 +239,25 @@ static void locks_copy_private(struct file_lock *new, struct file_lock *fl)
 /*
  * Initialize a new lock from an existing file_lock structure.
  */
-void locks_copy_lock(struct file_lock *new, struct file_lock *fl)
+static void __locks_copy_lock(struct file_lock *new, const struct file_lock *fl)
 {
-	locks_release_private(new);
-
 	new->fl_owner = fl->fl_owner;
 	new->fl_pid = fl->fl_pid;
-	new->fl_file = fl->fl_file;
+	new->fl_file = NULL;
 	new->fl_flags = fl->fl_flags;
 	new->fl_type = fl->fl_type;
 	new->fl_start = fl->fl_start;
 	new->fl_end = fl->fl_end;
+	new->fl_ops = NULL;
+	new->fl_lmops = NULL;
+}
+
+void locks_copy_lock(struct file_lock *new, struct file_lock *fl)
+{
+	locks_release_private(new);
+
+	__locks_copy_lock(new, fl);
+	new->fl_file = fl->fl_file;
 	new->fl_ops = fl->fl_ops;
 	new->fl_lmops = fl->fl_lmops;
 
@@ -686,7 +694,7 @@ posix_test_lock(struct file *filp, struct file_lock *fl,
 			break;
 	}
 	if (cfl) {
-		locks_copy_lock(conflock, cfl);
+		__locks_copy_lock(conflock, cfl);
 		unlock_kernel();
 		return 1;
 	}
