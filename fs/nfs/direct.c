@@ -424,29 +424,6 @@ static struct nfs_direct_req *nfs_direct_write_alloc(size_t nbytes, size_t wsize
 	return dreq;
 }
 
-/*
- * Collects and returns the final error value/byte-count.
- */
-static ssize_t nfs_direct_write_wait(struct nfs_direct_req *dreq, int intr)
-{
-	int result = 0;
-
-	if (intr) {
-		result = wait_event_interruptible(dreq->wait,
-					(atomic_read(&dreq->complete) == 0));
-	} else {
-		wait_event(dreq->wait, (atomic_read(&dreq->complete) == 0));
-	}
-
-	if (!result)
-		result = atomic_read(&dreq->error);
-	if (!result)
-		result = atomic_read(&dreq->count);
-
-	kref_put(&dreq->kref, nfs_direct_req_release);
-	return (ssize_t) result;
-}
-
 static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data *data = calldata;
@@ -480,8 +457,12 @@ static const struct rpc_call_ops nfs_write_direct_ops = {
  * XXX: For now, support only FILE_SYNC writes.  Later we may add
  *      support for UNSTABLE + COMMIT.
  */
-static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, struct inode *inode, struct nfs_open_context *ctx, unsigned long user_addr, size_t count, loff_t file_offset)
+static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned long user_addr, size_t count, loff_t file_offset)
 {
+	struct file *file = dreq->filp;
+	struct inode *inode = file->f_mapping->host;
+	struct nfs_open_context *ctx = (struct nfs_open_context *)
+							file->private_data;
 	struct list_head *list = &dreq->list;
 	struct page **pages = dreq->pages;
 	size_t wsize = NFS_SERVER(inode)->wsize;
@@ -539,10 +520,11 @@ static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, struct inode 
 	} while (count != 0);
 }
 
-static ssize_t nfs_direct_write(struct inode *inode, struct nfs_open_context *ctx, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, int nr_pages)
+static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, int nr_pages)
 {
 	ssize_t result;
 	sigset_t oldset;
+	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	struct rpc_clnt *clnt = NFS_CLIENT(inode);
 	struct nfs_direct_req *dreq;
 
@@ -552,15 +534,18 @@ static ssize_t nfs_direct_write(struct inode *inode, struct nfs_open_context *ct
 
 	dreq->pages = pages;
 	dreq->npages = nr_pages;
+	dreq->inode = inode;
+	dreq->filp = iocb->ki_filp;
+	if (!is_sync_kiocb(iocb))
+		dreq->iocb = iocb;
 
 	nfs_add_stats(inode, NFSIOS_DIRECTWRITTENBYTES, count);
 
 	nfs_begin_data_update(inode);
 
 	rpc_clnt_sigmask(clnt, &oldset);
-	nfs_direct_write_schedule(dreq, inode, ctx, user_addr, count,
-				  file_offset);
-	result = nfs_direct_write_wait(dreq, clnt->cl_intr);
+	nfs_direct_write_schedule(dreq, user_addr, count, file_offset);
+	result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
 
 	nfs_end_data_update(inode);
@@ -663,10 +648,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t
 	int page_count;
 	struct page **pages;
 	struct file *file = iocb->ki_filp;
-	struct nfs_open_context *ctx =
-			(struct nfs_open_context *) file->private_data;
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
 
 	dfprintk(VFS, "nfs: direct write(%s/%s, %lu@%Ld)\n",
 		file->f_dentry->d_parent->d_name.name,
@@ -704,7 +686,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t
 		goto out;
 	}
 
-	retval = nfs_direct_write(inode, ctx, (unsigned long) buf, count,
+	retval = nfs_direct_write(iocb, (unsigned long) buf, count,
 					pos, pages, page_count);
 	if (mapping->nrpages)
 		invalidate_inode_pages2(mapping);
