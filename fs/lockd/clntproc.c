@@ -291,14 +291,15 @@ nlmclnt_alloc_call(void)
 {
 	struct nlm_rqst	*call;
 
-	while (!signalled()) {
-		call = (struct nlm_rqst *) kmalloc(sizeof(struct nlm_rqst), GFP_KERNEL);
-		if (call) {
-			memset(call, 0, sizeof(*call));
+	for(;;) {
+		call = kzalloc(sizeof(*call), GFP_KERNEL);
+		if (call != NULL) {
 			locks_init_lock(&call->a_args.lock.fl);
 			locks_init_lock(&call->a_res.lock.fl);
 			return call;
 		}
+		if (signalled())
+			break;
 		printk("nlmclnt_alloc_call: failed, waiting for memory\n");
 		schedule_timeout_interruptible(5*HZ);
 	}
