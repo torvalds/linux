@@ -1328,7 +1328,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 	}
 
 	sky2->tx_cons = put;
-	if (netif_queue_stopped(dev) && tx_avail(sky2) > MAX_SKB_TX_LE)
+	if (tx_avail(sky2) > MAX_SKB_TX_LE)
 		netif_wake_queue(dev);
 }
 
@@ -1651,17 +1651,40 @@ static void sky2_tx_timeout(struct net_device *dev)
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 	unsigned txq = txqaddr[sky2->port];
+	u16 report, done;
 
 	if (netif_msg_timer(sky2))
 		printk(KERN_ERR PFX "%s: tx timeout\n", dev->name);
 
-	sky2_write32(hw, Q_ADDR(txq, Q_CSR), BMU_STOP);
-	sky2_write32(hw, Y2_QADDR(txq, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
+	report = sky2_read16(hw, sky2->port == 0 ? STAT_TXA1_RIDX : STAT_TXA2_RIDX);
+	done = sky2_read16(hw, Q_ADDR(txq, Q_DONE));
 
-	sky2_tx_clean(sky2);
+	printk(KERN_DEBUG PFX "%s: transmit ring %u .. %u report=%u done=%u\n",
+	       dev->name,
+	       sky2->tx_cons, sky2->tx_prod, report, done);
 
-	sky2_qset(hw, txq);
-	sky2_prefetch_init(hw, txq, sky2->tx_le_map, TX_RING_SIZE - 1);
+	if (report != done) {
+		printk(KERN_INFO PFX "status burst pending (irq moderation?)\n");
+
+		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
+		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
+	} else if (report != sky2->tx_cons) {
+		printk(KERN_INFO PFX "status report lost?\n");
+
+		spin_lock_bh(&sky2->tx_lock);
+		sky2_tx_complete(sky2, report);
+		spin_unlock_bh(&sky2->tx_lock);
+	} else {
+		printk(KERN_INFO PFX "hardware hung? flushing\n");
+
+		sky2_write32(hw, Q_ADDR(txq, Q_CSR), BMU_STOP);
+		sky2_write32(hw, Y2_QADDR(txq, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
+
+		sky2_tx_clean(sky2);
+
+		sky2_qset(hw, txq);
+		sky2_prefetch_init(hw, txq, sky2->tx_le_map, TX_RING_SIZE - 1);
+	}
 }
 
 
@@ -2097,6 +2120,8 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 	prefetch(&hw->st_le[hw->st_idx]);
 	if (likely(__netif_rx_schedule_prep(dev0)))
 		__netif_rx_schedule(dev0);
+	else
+		printk(KERN_DEBUG PFX "irq race detected\n");
 
 	return IRQ_HANDLED;
 }
