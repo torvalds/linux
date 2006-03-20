@@ -299,6 +299,9 @@ nfs_sb_init(struct super_block *sb, rpc_authflavor_t authflavor)
 		goto out_no_root;
 	}
 
+	/* mount time stamp, in seconds */
+	server->mount_time = jiffies;
+
 	/* Get some general file system info */
 	if (server->namelen == 0 &&
 	    server->rpc_ops->pathconf(server, &server->fh, &pathinfo) >= 0)
@@ -673,6 +676,8 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 	seq_puts(m, mnt->mnt_sb->s_flags & MS_NOATIME ? ",noatime" : "");
 	seq_puts(m, mnt->mnt_sb->s_flags & MS_NODIRATIME ? ",nodiratime" : "");
 	nfs_show_mount_options(m, nfss, 1);
+
+	seq_printf(m, "\n\tage:\t%lu", (jiffies - nfss->mount_time) / HZ);
 
 	seq_printf(m, "\n\tcaps:\t");
 	seq_printf(m, "caps=0x%x", nfss->caps);
