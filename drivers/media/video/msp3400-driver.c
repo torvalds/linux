@@ -684,7 +684,6 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		struct v4l2_routing *rt = arg;
 		int tuner = (rt->input >> 3) & 1;
-		int old_tuner = (state->routing.input >> 3) & 1;
 		int sc_in = rt->input & 0x7;
 		int sc1_out = rt->output & 0xf;
 		int sc2_out = (rt->output >> 4) & 0xf;
@@ -730,42 +729,6 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		state->audmode = vt->audmode;
 		/* only set audmode */
 		msp_set_audmode(client);
-		break;
-	}
-
-	case VIDIOC_G_AUDOUT:
-	{
-		struct v4l2_audioout *a = (struct v4l2_audioout *)arg;
-		int idx = a->index;
-
-		memset(a, 0, sizeof(*a));
-
-		switch (idx) {
-		case 0:
-			strcpy(a->name, "Scart1 Out");
-			break;
-		case 1:
-			strcpy(a->name, "Scart2 Out");
-			break;
-		case 2:
-			strcpy(a->name, "I2S Out");
-			break;
-		default:
-			return -EINVAL;
-		}
-		break;
-	}
-
-	case VIDIOC_S_AUDOUT:
-	{
-		struct v4l2_audioout *a = (struct v4l2_audioout *)arg;
-
-		if (a->index < 0 || a->index > 2)
-			return -EINVAL;
-
-		v4l_dbg(1, msp_debug, client, "Setting audio out on msp34xx to input %i\n", a->index);
-		msp_set_scart(client, state->in_scart, a->index + 1);
-
 		break;
 	}
 
@@ -854,6 +817,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				(state->rxsubchans & V4L2_TUNER_SUB_LANG2) ? ", dual" : "");
 		}
 		v4l_info(client, "Audmode:  0x%04x\n", state->audmode);
+		v4l_info(client, "Routing:  0x%08x (input) 0x%08x (output)\n",
+				state->routing.input, state->routing.output);
 		v4l_info(client, "ACB:      0x%04x\n", state->acb);
 		break;
 	}
