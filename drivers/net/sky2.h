@@ -1840,7 +1840,6 @@ struct sky2_port {
 	u16		     tx_prod;		/* next le to use */
 	u32		     tx_addr64;
 	u16		     tx_pending;
-	u16		     tx_last_put;
 	u16		     tx_last_mss;
 
 	struct ring_info     *rx_ring ____cacheline_aligned_in_smp;
@@ -1849,7 +1848,6 @@ struct sky2_port {
 	u16		     rx_next;		/* next re to check */
 	u16		     rx_put;		/* next le index to use */
 	u16		     rx_pending;
-	u16		     rx_last_put;
 	u16		     rx_bufsize;
 #ifdef SKY2_VLAN_TAG_USED
 	u16		     rx_tag;

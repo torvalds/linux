@@ -61,10 +61,6 @@
  * a receive requires one (or two if using 64 bit dma).
  */
 
-#define is_ec_a1(hw) \
-	unlikely((hw)->chip_id == CHIP_ID_YUKON_EC && \
-		 (hw)->chip_rev == CHIP_REV_YU_EC_A1)
-
 #define RX_LE_SIZE	    	512
 #define RX_LE_BYTES		(RX_LE_SIZE*sizeof(struct sky2_rx_le))
 #define RX_MAX_PENDING		(RX_LE_SIZE/2 - 2)
@@ -725,37 +721,11 @@ static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2)
 	return le;
 }
 
-/*
- * This is a workaround code taken from SysKonnect sk98lin driver
- * to deal with chip bug on Yukon EC rev 0 in the wraparound case.
- */
-static void sky2_put_idx(struct sky2_hw *hw, unsigned q,
-				u16 idx, u16 *last, u16 size)
+/* Update chip's next pointer */
+static inline void sky2_put_idx(struct sky2_hw *hw, unsigned q, u16 idx)
 {
 	wmb();
-	if (is_ec_a1(hw) && idx < *last) {
-		u16 hwget = sky2_read16(hw, Y2_QADDR(q, PREF_UNIT_GET_IDX));
-
-		if (hwget == 0) {
-			/* Start prefetching again */
-			sky2_write8(hw, Y2_QADDR(q, PREF_UNIT_FIFO_WM), 0xe0);
-			goto setnew;
-		}
-
-		if (hwget == size - 1) {
-			/* set watermark to one list element */
-			sky2_write8(hw, Y2_QADDR(q, PREF_UNIT_FIFO_WM), 8);
-
-			/* set put index to first list element */
-			sky2_write16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX), 0);
-		} else		/* have hardware go to end of list */
-			sky2_write16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX),
-				     size - 1);
-	} else {
-setnew:
-		sky2_write16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX), idx);
-	}
-	*last = idx;
+	sky2_write16(hw, Y2_QADDR(q, PREF_UNIT_PUT_IDX), idx);
 	mmiowb();
 }
 
@@ -1001,7 +971,6 @@ static int sky2_rx_start(struct sky2_port *sky2)
 
 	/* Tell chip about available buffers */
 	sky2_write16(hw, Y2_QADDR(rxq, PREF_UNIT_PUT_IDX), sky2->rx_put);
-	sky2->rx_last_put = sky2_read16(hw, Y2_QADDR(rxq, PREF_UNIT_PUT_IDX));
 	return 0;
 nomem:
 	sky2_rx_clean(sky2);
@@ -1299,8 +1268,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 			netif_stop_queue(dev);
 	}
 
-	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod,
-		     &sky2->tx_last_put, TX_RING_SIZE);
+	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod);
 
 out_unlock:
 	spin_unlock(&sky2->tx_lock);
@@ -1843,8 +1811,7 @@ resubmit:
 	sky2_rx_add(sky2, re->mapaddr);
 
 	/* Tell receiver about new buffers. */
-	sky2_put_idx(sky2->hw, rxqaddr[sky2->port], sky2->rx_put,
-		     &sky2->rx_last_put, RX_LE_SIZE);
+	sky2_put_idx(sky2->hw, rxqaddr[sky2->port], sky2->rx_put);
 
 	return skb;
 
@@ -2238,6 +2205,23 @@ static int sky2_reset(struct sky2_hw *hw)
 		return -EOPNOTSUPP;
 	}
 
+	hw->chip_rev = (sky2_read8(hw, B2_MAC_CFG) & CFG_CHIP_R_MSK) >> 4;
+
+	/* This rev is really old, and requires untested workarounds */
+	if (hw->chip_id == CHIP_ID_YUKON_EC && hw->chip_rev == CHIP_REV_YU_EC_A1) {
+		printk(KERN_ERR PFX "%s: unsupported revision Yukon-%s (0x%x) rev %d\n",
+		       pci_name(hw->pdev), yukon2_name[hw->chip_id - CHIP_ID_YUKON_XL],
+		       hw->chip_id, hw->chip_rev);
+		return -EOPNOTSUPP;
+	}
+
+	/* This chip is new and not tested yet */
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+		pr_info(PFX "%s: is a version of Yukon 2 chipset that has not been tested yet.\n",
+			pci_name(hw->pdev));
+		pr_info("Please report success/failure to maintainer <shemminger@osdl.org>\n");
+	}
+
 	/* disable ASF */
 	if (hw->chip_id <= CHIP_ID_YUKON_EC) {
 		sky2_write8(hw, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
@@ -2271,7 +2255,6 @@ static int sky2_reset(struct sky2_hw *hw)
 		if (!(sky2_read8(hw, B2_Y2_CLK_GATE) & Y2_STATUS_LNK2_INAC))
 			++hw->ports;
 	}
-	hw->chip_rev = (sky2_read8(hw, B2_MAC_CFG) & CFG_CHIP_R_MSK) >> 4;
 
 	sky2_set_power_state(hw, PCI_D0);
 
@@ -2338,29 +2321,17 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write16(hw, STAT_LAST_IDX, STATUS_RING_SIZE - 1);
 
 	/* These status setup values are copied from SysKonnect's driver */
-	if (is_ec_a1(hw)) {
-		/* WA for dev. #4.3 */
-		sky2_write16(hw, STAT_TX_IDX_TH, 0xfff);	/* Tx Threshold */
+	sky2_write16(hw, STAT_TX_IDX_TH, 10);
+	sky2_write8(hw, STAT_FIFO_WM, 16);
 
-		/* set Status-FIFO watermark */
-		sky2_write8(hw, STAT_FIFO_WM, 0x21);	/* WA for dev. #4.18 */
+	/* set Status-FIFO ISR watermark */
+	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev == 0)
+		sky2_write8(hw, STAT_FIFO_ISR_WM, 4);
+	else
+		sky2_write8(hw, STAT_FIFO_ISR_WM, 16);
 
-		/* set Status-FIFO ISR watermark */
-		sky2_write8(hw, STAT_FIFO_ISR_WM, 0x07);	/* WA for dev. #4.18 */
-		sky2_write32(hw, STAT_TX_TIMER_INI, sky2_us2clk(hw, 10000));
-	} else {
-		sky2_write16(hw, STAT_TX_IDX_TH, 10);
-		sky2_write8(hw, STAT_FIFO_WM, 16);
-
-		/* set Status-FIFO ISR watermark */
-		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev == 0)
-			sky2_write8(hw, STAT_FIFO_ISR_WM, 4);
-		else
-			sky2_write8(hw, STAT_FIFO_ISR_WM, 16);
-
-		sky2_write32(hw, STAT_TX_TIMER_INI, sky2_us2clk(hw, 1000));
-		sky2_write32(hw, STAT_ISR_TIMER_INI, sky2_us2clk(hw, 7));
-	}
+	sky2_write32(hw, STAT_TX_TIMER_INI, sky2_us2clk(hw, 1000));
+	sky2_write32(hw, STAT_ISR_TIMER_INI, sky2_us2clk(hw, 7));
 
 	/* enable status unit */
 	sky2_write32(hw, STAT_CTRL, SC_STAT_OP_ON);
@@ -3091,7 +3062,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	INIT_WORK(&sky2->phy_task, sky2_phy_task, sky2);
 	init_MUTEX(&sky2->phy_sema);
 	sky2->tx_pending = TX_DEF_PENDING;
-	sky2->rx_pending = is_ec_a1(hw) ? 8 : RX_DEF_PENDING;
+	sky2->rx_pending = RX_DEF_PENDING;
 	sky2->rx_bufsize = sky2_buf_size(ETH_DATA_LEN);
 
 	hw->dev[port] = dev;
