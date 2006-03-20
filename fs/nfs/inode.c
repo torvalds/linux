@@ -1328,11 +1328,8 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 
 	cur_size = i_size_read(inode);
  	new_isize = nfs_size_to_loff_t(fattr->size);
-	if (cur_size != new_isize) {
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
-		if (nfsi->npages == 0)
-			nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE;
-	}
+	if (cur_size != new_isize && nfsi->npages == 0)
+		nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
 
 	/* Have any file permissions changed? */
 	if ((inode->i_mode & S_IALLUGO) != (fattr->mode & S_IALLUGO)
