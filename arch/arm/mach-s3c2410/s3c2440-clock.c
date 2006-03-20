@@ -45,11 +45,60 @@
 
 /* S3C2440 extended clock support */
 
+static unsigned long s3c2440_camif_upll_round(struct clk *clk,
+					      unsigned long rate)
+{
+	unsigned long parent_rate = clk_get_rate(clk->parent);
+	int div;
+
+	if (rate > parent_rate)
+		return parent_rate;
+
+	/* note, we remove the +/- 1 calculations for the divisor */
+
+	div = (parent_rate / rate) / 2;
+
+	if (div < 1)
+		div = 1;
+	else if (div > 16)
+		div = 16;
+
+	return parent_rate / (div * 2);
+}
+
+static int s3c2440_camif_upll_setrate(struct clk *clk, unsigned long rate)
+{
+	unsigned long parent_rate = clk_get_rate(clk->parent);
+	unsigned long camdivn =  __raw_readl(S3C2440_CAMDIVN);
+
+	rate = s3c2440_camif_upll_round(clk, rate);
+
+	camdivn &= ~(S3C2440_CAMDIVN_CAMCLK_SEL | S3C2440_CAMDIVN_CAMCLK_MASK);
+
+	if (rate != parent_rate) {
+		camdivn |= S3C2440_CAMDIVN_CAMCLK_SEL;
+		camdivn |= (((parent_rate / rate) / 2) - 1);
+	}
+
+	__raw_writel(camdivn, S3C2440_CAMDIVN);
+
+	return 0;
+}
+
+/* Extra S3C2440 clocks */
+
 static struct clk s3c2440_clk_cam = {
 	.name		= "camif",
 	.id		= -1,
 	.enable		= s3c24xx_clkcon_enable,
 	.ctrlbit	= S3C2440_CLKCON_CAMERA,
+};
+
+static struct clk s3c2440_clk_cam_upll = {
+	.name		= "camif-upll",
+	.id		= -1,
+	.set_rate	= s3c2440_camif_upll_setrate,
+	.round_rate	= s3c2440_camif_upll_round,
 };
 
 static struct clk s3c2440_clk_ac97 = {
@@ -78,9 +127,11 @@ static int s3c2440_clk_add(struct sys_device *sysdev)
 
 	s3c2440_clk_cam.parent = clk_h;
 	s3c2440_clk_ac97.parent = clk_p;
+	s3c2440_clk_cam_upll.parent = clk_upll;
 
 	s3c24xx_register_clock(&s3c2440_clk_ac97);
 	s3c24xx_register_clock(&s3c2440_clk_cam);
+	s3c24xx_register_clock(&s3c2440_clk_cam_upll);
 
 	clk_disable(&s3c2440_clk_ac97);
 	clk_disable(&s3c2440_clk_cam);
