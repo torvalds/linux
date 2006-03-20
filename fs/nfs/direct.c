@@ -177,6 +177,7 @@ static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, size_t rsize)
 	kref_init(&dreq->kref);
 	init_waitqueue_head(&dreq->wait);
 	INIT_LIST_HEAD(&dreq->list);
+	dreq->iocb = NULL;
 	atomic_set(&dreq->count, 0);
 	atomic_set(&dreq->error, 0);
 
@@ -213,6 +214,10 @@ static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, size_t rsize)
  * We must hold a reference to all the pages in this direct read request
  * until the RPCs complete.  This could be long *after* we are woken up in
  * nfs_direct_read_wait (for instance, if someone hits ^C on a slow server).
+ *
+ * In addition, synchronous I/O uses a stack-allocated iocb.  Thus we
+ * can't trust the iocb is still valid here if this is a synchronous
+ * request.  If the waiter is woken prematurely, the iocb is long gone.
  */
 static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 {
@@ -228,7 +233,13 @@ static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 
 	if (unlikely(atomic_dec_and_test(&dreq->complete))) {
 		nfs_free_user_pages(dreq->pages, dreq->npages, 1);
-		wake_up(&dreq->wait);
+		if (dreq->iocb) {
+			long res = atomic_read(&dreq->error);
+			if (!res)
+				res = atomic_read(&dreq->count);
+			aio_complete(dreq->iocb, res, 0);
+		} else
+			wake_up(&dreq->wait);
 		kref_put(&dreq->kref, nfs_direct_req_release);
 	}
 }
@@ -309,8 +320,13 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned long 
  */
 static ssize_t nfs_direct_read_wait(struct nfs_direct_req *dreq, int intr)
 {
-	int result = 0;
+	int result = -EIOCBQUEUED;
 
+	/* Async requests don't wait here */
+ 	if (dreq->iocb)
+		goto out;
+
+	result = 0;
 	if (intr) {
 		result = wait_event_interruptible(dreq->wait,
 					(atomic_read(&dreq->complete) == 0));
@@ -323,6 +339,7 @@ static ssize_t nfs_direct_read_wait(struct nfs_direct_req *dreq, int intr)
 	if (!result)
 		result = atomic_read(&dreq->count);
 
+out:
 	kref_put(&dreq->kref, nfs_direct_req_release);
 	return (ssize_t) result;
 }
@@ -343,6 +360,8 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 	dreq->npages = nr_pages;
 	dreq->inode = inode;
 	dreq->filp = iocb->ki_filp;
+	if (!is_sync_kiocb(iocb))
+		dreq->iocb = iocb;
 
 	nfs_add_stats(inode, NFSIOS_DIRECTREADBYTES, count);
 	rpc_clnt_sigmask(clnt, &oldset);
@@ -534,8 +553,6 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count,
 		file->f_dentry->d_name.name,
 		(unsigned long) count, (long long) pos);
 
-	if (!is_sync_kiocb(iocb))
-		goto out;
 	if (count < 0)
 		goto out;
 	retval = -EFAULT;
