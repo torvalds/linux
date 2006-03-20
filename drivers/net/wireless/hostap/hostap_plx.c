@@ -368,7 +368,7 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 
 		switch (cis[pos]) {
 		case CISTPL_CONFIG:
-			if (cis[pos + 1] < 1)
+			if (cis[pos + 1] < 2)
 				goto cis_error;
 			rmsz = (cis[pos + 2] & 0x3c) >> 2;
 			rasz = cis[pos + 2] & 0x03;
@@ -390,7 +390,7 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 			break;
 
 		case CISTPL_MANFID:
-			if (cis[pos + 1] < 4)
+			if (cis[pos + 1] < 5)
 				goto cis_error;
 			manfid1 = cis[pos + 2] + (cis[pos + 3] << 8);
 			manfid2 = cis[pos + 4] + (cis[pos + 5] << 8);
