@@ -2272,7 +2272,8 @@ static int sky2_reset(struct sky2_hw *hw)
 		sky2_write8(hw, STAT_FIFO_ISR_WM, 16);
 
 	sky2_write32(hw, STAT_TX_TIMER_INI, sky2_us2clk(hw, 1000));
-	sky2_write32(hw, STAT_ISR_TIMER_INI, sky2_us2clk(hw, 7));
+	sky2_write32(hw, STAT_ISR_TIMER_INI, sky2_us2clk(hw, 20));
+	sky2_write32(hw, STAT_LEV_TIMER_INI, sky2_us2clk(hw, 100));
 
 	/* enable status unit */
 	sky2_write32(hw, STAT_CTRL, SC_STAT_OP_ON);
@@ -2758,19 +2759,11 @@ static int sky2_set_coalesce(struct net_device *dev,
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
-	const u32 tmin = sky2_clk2us(hw, 1);
-	const u32 tmax = 5000;
+	const u32 tmax = sky2_clk2us(hw, 0x0ffffff);
 
-	if (ecmd->tx_coalesce_usecs != 0 &&
-	    (ecmd->tx_coalesce_usecs < tmin || ecmd->tx_coalesce_usecs > tmax))
-		return -EINVAL;
-
-	if (ecmd->rx_coalesce_usecs != 0 &&
-	    (ecmd->rx_coalesce_usecs < tmin || ecmd->rx_coalesce_usecs > tmax))
-		return -EINVAL;
-
-	if (ecmd->rx_coalesce_usecs_irq != 0 &&
-	    (ecmd->rx_coalesce_usecs_irq < tmin || ecmd->rx_coalesce_usecs_irq > tmax))
+	if (ecmd->tx_coalesce_usecs > tmax ||
+	    ecmd->rx_coalesce_usecs > tmax ||
+	    ecmd->rx_coalesce_usecs_irq > tmax)
 		return -EINVAL;
 
 	if (ecmd->tx_max_coalesced_frames >= TX_RING_SIZE-1)
