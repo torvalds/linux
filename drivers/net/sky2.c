@@ -852,7 +852,7 @@ static int sky2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (!netif_running(dev))
 		return -ENODEV;	/* Phy still in reset */
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCGMIIPHY:
 		data->phy_id = PHY_ADDR_MARV;
 
@@ -1304,7 +1304,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 		struct tx_ring_info *re = sky2->tx_ring + put;
 		struct sk_buff *skb = re->skb;
 
-  		nxt = re->idx;
+		nxt = re->idx;
 		BUG_ON(nxt >= TX_RING_SIZE);
 		prefetch(sky2->tx_ring + nxt);
 
@@ -1320,7 +1320,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			struct tx_ring_info *fre;
 			fre = sky2->tx_ring + (put + i + 1) % TX_RING_SIZE;
 			pci_unmap_page(pdev, pci_unmap_addr(fre, mapaddr),
-  				       skb_shinfo(skb)->frags[i].size,
+				       skb_shinfo(skb)->frags[i].size,
 				       PCI_DMA_TODEVICE);
 		}
 
@@ -2187,7 +2187,7 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, B0_CTST, CS_MRST_CLR);
 
 	/* clear any PEX errors */
-	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP)) 
+	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP))
 		sky2_pci_write32(hw, PEX_UNC_ERR_STAT, 0xffffffffUL);
 
 
@@ -2954,7 +2954,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	sky2->speed = -1;
 	sky2->advertising = sky2_supported_modes(hw);
 
- 	/* Receive checksum disabled for Yukon XL
+	/* Receive checksum disabled for Yukon XL
 	 * because of observed problems with incorrect
 	 * values when multiple packets are received in one interrupt
 	 */
