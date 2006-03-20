@@ -2849,8 +2849,7 @@ int nfs4_proc_setclientid(struct nfs4_client *clp, u32 program, unsigned short p
 	return status;
 }
 
-int
-nfs4_proc_setclientid_confirm(struct nfs4_client *clp, struct rpc_cred *cred)
+static int _nfs4_proc_setclientid_confirm(struct nfs4_client *clp, struct rpc_cred *cred)
 {
 	struct nfs_fsinfo fsinfo;
 	struct rpc_message msg = {
@@ -2872,6 +2871,24 @@ nfs4_proc_setclientid_confirm(struct nfs4_client *clp, struct rpc_cred *cred)
 		spin_unlock(&clp->cl_lock);
 	}
 	return status;
+}
+
+int nfs4_proc_setclientid_confirm(struct nfs4_client *clp, struct rpc_cred *cred)
+{
+	long timeout;
+	int err;
+	do {
+		err = _nfs4_proc_setclientid_confirm(clp, cred);
+		switch (err) {
+			case 0:
+				return err;
+			case -NFS4ERR_RESOURCE:
+				/* The IBM lawyers misread another document! */
+			case -NFS4ERR_DELAY:
+				err = nfs4_delay(clp->cl_rpcclient, &timeout);
+		}
+	} while (err == 0);
+	return err;
 }
 
 struct nfs4_delegreturndata {
