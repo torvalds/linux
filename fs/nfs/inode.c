@@ -591,10 +591,9 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	} nfs_info[] = {
 		{ NFS_MOUNT_SOFT, ",soft", ",hard" },
 		{ NFS_MOUNT_INTR, ",intr", "" },
-		{ NFS_MOUNT_POSIX, ",posix", "" },
 		{ NFS_MOUNT_NOCTO, ",nocto", "" },
 		{ NFS_MOUNT_NOAC, ",noac", "" },
-		{ NFS_MOUNT_NONLM, ",nolock", ",lock" },
+		{ NFS_MOUNT_NONLM, ",nolock", "" },
 		{ NFS_MOUNT_NOACL, ",noacl", "" },
 		{ 0, NULL, NULL }
 	};
@@ -603,7 +602,7 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	char buf[12];
 	char *proto;
 
-	seq_printf(m, ",v%d", nfss->rpc_ops->version);
+	seq_printf(m, ",vers=%d", nfss->rpc_ops->version);
 	seq_printf(m, ",rsize=%d", nfss->rsize);
 	seq_printf(m, ",wsize=%d", nfss->wsize);
 	if (nfss->acregmin != 3*HZ)
