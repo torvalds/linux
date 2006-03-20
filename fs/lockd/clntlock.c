@@ -213,11 +213,12 @@ reclaimer(void *ptr)
 	/* First, reclaim all locks that have been marked. */
 restart:
 	list_for_each_entry_safe(fl, next, &host->h_reclaim, fl_u.nfs_fl.list) {
-		list_del(&fl->fl_u.nfs_fl.list);
+		list_del_init(&fl->fl_u.nfs_fl.list);
 
-		nlmclnt_reclaim(host, fl);
 		if (signalled())
-			break;
+			continue;
+		if (nlmclnt_reclaim(host, fl) == 0)
+			list_add_tail(&fl->fl_u.nfs_fl.list, &host->h_granted);
 		goto restart;
 	}
 

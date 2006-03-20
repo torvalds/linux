@@ -446,12 +446,14 @@ nlmclnt_test(struct nlm_rqst *req, struct file_lock *fl)
 
 static void nlmclnt_locks_copy_lock(struct file_lock *new, struct file_lock *fl)
 {
-	memcpy(&new->fl_u.nfs_fl, &fl->fl_u.nfs_fl, sizeof(new->fl_u.nfs_fl));
-	nlm_get_lockowner(new->fl_u.nfs_fl.owner);
+	new->fl_u.nfs_fl.state = fl->fl_u.nfs_fl.state;
+	new->fl_u.nfs_fl.owner = nlm_get_lockowner(fl->fl_u.nfs_fl.owner);
+	list_add_tail(&new->fl_u.nfs_fl.list, &fl->fl_u.nfs_fl.owner->host->h_granted);
 }
 
 static void nlmclnt_locks_release_private(struct file_lock *fl)
 {
+	list_del(&fl->fl_u.nfs_fl.list);
 	nlm_put_lockowner(fl->fl_u.nfs_fl.owner);
 	fl->fl_ops = NULL;
 }
@@ -466,6 +468,7 @@ static void nlmclnt_locks_init_private(struct file_lock *fl, struct nlm_host *ho
 	BUG_ON(fl->fl_ops != NULL);
 	fl->fl_u.nfs_fl.state = 0;
 	fl->fl_u.nfs_fl.owner = nlm_find_lockowner(host, fl->fl_owner);
+	INIT_LIST_HEAD(&fl->fl_u.nfs_fl.list);
 	fl->fl_ops = &nlmclnt_lock_ops;
 }
 
@@ -552,7 +555,7 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 	if (resp->status == NLM_LCK_GRANTED) {
 		fl->fl_u.nfs_fl.state = host->h_state;
 		fl->fl_flags |= FL_SLEEP;
-		list_add_tail(&fl->fl_u.nfs_fl.list, &host->h_granted);
+		/* Ensure the resulting lock will get added to granted list */
 		do_vfs_lock(fl);
 	}
 	status = nlm_stat_to_errno(resp->status);
@@ -617,12 +620,6 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 {
 	struct nlm_res	*resp = &req->a_res;
 	int		status;
-
-	/*
-	 * Remove from the granted list now so the lock doesn't get
-	 * reclaimed while we're stuck in the unlock call.
-	 */
-	list_del(&fl->fl_u.nfs_fl.list);
 
 	/*
 	 * Note: the server is supposed to either grant us the unlock

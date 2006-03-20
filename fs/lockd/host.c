@@ -245,8 +245,12 @@ void nlm_release_host(struct nlm_host *host)
 {
 	if (host != NULL) {
 		dprintk("lockd: release host %s\n", host->h_name);
-		atomic_dec(&host->h_count);
 		BUG_ON(atomic_read(&host->h_count) < 0);
+		if (atomic_dec_and_test(&host->h_count)) {
+			BUG_ON(!list_empty(&host->h_lockowners));
+			BUG_ON(!list_empty(&host->h_granted));
+			BUG_ON(!list_empty(&host->h_reclaim));
+		}
 	}
 }
 
@@ -334,7 +338,6 @@ nlm_gc_hosts(void)
 					rpc_destroy_client(host->h_rpcclnt);
 				}
 			}
-			BUG_ON(!list_empty(&host->h_lockowners));
 			kfree(host);
 			nrhosts--;
 		}
