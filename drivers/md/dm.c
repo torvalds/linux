@@ -840,7 +840,7 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
  bad3:
 	mempool_destroy(md->io_pool);
  bad2:
-	blk_put_queue(md->queue);
+	blk_cleanup_queue(md->queue);
 	free_minor(minor);
  bad1:
 	kfree(md);
@@ -860,7 +860,7 @@ static void free_dev(struct mapped_device *md)
 	del_gendisk(md->disk);
 	free_minor(minor);
 	put_disk(md->disk);
-	blk_put_queue(md->queue);
+	blk_cleanup_queue(md->queue);
 	kfree(md);
 }
 
