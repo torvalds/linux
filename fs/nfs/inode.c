@@ -137,7 +137,7 @@ nfs_fattr_to_ino_t(struct nfs_fattr *fattr)
 static int
 nfs_write_inode(struct inode *inode, int sync)
 {
-	int flags = sync ? FLUSH_WAIT : 0;
+	int flags = sync ? FLUSH_SYNC : 0;
 	int ret;
 
 	ret = nfs_commit_inode(inode, flags);
@@ -1051,7 +1051,7 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	int err;
 
 	/* Flush out writes to the server in order to update c/mtime */
-	nfs_sync_inode(inode, 0, 0, FLUSH_WAIT|FLUSH_NOCOMMIT);
+	nfs_sync_inode_wait(inode, 0, 0, FLUSH_NOCOMMIT);
 
 	/*
 	 * We may force a getattr if the user cares about atime.

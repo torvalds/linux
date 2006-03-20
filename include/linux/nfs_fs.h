@@ -56,9 +56,7 @@
  * When flushing a cluster of dirty pages, there can be different
  * strategies:
  */
-#define FLUSH_AGING		0	/* only flush old buffers */
 #define FLUSH_SYNC		1	/* file being synced, or contention */
-#define FLUSH_WAIT		2	/* wait for completion */
 #define FLUSH_STABLE		4	/* commit to stable storage */
 #define FLUSH_LOWPRI		8	/* low priority background flush */
 #define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
@@ -419,7 +417,7 @@ void nfs_commit_free(struct nfs_write_data *p);
  * Try to write back everything synchronously (but check the
  * return value!)
  */
-extern int  nfs_sync_inode(struct inode *, unsigned long, unsigned int, int);
+extern int  nfs_sync_inode_wait(struct inode *, unsigned long, unsigned int, int);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 extern int  nfs_commit_inode(struct inode *, int);
 extern void nfs_commit_release(void *wdata);
@@ -440,7 +438,7 @@ nfs_have_writebacks(struct inode *inode)
 static inline int
 nfs_wb_all(struct inode *inode)
 {
-	int error = nfs_sync_inode(inode, 0, 0, FLUSH_WAIT);
+	int error = nfs_sync_inode_wait(inode, 0, 0, 0);
 	return (error < 0) ? error : 0;
 }
 
@@ -449,8 +447,8 @@ nfs_wb_all(struct inode *inode)
  */
 static inline int nfs_wb_page_priority(struct inode *inode, struct page* page, int how)
 {
-	int error = nfs_sync_inode(inode, page->index, 1,
-			how | FLUSH_WAIT | FLUSH_STABLE);
+	int error = nfs_sync_inode_wait(inode, page->index, 1,
+			how | FLUSH_STABLE);
 	return (error < 0) ? error : 0;
 }
 

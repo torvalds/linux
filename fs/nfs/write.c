@@ -539,8 +539,7 @@ nfs_mark_request_commit(struct nfs_page *req)
  *
  * Interruptible by signals only if mounted with intr flag.
  */
-static int
-nfs_wait_on_requests(struct inode *inode, unsigned long idx_start, unsigned int npages)
+static int nfs_wait_on_requests_locked(struct inode *inode, unsigned long idx_start, unsigned int npages)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_page *req;
@@ -553,7 +552,6 @@ nfs_wait_on_requests(struct inode *inode, unsigned long idx_start, unsigned int 
 	else
 		idx_end = idx_start + npages - 1;
 
-	spin_lock(&nfsi->req_lock);
 	next = idx_start;
 	while (radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree, (void **)&req, next, 1, NFS_PAGE_TAG_WRITEBACK)) {
 		if (req->wb_index > idx_end)
@@ -566,13 +564,23 @@ nfs_wait_on_requests(struct inode *inode, unsigned long idx_start, unsigned int 
 		spin_unlock(&nfsi->req_lock);
 		error = nfs_wait_on_request(req);
 		nfs_release_request(req);
+		spin_lock(&nfsi->req_lock);
 		if (error < 0)
 			return error;
-		spin_lock(&nfsi->req_lock);
 		res++;
 	}
-	spin_unlock(&nfsi->req_lock);
 	return res;
+}
+
+static int nfs_wait_on_requests(struct inode *inode, unsigned long idx_start, unsigned int npages)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	int ret;
+
+	spin_lock(&nfsi->req_lock);
+	ret = nfs_wait_on_requests_locked(inode, idx_start, npages);
+	spin_unlock(&nfsi->req_lock);
+	return ret;
 }
 
 /*
@@ -625,6 +633,11 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst, unsigned long idx_st
 			printk(KERN_ERR "NFS: desynchronized value of nfs_i.ncommit.\n");
 	}
 	return res;
+}
+#else
+static inline int nfs_scan_commit(struct inode *inode, struct list_head *dst, unsigned long idx_start, unsigned int npages)
+{
+	return 0;
 }
 #endif
 
@@ -1421,6 +1434,11 @@ static const struct rpc_call_ops nfs_commit_ops = {
 	.rpc_call_done = nfs_commit_done,
 	.rpc_release = nfs_commit_release,
 };
+#else
+static inline int nfs_commit_list(struct inode *inode, struct list_head *head, int how)
+{
+	return 0;
+}
 #endif
 
 static int nfs_flush_inode(struct inode *inode, unsigned long idx_start,
@@ -1460,28 +1478,38 @@ int nfs_commit_inode(struct inode *inode, int how)
 }
 #endif
 
-int nfs_sync_inode(struct inode *inode, unsigned long idx_start,
-		  unsigned int npages, int how)
+int nfs_sync_inode_wait(struct inode *inode, unsigned long idx_start,
+		unsigned int npages, int how)
 {
+	struct nfs_inode *nfsi = NFS_I(inode);
+	LIST_HEAD(head);
 	int nocommit = how & FLUSH_NOCOMMIT;
-	int wait = how & FLUSH_WAIT;
-	int error;
+	int pages, ret;
 
-	how &= ~(FLUSH_WAIT|FLUSH_NOCOMMIT);
-
+	how &= ~FLUSH_NOCOMMIT;
+	spin_lock(&nfsi->req_lock);
 	do {
-		if (wait) {
-			error = nfs_wait_on_requests(inode, idx_start, npages);
-			if (error != 0)
-				continue;
-		}
-		error = nfs_flush_inode(inode, idx_start, npages, how);
-		if (error != 0)
+		ret = nfs_wait_on_requests_locked(inode, idx_start, npages);
+		if (ret != 0)
 			continue;
-		if (!nocommit)
-			error = nfs_commit_inode(inode, how);
-	} while (error > 0);
-	return error;
+		pages = nfs_scan_dirty(inode, &head, idx_start, npages);
+		if (pages != 0) {
+			spin_unlock(&nfsi->req_lock);
+			ret = nfs_flush_list(inode, &head, pages, how);
+			spin_lock(&nfsi->req_lock);
+			continue;
+		}
+		if (nocommit)
+			break;
+		pages = nfs_scan_commit(inode, &head, 0, 0);
+		if (pages == 0)
+			break;
+		spin_unlock(&nfsi->req_lock);
+		ret = nfs_commit_list(inode, &head, how);
+		spin_lock(&nfsi->req_lock);
+	} while (ret >= 0);
+	spin_unlock(&nfsi->req_lock);
+	return ret;
 }
 
 int nfs_init_writepagecache(void)
