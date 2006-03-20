@@ -1069,6 +1069,11 @@ call_decode(struct rpc_task *task)
 		return;
 	}
 
+	/*
+	 * Ensure that we see all writes made by xprt_complete_rqst()
+	 * before it changed req->rq_received.
+	 */
+	smp_rmb();
 	req->rq_rcv_buf.len = req->rq_private_buf.len;
 
 	/* Check that the softirq receive buffer is valid */

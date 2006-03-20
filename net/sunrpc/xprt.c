@@ -651,6 +651,8 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 	task->tk_rtt = (long)jiffies - req->rq_xtime;
 
 	list_del_init(&req->rq_list);
+	/* Ensure all writes are done before we update req->rq_received */
+	smp_wmb();
 	req->rq_received = req->rq_private_buf.len = copied;
 	rpc_wake_up_task(task);
 }
@@ -727,7 +729,6 @@ void xprt_transmit(struct rpc_task *task)
 
 	dprintk("RPC: %4d xprt_transmit(%u)\n", task->tk_pid, req->rq_slen);
 
-	smp_rmb();
 	if (!req->rq_received) {
 		if (list_empty(&req->rq_list)) {
 			spin_lock_bh(&xprt->transport_lock);
