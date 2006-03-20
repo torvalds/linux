@@ -51,6 +51,7 @@
 
 #include "nfs4_fs.h"
 #include "delegation.h"
+#include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PROC
 
@@ -2755,8 +2756,10 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server)
 				rpc_wake_up_task(task);
 			task->tk_status = 0;
 			return -EAGAIN;
-		case -NFS4ERR_GRACE:
 		case -NFS4ERR_DELAY:
+			nfs_inc_server_stats((struct nfs_server *) server,
+						NFSIOS_DELAY);
+		case -NFS4ERR_GRACE:
 			rpc_delay(task, NFS4_POLL_RETRY_MAX);
 			task->tk_status = 0;
 			return -EAGAIN;

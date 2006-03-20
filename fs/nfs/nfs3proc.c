@@ -19,6 +19,8 @@
 #include <linux/smp_lock.h>
 #include <linux/nfs_mount.h>
 
+#include "iostat.h"
+
 #define NFSDBG_FACILITY		NFSDBG_PROC
 
 extern struct rpc_procinfo nfs3_procedures[];
@@ -58,10 +60,11 @@ nfs3_rpc_call_wrapper(struct rpc_clnt *clnt, u32 proc, void *argp, void *resp, i
 		nfs3_rpc_wrapper(clnt, msg, flags)
 
 static int
-nfs3_async_handle_jukebox(struct rpc_task *task)
+nfs3_async_handle_jukebox(struct rpc_task *task, struct inode *inode)
 {
 	if (task->tk_status != -EJUKEBOX)
 		return 0;
+	nfs_inc_stats(inode, NFSIOS_DELAY);
 	task->tk_status = 0;
 	rpc_restart_call(task);
 	rpc_delay(task, NFS_JUKEBOX_RETRY_TIME);
@@ -447,7 +450,7 @@ nfs3_proc_unlink_done(struct dentry *dir, struct rpc_task *task)
 	struct rpc_message *msg = &task->tk_msg;
 	struct nfs_fattr	*dir_attr;
 
-	if (nfs3_async_handle_jukebox(task))
+	if (nfs3_async_handle_jukebox(task, dir->d_inode))
 		return 1;
 	if (msg->rpc_argp) {
 		dir_attr = (struct nfs_fattr*)msg->rpc_resp;
@@ -748,7 +751,7 @@ static void nfs3_read_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
 
-	if (nfs3_async_handle_jukebox(task))
+	if (nfs3_async_handle_jukebox(task, data->inode))
 		return;
 	/* Call back common NFS readpage processing */
 	if (task->tk_status >= 0)
@@ -786,7 +789,7 @@ static void nfs3_write_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data *data = calldata;
 
-	if (nfs3_async_handle_jukebox(task))
+	if (nfs3_async_handle_jukebox(task, data->inode))
 		return;
 	if (task->tk_status >= 0)
 		nfs_post_op_update_inode(data->inode, data->res.fattr);
@@ -833,7 +836,7 @@ static void nfs3_commit_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data *data = calldata;
 
-	if (nfs3_async_handle_jukebox(task))
+	if (nfs3_async_handle_jukebox(task, data->inode))
 		return;
 	if (task->tk_status >= 0)
 		nfs_post_op_update_inode(data->inode, data->res.fattr);
