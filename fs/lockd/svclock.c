@@ -43,6 +43,8 @@ static void nlmsvc_release_block(struct nlm_block *block);
 static void	nlmsvc_insert_block(struct nlm_block *block, unsigned long);
 static int	nlmsvc_remove_block(struct nlm_block *block);
 
+static int nlmsvc_setgrantargs(struct nlm_rqst *call, struct nlm_lock *lock);
+static void nlmsvc_freegrantargs(struct nlm_rqst *call);
 static const struct rpc_call_ops nlmsvc_grant_ops;
 
 /*
@@ -196,7 +198,7 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_file *file,
 	locks_init_lock(&block->b_call.a_res.lock.fl);
 	kref_init(&block->b_count);
 
-	if (!nlmclnt_setgrantargs(&block->b_call, lock))
+	if (!nlmsvc_setgrantargs(&block->b_call, lock))
 		goto failed_free;
 
 	/* Set notifier function for VFS, and init args */
@@ -264,7 +266,7 @@ static void nlmsvc_free_block(struct kref *kref)
 
 	if (block->b_host)
 		nlm_release_host(block->b_host);
-	nlmclnt_freegrantargs(&block->b_call);
+	nlmsvc_freegrantargs(&block->b_call);
 	kfree(block);
 }
 
@@ -296,6 +298,49 @@ nlmsvc_traverse_blocks(struct nlm_host *host, struct nlm_file *file, int action)
 	}
 	up(&file->f_sema);
 	return 0;
+}
+
+/*
+ * Initialize arguments for GRANTED call. The nlm_rqst structure
+ * has been cleared already.
+ */
+static int nlmsvc_setgrantargs(struct nlm_rqst *call, struct nlm_lock *lock)
+{
+	locks_copy_lock(&call->a_args.lock.fl, &lock->fl);
+	memcpy(&call->a_args.lock.fh, &lock->fh, sizeof(call->a_args.lock.fh));
+	call->a_args.lock.caller = system_utsname.nodename;
+	call->a_args.lock.oh.len = lock->oh.len;
+
+	/* set default data area */
+	call->a_args.lock.oh.data = call->a_owner;
+	call->a_args.lock.svid = lock->fl.fl_pid;
+
+	if (lock->oh.len > NLMCLNT_OHSIZE) {
+		void *data = kmalloc(lock->oh.len, GFP_KERNEL);
+		if (!data) {
+			nlmsvc_freegrantargs(call);
+			return 0;
+		}
+		call->a_args.lock.oh.data = (u8 *) data;
+	}
+
+	memcpy(call->a_args.lock.oh.data, lock->oh.data, lock->oh.len);
+	return 1;
+}
+
+static void nlmsvc_freegrantargs(struct nlm_rqst *call)
+{
+	struct file_lock *fl = &call->a_args.lock.fl;
+	/*
+	 * Check whether we allocated memory for the owner.
+	 */
+	if (call->a_args.lock.oh.data != (u8 *) call->a_owner) {
+		kfree(call->a_args.lock.oh.data);
+	}
+	if (fl->fl_ops && fl->fl_ops->fl_release_private)
+		fl->fl_ops->fl_release_private(fl);
+	if (fl->fl_lmops && fl->fl_lmops->fl_release_private)
+		fl->fl_lmops->fl_release_private(fl);
 }
 
 /*
@@ -600,11 +645,16 @@ static void nlmsvc_grant_callback(struct rpc_task *task, void *data)
 	}
 	nlmsvc_insert_block(block, timeout);
 	svc_wake_up(block->b_daemon);
-	nlmsvc_release_block(block);
+}
+
+void nlmsvc_grant_release(void *data)
+{
+	nlmsvc_release_block(data);
 }
 
 static const struct rpc_call_ops nlmsvc_grant_ops = {
 	.rpc_call_done = nlmsvc_grant_callback,
+	.rpc_release = nlmsvc_grant_release,
 };
 
 /*

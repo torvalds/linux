@@ -153,8 +153,6 @@ long		  nlmclnt_block(struct nlm_rqst *req, long timeout);
 u32		  nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *);
 void		  nlmclnt_recovery(struct nlm_host *, u32);
 int		  nlmclnt_reclaim(struct nlm_host *, struct file_lock *);
-int		  nlmclnt_setgrantargs(struct nlm_rqst *, struct nlm_lock *);
-void		  nlmclnt_freegrantargs(struct nlm_rqst *);
 
 /*
  * Host cache

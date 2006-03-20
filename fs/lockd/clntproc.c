@@ -148,49 +148,6 @@ static void nlmclnt_release_lockargs(struct nlm_rqst *req)
 }
 
 /*
- * Initialize arguments for GRANTED call. The nlm_rqst structure
- * has been cleared already.
- */
-int
-nlmclnt_setgrantargs(struct nlm_rqst *call, struct nlm_lock *lock)
-{
-	locks_copy_lock(&call->a_args.lock.fl, &lock->fl);
-	memcpy(&call->a_args.lock.fh, &lock->fh, sizeof(call->a_args.lock.fh));
-	call->a_args.lock.caller = system_utsname.nodename;
-	call->a_args.lock.oh.len = lock->oh.len;
-
-	/* set default data area */
-	call->a_args.lock.oh.data = call->a_owner;
-	call->a_args.lock.svid = lock->fl.fl_pid;
-
-	if (lock->oh.len > NLMCLNT_OHSIZE) {
-		void *data = kmalloc(lock->oh.len, GFP_KERNEL);
-		if (!data) {
-			nlmclnt_freegrantargs(call);
-			return 0;
-		}
-		call->a_args.lock.oh.data = (u8 *) data;
-	}
-
-	memcpy(call->a_args.lock.oh.data, lock->oh.data, lock->oh.len);
-	return 1;
-}
-
-void
-nlmclnt_freegrantargs(struct nlm_rqst *call)
-{
-	struct file_lock *fl = &call->a_args.lock.fl;
-	/*
-	 * Check whether we allocated memory for the owner.
-	 */
-	if (call->a_args.lock.oh.data != (u8 *) call->a_owner) {
-		kfree(call->a_args.lock.oh.data);
-	}
-	if (fl->fl_ops && fl->fl_ops->fl_release_private)
-		fl->fl_ops->fl_release_private(fl);
-}
-
-/*
  * This is the main entry point for the NLM client.
  */
 int
