@@ -19,7 +19,7 @@
 #include <linux/string.h>
 #include <asm/hardware.h>
 #include <asm/arch/ixp2000-regs.h>
-#include <asm/arch/uengine.h>
+#include <asm/hardware/uengine.h>
 #include <asm/io.h>
 
 #define USTORE_ADDRESS			0x000
