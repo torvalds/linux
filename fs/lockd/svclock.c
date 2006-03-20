@@ -519,7 +519,6 @@ nlmsvc_grant_blocked(struct nlm_block *block)
 {
 	struct nlm_file		*file = block->b_file;
 	struct nlm_lock		*lock = &block->b_call.a_args.lock;
-	struct file_lock	*conflock;
 	int			error;
 
 	dprintk("lockd: grant blocked lock %p\n", block);
@@ -539,19 +538,15 @@ nlmsvc_grant_blocked(struct nlm_block *block)
 	}
 
 	/* Try the lock operation again */
-	if ((conflock = posix_test_lock(file->f_file, &lock->fl)) != NULL) {
-		/* Bummer, we blocked again */
+	error = posix_lock_file(file->f_file, &lock->fl);
+	switch (error) {
+	case 0:
+		break;
+	case -EAGAIN:
 		dprintk("lockd: lock still blocked\n");
 		nlmsvc_insert_block(block, NLM_NEVER);
-		posix_block_lock(conflock, &lock->fl);
 		goto out_unlock;
-	}
-
-	/* Alright, no conflicting lock. Now lock it for real. If the
-	 * following yields an error, this is most probably due to low
-	 * memory. Retry the lock in a few seconds.
-	 */
-	if ((error = posix_lock_file(file->f_file, &lock->fl)) < 0) {
+	default:
 		printk(KERN_WARNING "lockd: unexpected error %d in %s!\n",
 				-error, __FUNCTION__);
 		nlmsvc_insert_block(block, 10 * HZ);
