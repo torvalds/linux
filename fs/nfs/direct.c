@@ -72,7 +72,6 @@ struct nfs_direct_req {
 				rewrite_list;	/* saved nfs_write_data structs */
 	struct nfs_open_context	*ctx;		/* file open context info */
 	struct kiocb *		iocb;		/* controlling i/o request */
-	wait_queue_head_t	wait;		/* wait for i/o completion */
 	struct inode *		inode;		/* target file of i/o */
 	unsigned long		user_addr;	/* location of user's buffer */
 	size_t			user_count;	/* total bytes to move */
@@ -85,6 +84,7 @@ struct nfs_direct_req {
 	int			outstanding;	/* i/os we're waiting for */
 	ssize_t			count,		/* bytes actually processed */
 				error;		/* any reported error */
+	struct completion	completion;	/* wait for i/o completion */
 
 	/* commit state */
 	struct nfs_write_data *	commit_data;	/* special write_data for commits */
@@ -175,7 +175,7 @@ static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
 		return NULL;
 
 	kref_init(&dreq->kref);
-	init_waitqueue_head(&dreq->wait);
+	init_completion(&dreq->completion);
 	INIT_LIST_HEAD(&dreq->list);
 	INIT_LIST_HEAD(&dreq->rewrite_list);
 	dreq->iocb = NULL;
@@ -209,7 +209,7 @@ static ssize_t nfs_direct_wait(struct nfs_direct_req *dreq)
 	if (dreq->iocb)
 		goto out;
 
-	result = wait_event_interruptible(dreq->wait, (dreq->outstanding == 0));
+	result = wait_for_completion_interruptible(&dreq->completion);
 
 	if (!result)
 		result = dreq->error;
@@ -239,8 +239,8 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq)
 		if (!res)
 			res = (long) dreq->count;
 		aio_complete(dreq->iocb, res, 0);
-	} else
-		wake_up(&dreq->wait);
+	}
+	complete_all(&dreq->completion);
 
 	kref_put(&dreq->kref, nfs_direct_req_release);
 }
