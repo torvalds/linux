@@ -161,7 +161,7 @@ static void nfs_direct_req_release(struct kref *kref)
  * done.  This prevents races with I/O completion so we will always wait
  * until all requests have been dispatched and completed.
  */
-static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, unsigned int rsize)
+static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, size_t rsize)
 {
 	struct list_head *list;
 	struct nfs_direct_req *dreq;
@@ -244,14 +244,14 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, struct inode *
 {
 	struct list_head *list = &dreq->list;
 	struct page **pages = dreq->pages;
+	size_t rsize = NFS_SERVER(inode)->rsize;
 	unsigned int curpage, pgbase;
-	unsigned int rsize = NFS_SERVER(inode)->rsize;
 
 	curpage = 0;
 	pgbase = user_addr & ~PAGE_MASK;
 	do {
 		struct nfs_read_data *data;
-		unsigned int bytes;
+		size_t bytes;
 
 		bytes = rsize;
 		if (count < rsize)
