@@ -54,6 +54,8 @@
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
 
+#include "iostat.h"
+
 #define NFSDBG_FACILITY		NFSDBG_VFS
 #define MAX_DIRECTIO_SIZE	(4096UL << PAGE_SHIFT)
 
@@ -67,6 +69,7 @@ struct nfs_direct_req {
 	struct kref		kref;		/* release manager */
 	struct list_head	list;		/* nfs_read_data structs */
 	wait_queue_head_t	wait;		/* wait for i/o completion */
+	struct inode *		inode;		/* target file of I/O */
 	struct page **		pages;		/* pages in our buffer */
 	unsigned int		npages;		/* count of pages */
 	atomic_t		complete,	/* i/os we're waiting for */
@@ -357,7 +360,9 @@ static ssize_t nfs_direct_read_seg(struct inode *inode,
 
 	dreq->pages = pages;
 	dreq->npages = nr_pages;
+	dreq->inode = inode;
 
+	nfs_add_stats(inode, NFSIOS_DIRECTREADBYTES, count);
 	rpc_clnt_sigmask(clnt, &oldset);
 	nfs_direct_read_schedule(dreq, inode, ctx, user_addr, count,
 				 file_offset);
@@ -572,6 +577,7 @@ static ssize_t nfs_direct_write(struct inode *inode,
                         return page_count;
                 }
 
+		nfs_add_stats(inode, NFSIOS_DIRECTWRITTENBYTES, size);
 		result = nfs_direct_write_seg(inode, ctx, user_addr, size,
 				file_offset, pages, page_count);
 		nfs_free_user_pages(pages, page_count, 0);
@@ -581,6 +587,7 @@ static ssize_t nfs_direct_write(struct inode *inode,
 				break;
 			return result;
 		}
+		nfs_add_stats(inode, NFSIOS_SERVERWRITTENBYTES, result);
 		tot_bytes += result;
 		file_offset += result;
 		if (result < size)

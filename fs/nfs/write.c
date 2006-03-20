@@ -63,6 +63,7 @@
 #include <linux/smp_lock.h>
 
 #include "delegation.h"
+#include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
@@ -134,6 +135,7 @@ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int c
 	end = ((loff_t)page->index << PAGE_CACHE_SHIFT) + ((loff_t)offset+count);
 	if (i_size >= end)
 		return;
+	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);
 	i_size_write(inode, end);
 }
 
@@ -223,6 +225,7 @@ static int nfs_writepage_sync(struct nfs_open_context *ctx, struct inode *inode,
 	        wdata->args.pgbase += result;
 		written += result;
 		count -= result;
+		nfs_add_stats(inode, NFSIOS_SERVERWRITTENBYTES, result);
 	} while (count);
 	/* Update file length */
 	nfs_grow_file(page, offset, written);
@@ -278,6 +281,9 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 	int inode_referenced = 0;
 	int priority = wb_priority(wbc);
 	int err;
+
+	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
+	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
 
 	/*
 	 * Note: We need to ensure that we have a reference to the inode
@@ -343,6 +349,8 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	struct inode *inode = mapping->host;
 	int err;
 
+	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
+
 	err = generic_writepages(mapping, wbc);
 	if (err)
 		return err;
@@ -354,6 +362,7 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 	err = nfs_flush_inode(inode, 0, 0, wb_priority(wbc));
 	if (err < 0)
 		goto out;
+	nfs_add_stats(inode, NFSIOS_WRITEPAGES, err);
 	wbc->nr_to_write -= err;
 	if (!wbc->nonblocking && wbc->sync_mode == WB_SYNC_ALL) {
 		err = nfs_wait_on_requests(inode, 0, 0);
@@ -596,6 +605,9 @@ static int nfs_wait_on_write_congestion(struct address_space *mapping, int intr)
 
 	if (!bdi_write_congested(bdi))
 		return 0;
+
+	nfs_inc_stats(mapping->host, NFSIOS_CONGESTIONWAIT);
+
 	if (intr) {
 		struct rpc_clnt *clnt = NFS_CLIENT(mapping->host);
 		sigset_t oldset;
@@ -748,6 +760,8 @@ int nfs_updatepage(struct file *file, struct page *page,
 	struct inode	*inode = page->mapping->host;
 	struct nfs_page	*req;
 	int		status = 0;
+
+	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
 
 	dprintk("NFS:      nfs_updatepage(%s/%s %d@%Ld)\n",
 		file->f_dentry->d_parent->d_name.name,
@@ -1152,6 +1166,8 @@ void nfs_writeback_done(struct rpc_task *task, void *calldata)
 	dprintk("NFS: %4d nfs_writeback_done (status %d)\n",
 		task->tk_pid, task->tk_status);
 
+	nfs_add_stats(data->inode, NFSIOS_SERVERWRITTENBYTES, resp->count);
+
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 	if (resp->verf->committed < argp->stable && task->tk_status >= 0) {
 		/* We tried a write call, but the server did not
@@ -1176,6 +1192,8 @@ void nfs_writeback_done(struct rpc_task *task, void *calldata)
 	/* Is this a short write? */
 	if (task->tk_status >= 0 && resp->count < argp->count) {
 		static unsigned long    complain;
+
+		nfs_inc_stats(data->inode, NFSIOS_SHORTWRITE);
 
 		/* Has the server at least made some progress? */
 		if (resp->count != 0) {

@@ -753,6 +753,8 @@ static void nfs_zap_caches_locked(struct inode *inode)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	int mode = inode->i_mode;
 
+	nfs_inc_stats(inode, NFSIOS_ATTRINVALIDATE);
+
 	NFS_ATTRTIMEO(inode) = NFS_MINATTRTIMEO(inode);
 	NFS_ATTRTIMEO_UPDATE(inode) = jiffies;
 
@@ -940,6 +942,8 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	struct nfs_fattr fattr;
 	int error;
 
+	nfs_inc_stats(inode, NFSIOS_VFSSETATTR);
+
 	if (attr->ia_valid & ATTR_SIZE) {
 		if (!S_ISREG(inode->i_mode) || attr->ia_size == i_size_read(inode))
 			attr->ia_valid &= ~ATTR_SIZE;
@@ -993,6 +997,7 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr)
 		spin_unlock(&inode->i_lock);
 	}
 	if ((attr->ia_valid & ATTR_SIZE) != 0) {
+		nfs_inc_stats(inode, NFSIOS_SETATTRTRUNC);
 		inode->i_size = attr->ia_size;
 		vmtruncate(inode, attr->ia_size);
 	}
@@ -1278,6 +1283,7 @@ int nfs_attribute_timeout(struct inode *inode)
  */
 int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 {
+	nfs_inc_stats(inode, NFSIOS_INODEREVALIDATE);
 	if (!(NFS_I(inode)->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA))
 			&& !nfs_attribute_timeout(inode))
 		return NFS_STALE(inode) ? -ESTALE : 0;
@@ -1294,6 +1300,7 @@ void nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	if (nfsi->cache_validity & NFS_INO_INVALID_DATA) {
+		nfs_inc_stats(inode, NFSIOS_DATAINVALIDATE);
 		if (S_ISREG(inode->i_mode))
 			nfs_sync_mapping(mapping);
 		invalidate_inode_pages2(mapping);
@@ -1615,6 +1622,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 
 	/* Update attrtimeo value if we're out of the unstable period */
 	if (invalid & NFS_INO_INVALID_ATTR) {
+		nfs_inc_stats(inode, NFSIOS_ATTRINVALIDATE);
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = jiffies;
 	} else if (time_after(jiffies, nfsi->attrtimeo_timestamp+nfsi->attrtimeo)) {

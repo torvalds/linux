@@ -34,6 +34,7 @@
 
 #include "nfs4_fs.h"
 #include "delegation.h"
+#include "iostat.h"
 
 #define NFS_PARANOIA 1
 /* #define NFS_DEBUG_VERBOSE 1 */
@@ -507,6 +508,8 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct nfs_fattr fattr;
 	long		res;
 
+	nfs_inc_stats(inode, NFSIOS_VFSGETDENTS);
+
 	lock_kernel();
 
 	res = nfs_revalidate_inode(NFS_SERVER(inode), inode);
@@ -713,6 +716,7 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	parent = dget_parent(dentry);
 	lock_kernel();
 	dir = parent->d_inode;
+	nfs_inc_stats(dir, NFSIOS_DENTRYREVALIDATE);
 	inode = dentry->d_inode;
 
 	if (!inode) {
@@ -844,6 +848,7 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 
 	dfprintk(VFS, "NFS: lookup(%s/%s)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
+	nfs_inc_stats(dir, NFSIOS_VFSLOOKUP);
 
 	res = ERR_PTR(-ENAMETOOLONG);
 	if (dentry->d_name.len > NFS_SERVER(dir)->namelen)
@@ -1241,6 +1246,7 @@ static int nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	dfprintk(VFS, "NFS: silly-rename(%s/%s, ct=%d)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name, 
 		atomic_read(&dentry->d_count));
+	nfs_inc_stats(dir, NFSIOS_SILLYRENAME);
 
 #ifdef NFS_PARANOIA
 if (!dentry->d_inode)
@@ -1639,6 +1645,8 @@ int nfs_permission(struct inode *inode, int mask, struct nameidata *nd)
 {
 	struct rpc_cred *cred;
 	int res = 0;
+
+	nfs_inc_stats(inode, NFSIOS_VFSACCESS);
 
 	if (mask == 0)
 		goto out;
