@@ -140,7 +140,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		if (ret < 0)
 			return ret;
 
-		counter_config = kmalloc(sizeof(struct op_counter_config) * spec->num_counters,
+		counter_config = kcalloc(spec->num_counters, sizeof(struct op_counter_config),
 					 GFP_KERNEL);
 		if (!counter_config)
 			return -ENOMEM;
