@@ -443,10 +443,8 @@ static int do_vfs_lock(struct file *file, struct file_lock *fl)
 static int do_unlk(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct inode *inode = filp->f_mapping->host;
-	sigset_t oldset;
 	int status;
 
-	rpc_clnt_sigmask(NFS_CLIENT(inode), &oldset);
 	/*
 	 * Flush all pending writes before doing anything
 	 * with locks..
@@ -464,17 +462,14 @@ static int do_unlk(struct file *filp, int cmd, struct file_lock *fl)
 	else
 		status = do_vfs_lock(filp, fl);
 	unlock_kernel();
-	rpc_clnt_sigunmask(NFS_CLIENT(inode), &oldset);
 	return status;
 }
 
 static int do_setlk(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct inode *inode = filp->f_mapping->host;
-	sigset_t oldset;
 	int status;
 
-	rpc_clnt_sigmask(NFS_CLIENT(inode), &oldset);
 	/*
 	 * Flush all pending writes before doing anything
 	 * with locks..
@@ -507,7 +502,6 @@ static int do_setlk(struct file *filp, int cmd, struct file_lock *fl)
 	nfs_sync_mapping(filp->f_mapping);
 	nfs_zap_caches(inode);
 out:
-	rpc_clnt_sigunmask(NFS_CLIENT(inode), &oldset);
 	return status;
 }
 
