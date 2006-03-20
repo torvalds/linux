@@ -2238,7 +2238,7 @@ struct camera_data *cpia2_init_camera_struct(void)
 	memset(cam, 0, sizeof(struct camera_data));
 
 	cam->present = 1;
-	init_MUTEX(&cam->busy_lock);
+	mutex_init(&cam->busy_lock);
 	init_waitqueue_head(&cam->wq_stream);
 
 	return cam;
@@ -2371,12 +2371,12 @@ long cpia2_read(struct camera_data *cam,
 	}
 
 	/* make this _really_ smp and multithread-safe */
-	if (down_interruptible(&cam->busy_lock))
+	if (mutex_lock_interruptible(&cam->busy_lock))
 		return -ERESTARTSYS;
 
 	if (!cam->present) {
 		LOG("%s: camera removed\n",__FUNCTION__);
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return 0;	/* EOF */
 	}
 
@@ -2389,34 +2389,34 @@ long cpia2_read(struct camera_data *cam,
 	/* Copy cam->curbuff in case it changes while we're processing */
 	frame = cam->curbuff;
 	if (noblock && frame->status != FRAME_READY) {
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return -EAGAIN;
 	}
 
 	if(frame->status != FRAME_READY) {
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		wait_event_interruptible(cam->wq_stream,
 			       !cam->present ||
 			       (frame = cam->curbuff)->status == FRAME_READY);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
 		/* make this _really_ smp and multithread-safe */
-		if (down_interruptible(&cam->busy_lock)) {
+		if (mutex_lock_interruptible(&cam->busy_lock)) {
 			return -ERESTARTSYS;
 		}
 		if(!cam->present) {
-			up(&cam->busy_lock);
+			mutex_unlock(&cam->busy_lock);
 			return 0;
 		}
 	}
 
 	/* copy data to user space */
 	if (frame->length > count) {
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return -EFAULT;
 	}
 	if (copy_to_user(buf, frame->data, frame->length)) {
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return -EFAULT;
 	}
 
@@ -2424,7 +2424,7 @@ long cpia2_read(struct camera_data *cam,
 
 	frame->status = FRAME_EMPTY;
 
-	up(&cam->busy_lock);
+	mutex_unlock(&cam->busy_lock);
 	return count;
 }
 
@@ -2443,10 +2443,10 @@ unsigned int cpia2_poll(struct camera_data *cam, struct file *filp,
 		return POLLERR;
 	}
 
-	down(&cam->busy_lock);
+	mutex_lock(&cam->busy_lock);
 
 	if(!cam->present) {
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return POLLHUP;
 	}
 
@@ -2456,16 +2456,16 @@ unsigned int cpia2_poll(struct camera_data *cam, struct file *filp,
 				       cam->params.camera_state.stream_mode);
 	}
 
-	up(&cam->busy_lock);
+	mutex_unlock(&cam->busy_lock);
 	poll_wait(filp, &cam->wq_stream, wait);
-	down(&cam->busy_lock);
+	mutex_lock(&cam->busy_lock);
 
 	if(!cam->present)
 		status = POLLHUP;
 	else if(cam->curbuff->status == FRAME_READY)
 		status = POLLIN | POLLRDNORM;
 
-	up(&cam->busy_lock);
+	mutex_unlock(&cam->busy_lock);
 	return status;
 }
 
@@ -2488,18 +2488,18 @@ int cpia2_remap_buffer(struct camera_data *cam, struct vm_area_struct *vma)
 	DBG("mmap offset:%ld size:%ld\n", start_offset, size);
 
 	/* make this _really_ smp-safe */
-	if (down_interruptible(&cam->busy_lock))
+	if (mutex_lock_interruptible(&cam->busy_lock))
 		return -ERESTARTSYS;
 
 	if (!cam->present) {
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return -ENODEV;
 	}
 
 	if (size > cam->frame_size*cam->num_frames  ||
 	    (start_offset % cam->frame_size) != 0 ||
 	    (start_offset+size > cam->frame_size*cam->num_frames)) {
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return -EINVAL;
 	}
 
@@ -2507,7 +2507,7 @@ int cpia2_remap_buffer(struct camera_data *cam, struct vm_area_struct *vma)
 	while (size > 0) {
 		page = kvirt_to_pa(pos);
 		if (remap_pfn_range(vma, start, page >> PAGE_SHIFT, PAGE_SIZE, PAGE_SHARED)) {
-			up(&cam->busy_lock);
+			mutex_unlock(&cam->busy_lock);
 			return -EAGAIN;
 		}
 		start += PAGE_SIZE;
@@ -2519,7 +2519,7 @@ int cpia2_remap_buffer(struct camera_data *cam, struct vm_area_struct *vma)
 	}
 
 	cam->mmapped = true;
-	up(&cam->busy_lock);
+	mutex_unlock(&cam->busy_lock);
 	return 0;
 }
 
