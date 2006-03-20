@@ -435,14 +435,17 @@ static struct rpc_filelist authfiles[] = {
 	},
 };
 
-static int
-rpc_get_mount(void)
+struct vfsmount *rpc_get_mount(void)
 {
-	return simple_pin_fs("rpc_pipefs", &rpc_mount, &rpc_mount_count);
+	int err;
+
+	err = simple_pin_fs("rpc_pipefs", &rpc_mount, &rpc_mount_count);
+	if (err != 0)
+		return ERR_PTR(err);
+	return rpc_mount;
 }
 
-static void
-rpc_put_mount(void)
+void rpc_put_mount(void)
 {
 	simple_release_fs(&rpc_mount, &rpc_mount_count);
 }
@@ -452,12 +455,13 @@ rpc_lookup_parent(char *path, struct nameidata *nd)
 {
 	if (path[0] == '\0')
 		return -ENOENT;
-	if (rpc_get_mount()) {
+	nd->mnt = rpc_get_mount();
+	if (IS_ERR(nd->mnt)) {
 		printk(KERN_WARNING "%s: %s failed to mount "
 			       "pseudofilesystem \n", __FILE__, __FUNCTION__);
-		return -ENODEV;
+		return PTR_ERR(nd->mnt);
 	}
-	nd->mnt = mntget(rpc_mount);
+	mntget(nd->mnt);
 	nd->dentry = dget(rpc_mount->mnt_root);
 	nd->last_type = LAST_ROOT;
 	nd->flags = LOOKUP_PARENT;
@@ -594,7 +598,6 @@ __rpc_mkdir(struct inode *dir, struct dentry *dentry)
 	d_instantiate(dentry, inode);
 	dir->i_nlink++;
 	inode_dir_notify(dir, DN_CREATE);
-	rpc_get_mount();
 	return 0;
 out_err:
 	printk(KERN_WARNING "%s: %s failed to allocate inode for dentry %s\n",
@@ -615,7 +618,6 @@ __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!error) {
 		inode_dir_notify(dir, DN_DELETE);
 		d_drop(dentry);
-		rpc_put_mount();
 	}
 	return 0;
 }

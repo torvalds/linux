@@ -70,8 +70,15 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 	static uint32_t clntid;
 	int error;
 
+	clnt->cl_vfsmnt = ERR_PTR(-ENOENT);
+	clnt->cl_dentry = ERR_PTR(-ENOENT);
 	if (dir_name == NULL)
 		return 0;
+
+	clnt->cl_vfsmnt = rpc_get_mount();
+	if (IS_ERR(clnt->cl_vfsmnt))
+		return PTR_ERR(clnt->cl_vfsmnt);
+
 	for (;;) {
 		snprintf(clnt->cl_pathname, sizeof(clnt->cl_pathname),
 				"%s/clnt%x", dir_name,
@@ -84,6 +91,7 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 		if (error != -EEXIST) {
 			printk(KERN_INFO "RPC: Couldn't create pipefs entry %s, error %d\n",
 					clnt->cl_pathname, error);
+			rpc_put_mount();
 			return error;
 		}
 	}
@@ -175,7 +183,11 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 	return clnt;
 
 out_no_auth:
-	rpc_rmdir(clnt->cl_pathname);
+	if (!IS_ERR(clnt->cl_dentry)) {
+		rpc_rmdir(clnt->cl_pathname);
+		dput(clnt->cl_dentry);
+		rpc_put_mount();
+	}
 out_no_path:
 	if (clnt->cl_server != clnt->cl_inline_name)
 		kfree(clnt->cl_server);
@@ -240,13 +252,15 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new->cl_autobind = 0;
 	new->cl_oneshot = 0;
 	new->cl_dead = 0;
-	dget(new->cl_dentry);
+	if (!IS_ERR(new->cl_dentry)) {
+		dget(new->cl_dentry);
+		rpc_get_mount();
+	}
 	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
 	new->cl_pmap		= &new->cl_pmap_default;
 	new->cl_metrics         = rpc_alloc_iostats(clnt);
-	rpc_init_wait_queue(&new->cl_pmap_default.pm_bindwait, "bindwait");
 	return new;
 out_no_clnt:
 	printk(KERN_INFO "RPC: out of memory in %s\n", __FUNCTION__);
@@ -318,8 +332,10 @@ rpc_destroy_client(struct rpc_clnt *clnt)
 out_free:
 	rpc_free_iostats(clnt->cl_metrics);
 	clnt->cl_metrics = NULL;
-	if (clnt->cl_dentry)
+	if (!IS_ERR(clnt->cl_dentry)) {
 		dput(clnt->cl_dentry);
+		rpc_put_mount();
+	}
 	kfree(clnt);
 	return 0;
 }
