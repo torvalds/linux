@@ -205,6 +205,10 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	ds = max(64UL,
 		 roundup_pow_of_two(sizeof (struct mthca_next_seg) +
 				    srq->max_gs * sizeof (struct mthca_data_seg)));
+
+	if (ds > dev->limits.max_desc_sz)
+		return -EINVAL;
+
 	srq->wqe_shift = long_log2(ds);
 
 	srq->srqn = mthca_alloc(&dev->srq_table.alloc);
