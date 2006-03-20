@@ -973,7 +973,7 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	return err;
 }
 
-struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, struct rpc_cred *cred)
+static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, struct dentry *dentry, struct rpc_cred *cred)
 {
 	struct nfs_open_context *ctx;
 
@@ -981,6 +981,7 @@ struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, struct rp
 	if (ctx != NULL) {
 		atomic_set(&ctx->count, 1);
 		ctx->dentry = dget(dentry);
+		ctx->vfsmnt = mntget(mnt);
 		ctx->cred = get_rpccred(cred);
 		ctx->state = NULL;
 		ctx->lockowner = current->files;
@@ -1011,6 +1012,7 @@ void put_nfs_open_context(struct nfs_open_context *ctx)
 		if (ctx->cred != NULL)
 			put_rpccred(ctx->cred);
 		dput(ctx->dentry);
+		mntput(ctx->vfsmnt);
 		kfree(ctx);
 	}
 }
@@ -1019,7 +1021,7 @@ void put_nfs_open_context(struct nfs_open_context *ctx)
  * Ensure that mmap has a recent RPC credential for use when writing out
  * shared pages
  */
-void nfs_file_set_open_context(struct file *filp, struct nfs_open_context *ctx)
+static void nfs_file_set_open_context(struct file *filp, struct nfs_open_context *ctx)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct nfs_inode *nfsi = NFS_I(inode);
@@ -1051,7 +1053,7 @@ struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_c
 	return ctx;
 }
 
-void nfs_file_clear_open_context(struct file *filp)
+static void nfs_file_clear_open_context(struct file *filp)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct nfs_open_context *ctx = (struct nfs_open_context *)filp->private_data;
@@ -1076,7 +1078,7 @@ int nfs_open(struct inode *inode, struct file *filp)
 	cred = rpcauth_lookupcred(NFS_CLIENT(inode)->cl_auth, 0);
 	if (IS_ERR(cred))
 		return PTR_ERR(cred);
-	ctx = alloc_nfs_open_context(filp->f_dentry, cred);
+	ctx = alloc_nfs_open_context(filp->f_vfsmnt, filp->f_dentry, cred);
 	put_rpccred(cred);
 	if (ctx == NULL)
 		return -ENOMEM;
