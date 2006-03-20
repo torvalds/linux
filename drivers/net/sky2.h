@@ -1879,6 +1879,8 @@ struct sky2_hw {
 	struct sky2_status_le *st_le;
 	u32		     st_idx;
 	dma_addr_t   	     st_dma;
+	int		     msi_detected;
+	wait_queue_head_t    msi_wait;
 };
 
 /* Register accessor for memory mapped device */
