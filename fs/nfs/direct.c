@@ -218,14 +218,17 @@ static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, unsigned int 
  * until the RPCs complete.  This could be long *after* we are woken up in
  * nfs_direct_read_wait (for instance, if someone hits ^C on a slow server).
  */
-static void nfs_direct_read_result(struct nfs_read_data *data, int status)
+static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 {
+	struct nfs_read_data *data = calldata;
 	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
 
-	if (likely(status >= 0))
+	if (nfs_readpage_result(task, data) != 0)
+		return;
+	if (likely(task->tk_status >= 0))
 		atomic_add(data->res.count, &dreq->count);
 	else
-		atomic_set(&dreq->error, status);
+		atomic_set(&dreq->error, task->tk_status);
 
 	if (unlikely(atomic_dec_and_test(&dreq->complete))) {
 		nfs_free_user_pages(dreq->pages, dreq->npages, 1);
@@ -233,6 +236,11 @@ static void nfs_direct_read_result(struct nfs_read_data *data, int status)
 		kref_put(&dreq->kref, nfs_direct_req_release);
 	}
 }
+
+static const struct rpc_call_ops nfs_read_direct_ops = {
+	.rpc_call_done = nfs_direct_read_result,
+	.rpc_release = nfs_readdata_release,
+};
 
 /**
  * nfs_direct_read_schedule - dispatch NFS READ operations for a direct read
@@ -280,10 +288,11 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq,
 		data->res.eof = 0;
 		data->res.count = bytes;
 
+		rpc_init_task(&data->task, NFS_CLIENT(inode), RPC_TASK_ASYNC,
+				&nfs_read_direct_ops, data);
 		NFS_PROTO(inode)->read_setup(data);
 
 		data->task.tk_cookie = (unsigned long) inode;
-		data->complete = nfs_direct_read_result;
 
 		lock_kernel();
 		rpc_execute(&data->task);

@@ -613,10 +613,8 @@ nfs_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 
 extern u32 * nfs_decode_dirent(u32 *, struct nfs_entry *, int);
 
-static void nfs_read_done(struct rpc_task *task, void *calldata)
+static int nfs_read_done(struct rpc_task *task, struct nfs_read_data *data)
 {
-	struct nfs_read_data *data = calldata;
-
 	if (task->tk_status >= 0) {
 		nfs_refresh_inode(data->inode, data->res.fattr);
 		/* Emulate the eof flag, which isn't normally needed in NFSv2
@@ -625,20 +623,11 @@ static void nfs_read_done(struct rpc_task *task, void *calldata)
 		if (data->args.offset + data->args.count >= data->res.fattr->size)
 			data->res.eof = 1;
 	}
-	nfs_readpage_result(task, calldata);
+	return 0;
 }
 
-static const struct rpc_call_ops nfs_read_ops = {
-	.rpc_call_done = nfs_read_done,
-	.rpc_release = nfs_readdata_release,
-};
-
-static void
-nfs_proc_read_setup(struct nfs_read_data *data)
+static void nfs_proc_read_setup(struct nfs_read_data *data)
 {
-	struct rpc_task		*task = &data->task;
-	struct inode		*inode = data->inode;
-	int			flags;
 	struct rpc_message	msg = {
 		.rpc_proc	= &nfs_procedures[NFSPROC_READ],
 		.rpc_argp	= &data->args,
@@ -646,12 +635,7 @@ nfs_proc_read_setup(struct nfs_read_data *data)
 		.rpc_cred	= data->cred,
 	};
 
-	/* N.B. Do we need to test? Never called for swapfile inode */
-	flags = RPC_TASK_ASYNC | (IS_SWAPFILE(inode)? NFS_RPC_SWAPFLAGS : 0);
-
-	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs_read_ops, data);
-	rpc_call_setup(task, &msg, 0);
+	rpc_call_setup(&data->task, &msg, 0);
 }
 
 static int nfs_write_done(struct rpc_task *task, struct nfs_write_data *data)
@@ -720,6 +704,7 @@ struct nfs_rpc_ops	nfs_v2_clientops = {
 	.pathconf	= nfs_proc_pathconf,
 	.decode_dirent	= nfs_decode_dirent,
 	.read_setup	= nfs_proc_read_setup,
+	.read_done	= nfs_read_done,
 	.write_setup	= nfs_proc_write_setup,
 	.write_done	= nfs_write_done,
 	.commit_setup	= nfs_proc_commit_setup,

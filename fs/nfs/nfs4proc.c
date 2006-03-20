@@ -2345,47 +2345,31 @@ static int nfs4_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 	return err;
 }
 
-static void nfs4_read_done(struct rpc_task *task, void *calldata)
+static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
 {
-	struct nfs_read_data *data = calldata;
-	struct inode *inode = data->inode;
+	struct nfs_server *server = NFS_SERVER(data->inode);
 
-	if (nfs4_async_handle_error(task, NFS_SERVER(inode)) == -EAGAIN) {
+	if (nfs4_async_handle_error(task, server) == -EAGAIN) {
 		rpc_restart_call(task);
-		return;
+		return -EAGAIN;
 	}
 	if (task->tk_status > 0)
-		renew_lease(NFS_SERVER(inode), data->timestamp);
-	/* Call back common NFS readpage processing */
-	nfs_readpage_result(task, calldata);
+		renew_lease(server, data->timestamp);
+	return 0;
 }
 
-static const struct rpc_call_ops nfs4_read_ops = {
-	.rpc_call_done = nfs4_read_done,
-	.rpc_release = nfs_readdata_release,
-};
-
-static void
-nfs4_proc_read_setup(struct nfs_read_data *data)
+static void nfs4_proc_read_setup(struct nfs_read_data *data)
 {
-	struct rpc_task	*task = &data->task;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READ],
 		.rpc_argp = &data->args,
 		.rpc_resp = &data->res,
 		.rpc_cred = data->cred,
 	};
-	struct inode *inode = data->inode;
-	int flags;
 
 	data->timestamp   = jiffies;
 
-	/* N.B. Do we need to test? Never called for swapfile inode */
-	flags = RPC_TASK_ASYNC | (IS_SWAPFILE(inode)? NFS_RPC_SWAPFLAGS : 0);
-
-	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs4_read_ops, data);
-	rpc_call_setup(task, &msg, 0);
+	rpc_call_setup(&data->task, &msg, 0);
 }
 
 static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
@@ -3617,6 +3601,7 @@ struct nfs_rpc_ops	nfs_v4_clientops = {
 	.pathconf	= nfs4_proc_pathconf,
 	.decode_dirent	= nfs4_decode_dirent,
 	.read_setup	= nfs4_proc_read_setup,
+	.read_done	= nfs4_read_done,
 	.write_setup	= nfs4_proc_write_setup,
 	.write_done	= nfs4_write_done,
 	.commit_setup	= nfs4_proc_commit_setup,

@@ -492,8 +492,8 @@ static inline void nfs_writedata_free(struct nfs_write_data *p)
 extern int  nfs_readpage(struct file *, struct page *);
 extern int  nfs_readpages(struct file *, struct address_space *,
 		struct list_head *, unsigned);
-extern void nfs_readpage_result(struct rpc_task *, void *);
-extern void  nfs_readdata_release(void *data);
+extern int  nfs_readpage_result(struct rpc_task *, struct nfs_read_data *);
+extern void nfs_readdata_release(void *data);
 
 
 /*

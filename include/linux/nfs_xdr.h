@@ -695,7 +695,6 @@ struct nfs_read_data {
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
-	void (*complete) (struct nfs_read_data *, int);
 	struct page		*page_array[NFS_PAGEVEC_SIZE + 1];
 };
 
@@ -768,6 +767,7 @@ struct nfs_rpc_ops {
 			     struct nfs_pathconf *);
 	u32 *	(*decode_dirent)(u32 *, struct nfs_entry *, int plus);
 	void	(*read_setup)   (struct nfs_read_data *);
+	int	(*read_done)  (struct rpc_task *, struct nfs_read_data *);
 	void	(*write_setup)  (struct nfs_write_data *, int how);
 	int	(*write_done)  (struct rpc_task *, struct nfs_write_data *);
 	void	(*commit_setup) (struct nfs_write_data *, int how);

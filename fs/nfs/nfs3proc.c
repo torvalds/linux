@@ -811,29 +811,18 @@ nfs3_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 
 extern u32 *nfs3_decode_dirent(u32 *, struct nfs_entry *, int);
 
-static void nfs3_read_done(struct rpc_task *task, void *calldata)
+static int nfs3_read_done(struct rpc_task *task, struct nfs_read_data *data)
 {
-	struct nfs_read_data *data = calldata;
-
 	if (nfs3_async_handle_jukebox(task, data->inode))
-		return;
+		return -EAGAIN;
 	/* Call back common NFS readpage processing */
 	if (task->tk_status >= 0)
 		nfs_refresh_inode(data->inode, &data->fattr);
-	nfs_readpage_result(task, calldata);
+	return 0;
 }
 
-static const struct rpc_call_ops nfs3_read_ops = {
-	.rpc_call_done = nfs3_read_done,
-	.rpc_release = nfs_readdata_release,
-};
-
-static void
-nfs3_proc_read_setup(struct nfs_read_data *data)
+static void nfs3_proc_read_setup(struct nfs_read_data *data)
 {
-	struct rpc_task		*task = &data->task;
-	struct inode		*inode = data->inode;
-	int			flags;
 	struct rpc_message	msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_READ],
 		.rpc_argp	= &data->args,
@@ -841,12 +830,7 @@ nfs3_proc_read_setup(struct nfs_read_data *data)
 		.rpc_cred	= data->cred,
 	};
 
-	/* N.B. Do we need to test? Never called for swapfile inode */
-	flags = RPC_TASK_ASYNC | (IS_SWAPFILE(inode)? NFS_RPC_SWAPFLAGS : 0);
-
-	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs3_read_ops, data);
-	rpc_call_setup(task, &msg, 0);
+	rpc_call_setup(&data->task, &msg, 0);
 }
 
 static int nfs3_write_done(struct rpc_task *task, struct nfs_write_data *data)
@@ -935,6 +919,7 @@ struct nfs_rpc_ops	nfs_v3_clientops = {
 	.pathconf	= nfs3_proc_pathconf,
 	.decode_dirent	= nfs3_decode_dirent,
 	.read_setup	= nfs3_proc_read_setup,
+	.read_done	= nfs3_read_done,
 	.write_setup	= nfs3_proc_write_setup,
 	.write_done	= nfs3_write_done,
 	.commit_setup	= nfs3_proc_commit_setup,
