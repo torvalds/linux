@@ -434,7 +434,9 @@ nlmclnt_test(struct nlm_rqst *req, struct file_lock *fl)
 		/*
 		 * Report the conflicting lock back to the application.
 		 */
-		locks_copy_lock(fl, &req->a_res.lock.fl);
+		fl->fl_start = req->a_res.lock.fl.fl_start;
+		fl->fl_end = req->a_res.lock.fl.fl_start;
+		fl->fl_type = req->a_res.lock.fl.fl_type;
 		fl->fl_pid = 0;
 	} else {
 		return nlm_stat_to_errno(req->a_res.status);

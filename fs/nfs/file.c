@@ -399,7 +399,10 @@ static int do_getlk(struct file *filp, int cmd, struct file_lock *fl)
 	lock_kernel();
 	/* Try local locking first */
 	if (posix_test_lock(filp, fl, &cfl)) {
-		locks_copy_lock(fl, &cfl);
+		fl->fl_start = cfl.fl_start;
+		fl->fl_end = cfl.fl_end;
+		fl->fl_type = cfl.fl_type;
+		fl->fl_pid = cfl.fl_pid;
 		goto out;
 	}
 
