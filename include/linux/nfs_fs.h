@@ -119,8 +119,7 @@ struct nfs_inode {
 	unsigned long		cache_validity;		/* bit mask */
 
 	/*
-	 * read_cache_jiffies is when we started read-caching this inode,
-	 * and read_cache_mtime is the mtime of the inode at that time.
+	 * read_cache_jiffies is when we started read-caching this inode.
 	 * attrtimeo is for how long the cached information is assumed
 	 * to be valid. A successful attribute revalidation doubles
 	 * attrtimeo (up to acregmax/acdirmax), a failure resets it to
@@ -129,11 +128,6 @@ struct nfs_inode {
 	 * We need to revalidate the cached attrs for this inode if
 	 *
 	 *	jiffies - read_cache_jiffies > attrtimeo
-	 *
-	 * and invalidate any cached data/flush out any dirty pages if
-	 * we find that
-	 *
-	 *	mtime != read_cache_mtime
 	 */
 	unsigned long		read_cache_jiffies;
 	unsigned long		attrtimeo;
