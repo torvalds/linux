@@ -51,7 +51,6 @@
  */
 
 #ifdef RPC_DEBUG
-# undef  RPC_DEBUG_DATA
 # define RPCDBG_FACILITY	RPCDBG_XPRT
 #endif
 
