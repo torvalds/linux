@@ -68,6 +68,8 @@ static kmem_cache_t *nfs_direct_cachep;
 struct nfs_direct_req {
 	struct kref		kref;		/* release manager */
 	struct list_head	list;		/* nfs_read_data structs */
+	struct file *		filp;		/* file descriptor */
+	struct kiocb *		iocb;		/* controlling i/o request */
 	wait_queue_head_t	wait;		/* wait for i/o completion */
 	struct inode *		inode;		/* target file of I/O */
 	struct page **		pages;		/* pages in our buffer */
@@ -240,8 +242,12 @@ static const struct rpc_call_ops nfs_read_direct_ops = {
  * For each nfs_read_data struct that was allocated on the list, dispatch
  * an NFS READ operation
  */
-static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, struct inode *inode, struct nfs_open_context *ctx, unsigned long user_addr, size_t count, loff_t file_offset)
+static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned long user_addr, size_t count, loff_t file_offset)
 {
+	struct file *file = dreq->filp;
+	struct inode *inode = file->f_mapping->host;
+	struct nfs_open_context *ctx = (struct nfs_open_context *)
+							file->private_data;
 	struct list_head *list = &dreq->list;
 	struct page **pages = dreq->pages;
 	size_t rsize = NFS_SERVER(inode)->rsize;
@@ -321,10 +327,11 @@ static ssize_t nfs_direct_read_wait(struct nfs_direct_req *dreq, int intr)
 	return (ssize_t) result;
 }
 
-static ssize_t nfs_direct_read(struct inode *inode, struct nfs_open_context *ctx, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, unsigned int nr_pages)
+static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, unsigned int nr_pages)
 {
 	ssize_t result;
 	sigset_t oldset;
+	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	struct rpc_clnt *clnt = NFS_CLIENT(inode);
 	struct nfs_direct_req *dreq;
 
@@ -335,11 +342,11 @@ static ssize_t nfs_direct_read(struct inode *inode, struct nfs_open_context *ctx
 	dreq->pages = pages;
 	dreq->npages = nr_pages;
 	dreq->inode = inode;
+	dreq->filp = iocb->ki_filp;
 
 	nfs_add_stats(inode, NFSIOS_DIRECTREADBYTES, count);
 	rpc_clnt_sigmask(clnt, &oldset);
-	nfs_direct_read_schedule(dreq, inode, ctx, user_addr, count,
-				 file_offset);
+	nfs_direct_read_schedule(dreq, user_addr, count, file_offset);
 	result = nfs_direct_read_wait(dreq, clnt->cl_intr);
 	rpc_clnt_sigunmask(clnt, &oldset);
 
@@ -520,10 +527,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count,
 	int page_count;
 	struct page **pages;
 	struct file *file = iocb->ki_filp;
-	struct nfs_open_context *ctx =
-			(struct nfs_open_context *) file->private_data;
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
 
 	dprintk("nfs: direct read(%s/%s, %lu@%Ld)\n",
 		file->f_dentry->d_parent->d_name.name,
@@ -553,7 +557,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count,
 		goto out;
 	}
 
-	retval = nfs_direct_read(inode, ctx, (unsigned long) buf, count, pos,
+	retval = nfs_direct_read(iocb, (unsigned long) buf, count, pos,
 						pages, page_count);
 	if (retval > 0)
 		iocb->ki_pos = pos + retval;
