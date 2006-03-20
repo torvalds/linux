@@ -53,7 +53,8 @@
 /* clock information */
 
 static LIST_HEAD(clocks);
-static DEFINE_MUTEX(clocks_mutex);
+
+DEFINE_MUTEX(clocks_mutex);
 
 /* old functions */
 
@@ -294,6 +295,13 @@ static struct clk clk_p = {
 	.rate		= 0,
 	.parent		= NULL,
 	.ctrlbit	= 0,
+};
+
+struct clk clk_usb_bus = {
+	.name		= "usb-bus",
+	.id		= -1,
+	.rate		= 0,
+	.parent		= &clk_upll,
 };
 
 /* clocks that could be registered by external code */
@@ -605,6 +613,10 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 
 	if (s3c24xx_register_clock(&clk_p) < 0)
 		printk(KERN_ERR "failed to register cpu pclk\n");
+
+
+	if (s3c24xx_register_clock(&clk_usb_bus) < 0)
+		printk(KERN_ERR "failed to register usb bus clock\n");
 
 	/* register clocks from clock array */
 

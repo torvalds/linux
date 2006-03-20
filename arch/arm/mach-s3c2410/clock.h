@@ -34,10 +34,14 @@ extern struct clk s3c24xx_clkout0;
 extern struct clk s3c24xx_clkout1;
 extern struct clk s3c24xx_uclk;
 
+extern struct clk clk_usb_bus;
+
 /* exports for arch/arm/mach-s3c2410
  *
  * Please DO NOT use these outside of arch/arm/mach-s3c2410
 */
+
+extern struct mutex clocks_mutex;
 
 extern int s3c24xx_clkcon_enable(struct clk *clk, int enable);
 extern int s3c24xx_register_clock(struct clk *clk);
