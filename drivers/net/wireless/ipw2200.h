@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 2003 - 2006 Intel Corporation. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of version 2 of the GNU General Public License as
@@ -246,8 +246,10 @@ enum connection_manager_assoc_states {
 #define HOST_NOTIFICATION_S36_MEASUREMENT_REFUSED       31
 
 #define HOST_NOTIFICATION_STATUS_BEACON_MISSING         1
-#define IPW_MB_DISASSOCIATE_THRESHOLD_DEFAULT           24
+#define IPW_MB_ROAMING_THRESHOLD_MIN                    1
 #define IPW_MB_ROAMING_THRESHOLD_DEFAULT                8
+#define IPW_MB_ROAMING_THRESHOLD_MAX                    30
+#define IPW_MB_DISASSOCIATE_THRESHOLD_DEFAULT           3*IPW_MB_ROAMING_THRESHOLD_DEFAULT
 #define IPW_REAL_RATE_RX_PACKET_THRESHOLD               300
 
 #define MACADRR_BYTE_LEN                     6
@@ -618,13 +620,16 @@ struct notif_tgi_tx_key {
 	u8 reserved;
 } __attribute__ ((packed));
 
+#define SILENCE_OVER_THRESH (1)
+#define SILENCE_UNDER_THRESH (2)
+
 struct notif_link_deterioration {
 	struct ipw_cmd_stats stats;
 	u8 rate;
 	u8 modulation;
 	struct rate_histogram histogram;
-	u8 reserved1;
-	u16 reserved2;
+	u8 silence_notification_type;	/* SILENCE_OVER/UNDER_THRESH */
+	u16 silence_count;
 } __attribute__ ((packed));
 
 struct notif_association {
@@ -782,7 +787,7 @@ struct ipw_sys_config {
 	u8 enable_cts_to_self;
 	u8 enable_multicast_filtering;
 	u8 bt_coexist_collision_thr;
-	u8 reserved2;
+	u8 silence_threshold;
 	u8 accept_all_mgmt_bcpr;
 	u8 accept_all_mgtm_frames;
 	u8 pass_noise_stats_to_host;
@@ -1892,6 +1897,7 @@ struct ipw_cmd_log {
 #define CFG_SYS_ANTENNA_BOTH            0x00	/* NIC selects best antenna */
 #define CFG_SYS_ANTENNA_A               0x01	/* force antenna A */
 #define CFG_SYS_ANTENNA_B               0x03	/* force antenna B */
+#define CFG_SYS_ANTENNA_SLOW_DIV        0x02	/* consider background noise */
 
 /*
  * The definitions below were lifted off the ipw2100 driver, which only
@@ -1906,28 +1912,5 @@ struct ipw_cmd_log {
 #define IPW_IBSS_11B_DEFAULT_MASK   0x87ff
 
 #define IPW_MAX_CONFIG_RETRIES 10
-
-static inline u32 frame_hdr_len(struct ieee80211_hdr_4addr *hdr)
-{
-	u32 retval;
-	u16 fc;
-
-	retval = sizeof(struct ieee80211_hdr_3addr);
-	fc = le16_to_cpu(hdr->frame_ctl);
-
-	/*
-	 * Function     ToDS    FromDS
-	 * IBSS         0       0
-	 * To AP        1       0
-	 * From AP      0       1
-	 * WDS (bridge) 1       1
-	 *
-	 * Only WDS frames use Address4 among them. --YZ
-	 */
-	if (!(fc & IEEE80211_FCTL_TODS) || !(fc & IEEE80211_FCTL_FROMDS))
-		retval -= ETH_ALEN;
-
-	return retval;
-}
 
 #endif				/* __ipw2200_h__ */

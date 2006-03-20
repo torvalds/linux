@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 2003 - 2006 Intel Corporation. All rights reserved.
 
   802.11 status code portion of this file from ethereal-0.10.6:
     Copyright 2000, Axis Communications AB
@@ -33,9 +33,9 @@
 #include "ipw2200.h"
 #include <linux/version.h>
 
-#define IPW2200_VERSION "git-1.0.10"
+#define IPW2200_VERSION "git-1.1.1"
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2200/2915 Network Driver"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2005 Intel Corporation"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2006 Intel Corporation"
 #define DRV_VERSION     IPW2200_VERSION
 
 #define ETH_P_80211_STATS (ETH_P_80211_RAW + 1)
@@ -152,12 +152,6 @@ static int init_supported_rates(struct ipw_priv *priv,
 				struct ipw_supported_rates *prates);
 static void ipw_set_hwcrypto_keys(struct ipw_priv *);
 static void ipw_send_wep_keys(struct ipw_priv *, int);
-
-static int ipw_is_valid_channel(struct ieee80211_device *, u8);
-static int ipw_channel_to_index(struct ieee80211_device *, u8);
-static u8 ipw_freq_to_channel(struct ieee80211_device *, u32);
-static int ipw_set_geo(struct ieee80211_device *, const struct ieee80211_geo *);
-static const struct ieee80211_geo *ipw_get_geo(struct ieee80211_device *);
 
 static int snprint_line(char *buf, size_t count,
 			const u8 * data, u32 len, u32 ofs)
@@ -1654,7 +1648,7 @@ static ssize_t store_speed_scan(struct device *d, struct device_attribute *attr,
 			break;
 		}
 
-		if (ipw_is_valid_channel(priv->ieee, channel))
+		if (ieee80211_is_valid_channel(priv->ieee, channel))
 			priv->speed_scan[pos++] = channel;
 		else
 			IPW_WARNING("Skipping invalid channel request: %d\n",
@@ -1802,9 +1796,9 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 	}
 
 	if (inta & IPW_INTA_BIT_FATAL_ERROR) {
-		IPW_ERROR("Firmware error detected.  Restarting.\n");
+		IPW_WARNING("Firmware error detected.  Restarting.\n");
 		if (priv->error) {
-			IPW_ERROR("Sysfs 'error' log already exists.\n");
+			IPW_DEBUG_FW("Sysfs 'error' log already exists.\n");
 #ifdef CONFIG_IPW2200_DEBUG
 			if (ipw_debug_level & IPW_DL_FW_ERRORS) {
 				struct ipw_fw_error *error =
@@ -1817,10 +1811,10 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 		} else {
 			priv->error = ipw_alloc_error_log(priv);
 			if (priv->error)
-				IPW_ERROR("Sysfs 'error' log captured.\n");
+				IPW_DEBUG_FW("Sysfs 'error' log captured.\n");
 			else
-				IPW_ERROR("Error allocating sysfs 'error' "
-					  "log.\n");
+				IPW_DEBUG_FW("Error allocating sysfs 'error' "
+					     "log.\n");
 #ifdef CONFIG_IPW2200_DEBUG
 			if (ipw_debug_level & IPW_DL_FW_ERRORS)
 				ipw_dump_error_log(priv, priv->error);
@@ -2222,7 +2216,7 @@ static int ipw_send_tx_power(struct ipw_priv *priv, struct ipw_tx_power *power)
 
 static int ipw_set_tx_power(struct ipw_priv *priv)
 {
-	const struct ieee80211_geo *geo = ipw_get_geo(priv->ieee);
+	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
 	struct ipw_tx_power tx_power;
 	s8 max_power;
 	int i;
@@ -2835,32 +2829,10 @@ static void ipw_arc_release(struct ipw_priv *priv)
 	mdelay(5);
 }
 
-struct fw_header {
-	u32 version;
-	u32 mode;
-};
-
 struct fw_chunk {
 	u32 address;
 	u32 length;
 };
-
-#define IPW_FW_MAJOR_VERSION 2
-#define IPW_FW_MINOR_VERSION 4
-
-#define IPW_FW_MINOR(x) ((x & 0xff) >> 8)
-#define IPW_FW_MAJOR(x) (x & 0xff)
-
-#define IPW_FW_VERSION ((IPW_FW_MINOR_VERSION << 8) | IPW_FW_MAJOR_VERSION)
-
-#define IPW_FW_PREFIX "ipw-" __stringify(IPW_FW_MAJOR_VERSION) \
-"." __stringify(IPW_FW_MINOR_VERSION) "-"
-
-#if IPW_FW_MAJOR_VERSION >= 2 && IPW_FW_MINOR_VERSION > 0
-#define IPW_FW_NAME(x) IPW_FW_PREFIX "" x ".fw"
-#else
-#define IPW_FW_NAME(x) "ipw2200_" x ".fw"
-#endif
 
 static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
 {
@@ -3130,33 +3102,47 @@ static int ipw_reset_nic(struct ipw_priv *priv)
 	return rc;
 }
 
+
+struct ipw_fw {
+	u32 ver;
+	u32 boot_size;
+	u32 ucode_size;
+	u32 fw_size;
+	u8 data[0];
+};
+
 static int ipw_get_fw(struct ipw_priv *priv,
-		      const struct firmware **fw, const char *name)
+		      const struct firmware **raw, const char *name)
 {
-	struct fw_header *header;
+	struct ipw_fw *fw;
 	int rc;
 
 	/* ask firmware_class module to get the boot firmware off disk */
-	rc = request_firmware(fw, name, &priv->pci_dev->dev);
+	rc = request_firmware(raw, name, &priv->pci_dev->dev);
 	if (rc < 0) {
-		IPW_ERROR("%s load failed: Reason %d\n", name, rc);
+		IPW_ERROR("%s request_firmware failed: Reason %d\n", name, rc);
 		return rc;
 	}
 
-	header = (struct fw_header *)(*fw)->data;
-	if (IPW_FW_MAJOR(le32_to_cpu(header->version)) != IPW_FW_MAJOR_VERSION) {
-		IPW_ERROR("'%s' firmware version not compatible (%d != %d)\n",
-			  name,
-			  IPW_FW_MAJOR(le32_to_cpu(header->version)),
-			  IPW_FW_MAJOR_VERSION);
+	if ((*raw)->size < sizeof(*fw)) {
+		IPW_ERROR("%s is too small (%zd)\n", name, (*raw)->size);
 		return -EINVAL;
 	}
 
-	IPW_DEBUG_INFO("Loading firmware '%s' file v%d.%d (%zd bytes)\n",
+	fw = (void *)(*raw)->data;
+
+	if ((*raw)->size < sizeof(*fw) +
+	    fw->boot_size + fw->ucode_size + fw->fw_size) {
+		IPW_ERROR("%s is too small or corrupt (%zd)\n",
+			  name, (*raw)->size);
+		return -EINVAL;
+	}
+
+	IPW_DEBUG_INFO("Read firmware '%s' image v%d.%d (%zd bytes)\n",
 		       name,
-		       IPW_FW_MAJOR(le32_to_cpu(header->version)),
-		       IPW_FW_MINOR(le32_to_cpu(header->version)),
-		       (*fw)->size - sizeof(struct fw_header));
+		       le32_to_cpu(fw->ver) >> 16,
+		       le32_to_cpu(fw->ver) & 0xff,
+		       (*raw)->size - sizeof(*fw));
 	return 0;
 }
 
@@ -3196,17 +3182,13 @@ static void ipw_rx_queue_reset(struct ipw_priv *priv,
 
 #ifdef CONFIG_PM
 static int fw_loaded = 0;
-static const struct firmware *bootfw = NULL;
-static const struct firmware *firmware = NULL;
-static const struct firmware *ucode = NULL;
+static const struct firmware *raw = NULL;
 
 static void free_firmware(void)
 {
 	if (fw_loaded) {
-		release_firmware(bootfw);
-		release_firmware(ucode);
-		release_firmware(firmware);
-		bootfw = ucode = firmware = NULL;
+		release_firmware(raw);
+		raw = NULL;
 		fw_loaded = 0;
 	}
 }
@@ -3217,32 +3199,46 @@ static void free_firmware(void)
 static int ipw_load(struct ipw_priv *priv)
 {
 #ifndef CONFIG_PM
-	const struct firmware *bootfw = NULL;
-	const struct firmware *firmware = NULL;
-	const struct firmware *ucode = NULL;
+	const struct firmware *raw = NULL;
 #endif
-	char *ucode_name;
-	char *fw_name;
+	struct ipw_fw *fw;
+	u8 *boot_img, *ucode_img, *fw_img;
+	u8 *name = NULL;
 	int rc = 0, retries = 3;
 
 	switch (priv->ieee->iw_mode) {
 	case IW_MODE_ADHOC:
-		ucode_name = IPW_FW_NAME("ibss_ucode");
-		fw_name = IPW_FW_NAME("ibss");
+		name = "ipw2200-ibss.fw";
 		break;
 #ifdef CONFIG_IPW2200_MONITOR
 	case IW_MODE_MONITOR:
-		ucode_name = IPW_FW_NAME("sniffer_ucode");
-		fw_name = IPW_FW_NAME("sniffer");
+		name = "ipw2200-sniffer.fw";
 		break;
 #endif
 	case IW_MODE_INFRA:
-		ucode_name = IPW_FW_NAME("bss_ucode");
-		fw_name = IPW_FW_NAME("bss");
+		name = "ipw2200-bss.fw";
 		break;
-	default:
-		rc = -EINVAL;
 	}
+
+	if (!name) {
+		rc = -EINVAL;
+		goto error;
+	}
+
+#ifdef CONFIG_PM
+	if (!fw_loaded) {
+#endif
+		rc = ipw_get_fw(priv, &raw, name);
+		if (rc < 0)
+			goto error;
+#ifdef CONFIG_PM
+	}
+#endif
+
+	fw = (void *)raw->data;
+	boot_img = &fw->data[0];
+	ucode_img = &fw->data[fw->boot_size];
+	fw_img = &fw->data[fw->boot_size + fw->ucode_size];
 
 	if (rc < 0)
 		goto error;
@@ -3275,18 +3271,8 @@ static int ipw_load(struct ipw_priv *priv)
 	ipw_zero_memory(priv, IPW_NIC_SRAM_LOWER_BOUND,
 			IPW_NIC_SRAM_UPPER_BOUND - IPW_NIC_SRAM_LOWER_BOUND);
 
-#ifdef CONFIG_PM
-	if (!fw_loaded) {
-#endif
-		rc = ipw_get_fw(priv, &bootfw, IPW_FW_NAME("boot"));
-		if (rc < 0)
-			goto error;
-#ifdef CONFIG_PM
-	}
-#endif
 	/* DMA the initial boot firmware into the device */
-	rc = ipw_load_firmware(priv, bootfw->data + sizeof(struct fw_header),
-			       bootfw->size - sizeof(struct fw_header));
+	rc = ipw_load_firmware(priv, boot_img, fw->boot_size);
 	if (rc < 0) {
 		IPW_ERROR("Unable to load boot firmware: %d\n", rc);
 		goto error;
@@ -3307,19 +3293,8 @@ static int ipw_load(struct ipw_priv *priv)
 	/* ack fw init done interrupt */
 	ipw_write32(priv, IPW_INTA_RW, IPW_INTA_BIT_FW_INITIALIZATION_DONE);
 
-#ifdef CONFIG_PM
-	if (!fw_loaded) {
-#endif
-		rc = ipw_get_fw(priv, &ucode, ucode_name);
-		if (rc < 0)
-			goto error;
-#ifdef CONFIG_PM
-	}
-#endif
-
 	/* DMA the ucode into the device */
-	rc = ipw_load_ucode(priv, ucode->data + sizeof(struct fw_header),
-			    ucode->size - sizeof(struct fw_header));
+	rc = ipw_load_ucode(priv, ucode_img, fw->ucode_size);
 	if (rc < 0) {
 		IPW_ERROR("Unable to load ucode: %d\n", rc);
 		goto error;
@@ -3328,20 +3303,8 @@ static int ipw_load(struct ipw_priv *priv)
 	/* stop nic */
 	ipw_stop_nic(priv);
 
-#ifdef CONFIG_PM
-	if (!fw_loaded) {
-#endif
-		rc = ipw_get_fw(priv, &firmware, fw_name);
-		if (rc < 0)
-			goto error;
-#ifdef CONFIG_PM
-	}
-#endif
-
 	/* DMA bss firmware into the device */
-	rc = ipw_load_firmware(priv, firmware->data +
-			       sizeof(struct fw_header),
-			       firmware->size - sizeof(struct fw_header));
+	rc = ipw_load_firmware(priv, fw_img, fw->fw_size);
 	if (rc < 0) {
 		IPW_ERROR("Unable to load firmware: %d\n", rc);
 		goto error;
@@ -3406,9 +3369,7 @@ static int ipw_load(struct ipw_priv *priv)
 	ipw_write32(priv, IPW_INTA_RW, IPW_INTA_MASK_ALL);
 
 #ifndef CONFIG_PM
-	release_firmware(bootfw);
-	release_firmware(ucode);
-	release_firmware(firmware);
+	release_firmware(raw);
 #endif
 	return 0;
 
@@ -3418,15 +3379,11 @@ static int ipw_load(struct ipw_priv *priv)
 		priv->rxq = NULL;
 	}
 	ipw_tx_queue_free(priv);
-	if (bootfw)
-		release_firmware(bootfw);
-	if (ucode)
-		release_firmware(ucode);
-	if (firmware)
-		release_firmware(firmware);
+	if (raw)
+		release_firmware(raw);
 #ifdef CONFIG_PM
 	fw_loaded = 0;
-	bootfw = ucode = firmware = NULL;
+	raw = NULL;
 #endif
 
 	return rc;
@@ -4547,10 +4504,9 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 
 			if (notif->size == sizeof(*x)) {
 				IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE,
-					  "link deterioration: '%s' " MAC_FMT
-					  " \n", escape_essid(priv->essid,
-							      priv->essid_len),
-					  MAC_ARG(priv->bssid));
+					"link deterioration: type %d, cnt %d\n",
+					x->silence_notification_type,
+					x->silence_count);
 				memcpy(&priv->last_link_deterioration, x,
 				       sizeof(*x));
 			} else {
@@ -5533,15 +5489,6 @@ static int ipw_best_network(struct ipw_priv *priv,
 		return 0;
 	}
 
-	if (priv->ieee->wpa_enabled &&
-	    network->wpa_ie_len == 0 && network->rsn_ie_len == 0) {
-		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded "
-				"because of WPA capability mismatch.\n",
-				escape_essid(network->ssid, network->ssid_len),
-				MAC_ARG(network->bssid));
-		return 0;
-	}
-
 	if ((priv->config & CFG_STATIC_BSSID) &&
 	    memcmp(network->bssid, priv->bssid, ETH_ALEN)) {
 		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded "
@@ -5562,7 +5509,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 	}
 
 	/* Filter out invalid channel in current GEO */
-	if (!ipw_is_valid_channel(priv->ieee, network->channel)) {
+	if (!ieee80211_is_valid_channel(priv->ieee, network->channel)) {
 		IPW_DEBUG_ASSOC("Network '%s (" MAC_FMT ")' excluded "
 				"because of invalid channel in current GEO\n",
 				escape_essid(network->ssid, network->ssid_len),
@@ -5607,7 +5554,7 @@ static int ipw_best_network(struct ipw_priv *priv,
 static void ipw_adhoc_create(struct ipw_priv *priv,
 			     struct ieee80211_network *network)
 {
-	const struct ieee80211_geo *geo = ipw_get_geo(priv->ieee);
+	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
 	int i;
 
 	/*
@@ -5622,10 +5569,10 @@ static void ipw_adhoc_create(struct ipw_priv *priv,
 	 * FW fatal error.
 	 *
 	 */
-	switch (ipw_is_valid_channel(priv->ieee, priv->channel)) {
+	switch (ieee80211_is_valid_channel(priv->ieee, priv->channel)) {
 	case IEEE80211_52GHZ_BAND:
 		network->mode = IEEE_A;
-		i = ipw_channel_to_index(priv->ieee, priv->channel);
+		i = ieee80211_channel_to_index(priv->ieee, priv->channel);
 		if (i == -1)
 			BUG();
 		if (geo->a[i].flags & IEEE80211_CH_PASSIVE_ONLY) {
@@ -5639,7 +5586,7 @@ static void ipw_adhoc_create(struct ipw_priv *priv,
 			network->mode = IEEE_G;
 		else
 			network->mode = IEEE_B;
-		i = ipw_channel_to_index(priv->ieee, priv->channel);
+		i = ieee80211_channel_to_index(priv->ieee, priv->channel);
 		if (i == -1)
 			BUG();
 		if (geo->bg[i].flags & IEEE80211_CH_PASSIVE_ONLY) {
@@ -5963,7 +5910,7 @@ static void ipw_add_scan_channels(struct ipw_priv *priv,
 	const struct ieee80211_geo *geo;
 	int i;
 
-	geo = ipw_get_geo(priv->ieee);
+	geo = ieee80211_get_geo(priv->ieee);
 
 	if (priv->ieee->freq_band & IEEE80211_52GHZ_BAND) {
 		int start = channel_index;
@@ -6023,7 +5970,7 @@ static void ipw_add_scan_channels(struct ipw_priv *priv,
 				channel_index++;
 				scan->channels_list[channel_index] = channel;
 				index =
-				    ipw_channel_to_index(priv->ieee, channel);
+				    ieee80211_channel_to_index(priv->ieee, channel);
 				ipw_set_scan_type(scan, channel_index,
 						  geo->bg[index].
 						  flags &
@@ -6105,7 +6052,7 @@ static int ipw_request_scan(struct ipw_priv *priv)
 		u8 channel;
 		u8 band = 0;
 
-		switch (ipw_is_valid_channel(priv->ieee, priv->channel)) {
+		switch (ieee80211_is_valid_channel(priv->ieee, priv->channel)) {
 		case IEEE80211_52GHZ_BAND:
 			band = (u8) (IPW_A_MODE << 6) | 1;
 			channel = priv->channel;
@@ -6568,7 +6515,7 @@ static int ipw_wx_set_mlme(struct net_device *dev,
 * get the modulation type of the current network or
 * the card current mode
 */
-u8 ipw_qos_current_mode(struct ipw_priv * priv)
+static u8 ipw_qos_current_mode(struct ipw_priv * priv)
 {
 	u8 mode = 0;
 
@@ -7815,12 +7762,10 @@ static void ipw_rx(struct ipw_priv *priv)
 
 	while (i != r) {
 		rxb = priv->rxq->queue[i];
-#ifdef CONFIG_IPW2200_DEBUG
 		if (unlikely(rxb == NULL)) {
 			printk(KERN_CRIT "Queue not allocated!\n");
 			break;
 		}
-#endif
 		priv->rxq->queue[i] = NULL;
 
 		pci_dma_sync_single_for_cpu(priv->pci_dev, rxb->dma_addr,
@@ -7839,7 +7784,8 @@ static void ipw_rx(struct ipw_priv *priv)
 					    le16_to_cpu(pkt->u.frame.rssi_dbm) -
 					    IPW_RSSI_TO_DBM,
 					.signal =
-					    le16_to_cpu(pkt->u.frame.signal),
+					    le16_to_cpu(pkt->u.frame.rssi_dbm) -
+					    IPW_RSSI_TO_DBM + 0x100,
 					.noise =
 					    le16_to_cpu(pkt->u.frame.noise),
 					.rate = pkt->u.frame.rate,
@@ -7903,7 +7849,8 @@ static void ipw_rx(struct ipw_priv *priv)
 					     le16_to_cpu(pkt->u.frame.length));
 
 				if (le16_to_cpu(pkt->u.frame.length) <
-				    frame_hdr_len(header)) {
+				    ieee80211_get_hdrlen(le16_to_cpu(
+						    header->frame_ctl))) {
 					IPW_DEBUG_DROP
 					    ("Received packet is too small. "
 					     "Dropping.\n");
@@ -7993,7 +7940,14 @@ static void ipw_rx(struct ipw_priv *priv)
 #define	DEFAULT_SHORT_RETRY_LIMIT 7U
 #define	DEFAULT_LONG_RETRY_LIMIT  4U
 
-static int ipw_sw_reset(struct ipw_priv *priv, int init)
+/**
+ * ipw_sw_reset
+ * @option: options to control different reset behaviour
+ * 	    0 = reset everything except the 'disable' module_param
+ * 	    1 = reset everything and print out driver info (for probe only)
+ * 	    2 = reset everything
+ */
+static int ipw_sw_reset(struct ipw_priv *priv, int option)
 {
 	int band, modulation;
 	int old_mode = priv->ieee->iw_mode;
@@ -8020,7 +7974,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 	priv->essid_len = 0;
 	memset(priv->essid, 0, IW_ESSID_MAX_SIZE);
 
-	if (disable) {
+	if (disable && option) {
 		priv->status |= STATUS_RF_KILL_SW;
 		IPW_DEBUG_INFO("Radio disabled.\n");
 	}
@@ -8072,7 +8026,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 
 	if ((priv->pci_dev->device == 0x4223) ||
 	    (priv->pci_dev->device == 0x4224)) {
-		if (init)
+		if (option == 1)
 			printk(KERN_INFO DRV_NAME
 			       ": Detected Intel PRO/Wireless 2915ABG Network "
 			       "Connection\n");
@@ -8083,7 +8037,7 @@ static int ipw_sw_reset(struct ipw_priv *priv, int init)
 		priv->adapter = IPW_2915ABG;
 		priv->ieee->mode = IEEE_A | IEEE_G | IEEE_B;
 	} else {
-		if (init)
+		if (option == 1)
 			printk(KERN_INFO DRV_NAME
 			       ": Detected Intel PRO/Wireless 2200BG Network "
 			       "Connection\n");
@@ -8200,7 +8154,7 @@ static int ipw_wx_set_freq(struct net_device *dev,
 			   union iwreq_data *wrqu, char *extra)
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
-	const struct ieee80211_geo *geo = ipw_get_geo(priv->ieee);
+	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
 	struct iw_freq *fwrq = &wrqu->freq;
 	int ret = 0, i;
 	u8 channel, flags;
@@ -8215,17 +8169,17 @@ static int ipw_wx_set_freq(struct net_device *dev,
 	}
 	/* if setting by freq convert to channel */
 	if (fwrq->e == 1) {
-		channel = ipw_freq_to_channel(priv->ieee, fwrq->m);
+		channel = ieee80211_freq_to_channel(priv->ieee, fwrq->m);
 		if (channel == 0)
 			return -EINVAL;
 	} else
 		channel = fwrq->m;
 
-	if (!(band = ipw_is_valid_channel(priv->ieee, channel)))
+	if (!(band = ieee80211_is_valid_channel(priv->ieee, channel)))
 		return -EINVAL;
 
 	if (priv->ieee->iw_mode == IW_MODE_ADHOC) {
-		i = ipw_channel_to_index(priv->ieee, channel);
+		i = ieee80211_channel_to_index(priv->ieee, channel);
 		if (i == -1)
 			return -EINVAL;
 
@@ -8353,7 +8307,7 @@ static int ipw_wx_get_range(struct net_device *dev,
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	struct iw_range *range = (struct iw_range *)extra;
-	const struct ieee80211_geo *geo = ipw_get_geo(priv->ieee);
+	const struct ieee80211_geo *geo = ieee80211_get_geo(priv->ieee);
 	int i = 0, j;
 
 	wrqu->data.length = sizeof(*range);
@@ -8365,7 +8319,7 @@ static int ipw_wx_get_range(struct net_device *dev,
 	range->max_qual.qual = 100;
 	/* TODO: Find real max RSSI and stick here */
 	range->max_qual.level = 0;
-	range->max_qual.noise = priv->ieee->worst_rssi + 0x100;
+	range->max_qual.noise = 0;
 	range->max_qual.updated = 7;	/* Updated all three */
 
 	range->avg_qual.qual = 70;
@@ -8395,20 +8349,28 @@ static int ipw_wx_get_range(struct net_device *dev,
 
 	i = 0;
 	if (priv->ieee->mode & (IEEE_B | IEEE_G)) {
-		for (j = 0; j < geo->bg_channels && i < IW_MAX_FREQUENCIES;
-		     i++, j++) {
+		for (j = 0; j < geo->bg_channels && i < IW_MAX_FREQUENCIES; j++) {
+			if ((priv->ieee->iw_mode == IW_MODE_ADHOC) &&
+			    (geo->bg[j].flags & IEEE80211_CH_PASSIVE_ONLY))
+				continue;
+
 			range->freq[i].i = geo->bg[j].channel;
 			range->freq[i].m = geo->bg[j].freq * 100000;
 			range->freq[i].e = 1;
+			i++;
 		}
 	}
 
 	if (priv->ieee->mode & IEEE_A) {
-		for (j = 0; j < geo->a_channels && i < IW_MAX_FREQUENCIES;
-		     i++, j++) {
+		for (j = 0; j < geo->a_channels && i < IW_MAX_FREQUENCIES; j++) {
+			if ((priv->ieee->iw_mode == IW_MODE_ADHOC) &&
+			    (geo->a[j].flags & IEEE80211_CH_PASSIVE_ONLY))
+				continue;
+
 			range->freq[i].i = geo->a[j].channel;
 			range->freq[i].m = geo->a[j].freq * 100000;
 			range->freq[i].e = 1;
+			i++;
 		}
 	}
 
@@ -8606,6 +8568,52 @@ static int ipw_wx_get_nick(struct net_device *dev,
 	memcpy(extra, priv->nick, wrqu->data.length);
 	wrqu->data.flags = 1;	/* active */
 	mutex_unlock(&priv->mutex);
+	return 0;
+}
+
+static int ipw_wx_set_sens(struct net_device *dev,
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu, char *extra)
+{
+	struct ipw_priv *priv = ieee80211_priv(dev);
+	int err = 0;
+
+	IPW_DEBUG_WX("Setting roaming threshold to %d\n", wrqu->sens.value);
+	IPW_DEBUG_WX("Setting disassociate threshold to %d\n", 3*wrqu->sens.value);
+	mutex_lock(&priv->mutex);
+
+	if (wrqu->sens.fixed == 0)
+	{
+		priv->roaming_threshold = IPW_MB_ROAMING_THRESHOLD_DEFAULT;
+		priv->disassociate_threshold = IPW_MB_DISASSOCIATE_THRESHOLD_DEFAULT;
+		goto out;
+	}
+	if ((wrqu->sens.value > IPW_MB_ROAMING_THRESHOLD_MAX) ||
+	    (wrqu->sens.value < IPW_MB_ROAMING_THRESHOLD_MIN)) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	priv->roaming_threshold = wrqu->sens.value;
+	priv->disassociate_threshold = 3*wrqu->sens.value;
+      out:
+	mutex_unlock(&priv->mutex);
+	return err;
+}
+
+static int ipw_wx_get_sens(struct net_device *dev,
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu, char *extra)
+{
+	struct ipw_priv *priv = ieee80211_priv(dev);
+	mutex_lock(&priv->mutex);
+	wrqu->sens.fixed = 1;
+	wrqu->sens.value = priv->roaming_threshold;
+	mutex_unlock(&priv->mutex);
+
+	IPW_DEBUG_WX("GET roaming threshold -> %s %d \n",
+		     wrqu->power.disabled ? "OFF" : "ON", wrqu->power.value);
+
 	return 0;
 }
 
@@ -9395,7 +9403,7 @@ static int ipw_wx_sw_reset(struct net_device *dev,
 
 	mutex_lock(&priv->mutex);
 
-	ret = ipw_sw_reset(priv, 0);
+	ret = ipw_sw_reset(priv, 2);
 	if (!ret) {
 		free_firmware();
 		ipw_adapter_restart(priv);
@@ -9430,6 +9438,8 @@ static iw_handler ipw_wx_handlers[] = {
 	IW_IOCTL(SIOCGIWFREQ) = ipw_wx_get_freq,
 	IW_IOCTL(SIOCSIWMODE) = ipw_wx_set_mode,
 	IW_IOCTL(SIOCGIWMODE) = ipw_wx_get_mode,
+	IW_IOCTL(SIOCSIWSENS) = ipw_wx_set_sens,
+	IW_IOCTL(SIOCGIWSENS) = ipw_wx_get_sens,
 	IW_IOCTL(SIOCGIWRANGE) = ipw_wx_get_range,
 	IW_IOCTL(SIOCSIWAP) = ipw_wx_set_wap,
 	IW_IOCTL(SIOCGIWAP) = ipw_wx_get_wap,
@@ -9575,7 +9585,7 @@ static struct iw_statistics *ipw_get_wireless_stats(struct net_device *dev)
 	wstats->qual.level = average_value(&priv->average_rssi);
 	wstats->qual.noise = average_value(&priv->average_noise);
 	wstats->qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED |
-	    IW_QUAL_NOISE_UPDATED;
+	    IW_QUAL_NOISE_UPDATED | IW_QUAL_DBM;
 
 	wstats->miss.beacon = average_value(&priv->average_missed_beacons);
 	wstats->discard.retries = priv->last_tx_failures;
@@ -9601,12 +9611,13 @@ static  void init_sys_config(struct ipw_sys_config *sys_config)
 	sys_config->disable_unicast_decryption = 1;
 	sys_config->exclude_multicast_unencrypted = 0;
 	sys_config->disable_multicast_decryption = 1;
-	sys_config->antenna_diversity = CFG_SYS_ANTENNA_BOTH;
+	sys_config->antenna_diversity = CFG_SYS_ANTENNA_SLOW_DIV;
 	sys_config->pass_crc_to_host = 0;	/* TODO: See if 1 gives us FCS */
 	sys_config->dot11g_auto_detection = 0;
 	sys_config->enable_cts_to_self = 0;
 	sys_config->bt_coexist_collision_thr = 0;
 	sys_config->pass_noise_stats_to_host = 1;	//1 -- fix for 256
+	sys_config->silence_threshold = 0x1e;
 }
 
 static int ipw_net_open(struct net_device *dev)
@@ -9653,11 +9664,6 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 	u8 id, hdr_len, unicast;
 	u16 remaining_bytes;
 	int fc;
-
-	/* If there isn't room in the queue, we return busy and let the
-	 * network stack requeue the packet for us */
-	if (ipw_queue_space(q) < q->high_mark)
-		return NETDEV_TX_BUSY;
 
 	switch (priv->ieee->iw_mode) {
 	case IW_MODE_ADHOC:
@@ -9824,6 +9830,9 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 	q->first_empty = ipw_queue_inc_wrap(q->first_empty, q->n_bd);
 	ipw_write32(priv, q->reg_w, q->first_empty);
 
+	if (ipw_queue_space(q) < q->high_mark)
+		netif_stop_queue(priv->net_dev);
+
 	return NETDEV_TX_OK;
 
       drop:
@@ -9963,9 +9972,8 @@ static int ipw_ethtool_set_eeprom(struct net_device *dev,
 		return -EINVAL;
 	mutex_lock(&p->mutex);
 	memcpy(&p->eeprom[eeprom->offset], bytes, eeprom->len);
-	for (i = IPW_EEPROM_DATA;
-	     i < IPW_EEPROM_DATA + IPW_EEPROM_IMAGE_SIZE; i++)
-		ipw_write8(p, i, p->eeprom[i]);
+	for (i = 0; i < IPW_EEPROM_IMAGE_SIZE; i++)
+		ipw_write8(p, i + IPW_EEPROM_DATA, p->eeprom[i]);
 	mutex_unlock(&p->mutex);
 	return 0;
 }
@@ -10370,6 +10378,9 @@ static int ipw_config(struct ipw_priv *priv)
  * not intended for resale of the above mentioned Intel adapters has
  * not been tested.
  *
+ * Remember to update the table in README.ipw2200 when changing this
+ * table.
+ *
  */
 static const struct ieee80211_geo ipw_geos[] = {
 	{			/* Restricted */
@@ -10617,96 +10628,6 @@ static const struct ieee80211_geo ipw_geos[] = {
 	 }
 };
 
-/* GEO code borrowed from ieee80211_geo.c */
-static int ipw_is_valid_channel(struct ieee80211_device *ieee, u8 channel)
-{
-	int i;
-
-	/* Driver needs to initialize the geography map before using
-	 * these helper functions */
-	BUG_ON(ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0);
-
-	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
-		for (i = 0; i < ieee->geo.bg_channels; i++)
-			/* NOTE: If G mode is currently supported but
-			 * this is a B only channel, we don't see it
-			 * as valid. */
-			if ((ieee->geo.bg[i].channel == channel) &&
-			    (!(ieee->mode & IEEE_G) ||
-			     !(ieee->geo.bg[i].flags & IEEE80211_CH_B_ONLY)))
-				return IEEE80211_24GHZ_BAND;
-
-	if (ieee->freq_band & IEEE80211_52GHZ_BAND)
-		for (i = 0; i < ieee->geo.a_channels; i++)
-			if (ieee->geo.a[i].channel == channel)
-				return IEEE80211_52GHZ_BAND;
-
-	return 0;
-}
-
-static int ipw_channel_to_index(struct ieee80211_device *ieee, u8 channel)
-{
-	int i;
-
-	/* Driver needs to initialize the geography map before using
-	 * these helper functions */
-	BUG_ON(ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0);
-
-	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
-		for (i = 0; i < ieee->geo.bg_channels; i++)
-			if (ieee->geo.bg[i].channel == channel)
-				return i;
-
-	if (ieee->freq_band & IEEE80211_52GHZ_BAND)
-		for (i = 0; i < ieee->geo.a_channels; i++)
-			if (ieee->geo.a[i].channel == channel)
-				return i;
-
-	return -1;
-}
-
-static u8 ipw_freq_to_channel(struct ieee80211_device *ieee, u32 freq)
-{
-	int i;
-
-	/* Driver needs to initialize the geography map before using
-	 * these helper functions */
-	BUG_ON(ieee->geo.bg_channels == 0 && ieee->geo.a_channels == 0);
-
-	freq /= 100000;
-
-	if (ieee->freq_band & IEEE80211_24GHZ_BAND)
-		for (i = 0; i < ieee->geo.bg_channels; i++)
-			if (ieee->geo.bg[i].freq == freq)
-				return ieee->geo.bg[i].channel;
-
-	if (ieee->freq_band & IEEE80211_52GHZ_BAND)
-		for (i = 0; i < ieee->geo.a_channels; i++)
-			if (ieee->geo.a[i].freq == freq)
-				return ieee->geo.a[i].channel;
-
-	return 0;
-}
-
-static int ipw_set_geo(struct ieee80211_device *ieee,
-		       const struct ieee80211_geo *geo)
-{
-	memcpy(ieee->geo.name, geo->name, 3);
-	ieee->geo.name[3] = '\0';
-	ieee->geo.bg_channels = geo->bg_channels;
-	ieee->geo.a_channels = geo->a_channels;
-	memcpy(ieee->geo.bg, geo->bg, geo->bg_channels *
-	       sizeof(struct ieee80211_channel));
-	memcpy(ieee->geo.a, geo->a, ieee->geo.a_channels *
-	       sizeof(struct ieee80211_channel));
-	return 0;
-}
-
-static const struct ieee80211_geo *ipw_get_geo(struct ieee80211_device *ieee)
-{
-	return &ieee->geo;
-}
-
 #define MAX_HW_RESTARTS 5
 static int ipw_up(struct ipw_priv *priv)
 {
@@ -10753,13 +10674,10 @@ static int ipw_up(struct ipw_priv *priv)
 				    priv->eeprom[EEPROM_COUNTRY_CODE + 2]);
 			j = 0;
 		}
-		if (ipw_set_geo(priv->ieee, &ipw_geos[j])) {
+		if (ieee80211_set_geo(priv->ieee, &ipw_geos[j])) {
 			IPW_WARNING("Could not set geography.");
 			return 0;
 		}
-
-		IPW_DEBUG_INFO("Geography %03d [%s] detected.\n",
-			       j, priv->ieee->geo.name);
 
 		if (priv->status & STATUS_RF_KILL_SW) {
 			IPW_WARNING("Radio disabled by module parameter.\n");
@@ -11081,6 +10999,12 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		IPW_ERROR("failed to register network device\n");
 		goto out_remove_sysfs;
 	}
+
+	printk(KERN_INFO DRV_NAME ": Detected geography %s (%d 802.11bg "
+	       "channels, %d 802.11a channels)\n",
+	       priv->ieee->geo.name, priv->ieee->geo.bg_channels,
+	       priv->ieee->geo.a_channels);
+
 	return 0;
 
       out_remove_sysfs:
@@ -11271,8 +11195,10 @@ MODULE_PARM_DESC(auto_create, "auto create adhoc network (default on)");
 module_param(led, int, 0444);
 MODULE_PARM_DESC(led, "enable led control on some systems (default 0 off)\n");
 
+#ifdef CONFIG_IPW2200_DEBUG
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
+#endif
 
 module_param(channel, int, 0444);
 MODULE_PARM_DESC(channel, "channel to limit associate to (default 0 [ANY])");
