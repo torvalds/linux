@@ -1448,6 +1448,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 				strlcpy(dgid, p + i * 2, 3);
 				target->path.dgid.raw[i] = simple_strtoul(dgid, NULL, 16);
 			}
+			kfree(p);
 			break;
 
 		case SRP_OPT_PKEY:
