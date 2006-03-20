@@ -1018,12 +1018,12 @@ static struct nfs4_state *nfs4_do_open(struct inode *dir, struct dentry *dentry,
 	return res;
 }
 
-static int _nfs4_do_setattr(struct nfs_server *server, struct nfs_fattr *fattr,
-                struct nfs_fh *fhandle, struct iattr *sattr,
-                struct nfs4_state *state)
+static int _nfs4_do_setattr(struct inode *inode, struct nfs_fattr *fattr,
+                struct iattr *sattr, struct nfs4_state *state)
 {
+	struct nfs_server *server = NFS_SERVER(inode);
         struct nfs_setattrargs  arg = {
-                .fh             = fhandle,
+                .fh             = NFS_FH(inode),
                 .iap            = sattr,
 		.server		= server,
 		.bitmask = server->attr_bitmask,
@@ -1042,7 +1042,9 @@ static int _nfs4_do_setattr(struct nfs_server *server, struct nfs_fattr *fattr,
 
 	nfs_fattr_init(fattr);
 
-	if (state != NULL) {
+	if (nfs4_copy_delegation_stateid(&arg.stateid, inode)) {
+		/* Use that stateid */
+	} else if (state != NULL) {
 		msg.rpc_cred = state->owner->so_cred;
 		nfs4_copy_stateid(&arg.stateid, state, current->files);
 	} else
@@ -1054,16 +1056,15 @@ static int _nfs4_do_setattr(struct nfs_server *server, struct nfs_fattr *fattr,
 	return status;
 }
 
-static int nfs4_do_setattr(struct nfs_server *server, struct nfs_fattr *fattr,
-                struct nfs_fh *fhandle, struct iattr *sattr,
-                struct nfs4_state *state)
+static int nfs4_do_setattr(struct inode *inode, struct nfs_fattr *fattr,
+                struct iattr *sattr, struct nfs4_state *state)
 {
+	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_exception exception = { };
 	int err;
 	do {
 		err = nfs4_handle_exception(server,
-				_nfs4_do_setattr(server, fattr, fhandle, sattr,
-					state),
+				_nfs4_do_setattr(inode, fattr, sattr, state),
 				&exception);
 	} while (exception.retry);
 	return err;
@@ -1504,8 +1505,7 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	if (ctx != NULL)
 		state = ctx->state;
 
-	status = nfs4_do_setattr(NFS_SERVER(inode), fattr,
-			NFS_FH(inode), sattr, state);
+	status = nfs4_do_setattr(inode, fattr, sattr, state);
 	if (status == 0)
 		nfs_setattr_update_inode(inode, sattr);
 	if (ctx != NULL)
@@ -1824,8 +1824,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	d_instantiate(dentry, igrab(state->inode));
 	if (flags & O_EXCL) {
 		struct nfs_fattr fattr;
-		status = nfs4_do_setattr(NFS_SERVER(dir), &fattr,
-		                     NFS_FH(state->inode), sattr, state);
+		status = nfs4_do_setattr(state->inode, &fattr, sattr, state);
 		if (status == 0)
 			nfs_setattr_update_inode(state->inode, sattr);
 	}
