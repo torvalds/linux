@@ -2364,8 +2364,12 @@ static void timeout_sends(void *data)
 static void ib_mad_thread_completion_handler(struct ib_cq *cq, void *arg)
 {
 	struct ib_mad_port_private *port_priv = cq->cq_context;
+	unsigned long flags;
 
-	queue_work(port_priv->wq, &port_priv->work);
+	spin_lock_irqsave(&ib_mad_port_list_lock, flags);
+	if (!list_empty(&port_priv->port_list))
+		queue_work(port_priv->wq, &port_priv->work);
+	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
 }
 
 /*
@@ -2677,18 +2681,23 @@ static int ib_mad_port_open(struct ib_device *device,
 	}
 	INIT_WORK(&port_priv->work, ib_mad_completion_handler, port_priv);
 
+	spin_lock_irqsave(&ib_mad_port_list_lock, flags);
+	list_add_tail(&port_priv->port_list, &ib_mad_port_list);
+	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
+
 	ret = ib_mad_port_start(port_priv);
 	if (ret) {
 		printk(KERN_ERR PFX "Couldn't start port\n");
 		goto error9;
 	}
 
-	spin_lock_irqsave(&ib_mad_port_list_lock, flags);
-	list_add_tail(&port_priv->port_list, &ib_mad_port_list);
-	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
 	return 0;
 
 error9:
+	spin_lock_irqsave(&ib_mad_port_list_lock, flags);
+	list_del_init(&port_priv->port_list);
+	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
+
 	destroy_workqueue(port_priv->wq);
 error8:
 	destroy_mad_qp(&port_priv->qp_info[1]);
@@ -2725,11 +2734,9 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 		printk(KERN_ERR PFX "Port %d not found\n", port_num);
 		return -ENODEV;
 	}
-	list_del(&port_priv->port_list);
+	list_del_init(&port_priv->port_list);
 	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
 
-	/* Stop processing completions. */
-	flush_workqueue(port_priv->wq);
 	destroy_workqueue(port_priv->wq);
 	destroy_mad_qp(&port_priv->qp_info[1]);
 	destroy_mad_qp(&port_priv->qp_info[0]);
