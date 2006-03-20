@@ -2777,38 +2777,6 @@ static int sky2_set_pauseparam(struct net_device *dev,
 	return err;
 }
 
-#ifdef CONFIG_PM
-static void sky2_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
-{
-	struct sky2_port *sky2 = netdev_priv(dev);
-
-	wol->supported = WAKE_MAGIC;
-	wol->wolopts = sky2->wol ? WAKE_MAGIC : 0;
-}
-
-static int sky2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
-{
-	struct sky2_port *sky2 = netdev_priv(dev);
-	struct sky2_hw *hw = sky2->hw;
-
-	if (wol->wolopts != WAKE_MAGIC && wol->wolopts != 0)
-		return -EOPNOTSUPP;
-
-	sky2->wol = wol->wolopts == WAKE_MAGIC;
-
-	if (sky2->wol) {
-		memcpy_toio(hw->regs + WOL_MAC_ADDR, dev->dev_addr, ETH_ALEN);
-
-		sky2_write16(hw, WOL_CTRL_STAT,
-			     WOL_CTL_ENA_PME_ON_MAGIC_PKT |
-			     WOL_CTL_ENA_MAGIC_PKT_UNIT);
-	} else
-		sky2_write16(hw, WOL_CTRL_STAT, WOL_CTL_DEFAULT);
-
-	return 0;
-}
-#endif
-
 static int sky2_get_coalesce(struct net_device *dev,
 			     struct ethtool_coalesce *ecmd)
 {
@@ -2996,10 +2964,6 @@ static struct ethtool_ops sky2_ethtool_ops = {
 	.set_ringparam = sky2_set_ringparam,
 	.get_pauseparam = sky2_get_pauseparam,
 	.set_pauseparam = sky2_set_pauseparam,
-#ifdef CONFIG_PM
-	.get_wol = sky2_get_wol,
-	.set_wol = sky2_set_wol,
-#endif
 	.phys_id = sky2_phys_id,
 	.get_stats_count = sky2_get_stats_count,
 	.get_ethtool_stats = sky2_get_ethtool_stats,

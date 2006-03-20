@@ -1863,7 +1863,6 @@ struct sky2_port {
 	u8		     rx_pause;
 	u8		     tx_pause;
 	u8		     rx_csum;
-	u8		     wol;
 
 	struct net_device_stats net_stats;
 
