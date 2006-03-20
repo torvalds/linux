@@ -1197,8 +1197,8 @@ call_verify(struct rpc_task *task)
 			task->tk_action = call_bind;
 			goto out_retry;
 		case RPC_AUTH_TOOWEAK:
-			printk(KERN_NOTICE "call_verify: server requires stronger "
-			       "authentication.\n");
+			printk(KERN_NOTICE "call_verify: server %s requires stronger "
+			       "authentication.\n", task->tk_client->cl_server);
 			break;
 		default:
 			printk(KERN_WARNING "call_verify: unknown auth error: %x\n", n);
