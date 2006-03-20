@@ -9552,11 +9552,35 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		}
 	}
 
-	/* Find msi capability. */
+	/* The EPB bridge inside 5714, 5715, and 5780 cannot support
+	 * DMA addresses > 40-bit. This bridge may have other additional
+	 * 57xx devices behind it in some 4-port NIC designs for example.
+	 * Any tg3 device found behind the bridge will also need the 40-bit
+	 * DMA workaround.
+	 */
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714) {
 		tp->tg3_flags2 |= TG3_FLG2_5780_CLASS;
+		tp->tg3_flags |= TG3_FLAG_40BIT_DMA_BUG;
 		tp->msi_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_MSI);
+	}
+	else {
+		struct pci_dev *bridge = NULL;
+
+		do {
+			bridge = pci_get_device(PCI_VENDOR_ID_SERVERWORKS,
+						PCI_DEVICE_ID_SERVERWORKS_EPB,
+						bridge);
+			if (bridge && bridge->subordinate &&
+			    (bridge->subordinate->number <=
+			     tp->pdev->bus->number) &&
+			    (bridge->subordinate->subordinate >=
+			     tp->pdev->bus->number)) {
+				tp->tg3_flags |= TG3_FLAG_40BIT_DMA_BUG;
+				pci_dev_put(bridge);
+				break;
+			}
+		} while (bridge);
 	}
 
 	/* Initialize misc host control in PCI block. */
@@ -10303,7 +10327,14 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
 			u32 ccval = (tr32(TG3PCI_CLOCK_CTRL) & 0x1f);
 
-			if (ccval == 0x6 || ccval == 0x7)
+			/* If the 5704 is behind the EPB bridge, we can
+			 * do the less restrictive ONE_DMA workaround for
+			 * better performance.
+			 */
+			if ((tp->tg3_flags & TG3_FLAG_40BIT_DMA_BUG) &&
+			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704)
+				tp->dma_rwctrl |= 0x8000;
+			else if (ccval == 0x6 || ccval == 0x7)
 				tp->dma_rwctrl |= DMA_RWCTRL_ONE_DMA;
 
 			/* Set bit 23 to enable PCIX hw bug fix */
@@ -10759,19 +10790,20 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	/* 5714, 5715 and 5780 cannot support DMA addresses > 40-bit.
+	/* The EPB bridge inside 5714, 5715, and 5780 and any
+	 * device behind the EPB cannot support DMA addresses > 40-bit.
 	 * On 64-bit systems with IOMMU, use 40-bit dma_mask.
 	 * On 64-bit systems without IOMMU, use 64-bit dma_mask and
 	 * do DMA address check in tg3_start_xmit().
 	 */
-	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) {
+	if (tp->tg3_flags2 & TG3_FLG2_IS_5788)
+		persist_dma_mask = dma_mask = DMA_32BIT_MASK;
+	else if (tp->tg3_flags & TG3_FLAG_40BIT_DMA_BUG) {
 		persist_dma_mask = dma_mask = DMA_40BIT_MASK;
 #ifdef CONFIG_HIGHMEM
 		dma_mask = DMA_64BIT_MASK;
 #endif
-	} else if (tp->tg3_flags2 & TG3_FLG2_IS_5788)
-		persist_dma_mask = dma_mask = DMA_32BIT_MASK;
-	else
+	} else
 		persist_dma_mask = dma_mask = DMA_64BIT_MASK;
 
 	/* Configure DMA attributes. */
@@ -10908,8 +10940,10 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	       (tp->tg3_flags & TG3_FLAG_SPLIT_MODE) != 0,
 	       (tp->tg3_flags2 & TG3_FLG2_NO_ETH_WIRE_SPEED) == 0,
 	       (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) != 0);
-	printk(KERN_INFO "%s: dma_rwctrl[%08x]\n",
-	       dev->name, tp->dma_rwctrl);
+	printk(KERN_INFO "%s: dma_rwctrl[%08x] dma_mask[%d-bit]\n",
+	       dev->name, tp->dma_rwctrl,
+	       (pdev->dma_mask == DMA_32BIT_MASK) ? 32 :
+	        (((u64) pdev->dma_mask == DMA_40BIT_MASK) ? 40 : 64));
 
 	return 0;
 

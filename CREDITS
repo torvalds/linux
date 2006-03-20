@@ -120,7 +120,6 @@ D: Author of lil (Linux Interrupt Latency benchmark)
 D: Fixed the shm swap deallocation at swapoff time (try_to_unuse message)
 D: VM hacker
 D: Various other kernel hacks
-S: Via Cicalini 26
 S: Imola 40026
 S: Italy
 
