@@ -26,6 +26,8 @@ struct nfs_server {
 	unsigned int		acregmax;
 	unsigned int		acdirmin;
 	unsigned int		acdirmax;
+	unsigned long		retrans_timeo;	/* retransmit timeout */
+	unsigned int		retrans_count;	/* number of retransmit tries */
 	unsigned int		namelen;
 	char *			hostname;	/* remote hostname */
 	struct nfs_fh		fh;

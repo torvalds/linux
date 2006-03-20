@@ -396,6 +396,9 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 
 	nfs_init_timeout_values(&timeparms, proto, data->timeo, data->retrans);
 
+	server->retrans_timeo = timeparms.to_initval;
+	server->retrans_count = timeparms.to_retries;
+
 	/* create transport and client */
 	xprt = xprt_create_proto(proto, &server->addr, &timeparms);
 	if (IS_ERR(xprt)) {
@@ -629,6 +632,8 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 			proto = buf;
 	}
 	seq_printf(m, ",proto=%s", proto);
+	seq_printf(m, ",timeo=%lu", 10U * nfss->retrans_timeo / HZ);
+	seq_printf(m, ",retrans=%u", nfss->retrans_count);
 	seq_puts(m, ",addr=");
 	seq_escape(m, nfss->hostname, " \t\n\\");
 	return 0;
@@ -1799,6 +1804,9 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 	server->rpc_ops = &nfs_v4_clientops;
 
 	nfs_init_timeout_values(&timeparms, data->proto, data->timeo, data->retrans);
+
+	server->retrans_timeo = timeparms.to_initval;
+	server->retrans_count = timeparms.to_retries;
 
 	clp = nfs4_get_client(&server->addr.sin_addr);
 	if (!clp) {
