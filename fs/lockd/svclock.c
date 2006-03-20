@@ -313,8 +313,6 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 	/* Get existing block (in case client is busy-waiting) */
 	block = nlmsvc_lookup_block(file, lock, 0);
 
-	lock->fl.fl_flags |= FL_LOCKD;
-
 again:
 	/* Lock file against concurrent access */
 	down(&file->f_sema);

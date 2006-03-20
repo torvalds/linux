@@ -182,7 +182,7 @@ nlm_traverse_locks(struct nlm_host *host, struct nlm_file *file, int action)
 again:
 	file->f_locks = 0;
 	for (fl = inode->i_flock; fl; fl = fl->fl_next) {
-		if (!(fl->fl_flags & FL_LOCKD))
+		if (fl->fl_lmops != &nlmsvc_lock_operations)
 			continue;
 
 		/* update current lock count */
