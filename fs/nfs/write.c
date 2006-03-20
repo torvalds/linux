@@ -963,7 +963,7 @@ static void nfs_execute_write(struct nfs_write_data *data)
  * Generate multiple small requests to write out a single
  * contiguous dirty area on one page.
  */
-static int nfs_flush_multi(struct list_head *head, struct inode *inode, int how)
+static int nfs_flush_multi(struct inode *inode, struct list_head *head, int how)
 {
 	struct nfs_page *req = nfs_list_entry(head->next);
 	struct page *page = req->wb_page;
@@ -1032,15 +1032,12 @@ out_bad:
  * This is the case if nfs_updatepage detects a conflicting request
  * that has been written but not committed.
  */
-static int nfs_flush_one(struct list_head *head, struct inode *inode, int how)
+static int nfs_flush_one(struct inode *inode, struct list_head *head, int how)
 {
 	struct nfs_page		*req;
 	struct page		**pages;
 	struct nfs_write_data	*data;
 	unsigned int		count;
-
-	if (NFS_SERVER(inode)->wsize < PAGE_CACHE_SIZE)
-		return nfs_flush_multi(head, inode, how);
 
 	data = nfs_writedata_alloc(NFS_SERVER(inode)->wpages);
 	if (!data)
@@ -1074,24 +1071,32 @@ static int nfs_flush_one(struct list_head *head, struct inode *inode, int how)
 	return -ENOMEM;
 }
 
-static int
-nfs_flush_list(struct list_head *head, int wpages, int how)
+static int nfs_flush_list(struct inode *inode, struct list_head *head, int npages, int how)
 {
 	LIST_HEAD(one_request);
-	struct nfs_page		*req;
-	int			error = 0;
-	unsigned int		pages = 0;
+	int (*flush_one)(struct inode *, struct list_head *, int);
+	struct nfs_page	*req;
+	int wpages = NFS_SERVER(inode)->wpages;
+	int wsize = NFS_SERVER(inode)->wsize;
+	int error;
 
-	while (!list_empty(head)) {
-		pages += nfs_coalesce_requests(head, &one_request, wpages);
+	flush_one = nfs_flush_one;
+	if (wsize < PAGE_CACHE_SIZE)
+		flush_one = nfs_flush_multi;
+	/* For single writes, FLUSH_STABLE is more efficient */
+	if (npages <= wpages && npages == NFS_I(inode)->npages
+			&& nfs_list_entry(head->next)->wb_bytes <= wsize)
+		how |= FLUSH_STABLE;
+
+	do {
+		nfs_coalesce_requests(head, &one_request, wpages);
 		req = nfs_list_entry(one_request.next);
-		error = nfs_flush_one(&one_request, req->wb_context->dentry->d_inode, how);
+		error = flush_one(inode, &one_request, how);
 		if (error < 0)
-			break;
-	}
-	if (error >= 0)
-		return pages;
-
+			goto out_err;
+	} while (!list_empty(head));
+	return 0;
+out_err:
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
@@ -1423,24 +1428,16 @@ static int nfs_flush_inode(struct inode *inode, unsigned long idx_start,
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	LIST_HEAD(head);
-	int			res,
-				error = 0;
+	int res;
 
 	spin_lock(&nfsi->req_lock);
 	res = nfs_scan_dirty(inode, &head, idx_start, npages);
 	spin_unlock(&nfsi->req_lock);
 	if (res) {
-		struct nfs_server *server = NFS_SERVER(inode);
-
-		/* For single writes, FLUSH_STABLE is more efficient */
-		if (res == nfsi->npages && nfsi->npages <= server->wpages) {
-			if (res > 1 || nfs_list_entry(head.next)->wb_bytes <= server->wsize)
-				how |= FLUSH_STABLE;
-		}
-		error = nfs_flush_list(&head, server->wpages, how);
+		int error = nfs_flush_list(inode, &head, res, how);
+		if (error < 0)
+			return error;
 	}
-	if (error < 0)
-		return error;
 	return res;
 }
 
@@ -1449,14 +1446,13 @@ int nfs_commit_inode(struct inode *inode, int how)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	LIST_HEAD(head);
-	int			res,
-				error = 0;
+	int res;
 
 	spin_lock(&nfsi->req_lock);
 	res = nfs_scan_commit(inode, &head, 0, 0);
 	spin_unlock(&nfsi->req_lock);
 	if (res) {
-		error = nfs_commit_list(inode, &head, how);
+		int error = nfs_commit_list(inode, &head, how);
 		if (error < 0)
 			return error;
 	}
