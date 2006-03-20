@@ -300,6 +300,7 @@ nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 	struct file_lock	*conflock;
 	struct nlm_block	*block;
 	int			error;
+	u32			ret;
 
 	dprintk("lockd: nlmsvc_lock(%s/%ld, ty=%d, pi=%d, %Ld-%Ld, bl=%d)\n",
 				file->f_file->f_dentry->d_inode->i_sb->s_id,
@@ -329,24 +330,28 @@ again:
 		dprintk("lockd: posix_lock_file returned %d\n", -error);
 		switch(-error) {
 		case 0:
-			return nlm_granted;
+			ret = nlm_granted;
+			goto out;
 		case EDEADLK:
-			return nlm_deadlock;
+			ret = nlm_deadlock;
+			goto out;
 		case EAGAIN:
-			return nlm_lck_denied;
+			ret = nlm_lck_denied;
+			goto out;
 		default:			/* includes ENOLCK */
-			return nlm_lck_denied_nolocks;
+			ret = nlm_lck_denied_nolocks;
+			goto out;
 		}
 	}
 
 	if (!wait) {
-		up(&file->f_sema);
-		return nlm_lck_denied;
+		ret = nlm_lck_denied;
+		goto out_unlock;
 	}
 
 	if (posix_locks_deadlock(&lock->fl, conflock)) {
-		up(&file->f_sema);
-		return nlm_deadlock;
+		ret = nlm_deadlock;
+		goto out_unlock;
 	}
 
 	/* If we don't have a block, create and initialize it. Then
@@ -371,8 +376,12 @@ again:
 		posix_block_lock(conflock, &block->b_call.a_args.lock.fl);
 	}
 
+	ret = nlm_lck_blocked;
+out_unlock:
 	up(&file->f_sema);
-	return nlm_lck_blocked;
+out:
+	dprintk("lockd: nlmsvc_lock returned %u\n", ret);
+	return ret;
 }
 
 /*
@@ -535,8 +544,7 @@ nlmsvc_grant_blocked(struct nlm_block *block)
 		dprintk("lockd: lock still blocked\n");
 		nlmsvc_insert_block(block, NLM_NEVER);
 		posix_block_lock(conflock, &lock->fl);
-		up(&file->f_sema);
-		return;
+		goto out_unlock;
 	}
 
 	/* Alright, no conflicting lock. Now lock it for real. If the
@@ -547,8 +555,7 @@ nlmsvc_grant_blocked(struct nlm_block *block)
 		printk(KERN_WARNING "lockd: unexpected error %d in %s!\n",
 				-error, __FUNCTION__);
 		nlmsvc_insert_block(block, 10 * HZ);
-		up(&file->f_sema);
-		return;
+		goto out_unlock;
 	}
 
 callback:
@@ -565,6 +572,7 @@ callback:
 	if (nlmsvc_async_call(&block->b_call, NLMPROC_GRANTED_MSG,
 						&nlmsvc_grant_ops) < 0)
 		nlm_release_host(block->b_call.a_host);
+out_unlock:
 	up(&file->f_sema);
 }
 
