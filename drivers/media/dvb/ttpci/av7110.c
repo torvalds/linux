@@ -1439,7 +1439,7 @@ static int check_firmware(struct av7110* av7110)
 	len = ntohl(*(u32*) ptr);
 	ptr += 4;
 	if (len >= 512) {
-		printk("dvb-ttpci: dpram file is way to big.\n");
+		printk("dvb-ttpci: dpram file is way too big.\n");
 		return -EINVAL;
 	}
 	if (crc != crc32_le(0, ptr, len)) {
@@ -2329,6 +2329,17 @@ static int frontend_init(struct av7110 *av7110)
 			av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
 			break;
 
+		case 0x0004: // Galaxis DVB-S rev1.3
+			/* ALPS BSRV2 */
+			av7110->fe = ves1x93_attach(&alps_bsrv2_config, &av7110->i2c_adap);
+			if (av7110->fe) {
+				av7110->fe->ops->diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
+				av7110->fe->ops->diseqc_send_burst = av7110_diseqc_send_burst;
+				av7110->fe->ops->set_tone = av7110_set_tone;
+				av7110->recover = dvb_s_recover;
+			}
+			break;
+
 		case 0x0006: /* Fujitsu-Siemens DVB-S rev 1.6 */
 			/* Grundig 29504-451 */
 			av7110->fe = tda8083_attach(&grundig_29504_451_config, &av7110->i2c_adap);
@@ -2466,7 +2477,8 @@ static int frontend_init(struct av7110 *av7110)
  * The same behaviour of missing VSYNC can be duplicated on budget
  * cards, by seting DD1_INIT trigger mode 7 in 3rd nibble.
  */
-static int av7110_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_data *pci_ext)
+static int __devinit av7110_attach(struct saa7146_dev* dev,
+				   struct saa7146_pci_extension_data *pci_ext)
 {
 	const int length = TS_WIDTH * TS_HEIGHT;
 	struct pci_dev *pdev = dev->pci;
@@ -2816,7 +2828,7 @@ err_kfree_0:
 	goto out;
 }
 
-static int av7110_detach(struct saa7146_dev* saa)
+static int __devexit av7110_detach(struct saa7146_dev* saa)
 {
 	struct av7110 *av7110 = saa->ext_priv;
 	dprintk(4, "%p\n", av7110);
@@ -2930,6 +2942,7 @@ MAKE_AV7110_INFO(tts_1_3se,  "Technotrend/Hauppauge WinTV DVB-S rev1.3 SE");
 MAKE_AV7110_INFO(ttt,        "Technotrend/Hauppauge DVB-T");
 MAKE_AV7110_INFO(fsc,        "Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(fss,        "Fujitsu Siemens DVB-S rev1.6");
+MAKE_AV7110_INFO(gxs_1_3,    "Galaxis DVB-S rev1.3");
 
 static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(fsc,         0x110a, 0x0000),
@@ -2937,13 +2950,13 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttt_1_X,     0x13c2, 0x0001),
 	MAKE_EXTENSION_PCI(ttc_2_X,     0x13c2, 0x0002),
 	MAKE_EXTENSION_PCI(tts_2_X,     0x13c2, 0x0003),
+	MAKE_EXTENSION_PCI(gxs_1_3,     0x13c2, 0x0004),
 	MAKE_EXTENSION_PCI(fss,         0x13c2, 0x0006),
 	MAKE_EXTENSION_PCI(ttt,         0x13c2, 0x0008),
 	MAKE_EXTENSION_PCI(ttc_1_X,     0x13c2, 0x000a),
 	MAKE_EXTENSION_PCI(tts_2_3,     0x13c2, 0x000e),
 	MAKE_EXTENSION_PCI(tts_1_3se,   0x13c2, 0x1002),
 
-/*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0004), UNDEFINED CARD */ // Galaxis DVB PC-Sat-Carte
 /*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0005), UNDEFINED CARD */ // Technisat SkyStar1
 /*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0009), UNDEFINED CARD */ // TT/Hauppauge WinTV Nexus-CA v????
 
@@ -2962,7 +2975,7 @@ static struct saa7146_extension av7110_extension = {
 	.module		= THIS_MODULE,
 	.pci_tbl	= &pci_tbl[0],
 	.attach		= av7110_attach,
-	.detach		= av7110_detach,
+	.detach		= __devexit_p(av7110_detach),
 
 	.irq_mask	= MASK_19 | MASK_03 | MASK_10,
 	.irq_func	= av7110_irq,

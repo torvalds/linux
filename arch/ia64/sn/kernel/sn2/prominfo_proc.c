@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1999,2001-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (C) 1999,2001-2004, 2006 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * Module to export the system's Firmware Interface Tables, including
  * PROM revision numbers and banners, in /proc
@@ -190,7 +190,7 @@ static int
 read_version_entry(char *page, char **start, off_t off, int count, int *eof,
 		   void *data)
 {
-	int len = 0;
+	int len;
 
 	/* data holds the NASID of the node */
 	len = dump_version(page, (unsigned long)data);
@@ -202,7 +202,7 @@ static int
 read_fit_entry(char *page, char **start, off_t off, int count, int *eof,
 	       void *data)
 {
-	int len = 0;
+	int len;
 
 	/* data holds the NASID of the node */
 	len = dump_fit(page, (unsigned long)data);
@@ -229,13 +229,16 @@ int __init prominfo_init(void)
 	struct proc_dir_entry *p;
 	cnodeid_t cnodeid;
 	unsigned long nasid;
+	int size;
 	char name[NODE_NAME_LEN];
 
 	if (!ia64_platform_is("sn2"))
 		return 0;
 
-	proc_entries = kmalloc(num_online_nodes() * sizeof(struct proc_dir_entry *),
-			       GFP_KERNEL);
+	size = num_online_nodes() * sizeof(struct proc_dir_entry *);
+	proc_entries = kzalloc(size, GFP_KERNEL);
+	if (!proc_entries)
+		return -ENOMEM;
 
 	sgi_prominfo_entry = proc_mkdir("sgi_prominfo", NULL);
 
@@ -244,14 +247,12 @@ int __init prominfo_init(void)
 		sprintf(name, "node%d", cnodeid);
 		*entp = proc_mkdir(name, sgi_prominfo_entry);
 		nasid = cnodeid_to_nasid(cnodeid);
-		p = create_proc_read_entry(
-			"fit", 0, *entp, read_fit_entry,
-			(void *)nasid);
+		p = create_proc_read_entry("fit", 0, *entp, read_fit_entry,
+					   (void *)nasid);
 		if (p)
 			p->owner = THIS_MODULE;
-		p = create_proc_read_entry(
-			"version", 0, *entp, read_version_entry,
-			(void *)nasid);
+		p = create_proc_read_entry("version", 0, *entp,
+					   read_version_entry, (void *)nasid);
 		if (p)
 			p->owner = THIS_MODULE;
 		entp++;
@@ -263,7 +264,7 @@ int __init prominfo_init(void)
 void __exit prominfo_exit(void)
 {
 	struct proc_dir_entry **entp;
-	unsigned cnodeid;
+	unsigned int cnodeid;
 	char name[NODE_NAME_LEN];
 
 	entp = proc_entries;

@@ -8,7 +8,7 @@
  */
 #include <asm/asm.h>
 #include <asm/mipsregs.h>
-#include <asm/cobalt/cobalt.h>
+#include <asm/mach-cobalt/cobalt.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
 

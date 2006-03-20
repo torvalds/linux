@@ -103,8 +103,9 @@ jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
 	 * one divide.
 	 */
 	u64 nsec = (u64)jiffies * TICK_NSEC;
-	value->tv_sec = div_long_long_rem(nsec, NSEC_PER_SEC, &value->tv_usec);
-	value->tv_usec /= NSEC_PER_USEC;
+	long rem;
+	value->tv_sec = div_long_long_rem(nsec, NSEC_PER_SEC, &rem);
+	value->tv_usec = rem / NSEC_PER_USEC;
 }
 
 #define ELF_CORE_EFLAGS EF_MIPS_ABI2

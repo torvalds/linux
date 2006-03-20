@@ -561,11 +561,12 @@ ENTRY(dirty_bit)
 	;;					// avoid RAW on r18
 	mov ar.ccv=r18				// set compare value for cmpxchg
 	or r25=_PAGE_D|_PAGE_A,r18		// set the dirty and accessed bits
+	tbit.z p7,p6 = r18,_PAGE_P_BIT		// Check present bit
 	;;
-	cmpxchg8.acq r26=[r17],r25,ar.ccv
+(p6)	cmpxchg8.acq r26=[r17],r25,ar.ccv	// Only update if page is present
 	mov r24=PAGE_SHIFT<<2
 	;;
-	cmp.eq p6,p7=r26,r18
+(p6)	cmp.eq p6,p7=r26,r18			// Only compare if page is present
 	;;
 (p6)	itc.d r25				// install updated PTE
 	;;
@@ -626,11 +627,12 @@ ENTRY(iaccess_bit)
 	;;
 	mov ar.ccv=r18				// set compare value for cmpxchg
 	or r25=_PAGE_A,r18			// set the accessed bit
+	tbit.z p7,p6 = r18,_PAGE_P_BIT	 	// Check present bit
 	;;
-	cmpxchg8.acq r26=[r17],r25,ar.ccv
+(p6)	cmpxchg8.acq r26=[r17],r25,ar.ccv	// Only if page present
 	mov r24=PAGE_SHIFT<<2
 	;;
-	cmp.eq p6,p7=r26,r18
+(p6)	cmp.eq p6,p7=r26,r18			// Only if page present
 	;;
 (p6)	itc.i r25				// install updated PTE
 	;;
@@ -680,11 +682,12 @@ ENTRY(daccess_bit)
 	;;					// avoid RAW on r18
 	mov ar.ccv=r18				// set compare value for cmpxchg
 	or r25=_PAGE_A,r18			// set the dirty bit
+	tbit.z p7,p6 = r18,_PAGE_P_BIT		// Check present bit
 	;;
-	cmpxchg8.acq r26=[r17],r25,ar.ccv
+(p6)	cmpxchg8.acq r26=[r17],r25,ar.ccv	// Only if page is present
 	mov r24=PAGE_SHIFT<<2
 	;;
-	cmp.eq p6,p7=r26,r18
+(p6)	cmp.eq p6,p7=r26,r18			// Only if page is present
 	;;
 (p6)	itc.d r25				// install updated PTE
 	/*
@@ -1362,7 +1365,6 @@ END(debug_vector)
 // 0x5a00 Entry 30 (size 16 bundles) Unaligned Reference (57)
 ENTRY(unaligned_access)
 	DBG_FAULT(30)
-	mov r16=cr.ipsr
 	mov r31=pr		// prepare to save predicates
 	;;
 	br.sptk.many dispatch_unaligned_handler

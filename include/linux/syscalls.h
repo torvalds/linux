@@ -543,7 +543,7 @@ asmlinkage long sys_unlinkat(int dfd, const char __user * pathname, int flag);
 asmlinkage long sys_symlinkat(const char __user * oldname,
 			      int newdfd, const char __user * newname);
 asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
-			   int newdfd, const char __user *newname);
+			   int newdfd, const char __user *newname, int flags);
 asmlinkage long sys_renameat(int olddfd, const char __user * oldname,
 			     int newdfd, const char __user * newname);
 asmlinkage long sys_futimesat(int dfd, char __user *filename,
@@ -557,6 +557,8 @@ asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
 			   int mode);
 asmlinkage long sys_newfstatat(int dfd, char __user *filename,
 			       struct stat __user *statbuf, int flag);
+asmlinkage long sys_fstatat64(int dfd, char __user *filename,
+			       struct stat64 __user *statbuf, int flag);
 asmlinkage long sys_readlinkat(int dfd, const char __user *path, char __user *buf,
 			       int bufsiz);
 asmlinkage long compat_sys_futimesat(unsigned int dfd, char __user *filename,

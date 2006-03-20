@@ -80,16 +80,16 @@ void __init proc_root_init(void)
 	proc_bus = proc_mkdir("bus", NULL);
 }
 
+static int proc_root_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat
+)
+{
+	generic_fillattr(dentry->d_inode, stat);
+	stat->nlink = proc_root.nlink + nr_processes();
+	return 0;
+}
+
 static struct dentry *proc_root_lookup(struct inode * dir, struct dentry * dentry, struct nameidata *nd)
 {
-	/*
-	 * nr_threads is actually protected by the tasklist_lock;
-	 * however, it's conventional to do reads, especially for
-	 * reporting, without any locking whatsoever.
-	 */
-	if (dir->i_ino == PROC_ROOT_INO) /* check for safety... */
-		dir->i_nlink = proc_root.nlink + nr_threads;
-
 	if (!proc_lookup(dir, dentry, nd)) {
 		return NULL;
 	}
@@ -134,6 +134,7 @@ static struct file_operations proc_root_operations = {
  */
 static struct inode_operations proc_root_inode_operations = {
 	.lookup		= proc_root_lookup,
+	.getattr	= proc_root_getattr,
 };
 
 /*

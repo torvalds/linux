@@ -34,7 +34,7 @@ config GDB_DEBUG
 	help
 	  gdb stub exception support
 
-config CONFIG_SH_STANDARD_BIOS
+config SH_STANDARD_BIOS
 	bool "Use gdb protocol serial console"
 	depends on (!H8300H_SIM && !H8S_SIM)
 	help

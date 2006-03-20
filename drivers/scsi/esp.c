@@ -2068,13 +2068,11 @@ static int esp_reset(struct scsi_cmnd *SCptr)
 {
 	struct esp *esp = (struct esp *) SCptr->device->host->hostdata;
 
+	spin_lock_irq(esp->ehost->host_lock);
 	(void) esp_do_resetbus(esp);
-
 	spin_unlock_irq(esp->ehost->host_lock);
 
 	wait_event(esp->reset_queue, (esp->resetting_bus == 0));
-
-	spin_lock_irq(esp->ehost->host_lock);
 
 	return SUCCESS;
 }

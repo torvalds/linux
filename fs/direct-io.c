@@ -1155,15 +1155,16 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
  * For writes, i_mutex is not held on entry; it is never taken.
  *
  * DIO_LOCKING (simple locking for regular files)
- * For writes we are called under i_mutex and return with i_mutex held, even though
- * it is internally dropped.
+ * For writes we are called under i_mutex and return with i_mutex held, even
+ * though it is internally dropped.
  * For reads, i_mutex is not held on entry, but it is taken and dropped before
  * returning.
  *
  * DIO_OWN_LOCKING (filesystem provides synchronisation and handling of
  *	uninitialised data, allowing parallel direct readers and writers)
  * For writes we are called without i_mutex, return without it, never touch it.
- * For reads, i_mutex is held on entry and will be released before returning.
+ * For reads we are called under i_mutex and return with i_mutex held, even
+ * though it may be internally dropped.
  *
  * Additional i_alloc_sem locking requirements described inline below.
  */
@@ -1182,7 +1183,8 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	ssize_t retval = -EINVAL;
 	loff_t end = offset;
 	struct dio *dio;
-	int reader_with_isem = (rw == READ && dio_lock_type == DIO_OWN_LOCKING);
+	int release_i_mutex = 0;
+	int acquire_i_mutex = 0;
 
 	if (rw & WRITE)
 		current->flags |= PF_SYNCWRITE;
@@ -1225,7 +1227,6 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	 *	writers need to grab i_alloc_sem only (i_mutex is already held)
 	 * For regular files using DIO_OWN_LOCKING,
 	 *	neither readers nor writers take any locks here
-	 *	(i_mutex is already held and release for writers here)
 	 */
 	dio->lock_type = dio_lock_type;
 	if (dio_lock_type != DIO_NO_LOCKING) {
@@ -1236,7 +1237,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 			mapping = iocb->ki_filp->f_mapping;
 			if (dio_lock_type != DIO_OWN_LOCKING) {
 				mutex_lock(&inode->i_mutex);
-				reader_with_isem = 1;
+				release_i_mutex = 1;
 			}
 
 			retval = filemap_write_and_wait_range(mapping, offset,
@@ -1248,7 +1249,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 
 			if (dio_lock_type == DIO_OWN_LOCKING) {
 				mutex_unlock(&inode->i_mutex);
-				reader_with_isem = 0;
+				acquire_i_mutex = 1;
 			}
 		}
 
@@ -1269,11 +1270,13 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 				nr_segs, blkbits, get_blocks, end_io, dio);
 
 	if (rw == READ && dio_lock_type == DIO_LOCKING)
-		reader_with_isem = 0;
+		release_i_mutex = 0;
 
 out:
-	if (reader_with_isem)
+	if (release_i_mutex)
 		mutex_unlock(&inode->i_mutex);
+	else if (acquire_i_mutex)
+		mutex_lock(&inode->i_mutex);
 	if (rw & WRITE)
 		current->flags &= ~PF_SYNCWRITE;
 	return retval;

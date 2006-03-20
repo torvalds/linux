@@ -1492,7 +1492,7 @@ no_dma:
 	/*
 	 * Init remaining bits of "port" structure
 	 */
-	uap->port.iotype = SERIAL_IO_MEM;
+	uap->port.iotype = UPIO_MEM;
 	uap->port.irq = np->intrs[0].line;
 	uap->port.uartclk = ZS_CLOCK;
 	uap->port.fifosize = 1;

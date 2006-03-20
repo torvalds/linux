@@ -184,7 +184,7 @@ static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	return 0;
 }
 
-struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
+static struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
 	{ 0xfe, 0x02, KEY_TV },
 	{ 0xfe, 0x0e, KEY_MP3 },
 	{ 0xfe, 0x1a, KEY_DVD },
@@ -234,7 +234,7 @@ struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
 
 static int cxusb_dee1601_demod_init(struct dvb_frontend* fe)
 {
-	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x38 };
+	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x28 };
 	static u8 reset []         = { RESET,      0x80 };
 	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
 	static u8 agc_cfg []       = { AGC_TARGET, 0x28, 0x20 };
@@ -255,7 +255,7 @@ static int cxusb_dee1601_demod_init(struct dvb_frontend* fe)
 
 static int cxusb_mt352_demod_init(struct dvb_frontend* fe)
 {	/* used in both lgz201 and th7579 */
-	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x39 };
+	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x29 };
 	static u8 reset []         = { RESET,      0x80 };
 	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
 	static u8 agc_cfg []       = { AGC_TARGET, 0x24, 0x20 };
@@ -273,7 +273,7 @@ static int cxusb_mt352_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-struct cx22702_config cxusb_cx22702_config = {
+static struct cx22702_config cxusb_cx22702_config = {
 	.demod_address = 0x63,
 
 	.output_mode = CX22702_PARALLEL_OUTPUT,
@@ -282,13 +282,13 @@ struct cx22702_config cxusb_cx22702_config = {
 	.pll_set  = dvb_usb_pll_set_i2c,
 };
 
-struct lgdt330x_config cxusb_lgdt330x_config = {
+static struct lgdt330x_config cxusb_lgdt3303_config = {
 	.demod_address = 0x0e,
 	.demod_chip    = LGDT3303,
 	.pll_set       = dvb_usb_pll_set_i2c,
 };
 
-struct mt352_config cxusb_dee1601_config = {
+static struct mt352_config cxusb_dee1601_config = {
 	.demod_address = 0x0f,
 	.demod_init    = cxusb_dee1601_demod_init,
 	.pll_set       = dvb_usb_pll_set,
@@ -357,14 +357,14 @@ static int cxusb_cx22702_frontend_attach(struct dvb_usb_device *d)
 	return -EIO;
 }
 
-static int cxusb_lgdt330x_frontend_attach(struct dvb_usb_device *d)
+static int cxusb_lgdt3303_frontend_attach(struct dvb_usb_device *d)
 {
 	if (usb_set_interface(d->udev,0,7) < 0)
 		err("set interface failed");
 
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if ((d->fe = lgdt330x_attach(&cxusb_lgdt330x_config, &d->i2c_adap)) != NULL)
+	if ((d->fe = lgdt330x_attach(&cxusb_lgdt3303_config, &d->i2c_adap)) != NULL)
 		return 0;
 
 	return -EIO;
@@ -506,7 +506,7 @@ static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 
 	.streaming_ctrl   = cxusb_streaming_ctrl,
 	.power_ctrl       = cxusb_power_ctrl,
-	.frontend_attach  = cxusb_lgdt330x_frontend_attach,
+	.frontend_attach  = cxusb_lgdt3303_frontend_attach,
 	.tuner_attach     = cxusb_lgh064f_tuner_attach,
 
 	.i2c_algo         = &cxusb_i2c_algo,

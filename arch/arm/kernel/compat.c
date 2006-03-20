@@ -27,6 +27,8 @@
 
 #include <asm/mach/arch.h>
 
+#include "compat.h"
+
 /*
  * Usage:
  *  - do not go blindly adding fields, add them at the end

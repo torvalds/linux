@@ -303,10 +303,6 @@ struct w83792d_data {
 static int w83792d_attach_adapter(struct i2c_adapter *adapter);
 static int w83792d_detect(struct i2c_adapter *adapter, int address, int kind);
 static int w83792d_detach_client(struct i2c_client *client);
-
-static int w83792d_read_value(struct i2c_client *client, u8 register);
-static int w83792d_write_value(struct i2c_client *client, u8 register,
-				u8 value);
 static struct w83792d_data *w83792d_update_device(struct device *dev);
 
 #ifdef DEBUG
@@ -327,6 +323,20 @@ static inline long in_count_from_reg(int nr, struct w83792d_data *data)
 {
 	/* in7 and in8 do not have low bits, but the formula still works */
 	return ((data->in[nr] << 2) | ((data->low_bits >> (2 * nr)) & 0x03));
+}
+
+/* The SMBus locks itself. The Winbond W83792D chip has a bank register,
+   but the driver only accesses registers in bank 0, so we don't have
+   to switch banks and lock access between switches. */
+static inline int w83792d_read_value(struct i2c_client *client, u8 reg)
+{
+	return i2c_smbus_read_byte_data(client, reg);
+}
+
+static inline int
+w83792d_write_value(struct i2c_client *client, u8 reg, u8 value)
+{
+	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
 /* following are the sysfs callback functions */
@@ -1384,19 +1394,6 @@ w83792d_detach_client(struct i2c_client *client)
 		kfree(client);
 
 	return 0;
-}
-
-/* The SMBus locks itself. The Winbond W83792D chip has a bank register,
-   but the driver only accesses registers in bank 0, so we don't have
-   to switch banks and lock access between switches. */
-static int w83792d_read_value(struct i2c_client *client, u8 reg)
-{
-	return i2c_smbus_read_byte_data(client, reg);
-}
-
-static int w83792d_write_value(struct i2c_client *client, u8 reg, u8 value)
-{
-	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
 static void

@@ -35,3 +35,8 @@ obj-$(CONFIG_WINDFARM_PM91)     += windfarm_smu_controls.o \
 				   windfarm_smu_sensors.o \
 				   windfarm_lm75_sensor.o windfarm_pid.o \
 				   windfarm_cpufreq_clamp.o windfarm_pm91.o
+obj-$(CONFIG_WINDFARM_PM112)	+= windfarm_pm112.o windfarm_smu_sat.o \
+				   windfarm_smu_controls.o \
+				   windfarm_smu_sensors.o \
+				   windfarm_max6690_sensor.o \
+				   windfarm_lm75_sensor.o windfarm_pid.o

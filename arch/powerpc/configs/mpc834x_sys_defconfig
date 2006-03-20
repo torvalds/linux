@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.15-g461d4edf-dirty
-# Fri Jan 13 11:01:47 2006
+# Linux kernel version: 2.6.16-rc6
+# Wed Mar 15 16:19:56 2006
 #
 # CONFIG_PPC64 is not set
 CONFIG_PPC32=y
@@ -43,7 +43,6 @@ CONFIG_PPC_STD_MMU_32=y
 # Code maturity level options
 #
 CONFIG_EXPERIMENTAL=y
-CONFIG_CLEAN_COMPILE=y
 CONFIG_BROKEN_ON_SMP=y
 CONFIG_INIT_ENV_ARG_LIMIT=32
 
@@ -189,6 +188,7 @@ CONFIG_NET=y
 #
 # Networking options
 #
+# CONFIG_NETDEBUG is not set
 CONFIG_PACKET=y
 # CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
@@ -226,6 +226,11 @@ CONFIG_TCP_CONG_BIC=y
 # SCTP Configuration (EXPERIMENTAL)
 #
 # CONFIG_IP_SCTP is not set
+
+#
+# TIPC Configuration (EXPERIMENTAL)
+#
+# CONFIG_TIPC is not set
 # CONFIG_ATM is not set
 # CONFIG_BRIDGE is not set
 # CONFIG_VLAN_8021Q is not set
@@ -511,6 +516,7 @@ CONFIG_SERIAL_8250_RUNTIME_UARTS=4
 #
 CONFIG_SERIAL_CORE=y
 CONFIG_SERIAL_CORE_CONSOLE=y
+# CONFIG_SERIAL_JSM is not set
 CONFIG_UNIX98_PTYS=y
 CONFIG_LEGACY_PTYS=y
 CONFIG_LEGACY_PTY_COUNT=256
@@ -615,6 +621,12 @@ CONFIG_I2C_MPC=y
 # CONFIG_I2C_DEBUG_CHIP is not set
 
 #
+# SPI support
+#
+# CONFIG_SPI is not set
+# CONFIG_SPI_MASTER is not set
+
+#
 # Dallas's 1-wire bus
 #
 # CONFIG_W1 is not set
@@ -632,6 +644,7 @@ CONFIG_HWMON=y
 # CONFIG_SENSORS_ASB100 is not set
 # CONFIG_SENSORS_ATXP1 is not set
 # CONFIG_SENSORS_DS1621 is not set
+# CONFIG_SENSORS_F71805F is not set
 # CONFIG_SENSORS_FSCHER is not set
 # CONFIG_SENSORS_FSCPOS is not set
 # CONFIG_SENSORS_GL518SM is not set
@@ -716,7 +729,7 @@ CONFIG_USB_ARCH_HAS_OHCI=y
 # CONFIG_INFINIBAND is not set
 
 #
-# SN Devices
+# EDAC - error detection and reporting (RAS) (EXPERIMENTAL)
 #
 
 #
@@ -826,6 +839,7 @@ CONFIG_PARTITION_ADVANCED=y
 # CONFIG_SGI_PARTITION is not set
 # CONFIG_ULTRIX_PARTITION is not set
 # CONFIG_SUN_PARTITION is not set
+# CONFIG_KARMA_PARTITION is not set
 # CONFIG_EFI_PARTITION is not set
 
 #
@@ -899,13 +913,3 @@ CONFIG_CRYPTO_DES=y
 #
 # Hardware crypto devices
 #
-
-#
-# SEC2.x Options
-#
-CONFIG_MPC8349E_SEC2x=y
-
-#
-# SEC2.x Test Options
-#
-CONFIG_MPC8349E_SEC2xTEST=y

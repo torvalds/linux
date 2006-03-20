@@ -275,6 +275,11 @@ static struct resource s3c_adc_resource[] = {
 	},
 	[1] = {
 		.start = IRQ_TC,
+		.end   = IRQ_TC,
+		.flags = IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start = IRQ_ADC,
 		.end   = IRQ_ADC,
 		.flags = IORESOURCE_IRQ,
 	}
@@ -329,11 +334,17 @@ static struct resource s3c_spi0_resource[] = {
 
 };
 
+static u64 s3c_device_spi0_dmamask = 0xffffffffUL;
+
 struct platform_device s3c_device_spi0 = {
 	.name		  = "s3c2410-spi",
 	.id		  = 0,
 	.num_resources	  = ARRAY_SIZE(s3c_spi0_resource),
 	.resource	  = s3c_spi0_resource,
+        .dev              = {
+                .dma_mask = &s3c_device_spi0_dmamask,
+                .coherent_dma_mask = 0xffffffffUL
+        }
 };
 
 EXPORT_SYMBOL(s3c_device_spi0);
@@ -354,11 +365,17 @@ static struct resource s3c_spi1_resource[] = {
 
 };
 
+static u64 s3c_device_spi1_dmamask = 0xffffffffUL;
+
 struct platform_device s3c_device_spi1 = {
 	.name		  = "s3c2410-spi",
 	.id		  = 1,
 	.num_resources	  = ARRAY_SIZE(s3c_spi1_resource),
 	.resource	  = s3c_spi1_resource,
+        .dev              = {
+                .dma_mask = &s3c_device_spi1_dmamask,
+                .coherent_dma_mask = 0xffffffffUL
+        }
 };
 
 EXPORT_SYMBOL(s3c_device_spi1);

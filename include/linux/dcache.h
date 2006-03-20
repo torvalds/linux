@@ -8,7 +8,6 @@
 #include <linux/spinlock.h>
 #include <linux/cache.h>
 #include <linux/rcupdate.h>
-#include <asm/bug.h>
 
 struct nameidata;
 struct vfsmount;

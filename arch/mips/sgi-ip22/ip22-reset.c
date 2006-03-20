@@ -3,8 +3,9 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1997, 1998, 2001, 2003 by Ralf Baechle
+ * Copyright (C) 1997, 1998, 2001, 03, 05, 06 by Ralf Baechle
  */
+#include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/ds1286.h>
 #include <linux/module.h>
@@ -12,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/notifier.h>
+#include <linux/pm.h>
 #include <linux/timer.h>
 
 #include <asm/io.h>
@@ -41,28 +43,10 @@ static struct timer_list power_timer, blink_timer, debounce_timer, volume_timer;
 
 #define MACHINE_PANICED		1
 #define MACHINE_SHUTTING_DOWN	2
-static int machine_state = 0;
 
-static void sgi_machine_restart(char *command) __attribute__((noreturn));
-static void sgi_machine_halt(void) __attribute__((noreturn));
-static void sgi_machine_power_off(void) __attribute__((noreturn));
+static int machine_state;
 
-static void sgi_machine_restart(char *command)
-{
-	if (machine_state & MACHINE_SHUTTING_DOWN)
-		sgi_machine_power_off();
-	sgimc->cpuctrl0 |= SGIMC_CCTRL0_SYSINIT;
-	while (1);
-}
-
-static void sgi_machine_halt(void)
-{
-	if (machine_state & MACHINE_SHUTTING_DOWN)
-		sgi_machine_power_off();
-	ArcEnterInteractiveMode();
-}
-
-static void sgi_machine_power_off(void)
+static void ATTRIB_NORET sgi_machine_power_off(void)
 {
 	unsigned int tmp;
 
@@ -84,6 +68,21 @@ static void sgi_machine_power_off(void)
 	}
 }
 
+static void ATTRIB_NORET sgi_machine_restart(char *command)
+{
+	if (machine_state & MACHINE_SHUTTING_DOWN)
+		sgi_machine_power_off();
+	sgimc->cpuctrl0 |= SGIMC_CCTRL0_SYSINIT;
+	while (1);
+}
+
+static void ATTRIB_NORET sgi_machine_halt(void)
+{
+	if (machine_state & MACHINE_SHUTTING_DOWN)
+		sgi_machine_power_off();
+	ArcEnterInteractiveMode();
+}
+
 static void power_timeout(unsigned long data)
 {
 	sgi_machine_power_off();
@@ -95,7 +94,7 @@ static void blink_timeout(unsigned long data)
 	sgi_ioc_reset ^= (SGIOC_RESET_LC0OFF|SGIOC_RESET_LC1OFF);
 	sgioc->reset = sgi_ioc_reset;
 
-	mod_timer(&blink_timer, jiffies+data);
+	mod_timer(&blink_timer, jiffies + data);
 }
 
 static void debounce(unsigned long data)
@@ -103,7 +102,7 @@ static void debounce(unsigned long data)
 	del_timer(&debounce_timer);
 	if (sgint->istat1 & SGINT_ISTAT1_PWR) {
 		/* Interrupt still being sent. */
-		debounce_timer.expires = jiffies + 5; /* 0.05s  */
+		debounce_timer.expires = jiffies + (HZ / 20); /* 0.05s  */
 		add_timer(&debounce_timer);
 
 		sgioc->panel = SGIOC_PANEL_POWERON | SGIOC_PANEL_POWERINTR |
@@ -151,7 +150,7 @@ static inline void volume_up_button(unsigned long data)
 		indy_volume_button(1);
 
 	if (sgint->istat1 & SGINT_ISTAT1_PWR) {
-		volume_timer.expires = jiffies + 1;
+		volume_timer.expires = jiffies + (HZ / 100);
 		add_timer(&volume_timer);
 	}
 }
@@ -164,7 +163,7 @@ static inline void volume_down_button(unsigned long data)
 		indy_volume_button(-1);
 
 	if (sgint->istat1 & SGINT_ISTAT1_PWR) {
-		volume_timer.expires = jiffies + 1;
+		volume_timer.expires = jiffies + (HZ / 100);
 		add_timer(&volume_timer);
 	}
 }
@@ -199,14 +198,14 @@ static irqreturn_t panel_int(int irq, void *dev_id, struct pt_regs *regs)
 	if (!(buttons & SGIOC_PANEL_VOLUPINTR)) {
 		init_timer(&volume_timer);
 		volume_timer.function = volume_up_button;
-		volume_timer.expires = jiffies + 1;
+		volume_timer.expires = jiffies + (HZ / 100);
 		add_timer(&volume_timer);
 	}
 	/* Volume down button was pressed */
 	if (!(buttons & SGIOC_PANEL_VOLDNINTR)) {
 		init_timer(&volume_timer);
 		volume_timer.function = volume_down_button;
-		volume_timer.expires = jiffies + 1;
+		volume_timer.expires = jiffies + (HZ / 100);
 		add_timer(&volume_timer);
 	}
 
@@ -234,7 +233,7 @@ static int __init reboot_setup(void)
 {
 	_machine_restart = sgi_machine_restart;
 	_machine_halt = sgi_machine_halt;
-	_machine_power_off = sgi_machine_power_off;
+	pm_power_off = sgi_machine_power_off;
 
 	request_irq(SGI_PANEL_IRQ, panel_int, 0, "Front Panel", NULL);
 	init_timer(&blink_timer);

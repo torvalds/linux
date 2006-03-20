@@ -348,10 +348,10 @@ aes_set_key(void *ctx_arg, const uint8_t *in_key, unsigned int key_len, uint32_t
 		break;
 
 	case 32:
-		E_KEY[4] = le32_to_cpu(in_key[4]);
-		E_KEY[5] = le32_to_cpu(in_key[5]);
-		E_KEY[6] = le32_to_cpu(in_key[6]);
-		t = E_KEY[7] = le32_to_cpu(in_key[7]);
+		E_KEY[4] = le32_to_cpu(key[4]);
+		E_KEY[5] = le32_to_cpu(key[5]);
+		E_KEY[6] = le32_to_cpu(key[6]);
+		t = E_KEY[7] = le32_to_cpu(key[7]);
 		for (i = 0; i < 7; ++i)
 			loop8 (i);
 		break;

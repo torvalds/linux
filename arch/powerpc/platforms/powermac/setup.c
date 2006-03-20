@@ -82,8 +82,6 @@
 
 #undef SHOW_GATWICK_IRQS
 
-unsigned char drive_info;
-
 int ppc_override_l2cr = 0;
 int ppc_override_l2cr_value;
 int has_l2cache = 0;
@@ -622,10 +620,6 @@ static void __init pmac_init_early(void)
 
 	/* Probe motherboard chipset */
 	pmac_feature_init();
-
-	/* We can NAP */
-	powersave_nap = 1;
-	printk(KERN_INFO "Using native/NAP idle loop\n");
 
 	/* Initialize debug stuff */
 	udbg_scc_init(!!strstr(cmd_line, "sccdbg"));

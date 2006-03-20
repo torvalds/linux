@@ -20,7 +20,20 @@ struct frame_head {
 } __attribute__((packed));
 
 static struct frame_head *
-dump_backtrace(struct frame_head * head)
+dump_kernel_backtrace(struct frame_head * head)
+{
+	oprofile_add_trace(head->ret);
+
+	/* frame pointers should strictly progress back up the stack
+	 * (towards higher addresses) */
+	if (head >= head->ebp)
+		return NULL;
+
+	return head->ebp;
+}
+
+static struct frame_head *
+dump_user_backtrace(struct frame_head * head)
 {
 	struct frame_head bufhead[2];
 
@@ -105,10 +118,10 @@ x86_backtrace(struct pt_regs * const regs, unsigned int depth)
 
 	if (!user_mode_vm(regs)) {
 		while (depth-- && valid_kernel_stack(head, regs))
-			head = dump_backtrace(head);
+			head = dump_kernel_backtrace(head);
 		return;
 	}
 
 	while (depth-- && head)
-		head = dump_backtrace(head);
+		head = dump_user_backtrace(head);
 }

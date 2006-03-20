@@ -1679,7 +1679,7 @@ static int
 sg_build_sgat(Sg_scatter_hold * schp, const Sg_fd * sfp, int tablesize)
 {
 	int sg_bufflen = tablesize * sizeof(struct scatterlist);
-	unsigned int gfp_flags = GFP_ATOMIC | __GFP_NOWARN;
+	gfp_t gfp_flags = GFP_ATOMIC | __GFP_NOWARN;
 
 	/*
 	 * TODO: test without low_dma, we should not need it since
@@ -2162,7 +2162,7 @@ sg_link_reserve(Sg_fd * sfp, Sg_request * srp, int size)
 
 	srp->res_used = 1;
 	SCSI_LOG_TIMEOUT(4, printk("sg_link_reserve: size=%d\n", size));
-	rem = size = (size + 1) & (~1);	/* round to even for aha1542 */
+	rem = size;
 
 	for (k = 0; k < rsv_schp->k_use_sg; ++k, ++sg) {
 		num = sg->length;

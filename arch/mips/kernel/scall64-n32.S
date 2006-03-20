@@ -195,7 +195,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_fdatasync
 	PTR	sys_truncate
 	PTR	sys_ftruncate			/* 6075 */
-	PTR	sys32_getdents
+	PTR	compat_sys_getdents
 	PTR	sys_getcwd
 	PTR	sys_chdir
 	PTR	sys_fchdir
@@ -245,9 +245,9 @@ EXPORT(sysn32_call_table)
 	PTR	sys_capget
 	PTR	sys_capset
 	PTR	sys32_rt_sigpending		/* 6125 */
-	PTR	sysn32_rt_sigtimedwait
+	PTR	compat_sys_rt_sigtimedwait
 	PTR	sys_rt_sigqueueinfo
-	PTR	sys32_rt_sigsuspend
+	PTR	sysn32_rt_sigsuspend
 	PTR	sys32_sigaltstack
 	PTR	compat_sys_utime		/* 6130 */
 	PTR	sys_mknod
@@ -369,3 +369,20 @@ EXPORT(sysn32_call_table)
 	PTR	sys_inotify_init
 	PTR	sys_inotify_add_watch
 	PTR	sys_inotify_rm_watch
+	PTR	sys_migrate_pages		/* 6250 */
+	PTR	sys_openat
+	PTR	sys_mkdirat
+	PTR	sys_mknodat
+	PTR	sys_fchownat
+	PTR	sys_futimesat			/* 6255 */
+	PTR	sys_newfstatat
+	PTR	sys_unlinkat
+	PTR	sys_renameat
+	PTR	sys_linkat
+	PTR	sys_symlinkat			/* 6260 */
+	PTR	sys_readlinkat
+	PTR	sys_fchmodat
+	PTR	sys_faccessat
+	PTR	sys_pselect6
+	PTR	sys_ppoll			/* 6265 */
+	PTR	sys_unshare

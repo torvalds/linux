@@ -223,7 +223,7 @@ static void fc_rport_terminate(struct fc_rport  *rport);
  */
 #define FC_STARGET_NUM_ATTRS 	3
 #define FC_RPORT_NUM_ATTRS	9
-#define FC_HOST_NUM_ATTRS	16
+#define FC_HOST_NUM_ATTRS	17
 
 struct fc_internal {
 	struct scsi_transport_template t;
@@ -1498,8 +1498,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 	}
 
 	/* Search the bindings array */
-	if (likely((ids->roles & FC_RPORT_ROLE_FCP_TARGET) &&
-		(fc_host_tgtid_bind_type(shost) != FC_TGTID_BIND_NONE))) {
+	if (fc_host_tgtid_bind_type(shost) != FC_TGTID_BIND_NONE) {
 
 		/* search for a matching consistent binding */
 

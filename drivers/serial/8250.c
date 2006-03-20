@@ -2198,7 +2198,7 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	touch_nmi_watchdog();
 
 	/*
-	 *	First save the UER then disable the interrupts
+	 *	First save the IER then disable the interrupts
 	 */
 	ier = serial_in(up, UART_IER);
 
@@ -2229,6 +2229,7 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	 *	and restore the IER
 	 */
 	wait_for_xmitr(up, BOTH_EMPTY);
+	up->ier |= UART_IER_THRI;
 	serial_out(up, UART_IER, ier | UART_IER_THRI);
 }
 
@@ -2325,6 +2326,12 @@ static struct uart_driver serial8250_reg = {
 	.cons			= SERIAL8250_CONSOLE,
 };
 
+/*
+ * early_serial_setup - early registration for 8250 ports
+ *
+ * Setup an 8250 port structure prior to console initialisation.  Use
+ * after console initialisation will cause undefined behaviour.
+ */
 int __init early_serial_setup(struct uart_port *port)
 {
 	if (port->line >= ARRAY_SIZE(serial8250_ports))

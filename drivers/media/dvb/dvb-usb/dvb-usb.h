@@ -87,7 +87,7 @@ struct dvb_usb_device;
 
 /**
  * struct dvb_usb_properties - properties of a dvb-usb-device
- * @caps: capabilites of the DVB USB device.
+ * @caps: capabilities of the DVB USB device.
  * @pid_filter_count: number of PID filter position in the optional hardware
  *  PID-filter.
  *
@@ -341,7 +341,6 @@ struct hexline {
 	u8 data[255];
 	u8 chk;
 };
-extern int dvb_usb_get_hexline(const struct firmware *, struct hexline *, int *);
 extern int usb_cypress_load_firmware(struct usb_device *udev, const struct firmware *fw, int type);
 
 #endif

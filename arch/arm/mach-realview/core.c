@@ -182,7 +182,7 @@ static const struct icst307_params realview_oscvco_params = {
 static void realview_oscvco_set(struct clk *clk, struct icst307_vco vco)
 {
 	void __iomem *sys_lock = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_LOCK_OFFSET;
-	void __iomem *sys_osc = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_OSC1_OFFSET;
+	void __iomem *sys_osc = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_OSC4_OFFSET;
 	u32 val;
 
 	val = readl(sys_osc) & ~0x7ffff;

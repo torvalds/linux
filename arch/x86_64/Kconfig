@@ -354,21 +354,6 @@ config HPET_TIMER
 	  as it is off-chip.  You can find the HPET spec at
 	  <http://www.intel.com/hardwaredesign/hpetspec.htm>.
 
-config X86_PM_TIMER
-	bool "PM timer" if EMBEDDED
-	depends on ACPI
-	default y
-	help
-	  Support the ACPI PM timer for time keeping. This is slow,
-	  but is useful on some chipsets without HPET on systems with more
-	  than one CPU. On a single processor or single socket multi core
-	  system it is normally not required.
-	  When the PM timer is active 64bit vsyscalls are disabled
-	  and should not be enabled (/proc/sys/kernel/vsyscall64 should
-	  not be changed).
-	  The kernel selects the PM timer only as a last resort, so it is
-	  useful to enable just in case.
-
 config HPET_EMULATE_RTC
 	bool "Provide RTC interrupt"
 	depends on HPET_TIMER && RTC=y
@@ -592,6 +577,7 @@ source "arch/x86_64/oprofile/Kconfig"
 
 config KPROBES
 	bool "Kprobes (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && MODULES
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes

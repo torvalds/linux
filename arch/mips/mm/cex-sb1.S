@@ -64,7 +64,7 @@ LEAF(except_vec2_sb1)
 	sd	k0,0x170($0)
 	sd	k1,0x178($0)
 
-#if CONFIG_SB1_CEX_ALWAYS_FATAL
+#ifdef CONFIG_SB1_CEX_ALWAYS_FATAL
 	j	handle_vec2_sb1
 	 nop
 #else

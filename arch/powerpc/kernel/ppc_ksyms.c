@@ -79,15 +79,8 @@ EXPORT_SYMBOL(sys_sigreturn);
 EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strncpy);
 EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strpbrk);
-EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(strcasecmp);
 
 EXPORT_SYMBOL(csum_partial);
@@ -117,15 +110,6 @@ EXPORT_SYMBOL(_insw_ns);
 EXPORT_SYMBOL(_outsw_ns);
 EXPORT_SYMBOL(_insl_ns);
 EXPORT_SYMBOL(_outsl_ns);
-EXPORT_SYMBOL(ioremap);
-#ifdef CONFIG_44x
-EXPORT_SYMBOL(ioremap64);
-#endif
-EXPORT_SYMBOL(__ioremap);
-EXPORT_SYMBOL(iounmap);
-#ifdef CONFIG_PPC32
-EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
-#endif
 
 #if defined(CONFIG_PPC32) && (defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE))
 EXPORT_SYMBOL(ppc_ide_md);
@@ -168,7 +152,6 @@ EXPORT_SYMBOL(__flush_icache_range);
 EXPORT_SYMBOL(flush_dcache_range);
 
 #ifdef CONFIG_SMP
-EXPORT_SYMBOL(smp_call_function);
 #ifdef CONFIG_PPC32
 EXPORT_SYMBOL(smp_hw_index);
 #endif
@@ -185,9 +168,6 @@ EXPORT_SYMBOL(adb_try_handler_change);
 EXPORT_SYMBOL(cuda_request);
 EXPORT_SYMBOL(cuda_poll);
 #endif /* CONFIG_ADB_CUDA */
-#ifdef CONFIG_PPC_PMAC
-EXPORT_SYMBOL(sys_ctrler);
-#endif
 #ifdef CONFIG_VT
 EXPORT_SYMBOL(kd_mksound);
 #endif
@@ -205,7 +185,6 @@ EXPORT_SYMBOL(__lshrdi3);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memchr);
 
@@ -214,17 +193,12 @@ EXPORT_SYMBOL(screen_info);
 #endif
 
 #ifdef CONFIG_PPC32
-EXPORT_SYMBOL(__delay);
 EXPORT_SYMBOL(timer_interrupt);
 EXPORT_SYMBOL(irq_desc);
 EXPORT_SYMBOL(tb_ticks_per_jiffy);
 EXPORT_SYMBOL(console_drivers);
 EXPORT_SYMBOL(cacheable_memcpy);
 #endif
-
-EXPORT_SYMBOL(__up);
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_interruptible);
 
 #ifdef  CONFIG_8xx
 EXPORT_SYMBOL(cpm_install_handler);

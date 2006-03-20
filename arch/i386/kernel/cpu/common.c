@@ -4,6 +4,7 @@
 #include <linux/smp.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
+#include <linux/bootmem.h>
 #include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
@@ -17,6 +18,9 @@
 #endif
 
 #include "cpu.h"
+
+DEFINE_PER_CPU(struct Xgt_desc_struct, cpu_gdt_descr);
+EXPORT_PER_CPU_SYMBOL(cpu_gdt_descr);
 
 DEFINE_PER_CPU(unsigned char, cpu_16bit_stack[CPU_16BIT_STACK_SIZE]);
 EXPORT_PER_CPU_SYMBOL(cpu_16bit_stack);
@@ -44,6 +48,7 @@ static void default_init(struct cpuinfo_x86 * c)
 
 static struct cpu_dev default_cpu = {
 	.c_init	= default_init,
+	.c_vendor = "Unknown",
 };
 static struct cpu_dev * this_cpu = &default_cpu;
 
@@ -150,6 +155,7 @@ static void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 {
 	char *v = c->x86_vendor_id;
 	int i;
+	static int printed;
 
 	for (i = 0; i < X86_VENDOR_NUM; i++) {
 		if (cpu_devs[i]) {
@@ -159,10 +165,17 @@ static void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 				c->x86_vendor = i;
 				if (!early)
 					this_cpu = cpu_devs[i];
-				break;
+				return;
 			}
 		}
 	}
+	if (!printed) {
+		printed++;
+		printk(KERN_ERR "CPU: Vendor unknown, using generic init.\n");
+		printk(KERN_ERR "CPU: Your system may be unstable.\n");
+	}
+	c->x86_vendor = X86_VENDOR_UNKNOWN;
+	this_cpu = &default_cpu;
 }
 
 
@@ -265,10 +278,10 @@ void __devinit generic_identify(struct cpuinfo_x86 * c)
 			c->x86_capability[4] = excap;
 			c->x86 = (tfms >> 8) & 15;
 			c->x86_model = (tfms >> 4) & 15;
-			if (c->x86 == 0xf) {
+			if (c->x86 == 0xf)
 				c->x86 += (tfms >> 20) & 0xff;
+			if (c->x86 >= 0x6)
 				c->x86_model += ((tfms >> 16) & 0xF) << 4;
-			} 
 			c->x86_mask = tfms & 15;
 		} else {
 			/* Have CPUID level 0 only - unheard of */
@@ -562,8 +575,9 @@ void __devinit cpu_init(void)
 	int cpu = smp_processor_id();
 	struct tss_struct * t = &per_cpu(init_tss, cpu);
 	struct thread_struct *thread = &current->thread;
-	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
+	struct desc_struct *gdt;
 	__u32 stk16_off = (__u32)&per_cpu(cpu_16bit_stack, cpu);
+	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
 
 	if (cpu_test_and_set(cpu, cpu_initialized)) {
 		printk(KERN_WARNING "CPU#%d already initialized!\n", cpu);
@@ -581,6 +595,25 @@ void __devinit cpu_init(void)
 	}
 
 	/*
+	 * This is a horrible hack to allocate the GDT.  The problem
+	 * is that cpu_init() is called really early for the boot CPU
+	 * (and hence needs bootmem) but much later for the secondary
+	 * CPUs, when bootmem will have gone away
+	 */
+	if (NODE_DATA(0)->bdata->node_bootmem_map) {
+		gdt = (struct desc_struct *)alloc_bootmem_pages(PAGE_SIZE);
+		/* alloc_bootmem_pages panics on failure, so no check */
+		memset(gdt, 0, PAGE_SIZE);
+	} else {
+		gdt = (struct desc_struct *)get_zeroed_page(GFP_KERNEL);
+		if (unlikely(!gdt)) {
+			printk(KERN_CRIT "CPU%d failed to allocate GDT\n", cpu);
+			for (;;)
+				local_irq_enable();
+		}
+	}
+
+	/*
 	 * Initialize the per-CPU GDT with the boot GDT,
 	 * and set up the GDT descriptor:
 	 */
@@ -592,10 +625,10 @@ void __devinit cpu_init(void)
 		((((__u64)stk16_off) << 32) & 0xff00000000000000ULL) |
 		(CPU_16BIT_STACK_SIZE - 1);
 
-	cpu_gdt_descr[cpu].size = GDT_SIZE - 1;
- 	cpu_gdt_descr[cpu].address = (unsigned long)gdt;
+	cpu_gdt_descr->size = GDT_SIZE - 1;
+ 	cpu_gdt_descr->address = (unsigned long)gdt;
 
-	load_gdt(&cpu_gdt_descr[cpu]);
+	load_gdt(cpu_gdt_descr);
 	load_idt(&idt_descr);
 
 	/*

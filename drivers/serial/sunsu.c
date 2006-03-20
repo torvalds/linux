@@ -109,11 +109,11 @@ static _INLINE_ unsigned int serial_in(struct uart_sunsu_port *up, int offset)
 	offset <<= up->port.regshift;
 
 	switch (up->port.iotype) {
-	case SERIAL_IO_HUB6:
+	case UPIO_HUB6:
 		outb(up->port.hub6 - 1 + offset, up->port.iobase);
 		return inb(up->port.iobase + 1);
 
-	case SERIAL_IO_MEM:
+	case UPIO_MEM:
 		return readb(up->port.membase + offset);
 
 	default:
@@ -139,12 +139,12 @@ serial_out(struct uart_sunsu_port *up, int offset, int value)
 	offset <<= up->port.regshift;
 
 	switch (up->port.iotype) {
-	case SERIAL_IO_HUB6:
+	case UPIO_HUB6:
 		outb(up->port.hub6 - 1 + offset, up->port.iobase);
 		outb(value, up->port.iobase + 1);
 		break;
 
-	case SERIAL_IO_MEM:
+	case UPIO_MEM:
 		writeb(value, up->port.membase + offset);
 		break;
 
@@ -299,13 +299,10 @@ static void sunsu_start_tx(struct uart_port *port)
 static void sunsu_stop_rx(struct uart_port *port)
 {
 	struct uart_sunsu_port *up = (struct uart_sunsu_port *) port;
-	unsigned long flags;
 
-	spin_lock_irqsave(&up->port.lock, flags);
 	up->ier &= ~UART_IER_RLSI;
 	up->port.read_status_mask &= ~UART_LSR_DR;
 	serial_out(up, UART_IER, up->ier);
-	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
 static void sunsu_enable_ms(struct uart_port *port)
@@ -1052,7 +1049,7 @@ static void sunsu_autoconfig(struct uart_sunsu_port *up)
 		return;
 
 	up->type_probed = PORT_UNKNOWN;
-	up->port.iotype = SERIAL_IO_MEM;
+	up->port.iotype = UPIO_MEM;
 
 	/*
 	 * First we look for Ebus-bases su's

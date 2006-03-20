@@ -36,8 +36,6 @@
 #ifdef CONFIG_PPC64
 #define sys_sigpending	sys_ni_syscall
 #define sys_old_getrlimit sys_ni_syscall
-#else
-#define ppc_rtas	sys_ni_syscall
 #endif
 
 _GLOBAL(sys_call_table)
@@ -290,7 +288,7 @@ COMPAT_SYS(clock_settime)
 COMPAT_SYS(clock_gettime)
 COMPAT_SYS(clock_getres)
 COMPAT_SYS(clock_nanosleep)
-COMPAT_SYS(swapcontext)
+SYSX(ppc64_swapcontext,ppc32_swapcontext,ppc_swapcontext)
 COMPAT_SYS(tgkill)
 COMPAT_SYS(utimes)
 COMPAT_SYS(statfs64)
@@ -323,3 +321,4 @@ SYSCALL(spu_run)
 SYSCALL(spu_create)
 COMPAT_SYS(pselect6)
 COMPAT_SYS(ppoll)
+SYSCALL(unshare)

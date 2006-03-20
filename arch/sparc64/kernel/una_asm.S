@@ -47,7 +47,7 @@ __do_int_store:
 	 mov	0, %o0
 	.size	__do_int_store, .-__do_int_store
 
-	.section	__ex_table
+	.section	__ex_table,"a"
 	.word		4b, __retl_efault
 	.word		5b, __retl_efault
 	.word		6b, __retl_efault
@@ -129,7 +129,7 @@ do_int_load:
 	 mov	0, %o0
 	.size	__do_int_load, .-__do_int_load
 
-	.section	__ex_table
+	.section	__ex_table,"a"
 	.word		4b, __retl_efault
 	.word		5b, __retl_efault
 	.word		6b, __retl_efault

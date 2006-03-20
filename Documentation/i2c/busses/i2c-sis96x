@@ -7,7 +7,7 @@ Supported adapters:
     Any combination of these host bridges:
 	645, 645DX (aka 646), 648, 650, 651, 655, 735, 745, 746
     and these south bridges:
-    	961, 962, 963(L) 
+    	961, 962, 963(L)
 
 Author: Mark M. Hoffman <mhoffman@lightlink.com>
 
@@ -29,7 +29,7 @@ The command "lspci" as root should produce something like these lines:
 
 or perhaps this...
 
-00:00.0 Host bridge: Silicon Integrated Systems [SiS]: Unknown device 0645 
+00:00.0 Host bridge: Silicon Integrated Systems [SiS]: Unknown device 0645
 00:02.0 ISA bridge: Silicon Integrated Systems [SiS]: Unknown device 0961
 00:02.1 SMBus: Silicon Integrated Systems [SiS]: Unknown device 0016
 

@@ -228,7 +228,8 @@ struct posix_acl *reiserfs_get_acl(struct inode *inode, int type)
 		acl = ERR_PTR(retval);
 	} else {
 		acl = posix_acl_from_disk(value, retval);
-		*p_acl = posix_acl_dup(acl);
+		if (!IS_ERR(acl))
+			*p_acl = posix_acl_dup(acl);
 	}
 
 	kfree(value);

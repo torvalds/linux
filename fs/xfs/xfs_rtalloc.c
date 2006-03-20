@@ -130,7 +130,8 @@ xfs_growfs_rt_alloc(
 		/*
 		 * Lock the inode.
 		 */
-		if ((error = xfs_trans_iget(mp, tp, ino, 0, XFS_ILOCK_EXCL, &ip)))
+		if ((error = xfs_trans_iget(mp, tp, ino, 0,
+						XFS_ILOCK_EXCL, &ip)))
 			goto error_exit;
 		XFS_BMAP_INIT(&flist, &firstblock);
 		/*
@@ -170,8 +171,8 @@ xfs_growfs_rt_alloc(
 			/*
 			 * Lock the bitmap inode.
 			 */
-			if ((error = xfs_trans_iget(mp, tp, ino, 0, XFS_ILOCK_EXCL,
-					&ip)))
+			if ((error = xfs_trans_iget(mp, tp, ino, 0,
+							XFS_ILOCK_EXCL, &ip)))
 				goto error_exit;
 			/*
 			 * Get a buffer for the block.
@@ -2023,8 +2024,8 @@ xfs_growfs_rt(
 		/*
 		 * Lock out other callers by grabbing the bitmap inode lock.
 		 */
-		if ((error = xfs_trans_iget(mp, tp, 0, mp->m_sb.sb_rbmino,
-				XFS_ILOCK_EXCL, &ip)))
+		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
+						XFS_ILOCK_EXCL, &ip)))
 			goto error_exit;
 		ASSERT(ip == mp->m_rbmip);
 		/*
@@ -2037,8 +2038,8 @@ xfs_growfs_rt(
 		/*
 		 * Get the summary inode into the transaction.
 		 */
-		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rsumino,
-				0, XFS_ILOCK_EXCL, &ip)))
+		if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rsumino, 0,
+						XFS_ILOCK_EXCL, &ip)))
 			goto error_exit;
 		ASSERT(ip == mp->m_rsumip);
 		/*
@@ -2158,10 +2159,9 @@ xfs_rtallocate_extent(
 	/*
 	 * Lock out other callers by grabbing the bitmap inode lock.
 	 */
-	error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0, XFS_ILOCK_EXCL, &ip);
-	if (error) {
+	if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
+					XFS_ILOCK_EXCL, &ip)))
 		return error;
-	}
 	sumbp = NULL;
 	/*
 	 * Allocate by size, or near another block, or exactly at some block.
@@ -2221,10 +2221,9 @@ xfs_rtfree_extent(
 	/*
 	 * Synchronize by locking the bitmap inode.
 	 */
-	error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0, XFS_ILOCK_EXCL, &ip);
-	if (error) {
+	if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
+					XFS_ILOCK_EXCL, &ip)))
 		return error;
-	}
 #if defined(__KERNEL__) && defined(DEBUG)
 	/*
 	 * Check to see that this whole range is currently allocated.
@@ -2365,8 +2364,8 @@ xfs_rtpick_extent(
 	__uint64_t	seq;		/* sequence number of file creation */
 	__uint64_t	*seqp;		/* pointer to seqno in inode */
 
-	error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0, XFS_ILOCK_EXCL, &ip);
-	if (error)
+	if ((error = xfs_trans_iget(mp, tp, mp->m_sb.sb_rbmino, 0,
+					XFS_ILOCK_EXCL, &ip)))
 		return error;
 	ASSERT(ip == mp->m_rbmip);
 	seqp = (__uint64_t *)&ip->i_d.di_atime;

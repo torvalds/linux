@@ -1578,7 +1578,7 @@ static int sf_setstate(struct ip_mc_list *pmc)
 			new_in = psf->sf_count[MCAST_INCLUDE] != 0;
 		if (new_in) {
 			if (!psf->sf_oldin) {
-				struct ip_sf_list *prev = 0;
+				struct ip_sf_list *prev = NULL;
 
 				for (dpsf=pmc->tomb; dpsf; dpsf=dpsf->sf_next) {
 					if (dpsf->sf_inaddr == psf->sf_inaddr)

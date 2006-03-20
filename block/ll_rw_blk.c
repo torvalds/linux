@@ -454,7 +454,7 @@ static void queue_flush(request_queue_t *q, unsigned which)
 	rq->end_io = end_io;
 	q->prepare_flush_fn(q, rq);
 
-	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 }
 
 static inline struct request *start_ordered(request_queue_t *q,
@@ -490,7 +490,7 @@ static inline struct request *start_ordered(request_queue_t *q,
 	else
 		q->ordseq |= QUEUE_ORDSEQ_POSTFLUSH;
 
-	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 
 	if (q->ordered & QUEUE_ORDERED_PREFLUSH) {
 		queue_flush(q, QUEUE_ORDERED_PREFLUSH);
@@ -508,7 +508,7 @@ static inline struct request *start_ordered(request_queue_t *q,
 
 int blk_do_ordered(request_queue_t *q, struct request **rqp)
 {
-	struct request *rq = *rqp, *allowed_rq;
+	struct request *rq = *rqp;
 	int is_barrier = blk_fs_request(rq) && blk_barrier_rq(rq);
 
 	if (!q->ordseq) {
@@ -532,31 +532,25 @@ int blk_do_ordered(request_queue_t *q, struct request **rqp)
 		}
 	}
 
+	/*
+	 * Ordered sequence in progress
+	 */
+
+	/* Special requests are not subject to ordering rules. */
+	if (!blk_fs_request(rq) &&
+	    rq != &q->pre_flush_rq && rq != &q->post_flush_rq)
+		return 1;
+
 	if (q->ordered & QUEUE_ORDERED_TAG) {
+		/* Ordered by tag.  Blocking the next barrier is enough. */
 		if (is_barrier && rq != &q->bar_rq)
 			*rqp = NULL;
-		return 1;
+	} else {
+		/* Ordered by draining.  Wait for turn. */
+		WARN_ON(blk_ordered_req_seq(rq) < blk_ordered_cur_seq(q));
+		if (blk_ordered_req_seq(rq) > blk_ordered_cur_seq(q))
+			*rqp = NULL;
 	}
-
-	switch (blk_ordered_cur_seq(q)) {
-	case QUEUE_ORDSEQ_PREFLUSH:
-		allowed_rq = &q->pre_flush_rq;
-		break;
-	case QUEUE_ORDSEQ_BAR:
-		allowed_rq = &q->bar_rq;
-		break;
-	case QUEUE_ORDSEQ_POSTFLUSH:
-		allowed_rq = &q->post_flush_rq;
-		break;
-	default:
-		allowed_rq = NULL;
-		break;
-	}
-
-	if (rq != allowed_rq &&
-	    (blk_fs_request(rq) || rq == &q->pre_flush_rq ||
-	     rq == &q->post_flush_rq))
-		*rqp = NULL;
 
 	return 1;
 }
@@ -631,26 +625,31 @@ static inline int ordered_bio_endio(struct request *rq, struct bio *bio,
  *    Different hardware can have different requirements as to what pages
  *    it can do I/O directly to. A low level driver can call
  *    blk_queue_bounce_limit to have lower memory pages allocated as bounce
- *    buffers for doing I/O to pages residing above @page. By default
- *    the block layer sets this to the highest numbered "low" memory page.
+ *    buffers for doing I/O to pages residing above @page.
  **/
 void blk_queue_bounce_limit(request_queue_t *q, u64 dma_addr)
 {
 	unsigned long bounce_pfn = dma_addr >> PAGE_SHIFT;
+	int dma = 0;
 
-	/*
-	 * set appropriate bounce gfp mask -- unfortunately we don't have a
-	 * full 4GB zone, so we have to resort to low memory for any bounces.
-	 * ISA has its own < 16MB zone.
-	 */
-	if (bounce_pfn < blk_max_low_pfn) {
-		BUG_ON(dma_addr < BLK_BOUNCE_ISA);
+	q->bounce_gfp = GFP_NOIO;
+#if BITS_PER_LONG == 64
+	/* Assume anything <= 4GB can be handled by IOMMU.
+	   Actually some IOMMUs can handle everything, but I don't
+	   know of a way to test this here. */
+	if (bounce_pfn < (0xffffffff>>PAGE_SHIFT))
+		dma = 1;
+	q->bounce_pfn = max_low_pfn;
+#else
+	if (bounce_pfn < blk_max_low_pfn)
+		dma = 1;
+	q->bounce_pfn = bounce_pfn;
+#endif
+	if (dma) {
 		init_emergency_isa_pool();
 		q->bounce_gfp = GFP_NOIO | GFP_DMA;
-	} else
-		q->bounce_gfp = GFP_NOIO;
-
-	q->bounce_pfn = bounce_pfn;
+		q->bounce_pfn = bounce_pfn;
+	}
 }
 
 EXPORT_SYMBOL(blk_queue_bounce_limit);
@@ -3453,7 +3452,7 @@ int __init blk_dev_init(void)
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
 			sizeof(struct io_context), 0, SLAB_PANIC, NULL, NULL);
 
-	for (i = 0; i < NR_CPUS; i++)
+	for_each_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
 
 	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq, NULL);

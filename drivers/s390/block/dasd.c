@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include <linux/hdreg.h>
-#include <linux/notifier.h>
 
 #include <asm/ccwdev.h>
 #include <asm/ebcdic.h>
@@ -58,7 +57,6 @@ static void dasd_int_handler(struct ccw_device *, unsigned long, struct irb *);
 static void dasd_flush_ccw_queue(struct dasd_device *, int);
 static void dasd_tasklet(struct dasd_device *);
 static void do_kick_device(void *data);
-static void dasd_disable_eer(struct dasd_device *device);
 
 /*
  * SECTION: Operations on the device structure.
@@ -153,10 +151,13 @@ dasd_state_new_to_known(struct dasd_device *device)
 static inline void
 dasd_state_known_to_new(struct dasd_device * device)
 {
-	/* disable extended error reporting for this device */
-	dasd_disable_eer(device);
 	/* Forget the discipline information. */
+	if (device->discipline)
+		module_put(device->discipline->owner);
 	device->discipline = NULL;
+	if (device->base_discipline)
+		module_put(device->base_discipline->owner);
+	device->base_discipline = NULL;
 	device->state = DASD_STATE_NEW;
 
 	dasd_free_queue(device);
@@ -214,9 +215,10 @@ dasd_state_basic_to_known(struct dasd_device * device)
  * interrupt for this detection ccw uses the kernel event daemon to
  * trigger the call to dasd_change_state. All this is done in the
  * discipline code, see dasd_eckd.c.
- * After the analysis ccw is done (do_analysis returned 0 or error)
- * the block device is setup. Either a fake disk is added to allow
- * formatting or a proper device request queue is created.
+ * After the analysis ccw is done (do_analysis returned 0) the block
+ * device is setup.
+ * In case the analysis returns an error, the device setup is stopped
+ * (a fake disk was already added to allow formatting).
  */
 static inline int
 dasd_state_basic_to_ready(struct dasd_device * device)
@@ -226,13 +228,19 @@ dasd_state_basic_to_ready(struct dasd_device * device)
 	rc = 0;
 	if (device->discipline->do_analysis != NULL)
 		rc = device->discipline->do_analysis(device);
-	if (rc)
+	if (rc) {
+		if (rc != -EAGAIN)
+			device->state = DASD_STATE_UNFMT;
 		return rc;
+	}
+	/* make disk known with correct capacity */
 	dasd_setup_queue(device);
+	set_capacity(device->gdp, device->blocks << device->s2b_shift);
 	device->state = DASD_STATE_READY;
-	if (dasd_scan_partitions(device) != 0)
+	rc = dasd_scan_partitions(device);
+	if (rc)
 		device->state = DASD_STATE_BASIC;
-	return 0;
+	return rc;
 }
 
 /*
@@ -249,6 +257,15 @@ dasd_state_ready_to_basic(struct dasd_device * device)
 	device->blocks = 0;
 	device->bp_block = 0;
 	device->s2b_shift = 0;
+	device->state = DASD_STATE_BASIC;
+}
+
+/*
+ * Back to basic.
+ */
+static inline void
+dasd_state_unfmt_to_basic(struct dasd_device * device)
+{
 	device->state = DASD_STATE_BASIC;
 }
 
@@ -318,8 +335,12 @@ dasd_decrease_state(struct dasd_device *device)
 	if (device->state == DASD_STATE_READY &&
 	    device->target <= DASD_STATE_BASIC)
 		dasd_state_ready_to_basic(device);
-	
-	if (device->state == DASD_STATE_BASIC && 
+
+	if (device->state == DASD_STATE_UNFMT &&
+	    device->target <= DASD_STATE_BASIC)
+		dasd_state_unfmt_to_basic(device);
+
+	if (device->state == DASD_STATE_BASIC &&
 	    device->target <= DASD_STATE_KNOWN)
 		dasd_state_basic_to_known(device);
 	
@@ -871,9 +892,6 @@ dasd_handle_state_change_pending(struct dasd_device *device)
 	struct dasd_ccw_req *cqr;
 	struct list_head *l, *n;
 
-	/* first of all call extended error reporting */
-	dasd_write_eer_trigger(DASD_EER_STATECHANGE, device, NULL);
-
 	device->stopped &= ~DASD_STOPPED_PENDING;
 
         /* restart all 'running' IO on queue */
@@ -1093,19 +1111,6 @@ restart:
 			}
 			goto restart;
 		}
-
-		/* first of all call extended error reporting */
-		if (device->eer && cqr->status == DASD_CQR_FAILED) {
-			dasd_write_eer_trigger(DASD_EER_FATALERROR,
-					       device, cqr);
-
-			/* restart request  */
-			cqr->status = DASD_CQR_QUEUED;
-			cqr->retries = 255;
-			device->stopped |= DASD_STOPPED_QUIESCE;
-			goto restart;
-		}
-
 		/* Process finished ERP request. */
 		if (cqr->refers) {
 			__dasd_process_erp(device, cqr);
@@ -1243,8 +1248,7 @@ __dasd_start_head(struct dasd_device * device)
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, list);
         /* check FAILFAST */
 	if (device->stopped & ~DASD_STOPPED_PENDING &&
-	    test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags) &&
-	    (!device->eer)) {
+	    test_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags)) {
 		cqr->status = DASD_CQR_FAILED;
 		dasd_schedule_bh(device);
 	}
@@ -1738,7 +1742,7 @@ dasd_open(struct inode *inp, struct file *filp)
 		goto out;
 	}
 
-	if (device->state < DASD_STATE_BASIC) {
+	if (device->state <= DASD_STATE_BASIC) {
 		DBF_DEV_EVENT(DBF_ERR, device, " %s",
 			      " Cannot open unrecognized device");
 		rc = -ENODEV;
@@ -1880,9 +1884,10 @@ dasd_generic_remove (struct ccw_device *cdev)
  */
 int
 dasd_generic_set_online (struct ccw_device *cdev,
-			 struct dasd_discipline *discipline)
+			 struct dasd_discipline *base_discipline)
 
 {
+	struct dasd_discipline *discipline;
 	struct dasd_device *device;
 	int rc;
 
@@ -1890,6 +1895,7 @@ dasd_generic_set_online (struct ccw_device *cdev,
 	if (IS_ERR(device))
 		return PTR_ERR(device);
 
+	discipline = base_discipline;
 	if (device->features & DASD_FEATURE_USEDIAG) {
 	  	if (!dasd_diag_discipline_pointer) {
 		        printk (KERN_WARNING
@@ -1901,6 +1907,16 @@ dasd_generic_set_online (struct ccw_device *cdev,
 		}
 		discipline = dasd_diag_discipline_pointer;
 	}
+	if (!try_module_get(base_discipline->owner)) {
+		dasd_delete_device(device);
+		return -EINVAL;
+	}
+	if (!try_module_get(discipline->owner)) {
+		module_put(base_discipline->owner);
+		dasd_delete_device(device);
+		return -EINVAL;
+	}
+	device->base_discipline = base_discipline;
 	device->discipline = discipline;
 
 	rc = discipline->check_device(device);
@@ -1909,6 +1925,8 @@ dasd_generic_set_online (struct ccw_device *cdev,
 			"dasd_generic couldn't online device %s "
 			"with discipline %s rc=%i\n",
 			cdev->dev.bus_id, discipline->name, rc);
+		module_put(discipline->owner);
+		module_put(base_discipline->owner);
 		dasd_delete_device(device);
 		return rc;
 	}
@@ -1986,9 +2004,6 @@ dasd_generic_notify(struct ccw_device *cdev, int event)
 	switch (event) {
 	case CIO_GONE:
 	case CIO_NO_PATH:
-		/* first of all call extended error reporting */
-		dasd_write_eer_trigger(DASD_EER_NOPATH, device, NULL);
-
 		if (device->state < DASD_STATE_BASIC)
 			break;
 		/* Device is active. We want to keep it. */
@@ -2045,51 +2060,6 @@ dasd_generic_auto_online (struct ccw_driver *dasd_discipline_driver)
 	driver_for_each_device(drv, NULL, NULL, __dasd_auto_online);
 	put_driver(drv);
 }
-
-/*
- * notifications for extended error reports
- */
-static struct notifier_block *dasd_eer_chain;
-
-int
-dasd_register_eer_notifier(struct notifier_block *nb)
-{
-	return notifier_chain_register(&dasd_eer_chain, nb);
-}
-
-int
-dasd_unregister_eer_notifier(struct notifier_block *nb)
-{
-	return notifier_chain_unregister(&dasd_eer_chain, nb);
-}
-
-/*
- * Notify the registered error reporting module of a problem
- */
-void
-dasd_write_eer_trigger(unsigned int id, struct dasd_device *device,
-		       struct dasd_ccw_req *cqr)
-{
-	if (device->eer) {
-		struct dasd_eer_trigger temp;
-		temp.id = id;
-		temp.device = device;
-		temp.cqr = cqr;
-		notifier_call_chain(&dasd_eer_chain, DASD_EER_TRIGGER,
-				    (void *)&temp);
-	}
-}
-
-/*
- * Tell the registered error reporting module to disable error reporting for
- * a given device and to cleanup any private data structures on that device.
- */
-static void
-dasd_disable_eer(struct dasd_device *device)
-{
-	notifier_call_chain(&dasd_eer_chain, DASD_EER_DISABLE, (void *)device);
-}
-
 
 static int __init
 dasd_init(void)
@@ -2171,11 +2141,6 @@ EXPORT_SYMBOL_GPL(dasd_generic_notify);
 EXPORT_SYMBOL_GPL(dasd_generic_set_online);
 EXPORT_SYMBOL_GPL(dasd_generic_set_offline);
 EXPORT_SYMBOL_GPL(dasd_generic_auto_online);
-
-EXPORT_SYMBOL(dasd_register_eer_notifier);
-EXPORT_SYMBOL(dasd_unregister_eer_notifier);
-EXPORT_SYMBOL(dasd_write_eer_trigger);
-
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

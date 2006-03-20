@@ -293,7 +293,7 @@ sys_call_table:
 	PTR	sys_uselib
 	PTR	sys_swapon
 	PTR	sys_reboot
-	PTR	sys32_readdir
+	PTR	compat_sys_old_readdir
 	PTR	old_mmap			/* 4090 */
 	PTR	sys_munmap
 	PTR	sys_truncate
@@ -345,7 +345,7 @@ sys_call_table:
 	PTR	sys_setfsuid
 	PTR	sys_setfsgid
 	PTR	sys32_llseek			/* 4140 */
-	PTR	sys32_getdents
+	PTR	compat_sys_getdents
 	PTR	compat_sys_select
 	PTR	sys_flock
 	PTR	sys_msync
@@ -491,4 +491,21 @@ sys_call_table:
 	PTR	sys_inotify_init
 	PTR	sys_inotify_add_watch		/* 4285 */
 	PTR	sys_inotify_rm_watch
+	PTR	sys_migrate_pages
+	PTR	compat_sys_openat
+	PTR	sys_mkdirat
+	PTR	sys_mknodat			/* 4290 */
+	PTR	sys_fchownat
+	PTR	compat_sys_futimesat
+	PTR	compat_sys_newfstatat
+	PTR	sys_unlinkat
+	PTR	sys_renameat			/* 4295 */
+	PTR	sys_linkat
+	PTR	sys_symlinkat
+	PTR	sys_readlinkat
+	PTR	sys_fchmodat
+	PTR	sys_faccessat			/* 4300 */
+	PTR	sys_pselect6
+	PTR	sys_ppoll
+	PTR	sys_unshare
 	.size	sys_call_table,.-sys_call_table

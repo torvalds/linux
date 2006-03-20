@@ -153,8 +153,10 @@ static inline void con_schedule_flip(struct tty_struct *t)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&t->buf.lock, flags);
-	if (t->buf.tail != NULL)
+	if (t->buf.tail != NULL) {
 		t->buf.tail->active = 0;
+		t->buf.tail->commit = t->buf.tail->used;
+	}
 	spin_unlock_irqrestore(&t->buf.lock, flags);
 	schedule_work(&t->buf.work);
 }

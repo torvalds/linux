@@ -23,6 +23,7 @@
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
+#include <linux/smp.h>
 
 #include <asm/cpu.h>
 #include <asm/elf.h>
@@ -35,6 +36,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+
+#include "compat.h"
 
 #ifndef MEM_SIZE
 #define MEM_SIZE	(16*1024*1024)
@@ -52,10 +55,7 @@ static int __init fpe_setup(char *line)
 __setup("fpe=", fpe_setup);
 #endif
 
-extern unsigned int mem_fclk_21285;
 extern void paging_init(struct meminfo *, struct machine_desc *desc);
-extern void convert_to_tag_list(struct tag *tags);
-extern void squash_mem_tags(struct tag *tag);
 extern void reboot_setup(char *str);
 extern int root_mountflags;
 extern void _stext, _text, _etext, __data_start, _edata, _end;
@@ -770,6 +770,10 @@ void __init setup_arch(char **cmdline_p)
 	parse_cmdline(cmdline_p, from);
 	paging_init(&meminfo, mdesc);
 	request_standard_resources(&meminfo, mdesc);
+
+#ifdef CONFIG_SMP
+	smp_init_cpus();
+#endif
 
 	cpu_init();
 

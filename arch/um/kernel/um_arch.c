@@ -193,6 +193,24 @@ __uml_setup("root=", uml_root_setup,
 "        root=/dev/ubd5\n\n"
 );
 
+#ifndef CONFIG_MODE_TT
+
+static int __init no_skas_debug_setup(char *line, int *add)
+{
+	printf("'debug' is not necessary to gdb UML in skas mode - run \n");
+	printf("'gdb linux' and disable CONFIG_CMDLINE_ON_HOST if gdb \n");
+	printf("doesn't work as expected\n");
+
+	return 0;
+}
+
+__uml_setup("debug", no_skas_debug_setup,
+"debug\n"
+"    this flag is not needed to run gdb on UML in skas mode\n\n"
+);
+
+#endif
+
 #ifdef CONFIG_SMP
 static int __init uml_ncpus_setup(char *line, int *add)
 {

@@ -107,7 +107,7 @@ long write_ldt_entry(struct mm_id * mm_idp, int func, struct user_desc * desc,
 		 * So we need to switch child's mm into our userspace, then
 		 * later switch back.
 		 *
-		 * Note: I'm unshure: should interrupts be disabled here?
+		 * Note: I'm unsure: should interrupts be disabled here?
 		 */
 		if(!current->active_mm || current->active_mm == &init_mm ||
 		   mm_idp != &current->active_mm->context.skas.id)
@@ -129,9 +129,7 @@ long write_ldt_entry(struct mm_id * mm_idp, int func, struct user_desc * desc,
 			pid = userspace_pid[cpu];
 		}
 
-		res = ptrace(PTRACE_LDT, pid, 0, (unsigned long) &ldt_op);
-		if(res)
-			res = errno;
+		res = os_ptrace_ldt(pid, 0, (unsigned long) &ldt_op);
 
 		if(proc_mm)
 			put_cpu();
@@ -181,8 +179,7 @@ static long read_ldt_from_host(void __user * ptr, unsigned long bytecount)
 	 */
 
 	cpu = get_cpu();
-	res = ptrace(PTRACE_LDT, userspace_pid[cpu], 0,
-		     (unsigned long) &ptrace_ldt);
+	res = os_ptrace_ldt(userspace_pid[cpu], 0, (unsigned long) &ptrace_ldt);
 	put_cpu();
 	if(res < 0)
 		goto out;

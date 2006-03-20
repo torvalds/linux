@@ -29,7 +29,7 @@
  **********************************************************************
  */
 
-#include <asm/delay.h>
+#include <linux/delay.h>
 #include "8010.h"
 #include "recmgr.h"
 

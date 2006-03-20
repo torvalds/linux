@@ -7,7 +7,6 @@
 #include "qla_def.h"
 
 #include <linux/delay.h>
-#include <scsi/scsi_transport_fc.h>
 
 static void
 qla2x00_mbx_sem_timeout(unsigned long data)
@@ -1874,7 +1873,8 @@ qla2x00_get_id_list(scsi_qla_host_t *ha, void *id_list, dma_addr_t id_list_dma,
 		mcp->mb[3] = LSW(id_list_dma);
 		mcp->mb[6] = MSW(MSD(id_list_dma));
 		mcp->mb[7] = LSW(MSD(id_list_dma));
-		mcp->out_mb |= MBX_7|MBX_6|MBX_3|MBX_2;
+		mcp->mb[8] = 0;
+		mcp->out_mb |= MBX_8|MBX_7|MBX_6|MBX_3|MBX_2;
 	} else {
 		mcp->mb[1] = MSW(id_list_dma);
 		mcp->mb[2] = LSW(id_list_dma);
@@ -2017,8 +2017,109 @@ qla2x00_get_fcal_position_map(scsi_qla_host_t *ha, char *pos_map)
 
 	return rval;
 }
+#endif
 
-uint8_t
+/*
+ * qla2x00_get_link_status
+ *
+ * Input:
+ *	ha = adapter block pointer.
+ *	loop_id = device loop ID.
+ *	ret_buf = pointer to link status return buffer.
+ *
+ * Returns:
+ *	0 = success.
+ *	BIT_0 = mem alloc error.
+ *	BIT_1 = mailbox error.
+ */
+int
+qla2x00_get_link_status(scsi_qla_host_t *ha, uint16_t loop_id,
+    link_stat_t *ret_buf, uint16_t *status)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	link_stat_t *stat_buf;
+	dma_addr_t stat_buf_dma;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no);)
+
+	stat_buf = dma_pool_alloc(ha->s_dma_pool, GFP_ATOMIC, &stat_buf_dma);
+	if (stat_buf == NULL) {
+		DEBUG2_3_11(printk("%s(%ld): Failed to allocate memory.\n",
+		    __func__, ha->host_no));
+		return BIT_0;
+	}
+	memset(stat_buf, 0, sizeof(link_stat_t));
+
+	mcp->mb[0] = MBC_GET_LINK_STATUS;
+	mcp->mb[2] = MSW(stat_buf_dma);
+	mcp->mb[3] = LSW(stat_buf_dma);
+	mcp->mb[6] = MSW(MSD(stat_buf_dma));
+	mcp->mb[7] = LSW(MSD(stat_buf_dma));
+	mcp->out_mb = MBX_7|MBX_6|MBX_3|MBX_2|MBX_0;
+	mcp->in_mb = MBX_0;
+	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+		mcp->mb[1] = loop_id;
+		mcp->mb[4] = 0;
+		mcp->mb[10] = 0;
+		mcp->out_mb |= MBX_10|MBX_4|MBX_1;
+		mcp->in_mb |= MBX_1;
+	} else if (HAS_EXTENDED_IDS(ha)) {
+		mcp->mb[1] = loop_id;
+		mcp->mb[10] = 0;
+		mcp->out_mb |= MBX_10|MBX_1;
+	} else {
+		mcp->mb[1] = loop_id << 8;
+		mcp->out_mb |= MBX_1;
+	}
+	mcp->tov = 30;
+	mcp->flags = IOCTL_CMD;
+	rval = qla2x00_mailbox_command(ha, mcp);
+
+	if (rval == QLA_SUCCESS) {
+		if (mcp->mb[0] != MBS_COMMAND_COMPLETE) {
+			DEBUG2_3_11(printk("%s(%ld): cmd failed. mbx0=%x.\n",
+			    __func__, ha->host_no, mcp->mb[0]);)
+			status[0] = mcp->mb[0];
+			rval = BIT_1;
+		} else {
+			/* copy over data -- firmware data is LE. */
+			ret_buf->link_fail_cnt =
+			    le32_to_cpu(stat_buf->link_fail_cnt);
+			ret_buf->loss_sync_cnt =
+			    le32_to_cpu(stat_buf->loss_sync_cnt);
+			ret_buf->loss_sig_cnt =
+			    le32_to_cpu(stat_buf->loss_sig_cnt);
+			ret_buf->prim_seq_err_cnt =
+			    le32_to_cpu(stat_buf->prim_seq_err_cnt);
+			ret_buf->inval_xmit_word_cnt =
+			    le32_to_cpu(stat_buf->inval_xmit_word_cnt);
+			ret_buf->inval_crc_cnt =
+			    le32_to_cpu(stat_buf->inval_crc_cnt);
+
+			DEBUG11(printk("%s(%ld): stat dump: fail_cnt=%d "
+			    "loss_sync=%d loss_sig=%d seq_err=%d "
+			    "inval_xmt_word=%d inval_crc=%d.\n", __func__,
+			    ha->host_no, stat_buf->link_fail_cnt,
+			    stat_buf->loss_sync_cnt, stat_buf->loss_sig_cnt,
+			    stat_buf->prim_seq_err_cnt,
+			    stat_buf->inval_xmit_word_cnt,
+			    stat_buf->inval_crc_cnt);)
+		}
+	} else {
+		/* Failed. */
+		DEBUG2_3_11(printk("%s(%ld): failed=%x.\n", __func__,
+		    ha->host_no, rval);)
+		rval = BIT_1;
+	}
+
+	dma_pool_free(ha->s_dma_pool, stat_buf, stat_buf_dma);
+
+	return rval;
+}
+
+int
 qla24xx_get_isp_stats(scsi_qla_host_t *ha, uint32_t *dwbuf, uint32_t dwords,
     uint16_t *status)
 {
@@ -2080,7 +2181,6 @@ qla24xx_get_isp_stats(scsi_qla_host_t *ha, uint32_t *dwbuf, uint32_t dwords,
 
 	return rval;
 }
-#endif
 
 int
 qla24xx_abort_command(scsi_qla_host_t *ha, srb_t *sp)

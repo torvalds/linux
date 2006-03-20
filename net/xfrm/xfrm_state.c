@@ -220,14 +220,14 @@ static int __xfrm_state_delete(struct xfrm_state *x)
 		x->km.state = XFRM_STATE_DEAD;
 		spin_lock(&xfrm_state_lock);
 		list_del(&x->bydst);
-		atomic_dec(&x->refcnt);
+		__xfrm_state_put(x);
 		if (x->id.spi) {
 			list_del(&x->byspi);
-			atomic_dec(&x->refcnt);
+			__xfrm_state_put(x);
 		}
 		spin_unlock(&xfrm_state_lock);
 		if (del_timer(&x->timer))
-			atomic_dec(&x->refcnt);
+			__xfrm_state_put(x);
 
 		/* The number two in this test is the reference
 		 * mentioned in the comment below plus the reference
@@ -243,7 +243,7 @@ static int __xfrm_state_delete(struct xfrm_state *x)
 		 * The xfrm_state_alloc call gives a reference, and that
 		 * is what we are dropping here.
 		 */
-		atomic_dec(&x->refcnt);
+		__xfrm_state_put(x);
 		err = 0;
 	}
 

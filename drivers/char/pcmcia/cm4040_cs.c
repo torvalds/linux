@@ -3,12 +3,13 @@
  *
  * (c) 2000-2004 Omnikey AG (http://www.omnikey.com/)
  *
- * (C) 2005 Harald Welte <laforge@gnumonks.org>
+ * (C) 2005-2006 Harald Welte <laforge@gnumonks.org>
  * 	- add support for poll()
  * 	- driver cleanup
  * 	- add waitqueues
  * 	- adhere to linux kernel coding style and policies
  * 	- support 2.6.13 "new style" pcmcia interface
+ * 	- add class interface for udev device creation
  *
  * The device basically is a USB CCID compliant device that has been
  * attached to an I/O-Mapped FIFO.
@@ -53,7 +54,7 @@ module_param(pc_debug, int, 0600);
 #endif
 
 static char *version =
-"OMNIKEY CardMan 4040 v1.1.0gm4 - All bugs added by Harald Welte";
+"OMNIKEY CardMan 4040 v1.1.0gm5 - All bugs added by Harald Welte";
 
 #define	CCID_DRIVER_BULK_DEFAULT_TIMEOUT  	(150*HZ)
 #define	CCID_DRIVER_ASYNC_POWERUP_TIMEOUT 	(35*HZ)
@@ -67,6 +68,7 @@ static char *version =
 static void reader_release(dev_link_t *link);
 
 static int major;
+static struct class *cmx_class;
 
 #define		BS_READABLE	0x01
 #define		BS_WRITABLE	0x02
@@ -696,6 +698,9 @@ static int reader_attach(struct pcmcia_device *p_dev)
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	reader_config(link, i);
 
+	class_device_create(cmx_class, NULL, MKDEV(major, i), NULL,
+			    "cmx%d", i);
+
 	return 0;
 }
 
@@ -720,6 +725,8 @@ static void reader_detach(struct pcmcia_device *p_dev)
 
 	dev_table[devno] = NULL;
 	kfree(dev);
+
+	class_device_destroy(cmx_class, MKDEV(major, devno));
 
 	return;
 }
@@ -755,8 +762,17 @@ static struct pcmcia_driver reader_driver = {
 
 static int __init cm4040_init(void)
 {
+	int rc;
+
 	printk(KERN_INFO "%s\n", version);
-	pcmcia_register_driver(&reader_driver);
+	cmx_class = class_create(THIS_MODULE, "cardman_4040");
+	if (!cmx_class)
+		return -1;
+
+	rc = pcmcia_register_driver(&reader_driver);
+	if (rc < 0)
+		return rc;
+
 	major = register_chrdev(0, DEVICE_NAME, &reader_fops);
 	if (major < 0) {
 		printk(KERN_WARNING MODULE_NAME
@@ -771,6 +787,7 @@ static void __exit cm4040_exit(void)
 	printk(KERN_INFO MODULE_NAME ": unloading\n");
 	pcmcia_unregister_driver(&reader_driver);
 	unregister_chrdev(major, DEVICE_NAME);
+	class_destroy(cmx_class);
 }
 
 module_init(cm4040_init);

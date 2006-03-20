@@ -418,8 +418,19 @@ hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
 	/* Switch the timer base, if necessary: */
 	new_base = switch_hrtimer_base(timer, base);
 
-	if (mode == HRTIMER_REL)
+	if (mode == HRTIMER_REL) {
 		tim = ktime_add(tim, new_base->get_time());
+		/*
+		 * CONFIG_TIME_LOW_RES is a temporary way for architectures
+		 * to signal that they simply return xtime in
+		 * do_gettimeoffset(). In this case we want to round up by
+		 * resolution when starting a relative timer, to avoid short
+		 * timeouts. This will go away with the GTOD framework.
+		 */
+#ifdef CONFIG_TIME_LOW_RES
+		tim = ktime_add(tim, base->resolution);
+#endif
+	}
 	timer->expires = tim;
 
 	enqueue_hrtimer(timer, new_base);
@@ -493,6 +504,41 @@ ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
 
 	return rem;
 }
+
+#ifdef CONFIG_NO_IDLE_HZ
+/**
+ * hrtimer_get_next_event - get the time until next expiry event
+ *
+ * Returns the delta to the next expiry event or KTIME_MAX if no timer
+ * is pending.
+ */
+ktime_t hrtimer_get_next_event(void)
+{
+	struct hrtimer_base *base = __get_cpu_var(hrtimer_bases);
+	ktime_t delta, mindelta = { .tv64 = KTIME_MAX };
+	unsigned long flags;
+	int i;
+
+	for (i = 0; i < MAX_HRTIMER_BASES; i++, base++) {
+		struct hrtimer *timer;
+
+		spin_lock_irqsave(&base->lock, flags);
+		if (!base->first) {
+			spin_unlock_irqrestore(&base->lock, flags);
+			continue;
+		}
+		timer = rb_entry(base->first, struct hrtimer, node);
+		delta.tv64 = timer->expires.tv64;
+		spin_unlock_irqrestore(&base->lock, flags);
+		delta = ktime_sub(delta, base->get_time());
+		if (delta.tv64 < mindelta.tv64)
+			mindelta.tv64 = delta.tv64;
+	}
+	if (mindelta.tv64 < 0)
+		mindelta.tv64 = 0;
+	return mindelta;
+}
+#endif
 
 /**
  * hrtimer_init - initialize a timer to the given clock

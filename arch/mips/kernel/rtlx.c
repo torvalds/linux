@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2005, 06 Ralf Baechle (ralf@linux-mips.org)
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
@@ -20,9 +21,12 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
+
 #include <asm/mipsmtregs.h>
 #include <asm/bitops.h>
 #include <asm/cpu.h>

@@ -38,10 +38,10 @@ static inline unsigned mcr_pack(unsigned pulse, unsigned sample)
 
 static int nic_wait(struct ioc3_driver_data *idd)
 {
-	volatile unsigned mcr;
+	unsigned mcr;
 
         do {
-                mcr = (volatile unsigned)idd->vma->mcr;
+                mcr = readl(&idd->vma->mcr);
         } while (!(mcr & 2));
 
         return mcr & 1;
@@ -53,7 +53,7 @@ static int nic_reset(struct ioc3_driver_data *idd)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	idd->vma->mcr = mcr_pack(500, 65);
+	writel(mcr_pack(500, 65), &idd->vma->mcr);
 	presence = nic_wait(idd);
 	local_irq_restore(flags);
 
@@ -62,13 +62,13 @@ static int nic_reset(struct ioc3_driver_data *idd)
         return presence;
 }
 
-static inline int nic_read_bit(struct ioc3_driver_data *idd)
+static int nic_read_bit(struct ioc3_driver_data *idd)
 {
 	int result;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	idd->vma->mcr = mcr_pack(6, 13);
+	writel(mcr_pack(6, 13), &idd->vma->mcr);
 	result = nic_wait(idd);
 	local_irq_restore(flags);
 
@@ -77,12 +77,12 @@ static inline int nic_read_bit(struct ioc3_driver_data *idd)
 	return result;
 }
 
-static inline void nic_write_bit(struct ioc3_driver_data *idd, int bit)
+static void nic_write_bit(struct ioc3_driver_data *idd, int bit)
 {
 	if (bit)
-		idd->vma->mcr = mcr_pack(6, 110);
+		writel(mcr_pack(6, 110), &idd->vma->mcr);
 	else
-		idd->vma->mcr = mcr_pack(80, 30);
+		writel(mcr_pack(80, 30), &idd->vma->mcr);
 
 	nic_wait(idd);
 }
@@ -337,7 +337,7 @@ static void probe_nic(struct ioc3_driver_data *idd)
         int save = 0, loops = 3;
         unsigned long first, addr;
 
-        idd->vma->gpcr_s = GPCR_MLAN_EN;
+        writel(GPCR_MLAN_EN, &idd->vma->gpcr_s);
 
         while(loops>0) {
                 idd->nic_part[0] = 0;
@@ -371,8 +371,7 @@ static void probe_nic(struct ioc3_driver_data *idd)
 
 /* Interrupts */
 
-static inline void
-write_ireg(struct ioc3_driver_data *idd, uint32_t val, int which)
+static void write_ireg(struct ioc3_driver_data *idd, uint32_t val, int which)
 {
 	unsigned long flags;
 
@@ -408,7 +407,7 @@ static irqreturn_t ioc3_intr_io(int irq, void *arg, struct pt_regs *regs)
 
 	read_lock_irqsave(&ioc3_submodules_lock, flags);
 
-	if(idd->dual_irq && idd->vma->eisr) {
+	if(idd->dual_irq && readb(&idd->vma->eisr)) {
 		/* send Ethernet IRQ to the driver */
 		if(ioc3_ethernet && idd->active[ioc3_ethernet->id] &&
 						ioc3_ethernet->intr) {
@@ -682,7 +681,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	idd->id = ioc3_counter++;
 	up_write(&ioc3_devices_rwsem);
 
-	idd->gpdr_shadow = idd->vma->gpdr;
+	idd->gpdr_shadow = readl(&idd->vma->gpdr);
 
 	/* Read IOC3 NIC contents */
 	probe_nic(idd);
@@ -735,14 +734,12 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	}
 
 	/* Add this IOC3 to all submodules */
-	read_lock(&ioc3_submodules_lock);
 	for(id=0;id<IOC3_MAX_SUBMODULES;id++)
 		if(ioc3_submodules[id] && ioc3_submodules[id]->probe) {
 			idd->active[id] = 1;
 			idd->active[id] = !ioc3_submodules[id]->probe
 						(ioc3_submodules[id], idd);
 		}
-	read_unlock(&ioc3_submodules_lock);
 
 	printk(KERN_INFO "IOC3 Master Driver loaded for %s\n", pci_name(pdev));
 
@@ -767,7 +764,6 @@ static void ioc3_remove(struct pci_dev *pdev)
 	idd = pci_get_drvdata(pdev);
 
 	/* Remove this IOC3 from all submodules */
-	read_lock(&ioc3_submodules_lock);
 	for(id=0;id<IOC3_MAX_SUBMODULES;id++)
 		if(idd->active[id]) {
 			if(ioc3_submodules[id] && ioc3_submodules[id]->remove)
@@ -781,7 +777,6 @@ static void ioc3_remove(struct pci_dev *pdev)
 					        pci_name(pdev));
 			idd->active[id] = 0;
 		}
-	read_unlock(&ioc3_submodules_lock);
 
 	/* Clear and disable all IRQs */
 	write_ireg(idd, ~0, IOC3_W_IEC);

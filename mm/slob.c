@@ -336,7 +336,7 @@ EXPORT_SYMBOL(slab_reclaim_pages);
 
 #ifdef CONFIG_SMP
 
-void *__alloc_percpu(size_t size, size_t align)
+void *__alloc_percpu(size_t size)
 {
 	int i;
 	struct percpu_data *pdata = kmalloc(sizeof (*pdata), GFP_KERNEL);

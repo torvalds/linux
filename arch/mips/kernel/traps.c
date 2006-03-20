@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1994 - 1999, 2000, 01 Ralf Baechle
+ * Copyright (C) 1994 - 1999, 2000, 01, 06 Ralf Baechle
  * Copyright (C) 1995, 1996 Paul M. Antoine
  * Copyright (C) 1998 Ulf Carlsson
  * Copyright (C) 1999 Silicon Graphics, Inc.
@@ -547,6 +547,8 @@ static inline int simulate_rdhwr(struct pt_regs *regs)
 asmlinkage void do_ov(struct pt_regs *regs)
 {
 	siginfo_t info;
+
+	die_if_kernel("Integer overflow", regs);
 
 	info.si_code = FPE_INTOVF;
 	info.si_signo = SIGFPE;
@@ -1168,7 +1170,7 @@ void __init per_cpu_trap_init(void)
 #endif
 	if (current_cpu_data.isa_level == MIPS_CPU_ISA_IV)
 		status_set |= ST0_XX;
-	change_c0_status(ST0_CU|ST0_MX|ST0_FR|ST0_BEV|ST0_TS|ST0_KX|ST0_SX|ST0_UX,
+	change_c0_status(ST0_CU|ST0_MX|ST0_RE|ST0_FR|ST0_BEV|ST0_TS|ST0_KX|ST0_SX|ST0_UX,
 			 status_set);
 
 	if (cpu_has_dsp)

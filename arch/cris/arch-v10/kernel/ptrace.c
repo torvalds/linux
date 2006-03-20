@@ -202,18 +202,18 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		  	int i;
 			unsigned long tmp;
 			
+			ret = 0;
 			for (i = 0; i <= PT_MAX; i++) {
 				tmp = get_reg(child, i);
 				
 				if (put_user(tmp, datap)) {
 					ret = -EFAULT;
-					goto out_tsk;
+					break;
 				}
 				
 				data += sizeof(long);
 			}
 
-			ret = 0;
 			break;
 		}
 
@@ -222,10 +222,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			int i;
 			unsigned long tmp;
 			
+			ret = 0;
 			for (i = 0; i <= PT_MAX; i++) {
 				if (get_user(tmp, datap)) {
 					ret = -EFAULT;
-					goto out_tsk;
+					break;
 				}
 				
 				if (i == PT_DCCR) {
@@ -237,7 +238,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				data += sizeof(long);
 			}
 			
-			ret = 0;
 			break;
 		}
 

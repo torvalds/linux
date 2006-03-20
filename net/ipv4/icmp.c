@@ -192,7 +192,7 @@ int sysctl_icmp_echo_ignore_all;
 int sysctl_icmp_echo_ignore_broadcasts = 1;
 
 /* Control parameter - ignore bogus broadcast responses? */
-int sysctl_icmp_ignore_bogus_error_responses;
+int sysctl_icmp_ignore_bogus_error_responses = 1;
 
 /*
  * 	Configurable global rate limit.
@@ -524,7 +524,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, u32 info)
 					  iph->tos;
 
 	if (ip_options_echo(&icmp_param.replyopts, skb_in))
-		goto ende;
+		goto out_unlock;
 
 
 	/*

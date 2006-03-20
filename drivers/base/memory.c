@@ -303,7 +303,7 @@ static int block_size_init(void)
  */
 #ifdef CONFIG_ARCH_MEMORY_PROBE
 static ssize_t
-memory_probe_store(struct class *class, const char __user *buf, size_t count)
+memory_probe_store(struct class *class, const char *buf, size_t count)
 {
 	u64 phys_addr;
 	int ret;

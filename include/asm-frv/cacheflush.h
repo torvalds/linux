@@ -87,5 +87,17 @@ static inline void flush_icache_page(struct vm_area_struct *vma, struct page *pa
 	flush_icache_user_range(vma, page, page_to_phys(page), PAGE_SIZE);
 }
 
+/*
+ * permit ptrace to access another process's address space through the icache
+ * and the dcache
+ */
+#define copy_to_user_page(vma, page, vaddr, dst, src, len)	\
+do {								\
+	memcpy((dst), (src), (len));				\
+	flush_icache_user_range((vma), (page), (vaddr), (len));	\
+} while(0)
+
+#define copy_from_user_page(vma, page, vaddr, dst, src, len)	\
+	memcpy((dst), (src), (len))
 
 #endif /* _ASM_CACHEFLUSH_H */

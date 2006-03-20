@@ -48,6 +48,8 @@
 #define __NR_N32_rt_sigreturn		6211
 #define __NR_N32_restart_syscall	6214
 
+#define DEBUG_SIG 0
+
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 /* IRIX compatible stack_t  */
@@ -79,16 +81,49 @@ struct rt_sigframe_n32 {
 #endif
 };
 
+extern void sigset_from_compat (sigset_t *set, compat_sigset_t *compat);
+
+save_static_function(sysn32_rt_sigsuspend);
+__attribute_used__ noinline static int
+_sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
+{
+	compat_sigset_t __user *unewset, uset;
+	size_t sigsetsize;
+	sigset_t newset;
+
+	/* XXX Don't preclude handling different sized sigset_t's.  */
+	sigsetsize = regs.regs[5];
+	if (sigsetsize != sizeof(sigset_t))
+		return -EINVAL;
+
+	unewset = (compat_sigset_t __user *) regs.regs[4];
+	if (copy_from_user(&uset, unewset, sizeof(uset)))
+		return -EFAULT;
+	sigset_from_compat (&newset, &uset);
+	sigdelsetmask(&newset, ~_BLOCKABLE);
+
+	spin_lock_irq(&current->sighand->siglock);
+	current->saved_sigmask = current->blocked;
+	current->blocked = newset;
+        recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
+
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_thread_flag(TIF_RESTORE_SIGMASK);
+	return -ERESTARTNOHAND;
+}
+
 save_static_function(sysn32_rt_sigreturn);
 __attribute_used__ noinline static void
 _sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 {
-	struct rt_sigframe_n32 *frame;
+	struct rt_sigframe_n32 __user *frame;
 	sigset_t set;
 	stack_t st;
 	s32 sp;
 
-	frame = (struct rt_sigframe_n32 *) regs.regs[29];
+	frame = (struct rt_sigframe_n32 __user *) regs.regs[29];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->rs_uc.uc_sigmask, sizeof(set)))
@@ -106,7 +141,7 @@ _sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	/* The ucontext contains a stack32_t, so we must convert!  */
 	if (__get_user(sp, &frame->rs_uc.uc_stack.ss_sp))
 		goto badframe;
-	st.ss_size = (long) sp;
+	st.ss_sp = (void *)(long) sp;
 	if (__get_user(st.ss_size, &frame->rs_uc.uc_stack.ss_size))
 		goto badframe;
 	if (__get_user(st.ss_flags, &frame->rs_uc.uc_stack.ss_flags))
@@ -114,7 +149,7 @@ _sysn32_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 
 	/* It is more difficult to avoid calling this function than to
 	   call it and ignore errors.  */
-	do_sigaltstack(&st, NULL, regs.regs[29]);
+	do_sigaltstack((stack_t __user *)&st, NULL, regs.regs[29]);
 
 	/*
 	 * Don't let your children do this ...
@@ -133,7 +168,7 @@ badframe:
 int setup_rt_frame_n32(struct k_sigaction * ka,
 	struct pt_regs *regs, int signr, sigset_t *set, siginfo_t *info)
 {
-	struct rt_sigframe_n32 *frame;
+	struct rt_sigframe_n32 __user *frame;
 	int err = 0;
 	s32 sp;
 
@@ -184,9 +219,9 @@ int setup_rt_frame_n32(struct k_sigaction * ka,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 #endif
-	return 1;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
-	return 0;
+	return -EFAULT;
 }

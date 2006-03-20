@@ -204,7 +204,6 @@ static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 {
 	pte_t *pte, ptent;
 	spinlock_t *ptl;
-	unsigned long pfn;
 	struct page *page;
 
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
@@ -214,12 +213,12 @@ static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 			continue;
 
 		mss->resident += PAGE_SIZE;
-		pfn = pte_pfn(ptent);
-		if (!pfn_valid(pfn))
+
+		page = vm_normal_page(vma, addr, ptent);
+		if (!page)
 			continue;
 
-		page = pfn_to_page(pfn);
-		if (page_count(page) >= 2) {
+		if (page_mapcount(page) >= 2) {
 			if (pte_dirty(ptent))
 				mss->shared_dirty += PAGE_SIZE;
 			else
@@ -289,7 +288,7 @@ static int show_smap(struct seq_file *m, void *v)
 	struct mem_size_stats mss;
 
 	memset(&mss, 0, sizeof mss);
-	if (vma->vm_mm)
+	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
 		smaps_pgd_range(vma, vma->vm_start, vma->vm_end, &mss);
 	return show_map_internal(m, v, &mss);
 }

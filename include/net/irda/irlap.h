@@ -50,6 +50,9 @@
 /* May be different when we get VFIR */
 #define LAP_MAX_HEADER (LAP_ADDR_HEADER + LAP_CTRL_HEADER)
 
+/* Each IrDA device gets a random 32 bits IRLAP device address */
+#define LAP_ALEN 4
+
 #define BROADCAST  0xffffffff /* Broadcast device address */
 #define CBROADCAST 0xfe       /* Connection broadcast address */
 #define XID_FORMAT 0x01       /* Discovery XID format */

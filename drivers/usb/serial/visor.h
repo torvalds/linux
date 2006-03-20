@@ -36,6 +36,9 @@
 #define PALM_ZIRE_ID			0x0070
 #define PALM_M100_ID			0x0080
 
+#define GSPDA_VENDOR_ID		0x115e
+#define GSPDA_XPLORE_M68_ID		0xf100
+
 #define SONY_VENDOR_ID			0x054C
 #define SONY_CLIE_3_5_ID		0x0038
 #define SONY_CLIE_4_0_ID		0x0066

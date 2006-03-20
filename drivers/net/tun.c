@@ -249,8 +249,11 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 
 	if (align)
 		skb_reserve(skb, align);
-	if (memcpy_fromiovec(skb_put(skb, len), iv, len))
+	if (memcpy_fromiovec(skb_put(skb, len), iv, len)) {
+		tun->stats.rx_dropped++;
+		kfree_skb(skb);
 		return -EFAULT;
+	}
 
 	skb->dev = tun->dev;
 	switch (tun->flags & TUN_TYPE_MASK) {

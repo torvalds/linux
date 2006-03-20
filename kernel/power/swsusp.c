@@ -153,13 +153,11 @@ static int swsusp_swap_check(void) /* This is called before saving image */
 {
 	int i;
 
-	if (!swsusp_resume_device)
-		return -ENODEV;
 	spin_lock(&swap_lock);
 	for (i = 0; i < MAX_SWAPFILES; i++) {
 		if (!(swap_info[i].flags & SWP_WRITEOK))
 			continue;
-		if (is_resume_device(swap_info + i)) {
+		if (!swsusp_resume_device || is_resume_device(swap_info + i)) {
 			spin_unlock(&swap_lock);
 			root_swap = i;
 			return 0;
@@ -743,7 +741,6 @@ static int submit(int rw, pgoff_t page_off, void *page)
 	if (!bio)
 		return -ENOMEM;
 	bio->bi_sector = page_off * (PAGE_SIZE >> 9);
-	bio_get(bio);
 	bio->bi_bdev = resume_bdev;
 	bio->bi_end_io = end_io;
 
@@ -753,14 +750,13 @@ static int submit(int rw, pgoff_t page_off, void *page)
 		goto Done;
 	}
 
-	if (rw == WRITE)
-		bio_set_pages_dirty(bio);
 
 	atomic_set(&io_done, 1);
 	submit_bio(rw | (1 << BIO_RW_SYNC), bio);
 	while (atomic_read(&io_done))
 		yield();
-
+	if (rw == READ)
+		bio_set_pages_dirty(bio);
  Done:
 	bio_put(bio);
 	return error;

@@ -49,6 +49,7 @@ static int ptrace_child(void *arg)
 	int pid = os_getpid(), ppid = getppid();
 	int sc_result;
 
+	change_sig(SIGWINCH, 0);
 	if(ptrace(PTRACE_TRACEME, 0, 0, 0) < 0){
 		perror("ptrace");
 		os_kill_process(pid, 0);

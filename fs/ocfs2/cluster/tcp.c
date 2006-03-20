@@ -1285,14 +1285,16 @@ static void o2net_idle_timer(unsigned long data)
 	mlog(ML_NOTICE, "here are some times that might help debug the "
 	     "situation: (tmr %ld.%ld now %ld.%ld dr %ld.%ld adv "
 	     "%ld.%ld:%ld.%ld func (%08x:%u) %ld.%ld:%ld.%ld)\n",
-	     sc->sc_tv_timer.tv_sec, sc->sc_tv_timer.tv_usec, 
-	     now.tv_sec, now.tv_usec,
-	     sc->sc_tv_data_ready.tv_sec, sc->sc_tv_data_ready.tv_usec, 
-	     sc->sc_tv_advance_start.tv_sec, sc->sc_tv_advance_start.tv_usec, 
-	     sc->sc_tv_advance_stop.tv_sec, sc->sc_tv_advance_stop.tv_usec, 
+	     sc->sc_tv_timer.tv_sec, (long) sc->sc_tv_timer.tv_usec, 
+	     now.tv_sec, (long) now.tv_usec,
+	     sc->sc_tv_data_ready.tv_sec, (long) sc->sc_tv_data_ready.tv_usec,
+	     sc->sc_tv_advance_start.tv_sec,
+	     (long) sc->sc_tv_advance_start.tv_usec,
+	     sc->sc_tv_advance_stop.tv_sec,
+	     (long) sc->sc_tv_advance_stop.tv_usec,
 	     sc->sc_msg_key, sc->sc_msg_type,
-	     sc->sc_tv_func_start.tv_sec, sc->sc_tv_func_start.tv_usec,
-	     sc->sc_tv_func_stop.tv_sec, sc->sc_tv_func_stop.tv_usec);
+	     sc->sc_tv_func_start.tv_sec, (long) sc->sc_tv_func_start.tv_usec,
+	     sc->sc_tv_func_stop.tv_sec, (long) sc->sc_tv_func_stop.tv_usec);
 
 	o2net_sc_queue_work(sc, &sc->sc_shutdown_work);
 }
@@ -1316,7 +1318,7 @@ static void o2net_start_connect(void *arg)
 {
 	struct o2net_node *nn = arg;
 	struct o2net_sock_container *sc = NULL;
-	struct o2nm_node *node = NULL;
+	struct o2nm_node *node = NULL, *mynode = NULL;
 	struct socket *sock = NULL;
 	struct sockaddr_in myaddr = {0, }, remoteaddr = {0, };
 	int ret = 0;
@@ -1328,6 +1330,12 @@ static void o2net_start_connect(void *arg)
 	/* watch for racing with tearing a node down */
 	node = o2nm_get_node_by_num(o2net_num_from_nn(nn));
 	if (node == NULL) {
+		ret = 0;
+		goto out;
+	}
+
+	mynode = o2nm_get_node_by_num(o2nm_this_node());
+	if (mynode == NULL) {
 		ret = 0;
 		goto out;
 	}
@@ -1359,12 +1367,14 @@ static void o2net_start_connect(void *arg)
 	sock->sk->sk_allocation = GFP_ATOMIC;
 
 	myaddr.sin_family = AF_INET;
+	myaddr.sin_addr.s_addr = (__force u32)mynode->nd_ipv4_address;
 	myaddr.sin_port = (__force u16)htons(0); /* any port */
 
 	ret = sock->ops->bind(sock, (struct sockaddr *)&myaddr,
 			      sizeof(myaddr));
 	if (ret) {
-		mlog(0, "bind failed: %d\n", ret);
+		mlog(ML_ERROR, "bind failed with %d at address %u.%u.%u.%u\n",
+		     ret, NIPQUAD(mynode->nd_ipv4_address));
 		goto out;
 	}
 
@@ -1405,6 +1415,8 @@ out:
 		sc_put(sc);
 	if (node)
 		o2nm_node_put(node);
+	if (mynode)
+		o2nm_node_put(mynode);
 
 	return;
 }

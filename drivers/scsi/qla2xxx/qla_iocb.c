@@ -814,6 +814,7 @@ qla24xx_start_scsi(srb_t *sp)
 	cmd_pkt->port_id[2] = sp->fcport->d_id.b.domain;
 
 	int_to_scsilun(sp->cmd->device->lun, &cmd_pkt->lun);
+	host_to_fcp_swap((uint8_t *)&cmd_pkt->lun, sizeof(cmd_pkt->lun));
 
 	/* Load SCSI command packet. */
 	memcpy(cmd_pkt->fcp_cdb, cmd->cmnd, cmd->cmd_len);

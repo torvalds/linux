@@ -403,12 +403,17 @@ static void native_hpte_clear(void)
 		 */
 		hpte_v = hptep->v;
 
+		/*
+		 * Call __tlbie() here rather than tlbie() since we
+		 * already hold the native_tlbie_lock.
+		 */
 		if (hpte_v & HPTE_V_VALID) {
 			hptep->v = 0;
-			tlbie(slot2va(hpte_v, slot), MMU_PAGE_4K, 0);
+			__tlbie(slot2va(hpte_v, slot), MMU_PAGE_4K);
 		}
 	}
 
+	asm volatile("eieio; tlbsync; ptesync":::"memory");
 	spin_unlock(&native_tlbie_lock);
 	local_irq_restore(flags);
 }

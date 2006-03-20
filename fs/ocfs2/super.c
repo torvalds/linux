@@ -932,7 +932,7 @@ static void ocfs2_inode_init_once(void *data,
 		oi->ip_dir_start_lookup = 0;
 
 		init_rwsem(&oi->ip_alloc_sem);
-		init_MUTEX(&(oi->ip_io_sem));
+		mutex_init(&oi->ip_io_mutex);
 
 		oi->ip_blkno = 0ULL;
 		oi->ip_clusters = 0;
@@ -1137,9 +1137,9 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	/* disable any new recovery threads and wait for any currently
 	 * running ones to exit. Do this before setting the vol_state. */
-	down(&osb->recovery_lock);
+	mutex_lock(&osb->recovery_lock);
 	osb->disable_recovery = 1;
-	up(&osb->recovery_lock);
+	mutex_unlock(&osb->recovery_lock);
 	wait_event(osb->recovery_event, !ocfs2_recovery_thread_running(osb));
 
 	/* At this point, we know that no more recovery threads can be
@@ -1254,8 +1254,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	osb->sb = sb;
 	/* Save off for ocfs2_rw_direct */
 	osb->s_sectsize_bits = blksize_bits(sector_size);
-	if (!osb->s_sectsize_bits)
-		BUG();
+	BUG_ON(!osb->s_sectsize_bits);
 
 	osb->net_response_ids = 0;
 	spin_lock_init(&osb->net_response_lock);
@@ -1283,7 +1282,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	snprintf(osb->dev_str, sizeof(osb->dev_str), "%u,%u",
 		 MAJOR(osb->sb->s_dev), MINOR(osb->sb->s_dev));
 
-	init_MUTEX(&osb->recovery_lock);
+	mutex_init(&osb->recovery_lock);
 
 	osb->disable_recovery = 0;
 	osb->recovery_thread_task = NULL;
@@ -1325,6 +1324,16 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		goto bail;
 	}
 	mlog(ML_NOTICE, "max_slots for this device: %u\n", osb->max_slots);
+
+	init_waitqueue_head(&osb->osb_wipe_event);
+	osb->osb_orphan_wipes = kcalloc(osb->max_slots,
+					sizeof(*osb->osb_orphan_wipes),
+					GFP_KERNEL);
+	if (!osb->osb_orphan_wipes) {
+		status = -ENOMEM;
+		mlog_errno(status);
+		goto bail;
+	}
 
 	osb->s_feature_compat =
 		le32_to_cpu(OCFS2_RAW_SB(di)->s_feature_compat);
@@ -1639,6 +1648,7 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	if (osb->slot_info)
 		ocfs2_free_slot_info(osb->slot_info);
 
+	kfree(osb->osb_orphan_wipes);
 	/* FIXME
 	 * This belongs in journal shutdown, but because we have to
 	 * allocate osb->journal at the start of ocfs2_initalize_osb(),

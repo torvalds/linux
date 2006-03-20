@@ -250,12 +250,17 @@ tipar_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode) - TIPAR_MINOR;
 
-	if (minor > tp_count - 1)
+	if (tp_count == 0 || minor > tp_count - 1)
 		return -ENXIO;
 
 	if (test_and_set_bit(minor, &opened))
 		return -EBUSY;
 
+	if (!table[minor].dev) {
+		printk(KERN_ERR "%s: NULL device for minor %u\n",
+				__FUNCTION__, minor);
+		return -ENXIO;
+	}
 	parport_claim_or_block(table[minor].dev);
 	init_ti_parallel(minor);
 	parport_release(table[minor].dev);
@@ -510,16 +515,20 @@ tipar_init_module(void)
 		err = PTR_ERR(tipar_class);
 		goto out_chrdev;
 	}
-	if (parport_register_driver(&tipar_driver)) {
+	if (parport_register_driver(&tipar_driver) || tp_count == 0) {
 		printk(KERN_ERR "tipar: unable to register with parport\n");
 		err = -EIO;
-		goto out;
+		goto out_class;
 	}
 
 	err = 0;
 	goto out;
 
+out_class:
+	class_destroy(tipar_class);
+
 out_chrdev:
+	devfs_remove("ticables/par");
 	unregister_chrdev(TIPAR_MAJOR, "tipar");
 out:
 	return err;	

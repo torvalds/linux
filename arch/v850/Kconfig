@@ -28,6 +28,10 @@ config GENERIC_IRQ_PROBE
 	bool
 	default y
 
+config TIME_LOW_RES
+	bool
+	default y
+
 # Turn off some random 386 crap that can affect device config
 config ISA
 	bool

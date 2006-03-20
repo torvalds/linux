@@ -72,6 +72,7 @@ struct wf_cpu_pid_state {
 	int	index; 				/* index of current power */
 	int	tindex; 			/* index of current temp */
 	s32	target;				/* current target value */
+	s32	last_delta;			/* last Tactual - Ttarget */
 	s32	powers[WF_PID_MAX_HISTORY];	/* power history buffer */
 	s32	errors[WF_PID_MAX_HISTORY];	/* error history buffer */
 	s32	temps[2];			/* temp. history buffer */

@@ -353,6 +353,7 @@ static int posix_timer_fn(void *data)
 				hrtimer_forward(&timr->it.real.timer,
 						timr->it.real.interval);
 			ret = HRTIMER_RESTART;
+			++timr->it_requeue_pending;
 		}
 	}
 

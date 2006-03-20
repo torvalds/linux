@@ -111,7 +111,6 @@ static void v9fs_t_clunk_cb(void *a, struct v9fs_fcall *tc,
 	if (!rc)
 		return;
 
-	dprintk(DEBUG_9P, "tcall id %d rcall id %d\n", tc->id, rc->id);
 	v9ses = a;
 	if (rc->id == RCLUNK)
 		v9fs_put_idpool(fid, &v9ses->fidpool);

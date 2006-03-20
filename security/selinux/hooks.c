@@ -232,7 +232,6 @@ static void superblock_free_security(struct super_block *sb)
 	kfree(sbsec);
 }
 
-#ifdef CONFIG_SECURITY_NETWORK
 static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
 	struct sk_security_struct *ssec;
@@ -261,7 +260,6 @@ static void sk_free_security(struct sock *sk)
 	sk->sk_security = NULL;
 	kfree(ssec);
 }
-#endif	/* CONFIG_SECURITY_NETWORK */
 
 /* The security server must be initialized before
    any labeling or access decisions can be provided. */
@@ -1264,7 +1262,7 @@ static int selinux_ptrace(struct task_struct *parent, struct task_struct *child)
 
 	rc = task_has_perm(parent, child, PROCESS__PTRACE);
 	/* Save the SID of the tracing process for later use in apply_creds. */
-	if (!rc)
+	if (!(child->ptrace & PT_PTRACED) && !rc)
 		csec->ptrace_sid = psec->sid;
 	return rc;
 }
@@ -2736,8 +2734,6 @@ static void selinux_task_to_inode(struct task_struct *p,
 	return;
 }
 
-#ifdef CONFIG_SECURITY_NETWORK
-
 /* Returns error only if unable to parse addresses */
 static int selinux_parse_skb_ipv4(struct sk_buff *skb, struct avc_audit_data *ad)
 {
@@ -3556,15 +3552,6 @@ static unsigned int selinux_ipv6_postroute_last(unsigned int hooknum,
 
 #endif	/* CONFIG_NETFILTER */
 
-#else
-
-static inline int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
-{
-	return 0;
-}
-
-#endif	/* CONFIG_SECURITY_NETWORK */
-
 static int selinux_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
 	struct task_security_struct *tsec;
@@ -4340,7 +4327,6 @@ static struct security_operations selinux_ops = {
 	.getprocattr =                  selinux_getprocattr,
 	.setprocattr =                  selinux_setprocattr,
 
-#ifdef CONFIG_SECURITY_NETWORK
         .unix_stream_connect =		selinux_socket_unix_stream_connect,
 	.unix_may_send =		selinux_socket_unix_may_send,
 
@@ -4362,7 +4348,6 @@ static struct security_operations selinux_ops = {
 	.sk_alloc_security =		selinux_sk_alloc_security,
 	.sk_free_security =		selinux_sk_free_security,
 	.sk_getsid = 			selinux_sk_getsid_security,
-#endif
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	.xfrm_policy_alloc_security =	selinux_xfrm_policy_alloc,
@@ -4440,7 +4425,7 @@ next_sb:
    all processes and objects when they are created. */
 security_initcall(selinux_init);
 
-#if defined(CONFIG_SECURITY_NETWORK) && defined(CONFIG_NETFILTER)
+#if defined(CONFIG_NETFILTER)
 
 static struct nf_hook_ops selinux_ipv4_op = {
 	.hook =		selinux_ipv4_postroute_last,
@@ -4501,13 +4486,13 @@ static void selinux_nf_ip_exit(void)
 }
 #endif
 
-#else /* CONFIG_SECURITY_NETWORK && CONFIG_NETFILTER */
+#else /* CONFIG_NETFILTER */
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 #define selinux_nf_ip_exit()
 #endif
 
-#endif /* CONFIG_SECURITY_NETWORK && CONFIG_NETFILTER */
+#endif /* CONFIG_NETFILTER */
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 int selinux_disable(void)

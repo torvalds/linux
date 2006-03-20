@@ -136,7 +136,7 @@ __asm__ __volatile__(							\
 	"b	2b\n\t"							\
 	" mov	%3, %0\n\n\t"						\
 	".previous\n\t"							\
-	".section __ex_table,#alloc\n\t"				\
+	".section __ex_table,\"a\"\n\t"					\
 	".align	4\n\t"							\
 	".word	1b, 3b\n\t"						\
 	".previous\n\n\t"						\
@@ -148,7 +148,7 @@ if (__builtin_constant_p(ret) && ret == -EFAULT)			\
 __asm__ __volatile__(							\
 	"/* Put user asm ret, inline. */\n"				\
 "1:\t"	"st"#size "a %1, [%2] %%asi\n\n\t"				\
-	".section __ex_table,#alloc\n\t"				\
+	".section __ex_table,\"a\"\n\t"					\
 	".align	4\n\t"							\
 	".word	1b, __ret_efault\n\n\t"					\
 	".previous\n\n\t"						\
@@ -163,7 +163,7 @@ __asm__ __volatile__(							\
 	"ret\n\t"							\
 	" restore %%g0, %3, %%o0\n\n\t"					\
 	".previous\n\t"							\
-	".section __ex_table,#alloc\n\t"				\
+	".section __ex_table,\"a\"\n\t"					\
 	".align	4\n\t"							\
 	".word	1b, 3b\n\n\t"						\
 	".previous\n\n\t"						\
@@ -206,7 +206,7 @@ __asm__ __volatile__(							\
 	"b	2b\n\t"							\
 	" mov	%3, %0\n\n\t"						\
 	".previous\n\t"							\
-	".section __ex_table,#alloc\n\t"				\
+	".section __ex_table,\"a\"\n\t"					\
 	".align	4\n\t"							\
 	".word	1b, 3b\n\n\t"						\
 	".previous\n\t"							\
@@ -218,7 +218,7 @@ if (__builtin_constant_p(retval) && retval == -EFAULT)			\
 __asm__ __volatile__(							\
 	"/* Get user asm ret, inline. */\n"				\
 "1:\t"	"ld"#size "a [%1] %%asi, %0\n\n\t"				\
-	".section __ex_table,#alloc\n\t"				\
+	".section __ex_table,\"a\"\n\t"					\
 	".align	4\n\t"							\
 	".word	1b,__ret_efault\n\n\t"					\
 	".previous\n\t"							\
@@ -233,7 +233,7 @@ __asm__ __volatile__(							\
 	"ret\n\t"							\
 	" restore %%g0, %2, %%o0\n\n\t"					\
 	".previous\n\t"							\
-	".section __ex_table,#alloc\n\t"				\
+	".section __ex_table,\"a\"\n\t"					\
 	".align	4\n\t"							\
 	".word	1b, 3b\n\n\t"						\
 	".previous\n\t"							\

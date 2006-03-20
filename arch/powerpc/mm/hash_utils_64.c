@@ -88,6 +88,7 @@ static unsigned long _SDR1;
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 
 hpte_t *htab_address;
+unsigned long htab_size_bytes;
 unsigned long htab_hash_mask;
 int mmu_linear_psize = MMU_PAGE_4K;
 int mmu_virtual_psize = MMU_PAGE_4K;
@@ -168,7 +169,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 #ifdef CONFIG_PPC_ISERIES
 		if (_machine == PLATFORM_ISERIES_LPAR)
 			ret = iSeries_hpte_insert(hpteg, va,
-						  virt_to_abs(paddr),
+						  __pa(vaddr),
 						  tmp_mode,
 						  HPTE_V_BOLTED,
 						  psize);
@@ -399,7 +400,7 @@ void create_section_mapping(unsigned long start, unsigned long end)
 
 void __init htab_initialize(void)
 {
-	unsigned long table, htab_size_bytes;
+	unsigned long table;
 	unsigned long pteg_count;
 	unsigned long mode_rw;
 	unsigned long base = 0, size = 0;
