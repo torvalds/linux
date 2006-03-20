@@ -653,8 +653,11 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 				spin_unlock(&nfsi->req_lock);
 				error = nfs_wait_on_request(req);
 				nfs_release_request(req);
-				if (error < 0)
+				if (error < 0) {
+					if (new)
+						nfs_release_request(new);
 					return ERR_PTR(error);
+				}
 				continue;
 			}
 			spin_unlock(&nfsi->req_lock);
