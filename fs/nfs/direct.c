@@ -201,6 +201,30 @@ out:
 }
 
 /*
+ * We must hold a reference to all the pages in this direct read request
+ * until the RPCs complete.  This could be long *after* we are woken up in
+ * nfs_direct_wait (for instance, if someone hits ^C on a slow server).
+ *
+ * In addition, synchronous I/O uses a stack-allocated iocb.  Thus we
+ * can't trust the iocb is still valid here if this is a synchronous
+ * request.  If the waiter is woken prematurely, the iocb is long gone.
+ */
+static void nfs_direct_complete(struct nfs_direct_req *dreq)
+{
+	nfs_free_user_pages(dreq->pages, dreq->npages, 1);
+
+	if (dreq->iocb) {
+		long res = atomic_read(&dreq->error);
+		if (!res)
+			res = atomic_read(&dreq->count);
+		aio_complete(dreq->iocb, res, 0);
+	} else
+		wake_up(&dreq->wait);
+
+	kref_put(&dreq->kref, nfs_direct_req_release);
+}
+
+/*
  * Note we also set the number of requests we have in the dreq when we are
  * done.  This prevents races with I/O completion so we will always wait
  * until all requests have been dispatched and completed.
@@ -245,15 +269,6 @@ static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, size_t rsize)
 	return dreq;
 }
 
-/*
- * We must hold a reference to all the pages in this direct read request
- * until the RPCs complete.  This could be long *after* we are woken up in
- * nfs_direct_wait (for instance, if someone hits ^C on a slow server).
- *
- * In addition, synchronous I/O uses a stack-allocated iocb.  Thus we
- * can't trust the iocb is still valid here if this is a synchronous
- * request.  If the waiter is woken prematurely, the iocb is long gone.
- */
 static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
@@ -266,17 +281,8 @@ static void nfs_direct_read_result(struct rpc_task *task, void *calldata)
 	else
 		atomic_set(&dreq->error, task->tk_status);
 
-	if (unlikely(atomic_dec_and_test(&dreq->complete))) {
-		nfs_free_user_pages(dreq->pages, dreq->npages, 1);
-		if (dreq->iocb) {
-			long res = atomic_read(&dreq->error);
-			if (!res)
-				res = atomic_read(&dreq->count);
-			aio_complete(dreq->iocb, res, 0);
-		} else
-			wake_up(&dreq->wait);
-		kref_put(&dreq->kref, nfs_direct_req_release);
-	}
+	if (unlikely(atomic_dec_and_test(&dreq->complete)))
+		nfs_direct_complete(dreq);
 }
 
 static const struct rpc_call_ops nfs_read_direct_ops = {
