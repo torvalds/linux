@@ -339,6 +339,7 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq)
 		if (count < rsize)
 			bytes = count;
 
+		BUG_ON(list_empty(list));
 		data = list_entry(list->next, struct nfs_read_data, pages);
 		list_del_init(&data->pages);
 
@@ -378,6 +379,7 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq)
 
 		count -= bytes;
 	} while (count != 0);
+	BUG_ON(!list_empty(list));
 }
 
 static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t pos, struct page **pages, unsigned int nr_pages)
@@ -657,6 +659,7 @@ static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, int sync)
 		if (count < wsize)
 			bytes = count;
 
+		BUG_ON(list_empty(list));
 		data = list_entry(list->next, struct nfs_write_data, pages);
 		list_move_tail(&data->pages, &dreq->rewrite_list);
 
@@ -697,6 +700,7 @@ static void nfs_direct_write_schedule(struct nfs_direct_req *dreq, int sync)
 
 		count -= bytes;
 	} while (count != 0);
+	BUG_ON(!list_empty(list));
 }
 
 static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t pos, struct page **pages, int nr_pages)
