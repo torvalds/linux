@@ -81,26 +81,27 @@ static void port_carrier_check(void *arg)
 {
 	struct net_device *dev = arg;
 	struct net_bridge_port *p;
+	struct net_bridge *br;
 
 	rtnl_lock();
 	p = dev->br_port;
 	if (!p)
 		goto done;
+	br = p->br;
 
-	if (netif_carrier_ok(p->dev)) {
-		u32 cost = port_cost(p->dev);
+	if (netif_carrier_ok(dev))
+		p->path_cost = port_cost(dev);
 
-		spin_lock_bh(&p->br->lock);
-		if (p->state == BR_STATE_DISABLED) {
-			p->path_cost = cost;
-			br_stp_enable_port(p);
+	if (br->dev->flags & IFF_UP) {
+		spin_lock_bh(&br->lock);
+		if (netif_carrier_ok(dev)) {
+			if (p->state == BR_STATE_DISABLED)
+				br_stp_enable_port(p);
+		} else {
+			if (p->state != BR_STATE_DISABLED)
+				br_stp_disable_port(p);
 		}
-		spin_unlock_bh(&p->br->lock);
-	} else {
-		spin_lock_bh(&p->br->lock);
-		if (p->state != BR_STATE_DISABLED)
-			br_stp_disable_port(p);
-		spin_unlock_bh(&p->br->lock);
+		spin_unlock_bh(&br->lock);
 	}
 done:
 	rtnl_unlock();
@@ -168,6 +169,7 @@ static void del_nbp(struct net_bridge_port *p)
 
 	rcu_assign_pointer(dev->br_port, NULL);
 
+	kobject_uevent(&p->kobj, KOBJ_REMOVE);
 	kobject_del(&p->kobj);
 
 	call_rcu(&p->rcu, destroy_nbp_rcu);
@@ -276,8 +278,9 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
 	INIT_WORK(&p->carrier_check, port_carrier_check, dev);
-	kobject_init(&p->kobj);
+	br_stp_port_timer_init(p);
 
+	kobject_init(&p->kobj);
 	kobject_set_name(&p->kobj, SYSFS_BRIDGE_PORT_ATTR);
 	p->kobj.ktype = &brport_ktype;
 	p->kobj.parent = &(dev->class_dev.kobj);

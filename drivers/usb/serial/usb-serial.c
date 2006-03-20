@@ -242,8 +242,10 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 
 	down(&port->sem);
 
-	if (port->open_count == 0)
-		goto out;
+	if (port->open_count == 0) {
+		up(&port->sem);
+		return;
+	}
 
 	--port->open_count;
 	if (port->open_count == 0) {
@@ -260,10 +262,8 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 		module_put(port->serial->type->driver.owner);
 	}
 
-	kref_put(&port->serial->kref, destroy_serial);
-
-out:
 	up(&port->sem);
+	kref_put(&port->serial->kref, destroy_serial);
 }
 
 static int serial_write (struct tty_struct * tty, const unsigned char *buf, int count)

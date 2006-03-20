@@ -87,7 +87,7 @@ struct dvb_usb_device;
 
 /**
  * struct dvb_usb_properties - properties of a dvb-usb-device
- * @caps: capabilites of the DVB USB device.
+ * @caps: capabilities of the DVB USB device.
  * @pid_filter_count: number of PID filter position in the optional hardware
  *  PID-filter.
  *

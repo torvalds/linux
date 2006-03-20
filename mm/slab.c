@@ -789,6 +789,47 @@ static void __slab_error(const char *function, struct kmem_cache *cachep, char *
 	dump_stack();
 }
 
+#ifdef CONFIG_NUMA
+/*
+ * Special reaping functions for NUMA systems called from cache_reap().
+ * These take care of doing round robin flushing of alien caches (containing
+ * objects freed on different nodes from which they were allocated) and the
+ * flushing of remote pcps by calling drain_node_pages.
+ */
+static DEFINE_PER_CPU(unsigned long, reap_node);
+
+static void init_reap_node(int cpu)
+{
+	int node;
+
+	node = next_node(cpu_to_node(cpu), node_online_map);
+	if (node == MAX_NUMNODES)
+		node = 0;
+
+	__get_cpu_var(reap_node) = node;
+}
+
+static void next_reap_node(void)
+{
+	int node = __get_cpu_var(reap_node);
+
+	/*
+	 * Also drain per cpu pages on remote zones
+	 */
+	if (node != numa_node_id())
+		drain_node_pages(node);
+
+	node = next_node(node, node_online_map);
+	if (unlikely(node >= MAX_NUMNODES))
+		node = first_node(node_online_map);
+	__get_cpu_var(reap_node) = node;
+}
+
+#else
+#define init_reap_node(cpu) do { } while (0)
+#define next_reap_node(void) do { } while (0)
+#endif
+
 /*
  * Initiate the reap timer running on the target CPU.  We run at around 1 to 2Hz
  * via the workqueue/eventd.
@@ -806,6 +847,7 @@ static void __devinit start_cpu_timer(int cpu)
 	 * at that time.
 	 */
 	if (keventd_up() && reap_work->func == NULL) {
+		init_reap_node(cpu);
 		INIT_WORK(reap_work, cache_reap, NULL);
 		schedule_delayed_work_on(cpu, reap_work, HZ + 3 * cpu);
 	}
@@ -884,6 +926,23 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
 	}
 }
 
+/*
+ * Called from cache_reap() to regularly drain alien caches round robin.
+ */
+static void reap_alien(struct kmem_cache *cachep, struct kmem_list3 *l3)
+{
+	int node = __get_cpu_var(reap_node);
+
+	if (l3->alien) {
+		struct array_cache *ac = l3->alien[node];
+		if (ac && ac->avail) {
+			spin_lock_irq(&ac->lock);
+			__drain_alien_cache(cachep, ac, node);
+			spin_unlock_irq(&ac->lock);
+		}
+	}
+}
+
 static void drain_alien_cache(struct kmem_cache *cachep, struct array_cache **alien)
 {
 	int i = 0;
@@ -902,6 +961,7 @@ static void drain_alien_cache(struct kmem_cache *cachep, struct array_cache **al
 #else
 
 #define drain_alien_cache(cachep, alien) do { } while (0)
+#define reap_alien(cachep, l3) do { } while (0)
 
 static inline struct array_cache **alloc_alien_cache(int node, int limit)
 {
@@ -1124,6 +1184,7 @@ void __init kmem_cache_init(void)
 	struct cache_sizes *sizes;
 	struct cache_names *names;
 	int i;
+	int order;
 
 	for (i = 0; i < NUM_INIT_LISTS; i++) {
 		kmem_list3_init(&initkmem_list3[i]);
@@ -1167,11 +1228,15 @@ void __init kmem_cache_init(void)
 
 	cache_cache.buffer_size = ALIGN(cache_cache.buffer_size, cache_line_size());
 
-	cache_estimate(0, cache_cache.buffer_size, cache_line_size(), 0,
-		       &left_over, &cache_cache.num);
+	for (order = 0; order < MAX_ORDER; order++) {
+		cache_estimate(order, cache_cache.buffer_size,
+			cache_line_size(), 0, &left_over, &cache_cache.num);
+		if (cache_cache.num)
+			break;
+	}
 	if (!cache_cache.num)
 		BUG();
-
+	cache_cache.gfporder = order;
 	cache_cache.colour = left_over / cache_cache.colour_off;
 	cache_cache.slab_size = ALIGN(cache_cache.num * sizeof(kmem_bufctl_t) +
 				      sizeof(struct slab), cache_line_size());
@@ -1628,36 +1693,44 @@ static inline size_t calculate_slab_order(struct kmem_cache *cachep,
 			size_t size, size_t align, unsigned long flags)
 {
 	size_t left_over = 0;
+	int gfporder;
 
-	for (;; cachep->gfporder++) {
+	for (gfporder = 0 ; gfporder <= MAX_GFP_ORDER; gfporder++) {
 		unsigned int num;
 		size_t remainder;
 
-		if (cachep->gfporder > MAX_GFP_ORDER) {
-			cachep->num = 0;
-			break;
-		}
-
-		cache_estimate(cachep->gfporder, size, align, flags,
-			       &remainder, &num);
+		cache_estimate(gfporder, size, align, flags, &remainder, &num);
 		if (!num)
 			continue;
+
 		/* More than offslab_limit objects will cause problems */
-		if (flags & CFLGS_OFF_SLAB && cachep->num > offslab_limit)
+		if ((flags & CFLGS_OFF_SLAB) && num > offslab_limit)
 			break;
 
+		/* Found something acceptable - save it away */
 		cachep->num = num;
+		cachep->gfporder = gfporder;
 		left_over = remainder;
+
+		/*
+		 * A VFS-reclaimable slab tends to have most allocations
+		 * as GFP_NOFS and we really don't want to have to be allocating
+		 * higher-order pages when we are unable to shrink dcache.
+		 */
+		if (flags & SLAB_RECLAIM_ACCOUNT)
+			break;
 
 		/*
 		 * Large number of objects is good, but very large slabs are
 		 * currently bad for the gfp()s.
 		 */
-		if (cachep->gfporder >= slab_break_gfp_order)
+		if (gfporder >= slab_break_gfp_order)
 			break;
 
-		if ((left_over * 8) <= (PAGE_SIZE << cachep->gfporder))
-			/* Acceptable internal fragmentation */
+		/*
+		 * Acceptable internal fragmentation?
+		 */
+		if ((left_over * 8) <= (PAGE_SIZE << gfporder))
 			break;
 	}
 	return left_over;
@@ -1869,17 +1942,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 
 	size = ALIGN(size, align);
 
-	if ((flags & SLAB_RECLAIM_ACCOUNT) && size <= PAGE_SIZE) {
-		/*
-		 * A VFS-reclaimable slab tends to have most allocations
-		 * as GFP_NOFS and we really don't want to have to be allocating
-		 * higher-order pages when we are unable to shrink dcache.
-		 */
-		cachep->gfporder = 0;
-		cache_estimate(cachep->gfporder, size, align, flags,
-			       &left_over, &cachep->num);
-	} else
-		left_over = calculate_slab_order(cachep, size, align, flags);
+	left_over = calculate_slab_order(cachep, size, align, flags);
 
 	if (!cachep->num) {
 		printk("kmem_cache_create: couldn't create cache %s.\n", name);
@@ -2554,7 +2617,7 @@ static void check_slabp(struct kmem_cache *cachep, struct slab *slabp)
 		       "slab: Internal list corruption detected in cache '%s'(%d), slabp %p(%d). Hexdump:\n",
 		       cachep->name, cachep->num, slabp, slabp->inuse);
 		for (i = 0;
-		     i < sizeof(slabp) + cachep->num * sizeof(kmem_bufctl_t);
+		     i < sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t);
 		     i++) {
 			if ((i % 16) == 0)
 				printk("\n%03x:", i);
@@ -3494,8 +3557,7 @@ static void cache_reap(void *unused)
 		check_irq_on();
 
 		l3 = searchp->nodelists[numa_node_id()];
-		if (l3->alien)
-			drain_alien_cache(searchp, l3->alien);
+		reap_alien(searchp, l3);
 		spin_lock_irq(&l3->list_lock);
 
 		drain_array_locked(searchp, cpu_cache_get(searchp), 0,
@@ -3545,7 +3607,7 @@ static void cache_reap(void *unused)
 	}
 	check_irq_on();
 	mutex_unlock(&cache_chain_mutex);
-	drain_remote_pages();
+	next_reap_node();
 	/* Setup the next iteration */
 	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
 }

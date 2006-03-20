@@ -103,7 +103,7 @@ static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #else
 #define DRIVERNAPI "-NAPI"
 #endif
-#define DRV_VERSION "6.3.9-k2"DRIVERNAPI
+#define DRV_VERSION "6.3.9-k4"DRIVERNAPI
 char e1000_driver_version[] = DRV_VERSION;
 static char e1000_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
 
@@ -1635,8 +1635,6 @@ setup_rx_desc_die:
 
 	rxdr->next_to_clean = 0;
 	rxdr->next_to_use = 0;
-	rxdr->rx_skb_top = NULL;
-	rxdr->rx_skb_prev = NULL;
 
 	return 0;
 }
@@ -1713,8 +1711,23 @@ e1000_setup_rctl(struct e1000_adapter *adapter)
 		rctl |= adapter->rx_buffer_len << 0x11;
 	} else {
 		rctl &= ~E1000_RCTL_SZ_4096;
-		rctl &= ~E1000_RCTL_BSEX;
-		rctl |= E1000_RCTL_SZ_2048;
+		rctl |= E1000_RCTL_BSEX; 
+		switch (adapter->rx_buffer_len) {
+		case E1000_RXBUFFER_2048:
+		default:
+			rctl |= E1000_RCTL_SZ_2048;
+			rctl &= ~E1000_RCTL_BSEX;
+			break;
+		case E1000_RXBUFFER_4096:
+			rctl |= E1000_RCTL_SZ_4096;
+			break;
+		case E1000_RXBUFFER_8192:
+			rctl |= E1000_RCTL_SZ_8192;
+			break;
+		case E1000_RXBUFFER_16384:
+			rctl |= E1000_RCTL_SZ_16384;
+			break;
+		}
 	}
 
 #ifndef CONFIG_E1000_DISABLE_PACKET_SPLIT
@@ -2106,16 +2119,6 @@ e1000_clean_rx_ring(struct e1000_adapter *adapter,
 			ps_page->ps_page[j] = NULL;
 		}
 	}
-
-	/* there also may be some cached data in our adapter */
-	if (rx_ring->rx_skb_top) {
-		dev_kfree_skb(rx_ring->rx_skb_top);
-
-		/* rx_skb_prev will be wiped out by rx_skb_top */
-		rx_ring->rx_skb_top = NULL;
-		rx_ring->rx_skb_prev = NULL;
-	}
-
 
 	size = sizeof(struct e1000_buffer) * rx_ring->count;
 	memset(rx_ring->buffer_info, 0, size);
@@ -2914,7 +2917,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			if (!__pskb_pull_tail(skb, pull_size)) {
 				printk(KERN_ERR "__pskb_pull_tail failed.\n");
 				dev_kfree_skb_any(skb);
-				return -EFAULT;
+				return NETDEV_TX_OK;
 			}
 			len = skb->len - skb->data_len;
 		}
@@ -3106,24 +3109,27 @@ e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		break;
 	}
 
-	/* since the driver code now supports splitting a packet across
-	 * multiple descriptors, most of the fifo related limitations on
-	 * jumbo frame traffic have gone away.
-	 * simply use 2k descriptors for everything.
-	 *
-	 * NOTE: dev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
-	 * means we reserve 2 more, this pushes us to allocate from the next
-	 * larger slab size
-	 * i.e. RXBUFFER_2048 --> size-4096 slab */
 
-	/* recent hardware supports 1KB granularity */
 	if (adapter->hw.mac_type > e1000_82547_rev_2) {
-		adapter->rx_buffer_len =
-		    ((max_frame < E1000_RXBUFFER_2048) ?
-		        max_frame : E1000_RXBUFFER_2048);
+		adapter->rx_buffer_len = max_frame;
 		E1000_ROUNDUP(adapter->rx_buffer_len, 1024);
-	} else
-		adapter->rx_buffer_len = E1000_RXBUFFER_2048;
+	} else {
+		if(unlikely((adapter->hw.mac_type < e1000_82543) &&
+		   (max_frame > MAXIMUM_ETHERNET_FRAME_SIZE))) {
+			DPRINTK(PROBE, ERR, "Jumbo Frames not supported "
+					    "on 82542\n");
+			return -EINVAL;
+		} else {
+			if(max_frame <= E1000_RXBUFFER_2048)
+				adapter->rx_buffer_len = E1000_RXBUFFER_2048;
+			else if(max_frame <= E1000_RXBUFFER_4096)
+				adapter->rx_buffer_len = E1000_RXBUFFER_4096;
+			else if(max_frame <= E1000_RXBUFFER_8192)
+				adapter->rx_buffer_len = E1000_RXBUFFER_8192;
+			else if(max_frame <= E1000_RXBUFFER_16384)
+				adapter->rx_buffer_len = E1000_RXBUFFER_16384;
+		}
+	}
 
 	netdev->mtu = new_mtu;
 
@@ -3620,7 +3626,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	uint8_t last_byte;
 	unsigned int i;
 	int cleaned_count = 0;
-	boolean_t cleaned = FALSE, multi_descriptor = FALSE;
+	boolean_t cleaned = FALSE;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = E1000_RX_DESC(*rx_ring, i);
@@ -3652,43 +3658,12 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		length = le16_to_cpu(rx_desc->length);
 
-		skb_put(skb, length);
-
-		if (!(status & E1000_RXD_STAT_EOP)) {
-			if (!rx_ring->rx_skb_top) {
-				rx_ring->rx_skb_top = skb;
-				rx_ring->rx_skb_top->len = length;
-				rx_ring->rx_skb_prev = skb;
-			} else {
-				if (skb_shinfo(rx_ring->rx_skb_top)->frag_list) {
-					rx_ring->rx_skb_prev->next = skb;
-					skb->prev = rx_ring->rx_skb_prev;
-				} else {
-					skb_shinfo(rx_ring->rx_skb_top)->frag_list = skb;
-				}
-				rx_ring->rx_skb_prev = skb;
-				rx_ring->rx_skb_top->data_len += length;
-			}
+		if (unlikely(!(status & E1000_RXD_STAT_EOP))) {
+			/* All receives must fit into a single buffer */
+			E1000_DBG("%s: Receive packet consumed multiple"
+				  " buffers\n", netdev->name);
+			dev_kfree_skb_irq(skb);
 			goto next_desc;
-		} else {
-			if (rx_ring->rx_skb_top) {
-				if (skb_shinfo(rx_ring->rx_skb_top)
-							->frag_list) {
-					rx_ring->rx_skb_prev->next = skb;
-					skb->prev = rx_ring->rx_skb_prev;
-				} else
-					skb_shinfo(rx_ring->rx_skb_top)
-							->frag_list = skb;
-
-				rx_ring->rx_skb_top->data_len += length;
-				rx_ring->rx_skb_top->len +=
-					rx_ring->rx_skb_top->data_len;
-
-				skb = rx_ring->rx_skb_top;
-				multi_descriptor = TRUE;
-				rx_ring->rx_skb_top = NULL;
-				rx_ring->rx_skb_prev = NULL;
-			}
 		}
 
 		if (unlikely(rx_desc->errors & E1000_RXD_ERR_FRAME_ERR_MASK)) {
@@ -3712,10 +3687,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		 * performance for small packets with large amounts
 		 * of reassembly being done in the stack */
 #define E1000_CB_LENGTH 256
-		if ((length < E1000_CB_LENGTH) &&
-		   !rx_ring->rx_skb_top &&
-		   /* or maybe (status & E1000_RXD_STAT_EOP) && */
-		   !multi_descriptor) {
+		if (length < E1000_CB_LENGTH) {
 			struct sk_buff *new_skb =
 			    dev_alloc_skb(length + NET_IP_ALIGN);
 			if (new_skb) {
@@ -3729,7 +3701,8 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 				skb = new_skb;
 				skb_put(skb, length);
 			}
-		}
+		} else
+			skb_put(skb, length);
 
 		/* end copybreak code */
 

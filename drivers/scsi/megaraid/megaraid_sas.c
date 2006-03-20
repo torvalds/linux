@@ -793,6 +793,20 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 	return 0;
 }
 
+static int megasas_slave_configure(struct scsi_device *sdev)
+{
+	/*
+	 * Don't export physical disk devices to the disk driver.
+	 *
+	 * FIXME: Currently we don't export them to the midlayer at all.
+	 * 	  That will be fixed once LSI engineers have audited the
+	 * 	  firmware for possible issues.
+	 */
+	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS && sdev->type == TYPE_DISK)
+		return -ENXIO;
+	return 0;
+}
+
 /**
  * megasas_wait_for_outstanding -	Wait for all outstanding cmds
  * @instance:				Adapter soft state
@@ -943,6 +957,7 @@ static struct scsi_host_template megasas_template = {
 	.module = THIS_MODULE,
 	.name = "LSI Logic SAS based MegaRAID driver",
 	.proc_name = "megaraid_sas",
+	.slave_configure = megasas_slave_configure,
 	.queuecommand = megasas_queue_command,
 	.eh_device_reset_handler = megasas_reset_device,
 	.eh_bus_reset_handler = megasas_reset_bus_host,
@@ -1069,20 +1084,6 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 			cmd->sync_cmd = 0;
 			megasas_complete_int_cmd(instance, cmd);
 			break;
-		}
-
-		/*
-		 * Don't export physical disk devices to mid-layer.
-		 */
-		if (!MEGASAS_IS_LOGICAL(cmd->scmd) &&
-		    (hdr->cmd_status == MFI_STAT_OK) &&
-		    (cmd->scmd->cmnd[0] == INQUIRY)) {
-
-			if (((*(u8 *) cmd->scmd->request_buffer) & 0x1F) ==
-			    TYPE_DISK) {
-				cmd->scmd->result = DID_BAD_TARGET << 16;
-				exception = 1;
-			}
 		}
 
 	case MFI_CMD_LD_READ:

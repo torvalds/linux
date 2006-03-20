@@ -602,7 +602,7 @@ static int dst_type_print(u8 type)
 
 */
 
-struct dst_types dst_tlist[] = {
+static struct dst_types dst_tlist[] = {
 	{
 		.device_id = "200103A",
 		.offset = 0,

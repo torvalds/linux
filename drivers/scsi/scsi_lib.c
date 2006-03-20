@@ -1498,7 +1498,7 @@ static void scsi_kill_request(struct request *req, request_queue_t *q)
 static void scsi_softirq_done(struct request *rq)
 {
 	struct scsi_cmnd *cmd = rq->completion_data;
-	unsigned long wait_for = cmd->allowed * cmd->timeout_per_command;
+	unsigned long wait_for = (cmd->allowed + 1) * cmd->timeout_per_command;
 	int disposition;
 
 	INIT_LIST_HEAD(&cmd->eh_entry);

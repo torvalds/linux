@@ -1325,6 +1325,16 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 	mlog(ML_NOTICE, "max_slots for this device: %u\n", osb->max_slots);
 
+	init_waitqueue_head(&osb->osb_wipe_event);
+	osb->osb_orphan_wipes = kcalloc(osb->max_slots,
+					sizeof(*osb->osb_orphan_wipes),
+					GFP_KERNEL);
+	if (!osb->osb_orphan_wipes) {
+		status = -ENOMEM;
+		mlog_errno(status);
+		goto bail;
+	}
+
 	osb->s_feature_compat =
 		le32_to_cpu(OCFS2_RAW_SB(di)->s_feature_compat);
 	osb->s_feature_ro_compat =
@@ -1638,6 +1648,7 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	if (osb->slot_info)
 		ocfs2_free_slot_info(osb->slot_info);
 
+	kfree(osb->osb_orphan_wipes);
 	/* FIXME
 	 * This belongs in journal shutdown, but because we have to
 	 * allocate osb->journal at the start of ocfs2_initalize_osb(),

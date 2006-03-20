@@ -25,7 +25,7 @@
 
 #include "windfarm.h"
 
-#define VERSION "0.1"
+#define VERSION "0.2"
 
 #undef DEBUG
 
@@ -113,6 +113,7 @@ static struct wf_lm75_sensor *wf_lm75_create(struct i2c_adapter *adapter,
 					     const char *loc)
 {
 	struct wf_lm75_sensor *lm;
+	int rc;
 
 	DBG("wf_lm75: creating  %s device at address 0x%02x\n",
 	    ds1775 ? "ds1775" : "lm75", addr);
@@ -139,9 +140,11 @@ static struct wf_lm75_sensor *wf_lm75_create(struct i2c_adapter *adapter,
 	lm->i2c.driver = &wf_lm75_driver;
 	strncpy(lm->i2c.name, lm->sens.name, I2C_NAME_SIZE-1);
 
-	if (i2c_attach_client(&lm->i2c)) {
-		printk(KERN_ERR "windfarm: failed to attach %s %s to i2c\n",
-		       ds1775 ? "ds1775" : "lm75", lm->i2c.name);
+	rc = i2c_attach_client(&lm->i2c);
+	if (rc) {
+		printk(KERN_ERR "windfarm: failed to attach %s %s to i2c,"
+		       " err %d\n", ds1775 ? "ds1775" : "lm75",
+		       lm->i2c.name, rc);
 		goto fail;
 	}
 
@@ -175,16 +178,22 @@ static int wf_lm75_attach(struct i2c_adapter *adapter)
 	     (dev = of_get_next_child(busnode, dev)) != NULL;) {
 		const char *loc =
 			get_property(dev, "hwsensor-location", NULL);
-		u32 *reg = (u32 *)get_property(dev, "reg", NULL);
-		DBG(" dev: %s... (loc: %p, reg: %p)\n", dev->name, loc, reg);
-		if (loc == NULL || reg == NULL)
+		u8 addr;
+
+		/* We must re-match the adapter in order to properly check
+		 * the channel on multibus setups
+		 */
+		if (!pmac_i2c_match_adapter(dev, adapter))
+			continue;
+		addr = pmac_i2c_get_dev_addr(dev);
+		if (loc == NULL || addr == 0)
 			continue;
 		/* real lm75 */
 		if (device_is_compatible(dev, "lm75"))
-			wf_lm75_create(adapter, *reg, 0, loc);
+			wf_lm75_create(adapter, addr, 0, loc);
 		/* ds1775 (compatible, better resolution */
 		else if (device_is_compatible(dev, "ds1775"))
-			wf_lm75_create(adapter, *reg, 1, loc);
+			wf_lm75_create(adapter, addr, 1, loc);
 	}
 	return 0;
 }
@@ -206,6 +215,11 @@ static int wf_lm75_detach(struct i2c_client *client)
 
 static int __init wf_lm75_sensor_init(void)
 {
+	/* Don't register on old machines that use therm_pm72 for now */
+	if (machine_is_compatible("PowerMac7,2") ||
+	    machine_is_compatible("PowerMac7,3") ||
+	    machine_is_compatible("RackMac3,1"))
+		return -ENODEV;
 	return i2c_add_driver(&wf_lm75_driver);
 }
 

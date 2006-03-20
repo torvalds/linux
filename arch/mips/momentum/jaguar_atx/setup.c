@@ -2,7 +2,7 @@
  * BRIEF MODULE DESCRIPTION
  * Momentum Computer Jaguar-ATX board dependent boot routines
  *
- * Copyright (C) 1996, 1997, 2001, 2004  Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 1996, 1997, 2001, 04, 06  Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2000 RidgeRun, Inc.
  * Copyright (C) 2001 Red Hat, Inc.
  * Copyright (C) 2002 Momentum Computer
@@ -55,6 +55,8 @@
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/vmalloc.h>
+#include <linux/mv643xx.h>
+
 #include <asm/time.h>
 #include <asm/bootinfo.h>
 #include <asm/page.h>
@@ -64,7 +66,6 @@
 #include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/tlbflush.h>
-#include <asm/mv64340.h>
 
 #include "jaguar_atx_fpga.h"
 

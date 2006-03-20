@@ -163,7 +163,7 @@ void do_gettimeofday(struct timeval *tv)
 	unsigned long seq;
 	unsigned long lost;
 	unsigned long usec, sec;
-	unsigned long max_ntp_tick = tick_usec - tickadj;
+	unsigned long max_ntp_tick;
 
 	do {
 		seq = read_seqbegin(&xtime_lock);
@@ -178,12 +178,13 @@ void do_gettimeofday(struct timeval *tv)
 		 * Better to lose some accuracy than have time go backwards..
 		 */
 		if (unlikely(time_adjust < 0)) {
+			max_ntp_tick = (USEC_PER_SEC / HZ) - tickadj;
 			usec = min(usec, max_ntp_tick);
 
 			if (lost)
 				usec += lost * max_ntp_tick;
 		} else if (unlikely(lost))
-			usec += lost * tick_usec;
+			usec += lost * (USEC_PER_SEC / HZ);
 
 		sec = xtime.tv_sec;
 		usec += (xtime.tv_nsec / 1000);

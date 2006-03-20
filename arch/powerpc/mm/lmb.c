@@ -232,7 +232,7 @@ unsigned long __init lmb_alloc_base(unsigned long size, unsigned long align,
 
 	alloc = __lmb_alloc_base(size, align, max_addr);
 
-	if (alloc < 0)
+	if (alloc == 0)
 		panic("ERROR: Failed to allocate 0x%lx bytes below 0x%lx.\n",
 				size, max_addr);
 

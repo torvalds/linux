@@ -288,7 +288,7 @@ cpci690_fixup_mpsc_pdata(struct platform_device *pdev)
 	pdata->brg_clk_freq = cpci690_get_bus_freq();
 }
 
-static int __init
+static int
 cpci690_platform_notify(struct device *dev)
 {
 	static struct {

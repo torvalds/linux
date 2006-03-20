@@ -333,10 +333,18 @@
 
 /*
  * microHAM product IDs (http://www.microham.com).
- * Submitted by Justin Burket (KL1RL) <zorton@jtan.com>.
+ * Submitted by Justin Burket (KL1RL) <zorton@jtan.com>
+ * and Mike Studer (K6EEP) <k6eep@hamsoftware.org>.
+ * Ian Abbott <abbotti@mev.co.uk> added a few more from the driver INF file.
  */
+#define FTDI_MHAM_KW_PID 0xEEE8		/* USB-KW interface */
+#define FTDI_MHAM_YS_PID 0xEEE9		/* USB-YS interface */
 #define FTDI_MHAM_Y6_PID 0xEEEA		/* USB-Y6 interface */
 #define FTDI_MHAM_Y8_PID 0xEEEB		/* USB-Y8 interface */
+#define FTDI_MHAM_IC_PID 0xEEEC		/* USB-IC interface */
+#define FTDI_MHAM_DB9_PID 0xEEED	/* USB-DB9 interface */
+#define FTDI_MHAM_RS232_PID 0xEEEE	/* USB-RS232 interface */
+#define FTDI_MHAM_Y9_PID 0xEEEF		/* USB-Y9 interface */
 
 /*
  * Active Robots product ids.

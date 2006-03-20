@@ -174,9 +174,6 @@ enum ocfs2_mount_options
 	OCFS2_MOUNT_NOINTR  = 1 << 2,   /* Don't catch signals */
 	OCFS2_MOUNT_ERRORS_PANIC = 1 << 3, /* Panic on errors */
 	OCFS2_MOUNT_DATA_WRITEBACK = 1 << 4, /* No data ordering */
-#ifdef OCFS2_ORACORE_WORKAROUNDS
-	OCFS2_MOUNT_COMPAT_OCFS = 1 << 30, /* ocfs1 compatibility mode */
-#endif
 };
 
 #define OCFS2_OSB_SOFT_RO	0x0001
@@ -290,6 +287,10 @@ struct ocfs2_super
 	struct inode			*osb_tl_inode;
 	struct buffer_head		*osb_tl_bh;
 	struct work_struct		osb_truncate_log_wq;
+
+	struct ocfs2_node_map		osb_recovering_orphan_dirs;
+	unsigned int			*osb_orphan_wipes;
+	wait_queue_head_t		osb_wipe_event;
 };
 
 #define OCFS2_SB(sb)	    ((struct ocfs2_super *)(sb)->s_fs_info)

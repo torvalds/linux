@@ -414,7 +414,7 @@ ev64260_fixup_mpsc_pdata(struct platform_device *pdev)
 	return;
 }
 
-static int __init
+static int
 ev64260_platform_notify(struct device *dev)
 {
 	static struct {

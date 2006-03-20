@@ -1338,7 +1338,7 @@ struct namespace *dup_namespace(struct task_struct *tsk, struct fs_struct *fs)
 
 	new_ns = kmalloc(sizeof(struct namespace), GFP_KERNEL);
 	if (!new_ns)
-		goto out;
+		return NULL;
 
 	atomic_set(&new_ns->count, 1);
 	INIT_LIST_HEAD(&new_ns->list);
@@ -1352,7 +1352,7 @@ struct namespace *dup_namespace(struct task_struct *tsk, struct fs_struct *fs)
 	if (!new_ns->root) {
 		up_write(&namespace_sem);
 		kfree(new_ns);
-		goto out;
+		return NULL;
 	}
 	spin_lock(&vfsmount_lock);
 	list_add_tail(&new_ns->list, &new_ns->root->mnt_list);
@@ -1393,7 +1393,6 @@ struct namespace *dup_namespace(struct task_struct *tsk, struct fs_struct *fs)
 	if (altrootmnt)
 		mntput(altrootmnt);
 
-out:
 	return new_ns;
 }
 

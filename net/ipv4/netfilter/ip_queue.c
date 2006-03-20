@@ -524,7 +524,7 @@ ipq_rcv_skb(struct sk_buff *skb)
 	write_unlock_bh(&queue_lock);
 	
 	status = ipq_receive_peer(NLMSG_DATA(nlh), type,
-	                          skblen - NLMSG_LENGTH(0));
+	                          nlmsglen - NLMSG_LENGTH(0));
 	if (status < 0)
 		RCV_SKB_FAIL(status);
 		

@@ -61,6 +61,7 @@ void __init pci_addr_cache_build(void);
  * to finish the eeh setup for this device.
  */
 void eeh_add_device_early(struct device_node *);
+void eeh_add_device_late(struct pci_dev *dev);
 void eeh_add_device_tree_early(struct device_node *);
 void eeh_add_device_tree_late(struct pci_bus *);
 
@@ -116,6 +117,8 @@ static inline int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *d
 static inline void pci_addr_cache_build(void) { }
 
 static inline void eeh_add_device_early(struct device_node *dn) { }
+
+static inline void eeh_add_device_late(struct pci_dev *dev) { }
 
 static inline void eeh_remove_device(struct pci_dev *dev) { }
 
