@@ -137,6 +137,8 @@ static struct rpc_procinfo	mnt_procedures[] = {
 	  .p_encode		= (kxdrproc_t) xdr_encode_dirpath,	
 	  .p_decode		= (kxdrproc_t) xdr_decode_fhstatus,
 	  .p_bufsiz		= MNT_dirpath_sz << 2,
+	  .p_statidx		= MNTPROC_MNT,
+	  .p_name		= "MOUNT",
 	},
 };
 
@@ -146,6 +148,8 @@ static struct rpc_procinfo mnt3_procedures[] = {
 	  .p_encode		= (kxdrproc_t) xdr_encode_dirpath,
 	  .p_decode		= (kxdrproc_t) xdr_decode_fhstatus3,
 	  .p_bufsiz		= MNT_dirpath_sz << 2,
+	  .p_statidx		= MOUNTPROC3_MNT,
+	  .p_name		= "MOUNT",
 	},
 };
 

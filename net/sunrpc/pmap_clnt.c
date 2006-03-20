@@ -261,6 +261,8 @@ static struct rpc_procinfo	pmap_procedures[] = {
 	  .p_decode		= (kxdrproc_t) xdr_decode_bool,
 	  .p_bufsiz		= 4,
 	  .p_count		= 1,
+	  .p_statidx		= PMAP_SET,
+	  .p_name		= "SET",
 	},
 [PMAP_UNSET] = {
 	  .p_proc		= PMAP_UNSET,
@@ -268,6 +270,8 @@ static struct rpc_procinfo	pmap_procedures[] = {
 	  .p_decode		= (kxdrproc_t) xdr_decode_bool,
 	  .p_bufsiz		= 4,
 	  .p_count		= 1,
+	  .p_statidx		= PMAP_UNSET,
+	  .p_name		= "UNSET",
 	},
 [PMAP_GETPORT] = {
 	  .p_proc		= PMAP_GETPORT,
@@ -275,6 +279,8 @@ static struct rpc_procinfo	pmap_procedures[] = {
 	  .p_decode		= (kxdrproc_t) xdr_decode_port,
 	  .p_bufsiz		= 4,
 	  .p_count		= 1,
+	  .p_statidx		= PMAP_GETPORT,
+	  .p_name		= "GETPORT",
 	},
 };
 

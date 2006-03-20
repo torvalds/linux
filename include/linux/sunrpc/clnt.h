@@ -101,6 +101,8 @@ struct rpc_procinfo {
 	unsigned int		p_bufsiz;	/* req. buffer size */
 	unsigned int		p_count;	/* call count */
 	unsigned int		p_timer;	/* Which RTT timer to use */
+	u32			p_statidx;	/* Which procedure to account */
+	char *			p_name;		/* name of procedure */
 };
 
 #define RPC_CONGESTED(clnt)	(RPCXPRT_CONGESTED((clnt)->cl_xprt))

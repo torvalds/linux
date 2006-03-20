@@ -546,7 +546,9 @@ nlmclt_decode_res(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
 	.p_proc      = NLMPROC_##proc,					\
 	.p_encode    = (kxdrproc_t) nlmclt_encode_##argtype,		\
 	.p_decode    = (kxdrproc_t) nlmclt_decode_##restype,		\
-	.p_bufsiz    = MAX(NLM_##argtype##_sz, NLM_##restype##_sz) << 2	\
+	.p_bufsiz    = MAX(NLM_##argtype##_sz, NLM_##restype##_sz) << 2,	\
+	.p_statidx   = NLMPROC_##proc,					\
+	.p_name      = #proc,						\
 	}
 
 static struct rpc_procinfo	nlm_procedures[] = {

@@ -551,7 +551,9 @@ nlm4clt_decode_res(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
 	.p_proc      = NLMPROC_##proc,					\
 	.p_encode    = (kxdrproc_t) nlm4clt_encode_##argtype,		\
 	.p_decode    = (kxdrproc_t) nlm4clt_decode_##restype,		\
-	.p_bufsiz    = MAX(NLM4_##argtype##_sz, NLM4_##restype##_sz) << 2	\
+	.p_bufsiz    = MAX(NLM4_##argtype##_sz, NLM4_##restype##_sz) << 2,	\
+	.p_statidx   = NLMPROC_##proc,					\
+	.p_name      = #proc,						\
 	}
 
 static struct rpc_procinfo	nlm4_procedures[] = {

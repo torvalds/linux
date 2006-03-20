@@ -326,6 +326,8 @@ out:
         .p_encode = (kxdrproc_t) nfs4_xdr_##argtype,                    \
         .p_decode = (kxdrproc_t) nfs4_xdr_##restype,                    \
         .p_bufsiz = MAX(NFS4_##argtype##_sz,NFS4_##restype##_sz) << 2,  \
+        .p_statidx = NFSPROC4_CB_##call,				\
+	.p_name   = #proc,                                              \
 }
 
 static struct rpc_procinfo     nfs4_cb_procedures[] = {

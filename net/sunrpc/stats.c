@@ -151,7 +151,7 @@ void rpc_count_iostats(struct rpc_task *task)
 
 	if (!stats || !req)
 		return;
-	op_metrics = &stats[task->tk_msg.rpc_proc->p_proc];
+	op_metrics = &stats[task->tk_msg.rpc_proc->p_statidx];
 
 	op_metrics->om_ops++;
 	op_metrics->om_ntrans += req->rq_ntrans;
@@ -176,6 +176,16 @@ void rpc_count_iostats(struct rpc_task *task)
 	op_metrics->om_execute += execute;
 }
 
+void _print_name(struct seq_file *seq, unsigned int op, struct rpc_procinfo *procs)
+{
+	if (procs[op].p_name)
+		seq_printf(seq, "\t%12s: ", procs[op].p_name);
+	else if (op == 0)
+		seq_printf(seq, "\t        NULL: ");
+	else
+		seq_printf(seq, "\t%12u: ", op);
+}
+
 #define MILLISECS_PER_JIFFY	(1000UL / HZ)
 
 void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt)
@@ -197,7 +207,7 @@ void rpc_print_iostats(struct seq_file *seq, struct rpc_clnt *clnt)
 	seq_printf(seq, "\tper-op statistics\n");
 	for (op = 0; op < maxproc; op++) {
 		struct rpc_iostats *metrics = &stats[op];
-		seq_printf(seq, "%12u: ", op);
+		_print_name(seq, op, clnt->cl_procinfo);
 		seq_printf(seq, "%lu %lu %lu %Lu %Lu %Lu %Lu %Lu\n",
 				metrics->om_ops,
 				metrics->om_ntrans,
