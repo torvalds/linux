@@ -159,6 +159,30 @@ static void nfs_direct_req_release(struct kref *kref)
 }
 
 /*
+ * Collects and returns the final error value/byte-count.
+ */
+static ssize_t nfs_direct_wait(struct nfs_direct_req *dreq)
+{
+	int result = -EIOCBQUEUED;
+
+	/* Async requests don't wait here */
+	if (dreq->iocb)
+		goto out;
+
+	result = wait_event_interruptible(dreq->wait,
+					(atomic_read(&dreq->complete) == 0));
+
+	if (!result)
+		result = atomic_read(&dreq->error);
+	if (!result)
+		result = atomic_read(&dreq->count);
+
+out:
+	kref_put(&dreq->kref, nfs_direct_req_release);
+	return (ssize_t) result;
+}
+
+/*
  * Note we also set the number of requests we have in the dreq when we are
  * done.  This prevents races with I/O completion so we will always wait
  * until all requests have been dispatched and completed.
@@ -213,7 +237,7 @@ static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, size_t rsize)
 /*
  * We must hold a reference to all the pages in this direct read request
  * until the RPCs complete.  This could be long *after* we are woken up in
- * nfs_direct_read_wait (for instance, if someone hits ^C on a slow server).
+ * nfs_direct_wait (for instance, if someone hits ^C on a slow server).
  *
  * In addition, synchronous I/O uses a stack-allocated iocb.  Thus we
  * can't trust the iocb is still valid here if this is a synchronous
@@ -315,35 +339,6 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned long 
 	} while (count != 0);
 }
 
-/*
- * Collects and returns the final error value/byte-count.
- */
-static ssize_t nfs_direct_read_wait(struct nfs_direct_req *dreq, int intr)
-{
-	int result = -EIOCBQUEUED;
-
-	/* Async requests don't wait here */
- 	if (dreq->iocb)
-		goto out;
-
-	result = 0;
-	if (intr) {
-		result = wait_event_interruptible(dreq->wait,
-					(atomic_read(&dreq->complete) == 0));
-	} else {
-		wait_event(dreq->wait, (atomic_read(&dreq->complete) == 0));
-	}
-
-	if (!result)
-		result = atomic_read(&dreq->error);
-	if (!result)
-		result = atomic_read(&dreq->count);
-
-out:
-	kref_put(&dreq->kref, nfs_direct_req_release);
-	return (ssize_t) result;
-}
-
 static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t file_offset, struct page **pages, unsigned int nr_pages)
 {
 	ssize_t result;
@@ -366,7 +361,7 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 	nfs_add_stats(inode, NFSIOS_DIRECTREADBYTES, count);
 	rpc_clnt_sigmask(clnt, &oldset);
 	nfs_direct_read_schedule(dreq, user_addr, count, file_offset);
-	result = nfs_direct_read_wait(dreq, clnt->cl_intr);
+	result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
 
 	return result;
