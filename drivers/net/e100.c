@@ -598,8 +598,8 @@ static void e100_enable_irq(struct nic *nic)
 
 	spin_lock_irqsave(&nic->cmd_lock, flags);
 	writeb(irq_mask_none, &nic->csr->scb.cmd_hi);
-	spin_unlock_irqrestore(&nic->cmd_lock, flags);
 	e100_write_flush(nic);
+	spin_unlock_irqrestore(&nic->cmd_lock, flags);
 }
 
 static void e100_disable_irq(struct nic *nic)
@@ -608,8 +608,8 @@ static void e100_disable_irq(struct nic *nic)
 
 	spin_lock_irqsave(&nic->cmd_lock, flags);
 	writeb(irq_mask_all, &nic->csr->scb.cmd_hi);
-	spin_unlock_irqrestore(&nic->cmd_lock, flags);
 	e100_write_flush(nic);
+	spin_unlock_irqrestore(&nic->cmd_lock, flags);
 }
 
 static void e100_hw_reset(struct nic *nic)
@@ -1582,8 +1582,8 @@ static void e100_watchdog(unsigned long data)
 	 * interrupt mask bit and the SW Interrupt generation bit */
 	spin_lock_irq(&nic->cmd_lock);
 	writeb(readb(&nic->csr->scb.cmd_hi) | irq_sw_gen,&nic->csr->scb.cmd_hi);
-	spin_unlock_irq(&nic->cmd_lock);
 	e100_write_flush(nic);
+	spin_unlock_irq(&nic->cmd_lock);
 
 	e100_update_stats(nic);
 	e100_adjust_adaptive_ifs(nic, cmd.speed, cmd.duplex);

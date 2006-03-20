@@ -110,10 +110,8 @@
 #include <linux/netpoll.h>
 #include <linux/rcupdate.h>
 #include <linux/delay.h>
-#ifdef CONFIG_NET_RADIO
-#include <linux/wireless.h>		/* Note : will define WIRELESS_EXT */
+#include <linux/wireless.h>
 #include <net/iw_handler.h>
-#endif	/* CONFIG_NET_RADIO */
 #include <asm/current.h>
 
 /*
@@ -1448,8 +1446,29 @@ static inline struct net_device *skb_bond(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 
-	if (dev->master)
+	if (dev->master) {
+		/*
+		 * On bonding slaves other than the currently active
+		 * slave, suppress duplicates except for 802.3ad
+		 * ETH_P_SLOW and alb non-mcast/bcast.
+		 */
+		if (dev->priv_flags & IFF_SLAVE_INACTIVE) {
+			if (dev->master->priv_flags & IFF_MASTER_ALB) {
+				if (skb->pkt_type != PACKET_BROADCAST &&
+				    skb->pkt_type != PACKET_MULTICAST)
+					goto keep;
+			}
+
+			if (dev->master->priv_flags & IFF_MASTER_8023AD &&
+			    skb->protocol == __constant_htons(ETH_P_SLOW))
+				goto keep;
+		
+			kfree_skb(skb);
+			return NULL;
+		}
+keep:
 		skb->dev = dev->master;
+	}
 
 	return dev;
 }
@@ -1592,6 +1611,9 @@ int netif_receive_skb(struct sk_buff *skb)
 		skb->input_dev = skb->dev;
 
 	orig_dev = skb_bond(skb);
+
+	if (!orig_dev)
+		return NET_RX_DROP;
 
 	__get_cpu_var(netdev_rx_stat).total++;
 
@@ -2028,7 +2050,7 @@ static struct file_operations softnet_seq_fops = {
 	.release = seq_release,
 };
 
-#ifdef WIRELESS_EXT
+#ifdef CONFIG_WIRELESS_EXT
 extern int wireless_proc_init(void);
 #else
 #define wireless_proc_init() 0
@@ -2582,7 +2604,7 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 					ret = -EFAULT;
 				return ret;
 			}
-#ifdef WIRELESS_EXT
+#ifdef CONFIG_WIRELESS_EXT
 			/* Take care of Wireless Extensions */
 			if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
 				/* If command is `set a parameter', or
@@ -2603,7 +2625,7 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 					ret = -EFAULT;
 				return ret;
 			}
-#endif	/* WIRELESS_EXT */
+#endif	/* CONFIG_WIRELESS_EXT */
 			return -EINVAL;
 	}
 }

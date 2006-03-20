@@ -622,7 +622,7 @@ static int __init mac_sonic_init_module(void)
 	return 0;
 
 out_unregister:
-	driver_unregister(&mac_sonic_driver);
+	platform_driver_unregister(&mac_sonic_driver);
 
 	return -ENOMEM;
 }

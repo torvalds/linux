@@ -84,10 +84,7 @@
 #include <linux/compat.h>
 #include <linux/kmod.h>
 #include <linux/audit.h>
-
-#ifdef CONFIG_NET_RADIO
-#include <linux/wireless.h>		/* Note : will define WIRELESS_EXT */
-#endif	/* CONFIG_NET_RADIO */
+#include <linux/wireless.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -840,11 +837,11 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
 		err = dev_ioctl(cmd, argp);
 	} else
-#ifdef WIRELESS_EXT
+#ifdef CONFIG_WIRELESS_EXT
 	if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
 		err = dev_ioctl(cmd, argp);
 	} else
-#endif	/* WIRELESS_EXT */
+#endif	/* CONFIG_WIRELESS_EXT */
 	switch (cmd) {
 		case FIOSETOWN:
 		case SIOCSPGRP:

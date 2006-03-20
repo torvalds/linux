@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/skbuff.h>
-#include <linux/irq.h>
+#include <asm/irq.h>
 /* Used for the temporal inet entries and routing */
 #include <linux/socket.h>
 #include <linux/bitops.h>

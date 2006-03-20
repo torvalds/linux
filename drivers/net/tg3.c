@@ -7802,7 +7802,7 @@ static int tg3_test_link(struct tg3 *tp)
 }
 
 /* Only test the commonly used registers */
-static int tg3_test_registers(struct tg3 *tp)
+static const int tg3_test_registers(struct tg3 *tp)
 {
 	int i, is_5705;
 	u32 offset, read_mask, write_mask, val, save_val, read_val;
@@ -8016,7 +8016,7 @@ out:
 
 static int tg3_do_mem_test(struct tg3 *tp, u32 offset, u32 len)
 {
-	static u32 test_pattern[] = { 0x00000000, 0xffffffff, 0xaa55a55a };
+	static const u32 test_pattern[] = { 0x00000000, 0xffffffff, 0xaa55a55a };
 	int i;
 	u32 j;
 

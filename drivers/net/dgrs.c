@@ -993,7 +993,7 @@ dgrs_download(struct net_device *dev0)
 	int		is;
 	unsigned long	i;
 
-	static int	iv2is[16] = {
+	static const int iv2is[16] = {
 				0, 0, 0, ES4H_IS_INT3,
 				0, ES4H_IS_INT5, 0, ES4H_IS_INT7,
 				0, 0, ES4H_IS_INT10, ES4H_IS_INT11,

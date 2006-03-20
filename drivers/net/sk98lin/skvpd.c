@@ -132,65 +132,6 @@ int		addr)	/* VPD address */
 
 #endif	/* SKDIAG */
 
-#if 0
-
-/*
-	Write the dword 'data' at address 'addr' into the VPD EEPROM, and
-	verify that the data is written.
-
- Needed Time:
-
-.				MIN		MAX
-. -------------------------------------------------------------------
-. write				1.8 ms		3.6 ms
-. internal write cyles		0.7 ms		7.0 ms
-. -------------------------------------------------------------------
-. over all program time	 	2.5 ms		10.6 ms
-. read				1.3 ms		2.6 ms
-. -------------------------------------------------------------------
-. over all 			3.8 ms		13.2 ms
-.
-
-
- Returns	0:	success
-			1:	error,	I2C transfer does not terminate
-			2:	error,	data verify error
-
- */
-static int VpdWriteDWord(
-SK_AC	*pAC,	/* pAC pointer */
-SK_IOC	IoC,	/* IO Context */
-int		addr,	/* VPD address */
-SK_U32	data)	/* VPD data to write */
-{
-	/* start VPD write */
-	/* Don't swap here, it's a data stream of bytes */
-	SK_DBG_MSG(pAC, SK_DBGMOD_VPD, SK_DBGCAT_CTRL,
-		("VPD write dword at addr 0x%x, data = 0x%x\n",addr,data));
-	VPD_OUT32(pAC, IoC, PCI_VPD_DAT_REG, (SK_U32)data);
-	/* But do it here */
-	addr |= VPD_WRITE;
-
-	VPD_OUT16(pAC, IoC, PCI_VPD_ADR_REG, (SK_U16)(addr | VPD_WRITE));
-
-	/* this may take up to 10,6 ms */
-	if (VpdWait(pAC, IoC, VPD_WRITE)) {
-		SK_DBG_MSG(pAC, SK_DBGMOD_VPD, SK_DBGCAT_ERR,
-			("Write Timed Out\n"));
-		return(1);
-	};
-
-	/* verify data */
-	if (VpdReadDWord(pAC, IoC, addr) != data) {
-		SK_DBG_MSG(pAC, SK_DBGMOD_VPD, SK_DBGCAT_ERR | SK_DBGCAT_FATAL,
-			("Data Verify Error\n"));
-		return(2);
-	}
-	return(0);
-}	/* VpdWriteDWord */
-
-#endif	/* 0 */
-
 /*
  *	Read one Stream of 'len' bytes of VPD data, starting at 'addr' from
  *	or to the I2C EEPROM.
@@ -728,7 +669,7 @@ char	*etp)		/* end pointer input position */
  *		6:	fatal VPD error
  *
  */
-int	VpdSetupPara(
+static int	VpdSetupPara(
 SK_AC	*pAC,		/* common data base */
 const char	*key,	/* keyword to insert */
 const char	*buf,	/* buffer with the keyword value */
@@ -1146,52 +1087,5 @@ SK_IOC	IoC)	/* IO Context */
 	}
 	SK_DBG_MSG(pAC, SK_DBGMOD_VPD, SK_DBGCAT_TX, ("done\n"));
 	return(0);
-}
-
-
-
-/*
- *	Read the contents of the VPD EEPROM and copy it to the VPD buffer
- *	if not already done. If the keyword "VF" is not present it will be
- *	created and the error log message will be stored to this keyword.
- *	If "VF" is not present the error log message will be stored to the
- *	keyword "VL". "VL" will created or overwritten if "VF" is present.
- *	The VPD read/write area is saved to the VPD EEPROM.
- *
- * returns nothing, errors will be ignored.
- */
-void VpdErrLog(
-SK_AC	*pAC,	/* common data base */
-SK_IOC	IoC,	/* IO Context */
-char	*msg)	/* error log message */
-{
-	SK_VPD_PARA *v, vf;	/* VF */
-	int len;
-
-	SK_DBG_MSG(pAC, SK_DBGMOD_VPD, SK_DBGCAT_TX,
-		("VPD error log msg %s\n", msg));
-	if ((pAC->vpd.v.vpd_status & VPD_VALID) == 0) {
-		if (VpdInit(pAC, IoC) != 0) {
-			SK_DBG_MSG(pAC, SK_DBGMOD_VPD, SK_DBGCAT_ERR,
-				("VPD init error\n"));
-			return;
-		}
-	}
-
-	len = strlen(msg);
-	if (len > VPD_MAX_LEN) {
-		/* cut it */
-		len = VPD_MAX_LEN;
-	}
-	if ((v = vpd_find_para(pAC, VPD_VF, &vf)) != NULL) {
-		SK_DBG_MSG(pAC, SK_DBGMOD_VPD, SK_DBGCAT_TX, ("overwrite VL\n"));
-		(void)VpdSetupPara(pAC, VPD_VL, msg, len, VPD_RW_KEY, OWR_KEY);
-	}
-	else {
-		SK_DBG_MSG(pAC, SK_DBGMOD_VPD, SK_DBGCAT_TX, ("write VF\n"));
-		(void)VpdSetupPara(pAC, VPD_VF, msg, len, VPD_RW_KEY, ADD_KEY);
-	}
-
-	(void)VpdUpdate(pAC, IoC);
 }
 

@@ -46,7 +46,7 @@ typedef enum {
 } board_t;
 
 /* indexed by board_t, above */
-static struct {
+static const struct {
 	char *name;
 } board_info[] __devinitdata = {
 	{ "Broadcom NetXtreme II BCM5706 1000Base-T" },
@@ -3476,7 +3476,7 @@ bnx2_test_registers(struct bnx2 *bp)
 {
 	int ret;
 	int i;
-	static struct {
+	static const struct {
 		u16   offset;
 		u16   flags;
 		u32   rw_mask;
@@ -3891,7 +3891,7 @@ reg_test_err:
 static int
 bnx2_do_mem_test(struct bnx2 *bp, u32 start, u32 size)
 {
-	static u32 test_pattern[] = { 0x00000000, 0xffffffff, 0x55555555,
+	static const u32 test_pattern[] = { 0x00000000, 0xffffffff, 0x55555555,
 		0xaaaaaaaa , 0xaa55aa55, 0x55aa55aa };
 	int i;
 
@@ -3916,7 +3916,7 @@ bnx2_test_memory(struct bnx2 *bp)
 {
 	int ret = 0;
 	int i;
-	static struct {
+	static const struct {
 		u32   offset;
 		u32   len;
 	} mem_tbl[] = {
@@ -5122,7 +5122,7 @@ static struct {
 
 #define STATS_OFFSET32(offset_name) (offsetof(struct statistics_block, offset_name) / 4)
 
-static unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
+static const unsigned long bnx2_stats_offset_arr[BNX2_NUM_STATS] = {
     STATS_OFFSET32(stat_IfHCInOctets_hi),
     STATS_OFFSET32(stat_IfHCInBadOctets_hi),
     STATS_OFFSET32(stat_IfHCOutOctets_hi),

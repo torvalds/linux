@@ -116,6 +116,7 @@
 #include <linux/timer.h>
 #include <linux/if_vlan.h>
 #include <linux/rtnetlink.h>
+#include <linux/jiffies.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -651,7 +652,7 @@ static void FASTCALL(phy_intr(struct net_device *ndev));
 static void fastcall phy_intr(struct net_device *ndev)
 {
 	struct ns83820 *dev = PRIV(ndev);
-	static char *speeds[] = { "10", "100", "1000", "1000(?)", "1000F" };
+	static const char *speeds[] = { "10", "100", "1000", "1000(?)", "1000F" };
 	u32 cfg, new_cfg;
 	u32 tbisr, tanar, tanlpar;
 	int speed, fullduplex, newlinkstate;
@@ -1607,7 +1608,7 @@ static void ns83820_run_bist(struct net_device *ndev, const char *name, u32 enab
 {
 	struct ns83820 *dev = PRIV(ndev);
 	int timed_out = 0;
-	long start;
+	unsigned long start;
 	u32 status;
 	int loops = 0;
 
@@ -1625,7 +1626,7 @@ static void ns83820_run_bist(struct net_device *ndev, const char *name, u32 enab
 			break;
 		if (status & fail)
 			break;
-		if ((jiffies - start) >= HZ) {
+		if (time_after_eq(jiffies, start + HZ)) {
 			timed_out = 1;
 			break;
 		}
