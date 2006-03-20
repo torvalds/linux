@@ -638,7 +638,9 @@ static void nlmsvc_grant_callback(struct rpc_task *task, void *data)
 
 void nlmsvc_grant_release(void *data)
 {
-	nlmsvc_release_block(data);
+	struct nlm_rqst		*call = data;
+
+	nlmsvc_release_block(call->a_block);
 }
 
 static const struct rpc_call_ops nlmsvc_grant_ops = {
