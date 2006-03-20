@@ -82,6 +82,7 @@ rpc_getport(struct rpc_task *task, struct rpc_clnt *clnt)
 	rpc_call_setup(child, &msg, 0);
 
 	/* ... and run the child task */
+	task->tk_xprt->stat.bind_count++;
 	rpc_run_child(task, child, pmap_getport_done);
 	return;
 

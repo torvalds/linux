@@ -548,6 +548,7 @@ void xprt_connect(struct rpc_task *task)
 
 		task->tk_timeout = xprt->connect_timeout;
 		rpc_sleep_on(&xprt->pending, task, xprt_connect_status, NULL);
+		xprt->stat.connect_start = jiffies;
 		xprt->ops->connect(task);
 	}
 	return;
@@ -558,6 +559,8 @@ static void xprt_connect_status(struct rpc_task *task)
 	struct rpc_xprt	*xprt = task->tk_xprt;
 
 	if (task->tk_status >= 0) {
+		xprt->stat.connect_count++;
+		xprt->stat.connect_time += (long)jiffies - xprt->stat.connect_start;
 		dprintk("RPC: %4d xprt_connect_status: connection established\n",
 				task->tk_pid);
 		return;
@@ -601,16 +604,14 @@ static void xprt_connect_status(struct rpc_task *task)
 struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, u32 xid)
 {
 	struct list_head *pos;
-	struct rpc_rqst	*req = NULL;
 
 	list_for_each(pos, &xprt->recv) {
 		struct rpc_rqst *entry = list_entry(pos, struct rpc_rqst, rq_list);
-		if (entry->rq_xid == xid) {
-			req = entry;
-			break;
-		}
+		if (entry->rq_xid == xid)
+			return entry;
 	}
-	return req;
+	xprt->stat.bad_xids++;
+	return NULL;
 }
 
 /**
@@ -646,6 +647,7 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 	dprintk("RPC: %5u xid %08x complete (%d bytes received)\n",
 			task->tk_pid, ntohl(req->rq_xid), copied);
 
+	task->tk_xprt->stat.recvs++;
 	list_del_init(&req->rq_list);
 	req->rq_received = req->rq_private_buf.len = copied;
 	rpc_wake_up_task(task);
@@ -744,12 +746,19 @@ void xprt_transmit(struct rpc_task *task)
 	if (status == 0) {
 		dprintk("RPC: %4d xmit complete\n", task->tk_pid);
 		spin_lock_bh(&xprt->transport_lock);
+
 		xprt->ops->set_retrans_timeout(task);
+
+		xprt->stat.sends++;
+		xprt->stat.req_u += xprt->stat.sends - xprt->stat.recvs;
+		xprt->stat.bklog_u += xprt->backlog.qlen;
+
 		/* Don't race with disconnect */
 		if (!xprt_connected(xprt))
 			task->tk_status = -ENOTCONN;
 		else if (!req->rq_received)
 			rpc_sleep_on(&xprt->pending, task, NULL, xprt_timer);
+
 		xprt->ops->release_xprt(xprt, task);
 		spin_unlock_bh(&xprt->transport_lock);
 		return;
