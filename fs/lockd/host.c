@@ -191,11 +191,12 @@ nlm_bind_host(struct nlm_host *host)
 		xprt->resvport = 1;	/* NLM requires a reserved port */
 
 		/* Existing NLM servers accept AUTH_UNIX only */
-		clnt = rpc_create_client(xprt, host->h_name, &nlm_program,
+		clnt = rpc_new_client(xprt, host->h_name, &nlm_program,
 					host->h_version, RPC_AUTH_UNIX);
 		if (IS_ERR(clnt))
 			goto forgetit;
 		clnt->cl_autobind = 1;	/* turn on pmap queries */
+		clnt->cl_softrtry = 1; /* All queries are soft */
 
 		host->h_rpcclnt = clnt;
 	}
