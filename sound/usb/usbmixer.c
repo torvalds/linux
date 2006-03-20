@@ -1468,6 +1468,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, unsi
 	kctl = snd_ctl_new1(&mixer_selectunit_ctl, cval);
 	if (! kctl) {
 		snd_printk(KERN_ERR "cannot malloc kcontrol\n");
+		kfree(namelist);
 		kfree(cval);
 		return -ENOMEM;
 	}
