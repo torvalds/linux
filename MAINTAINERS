@@ -1752,7 +1752,8 @@ P:	Ralf Baechle
 M:	ralf@linux-mips.org
 W:	http://www.linux-mips.org/
 L:	linux-mips@linux-mips.org
-S:	Maintained
+T:	git www.linux-mips.org:/pub/scm/linux.git
+S:	Supported
 
 MISCELLANEOUS MCA-SUPPORT
 P:	James Bottomley
