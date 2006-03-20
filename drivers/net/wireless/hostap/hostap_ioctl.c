@@ -3358,10 +3358,6 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
 		if (!sta_ptr)
 			local->tx_keyidx = i;
-		else if (i) {
-			ret = -EINVAL;
-			goto done;
-		}
 	}
 
 
