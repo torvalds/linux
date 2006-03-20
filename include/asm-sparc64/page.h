@@ -104,6 +104,7 @@ typedef unsigned long pgprot_t;
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 #define ARCH_HAS_SETCLEAR_HUGE_PTE
 #define ARCH_HAS_HUGETLB_PREFAULT_HOOK
+#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 #endif
 
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_32BIT) ? \
