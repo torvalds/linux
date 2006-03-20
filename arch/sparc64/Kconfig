@@ -186,6 +186,15 @@ endchoice
 
 endmenu
 
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+
+config LARGE_ALLOCS
+	def_bool y
+
 source "mm/Kconfig"
 
 config GENERIC_ISA_DMA
@@ -349,6 +358,15 @@ config SOLARIS_EMUL
 	  module will be called solaris.
 
 endmenu
+
+config SCHED_SMT
+	bool "SMT (Hyperthreading) scheduler support"
+	depends on SMP
+	default y
+	help
+	  SMT scheduler support improves the CPU scheduler's decision making
+	  when dealing with UltraSPARC cpus at a cost of slightly increased
+	  overhead in some places. If unsure say N here.
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"

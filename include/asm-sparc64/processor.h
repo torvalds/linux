@@ -28,6 +28,8 @@
  * User lives in his very own context, and cannot reference us. Note
  * that TASK_SIZE is a misnomer, it really gives maximum user virtual 
  * address that the kernel will allocate out.
+ *
+ * XXX No longer using virtual page tables, kill this upper limit...
  */
 #define VA_BITS		44
 #ifndef __ASSEMBLY__
@@ -36,18 +38,6 @@
 #define VPTE_SIZE	(1 << (VA_BITS - PAGE_SHIFT + 3))
 #endif
 #define TASK_SIZE	((unsigned long)-VPTE_SIZE)
-
-/*
- * The vpte base must be able to hold the entire vpte, half
- * of which lives above, and half below, the base. And it
- * is placed as close to the highest address range as possible.
- */
-#define VPTE_BASE_SPITFIRE	(-(VPTE_SIZE/2))
-#if 1
-#define VPTE_BASE_CHEETAH	VPTE_BASE_SPITFIRE
-#else
-#define VPTE_BASE_CHEETAH	0xffe0000000000000
-#endif
 
 #ifndef __ASSEMBLY__
 
@@ -101,7 +91,8 @@ extern unsigned long thread_saved_pc(struct task_struct *);
 /* Do necessary setup to start up a newly executed thread. */
 #define start_thread(regs, pc, sp) \
 do { \
-	regs->tstate = (regs->tstate & (TSTATE_CWP)) | (TSTATE_INITIAL_MM|TSTATE_IE) | (ASI_PNF << 24); \
+	unsigned long __asi = ASI_PNF; \
+	regs->tstate = (regs->tstate & (TSTATE_CWP)) | (TSTATE_INITIAL_MM|TSTATE_IE) | (__asi << 24UL); \
 	regs->tpc = ((pc & (~3)) - 4); \
 	regs->tnpc = regs->tpc + 4; \
 	regs->y = 0; \
@@ -138,10 +129,10 @@ do { \
 
 #define start_thread32(regs, pc, sp) \
 do { \
+	unsigned long __asi = ASI_PNF; \
 	pc &= 0x00000000ffffffffUL; \
 	sp &= 0x00000000ffffffffUL; \
-\
-	regs->tstate = (regs->tstate & (TSTATE_CWP))|(TSTATE_INITIAL_MM|TSTATE_IE|TSTATE_AM); \
+	regs->tstate = (regs->tstate & (TSTATE_CWP))|(TSTATE_INITIAL_MM|TSTATE_IE|TSTATE_AM) | (__asi << 24UL); \
 	regs->tpc = ((pc & (~3)) - 4); \
 	regs->tnpc = regs->tpc + 4; \
 	regs->y = 0; \
@@ -225,6 +216,8 @@ static inline void prefetchw(const void *x)
 }
 
 #define spin_lock_prefetch(x)	prefetchw(x)
+
+#define HAVE_ARCH_PICK_MMAP_LAYOUT
 
 #endif /* !(__ASSEMBLY__) */
 
