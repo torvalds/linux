@@ -239,7 +239,6 @@ enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_fifo_expire,
 	CFQ_CFQQ_FLAG_idle_window,
 	CFQ_CFQQ_FLAG_prio_changed,
-	CFQ_CFQQ_FLAG_expired,
 };
 
 #define CFQ_CFQQ_FNS(name)						\
@@ -264,7 +263,6 @@ CFQ_CFQQ_FNS(must_dispatch);
 CFQ_CFQQ_FNS(fifo_expire);
 CFQ_CFQQ_FNS(idle_window);
 CFQ_CFQQ_FNS(prio_changed);
-CFQ_CFQQ_FNS(expired);
 #undef CFQ_CFQQ_FNS
 
 enum cfq_rq_state_flags {
@@ -336,7 +334,7 @@ static struct request *cfq_find_rq_hash(struct cfq_data *cfqd, sector_t offset)
  */
 static inline void cfq_schedule_dispatch(struct cfq_data *cfqd)
 {
-	if (!cfqd->rq_in_driver && cfqd->busy_queues)
+	if (cfqd->busy_queues)
 		kblockd_schedule_work(&cfqd->unplug_work);
 }
 
@@ -736,10 +734,60 @@ __cfq_set_active_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		cfqq->slice_left = 0;
 		cfq_clear_cfqq_must_alloc_slice(cfqq);
 		cfq_clear_cfqq_fifo_expire(cfqq);
-		cfq_clear_cfqq_expired(cfqq);
 	}
 
 	cfqd->active_queue = cfqq;
+}
+
+/*
+ * current cfqq expired its slice (or was too idle), select new one
+ */
+static void
+__cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
+		    int preempted)
+{
+	unsigned long now = jiffies;
+
+	if (cfq_cfqq_wait_request(cfqq))
+		del_timer(&cfqd->idle_slice_timer);
+
+	if (!preempted && !cfq_cfqq_dispatched(cfqq)) {
+		cfqq->service_last = now;
+		cfq_schedule_dispatch(cfqd);
+	}
+
+	cfq_clear_cfqq_must_dispatch(cfqq);
+	cfq_clear_cfqq_wait_request(cfqq);
+
+	/*
+	 * store what was left of this slice, if the queue idled out
+	 * or was preempted
+	 */
+	if (time_after(cfqq->slice_end, now))
+		cfqq->slice_left = cfqq->slice_end - now;
+	else
+		cfqq->slice_left = 0;
+
+	if (cfq_cfqq_on_rr(cfqq))
+		cfq_resort_rr_list(cfqq, preempted);
+
+	if (cfqq == cfqd->active_queue)
+		cfqd->active_queue = NULL;
+
+	if (cfqd->active_cic) {
+		put_io_context(cfqd->active_cic->ioc);
+		cfqd->active_cic = NULL;
+	}
+
+	cfqd->dispatch_slice = 0;
+}
+
+static inline void cfq_slice_expired(struct cfq_data *cfqd, int preempted)
+{
+	struct cfq_queue *cfqq = cfqd->active_queue;
+
+	if (cfqq)
+		__cfq_slice_expired(cfqd, cfqq, preempted);
 }
 
 /*
@@ -801,16 +849,7 @@ static int cfq_get_next_prio_level(struct cfq_data *cfqd)
 
 static struct cfq_queue *cfq_set_active_queue(struct cfq_data *cfqd)
 {
-	struct cfq_queue *cfqq;
-
-	/*
-	 * if current queue is expired but not done with its requests yet,
-	 * wait for that to happen
-	 */
-	if ((cfqq = cfqd->active_queue) != NULL) {
-		if (cfq_cfqq_expired(cfqq) && cfq_cfqq_dispatched(cfqq))
-			return NULL;
-	}
+	struct cfq_queue *cfqq = NULL;
 
 	/*
 	 * if current list is non-empty, grab first entry. if it is empty,
@@ -837,66 +876,11 @@ static struct cfq_queue *cfq_set_active_queue(struct cfq_data *cfqd)
 	return cfqq;
 }
 
-/*
- * current cfqq expired its slice (or was too idle), select new one
- */
-static void
-__cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
-		    int preempted)
-{
-	unsigned long now = jiffies;
-
-	if (cfq_cfqq_wait_request(cfqq))
-		del_timer(&cfqd->idle_slice_timer);
-
-	if (!preempted && !cfq_cfqq_dispatched(cfqq))
-		cfqq->service_last = now;
-
-	cfq_clear_cfqq_must_dispatch(cfqq);
-	cfq_clear_cfqq_wait_request(cfqq);
-
-	/*
-	 * store what was left of this slice, if the queue idled out
-	 * or was preempted
-	 */
-	if (time_after(cfqq->slice_end, now))
-		cfqq->slice_left = cfqq->slice_end - now;
-	else
-		cfqq->slice_left = 0;
-
-	if (cfq_cfqq_on_rr(cfqq))
-		cfq_resort_rr_list(cfqq, preempted);
-
-	if (cfqq == cfqd->active_queue)
-		cfqd->active_queue = NULL;
-
-	if (cfqd->active_cic) {
-		put_io_context(cfqd->active_cic->ioc);
-		cfqd->active_cic = NULL;
-	}
-
-	cfqd->dispatch_slice = 0;
-}
-
-static inline void cfq_slice_expired(struct cfq_data *cfqd, int preempted)
-{
-	struct cfq_queue *cfqq = cfqd->active_queue;
-
-	if (cfqq) {
-		/*
-		 * use deferred expiry, if there are requests in progress as
-		 * not to disturb the slice of the next queue
-		 */
-		if (cfq_cfqq_dispatched(cfqq))
-			cfq_mark_cfqq_expired(cfqq);
-		else
-			__cfq_slice_expired(cfqd, cfqq, preempted);
-	}
-}
-
 static int cfq_arm_slice_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 
 {
+	unsigned long sl;
+
 	WARN_ON(!RB_EMPTY(&cfqq->sort_list));
 	WARN_ON(cfqq != cfqd->active_queue);
 
@@ -916,13 +900,8 @@ static int cfq_arm_slice_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	cfq_mark_cfqq_must_dispatch(cfqq);
 	cfq_mark_cfqq_wait_request(cfqq);
 
-	if (!timer_pending(&cfqd->idle_slice_timer)) {
-		unsigned long slice_left = min(cfqq->slice_end - 1, (unsigned long) cfqd->cfq_slice_idle);
-
-		cfqd->idle_slice_timer.expires = jiffies + slice_left;
-		add_timer(&cfqd->idle_slice_timer);
-	}
-
+	sl = min(cfqq->slice_end - 1, (unsigned long) cfqd->cfq_slice_idle);
+	mod_timer(&cfqd->idle_slice_timer, jiffies + sl);
 	return 1;
 }
 
@@ -1004,9 +983,6 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 
 	cfqq = cfqd->active_queue;
 	if (!cfqq)
-		goto new_queue;
-
-	if (cfq_cfqq_expired(cfqq))
 		goto new_queue;
 
 	/*
@@ -1181,10 +1157,8 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	BUG_ON(cfqq->allocated[READ] + cfqq->allocated[WRITE]);
 	BUG_ON(cfq_cfqq_on_rr(cfqq));
 
-	if (unlikely(cfqd->active_queue == cfqq)) {
+	if (unlikely(cfqd->active_queue == cfqq))
 		__cfq_slice_expired(cfqd, cfqq, 0);
-		cfq_schedule_dispatch(cfqd);
-	}
 
 	cfq_put_cfqd(cfqq->cfqd);
 
@@ -1245,10 +1219,8 @@ static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 
 	spin_lock(q->queue_lock);
 
-	if (unlikely(cic->cfqq == cfqd->active_queue)) {
+	if (unlikely(cic->cfqq == cfqd->active_queue))
 		__cfq_slice_expired(cfqd, cic->cfqq, 0);
-		cfq_schedule_dispatch(cfqd);
-	}
 
 	cfq_put_queue(cic->cfqq);
 	cic->cfqq = NULL;
@@ -1715,10 +1687,7 @@ static void cfq_completed_request(request_queue_t *q, struct request *rq)
 			cfqq->service_last = now;
 			cfq_resort_rr_list(cfqq, 0);
 		}
-		if (cfq_cfqq_expired(cfqq)) {
-			__cfq_slice_expired(cfqd, cfqq, 0);
-			cfq_schedule_dispatch(cfqd);
-		}
+		cfq_schedule_dispatch(cfqd);
 	}
 
 	if (cfq_crq_is_sync(crq))

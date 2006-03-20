@@ -299,13 +299,10 @@ static void sunsu_start_tx(struct uart_port *port)
 static void sunsu_stop_rx(struct uart_port *port)
 {
 	struct uart_sunsu_port *up = (struct uart_sunsu_port *) port;
-	unsigned long flags;
 
-	spin_lock_irqsave(&up->port.lock, flags);
 	up->ier &= ~UART_IER_RLSI;
 	up->port.read_status_mask &= ~UART_LSR_DR;
 	serial_out(up, UART_IER, up->ier);
-	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
 static void sunsu_enable_ms(struct uart_port *port)

@@ -85,13 +85,10 @@ enum {
 	O2NET_DRIVER_READY,
 };
 
-int o2net_init_tcp_sock(struct inode *inode);
 int o2net_send_message(u32 msg_type, u32 key, void *data, u32 len,
 		       u8 target_node, int *status);
 int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *vec,
 			   size_t veclen, u8 target_node, int *status);
-int o2net_broadcast_message(u32 msg_type, u32 key, void *data, u32 len,
-			    struct inode *group);
 
 int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 			   o2net_msg_handler_func *func, void *data,
@@ -107,7 +104,5 @@ void o2net_disconnect_node(struct o2nm_node *node);
 
 int o2net_init(void);
 void o2net_exit(void);
-int o2net_proc_init(struct proc_dir_entry *parent);
-void o2net_proc_exit(struct proc_dir_entry *parent);
 
 #endif /* O2CLUSTER_TCP_H */

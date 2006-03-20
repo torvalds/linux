@@ -236,6 +236,7 @@ static void enable_lapic_nmi_watchdog(void)
 {
 	if (nmi_active < 0) {
 		nmi_watchdog = NMI_LOCAL_APIC;
+		touch_nmi_watchdog();
 		setup_apic_nmi_watchdog();
 	}
 }
@@ -456,15 +457,17 @@ static DEFINE_PER_CPU(int, nmi_touch);
 
 void touch_nmi_watchdog (void)
 {
-	int i;
+	if (nmi_watchdog > 0) {
+		unsigned cpu;
 
-	/*
- 	 * Tell other CPUs to reset their alert counters. We cannot
-	 * do it ourselves because the alert count increase is not
-	 * atomic.
-	 */
-	for (i = 0; i < NR_CPUS; i++)
-		per_cpu(nmi_touch, i) = 1;
+		/*
+ 		 * Tell other CPUs to reset their alert counters. We cannot
+		 * do it ourselves because the alert count increase is not
+		 * atomic.
+		 */
+		for_each_present_cpu (cpu)
+			per_cpu(nmi_touch, cpu) = 1;
+	}
 
  	touch_softlockup_watchdog();
 }

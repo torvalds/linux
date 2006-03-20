@@ -564,7 +564,7 @@ static void dlm_lockres_release(struct kref *kref)
 
 	/* By the time we're ready to blow this guy away, we shouldn't
 	 * be on any lists. */
-	BUG_ON(!list_empty(&res->list));
+	BUG_ON(!hlist_unhashed(&res->hash_node));
 	BUG_ON(!list_empty(&res->granted));
 	BUG_ON(!list_empty(&res->converting));
 	BUG_ON(!list_empty(&res->blocked));
@@ -605,7 +605,7 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 
 	init_waitqueue_head(&res->wq);
 	spin_lock_init(&res->spinlock);
-	INIT_LIST_HEAD(&res->list);
+	INIT_HLIST_NODE(&res->hash_node);
 	INIT_LIST_HEAD(&res->granted);
 	INIT_LIST_HEAD(&res->converting);
 	INIT_LIST_HEAD(&res->blocked);
@@ -2482,7 +2482,9 @@ top:
 				atomic_set(&mle->woken, 1);
 				spin_unlock(&mle->spinlock);
 				wake_up(&mle->wq);
-				/* final put will take care of list removal */
+				/* do not need events any longer, so detach 
+				 * from heartbeat */
+				__dlm_mle_detach_hb_events(dlm, mle);
 				__dlm_put_mle(mle);
 			}
 			continue;
@@ -2536,6 +2538,9 @@ top:
 			dlm_move_lockres_to_recovery_list(dlm, res);
 			spin_unlock(&res->spinlock);
 			dlm_lockres_put(res);
+
+			/* about to get rid of mle, detach from heartbeat */
+			__dlm_mle_detach_hb_events(dlm, mle);
 
 			/* dump the mle */
 			spin_lock(&dlm->master_lock);

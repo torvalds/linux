@@ -446,7 +446,7 @@ static int dev_ifconf(unsigned int fd, unsigned int cmd, unsigned long arg)
 	ifr = ifc.ifc_req;
 	ifr32 = compat_ptr(ifc32.ifcbuf);
 	for (i = 0, j = 0;
-             i + sizeof (struct ifreq32) < ifc32.ifc_len && j < ifc.ifc_len;
+             i + sizeof (struct ifreq32) <= ifc32.ifc_len && j < ifc.ifc_len;
 	     i += sizeof (struct ifreq32), j += sizeof (struct ifreq)) {
 		if (copy_in_user(ifr32, ifr, sizeof (struct ifreq32)))
 			return -EFAULT;
@@ -2531,18 +2531,9 @@ static int rtc_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
 		val32 = kval;
 		return put_user(val32, (unsigned int __user *)arg);
 	case RTC_IRQP_SET32:
+		return sys_ioctl(fd, RTC_IRQP_SET, arg); 
 	case RTC_EPOCH_SET32:
-		ret = get_user(val32, (unsigned int __user *)arg);
-		if (ret)
-			return ret;
-		kval = val32;
-
-		set_fs(KERNEL_DS);
-		ret = sys_ioctl(fd, (cmd == RTC_IRQP_SET32) ?
-				RTC_IRQP_SET : RTC_EPOCH_SET,
-				(unsigned long)&kval);
-		set_fs(oldfs);
-		return ret;
+		return sys_ioctl(fd, RTC_EPOCH_SET, arg);
 	default:
 		/* unreached */
 		return -ENOIOCTLCMD;

@@ -1262,7 +1262,7 @@ static int selinux_ptrace(struct task_struct *parent, struct task_struct *child)
 
 	rc = task_has_perm(parent, child, PROCESS__PTRACE);
 	/* Save the SID of the tracing process for later use in apply_creds. */
-	if (!rc)
+	if (!(child->ptrace & PT_PTRACED) && !rc)
 		csec->ptrace_sid = psec->sid;
 	return rc;
 }

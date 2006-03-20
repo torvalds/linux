@@ -58,6 +58,11 @@ static inline int is_IF_modifier(kprobe_opcode_t opcode)
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
+	/* insn: must be on special executable page on i386. */
+	p->ainsn.insn = get_insn_slot();
+	if (!p->ainsn.insn)
+		return -ENOMEM;
+
 	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
 	p->opcode = *p->addr;
 	return 0;
@@ -75,6 +80,13 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 	*p->addr = p->opcode;
 	flush_icache_range((unsigned long) p->addr,
 			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
+}
+
+void __kprobes arch_remove_kprobe(struct kprobe *p)
+{
+	down(&kprobe_mutex);
+	free_insn_slot(p->ainsn.insn);
+	up(&kprobe_mutex);
 }
 
 static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
@@ -111,7 +123,7 @@ static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 	if (p->opcode == BREAKPOINT_INSTRUCTION)
 		regs->eip = (unsigned long)p->addr;
 	else
-		regs->eip = (unsigned long)&p->ainsn.insn;
+		regs->eip = (unsigned long)p->ainsn.insn;
 }
 
 /* Called with kretprobe_lock held */
@@ -351,7 +363,7 @@ static void __kprobes resume_execution(struct kprobe *p,
 {
 	unsigned long *tos = (unsigned long *)&regs->esp;
 	unsigned long next_eip = 0;
-	unsigned long copy_eip = (unsigned long)&p->ainsn.insn;
+	unsigned long copy_eip = (unsigned long)p->ainsn.insn;
 	unsigned long orig_eip = (unsigned long)p->addr;
 
 	switch (p->ainsn.insn[0]) {

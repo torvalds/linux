@@ -51,3 +51,4 @@ int v9fs_dir_release(struct inode *inode, struct file *filp);
 int v9fs_file_open(struct inode *inode, struct file *file);
 void v9fs_inode2stat(struct inode *inode, struct v9fs_stat *stat);
 void v9fs_dentry_release(struct dentry *);
+int v9fs_uflags2omode(int uflags);

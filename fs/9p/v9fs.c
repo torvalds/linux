@@ -66,7 +66,7 @@ static match_table_t tokens = {
 	{Opt_afid, "afid=%u"},
 	{Opt_rfdno, "rfdno=%u"},
 	{Opt_wfdno, "wfdno=%u"},
-	{Opt_debug, "debug=%u"},
+	{Opt_debug, "debug=%x"},
 	{Opt_name, "name=%s"},
 	{Opt_remotename, "aname=%s"},
 	{Opt_unix, "proto=unix"},
@@ -397,6 +397,7 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 	}
 
 	if (v9ses->afid != ~0) {
+		dprintk(DEBUG_ERROR, "afid not equal to ~0\n");
 		if (v9fs_t_clunk(v9ses, v9ses->afid))
 			dprintk(DEBUG_ERROR, "clunk failed\n");
 	}

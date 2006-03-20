@@ -217,8 +217,9 @@ static void scsi_device_cls_release(struct class_device *class_dev)
 	put_device(&sdev->sdev_gendev);
 }
 
-static void scsi_device_dev_release(struct device *dev)
+static void scsi_device_dev_release_usercontext(void *data)
 {
+	struct device *dev = data;
 	struct scsi_device *sdev;
 	struct device *parent;
 	struct scsi_target *starget;
@@ -237,6 +238,7 @@ static void scsi_device_dev_release(struct device *dev)
 
 	if (sdev->request_queue) {
 		sdev->request_queue->queuedata = NULL;
+		/* user context needed to free queue */
 		scsi_free_queue(sdev->request_queue);
 		/* temporary expedient, try to catch use of queue lock
 		 * after free of sdev */
@@ -250,6 +252,11 @@ static void scsi_device_dev_release(struct device *dev)
 
 	if (parent)
 		put_device(parent);
+}
+
+static void scsi_device_dev_release(struct device *dev)
+{
+	scsi_execute_in_process_context(scsi_device_dev_release_usercontext,	dev);
 }
 
 static struct class sdev_class = {

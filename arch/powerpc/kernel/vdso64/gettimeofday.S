@@ -225,9 +225,9 @@ V_FUNCTION_BEGIN(__do_get_xsec)
   .cfi_startproc
 	/* check for update count & load values */
 1:	ld	r8,CFG_TB_UPDATE_COUNT(r3)
-	andi.	r0,r4,1			/* pending update ? loop */
+	andi.	r0,r8,1			/* pending update ? loop */
 	bne-	1b
-	xor	r0,r4,r4		/* create dependency */
+	xor	r0,r8,r8		/* create dependency */
 	add	r3,r3,r0
 
 	/* Get TB & offset it */

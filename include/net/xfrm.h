@@ -233,7 +233,6 @@ struct xfrm_type
 	int			(*init_state)(struct xfrm_state *x);
 	void			(*destructor)(struct xfrm_state *);
 	int			(*input)(struct xfrm_state *, struct xfrm_decap_state *, struct sk_buff *skb);
-	int			(*post_input)(struct xfrm_state *, struct xfrm_decap_state *, struct sk_buff *skb);
 	int			(*output)(struct xfrm_state *, struct sk_buff *pskb);
 	/* Estimate maximal size of result of transformation of a dgram */
 	u32			(*get_max_size)(struct xfrm_state *, int size);
@@ -402,6 +401,11 @@ unsigned xfrm_spi_hash(xfrm_address_t *addr, u32 spi, u8 proto, unsigned short f
 }
 
 extern void __xfrm_state_destroy(struct xfrm_state *);
+
+static inline void __xfrm_state_put(struct xfrm_state *x)
+{
+	atomic_dec(&x->refcnt);
+}
 
 static inline void xfrm_state_put(struct xfrm_state *x)
 {
@@ -866,7 +870,6 @@ extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 extern int xfrm_init_state(struct xfrm_state *x);
 extern int xfrm4_rcv(struct sk_buff *skb);
 extern int xfrm4_output(struct sk_buff *skb);
-extern int xfrm4_output_finish(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler);
 extern int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi);

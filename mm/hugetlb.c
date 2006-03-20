@@ -85,7 +85,7 @@ void free_huge_page(struct page *page)
 	BUG_ON(page_count(page));
 
 	INIT_LIST_HEAD(&page->lru);
-	page[1].mapping = NULL;
+	page[1].lru.next = NULL;			/* reset dtor */
 
 	spin_lock(&hugetlb_lock);
 	enqueue_huge_page(page);
@@ -105,7 +105,7 @@ struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
 	}
 	spin_unlock(&hugetlb_lock);
 	set_page_count(page, 1);
-	page[1].mapping = (void *)free_huge_page;
+	page[1].lru.next = (void *)free_huge_page;	/* set dtor */
 	for (i = 0; i < (HPAGE_SIZE/PAGE_SIZE); ++i)
 		clear_user_highpage(&page[i], addr);
 	return page;

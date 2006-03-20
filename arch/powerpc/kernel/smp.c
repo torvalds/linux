@@ -541,7 +541,7 @@ int __devinit start_secondary(void *unused)
 		smp_ops->take_timebase();
 
 	if (system_state > SYSTEM_BOOTING)
-		per_cpu(last_jiffy, cpu) = get_tb();
+		snapshot_timebase();
 
 	spin_lock(&call_lock);
 	cpu_set(cpu, cpu_online_map);
@@ -572,6 +572,8 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	smp_ops->setup_cpu(boot_cpuid);
 
 	set_cpus_allowed(current, old_mask);
+
+	snapshot_timebases();
 
 	dump_numa_cpu_topology();
 }

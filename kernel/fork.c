@@ -108,8 +108,10 @@ void free_task(struct task_struct *tsk)
 }
 EXPORT_SYMBOL(free_task);
 
-void __put_task_struct(struct task_struct *tsk)
+void __put_task_struct_cb(struct rcu_head *rhp)
 {
+	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
+
 	WARN_ON(!(tsk->exit_state & (EXIT_DEAD | EXIT_ZOMBIE)));
 	WARN_ON(atomic_read(&tsk->usage));
 	WARN_ON(tsk == current);
@@ -1060,6 +1062,12 @@ static task_t *copy_process(unsigned long clone_flags,
 	p->clear_child_tid = (clone_flags & CLONE_CHILD_CLEARTID) ? child_tidptr: NULL;
 
 	/*
+	 * sigaltstack should be cleared when sharing the same VM
+	 */
+	if ((clone_flags & (CLONE_VM|CLONE_VFORK)) == CLONE_VM)
+		p->sas_ss_sp = p->sas_ss_size = 0;
+
+	/*
 	 * Syscall tracing should be turned off in the child regardless
 	 * of CLONE_PTRACE.
 	 */
@@ -1123,8 +1131,8 @@ static task_t *copy_process(unsigned long clone_flags,
 		p->real_parent = current;
 	p->parent = p->real_parent;
 
+	spin_lock(&current->sighand->siglock);
 	if (clone_flags & CLONE_THREAD) {
-		spin_lock(&current->sighand->siglock);
 		/*
 		 * Important: if an exit-all has been started then
 		 * do not create this new thread - the whole thread
@@ -1162,8 +1170,6 @@ static task_t *copy_process(unsigned long clone_flags,
 			 */
 			p->it_prof_expires = jiffies_to_cputime(1);
 		}
-
-		spin_unlock(&current->sighand->siglock);
 	}
 
 	/*
@@ -1175,8 +1181,6 @@ static task_t *copy_process(unsigned long clone_flags,
 	if (unlikely(p->ptrace & PT_PTRACED))
 		__ptrace_link(p, current->parent);
 
-	attach_pid(p, PIDTYPE_PID, p->pid);
-	attach_pid(p, PIDTYPE_TGID, p->tgid);
 	if (thread_group_leader(p)) {
 		p->signal->tty = current->signal->tty;
 		p->signal->pgrp = process_group(current);
@@ -1186,9 +1190,12 @@ static task_t *copy_process(unsigned long clone_flags,
 		if (p->pid)
 			__get_cpu_var(process_counts)++;
 	}
+	attach_pid(p, PIDTYPE_TGID, p->tgid);
+	attach_pid(p, PIDTYPE_PID, p->pid);
 
 	nr_threads++;
 	total_forks++;
+	spin_unlock(&current->sighand->siglock);
 	write_unlock_irq(&tasklist_lock);
 	proc_fork_connector(p);
 	return p;

@@ -744,7 +744,7 @@ static int __video1394_ioctl(struct file *file,
 			if (i == ISO_CHANNELS) {
 			    PRINT(KERN_ERR, ohci->host->id, 
 				  "No free channel found");
-			    return EAGAIN;
+			    return -EAGAIN;
 			}
 			if (!(ohci->ISO_channel_usage & mask)) {
 			    v.channel = i;

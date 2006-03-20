@@ -139,7 +139,7 @@ void bcm1480_unmask_irq(int cpu, int irq)
 #ifdef CONFIG_SMP
 static void bcm1480_set_affinity(unsigned int irq, cpumask_t mask)
 {
-	int i = 0, old_cpu, cpu, int_on;
+	int i = 0, old_cpu, cpu, int_on, k;
 	u64 cur_ints;
 	irq_desc_t *desc = irq_desc + irq;
 	unsigned long flags;
@@ -165,7 +165,6 @@ static void bcm1480_set_affinity(unsigned int irq, cpumask_t mask)
 		irq_dirty -= BCM1480_NR_IRQS_HALF;
 	}
 
-	int k;
 	for (k=0; k<2; k++) { /* Loop through high and low interrupt mask register */
 		cur_ints = ____raw_readq(IOADDR(A_BCM1480_IMR_MAPPER(old_cpu) + R_BCM1480_IMR_INTERRUPT_MASK_H + (k*BCM1480_IMR_HL_SPACING)));
 		int_on = !(cur_ints & (((u64) 1) << irq_dirty));
@@ -216,6 +215,7 @@ static void ack_bcm1480_irq(unsigned int irq)
 {
 	u64 pending;
 	unsigned int irq_dirty;
+	int k;
 
 	/*
 	 * If the interrupt was an HT interrupt, now is the time to
@@ -227,7 +227,6 @@ static void ack_bcm1480_irq(unsigned int irq)
 	if ((irq_dirty >= BCM1480_NR_IRQS_HALF) && (irq_dirty <= BCM1480_NR_IRQS)) {
 		irq_dirty -= BCM1480_NR_IRQS_HALF;
 	}
-	int k;
 	for (k=0; k<2; k++) { /* Loop through high and low LDT interrupts */
 		pending = __raw_readq(IOADDR(A_BCM1480_IMR_REGISTER(bcm1480_irq_owner[irq],
 						R_BCM1480_IMR_LDT_INTERRUPT_H + (k*BCM1480_IMR_HL_SPACING))));

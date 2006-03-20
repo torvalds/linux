@@ -97,6 +97,13 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 	if (data->flags & MMC_DATA_READ) {
 		datactrl |= MCI_DPSM_DIRECTION;
 		irqmask = MCI_RXFIFOHALFFULLMASK;
+
+		/*
+		 * If we have less than a FIFOSIZE of bytes to transfer,
+		 * trigger a PIO interrupt as soon as any data is available.
+		 */
+		if (host->size < MCI_FIFOSIZE)
+			irqmask |= MCI_RXDATAAVLBLMASK;
 	} else {
 		/*
 		 * We don't actually need to include "FIFO empty" here

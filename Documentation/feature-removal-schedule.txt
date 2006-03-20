@@ -171,3 +171,21 @@ Why:	The ISA interface is faster and should be always available. The I2C
 	probing is also known to cause trouble in at least one case (see
 	bug #5889.)
 Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	mount/umount uevents
+When:	February 2007
+Why:	These events are not correct, and do not properly let userspace know
+	when a file system has been mounted or unmounted.  Userspace should
+	poll the /proc/mounts file instead to detect this properly.
+Who:	Greg Kroah-Hartman <gregkh@suse.de>
+
+---------------------------
+
+What:	Support for NEC DDB5074 and DDB5476 evaluation boards.
+When:	June 2006
+Why:	Board specific code doesn't build anymore since ~2.6.0 and no
+	users have complained indicating there is no more need for these
+	boards.  This should really be considered a last call.
+Who:	Ralf Baechle <ralf@linux-mips.org>

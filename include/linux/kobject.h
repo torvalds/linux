@@ -41,8 +41,10 @@ enum kobject_action {
 	KOBJ_ADD	= (__force kobject_action_t) 0x01,	/* exclusive to core */
 	KOBJ_REMOVE	= (__force kobject_action_t) 0x02,	/* exclusive to core */
 	KOBJ_CHANGE	= (__force kobject_action_t) 0x03,	/* device state change */
-	KOBJ_OFFLINE	= (__force kobject_action_t) 0x04,	/* device offline */
-	KOBJ_ONLINE	= (__force kobject_action_t) 0x05,	/* device online */
+	KOBJ_MOUNT	= (__force kobject_action_t) 0x04,	/* mount event for block devices (broken) */
+	KOBJ_UMOUNT	= (__force kobject_action_t) 0x05,	/* umount event for block devices (broken) */
+	KOBJ_OFFLINE	= (__force kobject_action_t) 0x06,	/* device offline */
+	KOBJ_ONLINE	= (__force kobject_action_t) 0x07,	/* device online */
 };
 
 struct kobject {

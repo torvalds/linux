@@ -306,7 +306,7 @@ struct slgt_info {
 	int tx_active;
 
 	unsigned char signals;    /* serial signal states */
-	unsigned int init_error;  /* initialization error */
+	int init_error;  /* initialization error */
 
 	unsigned char *tx_buf;
 	int tx_count;

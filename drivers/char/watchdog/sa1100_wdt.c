@@ -93,23 +93,25 @@ static int sa1100dog_ioctl(struct inode *inode, struct file *file,
 {
 	int ret = -ENOIOCTLCMD;
 	int time;
+	void __user *argp = (void __user *)arg;
+	int __user *p = argp;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		ret = copy_to_user((struct watchdog_info __user *)arg, &ident,
+		ret = copy_to_user(argp, &ident,
 				   sizeof(ident)) ? -EFAULT : 0;
 		break;
 
 	case WDIOC_GETSTATUS:
-		ret = put_user(0, (int __user *)arg);
+		ret = put_user(0, p);
 		break;
 
 	case WDIOC_GETBOOTSTATUS:
-		ret = put_user(boot_status, (int __user *)arg);
+		ret = put_user(boot_status, p);
 		break;
 
 	case WDIOC_SETTIMEOUT:
-		ret = get_user(time, (int __user *)arg);
+		ret = get_user(time, p);
 		if (ret)
 			break;
 
@@ -123,7 +125,7 @@ static int sa1100dog_ioctl(struct inode *inode, struct file *file,
 		/*fall through*/
 
 	case WDIOC_GETTIMEOUT:
-		ret = put_user(pre_margin / OSCR_FREQ, (int __user *)arg);
+		ret = put_user(pre_margin / OSCR_FREQ, p);
 		break;
 
 	case WDIOC_KEEPALIVE:

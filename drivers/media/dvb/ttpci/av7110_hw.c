@@ -245,6 +245,9 @@ int av7110_bootarm(struct av7110 *av7110)
 
 	/* test DEBI */
 	iwdebi(av7110, DEBISWAP, DPRAM_BASE, 0x76543210, 4);
+	/* FIXME: Why does Nexus CA require 2x iwdebi for first init? */
+	iwdebi(av7110, DEBISWAP, DPRAM_BASE, 0x76543210, 4);
+
 	if ((ret=irdebi(av7110, DEBINOSWAP, DPRAM_BASE, 0, 4)) != 0x10325476) {
 		printk(KERN_ERR "dvb-ttpci: debi test in av7110_bootarm() failed: "
 		       "%08x != %08x (check your BIOS 'Plug&Play OS' settings)\n",

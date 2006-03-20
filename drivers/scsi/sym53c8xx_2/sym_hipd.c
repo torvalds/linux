@@ -919,6 +919,8 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 
 		tp->usrflags |= (SYM_DISC_ENABLED | SYM_TAGS_ENABLED);
 		tp->usrtags = SYM_SETUP_MAX_TAG;
+		tp->usr_width = np->maxwide;
+		tp->usr_period = 9;
 
 		sym_nvram_setup_target(tp, i, nvram);
 
@@ -3588,7 +3590,7 @@ static int sym_evaluate_dp(struct sym_hcb *np, struct sym_ccb *cp, u32 scr, int 
 
 	if (pm) {
 		dp_scr  = scr_to_cpu(pm->ret);
-		dp_ofs -= scr_to_cpu(pm->sg.size);
+		dp_ofs -= scr_to_cpu(pm->sg.size) & 0x00ffffff;
 	}
 
 	/*

@@ -388,6 +388,7 @@ zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *fsf_req)
 	case FSF_PROT_LINK_DOWN:
 		zfcp_fsf_link_down_info_eval(adapter,
 					     &prot_status_qual->link_down_info);
+		zfcp_erp_adapter_reopen(adapter, 0);
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 
@@ -558,10 +559,8 @@ zfcp_fsf_link_down_info_eval(struct zfcp_adapter *adapter,
 
 	atomic_set_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED, &adapter->status);
 
-	if (link_down == NULL) {
-		zfcp_erp_adapter_reopen(adapter, 0);
-		return;
-	}
+	if (link_down == NULL)
+		goto out;
 
 	switch (link_down->error_code) {
 	case FSF_PSQ_LINK_NO_LIGHT:
@@ -643,16 +642,8 @@ zfcp_fsf_link_down_info_eval(struct zfcp_adapter *adapter,
 				link_down->explanation_code,
 				link_down->vendor_specific_code);
 
-	switch (link_down->error_code) {
-	case FSF_PSQ_LINK_NO_LIGHT:
-	case FSF_PSQ_LINK_WRAP_PLUG:
-	case FSF_PSQ_LINK_NO_FCP:
-	case FSF_PSQ_LINK_FIRMWARE_UPDATE:
-		zfcp_erp_adapter_reopen(adapter, 0);
-		break;
-	default:
-		zfcp_erp_adapter_failed(adapter);
-	}
+ out:
+	zfcp_erp_adapter_failed(adapter);
 }
 
 /*
@@ -2304,6 +2295,35 @@ zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action,
 	return retval;
 }
 
+/**
+ * zfcp_fsf_exchange_port_evaluate
+ * @fsf_req: fsf_req which belongs to xchg port data request
+ * @xchg_ok: specifies if xchg port data was incomplete or complete (0/1)
+ */
+static void
+zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
+{
+	struct zfcp_adapter *adapter;
+	struct fsf_qtcb *qtcb;
+	struct fsf_qtcb_bottom_port *bottom, *data;
+	struct Scsi_Host *shost;
+
+	adapter = fsf_req->adapter;
+	qtcb = fsf_req->qtcb;
+	bottom = &qtcb->bottom.port;
+	shost = adapter->scsi_host;
+
+	data = (struct fsf_qtcb_bottom_port*) fsf_req->data;
+	if (data)
+		memcpy(data, bottom, sizeof(struct fsf_qtcb_bottom_port));
+
+	if (adapter->connection_features & FSF_FEATURE_NPIV_MODE)
+		fc_host_permanent_port_name(shost) = bottom->wwpn;
+	else
+		fc_host_permanent_port_name(shost) = fc_host_port_name(shost);
+	fc_host_maxframe_size(shost) = bottom->maximum_frame_size;
+	fc_host_supported_speeds(shost) = bottom->supported_speed;
+}
 
 /**
  * zfcp_fsf_exchange_port_data_handler - handler for exchange_port_data request
@@ -2312,38 +2332,26 @@ zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action,
 static void
 zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *fsf_req)
 {
-	struct zfcp_adapter *adapter = fsf_req->adapter;
-	struct Scsi_Host *shost = adapter->scsi_host;
-	struct fsf_qtcb *qtcb = fsf_req->qtcb;
-	struct fsf_qtcb_bottom_port *bottom, *data;
+	struct zfcp_adapter *adapter;
+	struct fsf_qtcb *qtcb;
+
+	adapter = fsf_req->adapter;
+	qtcb = fsf_req->qtcb;
 
 	if (fsf_req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		return;
 
 	switch (qtcb->header.fsf_status) {
         case FSF_GOOD:
+		zfcp_fsf_exchange_port_evaluate(fsf_req, 1);
 		atomic_set_mask(ZFCP_STATUS_ADAPTER_XPORT_OK, &adapter->status);
-
-		bottom = &qtcb->bottom.port;
-		data = (struct fsf_qtcb_bottom_port*) fsf_req->data;
-		if (data)
-			memcpy(data, bottom, sizeof(struct fsf_qtcb_bottom_port));
-		if (adapter->connection_features & FSF_FEATURE_NPIV_MODE)
-			fc_host_permanent_port_name(shost) = bottom->wwpn;
-		else
-			fc_host_permanent_port_name(shost) =
-				fc_host_port_name(shost);
-		fc_host_maxframe_size(shost) = bottom->maximum_frame_size;
-		fc_host_supported_speeds(shost) = bottom->supported_speed;
 		break;
-
 	case FSF_EXCHANGE_CONFIG_DATA_INCOMPLETE:
+		zfcp_fsf_exchange_port_evaluate(fsf_req, 0);
 		atomic_set_mask(ZFCP_STATUS_ADAPTER_XPORT_OK, &adapter->status);
-
 		zfcp_fsf_link_down_info_eval(adapter,
 			&qtcb->header.fsf_status_qual.link_down_info);
                 break;
-
         default:
 		debug_text_event(adapter->erp_dbf, 0, "xchg-port-ng");
 		debug_event(adapter->erp_dbf, 0,
@@ -4203,11 +4211,11 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
 	ZFCP_LOG_DEBUG("scpnt->result =0x%x\n", scpnt->result);
 
 	if (scpnt->result != 0)
-		zfcp_scsi_dbf_event_result("erro", 3, fsf_req->adapter, scpnt);
+		zfcp_scsi_dbf_event_result("erro", 3, fsf_req->adapter, scpnt, fsf_req);
 	else if (scpnt->retries > 0)
-		zfcp_scsi_dbf_event_result("retr", 4, fsf_req->adapter, scpnt);
+		zfcp_scsi_dbf_event_result("retr", 4, fsf_req->adapter, scpnt, fsf_req);
 	else
-		zfcp_scsi_dbf_event_result("norm", 6, fsf_req->adapter, scpnt);
+		zfcp_scsi_dbf_event_result("norm", 6, fsf_req->adapter, scpnt, fsf_req);
 
 	/* cleanup pointer (need this especially for abort) */
 	scpnt->host_scribble = NULL;

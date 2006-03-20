@@ -298,7 +298,7 @@ ev64360_fixup_eth_pdata(struct platform_device *pdev)
 }
 #endif
 
-static int __init
+static int
 ev64360_platform_notify(struct device *dev)
 {
 	static struct {

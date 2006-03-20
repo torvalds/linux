@@ -90,6 +90,20 @@ static inline void conditional_sti(struct pt_regs *regs)
 		local_irq_enable();
 }
 
+static inline void preempt_conditional_sti(struct pt_regs *regs)
+{
+	preempt_disable();
+	if (regs->eflags & X86_EFLAGS_IF)
+		local_irq_enable();
+}
+
+static inline void preempt_conditional_cli(struct pt_regs *regs)
+{
+	if (regs->eflags & X86_EFLAGS_IF)
+		local_irq_disable();
+	preempt_enable_no_resched();
+}
+
 static int kstack_depth_to_print = 10;
 
 #ifdef CONFIG_KALLSYMS
@@ -693,7 +707,7 @@ asmlinkage void __kprobes do_debug(struct pt_regs * regs,
 						SIGTRAP) == NOTIFY_STOP)
 		return;
 
-	conditional_sti(regs);
+	preempt_conditional_sti(regs);
 
 	/* Mask out spurious debug traps due to lazy DR7 setting */
 	if (condition & (DR_TRAP0|DR_TRAP1|DR_TRAP2|DR_TRAP3)) {
@@ -738,11 +752,13 @@ asmlinkage void __kprobes do_debug(struct pt_regs * regs,
 
 clear_dr7:
 	set_debugreg(0UL, 7);
+	preempt_conditional_cli(regs);
 	return;
 
 clear_TF_reenable:
 	set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
 	regs->eflags &= ~TF_MASK;
+	preempt_conditional_cli(regs);
 }
 
 static int kernel_math_error(struct pt_regs *regs, const char *str, int trapnr)

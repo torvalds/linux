@@ -516,8 +516,10 @@ static int __devinit nforce3_agp_init(struct pci_dev *pdev)
 	pci_read_config_dword (hammers[0], AMD64_GARTAPERTUREBASE, &apbase);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
-	if ( (apbase & 0x7fff) >> (32 - 25) )
-		 return -ENODEV;
+	if ( (apbase & 0x7fff) >> (32 - 25) ) {
+		printk(KERN_INFO PFX "aperture base > 4G\n");
+		return -ENODEV;
+	}
 
 	apbase = (apbase & 0x7fff) << 25;
 

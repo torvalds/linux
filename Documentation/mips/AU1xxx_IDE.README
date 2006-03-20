@@ -95,10 +95,12 @@ CONFIG_BLK_DEV_IDEDMA_PCI=y
 CONFIG_IDEDMA_PCI_AUTO=y
 CONFIG_BLK_DEV_IDE_AU1XXX=y
 CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
-CONFIG_BLK_DEV_IDE_AU1XXX_BURSTABLE_ON=y
 CONFIG_BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ=128
 CONFIG_BLK_DEV_IDEDMA=y
 CONFIG_IDEDMA_AUTO=y
+
+Also define 'IDE_AU1XXX_BURSTMODE' in 'drivers/ide/mips/au1xxx-ide.c' to enable
+the burst support on DBDMA controller.
 
 If the used system need the USB support enable the following kernel configs for
 high IDE to USB throughput.
@@ -115,6 +117,8 @@ CONFIG_BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ=128
 CONFIG_BLK_DEV_IDEDMA=y
 CONFIG_IDEDMA_AUTO=y
 
+Also undefine 'IDE_AU1XXX_BURSTMODE' in 'drivers/ide/mips/au1xxx-ide.c' to
+disable the burst support on DBDMA controller.
 
 ADD NEW HARD DISC TO WHITE OR BLACK LIST
 ----------------------------------------

@@ -111,7 +111,7 @@
 		CALL(sys_statfs)
 /* 100 */	CALL(sys_fstatfs)
 		CALL(sys_ni_syscall)
-		CALL(OBSOLETE(sys_socketcall))
+		CALL(OBSOLETE(ABI(sys_socketcall, sys_oabi_socketcall)))
 		CALL(sys_syslog)
 		CALL(sys_setitimer)
 /* 105 */	CALL(sys_getitimer)

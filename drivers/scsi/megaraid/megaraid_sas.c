@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_sas.c
- * Version	: v00.00.02.02
+ * Version	: v00.00.02.04
  *
  * Authors:
  * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsil.com>
@@ -59,6 +59,12 @@ static struct pci_device_id megasas_pci_table[] = {
 	 PCI_ANY_ID,
 	 PCI_ANY_ID,
 	 },
+	{
+	 PCI_VENDOR_ID_LSI_LOGIC,
+	 PCI_DEVICE_ID_LSI_SAS1078R, // ppc IOP
+	 PCI_ANY_ID,
+	 PCI_ANY_ID,
+	},
 	{
 	 PCI_VENDOR_ID_DELL,
 	 PCI_DEVICE_ID_DELL_PERC5, // xscale IOP
@@ -196,6 +202,86 @@ static struct megasas_instance_template megasas_instance_template_xscale = {
 /**
 *	This is the end of set of functions & definitions specific 
 *	to xscale (deviceid : 1064R, PERC5) controllers
+*/
+
+/**
+*	The following functions are defined for ppc (deviceid : 0x60) 
+* 	controllers
+*/
+
+/**
+ * megasas_enable_intr_ppc -	Enables interrupts
+ * @regs:			MFI register set
+ */
+static inline void
+megasas_enable_intr_ppc(struct megasas_register_set __iomem * regs)
+{
+	writel(0xFFFFFFFF, &(regs)->outbound_doorbell_clear);
+    
+	writel(~0x80000004, &(regs)->outbound_intr_mask);
+
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_intr_mask);
+}
+
+/**
+ * megasas_read_fw_status_reg_ppc - returns the current FW status value
+ * @regs:			MFI register set
+ */
+static u32
+megasas_read_fw_status_reg_ppc(struct megasas_register_set __iomem * regs)
+{
+	return readl(&(regs)->outbound_scratch_pad);
+}
+
+/**
+ * megasas_clear_interrupt_ppc -	Check & clear interrupt
+ * @regs:				MFI register set
+ */
+static int 
+megasas_clear_intr_ppc(struct megasas_register_set __iomem * regs)
+{
+	u32 status;
+	/*
+	 * Check if it is our interrupt
+	 */
+	status = readl(&regs->outbound_intr_status);
+
+	if (!(status & MFI_REPLY_1078_MESSAGE_INTERRUPT)) {
+		return 1;
+	}
+
+	/*
+	 * Clear the interrupt by writing back the same value
+	 */
+	writel(status, &regs->outbound_doorbell_clear);
+
+	return 0;
+}
+/**
+ * megasas_fire_cmd_ppc -	Sends command to the FW
+ * @frame_phys_addr :		Physical address of cmd
+ * @frame_count :		Number of frames for the command
+ * @regs :			MFI register set
+ */
+static inline void 
+megasas_fire_cmd_ppc(dma_addr_t frame_phys_addr, u32 frame_count, struct megasas_register_set __iomem *regs)
+{
+	writel((frame_phys_addr | (frame_count<<1))|1, 
+			&(regs)->inbound_queue_port);
+}
+
+static struct megasas_instance_template megasas_instance_template_ppc = {
+	
+	.fire_cmd = megasas_fire_cmd_ppc,
+	.enable_intr = megasas_enable_intr_ppc,
+	.clear_intr = megasas_clear_intr_ppc,
+	.read_fw_status_reg = megasas_read_fw_status_reg_ppc,
+};
+
+/**
+*	This is the end of set of functions & definitions
+* 	specific to ppc (deviceid : 0x60) controllers
 */
 
 /**
@@ -707,6 +793,20 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 	return 0;
 }
 
+static int megasas_slave_configure(struct scsi_device *sdev)
+{
+	/*
+	 * Don't export physical disk devices to the disk driver.
+	 *
+	 * FIXME: Currently we don't export them to the midlayer at all.
+	 * 	  That will be fixed once LSI engineers have audited the
+	 * 	  firmware for possible issues.
+	 */
+	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS && sdev->type == TYPE_DISK)
+		return -ENXIO;
+	return 0;
+}
+
 /**
  * megasas_wait_for_outstanding -	Wait for all outstanding cmds
  * @instance:				Adapter soft state
@@ -857,6 +957,7 @@ static struct scsi_host_template megasas_template = {
 	.module = THIS_MODULE,
 	.name = "LSI Logic SAS based MegaRAID driver",
 	.proc_name = "megaraid_sas",
+	.slave_configure = megasas_slave_configure,
 	.queuecommand = megasas_queue_command,
 	.eh_device_reset_handler = megasas_reset_device,
 	.eh_bus_reset_handler = megasas_reset_bus_host,
@@ -983,20 +1084,6 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 			cmd->sync_cmd = 0;
 			megasas_complete_int_cmd(instance, cmd);
 			break;
-		}
-
-		/*
-		 * Don't export physical disk devices to mid-layer.
-		 */
-		if (!MEGASAS_IS_LOGICAL(cmd->scmd) &&
-		    (hdr->cmd_status == MFI_STAT_OK) &&
-		    (cmd->scmd->cmnd[0] == INQUIRY)) {
-
-			if (((*(u8 *) cmd->scmd->request_buffer) & 0x1F) ==
-			    TYPE_DISK) {
-				cmd->scmd->result = DID_BAD_TARGET << 16;
-				exception = 1;
-			}
 		}
 
 	case MFI_CMD_LD_READ:
@@ -1607,7 +1694,17 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 
 	reg_set = instance->reg_set;
 
-	instance->instancet = &megasas_instance_template_xscale;
+	switch(instance->pdev->device)
+	{
+		case PCI_DEVICE_ID_LSI_SAS1078R:	
+			instance->instancet = &megasas_instance_template_ppc;
+			break;
+		case PCI_DEVICE_ID_LSI_SAS1064R:
+		case PCI_DEVICE_ID_DELL_PERC5:
+		default:
+			instance->instancet = &megasas_instance_template_xscale;
+			break;
+	}
 
 	/*
 	 * We expect the FW state to be READY
@@ -1983,6 +2080,7 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	host->max_channel = MEGASAS_MAX_CHANNELS - 1;
 	host->max_id = MEGASAS_MAX_DEV_PER_CHANNEL;
 	host->max_lun = MEGASAS_MAX_LUN;
+	host->max_cmd_len = 16;
 
 	/*
 	 * Notify the mid-layer about the new controller

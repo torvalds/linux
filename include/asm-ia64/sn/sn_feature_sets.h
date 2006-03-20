@@ -12,9 +12,6 @@
  */
 
 
-#include <asm/types.h>
-#include <asm/bitops.h>
-
 /* --------------------- PROM Features -----------------------------*/
 extern int sn_prom_feature_available(int id);
 

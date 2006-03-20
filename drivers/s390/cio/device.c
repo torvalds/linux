@@ -359,7 +359,7 @@ ccw_device_set_online(struct ccw_device *cdev)
 	else 
 		pr_debug("ccw_device_offline returned %d, device %s\n",
 			 ret, cdev->dev.bus_id);
-	return (ret = 0) ? -ENODEV : ret;
+	return (ret == 0) ? -ENODEV : ret;
 }
 
 static ssize_t

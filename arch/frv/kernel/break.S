@@ -200,12 +200,20 @@ __break_step:
 	movsg		bpcsr,gr2
 	sethi.p		%hi(__entry_kernel_external_interrupt),gr3
 	setlo		%lo(__entry_kernel_external_interrupt),gr3
-	subcc		gr2,gr3,gr0,icc0
+	subcc.p		gr2,gr3,gr0,icc0
+	sethi		%hi(__entry_uspace_external_interrupt),gr3
+	setlo.p		%lo(__entry_uspace_external_interrupt),gr3
 	beq		icc0,#2,__break_step_kernel_external_interrupt
-	sethi.p		%hi(__entry_uspace_external_interrupt),gr3
-	setlo		%lo(__entry_uspace_external_interrupt),gr3
-	subcc		gr2,gr3,gr0,icc0
+	subcc.p		gr2,gr3,gr0,icc0
+	sethi		%hi(__entry_kernel_external_interrupt_virtually_disabled),gr3
+	setlo.p		%lo(__entry_kernel_external_interrupt_virtually_disabled),gr3
 	beq		icc0,#2,__break_step_uspace_external_interrupt
+	subcc.p		gr2,gr3,gr0,icc0
+	sethi		%hi(__entry_kernel_external_interrupt_virtual_reenable),gr3
+	setlo.p		%lo(__entry_kernel_external_interrupt_virtual_reenable),gr3
+	beq		icc0,#2,__break_step_kernel_external_interrupt_virtually_disabled
+	subcc		gr2,gr3,gr0,icc0
+	beq		icc0,#2,__break_step_kernel_external_interrupt_virtual_reenable
 
 	LEDS		0x2007,gr2
 
@@ -254,6 +262,9 @@ __break_step_kernel_softprog_interrupt:
 # step through an external interrupt from kernel mode
 	.globl		__break_step_kernel_external_interrupt
 __break_step_kernel_external_interrupt:
+	# deal with virtual interrupt disablement
+	beq		icc2,#0,__break_step_kernel_external_interrupt_virtually_disabled
+
 	sethi.p		%hi(__entry_kernel_external_interrupt_reentry),gr3
 	setlo		%lo(__entry_kernel_external_interrupt_reentry),gr3
 
@@ -293,6 +304,64 @@ __break_return_as_kernel_prologue:
 	movsg		scr3,gr31
 #endif
 	rett		#1
+
+# we single-stepped into an interrupt handler whilst interrupts were merely virtually disabled
+# need to really disable interrupts, set flag, fix up and return
+__break_step_kernel_external_interrupt_virtually_disabled:
+	movsg		psr,gr2
+	andi		gr2,#~PSR_PIL,gr2
+	ori		gr2,#PSR_PIL_14,gr2	/* debugging interrupts only */
+	movgs		gr2,psr
+
+	ldi		@(gr31,#REG_CCR),gr3
+	movgs		gr3,ccr
+	subcc.p		gr0,gr0,gr0,icc2	/* leave Z set, clear C */
+
+	# exceptions must've been enabled and we must've been in supervisor mode
+	setlos		BPSR_BET|BPSR_BS,gr3
+	movgs		gr3,bpsr
+
+	# return to where the interrupt happened
+	movsg		pcsr,gr2
+	movgs		gr2,bpcsr
+
+	lddi.p		@(gr31,#REG_GR(2)),gr2
+
+	xor		gr31,gr31,gr31
+	movgs		gr0,brr
+#ifdef CONFIG_MMU
+	movsg		scr3,gr31
+#endif
+	rett		#1
+
+# we stepped through into the virtual interrupt reenablement trap
+#
+# we also want to single step anyway, but after fixing up so that we get an event on the
+# instruction after the broken-into exception returns
+	.globl		__break_step_kernel_external_interrupt_virtual_reenable
+__break_step_kernel_external_interrupt_virtual_reenable:
+	movsg		psr,gr2
+	andi		gr2,#~PSR_PIL,gr2
+	movgs		gr2,psr
+
+	ldi		@(gr31,#REG_CCR),gr3
+	movgs		gr3,ccr
+	subicc		gr0,#1,gr0,icc2		/* clear Z, set C */
+
+	# save the adjusted ICC2
+	movsg		ccr,gr3
+	sti		gr3,@(gr31,#REG_CCR)
+
+	# exceptions must've been enabled and we must've been in supervisor mode
+	setlos		BPSR_BET|BPSR_BS,gr3
+	movgs		gr3,bpsr
+
+	# return to where the trap happened
+	movsg		pcsr,gr2
+	movgs		gr2,bpcsr
+
+	# and then process the single step
+	bra		__break_continue
 
 # step through an internal exception from uspace mode
 	.globl		__break_step_uspace_softprog_interrupt

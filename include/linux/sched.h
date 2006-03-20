@@ -298,8 +298,9 @@ struct mm_struct {
 				unsigned long addr, unsigned long len,
 				unsigned long pgoff, unsigned long flags);
 	void (*unmap_area) (struct mm_struct *mm, unsigned long addr);
-        unsigned long mmap_base;		/* base of mmap area */
-        unsigned long cached_hole_size;         /* if non-zero, the largest hole below free_area_cache */
+	unsigned long mmap_base;		/* base of mmap area */
+	unsigned long task_size;		/* size of task vm space */
+	unsigned long cached_hole_size;         /* if non-zero, the largest hole below free_area_cache */
 	unsigned long free_area_cache;		/* first hole of size cached_hole_size or larger */
 	pgd_t * pgd;
 	atomic_t mm_users;			/* How many users with user space? */
@@ -697,11 +698,8 @@ struct task_struct {
 
 	int lock_depth;		/* BKL lock depth */
 
-#if defined(CONFIG_SMP)
-	int last_waker_cpu;	/* CPU that last woke this task up */
-#if defined(__ARCH_WANT_UNLOCKED_CTXSW)
+#if defined(CONFIG_SMP) && defined(__ARCH_WANT_UNLOCKED_CTXSW)
 	int oncpu;
-#endif
 #endif
 	int prio, static_prio;
 	struct list_head run_list;
@@ -894,7 +892,6 @@ static inline int pid_alive(struct task_struct *p)
 }
 
 extern void free_task(struct task_struct *tsk);
-extern void __put_task_struct(struct task_struct *tsk);
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 
 extern void __put_task_struct_cb(struct rcu_head *rhp);

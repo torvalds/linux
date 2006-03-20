@@ -14,6 +14,7 @@
 
 #include <asm/asm.h>
 #include <asm/cacheops.h>
+#include <asm/cpu-features.h>
 
 /*
  * This macro return a properly sign-extended address suitable as base address
@@ -78,22 +79,25 @@ static inline void flush_scache_line(unsigned long addr)
 	cache_op(Hit_Writeback_Inv_SD, addr);
 }
 
+#define protected_cache_op(op,addr)				\
+	__asm__ __volatile__(					\
+	"	.set	push			\n"		\
+	"	.set	noreorder		\n"		\
+	"	.set	mips3			\n"		\
+	"1:	cache	%0, (%1)		\n"		\
+	"2:	.set	pop			\n"		\
+	"	.section __ex_table,\"a\"	\n"		\
+	"	"STR(PTR)" 1b, 2b		\n"		\
+	"	.previous"					\
+	:							\
+	: "i" (op), "r" (addr))
+
 /*
  * The next two are for badland addresses like signal trampolines.
  */
 static inline void protected_flush_icache_line(unsigned long addr)
 {
-	__asm__ __volatile__(
-		"	.set	push			\n"
-		"	.set	noreorder		\n"
-		"	.set	mips3			\n"
-		"1:	cache	%0, (%1)		\n"
-		"2:	.set	pop			\n"
-		"	.section __ex_table,\"a\"	\n"
-		"	"STR(PTR)" 1b, 2b		\n"
-		"	.previous"
-		:
-		: "i" (Hit_Invalidate_I), "r" (addr));
+	protected_cache_op(Hit_Invalidate_I, addr);
 }
 
 /*
@@ -104,32 +108,12 @@ static inline void protected_flush_icache_line(unsigned long addr)
  */
 static inline void protected_writeback_dcache_line(unsigned long addr)
 {
-	__asm__ __volatile__(
-		"	.set	push			\n"
-		"	.set	noreorder		\n"
-		"	.set	mips3			\n"
-		"1:	cache	%0, (%1)		\n"
-		"2:	.set	pop			\n"
-		"	.section __ex_table,\"a\"	\n"
-		"	"STR(PTR)" 1b, 2b		\n"
-		"	.previous"
-		:
-		: "i" (Hit_Writeback_Inv_D), "r" (addr));
+	protected_cache_op(Hit_Writeback_Inv_D, addr);
 }
 
 static inline void protected_writeback_scache_line(unsigned long addr)
 {
-	__asm__ __volatile__(
-		"	.set	push			\n"
-		"	.set	noreorder		\n"
-		"	.set	mips3			\n"
-		"1:	cache	%0, (%1)		\n"
-		"2:	.set	pop			\n"
-		"	.section __ex_table,\"a\"	\n"
-		"	"STR(PTR)" 1b, 2b		\n"
-		"	.previous"
-		:
-		: "i" (Hit_Writeback_Inv_SD), "r" (addr));
+	protected_cache_op(Hit_Writeback_Inv_SD, addr);
 }
 
 /*
@@ -294,5 +278,29 @@ __BUILD_BLAST_CACHE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 32)
 __BUILD_BLAST_CACHE(i, icache, Index_Invalidate_I, Hit_Invalidate_I, 64)
 __BUILD_BLAST_CACHE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 64)
 __BUILD_BLAST_CACHE(s, scache, Index_Writeback_Inv_SD, Hit_Writeback_Inv_SD, 128)
+
+/* build blast_xxx_range, protected_blast_xxx_range */
+#define __BUILD_BLAST_CACHE_RANGE(pfx, desc, hitop, prot) \
+static inline void prot##blast_##pfx##cache##_range(unsigned long start, \
+						    unsigned long end)	\
+{									\
+	unsigned long lsize = cpu_##desc##_line_size();			\
+	unsigned long addr = start & ~(lsize - 1);			\
+	unsigned long aend = (end - 1) & ~(lsize - 1);			\
+	while (1) {							\
+		prot##cache_op(hitop, addr);				\
+		if (addr == aend)					\
+			break;						\
+		addr += lsize;						\
+	}								\
+}
+
+__BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, protected_)
+__BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, protected_)
+__BUILD_BLAST_CACHE_RANGE(i, icache, Hit_Invalidate_I, protected_)
+__BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, )
+__BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, )
+/* blast_inv_dcache_range */
+__BUILD_BLAST_CACHE_RANGE(inv_d, dcache, Hit_Invalidate_D, )
 
 #endif /* _ASM_R4KCACHE_H */

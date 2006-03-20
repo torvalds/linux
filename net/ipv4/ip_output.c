@@ -207,8 +207,10 @@ static inline int ip_finish_output(struct sk_buff *skb)
 {
 #if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
 	/* Policy lookup after SNAT yielded a new policy */
-	if (skb->dst->xfrm != NULL)
-		return xfrm4_output_finish(skb);
+	if (skb->dst->xfrm != NULL) {
+		IPCB(skb)->flags |= IPSKB_REROUTED;
+		return dst_output(skb);
+	}
 #endif
 	if (skb->len > dst_mtu(skb->dst) &&
 	    !(skb_shinfo(skb)->ufo_size || skb_shinfo(skb)->tso_size))
@@ -271,8 +273,9 @@ int ip_mc_output(struct sk_buff *skb)
 				newskb->dev, ip_dev_loopback_xmit);
 	}
 
-	return NF_HOOK(PF_INET, NF_IP_POST_ROUTING, skb, NULL, skb->dev,
-		       ip_finish_output);
+	return NF_HOOK_COND(PF_INET, NF_IP_POST_ROUTING, skb, NULL, skb->dev,
+			    ip_finish_output,
+			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
 int ip_output(struct sk_buff *skb)
@@ -284,8 +287,9 @@ int ip_output(struct sk_buff *skb)
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_IP);
 
-	return NF_HOOK(PF_INET, NF_IP_POST_ROUTING, skb, NULL, dev,
-		       ip_finish_output);
+	return NF_HOOK_COND(PF_INET, NF_IP_POST_ROUTING, skb, NULL, dev,
+		            ip_finish_output,
+			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
 int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
@@ -843,10 +847,11 @@ int ip_append_data(struct sock *sk,
 	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&
 			(rt->u.dst.dev->features & NETIF_F_UFO)) {
 
-		if(ip_ufo_append_data(sk, getfrag, from, length, hh_len,
-			       fragheaderlen, transhdrlen, mtu, flags))
+		err = ip_ufo_append_data(sk, getfrag, from, length, hh_len,
+					 fragheaderlen, transhdrlen, mtu,
+					 flags);
+		if (err)
 			goto error;
-
 		return 0;
 	}
 

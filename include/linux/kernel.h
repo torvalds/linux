@@ -326,12 +326,6 @@ struct sysinfo {
 /* Force a compilation error if condition is true */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
-#ifdef CONFIG_SYSCTL
-extern int randomize_va_space;
-#else
-#define randomize_va_space 1
-#endif
-
 /* Trap pasters of __FUNCTION__ at compile-time */
 #define __FUNCTION__ (__func__)
 

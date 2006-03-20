@@ -313,7 +313,7 @@
 #define __NR_mknodat			(__NR_Linux + 290)
 #define __NR_fchownat			(__NR_Linux + 291)
 #define __NR_futimesat			(__NR_Linux + 292)
-#define __NR_newfstatat			(__NR_Linux + 293)
+#define __NR_fstatat			(__NR_Linux + 293)
 #define __NR_unlinkat			(__NR_Linux + 294)
 #define __NR_renameat			(__NR_Linux + 295)
 #define __NR_linkat			(__NR_Linux + 296)
@@ -593,7 +593,7 @@
 #define __NR_mknodat			(__NR_Linux + 249)
 #define __NR_fchownat			(__NR_Linux + 250)
 #define __NR_futimesat			(__NR_Linux + 251)
-#define __NR_newfstatat			(__NR_Linux + 252)
+#define __NR_fstatat			(__NR_Linux + 252)
 #define __NR_unlinkat			(__NR_Linux + 253)
 #define __NR_renameat			(__NR_Linux + 254)
 #define __NR_linkat			(__NR_Linux + 255)
@@ -877,7 +877,7 @@
 #define __NR_mknodat			(__NR_Linux + 253)
 #define __NR_fchownat			(__NR_Linux + 254)
 #define __NR_futimesat			(__NR_Linux + 255)
-#define __NR_newfstatat			(__NR_Linux + 256)
+#define __NR_fstatat			(__NR_Linux + 256)
 #define __NR_unlinkat			(__NR_Linux + 257)
 #define __NR_renameat			(__NR_Linux + 258)
 #define __NR_linkat			(__NR_Linux + 259)
@@ -1184,10 +1184,8 @@ type name (atype a,btype b,ctype c,dtype d,etype e,ftype f) \
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-# ifndef __mips64
-#  define __ARCH_WANT_STAT64
-# endif
 # ifdef CONFIG_32BIT
+#  define __ARCH_WANT_STAT64
 #  define __ARCH_WANT_SYS_TIME
 # endif
 # ifdef CONFIG_MIPS32_O32

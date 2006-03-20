@@ -228,11 +228,6 @@ static inline int need_iommu(struct device *dev, unsigned long addr, size_t size
 	int mmu = high;
 	if (force_iommu) 
 		mmu = 1; 
-	if (no_iommu) { 
-		if (high) 
-			panic("PCI-DMA: high address but no IOMMU.\n"); 
-		mmu = 0; 
-	} 	
 	return mmu; 
 }
 
@@ -241,11 +236,6 @@ static inline int nonforced_iommu(struct device *dev, unsigned long addr, size_t
 	u64 mask = *dev->dma_mask;
 	int high = addr + size >= mask;
 	int mmu = high;
-	if (no_iommu) { 
-		if (high) 
-			panic("PCI-DMA: high address but no IOMMU.\n"); 
-		mmu = 0; 
-	} 	
 	return mmu; 
 }
 
@@ -379,7 +369,7 @@ static int __dma_map_cont(struct scatterlist *sg, int start, int stopat,
 			SET_LEAK(iommu_page);
 			addr += PAGE_SIZE;
 			iommu_page++;
-	} 
+		}
 	} 
 	BUG_ON(iommu_page - iommu_start != pages);	
 	return 0;
@@ -634,17 +624,13 @@ static int __init pci_iommu_init(void)
 		(agp_copy_info(agp_bridge, &info) < 0);
 #endif	
 
-	if (swiotlb) { 
-		no_iommu = 1;
+	if (swiotlb)
 		return -1; 
-	} 
-	
+
 	if (no_iommu ||
 	    (!force_iommu && end_pfn <= MAX_DMA32_PFN) ||
 	    !iommu_aperture ||
 	    (no_agp && init_k8_gatt(&info) < 0)) {
-		no_iommu = 1;
-		no_iommu_init();
 		printk(KERN_INFO "PCI-DMA: Disabling IOMMU.\n");
 		if (end_pfn > MAX_DMA32_PFN) {
 			printk(KERN_ERR "WARNING more than 4GB of memory "

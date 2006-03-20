@@ -452,8 +452,7 @@ mpt_base_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 	} else if (func == MPI_FUNCTION_EVENT_ACK) {
 		dprintk((MYIOC_s_INFO_FMT "mpt_base_reply, EventAck reply received\n",
 				ioc->name));
-	} else if (func == MPI_FUNCTION_CONFIG ||
-		   func == MPI_FUNCTION_TOOLBOX) {
+	} else if (func == MPI_FUNCTION_CONFIG) {
 		CONFIGPARMS *pCfg;
 		unsigned long flags;
 
@@ -5327,115 +5326,6 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/**
- *	mpt_toolbox - Generic function to issue toolbox message
- *	@ioc - Pointer to an adapter structure
- *	@cfg - Pointer to a toolbox structure. Struct contains
- *		action, page address, direction, physical address
- *		and pointer to a configuration page header
- *		Page header is updated.
- *
- *	Returns 0 for success
- *	-EPERM if not allowed due to ISR context
- *	-EAGAIN if no msg frames currently available
- *	-EFAULT for non-successful reply or no reply (timeout)
- */
-int
-mpt_toolbox(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
-{
-	ToolboxIstwiReadWriteRequest_t	*pReq;
-	MPT_FRAME_HDR	*mf;
-	struct pci_dev	*pdev;
-	unsigned long	 flags;
-	int		 rc;
-	u32		 flagsLength;
-	int		 in_isr;
-
-	/*	Prevent calling wait_event() (below), if caller happens
-	 *	to be in ISR context, because that is fatal!
-	 */
-	in_isr = in_interrupt();
-	if (in_isr) {
-		dcprintk((MYIOC_s_WARN_FMT "toobox request not allowed in ISR context!\n",
-				ioc->name));
-		return -EPERM;
-	}
-
-	/* Get and Populate a free Frame
-	 */
-	if ((mf = mpt_get_msg_frame(mpt_base_index, ioc)) == NULL) {
-		dcprintk((MYIOC_s_WARN_FMT "mpt_toolbox: no msg frames!\n",
-				ioc->name));
-		return -EAGAIN;
-	}
-	pReq = (ToolboxIstwiReadWriteRequest_t	*)mf;
-	pReq->Tool = pCfg->action;
-	pReq->Reserved = 0;
-	pReq->ChainOffset = 0;
-	pReq->Function = MPI_FUNCTION_TOOLBOX;
-	pReq->Reserved1 = 0;
-	pReq->Reserved2 = 0;
-	pReq->MsgFlags = 0;
-	pReq->Flags = pCfg->dir;
-	pReq->BusNum = 0;
-	pReq->Reserved3 = 0;
-	pReq->NumAddressBytes = 0x01;
-	pReq->Reserved4 = 0;
-	pReq->DataLength = cpu_to_le16(0x04);
-	pdev = ioc->pcidev;
-	if (pdev->devfn & 1)
-		pReq->DeviceAddr = 0xB2;
-	else
-		pReq->DeviceAddr = 0xB0;
-	pReq->Addr1 = 0;
-	pReq->Addr2 = 0;
-	pReq->Addr3 = 0;
-	pReq->Reserved5 = 0;
-
-	/* Add a SGE to the config request.
-	 */
-
-	flagsLength = MPT_SGE_FLAGS_SSIMPLE_READ | 4;
-
-	mpt_add_sge((char *)&pReq->SGL, flagsLength, pCfg->physAddr);
-
-	dcprintk((MYIOC_s_INFO_FMT "Sending Toolbox request, Tool=%x\n",
-		ioc->name, pReq->Tool));
-
-	/* Append pCfg pointer to end of mf
-	 */
-	*((void **) (((u8 *) mf) + (ioc->req_sz - sizeof(void *)))) =  (void *) pCfg;
-
-	/* Initalize the timer
-	 */
-	init_timer(&pCfg->timer);
-	pCfg->timer.data = (unsigned long) ioc;
-	pCfg->timer.function = mpt_timer_expired;
-	pCfg->wait_done = 0;
-
-	/* Set the timer; ensure 10 second minimum */
-	if (pCfg->timeout < 10)
-		pCfg->timer.expires = jiffies + HZ*10;
-	else
-		pCfg->timer.expires = jiffies + HZ*pCfg->timeout;
-
-	/* Add to end of Q, set timer and then issue this command */
-	spin_lock_irqsave(&ioc->FreeQlock, flags);
-	list_add_tail(&pCfg->linkage, &ioc->configQ);
-	spin_unlock_irqrestore(&ioc->FreeQlock, flags);
-
-	add_timer(&pCfg->timer);
-	mpt_put_msg_frame(mpt_base_index, ioc, mf);
-	wait_event(mpt_waitq, pCfg->wait_done);
-
-	/* mf has been freed - do not access */
-
-	rc = pCfg->status;
-
-	return rc;
-}
-
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	mpt_timer_expired - Call back for timer process.
  *	Used only internal config functionality.
@@ -6142,7 +6032,7 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 	if (ioc->events && (ioc->eventTypes & ( 1 << event))) {
 		int idx;
 
-		idx = ioc->eventContext % ioc->eventLogSize;
+		idx = ioc->eventContext % MPTCTL_EVENT_LOG_SIZE;
 
 		ioc->events[idx].event = event;
 		ioc->events[idx].eventContext = ioc->eventContext;
@@ -6540,7 +6430,6 @@ EXPORT_SYMBOL(mpt_lan_index);
 EXPORT_SYMBOL(mpt_stm_index);
 EXPORT_SYMBOL(mpt_HardResetHandler);
 EXPORT_SYMBOL(mpt_config);
-EXPORT_SYMBOL(mpt_toolbox);
 EXPORT_SYMBOL(mpt_findImVolumes);
 EXPORT_SYMBOL(mpt_read_ioc_pg_3);
 EXPORT_SYMBOL(mpt_alloc_fw_memory);

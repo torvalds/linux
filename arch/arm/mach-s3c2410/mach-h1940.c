@@ -46,10 +46,11 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-//#include <asm/debug-ll.h>
+
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-lcd.h>
 
+#include <asm/arch/h1940-latch.h>
 #include <asm/arch/fb.h>
 
 #include <linux/serial_core.h>
@@ -59,7 +60,12 @@
 #include "cpu.h"
 
 static struct map_desc h1940_iodesc[] __initdata = {
-	/* nothing here yet */
+	[0] = {
+		.virtual	= (unsigned long)H1940_LATCH,
+		.pfn		= __phys_to_pfn(H1940_PA_LATCH),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE
+	},
 };
 
 #define UCON S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK
@@ -92,6 +98,25 @@ static struct s3c2410_uartcfg h1940_uartcfgs[] = {
 	}
 };
 
+/* Board control latch control */
+
+static unsigned int latch_state = H1940_LATCH_DEFAULT;
+
+void h1940_latch_control(unsigned int clear, unsigned int set)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	latch_state &= ~clear;
+	latch_state |= set;
+
+	__raw_writel(latch_state, H1940_LATCH);
+
+	local_irq_restore(flags);
+}
+
+EXPORT_SYMBOL_GPL(h1940_latch_control);
 
 
 /**

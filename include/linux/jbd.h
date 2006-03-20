@@ -498,12 +498,6 @@ struct transaction_s
 	struct journal_head	*t_checkpoint_list;
 
 	/*
-	 * Doubly-linked circular list of all buffers submitted for IO while
-	 * checkpointing. [j_list_lock]
-	 */
-	struct journal_head	*t_checkpoint_io_list;
-
-	/*
 	 * Doubly-linked circular list of temporary buffers currently undergoing
 	 * IO in the log [j_list_lock]
 	 */
@@ -852,7 +846,7 @@ extern void journal_commit_transaction(journal_t *);
 
 /* Checkpoint list management */
 int __journal_clean_checkpoint_list(journal_t *journal);
-int __journal_remove_checkpoint(struct journal_head *);
+void __journal_remove_checkpoint(struct journal_head *);
 void __journal_insert_checkpoint(struct journal_head *, transaction_t *);
 
 /* Buffer IO */

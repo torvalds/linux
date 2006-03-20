@@ -87,11 +87,7 @@ EXPORT_SYMBOL(cpu_online_map);
 cpumask_t cpu_callin_map;
 cpumask_t cpu_callout_map;
 EXPORT_SYMBOL(cpu_callout_map);
-#ifdef CONFIG_HOTPLUG_CPU
-cpumask_t cpu_possible_map = CPU_MASK_ALL;
-#else
 cpumask_t cpu_possible_map;
-#endif
 EXPORT_SYMBOL(cpu_possible_map);
 static cpumask_t smp_commenced_mask;
 
@@ -901,12 +897,6 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	int timeout;
 	unsigned long start_eip;
 	unsigned short nmi_high = 0, nmi_low = 0;
-
-	if (!cpu_gdt_descr[cpu].address &&
-	    !(cpu_gdt_descr[cpu].address = get_zeroed_page(GFP_KERNEL))) {
-		printk("Failed to allocate GDT for CPU %d\n", cpu);
-		return 1;
-	}
 
 	++cpucount;
 

@@ -1791,6 +1791,8 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 		goto out;
 	}
 
+	pci_set_drvdata(pdev, dev);
+
 	tp = netdev_priv(dev);
 	ioaddr = tp->mmio_addr;
 
@@ -1826,8 +1828,6 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	rc = register_netdev(dev);
 	if (rc < 0)
 		goto err_remove_mii;
-
-	pci_set_drvdata(pdev, dev);
 
 	net_probe(tp, KERN_INFO "%s: %s at %p (IRQ: %d), "
 	       "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",

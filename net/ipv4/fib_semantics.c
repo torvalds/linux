@@ -1045,7 +1045,7 @@ fib_convert_rtentry(int cmd, struct nlmsghdr *nl, struct rtmsg *rtm,
 	}
 
 	nl->nlmsg_flags = NLM_F_REQUEST;
-	nl->nlmsg_pid = current->pid;
+	nl->nlmsg_pid = 0;
 	nl->nlmsg_seq = 0;
 	nl->nlmsg_len = NLMSG_LENGTH(sizeof(*rtm));
 	if (cmd == SIOCDELRT) {

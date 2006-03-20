@@ -153,13 +153,11 @@ static int swsusp_swap_check(void) /* This is called before saving image */
 {
 	int i;
 
-	if (!swsusp_resume_device)
-		return -ENODEV;
 	spin_lock(&swap_lock);
 	for (i = 0; i < MAX_SWAPFILES; i++) {
 		if (!(swap_info[i].flags & SWP_WRITEOK))
 			continue;
-		if (is_resume_device(swap_info + i)) {
+		if (!swsusp_resume_device || is_resume_device(swap_info + i)) {
 			spin_unlock(&swap_lock);
 			root_swap = i;
 			return 0;

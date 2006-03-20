@@ -68,6 +68,9 @@ kmem_zone_t	*qm_dqzone;
 kmem_zone_t	*qm_dqtrxzone;
 STATIC kmem_shaker_t	xfs_qm_shaker;
 
+STATIC cred_t	xfs_zerocr;
+STATIC xfs_inode_t	xfs_zeroino;
+
 STATIC void	xfs_qm_list_init(xfs_dqlist_t *, char *, int);
 STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);
 
@@ -1393,8 +1396,6 @@ xfs_qm_qino_alloc(
 	xfs_trans_t	*tp;
 	int		error;
 	unsigned long	s;
-	cred_t		zerocr;
-	xfs_inode_t	zeroino;
 	int		committed;
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QINOCREATE);
@@ -1406,11 +1407,9 @@ xfs_qm_qino_alloc(
 		xfs_trans_cancel(tp, 0);
 		return error;
 	}
-	memset(&zerocr, 0, sizeof(zerocr));
-	memset(&zeroino, 0, sizeof(zeroino));
 
-	if ((error = xfs_dir_ialloc(&tp, &zeroino, S_IFREG, 1, 0,
-				   &zerocr, 0, 1, ip, &committed))) {
+	if ((error = xfs_dir_ialloc(&tp, &xfs_zeroino, S_IFREG, 1, 0,
+				   &xfs_zerocr, 0, 1, ip, &committed))) {
 		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
 				 XFS_TRANS_ABORT);
 		return error;

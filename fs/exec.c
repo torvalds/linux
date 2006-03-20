@@ -885,6 +885,12 @@ int flush_old_exec(struct linux_binprm * bprm)
 	current->flags &= ~PF_RANDOMIZE;
 	flush_thread();
 
+	/* Set the new mm task size. We have to do that late because it may
+	 * depend on TIF_32BIT which is only updated in flush_thread() on
+	 * some architectures like powerpc
+	 */
+	current->mm->task_size = TASK_SIZE;
+
 	if (bprm->e_uid != current->euid || bprm->e_gid != current->egid || 
 	    file_permission(bprm->file, MAY_READ) ||
 	    (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP)) {
@@ -1403,7 +1409,7 @@ static void zap_threads (struct mm_struct *mm)
 		do_each_thread(g,p) {
 			if (mm == p->mm && p != tsk &&
 			    p->ptrace && p->parent->mm == mm) {
-				__ptrace_unlink(p);
+				__ptrace_detach(p, 0);
 			}
 		} while_each_thread(g,p);
 		write_unlock_irq(&tasklist_lock);

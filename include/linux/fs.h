@@ -35,6 +35,7 @@ struct files_stat_struct {
 	int max_files;		/* tunable */
 };
 extern struct files_stat_struct files_stat;
+extern int get_max_files(void);
 
 struct inodes_stat_t {
 	int nr_inodes;
@@ -1418,9 +1419,6 @@ extern int is_bad_inode(struct inode *);
 extern struct file_operations read_fifo_fops;
 extern struct file_operations write_fifo_fops;
 extern struct file_operations rdwr_fifo_fops;
-extern struct file_operations read_pipe_fops;
-extern struct file_operations write_pipe_fops;
-extern struct file_operations rdwr_pipe_fops;
 
 extern int fs_may_remount_ro(struct super_block *);
 
@@ -1666,6 +1664,8 @@ extern int vfs_follow_link(struct nameidata *, const char *);
 extern int page_readlink(struct dentry *, char __user *, int);
 extern void *page_follow_link_light(struct dentry *, struct nameidata *);
 extern void page_put_link(struct dentry *, struct nameidata *, void *);
+extern int __page_symlink(struct inode *inode, const char *symname, int len,
+		gfp_t gfp_mask);
 extern int page_symlink(struct inode *inode, const char *symname, int len);
 extern struct inode_operations page_symlink_inode_operations;
 extern int generic_readlink(struct dentry *, char __user *, int);

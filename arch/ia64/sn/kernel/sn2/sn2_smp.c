@@ -46,8 +46,14 @@ DECLARE_PER_CPU(struct ptc_stats, ptcstats);
 
 static  __cacheline_aligned DEFINE_SPINLOCK(sn2_global_ptc_lock);
 
-void sn2_ptc_deadlock_recovery(short *, short, short, int, volatile unsigned long *, unsigned long,
-	volatile unsigned long *, unsigned long);
+extern unsigned long
+sn2_ptc_deadlock_recovery_core(volatile unsigned long *, unsigned long,
+			       volatile unsigned long *, unsigned long,
+			       volatile unsigned long *, unsigned long);
+void
+sn2_ptc_deadlock_recovery(short *, short, short, int,
+			  volatile unsigned long *, unsigned long,
+			  volatile unsigned long *, unsigned long);
 
 /*
  * Note: some is the following is captured here to make degugging easier
@@ -58,16 +64,6 @@ void sn2_ptc_deadlock_recovery(short *, short, short, int, volatile unsigned lon
 #define max_active_pio(sh1)		((sh1) ? 32 : 7)
 #define reset_max_active_on_deadlock()	1
 #define PTC_LOCK(sh1)			((sh1) ? &sn2_global_ptc_lock : &sn_nodepda->ptc_lock)
-
-static inline void ptc_lock(int sh1, unsigned long *flagp)
-{
-	spin_lock_irqsave(PTC_LOCK(sh1), *flagp);
-}
-
-static inline void ptc_unlock(int sh1, unsigned long flags)
-{
-	spin_unlock_irqrestore(PTC_LOCK(sh1), flags);
-}
 
 struct ptc_stats {
 	unsigned long ptc_l;
@@ -81,6 +77,8 @@ struct ptc_stats {
 	unsigned long shub_itc_clocks_max;
 	unsigned long shub_ptc_flushes_not_my_mm;
 };
+
+#define sn2_ptctest	0
 
 static inline unsigned long wait_piowc(void)
 {
@@ -200,7 +198,7 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
 	max_active = max_active_pio(shub1);
 
 	itc = ia64_get_itc();
-	ptc_lock(shub1, &flags);
+	spin_lock_irqsave(PTC_LOCK(shub1), flags);
 	itc2 = ia64_get_itc();
 
 	__get_cpu_var(ptcstats).lock_itc_clocks += itc2 - itc;
@@ -258,7 +256,7 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
 		ia64_srlz_d();
 	}
 
-	ptc_unlock(shub1, flags);
+	spin_unlock_irqrestore(PTC_LOCK(shub1), flags);
 
 	preempt_enable();
 }
@@ -270,11 +268,12 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
  * TLB flush transaction.  The recovery sequence is somewhat tricky & is
  * coded in assembly language.
  */
-void sn2_ptc_deadlock_recovery(short *nasids, short ib, short ie, int mynasid, volatile unsigned long *ptc0, unsigned long data0,
-	volatile unsigned long *ptc1, unsigned long data1)
+
+void
+sn2_ptc_deadlock_recovery(short *nasids, short ib, short ie, int mynasid,
+			  volatile unsigned long *ptc0, unsigned long data0,
+			  volatile unsigned long *ptc1, unsigned long data1)
 {
-	extern unsigned long sn2_ptc_deadlock_recovery_core(volatile unsigned long *, unsigned long,
-	        volatile unsigned long *, unsigned long, volatile unsigned long *, unsigned long);
 	short nasid, i;
 	unsigned long *piows, zeroval, n;
 
@@ -447,7 +446,7 @@ static struct proc_dir_entry *proc_sn2_ptc;
 static int __init sn2_ptc_init(void)
 {
 	if (!ia64_platform_is("sn2"))
-		return -ENOSYS;
+		return 0;
 
 	if (!(proc_sn2_ptc = create_proc_entry(PTC_BASENAME, 0444, NULL))) {
 		printk(KERN_ERR "unable to create %s proc entry", PTC_BASENAME);

@@ -336,6 +336,7 @@ static inline void raw_outsw_swapw(volatile u16 __iomem *port, const u16 *buf,
 		: "d0", "a0", "a1", "d6");
 }
 
+#define __raw_writel raw_outl
 
 #endif /* __KERNEL__ */
 

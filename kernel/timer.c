@@ -489,8 +489,20 @@ unsigned long next_timer_interrupt(void)
 	struct list_head *list;
 	struct timer_list *nte;
 	unsigned long expires;
+	unsigned long hr_expires = MAX_JIFFY_OFFSET;
+	ktime_t hr_delta;
 	tvec_t *varray[4];
 	int i, j;
+
+	hr_delta = hrtimer_get_next_event();
+	if (hr_delta.tv64 != KTIME_MAX) {
+		struct timespec tsdelta;
+		tsdelta = ktime_to_timespec(hr_delta);
+		hr_expires = timespec_to_jiffies(&tsdelta);
+		if (hr_expires < 3)
+			return hr_expires + jiffies;
+	}
+	hr_expires += jiffies;
 
 	base = &__get_cpu_var(tvec_bases);
 	spin_lock(&base->t_base.lock);
@@ -542,6 +554,10 @@ found:
 		}
 	}
 	spin_unlock(&base->t_base.lock);
+
+	if (time_before(hr_expires, expires))
+		return hr_expires;
+
 	return expires;
 }
 #endif
@@ -717,12 +733,16 @@ static void second_overflow(void)
 #endif
 }
 
-/* in the NTP reference this is called "hardclock()" */
-static void update_wall_time_one_tick(void)
+/*
+ * Returns how many microseconds we need to add to xtime this tick
+ * in doing an adjustment requested with adjtime.
+ */
+static long adjtime_adjustment(void)
 {
-	long time_adjust_step, delta_nsec;
+	long time_adjust_step;
 
-	if ((time_adjust_step = time_adjust) != 0 ) {
+	time_adjust_step = time_adjust;
+	if (time_adjust_step) {
 		/*
 		 * We are doing an adjtime thing.  Prepare time_adjust_step to
 		 * be within bounds.  Note that a positive time_adjust means we
@@ -733,10 +753,19 @@ static void update_wall_time_one_tick(void)
 		 */
 		time_adjust_step = min(time_adjust_step, (long)tickadj);
 		time_adjust_step = max(time_adjust_step, (long)-tickadj);
+	}
+	return time_adjust_step;
+}
 
+/* in the NTP reference this is called "hardclock()" */
+static void update_wall_time_one_tick(void)
+{
+	long time_adjust_step, delta_nsec;
+
+	time_adjust_step = adjtime_adjustment();
+	if (time_adjust_step)
 		/* Reduce by this step the amount of time left  */
 		time_adjust -= time_adjust_step;
-	}
 	delta_nsec = tick_nsec + time_adjust_step * 1000;
 	/*
 	 * Advance the phase, once it gets to one microsecond, then
@@ -756,6 +785,22 @@ static void update_wall_time_one_tick(void)
 		time_adjust = time_next_adjust;
 		time_next_adjust = 0;
 	}
+}
+
+/*
+ * Return how long ticks are at the moment, that is, how much time
+ * update_wall_time_one_tick will add to xtime next time we call it
+ * (assuming no calls to do_adjtimex in the meantime).
+ * The return value is in fixed-point nanoseconds with SHIFT_SCALE-10
+ * bits to the right of the binary point.
+ * This function has no side-effects.
+ */
+u64 current_tick_length(void)
+{
+	long delta_nsec;
+
+	delta_nsec = tick_nsec + adjtime_adjustment() * 1000;
+	return ((u64) delta_nsec << (SHIFT_SCALE - 10)) + time_adj;
 }
 
 /*
@@ -896,6 +941,8 @@ static inline void update_times(void)
 void do_timer(struct pt_regs *regs)
 {
 	jiffies_64++;
+	/* prevent loading jiffies before storing new jiffies_64 value. */
+	barrier();
 	update_times();
 	softlockup_tick(regs);
 }
@@ -1322,10 +1369,10 @@ static inline u64 time_interpolator_get_cycles(unsigned int src)
 			return x();
 
 		case TIME_SOURCE_MMIO64	:
-			return readq((void __iomem *) time_interpolator->addr);
+			return readq_relaxed((void __iomem *)time_interpolator->addr);
 
 		case TIME_SOURCE_MMIO32	:
-			return readl((void __iomem *) time_interpolator->addr);
+			return readl_relaxed((void __iomem *)time_interpolator->addr);
 
 		default: return get_cycles();
 	}
