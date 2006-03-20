@@ -43,6 +43,7 @@
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <sound/ac97_codec.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1000_dma.h>
@@ -153,6 +154,7 @@ au1000_setup_dma_link(struct audio_stream *stream, unsigned int period_bytes,
 {
 	struct snd_pcm_substream *substream = stream->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct au1000_period *pointer;
 	unsigned long dma_start;
 	int i;
 
