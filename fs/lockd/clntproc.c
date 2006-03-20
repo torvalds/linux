@@ -132,8 +132,10 @@ static void nlmclnt_setlockargs(struct nlm_rqst *req, struct file_lock *fl)
 	memcpy(&lock->fh, NFS_FH(fl->fl_file->f_dentry->d_inode), sizeof(struct nfs_fh));
 	lock->caller  = system_utsname.nodename;
 	lock->oh.data = req->a_owner;
-	lock->oh.len  = sprintf(req->a_owner, "%d@%s",
-				current->pid, system_utsname.nodename);
+	lock->oh.len  = snprintf(req->a_owner, sizeof(req->a_owner), "%u@%s",
+				(unsigned int)fl->fl_u.nfs_fl.owner->pid,
+				system_utsname.nodename);
+	lock->svid = fl->fl_u.nfs_fl.owner->pid;
 	locks_copy_lock(&lock->fl, fl);
 }
 
@@ -159,6 +161,7 @@ nlmclnt_setgrantargs(struct nlm_rqst *call, struct nlm_lock *lock)
 
 	/* set default data area */
 	call->a_args.lock.oh.data = call->a_owner;
+	call->a_args.lock.svid = lock->fl.fl_pid;
 
 	if (lock->oh.len > NLMCLNT_OHSIZE) {
 		void *data = kmalloc(lock->oh.len, GFP_KERNEL);

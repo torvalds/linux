@@ -125,7 +125,15 @@ u32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock)
 	list_for_each_entry(block, &nlm_blocked, b_list) {
 		struct file_lock *fl_blocked = block->b_lock;
 
-		if (!nlm_compare_locks(fl_blocked, fl))
+		if (fl_blocked->fl_start != fl->fl_start)
+			continue;
+		if (fl_blocked->fl_end != fl->fl_end)
+			continue;
+		/*
+		 * Careful! The NLM server will return the 32-bit "pid" that
+		 * we put on the wire: in this case the lockowner "pid".
+		 */
+		if (fl_blocked->fl_u.nfs_fl.owner->pid != lock->svid)
 			continue;
 		if (!nlm_cmp_addr(&block->b_host->h_addr, addr))
 			continue;

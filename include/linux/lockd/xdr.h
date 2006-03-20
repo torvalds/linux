@@ -28,6 +28,7 @@ struct nlm_lock {
 	int			len; 	/* length of "caller" */
 	struct nfs_fh		fh;
 	struct xdr_netobj	oh;
+	u32			svid;
 	struct file_lock	fl;
 };
 

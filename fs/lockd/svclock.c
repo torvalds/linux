@@ -397,6 +397,7 @@ nlmsvc_testlock(struct nlm_file *file, struct nlm_lock *lock,
 				(long long)fl->fl_end);
 		conflock->caller = "somehost";	/* FIXME */
 		conflock->oh.len = 0;		/* don't return OH info */
+		conflock->svid = fl->fl_pid;
 		conflock->fl = *fl;
 		return nlm_lck_denied;
 	}
