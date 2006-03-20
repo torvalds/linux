@@ -592,7 +592,7 @@ static void __init quirk_amd_8131_ioapic(struct pci_dev *dev)
                 pci_write_config_byte( dev, AMD8131_MISC, tmp);
         }
 } 
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_APIC,         quirk_amd_8131_ioapic ); 
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_BRIDGE, quirk_amd_8131_ioapic);
 
 static void __init quirk_svw_msi(struct pci_dev *dev)
 {
