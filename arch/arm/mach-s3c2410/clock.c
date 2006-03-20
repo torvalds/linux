@@ -45,6 +45,7 @@
 #include <asm/io.h>
 
 #include <asm/arch/regs-clock.h>
+#include <asm/arch/regs-gpio.h>
 
 #include "clock.h"
 #include "cpu.h"
@@ -285,24 +286,115 @@ static struct clk clk_p = {
 
 /* clocks that could be registered by external code */
 
+static int s3c24xx_dclk_enable(struct clk *clk, int enable)
+{
+	unsigned long dclkcon = __raw_readl(S3C2410_DCLKCON);
+
+	if (enable)
+		dclkcon |= clk->ctrlbit;
+	else
+		dclkcon &= ~clk->ctrlbit;
+
+	__raw_writel(dclkcon, S3C2410_DCLKCON);
+
+	return 0;
+}
+
+static int s3c24xx_dclk_setparent(struct clk *clk, struct clk *parent)
+{
+	unsigned long dclkcon;
+	unsigned int uclk;
+
+	if (parent == &clk_upll)
+		uclk = 1;
+	else if (parent == &clk_p)
+		uclk = 0;
+	else
+		return -EINVAL;
+
+	clk->parent = parent;
+
+	dclkcon = __raw_readl(S3C2410_DCLKCON);
+
+	if (clk->ctrlbit == S3C2410_DCLKCON_DCLK0EN) {
+		if (uclk)
+			dclkcon |= S3C2410_DCLKCON_DCLK0_UCLK;
+		else
+			dclkcon &= ~S3C2410_DCLKCON_DCLK0_UCLK;
+	} else {
+		if (uclk)
+			dclkcon |= S3C2410_DCLKCON_DCLK1_UCLK;
+		else
+			dclkcon &= ~S3C2410_DCLKCON_DCLK1_UCLK;
+	}
+
+	__raw_writel(dclkcon, S3C2410_DCLKCON);
+
+	return 0;
+}
+
+
+static int s3c24xx_clkout_setparent(struct clk *clk, struct clk *parent)
+{
+	unsigned long mask;
+	unsigned long source;
+
+	/* calculate the MISCCR setting for the clock */
+
+	if (parent == &clk_xtal)
+		source = S3C2410_MISCCR_CLK0_MPLL;
+	else if (parent == &clk_upll)
+		source = S3C2410_MISCCR_CLK0_UPLL;
+	else if (parent == &clk_f)
+		source = S3C2410_MISCCR_CLK0_FCLK;
+	else if (parent == &clk_p)
+		source = S3C2410_MISCCR_CLK0_PCLK;
+	else if (clk == &s3c24xx_clkout0 && parent == &s3c24xx_dclk0)
+		source = S3C2410_MISCCR_CLK0_DCLK0;
+	else if (clk == &s3c24xx_clkout1 && parent == &s3c24xx_dclk1)
+		source = S3C2410_MISCCR_CLK0_DCLK0;
+	else
+		return -EINVAL;
+
+	if (clk == &s3c24xx_dclk0)
+		mask = S3C2410_MISCCR_CLK0_MASK;
+	else {
+		source <<= 4;
+		mask = S3C2410_MISCCR_CLK1_MASK;
+	}
+
+	s3c2410_modify_misccr(mask, source);
+	return 0;
+}
+
+/* external clock definitions */
+
 struct clk s3c24xx_dclk0 = {
 	.name		= "dclk0",
 	.id		= -1,
+	.ctrlbit	= S3C2410_DCLKCON_DCLK0EN,
+	.enable	        = s3c24xx_dclk_enable,
+	.set_parent	= s3c24xx_dclk_setparent,
 };
 
 struct clk s3c24xx_dclk1 = {
 	.name		= "dclk1",
 	.id		= -1,
+	.ctrlbit	= S3C2410_DCLKCON_DCLK0EN,
+	.enable		= s3c24xx_dclk_enable,
+	.set_parent	= s3c24xx_dclk_setparent,
 };
 
 struct clk s3c24xx_clkout0 = {
 	.name		= "clkout0",
 	.id		= -1,
+	.set_parent	= s3c24xx_clkout_setparent,
 };
 
 struct clk s3c24xx_clkout1 = {
 	.name		= "clkout1",
 	.id		= -1,
+	.set_parent	= s3c24xx_clkout_setparent,
 };
 
 struct clk s3c24xx_uclk = {
@@ -423,7 +515,7 @@ int s3c24xx_register_clock(struct clk *clk)
 
 	/* if this is a standard clock, set the usage state */
 
-	if (clk->ctrlbit) {
+	if (clk->ctrlbit && clk->enable == s3c24xx_clkcon_enable) {
 		unsigned long clkcon = __raw_readl(S3C2410_CLKCON);
 
 		clk->usage = (clkcon & clk->ctrlbit) ? 1 : 0;
