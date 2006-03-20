@@ -541,12 +541,11 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 	struct sa1111_dev *dev;
 	int ret;
 
-	dev = kmalloc(sizeof(struct sa1111_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct sa1111_dev), GFP_KERNEL);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset(dev, 0, sizeof(struct sa1111_dev));
 
 	snprintf(dev->dev.bus_id, sizeof(dev->dev.bus_id),
 		 "%4.4lx", info->offset);
@@ -621,11 +620,9 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	unsigned int has_devs, val;
 	int i, ret = -ENODEV;
 
-	sachip = kmalloc(sizeof(struct sa1111), GFP_KERNEL);
+	sachip = kzalloc(sizeof(struct sa1111), GFP_KERNEL);
 	if (!sachip)
 		return -ENOMEM;
-
-	memset(sachip, 0, sizeof(struct sa1111));
 
 	sachip->clk = clk_get(me, "GPIO27_CLK");
 	if (!sachip->clk) {

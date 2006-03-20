@@ -501,12 +501,11 @@ locomo_init_one_child(struct locomo *lchip, struct locomo_dev_info *info)
 	struct locomo_dev *dev;
 	int ret;
 
-	dev = kmalloc(sizeof(struct locomo_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct locomo_dev), GFP_KERNEL);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset(dev, 0, sizeof(struct locomo_dev));
 
 	strncpy(dev->dev.bus_id,info->name,sizeof(dev->dev.bus_id));
 	/*
@@ -664,11 +663,9 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 	unsigned long r;
 	int i, ret = -ENODEV;
 
-	lchip = kmalloc(sizeof(struct locomo), GFP_KERNEL);
+	lchip = kzalloc(sizeof(struct locomo), GFP_KERNEL);
 	if (!lchip)
 		return -ENOMEM;
-
-	memset(lchip, 0, sizeof(struct locomo));
 
 	spin_lock_init(&lchip->lock);
 
