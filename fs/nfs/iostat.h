@@ -156,7 +156,8 @@ static inline struct nfs_iostats *nfs_alloc_iostats(void)
 
 static inline void nfs_free_iostats(struct nfs_iostats *stats)
 {
-	free_percpu(stats);
+	if (stats != NULL)
+		free_percpu(stats);
 }
 
 #endif

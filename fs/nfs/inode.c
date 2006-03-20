@@ -281,6 +281,10 @@ nfs_sb_init(struct super_block *sb, rpc_authflavor_t authflavor)
 
 	sb->s_magic      = NFS_SUPER_MAGIC;
 
+	server->io_stats = nfs_alloc_iostats();
+	if (server->io_stats == NULL)
+		return -ENOMEM;
+
 	root_inode = nfs_get_root(sb, &server->fh, &fsinfo);
 	/* Did getting the root inode fail? */
 	if (IS_ERR(root_inode)) {
@@ -293,12 +297,6 @@ nfs_sb_init(struct super_block *sb, rpc_authflavor_t authflavor)
 		goto out_no_root;
 	}
 	sb->s_root->d_op = server->rpc_ops->dentry_ops;
-
-	server->io_stats = nfs_alloc_iostats();
-	if (!server->io_stats) {
-		no_root_error = -ENOMEM;
-		goto out_no_root;
-	}
 
 	/* mount time stamp, in seconds */
 	server->mount_time = jiffies;
@@ -1822,6 +1820,7 @@ static void nfs_kill_super(struct super_block *s)
 
 	rpciod_down();		/* release rpciod */
 
+	nfs_free_iostats(server->io_stats);
 	kfree(server->hostname);
 	kfree(server);
 }
@@ -2122,7 +2121,6 @@ out_err:
 out_free:
 	kfree(server->mnt_path);
 	kfree(server->hostname);
-	nfs_free_iostats(server->io_stats);
 	kfree(server);
 	return s;
 }
@@ -2143,6 +2141,7 @@ static void nfs4_kill_super(struct super_block *sb)
 
 	rpciod_down();
 
+	nfs_free_iostats(server->io_stats);
 	kfree(server->hostname);
 	kfree(server);
 }
