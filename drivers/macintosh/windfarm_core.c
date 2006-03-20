@@ -35,6 +35,8 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 
+#include <asm/prom.h>
+
 #include "windfarm.h"
 
 #define VERSION "0.2"
@@ -465,6 +467,11 @@ static int __init windfarm_core_init(void)
 {
 	DBG("wf: core loaded\n");
 
+	/* Don't register on old machines that use therm_pm72 for now */
+	if (machine_is_compatible("PowerMac7,2") ||
+	    machine_is_compatible("PowerMac7,3") ||
+	    machine_is_compatible("RackMac3,1"))
+		return -ENODEV;
 	platform_device_register(&wf_platform_device);
 	return 0;
 }

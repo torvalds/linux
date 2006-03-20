@@ -2917,7 +2917,7 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			if (!__pskb_pull_tail(skb, pull_size)) {
 				printk(KERN_ERR "__pskb_pull_tail failed.\n");
 				dev_kfree_skb_any(skb);
-				return -EFAULT;
+				return NETDEV_TX_OK;
 			}
 			len = skb->len - skb->data_len;
 		}
@@ -3710,7 +3710,7 @@ e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		e1000_rx_checksum(adapter,
 				  (uint32_t)(status) |
 				  ((uint32_t)(rx_desc->errors) << 24),
-				  rx_desc->csum, skb);
+				  le16_to_cpu(rx_desc->csum), skb);
 
 		skb->protocol = eth_type_trans(skb, netdev);
 #ifdef CONFIG_E1000_NAPI
@@ -3854,11 +3854,11 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		}
 
 		e1000_rx_checksum(adapter, staterr,
-				  rx_desc->wb.lower.hi_dword.csum_ip.csum, skb);
+				  le16_to_cpu(rx_desc->wb.lower.hi_dword.csum_ip.csum), skb);
 		skb->protocol = eth_type_trans(skb, netdev);
 
 		if (likely(rx_desc->wb.upper.header_status &
-			  E1000_RXDPS_HDRSTAT_HDRSP))
+			   cpu_to_le16(E1000_RXDPS_HDRSTAT_HDRSP)))
 			adapter->rx_hdr_split++;
 #ifdef CONFIG_E1000_NAPI
 		if (unlikely(adapter->vlgrp && (staterr & E1000_RXD_STAT_VP))) {
@@ -3884,7 +3884,7 @@ e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 #endif
 
 next_desc:
-		rx_desc->wb.middle.status_error &= ~0xFF;
+		rx_desc->wb.middle.status_error &= cpu_to_le32(~0xFF);
 		buffer_info->skb = NULL;
 
 		/* return some buffers to hardware, one at a time is too slow */

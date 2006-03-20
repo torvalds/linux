@@ -29,4 +29,4 @@ obj-$(CONFIG_BRIDGE_EBT_SNAT) += ebt_snat.o
 
 # watchers
 obj-$(CONFIG_BRIDGE_EBT_LOG) += ebt_log.o
-obj-$(CONFIG_BRIDGE_EBT_LOG) += ebt_ulog.o
+obj-$(CONFIG_BRIDGE_EBT_ULOG) += ebt_ulog.o

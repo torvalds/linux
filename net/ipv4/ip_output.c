@@ -847,10 +847,11 @@ int ip_append_data(struct sock *sk,
 	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&
 			(rt->u.dst.dev->features & NETIF_F_UFO)) {
 
-		if(ip_ufo_append_data(sk, getfrag, from, length, hh_len,
-			       fragheaderlen, transhdrlen, mtu, flags))
+		err = ip_ufo_append_data(sk, getfrag, from, length, hh_len,
+					 fragheaderlen, transhdrlen, mtu,
+					 flags);
+		if (err)
 			goto error;
-
 		return 0;
 	}
 

@@ -223,7 +223,7 @@ static void fc_rport_terminate(struct fc_rport  *rport);
  */
 #define FC_STARGET_NUM_ATTRS 	3
 #define FC_RPORT_NUM_ATTRS	9
-#define FC_HOST_NUM_ATTRS	16
+#define FC_HOST_NUM_ATTRS	17
 
 struct fc_internal {
 	struct scsi_transport_template t;

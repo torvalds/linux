@@ -623,10 +623,11 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 			(*zap_work)--;
 			continue;
 		}
+
+		(*zap_work) -= PAGE_SIZE;
+
 		if (pte_present(ptent)) {
 			struct page *page;
-
-			(*zap_work) -= PAGE_SIZE;
 
 			page = vm_normal_page(vma, addr, ptent);
 			if (unlikely(details) && page) {

@@ -526,7 +526,7 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 		info("found the stv0297 at i2c address: 0x%02x",alps_tdee4_stv0297_config.demod_address);
 	} else
 	/* try the sky v2.3 (vp310/Samsung tbdu18132(tsa5059)) */
-	if ((fc->fe = vp310_attach(&skystar23_samsung_tbdu18132_config, &fc->i2c_adap)) != NULL) {
+	if ((fc->fe = vp310_mt312_attach(&skystar23_samsung_tbdu18132_config, &fc->i2c_adap)) != NULL) {
 		ops = fc->fe->ops;
 
 		ops->diseqc_send_master_cmd = flexcop_diseqc_send_master_cmd;

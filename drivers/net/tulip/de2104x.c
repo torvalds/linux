@@ -1362,7 +1362,6 @@ static int de_open (struct net_device *dev)
 {
 	struct de_private *de = dev->priv;
 	int rc;
-	unsigned long flags;
 
 	if (netif_msg_ifup(de))
 		printk(KERN_DEBUG "%s: enabling interface\n", dev->name);
@@ -1376,18 +1375,20 @@ static int de_open (struct net_device *dev)
 		return rc;
 	}
 
-	rc = de_init_hw(de);
-	if (rc) {
-		printk(KERN_ERR "%s: h/w init failure, err=%d\n",
-		       dev->name, rc);
-		goto err_out_free;
-	}
+	dw32(IntrMask, 0);
 
 	rc = request_irq(dev->irq, de_interrupt, SA_SHIRQ, dev->name, dev);
 	if (rc) {
 		printk(KERN_ERR "%s: IRQ %d request failure, err=%d\n",
 		       dev->name, dev->irq, rc);
-		goto err_out_hw;
+		goto err_out_free;
+	}
+
+	rc = de_init_hw(de);
+	if (rc) {
+		printk(KERN_ERR "%s: h/w init failure, err=%d\n",
+		       dev->name, rc);
+		goto err_out_free_irq;
 	}
 
 	netif_start_queue(dev);
@@ -1395,11 +1396,8 @@ static int de_open (struct net_device *dev)
 
 	return 0;
 
-err_out_hw:
-	spin_lock_irqsave(&de->lock, flags);
-	de_stop_hw(de);
-	spin_unlock_irqrestore(&de->lock, flags);
-
+err_out_free_irq:
+	free_irq(dev->irq, dev);
 err_out_free:
 	de_free_rings(de);
 	return rc;
@@ -1454,6 +1452,8 @@ static void de_tx_timeout (struct net_device *dev)
 
 	synchronize_irq(dev->irq);
 	de_clean_rings(de);
+
+	de_init_rings(de);
 
 	de_init_hw(de);
 	

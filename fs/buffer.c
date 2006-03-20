@@ -3060,6 +3060,7 @@ int buffer_migrate_page(struct page *newpage, struct page *page)
 {
 	struct address_space *mapping = page->mapping;
 	struct buffer_head *bh, *head;
+	int rc;
 
 	if (!mapping)
 		return -EAGAIN;
@@ -3069,8 +3070,9 @@ int buffer_migrate_page(struct page *newpage, struct page *page)
 
 	head = page_buffers(page);
 
-	if (migrate_page_remove_references(newpage, page, 3))
-		return -EAGAIN;
+	rc = migrate_page_remove_references(newpage, page, 3);
+	if (rc)
+		return rc;
 
 	bh = head;
 	do {

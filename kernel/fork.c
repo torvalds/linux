@@ -108,8 +108,10 @@ void free_task(struct task_struct *tsk)
 }
 EXPORT_SYMBOL(free_task);
 
-void __put_task_struct(struct task_struct *tsk)
+void __put_task_struct_cb(struct rcu_head *rhp)
 {
+	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
+
 	WARN_ON(!(tsk->exit_state & (EXIT_DEAD | EXIT_ZOMBIE)));
 	WARN_ON(atomic_read(&tsk->usage));
 	WARN_ON(tsk == current);
@@ -1060,6 +1062,12 @@ static task_t *copy_process(unsigned long clone_flags,
 	p->clear_child_tid = (clone_flags & CLONE_CHILD_CLEARTID) ? child_tidptr: NULL;
 
 	/*
+	 * sigaltstack should be cleared when sharing the same VM
+	 */
+	if ((clone_flags & (CLONE_VM|CLONE_VFORK)) == CLONE_VM)
+		p->sas_ss_sp = p->sas_ss_size = 0;
+
+	/*
 	 * Syscall tracing should be turned off in the child regardless
 	 * of CLONE_PTRACE.
 	 */
@@ -1470,9 +1478,7 @@ static int unshare_vm(unsigned long unshare_flags, struct mm_struct **new_mmp)
 
 	if ((unshare_flags & CLONE_VM) &&
 	    (mm && atomic_read(&mm->mm_users) > 1)) {
-		*new_mmp = dup_mm(current);
-		if (!*new_mmp)
-			return -ENOMEM;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1561,7 +1567,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 
 		if (new_sigh) {
 			sigh = current->sighand;
-			current->sighand = new_sigh;
+			rcu_assign_pointer(current->sighand, new_sigh);
 			new_sigh = sigh;
 		}
 

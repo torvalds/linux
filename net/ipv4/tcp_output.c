@@ -1036,6 +1036,10 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 
 	limit = min(send_win, cong_win);
 
+	/* If a full-sized TSO skb can be sent, do it. */
+	if (limit >= 65536)
+		return 0;
+
 	if (sysctl_tcp_tso_win_divisor) {
 		u32 chunk = min(tp->snd_wnd, tp->snd_cwnd * tp->mss_cache);
 
