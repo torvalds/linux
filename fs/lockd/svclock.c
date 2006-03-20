@@ -297,7 +297,6 @@ u32
 nlmsvc_lock(struct svc_rqst *rqstp, struct nlm_file *file,
 			struct nlm_lock *lock, int wait, struct nlm_cookie *cookie)
 {
-	struct file_lock	*conflock;
 	struct nlm_block	*block;
 	int			error;
 	u32			ret;
@@ -320,23 +319,21 @@ again:
 	/* Lock file against concurrent access */
 	down(&file->f_sema);
 
-	if (!(conflock = posix_test_lock(file->f_file, &lock->fl))) {
-		error = posix_lock_file(file->f_file, &lock->fl);
+	error = posix_lock_file(file->f_file, &lock->fl);
 
+	dprintk("lockd: posix_lock_file returned %d\n", error);
+
+	if (error != -EAGAIN) {
 		if (block)
 			nlmsvc_delete_block(block, 0);
 		up(&file->f_sema);
 
-		dprintk("lockd: posix_lock_file returned %d\n", -error);
 		switch(-error) {
 		case 0:
 			ret = nlm_granted;
 			goto out;
 		case EDEADLK:
 			ret = nlm_deadlock;
-			goto out;
-		case EAGAIN:
-			ret = nlm_lck_denied;
 			goto out;
 		default:			/* includes ENOLCK */
 			ret = nlm_lck_denied_nolocks;
@@ -346,11 +343,6 @@ again:
 
 	if (!wait) {
 		ret = nlm_lck_denied;
-		goto out_unlock;
-	}
-
-	if (posix_locks_deadlock(&lock->fl, conflock)) {
-		ret = nlm_deadlock;
 		goto out_unlock;
 	}
 
@@ -368,13 +360,6 @@ again:
 
 	/* Append to list of blocked */
 	nlmsvc_insert_block(block, NLM_NEVER);
-
-	if (list_empty(&block->b_call.a_args.lock.fl.fl_block)) {
-		/* Now add block to block list of the conflicting lock
-		   if we haven't done so. */
-		dprintk("lockd: blocking on this lock.\n");
-		posix_block_lock(conflock, &block->b_call.a_args.lock.fl);
-	}
 
 	ret = nlm_lck_blocked;
 out_unlock:
