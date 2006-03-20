@@ -77,7 +77,6 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context*,
 					    struct inode *,
 					    struct page *,
 					    unsigned int, unsigned int);
-static int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
 static int nfs_wait_on_write_congestion(struct address_space *, int);
 static int nfs_wait_on_requests(struct inode *, unsigned long, unsigned int);
 static int nfs_flush_inode(struct inode *inode, unsigned long idx_start,
@@ -1183,7 +1182,7 @@ static const struct rpc_call_ops nfs_write_full_ops = {
 /*
  * This function is called when the WRITE call is complete.
  */
-static int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
+int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 {
 	struct nfs_writeargs	*argp = &data->args;
 	struct nfs_writeres	*resp = &data->res;
