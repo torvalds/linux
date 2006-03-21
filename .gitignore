@@ -16,6 +16,7 @@
 #
 # Top-level generic files
 #
+tags
 vmlinux*
 System.map
 Module.symvers
