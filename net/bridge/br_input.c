@@ -21,12 +21,6 @@
 
 const unsigned char bridge_ula[6] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 
-static int br_pass_frame_up_finish(struct sk_buff *skb)
-{
-	netif_receive_skb(skb);
-	return 0;
-}
-
 static void br_pass_frame_up(struct net_bridge *br, struct sk_buff *skb)
 {
 	struct net_device *indev;
@@ -38,7 +32,7 @@ static void br_pass_frame_up(struct net_bridge *br, struct sk_buff *skb)
 	skb->dev = br->dev;
 
 	NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, indev, NULL,
-			br_pass_frame_up_finish);
+		netif_receive_skb);
 }
 
 /* note: already called with rcu_read_lock (preempt_disabled) */
