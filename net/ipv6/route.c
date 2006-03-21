@@ -415,7 +415,7 @@ void ip6_route_input(struct sk_buff *skb)
 	int attempts = 3;
 	int err;
 
-	strict = ipv6_addr_type(&skb->nh.ipv6h->daddr) & (IPV6_ADDR_MULTICAST|IPV6_ADDR_LINKLOCAL);
+	strict = ipv6_addr_type(&skb->nh.ipv6h->daddr) & (IPV6_ADDR_MULTICAST|IPV6_ADDR_LINKLOCAL) ? RT6_SELECT_F_IFACE : 0;
 
 relookup:
 	read_lock_bh(&rt6_lock);
@@ -427,12 +427,16 @@ restart:
 	rt = fn->leaf;
 
 	if ((rt->rt6i_flags & RTF_CACHE)) {
-		rt = rt6_device_match(rt, skb->dev->ifindex, strict);
+		rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict | RT6_SELECT_F_REACHABLE);
+		if (rt == &ip6_null_entry)
+			rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict);
 		BACKTRACK();
 		goto out;
 	}
 
-	rt = rt6_device_match(rt, skb->dev->ifindex, strict);
+	rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict | RT6_SELECT_F_REACHABLE);
+	if (rt == &ip6_null_entry)
+		rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict);
 	BACKTRACK();
 
 	dst_hold(&rt->u.dst);
@@ -497,7 +501,9 @@ restart:
 	rt = fn->leaf;
 
 	if ((rt->rt6i_flags & RTF_CACHE)) {
-		rt = rt6_device_match(rt, fl->oif, strict);
+		rt = rt6_select(&fn->leaf, fl->oif, strict | RT6_SELECT_F_REACHABLE);
+		if (rt == &ip6_null_entry)
+			rt = rt6_select(&fn->leaf, fl->oif, strict);
 		BACKTRACK();
 		goto out;
 	}
@@ -506,7 +512,9 @@ restart:
 		if (rt == &ip6_null_entry)
 			rt = rt6_select(&fn->leaf, fl->oif, strict);
 	} else {
-		rt = rt6_device_match(rt, fl->oif, strict);
+		rt = rt6_select(&fn->leaf, fl->oif, strict | RT6_SELECT_F_REACHABLE);
+		if (rt == &ip6_null_entry)
+			rt = rt6_select(&fn->leaf, fl->oif, strict);
 		BACKTRACK();
 	}
 
