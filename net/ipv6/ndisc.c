@@ -1214,11 +1214,13 @@ skip_defrtr:
 	}
 
 #ifdef CONFIG_IPV6_ROUTE_INFO
-	if (ndopts.nd_opts_ri) {
+	if (in6_dev->cnf.accept_ra_rtr_pref && ndopts.nd_opts_ri) {
 		struct nd_opt_hdr *p;
 		for (p = ndopts.nd_opts_ri;
 		     p;
 		     p = ndisc_next_option(p, ndopts.nd_opts_ri_end)) {
+			if (((struct route_info *)p)->prefix_len > in6_dev->cnf.accept_ra_rt_info_max_plen)
+				continue;
 			rt6_route_rcv(skb->dev, (u8*)p, (p->nd_opt_len) << 3,
 				      &skb->nh.ipv6h->saddr);
 		}
