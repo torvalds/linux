@@ -7816,29 +7816,53 @@ static void tg3_get_ethtool_stats (struct net_device *dev,
 }
 
 #define NVRAM_TEST_SIZE 0x100
+#define NVRAM_SELFBOOT_FORMAT1_SIZE 0x14
 
 static int tg3_test_nvram(struct tg3 *tp)
 {
-	u32 *buf, csum;
-	int i, j, err = 0;
+	u32 *buf, csum, magic;
+	int i, j, err = 0, size;
 
-	buf = kmalloc(NVRAM_TEST_SIZE, GFP_KERNEL);
+	if (tg3_nvram_read(tp, 0, &magic) != 0)
+		return -EIO;
+
+	magic = swab32(magic);
+	if (magic == TG3_EEPROM_MAGIC)
+		size = NVRAM_TEST_SIZE;
+	else if ((magic & 0xff000000) == 0xa5000000) {
+		if ((magic & 0xe00000) == 0x200000)
+			size = NVRAM_SELFBOOT_FORMAT1_SIZE;
+		else
+			return 0;
+	} else
+		return -EIO;
+
+	buf = kmalloc(size, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	for (i = 0, j = 0; i < NVRAM_TEST_SIZE; i += 4, j++) {
+	err = -EIO;
+	for (i = 0, j = 0; i < size; i += 4, j++) {
 		u32 val;
 
 		if ((err = tg3_nvram_read(tp, i, &val)) != 0)
 			break;
 		buf[j] = cpu_to_le32(val);
 	}
-	if (i < NVRAM_TEST_SIZE)
+	if (i < size)
 		goto out;
 
-	err = -EIO;
-	if (cpu_to_be32(buf[0]) != TG3_EEPROM_MAGIC)
-		goto out;
+	/* Selfboot format */
+	if (cpu_to_be32(buf[0]) != TG3_EEPROM_MAGIC) {
+		u8 *buf8 = (u8 *) buf, csum8 = 0;
+
+		for (i = 0; i < size; i++)
+			csum8 += buf8[i];
+
+		if (csum8 == 0)
+			return 0;
+		return -EIO;
+	}
 
 	/* Bootstrap checksum at offset 0x10 */
 	csum = calc_crc((unsigned char *) buf, 0x10);
@@ -8561,14 +8585,15 @@ static struct ethtool_ops tg3_ethtool_ops = {
 
 static void __devinit tg3_get_eeprom_size(struct tg3 *tp)
 {
-	u32 cursize, val;
+	u32 cursize, val, magic;
 
 	tp->nvram_size = EEPROM_CHIP_SIZE;
 
 	if (tg3_nvram_read(tp, 0, &val) != 0)
 		return;
 
-	if (swab32(val) != TG3_EEPROM_MAGIC)
+	magic = swab32(val);
+	if ((magic != TG3_EEPROM_MAGIC) && ((magic & 0xff000000) != 0xa5000000))
 		return;
 
 	/*
@@ -8576,13 +8601,13 @@ static void __devinit tg3_get_eeprom_size(struct tg3 *tp)
 	 * When we encounter our validation signature, we know the addressing
 	 * has wrapped around, and thus have our chip size.
 	 */
-	cursize = 0x800;
+	cursize = 0x10;
 
 	while (cursize < tp->nvram_size) {
 		if (tg3_nvram_read(tp, cursize, &val) != 0)
 			return;
 
-		if (swab32(val) == TG3_EEPROM_MAGIC)
+		if (swab32(val) == magic)
 			break;
 
 		cursize <<= 1;
@@ -8594,6 +8619,15 @@ static void __devinit tg3_get_eeprom_size(struct tg3 *tp)
 static void __devinit tg3_get_nvram_size(struct tg3 *tp)
 {
 	u32 val;
+
+	if (tg3_nvram_read(tp, 0, &val) != 0)
+		return;
+
+	/* Selfboot format */
+	if (swab32(val) != TG3_EEPROM_MAGIC) {
+		tg3_get_eeprom_size(tp);
+		return;
+	}
 
 	if (tg3_nvram_read(tp, 0xf0, &val) == 0) {
 		if (val != 0) {
@@ -8718,6 +8752,44 @@ static void __devinit tg3_get_5752_nvram_info(struct tg3 *tp)
 	}
 }
 
+static void __devinit tg3_get_5787_nvram_info(struct tg3 *tp)
+{
+	u32 nvcfg1;
+
+	nvcfg1 = tr32(NVRAM_CFG1);
+
+	switch (nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK) {
+		case FLASH_5787VENDOR_ATMEL_EEPROM_64KHZ:
+		case FLASH_5787VENDOR_ATMEL_EEPROM_376KHZ:
+		case FLASH_5787VENDOR_MICRO_EEPROM_64KHZ:
+		case FLASH_5787VENDOR_MICRO_EEPROM_376KHZ:
+			tp->nvram_jedecnum = JEDEC_ATMEL;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->nvram_pagesize = ATMEL_AT24C512_CHIP_SIZE;
+
+			nvcfg1 &= ~NVRAM_CFG1_COMPAT_BYPASS;
+			tw32(NVRAM_CFG1, nvcfg1);
+			break;
+		case FLASH_5752VENDOR_ATMEL_FLASH_BUFFERED:
+		case FLASH_5755VENDOR_ATMEL_FLASH_1:
+		case FLASH_5755VENDOR_ATMEL_FLASH_2:
+		case FLASH_5755VENDOR_ATMEL_FLASH_3:
+			tp->nvram_jedecnum = JEDEC_ATMEL;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->tg3_flags2 |= TG3_FLG2_FLASH;
+			tp->nvram_pagesize = 264;
+			break;
+		case FLASH_5752VENDOR_ST_M45PE10:
+		case FLASH_5752VENDOR_ST_M45PE20:
+		case FLASH_5752VENDOR_ST_M45PE40:
+			tp->nvram_jedecnum = JEDEC_ST;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->tg3_flags2 |= TG3_FLG2_FLASH;
+			tp->nvram_pagesize = 256;
+			break;
+	}
+}
+
 /* Chips other than 5700/5701 use the NVRAM for fetching info. */
 static void __devinit tg3_nvram_init(struct tg3 *tp)
 {
@@ -8753,6 +8825,8 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
 			tg3_get_5752_nvram_info(tp);
+		else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+			tg3_get_5787_nvram_info(tp);
 		else
 			tg3_get_nvram_info(tp);
 
@@ -9041,6 +9115,7 @@ static int tg3_nvram_write_block_buffered(struct tg3 *tp, u32 offset, u32 len,
 			nvram_cmd |= NVRAM_CMD_LAST;
 
 		if ((GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5752) &&
+		    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5787) &&
 		    (tp->nvram_jedecnum == JEDEC_ST) &&
 		    (nvram_cmd & NVRAM_CMD_FIRST)) {
 
@@ -9444,6 +9519,7 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 {
 	unsigned char vpd_data[256];
 	int i;
+	u32 magic;
 
 	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X) {
 		/* Sun decided not to put the necessary bits in the
@@ -9453,16 +9529,43 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 		return;
 	}
 
-	for (i = 0; i < 256; i += 4) {
-		u32 tmp;
+	if (tg3_nvram_read(tp, 0x0, &magic))
+		return;
 
-		if (tg3_nvram_read(tp, 0x100 + i, &tmp))
-			goto out_not_found;
+	if (swab32(magic) == TG3_EEPROM_MAGIC) {
+		for (i = 0; i < 256; i += 4) {
+			u32 tmp;
 
-		vpd_data[i + 0] = ((tmp >>  0) & 0xff);
-		vpd_data[i + 1] = ((tmp >>  8) & 0xff);
-		vpd_data[i + 2] = ((tmp >> 16) & 0xff);
-		vpd_data[i + 3] = ((tmp >> 24) & 0xff);
+			if (tg3_nvram_read(tp, 0x100 + i, &tmp))
+				goto out_not_found;
+
+			vpd_data[i + 0] = ((tmp >>  0) & 0xff);
+			vpd_data[i + 1] = ((tmp >>  8) & 0xff);
+			vpd_data[i + 2] = ((tmp >> 16) & 0xff);
+			vpd_data[i + 3] = ((tmp >> 24) & 0xff);
+		}
+	} else {
+		int vpd_cap;
+
+		vpd_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_VPD);
+		for (i = 0; i < 256; i += 4) {
+			u32 tmp, j = 0;
+			u16 tmp16;
+
+			pci_write_config_word(tp->pdev, vpd_cap + PCI_VPD_ADDR,
+					      i);
+			while (j++ < 100) {
+				pci_read_config_word(tp->pdev, vpd_cap +
+						     PCI_VPD_ADDR, &tmp16);
+				if (tmp16 & 0x8000)
+					break;
+				msleep(1);
+			}
+			pci_read_config_dword(tp->pdev, vpd_cap + PCI_VPD_DATA,
+					      &tmp);
+			tmp = cpu_to_le32(tmp);
+			memcpy(&vpd_data[i], &tmp, 4);
+		}
 	}
 
 	/* Now parse and find the part number. */
