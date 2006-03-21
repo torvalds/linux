@@ -2177,15 +2177,17 @@ static int skge_up(struct net_device *dev)
 
 	memset(skge->mem, 0, skge->mem_size);
 
-	if ((err = skge_ring_alloc(&skge->rx_ring, skge->mem, skge->dma)))
+	err = skge_ring_alloc(&skge->rx_ring, skge->mem, skge->dma);
+	if (err)
 		goto free_pci_mem;
 
 	err = skge_rx_fill(skge);
 	if (err)
 		goto free_rx_ring;
 
-	if ((err = skge_ring_alloc(&skge->tx_ring, skge->mem + rx_size,
-				   skge->dma + rx_size)))
+	err = skge_ring_alloc(&skge->tx_ring, skge->mem + rx_size,
+			      skge->dma + rx_size);
+	if (err)
 		goto free_rx_ring;
 
 	skge->tx_avail = skge->tx_ring.count - 1;
@@ -2308,9 +2310,9 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 
 	if (!spin_trylock(&skge->tx_lock)) {
- 		/* Collision - tell upper layer to requeue */
- 		return NETDEV_TX_LOCKED;
- 	}
+		/* Collision - tell upper layer to requeue */
+		return NETDEV_TX_LOCKED;
+	}
 
 	if (unlikely(skge->tx_avail < skb_shinfo(skb)->nr_frags +1)) {
 		if (!netif_queue_stopped(dev)) {
@@ -2709,8 +2711,8 @@ static int skge_poll(struct net_device *dev, int *budget)
 		if (control & BMU_OWN)
 			break;
 
- 		skb = skge_rx_get(skge, e, control, rd->status,
- 				  le16_to_cpu(rd->csum2));
+		skb = skge_rx_get(skge, e, control, rd->status,
+				  le16_to_cpu(rd->csum2));
 		if (likely(skb)) {
 			dev->last_rx = jiffies;
 			netif_receive_skb(skb);
@@ -3240,13 +3242,15 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	struct skge_hw *hw;
 	int err, using_dac = 0;
 
-	if ((err = pci_enable_device(pdev))) {
+	err = pci_enable_device(pdev);
+	if (err) {
 		printk(KERN_ERR PFX "%s cannot enable PCI device\n",
 		       pci_name(pdev));
 		goto err_out;
 	}
 
-	if ((err = pci_request_regions(pdev, DRV_NAME))) {
+	err = pci_request_regions(pdev, DRV_NAME);
+	if (err) {
 		printk(KERN_ERR PFX "%s cannot obtain PCI resources\n",
 		       pci_name(pdev));
 		goto err_out_disable_pdev;
@@ -3298,7 +3302,8 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 		goto err_out_free_hw;
 	}
 
-	if ((err = request_irq(pdev->irq, skge_intr, SA_SHIRQ, DRV_NAME, hw))) {
+	err = request_irq(pdev->irq, skge_intr, SA_SHIRQ, DRV_NAME, hw);
+	if (err) {
 		printk(KERN_ERR PFX "%s: cannot assign irq %d\n",
 		       pci_name(pdev), pdev->irq);
 		goto err_out_iounmap;
@@ -3316,7 +3321,8 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	if ((dev = skge_devinit(hw, 0, using_dac)) == NULL)
 		goto err_out_led_off;
 
-	if ((err = register_netdev(dev))) {
+	err = register_netdev(dev);
+	if (err) {
 		printk(KERN_ERR PFX "%s: cannot register net device\n",
 		       pci_name(pdev));
 		goto err_out_free_netdev;
