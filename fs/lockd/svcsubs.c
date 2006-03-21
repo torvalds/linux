@@ -225,9 +225,7 @@ nlm_inspect_file(struct nlm_host *host, struct nlm_file *file, int action)
 			return 1;
 	} else {
 		nlmsvc_traverse_blocks(host, file, action);
-
-		if (nlmsvc_traverse_shares(host, file, action))
-			return 1;
+		nlmsvc_traverse_shares(host, file, action);
 	}
 	return nlm_traverse_locks(host, file, action);
 }
