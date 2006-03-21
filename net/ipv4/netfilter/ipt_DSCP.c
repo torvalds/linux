@@ -29,6 +29,7 @@ target(struct sk_buff **pskb,
        const struct net_device *in,
        const struct net_device *out,
        unsigned int hooknum,
+       const struct xt_target *target,
        const void *targinfo,
        void *userinfo)
 {
@@ -58,35 +59,25 @@ target(struct sk_buff **pskb,
 static int
 checkentry(const char *tablename,
 	   const void *e_void,
+	   const struct xt_target *target,
            void *targinfo,
            unsigned int targinfosize,
            unsigned int hook_mask)
 {
 	const u_int8_t dscp = ((struct ipt_DSCP_info *)targinfo)->dscp;
 
-	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_DSCP_info))) {
-		printk(KERN_WARNING "DSCP: targinfosize %u != %Zu\n",
-		       targinfosize,
-		       IPT_ALIGN(sizeof(struct ipt_DSCP_info)));
-		return 0;
-	}
-
-	if (strcmp(tablename, "mangle") != 0) {
-		printk(KERN_WARNING "DSCP: can only be called from \"mangle\" table, not \"%s\"\n", tablename);
-		return 0;
-	}
-
 	if ((dscp > IPT_DSCP_MAX)) {
 		printk(KERN_WARNING "DSCP: dscp %x out of range\n", dscp);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ipt_target ipt_dscp_reg = {
 	.name		= "DSCP",
 	.target		= target,
+	.targetsize	= sizeof(struct ipt_DSCP_info),
+	.table		= "mangle",
 	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };

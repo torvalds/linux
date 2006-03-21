@@ -34,24 +34,13 @@ MODULE_DESCRIPTION("iptables REDIRECT target module");
 static int
 redirect_check(const char *tablename,
 	       const void *e,
+	       const struct xt_target *target,
 	       void *targinfo,
 	       unsigned int targinfosize,
 	       unsigned int hook_mask)
 {
 	const struct ip_nat_multi_range_compat *mr = targinfo;
 
-	if (strcmp(tablename, "nat") != 0) {
-		DEBUGP("redirect_check: bad table `%s'.\n", table);
-		return 0;
-	}
-	if (targinfosize != IPT_ALIGN(sizeof(*mr))) {
-		DEBUGP("redirect_check: size %u.\n", targinfosize);
-		return 0;
-	}
-	if (hook_mask & ~((1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_OUT))) {
-		DEBUGP("redirect_check: bad hooks %x.\n", hook_mask);
-		return 0;
-	}
 	if (mr->range[0].flags & IP_NAT_RANGE_MAP_IPS) {
 		DEBUGP("redirect_check: bad MAP_IPS.\n");
 		return 0;
@@ -68,6 +57,7 @@ redirect_target(struct sk_buff **pskb,
 		const struct net_device *in,
 		const struct net_device *out,
 		unsigned int hooknum,
+		const struct xt_target *target,
 		const void *targinfo,
 		void *userinfo)
 {
@@ -115,6 +105,9 @@ redirect_target(struct sk_buff **pskb,
 static struct ipt_target redirect_reg = {
 	.name		= "REDIRECT",
 	.target		= redirect_target,
+	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
+	.table		= "nat",
+	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_OUT),
 	.checkentry	= redirect_check,
 	.me		= THIS_MODULE,
 };

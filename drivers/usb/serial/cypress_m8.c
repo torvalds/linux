@@ -98,10 +98,16 @@ static struct usb_device_id id_table_cyphidcomrs232 [] = {
 	{ }						/* Terminating entry */
 };
 
+static struct usb_device_id id_table_nokiaca42v2 [] = {
+	{ USB_DEVICE(VENDOR_ID_DAZZLE, PRODUCT_ID_CA42) },
+	{ }						/* Terminating entry */
+};
+
 static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(VENDOR_ID_DELORME, PRODUCT_ID_EARTHMATEUSB) },
 	{ USB_DEVICE(VENDOR_ID_DELORME, PRODUCT_ID_EARTHMATEUSB_LT20) },
 	{ USB_DEVICE(VENDOR_ID_CYPRESS, PRODUCT_ID_CYPHIDCOM) },
+	{ USB_DEVICE(VENDOR_ID_DAZZLE, PRODUCT_ID_CA42) },
 	{ }						/* Terminating entry */
 };
 
@@ -149,6 +155,7 @@ struct cypress_buf {
 /* function prototypes for the Cypress USB to serial device */
 static int  cypress_earthmate_startup	(struct usb_serial *serial);
 static int  cypress_hidcom_startup	(struct usb_serial *serial);
+static int  cypress_ca42v2_startup	(struct usb_serial *serial);
 static void cypress_shutdown		(struct usb_serial *serial);
 static int  cypress_open		(struct usb_serial_port *port, struct file *filp);
 static void cypress_close		(struct usb_serial_port *port, struct file *filp);
@@ -235,6 +242,34 @@ static struct usb_serial_driver cypress_hidcom_device = {
 	.write_int_callback =		cypress_write_int_callback,
 };
 
+static struct usb_serial_driver cypress_ca42v2_device = {
+	.driver = {
+		.owner =		THIS_MODULE,
+                .name =			"nokiaca42v2",
+	},
+	.description =			"Nokia CA-42 V2 Adapter",
+	.id_table =			id_table_nokiaca42v2,
+	.num_interrupt_in =		1,
+	.num_interrupt_out =		1,
+	.num_bulk_in =			NUM_DONT_CARE,
+	.num_bulk_out =			NUM_DONT_CARE,
+	.num_ports =			1,
+	.attach =			cypress_ca42v2_startup,
+	.shutdown =			cypress_shutdown,
+	.open =				cypress_open,
+	.close =			cypress_close,
+	.write =			cypress_write,
+	.write_room =			cypress_write_room,
+	.ioctl =			cypress_ioctl,
+	.set_termios =			cypress_set_termios,
+	.tiocmget =			cypress_tiocmget,
+	.tiocmset =			cypress_tiocmset,
+	.chars_in_buffer =		cypress_chars_in_buffer,
+	.throttle =			cypress_throttle,
+	.unthrottle =			cypress_unthrottle,
+	.read_int_callback =		cypress_read_int_callback,
+	.write_int_callback =		cypress_write_int_callback,
+};
 
 /*****************************************************************************
  * Cypress serial helper functions
@@ -281,6 +316,12 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 						new_baudrate = priv->baud_rate;
 					}
 				} else if (priv->chiptype == CT_CYPHIDCOM) {
+					if ( (new_baudrate = mask_to_rate(baud_mask)) == -1) {
+						err("%s - failed setting baud rate, unsupported speed",
+						    __FUNCTION__);
+						new_baudrate = priv->baud_rate;
+					}
+				} else if (priv->chiptype == CT_CA42V2) {
 					if ( (new_baudrate = mask_to_rate(baud_mask)) == -1) {
 						err("%s - failed setting baud rate, unsupported speed",
 						    __FUNCTION__);
@@ -435,11 +476,10 @@ static int generic_startup (struct usb_serial *serial)
 
 	dbg("%s - port %d", __FUNCTION__, serial->port[0]->number);
 
-	priv = kmalloc(sizeof (struct cypress_private), GFP_KERNEL);
+	priv = kzalloc(sizeof (struct cypress_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	memset(priv, 0x00, sizeof (struct cypress_private));
 	spin_lock_init(&priv->lock);
 	priv->buf = cypress_buf_alloc(CYPRESS_BUF_SIZE);
 	if (priv->buf == NULL) {
@@ -498,6 +538,25 @@ static int cypress_hidcom_startup (struct usb_serial *serial)
 	
 	return 0;
 } /* cypress_hidcom_startup */
+
+
+static int cypress_ca42v2_startup (struct usb_serial *serial)
+{
+	struct cypress_private *priv;
+
+	dbg("%s", __FUNCTION__);
+
+	if (generic_startup(serial)) {
+		dbg("%s - Failed setting up port %d", __FUNCTION__,
+				serial->port[0]->number);
+		return 1;
+	}
+
+	priv = usb_get_serial_port_data(serial->port[0]);
+	priv->chiptype = CT_CA42V2;
+
+	return 0;
+} /* cypress_ca42v2_startup */
 
 
 static void cypress_shutdown (struct usb_serial *serial)
@@ -941,6 +1000,10 @@ static void cypress_set_termios (struct usb_serial_port *port,
 			tty->termios->c_cflag = B4800 | CS8 | CREAD | HUPCL |
 				CLOCAL;
 		} else if (priv->chiptype == CT_CYPHIDCOM) {
+			*(tty->termios) = tty_std_termios;
+			tty->termios->c_cflag = B9600 | CS8 | CREAD | HUPCL |
+				CLOCAL;
+		} else if (priv->chiptype == CT_CA42V2) {
 			*(tty->termios) = tty_std_termios;
 			tty->termios->c_cflag = B9600 | CS8 | CREAD | HUPCL |
 				CLOCAL;
@@ -1542,6 +1605,9 @@ static int __init cypress_init(void)
 	retval = usb_serial_register(&cypress_hidcom_device);
 	if (retval)
 		goto failed_hidcom_register;
+	retval = usb_serial_register(&cypress_ca42v2_device);
+	if (retval)
+		goto failed_ca42v2_register;
 	retval = usb_register(&cypress_driver);
 	if (retval)
 		goto failed_usb_register;
@@ -1550,6 +1616,8 @@ static int __init cypress_init(void)
 	return 0;
 failed_usb_register:
 	usb_deregister(&cypress_driver);
+failed_ca42v2_register:
+	usb_serial_deregister(&cypress_ca42v2_device);
 failed_hidcom_register:
 	usb_serial_deregister(&cypress_hidcom_device);
 failed_em_register:
@@ -1566,6 +1634,7 @@ static void __exit cypress_exit (void)
 	usb_deregister (&cypress_driver);
 	usb_serial_deregister (&cypress_earthmate_device);
 	usb_serial_deregister (&cypress_hidcom_device);
+	usb_serial_deregister (&cypress_ca42v2_device);
 }
 
 

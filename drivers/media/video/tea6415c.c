@@ -26,6 +26,7 @@
     Foundation, Inc., 675 Mvss Ave, Cambridge, MA 02139, USA.
   */
 
+
 #include <linux/module.h>
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
@@ -107,7 +108,7 @@ static int switch_matrix(struct i2c_client *client, int i, int o)
 {
 	u8 byte = 0;
 	int ret;
-	
+
 	dprintk("adr:0x%02x, i:%d, o:%d\n", client->addr, i, o);
 
 	/* check if the pins are valid */
@@ -191,7 +192,7 @@ static int command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 static struct i2c_driver driver = {
 	.driver = {
-		.name 	= "tea6415c",
+		.name = "tea6415c",
 	},
 	.id 	= I2C_DRIVERID_TEA6415C,
 	.attach_adapter	= attach,

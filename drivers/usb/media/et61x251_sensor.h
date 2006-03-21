@@ -42,6 +42,9 @@ static int (*et61x251_sensor_table[])(struct et61x251_device*) = {            \
 	NULL,                                                                 \
 };
 
+extern struct et61x251_device*
+et61x251_match_id(struct et61x251_device* cam, const struct usb_device_id *id);
+
 extern void
 et61x251_attach_sensor(struct et61x251_device* cam,
                        struct et61x251_sensor* sensor);
@@ -104,8 +107,6 @@ struct et61x251_sensor {
 	                const struct v4l2_rect* rect);
 	int (*set_pix_format)(struct et61x251_device* cam,
 	                      const struct v4l2_pix_format* pix);
-
-	const struct usb_device* usbdev;
 
 	/* Private */
 	struct v4l2_queryctrl _qctrl[ET61X251_MAX_CTRLS];

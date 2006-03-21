@@ -669,14 +669,14 @@ int netpoll_setup(struct netpoll *np)
 		printk(KERN_INFO "%s: device %s not up yet, forcing it\n",
 		       np->name, np->dev_name);
 
-		rtnl_shlock();
+		rtnl_lock();
 		if (dev_change_flags(ndev, ndev->flags | IFF_UP) < 0) {
 			printk(KERN_ERR "%s: failed to open %s\n",
 			       np->name, np->dev_name);
-			rtnl_shunlock();
+			rtnl_unlock();
 			goto release;
 		}
-		rtnl_shunlock();
+		rtnl_unlock();
 
 		atleast = jiffies + HZ/10;
  		atmost = jiffies + 4*HZ;

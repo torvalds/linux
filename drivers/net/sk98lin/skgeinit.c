@@ -59,34 +59,6 @@ static struct s_Config OemConfig = {
 
 /******************************************************************************
  *
- *	SkGePollRxD() - Enable / Disable Descriptor Polling of RxD Ring
- *
- * Description:
- *	Enable or disable the descriptor polling of the receive descriptor
- *	ring (RxD) for port 'Port'.
- *	The new configuration is *not* saved over any SkGeStopPort() and
- *	SkGeInitPort() calls.
- *
- * Returns:
- *	nothing
- */
-void SkGePollRxD(
-SK_AC	*pAC,		/* adapter context */
-SK_IOC	IoC,		/* IO context */
-int		Port,		/* Port Index (MAC_1 + n) */
-SK_BOOL PollRxD)	/* SK_TRUE (enable pol.), SK_FALSE (disable pol.) */
-{
-	SK_GEPORT *pPrt;
-
-	pPrt = &pAC->GIni.GP[Port];
-
-	SK_OUT32(IoC, Q_ADDR(pPrt->PRxQOff, Q_CSR), (PollRxD) ?
-		CSR_ENA_POL : CSR_DIS_POL);
-}	/* SkGePollRxD */
-
-
-/******************************************************************************
- *
  *	SkGePollTxD() - Enable / Disable Descriptor Polling of TxD Rings
  *
  * Description:
@@ -952,7 +924,7 @@ int		Port)		/* Port Index (MAC_1 + n) */
  * Returns:
  *	nothing
  */
-void SkGeInitRamIface(
+static void SkGeInitRamIface(
 SK_AC	*pAC,		/* adapter context */
 SK_IOC	IoC)		/* IO context */
 {
@@ -1409,83 +1381,6 @@ SK_IOC	IoC)		/* IO context */
 
 }	/* SkGeInit0*/
 
-#ifdef SK_PCI_RESET
-
-/******************************************************************************
- *
- *	SkGePciReset() - Reset PCI interface
- *
- * Description:
- *	o Read PCI configuration.
- *	o Change power state to 3.
- *	o Change power state to 0.
- *	o Restore PCI configuration.
- *
- * Returns:
- *	0:	Success.
- *	1:	Power state could not be changed to 3.
- */
-static int SkGePciReset(
-SK_AC	*pAC,		/* adapter context */
-SK_IOC	IoC)		/* IO context */
-{
-	int		i;
-	SK_U16	PmCtlSts;
-	SK_U32	Bp1;
-	SK_U32	Bp2;
-	SK_U16	PciCmd;
-	SK_U8	Cls;
-	SK_U8	Lat;
-	SK_U8	ConfigSpace[PCI_CFG_SIZE];
-
-	/*
-	 * Note: Switching to D3 state is like a software reset.
-	 *		 Switching from D3 to D0 is a hardware reset.
-	 *		 We have to save and restore the configuration space.
-	 */
-	for (i = 0; i < PCI_CFG_SIZE; i++) {
-		SkPciReadCfgDWord(pAC, i*4, &ConfigSpace[i]);
-	}
-
-	/* We know the RAM Interface Arbiter is enabled. */
-	SkPciWriteCfgWord(pAC, PCI_PM_CTL_STS, PCI_PM_STATE_D3);
-	SkPciReadCfgWord(pAC, PCI_PM_CTL_STS, &PmCtlSts);
-	
-	if ((PmCtlSts & PCI_PM_STATE_MSK) != PCI_PM_STATE_D3) {
-		return(1);
-	}
-
-	/* Return to D0 state. */
-	SkPciWriteCfgWord(pAC, PCI_PM_CTL_STS, PCI_PM_STATE_D0);
-
-	/* Check for D0 state. */
-	SkPciReadCfgWord(pAC, PCI_PM_CTL_STS, &PmCtlSts);
-	
-	if ((PmCtlSts & PCI_PM_STATE_MSK) != PCI_PM_STATE_D0) {
-		return(1);
-	}
-
-	/* Check PCI Config Registers. */
-	SkPciReadCfgWord(pAC, PCI_COMMAND, &PciCmd);
-	SkPciReadCfgByte(pAC, PCI_CACHE_LSZ, &Cls);
-	SkPciReadCfgDWord(pAC, PCI_BASE_1ST, &Bp1);
-	SkPciReadCfgDWord(pAC, PCI_BASE_2ND, &Bp2);
-	SkPciReadCfgByte(pAC, PCI_LAT_TIM, &Lat);
-	
-	if (PciCmd != 0 || Cls != (SK_U8)0 || Lat != (SK_U8)0 ||
-		(Bp1 & 0xfffffff0L) != 0 || Bp2 != 1) {
-		return(1);
-	}
-
-	/* Restore PCI Config Space. */
-	for (i = 0; i < PCI_CFG_SIZE; i++) {
-		SkPciWriteCfgDWord(pAC, i*4, ConfigSpace[i]);
-	}
-
-	return(0);
-}	/* SkGePciReset */
-
-#endif /* SK_PCI_RESET */
 
 /******************************************************************************
  *
@@ -1523,10 +1418,6 @@ SK_IOC	IoC)		/* IO context */
 
 	/* save CLK_RUN bits (YUKON-Lite) */
 	SK_IN16(IoC, B0_CTST, &CtrlStat);
-
-#ifdef SK_PCI_RESET
-	(void)SkGePciReset(pAC, IoC);
-#endif /* SK_PCI_RESET */
 
 	/* do the SW-reset */
 	SK_OUT8(IoC, B0_CTST, CS_RST_SET);
@@ -1991,11 +1882,6 @@ SK_IOC	IoC)		/* IO context */
 	int	i;
 	SK_U16	Word;
 
-#ifdef SK_PHY_LP_MODE
-	SK_U8	Byte;
-	SK_U16	PmCtlSts;
-#endif /* SK_PHY_LP_MODE */
-
 #if (!defined(SK_SLIM) && !defined(VCPU))
 	/* ensure I2C is ready */
 	SkI2cWaitIrq(pAC, IoC);
@@ -2009,38 +1895,6 @@ SK_IOC	IoC)		/* IO context */
 			SkGeStopPort(pAC, IoC, i, SK_STOP_ALL, SK_HARD_RST);
 		}
 	}
-
-#ifdef SK_PHY_LP_MODE
-    /*
-	 * for power saving purposes within mobile environments
-	 * we set the PHY to coma mode and switch to D3 power state.
-	 */
-	if (pAC->GIni.GIYukonLite &&
-		pAC->GIni.GIChipRev >= CHIP_REV_YU_LITE_A3) {
-
-		/* for all ports switch PHY to coma mode */
-		for (i = 0; i < pAC->GIni.GIMacsFound; i++) {
-			
-			SkGmEnterLowPowerMode(pAC, IoC, i, PHY_PM_DEEP_SLEEP);
-		}
-
-		if (pAC->GIni.GIVauxAvail) {
-			/* switch power to VAUX */
-			Byte = PC_VAUX_ENA | PC_VCC_ENA | PC_VAUX_ON | PC_VCC_OFF;
-
-			SK_OUT8(IoC, B0_POWER_CTRL, Byte);
-		}
-		
-		/* switch to D3 state */
-		SK_IN16(IoC, PCI_C(PCI_PM_CTL_STS), &PmCtlSts);
-
-		PmCtlSts |= PCI_PM_STATE_D3;
-
-		SK_OUT8(IoC, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-
-		SK_OUT16(IoC, PCI_C(PCI_PM_CTL_STS), PmCtlSts);
-	}
-#endif /* SK_PHY_LP_MODE */
 
 	/* Reset all bits in the PCI STATUS register */
 	/*

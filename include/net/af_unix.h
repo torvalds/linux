@@ -4,6 +4,7 @@
 #include <linux/config.h>
 #include <linux/socket.h>
 #include <linux/un.h>
+#include <linux/mutex.h>
 #include <net/sock.h>
 
 extern void unix_inflight(struct file *fp);
@@ -71,7 +72,7 @@ struct unix_sock {
         struct unix_address     *addr;
         struct dentry		*dentry;
         struct vfsmount		*mnt;
-        struct semaphore        readsem;
+	struct mutex		readlock;
         struct sock		*peer;
         struct sock		*other;
         struct sock		*gc_tree;

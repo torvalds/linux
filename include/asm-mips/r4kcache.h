@@ -257,7 +257,8 @@ static inline void blast_##pfx##cache##lsize##_page(unsigned long page)	\
 									\
 static inline void blast_##pfx##cache##lsize##_page_indexed(unsigned long page) \
 {									\
-	unsigned long start = page;					\
+	unsigned long indexmask = current_cpu_data.desc.waysize - 1;	\
+	unsigned long start = INDEX_BASE + (page & indexmask);		\
 	unsigned long end = start + PAGE_SIZE;				\
 	unsigned long ws_inc = 1UL << current_cpu_data.desc.waybit;	\
 	unsigned long ws_end = current_cpu_data.desc.ways <<		\
@@ -302,5 +303,6 @@ __BUILD_BLAST_CACHE_RANGE(d, dcache, Hit_Writeback_Inv_D, )
 __BUILD_BLAST_CACHE_RANGE(s, scache, Hit_Writeback_Inv_SD, )
 /* blast_inv_dcache_range */
 __BUILD_BLAST_CACHE_RANGE(inv_d, dcache, Hit_Invalidate_D, )
+__BUILD_BLAST_CACHE_RANGE(inv_s, scache, Hit_Invalidate_SD, )
 
 #endif /* _ASM_R4KCACHE_H */

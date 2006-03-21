@@ -118,7 +118,7 @@ struct usb_stv {
 	int origGain;
 	int origMode;		/* original camera mode */
 
-	struct semaphore lock;	/* to lock the structure */
+	struct mutex lock;	/* to lock the structure */
 	int user;		/* user count for exclusive use */
 	int removed;		/* device disconnected */
 	int streaming;		/* Are we streaming video? */

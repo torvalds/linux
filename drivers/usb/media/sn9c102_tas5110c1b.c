@@ -142,14 +142,18 @@ static struct sn9c102_sensor tas5110c1b = {
 
 int sn9c102_probe_tas5110c1b(struct sn9c102_device* cam)
 {
-	/* This sensor has no identifiers, so let's attach it anyway */
-	sn9c102_attach_sensor(cam, &tas5110c1b);
+	const struct usb_device_id tas5110c1b_id_table[] = {
+		{ USB_DEVICE(0x0c45, 0x6001), },
+		{ USB_DEVICE(0x0c45, 0x6005), },
+		{ USB_DEVICE(0x0c45, 0x60ab), },
+		{ }
+	};
 
 	/* Sensor detection is based on USB pid/vid */
-	if (le16_to_cpu(tas5110c1b.usbdev->descriptor.idProduct) != 0x6001 &&
-	    le16_to_cpu(tas5110c1b.usbdev->descriptor.idProduct) != 0x6005 &&
-	    le16_to_cpu(tas5110c1b.usbdev->descriptor.idProduct) != 0x60ab)
+	if (!sn9c102_match_id(cam, tas5110c1b_id_table))
 		return -ENODEV;
+
+	sn9c102_attach_sensor(cam, &tas5110c1b);
 
 	return 0;
 }

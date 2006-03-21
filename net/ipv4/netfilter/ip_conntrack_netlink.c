@@ -327,9 +327,10 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		group = NFNLGRP_CONNTRACK_UPDATE;
 	} else 
 		return NOTIFY_DONE;
-	
-  /* FIXME: Check if there are any listeners before, don't hurt performance */
-	
+
+	if (!nfnetlink_has_listeners(group))
+		return NOTIFY_DONE;
+
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_ATOMIC);
 	if (!skb)
 		return NOTIFY_DONE;

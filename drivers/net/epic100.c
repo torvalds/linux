@@ -225,7 +225,7 @@ struct epic_chip_info {
 
 
 /* indexed by chip_t */
-static struct epic_chip_info pci_id_tbl[] = {
+static const struct epic_chip_info pci_id_tbl[] = {
 	{ "SMSC EPIC/100 83c170",
 	 EPIC_IOTYPE, EPIC_TOTAL_SIZE, TYPE2_INTR | NO_MII | MII_PWRDWN },
 	{ "SMSC EPIC/100 83c170",
@@ -291,7 +291,7 @@ enum CommandBits {
 			 RxDone | RxStarted | RxEarlyWarn | RxOverflow | RxFull)
 #define EpicNormalEvent	(0x0000ffff & ~EpicNapiEvent)
 
-static u16 media2miictl[16] = {
+static const u16 media2miictl[16] = {
 	0, 0x0C00, 0x0C00, 0x2000,  0x0100, 0x2100, 0, 0,
 	0, 0, 0, 0,  0, 0, 0, 0 };
 

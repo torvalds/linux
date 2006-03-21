@@ -141,7 +141,7 @@ int __devinit register_cpu(struct cpu *cpu, int num, struct node *root)
 	return error;
 }
 
-struct sys_device *get_cpu_sysdev(int cpu)
+struct sys_device *get_cpu_sysdev(unsigned cpu)
 {
 	if (cpu < NR_CPUS)
 		return cpu_sys_devices[cpu];

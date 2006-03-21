@@ -68,6 +68,7 @@ static int
 ipt_limit_match(const struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
+		const struct xt_match *match,
 		const void *matchinfo,
 		int offset,
 		unsigned int protoff,
@@ -107,14 +108,12 @@ user2credits(u_int32_t user)
 static int
 ipt_limit_checkentry(const char *tablename,
 		     const void *inf,
+		     const struct xt_match *match,
 		     void *matchinfo,
 		     unsigned int matchsize,
 		     unsigned int hook_mask)
 {
 	struct xt_rateinfo *r = matchinfo;
-
-	if (matchsize != XT_ALIGN(sizeof(struct xt_rateinfo)))
-		return 0;
 
 	/* Check for overflow. */
 	if (r->burst == 0
@@ -140,12 +139,14 @@ ipt_limit_checkentry(const char *tablename,
 static struct xt_match ipt_limit_reg = {
 	.name		= "limit",
 	.match		= ipt_limit_match,
+	.matchsize	= sizeof(struct xt_rateinfo),
 	.checkentry	= ipt_limit_checkentry,
 	.me		= THIS_MODULE,
 };
 static struct xt_match limit6_reg = {
 	.name		= "limit",
 	.match		= ipt_limit_match,
+	.matchsize	= sizeof(struct xt_rateinfo),
 	.checkentry	= ipt_limit_checkentry,
 	.me		= THIS_MODULE,
 };

@@ -1691,8 +1691,8 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 		    || ppp->npmode[npi] != NPMODE_PASS) {
 			kfree_skb(skb);
 		} else {
-			skb_pull(skb, 2);	/* chop off protocol */
-			skb_postpull_rcsum(skb, skb->data - 2, 2);
+			/* chop off protocol */
+			skb_pull_rcsum(skb, 2);
 			skb->dev = ppp->dev;
 			skb->protocol = htons(npindex_to_ethertype[npi]);
 			skb->mac.raw = skb->data;

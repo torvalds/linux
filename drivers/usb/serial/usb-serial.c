@@ -564,12 +564,11 @@ static struct usb_serial * create_serial (struct usb_device *dev,
 {
 	struct usb_serial *serial;
 
-	serial = kmalloc (sizeof (*serial), GFP_KERNEL);
+	serial = kzalloc(sizeof(*serial), GFP_KERNEL);
 	if (!serial) {
 		dev_err(&dev->dev, "%s - out of memory\n", __FUNCTION__);
 		return NULL;
 	}
-	memset (serial, 0, sizeof(*serial));
 	serial->dev = usb_get_dev(dev);
 	serial->type = driver;
 	serial->interface = interface;
@@ -778,10 +777,9 @@ int usb_serial_probe(struct usb_interface *interface,
 	serial->num_port_pointers = max_endpoints;
 	dbg("%s - setting up %d port structures for this device", __FUNCTION__, max_endpoints);
 	for (i = 0; i < max_endpoints; ++i) {
-		port = kmalloc(sizeof(struct usb_serial_port), GFP_KERNEL);
+		port = kzalloc(sizeof(struct usb_serial_port), GFP_KERNEL);
 		if (!port)
 			goto probe_error;
-		memset(port, 0x00, sizeof(struct usb_serial_port));
 		port->number = i + serial->minor;
 		port->serial = serial;
 		spin_lock_init(&port->lock);

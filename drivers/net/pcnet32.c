@@ -26,7 +26,7 @@
 #define DRV_RELDATE	"01.Nov.2005"
 #define PFX		DRV_NAME ": "
 
-static const char *version =
+static const char * const version =
 DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " tsbogend@alpha.franken.de\n";
 
 #include <linux/module.h>
@@ -109,7 +109,7 @@ static int rx_copybreak = 200;
  * table to translate option values from tulip
  * to internal options
  */
-static unsigned char options_mapping[] = {
+static const unsigned char options_mapping[] = {
     PCNET32_PORT_ASEL,			   /*  0 Auto-select	  */
     PCNET32_PORT_AUI,			   /*  1 BNC/AUI	  */
     PCNET32_PORT_AUI,			   /*  2 AUI/BNC	  */
@@ -733,7 +733,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t *data1)
     int rc;				/* return code */
     int size;				/* size of packets */
     unsigned char *packet;		/* source packet data */
-    static int data_len = 60;		/* length of source packets */
+    static const int data_len = 60;		/* length of source packets */
     unsigned long flags;
     unsigned long ticks;
 

@@ -165,7 +165,7 @@ static unsigned int crypto_ctxsize(struct crypto_alg *alg, int flags)
 		break;
 	}
 
-	return len + alg->cra_alignmask;
+	return len + (alg->cra_alignmask & ~(crypto_tfm_ctx_alignment() - 1));
 }
 
 struct crypto_tfm *crypto_alloc_tfm(const char *name, u32 flags)
@@ -179,12 +179,10 @@ struct crypto_tfm *crypto_alloc_tfm(const char *name, u32 flags)
 		goto out;
 
 	tfm_size = sizeof(*tfm) + crypto_ctxsize(alg, flags);
-	tfm = kmalloc(tfm_size, GFP_KERNEL);
+	tfm = kzalloc(tfm_size, GFP_KERNEL);
 	if (tfm == NULL)
 		goto out_put;
 
-	memset(tfm, 0, tfm_size);
-	
 	tfm->__crt_alg = alg;
 	
 	if (crypto_init_flags(tfm, flags))

@@ -24,6 +24,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
   */
 
+
 #include <linux/module.h>
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
@@ -222,7 +223,7 @@ static int detach(struct i2c_client *client)
 
 static struct i2c_driver driver = {
 	.driver = {
-		.name	= "tda9840",
+		.name = "tda9840",
 	},
 	.id	= I2C_DRIVERID_TDA9840,
 	.attach_adapter	= attach,

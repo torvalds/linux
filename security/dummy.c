@@ -763,8 +763,14 @@ static int dummy_socket_sock_rcv_skb (struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static int dummy_socket_getpeersec(struct socket *sock, char __user *optval,
-				   int __user *optlen, unsigned len)
+static int dummy_socket_getpeersec_stream(struct socket *sock, char __user *optval,
+					  int __user *optlen, unsigned len)
+{
+	return -ENOPROTOOPT;
+}
+
+static int dummy_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata,
+					 u32 *seclen)
 {
 	return -ENOPROTOOPT;
 }
@@ -1002,7 +1008,8 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, socket_getsockopt);
 	set_to_dummy_if_null(ops, socket_shutdown);
 	set_to_dummy_if_null(ops, socket_sock_rcv_skb);
-	set_to_dummy_if_null(ops, socket_getpeersec);
+	set_to_dummy_if_null(ops, socket_getpeersec_stream);
+	set_to_dummy_if_null(ops, socket_getpeersec_dgram);
 	set_to_dummy_if_null(ops, sk_alloc_security);
 	set_to_dummy_if_null(ops, sk_free_security);
 	set_to_dummy_if_null(ops, sk_getsid);

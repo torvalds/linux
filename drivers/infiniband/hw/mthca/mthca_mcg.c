@@ -187,7 +187,7 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 
 	for (i = 0; i < MTHCA_QP_PER_MGM; ++i)
 		if (mgm->qp[i] == cpu_to_be32(ibqp->qp_num | (1 << 31))) {
-			mthca_dbg(dev, "QP %06x already a member of MGM\n", 
+			mthca_dbg(dev, "QP %06x already a member of MGM\n",
 				  ibqp->qp_num);
 			err = 0;
 			goto out;

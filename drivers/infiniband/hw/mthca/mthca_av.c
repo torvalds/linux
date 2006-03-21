@@ -147,7 +147,7 @@ int mthca_destroy_ah(struct mthca_dev *dev, struct mthca_ah *ah)
 	switch (ah->type) {
 	case MTHCA_AH_ON_HCA:
 		mthca_free(&dev->av_table.alloc,
- 			   (ah->avdma - dev->av_table.ddr_av_base) /
+			   (ah->avdma - dev->av_table.ddr_av_base) /
 			   MTHCA_AV_SIZE);
 		break;
 
@@ -188,6 +188,37 @@ int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 				  &header->grh.source_gid);
 		memcpy(header->grh.destination_gid.raw,
 		       ah->av->dgid, 16);
+	}
+
+	return 0;
+}
+
+int mthca_ah_query(struct ib_ah *ibah, struct ib_ah_attr *attr)
+{
+	struct mthca_ah *ah   = to_mah(ibah);
+	struct mthca_dev *dev = to_mdev(ibah->device);
+
+	/* Only implement for MAD and memfree ah for now. */
+	if (ah->type == MTHCA_AH_ON_HCA)
+		return -ENOSYS;
+
+	memset(attr, 0, sizeof *attr);
+	attr->dlid          = be16_to_cpu(ah->av->dlid);
+	attr->sl            = be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 28;
+	attr->static_rate   = ah->av->msg_sr & 0x7;
+	attr->src_path_bits = ah->av->g_slid & 0x7F;
+	attr->port_num      = be32_to_cpu(ah->av->port_pd) >> 24;
+	attr->ah_flags      = mthca_ah_grh_present(ah) ? IB_AH_GRH : 0;
+
+	if (attr->ah_flags) {
+		attr->grh.traffic_class =
+			be32_to_cpu(ah->av->sl_tclass_flowlabel) >> 20;
+		attr->grh.flow_label =
+			be32_to_cpu(ah->av->sl_tclass_flowlabel) & 0xfffff;
+		attr->grh.hop_limit  = ah->av->hop_limit;
+		attr->grh.sgid_index = ah->av->gid_index &
+				       (dev->limits.gid_table_len - 1);
+		memcpy(attr->grh.dgid.raw, ah->av->dgid, 16);
 	}
 
 	return 0;

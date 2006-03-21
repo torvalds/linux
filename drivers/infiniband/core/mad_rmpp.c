@@ -111,14 +111,14 @@ static int data_offset(u8 mgmt_class)
 		return IB_MGMT_RMPP_HDR;
 }
 
-static void format_ack(struct ib_rmpp_mad *ack,
+static void format_ack(struct ib_mad_send_buf *msg,
 		       struct ib_rmpp_mad *data,
 		       struct mad_rmpp_recv *rmpp_recv)
 {
+	struct ib_rmpp_mad *ack = msg->mad;
 	unsigned long flags;
 
-	memcpy(&ack->mad_hdr, &data->mad_hdr,
-	       data_offset(data->mad_hdr.mgmt_class));
+	memcpy(ack, &data->mad_hdr, msg->hdr_len);
 
 	ack->mad_hdr.method ^= IB_MGMT_METHOD_RESP;
 	ack->rmpp_hdr.rmpp_type = IB_MGMT_RMPP_TYPE_ACK;
@@ -135,16 +135,16 @@ static void ack_recv(struct mad_rmpp_recv *rmpp_recv,
 		     struct ib_mad_recv_wc *recv_wc)
 {
 	struct ib_mad_send_buf *msg;
-	int ret;
+	int ret, hdr_len;
 
+	hdr_len = data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
 	msg = ib_create_send_mad(&rmpp_recv->agent->agent, recv_wc->wc->src_qp,
-				 recv_wc->wc->pkey_index, 1, IB_MGMT_RMPP_HDR,
-				 IB_MGMT_RMPP_DATA, GFP_KERNEL);
+				 recv_wc->wc->pkey_index, 1, hdr_len,
+				 0, GFP_KERNEL);
 	if (!msg)
 		return;
 
-	format_ack(msg->mad, (struct ib_rmpp_mad *) recv_wc->recv_buf.mad,
-		   rmpp_recv);
+	format_ack(msg, (struct ib_rmpp_mad *) recv_wc->recv_buf.mad, rmpp_recv);
 	msg->ah = rmpp_recv->ah;
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
@@ -156,16 +156,17 @@ static struct ib_mad_send_buf *alloc_response_msg(struct ib_mad_agent *agent,
 {
 	struct ib_mad_send_buf *msg;
 	struct ib_ah *ah;
+	int hdr_len;
 
 	ah = ib_create_ah_from_wc(agent->qp->pd, recv_wc->wc,
 				  recv_wc->recv_buf.grh, agent->port_num);
 	if (IS_ERR(ah))
 		return (void *) ah;
 
+	hdr_len = data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
 	msg = ib_create_send_mad(agent, recv_wc->wc->src_qp,
 				 recv_wc->wc->pkey_index, 1,
-				 IB_MGMT_RMPP_HDR, IB_MGMT_RMPP_DATA,
-				 GFP_KERNEL);
+				 hdr_len, 0, GFP_KERNEL);
 	if (IS_ERR(msg))
 		ib_destroy_ah(ah);
 	else
@@ -195,8 +196,7 @@ static void nack_recv(struct ib_mad_agent_private *agent,
 		return;
 
 	rmpp_mad = msg->mad;
-	memcpy(rmpp_mad, recv_wc->recv_buf.mad,
-	       data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class));
+	memcpy(rmpp_mad, recv_wc->recv_buf.mad, msg->hdr_len);
 
 	rmpp_mad->mad_hdr.method ^= IB_MGMT_METHOD_RESP;
 	rmpp_mad->rmpp_hdr.rmpp_version = IB_MGMT_RMPP_VERSION;
@@ -433,44 +433,6 @@ static struct ib_mad_recv_wc * complete_rmpp(struct mad_rmpp_recv *rmpp_recv)
 	return rmpp_wc;
 }
 
-void ib_coalesce_recv_mad(struct ib_mad_recv_wc *mad_recv_wc, void *buf)
-{
-	struct ib_mad_recv_buf *seg_buf;
-	struct ib_rmpp_mad *rmpp_mad;
-	void *data;
-	int size, len, offset;
-	u8 flags;
-
-	len = mad_recv_wc->mad_len;
-	if (len <= sizeof(struct ib_mad)) {
-		memcpy(buf, mad_recv_wc->recv_buf.mad, len);
-		return;
-	}
-
-	offset = data_offset(mad_recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
-
-	list_for_each_entry(seg_buf, &mad_recv_wc->rmpp_list, list) {
-		rmpp_mad = (struct ib_rmpp_mad *)seg_buf->mad;
-		flags = ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr);
-
-		if (flags & IB_MGMT_RMPP_FLAG_FIRST) {
-			data = rmpp_mad;
-			size = sizeof(*rmpp_mad);
-		} else {
-			data = (void *) rmpp_mad + offset;
-			if (flags & IB_MGMT_RMPP_FLAG_LAST)
-				size = len;
-			else
-				size = sizeof(*rmpp_mad) - offset;
-		}
-
-		memcpy(buf, data, size);
-		len -= size;
-		buf += size;
-	}
-}
-EXPORT_SYMBOL(ib_coalesce_recv_mad);
-
 static struct ib_mad_recv_wc *
 continue_rmpp(struct ib_mad_agent_private *agent,
 	      struct ib_mad_recv_wc *mad_recv_wc)
@@ -570,50 +532,33 @@ start_rmpp(struct ib_mad_agent_private *agent,
 	return mad_recv_wc;
 }
 
-static inline u64 get_seg_addr(struct ib_mad_send_wr_private *mad_send_wr)
-{
-	return mad_send_wr->sg_list[0].addr + mad_send_wr->data_offset +
-	       (sizeof(struct ib_rmpp_mad) - mad_send_wr->data_offset) *
-	       (mad_send_wr->seg_num - 1);
-}
-
 static int send_next_seg(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	struct ib_rmpp_mad *rmpp_mad;
 	int timeout;
-	u32 paylen;
+	u32 paylen = 0;
 
 	rmpp_mad = mad_send_wr->send_buf.mad;
 	ib_set_rmpp_flags(&rmpp_mad->rmpp_hdr, IB_MGMT_RMPP_FLAG_ACTIVE);
-	rmpp_mad->rmpp_hdr.seg_num = cpu_to_be32(mad_send_wr->seg_num);
+	rmpp_mad->rmpp_hdr.seg_num = cpu_to_be32(++mad_send_wr->seg_num);
 
 	if (mad_send_wr->seg_num == 1) {
 		rmpp_mad->rmpp_hdr.rmpp_rtime_flags |= IB_MGMT_RMPP_FLAG_FIRST;
-		paylen = mad_send_wr->total_seg * IB_MGMT_RMPP_DATA -
+		paylen = mad_send_wr->send_buf.seg_count * IB_MGMT_RMPP_DATA -
 			 mad_send_wr->pad;
-		rmpp_mad->rmpp_hdr.paylen_newwin = cpu_to_be32(paylen);
-		mad_send_wr->sg_list[0].length = sizeof(struct ib_rmpp_mad);
-	} else {
-		mad_send_wr->send_wr.num_sge = 2;
-		mad_send_wr->sg_list[0].length = mad_send_wr->data_offset;
-		mad_send_wr->sg_list[1].addr = get_seg_addr(mad_send_wr);
-		mad_send_wr->sg_list[1].length = sizeof(struct ib_rmpp_mad) -
-						 mad_send_wr->data_offset;
-		mad_send_wr->sg_list[1].lkey = mad_send_wr->sg_list[0].lkey;
-		rmpp_mad->rmpp_hdr.paylen_newwin = 0;
 	}
 
-	if (mad_send_wr->seg_num == mad_send_wr->total_seg) {
+	if (mad_send_wr->seg_num == mad_send_wr->send_buf.seg_count) {
 		rmpp_mad->rmpp_hdr.rmpp_rtime_flags |= IB_MGMT_RMPP_FLAG_LAST;
 		paylen = IB_MGMT_RMPP_DATA - mad_send_wr->pad;
-		rmpp_mad->rmpp_hdr.paylen_newwin = cpu_to_be32(paylen);
 	}
+	rmpp_mad->rmpp_hdr.paylen_newwin = cpu_to_be32(paylen);
 
 	/* 2 seconds for an ACK until we can find the packet lifetime */
 	timeout = mad_send_wr->send_buf.timeout_ms;
 	if (!timeout || timeout > 2000)
 		mad_send_wr->timeout = msecs_to_jiffies(2000);
-	mad_send_wr->seg_num++;
+
 	return ib_send_mad(mad_send_wr);
 }
 
@@ -629,7 +574,7 @@ static void abort_send(struct ib_mad_agent_private *agent, __be64 tid,
 	if (!mad_send_wr)
 		goto out;	/* Unmatched send */
 
-	if ((mad_send_wr->last_ack == mad_send_wr->total_seg) ||
+	if ((mad_send_wr->last_ack == mad_send_wr->send_buf.seg_count) ||
 	    (!mad_send_wr->timeout) || (mad_send_wr->status != IB_WC_SUCCESS))
 		goto out;	/* Send is already done */
 
@@ -643,6 +588,18 @@ static void abort_send(struct ib_mad_agent_private *agent, __be64 tid,
 	return;
 out:
 	spin_unlock_irqrestore(&agent->lock, flags);
+}
+
+static inline void adjust_last_ack(struct ib_mad_send_wr_private *wr,
+				   int seg_num)
+{
+	struct list_head *list;
+
+	wr->last_ack = seg_num;
+	list = &wr->last_ack_seg->list;
+	list_for_each_entry(wr->last_ack_seg, list, list)
+		if (wr->last_ack_seg->num == seg_num)
+			break;
 }
 
 static void process_rmpp_ack(struct ib_mad_agent_private *agent,
@@ -675,11 +632,12 @@ static void process_rmpp_ack(struct ib_mad_agent_private *agent,
 	if (!mad_send_wr)
 		goto out;	/* Unmatched ACK */
 
-	if ((mad_send_wr->last_ack == mad_send_wr->total_seg) ||
+	if ((mad_send_wr->last_ack == mad_send_wr->send_buf.seg_count) ||
 	    (!mad_send_wr->timeout) || (mad_send_wr->status != IB_WC_SUCCESS))
 		goto out;	/* Send is already done */
 
-	if (seg_num > mad_send_wr->total_seg || seg_num > mad_send_wr->newwin) {
+	if (seg_num > mad_send_wr->send_buf.seg_count ||
+	    seg_num > mad_send_wr->newwin) {
 		spin_unlock_irqrestore(&agent->lock, flags);
 		abort_send(agent, rmpp_mad->mad_hdr.tid,
 			   IB_MGMT_RMPP_STATUS_S2B);
@@ -691,11 +649,11 @@ static void process_rmpp_ack(struct ib_mad_agent_private *agent,
 		goto out;	/* Old ACK */
 
 	if (seg_num > mad_send_wr->last_ack) {
-		mad_send_wr->last_ack = seg_num;
+		adjust_last_ack(mad_send_wr, seg_num);
 		mad_send_wr->retries = mad_send_wr->send_buf.retries;
 	}
 	mad_send_wr->newwin = newwin;
-	if (mad_send_wr->last_ack == mad_send_wr->total_seg) {
+	if (mad_send_wr->last_ack == mad_send_wr->send_buf.seg_count) {
 		/* If no response is expected, the ACK completes the send */
 		if (!mad_send_wr->send_buf.timeout_ms) {
 			struct ib_mad_send_wc wc;
@@ -714,7 +672,7 @@ static void process_rmpp_ack(struct ib_mad_agent_private *agent,
 					     mad_send_wr->send_buf.timeout_ms);
 	} else if (mad_send_wr->refcount == 1 &&
 		   mad_send_wr->seg_num < mad_send_wr->newwin &&
-		   mad_send_wr->seg_num <= mad_send_wr->total_seg) {
+		   mad_send_wr->seg_num < mad_send_wr->send_buf.seg_count) {
 		/* Send failure will just result in a timeout/retry */
 		ret = send_next_seg(mad_send_wr);
 		if (ret)
@@ -838,31 +796,19 @@ out:
 int ib_send_rmpp_mad(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	struct ib_rmpp_mad *rmpp_mad;
-	int i, total_len, ret;
+	int ret;
 
 	rmpp_mad = mad_send_wr->send_buf.mad;
 	if (!(ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr) &
 	      IB_MGMT_RMPP_FLAG_ACTIVE))
 		return IB_RMPP_RESULT_UNHANDLED;
 
-	if (rmpp_mad->rmpp_hdr.rmpp_type != IB_MGMT_RMPP_TYPE_DATA)
+	if (rmpp_mad->rmpp_hdr.rmpp_type != IB_MGMT_RMPP_TYPE_DATA) {
+		mad_send_wr->seg_num = 1;
 		return IB_RMPP_RESULT_INTERNAL;
+	}
 
-	if (mad_send_wr->send_wr.num_sge > 1)
-		return -EINVAL;		/* TODO: support num_sge > 1 */
-
-	mad_send_wr->seg_num = 1;
 	mad_send_wr->newwin = 1;
-	mad_send_wr->data_offset = data_offset(rmpp_mad->mad_hdr.mgmt_class);
-
-	total_len = 0;
-	for (i = 0; i < mad_send_wr->send_wr.num_sge; i++)
-		total_len += mad_send_wr->send_wr.sg_list[i].length;
-
-        mad_send_wr->total_seg = (total_len - mad_send_wr->data_offset) /
-			(sizeof(struct ib_rmpp_mad) - mad_send_wr->data_offset);
-	mad_send_wr->pad = total_len - IB_MGMT_RMPP_HDR -
-			   be32_to_cpu(rmpp_mad->rmpp_hdr.paylen_newwin);
 
 	/* We need to wait for the final ACK even if there isn't a response */
 	mad_send_wr->refcount += (mad_send_wr->timeout == 0);
@@ -893,14 +839,14 @@ int ib_process_rmpp_send_wc(struct ib_mad_send_wr_private *mad_send_wr,
 	if (!mad_send_wr->timeout)
 		return IB_RMPP_RESULT_PROCESSED; /* Response received */
 
-	if (mad_send_wr->last_ack == mad_send_wr->total_seg) {
+	if (mad_send_wr->last_ack == mad_send_wr->send_buf.seg_count) {
 		mad_send_wr->timeout =
 			msecs_to_jiffies(mad_send_wr->send_buf.timeout_ms);
 		return IB_RMPP_RESULT_PROCESSED; /* Send done */
 	}
 
-	if (mad_send_wr->seg_num > mad_send_wr->newwin ||
-	    mad_send_wr->seg_num > mad_send_wr->total_seg)
+	if (mad_send_wr->seg_num == mad_send_wr->newwin ||
+	    mad_send_wr->seg_num == mad_send_wr->send_buf.seg_count)
 		return IB_RMPP_RESULT_PROCESSED; /* Wait for ACK */
 
 	ret = send_next_seg(mad_send_wr);
@@ -921,10 +867,12 @@ int ib_retry_rmpp(struct ib_mad_send_wr_private *mad_send_wr)
 	      IB_MGMT_RMPP_FLAG_ACTIVE))
 		return IB_RMPP_RESULT_UNHANDLED; /* RMPP not active */
 
-	if (mad_send_wr->last_ack == mad_send_wr->total_seg)
+	if (mad_send_wr->last_ack == mad_send_wr->send_buf.seg_count)
 		return IB_RMPP_RESULT_PROCESSED;
 
-	mad_send_wr->seg_num = mad_send_wr->last_ack + 1;
+	mad_send_wr->seg_num = mad_send_wr->last_ack;
+	mad_send_wr->cur_seg = mad_send_wr->last_ack_seg;
+
 	ret = send_next_seg(mad_send_wr);
 	if (ret)
 		return IB_RMPP_RESULT_PROCESSED;

@@ -1066,6 +1066,8 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	port->mapbase	= res->start;
 	port->membase	= S3C24XX_VA_UART + (res->start - S3C24XX_PA_UART);
 	port->irq	= platform_get_irq(platdev, 0);
+	if (port->irq < 0)
+		port->irq = 0;
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");
 

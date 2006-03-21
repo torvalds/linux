@@ -149,6 +149,10 @@ struct proto_ops {
 				      int optname, char __user *optval, int optlen);
 	int		(*getsockopt)(struct socket *sock, int level,
 				      int optname, char __user *optval, int __user *optlen);
+	int		(*compat_setsockopt)(struct socket *sock, int level,
+				      int optname, char __user *optval, int optlen);
+	int		(*compat_getsockopt)(struct socket *sock, int level,
+				      int optname, char __user *optval, int __user *optlen);
 	int		(*sendmsg)   (struct kiocb *iocb, struct socket *sock,
 				      struct msghdr *m, size_t total_len);
 	int		(*recvmsg)   (struct kiocb *iocb, struct socket *sock,

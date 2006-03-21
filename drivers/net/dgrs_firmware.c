@@ -1,4 +1,4 @@
-static int dgrs_firmnum = 550;
+static const int dgrs_firmnum = 550;
 static char dgrs_firmver[] = "$Version$";
 static char dgrs_firmdate[] = "11/16/96 03:45:15";
 static unsigned char dgrs_code[] __initdata = {
@@ -9963,4 +9963,4 @@ static unsigned char dgrs_code[] __initdata = {
 	109,46,99,0,114,99,0,0,48,120,0,0,
 	0,0,0,0,0,0,0,0,0,0,0,0
 	} ;
-static int dgrs_ncode = 119520 ;
+static const int dgrs_ncode = 119520 ;

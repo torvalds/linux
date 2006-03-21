@@ -3,7 +3,7 @@
 
     Visit http://www.mihu.de/linux/saa7146/ and follow the link
     to "hexium" for further details about this card.
-    
+
     Copyright (C) 2003 Michael Hunold <michael@mihu.de>
 
     This program is free software; you can redistribute it and/or modify
@@ -69,7 +69,7 @@ struct hexium
 {
 	int type;
 	struct video_device	*video_dev;
-	struct i2c_adapter	i2c_adapter;	
+	struct i2c_adapter	i2c_adapter;
 
 	int cur_input;	/* current input */
 };
@@ -86,7 +86,7 @@ static u8 hexium_saa7110[53]={
 };
 
 static struct {
-	struct hexium_data data[8];	
+	struct hexium_data data[8];
 } hexium_input_select[] = {
 {
 	{ /* cvbs 1 */
@@ -153,7 +153,7 @@ static struct {
 		{ 0x30, 0x60 },
 		{ 0x31, 0xB5 }, // ??
 		{ 0x21, 0x03 },
-	} 
+	}
 }, {
 	{ /* y/c 1 */
 		{ 0x06, 0x80 },
@@ -187,7 +187,7 @@ static struct {
 		{ 0x31, 0x75 },
 		{ 0x21, 0x21 },
 	}
-}	
+}
 };
 
 static struct saa7146_standard hexium_standards[] = {
@@ -207,7 +207,7 @@ static struct saa7146_standard hexium_standards[] = {
 		.h_offset	= 1,	.h_pixels 	= 720,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}
-};		
+};
 
 /* this is only called for old HV-PCI6/Orion cards
    without eeprom */
@@ -272,7 +272,7 @@ static int hexium_probe(struct saa7146_dev *dev)
 		return 0;
 	}
 
-	/* check if this is an old hexium Orion card by looking at 
+	/* check if this is an old hexium Orion card by looking at
 	   a saa7110 at address 0x4e */
 	if (0 == (err = i2c_smbus_xfer(&hexium->i2c_adapter, 0x4e, 0, I2C_SMBUS_READ, 0x00, I2C_SMBUS_BYTE_DATA, &data))) {
 		printk("hexium_orion: device is a Hexium HV-PCI6/Orion (old).\n");
@@ -314,7 +314,7 @@ static int hexium_set_input(struct hexium *hexium, int input)
 {
 	union i2c_smbus_data data;
 	int i = 0;
-	
+
 	DEB_D((".\n"));
 
 	for (i = 0; i < 8; i++) {
@@ -375,7 +375,7 @@ static int hexium_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 	struct saa7146_dev *dev = fh->dev;
 	struct hexium *hexium = (struct hexium *) dev->ext_priv;
 /*
-	struct saa7146_vv *vv = dev->vv_data; 
+	struct saa7146_vv *vv = dev->vv_data;
 */
 	switch (cmd) {
 	case VIDIOC_ENUMINPUT:

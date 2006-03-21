@@ -807,8 +807,6 @@ fastcall NORET_TYPE void do_exit(long code)
 		panic("Attempted to kill the idle task!");
 	if (unlikely(tsk->pid == 1))
 		panic("Attempted to kill init!");
-	if (tsk->io_context)
-		exit_io_context();
 
 	if (unlikely(current->ptrace & PT_TRACE_EXIT)) {
 		current->ptrace_message = code;
@@ -822,6 +820,8 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (unlikely(tsk->flags & PF_EXITING)) {
 		printk(KERN_ALERT
 			"Fixing recursive fault but reboot is needed!\n");
+		if (tsk->io_context)
+			exit_io_context();
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule();
 	}
@@ -880,6 +880,9 @@ fastcall NORET_TYPE void do_exit(long code)
 	 * If DEBUG_MUTEXES is on, make sure we are holding no locks:
 	 */
 	mutex_debug_check_no_locks_held(tsk);
+
+	if (tsk->io_context)
+		exit_io_context();
 
 	/* PF_DEAD causes final put_task_struct after we schedule. */
 	preempt_disable();

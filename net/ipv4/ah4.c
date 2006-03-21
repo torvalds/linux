@@ -97,6 +97,7 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
 	ah->seq_no = htonl(++x->replay.oseq);
+	xfrm_aevent_doreplay(x);
 	ahp->icv(ahp, skb, ah->auth_data);
 
 	top_iph->tos = iph->tos;

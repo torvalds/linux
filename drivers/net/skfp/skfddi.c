@@ -67,7 +67,7 @@
 /* each new release!!! */
 #define VERSION		"2.07"
 
-static const char *boot_msg = 
+static const char * const boot_msg = 
 	"SysKonnect FDDI PCI Adapter driver v" VERSION " for\n"
 	"  SK-55xx/SK-58xx adapters (SK-NET FDDI-FP/UP/LP)";
 

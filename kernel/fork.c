@@ -1478,9 +1478,7 @@ static int unshare_vm(unsigned long unshare_flags, struct mm_struct **new_mmp)
 
 	if ((unshare_flags & CLONE_VM) &&
 	    (mm && atomic_read(&mm->mm_users) > 1)) {
-		*new_mmp = dup_mm(current);
-		if (!*new_mmp)
-			return -ENOMEM;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1569,7 +1567,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 
 		if (new_sigh) {
 			sigh = current->sighand;
-			current->sighand = new_sigh;
+			rcu_assign_pointer(current->sighand, new_sigh);
 			new_sigh = sigh;
 		}
 

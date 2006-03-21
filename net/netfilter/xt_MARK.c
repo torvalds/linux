@@ -26,6 +26,7 @@ target_v0(struct sk_buff **pskb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  unsigned int hooknum,
+	  const struct xt_target *target,
 	  const void *targinfo,
 	  void *userinfo)
 {
@@ -42,6 +43,7 @@ target_v1(struct sk_buff **pskb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  unsigned int hooknum,
+	  const struct xt_target *target,
 	  const void *targinfo,
 	  void *userinfo)
 {
@@ -72,52 +74,29 @@ target_v1(struct sk_buff **pskb,
 static int
 checkentry_v0(const char *tablename,
 	      const void *entry,
+	      const struct xt_target *target,
 	      void *targinfo,
 	      unsigned int targinfosize,
 	      unsigned int hook_mask)
 {
 	struct xt_mark_target_info *markinfo = targinfo;
 
-	if (targinfosize != XT_ALIGN(sizeof(struct xt_mark_target_info))) {
-		printk(KERN_WARNING "MARK: targinfosize %u != %Zu\n",
-		       targinfosize,
-		       XT_ALIGN(sizeof(struct xt_mark_target_info)));
-		return 0;
-	}
-
-	if (strcmp(tablename, "mangle") != 0) {
-		printk(KERN_WARNING "MARK: can only be called from \"mangle\" table, not \"%s\"\n", tablename);
-		return 0;
-	}
-
 	if (markinfo->mark > 0xffffffff) {
 		printk(KERN_WARNING "MARK: Only supports 32bit wide mark\n");
 		return 0;
 	}
-
 	return 1;
 }
 
 static int
 checkentry_v1(const char *tablename,
 	      const void *entry,
+	      const struct xt_target *target,
 	      void *targinfo,
 	      unsigned int targinfosize,
 	      unsigned int hook_mask)
 {
 	struct xt_mark_target_info_v1 *markinfo = targinfo;
-
-	if (targinfosize != XT_ALIGN(sizeof(struct xt_mark_target_info_v1))){
-		printk(KERN_WARNING "MARK: targinfosize %u != %Zu\n",
-		       targinfosize,
-		       XT_ALIGN(sizeof(struct xt_mark_target_info_v1)));
-		return 0;
-	}
-
-	if (strcmp(tablename, "mangle") != 0) {
-		printk(KERN_WARNING "MARK: can only be called from \"mangle\" table, not \"%s\"\n", tablename);
-		return 0;
-	}
 
 	if (markinfo->mode != XT_MARK_SET
 	    && markinfo->mode != XT_MARK_AND
@@ -126,18 +105,18 @@ checkentry_v1(const char *tablename,
 		       markinfo->mode);
 		return 0;
 	}
-
 	if (markinfo->mark > 0xffffffff) {
 		printk(KERN_WARNING "MARK: Only supports 32bit wide mark\n");
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct xt_target ipt_mark_reg_v0 = {
 	.name		= "MARK",
 	.target		= target_v0,
+	.targetsize	= sizeof(struct xt_mark_target_info),
+	.table		= "mangle",
 	.checkentry	= checkentry_v0,
 	.me		= THIS_MODULE,
 	.revision	= 0,
@@ -146,6 +125,8 @@ static struct xt_target ipt_mark_reg_v0 = {
 static struct xt_target ipt_mark_reg_v1 = {
 	.name		= "MARK",
 	.target		= target_v1,
+	.targetsize	= sizeof(struct xt_mark_target_info_v1),
+	.table		= "mangle",
 	.checkentry	= checkentry_v1,
 	.me		= THIS_MODULE,
 	.revision	= 1,
@@ -154,6 +135,8 @@ static struct xt_target ipt_mark_reg_v1 = {
 static struct xt_target ip6t_mark_reg_v0 = {
 	.name		= "MARK",
 	.target		= target_v0,
+	.targetsize	= sizeof(struct xt_mark_target_info),
+	.table		= "mangle",
 	.checkentry	= checkentry_v0,
 	.me		= THIS_MODULE,
 	.revision	= 0,

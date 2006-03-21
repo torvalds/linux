@@ -131,7 +131,7 @@ MODULE_PARM_DESC(arp_ip_target, "arp targets in n.n.n.n form");
 
 /*----------------------------- Global variables ----------------------------*/
 
-static const char *version =
+static const char * const version =
 	DRV_DESCRIPTION ": v" DRV_VERSION " (" DRV_RELDATE ")\n";
 
 LIST_HEAD(bond_dev_list);
@@ -1040,6 +1040,10 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 	if ((bond->params.mode == BOND_MODE_TLB) ||
 	    (bond->params.mode == BOND_MODE_ALB)) {
 		bond_alb_handle_active_change(bond, new_active);
+		if (old_active)
+			bond_set_slave_inactive_flags(old_active);
+		if (new_active)
+			bond_set_slave_active_flags(new_active);
 	} else {
 		bond->curr_active_slave = new_active;
 	}
@@ -1443,15 +1447,16 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	switch (bond->params.mode) {
 	case BOND_MODE_ACTIVEBACKUP:
-		/* if we're in active-backup mode, we need one and only one active
-		 * interface. The backup interfaces will have their NOARP flag set
-		 * because we need them to be completely deaf and not to respond to
-		 * any ARP request on the network to avoid fooling a switch. Thus,
-		 * since we guarantee that curr_active_slave always point to the last
-		 * usable interface, we just have to verify this interface's flag.
+		/* if we're in active-backup mode, we need one and
+		 * only one active interface. The backup interfaces
+		 * will have their SLAVE_INACTIVE flag set because we
+		 * need them to be drop all packets. Thus, since we
+		 * guarantee that curr_active_slave always point to
+		 * the last usable interface, we just have to verify
+		 * this interface's flag.
 		 */
 		if (((!bond->curr_active_slave) ||
-		     (bond->curr_active_slave->dev->flags & IFF_NOARP)) &&
+		     (bond->curr_active_slave->dev->priv_flags & IFF_SLAVE_INACTIVE)) &&
 		    (new_slave->link != BOND_LINK_DOWN)) {
 			dprintk("This is the first active slave\n");
 			/* first slave or no active slave yet, and this link
@@ -1492,6 +1497,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			 * is OK, so make this interface the active one
 			 */
 			bond_change_active_slave(bond, new_slave);
+		} else {
+			bond_set_slave_inactive_flags(new_slave);
 		}
 		break;
 	default:
@@ -1724,13 +1731,8 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	addr.sa_family = slave_dev->type;
 	dev_set_mac_address(slave_dev, &addr);
 
-	/* restore the original state of the
-	 * IFF_NOARP flag that might have been
-	 * set by bond_set_slave_inactive_flags()
-	 */
-	if ((slave->original_flags & IFF_NOARP) == 0) {
-		slave_dev->flags &= ~IFF_NOARP;
-	}
+	slave_dev->priv_flags &= ~(IFF_MASTER_8023AD | IFF_MASTER_ALB |
+				   IFF_SLAVE_INACTIVE);
 
 	kfree(slave);
 
@@ -1816,12 +1818,8 @@ static int bond_release_all(struct net_device *bond_dev)
 		addr.sa_family = slave_dev->type;
 		dev_set_mac_address(slave_dev, &addr);
 
-		/* restore the original state of the IFF_NOARP flag that might have
-		 * been set by bond_set_slave_inactive_flags()
-		 */
-		if ((slave->original_flags & IFF_NOARP) == 0) {
-			slave_dev->flags &= ~IFF_NOARP;
-		}
+		slave_dev->priv_flags &= ~(IFF_MASTER_8023AD | IFF_MASTER_ALB |
+					   IFF_SLAVE_INACTIVE);
 
 		kfree(slave);
 
@@ -4061,14 +4059,17 @@ void bond_set_mode_ops(struct bonding *bond, int mode)
 		bond_dev->hard_start_xmit = bond_xmit_broadcast;
 		break;
 	case BOND_MODE_8023AD:
+		bond_set_master_3ad_flags(bond);
 		bond_dev->hard_start_xmit = bond_3ad_xmit_xor;
 		if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34)
 			bond->xmit_hash_policy = bond_xmit_hash_policy_l34;
 		else
 			bond->xmit_hash_policy = bond_xmit_hash_policy_l2;
 		break;
-	case BOND_MODE_TLB:
 	case BOND_MODE_ALB:
+		bond_set_master_alb_flags(bond);
+		/* FALLTHRU */
+	case BOND_MODE_TLB:
 		bond_dev->hard_start_xmit = bond_alb_xmit;
 		bond_dev->set_mac_address = bond_alb_set_mac_address;
 		break;

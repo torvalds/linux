@@ -196,6 +196,14 @@ Description:    Force the application to unmap previously mapped buffer memory
                 1 = force memory unmapping (save memory)
 Default:        0
 -------------------------------------------------------------------------------
+Name:           frame_timeout
+Type:           uint array (min = 0, max = 64)
+Syntax:         <n[,...]>
+Description:    Timeout for a video frame in seconds. This parameter is
+                specific for each detected camera. This parameter can be
+                changed at runtime thanks to the /sys filesystem interface.
+Default:        2
+-------------------------------------------------------------------------------
 Name:           debug
 Type:           ushort
 Syntax:         <n> 
@@ -321,6 +329,7 @@ Vendor ID  Product ID
 ---------  ----------
 0x0c45     0x6001
 0x0c45     0x6005
+0x0c45     0x6007
 0x0c45     0x6009
 0x0c45     0x600d
 0x0c45     0x6024
@@ -370,6 +379,7 @@ HV7131D     Hynix Semiconductor, Inc.
 MI-0343     Micron Technology, Inc.
 OV7630      OmniVision Technologies, Inc.
 PAS106B     PixArt Imaging, Inc.
+PAS202BCA   PixArt Imaging, Inc.
 PAS202BCB   PixArt Imaging, Inc.
 TAS5110C1B  Taiwan Advanced Sensor Corporation
 TAS5130D1B  Taiwan Advanced Sensor Corporation
@@ -493,6 +503,7 @@ Many thanks to following persons for their contribute (listed in alphabetical
 order):
 
 - Luca Capello for the donation of a webcam;
+- Philippe Coval for having helped testing the PAS202BCA image sensor;
 - Joao Rodrigo Fuzaro, Joao Limirio, Claudio Filho and Caio Begotti for the
   donation of a webcam;
 - Jon Hollstrom for the donation of a webcam;

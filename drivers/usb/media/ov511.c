@@ -365,14 +365,14 @@ reg_w(struct usb_ov511 *ov, unsigned char reg, unsigned char value)
 
 	PDEBUG(5, "0x%02X:0x%02X", reg, value);
 
-	down(&ov->cbuf_lock);
+	mutex_lock(&ov->cbuf_lock);
 	ov->cbuf[0] = value;
 	rc = usb_control_msg(ov->dev,
 			     usb_sndctrlpipe(ov->dev, 0),
 			     (ov->bclass == BCL_OV518)?1:2 /* REG_IO */,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			     0, (__u16)reg, &ov->cbuf[0], 1, 1000);
-	up(&ov->cbuf_lock);
+	mutex_unlock(&ov->cbuf_lock);
 
 	if (rc < 0)
 		err("reg write: error %d: %s", rc, symbolic(urb_errlist, rc));
@@ -387,7 +387,7 @@ reg_r(struct usb_ov511 *ov, unsigned char reg)
 {
 	int rc;
 
-	down(&ov->cbuf_lock);
+	mutex_lock(&ov->cbuf_lock);
 	rc = usb_control_msg(ov->dev,
 			     usb_rcvctrlpipe(ov->dev, 0),
 			     (ov->bclass == BCL_OV518)?1:3 /* REG_IO */,
@@ -401,7 +401,7 @@ reg_r(struct usb_ov511 *ov, unsigned char reg)
 		PDEBUG(5, "0x%02X:0x%02X", reg, ov->cbuf[0]);
 	}
 
-	up(&ov->cbuf_lock);
+	mutex_unlock(&ov->cbuf_lock);
 
 	return rc;
 }
@@ -444,7 +444,7 @@ ov518_reg_w32(struct usb_ov511 *ov, unsigned char reg, u32 val, int n)
 
 	PDEBUG(5, "0x%02X:%7d, n=%d", reg, val, n);
 
-	down(&ov->cbuf_lock);
+	mutex_lock(&ov->cbuf_lock);
 
 	*((__le32 *)ov->cbuf) = __cpu_to_le32(val);
 
@@ -453,7 +453,7 @@ ov518_reg_w32(struct usb_ov511 *ov, unsigned char reg, u32 val, int n)
 			     1 /* REG_IO */,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			     0, (__u16)reg, ov->cbuf, n, 1000);
-	up(&ov->cbuf_lock);
+	mutex_unlock(&ov->cbuf_lock);
 
 	if (rc < 0)
 		err("reg write multiple: error %d: %s", rc,
@@ -768,14 +768,14 @@ i2c_r(struct usb_ov511 *ov, unsigned char reg)
 {
 	int rc;
 
-	down(&ov->i2c_lock);
+	mutex_lock(&ov->i2c_lock);
 
 	if (ov->bclass == BCL_OV518)
 		rc = ov518_i2c_read_internal(ov, reg);
 	else
 		rc = ov511_i2c_read_internal(ov, reg);
 
-	up(&ov->i2c_lock);
+	mutex_unlock(&ov->i2c_lock);
 
 	return rc;
 }
@@ -785,14 +785,14 @@ i2c_w(struct usb_ov511 *ov, unsigned char reg, unsigned char value)
 {
 	int rc;
 
-	down(&ov->i2c_lock);
+	mutex_lock(&ov->i2c_lock);
 
 	if (ov->bclass == BCL_OV518)
 		rc = ov518_i2c_write_internal(ov, reg, value);
 	else
 		rc = ov511_i2c_write_internal(ov, reg, value);
 
-	up(&ov->i2c_lock);
+	mutex_unlock(&ov->i2c_lock);
 
 	return rc;
 }
@@ -842,9 +842,9 @@ i2c_w_mask(struct usb_ov511 *ov,
 {
 	int rc;
 
-	down(&ov->i2c_lock);
+	mutex_lock(&ov->i2c_lock);
 	rc = ov51x_i2c_write_mask_internal(ov, reg, value, mask);
-	up(&ov->i2c_lock);
+	mutex_unlock(&ov->i2c_lock);
 
 	return rc;
 }
@@ -880,7 +880,7 @@ i2c_w_slave(struct usb_ov511 *ov,
 {
 	int rc = 0;
 
-	down(&ov->i2c_lock);
+	mutex_lock(&ov->i2c_lock);
 
 	/* Set new slave IDs */
 	rc = i2c_set_slave_internal(ov, slave);
@@ -894,7 +894,7 @@ out:
 	if (i2c_set_slave_internal(ov, ov->primary_i2c_slave) < 0)
 		err("Couldn't restore primary I2C slave");
 
-	up(&ov->i2c_lock);
+	mutex_unlock(&ov->i2c_lock);
 	return rc;
 }
 
@@ -906,7 +906,7 @@ i2c_r_slave(struct usb_ov511 *ov,
 {
 	int rc;
 
-	down(&ov->i2c_lock);
+	mutex_lock(&ov->i2c_lock);
 
 	/* Set new slave IDs */
 	rc = i2c_set_slave_internal(ov, slave);
@@ -923,7 +923,7 @@ out:
 	if (i2c_set_slave_internal(ov, ov->primary_i2c_slave) < 0)
 		err("Couldn't restore primary I2C slave");
 
-	up(&ov->i2c_lock);
+	mutex_unlock(&ov->i2c_lock);
 	return rc;
 }
 
@@ -933,7 +933,7 @@ ov51x_set_slave_ids(struct usb_ov511 *ov, unsigned char sid)
 {
 	int rc;
 
-	down(&ov->i2c_lock);
+	mutex_lock(&ov->i2c_lock);
 
 	rc = i2c_set_slave_internal(ov, sid);
 	if (rc < 0)
@@ -942,7 +942,7 @@ ov51x_set_slave_ids(struct usb_ov511 *ov, unsigned char sid)
 	// FIXME: Is this actually necessary?
 	rc = ov51x_reset(ov, OV511_RESET_NOREGS);
 out:
-	up(&ov->i2c_lock);
+	mutex_unlock(&ov->i2c_lock);
 	return rc;
 }
 
@@ -3832,7 +3832,7 @@ ov51x_alloc(struct usb_ov511 *ov)
 	const int raw_bufsize = OV511_NUMFRAMES * MAX_RAW_DATA_SIZE(w, h);
 
 	PDEBUG(4, "entered");
-	down(&ov->buf_lock);
+	mutex_lock(&ov->buf_lock);
 
 	if (ov->buf_state == BUF_ALLOCATED)
 		goto out;
@@ -3879,12 +3879,12 @@ ov51x_alloc(struct usb_ov511 *ov)
 
 	ov->buf_state = BUF_ALLOCATED;
 out:
-	up(&ov->buf_lock);
+	mutex_unlock(&ov->buf_lock);
 	PDEBUG(4, "leaving");
 	return 0;
 error:
 	ov51x_do_dealloc(ov);
-	up(&ov->buf_lock);
+	mutex_unlock(&ov->buf_lock);
 	PDEBUG(4, "errored");
 	return -ENOMEM;
 }
@@ -3893,9 +3893,9 @@ static void
 ov51x_dealloc(struct usb_ov511 *ov)
 {
 	PDEBUG(4, "entered");
-	down(&ov->buf_lock);
+	mutex_lock(&ov->buf_lock);
 	ov51x_do_dealloc(ov);
-	up(&ov->buf_lock);
+	mutex_unlock(&ov->buf_lock);
 	PDEBUG(4, "leaving");
 }
 
@@ -3914,7 +3914,7 @@ ov51x_v4l1_open(struct inode *inode, struct file *file)
 
 	PDEBUG(4, "opening");
 
-	down(&ov->lock);
+	mutex_lock(&ov->lock);
 
 	err = -EBUSY;
 	if (ov->user)
@@ -3958,7 +3958,7 @@ ov51x_v4l1_open(struct inode *inode, struct file *file)
 		ov51x_led_control(ov, 1);
 
 out:
-	up(&ov->lock);
+	mutex_unlock(&ov->lock);
 	return err;
 }
 
@@ -3970,7 +3970,7 @@ ov51x_v4l1_close(struct inode *inode, struct file *file)
 
 	PDEBUG(4, "ov511_close");
 
-	down(&ov->lock);
+	mutex_lock(&ov->lock);
 
 	ov->user--;
 	ov51x_stop_isoc(ov);
@@ -3981,15 +3981,15 @@ ov51x_v4l1_close(struct inode *inode, struct file *file)
 	if (ov->dev)
 		ov51x_dealloc(ov);
 
-	up(&ov->lock);
+	mutex_unlock(&ov->lock);
 
 	/* Device unplugged while open. Only a minimum of unregistration is done
 	 * here; the disconnect callback already did the rest. */
 	if (!ov->dev) {
-		down(&ov->cbuf_lock);
+		mutex_lock(&ov->cbuf_lock);
 		kfree(ov->cbuf);
 		ov->cbuf = NULL;
-		up(&ov->cbuf_lock);
+		mutex_unlock(&ov->cbuf_lock);
 
 		ov51x_dealloc(ov);
 		kfree(ov);
@@ -4449,12 +4449,12 @@ ov51x_v4l1_ioctl(struct inode *inode, struct file *file,
 	struct usb_ov511 *ov = video_get_drvdata(vdev);
 	int rc;
 
-	if (down_interruptible(&ov->lock))
+	if (mutex_lock_interruptible(&ov->lock))
 		return -EINTR;
 
 	rc = video_usercopy(inode, file, cmd, arg, ov51x_v4l1_ioctl_internal);
 
-	up(&ov->lock);
+	mutex_unlock(&ov->lock);
 	return rc;
 }
 
@@ -4468,7 +4468,7 @@ ov51x_v4l1_read(struct file *file, char __user *buf, size_t cnt, loff_t *ppos)
 	int i, rc = 0, frmx = -1;
 	struct ov511_frame *frame;
 
-	if (down_interruptible(&ov->lock))
+	if (mutex_lock_interruptible(&ov->lock))
 		return -EINTR;
 
 	PDEBUG(4, "%ld bytes, noblock=%d", count, noblock);
@@ -4604,11 +4604,11 @@ restart:
 
 	PDEBUG(4, "read finished, returning %ld (sweet)", count);
 
-	up(&ov->lock);
+	mutex_unlock(&ov->lock);
 	return count;
 
 error:
-	up(&ov->lock);
+	mutex_unlock(&ov->lock);
 	return rc;
 }
 
@@ -4631,14 +4631,14 @@ ov51x_v4l1_mmap(struct file *file, struct vm_area_struct *vma)
 	              + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))))
 		return -EINVAL;
 
-	if (down_interruptible(&ov->lock))
+	if (mutex_lock_interruptible(&ov->lock))
 		return -EINTR;
 
 	pos = (unsigned long)ov->fbuf;
 	while (size > 0) {
 		page = vmalloc_to_pfn((void *)pos);
 		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-			up(&ov->lock);
+			mutex_unlock(&ov->lock);
 			return -EAGAIN;
 		}
 		start += PAGE_SIZE;
@@ -4649,7 +4649,7 @@ ov51x_v4l1_mmap(struct file *file, struct vm_area_struct *vma)
 			size = 0;
 	}
 
-	up(&ov->lock);
+	mutex_unlock(&ov->lock);
 	return 0;
 }
 
@@ -5639,7 +5639,7 @@ static CLASS_DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
 static ssize_t show_exposure(struct class_device *cd, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
-	unsigned char exp;
+	unsigned char exp = 0;
 
 	if (!ov->dev)
 		return -ENODEV;
@@ -5686,12 +5686,10 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (idesc->bInterfaceSubClass != 0x00)
 		return -ENODEV;
 
-	if ((ov = kmalloc(sizeof(*ov), GFP_KERNEL)) == NULL) {
+	if ((ov = kzalloc(sizeof(*ov), GFP_KERNEL)) == NULL) {
 		err("couldn't kmalloc ov struct");
 		goto error_out;
 	}
-
-	memset(ov, 0, sizeof(*ov));
 
 	ov->dev = dev;
 	ov->iface = idesc->bInterfaceNumber;
@@ -5738,11 +5736,10 @@ ov51x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	init_waitqueue_head(&ov->wq);
 
-	init_MUTEX(&ov->lock);	/* to 1 == available */
-	init_MUTEX(&ov->buf_lock);
-	init_MUTEX(&ov->param_lock);
-	init_MUTEX(&ov->i2c_lock);
-	init_MUTEX(&ov->cbuf_lock);
+	mutex_init(&ov->lock);	/* to 1 == available */
+	mutex_init(&ov->buf_lock);
+	mutex_init(&ov->i2c_lock);
+	mutex_init(&ov->cbuf_lock);
 
 	ov->buf_state = BUF_NOT_ALLOCATED;
 
@@ -5833,10 +5830,10 @@ error:
 	}
 
 	if (ov->cbuf) {
-		down(&ov->cbuf_lock);
+		mutex_lock(&ov->cbuf_lock);
 		kfree(ov->cbuf);
 		ov->cbuf = NULL;
-		up(&ov->cbuf_lock);
+		mutex_unlock(&ov->cbuf_lock);
 	}
 
 	kfree(ov);
@@ -5881,10 +5878,10 @@ ov51x_disconnect(struct usb_interface *intf)
 
 	/* Free the memory */
 	if (ov && !ov->user) {
-		down(&ov->cbuf_lock);
+		mutex_lock(&ov->cbuf_lock);
 		kfree(ov->cbuf);
 		ov->cbuf = NULL;
-		up(&ov->cbuf_lock);
+		mutex_unlock(&ov->cbuf_lock);
 
 		ov51x_dealloc(ov);
 		kfree(ov);

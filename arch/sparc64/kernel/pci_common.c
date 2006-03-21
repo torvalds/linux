@@ -39,6 +39,8 @@ static int __init find_device_prom_node(struct pci_pbm_info *pbm,
 {
 	int node;
 
+	*nregs = 0;
+
 	/*
 	 * Return the PBM's PROM node in case we are it's PCI device,
 	 * as the PBM's reg property is different to standard PCI reg
@@ -51,10 +53,8 @@ static int __init find_device_prom_node(struct pci_pbm_info *pbm,
 	     pdev->device == PCI_DEVICE_ID_SUN_SCHIZO ||
 	     pdev->device == PCI_DEVICE_ID_SUN_TOMATILLO ||
 	     pdev->device == PCI_DEVICE_ID_SUN_SABRE ||
-	     pdev->device == PCI_DEVICE_ID_SUN_HUMMINGBIRD)) {
-		*nregs = 0;
+	     pdev->device == PCI_DEVICE_ID_SUN_HUMMINGBIRD))
 		return bus_prom_node;
-	}
 
 	node = prom_getchild(bus_prom_node);
 	while (node != 0) {
@@ -541,135 +541,183 @@ void __init pci_assign_unassigned(struct pci_pbm_info *pbm,
 		pci_assign_unassigned(pbm, bus);
 }
 
-static int __init pci_intmap_match(struct pci_dev *pdev, unsigned int *interrupt)
+static inline unsigned int pci_slot_swivel(struct pci_pbm_info *pbm,
+					   struct pci_dev *toplevel_pdev,
+					   struct pci_dev *pdev,
+					   unsigned int interrupt)
 {
-	struct linux_prom_pci_intmap bridge_local_intmap[PROM_PCIIMAP_MAX], *intmap;
-	struct linux_prom_pci_intmask bridge_local_intmask, *intmask;
-	struct pcidev_cookie *dev_pcp = pdev->sysdata;
-	struct pci_pbm_info *pbm = dev_pcp->pbm;
-	struct linux_prom_pci_registers *pregs = dev_pcp->prom_regs;
-	unsigned int hi, mid, lo, irq;
-	int i, num_intmap, map_slot;
+	unsigned int ret;
 
-	intmap = &pbm->pbm_intmap[0];
-	intmask = &pbm->pbm_intmask;
-	num_intmap = pbm->num_pbm_intmap;
-	map_slot = 0;
+	if (unlikely(interrupt < 1 || interrupt > 4)) {
+		printk("%s: Device %s interrupt value of %u is strange.\n",
+		       pbm->name, pci_name(pdev), interrupt);
+		return interrupt;
+	}
 
-	/* If we are underneath a PCI bridge, use PROM register
-	 * property of the parent bridge which is closest to
-	 * the PBM.
-	 *
-	 * However if that parent bridge has interrupt map/mask
-	 * properties of its own we use the PROM register property
-	 * of the next child device on the path to PDEV.
-	 *
-	 * In detail the two cases are (note that the 'X' below is the
-	 * 'next child on the path to PDEV' mentioned above):
-	 *
-	 * 1) PBM --> PCI bus lacking int{map,mask} --> X ... PDEV
-	 *
-	 *    Here we use regs of 'PCI bus' device.
-	 *
-	 * 2) PBM --> PCI bus with int{map,mask} --> X ... PDEV
-	 *
-	 *    Here we use regs of 'X'.  Note that X can be PDEV.
-	 */
-	if (pdev->bus->number != pbm->pci_first_busno) {
-		struct pcidev_cookie *bus_pcp, *regs_pcp;
-		struct pci_dev *bus_dev, *regs_dev;
+	ret = ((interrupt - 1 + (PCI_SLOT(pdev->devfn) & 3)) & 3) + 1;
+
+	printk("%s: %s IRQ Swivel %s [%x:%x] -> [%x]\n",
+	       pbm->name, pci_name(toplevel_pdev), pci_name(pdev),
+	       interrupt, PCI_SLOT(pdev->devfn), ret);
+
+	return ret;
+}
+
+static inline unsigned int pci_apply_intmap(struct pci_pbm_info *pbm,
+					    struct pci_dev *toplevel_pdev,
+					    struct pci_dev *pbus,
+					    struct pci_dev *pdev,
+					    unsigned int interrupt,
+					    unsigned int *cnode)
+{
+	struct linux_prom_pci_intmap imap[PROM_PCIIMAP_MAX];
+	struct linux_prom_pci_intmask imask;
+	struct pcidev_cookie *pbus_pcp = pbus->sysdata;
+	struct pcidev_cookie *pdev_pcp = pdev->sysdata;
+	struct linux_prom_pci_registers *pregs = pdev_pcp->prom_regs;
+	int plen, num_imap, i;
+	unsigned int hi, mid, lo, irq, orig_interrupt;
+
+	*cnode = pbus_pcp->prom_node;
+
+	plen = prom_getproperty(pbus_pcp->prom_node, "interrupt-map",
+				(char *) &imap[0], sizeof(imap));
+	if (plen <= 0 ||
+	    (plen % sizeof(struct linux_prom_pci_intmap)) != 0) {
+		printk("%s: Device %s interrupt-map has bad len %d\n",
+		       pbm->name, pci_name(pbus), plen);
+		goto no_intmap;
+	}
+	num_imap = plen / sizeof(struct linux_prom_pci_intmap);
+
+	plen = prom_getproperty(pbus_pcp->prom_node, "interrupt-map-mask",
+				(char *) &imask, sizeof(imask));
+	if (plen <= 0 ||
+	    (plen % sizeof(struct linux_prom_pci_intmask)) != 0) {
+		printk("%s: Device %s interrupt-map-mask has bad len %d\n",
+		       pbm->name, pci_name(pbus), plen);
+		goto no_intmap;
+	}
+
+	orig_interrupt = interrupt;
+
+	hi   = pregs->phys_hi & imask.phys_hi;
+	mid  = pregs->phys_mid & imask.phys_mid;
+	lo   = pregs->phys_lo & imask.phys_lo;
+	irq  = interrupt & imask.interrupt;
+
+	for (i = 0; i < num_imap; i++) {
+		if (imap[i].phys_hi  == hi   &&
+		    imap[i].phys_mid == mid  &&
+		    imap[i].phys_lo  == lo   &&
+		    imap[i].interrupt == irq) {
+			*cnode = imap[i].cnode;
+			interrupt = imap[i].cinterrupt;
+		}
+	}
+
+	printk("%s: %s MAP BUS %s DEV %s [%x] -> [%x]\n",
+	       pbm->name, pci_name(toplevel_pdev),
+	       pci_name(pbus), pci_name(pdev),
+	       orig_interrupt, interrupt);
+
+no_intmap:
+	return interrupt;
+}
+
+/* For each PCI bus on the way to the root:
+ * 1) If it has an interrupt-map property, apply it.
+ * 2) Else, swivel the interrupt number based upon the PCI device number.
+ *
+ * Return the "IRQ controller" node.  If this is the PBM's device node,
+ * all interrupt translations are complete, else we should use that node's
+ * "reg" property to apply the PBM's "interrupt-{map,mask}" to the interrupt.
+ */
+static unsigned int __init pci_intmap_match_to_root(struct pci_pbm_info *pbm,
+						    struct pci_dev *pdev,
+						    unsigned int *interrupt)
+{
+	struct pci_dev *toplevel_pdev = pdev;
+	struct pcidev_cookie *toplevel_pcp = toplevel_pdev->sysdata;
+	unsigned int cnode = toplevel_pcp->prom_node;
+
+	while (pdev->bus->number != pbm->pci_first_busno) {
+		struct pci_dev *pbus = pdev->bus->self;
+		struct pcidev_cookie *pcp = pbus->sysdata;
 		int plen;
 
-		bus_dev = pdev->bus->self;
-		regs_dev = pdev;
-
-		while (bus_dev->bus &&
-		       bus_dev->bus->number != pbm->pci_first_busno) {
-			regs_dev = bus_dev;
-			bus_dev = bus_dev->bus->self;
-		}
-
-		regs_pcp = regs_dev->sysdata;
-		pregs = regs_pcp->prom_regs;
-
-		bus_pcp = bus_dev->sysdata;
-
-		/* But if the PCI bridge has it's own interrupt map
-		 * and mask properties, use that and the regs of the
-		 * PCI entity at the next level down on the path to the
-		 * device.
-		 */
-		plen = prom_getproperty(bus_pcp->prom_node, "interrupt-map",
-					(char *) &bridge_local_intmap[0],
-					sizeof(bridge_local_intmap));
-		if (plen != -1) {
-			intmap = &bridge_local_intmap[0];
-			num_intmap = plen / sizeof(struct linux_prom_pci_intmap);
-			plen = prom_getproperty(bus_pcp->prom_node,
-						"interrupt-map-mask",
-						(char *) &bridge_local_intmask,
-						sizeof(bridge_local_intmask));
-			if (plen == -1) {
-				printk("pci_intmap_match: Warning! Bridge has intmap "
-				       "but no intmask.\n");
-				printk("pci_intmap_match: Trying to recover.\n");
-				return 0;
-			}
-
-			if (pdev->bus->self != bus_dev)
-				map_slot = 1;
+		plen = prom_getproplen(pcp->prom_node, "interrupt-map");
+		if (plen <= 0) {
+			*interrupt = pci_slot_swivel(pbm, toplevel_pdev,
+						     pdev, *interrupt);
+			cnode = pcp->prom_node;
 		} else {
-			pregs = bus_pcp->prom_regs;
-			map_slot = 1;
+			*interrupt = pci_apply_intmap(pbm, toplevel_pdev,
+						      pbus, pdev,
+						      *interrupt, &cnode);
+
+			while (pcp->prom_node != cnode &&
+			       pbus->bus->number != pbm->pci_first_busno) {
+				pbus = pbus->bus->self;
+				pcp = pbus->sysdata;
+			}
+		}
+		pdev = pbus;
+
+		if (cnode == pbm->prom_node)
+			break;
+	}
+
+	return cnode;
+}
+
+static int __init pci_intmap_match(struct pci_dev *pdev, unsigned int *interrupt)
+{
+	struct pcidev_cookie *dev_pcp = pdev->sysdata;
+	struct pci_pbm_info *pbm = dev_pcp->pbm;
+	struct linux_prom_pci_registers reg[PROMREG_MAX];
+	unsigned int hi, mid, lo, irq;
+	int i, cnode, plen;
+
+	cnode = pci_intmap_match_to_root(pbm, pdev, interrupt);
+	if (cnode == pbm->prom_node)
+		goto success;
+
+	plen = prom_getproperty(cnode, "reg", (char *) reg, sizeof(reg));
+	if (plen <= 0 ||
+	    (plen % sizeof(struct linux_prom_pci_registers)) != 0) {
+		printk("%s: OBP node %x reg property has bad len %d\n",
+		       pbm->name, cnode, plen);
+		goto fail;
+	}
+
+	hi   = reg[0].phys_hi & pbm->pbm_intmask.phys_hi;
+	mid  = reg[0].phys_mid & pbm->pbm_intmask.phys_mid;
+	lo   = reg[0].phys_lo & pbm->pbm_intmask.phys_lo;
+	irq  = *interrupt & pbm->pbm_intmask.interrupt;
+
+	for (i = 0; i < pbm->num_pbm_intmap; i++) {
+		struct linux_prom_pci_intmap *intmap;
+
+		intmap = &pbm->pbm_intmap[i];
+
+		if (intmap->phys_hi  == hi  &&
+		    intmap->phys_mid == mid &&
+		    intmap->phys_lo  == lo  &&
+		    intmap->interrupt == irq) {
+			*interrupt = intmap->cinterrupt;
+			goto success;
 		}
 	}
 
-	if (map_slot) {
-		*interrupt = ((*interrupt
-			       - 1
-			       + PCI_SLOT(pdev->devfn)) & 0x3) + 1;
-	}
-
-	hi   = pregs->phys_hi & intmask->phys_hi;
-	mid  = pregs->phys_mid & intmask->phys_mid;
-	lo   = pregs->phys_lo & intmask->phys_lo;
-	irq  = *interrupt & intmask->interrupt;
-
-	for (i = 0; i < num_intmap; i++) {
-		if (intmap[i].phys_hi  == hi	&&
-		    intmap[i].phys_mid == mid	&&
-		    intmap[i].phys_lo  == lo	&&
-		    intmap[i].interrupt == irq) {
-			*interrupt = intmap[i].cinterrupt;
-			printk("PCI-IRQ: Routing bus[%2x] slot[%2x] map[%d] to INO[%02x]\n",
-			       pdev->bus->number, PCI_SLOT(pdev->devfn),
-			       map_slot, *interrupt);
-			return 1;
-		}
-	}
-
-	/* We will run this code even if pbm->num_pbm_intmap is zero, just so
-	 * we can apply the slot mapping to the PROM interrupt property value.
-	 * So do not spit out these warnings in that case.
-	 */
-	if (num_intmap != 0) {
-		/* Print it both to OBP console and kernel one so that if bootup
-		 * hangs here the user has the information to report.
-		 */
-		prom_printf("pci_intmap_match: bus %02x, devfn %02x: ",
-			    pdev->bus->number, pdev->devfn);
-		prom_printf("IRQ [%08x.%08x.%08x.%08x] not found in interrupt-map\n",
-			    pregs->phys_hi, pregs->phys_mid, pregs->phys_lo, *interrupt);
-		prom_printf("Please email this information to davem@redhat.com\n");
-
-		printk("pci_intmap_match: bus %02x, devfn %02x: ",
-		       pdev->bus->number, pdev->devfn);
-		printk("IRQ [%08x.%08x.%08x.%08x] not found in interrupt-map\n",
-		       pregs->phys_hi, pregs->phys_mid, pregs->phys_lo, *interrupt);
-		printk("Please email this information to davem@redhat.com\n");
-	}
-
+fail:
 	return 0;
+
+success:
+	printk("PCI-IRQ: Routing bus[%2x] slot[%2x] to INO[%02x]\n",
+	       pdev->bus->number, PCI_SLOT(pdev->devfn),
+	       *interrupt);
+	return 1;
 }
 
 static void __init pdev_fixup_irq(struct pci_dev *pdev)
@@ -703,16 +751,18 @@ static void __init pdev_fixup_irq(struct pci_dev *pdev)
 		return;
 	}
 
-	/* Fully specified already? */
-	if (((prom_irq & PCI_IRQ_IGN) >> 6) == portid) {
-		pdev->irq = p->irq_build(pbm, pdev, prom_irq);
-		goto have_irq;
-	}
+	if (tlb_type != hypervisor) {
+		/* Fully specified already? */
+		if (((prom_irq & PCI_IRQ_IGN) >> 6) == portid) {
+			pdev->irq = p->irq_build(pbm, pdev, prom_irq);
+			goto have_irq;
+		}
 
-	/* An onboard device? (bit 5 set) */
-	if ((prom_irq & PCI_IRQ_INO) & 0x20) {
-		pdev->irq = p->irq_build(pbm, pdev, (portid << 6 | prom_irq));
-		goto have_irq;
+		/* An onboard device? (bit 5 set) */
+		if ((prom_irq & PCI_IRQ_INO) & 0x20) {
+			pdev->irq = p->irq_build(pbm, pdev, (portid << 6 | prom_irq));
+			goto have_irq;
+		}
 	}
 
 	/* Can we find a matching entry in the interrupt-map? */
@@ -927,33 +977,30 @@ void pci_register_legacy_regions(struct resource *io_res,
 	struct resource *p;
 
 	/* VGA Video RAM. */
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return;
 
-	memset(p, 0, sizeof(*p));
 	p->name = "Video RAM area";
 	p->start = mem_res->start + 0xa0000UL;
 	p->end = p->start + 0x1ffffUL;
 	p->flags = IORESOURCE_BUSY;
 	request_resource(mem_res, p);
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return;
 
-	memset(p, 0, sizeof(*p));
 	p->name = "System ROM";
 	p->start = mem_res->start + 0xf0000UL;
 	p->end = p->start + 0xffffUL;
 	p->flags = IORESOURCE_BUSY;
 	request_resource(mem_res, p);
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return;
 
-	memset(p, 0, sizeof(*p));
 	p->name = "Video ROM";
 	p->start = mem_res->start + 0xc0000UL;
 	p->end = p->start + 0x7fffUL;

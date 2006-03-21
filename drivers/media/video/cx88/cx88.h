@@ -35,6 +35,7 @@
 #include "cx88-reg.h"
 
 #include <linux/version.h>
+#include <linux/mutex.h>
 #define CX88_VERSION_CODE KERNEL_VERSION(0,0,5)
 
 #ifndef TRUE
@@ -62,7 +63,7 @@
 /* need "shadow" registers for some write-only ones ... */
 #define SHADOW_AUD_VOL_CTL           1
 #define SHADOW_AUD_BAL_CTL           2
-#define SHADOW_MAX                   2
+#define SHADOW_MAX                   3
 
 /* FM Radio deemphasis type */
 enum cx88_deemph_type {
@@ -187,6 +188,8 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_DNTV_LIVE_DVB_T_PRO     42
 #define CX88_BOARD_KWORLD_DVB_T_CX22702    43
 #define CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL 44
+#define CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT 45
+#define CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID 46
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -308,8 +311,7 @@ struct cx88_core {
 	/* IR remote control state */
 	struct cx88_IR             *ir;
 
-	struct semaphore           lock;
-
+	struct mutex               lock;
 	/* various v4l controls */
 	u32                        freq;
 

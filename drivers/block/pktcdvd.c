@@ -2514,7 +2514,7 @@ static int pkt_setup_dev(struct pkt_ctrl_command *ctrl_cmd)
 	return 0;
 
 out_new_dev:
-	blk_put_queue(disk->queue);
+	blk_cleanup_queue(disk->queue);
 out_mem2:
 	put_disk(disk);
 out_mem:
@@ -2555,7 +2555,7 @@ static int pkt_remove_dev(struct pkt_ctrl_command *ctrl_cmd)
 	DPRINTK("pktcdvd: writer %s unmapped\n", pd->name);
 
 	del_gendisk(pd->disk);
-	blk_put_queue(pd->disk->queue);
+	blk_cleanup_queue(pd->disk->queue);
 	put_disk(pd->disk);
 
 	pkt_devs[idx] = NULL;

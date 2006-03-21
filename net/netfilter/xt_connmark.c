@@ -35,6 +35,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -52,36 +53,35 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
 	   const void *ip,
+	   const struct xt_match *match,
 	   void *matchinfo,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
-	struct xt_connmark_info *cm = 
-				(struct xt_connmark_info *)matchinfo;
-	if (matchsize != XT_ALIGN(sizeof(struct xt_connmark_info)))
-		return 0;
+	struct xt_connmark_info *cm = (struct xt_connmark_info *)matchinfo;
 
 	if (cm->mark > 0xffffffff || cm->mask > 0xffffffff) {
 		printk(KERN_WARNING "connmark: only support 32bit mark\n");
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct xt_match connmark_match = {
-	.name = "connmark",
-	.match = &match,
-	.checkentry = &checkentry,
-	.me = THIS_MODULE
-};
-static struct xt_match connmark6_match = {
-	.name = "connmark",
-	.match = &match,
-	.checkentry = &checkentry,
-	.me = THIS_MODULE
+	.name		= "connmark",
+	.match		= match,
+	.matchsize	= sizeof(struct xt_connmark_info),
+	.checkentry	= checkentry,
+	.me		= THIS_MODULE
 };
 
+static struct xt_match connmark6_match = {
+	.name		= "connmark",
+	.match		= match,
+	.matchsize	= sizeof(struct xt_connmark_info),
+	.checkentry	= checkentry,
+	.me		= THIS_MODULE
+};
 
 static int __init init(void)
 {

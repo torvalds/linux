@@ -155,7 +155,7 @@ static void node_select_active_links(struct node *n_ptr)
 	u32 i;
 	u32 highest_prio = 0;
 
-        active[0] = active[1] = 0;
+        active[0] = active[1] = NULL;
 
 	for (i = 0; i < MAX_BEARERS; i++) {
                 struct link *l_ptr = n_ptr->links[i];
@@ -214,7 +214,7 @@ int tipc_node_has_redundant_links(struct node *n_ptr)
 		(n_ptr->active_links[0] != n_ptr->active_links[1]));
 }
 
-int tipc_node_has_active_routes(struct node *n_ptr)
+static int tipc_node_has_active_routes(struct node *n_ptr)
 {
 	return (n_ptr && (n_ptr->last_router >= 0));
 }
@@ -240,7 +240,7 @@ struct node *tipc_node_attach_link(struct link *l_ptr)
 
                         err("Attempt to create third link to %s\n",
 			    addr_string_fill(addr_string, n_ptr->addr));
-                        return 0;
+                        return NULL;
                 }
 
                 if (!n_ptr->links[bearer_id]) {
@@ -253,12 +253,12 @@ struct node *tipc_node_attach_link(struct link *l_ptr)
                     l_ptr->b_ptr->publ.name, 
 		    addr_string_fill(addr_string, l_ptr->addr));
         }
-	return 0;
+	return NULL;
 }
 
 void tipc_node_detach_link(struct node *n_ptr, struct link *l_ptr)
 {
-	n_ptr->links[l_ptr->b_ptr->identity] = 0;
+	n_ptr->links[l_ptr->b_ptr->identity] = NULL;
 	tipc_net.zones[tipc_zone(l_ptr->addr)]->links--;
 	n_ptr->link_cnt--;
 }
@@ -424,7 +424,7 @@ static void node_lost_contact(struct node *n_ptr)
 
 	/* Notify subscribers */
 	list_for_each_entry_safe(ns, tns, &n_ptr->nsub, nodesub_list) {
-                ns->node = 0;
+                ns->node = NULL;
 		list_del_init(&ns->nodesub_list);
 		tipc_k_signal((Handler)ns->handle_node_down,
 			      (unsigned long)ns->usr_handle);
@@ -443,7 +443,7 @@ struct node *tipc_node_select_next_hop(u32 addr, u32 selector)
 	u32 router_addr;
 
         if (!tipc_addr_domain_valid(addr))
-                return 0;
+                return NULL;
 
 	/* Look for direct link to destination processsor */
 	n_ptr = tipc_node_find(addr);
@@ -452,7 +452,7 @@ struct node *tipc_node_select_next_hop(u32 addr, u32 selector)
 
 	/* Cluster local system nodes *must* have direct links */
 	if (!is_slave(addr) && in_own_cluster(addr))
-		return 0;
+		return NULL;
 
 	/* Look for cluster local router with direct link to node */
 	router_addr = tipc_node_select_router(n_ptr, selector);
@@ -462,7 +462,7 @@ struct node *tipc_node_select_next_hop(u32 addr, u32 selector)
 	/* Slave nodes can only be accessed within own cluster via a 
 	   known router with direct link -- if no router was found,give up */
 	if (is_slave(addr))
-		return 0;
+		return NULL;
 
 	/* Inter zone/cluster -- find any direct link to remote cluster */
 	addr = tipc_addr(tipc_zone(addr), tipc_cluster(addr), 0);
@@ -475,7 +475,7 @@ struct node *tipc_node_select_next_hop(u32 addr, u32 selector)
 	if (router_addr) 
                 return tipc_node_select(router_addr, selector);
 
-        return 0;
+        return NULL;
 }
 
 /**

@@ -1286,7 +1286,8 @@ struct security_operations {
 	int (*socket_setsockopt) (struct socket * sock, int level, int optname);
 	int (*socket_shutdown) (struct socket * sock, int how);
 	int (*socket_sock_rcv_skb) (struct sock * sk, struct sk_buff * skb);
-	int (*socket_getpeersec) (struct socket *sock, char __user *optval, int __user *optlen, unsigned len);
+	int (*socket_getpeersec_stream) (struct socket *sock, char __user *optval, int __user *optlen, unsigned len);
+	int (*socket_getpeersec_dgram) (struct sk_buff *skb, char **secdata, u32 *seclen);
 	int (*sk_alloc_security) (struct sock *sk, int family, gfp_t priority);
 	void (*sk_free_security) (struct sock *sk);
 	unsigned int (*sk_getsid) (struct sock *sk, struct flowi *fl, u8 dir);
@@ -2741,10 +2742,16 @@ static inline int security_sock_rcv_skb (struct sock * sk,
 	return security_ops->socket_sock_rcv_skb (sk, skb);
 }
 
-static inline int security_socket_getpeersec(struct socket *sock, char __user *optval,
-					     int __user *optlen, unsigned len)
+static inline int security_socket_getpeersec_stream(struct socket *sock, char __user *optval,
+						    int __user *optlen, unsigned len)
 {
-	return security_ops->socket_getpeersec(sock, optval, optlen, len);
+	return security_ops->socket_getpeersec_stream(sock, optval, optlen, len);
+}
+
+static inline int security_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata,
+						   u32 *seclen)
+{
+	return security_ops->socket_getpeersec_dgram(skb, secdata, seclen);
 }
 
 static inline int security_sk_alloc(struct sock *sk, int family, gfp_t priority)
@@ -2863,8 +2870,14 @@ static inline int security_sock_rcv_skb (struct sock * sk,
 	return 0;
 }
 
-static inline int security_socket_getpeersec(struct socket *sock, char __user *optval,
-					     int __user *optlen, unsigned len)
+static inline int security_socket_getpeersec_stream(struct socket *sock, char __user *optval,
+						    int __user *optlen, unsigned len)
+{
+	return -ENOPROTOOPT;
+}
+
+static inline int security_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata,
+						   u32 *seclen)
 {
 	return -ENOPROTOOPT;
 }

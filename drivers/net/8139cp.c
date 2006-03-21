@@ -1276,7 +1276,7 @@ static int cp_change_mtu(struct net_device *dev, int new_mtu)
 }
 #endif /* BROKEN */
 
-static char mii_2_8139_map[8] = {
+static const char mii_2_8139_map[8] = {
 	BasicModeCtrl,
 	BasicModeStatus,
 	0,

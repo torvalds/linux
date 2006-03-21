@@ -127,6 +127,9 @@
 /* Hilscher netx */
 #define PORT_NETX	71
 
+/* SUN4V Hypervisor Console */
+#define PORT_SUNHV	72
+
 #ifdef __KERNEL__
 
 #include <linux/config.h>

@@ -302,6 +302,10 @@ static int fsl_i2c_probe(struct platform_device *pdev)
 	}
 
 	i2c->irq = platform_get_irq(pdev, 0);
+	if (i2c->irq < 0) {
+		result = -ENXIO;
+		goto fail_get_irq;
+	}
 	i2c->flags = pdata->device_flags;
 	init_waitqueue_head(&i2c->queue);
 
@@ -340,6 +344,7 @@ static int fsl_i2c_probe(struct platform_device *pdev)
       fail_irq:
 	iounmap(i2c->base);
       fail_map:
+      fail_get_irq:
 	kfree(i2c);
 	return result;
 };

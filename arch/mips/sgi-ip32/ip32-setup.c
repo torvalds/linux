@@ -98,7 +98,7 @@ void __init plat_setup(void)
 	board_timer_setup = ip32_timer_setup;
 
 #ifdef CONFIG_SERIAL_8250
- 	{
+	{
 		static struct uart_port o2_serial[2];
 
 		memset(o2_serial, 0, sizeof(o2_serial));

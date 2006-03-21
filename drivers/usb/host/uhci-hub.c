@@ -99,6 +99,21 @@ static void uhci_finish_suspend(struct uhci_hcd *uhci, int port,
 	}
 }
 
+/* Wait for the UHCI controller in HP's iLO2 server management chip.
+ * It can take up to 250 us to finish a reset and set the CSC bit.
+ */
+static void wait_for_HP(unsigned long port_addr)
+{
+	int i;
+
+	for (i = 10; i < 250; i += 10) {
+		if (inw(port_addr) & USBPORTSC_CSC)
+			return;
+		udelay(10);
+	}
+	/* Log a warning? */
+}
+
 static void uhci_check_ports(struct uhci_hcd *uhci)
 {
 	unsigned int port;
@@ -112,6 +127,12 @@ static void uhci_check_ports(struct uhci_hcd *uhci)
 			if (time_after_eq(jiffies, uhci->ports_timeout)) {
 				CLR_RH_PORTSTAT(USBPORTSC_PR);
 				udelay(10);
+
+				/* HP's server management chip requires
+				 * a longer delay. */
+				if (to_pci_dev(uhci_dev(uhci))->vendor ==
+						PCI_VENDOR_ID_HP)
+					wait_for_HP(port_addr);
 
 				/* If the port was enabled before, turning
 				 * reset on caused a port enable change.

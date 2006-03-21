@@ -267,6 +267,16 @@ struct ata_taskfile {
 	  ((u64) (id)[(n) + 1] << 16) |	\
 	  ((u64) (id)[(n) + 0]) )
 
+static inline unsigned int ata_id_major_version(const u16 *id)
+{
+	unsigned int mver;
+
+	for (mver = 14; mver >= 1; mver--)
+		if (id[ATA_ID_MAJOR_VER] & (1 << mver))
+			break;
+	return mver;
+}
+
 static inline int ata_id_current_chs_valid(const u16 *id)
 {
 	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command 
@@ -300,6 +310,18 @@ static inline int ata_ok(u8 status)
 {
 	return ((status & (ATA_BUSY | ATA_DRDY | ATA_DF | ATA_DRQ | ATA_ERR))
 			== ATA_DRDY);
+}
+
+static inline int lba_28_ok(u64 block, u32 n_block)
+{
+	/* check the ending block number */
+	return ((block + n_block - 1) < ((u64)1 << 28)) && (n_block <= 256);
+}
+
+static inline int lba_48_ok(u64 block, u32 n_block)
+{
+	/* check the ending block number */
+	return ((block + n_block - 1) < ((u64)1 << 48)) && (n_block <= 65536);
 }
 
 #endif /* __LINUX_ATA_H__ */

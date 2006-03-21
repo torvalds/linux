@@ -174,7 +174,7 @@ struct planb {
 	int	user;
 	unsigned int tab_size;
 	int     maxlines;
-	struct semaphore lock;
+	struct mutex lock;
 	unsigned int	irq;			/* interrupt number */
 	volatile unsigned int intr_mask;
 

@@ -64,12 +64,6 @@ struct screen_info screen_info = {
 	16                      /* orig-video-points */
 };
 
-/* Typing sync at the prom prompt calls the function pointed to by
- * the sync callback which I set to the following function.
- * This should sync all filesystems and return, for now it just
- * prints out pretty messages and returns.
- */
-
 void (*prom_palette)(int);
 void (*prom_keyboard)(void);
 
@@ -77,259 +71,6 @@ static void
 prom_console_write(struct console *con, const char *s, unsigned n)
 {
 	prom_write(s, n);
-}
-
-static struct console prom_console = {
-	.name =		"prom",
-	.write =	prom_console_write,
-	.flags =	CON_CONSDEV | CON_ENABLED,
-	.index =	-1,
-};
-
-#define PROM_TRUE	-1
-#define PROM_FALSE	0
-
-/* Pretty sick eh? */
-int prom_callback(long *args)
-{
-	struct console *cons, *saved_console = NULL;
-	unsigned long flags;
-	char *cmd;
-	extern spinlock_t prom_entry_lock;
-
-	if (!args)
-		return -1;
-	if (!(cmd = (char *)args[0]))
-		return -1;
-
-	/*
-	 * The callback can be invoked on the cpu that first dropped 
-	 * into prom_cmdline after taking the serial interrupt, or on 
-	 * a slave processor that was smp_captured() if the 
-	 * administrator has done a switch-cpu inside obp. In either 
-	 * case, the cpu is marked as in-interrupt. Drop IRQ locks.
-	 */
-	irq_exit();
-
-	/* XXX Revisit the locking here someday.  This is a debugging
-	 * XXX feature so it isnt all that critical.  -DaveM
-	 */
-	local_irq_save(flags);
-
-	spin_unlock(&prom_entry_lock);
-	cons = console_drivers;
-	while (cons) {
-		unregister_console(cons);
-		cons->flags &= ~(CON_PRINTBUFFER);
-		cons->next = saved_console;
-		saved_console = cons;
-		cons = console_drivers;
-	}
-	register_console(&prom_console);
-	if (!strcmp(cmd, "sync")) {
-		prom_printf("PROM `%s' command...\n", cmd);
-		show_free_areas();
-		if (current->pid != 0) {
-			local_irq_enable();
-			sys_sync();
-			local_irq_disable();
-		}
-		args[2] = 0;
-		args[args[1] + 3] = -1;
-		prom_printf("Returning to PROM\n");
-	} else if (!strcmp(cmd, "va>tte-data")) {
-		unsigned long ctx, va;
-		unsigned long tte = 0;
-		long res = PROM_FALSE;
-
-		ctx = args[3];
-		va = args[4];
-		if (ctx) {
-			/*
-			 * Find process owning ctx, lookup mapping.
-			 */
-			struct task_struct *p;
-			struct mm_struct *mm = NULL;
-			pgd_t *pgdp;
-			pud_t *pudp;
-			pmd_t *pmdp;
-			pte_t *ptep;
-			pte_t pte;
-
-			for_each_process(p) {
-				mm = p->mm;
-				if (CTX_NRBITS(mm->context) == ctx)
-					break;
-			}
-			if (!mm ||
-			    CTX_NRBITS(mm->context) != ctx)
-				goto done;
-
-			pgdp = pgd_offset(mm, va);
-			if (pgd_none(*pgdp))
-				goto done;
-			pudp = pud_offset(pgdp, va);
-			if (pud_none(*pudp))
-				goto done;
-			pmdp = pmd_offset(pudp, va);
-			if (pmd_none(*pmdp))
-				goto done;
-
-			/* Preemption implicitly disabled by virtue of
-			 * being called from inside OBP.
-			 */
-			ptep = pte_offset_map(pmdp, va);
-			pte = *ptep;
-			if (pte_present(pte)) {
-				tte = pte_val(pte);
-				res = PROM_TRUE;
-			}
-			pte_unmap(ptep);
-			goto done;
-		}
-
-		if ((va >= KERNBASE) && (va < (KERNBASE + (4 * 1024 * 1024)))) {
-			extern unsigned long sparc64_kern_pri_context;
-
-			/* Spitfire Errata #32 workaround */
-			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-					     "flush	%%g6"
-					     : /* No outputs */
-					     : "r" (sparc64_kern_pri_context),
-					       "r" (PRIMARY_CONTEXT),
-					       "i" (ASI_DMMU));
-
-			/*
-			 * Locked down tlb entry.
-			 */
-
-			if (tlb_type == spitfire)
-				tte = spitfire_get_dtlb_data(SPITFIRE_HIGHEST_LOCKED_TLBENT);
-			else if (tlb_type == cheetah || tlb_type == cheetah_plus)
-				tte = cheetah_get_ldtlb_data(CHEETAH_HIGHEST_LOCKED_TLBENT);
-
-			res = PROM_TRUE;
-			goto done;
-		}
-
-		if (va < PGDIR_SIZE) {
-			/*
-			 * vmalloc or prom_inherited mapping.
-			 */
-			pgd_t *pgdp;
-			pud_t *pudp;
-			pmd_t *pmdp;
-			pte_t *ptep;
-			pte_t pte;
-			int error;
-
-			if ((va >= LOW_OBP_ADDRESS) && (va < HI_OBP_ADDRESS)) {
-				tte = prom_virt_to_phys(va, &error);
-				if (!error)
-					res = PROM_TRUE;
-				goto done;
-			}
-			pgdp = pgd_offset_k(va);
-			if (pgd_none(*pgdp))
-				goto done;
-			pudp = pud_offset(pgdp, va);
-			if (pud_none(*pudp))
-				goto done;
-			pmdp = pmd_offset(pudp, va);
-			if (pmd_none(*pmdp))
-				goto done;
-
-			/* Preemption implicitly disabled by virtue of
-			 * being called from inside OBP.
-			 */
-			ptep = pte_offset_kernel(pmdp, va);
-			pte = *ptep;
-			if (pte_present(pte)) {
-				tte = pte_val(pte);
-				res = PROM_TRUE;
-			}
-			goto done;
-		}
-
-		if (va < PAGE_OFFSET) {
-			/*
-			 * No mappings here.
-			 */
-			goto done;
-		}
-
-		if (va & (1UL << 40)) {
-			/*
-			 * I/O page.
-			 */
-
-			tte = (__pa(va) & _PAGE_PADDR) |
-			      _PAGE_VALID | _PAGE_SZ4MB |
-			      _PAGE_E | _PAGE_P | _PAGE_W;
-			res = PROM_TRUE;
-			goto done;
-		}
-
-		/*
-		 * Normal page.
-		 */
-		tte = (__pa(va) & _PAGE_PADDR) |
-		      _PAGE_VALID | _PAGE_SZ4MB |
-		      _PAGE_CP | _PAGE_CV | _PAGE_P | _PAGE_W;
-		res = PROM_TRUE;
-
-	done:
-		if (res == PROM_TRUE) {
-			args[2] = 3;
-			args[args[1] + 3] = 0;
-			args[args[1] + 4] = res;
-			args[args[1] + 5] = tte;
-		} else {
-			args[2] = 2;
-			args[args[1] + 3] = 0;
-			args[args[1] + 4] = res;
-		}
-	} else if (!strcmp(cmd, ".soft1")) {
-		unsigned long tte;
-
-		tte = args[3];
-		prom_printf("%lx:\"%s%s%s%s%s\" ",
-			    (tte & _PAGE_SOFT) >> 7,
-			    tte & _PAGE_MODIFIED ? "M" : "-",
-			    tte & _PAGE_ACCESSED ? "A" : "-",
-			    tte & _PAGE_READ     ? "W" : "-",
-			    tte & _PAGE_WRITE    ? "R" : "-",
-			    tte & _PAGE_PRESENT  ? "P" : "-");
-
-		args[2] = 2;
-		args[args[1] + 3] = 0;
-		args[args[1] + 4] = PROM_TRUE;
-	} else if (!strcmp(cmd, ".soft2")) {
-		unsigned long tte;
-
-		tte = args[3];
-		prom_printf("%lx ", (tte & 0x07FC000000000000UL) >> 50);
-
-		args[2] = 2;
-		args[args[1] + 3] = 0;
-		args[args[1] + 4] = PROM_TRUE;
-	} else {
-		prom_printf("unknown PROM `%s' command...\n", cmd);
-	}
-	unregister_console(&prom_console);
-	while (saved_console) {
-		cons = saved_console;
-		saved_console = cons->next;
-		register_console(cons);
-	}
-	spin_lock(&prom_entry_lock);
-	local_irq_restore(flags);
-
-	/*
-	 * Restore in-interrupt status for a resume from obp.
-	 */
-	irq_enter();
-	return 0;
 }
 
 unsigned int boot_flags = 0;
@@ -479,15 +220,99 @@ char reboot_command[COMMAND_LINE_SIZE];
 
 static struct pt_regs fake_swapper_regs = { { 0, }, 0, 0, 0, 0 };
 
-void register_prom_callbacks(void)
+static void __init per_cpu_patch(void)
 {
-	prom_setcallback(prom_callback);
-	prom_feval(": linux-va>tte-data 2 \" va>tte-data\" $callback drop ; "
-		   "' linux-va>tte-data to va>tte-data");
-	prom_feval(": linux-.soft1 1 \" .soft1\" $callback 2drop ; "
-		   "' linux-.soft1 to .soft1");
-	prom_feval(": linux-.soft2 1 \" .soft2\" $callback 2drop ; "
-		   "' linux-.soft2 to .soft2");
+	struct cpuid_patch_entry *p;
+	unsigned long ver;
+	int is_jbus;
+
+	if (tlb_type == spitfire && !this_is_starfire)
+		return;
+
+	is_jbus = 0;
+	if (tlb_type != hypervisor) {
+		__asm__ ("rdpr %%ver, %0" : "=r" (ver));
+		is_jbus = ((ver >> 32UL) == __JALAPENO_ID ||
+			   (ver >> 32UL) == __SERRANO_ID);
+	}
+
+	p = &__cpuid_patch;
+	while (p < &__cpuid_patch_end) {
+		unsigned long addr = p->addr;
+		unsigned int *insns;
+
+		switch (tlb_type) {
+		case spitfire:
+			insns = &p->starfire[0];
+			break;
+		case cheetah:
+		case cheetah_plus:
+			if (is_jbus)
+				insns = &p->cheetah_jbus[0];
+			else
+				insns = &p->cheetah_safari[0];
+			break;
+		case hypervisor:
+			insns = &p->sun4v[0];
+			break;
+		default:
+			prom_printf("Unknown cpu type, halting.\n");
+			prom_halt();
+		};
+
+		*(unsigned int *) (addr +  0) = insns[0];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		*(unsigned int *) (addr +  4) = insns[1];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
+
+		*(unsigned int *) (addr +  8) = insns[2];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  8));
+
+		*(unsigned int *) (addr + 12) = insns[3];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr + 12));
+
+		p++;
+	}
+}
+
+static void __init sun4v_patch(void)
+{
+	struct sun4v_1insn_patch_entry *p1;
+	struct sun4v_2insn_patch_entry *p2;
+
+	if (tlb_type != hypervisor)
+		return;
+
+	p1 = &__sun4v_1insn_patch;
+	while (p1 < &__sun4v_1insn_patch_end) {
+		unsigned long addr = p1->addr;
+
+		*(unsigned int *) (addr +  0) = p1->insn;
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		p1++;
+	}
+
+	p2 = &__sun4v_2insn_patch;
+	while (p2 < &__sun4v_2insn_patch_end) {
+		unsigned long addr = p2->addr;
+
+		*(unsigned int *) (addr +  0) = p2->insns[0];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  0));
+
+		*(unsigned int *) (addr +  4) = p2->insns[1];
+		wmb();
+		__asm__ __volatile__("flush	%0" : : "r" (addr +  4));
+
+		p2++;
+	}
 }
 
 void __init setup_arch(char **cmdline_p)
@@ -496,7 +321,10 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = prom_getbootargs();
 	strcpy(saved_command_line, *cmdline_p);
 
-	printk("ARCH: SUN4U\n");
+	if (tlb_type == hypervisor)
+		printk("ARCH: SUN4V\n");
+	else
+		printk("ARCH: SUN4U\n");
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -507,6 +335,13 @@ void __init setup_arch(char **cmdline_p)
 	/* Work out if we are starfire early on */
 	check_if_starfire();
 
+	/* Now we know enough to patch the get_cpuid sequences
+	 * used by trap code.
+	 */
+	per_cpu_patch();
+
+	sun4v_patch();
+
 	boot_flags_init(*cmdline_p);
 
 	idprom_init();
@@ -514,7 +349,7 @@ void __init setup_arch(char **cmdline_p)
 	if (!root_flags)
 		root_mountflags &= ~MS_RDONLY;
 	ROOT_DEV = old_decode_dev(root_dev);
-#ifdef CONFIG_BLK_DEV_INITRD
+#ifdef CONFIG_BLK_DEV_RAM
 	rd_image_start = ram_flags & RAMDISK_IMAGE_START_MASK;
 	rd_prompt = ((ram_flags & RAMDISK_PROMPT_FLAG) != 0);
 	rd_doload = ((ram_flags & RAMDISK_LOAD_FLAG) != 0);	
@@ -544,6 +379,9 @@ void __init setup_arch(char **cmdline_p)
 
 	smp_setup_cpu_possible_map();
 
+	/* Get boot processor trap_block[] setup.  */
+	init_cur_cpu_trap(current_thread_info());
+
 	paging_init();
 }
 
@@ -565,6 +403,12 @@ static int __init set_preferred_console(void)
 		serial_console = 2;
 	} else if (idev == PROMDEV_IRSC && odev == PROMDEV_ORSC) {
 		serial_console = 3;
+	} else if (idev == PROMDEV_IVCONS && odev == PROMDEV_OVCONS) {
+		/* sunhv_console_init() doesn't check the serial_console
+		 * value anyways...
+		 */
+		serial_console = 4;
+		return add_preferred_console("ttyHV", 0, NULL);
 	} else {
 		prom_printf("Inconsistent console: "
 			    "input %d, output %d\n",
@@ -598,9 +442,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 	seq_printf(m, 
 		   "cpu\t\t: %s\n"
 		   "fpu\t\t: %s\n"
-		   "promlib\t\t: Version 3 Revision %d\n"
-		   "prom\t\t: %d.%d.%d\n"
-		   "type\t\t: sun4u\n"
+		   "prom\t\t: %s\n"
+		   "type\t\t: %s\n"
 		   "ncpus probed\t: %d\n"
 		   "ncpus active\t: %d\n"
 		   "D$ parity tl1\t: %u\n"
@@ -612,10 +455,10 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   ,
 		   sparc_cpu_type,
 		   sparc_fpu_type,
-		   prom_rev,
-		   prom_prev >> 16,
-		   (prom_prev >> 8) & 0xff,
-		   prom_prev & 0xff,
+		   prom_version,
+		   ((tlb_type == hypervisor) ?
+		    "sun4v" :
+		    "sun4u"),
 		   ncpus_probed,
 		   num_online_cpus(),
 		   dcache_parity_tl1_occurred,
@@ -692,15 +535,11 @@ static int __init topology_init(void)
 	while (!cpu_find_by_instance(ncpus_probed, NULL, NULL))
 		ncpus_probed++;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_possible(i)) {
-			struct cpu *p = kmalloc(sizeof(*p), GFP_KERNEL);
-
-			if (p) {
-				memset(p, 0, sizeof(*p));
-				register_cpu(p, i, NULL);
-				err = 0;
-			}
+	for_each_cpu(i) {
+		struct cpu *p = kzalloc(sizeof(*p), GFP_KERNEL);
+		if (p) {
+			register_cpu(p, i, NULL);
+			err = 0;
 		}
 	}
 

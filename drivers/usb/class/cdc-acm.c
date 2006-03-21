@@ -60,6 +60,7 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb_cdc.h>
@@ -80,7 +81,7 @@ static struct usb_driver acm_driver;
 static struct tty_driver *acm_tty_driver;
 static struct acm *acm_table[ACM_TTY_MINORS];
 
-static DECLARE_MUTEX(open_sem);
+static DEFINE_MUTEX(open_mutex);
 
 #define ACM_READY(acm)	(acm && acm->dev && acm->used)
 
@@ -431,8 +432,8 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	int rv = -EINVAL;
 	int i;
 	dbg("Entering acm_tty_open.\n");
-	
-	down(&open_sem);
+
+	mutex_lock(&open_mutex);
 
 	acm = acm_table[tty->index];
 	if (!acm || !acm->dev)
@@ -474,14 +475,14 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 
 done:
 err_out:
-	up(&open_sem);
+	mutex_unlock(&open_mutex);
 	return rv;
 
 full_bailout:
 	usb_kill_urb(acm->ctrlurb);
 bail_out:
 	acm->used--;
-	up(&open_sem);
+	mutex_unlock(&open_mutex);
 	return -EIO;
 }
 
@@ -507,7 +508,7 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 	if (!acm || !acm->used)
 		return;
 
-	down(&open_sem);
+	mutex_lock(&open_mutex);
 	if (!--acm->used) {
 		if (acm->dev) {
 			acm_set_control(acm, acm->ctrlout = 0);
@@ -518,7 +519,7 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 		} else
 			acm_tty_unregister(acm);
 	}
-	up(&open_sem);
+	mutex_unlock(&open_mutex);
 }
 
 static int acm_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
@@ -1013,9 +1014,9 @@ static void acm_disconnect(struct usb_interface *intf)
 		return;
 	}
 
-	down(&open_sem);
+	mutex_lock(&open_mutex);
 	if (!usb_get_intfdata(intf)) {
-		up(&open_sem);
+		mutex_unlock(&open_mutex);
 		return;
 	}
 	acm->dev = NULL;
@@ -1045,11 +1046,11 @@ static void acm_disconnect(struct usb_interface *intf)
 
 	if (!acm->used) {
 		acm_tty_unregister(acm);
-		up(&open_sem);
+		mutex_unlock(&open_mutex);
 		return;
 	}
 
-	up(&open_sem);
+	mutex_unlock(&open_mutex);
 
 	if (acm->tty)
 		tty_hangup(acm->tty);

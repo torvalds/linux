@@ -95,6 +95,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -129,56 +130,34 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
 	   const void *inf,
+	   const struct xt_match *match,
 	   void *matchinfo,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
-	const struct ipt_ip *ip = inf;
-	const struct xt_dccp_info *info;
+	const struct xt_dccp_info *info = matchinfo;
 
-	info = (const struct xt_dccp_info *)matchinfo;
-
-	return ip->proto == IPPROTO_DCCP
-		&& !(ip->invflags & XT_INV_PROTO)
-		&& matchsize == XT_ALIGN(sizeof(struct xt_dccp_info))
-		&& !(info->flags & ~XT_DCCP_VALID_FLAGS)
+	return !(info->flags & ~XT_DCCP_VALID_FLAGS)
 		&& !(info->invflags & ~XT_DCCP_VALID_FLAGS)
 		&& !(info->invflags & ~info->flags);
 }
-
-static int
-checkentry6(const char *tablename,
-	   const void *inf,
-	   void *matchinfo,
-	   unsigned int matchsize,
-	   unsigned int hook_mask)
-{
-	const struct ip6t_ip6 *ip = inf;
-	const struct xt_dccp_info *info;
-
-	info = (const struct xt_dccp_info *)matchinfo;
-
-	return ip->proto == IPPROTO_DCCP
-		&& !(ip->invflags & XT_INV_PROTO)
-		&& matchsize == XT_ALIGN(sizeof(struct xt_dccp_info))
-		&& !(info->flags & ~XT_DCCP_VALID_FLAGS)
-		&& !(info->invflags & ~XT_DCCP_VALID_FLAGS)
-		&& !(info->invflags & ~info->flags);
-}
-
 
 static struct xt_match dccp_match = 
 { 
 	.name 		= "dccp",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_dccp_info),
+	.proto		= IPPROTO_DCCP,
+	.checkentry	= checkentry,
 	.me 		= THIS_MODULE,
 };
 static struct xt_match dccp6_match = 
 { 
 	.name 		= "dccp",
-	.match		= &match,
-	.checkentry	= &checkentry6,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_dccp_info),
+	.proto		= IPPROTO_DCCP,
+	.checkentry	= checkentry,
 	.me 		= THIS_MODULE,
 };
 

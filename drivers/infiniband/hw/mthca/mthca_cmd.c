@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2005 Cisco Systems. All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -182,25 +182,58 @@ struct mthca_cmd_context {
 	u8                status;
 };
 
+static int fw_cmd_doorbell = 1;
+module_param(fw_cmd_doorbell, int, 0644);
+MODULE_PARM_DESC(fw_cmd_doorbell, "post FW commands through doorbell page if nonzero "
+		 "(and supported by FW)");
+
 static inline int go_bit(struct mthca_dev *dev)
 {
 	return readl(dev->hcr + HCR_STATUS_OFFSET) &
 		swab32(1 << HCR_GO_BIT);
 }
 
-static int mthca_cmd_post(struct mthca_dev *dev,
-			  u64 in_param,
-			  u64 out_param,
-			  u32 in_modifier,
-			  u8 op_modifier,
-			  u16 op,
-			  u16 token,
-			  int event)
+static void mthca_cmd_post_dbell(struct mthca_dev *dev,
+				 u64 in_param,
+				 u64 out_param,
+				 u32 in_modifier,
+				 u8 op_modifier,
+				 u16 op,
+				 u16 token)
 {
-	int err = 0;
+	void __iomem *ptr = dev->cmd.dbell_map;
+	u16 *offs = dev->cmd.dbell_offsets;
 
-	mutex_lock(&dev->cmd.hcr_mutex);
+	__raw_writel((__force u32) cpu_to_be32(in_param >> 32),           ptr + offs[0]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32(in_param & 0xfffffffful),  ptr + offs[1]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32(in_modifier),              ptr + offs[2]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32(out_param >> 32),          ptr + offs[3]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32(out_param & 0xfffffffful), ptr + offs[4]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32(token << 16),              ptr + offs[5]);
+	wmb();
+	__raw_writel((__force u32) cpu_to_be32((1 << HCR_GO_BIT)                |
+					       (1 << HCA_E_BIT)                 |
+					       (op_modifier << HCR_OPMOD_SHIFT) |
+					        op),                      ptr + offs[6]);
+	wmb();
+	__raw_writel((__force u32) 0,                                     ptr + offs[7]);
+	wmb();
+}
 
+static int mthca_cmd_post_hcr(struct mthca_dev *dev,
+			      u64 in_param,
+			      u64 out_param,
+			      u32 in_modifier,
+			      u8 op_modifier,
+			      u16 op,
+			      u16 token,
+			      int event)
+{
 	if (event) {
 		unsigned long end = jiffies + GO_BIT_TIMEOUT;
 
@@ -210,10 +243,8 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 		}
 	}
 
-	if (go_bit(dev)) {
-		err = -EAGAIN;
-		goto out;
-	}
+	if (go_bit(dev))
+		return -EAGAIN;
 
 	/*
 	 * We use writel (instead of something like memcpy_toio)
@@ -236,7 +267,29 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 					       (op_modifier << HCR_OPMOD_SHIFT) |
 					       op),                       dev->hcr + 6 * 4);
 
-out:
+	return 0;
+}
+
+static int mthca_cmd_post(struct mthca_dev *dev,
+			  u64 in_param,
+			  u64 out_param,
+			  u32 in_modifier,
+			  u8 op_modifier,
+			  u16 op,
+			  u16 token,
+			  int event)
+{
+	int err = 0;
+
+	mutex_lock(&dev->cmd.hcr_mutex);
+
+	if (event && dev->cmd.flags & MTHCA_CMD_POST_DOORBELLS && fw_cmd_doorbell)
+		mthca_cmd_post_dbell(dev, in_param, out_param, in_modifier,
+					   op_modifier, op, token);
+	else
+		err = mthca_cmd_post_hcr(dev, in_param, out_param, in_modifier,
+					 op_modifier, op, token, event);
+
 	mutex_unlock(&dev->cmd.hcr_mutex);
 	return err;
 }
@@ -275,7 +328,7 @@ static int mthca_cmd_poll(struct mthca_dev *dev,
 	}
 
 	if (out_is_imm)
-		*out_param = 
+		*out_param =
 			(u64) be32_to_cpu((__force __be32)
 					  __raw_readl(dev->hcr + HCR_OUT_PARAM_OFFSET)) << 32 |
 			(u64) be32_to_cpu((__force __be32)
@@ -386,7 +439,7 @@ static int mthca_cmd_box(struct mthca_dev *dev,
 			 unsigned long timeout,
 			 u8 *status)
 {
-	if (dev->cmd.use_events)
+	if (dev->cmd.flags & MTHCA_CMD_USE_EVENTS)
 		return mthca_cmd_wait(dev, in_param, &out_param, 0,
 				      in_modifier, op_modifier, op,
 				      timeout, status);
@@ -423,7 +476,7 @@ static int mthca_cmd_imm(struct mthca_dev *dev,
 			 unsigned long timeout,
 			 u8 *status)
 {
-	if (dev->cmd.use_events)
+	if (dev->cmd.flags & MTHCA_CMD_USE_EVENTS)
 		return mthca_cmd_wait(dev, in_param, out_param, 1,
 				      in_modifier, op_modifier, op,
 				      timeout, status);
@@ -437,7 +490,7 @@ int mthca_cmd_init(struct mthca_dev *dev)
 {
 	mutex_init(&dev->cmd.hcr_mutex);
 	sema_init(&dev->cmd.poll_sem, 1);
-	dev->cmd.use_events = 0;
+	dev->cmd.flags = 0;
 
 	dev->hcr = ioremap(pci_resource_start(dev->pdev, 0) + MTHCA_HCR_BASE,
 			   MTHCA_HCR_SIZE);
@@ -461,6 +514,8 @@ void mthca_cmd_cleanup(struct mthca_dev *dev)
 {
 	pci_pool_destroy(dev->cmd.pool);
 	iounmap(dev->hcr);
+	if (dev->cmd.flags & MTHCA_CMD_POST_DOORBELLS)
+		iounmap(dev->cmd.dbell_map);
 }
 
 /*
@@ -498,7 +553,8 @@ int mthca_cmd_use_events(struct mthca_dev *dev)
 		; /* nothing */
 	--dev->cmd.token_mask;
 
-	dev->cmd.use_events = 1;
+	dev->cmd.flags |= MTHCA_CMD_USE_EVENTS;
+
 	down(&dev->cmd.poll_sem);
 
 	return 0;
@@ -511,7 +567,7 @@ void mthca_cmd_use_polling(struct mthca_dev *dev)
 {
 	int i;
 
-	dev->cmd.use_events = 0;
+	dev->cmd.flags &= ~MTHCA_CMD_USE_EVENTS;
 
 	for (i = 0; i < dev->cmd.max_cmds; ++i)
 		down(&dev->cmd.event_sem);
@@ -596,8 +652,9 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 		 * address or size and use that as our log2 size.
 		 */
 		lg = ffs(mthca_icm_addr(&iter) | mthca_icm_size(&iter)) - 1;
-		if (lg < 12) {
-			mthca_warn(dev, "Got FW area not aligned to 4K (%llx/%lx).\n",
+		if (lg < MTHCA_ICM_PAGE_SHIFT) {
+			mthca_warn(dev, "Got FW area not aligned to %d (%llx/%lx).\n",
+				   MTHCA_ICM_PAGE_SIZE,
 				   (unsigned long long) mthca_icm_addr(&iter),
 				   mthca_icm_size(&iter));
 			err = -EINVAL;
@@ -609,8 +666,9 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 				virt += 1 << lg;
 			}
 
-			pages[nent * 2 + 1] = cpu_to_be64((mthca_icm_addr(&iter) +
-							   (i << lg)) | (lg - 12));
+			pages[nent * 2 + 1] =
+				cpu_to_be64((mthca_icm_addr(&iter) + (i << lg)) |
+					    (lg - MTHCA_ICM_PAGE_SHIFT));
 			ts += 1 << (lg - 10);
 			++tc;
 
@@ -661,18 +719,51 @@ int mthca_RUN_FW(struct mthca_dev *dev, u8 *status)
 	return mthca_cmd(dev, 0, 0, 0, CMD_RUN_FW, CMD_TIME_CLASS_A, status);
 }
 
+static void mthca_setup_cmd_doorbells(struct mthca_dev *dev, u64 base)
+{
+	unsigned long addr;
+	u16 max_off = 0;
+	int i;
+
+	for (i = 0; i < 8; ++i)
+		max_off = max(max_off, dev->cmd.dbell_offsets[i]);
+
+	if ((base & PAGE_MASK) != ((base + max_off) & PAGE_MASK)) {
+		mthca_warn(dev, "Firmware doorbell region at 0x%016llx, "
+			   "length 0x%x crosses a page boundary\n",
+			   (unsigned long long) base, max_off);
+		return;
+	}
+
+	addr = pci_resource_start(dev->pdev, 2) +
+		((pci_resource_len(dev->pdev, 2) - 1) & base);
+	dev->cmd.dbell_map = ioremap(addr, max_off + sizeof(u32));
+	if (!dev->cmd.dbell_map)
+		return;
+
+	dev->cmd.flags |= MTHCA_CMD_POST_DOORBELLS;
+	mthca_dbg(dev, "Mapped doorbell page for posting FW commands\n");
+}
+
 int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 {
 	struct mthca_mailbox *mailbox;
 	u32 *outbox;
+	u64 base;
+	u32 tmp;
 	int err = 0;
 	u8 lg;
+	int i;
 
 #define QUERY_FW_OUT_SIZE             0x100
 #define QUERY_FW_VER_OFFSET            0x00
 #define QUERY_FW_MAX_CMD_OFFSET        0x0f
 #define QUERY_FW_ERR_START_OFFSET      0x30
 #define QUERY_FW_ERR_SIZE_OFFSET       0x38
+
+#define QUERY_FW_CMD_DB_EN_OFFSET      0x10
+#define QUERY_FW_CMD_DB_OFFSET         0x50
+#define QUERY_FW_CMD_DB_BASE           0x60
 
 #define QUERY_FW_START_OFFSET          0x20
 #define QUERY_FW_END_OFFSET            0x28
@@ -702,15 +793,28 @@ int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 		((dev->fw_ver & 0xffff0000ull) >> 16) |
 		((dev->fw_ver & 0x0000ffffull) << 16);
 
+	mthca_dbg(dev, "FW version %012llx, max commands %d\n",
+		  (unsigned long long) dev->fw_ver, dev->cmd.max_cmds);
+
 	MTHCA_GET(lg, outbox, QUERY_FW_MAX_CMD_OFFSET);
 	dev->cmd.max_cmds = 1 << lg;
 	MTHCA_GET(dev->catas_err.addr, outbox, QUERY_FW_ERR_START_OFFSET);
 	MTHCA_GET(dev->catas_err.size, outbox, QUERY_FW_ERR_SIZE_OFFSET);
 
-	mthca_dbg(dev, "FW version %012llx, max commands %d\n",
-		  (unsigned long long) dev->fw_ver, dev->cmd.max_cmds);
 	mthca_dbg(dev, "Catastrophic error buffer at 0x%llx, size 0x%x\n",
 		  (unsigned long long) dev->catas_err.addr, dev->catas_err.size);
+
+	MTHCA_GET(tmp, outbox, QUERY_FW_CMD_DB_EN_OFFSET);
+	if (tmp & 0x1) {
+		mthca_dbg(dev, "FW supports commands through doorbells\n");
+
+		MTHCA_GET(base, outbox, QUERY_FW_CMD_DB_BASE);
+		for (i = 0; i < MTHCA_CMD_NUM_DBELL_DWORDS; ++i)
+			MTHCA_GET(dev->cmd.dbell_offsets[i], outbox,
+				  QUERY_FW_CMD_DB_OFFSET + (i << 1));
+
+		mthca_setup_cmd_doorbells(dev, base);
+	}
 
 	if (mthca_is_memfree(dev)) {
 		MTHCA_GET(dev->fw.arbel.fw_pages,       outbox, QUERY_FW_SIZE_OFFSET);
@@ -720,12 +824,12 @@ int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 		mthca_dbg(dev, "FW size %d KB\n", dev->fw.arbel.fw_pages << 2);
 
 		/*
-		 * Arbel page size is always 4 KB; round up number of
-		 * system pages needed.
+		 * Round up number of system pages needed in case
+		 * MTHCA_ICM_PAGE_SIZE < PAGE_SIZE.
 		 */
 		dev->fw.arbel.fw_pages =
-			ALIGN(dev->fw.arbel.fw_pages, PAGE_SIZE >> 12) >>
-				(PAGE_SHIFT - 12);
+			ALIGN(dev->fw.arbel.fw_pages, PAGE_SIZE / MTHCA_ICM_PAGE_SIZE) >>
+				(PAGE_SHIFT - MTHCA_ICM_PAGE_SHIFT);
 
 		mthca_dbg(dev, "Clear int @ %llx, EQ arm @ %llx, EQ set CI @ %llx\n",
 			  (unsigned long long) dev->fw.arbel.clr_int_base,
@@ -1173,7 +1277,8 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 	int err;
 
 #define INIT_HCA_IN_SIZE             	 0x200
-#define INIT_HCA_FLAGS_OFFSET        	 0x014
+#define INIT_HCA_FLAGS1_OFFSET           0x00c
+#define INIT_HCA_FLAGS2_OFFSET           0x014
 #define INIT_HCA_QPC_OFFSET          	 0x020
 #define  INIT_HCA_QPC_BASE_OFFSET    	 (INIT_HCA_QPC_OFFSET + 0x10)
 #define  INIT_HCA_LOG_QP_OFFSET      	 (INIT_HCA_QPC_OFFSET + 0x17)
@@ -1216,15 +1321,18 @@ int mthca_INIT_HCA(struct mthca_dev *dev,
 
 	memset(inbox, 0, INIT_HCA_IN_SIZE);
 
+	if (dev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
+		MTHCA_PUT(inbox, 0x1, INIT_HCA_FLAGS1_OFFSET);
+
 #if defined(__LITTLE_ENDIAN)
-	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) &= ~cpu_to_be32(1 << 1);
+	*(inbox + INIT_HCA_FLAGS2_OFFSET / 4) &= ~cpu_to_be32(1 << 1);
 #elif defined(__BIG_ENDIAN)
-	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 1);
+	*(inbox + INIT_HCA_FLAGS2_OFFSET / 4) |= cpu_to_be32(1 << 1);
 #else
 #error Host endianness not defined
 #endif
 	/* Check port for UD address vector: */
-	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1);
+	*(inbox + INIT_HCA_FLAGS2_OFFSET / 4) |= cpu_to_be32(1);
 
 	/* We leave wqe_quota, responder_exu, etc as 0 (default) */
 
@@ -1438,11 +1546,11 @@ int mthca_SET_ICM_SIZE(struct mthca_dev *dev, u64 icm_size, u64 *aux_pages,
 		return ret;
 
 	/*
-	 * Arbel page size is always 4 KB; round up number of system
-	 * pages needed.
+	 * Round up number of system pages needed in case
+	 * MTHCA_ICM_PAGE_SIZE < PAGE_SIZE.
 	 */
-	*aux_pages = (*aux_pages + (1 << (PAGE_SHIFT - 12)) - 1) >> (PAGE_SHIFT - 12);
-	*aux_pages = ALIGN(*aux_pages, PAGE_SIZE >> 12) >> (PAGE_SHIFT - 12);
+	*aux_pages = ALIGN(*aux_pages, PAGE_SIZE / MTHCA_ICM_PAGE_SIZE) >>
+		(PAGE_SHIFT - MTHCA_ICM_PAGE_SHIFT);
 
 	return 0;
 }
@@ -1514,6 +1622,37 @@ int mthca_HW2SW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 			     CMD_TIME_CLASS_A, status);
 }
 
+int mthca_RESIZE_CQ(struct mthca_dev *dev, int cq_num, u32 lkey, u8 log_size,
+		    u8 *status)
+{
+	struct mthca_mailbox *mailbox;
+	__be32 *inbox;
+	int err;
+
+#define RESIZE_CQ_IN_SIZE		0x40
+#define RESIZE_CQ_LOG_SIZE_OFFSET	0x0c
+#define RESIZE_CQ_LKEY_OFFSET		0x1c
+
+	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+	inbox = mailbox->buf;
+
+	memset(inbox, 0, RESIZE_CQ_IN_SIZE);
+	/*
+	 * Leave start address fields zeroed out -- mthca assumes that
+	 * MRs for CQs always start at virtual address 0.
+	 */
+	MTHCA_PUT(inbox, log_size, RESIZE_CQ_LOG_SIZE_OFFSET);
+	MTHCA_PUT(inbox, lkey,     RESIZE_CQ_LKEY_OFFSET);
+
+	err = mthca_cmd(dev, mailbox->dma, cq_num, 1, CMD_RESIZE_CQ,
+			CMD_TIME_CLASS_B, status);
+
+	mthca_free_mailbox(dev, mailbox);
+	return err;
+}
+
 int mthca_SW2HW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int srq_num, u8 *status)
 {
@@ -1529,37 +1668,69 @@ int mthca_HW2SW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 			     CMD_TIME_CLASS_A, status);
 }
 
+int mthca_QUERY_SRQ(struct mthca_dev *dev, u32 num,
+		    struct mthca_mailbox *mailbox, u8 *status)
+{
+	return mthca_cmd_box(dev, 0, mailbox->dma, num, 0,
+			     CMD_QUERY_SRQ, CMD_TIME_CLASS_A, status);
+}
+
 int mthca_ARM_SRQ(struct mthca_dev *dev, int srq_num, int limit, u8 *status)
 {
 	return mthca_cmd(dev, limit, srq_num, 0, CMD_ARM_SRQ,
 			 CMD_TIME_CLASS_B, status);
 }
 
-int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
-		    int is_ee, struct mthca_mailbox *mailbox, u32 optmask,
+int mthca_MODIFY_QP(struct mthca_dev *dev, enum ib_qp_state cur,
+		    enum ib_qp_state next, u32 num, int is_ee,
+		    struct mthca_mailbox *mailbox, u32 optmask,
 		    u8 *status)
 {
-	static const u16 op[] = {
-		[MTHCA_TRANS_RST2INIT]  = CMD_RST2INIT_QPEE,
-		[MTHCA_TRANS_INIT2INIT] = CMD_INIT2INIT_QPEE,
-		[MTHCA_TRANS_INIT2RTR]  = CMD_INIT2RTR_QPEE,
-		[MTHCA_TRANS_RTR2RTS]   = CMD_RTR2RTS_QPEE,
-		[MTHCA_TRANS_RTS2RTS]   = CMD_RTS2RTS_QPEE,
-		[MTHCA_TRANS_SQERR2RTS] = CMD_SQERR2RTS_QPEE,
-		[MTHCA_TRANS_ANY2ERR]   = CMD_2ERR_QPEE,
-		[MTHCA_TRANS_RTS2SQD]   = CMD_RTS2SQD_QPEE,
-		[MTHCA_TRANS_SQD2SQD]   = CMD_SQD2SQD_QPEE,
-		[MTHCA_TRANS_SQD2RTS]   = CMD_SQD2RTS_QPEE,
-		[MTHCA_TRANS_ANY2RST]   = CMD_ERR2RST_QPEE
+	static const u16 op[IB_QPS_ERR + 1][IB_QPS_ERR + 1] = {
+		[IB_QPS_RESET] = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_INIT]	= CMD_RST2INIT_QPEE,
+		},
+		[IB_QPS_INIT]  = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_INIT]	= CMD_INIT2INIT_QPEE,
+			[IB_QPS_RTR]	= CMD_INIT2RTR_QPEE,
+		},
+		[IB_QPS_RTR]   = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_RTS]	= CMD_RTR2RTS_QPEE,
+		},
+		[IB_QPS_RTS]   = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_RTS]	= CMD_RTS2RTS_QPEE,
+			[IB_QPS_SQD]	= CMD_RTS2SQD_QPEE,
+		},
+		[IB_QPS_SQD] = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_RTS]	= CMD_SQD2RTS_QPEE,
+			[IB_QPS_SQD]	= CMD_SQD2SQD_QPEE,
+		},
+		[IB_QPS_SQE] = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+			[IB_QPS_RTS]	= CMD_SQERR2RTS_QPEE,
+		},
+		[IB_QPS_ERR] = {
+			[IB_QPS_RESET]	= CMD_ERR2RST_QPEE,
+			[IB_QPS_ERR]	= CMD_2ERR_QPEE,
+		}
 	};
+
 	u8 op_mod = 0;
 	int my_mailbox = 0;
 	int err;
 
-	if (trans < 0 || trans >= ARRAY_SIZE(op))
-		return -EINVAL;
-
-	if (trans == MTHCA_TRANS_ANY2RST) {
+	if (op[cur][next] == CMD_ERR2RST_QPEE) {
 		op_mod = 3;	/* don't write outbox, any->reset */
 
 		/* For debugging */
@@ -1571,26 +1742,10 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 			} else
 				mailbox = NULL;
 		}
-	} else {
-		if (0) {
-			int i;
-			mthca_dbg(dev, "Dumping QP context:\n");
-			printk("  opt param mask: %08x\n", be32_to_cpup(mailbox->buf));
-			for (i = 0; i < 0x100 / 4; ++i) {
-				if (i % 8 == 0)
-					printk("  [%02x] ", i * 4);
-				printk(" %08x",
-				       be32_to_cpu(((__be32 *) mailbox->buf)[i + 2]));
-				if ((i + 1) % 8 == 0)
-					printk("\n");
-			}
-		}
-	}
 
-	if (trans == MTHCA_TRANS_ANY2RST) {
 		err = mthca_cmd_box(dev, 0, mailbox ? mailbox->dma : 0,
 				    (!!is_ee << 24) | num, op_mod,
-				    op[trans], CMD_TIME_CLASS_C, status);
+				    op[cur][next], CMD_TIME_CLASS_C, status);
 
 		if (0 && mailbox) {
 			int i;
@@ -1606,12 +1761,26 @@ int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
 			}
 		}
 
-	} else
-		err = mthca_cmd(dev, mailbox->dma, (!!is_ee << 24) | num,
-				op_mod, op[trans], CMD_TIME_CLASS_C, status);
+		if (my_mailbox)
+			mthca_free_mailbox(dev, mailbox);
+	} else {
+		if (0) {
+			int i;
+			mthca_dbg(dev, "Dumping QP context:\n");
+			printk("  opt param mask: %08x\n", be32_to_cpup(mailbox->buf));
+			for (i = 0; i < 0x100 / 4; ++i) {
+				if (i % 8 == 0)
+					printk("  [%02x] ", i * 4);
+				printk(" %08x",
+				       be32_to_cpu(((__be32 *) mailbox->buf)[i + 2]));
+				if ((i + 1) % 8 == 0)
+					printk("\n");
+			}
+		}
 
-	if (my_mailbox)
-		mthca_free_mailbox(dev, mailbox);
+		err = mthca_cmd(dev, mailbox->dma, optmask | (!!is_ee << 24) | num,
+				op_mod, op[cur][next], CMD_TIME_CLASS_C, status);
+	}
 
 	return err;
 }

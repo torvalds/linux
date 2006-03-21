@@ -73,12 +73,11 @@ static int deflate_decomp_init(struct deflate_ctx *ctx)
 	int ret = 0;
 	struct z_stream_s *stream = &ctx->decomp_stream;
 
-	stream->workspace = kmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
+	stream->workspace = kzalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
 	if (!stream->workspace ) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset(stream->workspace, 0, zlib_inflate_workspacesize());
 	ret = zlib_inflateInit2(stream, -DEFLATE_DEF_WINBITS);
 	if (ret != Z_OK) {
 		ret = -EINVAL;

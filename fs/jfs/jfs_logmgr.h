@@ -389,7 +389,7 @@ struct jfs_log {
 	int eor;		/* 4: eor of last record in eol page */
 	struct lbuf *bp;	/* 4: current log page buffer */
 
-	struct semaphore loglock;	/* 4: log write serialization lock */
+	struct mutex loglock;	/* 4: log write serialization lock */
 
 	/* syncpt */
 	int nextsync;		/* 4: bytes to write before next syncpt */
