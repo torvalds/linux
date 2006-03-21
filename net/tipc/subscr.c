@@ -86,7 +86,7 @@ static struct top_srv topsrv = { 0 };
  * Returns converted value
  */
 
-static inline u32 htohl(u32 in, int swap)
+static u32 htohl(u32 in, int swap)
 {
 	char *c = (char *)&in;
 

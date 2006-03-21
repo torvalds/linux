@@ -157,13 +157,13 @@ static void link_print(struct link *l_ptr, struct print_buf *buf,
 	} \
 } while (0)
 
-static inline void dbg_print_link(struct link *l_ptr, const char *str)
+static void dbg_print_link(struct link *l_ptr, const char *str)
 {
 	if (DBG_OUTPUT)
 		link_print(l_ptr, DBG_OUTPUT, str);
 }
 
-static inline void dbg_print_buf_chain(struct sk_buff *root_buf)
+static void dbg_print_buf_chain(struct sk_buff *root_buf)
 {
 	if (DBG_OUTPUT) {
 		struct sk_buff *buf = root_buf;
@@ -176,50 +176,50 @@ static inline void dbg_print_buf_chain(struct sk_buff *root_buf)
 }
 
 /*
- *  Simple inlined link routines
+ *  Simple link routines
  */
 
-static inline unsigned int align(unsigned int i)
+static unsigned int align(unsigned int i)
 {
 	return (i + 3) & ~3u;
 }
 
-static inline int link_working_working(struct link *l_ptr)
+static int link_working_working(struct link *l_ptr)
 {
 	return (l_ptr->state == WORKING_WORKING);
 }
 
-static inline int link_working_unknown(struct link *l_ptr)
+static int link_working_unknown(struct link *l_ptr)
 {
 	return (l_ptr->state == WORKING_UNKNOWN);
 }
 
-static inline int link_reset_unknown(struct link *l_ptr)
+static int link_reset_unknown(struct link *l_ptr)
 {
 	return (l_ptr->state == RESET_UNKNOWN);
 }
 
-static inline int link_reset_reset(struct link *l_ptr)
+static int link_reset_reset(struct link *l_ptr)
 {
 	return (l_ptr->state == RESET_RESET);
 }
 
-static inline int link_blocked(struct link *l_ptr)
+static int link_blocked(struct link *l_ptr)
 {
 	return (l_ptr->exp_msg_count || l_ptr->blocked);
 }
 
-static inline int link_congested(struct link *l_ptr)
+static int link_congested(struct link *l_ptr)
 {
 	return (l_ptr->out_queue_size >= l_ptr->queue_limit[0]);
 }
 
-static inline u32 link_max_pkt(struct link *l_ptr)
+static u32 link_max_pkt(struct link *l_ptr)
 {
 	return l_ptr->max_pkt;
 }
 
-static inline void link_init_max_pkt(struct link *l_ptr)
+static void link_init_max_pkt(struct link *l_ptr)
 {
 	u32 max_pkt;
 	
@@ -236,20 +236,20 @@ static inline void link_init_max_pkt(struct link *l_ptr)
         l_ptr->max_pkt_probes = 0;
 }
 
-static inline u32 link_next_sent(struct link *l_ptr)
+static u32 link_next_sent(struct link *l_ptr)
 {
 	if (l_ptr->next_out)
 		return msg_seqno(buf_msg(l_ptr->next_out));
 	return mod(l_ptr->next_out_no);
 }
 
-static inline u32 link_last_sent(struct link *l_ptr)
+static u32 link_last_sent(struct link *l_ptr)
 {
 	return mod(link_next_sent(l_ptr) - 1);
 }
 
 /*
- *  Simple non-inlined link routines (i.e. referenced outside this file)
+ *  Simple non-static link routines (i.e. referenced outside this file)
  */
 
 int tipc_link_is_up(struct link *l_ptr)
@@ -396,7 +396,7 @@ static void link_timeout(struct link *l_ptr)
 	tipc_node_unlock(l_ptr->owner);
 }
 
-static inline void link_set_timer(struct link *l_ptr, u32 time)
+static void link_set_timer(struct link *l_ptr, u32 time)
 {
 	k_start_timer(&l_ptr->timer, time);
 }
@@ -1004,9 +1004,9 @@ static int link_bundle_buf(struct link *l_ptr,
 	return 1;
 }
 
-static inline void link_add_to_outqueue(struct link *l_ptr, 
-					struct sk_buff *buf, 
-					struct tipc_msg *msg)
+static void link_add_to_outqueue(struct link *l_ptr,
+				 struct sk_buff *buf,
+				 struct tipc_msg *msg)
 {
 	u32 ack = mod(l_ptr->next_in_no - 1);
 	u32 seqno = mod(l_ptr->next_out_no++);
@@ -1156,8 +1156,8 @@ int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector)
  * Link is locked. Returns user data length.
  */
 
-static inline int link_send_buf_fast(struct link *l_ptr, struct sk_buff *buf,
-				     u32 *used_max_pkt)
+static int link_send_buf_fast(struct link *l_ptr, struct sk_buff *buf,
+			      u32 *used_max_pkt)
 {
 	struct tipc_msg *msg = buf_msg(buf);
 	int res = msg_data_sz(msg);
@@ -2539,42 +2539,42 @@ exit:
  * pending message. This makes dynamic memory allocation unecessary.
  */
 
-static inline u32 get_long_msg_seqno(struct sk_buff *buf)
+static u32 get_long_msg_seqno(struct sk_buff *buf)
 {
 	return msg_seqno(buf_msg(buf));
 }
 
-static inline void set_long_msg_seqno(struct sk_buff *buf, u32 seqno)
+static void set_long_msg_seqno(struct sk_buff *buf, u32 seqno)
 {
 	msg_set_seqno(buf_msg(buf), seqno);
 }
 
-static inline u32 get_fragm_size(struct sk_buff *buf)
+static u32 get_fragm_size(struct sk_buff *buf)
 {
 	return msg_ack(buf_msg(buf));
 }
 
-static inline void set_fragm_size(struct sk_buff *buf, u32 sz)
+static void set_fragm_size(struct sk_buff *buf, u32 sz)
 {
 	msg_set_ack(buf_msg(buf), sz);
 }
 
-static inline u32 get_expected_frags(struct sk_buff *buf)
+static u32 get_expected_frags(struct sk_buff *buf)
 {
 	return msg_bcast_ack(buf_msg(buf));
 }
 
-static inline void set_expected_frags(struct sk_buff *buf, u32 exp)
+static void set_expected_frags(struct sk_buff *buf, u32 exp)
 {
 	msg_set_bcast_ack(buf_msg(buf), exp);
 }
 
-static inline u32 get_timer_cnt(struct sk_buff *buf)
+static u32 get_timer_cnt(struct sk_buff *buf)
 {
 	return msg_reroute_cnt(buf_msg(buf));
 }
 
-static inline void incr_timer_cnt(struct sk_buff *buf)
+static void incr_timer_cnt(struct sk_buff *buf)
 {
 	msg_incr_reroute_cnt(buf_msg(buf));
 }

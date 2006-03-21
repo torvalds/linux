@@ -104,7 +104,7 @@ static atomic_t rsv_publ_ok = ATOMIC_INIT(0);
 rwlock_t tipc_nametbl_lock = RW_LOCK_UNLOCKED;
 
 
-static inline int hash(int x)
+static int hash(int x)
 {
 	return(x & (tipc_nametbl_size - 1));
 }
@@ -190,8 +190,8 @@ struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_head)
  * Very time-critical, so binary searches through sub-sequence array.
  */
 
-static inline struct sub_seq *nameseq_find_subseq(struct name_seq *nseq, 
-						  u32 instance)
+static struct sub_seq *nameseq_find_subseq(struct name_seq *nseq,
+					   u32 instance)
 {
 	struct sub_seq *sseqs = nseq->sseqs;
 	int low = 0;

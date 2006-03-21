@@ -107,22 +107,22 @@ static spinlock_t bc_lock = SPIN_LOCK_UNLOCKED;
 char tipc_bclink_name[] = "multicast-link";
 
 
-static inline u32 buf_seqno(struct sk_buff *buf)
+static u32 buf_seqno(struct sk_buff *buf)
 {
 	return msg_seqno(buf_msg(buf));
 } 
 
-static inline u32 bcbuf_acks(struct sk_buff *buf)
+static u32 bcbuf_acks(struct sk_buff *buf)
 {
 	return (u32)(unsigned long)TIPC_SKB_CB(buf)->handle;
 }
 
-static inline void bcbuf_set_acks(struct sk_buff *buf, u32 acks)
+static void bcbuf_set_acks(struct sk_buff *buf, u32 acks)
 {
 	TIPC_SKB_CB(buf)->handle = (void *)(unsigned long)acks;
 }
 
-static inline void bcbuf_decr_acks(struct sk_buff *buf)
+static void bcbuf_decr_acks(struct sk_buff *buf)
 {
 	bcbuf_set_acks(buf, bcbuf_acks(buf) - 1);
 }
@@ -134,7 +134,7 @@ static inline void bcbuf_decr_acks(struct sk_buff *buf)
  * Called with 'node' locked, bc_lock unlocked
  */
 
-static inline void bclink_set_gap(struct node *n_ptr)
+static void bclink_set_gap(struct node *n_ptr)
 {
 	struct sk_buff *buf = n_ptr->bclink.deferred_head;
 
@@ -154,7 +154,7 @@ static inline void bclink_set_gap(struct node *n_ptr)
  *       distribute NACKs, but tries to use the same spacing (divide by 16). 
  */
 
-static inline int bclink_ack_allowed(u32 n)
+static int bclink_ack_allowed(u32 n)
 {
 	return((n % TIPC_MIN_LINK_WIN) == tipc_own_tag);
 }

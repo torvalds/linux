@@ -67,27 +67,27 @@ static struct sk_buff* port_build_peer_abort_msg(struct port *,u32 err);
 static void port_timeout(unsigned long ref);
 
 
-static inline u32 port_peernode(struct port *p_ptr)
+static u32 port_peernode(struct port *p_ptr)
 {
 	return msg_destnode(&p_ptr->publ.phdr);
 }
 
-static inline u32 port_peerport(struct port *p_ptr)
+static u32 port_peerport(struct port *p_ptr)
 {
 	return msg_destport(&p_ptr->publ.phdr);
 }
 
-static inline u32 port_out_seqno(struct port *p_ptr)
+static u32 port_out_seqno(struct port *p_ptr)
 {
 	return msg_transp_seqno(&p_ptr->publ.phdr);
 }
 
-static inline void port_set_out_seqno(struct port *p_ptr, u32 seqno) 
+static void port_set_out_seqno(struct port *p_ptr, u32 seqno)
 {
 	msg_set_transp_seqno(&p_ptr->publ.phdr,seqno);
 }
 
-static inline void port_incr_out_seqno(struct port *p_ptr)
+static void port_incr_out_seqno(struct port *p_ptr)
 {
 	struct tipc_msg *m = &p_ptr->publ.phdr;
 
@@ -335,7 +335,7 @@ void *tipc_get_handle(const u32 ref)
 	return handle;
 }
 
-static inline int port_unreliable(struct port *p_ptr)
+static int port_unreliable(struct port *p_ptr)
 {
 	return msg_src_droppable(&p_ptr->publ.phdr);
 }
@@ -364,7 +364,7 @@ int tipc_set_portunreliable(u32 ref, unsigned int isunreliable)
 	return TIPC_OK;
 }
 
-static inline int port_unreturnable(struct port *p_ptr)
+static int port_unreturnable(struct port *p_ptr)
 {
 	return msg_dest_droppable(&p_ptr->publ.phdr);
 }

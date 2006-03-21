@@ -88,7 +88,7 @@ static atomic_t tipc_queue_size = ATOMIC_INIT(0);
  * with non-socket interfaces.
  * See net.c for description of locking policy.
  */
-static inline void sock_lock(struct tipc_sock* tsock)
+static void sock_lock(struct tipc_sock* tsock)
 {
         spin_lock_bh(tsock->p->lock);       
 }
@@ -96,7 +96,7 @@ static inline void sock_lock(struct tipc_sock* tsock)
 /* 
  * sock_unlock(): Unlock a port/socket pair
  */
-static inline void sock_unlock(struct tipc_sock* tsock)
+static void sock_unlock(struct tipc_sock* tsock)
 {
         spin_unlock_bh(tsock->p->lock);
 }
@@ -119,7 +119,7 @@ static inline void sock_unlock(struct tipc_sock* tsock)
  * Returns pollmask value
  */
 
-static inline u32 pollmask(struct socket *sock)
+static u32 pollmask(struct socket *sock)
 {
 	u32 mask;
 
@@ -144,7 +144,7 @@ static inline u32 pollmask(struct socket *sock)
  * @tsock: TIPC socket
  */
 
-static inline void advance_queue(struct tipc_sock *tsock)
+static void advance_queue(struct tipc_sock *tsock)
 {
         sock_lock(tsock);
 	buf_discard(skb_dequeue(&tsock->sk.sk_receive_queue));
@@ -412,7 +412,7 @@ static unsigned int poll(struct file *file, struct socket *sock,
  * Returns 0 if permission is granted, otherwise errno
  */
 
-static inline int dest_name_check(struct sockaddr_tipc *dest, struct msghdr *m)
+static int dest_name_check(struct sockaddr_tipc *dest, struct msghdr *m)
 {
 	struct tipc_cfg_msg_hdr hdr;
 
@@ -695,7 +695,7 @@ static int auto_connect(struct socket *sock, struct tipc_sock *tsock,
  * Note: Address is not captured if not requested by receiver.
  */
 
-static inline void set_orig_addr(struct msghdr *m, struct tipc_msg *msg)
+static void set_orig_addr(struct msghdr *m, struct tipc_msg *msg)
 {
         struct sockaddr_tipc *addr = (struct sockaddr_tipc *)m->msg_name;
 
@@ -721,7 +721,7 @@ static inline void set_orig_addr(struct msghdr *m, struct tipc_msg *msg)
  * Returns 0 if successful, otherwise errno
  */
 
-static inline int anc_data_recv(struct msghdr *m, struct tipc_msg *msg, 
+static int anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 				struct tipc_port *tport)
 {
 	u32 anc_data[3];
