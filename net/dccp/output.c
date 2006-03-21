@@ -323,8 +323,8 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 
 EXPORT_SYMBOL_GPL(dccp_make_response);
 
-struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
-				const enum dccp_reset_codes code)
+static struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
+				       const enum dccp_reset_codes code)
 				   
 {
 	struct dccp_hdr *dh;
@@ -366,12 +366,32 @@ struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), dp->dccps_gsr);
 
 	dccp_hdr_reset(skb)->dccph_reset_code = code;
-
-	dh->dccph_checksum = dccp_v4_checksum(skb, inet_sk(sk)->saddr,
-					      inet_sk(sk)->daddr);
+	inet_csk(sk)->icsk_af_ops->send_check(sk, skb->len, skb);
 
 	DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 	return skb;
+}
+
+int dccp_send_reset(struct sock *sk, enum dccp_reset_codes code)
+{
+	/*
+	 * FIXME: what if rebuild_header fails?
+	 * Should we be doing a rebuild_header here?
+	 */
+	int err = inet_sk_rebuild_header(sk);
+
+	if (err == 0) {
+		struct sk_buff *skb = dccp_make_reset(sk, sk->sk_dst_cache,
+						      code);
+		if (skb != NULL) {
+			memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
+			err = inet_csk(sk)->icsk_af_ops->queue_xmit(skb, 0);
+			if (err == NET_XMIT_CN)
+				err = 0;
+		}
+	}
+
+	return err;
 }
 
 /*

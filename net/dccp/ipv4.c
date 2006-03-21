@@ -457,32 +457,6 @@ void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 
 EXPORT_SYMBOL_GPL(dccp_v4_send_check);
 
-int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
-{
-	struct sk_buff *skb;
-	/*
-	 * FIXME: what if rebuild_header fails?
-	 * Should we be doing a rebuild_header here?
-	 */
-	int err = inet_sk_rebuild_header(sk);
-
-	if (err != 0)
-		return err;
-
-	skb = dccp_make_reset(sk, sk->sk_dst_cache, code);
-	if (skb != NULL) {
-		const struct inet_sock *inet = inet_sk(sk);
-
-		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-		err = ip_build_and_send_pkt(skb, sk,
-					    inet->saddr, inet->daddr, NULL);
-		if (err == NET_XMIT_CN)
-			err = 0;
-	}
-
-	return err;
-}
-
 static inline u64 dccp_v4_init_sequence(const struct sock *sk,
 					const struct sk_buff *skb)
 {

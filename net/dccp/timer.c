@@ -31,7 +31,7 @@ static void dccp_write_err(struct sock *sk)
 	sk->sk_err = sk->sk_err_soft ? : ETIMEDOUT;
 	sk->sk_error_report(sk);
 
-	dccp_v4_send_reset(sk, DCCP_RESET_CODE_ABORTED);
+	dccp_send_reset(sk, DCCP_RESET_CODE_ABORTED);
 	dccp_done(sk);
 	DCCP_INC_STATS_BH(DCCP_MIB_ABORTONTIMEOUT);
 }

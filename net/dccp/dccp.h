@@ -235,9 +235,6 @@ extern void		dccp_close(struct sock *sk, long timeout);
 extern struct sk_buff	*dccp_make_response(struct sock *sk,
 					    struct dst_entry *dst,
 					    struct request_sock *req);
-extern struct sk_buff	*dccp_make_reset(struct sock *sk,
-					 struct dst_entry *dst,
-					 enum dccp_reset_codes code);
 
 extern int	   dccp_connect(struct sock *sk);
 extern int	   dccp_disconnect(struct sock *sk, int flags);
@@ -264,8 +261,7 @@ extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 extern int	   dccp_v4_checksum(const struct sk_buff *skb,
 				    const __be32 saddr, const __be32 daddr);
 
-extern int	   dccp_v4_send_reset(struct sock *sk,
-				      enum dccp_reset_codes code);
+extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);
 extern int	   dccp_invalid_packet(struct sk_buff *skb);
 
