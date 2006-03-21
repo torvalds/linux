@@ -8059,7 +8059,7 @@ static int tg3_test_link(struct tg3 *tp)
 }
 
 /* Only test the commonly used registers */
-static const int tg3_test_registers(struct tg3 *tp)
+static int tg3_test_registers(struct tg3 *tp)
 {
 	int i, is_5705;
 	u32 offset, read_mask, write_mask, val, save_val, read_val;
