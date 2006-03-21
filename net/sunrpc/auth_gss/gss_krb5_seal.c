@@ -76,7 +76,8 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 {
 	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
 	s32			checksum_type;
-	struct xdr_netobj	md5cksum = {.len = 0, .data = NULL};
+	char			cksumdata[16];
+	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	unsigned char		*ptr, *krb5_hdr, *msg_start;
 	s32			now;
 
@@ -133,8 +134,6 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 		BUG();
 	}
 
-	kfree(md5cksum.data);
-
 	if ((krb5_make_seq_num(ctx->seq, ctx->initiate ? 0 : 0xff,
 			       ctx->seq_send, krb5_hdr + 16, krb5_hdr + 8)))
 		goto out_err;
@@ -143,6 +142,5 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 
 	return ((ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE);
 out_err:
-	kfree(md5cksum.data);
 	return GSS_S_FAILURE;
 }

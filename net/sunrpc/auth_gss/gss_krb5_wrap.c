@@ -121,7 +121,8 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 {
 	struct krb5_ctx		*kctx = ctx->internal_ctx_id;
 	s32			checksum_type;
-	struct xdr_netobj	md5cksum = {.len = 0, .data = NULL};
+	char			cksumdata[16];
+	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	int			blocksize = 0, plainlen;
 	unsigned char		*ptr, *krb5_hdr, *msg_start;
 	s32			now;
@@ -205,8 +206,6 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 		BUG();
 	}
 
-	kfree(md5cksum.data);
-
 	/* XXX would probably be more efficient to compute checksum
 	 * and encrypt at the same time: */
 	if ((krb5_make_seq_num(kctx->seq, kctx->initiate ? 0 : 0xff,
@@ -221,7 +220,6 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 
 	return ((kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE);
 out_err:
-	if (md5cksum.data) kfree(md5cksum.data);
 	return GSS_S_FAILURE;
 }
 
@@ -232,7 +230,8 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 	int			signalg;
 	int			sealalg;
 	s32			checksum_type;
-	struct xdr_netobj	md5cksum = {.len = 0, .data = NULL};
+	char			cksumdata[16];
+	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	s32			now;
 	int			direction;
 	s32			seqnum;
@@ -358,6 +357,5 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 
 	ret = GSS_S_COMPLETE;
 out:
-	if (md5cksum.data) kfree(md5cksum.data);
 	return ret;
 }

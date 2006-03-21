@@ -57,7 +57,8 @@ spkm3_make_token(struct spkm3_ctx *ctx,
 {
 	s32			checksum_type;
 	char			tokhdrbuf[25];
-	struct xdr_netobj	md5cksum = {.len = 0, .data = NULL};
+	char			cksumdata[16];
+	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	struct xdr_netobj	mic_hdr = {.len = 0, .data = tokhdrbuf};
 	int			tokenlen = 0;
 	unsigned char		*ptr;
@@ -115,13 +116,11 @@ spkm3_make_token(struct spkm3_ctx *ctx,
 		dprintk("RPC: gss_spkm3_seal: SPKM_WRAP_TOK not supported\n");
 		goto out_err;
 	}
-	kfree(md5cksum.data);
 
 	/* XXX need to implement sequence numbers, and ctx->expired */
 
 	return  GSS_S_COMPLETE;
 out_err:
-	kfree(md5cksum.data);
 	token->data = NULL;
 	token->len = 0;
 	return GSS_S_FAILURE;
