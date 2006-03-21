@@ -207,6 +207,11 @@ static int of_node_to_nid(struct device_node *device)
 		    device->full_name);
 		nid = 0;
 	}
+
+	/* POWER4 LPAR uses 0xffff as invalid node */
+	if (nid == 0xffff)
+		nid = 0;
+
 	return nid;
 }
 
@@ -297,14 +302,9 @@ static int __cpuinit numa_setup_cpu(unsigned long lcpu)
 	nid = of_node_to_nid(cpu);
 
 	if (nid >= num_online_nodes()) {
-		/*
-		 * POWER4 LPAR uses 0xffff as invalid node,
-		 * dont warn in this case.
-		 */
-		if (nid != 0xffff)
-			printk(KERN_ERR "WARNING: cpu %ld "
-			       "maps to invalid NUMA node %d\n",
-			       lcpu, nid);
+		printk(KERN_ERR "WARNING: cpu %ld "
+		       "maps to invalid NUMA node %d\n",
+		       lcpu, nid);
 		nid = 0;
 	}
 out:
@@ -442,10 +442,9 @@ new_range:
 		nid = of_node_to_nid(memory);
 
 		if (nid >= MAX_NUMNODES) {
-			if (nid != 0xffff)
-				printk(KERN_ERR "WARNING: memory at %lx maps "
-				       "to invalid NUMA node %d\n", start,
-				       nid);
+			printk(KERN_ERR "WARNING: memory at %lx maps "
+			       "to invalid NUMA node %d\n", start,
+			       nid);
 			nid = 0;
 		}
 
