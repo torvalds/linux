@@ -1042,9 +1042,11 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 		struct net_device *dev_peer;
 
 		dev_peer = pci_get_drvdata(tp->pdev_peer);
+		/* remove_one() may have been run on the peer. */
 		if (!dev_peer)
-			BUG();
-		tp_peer = netdev_priv(dev_peer);
+			tp_peer = tp;
+		else
+			tp_peer = netdev_priv(dev_peer);
 	}
 
 	if ((tp->tg3_flags & TG3_FLAG_WOL_ENABLE) != 0 ||
@@ -1135,7 +1137,7 @@ static int tg3_halt_cpu(struct tg3 *, u32);
 static int tg3_nvram_lock(struct tg3 *);
 static void tg3_nvram_unlock(struct tg3 *);
 
-static int tg3_set_power_state(struct tg3 *tp, int state)
+static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 {
 	u32 misc_host_ctrl;
 	u16 power_control, power_caps;
@@ -1154,7 +1156,7 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 	power_control |= PCI_PM_CTRL_PME_STATUS;
 	power_control &= ~(PCI_PM_CTRL_STATE_MASK);
 	switch (state) {
-	case 0:
+	case PCI_D0:
 		power_control |= 0;
 		pci_write_config_word(tp->pdev,
 				      pm + PCI_PM_CTRL,
@@ -1167,15 +1169,15 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 
 		return 0;
 
-	case 1:
+	case PCI_D1:
 		power_control |= 1;
 		break;
 
-	case 2:
+	case PCI_D2:
 		power_control |= 2;
 		break;
 
-	case 3:
+	case PCI_D3hot:
 		power_control |= 3;
 		break;
 
@@ -6206,7 +6208,7 @@ static int tg3_init_hw(struct tg3 *tp)
 	int err;
 
 	/* Force the chip into D0. */
-	err = tg3_set_power_state(tp, 0);
+	err = tg3_set_power_state(tp, PCI_D0);
 	if (err)
 		goto out;
 
@@ -6492,6 +6494,10 @@ static int tg3_open(struct net_device *dev)
 	int err;
 
 	tg3_full_lock(tp, 0);
+
+	err = tg3_set_power_state(tp, PCI_D0);
+	if (err)
+		return err;
 
 	tg3_disable_ints(tp);
 	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
@@ -6872,7 +6878,6 @@ static int tg3_close(struct net_device *dev)
 	tp->tg3_flags &=
 		~(TG3_FLAG_INIT_COMPLETE |
 		  TG3_FLAG_GOT_SERDES_FLOWCTL);
-	netif_carrier_off(tp->dev);
 
 	tg3_full_unlock(tp);
 
@@ -6888,6 +6893,10 @@ static int tg3_close(struct net_device *dev)
 	       sizeof(tp->estats_prev));
 
 	tg3_free_consistent(tp);
+
+	tg3_set_power_state(tp, PCI_D3hot);
+
+	netif_carrier_off(tp->dev);
 
 	return 0;
 }
@@ -7207,6 +7216,9 @@ static void tg3_get_regs(struct net_device *dev,
 
 	memset(p, 0, TG3_REGDUMP_LEN);
 
+	if (tp->link_config.phy_is_low_power)
+		return;
+
 	tg3_full_lock(tp, 0);
 
 #define __GET_REG32(reg)	(*(p)++ = tr32(reg))
@@ -7281,6 +7293,9 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	u8  *pd;
 	u32 i, offset, len, val, b_offset, b_count;
 
+	if (tp->link_config.phy_is_low_power)
+		return -EAGAIN;
+
 	offset = eeprom->offset;
 	len = eeprom->len;
 	eeprom->len = 0;
@@ -7341,6 +7356,9 @@ static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	int ret;
 	u32 offset, len, b_offset, odd_len, start, end;
 	u8 *buf;
+
+	if (tp->link_config.phy_is_low_power)
+		return -EAGAIN;
 
 	if (eeprom->magic != TG3_EEPROM_MAGIC)
 		return -EINVAL;
@@ -8262,6 +8280,9 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 {
 	struct tg3 *tp = netdev_priv(dev);
 
+	if (tp->link_config.phy_is_low_power)
+		tg3_set_power_state(tp, PCI_D0);
+
 	memset(data, 0, sizeof(u64) * TG3_NUM_TEST);
 
 	if (tg3_test_nvram(tp) != 0) {
@@ -8319,6 +8340,9 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 
 		tg3_full_unlock(tp);
 	}
+	if (tp->link_config.phy_is_low_power)
+		tg3_set_power_state(tp, PCI_D3hot);
+
 }
 
 static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -8338,6 +8362,9 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)
 			break;			/* We have no PHY */
 
+		if (tp->link_config.phy_is_low_power)
+			return -EAGAIN;
+
 		spin_lock_bh(&tp->lock);
 		err = tg3_readphy(tp, data->reg_num & 0x1f, &mii_regval);
 		spin_unlock_bh(&tp->lock);
@@ -8353,6 +8380,9 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
+
+		if (tp->link_config.phy_is_low_power)
+			return -EAGAIN;
 
 		spin_lock_bh(&tp->lock);
 		err = tg3_writephy(tp, data->reg_num & 0x1f, data->val_in);
@@ -9805,7 +9835,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE3;
 
 	/* Force the chip into D0. */
-	err = tg3_set_power_state(tp, 0);
+	err = tg3_set_power_state(tp, PCI_D0);
 	if (err) {
 		printk(KERN_ERR PFX "(%s) transition to D0 failed\n",
 		       pci_name(tp->pdev));
@@ -11078,7 +11108,7 @@ static int tg3_resume(struct pci_dev *pdev)
 
 	pci_restore_state(tp->pdev);
 
-	err = tg3_set_power_state(tp, 0);
+	err = tg3_set_power_state(tp, PCI_D0);
 	if (err)
 		return err;
 
