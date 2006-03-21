@@ -221,7 +221,7 @@ int dccp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 
 EXPORT_SYMBOL_GPL(dccp_ioctl);
 
-static int dccp_setsockopt_service(struct sock *sk, const u32 service,
+static int dccp_setsockopt_service(struct sock *sk, const __be32 service,
 				   char __user *optval, int optlen)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -349,7 +349,7 @@ int dccp_setsockopt(struct sock *sk, int level, int optname,
 EXPORT_SYMBOL_GPL(dccp_setsockopt);
 
 static int dccp_getsockopt_service(struct sock *sk, int len,
-				   u32 __user *optval,
+				   __be32 __user *optval,
 				   int __user *optlen)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
@@ -404,7 +404,7 @@ int dccp_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case DCCP_SOCKOPT_SERVICE:
 		return dccp_getsockopt_service(sk, len,
-					       (u32 __user *)optval, optlen);
+					       (__be32 __user *)optval, optlen);
 	case 128 ... 191:
 		return ccid_hc_rx_getsockopt(dp->dccps_hc_rx_ccid, sk, optname,
 					     len, (u32 __user *)optval, optlen);

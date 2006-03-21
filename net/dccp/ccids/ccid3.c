@@ -615,7 +615,7 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 				       __FUNCTION__, dccp_role(sk), sk);
 			rc = -EINVAL;
 		} else {
-			opt_recv->ccid3or_loss_event_rate = ntohl(*(u32 *)value);
+			opt_recv->ccid3or_loss_event_rate = ntohl(*(__be32 *)value);
 			ccid3_pr_debug("%s, sk=%p, LOSS_EVENT_RATE=%u\n",
 				       dccp_role(sk), sk,
 				       opt_recv->ccid3or_loss_event_rate);
@@ -636,7 +636,7 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 				       __FUNCTION__, dccp_role(sk), sk);
 			rc = -EINVAL;
 		} else {
-			opt_recv->ccid3or_receive_rate = ntohl(*(u32 *)value);
+			opt_recv->ccid3or_receive_rate = ntohl(*(__be32 *)value);
 			ccid3_pr_debug("%s, sk=%p, RECEIVE_RATE=%u\n",
 				       dccp_role(sk), sk,
 				       opt_recv->ccid3or_receive_rate);
@@ -777,7 +777,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
 	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	u32 x_recv, pinv;
+	__be32 x_recv, pinv;
 
 	BUG_ON(hcrx == NULL);
 

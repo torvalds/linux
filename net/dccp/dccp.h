@@ -262,7 +262,7 @@ extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 				   int addr_len);
 
 extern int	   dccp_v4_checksum(const struct sk_buff *skb,
-				    const u32 saddr, const u32 daddr);
+				    const __be32 saddr, const __be32 daddr);
 
 extern int	   dccp_v4_send_reset(struct sock *sk,
 				      enum dccp_reset_codes code);
@@ -270,7 +270,7 @@ extern void	   dccp_send_close(struct sock *sk, const int active);
 extern int	   dccp_invalid_packet(struct sk_buff *skb);
 
 static inline int dccp_bad_service_code(const struct sock *sk,
-					const __u32 service)
+					const __be32 service)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
 
@@ -334,27 +334,16 @@ static inline void dccp_hdr_set_seq(struct dccp_hdr *dh, const u64 gss)
 {
 	struct dccp_hdr_ext *dhx = (struct dccp_hdr_ext *)((void *)dh +
 							   sizeof(*dh));
-
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	dh->dccph_seq	   = htonl((gss >> 32)) >> 8;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	dh->dccph_seq	   = htonl((gss >> 32));
-#else
-#error  "Adjust your <asm/byteorder.h> defines"
-#endif
+	dh->dccph_seq2 = 0;
+	dh->dccph_seq = htons((gss >> 32) & 0xfffff);
 	dhx->dccph_seq_low = htonl(gss & 0xffffffff);
 }
 
 static inline void dccp_hdr_set_ack(struct dccp_hdr_ack_bits *dhack,
 				    const u64 gsr)
 {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	dhack->dccph_ack_nr_high = htonl((gsr >> 32)) >> 8;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	dhack->dccph_ack_nr_high = htonl((gsr >> 32));
-#else
-#error  "Adjust your <asm/byteorder.h> defines"
-#endif
+	dhack->dccph_reserved1 = 0;
+	dhack->dccph_ack_nr_high = htons(gsr >> 32);
 	dhack->dccph_ack_nr_low  = htonl(gsr & 0xffffffff);
 }
 

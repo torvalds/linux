@@ -18,7 +18,7 @@
  * @dccph_seq - sequence number high or low order 24 bits, depends on dccph_x
  */
 struct dccp_hdr {
-	__u16	dccph_sport,
+	__be16	dccph_sport,
 		dccph_dport;
 	__u8	dccph_doff;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
@@ -32,18 +32,18 @@ struct dccp_hdr {
 #endif
 	__u16	dccph_checksum;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u32	dccph_x:1,
+	__u8	dccph_x:1,
 		dccph_type:4,
-		dccph_reserved:3,
-		dccph_seq:24;
+		dccph_reserved:3;
 #elif defined(__BIG_ENDIAN_BITFIELD)
-	__u32	dccph_reserved:3,
+	__u8	dccph_reserved:3,
 		dccph_type:4,
-		dccph_x:1,
-		dccph_seq:24;
+		dccph_x:1;
 #else
 #error  "Adjust your <asm/byteorder.h> defines"
 #endif
+	__u8	dccph_seq2;
+	__be16	dccph_seq;
 };
 
 /**
@@ -52,7 +52,7 @@ struct dccp_hdr {
  * @dccph_seq_low - low 24 bits of a 48 bit seq packet
  */
 struct dccp_hdr_ext {
-	__u32	dccph_seq_low;
+	__be32	dccph_seq_low;
 };
 
 /**
@@ -62,7 +62,7 @@ struct dccp_hdr_ext {
  * @dccph_req_options - list of options (must be a multiple of 32 bits
  */
 struct dccp_hdr_request {
-	__u32	dccph_req_service;
+	__be32	dccph_req_service;
 };
 /**
  * struct dccp_hdr_ack_bits - acknowledgment bits common to most packets
@@ -71,9 +71,9 @@ struct dccp_hdr_request {
  * @dccph_resp_ack_nr_low - 48 bit ack number low order bits, contains GSR
  */
 struct dccp_hdr_ack_bits {
-	__u32	dccph_reserved1:8,
-		dccph_ack_nr_high:24;
-	__u32	dccph_ack_nr_low;
+	__be16	dccph_reserved1;
+	__be16	dccph_ack_nr_high;
+	__be32	dccph_ack_nr_low;
 };
 /**
  * struct dccp_hdr_response - Conection initiation response header
@@ -85,7 +85,7 @@ struct dccp_hdr_ack_bits {
  */
 struct dccp_hdr_response {
 	struct dccp_hdr_ack_bits	dccph_resp_ack;
-	__u32				dccph_resp_service;
+	__be32				dccph_resp_service;
 };
 
 /**
@@ -269,16 +269,12 @@ static inline unsigned int dccp_basic_hdr_len(const struct sk_buff *skb)
 static inline __u64 dccp_hdr_seq(const struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh = dccp_hdr(skb);
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64 seq_nr = ntohl(dh->dccph_seq << 8);
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	__u64 seq_nr = ntohl(dh->dccph_seq);
-#else
-#error  "Adjust your <asm/byteorder.h> defines"
-#endif
+	__u64 seq_nr =  ntohs(dh->dccph_seq);
 
 	if (dh->dccph_x != 0)
 		seq_nr = (seq_nr << 32) + ntohl(dccp_hdrx(skb)->dccph_seq_low);
+	else
+		seq_nr += (u32)dh->dccph_seq2 << 16;
 
 	return seq_nr;
 }
@@ -296,13 +292,7 @@ static inline struct dccp_hdr_ack_bits *dccp_hdr_ack_bits(const struct sk_buff *
 static inline u64 dccp_hdr_ack_seq(const struct sk_buff *skb)
 {
 	const struct dccp_hdr_ack_bits *dhack = dccp_hdr_ack_bits(skb);
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	return (((u64)ntohl(dhack->dccph_ack_nr_high << 8)) << 32) + ntohl(dhack->dccph_ack_nr_low);
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	return (((u64)ntohl(dhack->dccph_ack_nr_high)) << 32) + ntohl(dhack->dccph_ack_nr_low);
-#else
-#error  "Adjust your <asm/byteorder.h> defines"
-#endif
+	return ((u64)ntohs(dhack->dccph_ack_nr_high) << 32) + ntohl(dhack->dccph_ack_nr_low);
 }
 
 static inline struct dccp_hdr_response *dccp_hdr_response(struct sk_buff *skb)
@@ -387,7 +377,7 @@ struct dccp_request_sock {
 	struct inet_request_sock dreq_inet_rsk;
 	__u64			 dreq_iss;
 	__u64			 dreq_isr;
-	__u32			 dreq_service;
+	__be32			 dreq_service;
 };
 
 static inline struct dccp_request_sock *dccp_rsk(const struct request_sock *req)
@@ -415,13 +405,13 @@ enum dccp_role {
 
 struct dccp_service_list {
 	__u32	dccpsl_nr;
-	__u32	dccpsl_list[0];
+	__be32	dccpsl_list[0];
 };
 
 #define DCCP_SERVICE_INVALID_VALUE htonl((__u32)-1)
 
 static inline int dccp_list_has_service(const struct dccp_service_list *sl,
-					const u32 service)
+					const __be32 service)
 {
 	if (likely(sl != NULL)) {
 		u32 i = sl->dccpsl_nr;
@@ -467,7 +457,7 @@ struct dccp_sock {
 	__u64				dccps_gss;
 	__u64				dccps_gsr;
 	__u64				dccps_gar;
-	__u32				dccps_service;
+	__be32				dccps_service;
 	struct dccp_service_list	*dccps_service_list;
 	struct timeval			dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;

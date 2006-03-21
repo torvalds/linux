@@ -498,9 +498,9 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct dccp_sock dp;
 	struct request_sock *req;
 	struct dccp_request_sock *dreq;
-	const __u32 saddr = skb->nh.iph->saddr;
-	const __u32 daddr = skb->nh.iph->daddr;
- 	const __u32 service = dccp_hdr_request(skb)->dccph_req_service;
+	const __be32 saddr = skb->nh.iph->saddr;
+	const __be32 daddr = skb->nh.iph->daddr;
+ 	const __be32 service = dccp_hdr_request(skb)->dccph_req_service;
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
 
@@ -662,8 +662,8 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	return sk;
 }
 
-int dccp_v4_checksum(const struct sk_buff *skb, const u32 saddr,
-		     const u32 daddr)
+int dccp_v4_checksum(const struct sk_buff *skb, const __be32 saddr,
+		     const __be32 daddr)
 {
 	const struct dccp_hdr* dh = dccp_hdr(skb);
 	int checksum_len;
@@ -683,7 +683,7 @@ int dccp_v4_checksum(const struct sk_buff *skb, const u32 saddr,
 }
 
 static int dccp_v4_verify_checksum(struct sk_buff *skb,
-				   const u32 saddr, const u32 daddr)
+				   const __be32 saddr, const __be32 daddr)
 {
 	struct dccp_hdr *dh = dccp_hdr(skb);
 	int checksum_len;

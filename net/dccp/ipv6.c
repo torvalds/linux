@@ -264,7 +264,7 @@ failure:
 }
 
 static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			int type, int code, int offset, __u32 info)
+			int type, int code, int offset, __be32 info)
 {
 	struct ipv6hdr *hdr = (struct ipv6hdr *)skb->data;
 	const struct dccp_hdr *dh = (struct dccp_hdr *)(skb->data + offset);
@@ -678,7 +678,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct dccp_request_sock *dreq;
 	struct inet6_request_sock *ireq6;
 	struct ipv6_pinfo *np = inet6_sk(sk);
- 	const __u32 service = dccp_hdr_request(skb)->dccph_req_service;
+ 	const __be32 service = dccp_hdr_request(skb)->dccph_req_service;
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
 
