@@ -2539,11 +2539,6 @@ exit:
  * pending message. This makes dynamic memory allocation unecessary.
  */
 
-static u32 get_long_msg_seqno(struct sk_buff *buf)
-{
-	return msg_seqno(buf_msg(buf));
-}
-
 static void set_long_msg_seqno(struct sk_buff *buf, u32 seqno)
 {
 	msg_set_seqno(buf_msg(buf), seqno);

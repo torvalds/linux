@@ -82,11 +82,6 @@ static u32 port_out_seqno(struct port *p_ptr)
 	return msg_transp_seqno(&p_ptr->publ.phdr);
 }
 
-static void port_set_out_seqno(struct port *p_ptr, u32 seqno)
-{
-	msg_set_transp_seqno(&p_ptr->publ.phdr,seqno);
-}
-
 static void port_incr_out_seqno(struct port *p_ptr)
 {
 	struct tipc_msg *m = &p_ptr->publ.phdr;
