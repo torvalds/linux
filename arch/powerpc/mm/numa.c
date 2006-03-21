@@ -375,7 +375,7 @@ static int __init parse_numa_properties(void)
 {
 	struct device_node *cpu = NULL;
 	struct device_node *memory = NULL;
-	int max_domain;
+	int max_domain = 0;
 	unsigned long i;
 
 	if (numa_enabled == 0) {
@@ -388,8 +388,6 @@ static int __init parse_numa_properties(void)
 	dbg("NUMA associativity depth for CPU/Memory: %d\n", min_common_depth);
 	if (min_common_depth < 0)
 		return min_common_depth;
-
-	max_domain = numa_setup_cpu(boot_cpuid);
 
 	/*
 	 * Even though we connect cpus to numa domains later in SMP init,
@@ -468,6 +466,8 @@ new_range:
 
 	for (i = 0; i <= max_domain; i++)
 		node_set_online(i);
+
+	max_domain = numa_setup_cpu(boot_cpuid);
 
 	return 0;
 }
