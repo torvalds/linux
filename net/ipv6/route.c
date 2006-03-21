@@ -414,23 +414,22 @@ void ip6_route_input(struct sk_buff *skb)
 	int strict;
 	int attempts = 3;
 	int err;
+	int reachable = RT6_SELECT_F_REACHABLE;
 
 	strict = ipv6_addr_type(&skb->nh.ipv6h->daddr) & (IPV6_ADDR_MULTICAST|IPV6_ADDR_LINKLOCAL) ? RT6_SELECT_F_IFACE : 0;
 
 relookup:
 	read_lock_bh(&rt6_lock);
 
+restart_2:
 	fn = fib6_lookup(&ip6_routing_table, &skb->nh.ipv6h->daddr,
 			 &skb->nh.ipv6h->saddr);
 
 restart:
-	rt = fn->leaf;
-
-	rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict | RT6_SELECT_F_REACHABLE);
-	if (rt == &ip6_null_entry)
-		rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict);
+	rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict | reachable);
 	BACKTRACK();
-	if ((rt->rt6i_flags & RTF_CACHE))
+	if (rt == &ip6_null_entry ||
+	    rt->rt6i_flags & RTF_CACHE)
 		goto out;
 
 	dst_hold(&rt->u.dst);
@@ -467,6 +466,10 @@ restart:
 	goto relookup;
 
 out:
+	if (reachable) {
+		reachable = 0;
+		goto restart_2;
+	}
 	dst_hold(&rt->u.dst);
 	read_unlock_bh(&rt6_lock);
 out2:
@@ -483,20 +486,21 @@ struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
 	int strict;
 	int attempts = 3;
 	int err;
+	int reachable = RT6_SELECT_F_REACHABLE;
 
 	strict = ipv6_addr_type(&fl->fl6_dst) & (IPV6_ADDR_MULTICAST|IPV6_ADDR_LINKLOCAL) ? RT6_SELECT_F_IFACE : 0;
 
 relookup:
 	read_lock_bh(&rt6_lock);
 
+restart_2:
 	fn = fib6_lookup(&ip6_routing_table, &fl->fl6_dst, &fl->fl6_src);
 
 restart:
-	rt = rt6_select(&fn->leaf, fl->oif, strict | RT6_SELECT_F_REACHABLE);
-	if (rt == &ip6_null_entry)
-		rt = rt6_select(&fn->leaf, fl->oif, strict);
+	rt = rt6_select(&fn->leaf, fl->oif, strict | reachable);
 	BACKTRACK();
-	if ((rt->rt6i_flags & RTF_CACHE))
+	if (rt == &ip6_null_entry ||
+	    rt->rt6i_flags & RTF_CACHE)
 		goto out;
 
 	dst_hold(&rt->u.dst);
@@ -533,6 +537,10 @@ restart:
 	goto relookup;
 
 out:
+	if (reachable) {
+		reachable = 0;
+		goto restart_2;
+	}
 	dst_hold(&rt->u.dst);
 	read_unlock_bh(&rt6_lock);
 out2:
