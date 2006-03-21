@@ -229,6 +229,8 @@ struct crypto_tfm {
 	} crt_u;
 	
 	struct crypto_alg *__crt_alg;
+
+	char __crt_ctx[] __attribute__ ((__aligned__));
 };
 
 /* 
@@ -301,7 +303,13 @@ static inline unsigned int crypto_tfm_alg_alignmask(struct crypto_tfm *tfm)
 
 static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
 {
-	return (void *)&tfm[1];
+	return tfm->__crt_ctx;
+}
+
+static inline unsigned int crypto_tfm_ctx_alignment(void)
+{
+	struct crypto_tfm *tfm;
+	return __alignof__(tfm->__crt_ctx);
 }
 
 /*
