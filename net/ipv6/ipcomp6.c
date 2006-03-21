@@ -286,8 +286,8 @@ static void ipcomp6_free_scratches(void)
 
 	for_each_cpu(i) {
 		void *scratch = *per_cpu_ptr(scratches, i);
-		if (scratch)
-			vfree(scratch);
+
+		vfree(scratch);
 	}
 
 	free_percpu(scratches);
