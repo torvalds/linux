@@ -109,7 +109,7 @@ static int br_handle_local_finish(struct sk_buff *skb)
 /* Does address match the link local multicast address.
  * 01:80:c2:00:00:0X
  */
-static inline int is_link_local(const const unsigned char *dest)
+static inline int is_link_local(const unsigned char *dest)
 {
 	return memcmp(dest, br_group_address, 5) == 0 && (dest[5] & 0xf0) == 0;
 }
