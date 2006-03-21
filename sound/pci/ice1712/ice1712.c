@@ -83,11 +83,11 @@ MODULE_SUPPORTED_DEVICE("{"
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;		/* Enable this card */
+static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;/* Enable this card */
 static char *model[SNDRV_CARDS];
-static int omni[SNDRV_CARDS];	/* Delta44 & 66 Omni I/O support */
+static int omni[SNDRV_CARDS];				/* Delta44 & 66 Omni I/O support */
 static int cs8427_timeout[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 500}; /* CS8427 S/PDIF transciever reset timeout value in msec */
-static int dxr_enable[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 500}; /* DXR enable for DMX6FIRE */
+static int dxr_enable[SNDRV_CARDS];			/* DXR enable for DMX6FIRE */
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for ICE1712 soundcard.");
@@ -102,7 +102,7 @@ MODULE_PARM_DESC(cs8427_timeout, "Define reset timeout for cs8427 chip in msec r
 module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 module_param_array(dxr_enable, int, NULL, 0444);
-MODULE_PARM_DESC(dsr_enable, "Enable DXR support for Terratec DMX6FIRE.");
+MODULE_PARM_DESC(dxr_enable, "Enable DXR support for Terratec DMX6FIRE.");
 
 
 static struct pci_device_id snd_ice1712_ids[] = {
