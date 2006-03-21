@@ -47,6 +47,14 @@ atomic_t dccp_orphan_count = ATOMIC_INIT(0);
 
 EXPORT_SYMBOL_GPL(dccp_orphan_count);
 
+struct inet_hashinfo __cacheline_aligned dccp_hashinfo = {
+	.lhash_lock	= RW_LOCK_UNLOCKED,
+	.lhash_users	= ATOMIC_INIT(0),
+	.lhash_wait = __WAIT_QUEUE_HEAD_INITIALIZER(dccp_hashinfo.lhash_wait),
+};
+
+EXPORT_SYMBOL_GPL(dccp_hashinfo);
+
 static struct net_protocol dccp_protocol = {
 	.handler	= dccp_v4_rcv,
 	.err_handler	= dccp_v4_err,
