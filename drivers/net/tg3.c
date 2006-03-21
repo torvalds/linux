@@ -221,6 +221,14 @@ static struct pci_device_id tg3_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5753F,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5754,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5754M,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5787,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5787M,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5714,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5714S,
@@ -4388,6 +4396,10 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tp->nvram_lock_cnt = 0;
 	}
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+		tw32(GRC_FASTBOOT_PC, 0);
+
 	/*
 	 * We must avoid the readl() that normally takes place.
 	 * It locks machines, causes machine checks, and other
@@ -6017,6 +6029,10 @@ static int tg3_reset_hw(struct tg3 *tp)
 			val |= WDMAC_MODE_RX_ACCEL;
 		}
 	}
+
+	/* Enable host coalescing bug fix */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+		val |= (1 << 29);
 
 	tw32_f(WDMAC_MODE, val);
 	udelay(40);
@@ -8326,6 +8342,9 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 		if (!err)
 			tg3_nvram_unlock(tp);
 
+		if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)
+			tg3_phy_reset(tp);
+
 		if (tg3_test_registers(tp) != 0) {
 			etest->flags |= ETH_TEST_FL_FAILED;
 			data[2] = 1;
@@ -9681,6 +9700,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787 ||
 	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS))
 		tp->tg3_flags2 |= TG3_FLG2_5750_PLUS;
 
@@ -9693,7 +9713,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5705 &&
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5750 &&
-	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5752)
+	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5752 &&
+	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5787)
 		tp->tg3_flags2 |= TG3_FLG2_JUMBO_CAPABLE;
 
 	if (pci_find_capability(tp->pdev, PCI_CAP_ID_EXP) != 0)
@@ -9903,7 +9924,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5704_A0)
 		tp->tg3_flags2 |= TG3_FLG2_PHY_5704_A0_BUG;
 
-	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS)
+	if ((tp->tg3_flags2 & TG3_FLG2_5705_PLUS) &&
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5787))
 		tp->tg3_flags2 |= TG3_FLG2_PHY_BER_BUG;
 
 	tp->coalesce_mode = 0;
@@ -10628,6 +10650,7 @@ static char * __devinit tg3_phy_string(struct tg3 *tp)
 	case PHY_ID_BCM5752:	return "5752";
 	case PHY_ID_BCM5714:	return "5714";
 	case PHY_ID_BCM5780:	return "5780";
+	case PHY_ID_BCM5787:	return "5787";
 	case PHY_ID_BCM8002:	return "8002/serdes";
 	case 0:			return "serdes";
 	default:		return "unknown";
