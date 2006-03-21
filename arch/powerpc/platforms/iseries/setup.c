@@ -89,8 +89,6 @@ extern unsigned long embedded_sysmap_end;
 extern unsigned long iSeries_recal_tb;
 extern unsigned long iSeries_recal_titan;
 
-static int mf_initialized;
-
 static unsigned long cmd_mem_limit;
 
 struct MemoryBlock {
@@ -347,8 +345,6 @@ static void __init iSeries_init_early(void)
 	HvCallEvent_setLpEventQueueInterruptProc(0, 0);
 
 	mf_init();
-	mf_initialized = 1;
-	mb();
 
 	/* If we were passed an initrd, set the ROOT_DEV properly if the values
 	 * look sensible. If not, clear initrd reference.
@@ -585,12 +581,7 @@ static void iSeries_halt(void)
 static void __init iSeries_progress(char * st, unsigned short code)
 {
 	printk("Progress: [%04x] - %s\n", (unsigned)code, st);
-	if (!piranha_simulator && mf_initialized) {
-		if (code != 0xffff)
-			mf_display_progress(code);
-		else
-			mf_clear_src();
-	}
+	mf_display_progress(code);
 }
 
 static void __init iSeries_fixup_klimit(void)

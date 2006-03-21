@@ -46,6 +46,7 @@
 #include "setup.h"
 
 extern int piranha_simulator;
+static int mf_initialized;
 
 /*
  * This is the structure layout for the Machine Facilites LPAR event
@@ -143,7 +144,8 @@ static spinlock_t pending_event_spinlock;
 static struct pending_event *pending_event_head;
 static struct pending_event *pending_event_tail;
 static struct pending_event *pending_event_avail;
-static struct pending_event pending_event_prealloc[16];
+#define PENDING_EVENT_PREALLOC_LEN 16
+static struct pending_event pending_event_prealloc[PENDING_EVENT_PREALLOC_LEN];
 
 /*
  * Put a pending event onto the available queue, so it can get reused.
@@ -625,7 +627,7 @@ void mf_display_src(u32 word)
 /*
  * Display a single word SRC of the form "PROGXXXX" on the VSP control panel.
  */
-void mf_display_progress(u16 value)
+static __init void mf_display_progress_src(u16 value)
 {
 	u8 ce[12];
 	u8 src[72];
@@ -649,30 +651,42 @@ void mf_display_progress(u16 value)
  * Clear the VSP control panel.  Used to "erase" an SRC that was
  * previously displayed.
  */
-void mf_clear_src(void)
+static void mf_clear_src(void)
 {
 	signal_ce_msg_simple(0x4b, NULL);
+}
+
+void __init mf_display_progress(u16 value)
+{
+	if (piranha_simulator || !mf_initialized)
+		return;
+
+	if (0xFFFF == value)
+		mf_clear_src();
+	else
+		mf_display_progress_src(value);
 }
 
 /*
  * Initialization code here.
  */
-void mf_init(void)
+void __init mf_init(void)
 {
 	int i;
 
-	/* initialize */
 	spin_lock_init(&pending_event_spinlock);
-	for (i = 0;
-	     i < sizeof(pending_event_prealloc) / sizeof(*pending_event_prealloc);
-	     ++i)
+
+	for (i = 0; i < PENDING_EVENT_PREALLOC_LEN; i++)
 		free_pending_event(&pending_event_prealloc[i]);
+
 	HvLpEvent_registerHandler(HvLpEvent_Type_MachineFac, &hv_handler);
 
 	/* virtual continue ack */
 	signal_ce_msg_simple(0x57, NULL);
 
-	/* initialization complete */
+	mf_initialized = 1;
+	mb();
+
 	printk(KERN_NOTICE "mf.c: iSeries Linux LPAR Machine Facilities "
 			"initialized\n");
 }

@@ -45,7 +45,6 @@ extern void mf_reboot(void);
 
 extern void mf_display_src(u32 word);
 extern void mf_display_progress(u16 value);
-extern void mf_clear_src(void);
 
 extern void mf_init(void);
 
