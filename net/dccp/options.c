@@ -148,7 +148,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 		case DCCPO_ACK_VECTOR_0:
 		case DCCPO_ACK_VECTOR_1:
 			if (pkt_type == DCCP_PKT_DATA)
-				continue;
+				break;
 
 			if (dp->dccps_options.dccpo_send_ack_vector &&
 			    dccp_ackvec_parse(sk, skb, opt, value, len))
