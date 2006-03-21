@@ -54,7 +54,7 @@ static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout);
  *
  *	Return the next unused link number for a given sap.
  */
-static __inline__ u16 llc_ui_next_link_no(int sap)
+static inline u16 llc_ui_next_link_no(int sap)
 {
 	return llc_ui_sap_link_no_max[sap]++;
 }
@@ -65,7 +65,7 @@ static __inline__ u16 llc_ui_next_link_no(int sap)
  *
  *	Given an ARP header type return the corresponding ethernet protocol.
  */
-static __inline__ u16 llc_proto_type(u16 arphrd)
+static inline u16 llc_proto_type(u16 arphrd)
 {
 	return arphrd == ARPHRD_IEEE802_TR ?
 		         htons(ETH_P_TR_802_2) : htons(ETH_P_802_2);
@@ -75,7 +75,7 @@ static __inline__ u16 llc_proto_type(u16 arphrd)
  *	llc_ui_addr_null - determines if a address structure is null
  *	@addr: Address to test if null.
  */
-static __inline__ u8 llc_ui_addr_null(struct sockaddr_llc *addr)
+static inline u8 llc_ui_addr_null(struct sockaddr_llc *addr)
 {
 	return !memcmp(addr, &llc_ui_addrnull, sizeof(*addr));
 }
@@ -89,8 +89,7 @@ static __inline__ u8 llc_ui_addr_null(struct sockaddr_llc *addr)
  *	operation the user would like to perform and the type of socket.
  *	Returns the correct llc header length.
  */
-static __inline__ u8 llc_ui_header_len(struct sock *sk,
-				       struct sockaddr_llc *addr)
+static inline u8 llc_ui_header_len(struct sock *sk, struct sockaddr_llc *addr)
 {
 	u8 rc = LLC_PDU_LEN_U;
 
