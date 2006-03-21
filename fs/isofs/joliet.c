@@ -11,7 +11,7 @@
 #include "isofs.h"
 
 /*
- * Convert Unicode 16 to UTF8 or ASCII.
+ * Convert Unicode 16 to UTF-8 or ASCII.
  */
 static int
 uni16_to_x8(unsigned char *ascii, u16 *uni, int len, struct nls_table *nls)
