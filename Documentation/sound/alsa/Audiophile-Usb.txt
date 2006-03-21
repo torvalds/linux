@@ -1,4 +1,4 @@
-	Guide to using M-Audio Audiophile USB with ALSA and Jack	v1.1
+	Guide to using M-Audio Audiophile USB with ALSA and Jack	v1.2
 	========================================================
 
 	    Thibault Le Meur <Thibault.LeMeur@supelec.fr>
@@ -13,6 +13,9 @@ of the device.
 
 The device has 4 audio interfaces, and 2 MIDI ports:
  * Analog Stereo Input (Ai)
+   - This port supports 2 pairs of line-level audio inputs (1/4" TS and RCA) 
+   - When the 1/4" TS (jack) connectors are connected, the RCA connectors
+     are disabled
  * Analog Stereo Output (Ao)
  * Digital Stereo Input (Di)
  * Digital Stereo Output (Do)
@@ -42,7 +45,7 @@ Important facts about the Digital interface:
 though I haven't tested it under linux
    - Note that in this setup only the Do interface can be enabled
  * Apart from recording an audio digital stream, enabling the Di port is a way 
-to syncrhonize the device to an external sample clock
+to synchronize the device to an external sample clock
    - As a consequence, the Di port must be enable only if an active Digital 
 source is connected
    - Enabling Di when no digital source is connected can result in a 
@@ -180,7 +183,7 @@ IMPORTANT NOTE WHEN SWITCHING CONFIGURATION:
      or changing modprobe.conf)
    - turn on the device
 
-2.2.2.3 - Setting and switching configurations with the device_setup parameter
+2.2.2.3 - Audiophile USB's device_setup structure
 
 If you want to understand the device_setup magic numbers for the Audiophile 
 USB, you need some very basic understanding of binary computation. However, 
@@ -226,7 +229,7 @@ Caution:
    - choosing b2 will prepare all interfaces for 24bits/96kHz but you'll
      only be able to use one at the same time
 
-2.2.3 -  Technical Details for Audiophile Usb 
+2.2.3 -  USB implementation details for this device
 
 You may safely skip this section if you're not interrested in driver 
 development.
@@ -234,20 +237,20 @@ development.
 This section describes some internals aspect of the device and summarize the 
 data I got by usb-snooping the windows and linux drivers.
 
-The M-Audio Audiophile USB has 7 Usb Interfaces:
+The M-Audio Audiophile USB has 7 USB Interfaces:
 a "USB interface":
- * Usb Interface nb.0
- * Usb Interface nb.1
+ * USB Interface nb.0
+ * USB Interface nb.1
    - Audio Control function
- * Usb Interface nb.2
+ * USB Interface nb.2
    - Analog Output
- * Usb Interface nb.3
+ * USB Interface nb.3
    - Digital Output
- * Usb Interface nb.4
+ * USB Interface nb.4
    - Analog Input
- * Usb Interface nb.5
+ * USB Interface nb.5
    - Digital Input
- * Usb Interface nb.6
+ * USB Interface nb.6
    - MIDI interface compliant with the MIDIMAN quirk 
 
 Each interface has 5 altsettings (AltSet 1,2,3,4,5) except:
@@ -326,5 +329,5 @@ atid=425939
 
 After having applied the patch you can run jackd with the following command 
 line:
-# /usr/local/bin/jackd -R -dalsa -Phw:1,0 -r48000 -p128 -n2 -D -Chw:1,1
+  % jackd -R -dalsa -Phw:1,0 -r48000 -p128 -n2 -D -Chw:1,1
 
