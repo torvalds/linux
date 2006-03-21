@@ -29,7 +29,8 @@ struct htcp {
 	u8	modeswitch;     /* Delay modeswitch until we had at least one congestion event */
 	u8	ccount;		/* Number of RTTs since last congestion event */
 	u8	undo_ccount;
-	u16	packetcount;
+	u16	pkts_acked;
+	u32	packetcount;
 	u32	minRTT;
 	u32	maxRTT;
 	u32	snd_cwnd_cnt2;
@@ -91,6 +92,12 @@ static void measure_achieved_throughput(struct sock *sk, u32 pkts_acked)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
 	u32 now = tcp_time_stamp;
+
+	if (icsk->icsk_ca_state == TCP_CA_Open)
+		ca->pkts_acked = pkts_acked;
+
+	if (!use_bandwidth_switch)
+		return;
 
 	/* achieved throughput calculations */
 	if (icsk->icsk_ca_state != TCP_CA_Open &&
@@ -217,20 +224,24 @@ static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 		measure_rtt(sk);
 
 		/* keep track of number of round-trip times since last backoff event */
-		if (ca->snd_cwnd_cnt2++ > tp->snd_cwnd) {
+		if (ca->snd_cwnd_cnt2 >= tp->snd_cwnd) {
 			ca->ccount++;
-			ca->snd_cwnd_cnt2 = 0;
+			ca->snd_cwnd_cnt2 -= tp->snd_cwnd;
 			htcp_alpha_update(ca);
-		}
+		} else
+			ca->snd_cwnd_cnt2 += ca->pkts_acked;
 
 		/* In dangerous area, increase slowly.
 		 * In theory this is tp->snd_cwnd += alpha / tp->snd_cwnd
 		 */
-		if ((tp->snd_cwnd_cnt++ * ca->alpha)>>7 >= tp->snd_cwnd) {
+		if ((tp->snd_cwnd_cnt * ca->alpha)>>7 >= tp->snd_cwnd) {
 			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
 				tp->snd_cwnd++;
 			tp->snd_cwnd_cnt = 0;
-		}
+		} else
+			tp->snd_cwnd_cnt += ca->pkts_acked;
+
+		ca->pkts_acked = 1;
 	}
 }
 
@@ -249,6 +260,7 @@ static void htcp_init(struct sock *sk)
 	memset(ca, 0, sizeof(struct htcp));
 	ca->alpha = ALPHA_BASE;
 	ca->beta = BETA_MIN;
+	ca->pkts_acked = 1;
 }
 
 static void htcp_state(struct sock *sk, u8 new_state)
@@ -278,8 +290,6 @@ static int __init htcp_register(void)
 {
 	BUG_ON(sizeof(struct htcp) > ICSK_CA_PRIV_SIZE);
 	BUILD_BUG_ON(BETA_MIN >= BETA_MAX);
-	if (!use_bandwidth_switch)
-		htcp.pkts_acked = NULL;
 	return tcp_register_congestion_control(&htcp);
 }
 
