@@ -144,39 +144,30 @@ static void br_hold_timer_expired(unsigned long arg)
 	spin_unlock(&p->br->lock);
 }
 
-static inline void br_timer_init(struct timer_list *timer,
-			  void (*_function)(unsigned long),
-			  unsigned long _data)
-{
-	init_timer(timer);
-	timer->function = _function;
-	timer->data = _data;
-}
-
 void br_stp_timer_init(struct net_bridge *br)
 {
-	br_timer_init(&br->hello_timer, br_hello_timer_expired,
+	setup_timer(&br->hello_timer, br_hello_timer_expired,
 		      (unsigned long) br);
 
-	br_timer_init(&br->tcn_timer, br_tcn_timer_expired, 
+	setup_timer(&br->tcn_timer, br_tcn_timer_expired,
 		      (unsigned long) br);
 
-	br_timer_init(&br->topology_change_timer,
+	setup_timer(&br->topology_change_timer,
 		      br_topology_change_timer_expired,
 		      (unsigned long) br);
 
-	br_timer_init(&br->gc_timer, br_fdb_cleanup, (unsigned long) br);
+	setup_timer(&br->gc_timer, br_fdb_cleanup, (unsigned long) br);
 }
 
 void br_stp_port_timer_init(struct net_bridge_port *p)
 {
-	br_timer_init(&p->message_age_timer, br_message_age_timer_expired,
+	setup_timer(&p->message_age_timer, br_message_age_timer_expired,
 		      (unsigned long) p);
 
-	br_timer_init(&p->forward_delay_timer, br_forward_delay_timer_expired,
+	setup_timer(&p->forward_delay_timer, br_forward_delay_timer_expired,
 		      (unsigned long) p);
 		      
-	br_timer_init(&p->hold_timer, br_hold_timer_expired,
+	setup_timer(&p->hold_timer, br_hold_timer_expired,
 		      (unsigned long) p);
 }	
 
