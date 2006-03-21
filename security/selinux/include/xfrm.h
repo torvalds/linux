@@ -51,6 +51,16 @@ static inline int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb)
 {
 	return NF_ACCEPT;
 }
+
+static inline int selinux_socket_getpeer_stream(struct sock *sk)
+{
+	return SECSID_NULL;
+}
+
+static inline int selinux_socket_getpeer_dgram(struct sk_buff *skb)
+{
+	return SECSID_NULL;
+}
 #endif
 
 #endif /* _SELINUX_XFRM_H_ */
