@@ -180,10 +180,6 @@
 #define T_REMDEVALL   (1<<3)	/* Remove all devs */
 #define T_REMDEV      (1<<4)	/* Remove one dev */
 
-/* Locks */
-#define   thread_lock()        mutex_lock(&pktgen_thread_lock)
-#define   thread_unlock()      mutex_unlock(&pktgen_thread_lock)
-
 /* If lock -- can be removed after some work */
 #define   if_lock(t)           spin_lock(&(t->if_lock));
 #define   if_unlock(t)           spin_unlock(&(t->if_lock));
@@ -1472,18 +1468,18 @@ static ssize_t pktgen_thread_write(struct file *file,
 		if (copy_from_user(f, &user_buffer[i], len))
 			return -EFAULT;
 		i += len;
-		thread_lock();
+		mutex_lock(&pktgen_thread_lock);
 		pktgen_add_device(t, f);
-		thread_unlock();
+		mutex_unlock(&pktgen_thread_lock);
 		ret = count;
 		sprintf(pg_result, "OK: add_device=%s", f);
 		goto out;
 	}
 
 	if (!strcmp(name, "rem_device_all")) {
-		thread_lock();
+		mutex_lock(&pktgen_thread_lock);
 		t->control |= T_REMDEVALL;
-		thread_unlock();
+		mutex_unlock(&pktgen_thread_lock);
 		schedule_timeout_interruptible(msecs_to_jiffies(125));	/* Propagate thread->control  */
 		ret = count;
 		sprintf(pg_result, "OK: rem_device_all");
@@ -1492,9 +1488,9 @@ static ssize_t pktgen_thread_write(struct file *file,
 
 	if (!strcmp(name, "max_before_softirq")) {
 		len = num_arg(&user_buffer[i], 10, &value);
-		thread_lock();
+		mutex_lock(&pktgen_thread_lock);
 		t->max_before_softirq = value;
-		thread_unlock();
+		mutex_unlock(&pktgen_thread_lock);
 		ret = count;
 		sprintf(pg_result, "OK: max_before_softirq=%lu", value);
 		goto out;
@@ -1550,7 +1546,7 @@ static int pktgen_mark_device(const char *ifname)
 	int i = 0;
 	int ret = 0;
 
-	thread_lock();
+	mutex_lock(&pktgen_thread_lock);
 	PG_DEBUG(printk("pktgen: pktgen_mark_device marking %s for removal\n",
 			ifname));
 
@@ -1560,11 +1556,11 @@ static int pktgen_mark_device(const char *ifname)
 		if (pkt_dev == NULL)
 			break;	/* success */
 
-		thread_unlock();
+		mutex_unlock(&pktgen_thread_lock);
 		PG_DEBUG(printk("pktgen: pktgen_mark_device waiting for %s "
 				"to disappear....\n", ifname));
 		schedule_timeout_interruptible(msecs_to_jiffies(msec_per_try));
-		thread_lock();
+		mutex_lock(&pktgen_thread_lock);
 
 		if (++i >= max_tries) {
 			printk("pktgen_mark_device: timed out after waiting "
@@ -1576,7 +1572,7 @@ static int pktgen_mark_device(const char *ifname)
 
 	}
 
-	thread_unlock();
+	mutex_unlock(&pktgen_thread_lock);
 
 	return ret;
 }
@@ -2459,12 +2455,12 @@ static void pktgen_stop_all_threads_ifs(void)
 
 	PG_DEBUG(printk("pktgen: entering pktgen_stop_all_threads_ifs.\n"));
 
-	thread_lock();
+	mutex_lock(&pktgen_thread_lock);
 
 	list_for_each_entry(t, &pktgen_threads, th_list)
 		t->control |= T_STOP;
 
-	thread_unlock();
+	mutex_unlock(&pktgen_thread_lock);
 }
 
 static int thread_is_running(struct pktgen_thread *t)
@@ -2505,7 +2501,7 @@ static int pktgen_wait_all_threads_run(void)
 	struct pktgen_thread *t;
 	int sig = 1;
 
-	thread_lock();
+	mutex_lock(&pktgen_thread_lock);
 
 	list_for_each_entry(t, &pktgen_threads, th_list) {
 		sig = pktgen_wait_thread_run(t);
@@ -2517,7 +2513,7 @@ static int pktgen_wait_all_threads_run(void)
 		list_for_each_entry(t, &pktgen_threads, th_list)
 			t->control |= (T_STOP);
 
-	thread_unlock();
+	mutex_unlock(&pktgen_thread_lock);
 	return sig;
 }
 
@@ -2527,12 +2523,12 @@ static void pktgen_run_all_threads(void)
 
 	PG_DEBUG(printk("pktgen: entering pktgen_run_all_threads.\n"));
 
-	thread_lock();
+	mutex_lock(&pktgen_thread_lock);
 
 	list_for_each_entry(t, &pktgen_threads, th_list)
 		t->control |= (T_RUN);
 
-	thread_unlock();
+	mutex_unlock(&pktgen_thread_lock);
 
 	schedule_timeout_interruptible(msecs_to_jiffies(125));	/* Propagate thread->control  */
 
@@ -2692,11 +2688,11 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
 
 	remove_proc_entry(t->name, pg_proc_dir);
 
-	thread_lock();
+	mutex_lock(&pktgen_thread_lock);
 
 	list_del(&t->th_list);
 
-	thread_unlock();
+	mutex_unlock(&pktgen_thread_lock);
 }
 
 static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
@@ -3070,15 +3066,15 @@ static struct pktgen_thread *__init pktgen_find_thread(const char *name)
 {
 	struct pktgen_thread *t;
 
-	thread_lock();
+	mutex_lock(&pktgen_thread_lock);
 
 	list_for_each_entry(t, &pktgen_threads, th_list)
 		if (strcmp(t->name, name) == 0) {
-			thread_unlock();
+			mutex_unlock(&pktgen_thread_lock);
 			return t;
 		}
 
-	thread_unlock();
+	mutex_unlock(&pktgen_thread_lock);
 	return NULL;
 }
 
