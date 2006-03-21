@@ -1221,21 +1221,24 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 	   2. It is gatewayed route or NONEXTHOP route. Action: clone it.
 	 */
 	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {
-		nrt = rt6_cow(rt, daddr, saddr, NULL);
-		if (!nrt->u.dst.error) {
-			nrt->u.dst.metrics[RTAX_MTU-1] = pmtu;
-			if (allfrag)
-				nrt->u.dst.metrics[RTAX_FEATURES-1] |= RTAX_FEATURE_ALLFRAG;
-			/* According to RFC 1981, detecting PMTU increase shouldn't be
-			   happened within 5 mins, the recommended timer is 10 mins.
-			   Here this route expiration time is set to ip6_rt_mtu_expires
-			   which is 10 mins. After 10 mins the decreased pmtu is expired
-			   and detecting PMTU increase will be automatically happened.
-			 */
-			dst_set_expires(&nrt->u.dst, ip6_rt_mtu_expires);
-			nrt->rt6i_flags |= RTF_DYNAMIC|RTF_EXPIRES;
-		}
-		dst_release(&nrt->u.dst);
+		nrt = rt6_alloc_cow(rt, daddr, saddr);
+		if (!nrt)
+			goto out;
+
+		nrt->u.dst.metrics[RTAX_MTU-1] = pmtu;
+		if (allfrag)
+			nrt->u.dst.metrics[RTAX_FEATURES-1] |= RTAX_FEATURE_ALLFRAG;
+
+		/* According to RFC 1981, detecting PMTU increase shouldn't be
+		 * happened within 5 mins, the recommended timer is 10 mins.
+		 * Here this route expiration time is set to ip6_rt_mtu_expires
+		 * which is 10 mins. After 10 mins the decreased pmtu is expired
+		 * and detecting PMTU increase will be automatically happened.
+		 */
+		dst_set_expires(&nrt->u.dst, ip6_rt_mtu_expires);
+		nrt->rt6i_flags |= RTF_DYNAMIC|RTF_EXPIRES;
+
+		ip6_ins_rt(nrt, NULL, NULL, NULL);
 	} else {
 		nrt = ip6_rt_copy(rt);
 		if (nrt == NULL)
