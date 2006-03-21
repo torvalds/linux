@@ -1222,7 +1222,7 @@ out:
 
 static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 {
-	struct km_event c;
+struct km_event c;
 
 	xfrm_policy_flush();
 	c.event = nlh->nlmsg_type;
@@ -1230,6 +1230,58 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **x
 	c.pid = nlh->nlmsg_pid;
 	km_policy_notify(NULL, 0, &c);
 	return 0;
+}
+
+static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
+{
+	struct xfrm_policy *xp;
+	struct xfrm_user_polexpire *up = NLMSG_DATA(nlh);
+	struct xfrm_userpolicy_info *p = &up->pol;
+	int err = -ENOENT;
+
+	if (p->index)
+		xp = xfrm_policy_byid(p->dir, p->index, 0);
+	else {
+		struct rtattr **rtattrs = (struct rtattr **)xfrma;
+		struct rtattr *rt = rtattrs[XFRMA_SEC_CTX-1];
+		struct xfrm_policy tmp;
+
+		err = verify_sec_ctx_len(rtattrs);
+		if (err)
+			return err;
+
+		memset(&tmp, 0, sizeof(struct xfrm_policy));
+		if (rt) {
+			struct xfrm_user_sec_ctx *uctx = RTA_DATA(rt);
+
+			if ((err = security_xfrm_policy_alloc(&tmp, uctx)))
+				return err;
+		}
+		xp = xfrm_policy_bysel_ctx(p->dir, &p->sel, tmp.security, 0);
+		security_xfrm_policy_free(&tmp);
+	}
+
+	if (xp == NULL)
+		return err;
+											read_lock(&xp->lock);
+	if (xp->dead) {
+		read_unlock(&xp->lock);
+		goto out;
+	}
+
+	read_unlock(&xp->lock);
+	err = 0;
+	if (up->hard) {
+		xfrm_policy_delete(xp, p->dir);
+	} else {
+		// reset the timers here?
+		printk("Dont know what to do with soft policy expire\n");
+	}
+	km_policy_expired(xp, p->dir, up->hard, current->pid);
+
+out:
+	xfrm_pol_put(xp);
+	return err;
 }
 
 static int xfrm_add_sa_expire(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
@@ -1327,6 +1379,7 @@ static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_EXPIRE      - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_expire),
 	[XFRM_MSG_UPDPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_info),
 	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_info),
+	[XFRM_MSG_POLEXPIRE   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_polexpire),
 	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_flush),
 	[XFRM_MSG_FLUSHPOLICY - XFRM_MSG_BASE] = NLMSG_LENGTH(0),
 	[XFRM_MSG_NEWAE       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_aevent_id),
@@ -1352,6 +1405,7 @@ static struct xfrm_link {
 	[XFRM_MSG_EXPIRE      - XFRM_MSG_BASE] = { .doit = xfrm_add_sa_expire },
 	[XFRM_MSG_UPDPOLICY   - XFRM_MSG_BASE] = { .doit = xfrm_add_policy    },
 	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = { .doit = xfrm_add_sa        },
+	[XFRM_MSG_POLEXPIRE   - XFRM_MSG_BASE] = { .doit = xfrm_add_pol_expire},
 	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = { .doit = xfrm_flush_sa      },
 	[XFRM_MSG_FLUSHPOLICY - XFRM_MSG_BASE] = { .doit = xfrm_flush_policy  },
 	[XFRM_MSG_NEWAE       - XFRM_MSG_BASE] = { .doit = xfrm_new_ae  },

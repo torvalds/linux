@@ -961,11 +961,12 @@ int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, u16 sport)
 }
 EXPORT_SYMBOL(km_new_mapping);
 
-void km_policy_expired(struct xfrm_policy *pol, int dir, int hard)
+void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid)
 {
 	struct km_event c;
 
 	c.data.hard = hard;
+	c.pid = pid;
 	c.event = XFRM_MSG_POLEXPIRE;
 	km_policy_notify(pol, dir, &c);
 

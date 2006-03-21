@@ -203,7 +203,7 @@ static void xfrm_policy_timer(unsigned long data)
 	}
 
 	if (warn)
-		km_policy_expired(xp, dir, 0);
+		km_policy_expired(xp, dir, 0, 0);
 	if (next != LONG_MAX &&
 	    !mod_timer(&xp->timer, jiffies + make_jiffies(next)))
 		xfrm_pol_hold(xp);
@@ -216,7 +216,7 @@ out:
 expired:
 	read_unlock(&xp->lock);
 	if (!xfrm_policy_delete(xp, dir))
-		km_policy_expired(xp, dir, 1);
+		km_policy_expired(xp, dir, 1, 0);
 	xfrm_pol_put(xp);
 }
 

@@ -957,7 +957,7 @@ extern void xfrm_init_pmtu(struct dst_entry *dst);
 
 extern wait_queue_head_t km_waitq;
 extern int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, u16 sport);
-extern void km_policy_expired(struct xfrm_policy *pol, int dir, int hard);
+extern void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid);
 
 extern void xfrm_input_init(void);
 extern int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq);
