@@ -50,6 +50,7 @@
 #include <asm/iseries/hv_call_xm.h>
 #include <asm/iseries/it_lp_queue.h>
 #include <asm/iseries/mf.h>
+#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/lpar_map.h>
 #include <asm/udbg.h>
@@ -888,6 +889,24 @@ void dt_cpus(struct iseries_flat_dt *dt)
 	dt_end_node(dt);
 }
 
+void dt_model(struct iseries_flat_dt *dt)
+{
+	char buf[16] = "IBM,";
+
+	/* "IBM," + mfgId[2:3] + systemSerial[1:5] */
+	strne2a(buf + 4, xItExtVpdPanel.mfgID + 2, 2);
+	strne2a(buf + 6, xItExtVpdPanel.systemSerial + 1, 5);
+	buf[11] = '\0';
+	dt_prop_str(dt, "system-id", buf);
+
+	/* "IBM," + machineType[0:4] */
+	strne2a(buf + 4, xItExtVpdPanel.machineType, 4);
+	buf[8] = '\0';
+	dt_prop_str(dt, "model", buf);
+
+	dt_prop_str(dt, "compatible", "IBM,iSeries");
+}
+
 void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 {
 	u64 tmp[2];
@@ -898,6 +917,7 @@ void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 
 	dt_prop_u32(dt, "#address-cells", 2);
 	dt_prop_u32(dt, "#size-cells", 2);
+	dt_model(dt);
 
 	/* /memory */
 	dt_start_node(dt, "memory@0");
