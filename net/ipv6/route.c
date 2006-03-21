@@ -426,18 +426,12 @@ relookup:
 restart:
 	rt = fn->leaf;
 
-	if ((rt->rt6i_flags & RTF_CACHE)) {
-		rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict | RT6_SELECT_F_REACHABLE);
-		if (rt == &ip6_null_entry)
-			rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict);
-		BACKTRACK();
-		goto out;
-	}
-
 	rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict | RT6_SELECT_F_REACHABLE);
 	if (rt == &ip6_null_entry)
 		rt = rt6_select(&fn->leaf, skb->dev->ifindex, strict);
 	BACKTRACK();
+	if ((rt->rt6i_flags & RTF_CACHE))
+		goto out;
 
 	dst_hold(&rt->u.dst);
 	read_unlock_bh(&rt6_lock);
@@ -498,25 +492,12 @@ relookup:
 	fn = fib6_lookup(&ip6_routing_table, &fl->fl6_dst, &fl->fl6_src);
 
 restart:
-	rt = fn->leaf;
-
-	if ((rt->rt6i_flags & RTF_CACHE)) {
-		rt = rt6_select(&fn->leaf, fl->oif, strict | RT6_SELECT_F_REACHABLE);
-		if (rt == &ip6_null_entry)
-			rt = rt6_select(&fn->leaf, fl->oif, strict);
-		BACKTRACK();
+	rt = rt6_select(&fn->leaf, fl->oif, strict | RT6_SELECT_F_REACHABLE);
+	if (rt == &ip6_null_entry)
+		rt = rt6_select(&fn->leaf, fl->oif, strict);
+	BACKTRACK();
+	if ((rt->rt6i_flags & RTF_CACHE))
 		goto out;
-	}
-	if (rt->rt6i_flags & RTF_DEFAULT) {
-		rt = rt6_select(&fn->leaf, fl->oif, strict | RT6_SELECT_F_REACHABLE);
-		if (rt == &ip6_null_entry)
-			rt = rt6_select(&fn->leaf, fl->oif, strict);
-	} else {
-		rt = rt6_select(&fn->leaf, fl->oif, strict | RT6_SELECT_F_REACHABLE);
-		if (rt == &ip6_null_entry)
-			rt = rt6_select(&fn->leaf, fl->oif, strict);
-		BACKTRACK();
-	}
 
 	dst_hold(&rt->u.dst);
 	read_unlock_bh(&rt6_lock);
