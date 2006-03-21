@@ -57,7 +57,7 @@ static int __xfrm_state_delete(struct xfrm_state *x);
 static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family);
 static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
 
-static int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
+int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
 static void km_state_expired(struct xfrm_state *x, int hard);
 
 static void xfrm_state_gc_destroy(struct xfrm_state *x)
@@ -925,7 +925,7 @@ void km_state_expired(struct xfrm_state *x, int hard)
  * We send to all registered managers regardless of failure
  * We are happy with one success
 */
-static int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol)
+int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol)
 {
 	int err = -EINVAL, acqret;
 	struct xfrm_mgr *km;
@@ -939,6 +939,7 @@ static int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_polic
 	read_unlock(&xfrm_km_lock);
 	return err;
 }
+EXPORT_SYMBOL(km_query);
 
 int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, u16 sport)
 {

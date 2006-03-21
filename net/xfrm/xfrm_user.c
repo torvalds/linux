@@ -1232,6 +1232,58 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **x
 	return 0;
 }
 
+static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
+{
+	struct xfrm_policy *xp;
+	struct xfrm_user_tmpl *ut;
+	int i;
+	struct rtattr *rt = xfrma[XFRMA_TMPL-1];
+
+	struct xfrm_user_acquire *ua = NLMSG_DATA(nlh);
+	struct xfrm_state *x = xfrm_state_alloc();
+	int err = -ENOMEM;
+
+	if (!x)
+		return err;
+
+	err = verify_newpolicy_info(&ua->policy);
+	if (err) {
+		printk("BAD policy passed\n");
+		kfree(x);
+		return err;
+	}
+
+	/*   build an XP */
+	xp = xfrm_policy_construct(&ua->policy, (struct rtattr **) xfrma, &err);        if (!xp) {
+		kfree(x);
+		return err;
+	}
+
+	memcpy(&x->id, &ua->id, sizeof(ua->id));
+	memcpy(&x->props.saddr, &ua->saddr, sizeof(ua->saddr));
+	memcpy(&x->sel, &ua->sel, sizeof(ua->sel));
+
+	ut = RTA_DATA(rt);
+	/* extract the templates and for each call km_key */
+	for (i = 0; i < xp->xfrm_nr; i++, ut++) {
+		struct xfrm_tmpl *t = &xp->xfrm_vec[i];
+		memcpy(&x->id, &t->id, sizeof(x->id));
+		x->props.mode = t->mode;
+		x->props.reqid = t->reqid;
+		x->props.family = ut->family;
+		t->aalgos = ua->aalgos;
+		t->ealgos = ua->ealgos;
+		t->calgos = ua->calgos;
+		err = km_query(x, t, xp);
+
+	}
+
+	kfree(x);
+	kfree(xp);
+
+	return 0;
+}
+
 
 #define XMSGSIZE(type) NLMSG_LENGTH(sizeof(struct type))
 
@@ -1243,6 +1295,7 @@ static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_DELPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_id),
 	[XFRM_MSG_GETPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_id),
 	[XFRM_MSG_ALLOCSPI    - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userspi_info),
+	[XFRM_MSG_ACQUIRE     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_acquire),
 	[XFRM_MSG_UPDPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_info),
 	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_info),
 	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_flush),
@@ -1266,6 +1319,7 @@ static struct xfrm_link {
 	[XFRM_MSG_GETPOLICY   - XFRM_MSG_BASE] = { .doit = xfrm_get_policy,
 						   .dump = xfrm_dump_policy   },
 	[XFRM_MSG_ALLOCSPI    - XFRM_MSG_BASE] = { .doit = xfrm_alloc_userspi },
+	[XFRM_MSG_ACQUIRE     - XFRM_MSG_BASE] = { .doit = xfrm_add_acquire   },
 	[XFRM_MSG_UPDPOLICY   - XFRM_MSG_BASE] = { .doit = xfrm_add_policy    },
 	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = { .doit = xfrm_add_sa        },
 	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = { .doit = xfrm_flush_sa      },
