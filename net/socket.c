@@ -426,6 +426,28 @@ int sock_map_fd(struct socket *sock)
 	return fd;
 }
 
+static struct socket *sock_from_file(struct file *file, int *err)
+{
+	struct inode *inode;
+	struct socket *sock;
+
+	if (file->f_op == &socket_file_ops)
+		return file->private_data;	/* set in sock_map_fd */
+
+	inode = file->f_dentry->d_inode;
+	if (!S_ISSOCK(inode->i_mode)) {
+		*err = -ENOTSOCK;
+		return NULL;
+	}
+
+	sock = SOCKET_I(inode);
+	if (sock->file != file) {
+		printk(KERN_ERR "socki_lookup: socket file changed!\n");
+		sock->file = file;
+	}
+	return sock;
+}
+
 /**
  *	sockfd_lookup	- 	Go from a file number to its socket slot
  *	@fd: file handle
@@ -442,31 +464,31 @@ int sock_map_fd(struct socket *sock)
 struct socket *sockfd_lookup(int fd, int *err)
 {
 	struct file *file;
-	struct inode *inode;
 	struct socket *sock;
 
-	if (!(file = fget(fd)))
-	{
+	if (!(file = fget(fd))) {
 		*err = -EBADF;
 		return NULL;
 	}
-
-	if (file->f_op == &socket_file_ops)
-		return file->private_data;	/* set in sock_map_fd */
-
-	inode = file->f_dentry->d_inode;
-	if (!S_ISSOCK(inode->i_mode)) {
-		*err = -ENOTSOCK;
+	sock = sock_from_file(file, err);
+	if (!sock)
 		fput(file);
-		return NULL;
-	}
-
-	sock = SOCKET_I(inode);
-	if (sock->file != file) {
-		printk(KERN_ERR "socki_lookup: socket file changed!\n");
-		sock->file = file;
-	}
 	return sock;
+}
+
+static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
+{
+	struct file *file;
+	struct socket *sock;
+
+	file = fget_light(fd, fput_needed);
+	if (file) {
+		sock = sock_from_file(file, err);
+		if (sock)
+			return sock;
+		fput_light(file, *fput_needed);
+	}
+	return NULL;
 }
 
 /**
@@ -1301,19 +1323,17 @@ asmlinkage long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
 {
 	struct socket *sock;
 	char address[MAX_SOCK_ADDR];
-	int err;
+	int err, fput_needed;
 
-	if((sock = sockfd_lookup(fd,&err))!=NULL)
+	if((sock = sockfd_lookup_light(fd, &err, &fput_needed))!=NULL)
 	{
 		if((err=move_addr_to_kernel(umyaddr,addrlen,address))>=0) {
 			err = security_socket_bind(sock, (struct sockaddr *)address, addrlen);
-			if (err) {
-				sockfd_put(sock);
-				return err;
-			}
-			err = sock->ops->bind(sock, (struct sockaddr *)address, addrlen);
+			if (!err)
+				err = sock->ops->bind(sock,
+					(struct sockaddr *)address, addrlen);
 		}
-		sockfd_put(sock);
+		fput_light(sock->file, fput_needed);
 	}			
 	return err;
 }
@@ -1330,20 +1350,17 @@ int sysctl_somaxconn = SOMAXCONN;
 asmlinkage long sys_listen(int fd, int backlog)
 {
 	struct socket *sock;
-	int err;
+	int err, fput_needed;
 	
-	if ((sock = sockfd_lookup(fd, &err)) != NULL) {
+	if ((sock = sockfd_lookup_light(fd, &err, &fput_needed)) != NULL) {
 		if ((unsigned) backlog > sysctl_somaxconn)
 			backlog = sysctl_somaxconn;
 
 		err = security_socket_listen(sock, backlog);
-		if (err) {
-			sockfd_put(sock);
-			return err;
-		}
+		if (!err)
+			err = sock->ops->listen(sock, backlog);
 
-		err=sock->ops->listen(sock, backlog);
-		sockfd_put(sock);
+		fput_light(sock->file, fput_needed);
 	}
 	return err;
 }
@@ -1365,10 +1382,10 @@ asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr, int _
 {
 	struct socket *sock, *newsock;
 	struct file *newfile;
-	int err, len, newfd;
+	int err, len, newfd, fput_needed;
 	char address[MAX_SOCK_ADDR];
 
-	sock = sockfd_lookup(fd, &err);
+	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;
 
@@ -1421,7 +1438,7 @@ asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr, int _
 	security_socket_post_accept(sock, newsock);
 
 out_put:
-	sockfd_put(sock);
+	fput_light(sock->file, fput_needed);
 out:
 	return err;
 out_fd:
@@ -1449,9 +1466,9 @@ asmlinkage long sys_connect(int fd, struct sockaddr __user *uservaddr, int addrl
 {
 	struct socket *sock;
 	char address[MAX_SOCK_ADDR];
-	int err;
+	int err, fput_needed;
 
-	sock = sockfd_lookup(fd, &err);
+	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;
 	err = move_addr_to_kernel(uservaddr, addrlen, address);
@@ -1465,7 +1482,7 @@ asmlinkage long sys_connect(int fd, struct sockaddr __user *uservaddr, int addrl
 	err = sock->ops->connect(sock, (struct sockaddr *) address, addrlen,
 				 sock->file->f_flags);
 out_put:
-	sockfd_put(sock);
+	fput_light(sock->file, fput_needed);
 out:
 	return err;
 }
@@ -1479,9 +1496,9 @@ asmlinkage long sys_getsockname(int fd, struct sockaddr __user *usockaddr, int _
 {
 	struct socket *sock;
 	char address[MAX_SOCK_ADDR];
-	int len, err;
+	int len, err, fput_needed;
 	
-	sock = sockfd_lookup(fd, &err);
+	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;
 
@@ -1495,7 +1512,7 @@ asmlinkage long sys_getsockname(int fd, struct sockaddr __user *usockaddr, int _
 	err = move_addr_to_user(address, len, usockaddr, usockaddr_len);
 
 out_put:
-	sockfd_put(sock);
+	fput_light(sock->file, fput_needed);
 out:
 	return err;
 }
@@ -1509,20 +1526,19 @@ asmlinkage long sys_getpeername(int fd, struct sockaddr __user *usockaddr, int _
 {
 	struct socket *sock;
 	char address[MAX_SOCK_ADDR];
-	int len, err;
+	int len, err, fput_needed;
 
-	if ((sock = sockfd_lookup(fd, &err))!=NULL)
-	{
+	if ((sock = sockfd_lookup_light(fd, &err, &fput_needed)) != NULL) {
 		err = security_socket_getpeername(sock);
 		if (err) {
-			sockfd_put(sock);
+			fput_light(sock->file, fput_needed);
 			return err;
 		}
 
 		err = sock->ops->getname(sock, (struct sockaddr *)address, &len, 1);
 		if (!err)
 			err=move_addr_to_user(address,len, usockaddr, usockaddr_len);
-		sockfd_put(sock);
+		fput_light(sock->file, fput_needed);
 	}
 	return err;
 }
@@ -1541,10 +1557,16 @@ asmlinkage long sys_sendto(int fd, void __user * buff, size_t len, unsigned flag
 	int err;
 	struct msghdr msg;
 	struct iovec iov;
-	
-	sock = sockfd_lookup(fd, &err);
+	int fput_needed;
+	struct file *sock_file;
+
+	sock_file = fget_light(fd, &fput_needed);
+	if (!sock_file)
+		return -EBADF;
+
+	sock = sock_from_file(sock_file, &err);
 	if (!sock)
-		goto out;
+		goto out_put;
 	iov.iov_base=buff;
 	iov.iov_len=len;
 	msg.msg_name=NULL;
@@ -1553,8 +1575,7 @@ asmlinkage long sys_sendto(int fd, void __user * buff, size_t len, unsigned flag
 	msg.msg_control=NULL;
 	msg.msg_controllen=0;
 	msg.msg_namelen=0;
-	if(addr)
-	{
+	if (addr) {
 		err = move_addr_to_kernel(addr, addr_len, address);
 		if (err < 0)
 			goto out_put;
@@ -1567,8 +1588,7 @@ asmlinkage long sys_sendto(int fd, void __user * buff, size_t len, unsigned flag
 	err = sock_sendmsg(sock, &msg, len);
 
 out_put:		
-	sockfd_put(sock);
-out:
+	fput_light(sock_file, fput_needed);
 	return err;
 }
 
@@ -1595,8 +1615,14 @@ asmlinkage long sys_recvfrom(int fd, void __user * ubuf, size_t size, unsigned f
 	struct msghdr msg;
 	char address[MAX_SOCK_ADDR];
 	int err,err2;
+	struct file *sock_file;
+	int fput_needed;
 
-	sock = sockfd_lookup(fd, &err);
+	sock_file = fget_light(fd, &fput_needed);
+	if (!sock_file)
+		return -EBADF;
+
+	sock = sock_from_file(sock_file, &err);
 	if (!sock)
 		goto out;
 
@@ -1618,8 +1644,8 @@ asmlinkage long sys_recvfrom(int fd, void __user * ubuf, size_t size, unsigned f
 		if(err2<0)
 			err=err2;
 	}
-	sockfd_put(sock);			
 out:
+	fput_light(sock_file, fput_needed);
 	return err;
 }
 
@@ -1639,25 +1665,24 @@ asmlinkage long sys_recv(int fd, void __user * ubuf, size_t size, unsigned flags
 
 asmlinkage long sys_setsockopt(int fd, int level, int optname, char __user *optval, int optlen)
 {
-	int err;
+	int err, fput_needed;
 	struct socket *sock;
 
 	if (optlen < 0)
 		return -EINVAL;
 			
-	if ((sock = sockfd_lookup(fd, &err))!=NULL)
+	if ((sock = sockfd_lookup_light(fd, &err, &fput_needed)) != NULL)
 	{
 		err = security_socket_setsockopt(sock,level,optname);
-		if (err) {
-			sockfd_put(sock);
-			return err;
-		}
+		if (err)
+			goto out_put;
 
 		if (level == SOL_SOCKET)
 			err=sock_setsockopt(sock,level,optname,optval,optlen);
 		else
 			err=sock->ops->setsockopt(sock, level, optname, optval, optlen);
-		sockfd_put(sock);
+out_put:
+		fput_light(sock->file, fput_needed);
 	}
 	return err;
 }
@@ -1669,23 +1694,20 @@ asmlinkage long sys_setsockopt(int fd, int level, int optname, char __user *optv
 
 asmlinkage long sys_getsockopt(int fd, int level, int optname, char __user *optval, int __user *optlen)
 {
-	int err;
+	int err, fput_needed;
 	struct socket *sock;
 
-	if ((sock = sockfd_lookup(fd, &err))!=NULL)
-	{
-		err = security_socket_getsockopt(sock, level, 
-							   optname);
-		if (err) {
-			sockfd_put(sock);
-			return err;
-		}
+	if ((sock = sockfd_lookup_light(fd, &err, &fput_needed)) != NULL) {
+		err = security_socket_getsockopt(sock, level, optname);
+		if (err)
+			goto out_put;
 
 		if (level == SOL_SOCKET)
 			err=sock_getsockopt(sock,level,optname,optval,optlen);
 		else
 			err=sock->ops->getsockopt(sock, level, optname, optval, optlen);
-		sockfd_put(sock);
+out_put:
+		fput_light(sock->file, fput_needed);
 	}
 	return err;
 }
@@ -1697,19 +1719,15 @@ asmlinkage long sys_getsockopt(int fd, int level, int optname, char __user *optv
 
 asmlinkage long sys_shutdown(int fd, int how)
 {
-	int err;
+	int err, fput_needed;
 	struct socket *sock;
 
-	if ((sock = sockfd_lookup(fd, &err))!=NULL)
+	if ((sock = sockfd_lookup_light(fd, &err, &fput_needed))!=NULL)
 	{
 		err = security_socket_shutdown(sock, how);
-		if (err) {
-			sockfd_put(sock);
-			return err;
-		}
-				
-		err=sock->ops->shutdown(sock, how);
-		sockfd_put(sock);
+		if (!err)
+			err = sock->ops->shutdown(sock, how);
+		fput_light(sock->file, fput_needed);
 	}
 	return err;
 }
@@ -1738,6 +1756,7 @@ asmlinkage long sys_sendmsg(int fd, struct msghdr __user *msg, unsigned flags)
 	unsigned char *ctl_buf = ctl;
 	struct msghdr msg_sys;
 	int err, ctl_len, iov_size, total_len;
+	int fput_needed;
 	
 	err = -EFAULT;
 	if (MSG_CMSG_COMPAT & flags) {
@@ -1746,7 +1765,7 @@ asmlinkage long sys_sendmsg(int fd, struct msghdr __user *msg, unsigned flags)
 	} else if (copy_from_user(&msg_sys, msg, sizeof(struct msghdr)))
 		return -EFAULT;
 
-	sock = sockfd_lookup(fd, &err);
+	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock) 
 		goto out;
 
@@ -1814,7 +1833,7 @@ out_freeiov:
 	if (iov != iovstack)
 		sock_kfree_s(sock->sk, iov, iov_size);
 out_put:
-	sockfd_put(sock);
+	fput_light(sock->file, fput_needed);
 out:       
 	return err;
 }
@@ -1832,6 +1851,7 @@ asmlinkage long sys_recvmsg(int fd, struct msghdr __user *msg, unsigned int flag
 	struct msghdr msg_sys;
 	unsigned long cmsg_ptr;
 	int err, iov_size, total_len, len;
+	int fput_needed;
 
 	/* kernel mode address */
 	char addr[MAX_SOCK_ADDR];
@@ -1847,7 +1867,7 @@ asmlinkage long sys_recvmsg(int fd, struct msghdr __user *msg, unsigned int flag
 		if (copy_from_user(&msg_sys,msg,sizeof(struct msghdr)))
 			return -EFAULT;
 
-	sock = sockfd_lookup(fd, &err);
+	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;
 
@@ -1914,7 +1934,7 @@ out_freeiov:
 	if (iov != iovstack)
 		sock_kfree_s(sock->sk, iov, iov_size);
 out_put:
-	sockfd_put(sock);
+	fput_light(sock->file, fput_needed);
 out:
 	return err;
 }
