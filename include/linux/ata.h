@@ -146,6 +146,8 @@ enum {
  	ATA_CMD_STANDBYNOW1	= 0xE0,
  	ATA_CMD_IDLEIMMEDIATE	= 0xE1,
 	ATA_CMD_INIT_DEV_PARAMS	= 0x91,
+	ATA_CMD_READ_NATIVE_MAX	= 0xF8,
+	ATA_CMD_READ_NATIVE_MAX_EXT = 0x27,
 
 	/* SETFEATURES stuff */
 	SETFEATURES_XFER	= 0x03,
@@ -246,18 +248,22 @@ struct ata_taskfile {
 };
 
 #define ata_id_is_ata(id)	(((id)[0] & (1 << 15)) == 0)
+#define ata_id_is_cfa(id)	((id)[0] == 0x848A)
 #define ata_id_is_sata(id)	((id)[93] == 0)
 #define ata_id_rahead_enabled(id) ((id)[85] & (1 << 6))
 #define ata_id_wcache_enabled(id) ((id)[85] & (1 << 5))
+#define ata_id_hpa_enabled(id)	((id)[85] & (1 << 10))
 #define ata_id_has_fua(id)	((id)[84] & (1 << 6))
 #define ata_id_has_flush(id)	((id)[83] & (1 << 12))
 #define ata_id_has_flush_ext(id) ((id)[83] & (1 << 13))
 #define ata_id_has_lba48(id)	((id)[83] & (1 << 10))
+#define ata_id_has_hpa(id)	((id)[82] & (1 << 10))
 #define ata_id_has_wcache(id)	((id)[82] & (1 << 5))
 #define ata_id_has_pm(id)	((id)[82] & (1 << 3))
 #define ata_id_has_lba(id)	((id)[49] & (1 << 9))
 #define ata_id_has_dma(id)	((id)[49] & (1 << 8))
 #define ata_id_removeable(id)	((id)[0] & (1 << 7))
+#define ata_id_has_dword_io(id)	((id)[50] & (1 << 0))
 #define ata_id_u32(id,n)	\
 	(((u32) (id)[(n) + 1] << 16) | ((u32) (id)[(n)]))
 #define ata_id_u64(id,n)	\
