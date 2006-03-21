@@ -22,6 +22,7 @@
 #include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
+#include "feat.h"
 
 struct inet_timewait_death_row dccp_death_row = {
 	.sysctl_max_tw_buckets = NR_FILE * 2,
@@ -113,6 +114,9 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		newdp->dccps_service	   = dreq->dreq_service;
 		newicsk->icsk_rto	   = DCCP_TIMEOUT_INIT;
 		do_gettimeofday(&newdp->dccps_epoch);
+
+		if (dccp_feat_clone(sk, newsk))
+			goto out_free;
 
 		if (newdp->dccps_options.dccpo_send_ack_vector) {
 			newdp->dccps_hc_rx_ackvec =

@@ -64,6 +64,10 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		case DCCP_PKT_DATAACK:
 			break;
 
+		case DCCP_PKT_REQUEST:
+			set_ack = 0;
+			/* fall through */
+
 		case DCCP_PKT_SYNC:
 		case DCCP_PKT_SYNCACK:
 			ackno = dcb->dccpd_seq;

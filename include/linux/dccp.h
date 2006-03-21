@@ -154,6 +154,10 @@ enum {
 	DCCPO_MANDATORY = 1,
 	DCCPO_MIN_RESERVED = 3,
 	DCCPO_MAX_RESERVED = 31,
+	DCCPO_CHANGE_L = 32,
+	DCCPO_CONFIRM_L = 33,
+	DCCPO_CHANGE_R = 34,
+	DCCPO_CONFIRM_R = 35,
 	DCCPO_NDP_COUNT = 37,
 	DCCPO_ACK_VECTOR_0 = 38,
 	DCCPO_ACK_VECTOR_1 = 39,
@@ -168,7 +172,9 @@ enum {
 /* DCCP features */
 enum {
 	DCCPF_RESERVED = 0,
+	DCCPF_CCID = 1,
 	DCCPF_SEQUENCE_WINDOW = 3,
+	DCCPF_ACK_RATIO = 5,
 	DCCPF_SEND_ACK_VECTOR = 6,
 	DCCPF_SEND_NDP_COUNT = 7,
 	/* 10-127 reserved */
@@ -176,9 +182,18 @@ enum {
 	DCCPF_MAX_CCID_SPECIFIC = 255,
 };
 
+/* this structure is argument to DCCP_SOCKOPT_CHANGE_X */
+struct dccp_so_feat {
+	__u8 dccpsf_feat;
+	__u8 *dccpsf_val;
+	__u8 dccpsf_len;
+};
+
 /* DCCP socket options */
 #define DCCP_SOCKOPT_PACKET_SIZE	1
 #define DCCP_SOCKOPT_SERVICE		2
+#define DCCP_SOCKOPT_CHANGE_L		3
+#define DCCP_SOCKOPT_CHANGE_R		4
 #define DCCP_SOCKOPT_CCID_RX_INFO	128
 #define DCCP_SOCKOPT_CCID_TX_INFO	192
 
@@ -314,8 +329,8 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 
 /* initial values for each feature */
 #define DCCPF_INITIAL_SEQUENCE_WINDOW		100
-/* FIXME: for now we're using CCID 2 (TCP-Like) */
 #define DCCPF_INITIAL_CCID			2
+#define DCCPF_INITIAL_ACK_RATIO			2
 #define DCCPF_INITIAL_SEND_ACK_VECTOR		1
 /* FIXME: for now we're default to 1 but it should really be 0 */
 #define DCCPF_INITIAL_SEND_NDP_COUNT		1
@@ -335,6 +350,24 @@ struct dccp_options {
 	__u8	dccpo_tx_ccid;
 	__u8	dccpo_send_ack_vector;
 	__u8	dccpo_send_ndp_count;
+	__u8			dccpo_ack_ratio;
+	struct list_head	dccpo_pending;
+	struct list_head	dccpo_conf;
+};
+
+struct dccp_opt_conf {
+	__u8			*dccpoc_val;
+	__u8			dccpoc_len;
+};
+
+struct dccp_opt_pend {
+	struct list_head	dccpop_node;
+	__u8			dccpop_type;
+	__u8			dccpop_feat;
+	__u8		        *dccpop_val;
+	__u8			dccpop_len;
+	int			dccpop_conf;
+	struct dccp_opt_conf    *dccpop_sc;
 };
 
 extern void __dccp_options_init(struct dccp_options *dccpo);

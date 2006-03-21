@@ -37,6 +37,7 @@
 
 #include "ccid.h"
 #include "dccp.h"
+#include "feat.h"
 
 DEFINE_SNMP_STAT(struct dccp_mib, dccp_statistics) __read_mostly;
 
@@ -255,6 +256,39 @@ static int dccp_setsockopt_service(struct sock *sk, const u32 service,
 	return 0;
 }
 
+/* byte 1 is feature.  the rest is the preference list */
+static int dccp_setsockopt_change(struct sock *sk, int type,
+				  struct dccp_so_feat __user *optval)
+{
+	struct dccp_so_feat opt;
+	u8 *val;
+	int rc;
+
+	if (copy_from_user(&opt, optval, sizeof(opt)))
+		return -EFAULT;
+
+	val = kmalloc(opt.dccpsf_len, GFP_KERNEL);
+	if (!val)
+		return -ENOMEM;
+
+	if (copy_from_user(val, opt.dccpsf_val, opt.dccpsf_len)) {
+		rc = -EFAULT;
+		goto out_free_val;
+	}
+
+	rc = dccp_feat_change(sk, type, opt.dccpsf_feat, val, opt.dccpsf_len,
+			      GFP_KERNEL);
+	if (rc)
+		goto out_free_val;
+
+out:
+	return rc;
+
+out_free_val:
+	kfree(val);
+	goto out;
+}
+
 int dccp_setsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int optlen)
 {
@@ -284,6 +318,25 @@ int dccp_setsockopt(struct sock *sk, int level, int optname,
 	case DCCP_SOCKOPT_PACKET_SIZE:
 		dp->dccps_packet_size = val;
 		break;
+
+	case DCCP_SOCKOPT_CHANGE_L:
+		if (optlen != sizeof(struct dccp_so_feat))
+			err = -EINVAL;
+		else
+			err = dccp_setsockopt_change(sk, DCCPO_CHANGE_L,
+					             (struct dccp_so_feat *)
+						     optval);
+		break;
+
+	case DCCP_SOCKOPT_CHANGE_R:
+		if (optlen != sizeof(struct dccp_so_feat))
+			err = -EINVAL;
+		else
+			err = dccp_setsockopt_change(sk, DCCPO_CHANGE_R,
+						     (struct dccp_so_feat *)
+						     optval);
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;

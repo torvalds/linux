@@ -21,12 +21,14 @@
 #include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
+#include "feat.h"
 
 /* stores the default values for new connection. may be changed with sysctl */
 static const struct dccp_options dccpo_default_values = {
 	.dccpo_sequence_window	  = DCCPF_INITIAL_SEQUENCE_WINDOW,
 	.dccpo_rx_ccid		  = DCCPF_INITIAL_CCID,
 	.dccpo_tx_ccid		  = DCCPF_INITIAL_CCID,
+	.dccpo_ack_ratio	  = DCCPF_INITIAL_ACK_RATIO,
 	.dccpo_send_ack_vector	  = DCCPF_INITIAL_SEND_ACK_VECTOR,
 	.dccpo_send_ndp_count	  = DCCPF_INITIAL_SEND_NDP_COUNT,
 };
@@ -69,6 +71,8 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 	unsigned char opt, len;
 	unsigned char *value;
 	u32 elapsed_time;
+	int rc;
+	int mandatory = 0;
 
 	memset(opt_recv, 0, sizeof(*opt_recv));
 
@@ -100,6 +104,11 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 		switch (opt) {
 		case DCCPO_PADDING:
 			break;
+		case DCCPO_MANDATORY:
+			if (mandatory)
+				goto out_invalid_option;
+			mandatory = 1;
+			break;
 		case DCCPO_NDP_COUNT:
 			if (len > 3)
 				goto out_invalid_option;
@@ -107,6 +116,31 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			opt_recv->dccpor_ndp = dccp_decode_value_var(value, len);
 			dccp_pr_debug("%sNDP count=%d\n", debug_prefix,
 				      opt_recv->dccpor_ndp);
+			break;
+		case DCCPO_CHANGE_L:
+			/* fall through */
+		case DCCPO_CHANGE_R:
+			if (len < 2)
+				goto out_invalid_option;
+			rc = dccp_feat_change_recv(sk, opt, *value, value + 1,
+						   len - 1);
+			/*
+			 * When there is a change error, change_recv is
+			 * responsible for dealing with it.  i.e. reply with an
+			 * empty confirm.
+			 * If the change was mandatory, then we need to die.
+			 */
+			if (rc && mandatory)
+				goto out_invalid_option;
+			break;
+		case DCCPO_CONFIRM_L:
+			/* fall through */
+		case DCCPO_CONFIRM_R:
+			if (len < 2)
+				goto out_invalid_option;
+			if (dccp_feat_confirm_recv(sk, opt, *value,
+						   value + 1, len - 1))
+				goto out_invalid_option;
 			break;
 		case DCCPO_ACK_VECTOR_0:
 		case DCCPO_ACK_VECTOR_1:
@@ -208,6 +242,9 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				sk, opt, len);
 			break;
 	        }
+
+		if (opt != DCCPO_MANDATORY)
+			mandatory = 0;
 	}
 
 	return 0;
@@ -356,7 +393,7 @@ void dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
 {
 	struct timeval tv;
 	u32 now;
-	
+
 	dccp_timestamp(sk, &tv);
 	now = timeval_usecs(&tv) / 10;
 	/* yes this will overflow but that is the point as we want a
@@ -402,7 +439,7 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk,
 	tstamp_echo = htonl(dp->dccps_timestamp_echo);
 	memcpy(to, &tstamp_echo, 4);
 	to += 4;
-	
+
 	if (elapsed_time_len == 2) {
 		const u16 var16 = htons((u16)elapsed_time);
 		memcpy(to, &var16, 2);
@@ -419,6 +456,93 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk,
 	dp->dccps_timestamp_echo = 0;
 	dp->dccps_timestamp_time.tv_sec = 0;
 	dp->dccps_timestamp_time.tv_usec = 0;
+}
+
+static int dccp_insert_feat_opt(struct sk_buff *skb, u8 type, u8 feat,
+			        u8 *val, u8 len)
+{
+	u8 *to;
+
+	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len + 3 > DCCP_MAX_OPT_LEN) {
+		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small"
+			       " to insert feature %d option!\n", feat);
+		return -1;
+	}
+
+	DCCP_SKB_CB(skb)->dccpd_opt_len += len + 3;
+
+	to    = skb_push(skb, len + 3);
+	*to++ = type;
+	*to++ = len + 3;
+	*to++ = feat;
+
+	if (len)
+		memcpy(to, val, len);
+	dccp_pr_debug("option %d feat %d len %d\n", type, feat, len);
+
+	return 0;
+}
+
+static void dccp_insert_feat(struct sock *sk, struct sk_buff *skb)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_opt_pend *opt, *next;
+	int change = 0;
+
+	/* confirm any options [NN opts] */
+	list_for_each_entry_safe(opt, next, &dp->dccps_options.dccpo_conf,
+				 dccpop_node) {
+		dccp_insert_feat_opt(skb, opt->dccpop_type,
+				     opt->dccpop_feat, opt->dccpop_val,
+				     opt->dccpop_len);
+		/* fear empty confirms */
+		if (opt->dccpop_val)
+			kfree(opt->dccpop_val);
+		kfree(opt);
+	}
+	INIT_LIST_HEAD(&dp->dccps_options.dccpo_conf);
+
+	/* see which features we need to send */
+	list_for_each_entry(opt, &dp->dccps_options.dccpo_pending,
+			    dccpop_node) {
+		/* see if we need to send any confirm */
+		if (opt->dccpop_sc) {
+			dccp_insert_feat_opt(skb, opt->dccpop_type + 1,
+					     opt->dccpop_feat,
+					     opt->dccpop_sc->dccpoc_val,
+					     opt->dccpop_sc->dccpoc_len);
+
+			BUG_ON(!opt->dccpop_sc->dccpoc_val);
+			kfree(opt->dccpop_sc->dccpoc_val);
+			kfree(opt->dccpop_sc);
+			opt->dccpop_sc = NULL;
+		}
+
+		/* any option not confirmed, re-send it */
+		if (!opt->dccpop_conf) {
+			dccp_insert_feat_opt(skb, opt->dccpop_type,
+					     opt->dccpop_feat, opt->dccpop_val,
+					     opt->dccpop_len);
+			change++;
+		}
+	}
+
+	/* Retransmit timer.
+	 * If this is the master listening sock, we don't set a timer on it.  It
+	 * should be fine because if the dude doesn't receive our RESPONSE
+	 * [which will contain the CHANGE] he will send another REQUEST which
+	 * will "retrnasmit" the change.
+	 */
+	if (change && dp->dccps_role != DCCP_ROLE_LISTEN) {
+		dccp_pr_debug("reset feat negotiation timer %p\n", sk);
+
+		/* XXX don't reset the timer on re-transmissions.  I.e. reset it
+		 * only when sending new stuff i guess.  Currently the timer
+		 * never backs off because on re-transmission it just resets it!
+		 */
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+					  inet_csk(sk)->icsk_rto, DCCP_RTO_MAX);
+	}
 }
 
 void dccp_insert_options(struct sock *sk, struct sk_buff *skb)
@@ -445,6 +569,17 @@ void dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 	if (dp->dccps_hc_tx_insert_options) {
 		ccid_hc_tx_insert_options(dp->dccps_hc_tx_ccid, sk, skb);
 		dp->dccps_hc_tx_insert_options = 0;
+	}
+
+	/* Feature negotiation */
+	switch(DCCP_SKB_CB(skb)->dccpd_type) {
+		/* Data packets can't do feat negotiation */
+	case DCCP_PKT_DATA:
+	case DCCP_PKT_DATAACK:
+		break;
+	default:
+		dccp_insert_feat(sk, skb);
+		break;
 	}
 
 	/* XXX: insert other options when appropriate */

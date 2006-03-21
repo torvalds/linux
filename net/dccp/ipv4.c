@@ -28,6 +28,7 @@
 #include "ackvec.h"
 #include "ccid.h"
 #include "dccp.h"
+#include "feat.h"
 
 struct inet_hashinfo __cacheline_aligned dccp_hashinfo = {
 	.lhash_lock	= RW_LOCK_UNLOCKED,
@@ -535,7 +536,8 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (req == NULL)
 		goto drop;
 
-	/* FIXME: process options */
+	if (dccp_parse_options(sk, skb))
+		goto drop;
 
 	dccp_openreq_init(req, &dp, skb);
 
@@ -1049,6 +1051,8 @@ int dccp_v4_init_sock(struct sock *sk)
 	 * setsockopt(CCIDs-I-want/accept). -acme
 	 */
 	if (likely(!dccp_ctl_socket_init)) {
+		int rc;
+
 		if (dp->dccps_options.dccpo_send_ack_vector) {
 			dp->dccps_hc_rx_ackvec = dccp_ackvec_alloc(GFP_KERNEL);
 			if (dp->dccps_hc_rx_ackvec == NULL)
@@ -1069,8 +1073,16 @@ int dccp_v4_init_sock(struct sock *sk)
 			dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
 			return -ENOMEM;
 		}
-	} else
+
+		rc = dccp_feat_init(sk);
+		if (rc)
+			return rc;
+	} else {
+		/* control socket doesn't need feat nego */
+		INIT_LIST_HEAD(&dp->dccps_options.dccpo_pending);
+		INIT_LIST_HEAD(&dp->dccps_options.dccpo_conf);
 		dccp_ctl_socket_init = 0;
+	}
 
 	dccp_init_xmit_timers(sk);
 	icsk->icsk_rto = DCCP_TIMEOUT_INIT;
@@ -1117,6 +1129,9 @@ int dccp_v4_destroy_sock(struct sock *sk)
 	ccid_exit(dp->dccps_hc_rx_ccid, sk);
 	ccid_exit(dp->dccps_hc_tx_ccid, sk);
 	dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
+
+	/* clean up feature negotiation state */
+	dccp_feat_clean(sk);
 
 	return 0;
 }
