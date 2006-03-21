@@ -664,6 +664,22 @@ ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+	{
+		.ctl_name	= NET_TCP_MTU_PROBING,
+		.procname	= "tcp_mtu_probing",
+		.data		= &sysctl_tcp_mtu_probing,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_TCP_BASE_MSS,
+		.procname	= "tcp_base_mss",
+		.data		= &sysctl_tcp_base_mss,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
 
 	{ .ctl_name = 0 }
 };
