@@ -931,6 +931,7 @@ void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 	/* /chosen */
 	dt_start_node(dt, "chosen");
 	dt_prop_u32(dt, "linux,platform", PLATFORM_ISERIES_LPAR);
+	dt_prop_str(dt, "bootargs", cmd_line);
 	if (cmd_mem_limit)
 		dt_prop_u64(dt, "linux,memory-limit", cmd_mem_limit);
 	dt_end_node(dt);
