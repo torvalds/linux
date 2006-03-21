@@ -1232,6 +1232,34 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **x
 	return 0;
 }
 
+static int xfrm_add_sa_expire(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
+{
+	struct xfrm_state *x;
+	int err;
+	struct xfrm_user_expire *ue = NLMSG_DATA(nlh);
+	struct xfrm_usersa_info *p = &ue->state;
+
+	x = xfrm_state_lookup(&p->id.daddr, p->id.spi, p->id.proto, p->family);
+		err = -ENOENT;
+
+	if (x == NULL)
+		return err;
+
+	err = -EINVAL;
+
+	spin_lock_bh(&x->lock);
+	if (x->km.state != XFRM_STATE_VALID)
+		goto out;
+	km_state_expired(x, ue->hard, current->pid);
+
+	if (ue->hard)
+		__xfrm_state_delete(x);
+out:
+	spin_unlock_bh(&x->lock);
+	xfrm_state_put(x);
+	return err;
+}
+
 static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 {
 	struct xfrm_policy *xp;
@@ -1296,6 +1324,7 @@ static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_GETPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_id),
 	[XFRM_MSG_ALLOCSPI    - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userspi_info),
 	[XFRM_MSG_ACQUIRE     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_acquire),
+	[XFRM_MSG_EXPIRE      - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_expire),
 	[XFRM_MSG_UPDPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_info),
 	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_info),
 	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_flush),
@@ -1320,6 +1349,7 @@ static struct xfrm_link {
 						   .dump = xfrm_dump_policy   },
 	[XFRM_MSG_ALLOCSPI    - XFRM_MSG_BASE] = { .doit = xfrm_alloc_userspi },
 	[XFRM_MSG_ACQUIRE     - XFRM_MSG_BASE] = { .doit = xfrm_add_acquire   },
+	[XFRM_MSG_EXPIRE      - XFRM_MSG_BASE] = { .doit = xfrm_add_sa_expire },
 	[XFRM_MSG_UPDPOLICY   - XFRM_MSG_BASE] = { .doit = xfrm_add_policy    },
 	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = { .doit = xfrm_add_sa        },
 	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = { .doit = xfrm_flush_sa      },

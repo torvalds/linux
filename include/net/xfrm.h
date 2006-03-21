@@ -218,6 +218,9 @@ extern void km_state_notify(struct xfrm_state *x, struct km_event *c);
 
 struct xfrm_tmpl;
 extern int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
+extern void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
+extern int __xfrm_state_delete(struct xfrm_state *x);
+
 struct xfrm_state_afinfo {
 	unsigned short		family;
 	rwlock_t		lock;

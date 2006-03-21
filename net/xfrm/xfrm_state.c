@@ -52,13 +52,13 @@ static DEFINE_SPINLOCK(xfrm_state_gc_lock);
 
 static int xfrm_state_gc_flush_bundles;
 
-static int __xfrm_state_delete(struct xfrm_state *x);
+int __xfrm_state_delete(struct xfrm_state *x);
 
 static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned short family);
 static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
 
 int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
-static void km_state_expired(struct xfrm_state *x, int hard);
+void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
 
 static void xfrm_state_gc_destroy(struct xfrm_state *x)
 {
@@ -157,7 +157,7 @@ static void xfrm_timer_handler(unsigned long data)
 
 	x->km.dying = warn;
 	if (warn)
-		km_state_expired(x, 0);
+		km_state_expired(x, 0, 0);
 resched:
 	if (next != LONG_MAX &&
 	    !mod_timer(&x->timer, jiffies + make_jiffies(next)))
@@ -172,7 +172,7 @@ expired:
 		goto resched;
 	}
 	if (!__xfrm_state_delete(x) && x->id.spi)
-		km_state_expired(x, 1);
+		km_state_expired(x, 1, 0);
 
 out:
 	spin_unlock(&x->lock);
@@ -221,7 +221,7 @@ void __xfrm_state_destroy(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(__xfrm_state_destroy);
 
-static int __xfrm_state_delete(struct xfrm_state *x)
+int __xfrm_state_delete(struct xfrm_state *x)
 {
 	int err = -ESRCH;
 
@@ -260,6 +260,7 @@ static int __xfrm_state_delete(struct xfrm_state *x)
 
 	return err;
 }
+EXPORT_SYMBOL(__xfrm_state_delete);
 
 int xfrm_state_delete(struct xfrm_state *x)
 {
@@ -595,7 +596,7 @@ int xfrm_state_check_expire(struct xfrm_state *x)
 	    (x->curlft.bytes >= x->lft.soft_byte_limit ||
 	     x->curlft.packets >= x->lft.soft_packet_limit)) {
 		x->km.dying = 1;
-		km_state_expired(x, 0);
+		km_state_expired(x, 0, 0);
 	}
 	return 0;
 }
@@ -909,11 +910,12 @@ void km_state_notify(struct xfrm_state *x, struct km_event *c)
 EXPORT_SYMBOL(km_policy_notify);
 EXPORT_SYMBOL(km_state_notify);
 
-void km_state_expired(struct xfrm_state *x, int hard)
+void km_state_expired(struct xfrm_state *x, int hard, u32 pid)
 {
 	struct km_event c;
 
 	c.data.hard = hard;
+	c.pid = pid;
 	c.event = XFRM_MSG_EXPIRE;
 	km_state_notify(x, &c);
 
@@ -921,6 +923,7 @@ void km_state_expired(struct xfrm_state *x, int hard)
 		wake_up(&km_waitq);
 }
 
+EXPORT_SYMBOL(km_state_expired);
 /*
  * We send to all registered managers regardless of failure
  * We are happy with one success
