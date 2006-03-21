@@ -109,7 +109,8 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 		case DCCPO_MANDATORY:
 			if (mandatory)
 				goto out_invalid_option;
-			mandatory = 1;
+			if (pkt_type != DCCP_PKT_DATA)
+				mandatory = 1;
 			break;
 		case DCCPO_NDP_COUNT:
 			if (len > 3)
@@ -248,6 +249,10 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 		if (opt != DCCPO_MANDATORY)
 			mandatory = 0;
 	}
+
+	/* mandatory was the last byte in option list -> reset connection */
+	if (mandatory)
+		goto out_invalid_option;
 
 	return 0;
 
