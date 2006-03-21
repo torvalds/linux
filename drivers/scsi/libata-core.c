@@ -1739,7 +1739,7 @@ static int ata_host_set_pio(struct ata_port *ap)
 			continue;
 
 		if (!dev->pio_mode) {
-			printk(KERN_WARNING "ata%u: no PIO support\n", ap->id);
+			printk(KERN_WARNING "ata%u: no PIO support for device %d.\n", ap->id, i);
 			return -1;
 		}
 
