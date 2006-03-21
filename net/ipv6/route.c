@@ -1144,58 +1144,62 @@ static int ip6_route_del(struct in6_rtmsg *rtmsg, struct nlmsghdr *nlh, void *_r
 void rt6_redirect(struct in6_addr *dest, struct in6_addr *saddr,
 		  struct neighbour *neigh, u8 *lladdr, int on_link)
 {
-	struct rt6_info *rt, *nrt;
-
-	/* Locate old route to this destination. */
-	rt = rt6_lookup(dest, NULL, neigh->dev->ifindex, 1);
-
-	if (rt == NULL)
-		return;
-
-	if (neigh->dev != rt->rt6i_dev)
-		goto out;
+	struct rt6_info *rt, *nrt = NULL;
+	int strict;
+	struct fib6_node *fn;
 
 	/*
-	 * Current route is on-link; redirect is always invalid.
-	 * 
-	 * Seems, previous statement is not true. It could
-	 * be node, which looks for us as on-link (f.e. proxy ndisc)
-	 * But then router serving it might decide, that we should
-	 * know truth 8)8) --ANK (980726).
+	 * Get the "current" route for this destination and
+	 * check if the redirect has come from approriate router.
+	 *
+	 * RFC 2461 specifies that redirects should only be
+	 * accepted if they come from the nexthop to the target.
+	 * Due to the way the routes are chosen, this notion
+	 * is a bit fuzzy and one might need to check all possible
+	 * routes.
 	 */
-	if (!(rt->rt6i_flags&RTF_GATEWAY))
-		goto out;
+	strict = ipv6_addr_type(dest) & (IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL);
 
-	/*
-	 *	RFC 2461 specifies that redirects should only be
-	 *	accepted if they come from the nexthop to the target.
-	 *	Due to the way default routers are chosen, this notion
-	 *	is a bit fuzzy and one might need to check all default
-	 *	routers.
-	 */
-	if (!ipv6_addr_equal(saddr, &rt->rt6i_gateway)) {
-		if (rt->rt6i_flags & RTF_DEFAULT) {
-			struct rt6_info *rt1;
-
-			read_lock(&rt6_lock);
-			for (rt1 = ip6_routing_table.leaf; rt1; rt1 = rt1->u.next) {
-				if (ipv6_addr_equal(saddr, &rt1->rt6i_gateway)) {
-					dst_hold(&rt1->u.dst);
-					dst_release(&rt->u.dst);
-					read_unlock(&rt6_lock);
-					rt = rt1;
-					goto source_ok;
-				}
-			}
-			read_unlock(&rt6_lock);
+	read_lock_bh(&rt6_lock);
+	fn = fib6_lookup(&ip6_routing_table, dest, NULL);
+restart:
+	for (rt = fn->leaf; rt; rt = rt->u.next) {
+		/*
+		 * Current route is on-link; redirect is always invalid.
+		 *
+		 * Seems, previous statement is not true. It could
+		 * be node, which looks for us as on-link (f.e. proxy ndisc)
+		 * But then router serving it might decide, that we should
+		 * know truth 8)8) --ANK (980726).
+		 */
+		if (rt6_check_expired(rt))
+			continue;
+		if (!(rt->rt6i_flags & RTF_GATEWAY))
+			continue;
+		if (neigh->dev != rt->rt6i_dev)
+			continue;
+		if (!ipv6_addr_equal(saddr, &rt->rt6i_gateway))
+			continue;
+		break;
+	}
+	if (rt)
+		dst_hold(&rt->u.dst);
+	else if (strict) {
+		while ((fn = fn->parent) != NULL) {
+			if (fn->fn_flags & RTN_ROOT)
+				break;
+			if (fn->fn_flags & RTN_RTINFO)
+				goto restart;
 		}
+	}
+	read_unlock_bh(&rt6_lock);
+
+	if (!rt) {
 		if (net_ratelimit())
 			printk(KERN_DEBUG "rt6_redirect: source isn't a valid nexthop "
 			       "for redirect target\n");
-		goto out;
+		return;
 	}
-
-source_ok:
 
 	/*
 	 *	We have finally decided to accept it.
