@@ -2394,8 +2394,10 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 
-	dev->trans_start = jiffies;
+	mmiowb();
 	spin_unlock(&skge->tx_lock);
+
+	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }
@@ -2730,6 +2732,8 @@ static int skge_poll(struct net_device *dev, int *budget)
 		return 1; /* not done */
 
 	netif_rx_complete(dev);
+	mmiowb();
+
   	hw->intr_mask |= skge->port == 0 ? (IS_R1_F|IS_XA1_F) : (IS_R2_F|IS_XA2_F);
   	skge_write32(hw, B0_IMSK, hw->intr_mask);
 
