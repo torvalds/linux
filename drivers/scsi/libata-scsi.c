@@ -511,13 +511,11 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 	printk(KERN_WARNING "ata%u: no sense translation for status: 0x%02x\n", 
 	       id, drv_stat);
 
-	/* For our last chance pick, use medium read error because
-	 * it's much more common than an ATA drive telling you a write
-	 * has failed.
-	 */
-	*sk = MEDIUM_ERROR;
-	*asc = 0x11; /* "unrecovered read error" */
-	*ascq = 0x04; /*  "auto-reallocation failed" */
+	/* We need a sensible error return here, which is tricky, and one
+	   that won't cause people to do things like return a disk wrongly */
+	*sk = ABORTED_COMMAND;
+	*asc = 0x00;
+	*ascq = 0x00;
 
  translate_done:
 	printk(KERN_ERR "ata%u: translated ATA stat/err 0x%02x/%02x to "
