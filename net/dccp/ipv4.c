@@ -1008,108 +1008,14 @@ struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
 	.sockaddr_len	= sizeof(struct sockaddr_in),
 };
 
-int dccp_v4_init_sock(struct sock *sk)
+static int dccp_v4_init_sock(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	static int dccp_ctl_socket_init = 1;
+	const int err = dccp_init_sock(sk);
 
-	dccp_options_init(&dp->dccps_options);
-	do_gettimeofday(&dp->dccps_epoch);
-
-	/*
-	 * FIXME: We're hardcoding the CCID, and doing this at this point makes
-	 * the listening (master) sock get CCID control blocks, which is not
-	 * necessary, but for now, to not mess with the test userspace apps,
-	 * lets leave it here, later the real solution is to do this in a
-	 * setsockopt(CCIDs-I-want/accept). -acme
-	 */
-	if (likely(!dccp_ctl_socket_init)) {
-		int rc = dccp_feat_init(sk);
-
-		if (rc)
-			return rc;
-
-		if (dp->dccps_options.dccpo_send_ack_vector) {
-			dp->dccps_hc_rx_ackvec = dccp_ackvec_alloc(GFP_KERNEL);
-			if (dp->dccps_hc_rx_ackvec == NULL)
-				return -ENOMEM;
-		}
-		dp->dccps_hc_rx_ccid =
-				ccid_hc_rx_new(dp->dccps_options.dccpo_rx_ccid,
-					       sk, GFP_KERNEL);
-		dp->dccps_hc_tx_ccid =
-				ccid_hc_tx_new(dp->dccps_options.dccpo_tx_ccid,
-					       sk, GFP_KERNEL);
-	    	if (unlikely(dp->dccps_hc_rx_ccid == NULL ||
-			     dp->dccps_hc_tx_ccid == NULL)) {
-			ccid_hc_rx_delete(dp->dccps_hc_rx_ccid, sk);
-			ccid_hc_tx_delete(dp->dccps_hc_tx_ccid, sk);
-			if (dp->dccps_options.dccpo_send_ack_vector) {
-				dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
-				dp->dccps_hc_rx_ackvec = NULL;
-			}
-			dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
-			return -ENOMEM;
-		}
-	} else {
-		/* control socket doesn't need feat nego */
-		INIT_LIST_HEAD(&dp->dccps_options.dccpo_pending);
-		INIT_LIST_HEAD(&dp->dccps_options.dccpo_conf);
-		dccp_ctl_socket_init = 0;
-	}
-
-	dccp_init_xmit_timers(sk);
-	icsk->icsk_rto = DCCP_TIMEOUT_INIT;
-	sk->sk_state = DCCP_CLOSED;
-	sk->sk_write_space = dccp_write_space;
-	icsk->icsk_af_ops = &dccp_ipv4_af_ops;
-	icsk->icsk_sync_mss = dccp_sync_mss;
-	dp->dccps_mss_cache = 536;
-	dp->dccps_role = DCCP_ROLE_UNDEFINED;
-	dp->dccps_service = DCCP_SERVICE_INVALID_VALUE;
-	dp->dccps_l_ack_ratio = dp->dccps_r_ack_ratio = 1;
-
-	return 0;
+	if (err == 0)
+		inet_csk(sk)->icsk_af_ops = &dccp_ipv4_af_ops;
+	return err;
 }
-
-EXPORT_SYMBOL_GPL(dccp_v4_init_sock);
-
-int dccp_v4_destroy_sock(struct sock *sk)
-{
-	struct dccp_sock *dp = dccp_sk(sk);
-
-	/*
-	 * DCCP doesn't use sk_write_queue, just sk_send_head
-	 * for retransmissions
-	 */
-	if (sk->sk_send_head != NULL) {
-		kfree_skb(sk->sk_send_head);
-		sk->sk_send_head = NULL;
-	}
-
-	/* Clean up a referenced DCCP bind bucket. */
-	if (inet_csk(sk)->icsk_bind_hash != NULL)
-		inet_put_port(&dccp_hashinfo, sk);
-
-	kfree(dp->dccps_service_list);
-	dp->dccps_service_list = NULL;
-
-	if (dp->dccps_options.dccpo_send_ack_vector) {
-		dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
-		dp->dccps_hc_rx_ackvec = NULL;
-	}
-	ccid_hc_rx_delete(dp->dccps_hc_rx_ccid, sk);
-	ccid_hc_tx_delete(dp->dccps_hc_tx_ccid, sk);
-	dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
-
-	/* clean up feature negotiation state */
-	dccp_feat_clean(sk);
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(dccp_v4_destroy_sock);
 
 static void dccp_v4_reqsk_destructor(struct request_sock *req)
 {
@@ -1147,7 +1053,7 @@ struct proto dccp_prot = {
 	.accept			= inet_csk_accept,
 	.get_port		= dccp_v4_get_port,
 	.shutdown		= dccp_shutdown,
-	.destroy		= dccp_v4_destroy_sock,
+	.destroy		= dccp_destroy_sock,
 	.orphan_count		= &dccp_orphan_count,
 	.max_header		= MAX_DCCP_HEADER,
 	.obj_size		= sizeof(struct dccp_sock),

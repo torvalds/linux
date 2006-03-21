@@ -1146,7 +1146,7 @@ static struct inet_connection_sock_af_ops dccp_ipv6_mapped = {
  */
 static int dccp_v6_init_sock(struct sock *sk)
 {
-	int err = dccp_v4_init_sock(sk);
+	int err = dccp_init_sock(sk);
 
 	if (err == 0)
 		inet_csk(sk)->icsk_af_ops = &dccp_ipv6_af_ops;
@@ -1156,7 +1156,7 @@ static int dccp_v6_init_sock(struct sock *sk)
 
 static int dccp_v6_destroy_sock(struct sock *sk)
 {
-	dccp_v4_destroy_sock(sk);
+	dccp_destroy_sock(sk);
 	return inet6_destroy_sock(sk);
 }
 

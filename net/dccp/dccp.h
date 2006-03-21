@@ -228,8 +228,8 @@ extern int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 extern int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				const struct dccp_hdr *dh, const unsigned len);
 
-extern int dccp_v4_init_sock(struct sock *sk);
-extern int dccp_v4_destroy_sock(struct sock *sk);
+extern int dccp_init_sock(struct sock *sk);
+extern int dccp_destroy_sock(struct sock *sk);
 
 extern void		dccp_close(struct sock *sk, long timeout);
 extern struct sk_buff	*dccp_make_response(struct sock *sk,
