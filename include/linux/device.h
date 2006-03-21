@@ -399,7 +399,7 @@ extern struct device * get_device(struct device * dev);
 extern void put_device(struct device * dev);
 
 
-/* drivers/base/power.c */
+/* drivers/base/power/shutdown.c */
 extern void device_shutdown(void);
 
 
