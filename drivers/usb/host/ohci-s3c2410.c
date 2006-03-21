@@ -37,7 +37,7 @@ static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc);
 
 /* conversion functions */
 
-struct s3c2410_hcd_info *to_s3c2410_info(struct usb_hcd *hcd)
+static struct s3c2410_hcd_info *to_s3c2410_info(struct usb_hcd *hcd)
 {
 	return hcd->self.controller->platform_data;
 }
@@ -316,7 +316,8 @@ static void s3c2410_hcd_oc(struct s3c2410_hcd_info *info, int port_oc)
  *
 */
 
-void usb_hcd_s3c2410_remove (struct usb_hcd *hcd, struct platform_device *dev)
+static void
+usb_hcd_s3c2410_remove (struct usb_hcd *hcd, struct platform_device *dev)
 {
 	usb_remove_hcd(hcd);
 	s3c2410_stop_hc(dev);
@@ -334,8 +335,8 @@ void usb_hcd_s3c2410_remove (struct usb_hcd *hcd, struct platform_device *dev)
  * through the hotplug entry's driver_data.
  *
  */
-int usb_hcd_s3c2410_probe (const struct hc_driver *driver,
-			   struct platform_device *dev)
+static int usb_hcd_s3c2410_probe (const struct hc_driver *driver,
+				  struct platform_device *dev)
 {
 	struct usb_hcd *hcd = NULL;
 	int retval;
