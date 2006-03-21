@@ -2764,17 +2764,6 @@ static void skge_mac_parity(struct skge_hw *hw, int port)
 			    ? GMF_CLI_TX_FC : GMF_CLI_TX_PE);
 }
 
-static void skge_pci_clear(struct skge_hw *hw)
-{
-	u16 status;
-
-	pci_read_config_word(hw->pdev, PCI_STATUS, &status);
-	skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-	pci_write_config_word(hw->pdev, PCI_STATUS,
-			      status | PCI_STATUS_ERROR_BITS);
-	skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
-}
-
 static void skge_mac_intr(struct skge_hw *hw, int port)
 {
 	if (hw->chip_id == CHIP_ID_GENESIS)
@@ -2816,23 +2805,39 @@ static void skge_error_irq(struct skge_hw *hw)
 	if (hwstatus & IS_M2_PAR_ERR)
 		skge_mac_parity(hw, 1);
 
-	if (hwstatus & IS_R1_PAR_ERR)
+	if (hwstatus & IS_R1_PAR_ERR) {
+		printk(KERN_ERR PFX "%s: receive queue parity error\n",
+		       hw->dev[0]->name);
 		skge_write32(hw, B0_R1_CSR, CSR_IRQ_CL_P);
+	}
 
-	if (hwstatus & IS_R2_PAR_ERR)
+	if (hwstatus & IS_R2_PAR_ERR) {
+		printk(KERN_ERR PFX "%s: receive queue parity error\n",
+		       hw->dev[1]->name);
 		skge_write32(hw, B0_R2_CSR, CSR_IRQ_CL_P);
+	}
 
 	if (hwstatus & (IS_IRQ_MST_ERR|IS_IRQ_STAT)) {
-		printk(KERN_ERR PFX "hardware error detected (status 0x%x)\n",
-		       hwstatus);
+		u16 pci_status, pci_cmd;
 
-		skge_pci_clear(hw);
+		pci_read_config_word(hw->pdev, PCI_COMMAND, &pci_cmd);
+		pci_read_config_word(hw->pdev, PCI_STATUS, &pci_status);
+
+		printk(KERN_ERR PFX "%s: PCI error cmd=%#x status=%#x\n",
+			       pci_name(hw->pdev), pci_cmd, pci_status);
+
+		/* Write the error bits back to clear them. */
+		pci_status &= PCI_STATUS_ERROR_BITS;
+		skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
+		pci_write_config_word(hw->pdev, PCI_COMMAND,
+				      pci_cmd | PCI_COMMAND_SERR | PCI_COMMAND_PARITY);
+		pci_write_config_word(hw->pdev, PCI_STATUS, pci_status);
+		skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 		/* if error still set then just ignore it */
 		hwstatus = skge_read32(hw, B0_HWE_ISRC);
 		if (hwstatus & IS_IRQ_STAT) {
-			pr_debug("IRQ status %x: still set ignoring hardware errors\n",
-			       hwstatus);
+			printk(KERN_INFO PFX "unable to clear error (so ignoring them)\n");
 			hw->intr_mask &= ~IS_HW_ERR;
 		}
 	}
@@ -2998,7 +3003,7 @@ static const char *skge_board_name(const struct skge_hw *hw)
 static int skge_reset(struct skge_hw *hw)
 {
 	u32 reg;
-	u16 ctst;
+	u16 ctst, pci_status;
 	u8 t8, mac_cfg, pmd_type, phy_type;
 	int i;
 
@@ -3009,8 +3014,13 @@ static int skge_reset(struct skge_hw *hw)
 	skge_write8(hw, B0_CTST, CS_RST_CLR);
 
 	/* clear PCI errors, if any */
-	skge_pci_clear(hw);
+	skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
+	skge_write8(hw, B2_TST_CTRL2, 0);
 
+	pci_read_config_word(hw->pdev, PCI_STATUS, &pci_status);
+	pci_write_config_word(hw->pdev, PCI_STATUS,
+			      pci_status | PCI_STATUS_ERROR_BITS);
+	skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	skge_write8(hw, B0_CTST, CS_MRST_CLR);
 
 	/* restore CLK_RUN bits (for Yukon-Lite) */
@@ -3377,7 +3387,6 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 
 	skge_write32(hw, B0_IMSK, 0);
 	skge_write16(hw, B0_LED, LED_STAT_OFF);
-	skge_pci_clear(hw);
 	skge_write8(hw, B0_CTST, CS_RST_SET);
 
 	tasklet_kill(&hw->ext_tasklet);
