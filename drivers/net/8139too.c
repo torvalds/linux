@@ -1605,7 +1605,7 @@ static void rtl8139_thread (void *_data)
 	if (tp->watchdog_fired) {
 		tp->watchdog_fired = 0;
 		rtl8139_tx_timeout_task(_data);
-	} else if (rtnl_shlock_nowait() == 0) {
+	} else if (rtnl_trylock()) {
 		rtl8139_thread_iter (dev, tp, tp->mmio_addr);
 		rtnl_unlock ();
 	} else {

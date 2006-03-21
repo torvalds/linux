@@ -35,6 +35,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/security.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -51,23 +52,29 @@
 #include <net/pkt_sched.h>
 #include <net/netlink.h>
 
-DECLARE_MUTEX(rtnl_sem);
+static DEFINE_MUTEX(rtnl_mutex);
 
 void rtnl_lock(void)
 {
-	rtnl_shlock();
+	mutex_lock(&rtnl_mutex);
 }
 
-int rtnl_lock_interruptible(void)
+void __rtnl_unlock(void)
 {
-	return down_interruptible(&rtnl_sem);
+	mutex_unlock(&rtnl_mutex);
 }
- 
+
 void rtnl_unlock(void)
 {
-	rtnl_shunlock();
-
+	mutex_unlock(&rtnl_mutex);
+	if (rtnl && rtnl->sk_receive_queue.qlen)
+		rtnl->sk_data_ready(rtnl, 0);
 	netdev_run_todo();
+}
+
+int rtnl_trylock(void)
+{
+	return mutex_trylock(&rtnl_mutex);
 }
 
 int rtattr_parse(struct rtattr *tb[], int maxattr, struct rtattr *rta, int len)
@@ -625,9 +632,9 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 	unsigned int qlen = 0;
 
 	do {
-		rtnl_lock();
+		mutex_lock(&rtnl_mutex);
 		netlink_run_queue(sk, &qlen, &rtnetlink_rcv_msg);
-		up(&rtnl_sem);
+		mutex_unlock(&rtnl_mutex);
 
 		netdev_run_todo();
 	} while (qlen);
@@ -704,6 +711,5 @@ EXPORT_SYMBOL(rtnetlink_links);
 EXPORT_SYMBOL(rtnetlink_put_metrics);
 EXPORT_SYMBOL(rtnl);
 EXPORT_SYMBOL(rtnl_lock);
-EXPORT_SYMBOL(rtnl_lock_interruptible);
-EXPORT_SYMBOL(rtnl_sem);
+EXPORT_SYMBOL(rtnl_trylock);
 EXPORT_SYMBOL(rtnl_unlock);

@@ -907,6 +907,7 @@ struct tcamsg
 #ifdef __KERNEL__
 
 #include <linux/config.h>
+#include <linux/mutex.h>
 
 extern size_t rtattr_strlcpy(char *dest, const struct rtattr *rta, size_t size);
 static __inline__ int rtattr_strcmp(const struct rtattr *rta, const char *str)
@@ -1038,24 +1039,17 @@ __rta_reserve(struct sk_buff *skb, int attrtype, int attrlen)
 
 extern void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change);
 
-extern struct semaphore rtnl_sem;
-
-#define rtnl_shlock()		down(&rtnl_sem)
-#define rtnl_shlock_nowait()	down_trylock(&rtnl_sem)
-
-#define rtnl_shunlock()	do { up(&rtnl_sem); \
-		             if (rtnl && rtnl->sk_receive_queue.qlen) \
-				     rtnl->sk_data_ready(rtnl, 0); \
-		        } while(0)
-
+/* RTNL is used as a global lock for all changes to network configuration  */
 extern void rtnl_lock(void);
-extern int rtnl_lock_interruptible(void);
 extern void rtnl_unlock(void);
+extern int rtnl_trylock(void);
+
 extern void rtnetlink_init(void);
+extern void __rtnl_unlock(void);
 
 #define ASSERT_RTNL() do { \
-	if (unlikely(down_trylock(&rtnl_sem) == 0)) { \
-		up(&rtnl_sem); \
+	if (unlikely(rtnl_trylock())) { \
+		rtnl_unlock(); \
 		printk(KERN_ERR "RTNL: assertion failed at %s (%d)\n", \
 		       __FILE__,  __LINE__); \
 		dump_stack(); \
