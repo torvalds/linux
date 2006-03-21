@@ -50,6 +50,32 @@ static struct sysfs_dirent * sysfs_new_dirent(struct sysfs_dirent * parent_sd,
 	return sd;
 }
 
+/**
+ *
+ * Return -EEXIST if there is already a sysfs element with the same name for
+ * the same parent.
+ *
+ * called with parent inode's i_mutex held
+ */
+int sysfs_dirent_exist(struct sysfs_dirent *parent_sd,
+			  const unsigned char *new)
+{
+	struct sysfs_dirent * sd;
+
+	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
+		if (sd->s_element) {
+			const unsigned char *existing = sysfs_get_name(sd);
+			if (strcmp(existing, new))
+				continue;
+			else
+				return -EEXIST;
+		}
+	}
+
+	return 0;
+}
+
+
 int sysfs_make_dirent(struct sysfs_dirent * parent_sd, struct dentry * dentry,
 			void * element, umode_t mode, int type)
 {
@@ -102,7 +128,11 @@ static int create_dir(struct kobject * k, struct dentry * p,
 	mutex_lock(&p->d_inode->i_mutex);
 	*d = lookup_one_len(n, p, strlen(n));
 	if (!IS_ERR(*d)) {
-		error = sysfs_make_dirent(p->d_fsdata, *d, k, mode, SYSFS_DIR);
+ 		if (sysfs_dirent_exist(p->d_fsdata, n))
+  			error = -EEXIST;
+  		else
+			error = sysfs_make_dirent(p->d_fsdata, *d, k, mode,
+								SYSFS_DIR);
 		if (!error) {
 			error = sysfs_create(*d, mode, init_dir);
 			if (!error) {
@@ -302,6 +332,7 @@ void sysfs_remove_dir(struct kobject * kobj)
 	 * Drop reference from dget() on entrance.
 	 */
 	dput(dentry);
+	kobj->dentry = NULL;
 }
 
 int sysfs_rename_dir(struct kobject * kobj, const char *new_name)
@@ -479,7 +510,3 @@ struct file_operations sysfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= sysfs_readdir,
 };
-
-EXPORT_SYMBOL_GPL(sysfs_create_dir);
-EXPORT_SYMBOL_GPL(sysfs_remove_dir);
-EXPORT_SYMBOL_GPL(sysfs_rename_dir);

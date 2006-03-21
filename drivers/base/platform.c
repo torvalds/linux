@@ -61,7 +61,7 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 {
 	struct resource *r = platform_get_resource(dev, IORESOURCE_IRQ, num);
 
-	return r ? r->start : 0;
+	return r ? r->start : -ENXIO;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq);
 
@@ -98,7 +98,7 @@ int platform_get_irq_byname(struct platform_device *dev, char *name)
 {
 	struct resource *r = platform_get_resource_byname(dev, IORESOURCE_IRQ, name);
 
-	return r ? r->start : 0;
+	return r ? r->start : -ENXIO;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq_byname);
 
