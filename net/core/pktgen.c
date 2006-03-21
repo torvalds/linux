@@ -113,6 +113,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -180,8 +181,8 @@
 #define T_REMDEV      (1<<4)	/* Remove one dev */
 
 /* Locks */
-#define   thread_lock()        down(&pktgen_sem)
-#define   thread_unlock()      up(&pktgen_sem)
+#define   thread_lock()        mutex_lock(&pktgen_thread_lock)
+#define   thread_unlock()      mutex_unlock(&pktgen_thread_lock)
 
 /* If lock -- can be removed after some work */
 #define   if_lock(t)           spin_lock(&(t->if_lock));
@@ -493,7 +494,7 @@ static int pg_delay_d;
 static int pg_clone_skb_d;
 static int debug;
 
-static DECLARE_MUTEX(pktgen_sem);
+static DEFINE_MUTEX(pktgen_thread_lock);
 static LIST_HEAD(pktgen_threads);
 
 static struct notifier_block pktgen_notifier_block = {
