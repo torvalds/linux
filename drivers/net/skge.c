@@ -2307,16 +2307,13 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	int i;
 	u32 control, len;
 	u64 map;
-	unsigned long flags;
 
 	skb = skb_padto(skb, ETH_ZLEN);
 	if (!skb)
 		return NETDEV_TX_OK;
 
-	local_irq_save(flags);
 	if (!spin_trylock(&skge->tx_lock)) {
  		/* Collision - tell upper layer to requeue */
- 		local_irq_restore(flags);
  		return NETDEV_TX_LOCKED;
  	}
 
@@ -2327,7 +2324,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 			printk(KERN_WARNING PFX "%s: ring full when queue awake!\n",
 			       dev->name);
 		}
-		spin_unlock_irqrestore(&skge->tx_lock, flags);
+		spin_unlock(&skge->tx_lock);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -2403,7 +2400,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	dev->trans_start = jiffies;
-	spin_unlock_irqrestore(&skge->tx_lock, flags);
+	spin_unlock(&skge->tx_lock);
 
 	return NETDEV_TX_OK;
 }
@@ -2416,7 +2413,7 @@ static inline void skge_tx_free(struct skge_hw *hw, struct skge_element *e)
 			       pci_unmap_addr(e, mapaddr),
 			       pci_unmap_len(e, maplen),
 			       PCI_DMA_TODEVICE);
-		dev_kfree_skb_any(e->skb);
+		dev_kfree_skb(e->skb);
 		e->skb = NULL;
 	} else {
 		pci_unmap_page(hw->pdev,
@@ -2430,15 +2427,14 @@ static void skge_tx_clean(struct skge_port *skge)
 {
 	struct skge_ring *ring = &skge->tx_ring;
 	struct skge_element *e;
-	unsigned long flags;
 
-	spin_lock_irqsave(&skge->tx_lock, flags);
+	spin_lock_bh(&skge->tx_lock);
 	for (e = ring->to_clean; e != ring->to_use; e = e->next) {
 		++skge->tx_avail;
 		skge_tx_free(skge->hw, e);
 	}
 	ring->to_clean = e;
-	spin_unlock_irqrestore(&skge->tx_lock, flags);
+	spin_unlock_bh(&skge->tx_lock);
 }
 
 static void skge_tx_timeout(struct net_device *dev)
@@ -2663,6 +2659,37 @@ resubmit:
 	return NULL;
 }
 
+static void skge_tx_done(struct skge_port *skge)
+{
+	struct skge_ring *ring = &skge->tx_ring;
+	struct skge_element *e;
+
+	spin_lock(&skge->tx_lock);
+	for (e = ring->to_clean; prefetch(e->next), e != ring->to_use; e = e->next) {
+		struct skge_tx_desc *td = e->desc;
+		u32 control;
+
+		rmb();
+		control = td->control;
+		if (control & BMU_OWN)
+			break;
+
+		if (unlikely(netif_msg_tx_done(skge)))
+			printk(KERN_DEBUG PFX "%s: tx done slot %td status 0x%x\n",
+			       skge->netdev->name, e - ring->start, td->status);
+
+		skge_tx_free(skge->hw, e);
+		e->skb = NULL;
+		++skge->tx_avail;
+	}
+	ring->to_clean = e;
+	skge_write8(skge->hw, Q_ADDR(txqaddr[skge->port], Q_CSR), CSR_IRQ_CL_F);
+
+	if (skge->tx_avail > MAX_SKB_FRAGS + 1)
+		netif_wake_queue(skge->netdev);
+
+	spin_unlock(&skge->tx_lock);
+}
 
 static int skge_poll(struct net_device *dev, int *budget)
 {
@@ -2670,8 +2697,10 @@ static int skge_poll(struct net_device *dev, int *budget)
 	struct skge_hw *hw = skge->hw;
 	struct skge_ring *ring = &skge->rx_ring;
 	struct skge_element *e;
-	unsigned int to_do = min(dev->quota, *budget);
-	unsigned int work_done = 0;
+	int to_do = min(dev->quota, *budget);
+	int work_done = 0;
+
+	skge_tx_done(skge);
 
 	for (e = ring->to_clean; prefetch(e->next), work_done < to_do; e = e->next) {
 		struct skge_rx_desc *rd = e->desc;
@@ -2712,40 +2741,6 @@ static int skge_poll(struct net_device *dev, int *budget)
  	spin_unlock_irq(&hw->hw_lock);
 
 	return 0;
-}
-
-static inline void skge_tx_intr(struct net_device *dev)
-{
-	struct skge_port *skge = netdev_priv(dev);
-	struct skge_hw *hw = skge->hw;
-	struct skge_ring *ring = &skge->tx_ring;
-	struct skge_element *e;
-
-	spin_lock(&skge->tx_lock);
-	for (e = ring->to_clean; prefetch(e->next), e != ring->to_use; e = e->next) {
-		struct skge_tx_desc *td = e->desc;
-		u32 control;
-
-		rmb();
-		control = td->control;
-		if (control & BMU_OWN)
-			break;
-
-		if (unlikely(netif_msg_tx_done(skge)))
-			printk(KERN_DEBUG PFX "%s: tx done slot %td status 0x%x\n",
-			       dev->name, e - ring->start, td->status);
-
-		skge_tx_free(hw, e);
-		e->skb = NULL;
-		++skge->tx_avail;
-	}
-	ring->to_clean = e;
-	skge_write8(hw, Q_ADDR(txqaddr[skge->port], Q_CSR), CSR_IRQ_CL_F);
-
-	if (skge->tx_avail > MAX_SKB_FRAGS + 1)
-		netif_wake_queue(dev);
-
-	spin_unlock(&skge->tx_lock);
 }
 
 /* Parity errors seem to happen when Genesis is connected to a switch
@@ -2884,23 +2879,17 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 		return IRQ_NONE;
 
 	spin_lock(&hw->hw_lock);
-	if (status & IS_R1_F) {
+	if (status & (IS_R1_F|IS_XA1_F)) {
 		skge_write8(hw, Q_ADDR(Q_R1, Q_CSR), CSR_IRQ_CL_F);
-		hw->intr_mask &= ~IS_R1_F;
+		hw->intr_mask &= ~(IS_R1_F|IS_XA1_F);
 		netif_rx_schedule(hw->dev[0]);
 	}
 
-	if (status & IS_R2_F) {
+	if (status & (IS_R2_F|IS_XA2_F)) {
 		skge_write8(hw, Q_ADDR(Q_R2, Q_CSR), CSR_IRQ_CL_F);
-		hw->intr_mask &= ~IS_R2_F;
+		hw->intr_mask &= ~(IS_R2_F|IS_XA2_F);
 		netif_rx_schedule(hw->dev[1]);
 	}
-
-	if (status & IS_XA1_F)
-		skge_tx_intr(hw->dev[0]);
-
-	if (status & IS_XA2_F)
-		skge_tx_intr(hw->dev[1]);
 
 	if (status & IS_PA_TO_RX1) {
 		struct skge_port *skge = netdev_priv(hw->dev[0]);
