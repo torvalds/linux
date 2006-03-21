@@ -20,14 +20,14 @@
 #define __initdata
 #endif
 
-#include "./ip2/ip2types.h"		
-#include "./ip2/fip_firm.h"		// the meat
+#include "ip2types.h"		
+#include "fip_firm.h"		// the meat
 
 int
 ip2_loadmain(int *, int  *, unsigned char *, int ); // ref into ip2main.c
 
 /* Note: Add compiled in defaults to these arrays, not to the structure
-	in ip2/ip2.h any longer.  That structure WILL get overridden
+	in ip2.h any longer.  That structure WILL get overridden
 	by these values, or command line values, or insmod values!!!  =mhw=
 */
 static int io[IP2_MAX_BOARDS]= { 0, 0, 0, 0 };

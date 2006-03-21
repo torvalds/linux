@@ -35,7 +35,7 @@
 // Clean up potential NULL pointer dereferences
 // Clean up devfs registration
 // Add kernel command line parsing for io and irq
-//	Compile defaults for io and irq are now set in ip2.c not ip2/ip2.h!
+//	Compile defaults for io and irq are now set in ip2.c not ip2.h!
 // Reworked poll_only hack for explicit parameter setting
 //	You must now EXPLICITLY set poll_only = 1 or set all irqs to 0
 // Merged ip2_loadmain and old_ip2_init
@@ -123,12 +123,12 @@
 
 #include <asm/uaccess.h>
 
-#include "./ip2/ip2types.h"
-#include "./ip2/ip2trace.h"
-#include "./ip2/ip2ioctl.h"
-#include "./ip2/ip2.h"
-#include "./ip2/i2ellis.h"
-#include "./ip2/i2lib.h"
+#include "ip2types.h"
+#include "ip2trace.h"
+#include "ip2ioctl.h"
+#include "ip2.h"
+#include "i2ellis.h"
+#include "i2lib.h"
 
 /*****************
  * /proc/ip2mem  *
@@ -282,9 +282,9 @@ static int tracewrap;
 /* Code */
 /********/
 
-#include "./ip2/i2ellis.c"    /* Extremely low-level interface services */
-#include "./ip2/i2cmd.c"      /* Standard loadware command definitions */
-#include "./ip2/i2lib.c"      /* High level interface services */
+#include "i2ellis.c"    /* Extremely low-level interface services */
+#include "i2cmd.c"      /* Standard loadware command definitions */
+#include "i2lib.c"      /* High level interface services */
 
 /* Configuration area for modprobe */
 
