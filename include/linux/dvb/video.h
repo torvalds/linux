@@ -135,7 +135,7 @@ typedef struct video_spu {
 
 typedef struct video_spu_palette {      /* SPU Palette information */
 	int length;
-	uint8_t *palette;
+	uint8_t __user *palette;
 } video_spu_palette_t;
 
 

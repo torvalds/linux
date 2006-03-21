@@ -44,7 +44,7 @@ unsigned int get_clk_frequency_khz( int info)
 
 	/* Read clkcfg register: it has turbo, b, half-turbo (and f) */
 	asm( "mrc\tp14, 0, %0, c6, c0, 0" : "=r" (clkcfg) );
-	t  = clkcfg & (1 << 1);
+	t  = clkcfg & (1 << 0);
 	ht = clkcfg & (1 << 2);
 	b  = clkcfg & (1 << 3);
 

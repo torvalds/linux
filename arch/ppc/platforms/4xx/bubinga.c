@@ -97,8 +97,8 @@ bubinga_early_serial_map(void)
 	port.irq = ACTING_UART0_INT;
 	port.uartclk = uart_clock;
 	port.regshift = 0;
-	port.iotype = SERIAL_IO_MEM;
-	port.flags = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
+	port.iotype = UPIO_MEM;
+	port.flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST;
 	port.line = 0;
 
 	if (early_serial_setup(&port) != 0) {

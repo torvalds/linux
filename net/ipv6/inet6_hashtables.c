@@ -87,7 +87,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 				     struct inet_timewait_sock **twp)
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
-	const struct inet_sock *inet = inet_sk(sk);
+	struct inet_sock *inet = inet_sk(sk);
 	const struct ipv6_pinfo *np = inet6_sk(sk);
 	const struct in6_addr *daddr = &np->rcv_saddr;
 	const struct in6_addr *saddr = &np->daddr;
@@ -129,6 +129,10 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	}
 
 unique:
+	/* Must record num and sport now. Otherwise we will see
+	 * in hash table socket with a funny identity. */
+	inet->num = lport;
+	inet->sport = htons(lport);
 	BUG_TRAP(sk_unhashed(sk));
 	__sk_add_node(sk, &head->chain);
 	sk->sk_hash = hash;

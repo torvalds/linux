@@ -422,7 +422,8 @@ static void intel_i830_init_gtt_entries(void)
 			/* Check it's really I915G */
 			if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915G_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB ||
-			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945G_HB)
+			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945G_HB ||
+			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GM_HB)
 				gtt_entries = MB(48) - KB(size);
 			else
 				gtt_entries = 0;
@@ -431,7 +432,8 @@ static void intel_i830_init_gtt_entries(void)
 			/* Check it's really I915G */
 			if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915G_HB ||
 			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82915GM_HB ||
-			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945G_HB)
+			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945G_HB ||
+			    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82945GM_HB)
 				gtt_entries = MB(64) - KB(size);
 			else
 				gtt_entries = 0;
@@ -1681,6 +1683,14 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 		}
 		name = "945G";
 		break;
+	case PCI_DEVICE_ID_INTEL_82945GM_HB:
+		if (find_i830(PCI_DEVICE_ID_INTEL_82945GM_IG)) {
+			bridge->driver = &intel_915_driver;
+		} else {
+			bridge->driver = &intel_845_driver;
+		}
+		name = "945GM";
+		break;
 	case PCI_DEVICE_ID_INTEL_7505_0:
 		bridge->driver = &intel_7505_driver;
 		name = "E7505";
@@ -1821,6 +1831,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_82915G_HB),
 	ID(PCI_DEVICE_ID_INTEL_82915GM_HB),
 	ID(PCI_DEVICE_ID_INTEL_82945G_HB),
+	ID(PCI_DEVICE_ID_INTEL_82945GM_HB),
 	{ }
 };
 

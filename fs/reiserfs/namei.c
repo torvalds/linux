@@ -247,7 +247,7 @@ static int linear_search_in_dir_item(struct cpu_key *key,
 		/* mark, that this generation number is used */
 		if (de->de_gen_number_bit_string)
 			set_bit(GET_GENERATION_NUMBER(deh_offset(deh)),
-				(unsigned long *)de->de_gen_number_bit_string);
+				de->de_gen_number_bit_string);
 
 		// calculate pointer to name and namelen
 		de->de_entry_num = i;
@@ -431,7 +431,7 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 	struct reiserfs_de_head *deh;
 	INITIALIZE_PATH(path);
 	struct reiserfs_dir_entry de;
-	int bit_string[MAX_GENERATION_NUMBER / (sizeof(int) * 8) + 1];
+	DECLARE_BITMAP(bit_string, MAX_GENERATION_NUMBER + 1);
 	int gen_number;
 	char small_buf[32 + DEH_SIZE];	/* 48 bytes now and we avoid kmalloc
 					   if we create file with short name */
@@ -456,7 +456,7 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 	/* get memory for composing the entry */
 	buflen = DEH_SIZE + ROUND_UP(namelen);
 	if (buflen > sizeof(small_buf)) {
-		buffer = reiserfs_kmalloc(buflen, GFP_NOFS, dir->i_sb);
+		buffer = kmalloc(buflen, GFP_NOFS);
 		if (buffer == 0)
 			return -ENOMEM;
 	} else
@@ -486,11 +486,11 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 
 	/* find the proper place for the new entry */
 	memset(bit_string, 0, sizeof(bit_string));
-	de.de_gen_number_bit_string = (char *)bit_string;
+	de.de_gen_number_bit_string = bit_string;
 	retval = reiserfs_find_entry(dir, name, namelen, &path, &de);
 	if (retval != NAME_NOT_FOUND) {
 		if (buffer != small_buf)
-			reiserfs_kfree(buffer, buflen, dir->i_sb);
+			kfree(buffer);
 		pathrelse(&path);
 
 		if (retval == IO_ERROR) {
@@ -508,14 +508,14 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 	}
 
 	gen_number =
-	    find_first_zero_bit((unsigned long *)bit_string,
+	    find_first_zero_bit(bit_string,
 				MAX_GENERATION_NUMBER + 1);
 	if (gen_number > MAX_GENERATION_NUMBER) {
 		/* there is no free generation number */
 		reiserfs_warning(dir->i_sb,
 				 "reiserfs_add_entry: Congratulations! we have got hash function screwed up");
 		if (buffer != small_buf)
-			reiserfs_kfree(buffer, buflen, dir->i_sb);
+			kfree(buffer);
 		pathrelse(&path);
 		return -EBUSY;
 	}
@@ -535,7 +535,7 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 					 &entry_key);
 
 			if (buffer != small_buf)
-				reiserfs_kfree(buffer, buflen, dir->i_sb);
+				kfree(buffer);
 			pathrelse(&path);
 			return -EBUSY;
 		}
@@ -546,7 +546,7 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 	    reiserfs_paste_into_item(th, &path, &entry_key, dir, buffer,
 				     paste_size);
 	if (buffer != small_buf)
-		reiserfs_kfree(buffer, buflen, dir->i_sb);
+		kfree(buffer);
 	if (retval) {
 		reiserfs_check_path(&path);
 		return retval;
@@ -1065,7 +1065,7 @@ static int reiserfs_symlink(struct inode *parent_dir,
 		goto out_failed;
 	}
 
-	name = reiserfs_kmalloc(item_len, GFP_NOFS, parent_dir->i_sb);
+	name = kmalloc(item_len, GFP_NOFS);
 	if (!name) {
 		drop_new_inode(inode);
 		retval = -ENOMEM;
@@ -1079,14 +1079,14 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	retval = journal_begin(&th, parent_dir->i_sb, jbegin_count);
 	if (retval) {
 		drop_new_inode(inode);
-		reiserfs_kfree(name, item_len, parent_dir->i_sb);
+		kfree(name);
 		goto out_failed;
 	}
 
 	retval =
 	    reiserfs_new_inode(&th, parent_dir, mode, name, strlen(symname),
 			       dentry, inode);
-	reiserfs_kfree(name, item_len, parent_dir->i_sb);
+	kfree(name);
 	if (retval) {		/* reiserfs_new_inode iputs for us */
 		goto out_failed;
 	}

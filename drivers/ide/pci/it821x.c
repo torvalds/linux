@@ -733,7 +733,7 @@ static void __devinit it8212_disable_raid(struct pci_dev *dev)
 
 	pci_write_config_dword(dev,0x4C, 0x02040204);
 	pci_write_config_byte(dev, 0x42, 0x36);
-	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0);
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x20);
 }
 
 static unsigned int __devinit init_chipset_it821x(struct pci_dev *dev, const char *name)

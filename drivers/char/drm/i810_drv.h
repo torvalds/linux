@@ -113,8 +113,6 @@ typedef struct drm_i810_private {
 } drm_i810_private_t;
 
 				/* i810_dma.c */
-extern void i810_reclaim_buffers(drm_device_t * dev, struct file *filp);
-
 extern int i810_driver_dma_quiescent(drm_device_t * dev);
 extern void i810_driver_reclaim_buffers_locked(drm_device_t * dev,
 					       struct file *filp);

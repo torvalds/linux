@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -747,7 +747,7 @@ const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode)
 
 	/* Unknown AML opcode */
 
-	ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 			  "Unknown AML opcode [%4.4X]\n", opcode));
 
 	return (&acpi_gbl_aml_op_info[_UNK]);

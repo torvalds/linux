@@ -51,8 +51,11 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/pm.h>
 #include <linux/timex.h>
 #include <linux/vmalloc.h>
+#include <linux/mv643xx.h>
+
 #include <asm/time.h>
 #include <asm/bootinfo.h>
 #include <asm/page.h>
@@ -62,9 +65,9 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/reboot.h>
+#include <asm/marvell.h>
 #include <linux/bootmem.h>
 #include <linux/blkdev.h>
-#include <asm/mv64340.h>
 #include "ocelot_c_fpga.h"
 
 unsigned long marvell_base;
@@ -236,7 +239,7 @@ void __init plat_setup(void)
 
 	_machine_restart = momenco_ocelot_restart;
 	_machine_halt = momenco_ocelot_halt;
-	_machine_power_off = momenco_ocelot_power_off;
+	pm_power_off = momenco_ocelot_power_off;
 
 	/*
 	 * initrd_start = (ulong)ocelot_initrd_start;
@@ -250,22 +253,22 @@ void __init plat_setup(void)
 	/* shut down ethernet ports, just to be sure our memory doesn't get
 	 * corrupted by random ethernet traffic.
 	 */
-	MV_WRITE(MV64340_ETH_TRANSMIT_QUEUE_COMMAND_REG(0), 0xff << 8);
-	MV_WRITE(MV64340_ETH_TRANSMIT_QUEUE_COMMAND_REG(1), 0xff << 8);
-	MV_WRITE(MV64340_ETH_RECEIVE_QUEUE_COMMAND_REG(0), 0xff << 8);
-	MV_WRITE(MV64340_ETH_RECEIVE_QUEUE_COMMAND_REG(1), 0xff << 8);
+	MV_WRITE(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(0), 0xff << 8);
+	MV_WRITE(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(1), 0xff << 8);
+	MV_WRITE(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(0), 0xff << 8);
+	MV_WRITE(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(1), 0xff << 8);
 	do {}
-	  while (MV_READ(MV64340_ETH_RECEIVE_QUEUE_COMMAND_REG(0)) & 0xff);
+	  while (MV_READ(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(0)) & 0xff);
 	do {}
-	  while (MV_READ(MV64340_ETH_RECEIVE_QUEUE_COMMAND_REG(1)) & 0xff);
+	  while (MV_READ(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(1)) & 0xff);
 	do {}
-	  while (MV_READ(MV64340_ETH_TRANSMIT_QUEUE_COMMAND_REG(0)) & 0xff);
+	  while (MV_READ(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(0)) & 0xff);
 	do {}
-	  while (MV_READ(MV64340_ETH_TRANSMIT_QUEUE_COMMAND_REG(1)) & 0xff);
-	MV_WRITE(MV64340_ETH_PORT_SERIAL_CONTROL_REG(0),
-	         MV_READ(MV64340_ETH_PORT_SERIAL_CONTROL_REG(0)) & ~1);
-	MV_WRITE(MV64340_ETH_PORT_SERIAL_CONTROL_REG(1),
-	         MV_READ(MV64340_ETH_PORT_SERIAL_CONTROL_REG(1)) & ~1);
+	  while (MV_READ(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(1)) & 0xff);
+	MV_WRITE(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(0),
+	         MV_READ(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(0)) & ~1);
+	MV_WRITE(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(1),
+	         MV_READ(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(1)) & ~1);
 
 	/* Turn off the Bit-Error LED */
 	OCELOT_FPGA_WRITE(0x80, CLR);

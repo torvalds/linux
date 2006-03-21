@@ -305,7 +305,7 @@
 #define __NR_mknodat		286
 #define __NR_fchownat		287
 #define __NR_futimesat		288
-#define __NR_newfstatat		289
+#define __NR_fstatat64		289
 #define __NR_unlinkat		290
 #define __NR_renameat		291
 #define __NR_linkat		292
@@ -315,11 +315,12 @@
 #define __NR_faccessat		296
 #define __NR_pselect6		297
 #define __NR_ppoll		298
+#define __NR_unshare		299
 
-/* WARNING: You MAY NOT add syscall numbers larger than 298, since
+/* WARNING: You MAY NOT add syscall numbers larger than 299, since
  *          all of the syscall tables in the Sparc kernel are
- *          sized to have 298 entries (starting at zero).  Therefore
- *          find a free slot in the 0-298 range.
+ *          sized to have 299 entries (starting at zero).  Therefore
+ *          find a free slot in the 0-299 range.
  */
 
 #define _syscall0(type,name) \

@@ -142,7 +142,7 @@ __ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
  		return NULL;
  	addr = (unsigned long)area->addr;
  	if (remap_area_pages(addr, pfn, size, flags)) {
- 		vfree(addr);
+ 		vfree((void *)addr);
  		return NULL;
  	}
  	return (void __iomem *) (offset + (char *)addr);

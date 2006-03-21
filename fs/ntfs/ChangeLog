@@ -1,9 +1,9 @@
 ToDo/Notes:
 	- Find and fix bugs.
 	- The only places in the kernel where a file is resized are
-	  ntfs_file_write*() and ntfs_truncate() for both of which i_sem is
+	  ntfs_file_write*() and ntfs_truncate() for both of which i_mutex is
 	  held.  Just have to be careful in read-/writepage and other helpers
-	  not running under i_sem that we play nice...  Also need to be careful
+	  not running under i_mutex that we play nice.  Also need to be careful
 	  with initialized_size extension in ntfs_file_write*() and writepage.
 	  UPDATE: The only things that need to be checked are the compressed
 	  write and the other attribute resize/write cases like index
@@ -18,6 +18,24 @@ ToDo/Notes:
 	  the problem.
 	- Enable the code for setting the NT4 compatibility flag when we start
 	  making NTFS 1.2 specific modifications.
+
+2.1.26 - Minor bug fixes and updates.
+
+	- Fix a potential overflow in file.c where a cast to s64 was missing in
+	  a left shift of a page index.
+	- The struct inode has had its i_sem semaphore changed to a mutex named
+	  i_mutex.
+	- We have struct kmem_cache now so use it instead of the typedef
+	  kmem_cache_t.  (Pekka Enberg)
+	- Implement support for sector sizes above 512 bytes (up to the maximum
+	  supported by NTFS which is 4096 bytes).
+	- Do more detailed reporting of why we cannot mount read-write by
+	  special casing the VOLUME_MODIFIED_BY_CHKDSK flag.
+	- Miscellaneous updates to layout.h.
+	- Cope with attribute list attribute having invalid flags.  Windows
+	  copes with this and even chkdsk does not detect or fix this so we
+	  have to cope with it, too.  Thanks to Pawel Kot for reporting the
+	  problem.
 
 2.1.25 - (Almost) fully implement write(2) and truncate(2).
 
@@ -373,7 +391,7 @@ ToDo/Notes:
 	  single one of them had an mst error.  (Thanks to Ken MacFerrin for
 	  the bug report.)
 	- Fix error handling in fs/ntfs/quota.c::ntfs_mark_quotas_out_of_date()
-	  where we failed to release i_sem on the $Quota/$Q attribute inode.
+	  where we failed to release i_mutex on the $Quota/$Q attribute inode.
 	- Fix bug in handling of bad inodes in fs/ntfs/namei.c::ntfs_lookup().
 	- Add mapping of unmapped buffers to all remaining code paths, i.e.
 	  fs/ntfs/aops.c::ntfs_write_mst_block(), mft.c::ntfs_sync_mft_mirror(),
@@ -874,7 +892,7 @@ ToDo/Notes:
 	  clusters. (Philipp Thomas)
 	- attrib.c::load_attribute_list(): Fix bug when initialized_size is a
 	  multiple of the block_size but not the cluster size. (Szabolcs
-	  Szakacsits <szaka@sienet.hu>)
+	  Szakacsits)
 
 2.1.2 - Important bug fixes aleviating the hangs in statfs.
 
@@ -884,7 +902,7 @@ ToDo/Notes:
 
 	- Add handling for initialized_size != data_size in compressed files.
 	- Reduce function local stack usage from 0x3d4 bytes to just noise in
-	  fs/ntfs/upcase.c. (Randy Dunlap <rdunlap@xenotime.net>)
+	  fs/ntfs/upcase.c. (Randy Dunlap)
 	- Remove compiler warnings for newer gcc.
 	- Pages are no longer kmapped by mm/filemap.c::generic_file_write()
 	  around calls to ->{prepare,commit}_write.  Adapt NTFS appropriately
@@ -1201,11 +1219,11 @@ ToDo/Notes:
 	  the kernel. We probably want a kernel generic init_address_space()
 	  function...
 	- Drop BKL from ntfs_readdir() after consultation with Al Viro. The
-	  only caller of ->readdir() is vfs_readdir() which holds i_sem during
-	  the call, and i_sem is sufficient protection against changes in the
-	  directory inode (including ->i_size).
+	  only caller of ->readdir() is vfs_readdir() which holds i_mutex
+	  during the call, and i_mutex is sufficient protection against changes
+	  in the directory inode (including ->i_size).
 	- Use generic_file_llseek() for directories (as opposed to
-	  default_llseek()) as this downs i_sem instead of the BKL which is
+	  default_llseek()) as this downs i_mutex instead of the BKL which is
 	  what we now need for exclusion against ->f_pos changes considering we
 	  no longer take the BKL in ntfs_readdir().
 

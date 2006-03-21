@@ -462,7 +462,7 @@ static int __init mux_probe(struct parisc_device *dev)
 		port->mapbase	= dev->hpa.start + MUX_OFFSET +
 						(i * MUX_LINE_OFFSET);
 		port->membase	= ioremap(port->mapbase, MUX_LINE_OFFSET);
-		port->iotype	= SERIAL_IO_MEM;
+		port->iotype	= UPIO_MEM;
 		port->type	= PORT_MUX;
 		port->irq	= NO_IRQ;
 		port->uartclk	= 0;

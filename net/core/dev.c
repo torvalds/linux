@@ -2543,13 +2543,14 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 		case SIOCBONDENSLAVE:
 		case SIOCBONDRELEASE:
 		case SIOCBONDSETHWADDR:
-		case SIOCBONDSLAVEINFOQUERY:
-		case SIOCBONDINFOQUERY:
 		case SIOCBONDCHANGEACTIVE:
 		case SIOCBRADDIF:
 		case SIOCBRDELIF:
 			if (!capable(CAP_NET_ADMIN))
 				return -EPERM;
+			/* fall through */
+		case SIOCBONDSLAVEINFOQUERY:
+		case SIOCBONDINFOQUERY:
 			dev_load(ifr.ifr_name);
 			rtnl_lock();
 			ret = dev_ifsioc(&ifr, cmd);
@@ -3236,7 +3237,7 @@ static int __init net_dev_init(void)
 	 *	Initialise the packet receive queues.
 	 */
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_cpu(i) {
 		struct softnet_data *queue;
 
 		queue = &per_cpu(softnet_data, i);

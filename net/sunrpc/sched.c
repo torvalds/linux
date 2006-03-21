@@ -515,16 +515,14 @@ struct rpc_task * rpc_wake_up_next(struct rpc_wait_queue *queue)
  */
 void rpc_wake_up(struct rpc_wait_queue *queue)
 {
-	struct rpc_task *task;
-
+	struct rpc_task *task, *next;
 	struct list_head *head;
+
 	spin_lock_bh(&queue->lock);
 	head = &queue->tasks[queue->maxpriority];
 	for (;;) {
-		while (!list_empty(head)) {
-			task = list_entry(head->next, struct rpc_task, u.tk_wait.list);
+		list_for_each_entry_safe(task, next, head, u.tk_wait.list)
 			__rpc_wake_up_task(task);
-		}
 		if (head == &queue->tasks[0])
 			break;
 		head--;
@@ -541,14 +539,13 @@ void rpc_wake_up(struct rpc_wait_queue *queue)
  */
 void rpc_wake_up_status(struct rpc_wait_queue *queue, int status)
 {
+	struct rpc_task *task, *next;
 	struct list_head *head;
-	struct rpc_task *task;
 
 	spin_lock_bh(&queue->lock);
 	head = &queue->tasks[queue->maxpriority];
 	for (;;) {
-		while (!list_empty(head)) {
-			task = list_entry(head->next, struct rpc_task, u.tk_wait.list);
+		list_for_each_entry_safe(task, next, head, u.tk_wait.list) {
 			task->tk_status = status;
 			__rpc_wake_up_task(task);
 		}
@@ -908,10 +905,10 @@ void rpc_release_task(struct rpc_task *task)
 
 /**
  * rpc_run_task - Allocate a new RPC task, then run rpc_execute against it
- * @clnt - pointer to RPC client
- * @flags - RPC flags
- * @ops - RPC call ops
- * @data - user call data
+ * @clnt: pointer to RPC client
+ * @flags: RPC flags
+ * @ops: RPC call ops
+ * @data: user call data
  */
 struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
 					const struct rpc_call_ops *ops,
@@ -930,6 +927,7 @@ EXPORT_SYMBOL(rpc_run_task);
 /**
  * rpc_find_parent - find the parent of a child task.
  * @child: child task
+ * @parent: parent task
  *
  * Checks that the parent task is still sleeping on the
  * queue 'childq'. If so returns a pointer to the parent.

@@ -188,6 +188,19 @@ static enum dlm_status dlmunlock_common(struct dlm_ctxt *dlm,
 			actions &= ~(DLM_UNLOCK_REMOVE_LOCK|
 				     DLM_UNLOCK_REGRANT_LOCK|
 				     DLM_UNLOCK_CLEAR_CONVERT_TYPE);
+		} else if (status == DLM_RECOVERING || 
+			   status == DLM_MIGRATING || 
+			   status == DLM_FORWARD) {
+			/* must clear the actions because this unlock
+			 * is about to be retried.  cannot free or do
+			 * any list manipulation. */
+			mlog(0, "%s:%.*s: clearing actions, %s\n",
+			     dlm->name, res->lockname.len,
+			     res->lockname.name,
+			     status==DLM_RECOVERING?"recovering":
+			     (status==DLM_MIGRATING?"migrating":
+			      "forward"));
+			actions = 0;
 		}
 		if (flags & LKM_CANCEL)
 			lock->cancel_pending = 0;

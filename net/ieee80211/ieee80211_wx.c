@@ -232,15 +232,18 @@ static char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 	return start;
 }
 
+#define SCAN_ITEM_SIZE 128
+
 int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 			  struct iw_request_info *info,
 			  union iwreq_data *wrqu, char *extra)
 {
 	struct ieee80211_network *network;
 	unsigned long flags;
+	int err = 0;
 
 	char *ev = extra;
-	char *stop = ev + IW_SCAN_MAX_DATA;
+	char *stop = ev + wrqu->data.length;
 	int i = 0;
 
 	IEEE80211_DEBUG_WX("Getting scan\n");
@@ -249,6 +252,11 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 
 	list_for_each_entry(network, &ieee->network_list, list) {
 		i++;
+		if (stop - ev < SCAN_ITEM_SIZE) {
+			err = -E2BIG;
+			break;
+		}
+
 		if (ieee->scan_age == 0 ||
 		    time_after(network->last_scanned + ieee->scan_age, jiffies))
 			ev = ipw2100_translate_scan(ieee, ev, stop, network);
@@ -270,7 +278,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 
 	IEEE80211_DEBUG_WX("exit: %d networks returned.\n", i);
 
-	return 0;
+	return err;
 }
 
 int ieee80211_wx_set_encode(struct ieee80211_device *ieee,

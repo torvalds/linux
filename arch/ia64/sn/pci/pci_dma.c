@@ -90,14 +90,14 @@ void *sn_dma_alloc_coherent(struct device *dev, size_t size,
 	 */
 	node = pcibus_to_node(pdev->bus);
 	if (likely(node >=0)) {
-		struct page *p = alloc_pages_node(node, GFP_ATOMIC, get_order(size));
+		struct page *p = alloc_pages_node(node, flags, get_order(size));
 
 		if (likely(p))
 			cpuaddr = page_address(p);
 		else
 			return NULL;
 	} else
-		cpuaddr = (void *)__get_free_pages(GFP_ATOMIC, get_order(size));
+		cpuaddr = (void *)__get_free_pages(flags, get_order(size));
 
 	if (unlikely(!cpuaddr))
 		return NULL;
@@ -335,10 +335,10 @@ int sn_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
 	 */
 
 	SAL_CALL(isrv, SN_SAL_IOIF_PCI_SAFE,
-		pci_domain_nr(bus), bus->number,
-		0, /* io */
-		0, /* read */
-		port, size, __pa(val));
+		 pci_domain_nr(bus), bus->number,
+		 0, /* io */
+		 0, /* read */
+		 port, size, __pa(val));
 
 	if (isrv.status == 0)
 		return size;
@@ -381,10 +381,10 @@ int sn_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 	 */
 
 	SAL_CALL(isrv, SN_SAL_IOIF_PCI_SAFE,
-		pci_domain_nr(bus), bus->number,
-		0, /* io */
-		1, /* write */
-		port, size, __pa(&val));
+		 pci_domain_nr(bus), bus->number,
+		 0, /* io */
+		 1, /* write */
+		 port, size, __pa(&val));
 
 	if (isrv.status == 0)
 		return size;

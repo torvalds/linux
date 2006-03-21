@@ -50,7 +50,7 @@
  * All PHY configuration is done through the TSEC1 MIIM regs */
 int gfar_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value)
 {
-	struct gfar_mii *regs = bus->priv;
+	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
 
 	/* Set the PHY address and the register address we want to write */
 	gfar_write(&regs->miimadd, (mii_id << 8) | regnum);
@@ -70,7 +70,7 @@ int gfar_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value)
  * configuration has to be done through the TSEC1 MIIM regs */
 int gfar_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
-	struct gfar_mii *regs = bus->priv;
+	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
 	u16 value;
 
 	/* Set the PHY address and the register address we want to read */
@@ -94,7 +94,7 @@ int gfar_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 /* Reset the MIIM registers, and wait for the bus to free */
 int gfar_mdio_reset(struct mii_bus *bus)
 {
-	struct gfar_mii *regs = bus->priv;
+	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
 	unsigned int timeout = PHY_INIT_TIMEOUT;
 
 	spin_lock_bh(&bus->mdio_lock);
@@ -126,7 +126,7 @@ int gfar_mdio_probe(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gianfar_mdio_data *pdata;
-	struct gfar_mii *regs;
+	struct gfar_mii __iomem *regs;
 	struct mii_bus *new_bus;
 	struct resource *r;
 	int err = 0;
@@ -155,15 +155,14 @@ int gfar_mdio_probe(struct device *dev)
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	/* Set the PHY base address */
-	regs = (struct gfar_mii *) ioremap(r->start,
-			sizeof (struct gfar_mii));
+	regs = ioremap(r->start, sizeof (struct gfar_mii));
 
 	if (NULL == regs) {
 		err = -ENOMEM;
 		goto reg_map_fail;
 	}
 
-	new_bus->priv = regs;
+	new_bus->priv = (void __force *)regs;
 
 	new_bus->irq = pdata->irq;
 
@@ -181,7 +180,7 @@ int gfar_mdio_probe(struct device *dev)
 	return 0;
 
 bus_register_fail:
-	iounmap((void *) regs);
+	iounmap(regs);
 reg_map_fail:
 	kfree(new_bus);
 
@@ -197,7 +196,7 @@ int gfar_mdio_remove(struct device *dev)
 
 	dev_set_drvdata(dev, NULL);
 
-	iounmap((void *) (&bus->priv));
+	iounmap((void __iomem *)bus->priv);
 	bus->priv = NULL;
 	kfree(bus);
 

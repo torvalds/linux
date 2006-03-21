@@ -169,7 +169,7 @@ endif
 
 config CPU_H8300H
 	bool
-	depends on (H8002 || H83007 || H83048 || H83068)
+	depends on (H83002 || H83007 || H83048 || H83068)
 	default y
 
 config CPU_H8S

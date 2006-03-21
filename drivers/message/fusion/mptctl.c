@@ -136,6 +136,12 @@ static void mptctl_free_tm_flags(MPT_ADAPTER *ioc);
  */
 static int  mptctl_ioc_reset(MPT_ADAPTER *ioc, int reset_phase);
 
+/*
+ * Event Handler function
+ */
+static int mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply);
+struct fasync_struct *async_queue=NULL;
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  * Scatter gather list (SGL) sizes and limits...
@@ -385,18 +391,18 @@ static int mptctl_bus_reset(MPT_IOCTL *ioctl)
 	}
 
 	/* Now wait for the command to complete */
-	ii = wait_event_interruptible_timeout(mptctl_wait,
+	ii = wait_event_timeout(mptctl_wait,
 	     ioctl->wait_done == 1,
 	     HZ*5 /* 5 second timeout */);
 
 	if(ii <=0 && (ioctl->wait_done != 1 ))  {
+		mpt_free_msg_frame(hd->ioc, mf);
 		ioctl->wait_done = 0;
 		retval = -1; /* return failure */
 	}
 
 mptctl_bus_reset_done:
 
-	mpt_free_msg_frame(hd->ioc, mf);
 	mptctl_free_tm_flags(ioctl->ioc);
 	return retval;
 }
@@ -469,6 +475,69 @@ mptctl_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	}
 
 	return 1;
+}
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/* ASYNC Event Notification Support */
+static int
+mptctl_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
+{
+	u8 event;
+
+	event = le32_to_cpu(pEvReply->Event) & 0xFF;
+
+	dctlprintk(("%s() called\n", __FUNCTION__));
+	if(async_queue == NULL)
+		return 1;
+
+	/* Raise SIGIO for persistent events.
+	 * TODO - this define is not in MPI spec yet,
+	 * but they plan to set it to 0x21
+	 */
+	 if (event == 0x21 ) {
+		ioc->aen_event_read_flag=1;
+		dctlprintk(("Raised SIGIO to application\n"));
+		devtprintk(("Raised SIGIO to application\n"));
+		kill_fasync(&async_queue, SIGIO, POLL_IN);
+		return 1;
+	 }
+
+	/* This flag is set after SIGIO was raised, and
+	 * remains set until the application has read
+	 * the event log via ioctl=MPTEVENTREPORT
+	 */
+	if(ioc->aen_event_read_flag)
+		return 1;
+
+	/* Signal only for the events that are
+	 * requested for by the application
+	 */
+	if (ioc->events && (ioc->eventTypes & ( 1 << event))) {
+		ioc->aen_event_read_flag=1;
+		dctlprintk(("Raised SIGIO to application\n"));
+		devtprintk(("Raised SIGIO to application\n"));
+		kill_fasync(&async_queue, SIGIO, POLL_IN);
+	}
+	return 1;
+}
+
+static int
+mptctl_fasync(int fd, struct file *filep, int mode)
+{
+	MPT_ADAPTER	*ioc;
+
+	list_for_each_entry(ioc, &ioc_list, list)
+		ioc->aen_event_read_flag=0;
+
+	dctlprintk(("%s() called\n", __FUNCTION__));
+	return fasync_helper(fd, filep, mode, &async_queue);
+}
+
+static int
+mptctl_release(struct inode *inode, struct file *filep)
+{
+	dctlprintk(("%s() called\n", __FUNCTION__));
+	return fasync_helper(-1, filep, 0, &async_queue);
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -674,22 +743,23 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 	u16			 iocstat;
 	pFWDownloadReply_t	 ReplyMsg = NULL;
 
-	dctlprintk((KERN_INFO "mptctl_do_fwdl called. mptctl_id = %xh.\n", mptctl_id));
+	dctlprintk(("mptctl_do_fwdl called. mptctl_id = %xh.\n", mptctl_id));
 
-	dctlprintk((KERN_INFO "DbG: kfwdl.bufp  = %p\n", ufwbuf));
-	dctlprintk((KERN_INFO "DbG: kfwdl.fwlen = %d\n", (int)fwlen));
-	dctlprintk((KERN_INFO "DbG: kfwdl.ioc   = %04xh\n", ioc));
+	dctlprintk(("DbG: kfwdl.bufp  = %p\n", ufwbuf));
+	dctlprintk(("DbG: kfwdl.fwlen = %d\n", (int)fwlen));
+	dctlprintk(("DbG: kfwdl.ioc   = %04xh\n", ioc));
 
-	if ((ioc = mpt_verify_adapter(ioc, &iocp)) < 0) {
-		dctlprintk(("%s@%d::_ioctl_fwdl - ioc%d not found!\n",
-				__FILE__, __LINE__, ioc));
+	if (mpt_verify_adapter(ioc, &iocp) < 0) {
+		dctlprintk(("ioctl_fwdl - ioc%d not found!\n",
+				 ioc));
 		return -ENODEV; /* (-6) No such device or address */
-	}
+	} else {
 
-	/*  Valid device. Get a message frame and construct the FW download message.
-	 */
-	if ((mf = mpt_get_msg_frame(mptctl_id, iocp)) == NULL)
-		return -EAGAIN;
+		/*  Valid device. Get a message frame and construct the FW download message.
+	 	*/
+		if ((mf = mpt_get_msg_frame(mptctl_id, iocp)) == NULL)
+			return -EAGAIN;
+	}
 	dlmsg = (FWDownload_t*) mf;
 	ptsge = (FWDownloadTCSGE_t *) &dlmsg->SGL;
 	sgOut = (char *) (ptsge + 1);
@@ -702,7 +772,11 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 	dlmsg->ChainOffset = 0;
 	dlmsg->Function = MPI_FUNCTION_FW_DOWNLOAD;
 	dlmsg->Reserved1[0] = dlmsg->Reserved1[1] = dlmsg->Reserved1[2] = 0;
-	dlmsg->MsgFlags = 0;
+	if (iocp->facts.MsgVersion >= MPI_VERSION_01_05)
+		dlmsg->MsgFlags = MPI_FW_DOWNLOAD_MSGFLGS_LAST_SEGMENT;
+	else
+		dlmsg->MsgFlags = 0;
+
 
 	/* Set up the Transaction SGE.
 	 */
@@ -754,7 +828,7 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 		goto fwdl_out;
 	}
 
-	dctlprintk((KERN_INFO "DbG: sgl buffer  = %p, sgfrags = %d\n", sgl, numfrags));
+	dctlprintk(("DbG: sgl buffer  = %p, sgfrags = %d\n", sgl, numfrags));
 
 	/*
 	 * Parse SG list, copying sgl itself,
@@ -803,11 +877,11 @@ mptctl_do_fw_download(int ioc, char __user *ufwbuf, size_t fwlen)
 	/*
 	 * Finally, perform firmware download.
 	 */
-	iocp->ioctl->wait_done = 0;
+	ReplyMsg = NULL;
 	mpt_put_msg_frame(mptctl_id, iocp, mf);
 
 	/* Now wait for the command to complete */
-	ret = wait_event_interruptible_timeout(mptctl_wait,
+	ret = wait_event_timeout(mptctl_wait,
 	     iocp->ioctl->wait_done == 1,
 	     HZ*60);
 
@@ -1145,7 +1219,9 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 	/* Fill in the data and return the structure to the calling
 	 * program
 	 */
-	if (ioc->bus_type == FC)
+	if (ioc->bus_type == SAS)
+		karg->adapterType = MPT_IOCTL_INTERFACE_SAS;
+	else if (ioc->bus_type == FC)
 		karg->adapterType = MPT_IOCTL_INTERFACE_FC;
 	else
 		karg->adapterType = MPT_IOCTL_INTERFACE_SCSI;
@@ -1170,11 +1246,10 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 		karg->pciInfo.u.bits.deviceNumber = PCI_SLOT( pdev->devfn );
 		karg->pciInfo.u.bits.functionNumber = PCI_FUNC( pdev->devfn );
 	} else if (cim_rev == 2) {
-		/* Get the PCI bus, device, function and segment ID numbers 
+		/* Get the PCI bus, device, function and segment ID numbers
 		   for the IOC */
 		karg->pciInfo.u.bits.busNumber = pdev->bus->number;
 		karg->pciInfo.u.bits.deviceNumber = PCI_SLOT( pdev->devfn );
-		karg->pciInfo.u.bits.functionNumber = PCI_FUNC( pdev->devfn );
 		karg->pciInfo.u.bits.functionNumber = PCI_FUNC( pdev->devfn );
 		karg->pciInfo.segmentID = pci_domain_nr(pdev->bus);
 	}
@@ -1500,7 +1575,7 @@ mptctl_eventquery (unsigned long arg)
 		return -ENODEV;
 	}
 
-	karg.eventEntries = ioc->eventLogSize;
+	karg.eventEntries = MPTCTL_EVENT_LOG_SIZE;
 	karg.eventTypes = ioc->eventTypes;
 
 	/* Copy the data from kernel memory to user memory
@@ -1550,7 +1625,6 @@ mptctl_eventenable (unsigned long arg)
 		memset(ioc->events, 0, sz);
 		ioc->alloc_total += sz;
 
-		ioc->eventLogSize = MPTCTL_EVENT_LOG_SIZE;
 		ioc->eventContext = 0;
         }
 
@@ -1590,13 +1664,16 @@ mptctl_eventreport (unsigned long arg)
 	maxEvents = numBytes/sizeof(MPT_IOCTL_EVENTS);
 
 
-	max = ioc->eventLogSize < maxEvents ? ioc->eventLogSize : maxEvents;
+	max = MPTCTL_EVENT_LOG_SIZE < maxEvents ? MPTCTL_EVENT_LOG_SIZE : maxEvents;
 
 	/* If fewer than 1 event is requested, there must have
 	 * been some type of error.
 	 */
 	if ((max < 1) || !ioc->events)
 		return -ENODATA;
+
+	/* reset this flag so SIGIO can restart */
+	ioc->aen_event_read_flag=0;
 
 	/* Copy the data from kernel memory to user memory
 	 */
@@ -1817,6 +1894,8 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	case MPI_FUNCTION_SCSI_ENCLOSURE_PROCESSOR:
 	case MPI_FUNCTION_FW_DOWNLOAD:
 	case MPI_FUNCTION_FC_PRIMITIVE_SEND:
+	case MPI_FUNCTION_TOOLBOX:
+	case MPI_FUNCTION_SAS_IO_UNIT_CONTROL:
 		break;
 
 	case MPI_FUNCTION_SCSI_IO_REQUEST:
@@ -1837,7 +1916,9 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 				goto done_free_mem;
 			}
 
-			pScsiReq->MsgFlags = mpt_msg_flags();
+			pScsiReq->MsgFlags &= ~MPI_SCSIIO_MSGFLGS_SENSE_WIDTH;
+			pScsiReq->MsgFlags |= mpt_msg_flags();
+
 
 			/* verify that app has not requested
 			 *	more sense data than driver
@@ -1888,6 +1969,25 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 		}
 		break;
 
+	case MPI_FUNCTION_SMP_PASSTHROUGH:
+		/* Check mf->PassthruFlags to determine if
+		 * transfer is ImmediateMode or not.
+		 * Immediate mode returns data in the ReplyFrame.
+		 * Else, we are sending request and response data
+		 * in two SGLs at the end of the mf.
+		 */
+		break;
+
+	case MPI_FUNCTION_SATA_PASSTHROUGH:
+		if (!ioc->sh) {
+			printk(KERN_ERR "%s@%d::mptctl_do_mpt_command - "
+				"SCSI driver is not loaded. \n",
+					__FILE__, __LINE__);
+			rc = -EFAULT;
+			goto done_free_mem;
+		}
+		break;
+
 	case MPI_FUNCTION_RAID_ACTION:
 		/* Just add a SGE
 		 */
@@ -1900,7 +2000,9 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 			int scsidir = MPI_SCSIIO_CONTROL_READ;
 			int dataSize;
 
-			pScsiReq->MsgFlags = mpt_msg_flags();
+			pScsiReq->MsgFlags &= ~MPI_SCSIIO_MSGFLGS_SENSE_WIDTH;
+			pScsiReq->MsgFlags |= mpt_msg_flags();
+
 
 			/* verify that app has not requested
 			 *	more sense data than driver
@@ -2130,7 +2232,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 
 	/* Now wait for the command to complete */
 	timeout = (karg.timeout > 0) ? karg.timeout : MPT_IOCTL_DEFAULT_TIMEOUT;
-	timeout = wait_event_interruptible_timeout(mptctl_wait,
+	timeout = wait_event_timeout(mptctl_wait,
 	     ioc->ioctl->wait_done == 1,
 	     HZ*timeout);
 
@@ -2246,13 +2348,16 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 	hp_host_info_t	__user *uarg = (void __user *) arg;
 	MPT_ADAPTER		*ioc;
 	struct pci_dev		*pdev;
-	char			*pbuf;
+	char                    *pbuf=NULL;
 	dma_addr_t		buf_dma;
 	hp_host_info_t		karg;
 	CONFIGPARMS		cfg;
 	ConfigPageHeader_t	hdr;
 	int			iocnum;
 	int			rc, cim_rev;
+	ToolboxIstwiReadWriteRequest_t	*IstwiRWRequest;
+	MPT_FRAME_HDR		*mf = NULL;
+	MPIHeader_t		*mpi_hdr;
 
 	dctlprintk((": mptctl_hp_hostinfo called.\n"));
 	/* Reset long to int. Should affect IA64 and SPARC only
@@ -2370,7 +2475,7 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 
 	karg.base_io_addr = pci_resource_start(pdev, 0);
 
-	if (ioc->bus_type == FC)
+	if ((ioc->bus_type == SAS) || (ioc->bus_type == FC))
 		karg.bus_phys_width = HP_BUS_WIDTH_UNK;
 	else
 		karg.bus_phys_width = HP_BUS_WIDTH_16;
@@ -2388,19 +2493,66 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 		}
 	}
 
-	cfg.pageAddr = 0;
-	cfg.action = MPI_TOOLBOX_ISTWI_READ_WRITE_TOOL;
-	cfg.dir = MPI_TB_ISTWI_FLAGS_READ;
-	cfg.timeout = 10;
-	pbuf = pci_alloc_consistent(ioc->pcidev, 4, &buf_dma);
-	if (pbuf) {
-		cfg.physAddr = buf_dma;
-		if ((mpt_toolbox(ioc, &cfg)) == 0) {
-			karg.rsvd = *(u32 *)pbuf;
-		}
-		pci_free_consistent(ioc->pcidev, 4, pbuf, buf_dma);
-		pbuf = NULL;
+	/* 
+	 * Gather ISTWI(Industry Standard Two Wire Interface) Data
+	 */
+	if ((mf = mpt_get_msg_frame(mptctl_id, ioc)) == NULL) {
+		dfailprintk((MYIOC_s_WARN_FMT "%s, no msg frames!!\n",
+		    ioc->name,__FUNCTION__));
+		goto out;
 	}
+
+	IstwiRWRequest = (ToolboxIstwiReadWriteRequest_t *)mf;
+	mpi_hdr = (MPIHeader_t *) mf;
+	memset(IstwiRWRequest,0,sizeof(ToolboxIstwiReadWriteRequest_t));
+	IstwiRWRequest->Function = MPI_FUNCTION_TOOLBOX;
+	IstwiRWRequest->Tool = MPI_TOOLBOX_ISTWI_READ_WRITE_TOOL;
+	IstwiRWRequest->MsgContext = mpi_hdr->MsgContext;
+	IstwiRWRequest->Flags = MPI_TB_ISTWI_FLAGS_READ;
+	IstwiRWRequest->NumAddressBytes = 0x01;
+	IstwiRWRequest->DataLength = cpu_to_le16(0x04);
+	if (pdev->devfn & 1)
+		IstwiRWRequest->DeviceAddr = 0xB2;
+	else
+		IstwiRWRequest->DeviceAddr = 0xB0;
+
+	pbuf = pci_alloc_consistent(ioc->pcidev, 4, &buf_dma);
+	if (!pbuf)
+		goto out;
+	mpt_add_sge((char *)&IstwiRWRequest->SGL,
+	    (MPT_SGE_FLAGS_SSIMPLE_READ|4), buf_dma);
+
+	ioc->ioctl->wait_done = 0;
+	mpt_put_msg_frame(mptctl_id, ioc, mf);
+
+	rc = wait_event_timeout(mptctl_wait,
+	     ioc->ioctl->wait_done == 1,
+	     HZ*MPT_IOCTL_DEFAULT_TIMEOUT /* 10 sec */);
+
+	if(rc <=0 && (ioc->ioctl->wait_done != 1 )) {
+		/* 
+		 * Now we need to reset the board
+		 */
+		mpt_free_msg_frame(ioc, mf);
+		mptctl_timeout_expired(ioc->ioctl);
+		goto out;
+	}
+
+	/* 
+	 *ISTWI Data Definition
+	 * pbuf[0] = FW_VERSION = 0x4
+	 * pbuf[1] = Bay Count = 6 or 4 or 2, depending on
+	 *  the config, you should be seeing one out of these three values
+	 * pbuf[2] = Drive Installed Map = bit pattern depend on which
+	 *   bays have drives in them
+	 * pbuf[3] = Checksum (0x100 = (byte0 + byte2 + byte3)
+	 */
+	if (ioc->ioctl->status & MPT_IOCTL_STATUS_RF_VALID)
+		karg.rsvd = *(u32 *)pbuf;
+
+ out:
+	if (pbuf)
+		pci_free_consistent(ioc->pcidev, 4, pbuf, buf_dma);
 
 	/* Copy the data from kernel memory to user memory
 	 */
@@ -2459,7 +2611,7 @@ mptctl_hp_targetinfo(unsigned long arg)
 
 	/*  There is nothing to do for FCP parts.
 	 */
-	if (ioc->bus_type == FC)
+	if ((ioc->bus_type == SAS) || (ioc->bus_type == FC))
 		return 0;
 
 	if ((ioc->spi_data.sdp0length == 0) || (ioc->sh == NULL))
@@ -2569,6 +2721,8 @@ mptctl_hp_targetinfo(unsigned long arg)
 static struct file_operations mptctl_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
+	.release =	mptctl_release,
+	.fasync = 	mptctl_fasync,
 	.unlocked_ioctl = mptctl_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = compat_mpctl_ioctl,
@@ -2811,6 +2965,11 @@ static int __init mptctl_init(void)
 		dprintk((KERN_INFO MYNAM ": Registered for IOC reset notifications\n"));
 	} else {
 		/* FIXME! */
+	}
+
+	if (mpt_event_register(mptctl_id, mptctl_event_process) == 0) {
+		devtprintk((KERN_INFO MYNAM
+		  ": Registered for IOC event notifications\n"));
 	}
 
 	return 0;

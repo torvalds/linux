@@ -1243,6 +1243,7 @@ int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 		 */
 		if (stat == 0xff)
 			return -ENODEV;
+		touch_softlockup_watchdog();
 	}
 	return -EBUSY;
 }

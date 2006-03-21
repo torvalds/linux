@@ -396,6 +396,10 @@ static int __devinit radeon_parse_monitor_layout(struct radeonfb_info *rinfo,
 				s1[i] = *s;
 			i++;
 		}
+
+		if (i > 4)
+			i = 4;
+
 	} while (*s++);
 	if (second)
 		s2[i] = 0;

@@ -371,17 +371,11 @@ static void __init setup_bootmem(void)
 
 void free_initmem(void)
 {
-	/* FIXME: */
-#if 0
-	printk(KERN_INFO "NOT FREEING INITMEM (%dk)\n",
-			(&__init_end - &__init_begin) >> 10);
-	return;
-#else
 	unsigned long addr;
 	
 	printk(KERN_INFO "Freeing unused kernel memory: ");
 
-#if 1
+#ifdef CONFIG_DEBUG_KERNEL
 	/* Attempt to catch anyone trying to execute code here
 	 * by filling the page with BRK insns.
 	 * 
@@ -414,8 +408,20 @@ void free_initmem(void)
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_BCOMPLETE);
 	
 	printk("%luk freed\n", (unsigned long)(&__init_end - &__init_begin) >> 10);
-#endif
 }
+
+
+#ifdef CONFIG_DEBUG_RODATA
+void mark_rodata_ro(void)
+{
+	extern char __start_rodata, __end_rodata;
+	/* rodata memory was already mapped with KERNEL_RO access rights by
+           pagetable_init() and map_pages(). No need to do additional stuff here */
+	printk (KERN_INFO "Write protecting the kernel read-only data: %luk\n",
+		(unsigned long)(&__end_rodata - &__start_rodata) >> 10);
+}
+#endif
+
 
 /*
  * Just an arbitrary offset to serve as a "hole" between mapping areas
@@ -475,11 +481,6 @@ void __init mem_init(void)
 	vmalloc_start = SET_MAP_OFFSET(MAP_START);
 #endif
 
-}
-
-int do_check_pgt_cache(int low, int high)
-{
-	return 0;
 }
 
 unsigned long *empty_zero_page __read_mostly;
@@ -690,7 +691,7 @@ static void __init pagetable_init(void)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_end && initrd_end > mem_limit) {
-		printk("initrd: mapping %08lx-%08lx\n", initrd_start, initrd_end);
+		printk(KERN_INFO "initrd: mapping %08lx-%08lx\n", initrd_start, initrd_end);
 		map_pages(initrd_start, __pa(initrd_start),
 			initrd_end - initrd_start, PAGE_KERNEL);
 	}
@@ -792,8 +793,6 @@ map_hpux_gateway_page(struct task_struct *tsk, struct mm_struct *mm)
 EXPORT_SYMBOL(map_hpux_gateway_page);
 #endif
 
-extern void flush_tlb_all_local(void);
-
 void __init paging_init(void)
 {
 	int i;
@@ -802,7 +801,7 @@ void __init paging_init(void)
 	pagetable_init();
 	gateway_init();
 	flush_cache_all_local(); /* start with known state */
-	flush_tlb_all_local();
+	flush_tlb_all_local(NULL);
 
 	for (i = 0; i < npmem_ranges; i++) {
 		unsigned long zones_size[MAX_NR_ZONES] = { 0, 0, 0 };
@@ -993,7 +992,7 @@ void flush_tlb_all(void)
 	    do_recycle++;
 	}
 	spin_unlock(&sid_lock);
-	on_each_cpu((void (*)(void *))flush_tlb_all_local, NULL, 1, 1);
+	on_each_cpu(flush_tlb_all_local, NULL, 1, 1);
 	if (do_recycle) {
 	    spin_lock(&sid_lock);
 	    recycle_sids(recycle_ndirty,recycle_dirty_array);

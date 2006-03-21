@@ -38,6 +38,7 @@ void *traverse_pci_devices(struct device_node *start, traverse_func pre,
 
 void pci_devs_phb_init(void);
 void pci_devs_phb_init_dynamic(struct pci_controller *phb);
+int setup_phb(struct device_node *dev, struct pci_controller *phb);
 void __devinit scan_phb(struct pci_controller *hose);
 
 /* From rtas_pci.h */

@@ -1774,16 +1774,16 @@ static inline u32 cap_to_cyls(sector_t capacity, u32 divisor)
 struct scsi_cmnd;
 
 const char *aac_driverinfo(struct Scsi_Host *);
-struct fib *fib_alloc(struct aac_dev *dev);
-int fib_setup(struct aac_dev *dev);
-void fib_map_free(struct aac_dev *dev);
-void fib_free(struct fib * context);
-void fib_init(struct fib * context);
+struct fib *aac_fib_alloc(struct aac_dev *dev);
+int aac_fib_setup(struct aac_dev *dev);
+void aac_fib_map_free(struct aac_dev *dev);
+void aac_fib_free(struct fib * context);
+void aac_fib_init(struct fib * context);
 void aac_printf(struct aac_dev *dev, u32 val);
-int fib_send(u16 command, struct fib * context, unsigned long size, int priority, int wait, int reply, fib_callback callback, void *ctxt);
+int aac_fib_send(u16 command, struct fib * context, unsigned long size, int priority, int wait, int reply, fib_callback callback, void *ctxt);
 int aac_consumer_get(struct aac_dev * dev, struct aac_queue * q, struct aac_entry **entry);
 void aac_consumer_free(struct aac_dev * dev, struct aac_queue * q, u32 qnum);
-int fib_complete(struct fib * context);
+int aac_fib_complete(struct fib * context);
 #define fib_data(fibctx) ((void *)(fibctx)->hw_fib->data)
 struct aac_dev *aac_init_adapter(struct aac_dev *dev);
 int aac_get_config_status(struct aac_dev *dev);
@@ -1799,11 +1799,11 @@ unsigned int aac_command_normal(struct aac_queue * q);
 unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index);
 int aac_command_thread(struct aac_dev * dev);
 int aac_close_fib_context(struct aac_dev * dev, struct aac_fib_context *fibctx);
-int fib_adapter_complete(struct fib * fibptr, unsigned short size);
+int aac_fib_adapter_complete(struct fib * fibptr, unsigned short size);
 struct aac_driver_ident* aac_get_driver_ident(int devtype);
 int aac_get_adapter_info(struct aac_dev* dev);
 int aac_send_shutdown(struct aac_dev *dev);
-int probe_container(struct aac_dev *dev, int cid);
+int aac_probe_container(struct aac_dev *dev, int cid);
 extern int numacb;
 extern int acbsize;
 extern char aac_driver_version[];

@@ -433,4 +433,6 @@ struct scsi_lun {
 /* Used to obtain the PCI location of a device */
 #define SCSI_IOCTL_GET_PCI		0x5387
 
+int scsi_execute_in_process_context(void (*fn)(void *data), void *data);
+
 #endif /* _SCSI_SCSI_H */

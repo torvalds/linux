@@ -825,7 +825,8 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	if (nfqa[NFQA_MARK-1])
-		skb->nfmark = ntohl(*(u_int32_t *)NFA_DATA(nfqa[NFQA_MARK-1]));
+		entry->skb->nfmark = ntohl(*(u_int32_t *)
+		                           NFA_DATA(nfqa[NFQA_MARK-1]));
 		
 	issue_verdict(entry, verdict);
 	instance_put(queue);
@@ -927,8 +928,12 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 
 	if (nfqa[NFQA_CFG_PARAMS-1]) {
 		struct nfqnl_msg_config_params *params;
-		params = NFA_DATA(nfqa[NFQA_CFG_PARAMS-1]);
 
+		if (!queue) {
+			ret = -ENOENT;
+			goto out_put;
+		}
+		params = NFA_DATA(nfqa[NFQA_CFG_PARAMS-1]);
 		nfqnl_set_mode(queue, params->copy_mode,
 				ntohl(params->copy_range));
 	}

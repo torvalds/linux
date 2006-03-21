@@ -262,6 +262,31 @@ has_fs_struct(struct task_struct *task)
 	return (task->fs != init_task.fs);
 }
 
+STATIC inline void
+cleanup_inode(
+	vnode_t		*dvp,
+	vnode_t		*vp,
+	struct dentry	*dentry,	
+	int		mode)
+{
+	struct dentry   teardown = {};
+	int             err2;
+
+	/* Oh, the horror.
+	 * If we can't add the ACL or we fail in 
+	 * linvfs_init_security we must back out.
+	 * ENOSPC can hit here, among other things.
+	 */
+	teardown.d_inode = LINVFS_GET_IP(vp);
+	teardown.d_name = dentry->d_name;
+
+	if (S_ISDIR(mode))
+	  	VOP_RMDIR(dvp, &teardown, NULL, err2);
+	else
+		VOP_REMOVE(dvp, &teardown, NULL, err2);
+	VN_RELE(vp);
+}
+
 STATIC int
 linvfs_mknod(
 	struct inode	*dir,
@@ -316,30 +341,19 @@ linvfs_mknod(
 	}
 
 	if (!error)
+	{
 		error = linvfs_init_security(vp, dir);
+		if (error)
+			cleanup_inode(dvp, vp, dentry, mode);
+	}
 
 	if (default_acl) {
 		if (!error) {
 			error = _ACL_INHERIT(vp, &va, default_acl);
-			if (!error) {
+			if (!error) 
 				VMODIFY(vp);
-			} else {
-				struct dentry	teardown = {};
-				int		err2;
-
-				/* Oh, the horror.
-				 * If we can't add the ACL we must back out.
-				 * ENOSPC can hit here, among other things.
-				 */
-				teardown.d_inode = ip = LINVFS_GET_IP(vp);
-				teardown.d_name = dentry->d_name;
-
-				if (S_ISDIR(mode))
-					VOP_RMDIR(dvp, &teardown, NULL, err2);
-				else
-					VOP_REMOVE(dvp, &teardown, NULL, err2);
-				VN_RELE(vp);
-			}
+			else
+				cleanup_inode(dvp, vp, dentry, mode);
 		}
 		_ACL_FREE(default_acl);
 	}
@@ -659,6 +673,8 @@ linvfs_setattr(
 	if (ia_valid & ATTR_ATIME) {
 		vattr.va_mask |= XFS_AT_ATIME;
 		vattr.va_atime = attr->ia_atime;
+		if (ia_valid & ATTR_ATIME_SET)
+			inode->i_atime = attr->ia_atime;
 	}
 	if (ia_valid & ATTR_MTIME) {
 		vattr.va_mask |= XFS_AT_MTIME;

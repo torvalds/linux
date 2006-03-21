@@ -1682,6 +1682,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 #ifdef ISDN_DEBUG_MODEM_OPEN
 		printk(KERN_DEBUG "isdn_tty_close after info->count != 0\n");
 #endif
+		module_put(info->owner);
 		return;
 	}
 	info->flags |= ISDN_ASYNC_CLOSING;
@@ -2359,8 +2360,8 @@ isdn_tty_at_cout(char *msg, modem_info * info)
 
 	/* use queue instead of direct, if online and */
 	/* data is in queue or buffer is full */
-	if ((info->online && tty_buffer_request_room(tty, l) < l) ||
-	    (!skb_queue_empty(&dev->drv[info->isdn_driver]->rpqueue[info->isdn_channel]))) {
+	if (info->online && ((tty_buffer_request_room(tty, l) < l) ||
+	    !skb_queue_empty(&dev->drv[info->isdn_driver]->rpqueue[info->isdn_channel]))) {
 		skb = alloc_skb(l, GFP_ATOMIC);
 		if (!skb) {
 			spin_unlock_irqrestore(&info->readlock, flags);

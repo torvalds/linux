@@ -244,6 +244,22 @@ static int ati_configure(void)
 }
 
 
+#ifdef CONFIG_PM
+static int agp_ati_resume(struct pci_dev *dev)
+{
+	pci_restore_state(dev);
+
+	return ati_configure();
+}
+
+static int agp_ati_suspend(struct pci_dev *dev, pm_message_t state)
+{
+	pci_save_state(dev);
+
+	return 0;
+}
+#endif
+
 /*
  *Since we don't need contigious memory we just try
  * to get the gatt table once
@@ -525,6 +541,10 @@ static struct pci_driver agp_ati_pci_driver = {
 	.id_table	= agp_ati_pci_table,
 	.probe		= agp_ati_probe,
 	.remove		= agp_ati_remove,
+#ifdef CONFIG_PM
+	.resume		= agp_ati_resume,
+	.suspend	= agp_ati_suspend,
+#endif
 };
 
 static int __init agp_ati_init(void)

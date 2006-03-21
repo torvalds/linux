@@ -340,6 +340,12 @@ static inline void local_flush_tlb_kernel_page(unsigned long kaddr)
 		asm("mcr%? p15, 0, %0, c8, c6, 1" : : "r" (kaddr));
 	if (tlb_flag(TLB_V6_I_PAGE))
 		asm("mcr%? p15, 0, %0, c8, c5, 1" : : "r" (kaddr));
+
+	/* The ARM ARM states that the completion of a TLB maintenance
+	 * operation is only guaranteed by a DSB instruction
+	 */
+	if (tlb_flag(TLB_V6_U_PAGE | TLB_V6_D_PAGE | TLB_V6_I_PAGE))
+		asm("mcr%? p15, 0, %0, c7, c10, 4" : : "r" (zero));
 }
 
 /*

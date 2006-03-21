@@ -446,7 +446,7 @@ static int dev_ifconf(unsigned int fd, unsigned int cmd, unsigned long arg)
 	ifr = ifc.ifc_req;
 	ifr32 = compat_ptr(ifc32.ifcbuf);
 	for (i = 0, j = 0;
-             i + sizeof (struct ifreq32) < ifc32.ifc_len && j < ifc.ifc_len;
+             i + sizeof (struct ifreq32) <= ifc32.ifc_len && j < ifc.ifc_len;
 	     i += sizeof (struct ifreq32), j += sizeof (struct ifreq)) {
 		if (copy_in_user(ifr32, ifr, sizeof (struct ifreq32)))
 			return -EFAULT;
@@ -931,8 +931,8 @@ struct compat_sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
 static int sg_grt_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	int err, i;
-	sg_req_info_t *r;
-	struct compat_sg_req_info *o = (struct compat_sg_req_info *)arg;
+	sg_req_info_t __user *r;
+	struct compat_sg_req_info __user *o = (void __user *)arg;
 	r = compat_alloc_user_space(sizeof(sg_req_info_t)*SG_MAX_QUEUE);
 	err = sys_ioctl(fd,cmd,(unsigned long)r);
 	if (err < 0)
@@ -2531,18 +2531,9 @@ static int rtc_ioctl(unsigned fd, unsigned cmd, unsigned long arg)
 		val32 = kval;
 		return put_user(val32, (unsigned int __user *)arg);
 	case RTC_IRQP_SET32:
+		return sys_ioctl(fd, RTC_IRQP_SET, arg); 
 	case RTC_EPOCH_SET32:
-		ret = get_user(val32, (unsigned int __user *)arg);
-		if (ret)
-			return ret;
-		kval = val32;
-
-		set_fs(KERNEL_DS);
-		ret = sys_ioctl(fd, (cmd == RTC_IRQP_SET32) ?
-				RTC_IRQP_SET : RTC_EPOCH_SET,
-				(unsigned long)&kval);
-		set_fs(oldfs);
-		return ret;
+		return sys_ioctl(fd, RTC_EPOCH_SET, arg);
 	default:
 		/* unreached */
 		return -ENOIOCTLCMD;
@@ -2739,8 +2730,8 @@ static int do_ncp_setprivatedata(unsigned int fd, unsigned int cmd, unsigned lon
 static int
 lp_timeout_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
-	struct compat_timeval *tc = (struct compat_timeval *)arg;
-	struct timeval *tn = compat_alloc_user_space(sizeof(struct timeval));
+	struct compat_timeval __user *tc = (struct compat_timeval __user *)arg;
+	struct timeval __user *tn = compat_alloc_user_space(sizeof(struct timeval));
 	struct timeval ts;
 	if (get_user(ts.tv_sec, &tc->tv_sec) ||
 	    get_user(ts.tv_usec, &tc->tv_usec) ||

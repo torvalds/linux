@@ -54,36 +54,36 @@ static acpi_status acpi_reserve_io_ranges(struct acpi_resource *res, void *data)
 
 	ACPI_FUNCTION_TRACE("acpi_reserve_io_ranges");
 
-	if (res->id == ACPI_RSTYPE_IO) {
+	if (res->type == ACPI_RESOURCE_TYPE_IO) {
 		struct acpi_resource_io *io_res = &res->data.io;
 
-		if (io_res->min_base_address != io_res->max_base_address)
+		if (io_res->minimum != io_res->maximum)
 			return_VALUE(AE_OK);
 		if (IS_RESERVED_ADDR
-		    (io_res->min_base_address, io_res->range_length)) {
+		    (io_res->minimum, io_res->address_length)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Motherboard resources 0x%08x - 0x%08x\n",
-					  io_res->min_base_address,
-					  io_res->min_base_address +
-					  io_res->range_length));
+					  io_res->minimum,
+					  io_res->minimum +
+					  io_res->address_length));
 			requested_res =
-			    request_region(io_res->min_base_address,
-					   io_res->range_length, "motherboard");
+			    request_region(io_res->minimum,
+					   io_res->address_length, "motherboard");
 		}
-	} else if (res->id == ACPI_RSTYPE_FIXED_IO) {
+	} else if (res->type == ACPI_RESOURCE_TYPE_FIXED_IO) {
 		struct acpi_resource_fixed_io *fixed_io_res =
 		    &res->data.fixed_io;
 
 		if (IS_RESERVED_ADDR
-		    (fixed_io_res->base_address, fixed_io_res->range_length)) {
+		    (fixed_io_res->address, fixed_io_res->address_length)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Motherboard resources 0x%08x - 0x%08x\n",
-					  fixed_io_res->base_address,
-					  fixed_io_res->base_address +
-					  fixed_io_res->range_length));
+					  fixed_io_res->address,
+					  fixed_io_res->address +
+					  fixed_io_res->address_length));
 			requested_res =
-			    request_region(fixed_io_res->base_address,
-					   fixed_io_res->range_length,
+			    request_region(fixed_io_res->address,
+					   fixed_io_res->address_length,
 					   "motherboard");
 		}
 	} else {

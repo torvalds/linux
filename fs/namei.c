@@ -790,7 +790,7 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 
 	inode = nd->dentry->d_inode;
 	if (nd->depth)
-		lookup_flags = LOOKUP_FOLLOW;
+		lookup_flags = LOOKUP_FOLLOW | (nd->flags & LOOKUP_CONTINUE);
 
 	/* At this point we know we have a real path component. */
 	for(;;) {
@@ -885,7 +885,8 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 last_with_slashes:
 		lookup_flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 last_component:
-		nd->flags &= ~LOOKUP_CONTINUE;
+		/* Clear LOOKUP_CONTINUE iff it was previously unset */
+		nd->flags &= lookup_flags | ~LOOKUP_CONTINUE;
 		if (lookup_flags & LOOKUP_PARENT)
 			goto lookup_parent;
 		if (this.name[0] == '.') switch (this.len) {
@@ -1069,6 +1070,8 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 				unsigned int flags, struct nameidata *nd)
 {
 	int retval = 0;
+	int fput_needed;
+	struct file *file;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags;
@@ -1090,29 +1093,22 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 		nd->mnt = mntget(current->fs->pwdmnt);
 		nd->dentry = dget(current->fs->pwd);
 	} else {
-		struct file *file;
-		int fput_needed;
 		struct dentry *dentry;
 
 		file = fget_light(dfd, &fput_needed);
-		if (!file) {
-			retval = -EBADF;
-			goto out_fail;
-		}
+		retval = -EBADF;
+		if (!file)
+			goto unlock_fail;
 
 		dentry = file->f_dentry;
 
-		if (!S_ISDIR(dentry->d_inode->i_mode)) {
-			retval = -ENOTDIR;
-			fput_light(file, fput_needed);
-			goto out_fail;
-		}
+		retval = -ENOTDIR;
+		if (!S_ISDIR(dentry->d_inode->i_mode))
+			goto fput_unlock_fail;
 
 		retval = file_permission(file, MAY_EXEC);
-		if (retval) {
-			fput_light(file, fput_needed);
-			goto out_fail;
-		}
+		if (retval)
+			goto fput_unlock_fail;
 
 		nd->mnt = mntget(file->f_vfsmnt);
 		nd->dentry = dget(dentry);
@@ -1123,10 +1119,17 @@ static int fastcall do_path_lookup(int dfd, const char *name,
 	current->total_link_count = 0;
 	retval = link_path_walk(name, nd);
 out:
-	if (unlikely(current->audit_context
-		     && nd && nd->dentry && nd->dentry->d_inode))
+	if (likely(retval == 0)) {
+		if (unlikely(current->audit_context && nd && nd->dentry &&
+				nd->dentry->d_inode))
 		audit_inode(name, nd->dentry->d_inode, flags);
-out_fail:
+	}
+	return retval;
+
+fput_unlock_fail:
+	fput_light(file, fput_needed);
+unlock_fail:
+	read_unlock(&current->fs->lock);
 	return retval;
 }
 
@@ -1161,6 +1164,7 @@ static int __path_lookup_intent_open(int dfd, const char *name,
 
 /**
  * path_lookup_open - lookup a file path with open intent
+ * @dfd: the directory to use as base, or AT_FDCWD
  * @name: pointer to file name
  * @lookup_flags: lookup intent flags
  * @nd: pointer to nameidata
@@ -1175,6 +1179,7 @@ int path_lookup_open(int dfd, const char *name, unsigned int lookup_flags,
 
 /**
  * path_lookup_create - lookup a file path with open + create intent
+ * @dfd: the directory to use as base, or AT_FDCWD
  * @name: pointer to file name
  * @lookup_flags: lookup intent flags
  * @nd: pointer to nameidata
@@ -2219,12 +2224,16 @@ int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_de
  * and other special files.  --ADM
  */
 asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
-			   int newdfd, const char __user *newname)
+			   int newdfd, const char __user *newname,
+			   int flags)
 {
 	struct dentry *new_dentry;
 	struct nameidata nd, old_nd;
 	int error;
 	char * to;
+
+	if (flags != 0)
+		return -EINVAL;
 
 	to = getname(newname);
 	if (IS_ERR(to))
@@ -2258,7 +2267,7 @@ exit:
 
 asmlinkage long sys_link(const char __user *oldname, const char __user *newname)
 {
-	return sys_linkat(AT_FDCWD, oldname, AT_FDCWD, newname);
+	return sys_linkat(AT_FDCWD, oldname, AT_FDCWD, newname, 0);
 }
 
 /*
@@ -2604,13 +2613,15 @@ void page_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
 	}
 }
 
-int page_symlink(struct inode *inode, const char *symname, int len)
+int __page_symlink(struct inode *inode, const char *symname, int len,
+		gfp_t gfp_mask)
 {
 	struct address_space *mapping = inode->i_mapping;
-	struct page *page = grab_cache_page(mapping, 0);
+	struct page *page;
 	int err = -ENOMEM;
 	char *kaddr;
 
+	page = find_or_create_page(mapping, 0, gfp_mask);
 	if (!page)
 		goto fail;
 	err = mapping->a_ops->prepare_write(NULL, page, 0, len-1);
@@ -2645,6 +2656,12 @@ fail:
 	return err;
 }
 
+int page_symlink(struct inode *inode, const char *symname, int len)
+{
+	return __page_symlink(inode, symname, len,
+			mapping_gfp_mask(inode->i_mapping));
+}
+
 struct inode_operations page_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
@@ -2663,6 +2680,7 @@ EXPORT_SYMBOL(lookup_one_len);
 EXPORT_SYMBOL(page_follow_link_light);
 EXPORT_SYMBOL(page_put_link);
 EXPORT_SYMBOL(page_readlink);
+EXPORT_SYMBOL(__page_symlink);
 EXPORT_SYMBOL(page_symlink);
 EXPORT_SYMBOL(page_symlink_inode_operations);
 EXPORT_SYMBOL(path_lookup);

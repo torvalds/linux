@@ -183,6 +183,7 @@ extern int at91_set_B_periph(unsigned pin, int use_pullup);
 extern int at91_set_gpio_input(unsigned pin, int use_pullup);
 extern int at91_set_gpio_output(unsigned pin, int value);
 extern int at91_set_deglitch(unsigned pin, int is_on);
+extern int at91_set_multi_drive(unsigned pin, int is_on);
 
 /* callable at any time */
 extern int at91_set_gpio_value(unsigned pin, int value);

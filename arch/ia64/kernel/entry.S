@@ -569,7 +569,9 @@ GLOBAL_ENTRY(ia64_trace_syscall)
 .mem.offset 0,0; st8.spill [r2]=r8		// store return value in slot for r8
 .mem.offset 8,0; st8.spill [r3]=r10		// clear error indication in slot for r10
 	br.call.sptk.many rp=syscall_trace_leave // give parent a chance to catch return value
-.ret3:	br.cond.sptk .work_pending_syscall_end
+.ret3:
+(pUStk)	cmp.eq.unc p6,p0=r0,r0			// p6 <- pUStk
+	br.cond.sptk .work_pending_syscall_end
 
 strace_error:
 	ld8 r3=[r2]				// load pt_regs.r8
@@ -1601,5 +1603,21 @@ sys_call_table:
 	data8 sys_inotify_add_watch
 	data8 sys_inotify_rm_watch
 	data8 sys_migrate_pages			// 1280
+	data8 sys_openat
+	data8 sys_mkdirat
+	data8 sys_mknodat
+	data8 sys_fchownat
+	data8 sys_futimesat			// 1285
+	data8 sys_newfstatat
+	data8 sys_unlinkat
+	data8 sys_renameat
+	data8 sys_linkat
+	data8 sys_symlinkat			// 1290
+	data8 sys_readlinkat
+	data8 sys_fchmodat
+	data8 sys_faccessat
+	data8 sys_ni_syscall			// reserved for pselect
+	data8 sys_ni_syscall			// 1295 reserved for ppoll
+	data8 sys_unshare
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls

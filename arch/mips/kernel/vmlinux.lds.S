@@ -1,4 +1,5 @@
 #include <linux/config.h>
+#include <asm/asm-offsets.h>
 #include <asm-generic/vmlinux.lds.h>
 
 #undef mips		/* CPP really sucks for this job  */
@@ -64,10 +65,10 @@ SECTIONS
      we can shorten the on-disk segment size.  */
   .sdata     : { *(.sdata) }
 
-  . = ALIGN(4096);
+  . = ALIGN(_PAGE_SIZE);
   __nosave_begin = .;
   .data_nosave : { *(.data.nosave) }
-  . = ALIGN(4096);
+  . = ALIGN(_PAGE_SIZE);
   __nosave_end = .;
 
   . = ALIGN(32);
@@ -76,7 +77,7 @@ SECTIONS
   _edata =  .;			/* End of data section */
 
   /* will be freed after init */
-  . = ALIGN(4096);		/* Init code and data */
+  . = ALIGN(_PAGE_SIZE);		/* Init code and data */
   __init_begin = .;
   .init.text : {
 	_sinittext = .;
@@ -105,7 +106,10 @@ SECTIONS
   .con_initcall.init : { *(.con_initcall.init) }
   __con_initcall_end = .;
   SECURITY_INIT
-  . = ALIGN(4096);
+    /* .exit.text is discarded at runtime, not link time, to deal with
+     references from .rodata */
+  .exit.text : { *(.exit.text) }
+  . = ALIGN(_PAGE_SIZE);
   __initramfs_start = .;
   .init.ramfs : { *(.init.ramfs) }
   __initramfs_end = .;
@@ -113,7 +117,7 @@ SECTIONS
   __per_cpu_start = .;
   .data.percpu  : { *(.data.percpu) }
   __per_cpu_end = .;
-  . = ALIGN(4096);
+  . = ALIGN(_PAGE_SIZE);
   __init_end = .;
   /* freed after init ends here */
 
@@ -132,7 +136,6 @@ SECTIONS
 
   /* Sections to be discarded */
   /DISCARD/ : {
-        *(.exit.text)
         *(.exit.data)
         *(.exitcall.exit)
 

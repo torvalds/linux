@@ -140,7 +140,7 @@ static __init void intr_clear_all(nasid_t nasid)
 		REMOTE_HUB_CLR_INTR(nasid, i);
 }
 
-void __init prom_prepare_cpus(unsigned int max_cpus)
+void __init plat_smp_setup(void)
 {
 	cnodeid_t	cnode;
 
@@ -159,6 +159,11 @@ void __init prom_prepare_cpus(unsigned int max_cpus)
 	 * example be disabled in the firwware.
 	 */
 	alloc_cpupda(0, 0);
+}
+
+void __init plat_prepare_cpus(unsigned int max_cpus)
+{
+	/* We already did everything necessary earlier */
 }
 
 /*

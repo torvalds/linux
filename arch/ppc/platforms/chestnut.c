@@ -116,7 +116,7 @@ chestnut_early_serial_map(void)
 	port.uartclk = BASE_BAUD * 16;
 	port.irq = UART0_INT;
 	port.flags = STD_COM_FLAGS | UPF_IOREMAP;
-	port.iotype = SERIAL_IO_MEM;
+	port.iotype = UPIO_MEM;
 	port.mapbase = CHESTNUT_UART0_IO_BASE;
 	port.regshift = 0;
 

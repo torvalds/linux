@@ -199,8 +199,7 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 {
 	int err = 0;
 
-	if (down_interruptible(&dev->cmd.hcr_sem))
-		return -EINTR;
+	mutex_lock(&dev->cmd.hcr_mutex);
 
 	if (event) {
 		unsigned long end = jiffies + GO_BIT_TIMEOUT;
@@ -238,7 +237,7 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 					       op),                       dev->hcr + 6 * 4);
 
 out:
-	up(&dev->cmd.hcr_sem);
+	mutex_unlock(&dev->cmd.hcr_mutex);
 	return err;
 }
 
@@ -255,8 +254,7 @@ static int mthca_cmd_poll(struct mthca_dev *dev,
 	int err = 0;
 	unsigned long end;
 
-	if (down_interruptible(&dev->cmd.poll_sem))
-		return -EINTR;
+	down(&dev->cmd.poll_sem);
 
 	err = mthca_cmd_post(dev, in_param,
 			     out_param ? *out_param : 0,
@@ -333,8 +331,7 @@ static int mthca_cmd_wait(struct mthca_dev *dev,
 	int err = 0;
 	struct mthca_cmd_context *context;
 
-	if (down_interruptible(&dev->cmd.event_sem))
-		return -EINTR;
+	down(&dev->cmd.event_sem);
 
 	spin_lock(&dev->cmd.context_lock);
 	BUG_ON(dev->cmd.free_head < 0);
@@ -438,7 +435,7 @@ static int mthca_cmd_imm(struct mthca_dev *dev,
 
 int mthca_cmd_init(struct mthca_dev *dev)
 {
-	sema_init(&dev->cmd.hcr_sem, 1);
+	mutex_init(&dev->cmd.hcr_mutex);
 	sema_init(&dev->cmd.poll_sem, 1);
 	dev->cmd.use_events = 0;
 
@@ -1032,25 +1029,6 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 	MTHCA_GET(size, outbox, QUERY_DEV_LIM_UAR_ENTRY_SZ_OFFSET);
 	dev_lim->uar_scratch_entry_sz = size;
 
-	mthca_dbg(dev, "Max QPs: %d, reserved QPs: %d, entry size: %d\n",
-		  dev_lim->max_qps, dev_lim->reserved_qps, dev_lim->qpc_entry_sz);
-	mthca_dbg(dev, "Max SRQs: %d, reserved SRQs: %d, entry size: %d\n",
-		  dev_lim->max_srqs, dev_lim->reserved_srqs, dev_lim->srq_entry_sz);
-	mthca_dbg(dev, "Max CQs: %d, reserved CQs: %d, entry size: %d\n",
-		  dev_lim->max_cqs, dev_lim->reserved_cqs, dev_lim->cqc_entry_sz);
-	mthca_dbg(dev, "Max EQs: %d, reserved EQs: %d, entry size: %d\n",
-		  dev_lim->max_eqs, dev_lim->reserved_eqs, dev_lim->eqc_entry_sz);
-	mthca_dbg(dev, "reserved MPTs: %d, reserved MTTs: %d\n",
-		  dev_lim->reserved_mrws, dev_lim->reserved_mtts);
-	mthca_dbg(dev, "Max PDs: %d, reserved PDs: %d, reserved UARs: %d\n",
-		  dev_lim->max_pds, dev_lim->reserved_pds, dev_lim->reserved_uars);
-	mthca_dbg(dev, "Max QP/MCG: %d, reserved MGMs: %d\n",
-		  dev_lim->max_pds, dev_lim->reserved_mgms);
-	mthca_dbg(dev, "Max CQEs: %d, max WQEs: %d, max SRQ WQEs: %d\n",
-		  dev_lim->max_cq_sz, dev_lim->max_qp_sz, dev_lim->max_srq_sz);
-
-	mthca_dbg(dev, "Flags: %08x\n", dev_lim->flags);
-
 	if (mthca_is_memfree(dev)) {
 		MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_SRQ_SZ_OFFSET);
 		dev_lim->max_srq_sz = 1 << field;
@@ -1095,6 +1073,25 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 		dev_lim->hca.tavor.max_avs = 1 << (field & 0x3f);
 		dev_lim->mpt_entry_sz = MTHCA_MPT_ENTRY_SIZE;
 	}
+
+	mthca_dbg(dev, "Max QPs: %d, reserved QPs: %d, entry size: %d\n",
+		  dev_lim->max_qps, dev_lim->reserved_qps, dev_lim->qpc_entry_sz);
+	mthca_dbg(dev, "Max SRQs: %d, reserved SRQs: %d, entry size: %d\n",
+		  dev_lim->max_srqs, dev_lim->reserved_srqs, dev_lim->srq_entry_sz);
+	mthca_dbg(dev, "Max CQs: %d, reserved CQs: %d, entry size: %d\n",
+		  dev_lim->max_cqs, dev_lim->reserved_cqs, dev_lim->cqc_entry_sz);
+	mthca_dbg(dev, "Max EQs: %d, reserved EQs: %d, entry size: %d\n",
+		  dev_lim->max_eqs, dev_lim->reserved_eqs, dev_lim->eqc_entry_sz);
+	mthca_dbg(dev, "reserved MPTs: %d, reserved MTTs: %d\n",
+		  dev_lim->reserved_mrws, dev_lim->reserved_mtts);
+	mthca_dbg(dev, "Max PDs: %d, reserved PDs: %d, reserved UARs: %d\n",
+		  dev_lim->max_pds, dev_lim->reserved_pds, dev_lim->reserved_uars);
+	mthca_dbg(dev, "Max QP/MCG: %d, reserved MGMs: %d\n",
+		  dev_lim->max_pds, dev_lim->reserved_mgms);
+	mthca_dbg(dev, "Max CQEs: %d, max WQEs: %d, max SRQ WQEs: %d\n",
+		  dev_lim->max_cq_sz, dev_lim->max_qp_sz, dev_lim->max_srq_sz);
+
+	mthca_dbg(dev, "Flags: %08x\n", dev_lim->flags);
 
 out:
 	mthca_free_mailbox(dev, mailbox);

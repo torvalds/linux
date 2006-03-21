@@ -15,7 +15,7 @@
 #include <asm/io.h>
 #include <asm/gt64120.h>
 
-#include <asm/cobalt/cobalt.h>
+#include <asm/mach-cobalt/cobalt.h>
 
 /*
  * Device 31 on the GT64111 is used to generate PCI special

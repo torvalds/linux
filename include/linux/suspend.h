@@ -43,16 +43,20 @@ extern void mark_free_pages(struct zone *zone);
 /* kernel/power/swsusp.c */
 extern int software_suspend(void);
 
+#if defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
 extern int pm_prepare_console(void);
 extern void pm_restore_console(void);
-
+#else
+static inline int pm_prepare_console(void) { return 0; }
+static inline void pm_restore_console(void) {}
+#endif /* defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE) */
 #else
 static inline int software_suspend(void)
 {
 	printk("Warning: fake suspend called\n");
 	return -EPERM;
 }
-#endif
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_SUSPEND_SMP
 extern void disable_nonboot_cpus(void);

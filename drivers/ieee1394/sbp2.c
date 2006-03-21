@@ -137,15 +137,15 @@ MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device (default = 1)"
 /*
  * SCSI inquiry hack for really badly behaved sbp2 devices. Turn this on
  * if your sbp2 device is not properly handling the SCSI inquiry command.
- * This hack makes the inquiry look more like a typical MS Windows
- * inquiry.
+ * This hack makes the inquiry look more like a typical MS Windows inquiry
+ * by enforcing 36 byte inquiry and avoiding access to mode_sense page 8.
  *
  * If force_inquiry_hack=1 is required for your device to work,
  * please submit the logged sbp2_firmware_revision value of this device to
  * the linux1394-devel mailing list.
  */
 static int force_inquiry_hack;
-module_param(force_inquiry_hack, int, 0444);
+module_param(force_inquiry_hack, int, 0644);
 MODULE_PARM_DESC(force_inquiry_hack, "Force SCSI inquiry hack (default = 0)");
 
 /*
@@ -264,17 +264,16 @@ static struct hpsb_protocol_driver sbp2_driver = {
 	},
 };
 
-
-/* List of device firmware's that require a forced 36 byte inquiry.  */
+/*
+ * List of device firmwares that require the inquiry hack.
+ * Yields a few false positives but did not break other devices so far.
+ */
 static u32 sbp2_broken_inquiry_list[] = {
-	0x00002800,	/* Stefan Richter <richtest@bauwesen.tu-cottbus.de> */
+	0x00002800,	/* Stefan Richter <stefanr@s5r6.in-berlin.de> */
 			/* DViCO Momobay CX-1 */
 	0x00000200	/* Andreas Plesch <plesch@fas.harvard.edu> */
 			/* QPS Fire DVDBurner */
 };
-
-#define NUM_BROKEN_INQUIRY_DEVS \
-	(sizeof(sbp2_broken_inquiry_list)/sizeof(*sbp2_broken_inquiry_list))
 
 /**************************************
  * General utility functions
@@ -643,9 +642,15 @@ static int sbp2_remove(struct device *dev)
 	if (!scsi_id)
 		return 0;
 
-	/* Trigger shutdown functions in scsi's highlevel. */
-	if (scsi_id->scsi_host)
+	if (scsi_id->scsi_host) {
+		/* Get rid of enqueued commands if there is no chance to
+		 * send them. */
+		if (!sbp2util_node_is_available(scsi_id))
+			sbp2scsi_complete_all_commands(scsi_id, DID_NO_CONNECT);
+		/* scsi_remove_device() will trigger shutdown functions of SCSI
+		 * highlevel drivers which would deadlock if blocked. */
 		scsi_unblock_requests(scsi_id->scsi_host);
+	}
 	sdev = scsi_id->sdev;
 	if (sdev) {
 		scsi_id->sdev = NULL;
@@ -742,11 +747,6 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 		hi->host = ud->ne->host;
 		INIT_LIST_HEAD(&hi->scsi_ids);
 
-		/* Register our sbp2 status address space... */
-		hpsb_register_addrspace(&sbp2_highlevel, ud->ne->host, &sbp2_ops,
-					SBP2_STATUS_FIFO_ADDRESS,
-					SBP2_STATUS_FIFO_ADDRESS +
-					SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(SBP2_MAX_UDS_PER_NODE+1));
 #ifdef CONFIG_IEEE1394_SBP2_PHYS_DMA
 		/* Handle data movement if physical dma is not
 		 * enabled/supportedon host controller */
@@ -758,6 +758,18 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	scsi_id->hi = hi;
 
 	list_add_tail(&scsi_id->scsi_list, &hi->scsi_ids);
+
+	/* Register the status FIFO address range. We could use the same FIFO
+	 * for targets at different nodes. However we need different FIFOs per
+	 * target in order to support multi-unit devices. */
+	scsi_id->status_fifo_addr = hpsb_allocate_and_register_addrspace(
+			&sbp2_highlevel, ud->ne->host, &sbp2_ops,
+			sizeof(struct sbp2_status_block), sizeof(quadlet_t),
+			~0ULL, ~0ULL);
+	if (!scsi_id->status_fifo_addr) {
+		SBP2_ERR("failed to allocate status FIFO address range");
+		goto failed_alloc;
+	}
 
 	/* Register our host with the SCSI stack. */
 	scsi_host = scsi_host_alloc(&scsi_driver_template,
@@ -997,6 +1009,10 @@ static void sbp2_remove_device(struct scsi_id_instance_data *scsi_id)
 		SBP2_DMA_FREE("single query logins data");
 	}
 
+	if (scsi_id->status_fifo_addr)
+		hpsb_unregister_addrspace(&sbp2_highlevel, hi->host,
+			scsi_id->status_fifo_addr);
+
 	scsi_id->ud->device.driver_data = NULL;
 
 	SBP2_DEBUG("SBP-2 device removed, SCSI ID = %d", scsi_id->ud->id);
@@ -1075,11 +1091,10 @@ static int sbp2_query_logins(struct scsi_id_instance_data *scsi_id)
 		ORB_SET_QUERY_LOGINS_RESP_LENGTH(sizeof(struct sbp2_query_logins_response));
 	SBP2_DEBUG("sbp2_query_logins: reserved_resp_length initialized");
 
-	scsi_id->query_logins_orb->status_FIFO_lo = SBP2_STATUS_FIFO_ADDRESS_LO +
-						    SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(scsi_id->ud->id);
-	scsi_id->query_logins_orb->status_FIFO_hi = (ORB_SET_NODE_ID(hi->host->node_id) |
-						     SBP2_STATUS_FIFO_ADDRESS_HI);
-	SBP2_DEBUG("sbp2_query_logins: status FIFO initialized");
+	scsi_id->query_logins_orb->status_fifo_hi =
+		ORB_SET_STATUS_FIFO_HI(scsi_id->status_fifo_addr, hi->host->node_id);
+	scsi_id->query_logins_orb->status_fifo_lo =
+		ORB_SET_STATUS_FIFO_LO(scsi_id->status_fifo_addr);
 
 	sbp2util_cpu_to_be32_buffer(scsi_id->query_logins_orb, sizeof(struct sbp2_query_logins_orb));
 
@@ -1184,11 +1199,10 @@ static int sbp2_login_device(struct scsi_id_instance_data *scsi_id)
 		ORB_SET_LOGIN_RESP_LENGTH(sizeof(struct sbp2_login_response));
 	SBP2_DEBUG("sbp2_login_device: passwd_resp_lengths initialized");
 
-	scsi_id->login_orb->status_FIFO_lo = SBP2_STATUS_FIFO_ADDRESS_LO +
-					     SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(scsi_id->ud->id);
-	scsi_id->login_orb->status_FIFO_hi = (ORB_SET_NODE_ID(hi->host->node_id) |
-					      SBP2_STATUS_FIFO_ADDRESS_HI);
-	SBP2_DEBUG("sbp2_login_device: status FIFO initialized");
+	scsi_id->login_orb->status_fifo_hi =
+		ORB_SET_STATUS_FIFO_HI(scsi_id->status_fifo_addr, hi->host->node_id);
+	scsi_id->login_orb->status_fifo_lo =
+		ORB_SET_STATUS_FIFO_LO(scsi_id->status_fifo_addr);
 
 	/*
 	 * Byte swap ORB if necessary
@@ -1301,10 +1315,10 @@ static int sbp2_logout_device(struct scsi_id_instance_data *scsi_id)
 	scsi_id->logout_orb->login_ID_misc |= ORB_SET_NOTIFY(1);
 
 	scsi_id->logout_orb->reserved5 = 0x0;
-	scsi_id->logout_orb->status_FIFO_lo = SBP2_STATUS_FIFO_ADDRESS_LO +
-					      SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(scsi_id->ud->id);
-	scsi_id->logout_orb->status_FIFO_hi = (ORB_SET_NODE_ID(hi->host->node_id) |
-					       SBP2_STATUS_FIFO_ADDRESS_HI);
+	scsi_id->logout_orb->status_fifo_hi =
+		ORB_SET_STATUS_FIFO_HI(scsi_id->status_fifo_addr, hi->host->node_id);
+	scsi_id->logout_orb->status_fifo_lo =
+		ORB_SET_STATUS_FIFO_LO(scsi_id->status_fifo_addr);
 
 	/*
 	 * Byte swap ORB if necessary
@@ -1366,10 +1380,10 @@ static int sbp2_reconnect_device(struct scsi_id_instance_data *scsi_id)
 	scsi_id->reconnect_orb->login_ID_misc |= ORB_SET_NOTIFY(1);
 
 	scsi_id->reconnect_orb->reserved5 = 0x0;
-	scsi_id->reconnect_orb->status_FIFO_lo = SBP2_STATUS_FIFO_ADDRESS_LO +
-						 SBP2_STATUS_FIFO_ENTRY_TO_OFFSET(scsi_id->ud->id);
-	scsi_id->reconnect_orb->status_FIFO_hi =
-		(ORB_SET_NODE_ID(hi->host->node_id) | SBP2_STATUS_FIFO_ADDRESS_HI);
+	scsi_id->reconnect_orb->status_fifo_hi =
+		ORB_SET_STATUS_FIFO_HI(scsi_id->status_fifo_addr, hi->host->node_id);
+	scsi_id->reconnect_orb->status_fifo_lo =
+		ORB_SET_STATUS_FIFO_LO(scsi_id->status_fifo_addr);
 
 	/*
 	 * Byte swap ORB if necessary
@@ -1560,7 +1574,7 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 	/* Check for a blacklisted set of devices that require us to force
 	 * a 36 byte host inquiry. This can be overriden as a module param
 	 * (to force all hosts).  */
-	for (i = 0; i < NUM_BROKEN_INQUIRY_DEVS; i++) {
+	for (i = 0; i < ARRAY_SIZE(sbp2_broken_inquiry_list); i++) {
 		if ((firmware_revision & 0xffff00) ==
 				sbp2_broken_inquiry_list[i]) {
 			SBP2_WARN("Node " NODE_BUS_FMT ": Using 36byte inquiry workaround",
@@ -2007,18 +2021,6 @@ static int sbp2_send_command(struct scsi_id_instance_data *scsi_id,
 	}
 
 	/*
-	 * The scsi stack sends down a request_bufflen which does not match the
-	 * length field in the scsi cdb. This causes some sbp2 devices to
-	 * reject this inquiry command. Fix the request_bufflen.
-	 */
-	if (*cmd == INQUIRY) {
-		if (force_inquiry_hack || scsi_id->workarounds & SBP2_BREAKAGE_INQUIRY_HACK)
-			request_bufflen = cmd[4] = 0x24;
-		else
-			request_bufflen = cmd[4];
-	}
-
-	/*
 	 * Now actually fill in the comamnd orb and sbp2 s/g list
 	 */
 	sbp2_create_command_orb(scsi_id, command, cmd, SCpnt->use_sg,
@@ -2082,9 +2084,7 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 
 	SBP2_DEBUG("sbp2_check_sbp2_response");
 
-	switch (SCpnt->cmnd[0]) {
-
-	case INQUIRY:
+	if (SCpnt->cmnd[0] == INQUIRY && (SCpnt->cmnd[1] & 3) == 0) {
 		/*
 		 * Make sure data length is ok. Minimum length is 36 bytes
 		 */
@@ -2097,13 +2097,7 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 		 */
 		scsi_buf[2] |= 2;
 		scsi_buf[3] = (scsi_buf[3] & 0xf0) | 2;
-
-		break;
-
-	default:
-		break;
 	}
-	return;
 }
 
 /*
@@ -2114,7 +2108,6 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int dest
 {
 	struct sbp2scsi_host_info *hi;
 	struct scsi_id_instance_data *scsi_id = NULL, *scsi_id_tmp;
-	u32 id;
 	struct scsi_cmnd *SCpnt = NULL;
 	u32 scsi_status = SBP2_SCSI_STATUS_GOOD;
 	struct sbp2_command_info *command;
@@ -2137,12 +2130,12 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int dest
 	}
 
 	/*
-	 * Find our scsi_id structure by looking at the status fifo address written to by
-	 * the sbp2 device.
+	 * Find our scsi_id structure by looking at the status fifo address
+	 * written to by the sbp2 device.
 	 */
-	id = SBP2_STATUS_FIFO_OFFSET_TO_ENTRY((u32)(addr - SBP2_STATUS_FIFO_ADDRESS));
 	list_for_each_entry(scsi_id_tmp, &hi->scsi_ids, scsi_list) {
-		if (scsi_id_tmp->ne->nodeid == nodeid && scsi_id_tmp->ud->id == id) {
+		if (scsi_id_tmp->ne->nodeid == nodeid &&
+		    scsi_id_tmp->status_fifo_addr == addr) {
 			scsi_id = scsi_id_tmp;
 			break;
 		}
@@ -2483,7 +2476,16 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 
 static int sbp2scsi_slave_alloc(struct scsi_device *sdev)
 {
-	((struct scsi_id_instance_data *)sdev->host->hostdata[0])->sdev = sdev;
+	struct scsi_id_instance_data *scsi_id =
+		(struct scsi_id_instance_data *)sdev->host->hostdata[0];
+
+	scsi_id->sdev = sdev;
+
+	if (force_inquiry_hack ||
+	    scsi_id->workarounds & SBP2_BREAKAGE_INQUIRY_HACK) {
+		sdev->inquiry_len = 36;
+		sdev->skip_ms_page_8 = 1;
+	}
 	return 0;
 }
 

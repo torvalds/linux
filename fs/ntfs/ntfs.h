@@ -50,11 +50,11 @@ typedef enum {
 /* Global variables. */
 
 /* Slab caches (from super.c). */
-extern kmem_cache_t *ntfs_name_cache;
-extern kmem_cache_t *ntfs_inode_cache;
-extern kmem_cache_t *ntfs_big_inode_cache;
-extern kmem_cache_t *ntfs_attr_ctx_cache;
-extern kmem_cache_t *ntfs_index_ctx_cache;
+extern struct kmem_cache *ntfs_name_cache;
+extern struct kmem_cache *ntfs_inode_cache;
+extern struct kmem_cache *ntfs_big_inode_cache;
+extern struct kmem_cache *ntfs_attr_ctx_cache;
+extern struct kmem_cache *ntfs_index_ctx_cache;
 
 /* The various operations structs defined throughout the driver files. */
 extern struct address_space_operations ntfs_aops;

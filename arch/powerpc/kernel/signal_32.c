@@ -142,11 +142,7 @@ static inline int get_old_sigaction(struct k_sigaction *new_ka,
 	return 0;
 }
 
-static inline compat_uptr_t to_user_ptr(void *kp)
-{
-	return (compat_uptr_t)(u64)kp;
-}
-
+#define to_user_ptr(p)		ptr_to_compat(p)
 #define from_user_ptr(p)	compat_ptr(p)
 
 static inline int save_general_regs(struct pt_regs *regs,
@@ -155,10 +151,7 @@ static inline int save_general_regs(struct pt_regs *regs,
 	elf_greg_t64 *gregs = (elf_greg_t64 *)regs;
 	int i;
 
-	if (!FULL_REGS(regs)) {
-		set_thread_flag(TIF_SAVE_NVGPRS);
-		current_thread_info()->nvgprs_frame = frame->mc_gregs;
-	}
+	WARN_ON(!FULL_REGS(regs));
 
 	for (i = 0; i <= PT_RESULT; i ++) {
 		if (i == 14 && !FULL_REGS(regs))
@@ -213,21 +206,13 @@ static inline int get_old_sigaction(struct k_sigaction *new_ka,
 	return 0;
 }
 
-#define to_user_ptr(p)		(p)
-#define from_user_ptr(p)	(p)
+#define to_user_ptr(p)		((unsigned long)(p))
+#define from_user_ptr(p)	((void __user *)(p))
 
 static inline int save_general_regs(struct pt_regs *regs,
 		struct mcontext __user *frame)
 {
-	if (!FULL_REGS(regs)) {
-		/* Zero out the unsaved GPRs to avoid information
-		   leak, and set TIF_SAVE_NVGPRS to ensure that the
-		   registers do actually get saved later. */
-		memset(&regs->gpr[14], 0, 18 * sizeof(unsigned long));
-		current_thread_info()->nvgprs_frame = &frame->mc_gregs;
-		set_thread_flag(TIF_SAVE_NVGPRS);
-	}
-
+	WARN_ON(!FULL_REGS(regs));
 	return __copy_to_user(&frame->mc_gregs, regs, GP_REGS_SIZE);
 }
 
@@ -254,11 +239,9 @@ int do_signal(sigset_t *oldset, struct pt_regs *regs);
  */
 long sys_sigsuspend(old_sigset_t mask)
 {
-	sigset_t saveset;
-
 	mask &= _BLOCKABLE;
 	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
+	current->saved_sigmask = current->blocked;
 	siginitset(&current->blocked, mask);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
@@ -528,7 +511,7 @@ long compat_sys_rt_sigaction(int sig, const struct sigaction32 __user *act,
 
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 	if (!ret && oact) {
-		ret = put_user((long)old_ka.sa.sa_handler, &oact->sa_handler);
+		ret = put_user(to_user_ptr(old_ka.sa.sa_handler), &oact->sa_handler);
 		ret |= put_sigset_t(&oact->sa_mask, &old_ka.sa.sa_mask);
 		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
 	}
@@ -677,8 +660,8 @@ long compat_sys_rt_sigqueueinfo(u32 pid, u32 sig, compat_siginfo_t __user *uinfo
 int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
 		      int r6, int r7, int r8, struct pt_regs *regs)
 {
-	stack_32_t __user * newstack = (stack_32_t __user *)(long) __new;
-	stack_32_t __user * oldstack = (stack_32_t __user *)(long) __old;
+	stack_32_t __user * newstack = compat_ptr(__new);
+	stack_32_t __user * oldstack = compat_ptr(__old);
 	stack_t uss, uoss;
 	int ret;
 	mm_segment_t old_fs;
@@ -710,7 +693,7 @@ int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
 	set_fs(old_fs);
 	/* Copy the stack information to the user output buffer */
 	if (!ret && oldstack  &&
-		(put_user((long)uoss.ss_sp, &oldstack->ss_sp) ||
+		(put_user(ptr_to_compat(uoss.ss_sp), &oldstack->ss_sp) ||
 		 __put_user(uoss.ss_flags, &oldstack->ss_flags) ||
 		 __put_user(uoss.ss_size, &oldstack->ss_size)))
 		return -EFAULT;
@@ -832,8 +815,8 @@ static int do_setcontext(struct ucontext __user *ucp, struct pt_regs *regs, int 
 }
 
 long sys_swapcontext(struct ucontext __user *old_ctx,
-		       struct ucontext __user *new_ctx,
-		       int ctx_size, int r6, int r7, int r8, struct pt_regs *regs)
+		     struct ucontext __user *new_ctx,
+		     int ctx_size, int r6, int r7, int r8, struct pt_regs *regs)
 {
 	unsigned char tmp;
 

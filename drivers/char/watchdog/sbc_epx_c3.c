@@ -25,6 +25,7 @@
 #include <linux/notifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
+#include <linux/ioport.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -91,7 +92,7 @@ static int epx_c3_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t epx_c3_write(struct file *file, const char *data,
+static ssize_t epx_c3_write(struct file *file, const char __user *data,
 			size_t len, loff_t *ppos)
 {
 	/* Refresh the timer. */
@@ -104,6 +105,7 @@ static int epx_c3_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	int options, retval = -EINVAL;
+	int __user *argp = (void __user *)arg;
 	static struct watchdog_info ident = {
 		.options		= WDIOF_KEEPALIVEPING |
 					  WDIOF_MAGICCLOSE,
@@ -113,20 +115,19 @@ static int epx_c3_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		if (copy_to_user((struct watchdog_info *)arg,
-				 &ident, sizeof(ident)))
+		if (copy_to_user(argp, &ident, sizeof(ident)))
 			return -EFAULT;
 		return 0;
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		return put_user(0,(int *)arg);
+		return put_user(0, argp);
 	case WDIOC_KEEPALIVE:
 		epx_c3_pet();
 		return 0;
 	case WDIOC_GETTIMEOUT:
-		return put_user(WATCHDOG_TIMEOUT,(int *)arg);
-	case WDIOC_SETOPTIONS: {
-		if (get_user(options, (int *)arg))
+		return put_user(WATCHDOG_TIMEOUT, argp);
+	case WDIOC_SETOPTIONS:
+		if (get_user(options, argp))
 			return -EFAULT;
 
 		if (options & WDIOS_DISABLECARD) {
@@ -140,7 +141,6 @@ static int epx_c3_ioctl(struct inode *inode, struct file *file,
 		}
 
 		return retval;
-	}
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -181,11 +181,14 @@ static int __init watchdog_init(void)
 {
 	int ret;
 
+	if (!request_region(EPXC3_WATCHDOG_CTL_REG, 2, "epxc3_watchdog"))
+		return -EBUSY;
+
 	ret = register_reboot_notifier(&epx_c3_notifier);
 	if (ret) {
 		printk(KERN_ERR PFX "cannot register reboot notifier "
 			"(err=%d)\n", ret);
-		return ret;
+		goto out;
 	}
 
 	ret = misc_register(&epx_c3_miscdev);
@@ -193,18 +196,23 @@ static int __init watchdog_init(void)
 		printk(KERN_ERR PFX "cannot register miscdev on minor=%d "
 			"(err=%d)\n", WATCHDOG_MINOR, ret);
 		unregister_reboot_notifier(&epx_c3_notifier);
-		return ret;
+		goto out;
 	}
 
 	printk(banner);
 
 	return 0;
+
+out:
+	release_region(EPXC3_WATCHDOG_CTL_REG, 2);
+	return ret;
 }
 
 static void __exit watchdog_exit(void)
 {
 	misc_deregister(&epx_c3_miscdev);
 	unregister_reboot_notifier(&epx_c3_notifier);
+	release_region(EPXC3_WATCHDOG_CTL_REG, 2);
 }
 
 module_init(watchdog_init);

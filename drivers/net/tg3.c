@@ -69,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.48"
-#define DRV_MODULE_RELDATE	"Jan 16, 2006"
+#define DRV_MODULE_VERSION	"3.49"
+#define DRV_MODULE_RELDATE	"Feb 2, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3482,6 +3482,17 @@ static void tg3_reset_task(void *_data)
 	struct tg3 *tp = _data;
 	unsigned int restart_timer;
 
+	tg3_full_lock(tp, 0);
+	tp->tg3_flags |= TG3_FLAG_IN_RESET_TASK;
+
+	if (!netif_running(tp->dev)) {
+		tp->tg3_flags &= ~TG3_FLAG_IN_RESET_TASK;
+		tg3_full_unlock(tp);
+		return;
+	}
+
+	tg3_full_unlock(tp);
+
 	tg3_netif_stop(tp);
 
 	tg3_full_lock(tp, 1);
@@ -3494,10 +3505,12 @@ static void tg3_reset_task(void *_data)
 
 	tg3_netif_start(tp);
 
-	tg3_full_unlock(tp);
-
 	if (restart_timer)
 		mod_timer(&tp->timer, jiffies + 1);
+
+	tp->tg3_flags &= ~TG3_FLAG_IN_RESET_TASK;
+
+	tg3_full_unlock(tp);
 }
 
 static void tg3_tx_timeout(struct net_device *dev)
@@ -3519,9 +3532,23 @@ static inline int tg3_4g_overflow_test(dma_addr_t mapping, int len)
 		(base + len + 8 < base));
 }
 
+/* Test for DMA addresses > 40-bit */
+static inline int tg3_40bit_overflow_test(struct tg3 *tp, dma_addr_t mapping,
+					  int len)
+{
+#if defined(CONFIG_HIGHMEM) && (BITS_PER_LONG == 64)
+	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
+		return (((u64) mapping + len) > DMA_40BIT_MASK);
+	return 0;
+#else
+	return 0;
+#endif
+}
+
 static void tg3_set_txd(struct tg3 *, int, dma_addr_t, int, u32, u32);
 
-static int tigon3_4gb_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
+/* Workaround 4GB and 40-bit hardware DMA bugs. */
+static int tigon3_dma_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
 				       u32 last_plus_one, u32 *start,
 				       u32 base_flags, u32 mss)
 {
@@ -3729,6 +3756,9 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (tg3_4g_overflow_test(mapping, len))
 				would_hit_hwbug = 1;
 
+			if (tg3_40bit_overflow_test(tp, mapping, len))
+				would_hit_hwbug = 1;
+
 			if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
 				tg3_set_txd(tp, entry, mapping, len,
 					    base_flags, (i == last)|(mss << 1));
@@ -3750,7 +3780,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* If the workaround fails due to memory/mapping
 		 * failure, silently drop this packet.
 		 */
-		if (tigon3_4gb_hwbug_workaround(tp, skb, last_plus_one,
+		if (tigon3_dma_hwbug_workaround(tp, skb, last_plus_one,
 						&start, base_flags, mss))
 			goto out_unlock;
 
@@ -6786,6 +6816,13 @@ static int tg3_close(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 
+	/* Calling flush_scheduled_work() may deadlock because
+	 * linkwatch_event() may be on the workqueue and it will try to get
+	 * the rtnl_lock which we are holding.
+	 */
+	while (tp->tg3_flags & TG3_FLAG_IN_RESET_TASK)
+		msleep(1);
+
 	netif_stop_queue(dev);
 
 	del_timer_sync(&tp->timer);
@@ -9388,6 +9425,15 @@ static int __devinit tg3_is_sun_570X(struct tg3 *tp)
 			return 0;
 		if (venid == PCI_VENDOR_ID_SUN)
 			return 1;
+
+		/* TG3 chips onboard the SunBlade-2500 don't have the
+		 * subsystem-vendor-id set to PCI_VENDOR_ID_SUN but they
+		 * are distinguishable from non-Sun variants by being
+		 * named "network" by the firmware.  Non-Sun cards will
+		 * show up as being named "ethernet".
+		 */
+		if (!strcmp(pcp->prom_name, "network"))
+			return 1;
 	}
 	return 0;
 }
@@ -9506,11 +9552,35 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		}
 	}
 
-	/* Find msi capability. */
+	/* The EPB bridge inside 5714, 5715, and 5780 cannot support
+	 * DMA addresses > 40-bit. This bridge may have other additional
+	 * 57xx devices behind it in some 4-port NIC designs for example.
+	 * Any tg3 device found behind the bridge will also need the 40-bit
+	 * DMA workaround.
+	 */
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714) {
 		tp->tg3_flags2 |= TG3_FLG2_5780_CLASS;
+		tp->tg3_flags |= TG3_FLAG_40BIT_DMA_BUG;
 		tp->msi_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_MSI);
+	}
+	else {
+		struct pci_dev *bridge = NULL;
+
+		do {
+			bridge = pci_get_device(PCI_VENDOR_ID_SERVERWORKS,
+						PCI_DEVICE_ID_SERVERWORKS_EPB,
+						bridge);
+			if (bridge && bridge->subordinate &&
+			    (bridge->subordinate->number <=
+			     tp->pdev->bus->number) &&
+			    (bridge->subordinate->subordinate >=
+			     tp->pdev->bus->number)) {
+				tp->tg3_flags |= TG3_FLAG_40BIT_DMA_BUG;
+				pci_dev_put(bridge);
+				break;
+			}
+		} while (bridge);
 	}
 
 	/* Initialize misc host control in PCI block. */
@@ -10257,7 +10327,14 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
 			u32 ccval = (tr32(TG3PCI_CLOCK_CTRL) & 0x1f);
 
-			if (ccval == 0x6 || ccval == 0x7)
+			/* If the 5704 is behind the EPB bridge, we can
+			 * do the less restrictive ONE_DMA workaround for
+			 * better performance.
+			 */
+			if ((tp->tg3_flags & TG3_FLAG_40BIT_DMA_BUG) &&
+			    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704)
+				tp->dma_rwctrl |= 0x8000;
+			else if (ccval == 0x6 || ccval == 0x7)
 				tp->dma_rwctrl |= DMA_RWCTRL_ONE_DMA;
 
 			/* Set bit 23 to enable PCIX hw bug fix */
@@ -10497,8 +10574,6 @@ static char * __devinit tg3_bus_string(struct tg3 *tp, char *str)
 			strcat(str, "66MHz");
 		else if (clock_ctrl == 6)
 			strcat(str, "100MHz");
-		else if (clock_ctrl == 7)
-			strcat(str, "133MHz");
 	} else {
 		strcpy(str, "PCI:");
 		if (tp->tg3_flags & TG3_FLAG_PCI_HIGH_SPEED)
@@ -10579,8 +10654,9 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	unsigned long tg3reg_base, tg3reg_len;
 	struct net_device *dev;
 	struct tg3 *tp;
-	int i, err, pci_using_dac, pm_cap;
+	int i, err, pm_cap;
 	char str[40];
+	u64 dma_mask, persist_dma_mask;
 
 	if (tg3_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -10617,26 +10693,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		goto err_out_free_res;
 	}
 
-	/* Configure DMA attributes. */
-	err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
-	if (!err) {
-		pci_using_dac = 1;
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
-		if (err < 0) {
-			printk(KERN_ERR PFX "Unable to obtain 64 bit DMA "
-			       "for consistent allocations\n");
-			goto err_out_free_res;
-		}
-	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
-		if (err) {
-			printk(KERN_ERR PFX "No usable DMA configuration, "
-			       "aborting.\n");
-			goto err_out_free_res;
-		}
-		pci_using_dac = 0;
-	}
-
 	tg3reg_base = pci_resource_start(pdev, 0);
 	tg3reg_len = pci_resource_len(pdev, 0);
 
@@ -10650,8 +10706,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	if (pci_using_dac)
-		dev->features |= NETIF_F_HIGHDMA;
 	dev->features |= NETIF_F_LLTX;
 #if TG3_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
@@ -10736,6 +10790,45 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
+	/* The EPB bridge inside 5714, 5715, and 5780 and any
+	 * device behind the EPB cannot support DMA addresses > 40-bit.
+	 * On 64-bit systems with IOMMU, use 40-bit dma_mask.
+	 * On 64-bit systems without IOMMU, use 64-bit dma_mask and
+	 * do DMA address check in tg3_start_xmit().
+	 */
+	if (tp->tg3_flags2 & TG3_FLG2_IS_5788)
+		persist_dma_mask = dma_mask = DMA_32BIT_MASK;
+	else if (tp->tg3_flags & TG3_FLAG_40BIT_DMA_BUG) {
+		persist_dma_mask = dma_mask = DMA_40BIT_MASK;
+#ifdef CONFIG_HIGHMEM
+		dma_mask = DMA_64BIT_MASK;
+#endif
+	} else
+		persist_dma_mask = dma_mask = DMA_64BIT_MASK;
+
+	/* Configure DMA attributes. */
+	if (dma_mask > DMA_32BIT_MASK) {
+		err = pci_set_dma_mask(pdev, dma_mask);
+		if (!err) {
+			dev->features |= NETIF_F_HIGHDMA;
+			err = pci_set_consistent_dma_mask(pdev,
+							  persist_dma_mask);
+			if (err < 0) {
+				printk(KERN_ERR PFX "Unable to obtain 64 bit "
+				       "DMA for consistent allocations\n");
+				goto err_out_iounmap;
+			}
+		}
+	}
+	if (err || dma_mask == DMA_32BIT_MASK) {
+		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		if (err) {
+			printk(KERN_ERR PFX "No usable DMA configuration, "
+			       "aborting.\n");
+			goto err_out_iounmap;
+		}
+	}
+
 	tg3_init_bufmgr_config(tp);
 
 #if TG3_TSO_SUPPORT != 0
@@ -10804,9 +10897,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	} else
 		tp->tg3_flags &= ~TG3_FLAG_RX_CHECKSUMS;
 
-	if (tp->tg3_flags2 & TG3_FLG2_IS_5788)
-		dev->features &= ~NETIF_F_HIGHDMA;
-
 	/* flow control autonegotiation is default behavior */
 	tp->tg3_flags |= TG3_FLAG_PAUSE_AUTONEG;
 
@@ -10850,8 +10940,10 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	       (tp->tg3_flags & TG3_FLAG_SPLIT_MODE) != 0,
 	       (tp->tg3_flags2 & TG3_FLG2_NO_ETH_WIRE_SPEED) == 0,
 	       (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE) != 0);
-	printk(KERN_INFO "%s: dma_rwctrl[%08x]\n",
-	       dev->name, tp->dma_rwctrl);
+	printk(KERN_INFO "%s: dma_rwctrl[%08x] dma_mask[%d-bit]\n",
+	       dev->name, tp->dma_rwctrl,
+	       (pdev->dma_mask == DMA_32BIT_MASK) ? 32 :
+	        (((u64) pdev->dma_mask == DMA_40BIT_MASK) ? 40 : 64));
 
 	return 0;
 
@@ -10880,6 +10972,7 @@ static void __devexit tg3_remove_one(struct pci_dev *pdev)
 	if (dev) {
 		struct tg3 *tp = netdev_priv(dev);
 
+		flush_scheduled_work();
 		unregister_netdev(dev);
 		if (tp->regs) {
 			iounmap(tp->regs);
@@ -10901,6 +10994,7 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		return 0;
 
+	flush_scheduled_work();
 	tg3_netif_stop(tp);
 
 	del_timer_sync(&tp->timer);

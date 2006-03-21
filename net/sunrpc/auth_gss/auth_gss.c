@@ -158,6 +158,7 @@ gss_cred_set_ctx(struct rpc_cred *cred, struct gss_cl_ctx *ctx)
 	old = gss_cred->gc_ctx;
 	gss_cred->gc_ctx = ctx;
 	cred->cr_flags |= RPCAUTH_CRED_UPTODATE;
+	cred->cr_flags &= ~RPCAUTH_CRED_NEW;
 	write_unlock(&gss_ctx_lock);
 	if (old)
 		gss_put_ctx(old);
@@ -580,7 +581,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	} else {
 		struct auth_cred acred = { .uid = uid };
 		spin_unlock(&gss_auth->lock);
-		cred = rpcauth_lookup_credcache(clnt->cl_auth, &acred, 0);
+		cred = rpcauth_lookup_credcache(clnt->cl_auth, &acred, RPCAUTH_LOOKUP_NEW);
 		if (IS_ERR(cred)) {
 			err = PTR_ERR(cred);
 			goto err_put_ctx;
@@ -758,13 +759,13 @@ gss_destroy_cred(struct rpc_cred *rc)
  * Lookup RPCSEC_GSS cred for the current process
  */
 static struct rpc_cred *
-gss_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int taskflags)
+gss_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 {
-	return rpcauth_lookup_credcache(auth, acred, taskflags);
+	return rpcauth_lookup_credcache(auth, acred, flags);
 }
 
 static struct rpc_cred *
-gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int taskflags)
+gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 {
 	struct gss_auth *gss_auth = container_of(auth, struct gss_auth, rpc_auth);
 	struct gss_cred	*cred = NULL;
@@ -785,13 +786,8 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int taskflags)
 	 */
 	cred->gc_flags = 0;
 	cred->gc_base.cr_ops = &gss_credops;
+	cred->gc_base.cr_flags = RPCAUTH_CRED_NEW;
 	cred->gc_service = gss_auth->service;
-	do {
-		err = gss_create_upcall(gss_auth, cred);
-	} while (err == -EAGAIN);
-	if (err < 0)
-		goto out_err;
-
 	return &cred->gc_base;
 
 out_err:
@@ -801,13 +797,34 @@ out_err:
 }
 
 static int
-gss_match(struct auth_cred *acred, struct rpc_cred *rc, int taskflags)
+gss_cred_init(struct rpc_auth *auth, struct rpc_cred *cred)
+{
+	struct gss_auth *gss_auth = container_of(auth, struct gss_auth, rpc_auth);
+	struct gss_cred *gss_cred = container_of(cred,struct gss_cred, gc_base);
+	int err;
+
+	do {
+		err = gss_create_upcall(gss_auth, gss_cred);
+	} while (err == -EAGAIN);
+	return err;
+}
+
+static int
+gss_match(struct auth_cred *acred, struct rpc_cred *rc, int flags)
 {
 	struct gss_cred *gss_cred = container_of(rc, struct gss_cred, gc_base);
 
+	/*
+	 * If the searchflags have set RPCAUTH_LOOKUP_NEW, then
+	 * we don't really care if the credential has expired or not,
+	 * since the caller should be prepared to reinitialise it.
+	 */
+	if ((flags & RPCAUTH_LOOKUP_NEW) && (rc->cr_flags & RPCAUTH_CRED_NEW))
+		goto out;
 	/* Don't match with creds that have expired. */
 	if (gss_cred->gc_ctx && time_after(jiffies, gss_cred->gc_ctx->gc_expiry))
 		return 0;
+out:
 	return (rc->cr_uid == acred->uid);
 }
 
@@ -1241,6 +1258,7 @@ static struct rpc_authops authgss_ops = {
 static struct rpc_credops gss_credops = {
 	.cr_name	= "AUTH_GSS",
 	.crdestroy	= gss_destroy_cred,
+	.cr_init	= gss_cred_init,
 	.crmatch	= gss_match,
 	.crmarshal	= gss_marshal,
 	.crrefresh	= gss_refresh,

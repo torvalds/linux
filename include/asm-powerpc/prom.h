@@ -222,5 +222,7 @@ extern int of_address_to_resource(struct device_node *dev, int index,
 extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 				      struct resource *r);
 
+extern void kdump_move_device_tree(void);
+
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */

@@ -389,7 +389,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		if (atomic_read(&ha->loop_state) != LOOP_DOWN) {
 			atomic_set(&ha->loop_state, LOOP_DOWN);
 			atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(ha);
+			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
 		set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
@@ -402,9 +402,9 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_LOOP_UP:		/* Loop Up Event */
-		ha->link_data_rate = 0;
 		if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
 			link_speed = link_speeds[0];
+			ha->link_data_rate = LDR_1GB;
 		} else {
 			link_speed = link_speeds[LS_UNKNOWN];
 			if (mb[1] < 5)
@@ -432,11 +432,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			atomic_set(&ha->loop_state, LOOP_DOWN);
 			atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
 			ha->device_flags |= DFLG_NO_CABLE;
-			qla2x00_mark_all_devices_lost(ha);
+			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
 		ha->flags.management_server_logged_in = 0;
-		ha->link_data_rate = 0;
+		ha->link_data_rate = LDR_UNKNOWN;
 		if (ql2xfdmienable)
 			set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
 
@@ -453,7 +453,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		if (atomic_read(&ha->loop_state) != LOOP_DOWN) {
 			atomic_set(&ha->loop_state, LOOP_DOWN);
 			atomic_set(&ha->loop_down_timer, LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(ha);
+			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
 		set_bit(RESET_MARKER_NEEDED, &ha->dpc_flags);
@@ -482,7 +482,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			if (!atomic_read(&ha->loop_down_timer))
 				atomic_set(&ha->loop_down_timer,
 				    LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(ha);
+			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
 		if (!(test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags))) {
@@ -506,7 +506,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			if (!atomic_read(&ha->loop_down_timer))
 				atomic_set(&ha->loop_down_timer,
 				    LOOP_DOWN_TIME);
-			qla2x00_mark_all_devices_lost(ha);
+			qla2x00_mark_all_devices_lost(ha, 1);
 		}
 
 		set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
@@ -580,7 +580,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		 */
 		atomic_set(&ha->loop_state, LOOP_UP);
 
-		qla2x00_mark_all_devices_lost(ha);
+		qla2x00_mark_all_devices_lost(ha, 1);
 
 		ha->flags.rscn_queue_overflow = 1;
 
@@ -1091,7 +1091,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 		cp->result = DID_BUS_BUSY << 16;
 		if (atomic_read(&fcport->state) == FCS_ONLINE) {
-			qla2x00_mark_device_lost(ha, fcport, 1);
+			qla2x00_mark_device_lost(ha, fcport, 1, 1);
 		}
 		break;
 
@@ -1135,7 +1135,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 		/* Check to see if logout occurred. */
 		if ((le16_to_cpu(sts->status_flags) & SF_LOGOUT_SENT))
-			qla2x00_mark_device_lost(ha, fcport, 1);
+			qla2x00_mark_device_lost(ha, fcport, 1, 1);
 		break;
 
 	case CS_QUEUE_FULL:

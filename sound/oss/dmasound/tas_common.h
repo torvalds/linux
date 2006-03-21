@@ -178,10 +178,10 @@ tas_write_register(	struct tas_data_t *self,
 	if (write_mode & WRITE_SHADOW)
 		memcpy(self->shadow[reg_num],data,reg_width);
 	if (write_mode & WRITE_HW) {
-		rc=i2c_smbus_write_block_data(self->client,
-					      reg_num,
-					      reg_width,
-					      data);
+		rc=i2c_smbus_write_i2c_block_data(self->client,
+						  reg_num,
+						  reg_width,
+						  data);
 		if (rc < 0) {
 			printk("tas: I2C block write failed \n");  
 			return rc; 
@@ -199,10 +199,10 @@ tas_sync_register(	struct tas_data_t *self,
 
 	if (reg_width==0 || self==NULL)
 		return -EINVAL;
-	rc=i2c_smbus_write_block_data(self->client,
-				      reg_num,
-				      reg_width,
-				      self->shadow[reg_num]);
+	rc=i2c_smbus_write_i2c_block_data(self->client,
+					  reg_num,
+					  reg_width,
+					  self->shadow[reg_num]);
 	if (rc < 0) {
 		printk("tas: I2C block write failed \n");
 		return rc;

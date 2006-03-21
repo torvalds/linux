@@ -3,10 +3,7 @@
  *	      Part of the Linux-NTFS project.
  *
  * Copyright (c) 2001 Richard Russon <ntfs@flatcap.org>
- * Copyright (c) 2001-2004 Anton Altaparmakov
- *
- * Modified for mkntfs inclusion 9 June 2001 by Anton Altaparmakov.
- * Modified for kernel inclusion 10 September 2001 by Anton Altparmakov.
+ * Copyright (c) 2001-2006 Anton Altaparmakov
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -75,12 +72,13 @@ ntfschar *generate_default_upcase(void)
 	if (!uc)
 		return uc;
 	memset(uc, 0, default_upcase_len * sizeof(ntfschar));
+	/* Generate the little endian Unicode upcase table used by ntfs. */
 	for (i = 0; i < default_upcase_len; i++)
 		uc[i] = cpu_to_le16(i);
 	for (r = 0; uc_run_table[r][0]; r++)
 		for (i = uc_run_table[r][0]; i < uc_run_table[r][1]; i++)
-			uc[i] = cpu_to_le16((le16_to_cpu(uc[i]) +
-					uc_run_table[r][2]));
+			uc[i] = cpu_to_le16(le16_to_cpu(uc[i]) +
+					uc_run_table[r][2]);
 	for (r = 0; uc_dup_table[r][0]; r++)
 		for (i = uc_dup_table[r][0]; i < uc_dup_table[r][1]; i += 2)
 			uc[i + 1] = cpu_to_le16(le16_to_cpu(uc[i + 1]) - 1);

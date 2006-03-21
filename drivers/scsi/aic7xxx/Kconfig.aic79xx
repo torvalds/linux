@@ -37,13 +37,13 @@ config AIC79XX_CMDS_PER_DEVICE
 config AIC79XX_RESET_DELAY_MS
 	int "Initial bus reset delay in milli-seconds"
 	depends on SCSI_AIC79XX
-	default "15000"
+	default "5000"
 	---help---
 	The number of milliseconds to delay after an initial bus reset.
 	The bus settle delay following all error recovery actions is
 	dictated by the SCSI layer and is not affected by this value.
 
-	Default: 15000 (15 seconds)
+	Default: 5000 (5 seconds)
 
 config AIC79XX_BUILD_FIRMWARE
 	bool "Build Adapter Firmware with Kernel Build"

@@ -427,6 +427,23 @@ icmp_ignore_bogus_error_responses - BOOLEAN
 	will avoid log file clutter.
 	Default: FALSE
 
+icmp_errors_use_inbound_ifaddr - BOOLEAN
+
+	If zero, icmp error messages are sent with the primary address of
+	the exiting interface.
+ 
+	If non-zero, the message will be sent with the primary address of
+	the interface that received the packet that caused the icmp error.
+	This is the behaviour network many administrators will expect from
+	a router. And it can make debugging complicated network layouts
+	much easier. 
+
+	Note that if no primary address exists for the interface selected,
+	then the primary address of the first non-loopback interface that
+	has one will be used regarldess of this setting.
+
+	Default: 0
+
 igmp_max_memberships - INTEGER
 	Change the maximum number of multicast groups we can subscribe to.
 	Default: 20

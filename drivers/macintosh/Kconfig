@@ -187,6 +187,14 @@ config WINDFARM_PM91
 	  This driver provides thermal control for the PowerMac9,1
           which is the recent (SMU based) single CPU desktop G5
 
+config WINDFARM_PM112
+	tristate "Support for thermal management on PowerMac11,2"
+	depends on WINDFARM && I2C && PMAC_SMU
+	select I2C_POWERMAC
+	help
+	  This driver provides thermal control for the PowerMac11,2
+	  which are the recent dual and quad G5 machines using the
+	  970MP dual-core processor.
 
 config ANSLCD
 	tristate "Support for ANS LCD display"

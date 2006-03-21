@@ -159,6 +159,23 @@ int __init_or_module at91_set_deglitch(unsigned pin, int is_on)
 }
 EXPORT_SYMBOL(at91_set_deglitch);
 
+/*
+ * enable/disable the multi-driver; This is only valid for output and
+ * allows the output pin to run as an open collector output.
+ */
+int __init_or_module at91_set_multi_drive(unsigned pin, int is_on)
+{
+	void __iomem	*pio = pin_to_controller(pin);
+	unsigned	mask = pin_to_mask(pin);
+
+	if (!pio)
+		return -EINVAL;
+
+	__raw_writel(mask, pio + (is_on ? PIO_MDER : PIO_MDDR));
+	return 0;
+}
+EXPORT_SYMBOL(at91_set_multi_drive);
+
 /*--------------------------------------------------------------------------*/
 
 
@@ -257,8 +274,18 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 		gpio = &irq_desc[pin];
 
 		while (isr) {
-			if (isr & 1)
-				gpio->handle(pin, gpio, regs);
+			if (isr & 1) {
+				if (unlikely(gpio->disable_depth)) {
+					/*
+					 * The core ARM interrupt handler lazily disables IRQs so
+					 * another IRQ must be generated before it actually gets
+					 * here to be disabled on the GPIO controller.
+					 */
+					gpio_irq_mask(pin);
+				}
+				else
+					gpio->handle(pin, gpio, regs);
+			}
 			pin++;
 			gpio++;
 			isr >>= 1;

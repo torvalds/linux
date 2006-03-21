@@ -188,7 +188,7 @@ extern struct nf_conntrack_protocol nf_conntrack_generic_protocol;
 struct nf_conntrack_protocol *
 __nf_ct_proto_find(u_int16_t l3proto, u_int8_t protocol)
 {
-	if (unlikely(nf_ct_protos[l3proto] == NULL))
+	if (unlikely(l3proto >= AF_MAX || nf_ct_protos[l3proto] == NULL))
 		return &nf_conntrack_generic_protocol;
 
 	return nf_ct_protos[l3proto][protocol];
@@ -1556,6 +1556,8 @@ void nf_conntrack_cleanup(void)
 {
 	int i;
 
+	ip_ct_attach = NULL;
+
 	/* This makes sure all current packets have passed through
 	   netfilter framework.  Roll on, two-stage module
 	   delete... */
@@ -1714,6 +1716,9 @@ int __init nf_conntrack_init(void)
         for (i = 0; i < PF_MAX; i++)
 		nf_ct_l3protos[i] = &nf_conntrack_generic_l3proto;
         write_unlock_bh(&nf_conntrack_lock);
+
+	/* For use by REJECT target */
+	ip_ct_attach = __nf_conntrack_attach;
 
 	/* Set up fake conntrack:
 	    - to never be deleted, not in any hashes */

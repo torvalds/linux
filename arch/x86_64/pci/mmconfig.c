@@ -29,11 +29,8 @@ static char __iomem *get_virt(unsigned int seg, unsigned bus)
 
 	while (1) {
 		++cfg_num;
-		if (cfg_num >= pci_mmcfg_config_num) {
-			/* Not found - fall back to type 1. This happens
-			   e.g. on the internal devices of a K8 northbridge. */
-			return NULL;
-		}
+		if (cfg_num >= pci_mmcfg_config_num)
+			break;
 		cfg = pci_mmcfg_virt[cfg_num].cfg;
 		if (cfg->pci_segment_group_number != seg)
 			continue;
@@ -41,6 +38,18 @@ static char __iomem *get_virt(unsigned int seg, unsigned bus)
 		    (cfg->end_bus_number >= bus))
 			return pci_mmcfg_virt[cfg_num].virt;
 	}
+
+	/* Handle more broken MCFG tables on Asus etc.
+	   They only contain a single entry for bus 0-0. Assume
+ 	   this applies to all busses. */
+	cfg = &pci_mmcfg_config[0];
+	if (pci_mmcfg_config_num == 1 &&
+		cfg->pci_segment_group_number == 0 &&
+		(cfg->start_bus_number | cfg->end_bus_number) == 0)
+		return pci_mmcfg_virt[0].virt;
+
+	/* Fall back to type 0 */
+	return NULL;
 }
 
 static char __iomem *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)

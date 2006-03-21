@@ -322,7 +322,7 @@ static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
 #endif
 		"2:							\n"
 		"	.set	pop					\n"
-		: "=&r" (retval), "=m" (*m)
+		: "=&r" (retval), "=R" (*m)
 		: "R" (*m), "Jr" (old), "Jr" (new)
 		: "memory");
 	} else if (cpu_has_llsc) {
@@ -342,7 +342,7 @@ static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
 #endif
 		"2:							\n"
 		"	.set	pop					\n"
-		: "=&r" (retval), "=m" (*m)
+		: "=&r" (retval), "=R" (*m)
 		: "R" (*m), "Jr" (old), "Jr" (new)
 		: "memory");
 	} else {
@@ -379,7 +379,7 @@ static inline unsigned long __cmpxchg_u64(volatile int * m, unsigned long old,
 #endif
 		"2:							\n"
 		"	.set	pop					\n"
-		: "=&r" (retval), "=m" (*m)
+		: "=&r" (retval), "=R" (*m)
 		: "R" (*m), "Jr" (old), "Jr" (new)
 		: "memory");
 	} else if (cpu_has_llsc) {
@@ -397,7 +397,7 @@ static inline unsigned long __cmpxchg_u64(volatile int * m, unsigned long old,
 #endif
 		"2:							\n"
 		"	.set	pop					\n"
-		: "=&r" (retval), "=m" (*m)
+		: "=&r" (retval), "=R" (*m)
 		: "R" (*m), "Jr" (old), "Jr" (new)
 		: "memory");
 	} else {

@@ -36,7 +36,7 @@ int __init init_cyclone_clock(void)
 	u32* volatile cyclone_timer;	/* Cyclone MPMC0 register */
 
 	if (!use_cyclone)
-		return -ENODEV;
+		return 0;
 
 	printk(KERN_INFO "Summit chipset: Starting Cyclone Counter.\n");
 

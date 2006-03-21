@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <asm/io.h>
-#include <asm/bus-sh.h>
+
 
 struct voya_alloc_entry {
 	struct list_head list;
@@ -30,12 +30,13 @@ static LIST_HEAD(voya_alloc_list);
 #define OHCI_HCCA_SIZE	0x100
 #define OHCI_SRAM_SIZE	0x10000
 
+#define VOYAGER_OHCI_NAME	"voyager-ohci"
+
 void *voyagergx_consistent_alloc(struct device *dev, size_t size,
 				 dma_addr_t *handle, gfp_t flag)
 {
 	struct list_head *list = &voya_alloc_list;
 	struct voya_alloc_entry *entry;
-	struct sh_dev *shdev = to_sh_dev(dev);
 	unsigned long start, end;
 	unsigned long flags;
 
@@ -46,9 +47,7 @@ void *voyagergx_consistent_alloc(struct device *dev, size_t size,
 	 *
 	 * Everything else goes through consistent_alloc().
 	 */
-	if (!dev || dev->bus != &sh_bus_types[SH_BUS_VIRT] ||
-		   (dev->bus == &sh_bus_types[SH_BUS_VIRT] &&
-		    shdev->dev_id != SH_DEV_ID_USB_OHCI))
+	if (!dev || strcmp(dev->driver->name, VOYAGER_OHCI_NAME))
 		return NULL;
 
 	start = OHCI_SRAM_START + OHCI_HCCA_SIZE;
@@ -98,12 +97,9 @@ int voyagergx_consistent_free(struct device *dev, size_t size,
 			      void *vaddr, dma_addr_t handle)
 {
 	struct voya_alloc_entry *entry;
-	struct sh_dev *shdev = to_sh_dev(dev);
 	unsigned long flags;
 
-	if (!dev || dev->bus != &sh_bus_types[SH_BUS_VIRT] ||
-		   (dev->bus == &sh_bus_types[SH_BUS_VIRT] &&
-		    shdev->dev_id != SH_DEV_ID_USB_OHCI))
+	if (!dev || strcmp(dev->driver->name, VOYAGER_OHCI_NAME))
 		return -EINVAL;
 
 	spin_lock_irqsave(&voya_list_lock, flags);
@@ -123,4 +119,3 @@ int voyagergx_consistent_free(struct device *dev, size_t size,
 
 EXPORT_SYMBOL(voyagergx_consistent_alloc);
 EXPORT_SYMBOL(voyagergx_consistent_free);
-

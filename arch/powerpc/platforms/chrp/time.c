@@ -167,24 +167,3 @@ void chrp_get_rtc_time(struct rtc_time *tm)
 	tm->tm_mon = mon;
 	tm->tm_year = year;
 }
-
-
-void __init chrp_calibrate_decr(void)
-{
-	struct device_node *cpu;
-	unsigned int freq, *fp;
-
-	/*
-	 * The cpu node should have a timebase-frequency property
-	 * to tell us the rate at which the decrementer counts.
-	 */
-	freq = 16666000;		/* hardcoded default */
-	cpu = find_type_devices("cpu");
-	if (cpu != 0) {
-		fp = (unsigned int *)
-			get_property(cpu, "timebase-frequency", NULL);
-		if (fp != 0)
-			freq = *fp;
-	}
-	ppc_tb_freq = freq;
-}

@@ -56,6 +56,7 @@ long nr_swap_pages;
 int percpu_pagelist_fraction;
 
 static void fastcall free_hot_cold_page(struct page *page, int cold);
+static void __free_pages_ok(struct page *page, unsigned int order);
 
 /*
  * results with 256, 32 in the lowmem_reserve sysctl:
@@ -169,20 +170,23 @@ static void bad_page(struct page *page)
  * All pages have PG_compound set.  All pages have their ->private pointing at
  * the head page (even the head page has this).
  *
- * The first tail page's ->mapping, if non-zero, holds the address of the
- * compound page's put_page() function.
- *
- * The order of the allocation is stored in the first tail page's ->index
- * This is only for debug at present.  This usage means that zero-order pages
- * may not be compound.
+ * The first tail page's ->lru.next holds the address of the compound page's
+ * put_page() function.  Its ->lru.prev holds the order of allocation.
+ * This usage means that zero-order pages may not be compound.
  */
+
+static void free_compound_page(struct page *page)
+{
+	__free_pages_ok(page, (unsigned long)page[1].lru.prev);
+}
+
 static void prep_compound_page(struct page *page, unsigned long order)
 {
 	int i;
 	int nr_pages = 1 << order;
 
-	page[1].mapping = NULL;
-	page[1].index = order;
+	page[1].lru.next = (void *)free_compound_page;	/* set dtor */
+	page[1].lru.prev = (void *)order;
 	for (i = 0; i < nr_pages; i++) {
 		struct page *p = page + i;
 
@@ -196,7 +200,7 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 	int i;
 	int nr_pages = 1 << order;
 
-	if (unlikely(page[1].index != order))
+	if (unlikely((unsigned long)page[1].lru.prev != order))
 		bad_page(page);
 
 	for (i = 0; i < nr_pages; i++) {
@@ -586,20 +590,19 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 }
 
 #ifdef CONFIG_NUMA
-/* Called from the slab reaper to drain remote pagesets */
-void drain_remote_pages(void)
+/*
+ * Called from the slab reaper to drain pagesets on a particular node that
+ * belong to the currently executing processor.
+ */
+void drain_node_pages(int nodeid)
 {
-	struct zone *zone;
-	int i;
+	int i, z;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	for_each_zone(zone) {
+	for (z = 0; z < MAX_NR_ZONES; z++) {
+		struct zone *zone = NODE_DATA(nodeid)->node_zones + z;
 		struct per_cpu_pageset *pset;
-
-		/* Do not drain local pagesets */
-		if (zone->zone_pgdat->node_id == numa_node_id())
-			continue;
 
 		pset = zone_pcp(zone, smp_processor_id());
 		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
@@ -1011,7 +1014,7 @@ rebalance:
 		if (page)
 			goto got_pg;
 
-		out_of_memory(gfp_mask, order);
+		out_of_memory(zonelist, gfp_mask, order);
 		goto restart;
 	}
 
@@ -1213,18 +1216,21 @@ static void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
 {
 	int cpu = 0;
 
-	memset(ret, 0, sizeof(*ret));
+	memset(ret, 0, nr * sizeof(unsigned long));
 	cpus_and(*cpumask, *cpumask, cpu_online_map);
 
 	cpu = first_cpu(*cpumask);
 	while (cpu < NR_CPUS) {
 		unsigned long *in, *out, off;
 
+		if (!cpu_isset(cpu, *cpumask))
+			continue;
+
 		in = (unsigned long *)&per_cpu(page_states, cpu);
 
 		cpu = next_cpu(cpu, *cpumask);
 
-		if (cpu < NR_CPUS)
+		if (likely(cpu < NR_CPUS))
 			prefetch(&per_cpu(page_states, cpu));
 
 		out = (unsigned long *)ret;
@@ -1534,28 +1540,28 @@ static int __initdata node_load[MAX_NUMNODES];
  */
 static int __init find_next_best_node(int node, nodemask_t *used_node_mask)
 {
-	int i, n, val;
+	int n, val;
 	int min_val = INT_MAX;
 	int best_node = -1;
 
-	for_each_online_node(i) {
-		cpumask_t tmp;
+	/* Use the local node if we haven't already */
+	if (!node_isset(node, *used_node_mask)) {
+		node_set(node, *used_node_mask);
+		return node;
+	}
 
-		/* Start from local node */
-		n = (node+i) % num_online_nodes();
+	for_each_online_node(n) {
+		cpumask_t tmp;
 
 		/* Don't want a node to appear more than once */
 		if (node_isset(n, *used_node_mask))
 			continue;
 
-		/* Use the local node if we haven't already */
-		if (!node_isset(node, *used_node_mask)) {
-			best_node = node;
-			break;
-		}
-
 		/* Use the distance array to find the distance */
 		val = node_distance(node, n);
+
+		/* Penalize nodes under us ("prefer the next node") */
+		val += (n < node);
 
 		/* Give preference to headless and unused nodes */
 		tmp = node_to_cpumask(n);
@@ -1799,7 +1805,7 @@ void zonetable_add(struct zone *zone, int nid, int zid, unsigned long pfn,
 	memmap_init_zone((size), (nid), (zone), (start_pfn))
 #endif
 
-static int __meminit zone_batchsize(struct zone *zone)
+static int __cpuinit zone_batchsize(struct zone *zone)
 {
 	int batch;
 
@@ -1886,14 +1892,13 @@ static void setup_pagelist_highmark(struct per_cpu_pageset *p,
  * not check if the processor is online before following the pageset pointer.
  * Other parts of the kernel may not check if the zone is available.
  */
-static struct per_cpu_pageset
-	boot_pageset[NR_CPUS];
+static struct per_cpu_pageset boot_pageset[NR_CPUS];
 
 /*
  * Dynamically allocate memory for the
  * per cpu pageset array in struct zone.
  */
-static int __meminit process_zones(int cpu)
+static int __cpuinit process_zones(int cpu)
 {
 	struct zone *zone, *dzone;
 
@@ -1934,7 +1939,7 @@ static inline void free_zone_pagesets(int cpu)
 	}
 }
 
-static int __meminit pageset_cpuup_callback(struct notifier_block *nfb,
+static int __cpuinit pageset_cpuup_callback(struct notifier_block *nfb,
 		unsigned long action,
 		void *hcpu)
 {

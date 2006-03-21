@@ -64,6 +64,32 @@ struct nfsd_list {
 };
 static struct list_head nfsd_list = LIST_HEAD_INIT(nfsd_list);
 
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+static struct svc_stat	nfsd_acl_svcstats;
+static struct svc_version *	nfsd_acl_version[] = {
+	[2] = &nfsd_acl_version2,
+	[3] = &nfsd_acl_version3,
+};
+
+#define NFSD_ACL_MINVERS            2
+#define NFSD_ACL_NRVERS		(sizeof(nfsd_acl_version)/sizeof(nfsd_acl_version[0]))
+static struct svc_version *nfsd_acl_versions[NFSD_ACL_NRVERS];
+
+static struct svc_program	nfsd_acl_program = {
+	.pg_prog		= NFS_ACL_PROGRAM,
+	.pg_nvers		= NFSD_ACL_NRVERS,
+	.pg_vers		= nfsd_acl_versions,
+	.pg_name		= "nfsd",
+	.pg_class		= "nfsd",
+	.pg_stats		= &nfsd_acl_svcstats,
+	.pg_authenticate	= &svc_set_client,
+};
+
+static struct svc_stat	nfsd_acl_svcstats = {
+	.program	= &nfsd_acl_program,
+};
+#endif /* defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL) */
+
 static struct svc_version *	nfsd_version[] = {
 	[2] = &nfsd_version2,
 #if defined(CONFIG_NFSD_V3)
@@ -79,6 +105,9 @@ static struct svc_version *	nfsd_version[] = {
 static struct svc_version *nfsd_versions[NFSD_NRVERS];
 
 struct svc_program		nfsd_program = {
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+	.pg_next		= &nfsd_acl_program,
+#endif
 	.pg_prog		= NFS_PROGRAM,		/* program number */
 	.pg_nvers		= NFSD_NRVERS,		/* nr of entries in nfsd_version */
 	.pg_vers		= nfsd_versions,	/* version table */
@@ -146,6 +175,26 @@ nfsd_svc(unsigned short port, int nrservs)
 			for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++)
 				nfsd_program.pg_vers[i] = nfsd_version[i];
 		}
+
+
+#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
+		found_one = 0;
+
+		for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++) {
+			if (NFSCTL_VERISSET(nfsd_versbits, i)) {
+				nfsd_acl_program.pg_vers[i] =
+					nfsd_acl_version[i];
+				found_one = 1;
+			} else
+				nfsd_acl_program.pg_vers[i] = NULL;
+		}
+
+		if (!found_one) {
+			for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++)
+				nfsd_acl_program.pg_vers[i] =
+					nfsd_acl_version[i];
+		}
+#endif
 
 		atomic_set(&nfsd_busy, 0);
 		error = -ENOMEM;
@@ -411,30 +460,3 @@ nfsd_dispatch(struct svc_rqst *rqstp, u32 *statp)
 	nfsd_cache_update(rqstp, proc->pc_cachetype, statp + 1);
 	return 1;
 }
-
-#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
-static struct svc_stat	nfsd_acl_svcstats;
-static struct svc_version *	nfsd_acl_version[] = {
-	[2] = &nfsd_acl_version2,
-	[3] = &nfsd_acl_version3,
-};
-
-#define NFSD_ACL_NRVERS		(sizeof(nfsd_acl_version)/sizeof(nfsd_acl_version[0]))
-static struct svc_program	nfsd_acl_program = {
-	.pg_prog		= NFS_ACL_PROGRAM,
-	.pg_nvers		= NFSD_ACL_NRVERS,
-	.pg_vers		= nfsd_acl_version,
-	.pg_name		= "nfsd",
-	.pg_class		= "nfsd",
-	.pg_stats		= &nfsd_acl_svcstats,
-	.pg_authenticate	= &svc_set_client,
-};
-
-static struct svc_stat	nfsd_acl_svcstats = {
-	.program	= &nfsd_acl_program,
-};
-
-#define nfsd_acl_program_p	&nfsd_acl_program
-#else
-#define nfsd_acl_program_p	NULL
-#endif /* defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL) */

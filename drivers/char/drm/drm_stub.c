@@ -50,7 +50,7 @@ module_param_named(cards_limit, drm_cards_limit, int, 0444);
 module_param_named(debug, drm_debug, int, 0600);
 
 drm_head_t **drm_heads;
-struct drm_sysfs_class *drm_class;
+struct class *drm_class;
 struct proc_dir_entry *drm_proc_root;
 
 static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
@@ -61,8 +61,8 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 
 	spin_lock_init(&dev->count_lock);
 	init_timer(&dev->timer);
-	sema_init(&dev->struct_sem, 1);
-	sema_init(&dev->ctxlist_sem, 1);
+	mutex_init(&dev->struct_mutex);
+	mutex_init(&dev->ctxlist_mutex);
 
 	dev->pdev = pdev;
 

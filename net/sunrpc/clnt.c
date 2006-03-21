@@ -113,7 +113,7 @@ rpc_new_client(struct rpc_xprt *xprt, char *servname,
 
 	err = -EINVAL;
 	if (!xprt)
-		goto out_err;
+		goto out_no_xprt;
 	if (vers >= program->nrvers || !(version = program->version[vers]))
 		goto out_err;
 
@@ -182,6 +182,7 @@ out_no_path:
 	kfree(clnt);
 out_err:
 	xprt_destroy(xprt);
+out_no_xprt:
 	return ERR_PTR(err);
 }
 

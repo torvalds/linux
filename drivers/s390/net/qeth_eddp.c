@@ -1,14 +1,11 @@
 /*
- *
- * linux/drivers/s390/net/qeth_eddp.c ($Revision: 1.13 $)
+ * linux/drivers/s390/net/qeth_eddp.c
  *
  * Enhanced Device Driver Packing (EDDP) support for the qeth driver.
  *
  * Copyright 2004 IBM Corporation
  *
  *    Author(s): Thomas Spatzier <tspat@de.ibm.com>
- *
- *    $Revision: 1.13 $	 $Date: 2005/05/04 20:19:18 $
  *
  */
 #include <linux/config.h>
@@ -62,8 +59,7 @@ qeth_eddp_free_context(struct qeth_eddp_context *ctx)
 	for (i = 0; i < ctx->num_pages; ++i)
 		free_page((unsigned long)ctx->pages[i]);
 	kfree(ctx->pages);
-	if (ctx->elements != NULL)
-		kfree(ctx->elements);
+	kfree(ctx->elements);
 	kfree(ctx);
 }
 
@@ -416,6 +412,13 @@ __qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 	
 	QETH_DBF_TEXT(trace, 5, "eddpftcp");
 	eddp->skb_offset = sizeof(struct qeth_hdr) + eddp->nhl + eddp->thl;
+       if (eddp->qh.hdr.l2.id == QETH_HEADER_TYPE_LAYER2) {
+               eddp->skb_offset += sizeof(struct ethhdr);
+#ifdef CONFIG_QETH_VLAN
+               if (eddp->mac.h_proto == __constant_htons(ETH_P_8021Q))
+                       eddp->skb_offset += VLAN_HLEN;
+#endif /* CONFIG_QETH_VLAN */
+       }
 	tcph = eddp->skb->h.th;
 	while (eddp->skb_offset < eddp->skb->len) {
 		data_len = min((int)skb_shinfo(eddp->skb)->tso_size,
@@ -486,6 +489,7 @@ qeth_eddp_fill_context_tcp(struct qeth_eddp_context *ctx,
 		return -ENOMEM;
 	}
 	if (qhdr->hdr.l2.id == QETH_HEADER_TYPE_LAYER2) {
+		skb->mac.raw = (skb->data) + sizeof(struct qeth_hdr);
 		memcpy(&eddp->mac, eth_hdr(skb), ETH_HLEN);
 #ifdef CONFIG_QETH_VLAN
 		if (eddp->mac.h_proto == __constant_htons(ETH_P_8021Q)) {

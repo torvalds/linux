@@ -516,8 +516,10 @@ static int __devinit nforce3_agp_init(struct pci_dev *pdev)
 	pci_read_config_dword (hammers[0], AMD64_GARTAPERTUREBASE, &apbase);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
-	if ( (apbase & 0x7fff) >> (32 - 25) )
-		 return -ENODEV;
+	if ( (apbase & 0x7fff) >> (32 - 25) ) {
+		printk(KERN_INFO PFX "aperture base > 4G\n");
+		return -ENODEV;
+	}
 
 	apbase = (apbase & 0x7fff) << 25;
 
@@ -599,6 +601,26 @@ static void __devexit agp_amd64_remove(struct pci_dev *pdev)
 	agp_remove_bridge(bridge);
 	agp_put_bridge(bridge);
 }
+
+#ifdef CONFIG_PM
+
+static int agp_amd64_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+}
+
+static int agp_amd64_resume(struct pci_dev *pdev)
+{
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	return amd_8151_configure();
+}
+
+#endif /* CONFIG_PM */
 
 static struct pci_device_id agp_amd64_pci_table[] = {
 	{
@@ -718,6 +740,10 @@ static struct pci_driver agp_amd64_pci_driver = {
 	.id_table	= agp_amd64_pci_table,
 	.probe		= agp_amd64_probe,
 	.remove		= agp_amd64_remove,
+#ifdef CONFIG_PM
+	.suspend	= agp_amd64_suspend,
+	.resume		= agp_amd64_resume,
+#endif
 };
 
 

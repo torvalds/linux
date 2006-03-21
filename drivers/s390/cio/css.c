@@ -1,7 +1,6 @@
 /*
  *  drivers/s390/cio/css.c
  *  driver for channel subsystem
- *   $Revision: 1.96 $
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
@@ -409,6 +408,9 @@ __init_channel_subsystem(struct subchannel_id schid, void *data)
 			panic("Out of memory in init_channel_subsystem\n");
 		/* -ENXIO: no more subchannels. */
 		case -ENXIO:
+			return ret;
+		/* -EIO: this subchannel set not supported. */
+		case -EIO:
 			return ret;
 		default:
 			return 0;

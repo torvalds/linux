@@ -37,12 +37,6 @@
 extern void init_mmu(void);
 #endif
 
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_HD)	\
-	|| defined(CONFIG_BLK_DEV_IDE_MODULE)			\
-	|| defined(CONFIG_BLK_DEV_HD_MODULE)
-struct drive_info_struct { char dummy[32]; } drive_info;
-#endif
-
 extern char _end[];
 
 /*

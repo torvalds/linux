@@ -44,6 +44,7 @@
 #include <linux/ioport.h>
 #include <linux/param.h>	/* for HZ */
 #include <linux/delay.h>
+#include <linux/pm.h>
 #ifdef CONFIG_SERIAL_TXX9
 #include <linux/tty.h>
 #include <linux/serial.h>
@@ -211,7 +212,7 @@ void __init plat_setup(void)
 
 	_machine_restart = jmr3927_machine_restart;
 	_machine_halt = jmr3927_machine_halt;
-	_machine_power_off = jmr3927_machine_power_off;
+	pm_power_off = jmr3927_machine_power_off;
 
 	/*
 	 * IO/MEM resources.

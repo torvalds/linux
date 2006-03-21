@@ -759,6 +759,8 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		"Master Mono Playback Volume",
 		"PCM Out Path & Mute",
 		"Mono Output Select",
+		"Front Playback Switch",
+		"Front Playback Volume",
 		"Surround Playback Switch",
 		"Surround Playback Volume",
 		"Center Playback Switch",
@@ -829,9 +831,9 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		}
 		if (emu->audigy) {
 			/* set master volume to 0 dB */
-			snd_ac97_write(emu->ac97, AC97_MASTER, 0x0000);
+			snd_ac97_write_cache(emu->ac97, AC97_MASTER, 0x0000);
 			/* set capture source to mic */
-			snd_ac97_write(emu->ac97, AC97_REC_SEL, 0x0000);
+			snd_ac97_write_cache(emu->ac97, AC97_REC_SEL, 0x0000);
 			c = audigy_remove_ctls;
 		} else {
 			/*
@@ -844,8 +846,8 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 				snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_CNTR|AC97SLOT_LFE|AC97SLOT_REAR_LEFT|AC97SLOT_REAR_RIGHT);
 			}
 			/* remove unused AC97 controls */
-			snd_ac97_write(emu->ac97, AC97_SURROUND_MASTER, 0x0202);
-			snd_ac97_write(emu->ac97, AC97_CENTER_LFE_MASTER, 0x0202);
+			snd_ac97_write_cache(emu->ac97, AC97_SURROUND_MASTER, 0x0202);
+			snd_ac97_write_cache(emu->ac97, AC97_CENTER_LFE_MASTER, 0x0202);
 			c = emu10k1_remove_ctls;
 		}
 		for (; *c; c++)

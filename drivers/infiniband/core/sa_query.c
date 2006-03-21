@@ -956,6 +956,8 @@ static void ib_sa_remove_one(struct ib_device *device)
 
 	ib_unregister_event_handler(&sa_dev->event_handler);
 
+	flush_scheduled_work();
+
 	for (i = 0; i <= sa_dev->end_port - sa_dev->start_port; ++i) {
 		ib_unregister_mad_agent(sa_dev->port[i].agent);
 		kref_put(&sa_dev->port[i].sm_ah->ref, free_sm_ah);

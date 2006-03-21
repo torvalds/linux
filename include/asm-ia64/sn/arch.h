@@ -31,7 +31,8 @@
  * 	to ACPI3.0, this limit will be removed. The notion of "compact nodes"
  * 	should be deleted and TIOs should be included in MAX_NUMNODES.
  */
-#define MAX_COMPACT_NODES	512
+#define MAX_TIO_NODES		MAX_NUMNODES
+#define MAX_COMPACT_NODES	(MAX_NUMNODES + MAX_TIO_NODES)
 
 /*
  * Maximum number of nodes in all partitions and in all coherency domains.
@@ -70,7 +71,7 @@ DECLARE_PER_CPU(struct sn_hub_info_s, __sn_hub_info);
  * Compact node ID to nasid mappings kept in the per-cpu data areas of each
  * cpu.
  */
-DECLARE_PER_CPU(short, __sn_cnodeid_to_nasid[MAX_NUMNODES]);
+DECLARE_PER_CPU(short, __sn_cnodeid_to_nasid[MAX_COMPACT_NODES]);
 #define sn_cnodeid_to_nasid	(&__get_cpu_var(__sn_cnodeid_to_nasid[0]))
 
 

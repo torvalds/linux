@@ -192,6 +192,9 @@ static void grip_poll(struct gameport *gameport)
 	for (i = 0; i < 2; i++) {
 
 		dev = grip->dev[i];
+		if (!dev)
+			continue;
+
 		grip->reads++;
 
 		switch (grip->mode[i]) {
@@ -381,12 +384,15 @@ static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 			if (t > 0)
 				set_bit(t, input_dev->keybit);
 
-		input_register_device(grip->dev[i]);
+		err = input_register_device(grip->dev[i]);
+		if (err)
+			goto fail4;
 	}
 
 	return 0;
 
- fail3: for (i = 0; i < 2; i++)
+ fail4:	input_free_device(grip->dev[i]);
+ fail3:	while (--i >= 0)
 		if (grip->dev[i])
 			input_unregister_device(grip->dev[i]);
  fail2:	gameport_close(gameport);
@@ -411,6 +417,7 @@ static void grip_disconnect(struct gameport *gameport)
 static struct gameport_driver grip_drv = {
 	.driver		= {
 		.name	= "grip",
+		.owner	= THIS_MODULE,
 	},
 	.description	= DRIVER_DESC,
 	.connect	= grip_connect,

@@ -216,7 +216,7 @@ struct Layer1 {
 #define GROUP_TEI	127
 #define TEI_SAPI	63
 #define CTRL_SAPI	0
-#define PACKET_NOACK	250
+#define PACKET_NOACK	7
 
 /* Layer2 Flags */
 

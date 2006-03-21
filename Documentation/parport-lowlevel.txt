@@ -1068,7 +1068,7 @@ SYNOPSIS
 
 struct parport_operations {
 	...
-	void (*write_status) (struct parport *port, unsigned char s);
+	void (*write_control) (struct parport *port, unsigned char s);
 	...
 };
 
@@ -1097,9 +1097,9 @@ SYNOPSIS
 
 struct parport_operations {
 	...
-	void (*frob_control) (struct parport *port,
-	                      unsigned char mask,
-			      unsigned char val);
+	unsigned char (*frob_control) (struct parport *port,
+				       unsigned char mask,
+				       unsigned char val);
 	...
 };
 

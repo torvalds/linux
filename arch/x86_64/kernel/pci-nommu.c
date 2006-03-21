@@ -88,12 +88,5 @@ void __init no_iommu_init(void)
 {
 	if (dma_ops)
 		return;
-	printk(KERN_INFO "PCI-DMA: Disabling IOMMU.\n");
 	dma_ops = &nommu_dma_ops;
-	if (end_pfn > MAX_DMA32_PFN) {
-		printk(KERN_ERR
-		       "WARNING more than 4GB of memory but IOMMU not compiled in.\n"
-		       KERN_ERR "WARNING 32bit PCI may malfunction.\n"
-		       KERN_ERR "You might want to enable CONFIG_GART_IOMMU\n");
-	}
 }

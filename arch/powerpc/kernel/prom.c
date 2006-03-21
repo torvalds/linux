@@ -491,7 +491,12 @@ void __init finish_device_tree(void)
 	size = 16;
 	finish_node(allnodes, &size, 1);
 	size -= 16;
-	end = start = (unsigned long) __va(lmb_alloc(size, 128));
+
+	if (0 == size)
+		end = start = 0;
+	else
+		end = start = (unsigned long)__va(lmb_alloc(size, 128));
+
 	finish_node(allnodes, &end, 0);
 	BUG_ON(end != start + size);
 
@@ -811,8 +816,6 @@ void __init unflatten_device_tree(void)
 {
 	unsigned long start, mem, size;
 	struct device_node **allnextp = &allnodes;
-	char *p = NULL;
-	int l = 0;
 
 	DBG(" -> unflatten_device_tree()\n");
 
@@ -851,19 +854,6 @@ void __init unflatten_device_tree(void)
 	of_chosen = of_find_node_by_path("/chosen");
 	if (of_chosen == NULL)
 		of_chosen = of_find_node_by_path("/chosen@0");
-
-	/* Retreive command line */
-	if (of_chosen != NULL) {
-		p = (char *)get_property(of_chosen, "bootargs", &l);
-		if (p != NULL && l > 0)
-			strlcpy(cmd_line, p, min(l, COMMAND_LINE_SIZE));
-	}
-#ifdef CONFIG_CMDLINE
-	if (l == 0 || (l == 1 && (*p) == 0))
-		strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
-#endif /* CONFIG_CMDLINE */
-
-	DBG("Command line is: %s\n", cmd_line);
 
 	DBG(" <- unflatten_device_tree()\n");
 }
@@ -935,6 +925,8 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 {
 	u32 *prop;
 	unsigned long *lprop;
+	unsigned long l;
+	char *p;
 
 	DBG("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
 
@@ -998,6 +990,41 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
        if (lprop)
                crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
+
+	/* Retreive command line */
+ 	p = of_get_flat_dt_prop(node, "bootargs", &l);
+	if (p != NULL && l > 0)
+		strlcpy(cmd_line, p, min((int)l, COMMAND_LINE_SIZE));
+
+#ifdef CONFIG_CMDLINE
+	if (l == 0 || (l == 1 && (*p) == 0))
+		strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
+#endif /* CONFIG_CMDLINE */
+
+	DBG("Command line is: %s\n", cmd_line);
+
+	if (strstr(cmd_line, "mem=")) {
+		char *p, *q;
+		unsigned long maxmem = 0;
+
+		for (q = cmd_line; (p = strstr(q, "mem=")) != 0; ) {
+			q = p + 4;
+			if (p > cmd_line && p[-1] != ' ')
+				continue;
+			maxmem = simple_strtoul(q, &q, 0);
+			if (*q == 'k' || *q == 'K') {
+				maxmem <<= 10;
+				++q;
+			} else if (*q == 'm' || *q == 'M') {
+				maxmem <<= 20;
+				++q;
+			} else if (*q == 'g' || *q == 'G') {
+				maxmem <<= 30;
+				++q;
+			}
+		}
+		memory_limit = maxmem;
+	}
 
 	/* break now */
 	return 1;
@@ -1119,7 +1146,7 @@ static void __init early_reserve_mem(void)
 			size_32 = *(reserve_map_32++);
 			if (size_32 == 0)
 				break;
-			DBG("reserving: %lx -> %lx\n", base_32, size_32);
+			DBG("reserving: %x -> %x\n", base_32, size_32);
 			lmb_reserve(base_32, size_32);
 		}
 		return;
@@ -1398,8 +1425,8 @@ struct device_node *of_find_node_by_name(struct device_node *from,
 
 	read_lock(&devtree_lock);
 	np = from ? from->allnext : allnodes;
-	for (; np != 0; np = np->allnext)
-		if (np->name != 0 && strcasecmp(np->name, name) == 0
+	for (; np != NULL; np = np->allnext)
+		if (np->name != NULL && strcasecmp(np->name, name) == 0
 		    && of_node_get(np))
 			break;
 	if (from)
@@ -1917,3 +1944,30 @@ int prom_update_property(struct device_node *np,
 
 	return 0;
 }
+
+#ifdef CONFIG_KEXEC
+/* We may have allocated the flat device tree inside the crash kernel region
+ * in prom_init. If so we need to move it out into regular memory. */
+void kdump_move_device_tree(void)
+{
+	unsigned long start, end;
+	struct boot_param_header *new;
+
+	start = __pa((unsigned long)initial_boot_params);
+	end = start + initial_boot_params->totalsize;
+
+	if (end < crashk_res.start || start > crashk_res.end)
+		return;
+
+	new = (struct boot_param_header*)
+		__va(lmb_alloc(initial_boot_params->totalsize, PAGE_SIZE));
+
+	memcpy(new, initial_boot_params, initial_boot_params->totalsize);
+
+	initial_boot_params = new;
+
+	DBG("Flat device tree blob moved to %p\n", initial_boot_params);
+
+	/* XXX should we unreserve the old DT? */
+}
+#endif /* CONFIG_KEXEC */

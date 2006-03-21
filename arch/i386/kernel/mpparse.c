@@ -710,7 +710,7 @@ void __init get_smp_config (void)
 		 * Read the physical hardware table.  Anything here will
 		 * override the defaults.
 		 */
-		if (!smp_read_mpc((void *)mpf->mpf_physptr)) {
+		if (!smp_read_mpc(phys_to_virt(mpf->mpf_physptr))) {
 			smp_found_config = 0;
 			printk(KERN_ERR "BIOS bug, MP table errors detected!...\n");
 			printk(KERN_ERR "... disabling SMP support. (tell your hw vendor)\n");
@@ -915,6 +915,7 @@ void __init mp_register_ioapic (
 	u32			gsi_base)
 {
 	int			idx = 0;
+	int			tmpid;
 
 	if (nr_ioapics >= MAX_IO_APICS) {
 		printk(KERN_ERR "ERROR: Max # of I/O APICs (%d) exceeded "
@@ -935,9 +936,14 @@ void __init mp_register_ioapic (
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) && (boot_cpu_data.x86 < 15))
-		mp_ioapics[idx].mpc_apicid = io_apic_get_unique_id(idx, id);
+		tmpid = io_apic_get_unique_id(idx, id);
 	else
-		mp_ioapics[idx].mpc_apicid = id;
+		tmpid = id;
+	if (tmpid == -1) {
+		nr_ioapics--;
+		return;
+	}
+	mp_ioapics[idx].mpc_apicid = tmpid;
 	mp_ioapics[idx].mpc_apicver = io_apic_get_version(idx);
 	
 	/* 
@@ -1080,7 +1086,7 @@ void __init mp_config_acpi_legacy_irqs (void)
 
 #define MAX_GSI_NUM	4096
 
-int mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
+int mp_register_gsi (u32 gsi, int triggering, int polarity)
 {
 	int			ioapic = -1;
 	int			ioapic_pin = 0;
@@ -1129,7 +1135,7 @@ int mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 
 	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1<<bit);
 
-	if (edge_level) {
+	if (triggering == ACPI_LEVEL_SENSITIVE) {
 		/*
 		 * For PCI devices assign IRQs in order, avoiding gaps
 		 * due to unused I/O APIC pins.
@@ -1151,8 +1157,8 @@ int mp_register_gsi (u32 gsi, int edge_level, int active_high_low)
 	}
 
 	io_apic_set_pci_routing(ioapic, ioapic_pin, gsi,
-		    edge_level == ACPI_EDGE_SENSITIVE ? 0 : 1,
-		    active_high_low == ACPI_ACTIVE_HIGH ? 0 : 1);
+		    triggering == ACPI_EDGE_SENSITIVE ? 0 : 1,
+		    polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
 	return gsi;
 }
 

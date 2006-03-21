@@ -37,8 +37,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
-
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
@@ -85,7 +84,7 @@ struct srp_host {
 	struct ib_mr	       *mr;
 	struct class_device	class_dev;
 	struct list_head	target_list;
-	struct semaphore        target_mutex;
+	struct mutex            target_mutex;
 	struct completion	released;
 	struct list_head	list;
 };

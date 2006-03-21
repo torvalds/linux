@@ -351,7 +351,7 @@ config HISAX_ENTERNOW_PCI
 
 config HISAX_AMD7930
 	bool "Am7930 (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && SPARC
+	depends on EXPERIMENTAL && SPARC && BROKEN
 	help
 	  This enables HiSax support for the AMD7930 chips on some SPARCs.
 	  This code is not finished yet.

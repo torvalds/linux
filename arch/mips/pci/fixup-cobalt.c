@@ -17,7 +17,7 @@
 #include <asm/io.h>
 #include <asm/gt64120.h>
 
-#include <asm/cobalt/cobalt.h>
+#include <asm/mach-cobalt/cobalt.h>
 
 extern int cobalt_board_id;
 
@@ -52,7 +52,7 @@ static void qube_raq_via_bmIDE_fixup(struct pci_dev *dev)
 	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &lt);
 	if (lt < 64)
 		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 64);
-	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, 7);
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, 8);
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1,
@@ -69,7 +69,7 @@ static void qube_raq_galileo_fixup(struct pci_dev *dev)
 	 * host bridge.
 	 */
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 64);
-	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, 7);
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, 8);
 
 	/*
 	 * The code described by the comment below has been removed

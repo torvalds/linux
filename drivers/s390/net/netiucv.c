@@ -1,6 +1,4 @@
 /*
- * $Id: netiucv.c,v 1.69 2006/01/12 14:33:09 cohuck Exp $
- *
  * IUCV network driver
  *
  * Copyright (C) 2001 IBM Deutschland Entwicklung GmbH, IBM Corporation
@@ -30,8 +28,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * RELEASE-TAG: IUCV network driver $Revision: 1.69 $
  *
  */
 
@@ -2077,16 +2073,7 @@ DRIVER_ATTR(remove, 0200, NULL, remove_write);
 static void
 netiucv_banner(void)
 {
-	char vbuf[] = "$Revision: 1.69 $";
-	char *version = vbuf;
-
-	if ((version = strchr(version, ':'))) {
-		char *p = strchr(version + 1, '$');
-		if (p)
-			*p = '\0';
-	} else
-		version = " ??? ";
-	PRINT_INFO("NETIUCV driver Version%s initialized\n", version);
+	PRINT_INFO("NETIUCV driver initialized\n");
 }
 
 static void __exit

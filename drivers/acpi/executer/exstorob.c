@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 
 	/* We know that source_desc is a buffer by now */
 
-	buffer = (u8 *) source_desc->buffer.pointer;
+	buffer = ACPI_CAST_PTR(u8, source_desc->buffer.pointer);
 	length = source_desc->buffer.length;
 
 	/*
@@ -160,7 +160,7 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 
 	/* We know that source_desc is a string by now */
 
-	buffer = (u8 *) source_desc->string.pointer;
+	buffer = ACPI_CAST_PTR(u8, source_desc->string.pointer);
 	length = source_desc->string.length;
 
 	/*

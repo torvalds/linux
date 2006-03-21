@@ -82,6 +82,10 @@ int atapi_enabled = 0;
 module_param(atapi_enabled, int, 0444);
 MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
 
+int libata_fua = 0;
+module_param_named(fua, libata_fua, int, 0444);
+MODULE_PARM_DESC(fua, "FUA support (0=off, 1=on)");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -614,7 +618,7 @@ int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 	} else if (lba48 && (qc->ap->flags & ATA_FLAG_PIO_LBA48)) {
 		/* Unable to use DMA due to host limitation */
 		tf->protocol = ATA_PROT_PIO;
-		index = dev->multi_count ? 0 : 4;
+		index = dev->multi_count ? 0 : 8;
 	} else {
 		tf->protocol = ATA_PROT_DMA;
 		index = 16;
@@ -2514,7 +2518,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 	assert(sg != NULL);
 
 	if (qc->flags & ATA_QCFLAG_SINGLE)
-		assert(qc->n_elem == 1);
+		assert(qc->n_elem <= 1);
 
 	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
 
@@ -2537,7 +2541,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 			kunmap_atomic(addr, KM_IRQ0);
 		}
 	} else {
-		if (sg_dma_len(&sg[0]) > 0)
+		if (qc->n_elem)
 			dma_unmap_single(ap->host_set->dev,
 				sg_dma_address(&sg[0]), sg_dma_len(&sg[0]),
 				dir);
@@ -2570,7 +2574,7 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
 	unsigned int idx;
 
 	assert(qc->__sg != NULL);
-	assert(qc->n_elem > 0);
+	assert(qc->n_elem > 0 || qc->pad_len > 0);
 
 	idx = 0;
 	ata_for_each_sg(sg, qc) {
@@ -2715,6 +2719,7 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 	int dir = qc->dma_dir;
 	struct scatterlist *sg = qc->__sg;
 	dma_addr_t dma_address;
+	int trim_sg = 0;
 
 	/* we must lengthen transfers to end on a 32-bit boundary */
 	qc->pad_len = sg->length & 3;
@@ -2734,13 +2739,15 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 		sg_dma_len(psg) = ATA_DMA_PAD_SZ;
 		/* trim sg */
 		sg->length -= qc->pad_len;
+		if (sg->length == 0)
+			trim_sg = 1;
 
 		DPRINTK("padding done, sg->length=%u pad_len=%u\n",
 			sg->length, qc->pad_len);
 	}
 
-	if (!sg->length) {
-		sg_dma_address(sg) = 0;
+	if (trim_sg) {
+		qc->n_elem--;
 		goto skip_map;
 	}
 
@@ -2753,9 +2760,9 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 	}
 
 	sg_dma_address(sg) = dma_address;
-skip_map:
 	sg_dma_len(sg) = sg->length;
 
+skip_map:
 	DPRINTK("mapped buffer of %d bytes for %s\n", sg_dma_len(sg),
 		qc->tf.flags & ATA_TFLAG_WRITE ? "write" : "read");
 
@@ -3357,10 +3364,11 @@ static void ata_pio_error(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 
-	printk(KERN_WARNING "ata%u: PIO error\n", ap->id);
-
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
+
+	if (qc->tf.command != ATA_CMD_PACKET)
+		printk(KERN_WARNING "ata%u: PIO error\n", ap->id);
 
 	/* make sure qc->err_mask is available to 
 	 * know what's wrong and recover

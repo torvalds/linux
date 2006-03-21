@@ -63,7 +63,7 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 	unsigned size;
 	int retval;
 
-	fibptr = fib_alloc(dev);
+	fibptr = aac_fib_alloc(dev);
 	if(fibptr == NULL) {
 		return -ENOMEM;
 	}
@@ -73,7 +73,7 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 	 *	First copy in the header so that we can check the size field.
 	 */
 	if (copy_from_user((void *)kfib, arg, sizeof(struct aac_fibhdr))) {
-		fib_free(fibptr);
+		aac_fib_free(fibptr);
 		return -EFAULT;
 	}
 	/*
@@ -110,13 +110,13 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 		 */
 		kfib->header.XferState = 0;
 	} else {
-		retval = fib_send(le16_to_cpu(kfib->header.Command), fibptr,
+		retval = aac_fib_send(le16_to_cpu(kfib->header.Command), fibptr,
 				le16_to_cpu(kfib->header.Size) , FsaNormal,
 				1, 1, NULL, NULL);
 		if (retval) {
 			goto cleanup;
 		}
-		if (fib_complete(fibptr) != 0) {
+		if (aac_fib_complete(fibptr) != 0) {
 			retval = -EINVAL;
 			goto cleanup;
 		}
@@ -138,7 +138,7 @@ cleanup:
 		fibptr->hw_fib_pa = hw_fib_pa;
 		fibptr->hw_fib = hw_fib;
 	}
-	fib_free(fibptr);
+	aac_fib_free(fibptr);
 	return retval;
 }
 
@@ -464,10 +464,10 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	/*
 	 *	Allocate and initialize a Fib then setup a BlockWrite command
 	 */
-	if (!(srbfib = fib_alloc(dev))) {
+	if (!(srbfib = aac_fib_alloc(dev))) {
 		return -ENOMEM;
 	}
-	fib_init(srbfib);
+	aac_fib_init(srbfib);
 
 	srbcmd = (struct aac_srb*) fib_data(srbfib);
 
@@ -601,7 +601,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 		srbcmd->count = cpu_to_le32(byte_count);
 		psg->count = cpu_to_le32(sg_indx+1);
-		status = fib_send(ScsiPortCommand64, srbfib, actual_fibsize, FsaNormal, 1, 1,NULL,NULL);
+		status = aac_fib_send(ScsiPortCommand64, srbfib, actual_fibsize, FsaNormal, 1, 1,NULL,NULL);
 	} else {
 		struct user_sgmap* upsg = &user_srbcmd->sg;
 		struct sgmap* psg = &srbcmd->sg;
@@ -649,7 +649,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		}
 		srbcmd->count = cpu_to_le32(byte_count);
 		psg->count = cpu_to_le32(sg_indx+1);
-		status = fib_send(ScsiPortCommand, srbfib, actual_fibsize, FsaNormal, 1, 1, NULL, NULL);
+		status = aac_fib_send(ScsiPortCommand, srbfib, actual_fibsize, FsaNormal, 1, 1, NULL, NULL);
 	}
 
 	if (status != 0){
@@ -684,8 +684,8 @@ cleanup:
 	for(i=0; i <= sg_indx; i++){
 		kfree(sg_list[i]);
 	}
-	fib_complete(srbfib);
-	fib_free(srbfib);
+	aac_fib_complete(srbfib);
+	aac_fib_free(srbfib);
 
 	return rcode;
 }

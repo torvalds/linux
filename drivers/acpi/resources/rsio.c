@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2005, R. Byron Moore
+ * Copyright (C) 2000 - 2006, R. Byron Moore
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,428 +49,206 @@ ACPI_MODULE_NAME("rsio")
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_io_resource
- *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * acpi_rs_convert_io
  *
  ******************************************************************************/
-acpi_status
-acpi_rs_io_resource(u8 * byte_stream_buffer,
-		    acpi_size * bytes_consumed,
-		    u8 ** output_buffer, acpi_size * structure_size)
-{
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	acpi_size struct_size = ACPI_SIZEOF_RESOURCE(struct acpi_resource_io);
+struct acpi_rsconvert_info acpi_rs_convert_io[5] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_IO,
+	 ACPI_RS_SIZE(struct acpi_resource_io),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_io)},
 
-	ACPI_FUNCTION_TRACE("rs_io_resource");
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_IO,
+	 sizeof(struct aml_resource_io),
+	 0},
 
-	/* The number of bytes consumed are Constant */
+	/* Decode flag */
 
-	*bytes_consumed = 8;
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.io.io_decode),
+	 AML_OFFSET(io.flags),
+	 0},
+	/*
+	 * These fields are contiguous in both the source and destination:
+	 * Address Alignment
+	 * Length
+	 * Minimum Base Address
+	 * Maximum Base Address
+	 */
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.io.alignment),
+	 AML_OFFSET(io.alignment),
+	 2},
 
-	output_struct->id = ACPI_RSTYPE_IO;
-
-	/* Check Decode */
-
-	buffer += 1;
-	temp8 = *buffer;
-
-	output_struct->data.io.io_decode = temp8 & 0x01;
-
-	/* Check min_base Address */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	output_struct->data.io.min_base_address = temp16;
-
-	/* Check max_base Address */
-
-	buffer += 2;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	output_struct->data.io.max_base_address = temp16;
-
-	/* Check Base alignment */
-
-	buffer += 2;
-	temp8 = *buffer;
-
-	output_struct->data.io.alignment = temp8;
-
-	/* Check range_length */
-
-	buffer += 1;
-	temp8 = *buffer;
-
-	output_struct->data.io.range_length = temp8;
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
-	return_ACPI_STATUS(AE_OK);
-}
+	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.io.minimum),
+	 AML_OFFSET(io.minimum),
+	 2}
+};
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_fixed_io_resource
- *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * acpi_rs_convert_fixed_io
  *
  ******************************************************************************/
 
-acpi_status
-acpi_rs_fixed_io_resource(u8 * byte_stream_buffer,
-			  acpi_size * bytes_consumed,
-			  u8 ** output_buffer, acpi_size * structure_size)
-{
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	acpi_size struct_size =
-	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_fixed_io);
+struct acpi_rsconvert_info acpi_rs_convert_fixed_io[4] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_FIXED_IO,
+	 ACPI_RS_SIZE(struct acpi_resource_fixed_io),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_fixed_io)},
 
-	ACPI_FUNCTION_TRACE("rs_fixed_io_resource");
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_FIXED_IO,
+	 sizeof(struct aml_resource_fixed_io),
+	 0},
+	/*
+	 * These fields are contiguous in both the source and destination:
+	 * Base Address
+	 * Length
+	 */
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.fixed_io.address_length),
+	 AML_OFFSET(fixed_io.address_length),
+	 1},
 
-	/* The number of bytes consumed are Constant */
-
-	*bytes_consumed = 4;
-
-	output_struct->id = ACPI_RSTYPE_FIXED_IO;
-
-	/* Check Range Base Address */
-
-	buffer += 1;
-	ACPI_MOVE_16_TO_16(&temp16, buffer);
-
-	output_struct->data.fixed_io.base_address = temp16;
-
-	/* Check range_length */
-
-	buffer += 2;
-	temp8 = *buffer;
-
-	output_struct->data.fixed_io.range_length = temp8;
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
-	return_ACPI_STATUS(AE_OK);
-}
+	{ACPI_RSC_MOVE16, ACPI_RS_OFFSET(data.fixed_io.address),
+	 AML_OFFSET(fixed_io.address),
+	 1}
+};
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_io_stream
- *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
+ * acpi_rs_convert_generic_reg
  *
  ******************************************************************************/
 
-acpi_status
-acpi_rs_io_stream(struct acpi_resource *linked_list,
-		  u8 ** output_buffer, acpi_size * bytes_consumed)
-{
-	u8 *buffer = *output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
+struct acpi_rsconvert_info acpi_rs_convert_generic_reg[4] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_GENERIC_REGISTER,
+	 ACPI_RS_SIZE(struct acpi_resource_generic_register),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_generic_reg)},
 
-	ACPI_FUNCTION_TRACE("rs_io_stream");
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_GENERIC_REGISTER,
+	 sizeof(struct aml_resource_generic_register),
+	 0},
+	/*
+	 * These fields are contiguous in both the source and destination:
+	 * Address Space ID
+	 * Register Bit Width
+	 * Register Bit Offset
+	 * Access Size
+	 */
+	{ACPI_RSC_MOVE8, ACPI_RS_OFFSET(data.generic_reg.space_id),
+	 AML_OFFSET(generic_reg.address_space_id),
+	 4},
 
-	/* The descriptor field is static */
+	/* Get the Register Address */
 
-	*buffer = 0x47;
-	buffer += 1;
-
-	/* Io Information Byte */
-
-	temp8 = (u8) (linked_list->data.io.io_decode & 0x01);
-
-	*buffer = temp8;
-	buffer += 1;
-
-	/* Set the Range minimum base address */
-
-	temp16 = (u16) linked_list->data.io.min_base_address;
-
-	ACPI_MOVE_16_TO_16(buffer, &temp16);
-	buffer += 2;
-
-	/* Set the Range maximum base address */
-
-	temp16 = (u16) linked_list->data.io.max_base_address;
-
-	ACPI_MOVE_16_TO_16(buffer, &temp16);
-	buffer += 2;
-
-	/* Set the base alignment */
-
-	temp8 = (u8) linked_list->data.io.alignment;
-
-	*buffer = temp8;
-	buffer += 1;
-
-	/* Set the range length */
-
-	temp8 = (u8) linked_list->data.io.range_length;
-
-	*buffer = temp8;
-	buffer += 1;
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
-	return_ACPI_STATUS(AE_OK);
-}
+	{ACPI_RSC_MOVE64, ACPI_RS_OFFSET(data.generic_reg.address),
+	 AML_OFFSET(generic_reg.address),
+	 1}
+};
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_fixed_io_stream
- *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
+ * acpi_rs_convert_end_dpf
  *
  ******************************************************************************/
 
-acpi_status
-acpi_rs_fixed_io_stream(struct acpi_resource *linked_list,
-			u8 ** output_buffer, acpi_size * bytes_consumed)
-{
-	u8 *buffer = *output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
+struct acpi_rsconvert_info acpi_rs_convert_end_dpf[2] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_END_DEPENDENT,
+	 ACPI_RS_SIZE_MIN,
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_end_dpf)},
 
-	ACPI_FUNCTION_TRACE("rs_fixed_io_stream");
-
-	/* The descriptor field is static */
-
-	*buffer = 0x4B;
-
-	buffer += 1;
-
-	/* Set the Range base address */
-
-	temp16 = (u16) linked_list->data.fixed_io.base_address;
-
-	ACPI_MOVE_16_TO_16(buffer, &temp16);
-	buffer += 2;
-
-	/* Set the range length */
-
-	temp8 = (u8) linked_list->data.fixed_io.range_length;
-
-	*buffer = temp8;
-	buffer += 1;
-
-	/* Return the number of bytes consumed in this operation */
-
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
-	return_ACPI_STATUS(AE_OK);
-}
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_END_DEPENDENT,
+	 sizeof(struct aml_resource_end_dependent),
+	 0}
+};
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_dma_resource
- *
- * PARAMETERS:  byte_stream_buffer      - Pointer to the resource input byte
- *                                        stream
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        consumed the byte_stream_buffer is
- *                                        returned
- *              output_buffer           - Pointer to the return data buffer
- *              structure_size          - Pointer to where the number of bytes
- *                                        in the return data struct is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the resource byte stream and fill out the appropriate
- *              structure pointed to by the output_buffer. Return the
- *              number of bytes consumed from the byte stream.
+ * acpi_rs_convert_end_tag
  *
  ******************************************************************************/
 
-acpi_status
-acpi_rs_dma_resource(u8 * byte_stream_buffer,
-		     acpi_size * bytes_consumed,
-		     u8 ** output_buffer, acpi_size * structure_size)
-{
-	u8 *buffer = byte_stream_buffer;
-	struct acpi_resource *output_struct = (void *)*output_buffer;
-	u8 temp8 = 0;
-	u8 index;
-	u8 i;
-	acpi_size struct_size = ACPI_SIZEOF_RESOURCE(struct acpi_resource_dma);
+struct acpi_rsconvert_info acpi_rs_convert_end_tag[2] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_END_TAG,
+	 ACPI_RS_SIZE_MIN,
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_convert_end_tag)},
 
-	ACPI_FUNCTION_TRACE("rs_dma_resource");
-
-	/* The number of bytes consumed are Constant */
-
-	*bytes_consumed = 3;
-	output_struct->id = ACPI_RSTYPE_DMA;
-
-	/* Point to the 8-bits of Byte 1 */
-
-	buffer += 1;
-	temp8 = *buffer;
-
-	/* Decode the DMA channel bits */
-
-	for (i = 0, index = 0; index < 8; index++) {
-		if ((temp8 >> index) & 0x01) {
-			output_struct->data.dma.channels[i] = index;
-			i++;
-		}
-	}
-
-	/* Zero DMA channels is valid */
-
-	output_struct->data.dma.number_of_channels = i;
-	if (i > 0) {
-		/* Calculate the structure size based upon the number of interrupts */
-
-		struct_size += ((acpi_size) i - 1) * 4;
-	}
-
-	/* Point to Byte 2 */
-
-	buffer += 1;
-	temp8 = *buffer;
-
-	/* Check for transfer preference (Bits[1:0]) */
-
-	output_struct->data.dma.transfer = temp8 & 0x03;
-
-	if (0x03 == output_struct->data.dma.transfer) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Invalid DMA.Transfer preference (3)\n"));
-		return_ACPI_STATUS(AE_BAD_DATA);
-	}
-
-	/* Get bus master preference (Bit[2]) */
-
-	output_struct->data.dma.bus_master = (temp8 >> 2) & 0x01;
-
-	/* Get channel speed support (Bits[6:5]) */
-
-	output_struct->data.dma.type = (temp8 >> 5) & 0x03;
-
-	/* Set the Length parameter */
-
-	output_struct->length = (u32) struct_size;
-
-	/* Return the final size of the structure */
-
-	*structure_size = struct_size;
-	return_ACPI_STATUS(AE_OK);
-}
+	/*
+	 * Note: The checksum field is set to zero, meaning that the resource
+	 * data is treated as if the checksum operation succeeded.
+	 * (ACPI Spec 1.0b Section 6.4.2.8)
+	 */
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_END_TAG,
+	 sizeof(struct aml_resource_end_tag),
+	 0}
+};
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_dma_stream
- *
- * PARAMETERS:  linked_list             - Pointer to the resource linked list
- *              output_buffer           - Pointer to the user's return buffer
- *              bytes_consumed          - Pointer to where the number of bytes
- *                                        used in the output_buffer is returned
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Take the linked list resource structure and fills in the
- *              the appropriate bytes in a byte stream
+ * acpi_rs_get_start_dpf
  *
  ******************************************************************************/
 
-acpi_status
-acpi_rs_dma_stream(struct acpi_resource *linked_list,
-		   u8 ** output_buffer, acpi_size * bytes_consumed)
-{
-	u8 *buffer = *output_buffer;
-	u16 temp16 = 0;
-	u8 temp8 = 0;
-	u8 index;
+struct acpi_rsconvert_info acpi_rs_get_start_dpf[5] = {
+	{ACPI_RSC_INITGET, ACPI_RESOURCE_TYPE_START_DEPENDENT,
+	 ACPI_RS_SIZE(struct acpi_resource_start_dependent),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_get_start_dpf)},
 
-	ACPI_FUNCTION_TRACE("rs_dma_stream");
+	/* Defaults for Compatibility and Performance priorities */
 
-	/* The descriptor field is static */
+	{ACPI_RSC_SET8, ACPI_RS_OFFSET(data.start_dpf.compatibility_priority),
+	 ACPI_ACCEPTABLE_CONFIGURATION,
+	 2},
 
-	*buffer = 0x2A;
-	buffer += 1;
-	temp8 = 0;
+	/* All done if there is no flag byte present in the descriptor */
 
-	/* Loop through all of the Channels and set the mask bits */
+	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_AML_LENGTH, 0, 1},
 
-	for (index = 0;
-	     index < linked_list->data.dma.number_of_channels; index++) {
-		temp16 = (u16) linked_list->data.dma.channels[index];
-		temp8 |= 0x1 << temp16;
-	}
+	/* Flag byte is present, get the flags */
 
-	*buffer = temp8;
-	buffer += 1;
+	{ACPI_RSC_2BITFLAG,
+	 ACPI_RS_OFFSET(data.start_dpf.compatibility_priority),
+	 AML_OFFSET(start_dpf.flags),
+	 0},
 
-	/* Set the DMA Info */
+	{ACPI_RSC_2BITFLAG,
+	 ACPI_RS_OFFSET(data.start_dpf.performance_robustness),
+	 AML_OFFSET(start_dpf.flags),
+	 2}
+};
 
-	temp8 = (u8) ((linked_list->data.dma.type & 0x03) << 5);
-	temp8 |= ((linked_list->data.dma.bus_master & 0x01) << 2);
-	temp8 |= (linked_list->data.dma.transfer & 0x03);
+/*******************************************************************************
+ *
+ * acpi_rs_set_start_dpf
+ *
+ ******************************************************************************/
 
-	*buffer = temp8;
-	buffer += 1;
+struct acpi_rsconvert_info acpi_rs_set_start_dpf[6] = {
+	{ACPI_RSC_INITSET, ACPI_RESOURCE_NAME_START_DEPENDENT,
+	 sizeof(struct aml_resource_start_dependent),
+	 ACPI_RSC_TABLE_SIZE(acpi_rs_set_start_dpf)},
 
-	/* Return the number of bytes consumed in this operation */
+	/* Set the default flag values */
 
-	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
-	return_ACPI_STATUS(AE_OK);
-}
+	{ACPI_RSC_2BITFLAG,
+	 ACPI_RS_OFFSET(data.start_dpf.compatibility_priority),
+	 AML_OFFSET(start_dpf.flags),
+	 0},
+
+	{ACPI_RSC_2BITFLAG,
+	 ACPI_RS_OFFSET(data.start_dpf.performance_robustness),
+	 AML_OFFSET(start_dpf.flags),
+	 2},
+	/*
+	 * All done if flags byte is necessary -- if either priority value
+	 * is not ACPI_ACCEPTABLE_CONFIGURATION
+	 */
+	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_VALUE,
+	 ACPI_RS_OFFSET(data.start_dpf.compatibility_priority),
+	 ACPI_ACCEPTABLE_CONFIGURATION},
+
+	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_VALUE,
+	 ACPI_RS_OFFSET(data.start_dpf.performance_robustness),
+	 ACPI_ACCEPTABLE_CONFIGURATION},
+
+	/* Flag byte is not necessary */
+
+	{ACPI_RSC_LENGTH, 0, 0,
+	 sizeof(struct aml_resource_start_dependent_noprio)}
+};

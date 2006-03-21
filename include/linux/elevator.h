@@ -82,6 +82,7 @@ struct elevator_queue
 extern void elv_dispatch_sort(request_queue_t *, struct request *);
 extern void elv_add_request(request_queue_t *, struct request *, int, int);
 extern void __elv_add_request(request_queue_t *, struct request *, int, int);
+extern void elv_insert(request_queue_t *, struct request *, int);
 extern int elv_merge(request_queue_t *, struct request **, struct bio *);
 extern void elv_merge_requests(request_queue_t *, struct request *,
 			       struct request *);

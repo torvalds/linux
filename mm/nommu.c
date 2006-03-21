@@ -53,10 +53,11 @@ DECLARE_RWSEM(nommu_vma_sem);
 struct vm_operations_struct generic_file_vm_ops = {
 };
 
-EXPORT_SYMBOL(vmalloc);
 EXPORT_SYMBOL(vfree);
 EXPORT_SYMBOL(vmalloc_to_page);
 EXPORT_SYMBOL(vmalloc_32);
+EXPORT_SYMBOL(vmap);
+EXPORT_SYMBOL(vunmap);
 
 /*
  * Handle all mappings that got truncated by a "truncate()"
@@ -203,6 +204,13 @@ void *vmalloc(unsigned long size)
 {
        return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL);
 }
+EXPORT_SYMBOL(vmalloc);
+
+void *vmalloc_node(unsigned long size, int node)
+{
+	return vmalloc(size);
+}
+EXPORT_SYMBOL(vmalloc_node);
 
 /*
  *	vmalloc_32  -  allocate virtually continguos memory (32bit addressable)

@@ -84,7 +84,6 @@ SIGN2(sys32_fadvise64_64, compat_sys_fadvise64_64, %o0, %o5)
 SIGN2(sys32_bdflush, sys_bdflush, %o0, %o1)
 SIGN1(sys32_mlockall, sys_mlockall, %o0)
 SIGN1(sys32_nfsservctl, compat_sys_nfsservctl, %o0)
-SIGN1(sys32_clock_settime, compat_sys_clock_settime, %o1)
 SIGN1(sys32_clock_nanosleep, compat_sys_clock_nanosleep, %o1)
 SIGN1(sys32_timer_settime, compat_sys_timer_settime, %o1)
 SIGN1(sys32_io_submit, compat_sys_io_submit, %o1)
@@ -319,7 +318,7 @@ do_sys_recvmsg: /* compat_sys_recvmsg(int, struct compat_msghdr *, unsigned int)
 	nop
 	nop
 
-	.section	__ex_table
+	.section	__ex_table,"a"
 	.align		4
 	.word		1b, __retl_efault, 2b, __retl_efault
 	.word		3b, __retl_efault, 4b, __retl_efault

@@ -23,12 +23,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/*
- * TOTEST
- *	- speed setting
- *	- suspend/resume
- */
-
 #include <linux/config.h>
 #include <linux/crc32.h>
 #include <linux/kernel.h>
@@ -57,7 +51,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"0.13"
+#define DRV_VERSION		"0.15"
 #define PFX			DRV_NAME " "
 
 /*
@@ -80,7 +74,7 @@
 #define TX_RING_SIZE		512
 #define TX_DEF_PENDING		(TX_RING_SIZE - 1)
 #define TX_MIN_PENDING		64
-#define MAX_SKB_TX_LE		(4 + 2*MAX_SKB_FRAGS)
+#define MAX_SKB_TX_LE		(4 + (sizeof(dma_addr_t)/sizeof(u32))*MAX_SKB_FRAGS)
 
 #define STATUS_RING_SIZE	2048	/* 2 ports * (TX + 2*RX) */
 #define STATUS_LE_BYTES		(STATUS_RING_SIZE*sizeof(struct sky2_status_le))
@@ -197,11 +191,11 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 	pr_debug("sky2_set_power_state %d\n", state);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 
-	pci_read_config_word(hw->pdev, hw->pm_cap + PCI_PM_PMC, &power_control);
-	vaux = (sky2_read8(hw, B0_CTST) & Y2_VAUX_AVAIL) &&
+	power_control = sky2_pci_read16(hw, hw->pm_cap + PCI_PM_PMC);
+	vaux = (sky2_read16(hw, B0_CTST) & Y2_VAUX_AVAIL) &&
 		(power_control & PCI_PM_CAP_PME_D3cold);
 
-	pci_read_config_word(hw->pdev, hw->pm_cap + PCI_PM_CTRL, &power_control);
+	power_control = sky2_pci_read16(hw, hw->pm_cap + PCI_PM_CTRL);
 
 	power_control |= PCI_PM_CTRL_PME_STATUS;
 	power_control &= ~(PCI_PM_CTRL_STATE_MASK);
@@ -225,7 +219,7 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 			sky2_write8(hw, B2_Y2_CLK_GATE, 0);
 
 		/* Turn off phy power saving */
-		pci_read_config_dword(hw->pdev, PCI_DEV_REG1, &reg1);
+		reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
 		reg1 &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
 
 		/* looks like this XL is back asswards .. */
@@ -234,18 +228,28 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 			if (hw->ports > 1)
 				reg1 |= PCI_Y2_PHY2_COMA;
 		}
-		pci_write_config_dword(hw->pdev, PCI_DEV_REG1, reg1);
+
+		if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+			sky2_pci_write32(hw, PCI_DEV_REG3, 0);
+			reg1 = sky2_pci_read32(hw, PCI_DEV_REG4);
+			reg1 &= P_ASPM_CONTROL_MSK;
+			sky2_pci_write32(hw, PCI_DEV_REG4, reg1);
+			sky2_pci_write32(hw, PCI_DEV_REG5, 0);
+		}
+
+		sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
+
 		break;
 
 	case PCI_D3hot:
 	case PCI_D3cold:
 		/* Turn on phy power saving */
-		pci_read_config_dword(hw->pdev, PCI_DEV_REG1, &reg1);
+		reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
 		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
 			reg1 &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
 		else
 			reg1 |= (PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
-		pci_write_config_dword(hw->pdev, PCI_DEV_REG1, reg1);
+		sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
 
 		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
 			sky2_write8(hw, B2_Y2_CLK_GATE, 0);
@@ -267,7 +271,7 @@ static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
 		ret = -1;
 	}
 
-	pci_write_config_byte(hw->pdev, hw->pm_cap + PCI_PM_CTRL, power_control);
+	sky2_pci_write16(hw, hw->pm_cap + PCI_PM_CTRL, power_control);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	return ret;
 }
@@ -465,16 +469,31 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		ledover |= PHY_M_LED_MO_RX(MO_LED_OFF);
 	}
 
-	gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U && hw->chip_rev >= 2) {
+		/* apply fixes in PHY AFE */
+		gm_phy_write(hw, port, 22, 255);
+		/* increase differential signal amplitude in 10BASE-T */
+		gm_phy_write(hw, port, 24, 0xaa99);
+		gm_phy_write(hw, port, 23, 0x2011);
 
-	if (sky2->autoneg == AUTONEG_DISABLE || sky2->speed == SPEED_100) {
-		/* turn on 100 Mbps LED (LED_LINK100) */
-		ledover |= PHY_M_LED_MO_100(MO_LED_ON);
+		/* fix for IEEE A/B Symmetry failure in 1000BASE-T */
+		gm_phy_write(hw, port, 24, 0xa204);
+		gm_phy_write(hw, port, 23, 0x2002);
+
+		/* set page register to 0 */
+		gm_phy_write(hw, port, 22, 0);
+	} else {
+		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
+
+		if (sky2->autoneg == AUTONEG_DISABLE || sky2->speed == SPEED_100) {
+			/* turn on 100 Mbps LED (LED_LINK100) */
+			ledover |= PHY_M_LED_MO_100(MO_LED_ON);
+		}
+
+		if (ledover)
+			gm_phy_write(hw, port, PHY_MARV_LED_OVER, ledover);
+
 	}
-
-	if (ledover)
-		gm_phy_write(hw, port, PHY_MARV_LED_OVER, ledover);
-
 	/* Enable phy interrupt on auto-negotiation complete (or link up) */
 	if (sky2->autoneg == AUTONEG_ENABLE)
 		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_IS_AN_COMPL);
@@ -522,10 +541,16 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 		switch (sky2->speed) {
 		case SPEED_1000:
+			reg &= ~GM_GPCR_SPEED_100;
 			reg |= GM_GPCR_SPEED_1000;
-			/* fallthru */
+			break;
 		case SPEED_100:
+			reg &= ~GM_GPCR_SPEED_1000;
 			reg |= GM_GPCR_SPEED_100;
+			break;
+		case SPEED_10:
+			reg &= ~(GM_GPCR_SPEED_1000 | GM_GPCR_SPEED_100);
+			break;
 		}
 
 		if (sky2->duplex == DUPLEX_FULL)
@@ -597,8 +622,8 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	/* Configure Rx MAC FIFO */
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
-	sky2_write16(hw, SK_REG(port, RX_GMF_CTRL_T),
-		     GMF_RX_CTRL_DEF);
+	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T),
+		     GMF_OPER_ON | GMF_RX_F_FL_ON);
 
 	/* Flush Rx MAC FIFO on any flow control or error */
 	sky2_write16(hw, SK_REG(port, RX_GMF_FL_MSK), GMR_FS_ANY_ERR);
@@ -949,6 +974,12 @@ static int sky2_rx_start(struct sky2_port *sky2)
 
 	sky2->rx_put = sky2->rx_next = 0;
 	sky2_qset(hw, rxq);
+
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U && hw->chip_rev >= 2) {
+		/* MAC Rx RAM Read is controlled by hardware */
+		sky2_write32(hw, Q_ADDR(rxq, Q_F), F_M_RX_RAM_DIS);
+	}
+
 	sky2_prefetch_init(hw, rxq, sky2->rx_le_map, RX_LE_SIZE - 1);
 
 	rx_set_checksum(sky2);
@@ -963,6 +994,10 @@ static int sky2_rx_start(struct sky2_port *sky2)
 					     sky2->rx_bufsize, PCI_DMA_FROMDEVICE);
 		sky2_rx_add(sky2, re->mapaddr);
 	}
+
+ 	/* Truncate oversize frames */
+ 	sky2_write16(hw, SK_REG(sky2->port, RX_GMF_TR_THR), sky2->rx_bufsize - 8);
+ 	sky2_write32(hw, SK_REG(sky2->port, RX_GMF_CTRL_T), RX_TRUNC_ON);
 
 	/* Tell chip about available buffers */
 	sky2_write16(hw, Y2_QADDR(rxq, PREF_UNIT_PUT_IDX), sky2->rx_put);
@@ -1031,9 +1066,10 @@ static int sky2_up(struct net_device *dev)
 		    RB_RST_SET);
 
 	sky2_qset(hw, txqaddr[port]);
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U)
-		sky2_write16(hw, Q_ADDR(txqaddr[port], Q_AL), 0x1a0);
 
+	/* Set almost empty threshold */
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U && hw->chip_rev == 1)
+		sky2_write16(hw, Q_ADDR(txqaddr[port], Q_AL), 0x1a0);
 
 	sky2_prefetch_init(hw, txqaddr[port], sky2->tx_le_map,
 			   TX_RING_SIZE - 1);
@@ -1043,8 +1079,10 @@ static int sky2_up(struct net_device *dev)
 		goto err_out;
 
 	/* Enable interrupts from phy/mac for port */
+	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask |= (port == 0) ? Y2_IS_PORT_1 : Y2_IS_PORT_2;
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
+	spin_unlock_irq(&hw->hw_lock);
 	return 0;
 
 err_out:
@@ -1111,6 +1149,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	struct sky2_tx_le *le = NULL;
 	struct tx_ring_info *re;
 	unsigned i, len;
+	int avail;
 	dma_addr_t mapping;
 	u32 addr64;
 	u16 mss;
@@ -1253,11 +1292,15 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	re->idx = sky2->tx_prod;
 	le->ctrl |= EOP;
 
+	avail = tx_avail(sky2);
+	if (mss != 0 || avail < TX_MIN_PENDING) {
+ 		le->ctrl |= FRC_STAT;
+		if (avail <= MAX_SKB_TX_LE)
+			netif_stop_queue(dev);
+	}
+
 	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod,
 		     &sky2->tx_last_put, TX_RING_SIZE);
-
-	if (tx_avail(sky2) <= MAX_SKB_TX_LE)
-		netif_stop_queue(dev);
 
 out_unlock:
 	spin_unlock(&sky2->tx_lock);
@@ -1344,10 +1387,10 @@ static int sky2_down(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/* Disable port IRQ */
-	local_irq_disable();
+	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask &= ~((sky2->port == 0) ? Y2_IS_IRQ_PHY1 : Y2_IS_IRQ_PHY2);
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
-	local_irq_enable();
+	spin_unlock_irq(&hw->hw_lock);
 
 	flush_scheduled_work();
 
@@ -1448,6 +1491,29 @@ static void sky2_link_up(struct sky2_port *sky2)
 	sky2_write8(hw, SK_REG(port, GMAC_IRQ_MSK), GMAC_DEF_MSK);
 
 	reg = gma_read16(hw, port, GM_GP_CTRL);
+	if (sky2->autoneg == AUTONEG_DISABLE) {
+		reg |= GM_GPCR_AU_ALL_DIS;
+
+		/* Is write/read necessary?  Copied from sky2_mac_init */
+		gma_write16(hw, port, GM_GP_CTRL, reg);
+		gma_read16(hw, port, GM_GP_CTRL);
+
+		switch (sky2->speed) {
+		case SPEED_1000:
+			reg &= ~GM_GPCR_SPEED_100;
+			reg |= GM_GPCR_SPEED_1000;
+			break;
+		case SPEED_100:
+			reg &= ~GM_GPCR_SPEED_1000;
+			reg |= GM_GPCR_SPEED_100;
+			break;
+		case SPEED_10:
+			reg &= ~(GM_GPCR_SPEED_1000 | GM_GPCR_SPEED_100);
+			break;
+		}
+	} else
+		reg &= ~GM_GPCR_AU_ALL_DIS;
+
 	if (sky2->duplex == DUPLEX_FULL || sky2->autoneg == AUTONEG_ENABLE)
 		reg |= GM_GPCR_DUP_FULL;
 
@@ -1606,10 +1672,10 @@ static void sky2_phy_task(void *arg)
 out:
 	up(&sky2->phy_sema);
 
-	local_irq_disable();
+	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask |= (sky2->port == 0) ? Y2_IS_IRQ_PHY1 : Y2_IS_IRQ_PHY2;
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
-	local_irq_enable();
+	spin_unlock_irq(&hw->hw_lock);
 }
 
 
@@ -1650,10 +1716,12 @@ static void sky2_tx_timeout(struct net_device *dev)
 
 
 #define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
-/* Want receive buffer size to be multiple of 64 bits, and incl room for vlan */
+/* Want receive buffer size to be multiple of 64 bits
+ * and incl room for vlan and truncation
+ */
 static inline unsigned sky2_buf_size(int mtu)
 {
-	return roundup(mtu + ETH_HLEN + 4, 8);
+	return roundup(mtu + ETH_HLEN + VLAN_HLEN, 8) + 8;
 }
 
 static int sky2_change_mtu(struct net_device *dev, int new_mtu)
@@ -1736,7 +1804,7 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 	if (!(status & GMR_FS_RX_OK))
 		goto resubmit;
 
-	if ((status >> 16) != length || length > sky2->rx_bufsize)
+	if (length > sky2->netdev->mtu + ETH_HLEN)
 		goto oversize;
 
 	if (length < copybreak) {
@@ -1834,6 +1902,19 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	u16 hwidx;
 	u16 tx_done[2] = { TX_NO_STATUS, TX_NO_STATUS };
 
+	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
+
+	/*
+	 * Kick the STAT_LEV_TIMER_CTRL timer.
+	 * This fixes my hangs on Yukon-EC (0xb6) rev 1.
+	 * The if clause is there to start the timer only if it has been
+	 * configured correctly and not been disabled via ethtool.
+	 */
+	if (sky2_read8(hw, STAT_LEV_TIMER_CTRL) == TIM_START) {
+		sky2_write8(hw, STAT_LEV_TIMER_CTRL, TIM_STOP);
+		sky2_write8(hw, STAT_LEV_TIMER_CTRL, TIM_START);
+	}
+
 	hwidx = sky2_read16(hw, STAT_PUT_IDX);
 	BUG_ON(hwidx >= STATUS_RING_SIZE);
 	rmb();
@@ -1913,21 +1994,22 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	}
 
 exit_loop:
-	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-
 	sky2_tx_check(hw, 0, tx_done[0]);
 	sky2_tx_check(hw, 1, tx_done[1]);
 
-	if (sky2_read16(hw, STAT_PUT_IDX) == hw->st_idx) {
-		/* need to restart TX timer */
-		if (is_ec_a1(hw)) {
-			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
-			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
-		}
+	if (sky2_read8(hw, STAT_TX_TIMER_CTRL) == TIM_START) {
+		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
+		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
+	}
 
-		netif_rx_complete(dev0);
+	if (likely(work_done < to_do)) {
+		spin_lock_irq(&hw->hw_lock);
+		__netif_rx_complete(dev0);
+
 		hw->intr_mask |= Y2_IS_STAT_BMU;
 		sky2_write32(hw, B0_IMSK, hw->intr_mask);
+		spin_unlock_irq(&hw->hw_lock);
+
 		return 0;
 	} else {
 		*budget -= work_done;
@@ -1990,13 +2072,13 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 	if (status & (Y2_IS_MST_ERR | Y2_IS_IRQ_STAT)) {
 		u16 pci_err;
 
-		pci_read_config_word(hw->pdev, PCI_STATUS, &pci_err);
+		pci_err = sky2_pci_read16(hw, PCI_STATUS);
 		if (net_ratelimit())
 			printk(KERN_ERR PFX "%s: pci hw error (0x%x)\n",
 			       pci_name(hw->pdev), pci_err);
 
 		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-		pci_write_config_word(hw->pdev, PCI_STATUS,
+		sky2_pci_write16(hw, PCI_STATUS,
 				      pci_err | PCI_STATUS_ERROR_BITS);
 		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	}
@@ -2005,7 +2087,7 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 		/* PCI-Express uncorrectable Error occurred */
 		u32 pex_err;
 
-		pci_read_config_dword(hw->pdev, PEX_UNC_ERR_STAT, &pex_err);
+		pex_err = sky2_pci_read32(hw, PEX_UNC_ERR_STAT);
 
 		if (net_ratelimit())
 			printk(KERN_ERR PFX "%s: pci express error (0x%x)\n",
@@ -2013,7 +2095,7 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 
 		/* clear the interrupt */
 		sky2_write32(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-		pci_write_config_dword(hw->pdev, PEX_UNC_ERR_STAT,
+		sky2_pci_write32(hw, PEX_UNC_ERR_STAT,
 				       0xffffffffUL);
 		sky2_write32(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
@@ -2059,6 +2141,7 @@ static void sky2_phy_intr(struct sky2_hw *hw, unsigned port)
 
 	hw->intr_mask &= ~(port == 0 ? Y2_IS_IRQ_PHY1 : Y2_IS_IRQ_PHY2);
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
+
 	schedule_work(&sky2->phy_task);
 }
 
@@ -2072,6 +2155,7 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 	if (status == 0 || status == ~0)
 		return IRQ_NONE;
 
+	spin_lock(&hw->hw_lock);
 	if (status & Y2_IS_HW_ERR)
 		sky2_hw_intr(hw);
 
@@ -2100,7 +2184,7 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 
 	sky2_write32(hw, B0_Y2_SP_ICR, 2);
 
-	sky2_read32(hw, B0_IMSK);
+	spin_unlock(&hw->hw_lock);
 
 	return IRQ_HANDLED;
 }
@@ -2141,26 +2225,18 @@ static inline u32 sky2_clk2us(const struct sky2_hw *hw, u32 clk)
 
 static int sky2_reset(struct sky2_hw *hw)
 {
-	u32 ctst;
 	u16 status;
 	u8 t8, pmd_type;
 	int i;
 
-	ctst = sky2_read32(hw, B0_CTST);
-
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
+
 	hw->chip_id = sky2_read8(hw, B2_CHIP_ID);
 	if (hw->chip_id < CHIP_ID_YUKON_XL || hw->chip_id > CHIP_ID_YUKON_FE) {
 		printk(KERN_ERR PFX "%s: unsupported chip type 0x%x\n",
 		       pci_name(hw->pdev), hw->chip_id);
 		return -EOPNOTSUPP;
 	}
-
-	/* ring for status responses */
-	hw->st_le = pci_alloc_consistent(hw->pdev, STATUS_LE_BYTES,
-					 &hw->st_dma);
-	if (!hw->st_le)
-		return -ENOMEM;
 
 	/* disable ASF */
 	if (hw->chip_id <= CHIP_ID_YUKON_EC) {
@@ -2173,20 +2249,18 @@ static int sky2_reset(struct sky2_hw *hw)
 	sky2_write8(hw, B0_CTST, CS_RST_CLR);
 
 	/* clear PCI errors, if any */
-	pci_read_config_word(hw->pdev, PCI_STATUS, &status);
+	status = sky2_pci_read16(hw, PCI_STATUS);
+
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-	pci_write_config_word(hw->pdev, PCI_STATUS,
-			      status | PCI_STATUS_ERROR_BITS);
+	sky2_pci_write16(hw, PCI_STATUS, status | PCI_STATUS_ERROR_BITS);
+
 
 	sky2_write8(hw, B0_CTST, CS_MRST_CLR);
 
 	/* clear any PEX errors */
-	if (is_pciex(hw)) {
-		u16 lstat;
-		pci_write_config_dword(hw->pdev, PEX_UNC_ERR_STAT,
-				       0xffffffffUL);
-		pci_read_config_word(hw->pdev, PEX_LNK_STAT, &lstat);
-	}
+	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP)) 
+		sky2_pci_write32(hw, PEX_UNC_ERR_STAT, 0xffffffffUL);
+
 
 	pmd_type = sky2_read8(hw, B2_PMD_TYP);
 	hw->copper = !(pmd_type == 'L' || pmd_type == 'S');
@@ -2285,8 +2359,7 @@ static int sky2_reset(struct sky2_hw *hw)
 			sky2_write8(hw, STAT_FIFO_ISR_WM, 16);
 
 		sky2_write32(hw, STAT_TX_TIMER_INI, sky2_us2clk(hw, 1000));
-		sky2_write32(hw, STAT_LEV_TIMER_INI, sky2_us2clk(hw, 100));
-		sky2_write32(hw, STAT_ISR_TIMER_INI, sky2_us2clk(hw, 20));
+		sky2_write32(hw, STAT_ISR_TIMER_INI, sky2_us2clk(hw, 7));
 	}
 
 	/* enable status unit */
@@ -2551,19 +2624,24 @@ static struct net_device_stats *sky2_get_stats(struct net_device *dev)
 static int sky2_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
-	struct sockaddr *addr = p;
+	struct sky2_hw *hw = sky2->hw;
+	unsigned port = sky2->port;
+	const struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	memcpy_toio(sky2->hw->regs + B2_MAC_1 + sky2->port * 8,
+	memcpy_toio(hw->regs + B2_MAC_1 + port * 8,
 		    dev->dev_addr, ETH_ALEN);
-	memcpy_toio(sky2->hw->regs + B2_MAC_2 + sky2->port * 8,
+	memcpy_toio(hw->regs + B2_MAC_2 + port * 8,
 		    dev->dev_addr, ETH_ALEN);
 
-	if (netif_running(dev))
-		sky2_phy_reinit(sky2);
+	/* virtual address for data */
+	gma_set_addr(hw, port, GM_SRC_ADDR_2L, dev->dev_addr);
+
+	/* physical address: used for pause frames */
+	gma_set_addr(hw, port, GM_SRC_ADDR_1L, dev->dev_addr);
 
 	return 0;
 }
@@ -2815,11 +2893,11 @@ static int sky2_set_coalesce(struct net_device *dev,
 	    (ecmd->rx_coalesce_usecs_irq < tmin || ecmd->rx_coalesce_usecs_irq > tmax))
 		return -EINVAL;
 
-	if (ecmd->tx_max_coalesced_frames > 0xffff)
+	if (ecmd->tx_max_coalesced_frames >= TX_RING_SIZE-1)
 		return -EINVAL;
-	if (ecmd->rx_max_coalesced_frames > 0xff)
+	if (ecmd->rx_max_coalesced_frames > RX_MAX_PENDING)
 		return -EINVAL;
-	if (ecmd->rx_max_coalesced_frames_irq > 0xff)
+	if (ecmd->rx_max_coalesced_frames_irq >RX_MAX_PENDING)
 		return -EINVAL;
 
 	if (ecmd->tx_coalesce_usecs == 0)
@@ -2843,7 +2921,7 @@ static int sky2_set_coalesce(struct net_device *dev,
 	if (ecmd->rx_coalesce_usecs_irq == 0)
 		sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_STOP);
 	else {
-		sky2_write32(hw, STAT_TX_TIMER_INI,
+		sky2_write32(hw, STAT_ISR_TIMER_INI,
 			     sky2_us2clk(hw, ecmd->rx_coalesce_usecs_irq));
 		sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_START);
 	}
@@ -3106,17 +3184,6 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		}
 	}
 
-#ifdef __BIG_ENDIAN
-	/* byte swap descriptors in hardware */
-	{
-		u32 reg;
-
-		pci_read_config_dword(pdev, PCI_DEV_REG2, &reg);
-		reg |= PCI_REV_DESC;
-		pci_write_config_dword(pdev, PCI_DEV_REG2, reg);
-	}
-#endif
-
 	err = -ENOMEM;
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw) {
@@ -3134,6 +3201,24 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		goto err_out_free_hw;
 	}
 	hw->pm_cap = pm_cap;
+	spin_lock_init(&hw->hw_lock);
+
+#ifdef __BIG_ENDIAN
+	/* byte swap descriptors in hardware */
+	{
+		u32 reg;
+
+		reg = sky2_pci_read32(hw, PCI_DEV_REG2);
+		reg |= PCI_REV_DESC;
+		sky2_pci_write32(hw, PCI_DEV_REG2, reg);
+	}
+#endif
+
+	/* ring for status responses */
+	hw->st_le = pci_alloc_consistent(hw->pdev, STATUS_LE_BYTES,
+					 &hw->st_dma);
+	if (!hw->st_le)
+		goto err_out_iounmap;
 
 	err = sky2_reset(hw);
 	if (err)
@@ -3263,25 +3348,33 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 static int sky2_resume(struct pci_dev *pdev)
 {
 	struct sky2_hw *hw = pci_get_drvdata(pdev);
-	int i;
+	int i, err;
 
 	pci_restore_state(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
-	sky2_set_power_state(hw, PCI_D0);
+	err = sky2_set_power_state(hw, PCI_D0);
+	if (err)
+		goto out;
 
-	sky2_reset(hw);
+	err = sky2_reset(hw);
+	if (err)
+		goto out;
 
 	for (i = 0; i < 2; i++) {
 		struct net_device *dev = hw->dev[i];
-		if (dev) {
-			if (netif_running(dev)) {
-				netif_device_attach(dev);
-				if (sky2_up(dev))
-					dev_close(dev);
+		if (dev && netif_running(dev)) {
+			netif_device_attach(dev);
+			err = sky2_up(dev);
+			if (err) {
+				printk(KERN_ERR PFX "%s: could not up: %d\n",
+				       dev->name, err);
+				dev_close(dev);
+				break;
 			}
 		}
 	}
-	return 0;
+out:
+	return err;
 }
 #endif
 

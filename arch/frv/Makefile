@@ -81,7 +81,7 @@ endif
 # - reserve CC3 for use with atomic ops
 # - all the extra registers are dealt with only at context switch time
 CFLAGS		+= -mno-fdpic -mgpr-32 -msoft-float -mno-media
-CFLAGS		+= -ffixed-fcc3 -ffixed-cc3 -ffixed-gr15
+CFLAGS		+= -ffixed-fcc3 -ffixed-cc3 -ffixed-gr15 -ffixed-icc2
 AFLAGS		+= -mno-fdpic
 ASFLAGS		+= -mno-fdpic
 
