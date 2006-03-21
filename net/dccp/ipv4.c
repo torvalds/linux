@@ -1051,7 +1051,10 @@ int dccp_v4_init_sock(struct sock *sk)
 	 * setsockopt(CCIDs-I-want/accept). -acme
 	 */
 	if (likely(!dccp_ctl_socket_init)) {
-		int rc;
+		int rc = dccp_feat_init(sk);
+
+		if (rc)
+			return rc;
 
 		if (dp->dccps_options.dccpo_send_ack_vector) {
 			dp->dccps_hc_rx_ackvec = dccp_ackvec_alloc(GFP_KERNEL);
@@ -1075,10 +1078,6 @@ int dccp_v4_init_sock(struct sock *sk)
 			dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
 			return -ENOMEM;
 		}
-
-		rc = dccp_feat_init(sk);
-		if (rc)
-			return rc;
 	} else {
 		/* control socket doesn't need feat nego */
 		INIT_LIST_HEAD(&dp->dccps_options.dccpo_pending);
