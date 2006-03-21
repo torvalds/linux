@@ -1028,8 +1028,6 @@ help:
 	@echo  '  kernelversion	  - Output the version stored in Makefile'
 	@echo  ''
 	@echo  'Static analysers'
-	@echo  '  buildcheck      - List dangling references to vmlinux discarded sections'
-	@echo  '                    and init sections from non-init sections'
 	@echo  '  checkstack      - Generate a list of stack hogs'
 	@echo  '  namespacecheck  - Name space analysis on compiled kernel'
 	@echo  ''
@@ -1254,10 +1252,6 @@ versioncheck:
 	find * $(RCS_FIND_IGNORE) \
 		-name '*.[hcS]' -type f -print | sort \
 		| xargs $(PERL) -w scripts/checkversion.pl
-
-buildcheck:
-	$(PERL) $(srctree)/scripts/reference_discarded.pl
-	$(PERL) $(srctree)/scripts/reference_init.pl
 
 namespacecheck:
 	$(PERL) $(srctree)/scripts/namespace.pl
