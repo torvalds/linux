@@ -320,19 +320,14 @@ static int pseries_set_xdabr(unsigned long dabr)
  */
 static void __init pSeries_init_early(void)
 {
-	int iommu_off = 0;
-
 	DBG(" -> pSeries_init_early()\n");
 
 	fw_feature_init();
 	
 	if (platform_is_lpar())
 		hpte_init_lpar();
-	else {
+	else
 		hpte_init_native();
-		iommu_off = (of_chosen &&
-			     get_property(of_chosen, "linux,iommu-off", NULL));
-	}
 
 	if (platform_is_lpar())
 		find_udbg_vterm();
