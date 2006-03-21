@@ -74,6 +74,9 @@
 
 #define CLONE_OFFLINK_ROUTE 0
 
+#define RT6_SELECT_F_IFACE	0x1
+#define RT6_SELECT_F_REACHABLE	0x2
+
 static int ip6_rt_max_size = 4096;
 static int ip6_rt_gc_min_interval = HZ / 2;
 static int ip6_rt_gc_timeout = 60*HZ;
@@ -216,148 +219,89 @@ static __inline__ struct rt6_info *rt6_device_match(struct rt6_info *rt,
 }
 
 /*
- *	pointer to the last default router chosen. BH is disabled locally.
+ * Default Router Selection (RFC 2461 6.3.6)
  */
-static struct rt6_info *rt6_dflt_pointer;
-static DEFINE_SPINLOCK(rt6_dflt_lock);
-
-void rt6_reset_dflt_pointer(struct rt6_info *rt)
+static int inline rt6_check_dev(struct rt6_info *rt, int oif)
 {
-	spin_lock_bh(&rt6_dflt_lock);
-	if (rt == NULL || rt == rt6_dflt_pointer) {
-		RT6_TRACE("reset default router: %p->NULL\n", rt6_dflt_pointer);
-		rt6_dflt_pointer = NULL;
-	}
-	spin_unlock_bh(&rt6_dflt_lock);
+	struct net_device *dev = rt->rt6i_dev;
+	if (!oif || dev->ifindex == oif)
+		return 2;
+	if ((dev->flags & IFF_LOOPBACK) &&
+	    rt->rt6i_idev && rt->rt6i_idev->dev->ifindex == oif)
+		return 1;
+	return 0;
 }
 
-/* Default Router Selection (RFC 2461 6.3.6) */
-static struct rt6_info *rt6_best_dflt(struct rt6_info *rt, int oif)
+static int inline rt6_check_neigh(struct rt6_info *rt)
 {
-	struct rt6_info *match = NULL;
-	struct rt6_info *sprt;
-	int mpri = 0;
+	struct neighbour *neigh = rt->rt6i_nexthop;
+	int m = 0;
+	if (neigh) {
+		read_lock_bh(&neigh->lock);
+		if (neigh->nud_state & NUD_VALID)
+			m = 1;
+		read_unlock_bh(&neigh->lock);
+	}
+	return m;
+}
 
-	for (sprt = rt; sprt; sprt = sprt->u.next) {
-		struct neighbour *neigh;
-		int m = 0;
+static int rt6_score_route(struct rt6_info *rt, int oif,
+			   int strict)
+{
+	int m = rt6_check_dev(rt, oif);
+	if (!m && (strict & RT6_SELECT_F_IFACE))
+		return -1;
+	if (rt6_check_neigh(rt))
+		m |= 4;
+	else if (strict & RT6_SELECT_F_REACHABLE)
+		return -1;
+	return m;
+}
 
-		if (!oif ||
-		    (sprt->rt6i_dev &&
-		     sprt->rt6i_dev->ifindex == oif))
-			m += 8;
+static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
+				   int strict)
+{
+	struct rt6_info *match = NULL, *last = NULL;
+	struct rt6_info *rt, *rt0 = *head;
+	u32 metric;
+	int mpri = -1;
 
-		if (rt6_check_expired(sprt))
+	RT6_TRACE("%s(head=%p(*head=%p), oif=%d)\n",
+		  __FUNCTION__, head, head ? *head : NULL, oif);
+
+	for (rt = rt0, metric = rt0->rt6i_metric;
+	     rt && rt->rt6i_metric == metric;
+	     rt = rt->u.next) {
+		int m;
+
+		if (rt6_check_expired(rt))
 			continue;
 
-		if (sprt == rt6_dflt_pointer)
-			m += 4;
+		last = rt;
 
-		if ((neigh = sprt->rt6i_nexthop) != NULL) {
-			read_lock_bh(&neigh->lock);
-			switch (neigh->nud_state) {
-			case NUD_REACHABLE:
-				m += 3;
-				break;
-
-			case NUD_STALE:
-			case NUD_DELAY:
-			case NUD_PROBE:
-				m += 2;
-				break;
-
-			case NUD_NOARP:
-			case NUD_PERMANENT:
-				m += 1;
-				break;
-
-			case NUD_INCOMPLETE:
-			default:
-				read_unlock_bh(&neigh->lock);
-				continue;
-			}
-			read_unlock_bh(&neigh->lock);
-		} else {
+		m = rt6_score_route(rt, oif, strict);
+		if (m < 0)
 			continue;
-		}
 
-		if (m > mpri || m >= 12) {
-			match = sprt;
+		if (m > mpri) {
+			match = rt;
 			mpri = m;
-			if (m >= 12) {
-				/* we choose the last default router if it
-				 * is in (probably) reachable state.
-				 * If route changed, we should do pmtu
-				 * discovery. --yoshfuji
-				 */
-				break;
-			}
 		}
 	}
 
-	spin_lock(&rt6_dflt_lock);
-	if (!match) {
-		/*
-		 *	No default routers are known to be reachable.
-		 *	SHOULD round robin
-		 */
-		if (rt6_dflt_pointer) {
-			for (sprt = rt6_dflt_pointer->u.next;
-			     sprt; sprt = sprt->u.next) {
-				if (sprt->u.dst.obsolete <= 0 &&
-				    sprt->u.dst.error == 0 &&
-				    !rt6_check_expired(sprt)) {
-					match = sprt;
-					break;
-				}
-			}
-			for (sprt = rt;
-			     !match && sprt;
-			     sprt = sprt->u.next) {
-				if (sprt->u.dst.obsolete <= 0 &&
-				    sprt->u.dst.error == 0 &&
-				    !rt6_check_expired(sprt)) {
-					match = sprt;
-					break;
-				}
-				if (sprt == rt6_dflt_pointer)
-					break;
-			}
-		}
+	if (!match &&
+	    (strict & RT6_SELECT_F_REACHABLE) &&
+	    last && last != rt0) {
+		/* no entries matched; do round-robin */
+		*head = rt0->u.next;
+		rt0->u.next = last->u.next;
+		last->u.next = rt0;
 	}
 
-	if (match) {
-		if (rt6_dflt_pointer != match)
-			RT6_TRACE("changed default router: %p->%p\n",
-				  rt6_dflt_pointer, match);
-		rt6_dflt_pointer = match;
-	}
-	spin_unlock(&rt6_dflt_lock);
+	RT6_TRACE("%s() => %p, score=%d\n",
+		  __FUNCTION__, match, mpri);
 
-	if (!match) {
-		/*
-		 * Last Resort: if no default routers found, 
-		 * use addrconf default route.
-		 * We don't record this route.
-		 */
-		for (sprt = ip6_routing_table.leaf;
-		     sprt; sprt = sprt->u.next) {
-			if (!rt6_check_expired(sprt) &&
-			    (sprt->rt6i_flags & RTF_DEFAULT) &&
-			    (!oif ||
-			     (sprt->rt6i_dev &&
-			      sprt->rt6i_dev->ifindex == oif))) {
-				match = sprt;
-				break;
-			}
-		}
-		if (!match) {
-			/* no default route.  give up. */
-			match = &ip6_null_entry;
-		}
-	}
-
-	return match;
+	return (match ? match : &ip6_null_entry);
 }
 
 struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
@@ -542,7 +486,7 @@ struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
 	int attempts = 3;
 	int err;
 
-	strict = ipv6_addr_type(&fl->fl6_dst) & (IPV6_ADDR_MULTICAST|IPV6_ADDR_LINKLOCAL);
+	strict = ipv6_addr_type(&fl->fl6_dst) & (IPV6_ADDR_MULTICAST|IPV6_ADDR_LINKLOCAL) ? RT6_SELECT_F_IFACE : 0;
 
 relookup:
 	read_lock_bh(&rt6_lock);
@@ -558,8 +502,9 @@ restart:
 		goto out;
 	}
 	if (rt->rt6i_flags & RTF_DEFAULT) {
-		if (rt->rt6i_metric >= IP6_RT_PRIO_ADDRCONF)
-			rt = rt6_best_dflt(rt, fl->oif);
+		rt = rt6_select(&fn->leaf, fl->oif, strict | RT6_SELECT_F_REACHABLE);
+		if (rt == &ip6_null_entry)
+			rt = rt6_select(&fn->leaf, fl->oif, strict);
 	} else {
 		rt = rt6_device_match(rt, fl->oif, strict);
 		BACKTRACK();
@@ -1025,8 +970,6 @@ int ip6_del_rt(struct rt6_info *rt, struct nlmsghdr *nlh, void *_rtattr, struct 
 
 	write_lock_bh(&rt6_lock);
 
-	rt6_reset_dflt_pointer(NULL);
-
 	err = fib6_del(rt, nlh, _rtattr, req);
 	dst_release(&rt->u.dst);
 
@@ -1340,8 +1283,6 @@ restart:
 	for (rt = ip6_routing_table.leaf; rt; rt = rt->u.next) {
 		if (rt->rt6i_flags & (RTF_DEFAULT | RTF_ADDRCONF)) {
 			dst_hold(&rt->u.dst);
-
-			rt6_reset_dflt_pointer(NULL);
 
 			read_unlock_bh(&rt6_lock);
 
