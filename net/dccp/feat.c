@@ -19,10 +19,9 @@
 
 #define DCCP_FEAT_SP_NOAGREE (-123)
 
-int dccp_feat_change(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len,
-		     gfp_t gfp)
+int dccp_feat_change(struct dccp_minisock *dmsk, u8 type, u8 feature,
+		     u8 *val, u8 len, gfp_t gfp)
 {
-	struct dccp_minisock *dmsk = dccp_msk(sk);
 	struct dccp_opt_pend *opt;
 
 	dccp_pr_debug("feat change type=%d feat=%d\n", type, feature);
@@ -307,9 +306,9 @@ static int dccp_feat_nn(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 	return 0;
 }
 
-static void dccp_feat_empty_confirm(struct sock *sk, u8 type, u8 feature)
+static void dccp_feat_empty_confirm(struct dccp_minisock *dmsk,
+				    u8 type, u8 feature)
 {
-	struct dccp_minisock *dmsk = dccp_msk(sk);
 	/* XXX check if other confirms for that are queued and recycle slot */
 	struct dccp_opt_pend *opt = kzalloc(sizeof(*opt), GFP_ATOMIC);
 
@@ -388,7 +387,7 @@ int dccp_feat_change_recv(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 		 * mandatory
 		 */
 		if (rc != DCCP_FEAT_SP_NOAGREE)
-			dccp_feat_empty_confirm(sk, type, feature);
+			dccp_feat_empty_confirm(dccp_msk(sk), type, feature);
 	}
 
 	/* generate the confirm [if required] */
@@ -456,9 +455,8 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 
 EXPORT_SYMBOL_GPL(dccp_feat_confirm_recv);
 
-void dccp_feat_clean(struct sock *sk)
+void dccp_feat_clean(struct dccp_minisock *dmsk)
 {
-	struct dccp_minisock *dmsk = dccp_msk(sk);
 	struct dccp_opt_pend *opt, *next;
 
 	list_for_each_entry_safe(opt, next, &dmsk->dccpms_pending,
@@ -537,49 +535,49 @@ out:
 	return rc;
 
 out_clean:
-	dccp_feat_clean(newsk);
+	dccp_feat_clean(newdmsk);
 	rc = -ENOMEM;
 	goto out;
 }
 
 EXPORT_SYMBOL_GPL(dccp_feat_clone);
 
-static int __dccp_feat_init(struct sock *sk, u8 type, u8 feat, u8 *val, u8 len)
+static int __dccp_feat_init(struct dccp_minisock *dmsk, u8 type, u8 feat,
+			    u8 *val, u8 len)
 {
 	int rc = -ENOMEM;
 	u8 *copy = kmalloc(len, GFP_KERNEL);
 
 	if (copy != NULL) {
 		memcpy(copy, val, len);
-		rc = dccp_feat_change(sk, type, feat, copy, len, GFP_KERNEL);
+		rc = dccp_feat_change(dmsk, type, feat, copy, len, GFP_KERNEL);
 		if (rc)
 			kfree(copy);
 	}
 	return rc;
 }
 
-int dccp_feat_init(struct sock *sk)
+int dccp_feat_init(struct dccp_minisock *dmsk)
 {
-	struct dccp_minisock *dmsk = dccp_msk(sk);
 	int rc;
 
 	INIT_LIST_HEAD(&dmsk->dccpms_pending);
 	INIT_LIST_HEAD(&dmsk->dccpms_conf);
 
 	/* CCID L */
-	rc = __dccp_feat_init(sk, DCCPO_CHANGE_L, DCCPF_CCID,
+	rc = __dccp_feat_init(dmsk, DCCPO_CHANGE_L, DCCPF_CCID,
 			      &dmsk->dccpms_tx_ccid, 1);
 	if (rc)
 		goto out;
 
 	/* CCID R */
-	rc = __dccp_feat_init(sk, DCCPO_CHANGE_R, DCCPF_CCID,
+	rc = __dccp_feat_init(dmsk, DCCPO_CHANGE_R, DCCPF_CCID,
 			      &dmsk->dccpms_rx_ccid, 1);
 	if (rc)
 		goto out;
 
 	/* Ack ratio */
-	rc = __dccp_feat_init(sk, DCCPO_CHANGE_L, DCCPF_ACK_RATIO,
+	rc = __dccp_feat_init(dmsk, DCCPO_CHANGE_L, DCCPF_ACK_RATIO,
 			      &dmsk->dccpms_ack_ratio, 1);
 out:
 	return rc;

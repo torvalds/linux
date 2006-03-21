@@ -180,7 +180,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 	 * setsockopt(CCIDs-I-want/accept). -acme
 	 */
 	if (likely(ctl_sock_initialized)) {
-		int rc = dccp_feat_init(sk);
+		int rc = dccp_feat_init(dmsk);
 
 		if (rc)
 			return rc;
@@ -229,6 +229,7 @@ EXPORT_SYMBOL_GPL(dccp_init_sock);
 int dccp_destroy_sock(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 
 	/*
 	 * DCCP doesn't use sk_write_queue, just sk_send_head
@@ -246,7 +247,7 @@ int dccp_destroy_sock(struct sock *sk)
 	kfree(dp->dccps_service_list);
 	dp->dccps_service_list = NULL;
 
-	if (dccp_msk(sk)->dccpms_send_ack_vector) {
+	if (dmsk->dccpms_send_ack_vector) {
 		dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
 		dp->dccps_hc_rx_ackvec = NULL;
 	}
@@ -255,7 +256,7 @@ int dccp_destroy_sock(struct sock *sk)
 	dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
 
 	/* clean up feature negotiation state */
-	dccp_feat_clean(sk);
+	dccp_feat_clean(dmsk);
 
 	return 0;
 }
@@ -441,8 +442,8 @@ static int dccp_setsockopt_change(struct sock *sk, int type,
 		goto out_free_val;
 	}
 
-	rc = dccp_feat_change(sk, type, opt.dccpsf_feat, val, opt.dccpsf_len,
-			      GFP_KERNEL);
+	rc = dccp_feat_change(dccp_msk(sk), type, opt.dccpsf_feat,
+			      val, opt.dccpsf_len, GFP_KERNEL);
 	if (rc)
 		goto out_free_val;
 
