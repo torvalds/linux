@@ -15,6 +15,9 @@
 
 #include <linux/kernel.h>
 #include <linux/netfilter_bridge.h>
+#include <linux/etherdevice.h>
+#include <linux/llc.h>
+#include <net/llc_pdu.h>
 
 #include "br_private.h"
 #include "br_private_stp.h"
@@ -130,42 +133,54 @@ void br_send_tcn_bpdu(struct net_bridge_port *p)
 	br_send_bpdu(p, buf, 7);
 }
 
-static const unsigned char header[6] = {0x42, 0x42, 0x03, 0x00, 0x00, 0x00};
-
-/* NO locks, but rcu_read_lock (preempt_disabled)  */
-int br_stp_handle_bpdu(struct sk_buff *skb)
+/*
+ * Called from llc.
+ *
+ * NO locks, but rcu_read_lock (preempt_disabled)
+ */
+int br_stp_rcv(struct sk_buff *skb, struct net_device *dev,
+	       struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
+	const struct llc_pdu_un *pdu = llc_pdu_un_hdr(skb);
+	const unsigned char *dest = eth_hdr(skb)->h_dest;
+	struct net_bridge_port *p = rcu_dereference(dev->br_port);
 	struct net_bridge *br;
-	unsigned char *buf;
+	const unsigned char *buf;
 
 	if (!p)
+		goto err;
+
+	if (pdu->ssap != LLC_SAP_BSPAN
+	    || pdu->dsap != LLC_SAP_BSPAN
+	    || pdu->ctrl_1 != LLC_PDU_TYPE_U)
+		goto err;
+
+	if (!pskb_may_pull(skb, 4))
+		goto err;
+
+	/* compare of protocol id and version */
+	buf = skb->data;
+	if (buf[0] != 0 || buf[1] != 0 || buf[2] != 0)
 		goto err;
 
 	br = p->br;
 	spin_lock(&br->lock);
 
-	if (p->state == BR_STATE_DISABLED || !(br->dev->flags & IFF_UP))
+	if (p->state == BR_STATE_DISABLED
+	    || !br->stp_enabled
+	    || !(br->dev->flags & IFF_UP))
 		goto out;
 
-	/* insert into forwarding database after filtering to avoid spoofing */
-	br_fdb_update(br, p, eth_hdr(skb)->h_source);
-
-	if (!br->stp_enabled)
+	if (compare_ether_addr(dest, bridge_ula) != 0)
 		goto out;
 
-	/* need at least the 802 and STP headers */
-	if (!pskb_may_pull(skb, sizeof(header)+1) ||
-	    memcmp(skb->data, header, sizeof(header)))
-		goto out;
-
-	buf = skb_pull(skb, sizeof(header));
+	buf = skb_pull(skb, 3);
 
 	if (buf[0] == BPDU_TYPE_CONFIG) {
 		struct br_config_bpdu bpdu;
 
 		if (!pskb_may_pull(skb, 32))
-		    goto out;
+			goto out;
 
 		buf = skb->data;
 		bpdu.topology_change = (buf[1] & 0x01) ? 1 : 0;
