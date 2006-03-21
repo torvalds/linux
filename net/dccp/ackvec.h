@@ -49,7 +49,6 @@
  * 		       (HC-Sender seqno)
  * @dccpav_ack_nonce - the one-bit sum of the ECN Nonces for all State 0.
  *
- * @dccpav_buf_len	- circular buffer length
  * @dccpav_time		- the time in usecs
  * @dccpav_buf - circular buffer of acknowledgeable packets
  */
@@ -63,18 +62,16 @@ struct dccp_ackvec {
 	u8		dccpav_ack_ptr;
 	u8		dccpav_sent_len;
 	u8		dccpav_vec_len;
-	u8		dccpav_buf_len;
 	u8		dccpav_buf_nonce;
 	u8		dccpav_ack_nonce;
-	u8		dccpav_buf[0];
+	u8		dccpav_buf[DCCP_MAX_ACKVEC_LEN];
 };
 
 struct sock;
 struct sk_buff;
 
 #ifdef CONFIG_IP_DCCP_ACKVEC
-extern struct dccp_ackvec *dccp_ackvec_alloc(unsigned int len,
-					  const gfp_t priority);
+extern struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority);
 extern void dccp_ackvec_free(struct dccp_ackvec *av);
 
 extern int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
@@ -92,8 +89,7 @@ static inline int dccp_ackvec_pending(const struct dccp_ackvec *av)
 	return av->dccpav_sent_len != av->dccpav_vec_len;
 }
 #else /* CONFIG_IP_DCCP_ACKVEC */
-static inline struct dccp_ackvec *dccp_ackvec_alloc(unsigned int len,
-					   const gfp_t priority)
+static inline struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 {
 	return NULL;
 }

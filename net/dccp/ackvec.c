@@ -20,6 +20,10 @@
 int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
+#ifdef CONFIG_IP_DCCP_DEBUG
+	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
+				"CLIENT tx: " : "server tx: ";
+#endif
 	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
 	int len = av->dccpav_vec_len + 2;
 	struct timeval now;
@@ -90,21 +94,13 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	return -1;
 }
 
-struct dccp_ackvec *dccp_ackvec_alloc(const unsigned int len,
-				      const gfp_t priority)
+struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 {
-	struct dccp_ackvec *av;
+	struct dccp_ackvec *av = kmalloc(sizeof(*av), priority);
 
-	BUG_ON(len == 0);
-
-	if (len > DCCP_MAX_ACKVEC_LEN)
-		return NULL;
-
-	av = kmalloc(sizeof(*av) + len, priority);
 	if (av != NULL) {
-		av->dccpav_buf_len	= len;
 		av->dccpav_buf_head	=
-			av->dccpav_buf_tail = av->dccpav_buf_len - 1;
+			av->dccpav_buf_tail = DCCP_MAX_ACKVEC_LEN - 1;
 		av->dccpav_buf_ackno	=
 			av->dccpav_ack_ackno = av->dccpav_ack_seqno = ~0LLU;
 		av->dccpav_buf_nonce = av->dccpav_buf_nonce = 0;
@@ -146,7 +142,7 @@ static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 	unsigned int gap;
 	long new_head;
 
-	if (av->dccpav_vec_len + packets > av->dccpav_buf_len)
+	if (av->dccpav_vec_len + packets > DCCP_MAX_ACKVEC_LEN)
 		return -ENOBUFS;
 
 	gap	 = packets - 1;
@@ -158,7 +154,7 @@ static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 			       gap + new_head + 1);
 			gap = -new_head;
 		}
-		new_head += av->dccpav_buf_len;
+		new_head += DCCP_MAX_ACKVEC_LEN;
 	} 
 
 	av->dccpav_buf_head = new_head;
@@ -251,7 +247,7 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 				goto out_duplicate;
 
 			delta -= len + 1;
-			if (++index == av->dccpav_buf_len)
+			if (++index == DCCP_MAX_ACKVEC_LEN)
 				index = 0;
 		}
 	}

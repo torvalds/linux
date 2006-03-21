@@ -116,8 +116,7 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 
 		if (newdp->dccps_options.dccpo_send_ack_vector) {
 			newdp->dccps_hc_rx_ackvec =
-				dccp_ackvec_alloc(DCCP_MAX_ACKVEC_LEN,
-						  GFP_ATOMIC);
+						dccp_ackvec_alloc(GFP_ATOMIC);
 			/*
 			 * XXX: We're using the same CCIDs set on the parent,
 			 * i.e. sk_clone copied the master sock and left the

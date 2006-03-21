@@ -1042,8 +1042,7 @@ int dccp_v4_init_sock(struct sock *sk)
 	do_gettimeofday(&dp->dccps_epoch);
 
 	if (dp->dccps_options.dccpo_send_ack_vector) {
-		dp->dccps_hc_rx_ackvec = dccp_ackvec_alloc(DCCP_MAX_ACKVEC_LEN,
-							   GFP_KERNEL);
+		dp->dccps_hc_rx_ackvec = dccp_ackvec_alloc(GFP_KERNEL);
 		if (dp->dccps_hc_rx_ackvec == NULL)
 			return -ENOMEM;
 	}
