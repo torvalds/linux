@@ -7457,6 +7457,7 @@ static int tg3_get_eeprom_len(struct net_device *dev)
 }
 
 static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val);
+static int tg3_nvram_read_swab(struct tg3 *tp, u32 offset, u32 *val);
 
 static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
 {
@@ -7973,10 +7974,9 @@ static int tg3_test_nvram(struct tg3 *tp)
 	u32 *buf, csum, magic;
 	int i, j, err = 0, size;
 
-	if (tg3_nvram_read(tp, 0, &magic) != 0)
+	if (tg3_nvram_read_swab(tp, 0, &magic) != 0)
 		return -EIO;
 
-	magic = swab32(magic);
 	if (magic == TG3_EEPROM_MAGIC)
 		size = NVRAM_TEST_SIZE;
 	else if ((magic & 0xff000000) == 0xa5000000) {
@@ -8749,10 +8749,9 @@ static void __devinit tg3_get_eeprom_size(struct tg3 *tp)
 
 	tp->nvram_size = EEPROM_CHIP_SIZE;
 
-	if (tg3_nvram_read(tp, 0, &val) != 0)
+	if (tg3_nvram_read_swab(tp, 0, &magic) != 0)
 		return;
 
-	magic = swab32(val);
 	if ((magic != TG3_EEPROM_MAGIC) && ((magic & 0xff000000) != 0xa5000000))
 		return;
 
@@ -8764,10 +8763,10 @@ static void __devinit tg3_get_eeprom_size(struct tg3 *tp)
 	cursize = 0x10;
 
 	while (cursize < tp->nvram_size) {
-		if (tg3_nvram_read(tp, cursize, &val) != 0)
+		if (tg3_nvram_read_swab(tp, cursize, &val) != 0)
 			return;
 
-		if (swab32(val) == magic)
+		if (val == magic)
 			break;
 
 		cursize <<= 1;
@@ -8780,11 +8779,11 @@ static void __devinit tg3_get_nvram_size(struct tg3 *tp)
 {
 	u32 val;
 
-	if (tg3_nvram_read(tp, 0, &val) != 0)
+	if (tg3_nvram_read_swab(tp, 0, &val) != 0)
 		return;
 
 	/* Selfboot format */
-	if (swab32(val) != TG3_EEPROM_MAGIC) {
+	if (val != TG3_EEPROM_MAGIC) {
 		tg3_get_eeprom_size(tp);
 		return;
 	}
@@ -9056,6 +9055,20 @@ static int tg3_nvram_exec_cmd(struct tg3 *tp, u32 nvram_cmd)
 	return 0;
 }
 
+static u32 tg3_nvram_phys_addr(struct tg3 *tp, u32 addr)
+{
+	if ((tp->tg3_flags & TG3_FLAG_NVRAM) &&
+	    (tp->tg3_flags & TG3_FLAG_NVRAM_BUFFERED) &&
+	    (tp->tg3_flags2 & TG3_FLG2_FLASH) &&
+	    (tp->nvram_jedecnum == JEDEC_ATMEL))
+
+		addr = ((addr / tp->nvram_pagesize) <<
+			ATMEL_AT45DB0X1B_PAGE_POS) +
+		       (addr % tp->nvram_pagesize);
+
+	return addr;
+}
+
 static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 {
 	int ret;
@@ -9068,14 +9081,7 @@ static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 	if (!(tp->tg3_flags & TG3_FLAG_NVRAM))
 		return tg3_nvram_read_using_eeprom(tp, offset, val);
 
-	if ((tp->tg3_flags & TG3_FLAG_NVRAM_BUFFERED) &&
-		(tp->tg3_flags2 & TG3_FLG2_FLASH) &&
-		(tp->nvram_jedecnum == JEDEC_ATMEL)) {
-
-		offset = ((offset / tp->nvram_pagesize) <<
-			  ATMEL_AT45DB0X1B_PAGE_POS) +
-			(offset % tp->nvram_pagesize);
-	}
+	offset = tg3_nvram_phys_addr(tp, offset);
 
 	if (offset > NVRAM_ADDR_MSK)
 		return -EINVAL;
@@ -9098,6 +9104,16 @@ static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 	tg3_nvram_unlock(tp);
 
 	return ret;
+}
+
+static int tg3_nvram_read_swab(struct tg3 *tp, u32 offset, u32 *val)
+{
+	int err;
+	u32 tmp;
+
+	err = tg3_nvram_read(tp, offset, &tmp);
+	*val = swab32(tmp);
+	return err;
 }
 
 static int tg3_nvram_write_block_using_eeprom(struct tg3 *tp,
@@ -9252,15 +9268,7 @@ static int tg3_nvram_write_block_buffered(struct tg3 *tp, u32 offset, u32 len,
 
 	        page_off = offset % tp->nvram_pagesize;
 
-		if ((tp->tg3_flags2 & TG3_FLG2_FLASH) &&
-			(tp->nvram_jedecnum == JEDEC_ATMEL)) {
-
-			phy_addr = ((offset / tp->nvram_pagesize) <<
-				    ATMEL_AT45DB0X1B_PAGE_POS) + page_off;
-		}
-		else {
-			phy_addr = offset;
-		}
+		phy_addr = tg3_nvram_phys_addr(tp, offset);
 
 		tw32(NVRAM_ADDR, phy_addr);
 
@@ -9689,10 +9697,10 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 		return;
 	}
 
-	if (tg3_nvram_read(tp, 0x0, &magic))
+	if (tg3_nvram_read_swab(tp, 0x0, &magic))
 		return;
 
-	if (swab32(magic) == TG3_EEPROM_MAGIC) {
+	if (magic == TG3_EEPROM_MAGIC) {
 		for (i = 0; i < 256; i += 4) {
 			u32 tmp;
 
