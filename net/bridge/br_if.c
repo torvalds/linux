@@ -210,7 +210,8 @@ static struct net_device *new_bridge_dev(const char *name)
 
 	br->bridge_id.prio[0] = 0x80;
 	br->bridge_id.prio[1] = 0x00;
-	memset(br->bridge_id.addr, 0, ETH_ALEN);
+
+	memcpy(br->group_addr, br_group_address, ETH_ALEN);
 
 	br->feature_mask = dev->features;
 	br->stp_enabled = 0;
@@ -263,11 +264,10 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	if (index < 0)
 		return ERR_PTR(index);
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (p == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	memset(p, 0, sizeof(*p));
 	p->br = br;
 	dev_hold(dev);
 	p->dev = dev;
