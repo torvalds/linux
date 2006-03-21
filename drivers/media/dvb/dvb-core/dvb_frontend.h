@@ -104,6 +104,7 @@ struct dvb_frontend {
 	struct dvb_adapter *dvb;
 	void* demodulator_priv;
 	void* frontend_priv;
+	void* misc_priv;
 };
 
 extern int dvb_register_frontend(struct dvb_adapter* dvb,

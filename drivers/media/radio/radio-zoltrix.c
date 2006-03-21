@@ -48,7 +48,7 @@ struct zol_device {
 	unsigned long curfreq;
 	int muted;
 	unsigned int stereo;
-	struct semaphore lock;
+	struct mutex lock;
 };
 
 static int zol_setvol(struct zol_device *dev, int vol)
@@ -57,30 +57,30 @@ static int zol_setvol(struct zol_device *dev, int vol)
 	if (dev->muted)
 		return 0;
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	if (vol == 0) {
 		outb(0, io);
 		outb(0, io);
 		inb(io + 3);    /* Zoltrix needs to be read to confirm */
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		return 0;
 	}
 
 	outb(dev->curvol-1, io);
 	msleep(10);
 	inb(io + 2);
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 	return 0;
 }
 
 static void zol_mute(struct zol_device *dev)
 {
 	dev->muted = 1;
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	outb(0, io);
 	outb(0, io);
 	inb(io + 3);            /* Zoltrix needs to be read to confirm */
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 }
 
 static void zol_unmute(struct zol_device *dev)
@@ -104,7 +104,7 @@ static int zol_setfreq(struct zol_device *dev, unsigned long freq)
 	bitmask = 0xc480402c10080000ull;
 	i = 45;
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	
 	outb(0, io);
 	outb(0, io);
@@ -149,7 +149,7 @@ static int zol_setfreq(struct zol_device *dev, unsigned long freq)
 		udelay(1000);
 	}
 	
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 	
 	if(!dev->muted)
 	{
@@ -164,7 +164,7 @@ static int zol_getsigstr(struct zol_device *dev)
 {
 	int a, b;
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	outb(0x00, io);         /* This stuff I found to do nothing */
 	outb(dev->curvol, io);
 	msleep(20);
@@ -173,7 +173,7 @@ static int zol_getsigstr(struct zol_device *dev)
 	msleep(10);
 	b = inb(io);
 
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 	
 	if (a != b)
 		return (0);
@@ -188,7 +188,7 @@ static int zol_is_stereo (struct zol_device *dev)
 {
 	int x1, x2;
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	
 	outb(0x00, io);
 	outb(dev->curvol, io);
@@ -198,7 +198,7 @@ static int zol_is_stereo (struct zol_device *dev)
 	msleep(10);
 	x2 = inb(io);
 
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 	
 	if ((x1 == x2) && (x1 == 0xcf))
 		return 1;
@@ -350,7 +350,7 @@ static int __init zoltrix_init(void)
 	}
 	printk(KERN_INFO "Zoltrix Radio Plus card driver.\n");
 
-	init_MUTEX(&zoltrix_unit.lock);
+	mutex_init(&zoltrix_unit.lock);
 	
 	/* mute card - prevents noisy bootups */
 

@@ -38,5 +38,5 @@ static struct v4l2_audio mxb_audios[MXB_AUDIOS] = {
 		.name	= "CD-ROM (X10)",
 		.capability = V4L2_AUDCAP_STEREO,
 	}
-};	
+};
 #endif

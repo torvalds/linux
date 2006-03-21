@@ -11,6 +11,8 @@
 #include <linux/i2c.h>		/* for i2c subsystem */
 #include <asm/io.h>		/* for accessing devices */
 #include <linux/stringify.h>
+#include <linux/mutex.h>
+
 #include <linux/vmalloc.h>	/* for vmalloc() */
 #include <linux/mm.h>		/* for vmalloc_to_page() */
 
@@ -112,7 +114,7 @@ struct saa7146_dev
 
 	/* different device locks */
 	spinlock_t			slock;
-	struct semaphore		lock;
+	struct mutex			lock;
 
 	unsigned char			__iomem *mem;		/* pointer to mapped IO memory */
 	int				revision;	/* chip revision; needed for bug-workarounds*/
@@ -133,15 +135,16 @@ struct saa7146_dev
 	void (*vv_callback)(struct saa7146_dev *dev, unsigned long status);
 
 	/* i2c-stuff */
-	struct semaphore	i2c_lock;
-	u32			i2c_bitrate;
-	struct saa7146_dma	d_i2c;	/* pointer to i2c memory */
-	wait_queue_head_t	i2c_wq;
-	int			i2c_op;
+	struct mutex			i2c_lock;
+
+	u32				i2c_bitrate;
+	struct saa7146_dma		d_i2c;	/* pointer to i2c memory */
+	wait_queue_head_t		i2c_wq;
+	int				i2c_op;
 
 	/* memories */
-	struct saa7146_dma	d_rps0;
-	struct saa7146_dma	d_rps1;
+	struct saa7146_dma		d_rps0;
+	struct saa7146_dma		d_rps1;
 };
 
 /* from saa7146_i2c.c */
@@ -150,7 +153,7 @@ int saa7146_i2c_transfer(struct saa7146_dev *saa, const struct i2c_msg *msgs, in
 
 /* from saa7146_core.c */
 extern struct list_head saa7146_devices;
-extern struct semaphore saa7146_devices_lock;
+extern struct mutex saa7146_devices_lock;
 int saa7146_register_extension(struct saa7146_extension*);
 int saa7146_unregister_extension(struct saa7146_extension*);
 struct saa7146_format* format_by_fourcc(struct saa7146_dev *dev, int fourcc);

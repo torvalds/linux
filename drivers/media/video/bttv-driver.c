@@ -1965,7 +1965,7 @@ static int setup_window(struct bttv_fh *fh, struct bttv *btv,
 		BUG();
 	}
 
-	down(&fh->cap.lock);
+	mutex_lock(&fh->cap.lock);
 		kfree(fh->ov.clips);
 	fh->ov.clips    = clips;
 	fh->ov.nclips   = n;
@@ -1986,7 +1986,7 @@ static int setup_window(struct bttv_fh *fh, struct bttv *btv,
 		bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
 		retval = bttv_switch_overlay(btv,fh,new);
 	}
-	up(&fh->cap.lock);
+	mutex_unlock(&fh->cap.lock);
 	return retval;
 }
 
@@ -2166,7 +2166,7 @@ static int bttv_s_fmt(struct bttv_fh *fh, struct bttv *btv,
 		fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 
 		/* update our state informations */
-		down(&fh->cap.lock);
+		mutex_lock(&fh->cap.lock);
 		fh->fmt              = fmt;
 		fh->cap.field        = f->fmt.pix.field;
 		fh->cap.last         = V4L2_FIELD_NONE;
@@ -2175,7 +2175,7 @@ static int bttv_s_fmt(struct bttv_fh *fh, struct bttv *btv,
 		btv->init.fmt        = fmt;
 		btv->init.width      = f->fmt.pix.width;
 		btv->init.height     = f->fmt.pix.height;
-		up(&fh->cap.lock);
+		mutex_unlock(&fh->cap.lock);
 
 		return 0;
 	}
@@ -2282,7 +2282,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		fmt = format_by_palette(pic->palette);
 		if (NULL == fmt)
 			return -EINVAL;
-		down(&fh->cap.lock);
+		mutex_lock(&fh->cap.lock);
 		if (fmt->depth != pic->depth) {
 			retval = -EINVAL;
 			goto fh_unlock_and_return;
@@ -2313,7 +2313,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		bt848_contrast(btv,pic->contrast);
 		bt848_hue(btv,pic->hue);
 		bt848_sat(btv,pic->colour);
-		up(&fh->cap.lock);
+		mutex_unlock(&fh->cap.lock);
 		return 0;
 	}
 
@@ -2379,7 +2379,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			return -EPERM;
 		end = (unsigned long)fbuf->base +
 			fbuf->height * fbuf->bytesperline;
-		down(&fh->cap.lock);
+		mutex_lock(&fh->cap.lock);
 		retval = -EINVAL;
 
 		switch (fbuf->depth) {
@@ -2417,7 +2417,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			btv->fbuf.fmt.bytesperline = fbuf->bytesperline;
 		else
 			btv->fbuf.fmt.bytesperline = btv->fbuf.fmt.width*fbuf->depth/8;
-		up(&fh->cap.lock);
+		mutex_unlock(&fh->cap.lock);
 		return 0;
 	}
 
@@ -2440,7 +2440,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		if (!check_alloc_btres(btv,fh,RESOURCE_OVERLAY))
 			return -EBUSY;
 
-		down(&fh->cap.lock);
+		mutex_lock(&fh->cap.lock);
 		if (*on) {
 			fh->ov.tvnorm = btv->tvnorm;
 			new = videobuf_alloc(sizeof(*new));
@@ -2451,7 +2451,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 
 		/* switch over */
 		retval = bttv_switch_overlay(btv,fh,new);
-		up(&fh->cap.lock);
+		mutex_unlock(&fh->cap.lock);
 		return retval;
 	}
 
@@ -2460,7 +2460,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		struct video_mbuf *mbuf = arg;
 		unsigned int i;
 
-		down(&fh->cap.lock);
+		mutex_lock(&fh->cap.lock);
 		retval = videobuf_mmap_setup(&fh->cap,gbuffers,gbufsize,
 					     V4L2_MEMORY_MMAP);
 		if (retval < 0)
@@ -2470,7 +2470,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		mbuf->size   = gbuffers * gbufsize;
 		for (i = 0; i < gbuffers; i++)
 			mbuf->offsets[i] = i * gbufsize;
-		up(&fh->cap.lock);
+		mutex_unlock(&fh->cap.lock);
 		return 0;
 	}
 	case VIDIOCMCAPTURE:
@@ -2482,7 +2482,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		if (vm->frame >= VIDEO_MAX_FRAME)
 			return -EINVAL;
 
-		down(&fh->cap.lock);
+		mutex_lock(&fh->cap.lock);
 		retval = -EINVAL;
 		buf = (struct bttv_buffer *)fh->cap.bufs[vm->frame];
 		if (NULL == buf)
@@ -2504,7 +2504,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		spin_lock_irqsave(&btv->s_lock,flags);
 		buffer_queue(&fh->cap,&buf->vb);
 		spin_unlock_irqrestore(&btv->s_lock,flags);
-		up(&fh->cap.lock);
+		mutex_unlock(&fh->cap.lock);
 		return 0;
 	}
 	case VIDIOCSYNC:
@@ -2515,7 +2515,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		if (*frame >= VIDEO_MAX_FRAME)
 			return -EINVAL;
 
-		down(&fh->cap.lock);
+		mutex_lock(&fh->cap.lock);
 		retval = -EINVAL;
 		buf = (struct bttv_buffer *)fh->cap.bufs[*frame];
 		if (NULL == buf)
@@ -2535,7 +2535,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			retval = -EINVAL;
 			break;
 		}
-		up(&fh->cap.lock);
+		mutex_unlock(&fh->cap.lock);
 		return retval;
 	}
 
@@ -2719,7 +2719,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		if (0 == (fmt->flags & FORMAT_FLAGS_PACKED))
 			return -EINVAL;
 
-		down(&fh->cap.lock);
+		mutex_lock(&fh->cap.lock);
 		retval = -EINVAL;
 		if (fb->flags & V4L2_FBUF_FLAG_OVERLAY) {
 			if (fb->fmt.width > bttv_tvnorms[btv->tvnorm].swidth)
@@ -2759,7 +2759,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 				retval = bttv_switch_overlay(btv,fh,new);
 			}
 		}
-		up(&fh->cap.lock);
+		mutex_unlock(&fh->cap.lock);
 		return retval;
 	}
 
@@ -2890,7 +2890,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 	return 0;
 
  fh_unlock_and_return:
-	up(&fh->cap.lock);
+	mutex_unlock(&fh->cap.lock);
 	return retval;
 }
 
@@ -2957,16 +2957,16 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 		buf = list_entry(fh->cap.stream.next,struct bttv_buffer,vb.stream);
 	} else {
 		/* read() capture */
-		down(&fh->cap.lock);
+		mutex_lock(&fh->cap.lock);
 		if (NULL == fh->cap.read_buf) {
 			/* need to capture a new frame */
 			if (locked_btres(fh->btv,RESOURCE_VIDEO)) {
-				up(&fh->cap.lock);
+				mutex_unlock(&fh->cap.lock);
 				return POLLERR;
 			}
 			fh->cap.read_buf = videobuf_alloc(fh->cap.msize);
 			if (NULL == fh->cap.read_buf) {
-				up(&fh->cap.lock);
+				mutex_unlock(&fh->cap.lock);
 				return POLLERR;
 			}
 			fh->cap.read_buf->memory = V4L2_MEMORY_USERPTR;
@@ -2974,13 +2974,13 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,field)) {
 				kfree (fh->cap.read_buf);
 				fh->cap.read_buf = NULL;
-				up(&fh->cap.lock);
+				mutex_unlock(&fh->cap.lock);
 				return POLLERR;
 			}
 			fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
 			fh->cap.read_off = 0;
 		}
-		up(&fh->cap.lock);
+		mutex_unlock(&fh->cap.lock);
 		buf = (struct bttv_buffer*)fh->cap.read_buf;
 	}
 

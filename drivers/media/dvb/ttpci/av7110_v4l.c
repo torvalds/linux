@@ -579,14 +579,11 @@ static ssize_t av7110_vbi_write(struct file *file, const char __user *data, size
 		return -EFAULT;
 	if ((d.id != 0 && d.id != V4L2_SLICED_WSS_625) || d.field != 0 || d.line != 23)
 		return -EINVAL;
-	if (d.id) {
+	if (d.id)
 		av7110->wssData = ((d.data[1] << 8) & 0x3f00) | d.data[0];
-		rc = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetWSSConfig,
-				   2, 1, av7110->wssData);
-	} else {
-		av7110->wssData = 0;
-		rc = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetWSSConfig, 1, 0);
-	}
+	else
+		av7110->wssData = 0x8000;
+	rc = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetWSSConfig, 2, 1, av7110->wssData);
 	return (rc < 0) ? rc : count;
 }
 

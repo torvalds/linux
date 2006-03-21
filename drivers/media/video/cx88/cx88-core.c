@@ -163,7 +163,7 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) / 4 > risc->size);
+	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof (*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -188,7 +188,7 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) / 4 > risc->size);
+	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof (*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -215,8 +215,7 @@ int cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 void
 cx88_free_buffer(struct pci_dev *pci, struct cx88_buffer *buf)
 {
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_dma_pci_unmap(pci, &buf->vb.dma);
 	videobuf_dma_free(&buf->vb.dma);
@@ -1061,7 +1060,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	core->pci_bus  = pci->bus->number;
 	core->pci_slot = PCI_SLOT(pci->devfn);
 	core->pci_irqmask = 0x00fc00;
-	init_MUTEX(&core->lock);
+	mutex_init(&core->lock);
 
 	core->nr = cx88_devcount++;
 	sprintf(core->name,"cx88[%d]",core->nr);

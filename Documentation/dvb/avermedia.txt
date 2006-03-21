@@ -1,4 +1,3 @@
-
 HOWTO: Get An Avermedia DVB-T working under Linux
 	   ______________________________________________
 
@@ -137,11 +136,8 @@ Getting the card going
    To  power  up  the  card,  load  the  following modules in the
    following order:
 
-     * insmod dvb-core.o
-     * modprobe bttv.o
-     * insmod bt878.o
-     * insmod dvb-bt8xx.o
-     * insmod sp887x.o
+     * modprobe bttv (normally loaded automatically)
+     * modprobe dvb-bt8xx (or place dvb-bt8xx in /etc/modules)
 
    Insertion  of  these  modules  into  the  running  kernel will
    activate the appropriate DVB device nodes. It is then possible
@@ -302,4 +298,4 @@ Further Update
    Many  thanks to Nigel Pearson for the updates to this document
    since the recent revision of the driver.
 
-   January 29th 2004
+   February 14th 2006

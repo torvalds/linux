@@ -227,7 +227,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.minimum       = 0x00,
 			.maximum       = 0xff,
 			.step          = 1,
-			.default_value = 0,
+			.default_value = 0x7f,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
 		.off                   = 128,
@@ -255,7 +255,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.minimum       = 0,
 			.maximum       = 0xff,
 			.step          = 1,
-			.default_value = 0,
+			.default_value = 0x7f,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
 		.off                   = 128,
@@ -300,7 +300,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 			.minimum       = 0,
 			.maximum       = 0x3f,
 			.step          = 1,
-			.default_value = 0x1f,
+			.default_value = 0x3f,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
 		.reg                   = AUD_VOL_CTL,
@@ -336,17 +336,17 @@ static int res_get(struct cx8800_dev *dev, struct cx8800_fh *fh, unsigned int bi
 		return 1;
 
 	/* is it free? */
-	down(&core->lock);
+	mutex_lock(&core->lock);
 	if (dev->resources & bit) {
 		/* no, someone else uses it */
-		up(&core->lock);
+		mutex_unlock(&core->lock);
 		return 0;
 	}
 	/* it's free, grab it */
 	fh->resources  |= bit;
 	dev->resources |= bit;
 	dprintk(1,"res: get %d\n",bit);
-	up(&core->lock);
+	mutex_unlock(&core->lock);
 	return 1;
 }
 
@@ -366,14 +366,13 @@ static
 void res_free(struct cx8800_dev *dev, struct cx8800_fh *fh, unsigned int bits)
 {
 	struct cx88_core *core = dev->core;
-	if ((fh->resources & bits) != bits)
-		BUG();
+	BUG_ON((fh->resources & bits) != bits);
 
-	down(&core->lock);
+	mutex_lock(&core->lock);
 	fh->resources  &= ~bits;
 	dev->resources &= ~bits;
 	dprintk(1,"res: put %d\n",bits);
-	up(&core->lock);
+	mutex_unlock(&core->lock);
 }
 
 /* ------------------------------------------------------------------ */
@@ -909,7 +908,8 @@ static int get_control(struct cx88_core *core, struct v4l2_control *ctl)
 	value = c->sreg ? cx_sread(c->sreg) : cx_read(c->reg);
 	switch (ctl->id) {
 	case V4L2_CID_AUDIO_BALANCE:
-		ctl->value = (value & 0x40) ? (value & 0x3f) : (0x40 - (value & 0x3f));
+		ctl->value = ((value & 0x7f) < 0x40) ? ((value & 0x7f) + 0x40)
+					: (0x7f - (value & 0x7f));
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
 		ctl->value = 0x3f - (value & 0x3f);
@@ -918,9 +918,9 @@ static int get_control(struct cx88_core *core, struct v4l2_control *ctl)
 		ctl->value = ((value + (c->off << c->shift)) & c->mask) >> c->shift;
 		break;
 	}
-	printk("get_control id=0x%X reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
-					ctl->id, c->reg, ctl->value,
-					c->mask, c->sreg ? " [shadowed]" : "");
+	dprintk(1,"get_control id=0x%X(%s) ctrl=0x%02x, reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
+				ctl->id, c->v.name, ctl->value, c->reg,
+				value,c->mask, c->sreg ? " [shadowed]" : "");
 	return 0;
 }
 
@@ -946,7 +946,7 @@ static int set_control(struct cx88_core *core, struct v4l2_control *ctl)
 	mask=c->mask;
 	switch (ctl->id) {
 	case V4L2_CID_AUDIO_BALANCE:
-		value = (ctl->value < 0x40) ? (0x40 - ctl->value) : ctl->value;
+		value = (ctl->value < 0x40) ? (0x7f - ctl->value) : (ctl->value - 0x40);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
 		value = 0x3f - (ctl->value & 0x3f);
@@ -969,9 +969,9 @@ static int set_control(struct cx88_core *core, struct v4l2_control *ctl)
 		value = ((ctl->value - c->off) << c->shift) & c->mask;
 		break;
 	}
-	printk("set_control id=0x%X reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
-					ctl->id, c->reg, value,
-					mask, c->sreg ? " [shadowed]" : "");
+	dprintk(1,"set_control id=0x%X(%s) ctrl=0x%02x, reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
+				ctl->id, c->v.name, ctl->value, c->reg, value,
+				mask, c->sreg ? " [shadowed]" : "");
 	if (c->sreg) {
 		cx_sandor(c->sreg, c->reg, mask, value);
 	} else {
@@ -987,8 +987,7 @@ static void init_controls(struct cx88_core *core)
 
 	for (i = 0; i < CX8800_CTLS; i++) {
 		ctrl.id=cx8800_ctls[i].v.id;
-		ctrl.value=cx8800_ctls[i].v.default_value
-				+cx8800_ctls[i].off;
+		ctrl.value=cx8800_ctls[i].v.default_value;
 		set_control(core, &ctrl);
 	}
 }
@@ -1252,7 +1251,7 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 {
 	int err;
 
-	dprintk( 1, "CORE IOCTL: 0x%x\n", cmd );
+	dprintk(2, "CORE IOCTL: 0x%x\n", cmd );
 	if (video_debug > 1)
 		v4l_print_ioctl(core->name,cmd);
 
@@ -1291,9 +1290,9 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 		if (i == ARRAY_SIZE(tvnorms))
 			return -EINVAL;
 
-		down(&core->lock);
+		mutex_lock(&core->lock);
 		cx88_set_tvnorm(core,&tvnorms[i]);
-		up(&core->lock);
+		mutex_unlock(&core->lock);
 		return 0;
 	}
 
@@ -1343,10 +1342,10 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 
 		if (*i >= 4)
 			return -EINVAL;
-		down(&core->lock);
+		mutex_lock(&core->lock);
 		cx88_newstation(core);
 		video_mux(core,*i);
-		up(&core->lock);
+		mutex_unlock(&core->lock);
 		return 0;
 	}
 
@@ -1438,7 +1437,7 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 			return -EINVAL;
 		if (1 == radio && f->type != V4L2_TUNER_RADIO)
 			return -EINVAL;
-		down(&core->lock);
+		mutex_lock(&core->lock);
 		core->freq = f->frequency;
 		cx88_newstation(core);
 		cx88_call_i2c_clients(core,VIDIOC_S_FREQUENCY,f);
@@ -1447,7 +1446,7 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 		msleep (10);
 		cx88_set_tvaudio(core);
 
-		up(&core->lock);
+		mutex_unlock(&core->lock);
 		return 0;
 	}
 
@@ -1921,11 +1920,11 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	pci_set_drvdata(pci_dev,dev);
 
 	/* initial device configuration */
-	down(&core->lock);
+	mutex_lock(&core->lock);
 	cx88_set_tvnorm(core,tvnorms);
 	init_controls(core);
 	video_mux(core,0);
-	up(&core->lock);
+	mutex_unlock(&core->lock);
 
 	/* start tvaudio thread */
 	if (core->tuner_type != TUNER_ABSENT)

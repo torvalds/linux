@@ -30,14 +30,15 @@
 #include <linux/wait.h>
 #include <linux/fs.h>
 #include <linux/string.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include <linux/dvb/dmx.h>
 
 #include "dvbdev.h"
 #include "demux.h"
+#include "dvb_ringbuffer.h"
 
-enum dmxdevype {
+enum dmxdev_type {
 	DMXDEV_TYPE_NONE,
 	DMXDEV_TYPE_SEC,
 	DMXDEV_TYPE_PES,
@@ -52,18 +53,7 @@ enum dmxdev_state {
 	DMXDEV_STATE_TIMEDOUT
 };
 
-struct dmxdev_buffer {
-	u8 *data;
-	int size;
-	int pread;
-	int pwrite;
-	wait_queue_head_t queue;
-	int error;
-};
-
 struct dmxdev_filter {
-	struct dvb_device *dvbdev;
-
 	union {
 		struct dmx_section_filter *sec;
 	} filter;
@@ -78,26 +68,17 @@ struct dmxdev_filter {
 		struct dmx_pes_filter_params pes;
 	} params;
 
-	int type;
+	enum dmxdev_type type;
 	enum dmxdev_state state;
 	struct dmxdev *dev;
-	struct dmxdev_buffer buffer;
+	struct dvb_ringbuffer buffer;
 
-	struct semaphore mutex;
+	struct mutex mutex;
 
 	/* only for sections */
 	struct timer_list timer;
 	int todo;
 	u8 secheader[3];
-
-	u16 pid;
-};
-
-
-struct dmxdev_dvr {
-	int state;
-	struct dmxdev *dev;
-	struct dmxdev_buffer buffer;
 };
 
 
@@ -106,7 +87,6 @@ struct dmxdev {
 	struct dvb_device *dvr_dvbdev;
 
 	struct dmxdev_filter *filter;
-	struct dmxdev_dvr *dvr;
 	struct dmx_demux *demux;
 
 	int filternum;
@@ -114,10 +94,10 @@ struct dmxdev {
 #define DMXDEV_CAP_DUPLEX 1
 	struct dmx_frontend *dvr_orig_fe;
 
-	struct dmxdev_buffer dvr_buffer;
+	struct dvb_ringbuffer dvr_buffer;
 #define DVR_BUFFER_SIZE (10*188*1024)
 
-	struct semaphore mutex;
+	struct mutex mutex;
 	spinlock_t lock;
 };
 

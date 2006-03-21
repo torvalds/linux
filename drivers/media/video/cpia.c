@@ -39,7 +39,7 @@
 #include <linux/pagemap.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
@@ -622,7 +622,7 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 	
 	buffer = page;
 	
-	if (down_interruptible(&cam->param_lock))
+	if (mutex_lock_interruptible(&cam->param_lock))
 		return -ERESTARTSYS;
 	
 	/*
@@ -1350,7 +1350,7 @@ static int cpia_write_proc(struct file *file, const char __user *buf,
 	} else
 		DBG("error: %d\n", retval);
 	
-	up(&cam->param_lock);
+	mutex_unlock(&cam->param_lock);
 	
 out:
 	free_page((unsigned long)page);
@@ -1664,7 +1664,7 @@ static int do_command(struct cam_data *cam, u16 command, u8 a, u8 b, u8 c, u8 d)
 	case CPIA_COMMAND_GetColourParams:
 	case CPIA_COMMAND_GetColourBalance:
 	case CPIA_COMMAND_GetExposure:
-		down(&cam->param_lock);
+		mutex_lock(&cam->param_lock);
 		datasize=8;
 		break;
 	case CPIA_COMMAND_ReadMCPorts: 
@@ -1691,7 +1691,7 @@ static int do_command(struct cam_data *cam, u16 command, u8 a, u8 b, u8 c, u8 d)
 		if (command == CPIA_COMMAND_GetColourParams ||
 		    command == CPIA_COMMAND_GetColourBalance ||
 		    command == CPIA_COMMAND_GetExposure)
-			up(&cam->param_lock);
+			mutex_unlock(&cam->param_lock);
 	} else {
 		switch(command) {
 		case CPIA_COMMAND_GetCPIAVersion:
@@ -1726,13 +1726,13 @@ static int do_command(struct cam_data *cam, u16 command, u8 a, u8 b, u8 c, u8 d)
 			cam->params.colourParams.brightness = data[0];
 			cam->params.colourParams.contrast = data[1];
 			cam->params.colourParams.saturation = data[2];
-			up(&cam->param_lock);
+			mutex_unlock(&cam->param_lock);
 			break;
 		case CPIA_COMMAND_GetColourBalance:
 			cam->params.colourBalance.redGain = data[0];
 			cam->params.colourBalance.greenGain = data[1];
 			cam->params.colourBalance.blueGain = data[2];
-			up(&cam->param_lock);
+			mutex_unlock(&cam->param_lock);
 			break;
 		case CPIA_COMMAND_GetExposure:
 			cam->params.exposure.gain = data[0];
@@ -1743,7 +1743,7 @@ static int do_command(struct cam_data *cam, u16 command, u8 a, u8 b, u8 c, u8 d)
 			cam->params.exposure.green1Comp = data[5];
 			cam->params.exposure.green2Comp = data[6];
 			cam->params.exposure.blueComp = data[7];
-			up(&cam->param_lock);
+			mutex_unlock(&cam->param_lock);
 			break;
 
 		case CPIA_COMMAND_ReadMCPorts: 
@@ -2059,7 +2059,7 @@ static int parse_picture(struct cam_data *cam, int size)
 	int rows, cols, linesize, subsample_422;
 
 	/* make sure params don't change while we are decoding */
-	down(&cam->param_lock);
+	mutex_lock(&cam->param_lock);
 
 	obuf = cam->decompressed_frame.data;
 	end_obuf = obuf+CPIA_MAX_FRAME_SIZE;
@@ -2069,26 +2069,26 @@ static int parse_picture(struct cam_data *cam, int size)
 
 	if ((ibuf[0] != MAGIC_0) || (ibuf[1] != MAGIC_1)) {
 		LOG("header not found\n");
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
 
 	if ((ibuf[16] != VIDEOSIZE_QCIF) && (ibuf[16] != VIDEOSIZE_CIF)) {
 		LOG("wrong video size\n");
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
 	
 	if (ibuf[17] != SUBSAMPLE_420 && ibuf[17] != SUBSAMPLE_422) {
 		LOG("illegal subtype %d\n",ibuf[17]);
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
 	subsample_422 = ibuf[17] == SUBSAMPLE_422;
 	
 	if (ibuf[18] != YUVORDER_YUYV && ibuf[18] != YUVORDER_UYVY) {
 		LOG("illegal yuvorder %d\n",ibuf[18]);
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
 	in_uyvy = ibuf[18] == YUVORDER_UYVY;
@@ -2098,7 +2098,7 @@ static int parse_picture(struct cam_data *cam, int size)
 	    (ibuf[26] != cam->params.roi.rowStart) ||
 	    (ibuf[27] != cam->params.roi.rowEnd)) {
 		LOG("ROI mismatch\n");
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
 	cols = 8*(ibuf[25] - ibuf[24]);
@@ -2107,14 +2107,14 @@ static int parse_picture(struct cam_data *cam, int size)
 	
 	if ((ibuf[28] != NOT_COMPRESSED) && (ibuf[28] != COMPRESSED)) {
 		LOG("illegal compression %d\n",ibuf[28]);
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
 	compressed = (ibuf[28] == COMPRESSED);
 	
 	if (ibuf[29] != NO_DECIMATION && ibuf[29] != DECIMATION_ENAB) {
 		LOG("illegal decimation %d\n",ibuf[29]);
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 		return -1;
 	}
 	decimation = (ibuf[29] == DECIMATION_ENAB);	
@@ -2130,7 +2130,7 @@ static int parse_picture(struct cam_data *cam, int size)
 	cam->params.status.vpStatus = ibuf[38];
 	cam->params.status.errorCode = ibuf[39];
 	cam->fps = ibuf[41];
-	up(&cam->param_lock);
+	mutex_unlock(&cam->param_lock);
 	
 	linesize = skipcount(cols, out_fmt);
 	ibuf += FRAME_HEADER_SIZE;
@@ -2271,9 +2271,9 @@ static int find_over_exposure(int brightness)
 /* update various camera modes and settings */
 static void dispatch_commands(struct cam_data *cam)
 {
-	down(&cam->param_lock);
+	mutex_lock(&cam->param_lock);
 	if (cam->cmd_queue==COMMAND_NONE) {
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 		return;
 	}
 	DEB_BYTE(cam->cmd_queue);
@@ -2415,7 +2415,7 @@ static void dispatch_commands(struct cam_data *cam)
 	  }
 
 	cam->cmd_queue = COMMAND_NONE;
-	up(&cam->param_lock);
+	mutex_unlock(&cam->param_lock);
 	return;
 }
 
@@ -2562,7 +2562,7 @@ static void monitor_exposure(struct cam_data *cam)
 	gain = data[2];
 	coarseL = data[3];
 
-	down(&cam->param_lock);
+	mutex_lock(&cam->param_lock);
 	light_exp = cam->params.colourParams.brightness +
 	            TC - 50 + EXP_ACC_LIGHT;
 	if(light_exp > 255)
@@ -2762,7 +2762,7 @@ static void monitor_exposure(struct cam_data *cam)
 			LOG("Automatically increasing sensor_fps\n");
 		}
 	}
-	up(&cam->param_lock);
+	mutex_unlock(&cam->param_lock);
 }
 
 /*-----------------------------------------------------------------*/
@@ -2778,10 +2778,10 @@ static void restart_flicker(struct cam_data *cam)
 	int cam_exposure, old_exp;
 	if(!FIRMWARE_VERSION(1,2))
 		return;
-	down(&cam->param_lock);
+	mutex_lock(&cam->param_lock);
 	if(cam->params.flickerControl.flickerMode == 0 ||
 	   cam->raw_image[39] == 0) {
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 		return;
 	}
 	cam_exposure = cam->raw_image[39]*2;
@@ -2810,7 +2810,7 @@ static void restart_flicker(struct cam_data *cam)
 			cam->exposure_status = EXPOSURE_NORMAL;
 
 	}
-	up(&cam->param_lock);
+	mutex_unlock(&cam->param_lock);
 }
 #undef FIRMWARE_VERSION
 
@@ -3186,7 +3186,7 @@ static int cpia_open(struct inode *inode, struct file *file)
 	if (!try_module_get(cam->ops->owner))
 		return -ENODEV;
 
-	down(&cam->busy_lock);
+	mutex_lock(&cam->busy_lock);
 	err = -ENOMEM;
 	if (!cam->raw_image) {
 		cam->raw_image = rvmalloc(CPIA_MAX_IMAGE_SIZE);
@@ -3227,7 +3227,7 @@ static int cpia_open(struct inode *inode, struct file *file)
 	
 	++cam->open_count;
 	file->private_data = dev;
-	up(&cam->busy_lock);
+	mutex_unlock(&cam->busy_lock);
 	return 0;
 
  oops:
@@ -3239,7 +3239,7 @@ static int cpia_open(struct inode *inode, struct file *file)
 		rvfree(cam->raw_image, CPIA_MAX_IMAGE_SIZE);
 		cam->raw_image = NULL;
 	}
-	up(&cam->busy_lock);
+	mutex_unlock(&cam->busy_lock);
 	put_cam(cam->ops);
 	return err;
 }
@@ -3303,24 +3303,24 @@ static ssize_t cpia_read(struct file *file, char __user *buf,
 	int err;
 
 	/* make this _really_ smp and multithread-safe */
-	if (down_interruptible(&cam->busy_lock))
+	if (mutex_lock_interruptible(&cam->busy_lock))
 		return -EINTR;
 
 	if (!buf) {
 		DBG("buf NULL\n");
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return -EINVAL;
 	}
 
 	if (!count) {
 		DBG("count 0\n");
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return 0;
 	}
 
 	if (!cam->ops) {
 		DBG("ops NULL\n");
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return -ENODEV;
 	}
 
@@ -3329,7 +3329,7 @@ static ssize_t cpia_read(struct file *file, char __user *buf,
 	cam->mmap_kludge=0;
 	if((err = fetch_frame(cam)) != 0) {
 		DBG("ERROR from fetch_frame: %d\n", err);
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return err;
 	}
 	cam->decompressed_frame.state = FRAME_UNUSED;
@@ -3338,17 +3338,17 @@ static ssize_t cpia_read(struct file *file, char __user *buf,
 	if (cam->decompressed_frame.count > count) {
 		DBG("count wrong: %d, %lu\n", cam->decompressed_frame.count,
 		    (unsigned long) count);
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return -EFAULT;
 	}
 	if (copy_to_user(buf, cam->decompressed_frame.data,
 	                cam->decompressed_frame.count)) {
 		DBG("copy_to_user failed\n");
-		up(&cam->busy_lock);
+		mutex_unlock(&cam->busy_lock);
 		return -EFAULT;
 	}
 
-	up(&cam->busy_lock);
+	mutex_unlock(&cam->busy_lock);
 	return cam->decompressed_frame.count;
 }
 
@@ -3363,7 +3363,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		return -ENODEV;
 	
 	/* make this _really_ smp-safe */
-	if (down_interruptible(&cam->busy_lock))
+	if (mutex_lock_interruptible(&cam->busy_lock))
 		return -EINTR;
 
 	//DBG("cpia_ioctl: %u\n", ioctlnr);
@@ -3439,7 +3439,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		down(&cam->param_lock);
+		mutex_lock(&cam->param_lock);
 		/* brightness, colour, contrast need no check 0-65535 */
 		cam->vp = *vp;
 		/* update cam->params.colourParams */
@@ -3466,7 +3466,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 
 		/* queue command to update camera */
 		cam->cmd_queue |= COMMAND_SETCOLOURPARAMS;
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 		DBG("VIDIOCSPICT: %d / %d // %d / %d / %d / %d\n",
 		    vp->depth, vp->palette, vp->brightness, vp->hue, vp->colour,
 		    vp->contrast);
@@ -3501,13 +3501,13 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		/* we set the video window to something smaller or equal to what
 		* is requested by the user???
 		*/
-		down(&cam->param_lock);
+		mutex_lock(&cam->param_lock);
 		if (vw->width != cam->vw.width || vw->height != cam->vw.height) {
 			int video_size = match_videosize(vw->width, vw->height);
 
 			if (video_size < 0) {
 				retval = -EINVAL;
-				up(&cam->param_lock);
+				mutex_unlock(&cam->param_lock);
 				break;
 			}
 			cam->video_size = video_size;
@@ -3520,7 +3520,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 			cam->cmd_queue |= COMMAND_SETFORMAT;
 		}
 
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 
 		/* setformat ignored by camera during streaming,
 		 * so stop/dispatch/start */
@@ -3682,7 +3682,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 
 		DBG("%d,%d/%dx%d\n", vc->x,vc->y,vc->width, vc->height);
 		
-		down(&cam->param_lock);
+		mutex_lock(&cam->param_lock);
 		
 		cam->vc.x      = vc->x;
 		cam->vc.y      = vc->y;
@@ -3692,7 +3692,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		set_vw_size(cam);
 		cam->cmd_queue |= COMMAND_SETFORMAT;
 
-		up(&cam->param_lock);
+		mutex_unlock(&cam->param_lock);
 
 		/* setformat ignored by camera during streaming,
 		 * so stop/dispatch/start */
@@ -3736,7 +3736,7 @@ static int cpia_do_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-	up(&cam->busy_lock);
+	mutex_unlock(&cam->busy_lock);
 	return retval;
 } 
 
@@ -3769,12 +3769,12 @@ static int cpia_mmap(struct file *file, struct vm_area_struct *vma)
 		return -ENODEV;
 	
 	/* make this _really_ smp-safe */
-	if (down_interruptible(&cam->busy_lock))
+	if (mutex_lock_interruptible(&cam->busy_lock))
 		return -EINTR;
 
 	if (!cam->frame_buf) {	/* we do lazy allocation */
 		if ((retval = allocate_frame_buf(cam))) {
-			up(&cam->busy_lock);
+			mutex_unlock(&cam->busy_lock);
 			return retval;
 		}
 	}
@@ -3783,7 +3783,7 @@ static int cpia_mmap(struct file *file, struct vm_area_struct *vma)
 	while (size > 0) {
 		page = vmalloc_to_pfn((void *)pos);
 		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-			up(&cam->busy_lock);
+			mutex_unlock(&cam->busy_lock);
 			return -EAGAIN;
 		}
 		start += PAGE_SIZE;
@@ -3795,7 +3795,7 @@ static int cpia_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	DBG("cpia_mmap: %ld\n", size);
-	up(&cam->busy_lock);
+	mutex_unlock(&cam->busy_lock);
 
 	return 0;
 }
@@ -3936,8 +3936,8 @@ static void init_camera_struct(struct cam_data *cam,
 	memset(cam, 0, sizeof(struct cam_data));
 
 	cam->ops = ops;
-	init_MUTEX(&cam->param_lock);
-	init_MUTEX(&cam->busy_lock);
+	mutex_init(&cam->param_lock);
+	mutex_init(&cam->busy_lock);
 
 	reset_camera_struct(cam);
 
