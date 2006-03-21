@@ -59,8 +59,6 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 
 #define DCCP_RTO_MAX ((unsigned)(120 * HZ)) /* FIXME: using TCP value */
 
-extern struct proto dccp_prot;
-
 /* is seq1 < seq2 ? */
 static inline int before48(const u64 seq1, const u64 seq2)
 {
@@ -208,10 +206,6 @@ extern struct sock *dccp_create_openreq_child(struct sock *sk,
 					      const struct sk_buff *skb);
 
 extern int dccp_v4_do_rcv(struct sock *sk, struct sk_buff *skb);
-
-extern void dccp_v4_err(struct sk_buff *skb, u32);
-
-extern int dccp_v4_rcv(struct sk_buff *skb);
 
 extern struct sock *dccp_v4_request_recv_sock(struct sock *sk,
 					      struct sk_buff *skb,

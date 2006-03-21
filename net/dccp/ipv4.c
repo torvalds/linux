@@ -18,8 +18,10 @@
 #include <linux/random.h>
 
 #include <net/icmp.h>
+#include <net/inet_common.h>
 #include <net/inet_hashtables.h>
 #include <net/inet_sock.h>
+#include <net/protocol.h>
 #include <net/sock.h>
 #include <net/timewait_sock.h>
 #include <net/tcp_states.h>
@@ -285,7 +287,7 @@ out:
  * check at all. A more general error queue to queue errors for later handling
  * is probably better.
  */
-void dccp_v4_err(struct sk_buff *skb, u32 info)
+static void dccp_v4_err(struct sk_buff *skb, u32 info)
 {
 	const struct iphdr *iph = (struct iphdr *)skb->data;
 	const struct dccp_hdr *dh = (struct dccp_hdr *)(skb->data +
@@ -639,6 +641,8 @@ int dccp_v4_checksum(const struct sk_buff *skb, const __be32 saddr,
 				 IPPROTO_DCCP, tmp);
 }
 
+EXPORT_SYMBOL_GPL(dccp_v4_checksum);
+
 static int dccp_v4_verify_checksum(struct sk_buff *skb,
 				   const __be32 saddr, const __be32 daddr)
 {
@@ -871,7 +875,7 @@ int dccp_invalid_packet(struct sk_buff *skb)
 EXPORT_SYMBOL_GPL(dccp_invalid_packet);
 
 /* this is called when real data arrives */
-int dccp_v4_rcv(struct sk_buff *skb)
+static int dccp_v4_rcv(struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh;
 	struct sock *sk;
@@ -978,7 +982,7 @@ do_time_wait:
 	goto no_dccp_socket;
 }
 
-struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
+static struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
 	.queue_xmit	= ip_queue_xmit,
 	.send_check	= dccp_v4_send_check,
 	.rebuild_header	= inet_sk_rebuild_header,
@@ -1018,7 +1022,7 @@ static struct timewait_sock_ops dccp_timewait_sock_ops = {
 	.twsk_obj_size	= sizeof(struct inet_timewait_sock),
 };
 
-struct proto dccp_prot = {
+struct proto dccp_v4_prot = {
 	.name			= "DCCP",
 	.owner			= THIS_MODULE,
 	.close			= dccp_close,
@@ -1044,4 +1048,130 @@ struct proto dccp_prot = {
 	.twsk_prot		= &dccp_timewait_sock_ops,
 };
 
-EXPORT_SYMBOL_GPL(dccp_prot);
+static struct net_protocol dccp_v4_protocol = {
+	.handler	= dccp_v4_rcv,
+	.err_handler	= dccp_v4_err,
+	.no_policy	= 1,
+};
+
+static const struct proto_ops inet_dccp_ops = {
+	.family		= PF_INET,
+	.owner		= THIS_MODULE,
+	.release	= inet_release,
+	.bind		= inet_bind,
+	.connect	= inet_stream_connect,
+	.socketpair	= sock_no_socketpair,
+	.accept		= inet_accept,
+	.getname	= inet_getname,
+	/* FIXME: work on tcp_poll to rename it to inet_csk_poll */
+	.poll		= dccp_poll,
+	.ioctl		= inet_ioctl,
+	/* FIXME: work on inet_listen to rename it to sock_common_listen */
+	.listen		= inet_dccp_listen,
+	.shutdown	= inet_shutdown,
+	.setsockopt	= sock_common_setsockopt,
+	.getsockopt	= sock_common_getsockopt,
+	.sendmsg	= inet_sendmsg,
+	.recvmsg	= sock_common_recvmsg,
+	.mmap		= sock_no_mmap,
+	.sendpage	= sock_no_sendpage,
+};
+
+static struct inet_protosw dccp_v4_protosw = {
+	.type		= SOCK_DCCP,
+	.protocol	= IPPROTO_DCCP,
+	.prot		= &dccp_v4_prot,
+	.ops		= &inet_dccp_ops,
+	.capability	= -1,
+	.no_check	= 0,
+	.flags		= INET_PROTOSW_ICSK,
+};
+
+/*
+ * This is the global socket data structure used for responding to
+ * the Out-of-the-blue (OOTB) packets. A control sock will be created
+ * for this socket at the initialization time.
+ */
+struct socket *dccp_ctl_socket;
+
+static char dccp_ctl_socket_err_msg[] __initdata =
+	KERN_ERR "DCCP: Failed to create the control socket.\n";
+
+static int __init dccp_ctl_sock_init(void)
+{
+	int rc = sock_create_kern(PF_INET, SOCK_DCCP, IPPROTO_DCCP,
+				  &dccp_ctl_socket);
+	if (rc < 0)
+		printk(dccp_ctl_socket_err_msg);
+	else {
+		dccp_ctl_socket->sk->sk_allocation = GFP_ATOMIC;
+		inet_sk(dccp_ctl_socket->sk)->uc_ttl = -1;
+
+		/* Unhash it so that IP input processing does not even
+		 * see it, we do not wish this socket to see incoming
+		 * packets.
+		 */
+		dccp_ctl_socket->sk->sk_prot->unhash(dccp_ctl_socket->sk);
+	}
+
+	return rc;
+}
+
+#ifdef CONFIG_IP_DCCP_UNLOAD_HACK
+void dccp_ctl_sock_exit(void)
+{
+	if (dccp_ctl_socket != NULL) {
+		sock_release(dccp_ctl_socket);
+		dccp_ctl_socket = NULL;
+	}
+}
+
+EXPORT_SYMBOL_GPL(dccp_ctl_sock_exit);
+#endif
+
+static int __init dccp_v4_init(void)
+{
+	int err = proto_register(&dccp_v4_prot, 1);
+
+	if (err != 0)
+		goto out;
+
+	err = inet_add_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
+	if (err != 0)
+		goto out_proto_unregister;
+
+	inet_register_protosw(&dccp_v4_protosw);
+
+	err = dccp_ctl_sock_init();
+	if (err)
+		goto out_unregister_protosw;
+out:
+	return err;
+out_unregister_protosw:
+	inet_unregister_protosw(&dccp_v4_protosw);
+	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
+out_proto_unregister:
+	proto_unregister(&dccp_v4_prot);
+	goto out;
+}
+
+static void __exit dccp_v4_exit(void)
+{
+	inet_unregister_protosw(&dccp_v4_protosw);
+	inet_del_protocol(&dccp_v4_protocol, IPPROTO_DCCP);
+	proto_unregister(&dccp_v4_prot);
+}
+
+module_init(dccp_v4_init);
+module_exit(dccp_v4_exit);
+
+/*
+ * __stringify doesn't likes enums, so use SOCK_DCCP (6) and IPPROTO_DCCP (33)
+ * values directly, Also cover the case where the protocol is not specified,
+ * i.e. net-pf-PF_INET-proto-0-type-SOCK_DCCP
+ */
+MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-33-type-6");
+MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-0-type-6");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Arnaldo Carvalho de Melo <acme@mandriva.com>");
+MODULE_DESCRIPTION("DCCP - Datagram Congestion Controlled Protocol");

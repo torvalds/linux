@@ -258,6 +258,8 @@ out_invalid_option:
 	return -1;
 }
 
+EXPORT_SYMBOL_GPL(dccp_parse_options);
+
 static void dccp_encode_value_var(const u32 value, unsigned char *to,
 				  const unsigned int len)
 {

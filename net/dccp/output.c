@@ -526,6 +526,8 @@ void dccp_send_sync(struct sock *sk, const u64 seq,
 	dccp_transmit_skb(sk, skb);
 }
 
+EXPORT_SYMBOL_GPL(dccp_send_sync);
+
 /*
  * Send a DCCP_PKT_CLOSE/CLOSEREQ. The caller locks the socket for us. This
  * cannot be allowed to fail queueing a DCCP_PKT_CLOSE/CLOSEREQ frame under

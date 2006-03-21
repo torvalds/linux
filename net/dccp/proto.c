@@ -23,9 +23,7 @@
 #include <linux/random.h>
 #include <net/checksum.h>
 
-#include <net/inet_common.h>
 #include <net/inet_sock.h>
-#include <net/protocol.h>
 #include <net/sock.h>
 #include <net/xfrm.h>
 
@@ -54,12 +52,6 @@ struct inet_hashinfo __cacheline_aligned dccp_hashinfo = {
 };
 
 EXPORT_SYMBOL_GPL(dccp_hashinfo);
-
-static struct net_protocol dccp_protocol = {
-	.handler	= dccp_v4_rcv,
-	.err_handler	= dccp_v4_err,
-	.no_policy	= 1,
-};
 
 const char *dccp_packet_name(const int type)
 {
@@ -856,83 +848,6 @@ void dccp_shutdown(struct sock *sk, int how)
 
 EXPORT_SYMBOL_GPL(dccp_shutdown);
 
-static const struct proto_ops inet_dccp_ops = {
-	.family		= PF_INET,
-	.owner		= THIS_MODULE,
-	.release	= inet_release,
-	.bind		= inet_bind,
-	.connect	= inet_stream_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= inet_accept,
-	.getname	= inet_getname,
-	/* FIXME: work on tcp_poll to rename it to inet_csk_poll */
-	.poll		= dccp_poll,
-	.ioctl		= inet_ioctl,
-	/* FIXME: work on inet_listen to rename it to sock_common_listen */
-	.listen		= inet_dccp_listen,
-	.shutdown	= inet_shutdown,
-	.setsockopt	= sock_common_setsockopt,
-	.getsockopt	= sock_common_getsockopt,
-	.sendmsg	= inet_sendmsg,
-	.recvmsg	= sock_common_recvmsg,
-	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
-};
-
-extern struct net_proto_family inet_family_ops;
-
-static struct inet_protosw dccp_v4_protosw = {
-	.type		= SOCK_DCCP,
-	.protocol	= IPPROTO_DCCP,
-	.prot		= &dccp_prot,
-	.ops		= &inet_dccp_ops,
-	.capability	= -1,
-	.no_check	= 0,
-	.flags		= INET_PROTOSW_ICSK,
-};
-
-/*
- * This is the global socket data structure used for responding to
- * the Out-of-the-blue (OOTB) packets. A control sock will be created
- * for this socket at the initialization time.
- */
-struct socket *dccp_ctl_socket;
-
-static char dccp_ctl_socket_err_msg[] __initdata =
-	KERN_ERR "DCCP: Failed to create the control socket.\n";
-
-static int __init dccp_ctl_sock_init(void)
-{
-	int rc = sock_create_kern(PF_INET, SOCK_DCCP, IPPROTO_DCCP,
-				  &dccp_ctl_socket);
-	if (rc < 0)
-		printk(dccp_ctl_socket_err_msg);
-	else {
-		dccp_ctl_socket->sk->sk_allocation = GFP_ATOMIC;
-		inet_sk(dccp_ctl_socket->sk)->uc_ttl = -1;
-
-		/* Unhash it so that IP input processing does not even
-		 * see it, we do not wish this socket to see incoming
-		 * packets.
-		 */
-		dccp_ctl_socket->sk->sk_prot->unhash(dccp_ctl_socket->sk);
-	}
-
-	return rc;
-}
-
-#ifdef CONFIG_IP_DCCP_UNLOAD_HACK
-void dccp_ctl_sock_exit(void)
-{
-	if (dccp_ctl_socket != NULL) {
-		sock_release(dccp_ctl_socket);
-		dccp_ctl_socket = NULL;
-	}
-}
-
-EXPORT_SYMBOL_GPL(dccp_ctl_sock_exit);
-#endif
-
 static int __init dccp_mib_init(void)
 {
 	int rc = -ENOMEM;
@@ -955,7 +870,7 @@ out_free_one:
 
 }
 
-static int dccp_mib_exit(void)
+static void dccp_mib_exit(void)
 {
 	free_percpu(dccp_statistics[0]);
 	free_percpu(dccp_statistics[1]);
@@ -978,18 +893,14 @@ static int __init dccp_init(void)
 {
 	unsigned long goal;
 	int ehash_order, bhash_order, i;
-	int rc = proto_register(&dccp_prot, 1);
+	int rc = -ENOBUFS;
 
-	if (rc)
-		goto out;
-
-	rc = -ENOBUFS;
 	dccp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("dccp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
 				  SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (!dccp_hashinfo.bind_bucket_cachep)
-		goto out_proto_unregister;
+		goto out;
 
 	/*
 	 * Size and allocate the main established and bind bucket
@@ -1055,33 +966,18 @@ static int __init dccp_init(void)
 	if (rc)
 		goto out_free_dccp_bhash;
 
-	rc = -EAGAIN;
-	if (inet_add_protocol(&dccp_protocol, IPPROTO_DCCP))
-		goto out_free_dccp_v4_mibs;
-
-	inet_register_protosw(&dccp_v4_protosw);
-
 	rc = dccp_ackvec_init();
 	if (rc)
-		goto out_unregister_protosw;
+		goto out_free_dccp_mib;
 
 	rc = dccp_sysctl_init();
 	if (rc)
 		goto out_ackvec_exit;
-
-	rc = dccp_ctl_sock_init();
-	if (rc)
-		goto out_sysctl_exit;
 out:
 	return rc;
-out_sysctl_exit:
-	dccp_sysctl_exit();
 out_ackvec_exit:
 	dccp_ackvec_exit();
-out_unregister_protosw:
-	inet_unregister_protosw(&dccp_v4_protosw);
-	inet_del_protocol(&dccp_protocol, IPPROTO_DCCP);
-out_free_dccp_v4_mibs:
+out_free_dccp_mib:
 	dccp_mib_exit();
 out_free_dccp_bhash:
 	free_pages((unsigned long)dccp_hashinfo.bhash, bhash_order);
@@ -1092,21 +988,11 @@ out_free_dccp_ehash:
 out_free_bind_bucket_cachep:
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
 	dccp_hashinfo.bind_bucket_cachep = NULL;
-out_proto_unregister:
-	proto_unregister(&dccp_prot);
 	goto out;
 }
 
-static const char dccp_del_proto_err_msg[] __exitdata =
-	KERN_ERR "can't remove dccp net_protocol\n";
-
 static void __exit dccp_fini(void)
 {
-	inet_unregister_protosw(&dccp_v4_protosw);
-
-	if (inet_del_protocol(&dccp_protocol, IPPROTO_DCCP) < 0)
-		printk(dccp_del_proto_err_msg);
-
 	dccp_mib_exit();
 	free_pages((unsigned long)dccp_hashinfo.bhash,
 		   get_order(dccp_hashinfo.bhash_size *
@@ -1115,7 +1001,6 @@ static void __exit dccp_fini(void)
 		   get_order(dccp_hashinfo.ehash_size *
 			     sizeof(struct inet_ehash_bucket)));
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
-	proto_unregister(&dccp_prot);
 	dccp_ackvec_exit();
 	dccp_sysctl_exit();
 }
@@ -1123,13 +1008,6 @@ static void __exit dccp_fini(void)
 module_init(dccp_init);
 module_exit(dccp_fini);
 
-/*
- * __stringify doesn't likes enums, so use SOCK_DCCP (6) and IPPROTO_DCCP (33)
- * values directly, Also cover the case where the protocol is not specified,
- * i.e. net-pf-PF_INET-proto-0-type-SOCK_DCCP
- */
-MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-33-type-6");
-MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-0-type-6");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arnaldo Carvalho de Melo <acme@conectiva.com.br>");
 MODULE_DESCRIPTION("DCCP - Datagram Congestion Controlled Protocol");
