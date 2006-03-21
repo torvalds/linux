@@ -149,8 +149,7 @@ static inline void dnrt_free(struct dn_route *rt)
 
 static inline void dnrt_drop(struct dn_route *rt)
 {
-	if (rt)
-		dst_release(&rt->u.dst);
+	dst_release(&rt->u.dst);
 	call_rcu_bh(&rt->u.dst.rcu_head, dst_rcu_free);
 }
 
