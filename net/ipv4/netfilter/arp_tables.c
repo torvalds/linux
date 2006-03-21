@@ -300,6 +300,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 				verdict = t->u.kernel.target->target(pskb,
 								     in, out,
 								     hook,
+								     t->u.kernel.target,
 								     t->data,
 								     userdata);
 
@@ -491,7 +492,7 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 			goto out;
 		}
 	} else if (t->u.kernel.target->checkentry
-		   && !t->u.kernel.target->checkentry(name, e, t->data,
+		   && !t->u.kernel.target->checkentry(name, e, target, t->data,
 						      t->u.target_size
 						      - sizeof(*t),
 						      e->comefrom)) {
@@ -560,7 +561,7 @@ static inline int cleanup_entry(struct arpt_entry *e, unsigned int *i)
 
 	t = arpt_get_target(e);
 	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->data,
+		t->u.kernel.target->destroy(t->u.kernel.target, t->data,
 					    t->u.target_size - sizeof(*t));
 	module_put(t->u.kernel.target->me);
 	return 0;

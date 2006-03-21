@@ -251,7 +251,7 @@ int do_match(struct ip6t_entry_match *m,
 	     int *hotdrop)
 {
 	/* Stop iteration if it doesn't match */
-	if (!m->u.kernel.match->match(skb, in, out, m->data,
+	if (!m->u.kernel.match->match(skb, in, out, m->u.kernel.match, m->data,
 				      offset, protoff, hotdrop))
 		return 1;
 	else
@@ -373,6 +373,7 @@ ip6t_do_table(struct sk_buff **pskb,
 				verdict = t->u.kernel.target->target(pskb,
 								     in, out,
 								     hook,
+								     t->u.kernel.target,
 								     t->data,
 								     userdata);
 
@@ -531,7 +532,7 @@ cleanup_match(struct ip6t_entry_match *m, unsigned int *i)
 		return 1;
 
 	if (m->u.kernel.match->destroy)
-		m->u.kernel.match->destroy(m->data,
+		m->u.kernel.match->destroy(m->u.kernel.match, m->data,
 					   m->u.match_size - sizeof(*m));
 	module_put(m->u.kernel.match->me);
 	return 0;
@@ -584,7 +585,7 @@ check_match(struct ip6t_entry_match *m,
 		goto err;
 
 	if (m->u.kernel.match->checkentry
-	    && !m->u.kernel.match->checkentry(name, ipv6, m->data,
+	    && !m->u.kernel.match->checkentry(name, ipv6, match,  m->data,
 					      m->u.match_size - sizeof(*m),
 					      hookmask)) {
 		duprintf("ip_tables: check failed for `%s'.\n",
@@ -645,7 +646,7 @@ check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 			goto cleanup_matches;
 		}
 	} else if (t->u.kernel.target->checkentry
-		   && !t->u.kernel.target->checkentry(name, e, t->data,
+		   && !t->u.kernel.target->checkentry(name, e, target, t->data,
 						      t->u.target_size
 						      - sizeof(*t),
 						      e->comefrom)) {
@@ -719,7 +720,7 @@ cleanup_entry(struct ip6t_entry *e, unsigned int *i)
 	IP6T_MATCH_ITERATE(e, cleanup_match, NULL);
 	t = ip6t_get_target(e);
 	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->data,
+		t->u.kernel.target->destroy(t->u.kernel.target, t->data,
 					    t->u.target_size - sizeof(*t));
 	module_put(t->u.kernel.target->me);
 	return 0;

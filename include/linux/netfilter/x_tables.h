@@ -100,6 +100,7 @@ struct xt_match
 	int (*match)(const struct sk_buff *skb,
 		     const struct net_device *in,
 		     const struct net_device *out,
+		     const struct xt_match *match,
 		     const void *matchinfo,
 		     int offset,
 		     unsigned int protoff,
@@ -109,12 +110,14 @@ struct xt_match
 	/* Should return true or false. */
 	int (*checkentry)(const char *tablename,
 			  const void *ip,
+			  const struct xt_match *match,
 			  void *matchinfo,
 			  unsigned int matchinfosize,
 			  unsigned int hook_mask);
 
 	/* Called when entry of this type deleted. */
-	void (*destroy)(void *matchinfo, unsigned int matchinfosize);
+	void (*destroy)(const struct xt_match *match, void *matchinfo,
+			unsigned int matchinfosize);
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
@@ -140,6 +143,7 @@ struct xt_target
 			       const struct net_device *in,
 			       const struct net_device *out,
 			       unsigned int hooknum,
+			       const struct xt_target *target,
 			       const void *targinfo,
 			       void *userdata);
 
@@ -149,12 +153,14 @@ struct xt_target
 	/* Should return true or false. */
 	int (*checkentry)(const char *tablename,
 			  const void *entry,
+			  const struct xt_target *target,
 			  void *targinfo,
 			  unsigned int targinfosize,
 			  unsigned int hook_mask);
 
 	/* Called when entry of this type deleted. */
-	void (*destroy)(void *targinfo, unsigned int targinfosize);
+	void (*destroy)(const struct xt_target *target, void *targinfo,
+			unsigned int targinfosize);
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
