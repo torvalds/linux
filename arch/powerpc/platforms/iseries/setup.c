@@ -303,8 +303,6 @@ static void __init iSeries_init_early(void)
 {
 	DBG(" -> iSeries_init_early()\n");
 
-	ppc64_firmware_features = FW_FEATURE_ISERIES;
-
 	ppc64_interrupt_controller = IC_ISERIES;
 
 #if defined(CONFIG_BLK_DEV_INITRD)
@@ -711,7 +709,13 @@ void __init iSeries_init_IRQ(void) { }
 
 static int __init iseries_probe(int platform)
 {
-	return PLATFORM_ISERIES_LPAR == platform;
+	if (PLATFORM_ISERIES_LPAR != platform)
+		return 0;
+
+	ppc64_firmware_features |= FW_FEATURE_ISERIES;
+	ppc64_firmware_features |= FW_FEATURE_LPAR;
+
+	return 1;
 }
 
 struct machdep_calls __initdata iseries_md = {

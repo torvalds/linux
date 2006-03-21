@@ -52,7 +52,6 @@
 #ifdef __KERNEL__
 #define platform_is_pseries()	(_machine == PLATFORM_PSERIES || \
 				 _machine == PLATFORM_PSERIES_LPAR)
-#define platform_is_lpar()	(!!(_machine & PLATFORM_LPAR))
 
 #if defined(CONFIG_PPC_MULTIPLATFORM)
 extern int _machine;

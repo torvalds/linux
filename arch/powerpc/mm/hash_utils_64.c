@@ -422,7 +422,7 @@ void __init htab_initialize(void)
 
 	htab_hash_mask = pteg_count - 1;
 
-	if (platform_is_lpar()) {
+	if (firmware_has_feature(FW_FEATURE_LPAR)) {
 		/* Using a hypervisor which owns the htab */
 		htab_address = NULL;
 		_SDR1 = 0; 
@@ -517,7 +517,7 @@ void __init htab_initialize(void)
 
 void htab_initialize_secondary(void)
 {
-	if (!platform_is_lpar())
+	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		mtspr(SPRN_SDR1, _SDR1);
 }
 

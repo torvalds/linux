@@ -246,7 +246,7 @@ static void __init pSeries_setup_arch(void)
 		ppc_md.idle_loop = default_idle;
 	}
 
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
 	else
 		ppc_md.enable_pmcs = power4_enable_pmcs;
@@ -324,12 +324,12 @@ static void __init pSeries_init_early(void)
 
 	fw_feature_init();
 	
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		hpte_init_lpar();
 	else
 		hpte_init_native();
 
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		find_udbg_vterm();
 
 	if (firmware_has_feature(FW_FEATURE_DABR))
@@ -384,6 +384,9 @@ static int __init pSeries_probe(int platform)
 	/* if we have some ppc_md fixups for LPAR to do, do
 	 * it here ...
 	 */
+
+	if (platform == PLATFORM_PSERIES_LPAR)
+		ppc64_firmware_features |= FW_FEATURE_LPAR;
 
 	return 1;
 }
@@ -524,7 +527,7 @@ static void pseries_shared_idle(void)
 
 static int pSeries_pci_probe_mode(struct pci_bus *bus)
 {
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		return PCI_PROBE_DEVTREE;
 	return PCI_PROBE_NORMAL;
 }
