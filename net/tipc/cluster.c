@@ -46,7 +46,7 @@
 
 static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
 				u32 lower, u32 upper);
-struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest);
+static struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest);
 
 struct node **tipc_local_nodes = NULL;
 struct node_map tipc_cltr_bcast_nodes = {0,{0,}};
