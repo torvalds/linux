@@ -1887,7 +1887,7 @@ static int __init vlsi_mod_init(void)
 		vlsi_proc_root->owner = THIS_MODULE;
 	}
 
-	ret = pci_module_init(&vlsi_irda_driver);
+	ret = pci_register_driver(&vlsi_irda_driver);
 
 	if (ret && vlsi_proc_root)
 		remove_proc_entry(PROC_DIR, NULL);
