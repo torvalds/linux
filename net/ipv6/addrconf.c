@@ -166,6 +166,7 @@ struct ipv6_devconf ipv6_devconf = {
 #endif
 	.max_addresses		= IPV6_MAX_ADDRESSES,
 	.accept_ra_defrtr	= 1,
+	.accept_ra_pinfo	= 1,
 };
 
 static struct ipv6_devconf ipv6_devconf_dflt = {
@@ -188,6 +189,7 @@ static struct ipv6_devconf ipv6_devconf_dflt = {
 #endif
 	.max_addresses		= IPV6_MAX_ADDRESSES,
 	.accept_ra_defrtr	= 1,
+	.accept_ra_pinfo	= 1,
 };
 
 /* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
@@ -3119,6 +3121,7 @@ static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
 #endif
 	array[DEVCONF_MAX_ADDRESSES] = cnf->max_addresses;
 	array[DEVCONF_ACCEPT_RA_DEFRTR] = cnf->accept_ra_defrtr;
+	array[DEVCONF_ACCEPT_RA_PINFO] = cnf->accept_ra_pinfo;
 }
 
 static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev, 
@@ -3575,6 +3578,14 @@ static struct addrconf_sysctl_table
 			.ctl_name	=	NET_IPV6_ACCEPT_RA_DEFRTR,
 			.procname	=	"accept_ra_defrtr",
          		.data		=	&ipv6_devconf.accept_ra_defrtr,
+			.maxlen		=	sizeof(int),
+			.mode		=	0644,
+         		.proc_handler	=	&proc_dointvec,
+		},
+		{
+			.ctl_name	=	NET_IPV6_ACCEPT_RA_PINFO,
+			.procname	=	"accept_ra_pinfo",
+         		.data		=	&ipv6_devconf.accept_ra_pinfo,
 			.maxlen		=	sizeof(int),
 			.mode		=	0644,
          		.proc_handler	=	&proc_dointvec,

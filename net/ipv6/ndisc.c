@@ -1191,7 +1191,7 @@ skip_defrtr:
 			     NEIGH_UPDATE_F_ISROUTER);
 	}
 
-	if (ndopts.nd_opts_pi) {
+	if (in6_dev->cnf.accept_ra_pinfo && ndopts.nd_opts_pi) {
 		struct nd_opt_hdr *p;
 		for (p = ndopts.nd_opts_pi;
 		     p;

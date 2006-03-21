@@ -723,6 +723,12 @@ accept_ra_defrtr - BOOLEAN
 	Functional default: enabled if accept_ra is enabled.
 			    disabled if accept_ra is disabled.
 
+accept_ra_pinfo - BOOLEAN
+	Learn Prefix Inforamtion in Router Advertisement.
+
+	Functional default: enabled if accept_ra is enabled.
+			    disabled if accept_ra is disabled.
+
 accept_redirects - BOOLEAN
 	Accept Redirects.
 
@@ -733,8 +739,8 @@ autoconf - BOOLEAN
 	Autoconfigure addresses using Prefix Information in Router 
 	Advertisements.
 
-	Functional default: enabled if accept_ra is enabled.
-			    disabled if accept_ra is disabled.
+	Functional default: enabled if accept_ra_pinfo is enabled.
+			    disabled if accept_ra_pinfo is disabled.
 
 dad_transmits - INTEGER
 	The amount of Duplicate Address Detection probes to send.
