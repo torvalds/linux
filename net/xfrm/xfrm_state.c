@@ -24,7 +24,11 @@ struct sock *xfrm_nl;
 EXPORT_SYMBOL(xfrm_nl);
 
 u32 sysctl_xfrm_aevent_etime = XFRM_AE_ETIME;
+EXPORT_SYMBOL(sysctl_xfrm_aevent_etime);
+
 u32 sysctl_xfrm_aevent_rseqth = XFRM_AE_SEQT_SIZE;
+EXPORT_SYMBOL(sysctl_xfrm_aevent_rseqth);
+
 /* Each xfrm_state may be linked to two tables:
 
    1. Hash table by (spi,daddr,ah/esp) to find SA by SPI. (input,ctl)
@@ -824,6 +828,7 @@ void xfrm_replay_notify(struct xfrm_state *x, int event)
 	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
 		xfrm_state_hold(x);
 }
+EXPORT_SYMBOL(xfrm_replay_notify);
 
 static void xfrm_replay_timer_handler(unsigned long data)
 {
@@ -976,6 +981,7 @@ void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid)
 	if (hard)
 		wake_up(&km_waitq);
 }
+EXPORT_SYMBOL(km_policy_expired);
 
 int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen)
 {
