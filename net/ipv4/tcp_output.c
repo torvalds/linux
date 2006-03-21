@@ -1238,8 +1238,8 @@ static int tcp_mtu_probe(struct sock *sk)
 		update_send_head(sk, tp, nskb);
 
 		icsk->icsk_mtup.probe_size = tcp_mss_to_mtu(sk, nskb->len);
-		icsk->icsk_mtup.probe_seq_start = TCP_SKB_CB(nskb)->seq;
-		icsk->icsk_mtup.probe_seq_end = TCP_SKB_CB(nskb)->end_seq;
+		tp->mtu_probe.probe_seq_start = TCP_SKB_CB(nskb)->seq;
+		tp->mtu_probe.probe_seq_end = TCP_SKB_CB(nskb)->end_seq;
 
 		return 1;
 	}

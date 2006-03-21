@@ -2054,7 +2054,7 @@ tcp_fastretrans_alert(struct sock *sk, u32 prior_snd_una,
 		/* MTU probe failure: don't reduce cwnd */
 		if (icsk->icsk_ca_state < TCP_CA_CWR &&
 		    icsk->icsk_mtup.probe_size &&
-		    tp->snd_una == icsk->icsk_mtup.probe_seq_start) {
+		    tp->snd_una == tp->mtu_probe.probe_seq_start) {
 			tcp_mtup_probe_failed(sk);
 			/* Restores the reduction we did in tcp_mtup_probe() */
 			tp->snd_cwnd++;
@@ -2284,7 +2284,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 
 		/* MTU probing checks */
 		if (icsk->icsk_mtup.probe_size) {
-			if (!after(icsk->icsk_mtup.probe_seq_end, TCP_SKB_CB(skb)->end_seq)) {
+			if (!after(tp->mtu_probe.probe_seq_end, TCP_SKB_CB(skb)->end_seq)) {
 				tcp_mtup_probe_success(sk, skb);
 			}
 		}

@@ -114,8 +114,6 @@ struct inet_connection_sock {
 
 		/* Information on the current probe. */
 		int		  probe_size;
-		__u32		  probe_seq_start;
-		__u32		  probe_seq_end;
 	} icsk_mtup;
 	u32			  icsk_ca_priv[16];
 #define ICSK_CA_PRIV_SIZE	(16 * sizeof(u32))
