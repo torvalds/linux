@@ -478,7 +478,6 @@ static struct rt6_info *rt6_alloc_clone(struct rt6_info *ort, struct in6_addr *d
 if (rt == &ip6_null_entry && strict) { \
        while ((fn = fn->parent) != NULL) { \
 		if (fn->fn_flags & RTN_ROOT) { \
-			dst_hold(&rt->u.dst); \
 			goto out; \
 		} \
 		if (fn->fn_flags & RTN_RTINFO) \
@@ -508,17 +507,17 @@ restart:
 	if ((rt->rt6i_flags & RTF_CACHE)) {
 		rt = rt6_device_match(rt, skb->dev->ifindex, strict);
 		BACKTRACK();
-		dst_hold(&rt->u.dst);
 		goto out;
 	}
 
 	rt = rt6_device_match(rt, skb->dev->ifindex, strict);
 	BACKTRACK();
 
+	dst_hold(&rt->u.dst);
+	read_unlock_bh(&rt6_lock);
+
 	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {
 		struct rt6_info *nrt;
-		dst_hold(&rt->u.dst);
-		read_unlock_bh(&rt6_lock);
 
 		nrt = rt6_cow(rt, &skb->nh.ipv6h->daddr,
 			      &skb->nh.ipv6h->saddr,
@@ -536,14 +535,16 @@ restart:
 		dst_release(&rt->u.dst);
 		goto relookup;
 	}
-	dst_hold(&rt->u.dst);
 
-out:
-	read_unlock_bh(&rt6_lock);
 out2:
 	rt->u.dst.lastuse = jiffies;
 	rt->u.dst.__use++;
 	skb->dst = (struct dst_entry *) rt;
+	return;
+out:
+	dst_hold(&rt->u.dst);
+	read_unlock_bh(&rt6_lock);
+	goto out2;
 }
 
 struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
@@ -566,7 +567,6 @@ restart:
 	if ((rt->rt6i_flags & RTF_CACHE)) {
 		rt = rt6_device_match(rt, fl->oif, strict);
 		BACKTRACK();
-		dst_hold(&rt->u.dst);
 		goto out;
 	}
 	if (rt->rt6i_flags & RTF_DEFAULT) {
@@ -577,10 +577,11 @@ restart:
 		BACKTRACK();
 	}
 
+	dst_hold(&rt->u.dst);
+	read_unlock_bh(&rt6_lock);
+
 	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {
 		struct rt6_info *nrt;
-		dst_hold(&rt->u.dst);
-		read_unlock_bh(&rt6_lock);
 
 		nrt = rt6_cow(rt, &fl->fl6_dst, &fl->fl6_src, NULL);
 
@@ -596,14 +597,14 @@ restart:
 		dst_release(&rt->u.dst);
 		goto relookup;
 	}
-	dst_hold(&rt->u.dst);
-
-out:
-	read_unlock_bh(&rt6_lock);
 out2:
 	rt->u.dst.lastuse = jiffies;
 	rt->u.dst.__use++;
 	return &rt->u.dst;
+out:
+	dst_hold(&rt->u.dst);
+	read_unlock_bh(&rt6_lock);
+	goto out2;
 }
 
 
