@@ -41,7 +41,7 @@ extern void mf_deallocate_lp_events(HvLpIndex targetLp, HvLpEvent_Type type,
 		unsigned count, MFCompleteHandler hdlr, void *userToken);
 
 extern void mf_power_off(void);
-extern void mf_reboot(void);
+extern void mf_reboot(char *cmd);
 
 extern void mf_display_src(u32 word);
 extern void mf_display_progress(u16 value);

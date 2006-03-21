@@ -599,7 +599,7 @@ void mf_power_off(void)
  * Global kernel interface to tell the VSP object in the primary
  * partition to reboot this partition.
  */
-void mf_reboot(void)
+void mf_reboot(char *cmd)
 {
 	printk(KERN_INFO "mf.c: Preparing to bounce...\n");
 	signal_ce_msg_simple(0x4e, NULL);

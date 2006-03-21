@@ -554,30 +554,6 @@ static void iSeries_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "machine\t\t: 64-bit iSeries Logical Partition\n");
 }
 
-/*
- * Document me.
- */
-static void iSeries_restart(char *cmd)
-{
-	mf_reboot();
-}
-
-/*
- * Document me.
- */
-static void iSeries_power_off(void)
-{
-	mf_power_off();
-}
-
-/*
- * Document me.
- */
-static void iSeries_halt(void)
-{
-	mf_power_off();
-}
-
 static void __init iSeries_progress(char * st, unsigned short code)
 {
 	printk("Progress: [%04x] - %s\n", (unsigned)code, st);
@@ -716,9 +692,9 @@ struct machdep_calls __initdata iseries_md = {
 	.get_irq	= iSeries_get_irq,
 	.init_early	= iSeries_init_early,
 	.pcibios_fixup	= iSeries_pci_final_fixup,
-	.restart	= iSeries_restart,
-	.power_off	= iSeries_power_off,
-	.halt		= iSeries_halt,
+	.restart	= mf_reboot,
+	.power_off	= mf_power_off,
+	.halt		= mf_power_off,
 	.get_boot_time	= iSeries_get_boot_time,
 	.set_rtc_time	= iSeries_set_rtc_time,
 	.get_rtc_time	= iSeries_get_rtc_time,
