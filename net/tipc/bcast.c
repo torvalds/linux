@@ -531,10 +531,12 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 {
 	static int send_count = 0;
 
-	struct node_map remains;
-	struct node_map remains_new;
+	struct node_map *remains;
+	struct node_map *remains_new;
+	struct node_map *remains_tmp;
 	int bp_index;
 	int swap_time;
+	int err;
 
 	/* Prepare buffer for broadcasting (if first time trying to send it) */
 
@@ -555,7 +557,9 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 
 	/* Send buffer over bearers until all targets reached */
 	
-	remains = tipc_cltr_bcast_nodes;
+	remains = kmalloc(sizeof(struct node_map), GFP_ATOMIC);
+	remains_new = kmalloc(sizeof(struct node_map), GFP_ATOMIC);
+	*remains = tipc_cltr_bcast_nodes;
 
 	for (bp_index = 0; bp_index < MAX_BEARERS; bp_index++) {
 		struct bearer *p = bcbearer->bpairs[bp_index].primary;
@@ -564,8 +568,8 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		if (!p)
 			break;	/* no more bearers to try */
 
-		tipc_nmap_diff(&remains, &p->nodes, &remains_new);
-		if (remains_new.count == remains.count)
+		tipc_nmap_diff(remains, &p->nodes, remains_new);
+		if (remains_new->count == remains->count)
 			continue;	/* bearer pair doesn't add anything */
 
 		if (!p->publ.blocked &&
@@ -583,17 +587,27 @@ swap:
 		bcbearer->bpairs[bp_index].primary = s;
 		bcbearer->bpairs[bp_index].secondary = p;
 update:
-		if (remains_new.count == 0)
-			return TIPC_OK;
+		if (remains_new->count == 0) {
+			err = TIPC_OK;
+			goto out;
+		}
 
+		/* swap map */
+		remains_tmp = remains;
 		remains = remains_new;
+		remains_new = remains_tmp;
 	}
 	
 	/* Unable to reach all targets */
 
 	bcbearer->bearer.publ.blocked = 1;
 	bcl->stats.bearer_congs++;
-	return ~TIPC_OK;
+	err = ~TIPC_OK;
+
+ out:
+	kfree(remains_new);
+	kfree(remains);
+	return err;
 }
 
 /**
