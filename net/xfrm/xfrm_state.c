@@ -20,6 +20,9 @@
 #include <linux/module.h>
 #include <asm/uaccess.h>
 
+struct sock *xfrm_nl;
+EXPORT_SYMBOL(xfrm_nl);
+
 u32 sysctl_xfrm_aevent_etime = XFRM_AE_ETIME;
 u32 sysctl_xfrm_aevent_rseqth = XFRM_AE_SEQT_SIZE;
 /* Each xfrm_state may be linked to two tables:

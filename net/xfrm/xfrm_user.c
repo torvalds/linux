@@ -28,8 +28,6 @@
 #include <net/netlink.h>
 #include <asm/uaccess.h>
 
-struct sock *xfrm_nl;
-
 static int verify_one_alg(struct rtattr **xfrma, enum xfrm_attr_type_t type)
 {
 	struct rtattr *rt = xfrma[type - 1];
@@ -1974,5 +1972,4 @@ module_init(xfrm_user_init);
 module_exit(xfrm_user_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_XFRM);
-EXPORT_SYMBOL(xfrm_nl);
 
