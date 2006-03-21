@@ -1427,15 +1427,15 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	while(sent < len)
 	{
 		/*
-		 *	Optimisation for the fact that under 0.01% of X messages typically
-		 *	need breaking up.
+		 *	Optimisation for the fact that under 0.01% of X
+		 *	messages typically need breaking up.
 		 */
 
-		size=len-sent;
+		size = len-sent;
 
 		/* Keep two messages in the pipe so it schedules better */
-		if (size > sk->sk_sndbuf / 2 - 64)
-			size = sk->sk_sndbuf / 2 - 64;
+		if (size > ((sk->sk_sndbuf >> 1) - 64))
+			size = (sk->sk_sndbuf >> 1) - 64;
 
 		if (size > SKB_MAX_ALLOC)
 			size = SKB_MAX_ALLOC;
