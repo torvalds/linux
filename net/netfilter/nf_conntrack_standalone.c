@@ -839,7 +839,6 @@ EXPORT_SYMBOL(nf_conntrack_l3proto_unregister);
 EXPORT_SYMBOL(nf_conntrack_protocol_register);
 EXPORT_SYMBOL(nf_conntrack_protocol_unregister);
 EXPORT_SYMBOL(nf_ct_invert_tuplepr);
-EXPORT_SYMBOL(nf_conntrack_alter_reply);
 EXPORT_SYMBOL(nf_conntrack_destroyed);
 EXPORT_SYMBOL(need_conntrack);
 EXPORT_SYMBOL(nf_conntrack_helper_register);

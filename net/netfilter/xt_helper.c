@@ -96,6 +96,7 @@ match(const struct sk_buff *skb,
 {
 	const struct xt_helper_info *info = matchinfo;
 	struct nf_conn *ct;
+	struct nf_conn_help *master_help;
 	enum ip_conntrack_info ctinfo;
 	int ret = info->invert;
 	
@@ -111,7 +112,8 @@ match(const struct sk_buff *skb,
 	}
 
 	read_lock_bh(&nf_conntrack_lock);
-	if (!ct->master->helper) {
+	master_help = nfct_help(ct->master);
+	if (!master_help || !master_help->helper) {
 		DEBUGP("xt_helper: master ct %p has no helper\n", 
 			exp->expectant);
 		goto out_unlock;
@@ -123,8 +125,8 @@ match(const struct sk_buff *skb,
 	if (info->name[0] == '\0')
 		ret ^= 1;
 	else
-		ret ^= !strncmp(ct->master->helper->name, info->name, 
-		                strlen(ct->master->helper->name));
+		ret ^= !strncmp(master_help->helper->name, info->name,
+		                strlen(master_help->helper->name));
 out_unlock:
 	read_unlock_bh(&nf_conntrack_lock);
 	return ret;
