@@ -563,10 +563,10 @@
 	extrd,u,*= 	\pte,_PAGE_GATEWAY_BIT+32,1,%r0
 	depd		%r0,11,2,\prot	/* If Gateway, Set PL2 to 0 */
 
-	/* Get rid of prot bits and convert to page addr for iitlbt */
+	/* Get rid of prot bits and convert to page addr for iitlbt and idtlbt */
 
 	depd		%r0,63,PAGE_SHIFT,\pte
-	extrd,u		\pte,56,32,\pte
+	extrd,s		\pte,(63-PAGE_SHIFT)+(63-58),64-PAGE_SHIFT,\pte
 	.endm
 
 	/* Identical macro to make_insert_tlb above, except it
@@ -584,7 +584,7 @@
 
 	/* Get rid of prot bits and convert to page addr for iitlba */
 
-	depi		0,31,12,\pte
+	depi		0,31,PAGE_SHIFT,\pte
 	extru		\pte,24,25,\pte
 
 	.endm
