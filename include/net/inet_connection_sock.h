@@ -331,4 +331,9 @@ extern int inet_csk_ctl_sock_create(struct socket **sock,
 				    unsigned short family,
 				    unsigned short type,
 				    unsigned char protocol);
+
+extern int inet_csk_compat_getsockopt(struct sock *sk, int level, int optname,
+				      char __user *optval, int __user *optlen);
+extern int inet_csk_compat_setsockopt(struct sock *sk, int level, int optname,
+				      char __user *optval, int optlen);
 #endif /* _INET_CONNECTION_SOCK_H */

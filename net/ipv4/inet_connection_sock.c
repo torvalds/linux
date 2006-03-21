@@ -667,3 +667,33 @@ int inet_csk_ctl_sock_create(struct socket **sock, unsigned short family,
 }
 
 EXPORT_SYMBOL_GPL(inet_csk_ctl_sock_create);
+
+#ifdef CONFIG_COMPAT
+int inet_csk_compat_getsockopt(struct sock *sk, int level, int optname,
+			       char __user *optval, int __user *optlen)
+{
+	const struct inet_csk *icsk = inet_csk(sk);
+
+	if (icsk->icsk_af_ops->compat_getsockopt != NULL)
+		return icsk->icsk_af_ops->compat_getsockopt(sk, level, optname,
+							    optval, optlen);
+	return icsk->icsk_af_ops->getsockopt(sk, level, optname,
+					     optval, optlen);
+}
+
+EXPORT_SYMBOL_GPL(inet_csk_compat_getsockopt);
+
+int inet_csk_compat_setsockopt(struct sock *sk, int level, int optname,
+			       char __user *optval, int optlen)
+{
+	const struct inet_csk *icsk = inet_csk(sk);
+
+	if (icsk->icsk_af_ops->compat_setsockopt != NULL)
+		return icsk->icsk_af_ops->compat_setsockopt(sk, level, optname,
+							    optval, optlen);
+	return icsk->icsk_af_ops->setsockopt(sk, level, optname,
+					     optval, optlen);
+}
+
+EXPORT_SYMBOL_GPL(inet_csk_compat_setsockopt);
+#endif
