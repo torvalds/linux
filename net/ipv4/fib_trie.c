@@ -50,7 +50,7 @@
  *		Patrick McHardy <kaber@trash.net>
  */
 
-#define VERSION "0.404"
+#define VERSION "0.405"
 
 #include <linux/config.h>
 #include <asm/uaccess.h>
@@ -2040,7 +2040,15 @@ rescan:
 static struct node *fib_trie_get_first(struct fib_trie_iter *iter,
 				       struct trie *t)
 {
-	struct node *n = rcu_dereference(t->trie);
+	struct node *n ;
+
+	if(!t)
+		return NULL;
+
+	n = rcu_dereference(t->trie);
+
+	if(!iter)
+		return NULL;
 
 	if (n && IS_TNODE(n)) {
 		iter->tnode = (struct tnode *) n;
