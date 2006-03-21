@@ -11,6 +11,8 @@ dccp-$(CONFIG_IP_DCCP_ACKVEC) += ackvec.o
 
 obj-$(CONFIG_INET_DCCP_DIAG) += dccp_diag.o
 
+dccp-$(CONFIG_SYSCTL) += sysctl.o
+
 dccp_diag-y := diag.o
 
 obj-y += ccids/

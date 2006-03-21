@@ -433,4 +433,18 @@ static inline void timeval_sub_usecs(struct timeval *tv,
 	}
 }
 
+#ifdef CONFIG_SYSCTL
+extern int dccp_sysctl_init(void);
+extern void dccp_sysctl_exit(void);
+#else
+static inline int dccp_sysctl_init(void)
+{
+	return 0;
+}
+
+static inline void dccp_sysctl_exit(void)
+{
+}
+#endif
+
 #endif /* _DCCP_H */

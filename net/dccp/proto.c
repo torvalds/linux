@@ -934,11 +934,17 @@ static int __init dccp_init(void)
 	if (rc)
 		goto out_unregister_protosw;
 
-	rc = dccp_ctl_sock_init();
+	rc = dccp_sysctl_init();
 	if (rc)
 		goto out_ackvec_exit;
+
+	rc = dccp_ctl_sock_init();
+	if (rc)
+		goto out_sysctl_exit;
 out:
 	return rc;
+out_sysctl_exit:
+	dccp_sysctl_exit();
 out_ackvec_exit:
 	dccp_ackvec_exit();
 out_unregister_protosw:
@@ -983,6 +989,7 @@ static void __exit dccp_fini(void)
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
 	proto_unregister(&dccp_prot);
 	dccp_ackvec_exit();
+	dccp_sysctl_exit();
 }
 
 module_init(dccp_init);

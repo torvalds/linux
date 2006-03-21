@@ -23,19 +23,21 @@
 #include "dccp.h"
 #include "feat.h"
 
-/* stores the default values for new connection. may be changed with sysctl */
-static const struct dccp_options dccpo_default_values = {
-	.dccpo_sequence_window	  = DCCPF_INITIAL_SEQUENCE_WINDOW,
-	.dccpo_rx_ccid		  = DCCPF_INITIAL_CCID,
-	.dccpo_tx_ccid		  = DCCPF_INITIAL_CCID,
-	.dccpo_ack_ratio	  = DCCPF_INITIAL_ACK_RATIO,
-	.dccpo_send_ack_vector	  = DCCPF_INITIAL_SEND_ACK_VECTOR,
-	.dccpo_send_ndp_count	  = DCCPF_INITIAL_SEND_NDP_COUNT,
-};
+int dccp_feat_default_sequence_window = DCCPF_INITIAL_SEQUENCE_WINDOW;
+int dccp_feat_default_rx_ccid	      = DCCPF_INITIAL_CCID;
+int dccp_feat_default_tx_ccid	      = DCCPF_INITIAL_CCID;
+int dccp_feat_default_ack_ratio	      = DCCPF_INITIAL_ACK_RATIO;
+int dccp_feat_default_send_ack_vector = DCCPF_INITIAL_SEND_ACK_VECTOR;
+int dccp_feat_default_send_ndp_count  = DCCPF_INITIAL_SEND_NDP_COUNT;
 
 void dccp_options_init(struct dccp_options *dccpo)
 {
-	memcpy(dccpo, &dccpo_default_values, sizeof(*dccpo));
+	dccpo->dccpo_sequence_window = dccp_feat_default_sequence_window;
+	dccpo->dccpo_rx_ccid	     = dccp_feat_default_rx_ccid;
+	dccpo->dccpo_tx_ccid	     = dccp_feat_default_tx_ccid;
+	dccpo->dccpo_ack_ratio	     = dccp_feat_default_ack_ratio;
+	dccpo->dccpo_send_ack_vector = dccp_feat_default_send_ack_vector;
+	dccpo->dccpo_send_ndp_count  = dccp_feat_default_send_ndp_count;
 }
 
 static u32 dccp_decode_value_var(const unsigned char *bf, const u8 len)

@@ -211,6 +211,7 @@ enum
 	NET_SCTP=17,
 	NET_LLC=18,
 	NET_NETFILTER=19,
+	NET_DCCP=20,
 };
 
 /* /proc/sys/kernel/random */
@@ -569,6 +570,21 @@ enum {
 	NET_NEIGH_RETRANS_TIME_MS=17,
 	NET_NEIGH_REACHABLE_TIME_MS=18,
 	__NET_NEIGH_MAX
+};
+
+/* /proc/sys/net/dccp */
+enum {
+	NET_DCCP_DEFAULT=1,
+};
+
+/* /proc/sys/net/dccp/default */
+enum {
+	NET_DCCP_DEFAULT_SEQ_WINDOW  = 1,
+	NET_DCCP_DEFAULT_RX_CCID     = 2,
+	NET_DCCP_DEFAULT_TX_CCID     = 3,
+	NET_DCCP_DEFAULT_ACK_RATIO   = 4,
+	NET_DCCP_DEFAULT_SEND_ACKVEC = 5,
+	NET_DCCP_DEFAULT_SEND_NDP    = 6,
 };
 
 /* /proc/sys/net/ipx */
