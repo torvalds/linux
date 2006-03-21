@@ -14,8 +14,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4.31"
-#define DRV_MODULE_RELDATE	"January 19, 2006"
+#define DRV_MODULE_VERSION	"1.4.37"
+#define DRV_MODULE_RELDATE	"February 1, 2006"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -5765,6 +5765,7 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		return 0;
 
+	flush_scheduled_work();
 	bnx2_netif_stop(bp);
 	netif_device_detach(dev);
 	del_timer_sync(&bp->timer);
