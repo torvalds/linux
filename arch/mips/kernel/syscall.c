@@ -162,7 +162,10 @@ asmlinkage unsigned long
 sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
           unsigned long flags, unsigned long fd, unsigned long pgoff)
 {
-	return do_mmap2(addr, len, prot, flags, fd, pgoff);
+	if (pgoff & (~PAGE_MASK >> 12))
+		return -EINVAL;
+
+	return do_mmap2(addr, len, prot, flags, fd, pgoff >> (PAGE_SHIFT-12));
 }
 
 save_static_function(sys_fork);
@@ -345,7 +348,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 		union semun fourth;
 		if (!ptr)
 			return -EINVAL;
-		if (get_user(fourth.__pad, (void *__user *) ptr))
+		if (get_user(fourth.__pad, (void __user *__user *) ptr))
 			return -EFAULT;
 		return sys_semctl (first, second, third, fourth);
 	}

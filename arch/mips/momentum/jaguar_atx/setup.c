@@ -461,7 +461,7 @@ void __init plat_setup(void)
 	  unsigned int tbControl;
 	  tbControl =
 	    0 << 26 |  /* post trigger delay 0 */
-	    	    0x2 << 16 |		/* sequential trace mode */
+		    0x2 << 16 |		/* sequential trace mode */
 	    //	    0x0 << 16 |		/* non-sequential trace mode */
 	    //	    0xf << 4 |		/* watchpoints disabled */
 	    2 << 2 |		/* armed */

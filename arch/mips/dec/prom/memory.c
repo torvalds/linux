@@ -45,7 +45,7 @@ static inline void pmax_setup_memory_region(void)
 	 */
 	for (memory_page = (unsigned char *)CKSEG1 + CHUNK_SIZE;
 	     mem_err == 0 && memory_page < (unsigned char *)CKSEG1 + 0x1e00000;
-  	     memory_page += CHUNK_SIZE) {
+	     memory_page += CHUNK_SIZE) {
 		dummy = *memory_page;
 	}
 	memcpy((void *)(CKSEG0 + 0x80), &old_handler, 0x80);
