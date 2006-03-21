@@ -8306,14 +8306,24 @@ static int tg3_test_memory(struct tg3 *tp)
 		{ 0x00008000, 0x02000},
 		{ 0x00010000, 0x0e000},
 		{ 0xffffffff, 0x00000}
+	}, mem_tbl_5755[] = {
+		{ 0x00000200, 0x00008},
+		{ 0x00004000, 0x00800},
+		{ 0x00006000, 0x00800},
+		{ 0x00008000, 0x02000},
+		{ 0x00010000, 0x0c000},
+		{ 0xffffffff, 0x00000}
 	};
 	struct mem_entry *mem_tbl;
 	int err = 0;
 	int i;
 
-	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS)
-		mem_tbl = mem_tbl_5705;
-	else
+	if (tp->tg3_flags2 & TG3_FLG2_5705_PLUS) {
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+			mem_tbl = mem_tbl_5755;
+		else
+			mem_tbl = mem_tbl_5705;
+	} else
 		mem_tbl = mem_tbl_570x;
 
 	for (i = 0; mem_tbl[i].offset != 0xffffffff; i++) {
