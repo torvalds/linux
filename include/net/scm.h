@@ -37,10 +37,12 @@ static __inline__ void scm_destroy(struct scm_cookie *scm)
 static __inline__ int scm_send(struct socket *sock, struct msghdr *msg,
 			       struct scm_cookie *scm)
 {
-	memset(scm, 0, sizeof(*scm));
-	scm->creds.uid = current->uid;
-	scm->creds.gid = current->gid;
-	scm->creds.pid = current->tgid;
+	struct task_struct *p = current;
+	scm->creds.uid = p->uid;
+	scm->creds.gid = p->gid;
+	scm->creds.pid = p->tgid;
+	scm->fp = NULL;
+	scm->seq = 0;
 	if (msg->msg_controllen <= 0)
 		return 0;
 	return __scm_send(sock, msg, scm);
