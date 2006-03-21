@@ -546,6 +546,9 @@ static void tg3_enable_ints(struct tg3 *tp)
 	     (tp->misc_host_ctrl & ~MISC_HOST_CTRL_MASK_PCI_INT));
 	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
 		       (tp->last_tag << 24));
+	if (tp->tg3_flags2 & TG3_FLG2_1SHOT_MSI)
+		tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW,
+			       (tp->last_tag << 24));
 	tg3_cond_int(tp);
 }
 
@@ -3363,6 +3366,23 @@ static inline void tg3_full_unlock(struct tg3 *tp)
 {
 	spin_unlock(&tp->tx_lock);
 	spin_unlock_bh(&tp->lock);
+}
+
+/* One-shot MSI handler - Chip automatically disables interrupt
+ * after sending MSI so driver doesn't have to do it.
+ */
+static irqreturn_t tg3_msi_1shot(int irq, void *dev_id, struct pt_regs *regs)
+{
+	struct net_device *dev = dev_id;
+	struct tg3 *tp = netdev_priv(dev);
+
+	prefetch(tp->hw_status);
+	prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
+
+	if (likely(!tg3_irq_sync(tp)))
+		netif_rx_schedule(dev);		/* schedule NAPI poll */
+
+	return IRQ_HANDLED;
 }
 
 /* MSI ISR - No need to check for interrupt sharing and no need to
@@ -6511,6 +6531,26 @@ static void tg3_timer(unsigned long __opaque)
 	add_timer(&tp->timer);
 }
 
+int tg3_request_irq(struct tg3 *tp)
+{
+	irqreturn_t (*fn)(int, void *, struct pt_regs *);
+	unsigned long flags;
+	struct net_device *dev = tp->dev;
+
+	if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
+		fn = tg3_msi;
+		if (tp->tg3_flags2 & TG3_FLG2_1SHOT_MSI)
+			fn = tg3_msi_1shot;
+		flags = SA_SAMPLE_RANDOM;
+	} else {
+		fn = tg3_interrupt;
+		if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
+			fn = tg3_interrupt_tagged;
+		flags = SA_SHIRQ | SA_SAMPLE_RANDOM;
+	}
+	return (request_irq(tp->pdev->irq, fn, flags, dev->name, dev));
+}
+
 static int tg3_test_interrupt(struct tg3 *tp)
 {
 	struct net_device *dev = tp->dev;
@@ -6547,16 +6587,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 
 	free_irq(tp->pdev->irq, dev);
 	
-	if (tp->tg3_flags2 & TG3_FLG2_USING_MSI)
-		err = request_irq(tp->pdev->irq, tg3_msi,
-				  SA_SAMPLE_RANDOM, dev->name, dev);
-	else {
-		irqreturn_t (*fn)(int, void *, struct pt_regs *)=tg3_interrupt;
-		if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
-			fn = tg3_interrupt_tagged;
-		err = request_irq(tp->pdev->irq, fn,
-				  SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
-	}
+	err = tg3_request_irq(tp);
 
 	if (err)
 		return err;
@@ -6608,14 +6639,7 @@ static int tg3_test_msi(struct tg3 *tp)
 
 	tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
 
-	{
-		irqreturn_t (*fn)(int, void *, struct pt_regs *)=tg3_interrupt;
-		if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
-			fn = tg3_interrupt_tagged;
-
-		err = request_irq(tp->pdev->irq, fn,
-				  SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
-	}
+	err = tg3_request_irq(tp);
 	if (err)
 		return err;
 
@@ -6677,17 +6701,7 @@ static int tg3_open(struct net_device *dev)
 			tp->tg3_flags2 |= TG3_FLG2_USING_MSI;
 		}
 	}
-	if (tp->tg3_flags2 & TG3_FLG2_USING_MSI)
-		err = request_irq(tp->pdev->irq, tg3_msi,
-				  SA_SAMPLE_RANDOM, dev->name, dev);
-	else {
-		irqreturn_t (*fn)(int, void *, struct pt_regs *)=tg3_interrupt;
-		if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)
-			fn = tg3_interrupt_tagged;
-
-		err = request_irq(tp->pdev->irq, fn,
-				  SA_SHIRQ | SA_SAMPLE_RANDOM, dev->name, dev);
-	}
+	err = tg3_request_irq(tp);
 
 	if (err) {
 		if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
@@ -6751,6 +6765,14 @@ static int tg3_open(struct net_device *dev)
 			tg3_full_unlock(tp);
 
 			return err;
+		}
+
+		if (tp->tg3_flags2 & TG3_FLG2_USING_MSI) {
+			if (tp->tg3_flags2 & TG3_FLG2_1SHOT_MSI) {
+				u32 val = tr32(0x7c04);
+
+				tw32(0x7c04, val | (1 << 29));
+			}
 		}
 	}
 
@@ -9940,9 +9962,10 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->tg3_flags2 |= TG3_FLG2_5705_PLUS;
 
 	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787) {
 			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_2;
-		else
+			tp->tg3_flags2 |= TG3_FLG2_1SHOT_MSI;
+		} else
 			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1;
 	}
 
