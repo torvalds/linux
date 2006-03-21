@@ -353,6 +353,12 @@ extern int			tcp_getsockopt(struct sock *sk, int level,
 extern int			tcp_setsockopt(struct sock *sk, int level, 
 					       int optname, char __user *optval, 
 					       int optlen);
+extern int			compat_tcp_getsockopt(struct sock *sk,
+					int level, int optname,
+					char __user *optval, int __user *optlen);
+extern int			compat_tcp_setsockopt(struct sock *sk,
+					int level, int optname,
+					char __user *optval, int optlen);
 extern void			tcp_set_keepalive(struct sock *sk, int val);
 extern int			tcp_recvmsg(struct kiocb *iocb, struct sock *sk,
 					    struct msghdr *msg,

@@ -875,6 +875,10 @@ static const struct proto_ops inet6_seqpacket_ops = {
 	.shutdown   = inet_shutdown,
 	.setsockopt = sock_common_setsockopt,
 	.getsockopt = sock_common_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_sock_common_setsockopt,
+	.compat_getsockopt	= compat_sock_common_getsockopt,
+#endif
 	.sendmsg    = inet_sendmsg,
 	.recvmsg    = sock_common_recvmsg,
 	.mmap       = sock_no_mmap,
@@ -914,6 +918,10 @@ static struct sctp_af sctp_ipv6_specific = {
 	.sctp_xmit       = sctp_v6_xmit,
 	.setsockopt      = ipv6_setsockopt,
 	.getsockopt      = ipv6_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_ipv6_setsockopt,
+	.compat_getsockopt	= compat_ipv6_getsockopt,
+#endif
 	.get_dst	 = sctp_v6_get_dst,
 	.get_saddr	 = sctp_v6_get_saddr,
 	.copy_addrlist   = sctp_v6_copy_addrlist,

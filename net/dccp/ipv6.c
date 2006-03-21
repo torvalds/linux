@@ -1114,6 +1114,10 @@ static struct inet_connection_sock_af_ops dccp_ipv6_af_ops = {
 	.net_header_len	= sizeof(struct ipv6hdr),
 	.setsockopt	= ipv6_setsockopt,
 	.getsockopt	= ipv6_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_ipv6_setsockopt,
+	.compat_getsockopt	= compat_ipv6_getsockopt,
+#endif
 	.addr2sockaddr	= inet6_csk_addr2sockaddr,
 	.sockaddr_len	= sizeof(struct sockaddr_in6)
 };
@@ -1130,6 +1134,10 @@ static struct inet_connection_sock_af_ops dccp_ipv6_mapped = {
 	.net_header_len	= sizeof(struct iphdr),
 	.setsockopt	= ipv6_setsockopt,
 	.getsockopt	= ipv6_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_ipv6_setsockopt,
+	.compat_getsockopt	= compat_ipv6_getsockopt,
+#endif
 	.addr2sockaddr	= inet6_csk_addr2sockaddr,
 	.sockaddr_len	= sizeof(struct sockaddr_in6)
 };
@@ -1167,6 +1175,10 @@ static struct proto dccp_v6_prot = {
 	.init		= dccp_v6_init_sock,
 	.setsockopt	= dccp_setsockopt,
 	.getsockopt	= dccp_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_dccp_setsockopt,
+	.compat_getsockopt	= compat_dccp_getsockopt,
+#endif
 	.sendmsg	= dccp_sendmsg,
 	.recvmsg	= dccp_recvmsg,
 	.backlog_rcv	= dccp_v6_do_rcv,
@@ -1204,6 +1216,10 @@ static struct proto_ops inet6_dccp_ops = {
 	.shutdown	= inet_shutdown,
 	.setsockopt	= sock_common_setsockopt,
 	.getsockopt	= sock_common_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_sock_common_setsockopt,
+	.compat_getsockopt	= compat_sock_common_getsockopt,
+#endif
 	.sendmsg	= inet_sendmsg,
 	.recvmsg	= sock_common_recvmsg,
 	.mmap		= sock_no_mmap,

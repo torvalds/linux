@@ -1308,6 +1308,10 @@ static struct inet_connection_sock_af_ops ipv6_specific = {
 
 	.setsockopt	=	ipv6_setsockopt,
 	.getsockopt	=	ipv6_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_ipv6_setsockopt,
+	.compat_getsockopt	= compat_ipv6_getsockopt,
+#endif
 	.addr2sockaddr	=	inet6_csk_addr2sockaddr,
 	.sockaddr_len	=	sizeof(struct sockaddr_in6)
 };
@@ -1327,6 +1331,10 @@ static struct inet_connection_sock_af_ops ipv6_mapped = {
 
 	.setsockopt	=	ipv6_setsockopt,
 	.getsockopt	=	ipv6_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_ipv6_setsockopt,
+	.compat_getsockopt	= compat_ipv6_getsockopt,
+#endif
 	.addr2sockaddr	=	inet6_csk_addr2sockaddr,
 	.sockaddr_len	=	sizeof(struct sockaddr_in6)
 };
@@ -1566,6 +1574,10 @@ struct proto tcpv6_prot = {
 	.shutdown		= tcp_shutdown,
 	.setsockopt		= tcp_setsockopt,
 	.getsockopt		= tcp_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_tcp_setsockopt,
+	.compat_getsockopt	= compat_tcp_getsockopt,
+#endif
 	.sendmsg		= tcp_sendmsg,
 	.recvmsg		= tcp_recvmsg,
 	.backlog_rcv		= tcp_v6_do_rcv,

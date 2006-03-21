@@ -1207,15 +1207,12 @@ static int udp_destroy_sock(struct sock *sk)
 /*
  *	Socket option code for UDP
  */
-static int udp_setsockopt(struct sock *sk, int level, int optname, 
+static int do_udp_setsockopt(struct sock *sk, int level, int optname,
 			  char __user *optval, int optlen)
 {
 	struct udp_sock *up = udp_sk(sk);
 	int val;
 	int err = 0;
-
-	if (level != SOL_UDP)
-		return ip_setsockopt(sk, level, optname, optval, optlen);
 
 	if(optlen<sizeof(int))
 		return -EINVAL;
@@ -1256,14 +1253,30 @@ static int udp_setsockopt(struct sock *sk, int level, int optname,
 	return err;
 }
 
-static int udp_getsockopt(struct sock *sk, int level, int optname, 
+static int udp_setsockopt(struct sock *sk, int level, int optname,
+			  char __user *optval, int optlen)
+{
+	if (level != SOL_UDP)
+		return ip_setsockopt(sk, level, optname, optval, optlen);
+	return do_udp_setsockopt(sk, level, optname, optval, optlen);
+}
+
+#ifdef CONFIG_COMPAT
+static int compat_udp_setsockopt(struct sock *sk, int level, int optname,
+		char __user *optval, int optlen)
+{
+	if (level != SOL_UDP)
+		return compat_ip_setsockopt(sk, level,
+				optname, optval, optlen);
+	return do_udp_setsockopt(sk, level, optname, optval, optlen);
+}
+#endif
+
+static int do_udp_getsockopt(struct sock *sk, int level, int optname,
 			  char __user *optval, int __user *optlen)
 {
 	struct udp_sock *up = udp_sk(sk);
 	int val, len;
-
-	if (level != SOL_UDP)
-		return ip_getsockopt(sk, level, optname, optval, optlen);
 
 	if(get_user(len,optlen))
 		return -EFAULT;
@@ -1293,6 +1306,24 @@ static int udp_getsockopt(struct sock *sk, int level, int optname,
   	return 0;
 }
 
+static int udp_getsockopt(struct sock *sk, int level, int optname,
+			  char __user *optval, int __user *optlen)
+{
+	if (level != SOL_UDP)
+		return ip_getsockopt(sk, level, optname, optval, optlen);
+	return do_udp_getsockopt(sk, level, optname, optval, optlen);
+}
+
+#ifdef CONFIG_COMPAT
+static int compat_udp_getsockopt(struct sock *sk, int level, int optname,
+			  char __user *optval, int __user *optlen)
+{
+	if (level != SOL_UDP)
+		return compat_ip_getsockopt(sk, level,
+				optname, optval, optlen);
+	return do_udp_getsockopt(sk, level, optname, optval, optlen);
+}
+#endif
 /**
  * 	udp_poll - wait for a UDP event.
  *	@file - file struct
@@ -1350,6 +1381,10 @@ struct proto udp_prot = {
 	.destroy =	udp_destroy_sock,
 	.setsockopt =	udp_setsockopt,
 	.getsockopt =	udp_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt =	compat_udp_setsockopt,
+	.compat_getsockopt =	compat_udp_getsockopt,
+#endif
 	.sendmsg =	udp_sendmsg,
 	.recvmsg =	udp_recvmsg,
 	.sendpage =	udp_sendpage,

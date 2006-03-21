@@ -660,12 +660,9 @@ static int raw_geticmpfilter(struct sock *sk, char __user *optval, int __user *o
 out:	return ret;
 }
 
-static int raw_setsockopt(struct sock *sk, int level, int optname, 
+static int do_raw_setsockopt(struct sock *sk, int level, int optname,
 			  char __user *optval, int optlen)
 {
-	if (level != SOL_RAW)
-		return ip_setsockopt(sk, level, optname, optval, optlen);
-
 	if (optname == ICMP_FILTER) {
 		if (inet_sk(sk)->num != IPPROTO_ICMP)
 			return -EOPNOTSUPP;
@@ -675,12 +672,28 @@ static int raw_setsockopt(struct sock *sk, int level, int optname,
 	return -ENOPROTOOPT;
 }
 
-static int raw_getsockopt(struct sock *sk, int level, int optname, 
-			  char __user *optval, int __user *optlen)
+static int raw_setsockopt(struct sock *sk, int level, int optname,
+			  char __user *optval, int optlen)
 {
 	if (level != SOL_RAW)
-		return ip_getsockopt(sk, level, optname, optval, optlen);
+		return ip_setsockopt(sk, level, optname, optval, optlen);
+	return do_raw_setsockopt(sk, level, optname, optval, optlen);
+}
 
+#ifdef CONFIG_COMPAT
+static int compat_raw_setsockopt(struct sock *sk, int level, int optname,
+			  char __user *optval, int optlen)
+{
+	if (level != SOL_RAW)
+		return compat_ip_setsockopt(sk, level,
+				optname, optval, optlen);
+	return do_raw_setsockopt(sk, level, optname, optval, optlen);
+}
+#endif
+
+static int do_raw_getsockopt(struct sock *sk, int level, int optname,
+			  char __user *optval, int __user *optlen)
+{
 	if (optname == ICMP_FILTER) {
 		if (inet_sk(sk)->num != IPPROTO_ICMP)
 			return -EOPNOTSUPP;
@@ -689,6 +702,25 @@ static int raw_getsockopt(struct sock *sk, int level, int optname,
 	}
 	return -ENOPROTOOPT;
 }
+
+static int raw_getsockopt(struct sock *sk, int level, int optname,
+			  char __user *optval, int __user *optlen)
+{
+	if (level != SOL_RAW)
+		return ip_getsockopt(sk, level, optname, optval, optlen);
+	return do_raw_getsockopt(sk, level, optname, optval, optlen);
+}
+
+#ifdef CONFIG_COMPAT
+static int compat_raw_getsockopt(struct sock *sk, int level, int optname,
+			  char __user *optval, int __user *optlen)
+{
+	if (level != SOL_RAW)
+		return compat_ip_getsockopt(sk, level,
+				optname, optval, optlen);
+	return do_raw_getsockopt(sk, level, optname, optval, optlen);
+}
+#endif
 
 static int raw_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
@@ -728,6 +760,10 @@ struct proto raw_prot = {
 	.init =		raw_init,
 	.setsockopt =	raw_setsockopt,
 	.getsockopt =	raw_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt =	compat_raw_setsockopt,
+	.compat_getsockopt =	compat_raw_getsockopt,
+#endif
 	.sendmsg =	raw_sendmsg,
 	.recvmsg =	raw_recvmsg,
 	.bind =		raw_bind,

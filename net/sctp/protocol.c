@@ -845,6 +845,10 @@ static const struct proto_ops inet_seqpacket_ops = {
 	.shutdown    = inet_shutdown,     /* Looks harmless.  */
 	.setsockopt  = sock_common_setsockopt,   /* IP_SOL IP_OPTION is a problem. */
 	.getsockopt  = sock_common_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt  = compat_sock_common_setsockopt,
+	.compat_getsockopt  = compat_sock_common_getsockopt,
+#endif
 	.sendmsg     = inet_sendmsg,
 	.recvmsg     = sock_common_recvmsg,
 	.mmap        = sock_no_mmap,
@@ -883,6 +887,10 @@ static struct sctp_af sctp_ipv4_specific = {
 	.sctp_xmit      = sctp_v4_xmit,
 	.setsockopt     = ip_setsockopt,
 	.getsockopt     = ip_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt     = compat_ip_setsockopt,
+	.compat_getsockopt     = compat_ip_getsockopt,
+#endif
 	.get_dst	= sctp_v4_get_dst,
 	.get_saddr	= sctp_v4_get_saddr,
 	.copy_addrlist  = sctp_v4_copy_addrlist,

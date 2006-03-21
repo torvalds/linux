@@ -1687,17 +1687,13 @@ int tcp_disconnect(struct sock *sk, int flags)
 /*
  *	Socket option code for TCP.
  */
-int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
-		   int optlen)
+static int do_tcp_setsockopt(struct sock *sk, int level,
+		int optname, char __user *optval, int optlen)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	int val;
 	int err = 0;
-
-	if (level != SOL_TCP)
-		return icsk->icsk_af_ops->setsockopt(sk, level, optname,
-						     optval, optlen);
 
 	/* This is a string value all the others are int's */
 	if (optname == TCP_CONGESTION) {
@@ -1871,6 +1867,35 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 	return err;
 }
 
+int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
+		   int optlen)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (level != SOL_TCP)
+		return icsk->icsk_af_ops->setsockopt(sk, level, optname,
+						     optval, optlen);
+	return do_tcp_setsockopt(sk, level, optname, optval, optlen);
+}
+
+#ifdef CONFIG_COMPAT
+int compat_tcp_setsockopt(struct sock *sk, int level,
+		int optname, char __user *optval, int optlen)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (level != SOL_TCP) {
+		if (icsk->icsk_af_ops->compat_setsockopt)
+			return icsk->icsk_af_ops->compat_setsockopt(sk,
+				level, optname, optval, optlen);
+		else
+			return icsk->icsk_af_ops->setsockopt(sk,
+				level, optname, optval, optlen);
+	}
+	return do_tcp_setsockopt(sk, level, optname, optval, optlen);
+}
+#endif
+
 /* Return information about state of tcp endpoint in API format. */
 void tcp_get_info(struct sock *sk, struct tcp_info *info)
 {
@@ -1931,16 +1956,12 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 
 EXPORT_SYMBOL_GPL(tcp_get_info);
 
-int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
-		   int __user *optlen)
+static int do_tcp_getsockopt(struct sock *sk, int level,
+		int optname, char __user *optval, int __user *optlen)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int val, len;
-
-	if (level != SOL_TCP)
-		return icsk->icsk_af_ops->getsockopt(sk, level, optname,
-						     optval, optlen);
 
 	if (get_user(len, optlen))
 		return -EFAULT;
@@ -2025,6 +2046,34 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 	return 0;
 }
 
+int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
+		   int __user *optlen)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (level != SOL_TCP)
+		return icsk->icsk_af_ops->getsockopt(sk, level, optname,
+						     optval, optlen);
+	return do_tcp_getsockopt(sk, level, optname, optval, optlen);
+}
+
+#ifdef CONFIG_COMPAT
+int compat_tcp_getsockopt(struct sock *sk, int level,
+		int optname, char __user *optval, int __user *optlen)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (level != SOL_TCP) {
+		if (icsk->icsk_af_ops->compat_getsockopt)
+			return icsk->icsk_af_ops->compat_getsockopt(sk,
+				level, optname, optval, optlen);
+		else
+			return icsk->icsk_af_ops->getsockopt(sk,
+				level, optname, optval, optlen);
+	}
+	return do_tcp_getsockopt(sk, level, optname, optval, optlen);
+}
+#endif
 
 extern void __skb_cb_too_small_for_tcp(int, int);
 extern struct tcp_congestion_ops tcp_reno;
@@ -2142,3 +2191,7 @@ EXPORT_SYMBOL(tcp_sendpage);
 EXPORT_SYMBOL(tcp_setsockopt);
 EXPORT_SYMBOL(tcp_shutdown);
 EXPORT_SYMBOL(tcp_statistics);
+#ifdef CONFIG_COMPAT
+EXPORT_SYMBOL(compat_tcp_setsockopt);
+EXPORT_SYMBOL(compat_tcp_getsockopt);
+#endif

@@ -520,6 +520,16 @@ extern int			ipv6_getsockopt(struct sock *sk, int level,
 						int optname,
 						char __user *optval, 
 						int __user *optlen);
+extern int			compat_ipv6_setsockopt(struct sock *sk,
+						int level,
+						int optname,
+						char __user *optval,
+						int optlen);
+extern int			compat_ipv6_getsockopt(struct sock *sk,
+						int level,
+						int optname,
+						char __user *optval,
+						int __user *optlen);
 
 extern void			ipv6_packet_init(void);
 

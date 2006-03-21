@@ -50,6 +50,12 @@ struct inet_connection_sock_af_ops {
 				  char __user *optval, int optlen);
 	int	    (*getsockopt)(struct sock *sk, int level, int optname, 
 				  char __user *optval, int __user *optlen);
+	int	    (*compat_setsockopt)(struct sock *sk,
+				int level, int optname,
+				char __user *optval, int optlen);
+	int	    (*compat_getsockopt)(struct sock *sk,
+				int level, int optname,
+				char __user *optval, int __user *optlen);
 	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);
 	int sockaddr_len;
 };

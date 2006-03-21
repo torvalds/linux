@@ -802,6 +802,10 @@ const struct proto_ops inet_stream_ops = {
 	.shutdown =	inet_shutdown,
 	.setsockopt =	sock_common_setsockopt,
 	.getsockopt =	sock_common_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_sock_common_setsockopt,
+	.compat_getsockopt	= compat_sock_common_getsockopt,
+#endif
 	.sendmsg =	inet_sendmsg,
 	.recvmsg =	sock_common_recvmsg,
 	.mmap =		sock_no_mmap,
@@ -823,6 +827,10 @@ const struct proto_ops inet_dgram_ops = {
 	.shutdown =	inet_shutdown,
 	.setsockopt =	sock_common_setsockopt,
 	.getsockopt =	sock_common_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_sock_common_setsockopt,
+	.compat_getsockopt	= compat_sock_common_getsockopt,
+#endif
 	.sendmsg =	inet_sendmsg,
 	.recvmsg =	sock_common_recvmsg,
 	.mmap =		sock_no_mmap,
@@ -848,6 +856,10 @@ static const struct proto_ops inet_sockraw_ops = {
 	.shutdown =	inet_shutdown,
 	.setsockopt =	sock_common_setsockopt,
 	.getsockopt =	sock_common_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_sock_common_setsockopt,
+	.compat_getsockopt	= compat_sock_common_getsockopt,
+#endif
 	.sendmsg =	inet_sendmsg,
 	.recvmsg =	sock_common_recvmsg,
 	.mmap =		sock_no_mmap,

@@ -455,17 +455,12 @@ out_free_val:
 	goto out;
 }
 
-int dccp_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int optlen)
+static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
+		char __user *optval, int optlen)
 {
 	struct dccp_sock *dp;
 	int err;
 	int val;
-
-	if (level != SOL_DCCP)
-		return inet_csk(sk)->icsk_af_ops->setsockopt(sk, level,
-							     optname, optval,
-							     optlen);
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -512,7 +507,33 @@ int dccp_setsockopt(struct sock *sk, int level, int optname,
 	return err;
 }
 
+int dccp_setsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int optlen)
+{
+	if (level != SOL_DCCP)
+		return inet_csk(sk)->icsk_af_ops->setsockopt(sk, level,
+							     optname, optval,
+							     optlen);
+	return do_dccp_setsockopt(sk, level, optname, optval, optlen);
+}
 EXPORT_SYMBOL_GPL(dccp_setsockopt);
+
+#ifdef CONFIG_COMPAT
+int compat_dccp_setsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int optlen)
+{
+	if (level != SOL_DCCP) {
+		if (inet_csk(sk)->icsk_af_ops->compat_setsockopt)
+			return inet_csk(sk)->icsk_af_ops->compat_setsockopt(sk,
+				level, optname, optval, optlen);
+		else
+			return inet_csk(sk)->icsk_af_ops->setsockopt(sk,
+				level, optname, optval, optlen);
+	}
+	return do_dccp_setsockopt(sk, level, optname, optval, optlen);
+}
+EXPORT_SYMBOL_GPL(compat_dccp_setsockopt);
+#endif
 
 static int dccp_getsockopt_service(struct sock *sk, int len,
 				   __be32 __user *optval,
@@ -545,16 +566,12 @@ out:
 	return err;
 }
 
-int dccp_getsockopt(struct sock *sk, int level, int optname,
+static int do_dccp_getsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int __user *optlen)
 {
 	struct dccp_sock *dp;
 	int val, len;
 
-	if (level != SOL_DCCP)
-		return inet_csk(sk)->icsk_af_ops->getsockopt(sk, level,
-							     optname, optval,
-							     optlen);
 	if (get_user(len, optlen))
 		return -EFAULT;
 
@@ -587,7 +604,33 @@ int dccp_getsockopt(struct sock *sk, int level, int optname,
 	return 0;
 }
 
+int dccp_getsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int __user *optlen)
+{
+	if (level != SOL_DCCP)
+		return inet_csk(sk)->icsk_af_ops->getsockopt(sk, level,
+							     optname, optval,
+							     optlen);
+	return do_dccp_getsockopt(sk, level, optname, optval, optlen);
+}
 EXPORT_SYMBOL_GPL(dccp_getsockopt);
+
+#ifdef CONFIG_COMPAT
+int compat_dccp_getsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int __user *optlen)
+{
+	if (level != SOL_DCCP) {
+		if (inet_csk(sk)->icsk_af_ops->compat_setsockopt)
+			return inet_csk(sk)->icsk_af_ops->compat_getsockopt(sk,
+				level, optname, optval, optlen);
+		else
+			return inet_csk(sk)->icsk_af_ops->getsockopt(sk,
+				level, optname, optval, optlen);
+	}
+	return do_dccp_getsockopt(sk, level, optname, optval, optlen);
+}
+EXPORT_SYMBOL_GPL(compat_dccp_getsockopt);
+#endif
 
 int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		 size_t len)

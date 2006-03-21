@@ -994,6 +994,10 @@ static struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
 	.net_header_len	= sizeof(struct iphdr),
 	.setsockopt	= ip_setsockopt,
 	.getsockopt	= ip_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_ip_setsockopt,
+	.compat_getsockopt	= compat_ip_getsockopt,
+#endif
 	.addr2sockaddr	= inet_csk_addr2sockaddr,
 	.sockaddr_len	= sizeof(struct sockaddr_in),
 };
@@ -1040,6 +1044,10 @@ static struct proto dccp_v4_prot = {
 	.init			= dccp_v4_init_sock,
 	.setsockopt		= dccp_setsockopt,
 	.getsockopt		= dccp_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_dccp_setsockopt,
+	.compat_getsockopt	= compat_dccp_getsockopt,
+#endif
 	.sendmsg		= dccp_sendmsg,
 	.recvmsg		= dccp_recvmsg,
 	.backlog_rcv		= dccp_v4_do_rcv,
@@ -1079,6 +1087,10 @@ static const struct proto_ops inet_dccp_ops = {
 	.shutdown	= inet_shutdown,
 	.setsockopt	= sock_common_setsockopt,
 	.getsockopt	= sock_common_getsockopt,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_sock_common_setsockopt,
+	.compat_getsockopt	= compat_sock_common_getsockopt,
+#endif
 	.sendmsg	= inet_sendmsg,
 	.recvmsg	= sock_common_recvmsg,
 	.mmap		= sock_no_mmap,

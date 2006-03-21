@@ -399,13 +399,11 @@ out:
  *	an IP socket.
  */
 
-int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, int optlen)
+static int do_ip_setsockopt(struct sock *sk, int level,
+		int optname, char __user *optval, int optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	int val=0,err;
-
-	if (level != SOL_IP)
-		return -ENOPROTOOPT;
 
 	if (((1<<optname) & ((1<<IP_PKTINFO) | (1<<IP_RECVTTL) | 
 			    (1<<IP_RECVOPTS) | (1<<IP_RECVTOS) | 
@@ -875,12 +873,7 @@ mc_msf_out:
 			break;
 
 		default:
-#ifdef CONFIG_NETFILTER
-			err = nf_setsockopt(sk, PF_INET, optname, optval, 
-					    optlen);
-#else
 			err = -ENOPROTOOPT;
-#endif
 			break;
 	}
 	release_sock(sk);
@@ -891,12 +884,66 @@ e_inval:
 	return -EINVAL;
 }
 
+int ip_setsockopt(struct sock *sk, int level,
+		int optname, char __user *optval, int optlen)
+{
+	int err;
+
+	if (level != SOL_IP)
+		return -ENOPROTOOPT;
+
+	err = do_ip_setsockopt(sk, level, optname, optval, optlen);
+#ifdef CONFIG_NETFILTER
+	/* we need to exclude all possible ENOPROTOOPTs except default case */
+	if (err == -ENOPROTOOPT && optname != IP_HDRINCL &&
+		optname != IP_IPSEC_POLICY && optname != IP_XFRM_POLICY
+#ifdef CONFIG_IP_MROUTE
+		&& (optname < MRT_BASE || optname > (MRT_BASE + 10))
+#endif
+	   ) {
+		lock_sock(sk);
+		err = nf_setsockopt(sk, PF_INET, optname, optval, optlen);
+		release_sock(sk);
+	}
+#endif
+	return err;
+}
+
+#ifdef CONFIG_COMPAT
+int compat_ip_setsockopt(struct sock *sk, int level,
+		int optname, char __user *optval, int optlen)
+{
+	int err;
+
+	if (level != SOL_IP)
+		return -ENOPROTOOPT;
+
+	err = do_ip_setsockopt(sk, level, optname, optval, optlen);
+#ifdef CONFIG_NETFILTER
+	/* we need to exclude all possible ENOPROTOOPTs except default case */
+	if (err == -ENOPROTOOPT && optname != IP_HDRINCL &&
+		optname != IP_IPSEC_POLICY && optname != IP_XFRM_POLICY
+#ifdef CONFIG_IP_MROUTE
+		&& (optname < MRT_BASE || optname > (MRT_BASE + 10))
+#endif
+	   ) {
+		lock_sock(sk);
+		err = compat_nf_setsockopt(sk, PF_INET,
+				optname, optval, optlen);
+		release_sock(sk);
+	}
+#endif
+	return err;
+}
+#endif
+
 /*
  *	Get the options. Note for future reference. The GET of IP options gets the
  *	_received_ ones. The set sets the _sent_ ones.
  */
 
-int ip_getsockopt(struct sock *sk, int level, int optname, char __user *optval, int __user *optlen)
+static int do_ip_getsockopt(struct sock *sk, int level, int optname,
+		char __user *optval, int __user *optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	int val;
@@ -1080,17 +1127,8 @@ int ip_getsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 			val = inet->freebind; 
 			break; 
 		default:
-#ifdef CONFIG_NETFILTER
-			val = nf_getsockopt(sk, PF_INET, optname, optval, 
-					    &len);
-			release_sock(sk);
-			if (val >= 0)
-				val = put_user(len, optlen);
-			return val;
-#else
 			release_sock(sk);
 			return -ENOPROTOOPT;
-#endif
 	}
 	release_sock(sk);
 	
@@ -1111,7 +1149,73 @@ int ip_getsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 	return 0;
 }
 
+int ip_getsockopt(struct sock *sk, int level,
+		int optname, char __user *optval, int __user *optlen)
+{
+	int err;
+
+	err = do_ip_getsockopt(sk, level, optname, optval, optlen);
+#ifdef CONFIG_NETFILTER
+	/* we need to exclude all possible ENOPROTOOPTs except default case */
+	if (err == -ENOPROTOOPT && optname != IP_PKTOPTIONS
+#ifdef CONFIG_IP_MROUTE
+		&& (optname < MRT_BASE || optname > MRT_BASE+10)
+#endif
+	   ) {
+	   	int len;
+
+		if(get_user(len,optlen))
+			return -EFAULT;
+
+		lock_sock(sk);
+		err = nf_getsockopt(sk, PF_INET, optname, optval,
+				&len);
+		release_sock(sk);
+		if (err >= 0)
+			err = put_user(len, optlen);
+		return err;
+	}
+#endif
+	return err;
+}
+
+#ifdef CONFIG_COMPAT
+int compat_ip_getsockopt(struct sock *sk, int level,
+		int optname, char __user *optval, int __user *optlen)
+{
+	int err;
+
+	err = do_ip_getsockopt(sk, level, optname, optval, optlen);
+#ifdef CONFIG_NETFILTER
+	/* we need to exclude all possible ENOPROTOOPTs except default case */
+	if (err == -ENOPROTOOPT && optname != IP_PKTOPTIONS
+#ifdef CONFIG_IP_MROUTE
+		&& (optname < MRT_BASE || optname > MRT_BASE+10)
+#endif
+	   ) {
+	   	int len;
+
+		if(get_user(len,optlen))
+			return -EFAULT;
+
+		lock_sock(sk);
+		err = compat_nf_getsockopt(sk, PF_INET,
+				optname, optval, &len);
+		release_sock(sk);
+		if (err >= 0)
+			err = put_user(len, optlen);
+		return err;
+	}
+#endif
+	return err;
+}
+#endif
+
 EXPORT_SYMBOL(ip_cmsg_recv);
 
 EXPORT_SYMBOL(ip_getsockopt);
 EXPORT_SYMBOL(ip_setsockopt);
+#ifdef CONFIG_COMPAT
+EXPORT_SYMBOL(compat_ip_getsockopt);
+EXPORT_SYMBOL(compat_ip_setsockopt);
+#endif

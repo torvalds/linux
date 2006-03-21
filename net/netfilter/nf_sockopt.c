@@ -131,3 +131,72 @@ int nf_getsockopt(struct sock *sk, int pf, int val, char __user *opt, int *len)
 }
 EXPORT_SYMBOL(nf_getsockopt);
 
+#ifdef CONFIG_COMPAT
+static int compat_nf_sockopt(struct sock *sk, int pf, int val,
+		      char __user *opt, int *len, int get)
+{
+	struct list_head *i;
+	struct nf_sockopt_ops *ops;
+	int ret;
+
+	if (mutex_lock_interruptible(&nf_sockopt_mutex) != 0)
+		return -EINTR;
+
+	list_for_each(i, &nf_sockopts) {
+		ops = (struct nf_sockopt_ops *)i;
+		if (ops->pf == pf) {
+			if (get) {
+				if (val >= ops->get_optmin
+				    && val < ops->get_optmax) {
+					ops->use++;
+					mutex_unlock(&nf_sockopt_mutex);
+					if (ops->compat_get)
+						ret = ops->compat_get(sk,
+							val, opt, len);
+					else
+						ret = ops->get(sk,
+							val, opt, len);
+					goto out;
+				}
+			} else {
+				if (val >= ops->set_optmin
+				    && val < ops->set_optmax) {
+					ops->use++;
+					mutex_unlock(&nf_sockopt_mutex);
+					if (ops->compat_set)
+						ret = ops->compat_set(sk,
+							val, opt, *len);
+					else
+						ret = ops->set(sk,
+							val, opt, *len);
+					goto out;
+				}
+			}
+		}
+	}
+	mutex_unlock(&nf_sockopt_mutex);
+	return -ENOPROTOOPT;
+
+ out:
+	mutex_lock(&nf_sockopt_mutex);
+	ops->use--;
+	if (ops->cleanup_task)
+		wake_up_process(ops->cleanup_task);
+	mutex_unlock(&nf_sockopt_mutex);
+	return ret;
+}
+
+int compat_nf_setsockopt(struct sock *sk, int pf,
+		int val, char __user *opt, int len)
+{
+	return compat_nf_sockopt(sk, pf, val, opt, &len, 0);
+}
+EXPORT_SYMBOL(compat_nf_setsockopt);
+
+int compat_nf_getsockopt(struct sock *sk, int pf,
+		int val, char __user *opt, int *len)
+{
+	return compat_nf_sockopt(sk, pf, val, opt, len, 1);
+}
+EXPORT_SYMBOL(compat_nf_getsockopt);
+#endif

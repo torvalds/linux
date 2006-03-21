@@ -470,6 +470,10 @@ const struct proto_ops inet6_stream_ops = {
 	.shutdown =	inet_shutdown,			/* ok		*/
 	.setsockopt =	sock_common_setsockopt,		/* ok		*/
 	.getsockopt =	sock_common_getsockopt,		/* ok		*/
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_sock_common_setsockopt,
+	.compat_getsockopt	= compat_sock_common_getsockopt,
+#endif
 	.sendmsg =	inet_sendmsg,			/* ok		*/
 	.recvmsg =	sock_common_recvmsg,		/* ok		*/
 	.mmap =		sock_no_mmap,
@@ -491,6 +495,10 @@ const struct proto_ops inet6_dgram_ops = {
 	.shutdown =	inet_shutdown,			/* ok		*/
 	.setsockopt =	sock_common_setsockopt,		/* ok		*/
 	.getsockopt =	sock_common_getsockopt,		/* ok		*/
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_sock_common_setsockopt,
+	.compat_getsockopt	= compat_sock_common_getsockopt,
+#endif
 	.sendmsg =	inet_sendmsg,			/* ok		*/
 	.recvmsg =	sock_common_recvmsg,		/* ok		*/
 	.mmap =		sock_no_mmap,
@@ -519,6 +527,10 @@ static const struct proto_ops inet6_sockraw_ops = {
 	.shutdown =	inet_shutdown,			/* ok		*/
 	.setsockopt =	sock_common_setsockopt,		/* ok		*/
 	.getsockopt =	sock_common_getsockopt,		/* ok		*/
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_sock_common_setsockopt,
+	.compat_getsockopt	= compat_sock_common_getsockopt,
+#endif
 	.sendmsg =	inet_sendmsg,			/* ok		*/
 	.recvmsg =	sock_common_recvmsg,		/* ok		*/
 	.mmap =		sock_no_mmap,

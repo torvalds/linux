@@ -514,6 +514,16 @@ struct sctp_af {
 					 int optname,
 					 char __user *optval,
 					 int __user *optlen);
+	int		(*compat_setsockopt)	(struct sock *sk,
+					 int level,
+					 int optname,
+					 char __user *optval,
+					 int optlen);
+	int		(*compat_getsockopt)	(struct sock *sk,
+					 int level,
+					 int optname,
+					 char __user *optval,
+					 int __user *optlen);
 	struct dst_entry *(*get_dst)	(struct sctp_association *asoc,
 					 union sctp_addr *daddr,
 					 union sctp_addr *saddr);

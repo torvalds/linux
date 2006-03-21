@@ -192,6 +192,14 @@ extern int	   dccp_getsockopt(struct sock *sk, int level, int optname,
 				   char __user *optval, int __user *optlen);
 extern int	   dccp_setsockopt(struct sock *sk, int level, int optname,
 				   char __user *optval, int optlen);
+#ifdef CONFIG_COMPAT
+extern int	   compat_dccp_getsockopt(struct sock *sk,
+				int level, int optname,
+				char __user *optval, int __user *optlen);
+extern int	   compat_dccp_setsockopt(struct sock *sk,
+				int level, int optname,
+				char __user *optval, int optlen);
+#endif
 extern int	   dccp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 extern int	   dccp_sendmsg(struct kiocb *iocb, struct sock *sk,
 				struct msghdr *msg, size_t size);
