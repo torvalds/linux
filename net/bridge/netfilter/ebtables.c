@@ -1477,8 +1477,14 @@ static int do_ebt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 }
 
 static struct nf_sockopt_ops ebt_sockopts =
-{ { NULL, NULL }, PF_INET, EBT_BASE_CTL, EBT_SO_SET_MAX + 1, do_ebt_set_ctl,
-    EBT_BASE_CTL, EBT_SO_GET_MAX + 1, do_ebt_get_ctl, 0, NULL
+{
+	.pf		= PF_INET,
+	.set_optmin	= EBT_BASE_CTL,
+	.set_optmax	= EBT_SO_SET_MAX + 1,
+	.set		= do_ebt_set_ctl,
+	.get_optmin	= EBT_BASE_CTL,
+	.get_optmax	= EBT_SO_GET_MAX + 1,
+	.get		= do_ebt_get_ctl,
 };
 
 static int __init init(void)
