@@ -580,7 +580,8 @@ static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
 	kfree_skb(skb);
 }
 
-static void dccp_v6_ctl_send_ack(struct sk_buff *rxskb)
+static void dccp_v6_reqsk_send_ack(struct sk_buff *rxskb,
+				   struct request_sock *req)
 {
 	struct flowi fl;
 	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
@@ -631,12 +632,6 @@ static void dccp_v6_ctl_send_ack(struct sk_buff *rxskb)
 	}
 
 	kfree_skb(skb);
-}
-
-static void dccp_v6_reqsk_send_ack(struct sk_buff *skb,
-				   struct request_sock *req)
-{
-	dccp_v6_ctl_send_ack(skb);
 }
 
 static struct sock *dccp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)

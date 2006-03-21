@@ -197,7 +197,8 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 	} /* else let the usual retransmit timer handle it */
 }
 
-static void dccp_v4_ctl_send_ack(struct sk_buff *rxskb)
+static void dccp_v4_reqsk_send_ack(struct sk_buff *rxskb,
+				   struct request_sock *req)
 {
 	int err;
 	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
@@ -243,12 +244,6 @@ static void dccp_v4_ctl_send_ack(struct sk_buff *rxskb)
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
 	}
-}
-
-static void dccp_v4_reqsk_send_ack(struct sk_buff *skb,
-				   struct request_sock *req)
-{
-	dccp_v4_ctl_send_ack(skb);
 }
 
 static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
