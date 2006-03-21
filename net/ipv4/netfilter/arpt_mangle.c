@@ -80,12 +80,12 @@ checkentry(const char *tablename, const void *e, void *targinfo,
 	return 1;
 }
 
-static struct arpt_target arpt_mangle_reg
-= {
-        .name		= "mangle",
-        .target		= target,
-        .checkentry	= checkentry,
-        .me		= THIS_MODULE,
+static struct arpt_target arpt_mangle_reg = {
+	.name		= "mangle",
+	.target		= target,
+	.targetsize	= sizeof(struct arpt_mangle),
+	.checkentry	= checkentry,
+	.me		= THIS_MODULE,
 };
 
 static int __init init(void)
