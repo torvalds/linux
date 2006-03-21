@@ -78,6 +78,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 
 	memset(opt_recv, 0, sizeof(*opt_recv));
 
+	opt = len = 0;
 	while (opt_ptr != opt_end) {
 		opt   = *opt_ptr++;
 		len   = 0;
