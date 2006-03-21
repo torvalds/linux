@@ -341,13 +341,14 @@ static int tbf_change(struct Qdisc* sch, struct rtattr *opt)
 	if (max_size < 0)
 		goto done;
 
-	if (q->qdisc == &noop_qdisc) {
+	if (qopt->limit > 0) {
 		if ((child = tbf_create_dflt_qdisc(sch->dev, qopt->limit)) == NULL)
 			goto done;
 	}
 
 	sch_tree_lock(sch);
-	if (child) q->qdisc = child;
+	if (child)
+		qdisc_destroy(xchg(&q->qdisc, child));
 	q->limit = qopt->limit;
 	q->mtu = qopt->mtu;
 	q->max_size = max_size;
