@@ -129,7 +129,7 @@ void __init get_region(unsigned int nid, unsigned long *start_pfn,
 		*start_pfn = 0;
 }
 
-static inline void map_cpu_to_node(int cpu, int node)
+static void __cpuinit map_cpu_to_node(int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
 
@@ -155,7 +155,7 @@ static void unmap_cpu_from_node(unsigned long cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static struct device_node *find_cpu_node(unsigned int cpu)
+static struct device_node * __cpuinit find_cpu_node(unsigned int cpu)
 {
 	unsigned int hw_cpuid = get_hard_smp_processor_id(cpu);
 	struct device_node *cpu_node = NULL;
@@ -284,7 +284,7 @@ static unsigned long __devinit read_n_cells(int n, unsigned int **buf)
  * Figure out to which domain a cpu belongs and stick it there.
  * Return the id of the domain used.
  */
-static int numa_setup_cpu(unsigned long lcpu)
+static int __cpuinit numa_setup_cpu(unsigned long lcpu)
 {
 	int numa_domain = 0;
 	struct device_node *cpu = find_cpu_node(lcpu);
