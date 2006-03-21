@@ -401,10 +401,9 @@ int ip6_ins_rt(struct rt6_info *rt, struct nlmsghdr *nlh,
    with dst->error set to errno value.
  */
 
-static struct rt6_info *rt6_cow(struct rt6_info *ort, struct in6_addr *daddr,
-				struct in6_addr *saddr, struct netlink_skb_parms *req)
+static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort, struct in6_addr *daddr,
+				      struct in6_addr *saddr)
 {
-	int err;
 	struct rt6_info *rt;
 
 	/*
@@ -435,18 +434,29 @@ static struct rt6_info *rt6_cow(struct rt6_info *ort, struct in6_addr *daddr,
 
 		rt->rt6i_nexthop = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
 
-		dst_hold(&rt->u.dst);
+	}
 
-		err = ip6_ins_rt(rt, NULL, NULL, req);
-		if (err == 0)
-			return rt;
+	return rt;
+}
 
+static struct rt6_info *rt6_cow(struct rt6_info *ort, struct in6_addr *daddr,
+				struct in6_addr *saddr, struct netlink_skb_parms *req)
+{
+	struct rt6_info *rt = rt6_alloc_cow(ort, daddr, saddr);
+	int err;
+
+	if (!rt) {
+		dst_hold(&ip6_null_entry.u.dst);
+		return &ip6_null_entry;
+	}
+
+	dst_hold(&rt->u.dst);
+
+	err = ip6_ins_rt(rt, NULL, NULL, req);
+	if (err)
 		rt->u.dst.error = err;
 
-		return rt;
-	}
-	dst_hold(&ip6_null_entry.u.dst);
-	return &ip6_null_entry;
+	return rt;
 }
 
 #define BACKTRACK() \
