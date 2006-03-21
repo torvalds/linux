@@ -1235,11 +1235,12 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 	   1. It is connected route. Action: COW
 	   2. It is gatewayed route or NONEXTHOP route. Action: clone it.
 	 */
-	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {
+	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP))
 		nrt = rt6_alloc_cow(rt, daddr, saddr);
-		if (!nrt)
-			goto out;
+	else
+		nrt = rt6_alloc_clone(rt, daddr);
 
+	if (nrt) {
 		nrt->u.dst.metrics[RTAX_MTU-1] = pmtu;
 		if (allfrag)
 			nrt->u.dst.metrics[RTAX_FEATURES-1] |= RTAX_FEATURE_ALLFRAG;
@@ -1254,18 +1255,7 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 		nrt->rt6i_flags |= RTF_DYNAMIC|RTF_EXPIRES;
 
 		ip6_ins_rt(nrt, NULL, NULL, NULL);
-	} else {
-		nrt = rt6_alloc_clone(rt, daddr);
-		if (!nrt)
-			goto out;
-		dst_set_expires(&nrt->u.dst, ip6_rt_mtu_expires);
-		nrt->rt6i_flags |= RTF_DYNAMIC|RTF_EXPIRES;
-		nrt->u.dst.metrics[RTAX_MTU-1] = pmtu;
-		if (allfrag)
-			nrt->u.dst.metrics[RTAX_FEATURES-1] |= RTAX_FEATURE_ALLFRAG;
-		ip6_ins_rt(nrt, NULL, NULL, NULL);
 	}
-
 out:
 	dst_release(&rt->u.dst);
 }
