@@ -109,6 +109,7 @@ struct net_bridge
 	unsigned long			bridge_hello_time;
 	unsigned long			bridge_forward_delay;
 
+	u8				group_addr[ETH_ALEN];
 	u16				root_port;
 	unsigned char			stp_enabled;
 	unsigned char			topology_change;
@@ -122,7 +123,7 @@ struct net_bridge
 };
 
 extern struct notifier_block br_device_notifier;
-extern const unsigned char bridge_ula[6];
+extern const u8 br_group_address[ETH_ALEN];
 
 /* called under bridge lock */
 static inline int br_is_root_bridge(const struct net_bridge *br)

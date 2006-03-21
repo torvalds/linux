@@ -47,7 +47,7 @@ static void br_send_bpdu(struct net_bridge_port *p, unsigned char *data, int len
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_802_2);
 	skb->mac.raw = skb_put(skb, size);
-	memcpy(skb->mac.raw, bridge_ula, ETH_ALEN);
+	memcpy(skb->mac.raw, p->br->group_addr, ETH_ALEN);
 	memcpy(skb->mac.raw+ETH_ALEN, dev->dev_addr, ETH_ALEN);
 	skb->mac.raw[2*ETH_ALEN] = 0;
 	skb->mac.raw[2*ETH_ALEN+1] = length;
@@ -171,7 +171,7 @@ int br_stp_rcv(struct sk_buff *skb, struct net_device *dev,
 	    || !(br->dev->flags & IFF_UP))
 		goto out;
 
-	if (compare_ether_addr(dest, bridge_ula) != 0)
+	if (compare_ether_addr(dest, br->group_addr) != 0)
 		goto out;
 
 	buf = skb_pull(skb, 3);
