@@ -994,9 +994,9 @@ distclean: mrproper
 package-dir	:= $(srctree)/scripts/package
 
 %pkg: FORCE
-	$(Q)$(MAKE) -f $(package-dir)/Makefile $@
+	$(Q)$(MAKE) $(build)=$(package-dir) $@
 rpm: FORCE
-	$(Q)$(MAKE) -f $(package-dir)/Makefile $@
+	$(Q)$(MAKE) $(build)=$(package-dir) $@
 
 
 # Brief documentation of the typical targets used
@@ -1034,7 +1034,7 @@ help:
 	@echo  '  namespacecheck  - Name space analysis on compiled kernel'
 	@echo  ''
 	@echo  'Kernel packaging:'
-	@$(MAKE) -f $(package-dir)/Makefile help
+	@$(MAKE) $(build)=$(package-dir) help
 	@echo  ''
 	@echo  'Documentation targets:'
 	@$(MAKE) -f $(srctree)/Documentation/DocBook/Makefile dochelp
