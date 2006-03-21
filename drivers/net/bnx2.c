@@ -1687,8 +1687,8 @@ bnx2_reuse_rx_skb(struct bnx2 *bp, struct sk_buff *skb,
 	pci_unmap_addr_set(prod_rx_buf, mapping,
 			pci_unmap_addr(cons_rx_buf, mapping));
 
-	cons_bd = &bp->rx_desc_ring[cons];
-	prod_bd = &bp->rx_desc_ring[prod];
+	cons_bd = &bp->rx_desc_ring[RX_RING(cons)][RX_IDX(cons)];
+	prod_bd = &bp->rx_desc_ring[RX_RING(prod)][RX_IDX(prod)];
 	prod_bd->rx_bd_haddr_hi = cons_bd->rx_bd_haddr_hi;
 	prod_bd->rx_bd_haddr_lo = cons_bd->rx_bd_haddr_lo;
 }
