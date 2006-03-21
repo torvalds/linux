@@ -46,11 +46,11 @@ struct dn_fib_rule
 	unsigned char		r_action;
 	unsigned char		r_dst_len;
 	unsigned char		r_src_len;
-	dn_address		r_src;
-	dn_address		r_srcmask;
-	dn_address		r_dst;
-	dn_address		r_dstmask;
-	dn_address		r_srcmap;
+	__le16			r_src;
+	__le16			r_srcmask;
+	__le16			r_dst;
+	__le16			r_dstmask;
+	__le16			r_srcmap;
 	u8			r_flags;
 #ifdef CONFIG_DECNET_ROUTE_FWMARK
 	u32			r_fwmark;
@@ -208,8 +208,8 @@ int dn_fib_lookup(const struct flowi *flp, struct dn_fib_res *res)
 {
 	struct dn_fib_rule *r, *policy;
 	struct dn_fib_table *tb;
-	dn_address saddr = flp->fld_src;
-	dn_address daddr = flp->fld_dst;
+	__le16 saddr = flp->fld_src;
+	__le16 daddr = flp->fld_dst;
 	int err;
 
 	read_lock(&dn_fib_rules_lock);
@@ -259,7 +259,7 @@ int dn_fib_lookup(const struct flowi *flp, struct dn_fib_res *res)
 	return -ESRCH;
 }
 
-unsigned dnet_addr_type(__u16 addr)
+unsigned dnet_addr_type(__le16 addr)
 {
 	struct flowi fl = { .nl_u = { .dn_u = { .daddr = addr } } };
 	struct dn_fib_res res;
@@ -277,7 +277,7 @@ unsigned dnet_addr_type(__u16 addr)
 	return ret;
 }
 
-__u16 dn_fib_rules_policy(__u16 saddr, struct dn_fib_res *res, unsigned *flags)
+__le16 dn_fib_rules_policy(__le16 saddr, struct dn_fib_res *res, unsigned *flags)
 {
 	struct dn_fib_rule *r = res->r;
 
