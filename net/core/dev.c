@@ -1759,8 +1759,7 @@ static void net_rx_action(struct softirq_action *h)
 		if (dev->quota <= 0 || dev->poll(dev, &budget)) {
 			netpoll_poll_unlock(have);
 			local_irq_disable();
-			list_del(&dev->poll_list);
-			list_add_tail(&dev->poll_list, &queue->poll_list);
+			list_move_tail(&dev->poll_list, &queue->poll_list);
 			if (dev->quota < 0)
 				dev->quota += dev->weight;
 			else
