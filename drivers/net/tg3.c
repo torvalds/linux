@@ -6531,7 +6531,7 @@ static void tg3_timer(unsigned long __opaque)
 	add_timer(&tp->timer);
 }
 
-int tg3_request_irq(struct tg3 *tp)
+static int tg3_request_irq(struct tg3 *tp)
 {
 	irqreturn_t (*fn)(int, void *, struct pt_regs *);
 	unsigned long flags;
