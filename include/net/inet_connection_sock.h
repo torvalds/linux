@@ -321,4 +321,8 @@ extern void inet_csk_listen_stop(struct sock *sk);
 
 extern void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
 
+extern int inet_csk_ctl_sock_create(struct socket **sock,
+				    unsigned short family,
+				    unsigned short type,
+				    unsigned char protocol);
 #endif /* _INET_CONNECTION_SOCK_H */

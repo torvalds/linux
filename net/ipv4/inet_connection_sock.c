@@ -648,3 +648,22 @@ void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr)
 }
 
 EXPORT_SYMBOL_GPL(inet_csk_addr2sockaddr);
+
+int inet_csk_ctl_sock_create(struct socket **sock, unsigned short family,
+			     unsigned short type, unsigned char protocol)
+{
+	int rc = sock_create_kern(family, type, protocol, sock);
+
+	if (rc == 0) {
+		(*sock)->sk->sk_allocation = GFP_ATOMIC;
+		inet_sk((*sock)->sk)->uc_ttl = -1;
+		/*
+		 * Unhash it so that IP input processing does not even see it,
+		 * we do not wish this socket to see incoming packets.
+		 */
+		(*sock)->sk->sk_prot->unhash((*sock)->sk);
+	}
+	return rc;
+}
+
+EXPORT_SYMBOL_GPL(inet_csk_ctl_sock_create);

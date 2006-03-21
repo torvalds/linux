@@ -1099,29 +1099,6 @@ static struct inet_protosw dccp_v4_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
-static char dccp_v4_ctl_socket_err_msg[] __initdata =
-	KERN_ERR "DCCP: Failed to create the control socket.\n";
-
-static int __init dccp_v4_ctl_sock_init(void)
-{
-	int rc = sock_create_kern(PF_INET, SOCK_DCCP, IPPROTO_DCCP,
-				  &dccp_v4_ctl_socket);
-	if (rc < 0)
-		printk(dccp_v4_ctl_socket_err_msg);
-	else {
-		dccp_v4_ctl_socket->sk->sk_allocation = GFP_ATOMIC;
-		inet_sk(dccp_v4_ctl_socket->sk)->uc_ttl = -1;
-
-		/* Unhash it so that IP input processing does not even
-		 * see it, we do not wish this socket to see incoming
-		 * packets.
-		 */
-		dccp_v4_ctl_socket->sk->sk_prot->unhash(dccp_v4_ctl_socket->sk);
-	}
-
-	return rc;
-}
-
 static int __init dccp_v4_init(void)
 {
 	int err = proto_register(&dccp_v4_prot, 1);
@@ -1135,7 +1112,8 @@ static int __init dccp_v4_init(void)
 
 	inet_register_protosw(&dccp_v4_protosw);
 
-	err = dccp_v4_ctl_sock_init();
+	err = inet_csk_ctl_sock_create(&dccp_v4_ctl_socket, PF_INET,
+				       SOCK_DCCP, IPPROTO_DCCP);
 	if (err)
 		goto out_unregister_protosw;
 out:

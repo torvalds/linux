@@ -1828,21 +1828,10 @@ struct proto tcp_prot = {
 	.rsk_prot		= &tcp_request_sock_ops,
 };
 
-
-
 void __init tcp_v4_init(struct net_proto_family *ops)
 {
-	int err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_TCP, &tcp_socket);
-	if (err < 0)
+	if (inet_csk_ctl_sock_create(&tcp_socket, PF_INET, SOCK_RAW, IPPROTO_TCP) < 0)
 		panic("Failed to create the TCP control socket.\n");
-	tcp_socket->sk->sk_allocation   = GFP_ATOMIC;
-	inet_sk(tcp_socket->sk)->uc_ttl = -1;
-
-	/* Unhash it so that IP input processing does not even
-	 * see it, we do not wish this socket to see incoming
-	 * packets.
-	 */
-	tcp_socket->sk->sk_prot->unhash(tcp_socket->sk);
 }
 
 EXPORT_SYMBOL(ipv4_specific);

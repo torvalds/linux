@@ -1605,21 +1605,12 @@ static struct inet_protosw tcpv6_protosw = {
 
 void __init tcpv6_init(void)
 {
-	int err;
-
 	/* register inet6 protocol */
 	if (inet6_add_protocol(&tcpv6_protocol, IPPROTO_TCP) < 0)
 		printk(KERN_ERR "tcpv6_init: Could not register protocol\n");
 	inet6_register_protosw(&tcpv6_protosw);
 
-	err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_TCP, &tcp6_socket);
-	if (err < 0)
+	if (inet_csk_ctl_sock_create(&tcp6_socket, PF_INET6, SOCK_RAW,
+				     IPPROTO_TCP) < 0)
 		panic("Failed to create the TCPv6 control socket.\n");
-	tcp6_socket->sk->sk_allocation = GFP_ATOMIC;
-
-	/* Unhash it so that IP input processing does not even
-	 * see it, we do not wish this socket to see incoming
-	 * packets.
-	 */
-	tcp6_socket->sk->sk_prot->unhash(tcp6_socket->sk);
 }
