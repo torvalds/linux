@@ -1879,14 +1879,16 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 }
 
 #ifdef CONFIG_COMPAT
-int compat_tcp_setsockopt(struct sock *sk, int level,
-		int optname, char __user *optval, int optlen)
+int compat_tcp_setsockopt(struct sock *sk, int level, int optname,
+			  char __user *optval, int optlen)
 {
 	if (level != SOL_TCP)
 		return inet_csk_compat_setsockopt(sk, level, optname,
 						  optval, optlen);
 	return do_tcp_setsockopt(sk, level, optname, optval, optlen);
 }
+
+EXPORT_SYMBOL(compat_tcp_setsockopt);
 #endif
 
 /* Return information about state of tcp endpoint in API format. */
@@ -2051,14 +2053,16 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 }
 
 #ifdef CONFIG_COMPAT
-int compat_tcp_getsockopt(struct sock *sk, int level,
-		int optname, char __user *optval, int __user *optlen)
+int compat_tcp_getsockopt(struct sock *sk, int level, int optname,
+			  char __user *optval, int __user *optlen)
 {
 	if (level != SOL_TCP)
 		return inet_csk_compat_getsockopt(sk, level, optname,
 						  optval, optlen);
 	return do_tcp_getsockopt(sk, level, optname, optval, optlen);
 }
+
+EXPORT_SYMBOL(compat_tcp_getsockopt);
 #endif
 
 extern void __skb_cb_too_small_for_tcp(int, int);
@@ -2177,7 +2181,3 @@ EXPORT_SYMBOL(tcp_sendpage);
 EXPORT_SYMBOL(tcp_setsockopt);
 EXPORT_SYMBOL(tcp_shutdown);
 EXPORT_SYMBOL(tcp_statistics);
-#ifdef CONFIG_COMPAT
-EXPORT_SYMBOL(compat_tcp_setsockopt);
-EXPORT_SYMBOL(compat_tcp_getsockopt);
-#endif

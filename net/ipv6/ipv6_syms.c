@@ -18,10 +18,6 @@ EXPORT_SYMBOL(ip6_route_output);
 EXPORT_SYMBOL(addrconf_lock);
 EXPORT_SYMBOL(ipv6_setsockopt);
 EXPORT_SYMBOL(ipv6_getsockopt);
-#ifdef CONFIG_COMPAT
-EXPORT_SYMBOL(compat_ipv6_setsockopt);
-EXPORT_SYMBOL(compat_ipv6_getsockopt);
-#endif
 EXPORT_SYMBOL(inet6_register_protosw);
 EXPORT_SYMBOL(inet6_unregister_protosw);
 EXPORT_SYMBOL(inet6_add_protocol);

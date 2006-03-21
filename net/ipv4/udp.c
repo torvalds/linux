@@ -1263,11 +1263,10 @@ static int udp_setsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_COMPAT
 static int compat_udp_setsockopt(struct sock *sk, int level, int optname,
-		char __user *optval, int optlen)
+				 char __user *optval, int optlen)
 {
 	if (level != SOL_UDP)
-		return compat_ip_setsockopt(sk, level,
-				optname, optval, optlen);
+		return compat_ip_setsockopt(sk, level, optname, optval, optlen);
 	return do_udp_setsockopt(sk, level, optname, optval, optlen);
 }
 #endif
@@ -1316,11 +1315,10 @@ static int udp_getsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_COMPAT
 static int compat_udp_getsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int __user *optlen)
+				 char __user *optval, int __user *optlen)
 {
 	if (level != SOL_UDP)
-		return compat_ip_getsockopt(sk, level,
-				optname, optval, optlen);
+		return compat_ip_getsockopt(sk, level, optname, optval, optlen);
 	return do_udp_getsockopt(sk, level, optname, optval, optlen);
 }
 #endif
@@ -1372,27 +1370,27 @@ unsigned int udp_poll(struct file *file, struct socket *sock, poll_table *wait)
 }
 
 struct proto udp_prot = {
- 	.name =		"UDP",
-	.owner =	THIS_MODULE,
-	.close =	udp_close,
-	.connect =	ip4_datagram_connect,
-	.disconnect =	udp_disconnect,
-	.ioctl =	udp_ioctl,
-	.destroy =	udp_destroy_sock,
-	.setsockopt =	udp_setsockopt,
-	.getsockopt =	udp_getsockopt,
+ 	.name		   = "UDP",
+	.owner		   = THIS_MODULE,
+	.close		   = udp_close,
+	.connect	   = ip4_datagram_connect,
+	.disconnect	   = udp_disconnect,
+	.ioctl		   = udp_ioctl,
+	.destroy	   = udp_destroy_sock,
+	.setsockopt	   = udp_setsockopt,
+	.getsockopt	   = udp_getsockopt,
+	.sendmsg	   = udp_sendmsg,
+	.recvmsg	   = udp_recvmsg,
+	.sendpage	   = udp_sendpage,
+	.backlog_rcv	   = udp_queue_rcv_skb,
+	.hash		   = udp_v4_hash,
+	.unhash		   = udp_v4_unhash,
+	.get_port	   = udp_v4_get_port,
+	.obj_size	   = sizeof(struct udp_sock),
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt =	compat_udp_setsockopt,
-	.compat_getsockopt =	compat_udp_getsockopt,
+	.compat_setsockopt = compat_udp_setsockopt,
+	.compat_getsockopt = compat_udp_getsockopt,
 #endif
-	.sendmsg =	udp_sendmsg,
-	.recvmsg =	udp_recvmsg,
-	.sendpage =	udp_sendpage,
-	.backlog_rcv =	udp_queue_rcv_skb,
-	.hash =		udp_v4_hash,
-	.unhash =	udp_v4_unhash,
-	.get_port =	udp_v4_get_port,
-	.obj_size =	sizeof(struct udp_sock),
 };
 
 /* ------------------------------------------------------------------------ */

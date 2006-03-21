@@ -1217,21 +1217,21 @@ int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw)
 }
 
 struct inet_connection_sock_af_ops ipv4_specific = {
-	.queue_xmit	=	ip_queue_xmit,
-	.send_check	=	tcp_v4_send_check,
-	.rebuild_header	=	inet_sk_rebuild_header,
-	.conn_request	=	tcp_v4_conn_request,
-	.syn_recv_sock	=	tcp_v4_syn_recv_sock,
-	.remember_stamp	=	tcp_v4_remember_stamp,
-	.net_header_len	=	sizeof(struct iphdr),
-	.setsockopt	=	ip_setsockopt,
-	.getsockopt	=	ip_getsockopt,
+	.queue_xmit	   = ip_queue_xmit,
+	.send_check	   = tcp_v4_send_check,
+	.rebuild_header	   = inet_sk_rebuild_header,
+	.conn_request	   = tcp_v4_conn_request,
+	.syn_recv_sock	   = tcp_v4_syn_recv_sock,
+	.remember_stamp	   = tcp_v4_remember_stamp,
+	.net_header_len	   = sizeof(struct iphdr),
+	.setsockopt	   = ip_setsockopt,
+	.getsockopt	   = ip_getsockopt,
+	.addr2sockaddr	   = inet_csk_addr2sockaddr,
+	.sockaddr_len	   = sizeof(struct sockaddr_in),
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt =	compat_ip_setsockopt,
-	.compat_getsockopt =	compat_ip_getsockopt,
+	.compat_setsockopt = compat_ip_setsockopt,
+	.compat_getsockopt = compat_ip_getsockopt,
 #endif
-	.addr2sockaddr	=	inet_csk_addr2sockaddr,
-	.sockaddr_len	=	sizeof(struct sockaddr_in),
 };
 
 /* NOTE: A lot of things set to zero explicitly by call to
@@ -1812,10 +1812,6 @@ struct proto tcp_prot = {
 	.shutdown		= tcp_shutdown,
 	.setsockopt		= tcp_setsockopt,
 	.getsockopt		= tcp_getsockopt,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_tcp_setsockopt,
-	.compat_getsockopt	= compat_tcp_getsockopt,
-#endif
 	.sendmsg		= tcp_sendmsg,
 	.recvmsg		= tcp_recvmsg,
 	.backlog_rcv		= tcp_v4_do_rcv,
@@ -1834,6 +1830,10 @@ struct proto tcp_prot = {
 	.obj_size		= sizeof(struct tcp_sock),
 	.twsk_prot		= &tcp_timewait_sock_ops,
 	.rsk_prot		= &tcp_request_sock_ops,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_tcp_setsockopt,
+	.compat_getsockopt	= compat_tcp_getsockopt,
+#endif
 };
 
 void __init tcp_v4_init(struct net_proto_family *ops)

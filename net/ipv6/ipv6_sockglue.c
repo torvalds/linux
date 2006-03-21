@@ -645,17 +645,15 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_COMPAT
 int compat_ipv6_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int optlen)
+			   char __user *optval, int optlen)
 {
 	int err;
 
 	if (level == SOL_IP && sk->sk_type != SOCK_RAW) {
-		if (udp_prot.compat_setsockopt)
-			return udp_prot.compat_setsockopt(sk, level,
-					optname, optval, optlen);
-		else
-			return udp_prot.setsockopt(sk, level,
-					optname, optval, optlen);
+		if (udp_prot.compat_setsockopt != NULL)
+			return udp_prot.compat_setsockopt(sk, level, optname,
+							  optval, optlen);
+		return udp_prot.setsockopt(sk, level, optname, optval, optlen);
 	}
 
 	if (level != SOL_IPV6)
@@ -665,15 +663,17 @@ int compat_ipv6_setsockopt(struct sock *sk, int level, int optname,
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != IPV6_IPSEC_POLICY &&
-			optname != IPV6_XFRM_POLICY) {
+	    optname != IPV6_XFRM_POLICY) {
 		lock_sock(sk);
-		err = compat_nf_setsockopt(sk, PF_INET6, optname, optval,
-				optlen);
+		err = compat_nf_setsockopt(sk, PF_INET6, optname,
+					   optval, optlen);
 		release_sock(sk);
 	}
 #endif
 	return err;
 }
+
+EXPORT_SYMBOL(compat_ipv6_setsockopt);
 #endif
 
 static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_opt_hdr *hdr,
@@ -927,20 +927,18 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_COMPAT
 int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int __user *optlen)
+			   char __user *optval, int __user *optlen)
 {
 	int err;
 
 	if (level == SOL_IP && sk->sk_type != SOCK_RAW) {
-		if (udp_prot.compat_getsockopt)
-			return udp_prot.compat_getsockopt(sk, level,
-					optname, optval, optlen);
-		else
-			return udp_prot.getsockopt(sk, level,
-					optname, optval, optlen);
+		if (udp_prot.compat_getsockopt != NULL)
+			return udp_prot.compat_getsockopt(sk, level, optname,
+							  optval, optlen);
+		return udp_prot.getsockopt(sk, level, optname, optval, optlen);
 	}
 
-	if(level != SOL_IPV6)
+	if (level != SOL_IPV6)
 		return -ENOPROTOOPT;
 
 	err = do_ipv6_getsockopt(sk, level, optname, optval, optlen);
@@ -954,8 +952,8 @@ int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,
 			return -EFAULT;
 
 		lock_sock(sk);
-		err = compat_nf_getsockopt(sk, PF_INET6, optname, optval,
-				&len);
+		err = compat_nf_getsockopt(sk, PF_INET6,
+					   optname, optval, &len);
 		release_sock(sk);
 		if (err >= 0)
 			err = put_user(len, optlen);
@@ -963,6 +961,8 @@ int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,
 #endif
 	return err;
 }
+
+EXPORT_SYMBOL(compat_ipv6_getsockopt);
 #endif
 
 void __init ipv6_packet_init(void)

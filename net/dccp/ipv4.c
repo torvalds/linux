@@ -986,20 +986,20 @@ do_time_wait:
 }
 
 static struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
-	.queue_xmit	= ip_queue_xmit,
-	.send_check	= dccp_v4_send_check,
-	.rebuild_header	= inet_sk_rebuild_header,
-	.conn_request	= dccp_v4_conn_request,
-	.syn_recv_sock	= dccp_v4_request_recv_sock,
-	.net_header_len	= sizeof(struct iphdr),
-	.setsockopt	= ip_setsockopt,
-	.getsockopt	= ip_getsockopt,
+	.queue_xmit	   = ip_queue_xmit,
+	.send_check	   = dccp_v4_send_check,
+	.rebuild_header	   = inet_sk_rebuild_header,
+	.conn_request	   = dccp_v4_conn_request,
+	.syn_recv_sock	   = dccp_v4_request_recv_sock,
+	.net_header_len	   = sizeof(struct iphdr),
+	.setsockopt	   = ip_setsockopt,
+	.getsockopt	   = ip_getsockopt,
+	.addr2sockaddr	   = inet_csk_addr2sockaddr,
+	.sockaddr_len	   = sizeof(struct sockaddr_in),
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_ip_setsockopt,
-	.compat_getsockopt	= compat_ip_getsockopt,
+	.compat_setsockopt = compat_ip_setsockopt,
+	.compat_getsockopt = compat_ip_getsockopt,
 #endif
-	.addr2sockaddr	= inet_csk_addr2sockaddr,
-	.sockaddr_len	= sizeof(struct sockaddr_in),
 };
 
 static int dccp_v4_init_sock(struct sock *sk)
@@ -1044,10 +1044,6 @@ static struct proto dccp_v4_prot = {
 	.init			= dccp_v4_init_sock,
 	.setsockopt		= dccp_setsockopt,
 	.getsockopt		= dccp_getsockopt,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_dccp_setsockopt,
-	.compat_getsockopt	= compat_dccp_getsockopt,
-#endif
 	.sendmsg		= dccp_sendmsg,
 	.recvmsg		= dccp_recvmsg,
 	.backlog_rcv		= dccp_v4_do_rcv,
@@ -1062,6 +1058,10 @@ static struct proto dccp_v4_prot = {
 	.obj_size		= sizeof(struct dccp_sock),
 	.rsk_prot		= &dccp_request_sock_ops,
 	.twsk_prot		= &dccp_timewait_sock_ops,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_dccp_setsockopt,
+	.compat_getsockopt	= compat_dccp_getsockopt,
+#endif
 };
 
 static struct net_protocol dccp_v4_protocol = {
@@ -1071,30 +1071,30 @@ static struct net_protocol dccp_v4_protocol = {
 };
 
 static const struct proto_ops inet_dccp_ops = {
-	.family		= PF_INET,
-	.owner		= THIS_MODULE,
-	.release	= inet_release,
-	.bind		= inet_bind,
-	.connect	= inet_stream_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= inet_accept,
-	.getname	= inet_getname,
+	.family		   = PF_INET,
+	.owner		   = THIS_MODULE,
+	.release	   = inet_release,
+	.bind		   = inet_bind,
+	.connect	   = inet_stream_connect,
+	.socketpair	   = sock_no_socketpair,
+	.accept		   = inet_accept,
+	.getname	   = inet_getname,
 	/* FIXME: work on tcp_poll to rename it to inet_csk_poll */
-	.poll		= dccp_poll,
-	.ioctl		= inet_ioctl,
+	.poll		   = dccp_poll,
+	.ioctl		   = inet_ioctl,
 	/* FIXME: work on inet_listen to rename it to sock_common_listen */
-	.listen		= inet_dccp_listen,
-	.shutdown	= inet_shutdown,
-	.setsockopt	= sock_common_setsockopt,
-	.getsockopt	= sock_common_getsockopt,
+	.listen		   = inet_dccp_listen,
+	.shutdown	   = inet_shutdown,
+	.setsockopt	   = sock_common_setsockopt,
+	.getsockopt	   = sock_common_getsockopt,
+	.sendmsg	   = inet_sendmsg,
+	.recvmsg	   = sock_common_recvmsg,
+	.mmap		   = sock_no_mmap,
+	.sendpage	   = sock_no_sendpage,
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_sock_common_setsockopt,
-	.compat_getsockopt	= compat_sock_common_getsockopt,
+	.compat_setsockopt = compat_sock_common_setsockopt,
+	.compat_getsockopt = compat_sock_common_getsockopt,
 #endif
-	.sendmsg	= inet_sendmsg,
-	.recvmsg	= sock_common_recvmsg,
-	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
 };
 
 static struct inet_protosw dccp_v4_protosw = {

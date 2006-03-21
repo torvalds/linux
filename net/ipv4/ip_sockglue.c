@@ -910,8 +910,8 @@ int ip_setsockopt(struct sock *sk, int level,
 }
 
 #ifdef CONFIG_COMPAT
-int compat_ip_setsockopt(struct sock *sk, int level,
-		int optname, char __user *optval, int optlen)
+int compat_ip_setsockopt(struct sock *sk, int level, int optname,
+			 char __user *optval, int optlen)
 {
 	int err;
 
@@ -922,19 +922,21 @@ int compat_ip_setsockopt(struct sock *sk, int level,
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != IP_HDRINCL &&
-		optname != IP_IPSEC_POLICY && optname != IP_XFRM_POLICY
+	    optname != IP_IPSEC_POLICY && optname != IP_XFRM_POLICY
 #ifdef CONFIG_IP_MROUTE
-		&& (optname < MRT_BASE || optname > (MRT_BASE + 10))
+	    && (optname < MRT_BASE || optname > (MRT_BASE + 10))
 #endif
 	   ) {
 		lock_sock(sk);
-		err = compat_nf_setsockopt(sk, PF_INET,
-				optname, optval, optlen);
+		err = compat_nf_setsockopt(sk, PF_INET, optname,
+					   optval, optlen);
 		release_sock(sk);
 	}
 #endif
 	return err;
 }
+
+EXPORT_SYMBOL(compat_ip_setsockopt);
 #endif
 
 /*
@@ -1180,27 +1182,24 @@ int ip_getsockopt(struct sock *sk, int level,
 }
 
 #ifdef CONFIG_COMPAT
-int compat_ip_getsockopt(struct sock *sk, int level,
-		int optname, char __user *optval, int __user *optlen)
+int compat_ip_getsockopt(struct sock *sk, int level, int optname,
+			 char __user *optval, int __user *optlen)
 {
-	int err;
-
-	err = do_ip_getsockopt(sk, level, optname, optval, optlen);
+	int err = do_ip_getsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != IP_PKTOPTIONS
 #ifdef CONFIG_IP_MROUTE
-		&& (optname < MRT_BASE || optname > MRT_BASE+10)
+	    && (optname < MRT_BASE || optname > MRT_BASE+10)
 #endif
 	   ) {
 	   	int len;
 
-		if(get_user(len,optlen))
+		if (get_user(len, optlen))
 			return -EFAULT;
 
 		lock_sock(sk);
-		err = compat_nf_getsockopt(sk, PF_INET,
-				optname, optval, &len);
+		err = compat_nf_getsockopt(sk, PF_INET, optname, optval, &len);
 		release_sock(sk);
 		if (err >= 0)
 			err = put_user(len, optlen);
@@ -1209,13 +1208,11 @@ int compat_ip_getsockopt(struct sock *sk, int level,
 #endif
 	return err;
 }
+
+EXPORT_SYMBOL(compat_ip_getsockopt);
 #endif
 
 EXPORT_SYMBOL(ip_cmsg_recv);
 
 EXPORT_SYMBOL(ip_getsockopt);
 EXPORT_SYMBOL(ip_setsockopt);
-#ifdef CONFIG_COMPAT
-EXPORT_SYMBOL(compat_ip_getsockopt);
-EXPORT_SYMBOL(compat_ip_setsockopt);
-#endif

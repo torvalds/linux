@@ -1106,40 +1106,40 @@ do_time_wait:
 }
 
 static struct inet_connection_sock_af_ops dccp_ipv6_af_ops = {
-	.queue_xmit	= inet6_csk_xmit,
-	.send_check	= dccp_v6_send_check,
-	.rebuild_header	= inet6_sk_rebuild_header,
-	.conn_request	= dccp_v6_conn_request,
-	.syn_recv_sock	= dccp_v6_request_recv_sock,
-	.net_header_len	= sizeof(struct ipv6hdr),
-	.setsockopt	= ipv6_setsockopt,
-	.getsockopt	= ipv6_getsockopt,
+	.queue_xmit	   = inet6_csk_xmit,
+	.send_check	   = dccp_v6_send_check,
+	.rebuild_header	   = inet6_sk_rebuild_header,
+	.conn_request	   = dccp_v6_conn_request,
+	.syn_recv_sock	   = dccp_v6_request_recv_sock,
+	.net_header_len	   = sizeof(struct ipv6hdr),
+	.setsockopt	   = ipv6_setsockopt,
+	.getsockopt	   = ipv6_getsockopt,
+	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
+	.sockaddr_len	   = sizeof(struct sockaddr_in6),
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_ipv6_setsockopt,
-	.compat_getsockopt	= compat_ipv6_getsockopt,
+	.compat_setsockopt = compat_ipv6_setsockopt,
+	.compat_getsockopt = compat_ipv6_getsockopt,
 #endif
-	.addr2sockaddr	= inet6_csk_addr2sockaddr,
-	.sockaddr_len	= sizeof(struct sockaddr_in6)
 };
 
 /*
  *	DCCP over IPv4 via INET6 API
  */
 static struct inet_connection_sock_af_ops dccp_ipv6_mapped = {
-	.queue_xmit	= ip_queue_xmit,
-	.send_check	= dccp_v4_send_check,
-	.rebuild_header	= inet_sk_rebuild_header,
-	.conn_request	= dccp_v6_conn_request,
-	.syn_recv_sock	= dccp_v6_request_recv_sock,
-	.net_header_len	= sizeof(struct iphdr),
-	.setsockopt	= ipv6_setsockopt,
-	.getsockopt	= ipv6_getsockopt,
+	.queue_xmit	   = ip_queue_xmit,
+	.send_check	   = dccp_v4_send_check,
+	.rebuild_header	   = inet_sk_rebuild_header,
+	.conn_request	   = dccp_v6_conn_request,
+	.syn_recv_sock	   = dccp_v6_request_recv_sock,
+	.net_header_len	   = sizeof(struct iphdr),
+	.setsockopt	   = ipv6_setsockopt,
+	.getsockopt	   = ipv6_getsockopt,
+	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
+	.sockaddr_len	   = sizeof(struct sockaddr_in6),
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_ipv6_setsockopt,
-	.compat_getsockopt	= compat_ipv6_getsockopt,
+	.compat_setsockopt = compat_ipv6_setsockopt,
+	.compat_getsockopt = compat_ipv6_getsockopt,
 #endif
-	.addr2sockaddr	= inet6_csk_addr2sockaddr,
-	.sockaddr_len	= sizeof(struct sockaddr_in6)
 };
 
 /* NOTE: A lot of things set to zero explicitly by call to
@@ -1166,33 +1166,33 @@ static int dccp_v6_destroy_sock(struct sock *sk)
 }
 
 static struct proto dccp_v6_prot = {
-	.name		= "DCCPv6",
-	.owner		= THIS_MODULE,
-	.close		= dccp_close,
-	.connect	= dccp_v6_connect,
-	.disconnect	= dccp_disconnect,
-	.ioctl		= dccp_ioctl,
-	.init		= dccp_v6_init_sock,
-	.setsockopt	= dccp_setsockopt,
-	.getsockopt	= dccp_getsockopt,
+	.name		   = "DCCPv6",
+	.owner		   = THIS_MODULE,
+	.close		   = dccp_close,
+	.connect	   = dccp_v6_connect,
+	.disconnect	   = dccp_disconnect,
+	.ioctl		   = dccp_ioctl,
+	.init		   = dccp_v6_init_sock,
+	.setsockopt	   = dccp_setsockopt,
+	.getsockopt	   = dccp_getsockopt,
+	.sendmsg	   = dccp_sendmsg,
+	.recvmsg	   = dccp_recvmsg,
+	.backlog_rcv	   = dccp_v6_do_rcv,
+	.hash		   = dccp_v6_hash,
+	.unhash		   = dccp_unhash,
+	.accept		   = inet_csk_accept,
+	.get_port	   = dccp_v6_get_port,
+	.shutdown	   = dccp_shutdown,
+	.destroy	   = dccp_v6_destroy_sock,
+	.orphan_count	   = &dccp_orphan_count,
+	.max_header	   = MAX_DCCP_HEADER,
+	.obj_size	   = sizeof(struct dccp6_sock),
+	.rsk_prot	   = &dccp6_request_sock_ops,
+	.twsk_prot	   = &dccp6_timewait_sock_ops,
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_dccp_setsockopt,
-	.compat_getsockopt	= compat_dccp_getsockopt,
+	.compat_setsockopt = compat_dccp_setsockopt,
+	.compat_getsockopt = compat_dccp_getsockopt,
 #endif
-	.sendmsg	= dccp_sendmsg,
-	.recvmsg	= dccp_recvmsg,
-	.backlog_rcv	= dccp_v6_do_rcv,
-	.hash		= dccp_v6_hash,
-	.unhash		= dccp_unhash,
-	.accept		= inet_csk_accept,
-	.get_port	= dccp_v6_get_port,
-	.shutdown	= dccp_shutdown,
-	.destroy	= dccp_v6_destroy_sock,
-	.orphan_count	= &dccp_orphan_count,
-	.max_header	= MAX_DCCP_HEADER,
-	.obj_size	= sizeof(struct dccp6_sock),
-	.rsk_prot	= &dccp6_request_sock_ops,
-	.twsk_prot	= &dccp6_timewait_sock_ops,
 };
 
 static struct inet6_protocol dccp_v6_protocol = {
@@ -1202,28 +1202,28 @@ static struct inet6_protocol dccp_v6_protocol = {
 };
 
 static struct proto_ops inet6_dccp_ops = {
-	.family		= PF_INET6,
-	.owner		= THIS_MODULE,
-	.release	= inet6_release,
-	.bind		= inet6_bind,
-	.connect	= inet_stream_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= inet_accept,
-	.getname	= inet6_getname,
-	.poll		= dccp_poll,
-	.ioctl		= inet6_ioctl,
-	.listen		= inet_dccp_listen,
-	.shutdown	= inet_shutdown,
-	.setsockopt	= sock_common_setsockopt,
-	.getsockopt	= sock_common_getsockopt,
+	.family		   = PF_INET6,
+	.owner		   = THIS_MODULE,
+	.release	   = inet6_release,
+	.bind		   = inet6_bind,
+	.connect	   = inet_stream_connect,
+	.socketpair	   = sock_no_socketpair,
+	.accept		   = inet_accept,
+	.getname	   = inet6_getname,
+	.poll		   = dccp_poll,
+	.ioctl		   = inet6_ioctl,
+	.listen		   = inet_dccp_listen,
+	.shutdown	   = inet_shutdown,
+	.setsockopt	   = sock_common_setsockopt,
+	.getsockopt	   = sock_common_getsockopt,
+	.sendmsg	   = inet_sendmsg,
+	.recvmsg	   = sock_common_recvmsg,
+	.mmap		   = sock_no_mmap,
+	.sendpage	   = sock_no_sendpage,
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt	= compat_sock_common_setsockopt,
-	.compat_getsockopt	= compat_sock_common_getsockopt,
+	.compat_setsockopt = compat_sock_common_setsockopt,
+	.compat_getsockopt = compat_sock_common_getsockopt,
 #endif
-	.sendmsg	= inet_sendmsg,
-	.recvmsg	= sock_common_recvmsg,
-	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
 };
 
 static struct inet_protosw dccp_v6_protosw = {

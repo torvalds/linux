@@ -133,7 +133,7 @@ EXPORT_SYMBOL(nf_getsockopt);
 
 #ifdef CONFIG_COMPAT
 static int compat_nf_sockopt(struct sock *sk, int pf, int val,
-		      char __user *opt, int *len, int get)
+			     char __user *opt, int *len, int get)
 {
 	struct list_head *i;
 	struct nf_sockopt_ops *ops;

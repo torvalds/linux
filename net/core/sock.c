@@ -1386,14 +1386,14 @@ int sock_common_getsockopt(struct socket *sock, int level, int optname,
 EXPORT_SYMBOL(sock_common_getsockopt);
 
 #ifdef CONFIG_COMPAT
-int compat_sock_common_getsockopt(struct socket *sock, int level,
-		int optname, char __user *optval, int __user *optlen)
+int compat_sock_common_getsockopt(struct socket *sock, int level, int optname,
+				  char __user *optval, int __user *optlen)
 {
 	struct sock *sk = sock->sk;
 
-	if (sk->sk_prot->compat_setsockopt)
-		return sk->sk_prot->compat_getsockopt(sk, level,
-			optname, optval, optlen);
+	if (sk->sk_prot->compat_setsockopt != NULL)
+		return sk->sk_prot->compat_getsockopt(sk, level, optname,
+						      optval, optlen);
 	return sk->sk_prot->getsockopt(sk, level, optname, optval, optlen);
 }
 EXPORT_SYMBOL(compat_sock_common_getsockopt);
@@ -1429,14 +1429,14 @@ int sock_common_setsockopt(struct socket *sock, int level, int optname,
 EXPORT_SYMBOL(sock_common_setsockopt);
 
 #ifdef CONFIG_COMPAT
-int compat_sock_common_setsockopt(struct socket *sock,
-		int level, int optname, char __user *optval, int optlen)
+int compat_sock_common_setsockopt(struct socket *sock, int level, int optname,
+				  char __user *optval, int optlen)
 {
 	struct sock *sk = sock->sk;
 
-	if (sk->sk_prot->compat_setsockopt)
-		return sk->sk_prot->compat_setsockopt(sk, level,
-			optname, optval, optlen);
+	if (sk->sk_prot->compat_setsockopt != NULL)
+		return sk->sk_prot->compat_setsockopt(sk, level, optname,
+						      optval, optlen);
 	return sk->sk_prot->setsockopt(sk, level, optname, optval, optlen);
 }
 EXPORT_SYMBOL(compat_sock_common_setsockopt);

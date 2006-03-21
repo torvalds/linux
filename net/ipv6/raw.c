@@ -913,23 +913,21 @@ static int rawv6_setsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_COMPAT
 static int compat_rawv6_setsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int optlen)
+				   char __user *optval, int optlen)
 {
-	switch(level) {
-		case SOL_RAW:
+	switch (level) {
+	case SOL_RAW:
+		break;
+	case SOL_ICMPV6:
+		if (inet_sk(sk)->num != IPPROTO_ICMPV6)
+			return -EOPNOTSUPP;
+		return rawv6_seticmpfilter(sk, level, optname, optval, optlen);
+	case SOL_IPV6:
+		if (optname == IPV6_CHECKSUM)
 			break;
-
-		case SOL_ICMPV6:
-			if (inet_sk(sk)->num != IPPROTO_ICMPV6)
-				return -EOPNOTSUPP;
-			return rawv6_seticmpfilter(sk, level, optname, optval,
-						   optlen);
-		case SOL_IPV6:
-			if (optname == IPV6_CHECKSUM)
-				break;
-		default:
-			return compat_ipv6_setsockopt(sk, level,
-					optname, optval, optlen);
+	default:
+		return compat_ipv6_setsockopt(sk, level, optname,
+					      optval, optlen);
 	};
 	return do_rawv6_setsockopt(sk, level, optname, optval, optlen);
 }
@@ -989,23 +987,21 @@ static int rawv6_getsockopt(struct sock *sk, int level, int optname,
 
 #ifdef CONFIG_COMPAT
 static int compat_rawv6_getsockopt(struct sock *sk, int level, int optname,
-			  char __user *optval, int __user *optlen)
+				   char __user *optval, int __user *optlen)
 {
-	switch(level) {
-		case SOL_RAW:
+	switch (level) {
+	case SOL_RAW:
+		break;
+	case SOL_ICMPV6:
+		if (inet_sk(sk)->num != IPPROTO_ICMPV6)
+			return -EOPNOTSUPP;
+		return rawv6_geticmpfilter(sk, level, optname, optval, optlen);
+	case SOL_IPV6:
+		if (optname == IPV6_CHECKSUM)
 			break;
-
-		case SOL_ICMPV6:
-			if (inet_sk(sk)->num != IPPROTO_ICMPV6)
-				return -EOPNOTSUPP;
-			return rawv6_geticmpfilter(sk, level, optname, optval,
-						   optlen);
-		case SOL_IPV6:
-			if (optname == IPV6_CHECKSUM)
-				break;
-		default:
-			return compat_ipv6_getsockopt(sk, level,
-					optname, optval, optlen);
+	default:
+		return compat_ipv6_getsockopt(sk, level, optname,
+					      optval, optlen);
 	};
 	return do_rawv6_getsockopt(sk, level, optname, optval, optlen);
 }
@@ -1056,27 +1052,27 @@ static int rawv6_init_sk(struct sock *sk)
 }
 
 struct proto rawv6_prot = {
-	.name =		"RAWv6",
-	.owner =	THIS_MODULE,
-	.close =	rawv6_close,
-	.connect =	ip6_datagram_connect,
-	.disconnect =	udp_disconnect,
-	.ioctl =	rawv6_ioctl,
-	.init =		rawv6_init_sk,
-	.destroy =	inet6_destroy_sock,
-	.setsockopt =	rawv6_setsockopt,
-	.getsockopt =	rawv6_getsockopt,
+	.name		   = "RAWv6",
+	.owner		   = THIS_MODULE,
+	.close		   = rawv6_close,
+	.connect	   = ip6_datagram_connect,
+	.disconnect	   = udp_disconnect,
+	.ioctl		   = rawv6_ioctl,
+	.init		   = rawv6_init_sk,
+	.destroy	   = inet6_destroy_sock,
+	.setsockopt	   = rawv6_setsockopt,
+	.getsockopt	   = rawv6_getsockopt,
+	.sendmsg	   = rawv6_sendmsg,
+	.recvmsg	   = rawv6_recvmsg,
+	.bind		   = rawv6_bind,
+	.backlog_rcv	   = rawv6_rcv_skb,
+	.hash		   = raw_v6_hash,
+	.unhash		   = raw_v6_unhash,
+	.obj_size	   = sizeof(struct raw6_sock),
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt =	compat_rawv6_setsockopt,
-	.compat_getsockopt =	compat_rawv6_getsockopt,
+	.compat_setsockopt = compat_rawv6_setsockopt,
+	.compat_getsockopt = compat_rawv6_getsockopt,
 #endif
-	.sendmsg =	rawv6_sendmsg,
-	.recvmsg =	rawv6_recvmsg,
-	.bind =		rawv6_bind,
-	.backlog_rcv =	rawv6_rcv_skb,
-	.hash =		raw_v6_hash,
-	.unhash =	raw_v6_unhash,
-	.obj_size =	sizeof(struct raw6_sock),
 };
 
 #ifdef CONFIG_PROC_FS
