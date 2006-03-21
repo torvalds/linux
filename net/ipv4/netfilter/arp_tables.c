@@ -22,7 +22,7 @@
 #include <linux/init.h>
 
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_arp/arp_tables.h>

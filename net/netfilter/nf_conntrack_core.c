@@ -185,7 +185,7 @@ static struct {
 DEFINE_RWLOCK(nf_ct_cache_lock);
 
 /* This avoids calling kmem_cache_create() with same name simultaneously */
-DECLARE_MUTEX(nf_ct_cache_mutex);
+static DEFINE_MUTEX(nf_ct_cache_mutex);
 
 extern struct nf_conntrack_protocol nf_conntrack_generic_protocol;
 struct nf_conntrack_protocol *
@@ -278,7 +278,7 @@ int nf_conntrack_register_cache(u_int32_t features, const char *name,
 		return -EINVAL;
 	}
 
-	down(&nf_ct_cache_mutex);
+	mutex_lock(&nf_ct_cache_mutex);
 
 	write_lock_bh(&nf_ct_cache_lock);
 	/* e.g: multiple helpers are loaded */
@@ -294,7 +294,7 @@ int nf_conntrack_register_cache(u_int32_t features, const char *name,
 			ret = -EBUSY;
 
 		write_unlock_bh(&nf_ct_cache_lock);
-		up(&nf_ct_cache_mutex);
+		mutex_unlock(&nf_ct_cache_mutex);
 		return ret;
 	}
 	write_unlock_bh(&nf_ct_cache_lock);
@@ -338,7 +338,7 @@ int nf_conntrack_register_cache(u_int32_t features, const char *name,
 out_free_name:
 	kfree(cache_name);
 out_up_mutex:
-	up(&nf_ct_cache_mutex);
+	mutex_unlock(&nf_ct_cache_mutex);
 	return ret;
 }
 
@@ -353,12 +353,12 @@ void nf_conntrack_unregister_cache(u_int32_t features)
 	 * slab cache.
 	 */
 	DEBUGP("nf_conntrack_unregister_cache: 0x%04x\n", features);
-	down(&nf_ct_cache_mutex);
+	mutex_lock(&nf_ct_cache_mutex);
 
 	write_lock_bh(&nf_ct_cache_lock);
 	if (--nf_ct_cache[features].use > 0) {
 		write_unlock_bh(&nf_ct_cache_lock);
-		up(&nf_ct_cache_mutex);
+		mutex_unlock(&nf_ct_cache_mutex);
 		return;
 	}
 	cachep = nf_ct_cache[features].cachep;
@@ -373,7 +373,7 @@ void nf_conntrack_unregister_cache(u_int32_t features)
 	kmem_cache_destroy(cachep);
 	kfree(name);
 
-	up(&nf_ct_cache_mutex);
+	mutex_unlock(&nf_ct_cache_mutex);
 }
 
 int
@@ -1408,6 +1408,8 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
+#include <linux/mutex.h>
+
 
 /* Generic function for tcp/udp/sctp/dccp and alike. This needs to be
  * in ip_conntrack_core, since we don't want the protocols to autoload

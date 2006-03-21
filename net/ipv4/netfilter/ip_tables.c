@@ -25,7 +25,7 @@
 #include <linux/icmp.h>
 #include <net/ip.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/proc_fs.h>
 #include <linux/err.h>
 #include <linux/cpumask.h>

@@ -29,7 +29,7 @@
 #include <linux/icmpv6.h>
 #include <net/ipv6.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/proc_fs.h>
 #include <linux/cpumask.h>
 
