@@ -321,10 +321,7 @@ static int cpu_numa_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_UP_PREPARE:
-		if (min_common_depth == -1 || !numa_enabled)
-			map_cpu_to_node(lcpu, 0);
-		else
-			numa_setup_cpu(lcpu);
+		numa_setup_cpu(lcpu);
 		ret = NOTIFY_OK;
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
@@ -459,8 +456,6 @@ new_range:
 			goto new_range;
 	}
 
-	numa_setup_cpu(boot_cpuid);
-
 	return 0;
 }
 
@@ -475,7 +470,6 @@ static void __init setup_nonnuma(void)
 	printk(KERN_INFO "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 
-	map_cpu_to_node(boot_cpuid, 0);
 	for (i = 0; i < lmb.memory.cnt; ++i)
 		add_region(0, lmb.memory.region[i].base >> PAGE_SHIFT,
 			   lmb_size_pages(&lmb.memory, i));
@@ -612,6 +606,8 @@ void __init do_init_bootmem(void)
 		dump_numa_memory_topology();
 
 	register_cpu_notifier(&ppc64_numa_nb);
+	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
+			  (void *)(unsigned long)boot_cpuid);
 
 	for_each_online_node(nid) {
 		unsigned long start_pfn, end_pfn, pages_present;
