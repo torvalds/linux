@@ -61,14 +61,14 @@ static int brnf_filter_vlan_tagged = 1;
 #define brnf_filter_vlan_tagged 1
 #endif
 
-#define IS_VLAN_IP (skb->protocol == __constant_htons(ETH_P_8021Q) &&    \
-	hdr->h_vlan_encapsulated_proto == __constant_htons(ETH_P_IP) &&  \
+#define IS_VLAN_IP (skb->protocol == htons(ETH_P_8021Q) &&    \
+	hdr->h_vlan_encapsulated_proto == htons(ETH_P_IP) &&  \
 	brnf_filter_vlan_tagged)
-#define IS_VLAN_IPV6 (skb->protocol == __constant_htons(ETH_P_8021Q) &&    \
-	hdr->h_vlan_encapsulated_proto == __constant_htons(ETH_P_IPV6) &&  \
+#define IS_VLAN_IPV6 (skb->protocol == htons(ETH_P_8021Q) &&    \
+	hdr->h_vlan_encapsulated_proto == htons(ETH_P_IPV6) &&  \
 	brnf_filter_vlan_tagged)
-#define IS_VLAN_ARP (skb->protocol == __constant_htons(ETH_P_8021Q) &&   \
-	hdr->h_vlan_encapsulated_proto == __constant_htons(ETH_P_ARP) && \
+#define IS_VLAN_ARP (skb->protocol == htons(ETH_P_8021Q) &&   \
+	hdr->h_vlan_encapsulated_proto == htons(ETH_P_ARP) && \
 	brnf_filter_vlan_tagged)
 
 /* We need these fake structures to make netfilter happy --
@@ -120,7 +120,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 	dst_hold(skb->dst);
 
 	skb->dev = nf_bridge->physindev;
-	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
 		skb->nh.raw -= VLAN_HLEN;
 	}
@@ -196,7 +196,7 @@ static int br_nf_pre_routing_finish_bridge(struct sk_buff *skb)
 	if (!skb->dev)
 		kfree_skb(skb);
 	else {
-		if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+		if (skb->protocol == htons(ETH_P_8021Q)) {
 			skb_pull(skb, VLAN_HLEN);
 			skb->nh.raw += VLAN_HLEN;
 		}
@@ -252,7 +252,7 @@ bridged_dnat:
 				nf_bridge->mask |= BRNF_BRIDGED_DNAT;
 				skb->dev = nf_bridge->physindev;
 				if (skb->protocol ==
-				    __constant_htons(ETH_P_8021Q)) {
+				    htons(ETH_P_8021Q)) {
 					skb_push(skb, VLAN_HLEN);
 					skb->nh.raw -= VLAN_HLEN;
 				}
@@ -271,7 +271,7 @@ bridged_dnat:
 	}
 
 	skb->dev = nf_bridge->physindev;
-	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
 		skb->nh.raw -= VLAN_HLEN;
 	}
@@ -421,7 +421,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 	struct nf_bridge_info *nf_bridge;
 	struct vlan_ethhdr *hdr = vlan_eth_hdr(*pskb);
 
-	if (skb->protocol == __constant_htons(ETH_P_IPV6) || IS_VLAN_IPV6) {
+	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6) {
 #ifdef CONFIG_SYSCTL
 		if (!brnf_call_ip6tables)
 			return NF_ACCEPT;
@@ -429,7 +429,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 		if ((skb = skb_share_check(*pskb, GFP_ATOMIC)) == NULL)
 			goto out;
 
-		if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+		if (skb->protocol == htons(ETH_P_8021Q)) {
 			skb_pull_rcsum(skb, VLAN_HLEN);
 			skb->nh.raw += VLAN_HLEN;
 		}
@@ -440,13 +440,13 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 		return NF_ACCEPT;
 #endif
 
-	if (skb->protocol != __constant_htons(ETH_P_IP) && !IS_VLAN_IP)
+	if (skb->protocol != htons(ETH_P_IP) && !IS_VLAN_IP)
 		return NF_ACCEPT;
 
 	if ((skb = skb_share_check(*pskb, GFP_ATOMIC)) == NULL)
 		goto out;
 
-	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_pull_rcsum(skb, VLAN_HLEN);
 		skb->nh.raw += VLAN_HLEN;
 	}
@@ -523,7 +523,7 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 	struct net_device *in;
 	struct vlan_ethhdr *hdr = vlan_eth_hdr(skb);
 
-	if (skb->protocol != __constant_htons(ETH_P_ARP) && !IS_VLAN_ARP) {
+	if (skb->protocol != htons(ETH_P_ARP) && !IS_VLAN_ARP) {
 		in = nf_bridge->physindev;
 		if (nf_bridge->mask & BRNF_PKT_TYPE) {
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -532,7 +532,7 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 	} else {
 		in = *((struct net_device **)(skb->cb));
 	}
-	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
 		skb->nh.raw -= VLAN_HLEN;
 	}
@@ -564,12 +564,12 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff **pskb,
 	if (!parent)
 		return NF_DROP;
 
-	if (skb->protocol == __constant_htons(ETH_P_IP) || IS_VLAN_IP)
+	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP)
 		pf = PF_INET;
 	else
 		pf = PF_INET6;
 
-	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_pull(*pskb, VLAN_HLEN);
 		(*pskb)->nh.raw += VLAN_HLEN;
 	}
@@ -604,7 +604,7 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff **pskb,
 		return NF_ACCEPT;
 #endif
 
-	if (skb->protocol != __constant_htons(ETH_P_ARP)) {
+	if (skb->protocol != htons(ETH_P_ARP)) {
 		if (!IS_VLAN_ARP)
 			return NF_ACCEPT;
 		skb_pull(*pskb, VLAN_HLEN);
@@ -628,7 +628,7 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff **pskb,
 /* PF_BRIDGE/LOCAL_OUT ***********************************************/
 static int br_nf_local_out_finish(struct sk_buff *skb)
 {
-	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_push(skb, VLAN_HLEN);
 		skb->nh.raw -= VLAN_HLEN;
 	}
@@ -673,7 +673,7 @@ static unsigned int br_nf_local_out(unsigned int hook, struct sk_buff **pskb,
 	if (!skb->nf_bridge)
 		return NF_ACCEPT;
 
-	if (skb->protocol == __constant_htons(ETH_P_IP) || IS_VLAN_IP)
+	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP)
 		pf = PF_INET;
 	else
 		pf = PF_INET6;
@@ -699,7 +699,7 @@ static unsigned int br_nf_local_out(unsigned int hook, struct sk_buff **pskb,
 			skb->pkt_type = PACKET_OTHERHOST;
 			nf_bridge->mask ^= BRNF_PKT_TYPE;
 		}
-		if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+		if (skb->protocol == htons(ETH_P_8021Q)) {
 			skb_push(skb, VLAN_HLEN);
 			skb->nh.raw -= VLAN_HLEN;
 		}
@@ -717,7 +717,7 @@ static unsigned int br_nf_local_out(unsigned int hook, struct sk_buff **pskb,
 	if (nf_bridge->netoutdev)
 		realoutdev = nf_bridge->netoutdev;
 #endif
-	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_pull(skb, VLAN_HLEN);
 		(*pskb)->nh.raw += VLAN_HLEN;
 	}
@@ -772,7 +772,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 	if (!realoutdev)
 		return NF_DROP;
 
-	if (skb->protocol == __constant_htons(ETH_P_IP) || IS_VLAN_IP)
+	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP)
 		pf = PF_INET;
 	else
 		pf = PF_INET6;
@@ -791,7 +791,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff **pskb,
 		nf_bridge->mask |= BRNF_PKT_TYPE;
 	}
 
-	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+	if (skb->protocol == htons(ETH_P_8021Q)) {
 		skb_pull(skb, VLAN_HLEN);
 		skb->nh.raw += VLAN_HLEN;
 	}
