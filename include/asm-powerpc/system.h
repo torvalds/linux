@@ -171,6 +171,8 @@ extern u32 booke_wdt_period;
 
 /* EBCDIC -> ASCII conversion for [0-9A-Z] on iSeries */
 extern unsigned char e2a(unsigned char);
+extern unsigned char* strne2a(unsigned char *dest,
+		const unsigned char *src, size_t n);
 
 struct device_node;
 extern void note_scsi_host(struct device_node *, void *);

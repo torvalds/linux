@@ -103,4 +103,14 @@ unsigned char e2a(unsigned char x)
 }
 EXPORT_SYMBOL(e2a);
 
+unsigned char* strne2a(unsigned char *dest, const unsigned char *src, size_t n)
+{
+	int i;
 
+	n = strnlen(src, n);
+
+	for (i = 0; i < n; i++)
+		dest[i] = e2a(src[i]);
+
+	return dest;
+}
