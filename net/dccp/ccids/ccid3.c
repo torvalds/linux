@@ -307,8 +307,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk,
 
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_SENT:
-		hctx->ccid3hctx_no_feedback_timer.function = ccid3_hc_tx_no_feedback_timer;
-		hctx->ccid3hctx_no_feedback_timer.data     = (unsigned long)sk;
 		sk_reset_timer(sk, &hctx->ccid3hctx_no_feedback_timer,
 			       jiffies + usecs_to_jiffies(TFRC_INITIAL_TIMEOUT));
 		hctx->ccid3hctx_last_win_count	 = 0;
@@ -672,6 +670,9 @@ static int ccid3_hc_tx_init(struct sock *sk)
 	hctx->ccid3hctx_t_rto = USEC_PER_SEC;
 	hctx->ccid3hctx_state = TFRC_SSTATE_NO_SENT;
 	INIT_LIST_HEAD(&hctx->ccid3hctx_hist);
+
+	hctx->ccid3hctx_no_feedback_timer.function = ccid3_hc_tx_no_feedback_timer;
+	hctx->ccid3hctx_no_feedback_timer.data     = (unsigned long)sk;
 	init_timer(&hctx->ccid3hctx_no_feedback_timer);
 
 	return 0;
