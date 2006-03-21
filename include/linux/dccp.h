@@ -329,9 +329,18 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 
 /* initial values for each feature */
 #define DCCPF_INITIAL_SEQUENCE_WINDOW		100
-#define DCCPF_INITIAL_CCID			2
 #define DCCPF_INITIAL_ACK_RATIO			2
+
+#if defined(CONFIG_IP_DCCP_CCID2) || defined(CONFIG_IP_DCCP_CCID2_MODULE)
+#define DCCPF_INITIAL_CCID			2
 #define DCCPF_INITIAL_SEND_ACK_VECTOR		1
+#elif defined(CONFIG_IP_DCCP_CCID3) || defined(CONFIG_IP_DCCP_CCID3_MODULE)
+#define DCCPF_INITIAL_CCID			3
+#define DCCPF_INITIAL_SEND_ACK_VECTOR		0
+#else
+#error  "At least one CCID must be built as the default"
+#endif
+
 /* FIXME: for now we're default to 1 but it should really be 0 */
 #define DCCPF_INITIAL_SEND_NDP_COUNT		1
 
