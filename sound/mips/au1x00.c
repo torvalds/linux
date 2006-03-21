@@ -561,12 +561,13 @@ snd_au1000_ac97_new(struct snd_au1000 *au1000)
 		.read = snd_au1000_ac97_read,
 	};
 
-	if ((au1000->ac97_res_port = request_region(AC97C_CONFIG,
-	       		sizeof(struct au1000_ac97_reg), "Au1x00 AC97")) == NULL) {
+	if ((au1000->ac97_res_port = request_mem_region(CPHYSADDR(AC97C_CONFIG),
+	       		0x100000, "Au1x00 AC97")) == NULL) {
 		snd_printk(KERN_ERR "ALSA AC97: can't grap AC97 port\n");
 		return -EBUSY;
 	}
-	au1000->ac97_ioport = (struct au1000_ac97_reg *) au1000->ac97_res_port->start;
+	au1000->ac97_ioport = (struct au1000_ac97_reg *)
+		KSEG1ADDR(au1000->ac97_res_port->start);
 
 	spin_lock_init(&au1000->ac97_lock);
 
