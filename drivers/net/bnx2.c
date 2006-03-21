@@ -1656,23 +1656,30 @@ static inline void
 bnx2_reuse_rx_skb(struct bnx2 *bp, struct sk_buff *skb,
 	u16 cons, u16 prod)
 {
-	struct sw_bd *cons_rx_buf = &bp->rx_buf_ring[cons];
-	struct sw_bd *prod_rx_buf = &bp->rx_buf_ring[prod];
-	struct rx_bd *cons_bd = &bp->rx_desc_ring[cons];
-	struct rx_bd *prod_bd = &bp->rx_desc_ring[prod];
+	struct sw_bd *cons_rx_buf, *prod_rx_buf;
+	struct rx_bd *cons_bd, *prod_bd;
+
+	cons_rx_buf = &bp->rx_buf_ring[cons];
+	prod_rx_buf = &bp->rx_buf_ring[prod];
 
 	pci_dma_sync_single_for_device(bp->pdev,
 		pci_unmap_addr(cons_rx_buf, mapping),
 		bp->rx_offset + RX_COPY_THRESH, PCI_DMA_FROMDEVICE);
 
-	prod_rx_buf->skb = cons_rx_buf->skb;
+	bp->rx_prod_bseq += bp->rx_buf_use_size;
+
+	prod_rx_buf->skb = skb;
+
+	if (cons == prod)
+		return;
+
 	pci_unmap_addr_set(prod_rx_buf, mapping,
 			pci_unmap_addr(cons_rx_buf, mapping));
 
-	memcpy(prod_bd, cons_bd, 8);
-
-	bp->rx_prod_bseq += bp->rx_buf_use_size;
-
+	cons_bd = &bp->rx_desc_ring[cons];
+	prod_bd = &bp->rx_desc_ring[prod];
+	prod_bd->rx_bd_haddr_hi = cons_bd->rx_bd_haddr_hi;
+	prod_bd->rx_bd_haddr_lo = cons_bd->rx_bd_haddr_lo;
 }
 
 static int
@@ -1699,14 +1706,19 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 		u32 status;
 		struct sw_bd *rx_buf;
 		struct sk_buff *skb;
+		dma_addr_t dma_addr;
 
 		sw_ring_cons = RX_RING_IDX(sw_cons);
 		sw_ring_prod = RX_RING_IDX(sw_prod);
 
 		rx_buf = &bp->rx_buf_ring[sw_ring_cons];
 		skb = rx_buf->skb;
-		pci_dma_sync_single_for_cpu(bp->pdev,
-			pci_unmap_addr(rx_buf, mapping),
+
+		rx_buf->skb = NULL;
+
+		dma_addr = pci_unmap_addr(rx_buf, mapping);
+
+		pci_dma_sync_single_for_cpu(bp->pdev, dma_addr,
 			bp->rx_offset + RX_COPY_THRESH, PCI_DMA_FROMDEVICE);
 
 		rx_hdr = (struct l2_fhdr *) skb->data;
@@ -1747,8 +1759,7 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 			skb = new_skb;
 		}
 		else if (bnx2_alloc_rx_skb(bp, sw_ring_prod) == 0) {
-			pci_unmap_single(bp->pdev,
-				pci_unmap_addr(rx_buf, mapping),
+			pci_unmap_single(bp->pdev, dma_addr,
 				bp->rx_buf_use_size, PCI_DMA_FROMDEVICE);
 
 			skb_reserve(skb, bp->rx_offset);
@@ -1794,8 +1805,6 @@ reuse_rx:
 		rx_pkt++;
 
 next_rx:
-		rx_buf->skb = NULL;
-
 		sw_cons = NEXT_RX_BD(sw_cons);
 		sw_prod = NEXT_RX_BD(sw_prod);
 
@@ -3360,7 +3369,7 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	val = (u64) bp->rx_desc_mapping & 0xffffffff;
 	CTX_WR(bp, GET_CID_ADDR(RX_CID), BNX2_L2CTX_NX_BDHADDR_LO, val);
 
-	for ( ;ring_prod < bp->rx_ring_size; ) {
+	for (i = 0; i < bp->rx_ring_size; i++) {
 		if (bnx2_alloc_rx_skb(bp, ring_prod) < 0) {
 			break;
 		}
