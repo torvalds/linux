@@ -80,7 +80,7 @@ static inline void measure_rtt(struct sock *sk)
 	if (icsk->icsk_ca_state == TCP_CA_Open && tp->snd_ssthresh < 0xFFFF && ca->ccount > 3) {
 		if (ca->maxRTT < ca->minRTT)
 			ca->maxRTT = ca->minRTT;
-		if (ca->maxRTT < srtt && srtt <= ca->maxRTT+HZ/50)
+		if (ca->maxRTT < srtt && srtt <= ca->maxRTT+msecs_to_jiffies(20))
 			ca->maxRTT = srtt;
 	}
 }
@@ -135,7 +135,7 @@ static inline void htcp_beta_update(struct htcp *ca, u32 minRTT, u32 maxRTT)
 		}
 	}
 
-	if (ca->modeswitch && minRTT > max(HZ/100, 1) && maxRTT) {
+	if (ca->modeswitch && minRTT > msecs_to_jiffies(10) && maxRTT) {
 		ca->beta = (minRTT<<7)/maxRTT;
 		if (ca->beta < BETA_MIN)
 			ca->beta = BETA_MIN;
