@@ -14,6 +14,7 @@
 #include <linux/module.h>
 
 #include "dccp.h"
+#include "ccid.h"
 #include "feat.h"
 
 #define DCCP_FEAT_SP_NOAGREE (-123)
@@ -25,6 +26,8 @@ int dccp_feat_change(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len,
 	struct dccp_opt_pend *opt;
 
 	dccp_pr_debug("feat change type=%d feat=%d\n", type, feature);
+
+	/* XXX sanity check feat change request */
 
 	/* check if that feature is already being negotiated */
 	list_for_each_entry(opt, &dp->dccps_options.dccpo_pending,
@@ -62,11 +65,49 @@ int dccp_feat_change(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len,
 
 EXPORT_SYMBOL_GPL(dccp_feat_change);
 
+static int dccp_feat_update_ccid(struct sock *sk, u8 type, u8 new_ccid_nr)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+	/* figure out if we are changing our CCID or the peer's */
+	const int rx = type == DCCPO_CHANGE_R;
+	const u8 ccid_nr = rx ? dp->dccps_options.dccpo_rx_ccid :
+				dp->dccps_options.dccpo_tx_ccid;
+	struct ccid *new_ccid;
+
+	/* Check if nothing is being changed. */
+	if (ccid_nr == new_ccid_nr)
+		return 0;
+
+	new_ccid = ccid_new(new_ccid_nr, sk, rx, GFP_ATOMIC);
+	if (new_ccid == NULL)
+		return -ENOMEM;
+
+	if (rx) {
+		ccid_hc_rx_delete(dp->dccps_hc_rx_ccid, sk);
+		dp->dccps_hc_rx_ccid = new_ccid;
+		dp->dccps_options.dccpo_rx_ccid = new_ccid_nr;
+	} else {
+		ccid_hc_tx_delete(dp->dccps_hc_tx_ccid, sk);
+		dp->dccps_hc_tx_ccid = new_ccid;
+		dp->dccps_options.dccpo_tx_ccid = new_ccid_nr;
+	}
+
+	return 0;
+}
+
 /* XXX taking only u8 vals */
 static int dccp_feat_update(struct sock *sk, u8 type, u8 feat, u8 val)
 {
-	/* FIXME implement */
 	dccp_pr_debug("changing [%d] feat %d to %d\n", type, feat, val);
+
+	switch (feat) {
+	case DCCPF_CCID:
+		return dccp_feat_update_ccid(sk, type, val);
+	default:
+		dccp_pr_debug("IMPLEMENT changing [%d] feat %d to %d\n",
+			      type, feat, val);
+		break;
+	}
 	return 0;
 }
 
