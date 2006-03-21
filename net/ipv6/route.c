@@ -98,6 +98,14 @@ static int		ip6_pkt_discard_out(struct sk_buff *skb);
 static void		ip6_link_failure(struct sk_buff *skb);
 static void		ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
 
+#ifdef CONFIG_IPV6_ROUTE_INFO
+static struct rt6_info *rt6_add_route_info(struct in6_addr *prefix, int prefixlen,
+					   struct in6_addr *gwaddr, int ifindex,
+					   unsigned pref);
+static struct rt6_info *rt6_get_route_info(struct in6_addr *prefix, int prefixlen,
+					   struct in6_addr *gwaddr, int ifindex);
+#endif
+
 static struct dst_ops ip6_dst_ops = {
 	.family			=	AF_INET6,
 	.protocol		=	__constant_htons(ETH_P_IPV6),
@@ -345,6 +353,84 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 
 	return (match ? match : &ip6_null_entry);
 }
+
+#ifdef CONFIG_IPV6_ROUTE_INFO
+int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
+		  struct in6_addr *gwaddr)
+{
+	struct route_info *rinfo = (struct route_info *) opt;
+	struct in6_addr prefix_buf, *prefix;
+	unsigned int pref;
+	u32 lifetime;
+	struct rt6_info *rt;
+
+	if (len < sizeof(struct route_info)) {
+		return -EINVAL;
+	}
+
+	/* Sanity check for prefix_len and length */
+	if (rinfo->length > 3) {
+		return -EINVAL;
+	} else if (rinfo->prefix_len > 128) {
+		return -EINVAL;
+	} else if (rinfo->prefix_len > 64) {
+		if (rinfo->length < 2) {
+			return -EINVAL;
+		}
+	} else if (rinfo->prefix_len > 0) {
+		if (rinfo->length < 1) {
+			return -EINVAL;
+		}
+	}
+
+	pref = rinfo->route_pref;
+	if (pref == ICMPV6_ROUTER_PREF_INVALID)
+		pref = ICMPV6_ROUTER_PREF_MEDIUM;
+
+	lifetime = htonl(rinfo->lifetime);
+	if (lifetime == 0xffffffff) {
+		/* infinity */
+	} else if (lifetime > 0x7fffffff/HZ) {
+		/* Avoid arithmetic overflow */
+		lifetime = 0x7fffffff/HZ - 1;
+	}
+
+	if (rinfo->length == 3)
+		prefix = (struct in6_addr *)rinfo->prefix;
+	else {
+		/* this function is safe */
+		ipv6_addr_prefix(&prefix_buf,
+				 (struct in6_addr *)rinfo->prefix,
+				 rinfo->prefix_len);
+		prefix = &prefix_buf;
+	}
+
+	rt = rt6_get_route_info(prefix, rinfo->prefix_len, gwaddr, dev->ifindex);
+
+	if (rt && !lifetime) {
+		ip6_del_rt(rt, NULL, NULL, NULL);
+		rt = NULL;
+	}
+
+	if (!rt && lifetime)
+		rt = rt6_add_route_info(prefix, rinfo->prefix_len, gwaddr, dev->ifindex,
+					pref);
+	else if (rt)
+		rt->rt6i_flags = RTF_ROUTEINFO |
+				 (rt->rt6i_flags & ~RTF_PREF_MASK) | RTF_PREF(pref);
+
+	if (rt) {
+		if (lifetime == 0xffffffff) {
+			rt->rt6i_flags &= ~RTF_EXPIRES;
+		} else {
+			rt->rt6i_expires = jiffies + HZ * lifetime;
+			rt->rt6i_flags |= RTF_EXPIRES;
+		}
+		dst_release(&rt->u.dst);
+	}
+	return 0;
+}
+#endif
 
 struct rt6_info *rt6_lookup(struct in6_addr *daddr, struct in6_addr *saddr,
 			    int oif, int strict)
@@ -1276,6 +1362,54 @@ static struct rt6_info * ip6_rt_copy(struct rt6_info *ort)
 	}
 	return rt;
 }
+
+#ifdef CONFIG_IPV6_ROUTE_INFO
+static struct rt6_info *rt6_get_route_info(struct in6_addr *prefix, int prefixlen,
+					   struct in6_addr *gwaddr, int ifindex)
+{
+	struct fib6_node *fn;
+	struct rt6_info *rt = NULL;
+
+	write_lock_bh(&rt6_lock);
+	fn = fib6_locate(&ip6_routing_table, prefix ,prefixlen, NULL, 0);
+	if (!fn)
+		goto out;
+
+	for (rt = fn->leaf; rt; rt = rt->u.next) {
+		if (rt->rt6i_dev->ifindex != ifindex)
+			continue;
+		if ((rt->rt6i_flags & (RTF_ROUTEINFO|RTF_GATEWAY)) != (RTF_ROUTEINFO|RTF_GATEWAY))
+			continue;
+		if (!ipv6_addr_equal(&rt->rt6i_gateway, gwaddr))
+			continue;
+		dst_hold(&rt->u.dst);
+		break;
+	}
+out:
+	write_unlock_bh(&rt6_lock);
+	return rt;
+}
+
+static struct rt6_info *rt6_add_route_info(struct in6_addr *prefix, int prefixlen,
+					   struct in6_addr *gwaddr, int ifindex,
+					   unsigned pref)
+{
+	struct in6_rtmsg rtmsg;
+
+	memset(&rtmsg, 0, sizeof(rtmsg));
+	rtmsg.rtmsg_type = RTMSG_NEWROUTE;
+	ipv6_addr_copy(&rtmsg.rtmsg_dst, prefix);
+	rtmsg.rtmsg_dst_len = prefixlen;
+	ipv6_addr_copy(&rtmsg.rtmsg_gateway, gwaddr);
+	rtmsg.rtmsg_metric = 1024;
+	rtmsg.rtmsg_flags = RTF_GATEWAY | RTF_ADDRCONF | RTF_ROUTEINFO | RTF_UP | RTF_PREF(pref);
+	rtmsg.rtmsg_ifindex = ifindex;
+
+	ip6_route_add(&rtmsg, NULL, NULL, NULL);
+
+	return rt6_get_route_info(prefix, prefixlen, gwaddr, ifindex);
+}
+#endif
 
 struct rt6_info *rt6_get_dflt_router(struct in6_addr *addr, struct net_device *dev)
 {	

@@ -49,6 +49,14 @@ config IPV6_ROUTER_PREF
 
 	  If unsure, say N.
 
+config IPV6_ROUTE_INFO
+	bool "IPv6: Route Information (RFC 4191) support (EXPERIMENTAL)"
+	depends on IPV6_ROUTER_PREF && EXPERIMENTAL
+	---help---
+	  This is experimental support of Route Information.
+
+	  If unsure, say N.
+
 config INET6_AH
 	tristate "IPv6: AH transformation"
 	depends on IPV6
