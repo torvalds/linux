@@ -2143,7 +2143,6 @@ static void addrconf_ip6_tnl_config(struct net_device *dev)
 		return;
 	}
 	ip6_tnl_add_linklocal(idev);
-	addrconf_add_mroute(dev);
 }
 
 static int addrconf_notify(struct notifier_block *this, unsigned long event, 
