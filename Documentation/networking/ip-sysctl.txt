@@ -717,6 +717,12 @@ accept_ra - BOOLEAN
 	Functional default: enabled if local forwarding is disabled.
 			    disabled if local forwarding is enabled.
 
+accept_ra_defrtr - BOOLEAN
+	Learn default router in Router Advertisement.
+
+	Functional default: enabled if accept_ra is enabled.
+			    disabled if accept_ra is disabled.
+
 accept_redirects - BOOLEAN
 	Accept Redirects.
 

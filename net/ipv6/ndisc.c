@@ -1019,7 +1019,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
         struct ra_msg *ra_msg = (struct ra_msg *) skb->h.raw;
 	struct neighbour *neigh = NULL;
 	struct inet6_dev *in6_dev;
-	struct rt6_info *rt;
+	struct rt6_info *rt = NULL;
 	int lifetime;
 	struct ndisc_options ndopts;
 	int optlen;
@@ -1081,6 +1081,9 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 				(ra_msg->icmph.icmp6_addrconf_other ?
 					IF_RA_OTHERCONF : 0);
 
+	if (!in6_dev->cnf.accept_ra_defrtr)
+		goto skip_defrtr;
+
 	lifetime = ntohs(ra_msg->icmph.icmp6_rt_lifetime);
 
 	rt = rt6_get_dflt_router(&skb->nh.ipv6h->saddr, skb->dev);
@@ -1127,6 +1130,8 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		if (rt)
 			rt->u.dst.metrics[RTAX_HOPLIMIT-1] = ra_msg->icmph.icmp6_hop_limit;
 	}
+
+skip_defrtr:
 
 	/*
 	 *	Update Reachable Time and Retrans Timer
