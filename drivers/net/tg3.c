@@ -69,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.50"
-#define DRV_MODULE_RELDATE	"Feb 4, 2006"
+#define DRV_MODULE_VERSION	"3.51"
+#define DRV_MODULE_RELDATE	"Feb 21, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -7593,11 +7593,20 @@ static void tg3_get_ringparam(struct net_device *dev, struct ethtool_ringparam *
   
 	ering->rx_max_pending = TG3_RX_RING_SIZE - 1;
 	ering->rx_mini_max_pending = 0;
-	ering->rx_jumbo_max_pending = TG3_RX_JUMBO_RING_SIZE - 1;
+	if (tp->tg3_flags & TG3_FLAG_JUMBO_RING_ENABLE)
+		ering->rx_jumbo_max_pending = TG3_RX_JUMBO_RING_SIZE - 1;
+	else
+		ering->rx_jumbo_max_pending = 0;
+
+	ering->tx_max_pending = TG3_TX_RING_SIZE - 1;
 
 	ering->rx_pending = tp->rx_pending;
 	ering->rx_mini_pending = 0;
-	ering->rx_jumbo_pending = tp->rx_jumbo_pending;
+	if (tp->tg3_flags & TG3_FLAG_JUMBO_RING_ENABLE)
+		ering->rx_jumbo_pending = tp->rx_jumbo_pending;
+	else
+		ering->rx_jumbo_pending = 0;
+
 	ering->tx_pending = tp->tx_pending;
 }
   
