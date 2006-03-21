@@ -113,6 +113,25 @@ static inline struct net_device *bridge_parent(const struct net_device *dev)
 	return port ? port->br->dev : NULL;
 }
 
+static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
+{
+	skb->nf_bridge = kzalloc(sizeof(struct nf_bridge_info), GFP_ATOMIC);
+	if (likely(skb->nf_bridge))
+		atomic_set(&(skb->nf_bridge->use), 1);
+
+	return skb->nf_bridge;
+}
+
+static inline void nf_bridge_save_header(struct sk_buff *skb)
+{
+        int header_size = 16;
+
+	if (skb->protocol == htons(ETH_P_8021Q))
+		header_size = 18;
+
+	memcpy(skb->nf_bridge->data, skb->data - header_size, header_size);
+}
+
 /* PF_BRIDGE/PRE_ROUTING *********************************************/
 /* Undo the changes made for ip6tables PREROUTING and continue the
  * bridge PRE_ROUTING hook. */
@@ -371,7 +390,6 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 {
 	struct ipv6hdr *hdr;
 	u32 pkt_len;
-	struct nf_bridge_info *nf_bridge;
 
 	if (skb->len < sizeof(struct ipv6hdr))
 		goto inhdr_error;
@@ -400,7 +418,7 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 		goto inhdr_error;
 
 	nf_bridge_put(skb->nf_bridge);
-	if ((nf_bridge = nf_bridge_alloc(skb)) == NULL)
+	if (!nf_bridge_alloc(skb))
 		return NF_DROP;
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
@@ -428,7 +446,6 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 	struct iphdr *iph;
 	__u32 len;
 	struct sk_buff *skb = *pskb;
-	struct nf_bridge_info *nf_bridge;
 
 	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb)) {
 #ifdef CONFIG_SYSCTL
@@ -485,7 +502,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 	}
 
 	nf_bridge_put(skb->nf_bridge);
-	if ((nf_bridge = nf_bridge_alloc(skb)) == NULL)
+	if (!nf_bridge_alloc(skb))
 		return NF_DROP;
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
