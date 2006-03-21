@@ -7871,10 +7871,10 @@ static int tg3_set_tx_csum(struct net_device *dev, u32 data)
   		return 0;
   	}
   
-	if (data)
-		dev->features |= NETIF_F_IP_CSUM;
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+		ethtool_op_set_tx_hw_csum(dev, data);
 	else
-		dev->features &= ~NETIF_F_IP_CSUM;
+		ethtool_op_set_tx_csum(dev, data);
 
 	return 0;
 }
@@ -11236,7 +11236,11 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 * checksumming.
 	 */
 	if ((tp->tg3_flags & TG3_FLAG_BROKEN_CHECKSUMS) == 0) {
-		dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+			dev->features |= NETIF_F_HW_CSUM;
+		else
+			dev->features |= NETIF_F_IP_CSUM;
+		dev->features |= NETIF_F_SG;
 		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
 	} else
 		tp->tg3_flags &= ~TG3_FLAG_RX_CHECKSUMS;
