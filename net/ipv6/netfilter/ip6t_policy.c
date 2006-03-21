@@ -125,11 +125,6 @@ static int checkentry(const char *tablename, const void *ip_void,
 {
 	struct ip6t_policy_info *info = matchinfo;
 
-	if (matchsize != IP6T_ALIGN(sizeof(*info))) {
-		printk(KERN_ERR "ip6t_policy: matchsize %u != %zu\n",
-		       matchsize, IP6T_ALIGN(sizeof(*info)));
-		return 0;
-	}
 	if (!(info->flags & (IP6T_POLICY_MATCH_IN|IP6T_POLICY_MATCH_OUT))) {
 		printk(KERN_ERR "ip6t_policy: neither incoming nor "
 		                "outgoing policy selected\n");
@@ -158,6 +153,7 @@ static int checkentry(const char *tablename, const void *ip_void,
 static struct ip6t_match policy_match = {
 	.name		= "policy",
 	.match		= match,
+	.matchsize	= sizeof(struct ip6t_policy_info),
 	.checkentry 	= checkentry,
 	.me		= THIS_MODULE,
 };

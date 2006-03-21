@@ -544,21 +544,12 @@ standard_check(const struct ip6t_entry_target *t,
 	struct ip6t_standard_target *targ = (void *)t;
 
 	/* Check standard info. */
-	if (t->u.target_size
-	    != IP6T_ALIGN(sizeof(struct ip6t_standard_target))) {
-		duprintf("standard_check: target size %u != %u\n",
-			 t->u.target_size,
-			 IP6T_ALIGN(sizeof(struct ip6t_standard_target)));
-		return 0;
-	}
-
 	if (targ->verdict >= 0
 	    && targ->verdict > max_offset - sizeof(struct ip6t_entry)) {
 		duprintf("ip6t_standard_check: bad verdict (%i)\n",
 			 targ->verdict);
 		return 0;
 	}
-
 	if (targ->verdict < -NF_MAX_VERDICT - 1) {
 		duprintf("ip6t_standard_check: bad negative verdict (%i)\n",
 			 targ->verdict);
@@ -1385,24 +1376,22 @@ icmp6_checkentry(const char *tablename,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
-	const struct ip6t_ip6 *ipv6 = entry;
 	const struct ip6t_icmp *icmpinfo = matchinfo;
 
-	/* Must specify proto == ICMP, and no unknown invflags */
-	return ipv6->proto == IPPROTO_ICMPV6
-		&& !(ipv6->invflags & IP6T_INV_PROTO)
-		&& matchsize == IP6T_ALIGN(sizeof(struct ip6t_icmp))
-		&& !(icmpinfo->invflags & ~IP6T_ICMP_INV);
+	/* Must specify no unknown invflags */
+	return !(icmpinfo->invflags & ~IP6T_ICMP_INV);
 }
 
 /* The built-in targets: standard (NULL) and error. */
 static struct ip6t_target ip6t_standard_target = {
 	.name		= IP6T_STANDARD_TARGET,
+	.targetsize	= sizeof(int),
 };
 
 static struct ip6t_target ip6t_error_target = {
 	.name		= IP6T_ERROR_TARGET,
 	.target		= ip6t_error,
+	.targetsize	= IP6T_FUNCTION_MAXNAMELEN,
 };
 
 static struct nf_sockopt_ops ip6t_sockopts = {
@@ -1418,7 +1407,9 @@ static struct nf_sockopt_ops ip6t_sockopts = {
 static struct ip6t_match icmp6_matchstruct = {
 	.name		= "icmp6",
 	.match		= &icmp6_match,
-	.checkentry	= &icmp6_checkentry,
+	.matchsize	= sizeof(struct ip6t_icmp),
+	.checkentry	= icmp6_checkentry,
+	.proto		= IPPROTO_ICMPV6,
 };
 
 static int __init init(void)

@@ -48,20 +48,10 @@ static int match(const struct sk_buff *skb, const struct net_device *in,
 	return 0;
 }
 
-static int checkentry(const char *tablename, const void *entry,
-		      void *matchinfo, unsigned int matchsize,
-		      unsigned int hook_mask)
-{
-	if (matchsize != IP6T_ALIGN(sizeof(struct ip6t_hl_info)))
-		return 0;
-
-	return 1;
-}
-
 static struct ip6t_match hl_match = {
 	.name		= "hl",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ip6t_hl_info),
 	.me		= THIS_MODULE,
 };
 

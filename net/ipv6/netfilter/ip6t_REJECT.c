@@ -228,24 +228,6 @@ static int check(const char *tablename,
  	const struct ip6t_reject_info *rejinfo = targinfo;
 	const struct ip6t_entry *e = entry;
 
- 	if (targinfosize != IP6T_ALIGN(sizeof(struct ip6t_reject_info))) {
-  		DEBUGP("ip6t_REJECT: targinfosize %u != 0\n", targinfosize);
-  		return 0;
-  	}
-
-	/* Only allow these for packet filtering. */
-	if (strcmp(tablename, "filter") != 0) {
-		DEBUGP("ip6t_REJECT: bad table `%s'.\n", tablename);
-		return 0;
-	}
-
-	if ((hook_mask & ~((1 << NF_IP6_LOCAL_IN)
-			   | (1 << NF_IP6_FORWARD)
-			   | (1 << NF_IP6_LOCAL_OUT))) != 0) {
-		DEBUGP("ip6t_REJECT: bad hook mask %X\n", hook_mask);
-		return 0;
-	}
-
 	if (rejinfo->with == IP6T_ICMP6_ECHOREPLY) {
 		printk("ip6t_REJECT: ECHOREPLY is not supported.\n");
 		return 0;
@@ -257,13 +239,16 @@ static int check(const char *tablename,
 			return 0;
 		}
 	}
-
 	return 1;
 }
 
 static struct ip6t_target ip6t_reject_reg = {
 	.name		= "REJECT",
 	.target		= reject6_target,
+	.targetsize	= sizeof(struct ip6t_reject_info),
+	.table		= "filter",
+	.hooks		= (1 << NF_IP6_LOCAL_IN) | (1 << NF_IP6_FORWARD) |
+			  (1 << NF_IP6_LOCAL_OUT),
 	.checkentry	= check,
 	.me		= THIS_MODULE
 };

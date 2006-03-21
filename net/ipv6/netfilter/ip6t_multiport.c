@@ -92,13 +92,9 @@ checkentry(const char *tablename,
 	const struct ip6t_ip6 *ip = info;
 	const struct ip6t_multiport *multiinfo = matchinfo;
 
-	if (matchsize != IP6T_ALIGN(sizeof(struct ip6t_multiport)))
-		return 0;
-
 	/* Must specify proto == TCP/UDP, no unknown flags or bad count */
 	return (ip->proto == IPPROTO_TCP || ip->proto == IPPROTO_UDP)
 		&& !(ip->invflags & IP6T_INV_PROTO)
-		&& matchsize == IP6T_ALIGN(sizeof(struct ip6t_multiport))
 		&& (multiinfo->flags == IP6T_MULTIPORT_SOURCE
 		    || multiinfo->flags == IP6T_MULTIPORT_DESTINATION
 		    || multiinfo->flags == IP6T_MULTIPORT_EITHER)
@@ -107,8 +103,9 @@ checkentry(const char *tablename,
 
 static struct ip6t_match multiport_match = {
 	.name		= "multiport",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ip6t_multiport),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 

@@ -122,23 +122,18 @@ checkentry(const char *tablename,
 {
 	const struct ip6t_frag *fraginfo = matchinfo;
 
-	if (matchinfosize != IP6T_ALIGN(sizeof(struct ip6t_frag))) {
-		DEBUGP("ip6t_frag: matchsize %u != %u\n",
-		       matchinfosize, IP6T_ALIGN(sizeof(struct ip6t_frag)));
-		return 0;
-	}
 	if (fraginfo->invflags & ~IP6T_FRAG_INV_MASK) {
 		DEBUGP("ip6t_frag: unknown flags %X\n", fraginfo->invflags);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ip6t_match frag_match = {
 	.name		= "frag",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ip6t_frag),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
