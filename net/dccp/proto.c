@@ -933,7 +933,7 @@ void dccp_ctl_sock_exit(void)
 EXPORT_SYMBOL_GPL(dccp_ctl_sock_exit);
 #endif
 
-static int __init init_dccp_v4_mibs(void)
+static int __init dccp_mib_init(void)
 {
 	int rc = -ENOMEM;
 
@@ -953,6 +953,13 @@ out_free_one:
 	dccp_statistics[0] = NULL;
 	goto out;
 
+}
+
+static int dccp_mib_exit(void)
+{
+	free_percpu(dccp_statistics[0]);
+	free_percpu(dccp_statistics[1]);
+	dccp_statistics[0] = dccp_statistics[1] = NULL;
 }
 
 static int thash_entries;
@@ -1044,7 +1051,7 @@ static int __init dccp_init(void)
 		INIT_HLIST_HEAD(&dccp_hashinfo.bhash[i].chain);
 	}
 
-	rc = init_dccp_v4_mibs();
+	rc = dccp_mib_init();
 	if (rc)
 		goto out_free_dccp_bhash;
 
@@ -1075,9 +1082,7 @@ out_unregister_protosw:
 	inet_unregister_protosw(&dccp_v4_protosw);
 	inet_del_protocol(&dccp_protocol, IPPROTO_DCCP);
 out_free_dccp_v4_mibs:
-	free_percpu(dccp_statistics[0]);
-	free_percpu(dccp_statistics[1]);
-	dccp_statistics[0] = dccp_statistics[1] = NULL;
+	dccp_mib_exit();
 out_free_dccp_bhash:
 	free_pages((unsigned long)dccp_hashinfo.bhash, bhash_order);
 	dccp_hashinfo.bhash = NULL;
@@ -1102,8 +1107,7 @@ static void __exit dccp_fini(void)
 	if (inet_del_protocol(&dccp_protocol, IPPROTO_DCCP) < 0)
 		printk(dccp_del_proto_err_msg);
 
-	free_percpu(dccp_statistics[0]);
-	free_percpu(dccp_statistics[1]);
+	dccp_mib_exit();
 	free_pages((unsigned long)dccp_hashinfo.bhash,
 		   get_order(dccp_hashinfo.bhash_size *
 			     sizeof(struct inet_bind_hashbucket)));
