@@ -1816,6 +1816,8 @@ unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len)
 	return skb->data += len;
 }
 
+EXPORT_SYMBOL_GPL(skb_pull_rcsum);
+
 void __init skb_init(void)
 {
 	skbuff_head_cache = kmem_cache_create("skbuff_head_cache",
