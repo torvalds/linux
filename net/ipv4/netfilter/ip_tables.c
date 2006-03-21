@@ -477,21 +477,12 @@ standard_check(const struct ipt_entry_target *t,
 	struct ipt_standard_target *targ = (void *)t;
 
 	/* Check standard info. */
-	if (t->u.target_size
-	    != IPT_ALIGN(sizeof(struct ipt_standard_target))) {
-		duprintf("standard_check: target size %u != %u\n",
-			 t->u.target_size,
-			 IPT_ALIGN(sizeof(struct ipt_standard_target)));
-		return 0;
-	}
-
 	if (targ->verdict >= 0
 	    && targ->verdict > max_offset - sizeof(struct ipt_entry)) {
 		duprintf("ipt_standard_check: bad verdict (%i)\n",
 			 targ->verdict);
 		return 0;
 	}
-
 	if (targ->verdict < -NF_MAX_VERDICT - 1) {
 		duprintf("ipt_standard_check: bad negative verdict (%i)\n",
 			 targ->verdict);
@@ -1330,24 +1321,22 @@ icmp_checkentry(const char *tablename,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
-	const struct ipt_ip *ip = info;
 	const struct ipt_icmp *icmpinfo = matchinfo;
 
-	/* Must specify proto == ICMP, and no unknown invflags */
-	return ip->proto == IPPROTO_ICMP
-		&& !(ip->invflags & IPT_INV_PROTO)
-		&& matchsize == IPT_ALIGN(sizeof(struct ipt_icmp))
-		&& !(icmpinfo->invflags & ~IPT_ICMP_INV);
+	/* Must specify no unknown invflags */
+	return !(icmpinfo->invflags & ~IPT_ICMP_INV);
 }
 
 /* The built-in targets: standard (NULL) and error. */
 static struct ipt_target ipt_standard_target = {
 	.name		= IPT_STANDARD_TARGET,
+	.targetsize	= sizeof(int),
 };
 
 static struct ipt_target ipt_error_target = {
 	.name		= IPT_ERROR_TARGET,
 	.target		= ipt_error,
+	.targetsize	= IPT_FUNCTION_MAXNAMELEN,
 };
 
 static struct nf_sockopt_ops ipt_sockopts = {
@@ -1362,8 +1351,10 @@ static struct nf_sockopt_ops ipt_sockopts = {
 
 static struct ipt_match icmp_matchstruct = {
 	.name		= "icmp",
-	.match		= &icmp_match,
-	.checkentry	= &icmp_checkentry,
+	.match		= icmp_match,
+	.matchsize	= sizeof(struct ipt_icmp),
+	.proto		= IPPROTO_ICMP,
+	.checkentry	= icmp_checkentry,
 };
 
 static int __init init(void)

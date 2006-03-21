@@ -76,32 +76,21 @@ checkentry(const char *tablename,
 	   unsigned int hook_mask)
 {
 	const struct ipt_ah *ahinfo = matchinfo;
-	const struct ipt_ip *ip = ip_void;
 
-	/* Must specify proto == AH, and no unknown invflags */
-	if (ip->proto != IPPROTO_AH || (ip->invflags & IPT_INV_PROTO)) {
-		duprintf("ipt_ah: Protocol %u != %u\n", ip->proto,
-			 IPPROTO_AH);
-		return 0;
-	}
-	if (matchinfosize != IPT_ALIGN(sizeof(struct ipt_ah))) {
-		duprintf("ipt_ah: matchsize %u != %u\n",
-			 matchinfosize, IPT_ALIGN(sizeof(struct ipt_ah)));
-		return 0;
-	}
+	/* Must specify no unknown invflags */
 	if (ahinfo->invflags & ~IPT_AH_INV_MASK) {
-		duprintf("ipt_ah: unknown flags %X\n",
-			 ahinfo->invflags);
+		duprintf("ipt_ah: unknown flags %X\n", ahinfo->invflags);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ipt_match ah_match = {
 	.name		= "ah",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_ah),
+	.proto		= IPPROTO_AH,
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 

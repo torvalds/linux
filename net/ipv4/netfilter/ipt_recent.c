@@ -670,8 +670,6 @@ checkentry(const char *tablename,
 	if(debug) printk(KERN_INFO RECENT_NAME ": checkentry() entered.\n");
 #endif
 
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_recent_info))) return 0;
-
 	/* seconds and hit_count only valid for CHECK/UPDATE */
 	if(info->check_set & IPT_RECENT_SET) { flag++; if(info->seconds || info->hit_count) return 0; }
 	if(info->check_set & IPT_RECENT_REMOVE) { flag++; if(info->seconds || info->hit_count) return 0; }
@@ -951,12 +949,13 @@ destroy(void *matchinfo, unsigned int matchsize)
 /* This is the structure we pass to ipt_register to register our
  * module with iptables.
  */
-static struct ipt_match recent_match = { 
-  .name = "recent", 
-  .match = &match, 
-  .checkentry = &checkentry, 
-  .destroy = &destroy, 
-  .me = THIS_MODULE
+static struct ipt_match recent_match = {
+	.name		= "recent",
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_recent_info),
+	.checkentry	= checkentry,
+	.destroy	= destroy,
+	.me		= THIS_MODULE
 };
 
 /* Kernel module initialization. */

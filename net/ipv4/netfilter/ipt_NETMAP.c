@@ -38,19 +38,6 @@ check(const char *tablename,
 {
 	const struct ip_nat_multi_range_compat *mr = targinfo;
 
-	if (strcmp(tablename, "nat") != 0) {
-		DEBUGP(MODULENAME":check: bad table `%s'.\n", tablename);
-		return 0;
-	}
-	if (targinfosize != IPT_ALIGN(sizeof(*mr))) {
-		DEBUGP(MODULENAME":check: size %u.\n", targinfosize);
-		return 0;
-	}
-	if (hook_mask & ~((1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_POST_ROUTING) |
-	                  (1 << NF_IP_LOCAL_OUT))) {
-		DEBUGP(MODULENAME":check: bad hooks %x.\n", hook_mask);
-		return 0;
-	}
 	if (!(mr->range[0].flags & IP_NAT_RANGE_MAP_IPS)) {
 		DEBUGP(MODULENAME":check: bad MAP_IPS.\n");
 		return 0;
@@ -101,6 +88,10 @@ target(struct sk_buff **pskb,
 static struct ipt_target target_module = { 
 	.name 		= MODULENAME,
 	.target 	= target, 
+	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
+	.table		= "nat",
+	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_POST_ROUTING) |
+			  (1 << NF_IP_LOCAL_OUT),
 	.checkentry 	= check,
     	.me 		= THIS_MODULE 
 };

@@ -443,29 +443,22 @@ static int ipt_log_checkentry(const char *tablename,
 {
 	const struct ipt_log_info *loginfo = targinfo;
 
-	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_log_info))) {
-		DEBUGP("LOG: targinfosize %u != %u\n",
-		       targinfosize, IPT_ALIGN(sizeof(struct ipt_log_info)));
-		return 0;
-	}
-
 	if (loginfo->level >= 8) {
 		DEBUGP("LOG: level %u >= 8\n", loginfo->level);
 		return 0;
 	}
-
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
 		DEBUGP("LOG: prefix term %i\n",
 		       loginfo->prefix[sizeof(loginfo->prefix)-1]);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ipt_target ipt_log_reg = {
 	.name		= "LOG",
 	.target		= ipt_log_target,
+	.targetsize	= sizeof(struct ipt_log_info),
 	.checkentry	= ipt_log_checkentry,
 	.me		= THIS_MODULE,
 };

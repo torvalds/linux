@@ -181,23 +181,6 @@ static int ipt_snat_checkentry(const char *tablename,
 		printk("SNAT: multiple ranges no longer supported\n");
 		return 0;
 	}
-
-	if (targinfosize != IPT_ALIGN(sizeof(struct ip_nat_multi_range_compat))) {
-		DEBUGP("SNAT: Target size %u wrong for %u ranges\n",
-		       targinfosize, mr->rangesize);
-		return 0;
-	}
-
-	/* Only allow these for NAT. */
-	if (strcmp(tablename, "nat") != 0) {
-		DEBUGP("SNAT: wrong table %s\n", tablename);
-		return 0;
-	}
-
-	if (hook_mask & ~(1 << NF_IP_POST_ROUTING)) {
-		DEBUGP("SNAT: hook mask 0x%x bad\n", hook_mask);
-		return 0;
-	}
 	return 1;
 }
 
@@ -214,24 +197,6 @@ static int ipt_dnat_checkentry(const char *tablename,
 		printk("DNAT: multiple ranges no longer supported\n");
 		return 0;
 	}
-
-	if (targinfosize != IPT_ALIGN(sizeof(struct ip_nat_multi_range_compat))) {
-		DEBUGP("DNAT: Target size %u wrong for %u ranges\n",
-		       targinfosize, mr->rangesize);
-		return 0;
-	}
-
-	/* Only allow these for NAT. */
-	if (strcmp(tablename, "nat") != 0) {
-		DEBUGP("DNAT: wrong table %s\n", tablename);
-		return 0;
-	}
-
-	if (hook_mask & ~((1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_OUT))) {
-		DEBUGP("DNAT: hook mask 0x%x bad\n", hook_mask);
-		return 0;
-	}
-	
 	return 1;
 }
 
@@ -299,12 +264,18 @@ int ip_nat_rule_find(struct sk_buff **pskb,
 static struct ipt_target ipt_snat_reg = {
 	.name		= "SNAT",
 	.target		= ipt_snat_target,
+	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
+	.table		= "nat",
+	.hooks		= 1 << NF_IP_POST_ROUTING,
 	.checkentry	= ipt_snat_checkentry,
 };
 
 static struct ipt_target ipt_dnat_reg = {
 	.name		= "DNAT",
 	.target		= ipt_dnat_target,
+	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
+	.table		= "nat",
+	.hooks		= 1 << NF_IP_PRE_ROUTING,
 	.checkentry	= ipt_dnat_checkentry,
 };
 

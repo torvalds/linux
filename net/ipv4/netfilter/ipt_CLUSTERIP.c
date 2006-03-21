@@ -389,13 +389,6 @@ checkentry(const char *tablename,
 
 	struct clusterip_config *config;
 
-	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_clusterip_tgt_info))) {
-		printk(KERN_WARNING "CLUSTERIP: targinfosize %u != %Zu\n",
-		       targinfosize,
-		       IPT_ALIGN(sizeof(struct ipt_clusterip_tgt_info)));
-		return 0;
-	}
-
 	if (cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP &&
 	    cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP_SPT &&
 	    cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP_SPT_DPT) {
@@ -476,12 +469,13 @@ static void destroy(void *matchinfo, unsigned int matchinfosize)
 	clusterip_config_put(cipinfo->config);
 }
 
-static struct ipt_target clusterip_tgt = { 
-	.name = "CLUSTERIP",
-	.target = &target, 
-	.checkentry = &checkentry, 
-	.destroy = &destroy,
-	.me = THIS_MODULE
+static struct ipt_target clusterip_tgt = {
+	.name		= "CLUSTERIP",
+	.target		= target,
+	.targetsize	= sizeof(struct ipt_clusterip_tgt_info),
+	.checkentry	= checkentry,
+	.destroy	= destroy,
+	.me		= THIS_MODULE
 };
 
 

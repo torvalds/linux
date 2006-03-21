@@ -345,36 +345,30 @@ static int ipt_ulog_checkentry(const char *tablename,
 {
 	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
 
-	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_ulog_info))) {
-		DEBUGP("ipt_ULOG: targinfosize %u != 0\n", targinfosize);
-		return 0;
-	}
-
 	if (loginfo->prefix[sizeof(loginfo->prefix) - 1] != '\0') {
 		DEBUGP("ipt_ULOG: prefix term %i\n",
 		       loginfo->prefix[sizeof(loginfo->prefix) - 1]);
 		return 0;
 	}
-
 	if (loginfo->qthreshold > ULOG_MAX_QLEN) {
 		DEBUGP("ipt_ULOG: queue threshold %i > MAX_QLEN\n",
 			loginfo->qthreshold);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ipt_target ipt_ulog_reg = {
 	.name		= "ULOG",
 	.target		= ipt_ulog_target,
+	.targetsize	= sizeof(struct ipt_ulog_info),
 	.checkentry	= ipt_ulog_checkentry,
 	.me		= THIS_MODULE,
 };
 
 static struct nf_logger ipt_ulog_logger = {
 	.name		= "ipt_ULOG",
-	.logfn		= &ipt_logfn,
+	.logfn		= ipt_logfn,
 	.me		= THIS_MODULE,
 };
 

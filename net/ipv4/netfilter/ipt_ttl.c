@@ -47,20 +47,10 @@ static int match(const struct sk_buff *skb, const struct net_device *in,
 	return 0;
 }
 
-static int checkentry(const char *tablename, const void  *ip,
-		      void *matchinfo, unsigned int matchsize,
-		      unsigned int hook_mask)
-{
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_ttl_info)))
-		return 0;
-
-	return 1;
-}
-
 static struct ipt_match ttl_match = {
 	.name		= "ttl",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_ttl_info),
 	.me		= THIS_MODULE,
 };
 

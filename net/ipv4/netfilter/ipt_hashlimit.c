@@ -512,9 +512,6 @@ hashlimit_checkentry(const char *tablename,
 {
 	struct ipt_hashlimit_info *r = matchinfo;
 
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_hashlimit_info)))
-		return 0;
-
 	/* Check for overflow. */
 	if (r->cfg.burst == 0
 	    || user2credits(r->cfg.avg * r->cfg.burst) < 
@@ -565,12 +562,13 @@ hashlimit_destroy(void *matchinfo, unsigned int matchsize)
 	htable_put(r->hinfo);
 }
 
-static struct ipt_match ipt_hashlimit = { 
-	.name = "hashlimit", 
-	.match = hashlimit_match, 
-	.checkentry = hashlimit_checkentry, 
-	.destroy = hashlimit_destroy,
-	.me = THIS_MODULE 
+static struct ipt_match ipt_hashlimit = {
+	.name		= "hashlimit",
+	.match		= hashlimit_match,
+	.matchsize	= sizeof(struct ipt_hashlimit_info),
+	.checkentry	= hashlimit_checkentry,
+	.destroy	= hashlimit_destroy,
+	.me		= THIS_MODULE
 };
 
 /* PROC stuff */

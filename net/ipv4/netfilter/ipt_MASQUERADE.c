@@ -47,19 +47,6 @@ masquerade_check(const char *tablename,
 {
 	const struct ip_nat_multi_range_compat *mr = targinfo;
 
-	if (strcmp(tablename, "nat") != 0) {
-		DEBUGP("masquerade_check: bad table `%s'.\n", tablename);
-		return 0;
-	}
-	if (targinfosize != IPT_ALIGN(sizeof(*mr))) {
-		DEBUGP("masquerade_check: size %u != %u.\n",
-		       targinfosize, sizeof(*mr));
-		return 0;
-	}
-	if (hook_mask & ~(1 << NF_IP_POST_ROUTING)) {
-		DEBUGP("masquerade_check: bad hooks %x.\n", hook_mask);
-		return 0;
-	}
 	if (mr->range[0].flags & IP_NAT_RANGE_MAP_IPS) {
 		DEBUGP("masquerade_check: bad MAP_IPS.\n");
 		return 0;
@@ -179,6 +166,9 @@ static struct notifier_block masq_inet_notifier = {
 static struct ipt_target masquerade = {
 	.name		= "MASQUERADE",
 	.target		= masquerade_target,
+	.targetsize	= sizeof(struct ip_nat_multi_range_compat),
+	.table		= "nat",
+	.hooks		= 1 << NF_IP_POST_ROUTING,
 	.checkentry	= masquerade_check,
 	.me		= THIS_MODULE,
 };

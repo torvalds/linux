@@ -290,23 +290,6 @@ static int check(const char *tablename,
  	const struct ipt_reject_info *rejinfo = targinfo;
 	const struct ipt_entry *e = e_void;
 
- 	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_reject_info))) {
-  		DEBUGP("REJECT: targinfosize %u != 0\n", targinfosize);
-  		return 0;
-  	}
-
-	/* Only allow these for packet filtering. */
-	if (strcmp(tablename, "filter") != 0) {
-		DEBUGP("REJECT: bad table `%s'.\n", tablename);
-		return 0;
-	}
-	if ((hook_mask & ~((1 << NF_IP_LOCAL_IN)
-			   | (1 << NF_IP_FORWARD)
-			   | (1 << NF_IP_LOCAL_OUT))) != 0) {
-		DEBUGP("REJECT: bad hook mask %X\n", hook_mask);
-		return 0;
-	}
-
 	if (rejinfo->with == IPT_ICMP_ECHOREPLY) {
 		printk("REJECT: ECHOREPLY no longer supported.\n");
 		return 0;
@@ -318,13 +301,16 @@ static int check(const char *tablename,
 			return 0;
 		}
 	}
-
 	return 1;
 }
 
 static struct ipt_target ipt_reject_reg = {
 	.name		= "REJECT",
 	.target		= reject,
+	.targetsize	= sizeof(struct ipt_reject_info),
+	.table		= "filter",
+	.hooks		= (1 << NF_IP_LOCAL_IN) | (1 << NF_IP_FORWARD) |
+			  (1 << NF_IP_LOCAL_OUT),
 	.checkentry	= check,
 	.me		= THIS_MODULE,
 };

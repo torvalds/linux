@@ -92,9 +92,6 @@ static int checkentry(const char *tablename, const void *ip_void,
 	const struct ipt_ecn_info *info = matchinfo;
 	const struct ipt_ip *ip = ip_void;
 
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_ecn_info)))
-		return 0;
-
 	if (info->operation & IPT_ECN_OP_MATCH_MASK)
 		return 0;
 
@@ -113,8 +110,9 @@ static int checkentry(const char *tablename, const void *ip_void,
 
 static struct ipt_match ecn_match = {
 	.name		= "ecn",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_ecn_info),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 

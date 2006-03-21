@@ -59,18 +59,6 @@ checkentry(const char *tablename,
 {
 	const u_int8_t tos = ((struct ipt_tos_target_info *)targinfo)->tos;
 
-	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_tos_target_info))) {
-		printk(KERN_WARNING "TOS: targinfosize %u != %Zu\n",
-		       targinfosize,
-		       IPT_ALIGN(sizeof(struct ipt_tos_target_info)));
-		return 0;
-	}
-
-	if (strcmp(tablename, "mangle") != 0) {
-		printk(KERN_WARNING "TOS: can only be called from \"mangle\" table, not \"%s\"\n", tablename);
-		return 0;
-	}
-
 	if (tos != IPTOS_LOWDELAY
 	    && tos != IPTOS_THROUGHPUT
 	    && tos != IPTOS_RELIABILITY
@@ -79,13 +67,14 @@ checkentry(const char *tablename,
 		printk(KERN_WARNING "TOS: bad tos value %#x\n", tos);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ipt_target ipt_tos_reg = {
 	.name		= "TOS",
 	.target		= target,
+	.targetsize	= sizeof(struct ipt_tos_target_info),
+	.table		= "mangle",
 	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };

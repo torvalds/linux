@@ -125,11 +125,6 @@ static int checkentry(const char *tablename, const void *ip_void,
 {
 	struct ipt_policy_info *info = matchinfo;
 
-	if (matchsize != IPT_ALIGN(sizeof(*info))) {
-		printk(KERN_ERR "ipt_policy: matchsize %u != %zu\n",
-		       matchsize, IPT_ALIGN(sizeof(*info)));
-		return 0;
-	}
 	if (!(info->flags & (IPT_POLICY_MATCH_IN|IPT_POLICY_MATCH_OUT))) {
 		printk(KERN_ERR "ipt_policy: neither incoming nor "
 		                "outgoing policy selected\n");
@@ -158,6 +153,7 @@ static int checkentry(const char *tablename, const void *ip_void,
 static struct ipt_match policy_match = {
 	.name		= "policy",
 	.match		= match,
+	.matchsize	= sizeof(struct ipt_policy_info),
 	.checkentry 	= checkentry,
 	.me		= THIS_MODULE,
 };

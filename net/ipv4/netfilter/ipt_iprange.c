@@ -62,27 +62,12 @@ match(const struct sk_buff *skb,
 	return 1;
 }
 
-static int check(const char *tablename,
-		 const void *inf,
-		 void *matchinfo,
-		 unsigned int matchsize,
-		 unsigned int hook_mask)
-{
-	/* verify size */
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_iprange_info)))
-		return 0;
-
-	return 1;
-}
-
-static struct ipt_match iprange_match = 
-{ 
-	.list = { NULL, NULL }, 
-	.name = "iprange", 
-	.match = &match, 
-	.checkentry = &check, 
-	.destroy = NULL, 
-	.me = THIS_MODULE
+static struct ipt_match iprange_match = {
+	.name		= "iprange",
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_iprange_info),
+	.destroy	= NULL,
+	.me		= THIS_MODULE
 };
 
 static int __init init(void)
