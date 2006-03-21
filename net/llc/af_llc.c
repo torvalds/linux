@@ -138,7 +138,7 @@ static void llc_ui_sk_init(struct socket *sock, struct sock *sk)
 }
 
 static struct proto llc_proto = {
-	.name	  = "DDP",
+	.name	  = "LLC",
 	.owner	  = THIS_MODULE,
 	.obj_size = sizeof(struct llc_sock),
 };
