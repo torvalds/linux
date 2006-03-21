@@ -526,8 +526,16 @@ struct bcm43xx_radioinfo {
 
 	/* Current Interference Mitigation mode */
 	int interfmode;
-	/* Stack of saved values from the Interference Mitigation code */
-	u16 interfstack[20];
+	/* Stack of saved values from the Interference Mitigation code.
+	 * Each value in the stack is layed out as follows:
+	 * bit 0-11:  offset
+	 * bit 12-15: register ID
+	 * bit 16-32: value
+	 * register ID is: 0x1 PHY, 0x2 Radio, 0x3 ILT
+	 */
+#define BCM43xx_INTERFSTACK_SIZE	26
+	u32 interfstack[BCM43xx_INTERFSTACK_SIZE];
+
 	/* Saved values from the NRSSI Slope calculation */
 	s16 nrssi[2];
 	s32 nrssislope;
