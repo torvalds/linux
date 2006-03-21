@@ -305,11 +305,9 @@ static int esp6_init_state(struct xfrm_state *x)
 	if (x->encap)
 		goto error;
 
-	esp = kmalloc(sizeof(*esp), GFP_KERNEL);
+	esp = kzalloc(sizeof(*esp), GFP_KERNEL);
 	if (esp == NULL)
 		return -ENOMEM;
-
-	memset(esp, 0, sizeof(*esp));
 
 	if (x->aalg) {
 		struct xfrm_algo_desc *aalg_desc;

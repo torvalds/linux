@@ -428,11 +428,10 @@ static int ipcomp6_init_state(struct xfrm_state *x)
 		goto out;
 
 	err = -ENOMEM;
-	ipcd = kmalloc(sizeof(*ipcd), GFP_KERNEL);
+	ipcd = kzalloc(sizeof(*ipcd), GFP_KERNEL);
 	if (!ipcd)
 		goto out;
 
-	memset(ipcd, 0, sizeof(*ipcd));
 	x->props.header_len = 0;
 	if (x->props.mode)
 		x->props.header_len += sizeof(struct ipv6hdr);

@@ -354,11 +354,9 @@ static int ah6_init_state(struct xfrm_state *x)
 	if (x->encap)
 		goto error;
 
-	ahp = kmalloc(sizeof(*ahp), GFP_KERNEL);
+	ahp = kzalloc(sizeof(*ahp), GFP_KERNEL);
 	if (ahp == NULL)
 		return -ENOMEM;
-
-	memset(ahp, 0, sizeof(*ahp));
 
 	ahp->key = x->aalg->alg_key;
 	ahp->key_len = (x->aalg->alg_key_len+7)/8;
