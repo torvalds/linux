@@ -459,6 +459,21 @@ static struct rt6_info *rt6_cow(struct rt6_info *ort, struct in6_addr *daddr,
 	return rt;
 }
 
+static struct rt6_info *rt6_alloc_clone(struct rt6_info *ort, struct in6_addr *daddr)
+{
+	struct rt6_info *rt = ip6_rt_copy(ort);
+	if (rt) {
+		ipv6_addr_copy(&rt->rt6i_dst.addr, daddr);
+		rt->rt6i_dst.plen = 128;
+		rt->rt6i_flags |= RTF_CACHE;
+		if (rt->rt6i_flags & RTF_REJECT)
+			rt->u.dst.error = ort->u.dst.error;
+		rt->u.dst.flags |= DST_HOST;
+		rt->rt6i_nexthop = neigh_clone(ort->rt6i_nexthop);
+	}
+	return rt;
+}
+
 #define BACKTRACK() \
 if (rt == &ip6_null_entry && strict) { \
        while ((fn = fn->parent) != NULL) { \
@@ -1240,17 +1255,11 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 
 		ip6_ins_rt(nrt, NULL, NULL, NULL);
 	} else {
-		nrt = ip6_rt_copy(rt);
-		if (nrt == NULL)
+		nrt = rt6_alloc_clone(rt, daddr);
+		if (!nrt)
 			goto out;
-		ipv6_addr_copy(&nrt->rt6i_dst.addr, daddr);
-		nrt->rt6i_dst.plen = 128;
-		nrt->u.dst.flags |= DST_HOST;
-		nrt->rt6i_nexthop = neigh_clone(rt->rt6i_nexthop);
 		dst_set_expires(&nrt->u.dst, ip6_rt_mtu_expires);
-		nrt->rt6i_flags |= RTF_DYNAMIC|RTF_CACHE|RTF_EXPIRES;
-		if (nrt->rt6i_flags & RTF_REJECT)
-			nrt->u.dst.error = rt->u.dst.error;
+		nrt->rt6i_flags |= RTF_DYNAMIC|RTF_EXPIRES;
 		nrt->u.dst.metrics[RTAX_MTU-1] = pmtu;
 		if (allfrag)
 			nrt->u.dst.metrics[RTAX_FEATURES-1] |= RTAX_FEATURE_ALLFRAG;
