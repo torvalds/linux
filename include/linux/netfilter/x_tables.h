@@ -92,8 +92,6 @@ struct xt_match
 
 	const char name[XT_FUNCTION_MAXNAMELEN-1];
 
-	u_int8_t revision;
-
 	/* Return true or false: return FALSE and set *hotdrop = 1 to
            force immediate packet drop. */
 	/* Arguments changed since 2.6.9, as this must now handle
@@ -120,6 +118,12 @@ struct xt_match
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
+
+	char *table;
+	unsigned int matchsize;
+	unsigned int hooks;
+	unsigned short proto;
+	u_int8_t revision;
 };
 
 /* Registration hooks for targets. */
@@ -128,8 +132,6 @@ struct xt_target
 	struct list_head list;
 
 	const char name[XT_FUNCTION_MAXNAMELEN-1];
-
-	u_int8_t revision;
 
 	/* Returns verdict. Argument order changed since 2.6.9, as this
 	   must now handle non-linear skbs, using skb_copy_bits and
@@ -156,6 +158,12 @@ struct xt_target
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
+
+	char *table;
+	unsigned int targetsize;
+	unsigned int hooks;
+	unsigned short proto;
+	u_int8_t revision;
 };
 
 /* Furniture shopping... */
@@ -206,6 +214,13 @@ extern int xt_register_target(int af, struct xt_target *target);
 extern void xt_unregister_target(int af, struct xt_target *target);
 extern int xt_register_match(int af, struct xt_match *target);
 extern void xt_unregister_match(int af, struct xt_match *target);
+
+extern int xt_check_match(const struct xt_match *match, unsigned short family,
+			  unsigned int size, const char *table, unsigned int hook,
+			  unsigned short proto, int inv_proto);
+extern int xt_check_target(const struct xt_target *target, unsigned short family,
+			   unsigned int size, const char *table, unsigned int hook,
+			   unsigned short proto, int inv_proto);
 
 extern int xt_register_table(struct xt_table *table,
 			     struct xt_table_info *bootstrap,
