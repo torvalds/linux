@@ -7666,6 +7666,7 @@ static void tg3_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
   
 	strcpy(info->driver, DRV_MODULE_NAME);
 	strcpy(info->version, DRV_MODULE_VERSION);
+	strcpy(info->fw_version, tp->fw_ver);
 	strcpy(info->bus_info, pci_name(tp->pdev));
 }
   
@@ -9069,6 +9070,20 @@ static u32 tg3_nvram_phys_addr(struct tg3 *tp, u32 addr)
 	return addr;
 }
 
+static u32 tg3_nvram_logical_addr(struct tg3 *tp, u32 addr)
+{
+	if ((tp->tg3_flags & TG3_FLAG_NVRAM) &&
+	    (tp->tg3_flags & TG3_FLAG_NVRAM_BUFFERED) &&
+	    (tp->tg3_flags2 & TG3_FLG2_FLASH) &&
+	    (tp->nvram_jedecnum == JEDEC_ATMEL))
+
+		addr = ((addr >> ATMEL_AT45DB0X1B_PAGE_POS) *
+			tp->nvram_pagesize) +
+		       (addr & ((1 << ATMEL_AT45DB0X1B_PAGE_POS) - 1));
+
+	return addr;
+}
+
 static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 {
 	int ret;
@@ -9780,6 +9795,46 @@ out_not_found:
 	strcpy(tp->board_part_number, "none");
 }
 
+static void __devinit tg3_read_fw_ver(struct tg3 *tp)
+{
+	u32 val, offset, start;
+
+	if (tg3_nvram_read_swab(tp, 0, &val))
+		return;
+
+	if (val != TG3_EEPROM_MAGIC)
+		return;
+
+	if (tg3_nvram_read_swab(tp, 0xc, &offset) ||
+	    tg3_nvram_read_swab(tp, 0x4, &start))
+		return;
+
+	offset = tg3_nvram_logical_addr(tp, offset);
+	if (tg3_nvram_read_swab(tp, offset, &val))
+		return;
+
+	if ((val & 0xfc000000) == 0x0c000000) {
+		u32 ver_offset, addr;
+		int i;
+
+		if (tg3_nvram_read_swab(tp, offset + 4, &val) ||
+		    tg3_nvram_read_swab(tp, offset + 8, &ver_offset))
+			return;
+
+		if (val != 0)
+			return;
+
+		addr = offset + ver_offset - start;
+		for (i = 0; i < 16; i += 4) {
+			if (tg3_nvram_read(tp, addr + i, &val))
+				return;
+
+			val = cpu_to_le32(val);
+			memcpy(tp->fw_ver + i, &val, 4);
+		}
+	}
+}
+
 #ifdef CONFIG_SPARC64
 static int __devinit tg3_is_sun_570X(struct tg3 *tp)
 {
@@ -10301,6 +10356,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	}
 
 	tg3_read_partno(tp);
+	tg3_read_fw_ver(tp);
 
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) {
 		tp->tg3_flags &= ~TG3_FLAG_USE_MI_INTERRUPT;

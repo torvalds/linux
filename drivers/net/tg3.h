@@ -2271,6 +2271,7 @@ struct tg3 {
 	u32				led_ctrl;
 
 	char				board_part_number[24];
+	char				fw_ver[16];
 	u32				nic_sram_data_cfg;
 	u32				pci_clock_ctrl;
 	struct pci_dev			*pdev_peer;
