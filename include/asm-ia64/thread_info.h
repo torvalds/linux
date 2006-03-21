@@ -26,6 +26,7 @@ struct thread_info {
 	struct exec_domain *exec_domain;/* execution domain */
 	__u32 flags;			/* thread_info flags (see TIF_*) */
 	__u32 cpu;			/* current CPU */
+	__u32 last_cpu;			/* Last CPU thread ran on */
 	mm_segment_t addr_limit;	/* user-level address space limit */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 	struct restart_block restart_block;
