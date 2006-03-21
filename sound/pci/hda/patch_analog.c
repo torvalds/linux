@@ -1322,7 +1322,9 @@ enum { AD1981_BASIC, AD1981_HP };
 static struct hda_board_config ad1981_cfg_tbl[] = {
 	{ .modelname = "hp", .config = AD1981_HP },
 	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x30aa,
-	  .config = AD1981_HP },
+	  .config = AD1981_HP }, /* HP nx6320 */
+	{ .pci_subvendor = 0x103c, .pci_subdevice = 0x309f,
+	  .config = AD1981_HP }, /* HP nx9420 AngelFire */
 	{ .modelname = "basic", .config = AD1981_BASIC },
 	{}
 };
