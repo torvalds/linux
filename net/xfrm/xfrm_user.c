@@ -1947,12 +1947,15 @@ static struct xfrm_mgr netlink_mgr = {
 
 static int __init xfrm_user_init(void)
 {
+	struct sock *nlsk;
+
 	printk(KERN_INFO "Initializing IPsec netlink socket\n");
 
-	xfrm_nl = netlink_kernel_create(NETLINK_XFRM, XFRMNLGRP_MAX,
-	                                xfrm_netlink_rcv, THIS_MODULE);
-	if (xfrm_nl == NULL)
+	nlsk = netlink_kernel_create(NETLINK_XFRM, XFRMNLGRP_MAX,
+	                             xfrm_netlink_rcv, THIS_MODULE);
+	if (nlsk == NULL)
 		return -ENOMEM;
+	rcu_assign_pointer(xfrm_nl, nlsk);
 
 	xfrm_register_km(&netlink_mgr);
 
@@ -1961,8 +1964,12 @@ static int __init xfrm_user_init(void)
 
 static void __exit xfrm_user_exit(void)
 {
+	struct sock *nlsk = xfrm_nl;
+
 	xfrm_unregister_km(&netlink_mgr);
-	sock_release(xfrm_nl->sk_socket);
+	rcu_assign_pointer(xfrm_nl, NULL);
+	synchronize_rcu();
+	sock_release(nlsk->sk_socket);
 }
 
 module_init(xfrm_user_init);

@@ -1001,7 +1001,15 @@ static inline int xfrm_policy_id2dir(u32 index)
 
 static inline int xfrm_aevent_is_on(void)
 {
-	return netlink_has_listeners(xfrm_nl,XFRMNLGRP_AEVENTS);
+	struct sock *nlsk;
+	int ret = 0;
+
+	rcu_read_lock();
+	nlsk = rcu_dereference(xfrm_nl);
+	if (nlsk)
+		ret = netlink_has_listeners(nlsk, XFRMNLGRP_AEVENTS);
+	rcu_read_unlock();
+	return ret;
 }
 
 static inline void xfrm_aevent_doreplay(struct xfrm_state *x)
