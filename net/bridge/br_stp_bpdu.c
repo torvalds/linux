@@ -19,8 +19,7 @@
 #include "br_private.h"
 #include "br_private_stp.h"
 
-#define JIFFIES_TO_TICKS(j) (((j) << 8) / HZ)
-#define TICKS_TO_JIFFIES(j) (((j) * HZ) >> 8)
+#define STP_HZ		256
 
 static void br_send_bpdu(struct net_bridge_port *p, unsigned char *data, int length)
 {
@@ -57,18 +56,18 @@ static void br_send_bpdu(struct net_bridge_port *p, unsigned char *data, int len
 		dev_queue_xmit);
 }
 
-static __inline__ void br_set_ticks(unsigned char *dest, int jiff)
+static inline void br_set_ticks(unsigned char *dest, int j)
 {
-	__u16 ticks;
+	unsigned long ticks = (STP_HZ * j)/ HZ;
 
-	ticks = JIFFIES_TO_TICKS(jiff);
-	dest[0] = (ticks >> 8) & 0xFF;
-	dest[1] = ticks & 0xFF;
+	*((__be16 *) dest) = htons(ticks);
 }
 
-static __inline__ int br_get_ticks(unsigned char *dest)
+static inline int br_get_ticks(const unsigned char *src)
 {
-	return TICKS_TO_JIFFIES((dest[0] << 8) | dest[1]);
+	unsigned long ticks = ntohs(*(__be16 *)src);
+
+	return (ticks * HZ + STP_HZ - 1) / STP_HZ;
 }
 
 /* called under bridge lock */
