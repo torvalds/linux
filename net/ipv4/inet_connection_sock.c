@@ -672,7 +672,7 @@ EXPORT_SYMBOL_GPL(inet_csk_ctl_sock_create);
 int inet_csk_compat_getsockopt(struct sock *sk, int level, int optname,
 			       char __user *optval, int __user *optlen)
 {
-	const struct inet_csk *icsk = inet_csk(sk);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 
 	if (icsk->icsk_af_ops->compat_getsockopt != NULL)
 		return icsk->icsk_af_ops->compat_getsockopt(sk, level, optname,
@@ -686,7 +686,7 @@ EXPORT_SYMBOL_GPL(inet_csk_compat_getsockopt);
 int inet_csk_compat_setsockopt(struct sock *sk, int level, int optname,
 			       char __user *optval, int optlen)
 {
-	const struct inet_csk *icsk = inet_csk(sk);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 
 	if (icsk->icsk_af_ops->compat_setsockopt != NULL)
 		return icsk->icsk_af_ops->compat_setsockopt(sk, level, optname,
