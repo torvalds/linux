@@ -223,7 +223,11 @@ static struct pci_device_id tg3_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5714,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5714S,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5715,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5715S,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5780,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
@@ -2680,6 +2684,12 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 
 	err |= tg3_readphy(tp, MII_BMSR, &bmsr);
 	err |= tg3_readphy(tp, MII_BMSR, &bmsr);
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714) {
+		if (tr32(MAC_TX_STATUS) & TX_STATUS_LINK_UP)
+			bmsr |= BMSR_LSTATUS;
+		else
+			bmsr &= ~BMSR_LSTATUS;
+	}
 
 	err |= tg3_readphy(tp, MII_BMCR, &bmcr);
 
@@ -2748,6 +2758,13 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 			bmcr = new_bmcr;
 			err |= tg3_readphy(tp, MII_BMSR, &bmsr);
 			err |= tg3_readphy(tp, MII_BMSR, &bmsr);
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
+			    ASIC_REV_5714) {
+				if (tr32(MAC_TX_STATUS) & TX_STATUS_LINK_UP)
+					bmsr |= BMSR_LSTATUS;
+				else
+					bmsr &= ~BMSR_LSTATUS;
+			}
 			tp->tg3_flags2 &= ~TG3_FLG2_PARALLEL_DETECT;
 		}
 	}
@@ -5585,6 +5602,9 @@ static int tg3_reset_hw(struct tg3 *tp)
 		tg3_abort_hw(tp, 1);
 	}
 
+	if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)
+		tg3_phy_reset(tp);
+
 	err = tg3_chip_reset(tp);
 	if (err)
 		return err;
@@ -6097,6 +6117,17 @@ static int tg3_reset_hw(struct tg3 *tp)
 		tp->tg3_flags2 |= TG3_FLG2_HW_AUTONEG;
 	}
 
+	if ((tp->tg3_flags2 & TG3_FLG2_MII_SERDES) &&
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714)) {
+		u32 tmp;
+
+		tmp = tr32(SERDES_RX_CTRL);
+		tw32(SERDES_RX_CTRL, tmp | SERDES_RX_SIG_DETECT);
+		tp->grc_local_ctrl &= ~GRC_LCLCTRL_USE_EXT_SIG_DETECT;
+		tp->grc_local_ctrl |= GRC_LCLCTRL_USE_SIG_DETECT;
+		tw32(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
+	}
+
 	err = tg3_setup_phy(tp, 1);
 	if (err)
 		return err;
@@ -6476,7 +6507,9 @@ static int tg3_open(struct net_device *dev)
 
 	if ((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
 	    (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5750_AX) &&
-	    (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5750_BX)) {
+	    (GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5750_BX) &&
+	    !((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714) &&
+	      (tp->pdev_peer == tp->pdev))) {
 		/* All MSI supporting chips should support tagged
 		 * status.  Assert that this is the case.
 		 */
