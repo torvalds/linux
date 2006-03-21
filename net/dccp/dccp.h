@@ -118,7 +118,6 @@ DECLARE_SNMP_STAT(struct dccp_mib, dccp_statistics);
 
 extern int  dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb);
 
-extern int dccp_send_response(struct sock *sk);
 extern void dccp_send_ack(struct sock *sk);
 extern void dccp_send_delayed_ack(struct sock *sk);
 extern void dccp_send_sync(struct sock *sk, const u64 seq,
