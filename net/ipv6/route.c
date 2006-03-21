@@ -218,6 +218,42 @@ static __inline__ struct rt6_info *rt6_device_match(struct rt6_info *rt,
 	return rt;
 }
 
+#ifdef CONFIG_IPV6_ROUTER_PREF
+static void rt6_probe(struct rt6_info *rt)
+{
+	struct neighbour *neigh = rt ? rt->rt6i_nexthop : NULL;
+	/*
+	 * Okay, this does not seem to be appropriate
+	 * for now, however, we need to check if it
+	 * is really so; aka Router Reachability Probing.
+	 *
+	 * Router Reachability Probe MUST be rate-limited
+	 * to no more than one per minute.
+	 */
+	if (!neigh || (neigh->nud_state & NUD_VALID))
+		return;
+	read_lock_bh(&neigh->lock);
+	if (!(neigh->nud_state & NUD_VALID) &&
+	    time_after(jiffies, neigh->updated + 60 * HZ)) {
+		struct in6_addr mcaddr;
+		struct in6_addr *target;
+
+		neigh->updated = jiffies;
+		read_unlock_bh(&neigh->lock);
+
+		target = (struct in6_addr *)&neigh->primary_key;
+		addrconf_addr_solict_mult(target, &mcaddr);
+		ndisc_send_ns(rt->rt6i_dev, NULL, target, &mcaddr, NULL);
+	} else
+		read_unlock_bh(&neigh->lock);
+}
+#else
+static inline void rt6_probe(struct rt6_info *rt)
+{
+	return;
+}
+#endif
+
 /*
  * Default Router Selection (RFC 2461 6.3.6)
  */
@@ -287,8 +323,11 @@ static struct rt6_info *rt6_select(struct rt6_info **head, int oif,
 			continue;
 
 		if (m > mpri) {
+			rt6_probe(match);
 			match = rt;
 			mpri = m;
+		} else {
+			rt6_probe(rt);
 		}
 	}
 
