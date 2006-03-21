@@ -706,6 +706,43 @@ static void get_rtc_time_complete(void *token, struct ce_msg_data *ce_msg)
 	complete(&rtc->com);
 }
 
+static int mf_set_rtc(struct rtc_time *tm)
+{
+	char ce_time[12];
+	u8 day, mon, hour, min, sec, y1, y2;
+	unsigned year;
+
+	year = 1900 + tm->tm_year;
+	y1 = year / 100;
+	y2 = year % 100;
+
+	sec = tm->tm_sec;
+	min = tm->tm_min;
+	hour = tm->tm_hour;
+	day = tm->tm_mday;
+	mon = tm->tm_mon + 1;
+
+	BIN_TO_BCD(sec);
+	BIN_TO_BCD(min);
+	BIN_TO_BCD(hour);
+	BIN_TO_BCD(mon);
+	BIN_TO_BCD(day);
+	BIN_TO_BCD(y1);
+	BIN_TO_BCD(y2);
+
+	memset(ce_time, 0, sizeof(ce_time));
+	ce_time[3] = 0x41;
+	ce_time[4] = y1;
+	ce_time[5] = y2;
+	ce_time[6] = sec;
+	ce_time[7] = min;
+	ce_time[8] = hour;
+	ce_time[10] = day;
+	ce_time[11] = mon;
+
+	return signal_ce_msg(ce_time, NULL);
+}
+
 static int rtc_set_tm(int rc, u8 *ce_msg, struct rtc_time *tm)
 {
 	tm->tm_wday = 0;
@@ -761,7 +798,7 @@ static int rtc_set_tm(int rc, u8 *ce_msg, struct rtc_time *tm)
 	return 0;
 }
 
-int mf_get_rtc(struct rtc_time *tm)
+static int mf_get_rtc(struct rtc_time *tm)
 {
 	struct ce_msg_comp_data ce_complete;
 	struct rtc_time_data rtc_data;
@@ -794,7 +831,7 @@ static void get_boot_rtc_time_complete(void *token, struct ce_msg_data *ce_msg)
 	rtc->busy = 0;
 }
 
-int mf_get_boot_rtc(struct rtc_time *tm)
+static int mf_get_boot_rtc(struct rtc_time *tm)
 {
 	struct ce_msg_comp_data ce_complete;
 	struct boot_rtc_time_data rtc_data;
@@ -814,43 +851,6 @@ int mf_get_boot_rtc(struct rtc_time *tm)
 			process_hvlpevents(NULL);
 	}
 	return rtc_set_tm(rtc_data.rc, rtc_data.ce_msg.ce_msg, tm);
-}
-
-int mf_set_rtc(struct rtc_time *tm)
-{
-	char ce_time[12];
-	u8 day, mon, hour, min, sec, y1, y2;
-	unsigned year;
-
-	year = 1900 + tm->tm_year;
-	y1 = year / 100;
-	y2 = year % 100;
-
-	sec = tm->tm_sec;
-	min = tm->tm_min;
-	hour = tm->tm_hour;
-	day = tm->tm_mday;
-	mon = tm->tm_mon + 1;
-
-	BIN_TO_BCD(sec);
-	BIN_TO_BCD(min);
-	BIN_TO_BCD(hour);
-	BIN_TO_BCD(mon);
-	BIN_TO_BCD(day);
-	BIN_TO_BCD(y1);
-	BIN_TO_BCD(y2);
-
-	memset(ce_time, 0, sizeof(ce_time));
-	ce_time[3] = 0x41;
-	ce_time[4] = y1;
-	ce_time[5] = y2;
-	ce_time[6] = sec;
-	ce_time[7] = min;
-	ce_time[8] = hour;
-	ce_time[10] = day;
-	ce_time[11] = mon;
-
-	return signal_ce_msg(ce_time, NULL);
 }
 
 #ifdef CONFIG_PROC_FS

@@ -48,8 +48,4 @@ extern void mf_display_progress(u16 value);
 
 extern void mf_init(void);
 
-extern int mf_get_rtc(struct rtc_time *tm);
-extern int mf_get_boot_rtc(struct rtc_time *tm);
-extern int mf_set_rtc(struct rtc_time *tm);
-
 #endif /* _ASM_POWERPC_ISERIES_MF_H */
