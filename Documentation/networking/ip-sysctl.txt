@@ -619,6 +619,11 @@ arp_ignore - INTEGER
 	The max value from conf/{all,interface}/arp_ignore is used
 	when ARP request is received on the {interface}
 
+arp_accept - BOOLEAN
+	Define behavior when gratuitous arp replies are received:
+	0 - drop gratuitous arp frames
+	1 - accept gratuitous arp frames
+
 app_solicit - INTEGER
 	The maximum number of probes to send to the user space ARP daemon
 	via netlink before dropping back to multicast probes (see
