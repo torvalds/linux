@@ -224,6 +224,7 @@ extern int sysctl_tcp_tso_win_divisor;
 extern int sysctl_tcp_abc;
 extern int sysctl_tcp_mtu_probing;
 extern int sysctl_tcp_base_mss;
+extern int sysctl_tcp_workaround_signed_windows;
 
 extern atomic_t tcp_memory_allocated;
 extern atomic_t tcp_sockets_allocated;
