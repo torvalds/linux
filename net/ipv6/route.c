@@ -1249,6 +1249,8 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 		nrt->rt6i_nexthop = neigh_clone(rt->rt6i_nexthop);
 		dst_set_expires(&nrt->u.dst, ip6_rt_mtu_expires);
 		nrt->rt6i_flags |= RTF_DYNAMIC|RTF_CACHE|RTF_EXPIRES;
+		if (nrt->rt6i_flags & RTF_REJECT)
+			nrt->u.dst.error = rt->u.dst.error;
 		nrt->u.dst.metrics[RTAX_MTU-1] = pmtu;
 		if (allfrag)
 			nrt->u.dst.metrics[RTAX_FEATURES-1] |= RTAX_FEATURE_ALLFRAG;
