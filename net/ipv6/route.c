@@ -396,7 +396,7 @@ static struct rt6_info *rt6_alloc_clone(struct rt6_info *ort, struct in6_addr *d
 }
 
 #define BACKTRACK() \
-if (rt == &ip6_null_entry && strict) { \
+if (rt == &ip6_null_entry) { \
        while ((fn = fn->parent) != NULL) { \
 		if (fn->fn_flags & RTN_ROOT) { \
 			goto out; \
