@@ -4340,9 +4340,9 @@ idle_irq:
 
 #ifdef ATA_IRQ_TRAP
 	if ((ap->stats.idle_irq % 1000) == 0) {
-		handled = 1;
 		ata_irq_ack(ap, 0); /* debug trap */
 		printk(KERN_WARNING "ata%d: irq trap\n", ap->id);
+		return 1;
 	}
 #endif
 	return 0;	/* irq not handled */
