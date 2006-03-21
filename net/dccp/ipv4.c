@@ -264,7 +264,10 @@ static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,
 	skb = dccp_make_response(sk, dst, req);
 	if (skb != NULL) {
 		const struct inet_request_sock *ireq = inet_rsk(req);
+		struct dccp_hdr *dh = dccp_hdr(skb);
 
+		dh->dccph_checksum = dccp_v4_checksum(skb, ireq->loc_addr,
+						      ireq->rmt_addr);
 		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 		err = ip_build_and_send_pkt(skb, sk, ireq->loc_addr,
 					    ireq->rmt_addr,

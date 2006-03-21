@@ -314,9 +314,6 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), dreq->dreq_isr);
 	dccp_hdr_response(skb)->dccph_resp_service = dreq->dreq_service;
 
-	dh->dccph_checksum = dccp_v4_checksum(skb, inet_rsk(req)->loc_addr,
-					      inet_rsk(req)->rmt_addr);
-
 	DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 	return skb;
 }
