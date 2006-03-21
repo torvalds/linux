@@ -49,7 +49,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 		struct dccp_hdr *dh;
 		/* XXX For now we're using only 48 bits sequence numbers */
-		const int dccp_header_size = sizeof(*dh) +
+		const u32 dccp_header_size = sizeof(*dh) +
 					     sizeof(struct dccp_hdr_ext) +
 					  dccp_packet_hdr_len(dcb->dccpd_type);
 		int err, set_ack = 1;
@@ -279,17 +279,16 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 {
 	struct dccp_hdr *dh;
 	struct dccp_request_sock *dreq;
-	const int dccp_header_size = sizeof(struct dccp_hdr) +
+	const u32 dccp_header_size = sizeof(struct dccp_hdr) +
 				     sizeof(struct dccp_hdr_ext) +
 				     sizeof(struct dccp_hdr_response);
-	struct sk_buff *skb = sock_wmalloc(sk, MAX_HEADER + DCCP_MAX_OPT_LEN +
-					       dccp_header_size, 1,
+	struct sk_buff *skb = sock_wmalloc(sk, sk->sk_prot->max_header, 1,
 					   GFP_ATOMIC);
 	if (skb == NULL)
 		return NULL;
 
 	/* Reserve space for headers. */
-	skb_reserve(skb, MAX_HEADER + DCCP_MAX_OPT_LEN + dccp_header_size);
+	skb_reserve(skb, sk->sk_prot->max_header);
 
 	skb->dst = dst_clone(dst);
 	skb->csum = 0;
@@ -326,17 +325,16 @@ static struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
 {
 	struct dccp_hdr *dh;
 	struct dccp_sock *dp = dccp_sk(sk);
-	const int dccp_header_size = sizeof(struct dccp_hdr) +
+	const u32 dccp_header_size = sizeof(struct dccp_hdr) +
 				     sizeof(struct dccp_hdr_ext) +
 				     sizeof(struct dccp_hdr_reset);
-	struct sk_buff *skb = sock_wmalloc(sk, MAX_HEADER + DCCP_MAX_OPT_LEN +
-					       dccp_header_size, 1,
+	struct sk_buff *skb = sock_wmalloc(sk, sk->sk_prot->max_header, 1,
 					   GFP_ATOMIC);
 	if (skb == NULL)
 		return NULL;
 
 	/* Reserve space for headers. */
-	skb_reserve(skb, MAX_HEADER + DCCP_MAX_OPT_LEN + dccp_header_size);
+	skb_reserve(skb, sk->sk_prot->max_header);
 
 	skb->dst = dst_clone(dst);
 	skb->csum = 0;
@@ -426,12 +424,12 @@ int dccp_connect(struct sock *sk)
 
 	dccp_connect_init(sk);
 
-	skb = alloc_skb(MAX_DCCP_HEADER + 15, sk->sk_allocation);
+	skb = alloc_skb(sk->sk_prot->max_header, sk->sk_allocation);
 	if (unlikely(skb == NULL))
 		return -ENOBUFS;
 
 	/* Reserve space for headers. */
-	skb_reserve(skb, MAX_DCCP_HEADER);
+	skb_reserve(skb, sk->sk_prot->max_header);
 
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_REQUEST;
 	skb->csum = 0;
@@ -452,7 +450,8 @@ void dccp_send_ack(struct sock *sk)
 {
 	/* If we have been reset, we may not send again. */
 	if (sk->sk_state != DCCP_CLOSED) {
-		struct sk_buff *skb = alloc_skb(MAX_DCCP_HEADER, GFP_ATOMIC);
+		struct sk_buff *skb = alloc_skb(sk->sk_prot->max_header,
+						GFP_ATOMIC);
 
 		if (skb == NULL) {
 			inet_csk_schedule_ack(sk);
@@ -464,7 +463,7 @@ void dccp_send_ack(struct sock *sk)
 		}
 
 		/* Reserve space for headers */
-		skb_reserve(skb, MAX_DCCP_HEADER);
+		skb_reserve(skb, sk->sk_prot->max_header);
 		skb->csum = 0;
 		DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_ACK;
 		dccp_transmit_skb(sk, skb);
@@ -511,14 +510,14 @@ void dccp_send_sync(struct sock *sk, const u64 seq,
 	 * dccp_transmit_skb() will set the ownership to this
 	 * sock.
 	 */
-	struct sk_buff *skb = alloc_skb(MAX_DCCP_HEADER, GFP_ATOMIC);
+	struct sk_buff *skb = alloc_skb(sk->sk_prot->max_header, GFP_ATOMIC);
 
 	if (skb == NULL)
 		/* FIXME: how to make sure the sync is sent? */
 		return;
 
 	/* Reserve space for headers and prepare control bits. */
-	skb_reserve(skb, MAX_DCCP_HEADER);
+	skb_reserve(skb, sk->sk_prot->max_header);
 	skb->csum = 0;
 	DCCP_SKB_CB(skb)->dccpd_type = pkt_type;
 	DCCP_SKB_CB(skb)->dccpd_seq = seq;

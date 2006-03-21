@@ -514,7 +514,7 @@ static void dccp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
 {
 	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
-	const int dccp_hdr_reset_len = sizeof(struct dccp_hdr) +
+	const u32 dccp_hdr_reset_len = sizeof(struct dccp_hdr) +
 				       sizeof(struct dccp_hdr_ext) +
 				       sizeof(struct dccp_hdr_reset);
 	struct sk_buff *skb;
@@ -527,18 +527,12 @@ static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
 	if (!ipv6_unicast_destination(rxskb))
 		return;
 
-	/*
-	 * We need to grab some memory, and put together an RST,
-	 * and then put it into the queue to be sent.
-	 */
-
-	skb = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) +
-			dccp_hdr_reset_len, GFP_ATOMIC);
+	skb = alloc_skb(dccp_v6_ctl_socket->sk->sk_prot->max_header,
+			GFP_ATOMIC);
 	if (skb == NULL)
 	  	return;
 
-	skb_reserve(skb, MAX_HEADER + sizeof(struct ipv6hdr) +
-		    dccp_hdr_reset_len);
+	skb_reserve(skb, dccp_v6_ctl_socket->sk->sk_prot->max_header);
 
 	skb->h.raw = skb_push(skb, dccp_hdr_reset_len);
 	dh = dccp_hdr(skb);
@@ -590,18 +584,17 @@ static void dccp_v6_ctl_send_ack(struct sk_buff *rxskb)
 {
 	struct flowi fl;
 	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
-	const int dccp_hdr_ack_len = sizeof(struct dccp_hdr) +
+	const u32 dccp_hdr_ack_len = sizeof(struct dccp_hdr) +
 				     sizeof(struct dccp_hdr_ext) +
 				     sizeof(struct dccp_hdr_ack_bits);
 	struct sk_buff *skb;
 
-	skb = alloc_skb(MAX_HEADER + sizeof(struct ipv6hdr) +
-			dccp_hdr_ack_len, GFP_ATOMIC);
+	skb = alloc_skb(dccp_v6_ctl_socket->sk->sk_prot->max_header,
+			GFP_ATOMIC);
 	if (skb == NULL)
 		return;
 
-	skb_reserve(skb, MAX_HEADER + sizeof(struct ipv6hdr) +
-			 dccp_hdr_ack_len);
+	skb_reserve(skb, dccp_v6_ctl_socket->sk->sk_prot->max_header);
 
 	skb->h.raw = skb_push(skb, dccp_hdr_ack_len);
 	dh = dccp_hdr(skb);

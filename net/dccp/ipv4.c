@@ -201,7 +201,7 @@ static void dccp_v4_ctl_send_ack(struct sk_buff *rxskb)
 {
 	int err;
 	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
-	const int dccp_hdr_ack_len = sizeof(struct dccp_hdr) +
+	const u32 dccp_hdr_ack_len = sizeof(struct dccp_hdr) +
 				     sizeof(struct dccp_hdr_ext) +
 				     sizeof(struct dccp_hdr_ack_bits);
 	struct sk_buff *skb;
@@ -209,12 +209,12 @@ static void dccp_v4_ctl_send_ack(struct sk_buff *rxskb)
 	if (((struct rtable *)rxskb->dst)->rt_type != RTN_LOCAL)
 		return;
 
-	skb = alloc_skb(MAX_DCCP_HEADER + 15, GFP_ATOMIC);
+	skb = alloc_skb(dccp_v4_ctl_socket->sk->sk_prot->max_header, GFP_ATOMIC);
 	if (skb == NULL)
 		return;
 
 	/* Reserve space for headers. */
-	skb_reserve(skb, MAX_DCCP_HEADER);
+	skb_reserve(skb, dccp_v4_ctl_socket->sk->sk_prot->max_header);
 
 	skb->dst = dst_clone(rxskb->dst);
 
@@ -715,12 +715,13 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 	if (dst == NULL)
 		return;
 
-	skb = alloc_skb(MAX_DCCP_HEADER + 15, GFP_ATOMIC);
+	skb = alloc_skb(dccp_v4_ctl_socket->sk->sk_prot->max_header,
+			GFP_ATOMIC);
 	if (skb == NULL)
 		goto out;
 
 	/* Reserve space for headers. */
-	skb_reserve(skb, MAX_DCCP_HEADER);
+	skb_reserve(skb, dccp_v4_ctl_socket->sk->sk_prot->max_header);
 	skb->dst = dst_clone(dst);
 
 	skb->h.raw = skb_push(skb, dccp_hdr_reset_len);
