@@ -237,12 +237,11 @@ static int find_portno(struct net_bridge *br)
 	struct net_bridge_port *p;
 	unsigned long *inuse;
 
-	inuse = kmalloc(BITS_TO_LONGS(BR_MAX_PORTS)*sizeof(unsigned long),
+	inuse = kcalloc(BITS_TO_LONGS(BR_MAX_PORTS), sizeof(unsigned long),
 			GFP_KERNEL);
 	if (!inuse)
 		return -ENOMEM;
 
-	memset(inuse, 0, BITS_TO_LONGS(BR_MAX_PORTS)*sizeof(unsigned long));
 	set_bit(0, inuse);	/* zero is reserved */
 	list_for_each_entry(p, &br->port_list, list) {
 		set_bit(p->port_no, inuse);
