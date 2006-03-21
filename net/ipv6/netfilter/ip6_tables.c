@@ -575,6 +575,7 @@ check_match(struct ip6t_entry_match *m,
 	    unsigned int *i)
 {
 	struct ip6t_match *match;
+	int ret;
 
 	match = try_then_request_module(xt_find_match(AF_INET6, m->u.user.name,
 			      		m->u.user.revision),
@@ -585,18 +586,27 @@ check_match(struct ip6t_entry_match *m,
 	}
 	m->u.kernel.match = match;
 
+	ret = xt_check_match(match, AF_INET6, m->u.match_size - sizeof(*m),
+			     name, hookmask, ipv6->proto,
+			     ipv6->invflags & IP6T_INV_PROTO);
+	if (ret)
+		goto err;
+
 	if (m->u.kernel.match->checkentry
 	    && !m->u.kernel.match->checkentry(name, ipv6, m->data,
 					      m->u.match_size - sizeof(*m),
 					      hookmask)) {
-		module_put(m->u.kernel.match->me);
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 m->u.kernel.match->name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	(*i)++;
 	return 0;
+err:
+	module_put(m->u.kernel.match->me);
+	return ret;
 }
 
 static struct ip6t_target ip6t_standard_target;
@@ -632,6 +642,12 @@ check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 	}
 	t->u.kernel.target = target;
 
+	ret = xt_check_target(target, AF_INET6, t->u.target_size - sizeof(*t),
+			      name, e->comefrom, e->ipv6.proto,
+			      e->ipv6.invflags & IP6T_INV_PROTO);
+	if (ret)
+		goto err;
+
 	if (t->u.kernel.target == &ip6t_standard_target) {
 		if (!standard_check(t, size)) {
 			ret = -EINVAL;
@@ -642,16 +658,16 @@ check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 						      t->u.target_size
 						      - sizeof(*t),
 						      e->comefrom)) {
-		module_put(t->u.kernel.target->me);
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
 		ret = -EINVAL;
-		goto cleanup_matches;
+		goto err;
 	}
 
 	(*i)++;
 	return 0;
-
+ err:
+	module_put(t->u.kernel.target->me);
  cleanup_matches:
 	IP6T_MATCH_ITERATE(e, cleanup_match, &j);
 	return ret;

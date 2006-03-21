@@ -480,6 +480,11 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 	}
 	t->u.kernel.target = target;
 
+	ret = xt_check_target(target, NF_ARP, t->u.target_size - sizeof(*t),
+			      name, e->comefrom, 0, 0);
+	if (ret)
+		goto err;
+
 	if (t->u.kernel.target == &arpt_standard_target) {
 		if (!standard_check(t, size)) {
 			ret = -EINVAL;
@@ -490,16 +495,16 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 						      t->u.target_size
 						      - sizeof(*t),
 						      e->comefrom)) {
-		module_put(t->u.kernel.target->me);
 		duprintf("arp_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
 		ret = -EINVAL;
-		goto out;
+		goto err;
 	}
 
 	(*i)++;
 	return 0;
-
+err:
+	module_put(t->u.kernel.target->me);
 out:
 	return ret;
 }
