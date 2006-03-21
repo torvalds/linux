@@ -799,6 +799,7 @@ static int __init dccp_init(void)
 	if (rc)
 		goto out;
 
+	rc = -ENOBUFS;
 	dccp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("dccp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
@@ -866,7 +867,8 @@ static int __init dccp_init(void)
 		INIT_HLIST_HEAD(&dccp_hashinfo.bhash[i].chain);
 	}
 
-	if (init_dccp_v4_mibs())
+	rc = init_dccp_v4_mibs();
+	if (rc)
 		goto out_free_dccp_bhash;
 
 	rc = -EAGAIN;
