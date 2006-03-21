@@ -612,14 +612,17 @@ snd_au1000_free(struct snd_card *card)
 		release_and_free_resource(au1000->ac97_res_port);
 	}
 
-	if (au1000->stream[PLAYBACK]->dma >= 0)
-		free_au1000_dma(au1000->stream[PLAYBACK]->dma);
+	if (au1000->stream[PLAYBACK]) {
+	  	if (au1000->stream[PLAYBACK]->dma >= 0)
+			free_au1000_dma(au1000->stream[PLAYBACK]->dma);
+		kfree(au1000->stream[PLAYBACK]);
+	}
 
-	if (au1000->stream[CAPTURE]->dma >= 0)
-		free_au1000_dma(au1000->stream[CAPTURE]->dma);
-
-	kfree(au1000->stream[PLAYBACK]);
-	kfree(au1000->stream[CAPTURE]);
+	if (au1000->stream[CAPTURE]) {
+		if (au1000->stream[CAPTURE]->dma >= 0)
+			free_au1000_dma(au1000->stream[CAPTURE]->dma);
+		kfree(au1000->stream[CAPTURE]);
+	}
 }
 
 
@@ -638,15 +641,19 @@ au1000_init(void)
 
 	card->private_free = snd_au1000_free;
 	au1000 = card->private_data;
-	/* so that snd_au1000_free will work as intended */
 	au1000->card = card;
-	au1000->stream[PLAYBACK]->dma = -1;
-	au1000->stream[CAPTURE]->dma = -1;
- 	au1000->ac97_res_port = NULL;
+
 	au1000->stream[PLAYBACK] = kmalloc(sizeof(struct audio_stream), GFP_KERNEL);
-	au1000->stream[CAPTURE] = kmalloc(sizeof(struct audio_stream), GFP_KERNEL);
+	au1000->stream[CAPTURE ] = kmalloc(sizeof(struct audio_stream), GFP_KERNEL);
+	/* so that snd_au1000_free will work as intended */
+ 	au1000->ac97_res_port = NULL;
+	if (au1000->stream[PLAYBACK])
+		au1000->stream[PLAYBACK]->dma = -1;
+	if (au1000->stream[CAPTURE ])
+		au1000->stream[CAPTURE ]->dma = -1;
+
 	if (au1000->stream[PLAYBACK] == NULL ||
-	    au1000->stream[CAPTURE] == NULL) {
+	    au1000->stream[CAPTURE ] == NULL) {
 		snd_card_free(card);
 		return -ENOMEM;
 	}
