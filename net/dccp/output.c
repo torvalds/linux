@@ -83,7 +83,11 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		}
 
 		dcb->dccpd_seq = dp->dccps_gss;
-		dccp_insert_options(sk, skb);
+
+		if (dccp_insert_options(sk, skb)) {
+			kfree_skb(skb);
+			return -EPROTO;
+		}
 		
 		skb->h.raw = skb_push(skb, dccp_header_size);
 		dh = dccp_hdr(skb);
@@ -296,7 +300,11 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	dreq = dccp_rsk(req);
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_RESPONSE;
 	DCCP_SKB_CB(skb)->dccpd_seq  = dreq->dreq_iss;
-	dccp_insert_options(sk, skb);
+
+	if (dccp_insert_options(sk, skb)) {
+		kfree_skb(skb);
+		return NULL;
+	}
 
 	skb->h.raw = skb_push(skb, dccp_header_size);
 
@@ -344,7 +352,11 @@ static struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
 	DCCP_SKB_CB(skb)->dccpd_reset_code = code;
 	DCCP_SKB_CB(skb)->dccpd_type	   = DCCP_PKT_RESET;
 	DCCP_SKB_CB(skb)->dccpd_seq	   = dp->dccps_gss;
-	dccp_insert_options(sk, skb);
+
+	if (dccp_insert_options(sk, skb)) {
+		kfree_skb(skb);
+		return NULL;
+	}
 
 	skb->h.raw = skb_push(skb, dccp_header_size);
 

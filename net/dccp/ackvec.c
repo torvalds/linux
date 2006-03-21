@@ -81,15 +81,16 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
 		return -1;
 
-	avr = dccp_ackvec_record_new();
-	if (avr == NULL)
-		return -1;
-
 	dccp_timestamp(sk, &now);
 	elapsed_time = timeval_delta(&now, &av->dccpav_time) / 10;
 
-	if (elapsed_time != 0)
-		dccp_insert_option_elapsed_time(sk, skb, elapsed_time);
+	if (elapsed_time != 0 &&
+	    dccp_insert_option_elapsed_time(sk, skb, elapsed_time))
+		return -1;
+
+	avr = dccp_ackvec_record_new();
+	if (avr == NULL)
+		return -1;
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
 
@@ -310,7 +311,6 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 	av->dccpav_buf_ackno = ackno;
 	dccp_timestamp(sk, &av->dccpav_time);
 out:
-	dccp_pr_debug("");
 	return 0;
 
 out_duplicate:

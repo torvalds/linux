@@ -41,9 +41,9 @@ struct ccid_operations {
 						    unsigned char option,
 						    unsigned char len, u16 idx,
 						    unsigned char* value);
-	void		(*ccid_hc_rx_insert_options)(struct sock *sk,
+	int		(*ccid_hc_rx_insert_options)(struct sock *sk,
 						     struct sk_buff *skb);
-	void		(*ccid_hc_tx_insert_options)(struct sock *sk,
+	int		(*ccid_hc_tx_insert_options)(struct sock *sk,
 						     struct sk_buff *skb);
 	void		(*ccid_hc_tx_packet_recv)(struct sock *sk,
 						  struct sk_buff *skb);
@@ -146,18 +146,20 @@ static inline int ccid_hc_rx_parse_options(struct ccid *ccid, struct sock *sk,
 	return rc;
 }
 
-static inline void ccid_hc_tx_insert_options(struct ccid *ccid, struct sock *sk,
-					     struct sk_buff *skb)
+static inline int ccid_hc_tx_insert_options(struct ccid *ccid, struct sock *sk,
+					    struct sk_buff *skb)
 {
 	if (ccid->ccid_ops->ccid_hc_tx_insert_options != NULL)
-		ccid->ccid_ops->ccid_hc_tx_insert_options(sk, skb);
+		return ccid->ccid_ops->ccid_hc_tx_insert_options(sk, skb);
+	return 0;
 }
 
-static inline void ccid_hc_rx_insert_options(struct ccid *ccid, struct sock *sk,
-					     struct sk_buff *skb)
+static inline int ccid_hc_rx_insert_options(struct ccid *ccid, struct sock *sk,
+					    struct sk_buff *skb)
 {
 	if (ccid->ccid_ops->ccid_hc_rx_insert_options != NULL)
-		ccid->ccid_ops->ccid_hc_rx_insert_options(sk, skb);
+		return ccid->ccid_ops->ccid_hc_rx_insert_options(sk, skb);
+	return 0;
 }
 
 static inline void ccid_hc_rx_get_info(struct ccid *ccid, struct sock *sk,

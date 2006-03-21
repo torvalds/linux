@@ -283,17 +283,14 @@ static inline int dccp_ndp_len(const int ndp)
 	return likely(ndp <= 0xFF) ? 1 : ndp <= 0xFFFF ? 2 : 3;
 }
 
-void dccp_insert_option(struct sock *sk, struct sk_buff *skb,
+int dccp_insert_option(struct sock *sk, struct sk_buff *skb,
 			const unsigned char option,
 			const void *value, const unsigned char len)
 {
 	unsigned char *to;
 
-	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len + 2 > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert "
-			       "%d option!\n", option);
-		return;
-	}
+	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len + 2 > DCCP_MAX_OPT_LEN)
+		return -1;
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len += len + 2;
 
@@ -302,11 +299,12 @@ void dccp_insert_option(struct sock *sk, struct sk_buff *skb,
 	*to++ = len + 2;
 
 	memcpy(to, value, len);
+	return 0;
 }
 
 EXPORT_SYMBOL_GPL(dccp_insert_option);
 
-static void dccp_insert_option_ndp(struct sock *sk, struct sk_buff *skb)
+static int dccp_insert_option_ndp(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	int ndp = dp->dccps_ndp_count;
@@ -322,7 +320,7 @@ static void dccp_insert_option_ndp(struct sock *sk, struct sk_buff *skb)
 		const int len = ndp_len + 2;
 
 		if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
-			return;
+			return -1;
 
 		DCCP_SKB_CB(skb)->dccpd_opt_len += len;
 
@@ -331,6 +329,8 @@ static void dccp_insert_option_ndp(struct sock *sk, struct sk_buff *skb)
 		*ptr++ = len;
 		dccp_encode_value_var(ndp, ptr, ndp_len);
 	}
+
+	return 0;
 }
 
 static inline int dccp_elapsed_time_len(const u32 elapsed_time)
@@ -338,27 +338,18 @@ static inline int dccp_elapsed_time_len(const u32 elapsed_time)
 	return elapsed_time == 0 ? 0 : elapsed_time <= 0xFFFF ? 2 : 4;
 }
 
-void dccp_insert_option_elapsed_time(struct sock *sk,
-				     struct sk_buff *skb,
-				     u32 elapsed_time)
+int dccp_insert_option_elapsed_time(struct sock *sk, struct sk_buff *skb,
+				    u32 elapsed_time)
 {
-#ifdef CONFIG_IP_DCCP_DEBUG
-	struct dccp_sock *dp = dccp_sk(sk);
-	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
-					"CLIENT TX opt: " : "server TX opt: ";
-#endif
 	const int elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
 	const int len = 2 + elapsed_time_len;
 	unsigned char *to;
 
 	if (elapsed_time_len == 0)
-		return;
+		return 0;
 
-	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to "
-					 "insert elapsed time!\n");
-		return;
-	}
+	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
+		return -1;
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
 
@@ -374,10 +365,7 @@ void dccp_insert_option_elapsed_time(struct sock *sk,
 		memcpy(to, &var32, 4);
 	}
 
-	dccp_pr_debug("%sELAPSED_TIME=%u, len=%d, seqno=%llu\n",
-		      debug_prefix, elapsed_time,
-		      len,
-		      (unsigned long long) DCCP_SKB_CB(skb)->dccpd_seq);
+	return 0;
 }
 
 EXPORT_SYMBOL_GPL(dccp_insert_option_elapsed_time);
@@ -398,7 +386,7 @@ void dccp_timestamp(const struct sock *sk, struct timeval *tv)
 
 EXPORT_SYMBOL_GPL(dccp_timestamp);
 
-void dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
+int dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
 {
 	struct timeval tv;
 	__be32 now;
@@ -408,19 +396,15 @@ void dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
 	/* yes this will overflow but that is the point as we want a
 	 * 10 usec 32 bit timer which mean it wraps every 11.9 hours */
 
-	dccp_insert_option(sk, skb, DCCPO_TIMESTAMP, &now, sizeof(now));
+	return dccp_insert_option(sk, skb, DCCPO_TIMESTAMP, &now, sizeof(now));
 }
 
 EXPORT_SYMBOL_GPL(dccp_insert_option_timestamp);
 
-static void dccp_insert_option_timestamp_echo(struct sock *sk,
-					      struct sk_buff *skb)
+static int dccp_insert_option_timestamp_echo(struct sock *sk,
+					     struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-#ifdef CONFIG_IP_DCCP_DEBUG
-	const char *debug_prefix = dp->dccps_role == DCCP_ROLE_CLIENT ?
-					"CLIENT TX opt: " : "server TX opt: ";
-#endif
 	struct timeval now;
 	__be32 tstamp_echo;
 	u32 elapsed_time;
@@ -432,11 +416,8 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk,
 	elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
 	len = 6 + elapsed_time_len;
 
-	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
-		LIMIT_NETDEBUG(KERN_INFO "DCCP: packet too small to insert "
-					 "timestamp echo!\n");
-		return;
-	}
+	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
+		return -1;
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
 
@@ -456,14 +437,10 @@ static void dccp_insert_option_timestamp_echo(struct sock *sk,
 		memcpy(to, &var32, 4);
 	}
 
-	dccp_pr_debug("%sTIMESTAMP_ECHO=%u, len=%d, seqno=%llu\n",
-		      debug_prefix, dp->dccps_timestamp_echo,
-		      len,
-		      (unsigned long long) DCCP_SKB_CB(skb)->dccpd_seq);
-
 	dp->dccps_timestamp_echo = 0;
 	dp->dccps_timestamp_time.tv_sec = 0;
 	dp->dccps_timestamp_time.tv_usec = 0;
+	return 0;
 }
 
 static int dccp_insert_feat_opt(struct sk_buff *skb, u8 type, u8 feat,
@@ -491,7 +468,7 @@ static int dccp_insert_feat_opt(struct sk_buff *skb, u8 type, u8 feat,
 	return 0;
 }
 
-static void dccp_insert_feat(struct sock *sk, struct sk_buff *skb)
+static int dccp_insert_options_feat(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_opt_pend *opt, *next;
@@ -551,44 +528,48 @@ static void dccp_insert_feat(struct sock *sk, struct sk_buff *skb)
 		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 					  inet_csk(sk)->icsk_rto, DCCP_RTO_MAX);
 	}
+
+	return 0;
 }
 
-void dccp_insert_options(struct sock *sk, struct sk_buff *skb)
+int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len = 0;
 
-	if (dp->dccps_options.dccpo_send_ndp_count)
-		dccp_insert_option_ndp(sk, skb);
+	if (dp->dccps_options.dccpo_send_ndp_count &&
+	    dccp_insert_option_ndp(sk, skb))
+		return -1;
 
 	if (!dccp_packet_without_ack(skb)) {
 		if (dp->dccps_options.dccpo_send_ack_vector &&
-		    dccp_ackvec_pending(dp->dccps_hc_rx_ackvec))
-			dccp_insert_option_ackvec(sk, skb);
-		if (dp->dccps_timestamp_echo != 0)
-			dccp_insert_option_timestamp_echo(sk, skb);
+		    dccp_ackvec_pending(dp->dccps_hc_rx_ackvec) &&
+		    dccp_insert_option_ackvec(sk, skb))
+			return -1;
+
+		if (dp->dccps_timestamp_echo != 0 &&
+		    dccp_insert_option_timestamp_echo(sk, skb))
+			return -1;
 	}
 
 	if (dp->dccps_hc_rx_insert_options) {
-		ccid_hc_rx_insert_options(dp->dccps_hc_rx_ccid, sk, skb);
+		if (ccid_hc_rx_insert_options(dp->dccps_hc_rx_ccid, sk, skb))
+			return -1;
 		dp->dccps_hc_rx_insert_options = 0;
 	}
 	if (dp->dccps_hc_tx_insert_options) {
-		ccid_hc_tx_insert_options(dp->dccps_hc_tx_ccid, sk, skb);
+		if (ccid_hc_tx_insert_options(dp->dccps_hc_tx_ccid, sk, skb))
+			return -1;
 		dp->dccps_hc_tx_insert_options = 0;
 	}
 
 	/* Feature negotiation */
-	switch(DCCP_SKB_CB(skb)->dccpd_type) {
-		/* Data packets can't do feat negotiation */
-	case DCCP_PKT_DATA:
-	case DCCP_PKT_DATAACK:
-		break;
-	default:
-		dccp_insert_feat(sk, skb);
-		break;
-	}
+	/* Data packets can't do feat negotiation */
+	if (DCCP_SKB_CB(skb)->dccpd_type != DCCP_PKT_DATA &&
+	    DCCP_SKB_CB(skb)->dccpd_type != DCCP_PKT_DATAACK &&
+	    dccp_insert_options_feat(sk, skb))
+		return -1;
 
 	/* XXX: insert other options when appropriate */
 
@@ -602,4 +583,6 @@ void dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 			DCCP_SKB_CB(skb)->dccpd_opt_len += padding;
 		}
 	}
+
+	return 0;
 }

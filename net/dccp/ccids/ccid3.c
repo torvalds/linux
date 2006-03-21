@@ -574,16 +574,15 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
-static void ccid3_hc_tx_insert_options(struct sock *sk, struct sk_buff *skb)
+static int ccid3_hc_tx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
 	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	BUG_ON(hctx == NULL);
 
-	if (!(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
-		return;
-
-	 DCCP_SKB_CB(skb)->dccpd_ccval = hctx->ccid3hctx_last_win_count;
+	if (sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN)
+		DCCP_SKB_CB(skb)->dccpd_ccval = hctx->ccid3hctx_last_win_count;
+	return 0;
 }
 
 static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
@@ -774,7 +773,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	dccp_send_ack(sk);
 }
 
-static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
+static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
 	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	__be32 x_recv, pinv;
@@ -782,23 +781,27 @@ static void ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 	BUG_ON(hcrx == NULL);
 
 	if (!(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
-		return;
+		return 0;
 
 	DCCP_SKB_CB(skb)->dccpd_ccval = hcrx->ccid3hcrx_last_counter;
 
 	if (dccp_packet_without_ack(skb))
-		return;
-		
-	if (hcrx->ccid3hcrx_elapsed_time != 0)
-		dccp_insert_option_elapsed_time(sk, skb,
-						hcrx->ccid3hcrx_elapsed_time);
-	dccp_insert_option_timestamp(sk, skb);
+		return 0;
+
 	x_recv = htonl(hcrx->ccid3hcrx_x_recv);
 	pinv   = htonl(hcrx->ccid3hcrx_pinv);
-	dccp_insert_option(sk, skb, TFRC_OPT_LOSS_EVENT_RATE,
-			   &pinv, sizeof(pinv));
-	dccp_insert_option(sk, skb, TFRC_OPT_RECEIVE_RATE,
-			   &x_recv, sizeof(x_recv));
+
+	if ((hcrx->ccid3hcrx_elapsed_time != 0 &&
+	     dccp_insert_option_elapsed_time(sk, skb,
+					     hcrx->ccid3hcrx_elapsed_time)) ||
+	    dccp_insert_option_timestamp(sk, skb) ||
+	    dccp_insert_option(sk, skb, TFRC_OPT_LOSS_EVENT_RATE,
+		    	       &pinv, sizeof(pinv)) ||
+	    dccp_insert_option(sk, skb, TFRC_OPT_RECEIVE_RATE,
+		    	       &x_recv, sizeof(x_recv)))
+		return -1;
+
+	return 0;
 }
 
 /* calculate first loss interval
