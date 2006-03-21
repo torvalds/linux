@@ -102,6 +102,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -318,7 +319,7 @@ static int ip_recent_ctrl(struct file *file, const char __user *input, unsigned 
 	skb->nh.iph->daddr = 0;
 	/* Clear ttl since we have no way of knowing it */
 	skb->nh.iph->ttl = 0;
-	match(skb,NULL,NULL,info,0,0,NULL);
+	match(skb,NULL,NULL,NULL,info,0,0,NULL);
 
 	kfree(skb->nh.iph);
 out_free_skb:
@@ -356,6 +357,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -657,6 +659,7 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
            const void *ip,
+	   const struct xt_match *match,
            void *matchinfo,
            unsigned int matchsize,
            unsigned int hook_mask)
@@ -869,7 +872,7 @@ checkentry(const char *tablename,
  * up its memory.
  */
 static void
-destroy(void *matchinfo, unsigned int matchsize)
+destroy(const struct xt_match *match, void *matchinfo, unsigned int matchsize)
 {
 	const struct ipt_recent_info *info = matchinfo;
 	struct recent_ip_tables *curr_table, *last_table;

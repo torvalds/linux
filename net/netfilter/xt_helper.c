@@ -42,6 +42,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -89,6 +90,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -135,6 +137,7 @@ out_unlock:
 
 static int check(const char *tablename,
 		 const void *inf,
+		 const struct xt_match *match,
 		 void *matchinfo,
 		 unsigned int matchsize,
 		 unsigned int hook_mask)

@@ -236,6 +236,7 @@ static unsigned int reject(struct sk_buff **pskb,
 			   const struct net_device *in,
 			   const struct net_device *out,
 			   unsigned int hooknum,
+			   const struct xt_target *target,
 			   const void *targinfo,
 			   void *userinfo)
 {
@@ -283,6 +284,7 @@ static unsigned int reject(struct sk_buff **pskb,
 
 static int check(const char *tablename,
 		 const void *e_void,
+		 const struct xt_target *target,
 		 void *targinfo,
 		 unsigned int targinfosize,
 		 unsigned int hook_mask)

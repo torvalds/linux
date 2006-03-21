@@ -103,6 +103,7 @@ static unsigned int ipt_snat_target(struct sk_buff **pskb,
 				    const struct net_device *in,
 				    const struct net_device *out,
 				    unsigned int hooknum,
+				    const struct ipt_target *target,
 				    const void *targinfo,
 				    void *userinfo)
 {
@@ -145,6 +146,7 @@ static unsigned int ipt_dnat_target(struct sk_buff **pskb,
 				    const struct net_device *in,
 				    const struct net_device *out,
 				    unsigned int hooknum,
+				    const struct ipt_target *target,
 				    const void *targinfo,
 				    void *userinfo)
 {
@@ -170,6 +172,7 @@ static unsigned int ipt_dnat_target(struct sk_buff **pskb,
 
 static int ipt_snat_checkentry(const char *tablename,
 			       const void *entry,
+			       const struct ipt_target *target,
 			       void *targinfo,
 			       unsigned int targinfosize,
 			       unsigned int hook_mask)
@@ -186,6 +189,7 @@ static int ipt_snat_checkentry(const char *tablename,
 
 static int ipt_dnat_checkentry(const char *tablename,
 			       const void *entry,
+			       const struct ipt_target *target,
 			       void *targinfo,
 			       unsigned int targinfosize,
 			       unsigned int hook_mask)

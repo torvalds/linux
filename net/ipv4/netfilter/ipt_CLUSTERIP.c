@@ -311,6 +311,7 @@ target(struct sk_buff **pskb,
        const struct net_device *in,
        const struct net_device *out,
        unsigned int hooknum,
+       const struct xt_target *target,
        const void *targinfo,
        void *userinfo)
 {
@@ -380,6 +381,7 @@ target(struct sk_buff **pskb,
 static int
 checkentry(const char *tablename,
 	   const void *e_void,
+	   const struct xt_target *target,
            void *targinfo,
            unsigned int targinfosize,
            unsigned int hook_mask)
@@ -458,9 +460,10 @@ checkentry(const char *tablename,
 }
 
 /* drop reference count of cluster config when rule is deleted */
-static void destroy(void *matchinfo, unsigned int matchinfosize)
+static void destroy(const struct xt_target *target, void *targinfo,
+		    unsigned int targinfosize)
 {
-	struct ipt_clusterip_tgt_info *cipinfo = matchinfo;
+	struct ipt_clusterip_tgt_info *cipinfo = targinfo;
 
 	/* if no more entries are referencing the config, remove it
 	 * from the list and destroy the proc entry */

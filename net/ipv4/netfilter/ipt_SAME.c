@@ -50,6 +50,7 @@ MODULE_DESCRIPTION("iptables special SNAT module for consistent sourceip");
 static int
 same_check(const char *tablename,
 	      const void *e,
+	      const struct xt_target *target,
 	      void *targinfo,
 	      unsigned int targinfosize,
 	      unsigned int hook_mask)
@@ -115,7 +116,7 @@ same_check(const char *tablename,
 }
 
 static void 
-same_destroy(void *targinfo,
+same_destroy(const struct xt_target *target, void *targinfo,
 		unsigned int targinfosize)
 {
 	struct ipt_same_info *mr = targinfo;
@@ -131,6 +132,7 @@ same_target(struct sk_buff **pskb,
 		const struct net_device *in,
 		const struct net_device *out,
 		unsigned int hooknum,
+		const struct xt_target *target,
 		const void *targinfo,
 		void *userinfo)
 {

@@ -303,6 +303,7 @@ static unsigned int ipt_ulog_target(struct sk_buff **pskb,
 				    const struct net_device *in,
 				    const struct net_device *out,
 				    unsigned int hooknum,
+				    const struct xt_target *target,
 				    const void *targinfo, void *userinfo)
 {
 	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
@@ -339,6 +340,7 @@ static void ipt_logfn(unsigned int pf,
 
 static int ipt_ulog_checkentry(const char *tablename,
 			       const void *e,
+			       const struct xt_target *target,
 			       void *targinfo,
 			       unsigned int targinfosize,
 			       unsigned int hookmask)

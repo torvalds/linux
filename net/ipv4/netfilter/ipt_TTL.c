@@ -20,9 +20,10 @@ MODULE_DESCRIPTION("IP tables TTL modification module");
 MODULE_LICENSE("GPL");
 
 static unsigned int 
-ipt_ttl_target(struct sk_buff **pskb, const struct net_device *in, 
-		const struct net_device *out, unsigned int hooknum, 
-		const void *targinfo, void *userinfo)
+ipt_ttl_target(struct sk_buff **pskb,
+	       const struct net_device *in, const struct net_device *out,
+	       unsigned int hooknum, const struct xt_target *target,
+	       const void *targinfo, void *userinfo)
 {
 	struct iphdr *iph;
 	const struct ipt_TTL_info *info = targinfo;
@@ -67,6 +68,7 @@ ipt_ttl_target(struct sk_buff **pskb, const struct net_device *in,
 
 static int ipt_ttl_checkentry(const char *tablename,
 		const void *e,
+		const struct xt_target *target,
 		void *targinfo,
 		unsigned int targinfosize,
 		unsigned int hook_mask)

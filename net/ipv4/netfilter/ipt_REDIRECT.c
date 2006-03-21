@@ -34,6 +34,7 @@ MODULE_DESCRIPTION("iptables REDIRECT target module");
 static int
 redirect_check(const char *tablename,
 	       const void *e,
+	       const struct xt_target *target,
 	       void *targinfo,
 	       unsigned int targinfosize,
 	       unsigned int hook_mask)
@@ -56,6 +57,7 @@ redirect_target(struct sk_buff **pskb,
 		const struct net_device *in,
 		const struct net_device *out,
 		unsigned int hooknum,
+		const struct xt_target *target,
 		const void *targinfo,
 		void *userinfo)
 {

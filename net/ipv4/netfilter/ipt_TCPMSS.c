@@ -48,6 +48,7 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 		  const struct net_device *in,
 		  const struct net_device *out,
 		  unsigned int hooknum,
+		  const struct xt_target *target,
 		  const void *targinfo,
 		  void *userinfo)
 {
@@ -211,6 +212,7 @@ static inline int find_syn_match(const struct ipt_entry_match *m)
 static int
 ipt_tcpmss_checkentry(const char *tablename,
 		      const void *e_void,
+		      const struct xt_target *target,
 		      void *targinfo,
 		      unsigned int targinfosize,
 		      unsigned int hook_mask)

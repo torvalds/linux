@@ -29,6 +29,7 @@ static int
 ipv6header_match(const struct sk_buff *skb,
 		 const struct net_device *in,
 		 const struct net_device *out,
+		 const struct xt_match *match,
 		 const void *matchinfo,
 		 int offset,
 		 unsigned int protoff,
@@ -125,6 +126,7 @@ ipv6header_match(const struct sk_buff *skb,
 static int
 ipv6header_checkentry(const char *tablename,
 		      const void *ip,
+		      const struct xt_match *match,
 		      void *matchinfo,
 		      unsigned int matchsize,
 		      unsigned int hook_mask)

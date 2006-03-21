@@ -41,6 +41,7 @@ static DEFINE_RWLOCK(masq_lock);
 static int
 masquerade_check(const char *tablename,
 		 const void *e,
+		 const struct xt_target *target,
 		 void *targinfo,
 		 unsigned int targinfosize,
 		 unsigned int hook_mask)
@@ -63,6 +64,7 @@ masquerade_target(struct sk_buff **pskb,
 		  const struct net_device *in,
 		  const struct net_device *out,
 		  unsigned int hooknum,
+		  const struct xt_target *target,
 		  const void *targinfo,
 		  void *userinfo)
 {

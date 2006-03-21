@@ -26,6 +26,7 @@ target_v0(struct sk_buff **pskb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  unsigned int hooknum,
+	  const struct xt_target *target,
 	  const void *targinfo,
 	  void *userinfo)
 {
@@ -42,6 +43,7 @@ target_v1(struct sk_buff **pskb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  unsigned int hooknum,
+	  const struct xt_target *target,
 	  const void *targinfo,
 	  void *userinfo)
 {
@@ -72,6 +74,7 @@ target_v1(struct sk_buff **pskb,
 static int
 checkentry_v0(const char *tablename,
 	      const void *entry,
+	      const struct xt_target *target,
 	      void *targinfo,
 	      unsigned int targinfosize,
 	      unsigned int hook_mask)
@@ -88,6 +91,7 @@ checkentry_v0(const char *tablename,
 static int
 checkentry_v1(const char *tablename,
 	      const void *entry,
+	      const struct xt_target *target,
 	      void *targinfo,
 	      unsigned int targinfosize,
 	      unsigned int hook_mask)

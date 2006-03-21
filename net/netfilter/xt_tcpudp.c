@@ -74,6 +74,7 @@ static int
 tcp_match(const struct sk_buff *skb,
 	  const struct net_device *in,
 	  const struct net_device *out,
+	  const struct xt_match *match,
 	  const void *matchinfo,
 	  int offset,
 	  unsigned int protoff,
@@ -138,6 +139,7 @@ tcp_match(const struct sk_buff *skb,
 static int
 tcp_checkentry(const char *tablename,
 	       const void *info,
+	       const struct xt_match *match,
 	       void *matchinfo,
 	       unsigned int matchsize,
 	       unsigned int hook_mask)
@@ -152,6 +154,7 @@ static int
 udp_match(const struct sk_buff *skb,
 	  const struct net_device *in,
 	  const struct net_device *out,
+	  const struct xt_match *match,
 	  const void *matchinfo,
 	  int offset,
 	  unsigned int protoff,
@@ -185,6 +188,7 @@ udp_match(const struct sk_buff *skb,
 static int
 udp_checkentry(const char *tablename,
 	       const void *info,
+	       const struct xt_match *match,
 	       void *matchinfo,
 	       unsigned int matchsize,
 	       unsigned int hook_mask)
