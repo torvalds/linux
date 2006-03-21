@@ -54,8 +54,6 @@ extern void __init lmb_enforce_memory_limit(unsigned long memory_limit);
 
 extern void lmb_dump_all(void);
 
-extern unsigned long io_hole_start;
-
 static inline unsigned long
 lmb_size_bytes(struct lmb_region *type, unsigned long region_nr)
 {

@@ -497,8 +497,6 @@ void __init setup_system(void)
 #endif
 	printk("-----------------------------------------------------\n");
 
-	mm_init_ppc64();
-
 	DBG(" <- setup_system()\n");
 }
 
