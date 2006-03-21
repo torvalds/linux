@@ -2651,6 +2651,8 @@ static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 		return key_notify_sa(x, c);
 	case XFRM_MSG_FLUSHSA:
 		return key_notify_sa_flush(c);
+	case XFRM_MSG_NEWAE: /* not yet supported */
+		break;
 	default:
 		printk("pfkey: Unknown SA event %d\n", c->event);
 		break;

@@ -276,6 +276,56 @@ static void copy_from_user_state(struct xfrm_state *x, struct xfrm_usersa_info *
 	x->props.flags = p->flags;
 }
 
+/*
+ * someday when pfkey also has support, we could have the code
+ * somehow made shareable and move it to xfrm_state.c - JHS
+ *
+*/
+static int xfrm_update_ae_params(struct xfrm_state *x, struct rtattr **xfrma)
+{
+	int err = - EINVAL;
+	struct rtattr *rp = xfrma[XFRMA_REPLAY_VAL-1];
+	struct rtattr *lt = xfrma[XFRMA_LTIME_VAL-1];
+	struct rtattr *et = xfrma[XFRMA_ETIMER_THRESH-1];
+	struct rtattr *rt = xfrma[XFRMA_REPLAY_THRESH-1];
+
+	if (rp) {
+		struct xfrm_replay_state *replay;
+		if (RTA_PAYLOAD(rp) < sizeof(*replay))
+			goto error;
+		replay = RTA_DATA(rp);
+		memcpy(&x->replay, replay, sizeof(*replay));
+		memcpy(&x->preplay, replay, sizeof(*replay));
+	}
+
+	if (lt) {
+		struct xfrm_lifetime_cur *ltime;
+		if (RTA_PAYLOAD(lt) < sizeof(*ltime))
+			goto error;
+		ltime = RTA_DATA(lt);
+		x->curlft.bytes = ltime->bytes;
+		x->curlft.packets = ltime->packets;
+		x->curlft.add_time = ltime->add_time;
+		x->curlft.use_time = ltime->use_time;
+	}
+
+	if (et) {
+		if (RTA_PAYLOAD(et) < sizeof(u32))
+			goto error;
+		x->replay_maxage = *(u32*)RTA_DATA(et);
+	}
+
+	if (rt) {
+		if (RTA_PAYLOAD(rt) < sizeof(u32))
+			goto error;
+		x->replay_maxdiff = *(u32*)RTA_DATA(rt);
+	}
+
+	return 0;
+error:
+	return err;
+}
+
 static struct xfrm_state *xfrm_state_construct(struct xfrm_usersa_info *p,
 					       struct rtattr **xfrma,
 					       int *errp)
@@ -311,6 +361,18 @@ static struct xfrm_state *xfrm_state_construct(struct xfrm_usersa_info *p,
 		goto error;
 
 	x->km.seq = p->seq;
+	x->replay_maxdiff = sysctl_xfrm_aevent_rseqth;
+	/* sysctl_xfrm_aevent_etime is in 100ms units */
+	x->replay_maxage = (sysctl_xfrm_aevent_etime*HZ)/XFRM_AE_ETH_M;
+	x->preplay.bitmap = 0;
+	x->preplay.seq = x->replay.seq+x->replay_maxdiff;
+	x->preplay.oseq = x->replay.oseq +x->replay_maxdiff;
+
+	/* override default values from above */
+
+	err = xfrm_update_ae_params(x, (struct rtattr **)xfrma);
+	if (err	< 0)
+		goto error;
 
 	return x;
 
@@ -1025,6 +1087,139 @@ static int xfrm_flush_sa(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma
 	return 0;
 }
 
+
+static int build_aevent(struct sk_buff *skb, struct xfrm_state *x, struct km_event *c)
+{
+	struct xfrm_aevent_id *id;
+	struct nlmsghdr *nlh;
+	struct xfrm_lifetime_cur ltime;
+	unsigned char *b = skb->tail;
+
+	nlh = NLMSG_PUT(skb, c->pid, c->seq, XFRM_MSG_NEWAE, sizeof(*id));
+	id = NLMSG_DATA(nlh);
+	nlh->nlmsg_flags = 0;
+
+	id->sa_id.daddr = x->id.daddr;
+	id->sa_id.spi = x->id.spi;
+	id->sa_id.family = x->props.family;
+	id->sa_id.proto = x->id.proto;
+	id->flags = c->data.aevent;
+
+	RTA_PUT(skb, XFRMA_REPLAY_VAL, sizeof(x->replay), &x->replay);
+
+	ltime.bytes = x->curlft.bytes;
+	ltime.packets = x->curlft.packets;
+	ltime.add_time = x->curlft.add_time;
+	ltime.use_time = x->curlft.use_time;
+
+	RTA_PUT(skb, XFRMA_LTIME_VAL, sizeof(struct xfrm_lifetime_cur), &ltime);
+
+	if (id->flags&XFRM_AE_RTHR) {
+		RTA_PUT(skb,XFRMA_REPLAY_THRESH,sizeof(u32),&x->replay_maxdiff);
+	}
+
+	if (id->flags&XFRM_AE_ETHR) {
+		u32 etimer = x->replay_maxage*10/HZ;
+		RTA_PUT(skb,XFRMA_ETIMER_THRESH,sizeof(u32),&etimer);
+	}
+
+	nlh->nlmsg_len = skb->tail - b;
+	return skb->len;
+
+rtattr_failure:
+nlmsg_failure:
+	skb_trim(skb, b - skb->data);
+	return -1;
+}
+
+static int xfrm_get_ae(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
+{
+	struct xfrm_state *x;
+	struct sk_buff *r_skb;
+	int err;
+	struct km_event c;
+	struct xfrm_aevent_id *p = NLMSG_DATA(nlh);
+	int len = NLMSG_LENGTH(sizeof(struct xfrm_aevent_id));
+	struct xfrm_usersa_id *id = &p->sa_id;
+
+	len += RTA_SPACE(sizeof(struct xfrm_replay_state));
+	len += RTA_SPACE(sizeof(struct xfrm_lifetime_cur));
+
+	if (p->flags&XFRM_AE_RTHR)
+		len+=RTA_SPACE(sizeof(u32));
+
+	if (p->flags&XFRM_AE_ETHR)
+		len+=RTA_SPACE(sizeof(u32));
+
+	r_skb = alloc_skb(len, GFP_ATOMIC);
+	if (r_skb == NULL)
+		return -ENOMEM;
+
+	x = xfrm_state_lookup(&id->daddr, id->spi, id->proto, id->family);
+	if (x == NULL) {
+		kfree(r_skb);
+		return -ESRCH;
+	}
+
+	/*
+	 * XXX: is this lock really needed - none of the other
+	 * gets lock (the concern is things getting updated
+	 * while we are still reading) - jhs
+	*/
+	spin_lock_bh(&x->lock);
+	c.data.aevent = p->flags;
+	c.seq = nlh->nlmsg_seq;
+	c.pid = nlh->nlmsg_pid;
+
+	if (build_aevent(r_skb, x, &c) < 0)
+		BUG();
+	err = netlink_unicast(xfrm_nl, r_skb,
+			      NETLINK_CB(skb).pid, MSG_DONTWAIT);
+	spin_unlock_bh(&x->lock);
+	xfrm_state_put(x);
+	return err;
+}
+
+static int xfrm_new_ae(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
+{
+	struct xfrm_state *x;
+	struct km_event c;
+	int err = - EINVAL;
+	struct xfrm_aevent_id *p = NLMSG_DATA(nlh);
+	struct rtattr *rp = xfrma[XFRMA_REPLAY_VAL-1];
+	struct rtattr *lt = xfrma[XFRMA_LTIME_VAL-1];
+
+	if (!lt && !rp)
+		return err;
+
+	/* pedantic mode - thou shalt sayeth replaceth */
+	if (!(nlh->nlmsg_flags&NLM_F_REPLACE))
+		return err;
+
+	x = xfrm_state_lookup(&p->sa_id.daddr, p->sa_id.spi, p->sa_id.proto, p->sa_id.family);
+	if (x == NULL)
+		return -ESRCH;
+
+	if (x->km.state != XFRM_STATE_VALID)
+		goto out;
+
+	spin_lock_bh(&x->lock);
+	err = xfrm_update_ae_params(x,(struct rtattr **)xfrma);
+	spin_unlock_bh(&x->lock);
+	if (err	< 0)
+		goto out;
+
+	c.event = nlh->nlmsg_type;
+	c.seq = nlh->nlmsg_seq;
+	c.pid = nlh->nlmsg_pid;
+	c.data.aevent = XFRM_AE_CU;
+	km_state_notify(x, &c);
+	err = 0;
+out:
+	xfrm_state_put(x);
+	return err;
+}
+
 static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfrma)
 {
 	struct km_event c;
@@ -1037,6 +1232,7 @@ static int xfrm_flush_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **x
 	return 0;
 }
 
+
 #define XMSGSIZE(type) NLMSG_LENGTH(sizeof(struct type))
 
 static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
@@ -1047,13 +1243,12 @@ static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 	[XFRM_MSG_DELPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_id),
 	[XFRM_MSG_GETPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_id),
 	[XFRM_MSG_ALLOCSPI    - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userspi_info),
-	[XFRM_MSG_ACQUIRE     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_acquire),
-	[XFRM_MSG_EXPIRE      - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_expire),
 	[XFRM_MSG_UPDPOLICY   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_userpolicy_info),
 	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_info),
-	[XFRM_MSG_POLEXPIRE   - XFRM_MSG_BASE] = XMSGSIZE(xfrm_user_polexpire),
 	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = XMSGSIZE(xfrm_usersa_flush),
 	[XFRM_MSG_FLUSHPOLICY - XFRM_MSG_BASE] = NLMSG_LENGTH(0),
+	[XFRM_MSG_NEWAE       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_aevent_id),
+	[XFRM_MSG_GETAE       - XFRM_MSG_BASE] = XMSGSIZE(xfrm_aevent_id),
 };
 
 #undef XMSGSIZE
@@ -1075,6 +1270,8 @@ static struct xfrm_link {
 	[XFRM_MSG_UPDSA       - XFRM_MSG_BASE] = { .doit = xfrm_add_sa        },
 	[XFRM_MSG_FLUSHSA     - XFRM_MSG_BASE] = { .doit = xfrm_flush_sa      },
 	[XFRM_MSG_FLUSHPOLICY - XFRM_MSG_BASE] = { .doit = xfrm_flush_policy  },
+	[XFRM_MSG_NEWAE       - XFRM_MSG_BASE] = { .doit = xfrm_new_ae  },
+	[XFRM_MSG_GETAE       - XFRM_MSG_BASE] = { .doit = xfrm_get_ae  },
 };
 
 static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
@@ -1163,19 +1360,19 @@ static void xfrm_netlink_rcv(struct sock *sk, int len)
 	} while (qlen);
 }
 
-static int build_expire(struct sk_buff *skb, struct xfrm_state *x, int hard)
+static int build_expire(struct sk_buff *skb, struct xfrm_state *x, struct km_event *c)
 {
 	struct xfrm_user_expire *ue;
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, 0, 0, XFRM_MSG_EXPIRE,
+	nlh = NLMSG_PUT(skb, c->pid, 0, XFRM_MSG_EXPIRE,
 			sizeof(*ue));
 	ue = NLMSG_DATA(nlh);
 	nlh->nlmsg_flags = 0;
 
 	copy_to_user_state(x, &ue->state);
-	ue->hard = (hard != 0) ? 1 : 0;
+	ue->hard = (c->data.hard != 0) ? 1 : 0;
 
 	nlh->nlmsg_len = skb->tail - b;
 	return skb->len;
@@ -1194,11 +1391,29 @@ static int xfrm_exp_state_notify(struct xfrm_state *x, struct km_event *c)
 	if (skb == NULL)
 		return -ENOMEM;
 
-	if (build_expire(skb, x, c->data.hard) < 0)
+	if (build_expire(skb, x, c) < 0)
 		BUG();
 
 	NETLINK_CB(skb).dst_group = XFRMNLGRP_EXPIRE;
 	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_EXPIRE, GFP_ATOMIC);
+}
+
+static int xfrm_aevent_state_notify(struct xfrm_state *x, struct km_event *c)
+{
+	struct sk_buff *skb;
+	int len = NLMSG_LENGTH(sizeof(struct xfrm_aevent_id));
+
+	len += RTA_SPACE(sizeof(struct xfrm_replay_state));
+	len += RTA_SPACE(sizeof(struct xfrm_lifetime_cur));
+	skb = alloc_skb(len, GFP_ATOMIC);
+	if (skb == NULL)
+		return -ENOMEM;
+
+	if (build_aevent(skb, x, c) < 0)
+		BUG();
+
+	NETLINK_CB(skb).dst_group = XFRMNLGRP_AEVENTS;
+	return netlink_broadcast(xfrm_nl, skb, 0, XFRMNLGRP_AEVENTS, GFP_ATOMIC);
 }
 
 static int xfrm_notify_sa_flush(struct km_event *c)
@@ -1313,6 +1528,8 @@ static int xfrm_send_state_notify(struct xfrm_state *x, struct km_event *c)
 	switch (c->event) {
 	case XFRM_MSG_EXPIRE:
 		return xfrm_exp_state_notify(x, c);
+	case XFRM_MSG_NEWAE:
+		return xfrm_aevent_state_notify(x, c);
 	case XFRM_MSG_DELSA:
 	case XFRM_MSG_UPDSA:
 	case XFRM_MSG_NEWSA:
@@ -1443,13 +1660,14 @@ static struct xfrm_policy *xfrm_compile_policy(u16 family, int opt,
 }
 
 static int build_polexpire(struct sk_buff *skb, struct xfrm_policy *xp,
-			   int dir, int hard)
+			   int dir, struct km_event *c)
 {
 	struct xfrm_user_polexpire *upe;
 	struct nlmsghdr *nlh;
+	int hard = c->data.hard;
 	unsigned char *b = skb->tail;
 
-	nlh = NLMSG_PUT(skb, 0, 0, XFRM_MSG_POLEXPIRE, sizeof(*upe));
+	nlh = NLMSG_PUT(skb, c->pid, 0, XFRM_MSG_POLEXPIRE, sizeof(*upe));
 	upe = NLMSG_DATA(nlh);
 	nlh->nlmsg_flags = 0;
 
@@ -1480,7 +1698,7 @@ static int xfrm_exp_policy_notify(struct xfrm_policy *xp, int dir, struct km_eve
 	if (skb == NULL)
 		return -ENOMEM;
 
-	if (build_polexpire(skb, xp, dir, c->data.hard) < 0)
+	if (build_polexpire(skb, xp, dir, c) < 0)
 		BUG();
 
 	NETLINK_CB(skb).dst_group = XFRMNLGRP_EXPIRE;
