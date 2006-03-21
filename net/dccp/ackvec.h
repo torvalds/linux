@@ -13,6 +13,7 @@
 
 #include <linux/config.h>
 #include <linux/compiler.h>
+#include <linux/list.h>
 #include <linux/time.h>
 #include <linux/types.h>
 
@@ -42,11 +43,8 @@
  * Ack Vectors it has recently sent. For each packet sent carrying an
  * Ack Vector, it remembers four variables:
  *
- * @dccpav_ack_seqno - the Sequence Number used for the packet
- * 		       (HC-Receiver seqno)
  * @dccpav_ack_ptr - the value of buf_head at the time of acknowledgement.
- * @dccpav_ack_ackno - the Acknowledgement Number used for the packet
- * 		       (HC-Sender seqno)
+ * @dccpav_records - list of dccp_ackvec_record
  * @dccpav_ack_nonce - the one-bit sum of the ECN Nonces for all State 0.
  *
  * @dccpav_time		- the time in usecs
@@ -54,8 +52,7 @@
  */
 struct dccp_ackvec {
 	u64		dccpav_buf_ackno;
-	u64		dccpav_ack_seqno;
-	u64		dccpav_ack_ackno;
+	struct list_head dccpav_records;
 	struct timeval	dccpav_time;
 	u8		dccpav_buf_head;
 	u8		dccpav_buf_tail;
@@ -65,6 +62,28 @@ struct dccp_ackvec {
 	u8		dccpav_buf_nonce;
 	u8		dccpav_ack_nonce;
 	u8		dccpav_buf[DCCP_MAX_ACKVEC_LEN];
+};
+
+/** struct dccp_ackvec_record - ack vector record
+ *
+ * ACK vector record as defined in Appendix A of spec.
+ *
+ * The list is sorted by dccpavr_ack_seqno
+ *
+ * @dccpavr_node - node in dccpav_records
+ * @dccpavr_ack_seqno - sequence number of the packet this record was sent on
+ * @dccpavr_ack_ackno - sequence number being acknowledged
+ * @dccpavr_ack_ptr - pointer into dccpav_buf where this record starts
+ * @dccpavr_ack_nonce - dccpav_ack_nonce at the time this record was sent
+ * @dccpavr_sent_len - lenght of the record in dccpav_buf
+ */
+struct dccp_ackvec_record {
+	struct list_head dccpavr_node;
+	u64		 dccpavr_ack_seqno;
+	u64		 dccpavr_ack_ackno;
+	u8		 dccpavr_ack_ptr;
+	u8		 dccpavr_ack_nonce;
+	u8		 dccpavr_sent_len;
 };
 
 struct sock;
