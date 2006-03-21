@@ -153,7 +153,7 @@
 #include <asm/div64.h>		/* do_div */
 #include <asm/timex.h>
 
-#define VERSION  "pktgen v2.64: Packet Generator for packet performance testing.\n"
+#define VERSION  "pktgen v2.65: Packet Generator for packet performance testing.\n"
 
 /* #define PG_DEBUG(a) a */
 #define PG_DEBUG(a)
