@@ -156,126 +156,6 @@ static int homepna[MAX_UNITS];
  */
 
 /*
- * History:
- * v0.01:  Initial version
- *	   only tested on Alpha Noname Board
- * v0.02:  changed IRQ handling for new interrupt scheme (dev_id)
- *	   tested on a ASUS SP3G
- * v0.10:  fixed an odd problem with the 79C974 in a Compaq Deskpro XL
- *	   looks like the 974 doesn't like stopping and restarting in a
- *	   short period of time; now we do a reinit of the lance; the
- *	   bug was triggered by doing ifconfig eth0 <ip> broadcast <addr>
- *	   and hangs the machine (thanks to Klaus Liedl for debugging)
- * v0.12:  by suggestion from Donald Becker: Renamed driver to pcnet32,
- *	   made it standalone (no need for lance.c)
- * v0.13:  added additional PCI detecting for special PCI devices (Compaq)
- * v0.14:  stripped down additional PCI probe (thanks to David C Niemi
- *	   and sveneric@xs4all.nl for testing this on their Compaq boxes)
- * v0.15:  added 79C965 (VLB) probe
- *	   added interrupt sharing for PCI chips
- * v0.16:  fixed set_multicast_list on Alpha machines
- * v0.17:  removed hack from dev.c; now pcnet32 uses ethif_probe in Space.c
- * v0.19:  changed setting of autoselect bit
- * v0.20:  removed additional Compaq PCI probe; there is now a working one
- *	   in arch/i386/bios32.c
- * v0.21:  added endian conversion for ppc, from work by cort@cs.nmt.edu
- * v0.22:  added printing of status to ring dump
- * v0.23:  changed enet_statistics to net_devive_stats
- * v0.90:  added multicast filter
- *	   added module support
- *	   changed irq probe to new style
- *	   added PCnetFast chip id
- *	   added fix for receive stalls with Intel saturn chipsets
- *	   added in-place rx skbs like in the tulip driver
- *	   minor cleanups
- * v0.91:  added PCnetFast+ chip id
- *	   back port to 2.0.x
- * v1.00:  added some stuff from Donald Becker's 2.0.34 version
- *	   added support for byte counters in net_dev_stats
- * v1.01:  do ring dumps, only when debugging the driver
- *	   increased the transmit timeout
- * v1.02:  fixed memory leak in pcnet32_init_ring()
- * v1.10:  workaround for stopped transmitter
- *	   added port selection for modules
- *	   detect special T1/E1 WAN card and setup port selection
- * v1.11:  fixed wrong checking of Tx errors
- * v1.20:  added check of return value kmalloc (cpeterso@cs.washington.edu)
- *	   added save original kmalloc addr for freeing (mcr@solidum.com)
- *	   added support for PCnetHome chip (joe@MIT.EDU)
- *	   rewritten PCI card detection
- *	   added dwio mode to get driver working on some PPC machines
- * v1.21:  added mii selection and mii ioctl
- * v1.22:  changed pci scanning code to make PPC people happy
- *	   fixed switching to 32bit mode in pcnet32_open() (thanks
- *	   to Michael Richard <mcr@solidum.com> for noticing this one)
- *	   added sub vendor/device id matching (thanks again to
- *	   Michael Richard <mcr@solidum.com>)
- *	   added chip id for 79c973/975 (thanks to Zach Brown <zab@zabbo.net>)
- * v1.23   fixed small bug, when manual selecting MII speed/duplex
- * v1.24   Applied Thomas' patch to use TxStartPoint and thus decrease TxFIFO
- *	   underflows.	Added tx_start_pt module parameter. Increased
- *	   TX_RING_SIZE from 16 to 32.	Added #ifdef'd code to use DXSUFLO
- *	   for FAST[+] chipsets. <kaf@fc.hp.com>
- * v1.24ac Added SMP spinlocking - Alan Cox <alan@redhat.com>
- * v1.25kf Added No Interrupt on successful Tx for some Tx's <kaf@fc.hp.com>
- * v1.26   Converted to pci_alloc_consistent, Jamey Hicks / George France
- *                                           <jamey@crl.dec.com>
- * -	   Fixed a few bugs, related to running the controller in 32bit mode.
- *	   23 Oct, 2000.  Carsten Langgaard, carstenl@mips.com
- *	   Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
- * v1.26p  Fix oops on rmmod+insmod; plug i/o resource leak - Paul Gortmaker
- * v1.27   improved CSR/PROM address detection, lots of cleanups,
- * 	   new pcnet32vlb module option, HP-PARISC support,
- * 	   added module parameter descriptions,
- * 	   initial ethtool support - Helge Deller <deller@gmx.de>
- * v1.27a  Sun Feb 10 2002 Go Taniguchi <go@turbolinux.co.jp>
- *	   use alloc_etherdev and register_netdev
- *	   fix pci probe not increment cards_found
- *	   FD auto negotiate error workaround for xSeries250
- *	   clean up and using new mii module
- * v1.27b  Sep 30 2002 Kent Yoder <yoder1@us.ibm.com>
- * 	   Added timer for cable connection state changes.
- * v1.28   20 Feb 2004 Don Fry <brazilnut@us.ibm.com>
- *	   Jon Mason <jonmason@us.ibm.com>, Chinmay Albal <albal@in.ibm.com>
- *	   Now uses ethtool_ops, netif_msg_* and generic_mii_ioctl.
- *	   Fixes bogus 'Bus master arbitration failure', pci_[un]map_single
- *	   length errors, and transmit hangs.  Cleans up after errors in open.
- *	   Jim Lewis <jklewis@us.ibm.com> added ethernet loopback test.
- *	   Thomas Munck Steenholdt <tmus@tmus.dk> non-mii ioctl corrections.
- * v1.29   6 Apr 2004 Jim Lewis <jklewis@us.ibm.com> added physical
- *	   identification code (blink led's) and register dump.
- *	   Don Fry added timer for 971/972 so skbufs don't remain on tx ring
- *	   forever.
- * v1.30   18 May 2004 Don Fry removed timer and Last Transmit Interrupt
- *	   (ltint) as they added complexity and didn't give good throughput.
- * v1.30a  22 May 2004 Don Fry limit frames received during interrupt.
- * v1.30b  24 May 2004 Don Fry fix bogus tx carrier errors with 79c973,
- *	   assisted by Bruce Penrod <bmpenrod@endruntechnologies.com>.
- * v1.30c  25 May 2004 Don Fry added netif_wake_queue after pcnet32_restart.
- * v1.30d  01 Jun 2004 Don Fry discard oversize rx packets.
- * v1.30e  11 Jun 2004 Don Fry recover after fifo error and rx hang.
- * v1.30f  16 Jun 2004 Don Fry cleanup IRQ to allow 0 and 1 for PCI,
- * 	   expanding on suggestions from Ralf Baechle <ralf@linux-mips.org>,
- * 	   and Brian Murphy <brian@murphy.dk>.
- * v1.30g  22 Jun 2004 Patrick Simmons <psimmons@flash.net> added option
- *	   homepna for selecting HomePNA mode for PCNet/Home 79C978.
- * v1.30h  24 Jun 2004 Don Fry correctly select auto, speed, duplex in bcr32.
- * v1.30i  28 Jun 2004 Don Fry change to use module_param.
- * v1.30j  29 Apr 2005 Don Fry fix skb/map leak with loopback test.
- * v1.31   02 Sep 2005 Hubert WS Lin <wslin@tw.ibm.c0m> added set_ringparam().
- * v1.31a  12 Sep 2005 Hubert WS Lin <wslin@tw.ibm.c0m> set min ring size to 4
- *	   to allow loopback test to work unchanged.
- * v1.31b  06 Oct 2005 Don Fry changed alloc_ring to show name of device
- *	   if allocation fails
- * v1.31c  01 Nov 2005 Don Fry Allied Telesyn 2700/2701 FX are 100Mbit only.
- *	   Force 100Mbit FD if Auto (ASEL) is selected.
- *	   See Bugzilla 2669 and 4551.
- * v1.32   18 Mar2006 Thomas Bogendoerfer and Don Fry added Multi-Phy
- *	   handling for supporting AT-270x FTX cards with FX and Tx PHYs.
- *	   Philippe Seewer assisted with auto negotiation and testing.
- */
-
-/*
  * Set the number of Tx and Rx buffers, using Log_2(# buffers).
  * Reasonable default values are 4 Tx buffers, and 16 Rx buffers.
  * That translates to 2 (4 == 2^^2) and 4 (16 == 2^^4).
@@ -310,31 +190,31 @@ static int homepna[MAX_UNITS];
 
 /* The PCNET32 Rx and Tx ring descriptors. */
 struct pcnet32_rx_head {
-	u32 base;
-	s16 buf_length;
-	s16 status;
-	u32 msg_length;
-	u32 reserved;
+	u32	base;
+	s16	buf_length;
+	s16	status;
+	u32	msg_length;
+	u32	reserved;
 };
 
 struct pcnet32_tx_head {
-	u32 base;
-	s16 length;
-	s16 status;
-	u32 misc;
-	u32 reserved;
+	u32	base;
+	s16	length;
+	s16	status;
+	u32	misc;
+	u32	reserved;
 };
 
 /* The PCNET32 32-Bit initialization block, described in databook. */
 struct pcnet32_init_block {
-	u16 mode;
-	u16 tlen_rlen;
-	u8 phys_addr[6];
-	u16 reserved;
-	u32 filter[2];
+	u16	mode;
+	u16	tlen_rlen;
+	u8	phys_addr[6];
+	u16	reserved;
+	u32	filter[2];
 	/* Receive and transmit ring base, along with extra bits. */
-	u32 rx_ring;
-	u32 tx_ring;
+	u32	rx_ring;
+	u32	tx_ring;
 };
 
 /* PCnet32 access functions */
@@ -355,46 +235,46 @@ struct pcnet32_access {
 struct pcnet32_private {
 	struct pcnet32_init_block init_block;
 	/* The Tx and Rx ring entries must be aligned on 16-byte boundaries in 32bit mode. */
-	struct pcnet32_rx_head *rx_ring;
-	struct pcnet32_tx_head *tx_ring;
-	dma_addr_t dma_addr;	/* DMA address of beginning of this
-				   object, returned by
-				   pci_alloc_consistent */
-	struct pci_dev *pci_dev;	/* Pointer to the associated pci device
-					   structure */
-	const char *name;
+	struct pcnet32_rx_head	*rx_ring;
+	struct pcnet32_tx_head	*tx_ring;
+	dma_addr_t		dma_addr;/* DMA address of beginning of this
+				   object, returned by pci_alloc_consistent */
+	struct pci_dev		*pci_dev;
+	const char		*name;
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
-	struct sk_buff **tx_skbuff;
-	struct sk_buff **rx_skbuff;
-	dma_addr_t *tx_dma_addr;
-	dma_addr_t *rx_dma_addr;
-	struct pcnet32_access a;
-	spinlock_t lock;	/* Guard lock */
-	unsigned int cur_rx, cur_tx;	/* The next free ring entry */
-	unsigned int rx_ring_size;	/* current rx ring size */
-	unsigned int tx_ring_size;	/* current tx ring size */
-	unsigned int rx_mod_mask;	/* rx ring modular mask */
-	unsigned int tx_mod_mask;	/* tx ring modular mask */
-	unsigned short rx_len_bits;
-	unsigned short tx_len_bits;
-	dma_addr_t rx_ring_dma_addr;
-	dma_addr_t tx_ring_dma_addr;
-	unsigned int dirty_rx, dirty_tx;	/* The ring entries to be free()ed. */
-	struct net_device_stats stats;
-	char tx_full;
-	char phycount;			/* number of phys found */
-	int options;
-	unsigned int shared_irq:1,	/* shared irq possible */
-	 dxsuflo:1,			/* disable transmit stop on uflo */
-	 mii:1;				/* mii port available */
-	struct net_device *next;
-	struct mii_if_info mii_if;
-	struct timer_list watchdog_timer;
-	struct timer_list blink_timer;
-	u32 msg_enable;			/* debug message level */
+	struct sk_buff		**tx_skbuff;
+	struct sk_buff		**rx_skbuff;
+	dma_addr_t		*tx_dma_addr;
+	dma_addr_t		*rx_dma_addr;
+	struct pcnet32_access	a;
+	spinlock_t		lock;		/* Guard lock */
+	unsigned int		cur_rx, cur_tx;	/* The next free ring entry */
+	unsigned int		rx_ring_size;	/* current rx ring size */
+	unsigned int		tx_ring_size;	/* current tx ring size */
+	unsigned int		rx_mod_mask;	/* rx ring modular mask */
+	unsigned int		tx_mod_mask;	/* tx ring modular mask */
+	unsigned short		rx_len_bits;
+	unsigned short		tx_len_bits;
+	dma_addr_t		rx_ring_dma_addr;
+	dma_addr_t		tx_ring_dma_addr;
+	unsigned int		dirty_rx,	/* ring entries to be freed. */
+				dirty_tx;
+
+	struct net_device_stats	stats;
+	char			tx_full;
+	char			phycount;	/* number of phys found */
+	int			options;
+	unsigned int		shared_irq:1,	/* shared irq possible */
+				dxsuflo:1,   /* disable transmit stop on uflo */
+				mii:1;		/* mii port available */
+	struct net_device	*next;
+	struct mii_if_info	mii_if;
+	struct timer_list	watchdog_timer;
+	struct timer_list	blink_timer;
+	u32			msg_enable;	/* debug message level */
 
 	/* each bit indicates an available PHY */
-	u32 phymask;
+	u32			phymask;
 };
 
 static void pcnet32_probe_vlbus(void);
