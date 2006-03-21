@@ -3251,22 +3251,18 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	if (sizeof(dma_addr_t) > sizeof(u32) &&
-	    !(err = pci_set_dma_mask(pdev, DMA_64BIT_MASK))) {
+	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
 		using_dac = 1;
 		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
-		if (err < 0) {
-			printk(KERN_ERR PFX "%s unable to obtain 64 bit DMA "
-			       "for consistent allocations\n", pci_name(pdev));
-			goto err_out_free_regions;
-		}
-	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
-		if (err) {
-			printk(KERN_ERR PFX "%s no usable DMA configuration\n",
-			       pci_name(pdev));
-			goto err_out_free_regions;
-		}
+	} else if (!(err = pci_set_dma_mask(pdev, DMA_32BIT_MASK))) {
+		using_dac = 0;
+		err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+	}
+
+	if (err) {
+		printk(KERN_ERR PFX "%s no usable DMA configuration\n",
+		       pci_name(pdev));
+		goto err_out_free_regions;
 	}
 
 #ifdef __BIG_ENDIAN
