@@ -101,9 +101,6 @@ static inline int verify_sec_ctx_len(struct rtattr **xfrma)
 
 	uctx = RTA_DATA(rt);
 
-	if (uctx->ctx_len > PAGE_SIZE)
-		return -EINVAL;
-
 	len += sizeof(struct xfrm_user_sec_ctx);
 	len += uctx->ctx_len;
 
