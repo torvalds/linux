@@ -179,6 +179,33 @@ rtattr_failure:
 }
 
 
+static void set_operstate(struct net_device *dev, unsigned char transition)
+{
+	unsigned char operstate = dev->operstate;
+
+	switch(transition) {
+	case IF_OPER_UP:
+		if ((operstate == IF_OPER_DORMANT ||
+		     operstate == IF_OPER_UNKNOWN) &&
+		    !netif_dormant(dev))
+			operstate = IF_OPER_UP;
+		break;
+
+	case IF_OPER_DORMANT:
+		if (operstate == IF_OPER_UP ||
+		    operstate == IF_OPER_UNKNOWN)
+			operstate = IF_OPER_DORMANT;
+		break;
+	};
+
+	if (dev->operstate != operstate) {
+		write_lock_bh(&dev_base_lock);
+		dev->operstate = operstate;
+		write_unlock_bh(&dev_base_lock);
+		netdev_state_change(dev);
+	}
+}
+
 static int rtnetlink_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 				 int type, u32 pid, u32 seq, u32 change, 
 				 unsigned int flags)
@@ -206,6 +233,13 @@ static int rtnetlink_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	if (1) {
 		u32 weight = dev->weight;
 		RTA_PUT(skb, IFLA_WEIGHT, sizeof(weight), &weight);
+	}
+
+	if (1) {
+		u8 operstate = netif_running(dev)?dev->operstate:IF_OPER_DOWN;
+		u8 link_mode = dev->link_mode;
+		RTA_PUT(skb, IFLA_OPERSTATE, sizeof(operstate), &operstate);
+		RTA_PUT(skb, IFLA_LINKMODE, sizeof(link_mode), &link_mode);
 	}
 
 	if (1) {
@@ -397,6 +431,22 @@ static int do_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 			goto out;
 
 		dev->weight = *((u32 *) RTA_DATA(ida[IFLA_WEIGHT - 1]));
+	}
+
+	if (ida[IFLA_OPERSTATE - 1]) {
+		if (ida[IFLA_OPERSTATE - 1]->rta_len != RTA_LENGTH(sizeof(u8)))
+			goto out;
+
+		set_operstate(dev, *((u8 *) RTA_DATA(ida[IFLA_OPERSTATE - 1])));
+	}
+
+	if (ida[IFLA_LINKMODE - 1]) {
+		if (ida[IFLA_LINKMODE - 1]->rta_len != RTA_LENGTH(sizeof(u8)))
+			goto out;
+
+		write_lock_bh(&dev_base_lock);
+		dev->link_mode = *((u8 *) RTA_DATA(ida[IFLA_LINKMODE - 1]));
+		write_unlock_bh(&dev_base_lock);
 	}
 
 	if (ifm->ifi_index >= 0 && ida[IFLA_IFNAME - 1]) {

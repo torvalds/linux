@@ -33,7 +33,7 @@
 #define	IFF_LOOPBACK	0x8		/* is a loopback net		*/
 #define	IFF_POINTOPOINT	0x10		/* interface is has p-p link	*/
 #define	IFF_NOTRAILERS	0x20		/* avoid use of trailers	*/
-#define	IFF_RUNNING	0x40		/* interface running and carrier ok */
+#define	IFF_RUNNING	0x40		/* interface RFC2863 OPER_UP	*/
 #define	IFF_NOARP	0x80		/* no ARP protocol		*/
 #define	IFF_PROMISC	0x100		/* receive all packets		*/
 #define	IFF_ALLMULTI	0x200		/* receive all multicast packets*/
@@ -43,11 +43,15 @@
 
 #define IFF_MULTICAST	0x1000		/* Supports multicast		*/
 
-#define IFF_VOLATILE	(IFF_LOOPBACK|IFF_POINTOPOINT|IFF_BROADCAST|IFF_MASTER|IFF_SLAVE|IFF_RUNNING)
-
 #define IFF_PORTSEL	0x2000          /* can set media type		*/
 #define IFF_AUTOMEDIA	0x4000		/* auto media select active	*/
 #define IFF_DYNAMIC	0x8000		/* dialup device with changing addresses*/
+
+#define IFF_LOWER_UP	0x10000		/* driver signals L1 up		*/
+#define IFF_DORMANT	0x20000		/* driver signals dormant	*/
+
+#define IFF_VOLATILE	(IFF_LOOPBACK|IFF_POINTOPOINT|IFF_BROADCAST|\
+		IFF_MASTER|IFF_SLAVE|IFF_RUNNING|IFF_LOWER_UP|IFF_DORMANT)
 
 /* Private (from user) interface flags (netdevice->priv_flags). */
 #define IFF_802_1Q_VLAN 0x1             /* 802.1Q VLAN device.          */
@@ -83,6 +87,22 @@
 #define IF_PROTO_FR_ETH_PVC 0x200B
 #define IF_PROTO_RAW    0x200C          /* RAW Socket                   */
 
+/* RFC 2863 operational status */
+enum {
+	IF_OPER_UNKNOWN,
+	IF_OPER_NOTPRESENT,
+	IF_OPER_DOWN,
+	IF_OPER_LOWERLAYERDOWN,
+	IF_OPER_TESTING,
+	IF_OPER_DORMANT,
+	IF_OPER_UP,
+};
+
+/* link modes */
+enum {
+	IF_LINK_MODE_DEFAULT,
+	IF_LINK_MODE_DORMANT,	/* limit upward transition to dormant */
+};
 
 /*
  *	Device mapping structure. I'd just gone off and designed a 
