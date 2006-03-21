@@ -159,7 +159,17 @@ void dccp_ackvec_free(struct dccp_ackvec *av)
 {
 	if (unlikely(av == NULL))
 		return;
-	WARN_ON(!list_empty(&av->dccpav_records));
+
+	if (!list_empty(&av->dccpav_records)) {
+		struct dccp_ackvec_record *avr, *next;
+
+		list_for_each_entry_safe(avr, next, &av->dccpav_records,
+					 dccpavr_node) {
+			list_del_init(&avr->dccpavr_node);
+			dccp_ackvec_record_delete(avr);
+		}
+	}
+
 	kmem_cache_free(dccp_ackvec_slab, av);
 }
 
