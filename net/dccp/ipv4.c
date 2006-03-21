@@ -44,18 +44,6 @@ static int dccp_v4_get_port(struct sock *sk, const unsigned short snum)
 				 inet_csk_bind_conflict);
 }
 
-static void dccp_v4_hash(struct sock *sk)
-{
-	inet_hash(&dccp_hashinfo, sk);
-}
-
-void dccp_unhash(struct sock *sk)
-{
-	inet_unhash(&dccp_hashinfo, sk);
-}
-
-EXPORT_SYMBOL_GPL(dccp_unhash);
-
 int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -1048,7 +1036,7 @@ struct proto dccp_prot = {
 	.sendmsg		= dccp_sendmsg,
 	.recvmsg		= dccp_recvmsg,
 	.backlog_rcv		= dccp_v4_do_rcv,
-	.hash			= dccp_v4_hash,
+	.hash			= dccp_hash,
 	.unhash			= dccp_unhash,
 	.accept			= inet_csk_accept,
 	.get_port		= dccp_v4_get_port,

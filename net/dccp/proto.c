@@ -97,6 +97,20 @@ const char *dccp_state_name(const int state)
 
 EXPORT_SYMBOL_GPL(dccp_state_name);
 
+void dccp_hash(struct sock *sk)
+{
+	inet_hash(&dccp_hashinfo, sk);
+}
+
+EXPORT_SYMBOL_GPL(dccp_hash);
+
+void dccp_unhash(struct sock *sk)
+{
+	inet_unhash(&dccp_hashinfo, sk);
+}
+
+EXPORT_SYMBOL_GPL(dccp_unhash);
+
 int dccp_init_sock(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);

@@ -53,7 +53,7 @@ static void dccp_v6_hash(struct sock *sk)
 {
 	if (sk->sk_state != DCCP_CLOSED) {
 		if (inet_csk(sk)->icsk_af_ops == &dccp_ipv6_mapped) {
-			dccp_prot.hash(sk);
+			dccp_hash(sk);
 			return;
 		}
 		local_bh_disable();
