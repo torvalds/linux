@@ -71,6 +71,9 @@ struct sock;
 struct sk_buff;
 
 #ifdef CONFIG_IP_DCCP_ACKVEC
+extern int dccp_ackvec_init(void);
+extern void dccp_ackvec_exit(void);
+
 extern struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority);
 extern void dccp_ackvec_free(struct dccp_ackvec *av);
 
@@ -89,6 +92,15 @@ static inline int dccp_ackvec_pending(const struct dccp_ackvec *av)
 	return av->dccpav_sent_len != av->dccpav_vec_len;
 }
 #else /* CONFIG_IP_DCCP_ACKVEC */
+static inline int dccp_ackvec_init(void)
+{
+	return 0;
+}
+
+static inline void dccp_ackvec_exit(void)
+{
+}
+
 static inline struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 {
 	return NULL;

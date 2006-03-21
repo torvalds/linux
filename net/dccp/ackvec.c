@@ -13,9 +13,15 @@
 #include "dccp.h"
 
 #include <linux/dccp.h>
+#include <linux/init.h>
+#include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 
 #include <net/sock.h>
+
+static kmem_cache_t *dccp_ackvec_slab;
 
 int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 {
@@ -96,7 +102,7 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 
 struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 {
-	struct dccp_ackvec *av = kmalloc(sizeof(*av), priority);
+	struct dccp_ackvec *av = kmem_cache_alloc(dccp_ackvec_slab, priority);
 
 	if (av != NULL) {
 		av->dccpav_buf_head	=
@@ -115,7 +121,7 @@ struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 
 void dccp_ackvec_free(struct dccp_ackvec *av)
 {
-	kfree(av);
+	kmem_cache_free(dccp_ackvec_slab, av);
 }
 
 static inline u8 dccp_ackvec_state(const struct dccp_ackvec *av,
@@ -419,4 +425,28 @@ int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
 					DCCP_SKB_CB(skb)->dccpd_ack_seq,
 				        len, value);
 	return 0;
+}
+
+static char dccp_ackvec_slab_msg[] __initdata =
+	KERN_CRIT "DCCP: Unable to create ack vectors slab cache\n";
+
+int __init dccp_ackvec_init(void)
+{
+	dccp_ackvec_slab = kmem_cache_create("dccp_ackvec",
+					     sizeof(struct dccp_ackvec), 0,
+					     SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if (dccp_ackvec_slab == NULL) {
+		printk(dccp_ackvec_slab_msg);
+		return -ENOBUFS;
+	}
+
+	return 0;
+}
+
+void dccp_ackvec_exit(void)
+{
+	if (dccp_ackvec_slab != NULL) {
+		kmem_cache_destroy(dccp_ackvec_slab);
+		dccp_ackvec_slab = NULL;
+	}
 }

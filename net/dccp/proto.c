@@ -877,11 +877,17 @@ static int __init dccp_init(void)
 
 	inet_register_protosw(&dccp_v4_protosw);
 
-	rc = dccp_ctl_sock_init();
+	rc = dccp_ackvec_init();
 	if (rc)
 		goto out_unregister_protosw;
+
+	rc = dccp_ctl_sock_init();
+	if (rc)
+		goto out_ackvec_exit;
 out:
 	return rc;
+out_ackvec_exit:
+	dccp_ackvec_exit();
 out_unregister_protosw:
 	inet_unregister_protosw(&dccp_v4_protosw);
 	inet_del_protocol(&dccp_protocol, IPPROTO_DCCP);
@@ -923,6 +929,7 @@ static void __exit dccp_fini(void)
 			     sizeof(struct inet_ehash_bucket)));
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
 	proto_unregister(&dccp_prot);
+	dccp_ackvec_exit();
 }
 
 module_init(dccp_init);
