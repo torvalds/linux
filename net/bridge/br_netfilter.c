@@ -425,8 +425,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 
 		if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
 			u8 *vhdr = skb->data;
-			skb_pull(skb, VLAN_HLEN);
-			skb_postpull_rcsum(skb, vhdr, VLAN_HLEN);
+			skb_pull_rcsum(skb, VLAN_HLEN);
 			skb->nh.raw += VLAN_HLEN;
 		}
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
@@ -444,8 +443,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 
 	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
 		u8 *vhdr = skb->data;
-		skb_pull(skb, VLAN_HLEN);
-		skb_postpull_rcsum(skb, vhdr, VLAN_HLEN);
+		skb_pull_rcsum(skb, VLAN_HLEN);
 		skb->nh.raw += VLAN_HLEN;
 	}
 

@@ -1159,11 +1159,13 @@ static inline int skb_linearize(struct sk_buff *skb, gfp_t gfp)
  */
 
 static inline void skb_postpull_rcsum(struct sk_buff *skb,
-					 const void *start, int len)
+				      const void *start, unsigned int len)
 {
 	if (skb->ip_summed == CHECKSUM_HW)
 		skb->csum = csum_sub(skb->csum, csum_partial(start, len, 0));
 }
+
+unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len);
 
 /**
  *	pskb_trim_rcsum - trim received skb and update checksum
