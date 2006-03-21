@@ -163,11 +163,10 @@ void dccp_unhash(struct sock *sk)
 
 EXPORT_SYMBOL_GPL(dccp_unhash);
 
-int dccp_init_sock(struct sock *sk)
+int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
-	static int dccp_ctl_socket_init = 1;
 
 	dccp_options_init(&dp->dccps_options);
 	do_gettimeofday(&dp->dccps_epoch);
@@ -179,7 +178,7 @@ int dccp_init_sock(struct sock *sk)
 	 * lets leave it here, later the real solution is to do this in a
 	 * setsockopt(CCIDs-I-want/accept). -acme
 	 */
-	if (likely(!dccp_ctl_socket_init)) {
+	if (likely(ctl_sock_initialized)) {
 		int rc = dccp_feat_init(sk);
 
 		if (rc)
@@ -211,7 +210,6 @@ int dccp_init_sock(struct sock *sk)
 		/* control socket doesn't need feat nego */
 		INIT_LIST_HEAD(&dp->dccps_options.dccpo_pending);
 		INIT_LIST_HEAD(&dp->dccps_options.dccpo_conf);
-		dccp_ctl_socket_init = 0;
 	}
 
 	dccp_init_xmit_timers(sk);

@@ -33,6 +33,9 @@
 #include "dccp.h"
 #include "ipv6.h"
 
+/* Socket used for sending RSTs and ACKs */
+static struct socket *dccp_v6_ctl_socket;
+
 static void dccp_v6_ctl_send_reset(struct sk_buff *skb);
 static void dccp_v6_reqsk_send_ack(struct sk_buff *skb,
 				   struct request_sock *req);
@@ -568,7 +571,7 @@ static void dccp_v6_ctl_send_reset(struct sk_buff *rxskb)
 	/* sk = NULL, but it is safe for now. RST socket required. */
 	if (!ip6_dst_lookup(NULL, &skb->dst, &fl)) {
 		if (xfrm_lookup(&skb->dst, &fl, NULL, 0) >= 0) {
-			ip6_xmit(NULL, skb, &fl, NULL, 0);
+			ip6_xmit(dccp_v6_ctl_socket->sk, skb, &fl, NULL, 0);
 			DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
 			DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
 			return;
@@ -623,7 +626,7 @@ static void dccp_v6_ctl_send_ack(struct sk_buff *rxskb)
 
 	if (!ip6_dst_lookup(NULL, &skb->dst, &fl)) {
 		if (xfrm_lookup(&skb->dst, &fl, NULL, 0) >= 0) {
-			ip6_xmit(NULL, skb, &fl, NULL, 0);
+			ip6_xmit(dccp_v6_ctl_socket->sk, skb, &fl, NULL, 0);
 			DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
 			return;
 		}
@@ -1146,10 +1149,14 @@ static struct inet_connection_sock_af_ops dccp_ipv6_mapped = {
  */
 static int dccp_v6_init_sock(struct sock *sk)
 {
-	int err = dccp_init_sock(sk);
+	static __u8 dccp_v6_ctl_sock_initialized;
+	int err = dccp_init_sock(sk, dccp_v6_ctl_sock_initialized);
 
-	if (err == 0)
+	if (err == 0) {
+		if (unlikely(!dccp_v6_ctl_sock_initialized))
+			dccp_v6_ctl_sock_initialized = 1;
 		inet_csk(sk)->icsk_af_ops = &dccp_ipv6_af_ops;
+	}
 
 	return err;
 }
@@ -1222,6 +1229,29 @@ static struct inet_protosw dccp_v6_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
+static char dccp_v6_ctl_socket_err_msg[] __initdata =
+	KERN_ERR "DCCP: Failed to create the control socket.\n";
+
+static int __init dccp_v6_ctl_sock_init(void)
+{
+	int rc = sock_create_kern(PF_INET6, SOCK_DCCP, IPPROTO_DCCP,
+				  &dccp_v6_ctl_socket);
+	if (rc < 0)
+		printk(dccp_v6_ctl_socket_err_msg);
+	else {
+		dccp_v6_ctl_socket->sk->sk_allocation = GFP_ATOMIC;
+		inet_sk(dccp_v6_ctl_socket->sk)->uc_ttl = -1;
+
+		/* Unhash it so that IP input processing does not even
+		 * see it, we do not wish this socket to see incoming
+		 * packets.
+		 */
+		dccp_v6_ctl_socket->sk->sk_prot->unhash(dccp_v6_ctl_socket->sk);
+	}
+
+	return rc;
+}
+
 static int __init dccp_v6_init(void)
 {
 	int err = proto_register(&dccp_v6_prot, 1);
@@ -1234,8 +1264,14 @@ static int __init dccp_v6_init(void)
 		goto out_unregister_proto;
 
 	inet6_register_protosw(&dccp_v6_protosw);
+
+	if (dccp_v6_ctl_sock_init() != 0)
+		goto out_unregister_protosw;
 out:
 	return err;
+out_unregister_protosw:
+	inet6_del_protocol(&dccp_v6_protocol, IPPROTO_DCCP);
+	inet6_unregister_protosw(&dccp_v6_protosw);
 out_unregister_proto:
 	proto_unregister(&dccp_v6_prot);
 	goto out;

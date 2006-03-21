@@ -32,6 +32,13 @@
 #include "dccp.h"
 #include "feat.h"
 
+/*
+ * This is the global socket data structure used for responding to
+ * the Out-of-the-blue (OOTB) packets. A control sock will be created
+ * for this socket at the initialization time.
+ */
+static struct socket *dccp_v4_ctl_socket;
+
 static int dccp_v4_get_port(struct sock *sk, const unsigned short snum)
 {
 	return inet_csk_get_port(&dccp_hashinfo, sk, snum,
@@ -226,11 +233,11 @@ static void dccp_v4_ctl_send_ack(struct sk_buff *rxskb)
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb),
 			 DCCP_SKB_CB(rxskb)->dccpd_seq);
 
-	bh_lock_sock(dccp_ctl_socket->sk);
-	err = ip_build_and_send_pkt(skb, dccp_ctl_socket->sk,
+	bh_lock_sock(dccp_v4_ctl_socket->sk);
+	err = ip_build_and_send_pkt(skb, dccp_v4_ctl_socket->sk,
 				    rxskb->nh.iph->daddr,
 				    rxskb->nh.iph->saddr, NULL);
-	bh_unlock_sock(dccp_ctl_socket->sk);
+	bh_unlock_sock(dccp_v4_ctl_socket->sk);
 
 	if (err == NET_XMIT_CN || err == 0) {
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
@@ -704,7 +711,7 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 	if (((struct rtable *)rxskb->dst)->rt_type != RTN_LOCAL)
 		return;
 
-	dst = dccp_v4_route_skb(dccp_ctl_socket->sk, rxskb);
+	dst = dccp_v4_route_skb(dccp_v4_ctl_socket->sk, rxskb);
 	if (dst == NULL)
 		return;
 
@@ -741,11 +748,11 @@ static void dccp_v4_ctl_send_reset(struct sk_buff *rxskb)
 	dh->dccph_checksum = dccp_v4_checksum(skb, rxskb->nh.iph->saddr,
 					      rxskb->nh.iph->daddr);
 
-	bh_lock_sock(dccp_ctl_socket->sk);
-	err = ip_build_and_send_pkt(skb, dccp_ctl_socket->sk,
+	bh_lock_sock(dccp_v4_ctl_socket->sk);
+	err = ip_build_and_send_pkt(skb, dccp_v4_ctl_socket->sk,
 				    rxskb->nh.iph->daddr,
 				    rxskb->nh.iph->saddr, NULL);
-	bh_unlock_sock(dccp_ctl_socket->sk);
+	bh_unlock_sock(dccp_v4_ctl_socket->sk);
 
 	if (err == NET_XMIT_CN || err == 0) {
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
@@ -997,10 +1004,15 @@ static struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
 
 static int dccp_v4_init_sock(struct sock *sk)
 {
-	const int err = dccp_init_sock(sk);
+	static __u8 dccp_v4_ctl_sock_initialized;
+	int err = dccp_init_sock(sk, dccp_v4_ctl_sock_initialized);
 
-	if (err == 0)
+	if (err == 0) {
+		if (unlikely(!dccp_v4_ctl_sock_initialized))
+			dccp_v4_ctl_sock_initialized = 1;
 		inet_csk(sk)->icsk_af_ops = &dccp_ipv4_af_ops;
+	}
+
 	return err;
 }
 
@@ -1087,47 +1099,28 @@ static struct inet_protosw dccp_v4_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
-/*
- * This is the global socket data structure used for responding to
- * the Out-of-the-blue (OOTB) packets. A control sock will be created
- * for this socket at the initialization time.
- */
-struct socket *dccp_ctl_socket;
-
-static char dccp_ctl_socket_err_msg[] __initdata =
+static char dccp_v4_ctl_socket_err_msg[] __initdata =
 	KERN_ERR "DCCP: Failed to create the control socket.\n";
 
-static int __init dccp_ctl_sock_init(void)
+static int __init dccp_v4_ctl_sock_init(void)
 {
 	int rc = sock_create_kern(PF_INET, SOCK_DCCP, IPPROTO_DCCP,
-				  &dccp_ctl_socket);
+				  &dccp_v4_ctl_socket);
 	if (rc < 0)
-		printk(dccp_ctl_socket_err_msg);
+		printk(dccp_v4_ctl_socket_err_msg);
 	else {
-		dccp_ctl_socket->sk->sk_allocation = GFP_ATOMIC;
-		inet_sk(dccp_ctl_socket->sk)->uc_ttl = -1;
+		dccp_v4_ctl_socket->sk->sk_allocation = GFP_ATOMIC;
+		inet_sk(dccp_v4_ctl_socket->sk)->uc_ttl = -1;
 
 		/* Unhash it so that IP input processing does not even
 		 * see it, we do not wish this socket to see incoming
 		 * packets.
 		 */
-		dccp_ctl_socket->sk->sk_prot->unhash(dccp_ctl_socket->sk);
+		dccp_v4_ctl_socket->sk->sk_prot->unhash(dccp_v4_ctl_socket->sk);
 	}
 
 	return rc;
 }
-
-#ifdef CONFIG_IP_DCCP_UNLOAD_HACK
-void dccp_ctl_sock_exit(void)
-{
-	if (dccp_ctl_socket != NULL) {
-		sock_release(dccp_ctl_socket);
-		dccp_ctl_socket = NULL;
-	}
-}
-
-EXPORT_SYMBOL_GPL(dccp_ctl_sock_exit);
-#endif
 
 static int __init dccp_v4_init(void)
 {
@@ -1142,7 +1135,7 @@ static int __init dccp_v4_init(void)
 
 	inet_register_protosw(&dccp_v4_protosw);
 
-	err = dccp_ctl_sock_init();
+	err = dccp_v4_ctl_sock_init();
 	if (err)
 		goto out_unregister_protosw;
 out:

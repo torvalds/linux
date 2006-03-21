@@ -177,7 +177,7 @@ extern int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 extern int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				const struct dccp_hdr *dh, const unsigned len);
 
-extern int dccp_init_sock(struct sock *sk);
+extern int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized);
 extern int dccp_destroy_sock(struct sock *sk);
 
 extern void		dccp_close(struct sock *sk, long timeout);
@@ -336,8 +336,6 @@ extern void dccp_insert_option_timestamp(struct sock *sk,
 extern void dccp_insert_option(struct sock *sk, struct sk_buff *skb,
 			       unsigned char option,
 			       const void *value, unsigned char len);
-
-extern struct socket *dccp_ctl_socket;
 
 extern void dccp_timestamp(const struct sock *sk, struct timeval *tv);
 

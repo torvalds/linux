@@ -40,15 +40,6 @@ config IP_DCCP_DEBUG
 
 	  Just say N.
 
-config IP_DCCP_UNLOAD_HACK
-	depends on IP_DCCP=m && IP_DCCP_CCID3=m
-	bool "DCCP control sock unload hack"
-	---help---
-	  Enable this to be able to unload the dccp module when the it
-	  has only one refcount held, the control sock one. Just execute
-	  "rmmod dccp_ccid3 dccp"
-
-	  Just say N.
 endmenu
 
 endmenu
