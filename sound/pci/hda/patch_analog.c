@@ -786,6 +786,8 @@ enum { AD1986A_6STACK, AD1986A_3STACK, AD1986A_LAPTOP, AD1986A_LAPTOP_EAPD };
 static struct hda_board_config ad1986a_cfg_tbl[] = {
 	{ .modelname = "6stack",	.config = AD1986A_6STACK },
 	{ .modelname = "3stack",	.config = AD1986A_3STACK },
+	{ .pci_subvendor = 0x10de, .pci_subdevice = 0xcb84,
+	  .config = AD1986A_3STACK }, /* ASUS A8N-VM CSM */
 	{ .modelname = "laptop",	.config = AD1986A_LAPTOP },
 	{ .pci_subvendor = 0x144d, .pci_subdevice = 0xc01e,
 	  .config = AD1986A_LAPTOP }, /* FSC V2060 */
@@ -2253,14 +2255,11 @@ static int ad1988_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 
 	idx = ad1988_pin_idx(pin);
 	nid = ad1988_idx_to_dac(codec, idx);
-	if (! spec->multiout.dac_nids[0]) {
-		/* use this as the primary output */
-		spec->multiout.dac_nids[0] = nid;
-		if (! spec->multiout.num_dacs)
-			spec->multiout.num_dacs = 1;
-	} else 
-		/* specify the DAC as the extra output */
+	/* specify the DAC as the extra output */
+	if (! spec->multiout.hp_nid)
 		spec->multiout.hp_nid = nid;
+	else
+		spec->multiout.extra_out_nid[0] = nid;
 	/* control HP volume/switch on the output mixer amp */
 	sprintf(name, "%s Playback Volume", pfx);
 	if ((err = add_control(spec, AD_CTL_WIDGET_VOL, name,
@@ -2379,7 +2378,7 @@ static void ad1988_auto_init_extra_out(struct hda_codec *codec)
 	struct ad198x_spec *spec = codec->spec;
 	hda_nid_t pin;
 
-	pin = spec->autocfg.speaker_pin;
+	pin = spec->autocfg.speaker_pins[0];
 	if (pin) /* connect to front */
 		ad1988_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
 	pin = spec->autocfg.hp_pin;
@@ -2428,13 +2427,13 @@ static int ad1988_parse_auto_config(struct hda_codec *codec)
 		return err;
 	if ((err = ad1988_auto_fill_dac_nids(codec, &spec->autocfg)) < 0)
 		return err;
-	if (! spec->autocfg.line_outs && ! spec->autocfg.speaker_pin &&
-	    ! spec->autocfg.hp_pin)
+	if (! spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
 	if ((err = ad1988_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0 ||
-	    (err = ad1988_auto_create_extra_out(codec, spec->autocfg.speaker_pin,
+	    (err = ad1988_auto_create_extra_out(codec,
+						spec->autocfg.speaker_pins[0],
 						"Speaker")) < 0 ||
-	    (err = ad1988_auto_create_extra_out(codec, spec->autocfg.speaker_pin,
+	    (err = ad1988_auto_create_extra_out(codec, spec->autocfg.hp_pin,
 						"Headphone")) < 0 ||
 	    (err = ad1988_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
 		return err;

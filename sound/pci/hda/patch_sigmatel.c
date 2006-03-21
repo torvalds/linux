@@ -51,6 +51,7 @@ struct sigmatel_spec {
 	unsigned int line_switch: 1;
 	unsigned int mic_switch: 1;
 	unsigned int alt_switch: 1;
+	unsigned int hp_detect: 1;
 
 	/* playback */
 	struct hda_multi_out multiout;
@@ -697,13 +698,7 @@ static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec, const struct aut
 					AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
 	}
 
-	if (cfg->line_outs)
-		spec->multiout.num_dacs = cfg->line_outs;
-	else if (cfg->hp_pin) {
-		spec->multiout.dac_nids[0] = snd_hda_codec_read(codec, cfg->hp_pin, 0,
-					AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
-		spec->multiout.num_dacs = 1;
-	}
+	spec->multiout.num_dacs = cfg->line_outs;
 
 	return 0;
 }
@@ -772,11 +767,13 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec, struct auto_pin
 		return 0;
 
 	wid_caps = get_wcaps(codec, pin);
-	if (wid_caps & AC_WCAP_UNSOL_CAP)
+	if (wid_caps & AC_WCAP_UNSOL_CAP) {
 		/* Enable unsolicited responses on the HP widget */
 		snd_hda_codec_write(codec, pin, 0,
 				AC_VERB_SET_UNSOLICITED_ENABLE,
 				STAC_UNSOL_ENABLE);
+		spec->hp_detect = 1;
+	}
 
 	nid = snd_hda_codec_read(codec, pin, 0, AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
 	for (i = 0; i < cfg->line_outs; i++) {
@@ -810,9 +807,6 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		int index = -1;
 		if (cfg->input_pins[i]) {
-			/* Enable active pin widget as an input */
-			stac92xx_auto_set_pinctl(codec, cfg->input_pins[i], AC_PINCTL_IN_EN);
-
 			imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
 
 			for (j=0; j<spec->num_muxes; j++) {
@@ -861,10 +855,8 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 
 	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL)) < 0)
 		return err;
-	if (! spec->autocfg.line_outs && ! spec->autocfg.hp_pin)
+	if (! spec->autocfg.line_outs)
 		return 0; /* can't find valid pin config */
-	stac92xx_auto_init_multi_out(codec);
-	stac92xx_auto_init_hp_out(codec);
 	if ((err = stac92xx_add_dyn_out_pins(codec, &spec->autocfg)) < 0)
 		return err;
 	if ((err = stac92xx_auto_fill_dac_nids(codec, &spec->autocfg)) < 0)
@@ -879,14 +871,10 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	if (spec->multiout.max_channels > 2)
 		spec->surr_switch = 1;
 
-	if (spec->autocfg.dig_out_pin) {
+	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = dig_out;
-		stac92xx_auto_set_pinctl(codec, spec->autocfg.dig_out_pin, AC_PINCTL_OUT_EN);
-	}
-	if (spec->autocfg.dig_in_pin) {
+	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = dig_in;
-		stac92xx_auto_set_pinctl(codec, spec->autocfg.dig_in_pin, AC_PINCTL_IN_EN);
-	}
 
 	if (spec->kctl_alloc)
 		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
@@ -894,6 +882,29 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	spec->input_mux = &spec->private_imux;
 
 	return 1;
+}
+
+/* add playback controls for HP output */
+static int stac9200_auto_create_hp_ctls(struct hda_codec *codec,
+					struct auto_pin_cfg *cfg)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	hda_nid_t pin = cfg->hp_pin;
+	unsigned int wid_caps;
+
+	if (! pin)
+		return 0;
+
+	wid_caps = get_wcaps(codec, pin);
+	if (wid_caps & AC_WCAP_UNSOL_CAP) {
+		/* Enable unsolicited responses on the HP widget */
+		snd_hda_codec_write(codec, pin, 0,
+				AC_VERB_SET_UNSOLICITED_ENABLE,
+				STAC_UNSOL_ENABLE);
+		spec->hp_detect = 1;
+	}
+
+	return 0;
 }
 
 static int stac9200_parse_auto_config(struct hda_codec *codec)
@@ -907,14 +918,13 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
 	if ((err = stac92xx_auto_create_analog_input_ctls(codec, &spec->autocfg)) < 0)
 		return err;
 
-	if (spec->autocfg.dig_out_pin) {
+	if ((err = stac9200_auto_create_hp_ctls(codec, &spec->autocfg)) < 0)
+		return err;
+
+	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = 0x05;
-		stac92xx_auto_set_pinctl(codec, spec->autocfg.dig_out_pin, AC_PINCTL_OUT_EN);
-	}
-	if (spec->autocfg.dig_in_pin) {
+	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = 0x04;
-		stac92xx_auto_set_pinctl(codec, spec->autocfg.dig_in_pin, AC_PINCTL_IN_EN);
-	}
 
 	if (spec->kctl_alloc)
 		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
@@ -927,8 +937,30 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
 static int stac92xx_init(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i;
 
 	snd_hda_sequence_write(codec, spec->init);
+
+	/* set up pins */
+	if (spec->hp_detect) {
+		/* fake event to set up pins */
+		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
+	} else {
+		stac92xx_auto_init_multi_out(codec);
+		stac92xx_auto_init_hp_out(codec);
+	}
+	for (i = 0; i < AUTO_PIN_LAST; i++) {
+		if (cfg->input_pins[i])
+			stac92xx_auto_set_pinctl(codec, cfg->input_pins[i],
+						 AC_PINCTL_IN_EN);
+	}
+	if (cfg->dig_out_pin)
+		stac92xx_auto_set_pinctl(codec, cfg->dig_out_pin,
+					 AC_PINCTL_OUT_EN);
+	if (cfg->dig_in_pin)
+		stac92xx_auto_set_pinctl(codec, cfg->dig_in_pin,
+					 AC_PINCTL_IN_EN);
 
 	return 0;
 }
