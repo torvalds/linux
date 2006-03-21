@@ -44,8 +44,8 @@
 #include "msg.h"
 #include "bearer.h"
 
-void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf, 
-			 u32 lower, u32 upper);
+static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
+				u32 lower, u32 upper);
 struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest);
 
 struct node **tipc_local_nodes = NULL;
@@ -229,7 +229,7 @@ struct node *tipc_cltr_select_node(struct cluster *c_ptr, u32 selector)
  *    Routing table management: See description in node.c
  */
 
-struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest)
+static struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest)
 {
 	u32 size = INT_H_SIZE + data_size;
 	struct sk_buff *buf = buf_acquire(size);
@@ -495,7 +495,7 @@ void tipc_cltr_remove_as_router(struct cluster *c_ptr, u32 router)
  * tipc_cltr_multicast - multicast message to local nodes 
  */
 
-void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf, 
+static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
 			 u32 lower, u32 upper)
 {
 	struct sk_buff *buf_copy;

@@ -46,7 +46,7 @@
 #include "cluster.h"
 #include "bcast.h"
 
-int tipc_nametbl_size = 1024;		/* must be a power of 2 */
+static int tipc_nametbl_size = 1024;		/* must be a power of 2 */
 
 /**
  * struct sub_seq - container for all published instances of a name sequence
@@ -142,7 +142,7 @@ static struct publication *publ_create(u32 type, u32 lower, u32 upper,
  * tipc_subseq_alloc - allocate a specified number of sub-sequence structures
  */
 
-struct sub_seq *tipc_subseq_alloc(u32 cnt)
+static struct sub_seq *tipc_subseq_alloc(u32 cnt)
 {
 	u32 sz = cnt * sizeof(struct sub_seq);
 	struct sub_seq *sseq = (struct sub_seq *)kmalloc(sz, GFP_ATOMIC);
@@ -158,7 +158,7 @@ struct sub_seq *tipc_subseq_alloc(u32 cnt)
  * Allocates a single sub-sequence structure and sets it to all 0's.
  */
 
-struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_head)
+static struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_head)
 {
 	struct name_seq *nseq = 
 		(struct name_seq *)kmalloc(sizeof(*nseq), GFP_ATOMIC);
@@ -243,9 +243,9 @@ static u32 nameseq_locate_subseq(struct name_seq *nseq, u32 instance)
  * tipc_nameseq_insert_publ - 
  */
 
-struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
-					u32 type, u32 lower, u32 upper,
-					u32 scope, u32 node, u32 port, u32 key)
+static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
+						    u32 type, u32 lower, u32 upper,
+						    u32 scope, u32 node, u32 port, u32 key)
 {
 	struct subscription *s;
 	struct subscription *st;
@@ -369,8 +369,8 @@ struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
  * tipc_nameseq_remove_publ -
  */
 
-struct publication *tipc_nameseq_remove_publ(struct name_seq *nseq, u32 inst,
-					     u32 node, u32 ref, u32 key)
+static struct publication *tipc_nameseq_remove_publ(struct name_seq *nseq, u32 inst,
+						    u32 node, u32 ref, u32 key)
 {
 	struct publication *publ;
 	struct publication *prev;
@@ -983,6 +983,7 @@ static void nametbl_list(struct print_buf *buf, u32 depth_info,
 	}
 }
 
+#if 0
 void tipc_nametbl_print(struct print_buf *buf, const char *str)
 {
 	tipc_printf(buf, str);
@@ -990,6 +991,7 @@ void tipc_nametbl_print(struct print_buf *buf, const char *str)
 	nametbl_list(buf, 0, 0, 0, 0);
 	read_unlock_bh(&tipc_nametbl_lock);
 }
+#endif
 
 #define MAX_NAME_TBL_QUERY 32768
 
@@ -1023,10 +1025,12 @@ struct sk_buff *tipc_nametbl_get(const void *req_tlv_area, int req_tlv_space)
 	return buf;
 }
 
+#if 0
 void tipc_nametbl_dump(void)
 {
 	nametbl_list(TIPC_CONS, 0, 0, 0, 0);
 }
+#endif
 
 int tipc_nametbl_init(void)
 {

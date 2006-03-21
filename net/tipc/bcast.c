@@ -314,7 +314,7 @@ void tipc_bclink_check_gap(struct node *n_ptr, u32 last_sent)
  * Only tipc_net_lock set.
  */
 
-void tipc_bclink_peek_nack(u32 dest, u32 sender_tag, u32 gap_after, u32 gap_to)
+static void tipc_bclink_peek_nack(u32 dest, u32 sender_tag, u32 gap_after, u32 gap_to)
 {
 	struct node *n_ptr = tipc_node_find(dest);
 	u32 my_after, my_to;
@@ -425,9 +425,9 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 					      msg_bcgap_to(msg));
 		} else {
 			tipc_bclink_peek_nack(msg_destnode(msg),
-					 msg_bcast_tag(msg),
-					 msg_bcgap_after(msg),
-					 msg_bcgap_to(msg));
+					      msg_bcast_tag(msg),
+					      msg_bcgap_after(msg),
+					      msg_bcgap_to(msg));
 		}
 		buf_discard(buf);
 		return;
@@ -525,9 +525,9 @@ u32 tipc_bclink_acks_missing(struct node *n_ptr)
  * Returns 0 if packet sent successfully, non-zero if not
  */
 
-int tipc_bcbearer_send(struct sk_buff *buf,
-		       struct tipc_bearer *unused1,
-		       struct tipc_media_addr *unused2)
+static int tipc_bcbearer_send(struct sk_buff *buf,
+			      struct tipc_bearer *unused1,
+			      struct tipc_media_addr *unused2)
 {
 	static int send_count = 0;
 

@@ -214,7 +214,7 @@ int tipc_node_has_redundant_links(struct node *n_ptr)
 		(n_ptr->active_links[0] != n_ptr->active_links[1]));
 }
 
-int tipc_node_has_active_routes(struct node *n_ptr)
+static int tipc_node_has_active_routes(struct node *n_ptr)
 {
 	return (n_ptr && (n_ptr->last_router >= 0));
 }

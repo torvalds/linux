@@ -128,13 +128,14 @@ u32 tipc_net_select_router(u32 addr, u32 ref)
 	return tipc_zone_select_router(tipc_net.zones[tipc_zone(addr)], addr, ref);
 }
 
-
+#if 0
 u32 tipc_net_next_node(u32 a)
 {
 	if (tipc_net.zones[tipc_zone(a)])
 		return tipc_zone_next_node(a);
 	return 0;
 }
+#endif
 
 void tipc_net_remove_as_router(u32 router)
 {
