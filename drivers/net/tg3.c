@@ -5537,6 +5537,9 @@ static int tg3_set_mac_addr(struct net_device *dev, void *p)
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
+	if (!netif_running(dev))
+		return 0;
+
 	spin_lock_bh(&tp->lock);
 	__tg3_set_mac_addr(tp);
 	spin_unlock_bh(&tp->lock);
@@ -7191,6 +7194,9 @@ static void __tg3_set_rx_mode(struct net_device *dev)
 static void tg3_set_rx_mode(struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
+
+	if (!netif_running(dev))
+		return;
 
 	tg3_full_lock(tp, 0);
 	__tg3_set_rx_mode(dev);
