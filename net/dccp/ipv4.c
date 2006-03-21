@@ -1081,6 +1081,7 @@ int dccp_v4_init_sock(struct sock *sk)
 	dp->dccps_mss_cache = 536;
 	dp->dccps_role = DCCP_ROLE_UNDEFINED;
 	dp->dccps_service = DCCP_SERVICE_INVALID_VALUE;
+	dp->dccps_l_ack_ratio = dp->dccps_r_ack_ratio = 1;
 
 	return 0;
 }

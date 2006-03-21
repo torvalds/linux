@@ -314,9 +314,9 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 
 /* initial values for each feature */
 #define DCCPF_INITIAL_SEQUENCE_WINDOW		100
-/* FIXME: for now we're using CCID 3 (TFRC) */
-#define DCCPF_INITIAL_CCID			3
-#define DCCPF_INITIAL_SEND_ACK_VECTOR		0
+/* FIXME: for now we're using CCID 2 (TCP-Like) */
+#define DCCPF_INITIAL_CCID			2
+#define DCCPF_INITIAL_SEND_ACK_VECTOR		1
 /* FIXME: for now we're default to 1 but it should really be 0 */
 #define DCCPF_INITIAL_SEND_NDP_COUNT		1
 
@@ -430,6 +430,8 @@ struct dccp_sock {
 	struct timeval			dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;
 	__u32				dccps_packet_size;
+	__u16				dccps_l_ack_ratio;
+	__u16				dccps_r_ack_ratio;
 	unsigned long			dccps_ndp_count;
 	__u32				dccps_mss_cache;
 	struct dccp_options		dccps_options;
