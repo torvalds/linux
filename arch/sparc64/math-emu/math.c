@@ -206,9 +206,29 @@ int do_mathemu(struct pt_regs *regs, struct fpustate *f)
 			case FSTOQ: TYPE(3,3,1,1,1,0,0); break;
 			case FDTOQ: TYPE(3,3,1,2,1,0,0); break;
 			case FQTOI: TYPE(3,1,0,3,1,0,0); break;
+
+			/* We can get either unimplemented or unfinished
+			 * for these cases.  Pre-Niagara systems generate
+			 * unfinished fpop for SUBNORMAL cases, and Niagara
+			 * always gives unimplemented fpop for fsqrt{s,d}.
+			 */
+			case FSQRTS: {
+				unsigned long x = current_thread_info()->xfsr[0];
+
+				x = (x >> 14) & 0xf;
+				TYPE(x,1,1,1,1,0,0);
+				break;
+			}
+
+			case FSQRTD: {
+				unsigned long x = current_thread_info()->xfsr[0];
+
+				x = (x >> 14) & 0xf;
+				TYPE(x,2,1,2,1,0,0);
+				break;
+			}
+
 			/* SUBNORMAL - ftt == 2 */
-			case FSQRTS: TYPE(2,1,1,1,1,0,0); break;
-			case FSQRTD: TYPE(2,2,1,2,1,0,0); break;
 			case FADDD:
 			case FSUBD:
 			case FMULD:

@@ -258,6 +258,7 @@ static int vortex_debug = 1;
 #include <linux/highmem.h>
 #include <linux/eisa.h>
 #include <linux/bitops.h>
+#include <linux/jiffies.h>
 #include <asm/irq.h>			/* For NR_IRQS only. */
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -841,7 +842,7 @@ enum xcvr_types {
 	XCVR_100baseFx, XCVR_MII=6, XCVR_NWAY=8, XCVR_ExtMII=9, XCVR_Default=10,
 };
 
-static struct media_table {
+static const struct media_table {
 	char *name;
 	unsigned int media_bits:16,		/* Bits to set in Wn4_Media register. */
 		mask:8,						/* The transceiver-present bit in Wn3_Config.*/
@@ -1445,7 +1446,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	}
 
 	{
-		static const char * ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
+		static const char * const ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
 		unsigned int config;
 		EL3WINDOW(3);
 		vp->available_media = ioread16(ioaddr + Wn3_Options);
@@ -2724,7 +2725,7 @@ boomerang_rx(struct net_device *dev)
 			skb = dev_alloc_skb(PKT_BUF_SZ);
 			if (skb == NULL) {
 				static unsigned long last_jif;
-				if ((jiffies - last_jif) > 10 * HZ) {
+				if (time_after(jiffies, last_jif + 10 * HZ)) {
 					printk(KERN_WARNING "%s: memory shortage\n", dev->name);
 					last_jif = jiffies;
 				}

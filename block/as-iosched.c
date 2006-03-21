@@ -182,6 +182,9 @@ struct as_rq {
 
 static kmem_cache_t *arq_pool;
 
+static atomic_t ioc_count = ATOMIC_INIT(0);
+static struct completion *ioc_gone;
+
 static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq);
 static void as_antic_stop(struct as_data *ad);
 
@@ -193,6 +196,15 @@ static void as_antic_stop(struct as_data *ad);
 static void free_as_io_context(struct as_io_context *aic)
 {
 	kfree(aic);
+	if (atomic_dec_and_test(&ioc_count) && ioc_gone)
+		complete(ioc_gone);
+}
+
+static void as_trim(struct io_context *ioc)
+{
+	if (ioc->aic)
+		free_as_io_context(ioc->aic);
+	ioc->aic = NULL;
 }
 
 /* Called when the task exits */
@@ -220,6 +232,7 @@ static struct as_io_context *alloc_as_io_context(void)
 		ret->seek_total = 0;
 		ret->seek_samples = 0;
 		ret->seek_mean = 0;
+		atomic_inc(&ioc_count);
 	}
 
 	return ret;
@@ -1696,11 +1709,6 @@ static int as_init_queue(request_queue_t *q, elevator_t *e)
 /*
  * sysfs parts below
  */
-struct as_fs_entry {
-	struct attribute attr;
-	ssize_t (*show)(struct as_data *, char *);
-	ssize_t (*store)(struct as_data *, const char *, size_t);
-};
 
 static ssize_t
 as_var_show(unsigned int var, char *page)
@@ -1717,8 +1725,9 @@ as_var_store(unsigned long *var, const char *page, size_t count)
 	return count;
 }
 
-static ssize_t as_est_show(struct as_data *ad, char *page)
+static ssize_t est_time_show(elevator_t *e, char *page)
 {
+	struct as_data *ad = e->elevator_data;
 	int pos = 0;
 
 	pos += sprintf(page+pos, "%lu %% exit probability\n",
@@ -1734,21 +1743,23 @@ static ssize_t as_est_show(struct as_data *ad, char *page)
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR)				\
-static ssize_t __FUNC(struct as_data *ad, char *page)		\
+static ssize_t __FUNC(elevator_t *e, char *page)		\
 {								\
+	struct as_data *ad = e->elevator_data;			\
 	return as_var_show(jiffies_to_msecs((__VAR)), (page));	\
 }
-SHOW_FUNCTION(as_readexpire_show, ad->fifo_expire[REQ_SYNC]);
-SHOW_FUNCTION(as_writeexpire_show, ad->fifo_expire[REQ_ASYNC]);
-SHOW_FUNCTION(as_anticexpire_show, ad->antic_expire);
-SHOW_FUNCTION(as_read_batchexpire_show, ad->batch_expire[REQ_SYNC]);
-SHOW_FUNCTION(as_write_batchexpire_show, ad->batch_expire[REQ_ASYNC]);
+SHOW_FUNCTION(as_read_expire_show, ad->fifo_expire[REQ_SYNC]);
+SHOW_FUNCTION(as_write_expire_show, ad->fifo_expire[REQ_ASYNC]);
+SHOW_FUNCTION(as_antic_expire_show, ad->antic_expire);
+SHOW_FUNCTION(as_read_batch_expire_show, ad->batch_expire[REQ_SYNC]);
+SHOW_FUNCTION(as_write_batch_expire_show, ad->batch_expire[REQ_ASYNC]);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX)				\
-static ssize_t __FUNC(struct as_data *ad, const char *page, size_t count)	\
+static ssize_t __FUNC(elevator_t *e, const char *page, size_t count)	\
 {									\
-	int ret = as_var_store(__PTR, (page), count);		\
+	struct as_data *ad = e->elevator_data;				\
+	int ret = as_var_store(__PTR, (page), count);			\
 	if (*(__PTR) < (MIN))						\
 		*(__PTR) = (MIN);					\
 	else if (*(__PTR) > (MAX))					\
@@ -1756,90 +1767,26 @@ static ssize_t __FUNC(struct as_data *ad, const char *page, size_t count)	\
 	*(__PTR) = msecs_to_jiffies(*(__PTR));				\
 	return ret;							\
 }
-STORE_FUNCTION(as_readexpire_store, &ad->fifo_expire[REQ_SYNC], 0, INT_MAX);
-STORE_FUNCTION(as_writeexpire_store, &ad->fifo_expire[REQ_ASYNC], 0, INT_MAX);
-STORE_FUNCTION(as_anticexpire_store, &ad->antic_expire, 0, INT_MAX);
-STORE_FUNCTION(as_read_batchexpire_store,
+STORE_FUNCTION(as_read_expire_store, &ad->fifo_expire[REQ_SYNC], 0, INT_MAX);
+STORE_FUNCTION(as_write_expire_store, &ad->fifo_expire[REQ_ASYNC], 0, INT_MAX);
+STORE_FUNCTION(as_antic_expire_store, &ad->antic_expire, 0, INT_MAX);
+STORE_FUNCTION(as_read_batch_expire_store,
 			&ad->batch_expire[REQ_SYNC], 0, INT_MAX);
-STORE_FUNCTION(as_write_batchexpire_store,
+STORE_FUNCTION(as_write_batch_expire_store,
 			&ad->batch_expire[REQ_ASYNC], 0, INT_MAX);
 #undef STORE_FUNCTION
 
-static struct as_fs_entry as_est_entry = {
-	.attr = {.name = "est_time", .mode = S_IRUGO },
-	.show = as_est_show,
-};
-static struct as_fs_entry as_readexpire_entry = {
-	.attr = {.name = "read_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = as_readexpire_show,
-	.store = as_readexpire_store,
-};
-static struct as_fs_entry as_writeexpire_entry = {
-	.attr = {.name = "write_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = as_writeexpire_show,
-	.store = as_writeexpire_store,
-};
-static struct as_fs_entry as_anticexpire_entry = {
-	.attr = {.name = "antic_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = as_anticexpire_show,
-	.store = as_anticexpire_store,
-};
-static struct as_fs_entry as_read_batchexpire_entry = {
-	.attr = {.name = "read_batch_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = as_read_batchexpire_show,
-	.store = as_read_batchexpire_store,
-};
-static struct as_fs_entry as_write_batchexpire_entry = {
-	.attr = {.name = "write_batch_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = as_write_batchexpire_show,
-	.store = as_write_batchexpire_store,
-};
+#define AS_ATTR(name) \
+	__ATTR(name, S_IRUGO|S_IWUSR, as_##name##_show, as_##name##_store)
 
-static struct attribute *default_attrs[] = {
-	&as_est_entry.attr,
-	&as_readexpire_entry.attr,
-	&as_writeexpire_entry.attr,
-	&as_anticexpire_entry.attr,
-	&as_read_batchexpire_entry.attr,
-	&as_write_batchexpire_entry.attr,
-	NULL,
-};
-
-#define to_as(atr) container_of((atr), struct as_fs_entry, attr)
-
-static ssize_t
-as_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
-{
-	elevator_t *e = container_of(kobj, elevator_t, kobj);
-	struct as_fs_entry *entry = to_as(attr);
-
-	if (!entry->show)
-		return -EIO;
-
-	return entry->show(e->elevator_data, page);
-}
-
-static ssize_t
-as_attr_store(struct kobject *kobj, struct attribute *attr,
-		    const char *page, size_t length)
-{
-	elevator_t *e = container_of(kobj, elevator_t, kobj);
-	struct as_fs_entry *entry = to_as(attr);
-
-	if (!entry->store)
-		return -EIO;
-
-	return entry->store(e->elevator_data, page, length);
-}
-
-static struct sysfs_ops as_sysfs_ops = {
-	.show	= as_attr_show,
-	.store	= as_attr_store,
-};
-
-static struct kobj_type as_ktype = {
-	.sysfs_ops	= &as_sysfs_ops,
-	.default_attrs	= default_attrs,
+static struct elv_fs_entry as_attrs[] = {
+	__ATTR_RO(est_time),
+	AS_ATTR(read_expire),
+	AS_ATTR(write_expire),
+	AS_ATTR(antic_expire),
+	AS_ATTR(read_batch_expire),
+	AS_ATTR(write_batch_expire),
+	__ATTR_NULL
 };
 
 static struct elevator_type iosched_as = {
@@ -1860,9 +1807,10 @@ static struct elevator_type iosched_as = {
 		.elevator_may_queue_fn =	as_may_queue,
 		.elevator_init_fn =		as_init_queue,
 		.elevator_exit_fn =		as_exit_queue,
+		.trim =				as_trim,
 	},
 
-	.elevator_ktype = &as_ktype,
+	.elevator_attrs = as_attrs,
 	.elevator_name = "anticipatory",
 	.elevator_owner = THIS_MODULE,
 };
@@ -1893,7 +1841,13 @@ static int __init as_init(void)
 
 static void __exit as_exit(void)
 {
+	DECLARE_COMPLETION(all_gone);
 	elv_unregister(&iosched_as);
+	ioc_gone = &all_gone;
+	barrier();
+	if (atomic_read(&ioc_count))
+		complete(ioc_gone);
+	synchronize_rcu();
 	kmem_cache_destroy(arq_pool);
 }
 

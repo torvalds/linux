@@ -440,7 +440,8 @@ static int __init bbc_i2c_init(void)
 	struct linux_ebus_device *edev = NULL;
 	int err, index = 0;
 
-	if (tlb_type != cheetah || !bbc_present())
+	if ((tlb_type != cheetah && tlb_type != cheetah_plus) ||
+	    !bbc_present())
 		return -ENODEV;
 
 	for_each_ebus(ebus) {
@@ -486,3 +487,4 @@ static void bbc_i2c_cleanup(void)
 
 module_init(bbc_i2c_init);
 module_exit(bbc_i2c_cleanup);
+MODULE_LICENSE("GPL");

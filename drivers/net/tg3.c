@@ -7802,7 +7802,7 @@ static int tg3_test_link(struct tg3 *tp)
 }
 
 /* Only test the commonly used registers */
-static int tg3_test_registers(struct tg3 *tp)
+static const int tg3_test_registers(struct tg3 *tp)
 {
 	int i, is_5705;
 	u32 offset, read_mask, write_mask, val, save_val, read_val;
@@ -8016,7 +8016,7 @@ out:
 
 static int tg3_do_mem_test(struct tg3 *tp, u32 offset, u32 len)
 {
-	static u32 test_pattern[] = { 0x00000000, 0xffffffff, 0xaa55a55a };
+	static const u32 test_pattern[] = { 0x00000000, 0xffffffff, 0xaa55a55a };
 	int i;
 	u32 j;
 
@@ -9096,6 +9096,10 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 
 	tp->phy_id = PHY_ID_INVALID;
 	tp->led_ctrl = LED_CTRL_MODE_PHY_1;
+
+	/* Do not even try poking around in here on Sun parts.  */
+	if (tp->tg3_flags2 & TG3_FLG2_SUN_570X)
+		return;
 
 	tg3_read_mem(tp, NIC_SRAM_DATA_SIG, &val);
 	if (val == NIC_SRAM_DATA_SIG_MAGIC) {

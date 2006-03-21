@@ -30,16 +30,6 @@ extern void prom_world(int);
 extern void prom_cif_interface(void);
 extern void prom_cif_callback(void);
 
-static inline unsigned long spitfire_get_primary_context(void)
-{
-	unsigned long ctx;
-
-	__asm__ __volatile__("ldxa	[%1] %2, %0"
-			     : "=r" (ctx)
-			     : "r" (PRIMARY_CONTEXT), "i" (ASI_DMMU));
-	return ctx;
-}
-
 /*
  * This provides SMP safety on the p1275buf. prom_callback() drops this lock
  * to allow recursuve acquisition.
@@ -55,7 +45,6 @@ long p1275_cmd(const char *service, long fmt, ...)
 	long attrs, x;
 	
 	p = p1275buf.prom_buffer;
-	BUG_ON((spitfire_get_primary_context() & CTX_NR_MASK) != 0);
 
 	spin_lock_irqsave(&prom_entry_lock, flags);
 

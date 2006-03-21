@@ -201,7 +201,7 @@ static int max_interrupt_work = 20;
 static int mtu;
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
    The Starfire has a 512 element hash table based on the Ethernet CRC. */
-static int multicast_filter_limit = 512;
+static const int multicast_filter_limit = 512;
 /* Whether to do TCP/UDP checksums in hardware */
 static int enable_hw_cksum = 1;
 
@@ -463,7 +463,7 @@ static struct pci_device_id starfire_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, starfire_pci_tbl);
 
 /* A chip capabilities table, matching the CH_xxx entries in xxx_pci_tbl[] above. */
-static struct chip_info {
+static const struct chip_info {
 	const char *name;
 	int drv_flags;
 } netdrv_tbl[] __devinitdata = {
@@ -2084,6 +2084,38 @@ static int netdev_close(struct net_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int starfire_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	if (netif_running(dev)) {
+		netif_device_detach(dev);
+		netdev_close(dev);
+	}
+
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev,state));
+
+	return 0;
+}
+
+static int starfire_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	if (netif_running(dev)) {
+		netdev_open(dev);
+		netif_device_attach(dev);
+	}
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 
 static void __devexit starfire_remove_one (struct pci_dev *pdev)
 {
@@ -2115,6 +2147,10 @@ static struct pci_driver starfire_driver = {
 	.name		= DRV_NAME,
 	.probe		= starfire_init_one,
 	.remove		= __devexit_p(starfire_remove_one),
+#ifdef CONFIG_PM
+	.suspend	= starfire_suspend,
+	.resume		= starfire_resume,
+#endif /* CONFIG_PM */
 	.id_table	= starfire_pci_tbl,
 };
 

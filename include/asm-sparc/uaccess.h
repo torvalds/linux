@@ -120,17 +120,6 @@ case 8: __put_user_asm(x,d,addr,__pu_ret); break; \
 default: __pu_ret = __put_user_bad(); break; \
 } } else { __pu_ret = -EFAULT; } __pu_ret; })
 
-#define __put_user_check_ret(x,addr,size,retval) ({ \
-register int __foo __asm__ ("l1"); \
-if (__access_ok(addr,size)) { \
-switch (size) { \
-case 1: __put_user_asm_ret(x,b,addr,retval,__foo); break; \
-case 2: __put_user_asm_ret(x,h,addr,retval,__foo); break; \
-case 4: __put_user_asm_ret(x,,addr,retval,__foo); break; \
-case 8: __put_user_asm_ret(x,d,addr,retval,__foo); break; \
-default: if (__put_user_bad()) return retval; break; \
-} } else return retval; })
-
 #define __put_user_nocheck(x,addr,size) ({ \
 register int __pu_ret; \
 switch (size) { \
@@ -140,16 +129,6 @@ case 4: __put_user_asm(x,,addr,__pu_ret); break; \
 case 8: __put_user_asm(x,d,addr,__pu_ret); break; \
 default: __pu_ret = __put_user_bad(); break; \
 } __pu_ret; })
-
-#define __put_user_nocheck_ret(x,addr,size,retval) ({ \
-register int __foo __asm__ ("l1"); \
-switch (size) { \
-case 1: __put_user_asm_ret(x,b,addr,retval,__foo); break; \
-case 2: __put_user_asm_ret(x,h,addr,retval,__foo); break; \
-case 4: __put_user_asm_ret(x,,addr,retval,__foo); break; \
-case 8: __put_user_asm_ret(x,d,addr,retval,__foo); break; \
-default: if (__put_user_bad()) return retval; break; \
-} })
 
 #define __put_user_asm(x,size,addr,ret)					\
 __asm__ __volatile__(							\
@@ -169,32 +148,6 @@ __asm__ __volatile__(							\
 	".previous\n\n\t"						\
        : "=&r" (ret) : "r" (x), "m" (*__m(addr)),			\
 	 "i" (-EFAULT))
-
-#define __put_user_asm_ret(x,size,addr,ret,foo)				\
-if (__builtin_constant_p(ret) && ret == -EFAULT)			\
-__asm__ __volatile__(							\
-	"/* Put user asm ret, inline. */\n"				\
-"1:\t"	"st"#size " %1, %2\n\n\t"					\
-	".section __ex_table,#alloc\n\t"				\
-	".align	4\n\t"							\
-	".word	1b, __ret_efault\n\n\t"					\
-	".previous\n\n\t"						\
-       : "=r" (foo) : "r" (x), "m" (*__m(addr)));			\
-else									\
-__asm__ __volatile(							\
-	"/* Put user asm ret, inline. */\n"				\
-"1:\t"	"st"#size " %1, %2\n\n\t"					\
-	".section .fixup,#alloc,#execinstr\n\t"				\
-	".align	4\n"							\
-"3:\n\t"								\
-	"ret\n\t"							\
-	" restore %%g0, %3, %%o0\n\t"					\
-	".previous\n\n\t"						\
-	".section __ex_table,#alloc\n\t"				\
-	".align	4\n\t"							\
-	".word	1b, 3b\n\n\t"						\
-	".previous\n\n\t"						\
-       : "=r" (foo) : "r" (x), "m" (*__m(addr)), "i" (ret))
 
 extern int __put_user_bad(void);
 

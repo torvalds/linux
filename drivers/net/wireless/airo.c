@@ -36,6 +36,7 @@
 #include <linux/in.h>
 #include <linux/bitops.h>
 #include <linux/scatterlist.h>
+#include <linux/crypto.h>
 #include <asm/io.h>
 #include <asm/system.h>
 
@@ -85,14 +86,6 @@ static struct pci_driver airo_driver = {
 #define CISCO_EXT		// enable Cisco extensions
 #ifdef CISCO_EXT
 #include <linux/delay.h>
-#endif
-
-/* Support Cisco MIC feature */
-#define MICSUPPORT
-
-#if defined(MICSUPPORT) && !defined(CONFIG_CRYPTO)
-#warning MIC support requires Crypto API
-#undef MICSUPPORT
 #endif
 
 /* Hack to do some power saving */
@@ -1118,7 +1111,6 @@ static int readrids(struct net_device *dev, aironet_ioctl *comp);
 static int writerids(struct net_device *dev, aironet_ioctl *comp);
 static int flashcard(struct net_device *dev, aironet_ioctl *comp);
 #endif /* CISCO_EXT */
-#ifdef MICSUPPORT
 static void micinit(struct airo_info *ai);
 static int micsetup(struct airo_info *ai);
 static int encapsulate(struct airo_info *ai, etherHead *pPacket, MICBuffer *buffer, int len);
@@ -1126,9 +1118,6 @@ static int decapsulate(struct airo_info *ai, MICBuffer *mic, etherHead *pPacket,
 
 static u8 airo_rssi_to_dbm (tdsRssiEntry *rssi_rid, u8 rssi);
 static u8 airo_dbm_to_pct (tdsRssiEntry *rssi_rid, u8 dbm);
-
-#include <linux/crypto.h>
-#endif
 
 struct airo_info {
 	struct net_device_stats	stats;
@@ -1190,12 +1179,10 @@ struct airo_info {
 	unsigned long		scan_timestamp;	/* Time started to scan */
 	struct iw_spy_data	spy_data;
 	struct iw_public_data	wireless_data;
-#ifdef MICSUPPORT
 	/* MIC stuff */
 	struct crypto_tfm	*tfm;
 	mic_module		mod[2];
 	mic_statistics		micstats;
-#endif
 	HostRxDesc rxfids[MPI_MAX_FIDS]; // rx/tx/config MPI350 descriptors
 	HostTxDesc txfids[MPI_MAX_FIDS];
 	HostRidDesc config_desc;
@@ -1229,7 +1216,6 @@ static int flashgchar(struct airo_info *ai,int matchbyte,int dwelltime);
 static int flashputbuf(struct airo_info *ai);
 static int flashrestart(struct airo_info *ai,struct net_device *dev);
 
-#ifdef MICSUPPORT
 /***********************************************************************
  *                              MIC ROUTINES                           *
  ***********************************************************************
@@ -1686,7 +1672,6 @@ static void emmh32_final(emmh32_context *context, u8 digest[4])
 	digest[2] = (val>>8) & 0xFF;
 	digest[3] = val & 0xFF;
 }
-#endif
 
 static int readBSSListRid(struct airo_info *ai, int first,
 		      BSSListRid *list) {
@@ -2005,7 +1990,6 @@ static int mpi_send_packet (struct net_device *dev)
 	 * Firmware automaticly puts 802 header on so
 	 * we don't need to account for it in the length
 	 */
-#ifdef MICSUPPORT
 	if (test_bit(FLAG_MIC_CAPABLE, &ai->flags) && ai->micstats.enabled &&
 		(ntohs(((u16 *)buffer)[6]) != 0x888E)) {
 		MICBuffer pMic;
@@ -2022,9 +2006,7 @@ static int mpi_send_packet (struct net_device *dev)
 		memcpy (sendbuf, &pMic, sizeof(pMic));
 		sendbuf += sizeof(pMic);
 		memcpy (sendbuf, buffer, len - sizeof(etherHead));
-	} else
-#endif
-	{
+	} else {
 		*payloadLen = cpu_to_le16(len - sizeof(etherHead));
 
 		dev->trans_start = jiffies;
@@ -2400,9 +2382,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 				ai->shared, ai->shared_dma);
 		}
         }
-#ifdef MICSUPPORT
 	crypto_free_tfm(ai->tfm);
-#endif
 	del_airo_dev( dev );
 	free_netdev( dev );
 }
@@ -2726,9 +2706,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	ai->thr_pid = kernel_thread(airo_thread, dev, CLONE_FS | CLONE_FILES);
 	if (ai->thr_pid < 0)
 		goto err_out_free;
-#ifdef MICSUPPORT
 	ai->tfm = NULL;
-#endif
 	rc = add_airo_dev( dev );
 	if (rc)
 		goto err_out_thr;
@@ -2969,10 +2947,8 @@ static int airo_thread(void *data) {
 			airo_read_wireless_stats(ai);
 		else if (test_bit(JOB_PROMISC, &ai->flags))
 			airo_set_promisc(ai);
-#ifdef MICSUPPORT
 		else if (test_bit(JOB_MIC, &ai->flags))
 			micinit(ai);
-#endif
 		else if (test_bit(JOB_EVENT, &ai->flags))
 			airo_send_event(dev);
 		else if (test_bit(JOB_AUTOWEP, &ai->flags))
@@ -3010,12 +2986,10 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 
 		if ( status & EV_MIC ) {
 			OUT4500( apriv, EVACK, EV_MIC );
-#ifdef MICSUPPORT
 			if (test_bit(FLAG_MIC_CAPABLE, &apriv->flags)) {
 				set_bit(JOB_MIC, &apriv->flags);
 				wake_up_interruptible(&apriv->thr_wait);
 			}
-#endif
 		}
 		if ( status & EV_LINK ) {
 			union iwreq_data	wrqu;
@@ -3194,11 +3168,8 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 				}
 				bap_read (apriv, buffer + hdrlen/2, len, BAP0);
 			} else {
-#ifdef MICSUPPORT
 				MICBuffer micbuf;
-#endif
 				bap_read (apriv, buffer, ETH_ALEN*2, BAP0);
-#ifdef MICSUPPORT
 				if (apriv->micstats.enabled) {
 					bap_read (apriv,(u16*)&micbuf,sizeof(micbuf),BAP0);
 					if (ntohs(micbuf.typelen) > 0x05DC)
@@ -3211,15 +3182,10 @@ static irqreturn_t airo_interrupt ( int irq, void* dev_id, struct pt_regs *regs)
 						skb_trim (skb, len + hdrlen);
 					}
 				}
-#endif
 				bap_read(apriv,buffer+ETH_ALEN,len,BAP0);
-#ifdef MICSUPPORT
 				if (decapsulate(apriv,&micbuf,(etherHead*)buffer,len)) {
 badmic:
 					dev_kfree_skb_irq (skb);
-#else
-				if (0) {
-#endif
 badrx:
 					OUT4500( apriv, EVACK, EV_RX);
 					goto exitrx;
@@ -3430,10 +3396,8 @@ static void mpi_receive_802_3(struct airo_info *ai)
 	int len = 0;
 	struct sk_buff *skb;
 	char *buffer;
-#ifdef MICSUPPORT
 	int off = 0;
 	MICBuffer micbuf;
-#endif
 
 	memcpy_fromio(&rxd, ai->rxfids[0].card_ram_off, sizeof(rxd));
 	/* Make sure we got something */
@@ -3448,7 +3412,6 @@ static void mpi_receive_802_3(struct airo_info *ai)
 			goto badrx;
 		}
 		buffer = skb_put(skb,len);
-#ifdef MICSUPPORT
 		memcpy(buffer, ai->rxfids[0].virtual_host_addr, ETH_ALEN * 2);
 		if (ai->micstats.enabled) {
 			memcpy(&micbuf,
@@ -3470,9 +3433,6 @@ badmic:
 			dev_kfree_skb_irq (skb);
 			goto badrx;
 		}
-#else
-		memcpy(buffer, ai->rxfids[0].virtual_host_addr, len);
-#endif
 #ifdef WIRELESS_SPY
 		if (ai->spy_data.spy_number > 0) {
 			char *sa;
@@ -3689,13 +3649,11 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 		ai->config.authType = AUTH_OPEN;
 		ai->config.modulation = MOD_CCK;
 
-#ifdef MICSUPPORT
 		if ((cap_rid.len>=sizeof(cap_rid)) && (cap_rid.extSoftCap&1) &&
 		    (micsetup(ai) == SUCCESS)) {
 			ai->config.opmode |= MODE_MIC;
 			set_bit(FLAG_MIC_CAPABLE, &ai->flags);
 		}
-#endif
 
 		/* Save off the MAC */
 		for( i = 0; i < ETH_ALEN; i++ ) {
@@ -4170,15 +4128,12 @@ static int transmit_802_3_packet(struct airo_info *ai, int len, char *pPacket)
 	}
 	len -= ETH_ALEN * 2;
 
-#ifdef MICSUPPORT
 	if (test_bit(FLAG_MIC_CAPABLE, &ai->flags) && ai->micstats.enabled && 
 	    (ntohs(((u16 *)pPacket)[6]) != 0x888E)) {
 		if (encapsulate(ai,(etherHead *)pPacket,&pMic,len) != SUCCESS)
 			return ERROR;
 		miclen = sizeof(pMic);
 	}
-#endif
-
 	// packet is destination[6], source[6], payload[len-12]
 	// write the payload length and dst/src/payload
 	if (bap_setup(ai, txFid, 0x0036, BAP1) != SUCCESS) return ERROR;
@@ -5081,7 +5036,6 @@ static int set_wep_key(struct airo_info *ai, u16 index,
 		wkr.len = sizeof(wkr);
 		wkr.kindex = 0xffff;
 		wkr.mac[0] = (char)index;
-		if (perm) printk(KERN_INFO "Setting transmit key to %d\n", index);
 		if (perm) ai->defindex = (char)index;
 	} else {
 // We are actually setting the key
@@ -5090,7 +5044,6 @@ static int set_wep_key(struct airo_info *ai, u16 index,
 		wkr.klen = keylen;
 		memcpy( wkr.key, key, keylen );
 		memcpy( wkr.mac, macaddr, ETH_ALEN );
-		printk(KERN_INFO "Setting key %d\n", index);
 	}
 
 	if (perm) disable_MAC(ai, lock);
@@ -5801,11 +5754,13 @@ static int airo_set_wap(struct net_device *dev,
 	Cmd cmd;
 	Resp rsp;
 	APListRid APList_rid;
-	static const unsigned char bcast[ETH_ALEN] = { 255, 255, 255, 255, 255, 255 };
+	static const u8 any[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+	static const u8 off[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 	if (awrq->sa_family != ARPHRD_ETHER)
 		return -EINVAL;
-	else if (!memcmp(bcast, awrq->sa_data, ETH_ALEN)) {
+	else if (!memcmp(any, awrq->sa_data, ETH_ALEN) ||
+	         !memcmp(off, awrq->sa_data, ETH_ALEN)) {
 		memset(&cmd, 0, sizeof(cmd));
 		cmd.cmd=CMD_LOSE_SYNC;
 		if (down_interruptible(&local->sem))
@@ -6293,6 +6248,272 @@ static int airo_get_encode(struct net_device *dev,
 	}
 	return 0;
 }
+
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : set extended Encryption parameters
+ */
+static int airo_set_encodeext(struct net_device *dev,
+			   struct iw_request_info *info,
+			    union iwreq_data *wrqu,
+			    char *extra)
+{
+	struct airo_info *local = dev->priv;
+	struct iw_point *encoding = &wrqu->encoding;
+	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
+	CapabilityRid cap_rid;		/* Card capability info */
+	int perm = ( encoding->flags & IW_ENCODE_TEMP ? 0 : 1 );
+	u16 currentAuthType = local->config.authType;
+	int idx, key_len, alg = ext->alg, set_key = 1;
+	wep_key_t key;
+
+	/* Is WEP supported ? */
+	readCapabilityRid(local, &cap_rid, 1);
+	/* Older firmware doesn't support this...
+	if(!(cap_rid.softCap & 2)) {
+		return -EOPNOTSUPP;
+	} */
+	readConfigRid(local, 1);
+
+	/* Determine and validate the key index */
+	idx = encoding->flags & IW_ENCODE_INDEX;
+	if (idx) {
+		if (idx < 1 || idx > ((cap_rid.softCap & 0x80) ? 4:1))
+			return -EINVAL;
+		idx--;
+	} else
+		idx = get_wep_key(local, 0xffff);
+
+	if (encoding->flags & IW_ENCODE_DISABLED)
+		alg = IW_ENCODE_ALG_NONE;
+
+	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
+		/* Only set transmit key index here, actual
+		 * key is set below if needed.
+		 */
+		set_wep_key(local, idx, NULL, 0, perm, 1);
+		set_key = ext->key_len > 0 ? 1 : 0;
+	}
+
+	if (set_key) {
+		/* Set the requested key first */
+		memset(key.key, 0, MAX_KEY_SIZE);
+		switch (alg) {
+		case IW_ENCODE_ALG_NONE:
+			key.len = 0;
+			break;
+		case IW_ENCODE_ALG_WEP:
+			if (ext->key_len > MIN_KEY_SIZE) {
+				key.len = MAX_KEY_SIZE;
+			} else if (ext->key_len > 0) {
+				key.len = MIN_KEY_SIZE;
+			} else {
+				return -EINVAL;
+			}
+			key_len = min (ext->key_len, key.len);
+			memcpy(key.key, ext->key, key_len);
+			break;
+		default:
+			return -EINVAL;
+		}
+		/* Send the key to the card */
+		set_wep_key(local, idx, key.key, key.len, perm, 1);
+	}
+
+	/* Read the flags */
+	if(encoding->flags & IW_ENCODE_DISABLED)
+		local->config.authType = AUTH_OPEN;	// disable encryption
+	if(encoding->flags & IW_ENCODE_RESTRICTED)
+		local->config.authType = AUTH_SHAREDKEY;	// Only Both
+	if(encoding->flags & IW_ENCODE_OPEN)
+		local->config.authType = AUTH_ENCRYPT;	// Only Wep
+	/* Commit the changes to flags if needed */
+	if (local->config.authType != currentAuthType)
+		set_bit (FLAG_COMMIT, &local->flags);
+
+	return -EINPROGRESS;
+}
+
+
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get extended Encryption parameters
+ */
+static int airo_get_encodeext(struct net_device *dev,
+			    struct iw_request_info *info,
+			    union iwreq_data *wrqu,
+			    char *extra)
+{
+	struct airo_info *local = dev->priv;
+	struct iw_point *encoding = &wrqu->encoding;
+	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
+	CapabilityRid cap_rid;		/* Card capability info */
+	int idx, max_key_len;
+
+	/* Is it supported ? */
+	readCapabilityRid(local, &cap_rid, 1);
+	if(!(cap_rid.softCap & 2)) {
+		return -EOPNOTSUPP;
+	}
+	readConfigRid(local, 1);
+
+	max_key_len = encoding->length - sizeof(*ext);
+	if (max_key_len < 0)
+		return -EINVAL;
+
+	idx = encoding->flags & IW_ENCODE_INDEX;
+	if (idx) {
+		if (idx < 1 || idx > ((cap_rid.softCap & 0x80) ? 4:1))
+			return -EINVAL;
+		idx--;
+	} else
+		idx = get_wep_key(local, 0xffff);
+
+	encoding->flags = idx + 1;
+	memset(ext, 0, sizeof(*ext));
+
+	/* Check encryption mode */
+	switch(local->config.authType) {
+		case AUTH_ENCRYPT:
+			encoding->flags = IW_ENCODE_ALG_WEP | IW_ENCODE_ENABLED;
+			break;
+		case AUTH_SHAREDKEY:
+			encoding->flags = IW_ENCODE_ALG_WEP | IW_ENCODE_ENABLED;
+			break;
+		default:
+		case AUTH_OPEN:
+			encoding->flags = IW_ENCODE_ALG_NONE | IW_ENCODE_DISABLED;
+			break;
+	}
+	/* We can't return the key, so set the proper flag and return zero */
+	encoding->flags |= IW_ENCODE_NOKEY;
+	memset(extra, 0, 16);
+	
+	/* Copy the key to the user buffer */
+	ext->key_len = get_wep_key(local, idx);
+	if (ext->key_len > 16) {
+		ext->key_len=0;
+	}
+
+	return 0;
+}
+
+
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : set extended authentication parameters
+ */
+static int airo_set_auth(struct net_device *dev,
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
+{
+	struct airo_info *local = dev->priv;
+	struct iw_param *param = &wrqu->param;
+	u16 currentAuthType = local->config.authType;
+
+	switch (param->flags & IW_AUTH_INDEX) {
+	case IW_AUTH_WPA_VERSION:
+	case IW_AUTH_CIPHER_PAIRWISE:
+	case IW_AUTH_CIPHER_GROUP:
+	case IW_AUTH_KEY_MGMT:
+	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
+	case IW_AUTH_PRIVACY_INVOKED:
+		/*
+		 * airo does not use these parameters
+		 */
+		break;
+
+	case IW_AUTH_DROP_UNENCRYPTED:
+		if (param->value) {
+			/* Only change auth type if unencrypted */
+			if (currentAuthType == AUTH_OPEN)
+				local->config.authType = AUTH_ENCRYPT;
+		} else {
+			local->config.authType = AUTH_OPEN;
+		}
+
+		/* Commit the changes to flags if needed */
+		if (local->config.authType != currentAuthType)
+			set_bit (FLAG_COMMIT, &local->flags);
+		break;
+
+	case IW_AUTH_80211_AUTH_ALG: {
+			/* FIXME: What about AUTH_OPEN?  This API seems to
+			 * disallow setting our auth to AUTH_OPEN.
+			 */
+			if (param->value & IW_AUTH_ALG_SHARED_KEY) {
+				local->config.authType = AUTH_SHAREDKEY;
+			} else if (param->value & IW_AUTH_ALG_OPEN_SYSTEM) {
+				local->config.authType = AUTH_ENCRYPT;
+			} else
+				return -EINVAL;
+			break;
+
+			/* Commit the changes to flags if needed */
+			if (local->config.authType != currentAuthType)
+				set_bit (FLAG_COMMIT, &local->flags);
+		}
+
+	case IW_AUTH_WPA_ENABLED:
+		/* Silently accept disable of WPA */
+		if (param->value > 0)
+			return -EOPNOTSUPP;
+		break;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+	return -EINPROGRESS;
+}
+
+
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get extended authentication parameters
+ */
+static int airo_get_auth(struct net_device *dev,
+			       struct iw_request_info *info,
+			       union iwreq_data *wrqu, char *extra)
+{
+	struct airo_info *local = dev->priv;
+	struct iw_param *param = &wrqu->param;
+	u16 currentAuthType = local->config.authType;
+
+	switch (param->flags & IW_AUTH_INDEX) {
+	case IW_AUTH_DROP_UNENCRYPTED:
+		switch (currentAuthType) {
+		case AUTH_SHAREDKEY:
+		case AUTH_ENCRYPT:
+			param->value = 1;
+			break;
+		default:
+			param->value = 0;
+			break;
+		}
+		break;
+
+	case IW_AUTH_80211_AUTH_ALG:
+		switch (currentAuthType) {
+		case AUTH_SHAREDKEY:
+			param->value = IW_AUTH_ALG_SHARED_KEY;
+			break;
+		case AUTH_ENCRYPT:
+		default:
+			param->value = IW_AUTH_ALG_OPEN_SYSTEM;
+			break;
+		}
+		break;
+
+	case IW_AUTH_WPA_ENABLED:
+		param->value = 0;
+		break;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
 
 /*------------------------------------------------------------------*/
 /*
@@ -7050,6 +7271,15 @@ static const iw_handler		airo_handler[] =
 	(iw_handler) airo_get_encode,		/* SIOCGIWENCODE */
 	(iw_handler) airo_set_power,		/* SIOCSIWPOWER */
 	(iw_handler) airo_get_power,		/* SIOCGIWPOWER */
+	(iw_handler) NULL,			/* -- hole -- */
+	(iw_handler) NULL,			/* -- hole -- */
+	(iw_handler) NULL,			/* SIOCSIWGENIE */
+	(iw_handler) NULL,			/* SIOCGIWGENIE */
+	(iw_handler) airo_set_auth,		/* SIOCSIWAUTH */
+	(iw_handler) airo_get_auth,		/* SIOCGIWAUTH */
+	(iw_handler) airo_set_encodeext,	/* SIOCSIWENCODEEXT */
+	(iw_handler) airo_get_encodeext,	/* SIOCGIWENCODEEXT */
+	(iw_handler) NULL,			/* SIOCSIWPMKSA */
 };
 
 /* Note : don't describe AIROIDIFC and AIROOLDIDIFC in here.
@@ -7270,13 +7500,11 @@ static int readrids(struct net_device *dev, aironet_ioctl *comp) {
 	case AIROGSTAT:     ridcode = RID_STATUS;       break;
 	case AIROGSTATSD32: ridcode = RID_STATSDELTA;   break;
 	case AIROGSTATSC32: ridcode = RID_STATS;        break;
-#ifdef MICSUPPORT
 	case AIROGMICSTATS:
 		if (copy_to_user(comp->data, &ai->micstats,
 				 min((int)comp->len,(int)sizeof(ai->micstats))))
 			return -EFAULT;
 		return 0;
-#endif
 	case AIRORRID:      ridcode = comp->ridnum;     break;
 	default:
 		return -EINVAL;
@@ -7308,9 +7536,7 @@ static int readrids(struct net_device *dev, aironet_ioctl *comp) {
 static int writerids(struct net_device *dev, aironet_ioctl *comp) {
 	struct airo_info *ai = dev->priv;
 	int  ridcode;
-#ifdef MICSUPPORT
         int  enabled;
-#endif
 	Resp      rsp;
 	static int (* writer)(struct airo_info *, u16 rid, const void *, int, int);
 	unsigned char *iobuf;
@@ -7367,11 +7593,9 @@ static int writerids(struct net_device *dev, aironet_ioctl *comp) {
 
 		PC4500_readrid(ai,RID_STATSDELTACLEAR,iobuf,RIDSIZE, 1);
 
-#ifdef MICSUPPORT
 		enabled = ai->micstats.enabled;
 		memset(&ai->micstats,0,sizeof(ai->micstats));
 		ai->micstats.enabled = enabled;
-#endif
 
 		if (copy_to_user(comp->data, iobuf,
 				 min((int)comp->len, (int)RIDSIZE))) {

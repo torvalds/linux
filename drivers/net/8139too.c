@@ -229,7 +229,7 @@ typedef enum {
 
 
 /* indexed by board_t, above */
-static struct {
+static const struct {
 	const char *name;
 	u32 hw_flags;
 } board_info[] __devinitdata = {
@@ -1192,7 +1192,7 @@ static int __devinit read_eeprom (void __iomem *ioaddr, int location, int addr_l
 #define mdio_delay()	RTL_R8(Config4)
 
 
-static char mii_2_8139_map[8] = {
+static const char mii_2_8139_map[8] = {
 	BasicModeCtrl,
 	BasicModeStatus,
 	0,

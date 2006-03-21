@@ -89,21 +89,21 @@ static const u_short my_sagp = 0xffff ;	/* short group address (n.u.) */
 /*
  * useful interrupt bits
  */
-static int mac_imsk1u = FM_STXABRS | FM_STXABRA0 | FM_SXMTABT ;
-static int mac_imsk1l = FM_SQLCKS | FM_SQLCKA0 | FM_SPCEPDS | FM_SPCEPDA0|
+static const int mac_imsk1u = FM_STXABRS | FM_STXABRA0 | FM_SXMTABT ;
+static const int mac_imsk1l = FM_SQLCKS | FM_SQLCKA0 | FM_SPCEPDS | FM_SPCEPDA0|
 			FM_STBURS | FM_STBURA0 ;
 
 	/* delete FM_SRBFL after tests */
-static int mac_imsk2u = FM_SERRSF | FM_SNFSLD | FM_SRCVOVR | FM_SRBFL |
+static const int mac_imsk2u = FM_SERRSF | FM_SNFSLD | FM_SRCVOVR | FM_SRBFL |
 			FM_SMYCLM ;
-static int mac_imsk2l = FM_STRTEXR | FM_SDUPCLM | FM_SFRMCTR |
+static const int mac_imsk2l = FM_STRTEXR | FM_SDUPCLM | FM_SFRMCTR |
 			FM_SERRCTR | FM_SLSTCTR |
 			FM_STRTEXP | FM_SMULTDA | FM_SRNGOP ;
 
-static int mac_imsk3u = FM_SRCVOVR2 | FM_SRBFL2 ;
-static int mac_imsk3l = FM_SRPERRQ2 | FM_SRPERRQ1 ;
+static const int mac_imsk3u = FM_SRCVOVR2 | FM_SRBFL2 ;
+static const int mac_imsk3l = FM_SRPERRQ2 | FM_SRPERRQ1 ;
 
-static int mac_beacon_imsk2u = FM_SOTRBEC | FM_SMYBEC | FM_SBEC |
+static const int mac_beacon_imsk2u = FM_SOTRBEC | FM_SMYBEC | FM_SBEC |
 			FM_SLOCLM | FM_SHICLM | FM_SMYCLM | FM_SCLM ;
 
 

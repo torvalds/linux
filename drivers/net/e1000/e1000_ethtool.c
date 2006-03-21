@@ -32,19 +32,6 @@
 
 #include <asm/uaccess.h>
 
-extern char e1000_driver_name[];
-extern char e1000_driver_version[];
-
-extern int e1000_up(struct e1000_adapter *adapter);
-extern void e1000_down(struct e1000_adapter *adapter);
-extern void e1000_reset(struct e1000_adapter *adapter);
-extern int e1000_set_spd_dplx(struct e1000_adapter *adapter, uint16_t spddplx);
-extern int e1000_setup_all_rx_resources(struct e1000_adapter *adapter);
-extern int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
-extern void e1000_free_all_rx_resources(struct e1000_adapter *adapter);
-extern void e1000_free_all_tx_resources(struct e1000_adapter *adapter);
-extern void e1000_update_stats(struct e1000_adapter *adapter);
-
 struct e1000_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
@@ -60,7 +47,6 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "tx_bytes", E1000_STAT(net_stats.tx_bytes) },
 	{ "rx_errors", E1000_STAT(net_stats.rx_errors) },
 	{ "tx_errors", E1000_STAT(net_stats.tx_errors) },
-	{ "rx_dropped", E1000_STAT(net_stats.rx_dropped) },
 	{ "tx_dropped", E1000_STAT(net_stats.tx_dropped) },
 	{ "multicast", E1000_STAT(net_stats.multicast) },
 	{ "collisions", E1000_STAT(net_stats.collisions) },
@@ -68,7 +54,6 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_over_errors", E1000_STAT(net_stats.rx_over_errors) },
 	{ "rx_crc_errors", E1000_STAT(net_stats.rx_crc_errors) },
 	{ "rx_frame_errors", E1000_STAT(net_stats.rx_frame_errors) },
-	{ "rx_fifo_errors", E1000_STAT(net_stats.rx_fifo_errors) },
 	{ "rx_no_buffer_count", E1000_STAT(stats.rnbc) },
 	{ "rx_missed_errors", E1000_STAT(net_stats.rx_missed_errors) },
 	{ "tx_aborted_errors", E1000_STAT(net_stats.tx_aborted_errors) },
@@ -97,14 +82,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "alloc_rx_buff_failed", E1000_STAT(alloc_rx_buff_failed) },
 };
 
-#ifdef CONFIG_E1000_MQ
-#define E1000_QUEUE_STATS_LEN \
-	(((struct e1000_adapter *)netdev->priv)->num_tx_queues + \
-	 ((struct e1000_adapter *)netdev->priv)->num_rx_queues) \
-	* (sizeof(struct e1000_queue_stats) / sizeof(uint64_t))
-#else
 #define E1000_QUEUE_STATS_LEN 0
-#endif
 #define E1000_GLOBAL_STATS_LEN	\
 	sizeof(e1000_gstrings_stats) / sizeof(struct e1000_stats)
 #define E1000_STATS_LEN (E1000_GLOBAL_STATS_LEN + E1000_QUEUE_STATS_LEN)
@@ -346,6 +324,9 @@ e1000_set_tso(struct net_device *netdev, uint32_t data)
 		netdev->features |= NETIF_F_TSO;
 	else
 		netdev->features &= ~NETIF_F_TSO;
+
+	DPRINTK(PROBE, INFO, "TSO is %s\n", data ? "Enabled" : "Disabled");
+	adapter->tso_force = TRUE;
 	return 0;
 }
 #endif /* NETIF_F_TSO */
@@ -594,6 +575,7 @@ e1000_get_drvinfo(struct net_device *netdev,
 	case e1000_82571:
 	case e1000_82572:
 	case e1000_82573:
+	case e1000_80003es2lan:
 		sprintf(firmware_version, "%d.%d-%d",
 			(eeprom_data & 0xF000) >> 12,
 			(eeprom_data & 0x0FF0) >> 4,
@@ -642,6 +624,9 @@ e1000_set_ringparam(struct net_device *netdev,
 	struct e1000_rx_ring *rxdr, *rx_old, *rx_new;
 	int i, err, tx_ring_size, rx_ring_size;
 
+	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
+		return -EINVAL;
+
 	tx_ring_size = sizeof(struct e1000_tx_ring) * adapter->num_tx_queues;
 	rx_ring_size = sizeof(struct e1000_rx_ring) * adapter->num_rx_queues;
 
@@ -668,9 +653,6 @@ e1000_set_ringparam(struct net_device *netdev,
 
 	txdr = adapter->tx_ring;
 	rxdr = adapter->rx_ring;
-
-	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
-		return -EINVAL;
 
 	rxdr->count = max(ring->rx_pending,(uint32_t)E1000_MIN_RXD);
 	rxdr->count = min(rxdr->count,(uint32_t)(mac_type < e1000_82544 ?
@@ -767,6 +749,7 @@ e1000_reg_test(struct e1000_adapter *adapter, uint64_t *data)
 	/* there are several bits on newer hardware that are r/w */
 	case e1000_82571:
 	case e1000_82572:
+	case e1000_80003es2lan:
 		toggle = 0x7FFFF3FF;
 		break;
 	case e1000_82573:
@@ -1256,6 +1239,10 @@ e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x9140);
 		/* autoneg off */
 		e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x8140);
+	} else if (adapter->hw.phy_type == e1000_phy_gg82563) {
+		e1000_write_phy_reg(&adapter->hw,
+		                    GG82563_PHY_KMRN_MODE_CTRL,
+		                    0x1CE);
 	}
 	/* force 1000, set loopback */
 	e1000_write_phy_reg(&adapter->hw, PHY_CTRL, 0x4140);
@@ -1325,6 +1312,7 @@ e1000_set_phy_loopback(struct e1000_adapter *adapter)
 	case e1000_82571:
 	case e1000_82572:
 	case e1000_82573:
+	case e1000_80003es2lan:
 		return e1000_integrated_phy_loopback(adapter);
 		break;
 
@@ -1405,6 +1393,11 @@ e1000_loopback_cleanup(struct e1000_adapter *adapter)
 	case e1000_82546_rev_3:
 	default:
 		hw->autoneg = TRUE;
+		if (hw->phy_type == e1000_phy_gg82563) {
+			e1000_write_phy_reg(hw,
+					    GG82563_PHY_KMRN_MODE_CTRL,
+					    0x180);
+		}
 		e1000_read_phy_reg(hw, PHY_CTRL, &phy_reg);
 		if (phy_reg & MII_CR_LOOPBACK) {
 			phy_reg &= ~MII_CR_LOOPBACK;
@@ -1640,9 +1633,25 @@ e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	case E1000_DEV_ID_82546EB_QUAD_COPPER:
 	case E1000_DEV_ID_82545EM_FIBER:
 	case E1000_DEV_ID_82545EM_COPPER:
+	case E1000_DEV_ID_82546GB_QUAD_COPPER:
 		wol->supported = 0;
 		wol->wolopts   = 0;
 		return;
+
+	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
+		/* device id 10B5 port-A supports wol */
+		if (!adapter->ksp3_port_a) {
+			wol->supported = 0;
+			return;
+		}
+		/* KSP3 does not suppport UCAST wake-ups for any interface */
+		wol->supported = WAKE_MCAST | WAKE_BCAST | WAKE_MAGIC;
+
+		if (adapter->wol & E1000_WUFC_EX)
+			DPRINTK(DRV, ERR, "Interface does not support "
+		        "directed (unicast) frame wake-up packets\n");
+		wol->wolopts = 0;
+		goto do_defaults;
 
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
@@ -1658,8 +1667,9 @@ e1000_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	default:
 		wol->supported = WAKE_UCAST | WAKE_MCAST |
 				 WAKE_BCAST | WAKE_MAGIC;
-
 		wol->wolopts = 0;
+
+do_defaults:
 		if (adapter->wol & E1000_WUFC_EX)
 			wol->wolopts |= WAKE_UCAST;
 		if (adapter->wol & E1000_WUFC_MC)
@@ -1684,9 +1694,21 @@ e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	case E1000_DEV_ID_82543GC_COPPER:
 	case E1000_DEV_ID_82544EI_FIBER:
 	case E1000_DEV_ID_82546EB_QUAD_COPPER:
+	case E1000_DEV_ID_82546GB_QUAD_COPPER:
 	case E1000_DEV_ID_82545EM_FIBER:
 	case E1000_DEV_ID_82545EM_COPPER:
 		return wol->wolopts ? -EOPNOTSUPP : 0;
+
+	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
+		/* device id 10B5 port-A supports wol */
+		if (!adapter->ksp3_port_a)
+			return wol->wolopts ? -EOPNOTSUPP : 0;
+
+		if (wol->wolopts & WAKE_UCAST) {
+			DPRINTK(DRV, ERR, "Interface does not support "
+		        "directed (unicast) frame wake-up packets\n");
+			return -EOPNOTSUPP;
+		}
 
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
@@ -1799,11 +1821,6 @@ e1000_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, uint64_t *data)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-#ifdef CONFIG_E1000_MQ
-	uint64_t *queue_stat;
-	int stat_count = sizeof(struct e1000_queue_stats) / sizeof(uint64_t);
-	int j, k;
-#endif
 	int i;
 
 	e1000_update_stats(adapter);
@@ -1812,29 +1829,12 @@ e1000_get_ethtool_stats(struct net_device *netdev,
 		data[i] = (e1000_gstrings_stats[i].sizeof_stat ==
 			sizeof(uint64_t)) ? *(uint64_t *)p : *(uint32_t *)p;
 	}
-#ifdef CONFIG_E1000_MQ
-	for (j = 0; j < adapter->num_tx_queues; j++) {
-		queue_stat = (uint64_t *)&adapter->tx_ring[j].tx_stats;
-		for (k = 0; k < stat_count; k++)
-			data[i + k] = queue_stat[k];
-		i += k;
-	}
-	for (j = 0; j < adapter->num_rx_queues; j++) {
-		queue_stat = (uint64_t *)&adapter->rx_ring[j].rx_stats;
-		for (k = 0; k < stat_count; k++)
-			data[i + k] = queue_stat[k];
-		i += k;
-	}
-#endif
 /*	BUG_ON(i != E1000_STATS_LEN); */
 }
 
 static void
 e1000_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
 {
-#ifdef CONFIG_E1000_MQ
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-#endif
 	uint8_t *p = data;
 	int i;
 
@@ -1849,20 +1849,6 @@ e1000_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-#ifdef CONFIG_E1000_MQ
-		for (i = 0; i < adapter->num_tx_queues; i++) {
-			sprintf(p, "tx_queue_%u_packets", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "tx_queue_%u_bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < adapter->num_rx_queues; i++) {
-			sprintf(p, "rx_queue_%u_packets", i);
-			p += ETH_GSTRING_LEN;
-			sprintf(p, "rx_queue_%u_bytes", i);
-			p += ETH_GSTRING_LEN;
-		}
-#endif
 /*		BUG_ON(p - data != E1000_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
 	}
