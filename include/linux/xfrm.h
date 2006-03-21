@@ -259,8 +259,8 @@ struct xfrm_usersa_id {
 };
 
 struct xfrm_aevent_id {
-	__u32				flags;
 	struct xfrm_usersa_id		sa_id;
+	__u32				flags;
 };
 
 struct xfrm_userspi_info {
