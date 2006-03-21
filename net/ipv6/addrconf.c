@@ -169,6 +169,7 @@ struct ipv6_devconf ipv6_devconf = {
 	.accept_ra_pinfo	= 1,
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	.accept_ra_rtr_pref	= 1,
+	.rtr_probe_interval	= 60 * HZ,
 #endif
 };
 
@@ -195,6 +196,7 @@ static struct ipv6_devconf ipv6_devconf_dflt = {
 	.accept_ra_pinfo	= 1,
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	.accept_ra_rtr_pref	= 1,
+	.rtr_probe_interval	= 60 * HZ,
 #endif
 };
 
@@ -3130,6 +3132,7 @@ static void inline ipv6_store_devconf(struct ipv6_devconf *cnf,
 	array[DEVCONF_ACCEPT_RA_PINFO] = cnf->accept_ra_pinfo;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	array[DEVCONF_ACCEPT_RA_RTR_PREF] = cnf->accept_ra_rtr_pref;
+	array[DEVCONF_RTR_PROBE_INTERVAL] = cnf->rtr_probe_interval;
 #endif
 }
 
@@ -3607,6 +3610,15 @@ static struct addrconf_sysctl_table
 			.maxlen		=	sizeof(int),
 			.mode		=	0644,
 			.proc_handler	=	&proc_dointvec,
+		},
+		{
+			.ctl_name	=	NET_IPV6_RTR_PROBE_INTERVAL,
+			.procname	=	"router_probe_interval",
+			.data		=	&ipv6_devconf.rtr_probe_interval,
+			.maxlen		=	sizeof(int),
+			.mode		=	0644,
+			.proc_handler	=	&proc_dointvec_jiffies,
+			.strategy	=	&sysctl_jiffies,
 		},
 #endif
 		{

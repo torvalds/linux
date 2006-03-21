@@ -789,6 +789,12 @@ mtu - INTEGER
 	Default Maximum Transfer Unit
 	Default: 1280 (IPv6 required minimum)
 
+router_probe_interval - INTEGER
+	Minimum interval (in seconds) between Router Probing described
+	in RFC4191.
+
+	Default: 60
+
 router_solicitation_delay - INTEGER
 	Number of seconds to wait after interface is brought up
 	before sending Router Solicitations.

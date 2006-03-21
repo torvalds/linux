@@ -149,6 +149,7 @@ struct ipv6_devconf {
 	__s32		accept_ra_pinfo;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	__s32		accept_ra_rtr_pref;
+	__s32		rtr_probe_interval;
 #endif
 	void		*sysctl;
 };
@@ -175,6 +176,7 @@ enum {
 	DEVCONF_ACCEPT_RA_DEFRTR,
 	DEVCONF_ACCEPT_RA_PINFO,
 	DEVCONF_ACCEPT_RA_RTR_PREF,
+	DEVCONF_RTR_PROBE_INTERVAL,
 	DEVCONF_MAX
 };
 

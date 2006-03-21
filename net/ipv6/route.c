@@ -234,7 +234,7 @@ static void rt6_probe(struct rt6_info *rt)
 		return;
 	read_lock_bh(&neigh->lock);
 	if (!(neigh->nud_state & NUD_VALID) &&
-	    time_after(jiffies, neigh->updated + 60 * HZ)) {
+	    time_after(jiffies, neigh->updated + rt->rt6i_idev->cnf.rtr_probe_interval)) {
 		struct in6_addr mcaddr;
 		struct in6_addr *target;
 
