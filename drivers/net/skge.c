@@ -727,7 +727,7 @@ static struct ethtool_ops skge_ethtool_ops = {
  * Allocate ring elements and chain them together
  * One-to-one association of board descriptors with ring elements
  */
-static int skge_ring_alloc(struct skge_ring *ring, void *vaddr, u64 base)
+static int skge_ring_alloc(struct skge_ring *ring, void *vaddr, u32 base)
 {
 	struct skge_tx_desc *d;
 	struct skge_element *e;
@@ -2167,6 +2167,14 @@ static int skge_up(struct net_device *dev)
 	skge->mem = pci_alloc_consistent(hw->pdev, skge->mem_size, &skge->dma);
 	if (!skge->mem)
 		return -ENOMEM;
+
+	BUG_ON(skge->dma & 7);
+
+	if ((u64)skge->dma >> 32 != ((u64) skge->dma + skge->mem_size) >> 32) {
+		printk(KERN_ERR PFX "pci_alloc_consistent region crosses 4G boundary\n");
+		err = -EINVAL;
+		goto free_pci_mem;
+	}
 
 	memset(skge->mem, 0, skge->mem_size);
 
