@@ -1090,7 +1090,8 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	pref = ra_msg->icmph.icmp6_router_pref;
 	/* 10b is handled as if it were 00b (medium) */
-	if (pref == ICMPV6_ROUTER_PREF_INVALID)
+	if (pref == ICMPV6_ROUTER_PREF_INVALID ||
+	    in6_dev->cnf.accept_ra_rtr_pref)
 		pref = ICMPV6_ROUTER_PREF_MEDIUM;
 #endif
 

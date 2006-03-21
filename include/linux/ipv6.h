@@ -147,6 +147,9 @@ struct ipv6_devconf {
 	__s32		max_addresses;
 	__s32		accept_ra_defrtr;
 	__s32		accept_ra_pinfo;
+#ifdef CONFIG_IPV6_ROUTER_PREF
+	__s32		accept_ra_rtr_pref;
+#endif
 	void		*sysctl;
 };
 
@@ -171,6 +174,7 @@ enum {
 	DEVCONF_FORCE_MLD_VERSION,
 	DEVCONF_ACCEPT_RA_DEFRTR,
 	DEVCONF_ACCEPT_RA_PINFO,
+	DEVCONF_ACCEPT_RA_RTR_PREF,
 	DEVCONF_MAX
 };
 
