@@ -20,6 +20,8 @@
 #include <linux/module.h>
 #include <asm/uaccess.h>
 
+u32 sysctl_xfrm_aevent_etime = XFRM_AE_ETIME;
+u32 sysctl_xfrm_aevent_rseqth = XFRM_AE_SEQT_SIZE;
 /* Each xfrm_state may be linked to two tables:
 
    1. Hash table by (spi,daddr,ah/esp) to find SA by SPI. (input,ctl)
@@ -61,6 +63,8 @@ static void km_state_expired(struct xfrm_state *x, int hard);
 static void xfrm_state_gc_destroy(struct xfrm_state *x)
 {
 	if (del_timer(&x->timer))
+		BUG();
+	if (del_timer(&x->rtimer))
 		BUG();
 	kfree(x->aalg);
 	kfree(x->ealg);
@@ -190,11 +194,16 @@ struct xfrm_state *xfrm_state_alloc(void)
 		init_timer(&x->timer);
 		x->timer.function = xfrm_timer_handler;
 		x->timer.data	  = (unsigned long)x;
+		init_timer(&x->rtimer);
+		x->rtimer.function = xfrm_replay_timer_handler;
+		x->rtimer.data     = (unsigned long)x;
 		x->curlft.add_time = (unsigned long)xtime.tv_sec;
 		x->lft.soft_byte_limit = XFRM_INF;
 		x->lft.soft_packet_limit = XFRM_INF;
 		x->lft.hard_byte_limit = XFRM_INF;
 		x->lft.hard_packet_limit = XFRM_INF;
+		x->replay_maxage = 0;
+		x->replay_maxdiff = 0;
 		spin_lock_init(&x->lock);
 	}
 	return x;
@@ -227,6 +236,8 @@ static int __xfrm_state_delete(struct xfrm_state *x)
 		}
 		spin_unlock(&xfrm_state_lock);
 		if (del_timer(&x->timer))
+			__xfrm_state_put(x);
+		if (del_timer(&x->rtimer))
 			__xfrm_state_put(x);
 
 		/* The number two in this test is the reference
@@ -424,6 +435,10 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 	xfrm_state_hold(x);
 
 	if (!mod_timer(&x->timer, jiffies + HZ))
+		xfrm_state_hold(x);
+
+	if (x->replay_maxage &&
+	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
 		xfrm_state_hold(x);
 
 	wake_up(&km_waitq);
@@ -762,6 +777,62 @@ out:
 }
 EXPORT_SYMBOL(xfrm_state_walk);
 
+
+void xfrm_replay_notify(struct xfrm_state *x, int event)
+{
+	struct km_event c;
+	/* we send notify messages in case
+	 *  1. we updated on of the sequence numbers, and the seqno difference
+	 *     is at least x->replay_maxdiff, in this case we also update the
+	 *     timeout of our timer function
+	 *  2. if x->replay_maxage has elapsed since last update,
+	 *     and there were changes
+	 *
+	 *  The state structure must be locked!
+	 */
+
+	switch (event) {
+	case XFRM_REPLAY_UPDATE:
+		if (x->replay_maxdiff &&
+		    (x->replay.seq - x->preplay.seq < x->replay_maxdiff) &&
+		    (x->replay.oseq - x->preplay.oseq < x->replay_maxdiff))
+			return;
+
+		break;
+
+	case XFRM_REPLAY_TIMEOUT:
+		if ((x->replay.seq == x->preplay.seq) &&
+		    (x->replay.bitmap == x->preplay.bitmap) &&
+		    (x->replay.oseq == x->preplay.oseq))
+			return;
+
+		break;
+	}
+
+	memcpy(&x->preplay, &x->replay, sizeof(struct xfrm_replay_state));
+	c.event = XFRM_MSG_NEWAE;
+	c.data.aevent = event;
+	km_state_notify(x, &c);
+
+resched:
+	if (x->replay_maxage &&
+	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
+		xfrm_state_hold(x);
+
+}
+
+static void xfrm_replay_timer_handler(unsigned long data)
+{
+	struct xfrm_state *x = (struct xfrm_state*)data;
+
+	spin_lock(&x->lock);
+
+	if (xfrm_aevent_is_on() && x->km.state == XFRM_STATE_VALID)
+		xfrm_replay_notify(x, XFRM_REPLAY_TIMEOUT);
+
+	spin_unlock(&x->lock);
+}
+
 int xfrm_replay_check(struct xfrm_state *x, u32 seq)
 {
 	u32 diff;
@@ -805,6 +876,9 @@ void xfrm_replay_advance(struct xfrm_state *x, u32 seq)
 		diff = x->replay.seq - seq;
 		x->replay.bitmap |= (1U << diff);
 	}
+
+	if (xfrm_aevent_is_on())
+		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 }
 EXPORT_SYMBOL(xfrm_replay_advance);
 
@@ -835,7 +909,7 @@ void km_state_notify(struct xfrm_state *x, struct km_event *c)
 EXPORT_SYMBOL(km_policy_notify);
 EXPORT_SYMBOL(km_state_notify);
 
-static void km_state_expired(struct xfrm_state *x, int hard)
+void km_state_expired(struct xfrm_state *x, int hard)
 {
 	struct km_event c;
 

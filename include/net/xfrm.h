@@ -20,6 +20,10 @@
 
 #define XFRM_ALIGN8(len)	(((len) + 7) & ~7)
 
+extern struct sock *xfrm_nl;
+extern u32 sysctl_xfrm_aevent_etime;
+extern u32 sysctl_xfrm_aevent_rseqth;
+
 extern struct semaphore xfrm_cfg_sem;
 
 /* Organization of SPD aka "XFRM rules"
@@ -135,6 +139,16 @@ struct xfrm_state
 	/* State for replay detection */
 	struct xfrm_replay_state replay;
 
+	/* Replay detection state at the time we sent the last notification */
+	struct xfrm_replay_state preplay;
+
+	/* Replay detection notification settings */
+	u32			replay_maxage;
+	u32			replay_maxdiff;
+
+	/* Replay detection notification timer */
+	struct timer_list	rtimer;
+
 	/* Statistics */
 	struct xfrm_stats	stats;
 
@@ -169,6 +183,7 @@ struct km_event
 		u32 hard;
 		u32 proto;
 		u32 byid;
+		u32 aevent;
 	} data;
 
 	u32	seq;
@@ -305,7 +320,21 @@ struct xfrm_policy
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 };
 
-#define XFRM_KM_TIMEOUT		30
+#define XFRM_KM_TIMEOUT                30
+/* which seqno */
+#define XFRM_REPLAY_SEQ		1
+#define XFRM_REPLAY_OSEQ	2
+#define XFRM_REPLAY_SEQ_MASK	3
+/* what happened */
+#define XFRM_REPLAY_UPDATE	XFRM_AE_CR
+#define XFRM_REPLAY_TIMEOUT	XFRM_AE_CE
+
+/* default aevent timeout in units of 100ms */
+#define XFRM_AE_ETIME			10
+/* Async Event timer multiplier */
+#define XFRM_AE_ETH_M			10
+/* default seq threshold size */
+#define XFRM_AE_SEQT_SIZE		2
 
 struct xfrm_mgr
 {
@@ -865,6 +894,7 @@ extern int xfrm_state_delete(struct xfrm_state *x);
 extern void xfrm_state_flush(u8 proto);
 extern int xfrm_replay_check(struct xfrm_state *x, u32 seq);
 extern void xfrm_replay_advance(struct xfrm_state *x, u32 seq);
+extern void xfrm_replay_notify(struct xfrm_state *x, int event);
 extern int xfrm_state_check(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 extern int xfrm_init_state(struct xfrm_state *x);
@@ -964,5 +994,17 @@ static inline int xfrm_policy_id2dir(u32 index)
 {
 	return index & 7;
 }
+
+static inline int xfrm_aevent_is_on(void)
+{
+	return netlink_has_listeners(xfrm_nl,XFRMNLGRP_AEVENTS);
+}
+
+static inline void xfrm_aevent_doreplay(struct xfrm_state *x)
+{
+	if (xfrm_aevent_is_on())
+		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+}
+
 
 #endif	/* _NET_XFRM_H */
