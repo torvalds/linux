@@ -187,8 +187,10 @@ static int llc_ui_release(struct socket *sock)
 		llc->laddr.lsap, llc->daddr.lsap);
 	if (!llc_send_disc(sk))
 		llc_ui_wait_for_disc(sk, sk->sk_rcvtimeo);
-	if (!sock_flag(sk, SOCK_ZAPPED))
+	if (!sock_flag(sk, SOCK_ZAPPED)) {
+		llc_sap_put(llc->sap);
 		llc_sap_remove_socket(llc->sap, sk);
+	}
 	release_sock(sk);
 	if (llc->dev)
 		dev_put(llc->dev);
