@@ -104,7 +104,6 @@ static const int txqaddr[] = { Q_XA1, Q_XA2 };
 static const int rxqaddr[] = { Q_R1, Q_R2 };
 static const u32 rxirqmask[] = { IS_R1_F, IS_R2_F };
 static const u32 txirqmask[] = { IS_XA1_F, IS_XA2_F };
-static const u32 portirqmask[] = { IS_PORT_1, IS_PORT_2 };
 
 static int skge_get_regs_len(struct net_device *dev)
 {
@@ -2184,12 +2183,6 @@ static int skge_up(struct net_device *dev)
 
 	skge->tx_avail = skge->tx_ring.count - 1;
 
-	/* Enable IRQ from port */
-	spin_lock_irq(&hw->hw_lock);
-	hw->intr_mask |= portirqmask[port];
-	skge_write32(hw, B0_IMSK, hw->intr_mask);
-	spin_unlock_irq(&hw->hw_lock);
-
 	/* Initialize MAC */
 	spin_lock_bh(&hw->phy_lock);
 	if (hw->chip_id == CHIP_ID_GENESIS)
@@ -2245,11 +2238,6 @@ static int skge_down(struct net_device *dev)
 		genesis_stop(skge);
 	else
 		yukon_stop(skge);
-
-	spin_lock_irq(&hw->hw_lock);
-	hw->intr_mask &= ~portirqmask[skge->port];
-	skge_write32(hw, B0_IMSK, hw->intr_mask);
-	spin_unlock_irq(&hw->hw_lock);
 
 	/* Stop transmitter */
 	skge_write8(hw, Q_ADDR(txqaddr[port], Q_CSR), CSR_STOP);
@@ -2734,11 +2722,9 @@ static int skge_poll(struct net_device *dev, int *budget)
 	if (work_done >=  to_do)
 		return 1; /* not done */
 
-	spin_lock_irq(&hw->hw_lock);
-	__netif_rx_complete(dev);
-  	hw->intr_mask |= portirqmask[skge->port];
+	netif_rx_complete(dev);
+  	hw->intr_mask |= skge->port == 0 ? (IS_R1_F|IS_XA1_F) : (IS_R2_F|IS_XA2_F);
   	skge_write32(hw, B0_IMSK, hw->intr_mask);
- 	spin_unlock_irq(&hw->hw_lock);
 
 	return 0;
 }
@@ -2850,12 +2836,11 @@ static void skge_extirq(unsigned long data)
 	int port;
 
 	spin_lock(&hw->phy_lock);
-	for (port = 0; port < 2; port++) {
+	for (port = 0; port < hw->ports; port++) {
 		struct net_device *dev = hw->dev[port];
+		struct skge_port *skge = netdev_priv(dev);
 
-		if (dev && netif_running(dev)) {
-			struct skge_port *skge = netdev_priv(dev);
-
+		if (netif_running(dev)) {
 			if (hw->chip_id != CHIP_ID_GENESIS)
 				yukon_phy_intr(skge);
 			else
@@ -2864,21 +2849,25 @@ static void skge_extirq(unsigned long data)
 	}
 	spin_unlock(&hw->phy_lock);
 
-	spin_lock_irq(&hw->hw_lock);
 	hw->intr_mask |= IS_EXT_REG;
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
-	spin_unlock_irq(&hw->hw_lock);
 }
 
 static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct skge_hw *hw = dev_id;
-	u32 status = skge_read32(hw, B0_SP_ISRC);
+	u32 status;
 
-	if (status == 0 || status == ~0) /* hotplug or shared irq */
+	/* Reading this register masks IRQ */
+	status = skge_read32(hw, B0_SP_ISRC);
+	if (status == 0)
 		return IRQ_NONE;
 
-	spin_lock(&hw->hw_lock);
+	if (status & IS_EXT_REG) {
+		hw->intr_mask &= ~IS_EXT_REG;
+		tasklet_schedule(&hw->ext_tasklet);
+	}
+
 	if (status & (IS_R1_F|IS_XA1_F)) {
 		skge_write8(hw, Q_ADDR(Q_R1, Q_CSR), CSR_IRQ_CL_F);
 		hw->intr_mask &= ~(IS_R1_F|IS_XA1_F);
@@ -2890,6 +2879,9 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 		hw->intr_mask &= ~(IS_R2_F|IS_XA2_F);
 		netif_rx_schedule(hw->dev[1]);
 	}
+
+	if (likely((status & hw->intr_mask) == 0))
+		return IRQ_HANDLED;
 
 	if (status & IS_PA_TO_RX1) {
 		struct skge_port *skge = netdev_priv(hw->dev[0]);
@@ -2918,13 +2910,7 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 	if (status & IS_HW_ERR)
 		skge_error_irq(hw);
 
-	if (status & IS_EXT_REG) {
-		hw->intr_mask &= ~IS_EXT_REG;
-		tasklet_schedule(&hw->ext_tasklet);
-	}
-
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
-	spin_unlock(&hw->hw_lock);
 
 	return IRQ_HANDLED;
 }
@@ -3070,7 +3056,10 @@ static int skge_reset(struct skge_hw *hw)
 	else
 		hw->ram_size = t8 * 4096;
 
-	hw->intr_mask = IS_HW_ERR | IS_EXT_REG;
+	hw->intr_mask = IS_HW_ERR | IS_EXT_REG | IS_PORT_1;
+	if (hw->ports > 1)
+		hw->intr_mask |= IS_PORT_2;
+
 	if (hw->chip_id == CHIP_ID_GENESIS)
 		genesis_init(hw);
 	else {
@@ -3293,7 +3282,6 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 
 	hw->pdev = pdev;
 	spin_lock_init(&hw->phy_lock);
-	spin_lock_init(&hw->hw_lock);
 	tasklet_init(&hw->ext_tasklet, skge_extirq, (unsigned long) hw);
 
 	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
