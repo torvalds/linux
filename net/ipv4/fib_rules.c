@@ -100,7 +100,7 @@ static struct fib_rule local_rule = {
 	.r_action =	RTN_UNICAST,
 };
 
-struct hlist_head fib_rules;
+static struct hlist_head fib_rules;
 
 /* writer func called from netlink -- rtnl_sem hold*/
 
