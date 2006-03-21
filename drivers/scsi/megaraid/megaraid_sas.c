@@ -915,7 +915,7 @@ static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
 	int ret;
 
 	/*
-	 * Frist wait for all commands to complete
+	 * First wait for all commands to complete
 	 */
 	ret = megasas_generic_reset(scmd);
 
