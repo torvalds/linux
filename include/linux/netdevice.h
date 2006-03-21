@@ -712,8 +712,10 @@ static inline void dev_put(struct net_device *dev)
 	atomic_dec(&dev->refcnt);
 }
 
-#define __dev_put(dev) atomic_dec(&(dev)->refcnt)
-#define dev_hold(dev) atomic_inc(&(dev)->refcnt)
+static inline void dev_hold(struct net_device *dev)
+{
+	atomic_inc(&dev->refcnt);
+}
 
 /* Carrier loss detection, dial on demand. The functions netif_carrier_on
  * and _off may be called from IRQ context, but it is caller

@@ -1382,7 +1382,7 @@ static struct in_device * ip_mc_find_dev(struct ip_mreqn *imr)
 		dev = ip_dev_find(imr->imr_address.s_addr);
 		if (!dev)
 			return NULL;
-		__dev_put(dev);
+		dev_put(dev);
 	}
 
 	if (!dev && !ip_route_output_key(&rt, &fl)) {
