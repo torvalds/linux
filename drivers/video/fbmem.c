@@ -1169,11 +1169,6 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	vma->vm_pgoff = off >> PAGE_SHIFT;
 	/* This is an IO map - tell maydump to skip this VMA */
 	vma->vm_flags |= VM_IO | VM_RESERVED;
-#if defined(__sparc_v9__)
-	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-				vma->vm_end - vma->vm_start, vma->vm_page_prot))
-		return -EAGAIN;
-#else
 #if defined(__mc68000__)
 #if defined(CONFIG_SUN3)
 	pgprot_val(vma->vm_page_prot) |= SUN3_PAGE_NOCACHE;
@@ -1195,7 +1190,7 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 #elif defined(__i386__) || defined(__x86_64__)
 	if (boot_cpu_data.x86 > 3)
 		pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
-#elif defined(__mips__)
+#elif defined(__mips__) || defined(__sparc_v9__)
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 #elif defined(__hppa__)
 	pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
@@ -1212,7 +1207,6 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
 		return -EAGAIN;
-#endif /* !__sparc_v9__ */
 	return 0;
 #endif /* !sparc32 */
 }
