@@ -72,6 +72,7 @@
 #define RT6_TRACE(x...) do { ; } while (0)
 #endif
 
+#define CLONE_OFFLINK_ROUTE 0
 
 static int ip6_rt_max_size = 4096;
 static int ip6_rt_gc_min_interval = HZ / 2;
@@ -465,9 +466,10 @@ if (rt == &ip6_null_entry && strict) { \
 void ip6_route_input(struct sk_buff *skb)
 {
 	struct fib6_node *fn;
-	struct rt6_info *rt;
+	struct rt6_info *rt, *nrt;
 	int strict;
 	int attempts = 3;
+	int err;
 
 	strict = ipv6_addr_type(&skb->nh.ipv6h->daddr) & (IPV6_ADDR_MULTICAST|IPV6_ADDR_LINKLOCAL);
 
@@ -492,51 +494,53 @@ restart:
 	dst_hold(&rt->u.dst);
 	read_unlock_bh(&rt6_lock);
 
-	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {
-		struct rt6_info *nrt;
-		int err;
-
-		nrt = rt6_alloc_cow(rt, &skb->nh.ipv6h->daddr,
-				    &skb->nh.ipv6h->saddr);
-
-		dst_release(&rt->u.dst);
-		rt = nrt ? : &ip6_null_entry;
-
-		dst_hold(&rt->u.dst);
-		if (nrt) {
-			err = ip6_ins_rt(nrt, NULL, NULL,
-					 &NETLINK_CB(skb));
-			if (!err)
-				goto out2;
-		}
-
-		if (--attempts <= 0)
-			goto out2;
-
-		/* Race condition! In the gap, when rt6_lock was
-		   released someone could insert this route.  Relookup.
-		*/
-		dst_release(&rt->u.dst);
-		goto relookup;
+	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP))
+		nrt = rt6_alloc_cow(rt, &skb->nh.ipv6h->daddr, &skb->nh.ipv6h->saddr);
+	else {
+#if CLONE_OFFLINK_ROUTE
+		nrt = rt6_alloc_clone(rt, &skb->nh.ipv6h->daddr);
+#else
+		goto out2;
+#endif
 	}
 
+	dst_release(&rt->u.dst);
+	rt = nrt ? : &ip6_null_entry;
+
+	dst_hold(&rt->u.dst);
+	if (nrt) {
+		err = ip6_ins_rt(nrt, NULL, NULL, &NETLINK_CB(skb));
+		if (!err)
+			goto out2;
+	}
+
+	if (--attempts <= 0)
+		goto out2;
+
+	/*
+	 * Race condition! In the gap, when rt6_lock was
+	 * released someone could insert this route.  Relookup.
+	 */
+	dst_release(&rt->u.dst);
+	goto relookup;
+
+out:
+	dst_hold(&rt->u.dst);
+	read_unlock_bh(&rt6_lock);
 out2:
 	rt->u.dst.lastuse = jiffies;
 	rt->u.dst.__use++;
 	skb->dst = (struct dst_entry *) rt;
 	return;
-out:
-	dst_hold(&rt->u.dst);
-	read_unlock_bh(&rt6_lock);
-	goto out2;
 }
 
 struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
 {
 	struct fib6_node *fn;
-	struct rt6_info *rt;
+	struct rt6_info *rt, *nrt;
 	int strict;
 	int attempts = 3;
+	int err;
 
 	strict = ipv6_addr_type(&fl->fl6_dst) & (IPV6_ADDR_MULTICAST|IPV6_ADDR_LINKLOCAL);
 
@@ -564,40 +568,43 @@ restart:
 	dst_hold(&rt->u.dst);
 	read_unlock_bh(&rt6_lock);
 
-	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {
-		struct rt6_info *nrt;
-		int err;
-
+	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP))
 		nrt = rt6_alloc_cow(rt, &fl->fl6_dst, &fl->fl6_src);
-
-		dst_release(&rt->u.dst);
-		rt = nrt ? : &ip6_null_entry;
-
-		dst_hold(&rt->u.dst);
-		if (nrt) {
-			err = ip6_ins_rt(nrt, NULL, NULL, NULL);
-			if (!err)
-				goto out2;
-		}
-
-		if (--attempts <= 0)
-			goto out2;
-
-		/* Race condition! In the gap, when rt6_lock was
-		   released someone could insert this route.  Relookup.
-		*/
-		dst_release(&rt->u.dst);
-		goto relookup;
+	else {
+#if CLONE_OFFLINK_ROUTE
+		nrt = rt6_alloc_clone(rt, &fl->fl6_dst);
+#else
+		goto out2;
+#endif
 	}
 
+	dst_release(&rt->u.dst);
+	rt = nrt ? : &ip6_null_entry;
+
+	dst_hold(&rt->u.dst);
+	if (nrt) {
+		err = ip6_ins_rt(nrt, NULL, NULL, NULL);
+		if (!err)
+			goto out2;
+	}
+
+	if (--attempts <= 0)
+		goto out2;
+
+	/*
+	 * Race condition! In the gap, when rt6_lock was
+	 * released someone could insert this route.  Relookup.
+	 */
+	dst_release(&rt->u.dst);
+	goto relookup;
+
+out:
+	dst_hold(&rt->u.dst);
+	read_unlock_bh(&rt6_lock);
 out2:
 	rt->u.dst.lastuse = jiffies;
 	rt->u.dst.__use++;
 	return &rt->u.dst;
-out:
-	dst_hold(&rt->u.dst);
-	read_unlock_bh(&rt6_lock);
-	goto out2;
 }
 
 
