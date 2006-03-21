@@ -41,7 +41,6 @@
 #include <asm/uaccess.h> 
 #endif
 #include <asm/errno.h>
-#include <linux/version.h>
  
 #include "pwc.h"
 #include "pwc-ioctl.h"

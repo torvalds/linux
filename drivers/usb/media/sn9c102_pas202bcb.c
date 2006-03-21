@@ -263,7 +263,7 @@ static struct sn9c102_sensor pas202bcb = {
 
 
 int sn9c102_probe_pas202bcb(struct sn9c102_device* cam)
-{       
+{
 	int r0 = 0, r1 = 0, err = 0;
 	unsigned int pid = 0;
 

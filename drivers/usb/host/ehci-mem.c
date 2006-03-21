@@ -75,7 +75,6 @@ static void qh_destroy (struct kref *kref)
 	}
 	if (qh->dummy)
 		ehci_qtd_free (ehci, qh->dummy);
-	usb_put_dev (qh->dev);
 	dma_pool_free (ehci->qh_pool, qh, qh->qh_dma);
 }
 
@@ -221,13 +220,9 @@ static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 		ehci->periodic [i] = EHCI_LIST_END;
 
 	/* software shadow of hardware table */
-	ehci->pshadow = kmalloc (ehci->periodic_size * sizeof (void *), flags);
-	if (ehci->pshadow == NULL) {
-		goto fail;
-	}
-	memset (ehci->pshadow, 0, ehci->periodic_size * sizeof (void *));
-
-	return 0;
+	ehci->pshadow = kcalloc(ehci->periodic_size, sizeof(void *), flags);
+	if (ehci->pshadow != NULL)
+		return 0;
 
 fail:
 	ehci_dbg (ehci, "couldn't init memory\n");

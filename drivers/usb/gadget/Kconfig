@@ -187,6 +187,23 @@ config USB_OTG
 
 	   Select this only if your OMAP board has a Mini-AB connector.
 
+config USB_GADGET_AT91
+	boolean "AT91 USB Device Port"
+	depends on ARCH_AT91RM9200
+	select USB_GADGET_SELECTED
+	help
+	   Many Atmel AT91 processors (such as the AT91RM2000) have a
+	   full speed USB Device Port with support for five configurable
+	   endpoints (plus endpoint zero).
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "at91_udc" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_AT91
+	tristate
+	depends on USB_GADGET_AT91
+	default USB_GADGET
 
 config USB_GADGET_DUMMY_HCD
 	boolean "Dummy HCD (DEVELOPMENT)"

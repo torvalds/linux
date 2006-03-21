@@ -126,12 +126,16 @@ static struct et61x251_sensor tas5130d1b = {
 
 int et61x251_probe_tas5130d1b(struct et61x251_device* cam)
 {
-	/* This sensor has no identifiers, so let's attach it anyway */
-	et61x251_attach_sensor(cam, &tas5130d1b);
+	const struct usb_device_id tas5130d1b_id_table[] = {
+		{ USB_DEVICE(0x102c, 0x6251), },
+		{ }
+	};
 
 	/* Sensor detection is based on USB pid/vid */
-	if (le16_to_cpu(tas5130d1b.usbdev->descriptor.idProduct) != 0x6251)
+	if (!et61x251_match_id(cam, tas5130d1b_id_table))
 		return -ENODEV;
+
+	et61x251_attach_sensor(cam, &tas5130d1b);
 
 	return 0;
 }

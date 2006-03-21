@@ -1114,11 +1114,10 @@ static struct usb_request *lh7a40x_alloc_request(struct usb_ep *ep,
 
 	DEBUG("%s, %p\n", __FUNCTION__, ep);
 
-	req = kmalloc(sizeof *req, gfp_flags);
+	req = kzalloc(sizeof(*req), gfp_flags);
 	if (!req)
 		return 0;
 
-	memset(req, 0, sizeof *req);
 	INIT_LIST_HEAD(&req->queue);
 
 	return &req->req;
