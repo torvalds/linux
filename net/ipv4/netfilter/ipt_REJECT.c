@@ -154,10 +154,6 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	/* This packet will not be the same as the other: clear nf fields */
 	nf_reset(nskb);
 	nskb->nfmark = 0;
-#ifdef CONFIG_BRIDGE_NETFILTER
-	nf_bridge_put(nskb->nf_bridge);
-	nskb->nf_bridge = NULL;
-#endif
 
 	tcph = (struct tcphdr *)((u_int32_t*)nskb->nh.iph + nskb->nh.iph->ihl);
 
