@@ -31,7 +31,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: mad.c 2817 2005-07-07 11:29:26Z halr $
+ * $Id: mad.c 5596 2006-03-03 01:00:07Z sean.hefty $
  */
 #include <linux/dma-mapping.h>
 
@@ -679,8 +679,8 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		goto out;
 	}
 	/* Check to post send on QP or process locally */
-	ret = smi_check_local_dr_smp(smp, device, port_num);
-	if (!ret || !device->process_mad)
+	ret = smi_check_local_smp(smp, device);
+	if (!ret)
 		goto out;
 
 	local = kmalloc(sizeof *local, GFP_ATOMIC);
@@ -765,18 +765,67 @@ out:
 	return ret;
 }
 
-static int get_buf_length(int hdr_len, int data_len)
+static int get_pad_size(int hdr_len, int data_len)
 {
 	int seg_size, pad;
 
 	seg_size = sizeof(struct ib_mad) - hdr_len;
 	if (data_len && seg_size) {
 		pad = seg_size - data_len % seg_size;
-		if (pad == seg_size)
-			pad = 0;
+		return pad == seg_size ? 0 : pad;
 	} else
-		pad = seg_size;
-	return hdr_len + data_len + pad;
+		return seg_size;
+}
+
+static void free_send_rmpp_list(struct ib_mad_send_wr_private *mad_send_wr)
+{
+	struct ib_rmpp_segment *s, *t;
+
+	list_for_each_entry_safe(s, t, &mad_send_wr->rmpp_list, list) {
+		list_del(&s->list);
+		kfree(s);
+	}
+}
+
+static int alloc_send_rmpp_list(struct ib_mad_send_wr_private *send_wr,
+				gfp_t gfp_mask)
+{
+	struct ib_mad_send_buf *send_buf = &send_wr->send_buf;
+	struct ib_rmpp_mad *rmpp_mad = send_buf->mad;
+	struct ib_rmpp_segment *seg = NULL;
+	int left, seg_size, pad;
+
+	send_buf->seg_size = sizeof (struct ib_mad) - send_buf->hdr_len;
+	seg_size = send_buf->seg_size;
+	pad = send_wr->pad;
+
+	/* Allocate data segments. */
+	for (left = send_buf->data_len + pad; left > 0; left -= seg_size) {
+		seg = kmalloc(sizeof (*seg) + seg_size, gfp_mask);
+		if (!seg) {
+			printk(KERN_ERR "alloc_send_rmpp_segs: RMPP mem "
+			       "alloc failed for len %zd, gfp %#x\n",
+			       sizeof (*seg) + seg_size, gfp_mask);
+			free_send_rmpp_list(send_wr);
+			return -ENOMEM;
+		}
+		seg->num = ++send_buf->seg_count;
+		list_add_tail(&seg->list, &send_wr->rmpp_list);
+	}
+
+	/* Zero any padding */
+	if (pad)
+		memset(seg->data + seg_size - pad, 0, pad);
+
+	rmpp_mad->rmpp_hdr.rmpp_version = send_wr->mad_agent_priv->
+					  agent.rmpp_version;
+	rmpp_mad->rmpp_hdr.rmpp_type = IB_MGMT_RMPP_TYPE_DATA;
+	ib_set_rmpp_flags(&rmpp_mad->rmpp_hdr, IB_MGMT_RMPP_FLAG_ACTIVE);
+
+	send_wr->cur_seg = container_of(send_wr->rmpp_list.next,
+					struct ib_rmpp_segment, list);
+	send_wr->last_ack_seg = send_wr->cur_seg;
+	return 0;
 }
 
 struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
@@ -787,32 +836,40 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 {
 	struct ib_mad_agent_private *mad_agent_priv;
 	struct ib_mad_send_wr_private *mad_send_wr;
-	int buf_size;
+	int pad, message_size, ret, size;
 	void *buf;
 
 	mad_agent_priv = container_of(mad_agent, struct ib_mad_agent_private,
 				      agent);
-	buf_size = get_buf_length(hdr_len, data_len);
+	pad = get_pad_size(hdr_len, data_len);
+	message_size = hdr_len + data_len + pad;
 
 	if ((!mad_agent->rmpp_version &&
-	     (rmpp_active || buf_size > sizeof(struct ib_mad))) ||
-	    (!rmpp_active && buf_size > sizeof(struct ib_mad)))
+	     (rmpp_active || message_size > sizeof(struct ib_mad))) ||
+	    (!rmpp_active && message_size > sizeof(struct ib_mad)))
 		return ERR_PTR(-EINVAL);
 
-	buf = kzalloc(sizeof *mad_send_wr + buf_size, gfp_mask);
+	size = rmpp_active ? hdr_len : sizeof(struct ib_mad);
+	buf = kzalloc(sizeof *mad_send_wr + size, gfp_mask);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
-	mad_send_wr = buf + buf_size;
+	mad_send_wr = buf + size;
+	INIT_LIST_HEAD(&mad_send_wr->rmpp_list);
 	mad_send_wr->send_buf.mad = buf;
+	mad_send_wr->send_buf.hdr_len = hdr_len;
+	mad_send_wr->send_buf.data_len = data_len;
+	mad_send_wr->pad = pad;
 
 	mad_send_wr->mad_agent_priv = mad_agent_priv;
-	mad_send_wr->sg_list[0].length = buf_size;
+	mad_send_wr->sg_list[0].length = hdr_len;
 	mad_send_wr->sg_list[0].lkey = mad_agent->mr->lkey;
+	mad_send_wr->sg_list[1].length = sizeof(struct ib_mad) - hdr_len;
+	mad_send_wr->sg_list[1].lkey = mad_agent->mr->lkey;
 
 	mad_send_wr->send_wr.wr_id = (unsigned long) mad_send_wr;
 	mad_send_wr->send_wr.sg_list = mad_send_wr->sg_list;
-	mad_send_wr->send_wr.num_sge = 1;
+	mad_send_wr->send_wr.num_sge = 2;
 	mad_send_wr->send_wr.opcode = IB_WR_SEND;
 	mad_send_wr->send_wr.send_flags = IB_SEND_SIGNALED;
 	mad_send_wr->send_wr.wr.ud.remote_qpn = remote_qpn;
@@ -820,13 +877,11 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 	mad_send_wr->send_wr.wr.ud.pkey_index = pkey_index;
 
 	if (rmpp_active) {
-		struct ib_rmpp_mad *rmpp_mad = mad_send_wr->send_buf.mad;
-		rmpp_mad->rmpp_hdr.paylen_newwin = cpu_to_be32(hdr_len -
-						   IB_MGMT_RMPP_HDR + data_len);
-		rmpp_mad->rmpp_hdr.rmpp_version = mad_agent->rmpp_version;
-		rmpp_mad->rmpp_hdr.rmpp_type = IB_MGMT_RMPP_TYPE_DATA;
-		ib_set_rmpp_flags(&rmpp_mad->rmpp_hdr,
-				  IB_MGMT_RMPP_FLAG_ACTIVE);
+		ret = alloc_send_rmpp_list(mad_send_wr, gfp_mask);
+		if (ret) {
+			kfree(buf);
+			return ERR_PTR(ret);
+		}
 	}
 
 	mad_send_wr->send_buf.mad_agent = mad_agent;
@@ -835,14 +890,50 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 }
 EXPORT_SYMBOL(ib_create_send_mad);
 
+void *ib_get_rmpp_segment(struct ib_mad_send_buf *send_buf, int seg_num)
+{
+	struct ib_mad_send_wr_private *mad_send_wr;
+	struct list_head *list;
+
+	mad_send_wr = container_of(send_buf, struct ib_mad_send_wr_private,
+				   send_buf);
+	list = &mad_send_wr->cur_seg->list;
+
+	if (mad_send_wr->cur_seg->num < seg_num) {
+		list_for_each_entry(mad_send_wr->cur_seg, list, list)
+			if (mad_send_wr->cur_seg->num == seg_num)
+				break;
+	} else if (mad_send_wr->cur_seg->num > seg_num) {
+		list_for_each_entry_reverse(mad_send_wr->cur_seg, list, list)
+			if (mad_send_wr->cur_seg->num == seg_num)
+				break;
+	}
+	return mad_send_wr->cur_seg->data;
+}
+EXPORT_SYMBOL(ib_get_rmpp_segment);
+
+static inline void *ib_get_payload(struct ib_mad_send_wr_private *mad_send_wr)
+{
+	if (mad_send_wr->send_buf.seg_count)
+		return ib_get_rmpp_segment(&mad_send_wr->send_buf,
+					   mad_send_wr->seg_num);
+	else
+		return mad_send_wr->send_buf.mad +
+		       mad_send_wr->send_buf.hdr_len;
+}
+
 void ib_free_send_mad(struct ib_mad_send_buf *send_buf)
 {
 	struct ib_mad_agent_private *mad_agent_priv;
+	struct ib_mad_send_wr_private *mad_send_wr;
 
 	mad_agent_priv = container_of(send_buf->mad_agent,
 				      struct ib_mad_agent_private, agent);
-	kfree(send_buf->mad);
+	mad_send_wr = container_of(send_buf, struct ib_mad_send_wr_private,
+				   send_buf);
 
+	free_send_rmpp_list(mad_send_wr);
+	kfree(send_buf->mad);
 	if (atomic_dec_and_test(&mad_agent_priv->refcount))
 		wake_up(&mad_agent_priv->wait);
 }
@@ -865,10 +956,17 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 
 	mad_agent = mad_send_wr->send_buf.mad_agent;
 	sge = mad_send_wr->sg_list;
-	sge->addr = dma_map_single(mad_agent->device->dma_device,
-				   mad_send_wr->send_buf.mad, sge->length,
-				   DMA_TO_DEVICE);
-	pci_unmap_addr_set(mad_send_wr, mapping, sge->addr);
+	sge[0].addr = dma_map_single(mad_agent->device->dma_device,
+				     mad_send_wr->send_buf.mad,
+				     sge[0].length,
+				     DMA_TO_DEVICE);
+	pci_unmap_addr_set(mad_send_wr, header_mapping, sge[0].addr);
+
+	sge[1].addr = dma_map_single(mad_agent->device->dma_device,
+				     ib_get_payload(mad_send_wr),
+				     sge[1].length,
+				     DMA_TO_DEVICE);
+	pci_unmap_addr_set(mad_send_wr, payload_mapping, sge[1].addr);
 
 	spin_lock_irqsave(&qp_info->send_queue.lock, flags);
 	if (qp_info->send_queue.count < qp_info->send_queue.max_active) {
@@ -885,11 +983,14 @@ int ib_send_mad(struct ib_mad_send_wr_private *mad_send_wr)
 		list_add_tail(&mad_send_wr->mad_list.list, list);
 	}
 	spin_unlock_irqrestore(&qp_info->send_queue.lock, flags);
-	if (ret)
+	if (ret) {
 		dma_unmap_single(mad_agent->device->dma_device,
-				 pci_unmap_addr(mad_send_wr, mapping),
-				 sge->length, DMA_TO_DEVICE);
-
+				 pci_unmap_addr(mad_send_wr, header_mapping),
+				 sge[0].length, DMA_TO_DEVICE);
+		dma_unmap_single(mad_agent->device->dma_device,
+				 pci_unmap_addr(mad_send_wr, payload_mapping),
+				 sge[1].length, DMA_TO_DEVICE);
+	}
 	return ret;
 }
 
@@ -1661,9 +1762,7 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 					    port_priv->device->node_type,
 					    port_priv->port_num))
 			goto out;
-		if (!smi_check_local_dr_smp(&recv->mad.smp,
-					    port_priv->device,
-					    port_priv->port_num))
+		if (!smi_check_local_smp(&recv->mad.smp, port_priv->device))
 			goto out;
 	}
 
@@ -1862,8 +1961,11 @@ static void ib_mad_send_done_handler(struct ib_mad_port_private *port_priv,
 
 retry:
 	dma_unmap_single(mad_send_wr->send_buf.mad_agent->device->dma_device,
-			 pci_unmap_addr(mad_send_wr, mapping),
+			 pci_unmap_addr(mad_send_wr, header_mapping),
 			 mad_send_wr->sg_list[0].length, DMA_TO_DEVICE);
+	dma_unmap_single(mad_send_wr->send_buf.mad_agent->device->dma_device,
+			 pci_unmap_addr(mad_send_wr, payload_mapping),
+			 mad_send_wr->sg_list[1].length, DMA_TO_DEVICE);
 	queued_send_wr = NULL;
 	spin_lock_irqsave(&send_queue->lock, flags);
 	list_del(&mad_list->list);
@@ -2262,8 +2364,12 @@ static void timeout_sends(void *data)
 static void ib_mad_thread_completion_handler(struct ib_cq *cq, void *arg)
 {
 	struct ib_mad_port_private *port_priv = cq->cq_context;
+	unsigned long flags;
 
-	queue_work(port_priv->wq, &port_priv->work);
+	spin_lock_irqsave(&ib_mad_port_list_lock, flags);
+	if (!list_empty(&port_priv->port_list))
+		queue_work(port_priv->wq, &port_priv->work);
+	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
 }
 
 /*
@@ -2575,18 +2681,23 @@ static int ib_mad_port_open(struct ib_device *device,
 	}
 	INIT_WORK(&port_priv->work, ib_mad_completion_handler, port_priv);
 
+	spin_lock_irqsave(&ib_mad_port_list_lock, flags);
+	list_add_tail(&port_priv->port_list, &ib_mad_port_list);
+	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
+
 	ret = ib_mad_port_start(port_priv);
 	if (ret) {
 		printk(KERN_ERR PFX "Couldn't start port\n");
 		goto error9;
 	}
 
-	spin_lock_irqsave(&ib_mad_port_list_lock, flags);
-	list_add_tail(&port_priv->port_list, &ib_mad_port_list);
-	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
 	return 0;
 
 error9:
+	spin_lock_irqsave(&ib_mad_port_list_lock, flags);
+	list_del_init(&port_priv->port_list);
+	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
+
 	destroy_workqueue(port_priv->wq);
 error8:
 	destroy_mad_qp(&port_priv->qp_info[1]);
@@ -2623,11 +2734,9 @@ static int ib_mad_port_close(struct ib_device *device, int port_num)
 		printk(KERN_ERR PFX "Port %d not found\n", port_num);
 		return -ENODEV;
 	}
-	list_del(&port_priv->port_list);
+	list_del_init(&port_priv->port_list);
 	spin_unlock_irqrestore(&ib_mad_port_list_lock, flags);
 
-	/* Stop processing completions. */
-	flush_workqueue(port_priv->wq);
 	destroy_workqueue(port_priv->wq);
 	destroy_mad_qp(&port_priv->qp_info[1]);
 	destroy_mad_qp(&port_priv->qp_info[0]);

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 PathScale, Inc. All rights reserved.
@@ -178,10 +178,12 @@ IB_UVERBS_DECLARE_CMD(reg_mr);
 IB_UVERBS_DECLARE_CMD(dereg_mr);
 IB_UVERBS_DECLARE_CMD(create_comp_channel);
 IB_UVERBS_DECLARE_CMD(create_cq);
+IB_UVERBS_DECLARE_CMD(resize_cq);
 IB_UVERBS_DECLARE_CMD(poll_cq);
 IB_UVERBS_DECLARE_CMD(req_notify_cq);
 IB_UVERBS_DECLARE_CMD(destroy_cq);
 IB_UVERBS_DECLARE_CMD(create_qp);
+IB_UVERBS_DECLARE_CMD(query_qp);
 IB_UVERBS_DECLARE_CMD(modify_qp);
 IB_UVERBS_DECLARE_CMD(destroy_qp);
 IB_UVERBS_DECLARE_CMD(post_send);
@@ -193,6 +195,7 @@ IB_UVERBS_DECLARE_CMD(attach_mcast);
 IB_UVERBS_DECLARE_CMD(detach_mcast);
 IB_UVERBS_DECLARE_CMD(create_srq);
 IB_UVERBS_DECLARE_CMD(modify_srq);
+IB_UVERBS_DECLARE_CMD(query_srq);
 IB_UVERBS_DECLARE_CMD(destroy_srq);
 
 #endif /* UVERBS_H */
