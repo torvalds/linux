@@ -90,9 +90,9 @@ static int qos_mtt_bits = 0x07;  /* 1 ms or more */
 static int dongle_id;
 
 /* Use BIOS settions by default, but user may supply module parameters */
-static unsigned int io[]  = { ~0, ~0, ~0, ~0 };
-static unsigned int irq[] = {  0,  0,  0,  0 };
-static unsigned int dma[] = {  0,  0,  0,  0 };
+static unsigned int io[]  = { ~0, ~0, ~0, ~0, ~0 };
+static unsigned int irq[] = {  0,  0,  0,  0,  0 };
+static unsigned int dma[] = {  0,  0,  0,  0,  0 };
 
 static int nsc_ircc_probe_108(nsc_chip_t *chip, chipio_t *info);
 static int nsc_ircc_probe_338(nsc_chip_t *chip, chipio_t *info);
@@ -115,10 +115,12 @@ static nsc_chip_t chips[] = {
 	/* Contributed by Jan Frey - IBM A30/A31 */
 	{ "PC8739x", { 0x2e, 0x4e, 0x0 }, 0x20, 0xea, 0xff, 
 	  nsc_ircc_probe_39x, nsc_ircc_init_39x },
+	{ "IBM", { 0x2e, 0x4e, 0x0 }, 0x20, 0xf4, 0xff,
+ 	  nsc_ircc_probe_39x, nsc_ircc_init_39x },
 	{ NULL }
 };
 
-static struct nsc_ircc_cb *dev_self[] = { NULL, NULL, NULL, NULL };
+static struct nsc_ircc_cb *dev_self[] = { NULL, NULL, NULL, NULL, NULL };
 
 static char *dongle_types[] = {
 	"Differential serial interface",
