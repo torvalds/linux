@@ -46,7 +46,7 @@
  * Reason for maths here is to avoid 32 bit overflow when a is big.
  * With this we get close to the limit.
  */
-static inline u32 usecs_div(const u32 a, const u32 b)
+static u32 usecs_div(const u32 a, const u32 b)
 {
 	const u32 div = a < (UINT_MAX / (USEC_PER_SEC /    10)) ?    10 :
 			a < (UINT_MAX / (USEC_PER_SEC /    50)) ?    50 :
@@ -98,8 +98,8 @@ static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 }
 #endif
 
-static inline void ccid3_hc_tx_set_state(struct sock *sk,
-					 enum ccid3_hc_tx_states state)
+static void ccid3_hc_tx_set_state(struct sock *sk,
+				  enum ccid3_hc_tx_states state)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	enum ccid3_hc_tx_states oldstate = hctx->ccid3hctx_state;
@@ -708,8 +708,8 @@ static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 }
 #endif
 
-static inline void ccid3_hc_rx_set_state(struct sock *sk,
-					 enum ccid3_hc_rx_states state)
+static void ccid3_hc_rx_set_state(struct sock *sk,
+				  enum ccid3_hc_rx_states state)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	enum ccid3_hc_rx_states oldstate = hcrx->ccid3hcrx_state;

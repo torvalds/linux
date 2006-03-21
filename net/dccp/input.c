@@ -56,7 +56,7 @@ static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 	dccp_send_close(sk, 0);
 }
 
-static inline void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
+static void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
@@ -151,9 +151,8 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static inline int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
-					 const struct dccp_hdr *dh,
-					 const unsigned len)
+static int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
+				  const struct dccp_hdr *dh, const unsigned len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
