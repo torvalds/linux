@@ -3080,9 +3080,9 @@ static int pfkey_sendmsg(struct kiocb *kiocb,
 	if (!hdr)
 		goto out;
 
-	down(&xfrm_cfg_sem);
+	mutex_lock(&xfrm_cfg_mutex);
 	err = pfkey_process(sk, skb, hdr);
-	up(&xfrm_cfg_sem);
+	mutex_unlock(&xfrm_cfg_mutex);
 
 out:
 	if (err && hdr && pfkey_error(hdr, err, sk) == 0)

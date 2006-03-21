@@ -26,8 +26,8 @@
 #include <net/xfrm.h>
 #include <net/ip.h>
 
-DECLARE_MUTEX(xfrm_cfg_sem);
-EXPORT_SYMBOL(xfrm_cfg_sem);
+DEFINE_MUTEX(xfrm_cfg_mutex);
+EXPORT_SYMBOL(xfrm_cfg_mutex);
 
 static DEFINE_RWLOCK(xfrm_policy_lock);
 

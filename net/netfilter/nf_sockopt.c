@@ -4,6 +4,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
+#include <linux/mutex.h>
 #include <net/sock.h>
 
 #include "nf_internals.h"
@@ -11,7 +12,7 @@
 /* Sockopts only registered and called from user context, so
    net locking would be overkill.  Also, [gs]etsockopt calls may
    sleep. */
-static DECLARE_MUTEX(nf_sockopt_mutex);
+static DEFINE_MUTEX(nf_sockopt_mutex);
 static LIST_HEAD(nf_sockopts);
 
 /* Do exclusive ranges overlap? */
@@ -26,7 +27,7 @@ int nf_register_sockopt(struct nf_sockopt_ops *reg)
 	struct list_head *i;
 	int ret = 0;
 
-	if (down_interruptible(&nf_sockopt_mutex) != 0)
+	if (mutex_lock_interruptible(&nf_sockopt_mutex) != 0)
 		return -EINTR;
 
 	list_for_each(i, &nf_sockopts) {
@@ -48,7 +49,7 @@ int nf_register_sockopt(struct nf_sockopt_ops *reg)
 
 	list_add(&reg->list, &nf_sockopts);
 out:
-	up(&nf_sockopt_mutex);
+	mutex_unlock(&nf_sockopt_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(nf_register_sockopt);
@@ -57,18 +58,18 @@ void nf_unregister_sockopt(struct nf_sockopt_ops *reg)
 {
 	/* No point being interruptible: we're probably in cleanup_module() */
  restart:
-	down(&nf_sockopt_mutex);
+	mutex_lock(&nf_sockopt_mutex);
 	if (reg->use != 0) {
 		/* To be woken by nf_sockopt call... */
 		/* FIXME: Stuart Young's name appears gratuitously. */
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		reg->cleanup_task = current;
-		up(&nf_sockopt_mutex);
+		mutex_unlock(&nf_sockopt_mutex);
 		schedule();
 		goto restart;
 	}
 	list_del(&reg->list);
-	up(&nf_sockopt_mutex);
+	mutex_unlock(&nf_sockopt_mutex);
 }
 EXPORT_SYMBOL(nf_unregister_sockopt);
 
@@ -80,7 +81,7 @@ static int nf_sockopt(struct sock *sk, int pf, int val,
 	struct nf_sockopt_ops *ops;
 	int ret;
 
-	if (down_interruptible(&nf_sockopt_mutex) != 0)
+	if (mutex_lock_interruptible(&nf_sockopt_mutex) != 0)
 		return -EINTR;
 
 	list_for_each(i, &nf_sockopts) {
@@ -90,7 +91,7 @@ static int nf_sockopt(struct sock *sk, int pf, int val,
 				if (val >= ops->get_optmin
 				    && val < ops->get_optmax) {
 					ops->use++;
-					up(&nf_sockopt_mutex);
+					mutex_unlock(&nf_sockopt_mutex);
 					ret = ops->get(sk, val, opt, len);
 					goto out;
 				}
@@ -98,22 +99,22 @@ static int nf_sockopt(struct sock *sk, int pf, int val,
 				if (val >= ops->set_optmin
 				    && val < ops->set_optmax) {
 					ops->use++;
-					up(&nf_sockopt_mutex);
+					mutex_unlock(&nf_sockopt_mutex);
 					ret = ops->set(sk, val, opt, *len);
 					goto out;
 				}
 			}
 		}
 	}
-	up(&nf_sockopt_mutex);
+	mutex_unlock(&nf_sockopt_mutex);
 	return -ENOPROTOOPT;
 	
  out:
-	down(&nf_sockopt_mutex);
+	mutex_lock(&nf_sockopt_mutex);
 	ops->use--;
 	if (ops->cleanup_task)
 		wake_up_process(ops->cleanup_task);
-	up(&nf_sockopt_mutex);
+	mutex_unlock(&nf_sockopt_mutex);
 	return ret;
 }
 

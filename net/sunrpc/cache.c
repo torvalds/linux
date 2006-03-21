@@ -26,6 +26,7 @@
 #include <linux/proc_fs.h>
 #include <linux/net.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 #include <asm/ioctls.h>
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/cache.h>
@@ -532,7 +533,7 @@ void cache_clean_deferred(void *owner)
  */
 
 static DEFINE_SPINLOCK(queue_lock);
-static DECLARE_MUTEX(queue_io_sem);
+static DEFINE_MUTEX(queue_io_mutex);
 
 struct cache_queue {
 	struct list_head	list;
@@ -561,7 +562,7 @@ cache_read(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 	if (count == 0)
 		return 0;
 
-	down(&queue_io_sem); /* protect against multiple concurrent
+	mutex_lock(&queue_io_mutex); /* protect against multiple concurrent
 			      * readers on this file */
  again:
 	spin_lock(&queue_lock);
@@ -574,7 +575,7 @@ cache_read(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 	}
 	if (rp->q.list.next == &cd->queue) {
 		spin_unlock(&queue_lock);
-		up(&queue_io_sem);
+		mutex_unlock(&queue_io_mutex);
 		BUG_ON(rp->offset);
 		return 0;
 	}
@@ -621,11 +622,11 @@ cache_read(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 	}
 	if (err == -EAGAIN)
 		goto again;
-	up(&queue_io_sem);
+	mutex_unlock(&queue_io_mutex);
 	return err ? err :  count;
 }
 
-static char write_buf[8192]; /* protected by queue_io_sem */
+static char write_buf[8192]; /* protected by queue_io_mutex */
 
 static ssize_t
 cache_write(struct file *filp, const char __user *buf, size_t count,
@@ -639,10 +640,10 @@ cache_write(struct file *filp, const char __user *buf, size_t count,
 	if (count >= sizeof(write_buf))
 		return -EINVAL;
 
-	down(&queue_io_sem);
+	mutex_lock(&queue_io_mutex);
 
 	if (copy_from_user(write_buf, buf, count)) {
-		up(&queue_io_sem);
+		mutex_unlock(&queue_io_mutex);
 		return -EFAULT;
 	}
 	write_buf[count] = '\0';
@@ -651,7 +652,7 @@ cache_write(struct file *filp, const char __user *buf, size_t count,
 	else
 		err = -EINVAL;
 
-	up(&queue_io_sem);
+	mutex_unlock(&queue_io_mutex);
 	return err ? err : count;
 }
 

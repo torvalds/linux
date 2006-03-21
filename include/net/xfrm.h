@@ -11,6 +11,7 @@
 #include <linux/crypto.h>
 #include <linux/pfkeyv2.h>
 #include <linux/in6.h>
+#include <linux/mutex.h>
 
 #include <net/sock.h>
 #include <net/dst.h>
@@ -24,7 +25,7 @@ extern struct sock *xfrm_nl;
 extern u32 sysctl_xfrm_aevent_etime;
 extern u32 sysctl_xfrm_aevent_rseqth;
 
-extern struct semaphore xfrm_cfg_sem;
+extern struct mutex xfrm_cfg_mutex;
 
 /* Organization of SPD aka "XFRM rules"
    ------------------------------------
