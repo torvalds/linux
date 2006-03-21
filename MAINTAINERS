@@ -1349,10 +1349,10 @@ S:	Maintained
 INTEL PRO/100 ETHERNET SUPPORT
 P:	John Ronciak
 M:	john.ronciak@intel.com
-P:	Ganesh Venkatesan
-M:	ganesh.venkatesan@intel.com
 P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
+P:	Jeff Kirsher
+M:	jeffrey.t.kirsher@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1361,18 +1361,22 @@ P:	Jeb Cramer
 M:	cramerj@intel.com
 P:	John Ronciak
 M:	john.ronciak@intel.com
-P:	Ganesh Venkatesan
-M:	ganesh.venkatesan@intel.com
+P:	Jesse Brandeburg
+M:	jesse.brandeburg@intel.com
+P:	Jeff Kirsher
+M:	jeffrey.t.kirsher@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
 INTEL PRO/10GbE SUPPORT
+P:	Jeff Kirsher
+M:	jeffrey.t.kirsher@intel.com
 P:	Ayyappan Veeraiyan
 M:	ayyappan.veeraiyan@intel.com
-P:	Ganesh Venkatesan
-M:	ganesh.venkatesan@intel.com
 P:	John Ronciak
 M:	john.ronciak@intel.com
+P:	Jesse Brandeburg
+M:	jesse.brandeburg@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
