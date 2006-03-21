@@ -27,7 +27,8 @@ static inline int
 match_xfrm_state(struct xfrm_state *x, const struct ip6t_policy_elem *e)
 {
 #define MATCH_ADDR(x,y,z)	(!e->match.x ||				       \
-				 ((!ip6_masked_addrcmp(&e->x.a6, &e->y.a6, z)) \
+				 ((!ipv6_masked_addr_cmp(&e->x.a6, &e->y.a6,   \
+							 z))                   \
 				  ^ e->invert.x))
 #define MATCH(x,y)		(!e->match.x || ((e->x == (y)) ^ e->invert.x))
 	

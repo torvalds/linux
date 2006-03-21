@@ -94,19 +94,6 @@ do {								\
 #define up(x) do { printk("UP:%u:" #x "\n", __LINE__); up(x); } while(0)
 #endif
 
-int
-ip6_masked_addrcmp(const struct in6_addr *addr1, const struct in6_addr *mask,
-                   const struct in6_addr *addr2)
-{
-	int i;
-	for( i = 0; i < 16; i++){
-		if((addr1->s6_addr[i] & mask->s6_addr[i]) != 
-		   (addr2->s6_addr[i] & mask->s6_addr[i]))
-			return 1;
-	}
-	return 0;
-}
-
 /* Check for an extension */
 int 
 ip6t_ext_hdr(u8 nexthdr)
@@ -135,10 +122,10 @@ ip6_packet_match(const struct sk_buff *skb,
 
 #define FWINV(bool,invflg) ((bool) ^ !!(ip6info->invflags & invflg))
 
-	if (FWINV(ip6_masked_addrcmp(&ipv6->saddr, &ip6info->smsk,
-	                             &ip6info->src), IP6T_INV_SRCIP)
-	    || FWINV(ip6_masked_addrcmp(&ipv6->daddr, &ip6info->dmsk,
-	                                &ip6info->dst), IP6T_INV_DSTIP)) {
+	if (FWINV(ipv6_masked_addr_cmp(&ipv6->saddr, &ip6info->smsk,
+	                               &ip6info->src), IP6T_INV_SRCIP)
+	    || FWINV(ipv6_masked_addr_cmp(&ipv6->daddr, &ip6info->dmsk,
+	                                  &ip6info->dst), IP6T_INV_DSTIP)) {
 		dprintf("Source or dest mismatch.\n");
 /*
 		dprintf("SRC: %u. Mask: %u. Target: %u.%s\n", ip->saddr,
@@ -1526,7 +1513,6 @@ EXPORT_SYMBOL(ip6t_unregister_table);
 EXPORT_SYMBOL(ip6t_do_table);
 EXPORT_SYMBOL(ip6t_ext_hdr);
 EXPORT_SYMBOL(ipv6_find_hdr);
-EXPORT_SYMBOL(ip6_masked_addrcmp);
 
 module_init(init);
 module_exit(fini);
