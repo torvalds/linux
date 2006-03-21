@@ -424,7 +424,6 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 			goto out;
 
 		if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
-			u8 *vhdr = skb->data;
 			skb_pull_rcsum(skb, VLAN_HLEN);
 			skb->nh.raw += VLAN_HLEN;
 		}
@@ -442,7 +441,6 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 		goto out;
 
 	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
-		u8 *vhdr = skb->data;
 		skb_pull_rcsum(skb, VLAN_HLEN);
 		skb->nh.raw += VLAN_HLEN;
 	}
