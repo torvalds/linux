@@ -1403,6 +1403,9 @@ static struct rt6_info *rt6_add_route_info(struct in6_addr *prefix, int prefixle
 	ipv6_addr_copy(&rtmsg.rtmsg_gateway, gwaddr);
 	rtmsg.rtmsg_metric = 1024;
 	rtmsg.rtmsg_flags = RTF_GATEWAY | RTF_ADDRCONF | RTF_ROUTEINFO | RTF_UP | RTF_PREF(pref);
+	/* We should treat it as a default route if prefix length is 0. */
+	if (!prefixlen)
+		rtmsg.rtmsg_flags |= RTF_DEFAULT;
 	rtmsg.rtmsg_ifindex = ifindex;
 
 	ip6_route_add(&rtmsg, NULL, NULL, NULL);
