@@ -1693,7 +1693,7 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (rv)
 		goto out;
 
-	if (flags & ~(MSG_PEEK|MSG_OOB|MSG_WAITALL|MSG_DONTWAIT|MSG_NOSIGNAL)) {
+	if (flags & ~(MSG_CMSG_COMPAT|MSG_PEEK|MSG_OOB|MSG_WAITALL|MSG_DONTWAIT|MSG_NOSIGNAL)) {
 		rv = -EOPNOTSUPP;
 		goto out;
 	}
