@@ -121,7 +121,7 @@ static struct publication *publ_create(u32 type, u32 lower, u32 upper,
 		(struct publication *)kmalloc(sizeof(*publ), GFP_ATOMIC);
 	if (publ == NULL) {
 		warn("Memory squeeze; failed to create publication\n");
-		return 0;
+		return NULL;
 	}
 
 	memset(publ, 0, sizeof(*publ));
@@ -168,7 +168,7 @@ struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_head)
 		warn("Memory squeeze; failed to create name sequence\n");
 		kfree(nseq);
 		kfree(sseq);
-		return 0;
+		return NULL;
 	}
 
 	memset(nseq, 0, sizeof(*nseq));
@@ -207,7 +207,7 @@ static inline struct sub_seq *nameseq_find_subseq(struct name_seq *nseq,
 		else
 			return &sseqs[mid];
 	}
-	return 0;
+	return NULL;
 }
 
 /**
@@ -263,7 +263,7 @@ struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 
 		if ((sseq->lower != lower) || (sseq->upper != upper)) {
 			warn("Overlapping publ <%u,%u,%u>\n", type, lower, upper);
-			return 0;
+			return NULL;
 		}
 	} else {
 		u32 inspos;
@@ -278,7 +278,7 @@ struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 		if ((inspos < nseq->first_free) &&
 		    (upper >= nseq->sseqs[inspos].lower)) {
 			warn("Overlapping publ <%u,%u,%u>\n", type, lower, upper);
-			return 0;
+			return NULL;
 		}
 
 		/* Ensure there is space for new sub-sequence */
@@ -294,7 +294,7 @@ struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 				nseq->alloc *= 2;
 			} else {
 				warn("Memory squeeze; failed to create sub-sequence\n");
-				return 0;
+				return NULL;
 			}
 		}
 		dbg("Have %u sseqs for type %u\n", nseq->alloc, type);
@@ -319,7 +319,7 @@ struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 
 	publ = publ_create(type, lower, upper, scope, node, port, key);
 	if (!publ)
-		return 0;
+		return NULL;
 	dbg("inserting publ %x, node=%x publ->node=%x, subscr->node=%x\n",
 	    publ, node, publ->node, publ->subscr.node);
 
@@ -394,7 +394,7 @@ struct publication *tipc_nameseq_remove_publ(struct name_seq *nseq, u32 inst,
 			    i, &nseq->sseqs[i], nseq->sseqs[i].lower,
 			    nseq->sseqs[i].upper);
 		}
-		return 0;
+		return NULL;
 	}
 	dbg("nameseq_remove: seq: %x, sseq %x, <%u,%u> key %u\n",
 	    nseq, sseq, nseq->type, inst, key);
@@ -413,7 +413,7 @@ struct publication *tipc_nameseq_remove_publ(struct name_seq *nseq, u32 inst,
 		prev->zone_list_next = publ->zone_list_next;
 		sseq->zone_list = publ->zone_list_next;
 	} else {
-		sseq->zone_list = 0;
+		sseq->zone_list = NULL;
 	}
 
 	if (in_own_cluster(node)) {
@@ -431,7 +431,7 @@ struct publication *tipc_nameseq_remove_publ(struct name_seq *nseq, u32 inst,
 			prev->cluster_list_next = publ->cluster_list_next;
 			sseq->cluster_list = publ->cluster_list_next;
 		} else {
-			sseq->cluster_list = 0;
+			sseq->cluster_list = NULL;
 		}
 	}
 
@@ -450,7 +450,7 @@ struct publication *tipc_nameseq_remove_publ(struct name_seq *nseq, u32 inst,
 			prev->node_list_next = publ->node_list_next;
 			sseq->node_list = publ->node_list_next;
 		} else {
-			sseq->node_list = 0;
+			sseq->node_list = NULL;
 		}
 	}
 	assert(!publ->node || (publ->node == node));
@@ -535,7 +535,7 @@ static struct name_seq *nametbl_find_seq(u32 type)
 		}
 	}
 
-	return 0;
+	return NULL;
 };
 
 struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
@@ -547,7 +547,7 @@ struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
 	if (lower > upper) {
 		warn("Failed to publish illegal <%u,%u,%u>\n",
 		     type, lower, upper);
-		return 0;
+		return NULL;
 	}
 
 	dbg("Publishing <%u,%u,%u> from %x\n", type, lower, upper, node);
@@ -556,7 +556,7 @@ struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
 		dbg("tipc_nametbl_insert_publ: created %x\n", seq);
 	}
 	if (!seq)
-		return 0;
+		return NULL;
 
 	assert(seq->type == type);
 	return tipc_nameseq_insert_publ(seq, type, lower, upper,
@@ -570,7 +570,7 @@ struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 	struct name_seq *seq = nametbl_find_seq(type);
 
 	if (!seq)
-		return 0;
+		return NULL;
 
 	dbg("Withdrawing <%u,%u> from %x\n", type, lower, node);
 	publ = tipc_nameseq_remove_publ(seq, lower, node, ref, key);
@@ -594,7 +594,7 @@ struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *destnode)
 {
 	struct sub_seq *sseq;
-	struct publication *publ = 0;
+	struct publication *publ = NULL;
 	struct name_seq *seq;
 	u32 ref;
 
@@ -740,12 +740,12 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	if (table.local_publ_count >= tipc_max_publications) {
 		warn("Failed publish: max %u local publication\n", 
 		     tipc_max_publications);
-		return 0;
+		return NULL;
 	}
 	if ((type < TIPC_RESERVED_TYPES) && !atomic_read(&rsv_publ_ok)) {
 		warn("Failed to publish reserved name <%u,%u,%u>\n",
 		     type, lower, upper);
-		return 0;
+		return NULL;
 	}
 
 	write_lock_bh(&tipc_nametbl_lock);

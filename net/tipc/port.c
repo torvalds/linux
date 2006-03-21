@@ -54,8 +54,8 @@
 
 #define MAX_REJECT_SIZE 1024
 
-static struct sk_buff *msg_queue_head = 0;
-static struct sk_buff *msg_queue_tail = 0;
+static struct sk_buff *msg_queue_head = NULL;
+static struct sk_buff *msg_queue_tail = NULL;
 
 spinlock_t tipc_port_list_lock = SPIN_LOCK_UNLOCKED;
 static spinlock_t queue_lock = SPIN_LOCK_UNLOCKED;
@@ -258,11 +258,11 @@ u32 tipc_createport_raw(void *usr_handle,
 	p_ptr->publ.usr_handle = usr_handle;
 	INIT_LIST_HEAD(&p_ptr->wait_list);
 	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
-	p_ptr->congested_link = 0;
+	p_ptr->congested_link = NULL;
 	p_ptr->max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->dispatcher = dispatcher;
 	p_ptr->wakeup = wakeup;
-	p_ptr->user_port = 0;
+	p_ptr->user_port = NULL;
 	k_init_timer(&p_ptr->timer, (Handler)port_timeout, ref);
 	spin_lock_bh(&tipc_port_list_lock);
 	INIT_LIST_HEAD(&p_ptr->publications);
@@ -276,9 +276,9 @@ u32 tipc_createport_raw(void *usr_handle,
 int tipc_deleteport(u32 ref)
 {
 	struct port *p_ptr;
-	struct sk_buff *buf = 0;
+	struct sk_buff *buf = NULL;
 
-	tipc_withdraw(ref, 0, 0);
+	tipc_withdraw(ref, 0, NULL);
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr) 
 		return -EINVAL;
@@ -329,7 +329,7 @@ void *tipc_get_handle(const u32 ref)
 
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
-		return 0;
+		return NULL;
 	handle = p_ptr->publ.usr_handle;
 	tipc_port_unlock(p_ptr);
 	return handle;
@@ -475,7 +475,7 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 
 	/* send self-abort message when rejecting on a connected port */
 	if (msg_connected(msg)) {
-		struct sk_buff *abuf = 0;
+		struct sk_buff *abuf = NULL;
 		struct port *p_ptr = tipc_port_lock(msg_destport(msg));
 
 		if (p_ptr) {
@@ -510,7 +510,7 @@ int tipc_port_reject_sections(struct port *p_ptr, struct tipc_msg *hdr,
 static void port_timeout(unsigned long ref)
 {
 	struct port *p_ptr = tipc_port_lock(ref);
-	struct sk_buff *buf = 0;
+	struct sk_buff *buf = NULL;
 
 	if (!p_ptr || !p_ptr->publ.connected)
 		return;
@@ -540,7 +540,7 @@ static void port_timeout(unsigned long ref)
 static void port_handle_node_down(unsigned long ref)
 {
 	struct port *p_ptr = tipc_port_lock(ref);
-	struct sk_buff* buf = 0;
+	struct sk_buff* buf = NULL;
 
 	if (!p_ptr)
 		return;
@@ -555,7 +555,7 @@ static struct sk_buff *port_build_self_abort_msg(struct port *p_ptr, u32 err)
 	u32 imp = msg_importance(&p_ptr->publ.phdr);
 
 	if (!p_ptr->publ.connected)
-		return 0;
+		return NULL;
 	if (imp < TIPC_CRITICAL_IMPORTANCE)
 		imp++;
 	return port_build_proto_msg(p_ptr->publ.ref,
@@ -575,7 +575,7 @@ static struct sk_buff *port_build_peer_abort_msg(struct port *p_ptr, u32 err)
 	u32 imp = msg_importance(&p_ptr->publ.phdr);
 
 	if (!p_ptr->publ.connected)
-		return 0;
+		return NULL;
 	if (imp < TIPC_CRITICAL_IMPORTANCE)
 		imp++;
 	return port_build_proto_msg(port_peerport(p_ptr),
@@ -594,8 +594,8 @@ void tipc_port_recv_proto_msg(struct sk_buff *buf)
 	struct tipc_msg *msg = buf_msg(buf);
 	struct port *p_ptr = tipc_port_lock(msg_destport(msg));
 	u32 err = TIPC_OK;
-	struct sk_buff *r_buf = 0;
-	struct sk_buff *abort_buf = 0;
+	struct sk_buff *r_buf = NULL;
+	struct sk_buff *abort_buf = NULL;
 
 	msg_dbg(msg, "PORT<RECV<:");
 
@@ -804,7 +804,7 @@ static void port_dispatcher_sigh(void *dummy)
 
 	spin_lock_bh(&queue_lock);
 	buf = msg_queue_head;
-	msg_queue_head = 0;
+	msg_queue_head = NULL;
 	spin_unlock_bh(&queue_lock);
 
 	while (buf) {
@@ -991,8 +991,8 @@ static void port_wakeup_sh(unsigned long ref)
 {
 	struct port *p_ptr;
 	struct user_port *up_ptr;
-	tipc_continue_event cb = 0;
-	void *uh = 0;
+	tipc_continue_event cb = NULL;
+	void *uh = NULL;
 
 	p_ptr = tipc_port_lock(ref);
 	if (p_ptr) {
@@ -1016,7 +1016,7 @@ static void port_wakeup(struct tipc_port *p_ptr)
 void tipc_acknowledge(u32 ref, u32 ack)
 {
 	struct port *p_ptr;
-	struct sk_buff *buf = 0;
+	struct sk_buff *buf = NULL;
 
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
@@ -1062,7 +1062,7 @@ int tipc_createport(u32 user_ref,
 	if (up_ptr == NULL) {
 		return -ENOMEM;
 	}
-	ref = tipc_createport_raw(0, port_dispatcher, port_wakeup, importance);
+	ref = tipc_createport_raw(NULL, port_dispatcher, port_wakeup, importance);
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr) {
 		kfree(up_ptr);
@@ -1273,7 +1273,7 @@ int tipc_disconnect(u32 ref)
 int tipc_shutdown(u32 ref)
 {
 	struct port *p_ptr;
-	struct sk_buff *buf = 0;
+	struct sk_buff *buf = NULL;
 
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)

@@ -271,7 +271,7 @@ static void bclink_send_nack(struct node *n_ptr)
 		msg_set_bcgap_to(msg, n_ptr->bclink.gap_to);
 		msg_set_bcast_tag(msg, tipc_own_tag);
 
-		if (tipc_bearer_send(&bcbearer->bearer, buf, 0)) {
+		if (tipc_bearer_send(&bcbearer->bearer, buf, NULL)) {
 			bcl->stats.sent_nacks++;
 			buf_discard(buf);
 		} else {

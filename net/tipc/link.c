@@ -573,7 +573,7 @@ void tipc_link_wakeup_ports(struct link *l_ptr, int all)
 		if (win <= 0)
 			break;
 		list_del_init(&p_ptr->wait_list);
-		p_ptr->congested_link = 0;
+		p_ptr->congested_link = NULL;
 		assert(p_ptr->wakeup);
 		spin_lock_bh(p_ptr->publ.lock);
 		p_ptr->publ.congested = 0;
@@ -1355,7 +1355,7 @@ again:
 	fragm_crs = 0;
 	fragm_rest = 0;
 	sect_rest = 0;
-	sect_crs = 0;
+	sect_crs = NULL;
 	curr_sect = -1;
 
 	/* Prepare reusable fragment header: */
@@ -1549,7 +1549,7 @@ u32 tipc_link_push_packet(struct link *l_ptr)
 			msg_dbg(buf_msg(buf), ">DEF-PROT>");
 			l_ptr->unacked_window = 0;
 			buf_discard(buf);
-			l_ptr->proto_msg_queue = 0;
+			l_ptr->proto_msg_queue = NULL;
 			return TIPC_OK;
 		} else {
 			msg_dbg(buf_msg(buf), "|>DEF-PROT>");
@@ -1860,7 +1860,7 @@ u32 tipc_link_defer_pkt(struct sk_buff **head,
 			struct sk_buff **tail,
 			struct sk_buff *buf)
 {
-	struct sk_buff *prev = 0;
+	struct sk_buff *prev = NULL;
 	struct sk_buff *crs = *head;
 	u32 seq_no = msg_seqno(buf_msg(buf));
 
@@ -1953,7 +1953,7 @@ static void link_handle_out_of_seq_msg(struct link *l_ptr,
 void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 			      u32 gap, u32 tolerance, u32 priority, u32 ack_mtu)
 {
-	struct sk_buff *buf = 0;
+	struct sk_buff *buf = NULL;
 	struct tipc_msg *msg = l_ptr->pmsg;
         u32 msg_size = sizeof(l_ptr->proto_msg);
 
@@ -2426,7 +2426,7 @@ static int link_recv_changeover_msg(struct link **l_ptr,
 		}
 	}
 exit:
-	*buf = 0;
+	*buf = NULL;
 	buf_discard(tunnel_buf);
 	return 0;
 }
@@ -2586,13 +2586,13 @@ static inline void incr_timer_cnt(struct sk_buff *buf)
 int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb, 
 			    struct tipc_msg **m)
 {
-	struct sk_buff *prev = 0;
+	struct sk_buff *prev = NULL;
 	struct sk_buff *fbuf = *fb;
 	struct tipc_msg *fragm = buf_msg(fbuf);
 	struct sk_buff *pbuf = *pending;
 	u32 long_msg_seq_no = msg_long_msgno(fragm);
 
-	*fb = 0;
+	*fb = NULL;
 	msg_dbg(fragm,"FRG<REC<");
 
 	/* Is there an incomplete message waiting for this fragment? */
@@ -2670,8 +2670,8 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 
 static void link_check_defragm_bufs(struct link *l_ptr)
 {
-	struct sk_buff *prev = 0;
-	struct sk_buff *next = 0;
+	struct sk_buff *prev = NULL;
+	struct sk_buff *next = NULL;
 	struct sk_buff *buf = l_ptr->defragm_buf;
 
 	if (!buf)
@@ -2750,19 +2750,19 @@ static struct link *link_find_link(const char *name, struct node **node)
 	struct link *l_ptr; 
 
 	if (!link_name_validate(name, &link_name_parts))
-		return 0;
+		return NULL;
 
 	b_ptr = tipc_bearer_find_interface(link_name_parts.if_local);
 	if (!b_ptr)
-		return 0;
+		return NULL;
 
 	*node = tipc_node_find(link_name_parts.addr_peer); 
 	if (!*node)
-		return 0;
+		return NULL;
 
 	l_ptr = (*node)->links[b_ptr->identity];
 	if (!l_ptr || strcmp(l_ptr->name, name))
-		return 0;
+		return NULL;
 
 	return l_ptr;
 }

@@ -86,7 +86,7 @@ static inline struct cluster *tipc_cltr_find(u32 addr)
 
 	if (z_ptr)
 		return z_ptr->clusters[1];
-	return 0;
+	return NULL;
 }
 
 #endif

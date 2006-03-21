@@ -178,7 +178,7 @@ static int tipc_create(struct socket *sock, int protocol)
 	if (unlikely(protocol != 0))
 		return -EPROTONOSUPPORT;
 
-	ref = tipc_createport_raw(0, &dispatch, &wakeupdispatch, TIPC_LOW_IMPORTANCE);
+	ref = tipc_createport_raw(NULL, &dispatch, &wakeupdispatch, TIPC_LOW_IMPORTANCE);
 	if (unlikely(!ref))
 		return -ENOMEM;
 
@@ -265,7 +265,7 @@ static int release(struct socket *sock)
 		sock_lock(tsock);
 		buf = skb_dequeue(&sk->sk_receive_queue);
 		if (!buf)
-			tsock->p->usr_handle = 0;
+			tsock->p->usr_handle = NULL;
 		sock_unlock(tsock);
 		if (!buf)
 			break;
@@ -319,7 +319,7 @@ static int bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
 		return -ERESTARTSYS;
 	
 	if (unlikely(!uaddr_len)) {
-		res = tipc_withdraw(tsock->p->ref, 0, 0);
+		res = tipc_withdraw(tsock->p->ref, 0, NULL);
 		goto exit;
 	}
 
@@ -1226,7 +1226,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 {
    struct tipc_sock *tsock = tipc_sk(sock->sk);
    struct sockaddr_tipc *dst = (struct sockaddr_tipc *)dest;
-   struct msghdr m = {0,};
+   struct msghdr m = {NULL,};
    struct sk_buff *buf;
    struct tipc_msg *msg;
    int res;
@@ -1251,7 +1251,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
    /* Send a 'SYN-' to destination */
 
    m.msg_name = dest;
-   if ((res = send_msg(0, sock, &m, 0)) < 0) {
+   if ((res = send_msg(NULL, sock, &m, 0)) < 0) {
 	   sock->state = SS_DISCONNECTING;
 	   return res;
    }
@@ -1367,9 +1367,9 @@ static int accept(struct socket *sock, struct socket *newsock, int flags)
 
 		msg_dbg(msg,"<ACC<: ");
                 if (!msg_data_sz(msg)) {
-                        struct msghdr m = {0,};
+                        struct msghdr m = {NULL,};
 
-                        send_packet(0, newsock, &m, 0);      
+                        send_packet(NULL, newsock, &m, 0);
                         advance_queue(tsock);
                 } else {
 			sock_lock(tsock);
