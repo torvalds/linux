@@ -341,84 +341,83 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	if (dev->mtu < IPV6_MIN_MTU)
 		return NULL;
 
-	ndev = kmalloc(sizeof(struct inet6_dev), GFP_KERNEL);
+ 	ndev = kzalloc(sizeof(struct inet6_dev), GFP_KERNEL);
 
-	if (ndev) {
-		memset(ndev, 0, sizeof(struct inet6_dev));
+ 	if (ndev == NULL)
+ 		return NULL;
 
-		rwlock_init(&ndev->lock);
-		ndev->dev = dev;
-		memcpy(&ndev->cnf, &ipv6_devconf_dflt, sizeof(ndev->cnf));
-		ndev->cnf.mtu6 = dev->mtu;
-		ndev->cnf.sysctl = NULL;
-		ndev->nd_parms = neigh_parms_alloc(dev, &nd_tbl);
-		if (ndev->nd_parms == NULL) {
-			kfree(ndev);
-			return NULL;
-		}
-		/* We refer to the device */
-		dev_hold(dev);
+	rwlock_init(&ndev->lock);
+	ndev->dev = dev;
+	memcpy(&ndev->cnf, &ipv6_devconf_dflt, sizeof(ndev->cnf));
+	ndev->cnf.mtu6 = dev->mtu;
+	ndev->cnf.sysctl = NULL;
+	ndev->nd_parms = neigh_parms_alloc(dev, &nd_tbl);
+	if (ndev->nd_parms == NULL) {
+		kfree(ndev);
+		return NULL;
+	}
+	/* We refer to the device */
+	dev_hold(dev);
 
-		if (snmp6_alloc_dev(ndev) < 0) {
-			ADBG((KERN_WARNING
-				"%s(): cannot allocate memory for statistics; dev=%s.\n",
-				__FUNCTION__, dev->name));
-			neigh_parms_release(&nd_tbl, ndev->nd_parms);
-			ndev->dead = 1;
-			in6_dev_finish_destroy(ndev);
-			return NULL;
-		}
+	if (snmp6_alloc_dev(ndev) < 0) {
+		ADBG((KERN_WARNING
+			"%s(): cannot allocate memory for statistics; dev=%s.\n",
+			__FUNCTION__, dev->name));
+		neigh_parms_release(&nd_tbl, ndev->nd_parms);
+		ndev->dead = 1;
+		in6_dev_finish_destroy(ndev);
+		return NULL;
+	}
 
-		if (snmp6_register_dev(ndev) < 0) {
-			ADBG((KERN_WARNING
-				"%s(): cannot create /proc/net/dev_snmp6/%s\n",
-				__FUNCTION__, dev->name));
-			neigh_parms_release(&nd_tbl, ndev->nd_parms);
-			ndev->dead = 1;
-			in6_dev_finish_destroy(ndev);
-			return NULL;
-		}
+	if (snmp6_register_dev(ndev) < 0) {
+		ADBG((KERN_WARNING
+			"%s(): cannot create /proc/net/dev_snmp6/%s\n",
+			__FUNCTION__, dev->name));
+		neigh_parms_release(&nd_tbl, ndev->nd_parms);
+		ndev->dead = 1;
+		in6_dev_finish_destroy(ndev);
+		return NULL;
+	}
 
-		/* One reference from device.  We must do this before
-		 * we invoke __ipv6_regen_rndid().
-		 */
-		in6_dev_hold(ndev);
+	/* One reference from device.  We must do this before
+	 * we invoke __ipv6_regen_rndid().
+	 */
+	in6_dev_hold(ndev);
 
 #ifdef CONFIG_IPV6_PRIVACY
-		init_timer(&ndev->regen_timer);
-		ndev->regen_timer.function = ipv6_regen_rndid;
-		ndev->regen_timer.data = (unsigned long) ndev;
-		if ((dev->flags&IFF_LOOPBACK) ||
-		    dev->type == ARPHRD_TUNNEL ||
-		    dev->type == ARPHRD_NONE ||
-		    dev->type == ARPHRD_SIT) {
-			printk(KERN_INFO
-			       "%s: Disabled Privacy Extensions\n",
-			       dev->name);
-			ndev->cnf.use_tempaddr = -1;
-		} else {
-			in6_dev_hold(ndev);
-			ipv6_regen_rndid((unsigned long) ndev);
-		}
-#endif
-
-		if (netif_carrier_ok(dev))
-			ndev->if_flags |= IF_READY;
-
-		write_lock_bh(&addrconf_lock);
-		dev->ip6_ptr = ndev;
-		write_unlock_bh(&addrconf_lock);
-
-		ipv6_mc_init_dev(ndev);
-		ndev->tstamp = jiffies;
-#ifdef CONFIG_SYSCTL
-		neigh_sysctl_register(dev, ndev->nd_parms, NET_IPV6, 
-				      NET_IPV6_NEIGH, "ipv6",
-				      &ndisc_ifinfo_sysctl_change,
-				      NULL);
-		addrconf_sysctl_register(ndev, &ndev->cnf);
-#endif
+	init_timer(&ndev->regen_timer);
+	ndev->regen_timer.function = ipv6_regen_rndid;
+	ndev->regen_timer.data = (unsigned long) ndev;
+	if ((dev->flags&IFF_LOOPBACK) ||
+	    dev->type == ARPHRD_TUNNEL ||
+	    dev->type == ARPHRD_NONE ||
+	    dev->type == ARPHRD_SIT) {
+		printk(KERN_INFO
+		       "%s: Disabled Privacy Extensions\n",
+		       dev->name);
+		ndev->cnf.use_tempaddr = -1;
+	} else {
+		in6_dev_hold(ndev);
+		ipv6_regen_rndid((unsigned long) ndev);
 	}
+#endif
+
+	if (netif_carrier_ok(dev))
+		ndev->if_flags |= IF_READY;
+
+	write_lock_bh(&addrconf_lock);
+	dev->ip6_ptr = ndev;
+	write_unlock_bh(&addrconf_lock);
+
+	ipv6_mc_init_dev(ndev);
+	ndev->tstamp = jiffies;
+#ifdef CONFIG_SYSCTL
+	neigh_sysctl_register(dev, ndev->nd_parms, NET_IPV6,
+			      NET_IPV6_NEIGH, "ipv6",
+			      &ndisc_ifinfo_sysctl_change,
+			      NULL);
+	addrconf_sysctl_register(ndev, &ndev->cnf);
+#endif
 	return ndev;
 }
 
@@ -536,7 +535,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 		goto out;
 	}
 
-	ifa = kmalloc(sizeof(struct inet6_ifaddr), GFP_ATOMIC);
+	ifa = kzalloc(sizeof(struct inet6_ifaddr), GFP_ATOMIC);
 
 	if (ifa == NULL) {
 		ADBG(("ipv6_add_addr: malloc failed\n"));
@@ -550,7 +549,6 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 		goto out;
 	}
 
-	memset(ifa, 0, sizeof(struct inet6_ifaddr));
 	ipv6_addr_copy(&ifa->addr, addr);
 
 	spin_lock_init(&ifa->lock);
@@ -2669,11 +2667,10 @@ static int if6_seq_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int rc = -ENOMEM;
-	struct if6_iter_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct if6_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
 
 	if (!s)
 		goto out;
-	memset(s, 0, sizeof(*s));
 
 	rc = seq_open(file, &if6_seq_ops);
 	if (rc)
