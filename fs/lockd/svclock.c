@@ -309,14 +309,13 @@ restart:
  * Loop over all blocks and perform the action specified.
  * (NLM_ACT_CHECK handled by nlmsvc_inspect_file).
  */
-int
+void
 nlmsvc_traverse_blocks(struct nlm_host *host, struct nlm_file *file, int action)
 {
 	if (action == NLM_ACT_MARK)
 		nlmsvc_act_mark(host, file);
 	else
 		nlmsvc_act_unlock(host, file);
-	return 0;
 }
 
 /*

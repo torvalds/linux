@@ -183,7 +183,7 @@ u32		  nlmsvc_testlock(struct nlm_file *, struct nlm_lock *,
 					struct nlm_lock *);
 u32		  nlmsvc_cancel_blocked(struct nlm_file *, struct nlm_lock *);
 unsigned long	  nlmsvc_retry_blocked(void);
-int		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
+void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
 					int action);
 void	  nlmsvc_grant_reply(struct svc_rqst *, struct nlm_cookie *, u32);
 
