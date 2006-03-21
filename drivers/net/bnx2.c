@@ -360,6 +360,8 @@ bnx2_netif_start(struct bnx2 *bp)
 static void
 bnx2_free_mem(struct bnx2 *bp)
 {
+	int i;
+
 	if (bp->stats_blk) {
 		pci_free_consistent(bp->pdev, sizeof(struct statistics_block),
 				    bp->stats_blk, bp->stats_blk_mapping);
@@ -378,19 +380,23 @@ bnx2_free_mem(struct bnx2 *bp)
 	}
 	kfree(bp->tx_buf_ring);
 	bp->tx_buf_ring = NULL;
-	if (bp->rx_desc_ring) {
-		pci_free_consistent(bp->pdev,
-				    sizeof(struct rx_bd) * RX_DESC_CNT,
-				    bp->rx_desc_ring, bp->rx_desc_mapping);
-		bp->rx_desc_ring = NULL;
+	for (i = 0; i < bp->rx_max_ring; i++) {
+		if (bp->rx_desc_ring[i])
+			pci_free_consistent(bp->pdev,
+					    sizeof(struct rx_bd) * RX_DESC_CNT,
+					    bp->rx_desc_ring[i],
+					    bp->rx_desc_mapping[i]);
+		bp->rx_desc_ring[i] = NULL;
 	}
-	kfree(bp->rx_buf_ring);
+	vfree(bp->rx_buf_ring);
 	bp->rx_buf_ring = NULL;
 }
 
 static int
 bnx2_alloc_mem(struct bnx2 *bp)
 {
+	int i;
+
 	bp->tx_buf_ring = kmalloc(sizeof(struct sw_bd) * TX_DESC_CNT,
 				     GFP_KERNEL);
 	if (bp->tx_buf_ring == NULL)
@@ -404,18 +410,23 @@ bnx2_alloc_mem(struct bnx2 *bp)
 	if (bp->tx_desc_ring == NULL)
 		goto alloc_mem_err;
 
-	bp->rx_buf_ring = kmalloc(sizeof(struct sw_bd) * RX_DESC_CNT,
-				     GFP_KERNEL);
+	bp->rx_buf_ring = vmalloc(sizeof(struct sw_bd) * RX_DESC_CNT *
+				  bp->rx_max_ring);
 	if (bp->rx_buf_ring == NULL)
 		goto alloc_mem_err;
 
-	memset(bp->rx_buf_ring, 0, sizeof(struct sw_bd) * RX_DESC_CNT);
-	bp->rx_desc_ring = pci_alloc_consistent(bp->pdev,
-					        sizeof(struct rx_bd) *
-						RX_DESC_CNT,
-						&bp->rx_desc_mapping);
-	if (bp->rx_desc_ring == NULL)
-		goto alloc_mem_err;
+	memset(bp->rx_buf_ring, 0, sizeof(struct sw_bd) * RX_DESC_CNT *
+				   bp->rx_max_ring);
+
+	for (i = 0; i < bp->rx_max_ring; i++) {
+		bp->rx_desc_ring[i] =
+			pci_alloc_consistent(bp->pdev,
+					     sizeof(struct rx_bd) * RX_DESC_CNT,
+					     &bp->rx_desc_mapping[i]);
+		if (bp->rx_desc_ring[i] == NULL)
+			goto alloc_mem_err;
+
+	}
 
 	bp->status_blk = pci_alloc_consistent(bp->pdev,
 					      sizeof(struct status_block),
@@ -1520,7 +1531,7 @@ bnx2_alloc_rx_skb(struct bnx2 *bp, u16 index)
 	struct sk_buff *skb;
 	struct sw_bd *rx_buf = &bp->rx_buf_ring[index];
 	dma_addr_t mapping;
-	struct rx_bd *rxbd = &bp->rx_desc_ring[index];
+	struct rx_bd *rxbd = &bp->rx_desc_ring[RX_RING(index)][RX_IDX(index)];
 	unsigned long align;
 
 	skb = dev_alloc_skb(bp->rx_buf_size);
@@ -3349,24 +3360,32 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	bp->hw_rx_cons = 0;
 	bp->rx_prod_bseq = 0;
 		
-	rxbd = &bp->rx_desc_ring[0];
-	for (i = 0; i < MAX_RX_DESC_CNT; i++, rxbd++) {
-		rxbd->rx_bd_len = bp->rx_buf_use_size;
-		rxbd->rx_bd_flags = RX_BD_FLAGS_START | RX_BD_FLAGS_END;
-	}
+	for (i = 0; i < bp->rx_max_ring; i++) {
+		int j;
 
-	rxbd->rx_bd_haddr_hi = (u64) bp->rx_desc_mapping >> 32;
-	rxbd->rx_bd_haddr_lo = (u64) bp->rx_desc_mapping & 0xffffffff;
+		rxbd = &bp->rx_desc_ring[i][0];
+		for (j = 0; j < MAX_RX_DESC_CNT; j++, rxbd++) {
+			rxbd->rx_bd_len = bp->rx_buf_use_size;
+			rxbd->rx_bd_flags = RX_BD_FLAGS_START | RX_BD_FLAGS_END;
+		}
+		if (i == (bp->rx_max_ring - 1))
+			j = 0;
+		else
+			j = i + 1;
+		rxbd->rx_bd_haddr_hi = (u64) bp->rx_desc_mapping[j] >> 32;
+		rxbd->rx_bd_haddr_lo = (u64) bp->rx_desc_mapping[j] &
+				       0xffffffff;
+	}
 
 	val = BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE;
 	val |= BNX2_L2CTX_CTX_TYPE_SIZE_L2;
 	val |= 0x02 << 8;
 	CTX_WR(bp, GET_CID_ADDR(RX_CID), BNX2_L2CTX_CTX_TYPE, val);
 
-	val = (u64) bp->rx_desc_mapping >> 32;
+	val = (u64) bp->rx_desc_mapping[0] >> 32;
 	CTX_WR(bp, GET_CID_ADDR(RX_CID), BNX2_L2CTX_NX_BDHADDR_HI, val);
 
-	val = (u64) bp->rx_desc_mapping & 0xffffffff;
+	val = (u64) bp->rx_desc_mapping[0] & 0xffffffff;
 	CTX_WR(bp, GET_CID_ADDR(RX_CID), BNX2_L2CTX_NX_BDHADDR_LO, val);
 
 	for (i = 0; i < bp->rx_ring_size; i++) {
@@ -3381,6 +3400,29 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	REG_WR16(bp, MB_RX_CID_ADDR + BNX2_L2CTX_HOST_BDIDX, prod);
 
 	REG_WR(bp, MB_RX_CID_ADDR + BNX2_L2CTX_HOST_BSEQ, bp->rx_prod_bseq);
+}
+
+static void
+bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
+{
+	u32 num_rings, max;
+
+	bp->rx_ring_size = size;
+	num_rings = 1;
+	while (size > MAX_RX_DESC_CNT) {
+		size -= MAX_RX_DESC_CNT;
+		num_rings++;
+	}
+	/* round to next power of 2 */
+	max = MAX_RX_RINGS;
+	while ((max & num_rings) == 0)
+		max >>= 1;
+
+	if (num_rings != max)
+		max <<= 1;
+
+	bp->rx_max_ring = max;
+	bp->rx_max_ring_idx = (bp->rx_max_ring * RX_DESC_CNT) - 1;
 }
 
 static void
@@ -3428,7 +3470,7 @@ bnx2_free_rx_skbs(struct bnx2 *bp)
 	if (bp->rx_buf_ring == NULL)
 		return;
 
-	for (i = 0; i < RX_DESC_CNT; i++) {
+	for (i = 0; i < bp->rx_max_ring_idx; i++) {
 		struct sw_bd *rx_buf = &bp->rx_buf_ring[i];
 		struct sk_buff *skb = rx_buf->skb;
 
@@ -4792,7 +4834,7 @@ bnx2_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
-	ering->rx_max_pending = MAX_RX_DESC_CNT;
+	ering->rx_max_pending = MAX_TOTAL_RX_DESC_CNT;
 	ering->rx_mini_max_pending = 0;
 	ering->rx_jumbo_max_pending = 0;
 
@@ -4809,17 +4851,28 @@ bnx2_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
-	if ((ering->rx_pending > MAX_RX_DESC_CNT) ||
+	if ((ering->rx_pending > MAX_TOTAL_RX_DESC_CNT) ||
 		(ering->tx_pending > MAX_TX_DESC_CNT) ||
 		(ering->tx_pending <= MAX_SKB_FRAGS)) {
 
 		return -EINVAL;
 	}
-	bp->rx_ring_size = ering->rx_pending;
+	if (netif_running(bp->dev)) {
+		bnx2_netif_stop(bp);
+		bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_RESET);
+		bnx2_free_skbs(bp);
+		bnx2_free_mem(bp);
+	}
+
+	bnx2_set_rx_ring_size(bp, ering->rx_pending);
 	bp->tx_ring_size = ering->tx_pending;
 
 	if (netif_running(bp->dev)) {
-		bnx2_netif_stop(bp);
+		int rc;
+
+		rc = bnx2_alloc_mem(bp);
+		if (rc)
+			return rc;
 		bnx2_init_nic(bp);
 		bnx2_netif_start(bp);
 	}
@@ -5493,7 +5546,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->mac_addr[5] = (u8) reg;
 
 	bp->tx_ring_size = MAX_TX_DESC_CNT;
-	bp->rx_ring_size = 100;
+	bnx2_set_rx_ring_size(bp, 100);
 
 	bp->rx_csum = 1;
 
