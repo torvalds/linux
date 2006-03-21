@@ -78,8 +78,6 @@
 
 #ifdef CONFIG_IPV6_PRIVACY
 #include <linux/random.h>
-#include <linux/crypto.h>
-#include <linux/scatterlist.h>
 #endif
 
 #include <asm/uaccess.h>
@@ -110,8 +108,6 @@ static int __ipv6_try_regen_rndid(struct inet6_dev *idev, struct in6_addr *tmpad
 static void ipv6_regen_rndid(unsigned long data);
 
 static int desync_factor = MAX_DESYNC_FACTOR * HZ;
-static struct crypto_tfm *md5_tfm;
-static DEFINE_SPINLOCK(md5_tfm_lock);
 #endif
 
 static int ipv6_count_addresses(struct inet6_dev *idev);
@@ -371,8 +367,6 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 		in6_dev_hold(ndev);
 
 #ifdef CONFIG_IPV6_PRIVACY
-		get_random_bytes(ndev->rndid, sizeof(ndev->rndid));
-		get_random_bytes(ndev->entropy, sizeof(ndev->entropy));
 		init_timer(&ndev->regen_timer);
 		ndev->regen_timer.function = ipv6_regen_rndid;
 		ndev->regen_timer.data = (unsigned long) ndev;
@@ -1376,34 +1370,9 @@ static int ipv6_inherit_eui64(u8 *eui, struct inet6_dev *idev)
 /* (re)generation of randomized interface identifier (RFC 3041 3.2, 3.5) */
 static int __ipv6_regen_rndid(struct inet6_dev *idev)
 {
-	struct net_device *dev;
-	struct scatterlist sg[2];
-
-	sg_set_buf(&sg[0], idev->entropy, 8);
-	sg_set_buf(&sg[1], idev->work_eui64, 8);
-
-	dev = idev->dev;
-
-	if (ipv6_generate_eui64(idev->work_eui64, dev)) {
-		printk(KERN_INFO
-			"__ipv6_regen_rndid(idev=%p): cannot get EUI64 identifier; use random bytes.\n",
-			idev);
-		get_random_bytes(idev->work_eui64, sizeof(idev->work_eui64));
-	}
 regen:
-	spin_lock(&md5_tfm_lock);
-	if (unlikely(md5_tfm == NULL)) {
-		spin_unlock(&md5_tfm_lock);
-		return -1;
-	}
-	crypto_digest_init(md5_tfm);
-	crypto_digest_update(md5_tfm, sg, 2);
-	crypto_digest_final(md5_tfm, idev->work_digest);
-	spin_unlock(&md5_tfm_lock);
-
-	memcpy(idev->rndid, &idev->work_digest[0], 8);
+	get_random_bytes(idev->rndid, sizeof(idev->rndid));
 	idev->rndid[0] &= ~0x02;
-	memcpy(idev->entropy, &idev->work_digest[8], 8);
 
 	/*
 	 * <draft-ietf-ipngwg-temp-addresses-v2-00.txt>:
@@ -3759,13 +3728,6 @@ int __init addrconf_init(void)
 
 	register_netdevice_notifier(&ipv6_dev_notf);
 
-#ifdef CONFIG_IPV6_PRIVACY
-	md5_tfm = crypto_alloc_tfm("md5", 0);
-	if (unlikely(md5_tfm == NULL))
-		printk(KERN_WARNING
-			"failed to load transform for md5\n");
-#endif
-
 	addrconf_verify(0);
 	rtnetlink_links[PF_INET6] = inet6_rtnetlink_table;
 #ifdef CONFIG_SYSCTL
@@ -3827,11 +3789,6 @@ void __exit addrconf_cleanup(void)
 	del_timer(&addr_chk_timer);
 
 	rtnl_unlock();
-
-#ifdef CONFIG_IPV6_PRIVACY
-	crypto_free_tfm(md5_tfm);
-	md5_tfm = NULL;
-#endif
 
 #ifdef CONFIG_PROC_FS
 	proc_net_remove("if_inet6");
