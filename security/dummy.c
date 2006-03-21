@@ -763,8 +763,14 @@ static int dummy_socket_sock_rcv_skb (struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static int dummy_socket_getpeersec(struct socket *sock, char __user *optval,
-				   int __user *optlen, unsigned len)
+static int dummy_socket_getpeersec_stream(struct socket *sock, char __user *optval,
+					  int __user *optlen, unsigned len)
+{
+	return -ENOPROTOOPT;
+}
+
+static int dummy_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata,
+					 u32 *seclen)
 {
 	return -ENOPROTOOPT;
 }

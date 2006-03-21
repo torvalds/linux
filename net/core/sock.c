@@ -616,7 +616,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 			break;
 
 		case SO_PEERSEC:
-			return security_socket_getpeersec(sock, optval, optlen, len);
+			return security_socket_getpeersec_stream(sock, optval, optlen, len);
 
 		default:
 			return(-ENOPROTOOPT);

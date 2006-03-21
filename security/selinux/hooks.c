@@ -3318,24 +3318,38 @@ out:
 	return err;
 }
 
-static int selinux_socket_getpeersec(struct socket *sock, char __user *optval,
-				     int __user *optlen, unsigned len)
+static int selinux_socket_getpeersec_stream(struct socket *sock, char __user *optval,
+					    int __user *optlen, unsigned len)
 {
 	int err = 0;
 	char *scontext;
 	u32 scontext_len;
 	struct sk_security_struct *ssec;
 	struct inode_security_struct *isec;
+	u32 peer_sid = 0;
 
 	isec = SOCK_INODE(sock)->i_security;
-	if (isec->sclass != SECCLASS_UNIX_STREAM_SOCKET) {
+
+	/* if UNIX_STREAM check peer_sid, if TCP check dst for labelled sa */
+	if (isec->sclass == SECCLASS_UNIX_STREAM_SOCKET) {
+		ssec = sock->sk->sk_security;
+		peer_sid = ssec->peer_sid;
+	}
+	else if (isec->sclass == SECCLASS_TCP_SOCKET) {
+		peer_sid = selinux_socket_getpeer_stream(sock->sk);
+
+		if (peer_sid == SECSID_NULL) {
+			err = -ENOPROTOOPT;
+			goto out;
+		}
+	}
+	else {
 		err = -ENOPROTOOPT;
 		goto out;
 	}
 
-	ssec = sock->sk->sk_security;
-	
-	err = security_sid_to_context(ssec->peer_sid, &scontext, &scontext_len);
+	err = security_sid_to_context(peer_sid, &scontext, &scontext_len);
+
 	if (err)
 		goto out;
 
@@ -3355,6 +3369,23 @@ out_len:
 out:	
 	return err;
 }
+
+static int selinux_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata, u32 *seclen)
+{
+	int err = 0;
+	u32 peer_sid = selinux_socket_getpeer_dgram(skb);
+
+	if (peer_sid == SECSID_NULL)
+		return -EINVAL;
+
+	err = security_sid_to_context(peer_sid, secdata, seclen);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+
 
 static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
@@ -4344,7 +4375,8 @@ static struct security_operations selinux_ops = {
 	.socket_setsockopt =		selinux_socket_setsockopt,
 	.socket_shutdown =		selinux_socket_shutdown,
 	.socket_sock_rcv_skb =		selinux_socket_sock_rcv_skb,
-	.socket_getpeersec =		selinux_socket_getpeersec,
+	.socket_getpeersec_stream =	selinux_socket_getpeersec_stream,
+	.socket_getpeersec_dgram =	selinux_socket_getpeersec_dgram,
 	.sk_alloc_security =		selinux_sk_alloc_security,
 	.sk_free_security =		selinux_sk_free_security,
 	.sk_getsid = 			selinux_sk_getsid_security,
