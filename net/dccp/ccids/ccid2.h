@@ -20,6 +20,13 @@
 #ifndef _DCCP_CCID2_H_
 #define _DCCP_CCID2_H_
 
+#include <linux/dccp.h>
+#include <linux/timer.h>
+#include <linux/types.h>
+#include "../ccid.h"
+
+struct sock;
+
 struct ccid2_seq {
 	u64			ccid2s_seq;
 	unsigned long		ccid2s_sent;
@@ -66,4 +73,13 @@ struct ccid2_hc_rx_sock {
 	int	ccid2hcrx_data;
 };
 
+static inline struct ccid2_hc_tx_sock *ccid2_hc_tx_sk(const struct sock *sk)
+{
+	return ccid_priv(dccp_sk(sk)->dccps_hc_tx_ccid);
+}
+
+static inline struct ccid2_hc_rx_sock *ccid2_hc_rx_sk(const struct sock *sk)
+{
+	return ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
+}
 #endif /* _DCCP_CCID2_H_ */

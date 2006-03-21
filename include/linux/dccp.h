@@ -478,8 +478,6 @@ struct dccp_sock {
 	__u32				dccps_mss_cache;
 	struct dccp_options		dccps_options;
 	struct dccp_ackvec		*dccps_hc_rx_ackvec;
-	void				*dccps_hc_rx_ccid_private;
-	void				*dccps_hc_tx_ccid_private;
 	struct ccid			*dccps_hc_rx_ccid;
 	struct ccid			*dccps_hc_tx_ccid;
 	struct dccp_options_received	dccps_options_received;

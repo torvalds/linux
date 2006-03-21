@@ -1058,14 +1058,16 @@ int dccp_v4_init_sock(struct sock *sk)
 			if (dp->dccps_hc_rx_ackvec == NULL)
 				return -ENOMEM;
 		}
-		dp->dccps_hc_rx_ccid = ccid_init(dp->dccps_options.dccpo_rx_ccid,
-						 sk);
-		dp->dccps_hc_tx_ccid = ccid_init(dp->dccps_options.dccpo_tx_ccid,
-						 sk);
-	    	if (dp->dccps_hc_rx_ccid == NULL ||
-		    dp->dccps_hc_tx_ccid == NULL) {
-			ccid_exit(dp->dccps_hc_rx_ccid, sk);
-			ccid_exit(dp->dccps_hc_tx_ccid, sk);
+		dp->dccps_hc_rx_ccid =
+				ccid_hc_rx_new(dp->dccps_options.dccpo_rx_ccid,
+					       sk, GFP_KERNEL);
+		dp->dccps_hc_tx_ccid =
+				ccid_hc_tx_new(dp->dccps_options.dccpo_tx_ccid,
+					       sk, GFP_KERNEL);
+	    	if (unlikely(dp->dccps_hc_rx_ccid == NULL ||
+			     dp->dccps_hc_tx_ccid == NULL)) {
+			ccid_hc_rx_delete(dp->dccps_hc_rx_ccid, sk);
+			ccid_hc_tx_delete(dp->dccps_hc_tx_ccid, sk);
 			if (dp->dccps_options.dccpo_send_ack_vector) {
 				dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
 				dp->dccps_hc_rx_ackvec = NULL;
@@ -1120,14 +1122,12 @@ int dccp_v4_destroy_sock(struct sock *sk)
 	kfree(dp->dccps_service_list);
 	dp->dccps_service_list = NULL;
 
-	ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
-	ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
 	if (dp->dccps_options.dccpo_send_ack_vector) {
 		dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
 		dp->dccps_hc_rx_ackvec = NULL;
 	}
-	ccid_exit(dp->dccps_hc_rx_ccid, sk);
-	ccid_exit(dp->dccps_hc_tx_ccid, sk);
+	ccid_hc_rx_delete(dp->dccps_hc_rx_ccid, sk);
+	ccid_hc_tx_delete(dp->dccps_hc_tx_ccid, sk);
 	dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
 
 	/* clean up feature negotiation state */

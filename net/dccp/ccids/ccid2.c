@@ -52,16 +52,6 @@ static int ccid2_debug;
 
 static const int ccid2_seq_len = 128;
 
-static inline struct ccid2_hc_tx_sock *ccid2_hc_tx_sk(const struct sock *sk)
-{
-	return dccp_sk(sk)->dccps_hc_tx_ccid_private;
-}
-
-static inline struct ccid2_hc_rx_sock *ccid2_hc_rx_sk(const struct sock *sk)
-{
-	return dccp_sk(sk)->dccps_hc_rx_ccid_private;
-}
-
 #ifdef CCID2_DEBUG
 static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hctx)
 {
@@ -707,18 +697,11 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	ccid2_hc_tx_check_sanity(hctx);
 }
 
-static int ccid2_hc_tx_init(struct sock *sk)
+static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-        struct ccid2_hc_tx_sock *hctx;
+        struct ccid2_hc_tx_sock *hctx = ccid_priv(ccid);
 	int seqcount = ccid2_seq_len;
 	int i;
-
-        dp->dccps_hc_tx_ccid_private = kzalloc(sizeof(*hctx), gfp_any());
-        if (dp->dccps_hc_tx_ccid_private == NULL)
-                return -ENOMEM;
-
-        hctx = ccid2_hc_tx_sk(sk);
 
 	/* XXX init variables with proper values */
 	hctx->ccid2hctx_cwnd	  = 1;
@@ -728,11 +711,9 @@ static int ccid2_hc_tx_init(struct sock *sk)
 	/* XXX init ~ to window size... */
 	hctx->ccid2hctx_seqbuf = kmalloc(sizeof(*hctx->ccid2hctx_seqbuf) *
 					 seqcount, gfp_any());
-	if (hctx->ccid2hctx_seqbuf == NULL) {
-		kfree(dp->dccps_hc_tx_ccid_private);
-		dp->dccps_hc_tx_ccid_private = NULL;
+	if (hctx->ccid2hctx_seqbuf == NULL)
 		return -ENOMEM;
-	}
+
 	for (i = 0; i < (seqcount - 1); i++) {
 		hctx->ccid2hctx_seqbuf[i].ccid2s_next =
 					&hctx->ccid2hctx_seqbuf[i + 1];
@@ -763,15 +744,11 @@ static int ccid2_hc_tx_init(struct sock *sk)
 
 static void ccid2_hc_tx_exit(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
         struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 
 	ccid2_hc_tx_kill_rto_timer(sk);
-
 	kfree(hctx->ccid2hctx_seqbuf);
-
-	kfree(dp->dccps_hc_tx_ccid_private);
-	dp->dccps_hc_tx_ccid_private = NULL;
+	hctx->ccid2hctx_seqbuf = NULL;
 }
 
 static void ccid2_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
@@ -791,33 +768,17 @@ static void ccid2_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
-static int ccid2_hc_rx_init(struct sock *sk)
-{
-	struct dccp_sock *dp = dccp_sk(sk);
-        dp->dccps_hc_rx_ccid_private = kzalloc(sizeof(struct ccid2_hc_rx_sock),
-					       gfp_any());
-        return dp->dccps_hc_rx_ccid_private == NULL ? -ENOMEM : 0;
-}
-
-static void ccid2_hc_rx_exit(struct sock *sk)
-{
-	struct dccp_sock *dp = dccp_sk(sk);
-
-	kfree(dp->dccps_hc_rx_ccid_private);
-	dp->dccps_hc_rx_ccid_private = NULL;
-}
-
-static struct ccid ccid2 = {
+static struct ccid_operations ccid2 = {
 	.ccid_id		= 2,
 	.ccid_name		= "ccid2",
 	.ccid_owner		= THIS_MODULE,
+	.ccid_hc_tx_obj_size	= sizeof(struct ccid2_hc_tx_sock),
 	.ccid_hc_tx_init	= ccid2_hc_tx_init,
 	.ccid_hc_tx_exit	= ccid2_hc_tx_exit,
 	.ccid_hc_tx_send_packet	= ccid2_hc_tx_send_packet,
 	.ccid_hc_tx_packet_sent	= ccid2_hc_tx_packet_sent,
 	.ccid_hc_tx_packet_recv	= ccid2_hc_tx_packet_recv,
-	.ccid_hc_rx_init	= ccid2_hc_rx_init,
-	.ccid_hc_rx_exit	= ccid2_hc_rx_exit,
+	.ccid_hc_rx_obj_size	= sizeof(struct ccid2_hc_rx_sock),
 	.ccid_hc_rx_packet_recv	= ccid2_hc_rx_packet_recv,
 };
 

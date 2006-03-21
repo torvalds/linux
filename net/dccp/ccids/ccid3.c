@@ -647,17 +647,10 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 	return rc;
 }
 
-static int ccid3_hc_tx_init(struct sock *sk)
+static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_tx_sock *hctx;
-
-	dp->dccps_hc_tx_ccid_private = kmalloc(sizeof(*hctx), gfp_any());
-	if (dp->dccps_hc_tx_ccid_private == NULL)
-		return -ENOMEM;
-
-	hctx = ccid3_hc_tx_sk(sk);
-	memset(hctx, 0, sizeof(*hctx));
+	struct ccid3_hc_tx_sock *hctx = ccid_priv(ccid);
 
 	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
 	    dp->dccps_packet_size <= TFRC_MAX_PACKET_SIZE)
@@ -680,7 +673,6 @@ static int ccid3_hc_tx_init(struct sock *sk)
 
 static void ccid3_hc_tx_exit(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
 	BUG_ON(hctx == NULL);
@@ -690,9 +682,6 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 
 	/* Empty packet history */
 	dccp_tx_hist_purge(ccid3_tx_hist, &hctx->ccid3hctx_hist);
-
-	kfree(dp->dccps_hc_tx_ccid_private);
-	dp->dccps_hc_tx_ccid_private = NULL;
 }
 
 /*
@@ -1039,19 +1028,12 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
-static int ccid3_hc_rx_init(struct sock *sk)
+static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct ccid3_hc_rx_sock *hcrx;
+	struct ccid3_hc_rx_sock *hcrx = ccid_priv(ccid);
 
 	ccid3_pr_debug("%s, sk=%p\n", dccp_role(sk), sk);
-
-	dp->dccps_hc_rx_ccid_private = kmalloc(sizeof(*hcrx), gfp_any());
-	if (dp->dccps_hc_rx_ccid_private == NULL)
-		return -ENOMEM;
-
-	hcrx = ccid3_hc_rx_sk(sk);
-	memset(hcrx, 0, sizeof(*hcrx));
 
 	if (dp->dccps_packet_size >= TFRC_MIN_PACKET_SIZE &&
 	    dp->dccps_packet_size <= TFRC_MAX_PACKET_SIZE)
@@ -1071,7 +1053,6 @@ static int ccid3_hc_rx_init(struct sock *sk)
 static void ccid3_hc_rx_exit(struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	struct dccp_sock *dp = dccp_sk(sk);
 
 	BUG_ON(hcrx == NULL);
 
@@ -1082,9 +1063,6 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 
 	/* Empty loss interval history */
 	dccp_li_hist_purge(ccid3_li_hist, &hcrx->ccid3hcrx_li_hist);
-
-	kfree(dp->dccps_hc_rx_ccid_private);
-	dp->dccps_hc_rx_ccid_private = NULL;
 }
 
 static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
@@ -1170,10 +1148,11 @@ static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 	return 0;
 }
 
-static struct ccid ccid3 = {
+static struct ccid_operations ccid3 = {
 	.ccid_id		   = 3,
 	.ccid_name		   = "ccid3",
 	.ccid_owner		   = THIS_MODULE,
+	.ccid_hc_tx_obj_size	   = sizeof(struct ccid3_hc_tx_sock),
 	.ccid_hc_tx_init	   = ccid3_hc_tx_init,
 	.ccid_hc_tx_exit	   = ccid3_hc_tx_exit,
 	.ccid_hc_tx_send_packet	   = ccid3_hc_tx_send_packet,
@@ -1181,6 +1160,7 @@ static struct ccid ccid3 = {
 	.ccid_hc_tx_packet_recv	   = ccid3_hc_tx_packet_recv,
 	.ccid_hc_tx_insert_options = ccid3_hc_tx_insert_options,
 	.ccid_hc_tx_parse_options  = ccid3_hc_tx_parse_options,
+	.ccid_hc_rx_obj_size	   = sizeof(struct ccid3_hc_rx_sock),
 	.ccid_hc_rx_init	   = ccid3_hc_rx_init,
 	.ccid_hc_rx_exit	   = ccid3_hc_rx_exit,
 	.ccid_hc_rx_insert_options = ccid3_hc_rx_insert_options,

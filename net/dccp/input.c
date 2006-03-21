@@ -324,14 +324,6 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		dccp_set_seqno(&dp->dccps_swl,
 			       max48(dp->dccps_swl, dp->dccps_isr));
 
-		if (ccid_hc_rx_init(dp->dccps_hc_rx_ccid, sk) != 0 ||
-		    ccid_hc_tx_init(dp->dccps_hc_tx_ccid, sk) != 0) {
-			ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
-			ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
-			/* FIXME: send appropriate RESET code */
-			goto out_invalid_packet;
-		}
-
 		dccp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 
 		/*
