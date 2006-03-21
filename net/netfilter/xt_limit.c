@@ -113,9 +113,6 @@ ipt_limit_checkentry(const char *tablename,
 {
 	struct xt_rateinfo *r = matchinfo;
 
-	if (matchsize != XT_ALIGN(sizeof(struct xt_rateinfo)))
-		return 0;
-
 	/* Check for overflow. */
 	if (r->burst == 0
 	    || user2credits(r->avg * r->burst) < user2credits(r->avg)) {
@@ -140,12 +137,14 @@ ipt_limit_checkentry(const char *tablename,
 static struct xt_match ipt_limit_reg = {
 	.name		= "limit",
 	.match		= ipt_limit_match,
+	.matchsize	= sizeof(struct xt_rateinfo),
 	.checkentry	= ipt_limit_checkentry,
 	.me		= THIS_MODULE,
 };
 static struct xt_match limit6_reg = {
 	.name		= "limit",
 	.match		= ipt_limit_match,
+	.matchsize	= sizeof(struct xt_rateinfo),
 	.checkentry	= ipt_limit_checkentry,
 	.me		= THIS_MODULE,
 };

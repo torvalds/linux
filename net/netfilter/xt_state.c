@@ -43,29 +43,17 @@ match(const struct sk_buff *skb,
 	return (sinfo->statemask & statebit);
 }
 
-static int check(const char *tablename,
-		 const void *ip,
-		 void *matchinfo,
-		 unsigned int matchsize,
-		 unsigned int hook_mask)
-{
-	if (matchsize != XT_ALIGN(sizeof(struct xt_state_info)))
-		return 0;
-
-	return 1;
-}
-
 static struct xt_match state_match = {
 	.name		= "state",
-	.match		= &match,
-	.checkentry	= &check,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_state_info),
 	.me		= THIS_MODULE,
 };
 
 static struct xt_match state6_match = {
 	.name		= "state",
-	.match		= &match,
-	.checkentry	= &check,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_state_info),
 	.me		= THIS_MODULE,
 };
 

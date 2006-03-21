@@ -108,8 +108,6 @@ checkentry(const char *tablename,
 {
 	const struct xt_physdev_info *info = matchinfo;
 
-	if (matchsize != XT_ALIGN(sizeof(struct xt_physdev_info)))
-		return 0;
 	if (!(info->bitmask & XT_PHYSDEV_OP_MASK) ||
 	    info->bitmask & ~XT_PHYSDEV_OP_MASK)
 		return 0;
@@ -118,15 +116,17 @@ checkentry(const char *tablename,
 
 static struct xt_match physdev_match = {
 	.name		= "physdev",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_physdev_info),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
 static struct xt_match physdev6_match = {
 	.name		= "physdev",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_physdev_info),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 

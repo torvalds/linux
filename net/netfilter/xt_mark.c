@@ -42,28 +42,26 @@ checkentry(const char *tablename,
 {
 	struct xt_mark_info *minfo = (struct xt_mark_info *) matchinfo;
 
-	if (matchsize != XT_ALIGN(sizeof(struct xt_mark_info)))
-		return 0;
-
 	if (minfo->mark > 0xffffffff || minfo->mask > 0xffffffff) {
 		printk(KERN_WARNING "mark: only supports 32bit mark\n");
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct xt_match mark_match = {
 	.name		= "mark",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_mark_info),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
 static struct xt_match mark6_match = {
 	.name		= "mark",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_mark_info),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 

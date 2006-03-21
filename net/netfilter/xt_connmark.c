@@ -56,32 +56,30 @@ checkentry(const char *tablename,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
-	struct xt_connmark_info *cm = 
-				(struct xt_connmark_info *)matchinfo;
-	if (matchsize != XT_ALIGN(sizeof(struct xt_connmark_info)))
-		return 0;
+	struct xt_connmark_info *cm = (struct xt_connmark_info *)matchinfo;
 
 	if (cm->mark > 0xffffffff || cm->mask > 0xffffffff) {
 		printk(KERN_WARNING "connmark: only support 32bit mark\n");
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct xt_match connmark_match = {
-	.name = "connmark",
-	.match = &match,
-	.checkentry = &checkentry,
-	.me = THIS_MODULE
-};
-static struct xt_match connmark6_match = {
-	.name = "connmark",
-	.match = &match,
-	.checkentry = &checkentry,
-	.me = THIS_MODULE
+	.name		= "connmark",
+	.match		= match,
+	.matchsize	= sizeof(struct xt_connmark_info),
+	.checkentry	= checkentry,
+	.me		= THIS_MODULE
 };
 
+static struct xt_match connmark6_match = {
+	.name		= "connmark",
+	.match		= match,
+	.matchsize	= sizeof(struct xt_connmark_info),
+	.checkentry	= checkentry,
+	.me		= THIS_MODULE
+};
 
 static int __init init(void)
 {

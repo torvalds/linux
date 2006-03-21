@@ -50,9 +50,6 @@ static int checkentry(const char *tablename,
 	struct xt_string_info *conf = matchinfo;
 	struct ts_config *ts_conf;
 
-	if (matchsize != XT_ALIGN(sizeof(struct xt_string_info)))
-		return 0;
-
 	/* Damn, can't handle this case properly with iptables... */
 	if (conf->from_offset > conf->to_offset)
 		return 0;
@@ -75,6 +72,7 @@ static void destroy(void *matchinfo, unsigned int matchsize)
 static struct xt_match string_match = {
 	.name 		= "string",
 	.match 		= match,
+	.matchsize	= sizeof(struct xt_string_info),
 	.checkentry	= checkentry,
 	.destroy 	= destroy,
 	.me 		= THIS_MODULE
@@ -82,6 +80,7 @@ static struct xt_match string_match = {
 static struct xt_match string6_match = {
 	.name 		= "string",
 	.match 		= match,
+	.matchsize	= sizeof(struct xt_string_info),
 	.checkentry	= checkentry,
 	.destroy 	= destroy,
 	.me 		= THIS_MODULE

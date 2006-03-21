@@ -166,15 +166,9 @@ checkentry(const char *tablename,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
-	const struct xt_sctp_info *info;
-	const struct ipt_ip *ip = inf;
+	const struct xt_sctp_info *info = matchinfo;
 
-	info = (const struct xt_sctp_info *)matchinfo;
-
-	return ip->proto == IPPROTO_SCTP
-		&& !(ip->invflags & XT_INV_PROTO)
-		&& matchsize == XT_ALIGN(sizeof(struct xt_sctp_info))
-		&& !(info->flags & ~XT_SCTP_VALID_FLAGS)
+	return !(info->flags & ~XT_SCTP_VALID_FLAGS)
 		&& !(info->invflags & ~XT_SCTP_VALID_FLAGS)
 		&& !(info->invflags & ~info->flags)
 		&& ((!(info->flags & XT_SCTP_CHUNK_TYPES)) || 
@@ -184,47 +178,23 @@ checkentry(const char *tablename,
 				| SCTP_CHUNK_MATCH_ONLY)));
 }
 
-static int
-checkentry6(const char *tablename,
-	   const void *inf,
-	   void *matchinfo,
-	   unsigned int matchsize,
-	   unsigned int hook_mask)
-{
-	const struct xt_sctp_info *info;
-	const struct ip6t_ip6 *ip = inf;
-
-	info = (const struct xt_sctp_info *)matchinfo;
-
-	return ip->proto == IPPROTO_SCTP
-		&& !(ip->invflags & XT_INV_PROTO)
-		&& matchsize == XT_ALIGN(sizeof(struct xt_sctp_info))
-		&& !(info->flags & ~XT_SCTP_VALID_FLAGS)
-		&& !(info->invflags & ~XT_SCTP_VALID_FLAGS)
-		&& !(info->invflags & ~info->flags)
-		&& ((!(info->flags & XT_SCTP_CHUNK_TYPES)) || 
-			(info->chunk_match_type &
-				(SCTP_CHUNK_MATCH_ALL 
-				| SCTP_CHUNK_MATCH_ANY
-				| SCTP_CHUNK_MATCH_ONLY)));
-}
-
-
-static struct xt_match sctp_match = 
-{ 
-	.name = "sctp",
-	.match = &match,
-	.checkentry = &checkentry,
-	.me = THIS_MODULE
-};
-static struct xt_match sctp6_match = 
-{ 
-	.name = "sctp",
-	.match = &match,
-	.checkentry = &checkentry6,
-	.me = THIS_MODULE
+static struct xt_match sctp_match = {
+	.name		= "sctp",
+	.match		= match,
+	.matchsize	= sizeof(struct xt_sctp_info),
+	.proto		= IPPROTO_SCTP,
+	.checkentry	= checkentry,
+	.me		= THIS_MODULE
 };
 
+static struct xt_match sctp6_match = {
+	.name		= "sctp",
+	.match		= match,
+	.matchsize	= sizeof(struct xt_sctp_info),
+	.proto		= IPPROTO_SCTP,
+	.checkentry	= checkentry,
+	.me		= THIS_MODULE
+};
 
 static int __init init(void)
 {

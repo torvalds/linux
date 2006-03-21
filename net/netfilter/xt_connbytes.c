@@ -128,9 +128,6 @@ static int check(const char *tablename,
 {
 	const struct xt_connbytes_info *sinfo = matchinfo;
 
-	if (matchsize != XT_ALIGN(sizeof(struct xt_connbytes_info)))
-		return 0;
-
 	if (sinfo->what != XT_CONNBYTES_PKTS &&
 	    sinfo->what != XT_CONNBYTES_BYTES &&
 	    sinfo->what != XT_CONNBYTES_AVGPKT)
@@ -146,14 +143,16 @@ static int check(const char *tablename,
 
 static struct xt_match connbytes_match = {
 	.name		= "connbytes",
-	.match		= &match,
-	.checkentry	= &check,
+	.match		= match,
+	.checkentry	= check,
+	.matchsize	= sizeof(struct xt_connbytes_info),
 	.me		= THIS_MODULE
 };
 static struct xt_match connbytes6_match = {
 	.name		= "connbytes",
-	.match		= &match,
-	.checkentry	= &check,
+	.match		= match,
+	.checkentry	= check,
+	.matchsize	= sizeof(struct xt_connbytes_info),
 	.me		= THIS_MODULE
 };
 

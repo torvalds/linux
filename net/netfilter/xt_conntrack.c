@@ -201,22 +201,10 @@ match(const struct sk_buff *skb,
 
 #endif /* CONFIG_NF_IP_CONNTRACK */
 
-static int check(const char *tablename,
-		 const void *ip,
-		 void *matchinfo,
-		 unsigned int matchsize,
-		 unsigned int hook_mask)
-{
-	if (matchsize != XT_ALIGN(sizeof(struct xt_conntrack_info)))
-		return 0;
-
-	return 1;
-}
-
 static struct xt_match conntrack_match = {
 	.name		= "conntrack",
-	.match		= &match,
-	.checkentry	= &check,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_conntrack_info),
 	.me		= THIS_MODULE,
 };
 

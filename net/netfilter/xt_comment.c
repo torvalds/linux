@@ -28,30 +28,17 @@ match(const struct sk_buff *skb,
 	return 1;
 }
 
-static int
-checkentry(const char *tablename,
-           const void *ip,
-           void *matchinfo,
-           unsigned int matchsize,
-           unsigned int hook_mask)
-{
-	/* Check the size */
-	if (matchsize != XT_ALIGN(sizeof(struct xt_comment_info)))
-		return 0;
-	return 1;
-}
-
 static struct xt_match comment_match = {
 	.name		= "comment",
 	.match		= match,
-	.checkentry	= checkentry,
+	.matchsize	= sizeof(struct xt_comment_info),
 	.me		= THIS_MODULE
 };
 
 static struct xt_match comment6_match = {
 	.name		= "comment",
 	.match		= match,
-	.checkentry	= checkentry,
+	.matchsize	= sizeof(struct xt_comment_info),
 	.me		= THIS_MODULE
 };
 

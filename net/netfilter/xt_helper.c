@@ -142,24 +142,21 @@ static int check(const char *tablename,
 	struct xt_helper_info *info = matchinfo;
 
 	info->name[29] = '\0';
-
-	/* verify size */
-	if (matchsize != XT_ALIGN(sizeof(struct xt_helper_info)))
-		return 0;
-
 	return 1;
 }
 
 static struct xt_match helper_match = {
 	.name		= "helper",
-	.match		= &match,
-	.checkentry	= &check,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_helper_info),
+	.checkentry	= check,
 	.me		= THIS_MODULE,
 };
 static struct xt_match helper6_match = {
 	.name		= "helper",
-	.match		= &match,
-	.checkentry	= &check,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_helper_info),
+	.checkentry	= check,
 	.me		= THIS_MODULE,
 };
 
