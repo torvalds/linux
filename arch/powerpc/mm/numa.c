@@ -133,6 +133,8 @@ static inline void map_cpu_to_node(int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
 
+	dbg("adding cpu %d to node %d\n", cpu, node);
+
 	if (!(cpu_isset(cpu, numa_cpumask_lookup_table[node])))
 		cpu_set(cpu, numa_cpumask_lookup_table[node]);
 }
@@ -246,8 +248,7 @@ static int __init find_min_common_depth(void)
 	if ((len >= 1) && ref_points) {
 		depth = ref_points[1];
 	} else {
-		dbg("WARNING: could not find NUMA "
-		    "associativity reference point\n");
+		dbg("NUMA: ibm,associativity-reference-points not found.\n");
 		depth = -1;
 	}
 	of_node_put(rtas_root);
@@ -385,9 +386,10 @@ static int __init parse_numa_properties(void)
 
 	min_common_depth = find_min_common_depth();
 
-	dbg("NUMA associativity depth for CPU/Memory: %d\n", min_common_depth);
 	if (min_common_depth < 0)
 		return min_common_depth;
+
+	dbg("NUMA associativity depth for CPU/Memory: %d\n", min_common_depth);
 
 	/*
 	 * Even though we connect cpus to numa domains later in SMP init,
