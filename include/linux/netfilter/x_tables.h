@@ -126,6 +126,8 @@ struct xt_match
 	unsigned int matchsize;
 	unsigned int hooks;
 	unsigned short proto;
+
+	unsigned short family;
 	u_int8_t revision;
 };
 
@@ -169,6 +171,8 @@ struct xt_target
 	unsigned int targetsize;
 	unsigned int hooks;
 	unsigned short proto;
+
+	unsigned short family;
 	u_int8_t revision;
 };
 
