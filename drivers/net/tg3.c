@@ -3655,7 +3655,135 @@ static void tg3_set_txd(struct tg3 *tp, int entry,
 	txd->vlan_tag = vlan_tag << TXD_VLAN_TAG_SHIFT;
 }
 
+/* hard_start_xmit for devices that don't have any bugs and
+ * support TG3_FLG2_HW_TSO_2 only.
+ */
 static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct tg3 *tp = netdev_priv(dev);
+	dma_addr_t mapping;
+	u32 len, entry, base_flags, mss;
+
+	len = skb_headlen(skb);
+
+	/* No BH disabling for tx_lock here.  We are running in BH disabled
+	 * context and TX reclaim runs via tp->poll inside of a software
+	 * interrupt.  Furthermore, IRQ processing runs lockless so we have
+	 * no IRQ context deadlocks to worry about either.  Rejoice!
+	 */
+	if (!spin_trylock(&tp->tx_lock))
+		return NETDEV_TX_LOCKED;
+
+	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
+		if (!netif_queue_stopped(dev)) {
+			netif_stop_queue(dev);
+
+			/* This is a hard error, log it. */
+			printk(KERN_ERR PFX "%s: BUG! Tx Ring full when "
+			       "queue awake!\n", dev->name);
+		}
+		spin_unlock(&tp->tx_lock);
+		return NETDEV_TX_BUSY;
+	}
+
+	entry = tp->tx_prod;
+	base_flags = 0;
+#if TG3_TSO_SUPPORT != 0
+	mss = 0;
+	if (skb->len > (tp->dev->mtu + ETH_HLEN) &&
+	    (mss = skb_shinfo(skb)->tso_size) != 0) {
+		int tcp_opt_len, ip_tcp_len;
+
+		if (skb_header_cloned(skb) &&
+		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
+			dev_kfree_skb(skb);
+			goto out_unlock;
+		}
+
+		tcp_opt_len = ((skb->h.th->doff - 5) * 4);
+		ip_tcp_len = (skb->nh.iph->ihl * 4) + sizeof(struct tcphdr);
+
+		base_flags |= (TXD_FLAG_CPU_PRE_DMA |
+			       TXD_FLAG_CPU_POST_DMA);
+
+		skb->nh.iph->check = 0;
+		skb->nh.iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
+
+		skb->h.th->check = 0;
+
+		mss |= (ip_tcp_len + tcp_opt_len) << 9;
+	}
+	else if (skb->ip_summed == CHECKSUM_HW)
+		base_flags |= TXD_FLAG_TCPUDP_CSUM;
+#else
+	mss = 0;
+	if (skb->ip_summed == CHECKSUM_HW)
+		base_flags |= TXD_FLAG_TCPUDP_CSUM;
+#endif
+#if TG3_VLAN_TAG_USED
+	if (tp->vlgrp != NULL && vlan_tx_tag_present(skb))
+		base_flags |= (TXD_FLAG_VLAN |
+			       (vlan_tx_tag_get(skb) << 16));
+#endif
+
+	/* Queue skb data, a.k.a. the main skb fragment. */
+	mapping = pci_map_single(tp->pdev, skb->data, len, PCI_DMA_TODEVICE);
+
+	tp->tx_buffers[entry].skb = skb;
+	pci_unmap_addr_set(&tp->tx_buffers[entry], mapping, mapping);
+
+	tg3_set_txd(tp, entry, mapping, len, base_flags,
+		    (skb_shinfo(skb)->nr_frags == 0) | (mss << 1));
+
+	entry = NEXT_TX(entry);
+
+	/* Now loop through additional data fragments, and queue them. */
+	if (skb_shinfo(skb)->nr_frags > 0) {
+		unsigned int i, last;
+
+		last = skb_shinfo(skb)->nr_frags - 1;
+		for (i = 0; i <= last; i++) {
+			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+
+			len = frag->size;
+			mapping = pci_map_page(tp->pdev,
+					       frag->page,
+					       frag->page_offset,
+					       len, PCI_DMA_TODEVICE);
+
+			tp->tx_buffers[entry].skb = NULL;
+			pci_unmap_addr_set(&tp->tx_buffers[entry], mapping, mapping);
+
+			tg3_set_txd(tp, entry, mapping, len,
+				    base_flags, (i == last) | (mss << 1));
+
+			entry = NEXT_TX(entry);
+		}
+	}
+
+	/* Packets are ready, update Tx producer idx local and on card. */
+	tw32_tx_mbox((MAILBOX_SNDHOST_PROD_IDX_0 + TG3_64BIT_REG_LOW), entry);
+
+	tp->tx_prod = entry;
+	if (TX_BUFFS_AVAIL(tp) <= (MAX_SKB_FRAGS + 1)) {
+		netif_stop_queue(dev);
+		if (TX_BUFFS_AVAIL(tp) > TG3_TX_WAKEUP_THRESH)
+			netif_wake_queue(tp->dev);
+	}
+
+out_unlock:
+    	mmiowb();
+	spin_unlock(&tp->tx_lock);
+
+	dev->trans_start = jiffies;
+
+	return NETDEV_TX_OK;
+}
+
+/* hard_start_xmit for devices that have the 4G bug and/or 40-bit bug and
+ * support TG3_FLG2_HW_TSO_1 or firmware TSO only.
+ */
+static int tg3_start_xmit_dma_bug(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tg3 *tp = netdev_priv(dev);
 	dma_addr_t mapping;
@@ -9811,8 +9939,12 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	    (tp->tg3_flags2 & TG3_FLG2_5750_PLUS))
 		tp->tg3_flags2 |= TG3_FLG2_5705_PLUS;
 
-	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS)
-		tp->tg3_flags2 |= TG3_FLG2_HW_TSO;
+	if (tp->tg3_flags2 & TG3_FLG2_5750_PLUS) {
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_2;
+		else
+			tp->tg3_flags2 |= TG3_FLG2_HW_TSO_1;
+	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5705 &&
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5750 &&
@@ -10163,10 +10295,13 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	else
 		tp->tg3_flags &= ~TG3_FLAG_POLL_SERDES;
 
-	/* It seems all chips can get confused if TX buffers
+	/* All chips before 5787 can get confused if TX buffers
 	 * straddle the 4GB address boundary in some cases.
 	 */
-	tp->dev->hard_start_xmit = tg3_start_xmit;
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
+		tp->dev->hard_start_xmit = tg3_start_xmit;
+	else
+		tp->dev->hard_start_xmit = tg3_start_xmit_dma_bug;
 
 	tp->rx_offset = 2;
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701 &&
