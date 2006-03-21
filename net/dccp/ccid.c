@@ -59,9 +59,6 @@ int ccid_register(struct ccid *ccid)
 {
 	int err;
 
-	if (ccid->ccid_init == NULL)
-		return -1;
-
 	ccids_write_lock();
 	err = -EEXIST;
 	if (ccids[ccid->ccid_id] == NULL) {
@@ -106,7 +103,7 @@ struct ccid *ccid_init(unsigned char id, struct sock *sk)
 	if (!try_module_get(ccid->ccid_owner))
 		goto out_err;
 
-	if (ccid->ccid_init(sk) != 0)
+	if (ccid->ccid_init != NULL && ccid->ccid_init(sk) != 0)
 		goto out_module_put;
 out:
 	ccids_read_unlock();

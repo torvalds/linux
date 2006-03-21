@@ -76,15 +76,6 @@ static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
 static struct dccp_li_hist *ccid3_li_hist;
 
-static int ccid3_init(struct sock *sk)
-{
-	return 0;
-}
-
-static void ccid3_exit(struct sock *sk)
-{
-}
-
 /* TFRC sender states */
 enum ccid3_hc_tx_states {
        	TFRC_SSTATE_NO_SENT = 1,
@@ -1182,8 +1173,6 @@ static struct ccid ccid3 = {
 	.ccid_id		   = 3,
 	.ccid_name		   = "ccid3",
 	.ccid_owner		   = THIS_MODULE,
-	.ccid_init		   = ccid3_init,
-	.ccid_exit		   = ccid3_exit,
 	.ccid_hc_tx_init	   = ccid3_hc_tx_init,
 	.ccid_hc_tx_exit	   = ccid3_hc_tx_exit,
 	.ccid_hc_tx_send_packet	   = ccid3_hc_tx_send_packet,
