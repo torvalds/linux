@@ -890,7 +890,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		np->cork.hop_limit = hlimit;
 		np->cork.tclass = tclass;
 		mtu = dst_mtu(rt->u.dst.path);
-		if (np && np->frag_size < mtu) {
+		if (np->frag_size < mtu) {
 			if (np->frag_size)
 				mtu = np->frag_size;
 		}
