@@ -10881,11 +10881,12 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		tp->tg3_flags2 |= TG3_FLG2_TSO_CAPABLE;
 	}
 
-	/* TSO is off by default, user can enable using ethtool.  */
-#if 0
-	if (tp->tg3_flags2 & TG3_FLG2_TSO_CAPABLE)
+	/* TSO is on by default on chips that support hardware TSO.
+	 * Firmware TSO on older chips gives lower performance, so it
+	 * is off by default, but can be enabled using ethtool.
+	 */
+	if (tp->tg3_flags2 & TG3_FLG2_HW_TSO)
 		dev->features |= NETIF_F_TSO;
-#endif
 
 #endif
 
