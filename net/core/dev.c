@@ -81,6 +81,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
@@ -1759,8 +1760,7 @@ static void net_rx_action(struct softirq_action *h)
 		if (dev->quota <= 0 || dev->poll(dev, &budget)) {
 			netpoll_poll_unlock(have);
 			local_irq_disable();
-			list_del(&dev->poll_list);
-			list_add_tail(&dev->poll_list, &queue->poll_list);
+			list_move_tail(&dev->poll_list, &queue->poll_list);
 			if (dev->quota < 0)
 				dev->quota += dev->weight;
 			else
@@ -2174,12 +2174,20 @@ unsigned dev_get_flags(const struct net_device *dev)
 
 	flags = (dev->flags & ~(IFF_PROMISC |
 				IFF_ALLMULTI |
-				IFF_RUNNING)) | 
+				IFF_RUNNING |
+				IFF_LOWER_UP |
+				IFF_DORMANT)) |
 		(dev->gflags & (IFF_PROMISC |
 				IFF_ALLMULTI));
 
-	if (netif_running(dev) && netif_carrier_ok(dev))
-		flags |= IFF_RUNNING;
+	if (netif_running(dev)) {
+		if (netif_oper_up(dev))
+			flags |= IFF_RUNNING;
+		if (netif_carrier_ok(dev))
+			flags |= IFF_LOWER_UP;
+		if (netif_dormant(dev))
+			flags |= IFF_DORMANT;
+	}
 
 	return flags;
 }
@@ -2458,9 +2466,9 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 	 */
 
 	if (cmd == SIOCGIFCONF) {
-		rtnl_shlock();
+		rtnl_lock();
 		ret = dev_ifconf((char __user *) arg);
-		rtnl_shunlock();
+		rtnl_unlock();
 		return ret;
 	}
 	if (cmd == SIOCGIFNAME)
@@ -2869,7 +2877,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
 	rebroadcast_time = warning_time = jiffies;
 	while (atomic_read(&dev->refcnt) != 0) {
 		if (time_after(jiffies, rebroadcast_time + 1 * HZ)) {
-			rtnl_shlock();
+			rtnl_lock();
 
 			/* Rebroadcast unregister notification */
 			notifier_call_chain(&netdev_chain,
@@ -2886,7 +2894,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
 				linkwatch_run_queue();
 			}
 
-			rtnl_shunlock();
+			__rtnl_unlock();
 
 			rebroadcast_time = jiffies;
 		}
@@ -2924,7 +2932,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
  * 2) Since we run with the RTNL semaphore not held, we can sleep
  *    safely in order to wait for the netdev refcnt to drop to zero.
  */
-static DECLARE_MUTEX(net_todo_run_mutex);
+static DEFINE_MUTEX(net_todo_run_mutex);
 void netdev_run_todo(void)
 {
 	struct list_head list = LIST_HEAD_INIT(list);
@@ -2932,7 +2940,7 @@ void netdev_run_todo(void)
 
 
 	/* Need to guard against multiple cpu's getting out of order. */
-	down(&net_todo_run_mutex);
+	mutex_lock(&net_todo_run_mutex);
 
 	/* Not safe to do outside the semaphore.  We must not return
 	 * until all unregister events invoked by the local processor
@@ -2989,7 +2997,7 @@ void netdev_run_todo(void)
 	}
 
 out:
-	up(&net_todo_run_mutex);
+	mutex_unlock(&net_todo_run_mutex);
 }
 
 /**

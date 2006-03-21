@@ -164,6 +164,7 @@ extern void nfattr_parse(struct nfattr *tb[], int maxattr,
  	__res;								\
 })
 
+extern int nfnetlink_has_listeners(unsigned int group);
 extern int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, 
 			  int echo);
 extern int nfnetlink_unicast(struct sk_buff *skb, u_int32_t pid, int flags);

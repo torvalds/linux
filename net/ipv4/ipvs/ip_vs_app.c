@@ -31,6 +31,7 @@
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/mutex.h>
 
 #include <net/ip_vs.h>
 
@@ -40,7 +41,7 @@ EXPORT_SYMBOL(register_ip_vs_app_inc);
 
 /* ipvs application list head */
 static LIST_HEAD(ip_vs_app_list);
-static DECLARE_MUTEX(__ip_vs_app_mutex);
+static DEFINE_MUTEX(__ip_vs_app_mutex);
 
 
 /*
@@ -173,11 +174,11 @@ register_ip_vs_app_inc(struct ip_vs_app *app, __u16 proto, __u16 port)
 {
 	int result;
 
-	down(&__ip_vs_app_mutex);
+	mutex_lock(&__ip_vs_app_mutex);
 
 	result = ip_vs_app_inc_new(app, proto, port);
 
-	up(&__ip_vs_app_mutex);
+	mutex_unlock(&__ip_vs_app_mutex);
 
 	return result;
 }
@@ -191,11 +192,11 @@ int register_ip_vs_app(struct ip_vs_app *app)
 	/* increase the module use count */
 	ip_vs_use_count_inc();
 
-	down(&__ip_vs_app_mutex);
+	mutex_lock(&__ip_vs_app_mutex);
 
 	list_add(&app->a_list, &ip_vs_app_list);
 
-	up(&__ip_vs_app_mutex);
+	mutex_unlock(&__ip_vs_app_mutex);
 
 	return 0;
 }
@@ -209,7 +210,7 @@ void unregister_ip_vs_app(struct ip_vs_app *app)
 {
 	struct ip_vs_app *inc, *nxt;
 
-	down(&__ip_vs_app_mutex);
+	mutex_lock(&__ip_vs_app_mutex);
 
 	list_for_each_entry_safe(inc, nxt, &app->incs_list, a_list) {
 		ip_vs_app_inc_release(inc);
@@ -217,7 +218,7 @@ void unregister_ip_vs_app(struct ip_vs_app *app)
 
 	list_del(&app->a_list);
 
-	up(&__ip_vs_app_mutex);
+	mutex_unlock(&__ip_vs_app_mutex);
 
 	/* decrease the module use count */
 	ip_vs_use_count_dec();
@@ -498,7 +499,7 @@ static struct ip_vs_app *ip_vs_app_idx(loff_t pos)
 
 static void *ip_vs_app_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	down(&__ip_vs_app_mutex);
+	mutex_lock(&__ip_vs_app_mutex);
 
 	return *pos ? ip_vs_app_idx(*pos - 1) : SEQ_START_TOKEN;
 }
@@ -530,7 +531,7 @@ static void *ip_vs_app_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void ip_vs_app_seq_stop(struct seq_file *seq, void *v)
 {
-	up(&__ip_vs_app_mutex);
+	mutex_unlock(&__ip_vs_app_mutex);
 }
 
 static int ip_vs_app_seq_show(struct seq_file *seq, void *v)

@@ -19,13 +19,8 @@
 #include <linux/netfilter_bridge.h>
 #include "br_private.h"
 
-const unsigned char bridge_ula[6] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
-
-static int br_pass_frame_up_finish(struct sk_buff *skb)
-{
-	netif_receive_skb(skb);
-	return 0;
-}
+/* Bridge group multicast address 802.1d (pg 51). */
+const u8 br_group_address[ETH_ALEN] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 
 static void br_pass_frame_up(struct net_bridge *br, struct sk_buff *skb)
 {
@@ -38,7 +33,7 @@ static void br_pass_frame_up(struct net_bridge *br, struct sk_buff *skb)
 	skb->dev = br->dev;
 
 	NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, indev, NULL,
-			br_pass_frame_up_finish);
+		netif_receive_skb);
 }
 
 /* note: already called with rcu_read_lock (preempt_disabled) */
@@ -100,6 +95,25 @@ drop:
 	goto out;
 }
 
+/* note: already called with rcu_read_lock (preempt_disabled) */
+static int br_handle_local_finish(struct sk_buff *skb)
+{
+	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
+
+	if (p && p->state != BR_STATE_DISABLED)
+		br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
+
+	return 0;	 /* process further */
+}
+
+/* Does address match the link local multicast address.
+ * 01:80:c2:00:00:0X
+ */
+static inline int is_link_local(const unsigned char *dest)
+{
+	return memcmp(dest, br_group_address, 5) == 0 && (dest[5] & 0xf0) == 0;
+}
+
 /*
  * Called via br_handle_frame_hook.
  * Return 0 if *pskb should be processed furthur
@@ -117,15 +131,10 @@ int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb)
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto err;
 
-	if (p->br->stp_enabled &&
-	    !memcmp(dest, bridge_ula, 5) &&
-	    !(dest[5] & 0xF0)) {
-		if (!dest[5]) {
-			NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev, 
-				NULL, br_stp_handle_bpdu);
-			return 1;
-		}
-		goto err;
+	if (unlikely(is_link_local(dest))) {
+		skb->pkt_type = PACKET_HOST;
+		return NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, skb->dev,
+			       NULL, br_handle_local_finish) != 0;
 	}
 
 	if (p->state == BR_STATE_FORWARDING || p->state == BR_STATE_LEARNING) {

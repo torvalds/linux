@@ -616,7 +616,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 			break;
 
 		case SO_PEERSEC:
-			return security_socket_getpeersec(sock, optval, optlen, len);
+			return security_socket_getpeersec_stream(sock, optval, optlen, len);
 
 		default:
 			return(-ENOPROTOOPT);
@@ -1385,6 +1385,20 @@ int sock_common_getsockopt(struct socket *sock, int level, int optname,
 
 EXPORT_SYMBOL(sock_common_getsockopt);
 
+#ifdef CONFIG_COMPAT
+int compat_sock_common_getsockopt(struct socket *sock, int level, int optname,
+				  char __user *optval, int __user *optlen)
+{
+	struct sock *sk = sock->sk;
+
+	if (sk->sk_prot->compat_setsockopt != NULL)
+		return sk->sk_prot->compat_getsockopt(sk, level, optname,
+						      optval, optlen);
+	return sk->sk_prot->getsockopt(sk, level, optname, optval, optlen);
+}
+EXPORT_SYMBOL(compat_sock_common_getsockopt);
+#endif
+
 int sock_common_recvmsg(struct kiocb *iocb, struct socket *sock,
 			struct msghdr *msg, size_t size, int flags)
 {
@@ -1413,6 +1427,20 @@ int sock_common_setsockopt(struct socket *sock, int level, int optname,
 }
 
 EXPORT_SYMBOL(sock_common_setsockopt);
+
+#ifdef CONFIG_COMPAT
+int compat_sock_common_setsockopt(struct socket *sock, int level, int optname,
+				  char __user *optval, int optlen)
+{
+	struct sock *sk = sock->sk;
+
+	if (sk->sk_prot->compat_setsockopt != NULL)
+		return sk->sk_prot->compat_setsockopt(sk, level, optname,
+						      optval, optlen);
+	return sk->sk_prot->setsockopt(sk, level, optname, optval, optlen);
+}
+EXPORT_SYMBOL(compat_sock_common_setsockopt);
+#endif
 
 void sk_common_release(struct sock *sk)
 {

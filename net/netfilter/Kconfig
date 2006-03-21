@@ -279,6 +279,16 @@ config NETFILTER_XT_MATCH_MARK
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_POLICY
+	tristate 'IPsec "policy" match support'
+	depends on NETFILTER_XTABLES && XFRM
+	help
+	  Policy matching allows you to match packets based on the
+	  IPsec policy that was used during decapsulation/will
+	  be used during encapsulation.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_PHYSDEV
 	tristate '"physdev" match support'
 	depends on NETFILTER_XTABLES && BRIDGE_NETFILTER

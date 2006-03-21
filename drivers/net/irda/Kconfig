@@ -64,6 +64,14 @@ config TEKRAM_DONGLE
 	  dongles you will have to start irattach like this:
 	  "irattach -d tekram".
 
+config TOIM3232_DONGLE
+	tristate "TOIM3232 IrDa dongle"
+	depends on DONGLE && IRDA
+	help
+	  Say Y here if you want to build support for the Vishay/Temic
+	  TOIM3232 and TOIM4232 based dongles.
+	  To compile it as a module, choose M here.
+
 config LITELINK_DONGLE
 	tristate "Parallax LiteLink dongle"
 	depends on DONGLE && IRDA

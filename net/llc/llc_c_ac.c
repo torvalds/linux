@@ -27,7 +27,6 @@
 #include <net/llc_pdu.h>
 #include <net/llc.h>
 
-#include "llc_output.h"
 
 static int llc_conn_ac_inc_vs_by_1(struct sock *sk, struct sk_buff *skb);
 static void llc_process_tmr_ev(struct sock *sk, struct sk_buff *skb);

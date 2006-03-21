@@ -18,6 +18,7 @@
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/xprt.h>
@@ -62,7 +63,7 @@ static LIST_HEAD(all_tasks);
 /*
  * rpciod-related stuff
  */
-static DECLARE_MUTEX(rpciod_sema);
+static DEFINE_MUTEX(rpciod_mutex);
 static unsigned int		rpciod_users;
 static struct workqueue_struct *rpciod_workqueue;
 
@@ -1047,7 +1048,7 @@ rpciod_up(void)
 	struct workqueue_struct *wq;
 	int error = 0;
 
-	down(&rpciod_sema);
+	mutex_lock(&rpciod_mutex);
 	dprintk("rpciod_up: users %d\n", rpciod_users);
 	rpciod_users++;
 	if (rpciod_workqueue)
@@ -1070,14 +1071,14 @@ rpciod_up(void)
 	rpciod_workqueue = wq;
 	error = 0;
 out:
-	up(&rpciod_sema);
+	mutex_unlock(&rpciod_mutex);
 	return error;
 }
 
 void
 rpciod_down(void)
 {
-	down(&rpciod_sema);
+	mutex_lock(&rpciod_mutex);
 	dprintk("rpciod_down sema %d\n", rpciod_users);
 	if (rpciod_users) {
 		if (--rpciod_users)
@@ -1094,7 +1095,7 @@ rpciod_down(void)
 	destroy_workqueue(rpciod_workqueue);
 	rpciod_workqueue = NULL;
  out:
-	up(&rpciod_sema);
+	mutex_unlock(&rpciod_mutex);
 }
 
 #ifdef RPC_DEBUG

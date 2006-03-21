@@ -24,7 +24,7 @@
 #include <net/llc_s_ac.h>
 #include <net/llc_s_ev.h>
 #include <net/llc_sap.h>
-#include "llc_output.h"
+
 
 /**
  *	llc_sap_action_unit_data_ind - forward UI PDU to network layer

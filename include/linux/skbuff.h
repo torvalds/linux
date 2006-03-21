@@ -270,7 +270,6 @@ struct sk_buff {
 
 	void			(*destructor)(struct sk_buff *skb);
 #ifdef CONFIG_NETFILTER
-	__u32			nfmark;
 	struct nf_conntrack	*nfct;
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	struct sk_buff		*nfct_reasm;
@@ -278,6 +277,7 @@ struct sk_buff {
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct nf_bridge_info	*nf_bridge;
 #endif
+	__u32			nfmark;
 #endif /* CONFIG_NETFILTER */
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
@@ -304,6 +304,7 @@ struct sk_buff {
 
 #include <asm/system.h>
 
+extern void kfree_skb(struct sk_buff *skb);
 extern void	       __kfree_skb(struct sk_buff *skb);
 extern struct sk_buff *__alloc_skb(unsigned int size,
 				   gfp_t priority, int fclone);
@@ -402,22 +403,6 @@ static inline struct sk_buff *skb_get(struct sk_buff *skb)
  * If users == 1, we are the only owner and are can avoid redundant
  * atomic change.
  */
-
-/**
- *	kfree_skb - free an sk_buff
- *	@skb: buffer to free
- *
- *	Drop a reference to the buffer and free it if the usage count has
- *	hit zero.
- */
-static inline void kfree_skb(struct sk_buff *skb)
-{
-	if (likely(atomic_read(&skb->users) == 1))
-		smp_rmb();
-	else if (likely(!atomic_dec_and_test(&skb->users)))
-		return;
-	__kfree_skb(skb);
-}
 
 /**
  *	skb_cloned - is the buffer a clone
@@ -1174,11 +1159,13 @@ static inline int skb_linearize(struct sk_buff *skb, gfp_t gfp)
  */
 
 static inline void skb_postpull_rcsum(struct sk_buff *skb,
-					 const void *start, int len)
+				      const void *start, unsigned int len)
 {
 	if (skb->ip_summed == CHECKSUM_HW)
 		skb->csum = csum_sub(skb->csum, csum_partial(start, len, 0));
 }
+
+unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len);
 
 /**
  *	pskb_trim_rcsum - trim received skb and update checksum
@@ -1351,16 +1338,6 @@ static inline void nf_conntrack_put_reasm(struct sk_buff *skb)
 		kfree_skb(skb);
 }
 #endif
-static inline void nf_reset(struct sk_buff *skb)
-{
-	nf_conntrack_put(skb->nfct);
-	skb->nfct = NULL;
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
-	nf_conntrack_put_reasm(skb->nfct_reasm);
-	skb->nfct_reasm = NULL;
-#endif
-}
-
 #ifdef CONFIG_BRIDGE_NETFILTER
 static inline void nf_bridge_put(struct nf_bridge_info *nf_bridge)
 {
@@ -1373,6 +1350,20 @@ static inline void nf_bridge_get(struct nf_bridge_info *nf_bridge)
 		atomic_inc(&nf_bridge->use);
 }
 #endif /* CONFIG_BRIDGE_NETFILTER */
+static inline void nf_reset(struct sk_buff *skb)
+{
+	nf_conntrack_put(skb->nfct);
+	skb->nfct = NULL;
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_conntrack_put_reasm(skb->nfct_reasm);
+	skb->nfct_reasm = NULL;
+#endif
+#ifdef CONFIG_BRIDGE_NETFILTER
+	nf_bridge_put(skb->nf_bridge);
+	skb->nf_bridge = NULL;
+#endif
+}
+
 #else /* CONFIG_NETFILTER */
 static inline void nf_reset(struct sk_buff *skb) {}
 #endif /* CONFIG_NETFILTER */

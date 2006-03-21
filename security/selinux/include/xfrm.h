@@ -39,6 +39,8 @@ static inline u32 selinux_no_sk_sid(struct flowi *fl)
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 int selinux_xfrm_sock_rcv_skb(u32 sid, struct sk_buff *skb);
 int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb);
+u32 selinux_socket_getpeer_stream(struct sock *sk);
+u32 selinux_socket_getpeer_dgram(struct sk_buff *skb);
 #else
 static inline int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb)
 {
@@ -48,6 +50,16 @@ static inline int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb)
 static inline int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb)
 {
 	return NF_ACCEPT;
+}
+
+static inline int selinux_socket_getpeer_stream(struct sock *sk)
+{
+	return SECSID_NULL;
+}
+
+static inline int selinux_socket_getpeer_dgram(struct sk_buff *skb)
+{
+	return SECSID_NULL;
 }
 #endif
 
