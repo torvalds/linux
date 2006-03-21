@@ -348,8 +348,8 @@ static struct dentry_operations sockfs_dentry_operations = {
 /*
  *	Obtains the first available file descriptor and sets it up for use.
  *
- *	This function creates file structure and maps it to fd space
- *	of current process. On success it returns file descriptor
+ *	These functions create file structures and maps them to fd space
+ *	of the current process. On success it returns file descriptor
  *	and file struct implicitly stored in sock->file.
  *	Note that another thread may close file descriptor before we return
  *	from this function. We use the fact that now we do not refer
@@ -362,52 +362,67 @@ static struct dentry_operations sockfs_dentry_operations = {
  *	but we take care of internal coherence yet.
  */
 
-int sock_map_fd(struct socket *sock)
+static int sock_alloc_fd(struct file **filep)
 {
 	int fd;
+
+	fd = get_unused_fd();
+	if (likely(fd >= 0)) {
+		struct file *file = get_empty_filp();
+
+		*filep = file;
+		if (unlikely(!file)) {
+			put_unused_fd(fd);
+			return -ENFILE;
+		}
+	} else
+		*filep = NULL;
+	return fd;
+}
+
+static int sock_attach_fd(struct socket *sock, struct file *file)
+{
 	struct qstr this;
 	char name[32];
 
-	/*
-	 *	Find a file descriptor suitable for return to the user. 
-	 */
+	this.len = sprintf(name, "[%lu]", SOCK_INODE(sock)->i_ino);
+	this.name = name;
+	this.hash = SOCK_INODE(sock)->i_ino;
 
-	fd = get_unused_fd();
-	if (fd >= 0) {
-		struct file *file = get_empty_filp();
+	file->f_dentry = d_alloc(sock_mnt->mnt_sb->s_root, &this);
+	if (unlikely(!file->f_dentry))
+		return -ENOMEM;
 
-		if (!file) {
+	file->f_dentry->d_op = &sockfs_dentry_operations;
+	d_add(file->f_dentry, SOCK_INODE(sock));
+	file->f_vfsmnt = mntget(sock_mnt);
+	file->f_mapping = file->f_dentry->d_inode->i_mapping;
+
+	sock->file = file;
+	file->f_op = SOCK_INODE(sock)->i_fop = &socket_file_ops;
+	file->f_mode = FMODE_READ | FMODE_WRITE;
+	file->f_flags = O_RDWR;
+	file->f_pos = 0;
+	file->private_data = sock;
+
+	return 0;
+}
+
+int sock_map_fd(struct socket *sock)
+{
+	struct file *newfile;
+	int fd = sock_alloc_fd(&newfile);
+
+	if (likely(fd >= 0)) {
+		int err = sock_attach_fd(sock, newfile);
+
+		if (unlikely(err < 0)) {
+			put_filp(newfile);
 			put_unused_fd(fd);
-			fd = -ENFILE;
-			goto out;
+			return err;
 		}
-
-		this.len = sprintf(name, "[%lu]", SOCK_INODE(sock)->i_ino);
-		this.name = name;
-		this.hash = SOCK_INODE(sock)->i_ino;
-
-		file->f_dentry = d_alloc(sock_mnt->mnt_sb->s_root, &this);
-		if (!file->f_dentry) {
-			put_filp(file);
-			put_unused_fd(fd);
-			fd = -ENOMEM;
-			goto out;
-		}
-		file->f_dentry->d_op = &sockfs_dentry_operations;
-		d_add(file->f_dentry, SOCK_INODE(sock));
-		file->f_vfsmnt = mntget(sock_mnt);
-		file->f_mapping = file->f_dentry->d_inode->i_mapping;
-
-		sock->file = file;
-		file->f_op = SOCK_INODE(sock)->i_fop = &socket_file_ops;
-		file->f_mode = FMODE_READ | FMODE_WRITE;
-		file->f_flags = O_RDWR;
-		file->f_pos = 0;
-		file->private_data = sock;
-		fd_install(fd, file);
+		fd_install(fd, newfile);
 	}
-
-out:
 	return fd;
 }
 
@@ -1349,7 +1364,8 @@ asmlinkage long sys_listen(int fd, int backlog)
 asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr, int __user *upeer_addrlen)
 {
 	struct socket *sock, *newsock;
-	int err, len;
+	struct file *newfile;
+	int err, len, newfd;
 	char address[MAX_SOCK_ADDR];
 
 	sock = sockfd_lookup(fd, &err);
@@ -1369,28 +1385,38 @@ asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr, int _
 	 */
 	__module_get(newsock->ops->owner);
 
+	newfd = sock_alloc_fd(&newfile);
+	if (unlikely(newfd < 0)) {
+		err = newfd;
+		goto out_release;
+	}
+
+	err = sock_attach_fd(newsock, newfile);
+	if (err < 0)
+		goto out_fd;
+
 	err = security_socket_accept(sock, newsock);
 	if (err)
-		goto out_release;
+		goto out_fd;
 
 	err = sock->ops->accept(sock, newsock, sock->file->f_flags);
 	if (err < 0)
-		goto out_release;
+		goto out_fd;
 
 	if (upeer_sockaddr) {
 		if(newsock->ops->getname(newsock, (struct sockaddr *)address, &len, 2)<0) {
 			err = -ECONNABORTED;
-			goto out_release;
+			goto out_fd;
 		}
 		err = move_addr_to_user(address, len, upeer_sockaddr, upeer_addrlen);
 		if (err < 0)
-			goto out_release;
+			goto out_fd;
 	}
 
 	/* File flags are not inherited via accept() unlike another OSes. */
 
-	if ((err = sock_map_fd(newsock)) < 0)
-		goto out_release;
+	fd_install(newfd, newfile);
+	err = newfd;
 
 	security_socket_post_accept(sock, newsock);
 
@@ -1398,6 +1424,9 @@ out_put:
 	sockfd_put(sock);
 out:
 	return err;
+out_fd:
+	put_filp(newfile);
+	put_unused_fd(newfd);
 out_release:
 	sock_release(newsock);
 	goto out_put;
