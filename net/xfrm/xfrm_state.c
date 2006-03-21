@@ -179,6 +179,8 @@ out:
 	xfrm_state_put(x);
 }
 
+static void xfrm_replay_timer_handler(unsigned long data);
+
 struct xfrm_state *xfrm_state_alloc(void)
 {
 	struct xfrm_state *x;
@@ -815,11 +817,9 @@ void xfrm_replay_notify(struct xfrm_state *x, int event)
 	c.data.aevent = event;
 	km_state_notify(x, &c);
 
-resched:
 	if (x->replay_maxage &&
 	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
 		xfrm_state_hold(x);
-
 }
 
 static void xfrm_replay_timer_handler(unsigned long data)
