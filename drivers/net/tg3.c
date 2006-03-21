@@ -10926,7 +10926,6 @@ static void __devinit tg3_init_link_config(struct tg3 *tp)
 	tp->link_config.speed = SPEED_INVALID;
 	tp->link_config.duplex = DUPLEX_INVALID;
 	tp->link_config.autoneg = AUTONEG_ENABLE;
-	netif_carrier_off(tp->dev);
 	tp->link_config.active_speed = SPEED_INVALID;
 	tp->link_config.active_duplex = DUPLEX_INVALID;
 	tp->link_config.phy_is_low_power = 0;
@@ -11389,6 +11388,8 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	       dev->name, tp->dma_rwctrl,
 	       (pdev->dma_mask == DMA_32BIT_MASK) ? 32 :
 	        (((u64) pdev->dma_mask == DMA_40BIT_MASK) ? 40 : 64));
+
+	netif_carrier_off(tp->dev);
 
 	return 0;
 
