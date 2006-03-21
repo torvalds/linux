@@ -397,10 +397,6 @@ int ip6_ins_rt(struct rt6_info *rt, struct nlmsghdr *nlh,
 	return err;
 }
 
-/* No rt6_lock! If COW failed, the function returns dead route entry
-   with dst->error set to errno value.
- */
-
 static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort, struct in6_addr *daddr,
 				      struct in6_addr *saddr)
 {
@@ -435,26 +431,6 @@ static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort, struct in6_addr *dad
 		rt->rt6i_nexthop = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
 
 	}
-
-	return rt;
-}
-
-static struct rt6_info *rt6_cow(struct rt6_info *ort, struct in6_addr *daddr,
-				struct in6_addr *saddr, struct netlink_skb_parms *req)
-{
-	struct rt6_info *rt = rt6_alloc_cow(ort, daddr, saddr);
-	int err;
-
-	if (!rt) {
-		dst_hold(&ip6_null_entry.u.dst);
-		return &ip6_null_entry;
-	}
-
-	dst_hold(&rt->u.dst);
-
-	err = ip6_ins_rt(rt, NULL, NULL, req);
-	if (err)
-		rt->u.dst.error = err;
 
 	return rt;
 }
@@ -518,15 +494,23 @@ restart:
 
 	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {
 		struct rt6_info *nrt;
+		int err;
 
-		nrt = rt6_cow(rt, &skb->nh.ipv6h->daddr,
-			      &skb->nh.ipv6h->saddr,
-			      &NETLINK_CB(skb));
+		nrt = rt6_alloc_cow(rt, &skb->nh.ipv6h->daddr,
+				    &skb->nh.ipv6h->saddr);
 
 		dst_release(&rt->u.dst);
-		rt = nrt;
+		rt = nrt ? : &ip6_null_entry;
 
-		if (rt->u.dst.error != -EEXIST || --attempts <= 0)
+		dst_hold(&rt->u.dst);
+		if (nrt) {
+			err = ip6_ins_rt(nrt, NULL, NULL,
+					 &NETLINK_CB(skb));
+			if (!err)
+				goto out2;
+		}
+
+		if (--attempts <= 0)
 			goto out2;
 
 		/* Race condition! In the gap, when rt6_lock was
@@ -582,13 +566,21 @@ restart:
 
 	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {
 		struct rt6_info *nrt;
+		int err;
 
-		nrt = rt6_cow(rt, &fl->fl6_dst, &fl->fl6_src, NULL);
+		nrt = rt6_alloc_cow(rt, &fl->fl6_dst, &fl->fl6_src);
 
 		dst_release(&rt->u.dst);
-		rt = nrt;
+		rt = nrt ? : &ip6_null_entry;
 
-		if (rt->u.dst.error != -EEXIST || --attempts <= 0)
+		dst_hold(&rt->u.dst);
+		if (nrt) {
+			err = ip6_ins_rt(nrt, NULL, NULL, NULL);
+			if (!err)
+				goto out2;
+		}
+
+		if (--attempts <= 0)
 			goto out2;
 
 		/* Race condition! In the gap, when rt6_lock was
@@ -597,6 +589,7 @@ restart:
 		dst_release(&rt->u.dst);
 		goto relookup;
 	}
+
 out2:
 	rt->u.dst.lastuse = jiffies;
 	rt->u.dst.__use++;
