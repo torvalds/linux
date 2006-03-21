@@ -22,7 +22,7 @@
 int dccp_feat_change(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len,
 		     gfp_t gfp)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	struct dccp_opt_pend *opt;
 
 	dccp_pr_debug("feat change type=%d feat=%d\n", type, feature);
@@ -30,8 +30,7 @@ int dccp_feat_change(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len,
 	/* XXX sanity check feat change request */
 
 	/* check if that feature is already being negotiated */
-	list_for_each_entry(opt, &dp->dccps_options.dccpo_pending,
-			    dccpop_node) {
+	list_for_each_entry(opt, &dmsk->dccpms_pending, dccpop_node) {
 		/* ok we found a negotiation for this option already */
 		if (opt->dccpop_feat == feature && opt->dccpop_type == type) {
 			dccp_pr_debug("Replacing old\n");
@@ -59,7 +58,7 @@ int dccp_feat_change(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len,
 
 	BUG_ON(opt->dccpop_val == NULL);
 
-	list_add_tail(&opt->dccpop_node, &dp->dccps_options.dccpo_pending);
+	list_add_tail(&opt->dccpop_node, &dmsk->dccpms_pending);
 	return 0;
 }
 
@@ -68,10 +67,10 @@ EXPORT_SYMBOL_GPL(dccp_feat_change);
 static int dccp_feat_update_ccid(struct sock *sk, u8 type, u8 new_ccid_nr)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	/* figure out if we are changing our CCID or the peer's */
 	const int rx = type == DCCPO_CHANGE_R;
-	const u8 ccid_nr = rx ? dp->dccps_options.dccpo_rx_ccid :
-				dp->dccps_options.dccpo_tx_ccid;
+	const u8 ccid_nr = rx ? dmsk->dccpms_rx_ccid : dmsk->dccpms_tx_ccid;
 	struct ccid *new_ccid;
 
 	/* Check if nothing is being changed. */
@@ -85,11 +84,11 @@ static int dccp_feat_update_ccid(struct sock *sk, u8 type, u8 new_ccid_nr)
 	if (rx) {
 		ccid_hc_rx_delete(dp->dccps_hc_rx_ccid, sk);
 		dp->dccps_hc_rx_ccid = new_ccid;
-		dp->dccps_options.dccpo_rx_ccid = new_ccid_nr;
+		dmsk->dccpms_rx_ccid = new_ccid_nr;
 	} else {
 		ccid_hc_tx_delete(dp->dccps_hc_tx_ccid, sk);
 		dp->dccps_hc_tx_ccid = new_ccid;
-		dp->dccps_options.dccpo_tx_ccid = new_ccid_nr;
+		dmsk->dccpms_tx_ccid = new_ccid_nr;
 	}
 
 	return 0;
@@ -159,9 +158,9 @@ static int dccp_feat_reconcile(struct sock *sk, struct dccp_opt_pend *opt,
 		case DCCPF_CCID:
 			/* XXX did i get this right? =P */
 			if (opt->dccpop_type == DCCPO_CHANGE_L)
-				res = &dp->dccps_options.dccpo_tx_ccid;
+				res = &dccp_msk(sk)->dccpms_tx_ccid;
 			else
-				res = &dp->dccps_options.dccpo_rx_ccid;
+				res = &dccp_msk(sk)->dccpms_rx_ccid;
 			break;
 
 		default:
@@ -226,7 +225,7 @@ static int dccp_feat_reconcile(struct sock *sk, struct dccp_opt_pend *opt,
 
 static int dccp_feat_sp(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	struct dccp_opt_pend *opt;
 	int rc = 1;
 	u8 t;
@@ -242,8 +241,7 @@ static int dccp_feat_sp(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 		t = DCCPO_CHANGE_L;
 
 	/* find our preference list for this feature */
-	list_for_each_entry(opt, &dp->dccps_options.dccpo_pending,
-			    dccpop_node) {
+	list_for_each_entry(opt, &dmsk->dccpms_pending, dccpop_node) {
 		if (opt->dccpop_type != t || opt->dccpop_feat != feature)
 			continue;
 
@@ -265,7 +263,7 @@ static int dccp_feat_sp(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 static int dccp_feat_nn(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 {
 	struct dccp_opt_pend *opt;
-	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	u8 *copy;
 	int rc;
 
@@ -304,14 +302,14 @@ static int dccp_feat_nn(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 	}
 
 	dccp_pr_debug("Confirming NN feature %d (val=%d)\n", feature, *copy);
-	list_add_tail(&opt->dccpop_node, &dp->dccps_options.dccpo_conf);
+	list_add_tail(&opt->dccpop_node, &dmsk->dccpms_conf);
 
 	return 0;
 }
 
 static void dccp_feat_empty_confirm(struct sock *sk, u8 type, u8 feature)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	/* XXX check if other confirms for that are queued and recycle slot */
 	struct dccp_opt_pend *opt = kzalloc(sizeof(*opt), GFP_ATOMIC);
 
@@ -330,20 +328,19 @@ static void dccp_feat_empty_confirm(struct sock *sk, u8 type, u8 feature)
 
 	/* change feature */
 	dccp_pr_debug("Empty confirm feature %d type %d\n", feature, type);
-	list_add_tail(&opt->dccpop_node, &dp->dccps_options.dccpo_conf);
+	list_add_tail(&opt->dccpop_node, &dmsk->dccpms_conf);
 }
 
 static void dccp_feat_flush_confirm(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	/* Check if there is anything to confirm in the first place */
-	int yes = !list_empty(&dp->dccps_options.dccpo_conf);
+	int yes = !list_empty(&dmsk->dccpms_conf);
 
 	if (!yes) {
 		struct dccp_opt_pend *opt;
 
-		list_for_each_entry(opt, &dp->dccps_options.dccpo_pending,
-				    dccpop_node) {
+		list_for_each_entry(opt, &dmsk->dccpms_pending, dccpop_node) {
 			if (opt->dccpop_conf) {
 				yes = 1;
 				break;
@@ -407,7 +404,7 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 {
 	u8 t;
 	struct dccp_opt_pend *opt;
-	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	int rc = 1;
 	int all_confirmed = 1;
 
@@ -418,8 +415,7 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 	/* locate our change request */
 	t = type == DCCPO_CONFIRM_L ? DCCPO_CHANGE_R : DCCPO_CHANGE_L;
 
-	list_for_each_entry(opt, &dp->dccps_options.dccpo_pending,
-			    dccpop_node) {
+	list_for_each_entry(opt, &dmsk->dccpms_pending, dccpop_node) {
 		if (!opt->dccpop_conf && opt->dccpop_type == t &&
 		    opt->dccpop_feat == feature) {
 			/* we found it */
@@ -462,10 +458,10 @@ EXPORT_SYMBOL_GPL(dccp_feat_confirm_recv);
 
 void dccp_feat_clean(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	struct dccp_opt_pend *opt, *next;
 
-	list_for_each_entry_safe(opt, next, &dp->dccps_options.dccpo_pending,
+	list_for_each_entry_safe(opt, next, &dmsk->dccpms_pending,
 				 dccpop_node) {
                 BUG_ON(opt->dccpop_val == NULL);
                 kfree(opt->dccpop_val);
@@ -478,16 +474,15 @@ void dccp_feat_clean(struct sock *sk)
 
                 kfree(opt);
         }
-	INIT_LIST_HEAD(&dp->dccps_options.dccpo_pending);
+	INIT_LIST_HEAD(&dmsk->dccpms_pending);
 
-	list_for_each_entry_safe(opt, next, &dp->dccps_options.dccpo_conf,
-				 dccpop_node) {
+	list_for_each_entry_safe(opt, next, &dmsk->dccpms_conf, dccpop_node) {
 		BUG_ON(opt == NULL);
 		if (opt->dccpop_val != NULL)
 			kfree(opt->dccpop_val);
 		kfree(opt);
 	}
-	INIT_LIST_HEAD(&dp->dccps_options.dccpo_conf);
+	INIT_LIST_HEAD(&dmsk->dccpms_conf);
 }
 
 EXPORT_SYMBOL_GPL(dccp_feat_clean);
@@ -498,16 +493,15 @@ EXPORT_SYMBOL_GPL(dccp_feat_clean);
  */
 int dccp_feat_clone(struct sock *oldsk, struct sock *newsk)
 {
-	struct dccp_sock *olddp = dccp_sk(oldsk);
-	struct dccp_sock *newdp = dccp_sk(newsk);
+	struct dccp_minisock *olddmsk = dccp_msk(oldsk);
+	struct dccp_minisock *newdmsk = dccp_msk(newsk);
 	struct dccp_opt_pend *opt;
 	int rc = 0;
 
-	INIT_LIST_HEAD(&newdp->dccps_options.dccpo_pending);
-	INIT_LIST_HEAD(&newdp->dccps_options.dccpo_conf);
+	INIT_LIST_HEAD(&newdmsk->dccpms_pending);
+	INIT_LIST_HEAD(&newdmsk->dccpms_conf);
 
-	list_for_each_entry(opt, &olddp->dccps_options.dccpo_pending,
-			    dccpop_node) {
+	list_for_each_entry(opt, &olddmsk->dccpms_pending, dccpop_node) {
 		struct dccp_opt_pend *newopt;
 		/* copy the value of the option */
 		u8 *val = kmalloc(opt->dccpop_len, GFP_ATOMIC);
@@ -525,8 +519,7 @@ int dccp_feat_clone(struct sock *oldsk, struct sock *newsk)
 		/* insert the option */
 		memcpy(newopt, opt, sizeof(*newopt));
 		newopt->dccpop_val = val;
-		list_add_tail(&newopt->dccpop_node,
-			      &newdp->dccps_options.dccpo_pending);
+		list_add_tail(&newopt->dccpop_node, &newdmsk->dccpms_pending);
 
 		/* XXX what happens with backlogs and multiple connections at
 		 * once...
@@ -567,27 +560,27 @@ static int __dccp_feat_init(struct sock *sk, u8 type, u8 feat, u8 *val, u8 len)
 
 int dccp_feat_init(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	int rc;
 
-	INIT_LIST_HEAD(&dp->dccps_options.dccpo_pending);
-	INIT_LIST_HEAD(&dp->dccps_options.dccpo_conf);
+	INIT_LIST_HEAD(&dmsk->dccpms_pending);
+	INIT_LIST_HEAD(&dmsk->dccpms_conf);
 
 	/* CCID L */
 	rc = __dccp_feat_init(sk, DCCPO_CHANGE_L, DCCPF_CCID,
-			      &dp->dccps_options.dccpo_tx_ccid, 1);
+			      &dmsk->dccpms_tx_ccid, 1);
 	if (rc)
 		goto out;
 
 	/* CCID R */
 	rc = __dccp_feat_init(sk, DCCPO_CHANGE_R, DCCPF_CCID,
-			      &dp->dccps_options.dccpo_rx_ccid, 1);
+			      &dmsk->dccpms_rx_ccid, 1);
 	if (rc)
 		goto out;
 
 	/* Ack ratio */
 	rc = __dccp_feat_init(sk, DCCPO_CHANGE_L, DCCPF_ACK_RATIO,
-			      &dp->dccps_options.dccpo_ack_ratio, 1);
+			      &dmsk->dccpms_ack_ratio, 1);
 out:
 	return rc;
 }

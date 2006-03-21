@@ -107,6 +107,7 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		const struct dccp_request_sock *dreq = dccp_rsk(req);
 		struct inet_connection_sock *newicsk = inet_csk(sk);
 		struct dccp_sock *newdp = dccp_sk(newsk);
+		struct dccp_minisock *newdmsk = dccp_msk(newsk);
 
 		newdp->dccps_role	   = DCCP_ROLE_SERVER;
 		newdp->dccps_hc_rx_ackvec  = NULL;
@@ -118,7 +119,7 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		if (dccp_feat_clone(sk, newsk))
 			goto out_free;
 
-		if (newdp->dccps_options.dccpo_send_ack_vector) {
+		if (newdmsk->dccpms_send_ack_vector) {
 			newdp->dccps_hc_rx_ackvec =
 						dccp_ackvec_alloc(GFP_ATOMIC);
 			if (unlikely(newdp->dccps_hc_rx_ackvec == NULL))
@@ -126,10 +127,10 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		}
 
 		newdp->dccps_hc_rx_ccid =
-			    ccid_hc_rx_new(newdp->dccps_options.dccpo_rx_ccid,
+			    ccid_hc_rx_new(newdmsk->dccpms_rx_ccid,
 					   newsk, GFP_ATOMIC);
 		newdp->dccps_hc_tx_ccid =
-			    ccid_hc_tx_new(newdp->dccps_options.dccpo_tx_ccid,
+			    ccid_hc_tx_new(newdmsk->dccpms_tx_ccid,
 					   newsk, GFP_ATOMIC);
 		if (unlikely(newdp->dccps_hc_rx_ccid == NULL ||
 			     newdp->dccps_hc_tx_ccid == NULL)) {
@@ -153,7 +154,7 @@ out_free:
 		 */
 
 		/* See dccp_v4_conn_request */
-		newdp->dccps_options.dccpo_sequence_window = req->rcv_wnd;
+		newdmsk->dccpms_sequence_window = req->rcv_wnd;
 
 		newdp->dccps_gar = newdp->dccps_isr = dreq->dreq_isr;
 		dccp_update_gsr(newsk, dreq->dreq_isr);

@@ -303,14 +303,13 @@ static inline void dccp_hdr_set_ack(struct dccp_hdr_ack_bits *dhack,
 static inline void dccp_update_gsr(struct sock *sk, u64 seq)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
+	const struct dccp_minisock *dmsk = dccp_msk(sk);
 
 	dp->dccps_gsr = seq;
 	dccp_set_seqno(&dp->dccps_swl,
-		       (dp->dccps_gsr + 1 -
-		        (dp->dccps_options.dccpo_sequence_window / 4)));
+		       dp->dccps_gsr + 1 - (dmsk->dccpms_sequence_window / 4));
 	dccp_set_seqno(&dp->dccps_swh,
-		       (dp->dccps_gsr +
-			(3 * dp->dccps_options.dccpo_sequence_window) / 4));
+		       dp->dccps_gsr + (3 * dmsk->dccpms_sequence_window) / 4);
 }
 
 static inline void dccp_update_gss(struct sock *sk, u64 seq)
@@ -320,7 +319,7 @@ static inline void dccp_update_gss(struct sock *sk, u64 seq)
 	dp->dccps_awh = dp->dccps_gss = seq;
 	dccp_set_seqno(&dp->dccps_awl,
 		       (dp->dccps_gss -
-			dp->dccps_options.dccpo_sequence_window + 1));
+			dccp_msk(sk)->dccpms_sequence_window + 1));
 }
 				
 static inline int dccp_ack_pending(const struct sock *sk)
@@ -328,7 +327,7 @@ static inline int dccp_ack_pending(const struct sock *sk)
 	const struct dccp_sock *dp = dccp_sk(sk);
 	return dp->dccps_timestamp_echo != 0 ||
 #ifdef CONFIG_IP_DCCP_ACKVEC
-	       (dp->dccps_options.dccpo_send_ack_vector &&
+	       (dccp_msk(sk)->dccpms_send_ack_vector &&
 		dccp_ackvec_pending(dp->dccps_hc_rx_ackvec)) ||
 #endif
 	       inet_csk_ack_scheduled(sk);

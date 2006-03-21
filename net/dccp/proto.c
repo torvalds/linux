@@ -166,9 +166,10 @@ EXPORT_SYMBOL_GPL(dccp_unhash);
 int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	dccp_options_init(&dp->dccps_options);
+	dccp_minisock_init(&dp->dccps_minisock);
 	do_gettimeofday(&dp->dccps_epoch);
 
 	/*
@@ -184,22 +185,20 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 		if (rc)
 			return rc;
 
-		if (dp->dccps_options.dccpo_send_ack_vector) {
+		if (dmsk->dccpms_send_ack_vector) {
 			dp->dccps_hc_rx_ackvec = dccp_ackvec_alloc(GFP_KERNEL);
 			if (dp->dccps_hc_rx_ackvec == NULL)
 				return -ENOMEM;
 		}
-		dp->dccps_hc_rx_ccid =
-				ccid_hc_rx_new(dp->dccps_options.dccpo_rx_ccid,
-					       sk, GFP_KERNEL);
-		dp->dccps_hc_tx_ccid =
-				ccid_hc_tx_new(dp->dccps_options.dccpo_tx_ccid,
-					       sk, GFP_KERNEL);
+		dp->dccps_hc_rx_ccid = ccid_hc_rx_new(dmsk->dccpms_rx_ccid,
+						      sk, GFP_KERNEL);
+		dp->dccps_hc_tx_ccid = ccid_hc_tx_new(dmsk->dccpms_tx_ccid,
+						      sk, GFP_KERNEL);
 	    	if (unlikely(dp->dccps_hc_rx_ccid == NULL ||
 			     dp->dccps_hc_tx_ccid == NULL)) {
 			ccid_hc_rx_delete(dp->dccps_hc_rx_ccid, sk);
 			ccid_hc_tx_delete(dp->dccps_hc_tx_ccid, sk);
-			if (dp->dccps_options.dccpo_send_ack_vector) {
+			if (dmsk->dccpms_send_ack_vector) {
 				dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
 				dp->dccps_hc_rx_ackvec = NULL;
 			}
@@ -208,8 +207,8 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 		}
 	} else {
 		/* control socket doesn't need feat nego */
-		INIT_LIST_HEAD(&dp->dccps_options.dccpo_pending);
-		INIT_LIST_HEAD(&dp->dccps_options.dccpo_conf);
+		INIT_LIST_HEAD(&dmsk->dccpms_pending);
+		INIT_LIST_HEAD(&dmsk->dccpms_conf);
 	}
 
 	dccp_init_xmit_timers(sk);
@@ -247,7 +246,7 @@ int dccp_destroy_sock(struct sock *sk)
 	kfree(dp->dccps_service_list);
 	dp->dccps_service_list = NULL;
 
-	if (dp->dccps_options.dccpo_send_ack_vector) {
+	if (dccp_msk(sk)->dccpms_send_ack_vector) {
 		dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
 		dp->dccps_hc_rx_ackvec = NULL;
 	}

@@ -30,14 +30,14 @@ int dccp_feat_default_ack_ratio	      = DCCPF_INITIAL_ACK_RATIO;
 int dccp_feat_default_send_ack_vector = DCCPF_INITIAL_SEND_ACK_VECTOR;
 int dccp_feat_default_send_ndp_count  = DCCPF_INITIAL_SEND_NDP_COUNT;
 
-void dccp_options_init(struct dccp_options *dccpo)
+void dccp_minisock_init(struct dccp_minisock *dmsk)
 {
-	dccpo->dccpo_sequence_window = dccp_feat_default_sequence_window;
-	dccpo->dccpo_rx_ccid	     = dccp_feat_default_rx_ccid;
-	dccpo->dccpo_tx_ccid	     = dccp_feat_default_tx_ccid;
-	dccpo->dccpo_ack_ratio	     = dccp_feat_default_ack_ratio;
-	dccpo->dccpo_send_ack_vector = dccp_feat_default_send_ack_vector;
-	dccpo->dccpo_send_ndp_count  = dccp_feat_default_send_ndp_count;
+	dmsk->dccpms_sequence_window = dccp_feat_default_sequence_window;
+	dmsk->dccpms_rx_ccid	     = dccp_feat_default_rx_ccid;
+	dmsk->dccpms_tx_ccid	     = dccp_feat_default_tx_ccid;
+	dmsk->dccpms_ack_ratio	     = dccp_feat_default_ack_ratio;
+	dmsk->dccpms_send_ack_vector = dccp_feat_default_send_ack_vector;
+	dmsk->dccpms_send_ndp_count  = dccp_feat_default_send_ndp_count;
 }
 
 static u32 dccp_decode_value_var(const unsigned char *bf, const u8 len)
@@ -151,7 +151,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			if (pkt_type == DCCP_PKT_DATA)
 				break;
 
-			if (dp->dccps_options.dccpo_send_ack_vector &&
+			if (dccp_msk(sk)->dccpms_send_ack_vector &&
 			    dccp_ackvec_parse(sk, skb, opt, value, len))
 				goto out_invalid_option;
 			break;
@@ -472,12 +472,12 @@ static int dccp_insert_feat_opt(struct sk_buff *skb, u8 type, u8 feat,
 static int dccp_insert_options_feat(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 	struct dccp_opt_pend *opt, *next;
 	int change = 0;
 
 	/* confirm any options [NN opts] */
-	list_for_each_entry_safe(opt, next, &dp->dccps_options.dccpo_conf,
-				 dccpop_node) {
+	list_for_each_entry_safe(opt, next, &dmsk->dccpms_conf, dccpop_node) {
 		dccp_insert_feat_opt(skb, opt->dccpop_type,
 				     opt->dccpop_feat, opt->dccpop_val,
 				     opt->dccpop_len);
@@ -486,11 +486,10 @@ static int dccp_insert_options_feat(struct sock *sk, struct sk_buff *skb)
 			kfree(opt->dccpop_val);
 		kfree(opt);
 	}
-	INIT_LIST_HEAD(&dp->dccps_options.dccpo_conf);
+	INIT_LIST_HEAD(&dmsk->dccpms_conf);
 
 	/* see which features we need to send */
-	list_for_each_entry(opt, &dp->dccps_options.dccpo_pending,
-			    dccpop_node) {
+	list_for_each_entry(opt, &dmsk->dccpms_pending, dccpop_node) {
 		/* see if we need to send any confirm */
 		if (opt->dccpop_sc) {
 			dccp_insert_feat_opt(skb, opt->dccpop_type + 1,
@@ -536,15 +535,16 @@ static int dccp_insert_options_feat(struct sock *sk, struct sk_buff *skb)
 int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len = 0;
 
-	if (dp->dccps_options.dccpo_send_ndp_count &&
+	if (dmsk->dccpms_send_ndp_count &&
 	    dccp_insert_option_ndp(sk, skb))
 		return -1;
 
 	if (!dccp_packet_without_ack(skb)) {
-		if (dp->dccps_options.dccpo_send_ack_vector &&
+		if (dmsk->dccpms_send_ack_vector &&
 		    dccp_ackvec_pending(dp->dccps_hc_rx_ackvec) &&
 		    dccp_insert_option_ackvec(sk, skb))
 			return -1;

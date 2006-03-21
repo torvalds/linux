@@ -328,21 +328,24 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 #define DCCP_NDP_LIMIT 0xFFFFFF
 
 /**
-  * struct dccp_options - option values for a DCCP connection
-  *	@dccpo_sequence_window - Sequence Window Feature (section 7.5.2)
-  *	@dccpo_ccid - Congestion Control Id (CCID) (section 10)
-  *	@dccpo_send_ack_vector - Send Ack Vector Feature (section 11.5)
-  *	@dccpo_send_ndp_count - Send NDP Count Feature (7.7.2)
+  * struct dccp_minisock - Minimal DCCP connection representation
+  *
+  * Will be used to pass the state from dccp_request_sock to dccp_sock.
+  *
+  * @dccpms_sequence_window - Sequence Window Feature (section 7.5.2)
+  * @dccpms_ccid - Congestion Control Id (CCID) (section 10)
+  * @dccpms_send_ack_vector - Send Ack Vector Feature (section 11.5)
+  * @dccpms_send_ndp_count - Send NDP Count Feature (7.7.2)
   */
-struct dccp_options {
-	__u64	dccpo_sequence_window;
-	__u8	dccpo_rx_ccid;
-	__u8	dccpo_tx_ccid;
-	__u8	dccpo_send_ack_vector;
-	__u8	dccpo_send_ndp_count;
-	__u8			dccpo_ack_ratio;
-	struct list_head	dccpo_pending;
-	struct list_head	dccpo_conf;
+struct dccp_minisock {
+	__u64			dccpms_sequence_window;
+	__u8			dccpms_rx_ccid;
+	__u8			dccpms_tx_ccid;
+	__u8			dccpms_send_ack_vector;
+	__u8			dccpms_send_ndp_count;
+	__u8			dccpms_ack_ratio;
+	struct list_head	dccpms_pending;
+	struct list_head	dccpms_conf;
 };
 
 struct dccp_opt_conf {
@@ -360,8 +363,9 @@ struct dccp_opt_pend {
 	struct dccp_opt_conf    *dccpop_sc;
 };
 
-extern void __dccp_options_init(struct dccp_options *dccpo);
-extern void dccp_options_init(struct dccp_options *dccpo);
+extern void __dccp_minisock_init(struct dccp_minisock *dmsk);
+extern void dccp_minisock_init(struct dccp_minisock *dmsk);
+
 extern int dccp_parse_options(struct sock *sk, struct sk_buff *skb);
 
 struct dccp_request_sock {
@@ -457,7 +461,7 @@ struct dccp_sock {
 	__u16				dccps_r_ack_ratio;
 	unsigned long			dccps_ndp_count;
 	__u32				dccps_mss_cache;
-	struct dccp_options		dccps_options;
+	struct dccp_minisock		dccps_minisock;
 	struct dccp_ackvec		*dccps_hc_rx_ackvec;
 	struct ccid			*dccps_hc_rx_ccid;
 	struct ccid			*dccps_hc_tx_ccid;
@@ -471,6 +475,11 @@ struct dccp_sock {
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)
 {
 	return (struct dccp_sock *)sk;
+}
+
+static inline struct dccp_minisock *dccp_msk(const struct sock *sk)
+{
+	return (struct dccp_minisock *)&dccp_sk(sk)->dccps_minisock;
 }
 
 static inline int dccp_service_not_initialized(const struct sock *sk)
