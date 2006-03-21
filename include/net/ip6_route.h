@@ -87,7 +87,8 @@ extern struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 extern struct rt6_info *	rt6_get_dflt_router(struct in6_addr *addr,
 						    struct net_device *dev);
 extern struct rt6_info *	rt6_add_dflt_router(struct in6_addr *gwaddr,
-						    struct net_device *dev);
+						    struct net_device *dev,
+						    unsigned int pref);
 
 extern void			rt6_purge_dflt_routers(void);
 

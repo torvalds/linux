@@ -1023,6 +1023,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	int lifetime;
 	struct ndisc_options ndopts;
 	int optlen;
+	unsigned int pref = 0;
 
 	__u8 * opt = (__u8 *)(ra_msg + 1);
 
@@ -1086,6 +1087,13 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 
 	lifetime = ntohs(ra_msg->icmph.icmp6_rt_lifetime);
 
+#ifdef CONFIG_IPV6_ROUTER_PREF
+	pref = ra_msg->icmph.icmp6_router_pref;
+	/* 10b is handled as if it were 00b (medium) */
+	if (pref == ICMPV6_ROUTER_PREF_INVALID)
+		pref = ICMPV6_ROUTER_PREF_MEDIUM;
+#endif
+
 	rt = rt6_get_dflt_router(&skb->nh.ipv6h->saddr, skb->dev);
 
 	if (rt)
@@ -1101,7 +1109,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 		ND_PRINTK3(KERN_DEBUG
 			   "ICMPv6 RA: adding default router.\n");
 
-		rt = rt6_add_dflt_router(&skb->nh.ipv6h->saddr, skb->dev);
+		rt = rt6_add_dflt_router(&skb->nh.ipv6h->saddr, skb->dev, pref);
 		if (rt == NULL) {
 			ND_PRINTK0(KERN_ERR
 				   "ICMPv6 RA: %s() failed to add default route.\n",
@@ -1120,6 +1128,8 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 			return;
 		}
 		neigh->flags |= NTF_ROUTER;
+	} else if (rt) {
+		rt->rt6i_flags |= (rt->rt6i_flags & ~RTF_PREF_MASK) | RTF_PREF(pref);
 	}
 
 	if (rt)

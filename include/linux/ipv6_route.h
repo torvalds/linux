@@ -27,7 +27,15 @@
 #define RTF_FLOW	0x02000000	/* flow significant route	*/
 #define RTF_POLICY	0x04000000	/* policy route			*/
 
+#define RTF_PREF(pref)	((pref) << 27)
+#define RTF_PREF_MASK	0x18000000
+
 #define RTF_LOCAL	0x80000000
+
+#ifdef __KERNEL__
+#define IPV6_EXTRACT_PREF(flag)	(((flag) & RTF_PREF_MASK) >> 27)
+#define IPV6_DECODE_PREF(pref)	((pref) ^ 2)	/* 1:low,2:med,3:high */
+#endif
 
 struct in6_rtmsg {
 	struct in6_addr		rtmsg_dst;

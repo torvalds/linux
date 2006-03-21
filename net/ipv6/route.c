@@ -251,8 +251,11 @@ static int rt6_score_route(struct rt6_info *rt, int oif,
 	int m = rt6_check_dev(rt, oif);
 	if (!m && (strict & RT6_SELECT_F_IFACE))
 		return -1;
+#ifdef CONFIG_IPV6_ROUTER_PREF
+	m |= IPV6_DECODE_PREF(IPV6_EXTRACT_PREF(rt->rt6i_flags)) << 2;
+#endif
 	if (rt6_check_neigh(rt))
-		m |= 4;
+		m |= 16;
 	else if (strict & RT6_SELECT_F_REACHABLE)
 		return -1;
 	return m;
@@ -1256,7 +1259,8 @@ struct rt6_info *rt6_get_dflt_router(struct in6_addr *addr, struct net_device *d
 }
 
 struct rt6_info *rt6_add_dflt_router(struct in6_addr *gwaddr,
-				     struct net_device *dev)
+				     struct net_device *dev,
+				     unsigned int pref)
 {
 	struct in6_rtmsg rtmsg;
 
@@ -1264,7 +1268,8 @@ struct rt6_info *rt6_add_dflt_router(struct in6_addr *gwaddr,
 	rtmsg.rtmsg_type = RTMSG_NEWROUTE;
 	ipv6_addr_copy(&rtmsg.rtmsg_gateway, gwaddr);
 	rtmsg.rtmsg_metric = 1024;
-	rtmsg.rtmsg_flags = RTF_GATEWAY | RTF_ADDRCONF | RTF_DEFAULT | RTF_UP | RTF_EXPIRES;
+	rtmsg.rtmsg_flags = RTF_GATEWAY | RTF_ADDRCONF | RTF_DEFAULT | RTF_UP | RTF_EXPIRES |
+			    RTF_PREF(pref);
 
 	rtmsg.rtmsg_ifindex = dev->ifindex;
 

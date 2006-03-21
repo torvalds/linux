@@ -38,6 +38,17 @@ config IPV6_PRIVACY
 
 	  See <file:Documentation/networking/ip-sysctl.txt> for details.
 
+config IPV6_ROUTER_PREF
+	bool "IPv6: Router Preference (RFC 4191) support"
+	depends on IPV6
+	---help---
+	  Router Preference is an optional extension to the Router
+	  Advertisement message to improve the ability of hosts
+	  to pick more appropriate router, especially when the hosts
+	  is placed in a multi-homed network.
+
+	  If unsure, say N.
+
 config INET6_AH
 	tristate "IPv6: AH transformation"
 	depends on IPV6
