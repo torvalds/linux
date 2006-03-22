@@ -2201,8 +2201,7 @@ pmac_wakeup_devices(void)
 #define	GRACKLE_NAP	(1<<4)
 #define	GRACKLE_SLEEP	(1<<3)
 
-int
-powerbook_sleep_grackle(void)
+static int powerbook_sleep_grackle(void)
 {
 	unsigned long save_l2cr;
 	unsigned short pmcr1;
