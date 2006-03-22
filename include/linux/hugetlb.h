@@ -47,6 +47,10 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 
 #ifndef ARCH_HAS_HUGETLB_FREE_PGD_RANGE
 #define hugetlb_free_pgd_range	free_pgd_range
+#else
+void hugetlb_free_pgd_range(struct mmu_gather **tlb, unsigned long addr,
+			    unsigned long end, unsigned long floor,
+			    unsigned long ceiling);
 #endif
 
 #ifndef ARCH_HAS_PREPARE_HUGEPAGE_RANGE
