@@ -1214,24 +1214,22 @@ DEFINE_PER_CPU(long, nr_pagecache_local) = 0;
 
 static void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
 {
-	int cpu = 0;
+	unsigned cpu;
 
 	memset(ret, 0, nr * sizeof(unsigned long));
 	cpus_and(*cpumask, *cpumask, cpu_online_map);
 
-	cpu = first_cpu(*cpumask);
-	while (cpu < NR_CPUS) {
-		unsigned long *in, *out, off;
-
-		if (!cpu_isset(cpu, *cpumask))
-			continue;
+	for_each_cpu_mask(cpu, *cpumask) {
+		unsigned long *in;
+		unsigned long *out;
+		unsigned off;
+		unsigned next_cpu;
 
 		in = (unsigned long *)&per_cpu(page_states, cpu);
 
-		cpu = next_cpu(cpu, *cpumask);
-
-		if (likely(cpu < NR_CPUS))
-			prefetch(&per_cpu(page_states, cpu));
+		next_cpu = next_cpu(cpu, *cpumask);
+		if (likely(next_cpu < NR_CPUS))
+			prefetch(&per_cpu(page_states, next_cpu));
 
 		out = (unsigned long *)ret;
 		for (off = 0; off < nr; off++)
