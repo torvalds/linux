@@ -108,8 +108,8 @@ EXPORT_SYMBOL(phys_mem_access_prot);
 void online_page(struct page *page)
 {
 	ClearPageReserved(page);
-	set_page_count(page, 0);
-	free_cold_page(page);
+	set_page_count(page, 1);
+	__free_page(page);
 	totalram_pages++;
 	num_physpages++;
 }
