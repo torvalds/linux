@@ -1221,13 +1221,6 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 	 * common ATA, ATAPI feature tests
 	 */
 
-	/* we require DMA support (bits 8 of word 49) */
-	if (!ata_id_has_dma(id)) {
-		printk(KERN_DEBUG "ata%u: no dma\n", ap->id);
-		rc = -EINVAL;
-		goto err_out_nosup;
-	}
-
 	/* find max transfer mode; for printk only */
 	xfer_mask = ata_id_xfermask(id);
 
