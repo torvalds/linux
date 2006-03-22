@@ -165,24 +165,6 @@ set_subcarrier_freq (struct i2c_client *client,
 	adv7175_write(client, 0x05, 0x25);
 }
 
-#ifdef ENCODER_DUMP
-static void
-dump (struct i2c_client *client)
-{
-	struct adv7175 *encoder = i2c_get_clientdata(client);
-	int i, j;
-
-	printk(KERN_INFO "%s: registry dump\n", I2C_NAME(client));
-	for (i = 0; i < 182 / 8; i++) {
-		printk("%s: 0x%02x -", I2C_NAME(client), i * 8);
-		for (j = 0; j < 8; j++) {
-			printk(" 0x%02x", encoder->reg[i * 8 + j]);
-		}
-		printk("\n");
-	}
-}
-#endif
-
 /* ----------------------------------------------------------------------- */
 // Output filter:  S-Video  Composite
 
@@ -400,14 +382,6 @@ adv7175_command (struct i2c_client *client,
 		encoder->enable = !!*iarg;
 	}
 		break;
-
-#ifdef ENCODER_DUMP
-	case ENCODER_DUMP:
-	{
-		dump(client);
-	}
-		break;
-#endif
 
 	default:
 		return -EINVAL;
