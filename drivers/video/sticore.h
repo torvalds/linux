@@ -34,35 +34,19 @@
  * for them to fix it and steal their solution.   prumpf
  */
  
+#include <asm/io.h>
+
 #define STI_WAIT 1
 
-#include <asm/io.h> /* for USE_HPPA_IOREMAP */
-
-#if USE_HPPA_IOREMAP
-
-#define STI_PTR(p)	(p)
-#define PTR_STI(p)	(p)
-static inline int STI_CALL( unsigned long func, 
-		void *flags, void *inptr, void *outptr, void *glob_cfg )
-{
-       int (*f)(void *,void *,void *,void *);
-       f = (void*)func;
-       return f(flags, inptr, outptr, glob_cfg);
-}
-
-#else /* !USE_HPPA_IOREMAP */
-
 #define STI_PTR(p)	( virt_to_phys(p) )
-#define PTR_STI(p)	( phys_to_virt((long)p) )
-#define STI_CALL(func, flags, inptr, outptr, glob_cfg) \
-       ({                                                      \
-               pdc_sti_call( func, (unsigned long)STI_PTR(flags), \
-                                   (unsigned long)STI_PTR(inptr), \
-                                   (unsigned long)STI_PTR(outptr), \
-                                   (unsigned long)STI_PTR(glob_cfg)); \
+#define PTR_STI(p)	( phys_to_virt((unsigned long)p) )
+#define STI_CALL(func, flags, inptr, outptr, glob_cfg)	\
+       ({						\
+               pdc_sti_call( func, STI_PTR(flags),	\
+				   STI_PTR(inptr),	\
+				   STI_PTR(outptr),	\
+				   STI_PTR(glob_cfg));	\
        })
-
-#endif /* USE_HPPA_IOREMAP */
 
 
 #define sti_onscreen_x(sti) (sti->glob_cfg->onscreen_x)
@@ -352,8 +336,9 @@ struct sti_struct {
 	struct sti_conf_outptr outptr; /* configuration */
 	struct sti_conf_outptr_ext outptr_ext;
 
-	/* PCI data structures (pg. 17ff from sti.pdf) */
 	struct pci_dev *pd;
+
+	/* PCI data structures (pg. 17ff from sti.pdf) */
 	u8 rm_entry[16]; /* pci region mapper array == pci config space offset */
 
 	/* pointer to the fb_info where this STI device is used */
