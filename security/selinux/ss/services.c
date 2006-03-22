@@ -27,7 +27,8 @@
 #include <linux/in.h>
 #include <linux/sched.h>
 #include <linux/audit.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
+
 #include "flask.h"
 #include "avc.h"
 #include "avc_ss.h"
@@ -48,9 +49,9 @@ static DEFINE_RWLOCK(policy_rwlock);
 #define POLICY_RDUNLOCK read_unlock(&policy_rwlock)
 #define POLICY_WRUNLOCK write_unlock_irq(&policy_rwlock)
 
-static DECLARE_MUTEX(load_sem);
-#define LOAD_LOCK down(&load_sem)
-#define LOAD_UNLOCK up(&load_sem)
+static DEFINE_MUTEX(load_mutex);
+#define LOAD_LOCK mutex_lock(&load_mutex)
+#define LOAD_UNLOCK mutex_unlock(&load_mutex)
 
 static struct sidtab sidtab;
 struct policydb policydb;

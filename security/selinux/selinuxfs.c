@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
+#include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/security.h>
@@ -44,7 +45,7 @@ static int __init checkreqprot_setup(char *str)
 __setup("checkreqprot=", checkreqprot_setup);
 
 
-static DECLARE_MUTEX(sel_sem);
+static DEFINE_MUTEX(sel_mutex);
 
 /* global data for booleans */
 static struct dentry *bool_dir = NULL;
@@ -230,7 +231,7 @@ static ssize_t sel_write_load(struct file * file, const char __user * buf,
 	ssize_t length;
 	void *data = NULL;
 
-	down(&sel_sem);
+	mutex_lock(&sel_mutex);
 
 	length = task_has_security(current, SECURITY__LOAD_POLICY);
 	if (length)
@@ -262,7 +263,7 @@ static ssize_t sel_write_load(struct file * file, const char __user * buf,
 	else
 		length = count;
 out:
-	up(&sel_sem);
+	mutex_unlock(&sel_mutex);
 	vfree(data);
 	return length;
 }
@@ -714,7 +715,7 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 	int cur_enforcing;
 	struct inode *inode;
 
-	down(&sel_sem);
+	mutex_lock(&sel_mutex);
 
 	ret = -EFAULT;
 
@@ -759,7 +760,7 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 	*ppos = end;
 	ret = count;
 out:
-	up(&sel_sem);
+	mutex_unlock(&sel_mutex);
 	if (page)
 		free_page((unsigned long)page);
 	return ret;
@@ -773,7 +774,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	int new_value;
 	struct inode *inode;
 
-	down(&sel_sem);
+	mutex_lock(&sel_mutex);
 
 	length = task_has_security(current, SECURITY__SETBOOL);
 	if (length)
@@ -812,7 +813,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	length = count;
 
 out:
-	up(&sel_sem);
+	mutex_unlock(&sel_mutex);
 	if (page)
 		free_page((unsigned long) page);
 	return length;
@@ -831,7 +832,7 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 	ssize_t length = -EFAULT;
 	int new_value;
 
-	down(&sel_sem);
+	mutex_lock(&sel_mutex);
 
 	length = task_has_security(current, SECURITY__SETBOOL);
 	if (length)
@@ -869,7 +870,7 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 	length = count;
 
 out:
-	up(&sel_sem);
+	mutex_unlock(&sel_mutex);
 	if (page)
 		free_page((unsigned long) page);
 	return length;
