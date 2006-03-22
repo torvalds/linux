@@ -8,6 +8,10 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+#ifndef __MM_INTERNAL_H
+#define __MM_INTERNAL_H
+
+#include <linux/mm.h>
 
 static inline void set_page_refs(struct page *page, int order)
 {
@@ -26,5 +30,12 @@ static inline void set_page_refs(struct page *page, int order)
 #endif /* CONFIG_MMU */
 }
 
+static inline void __put_page(struct page *page)
+{
+	atomic_dec(&page->_count);
+}
+
 extern void fastcall __init __free_pages_bootmem(struct page *page,
 						unsigned int order);
+
+#endif

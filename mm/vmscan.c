@@ -39,6 +39,8 @@
 
 #include <linux/swapops.h>
 
+#include "internal.h"
+
 /* possible outcome of pageout() */
 typedef enum {
 	/* failed to write page out, page is locked */

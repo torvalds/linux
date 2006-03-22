@@ -308,7 +308,6 @@ static inline int get_page_unless_zero(struct page *page)
 }
 
 #define set_page_count(p,v) 	atomic_set(&(p)->_count, (v))
-#define __put_page(p)		atomic_dec(&(p)->_count)
 
 extern void FASTCALL(__page_cache_release(struct page *));
 
