@@ -45,6 +45,13 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 	pte_t *pbase;
 	if (!base) 
 		return NULL;
+	/*
+	 * page_private is used to track the number of entries in
+	 * the page table page have non standard attributes.
+	 */
+	SetPagePrivate(base);
+	page_private(base) = 0;
+
 	address = __pa(address);
 	addr = address & LARGE_PAGE_MASK; 
 	pbase = (pte_t *)page_address(base);
@@ -124,8 +131,8 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 			set_pte(kpte, pfn_pte(pfn, prot));
 		} else {
  			/*
- 			 * split_large_page will take the reference for this change_page_attr
- 			 * on the split page.
+			 * split_large_page will take the reference for this
+			 * change_page_attr on the split page.
  			 */
 
 			struct page *split;
@@ -137,23 +144,20 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 			set_pte(kpte,mk_pte(split, ref_prot2));
 			kpte_page = split;
 		}	
-		get_page(kpte_page);
+		page_private(kpte_page)++;
 	} else if ((kpte_flags & _PAGE_PSE) == 0) { 
 		set_pte(kpte, pfn_pte(pfn, ref_prot));
-		__put_page(kpte_page);
+		BUG_ON(page_private(kpte_page) == 0);
+		page_private(kpte_page)--;
 	} else
 		BUG();
 
 	/* on x86-64 the direct mapping set at boot is not using 4k pages */
  	BUG_ON(PageReserved(kpte_page));
 
-	switch (page_count(kpte_page)) {
- 	case 1:
+	if (page_private(kpte_page) == 0) {
 		save_page(kpte_page);
 		revert_page(address, ref_prot);
-		break;
- 	case 0:
- 		BUG(); /* memleak and failed 2M page regeneration */
  	}
 	return 0;
 } 
@@ -216,6 +220,7 @@ void global_flush_tlb(void)
 	while (dpage) {
 		struct page *tmp = dpage;
 		dpage = (struct page *)dpage->lru.next;
+		ClearPagePrivate(tmp);
 		__free_page(tmp);
 	} 
 } 
