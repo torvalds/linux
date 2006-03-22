@@ -63,7 +63,24 @@ static DEFINE_PER_CPU(struct iic, iic);
 
 void iic_local_enable(void)
 {
-	out_be64(&__get_cpu_var(iic).regs->prio, 0xff);
+	struct iic *iic = &__get_cpu_var(iic);
+	u64 tmp;
+
+	/*
+	 * There seems to be a bug that is present in DD2.x CPUs
+	 * and still only partially fixed in DD3.1.
+	 * This bug causes a value written to the priority register
+	 * not to make it there, resulting in a system hang unless we
+	 * write it again.
+	 * Masking with 0xf0 is done because the Cell BE does not
+	 * implement the lower four bits of the interrupt priority,
+	 * they always read back as zeroes, although future CPUs
+	 * might implement different bits.
+	 */
+	do {
+		out_be64(&iic->regs->prio, 0xff);
+		tmp = in_be64(&iic->regs->prio);
+	} while ((tmp & 0xf0) != 0xf0);
 }
 
 void iic_local_disable(void)
