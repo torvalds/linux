@@ -525,6 +525,13 @@ static int x25_create(struct socket *sock, int protocol)
 	x25->facilities.pacsize_out = X25_DEFAULT_PACKET_SIZE;
 	x25->facilities.throughput  = X25_DEFAULT_THROUGHPUT;
 	x25->facilities.reverse     = X25_DEFAULT_REVERSE;
+ 	x25->dte_facilities.calling_len = 0;
+ 	x25->dte_facilities.called_len = 0;
+ 	memset(x25->dte_facilities.called_ae, '\0',
+		 	sizeof(x25->dte_facilities.called_ae));
+ 	memset(x25->dte_facilities.calling_ae, '\0',
+		 	sizeof(x25->dte_facilities.calling_ae));
+
 	rc = 0;
 out:
 	return rc;
@@ -561,6 +568,7 @@ static struct sock *x25_make_new(struct sock *osk)
 	x25->t2         = ox25->t2;
 	x25->facilities = ox25->facilities;
 	x25->qbitincl   = ox25->qbitincl;
+	x25->dte_facilities = ox25->dte_facilities;
 	x25->cudmatchlength = ox25->cudmatchlength;
 	x25->accptapprv = ox25->accptapprv;
 
@@ -840,6 +848,7 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	struct x25_sock *makex25;
 	struct x25_address source_addr, dest_addr;
 	struct x25_facilities facilities;
+	struct x25_dte_facilities dte_facilities;
 	int len, rc;
 
 	/*
@@ -876,7 +885,8 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	/*
 	 *	Try to reach a compromise on the requested facilities.
 	 */
-	if ((len = x25_negotiate_facilities(skb, sk, &facilities)) == -1)
+	len = x25_negotiate_facilities(skb, sk, &facilities, &dte_facilities);
+	if (len == -1)
 		goto out_sock_put;
 
 	/*
@@ -907,9 +917,12 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	makex25->source_addr   = source_addr;
 	makex25->neighbour     = nb;
 	makex25->facilities    = facilities;
+	makex25->dte_facilities= dte_facilities;
 	makex25->vc_facil_mask = x25_sk(sk)->vc_facil_mask;
 	/* ensure no reverse facil on accept */
 	makex25->vc_facil_mask &= ~X25_MASK_REVERSE;
+	/* ensure no calling address extension on accept */
+	makex25->vc_facil_mask &= ~X25_MASK_CALLING_AE;
 	makex25->cudmatchlength = x25_sk(sk)->cudmatchlength;
 
 	/* Normally all calls are accepted immediatly */
@@ -1312,6 +1325,36 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 				(facilities.reverse | 0x81)!= 0x81)
 				break;
 			x25->facilities = facilities;
+			rc = 0;
+			break;
+		}
+
+		case SIOCX25GDTEFACILITIES: {
+ 			rc = copy_to_user(argp, &x25->dte_facilities,
+						sizeof(x25->dte_facilities));
+			if (rc)
+				rc = -EFAULT;
+ 			break;
+ 		}
+
+	 	case SIOCX25SDTEFACILITIES: {
+	 		struct x25_dte_facilities dtefacs;
+	 		rc = -EFAULT;
+		 	if (copy_from_user(&dtefacs, argp, sizeof(dtefacs)))
+				break;
+			rc = -EINVAL;
+			if (sk->sk_state != TCP_LISTEN &&
+					sk->sk_state != TCP_CLOSE)
+				break;
+			if (dtefacs.calling_len > X25_MAX_AE_LEN)
+				break;
+			if (dtefacs.calling_ae == NULL)
+				break;
+			if (dtefacs.called_len > X25_MAX_AE_LEN)
+				break;
+			if (dtefacs.called_ae == NULL)
+				break;
+			x25->dte_facilities = dtefacs;
 			rc = 0;
 			break;
 		}

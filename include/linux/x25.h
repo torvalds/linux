@@ -11,6 +11,8 @@
 #ifndef	X25_KERNEL_H
 #define	X25_KERNEL_H
 
+#include <linux/types.h>
+
 #define	SIOCX25GSUBSCRIP	(SIOCPROTOPRIVATE + 0)
 #define	SIOCX25SSUBSCRIP	(SIOCPROTOPRIVATE + 1)
 #define	SIOCX25GFACILITIES	(SIOCPROTOPRIVATE + 2)
@@ -21,6 +23,8 @@
 #define SIOCX25SCUDMATCHLEN	(SIOCPROTOPRIVATE + 7)
 #define SIOCX25CALLACCPTAPPRV   (SIOCPROTOPRIVATE + 8)
 #define SIOCX25SENDCALLACCPT    (SIOCPROTOPRIVATE + 9)
+#define SIOCX25GDTEFACILITIES (SIOCPROTOPRIVATE + 10)
+#define SIOCX25SDTEFACILITIES (SIOCPROTOPRIVATE + 11)
 
 /*
  *	Values for {get,set}sockopt.
@@ -77,6 +81,8 @@ struct x25_subscrip_struct {
 #define	X25_MASK_PACKET_SIZE	0x04
 #define	X25_MASK_WINDOW_SIZE	0x08
 
+#define X25_MASK_CALLING_AE 0x10
+#define X25_MASK_CALLED_AE 0x20
 
 
 /*
@@ -96,6 +102,26 @@ struct x25_facilities {
 	unsigned int	pacsize_in, pacsize_out;
 	unsigned int	throughput;
 	unsigned int	reverse;
+};
+
+/*
+* ITU DTE facilities
+* Only the called and calling address
+* extension are currently implemented.
+* The rest are in place to avoid the struct
+* changing size if someone needs them later
+*/
+
+struct x25_dte_facilities {
+	__u16 delay_cumul;
+	__u16 delay_target;
+	__u16 delay_max;
+	__u8 min_throughput;
+	__u8 expedited;
+	__u8 calling_len;
+	__u8 called_len;
+	__u8 calling_ae[20];
+	__u8 called_ae[20];
 };
 
 /*
