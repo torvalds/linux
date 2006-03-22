@@ -797,36 +797,6 @@ static unsigned char acpiphp_max_busnr(struct pci_bus *bus)
 }
 
 
-
-/**
- *  get_func - get a pointer to acpiphp_func given a slot, device
- *  @slot: slot to search
- *  @dev:  pci_dev struct to match.
- *
- *  This function will increase the reference count of pci_dev,
- *  so callers should call pci_dev_put when complete.
- *
- */
-static struct acpiphp_func *
-get_func(struct acpiphp_slot *slot, struct pci_dev *dev)
-{
-	struct acpiphp_func *func = NULL;
-	struct pci_bus *bus = slot->bridge->pci_bus;
-	struct pci_dev *pdev;
-
-	list_for_each_entry(func, &slot->funcs, sibling) {
-		pdev = pci_get_slot(bus, PCI_DEVFN(slot->device,
-					func->function));
-		if (pdev) {
-			if (pdev == dev)
-				break;
-			pci_dev_put(pdev);
-		}
-	}
-	return func;
-}
-
-
 /**
  * acpiphp_bus_add - add a new bus to acpi subsystem
  * @func: acpiphp_func of the bridge
@@ -872,6 +842,28 @@ acpiphp_bus_add_out:
 }
 
 
+/**
+ * acpiphp_bus_trim - trim a bus from acpi subsystem
+ * @handle: handle to acpi namespace
+ *
+ */
+int acpiphp_bus_trim(acpi_handle handle)
+{
+	struct acpi_device *device;
+	int retval;
+
+	retval = acpi_bus_get_device(handle, &device);
+	if (retval) {
+		dbg("acpi_device not found\n");
+		return retval;
+	}
+
+	retval = acpi_bus_trim(device, 1);
+	if (retval)
+		err("cannot remove from acpi list\n");
+
+	return retval;
+}
 
 /**
  * enable_device - enable, configure a slot
@@ -918,17 +910,15 @@ static int enable_device(struct acpiphp_slot *slot)
 			if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
 			    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS) {
 				max = pci_scan_bridge(bus, dev, max, pass);
-				if (pass && dev->subordinate) {
+				if (pass && dev->subordinate)
 					pci_bus_size_bridges(dev->subordinate);
-					func = get_func(slot, dev);
-					if (func) {
-						acpiphp_bus_add(func);
-						/* side effect of get_func */
-						pci_dev_put(dev);
-					}
-				}
 			}
 		}
+	}
+
+	list_for_each (l, &slot->funcs) {
+		func = list_entry(l, struct acpiphp_func, sibling);
+		acpiphp_bus_add(func);
 	}
 
 	pci_bus_assign_resources(bus);
@@ -967,6 +957,11 @@ static int disable_device(struct acpiphp_slot *slot)
 
 	list_for_each (l, &slot->funcs) {
 		func = list_entry(l, struct acpiphp_func, sibling);
+
+		acpiphp_bus_trim(func->handle);
+		/* try to remove anyway.
+		 * acpiphp_bus_add might have been failed */
+
 		if (!func->pci_dev)
 			continue;
 
