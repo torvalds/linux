@@ -13,6 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/mempolicy.h>
 #include <linux/cpuset.h>
+#include <linux/mutex.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -26,6 +27,10 @@ unsigned long max_huge_pages;
 static struct list_head hugepage_freelists[MAX_NUMNODES];
 static unsigned int nr_huge_pages_node[MAX_NUMNODES];
 static unsigned int free_huge_pages_node[MAX_NUMNODES];
+/*
+ * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
+ */
+static DEFINE_SPINLOCK(hugetlb_lock);
 
 static void clear_huge_page(struct page *page, unsigned long addr)
 {
@@ -49,11 +54,6 @@ static void copy_huge_page(struct page *dst, struct page *src,
 		copy_user_highpage(dst + i, src + i, addr + i*PAGE_SIZE);
 	}
 }
-
-/*
- * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
- */
-static DEFINE_SPINLOCK(hugetlb_lock);
 
 static void enqueue_huge_page(struct page *page)
 {
@@ -508,14 +508,24 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t *ptep;
 	pte_t entry;
 	int ret;
+	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
 
 	ptep = huge_pte_alloc(mm, address);
 	if (!ptep)
 		return VM_FAULT_OOM;
 
+	/*
+	 * Serialize hugepage allocation and instantiation, so that we don't
+	 * get spurious allocation failures if two CPUs race to instantiate
+	 * the same page in the page cache.
+	 */
+	mutex_lock(&hugetlb_instantiation_mutex);
 	entry = *ptep;
-	if (pte_none(entry))
-		return hugetlb_no_page(mm, vma, address, ptep, write_access);
+	if (pte_none(entry)) {
+		ret = hugetlb_no_page(mm, vma, address, ptep, write_access);
+		mutex_unlock(&hugetlb_instantiation_mutex);
+		return ret;
+	}
 
 	ret = VM_FAULT_MINOR;
 
@@ -525,6 +535,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		if (write_access && !pte_write(entry))
 			ret = hugetlb_cow(mm, vma, address, ptep, entry);
 	spin_unlock(&mm->page_table_lock);
+	mutex_unlock(&hugetlb_instantiation_mutex);
 
 	return ret;
 }
