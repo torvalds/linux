@@ -117,6 +117,8 @@ static struct security_operations *secondary_ops = NULL;
 static LIST_HEAD(superblock_security_head);
 static DEFINE_SPINLOCK(sb_security_lock);
 
+static kmem_cache_t *sel_inode_cache;
+
 /* Allocate and free functions for each kind of security blob. */
 
 static int task_alloc_security(struct task_struct *task)
@@ -146,10 +148,11 @@ static int inode_alloc_security(struct inode *inode)
 	struct task_security_struct *tsec = current->security;
 	struct inode_security_struct *isec;
 
-	isec = kzalloc(sizeof(struct inode_security_struct), GFP_KERNEL);
+	isec = kmem_cache_alloc(sel_inode_cache, SLAB_KERNEL);
 	if (!isec)
 		return -ENOMEM;
 
+	memset(isec, 0, sizeof(*isec));
 	init_MUTEX(&isec->sem);
 	INIT_LIST_HEAD(&isec->list);
 	isec->inode = inode;
@@ -172,7 +175,7 @@ static void inode_free_security(struct inode *inode)
 	spin_unlock(&sbsec->isec_lock);
 
 	inode->i_security = NULL;
-	kfree(isec);
+	kmem_cache_free(sel_inode_cache, isec);
 }
 
 static int file_alloc_security(struct file *file)
@@ -4406,6 +4409,9 @@ static __init int selinux_init(void)
 	tsec = current->security;
 	tsec->osid = tsec->sid = SECINITSID_KERNEL;
 
+	sel_inode_cache = kmem_cache_create("selinux_inode_security",
+					    sizeof(struct inode_security_struct),
+					    0, SLAB_PANIC, NULL, NULL);
 	avc_init();
 
 	original_ops = secondary_ops = security_ops;
