@@ -1151,22 +1151,19 @@ static int sel_make_avc_files(struct dentry *dir)
 		dentry = d_alloc_name(dir, files[i].name);
 		if (!dentry) {
 			ret = -ENOMEM;
-			goto err;
+			goto out;
 		}
 
 		inode = sel_make_inode(dir->d_sb, S_IFREG|files[i].mode);
 		if (!inode) {
 			ret = -ENOMEM;
-			goto err;
+			goto out;
 		}
 		inode->i_fop = files[i].ops;
 		d_add(dentry, inode);
 	}
 out:
 	return ret;
-err:
-	d_genocide(dir);
-	goto out;
 }
 
 static int sel_make_dir(struct super_block *sb, struct dentry *dentry)
