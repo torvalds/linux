@@ -752,6 +752,28 @@ static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
 		clear_highpage(page + i);
 }
 
+#ifdef CONFIG_MMU
+/*
+ * split_page takes a non-compound higher-order page, and splits it into
+ * n (1<<order) sub-pages: page[0..n]
+ * Each sub-page must be freed individually.
+ *
+ * Note: this is probably too low level an operation for use in drivers.
+ * Please consult with lkml before using this in your driver.
+ */
+void split_page(struct page *page, unsigned int order)
+{
+	int i;
+
+	BUG_ON(PageCompound(page));
+	BUG_ON(!page_count(page));
+	for (i = 1; i < (1 << order); i++) {
+		BUG_ON(page_count(page + i));
+		set_page_count(page + i, 1);
+	}
+}
+#endif
+
 /*
  * Really, prep_compound_page() should be called from __rmqueue_bulk().  But
  * we cheat by calling it from here, in the order > 0 path.  Saves a branch

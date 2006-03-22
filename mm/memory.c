@@ -1221,9 +1221,7 @@ out:
  * The page has to be a nice clean _individual_ kernel allocation.
  * If you allocate a compound page, you need to have marked it as
  * such (__GFP_COMP), or manually just split the page up yourself
- * (which is mainly an issue of doing "set_page_count(page, 1)" for
- * each sub-page, and then freeing them one by one when you free
- * them rather than freeing it as a compound page).
+ * (see split_page()).
  *
  * NOTE! Traditionally this was done with "remap_pfn_range()" which
  * took an arbitrary page protection parameter. This doesn't allow

@@ -54,7 +54,8 @@ unsigned long empty_zero_page, zero_page_mask;
  */
 unsigned long setup_zero_pages(void)
 {
-	unsigned long order, size;
+	unsigned int order;
+	unsigned long size;
 	struct page *page;
 
 	if (cpu_has_vce)
@@ -67,9 +68,9 @@ unsigned long setup_zero_pages(void)
 		panic("Oh boy, that early out of memory?");
 
 	page = virt_to_page(empty_zero_page);
+	split_page(page, order);
 	while (page < virt_to_page(empty_zero_page + (PAGE_SIZE << order))) {
 		SetPageReserved(page);
-		set_page_count(page, 1);
 		page++;
 	}
 

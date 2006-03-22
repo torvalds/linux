@@ -328,6 +328,12 @@ static inline void get_page(struct page *page)
 
 void put_page(struct page *page);
 
+#ifdef CONFIG_MMU
+void split_page(struct page *page, unsigned int order);
+#else
+static inline void split_page(struct page *page, unsigned int order) {}
+#endif
+
 /*
  * Multiple processes may "see" the same page. E.g. for untouched
  * mappings of /dev/null, all processes see the same page full of

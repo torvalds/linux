@@ -21,13 +21,9 @@ pte_t* pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 	p = (pte_t*) __get_free_pages(GFP_KERNEL|__GFP_REPEAT, COLOR_ORDER);
 
 	if (likely(p)) {
-		struct page *page;
+		split_page(virt_to_page(p), COLOR_ORDER);
 
 		for (i = 0; i < COLOR_SIZE; i++) {
-			page = virt_to_page(p);
-
-			set_page_count(page, 1);
-
 			if (ADDR_COLOR(p) == color)
 				pte = p;
 			else
@@ -55,9 +51,9 @@ struct page* pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	p = alloc_pages(GFP_KERNEL | __GFP_REPEAT, PTE_ORDER);
 
 	if (likely(p)) {
-		for (i = 0; i < PAGE_ORDER; i++) {
-			set_page_count(p, 1);
+		split_page(p, COLOR_ORDER);
 
+		for (i = 0; i < PAGE_ORDER; i++) {
 			if (PADDR_COLOR(page_address(p)) == color)
 				page = p;
 			else
