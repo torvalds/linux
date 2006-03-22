@@ -55,7 +55,6 @@ unsigned long totalhigh_pages __read_mostly;
 long nr_swap_pages;
 int percpu_pagelist_fraction;
 
-static void fastcall free_hot_cold_page(struct page *page, int cold);
 static void __free_pages_ok(struct page *page, unsigned int order);
 
 /*
@@ -448,28 +447,23 @@ void fastcall __init __free_pages_bootmem(struct page *page, unsigned int order)
 	if (order == 0) {
 		__ClearPageReserved(page);
 		set_page_count(page, 0);
-
-		free_hot_cold_page(page, 0);
+		set_page_refs(page, 0);
+		__free_page(page);
 	} else {
-		LIST_HEAD(list);
 		int loop;
 
+		prefetchw(page);
 		for (loop = 0; loop < BITS_PER_LONG; loop++) {
 			struct page *p = &page[loop];
 
-			if (loop + 16 < BITS_PER_LONG)
-				prefetchw(p + 16);
+			if (loop + 1 < BITS_PER_LONG)
+				prefetchw(p + 1);
 			__ClearPageReserved(p);
 			set_page_count(p, 0);
 		}
 
-		arch_free_page(page, order);
-
-		mod_page_state(pgfree, 1 << order);
-
-		list_add(&page->lru, &list);
-		kernel_map_pages(page, 1 << order, 0);
-		free_pages_bulk(page_zone(page), 1, &list, order);
+		set_page_refs(page, order);
+		__free_pages(page, order);
 	}
 }
 
