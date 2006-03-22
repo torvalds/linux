@@ -111,7 +111,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap); //XXX
 static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 {
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("%s, %lx, %lx\n", __FUNCTION__, dsisr, ea);
 
 	/* Handle kernel space hash faults immediately.
 	   User hash faults need to be deferred to process context. */
@@ -168,7 +168,7 @@ static int __spu_trap_halt(struct spu *spu)
 static int __spu_trap_tag_group(struct spu *spu)
 {
 	pr_debug("%s\n", __FUNCTION__);
-	/* wake_up(&spu->dma_wq); */
+	spu->mfc_callback(spu);
 	return 0;
 }
 
@@ -242,6 +242,8 @@ spu_irq_class_1(int irq, void *data, struct pt_regs *regs)
 		spu_mfc_dsisr_set(spu, 0ul);
 	spu_int_stat_clear(spu, 1, stat);
 	spin_unlock(&spu->register_lock);
+	pr_debug("%s: %lx %lx %lx %lx\n", __FUNCTION__, mask, stat,
+			dar, dsisr);
 
 	if (stat & 1) /* segment fault */
 		__spu_trap_data_seg(spu, dar);
@@ -632,6 +634,7 @@ static int __init create_spu(struct device_node *spe)
 	spu->ibox_callback = NULL;
 	spu->wbox_callback = NULL;
 	spu->stop_callback = NULL;
+	spu->mfc_callback = NULL;
 
 	mutex_lock(&spu_mutex);
 	spu->number = number++;

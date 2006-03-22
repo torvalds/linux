@@ -137,6 +137,7 @@ struct spu {
 	void (* wbox_callback)(struct spu *spu);
 	void (* ibox_callback)(struct spu *spu);
 	void (* stop_callback)(struct spu *spu);
+	void (* mfc_callback)(struct spu *spu);
 
 	char irq_c0[8];
 	char irq_c1[8];

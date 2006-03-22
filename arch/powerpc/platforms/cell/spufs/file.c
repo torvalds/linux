@@ -20,6 +20,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#undef DEBUG
+
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 #include <linux/module.h>
@@ -641,6 +643,297 @@ static u64 spufs_signal2_type_get(void *data)
 DEFINE_SIMPLE_ATTRIBUTE(spufs_signal2_type, spufs_signal2_type_get,
 					spufs_signal2_type_set, "%llu");
 
+
+static int spufs_mfc_open(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	/* we don't want to deal with DMA into other processes */
+	if (ctx->owner != current->mm)
+		return -EINVAL;
+
+	if (atomic_read(&inode->i_count) != 1)
+		return -EBUSY;
+
+	file->private_data = ctx;
+	return nonseekable_open(inode, file);
+}
+
+/* interrupt-level mfc callback function. */
+void spufs_mfc_callback(struct spu *spu)
+{
+	struct spu_context *ctx = spu->ctx;
+
+	wake_up_all(&ctx->mfc_wq);
+
+	pr_debug("%s %s\n", __FUNCTION__, spu->name);
+	if (ctx->mfc_fasync) {
+		u32 free_elements, tagstatus;
+		unsigned int mask;
+
+		/* no need for spu_acquire in interrupt context */
+		free_elements = ctx->ops->get_mfc_free_elements(ctx);
+		tagstatus = ctx->ops->read_mfc_tagstatus(ctx);
+
+		mask = 0;
+		if (free_elements & 0xffff)
+			mask |= POLLOUT;
+		if (tagstatus & ctx->tagwait)
+			mask |= POLLIN;
+
+		kill_fasync(&ctx->mfc_fasync, SIGIO, mask);
+	}
+}
+
+static int spufs_read_mfc_tagstatus(struct spu_context *ctx, u32 *status)
+{
+	/* See if there is one tag group is complete */
+	/* FIXME we need locking around tagwait */
+	*status = ctx->ops->read_mfc_tagstatus(ctx) & ctx->tagwait;
+	ctx->tagwait &= ~*status;
+	if (*status)
+		return 1;
+
+	/* enable interrupt waiting for any tag group,
+	   may silently fail if interrupts are already enabled */
+	ctx->ops->set_mfc_query(ctx, ctx->tagwait, 1);
+	return 0;
+}
+
+static ssize_t spufs_mfc_read(struct file *file, char __user *buffer,
+			size_t size, loff_t *pos)
+{
+	struct spu_context *ctx = file->private_data;
+	int ret = -EINVAL;
+	u32 status;
+
+	if (size != 4)
+		goto out;
+
+	spu_acquire(ctx);
+	if (file->f_flags & O_NONBLOCK) {
+		status = ctx->ops->read_mfc_tagstatus(ctx);
+		if (!(status & ctx->tagwait))
+			ret = -EAGAIN;
+		else
+			ctx->tagwait &= ~status;
+	} else {
+		ret = spufs_wait(ctx->mfc_wq,
+			   spufs_read_mfc_tagstatus(ctx, &status));
+	}
+	spu_release(ctx);
+
+	if (ret)
+		goto out;
+
+	ret = 4;
+	if (copy_to_user(buffer, &status, 4))
+		ret = -EFAULT;
+
+out:
+	return ret;
+}
+
+static int spufs_check_valid_dma(struct mfc_dma_command *cmd)
+{
+	pr_debug("queueing DMA %x %lx %x %x %x\n", cmd->lsa,
+		 cmd->ea, cmd->size, cmd->tag, cmd->cmd);
+
+	switch (cmd->cmd) {
+	case MFC_PUT_CMD:
+	case MFC_PUTF_CMD:
+	case MFC_PUTB_CMD:
+	case MFC_GET_CMD:
+	case MFC_GETF_CMD:
+	case MFC_GETB_CMD:
+		break;
+	default:
+		pr_debug("invalid DMA opcode %x\n", cmd->cmd);
+		return -EIO;
+	}
+
+	if ((cmd->lsa & 0xf) != (cmd->ea &0xf)) {
+		pr_debug("invalid DMA alignment, ea %lx lsa %x\n",
+				cmd->ea, cmd->lsa);
+		return -EIO;
+	}
+
+	switch (cmd->size & 0xf) {
+	case 1:
+		break;
+	case 2:
+		if (cmd->lsa & 1)
+			goto error;
+		break;
+	case 4:
+		if (cmd->lsa & 3)
+			goto error;
+		break;
+	case 8:
+		if (cmd->lsa & 7)
+			goto error;
+		break;
+	case 0:
+		if (cmd->lsa & 15)
+			goto error;
+		break;
+	error:
+	default:
+		pr_debug("invalid DMA alignment %x for size %x\n",
+			cmd->lsa & 0xf, cmd->size);
+		return -EIO;
+	}
+
+	if (cmd->size > 16 * 1024) {
+		pr_debug("invalid DMA size %x\n", cmd->size);
+		return -EIO;
+	}
+
+	if (cmd->tag & 0xfff0) {
+		/* we reserve the higher tag numbers for kernel use */
+		pr_debug("invalid DMA tag\n");
+		return -EIO;
+	}
+
+	if (cmd->class) {
+		/* not supported in this version */
+		pr_debug("invalid DMA class\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int spu_send_mfc_command(struct spu_context *ctx,
+				struct mfc_dma_command cmd,
+				int *error)
+{
+	*error = ctx->ops->send_mfc_command(ctx, &cmd);
+	if (*error == -EAGAIN) {
+		/* wait for any tag group to complete
+		   so we have space for the new command */
+		ctx->ops->set_mfc_query(ctx, ctx->tagwait, 1);
+		/* try again, because the queue might be
+		   empty again */
+		*error = ctx->ops->send_mfc_command(ctx, &cmd);
+		if (*error == -EAGAIN)
+			return 0;
+	}
+	return 1;
+}
+
+static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
+			size_t size, loff_t *pos)
+{
+	struct spu_context *ctx = file->private_data;
+	struct mfc_dma_command cmd;
+	int ret = -EINVAL;
+
+	if (size != sizeof cmd)
+		goto out;
+
+	ret = -EFAULT;
+	if (copy_from_user(&cmd, buffer, sizeof cmd))
+		goto out;
+
+	ret = spufs_check_valid_dma(&cmd);
+	if (ret)
+		goto out;
+
+	spu_acquire_runnable(ctx);
+	if (file->f_flags & O_NONBLOCK) {
+		ret = ctx->ops->send_mfc_command(ctx, &cmd);
+	} else {
+		int status;
+		ret = spufs_wait(ctx->mfc_wq,
+				 spu_send_mfc_command(ctx, cmd, &status));
+		if (status)
+			ret = status;
+	}
+	spu_release(ctx);
+
+	if (ret)
+		goto out;
+
+	ctx->tagwait |= 1 << cmd.tag;
+
+out:
+	return ret;
+}
+
+static unsigned int spufs_mfc_poll(struct file *file,poll_table *wait)
+{
+	struct spu_context *ctx = file->private_data;
+	u32 free_elements, tagstatus;
+	unsigned int mask;
+
+	spu_acquire(ctx);
+	ctx->ops->set_mfc_query(ctx, ctx->tagwait, 2);
+	free_elements = ctx->ops->get_mfc_free_elements(ctx);
+	tagstatus = ctx->ops->read_mfc_tagstatus(ctx);
+	spu_release(ctx);
+
+	poll_wait(file, &ctx->mfc_wq, wait);
+
+	mask = 0;
+	if (free_elements & 0xffff)
+		mask |= POLLOUT | POLLWRNORM;
+	if (tagstatus & ctx->tagwait)
+		mask |= POLLIN | POLLRDNORM;
+
+	pr_debug("%s: free %d tagstatus %d tagwait %d\n", __FUNCTION__,
+		free_elements, tagstatus, ctx->tagwait);
+
+	return mask;
+}
+
+static int spufs_mfc_flush(struct file *file)
+{
+	struct spu_context *ctx = file->private_data;
+	int ret;
+
+	spu_acquire(ctx);
+#if 0
+/* this currently hangs */
+	ret = spufs_wait(ctx->mfc_wq,
+			 ctx->ops->set_mfc_query(ctx, ctx->tagwait, 2));
+	if (ret)
+		goto out;
+	ret = spufs_wait(ctx->mfc_wq,
+			 ctx->ops->read_mfc_tagstatus(ctx) == ctx->tagwait);
+out:
+#else
+	ret = 0;
+#endif
+	spu_release(ctx);
+
+	return ret;
+}
+
+static int spufs_mfc_fsync(struct file *file, struct dentry *dentry,
+			   int datasync)
+{
+	return spufs_mfc_flush(file);
+}
+
+static int spufs_mfc_fasync(int fd, struct file *file, int on)
+{
+	struct spu_context *ctx = file->private_data;
+
+	return fasync_helper(fd, file, on, &ctx->mfc_fasync);
+}
+
+static struct file_operations spufs_mfc_fops = {
+	.open	 = spufs_mfc_open,
+	.read	 = spufs_mfc_read,
+	.write	 = spufs_mfc_write,
+	.poll	 = spufs_mfc_poll,
+	.flush	 = spufs_mfc_flush,
+	.fsync	 = spufs_mfc_fsync,
+	.fasync	 = spufs_mfc_fasync,
+};
+
 static void spufs_npc_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
@@ -783,6 +1076,7 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "signal2", &spufs_signal2_fops, 0666, },
 	{ "signal1_type", &spufs_signal1_type, 0666, },
 	{ "signal2_type", &spufs_signal2_type, 0666, },
+	{ "mfc", &spufs_mfc_fops, 0666, },
 	{ "npc", &spufs_npc_ops, 0666, },
 	{ "fpcr", &spufs_fpcr_fops, 0666, },
 	{ "decr", &spufs_decr_ops, 0666, },

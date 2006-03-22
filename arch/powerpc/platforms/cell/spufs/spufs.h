@@ -55,12 +55,26 @@ struct spu_context {
 	wait_queue_head_t ibox_wq;
 	wait_queue_head_t wbox_wq;
 	wait_queue_head_t stop_wq;
+	wait_queue_head_t mfc_wq;
 	struct fasync_struct *ibox_fasync;
 	struct fasync_struct *wbox_fasync;
+	struct fasync_struct *mfc_fasync;
+	u32 tagwait;
 	struct spu_context_ops *ops;
 	struct work_struct reap_work;
 	u64 flags;
 };
+
+struct mfc_dma_command {
+	int32_t pad;	/* reserved */
+	uint32_t lsa;	/* local storage address */
+	uint64_t ea;	/* effective address */
+	uint16_t size;	/* transfer size */
+	uint16_t tag;	/* command tag */
+	uint16_t class;	/* class ID */
+	uint16_t cmd;	/* command opcode */
+};
+
 
 /* SPU context query/set operations. */
 struct spu_context_ops {
@@ -84,6 +98,11 @@ struct spu_context_ops {
 	char*(*get_ls) (struct spu_context * ctx);
 	void (*runcntl_write) (struct spu_context * ctx, u32 data);
 	void (*runcntl_stop) (struct spu_context * ctx);
+	int (*set_mfc_query)(struct spu_context * ctx, u32 mask, u32 mode);
+	u32 (*read_mfc_tagstatus)(struct spu_context * ctx);
+	u32 (*get_mfc_free_elements)(struct spu_context *ctx);
+	int (*send_mfc_command)(struct spu_context *ctx,
+					struct mfc_dma_command *cmd);
 };
 
 extern struct spu_context_ops spu_hw_ops;
@@ -159,5 +178,6 @@ size_t spu_ibox_read(struct spu_context *ctx, u32 *data);
 void spufs_ibox_callback(struct spu *spu);
 void spufs_wbox_callback(struct spu *spu);
 void spufs_stop_callback(struct spu *spu);
+void spufs_mfc_callback(struct spu *spu);
 
 #endif

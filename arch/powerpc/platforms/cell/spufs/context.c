@@ -47,8 +47,11 @@ struct spu_context *alloc_spu_context(struct address_space *local_store)
 	init_waitqueue_head(&ctx->ibox_wq);
 	init_waitqueue_head(&ctx->wbox_wq);
 	init_waitqueue_head(&ctx->stop_wq);
+	init_waitqueue_head(&ctx->mfc_wq);
 	ctx->ibox_fasync = NULL;
 	ctx->wbox_fasync = NULL;
+	ctx->mfc_fasync = NULL;
+	ctx->tagwait = 0;
 	ctx->state = SPU_STATE_SAVED;
 	ctx->local_store = local_store;
 	ctx->spu = NULL;
@@ -68,8 +71,6 @@ void destroy_spu_context(struct kref *kref)
 	ctx = container_of(kref, struct spu_context, kref);
 	down_write(&ctx->state_sema);
 	spu_deactivate(ctx);
-	ctx->ibox_fasync = NULL;
-	ctx->wbox_fasync = NULL;
 	up_write(&ctx->state_sema);
 	spu_fini_csa(&ctx->csa);
 	kfree(ctx);
