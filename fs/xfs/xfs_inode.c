@@ -1372,10 +1372,10 @@ xfs_itrunc_trace(
 		     (void*)(unsigned long)((toss_finish >> 32) & 0xffffffff),
 		     (void*)(unsigned long)(toss_finish & 0xffffffff),
 		     (void*)(unsigned long)current_cpu(),
-		     (void*)0,
-		     (void*)0,
-		     (void*)0,
-		     (void*)0);
+		     (void*)(unsigned long)current_pid(),
+		     (void*)NULL,
+		     (void*)NULL,
+		     (void*)NULL);
 }
 #else
 #define	xfs_itrunc_trace(tag, ip, flag, new_size, toss_start, toss_finish)

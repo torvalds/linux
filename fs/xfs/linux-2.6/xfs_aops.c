@@ -103,7 +103,7 @@ xfs_page_trace(
 		(void *)((unsigned long)delalloc),
 		(void *)((unsigned long)unmapped),
 		(void *)((unsigned long)unwritten),
-		(void *)NULL,
+		(void *)((unsigned long)current_pid()),
 		(void *)NULL);
 }
 #else
