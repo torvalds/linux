@@ -609,6 +609,18 @@ static inline struct slab *virt_to_slab(const void *obj)
 	return page_get_slab(page);
 }
 
+static inline void *index_to_obj(struct kmem_cache *cache, struct slab *slab,
+				 unsigned int idx)
+{
+	return slab->s_mem + cache->buffer_size * idx;
+}
+
+static inline unsigned int obj_to_index(struct kmem_cache *cache,
+					struct slab *slab, void *obj)
+{
+	return (unsigned)(obj - slab->s_mem) / cache->buffer_size;
+}
+
 /* These are the default caches for kmalloc. Custom caches can have other sizes. */
 struct cache_sizes malloc_sizes[] = {
 #define CACHE(x) { .cs_size = (x) },
@@ -1568,18 +1580,18 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
 		 * exist:
 		 */
 		struct slab *slabp = virt_to_slab(objp);
-		int objnr;
+		unsigned int objnr;
 
-		objnr = (unsigned)(objp - slabp->s_mem) / cachep->buffer_size;
+		objnr = obj_to_index(cachep, slabp, objp);
 		if (objnr) {
-			objp = slabp->s_mem + (objnr - 1) * cachep->buffer_size;
+			objp = index_to_obj(cachep, slabp, objnr - 1);
 			realobj = (char *)objp + obj_offset(cachep);
 			printk(KERN_ERR "Prev obj: start=%p, len=%d\n",
 			       realobj, size);
 			print_objinfo(cachep, objp, 2);
 		}
 		if (objnr + 1 < cachep->num) {
-			objp = slabp->s_mem + (objnr + 1) * cachep->buffer_size;
+			objp = index_to_obj(cachep, slabp, objnr + 1);
 			realobj = (char *)objp + obj_offset(cachep);
 			printk(KERN_ERR "Next obj: start=%p, len=%d\n",
 			       realobj, size);
@@ -1598,7 +1610,7 @@ static void slab_destroy_objs(struct kmem_cache *cachep, struct slab *slabp)
 {
 	int i;
 	for (i = 0; i < cachep->num; i++) {
-		void *objp = slabp->s_mem + cachep->buffer_size * i;
+		void *objp = index_to_obj(cachep, slabp, i);
 
 		if (cachep->flags & SLAB_POISON) {
 #ifdef CONFIG_DEBUG_PAGEALLOC
@@ -1631,7 +1643,7 @@ static void slab_destroy_objs(struct kmem_cache *cachep, struct slab *slabp)
 	if (cachep->dtor) {
 		int i;
 		for (i = 0; i < cachep->num; i++) {
-			void *objp = slabp->s_mem + cachep->buffer_size * i;
+			void *objp = index_to_obj(cachep, slabp, i);
 			(cachep->dtor) (objp, cachep, 0);
 		}
 	}
@@ -2307,7 +2319,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
 	int i;
 
 	for (i = 0; i < cachep->num; i++) {
-		void *objp = slabp->s_mem + cachep->buffer_size * i;
+		void *objp = index_to_obj(cachep, slabp, i);
 #if DEBUG
 		/* need to poison the objs? */
 		if (cachep->flags & SLAB_POISON)
@@ -2363,7 +2375,7 @@ static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
 
 static void *slab_get_obj(struct kmem_cache *cachep, struct slab *slabp, int nodeid)
 {
-	void *objp = slabp->s_mem + (slabp->free * cachep->buffer_size);
+	void *objp = index_to_obj(cachep, slabp, slabp->free);
 	kmem_bufctl_t next;
 
 	slabp->inuse++;
@@ -2380,7 +2392,7 @@ static void *slab_get_obj(struct kmem_cache *cachep, struct slab *slabp, int nod
 static void slab_put_obj(struct kmem_cache *cachep, struct slab *slabp, void *objp,
 			  int nodeid)
 {
-	unsigned int objnr = (unsigned)(objp-slabp->s_mem) / cachep->buffer_size;
+	unsigned int objnr = obj_to_index(cachep, slabp, objp);
 
 #if DEBUG
 	/* Verify that the slab belongs to the intended node */
@@ -2565,10 +2577,10 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 	if (cachep->flags & SLAB_STORE_USER)
 		*dbg_userword(cachep, objp) = caller;
 
-	objnr = (unsigned)(objp - slabp->s_mem) / cachep->buffer_size;
+	objnr = obj_to_index(cachep, slabp, objp);
 
 	BUG_ON(objnr >= cachep->num);
-	BUG_ON(objp != slabp->s_mem + objnr * cachep->buffer_size);
+	BUG_ON(objp != index_to_obj(cachep, slabp, objnr));
 
 	if (cachep->flags & SLAB_DEBUG_INITIAL) {
 		/* Need to call the slab's constructor so the
