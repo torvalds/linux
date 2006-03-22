@@ -88,6 +88,17 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 	return page;
 }
 
+static void free_huge_page(struct page *page)
+{
+	BUG_ON(page_count(page));
+
+	INIT_LIST_HEAD(&page->lru);
+
+	spin_lock(&hugetlb_lock);
+	enqueue_huge_page(page);
+	spin_unlock(&hugetlb_lock);
+}
+
 static int alloc_fresh_huge_page(void)
 {
 	static int nid = 0;
@@ -107,18 +118,8 @@ static int alloc_fresh_huge_page(void)
 	return 0;
 }
 
-void free_huge_page(struct page *page)
-{
-	BUG_ON(page_count(page));
-
-	INIT_LIST_HEAD(&page->lru);
-
-	spin_lock(&hugetlb_lock);
-	enqueue_huge_page(page);
-	spin_unlock(&hugetlb_lock);
-}
-
-struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
+static struct page *alloc_huge_page(struct vm_area_struct *vma,
+				    unsigned long addr)
 {
 	struct inode *inode = vma->vm_file->f_dentry->d_inode;
 	struct page *page;
