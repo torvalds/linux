@@ -123,7 +123,7 @@ static int iic_external_get_irq(struct iic_pending_bits pending)
 		    pending.class != 2)
 			break;
 		irq = IIC_EXT_OFFSET
-			+ spider_get_irq(pending.prio + node * IIC_NODE_STRIDE)
+			+ spider_get_irq(node)
 			+ node * IIC_NODE_STRIDE;
 		break;
 	case 0x01 ... 0x04:
@@ -174,38 +174,102 @@ int iic_get_irq(struct pt_regs *regs)
 	return irq;
 }
 
-static int setup_iic(int cpu, struct iic *iic)
+/* hardcoded part to be compatible with older firmware */
+
+static int setup_iic_hardcoded(void)
 {
 	struct device_node *np;
-	int nodeid = cpu / 2;
+	int nodeid, cpu;
 	unsigned long regs;
+	struct iic *iic;
 
-	for (np = of_find_node_by_type(NULL, "cpu");
-	     np;
-	     np = of_find_node_by_type(np, "cpu")) {
-		if (nodeid == *(int *)get_property(np, "node-id", NULL))
-			break;
+	for_each_cpu(cpu) {
+		iic = &per_cpu(iic, cpu);
+		nodeid = cpu/2;
+
+		for (np = of_find_node_by_type(NULL, "cpu");
+		     np;
+		     np = of_find_node_by_type(np, "cpu")) {
+			if (nodeid == *(int *)get_property(np, "node-id", NULL))
+				break;
+			}
+
+		if (!np) {
+			printk(KERN_WARNING "IIC: CPU %d not found\n", cpu);
+			iic->regs = NULL;
+			iic->target_id = 0xff;
+			return -ENODEV;
+			}
+
+		regs = *(long *)get_property(np, "iic", NULL);
+
+		/* hack until we have decided on the devtree info */
+		regs += 0x400;
+		if (cpu & 1)
+			regs += 0x20;
+
+		printk(KERN_INFO "IIC for CPU %d at %lx\n", cpu, regs);
+		iic->regs = __ioremap(regs, sizeof(struct iic_regs),
+				      _PAGE_NO_CACHE);
+
+		iic->target_id = (nodeid << 4) + ((cpu & 1) ? 0xf : 0xe);
 	}
 
-	if (!np) {
-		printk(KERN_WARNING "IIC: CPU %d not found\n", cpu);
-		iic->regs = NULL;
-		iic->target_id = 0xff;
-		return -ENODEV;
-	}
-
-	regs = *(long *)get_property(np, "iic", NULL);
-
-	/* hack until we have decided on the devtree info */
-	regs += 0x400;
-	if (cpu & 1)
-		regs += 0x20;
-
-	printk(KERN_DEBUG "IIC for CPU %d at %lx\n", cpu, regs);
-	iic->regs = __ioremap(regs, sizeof(struct iic_regs),
-					 _PAGE_NO_CACHE);
-	iic->target_id = (nodeid << 4) + ((cpu & 1) ? 0xf : 0xe);
 	return 0;
+}
+
+static int setup_iic(void)
+{
+	struct device_node *dn;
+	unsigned long *regs;
+	char *compatible;
+ 	unsigned *np, found = 0;
+	struct iic *iic = NULL;
+
+	for (dn = NULL; (dn = of_find_node_by_name(dn, "interrupt-controller"));) {
+		compatible = (char *)get_property(dn, "compatible", NULL);
+
+		if (!compatible) {
+			printk(KERN_WARNING "no compatible property found !\n");
+			continue;
+		}
+
+ 		if (strstr(compatible, "IBM,CBEA-Internal-Interrupt-Controller"))
+ 			regs = (unsigned long *)get_property(dn,"reg", NULL);
+ 		else
+			continue;
+
+ 		if (!regs)
+ 			printk(KERN_WARNING "IIC: no reg property\n");
+
+ 		np = (unsigned int *)get_property(dn, "ibm,interrupt-server-ranges", NULL);
+
+ 		if (!np) {
+			printk(KERN_WARNING "IIC: CPU association not found\n");
+			iic->regs = NULL;
+			iic->target_id = 0xff;
+			return -ENODEV;
+		}
+
+ 		iic = &per_cpu(iic, np[0]);
+ 		iic->regs = __ioremap(regs[0], sizeof(struct iic_regs),
+ 				      _PAGE_NO_CACHE);
+		iic->target_id = ((np[0] & 2) << 3) + ((np[0] & 1) ? 0xf : 0xe);
+ 		printk("IIC for CPU %d at %lx mapped to %p\n", np[0], regs[0], iic->regs);
+
+ 		iic = &per_cpu(iic, np[1]);
+ 		iic->regs = __ioremap(regs[2], sizeof(struct iic_regs),
+ 				      _PAGE_NO_CACHE);
+		iic->target_id = ((np[1] & 2) << 3) + ((np[1] & 1) ? 0xf : 0xe);
+ 		printk("IIC for CPU %d at %lx mapped to %p\n", np[1], regs[2], iic->regs);
+
+		found++;
+  	}
+
+	if (found)
+		return 0;
+	else
+		return -ENODEV;
 }
 
 #ifdef CONFIG_SMP
@@ -283,10 +347,12 @@ void iic_init_IRQ(void)
 	int cpu, irq_offset;
 	struct iic *iic;
 
+	if (setup_iic() < 0)
+		setup_iic_hardcoded();
+
 	irq_offset = 0;
 	for_each_cpu(cpu) {
 		iic = &per_cpu(iic, cpu);
-		setup_iic(cpu, iic);
 		if (iic->regs)
 			out_be64(&iic->regs->prio, 0xff);
 	}
