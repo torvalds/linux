@@ -56,60 +56,9 @@ struct ip6t_ip6 {
 	u_int8_t invflags;
 };
 
-/* FIXME: If alignment in kernel different from userspace? --RR */
-struct ip6t_entry_match
-{
-	union {
-		struct {
-			u_int16_t match_size;
-
-			/* Used by userspace */
-			char name[IP6T_FUNCTION_MAXNAMELEN-1];
-			u_int8_t revision;
-		} user;
-		struct {
-			u_int16_t match_size;
-
-			/* Used inside the kernel */
-			struct ip6t_match *match;
-		} kernel;
-
-		/* Total length */
-		u_int16_t match_size;
-	} u;
-
-	unsigned char data[0];
-};
-
-struct ip6t_entry_target
-{
-	union {
-		struct {
-			u_int16_t target_size;
-
-			/* Used by userspace */
-			char name[IP6T_FUNCTION_MAXNAMELEN-1];
-			u_int8_t revision;
-		} user;
-		struct {
-			u_int16_t target_size;
-
-			/* Used inside the kernel */
-			struct ip6t_target *target;
-		} kernel;
-
-		/* Total length */
-		u_int16_t target_size;
-	} u;
-
-	unsigned char data[0];
-};
-
-struct ip6t_standard_target
-{
-	struct ip6t_entry_target target;
-	int verdict;
-};
+#define ip6t_entry_match xt_entry_match
+#define ip6t_entry_target xt_entry_target
+#define ip6t_standard_target xt_standard_target
 
 #define ip6t_counters	xt_counters
 

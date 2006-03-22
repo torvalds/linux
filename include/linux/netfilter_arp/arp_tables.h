@@ -65,35 +65,8 @@ struct arpt_arp {
 	u_int16_t invflags;
 };
 
-struct arpt_entry_target
-{
-	union {
-		struct {
-			u_int16_t target_size;
-
-			/* Used by userspace */
-			char name[ARPT_FUNCTION_MAXNAMELEN-1];
-			u_int8_t revision;
-		} user;
-		struct {
-			u_int16_t target_size;
-
-			/* Used inside the kernel */
-			struct arpt_target *target;
-		} kernel;
-
-		/* Total length */
-		u_int16_t target_size;
-	} u;
-
-	unsigned char data[0];
-};
-
-struct arpt_standard_target
-{
-	struct arpt_entry_target target;
-	int verdict;
-};
+#define arpt_entry_target xt_entry_target
+#define arpt_standard_target xt_standard_target
 
 /* Values for "flag" field in struct arpt_ip (general arp structure).
  * No flags defined yet.

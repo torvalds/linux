@@ -4,6 +4,62 @@
 #define XT_FUNCTION_MAXNAMELEN 30
 #define XT_TABLE_MAXNAMELEN 32
 
+struct xt_entry_match
+{
+	union {
+		struct {
+			u_int16_t match_size;
+
+			/* Used by userspace */
+			char name[XT_FUNCTION_MAXNAMELEN-1];
+
+			u_int8_t revision;
+		} user;
+		struct {
+			u_int16_t match_size;
+
+			/* Used inside the kernel */
+			struct xt_match *match;
+		} kernel;
+
+		/* Total length */
+		u_int16_t match_size;
+	} u;
+
+	unsigned char data[0];
+};
+
+struct xt_entry_target
+{
+	union {
+		struct {
+			u_int16_t target_size;
+
+			/* Used by userspace */
+			char name[XT_FUNCTION_MAXNAMELEN-1];
+
+			u_int8_t revision;
+		} user;
+		struct {
+			u_int16_t target_size;
+
+			/* Used inside the kernel */
+			struct xt_target *target;
+		} kernel;
+
+		/* Total length */
+		u_int16_t target_size;
+	} u;
+
+	unsigned char data[0];
+};
+
+struct xt_standard_target
+{
+	struct xt_entry_target target;
+	int verdict;
+};
+
 /* The argument to IPT_SO_GET_REVISION_*.  Returns highest revision
  * kernel supports, if >= revision. */
 struct xt_get_revision
