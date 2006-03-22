@@ -74,7 +74,7 @@ qeth_procfile_seq_next(struct seq_file *s, void *it, loff_t *offset)
 static inline const char *
 qeth_get_router_str(struct qeth_card *card, int ipv)
 {
-	int routing_type = 0;
+	enum qeth_routing_types routing_type = NO_ROUTER;
 
 	if (ipv == 4) {
 		routing_type = card->options.route4.type;
@@ -86,26 +86,26 @@ qeth_get_router_str(struct qeth_card *card, int ipv)
 #endif /* CONFIG_QETH_IPV6 */
 	}
 
-	if (routing_type == PRIMARY_ROUTER)
+	switch (routing_type){
+	case PRIMARY_ROUTER:
 		return "pri";
-	else if (routing_type == SECONDARY_ROUTER)
+	case SECONDARY_ROUTER:
 		return "sec";
-	else if (routing_type == MULTICAST_ROUTER) {
+	case MULTICAST_ROUTER:
 		if (card->info.broadcast_capable == QETH_BROADCAST_WITHOUT_ECHO)
 			return "mc+";
 		return "mc";
-	} else if (routing_type == PRIMARY_CONNECTOR) {
+	case PRIMARY_CONNECTOR:
 		if (card->info.broadcast_capable == QETH_BROADCAST_WITHOUT_ECHO)
 			return "p+c";
 		return "p.c";
-	} else if (routing_type == SECONDARY_CONNECTOR) {
+	case SECONDARY_CONNECTOR:
 		if (card->info.broadcast_capable == QETH_BROADCAST_WITHOUT_ECHO)
 			return "s+c";
 		return "s.c";
-	} else if (routing_type == NO_ROUTER)
+	default:   /* NO_ROUTER */
 		return "no";
-	else
-		return "unk";
+	}
 }
 
 static int
