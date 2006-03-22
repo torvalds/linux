@@ -99,7 +99,7 @@ typedef s32 klconf_off_t;
 #define ENABLE_BOARD 		0x01
 #define FAILED_BOARD  		0x02
 #define DUPLICATE_BOARD 	0x04    /* Boards like midplanes/routers which
-                                   	   are discovered twice. Use one of them */
+					   are discovered twice. Use one of them */
 #define VISITED_BOARD		0x08	/* Used for compact hub numbering. */
 #define LOCAL_MASTER_IO6	0x10 	/* master io6 for that node */
 #define GLOBAL_MASTER_IO6	0x20

@@ -103,9 +103,15 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
+	if (((uint32_t)ti->len) & (chunk_size - 1)) {
+		ti->error = "dm-stripe: Target length not divisible by "
+		    "chunk size";
+		return -EINVAL;
+	}
+
 	width = ti->len;
 	if (sector_div(width, stripes)) {
-		ti->error = "dm-stripe: Target length not divisable by "
+		ti->error = "dm-stripe: Target length not divisible by "
 		    "number of stripes";
 		return -EINVAL;
 	}

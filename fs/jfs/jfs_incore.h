@@ -19,6 +19,7 @@
 #ifndef _H_JFS_INCORE
 #define _H_JFS_INCORE
 
+#include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
@@ -37,6 +38,8 @@
 struct jfs_inode_info {
 	int	fileset;	/* fileset number (always 16)*/
 	uint	mode2;		/* jfs-specific mode		*/
+	uint	saved_uid;	/* saved for uid mount option */
+	uint	saved_gid;	/* saved for gid mount option */
 	pxd_t   ixpxd;		/* inode extent descriptor	*/
 	dxd_t	acl;		/* dxd describing acl	*/
 	dxd_t	ea;		/* dxd describing ea	*/
@@ -62,12 +65,12 @@ struct jfs_inode_info {
 	 */
 	struct rw_semaphore rdwrlock;
 	/*
-	 * commit_sem serializes transaction processing on an inode.
+	 * commit_mutex serializes transaction processing on an inode.
 	 * It must be taken after beginning a transaction (txBegin), since
 	 * dirty inodes may be committed while a new transaction on the
 	 * inode is blocked in txBegin or TxBeginAnon
 	 */
-	struct semaphore commit_sem;
+	struct mutex commit_mutex;
 	/* xattr_sem allows us to access the xattrs without taking i_mutex */
 	struct rw_semaphore xattr_sem;
 	lid_t	xtlid;		/* lid of xtree lock on directory */
@@ -169,6 +172,9 @@ struct jfs_sb_info {
 	uint		state;		/* mount/recovery state	*/
 	unsigned long	flag;		/* mount time flags */
 	uint		p_state;	/* state prior to going no integrity */
+	uint		uid;		/* uid to override on-disk uid */
+	uint		gid;		/* gid to override on-disk gid */
+	uint		umask;		/* umask to override on-disk umask */
 };
 
 /* jfs_sb_info commit_state */

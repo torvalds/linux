@@ -275,7 +275,10 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_insw(a,r,p,l)	readsw ((void*) ((a) + (r)), p, l)
 #define SMC_outw(v,a,r)	     ({ writew ((v), (a) + (r)); LPD7A40X_IOBARRIER; })
 
-static inline void SMC_outsw (unsigned long a, int r, unsigned char* p, int l)
+#define SMC_outsw		LPD7A40X_SMC_outsw
+
+static inline void LPD7A40X_SMC_outsw(unsigned long a, int r,
+				     unsigned char* p, int l)
 {
 	unsigned short* ps = (unsigned short*) p;
 	while (l-- > 0) {
@@ -340,10 +343,6 @@ static inline void SMC_outsw (unsigned long a, int r, unsigned char* p, int l)
 #define RPC_LSA_DEFAULT		RPC_LED_100_10
 #define RPC_LSB_DEFAULT		RPC_LED_TX_RX
 
-#endif
-
-#ifndef	SMC_IRQ_FLAGS
-#define	SMC_IRQ_FLAGS		SA_TRIGGER_RISING
 #endif
 
 #ifdef SMC_USE_PXA_DMA
@@ -441,10 +440,85 @@ smc_pxa_dma_irq(int dma, void *dummy, struct pt_regs *regs)
 #endif  /* SMC_USE_PXA_DMA */
 
 
-/* Because of bank switching, the LAN91x uses only 16 I/O ports */
+/*
+ * Everything a particular hardware setup needs should have been defined
+ * at this point.  Add stubs for the undefined cases, mainly to avoid
+ * compilation warnings since they'll be optimized away, or to prevent buggy
+ * use of them.
+ */
+
+#if ! SMC_CAN_USE_32BIT
+#define SMC_inl(ioaddr, reg)		({ BUG(); 0; })
+#define SMC_outl(x, ioaddr, reg)	BUG()
+#define SMC_insl(a, r, p, l)		BUG()
+#define SMC_outsl(a, r, p, l)		BUG()
+#endif
+
+#if !defined(SMC_insl) || !defined(SMC_outsl)
+#define SMC_insl(a, r, p, l)		BUG()
+#define SMC_outsl(a, r, p, l)		BUG()
+#endif
+
+#if ! SMC_CAN_USE_16BIT
+
+/*
+ * Any 16-bit access is performed with two 8-bit accesses if the hardware
+ * can't do it directly. Most registers are 16-bit so those are mandatory.
+ */
+#define SMC_outw(x, ioaddr, reg)					\
+	do {								\
+		unsigned int __val16 = (x);				\
+		SMC_outb( __val16, ioaddr, reg );			\
+		SMC_outb( __val16 >> 8, ioaddr, reg + (1 << SMC_IO_SHIFT));\
+	} while (0)
+#define SMC_inw(ioaddr, reg)						\
+	({								\
+		unsigned int __val16;					\
+		__val16 =  SMC_inb( ioaddr, reg );			\
+		__val16 |= SMC_inb( ioaddr, reg + (1 << SMC_IO_SHIFT)) << 8; \
+		__val16;						\
+	})
+
+#define SMC_insw(a, r, p, l)		BUG()
+#define SMC_outsw(a, r, p, l)		BUG()
+
+#endif
+
+#if !defined(SMC_insw) || !defined(SMC_outsw)
+#define SMC_insw(a, r, p, l)		BUG()
+#define SMC_outsw(a, r, p, l)		BUG()
+#endif
+
+#if ! SMC_CAN_USE_8BIT
+#define SMC_inb(ioaddr, reg)		({ BUG(); 0; })
+#define SMC_outb(x, ioaddr, reg)	BUG()
+#define SMC_insb(a, r, p, l)		BUG()
+#define SMC_outsb(a, r, p, l)		BUG()
+#endif
+
+#if !defined(SMC_insb) || !defined(SMC_outsb)
+#define SMC_insb(a, r, p, l)		BUG()
+#define SMC_outsb(a, r, p, l)		BUG()
+#endif
+
+#ifndef SMC_CAN_USE_DATACS
+#define SMC_CAN_USE_DATACS	0
+#endif
+
 #ifndef SMC_IO_SHIFT
 #define SMC_IO_SHIFT	0
 #endif
+
+#ifndef	SMC_IRQ_FLAGS
+#define	SMC_IRQ_FLAGS		SA_TRIGGER_RISING
+#endif
+
+#ifndef SMC_INTERRUPT_PREAMBLE
+#define SMC_INTERRUPT_PREAMBLE
+#endif
+
+
+/* Because of bank switching, the LAN91x uses only 16 I/O ports */
 #define SMC_IO_EXTENT	(16 << SMC_IO_SHIFT)
 #define SMC_DATA_EXTENT (4)
 
@@ -817,6 +891,11 @@ static const char * chip_ids[ 16 ] =  {
  * Note: the following macros do *not* select the bank -- this must
  * be done separately as needed in the main code.  The SMC_REG() macro
  * only uses the bank argument for debugging purposes (when enabled).
+ *
+ * Note: despite inline functions being safer, everything leading to this
+ * should preferably be macros to let BUG() display the line number in
+ * the core source code since we're interested in the top call site
+ * not in any inline function location.
  */
 
 #if SMC_DEBUG > 0
@@ -834,62 +913,142 @@ static const char * chip_ids[ 16 ] =  {
 #define SMC_REG(reg, bank)	(reg<<SMC_IO_SHIFT)
 #endif
 
-#if SMC_CAN_USE_8BIT
-#define SMC_GET_PN()		SMC_inb( ioaddr, PN_REG )
-#define SMC_SET_PN(x)		SMC_outb( x, ioaddr, PN_REG )
-#define SMC_GET_AR()		SMC_inb( ioaddr, AR_REG )
-#define SMC_GET_TXFIFO()	SMC_inb( ioaddr, TXFIFO_REG )
-#define SMC_GET_RXFIFO()	SMC_inb( ioaddr, RXFIFO_REG )
-#define SMC_GET_INT()		SMC_inb( ioaddr, INT_REG )
-#define SMC_ACK_INT(x)		SMC_outb( x, ioaddr, INT_REG )
-#define SMC_GET_INT_MASK()	SMC_inb( ioaddr, IM_REG )
-#define SMC_SET_INT_MASK(x)	SMC_outb( x, ioaddr, IM_REG )
-#else
-#define SMC_GET_PN()		(SMC_inw( ioaddr, PN_REG ) & 0xFF)
-#define SMC_SET_PN(x)		SMC_outw( x, ioaddr, PN_REG )
-#define SMC_GET_AR()		(SMC_inw( ioaddr, PN_REG ) >> 8)
-#define SMC_GET_TXFIFO()	(SMC_inw( ioaddr, TXFIFO_REG ) & 0xFF)
-#define SMC_GET_RXFIFO()	(SMC_inw( ioaddr, TXFIFO_REG ) >> 8)
-#define SMC_GET_INT()		(SMC_inw( ioaddr, INT_REG ) & 0xFF)
+/*
+ * Hack Alert: Some setups just can't write 8 or 16 bits reliably when not
+ * aligned to a 32 bit boundary.  I tell you that does exist!
+ * Fortunately the affected register accesses can be easily worked around
+ * since we can write zeroes to the preceeding 16 bits without adverse
+ * effects and use a 32-bit access.
+ *
+ * Enforce it on any 32-bit capable setup for now.
+ */
+#define SMC_MUST_ALIGN_WRITE	SMC_CAN_USE_32BIT
+
+#define SMC_GET_PN()							\
+	( SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, PN_REG))		\
+				: (SMC_inw(ioaddr, PN_REG) & 0xFF) )
+
+#define SMC_SET_PN(x)							\
+	do {								\
+		if (SMC_MUST_ALIGN_WRITE)				\
+			SMC_outl((x)<<16, ioaddr, SMC_REG(0, 2));	\
+		else if (SMC_CAN_USE_8BIT)				\
+			SMC_outb(x, ioaddr, PN_REG);			\
+		else							\
+			SMC_outw(x, ioaddr, PN_REG);			\
+	} while (0)
+
+#define SMC_GET_AR()							\
+	( SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, AR_REG))		\
+	  			: (SMC_inw(ioaddr, PN_REG) >> 8) )
+
+#define SMC_GET_TXFIFO()						\
+	( SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, TXFIFO_REG))		\
+				: (SMC_inw(ioaddr, TXFIFO_REG) & 0xFF) )
+
+#define SMC_GET_RXFIFO()						\
+	  ( SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, RXFIFO_REG))		\
+				: (SMC_inw(ioaddr, TXFIFO_REG) >> 8) )
+
+#define SMC_GET_INT()							\
+	( SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, INT_REG))		\
+				: (SMC_inw(ioaddr, INT_REG) & 0xFF) )
+
 #define SMC_ACK_INT(x)							\
 	do {								\
-		unsigned long __flags;					\
-		int __mask;						\
-		local_irq_save(__flags);				\
-		__mask = SMC_inw( ioaddr, INT_REG ) & ~0xff;		\
-		SMC_outw( __mask | (x), ioaddr, INT_REG );		\
-		local_irq_restore(__flags);				\
+		if (SMC_CAN_USE_8BIT)					\
+			SMC_outb(x, ioaddr, INT_REG);			\
+		else {							\
+			unsigned long __flags;				\
+			int __mask;					\
+			local_irq_save(__flags);			\
+			__mask = SMC_inw( ioaddr, INT_REG ) & ~0xff;	\
+			SMC_outw( __mask | (x), ioaddr, INT_REG );	\
+			local_irq_restore(__flags);			\
+		}							\
 	} while (0)
-#define SMC_GET_INT_MASK()	(SMC_inw( ioaddr, INT_REG ) >> 8)
-#define SMC_SET_INT_MASK(x)	SMC_outw( (x) << 8, ioaddr, INT_REG )
-#endif
 
-#define SMC_CURRENT_BANK()	SMC_inw( ioaddr, BANK_SELECT )
-#define SMC_SELECT_BANK(x)	SMC_outw( x, ioaddr, BANK_SELECT )
-#define SMC_GET_BASE()		SMC_inw( ioaddr, BASE_REG )
-#define SMC_SET_BASE(x)		SMC_outw( x, ioaddr, BASE_REG )
-#define SMC_GET_CONFIG()	SMC_inw( ioaddr, CONFIG_REG )
-#define SMC_SET_CONFIG(x)	SMC_outw( x, ioaddr, CONFIG_REG )
-#define SMC_GET_COUNTER()	SMC_inw( ioaddr, COUNTER_REG )
-#define SMC_GET_CTL()		SMC_inw( ioaddr, CTL_REG )
-#define SMC_SET_CTL(x)		SMC_outw( x, ioaddr, CTL_REG )
-#define SMC_GET_MII()		SMC_inw( ioaddr, MII_REG )
-#define SMC_SET_MII(x)		SMC_outw( x, ioaddr, MII_REG )
-#define SMC_GET_MIR()		SMC_inw( ioaddr, MIR_REG )
-#define SMC_SET_MIR(x)		SMC_outw( x, ioaddr, MIR_REG )
-#define SMC_GET_MMU_CMD()	SMC_inw( ioaddr, MMU_CMD_REG )
-#define SMC_SET_MMU_CMD(x)	SMC_outw( x, ioaddr, MMU_CMD_REG )
-#define SMC_GET_FIFO()		SMC_inw( ioaddr, FIFO_REG )
-#define SMC_GET_PTR()		SMC_inw( ioaddr, PTR_REG )
-#define SMC_SET_PTR(x)		SMC_outw( x, ioaddr, PTR_REG )
-#define SMC_GET_EPH_STATUS()	SMC_inw( ioaddr, EPH_STATUS_REG )
-#define SMC_GET_RCR()		SMC_inw( ioaddr, RCR_REG )
-#define SMC_SET_RCR(x)		SMC_outw( x, ioaddr, RCR_REG )
-#define SMC_GET_REV()		SMC_inw( ioaddr, REV_REG )
-#define SMC_GET_RPC()		SMC_inw( ioaddr, RPC_REG )
-#define SMC_SET_RPC(x)		SMC_outw( x, ioaddr, RPC_REG )
-#define SMC_GET_TCR()		SMC_inw( ioaddr, TCR_REG )
-#define SMC_SET_TCR(x)		SMC_outw( x, ioaddr, TCR_REG )
+#define SMC_GET_INT_MASK()						\
+	( SMC_CAN_USE_8BIT	? (SMC_inb(ioaddr, IM_REG))		\
+				: (SMC_inw( ioaddr, INT_REG ) >> 8) )
+
+#define SMC_SET_INT_MASK(x)						\
+	do {								\
+		if (SMC_CAN_USE_8BIT)					\
+			SMC_outb(x, ioaddr, IM_REG);			\
+		else							\
+			SMC_outw((x) << 8, ioaddr, INT_REG);		\
+	} while (0)
+
+#define SMC_CURRENT_BANK()	SMC_inw(ioaddr, BANK_SELECT)
+
+#define SMC_SELECT_BANK(x)						\
+	do {								\
+		if (SMC_MUST_ALIGN_WRITE)				\
+			SMC_outl((x)<<16, ioaddr, 12<<SMC_IO_SHIFT);	\
+		else							\
+			SMC_outw(x, ioaddr, BANK_SELECT);		\
+	} while (0)
+
+#define SMC_GET_BASE()		SMC_inw(ioaddr, BASE_REG)
+
+#define SMC_SET_BASE(x)		SMC_outw(x, ioaddr, BASE_REG)
+
+#define SMC_GET_CONFIG()	SMC_inw(ioaddr, CONFIG_REG)
+
+#define SMC_SET_CONFIG(x)	SMC_outw(x, ioaddr, CONFIG_REG)
+
+#define SMC_GET_COUNTER()	SMC_inw(ioaddr, COUNTER_REG)
+
+#define SMC_GET_CTL()		SMC_inw(ioaddr, CTL_REG)
+
+#define SMC_SET_CTL(x)		SMC_outw(x, ioaddr, CTL_REG)
+
+#define SMC_GET_MII()		SMC_inw(ioaddr, MII_REG)
+
+#define SMC_SET_MII(x)		SMC_outw(x, ioaddr, MII_REG)
+
+#define SMC_GET_MIR()		SMC_inw(ioaddr, MIR_REG)
+
+#define SMC_SET_MIR(x)		SMC_outw(x, ioaddr, MIR_REG)
+
+#define SMC_GET_MMU_CMD()	SMC_inw(ioaddr, MMU_CMD_REG)
+
+#define SMC_SET_MMU_CMD(x)	SMC_outw(x, ioaddr, MMU_CMD_REG)
+
+#define SMC_GET_FIFO()		SMC_inw(ioaddr, FIFO_REG)
+
+#define SMC_GET_PTR()		SMC_inw(ioaddr, PTR_REG)
+
+#define SMC_SET_PTR(x)							\
+	do {								\
+		if (SMC_MUST_ALIGN_WRITE)				\
+			SMC_outl((x)<<16, ioaddr, SMC_REG(4, 2));	\
+		else							\
+			SMC_outw(x, ioaddr, PTR_REG);			\
+	} while (0)
+
+#define SMC_GET_EPH_STATUS()	SMC_inw(ioaddr, EPH_STATUS_REG)
+
+#define SMC_GET_RCR()		SMC_inw(ioaddr, RCR_REG)
+
+#define SMC_SET_RCR(x)		SMC_outw(x, ioaddr, RCR_REG)
+
+#define SMC_GET_REV()		SMC_inw(ioaddr, REV_REG)
+
+#define SMC_GET_RPC()		SMC_inw(ioaddr, RPC_REG)
+
+#define SMC_SET_RPC(x)							\
+	do {								\
+		if (SMC_MUST_ALIGN_WRITE)				\
+			SMC_outl((x)<<16, ioaddr, SMC_REG(8, 0));	\
+		else							\
+			SMC_outw(x, ioaddr, RPC_REG);			\
+	} while (0)
+
+#define SMC_GET_TCR()		SMC_inw(ioaddr, TCR_REG)
+
+#define SMC_SET_TCR(x)		SMC_outw(x, ioaddr, TCR_REG)
 
 #ifndef SMC_GET_MAC_ADDR
 #define SMC_GET_MAC_ADDR(addr)						\
@@ -920,151 +1079,84 @@ static const char * chip_ids[ 16 ] =  {
 		SMC_outw( mt[6] | (mt[7] << 8), ioaddr, MCAST_REG4 );	\
 	} while (0)
 
-#if SMC_CAN_USE_32BIT
-/*
- * Some setups just can't write 8 or 16 bits reliably when not aligned
- * to a 32 bit boundary.  I tell you that exists!
- * We re-do the ones here that can be easily worked around if they can have
- * their low parts written to 0 without adverse effects.
- */
-#undef SMC_SELECT_BANK
-#define SMC_SELECT_BANK(x)	SMC_outl( (x)<<16, ioaddr, 12<<SMC_IO_SHIFT )
-#undef SMC_SET_RPC
-#define SMC_SET_RPC(x)		SMC_outl( (x)<<16, ioaddr, SMC_REG(8, 0) )
-#undef SMC_SET_PN
-#define SMC_SET_PN(x)		SMC_outl( (x)<<16, ioaddr, SMC_REG(0, 2) )
-#undef SMC_SET_PTR
-#define SMC_SET_PTR(x)		SMC_outl( (x)<<16, ioaddr, SMC_REG(4, 2) )
-#endif
-
-#if SMC_CAN_USE_32BIT
-#define SMC_PUT_PKT_HDR(status, length)					\
-	SMC_outl( (status) | (length) << 16, ioaddr, DATA_REG )
-#define SMC_GET_PKT_HDR(status, length)					\
-	do {								\
-		unsigned int __val = SMC_inl( ioaddr, DATA_REG );	\
-		(status) = __val & 0xffff;				\
-		(length) = __val >> 16;					\
-	} while (0)
-#else
 #define SMC_PUT_PKT_HDR(status, length)					\
 	do {								\
-		SMC_outw( status, ioaddr, DATA_REG );			\
-		SMC_outw( length, ioaddr, DATA_REG );			\
+		if (SMC_CAN_USE_32BIT)					\
+			SMC_outl((status) | (length)<<16, ioaddr, DATA_REG); \
+		else {							\
+			SMC_outw(status, ioaddr, DATA_REG);		\
+			SMC_outw(length, ioaddr, DATA_REG);		\
+		}							\
 	} while (0)
+
 #define SMC_GET_PKT_HDR(status, length)					\
 	do {								\
-		(status) = SMC_inw( ioaddr, DATA_REG );			\
-		(length) = SMC_inw( ioaddr, DATA_REG );			\
-	} while (0)
-#endif
-
-#if SMC_CAN_USE_32BIT
-#define _SMC_PUSH_DATA(p, l)						\
-	do {								\
-		char *__ptr = (p);					\
-		int __len = (l);					\
-		if (__len >= 2 && (unsigned long)__ptr & 2) {		\
-			__len -= 2;					\
-			SMC_outw( *(u16 *)__ptr, ioaddr, DATA_REG );	\
-			__ptr += 2;					\
-		}							\
-		SMC_outsl( ioaddr, DATA_REG, __ptr, __len >> 2);	\
-		if (__len & 2) {					\
-			__ptr += (__len & ~3);				\
-			SMC_outw( *((u16 *)__ptr), ioaddr, DATA_REG );	\
+		if (SMC_CAN_USE_32BIT) {				\
+			unsigned int __val = SMC_inl(ioaddr, DATA_REG);	\
+			(status) = __val & 0xffff;			\
+			(length) = __val >> 16;				\
+		} else {						\
+			(status) = SMC_inw(ioaddr, DATA_REG);		\
+			(length) = SMC_inw(ioaddr, DATA_REG);		\
 		}							\
 	} while (0)
-#define _SMC_PULL_DATA(p, l)						\
-	do {								\
-		char *__ptr = (p);					\
-		int __len = (l);					\
-		if ((unsigned long)__ptr & 2) {				\
-			/*						\
-			 * We want 32bit alignment here.		\
-			 * Since some buses perform a full 32bit	\
-			 * fetch even for 16bit data we can't use	\
-			 * SMC_inw() here.  Back both source (on chip	\
-			 * and destination) pointers of 2 bytes.	\
-			 */						\
-			__ptr -= 2;					\
-			__len += 2;					\
-			SMC_SET_PTR( 2|PTR_READ|PTR_RCV|PTR_AUTOINC );	\
-		}							\
-		__len += 2;						\
-		SMC_insl( ioaddr, DATA_REG, __ptr, __len >> 2);		\
-	} while (0)
-#elif SMC_CAN_USE_16BIT
-#define _SMC_PUSH_DATA(p, l)	SMC_outsw( ioaddr, DATA_REG, p, (l) >> 1 )
-#define _SMC_PULL_DATA(p, l)	SMC_insw ( ioaddr, DATA_REG, p, (l) >> 1 )
-#elif SMC_CAN_USE_8BIT
-#define _SMC_PUSH_DATA(p, l)	SMC_outsb( ioaddr, DATA_REG, p, l )
-#define _SMC_PULL_DATA(p, l)	SMC_insb ( ioaddr, DATA_REG, p, l )
-#endif
 
-#if ! SMC_CAN_USE_16BIT
-#define SMC_outw(x, ioaddr, reg)					\
-	do {								\
-		unsigned int __val16 = (x);				\
-		SMC_outb( __val16, ioaddr, reg );			\
-		SMC_outb( __val16 >> 8, ioaddr, reg + (1 << SMC_IO_SHIFT));\
-	} while (0)
-#define SMC_inw(ioaddr, reg)						\
-	({								\
-		unsigned int __val16;					\
-		__val16 =  SMC_inb( ioaddr, reg );			\
-		__val16 |= SMC_inb( ioaddr, reg + (1 << SMC_IO_SHIFT)) << 8; \
-		__val16;						\
-	})
-#endif
-
-#ifdef SMC_CAN_USE_DATACS
 #define SMC_PUSH_DATA(p, l)						\
-	if ( lp->datacs ) {						\
-		unsigned char *__ptr = (p);				\
-		int __len = (l);					\
- 		if (__len >= 2 && (unsigned long)__ptr & 2) {		\
- 			__len -= 2;					\
- 			SMC_outw( *((u16 *)__ptr), ioaddr, DATA_REG );	\
- 			__ptr += 2;					\
- 		}							\
-		outsl(lp->datacs, __ptr, __len >> 2);			\
- 		if (__len & 2) {					\
- 			__ptr += (__len & ~3);				\
- 			SMC_outw( *((u16 *)__ptr), ioaddr, DATA_REG );	\
- 		}							\
-	} else {							\
-		_SMC_PUSH_DATA(p, l);					\
-	}
+	do {								\
+		if (SMC_CAN_USE_32BIT) {				\
+			void *__ptr = (p);				\
+			int __len = (l);				\
+			void *__ioaddr = ioaddr;			\
+			if (__len >= 2 && (unsigned long)__ptr & 2) {	\
+				__len -= 2;				\
+				SMC_outw(*(u16 *)__ptr, ioaddr, DATA_REG); \
+				__ptr += 2;				\
+			}						\
+			if (SMC_CAN_USE_DATACS && lp->datacs)		\
+				__ioaddr = lp->datacs;			\
+			SMC_outsl(__ioaddr, DATA_REG, __ptr, __len>>2);	\
+			if (__len & 2) {				\
+				__ptr += (__len & ~3);			\
+				SMC_outw(*((u16 *)__ptr), ioaddr, DATA_REG); \
+			}						\
+		} else if (SMC_CAN_USE_16BIT)				\
+			SMC_outsw(ioaddr, DATA_REG, p, (l) >> 1);	\
+		else if (SMC_CAN_USE_8BIT)				\
+			SMC_outsb(ioaddr, DATA_REG, p, l);		\
+	} while (0)
 
 #define SMC_PULL_DATA(p, l)						\
-	if ( lp->datacs ) { 						\
-		unsigned char *__ptr = (p);				\
-		int __len = (l);					\
-		if ((unsigned long)__ptr & 2) {			 	\
-			/*						\
-			 * We want 32bit alignment here.		\
-			 * Since some buses perform a full 32bit	\
-			 * fetch even for 16bit data we can't use	\
-			 * SMC_inw() here.  Back both source (on chip	\
-			 * and destination) pointers of 2 bytes.	\
-			 */						\
-			__ptr -= 2;					\
+	do {								\
+		if (SMC_CAN_USE_32BIT) {				\
+			void *__ptr = (p);				\
+			int __len = (l);				\
+			void *__ioaddr = ioaddr;			\
+			if ((unsigned long)__ptr & 2) {			\
+				/*					\
+				 * We want 32bit alignment here.	\
+				 * Since some buses perform a full	\
+				 * 32bit fetch even for 16bit data	\
+				 * we can't use SMC_inw() here.		\
+				 * Back both source (on-chip) and	\
+				 * destination pointers of 2 bytes.	\
+				 * This is possible since the call to	\
+				 * SMC_GET_PKT_HDR() already advanced	\
+				 * the source pointer of 4 bytes, and	\
+				 * the skb_reserve(skb, 2) advanced	\
+				 * the destination pointer of 2 bytes.	\
+				 */					\
+				__ptr -= 2;				\
+				__len += 2;				\
+				SMC_SET_PTR(2|PTR_READ|PTR_RCV|PTR_AUTOINC); \
+			}						\
+			if (SMC_CAN_USE_DATACS && lp->datacs)		\
+				__ioaddr = lp->datacs;			\
 			__len += 2;					\
-			SMC_SET_PTR( 2|PTR_READ|PTR_RCV|PTR_AUTOINC ); 	\
-		}							\
-		__len += 2;						\
-		insl( lp->datacs, __ptr, __len >> 2);			\
-	} else {							\
-		_SMC_PULL_DATA(p, l);					\
-	}
-#else
-#define SMC_PUSH_DATA(p, l) _SMC_PUSH_DATA(p, l)
-#define SMC_PULL_DATA(p, l) _SMC_PULL_DATA(p, l)
-#endif
-
-#if !defined (SMC_INTERRUPT_PREAMBLE)
-# define SMC_INTERRUPT_PREAMBLE
-#endif
+			SMC_insl(__ioaddr, DATA_REG, __ptr, __len>>2);	\
+		} else if (SMC_CAN_USE_16BIT)				\
+			SMC_insw(ioaddr, DATA_REG, p, (l) >> 1);	\
+		else if (SMC_CAN_USE_8BIT)				\
+			SMC_insb(ioaddr, DATA_REG, p, l);		\
+	} while (0)
 
 #endif  /* _SMC91X_H_ */

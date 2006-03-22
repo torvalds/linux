@@ -256,11 +256,10 @@ ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
 	unsigned long npages = dir_pages(inode);
 	unsigned chunk_mask = ~(ext2_chunk_size(inode)-1);
 	unsigned char *types = NULL;
-	int need_revalidate = (filp->f_version != inode->i_version);
-	int ret;
+	int need_revalidate = filp->f_version != inode->i_version;
 
 	if (pos > inode->i_size - EXT2_DIR_REC_LEN(1))
-		goto success;
+		return 0;
 
 	if (EXT2_HAS_INCOMPAT_FEATURE(sb, EXT2_FEATURE_INCOMPAT_FILETYPE))
 		types = ext2_filetype_table;
@@ -275,12 +274,15 @@ ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
 				   "bad page in #%lu",
 				   inode->i_ino);
 			filp->f_pos += PAGE_CACHE_SIZE - offset;
-			ret = -EIO;
-			goto done;
+			return -EIO;
 		}
 		kaddr = page_address(page);
-		if (need_revalidate) {
-			offset = ext2_validate_entry(kaddr, offset, chunk_mask);
+		if (unlikely(need_revalidate)) {
+			if (offset) {
+				offset = ext2_validate_entry(kaddr, offset, chunk_mask);
+				filp->f_pos = (n<<PAGE_CACHE_SHIFT) + offset;
+			}
+			filp->f_version = inode->i_version;
 			need_revalidate = 0;
 		}
 		de = (ext2_dirent *)(kaddr+offset);
@@ -289,9 +291,8 @@ ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
 			if (de->rec_len == 0) {
 				ext2_error(sb, __FUNCTION__,
 					"zero-length directory entry");
-				ret = -EIO;
 				ext2_put_page(page);
-				goto done;
+				return -EIO;
 			}
 			if (de->inode) {
 				int over;
@@ -306,19 +307,14 @@ ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
 						le32_to_cpu(de->inode), d_type);
 				if (over) {
 					ext2_put_page(page);
-					goto success;
+					return 0;
 				}
 			}
 			filp->f_pos += le16_to_cpu(de->rec_len);
 		}
 		ext2_put_page(page);
 	}
-
-success:
-	ret = 0;
-done:
-	filp->f_version = inode->i_version;
-	return ret;
+	return 0;
 }
 
 /*

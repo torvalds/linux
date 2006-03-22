@@ -151,7 +151,7 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	struct scsi_sense_hdr sshdr;
 	enum dma_data_direction data_dir;
 
-	if (NULL == (void *)arg)
+	if (arg == NULL)
 		return -EINVAL;
 
 	if (copy_from_user(args, arg, sizeof(args)))
@@ -201,7 +201,7 @@ int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg)
 	/* Need code to retrieve data from check condition? */
 
 	if ((argbuf)
-	 && copy_to_user((void *)(arg + sizeof(args)), argbuf, argsize))
+	 && copy_to_user(arg + sizeof(args), argbuf, argsize))
 		rc = -EFAULT;
 error:
 	if (argbuf)
@@ -228,7 +228,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	u8 args[7];
 	struct scsi_sense_hdr sshdr;
 
-	if (NULL == (void *)arg)
+	if (arg == NULL)
 		return -EINVAL;
 
 	if (copy_from_user(args, arg, sizeof(args)))
@@ -553,7 +553,7 @@ void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 	/*
 	 * Read the controller registers.
 	 */
-	assert(NULL != qc->ap->ops->tf_read);
+	WARN_ON(qc->ap->ops->tf_read == NULL);
 	qc->ap->ops->tf_read(qc->ap, tf);
 
 	/*
@@ -628,7 +628,7 @@ void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
 	/*
 	 * Read the controller registers.
 	 */
-	assert(NULL != qc->ap->ops->tf_read);
+	WARN_ON(qc->ap->ops->tf_read == NULL);
 	qc->ap->ops->tf_read(qc->ap, tf);
 
 	/*
@@ -684,23 +684,23 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 	if (sdev->id < ATA_MAX_DEVICES) {
 		struct ata_port *ap;
 		struct ata_device *dev;
+		unsigned int max_sectors;
 
 		ap = (struct ata_port *) &sdev->host->hostdata[0];
 		dev = &ap->device[sdev->id];
 
-		/* TODO: 1024 is an arbitrary number, not the
+		/* TODO: 2048 is an arbitrary number, not the
 		 * hardware maximum.  This should be increased to
 		 * 65534 when Jens Axboe's patch for dynamically
 		 * determining max_sectors is merged.
 		 */
-		if ((dev->flags & ATA_DFLAG_LBA48) &&
-		    ((dev->flags & ATA_DFLAG_LOCK_SECTORS) == 0)) {
-			/*
-			 * do not overwrite sdev->host->max_sectors, since
-			 * other drives on this host may not support LBA48
-			 */
-			blk_queue_max_sectors(sdev->request_queue, 2048);
-		}
+		max_sectors = ATA_MAX_SECTORS;
+		if (dev->flags & ATA_DFLAG_LBA48)
+			max_sectors = 2048;
+		if (dev->max_sectors)
+			max_sectors = dev->max_sectors;
+
+		blk_queue_max_sectors(sdev->request_queue, max_sectors);
 
 		/*
 		 * SATA DMA transfers must be multiples of 4 byte, so
@@ -714,6 +714,47 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 	}
 
 	return 0;	/* scsi layer doesn't check return value, sigh */
+}
+
+/**
+ *	ata_scsi_timed_out - SCSI layer time out callback
+ *	@cmd: timed out SCSI command
+ *
+ *	Handles SCSI layer timeout.  We race with normal completion of
+ *	the qc for @cmd.  If the qc is already gone, we lose and let
+ *	the scsi command finish (EH_HANDLED).  Otherwise, the qc has
+ *	timed out and EH should be invoked.  Prevent ata_qc_complete()
+ *	from finishing it by setting EH_SCHEDULED and return
+ *	EH_NOT_HANDLED.
+ *
+ *	LOCKING:
+ *	Called from timer context
+ *
+ *	RETURNS:
+ *	EH_HANDLED or EH_NOT_HANDLED
+ */
+enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
+{
+	struct Scsi_Host *host = cmd->device->host;
+	struct ata_port *ap = (struct ata_port *) &host->hostdata[0];
+	unsigned long flags;
+	struct ata_queued_cmd *qc;
+	enum scsi_eh_timer_return ret = EH_HANDLED;
+
+	DPRINTK("ENTER\n");
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	if (qc) {
+		WARN_ON(qc->scsicmd != cmd);
+		qc->flags |= ATA_QCFLAG_EH_SCHEDULED;
+		qc->err_mask |= AC_ERR_TIMEOUT;
+		ret = EH_NOT_HANDLED;
+	}
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	DPRINTK("EXIT, ret=%d\n", ret);
+	return ret;
 }
 
 /**
@@ -732,21 +773,82 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 int ata_scsi_error(struct Scsi_Host *host)
 {
 	struct ata_port *ap;
+	unsigned long flags;
 
 	DPRINTK("ENTER\n");
 
 	ap = (struct ata_port *) &host->hostdata[0];
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	WARN_ON(ap->flags & ATA_FLAG_IN_EH);
+	ap->flags |= ATA_FLAG_IN_EH;
+	WARN_ON(ata_qc_from_tag(ap, ap->active_tag) == NULL);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	ata_port_flush_task(ap);
+
 	ap->ops->eng_timeout(ap);
 
-	/* TODO: this is per-command; when queueing is supported
-	 * this code will either change or move to a more
-	 * appropriate place
-	 */
-	host->host_failed--;
-	INIT_LIST_HEAD(&host->eh_cmd_q);
+	WARN_ON(host->host_failed || !list_empty(&host->eh_cmd_q));
+
+	scsi_eh_flush_done_q(&ap->eh_done_q);
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->flags &= ~ATA_FLAG_IN_EH;
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	DPRINTK("EXIT\n");
 	return 0;
+}
+
+static void ata_eh_scsidone(struct scsi_cmnd *scmd)
+{
+	/* nada */
+}
+
+static void __ata_eh_qc_complete(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	qc->scsidone = ata_eh_scsidone;
+	__ata_qc_complete(qc);
+	WARN_ON(ata_tag_valid(qc->tag));
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	scsi_eh_finish_cmd(scmd, &ap->eh_done_q);
+}
+
+/**
+ *	ata_eh_qc_complete - Complete an active ATA command from EH
+ *	@qc: Command to complete
+ *
+ *	Indicate to the mid and upper layers that an ATA command has
+ *	completed.  To be used from EH.
+ */
+void ata_eh_qc_complete(struct ata_queued_cmd *qc)
+{
+	struct scsi_cmnd *scmd = qc->scsicmd;
+	scmd->retries = scmd->allowed;
+	__ata_eh_qc_complete(qc);
+}
+
+/**
+ *	ata_eh_qc_retry - Tell midlayer to retry an ATA command after EH
+ *	@qc: Command to retry
+ *
+ *	Indicate to the mid and upper layers that an ATA command
+ *	should be retried.  To be used from EH.
+ *
+ *	SCSI midlayer limits the number of retries to scmd->allowed.
+ *	This function might need to adjust scmd->retries for commands
+ *	which get retried due to unrelated NCQ failures.
+ */
+void ata_eh_qc_retry(struct ata_queued_cmd *qc)
+{
+	__ata_eh_qc_complete(qc);
 }
 
 /**
@@ -985,9 +1087,13 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, const u8 *sc
 	if (dev->flags & ATA_DFLAG_LBA) {
 		tf->flags |= ATA_TFLAG_LBA;
 
-		if (dev->flags & ATA_DFLAG_LBA48) {
-			if (n_block > (64 * 1024))
-				goto invalid_fld;
+		if (lba_28_ok(block, n_block)) {
+			/* use LBA28 */
+			tf->command = ATA_CMD_VERIFY;
+			tf->device |= (block >> 24) & 0xf;
+		} else if (lba_48_ok(block, n_block)) {
+			if (!(dev->flags & ATA_DFLAG_LBA48))
+				goto out_of_range;
 
 			/* use LBA48 */
 			tf->flags |= ATA_TFLAG_LBA48;
@@ -998,15 +1104,9 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, const u8 *sc
 			tf->hob_lbah = (block >> 40) & 0xff;
 			tf->hob_lbam = (block >> 32) & 0xff;
 			tf->hob_lbal = (block >> 24) & 0xff;
-		} else {
-			if (n_block > 256)
-				goto invalid_fld;
-
-			/* use LBA28 */
-			tf->command = ATA_CMD_VERIFY;
-
-			tf->device |= (block >> 24) & 0xf;
-		}
+		} else
+			/* request too large even for LBA48 */
+			goto out_of_range;
 
 		tf->nsect = n_block & 0xff;
 
@@ -1019,8 +1119,8 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, const u8 *sc
 		/* CHS */
 		u32 sect, head, cyl, track;
 
-		if (n_block > 256)
-			goto invalid_fld;
+		if (!lba_28_ok(block, n_block))
+			goto out_of_range;
 
 		/* Convert LBA to CHS */
 		track = (u32)block / dev->sectors;
@@ -1139,9 +1239,11 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 	if (dev->flags & ATA_DFLAG_LBA) {
 		tf->flags |= ATA_TFLAG_LBA;
 
-		if (dev->flags & ATA_DFLAG_LBA48) {
-			/* The request -may- be too large for LBA48. */
-			if ((block >> 48) || (n_block > 65536))
+		if (lba_28_ok(block, n_block)) {
+			/* use LBA28 */
+			tf->device |= (block >> 24) & 0xf;
+		} else if (lba_48_ok(block, n_block)) {
+			if (!(dev->flags & ATA_DFLAG_LBA48))
 				goto out_of_range;
 
 			/* use LBA48 */
@@ -1152,15 +1254,9 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 			tf->hob_lbah = (block >> 40) & 0xff;
 			tf->hob_lbam = (block >> 32) & 0xff;
 			tf->hob_lbal = (block >> 24) & 0xff;
-		} else { 
-			/* use LBA28 */
-
-			/* The request -may- be too large for LBA28. */
-			if ((block >> 28) || (n_block > 256))
-				goto out_of_range;
-
-			tf->device |= (block >> 24) & 0xf;
-		}
+		} else
+			/* request too large even for LBA48 */
+			goto out_of_range;
 
 		if (unlikely(ata_rwcmd_protocol(qc) < 0))
 			goto invalid_fld;
@@ -1178,7 +1274,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		u32 sect, head, cyl, track;
 
 		/* The request -may- be too large for CHS addressing. */
-		if ((block >> 28) || (n_block > 256))
+		if (!lba_28_ok(block, n_block))
 			goto out_of_range;
 
 		if (unlikely(ata_rwcmd_protocol(qc) < 0))
@@ -1225,7 +1321,7 @@ nothing_to_do:
 	return 1;
 }
 
-static int ata_scsi_qc_complete(struct ata_queued_cmd *qc)
+static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	u8 *cdb = cmd->cmnd;
@@ -1262,7 +1358,7 @@ static int ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 
 	qc->scsidone(cmd);
 
-	return 0;
+	ata_qc_free(qc);
 }
 
 /**
@@ -1328,8 +1424,9 @@ static void ata_scsi_translate(struct ata_port *ap, struct ata_device *dev,
 		goto early_finish;
 
 	/* select device, send command to hardware */
-	if (ata_qc_issue(qc))
-		goto err_did;
+	qc->err_mask = ata_qc_issue(qc);
+	if (qc->err_mask)
+		ata_qc_complete(qc);
 
 	VPRINTK("EXIT\n");
 	return;
@@ -1472,8 +1569,8 @@ unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
 
 	if (buflen > 35) {
 		memcpy(&rbuf[8], "ATA     ", 8);
-		ata_dev_id_string(args->id, &rbuf[16], ATA_ID_PROD_OFS, 16);
-		ata_dev_id_string(args->id, &rbuf[32], ATA_ID_FW_REV_OFS, 4);
+		ata_id_string(args->id, &rbuf[16], ATA_ID_PROD_OFS, 16);
+		ata_id_string(args->id, &rbuf[32], ATA_ID_FW_REV_OFS, 4);
 		if (rbuf[32] == 0 || rbuf[32] == ' ')
 			memcpy(&rbuf[32], "n/a ", 4);
 	}
@@ -1547,8 +1644,8 @@ unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
 	memcpy(rbuf, hdr, sizeof(hdr));
 
 	if (buflen > (ATA_SERNO_LEN + 4 - 1))
-		ata_dev_id_string(args->id, (unsigned char *) &rbuf[4],
-				  ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
+		ata_id_string(args->id, (unsigned char *) &rbuf[4],
+			      ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
 
 	return 0;
 }
@@ -1713,15 +1810,12 @@ static int ata_dev_supports_fua(u16 *id)
 	if (!ata_id_has_fua(id))
 		return 0;
 
-	model[40] = '\0';
-	fw[8] = '\0';
+	ata_id_c_string(id, model, ATA_ID_PROD_OFS, sizeof(model));
+	ata_id_c_string(id, fw, ATA_ID_FW_REV_OFS, sizeof(fw));
 
-	ata_dev_id_string(id, model, ATA_ID_PROD_OFS, sizeof(model) - 1);
-	ata_dev_id_string(id, fw, ATA_ID_FW_REV_OFS, sizeof(fw) - 1);
-
-	if (strncmp(model, "Maxtor", 6))
+	if (strcmp(model, "Maxtor"))
 		return 1;
-	if (strncmp(fw, "BANC1G10", 8))
+	if (strcmp(fw, "BANC1G10"))
 		return 1;
 
 	return 0; /* blacklisted */
@@ -2015,7 +2109,7 @@ void ata_scsi_badcmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *), u8
 	done(cmd);
 }
 
-static int atapi_sense_complete(struct ata_queued_cmd *qc)
+static void atapi_sense_complete(struct ata_queued_cmd *qc)
 {
 	if (qc->err_mask && ((qc->err_mask & AC_ERR_DEV) == 0))
 		/* FIXME: not quite right; we don't want the
@@ -2026,7 +2120,7 @@ static int atapi_sense_complete(struct ata_queued_cmd *qc)
 		ata_gen_ata_desc_sense(qc);
 
 	qc->scsidone(qc->scsicmd);
-	return 0;
+	ata_qc_free(qc);
 }
 
 /* is it pointless to prefer PIO for "safety reasons"? */
@@ -2056,7 +2150,7 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	ata_sg_init_one(qc, cmd->sense_buffer, sizeof(cmd->sense_buffer));
 	qc->dma_dir = DMA_FROM_DEVICE;
 
-	memset(&qc->cdb, 0, ap->cdb_len);
+	memset(&qc->cdb, 0, qc->dev->cdb_len);
 	qc->cdb[0] = REQUEST_SENSE;
 	qc->cdb[4] = SCSI_SENSE_BUFFERSIZE;
 
@@ -2075,15 +2169,14 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 
 	qc->complete_fn = atapi_sense_complete;
 
-	if (ata_qc_issue(qc)) {
-		qc->err_mask |= AC_ERR_OTHER;
+	qc->err_mask = ata_qc_issue(qc);
+	if (qc->err_mask)
 		ata_qc_complete(qc);
-	}
 
 	DPRINTK("EXIT\n");
 }
 
-static int atapi_qc_complete(struct ata_queued_cmd *qc)
+static void atapi_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	unsigned int err_mask = qc->err_mask;
@@ -2093,7 +2186,7 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc)
 	if (unlikely(err_mask & AC_ERR_DEV)) {
 		cmd->result = SAM_STAT_CHECK_CONDITION;
 		atapi_request_sense(qc);
-		return 1;
+		return;
 	}
 
 	else if (unlikely(err_mask))
@@ -2133,7 +2226,7 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc)
 	}
 
 	qc->scsidone(cmd);
-	return 0;
+	ata_qc_free(qc);
 }
 /**
  *	atapi_xlat - Initialize PACKET taskfile
@@ -2159,7 +2252,7 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc, const u8 *scsicmd)
 		if (ata_check_atapi_dma(qc))
 			using_pio = 1;
 
-	memcpy(&qc->cdb, scsicmd, qc->ap->cdb_len);
+	memcpy(&qc->cdb, scsicmd, dev->cdb_len);
 
 	qc->complete_fn = atapi_qc_complete;
 
@@ -2519,7 +2612,8 @@ out_unlock:
 
 /**
  *	ata_scsi_simulate - simulate SCSI command on ATA device
- *	@id: current IDENTIFY data for target device.
+ *	@ap: port the device is connected to
+ *	@dev: the target device
  *	@cmd: SCSI command being sent to device.
  *	@done: SCSI command completion function.
  *

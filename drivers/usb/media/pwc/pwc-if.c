@@ -62,7 +62,6 @@
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/version.h>
 #include <asm/io.h>
 
 #include "pwc.h"
@@ -827,13 +826,10 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	/* Get the current alternate interface, adjust packet size */
 	if (!udev->actconfig)
 		return -EFAULT;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,5)
-	idesc = &udev->actconfig->interface[0]->altsetting[pdev->valternate];
-#else
+
 	intf = usb_ifnum_to_if(udev, 0);
 	if (intf)
 		idesc = usb_altnum_to_altsetting(intf, pdev->valternate);
-#endif
 		
 	if (!idesc)
 		return -EFAULT;
@@ -1871,12 +1867,11 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		Info("Warning: more than 1 configuration available.\n");
 
 	/* Allocate structure, initialize pointers, mutexes, etc. and link it to the usb_device */
-	pdev = kmalloc(sizeof(struct pwc_device), GFP_KERNEL);
+	pdev = kzalloc(sizeof(struct pwc_device), GFP_KERNEL);
 	if (pdev == NULL) {
 		Err("Oops, could not allocate memory for pwc_device.\n");
 		return -ENOMEM;
 	}
-	memset(pdev, 0, sizeof(struct pwc_device));
 	pdev->type = type_id;
 	pdev->vsize = default_size;
 	pdev->vframes = default_fps;

@@ -451,12 +451,12 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 		dev = try_then_request_module(atm_dev_lookup(itf), "atm-device-%d", itf);
 	} else {
 		dev = NULL;
-		down(&atm_dev_mutex);
+		mutex_lock(&atm_dev_mutex);
 		if (!list_empty(&atm_devs)) {
 			dev = list_entry(atm_devs.next, struct atm_dev, dev_list);
 			atm_dev_hold(dev);
 		}
-		up(&atm_dev_mutex);
+		mutex_unlock(&atm_dev_mutex);
 	}
 	if (!dev)
 		return -ENODEV;

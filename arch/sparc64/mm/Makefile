@@ -5,6 +5,6 @@
 EXTRA_AFLAGS := -ansi
 EXTRA_CFLAGS := -Werror
 
-obj-y    := ultra.o tlb.o fault.o init.o generic.o
+obj-y    := ultra.o tlb.o tsb.o fault.o init.o generic.o
 
 obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o

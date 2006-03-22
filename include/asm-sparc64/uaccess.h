@@ -114,16 +114,6 @@ case 8: __put_user_asm(data,x,addr,__pu_ret); break; \
 default: __pu_ret = __put_user_bad(); break; \
 } __pu_ret; })
 
-#define __put_user_nocheck_ret(data,addr,size,retval) ({ \
-register int __foo __asm__ ("l1"); \
-switch (size) { \
-case 1: __put_user_asm_ret(data,b,addr,retval,__foo); break; \
-case 2: __put_user_asm_ret(data,h,addr,retval,__foo); break; \
-case 4: __put_user_asm_ret(data,w,addr,retval,__foo); break; \
-case 8: __put_user_asm_ret(data,x,addr,retval,__foo); break; \
-default: if (__put_user_bad()) return retval; break; \
-} })
-
 #define __put_user_asm(x,size,addr,ret)					\
 __asm__ __volatile__(							\
 	"/* Put user asm, inline. */\n"					\
@@ -142,33 +132,6 @@ __asm__ __volatile__(							\
 	".previous\n\n\t"						\
        : "=r" (ret) : "r" (x), "r" (__m(addr)),				\
 	 "i" (-EFAULT))
-
-#define __put_user_asm_ret(x,size,addr,ret,foo)				\
-if (__builtin_constant_p(ret) && ret == -EFAULT)			\
-__asm__ __volatile__(							\
-	"/* Put user asm ret, inline. */\n"				\
-"1:\t"	"st"#size "a %1, [%2] %%asi\n\n\t"				\
-	".section __ex_table,\"a\"\n\t"					\
-	".align	4\n\t"							\
-	".word	1b, __ret_efault\n\n\t"					\
-	".previous\n\n\t"						\
-       : "=r" (foo) : "r" (x), "r" (__m(addr)));			\
-else									\
-__asm__ __volatile__(							\
-	"/* Put user asm ret, inline. */\n"				\
-"1:\t"	"st"#size "a %1, [%2] %%asi\n\n\t"				\
-	".section .fixup,#alloc,#execinstr\n\t"				\
-	".align	4\n"							\
-"3:\n\t"								\
-	"ret\n\t"							\
-	" restore %%g0, %3, %%o0\n\n\t"					\
-	".previous\n\t"							\
-	".section __ex_table,\"a\"\n\t"					\
-	".align	4\n\t"							\
-	".word	1b, 3b\n\n\t"						\
-	".previous\n\n\t"						\
-       : "=r" (foo) : "r" (x), "r" (__m(addr)),				\
-         "i" (ret))
 
 extern int __put_user_bad(void);
 
@@ -289,14 +252,7 @@ copy_in_user(void __user *to, void __user *from, unsigned long size)
 }
 #define __copy_in_user copy_in_user
 
-extern unsigned long __must_check __bzero_noasi(void __user *, unsigned long);
-
-static inline unsigned long __must_check
-__clear_user(void __user *addr, unsigned long size)
-{
-	
-	return __bzero_noasi(addr, size);
-}
+extern unsigned long __must_check __clear_user(void __user *, unsigned long);
 
 #define clear_user __clear_user
 

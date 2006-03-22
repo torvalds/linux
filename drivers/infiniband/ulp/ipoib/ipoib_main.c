@@ -133,7 +133,13 @@ static int ipoib_stop(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	ipoib_ib_dev_down(dev);
+	/*
+	 * Now flush workqueue to make sure a scheduled task doesn't
+	 * bring our internal state back up.
+	 */
+	flush_workqueue(ipoib_workqueue);
+
+	ipoib_ib_dev_down(dev, 1);
 	ipoib_ib_dev_stop(dev);
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
@@ -247,7 +253,6 @@ static void path_free(struct net_device *dev, struct ipoib_path *path)
 		if (neigh->ah)
 			ipoib_put_ah(neigh->ah);
 		*to_ipoib_neigh(neigh->neighbour) = NULL;
-		neigh->neighbour->ops->destructor = NULL;
 		kfree(neigh);
 	}
 
@@ -513,12 +518,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 			   be32_to_cpup((__be32 *) skb->dst->neighbour->ha));
 	} else {
 		neigh->ah  = NULL;
-		if (skb_queue_len(&neigh->queue) < IPOIB_MAX_PATH_REC_QUEUE) {
-			__skb_queue_tail(&neigh->queue, skb);
-		} else {
-			++priv->stats.tx_dropped;
-			dev_kfree_skb_any(skb);
-		}
+		__skb_queue_tail(&neigh->queue, skb);
 
 		if (!path->query && path_rec_start(dev, path))
 			goto err;
@@ -530,7 +530,6 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 err:
 	*to_ipoib_neigh(skb->dst->neighbour) = NULL;
 	list_del(&neigh->list);
-	neigh->neighbour->ops->destructor = NULL;
 	kfree(neigh);
 
 	++priv->stats.tx_dropped;
@@ -769,21 +768,9 @@ static void ipoib_neigh_destructor(struct neighbour *n)
 		ipoib_put_ah(ah);
 }
 
-static int ipoib_neigh_setup(struct neighbour *neigh)
-{
-	/*
-	 * Is this kosher?  I can't find anybody in the kernel that
-	 * sets neigh->destructor, so we should be able to set it here
-	 * without trouble.
-	 */
-	neigh->ops->destructor = ipoib_neigh_destructor;
-
-	return 0;
-}
-
 static int ipoib_neigh_setup_dev(struct net_device *dev, struct neigh_parms *parms)
 {
-	parms->neigh_setup = ipoib_neigh_setup;
+	parms->neigh_destructor = ipoib_neigh_destructor;
 
 	return 0;
 }

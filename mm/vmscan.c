@@ -700,7 +700,7 @@ int migrate_page_remove_references(struct page *newpage,
 	 * the page.
 	 */
 	if (!mapping || page_mapcount(page) + nr_refs != page_count(page))
-		return 1;
+		return -EAGAIN;
 
 	/*
 	 * Establish swap ptes for anonymous pages or destroy pte
@@ -721,13 +721,15 @@ int migrate_page_remove_references(struct page *newpage,
 	 * If the page was not migrated then the PageSwapCache bit
 	 * is still set and the operation may continue.
 	 */
-	try_to_unmap(page, 1);
+	if (try_to_unmap(page, 1) == SWAP_FAIL)
+		/* A vma has VM_LOCKED set -> Permanent failure */
+		return -EPERM;
 
 	/*
 	 * Give up if we were unable to remove all mappings.
 	 */
 	if (page_mapcount(page))
-		return 1;
+		return -EAGAIN;
 
 	write_lock_irq(&mapping->tree_lock);
 
@@ -738,7 +740,7 @@ int migrate_page_remove_references(struct page *newpage,
 	if (!page_mapping(page) || page_count(page) != nr_refs ||
 			*radix_pointer != page) {
 		write_unlock_irq(&mapping->tree_lock);
-		return 1;
+		return -EAGAIN;
 	}
 
 	/*
@@ -813,10 +815,14 @@ EXPORT_SYMBOL(migrate_page_copy);
  */
 int migrate_page(struct page *newpage, struct page *page)
 {
+	int rc;
+
 	BUG_ON(PageWriteback(page));	/* Writeback must be complete */
 
-	if (migrate_page_remove_references(newpage, page, 2))
-		return -EAGAIN;
+	rc = migrate_page_remove_references(newpage, page, 2);
+
+	if (rc)
+		return rc;
 
 	migrate_page_copy(newpage, page);
 

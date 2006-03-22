@@ -110,10 +110,10 @@ void tipc_disc_link_event(u32 addr, char *name, int up)
  * @b_ptr: ptr to bearer issuing message
  */
 
-struct sk_buff *tipc_disc_init_msg(u32 type,
-				   u32 req_links,
-				   u32 dest_domain,
-				   struct bearer *b_ptr)
+static struct sk_buff *tipc_disc_init_msg(u32 type,
+					  u32 req_links,
+					  u32 dest_domain,
+					  struct bearer *b_ptr)
 {
 	struct sk_buff *buf = buf_acquire(DSC_H_SIZE);
 	struct tipc_msg *msg;

@@ -2,7 +2,7 @@
  * protocol helpers and general trouble making from userspace.
  *
  * (C) 2001 by Jay Schulist <jschlst@samba.org>
- * (C) 2002-2005 by Harald Welte <laforge@gnumonks.org>
+ * (C) 2002-2006 by Harald Welte <laforge@gnumonks.org>
  * (C) 2003 by Patrick Mchardy <kaber@trash.net>
  * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
  *
@@ -44,7 +44,7 @@
 
 MODULE_LICENSE("GPL");
 
-static char __initdata version[] = "0.92";
+static char __initdata version[] = "0.93";
 
 #if 0
 #define DEBUGP printk
@@ -165,15 +165,16 @@ static inline int
 ctnetlink_dump_helpinfo(struct sk_buff *skb, const struct nf_conn *ct)
 {
 	struct nfattr *nest_helper;
+	const struct nf_conn_help *help = nfct_help(ct);
 
-	if (!ct->helper)
+	if (!help || !help->helper)
 		return 0;
 		
 	nest_helper = NFA_NEST(skb, CTA_HELP);
-	NFA_PUT(skb, CTA_HELP_NAME, strlen(ct->helper->name), ct->helper->name);
+	NFA_PUT(skb, CTA_HELP_NAME, strlen(help->helper->name), help->helper->name);
 
-	if (ct->helper->to_nfattr)
-		ct->helper->to_nfattr(skb, ct);
+	if (help->helper->to_nfattr)
+		help->helper->to_nfattr(skb, ct);
 
 	NFA_NEST_END(skb, nest_helper);
 
@@ -337,9 +338,10 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		group = NFNLGRP_CONNTRACK_UPDATE;
 	} else
 		return NOTIFY_DONE;
-	
-  /* FIXME: Check if there are any listeners before, don't hurt performance */
-	
+
+	if (!nfnetlink_has_listeners(group))
+		return NOTIFY_DONE;
+
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_ATOMIC);
 	if (!skb)
 		return NOTIFY_DONE;
@@ -903,10 +905,16 @@ static inline int
 ctnetlink_change_helper(struct nf_conn *ct, struct nfattr *cda[])
 {
 	struct nf_conntrack_helper *helper;
+	struct nf_conn_help *help = nfct_help(ct);
 	char *helpname;
 	int err;
 
 	DEBUGP("entered %s\n", __FUNCTION__);
+
+	if (!help) {
+		/* FIXME: we need to reallocate and rehash */
+		return -EBUSY;
+	}
 
 	/* don't change helper of sibling connections */
 	if (ct->master)
@@ -924,18 +932,18 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nfattr *cda[])
 			return -EINVAL;
 	}
 
-	if (ct->helper) {
+	if (help->helper) {
 		if (!helper) {
 			/* we had a helper before ... */
 			nf_ct_remove_expectations(ct);
-			ct->helper = NULL;
+			help->helper = NULL;
 		} else {
 			/* need to zero data of old helper */
-			memset(&ct->help, 0, sizeof(ct->help));
+			memset(&help->help, 0, sizeof(help->help));
 		}
 	}
 	
-	ct->helper = helper;
+	help->helper = helper;
 
 	return 0;
 }
@@ -1050,13 +1058,8 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 		ct->mark = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_MARK-1]));
 #endif
 
-	ct->helper = nf_ct_helper_find_get(rtuple);
-
 	add_timer(&ct->timeout);
 	nf_conntrack_hash_insert(ct);
-
-	if (ct->helper)
-		nf_ct_helper_put(ct->helper);
 
 	DEBUGP("conntrack with id %u inserted\n", ct->id);
 	return 0;
@@ -1417,7 +1420,8 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 		}
 		list_for_each_entry_safe(exp, tmp, &nf_conntrack_expect_list,
 					 list) {
-			if (exp->master->helper == h 
+			struct nf_conn_help *m_help = nfct_help(exp->master);
+			if (m_help->helper == h
 			    && del_timer(&exp->timeout)) {
 				nf_ct_unlink_expect(exp);
 				nf_conntrack_expect_put(exp);
@@ -1452,6 +1456,7 @@ ctnetlink_create_expect(struct nfattr *cda[], u_int8_t u3)
 	struct nf_conntrack_tuple_hash *h = NULL;
 	struct nf_conntrack_expect *exp;
 	struct nf_conn *ct;
+	struct nf_conn_help *help;
 	int err = 0;
 
 	DEBUGP("entered %s\n", __FUNCTION__);
@@ -1472,8 +1477,9 @@ ctnetlink_create_expect(struct nfattr *cda[], u_int8_t u3)
 	if (!h)
 		return -ENOENT;
 	ct = nf_ct_tuplehash_to_ctrack(h);
+	help = nfct_help(ct);
 
-	if (!ct->helper) {
+	if (!help || !help->helper) {
 		/* such conntrack hasn't got any helper, abort */
 		err = -EINVAL;
 		goto out;

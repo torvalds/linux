@@ -37,6 +37,7 @@
 
 unsigned long ioremap_base;
 unsigned long ioremap_bot;
+EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
 int io_bat_index;
 
 #if defined(CONFIG_6xx) || defined(CONFIG_POWER3)
@@ -153,6 +154,7 @@ ioremap64(unsigned long long addr, unsigned long size)
 {
 	return __ioremap(addr, size, _PAGE_NO_CACHE);
 }
+EXPORT_SYMBOL(ioremap64);
 
 void __iomem *
 ioremap(phys_addr_t addr, unsigned long size)
@@ -162,6 +164,7 @@ ioremap(phys_addr_t addr, unsigned long size)
 	return ioremap64(addr64, size);
 }
 #endif /* CONFIG_PHYS_64BIT */
+EXPORT_SYMBOL(ioremap);
 
 void __iomem *
 __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
@@ -247,6 +250,7 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 out:
 	return (void __iomem *) (v + ((unsigned long)addr & ~PAGE_MASK));
 }
+EXPORT_SYMBOL(__ioremap);
 
 void iounmap(volatile void __iomem *addr)
 {
@@ -259,6 +263,7 @@ void iounmap(volatile void __iomem *addr)
 	if (addr > high_memory && (unsigned long) addr < ioremap_bot)
 		vunmap((void *) (PAGE_MASK & (unsigned long)addr));
 }
+EXPORT_SYMBOL(iounmap);
 
 void __iomem *ioport_map(unsigned long port, unsigned int len)
 {

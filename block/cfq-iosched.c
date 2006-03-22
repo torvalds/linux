@@ -6,21 +6,13 @@
  *
  *  Copyright (C) 2003 Jens Axboe <axboe@suse.de>
  */
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/blkdev.h>
-#include <linux/elevator.h>
-#include <linux/bio.h>
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/compiler.h>
+#include <linux/blkdev.h>
+#include <linux/elevator.h>
 #include <linux/hash.h>
 #include <linux/rbtree.h>
-#include <linux/mempool.h>
 #include <linux/ioprio.h>
-#include <linux/writeback.h>
 
 /*
  * tunables
@@ -46,6 +38,8 @@ static int cfq_slice_idle = HZ / 100;
  * disable queueing at the driver/hardware level
  */
 static const int cfq_max_depth = 2;
+
+static DEFINE_RWLOCK(cfq_exit_lock);
 
 /*
  * for the hash of cfqq inside the cfqd
@@ -89,6 +83,9 @@ static kmem_cache_t *crq_pool;
 static kmem_cache_t *cfq_pool;
 static kmem_cache_t *cfq_ioc_pool;
 
+static atomic_t ioc_count = ATOMIC_INIT(0);
+static struct completion *ioc_gone;
+
 #define CFQ_PRIO_LISTS		IOPRIO_BE_NR
 #define cfq_class_idle(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_IDLE)
 #define cfq_class_be(cfqq)	((cfqq)->ioprio_class == IOPRIO_CLASS_BE)
@@ -109,7 +106,6 @@ static kmem_cache_t *cfq_ioc_pool;
  * Per block device queue structure
  */
 struct cfq_data {
-	atomic_t ref;
 	request_queue_t *queue;
 
 	/*
@@ -175,6 +171,8 @@ struct cfq_data {
 	unsigned int cfq_slice_async_rq;
 	unsigned int cfq_slice_idle;
 	unsigned int cfq_max_depth;
+
+	struct list_head cic_list;
 };
 
 /*
@@ -288,7 +286,7 @@ CFQ_CRQ_FNS(is_sync);
 
 static struct cfq_queue *cfq_find_cfq_hash(struct cfq_data *, unsigned int, unsigned short);
 static void cfq_dispatch_insert(request_queue_t *, struct cfq_rq *);
-static void cfq_put_cfqd(struct cfq_data *cfqd);
+static struct cfq_queue *cfq_get_queue(struct cfq_data *cfqd, unsigned int key, struct task_struct *tsk, gfp_t gfp_mask);
 
 #define process_sync(tsk)	((tsk)->flags & PF_SYNCWRITE)
 
@@ -1160,8 +1158,6 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 	if (unlikely(cfqd->active_queue == cfqq))
 		__cfq_slice_expired(cfqd, cfqq, 0);
 
-	cfq_put_cfqd(cfqq->cfqd);
-
 	/*
 	 * it's on the empty list and still hashed
 	 */
@@ -1179,7 +1175,7 @@ __cfq_find_cfq_hash(struct cfq_data *cfqd, unsigned int key, unsigned int prio,
 
 	hlist_for_each_safe(entry, next, hash_list) {
 		struct cfq_queue *__cfqq = list_entry_qhash(entry);
-		const unsigned short __p = IOPRIO_PRIO_VALUE(__cfqq->ioprio_class, __cfqq->ioprio);
+		const unsigned short __p = IOPRIO_PRIO_VALUE(__cfqq->org_ioprio_class, __cfqq->org_ioprio);
 
 		if (__cfqq->key == key && (__p == prio || prio == CFQ_KEY_ANY))
 			return __cfqq;
@@ -1198,13 +1194,24 @@ static void cfq_free_io_context(struct cfq_io_context *cic)
 {
 	struct cfq_io_context *__cic;
 	struct list_head *entry, *next;
+	int freed = 1;
 
 	list_for_each_safe(entry, next, &cic->list) {
 		__cic = list_entry(entry, struct cfq_io_context, list);
 		kmem_cache_free(cfq_ioc_pool, __cic);
+		freed++;
 	}
 
 	kmem_cache_free(cfq_ioc_pool, cic);
+	if (atomic_sub_and_test(freed, &ioc_count) && ioc_gone)
+		complete(ioc_gone);
+}
+
+static void cfq_trim(struct io_context *ioc)
+{
+	ioc->set_ioprio = NULL;
+	if (ioc->cic)
+		cfq_free_io_context(ioc->cic);
 }
 
 /*
@@ -1212,25 +1219,37 @@ static void cfq_free_io_context(struct cfq_io_context *cic)
  */
 static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 {
-	struct cfq_data *cfqd = cic->cfqq->cfqd;
-	request_queue_t *q = cfqd->queue;
+	struct cfq_data *cfqd = cic->key;
+	request_queue_t *q;
+
+	if (!cfqd)
+		return;
+
+	q = cfqd->queue;
 
 	WARN_ON(!irqs_disabled());
 
 	spin_lock(q->queue_lock);
 
-	if (unlikely(cic->cfqq == cfqd->active_queue))
-		__cfq_slice_expired(cfqd, cic->cfqq, 0);
+	if (cic->cfqq[ASYNC]) {
+		if (unlikely(cic->cfqq[ASYNC] == cfqd->active_queue))
+			__cfq_slice_expired(cfqd, cic->cfqq[ASYNC], 0);
+		cfq_put_queue(cic->cfqq[ASYNC]);
+		cic->cfqq[ASYNC] = NULL;
+	}
 
-	cfq_put_queue(cic->cfqq);
-	cic->cfqq = NULL;
+	if (cic->cfqq[SYNC]) {
+		if (unlikely(cic->cfqq[SYNC] == cfqd->active_queue))
+			__cfq_slice_expired(cfqd, cic->cfqq[SYNC], 0);
+		cfq_put_queue(cic->cfqq[SYNC]);
+		cic->cfqq[SYNC] = NULL;
+	}
+
+	cic->key = NULL;
+	list_del_init(&cic->queue_list);
 	spin_unlock(q->queue_lock);
 }
 
-/*
- * Another task may update the task cic list, if it is doing a queue lookup
- * on its behalf. cfq_cic_lock excludes such concurrent updates
- */
 static void cfq_exit_io_context(struct cfq_io_context *cic)
 {
 	struct cfq_io_context *__cic;
@@ -1242,12 +1261,14 @@ static void cfq_exit_io_context(struct cfq_io_context *cic)
 	/*
 	 * put the reference this task is holding to the various queues
 	 */
+	read_lock(&cfq_exit_lock);
 	list_for_each(entry, &cic->list) {
 		__cic = list_entry(entry, struct cfq_io_context, list);
 		cfq_exit_single_io_context(__cic);
 	}
 
 	cfq_exit_single_io_context(cic);
+	read_unlock(&cfq_exit_lock);
 	local_irq_restore(flags);
 }
 
@@ -1258,7 +1279,8 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 
 	if (cic) {
 		INIT_LIST_HEAD(&cic->list);
-		cic->cfqq = NULL;
+		cic->cfqq[ASYNC] = NULL;
+		cic->cfqq[SYNC] = NULL;
 		cic->key = NULL;
 		cic->last_end_request = jiffies;
 		cic->ttime_total = 0;
@@ -1266,6 +1288,8 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 		cic->ttime_mean = 0;
 		cic->dtor = cfq_free_io_context;
 		cic->exit = cfq_exit_io_context;
+		INIT_LIST_HEAD(&cic->queue_list);
+		atomic_inc(&ioc_count);
 	}
 
 	return cic;
@@ -1318,14 +1342,27 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq)
 	cfq_clear_cfqq_prio_changed(cfqq);
 }
 
-static inline void changed_ioprio(struct cfq_queue *cfqq)
+static inline void changed_ioprio(struct cfq_io_context *cic)
 {
-	if (cfqq) {
-		struct cfq_data *cfqd = cfqq->cfqd;
-
+	struct cfq_data *cfqd = cic->key;
+	struct cfq_queue *cfqq;
+	if (cfqd) {
 		spin_lock(cfqd->queue->queue_lock);
-		cfq_mark_cfqq_prio_changed(cfqq);
-		cfq_init_prio_data(cfqq);
+		cfqq = cic->cfqq[ASYNC];
+		if (cfqq) {
+			struct cfq_queue *new_cfqq;
+			new_cfqq = cfq_get_queue(cfqd, CFQ_KEY_ASYNC,
+						cic->ioc->task, GFP_ATOMIC);
+			if (new_cfqq) {
+				cic->cfqq[ASYNC] = new_cfqq;
+				cfq_put_queue(cfqq);
+			}
+		}
+		cfqq = cic->cfqq[SYNC];
+		if (cfqq) {
+			cfq_mark_cfqq_prio_changed(cfqq);
+			cfq_init_prio_data(cfqq);
+		}
 		spin_unlock(cfqd->queue->queue_lock);
 	}
 }
@@ -1335,24 +1372,32 @@ static inline void changed_ioprio(struct cfq_queue *cfqq)
  */
 static int cfq_ioc_set_ioprio(struct io_context *ioc, unsigned int ioprio)
 {
-	struct cfq_io_context *cic = ioc->cic;
+	struct cfq_io_context *cic;
 
-	changed_ioprio(cic->cfqq);
+	write_lock(&cfq_exit_lock);
+
+	cic = ioc->cic;
+
+	changed_ioprio(cic);
 
 	list_for_each_entry(cic, &cic->list, list)
-		changed_ioprio(cic->cfqq);
+		changed_ioprio(cic);
+
+	write_unlock(&cfq_exit_lock);
 
 	return 0;
 }
 
 static struct cfq_queue *
-cfq_get_queue(struct cfq_data *cfqd, unsigned int key, unsigned short ioprio,
+cfq_get_queue(struct cfq_data *cfqd, unsigned int key, struct task_struct *tsk,
 	      gfp_t gfp_mask)
 {
 	const int hashval = hash_long(key, CFQ_QHASH_SHIFT);
 	struct cfq_queue *cfqq, *new_cfqq = NULL;
+	unsigned short ioprio;
 
 retry:
+	ioprio = tsk->ioprio;
 	cfqq = __cfq_find_cfq_hash(cfqd, key, ioprio, hashval);
 
 	if (!cfqq) {
@@ -1381,7 +1426,6 @@ retry:
 		hlist_add_head(&cfqq->cfq_hash, &cfqd->cfq_hash[hashval]);
 		atomic_set(&cfqq->ref, 0);
 		cfqq->cfqd = cfqd;
-		atomic_inc(&cfqd->ref);
 		cfqq->service_last = 0;
 		/*
 		 * set ->slice_left to allow preemption for a new process
@@ -1419,6 +1463,7 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 	if (!ioc)
 		return NULL;
 
+restart:
 	if ((cic = ioc->cic) == NULL) {
 		cic = cfq_alloc_io_context(cfqd, gfp_mask);
 
@@ -1429,11 +1474,13 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 		 * manually increment generic io_context usage count, it
 		 * cannot go away since we are already holding one ref to it
 		 */
-		ioc->cic = cic;
-		ioc->set_ioprio = cfq_ioc_set_ioprio;
 		cic->ioc = ioc;
 		cic->key = cfqd;
-		atomic_inc(&cfqd->ref);
+		read_lock(&cfq_exit_lock);
+		ioc->set_ioprio = cfq_ioc_set_ioprio;
+		ioc->cic = cic;
+		list_add(&cic->queue_list, &cfqd->cic_list);
+		read_unlock(&cfq_exit_lock);
 	} else {
 		struct cfq_io_context *__cic;
 
@@ -1442,6 +1489,20 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 		 */
 		if (cic->key == cfqd)
 			goto out;
+
+		if (unlikely(!cic->key)) {
+			read_lock(&cfq_exit_lock);
+			if (list_empty(&cic->list))
+				ioc->cic = NULL;
+			else
+				ioc->cic = list_entry(cic->list.next,
+						      struct cfq_io_context,
+						      list);
+			read_unlock(&cfq_exit_lock);
+			kmem_cache_free(cfq_ioc_pool, cic);
+			atomic_dec(&ioc_count);
+			goto restart;
+		}
 
 		/*
 		 * cic exists, check if we already are there. linear search
@@ -1457,6 +1518,14 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 				cic = __cic;
 				goto out;
 			}
+			if (unlikely(!__cic->key)) {
+				read_lock(&cfq_exit_lock);
+				list_del(&__cic->list);
+				read_unlock(&cfq_exit_lock);
+				kmem_cache_free(cfq_ioc_pool, __cic);
+				atomic_dec(&ioc_count);
+				goto restart;
+			}
 		}
 
 		/*
@@ -1469,8 +1538,10 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 
 		__cic->ioc = ioc;
 		__cic->key = cfqd;
-		atomic_inc(&cfqd->ref);
+		read_lock(&cfq_exit_lock);
 		list_add(&__cic->list, &cic->list);
+		list_add(&__cic->queue_list, &cfqd->cic_list);
+		read_unlock(&cfq_exit_lock);
 		cic = __cic;
 	}
 
@@ -1890,6 +1961,7 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 	struct cfq_queue *cfqq;
 	struct cfq_rq *crq;
 	unsigned long flags;
+	int is_sync = key != CFQ_KEY_ASYNC;
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
@@ -1900,14 +1972,14 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 	if (!cic)
 		goto queue_fail;
 
-	if (!cic->cfqq) {
-		cfqq = cfq_get_queue(cfqd, key, tsk->ioprio, gfp_mask);
+	if (!cic->cfqq[is_sync]) {
+		cfqq = cfq_get_queue(cfqd, key, tsk, gfp_mask);
 		if (!cfqq)
 			goto queue_fail;
 
-		cic->cfqq = cfqq;
+		cic->cfqq[is_sync] = cfqq;
 	} else
-		cfqq = cic->cfqq;
+		cfqq = cic->cfqq[is_sync];
 
 	cfqq->allocated[rw]++;
 	cfq_clear_cfqq_must_alloc(cfqq);
@@ -1924,7 +1996,7 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 		crq->cfq_queue = cfqq;
 		crq->io_context = cic;
 
-		if (rw == READ || process_sync(tsk))
+		if (is_sync)
 			cfq_mark_crq_is_sync(crq);
 		else
 			cfq_clear_crq_is_sync(crq);
@@ -2055,28 +2127,40 @@ static void cfq_shutdown_timer_wq(struct cfq_data *cfqd)
 	blk_sync_queue(cfqd->queue);
 }
 
-static void cfq_put_cfqd(struct cfq_data *cfqd)
+static void cfq_exit_queue(elevator_t *e)
 {
+	struct cfq_data *cfqd = e->elevator_data;
 	request_queue_t *q = cfqd->queue;
 
-	if (!atomic_dec_and_test(&cfqd->ref))
-		return;
+	cfq_shutdown_timer_wq(cfqd);
+	write_lock(&cfq_exit_lock);
+	spin_lock_irq(q->queue_lock);
+	if (cfqd->active_queue)
+		__cfq_slice_expired(cfqd, cfqd->active_queue, 0);
+	while(!list_empty(&cfqd->cic_list)) {
+		struct cfq_io_context *cic = list_entry(cfqd->cic_list.next,
+							struct cfq_io_context,
+							queue_list);
+		if (cic->cfqq[ASYNC]) {
+			cfq_put_queue(cic->cfqq[ASYNC]);
+			cic->cfqq[ASYNC] = NULL;
+		}
+		if (cic->cfqq[SYNC]) {
+			cfq_put_queue(cic->cfqq[SYNC]);
+			cic->cfqq[SYNC] = NULL;
+		}
+		cic->key = NULL;
+		list_del_init(&cic->queue_list);
+	}
+	spin_unlock_irq(q->queue_lock);
+	write_unlock(&cfq_exit_lock);
 
 	cfq_shutdown_timer_wq(cfqd);
-	blk_put_queue(q);
 
 	mempool_destroy(cfqd->crq_pool);
 	kfree(cfqd->crq_hash);
 	kfree(cfqd->cfq_hash);
 	kfree(cfqd);
-}
-
-static void cfq_exit_queue(elevator_t *e)
-{
-	struct cfq_data *cfqd = e->elevator_data;
-
-	cfq_shutdown_timer_wq(cfqd);
-	cfq_put_cfqd(cfqd);
 }
 
 static int cfq_init_queue(request_queue_t *q, elevator_t *e)
@@ -2097,6 +2181,7 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	INIT_LIST_HEAD(&cfqd->cur_rr);
 	INIT_LIST_HEAD(&cfqd->idle_rr);
 	INIT_LIST_HEAD(&cfqd->empty_list);
+	INIT_LIST_HEAD(&cfqd->cic_list);
 
 	cfqd->crq_hash = kmalloc(sizeof(struct hlist_head) * CFQ_MHASH_ENTRIES, GFP_KERNEL);
 	if (!cfqd->crq_hash)
@@ -2118,7 +2203,6 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	e->elevator_data = cfqd;
 
 	cfqd->queue = q;
-	atomic_inc(&q->refcnt);
 
 	cfqd->max_queued = q->nr_requests / 4;
 	q->nr_batching = cfq_queued;
@@ -2132,8 +2216,6 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	cfqd->idle_class_timer.data = (unsigned long) cfqd;
 
 	INIT_WORK(&cfqd->unplug_work, cfq_kick_queue, q);
-
-	atomic_set(&cfqd->ref, 1);
 
 	cfqd->cfq_queued = cfq_queued;
 	cfqd->cfq_quantum = cfq_quantum;
@@ -2193,11 +2275,6 @@ fail:
 /*
  * sysfs parts below -->
  */
-struct cfq_fs_entry {
-	struct attribute attr;
-	ssize_t (*show)(struct cfq_data *, char *);
-	ssize_t (*store)(struct cfq_data *, const char *, size_t);
-};
 
 static ssize_t
 cfq_var_show(unsigned int var, char *page)
@@ -2215,8 +2292,9 @@ cfq_var_store(unsigned int *var, const char *page, size_t count)
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR, __CONV)				\
-static ssize_t __FUNC(struct cfq_data *cfqd, char *page)		\
+static ssize_t __FUNC(elevator_t *e, char *page)			\
 {									\
+	struct cfq_data *cfqd = e->elevator_data;			\
 	unsigned int __data = __VAR;					\
 	if (__CONV)							\
 		__data = jiffies_to_msecs(__data);			\
@@ -2226,8 +2304,8 @@ SHOW_FUNCTION(cfq_quantum_show, cfqd->cfq_quantum, 0);
 SHOW_FUNCTION(cfq_queued_show, cfqd->cfq_queued, 0);
 SHOW_FUNCTION(cfq_fifo_expire_sync_show, cfqd->cfq_fifo_expire[1], 1);
 SHOW_FUNCTION(cfq_fifo_expire_async_show, cfqd->cfq_fifo_expire[0], 1);
-SHOW_FUNCTION(cfq_back_max_show, cfqd->cfq_back_max, 0);
-SHOW_FUNCTION(cfq_back_penalty_show, cfqd->cfq_back_penalty, 0);
+SHOW_FUNCTION(cfq_back_seek_max_show, cfqd->cfq_back_max, 0);
+SHOW_FUNCTION(cfq_back_seek_penalty_show, cfqd->cfq_back_penalty, 0);
 SHOW_FUNCTION(cfq_slice_idle_show, cfqd->cfq_slice_idle, 1);
 SHOW_FUNCTION(cfq_slice_sync_show, cfqd->cfq_slice[1], 1);
 SHOW_FUNCTION(cfq_slice_async_show, cfqd->cfq_slice[0], 1);
@@ -2236,8 +2314,9 @@ SHOW_FUNCTION(cfq_max_depth_show, cfqd->cfq_max_depth, 0);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
-static ssize_t __FUNC(struct cfq_data *cfqd, const char *page, size_t count)	\
+static ssize_t __FUNC(elevator_t *e, const char *page, size_t count)	\
 {									\
+	struct cfq_data *cfqd = e->elevator_data;			\
 	unsigned int __data;						\
 	int ret = cfq_var_store(&__data, (page), count);		\
 	if (__data < (MIN))						\
@@ -2254,8 +2333,8 @@ STORE_FUNCTION(cfq_quantum_store, &cfqd->cfq_quantum, 1, UINT_MAX, 0);
 STORE_FUNCTION(cfq_queued_store, &cfqd->cfq_queued, 1, UINT_MAX, 0);
 STORE_FUNCTION(cfq_fifo_expire_sync_store, &cfqd->cfq_fifo_expire[1], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_fifo_expire_async_store, &cfqd->cfq_fifo_expire[0], 1, UINT_MAX, 1);
-STORE_FUNCTION(cfq_back_max_store, &cfqd->cfq_back_max, 0, UINT_MAX, 0);
-STORE_FUNCTION(cfq_back_penalty_store, &cfqd->cfq_back_penalty, 1, UINT_MAX, 0);
+STORE_FUNCTION(cfq_back_seek_max_store, &cfqd->cfq_back_max, 0, UINT_MAX, 0);
+STORE_FUNCTION(cfq_back_seek_penalty_store, &cfqd->cfq_back_penalty, 1, UINT_MAX, 0);
 STORE_FUNCTION(cfq_slice_idle_store, &cfqd->cfq_slice_idle, 0, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_sync_store, &cfqd->cfq_slice[1], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_async_store, &cfqd->cfq_slice[0], 1, UINT_MAX, 1);
@@ -2263,112 +2342,22 @@ STORE_FUNCTION(cfq_slice_async_rq_store, &cfqd->cfq_slice_async_rq, 1, UINT_MAX,
 STORE_FUNCTION(cfq_max_depth_store, &cfqd->cfq_max_depth, 1, UINT_MAX, 0);
 #undef STORE_FUNCTION
 
-static struct cfq_fs_entry cfq_quantum_entry = {
-	.attr = {.name = "quantum", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_quantum_show,
-	.store = cfq_quantum_store,
-};
-static struct cfq_fs_entry cfq_queued_entry = {
-	.attr = {.name = "queued", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_queued_show,
-	.store = cfq_queued_store,
-};
-static struct cfq_fs_entry cfq_fifo_expire_sync_entry = {
-	.attr = {.name = "fifo_expire_sync", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_fifo_expire_sync_show,
-	.store = cfq_fifo_expire_sync_store,
-};
-static struct cfq_fs_entry cfq_fifo_expire_async_entry = {
-	.attr = {.name = "fifo_expire_async", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_fifo_expire_async_show,
-	.store = cfq_fifo_expire_async_store,
-};
-static struct cfq_fs_entry cfq_back_max_entry = {
-	.attr = {.name = "back_seek_max", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_back_max_show,
-	.store = cfq_back_max_store,
-};
-static struct cfq_fs_entry cfq_back_penalty_entry = {
-	.attr = {.name = "back_seek_penalty", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_back_penalty_show,
-	.store = cfq_back_penalty_store,
-};
-static struct cfq_fs_entry cfq_slice_sync_entry = {
-	.attr = {.name = "slice_sync", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_slice_sync_show,
-	.store = cfq_slice_sync_store,
-};
-static struct cfq_fs_entry cfq_slice_async_entry = {
-	.attr = {.name = "slice_async", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_slice_async_show,
-	.store = cfq_slice_async_store,
-};
-static struct cfq_fs_entry cfq_slice_async_rq_entry = {
-	.attr = {.name = "slice_async_rq", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_slice_async_rq_show,
-	.store = cfq_slice_async_rq_store,
-};
-static struct cfq_fs_entry cfq_slice_idle_entry = {
-	.attr = {.name = "slice_idle", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_slice_idle_show,
-	.store = cfq_slice_idle_store,
-};
-static struct cfq_fs_entry cfq_max_depth_entry = {
-	.attr = {.name = "max_depth", .mode = S_IRUGO | S_IWUSR },
-	.show = cfq_max_depth_show,
-	.store = cfq_max_depth_store,
-};
+#define CFQ_ATTR(name) \
+	__ATTR(name, S_IRUGO|S_IWUSR, cfq_##name##_show, cfq_##name##_store)
 
-static struct attribute *default_attrs[] = {
-	&cfq_quantum_entry.attr,
-	&cfq_queued_entry.attr,
-	&cfq_fifo_expire_sync_entry.attr,
-	&cfq_fifo_expire_async_entry.attr,
-	&cfq_back_max_entry.attr,
-	&cfq_back_penalty_entry.attr,
-	&cfq_slice_sync_entry.attr,
-	&cfq_slice_async_entry.attr,
-	&cfq_slice_async_rq_entry.attr,
-	&cfq_slice_idle_entry.attr,
-	&cfq_max_depth_entry.attr,
-	NULL,
-};
-
-#define to_cfq(atr) container_of((atr), struct cfq_fs_entry, attr)
-
-static ssize_t
-cfq_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
-{
-	elevator_t *e = container_of(kobj, elevator_t, kobj);
-	struct cfq_fs_entry *entry = to_cfq(attr);
-
-	if (!entry->show)
-		return -EIO;
-
-	return entry->show(e->elevator_data, page);
-}
-
-static ssize_t
-cfq_attr_store(struct kobject *kobj, struct attribute *attr,
-	       const char *page, size_t length)
-{
-	elevator_t *e = container_of(kobj, elevator_t, kobj);
-	struct cfq_fs_entry *entry = to_cfq(attr);
-
-	if (!entry->store)
-		return -EIO;
-
-	return entry->store(e->elevator_data, page, length);
-}
-
-static struct sysfs_ops cfq_sysfs_ops = {
-	.show	= cfq_attr_show,
-	.store	= cfq_attr_store,
-};
-
-static struct kobj_type cfq_ktype = {
-	.sysfs_ops	= &cfq_sysfs_ops,
-	.default_attrs	= default_attrs,
+static struct elv_fs_entry cfq_attrs[] = {
+	CFQ_ATTR(quantum),
+	CFQ_ATTR(queued),
+	CFQ_ATTR(fifo_expire_sync),
+	CFQ_ATTR(fifo_expire_async),
+	CFQ_ATTR(back_seek_max),
+	CFQ_ATTR(back_seek_penalty),
+	CFQ_ATTR(slice_sync),
+	CFQ_ATTR(slice_async),
+	CFQ_ATTR(slice_async_rq),
+	CFQ_ATTR(slice_idle),
+	CFQ_ATTR(max_depth),
+	__ATTR_NULL
 };
 
 static struct elevator_type iosched_cfq = {
@@ -2389,8 +2378,9 @@ static struct elevator_type iosched_cfq = {
 		.elevator_may_queue_fn =	cfq_may_queue,
 		.elevator_init_fn =		cfq_init_queue,
 		.elevator_exit_fn =		cfq_exit_queue,
+		.trim =				cfq_trim,
 	},
-	.elevator_ktype =	&cfq_ktype,
+	.elevator_attrs =	cfq_attrs,
 	.elevator_name =	"cfq",
 	.elevator_owner =	THIS_MODULE,
 };
@@ -2419,7 +2409,13 @@ static int __init cfq_init(void)
 
 static void __exit cfq_exit(void)
 {
+	DECLARE_COMPLETION(all_gone);
 	elv_unregister(&iosched_cfq);
+	ioc_gone = &all_gone;
+	barrier();
+	if (atomic_read(&ioc_count))
+		complete(ioc_gone);
+	synchronize_rcu();
 	cfq_slab_kill();
 }
 

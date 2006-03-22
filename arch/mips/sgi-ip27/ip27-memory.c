@@ -540,8 +540,8 @@ void __init mem_init(void)
 		struct page *end, *p;
 
 		/*
-	 	 * This will free up the bootmem, ie, slot 0 memory.
-	 	 */
+		 * This will free up the bootmem, ie, slot 0 memory.
+		 */
 		totalram_pages += free_all_bootmem_node(NODE_DATA(node));
 
 		/*

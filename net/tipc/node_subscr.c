@@ -47,7 +47,7 @@
 void tipc_nodesub_subscribe(struct node_subscr *node_sub, u32 addr, 
 		       void *usr_handle, net_ev_handler handle_down)
 {
-	node_sub->node = 0;
+	node_sub->node = NULL;
 	if (addr == tipc_own_addr)
 		return;
 	if (!tipc_addr_node_valid(addr)) {

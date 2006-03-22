@@ -151,6 +151,13 @@ Who:	Ralf Baechle <ralf@linux-mips.org>
 
 ---------------------------
 
+What:   eepro100 network driver
+When:   January 2007
+Why:    replaced by the e100 driver
+Who:    Adrian Bunk <bunk@stusta.de>
+
+---------------------------
+
 What:	Legacy /proc/pci interface (PCI_LEGACY_PROC)
 When:	March 2006
 Why:	deprecated since 2.5.53 in favor of lspci(8)
@@ -189,3 +196,21 @@ Why:	Board specific code doesn't build anymore since ~2.6.0 and no
 	users have complained indicating there is no more need for these
 	boards.  This should really be considered a last call.
 Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	USB driver API moves to EXPORT_SYMBOL_GPL
+When:	Febuary 2008
+Files:	include/linux/usb.h, drivers/usb/core/driver.c
+Why:	The USB subsystem has changed a lot over time, and it has been
+	possible to create userspace USB drivers using usbfs/libusb/gadgetfs
+	that operate as fast as the USB bus allows.  Because of this, the USB
+	subsystem will not be allowing closed source kernel drivers to
+	register with it, after this grace period is over.  If anyone needs
+	any help in converting their closed source drivers over to use the
+	userspace filesystems, please contact the
+	linux-usb-devel@lists.sourceforge.net mailing list, and the developers
+	there will be glad to help you out.
+Who:	Greg Kroah-Hartman <gregkh@suse.de>
+
+---------------------------

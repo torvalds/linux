@@ -12,10 +12,6 @@
 # for "archclean" cleaning up for this architecture.
 #
 
-as-option = $(shell if $(CC) $(CFLAGS) $(1) -Wa,-Z -c -o /dev/null \
-	     -xassembler /dev/null > /dev/null 2>&1; then echo "$(1)"; \
-	     else echo "$(2)"; fi ;)
-
 cflags-y :=
 
 #
@@ -38,12 +34,10 @@ else
 endif
 
 ifdef CONFIG_32BIT
-gcc-abi			= 32
 tool-prefix		= $(32bit-tool-prefix)
 UTS_MACHINE		:= mips
 endif
 ifdef CONFIG_64BIT
-gcc-abi			= 64
 tool-prefix		= $(64bit-tool-prefix)
 UTS_MACHINE		:= mips64
 endif
@@ -52,37 +46,27 @@ ifdef CONFIG_CROSSCOMPILE
 CROSS_COMPILE		:= $(tool-prefix)
 endif
 
-CHECKFLAGS-y				+= -D__linux__ -D__mips__ \
-					   -D_MIPS_SZINT=32 \
-					   -D_ABIO32=1 \
-					   -D_ABIN32=2 \
-					   -D_ABI64=3
-CHECKFLAGS-$(CONFIG_32BIT)		+= -D_MIPS_SIM=_ABIO32 \
-					   -D_MIPS_SZLONG=32 \
-					   -D_MIPS_SZPTR=32 \
-					   -D__PTRDIFF_TYPE__=int
-CHECKFLAGS-$(CONFIG_64BIT)		+= -m64 -D_MIPS_SIM=_ABI64 \
-					   -D_MIPS_SZLONG=64 \
-					   -D_MIPS_SZPTR=64 \
-					   -D__PTRDIFF_TYPE__="long int"
-CHECKFLAGS-$(CONFIG_CPU_BIG_ENDIAN)	+= -D__MIPSEB__
-CHECKFLAGS-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -D__MIPSEL__
-
-CHECKFLAGS				= $(CHECKFLAGS-y)
-
-ifdef CONFIG_BUILD_ELF64
-gas-abi			= 64
-ld-emul			= $(64bit-emul)
-vmlinux-32		= vmlinux.32
-vmlinux-64		= vmlinux
-else
-gas-abi			= 32
+ifdef CONFIG_32BIT
 ld-emul			= $(32bit-emul)
 vmlinux-32		= vmlinux
 vmlinux-64		= vmlinux.64
 
-cflags-$(CONFIG_64BIT)	+= $(call cc-option,-mno-explicit-relocs)
+cflags-y		+= -mabi=32
 endif
+
+ifdef CONFIG_64BIT
+ld-emul			= $(64bit-emul)
+vmlinux-32		= vmlinux.32
+vmlinux-64		= vmlinux
+
+cflags-y		+= -mabi=64
+ifdef CONFIG_BUILD_ELF64
+cflags-y		+= $(call cc-option,-mno-explicit-relocs)
+else
+cflags-y		+= $(call cc-option,-msym32)
+endif
+endif
+
 
 #
 # GCC uses -G 0 -mabicalls -fpic as default.  We don't want PIC in the kernel
@@ -105,161 +89,44 @@ MODFLAGS			+= -mlong-calls
 # carefully avoid to add it redundantly because gcc 3.3/3.4 complains
 # when fed the toolchain default!
 #
-cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(shell $(CC) -dumpmachine |grep -q 'mips.*el-.*' && echo -EB)
-cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= $(shell $(CC) -dumpmachine |grep -q 'mips.*el-.*' || echo -EL)
+cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= $(shell $(CC) -dumpmachine |grep -q 'mips.*el-.*' && echo -EB -D__MIPSEB__)
+cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= $(shell $(CC) -dumpmachine |grep -q 'mips.*el-.*' || echo -EL -D__MIPSEL__)
 
-cflags-$(CONFIG_SB1XXX_CORELIS)	+= -mno-sched-prolog -fno-omit-frame-pointer
-
-#
-# Use: $(call set_gccflags,<cpu0>,<isa0>,<cpu1>,<isa1>,<isa2>)
-#
-# <cpu0>,<isa0> -- preferred CPU and ISA designations (may require
-#                  recent tools)
-# <cpu1>,<isa1> -- fallback CPU and ISA designations (have to work
-#                  with up to the oldest supported tools)
-# <isa2>        -- an ISA designation used as an ABI selector for
-#                  gcc versions that do not support "-mabi=32"
-#                  (depending on the CPU type, either "mips1" or
-#                  "mips2")
-#
-set_gccflags = $(shell \
-while :; do \
-	cpu=$(1); isa=-$(2); \
-	for gcc_opt in -march= -mcpu=; do \
-		$(CC) $$gcc_opt$$cpu $$isa -S -o /dev/null \
-			-xc /dev/null > /dev/null 2>&1 && \
-			break 2; \
-	done; \
-	cpu=$(3); isa=-$(4); \
-	for gcc_opt in -march= -mcpu=; do \
-		$(CC) $$gcc_opt$$cpu $$isa -S -o /dev/null \
-			-xc /dev/null > /dev/null 2>&1 && \
-			break 2; \
-	done; \
-	break; \
-done; \
-gcc_abi=-mabi=$(gcc-abi); gcc_cpu=$$cpu; \
-if $(CC) $$gcc_abi -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then \
-	gcc_isa=$$isa; \
-else \
-	gcc_abi=; gcc_isa=-$(5); \
-fi; \
-gas_abi=-Wa,-$(gcc-abi); gas_cpu=$$cpu; gas_isa=-Wa,$$isa; \
-while :; do \
-	for gas_opt in -Wa,-march= -Wa,-mcpu=; do \
-		$(CC) $$gas_abi $$gas_opt$$cpu $$gas_isa -Wa,-Z -c \
-			-o /dev/null -xassembler /dev/null > /dev/null 2>&1 && \
-			break 2; \
-	done; \
-	gas_abi=; gas_opt=; gas_cpu=; gas_isa=; \
-	break; \
-done; \
-if test "$(gcc-abi)" != "$(gas-abi)"; then \
-	gas_abi="-Wa,-$(gas-abi) -Wa,-mgp$(gcc-abi)"; \
-fi; \
-if test "$$gcc_opt" = -march= && test -n "$$gcc_abi"; then \
-	$(CC) $$gcc_abi $$gcc_opt$$gcc_cpu -S -o /dev/null \
-		-xc /dev/null > /dev/null 2>&1 && \
-		gcc_isa=; \
-fi; \
-echo $$gcc_abi $$gcc_opt$$gcc_cpu $$gcc_isa $$gas_abi $$gas_opt$$gas_cpu $$gas_isa)
+cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
+				   -fno-omit-frame-pointer
 
 #
 # CPU-dependent compiler/assembler options for optimization.
 #
-cflags-$(CONFIG_CPU_R3000)	+= \
-			$(call set_gccflags,r3000,mips1,r3000,mips1,mips1)
-CHECKFLAGS-$(CONFIG_CPU_R3000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS1
-
-cflags-$(CONFIG_CPU_TX39XX)	+= \
-			$(call set_gccflags,r3900,mips1,r3000,mips1,mips1)
-CHECKFLAGS-$(CONFIG_CPU_TX39XX)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS1
-
-cflags-$(CONFIG_CPU_R6000)	+= \
-			$(call set_gccflags,r6000,mips2,r6000,mips2,mips2) \
+cflags-$(CONFIG_CPU_R3000)	+= -march=r3000
+cflags-$(CONFIG_CPU_TX39XX)	+= -march=r3900
+cflags-$(CONFIG_CPU_R6000)	+= -march=r6000 -Wa,--trap
+cflags-$(CONFIG_CPU_R4300)	+= -march=r4300 -Wa,--trap
+cflags-$(CONFIG_CPU_VR41XX)	+= -march=r4100 -Wa,--trap
+cflags-$(CONFIG_CPU_R4X00)	+= -march=r4600 -Wa,--trap
+cflags-$(CONFIG_CPU_TX49XX)	+= -march=r4600 -Wa,--trap
+cflags-$(CONFIG_CPU_MIPS32_R1)	+= $(call cc-option,-march=mips32,-mips2 -mtune=r4600) \
+			-Wa,-mips32 -Wa,--trap
+cflags-$(CONFIG_CPU_MIPS32_R2)	+= $(call cc-option,-march=mips32r2,-mips2 -mtune=r4600) \
+			-Wa,-mips32r2 -Wa,--trap
+cflags-$(CONFIG_CPU_MIPS64_R1)	+= $(call cc-option,-march=mips64,-mips2 -mtune=r4600) \
+			-Wa,-mips64 -Wa,--trap
+cflags-$(CONFIG_CPU_MIPS64_R2)	+= $(call cc-option,-march=mips64r2,-mips2 -mtune=r4600 ) \
+			-Wa,-mips64r2 -Wa,--trap
+cflags-$(CONFIG_CPU_R5000)	+= -march=r5000 -Wa,--trap
+cflags-$(CONFIG_CPU_R5432)	+= $(call cc-options,-march=r5400,-march=r5000) \
 			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_R6000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS2
-
-cflags-$(CONFIG_CPU_R4300)	+= \
-			$(call set_gccflags,r4300,mips3,r4300,mips3,mips2) \
+cflags-$(CONFIG_CPU_NEVADA)	+= $(call cc-options,-march=rm5200,-march=r5000) \
 			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_R4300)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS3
-
-cflags-$(CONFIG_CPU_VR41XX)	+= \
-			$(call set_gccflags,r4100,mips3,r4600,mips3,mips2) \
+cflags-$(CONFIG_CPU_RM7000)	+= $(call cc-option,-march=rm7000,-march=r5000) \
 			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_VR41XX)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS3
-
-cflags-$(CONFIG_CPU_R4X00)	+= \
-			$(call set_gccflags,r4600,mips3,r4600,mips3,mips2) \
+cflags-$(CONFIG_CPU_RM9000)	+= $(call cc-option,-march=rm9000,-march=r5000) \
 			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_R4X00)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS3
-
-cflags-$(CONFIG_CPU_TX49XX)	+= \
-			$(call set_gccflags,r4600,mips3,r4600,mips3,mips2)  \
+cflags-$(CONFIG_CPU_SB1)	+= $(call cc-option,-march=sb1,-march=r5000) \
 			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_TX49XX)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS3
-
-cflags-$(CONFIG_CPU_MIPS32_R1)	+= \
-			$(call set_gccflags,mips32,mips32,r4600,mips3,mips2) \
+cflags-$(CONFIG_CPU_R8000)	+= -march=r8000 -Wa,--trap
+cflags-$(CONFIG_CPU_R10000)	+= $(call cc-option,-march=r10000,-march=r8000) \
 			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_MIPS32_R1)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS32
-
-cflags-$(CONFIG_CPU_MIPS32_R2)	+= \
-			$(call set_gccflags,mips32r2,mips32r2,r4600,mips3,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_MIPS32_R2)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS32
-
-cflags-$(CONFIG_CPU_MIPS64_R1)	+= \
-			$(call set_gccflags,mips64,mips64,r4600,mips3,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_MIPS64_R1)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS64
-
-cflags-$(CONFIG_CPU_MIPS64_R2)	+= \
-			$(call set_gccflags,mips64r2,mips64r2,r4600,mips3,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_MIPS64_R2)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS64
-
-cflags-$(CONFIG_CPU_R5000)	+= \
-			$(call set_gccflags,r5000,mips4,r5000,mips4,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_R5000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
-
-cflags-$(CONFIG_CPU_R5432)	+= \
-			$(call set_gccflags,r5400,mips4,r5000,mips4,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_R5432)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
-
-cflags-$(CONFIG_CPU_NEVADA)	+= \
-			$(call set_gccflags,rm5200,mips4,r5000,mips4,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_NEVADA)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
-
-cflags-$(CONFIG_CPU_RM7000)	+= \
-			$(call set_gccflags,rm7000,mips4,r5000,mips4,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_RM7000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
-
-cflags-$(CONFIG_CPU_RM9000)	+= \
-			$(call set_gccflags,rm9000,mips4,r5000,mips4,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_RM9000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
-
-
-cflags-$(CONFIG_CPU_SB1)	+= \
-			$(call set_gccflags,sb1,mips64,r5000,mips4,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_SB1)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS64
-
-cflags-$(CONFIG_CPU_R8000)	+= \
-			$(call set_gccflags,r8000,mips4,r8000,mips4,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_R8000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
-
-cflags-$(CONFIG_CPU_R10000)	+= \
-			$(call set_gccflags,r10000,mips4,r8000,mips4,mips2) \
-			-Wa,--trap
-CHECKFLAGS-$(CONFIG_CPU_R10000)	+= -D_MIPS_ISA=_MIPS_ISA_MIPS4
 
 ifdef CONFIG_CPU_SB1
 ifdef CONFIG_SB1_PASS_1_WORKAROUNDS
@@ -629,7 +496,6 @@ endif
 ifdef CONFIG_SGI_IP27
 core-$(CONFIG_SGI_IP27)		+= arch/mips/sgi-ip27/
 cflags-$(CONFIG_SGI_IP27)	+= -Iinclude/asm-mips/mach-ip27
-ifdef CONFIG_BUILD_ELF64
 ifdef CONFIG_MAPPED_KERNEL
 load-$(CONFIG_SGI_IP27)		+= 0xc00000004001c000
 OBJCOPYFLAGS			:= --change-addresses=0x3fffffff80000000
@@ -637,16 +503,6 @@ dataoffset-$(CONFIG_SGI_IP27)	+= 0x01000000
 else
 load-$(CONFIG_SGI_IP27)		+= 0xa80000000001c000
 OBJCOPYFLAGS			:= --change-addresses=0x57ffffff80000000
-endif
-else
-ifdef CONFIG_MAPPED_KERNEL
-load-$(CONFIG_SGI_IP27)		+= 0xffffffffc001c000
-OBJCOPYFLAGS			:= --change-addresses=0xc000000080000000
-dataoffset-$(CONFIG_SGI_IP27)	+= 0x01000000
-else
-load-$(CONFIG_SGI_IP27)		+= 0xffffffff8001c000
-OBJCOPYFLAGS			:= --change-addresses=0xa800000080000000
-endif
 endif
 endif
 
@@ -755,6 +611,12 @@ AFLAGS		+= $(cflags-y)
 CFLAGS		+= $(cflags-y)
 
 LDFLAGS			+= -m $(ld-emul)
+
+ifdef CONFIG_MIPS
+CHECKFLAGS += $(shell $(CC) $(CFLAGS) -dM -E -xc /dev/null | \
+	egrep -vw '__GNUC_(MAJOR|MINOR|PATCHLEVEL)__' | \
+	sed -e 's/^\#define /-D/' -e 's/ /="/' -e 's/$$/"/')
+endif
 
 OBJCOPYFLAGS		+= --remove-section=.reginfo
 

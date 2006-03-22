@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/bootmem.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -39,6 +40,7 @@
 #include <asm/cache.h>
 #include <asm/cpudata.h>
 #include <asm/auxio.h>
+#include <asm/head.h>
 
 #ifdef CONFIG_SMP
 static void distribute_irqs(void);
@@ -136,12 +138,48 @@ out_unlock:
 	return 0;
 }
 
+extern unsigned long real_hard_smp_processor_id(void);
+
+static unsigned int sun4u_compute_tid(unsigned long imap, unsigned long cpuid)
+{
+	unsigned int tid;
+
+	if (this_is_starfire) {
+		tid = starfire_translate(imap, cpuid);
+		tid <<= IMAP_TID_SHIFT;
+		tid &= IMAP_TID_UPA;
+	} else {
+		if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+			unsigned long ver;
+
+			__asm__ ("rdpr %%ver, %0" : "=r" (ver));
+			if ((ver >> 32UL) == __JALAPENO_ID ||
+			    (ver >> 32UL) == __SERRANO_ID) {
+				tid = cpuid << IMAP_TID_SHIFT;
+				tid &= IMAP_TID_JBUS;
+			} else {
+				unsigned int a = cpuid & 0x1f;
+				unsigned int n = (cpuid >> 5) & 0x1f;
+
+				tid = ((a << IMAP_AID_SHIFT) |
+				       (n << IMAP_NID_SHIFT));
+				tid &= (IMAP_AID_SAFARI |
+					IMAP_NID_SAFARI);;
+			}
+		} else {
+			tid = cpuid << IMAP_TID_SHIFT;
+			tid &= IMAP_TID_UPA;
+		}
+	}
+
+	return tid;
+}
+
 /* Now these are always passed a true fully specified sun4u INO. */
 void enable_irq(unsigned int irq)
 {
 	struct ino_bucket *bucket = __bucket(irq);
-	unsigned long imap;
-	unsigned long tid;
+	unsigned long imap, cpuid;
 
 	imap = bucket->imap;
 	if (imap == 0UL)
@@ -149,46 +187,37 @@ void enable_irq(unsigned int irq)
 
 	preempt_disable();
 
-	if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		unsigned long ver;
-
-		__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-		if ((ver >> 32) == 0x003e0016) {
-			/* We set it to our JBUS ID. */
-			__asm__ __volatile__("ldxa [%%g0] %1, %0"
-					     : "=r" (tid)
-					     : "i" (ASI_JBUS_CONFIG));
-			tid = ((tid & (0x1fUL<<17)) << 9);
-			tid &= IMAP_TID_JBUS;
-		} else {
-			/* We set it to our Safari AID. */
-			__asm__ __volatile__("ldxa [%%g0] %1, %0"
-					     : "=r" (tid)
-					     : "i" (ASI_SAFARI_CONFIG));
-			tid = ((tid & (0x3ffUL<<17)) << 9);
-			tid &= IMAP_AID_SAFARI;
-		}
-	} else if (this_is_starfire == 0) {
-		/* We set it to our UPA MID. */
-		__asm__ __volatile__("ldxa [%%g0] %1, %0"
-				     : "=r" (tid)
-				     : "i" (ASI_UPA_CONFIG));
-		tid = ((tid & UPA_CONFIG_MID) << 9);
-		tid &= IMAP_TID_UPA;
-	} else {
-		tid = (starfire_translate(imap, smp_processor_id()) << 26);
-		tid &= IMAP_TID_UPA;
-	}
-
-	/* NOTE NOTE NOTE, IGN and INO are read-only, IGN is a product
-	 * of this SYSIO's preconfigured IGN in the SYSIO Control
-	 * Register, the hardware just mirrors that value here.
-	 * However for Graphics and UPA Slave devices the full
-	 * IMAP_INR field can be set by the programmer here.
-	 *
-	 * Things like FFB can now be handled via the new IRQ mechanism.
+	/* This gets the physical processor ID, even on uniprocessor,
+	 * so we can always program the interrupt target correctly.
 	 */
-	upa_writel(tid | IMAP_VALID, imap);
+	cpuid = real_hard_smp_processor_id();
+
+	if (tlb_type == hypervisor) {
+		unsigned int ino = __irq_ino(irq);
+		int err;
+
+		err = sun4v_intr_settarget(ino, cpuid);
+		if (err != HV_EOK)
+			printk("sun4v_intr_settarget(%x,%lu): err(%d)\n",
+			       ino, cpuid, err);
+		err = sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
+		if (err != HV_EOK)
+			printk("sun4v_intr_setenabled(%x): err(%d)\n",
+			       ino, err);
+	} else {
+		unsigned int tid = sun4u_compute_tid(imap, cpuid);
+
+		/* NOTE NOTE NOTE, IGN and INO are read-only, IGN is a product
+		 * of this SYSIO's preconfigured IGN in the SYSIO Control
+		 * Register, the hardware just mirrors that value here.
+		 * However for Graphics and UPA Slave devices the full
+		 * IMAP_INR field can be set by the programmer here.
+		 *
+		 * Things like FFB can now be handled via the new IRQ
+		 * mechanism.
+		 */
+		upa_writel(tid | IMAP_VALID, imap);
+	}
 
 	preempt_enable();
 }
@@ -201,16 +230,26 @@ void disable_irq(unsigned int irq)
 
 	imap = bucket->imap;
 	if (imap != 0UL) {
-		u32 tmp;
+		if (tlb_type == hypervisor) {
+			unsigned int ino = __irq_ino(irq);
+			int err;
 
-		/* NOTE: We do not want to futz with the IRQ clear registers
-		 *       and move the state to IDLE, the SCSI code does call
-		 *       disable_irq() to assure atomicity in the queue cmd
-		 *       SCSI adapter driver code.  Thus we'd lose interrupts.
-		 */
-		tmp = upa_readl(imap);
-		tmp &= ~IMAP_VALID;
-		upa_writel(tmp, imap);
+			err = sun4v_intr_setenabled(ino, HV_INTR_DISABLED);
+			if (err != HV_EOK)
+				printk("sun4v_intr_setenabled(%x): "
+				       "err(%d)\n", ino, err);
+		} else {
+			u32 tmp;
+
+			/* NOTE: We do not want to futz with the IRQ clear registers
+			 *       and move the state to IDLE, the SCSI code does call
+			 *       disable_irq() to assure atomicity in the queue cmd
+			 *       SCSI adapter driver code.  Thus we'd lose interrupts.
+			 */
+			tmp = upa_readl(imap);
+			tmp &= ~IMAP_VALID;
+			upa_writel(tmp, imap);
+		}
 	}
 }
 
@@ -248,6 +287,8 @@ unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long 
 		return __irq(&pil0_dummy_bucket);
 	}
 
+	BUG_ON(tlb_type == hypervisor);
+
 	/* RULE: Both must be specified in all other cases. */
 	if (iclr == 0UL || imap == 0UL) {
 		prom_printf("Invalid build_irq %d %d %016lx %016lx\n",
@@ -275,12 +316,11 @@ unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long 
 		goto out;
 	}
 
-	bucket->irq_info = kmalloc(sizeof(struct irq_desc), GFP_ATOMIC);
+	bucket->irq_info = kzalloc(sizeof(struct irq_desc), GFP_ATOMIC);
 	if (!bucket->irq_info) {
 		prom_printf("IRQ: Error, kmalloc(irq_desc) failed.\n");
 		prom_halt();
 	}
-	memset(bucket->irq_info, 0, sizeof(struct irq_desc));
 
 	/* Ok, looks good, set it up.  Don't touch the irq_chain or
 	 * the pending flag.
@@ -291,6 +331,37 @@ unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long 
 	bucket->flags = 0;
 
 out:
+	return __irq(bucket);
+}
+
+unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsigned char flags)
+{
+	struct ino_bucket *bucket;
+	unsigned long sysino;
+
+	sysino = sun4v_devino_to_sysino(devhandle, devino);
+
+	bucket = &ivector_table[sysino];
+
+	/* Catch accidental accesses to these things.  IMAP/ICLR handling
+	 * is done by hypervisor calls on sun4v platforms, not by direct
+	 * register accesses.
+	 *
+	 * But we need to make them look unique for the disable_irq() logic
+	 * in free_irq().
+	 */
+	bucket->imap = ~0UL - sysino;
+	bucket->iclr = ~0UL - sysino;
+
+	bucket->pil = pil;
+	bucket->flags = flags;
+
+	bucket->irq_info = kzalloc(sizeof(struct irq_desc), GFP_ATOMIC);
+	if (!bucket->irq_info) {
+		prom_printf("IRQ: Error, kmalloc(irq_desc) failed.\n");
+		prom_halt();
+	}
+
 	return __irq(bucket);
 }
 
@@ -482,7 +553,6 @@ void free_irq(unsigned int irq, void *dev_id)
 	bucket = __bucket(irq);
 	if (bucket != &pil0_dummy_bucket) {
 		struct irq_desc *desc = bucket->irq_info;
-		unsigned long imap = bucket->imap;
 		int ent, i;
 
 		for (i = 0; i < MAX_IRQ_DESC_ACTION; i++) {
@@ -495,6 +565,8 @@ void free_irq(unsigned int irq, void *dev_id)
 		}
 
 		if (!desc->action_active_mask) {
+			unsigned long imap = bucket->imap;
+
 			/* This unique interrupt source is now inactive. */
 			bucket->flags &= ~IBF_ACTIVE;
 
@@ -592,7 +664,18 @@ static void process_bucket(int irq, struct ino_bucket *bp, struct pt_regs *regs)
 			break;
 	}
 	if (bp->pil != 0) {
-		upa_writel(ICLR_IDLE, bp->iclr);
+		if (tlb_type == hypervisor) {
+			unsigned int ino = __irq_ino(bp);
+			int err;
+
+			err = sun4v_intr_setstate(ino, HV_INTR_STATE_IDLE);
+			if (err != HV_EOK)
+				printk("sun4v_intr_setstate(%x): "
+				       "err(%d)\n", ino, err);
+		} else {
+			upa_writel(ICLR_IDLE, bp->iclr);
+		}
+
 		/* Test and add entropy */
 		if (random & SA_SAMPLE_RANDOM)
 			add_interrupt_randomness(irq);
@@ -694,7 +777,7 @@ irqreturn_t sparc_floppy_irq(int irq, void *dev_cookie, struct pt_regs *regs)
 		val = readb(auxio_register);
 		val |= AUXIO_AUX1_FTCNT;
 		writeb(val, auxio_register);
-		val &= AUXIO_AUX1_FTCNT;
+		val &= ~AUXIO_AUX1_FTCNT;
 		writeb(val, auxio_register);
 
 		doing_pdma = 0;
@@ -727,25 +810,23 @@ EXPORT_SYMBOL(probe_irq_off);
 static int retarget_one_irq(struct irqaction *p, int goal_cpu)
 {
 	struct ino_bucket *bucket = get_ino_in_irqaction(p) + ivector_table;
-	unsigned long imap = bucket->imap;
-	unsigned int tid;
 
 	while (!cpu_online(goal_cpu)) {
 		if (++goal_cpu >= NR_CPUS)
 			goal_cpu = 0;
 	}
 
-	if (tlb_type == cheetah || tlb_type == cheetah_plus) {
-		tid = goal_cpu << 26;
-		tid &= IMAP_AID_SAFARI;
-	} else if (this_is_starfire == 0) {
-		tid = goal_cpu << 26;
-		tid &= IMAP_TID_UPA;
+	if (tlb_type == hypervisor) {
+		unsigned int ino = __irq_ino(bucket);
+
+		sun4v_intr_settarget(ino, goal_cpu);
+		sun4v_intr_setenabled(ino, HV_INTR_ENABLED);
 	} else {
-		tid = (starfire_translate(imap, goal_cpu) << 26);
-		tid &= IMAP_TID_UPA;
+		unsigned long imap = bucket->imap;
+		unsigned int tid = sun4u_compute_tid(imap, goal_cpu);
+
+		upa_writel(tid | IMAP_VALID, imap);
 	}
-	upa_writel(tid | IMAP_VALID, imap);
 
 	do {
 		if (++goal_cpu >= NR_CPUS)
@@ -848,33 +929,114 @@ static void kill_prom_timer(void)
 
 void init_irqwork_curcpu(void)
 {
-	register struct irq_work_struct *workp asm("o2");
-	register unsigned long tmp asm("o3");
 	int cpu = hard_smp_processor_id();
 
-	memset(__irq_work + cpu, 0, sizeof(*workp));
+	memset(__irq_work + cpu, 0, sizeof(struct irq_work_struct));
+}
 
-	/* Make sure we are called with PSTATE_IE disabled.  */
-	__asm__ __volatile__("rdpr	%%pstate, %0\n\t"
-			     : "=r" (tmp));
-	if (tmp & PSTATE_IE) {
-		prom_printf("BUG: init_irqwork_curcpu() called with "
-			    "PSTATE_IE enabled, bailing.\n");
-		__asm__ __volatile__("mov	%%i7, %0\n\t"
-				     : "=r" (tmp));
-		prom_printf("BUG: Called from %lx\n", tmp);
+static void __cpuinit register_one_mondo(unsigned long paddr, unsigned long type)
+{
+	unsigned long num_entries = 128;
+	unsigned long status;
+
+	status = sun4v_cpu_qconf(type, paddr, num_entries);
+	if (status != HV_EOK) {
+		prom_printf("SUN4V: sun4v_cpu_qconf(%lu:%lx:%lu) failed, "
+			    "err %lu\n", type, paddr, num_entries, status);
+		prom_halt();
+	}
+}
+
+static void __cpuinit sun4v_register_mondo_queues(int this_cpu)
+{
+	struct trap_per_cpu *tb = &trap_block[this_cpu];
+
+	register_one_mondo(tb->cpu_mondo_pa, HV_CPU_QUEUE_CPU_MONDO);
+	register_one_mondo(tb->dev_mondo_pa, HV_CPU_QUEUE_DEVICE_MONDO);
+	register_one_mondo(tb->resum_mondo_pa, HV_CPU_QUEUE_RES_ERROR);
+	register_one_mondo(tb->nonresum_mondo_pa, HV_CPU_QUEUE_NONRES_ERROR);
+}
+
+static void __cpuinit alloc_one_mondo(unsigned long *pa_ptr, int use_bootmem)
+{
+	void *page;
+
+	if (use_bootmem)
+		page = alloc_bootmem_low_pages(PAGE_SIZE);
+	else
+		page = (void *) get_zeroed_page(GFP_ATOMIC);
+
+	if (!page) {
+		prom_printf("SUN4V: Error, cannot allocate mondo queue.\n");
 		prom_halt();
 	}
 
-	/* Set interrupt globals.  */
-	workp = &__irq_work[cpu];
-	__asm__ __volatile__(
-	"rdpr	%%pstate, %0\n\t"
-	"wrpr	%0, %1, %%pstate\n\t"
-	"mov	%2, %%g6\n\t"
-	"wrpr	%0, 0x0, %%pstate\n\t"
-	: "=&r" (tmp)
-	: "i" (PSTATE_IG), "r" (workp));
+	*pa_ptr = __pa(page);
+}
+
+static void __cpuinit alloc_one_kbuf(unsigned long *pa_ptr, int use_bootmem)
+{
+	void *page;
+
+	if (use_bootmem)
+		page = alloc_bootmem_low_pages(PAGE_SIZE);
+	else
+		page = (void *) get_zeroed_page(GFP_ATOMIC);
+
+	if (!page) {
+		prom_printf("SUN4V: Error, cannot allocate kbuf page.\n");
+		prom_halt();
+	}
+
+	*pa_ptr = __pa(page);
+}
+
+static void __cpuinit init_cpu_send_mondo_info(struct trap_per_cpu *tb, int use_bootmem)
+{
+#ifdef CONFIG_SMP
+	void *page;
+
+	BUILD_BUG_ON((NR_CPUS * sizeof(u16)) > (PAGE_SIZE - 64));
+
+	if (use_bootmem)
+		page = alloc_bootmem_low_pages(PAGE_SIZE);
+	else
+		page = (void *) get_zeroed_page(GFP_ATOMIC);
+
+	if (!page) {
+		prom_printf("SUN4V: Error, cannot allocate cpu mondo page.\n");
+		prom_halt();
+	}
+
+	tb->cpu_mondo_block_pa = __pa(page);
+	tb->cpu_list_pa = __pa(page + 64);
+#endif
+}
+
+/* Allocate and register the mondo and error queues for this cpu.  */
+void __cpuinit sun4v_init_mondo_queues(int use_bootmem, int cpu, int alloc, int load)
+{
+	struct trap_per_cpu *tb = &trap_block[cpu];
+
+	if (alloc) {
+		alloc_one_mondo(&tb->cpu_mondo_pa, use_bootmem);
+		alloc_one_mondo(&tb->dev_mondo_pa, use_bootmem);
+		alloc_one_mondo(&tb->resum_mondo_pa, use_bootmem);
+		alloc_one_kbuf(&tb->resum_kernel_buf_pa, use_bootmem);
+		alloc_one_mondo(&tb->nonresum_mondo_pa, use_bootmem);
+		alloc_one_kbuf(&tb->nonresum_kernel_buf_pa, use_bootmem);
+
+		init_cpu_send_mondo_info(tb, use_bootmem);
+	}
+
+	if (load) {
+		if (cpu != hard_smp_processor_id()) {
+			prom_printf("SUN4V: init mondo on cpu %d not %d\n",
+				    cpu, hard_smp_processor_id());
+			prom_halt();
+		}
+		sun4v_register_mondo_queues(cpu);
+	}
 }
 
 /* Only invoked on boot processor. */
@@ -883,6 +1045,9 @@ void __init init_IRQ(void)
 	map_prom_timers();
 	kill_prom_timer();
 	memset(&ivector_table[0], 0, sizeof(ivector_table));
+
+	if (tlb_type == hypervisor)
+		sun4v_init_mondo_queues(1, hard_smp_processor_id(), 1, 1);
 
 	/* We need to clear any IRQ's pending in the soft interrupt
 	 * registers, a spurious one could be left around from the

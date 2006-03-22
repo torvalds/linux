@@ -105,6 +105,7 @@
 #include <linux/mca-legacy.h>
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
+#include <linux/jiffies.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
@@ -658,7 +659,7 @@ static int init586(struct net_device *dev)
 
 	s = jiffies;		/* warning: only active with interrupts on !! */
 	while (!(cfg_cmd->cmd_status & STAT_COMPL)) {
-		if (jiffies - s > 30*HZ/100)
+		if (time_after(jiffies, s + 30*HZ/100))
 			break;
 	}
 
@@ -684,7 +685,7 @@ static int init586(struct net_device *dev)
 
 	s = jiffies;
 	while (!(ias_cmd->cmd_status & STAT_COMPL)) {
-		if (jiffies - s > 30*HZ/100)
+		if (time_after(jiffies, s + 30*HZ/100))
 			break;
 	}
 
@@ -709,7 +710,7 @@ static int init586(struct net_device *dev)
 
 	s = jiffies;
 	while (!(tdr_cmd->cmd_status & STAT_COMPL)) {
-		if (jiffies - s > 30*HZ/100) {
+		if (time_after(jiffies, s + 30*HZ/100)) {
 			printk(KERN_WARNING "%s: %d Problems while running the TDR.\n", dev->name, __LINE__);
 			result = 1;
 			break;
@@ -798,7 +799,7 @@ static int init586(struct net_device *dev)
 			elmc_id_attn586();
 			s = jiffies;
 			while (!(mc_cmd->cmd_status & STAT_COMPL)) {
-				if (jiffies - s > 30*HZ/100)
+				if (time_after(jiffies, s + 30*HZ/100))
 					break;
 			}
 			if (!(mc_cmd->cmd_status & STAT_COMPL)) {

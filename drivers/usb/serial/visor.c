@@ -763,10 +763,9 @@ static int generic_startup(struct usb_serial *serial)
 	int i;
 
 	for (i = 0; i < serial->num_ports; ++i) {
-		priv = kmalloc (sizeof(*priv), GFP_KERNEL);
+		priv = kzalloc (sizeof(*priv), GFP_KERNEL);
 		if (!priv)
 			return -ENOMEM;
-		memset (priv, 0x00, sizeof(*priv));
 		spin_lock_init(&priv->lock);
 		usb_set_serial_port_data(serial->port[i], priv);
 	}

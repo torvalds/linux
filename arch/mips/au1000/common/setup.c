@@ -90,7 +90,7 @@ void __init plat_setup(void)
 	else {
 		/* Clear to obtain best system bus performance */
 		clear_c0_config(1<<19); /* Clear Config[OD] */
- 	}
+	}
 
 	argptr = prom_getcmdline();
 

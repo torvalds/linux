@@ -56,6 +56,8 @@
 #include <linux/i2c.h>
 #include <linux/videotext.h>
 #include <linux/videodev.h>
+#include <linux/mutex.h>
+
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -105,7 +107,7 @@ struct saa5249_device
 	int disp_mode;
 	int virtual_mode;
 	struct i2c_client *client;
-	struct semaphore lock;
+	struct mutex lock;
 };
 
 
@@ -158,7 +160,7 @@ static int saa5249_attach(struct i2c_adapter *adap, int addr, int kind)
 		return -ENOMEM;
 	}
 	strlcpy(client->name, IF_NAME, I2C_NAME_SIZE);
-	init_MUTEX(&t->lock);
+	mutex_init(&t->lock);
 	
 	/*
 	 *	Now create a video4linux device
@@ -619,9 +621,9 @@ static int saa5249_ioctl(struct inode *inode, struct file *file,
 	int err;
 	
 	cmd = vtx_fix_command(cmd);
-	down(&t->lock);
+	mutex_lock(&t->lock);
 	err = video_usercopy(inode,file,cmd,arg,do_saa5249_ioctl);
-	up(&t->lock);
+	mutex_unlock(&t->lock);
 	return err;
 }
 

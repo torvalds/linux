@@ -14,6 +14,7 @@ enum param_type {
 
 struct tuner_range {
 	unsigned short limit;
+	unsigned char config;
 	unsigned char cb;
 };
 
@@ -38,7 +39,6 @@ struct tuner_params {
 	 * static unless the control byte was sent first.
 	 */
 	unsigned int cb_first_if_lower_freq:1;
-	unsigned char config; /* to be moved into struct tuner_range for dvb-pll merge */
 
 	unsigned int count;
 	struct tuner_range *ranges;
@@ -46,6 +46,7 @@ struct tuner_params {
 
 struct tunertype {
 	char *name;
+	unsigned int count;
 	struct tuner_params *params;
 };
 

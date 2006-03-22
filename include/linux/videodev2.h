@@ -17,11 +17,12 @@
 #include <linux/time.h> /* need struct timeval */
 #include <linux/poll.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 #endif
 #include <linux/compiler.h> /* need __user */
 
 
-#define OBSOLETE_OWNER 1 /* It will be removed for 2.6.15 */
+#define OBSOLETE_OWNER 1 /* It will be removed for 2.6.17 */
 #define HAVE_V4L2 1
 
 /*
@@ -47,6 +48,16 @@
 #define VID_TYPE_MJPEG_ENCODER	8192	/* Can encode MJPEG streams */
 
 #ifdef __KERNEL__
+
+/* Minor device allocation */
+#define MINOR_VFL_TYPE_GRABBER_MIN   0
+#define MINOR_VFL_TYPE_GRABBER_MAX  63
+#define MINOR_VFL_TYPE_RADIO_MIN    64
+#define MINOR_VFL_TYPE_RADIO_MAX   127
+#define MINOR_VFL_TYPE_VTX_MIN     192
+#define MINOR_VFL_TYPE_VTX_MAX     223
+#define MINOR_VFL_TYPE_VBI_MIN     224
+#define MINOR_VFL_TYPE_VBI_MAX     255
 
 #define VFL_TYPE_GRABBER	0
 #define VFL_TYPE_VBI		1
@@ -80,7 +91,7 @@ struct video_device
 
 	/* for videodev.c intenal usage -- please don't touch */
 	int users;                     /* video_exclusive_{open|close} ... */
-	struct semaphore lock;         /* ... helper function uses these   */
+	struct mutex lock;             /* ... helper function uses these   */
 	char devfs_name[64];           /* devfs */
 	struct class_device class_dev; /* sysfs */
 };
@@ -952,13 +963,68 @@ struct v4l2_sliced_vbi_format
 	__u32   reserved[2];            /* must be zero */
 };
 
-#define V4L2_SLICED_TELETEXT_B          (0x0001)
-#define V4L2_SLICED_VPS                 (0x0400)
-#define V4L2_SLICED_CAPTION_525         (0x1000)
-#define V4L2_SLICED_WSS_625             (0x4000)
+/* Teletext World System Teletext
+   (WST), defined on ITU-R BT.653-2 */
+#define V4L2_SLICED_TELETEXT_PAL_B      (0x000001)
+#define V4L2_SLICED_TELETEXT_PAL_C      (0x000002)
+#define V4L2_SLICED_TELETEXT_NTSC_B     (0x000010)
+#define V4L2_SLICED_TELETEXT_SECAM      (0x000020)
 
-#define V4L2_SLICED_VBI_525             (V4L2_SLICED_CAPTION_525)
-#define V4L2_SLICED_VBI_625             (V4L2_SLICED_TELETEXT_B | V4L2_SLICED_VPS | V4L2_SLICED_WSS_625)
+/* Teletext North American Broadcast Teletext Specification
+   (NABTS), defined on ITU-R BT.653-2 */
+#define V4L2_SLICED_TELETEXT_NTSC_C     (0x000040)
+#define V4L2_SLICED_TELETEXT_NTSC_D     (0x000080)
+
+/* Video Program System, defined on ETS 300 231*/
+#define V4L2_SLICED_VPS                 (0x000400)
+
+/* Closed Caption, defined on EIA-608 */
+#define V4L2_SLICED_CAPTION_525         (0x001000)
+#define V4L2_SLICED_CAPTION_625         (0x002000)
+
+/* Wide Screen System, defined on ITU-R BT1119.1 */
+#define V4L2_SLICED_WSS_625             (0x004000)
+
+/* Wide Screen System, defined on IEC 61880 */
+#define V4L2_SLICED_WSS_525             (0x008000)
+
+/* Vertical Interval Timecode (VITC), defined on SMPTE 12M */
+#define V4l2_SLICED_VITC_625		(0x010000)
+#define V4l2_SLICED_VITC_525		(0x020000)
+
+#define V4L2_SLICED_TELETEXT_B		(V4L2_SLICED_TELETEXT_PAL_B  |\
+					 V4L2_SLICED_TELETEXT_NTSC_B)
+
+#define V4L2_SLICED_TELETEXT		(V4L2_SLICED_TELETEXT_PAL_B  |\
+					 V4L2_SLICED_TELETEXT_PAL_C  |\
+					 V4L2_SLICED_TELETEXT_SECAM  |\
+					 V4L2_SLICED_TELETEXT_NTSC_B |\
+					 V4L2_SLICED_TELETEXT_NTSC_C |\
+					 V4L2_SLICED_TELETEXT_NTSC_D)
+
+#define V4L2_SLICED_CAPTION		(V4L2_SLICED_CAPTION_525     |\
+					 V4L2_SLICED_CAPTION_625)
+
+#define V4L2_SLICED_WSS			(V4L2_SLICED_WSS_525         |\
+					 V4L2_SLICED_WSS_625)
+
+#define V4L2_SLICED_VITC		(V4L2_SLICED_VITC_525        |\
+					 V4L2_SLICED_VITC_625)
+
+#define V4L2_SLICED_VBI_525             (V4L2_SLICED_TELETEXT_NTSC_B |\
+					 V4L2_SLICED_TELETEXT_NTSC_C |\
+					 V4L2_SLICED_TELETEXT_NTSC_D |\
+					 V4L2_SLICED_CAPTION_525     |\
+					 V4L2_SLICED_WSS_525         |\
+					 V4l2_SLICED_VITC_525)
+
+#define V4L2_SLICED_VBI_625             (V4L2_SLICED_TELETEXT_PAL_B  |\
+					 V4L2_SLICED_TELETEXT_PAL_C  |\
+					 V4L2_SLICED_TELETEXT_SECAM  |\
+					 V4L2_SLICED_VPS             |\
+					 V4L2_SLICED_CAPTION_625     |\
+					 V4L2_SLICED_WSS_625         |\
+					 V4l2_SLICED_VITC_625)
 
 struct v4l2_sliced_vbi_cap
 {

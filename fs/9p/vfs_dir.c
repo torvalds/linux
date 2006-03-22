@@ -202,7 +202,6 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 		filp->private_data = NULL;
 	}
 
-	d_drop(filp->f_dentry);
 	return 0;
 }
 

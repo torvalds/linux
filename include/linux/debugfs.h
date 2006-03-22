@@ -21,6 +21,11 @@
 
 struct file_operations;
 
+struct debugfs_blob_wrapper {
+	void *data;
+	unsigned long size;
+};
+
 #if defined(CONFIG_DEBUG_FS)
 struct dentry *debugfs_create_file(const char *name, mode_t mode,
 				   struct dentry *parent, void *data,
@@ -39,6 +44,9 @@ struct dentry *debugfs_create_u32(const char *name, mode_t mode,
 struct dentry *debugfs_create_bool(const char *name, mode_t mode,
 				  struct dentry *parent, u32 *value);
 
+struct dentry *debugfs_create_blob(const char *name, mode_t mode,
+				  struct dentry *parent,
+				  struct debugfs_blob_wrapper *blob);
 #else
 
 #include <linux/err.h>
@@ -90,6 +98,13 @@ static inline struct dentry *debugfs_create_u32(const char *name, mode_t mode,
 static inline struct dentry *debugfs_create_bool(const char *name, mode_t mode,
 						 struct dentry *parent,
 						 u32 *value)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct dentry *debugfs_create_blob(const char *name, mode_t mode,
+				  struct dentry *parent,
+				  struct debugfs_blob_wrapper *blob)
 {
 	return ERR_PTR(-ENODEV);
 }

@@ -291,7 +291,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 		 * for documentation.  Commented out because it shares
 		 * it's c0_prid id number with the TX3900.
 		 */
- 		c->cputype = CPU_R4650;
+		c->cputype = CPU_R4650;
 	 	c->isa_level = MIPS_CPU_ISA_III;
 		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_LLSC;
 	        c->tlbsize = 48;
@@ -604,7 +604,7 @@ static inline void cpu_probe_alchemy(struct cpuinfo_mips *c)
 	case PRID_IMP_AU1_REV2:
 		switch ((c->processor_id >> 24) & 0xff) {
 		case 0:
- 			c->cputype = CPU_AU1000;
+			c->cputype = CPU_AU1000;
 			break;
 		case 1:
 			c->cputype = CPU_AU1500;
@@ -705,7 +705,7 @@ __init void cpu_probe(void)
 		break;
  	case PRID_COMP_PHILIPS:
 		cpu_probe_philips(c);
- 		break;
+		break;
 	default:
 		c->cputype = CPU_UNKNOWN;
 	}

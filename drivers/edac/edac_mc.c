@@ -38,6 +38,12 @@
 
 #define	EDAC_MC_VERSION	"edac_mc  Ver: 2.0.0 " __DATE__
 
+/* For now, disable the EDAC sysfs code.  The sysfs interface that EDAC
+ * presents to user space needs more thought, and is likely to change
+ * substantially.
+ */
+#define DISABLE_EDAC_SYSFS
+
 #ifdef CONFIG_EDAC_DEBUG
 /* Values of 0 to 4 will generate output */
 int edac_debug_level = 1;
@@ -47,7 +53,7 @@ EXPORT_SYMBOL(edac_debug_level);
 /* EDAC Controls, setable by module parameter, and sysfs */
 static int log_ue = 1;
 static int log_ce = 1;
-static int panic_on_ue = 1;
+static int panic_on_ue;
 static int poll_msec = 1000;
 
 static int check_pci_parity = 0;	/* default YES check PCI parity */
@@ -76,6 +82,8 @@ static struct edac_pci_device_list pci_whitelist[MAX_LISTED_PCI_DEVICES];
 static int pci_whitelist_count ;
 
 /*  START sysfs data and methods */
+
+#ifndef DISABLE_EDAC_SYSFS
 
 static const char *mem_types[] = {
 	[MEM_EMPTY] = "Empty",
@@ -241,6 +249,7 @@ static struct kobj_type ktype_memctrl = {
 	.default_attrs	= (struct attribute **) memctrl_attr,
 };
 
+#endif  /* DISABLE_EDAC_SYSFS */
 
 /* Initialize the main sysfs entries for edac:
  *   /sys/devices/system/edac
@@ -251,6 +260,11 @@ static struct kobj_type ktype_memctrl = {
  *         !0 FAILURE
  */
 static int edac_sysfs_memctrl_setup(void)
+#ifdef DISABLE_EDAC_SYSFS
+{
+	return 0;
+}
+#else
 {
 	int err=0;
 
@@ -283,6 +297,7 @@ static int edac_sysfs_memctrl_setup(void)
 
 	return err;
 }
+#endif  /* DISABLE_EDAC_SYSFS */
 
 /*
  * MC teardown:
@@ -290,6 +305,7 @@ static int edac_sysfs_memctrl_setup(void)
  */
 static void edac_sysfs_memctrl_teardown(void)
 {
+#ifndef DISABLE_EDAC_SYSFS
 	debugf0("MC: " __FILE__ ": %s()\n", __func__);
 
 	/* Unregister the MC's kobject */
@@ -300,7 +316,10 @@ static void edac_sysfs_memctrl_teardown(void)
 
 	/* Unregister the 'edac' object */
 	sysdev_class_unregister(&edac_class);
+#endif  /* DISABLE_EDAC_SYSFS */
 }
+
+#ifndef DISABLE_EDAC_SYSFS
 
 /*
  * /sys/devices/system/edac/pci;
@@ -554,11 +573,18 @@ static struct kobj_type ktype_edac_pci = {
 	.default_attrs	= (struct attribute **) edac_pci_attr,
 };
 
+#endif  /* DISABLE_EDAC_SYSFS */
+
 /**
  * edac_sysfs_pci_setup()
  *
  */
 static int edac_sysfs_pci_setup(void)
+#ifdef DISABLE_EDAC_SYSFS
+{
+	return 0;
+}
+#else
 {
 	int err;
 
@@ -582,15 +608,19 @@ static int edac_sysfs_pci_setup(void)
 	}
 	return err;
 }
-
+#endif  /* DISABLE_EDAC_SYSFS */
 
 static void edac_sysfs_pci_teardown(void)
 {
+#ifndef DISABLE_EDAC_SYSFS
 	debugf0("MC: " __FILE__ ": %s()\n", __func__);
 
 	kobject_unregister(&edac_pci_kobj);
 	kobject_put(&edac_pci_kobj);
+#endif
 }
+
+#ifndef DISABLE_EDAC_SYSFS
 
 /* EDAC sysfs CSROW data structures and methods */
 
@@ -1045,6 +1075,8 @@ static struct kobj_type ktype_mci = {
 	.default_attrs	= (struct attribute **) mci_attr,
 };
 
+#endif  /* DISABLE_EDAC_SYSFS */
+
 #define EDAC_DEVICE_SYMLINK	"device"
 
 /*
@@ -1056,6 +1088,11 @@ static struct kobj_type ktype_mci = {
  *	!0	Failure
  */
 static int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
+#ifdef DISABLE_EDAC_SYSFS
+{
+	return 0;
+}
+#else
 {
 	int i;
 	int err;
@@ -1124,12 +1161,14 @@ fail:
 
 	return err;
 }
+#endif  /* DISABLE_EDAC_SYSFS */
 
 /*
  * remove a Memory Controller instance
  */
 static void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 {
+#ifndef DISABLE_EDAC_SYSFS
 	int i;
 
 	debugf0("MC: " __FILE__ ": %s()\n", __func__);
@@ -1146,6 +1185,7 @@ static void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 
 	kobject_unregister(&mci->edac_mci_kobj);
 	kobject_put(&mci->edac_mci_kobj);
+#endif  /* DISABLE_EDAC_SYSFS */
 }
 
 /* END OF sysfs data and methods */

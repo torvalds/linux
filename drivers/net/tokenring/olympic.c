@@ -100,6 +100,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
+#include <linux/jiffies.h>
 
 #include <net/checksum.h>
 
@@ -307,7 +308,7 @@ static int __devinit olympic_init(struct net_device *dev)
 	t=jiffies;
 	while((readl(olympic_mmio+BCTL)) & BCTL_SOFTRESET) {
 		schedule();		
-		if(jiffies-t > 40*HZ) {
+		if(time_after(jiffies, t + 40*HZ)) {
 			printk(KERN_ERR "IBM PCI tokenring card not responding.\n");
 			return -ENODEV;
 		}
@@ -359,7 +360,7 @@ static int __devinit olympic_init(struct net_device *dev)
 		t=jiffies;
 		while (!readl(olympic_mmio+CLKCTL) & CLKCTL_PAUSE) { 
 			schedule() ; 
-			if(jiffies-t > 2*HZ) { 
+			if(time_after(jiffies, t + 2*HZ)) {
 				printk(KERN_ERR "IBM Cardbus tokenring adapter not responsing.\n") ; 
 				return -ENODEV;
 			}
@@ -373,7 +374,7 @@ static int __devinit olympic_init(struct net_device *dev)
 	t=jiffies;
 	while(!((readl(olympic_mmio+SISR_RR)) & SISR_SRB_REPLY)) {
 		schedule();		
-		if(jiffies-t > 15*HZ) {
+		if(time_after(jiffies, t + 15*HZ)) {
 			printk(KERN_ERR "IBM PCI tokenring card not responding.\n");
 			return -ENODEV;
 		}
@@ -519,7 +520,7 @@ static int olympic_open(struct net_device *dev)
             			olympic_priv->srb_queued=0;
             			break;
         		}
-			if ((jiffies-t) > 10*HZ) { 
+			if (time_after(jiffies, t + 10*HZ)) {
 				printk(KERN_WARNING "%s: SRB timed out. \n",dev->name) ; 
 				olympic_priv->srb_queued=0;
 				break ; 

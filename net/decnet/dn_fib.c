@@ -143,11 +143,11 @@ static inline struct dn_fib_info *dn_fib_find_info(const struct dn_fib_info *nfi
 	return NULL;
 }
 
-u16 dn_fib_get_attr16(struct rtattr *attr, int attrlen, int type)
+__le16 dn_fib_get_attr16(struct rtattr *attr, int attrlen, int type)
 {
 	while(RTA_OK(attr,attrlen)) {
 		if (attr->rta_type == type)
-			return *(u16*)RTA_DATA(attr);
+			return *(__le16*)RTA_DATA(attr);
 		attr = RTA_NEXT(attr, attrlen);
 	}
 
@@ -565,7 +565,7 @@ int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static void fib_magic(int cmd, int type, __u16 dst, int dst_len, struct dn_ifaddr *ifa)
+static void fib_magic(int cmd, int type, __le16 dst, int dst_len, struct dn_ifaddr *ifa)
 {
 	struct dn_fib_table *tb;
 	struct {
@@ -684,7 +684,7 @@ static int dn_fib_dnaddr_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-int dn_fib_sync_down(dn_address local, struct net_device *dev, int force)
+int dn_fib_sync_down(__le16 local, struct net_device *dev, int force)
 {
         int ret = 0;
         int scope = RT_SCOPE_NOWHERE;

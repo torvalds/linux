@@ -28,6 +28,7 @@ target(struct sk_buff **pskb,
        const struct net_device *in,
        const struct net_device *out,
        unsigned int hooknum,
+       const struct xt_target *target,
        const void *targinfo,
        void *userinfo)
 {
@@ -36,41 +37,24 @@ target(struct sk_buff **pskb,
 	return NF_QUEUE_NR(tinfo->queuenum);
 }
 
-static int
-checkentry(const char *tablename,
-	   const void *entry,
-           void *targinfo,
-           unsigned int targinfosize,
-           unsigned int hook_mask)
-{
-	if (targinfosize != XT_ALIGN(sizeof(struct xt_NFQ_info))) {
-		printk(KERN_WARNING "NFQUEUE: targinfosize %u != %Zu\n",
-		       targinfosize,
-		       XT_ALIGN(sizeof(struct xt_NFQ_info)));
-		return 0;
-	}
-
-	return 1;
-}
-
 static struct xt_target ipt_NFQ_reg = {
 	.name		= "NFQUEUE",
 	.target		= target,
-	.checkentry	= checkentry,
+	.targetsize	= sizeof(struct xt_NFQ_info),
 	.me		= THIS_MODULE,
 };
 
 static struct xt_target ip6t_NFQ_reg = {
 	.name		= "NFQUEUE",
 	.target		= target,
-	.checkentry	= checkentry,
+	.targetsize	= sizeof(struct xt_NFQ_info),
 	.me		= THIS_MODULE,
 };
 
 static struct xt_target arpt_NFQ_reg = {
 	.name		= "NFQUEUE",
 	.target		= target,
-	.checkentry	= checkentry,
+	.targetsize	= sizeof(struct xt_NFQ_info),
 	.me		= THIS_MODULE,
 };
 

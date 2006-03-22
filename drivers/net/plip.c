@@ -123,7 +123,7 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 #ifndef NET_DEBUG
 #define NET_DEBUG 1
 #endif
-static unsigned int net_debug = NET_DEBUG;
+static const unsigned int net_debug = NET_DEBUG;
 
 #define ENABLE(irq)  if (irq != -1) enable_irq(irq)
 #define DISABLE(irq) if (irq != -1) disable_irq(irq)
@@ -351,7 +351,7 @@ static int plip_bh_timeout_error(struct net_device *dev, struct net_local *nl,
 typedef int (*plip_func)(struct net_device *dev, struct net_local *nl,
 			 struct plip_local *snd, struct plip_local *rcv);
 
-static plip_func connection_state_table[] =
+static const plip_func connection_state_table[] =
 {
 	plip_none,
 	plip_receive_packet,

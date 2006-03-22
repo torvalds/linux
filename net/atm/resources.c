@@ -18,6 +18,8 @@
 #include <linux/bitops.h>
 #include <linux/capability.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
+
 #include <net/sock.h>	 /* for struct sock */
 
 #include "common.h"
@@ -26,7 +28,7 @@
 
 
 LIST_HEAD(atm_devs);
-DECLARE_MUTEX(atm_dev_mutex);
+DEFINE_MUTEX(atm_dev_mutex);
 
 static struct atm_dev *__alloc_atm_dev(const char *type)
 {
@@ -65,9 +67,9 @@ struct atm_dev *atm_dev_lookup(int number)
 {
 	struct atm_dev *dev;
 
-	down(&atm_dev_mutex);
+	mutex_lock(&atm_dev_mutex);
 	dev = __atm_dev_lookup(number);
-	up(&atm_dev_mutex);
+	mutex_unlock(&atm_dev_mutex);
 	return dev;
 }
 
@@ -83,11 +85,11 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 		    type);
 		return NULL;
 	}
-	down(&atm_dev_mutex);
+	mutex_lock(&atm_dev_mutex);
 	if (number != -1) {
 		if ((inuse = __atm_dev_lookup(number))) {
 			atm_dev_put(inuse);
-			up(&atm_dev_mutex);
+			mutex_unlock(&atm_dev_mutex);
 			kfree(dev);
 			return NULL;
 		}
@@ -112,12 +114,12 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 		printk(KERN_ERR "atm_dev_register: "
 		       "atm_proc_dev_register failed for dev %s\n",
 		       type);
-		up(&atm_dev_mutex);
+		mutex_unlock(&atm_dev_mutex);
 		kfree(dev);
 		return NULL;
 	}
 	list_add_tail(&dev->dev_list, &atm_devs);
-	up(&atm_dev_mutex);
+	mutex_unlock(&atm_dev_mutex);
 
 	return dev;
 }
@@ -133,9 +135,9 @@ void atm_dev_deregister(struct atm_dev *dev)
 	 * with same number can appear, such we need deregister proc, 
 	 * release async all vccs and remove them from vccs list too
 	 */
-	down(&atm_dev_mutex);
+	mutex_lock(&atm_dev_mutex);
 	list_del(&dev->dev_list);
-	up(&atm_dev_mutex);
+	mutex_unlock(&atm_dev_mutex);
 
 	atm_dev_release_vccs(dev);
 	atm_proc_dev_deregister(dev);
@@ -196,16 +198,16 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 				return -EFAULT;
 			if (get_user(len, &iobuf->length))
 				return -EFAULT;
-			down(&atm_dev_mutex);
+			mutex_lock(&atm_dev_mutex);
 			list_for_each(p, &atm_devs)
 				size += sizeof(int);
 			if (size > len) {
-				up(&atm_dev_mutex);
+				mutex_unlock(&atm_dev_mutex);
 				return -E2BIG;
 			}
 			tmp_buf = kmalloc(size, GFP_ATOMIC);
 			if (!tmp_buf) {
-				up(&atm_dev_mutex);
+				mutex_unlock(&atm_dev_mutex);
 				return -ENOMEM;
 			}
 			tmp_p = tmp_buf;
@@ -213,7 +215,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 				dev = list_entry(p, struct atm_dev, dev_list);
 				*tmp_p++ = dev->number;
 			}
-			up(&atm_dev_mutex);
+			mutex_unlock(&atm_dev_mutex);
 		        error = ((copy_to_user(buf, tmp_buf, size)) ||
 					put_user(size, &iobuf->length))
 						? -EFAULT : 0;
@@ -400,13 +402,13 @@ static __inline__ void *dev_get_idx(loff_t left)
 
 void *atm_dev_seq_start(struct seq_file *seq, loff_t *pos)
 {
- 	down(&atm_dev_mutex);
+ 	mutex_lock(&atm_dev_mutex);
 	return *pos ? dev_get_idx(*pos) : (void *) 1;
 }
 
 void atm_dev_seq_stop(struct seq_file *seq, void *v)
 {
- 	up(&atm_dev_mutex);
+ 	mutex_unlock(&atm_dev_mutex);
 }
  
 void *atm_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)

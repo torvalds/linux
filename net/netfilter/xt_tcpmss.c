@@ -81,6 +81,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -92,58 +93,19 @@ match(const struct sk_buff *skb,
 			       info->invert, hotdrop);
 }
 
-static int
-checkentry(const char *tablename,
-           const void *ipinfo,
-           void *matchinfo,
-           unsigned int matchsize,
-           unsigned int hook_mask)
-{
-	const struct ipt_ip *ip = ipinfo;
-	if (matchsize != XT_ALIGN(sizeof(struct xt_tcpmss_match_info)))
-		return 0;
-
-	/* Must specify -p tcp */
-	if (ip->proto != IPPROTO_TCP || (ip->invflags & IPT_INV_PROTO)) {
-		printk("tcpmss: Only works on TCP packets\n");
-		return 0;
-	}
-
-	return 1;
-}
-
-static int
-checkentry6(const char *tablename,
-	   const void *ipinfo,
-           void *matchinfo,
-           unsigned int matchsize,
-           unsigned int hook_mask)
-{
-	const struct ip6t_ip6 *ip = ipinfo;
-
-	if (matchsize != XT_ALIGN(sizeof(struct xt_tcpmss_match_info)))
-		return 0;
-
-	/* Must specify -p tcp */
-	if (ip->proto != IPPROTO_TCP || (ip->invflags & XT_INV_PROTO)) {
-		printk("tcpmss: Only works on TCP packets\n");
-		return 0;
-	}
-
-	return 1;
-}
-
 static struct xt_match tcpmss_match = {
 	.name		= "tcpmss",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_tcpmss_match_info),
+	.proto		= IPPROTO_TCP,
 	.me		= THIS_MODULE,
 };
 
 static struct xt_match tcpmss6_match = {
 	.name		= "tcpmss",
-	.match		= &match,
-	.checkentry	= &checkentry6,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_tcpmss_match_info),
+	.proto		= IPPROTO_TCP,
 	.me		= THIS_MODULE,
 };
 

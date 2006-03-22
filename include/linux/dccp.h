@@ -18,7 +18,7 @@
  * @dccph_seq - sequence number high or low order 24 bits, depends on dccph_x
  */
 struct dccp_hdr {
-	__u16	dccph_sport,
+	__be16	dccph_sport,
 		dccph_dport;
 	__u8	dccph_doff;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
@@ -32,18 +32,18 @@ struct dccp_hdr {
 #endif
 	__u16	dccph_checksum;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u32	dccph_x:1,
+	__u8	dccph_x:1,
 		dccph_type:4,
-		dccph_reserved:3,
-		dccph_seq:24;
+		dccph_reserved:3;
 #elif defined(__BIG_ENDIAN_BITFIELD)
-	__u32	dccph_reserved:3,
+	__u8	dccph_reserved:3,
 		dccph_type:4,
-		dccph_x:1,
-		dccph_seq:24;
+		dccph_x:1;
 #else
 #error  "Adjust your <asm/byteorder.h> defines"
 #endif
+	__u8	dccph_seq2;
+	__be16	dccph_seq;
 };
 
 /**
@@ -52,7 +52,7 @@ struct dccp_hdr {
  * @dccph_seq_low - low 24 bits of a 48 bit seq packet
  */
 struct dccp_hdr_ext {
-	__u32	dccph_seq_low;
+	__be32	dccph_seq_low;
 };
 
 /**
@@ -62,7 +62,7 @@ struct dccp_hdr_ext {
  * @dccph_req_options - list of options (must be a multiple of 32 bits
  */
 struct dccp_hdr_request {
-	__u32	dccph_req_service;
+	__be32	dccph_req_service;
 };
 /**
  * struct dccp_hdr_ack_bits - acknowledgment bits common to most packets
@@ -71,9 +71,9 @@ struct dccp_hdr_request {
  * @dccph_resp_ack_nr_low - 48 bit ack number low order bits, contains GSR
  */
 struct dccp_hdr_ack_bits {
-	__u32	dccph_reserved1:8,
-		dccph_ack_nr_high:24;
-	__u32	dccph_ack_nr_low;
+	__be16	dccph_reserved1;
+	__be16	dccph_ack_nr_high;
+	__be32	dccph_ack_nr_low;
 };
 /**
  * struct dccp_hdr_response - Conection initiation response header
@@ -85,7 +85,7 @@ struct dccp_hdr_ack_bits {
  */
 struct dccp_hdr_response {
 	struct dccp_hdr_ack_bits	dccph_resp_ack;
-	__u32				dccph_resp_service;
+	__be32				dccph_resp_service;
 };
 
 /**
@@ -154,6 +154,10 @@ enum {
 	DCCPO_MANDATORY = 1,
 	DCCPO_MIN_RESERVED = 3,
 	DCCPO_MAX_RESERVED = 31,
+	DCCPO_CHANGE_L = 32,
+	DCCPO_CONFIRM_L = 33,
+	DCCPO_CHANGE_R = 34,
+	DCCPO_CONFIRM_R = 35,
 	DCCPO_NDP_COUNT = 37,
 	DCCPO_ACK_VECTOR_0 = 38,
 	DCCPO_ACK_VECTOR_1 = 39,
@@ -168,7 +172,9 @@ enum {
 /* DCCP features */
 enum {
 	DCCPF_RESERVED = 0,
+	DCCPF_CCID = 1,
 	DCCPF_SEQUENCE_WINDOW = 3,
+	DCCPF_ACK_RATIO = 5,
 	DCCPF_SEND_ACK_VECTOR = 6,
 	DCCPF_SEND_NDP_COUNT = 7,
 	/* 10-127 reserved */
@@ -176,9 +182,18 @@ enum {
 	DCCPF_MAX_CCID_SPECIFIC = 255,
 };
 
+/* this structure is argument to DCCP_SOCKOPT_CHANGE_X */
+struct dccp_so_feat {
+	__u8 dccpsf_feat;
+	__u8 *dccpsf_val;
+	__u8 dccpsf_len;
+};
+
 /* DCCP socket options */
 #define DCCP_SOCKOPT_PACKET_SIZE	1
 #define DCCP_SOCKOPT_SERVICE		2
+#define DCCP_SOCKOPT_CHANGE_L		3
+#define DCCP_SOCKOPT_CHANGE_R		4
 #define DCCP_SOCKOPT_CCID_RX_INFO	128
 #define DCCP_SOCKOPT_CCID_TX_INFO	192
 
@@ -254,16 +269,12 @@ static inline unsigned int dccp_basic_hdr_len(const struct sk_buff *skb)
 static inline __u64 dccp_hdr_seq(const struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh = dccp_hdr(skb);
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64 seq_nr = ntohl(dh->dccph_seq << 8);
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	__u64 seq_nr = ntohl(dh->dccph_seq);
-#else
-#error  "Adjust your <asm/byteorder.h> defines"
-#endif
+	__u64 seq_nr =  ntohs(dh->dccph_seq);
 
 	if (dh->dccph_x != 0)
 		seq_nr = (seq_nr << 32) + ntohl(dccp_hdrx(skb)->dccph_seq_low);
+	else
+		seq_nr += (u32)dh->dccph_seq2 << 16;
 
 	return seq_nr;
 }
@@ -281,13 +292,7 @@ static inline struct dccp_hdr_ack_bits *dccp_hdr_ack_bits(const struct sk_buff *
 static inline u64 dccp_hdr_ack_seq(const struct sk_buff *skb)
 {
 	const struct dccp_hdr_ack_bits *dhack = dccp_hdr_ack_bits(skb);
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	return (((u64)ntohl(dhack->dccph_ack_nr_high << 8)) << 32) + ntohl(dhack->dccph_ack_nr_low);
-#elif defined(__BIG_ENDIAN_BITFIELD)
-	return (((u64)ntohl(dhack->dccph_ack_nr_high)) << 32) + ntohl(dhack->dccph_ack_nr_low);
-#else
-#error  "Adjust your <asm/byteorder.h> defines"
-#endif
+	return ((u64)ntohs(dhack->dccph_ack_nr_high) << 32) + ntohl(dhack->dccph_ack_nr_low);
 }
 
 static inline struct dccp_hdr_response *dccp_hdr_response(struct sk_buff *skb)
@@ -314,38 +319,60 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 
 /* initial values for each feature */
 #define DCCPF_INITIAL_SEQUENCE_WINDOW		100
-/* FIXME: for now we're using CCID 3 (TFRC) */
-#define DCCPF_INITIAL_CCID			3
-#define DCCPF_INITIAL_SEND_ACK_VECTOR		0
+#define DCCPF_INITIAL_ACK_RATIO			2
+#define DCCPF_INITIAL_CCID			2
+#define DCCPF_INITIAL_SEND_ACK_VECTOR		1
 /* FIXME: for now we're default to 1 but it should really be 0 */
 #define DCCPF_INITIAL_SEND_NDP_COUNT		1
 
 #define DCCP_NDP_LIMIT 0xFFFFFF
 
 /**
-  * struct dccp_options - option values for a DCCP connection
-  *	@dccpo_sequence_window - Sequence Window Feature (section 7.5.2)
-  *	@dccpo_ccid - Congestion Control Id (CCID) (section 10)
-  *	@dccpo_send_ack_vector - Send Ack Vector Feature (section 11.5)
-  *	@dccpo_send_ndp_count - Send NDP Count Feature (7.7.2)
+  * struct dccp_minisock - Minimal DCCP connection representation
+  *
+  * Will be used to pass the state from dccp_request_sock to dccp_sock.
+  *
+  * @dccpms_sequence_window - Sequence Window Feature (section 7.5.2)
+  * @dccpms_ccid - Congestion Control Id (CCID) (section 10)
+  * @dccpms_send_ack_vector - Send Ack Vector Feature (section 11.5)
+  * @dccpms_send_ndp_count - Send NDP Count Feature (7.7.2)
   */
-struct dccp_options {
-	__u64	dccpo_sequence_window;
-	__u8	dccpo_rx_ccid;
-	__u8	dccpo_tx_ccid;
-	__u8	dccpo_send_ack_vector;
-	__u8	dccpo_send_ndp_count;
+struct dccp_minisock {
+	__u64			dccpms_sequence_window;
+	__u8			dccpms_rx_ccid;
+	__u8			dccpms_tx_ccid;
+	__u8			dccpms_send_ack_vector;
+	__u8			dccpms_send_ndp_count;
+	__u8			dccpms_ack_ratio;
+	struct list_head	dccpms_pending;
+	struct list_head	dccpms_conf;
 };
 
-extern void __dccp_options_init(struct dccp_options *dccpo);
-extern void dccp_options_init(struct dccp_options *dccpo);
+struct dccp_opt_conf {
+	__u8			*dccpoc_val;
+	__u8			dccpoc_len;
+};
+
+struct dccp_opt_pend {
+	struct list_head	dccpop_node;
+	__u8			dccpop_type;
+	__u8			dccpop_feat;
+	__u8		        *dccpop_val;
+	__u8			dccpop_len;
+	int			dccpop_conf;
+	struct dccp_opt_conf    *dccpop_sc;
+};
+
+extern void __dccp_minisock_init(struct dccp_minisock *dmsk);
+extern void dccp_minisock_init(struct dccp_minisock *dmsk);
+
 extern int dccp_parse_options(struct sock *sk, struct sk_buff *skb);
 
 struct dccp_request_sock {
 	struct inet_request_sock dreq_inet_rsk;
 	__u64			 dreq_iss;
 	__u64			 dreq_isr;
-	__u32			 dreq_service;
+	__be32			 dreq_service;
 };
 
 static inline struct dccp_request_sock *dccp_rsk(const struct request_sock *req)
@@ -373,13 +400,13 @@ enum dccp_role {
 
 struct dccp_service_list {
 	__u32	dccpsl_nr;
-	__u32	dccpsl_list[0];
+	__be32	dccpsl_list[0];
 };
 
 #define DCCP_SERVICE_INVALID_VALUE htonl((__u32)-1)
 
 static inline int dccp_list_has_service(const struct dccp_service_list *sl,
-					const u32 service)
+					const __be32 service)
 {
 	if (likely(sl != NULL)) {
 		u32 i = sl->dccpsl_nr;
@@ -425,17 +452,17 @@ struct dccp_sock {
 	__u64				dccps_gss;
 	__u64				dccps_gsr;
 	__u64				dccps_gar;
-	__u32				dccps_service;
+	__be32				dccps_service;
 	struct dccp_service_list	*dccps_service_list;
 	struct timeval			dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;
 	__u32				dccps_packet_size;
+	__u16				dccps_l_ack_ratio;
+	__u16				dccps_r_ack_ratio;
 	unsigned long			dccps_ndp_count;
 	__u32				dccps_mss_cache;
-	struct dccp_options		dccps_options;
+	struct dccp_minisock		dccps_minisock;
 	struct dccp_ackvec		*dccps_hc_rx_ackvec;
-	void				*dccps_hc_rx_ccid_private;
-	void				*dccps_hc_tx_ccid_private;
 	struct ccid			*dccps_hc_rx_ccid;
 	struct ccid			*dccps_hc_tx_ccid;
 	struct dccp_options_received	dccps_options_received;
@@ -448,6 +475,11 @@ struct dccp_sock {
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)
 {
 	return (struct dccp_sock *)sk;
+}
+
+static inline struct dccp_minisock *dccp_msk(const struct sock *sk)
+{
+	return (struct dccp_minisock *)&dccp_sk(sk)->dccps_minisock;
 }
 
 static inline int dccp_service_not_initialized(const struct sock *sk)

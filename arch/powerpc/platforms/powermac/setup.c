@@ -621,10 +621,6 @@ static void __init pmac_init_early(void)
 	/* Probe motherboard chipset */
 	pmac_feature_init();
 
-	/* We can NAP */
-	powersave_nap = 1;
-	printk(KERN_INFO "Using native/NAP idle loop\n");
-
 	/* Initialize debug stuff */
 	udbg_scc_init(!!strstr(cmd_line, "sccdbg"));
 	udbg_adb_init(!!strstr(cmd_line, "btextdbg"));

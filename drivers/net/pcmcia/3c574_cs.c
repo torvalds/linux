@@ -341,7 +341,7 @@ static void tc574_detach(struct pcmcia_device *p_dev)
 #define CS_CHECK(fn, ret) \
   do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-static char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
+static const char *ram_split[] = {"5:3", "3:1", "1:1", "3:5"};
 
 static void tc574_config(dev_link_t *link)
 {

@@ -43,6 +43,7 @@ struct ib_fmr_pool;
 /**
  * struct ib_fmr_pool_param - Parameters for creating FMR pool
  * @max_pages_per_fmr:Maximum number of pages per map request.
+ * @page_shift: Log2 of sizeof "pages" mapped by this fmr
  * @access:Access flags for FMRs in pool.
  * @pool_size:Number of FMRs to allocate for pool.
  * @dirty_watermark:Flush is triggered when @dirty_watermark dirty
@@ -55,6 +56,7 @@ struct ib_fmr_pool;
  */
 struct ib_fmr_pool_param {
 	int                     max_pages_per_fmr;
+	int                     page_shift;
 	enum ib_access_flags    access;
 	int                     pool_size;
 	int                     dirty_watermark;

@@ -102,6 +102,9 @@ prom_query_input_device(void)
 	if (!strncmp (propb, "rsc", 3))
 		return PROMDEV_IRSC;
 
+	if (!strncmp (propb, "virtual-console", 3))
+		return PROMDEV_IVCONS;
+
 	if (strncmp (propb, "tty", 3) || !propb[3])
 		return PROMDEV_I_UNK;
 
@@ -142,6 +145,9 @@ prom_query_output_device(void)
 
 	if (!strncmp (propb, "rsc", 3))
 		return PROMDEV_ORSC;
+
+	if (!strncmp (propb, "virtual-console", 3))
+		return PROMDEV_OVCONS;
 
 	if (strncmp (propb, "tty", 3) || !propb[3])
 		return PROMDEV_O_UNK;

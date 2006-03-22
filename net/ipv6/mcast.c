@@ -767,10 +767,10 @@ static void mld_add_delrec(struct inet6_dev *idev, struct ifmcaddr6 *im)
 	 * for deleted items allows change reports to use common code with
 	 * non-deleted or query-response MCA's.
 	 */
-	pmc = kmalloc(sizeof(*pmc), GFP_ATOMIC);
+	pmc = kzalloc(sizeof(*pmc), GFP_ATOMIC);
 	if (!pmc)
 		return;
-	memset(pmc, 0, sizeof(*pmc));
+
 	spin_lock_bh(&im->mca_lock);
 	spin_lock_init(&pmc->mca_lock);
 	pmc->idev = im->idev;
@@ -893,7 +893,7 @@ int ipv6_dev_mc_inc(struct net_device *dev, struct in6_addr *addr)
 	 *	not found: create a new one.
 	 */
 
-	mc = kmalloc(sizeof(struct ifmcaddr6), GFP_ATOMIC);
+	mc = kzalloc(sizeof(struct ifmcaddr6), GFP_ATOMIC);
 
 	if (mc == NULL) {
 		write_unlock_bh(&idev->lock);
@@ -901,7 +901,6 @@ int ipv6_dev_mc_inc(struct net_device *dev, struct in6_addr *addr)
 		return -ENOMEM;
 	}
 
-	memset(mc, 0, sizeof(struct ifmcaddr6));
 	init_timer(&mc->mca_timer);
 	mc->mca_timer.function = igmp6_timer_handler;
 	mc->mca_timer.data = (unsigned long) mc;
@@ -1934,10 +1933,10 @@ static int ip6_mc_add1_src(struct ifmcaddr6 *pmc, int sfmode,
 		psf_prev = psf;
 	}
 	if (!psf) {
-		psf = kmalloc(sizeof(*psf), GFP_ATOMIC);
+		psf = kzalloc(sizeof(*psf), GFP_ATOMIC);
 		if (!psf)
 			return -ENOBUFS;
-		memset(psf, 0, sizeof(*psf));
+
 		psf->sf_addr = *psfsrc;
 		if (psf_prev) {
 			psf_prev->sf_next = psf;
@@ -2431,7 +2430,7 @@ static int igmp6_mc_seq_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int rc = -ENOMEM;
-	struct igmp6_mc_iter_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct igmp6_mc_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
 
 	if (!s)
 		goto out;
@@ -2442,7 +2441,6 @@ static int igmp6_mc_seq_open(struct inode *inode, struct file *file)
 
 	seq = file->private_data;
 	seq->private = s;
-	memset(s, 0, sizeof(*s));
 out:
 	return rc;
 out_kfree:
@@ -2606,7 +2604,7 @@ static int igmp6_mcf_seq_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int rc = -ENOMEM;
-	struct igmp6_mcf_iter_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct igmp6_mcf_iter_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
 	
 	if (!s)
 		goto out;
@@ -2617,7 +2615,6 @@ static int igmp6_mcf_seq_open(struct inode *inode, struct file *file)
 
 	seq = file->private_data;
 	seq->private = s;
-	memset(s, 0, sizeof(*s));
 out:
 	return rc;
 out_kfree:

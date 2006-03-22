@@ -188,7 +188,7 @@ static int suni_ioctl(struct atm_dev *dev,unsigned int cmd,void __user *arg)
 		case SONET_GETDIAG:
 			return get_diag(dev,arg);
 		case SONET_SETFRAMING:
-			if (arg != SONET_FRAME_SONET) return -EINVAL;
+			if ((int)(unsigned long)arg != SONET_FRAME_SONET) return -EINVAL;
 			return 0;
 		case SONET_GETFRAMING:
 			return put_user(SONET_FRAME_SONET,(int __user *)arg) ?

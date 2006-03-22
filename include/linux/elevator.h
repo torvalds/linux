@@ -48,9 +48,16 @@ struct elevator_ops
 
 	elevator_init_fn *elevator_init_fn;
 	elevator_exit_fn *elevator_exit_fn;
+	void (*trim)(struct io_context *);
 };
 
 #define ELV_NAME_MAX	(16)
+
+struct elv_fs_entry {
+	struct attribute attr;
+	ssize_t (*show)(elevator_t *, char *);
+	ssize_t (*store)(elevator_t *, const char *, size_t);
+};
 
 /*
  * identifies an elevator type, such as AS or deadline
@@ -60,7 +67,7 @@ struct elevator_type
 	struct list_head list;
 	struct elevator_ops ops;
 	struct elevator_type *elevator_type;
-	struct kobj_type *elevator_ktype;
+	struct elv_fs_entry *elevator_attrs;
 	char elevator_name[ELV_NAME_MAX];
 	struct module *elevator_owner;
 };
@@ -74,6 +81,7 @@ struct elevator_queue
 	void *elevator_data;
 	struct kobject kobj;
 	struct elevator_type *elevator_type;
+	struct mutex sysfs_lock;
 };
 
 /*

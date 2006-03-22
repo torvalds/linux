@@ -24,6 +24,7 @@ MODULE_ALIAS("ip6t_string");
 static int match(const struct sk_buff *skb,
 		 const struct net_device *in,
 		 const struct net_device *out,
+		 const struct xt_match *match,
 		 const void *matchinfo,
 		 int offset,
 		 unsigned int protoff,
@@ -43,15 +44,13 @@ static int match(const struct sk_buff *skb,
 
 static int checkentry(const char *tablename,
 		      const void *ip,
+		      const struct xt_match *match,
 		      void *matchinfo,
 		      unsigned int matchsize,
 		      unsigned int hook_mask)
 {
 	struct xt_string_info *conf = matchinfo;
 	struct ts_config *ts_conf;
-
-	if (matchsize != XT_ALIGN(sizeof(struct xt_string_info)))
-		return 0;
 
 	/* Damn, can't handle this case properly with iptables... */
 	if (conf->from_offset > conf->to_offset)
@@ -67,7 +66,8 @@ static int checkentry(const char *tablename,
 	return 1;
 }
 
-static void destroy(void *matchinfo, unsigned int matchsize)
+static void destroy(const struct xt_match *match, void *matchinfo,
+		    unsigned int matchsize)
 {
 	textsearch_destroy(STRING_TEXT_PRIV(matchinfo)->config);
 }
@@ -75,6 +75,7 @@ static void destroy(void *matchinfo, unsigned int matchsize)
 static struct xt_match string_match = {
 	.name 		= "string",
 	.match 		= match,
+	.matchsize	= sizeof(struct xt_string_info),
 	.checkentry	= checkentry,
 	.destroy 	= destroy,
 	.me 		= THIS_MODULE
@@ -82,6 +83,7 @@ static struct xt_match string_match = {
 static struct xt_match string6_match = {
 	.name 		= "string",
 	.match 		= match,
+	.matchsize	= sizeof(struct xt_string_info),
 	.checkentry	= checkentry,
 	.destroy 	= destroy,
 	.me 		= THIS_MODULE

@@ -51,8 +51,10 @@ bttv_risc_packed(struct bttv *btv, struct btcx_riscmem *risc,
 	int rc;
 
 	/* estimate risc mem: worst case is one write per page border +
-	   one write per scan line + sync + jump (all 2 dwords) */
-	instructions  = (bpl * lines) / PAGE_SIZE + lines;
+	   one write per scan line + sync + jump (all 2 dwords).  padding
+	   can cause next bpl to start close to a page border.  First DMA
+	   region may be smaller than PAGE_SIZE */
+	instructions  = 1 + ((bpl + padding) * lines) / PAGE_SIZE + lines;
 	instructions += 2;
 	if ((rc = btcx_riscmem_alloc(btv->c.pci,risc,instructions*8)) < 0)
 		return rc;
@@ -104,7 +106,7 @@ bttv_risc_packed(struct bttv *btv, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) / 4 > risc->size);
+	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -222,7 +224,7 @@ bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) / 4 > risc->size);
+	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -274,6 +276,8 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 		if (line > maxy)
 			btcx_calc_skips(line, ov->w.width, &maxy,
 					skips, &nskips, ov->clips, ov->nclips);
+		else
+			nskips = 0;
 
 		/* write out risc code */
 		for (start = 0, skip = 0; start < ov->w.width; start = end) {
@@ -307,7 +311,7 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) / 4 > risc->size);
+	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof(*risc->cpu) > risc->size);
 	kfree(skips);
 	return 0;
 }
@@ -507,8 +511,7 @@ bttv_risc_hook(struct bttv *btv, int slot, struct btcx_riscmem *risc,
 void
 bttv_dma_free(struct bttv *btv, struct bttv_buffer *buf)
 {
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_dma_pci_unmap(btv->c.pci, &buf->vb.dma);
 	videobuf_dma_free(&buf->vb.dma);

@@ -5,7 +5,7 @@
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -222,11 +222,13 @@ struct ib_port_attr {
 };
 
 enum ib_device_modify_flags {
-	IB_DEVICE_MODIFY_SYS_IMAGE_GUID	= 1
+	IB_DEVICE_MODIFY_SYS_IMAGE_GUID	= 1 << 0,
+	IB_DEVICE_MODIFY_NODE_DESC	= 1 << 1
 };
 
 struct ib_device_modify {
 	u64	sys_image_guid;
+	char	node_desc[64];
 };
 
 enum ib_port_modify_flags {
@@ -649,7 +651,7 @@ struct ib_mw_bind {
 struct ib_fmr_attr {
 	int	max_pages;
 	int	max_maps;
-	u8	page_size;
+	u8	page_shift;
 };
 
 struct ib_ucontext {
@@ -880,7 +882,8 @@ struct ib_device {
 						struct ib_ucontext *context,
 						struct ib_udata *udata);
 	int                        (*destroy_cq)(struct ib_cq *cq);
-	int                        (*resize_cq)(struct ib_cq *cq, int cqe);
+	int                        (*resize_cq)(struct ib_cq *cq, int cqe,
+						struct ib_udata *udata);
 	int                        (*poll_cq)(struct ib_cq *cq, int num_entries,
 					      struct ib_wc *wc);
 	int                        (*peek_cq)(struct ib_cq *cq, int wc_cnt);
@@ -950,6 +953,7 @@ struct ib_device {
 	u64			     uverbs_cmd_mask;
 	int			     uverbs_abi_ver;
 
+	char			     node_desc[64];
 	__be64			     node_guid;
 	u8                           node_type;
 	u8                           phys_port_cnt;
@@ -985,6 +989,24 @@ static inline int ib_copy_to_udata(struct ib_udata *udata, void *src, size_t len
 {
 	return copy_to_user(udata->outbuf, src, len) ? -EFAULT : 0;
 }
+
+/**
+ * ib_modify_qp_is_ok - Check that the supplied attribute mask
+ * contains all required attributes and no attributes not allowed for
+ * the given QP state transition.
+ * @cur_state: Current QP state
+ * @next_state: Next QP state
+ * @type: QP type
+ * @mask: Mask of supplied QP attributes
+ *
+ * This function is a helper function that a low-level driver's
+ * modify_qp method can use to validate the consumer's input.  It
+ * checks that cur_state and next_state are valid QP states, that a
+ * transition from cur_state to next_state is allowed by the IB spec,
+ * and that the attribute mask supplied is allowed for the transition.
+ */
+int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
+		       enum ib_qp_type type, enum ib_qp_attr_mask mask);
 
 int ib_register_event_handler  (struct ib_event_handler *event_handler);
 int ib_unregister_event_handler(struct ib_event_handler *event_handler);
@@ -1078,7 +1100,9 @@ int ib_destroy_ah(struct ib_ah *ah);
  * ib_create_srq - Creates a SRQ associated with the specified protection
  *   domain.
  * @pd: The protection domain associated with the SRQ.
- * @srq_init_attr: A list of initial attributes required to create the SRQ.
+ * @srq_init_attr: A list of initial attributes required to create the
+ *   SRQ.  If SRQ creation succeeds, then the attributes are updated to
+ *   the actual capabilities of the created SRQ.
  *
  * srq_attr->max_wr and srq_attr->max_sge are read the determine the
  * requested size of the SRQ, and set to the actual values allocated
@@ -1137,7 +1161,9 @@ static inline int ib_post_srq_recv(struct ib_srq *srq,
  * ib_create_qp - Creates a QP associated with the specified protection
  *   domain.
  * @pd: The protection domain associated with the QP.
- * @qp_init_attr: A list of initial attributes required to create the QP.
+ * @qp_init_attr: A list of initial attributes required to create the
+ *   QP.  If QP creation succeeds, then the attributes are updated to
+ *   the actual capabilities of the created QP.
  */
 struct ib_qp *ib_create_qp(struct ib_pd *pd,
 			   struct ib_qp_init_attr *qp_init_attr);

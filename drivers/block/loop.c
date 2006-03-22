@@ -1307,7 +1307,7 @@ static int __init loop_init(void)
 
 out_mem4:
 	while (i--)
-		blk_put_queue(loop_dev[i].lo_queue);
+		blk_cleanup_queue(loop_dev[i].lo_queue);
 	devfs_remove("loop");
 	i = max_loop;
 out_mem3:
@@ -1328,7 +1328,7 @@ static void loop_exit(void)
 
 	for (i = 0; i < max_loop; i++) {
 		del_gendisk(disks[i]);
-		blk_put_queue(loop_dev[i].lo_queue);
+		blk_cleanup_queue(loop_dev[i].lo_queue);
 		put_disk(disks[i]);
 	}
 	devfs_remove("loop");

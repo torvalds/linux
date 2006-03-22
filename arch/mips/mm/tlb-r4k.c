@@ -424,8 +424,13 @@ void __init tlb_init(void)
 	probe_tlb(config);
 	write_c0_pagemask(PM_DEFAULT_MASK);
 	write_c0_wired(0);
+	write_c0_framemask(0);
 	temp_tlb_entry = current_cpu_data.tlbsize - 1;
+
+        /* From this point on the ARC firmware is dead.  */
 	local_flush_tlb_all();
+
+	/* Did I tell you that ARC SUCKS?  */
 
 	build_tlb_refill_handler();
 }

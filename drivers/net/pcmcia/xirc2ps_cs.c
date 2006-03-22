@@ -208,7 +208,7 @@ enum xirc_cmd { 	    /* Commands */
 #define XIRCREG45_REV	 15 /* Revision Register (rd) */
 #define XIRCREG50_IA	8   /* Individual Address (8-13) */
 
-static char *if_names[] = { "Auto", "10BaseT", "10Base2", "AUI", "100BaseT" };
+static const char *if_names[] = { "Auto", "10BaseT", "10Base2", "AUI", "100BaseT" };
 
 /****************
  * All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If

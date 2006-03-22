@@ -183,11 +183,11 @@ static inline unsigned long calculate_tclock(uint16_t clkspeed, unsigned long pc
 	switch (current_cpu_data.cputype) {
 	case CPU_VR4111:
 		if (!(clkspeed & DIV2B))
-        		tclock = pclock / 2;
+			tclock = pclock / 2;
 		else if (!(clkspeed & DIV3B))
-        		tclock = pclock / 3;
+			tclock = pclock / 3;
 		else if (!(clkspeed & DIV4B))
-        		tclock = pclock / 4;
+			tclock = pclock / 4;
 		break;
 	case CPU_VR4121:
 		tclock = pclock / DIVT(clkspeed);

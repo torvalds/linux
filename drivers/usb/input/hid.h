@@ -31,6 +31,8 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
 
 /*
  * USB HID (Human Interface Device) interface class code
@@ -370,6 +372,9 @@ struct hid_control_fifo {
 
 #define HID_CTRL_RUNNING	1
 #define HID_OUT_RUNNING		2
+#define HID_IN_RUNNING		3
+#define HID_RESET_PENDING	4
+#define HID_SUSPENDED		5
 
 struct hid_input {
 	struct list_head list;
@@ -393,12 +398,17 @@ struct hid_device {							/* device report descriptor */
 	int ifnum;							/* USB interface number */
 
 	unsigned long iofl;						/* I/O flags (CTRL_RUNNING, OUT_RUNNING) */
+	struct timer_list io_retry;					/* Retry timer */
+	unsigned long stop_retry;					/* Time to give up, in jiffies */
+	unsigned int retry_delay;					/* Delay length in ms */
+	struct work_struct reset_work;					/* Task context for resets */
 
 	unsigned int bufsize;						/* URB buffer size */
 
 	struct urb *urbin;						/* Input URB */
 	char *inbuf;							/* Input buffer */
 	dma_addr_t inbuf_dma;						/* Input buffer dma */
+	spinlock_t inlock;						/* Input fifo spinlock */
 
 	struct urb *urbctrl;						/* Control URB */
 	struct usb_ctrlrequest *cr;					/* Control request struct */

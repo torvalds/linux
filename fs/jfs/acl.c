@@ -183,6 +183,9 @@ cleanup:
 		posix_acl_release(acl);
 	} else
 		inode->i_mode &= ~current->fs->umask;
+	
+	JFS_IP(inode)->mode2 = (JFS_IP(inode)->mode2 & 0xffff0000) |
+			       inode->i_mode;
 
 	return rc;
 }
@@ -207,12 +210,12 @@ static int jfs_acl_chmod(struct inode *inode)
 	rc = posix_acl_chmod_masq(clone, inode->i_mode);
 	if (!rc) {
 		tid_t tid = txBegin(inode->i_sb, 0);
-		down(&JFS_IP(inode)->commit_sem);
+		mutex_lock(&JFS_IP(inode)->commit_mutex);
 		rc = jfs_set_acl(tid, inode, ACL_TYPE_ACCESS, clone);
 		if (!rc)
 			rc = txCommit(tid, 1, &inode, 0);
 		txEnd(tid);
-		up(&JFS_IP(inode)->commit_sem);
+		mutex_unlock(&JFS_IP(inode)->commit_mutex);
 	}
 
 	posix_acl_release(clone);

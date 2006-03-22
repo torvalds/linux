@@ -1102,9 +1102,6 @@ skip_rbs_switch:
 	st8 [r2]=r8
 	st8 [r3]=r10
 .work_pending:
-	tbit.nz p6,p0=r31,TIF_SIGDELAYED		// signal delayed from  MCA/INIT/NMI/PMI context?
-(p6)	br.cond.sptk.few .sigdelayed
-	;;
 	tbit.z p6,p0=r31,TIF_NEED_RESCHED		// current_thread_info()->need_resched==0?
 (p6)	br.cond.sptk.few .notify
 #ifdef CONFIG_PREEMPT
@@ -1130,17 +1127,6 @@ skip_rbs_switch:
 .ret10:	cmp.ne p6,p0=r0,r0				// p6 <- 0
 (pLvSys)br.cond.sptk.few  .work_pending_syscall_end
 	br.cond.sptk.many .work_processed_kernel	// don't re-check
-
-// There is a delayed signal that was detected in MCA/INIT/NMI/PMI context where
-// it could not be delivered.  Deliver it now.  The signal might be for us and
-// may set TIF_SIGPENDING, so redrive ia64_leave_* after processing the delayed
-// signal.
-
-.sigdelayed:
-	br.call.sptk.many rp=do_sigdelayed
-	cmp.eq p6,p0=r0,r0				// p6 <- 1, always re-check
-(pLvSys)br.cond.sptk.few  .work_pending_syscall_end
-	br.cond.sptk.many .work_processed_kernel	// re-check
 
 .work_pending_syscall_end:
 	adds r2=PT(R8)+16,r12

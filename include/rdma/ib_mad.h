@@ -33,7 +33,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: ib_mad.h 2775 2005-07-02 13:42:12Z halr $
+ * $Id: ib_mad.h 5596 2006-03-03 01:00:07Z sean.hefty $
  */
 
 #if !defined( IB_MAD_H )
@@ -208,15 +208,23 @@ struct ib_class_port_info
 /**
  * ib_mad_send_buf - MAD data buffer and work request for sends.
  * @next: A pointer used to chain together MADs for posting.
- * @mad: References an allocated MAD data buffer.
+ * @mad: References an allocated MAD data buffer for MADs that do not have
+ *   RMPP active.  For MADs using RMPP, references the common and management
+ *   class specific headers.
  * @mad_agent: MAD agent that allocated the buffer.
  * @ah: The address handle to use when sending the MAD.
  * @context: User-controlled context fields.
+ * @hdr_len: Indicates the size of the data header of the MAD.  This length
+ *   includes the common MAD, RMPP, and class specific headers.
+ * @data_len: Indicates the total size of user-transferred data.
+ * @seg_count: The number of RMPP segments allocated for this send.
+ * @seg_size: Size of each RMPP segment.
  * @timeout_ms: Time to wait for a response.
  * @retries: Number of times to retry a request for a response.
  *
  * Users are responsible for initializing the MAD buffer itself, with the
- * exception of specifying the payload length field in any RMPP MAD.
+ * exception of any RMPP header.  Additional segment buffer space allocated
+ * beyond data_len is padding.
  */
 struct ib_mad_send_buf {
 	struct ib_mad_send_buf	*next;
@@ -224,6 +232,10 @@ struct ib_mad_send_buf {
 	struct ib_mad_agent	*mad_agent;
 	struct ib_ah		*ah;
 	void			*context[2];
+	int			hdr_len;
+	int			data_len;
+	int			seg_count;
+	int			seg_size;
 	int			timeout_ms;
 	int			retries;
 };
@@ -299,7 +311,7 @@ typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
  * @mad_recv_wc: Received work completion information on the received MAD.
  *
  * MADs received in response to a send request operation will be handed to
- * the user after the send operation completes.  All data buffers given
+ * the user before the send operation completes.  All data buffers given
  * to registered agents through this routine are owned by the receiving
  * client, except for snooping agents.  Clients snooping MADs should not
  * modify the data referenced by @mad_recv_wc.
@@ -485,17 +497,6 @@ int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
 int ib_post_send_mad(struct ib_mad_send_buf *send_buf,
 		     struct ib_mad_send_buf **bad_send_buf);
 
-/**
- * ib_coalesce_recv_mad - Coalesces received MAD data into a single buffer.
- * @mad_recv_wc: Work completion information for a received MAD.
- * @buf: User-provided data buffer to receive the coalesced buffers.  The
- *   referenced buffer should be at least the size of the mad_len specified
- *   by @mad_recv_wc.
- *
- * This call copies a chain of received MAD segments into a single data buffer,
- * removing duplicated headers.
- */
-void ib_coalesce_recv_mad(struct ib_mad_recv_wc *mad_recv_wc, void *buf);
 
 /**
  * ib_free_recv_mad - Returns data buffers used to receive a MAD.
@@ -590,15 +591,26 @@ int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
  * with an initialized work request structure.  Users may modify the returned
  * MAD data buffer before posting the send.
  *
- * The returned data buffer will be cleared.  Users are responsible for
- * initializing the common MAD and any class specific headers.  If @rmpp_active
- * is set, the RMPP header will be initialized for sending.
+ * The returned MAD header, class specific headers, and any padding will be
+ * cleared.  Users are responsible for initializing the common MAD header,
+ * any class specific header, and MAD data area.
+ * If @rmpp_active is set, the RMPP header will be initialized for sending.
  */
 struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 					    u32 remote_qpn, u16 pkey_index,
 					    int rmpp_active,
 					    int hdr_len, int data_len,
 					    gfp_t gfp_mask);
+
+/**
+ * ib_get_rmpp_segment - returns the data buffer for a given RMPP segment.
+ * @send_buf: Previously allocated send data buffer.
+ * @seg_num: number of segment to return
+ *
+ * This routine returns a pointer to the data buffer of an RMPP MAD.
+ * Users must provide synchronization to @send_buf around this call.
+ */
+void *ib_get_rmpp_segment(struct ib_mad_send_buf *send_buf, int seg_num);
 
 /**
  * ib_free_send_mad - Returns data buffers used to send a MAD.
