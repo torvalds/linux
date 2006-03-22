@@ -7339,11 +7339,6 @@ qeth_setrouting_v6(struct qeth_card *card)
 	qeth_correct_routing_type(card, &card->options.route6.type,
 				  QETH_PROT_IPV6);
 
-	if ((card->options.route6.type == NO_ROUTER) ||
-	    ((card->info.type == QETH_CARD_TYPE_OSAE) &&
-	     (card->options.route6.type == MULTICAST_ROUTER) &&
-	     !qeth_is_supported6(card,IPA_OSA_MC_ROUTER)))
-		return 0;
 	rc = qeth_send_setrouting(card, card->options.route6.type,
 				  QETH_PROT_IPV6);
 	if (rc) {
