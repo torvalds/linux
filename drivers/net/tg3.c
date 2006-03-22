@@ -9436,12 +9436,18 @@ static inline struct subsys_tbl_ent *lookup_by_subsys(struct tg3 *tp)
 	return NULL;
 }
 
-/* Since this function may be called in D3-hot power state during
- * tg3_init_one(), only config cycles are allowed.
- */
 static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 {
 	u32 val;
+	u16 pmcsr;
+
+	/* On some early chips the SRAM cannot be accessed in D3hot state,
+	 * so need make sure we're in D0.
+	 */
+	pci_read_config_word(tp->pdev, tp->pm_cap + PCI_PM_CTRL, &pmcsr);
+	pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+	pci_write_config_word(tp->pdev, tp->pm_cap + PCI_PM_CTRL, pmcsr);
+	msleep(1);
 
 	/* Make sure register accesses (indirect or otherwise)
 	 * will function correctly.
