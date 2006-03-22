@@ -710,7 +710,6 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 {
 	char *page = NULL;
 	ssize_t length;
-	ssize_t end;
 	ssize_t ret;
 	int cur_enforcing;
 	struct inode *inode;
@@ -741,24 +740,7 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 
 	length = scnprintf(page, PAGE_SIZE, "%d %d", cur_enforcing,
 			  bool_pending_values[inode->i_ino - BOOL_INO_OFFSET]);
-	if (length < 0) {
-		ret = length;
-		goto out;
-	}
-
-	if (*ppos >= length) {
-		ret = 0;
-		goto out;
-	}
-	if (count + *ppos > length)
-		count = length - *ppos;
-	end = count + *ppos;
-	if (copy_to_user(buf, (char *) page + *ppos, count)) {
-		ret = -EFAULT;
-		goto out;
-	}
-	*ppos = end;
-	ret = count;
+	ret = simple_read_from_buffer(buf, count, ppos, page, length);
 out:
 	mutex_unlock(&sel_mutex);
 	if (page)
