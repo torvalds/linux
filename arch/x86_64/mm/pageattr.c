@@ -77,26 +77,12 @@ static inline void flush_map(unsigned long address)
 	on_each_cpu(flush_kernel_map, (void *)address, 1, 1);
 }
 
-struct deferred_page { 
-	struct deferred_page *next; 
-	struct page *fpage;
-	unsigned long address;
-}; 
-static struct deferred_page *df_list; /* protected by init_mm.mmap_sem */
+static struct page *deferred_pages; /* protected by init_mm.mmap_sem */
 
-static inline void save_page(unsigned long address, struct page *fpage)
+static inline void save_page(struct page *fpage)
 {
-	struct deferred_page *df;
-	df = kmalloc(sizeof(struct deferred_page), GFP_KERNEL); 
-	if (!df) {
-		flush_map(address);
-		__free_page(fpage);
-	} else { 
-		df->next = df_list;
-		df->fpage = fpage;
-		df->address = address;
-		df_list = df;
-	} 			
+	fpage->lru.next = (struct list_head *)deferred_pages;
+	deferred_pages = fpage;
 }
 
 /* 
@@ -163,7 +149,7 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 
 	switch (page_count(kpte_page)) {
  	case 1:
-		save_page(address, kpte_page); 		     
+		save_page(kpte_page);
 		revert_page(address, ref_prot);
 		break;
  	case 0:
@@ -220,17 +206,17 @@ int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 
 void global_flush_tlb(void)
 { 
-	struct deferred_page *df, *next_df;
+	struct page *dpage;
 
 	down_read(&init_mm.mmap_sem);
-	df = xchg(&df_list, NULL);
+	dpage = xchg(&deferred_pages, NULL);
 	up_read(&init_mm.mmap_sem);
-	flush_map((df && !df->next) ? df->address : 0);
-	for (; df; df = next_df) { 
-		next_df = df->next;
-		if (df->fpage) 
-			__free_page(df->fpage);
-		kfree(df);
+
+	flush_map((dpage && !dpage->lru.next) ? (unsigned long)page_address(dpage) : 0);
+	while (dpage) {
+		struct page *tmp = dpage;
+		dpage = (struct page *)dpage->lru.next;
+		__free_page(tmp);
 	} 
 } 
 
