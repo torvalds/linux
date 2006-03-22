@@ -1615,8 +1615,12 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
 
 #if DEBUG
 /**
- * slab_destroy_objs - call the registered destructor for each object in
- *      a slab that is to be destroyed.
+ * slab_destroy_objs - destroy a slab and its objects
+ * @cachep: cache pointer being destroyed
+ * @slabp: slab pointer being destroyed
+ *
+ * Call the registered destructor for each object in a slab that is being
+ * destroyed.
  */
 static void slab_destroy_objs(struct kmem_cache *cachep, struct slab *slabp)
 {
@@ -1661,7 +1665,11 @@ static void slab_destroy_objs(struct kmem_cache *cachep, struct slab *slabp)
 }
 #endif
 
-/*
+/**
+ * slab_destroy - destroy and release all objects in a slab
+ * @cachep: cache pointer being destroyed
+ * @slabp: slab pointer being destroyed
+ *
  * Destroy all the objs in a slab, and release the mem back to the system.
  * Before calling the slab must have been unlinked from the cache.  The
  * cache-lock is not held/needed.
@@ -3170,6 +3178,7 @@ EXPORT_SYMBOL(kmalloc_node);
  * kmalloc - allocate memory
  * @size: how many bytes of memory are required.
  * @flags: the type of memory to allocate.
+ * @caller: function caller for debug tracking of the caller
  *
  * kmalloc is the normal method of allocating memory
  * in the kernel.
