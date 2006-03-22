@@ -4419,6 +4419,7 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 	int elements_needed = 0;
 	enum qeth_large_send_types large_send = QETH_LARGE_SEND_NO;
 	struct qeth_eddp_context *ctx = NULL;
+	int tx_bytes = skb->len;
 	int rc;
 
 	QETH_DBF_TEXT(trace, 6, "sendpkt");
@@ -4499,7 +4500,7 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 					      elements_needed, ctx);
 	if (!rc){
 		card->stats.tx_packets++;
-		card->stats.tx_bytes += skb->len;
+		card->stats.tx_bytes += tx_bytes;
 #ifdef CONFIG_QETH_PERF_STATS
 		if (skb_shinfo(skb)->tso_size &&
 		   !(large_send == QETH_LARGE_SEND_NO)) {
