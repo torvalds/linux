@@ -2123,9 +2123,6 @@ static void check_spinlock_acquired_node(struct kmem_cache *cachep, int node)
 #define check_spinlock_acquired_node(x, y) do { } while(0)
 #endif
 
-static void drain_array_locked(struct kmem_cache *cachep,
-			struct array_cache *ac, int force, int node);
-
 static void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
 			struct array_cache *ac,
 			int force, int node);
@@ -3522,37 +3519,29 @@ static void enable_cpucache(struct kmem_cache *cachep)
 		       cachep->name, -err);
 }
 
-static void drain_array_locked(struct kmem_cache *cachep,
-				struct array_cache *ac, int force, int node)
+/*
+ * Drain an array if it contains any elements taking the l3 lock only if
+ * necessary.
+ */
+void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
+			 struct array_cache *ac, int force, int node)
 {
 	int tofree;
 
-	check_spinlock_acquired_node(cachep, node);
+	if (!ac || !ac->avail)
+		return;
 	if (ac->touched && !force) {
 		ac->touched = 0;
 	} else if (ac->avail) {
 		tofree = force ? ac->avail : (ac->limit + 4) / 5;
 		if (tofree > ac->avail)
 			tofree = (ac->avail + 1) / 2;
+		spin_lock_irq(&l3->list_lock);
 		free_block(cachep, ac->entry, tofree, node);
+		spin_unlock_irq(&l3->list_lock);
 		ac->avail -= tofree;
 		memmove(ac->entry, &(ac->entry[tofree]),
 			sizeof(void *) * ac->avail);
-	}
-}
-
-
-/*
- * Drain an array if it contains any elements taking the l3 lock only if
- * necessary.
- */
-static void drain_array(struct kmem_cache *searchp, struct kmem_list3 *l3,
-			 struct array_cache *ac, int force, int node)
-{
-	if (ac && ac->avail) {
-		spin_lock_irq(&l3->list_lock);
-		drain_array_locked(searchp, ac, force, node);
-		spin_unlock_irq(&l3->list_lock);
 	}
 }
 
