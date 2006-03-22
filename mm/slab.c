@@ -2119,23 +2119,6 @@ static void check_spinlock_acquired_node(struct kmem_cache *cachep, int node)
 #define check_spinlock_acquired_node(x, y) do { } while(0)
 #endif
 
-/*
- * Waits for all CPUs to execute func().
- */
-static void smp_call_function_all_cpus(void (*func)(void *arg), void *arg)
-{
-	check_irq_on();
-	preempt_disable();
-	local_irq_disable();
-	func(arg);
-	local_irq_enable();
-
-	if (smp_call_function(func, arg, 1, 1))
-		BUG();
-
-	preempt_enable();
-}
-
 static void drain_array_locked(struct kmem_cache *cachep,
 			struct array_cache *ac, int force, int node);
 
@@ -2158,7 +2141,7 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 	struct kmem_list3 *l3;
 	int node;
 
-	smp_call_function_all_cpus(do_drain, cachep);
+	on_each_cpu(do_drain, cachep, 1, 1);
 	check_irq_on();
 	for_each_online_node(node) {
 		l3 = cachep->nodelists[node];
@@ -3449,7 +3432,7 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 	}
 	new.cachep = cachep;
 
-	smp_call_function_all_cpus(do_ccupdate_local, (void *)&new);
+	on_each_cpu(do_ccupdate_local, (void *)&new, 1, 1);
 
 	check_irq_on();
 	cachep->batchcount = batchcount;
