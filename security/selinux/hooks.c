@@ -1929,7 +1929,6 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	struct task_security_struct *tsec;
 	struct inode_security_struct *dsec;
 	struct superblock_security_struct *sbsec;
-	struct inode_security_struct *isec;
 	u32 newsid, clen;
 	int rc;
 	char *namep = NULL, *context;
@@ -1937,7 +1936,6 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	tsec = current->security;
 	dsec = dir->i_security;
 	sbsec = dir->i_sb->s_security;
-	isec = inode->i_security;
 
 	if (tsec->create_sid && sbsec->behavior != SECURITY_FS_USE_MNTPOINT) {
 		newsid = tsec->create_sid;
