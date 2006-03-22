@@ -1592,9 +1592,15 @@ int acpiphp_enable_slot(struct acpiphp_slot *slot)
 	if (retval)
 		goto err_exit;
 
-	if (get_slot_status(slot) == ACPI_STA_ALL)
+	if (get_slot_status(slot) == ACPI_STA_ALL) {
 		/* configure all functions */
 		retval = enable_device(slot);
+		if (retval)
+			power_off_slot(slot);
+	} else {
+		dbg("%s: Slot status is not ACPI_STA_ALL\n", __FUNCTION__);
+		power_off_slot(slot);
+	}
 
  err_exit:
 	mutex_unlock(&slot->crit_sect);
