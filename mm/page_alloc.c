@@ -190,7 +190,7 @@ static void prep_compound_page(struct page *page, unsigned long order)
 	for (i = 0; i < nr_pages; i++) {
 		struct page *p = page + i;
 
-		SetPageCompound(p);
+		__SetPageCompound(p);
 		set_page_private(p, (unsigned long)page);
 	}
 }
@@ -209,7 +209,7 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 		if (unlikely(!PageCompound(p) |
 				(page_private(p) != (unsigned long)page)))
 			bad_page(page);
-		ClearPageCompound(p);
+		__ClearPageCompound(p);
 	}
 }
 

@@ -328,8 +328,8 @@ extern void __mod_page_state_offset(unsigned long offset, unsigned long delta);
 #define TestClearPageReclaim(page) test_and_clear_bit(PG_reclaim, &(page)->flags)
 
 #define PageCompound(page)	test_bit(PG_compound, &(page)->flags)
-#define SetPageCompound(page)	set_bit(PG_compound, &(page)->flags)
-#define ClearPageCompound(page)	clear_bit(PG_compound, &(page)->flags)
+#define __SetPageCompound(page)	__set_bit(PG_compound, &(page)->flags)
+#define __ClearPageCompound(page) __clear_bit(PG_compound, &(page)->flags)
 
 #ifdef CONFIG_SWAP
 #define PageSwapCache(page)	test_bit(PG_swapcache, &(page)->flags)
