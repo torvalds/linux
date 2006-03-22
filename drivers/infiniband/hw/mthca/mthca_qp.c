@@ -1196,16 +1196,16 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 {
 	int err;
 
-	err = mthca_set_qp_size(dev, cap, pd, qp);
-	if (err)
-		return err;
-
 	switch (type) {
 	case IB_QPT_RC: qp->transport = RC; break;
 	case IB_QPT_UC: qp->transport = UC; break;
 	case IB_QPT_UD: qp->transport = UD; break;
 	default: return -EINVAL;
 	}
+
+	err = mthca_set_qp_size(dev, cap, pd, qp);
+	if (err)
+		return err;
 
 	qp->qpn = mthca_alloc(&dev->qp_table.alloc);
 	if (qp->qpn == -1)
@@ -1239,6 +1239,7 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 	u32 mqpn = qpn * 2 + dev->qp_table.sqp_start + port - 1;
 	int err;
 
+	sqp->qp.transport = MLX;
 	err = mthca_set_qp_size(dev, cap, pd, &sqp->qp);
 	if (err)
 		return err;
