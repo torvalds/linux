@@ -1219,14 +1219,10 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 	if (!dentry)
 		return -ENOMEM;
 
-	inode = sel_make_inode(sb, S_IFDIR | S_IRUGO | S_IXUGO);
-	if (!inode)
-		goto out;
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
-	/* directory inodes start off with i_nlink == 2 (for "." entry) */
-	inode->i_nlink++;
-	d_add(dentry, inode);
+	ret = sel_make_dir(sb, dentry);
+	if (ret)
+		return ret;
+
 	bool_dir = dentry;
 	ret = sel_make_bools();
 	if (ret)
