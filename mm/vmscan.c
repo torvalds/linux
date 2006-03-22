@@ -1132,9 +1132,6 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		zone->pages_scanned += nr_scan;
 		spin_unlock_irq(&zone->lru_lock);
 
-		if (nr_taken == 0)
-			goto done;
-
 		nr_scanned += nr_scan;
 		nr_freed = shrink_page_list(&page_list, sc);
 		nr_reclaimed += nr_freed;
@@ -1145,6 +1142,9 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 		} else
 			__mod_page_state_zone(zone, pgscan_direct, nr_scan);
 		__mod_page_state_zone(zone, pgsteal, nr_freed);
+
+		if (nr_taken == 0)
+			goto done;
 
 		spin_lock(&zone->lru_lock);
 		/*
@@ -1166,8 +1166,9 @@ static unsigned long shrink_inactive_list(unsigned long max_scan,
 			}
 		}
   	} while (nr_scanned < max_scan);
-	spin_unlock_irq(&zone->lru_lock);
+	spin_unlock(&zone->lru_lock);
 done:
+	local_irq_enable();
 	pagevec_release(&pvec);
 	return nr_reclaimed;
 }
