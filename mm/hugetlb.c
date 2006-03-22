@@ -661,10 +661,10 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			struct page **pages, struct vm_area_struct **vmas,
 			unsigned long *position, int *length, int i)
 {
-	unsigned long vpfn, vaddr = *position;
+	unsigned long pfn_offset;
+	unsigned long vaddr = *position;
 	int remainder = *length;
 
-	vpfn = vaddr/PAGE_SIZE;
 	spin_lock(&mm->page_table_lock);
 	while (vaddr < vma->vm_end && remainder) {
 		pte_t *pte;
@@ -692,19 +692,28 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			break;
 		}
 
-		if (pages) {
-			page = &pte_page(*pte)[vpfn % (HPAGE_SIZE/PAGE_SIZE)];
-			get_page(page);
-			pages[i] = page;
-		}
+		pfn_offset = (vaddr & ~HPAGE_MASK) >> PAGE_SHIFT;
+		page = pte_page(*pte);
+same_page:
+		get_page(page);
+		if (pages)
+			pages[i] = page + pfn_offset;
 
 		if (vmas)
 			vmas[i] = vma;
 
 		vaddr += PAGE_SIZE;
-		++vpfn;
+		++pfn_offset;
 		--remainder;
 		++i;
+		if (vaddr < vma->vm_end && remainder &&
+				pfn_offset < HPAGE_SIZE/PAGE_SIZE) {
+			/*
+			 * We use pfn_offset to avoid touching the pageframes
+			 * of this compound page.
+			 */
+			goto same_page;
+		}
 	}
 	spin_unlock(&mm->page_table_lock);
 	*length = remainder;
