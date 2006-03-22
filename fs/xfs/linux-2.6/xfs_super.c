@@ -545,7 +545,7 @@ xfs_flush_device(
 	xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
 
-#define SYNCD_FLAGS	(SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR)
+#define SYNCD_FLAGS	(SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR|SYNC_REFCACHE)
 STATIC void
 vfs_sync_worker(
 	vfs_t		*vfsp,
@@ -972,7 +972,6 @@ init_xfs_fs( void )
 	error = register_filesystem(&xfs_fs_type);
 	if (error)
 		goto undo_register;
-	XFS_DM_INIT(&xfs_fs_type);
 	return 0;
 
 undo_register:
@@ -989,7 +988,6 @@ STATIC void __exit
 exit_xfs_fs( void )
 {
 	vfs_exitquota();
-	XFS_DM_EXIT(&xfs_fs_type);
 	unregister_filesystem(&xfs_fs_type);
 	xfs_cleanup();
 	xfs_buf_terminate();

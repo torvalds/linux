@@ -3187,7 +3187,7 @@ xfs_rmdir(
 
 	/* Fall through to std_return with error = 0 or the errno
 	 * from xfs_trans_commit. */
-std_return:
+ std_return:
 	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_POSTREMOVE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE,
 					dir_vp, DM_RIGHT_NULL,
@@ -3197,12 +3197,12 @@ std_return:
 	}
 	return error;
 
-error1:
+ error1:
 	xfs_bmap_cancel(&free_list);
 	cancel_flags |= XFS_TRANS_ABORT;
 	/* FALLTHROUGH */
 
-error_return:
+ error_return:
 	xfs_trans_cancel(tp, cancel_flags);
 	goto std_return;
 }
