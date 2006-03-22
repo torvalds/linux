@@ -74,6 +74,7 @@ struct irqdesc {
 	unsigned int	noautoenable : 1;	/* don't automatically enable IRQ */
 	unsigned int	unused   :25;
 
+	unsigned int	irqs_unhandled;
 	struct proc_dir_entry *procdir;
 
 #ifdef CONFIG_SMP
