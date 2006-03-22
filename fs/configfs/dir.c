@@ -504,7 +504,7 @@ static int populate_groups(struct config_group *group)
 	int ret = 0;
 	int i;
 
-	if (group && group->default_groups) {
+	if (group->default_groups) {
 		/* FYI, we're faking mkdir here
 		 * I'm not sure we need this semaphore, as we're called
 		 * from our parent's mkdir.  That holds our parent's
