@@ -170,12 +170,12 @@
 #if DEBUG
 # define CREATE_MASK	(SLAB_DEBUG_INITIAL | SLAB_RED_ZONE | \
 			 SLAB_POISON | SLAB_HWCACHE_ALIGN | \
-			 SLAB_NO_REAP | SLAB_CACHE_DMA | \
+			 SLAB_CACHE_DMA | \
 			 SLAB_MUST_HWCACHE_ALIGN | SLAB_STORE_USER | \
 			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | \
 			 SLAB_DESTROY_BY_RCU)
 #else
-# define CREATE_MASK	(SLAB_HWCACHE_ALIGN | SLAB_NO_REAP | \
+# define CREATE_MASK	(SLAB_HWCACHE_ALIGN | \
 			 SLAB_CACHE_DMA | SLAB_MUST_HWCACHE_ALIGN | \
 			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | \
 			 SLAB_DESTROY_BY_RCU)
@@ -662,7 +662,6 @@ static struct kmem_cache cache_cache = {
 	.limit = BOOT_CPUCACHE_ENTRIES,
 	.shared = 1,
 	.buffer_size = sizeof(struct kmem_cache),
-	.flags = SLAB_NO_REAP,
 	.name = "kmem_cache",
 #if DEBUG
 	.obj_size = sizeof(struct kmem_cache),
@@ -1847,9 +1846,6 @@ static void setup_cpu_cache(struct kmem_cache *cachep)
  *
  * %SLAB_RED_ZONE - Insert `Red' zones around the allocated memory to check
  * for buffer overruns.
- *
- * %SLAB_NO_REAP - Don't automatically reap this cache when we're under
- * memory pressure.
  *
  * %SLAB_HWCACHE_ALIGN - Align the objects in this cache to a hardware
  * cacheline.  This can be beneficial if you're counting cycles as closely
@@ -3584,10 +3580,6 @@ static void cache_reap(void *unused)
 		struct slab *slabp;
 
 		searchp = list_entry(walk, struct kmem_cache, next);
-
-		if (searchp->flags & SLAB_NO_REAP)
-			goto next;
-
 		check_irq_on();
 
 		l3 = searchp->nodelists[numa_node_id()];
@@ -3635,7 +3627,6 @@ static void cache_reap(void *unused)
 		} while (--tofree > 0);
 next_unlock:
 		spin_unlock_irq(&l3->list_lock);
-next:
 		cond_resched();
 	}
 	check_irq_on();
