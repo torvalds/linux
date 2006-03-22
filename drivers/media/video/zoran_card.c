@@ -47,6 +47,7 @@
 #include <linux/interrupt.h>
 #include <linux/video_decoder.h>
 #include <linux/video_encoder.h>
+#include <linux/mutex.h>
 
 #include <asm/io.h>
 
@@ -673,7 +674,7 @@ zoran_i2c_client_register (struct i2c_client *client)
 		KERN_DEBUG "%s: i2c_client_register() - driver id = %d\n",
 		ZR_DEVNAME(zr), client->driver->id);
 
-	down(&zr->resource_lock);
+	mutex_lock(&zr->resource_lock);
 
 	if (zr->user > 0) {
 		/* we're already busy, so we keep a reference to
@@ -694,7 +695,7 @@ zoran_i2c_client_register (struct i2c_client *client)
 	}
 
 clientreg_unlock_and_return:
-	up(&zr->resource_lock);
+	mutex_unlock(&zr->resource_lock);
 
 	return res;
 }
@@ -707,7 +708,7 @@ zoran_i2c_client_unregister (struct i2c_client *client)
 
 	dprintk(2, KERN_DEBUG "%s: i2c_client_unregister()\n", ZR_DEVNAME(zr));
 
-	down(&zr->resource_lock);
+	mutex_lock(&zr->resource_lock);
 
 	if (zr->user > 0) {
 		res = -EBUSY;
@@ -722,7 +723,7 @@ zoran_i2c_client_unregister (struct i2c_client *client)
 		snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)), "MJPEG[%d]", zr->id);
 	}
 clientunreg_unlock_and_return:
-	up(&zr->resource_lock);
+	mutex_unlock(&zr->resource_lock);
 	return res;
 }
 
@@ -1202,7 +1203,7 @@ find_zr36057 (void)
 		zr->id = zoran_num;
 		snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)), "MJPEG[%u]", zr->id);
 		spin_lock_init(&zr->spinlock);
-		init_MUTEX(&zr->resource_lock);
+		mutex_init(&zr->resource_lock);
 		if (pci_enable_device(dev))
 			continue;
 		zr->zr36057_adr = pci_resource_start(zr->pci_dev, 0);
