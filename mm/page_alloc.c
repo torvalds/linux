@@ -212,6 +212,15 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 	}
 }
 
+static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
+{
+	int i;
+
+	BUG_ON((gfp_flags & (__GFP_WAIT | __GFP_HIGHMEM)) == __GFP_HIGHMEM);
+	for (i = 0; i < (1 << order); i++)
+		clear_highpage(page + i);
+}
+
 /*
  * function for dealing with page's order in buddy system.
  * zone->lock is already acquired when we use these.
@@ -496,7 +505,7 @@ static inline void expand(struct zone *zone, struct page *page,
 /*
  * This page is about to be returned from the page allocator
  */
-static int prep_new_page(struct page *page, int order)
+static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
 {
 	if (unlikely(page_mapcount(page) |
 		(page->mapping != NULL)  |
@@ -527,6 +536,13 @@ static int prep_new_page(struct page *page, int order)
 	set_page_private(page, 0);
 	set_page_refcounted(page);
 	kernel_map_pages(page, 1 << order, 1);
+
+	if (gfp_flags & __GFP_ZERO)
+		prep_zero_page(page, order, gfp_flags);
+
+	if (order && (gfp_flags & __GFP_COMP))
+		prep_compound_page(page, order);
+
 	return 0;
 }
 
@@ -732,15 +748,6 @@ void fastcall free_cold_page(struct page *page)
 	free_hot_cold_page(page, 1);
 }
 
-static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
-{
-	int i;
-
-	BUG_ON((gfp_flags & (__GFP_WAIT | __GFP_HIGHMEM)) == __GFP_HIGHMEM);
-	for(i = 0; i < (1 << order); i++)
-		clear_highpage(page + i);
-}
-
 /*
  * split_page takes a non-compound higher-order page, and splits it into
  * n (1<<order) sub-pages: page[0..n]
@@ -802,14 +809,8 @@ again:
 	put_cpu();
 
 	BUG_ON(bad_range(zone, page));
-	if (prep_new_page(page, order))
+	if (prep_new_page(page, order, gfp_flags))
 		goto again;
-
-	if (gfp_flags & __GFP_ZERO)
-		prep_zero_page(page, order, gfp_flags);
-
-	if (order && (gfp_flags & __GFP_COMP))
-		prep_compound_page(page, order);
 	return page;
 
 failed:
