@@ -546,7 +546,6 @@ static int add_bridge(acpi_handle handle)
 	if (detect_ejectable_slots(handle) > 0) {
 		dbg("found PCI host-bus bridge with hot-pluggable slots\n");
 		add_host_bridge(handle, pci_bus);
-		return 0;
 	}
 
 	/* search P2P bridges under this host bridge */
