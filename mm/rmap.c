@@ -58,7 +58,7 @@
 
 //#define RMAP_DEBUG /* can be enabled only for debugging */
 
-kmem_cache_t *anon_vma_cachep;
+struct kmem_cache *anon_vma_cachep;
 
 static inline void validate_anon_vma(struct vm_area_struct *find_vma)
 {
@@ -166,7 +166,8 @@ void anon_vma_unlink(struct vm_area_struct *vma)
 		anon_vma_free(anon_vma);
 }
 
-static void anon_vma_ctor(void *data, kmem_cache_t *cachep, unsigned long flags)
+static void anon_vma_ctor(void *data, struct kmem_cache *cachep,
+			  unsigned long flags)
 {
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 						SLAB_CTOR_CONSTRUCTOR) {

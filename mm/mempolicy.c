@@ -98,8 +98,8 @@
 /* The number of pages to migrate per call to migrate_pages() */
 #define MIGRATE_CHUNK_SIZE 256
 
-static kmem_cache_t *policy_cache;
-static kmem_cache_t *sn_cache;
+static struct kmem_cache *policy_cache;
+static struct kmem_cache *sn_cache;
 
 #define PDprintk(fmt...)
 
