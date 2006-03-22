@@ -108,13 +108,8 @@ saa7110_write_block (struct i2c_client *client,
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		struct saa7110 *decoder = i2c_get_clientdata(client);
-		struct i2c_msg msg;
 
-		msg.len = len;
-		msg.buf = (char *) data;
-		msg.addr = client->addr;
-		msg.flags = 0;
-		ret = i2c_transfer(client->adapter, &msg, 1);
+		ret = i2c_master_send(client, data, len);
 
 		/* Cache the written data */
 		memcpy(decoder->reg + reg, data + 1, len - 1);
