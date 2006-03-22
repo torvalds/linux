@@ -782,41 +782,30 @@ void bcm43xx_calc_nrssi_threshold(struct bcm43xx_private *bcm)
 {
 	struct bcm43xx_phyinfo *phy = bcm43xx_current_phy(bcm);
 	struct bcm43xx_radioinfo *radio = bcm43xx_current_radio(bcm);
-	s16 threshold;
+	s32 threshold;
 	s32 a, b;
-	int tmp;
 	s16 tmp16;
 	u16 tmp_u16;
 
 	switch (phy->type) {
 	case BCM43xx_PHYTYPE_B: {
-		int radiotype = 0;
-
-		if (phy->rev < 2)
-			return;
 		if (radio->version != 0x2050)
 			return;
 		if (!(bcm->sprom.boardflags & BCM43xx_BFL_RSSI))
 			return;
 
-		tmp = radio->revision;
-		if ((radio->manufact == 0x175 && tmp == 5) ||
-		     (radio->manufact == 0x17F && (tmp == 3 || tmp == 4)))
-			radiotype = 1;
-
-		if (radiotype == 1) {
+		if (radio->revision >= 6) {
+			threshold = (radio->nrssi[1] - radio->nrssi[0]) * 32;
+			threshold += 20 * (radio->nrssi[0] + 1);
+			threshold /= 40;
+		} else
 			threshold = radio->nrssi[1] - 5;
-		} else {
-			threshold = 40 * radio->nrssi[0];
-			threshold += 33 * (radio->nrssi[1] - radio->nrssi[0]);
-			threshold += 20;
-			threshold /= 10;
-		}
+
 		threshold = limit_value(threshold, 0, 0x3E);
 		bcm43xx_phy_read(bcm, 0x0020); /* dummy read */
 		bcm43xx_phy_write(bcm, 0x0020, (((u16)threshold) << 8) | 0x001C);
 
-		if (radiotype == 1) {
+		if (radio->revision >= 6) {
 			bcm43xx_phy_write(bcm, 0x0087, 0x0E0D);
 			bcm43xx_phy_write(bcm, 0x0086, 0x0C0B);
 			bcm43xx_phy_write(bcm, 0x0085, 0x0A09);
@@ -844,33 +833,38 @@ void bcm43xx_calc_nrssi_threshold(struct bcm43xx_private *bcm)
 						   & 0xF000) | 0x0AED);
 			}
 		} else {
-			tmp = radio->interfmode;
-			if (tmp == BCM43xx_RADIO_INTERFMODE_NONWLAN) {
-				a = -13;
-				b = -17;
-			} else if (tmp == BCM43xx_RADIO_INTERFMODE_NONE &&
-				   !radio->aci_enable) {
-				a = -13;
-				b = -10;
+			if (radio->interfmode == BCM43xx_RADIO_INTERFMODE_NONWLAN) {
+				a = 0xE;
+				b = 0xA;
+			} else if (!radio->aci_wlan_automatic && radio->aci_enable) {
+				a = 0x13;
+				b = 0x12;
 			} else {
-				a = -8;
-				b = -9;
+				a = 0xE;
+				b = 0x11;
 			}
-			a += 0x1B;
-			a *= radio->nrssi[1] - radio->nrssi[0];
-			a += radio->nrssi[0] * 0x40;
-			a /= 64;
-			b += 0x1B;
-			b *= radio->nrssi[1] - radio->nrssi[0];
-			b += radio->nrssi[0] * 0x40;
-			b /= 64;
 
+			a = a * (radio->nrssi[1] - radio->nrssi[0]);
+			a += (radio->nrssi[0] << 6);
+			if (a < 32)
+				a += 31;
+			else
+				a += 32;
+			a = a >> 6;
 			a = limit_value(a, -31, 31);
+
+			b = b * (radio->nrssi[1] - radio->nrssi[0]);
+			b += (radio->nrssi[0] << 6);
+			if (b < 32)
+				b += 31;
+			else
+				b += 32;
+			b = b >> 6;
 			b = limit_value(b, -31, 31);
 
 			tmp_u16 = bcm43xx_phy_read(bcm, 0x048A) & 0xF000;
-			tmp_u16 |= ((u32)a & 0x003F);
-			tmp_u16 |= (((u32)b & 0x003F) << 6);
+			tmp_u16 |= ((u32)b & 0x0000003F);
+			tmp_u16 |= (((u32)a & 0x0000003F) << 6);
 			bcm43xx_phy_write(bcm, 0x048A, tmp_u16);
 		}
 		break;
