@@ -460,12 +460,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 * Anonymous process memory has backing store?
 		 * Try to allocate it some swap space here.
 		 */
-		if (PageAnon(page) && !PageSwapCache(page)) {
-			if (!sc->may_swap)
-				goto keep_locked;
+		if (PageAnon(page) && !PageSwapCache(page))
 			if (!add_to_swap(page, GFP_ATOMIC))
 				goto activate_locked;
-		}
 #endif /* CONFIG_SWAP */
 
 		mapping = page_mapping(page);
@@ -477,12 +474,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 * processes. Try to unmap it here.
 		 */
 		if (page_mapped(page) && mapping) {
-			/*
-			 * No unmapping if we do not swap
-			 */
-			if (!sc->may_swap)
-				goto keep_locked;
-
 			switch (try_to_unmap(page, 0)) {
 			case SWAP_FAIL:
 				goto activate_locked;
@@ -1205,7 +1196,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 	struct pagevec pvec;
 	int reclaim_mapped = 0;
 
-	if (unlikely(sc->may_swap)) {
+	if (sc->may_swap) {
 		long mapped_ratio;
 		long distress;
 		long swap_tendency;
