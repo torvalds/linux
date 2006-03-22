@@ -51,6 +51,7 @@ struct spu_context *alloc_spu_context(void)
 	ctx->ibox_fasync = NULL;
 	ctx->wbox_fasync = NULL;
 	ctx->mfc_fasync = NULL;
+	ctx->mfc = NULL;
 	ctx->tagwait = 0;
 	ctx->state = SPU_STATE_SAVED;
 	ctx->local_store = NULL;
