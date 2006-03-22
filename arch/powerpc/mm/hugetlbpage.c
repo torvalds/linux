@@ -133,21 +133,6 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	return __pte(old);
 }
 
-/*
- * This function checks for proper alignment of input addr and len parameters.
- */
-int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
-{
-	if (len & ~HPAGE_MASK)
-		return -EINVAL;
-	if (addr & ~HPAGE_MASK)
-		return -EINVAL;
-	if (! (within_hugepage_low_range(addr, len)
-	       || within_hugepage_high_range(addr, len)) )
-		return -EINVAL;
-	return 0;
-}
-
 struct slb_flush_info {
 	struct mm_struct *mm;
 	u16 newareas;
