@@ -639,8 +639,8 @@ void ip_conntrack_h245_expect(struct ip_conntrack *new,
 }
 
 /****************************************************************************/
-static int get_h225_addr(unsigned char *data, TransportAddress * addr,
-			 u_int32_t * ip, u_int16_t * port)
+int get_h225_addr(unsigned char *data, TransportAddress * addr,
+		  u_int32_t * ip, u_int16_t * port)
 {
 	unsigned char *p;
 
