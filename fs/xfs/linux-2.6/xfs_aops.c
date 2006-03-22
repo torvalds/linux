@@ -647,7 +647,7 @@ xfs_is_delayed_page(
 				acceptable = (type == IOMAP_UNWRITTEN);
 			else if (buffer_delay(bh))
 				acceptable = (type == IOMAP_DELAY);
-			else if (buffer_mapped(bh))
+			else if (buffer_dirty(bh) && buffer_mapped(bh))
 				acceptable = (type == 0);
 			else
 				break;
