@@ -118,7 +118,7 @@ extern void *kzalloc(size_t, gfp_t);
  */
 static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 {
-	if (n != 0 && size > INT_MAX / n)
+	if (n != 0 && size > ULONG_MAX / n)
 		return NULL;
 	return kzalloc(n * size, flags);
 }
