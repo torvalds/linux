@@ -190,18 +190,18 @@ xfs_cleanup(void)
 	ktrace_free(xfs_alloc_trace_buf);
 #endif
 
-	kmem_cache_destroy(xfs_bmap_free_item_zone);
-	kmem_cache_destroy(xfs_btree_cur_zone);
-	kmem_cache_destroy(xfs_inode_zone);
-	kmem_cache_destroy(xfs_trans_zone);
-	kmem_cache_destroy(xfs_da_state_zone);
-	kmem_cache_destroy(xfs_dabuf_zone);
-	kmem_cache_destroy(xfs_buf_item_zone);
-	kmem_cache_destroy(xfs_efd_zone);
-	kmem_cache_destroy(xfs_efi_zone);
-	kmem_cache_destroy(xfs_ifork_zone);
-	kmem_cache_destroy(xfs_ili_zone);
-	kmem_cache_destroy(xfs_chashlist_zone);
+	kmem_zone_destroy(xfs_bmap_free_item_zone);
+	kmem_zone_destroy(xfs_btree_cur_zone);
+	kmem_zone_destroy(xfs_inode_zone);
+	kmem_zone_destroy(xfs_trans_zone);
+	kmem_zone_destroy(xfs_da_state_zone);
+	kmem_zone_destroy(xfs_dabuf_zone);
+	kmem_zone_destroy(xfs_buf_item_zone);
+	kmem_zone_destroy(xfs_efd_zone);
+	kmem_zone_destroy(xfs_efi_zone);
+	kmem_zone_destroy(xfs_ifork_zone);
+	kmem_zone_destroy(xfs_ili_zone);
+	kmem_zone_destroy(xfs_chashlist_zone);
 }
 
 /*
@@ -632,7 +632,7 @@ xfs_quiesce_fs(
 	xfs_mount_t		*mp)
 {
 	int			count = 0, pincount;
-		
+
 	xfs_refcache_purge_mp(mp);
 	xfs_flush_buftarg(mp->m_ddev_targp, 0);
 	xfs_finish_reclaim_all(mp, 0);
@@ -643,7 +643,7 @@ xfs_quiesce_fs(
 	 * meta data (typically directory updates).
 	 * Which then must be flushed and logged before
 	 * we can write the unmount record.
-	 */ 
+	 */
 	do {
 		xfs_syncsub(mp, SYNC_REMOUNT|SYNC_ATTR|SYNC_WAIT, 0, NULL);
 		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);

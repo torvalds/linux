@@ -374,7 +374,7 @@ xfs_qm_exit(void)
 	vfs_bhv_clr_custom(&xfs_qmops);
 	xfs_qm_cleanup_procfs();
 	if (qm_dqzone)
-		kmem_cache_destroy(qm_dqzone);
+		kmem_zone_destroy(qm_dqzone);
 	if (qm_dqtrxzone)
-		kmem_cache_destroy(qm_dqtrxzone);
+		kmem_zone_destroy(qm_dqtrxzone);
 }
