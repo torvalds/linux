@@ -1402,7 +1402,7 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 		atomic_add(i, &slab_reclaim_pages);
 	add_page_state(nr_slab, i);
 	while (i--) {
-		SetPageSlab(page);
+		__SetPageSlab(page);
 		page++;
 	}
 	return addr;
@@ -1418,8 +1418,8 @@ static void kmem_freepages(struct kmem_cache *cachep, void *addr)
 	const unsigned long nr_freed = i;
 
 	while (i--) {
-		if (!TestClearPageSlab(page))
-			BUG();
+		BUG_ON(!PageSlab(page));
+		__ClearPageSlab(page);
 		page++;
 	}
 	sub_page_state(nr_slab, nr_freed);

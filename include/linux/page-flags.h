@@ -250,10 +250,8 @@ extern void __mod_page_state_offset(unsigned long offset, unsigned long delta);
 #define __ClearPageActive(page)	__clear_bit(PG_active, &(page)->flags)
 
 #define PageSlab(page)		test_bit(PG_slab, &(page)->flags)
-#define SetPageSlab(page)	set_bit(PG_slab, &(page)->flags)
-#define ClearPageSlab(page)	clear_bit(PG_slab, &(page)->flags)
-#define TestClearPageSlab(page)	test_and_clear_bit(PG_slab, &(page)->flags)
-#define TestSetPageSlab(page)	test_and_set_bit(PG_slab, &(page)->flags)
+#define __SetPageSlab(page)	__set_bit(PG_slab, &(page)->flags)
+#define __ClearPageSlab(page)	__clear_bit(PG_slab, &(page)->flags)
 
 #ifdef CONFIG_HIGHMEM
 #define PageHighMem(page)	is_highmem(page_zone(page))
