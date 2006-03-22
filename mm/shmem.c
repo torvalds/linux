@@ -875,7 +875,7 @@ redirty:
 }
 
 #ifdef CONFIG_NUMA
-static int shmem_parse_mpol(char *value, int *policy, nodemask_t *policy_nodes)
+static inline int shmem_parse_mpol(char *value, int *policy, nodemask_t *policy_nodes)
 {
 	char *nodelist = strchr(value, ':');
 	int err = 1;
