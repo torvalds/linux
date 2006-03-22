@@ -85,8 +85,8 @@ unsigned int nf_ct_log_invalid;
 static LIST_HEAD(unconfirmed);
 static int nf_conntrack_vmalloc;
 
-static unsigned int nf_conntrack_next_id = 1;
-static unsigned int nf_conntrack_expect_next_id = 1;
+static unsigned int nf_conntrack_next_id;
+static unsigned int nf_conntrack_expect_next_id;
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 struct notifier_block *nf_conntrack_chain;
 struct notifier_block *nf_conntrack_expect_chain;
