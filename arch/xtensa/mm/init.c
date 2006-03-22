@@ -272,7 +272,7 @@ free_reserved_mem(void *start, void *end)
 {
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
-		set_page_count(virt_to_page(start), 1);
+		init_page_count(virt_to_page(start));
 		free_page((unsigned long)start);
 		totalram_pages++;
 	}

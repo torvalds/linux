@@ -18,6 +18,7 @@
 #include <asm/pgtable.h>
 
 #include <linux/hugetlb.h>
+#include "internal.h"
 
 const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
 static unsigned long nr_huge_pages, free_huge_pages;
@@ -106,7 +107,7 @@ struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
 		return NULL;
 	}
 	spin_unlock(&hugetlb_lock);
-	set_page_count(page, 1);
+	set_page_refcounted(page);
 	for (i = 0; i < (HPAGE_SIZE/PAGE_SIZE); ++i)
 		clear_user_highpage(&page[i], addr);
 	return page;
@@ -152,7 +153,7 @@ static void update_and_free_page(struct page *page)
 				1 << PG_private | 1<< PG_writeback);
 	}
 	page[1].lru.next = NULL;
-	set_page_count(page, 1);
+	set_page_refcounted(page);
 	__free_pages(page, HUGETLB_PAGE_ORDER);
 }
 

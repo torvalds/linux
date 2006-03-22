@@ -115,7 +115,7 @@ static void __init cell_spuprop_present(struct device_node *spe,
 		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 			struct page *page = pfn_to_page(pfn);
 			set_page_links(page, ZONE_DMA, node_id, pfn);
-			set_page_count(page, 1);
+			init_page_count(page);
 			reset_page_mapcount(page);
 			SetPageReserved(page);
 			INIT_LIST_HEAD(&page->lru);

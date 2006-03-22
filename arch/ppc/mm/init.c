@@ -140,7 +140,7 @@ static void free_sec(unsigned long start, unsigned long end, const char *name)
 
 	while (start < end) {
 		ClearPageReserved(virt_to_page(start));
-		set_page_count(virt_to_page(start), 1);
+		init_page_count(virt_to_page(start));
 		free_page(start);
 		cnt++;
 		start += PAGE_SIZE;
@@ -172,7 +172,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
-		set_page_count(virt_to_page(start), 1);
+		init_page_count(virt_to_page(start));
 		free_page(start);
 		totalram_pages++;
 	}
@@ -441,7 +441,7 @@ void __init mem_init(void)
 			struct page *page = mem_map + pfn;
 
 			ClearPageReserved(page);
-			set_page_count(page, 1);
+			init_page_count(page);
 			__free_page(page);
 			totalhigh_pages++;
 		}

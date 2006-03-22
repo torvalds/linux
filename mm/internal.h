@@ -13,8 +13,19 @@
 
 #include <linux/mm.h>
 
-static inline void set_page_refs(struct page *page, int order)
+static inline void set_page_count(struct page *page, int v)
 {
+	atomic_set(&page->_count, v);
+}
+
+/*
+ * Turn a non-refcounted page (->_count == 0) into refcounted with
+ * a count of one.
+ */
+static inline void set_page_refcounted(struct page *page)
+{
+	BUG_ON(PageCompound(page) && page_private(page) != (unsigned long)page);
+	BUG_ON(atomic_read(&page->_count));
 	set_page_count(page, 1);
 }
 

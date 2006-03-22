@@ -307,8 +307,6 @@ static inline int get_page_unless_zero(struct page *page)
 	return atomic_inc_not_zero(&page->_count);
 }
 
-#define set_page_count(p,v) 	atomic_set(&(p)->_count, (v))
-
 extern void FASTCALL(__page_cache_release(struct page *));
 
 static inline int page_count(struct page *page)
@@ -323,6 +321,15 @@ static inline void get_page(struct page *page)
 	if (unlikely(PageCompound(page)))
 		page = (struct page *)page_private(page);
 	atomic_inc(&page->_count);
+}
+
+/*
+ * Setup the page count before being freed into the page allocator for
+ * the first time (boot or memory hotplug)
+ */
+static inline void init_page_count(struct page *page)
+{
+	atomic_set(&page->_count, 1);
 }
 
 void put_page(struct page *page);

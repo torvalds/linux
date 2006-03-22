@@ -442,7 +442,7 @@ void fastcall __init __free_pages_bootmem(struct page *page, unsigned int order)
 	if (order == 0) {
 		__ClearPageReserved(page);
 		set_page_count(page, 0);
-		set_page_refs(page, 0);
+		set_page_refcounted(page);
 		__free_page(page);
 	} else {
 		int loop;
@@ -457,7 +457,7 @@ void fastcall __init __free_pages_bootmem(struct page *page, unsigned int order)
 			set_page_count(p, 0);
 		}
 
-		set_page_refs(page, order);
+		set_page_refcounted(page);
 		__free_pages(page, order);
 	}
 }
@@ -525,7 +525,7 @@ static int prep_new_page(struct page *page, int order)
 			1 << PG_referenced | 1 << PG_arch_1 |
 			1 << PG_checked | 1 << PG_mappedtodisk);
 	set_page_private(page, 0);
-	set_page_refs(page, order);
+	set_page_refcounted(page);
 	kernel_map_pages(page, 1 << order, 1);
 	return 0;
 }
@@ -755,10 +755,8 @@ void split_page(struct page *page, unsigned int order)
 
 	BUG_ON(PageCompound(page));
 	BUG_ON(!page_count(page));
-	for (i = 1; i < (1 << order); i++) {
-		BUG_ON(page_count(page + i));
-		set_page_count(page + i, 1);
-	}
+	for (i = 1; i < (1 << order); i++)
+		set_page_refcounted(page + i);
 }
 
 /*
@@ -1771,7 +1769,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 			continue;
 		page = pfn_to_page(pfn);
 		set_page_links(page, zone, nid, pfn);
-		set_page_count(page, 1);
+		init_page_count(page);
 		reset_page_mapcount(page);
 		SetPageReserved(page);
 		INIT_LIST_HEAD(&page->lru);

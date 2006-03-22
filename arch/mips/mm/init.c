@@ -245,7 +245,7 @@ void __init mem_init(void)
 #ifdef CONFIG_LIMITED_DMA
 		set_page_address(page, lowmem_page_address(page));
 #endif
-		set_page_count(page, 1);
+		init_page_count(page);
 		__free_page(page);
 		totalhigh_pages++;
 	}
@@ -292,7 +292,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
-		set_page_count(virt_to_page(start), 1);
+		init_page_count(virt_to_page(start));
 		free_page(start);
 		totalram_pages++;
 	}
@@ -315,7 +315,7 @@ void free_initmem(void)
 		page = addr;
 #endif
 		ClearPageReserved(virt_to_page(page));
-		set_page_count(virt_to_page(page), 1);
+		init_page_count(virt_to_page(page));
 		free_page(page);
 		totalram_pages++;
 		freed += PAGE_SIZE;

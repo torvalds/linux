@@ -1461,7 +1461,7 @@ void free_initmem(void)
 		p = virt_to_page(page);
 
 		ClearPageReserved(p);
-		set_page_count(p, 1);
+		init_page_count(p);
 		__free_page(p);
 		num_physpages++;
 		totalram_pages++;
@@ -1477,7 +1477,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		struct page *p = virt_to_page(start);
 
 		ClearPageReserved(p);
-		set_page_count(p, 1);
+		init_page_count(p);
 		__free_page(p);
 		num_physpages++;
 		totalram_pages++;
