@@ -43,8 +43,10 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 
 #ifndef ARCH_HAS_HUGEPAGE_ONLY_RANGE
 #define is_hugepage_only_range(mm, addr, len)	0
-#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) \
-						do { } while (0)
+#endif
+
+#ifndef ARCH_HAS_HUGETLB_FREE_PGD_RANGE
+#define hugetlb_free_pgd_range	free_pgd_range
 #endif
 
 #ifndef ARCH_HAS_PREPARE_HUGEPAGE_RANGE
@@ -93,8 +95,7 @@ static inline unsigned long hugetlb_total_pages(void)
 #define prepare_hugepage_range(addr, len)	(-EINVAL)
 #define pmd_huge(x)	0
 #define is_hugepage_only_range(mm, addr, len)	0
-#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) \
-						do { } while (0)
+#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
 #define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
 
 #define hugetlb_change_protection(vma, address, end, newprot)

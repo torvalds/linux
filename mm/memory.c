@@ -277,7 +277,7 @@ void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
 		anon_vma_unlink(vma);
 		unlink_file_vma(vma);
 
-		if (is_hugepage_only_range(vma->vm_mm, addr, HPAGE_SIZE)) {
+		if (is_vm_hugetlb_page(vma)) {
 			hugetlb_free_pgd_range(tlb, addr, vma->vm_end,
 				floor, next? next->vm_start: ceiling);
 		} else {
@@ -285,8 +285,7 @@ void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
 			 * Optimization: gather nearby vmas into one call down
 			 */
 			while (next && next->vm_start <= vma->vm_end + PMD_SIZE
-			  && !is_hugepage_only_range(vma->vm_mm, next->vm_start,
-							HPAGE_SIZE)) {
+			       && !is_vm_hugetlb_page(vma)) {
 				vma = next;
 				next = vma->vm_next;
 				anon_vma_unlink(vma);
