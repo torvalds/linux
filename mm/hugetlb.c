@@ -22,7 +22,7 @@
 #include "internal.h"
 
 const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
-static unsigned long nr_huge_pages, free_huge_pages;
+static unsigned long nr_huge_pages, free_huge_pages, reserved_huge_pages;
 unsigned long max_huge_pages;
 static struct list_head hugepage_freelists[MAX_NUMNODES];
 static unsigned int nr_huge_pages_node[MAX_NUMNODES];
@@ -120,17 +120,136 @@ void free_huge_page(struct page *page)
 
 struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
 {
+	struct inode *inode = vma->vm_file->f_dentry->d_inode;
 	struct page *page;
+	int use_reserve = 0;
+	unsigned long idx;
 
 	spin_lock(&hugetlb_lock);
-	page = dequeue_huge_page(vma, addr);
-	if (!page) {
-		spin_unlock(&hugetlb_lock);
-		return NULL;
+
+	if (vma->vm_flags & VM_MAYSHARE) {
+
+		/* idx = radix tree index, i.e. offset into file in
+		 * HPAGE_SIZE units */
+		idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
+			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+
+		/* The hugetlbfs specific inode info stores the number
+		 * of "guaranteed available" (huge) pages.  That is,
+		 * the first 'prereserved_hpages' pages of the inode
+		 * are either already instantiated, or have been
+		 * pre-reserved (by hugetlb_reserve_for_inode()). Here
+		 * we're in the process of instantiating the page, so
+		 * we use this to determine whether to draw from the
+		 * pre-reserved pool or the truly free pool. */
+		if (idx < HUGETLBFS_I(inode)->prereserved_hpages)
+			use_reserve = 1;
 	}
+
+	if (!use_reserve) {
+		if (free_huge_pages <= reserved_huge_pages)
+			goto fail;
+	} else {
+		BUG_ON(reserved_huge_pages == 0);
+		reserved_huge_pages--;
+	}
+
+	page = dequeue_huge_page(vma, addr);
+	if (!page)
+		goto fail;
+
 	spin_unlock(&hugetlb_lock);
 	set_page_refcounted(page);
 	return page;
+
+ fail:
+	WARN_ON(use_reserve); /* reserved allocations shouldn't fail */
+	spin_unlock(&hugetlb_lock);
+	return NULL;
+}
+
+/* hugetlb_extend_reservation()
+ *
+ * Ensure that at least 'atleast' hugepages are, and will remain,
+ * available to instantiate the first 'atleast' pages of the given
+ * inode.  If the inode doesn't already have this many pages reserved
+ * or instantiated, set aside some hugepages in the reserved pool to
+ * satisfy later faults (or fail now if there aren't enough, rather
+ * than getting the SIGBUS later).
+ */
+int hugetlb_extend_reservation(struct hugetlbfs_inode_info *info,
+			       unsigned long atleast)
+{
+	struct inode *inode = &info->vfs_inode;
+	unsigned long change_in_reserve = 0;
+	int ret = 0;
+
+	spin_lock(&hugetlb_lock);
+	read_lock_irq(&inode->i_mapping->tree_lock);
+
+	if (info->prereserved_hpages >= atleast)
+		goto out;
+
+	/* Because we always call this on shared mappings, none of the
+	 * pages beyond info->prereserved_hpages can have been
+	 * instantiated, so we need to reserve all of them now. */
+	change_in_reserve = atleast - info->prereserved_hpages;
+
+	if ((reserved_huge_pages + change_in_reserve) > free_huge_pages) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	reserved_huge_pages += change_in_reserve;
+	info->prereserved_hpages = atleast;
+
+ out:
+	read_unlock_irq(&inode->i_mapping->tree_lock);
+	spin_unlock(&hugetlb_lock);
+
+	return ret;
+}
+
+/* hugetlb_truncate_reservation()
+ *
+ * This returns pages reserved for the given inode to the general free
+ * hugepage pool.  If the inode has any pages prereserved, but not
+ * instantiated, beyond offset (atmost << HPAGE_SIZE), then release
+ * them.
+ */
+void hugetlb_truncate_reservation(struct hugetlbfs_inode_info *info,
+				  unsigned long atmost)
+{
+	struct inode *inode = &info->vfs_inode;
+	struct address_space *mapping = inode->i_mapping;
+	unsigned long idx;
+	unsigned long change_in_reserve = 0;
+	struct page *page;
+
+	spin_lock(&hugetlb_lock);
+	read_lock_irq(&inode->i_mapping->tree_lock);
+
+	if (info->prereserved_hpages <= atmost)
+		goto out;
+
+	/* Count pages which were reserved, but not instantiated, and
+	 * which we can now release. */
+	for (idx = atmost; idx < info->prereserved_hpages; idx++) {
+		page = radix_tree_lookup(&mapping->page_tree, idx);
+		if (!page)
+			/* Pages which are already instantiated can't
+			 * be unreserved (and in fact have already
+			 * been removed from the reserved pool) */
+			change_in_reserve++;
+	}
+
+	BUG_ON(reserved_huge_pages < change_in_reserve);
+	reserved_huge_pages -= change_in_reserve;
+	info->prereserved_hpages = atmost;
+
+ out:
+	read_unlock_irq(&inode->i_mapping->tree_lock);
+	spin_unlock(&hugetlb_lock);
 }
 
 static int __init hugetlb_init(void)
@@ -238,9 +357,11 @@ int hugetlb_report_meminfo(char *buf)
 	return sprintf(buf,
 			"HugePages_Total: %5lu\n"
 			"HugePages_Free:  %5lu\n"
+		        "HugePages_Rsvd:  %5lu\n"
 			"Hugepagesize:    %5lu kB\n",
 			nr_huge_pages,
 			free_huge_pages,
+		        reserved_huge_pages,
 			HPAGE_SIZE/1024);
 }
 
@@ -251,11 +372,6 @@ int hugetlb_report_node_meminfo(int nid, char *buf)
 		"Node %d HugePages_Free:  %5u\n",
 		nid, nr_huge_pages_node[nid],
 		nid, free_huge_pages_node[nid]);
-}
-
-int is_hugepage_mem_enough(size_t size)
-{
-	return (size + ~HPAGE_MASK)/HPAGE_SIZE <= free_huge_pages;
 }
 
 /* Return the number pages of memory we physically have, in PAGE_SIZE units. */

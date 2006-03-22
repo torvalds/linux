@@ -20,7 +20,6 @@ void unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned long)
 int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
 int hugetlb_report_meminfo(char *);
 int hugetlb_report_node_meminfo(int, char *);
-int is_hugepage_mem_enough(size_t);
 unsigned long hugetlb_total_pages(void);
 struct page *alloc_huge_page(struct vm_area_struct *, unsigned long);
 void free_huge_page(struct page *);
@@ -89,7 +88,6 @@ static inline unsigned long hugetlb_total_pages(void)
 #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
 #define hugetlb_prefault(mapping, vma)		({ BUG(); 0; })
 #define unmap_hugepage_range(vma, start, end)	BUG()
-#define is_hugepage_mem_enough(size)		0
 #define hugetlb_report_meminfo(buf)		0
 #define hugetlb_report_node_meminfo(n, buf)	0
 #define follow_huge_pmd(mm, addr, pmd, write)	NULL
@@ -132,6 +130,8 @@ struct hugetlbfs_sb_info {
 
 struct hugetlbfs_inode_info {
 	struct shared_policy policy;
+	/* Protected by the (global) hugetlb_lock */
+	unsigned long prereserved_hpages;
 	struct inode vfs_inode;
 };
 
@@ -148,6 +148,10 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
 extern struct file_operations hugetlbfs_file_operations;
 extern struct vm_operations_struct hugetlb_vm_ops;
 struct file *hugetlb_zero_setup(size_t);
+int hugetlb_extend_reservation(struct hugetlbfs_inode_info *info,
+			       unsigned long atleast_hpages);
+void hugetlb_truncate_reservation(struct hugetlbfs_inode_info *info,
+				  unsigned long atmost_hpages);
 int hugetlb_get_quota(struct address_space *mapping);
 void hugetlb_put_quota(struct address_space *mapping);
 
