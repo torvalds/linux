@@ -528,12 +528,17 @@ void __init find_memory(void)
 void *per_cpu_init(void)
 {
 	int cpu;
+	static int first_time = 1;
+
 
 	if (smp_processor_id() != 0)
 		return __per_cpu_start + __per_cpu_offset[smp_processor_id()];
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
-		per_cpu(local_per_cpu_offset, cpu) = __per_cpu_offset[cpu];
+	if (first_time) {
+		first_time = 0;
+		for (cpu = 0; cpu < NR_CPUS; cpu++)
+			per_cpu(local_per_cpu_offset, cpu) = __per_cpu_offset[cpu];
+	}
 
 	return __per_cpu_start + __per_cpu_offset[smp_processor_id()];
 }

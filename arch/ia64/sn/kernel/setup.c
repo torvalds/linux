@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1999,2001-2005 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1999,2001-2006 Silicon Graphics, Inc. All rights reserved.
  */
 
 #include <linux/config.h>
@@ -498,6 +498,7 @@ void __init sn_setup(char **cmdline_p)
 	 * for sn.
 	 */
 	pm_power_off = ia64_sn_power_down;
+	current->thread.flags |= IA64_THREAD_MIGRATION;
 }
 
 /**
@@ -660,7 +661,8 @@ void __init sn_cpu_init(void)
 			SH2_PIO_WRITE_STATUS_1, SH2_PIO_WRITE_STATUS_3};
 		u64 *pio;
 		pio = is_shub1() ? pio1 : pio2;
-		pda->pio_write_status_addr = (volatile unsigned long *) LOCAL_MMR_ADDR(pio[slice]);
+		pda->pio_write_status_addr =
+		   (volatile unsigned long *)GLOBAL_MMR_ADDR(nasid, pio[slice]);
 		pda->pio_write_status_val = is_shub1() ? SH_PIO_WRITE_STATUS_PENDING_WRITE_COUNT_MASK : 0;
 	}
 
