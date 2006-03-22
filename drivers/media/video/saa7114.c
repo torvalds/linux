@@ -139,9 +139,6 @@ saa7114_write (struct i2c_client *client,
 	       u8                 reg,
 	       u8                 value)
 {
-	/*struct saa7114 *decoder = i2c_get_clientdata(client);*/
-
-	/*decoder->reg[reg] = value;*/
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
@@ -157,7 +154,6 @@ saa7114_write_block (struct i2c_client *client,
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		/* do raw I2C, not smbus compatible */
-		/*struct saa7114 *decoder = i2c_get_clientdata(client);*/
 		struct i2c_msg msg;
 		u8 block_data[32];
 
@@ -168,8 +164,8 @@ saa7114_write_block (struct i2c_client *client,
 			msg.len = 0;
 			block_data[msg.len++] = reg = data[0];
 			do {
-				block_data[msg.len++] =
-				    /*decoder->reg[reg++] =*/ data[1];
+				block_data[msg.len++] = data[1];
+				reg++;
 				len -= 2;
 				data += 2;
 			} while (len >= 2 && data[0] == reg &&
