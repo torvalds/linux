@@ -1698,10 +1698,7 @@ xfs_parseargs(
 	int			iosize;
 
 	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
-
-#if 0	/* XXX: off by default, until some remaining issues ironed out */
-	args->flags |= XFSMNT_IDELETE; /* default to on */
-#endif
+	args->flags |= XFSMNT_IDELETE;
 
 	if (!options)
 		goto done;
@@ -1911,7 +1908,6 @@ xfs_showargs(
 		{ XFS_MOUNT_NOUUID,		"," MNTOPT_NOUUID },
 		{ XFS_MOUNT_NORECOVERY,		"," MNTOPT_NORECOVERY },
 		{ XFS_MOUNT_OSYNCISOSYNC,	"," MNTOPT_OSYNCISOSYNC },
-		{ XFS_MOUNT_IDELETE,		"," MNTOPT_NOIKEEP },
 		{ 0, NULL }
 	};
 	struct proc_xfs_info	*xfs_infop;
@@ -1947,6 +1943,8 @@ xfs_showargs(
 		seq_printf(m, "," MNTOPT_SWIDTH "=%d",
 				(int)XFS_FSB_TO_BB(mp, mp->m_swidth));
 
+	if (!(mp->m_flags & XFS_MOUNT_IDELETE))
+		seq_printf(m, "," MNTOPT_IKEEP);
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
 	if (mp->m_flags & XFS_MOUNT_BARRIER)
