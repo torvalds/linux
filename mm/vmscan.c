@@ -298,7 +298,8 @@ static void handle_write_error(struct address_space *mapping,
 }
 
 /*
- * pageout is called by shrink_list() for each dirty page. Calls ->writepage().
+ * pageout is called by shrink_page_list() for each dirty page.
+ * Calls ->writepage().
  */
 static pageout_t pageout(struct page *page, struct address_space *mapping)
 {
@@ -406,10 +407,10 @@ cannot_free:
 }
 
 /*
- * shrink_list return the number of reclaimed pages
+ * shrink_page_list() returns the number of reclaimed pages
  */
-static unsigned long shrink_list(struct list_head *page_list,
-				struct scan_control *sc)
+static unsigned long shrink_page_list(struct list_head *page_list,
+					struct scan_control *sc)
 {
 	LIST_HEAD(ret_pages);
 	struct pagevec freed_pvec;
@@ -1103,10 +1104,11 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 }
 
 /*
- * shrink_cache() return the number of reclaimed pages
+ * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+ * of reclaimed pages
  */
-static unsigned long shrink_cache(unsigned long max_scan, struct zone *zone,
-				struct scan_control *sc)
+static unsigned long shrink_inactive_list(unsigned long max_scan,
+				struct zone *zone, struct scan_control *sc)
 {
 	LIST_HEAD(page_list);
 	struct pagevec pvec;
@@ -1134,7 +1136,7 @@ static unsigned long shrink_cache(unsigned long max_scan, struct zone *zone,
 			goto done;
 
 		nr_scanned += nr_scan;
-		nr_freed = shrink_list(&page_list, sc);
+		nr_freed = shrink_page_list(&page_list, sc);
 		nr_reclaimed += nr_freed;
 		local_irq_disable();
 		if (current_is_kswapd()) {
@@ -1187,9 +1189,8 @@ done:
  * The downside is that we have to touch page->_count against each page.
  * But we had to alter page->flags anyway.
  */
-static void
-refill_inactive_zone(unsigned long nr_pages, struct zone *zone,
-			struct scan_control *sc)
+static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
+				struct scan_control *sc)
 {
 	unsigned long pgmoved;
 	int pgdeactivate = 0;
@@ -1360,14 +1361,15 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
 			nr_to_scan = min(nr_active,
 					(unsigned long)sc->swap_cluster_max);
 			nr_active -= nr_to_scan;
-			refill_inactive_zone(nr_to_scan, zone, sc);
+			shrink_active_list(nr_to_scan, zone, sc);
 		}
 
 		if (nr_inactive) {
 			nr_to_scan = min(nr_inactive,
 					(unsigned long)sc->swap_cluster_max);
 			nr_inactive -= nr_to_scan;
-			nr_reclaimed += shrink_cache(nr_to_scan, zone, sc);
+			nr_reclaimed += shrink_inactive_list(nr_to_scan, zone,
+								sc);
 		}
 	}
 
@@ -1393,7 +1395,7 @@ static unsigned long shrink_zone(int priority, struct zone *zone,
  * If a zone is deemed to be full of pinned pages then just give it a light
  * scan then give up on it.
  */
-static unsigned long shrink_caches(int priority, struct zone **zones,
+static unsigned long shrink_zones(int priority, struct zone **zones,
 					struct scan_control *sc)
 {
 	unsigned long nr_reclaimed = 0;
@@ -1466,7 +1468,7 @@ unsigned long try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 		sc.nr_scanned = 0;
 		if (!priority)
 			disable_swap_token();
-		nr_reclaimed += shrink_caches(priority, zones, &sc);
+		nr_reclaimed += shrink_zones(priority, zones, &sc);
 		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
 		if (reclaim_state) {
 			nr_reclaimed += reclaim_state->reclaimed_slab;
