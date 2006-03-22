@@ -1393,6 +1393,16 @@ xfs_itrunc_trace(
  * calling into the buffer/page cache code and we can't hold the
  * inode lock when we do so.
  *
+ * We need to wait for any direct I/Os in flight to complete before we
+ * proceed with the truncate. This is needed to prevent the extents
+ * being read or written by the direct I/Os from being removed while the
+ * I/O is in flight as there is no other method of synchronising
+ * direct I/O with the truncate operation.  Also, because we hold
+ * the IOLOCK in exclusive mode, we prevent new direct I/Os from being
+ * started until the truncate completes and drops the lock. Essentially,
+ * the vn_iowait() call forms an I/O barrier that provides strict ordering
+ * between direct I/Os and the truncate operation.
+ *
  * The flags parameter can have either the value XFS_ITRUNC_DEFINITE
  * or XFS_ITRUNC_MAYBE.  The XFS_ITRUNC_MAYBE value should be used
  * in the case that the caller is locking things out of order and
