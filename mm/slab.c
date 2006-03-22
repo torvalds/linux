@@ -3521,7 +3521,8 @@ static void enable_cpucache(struct kmem_cache *cachep)
 
 /*
  * Drain an array if it contains any elements taking the l3 lock only if
- * necessary.
+ * necessary. Note that the l3 listlock also protects the array_cache
+ * if drain_array() is used on the shared array.
  */
 void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
 			 struct array_cache *ac, int force, int node)
@@ -3532,16 +3533,18 @@ void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
 		return;
 	if (ac->touched && !force) {
 		ac->touched = 0;
-	} else if (ac->avail) {
-		tofree = force ? ac->avail : (ac->limit + 4) / 5;
-		if (tofree > ac->avail)
-			tofree = (ac->avail + 1) / 2;
+	} else {
 		spin_lock_irq(&l3->list_lock);
-		free_block(cachep, ac->entry, tofree, node);
+		if (ac->avail) {
+			tofree = force ? ac->avail : (ac->limit + 4) / 5;
+			if (tofree > ac->avail)
+				tofree = (ac->avail + 1) / 2;
+			free_block(cachep, ac->entry, tofree, node);
+			ac->avail -= tofree;
+			memmove(ac->entry, &(ac->entry[tofree]),
+				sizeof(void *) * ac->avail);
+		}
 		spin_unlock_irq(&l3->list_lock);
-		ac->avail -= tofree;
-		memmove(ac->entry, &(ac->entry[tofree]),
-			sizeof(void *) * ac->avail);
 	}
 }
 
