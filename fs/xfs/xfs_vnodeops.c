@@ -615,6 +615,7 @@ xfs_setattr(
 			code = xfs_igrow_start(ip, vap->va_size, credp);
 		}
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		vn_iowait(vp); /* wait for the completion of any pending DIOs */
 		if (!code)
 			code = xfs_itruncate_data(ip, vap->va_size);
 		if (code) {
@@ -4310,8 +4311,10 @@ xfs_free_file_space(
 	ASSERT(attr_flags & ATTR_NOLOCK ? attr_flags & ATTR_DMI : 1);
 	if (attr_flags & ATTR_NOLOCK)
 		need_iolock = 0;
-	if (need_iolock)
+	if (need_iolock) {
 		xfs_ilock(ip, XFS_IOLOCK_EXCL);
+		vn_iowait(vp);	/* wait for the completion of any pending DIOs */
+	}
 
 	rounding = MAX((__uint8_t)(1 << mp->m_sb.sb_blocklog),
 			(__uint8_t)NBPP);
