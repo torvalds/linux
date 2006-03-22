@@ -1534,6 +1534,12 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 
 	check_unshare_flags(&unshare_flags);
 
+	/* Return -EINVAL for all unsupported flags */
+	err = -EINVAL;
+	if (unshare_flags & ~(CLONE_THREAD|CLONE_FS|CLONE_NEWNS|CLONE_SIGHAND|
+				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM))
+		goto bad_unshare_out;
+
 	if ((err = unshare_thread(unshare_flags)))
 		goto bad_unshare_out;
 	if ((err = unshare_fs(unshare_flags, &new_fs)))
