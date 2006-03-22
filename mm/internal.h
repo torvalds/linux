@@ -15,19 +15,7 @@
 
 static inline void set_page_refs(struct page *page, int order)
 {
-#ifdef CONFIG_MMU
 	set_page_count(page, 1);
-#else
-	int i;
-
-	/*
-	 * We need to reference all the pages for this order, otherwise if
-	 * anyone accesses one of the pages with (get/put) it will be freed.
-	 * - eg: access_process_vm()
-	 */
-	for (i = 0; i < (1 << order); i++)
-		set_page_count(page + i, 1);
-#endif /* CONFIG_MMU */
 }
 
 static inline void __put_page(struct page *page)

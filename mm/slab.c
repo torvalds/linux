@@ -590,6 +590,8 @@ static inline void page_set_cache(struct page *page, struct kmem_cache *cache)
 
 static inline struct kmem_cache *page_get_cache(struct page *page)
 {
+	if (unlikely(PageCompound(page)))
+		page = (struct page *)page_private(page);
 	return (struct kmem_cache *)page->lru.next;
 }
 
@@ -600,6 +602,8 @@ static inline void page_set_slab(struct page *page, struct slab *slab)
 
 static inline struct slab *page_get_slab(struct page *page)
 {
+	if (unlikely(PageCompound(page)))
+		page = (struct page *)page_private(page);
 	return (struct slab *)page->lru.prev;
 }
 
@@ -2412,8 +2416,11 @@ static void set_slab_attr(struct kmem_cache *cachep, struct slab *slabp,
 	struct page *page;
 
 	/* Nasty!!!!!! I hope this is OK. */
-	i = 1 << cachep->gfporder;
 	page = virt_to_page(objp);
+
+	i = 1;
+	if (likely(!PageCompound(page)))
+		i <<= cachep->gfporder;
 	do {
 		page_set_cache(page, cachep);
 		page_set_slab(page, slabp);

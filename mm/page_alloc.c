@@ -422,11 +422,6 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 		mutex_debug_check_no_locks_freed(page_address(page),
 						 PAGE_SIZE<<order);
 
-#ifndef CONFIG_MMU
-	for (i = 1 ; i < (1 << order) ; ++i)
-		__put_page(page + i);
-#endif
-
 	for (i = 0 ; i < (1 << order) ; ++i)
 		reserved += free_pages_check(page + i);
 	if (reserved)
@@ -746,7 +741,6 @@ static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
 		clear_highpage(page + i);
 }
 
-#ifdef CONFIG_MMU
 /*
  * split_page takes a non-compound higher-order page, and splits it into
  * n (1<<order) sub-pages: page[0..n]
@@ -766,7 +760,6 @@ void split_page(struct page *page, unsigned int order)
 		set_page_count(page + i, 1);
 	}
 }
-#endif
 
 /*
  * Really, prep_compound_page() should be called from __rmqueue_bulk().  But
