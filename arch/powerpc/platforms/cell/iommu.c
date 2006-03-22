@@ -289,7 +289,7 @@ static void cell_do_map_iommu(struct cell_iommu *iommu,
 	ioc_base = iommu->mapped_base;
 	ioc_mmio_base = iommu->mapped_mmio_base;
 
-	for (real_address = 0, io_address = 0;
+	for (real_address = 0, io_address = map_start;
 	     io_address <= map_start + map_size;
 	     real_address += io_page_size, io_address += io_page_size) {
 		ioste = get_iost_entry(fake_iopt, io_address, io_page_size);
@@ -302,7 +302,7 @@ static void cell_do_map_iommu(struct cell_iommu *iommu,
 		set_iopt_cache(ioc_mmio_base,
 			get_ioc_hash_1way(ioste, io_address),
 			get_ioc_tag(ioste, io_address),
-			get_iopt_entry(real_address-map_start, ioid, IOPT_PROT_RW));
+			get_iopt_entry(real_address, ioid, IOPT_PROT_RW));
 	}
 }
 
