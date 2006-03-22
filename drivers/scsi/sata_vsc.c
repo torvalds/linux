@@ -82,17 +82,20 @@
 #define VSC_SATA_PORT_OFFSET		0x200
 
 /* Error interrupt status bit offsets */
-#define VSC_SATA_INT_ERROR_E_OFFSET	2
-#define VSC_SATA_INT_ERROR_P_OFFSET	4
-#define VSC_SATA_INT_ERROR_T_OFFSET	5
-#define VSC_SATA_INT_ERROR_M_OFFSET	1
+#define VSC_SATA_INT_ERROR_CRC		0x40
+#define VSC_SATA_INT_ERROR_T		0x20
+#define VSC_SATA_INT_ERROR_P		0x10
+#define VSC_SATA_INT_ERROR_R		0x8
+#define VSC_SATA_INT_ERROR_E		0x4
+#define VSC_SATA_INT_ERROR_M		0x2
+#define VSC_SATA_INT_PHY_CHANGE	0x1
+#define VSC_SATA_INT_ERROR (VSC_SATA_INT_ERROR_CRC  | VSC_SATA_INT_ERROR_T | \
+			     VSC_SATA_INT_ERROR_P    | VSC_SATA_INT_ERROR_R | \
+			     VSC_SATA_INT_ERROR_E    | VSC_SATA_INT_ERROR_M | \
+			     VSC_SATA_INT_PHY_CHANGE)
+
 #define is_vsc_sata_int_err(port_idx, int_status) \
-	 (int_status & ((1 << (VSC_SATA_INT_ERROR_E_OFFSET + (8 * port_idx))) | \
-		        (1 << (VSC_SATA_INT_ERROR_P_OFFSET + (8 * port_idx))) | \
-		        (1 << (VSC_SATA_INT_ERROR_T_OFFSET + (8 * port_idx))) | \
-		        (1 << (VSC_SATA_INT_ERROR_M_OFFSET + (8 * port_idx)))   \
-		       )\
- 	 )
+	 (int_status & (VSC_SATA_INT_ERROR << (8 * port_idx)))
 
 
 static u32 vsc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
@@ -215,14 +218,6 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 
 			ap = host_set->ports[i];
 
-			if (is_vsc_sata_int_err(i, int_status)) {
-				u32 err_status;
-				printk(KERN_DEBUG "%s: ignoring interrupt(s)\n", __FUNCTION__);
-				err_status = ap ? vsc_sata_scr_read(ap, SCR_ERROR) : 0;
-				vsc_sata_scr_write(ap, SCR_ERROR, err_status);
-				handled++;
-			}
-
 			if (ap && !(ap->flags &
 				    (ATA_FLAG_PORT_DISABLED|ATA_FLAG_NOINTR))) {
 				struct ata_queued_cmd *qc;
@@ -230,12 +225,26 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 				qc = ata_qc_from_tag(ap, ap->active_tag);
 				if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
 					handled += ata_host_intr(ap, qc);
-				} else {
-					printk(KERN_DEBUG "%s: ignoring interrupt(s)\n", __FUNCTION__);
+				} else if (is_vsc_sata_int_err(i, int_status)) {
+					/*
+					 * On some chips (i.e. Intel 31244), an error 
+					 * interrupt will sneak in at initialization
+					 * time (phy state changes).  Clearing the SCR
+					 * error register is not required, but it prevents
+					 * the phy state change interrupts from recurring 
+					 * later.
+					 */
+					u32 err_status;
+					err_status = vsc_sata_scr_read(ap, SCR_ERROR);
+					printk(KERN_DEBUG "%s: clearing interrupt, "
+					       "status %x; sata err status %x\n",
+					       __FUNCTION__,
+					       int_status, err_status);
+					vsc_sata_scr_write(ap, SCR_ERROR, err_status);
+					/* Clear interrupt status */
 					ata_chk_status(ap);
 					handled++;
 				}
-
 			}
 		}
 	}
