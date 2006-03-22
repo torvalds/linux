@@ -184,6 +184,14 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 
 }
 
+static inline void
+flush_anon_page(struct page *page, unsigned long vmaddr)
+{
+	if (PageAnon(page))
+		flush_user_dcache_page(vmaddr);
+}
+#define ARCH_HAS_FLUSH_ANON_PAGE
+
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);
 #endif
