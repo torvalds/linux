@@ -29,6 +29,7 @@
 #include <linux/blkdev.h>
 #include <linux/hash.h>
 #include <linux/kthread.h>
+#include <linux/migrate.h>
 #include "xfs_linux.h"
 
 STATIC kmem_zone_t *xfs_buf_zone;
