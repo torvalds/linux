@@ -48,6 +48,7 @@ static struct xt_match state_match = {
 	.name		= "state",
 	.match		= match,
 	.matchsize	= sizeof(struct xt_state_info),
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
@@ -55,6 +56,7 @@ static struct xt_match state6_match = {
 	.name		= "state",
 	.match		= match,
 	.matchsize	= sizeof(struct xt_state_info),
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
@@ -64,21 +66,21 @@ static int __init init(void)
 
 	need_conntrack();
 
-	ret = xt_register_match(AF_INET, &state_match);
+	ret = xt_register_match(&state_match);
 	if (ret < 0)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &state6_match);
+	ret = xt_register_match(&state6_match);
 	if (ret < 0)
-		xt_unregister_match(AF_INET,&state_match);
+		xt_unregister_match(&state_match);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET, &state_match);
-	xt_unregister_match(AF_INET6, &state6_match);
+	xt_unregister_match(&state_match);
+	xt_unregister_match(&state6_match);
 }
 
 module_init(init);

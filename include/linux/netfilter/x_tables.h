@@ -220,10 +220,10 @@ struct xt_table_info
 	char *entries[NR_CPUS];
 };
 
-extern int xt_register_target(int af, struct xt_target *target);
-extern void xt_unregister_target(int af, struct xt_target *target);
-extern int xt_register_match(int af, struct xt_match *target);
-extern void xt_unregister_match(int af, struct xt_match *target);
+extern int xt_register_target(struct xt_target *target);
+extern void xt_unregister_target(struct xt_target *target);
+extern int xt_register_match(struct xt_match *target);
+extern void xt_unregister_match(struct xt_match *target);
 
 extern int xt_check_match(const struct xt_match *match, unsigned short family,
 			  unsigned int size, const char *table, unsigned int hook,

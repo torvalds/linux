@@ -172,6 +172,7 @@ static struct xt_match policy_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_policy_info),
 	.checkentry 	= checkentry,
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
@@ -181,6 +182,7 @@ static struct xt_match policy6_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_policy_info),
 	.checkentry	= checkentry,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
@@ -188,19 +190,19 @@ static int __init init(void)
 {
 	int ret;
 
-	ret = xt_register_match(AF_INET, &policy_match);
+	ret = xt_register_match(&policy_match);
 	if (ret)
 		return ret;
-	ret = xt_register_match(AF_INET6, &policy6_match);
+	ret = xt_register_match(&policy6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &policy_match);
+		xt_unregister_match(&policy_match);
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET6, &policy6_match);
-	xt_unregister_match(AF_INET, &policy_match);
+	xt_unregister_match(&policy6_match);
+	xt_unregister_match(&policy_match);
 }
 
 module_init(init);

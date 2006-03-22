@@ -102,6 +102,7 @@ static struct xt_target connmark_reg = {
 	.target		= target,
 	.targetsize	= sizeof(struct xt_connmark_target_info),
 	.checkentry	= checkentry,
+	.family		= AF_INET,
 	.me		= THIS_MODULE
 };
 
@@ -110,6 +111,7 @@ static struct xt_target connmark6_reg = {
 	.target		= target,
 	.targetsize	= sizeof(struct xt_connmark_target_info),
 	.checkentry	= checkentry,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE
 };
 
@@ -119,21 +121,21 @@ static int __init init(void)
 
 	need_conntrack();
 
-	ret = xt_register_target(AF_INET, &connmark_reg);
+	ret = xt_register_target(&connmark_reg);
 	if (ret)
 		return ret;
 
-	ret = xt_register_target(AF_INET6, &connmark6_reg);
+	ret = xt_register_target(&connmark6_reg);
 	if (ret)
-		xt_unregister_target(AF_INET, &connmark_reg);
+		xt_unregister_target(&connmark_reg);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_target(AF_INET, &connmark_reg);
-	xt_unregister_target(AF_INET6, &connmark6_reg);
+	xt_unregister_target(&connmark_reg);
+	xt_unregister_target(&connmark6_reg);
 }
 
 module_init(init);

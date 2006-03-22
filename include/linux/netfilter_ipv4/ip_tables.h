@@ -321,11 +321,15 @@ ipt_get_target(struct ipt_entry *e)
 #include <linux/init.h>
 extern void ipt_init(void) __init;
 
-#define ipt_register_target(tgt) xt_register_target(AF_INET, tgt)
-#define ipt_unregister_target(tgt) xt_unregister_target(AF_INET, tgt)
+#define ipt_register_target(tgt) 	\
+({	(tgt)->family = AF_INET;	\
+ 	xt_register_target(tgt); })
+#define ipt_unregister_target(tgt) xt_unregister_target(tgt)
 
-#define ipt_register_match(mtch) xt_register_match(AF_INET, mtch)
-#define ipt_unregister_match(mtch) xt_unregister_match(AF_INET, mtch)
+#define ipt_register_match(mtch) 	\
+({	(mtch)->family = AF_INET;	\
+	xt_register_match(mtch); })
+#define ipt_unregister_match(mtch) xt_unregister_match(mtch)
 
 //#define ipt_register_table(tbl, repl) xt_register_table(AF_INET, tbl, repl)
 //#define ipt_unregister_table(tbl) xt_unregister_table(AF_INET, tbl)

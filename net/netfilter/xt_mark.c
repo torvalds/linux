@@ -56,6 +56,7 @@ static struct xt_match mark_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_mark_info),
 	.checkentry	= checkentry,
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
@@ -64,27 +65,28 @@ static struct xt_match mark6_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_mark_info),
 	.checkentry	= checkentry,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
 static int __init init(void)
 {
 	int ret;
-	ret = xt_register_match(AF_INET, &mark_match);
+	ret = xt_register_match(&mark_match);
 	if (ret)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &mark6_match);
+	ret = xt_register_match(&mark6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &mark_match);
+		xt_unregister_match(&mark_match);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET, &mark_match);
-	xt_unregister_match(AF_INET6, &mark6_match);
+	xt_unregister_match(&mark_match);
+	xt_unregister_match(&mark6_match);
 }
 
 module_init(init);

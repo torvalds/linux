@@ -60,9 +60,9 @@ static const char *xt_prefix[NPROTO] = {
 
 /* Registration hooks for targets. */
 int
-xt_register_target(int af, struct xt_target *target)
+xt_register_target(struct xt_target *target)
 {
-	int ret;
+	int ret, af = target->family;
 
 	ret = down_interruptible(&xt[af].mutex);
 	if (ret != 0)
@@ -74,8 +74,10 @@ xt_register_target(int af, struct xt_target *target)
 EXPORT_SYMBOL(xt_register_target);
 
 void
-xt_unregister_target(int af, struct xt_target *target)
+xt_unregister_target(struct xt_target *target)
 {
+	int af = target->family;
+
 	down(&xt[af].mutex);
 	LIST_DELETE(&xt[af].target, target);
 	up(&xt[af].mutex);
@@ -83,9 +85,9 @@ xt_unregister_target(int af, struct xt_target *target)
 EXPORT_SYMBOL(xt_unregister_target);
 
 int
-xt_register_match(int af, struct xt_match *match)
+xt_register_match(struct xt_match *match)
 {
-	int ret;
+	int ret, af = match->family;
 
 	ret = down_interruptible(&xt[af].mutex);
 	if (ret != 0)
@@ -99,8 +101,10 @@ xt_register_match(int af, struct xt_match *match)
 EXPORT_SYMBOL(xt_register_match);
 
 void
-xt_unregister_match(int af, struct xt_match *match)
+xt_unregister_match(struct xt_match *match)
 {
+	int af =  match->family;
+
 	down(&xt[af].mutex);
 	LIST_DELETE(&xt[af].match, match);
 	up(&xt[af].mutex);

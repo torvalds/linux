@@ -263,8 +263,10 @@ static __inline__ struct arpt_entry_target *arpt_get_target(struct arpt_entry *e
  */
 #ifdef __KERNEL__
 
-#define arpt_register_target(tgt) xt_register_target(NF_ARP, tgt)
-#define arpt_unregister_target(tgt) xt_unregister_target(NF_ARP, tgt)
+#define arpt_register_target(tgt) 	\
+({	(tgt)->family = NF_ARP;		\
+ 	xt_register_target(tgt); })
+#define arpt_unregister_target(tgt) xt_unregister_target(tgt)
 
 extern int arpt_register_table(struct arpt_table *table,
 			       const struct arpt_replace *repl);

@@ -153,6 +153,7 @@ static struct xt_match helper_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_helper_info),
 	.checkentry	= check,
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 static struct xt_match helper6_match = {
@@ -160,6 +161,7 @@ static struct xt_match helper6_match = {
 	.match		= match,
 	.matchsize	= sizeof(struct xt_helper_info),
 	.checkentry	= check,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
@@ -168,21 +170,21 @@ static int __init init(void)
 	int ret;
 	need_conntrack();
 
-	ret = xt_register_match(AF_INET, &helper_match);
+	ret = xt_register_match(&helper_match);
 	if (ret < 0)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &helper6_match);
+	ret = xt_register_match(&helper6_match);
 	if (ret < 0)
-		xt_unregister_match(AF_INET, &helper_match);
+		xt_unregister_match(&helper_match);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET, &helper_match);
-	xt_unregister_match(AF_INET6, &helper6_match);
+	xt_unregister_match(&helper_match);
+	xt_unregister_match(&helper6_match);
 }
 
 module_init(init);

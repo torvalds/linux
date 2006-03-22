@@ -1335,12 +1335,14 @@ icmp_checkentry(const char *tablename,
 static struct ipt_target ipt_standard_target = {
 	.name		= IPT_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
+	.family		= AF_INET,
 };
 
 static struct ipt_target ipt_error_target = {
 	.name		= IPT_ERROR_TARGET,
 	.target		= ipt_error,
 	.targetsize	= IPT_FUNCTION_MAXNAMELEN,
+	.family		= AF_INET,
 };
 
 static struct nf_sockopt_ops ipt_sockopts = {
@@ -1358,6 +1360,7 @@ static struct ipt_match icmp_matchstruct = {
 	.match		= icmp_match,
 	.matchsize	= sizeof(struct ipt_icmp),
 	.proto		= IPPROTO_ICMP,
+	.family		= AF_INET,
 	.checkentry	= icmp_checkentry,
 };
 
@@ -1368,9 +1371,9 @@ static int __init init(void)
 	xt_proto_init(AF_INET);
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	xt_register_target(AF_INET, &ipt_standard_target);
-	xt_register_target(AF_INET, &ipt_error_target);
-	xt_register_match(AF_INET, &icmp_matchstruct);
+	xt_register_target(&ipt_standard_target);
+	xt_register_target(&ipt_error_target);
+	xt_register_match(&icmp_matchstruct);
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&ipt_sockopts);
@@ -1387,9 +1390,9 @@ static void __exit fini(void)
 {
 	nf_unregister_sockopt(&ipt_sockopts);
 
-	xt_unregister_match(AF_INET, &icmp_matchstruct);
-	xt_unregister_target(AF_INET, &ipt_error_target);
-	xt_unregister_target(AF_INET, &ipt_standard_target);
+	xt_unregister_match(&icmp_matchstruct);
+	xt_unregister_target(&ipt_error_target);
+	xt_unregister_target(&ipt_standard_target);
 
 	xt_proto_fini(AF_INET);
 }

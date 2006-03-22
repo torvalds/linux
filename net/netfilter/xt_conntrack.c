@@ -207,6 +207,7 @@ static struct xt_match conntrack_match = {
 	.name		= "conntrack",
 	.match		= match,
 	.matchsize	= sizeof(struct xt_conntrack_info),
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
@@ -214,14 +215,14 @@ static int __init init(void)
 {
 	int ret;
 	need_conntrack();
-	ret = xt_register_match(AF_INET, &conntrack_match);
+	ret = xt_register_match(&conntrack_match);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET, &conntrack_match);
+	xt_unregister_match(&conntrack_match);
 }
 
 module_init(init);
