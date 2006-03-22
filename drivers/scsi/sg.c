@@ -748,6 +748,7 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 		/*
 		 * most likely out of mem, but could also be a bad map
 		 */
+		sg_finish_rem_req(srp);
 		return -ENOMEM;
 	} else
 		return 0;
