@@ -536,15 +536,30 @@ static void snd_ymfpci_pcm_init_voice(struct snd_ymfpci_pcm *ypcm, unsigned int 
 			}
 		}
 		if (ypcm->output_rear) {
-			if (use_left) {
-				bank->eff2_gain =
-				bank->eff2_gain_end = vol_left;
-			}
-			if (use_right) {
-				bank->eff3_gain =
-				bank->eff3_gain_end = vol_right;
-			}
-		}
+		        if (!ypcm->swap_rear) {
+        			if (use_left) {
+        				bank->eff2_gain =
+        				bank->eff2_gain_end = vol_left;
+        			}
+        			if (use_right) {
+        				bank->eff3_gain =
+        				bank->eff3_gain_end = vol_right;
+        			}
+		        } else {
+        			/* The SPDIF out channels seem to be swapped, so we have
+        			 * to swap them here, too.  The rear analog out channels
+        			 * will be wrong, but otherwise AC3 would not work.
+        			 */
+        			if (use_left) {
+        				bank->eff3_gain =
+        				bank->eff3_gain_end = vol_left;
+        			}
+        			if (use_right) {
+        				bank->eff2_gain =
+        				bank->eff2_gain_end = vol_right;
+        			}
+        		}
+                }
 	}
 }
 
@@ -894,6 +909,7 @@ static int snd_ymfpci_playback_open(struct snd_pcm_substream *substream)
 	ypcm = runtime->private_data;
 	ypcm->output_front = 1;
 	ypcm->output_rear = chip->mode_dup4ch ? 1 : 0;
+	ypcm->swap_rear = chip->rear_swap;
 	spin_lock_irq(&chip->reg_lock);
 	if (ypcm->output_rear) {
 		ymfpci_open_extension(chip);
@@ -1734,7 +1750,7 @@ static void snd_ymfpci_mixer_free_ac97(struct snd_ac97 *ac97)
 	chip->ac97 = NULL;
 }
 
-int __devinit snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch)
+int __devinit snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch, int rear_swap)
 {
 	struct snd_ac97_template ac97;
 	struct snd_kcontrol *kctl;
@@ -1746,6 +1762,7 @@ int __devinit snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch)
 		.read = snd_ymfpci_codec_read,
 	};
 
+	chip->rear_swap = rear_swap;
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, chip, &chip->ac97_bus)) < 0)
 		return err;
 	chip->ac97_bus->private_free = snd_ymfpci_mixer_free_ac97_bus;
@@ -2293,6 +2310,7 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 		return -EIO;
 	}
 
+	chip->rear_swap = 1;
 	if ((err = snd_ymfpci_ac3_init(chip)) < 0) {
 		snd_ymfpci_free(chip);
 		return err;

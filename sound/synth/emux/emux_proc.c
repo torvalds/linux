@@ -37,7 +37,7 @@ snd_emux_proc_info_read(struct snd_info_entry *entry,
 	int i;
 
 	emu = entry->private_data;
-	down(&emu->register_mutex);
+	mutex_lock(&emu->register_mutex);
 	if (emu->name)
 		snd_iprintf(buf, "Device: %s\n", emu->name);
 	snd_iprintf(buf, "Ports: %d\n", emu->num_ports);
@@ -56,13 +56,13 @@ snd_emux_proc_info_read(struct snd_info_entry *entry,
 		snd_iprintf(buf, "Memory Size: 0\n");
 	}
 	if (emu->sflist) {
-		down(&emu->sflist->presets_mutex);
+		mutex_lock(&emu->sflist->presets_mutex);
 		snd_iprintf(buf, "SoundFonts: %d\n", emu->sflist->fonts_size);
 		snd_iprintf(buf, "Instruments: %d\n", emu->sflist->zone_counter);
 		snd_iprintf(buf, "Samples: %d\n", emu->sflist->sample_counter);
 		snd_iprintf(buf, "Locked Instruments: %d\n", emu->sflist->zone_locked);
 		snd_iprintf(buf, "Locked Samples: %d\n", emu->sflist->sample_locked);
-		up(&emu->sflist->presets_mutex);
+		mutex_unlock(&emu->sflist->presets_mutex);
 	}
 #if 0  /* debug */
 	if (emu->voices[0].state != SNDRV_EMUX_ST_OFF && emu->voices[0].ch >= 0) {
@@ -103,7 +103,7 @@ snd_emux_proc_info_read(struct snd_info_entry *entry,
 		snd_iprintf(buf, "sample_mode=%x, rate=%x\n", vp->reg.sample_mode, vp->reg.rate_offset);
 	}
 #endif
-	up(&emu->register_mutex);
+	mutex_unlock(&emu->register_mutex);
 }
 
 

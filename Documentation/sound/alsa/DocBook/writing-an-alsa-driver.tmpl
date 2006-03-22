@@ -1834,7 +1834,7 @@
           mychip_set_sample_format(chip, runtime->format);
           mychip_set_sample_rate(chip, runtime->rate);
           mychip_set_channels(chip, runtime->channels);
-          mychip_set_dma_setup(chip, runtime->dma_area,
+          mychip_set_dma_setup(chip, runtime->dma_addr,
                                chip->buffer_size,
                                chip->period_size);
           return 0;
@@ -3388,7 +3388,7 @@ struct _snd_pcm_runtime {
           .name = "PCM Playback Switch",
           .index = 0,
           .access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
-          .private_values = 0xffff,
+          .private_value = 0xffff,
           .info = my_control_info,
           .get = my_control_get,
           .put = my_control_put
@@ -3449,7 +3449,7 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        The <structfield>private_values</structfield> field contains
+        The <structfield>private_value</structfield> field contains
       an arbitrary long integer value for this record. When using
       generic <structfield>info</structfield>,
       <structfield>get</structfield> and

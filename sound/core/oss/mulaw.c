@@ -22,6 +22,9 @@
  */
   
 #include <sound/driver.h>
+
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
+
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -262,6 +265,25 @@ static snd_pcm_sframes_t mulaw_transfer(struct snd_pcm_plugin *plugin,
 	return frames;
 }
 
+static int getput_index(int format)
+{
+	int sign, width, endian;
+	sign = !snd_pcm_format_signed(format);
+	width = snd_pcm_format_width(format) / 8 - 1;
+	if (width < 0 || width > 3) {
+		snd_printk(KERN_ERR "snd-pcm-oss: invalid format %d\n", format);
+		width = 0;
+	}
+#ifdef SNDRV_LITTLE_ENDIAN
+	endian = snd_pcm_format_big_endian(format);
+#else
+	endian = snd_pcm_format_little_endian(format);
+#endif
+	if (endian < 0)
+		endian = 0;
+	return width * 4 + endian * 2 + sign;
+}
+
 int snd_pcm_plugin_build_mulaw(struct snd_pcm_substream *plug,
 			       struct snd_pcm_plugin_format *src_format,
 			       struct snd_pcm_plugin_format *dst_format,
@@ -306,3 +328,5 @@ int snd_pcm_plugin_build_mulaw(struct snd_pcm_substream *plug,
 	*r_plugin = plugin;
 	return 0;
 }
+
+#endif

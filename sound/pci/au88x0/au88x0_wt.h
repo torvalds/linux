@@ -53,11 +53,11 @@ enum {
 #endif
 
 typedef struct {
-	unsigned int parm0;	/* this_1E4 */
-	unsigned int parm1;	/* this_1E8 */
-	unsigned int parm2;	/* this_1EC */
-	unsigned int parm3;	/* this_1F0 */
-	unsigned int this_1D0;
+	u32 parm0;	/* this_1E4 */
+	u32 parm1;	/* this_1E8 */
+	u32 parm2;	/* this_1EC */
+	u32 parm3;	/* this_1F0 */
+	u32 this_1D0;
 } wt_voice_t;
 
 #endif				/* _AU88X0_WT_H */

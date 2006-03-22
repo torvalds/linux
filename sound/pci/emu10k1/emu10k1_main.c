@@ -36,6 +36,8 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/mutex.h>
+
 
 #include <sound/core.h>
 #include <sound/emu10k1.h>
@@ -775,6 +777,14 @@ static int snd_emu10k1_dev_free(struct snd_device *device)
 
 static struct snd_emu_chip_details emu_chip_details[] = {
 	/* Audigy 2 Value AC3 out does not work yet. Need to find out how to turn off interpolators.*/
+	/* Audigy4 SB0400 */
+	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10211102,
+	 .driver = "Audigy2", .name = "Audigy 4 [SB0400]", 
+	 .id = "Audigy2",
+	 .emu10k2_chip = 1,
+	 .ca0108_chip = 1,
+	 .spk71 = 1,
+	 .ac97_chip = 1} ,
 	/* Tested by James@superbug.co.uk 3rd July 2005 */
 	/* DSP: CA0108-IAT
 	 * DAC: CS4382-KQ
@@ -1097,8 +1107,7 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	spin_lock_init(&emu->voice_lock);
 	spin_lock_init(&emu->synth_lock);
 	spin_lock_init(&emu->memblk_lock);
-	init_MUTEX(&emu->ptb_lock);
-	init_MUTEX(&emu->fx8010.lock);
+	mutex_init(&emu->fx8010.lock);
 	INIT_LIST_HEAD(&emu->mapped_link_head);
 	INIT_LIST_HEAD(&emu->mapped_order_link_head);
 	emu->pci = pci;
