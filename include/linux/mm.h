@@ -311,7 +311,7 @@ extern void FASTCALL(__page_cache_release(struct page *));
 
 static inline int page_count(struct page *page)
 {
-	if (PageCompound(page))
+	if (unlikely(PageCompound(page)))
 		page = (struct page *)page_private(page);
 	return atomic_read(&page->_count);
 }
