@@ -570,6 +570,11 @@ static int __init spu_map_device(struct spu *spu, struct device_node *spe)
 	if (!spu->local_store)
 		goto out;
 
+	prop = get_property(spe, "problem", NULL);
+	if (!prop)
+		goto out_unmap;
+	spu->problem_phys = *(unsigned long *)prop;
+
 	spu->problem= map_spe_prop(spe, "problem");
 	if (!spu->problem)
 		goto out_unmap;

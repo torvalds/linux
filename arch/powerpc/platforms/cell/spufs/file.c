@@ -41,8 +41,10 @@ static int
 spufs_mem_open(struct inode *inode, struct file *file)
 {
 	struct spufs_inode_info *i = SPUFS_I(inode);
-	file->private_data = i->i_ctx;
-	file->f_mapping = i->i_ctx->local_store;
+	struct spu_context *ctx = i->i_ctx;
+	file->private_data = ctx;
+	file->f_mapping = inode->i_mapping;
+	ctx->local_store = inode->i_mapping;
 	return 0;
 }
 
@@ -86,7 +88,7 @@ spufs_mem_write(struct file *file, const char __user *buffer,
 	return ret;
 }
 
-#ifdef CONFIG_SPARSEMEM
+#ifdef CONFIG_SPUFS_MMAP
 static struct page *
 spufs_mem_mmap_nopage(struct vm_area_struct *vma,
 		      unsigned long address, int *type)
@@ -138,8 +140,110 @@ static struct file_operations spufs_mem_fops = {
 	.read    = spufs_mem_read,
 	.write   = spufs_mem_write,
 	.llseek  = generic_file_llseek,
-#ifdef CONFIG_SPARSEMEM
+#ifdef CONFIG_SPUFS_MMAP
 	.mmap    = spufs_mem_mmap,
+#endif
+};
+
+#ifdef CONFIG_SPUFS_MMAP
+static struct page *spufs_ps_nopage(struct vm_area_struct *vma,
+				    unsigned long address,
+				    int *type, unsigned long ps_offs)
+{
+	struct page *page = NOPAGE_SIGBUS;
+	int fault_type = VM_FAULT_SIGBUS;
+	struct spu_context *ctx = vma->vm_file->private_data;
+	unsigned long offset = address - vma->vm_start;
+	unsigned long area;
+	int ret;
+
+	offset += vma->vm_pgoff << PAGE_SHIFT;
+	if (offset >= 0x4000)
+		goto out;
+
+	ret = spu_acquire_runnable(ctx);
+	if (ret)
+		goto out;
+
+	area = ctx->spu->problem_phys + ps_offs;
+	page = pfn_to_page((area + offset) >> PAGE_SHIFT);
+	fault_type = VM_FAULT_MINOR;
+	page_cache_get(page);
+
+	spu_release(ctx);
+
+      out:
+	if (type)
+		*type = fault_type;
+
+	return page;
+}
+
+static struct page *spufs_cntl_mmap_nopage(struct vm_area_struct *vma,
+					   unsigned long address, int *type)
+{
+	return spufs_ps_nopage(vma, address, type, 0x4000);
+}
+
+static struct vm_operations_struct spufs_cntl_mmap_vmops = {
+	.nopage = spufs_cntl_mmap_nopage,
+};
+
+/*
+ * mmap support for problem state control area [0x4000 - 0x4fff].
+ * Mapping this area requires that the application have CAP_SYS_RAWIO,
+ * as these registers require special care when read/writing.
+ */
+static int spufs_cntl_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
+
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+				     | _PAGE_NO_CACHE);
+
+	vma->vm_ops = &spufs_cntl_mmap_vmops;
+	return 0;
+}
+#endif
+
+static int spufs_cntl_open(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	file->private_data = ctx;
+	file->f_mapping = inode->i_mapping;
+	ctx->cntl = inode->i_mapping;
+	return 0;
+}
+
+static ssize_t
+spufs_cntl_read(struct file *file, char __user *buffer,
+		size_t size, loff_t *pos)
+{
+	/* FIXME: read from spu status */
+	return -EINVAL;
+}
+
+static ssize_t
+spufs_cntl_write(struct file *file, const char __user *buffer,
+		 size_t size, loff_t *pos)
+{
+	/* FIXME: write to runctl bit */
+	return -EINVAL;
+}
+
+static struct file_operations spufs_cntl_fops = {
+	.open = spufs_cntl_open,
+	.read = spufs_cntl_read,
+	.write = spufs_cntl_write,
+#ifdef CONFIG_SPUFS_MMAP
+	.mmap = spufs_cntl_mmap,
 #endif
 };
 
@@ -503,6 +607,16 @@ static struct file_operations spufs_wbox_stat_fops = {
 	.read	= spufs_wbox_stat_read,
 };
 
+static int spufs_signal1_open(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+	file->private_data = ctx;
+	file->f_mapping = inode->i_mapping;
+	ctx->signal1 = inode->i_mapping;
+	return nonseekable_open(inode, file);
+}
+
 static ssize_t spufs_signal1_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
 {
@@ -543,11 +657,49 @@ static ssize_t spufs_signal1_write(struct file *file, const char __user *buf,
 	return 4;
 }
 
+#ifdef CONFIG_SPUFS_MMAP
+static struct page *spufs_signal1_mmap_nopage(struct vm_area_struct *vma,
+					      unsigned long address, int *type)
+{
+	return spufs_ps_nopage(vma, address, type, 0x14000);
+}
+
+static struct vm_operations_struct spufs_signal1_mmap_vmops = {
+	.nopage = spufs_signal1_mmap_nopage,
+};
+
+static int spufs_signal1_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+				     | _PAGE_NO_CACHE);
+
+	vma->vm_ops = &spufs_signal1_mmap_vmops;
+	return 0;
+}
+#endif
+
 static struct file_operations spufs_signal1_fops = {
-	.open = spufs_pipe_open,
+	.open = spufs_signal1_open,
 	.read = spufs_signal1_read,
 	.write = spufs_signal1_write,
+#ifdef CONFIG_SPUFS_MMAP
+	.mmap = spufs_signal1_mmap,
+#endif
 };
+
+static int spufs_signal2_open(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+	file->private_data = ctx;
+	file->f_mapping = inode->i_mapping;
+	ctx->signal2 = inode->i_mapping;
+	return nonseekable_open(inode, file);
+}
 
 static ssize_t spufs_signal2_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
@@ -591,10 +743,39 @@ static ssize_t spufs_signal2_write(struct file *file, const char __user *buf,
 	return 4;
 }
 
+#ifdef CONFIG_SPUFS_MMAP
+static struct page *spufs_signal2_mmap_nopage(struct vm_area_struct *vma,
+					      unsigned long address, int *type)
+{
+	return spufs_ps_nopage(vma, address, type, 0x1c000);
+}
+
+static struct vm_operations_struct spufs_signal2_mmap_vmops = {
+	.nopage = spufs_signal2_mmap_nopage,
+};
+
+static int spufs_signal2_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	/* FIXME: */
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+				     | _PAGE_NO_CACHE);
+
+	vma->vm_ops = &spufs_signal2_mmap_vmops;
+	return 0;
+}
+#endif
+
 static struct file_operations spufs_signal2_fops = {
-	.open = spufs_pipe_open,
+	.open = spufs_signal2_open,
 	.read = spufs_signal2_read,
 	.write = spufs_signal2_write,
+#ifdef CONFIG_SPUFS_MMAP
+	.mmap = spufs_signal2_mmap,
+#endif
 };
 
 static void spufs_signal1_type_set(void *data, u64 val)
@@ -643,6 +824,38 @@ static u64 spufs_signal2_type_get(void *data)
 DEFINE_SIMPLE_ATTRIBUTE(spufs_signal2_type, spufs_signal2_type_get,
 					spufs_signal2_type_set, "%llu");
 
+#ifdef CONFIG_SPUFS_MMAP
+static struct page *spufs_mfc_mmap_nopage(struct vm_area_struct *vma,
+					   unsigned long address, int *type)
+{
+	return spufs_ps_nopage(vma, address, type, 0x3000);
+}
+
+static struct vm_operations_struct spufs_mfc_mmap_vmops = {
+	.nopage = spufs_mfc_mmap_nopage,
+};
+
+/*
+ * mmap support for problem state MFC DMA area [0x0000 - 0x0fff].
+ * Mapping this area requires that the application have CAP_SYS_RAWIO,
+ * as these registers require special care when read/writing.
+ */
+static int spufs_mfc_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
+
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+				     | _PAGE_NO_CACHE);
+
+	vma->vm_ops = &spufs_mfc_mmap_vmops;
+	return 0;
+}
+#endif
 
 static int spufs_mfc_open(struct inode *inode, struct file *file)
 {
@@ -932,6 +1145,9 @@ static struct file_operations spufs_mfc_fops = {
 	.flush	 = spufs_mfc_flush,
 	.fsync	 = spufs_mfc_fsync,
 	.fasync	 = spufs_mfc_fasync,
+#ifdef CONFIG_SPUFS_MMAP
+	.mmap	 = spufs_mfc_mmap,
+#endif
 };
 
 static void spufs_npc_set(void *data, u64 val)
@@ -1077,6 +1293,7 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "signal1_type", &spufs_signal1_type, 0666, },
 	{ "signal2_type", &spufs_signal2_type, 0666, },
 	{ "mfc", &spufs_mfc_fops, 0666, },
+	{ "cntl", &spufs_cntl_fops,  0666, },
 	{ "npc", &spufs_npc_ops, 0666, },
 	{ "fpcr", &spufs_fpcr_fops, 0666, },
 	{ "decr", &spufs_decr_ops, 0666, },

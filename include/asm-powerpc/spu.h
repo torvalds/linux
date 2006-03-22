@@ -110,6 +110,7 @@ struct spu {
 	char *name;
 	unsigned long local_store_phys;
 	u8 *local_store;
+	unsigned long problem_phys;
 	struct spu_problem __iomem *problem;
 	struct spu_priv1 __iomem *priv1;
 	struct spu_priv2 __iomem *priv2;

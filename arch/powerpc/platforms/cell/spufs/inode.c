@@ -241,7 +241,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		inode->i_gid = dir->i_gid;
 		inode->i_mode &= S_ISGID;
 	}
-	ctx = alloc_spu_context(inode->i_mapping);
+	ctx = alloc_spu_context();
 	SPUFS_I(inode)->i_ctx = ctx;
 	if (!ctx)
 		goto out_iput;

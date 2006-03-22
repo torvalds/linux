@@ -27,7 +27,7 @@
 #include <asm/spu_csa.h>
 #include "spufs.h"
 
-struct spu_context *alloc_spu_context(struct address_space *local_store)
+struct spu_context *alloc_spu_context(void)
 {
 	struct spu_context *ctx;
 	ctx = kmalloc(sizeof *ctx, GFP_KERNEL);
@@ -53,7 +53,10 @@ struct spu_context *alloc_spu_context(struct address_space *local_store)
 	ctx->mfc_fasync = NULL;
 	ctx->tagwait = 0;
 	ctx->state = SPU_STATE_SAVED;
-	ctx->local_store = local_store;
+	ctx->local_store = NULL;
+	ctx->cntl = NULL;
+	ctx->signal1 = NULL;
+	ctx->signal2 = NULL;
 	ctx->spu = NULL;
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);
@@ -110,7 +113,16 @@ void spu_release(struct spu_context *ctx)
 
 void spu_unmap_mappings(struct spu_context *ctx)
 {
-	unmap_mapping_range(ctx->local_store, 0, LS_SIZE, 1);
+	if (ctx->local_store)
+		unmap_mapping_range(ctx->local_store, 0, LS_SIZE, 1);
+	if (ctx->mfc)
+		unmap_mapping_range(ctx->mfc, 0, 0x4000, 1);
+	if (ctx->cntl)
+		unmap_mapping_range(ctx->cntl, 0, 0x4000, 1);
+	if (ctx->signal1)
+		unmap_mapping_range(ctx->signal1, 0, 0x4000, 1);
+	if (ctx->signal2)
+		unmap_mapping_range(ctx->signal2, 0, 0x4000, 1);
 }
 
 int spu_acquire_runnable(struct spu_context *ctx)

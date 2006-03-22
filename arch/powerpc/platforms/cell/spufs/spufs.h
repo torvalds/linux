@@ -43,7 +43,11 @@ struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
 	struct spu_state csa;		  /* SPU context save area. */
 	spinlock_t mmio_lock;		  /* protects mmio access */
-	struct address_space *local_store;/* local store backing store */
+	struct address_space *local_store; /* local store mapping.  */
+	struct address_space *mfc;	   /* 'mfc' area mappings. */
+	struct address_space *cntl; 	   /* 'control' area mappings. */
+	struct address_space *signal1; 	   /* 'signal1' area mappings. */
+	struct address_space *signal2; 	   /* 'signal2' area mappings. */
 
 	enum { SPU_STATE_RUNNABLE, SPU_STATE_SAVED } state;
 	struct rw_semaphore state_sema;
@@ -125,7 +129,7 @@ long spufs_create_thread(struct nameidata *nd,
 extern struct file_operations spufs_context_fops;
 
 /* context management */
-struct spu_context * alloc_spu_context(struct address_space *local_store);
+struct spu_context * alloc_spu_context(void);
 void destroy_spu_context(struct kref *kref);
 struct spu_context * get_spu_context(struct spu_context *ctx);
 int put_spu_context(struct spu_context *ctx);
