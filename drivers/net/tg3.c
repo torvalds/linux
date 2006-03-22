@@ -1148,6 +1148,19 @@ static int tg3_halt_cpu(struct tg3 *, u32);
 static int tg3_nvram_lock(struct tg3 *);
 static void tg3_nvram_unlock(struct tg3 *);
 
+static void tg3_power_down_phy(struct tg3 *tp)
+{
+	/* The PHY should not be powered down on some chips because
+	 * of bugs.
+	 */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 &&
+	     (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)))
+		return;
+	tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
+}
+
 static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 {
 	u32 misc_host_ctrl;
@@ -1327,8 +1340,7 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			tg3_writephy(tp, MII_TG3_EXT_CTRL,
 				     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
 			tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
-			if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700)
-				tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
+			tg3_power_down_phy(tp);
 		}
 	}
 
