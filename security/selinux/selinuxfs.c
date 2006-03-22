@@ -1213,28 +1213,34 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 	};
 	ret = simple_fill_super(sb, SELINUX_MAGIC, selinux_files);
 	if (ret)
-		return ret;
+		goto err;
 
 	dentry = d_alloc_name(sb->s_root, BOOL_DIR_NAME);
-	if (!dentry)
-		return -ENOMEM;
+	if (!dentry) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	ret = sel_make_dir(sb, dentry);
 	if (ret)
-		return ret;
+		goto err;
 
 	bool_dir = dentry;
 	ret = sel_make_bools();
 	if (ret)
-		goto out;
+		goto err;
 
 	dentry = d_alloc_name(sb->s_root, NULL_FILE_NAME);
-	if (!dentry)
-		return -ENOMEM;
+	if (!dentry) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	inode = sel_make_inode(sb, S_IFCHR | S_IRUGO | S_IWUGO);
-	if (!inode)
-		goto out;
+	if (!inode) {
+		ret = -ENOMEM;
+		goto err;
+	}
 	isec = (struct inode_security_struct*)inode->i_security;
 	isec->sid = SECINITSID_DEVNULL;
 	isec->sclass = SECCLASS_CHR_FILE;
@@ -1245,22 +1251,23 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 	selinux_null = dentry;
 
 	dentry = d_alloc_name(sb->s_root, "avc");
-	if (!dentry)
-		return -ENOMEM;
+	if (!dentry) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	ret = sel_make_dir(sb, dentry);
 	if (ret)
-		goto out;
+		goto err;
 
 	ret = sel_make_avc_files(dentry);
 	if (ret)
-		goto out;
-
-	return 0;
+		goto err;
 out:
-	dput(dentry);
+	return ret;
+err:
 	printk(KERN_ERR "%s:  failed while creating inodes\n", __FUNCTION__);
-	return -ENOMEM;
+	goto out;
 }
 
 static struct super_block *sel_get_sb(struct file_system_type *fs_type,
