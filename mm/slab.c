@@ -2126,6 +2126,10 @@ static void check_spinlock_acquired_node(struct kmem_cache *cachep, int node)
 static void drain_array_locked(struct kmem_cache *cachep,
 			struct array_cache *ac, int force, int node);
 
+static void drain_array(struct kmem_cache *cachep, struct kmem_list3 *l3,
+			struct array_cache *ac,
+			int force, int node);
+
 static void do_drain(void *arg)
 {
 	struct kmem_cache *cachep = arg;
@@ -2150,9 +2154,7 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
 	for_each_online_node(node) {
 		l3 = cachep->nodelists[node];
 		if (l3) {
-			spin_lock_irq(&l3->list_lock);
-			drain_array_locked(cachep, l3->shared, 1, node);
-			spin_unlock_irq(&l3->list_lock);
+			drain_array(cachep, l3, l3->shared, 1, node);
 			if (l3->alien)
 				drain_alien_cache(cachep, l3->alien);
 		}
@@ -3545,12 +3547,11 @@ static void drain_array_locked(struct kmem_cache *cachep,
  * necessary.
  */
 static void drain_array(struct kmem_cache *searchp, struct kmem_list3 *l3,
-					 struct array_cache *ac)
+			 struct array_cache *ac, int force, int node)
 {
 	if (ac && ac->avail) {
 		spin_lock_irq(&l3->list_lock);
-		drain_array_locked(searchp, ac, 0,
-				   numa_node_id());
+		drain_array_locked(searchp, ac, force, node);
 		spin_unlock_irq(&l3->list_lock);
 	}
 }
@@ -3571,6 +3572,7 @@ static void cache_reap(void *unused)
 {
 	struct list_head *walk;
 	struct kmem_list3 *l3;
+	int node = numa_node_id();
 
 	if (!mutex_trylock(&cache_chain_mutex)) {
 		/* Give up. Setup the next iteration. */
@@ -3593,11 +3595,11 @@ static void cache_reap(void *unused)
 		 * have established with reasonable certainty that
 		 * we can do some work if the lock was obtained.
 		 */
-		l3 = searchp->nodelists[numa_node_id()];
+		l3 = searchp->nodelists[node];
 
 		reap_alien(searchp, l3);
 
-		drain_array(searchp, l3, cpu_cache_get(searchp));
+		drain_array(searchp, l3, cpu_cache_get(searchp), 0, node);
 
 		/*
 		 * These are racy checks but it does not matter
@@ -3608,7 +3610,7 @@ static void cache_reap(void *unused)
 
 		l3->next_reap = jiffies + REAPTIMEOUT_LIST3;
 
-		drain_array(searchp, l3, l3->shared);
+		drain_array(searchp, l3, l3->shared, 0, node);
 
 		if (l3->free_touched) {
 			l3->free_touched = 0;
