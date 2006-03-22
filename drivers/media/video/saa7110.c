@@ -432,15 +432,13 @@ saa7110_command (struct i2c_client *client,
 		break;
 
 	case DECODER_DUMP:
-		for (v = 0; v < 0x34; v += 16) {
+		for (v = 0; v < SAA7110_NR_REG; v += 16) {
 			int j;
-			dprintk(1, KERN_INFO "%s: %03x\n", I2C_NAME(client),
+			dprintk(1, KERN_DEBUG "%s: %02x:", I2C_NAME(client),
 				v);
-			for (j = 0; j < 16; j++) {
-				dprintk(1, KERN_INFO " %02x",
-					decoder->reg[v + j]);
-			}
-			dprintk(1, KERN_INFO "\n");
+			for (j = 0; j < 16 && v + j < SAA7110_NR_REG; j++)
+				dprintk(1, " %02x", decoder->reg[v + j]);
+			dprintk(1, "\n");
 		}
 		break;
 
