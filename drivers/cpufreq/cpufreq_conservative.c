@@ -35,12 +35,7 @@
  */
 
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
-#define MIN_FREQUENCY_UP_THRESHOLD		(0)
-#define MAX_FREQUENCY_UP_THRESHOLD		(100)
-
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(20)
-#define MIN_FREQUENCY_DOWN_THRESHOLD		(0)
-#define MAX_FREQUENCY_DOWN_THRESHOLD		(100)
 
 /* 
  * The polling frequency of this governor depends on the capability of 
@@ -53,10 +48,14 @@
  * All times here are in uS.
  */
 static unsigned int 				def_sampling_rate;
-#define MIN_SAMPLING_RATE			(def_sampling_rate / 2)
+#define MIN_SAMPLING_RATE_RATIO			(2)
+/* for correct statistics, we need at least 10 ticks between each measure */
+#define MIN_STAT_SAMPLING_RATE			(MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10))
+#define MIN_SAMPLING_RATE			(def_sampling_rate / MIN_SAMPLING_RATE_RATIO)
 #define MAX_SAMPLING_RATE			(500 * def_sampling_rate)
-#define DEF_SAMPLING_RATE_LATENCY_MULTIPLIER	(100000)
-#define DEF_SAMPLING_DOWN_FACTOR		(5)
+#define DEF_SAMPLING_RATE_LATENCY_MULTIPLIER	(1000)
+#define DEF_SAMPLING_DOWN_FACTOR		(1)
+#define MAX_SAMPLING_DOWN_FACTOR		(10)
 #define TRANSITION_LATENCY_LIMIT		(10 * 1000)
 
 static void do_dbs_timer(void *data);
@@ -136,7 +135,7 @@ static ssize_t store_sampling_down_factor(struct cpufreq_policy *unused,
 	unsigned int input;
 	int ret;
 	ret = sscanf (buf, "%u", &input);
-	if (ret != 1 )
+	if (ret != 1 || input > MAX_SAMPLING_DOWN_FACTOR || input < 1)
 		return -EINVAL;
 
 	mutex_lock(&dbs_mutex);
@@ -173,8 +172,7 @@ static ssize_t store_up_threshold(struct cpufreq_policy *unused,
 	ret = sscanf (buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
-	if (ret != 1 || input > MAX_FREQUENCY_UP_THRESHOLD || 
-			input < MIN_FREQUENCY_UP_THRESHOLD ||
+	if (ret != 1 || input > 100 || input < 0 ||
 			input <= dbs_tuners_ins.down_threshold) {
 		mutex_unlock(&dbs_mutex);
 		return -EINVAL;
@@ -194,8 +192,7 @@ static ssize_t store_down_threshold(struct cpufreq_policy *unused,
 	ret = sscanf (buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
-	if (ret != 1 || input > MAX_FREQUENCY_DOWN_THRESHOLD || 
-			input < MIN_FREQUENCY_DOWN_THRESHOLD ||
+	if (ret != 1 || input > 100 || input < 0 ||
 			input >= dbs_tuners_ins.up_threshold) {
 		mutex_unlock(&dbs_mutex);
 		return -EINVAL;
@@ -337,7 +334,6 @@ static void dbs_check_cpu(int cpu)
 	 */
 
 	/* Check for frequency increase */
-
 	idle_ticks = UINT_MAX;
 	for_each_cpu_mask(j, policy->cpus) {
 		unsigned int tmp_idle_ticks, total_idle_ticks;
@@ -357,7 +353,7 @@ static void dbs_check_cpu(int cpu)
 	/* Scale idle ticks by 100 and compare with up and down ticks */
 	idle_ticks *= 100;
 	up_idle_ticks = (100 - dbs_tuners_ins.up_threshold) *
-		usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
+			usecs_to_jiffies(dbs_tuners_ins.sampling_rate);
 
 	if (idle_ticks < up_idle_ticks) {
 		down_skip[cpu] = 0;
@@ -398,6 +394,7 @@ static void dbs_check_cpu(int cpu)
 		struct cpu_dbs_info_s *j_dbs_info;
 
 		j_dbs_info = &per_cpu(cpu_dbs_info, j);
+		/* Check for frequency decrease */
 		total_idle_ticks = j_dbs_info->prev_cpu_idle_up;
 		tmp_idle_ticks = total_idle_ticks -
 			j_dbs_info->prev_cpu_idle_down;
@@ -414,12 +411,14 @@ static void dbs_check_cpu(int cpu)
 	freq_down_sampling_rate = dbs_tuners_ins.sampling_rate *
 		dbs_tuners_ins.sampling_down_factor;
 	down_idle_ticks = (100 - dbs_tuners_ins.down_threshold) *
-			usecs_to_jiffies(freq_down_sampling_rate);
+		usecs_to_jiffies(freq_down_sampling_rate);
 
 	if (idle_ticks > down_idle_ticks) {
-		/* if we are already at the lowest speed then break out early
+		/*
+		 * if we are already at the lowest speed then break out early
 		 * or if we 'cannot' reduce the speed as the user might want
-		 * freq_step to be zero */
+		 * freq_step to be zero
+		 */
 		if (requested_freq[cpu] == policy->min
 				|| dbs_tuners_ins.freq_step == 0)
 			return;
@@ -434,9 +433,8 @@ static void dbs_check_cpu(int cpu)
 		if (requested_freq[cpu] < policy->min)
 			requested_freq[cpu] = policy->min;
 
-		__cpufreq_driver_target(policy,
-			requested_freq[cpu],
-			CPUFREQ_RELATION_H);
+		__cpufreq_driver_target(policy, requested_freq[cpu],
+				CPUFREQ_RELATION_H);
 		return;
 	}
 }
@@ -507,13 +505,16 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		if (dbs_enable == 1) {
 			unsigned int latency;
 			/* policy latency is in nS. Convert it to uS first */
+			latency = policy->cpuinfo.transition_latency / 1000;
+			if (latency == 0)
+				latency = 1;
 
-			latency = policy->cpuinfo.transition_latency;
-			if (latency < 1000)
-				latency = 1000;
-
-			def_sampling_rate = (latency / 1000) *
+			def_sampling_rate = latency *
 					DEF_SAMPLING_RATE_LATENCY_MULTIPLIER;
+
+			if (def_sampling_rate < MIN_STAT_SAMPLING_RATE)
+				def_sampling_rate = MIN_STAT_SAMPLING_RATE;
+
 			dbs_tuners_ins.sampling_rate = def_sampling_rate;
 			dbs_tuners_ins.ignore_nice = 0;
 			dbs_tuners_ins.freq_step = 5;
