@@ -52,6 +52,11 @@ static struct qla_board_info qla_board_tbl[] = {
 		.isp_name	= "ISP2322",
 		.fw_info	= qla_fw_tbl,
 	},
+	{
+		.drv_name	= qla_driver_name,
+		.isp_name	= "ISP6322",
+		.fw_info	= qla_fw_tbl,
+	},
 };
 
 static struct pci_device_id qla2322_pci_tbl[] = {
@@ -61,6 +66,13 @@ static struct pci_device_id qla2322_pci_tbl[] = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (unsigned long)&qla_board_tbl[0],
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_QLOGIC,
+		.device		= PCI_DEVICE_ID_QLOGIC_ISP6322,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (unsigned long)&qla_board_tbl[1],
 	},
 	{0, 0},
 };

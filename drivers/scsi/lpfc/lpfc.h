@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -121,7 +121,9 @@ struct lpfc_stats {
 	uint32_t elsRcvLOGO;
 	uint32_t elsRcvPRLO;
 	uint32_t elsRcvPRLI;
-	uint32_t elsRcvRRQ;
+	uint32_t elsRcvLIRR;
+	uint32_t elsRcvRPS;
+	uint32_t elsRcvRPL;
 	uint32_t elsXmitFLOGI;
 	uint32_t elsXmitPLOGI;
 	uint32_t elsXmitPRLI;
@@ -167,33 +169,35 @@ struct lpfc_sysfs_mbox {
 };
 
 struct lpfc_hba {
-	struct list_head hba_list;	/* List of hbas/ports */
 	struct lpfc_sli sli;
 	struct lpfc_sli2_slim *slim2p;
 	dma_addr_t slim2p_mapping;
 	uint16_t pci_cfg_value;
 
 	struct semaphore hba_can_block;
-	uint32_t hba_state;
+	int32_t hba_state;
 
-#define LPFC_INIT_START           1	/* Initial state after board reset */
-#define LPFC_INIT_MBX_CMDS        2	/* Initialize HBA with mbox commands */
-#define LPFC_LINK_DOWN            3	/* HBA initialized, link is down */
-#define LPFC_LINK_UP              4	/* Link is up  - issue READ_LA */
-#define LPFC_LOCAL_CFG_LINK       5	/* local NPORT Id configured */
-#define LPFC_FLOGI                6	/* FLOGI sent to Fabric */
-#define LPFC_FABRIC_CFG_LINK      7	/* Fabric assigned NPORT Id
+#define LPFC_STATE_UNKNOWN        0    /* HBA state is unknown */
+#define LPFC_WARM_START           1    /* HBA state after selective reset */
+#define LPFC_INIT_START           2    /* Initial state after board reset */
+#define LPFC_INIT_MBX_CMDS        3    /* Initialize HBA with mbox commands */
+#define LPFC_LINK_DOWN            4    /* HBA initialized, link is down */
+#define LPFC_LINK_UP              5    /* Link is up  - issue READ_LA */
+#define LPFC_LOCAL_CFG_LINK       6    /* local NPORT Id configured */
+#define LPFC_FLOGI                7    /* FLOGI sent to Fabric */
+#define LPFC_FABRIC_CFG_LINK      8    /* Fabric assigned NPORT Id
 					   configured */
-#define LPFC_NS_REG               8	/* Register with NameServer */
-#define LPFC_NS_QRY               9	/* Query NameServer for NPort ID list */
-#define LPFC_BUILD_DISC_LIST      10	/* Build ADISC and PLOGI lists for
+#define LPFC_NS_REG               9	/* Register with NameServer */
+#define LPFC_NS_QRY               10	/* Query NameServer for NPort ID list */
+#define LPFC_BUILD_DISC_LIST      11	/* Build ADISC and PLOGI lists for
 					 * device authentication / discovery */
-#define LPFC_DISC_AUTH            11	/* Processing ADISC list */
-#define LPFC_CLEAR_LA             12	/* authentication cmplt - issue
+#define LPFC_DISC_AUTH            12	/* Processing ADISC list */
+#define LPFC_CLEAR_LA             13	/* authentication cmplt - issue
 					   CLEAR_LA */
 #define LPFC_HBA_READY            32
-#define LPFC_HBA_ERROR            0xff
+#define LPFC_HBA_ERROR            -1
 
+	int32_t stopped;   /* HBA has not been restarted since last ERATT */
 	uint8_t fc_linkspeed;	/* Link speed after last READ_LA */
 
 	uint32_t fc_eventTag;	/* event tag for link attention */
@@ -245,6 +249,7 @@ struct lpfc_hba {
 #define FC_SCSI_SCAN_TMO        0x4000	/* scsi scan timer running */
 #define FC_ABORT_DISCOVERY      0x8000	/* we want to abort discovery */
 #define FC_NDISC_ACTIVE         0x10000	/* NPort discovery active */
+#define FC_BYPASSED_MODE        0x20000	/* NPort is in bypassed mode */
 
 	uint32_t fc_topology;	/* link topology, from LINK INIT */
 
@@ -289,8 +294,8 @@ struct lpfc_hba {
 	uint32_t cfg_link_speed;
 	uint32_t cfg_cr_delay;
 	uint32_t cfg_cr_count;
+	uint32_t cfg_multi_ring_support;
 	uint32_t cfg_fdmi_on;
-	uint32_t cfg_fcp_bind_method;
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_max_luns;
 	uint32_t cfg_poll;

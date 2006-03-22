@@ -31,6 +31,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
+#include <scsi/scsi_cmnd.h>
 #include "scsi_priv.h"
 
 /*
@@ -1090,6 +1091,40 @@ static int fc_rport_match(struct attribute_container *cont,
 }
 
 
+/**
+ * fc_timed_out - FC Transport I/O timeout intercept handler
+ *
+ * @scmd:	The SCSI command which timed out
+ *
+ * This routine protects against error handlers getting invoked while a
+ * rport is in a blocked state, typically due to a temporarily loss of
+ * connectivity. If the error handlers are allowed to proceed, requests
+ * to abort i/o, reset the target, etc will likely fail as there is no way
+ * to communicate with the device to perform the requested function. These
+ * failures may result in the midlayer taking the device offline, requiring
+ * manual intervention to restore operation.
+ *
+ * This routine, called whenever an i/o times out, validates the state of
+ * the underlying rport. If the rport is blocked, it returns
+ * EH_RESET_TIMER, which will continue to reschedule the timeout.
+ * Eventually, either the device will return, or devloss_tmo will fire,
+ * and when the timeout then fires, it will be handled normally.
+ * If the rport is not blocked, normal error handling continues.
+ *
+ * Notes:
+ *	This routine assumes no locks are held on entry.
+ **/
+static enum scsi_eh_timer_return
+fc_timed_out(struct scsi_cmnd *scmd)
+{
+	struct fc_rport *rport = starget_to_rport(scsi_target(scmd->device));
+
+	if (rport->port_state == FC_PORTSTATE_BLOCKED)
+		return EH_RESET_TIMER;
+
+	return EH_NOT_HANDLED;
+}
+
 /*
  * Must be called with shost->host_lock held
  */
@@ -1115,14 +1150,12 @@ static int fc_user_scan(struct Scsi_Host *shost, uint channel,
 struct scsi_transport_template *
 fc_attach_transport(struct fc_function_template *ft)
 {
-	struct fc_internal *i = kmalloc(sizeof(struct fc_internal),
-					GFP_KERNEL);
 	int count;
+	struct fc_internal *i = kzalloc(sizeof(struct fc_internal),
+					GFP_KERNEL);
 
 	if (unlikely(!i))
 		return NULL;
-
-	memset(i, 0, sizeof(struct fc_internal));
 
 	i->t.target_attrs.ac.attrs = &i->starget_attrs[0];
 	i->t.target_attrs.ac.class = &fc_transport_class.class;
@@ -1147,6 +1180,8 @@ fc_attach_transport(struct fc_function_template *ft)
 
 	/* Transport uses the shost workq for scsi scanning */
 	i->t.create_work_queue = 1;
+
+	i->t.eh_timed_out = fc_timed_out;
 
 	i->t.user_scan = fc_user_scan;
 	
@@ -1305,12 +1340,11 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	size_t size;
 
 	size = (sizeof(struct fc_rport) + fci->f->dd_fcrport_size);
-	rport = kmalloc(size, GFP_KERNEL);
+	rport = kzalloc(size, GFP_KERNEL);
 	if (unlikely(!rport)) {
 		printk(KERN_ERR "%s: allocation failure\n", __FUNCTION__);
 		return NULL;
 	}
-	memset(rport, 0, size);
 
 	rport->maxframe_size = -1;
 	rport->supported_classes = FC_COS_UNSPECIFIED;

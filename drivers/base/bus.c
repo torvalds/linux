@@ -536,6 +536,28 @@ void bus_rescan_devices(struct bus_type * bus)
 	bus_for_each_dev(bus, NULL, NULL, bus_rescan_devices_helper);
 }
 
+/**
+ * device_reprobe - remove driver for a device and probe for a new driver
+ * @dev: the device to reprobe
+ *
+ * This function detaches the attached driver (if any) for the given
+ * device and restarts the driver probing process.  It is intended
+ * to use if probing criteria changed during a devices lifetime and
+ * driver attachment should change accordingly.
+ */
+void device_reprobe(struct device *dev)
+{
+	if (dev->driver) {
+		if (dev->parent)        /* Needed for USB */
+			down(&dev->parent->sem);
+		device_release_driver(dev);
+		if (dev->parent)
+			up(&dev->parent->sem);
+	}
+
+	bus_rescan_devices_helper(dev, NULL);
+}
+EXPORT_SYMBOL_GPL(device_reprobe);
 
 struct bus_type * get_bus(struct bus_type * bus)
 {

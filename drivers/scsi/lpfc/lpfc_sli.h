@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -61,7 +61,6 @@ struct lpfc_iocbq {
 };
 
 #define SLI_IOCB_RET_IOCB      1	/* Return IOCB if cmd ring full */
-#define SLI_IOCB_HIGH_PRIORITY 2	/* High priority command */
 
 #define IOCB_SUCCESS        0
 #define IOCB_BUSY           1
@@ -199,8 +198,6 @@ struct lpfc_sli {
 
 	struct timer_list mbox_tmo;	/* Hold clk to timeout active mbox
 					   cmd */
-
-	uint32_t *MBhostaddr;	/* virtual address for mbox cmds */
 
 #define LPFC_IOCBQ_LOOKUP_INCREMENT  1024
 	struct lpfc_iocbq ** iocbq_lookup; /* array to lookup IOCB by IOTAG */

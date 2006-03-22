@@ -52,7 +52,6 @@ static volatile unsigned char cmd_buffer[16];
 				 * via PIO.
 				 */
 
-int jazz_esp_detect(struct scsi_host_template *tpnt);
 static int jazz_esp_release(struct Scsi_Host *shost)
 {
 	if (shost->irq)
@@ -75,7 +74,7 @@ static int jazz_esp_detect(struct scsi_host_template *tpnt)
      * first assumption it is there:-)
      */
     if (1) {
-	esp_dev = 0;
+	esp_dev = NULL;
 	esp = esp_allocate(tpnt, (void *) esp_dev);
 	
 	/* Do command transfer with programmed I/O */
@@ -94,13 +93,13 @@ static int jazz_esp_detect(struct scsi_host_template *tpnt)
 	esp->dma_setup = &dma_setup;
 
 	/* Optional functions */
-	esp->dma_barrier = 0;
-	esp->dma_drain = 0;
-	esp->dma_invalidate = 0;
-	esp->dma_irq_entry = 0;
-	esp->dma_irq_exit = 0;
-	esp->dma_poll = 0;
-	esp->dma_reset = 0;
+	esp->dma_barrier = NULL;
+	esp->dma_drain = NULL;
+	esp->dma_invalidate = NULL;
+	esp->dma_irq_entry = NULL;
+	esp->dma_irq_exit = NULL;
+	esp->dma_poll = NULL;
+	esp->dma_reset = NULL;
 	esp->dma_led_off = &dma_led_off;
 	esp->dma_led_on = &dma_led_on;
 	
@@ -120,7 +119,7 @@ static int jazz_esp_detect(struct scsi_host_template *tpnt)
 	 * of DMA channel, so we can use the jazz DMA functions
 	 * 
 	 */
-	esp->dregs = JAZZ_SCSI_DMA;
+	esp->dregs = (void *) JAZZ_SCSI_DMA;
 	
 	/* ESP register base */
 	esp->eregs = (struct ESP_regs *)(JAZZ_SCSI_BASE);
