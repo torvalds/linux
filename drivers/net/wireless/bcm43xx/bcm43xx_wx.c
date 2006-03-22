@@ -244,13 +244,13 @@ static int bcm43xx_wx_get_rangeparams(struct net_device *net_dev,
 
 	range->max_qual.qual = 100;
 	/* TODO: Real max RSSI */
-	range->max_qual.level = 0;
-	range->max_qual.noise = 0;
+	range->max_qual.level = 3;
+	range->max_qual.noise = 100;
 	range->max_qual.updated = 7;
 
 	range->avg_qual.qual = 70;
-	range->avg_qual.level = 0;
-	range->avg_qual.noise = 0;
+	range->avg_qual.level = 2;
+	range->avg_qual.noise = 40;
 	range->avg_qual.updated = 7;
 
 	range->min_rts = BCM43xx_MIN_RTS_THRESHOLD;
@@ -875,6 +875,49 @@ out:
 	return err;
 }
 
+/* Get wireless statistics.  Called by /proc/net/wireless and by SIOCGIWSTATS */
+
+static struct iw_statistics *bcm43xx_get_wireless_stats(struct net_device *net_dev)
+{
+	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
+	struct ieee80211softmac_device *mac = ieee80211_priv(net_dev);
+	struct iw_statistics *wstats;
+
+	wstats = &bcm->stats.wstats;
+	if (!mac->associated) {
+		wstats->miss.beacon = 0;
+//		bcm->ieee->ieee_stats.tx_retry_limit_exceeded = 0; // FIXME: should this be cleared here?
+		wstats->discard.retries = 0;
+//		bcm->ieee->ieee_stats.tx_discards_wrong_sa = 0; // FIXME: same question
+		wstats->discard.nwid = 0;
+//		bcm->ieee->ieee_stats.rx_discards_undecryptable = 0; // FIXME: ditto
+		wstats->discard.code = 0;
+//		bcm->ieee->ieee_stats.rx_fragments = 0;  // FIXME: same here
+		wstats->discard.fragment = 0;
+		wstats->discard.misc = 0;
+		wstats->qual.qual = 0;
+		wstats->qual.level = 0;
+		wstats->qual.noise = 0;
+		wstats->qual.updated = 7;
+		wstats->qual.updated |= IW_QUAL_NOISE_INVALID |
+			IW_QUAL_QUAL_INVALID | IW_QUAL_LEVEL_INVALID;
+		return wstats;
+	}
+	/* fill in the real statistics when iface associated */
+	wstats->qual.qual = 100;     // TODO: get the real signal quality
+	wstats->qual.level = 3 - bcm->stats.link_quality;
+	wstats->qual.noise = bcm->stats.noise;
+	wstats->qual.updated = IW_QUAL_QUAL_UPDATED | IW_QUAL_LEVEL_UPDATED |
+			IW_QUAL_NOISE_UPDATED;
+	wstats->discard.code = bcm->ieee->ieee_stats.rx_discards_undecryptable;
+	wstats->discard.retries = bcm->ieee->ieee_stats.tx_retry_limit_exceeded;
+	wstats->discard.nwid = bcm->ieee->ieee_stats.tx_discards_wrong_sa;
+	wstats->discard.fragment = bcm->ieee->ieee_stats.rx_fragments;
+	wstats->discard.misc = 0;	// FIXME
+	wstats->miss.beacon = 0;	// FIXME
+	return wstats;
+}
+
 
 #ifdef WX
 # undef WX
@@ -1010,6 +1053,7 @@ const struct iw_handler_def bcm43xx_wx_handlers_def = {
 	.num_private_args	= ARRAY_SIZE(bcm43xx_priv_wx_args),
 	.private		= bcm43xx_priv_wx_handlers,
 	.private_args		= bcm43xx_priv_wx_args,
+	.get_wireless_stats	= bcm43xx_get_wireless_stats,
 };
 
 /* vim: set ts=8 sw=8 sts=8: */

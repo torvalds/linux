@@ -1539,6 +1539,7 @@ static void handle_irq_noise(struct bcm43xx_private *bcm)
 		average *= 125;
 		average += 64;
 		average /= 128;
+
 		tmp = bcm43xx_shm_read16(bcm, BCM43xx_SHM_SHARED, 0x40C);
 		tmp = (tmp / 128) & 0x1F;
 		if (tmp >= 8)
@@ -1550,6 +1551,8 @@ static void handle_irq_noise(struct bcm43xx_private *bcm)
 		else
 			average -= 48;
 
+/* FIXME: This is wrong, but people want fancy stats. well... */
+bcm->stats.noise = average;
 		if (average > -65)
 			bcm->stats.link_quality = 0;
 		else if (average > -75)

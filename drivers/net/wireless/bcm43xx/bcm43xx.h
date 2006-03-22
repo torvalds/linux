@@ -621,6 +621,8 @@ struct bcm43xx_noise_calculation {
 
 struct bcm43xx_stats {
 	u8 link_quality;
+	u8 noise;
+	struct iw_statistics wstats;
 	/* Store the last TX/RX times here for updating the leds. */
 	unsigned long last_tx;
 	unsigned long last_rx;
