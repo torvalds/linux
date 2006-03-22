@@ -1535,6 +1535,8 @@ static int compat_x25_ioctl(struct socket *sock, unsigned int cmd,
 		break;
 	case SIOCX25GFACILITIES:
 	case SIOCX25SFACILITIES:
+	case SIOCX25GDTEFACILITIES:
+	case SIOCX25SDTEFACILITIES:
 	case SIOCX25GCALLUSERDATA:
 	case SIOCX25SCALLUSERDATA:
 	case SIOCX25GCAUSEDIAG:
