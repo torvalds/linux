@@ -2563,48 +2563,72 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 }
 
 static const char * const ata_dma_blacklist [] = {
-	"WDC AC11000H",
-	"WDC AC22100H",
-	"WDC AC32500H",
-	"WDC AC33100H",
-	"WDC AC31600H",
-	"WDC AC32100H",
-	"WDC AC23200L",
-	"Compaq CRD-8241B",
-	"CRD-8400B",
-	"CRD-8480B",
-	"CRD-8482B",
- 	"CRD-84",
-	"SanDisk SDP3B",
-	"SanDisk SDP3B-64",
-	"SANYO CD-ROM CRD",
-	"HITACHI CDR-8",
-	"HITACHI CDR-8335",
-	"HITACHI CDR-8435",
-	"Toshiba CD-ROM XM-6202B",
-	"TOSHIBA CD-ROM XM-1702BC",
-	"CD-532E-A",
-	"E-IDE CD-ROM CR-840",
-	"CD-ROM Drive/F5A",
-	"WPI CDD-820",
-	"SAMSUNG CD-ROM SC-148C",
-	"SAMSUNG CD-ROM SC",
-	"SanDisk SDP3B-64",
-	"ATAPI CD-ROM DRIVE 40X MAXIMUM",
-	"_NEC DV5800A",
+	"WDC AC11000H", NULL,
+	"WDC AC22100H", NULL,
+	"WDC AC32500H", NULL,
+	"WDC AC33100H", NULL,
+	"WDC AC31600H", NULL,
+	"WDC AC32100H", "24.09P07",
+	"WDC AC23200L", "21.10N21",
+	"Compaq CRD-8241B",  NULL,
+	"CRD-8400B", NULL,
+	"CRD-8480B", NULL,
+	"CRD-8482B", NULL,
+ 	"CRD-84", NULL,
+	"SanDisk SDP3B", NULL,
+	"SanDisk SDP3B-64", NULL,
+	"SANYO CD-ROM CRD", NULL,
+	"HITACHI CDR-8", NULL,
+	"HITACHI CDR-8335", NULL, 
+	"HITACHI CDR-8435", NULL,
+	"Toshiba CD-ROM XM-6202B", NULL, 
+	"TOSHIBA CD-ROM XM-1702BC", NULL, 
+	"CD-532E-A", NULL, 
+	"E-IDE CD-ROM CR-840", NULL, 
+	"CD-ROM Drive/F5A", NULL, 
+	"WPI CDD-820", NULL, 
+	"SAMSUNG CD-ROM SC-148C", NULL,
+	"SAMSUNG CD-ROM SC", NULL, 
+	"SanDisk SDP3B-64", NULL,
+	"ATAPI CD-ROM DRIVE 40X MAXIMUM",NULL,
+	"_NEC DV5800A", NULL,
+	"SAMSUNG CD-ROM SN-124", "N001"
 };
+ 
+static int ata_strim(char *s, size_t len)
+{
+	len = strnlen(s, len);
+
+	/* ATAPI specifies that empty space is blank-filled; remove blanks */
+	while ((len > 0) && (s[len - 1] == ' ')) {
+		len--;
+		s[len] = 0;
+	}
+	return len;
+}
 
 static int ata_dma_blacklisted(const struct ata_device *dev)
 {
-	unsigned char model_num[41];
+	unsigned char model_num[40];
+	unsigned char model_rev[16];
+	unsigned int nlen, rlen;
 	int i;
 
-	ata_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS, sizeof(model_num));
+	ata_id_string(dev->id, model_num, ATA_ID_PROD_OFS,
+			  sizeof(model_num));
+	ata_id_string(dev->id, model_rev, ATA_ID_FW_REV_OFS,
+			  sizeof(model_rev));
+	nlen = ata_strim(model_num, sizeof(model_num));
+	rlen = ata_strim(model_rev, sizeof(model_rev));
 
-	for (i = 0; i < ARRAY_SIZE(ata_dma_blacklist); i++)
-		if (!strcmp(ata_dma_blacklist[i], model_num))
-			return 1;
-
+	for (i = 0; i < ARRAY_SIZE(ata_dma_blacklist); i += 2) {
+		if (!strncmp(ata_dma_blacklist[i], model_num, nlen)) {
+			if (ata_dma_blacklist[i+1] == NULL)
+				return 1;
+			if (!strncmp(ata_dma_blacklist[i], model_rev, rlen))
+				return 1;
+		}
+	}
 	return 0;
 }
 
