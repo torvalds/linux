@@ -372,17 +372,19 @@ static void kmem_list3_init(struct kmem_list3 *parent)
 struct kmem_cache {
 /* 1) per-cpu data, touched during every alloc/free */
 	struct array_cache *array[NR_CPUS];
+/* 2) Cache tunables. Protected by cache_chain_mutex */
 	unsigned int batchcount;
 	unsigned int limit;
 	unsigned int shared;
+
 	unsigned int buffer_size;
-/* 2) touched by every alloc & free from the backend */
+/* 3) touched by every alloc & free from the backend */
 	struct kmem_list3 *nodelists[MAX_NUMNODES];
+
 	unsigned int flags;		/* constant flags */
 	unsigned int num;		/* # of objs per slab */
-	spinlock_t spinlock;
 
-/* 3) cache_grow/shrink */
+/* 4) cache_grow/shrink */
 	/* order of pgs per slab (2^n) */
 	unsigned int gfporder;
 
@@ -401,11 +403,11 @@ struct kmem_cache {
 	/* de-constructor func */
 	void (*dtor) (void *, struct kmem_cache *, unsigned long);
 
-/* 4) cache creation/removal */
+/* 5) cache creation/removal */
 	const char *name;
 	struct list_head next;
 
-/* 5) statistics */
+/* 6) statistics */
 #if STATS
 	unsigned long num_active;
 	unsigned long num_allocations;
@@ -661,7 +663,6 @@ static struct kmem_cache cache_cache = {
 	.shared = 1,
 	.buffer_size = sizeof(struct kmem_cache),
 	.flags = SLAB_NO_REAP,
-	.spinlock = SPIN_LOCK_UNLOCKED,
 	.name = "kmem_cache",
 #if DEBUG
 	.obj_size = sizeof(struct kmem_cache),
@@ -2057,7 +2058,6 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	cachep->gfpflags = 0;
 	if (flags & SLAB_CACHE_DMA)
 		cachep->gfpflags |= GFP_DMA;
-	spin_lock_init(&cachep->spinlock);
 	cachep->buffer_size = size;
 
 	if (flags & CFLGS_OFF_SLAB)
@@ -3425,6 +3425,7 @@ static void do_ccupdate_local(void *info)
 	new->new[smp_processor_id()] = old;
 }
 
+/* Always called with the cache_chain_mutex held */
 static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 				int batchcount, int shared)
 {
@@ -3446,11 +3447,9 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 	smp_call_function_all_cpus(do_ccupdate_local, (void *)&new);
 
 	check_irq_on();
-	spin_lock(&cachep->spinlock);
 	cachep->batchcount = batchcount;
 	cachep->limit = limit;
 	cachep->shared = shared;
-	spin_unlock(&cachep->spinlock);
 
 	for_each_online_cpu(i) {
 		struct array_cache *ccold = new.new[i];
@@ -3471,6 +3470,7 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
 	return 0;
 }
 
+/* Called with cache_chain_mutex held always */
 static void enable_cpucache(struct kmem_cache *cachep)
 {
 	int err;
@@ -3705,7 +3705,6 @@ static int s_show(struct seq_file *m, void *p)
 	int node;
 	struct kmem_list3 *l3;
 
-	spin_lock(&cachep->spinlock);
 	active_objs = 0;
 	num_slabs = 0;
 	for_each_online_node(node) {
@@ -3788,7 +3787,6 @@ static int s_show(struct seq_file *m, void *p)
 	}
 #endif
 	seq_putc(m, '\n');
-	spin_unlock(&cachep->spinlock);
 	return 0;
 }
 
