@@ -326,7 +326,7 @@ EXPORT_SYMBOL_GPL(platform_device_register);
  *	platform_device_unregister - unregister a platform-level device
  *	@pdev:	platform device we're unregistering
  *
- *	Unregistration is done in 2 steps. Fisrt we release all resources
+ *	Unregistration is done in 2 steps. First we release all resources
  *	and remove it from the subsystem, then we drop reference count by
  *	calling platform_device_put().
  */

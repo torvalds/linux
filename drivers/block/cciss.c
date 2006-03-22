@@ -2137,7 +2137,7 @@ static void start_io( ctlr_info_t *h)
 			break;
 		}
 
-		/* Get the frist entry from the Request Q */ 
+		/* Get the first entry from the Request Q */ 
 		removeQ(&(h->reqQ), c);
 		h->Qdepth--;
 	

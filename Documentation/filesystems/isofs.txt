@@ -9,9 +9,9 @@ when using discs encoded using Microsoft's Joliet extensions.
   iocharset=name Character set to use for converting from Unicode to
 		ASCII.  Joliet filenames are stored in Unicode format, but
 		Unix for the most part doesn't know how to deal with Unicode.
-		There is also an option of doing UTF8 translations with the
+		There is also an option of doing UTF-8 translations with the
 		utf8 option.
-  utf8          Encode Unicode names in UTF8 format. Default is no.
+  utf8          Encode Unicode names in UTF-8 format. Default is no.
 
 Mount options unique to the isofs filesystem.
   block=512     Set the block size for the disk to 512 bytes
