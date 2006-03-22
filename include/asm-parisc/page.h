@@ -26,7 +26,7 @@ static inline void
 copy_user_page(void *vto, void *vfrom, unsigned long vaddr, struct page *pg)
 {
 	copy_user_page_asm(vto, vfrom);
-	flush_kernel_dcache_page(vto);
+	flush_kernel_dcache_page_asm(vto);
 	/* XXX: ppc flushes icache too, should we? */
 }
 

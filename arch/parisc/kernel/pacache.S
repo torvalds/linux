@@ -621,9 +621,9 @@ __clear_user_page_asm:
 
 	.procend
 
-	.export flush_kernel_dcache_page
+	.export flush_kernel_dcache_page_asm
 
-flush_kernel_dcache_page:
+flush_kernel_dcache_page_asm:
 	.proc
 	.callinfo NO_CALLS
 	.entry
