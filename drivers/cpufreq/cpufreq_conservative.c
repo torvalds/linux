@@ -294,31 +294,40 @@ static struct attribute_group dbs_attr_group = {
 static void dbs_check_cpu(int cpu)
 {
 	unsigned int idle_ticks, up_idle_ticks, down_idle_ticks;
+	unsigned int tmp_idle_ticks, total_idle_ticks;
 	unsigned int freq_step;
 	unsigned int freq_down_sampling_rate;
-	static int down_skip[NR_CPUS];
-	static int requested_freq[NR_CPUS];
-	static unsigned short init_flag = 0;
-	struct cpu_dbs_info_s *this_dbs_info;
-	struct cpu_dbs_info_s *dbs_info;
-
+	static unsigned short down_skip[NR_CPUS];
+	static unsigned int requested_freq[NR_CPUS];
+	static unsigned int init_flag = NR_CPUS;
+	struct cpu_dbs_info_s *this_dbs_info = &per_cpu(cpu_dbs_info, cpu);
 	struct cpufreq_policy *policy;
-	unsigned int j;
 
-	this_dbs_info = &per_cpu(cpu_dbs_info, cpu);
 	if (!this_dbs_info->enable)
 		return;
 
-	policy = this_dbs_info->cur_policy;
-
-	if ( init_flag == 0 ) {
-		for_each_online_cpu(j) {
-			dbs_info = &per_cpu(cpu_dbs_info, j);
-			requested_freq[j] = dbs_info->cur_policy->cur;
+	if ( init_flag != 0 ) {
+		for_each_cpu(init_flag) {
+			down_skip[init_flag] = 0;
+			/* I doubt a CPU exists with a freq of 0hz :) */
+			requested_freq[init_flag] = 0;
 		}
-		init_flag = 1;
+		init_flag = 0;
 	}
 	
+	/*
+	 * If its a freshly initialised cpu we setup requested_freq.  This
+	 * check could be avoided if we did not care about a first time
+	 * stunted increase in CPU speed when there is a load.  I feel we
+	 * should be initialising this to something.  The removal of a CPU
+	 * is not a problem, after a short time the CPU should settle down
+	 * to a 'natural' frequency.
+	 */
+	if (requested_freq[cpu] == 0)
+		requested_freq[cpu] = this_dbs_info->cur_policy->cur;
+
+	policy = this_dbs_info->cur_policy;
+
 	/* 
 	 * The default safe range is 20% to 80% 
 	 * Every sampling_rate, we check
@@ -335,20 +344,15 @@ static void dbs_check_cpu(int cpu)
 
 	/* Check for frequency increase */
 	idle_ticks = UINT_MAX;
-	for_each_cpu_mask(j, policy->cpus) {
-		unsigned int tmp_idle_ticks, total_idle_ticks;
-		struct cpu_dbs_info_s *j_dbs_info;
 
-		j_dbs_info = &per_cpu(cpu_dbs_info, j);
-		/* Check for frequency increase */
-		total_idle_ticks = get_cpu_idle_time(j);
-		tmp_idle_ticks = total_idle_ticks -
-			j_dbs_info->prev_cpu_idle_up;
-		j_dbs_info->prev_cpu_idle_up = total_idle_ticks;
+	/* Check for frequency increase */
+	total_idle_ticks = get_cpu_idle_time(cpu);
+	tmp_idle_ticks = total_idle_ticks -
+		this_dbs_info->prev_cpu_idle_up;
+	this_dbs_info->prev_cpu_idle_up = total_idle_ticks;
 
-		if (tmp_idle_ticks < idle_ticks)
-			idle_ticks = tmp_idle_ticks;
-	}
+	if (tmp_idle_ticks < idle_ticks)
+		idle_ticks = tmp_idle_ticks;
 
 	/* Scale idle ticks by 100 and compare with up and down ticks */
 	idle_ticks *= 100;
@@ -357,13 +361,9 @@ static void dbs_check_cpu(int cpu)
 
 	if (idle_ticks < up_idle_ticks) {
 		down_skip[cpu] = 0;
-		for_each_cpu_mask(j, policy->cpus) {
-			struct cpu_dbs_info_s *j_dbs_info;
+		this_dbs_info->prev_cpu_idle_down =
+			this_dbs_info->prev_cpu_idle_up;
 
-			j_dbs_info = &per_cpu(cpu_dbs_info, j);
-			j_dbs_info->prev_cpu_idle_down = 
-					j_dbs_info->prev_cpu_idle_up;
-		}
 		/* if we are already at full speed then break out early */
 		if (requested_freq[cpu] == policy->max)
 			return;
@@ -388,21 +388,14 @@ static void dbs_check_cpu(int cpu)
 	if (down_skip[cpu] < dbs_tuners_ins.sampling_down_factor)
 		return;
 
-	idle_ticks = UINT_MAX;
-	for_each_cpu_mask(j, policy->cpus) {
-		unsigned int tmp_idle_ticks, total_idle_ticks;
-		struct cpu_dbs_info_s *j_dbs_info;
+	/* Check for frequency decrease */
+	total_idle_ticks = this_dbs_info->prev_cpu_idle_up;
+	tmp_idle_ticks = total_idle_ticks -
+		this_dbs_info->prev_cpu_idle_down;
+	this_dbs_info->prev_cpu_idle_down = total_idle_ticks;
 
-		j_dbs_info = &per_cpu(cpu_dbs_info, j);
-		/* Check for frequency decrease */
-		total_idle_ticks = j_dbs_info->prev_cpu_idle_up;
-		tmp_idle_ticks = total_idle_ticks -
-			j_dbs_info->prev_cpu_idle_down;
-		j_dbs_info->prev_cpu_idle_down = total_idle_ticks;
-
-		if (tmp_idle_ticks < idle_ticks)
-			idle_ticks = tmp_idle_ticks;
-	}
+	if (tmp_idle_ticks < idle_ticks)
+		idle_ticks = tmp_idle_ticks;
 
 	/* Scale idle ticks by 100 and compare with up and down ticks */
 	idle_ticks *= 100;
@@ -491,7 +484,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
 			j_dbs_info->cur_policy = policy;
 		
-			j_dbs_info->prev_cpu_idle_up = get_cpu_idle_time(j);
+			j_dbs_info->prev_cpu_idle_up = get_cpu_idle_time(cpu);
 			j_dbs_info->prev_cpu_idle_down
 				= j_dbs_info->prev_cpu_idle_up;
 		}
