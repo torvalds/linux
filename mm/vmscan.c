@@ -1431,13 +1431,14 @@ int try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 	int ret = 0;
 	int total_scanned = 0, total_reclaimed = 0;
 	struct reclaim_state *reclaim_state = current->reclaim_state;
-	struct scan_control sc;
 	unsigned long lru_pages = 0;
 	int i;
-
-	sc.gfp_mask = gfp_mask;
-	sc.may_writepage = !laptop_mode;
-	sc.may_swap = 1;
+	struct scan_control sc = {
+		.gfp_mask = gfp_mask,
+		.may_writepage = !laptop_mode,
+		.swap_cluster_max = SWAP_CLUSTER_MAX,
+		.may_swap = 1,
+	};
 
 	inc_page_state(allocstall);
 
@@ -1455,7 +1456,6 @@ int try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 		sc.nr_mapped = read_page_state(nr_mapped);
 		sc.nr_scanned = 0;
 		sc.nr_reclaimed = 0;
-		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
 		if (!priority)
 			disable_swap_token();
 		shrink_caches(priority, zones, &sc);
@@ -1478,7 +1478,8 @@ int try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 		 * that's undesirable in laptop mode, where we *want* lumpy
 		 * writeout.  So in laptop mode, write out the whole world.
 		 */
-		if (total_scanned > sc.swap_cluster_max + sc.swap_cluster_max/2) {
+		if (total_scanned > sc.swap_cluster_max +
+					sc.swap_cluster_max / 2) {
 			wakeup_pdflush(laptop_mode ? 0 : total_scanned);
 			sc.may_writepage = 1;
 		}
@@ -1532,14 +1533,16 @@ static int balance_pgdat(pg_data_t *pgdat, int nr_pages, int order)
 	int i;
 	int total_scanned, total_reclaimed;
 	struct reclaim_state *reclaim_state = current->reclaim_state;
-	struct scan_control sc;
+	struct scan_control sc = {
+		.gfp_mask = GFP_KERNEL,
+		.may_swap = 1,
+		.swap_cluster_max = nr_pages ? nr_pages : SWAP_CLUSTER_MAX,
+	};
 
 loop_again:
 	total_scanned = 0;
 	total_reclaimed = 0;
-	sc.gfp_mask = GFP_KERNEL;
-	sc.may_writepage = !laptop_mode;
-	sc.may_swap = 1;
+	sc.may_writepage = !laptop_mode,
 	sc.nr_mapped = read_page_state(nr_mapped);
 
 	inc_page_state(pageoutrun);
@@ -1621,7 +1624,6 @@ scan:
 				zone->prev_priority = priority;
 			sc.nr_scanned = 0;
 			sc.nr_reclaimed = 0;
-			sc.swap_cluster_max = nr_pages? nr_pages : SWAP_CLUSTER_MAX;
 			shrink_zone(priority, zone, &sc);
 			reclaim_state->reclaimed_slab = 0;
 			nr_slab = shrink_slab(sc.nr_scanned, GFP_KERNEL,
@@ -1869,46 +1871,21 @@ int zone_reclaim_interval __read_mostly = 30*HZ;
 /*
  * Try to free up some pages from this zone through reclaim.
  */
-int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 {
-	int nr_pages;
+	const int nr_pages = 1 << order;
 	struct task_struct *p = current;
 	struct reclaim_state reclaim_state;
-	struct scan_control sc;
-	cpumask_t mask;
-	int node_id;
 	int priority;
-
-	if (time_before(jiffies,
-		zone->last_unsuccessful_zone_reclaim + zone_reclaim_interval))
-			return 0;
-
-	if (!(gfp_mask & __GFP_WAIT) ||
-		zone->all_unreclaimable ||
-		atomic_read(&zone->reclaim_in_progress) > 0 ||
-		(p->flags & PF_MEMALLOC))
-			return 0;
-
-	node_id = zone->zone_pgdat->node_id;
-	mask = node_to_cpumask(node_id);
-	if (!cpus_empty(mask) && node_id != numa_node_id())
-		return 0;
-
-	sc.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE);
-	sc.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP);
-	sc.nr_scanned = 0;
-	sc.nr_reclaimed = 0;
-	sc.nr_mapped = read_page_state(nr_mapped);
-	sc.gfp_mask = gfp_mask;
+	struct scan_control sc = {
+		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+		.may_swap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+		.nr_mapped = read_page_state(nr_mapped),
+		.swap_cluster_max = max(nr_pages, SWAP_CLUSTER_MAX),
+		.gfp_mask = gfp_mask,
+	};
 
 	disable_swap_token();
-
-	nr_pages = 1 << order;
-	if (nr_pages > SWAP_CLUSTER_MAX)
-		sc.swap_cluster_max = nr_pages;
-	else
-		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
-
 	cond_resched();
 	/*
 	 * We need to be able to allocate from the reserves for RECLAIM_SWAP
@@ -1948,6 +1925,45 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 		zone->last_unsuccessful_zone_reclaim = jiffies;
 
 	return sc.nr_reclaimed >= nr_pages;
+}
+
+int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+{
+	cpumask_t mask;
+	int node_id;
+
+	/*
+	 * Do not reclaim if there was a recent unsuccessful attempt at zone
+	 * reclaim.  In that case we let allocations go off node for the
+	 * zone_reclaim_interval.  Otherwise we would scan for each off-node
+	 * page allocation.
+	 */
+	if (time_before(jiffies,
+		zone->last_unsuccessful_zone_reclaim + zone_reclaim_interval))
+			return 0;
+
+	/*
+	 * Avoid concurrent zone reclaims, do not reclaim in a zone that does
+	 * not have reclaimable pages and if we should not delay the allocation
+	 * then do not scan.
+	 */
+	if (!(gfp_mask & __GFP_WAIT) ||
+		zone->all_unreclaimable ||
+		atomic_read(&zone->reclaim_in_progress) > 0 ||
+		(current->flags & PF_MEMALLOC))
+			return 0;
+
+	/*
+	 * Only run zone reclaim on the local zone or on zones that do not
+	 * have associated processors. This will favor the local processor
+	 * over remote processors and spread off node memory allocations
+	 * as wide as possible.
+	 */
+	node_id = zone->zone_pgdat->node_id;
+	mask = node_to_cpumask(node_id);
+	if (!cpus_empty(mask) && node_id != numa_node_id())
+		return 0;
+	return __zone_reclaim(zone, gfp_mask, order);
 }
 #endif
 
