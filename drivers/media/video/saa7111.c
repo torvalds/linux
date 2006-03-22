@@ -212,6 +212,7 @@ saa7111_command (struct i2c_client *client,
 	switch (cmd) {
 
 	case 0:
+		break;
 	case DECODER_INIT:
 	{
 		struct video_decoder_init *init = arg;
