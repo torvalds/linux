@@ -1748,6 +1748,60 @@ static inline size_t calculate_slab_order(struct kmem_cache *cachep,
 	return left_over;
 }
 
+static void setup_cpu_cache(struct kmem_cache *cachep)
+{
+	if (g_cpucache_up == FULL) {
+		enable_cpucache(cachep);
+		return;
+	}
+	if (g_cpucache_up == NONE) {
+		/*
+		 * Note: the first kmem_cache_create must create the cache
+		 * that's used by kmalloc(24), otherwise the creation of
+		 * further caches will BUG().
+		 */
+		cachep->array[smp_processor_id()] = &initarray_generic.cache;
+
+		/*
+		 * If the cache that's used by kmalloc(sizeof(kmem_list3)) is
+		 * the first cache, then we need to set up all its list3s,
+		 * otherwise the creation of further caches will BUG().
+		 */
+		set_up_list3s(cachep, SIZE_AC);
+		if (INDEX_AC == INDEX_L3)
+			g_cpucache_up = PARTIAL_L3;
+		else
+			g_cpucache_up = PARTIAL_AC;
+	} else {
+		cachep->array[smp_processor_id()] =
+			kmalloc(sizeof(struct arraycache_init), GFP_KERNEL);
+
+		if (g_cpucache_up == PARTIAL_AC) {
+			set_up_list3s(cachep, SIZE_L3);
+			g_cpucache_up = PARTIAL_L3;
+		} else {
+			int node;
+			for_each_online_node(node) {
+				cachep->nodelists[node] =
+				    kmalloc_node(sizeof(struct kmem_list3),
+						GFP_KERNEL, node);
+				BUG_ON(!cachep->nodelists[node]);
+				kmem_list3_init(cachep->nodelists[node]);
+			}
+		}
+	}
+	cachep->nodelists[numa_node_id()]->next_reap =
+			jiffies + REAPTIMEOUT_LIST3 +
+			((unsigned long)cachep) % REAPTIMEOUT_LIST3;
+
+	cpu_cache_get(cachep)->avail = 0;
+	cpu_cache_get(cachep)->limit = BOOT_CPUCACHE_ENTRIES;
+	cpu_cache_get(cachep)->batchcount = 1;
+	cpu_cache_get(cachep)->touched = 0;
+	cachep->batchcount = 1;
+	cachep->limit = BOOT_CPUCACHE_ENTRIES;
+}
+
 /**
  * kmem_cache_create - Create a cache.
  * @name: A string which is used in /proc/slabinfo to identify this cache.
@@ -2000,60 +2054,7 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	cachep->name = name;
 
 
-	if (g_cpucache_up == FULL) {
-		enable_cpucache(cachep);
-	} else {
-		if (g_cpucache_up == NONE) {
-			/* Note: the first kmem_cache_create must create
-			 * the cache that's used by kmalloc(24), otherwise
-			 * the creation of further caches will BUG().
-			 */
-			cachep->array[smp_processor_id()] =
-			    &initarray_generic.cache;
-
-			/* If the cache that's used by
-			 * kmalloc(sizeof(kmem_list3)) is the first cache,
-			 * then we need to set up all its list3s, otherwise
-			 * the creation of further caches will BUG().
-			 */
-			set_up_list3s(cachep, SIZE_AC);
-			if (INDEX_AC == INDEX_L3)
-				g_cpucache_up = PARTIAL_L3;
-			else
-				g_cpucache_up = PARTIAL_AC;
-		} else {
-			cachep->array[smp_processor_id()] =
-			    kmalloc(sizeof(struct arraycache_init), GFP_KERNEL);
-
-			if (g_cpucache_up == PARTIAL_AC) {
-				set_up_list3s(cachep, SIZE_L3);
-				g_cpucache_up = PARTIAL_L3;
-			} else {
-				int node;
-				for_each_online_node(node) {
-
-					cachep->nodelists[node] =
-					    kmalloc_node(sizeof
-							 (struct kmem_list3),
-							 GFP_KERNEL, node);
-					BUG_ON(!cachep->nodelists[node]);
-					kmem_list3_init(cachep->
-							nodelists[node]);
-				}
-			}
-		}
-		cachep->nodelists[numa_node_id()]->next_reap =
-		    jiffies + REAPTIMEOUT_LIST3 +
-		    ((unsigned long)cachep) % REAPTIMEOUT_LIST3;
-
-		BUG_ON(!cpu_cache_get(cachep));
-		cpu_cache_get(cachep)->avail = 0;
-		cpu_cache_get(cachep)->limit = BOOT_CPUCACHE_ENTRIES;
-		cpu_cache_get(cachep)->batchcount = 1;
-		cpu_cache_get(cachep)->touched = 0;
-		cachep->batchcount = 1;
-		cachep->limit = BOOT_CPUCACHE_ENTRIES;
-	}
+	setup_cpu_cache(cachep);
 
 	/* cache setup completed, link it into the list */
 	list_add(&cachep->next, &cache_chain);
