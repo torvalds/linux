@@ -1542,7 +1542,7 @@ void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
  *	@buflen: Response buffer length.
  *
  *	Returns standard device identification data associated
- *	with non-EVPD INQUIRY command output.
+ *	with non-VPD INQUIRY command output.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
@@ -1593,12 +1593,12 @@ unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
 }
 
 /**
- *	ata_scsiop_inq_00 - Simulate INQUIRY EVPD page 0, list of pages
+ *	ata_scsiop_inq_00 - Simulate INQUIRY VPD page 0, list of pages
  *	@args: device IDENTIFY data / SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *	@buflen: Response buffer length.
  *
- *	Returns list of inquiry EVPD pages available.
+ *	Returns list of inquiry VPD pages available.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
@@ -1612,7 +1612,7 @@ unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf,
 		0x80,	/* page 0x80, unit serial no page */
 		0x83	/* page 0x83, device ident page */
 	};
-	rbuf[3] = sizeof(pages);	/* number of supported EVPD pages */
+	rbuf[3] = sizeof(pages);	/* number of supported VPD pages */
 
 	if (buflen > 6)
 		memcpy(rbuf + 4, pages, sizeof(pages));
@@ -1621,7 +1621,7 @@ unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf,
 }
 
 /**
- *	ata_scsiop_inq_80 - Simulate INQUIRY EVPD page 80, device serial number
+ *	ata_scsiop_inq_80 - Simulate INQUIRY VPD page 80, device serial number
  *	@args: device IDENTIFY data / SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *	@buflen: Response buffer length.
@@ -1650,16 +1650,16 @@ unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
 	return 0;
 }
 
-static const char * const inq_83_str = "Linux ATA-SCSI simulator";
-
 /**
- *	ata_scsiop_inq_83 - Simulate INQUIRY EVPD page 83, device identity
+ *	ata_scsiop_inq_83 - Simulate INQUIRY VPD page 83, device identity
  *	@args: device IDENTIFY data / SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *	@buflen: Response buffer length.
  *
- *	Returns device identification.  Currently hardcoded to
- *	return "Linux ATA-SCSI simulator".
+ *	Yields two logical unit device identification designators:
+ *	 - vendor specific ASCII containing the ATA serial number
+ *	 - SAT defined "t10 vendor id based" containing ASCII vendor
+ *	   name ("ATA     "), model and serial numbers.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
@@ -1668,16 +1668,39 @@ static const char * const inq_83_str = "Linux ATA-SCSI simulator";
 unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
 			      unsigned int buflen)
 {
+	int num;
+	const int sat_model_serial_desc_len = 68;
+	const int ata_model_byte_len = 40;
+
 	rbuf[1] = 0x83;			/* this page code */
-	rbuf[3] = 4 + strlen(inq_83_str);	/* page len */
+	num = 4;
 
-	/* our one and only identification descriptor (vendor-specific) */
-	if (buflen > (strlen(inq_83_str) + 4 + 4 - 1)) {
-		rbuf[4 + 0] = 2;	/* code set: ASCII */
-		rbuf[4 + 3] = strlen(inq_83_str);
-		memcpy(rbuf + 4 + 4, inq_83_str, strlen(inq_83_str));
+	if (buflen > (ATA_SERNO_LEN + num + 3)) {
+		/* piv=0, assoc=lu, code_set=ACSII, designator=vendor */
+		rbuf[num + 0] = 2;	
+		rbuf[num + 3] = ATA_SERNO_LEN;
+		num += 4;
+		ata_id_string(args->id, (unsigned char *) rbuf + num,
+			      ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
+		num += ATA_SERNO_LEN;
 	}
-
+	if (buflen > (sat_model_serial_desc_len + num + 3)) {
+		/* SAT defined lu model and serial numbers descriptor */
+		/* piv=0, assoc=lu, code_set=ACSII, designator=t10 vendor id */
+		rbuf[num + 0] = 2;	
+		rbuf[num + 1] = 1;	
+		rbuf[num + 3] = sat_model_serial_desc_len;
+		num += 4;
+		memcpy(rbuf + num, "ATA     ", 8);
+		num += 8;
+		ata_id_string(args->id, (unsigned char *) rbuf + num,
+			      ATA_ID_PROD_OFS, ata_model_byte_len);
+		num += ata_model_byte_len;
+		ata_id_string(args->id, (unsigned char *) rbuf + num,
+			      ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
+		num += ATA_SERNO_LEN;
+	}
+	rbuf[3] = num - 4;    /* page len (assume less than 256 bytes) */
 	return 0;
 }
 
