@@ -69,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.52"
-#define DRV_MODULE_RELDATE	"Mar 06, 2006"
+#define DRV_MODULE_VERSION	"3.53"
+#define DRV_MODULE_RELDATE	"Mar 22, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -1148,6 +1148,19 @@ static int tg3_halt_cpu(struct tg3 *, u32);
 static int tg3_nvram_lock(struct tg3 *);
 static void tg3_nvram_unlock(struct tg3 *);
 
+static void tg3_power_down_phy(struct tg3 *tp)
+{
+	/* The PHY should not be powered down on some chips because
+	 * of bugs.
+	 */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 &&
+	     (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)))
+		return;
+	tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
+}
+
 static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 {
 	u32 misc_host_ctrl;
@@ -1327,8 +1340,7 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			tg3_writephy(tp, MII_TG3_EXT_CTRL,
 				     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
 			tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
-			if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700)
-				tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
+			tg3_power_down_phy(tp);
 		}
 	}
 
@@ -9436,12 +9448,18 @@ static inline struct subsys_tbl_ent *lookup_by_subsys(struct tg3 *tp)
 	return NULL;
 }
 
-/* Since this function may be called in D3-hot power state during
- * tg3_init_one(), only config cycles are allowed.
- */
 static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 {
 	u32 val;
+	u16 pmcsr;
+
+	/* On some early chips the SRAM cannot be accessed in D3hot state,
+	 * so need make sure we're in D0.
+	 */
+	pci_read_config_word(tp->pdev, tp->pm_cap + PCI_PM_CTRL, &pmcsr);
+	pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+	pci_write_config_word(tp->pdev, tp->pm_cap + PCI_PM_CTRL, pmcsr);
+	msleep(1);
 
 	/* Make sure register accesses (indirect or otherwise)
 	 * will function correctly.
