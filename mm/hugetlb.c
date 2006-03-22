@@ -105,7 +105,9 @@ static int alloc_fresh_huge_page(void)
 	struct page *page;
 	page = alloc_pages_node(nid, GFP_HIGHUSER|__GFP_COMP|__GFP_NOWARN,
 					HUGETLB_PAGE_ORDER);
-	nid = (nid + 1) % num_online_nodes();
+	nid = next_node(nid, node_online_map);
+	if (nid == MAX_NUMNODES)
+		nid = first_node(node_online_map);
 	if (page) {
 		page[1].lru.next = (void *)free_huge_page;	/* dtor */
 		spin_lock(&hugetlb_lock);
