@@ -1,9 +1,39 @@
 menu "DCCP CCIDs Configuration (EXPERIMENTAL)"
 	depends on IP_DCCP && EXPERIMENTAL
 
-config IP_DCCP_CCID3
-	tristate "CCID3 (TFRC) (EXPERIMENTAL)"
+config IP_DCCP_CCID2
+	tristate "CCID2 (TCP-Like) (EXPERIMENTAL)"
 	depends on IP_DCCP
+	def_tristate IP_DCCP
+	select IP_DCCP_ACKVEC
+	---help---
+	  CCID 2, TCP-like Congestion Control, denotes Additive Increase,
+	  Multiplicative Decrease (AIMD) congestion control with behavior
+	  modelled directly on TCP, including congestion window, slow start,
+	  timeouts, and so forth [RFC 2581].  CCID 2 achieves maximum
+	  bandwidth over the long term, consistent with the use of end-to-end
+	  congestion control, but halves its congestion window in response to
+	  each congestion event.  This leads to the abrupt rate changes
+	  typical of TCP.  Applications should use CCID 2 if they prefer
+	  maximum bandwidth utilization to steadiness of rate.  This is often
+	  the case for applications that are not playing their data directly
+	  to the user.  For example, a hypothetical application that
+	  transferred files over DCCP, using application-level retransmissions
+	  for lost packets, would prefer CCID 2 to CCID 3.  On-line games may
+	  also prefer CCID 2.
+
+	  CCID 2 is further described in:
+	  http://www.icir.org/kohler/dccp/draft-ietf-dccp-ccid2-10.txt
+
+	  This text was extracted from:
+	  http://www.icir.org/kohler/dccp/draft-ietf-dccp-spec-13.txt
+
+	  If in doubt, say M.
+
+config IP_DCCP_CCID3
+	tristate "CCID3 (TCP-Friendly) (EXPERIMENTAL)"
+	depends on IP_DCCP
+	def_tristate IP_DCCP
 	---help---
 	  CCID 3 denotes TCP-Friendly Rate Control (TFRC), an equation-based
 	  rate-controlled congestion control mechanism.  TFRC is designed to
@@ -15,10 +45,15 @@ config IP_DCCP_CCID3
 	  suitable than CCID 2 for applications such streaming media where a
 	  relatively smooth sending rate is of importance.
 
-	  CCID 3 is further described in [CCID 3 PROFILE]. The TFRC
-	  congestion control algorithms were initially described in RFC 3448.
+	  CCID 3 is further described in:
 
-	  This text was extracted from draft-ietf-dccp-spec-11.txt.
+	  http://www.icir.org/kohler/dccp/draft-ietf-dccp-ccid3-11.txt.
+
+	  The TFRC congestion control algorithms were initially described in
+	  RFC 3448.
+
+	  This text was extracted from:
+	  http://www.icir.org/kohler/dccp/draft-ietf-dccp-spec-13.txt
 	  
 	  If in doubt, say M.
 

@@ -26,6 +26,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -102,14 +103,13 @@ match_outdev:
 static int
 checkentry(const char *tablename,
 		       const void *ip,
+		       const struct xt_match *match,
 		       void *matchinfo,
 		       unsigned int matchsize,
 		       unsigned int hook_mask)
 {
 	const struct xt_physdev_info *info = matchinfo;
 
-	if (matchsize != XT_ALIGN(sizeof(struct xt_physdev_info)))
-		return 0;
 	if (!(info->bitmask & XT_PHYSDEV_OP_MASK) ||
 	    info->bitmask & ~XT_PHYSDEV_OP_MASK)
 		return 0;
@@ -118,15 +118,17 @@ checkentry(const char *tablename,
 
 static struct xt_match physdev_match = {
 	.name		= "physdev",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_physdev_info),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
 static struct xt_match physdev6_match = {
 	.name		= "physdev",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_physdev_info),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 

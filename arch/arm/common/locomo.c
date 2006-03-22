@@ -788,6 +788,8 @@ static int locomo_probe(struct platform_device *dev)
 	if (!mem)
 		return -EINVAL;
 	irq = platform_get_irq(dev, 0);
+	if (irq < 0)
+		return -ENXIO;
 
 	return __locomo_probe(&dev->dev, mem, irq);
 }

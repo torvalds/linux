@@ -743,6 +743,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 
 		memset(input, 0, sizeof(*input));
 		input->index = state->aud_input;
+		input->capability = V4L2_AUDCAP_STEREO;
 		break;
 	}
 
@@ -753,7 +754,6 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 	case VIDIOC_G_TUNER:
 	{
 		u8 mode = cx25840_read(client, 0x804);
-		u8 pref = cx25840_read(client, 0x809) & 0xf;
 		u8 vpres = cx25840_read(client, 0x80a) & 0x10;
 		int val = 0;
 
@@ -773,44 +773,49 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 			val |= V4L2_TUNER_SUB_MONO;
 
 		if (mode == 2 || mode == 4)
-			val |= V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
+			val = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 
 		if (mode & 0x10)
 			val |= V4L2_TUNER_SUB_SAP;
 
 		vt->rxsubchans = val;
-
-		switch (pref) {
-		case 0:
-			vt->audmode = V4L2_TUNER_MODE_MONO;
-			break;
-		case 1:
-		case 2:
-			vt->audmode = V4L2_TUNER_MODE_LANG2;
-			break;
-		case 4:
-		default:
-			vt->audmode = V4L2_TUNER_MODE_STEREO;
-		}
+		vt->audmode = state->audmode;
 		break;
 	}
 
 	case VIDIOC_S_TUNER:
+		if (state->radio)
+			break;
+
 		switch (vt->audmode) {
 		case V4L2_TUNER_MODE_MONO:
-		case V4L2_TUNER_MODE_LANG1:
-			/* Force PREF_MODE to MONO */
+			/* mono      -> mono
+			   stereo    -> mono
+			   bilingual -> lang1 */
 			cx25840_and_or(client, 0x809, ~0xf, 0x00);
 			break;
-		case V4L2_TUNER_MODE_STEREO:
-			/* Force PREF_MODE to STEREO */
+		case V4L2_TUNER_MODE_LANG1:
+			/* mono      -> mono
+			   stereo    -> stereo
+			   bilingual -> lang1 */
 			cx25840_and_or(client, 0x809, ~0xf, 0x04);
 			break;
+		case V4L2_TUNER_MODE_STEREO:
+			/* mono      -> mono
+			   stereo    -> stereo
+			   bilingual -> lang1/lang2 */
+			cx25840_and_or(client, 0x809, ~0xf, 0x07);
+			break;
 		case V4L2_TUNER_MODE_LANG2:
-			/* Force PREF_MODE to LANG2 */
+			/* mono      -> mono
+			   stereo    ->stereo
+			   bilingual -> lang2 */
 			cx25840_and_or(client, 0x809, ~0xf, 0x01);
 			break;
+		default:
+			return -EINVAL;
 		}
+		state->audmode = vt->audmode;
 		break;
 
 	case VIDIOC_G_FMT:
@@ -891,6 +896,7 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	state->aud_input = CX25840_AUDIO8;
 	state->audclk_freq = 48000;
 	state->pvr150_workaround = 0;
+	state->audmode = V4L2_TUNER_MODE_LANG1;
 
 	cx25840_initialize(client, 1);
 

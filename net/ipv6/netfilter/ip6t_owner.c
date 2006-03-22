@@ -26,6 +26,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -54,34 +55,27 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
 	   const void *ip,
+	   const struct xt_match *match,
 	   void *matchinfo,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
 	const struct ip6t_owner_info *info = matchinfo;
 
-	if (hook_mask
-	    & ~((1 << NF_IP6_LOCAL_OUT) | (1 << NF_IP6_POST_ROUTING))) {
-		printk("ip6t_owner: only valid for LOCAL_OUT or POST_ROUTING.\n");
-		return 0;
-	}
-
-	if (matchsize != IP6T_ALIGN(sizeof(struct ip6t_owner_info)))
-		return 0;
-
 	if (info->match & (IP6T_OWNER_PID | IP6T_OWNER_SID)) {
 		printk("ipt_owner: pid and sid matching "
 		       "not supported anymore\n");
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ip6t_match owner_match = {
 	.name		= "owner",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ip6t_owner_info),
+	.hooks		= (1 << NF_IP6_LOCAL_OUT) | (1 << NF_IP6_POST_ROUTING),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 

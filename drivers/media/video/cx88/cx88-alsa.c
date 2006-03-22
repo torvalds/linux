@@ -676,6 +676,11 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	chip = (snd_cx88_card_t *) card->private_data;
 
 	core = cx88_core_get(pci);
+	if (NULL == core) {
+		err = -EINVAL;
+		kfree (chip);
+		return err;
+	}
 
 	if (!pci_dma_supported(pci,0xffffffff)) {
 		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n",core->name);
@@ -692,11 +697,6 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	spin_lock_init(&chip->reg_lock);
 
 	cx88_reset(core);
-	if (NULL == core) {
-		err = -EINVAL;
-		kfree (chip);
-		return err;
-	}
 	chip->core = core;
 
 	/* get irq */

@@ -23,6 +23,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -36,34 +37,33 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
            const void *entry,
+	   const struct xt_match *match,
            void *matchinfo,
            unsigned int matchsize,
            unsigned int hook_mask)
 {
 	struct xt_mark_info *minfo = (struct xt_mark_info *) matchinfo;
 
-	if (matchsize != XT_ALIGN(sizeof(struct xt_mark_info)))
-		return 0;
-
 	if (minfo->mark > 0xffffffff || minfo->mask > 0xffffffff) {
 		printk(KERN_WARNING "mark: only supports 32bit mark\n");
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct xt_match mark_match = {
 	.name		= "mark",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_mark_info),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 
 static struct xt_match mark6_match = {
 	.name		= "mark",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_mark_info),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 

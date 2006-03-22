@@ -97,6 +97,9 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 		group = __group;
 	}
 
+	if (!netlink_has_listeners(dev->nls, group))
+		return -ESRCH;
+
 	size = NLMSG_SPACE(sizeof(*msg) + msg->len);
 
 	skb = alloc_skb(size, gfp_mask);
@@ -111,9 +114,7 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 
 	NETLINK_CB(skb).dst_group = group;
 
-	netlink_broadcast(dev->nls, skb, 0, group, gfp_mask);
-
-	return 0;
+	return netlink_broadcast(dev->nls, skb, 0, group, gfp_mask);
 
 nlmsg_failure:
 	kfree_skb(skb);

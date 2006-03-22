@@ -308,8 +308,7 @@ static int dsp_buffer_init(struct saa7134_dev *dev)
 
 static int dsp_buffer_free(struct saa7134_dev *dev)
 {
-	if (!dev->dmasound.blksize)
-		BUG();
+	BUG_ON(!dev->dmasound.blksize);
 
 	videobuf_dma_free(&dev->dmasound.dma);
 
@@ -612,12 +611,12 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 	struct saa7134_dev *dev = saa7134->dev;
 	int err;
 
-	down(&dev->dmasound.lock);
+	mutex_lock(&dev->dmasound.lock);
 
 	dev->dmasound.read_count  = 0;
 	dev->dmasound.read_offset = 0;
 
-	up(&dev->dmasound.lock);
+	mutex_unlock(&dev->dmasound.lock);
 
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (pcm == NULL)
@@ -941,7 +940,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 
 	chip->irq = dev->pci->irq;
 
-	init_MUTEX(&dev->dmasound.lock);
+	mutex_init(&dev->dmasound.lock);
 
 	if ((err = snd_card_saa7134_new_mixer(chip)) < 0)
 		goto __nodev;

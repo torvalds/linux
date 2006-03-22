@@ -115,7 +115,6 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 		if (neigh->ah)
 			ipoib_put_ah(neigh->ah);
 		*to_ipoib_neigh(neigh->neighbour) = NULL;
-		neigh->neighbour->ops->destructor = NULL;
 		kfree(neigh);
 	}
 
@@ -213,6 +212,7 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 {
 	struct net_device *dev = mcast->dev;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_ah *ah;
 	int ret;
 
 	mcast->mcmember = *mcmember;
@@ -269,8 +269,8 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 				av.static_rate, priv->local_rate,
 				ib_sa_rate_enum_to_int(mcast->mcmember.rate));
 
-		mcast->ah = ipoib_create_ah(dev, priv->pd, &av);
-		if (!mcast->ah) {
+		ah = ipoib_create_ah(dev, priv->pd, &av);
+		if (!ah) {
 			ipoib_warn(priv, "ib_address_create failed\n");
 		} else {
 			ipoib_dbg_mcast(priv, "MGID " IPOIB_GID_FMT
@@ -280,6 +280,10 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 					be16_to_cpu(mcast->mcmember.mlid),
 					mcast->mcmember.sl);
 		}
+
+		spin_lock_irq(&priv->lock);
+		mcast->ah = ah;
+		spin_unlock_irq(&priv->lock);
 	}
 
 	/* actually send any queued packets */
@@ -432,9 +436,11 @@ static void ipoib_mcast_join_complete(int status,
 	if (mcast->backoff > IPOIB_MAX_BACKOFF_SECONDS)
 		mcast->backoff = IPOIB_MAX_BACKOFF_SECONDS;
 
+	mutex_lock(&mcast_mutex);
+
+	spin_lock_irq(&priv->lock);
 	mcast->query = NULL;
 
-	mutex_lock(&mcast_mutex);
 	if (test_bit(IPOIB_MCAST_RUN, &priv->flags)) {
 		if (status == -ETIMEDOUT)
 			queue_work(ipoib_workqueue, &priv->mcast_task);
@@ -443,6 +449,7 @@ static void ipoib_mcast_join_complete(int status,
 					   mcast->backoff * HZ);
 	} else
 		complete(&mcast->done);
+	spin_unlock_irq(&priv->lock);
 	mutex_unlock(&mcast_mutex);
 
 	return;
@@ -630,21 +637,27 @@ int ipoib_mcast_stop_thread(struct net_device *dev, int flush)
 	if (flush)
 		flush_workqueue(ipoib_workqueue);
 
+	spin_lock_irq(&priv->lock);
 	if (priv->broadcast && priv->broadcast->query) {
 		ib_sa_cancel_query(priv->broadcast->query_id, priv->broadcast->query);
 		priv->broadcast->query = NULL;
+		spin_unlock_irq(&priv->lock);
 		ipoib_dbg_mcast(priv, "waiting for bcast\n");
 		wait_for_completion(&priv->broadcast->done);
-	}
+	} else
+		spin_unlock_irq(&priv->lock);
 
 	list_for_each_entry(mcast, &priv->multicast_list, list) {
+		spin_lock_irq(&priv->lock);
 		if (mcast->query) {
 			ib_sa_cancel_query(mcast->query_id, mcast->query);
 			mcast->query = NULL;
+			spin_unlock_irq(&priv->lock);
 			ipoib_dbg_mcast(priv, "waiting for MGID " IPOIB_GID_FMT "\n",
 					IPOIB_GID_ARG(mcast->mcmember.mgid));
 			wait_for_completion(&mcast->done);
-		}
+		} else
+			spin_unlock_irq(&priv->lock);
 	}
 
 	return 0;

@@ -50,6 +50,7 @@ MODULE_DESCRIPTION("iptables special SNAT module for consistent sourceip");
 static int
 same_check(const char *tablename,
 	      const void *e,
+	      const struct xt_target *target,
 	      void *targinfo,
 	      unsigned int targinfosize,
 	      unsigned int hook_mask)
@@ -59,18 +60,6 @@ same_check(const char *tablename,
 
 	mr->ipnum = 0;
 
-	if (strcmp(tablename, "nat") != 0) {
-		DEBUGP("same_check: bad table `%s'.\n", tablename);
-		return 0;
-	}
-	if (targinfosize != IPT_ALIGN(sizeof(*mr))) {
-		DEBUGP("same_check: size %u.\n", targinfosize);
-		return 0;
-	}
-	if (hook_mask & ~(1 << NF_IP_PRE_ROUTING | 1 << NF_IP_POST_ROUTING)) {
-		DEBUGP("same_check: bad hooks %x.\n", hook_mask);
-		return 0;
-	}
 	if (mr->rangesize < 1) {
 		DEBUGP("same_check: need at least one dest range.\n");
 		return 0;
@@ -127,7 +116,7 @@ same_check(const char *tablename,
 }
 
 static void 
-same_destroy(void *targinfo,
+same_destroy(const struct xt_target *target, void *targinfo,
 		unsigned int targinfosize)
 {
 	struct ipt_same_info *mr = targinfo;
@@ -143,6 +132,7 @@ same_target(struct sk_buff **pskb,
 		const struct net_device *in,
 		const struct net_device *out,
 		unsigned int hooknum,
+		const struct xt_target *target,
 		const void *targinfo,
 		void *userinfo)
 {
@@ -191,6 +181,9 @@ same_target(struct sk_buff **pskb,
 static struct ipt_target same_reg = { 
 	.name		= "SAME",
 	.target		= same_target,
+	.targetsize	= sizeof(struct ipt_same_info),
+	.table		= "nat",
+	.hooks		= (1 << NF_IP_PRE_ROUTING | 1 << NF_IP_POST_ROUTING),
 	.checkentry	= same_check,
 	.destroy	= same_destroy,
 	.me		= THIS_MODULE,

@@ -15,7 +15,7 @@ msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
 obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o v4l1-compat.o compat_ioctl32.o
 
-obj-$(CONFIG_VIDEO_BT848) += bttv.o msp3400.o tvaudio.o \
+obj-$(CONFIG_VIDEO_BT848) += bttv.o tvaudio.o \
 	tda7432.o tda9875.o ir-kbd-i2c.o
 obj-$(CONFIG_SOUND_TVMIXER) += tvmixer.o
 
@@ -44,10 +44,13 @@ obj-$(CONFIG_VIDEO_MEYE) += meye.o
 obj-$(CONFIG_VIDEO_SAA7134) += ir-kbd-i2c.o saa7134/
 obj-$(CONFIG_VIDEO_CX88) += cx88/
 obj-$(CONFIG_VIDEO_EM28XX) += em28xx/
-obj-$(CONFIG_VIDEO_EM28XX) += saa711x.o tvp5150.o
-obj-$(CONFIG_VIDEO_AUDIO_DECODER) += wm8775.o cs53l32a.o
+obj-$(CONFIG_VIDEO_EM28XX) += tvp5150.o
+obj-$(CONFIG_VIDEO_MSP3400) += msp3400.o
+obj-$(CONFIG_VIDEO_CS53L32A) += cs53l32a.o
+obj-$(CONFIG_VIDEO_WM8775) += wm8775.o
 obj-$(CONFIG_VIDEO_OVCAMCHIP) += ovcamchip/
-obj-$(CONFIG_VIDEO_MXB) += saa7111.o tuner.o tda9840.o tea6415c.o tea6420.o mxb.o
+obj-$(CONFIG_VIDEO_CPIA2) += cpia2/
+obj-$(CONFIG_VIDEO_MXB) += saa7111.o tda9840.o tea6415c.o tea6420.o mxb.o
 obj-$(CONFIG_VIDEO_HEXIUM_ORION) += hexium_orion.o
 obj-$(CONFIG_VIDEO_HEXIUM_GEMINI) += hexium_gemini.o
 obj-$(CONFIG_VIDEO_DPC) += saa7111.o dpc7146.o
@@ -61,6 +64,8 @@ obj-$(CONFIG_VIDEO_TVEEPROM) += tveeprom.o
 
 obj-$(CONFIG_VIDEO_M32R_AR_M64278) += arv.o
 
-obj-$(CONFIG_VIDEO_DECODER)     += saa7115.o cx25840/ saa7127.o
+obj-$(CONFIG_VIDEO_CX25840) += cx25840/
+obj-$(CONFIG_VIDEO_SAA711X) += saa7115.o
+obj-$(CONFIG_VIDEO_SAA7127) += saa7127.o
 
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core

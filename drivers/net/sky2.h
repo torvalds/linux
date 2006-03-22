@@ -278,13 +278,11 @@ enum {
 	Y2_IS_CHK_TXS1	= 1<<1,		/* Descriptor error TXS 1 */
 	Y2_IS_CHK_TXA1	= 1<<0,		/* Descriptor error TXA 1 */
 
-	Y2_IS_BASE	= Y2_IS_HW_ERR | Y2_IS_STAT_BMU |
-			  Y2_IS_POLL_CHK | Y2_IS_TWSI_RDY |
-			  Y2_IS_IRQ_SW | Y2_IS_TIMINT,
-	Y2_IS_PORT_1	= Y2_IS_IRQ_PHY1 | Y2_IS_IRQ_MAC1 |
-			  Y2_IS_CHK_RX1 | Y2_IS_CHK_TXA1 | Y2_IS_CHK_TXS1,
-	Y2_IS_PORT_2	= Y2_IS_IRQ_PHY2 | Y2_IS_IRQ_MAC2 |
-			  Y2_IS_CHK_RX2 | Y2_IS_CHK_TXA2 | Y2_IS_CHK_TXS2,
+	Y2_IS_BASE	= Y2_IS_HW_ERR | Y2_IS_STAT_BMU,
+	Y2_IS_PORT_1	= Y2_IS_IRQ_PHY1 | Y2_IS_IRQ_MAC1
+		          | Y2_IS_CHK_TXA1 | Y2_IS_CHK_RX1,
+	Y2_IS_PORT_2	= Y2_IS_IRQ_PHY2 | Y2_IS_IRQ_MAC2
+			  | Y2_IS_CHK_TXA2 | Y2_IS_CHK_RX2,
 };
 
 /*	B2_IRQM_HWE_MSK	32 bit	IRQ Moderation HW Error Mask */
@@ -1832,6 +1830,7 @@ struct sky2_port {
 	struct net_device    *netdev;
 	unsigned	     port;
 	u32		     msg_enable;
+	spinlock_t	     phy_lock;
 
 	spinlock_t	     tx_lock  ____cacheline_aligned_in_smp;
 	struct tx_ring_info  *tx_ring;
@@ -1840,7 +1839,6 @@ struct sky2_port {
 	u16		     tx_prod;		/* next le to use */
 	u32		     tx_addr64;
 	u16		     tx_pending;
-	u16		     tx_last_put;
 	u16		     tx_last_mss;
 
 	struct ring_info     *rx_ring ____cacheline_aligned_in_smp;
@@ -1849,7 +1847,6 @@ struct sky2_port {
 	u16		     rx_next;		/* next re to check */
 	u16		     rx_put;		/* next le index to use */
 	u16		     rx_pending;
-	u16		     rx_last_put;
 	u16		     rx_bufsize;
 #ifdef SKY2_VLAN_TAG_USED
 	u16		     rx_tag;
@@ -1865,20 +1862,15 @@ struct sky2_port {
 	u8		     rx_pause;
 	u8		     tx_pause;
 	u8		     rx_csum;
-	u8		     wol;
 
 	struct net_device_stats net_stats;
 
-	struct work_struct   phy_task;
-	struct semaphore     phy_sema;
 };
 
 struct sky2_hw {
 	void __iomem  	     *regs;
 	struct pci_dev	     *pdev;
 	struct net_device    *dev[2];
-	spinlock_t	     hw_lock;
-	u32		     intr_mask;
 
 	int		     pm_cap;
 	u8	     	     chip_id;
@@ -1889,6 +1881,8 @@ struct sky2_hw {
 	struct sky2_status_le *st_le;
 	u32		     st_idx;
 	dma_addr_t   	     st_dma;
+	int		     msi_detected;
+	wait_queue_head_t    msi_wait;
 };
 
 /* Register accessor for memory mapped device */

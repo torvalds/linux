@@ -690,14 +690,13 @@ int usbvideo_register(
 	}
 
 	base_size = num_cams * sizeof(struct uvd) + sizeof(struct usbvideo);
-	cams = (struct usbvideo *) kmalloc(base_size, GFP_KERNEL);
+	cams = (struct usbvideo *) kzalloc(base_size, GFP_KERNEL);
 	if (cams == NULL) {
 		err("Failed to allocate %d. bytes for usbvideo struct", base_size);
 		return -ENOMEM;
 	}
 	dbg("%s: Allocated $%p (%d. bytes) for %d. cameras",
 	    __FUNCTION__, cams, base_size, num_cams);
-	memset(cams, 0, base_size);
 
 	/* Copy callbacks, apply defaults for those that are not set */
 	memmove(&cams->cb, cbTbl, sizeof(cams->cb));
@@ -715,7 +714,7 @@ int usbvideo_register(
 	cams->md_module = md;
 	if (cams->md_module == NULL)
 		warn("%s: module == NULL!", __FUNCTION__);
-	init_MUTEX(&cams->lock);	/* to 1 == available */
+	mutex_init(&cams->lock);	/* to 1 == available */
 
 	for (i = 0; i < num_cams; i++) {
 		struct uvd *up = &cams->cam[i];
@@ -863,7 +862,7 @@ static void usbvideo_Disconnect(struct usb_interface *intf)
 	if (uvd->debug > 0)
 		info("%s(%p.)", __FUNCTION__, intf);
 
-	down(&uvd->lock);
+	mutex_lock(&uvd->lock);
 	uvd->remove_pending = 1; /* Now all ISO data will be ignored */
 
 	/* At this time we ask to cancel outstanding URBs */
@@ -883,7 +882,7 @@ static void usbvideo_Disconnect(struct usb_interface *intf)
 		info("%s: In use, disconnect pending.", __FUNCTION__);
 	else
 		usbvideo_CameraRelease(uvd);
-	up(&uvd->lock);
+	mutex_unlock(&uvd->lock);
 	info("USB camera disconnected.");
 
 	usbvideo_ClientDecModCount(uvd);
@@ -930,19 +929,19 @@ static int usbvideo_find_struct(struct usbvideo *cams)
 		err("No usbvideo handle?");
 		return -1;
 	}
-	down(&cams->lock);
+	mutex_lock(&cams->lock);
 	for (u = 0; u < cams->num_cameras; u++) {
 		struct uvd *uvd = &cams->cam[u];
 		if (!uvd->uvd_used) /* This one is free */
 		{
 			uvd->uvd_used = 1;	/* In use now */
-			init_MUTEX(&uvd->lock);	/* to 1 == available */
+			mutex_init(&uvd->lock);	/* to 1 == available */
 			uvd->dev = NULL;
 			rv = u;
 			break;
 		}
 	}
-	up(&cams->lock);
+	mutex_unlock(&cams->lock);
 	return rv;
 }
 
@@ -984,7 +983,7 @@ struct uvd *usbvideo_AllocateDevice(struct usbvideo *cams)
 	/* Not relying upon caller we increase module counter ourselves */
 	usbvideo_ClientIncModCount(uvd);
 
-	down(&uvd->lock);
+	mutex_lock(&uvd->lock);
 	for (i=0; i < USBVIDEO_NUMSBUF; i++) {
 		uvd->sbuf[i].urb = usb_alloc_urb(FRAMES_PER_DESC, GFP_KERNEL);
 		if (uvd->sbuf[i].urb == NULL) {
@@ -1007,7 +1006,7 @@ struct uvd *usbvideo_AllocateDevice(struct usbvideo *cams)
 	 * return control to the client's probe function right now.
 	 */
 allocate_done:
-	up (&uvd->lock);
+	mutex_unlock(&uvd->lock);
 	usbvideo_ClientDecModCount(uvd);
 	return uvd;
 }
@@ -1121,7 +1120,7 @@ static int usbvideo_v4l_open(struct inode *inode, struct file *file)
 		info("%s($%p)", __FUNCTION__, dev);
 
 	usbvideo_ClientIncModCount(uvd);
-	down(&uvd->lock);
+	mutex_lock(&uvd->lock);
 
 	if (uvd->user) {
 		err("%s: Someone tried to open an already opened device!", __FUNCTION__);
@@ -1202,7 +1201,7 @@ static int usbvideo_v4l_open(struct inode *inode, struct file *file)
 			}
 		}
 	}
-	up(&uvd->lock);
+	mutex_unlock(&uvd->lock);
 	if (errCode != 0)
 		usbvideo_ClientDecModCount(uvd);
 	if (uvd->debug > 0)
@@ -1231,7 +1230,7 @@ static int usbvideo_v4l_close(struct inode *inode, struct file *file)
 	if (uvd->debug > 1)
 		info("%s($%p)", __FUNCTION__, dev);
 
-	down(&uvd->lock);
+	mutex_lock(&uvd->lock);
 	GET_CALLBACK(uvd, stopDataPump)(uvd);
 	usbvideo_rvfree(uvd->fbuf, uvd->fbuf_size);
 	uvd->fbuf = NULL;
@@ -1252,7 +1251,7 @@ static int usbvideo_v4l_close(struct inode *inode, struct file *file)
 			info("usbvideo_v4l_close: Final disconnect.");
 		usbvideo_CameraRelease(uvd);
 	}
-	up(&uvd->lock);
+	mutex_unlock(&uvd->lock);
 	usbvideo_ClientDecModCount(uvd);
 
 	if (uvd->debug > 1)
@@ -1512,7 +1511,7 @@ static ssize_t usbvideo_v4l_read(struct file *file, char __user *buf,
 	if (uvd->debug >= 1)
 		info("%s: %Zd. bytes, noblock=%d.", __FUNCTION__, count, noblock);
 
-	down(&uvd->lock);	
+	mutex_lock(&uvd->lock);
 
 	/* See if a frame is completed, then use it. */
 	for(i = 0; i < USBVIDEO_NUMFRAMES; i++) {
@@ -1644,7 +1643,7 @@ static ssize_t usbvideo_v4l_read(struct file *file, char __user *buf,
 		}
 	}
 read_done:
-	up(&uvd->lock);	
+	mutex_unlock(&uvd->lock);
 	return count;
 }
 

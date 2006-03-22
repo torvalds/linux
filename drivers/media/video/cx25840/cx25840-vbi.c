@@ -151,7 +151,7 @@ int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 	case VIDIOC_G_FMT:
 	{
 		static u16 lcr2vbi[] = {
-			0, V4L2_SLICED_TELETEXT_B, 0,	/* 1 */
+			0, V4L2_SLICED_TELETEXT_PAL_B, 0,	/* 1 */
 			0, V4L2_SLICED_WSS_625, 0,	/* 4 */
 			V4L2_SLICED_CAPTION_525,	/* 6 */
 			0, 0, V4L2_SLICED_VPS, 0, 0,	/* 9 */
@@ -231,7 +231,7 @@ int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 		for (i = 7; i <= 23; i++) {
 			for (x = 0; x <= 1; x++) {
 				switch (svbi->service_lines[1-x][i]) {
-				case V4L2_SLICED_TELETEXT_B:
+				case V4L2_SLICED_TELETEXT_PAL_B:
 					lcr[i] |= 1 << (4 * x);
 					break;
 				case V4L2_SLICED_WSS_625:
@@ -282,7 +282,7 @@ int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 
 		switch (id2) {
 		case 1:
-			id2 = V4L2_SLICED_TELETEXT_B;
+			id2 = V4L2_SLICED_TELETEXT_PAL_B;
 			break;
 		case 4:
 			id2 = V4L2_SLICED_WSS_625;

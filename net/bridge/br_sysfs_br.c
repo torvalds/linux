@@ -242,6 +242,54 @@ static ssize_t show_gc_timer(struct class_device *cd, char *buf)
 }
 static CLASS_DEVICE_ATTR(gc_timer, S_IRUGO, show_gc_timer, NULL);
 
+static ssize_t show_group_addr(struct class_device *cd, char *buf)
+{
+	struct net_bridge *br = to_bridge(cd);
+	return sprintf(buf, "%x:%x:%x:%x:%x:%x\n",
+		       br->group_addr[0], br->group_addr[1],
+		       br->group_addr[2], br->group_addr[3],
+		       br->group_addr[4], br->group_addr[5]);
+}
+
+static ssize_t store_group_addr(struct class_device *cd, const char *buf,
+				    size_t len)
+{
+	struct net_bridge *br = to_bridge(cd);
+	unsigned new_addr[6];
+	int i;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	if (sscanf(buf, "%x:%x:%x:%x:%x:%x",
+		   &new_addr[0], &new_addr[1], &new_addr[2],
+		   &new_addr[3], &new_addr[4], &new_addr[5]) != 6)
+		return -EINVAL;
+
+	/* Must be 01:80:c2:00:00:0X */
+	for (i = 0; i < 5; i++)
+		if (new_addr[i] != br_group_address[i])
+			return -EINVAL;
+
+	if (new_addr[5] & ~0xf)
+		return -EINVAL;
+
+	if (new_addr[5] == 1 	/* 802.3x Pause address */
+	    || new_addr[5] == 2 /* 802.3ad Slow protocols */
+	    || new_addr[5] == 3) /* 802.1X PAE address */
+		return -EINVAL;
+
+	spin_lock_bh(&br->lock);
+	for (i = 0; i < 6; i++)
+		br->group_addr[i] = new_addr[i];
+	spin_unlock_bh(&br->lock);
+	return len;
+}
+
+static CLASS_DEVICE_ATTR(group_addr, S_IRUGO | S_IWUSR,
+			 show_group_addr, store_group_addr);
+
+
 static struct attribute *bridge_attrs[] = {
 	&class_device_attr_forward_delay.attr,
 	&class_device_attr_hello_time.attr,
@@ -259,6 +307,7 @@ static struct attribute *bridge_attrs[] = {
 	&class_device_attr_tcn_timer.attr,
 	&class_device_attr_topology_change_timer.attr,
 	&class_device_attr_gc_timer.attr,
+	&class_device_attr_group_addr.attr,
 	NULL
 };
 

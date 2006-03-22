@@ -11,6 +11,7 @@
 #include <linux/crypto.h>
 #include <linux/pfkeyv2.h>
 #include <linux/in6.h>
+#include <linux/mutex.h>
 
 #include <net/sock.h>
 #include <net/dst.h>
@@ -20,7 +21,11 @@
 
 #define XFRM_ALIGN8(len)	(((len) + 7) & ~7)
 
-extern struct semaphore xfrm_cfg_sem;
+extern struct sock *xfrm_nl;
+extern u32 sysctl_xfrm_aevent_etime;
+extern u32 sysctl_xfrm_aevent_rseqth;
+
+extern struct mutex xfrm_cfg_mutex;
 
 /* Organization of SPD aka "XFRM rules"
    ------------------------------------
@@ -135,6 +140,16 @@ struct xfrm_state
 	/* State for replay detection */
 	struct xfrm_replay_state replay;
 
+	/* Replay detection state at the time we sent the last notification */
+	struct xfrm_replay_state preplay;
+
+	/* Replay detection notification settings */
+	u32			replay_maxage;
+	u32			replay_maxdiff;
+
+	/* Replay detection notification timer */
+	struct timer_list	rtimer;
+
 	/* Statistics */
 	struct xfrm_stats	stats;
 
@@ -169,6 +184,7 @@ struct km_event
 		u32 hard;
 		u32 proto;
 		u32 byid;
+		u32 aevent;
 	} data;
 
 	u32	seq;
@@ -199,10 +215,13 @@ extern int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo);
 extern int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo);
 extern void km_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c);
 extern void km_state_notify(struct xfrm_state *x, struct km_event *c);
-
 #define XFRM_ACQ_EXPIRES	30
 
 struct xfrm_tmpl;
+extern int km_query(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *pol);
+extern void km_state_expired(struct xfrm_state *x, int hard, u32 pid);
+extern int __xfrm_state_delete(struct xfrm_state *x);
+
 struct xfrm_state_afinfo {
 	unsigned short		family;
 	rwlock_t		lock;
@@ -305,7 +324,21 @@ struct xfrm_policy
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 };
 
-#define XFRM_KM_TIMEOUT		30
+#define XFRM_KM_TIMEOUT                30
+/* which seqno */
+#define XFRM_REPLAY_SEQ		1
+#define XFRM_REPLAY_OSEQ	2
+#define XFRM_REPLAY_SEQ_MASK	3
+/* what happened */
+#define XFRM_REPLAY_UPDATE	XFRM_AE_CR
+#define XFRM_REPLAY_TIMEOUT	XFRM_AE_CE
+
+/* default aevent timeout in units of 100ms */
+#define XFRM_AE_ETIME			10
+/* Async Event timer multiplier */
+#define XFRM_AE_ETH_M			10
+/* default seq threshold size */
+#define XFRM_AE_SEQT_SIZE		2
 
 struct xfrm_mgr
 {
@@ -865,6 +898,7 @@ extern int xfrm_state_delete(struct xfrm_state *x);
 extern void xfrm_state_flush(u8 proto);
 extern int xfrm_replay_check(struct xfrm_state *x, u32 seq);
 extern void xfrm_replay_advance(struct xfrm_state *x, u32 seq);
+extern void xfrm_replay_notify(struct xfrm_state *x, int event);
 extern int xfrm_state_check(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 extern int xfrm_init_state(struct xfrm_state *x);
@@ -924,7 +958,7 @@ extern void xfrm_init_pmtu(struct dst_entry *dst);
 
 extern wait_queue_head_t km_waitq;
 extern int km_new_mapping(struct xfrm_state *x, xfrm_address_t *ipaddr, u16 sport);
-extern void km_policy_expired(struct xfrm_policy *pol, int dir, int hard);
+extern void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid);
 
 extern void xfrm_input_init(void);
 extern int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, u32 *spi, u32 *seq);
@@ -964,5 +998,25 @@ static inline int xfrm_policy_id2dir(u32 index)
 {
 	return index & 7;
 }
+
+static inline int xfrm_aevent_is_on(void)
+{
+	struct sock *nlsk;
+	int ret = 0;
+
+	rcu_read_lock();
+	nlsk = rcu_dereference(xfrm_nl);
+	if (nlsk)
+		ret = netlink_has_listeners(nlsk, XFRMNLGRP_AEVENTS);
+	rcu_read_unlock();
+	return ret;
+}
+
+static inline void xfrm_aevent_doreplay(struct xfrm_state *x)
+{
+	if (xfrm_aevent_is_on())
+		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
+}
+
 
 #endif	/* _NET_XFRM_H */

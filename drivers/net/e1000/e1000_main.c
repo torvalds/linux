@@ -920,7 +920,7 @@ e1000_remove(struct pci_dev *pdev)
 	unregister_netdev(netdev);
 #ifdef CONFIG_E1000_NAPI
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		__dev_put(&adapter->polling_netdev[i]);
+		dev_put(&adapter->polling_netdev[i]);
 #endif
 
 	if (!e1000_check_phy_reset_block(&adapter->hw))

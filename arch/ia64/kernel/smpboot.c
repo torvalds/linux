@@ -70,6 +70,12 @@
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
+#ifdef CONFIG_PERMIT_BSP_REMOVE
+#define bsp_remove_ok	1
+#else
+#define bsp_remove_ok	0
+#endif
+
 /*
  * Store all idle threads, this can be reused instead of creating
  * a new thread. Also avoids complicated thread destroy functionality
@@ -104,7 +110,7 @@ struct sal_to_os_boot *sal_state_for_booting_cpu = &sal_boot_rendez_state[0];
 /*
  * ITC synchronization related stuff:
  */
-#define MASTER	0
+#define MASTER	(0)
 #define SLAVE	(SMP_CACHE_BYTES/8)
 
 #define NUM_ROUNDS	64	/* magic value */
@@ -151,6 +157,27 @@ char __initdata no_int_routing;
 
 unsigned char smp_int_redirect; /* are INT and IPI redirectable by the chipset? */
 
+#ifdef CONFIG_FORCE_CPEI_RETARGET
+#define CPEI_OVERRIDE_DEFAULT	(1)
+#else
+#define CPEI_OVERRIDE_DEFAULT	(0)
+#endif
+
+unsigned int force_cpei_retarget = CPEI_OVERRIDE_DEFAULT;
+
+static int __init
+cmdl_force_cpei(char *str)
+{
+	int value=0;
+
+	get_option (&str, &value);
+	force_cpei_retarget = value;
+
+	return 1;
+}
+
+__setup("force_cpei=", cmdl_force_cpei);
+
 static int __init
 nointroute (char *str)
 {
@@ -160,6 +187,27 @@ nointroute (char *str)
 }
 
 __setup("nointroute", nointroute);
+
+static void fix_b0_for_bsp(void)
+{
+#ifdef CONFIG_HOTPLUG_CPU
+	int cpuid;
+	static int fix_bsp_b0 = 1;
+
+	cpuid = smp_processor_id();
+
+	/*
+	 * Cache the b0 value on the first AP that comes up
+	 */
+	if (!(fix_bsp_b0 && cpuid))
+		return;
+
+	sal_boot_rendez_state[0].br[0] = sal_boot_rendez_state[cpuid].br[0];
+	printk ("Fixed BSP b0 value from CPU %d\n", cpuid);
+
+	fix_bsp_b0 = 0;
+#endif
+}
 
 void
 sync_master (void *arg)
@@ -327,8 +375,9 @@ smp_setup_percpu_timer (void)
 static void __devinit
 smp_callin (void)
 {
-	int cpuid, phys_id;
+	int cpuid, phys_id, itc_master;
 	extern void ia64_init_itm(void);
+	extern volatile int time_keeper_id;
 
 #ifdef CONFIG_PERFMON
 	extern void pfm_init_percpu(void);
@@ -336,12 +385,15 @@ smp_callin (void)
 
 	cpuid = smp_processor_id();
 	phys_id = hard_smp_processor_id();
+	itc_master = time_keeper_id;
 
 	if (cpu_online(cpuid)) {
 		printk(KERN_ERR "huh, phys CPU#0x%x, CPU#0x%x already present??\n",
 		       phys_id, cpuid);
 		BUG();
 	}
+
+	fix_b0_for_bsp();
 
 	lock_ipi_calllock();
 	cpu_set(cpuid, cpu_online_map);
@@ -365,8 +417,8 @@ smp_callin (void)
 		 * calls spin_unlock_bh(), which calls spin_unlock_bh(), which calls
 		 * local_bh_enable(), which bugs out if irqs are not enabled...
 		 */
-		Dprintk("Going to syncup ITC with BP.\n");
-		ia64_sync_itc(0);
+		Dprintk("Going to syncup ITC with ITC Master.\n");
+		ia64_sync_itc(itc_master);
 	}
 
 	/*
@@ -635,6 +687,47 @@ remove_siblinginfo(int cpu)
 }
 
 extern void fixup_irqs(void);
+
+int migrate_platform_irqs(unsigned int cpu)
+{
+	int new_cpei_cpu;
+	irq_desc_t *desc = NULL;
+	cpumask_t 	mask;
+	int 		retval = 0;
+
+	/*
+	 * dont permit CPEI target to removed.
+	 */
+	if (cpe_vector > 0 && is_cpu_cpei_target(cpu)) {
+		printk ("CPU (%d) is CPEI Target\n", cpu);
+		if (can_cpei_retarget()) {
+			/*
+			 * Now re-target the CPEI to a different processor
+			 */
+			new_cpei_cpu = any_online_cpu(cpu_online_map);
+			mask = cpumask_of_cpu(new_cpei_cpu);
+			set_cpei_target_cpu(new_cpei_cpu);
+			desc = irq_descp(ia64_cpe_irq);
+			/*
+			 * Switch for now, immediatly, we need to do fake intr
+			 * as other interrupts, but need to study CPEI behaviour with
+			 * polling before making changes.
+			 */
+			if (desc) {
+				desc->handler->disable(ia64_cpe_irq);
+				desc->handler->set_affinity(ia64_cpe_irq, mask);
+				desc->handler->enable(ia64_cpe_irq);
+				printk ("Re-targetting CPEI to cpu %d\n", new_cpei_cpu);
+			}
+		}
+		if (!desc) {
+			printk ("Unable to retarget CPEI, offline cpu [%d] failed\n", cpu);
+			retval = -EBUSY;
+		}
+	}
+	return retval;
+}
+
 /* must be called with cpucontrol mutex held */
 int __cpu_disable(void)
 {
@@ -643,8 +736,17 @@ int __cpu_disable(void)
 	/*
 	 * dont permit boot processor for now
 	 */
-	if (cpu == 0)
-		return -EBUSY;
+	if (cpu == 0 && !bsp_remove_ok) {
+		printk ("Your platform does not support removal of BSP\n");
+		return (-EBUSY);
+	}
+
+	cpu_clear(cpu, cpu_online_map);
+
+	if (migrate_platform_irqs(cpu)) {
+		cpu_set(cpu, cpu_online_map);
+		return (-EBUSY);
+	}
 
 	remove_siblinginfo(cpu);
 	cpu_clear(cpu, cpu_online_map);

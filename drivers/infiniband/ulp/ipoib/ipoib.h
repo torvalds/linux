@@ -217,10 +217,16 @@ struct ipoib_neigh {
 	struct list_head    list;
 };
 
+/*
+ * We stash a pointer to our private neighbour information after our
+ * hardware address in neigh->ha.  The ALIGN() expression here makes
+ * sure that this pointer is stored aligned so that an unaligned
+ * load is not needed to dereference it.
+ */
 static inline struct ipoib_neigh **to_ipoib_neigh(struct neighbour *neigh)
 {
-	return (struct ipoib_neigh **) (neigh->ha + 24 -
-					(offsetof(struct neighbour, ha) & 4));
+	return (void*) neigh + ALIGN(offsetof(struct neighbour, ha) +
+				     INFINIBAND_ALEN, sizeof(void *));
 }
 
 extern struct workqueue_struct *ipoib_workqueue;
@@ -253,7 +259,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev);
 
 int ipoib_ib_dev_open(struct net_device *dev);
 int ipoib_ib_dev_up(struct net_device *dev);
-int ipoib_ib_dev_down(struct net_device *dev);
+int ipoib_ib_dev_down(struct net_device *dev, int flush);
 int ipoib_ib_dev_stop(struct net_device *dev);
 
 int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port);

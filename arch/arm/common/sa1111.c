@@ -943,6 +943,8 @@ static int sa1111_probe(struct platform_device *pdev)
 	if (!mem)
 		return -EINVAL;
 	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return -ENXIO;
 
 	return __sa1111_probe(&pdev->dev, mem, irq);
 }

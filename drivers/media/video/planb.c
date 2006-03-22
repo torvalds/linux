@@ -48,7 +48,7 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include "planb.h"
 #include "saa7196.h"
@@ -329,12 +329,12 @@ static volatile struct dbdma_cmd *cmd_geo_setup(
 
 static inline void planb_lock(struct planb *pb)
 {
-	down(&pb->lock);
+	mutex_lock(&pb->lock);
 }
 
 static inline void planb_unlock(struct planb *pb)
 {
-	up(&pb->lock);
+	mutex_unlock(&pb->lock);
 }
 
 /***************/
@@ -2067,7 +2067,7 @@ static int init_planb(struct planb *pb)
 #endif
 	pb->tab_size = PLANB_MAXLINES + 40;
 	pb->suspend = 0;
-	init_MUTEX(&pb->lock);
+	mutex_init(&pb->lock);
 	pb->ch1_cmd = 0;
 	pb->ch2_cmd = 0;
 	pb->mask = 0;

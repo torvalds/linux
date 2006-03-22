@@ -1,4 +1,4 @@
-/* saa7115 - Philips SAA7114/SAA7115 video decoder driver
+/* saa7115 - Philips SAA7113/SAA7114/SAA7115 video decoder driver
  *
  * Based on saa7114 driver by Maxim Yevtyushkin, which is based on
  * the saa7111 driver by Dave Perks.
@@ -16,6 +16,7 @@
  * (2/17/2003)
  *
  * VBI support (2004) and cleanups (2005) by Hans Verkuil <hverkuil@xs4all.nl>
+ * SAA7113 support by Mauro Carvalho Chehab <mchehab@infradead.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,8 +43,9 @@
 #include <media/audiochip.h>
 #include <asm/div64.h>
 
-MODULE_DESCRIPTION("Philips SAA7114/SAA7115 video decoder driver");
-MODULE_AUTHOR("Maxim Yevtyushkin, Kevin Thayer, Chris Kennedy, Hans Verkuil");
+MODULE_DESCRIPTION("Philips SAA7113/SAA7114/SAA7115 video decoder driver");
+MODULE_AUTHOR(  "Maxim Yevtyushkin, Kevin Thayer, Chris Kennedy, "
+		"Hans Verkuil, Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");
 
 static int debug = 0;
@@ -51,7 +53,10 @@ module_param(debug, bool, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-static unsigned short normal_i2c[] = { 0x42 >> 1, 0x40 >> 1, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = {
+		0x4a >>1, 0x48 >>1,	/* SAA7113 */
+		0x42 >> 1, 0x40 >> 1,	/* SAA7114 and SAA7115 */
+		I2C_CLIENT_END };
 
 
 I2C_CLIENT_INSMOD;
@@ -101,10 +106,12 @@ static inline int saa7115_read(struct i2c_client *client, u8 reg)
    Hauppauge driver sets. */
 
 static const unsigned char saa7115_init_auto_input[] = {
+		/* Front-End Part */
 	0x01, 0x48,		/* white peak control disabled */
 	0x03, 0x20,		/* was 0x30. 0x20: long vertical blanking */
 	0x04, 0x90,		/* analog gain set to 0 */
 	0x05, 0x90,		/* analog gain set to 0 */
+		/* Decoder Part */
 	0x06, 0xeb,		/* horiz sync begin = -21 */
 	0x07, 0xe0,		/* horiz sync stop = -17 */
 	0x0a, 0x80,		/* was 0x88. decoder brightness, 0x80 is itu standard */
@@ -123,6 +130,8 @@ static const unsigned char saa7115_init_auto_input[] = {
 	0x1b, 0x42,		/* misc chroma control 0x42 = recommended */
 	0x1c, 0xa9,		/* combfilter control 0xA9 = recommended */
 	0x1d, 0x01,		/* combfilter control 0x01 = recommended */
+
+		/* Power Device Control */
 	0x88, 0xd0,		/* reset device */
 	0x88, 0xf0,		/* set device programmed, all in operational mode */
 	0x00, 0x00
@@ -335,6 +344,33 @@ static const unsigned char saa7115_cfg_vbi_off[] = {
 	0x80, 0x20,		/* Activate only task "B" */
 	0x88, 0xf0,		/* activate scaler */
 	0x87, 0x01,		/* Enable I-port output */
+	0x00, 0x00
+};
+
+static const unsigned char saa7113_init_auto_input[] = {
+	0x01, 0x08,	/* PH7113_INCREMENT_DELAY - (1) (1) (1) (1) IDEL3 IDEL2 IDELL1 IDEL0 */
+	0x02, 0xc2,	/* PH7113_ANALOG_INPUT_CONTR_1 - FUSE1 FUSE0 GUDL1 GUDL0 MODE3 MODE2 MODE1 MODE0 */
+	0x03, 0x30,	/* PH7113_ANALOG_INPUT_CONTR_2 - (1) HLNRS VBSL WPOFF HOLDG GAFIX GAI28 GAI18 */
+	0x04, 0x00,	/* PH7113_ANALOG_INPUT_CONTR_3 - GAI17 GAI16 GAI15 GAI14 GAI13 GAI12 GAI11 GAI10 */
+	0x05, 0x00,	/* PH7113_ANALOG_INPUT_CONTR_4 - GAI27 GAI26 GAI25 GAI24 GAI23 GAI22 GAI21 GAI20 */
+	0x06, 0x89,	/* PH7113_HORIZONTAL_SYNC_START - HSB7 HSB6 HSB5 HSB4 HSB3 HSB2 HSB1 HSB0 */
+	0x07, 0x0d,	/* PH7113_HORIZONTAL_SYNC_STOP - HSS7 HSS6 HSS5 HSS4 HSS3 HSS2 HSS1 HSS0 */
+	0x08, 0x88,	/* PH7113_SYNC_CONTROL - AUFD FSEL FOET HTC1 HTC0 HPLL VNOI1 VNOI0 */
+	0x09, 0x01,	/* PH7113_LUMINANCE_CONTROL - BYPS PREF BPSS1 BPSS0 VBLB UPTCV APER1 APER0 */
+	0x0a, 0x80,	/* PH7113_LUMINANCE_BRIGHTNESS - BRIG7 BRIG6 BRIG5 BRIG4 BRIG3 BRIG2 BRIG1 BRIG0 */
+	0x0b, 0x47,	/* PH7113_LUMINANCE_CONTRAST - CONT7 CONT6 CONT5 CONT4 CONT3 CONT2 CONT1 CONT0 */
+	0x0c, 0x40,	/* PH7113_CHROMA_SATURATION - SATN7 SATN6 SATN5 SATN4 SATN3 SATN2 SATN1 SATN0 */
+	0x0d, 0x00,	/* PH7113_CHROMA_HUE_CONTROL - HUEC7 HUEC6 HUEC5 HUEC4 HUEC3 HUEC2 HUEC1 HUEC0 */
+	0x0e, 0x01,	/* PH7113_CHROMA_CONTROL - CDTO CSTD2 CSTD1 CSTD0 DCCF FCTC CHBW1 CHBW0 */
+	0x0f, 0x2a,	/* PH7113_CHROMA_GAIN_CONTROL - ACGC CGAIN6 CGAIN5 CGAIN4 CGAIN3 CGAIN2 CGAIN1 CGAIN0 */
+	0x10, 0x08,	/* PH7113_FORMAT_DELAY_CONTROL - OFTS1 OFTS0 HDEL1 HDEL0 VRLN YDEL2 YDEL1 YDEL0 */
+	0x11, 0x0c,	/* PH7113_OUTPUT_CONTROL_1 - GPSW1 CM99 GPSW0 HLSEL OEYC OERT VIPB COLO */
+	0x12, 0x07,	/* PH7113_OUTPUT_CONTROL_2 - RTSE13 RTSE12 RTSE11 RTSE10 RTSE03 RTSE02 RTSE01 RTSE00 */
+	0x13, 0x00,	/* PH7113_OUTPUT_CONTROL_3 - ADLSB (1) (1) OLDSB FIDP (1) AOSL1 AOSL0 */
+	0x14, 0x00,	/* RESERVED 14 - (1) (1) (1) (1) (1) (1) (1) (1) */
+	0x15, 0x00,	/* PH7113_V_GATE1_START - VSTA7 VSTA6 VSTA5 VSTA4 VSTA3 VSTA2 VSTA1 VSTA0 */
+	0x16, 0x00,	/* PH7113_V_GATE1_STOP - VSTO7 VSTO6 VSTO5 VSTO4 VSTO3 VSTO2 VSTO1 VSTO0 */
+	0x17, 0x00,	/* PH7113_V_GATE1_MSB - (1) (1) (1) (1) (1) (1) VSTO8 VSTA8 */
 	0x00, 0x00
 };
 
@@ -677,10 +713,35 @@ static void saa7115_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 		saa7115_writeregs(client, saa7115_cfg_50hz_video);
 	}
 
+	/* Register 0E - Bits D6-D4 on NO-AUTO mode
+		(SAA7113 doesn't have auto mode)
+	    50 Hz / 625 lines           60 Hz / 525 lines
+	000 PAL BGDHI (4.43Mhz)         NTSC M (3.58MHz)
+	001 NTSC 4.43 (50 Hz)           PAL 4.43 (60 Hz)
+	010 Combination-PAL N (3.58MHz) NTSC 4.43 (60 Hz)
+	011 NTSC N (3.58MHz)            PAL M (3.58MHz)
+	100 reserved                    NTSC-Japan (3.58MHz)
+	*/
+	if (state->ident == V4L2_IDENT_SAA7113) {
+		u8 reg =  saa7115_read(client, 0x0e) & 0x8f;
+
+		if (std == V4L2_STD_PAL_M) {
+			reg|=0x30;
+		} else if (std == V4L2_STD_PAL_N) {
+			reg|=0x20;
+		} else if (std == V4L2_STD_PAL_60) {
+			reg|=0x10;
+		} else if (std == V4L2_STD_NTSC_M_JP) {
+			reg|=0x40;
+		}
+		saa7115_write(client, 0x0e, reg);
+	}
+
+
 	state->std = std;
 
 	/* restart task B if needed */
-	if (taskb && state->ident == V4L2_IDENT_SAA7114) {
+	if (taskb && state->ident != V4L2_IDENT_SAA7115) {
 		saa7115_writeregs(client, saa7115_cfg_vbi_on);
 	}
 
@@ -703,7 +764,7 @@ static void saa7115_log_status(struct i2c_client *client)
 	int vcr;
 
 	v4l_info(client, "Audio frequency: %d Hz\n", state->audclk_freq);
-	if (client->name[6] == '4') {
+	if (state->ident != V4L2_IDENT_SAA7115) {
 		/* status for the saa7114 */
 		reg1f = saa7115_read(client, 0x1f);
 		signalOk = (reg1f & 0xc1) == 0x81;
@@ -751,8 +812,8 @@ static void saa7115_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 	u8 lcr[24];
 	int i, x;
 
-	/* saa7114 doesn't yet support VBI */
-	if (state->ident == V4L2_IDENT_SAA7114)
+	/* saa7113/71144 doesn't yet support VBI */
+	if (state->ident != V4L2_IDENT_SAA7115)
 		return;
 
 	for (i = 0; i <= 23; i++)
@@ -791,7 +852,7 @@ static void saa7115_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 					case 0:
 						lcr[i] |= 0xf << (4 * x);
 						break;
-					case V4L2_SLICED_TELETEXT_B:
+					case V4L2_SLICED_TELETEXT_PAL_B:
 						lcr[i] |= 1 << (4 * x);
 						break;
 					case V4L2_SLICED_CAPTION_525:
@@ -820,7 +881,7 @@ static void saa7115_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 static int saa7115_get_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 {
 	static u16 lcr2vbi[] = {
-		0, V4L2_SLICED_TELETEXT_B, 0,	/* 1 */
+		0, V4L2_SLICED_TELETEXT_PAL_B, 0,	/* 1 */
 		0, V4L2_SLICED_CAPTION_525,	/* 4 */
 		V4L2_SLICED_WSS_625, 0,		/* 5 */
 		V4L2_SLICED_VPS, 0, 0, 0, 0,	/* 7 */
@@ -985,7 +1046,7 @@ static void saa7115_decode_vbi_line(struct i2c_client *client,
 	/* decode payloads */
 	switch (id2) {
 	case 1:
-		vbi->type = V4L2_SLICED_TELETEXT_B;
+		vbi->type = V4L2_SLICED_TELETEXT_PAL_B;
 		break;
 	case 4:
 		if (!saa7115_odd_parity(p[0]) || !saa7115_odd_parity(p[1]))
@@ -1261,14 +1322,12 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	saa7115_write(client, 0, 5);
 	chip_id = saa7115_read(client, 0) & 0x0f;
-	if (chip_id != 4 && chip_id != 5) {
+	if (chip_id <3 && chip_id > 5) {
 		v4l_dbg(1, debug, client, "saa7115 not found\n");
 		kfree(client);
 		return 0;
 	}
-	if (chip_id == 4) {
-		snprintf(client->name, sizeof(client->name) - 1, "saa7114");
-	}
+	snprintf(client->name, sizeof(client->name) - 1, "saa711%d",chip_id);
 	v4l_info(client, "saa711%d found @ 0x%x (%s)\n", chip_id, address << 1, adapter->name);
 
 	state = kzalloc(sizeof(struct saa7115_state), GFP_KERNEL);
@@ -1285,13 +1344,27 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	state->contrast = 64;
 	state->hue = 0;
 	state->sat = 64;
-	state->ident = (chip_id == 4) ? V4L2_IDENT_SAA7114 : V4L2_IDENT_SAA7115;
+	switch (chip_id) {
+	case 3:
+		state->ident = V4L2_IDENT_SAA7113;
+		break;
+	case 4:
+		state->ident = V4L2_IDENT_SAA7114;
+		break;
+	default:
+		state->ident = V4L2_IDENT_SAA7115;
+		break;
+	}
+
 	state->audclk_freq = 48000;
 
 	v4l_dbg(1, debug, client, "writing init values\n");
 
 	/* init to 60hz/48khz */
-	saa7115_writeregs(client, saa7115_init_auto_input);
+	if (state->ident==V4L2_IDENT_SAA7113)
+		saa7115_writeregs(client, saa7113_init_auto_input);
+	else
+		saa7115_writeregs(client, saa7115_init_auto_input);
 	saa7115_writeregs(client, saa7115_init_misc);
 	saa7115_writeregs(client, saa7115_cfg_60hz_fullres_x);
 	saa7115_writeregs(client, saa7115_cfg_60hz_fullres_y);

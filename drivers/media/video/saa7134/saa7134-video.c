@@ -460,17 +460,17 @@ static int res_get(struct saa7134_dev *dev, struct saa7134_fh *fh, unsigned int 
 		return 1;
 
 	/* is it free? */
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	if (dev->resources & bit) {
 		/* no, someone else uses it */
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		return 0;
 	}
 	/* it's free, grab it */
 	fh->resources  |= bit;
 	dev->resources |= bit;
 	dprintk("res: get %d\n",bit);
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 	return 1;
 }
 
@@ -489,14 +489,13 @@ int res_locked(struct saa7134_dev *dev, unsigned int bit)
 static
 void res_free(struct saa7134_dev *dev, struct saa7134_fh *fh, unsigned int bits)
 {
-	if ((fh->resources & bits) != bits)
-		BUG();
+	BUG_ON((fh->resources & bits) != bits);
 
-	down(&dev->lock);
+	mutex_lock(&dev->lock);
 	fh->resources  &= ~bits;
 	dev->resources &= ~bits;
 	dprintk("res: put %d\n",bits);
-	up(&dev->lock);
+	mutex_unlock(&dev->lock);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1340,21 +1339,21 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 		if (!list_empty(&fh->cap.stream))
 			buf = list_entry(fh->cap.stream.next, struct videobuf_buffer, stream);
 	} else {
-		down(&fh->cap.lock);
+		mutex_lock(&fh->cap.lock);
 		if (UNSET == fh->cap.read_off) {
 			/* need to capture a new frame */
 			if (res_locked(fh->dev,RESOURCE_VIDEO)) {
-				up(&fh->cap.lock);
+				mutex_unlock(&fh->cap.lock);
 				return POLLERR;
 			}
 			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,fh->cap.field)) {
-				up(&fh->cap.lock);
+				mutex_unlock(&fh->cap.lock);
 				return POLLERR;
 			}
 			fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
 			fh->cap.read_off = 0;
 		}
-		up(&fh->cap.lock);
+		mutex_unlock(&fh->cap.lock);
 		buf = fh->cap.read_buf;
 	}
 
@@ -1463,6 +1462,10 @@ static int saa7134_g_fmt(struct saa7134_dev *dev, struct saa7134_fh *fh,
 			f->fmt.pix.height * f->fmt.pix.bytesperline;
 		return 0;
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+		if (saa7134_no_overlay > 0) {
+			printk ("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+			return -EINVAL;
+		}
 		f->fmt.win = fh->win;
 		return 0;
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
@@ -1527,6 +1530,10 @@ static int saa7134_try_fmt(struct saa7134_dev *dev, struct saa7134_fh *fh,
 		return 0;
 	}
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+		if (saa7134_no_overlay > 0) {
+			printk ("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+			return -EINVAL;
+		}
 		err = verify_preview(dev,&f->fmt.win);
 		if (0 != err)
 			return err;
@@ -1557,18 +1564,22 @@ static int saa7134_s_fmt(struct saa7134_dev *dev, struct saa7134_fh *fh,
 		fh->cap.field = f->fmt.pix.field;
 		return 0;
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+		if (saa7134_no_overlay > 0) {
+			printk ("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+			return -EINVAL;
+		}
 		err = verify_preview(dev,&f->fmt.win);
 		if (0 != err)
 			return err;
 
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		fh->win    = f->fmt.win;
 		fh->nclips = f->fmt.win.clipcount;
 		if (fh->nclips > 8)
 			fh->nclips = 8;
 		if (copy_from_user(fh->clips,f->fmt.win.clips,
 				   sizeof(struct v4l2_clip)*fh->nclips)) {
-			up(&dev->lock);
+			mutex_unlock(&dev->lock);
 			return -EFAULT;
 		}
 
@@ -1578,7 +1589,7 @@ static int saa7134_s_fmt(struct saa7134_dev *dev, struct saa7134_fh *fh,
 			start_preview(dev,fh);
 			spin_unlock_irqrestore(&dev->slock,flags);
 		}
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		return 0;
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
 		saa7134_vbi_fmt(dev,f);
@@ -1612,9 +1623,9 @@ int saa7134_common_ioctl(struct saa7134_dev *dev,
 		return get_control(dev,arg);
 	case VIDIOC_S_CTRL:
 	{
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		err = set_control(dev,NULL,arg);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		return err;
 	}
 	/* --- input switching --------------------------------------- */
@@ -1664,9 +1675,9 @@ int saa7134_common_ioctl(struct saa7134_dev *dev,
 			return -EINVAL;
 		if (NULL == card_in(dev,*i).name)
 			return -EINVAL;
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		video_mux(dev,*i);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		return 0;
 	}
 
@@ -1716,11 +1727,13 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		cap->version = SAA7134_VERSION_CODE;
 		cap->capabilities =
 			V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_VIDEO_OVERLAY |
 			V4L2_CAP_VBI_CAPTURE |
 			V4L2_CAP_READWRITE |
 			V4L2_CAP_STREAMING |
 			V4L2_CAP_TUNER;
+		if (saa7134_no_overlay <= 0) {
+			cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
+		}
 
 		if ((tuner_type == TUNER_ABSENT) || (tuner_type == UNSET))
 			cap->capabilities &= ~V4L2_CAP_TUNER;
@@ -1766,7 +1779,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		if (i == TVNORMS)
 			return -EINVAL;
 
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		if (res_check(fh, RESOURCE_OVERLAY)) {
 			spin_lock_irqsave(&dev->slock,flags);
 			stop_preview(dev,fh);
@@ -1776,7 +1789,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		} else
 			set_tvnorm(dev,&tvnorms[i]);
 		saa7134_tvaudio_do_scan(dev);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		return 0;
 	}
 
@@ -1909,13 +1922,13 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		if (1 == fh->radio && V4L2_TUNER_RADIO != f->type)
 			return -EINVAL;
-		down(&dev->lock);
+		mutex_lock(&dev->lock);
 		dev->ctl_freq = f->frequency;
 
 		saa7134_i2c_call_clients(dev,VIDIOC_S_FREQUENCY,f);
 
 		saa7134_tvaudio_do_scan(dev);
-		up(&dev->lock);
+		mutex_unlock(&dev->lock);
 		return 0;
 	}
 
@@ -1971,6 +1984,10 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		switch (type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+			if (saa7134_no_overlay > 0) {
+				printk ("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+				return -EINVAL;
+			}
 			if (index >= FORMATS)
 				return -EINVAL;
 			if (f->type == V4L2_BUF_TYPE_VIDEO_OVERLAY &&
@@ -2031,6 +2048,11 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		int *on = arg;
 
 		if (*on) {
+			if (saa7134_no_overlay > 0) {
+				printk ("no_overlay\n");
+				return -EINVAL;
+			}
+
 			if (!res_get(dev,fh,RESOURCE_OVERLAY))
 				return -EBUSY;
 			spin_lock_irqsave(&dev->slock,flags);
@@ -2282,7 +2304,7 @@ static struct file_operations radio_fops =
 struct video_device saa7134_video_template =
 {
 	.name          = "saa7134-video",
-	.type          = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_OVERLAY|
+	.type          = VID_TYPE_CAPTURE|VID_TYPE_TUNER|
 			 VID_TYPE_CLIPPING|VID_TYPE_SCALES,
 	.hardware      = 0,
 	.fops          = &video_fops,

@@ -62,6 +62,7 @@
 #include <linux/uio.h>
 #include <asm/uaccess.h>
 #include <linux/crc32.h>
+#include <linux/mutex.h>
 
 #include "dvb_demux.h"
 #include "dvb_net.h"
@@ -151,8 +152,7 @@ struct dvb_net_priv {
 	unsigned char ule_bridged;		/* Whether the ULE_BRIDGED extension header was found. */
 	int ule_sndu_remain;			/* Nr. of bytes still required for current ULE SNDU. */
 	unsigned long ts_count;			/* Current ts cell counter. */
-
-	struct semaphore mutex;
+	struct mutex mutex;
 };
 
 
@@ -889,7 +889,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 	unsigned char *mac = (unsigned char *) dev->dev_addr;
 
 	dprintk("%s: rx_mode %i\n", __FUNCTION__, priv->rx_mode);
-	down(&priv->mutex);
+	mutex_lock(&priv->mutex);
 	if (priv->tsfeed || priv->secfeed || priv->secfilter || priv->multi_secfilter[0])
 		printk("%s: BUG %d\n", __FUNCTION__, __LINE__);
 
@@ -974,7 +974,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 		ret = -EINVAL;
 
 error:
-	up(&priv->mutex);
+	mutex_unlock(&priv->mutex);
 	return ret;
 }
 
@@ -984,7 +984,7 @@ static int dvb_net_feed_stop(struct net_device *dev)
 	int i, ret = 0;
 
 	dprintk("%s\n", __FUNCTION__);
-	down(&priv->mutex);
+	mutex_lock(&priv->mutex);
 	if (priv->feedtype == DVB_NET_FEEDTYPE_MPE) {
 		if (priv->secfeed) {
 			if (priv->secfeed->is_filtering) {
@@ -1026,7 +1026,7 @@ static int dvb_net_feed_stop(struct net_device *dev)
 			printk("%s: no ts feed to stop\n", dev->name);
 	} else
 		ret = -EINVAL;
-	up(&priv->mutex);
+	mutex_unlock(&priv->mutex);
 	return ret;
 }
 
@@ -1208,7 +1208,7 @@ static int dvb_net_add_if(struct dvb_net *dvbnet, u16 pid, u8 feedtype)
 
 	INIT_WORK(&priv->set_multicast_list_wq, wq_set_multicast_list, net);
 	INIT_WORK(&priv->restart_net_feed_wq, wq_restart_net_feed, net);
-	init_MUTEX(&priv->mutex);
+	mutex_init(&priv->mutex);
 
 	net->base_addr = pid;
 

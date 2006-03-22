@@ -42,6 +42,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
+#include <linux/mutex.h>
 #include "usbvideo.h"
 
 // #define VICAM_DEBUG
@@ -407,7 +408,7 @@ struct vicam_camera {
 	struct usb_device *udev;	// usb device
 
 	/* guard against simultaneous accesses to the camera */
-	struct semaphore cam_lock;
+	struct mutex cam_lock;
 
 	int is_initialized;
 	u8 open_count;
@@ -461,12 +462,12 @@ static int send_control_msg(struct vicam_camera *cam,
 			    u16 size)
 {
 	int status = -ENODEV;
-	down(&cam->cam_lock);
+	mutex_lock(&cam->cam_lock);
 	if (cam->udev) {
 		status = __send_control_msg(cam, request, value,
 					    index, cp, size);
 	}
-	up(&cam->cam_lock);
+	mutex_unlock(&cam->cam_lock);
 	return status;
 }
 static int
@@ -763,6 +764,7 @@ vicam_open(struct inode *inode, struct file *file)
 	if (!cam) {
 		printk(KERN_ERR
 		       "vicam video_device improperly initialized");
+		return -EINVAL;
 	}
 
 	/* the videodev_lock held above us protects us from
@@ -831,13 +833,13 @@ vicam_close(struct inode *inode, struct file *file)
 	rvfree(cam->framebuf, VICAM_MAX_FRAME_SIZE * VICAM_FRAMES);
 	kfree(cam->cntrlbuf);
 
-	down(&cam->cam_lock);
+	mutex_lock(&cam->cam_lock);
 
 	cam->open_count--;
 	open_count = cam->open_count;
 	udev = cam->udev;
 
-	up(&cam->cam_lock);
+	mutex_unlock(&cam->cam_lock);
 
 	if (!open_count && !udev) {
 		kfree(cam);
@@ -960,7 +962,7 @@ read_frame(struct vicam_camera *cam, int framenum)
 	request[8] = 0;
 	// bytes 9-15 do not seem to affect exposure or image quality
 
-	down(&cam->cam_lock);
+	mutex_lock(&cam->cam_lock);
 
 	if (!cam->udev) {
 		goto done;
@@ -985,7 +987,7 @@ read_frame(struct vicam_camera *cam, int framenum)
 	}
 
  done:
-	up(&cam->cam_lock);
+	mutex_unlock(&cam->cam_lock);
 }
 
 static ssize_t
@@ -1309,7 +1311,7 @@ vicam_probe( struct usb_interface *intf, const struct usb_device_id *id)
 
 	cam->shutter_speed = 15;
 
-	init_MUTEX(&cam->cam_lock);
+	mutex_init(&cam->cam_lock);
 
 	memcpy(&cam->vdev, &vicam_template,
 	       sizeof (vicam_template));
@@ -1351,7 +1353,7 @@ vicam_disconnect(struct usb_interface *intf)
 
 	/* stop the camera from being used */
 
-	down(&cam->cam_lock);
+	mutex_lock(&cam->cam_lock);
 
 	/* mark the camera as gone */
 
@@ -1368,7 +1370,7 @@ vicam_disconnect(struct usb_interface *intf)
 
 	open_count = cam->open_count;
 
-	up(&cam->cam_lock);
+	mutex_unlock(&cam->cam_lock);
 
 	if (!open_count) {
 		kfree(cam);

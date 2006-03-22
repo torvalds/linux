@@ -106,11 +106,11 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		}
 		break;
 	case PCI_VENDOR_ID_NVIDIA:
+		switch (pdev->device) {
 		/* NVidia reports that certain chips don't handle
 		 * QH, ITD, or SITD addresses above 2GB.  (But TD,
 		 * data buffer, and periodic schedule are normal.)
 		 */
-		switch (pdev->device) {
 		case 0x003c:	/* MCP04 */
 		case 0x005b:	/* CK804 */
 		case 0x00d8:	/* CK8 */
@@ -119,6 +119,14 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 						DMA_31BIT_MASK) < 0)
 				ehci_warn(ehci, "can't enable NVidia "
 					"workaround for >2GB RAM\n");
+			break;
+		/* Some NForce2 chips have problems with selective suspend;
+		 * fixed in newer silicon.
+		 */
+		case 0x0068:
+			pci_read_config_dword(pdev, PCI_REVISION_ID, &temp);
+			if ((temp & 0xff) < 0xa4)
+				ehci->no_selective_suspend = 1;
 			break;
 		}
 		break;
@@ -162,6 +170,21 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		if (port_wake & 0x0001)
 			device_init_wakeup(&pdev->dev, 1);
 	}
+
+#ifdef	CONFIG_USB_SUSPEND
+	/* REVISIT: the controller works fine for wakeup iff the root hub
+	 * itself is "globally" suspended, but usbcore currently doesn't
+	 * understand such things.
+	 *
+	 * System suspend currently expects to be able to suspend the entire
+	 * device tree, device-at-a-time.  If we failed selective suspend
+	 * reports, system suspend would fail; so the root hub code must claim
+	 * success.  That's lying to usbcore, and it matters for for runtime
+	 * PM scenarios with selective suspend and remote wakeup...
+	 */
+	if (ehci->no_selective_suspend && device_can_wakeup(&pdev->dev))
+		ehci_warn(ehci, "selective suspend/wakeup unavailable\n");
+#endif
 
 	retval = ehci_pci_reinit(ehci, pdev);
 done:

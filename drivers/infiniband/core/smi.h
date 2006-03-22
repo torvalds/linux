@@ -49,19 +49,16 @@ extern int smi_check_forward_dr_smp(struct ib_smp *smp);
 extern int smi_handle_dr_smp_send(struct ib_smp *smp,
 				  u8 node_type,
 				  int port_num);
-extern int smi_check_local_dr_smp(struct ib_smp *smp,
-				  struct ib_device *device,
-				  int port_num);
 
 /*
  * Return 1 if the SMP should be handled by the local SMA/SM via process_mad
  */
-static inline int smi_check_local_smp(struct ib_mad_agent *mad_agent,
-                         	      struct ib_smp *smp)
+static inline int smi_check_local_smp(struct ib_smp *smp,
+				      struct ib_device *device)
 {
 	/* C14-9:3 -- We're at the end of the DR segment of path */
 	/* C14-9:4 -- Hop Pointer = Hop Count + 1 -> give to SMA/SM */
-	return ((mad_agent->device->process_mad &&
+	return ((device->process_mad &&
 		!ib_get_smp_direction(smp) &&
 		(smp->hop_ptr == smp->hop_cnt + 1)));
 }

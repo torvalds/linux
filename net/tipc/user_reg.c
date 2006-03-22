@@ -65,7 +65,7 @@ struct tipc_user {
 #define MAX_USERID 64
 #define USER_LIST_SIZE ((MAX_USERID + 1) * sizeof(struct tipc_user))
 
-static struct tipc_user *users = 0;
+static struct tipc_user *users = NULL;
 static u32 next_free_user = MAX_USERID + 1;
 static spinlock_t reg_lock = SPIN_LOCK_UNLOCKED;
 
@@ -149,7 +149,7 @@ void tipc_reg_stop(void)
 			reg_callback(&users[id]);
 	}
 	kfree(users);
-	users = 0;
+	users = NULL;
 }
 
 /**

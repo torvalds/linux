@@ -28,6 +28,7 @@ target(struct sk_buff **pskb,
        const struct net_device *in,
        const struct net_device *out,
        unsigned int hooknum,
+       const struct xt_target *target,
        const void *targinfo,
        void *userinfo)
 {
@@ -39,47 +40,22 @@ target(struct sk_buff **pskb,
 	return XT_CONTINUE;
 }
 
-static int
-checkentry(const char *tablename,
-           const void *e,
-           void *targinfo,
-           unsigned int targinfosize,
-           unsigned int hook_mask)
-{
-	if (targinfosize != XT_ALIGN(sizeof(struct xt_classify_target_info))){
-		printk(KERN_ERR "CLASSIFY: invalid size (%u != %Zu).\n",
-		       targinfosize,
-		       XT_ALIGN(sizeof(struct xt_classify_target_info)));
-		return 0;
-	}
-	
-	if (hook_mask & ~((1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_FORWARD) |
-	                  (1 << NF_IP_POST_ROUTING))) {
-		printk(KERN_ERR "CLASSIFY: only valid in LOCAL_OUT, FORWARD "
-		                "and POST_ROUTING.\n");
-		return 0;
-	}
-
-	if (strcmp(tablename, "mangle") != 0) {
-		printk(KERN_ERR "CLASSIFY: can only be called from "
-		                "\"mangle\" table, not \"%s\".\n",
-		                tablename);
-		return 0;
-	}
-
-	return 1;
-}
-
 static struct xt_target classify_reg = { 
 	.name 		= "CLASSIFY", 
 	.target 	= target,
-	.checkentry	= checkentry,
+	.targetsize	= sizeof(struct xt_classify_target_info),
+	.table		= "mangle",
+	.hooks		= (1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_FORWARD) |
+		          (1 << NF_IP_POST_ROUTING),
 	.me 		= THIS_MODULE,
 };
 static struct xt_target classify6_reg = { 
 	.name 		= "CLASSIFY", 
 	.target 	= target,
-	.checkentry	= checkentry,
+	.targetsize	= sizeof(struct xt_classify_target_info),
+	.table		= "mangle",
+	.hooks		= (1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_FORWARD) |
+		          (1 << NF_IP_POST_ROUTING),
 	.me 		= THIS_MODULE,
 };
 

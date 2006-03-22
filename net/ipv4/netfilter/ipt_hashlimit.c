@@ -427,6 +427,7 @@ static int
 hashlimit_match(const struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
+		const struct xt_match *match,
 		const void *matchinfo,
 		int offset,
 		unsigned int protoff,
@@ -506,14 +507,12 @@ hashlimit_match(const struct sk_buff *skb,
 static int
 hashlimit_checkentry(const char *tablename,
 		     const void *inf,
+		     const struct xt_match *match,
 		     void *matchinfo,
 		     unsigned int matchsize,
 		     unsigned int hook_mask)
 {
 	struct ipt_hashlimit_info *r = matchinfo;
-
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_hashlimit_info)))
-		return 0;
 
 	/* Check for overflow. */
 	if (r->cfg.burst == 0
@@ -558,19 +557,21 @@ hashlimit_checkentry(const char *tablename,
 }
 
 static void
-hashlimit_destroy(void *matchinfo, unsigned int matchsize)
+hashlimit_destroy(const struct xt_match *match, void *matchinfo,
+		  unsigned int matchsize)
 {
 	struct ipt_hashlimit_info *r = (struct ipt_hashlimit_info *) matchinfo;
 
 	htable_put(r->hinfo);
 }
 
-static struct ipt_match ipt_hashlimit = { 
-	.name = "hashlimit", 
-	.match = hashlimit_match, 
-	.checkentry = hashlimit_checkentry, 
-	.destroy = hashlimit_destroy,
-	.me = THIS_MODULE 
+static struct ipt_match ipt_hashlimit = {
+	.name		= "hashlimit",
+	.match		= hashlimit_match,
+	.matchsize	= sizeof(struct ipt_hashlimit_info),
+	.checkentry	= hashlimit_checkentry,
+	.destroy	= hashlimit_destroy,
+	.me		= THIS_MODULE
 };
 
 /* PROC stuff */
