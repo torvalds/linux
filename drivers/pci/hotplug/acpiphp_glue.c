@@ -319,6 +319,13 @@ static void init_bridge_misc(struct acpiphp_bridge *bridge)
 
 	/* install notify handler */
 	if (bridge->type != BRIDGE_TYPE_HOST) {
+		if ((bridge->flags & BRIDGE_HAS_EJ0) && bridge->func) {
+			status = acpi_remove_notify_handler(bridge->func->handle,
+						ACPI_SYSTEM_NOTIFY,
+						handle_hotplug_event_func);
+			if (ACPI_FAILURE(status))
+				err("failed to remove notify handler\n");
+		}
 		status = acpi_install_notify_handler(bridge->handle,
 					     ACPI_SYSTEM_NOTIFY,
 					     handle_hotplug_event_bridge,
@@ -327,6 +334,66 @@ static void init_bridge_misc(struct acpiphp_bridge *bridge)
 		if (ACPI_FAILURE(status)) {
 			err("failed to register interrupt notify handler\n");
 		}
+	}
+}
+
+
+/* find acpiphp_func from acpiphp_bridge */
+static struct acpiphp_func *acpiphp_bridge_handle_to_function(acpi_handle handle)
+{
+	struct list_head *node, *l;
+	struct acpiphp_bridge *bridge;
+	struct acpiphp_slot *slot;
+	struct acpiphp_func *func;
+
+	list_for_each(node, &bridge_list) {
+		bridge = list_entry(node, struct acpiphp_bridge, list);
+		for (slot = bridge->slots; slot; slot = slot->next) {
+			list_for_each(l, &slot->funcs) {
+				func = list_entry(l, struct acpiphp_func,
+							sibling);
+				if (func->handle == handle)
+					return func;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+
+static inline void config_p2p_bridge_flags(struct acpiphp_bridge *bridge)
+{
+	acpi_handle dummy_handle;
+
+	if (ACPI_SUCCESS(acpi_get_handle(bridge->handle,
+					"_STA", &dummy_handle)))
+		bridge->flags |= BRIDGE_HAS_STA;
+
+	if (ACPI_SUCCESS(acpi_get_handle(bridge->handle,
+					"_EJ0", &dummy_handle)))
+		bridge->flags |= BRIDGE_HAS_EJ0;
+
+	if (ACPI_SUCCESS(acpi_get_handle(bridge->handle,
+					"_PS0", &dummy_handle)))
+		bridge->flags |= BRIDGE_HAS_PS0;
+
+	if (ACPI_SUCCESS(acpi_get_handle(bridge->handle,
+					"_PS3", &dummy_handle)))
+		bridge->flags |= BRIDGE_HAS_PS3;
+
+	/* is this ejectable p2p bridge? */
+	if (bridge->flags & BRIDGE_HAS_EJ0) {
+		struct acpiphp_func *func;
+
+		dbg("found ejectable p2p bridge\n");
+
+		/* make link between PCI bridge and PCI function */
+		func = acpiphp_bridge_handle_to_function(bridge->handle);
+		if (!func)
+			return;
+		bridge->func = func;
+		func->bridge = bridge;
 	}
 }
 
@@ -364,6 +431,7 @@ static void add_p2p_bridge(acpi_handle *handle, struct pci_dev *pci_dev)
 
 	bridge->type = BRIDGE_TYPE_P2P;
 	bridge->handle = handle;
+	config_p2p_bridge_flags(bridge);
 
 	bridge->pci_dev = pci_dev_get(pci_dev);
 	bridge->pci_bus = pci_dev->subordinate;
@@ -423,7 +491,7 @@ find_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
 				     find_p2p_bridge, dev->subordinate, NULL);
 	if (ACPI_FAILURE(status))
-		warn("find_p2p_bridge faied (error code = 0x%x)\n", status);
+		warn("find_p2p_bridge failed (error code = 0x%x)\n", status);
 
  out:
 	pci_dev_put(dev);
@@ -486,7 +554,7 @@ static int add_bridge(acpi_handle handle)
 				     find_p2p_bridge, pci_bus, NULL);
 
 	if (ACPI_FAILURE(status))
-		warn("find_p2p_bridge faied (error code = 0x%x)\n",status);
+		warn("find_p2p_bridge failed (error code = 0x%x)\n", status);
 
 	return 0;
 }
@@ -515,6 +583,16 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 					    handle_hotplug_event_bridge);
 	if (ACPI_FAILURE(status))
 		err("failed to remove notify handler\n");
+
+	if ((bridge->type != BRIDGE_TYPE_HOST) &&
+	    ((bridge->flags & BRIDGE_HAS_EJ0) && bridge->func)) {
+		status = acpi_install_notify_handler(bridge->func->handle,
+						ACPI_SYSTEM_NOTIFY,
+						handle_hotplug_event_func,
+						bridge->func);
+		if (ACPI_FAILURE(status))
+			err("failed to install interrupt notify handler\n");
+	}
 
 	slot = bridge->slots;
 	while (slot) {
@@ -549,6 +627,11 @@ cleanup_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	struct acpiphp_bridge *bridge;
 
+	/* cleanup p2p bridges under this P2P bridge
+	   in a depth-first manner */
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
+				cleanup_p2p_bridge, NULL, NULL);
+
 	if (!(bridge = acpiphp_handle_to_bridge(handle)))
 		return AE_OK;
 	cleanup_bridge(bridge);
@@ -559,15 +642,14 @@ static void remove_bridge(acpi_handle handle)
 {
 	struct acpiphp_bridge *bridge;
 
+	/* cleanup p2p bridges under this host bridge
+	   in a depth-first manner */
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
+				(u32)1, cleanup_p2p_bridge, NULL, NULL);
+
 	bridge = acpiphp_handle_to_bridge(handle);
-	if (bridge) {
+	if (bridge)
 		cleanup_bridge(bridge);
-	} else {
-		/* clean-up p2p bridges under this host bridge */
-		acpi_walk_namespace(ACPI_TYPE_DEVICE, handle,
-				    ACPI_UINT32_MAX, cleanup_p2p_bridge,
-				    NULL, NULL);
-	}
 }
 
 static struct pci_dev * get_apic_pci_info(acpi_handle handle)
@@ -881,6 +963,7 @@ static int enable_device(struct acpiphp_slot *slot)
 	struct acpiphp_func *func;
 	int retval = 0;
 	int num, max, pass;
+	acpi_status status;
 
 	if (slot->flags & SLOT_ENABLED)
 		goto err_exit;
@@ -933,6 +1016,17 @@ static int enable_device(struct acpiphp_slot *slot)
 		func = list_entry(l, struct acpiphp_func, sibling);
 		func->pci_dev = pci_get_slot(bus, PCI_DEVFN(slot->device,
 							func->function));
+		if (!func->pci_dev)
+			continue;
+
+		if (func->pci_dev->hdr_type != PCI_HEADER_TYPE_BRIDGE &&
+		    func->pci_dev->hdr_type != PCI_HEADER_TYPE_CARDBUS)
+			continue;
+
+		status = find_p2p_bridge(func->handle, (u32)1, bus, NULL);
+		if (ACPI_FAILURE(status))
+			warn("find_p2p_bridge failed (error code = 0x%x)\n",
+				status);
 	}
 
 	slot->flags |= SLOT_ENABLED;
@@ -957,6 +1051,13 @@ static int disable_device(struct acpiphp_slot *slot)
 
 	list_for_each (l, &slot->funcs) {
 		func = list_entry(l, struct acpiphp_func, sibling);
+
+		if (func->bridge) {
+			/* cleanup p2p bridges under this P2P bridge */
+			cleanup_p2p_bridge(func->bridge->handle,
+						(u32)1, NULL, NULL);
+			func->bridge = NULL;
+		}
 
 		acpiphp_bus_trim(func->handle);
 		/* try to remove anyway.
@@ -1292,6 +1393,13 @@ static void handle_hotplug_event_bridge(acpi_handle handle, u32 type, void *cont
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		/* request device eject */
 		dbg("%s: Device eject notify on %s\n", __FUNCTION__, objname);
+		if ((bridge->type != BRIDGE_TYPE_HOST) &&
+		    (bridge->flags & BRIDGE_HAS_EJ0)) {
+			struct acpiphp_slot *slot;
+			slot = bridge->func->slot;
+			if (!acpiphp_disable_slot(slot))
+				acpiphp_eject_slot(slot);
+		}
 		break;
 
 	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
