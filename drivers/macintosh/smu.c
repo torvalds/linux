@@ -629,8 +629,6 @@ static struct of_platform_driver smu_of_platform_driver =
 
 static int __init smu_init_sysfs(void)
 {
-	int rc;
-
 	/*
 	 * Due to sysfs bogosity, a sysdev is not a real device, so
 	 * we should in fact create both if we want sysdev semantics
@@ -639,7 +637,7 @@ static int __init smu_init_sysfs(void)
 	 * I'm a bit too far from figuring out how that works with those
 	 * new chipsets, but that will come back and bite us
 	 */
-	rc = of_register_driver(&smu_of_platform_driver);
+	of_register_driver(&smu_of_platform_driver);
 	return 0;
 }
 
