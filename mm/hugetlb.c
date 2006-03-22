@@ -64,7 +64,7 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 	return page;
 }
 
-static struct page *alloc_fresh_huge_page(void)
+static int alloc_fresh_huge_page(void)
 {
 	static int nid = 0;
 	struct page *page;
@@ -72,12 +72,15 @@ static struct page *alloc_fresh_huge_page(void)
 					HUGETLB_PAGE_ORDER);
 	nid = (nid + 1) % num_online_nodes();
 	if (page) {
+		page[1].lru.next = (void *)free_huge_page;	/* dtor */
 		spin_lock(&hugetlb_lock);
 		nr_huge_pages++;
 		nr_huge_pages_node[page_to_nid(page)]++;
 		spin_unlock(&hugetlb_lock);
+		put_page(page); /* free it into the hugepage allocator */
+		return 1;
 	}
-	return page;
+	return 0;
 }
 
 void free_huge_page(struct page *page)
@@ -85,7 +88,6 @@ void free_huge_page(struct page *page)
 	BUG_ON(page_count(page));
 
 	INIT_LIST_HEAD(&page->lru);
-	page[1].lru.next = NULL;			/* reset dtor */
 
 	spin_lock(&hugetlb_lock);
 	enqueue_huge_page(page);
@@ -105,7 +107,6 @@ struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
 	}
 	spin_unlock(&hugetlb_lock);
 	set_page_count(page, 1);
-	page[1].lru.next = (void *)free_huge_page;	/* set dtor */
 	for (i = 0; i < (HPAGE_SIZE/PAGE_SIZE); ++i)
 		clear_user_highpage(&page[i], addr);
 	return page;
@@ -114,7 +115,6 @@ struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
 static int __init hugetlb_init(void)
 {
 	unsigned long i;
-	struct page *page;
 
 	if (HPAGE_SHIFT == 0)
 		return 0;
@@ -123,12 +123,8 @@ static int __init hugetlb_init(void)
 		INIT_LIST_HEAD(&hugepage_freelists[i]);
 
 	for (i = 0; i < max_huge_pages; ++i) {
-		page = alloc_fresh_huge_page();
-		if (!page)
+		if (!alloc_fresh_huge_page())
 			break;
-		spin_lock(&hugetlb_lock);
-		enqueue_huge_page(page);
-		spin_unlock(&hugetlb_lock);
 	}
 	max_huge_pages = free_huge_pages = nr_huge_pages = i;
 	printk("Total HugeTLB memory allocated, %ld\n", free_huge_pages);
@@ -154,8 +150,8 @@ static void update_and_free_page(struct page *page)
 		page[i].flags &= ~(1 << PG_locked | 1 << PG_error | 1 << PG_referenced |
 				1 << PG_dirty | 1 << PG_active | 1 << PG_reserved |
 				1 << PG_private | 1<< PG_writeback);
-		set_page_count(&page[i], 0);
 	}
+	page[1].lru.next = NULL;
 	set_page_count(page, 1);
 	__free_pages(page, HUGETLB_PAGE_ORDER);
 }
@@ -188,12 +184,8 @@ static inline void try_to_free_low(unsigned long count)
 static unsigned long set_max_huge_pages(unsigned long count)
 {
 	while (count > nr_huge_pages) {
-		struct page *page = alloc_fresh_huge_page();
-		if (!page)
+		if (!alloc_fresh_huge_page())
 			return nr_huge_pages;
-		spin_lock(&hugetlb_lock);
-		enqueue_huge_page(page);
-		spin_unlock(&hugetlb_lock);
 	}
 	if (count >= nr_huge_pages)
 		return nr_huge_pages;
