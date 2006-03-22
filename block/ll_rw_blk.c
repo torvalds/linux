@@ -2477,10 +2477,12 @@ void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
 	rq->rq_disk = bd_disk;
 	rq->flags |= REQ_NOMERGE;
 	rq->end_io = done;
-	elv_add_request(q, rq, where, 1);
-	generic_unplug_device(q);
+	WARN_ON(irqs_disabled());
+	spin_lock_irq(q->queue_lock);
+	__elv_add_request(q, rq, where, 1);
+	__generic_unplug_device(q);
+	spin_unlock_irq(q->queue_lock);
 }
-
 EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
 
 /**
