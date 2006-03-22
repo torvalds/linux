@@ -1083,29 +1083,26 @@ static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
 	int scan = 0;
 
 	while (scan++ < nr_to_scan && !list_empty(src)) {
+		struct list_head *target;
 		page = lru_to_page(src);
 		prefetchw_prev_lru_page(page, src, flags);
 
 		BUG_ON(!PageLRU(page));
 
 		list_del(&page->lru);
-		if (unlikely(get_page_testone(page))) {
+		target = src;
+		if (likely(get_page_unless_zero(page))) {
 			/*
-			 * It is being freed elsewhere
+			 * Be careful not to clear PageLRU until after we're
+			 * sure the page is not being freed elsewhere -- the
+			 * page release code relies on it.
 			 */
-			__put_page(page);
-			list_add(&page->lru, src);
-			continue;
-		}
+			ClearPageLRU(page);
+			target = dst;
+			nr_taken++;
+		} /* else it is being freed elsewhere */
 
-		/*
-		 * Be careful not to clear PageLRU until after we're sure
-		 * the page is not being freed elsewhere -- the page release
-		 * code relies on it.
-		 */
-		ClearPageLRU(page);
-		list_add(&page->lru, dst);
-		nr_taken++;
+		list_add(&page->lru, target);
 	}
 
 	*scanned = scan;

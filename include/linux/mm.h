@@ -301,17 +301,20 @@ struct page {
  * Drop a ref, return true if the logical refcount fell to zero (the page has
  * no users)
  */
-#define put_page_testzero(p)				\
-	({						\
-		BUG_ON(atomic_read(&(p)->_count) == -1);\
-		atomic_add_negative(-1, &(p)->_count);	\
-	})
+static inline int put_page_testzero(struct page *page)
+{
+	BUG_ON(atomic_read(&page->_count) == -1);
+	return atomic_add_negative(-1, &page->_count);
+}
 
 /*
- * Grab a ref, return true if the page previously had a logical refcount of
- * zero.  ie: returns true if we just grabbed an already-deemed-to-be-free page
+ * Try to grab a ref unless the page has a refcount of zero, return false if
+ * that is the case.
  */
-#define get_page_testone(p)	atomic_inc_and_test(&(p)->_count)
+static inline int get_page_unless_zero(struct page *page)
+{
+	return atomic_add_unless(&page->_count, 1, -1);
+}
 
 #define set_page_count(p,v) 	atomic_set(&(p)->_count, (v) - 1)
 #define __put_page(p)		atomic_dec(&(p)->_count)
