@@ -2001,8 +2001,18 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
 	 * status is checked.  Because waiting for "a while" before
 	 * checking status is fine, post SRST, we perform this magic
 	 * delay here as well.
+	 *
+	 * Old drivers/ide uses the 2mS rule and then waits for ready
 	 */
 	msleep(150);
+
+	
+	/* Before we perform post reset processing we want to see if 
+	   the bus shows 0xFF because the odd clown forgets the D7 pulldown
+	   resistor */
+	
+	if (ata_check_status(ap) == 0xFF)
+		return 1;	/* Positive is failure for some reason */
 
 	ata_bus_post_reset(ap, devmask);
 
