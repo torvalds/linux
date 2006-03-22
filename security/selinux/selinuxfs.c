@@ -1181,6 +1181,8 @@ static int sel_make_dir(struct super_block *sb, struct dentry *dentry)
 	}
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
+	/* directory inodes start off with i_nlink == 2 (for "." entry) */
+	inode->i_nlink++;
 	d_add(dentry, inode);
 out:
 	return ret;
@@ -1222,6 +1224,8 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		goto out;
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
+	/* directory inodes start off with i_nlink == 2 (for "." entry) */
+	inode->i_nlink++;
 	d_add(dentry, inode);
 	bool_dir = dentry;
 	ret = sel_make_bools();
