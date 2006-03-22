@@ -86,8 +86,9 @@
  * - The __xxx_page_state variants can be used safely when interrupts are
  * disabled.
  * - The __xxx_page_state variants can be used if the field is only
- * modified from process context, or only modified from interrupt context.
- * In this case, the field should be commented here.
+ * modified from process context and protected from preemption, or only
+ * modified from interrupt context.  In this case, the field should be
+ * commented here.
  */
 struct page_state {
 	unsigned long nr_dirty;		/* Dirty writeable pages */
