@@ -161,7 +161,9 @@ static int drop_interrupts;
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 static int option_lid_wakeup = 1;
 #endif /* CONFIG_PM && CONFIG_PPC32 */
+#if (defined(CONFIG_PM)&&defined(CONFIG_PPC32))||defined(CONFIG_PMAC_BACKLIGHT)
 static int sleep_in_progress;
+#endif
 static unsigned long async_req_locks;
 static unsigned int pmu_irq_stats[11];
 
