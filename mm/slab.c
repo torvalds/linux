@@ -292,13 +292,13 @@ struct kmem_list3 {
 	struct list_head slabs_full;
 	struct list_head slabs_free;
 	unsigned long free_objects;
-	unsigned long next_reap;
-	int free_touched;
 	unsigned int free_limit;
 	unsigned int colour_next;	/* Per-node cache coloring */
 	spinlock_t list_lock;
 	struct array_cache *shared;	/* shared per node */
 	struct array_cache **alien;	/* on other nodes */
+	unsigned long next_reap;	/* updated without locking */
+	int free_touched;		/* updated without locking */
 };
 
 /*
@@ -3539,6 +3539,22 @@ static void drain_array_locked(struct kmem_cache *cachep,
 	}
 }
 
+
+/*
+ * Drain an array if it contains any elements taking the l3 lock only if
+ * necessary.
+ */
+static void drain_array(struct kmem_cache *searchp, struct kmem_list3 *l3,
+					 struct array_cache *ac)
+{
+	if (ac && ac->avail) {
+		spin_lock_irq(&l3->list_lock);
+		drain_array_locked(searchp, ac, 0,
+				   numa_node_id());
+		spin_unlock_irq(&l3->list_lock);
+	}
+}
+
 /**
  * cache_reap - Reclaim memory from caches.
  * @unused: unused parameter
@@ -3572,33 +3588,48 @@ static void cache_reap(void *unused)
 		searchp = list_entry(walk, struct kmem_cache, next);
 		check_irq_on();
 
+		/*
+		 * We only take the l3 lock if absolutely necessary and we
+		 * have established with reasonable certainty that
+		 * we can do some work if the lock was obtained.
+		 */
 		l3 = searchp->nodelists[numa_node_id()];
+
 		reap_alien(searchp, l3);
-		spin_lock_irq(&l3->list_lock);
 
-		drain_array_locked(searchp, cpu_cache_get(searchp), 0,
-				   numa_node_id());
+		drain_array(searchp, l3, cpu_cache_get(searchp));
 
+		/*
+		 * These are racy checks but it does not matter
+		 * if we skip one check or scan twice.
+		 */
 		if (time_after(l3->next_reap, jiffies))
-			goto next_unlock;
+			goto next;
 
 		l3->next_reap = jiffies + REAPTIMEOUT_LIST3;
 
-		if (l3->shared)
-			drain_array_locked(searchp, l3->shared, 0,
-					   numa_node_id());
+		drain_array(searchp, l3, l3->shared);
 
 		if (l3->free_touched) {
 			l3->free_touched = 0;
-			goto next_unlock;
+			goto next;
 		}
 
 		tofree = (l3->free_limit + 5 * searchp->num - 1) /
 				(5 * searchp->num);
 		do {
-			p = l3->slabs_free.next;
-			if (p == &(l3->slabs_free))
+			/*
+			 * Do not lock if there are no free blocks.
+			 */
+			if (list_empty(&l3->slabs_free))
 				break;
+
+			spin_lock_irq(&l3->list_lock);
+			p = l3->slabs_free.next;
+			if (p == &(l3->slabs_free)) {
+				spin_unlock_irq(&l3->list_lock);
+				break;
+			}
 
 			slabp = list_entry(p, struct slab, list);
 			BUG_ON(slabp->inuse);
@@ -3613,10 +3644,8 @@ static void cache_reap(void *unused)
 			l3->free_objects -= searchp->num;
 			spin_unlock_irq(&l3->list_lock);
 			slab_destroy(searchp, slabp);
-			spin_lock_irq(&l3->list_lock);
 		} while (--tofree > 0);
-next_unlock:
-		spin_unlock_irq(&l3->list_lock);
+next:
 		cond_resched();
 	}
 	check_irq_on();
