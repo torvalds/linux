@@ -33,6 +33,7 @@
 #include <linux/cpuset.h>
 #include <linux/notifier.h>
 #include <linux/rwsem.h>
+#include <linux/delay.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -1784,11 +1785,13 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 	pg_data_t *pgdat;
 	unsigned long nr_to_free = nr_pages;
 	unsigned long ret = 0;
+	unsigned retry = 2;
 	struct reclaim_state reclaim_state = {
 		.reclaimed_slab = 0,
 	};
 
 	current->reclaim_state = &reclaim_state;
+repeat:
 	for_each_pgdat(pgdat) {
 		unsigned long freed;
 
@@ -1797,6 +1800,10 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 		nr_to_free -= freed;
 		if ((long)nr_to_free <= 0)
 			break;
+	}
+	if (retry-- && ret < nr_pages) {
+		blk_congestion_wait(WRITE, HZ/5);
+		goto repeat;
 	}
 	current->reclaim_state = NULL;
 	return ret;
