@@ -214,6 +214,8 @@ static void ata_exec_command_pio(struct ata_port *ap, const struct ata_taskfile 
  *	Issues MMIO write to ATA command register, with proper
  *	synchronization with interrupt handler / other threads.
  *
+ *	FIXME: missing write posting for 400nS delay enforcement
+ *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
  */
