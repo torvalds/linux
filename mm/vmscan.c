@@ -1042,9 +1042,10 @@ int isolate_lru_page(struct page *page)
 	if (PageLRU(page)) {
 		struct zone *zone = page_zone(page);
 		spin_lock_irq(&zone->lru_lock);
-		if (TestClearPageLRU(page)) {
+		if (PageLRU(page)) {
 			ret = 1;
 			get_page(page);
+			ClearPageLRU(page);
 			if (PageActive(page))
 				del_page_from_active_list(zone, page);
 			else
@@ -1085,6 +1086,8 @@ static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
 		page = lru_to_page(src);
 		prefetchw_prev_lru_page(page, src, flags);
 
+		BUG_ON(!PageLRU(page));
+
 		list_del(&page->lru);
 		if (unlikely(get_page_testone(page))) {
 			/*
@@ -1100,8 +1103,7 @@ static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
 		 * the page is not being freed elsewhere -- the page release
 		 * code relies on it.
 		 */
-		if (!TestClearPageLRU(page))
-			BUG();
+		ClearPageLRU(page);
 		list_add(&page->lru, dst);
 		nr_taken++;
 	}
@@ -1156,8 +1158,8 @@ static void shrink_cache(struct zone *zone, struct scan_control *sc)
 		 */
 		while (!list_empty(&page_list)) {
 			page = lru_to_page(&page_list);
-			if (TestSetPageLRU(page))
-				BUG();
+			BUG_ON(PageLRU(page));
+			SetPageLRU(page);
 			list_del(&page->lru);
 			if (PageActive(page))
 				add_page_to_active_list(zone, page);
@@ -1276,8 +1278,8 @@ refill_inactive_zone(struct zone *zone, struct scan_control *sc)
 	while (!list_empty(&l_inactive)) {
 		page = lru_to_page(&l_inactive);
 		prefetchw_prev_lru_page(page, &l_inactive, flags);
-		if (TestSetPageLRU(page))
-			BUG();
+		BUG_ON(PageLRU(page));
+		SetPageLRU(page);
 		if (!TestClearPageActive(page))
 			BUG();
 		list_move(&page->lru, &zone->inactive_list);
@@ -1305,8 +1307,8 @@ refill_inactive_zone(struct zone *zone, struct scan_control *sc)
 	while (!list_empty(&l_active)) {
 		page = lru_to_page(&l_active);
 		prefetchw_prev_lru_page(page, &l_active, flags);
-		if (TestSetPageLRU(page))
-			BUG();
+		BUG_ON(PageLRU(page));
+		SetPageLRU(page);
 		BUG_ON(!PageActive(page));
 		list_move(&page->lru, &zone->active_list);
 		pgmoved++;
