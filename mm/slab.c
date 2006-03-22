@@ -830,7 +830,7 @@ static void init_reap_node(int cpu)
 
 	node = next_node(cpu_to_node(cpu), node_online_map);
 	if (node == MAX_NUMNODES)
-		node = 0;
+		node = first_node(node_online_map);
 
 	__get_cpu_var(reap_node) = node;
 }
