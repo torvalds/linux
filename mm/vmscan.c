@@ -1887,6 +1887,7 @@ int zone_reclaim_interval __read_mostly = 30*HZ;
  */
 static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 {
+	/* Minimum pages needed in order to stay on node */
 	const unsigned long nr_pages = 1 << order;
 	struct task_struct *p = current;
 	struct reclaim_state reclaim_state;
@@ -1924,9 +1925,12 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 
 	if (nr_reclaimed < nr_pages && (zone_reclaim_mode & RECLAIM_SLAB)) {
 		/*
-		 * shrink_slab does not currently allow us to determine
-		 * how many pages were freed in the zone. So we just
-		 * shake the slab and then go offnode for a single allocation.
+		 * shrink_slab() does not currently allow us to determine how
+		 * many pages were freed in this zone. So we just shake the slab
+		 * a bit and then go off node for this particular allocation
+		 * despite possibly having freed enough memory to allocate in
+		 * this zone.  If we freed local memory then the next
+		 * allocations will be local again.
 		 *
 		 * shrink_slab will free memory on all zones and may take
 		 * a long time.
@@ -1937,8 +1941,14 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	p->reclaim_state = NULL;
 	current->flags &= ~(PF_MEMALLOC | PF_SWAPWRITE);
 
-	if (nr_reclaimed == 0)
+	if (nr_reclaimed == 0) {
+		/*
+		 * We were unable to reclaim enough pages to stay on node.  We
+		 * now allow off node accesses for a certain time period before
+		 * trying again to reclaim pages from the local zone.
+		 */
 		zone->last_unsuccessful_zone_reclaim = jiffies;
+	}
 
 	return nr_reclaimed >= nr_pages;
 }
