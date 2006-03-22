@@ -565,3 +565,32 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	return i;
 }
+
+void hugetlb_change_protection(struct vm_area_struct *vma,
+		unsigned long address, unsigned long end, pgprot_t newprot)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	unsigned long start = address;
+	pte_t *ptep;
+	pte_t pte;
+
+	BUG_ON(address >= end);
+	flush_cache_range(vma, address, end);
+
+	spin_lock(&mm->page_table_lock);
+	for (; address < end; address += HPAGE_SIZE) {
+		ptep = huge_pte_offset(mm, address);
+		if (!ptep)
+			continue;
+		if (!pte_none(*ptep)) {
+			pte = huge_ptep_get_and_clear(mm, address, ptep);
+			pte = pte_mkhuge(pte_modify(pte, newprot));
+			set_huge_pte_at(mm, address, ptep, pte);
+			lazy_mmu_prot_update(pte);
+		}
+	}
+	spin_unlock(&mm->page_table_lock);
+
+	flush_tlb_range(vma, start, end);
+}
+
