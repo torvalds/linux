@@ -388,7 +388,7 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 {
 	unsigned long pfn = pte_pfn(pte);
 
-	if (vma->vm_flags & VM_PFNMAP) {
+	if (unlikely(vma->vm_flags & VM_PFNMAP)) {
 		unsigned long off = (addr - vma->vm_start) >> PAGE_SHIFT;
 		if (pfn == vma->vm_pgoff + off)
 			return NULL;
@@ -396,18 +396,12 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 			return NULL;
 	}
 
-	/*
-	 * Add some anal sanity checks for now. Eventually,
-	 * we should just do "return pfn_to_page(pfn)", but
-	 * in the meantime we check that we get a valid pfn,
-	 * and that the resulting page looks ok.
-	 *
-	 * Remove this test eventually!
-	 */
+#ifdef CONFIG_DEBUG_VM
 	if (unlikely(!pfn_valid(pfn))) {
 		print_bad_pte(vma, pte, addr);
 		return NULL;
 	}
+#endif
 
 	/*
 	 * NOTE! We still have PageReserved() pages in the page 

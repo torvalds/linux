@@ -56,13 +56,11 @@
 
 #include <asm/tlbflush.h>
 
-//#define RMAP_DEBUG /* can be enabled only for debugging */
-
 struct kmem_cache *anon_vma_cachep;
 
 static inline void validate_anon_vma(struct vm_area_struct *find_vma)
 {
-#ifdef RMAP_DEBUG
+#ifdef CONFIG_DEBUG_VM
 	struct anon_vma *anon_vma = find_vma->anon_vma;
 	struct vm_area_struct *vma;
 	unsigned int mapcount = 0;
@@ -551,13 +549,14 @@ void page_add_file_rmap(struct page *page)
 void page_remove_rmap(struct page *page)
 {
 	if (atomic_add_negative(-1, &page->_mapcount)) {
-		if (page_mapcount(page) < 0) {
+#ifdef CONFIG_DEBUG_VM
+		if (unlikely(page_mapcount(page) < 0)) {
 			printk (KERN_EMERG "Eeek! page_mapcount(page) went negative! (%d)\n", page_mapcount(page));
 			printk (KERN_EMERG "  page->flags = %lx\n", page->flags);
 			printk (KERN_EMERG "  page->count = %x\n", page_count(page));
 			printk (KERN_EMERG "  page->mapping = %p\n", page->mapping);
 		}
-
+#endif
 		BUG_ON(page_mapcount(page) < 0);
 		/*
 		 * It would be tidy to reset the PageAnon mapping here,
