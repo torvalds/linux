@@ -3,8 +3,13 @@
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
  */
 
+#include <linux/config.h>
+
 #include <asm/tsb.h>
 #include <asm/hypervisor.h>
+#include <asm/page.h>
+#include <asm/cpudata.h>
+#include <asm/mmu.h>
 
 	.text
 	.align	32
@@ -34,34 +39,124 @@ tsb_miss_itlb:
 	 ldxa		[%g4] ASI_IMMU, %g4
 
 	/* At this point we have:
-	 * %g1 --	TSB entry address
+	 * %g1 --	PAGE_SIZE TSB entry address
 	 * %g3 --	FAULT_CODE_{D,I}TLB
 	 * %g4 --	missing virtual address
 	 * %g6 --	TAG TARGET (vaddr >> 22)
 	 */
 tsb_miss_page_table_walk:
-	TRAP_LOAD_PGD_PHYS(%g7, %g5)
+	TRAP_LOAD_TRAP_BLOCK(%g7, %g5)
 
-	/* And now we have the PGD base physical address in %g7.  */
-tsb_miss_page_table_walk_sun4v_fastpath:
-	USER_PGTABLE_WALK_TL1(%g4, %g7, %g5, %g2, tsb_do_fault)
+	/* Before committing to a full page table walk,
+	 * check the huge page TSB.
+	 */
+#ifdef CONFIG_HUGETLB_PAGE
+
+661:	ldx		[%g7 + TRAP_PER_CPU_TSB_HUGE], %g5
+	nop
+	.section	.sun4v_2insn_patch, "ax"
+	.word		661b
+	mov		SCRATCHPAD_UTSBREG2, %g5
+	ldxa		[%g5] ASI_SCRATCHPAD, %g5
+	.previous
+
+	cmp		%g5, -1
+	be,pt		%xcc, 80f
+	 nop
+
+	/* We need an aligned pair of registers containing 2 values
+	 * which can be easily rematerialized.  %g6 and %g7 foot the
+	 * bill just nicely.  We'll save %g6 away into %g2 for the
+	 * huge page TSB TAG comparison.
+	 *
+	 * Perform a huge page TSB lookup.
+	 */
+	mov		%g6, %g2
+	and		%g5, 0x7, %g6
+	mov		512, %g7
+	andn		%g5, 0x7, %g5
+	sllx		%g7, %g6, %g7
+	srlx		%g4, HPAGE_SHIFT, %g6
+	sub		%g7, 1, %g7
+	and		%g6, %g7, %g6
+	sllx		%g6, 4, %g6
+	add		%g5, %g6, %g5
+
+	TSB_LOAD_QUAD(%g5, %g6)
+	cmp		%g6, %g2
+	be,a,pt		%xcc, tsb_tlb_reload
+	 mov		%g7, %g5
+
+	/* No match, remember the huge page TSB entry address,
+	 * and restore %g6 and %g7.
+	 */
+	TRAP_LOAD_TRAP_BLOCK(%g7, %g6)
+	srlx		%g4, 22, %g6
+80:	stx		%g5, [%g7 + TRAP_PER_CPU_TSB_HUGE_TEMP]
+
+#endif
+
+	ldx		[%g7 + TRAP_PER_CPU_PGD_PADDR], %g7
 
 	/* At this point we have:
 	 * %g1 --	TSB entry address
 	 * %g3 --	FAULT_CODE_{D,I}TLB
-	 * %g5 --	physical address of PTE in Linux page tables
+	 * %g4 --	missing virtual address
+	 * %g6 --	TAG TARGET (vaddr >> 22)
+	 * %g7 --	page table physical address
+	 *
+	 * We know that both the base PAGE_SIZE TSB and the HPAGE_SIZE
+	 * TSB both lack a matching entry.
+	 */
+tsb_miss_page_table_walk_sun4v_fastpath:
+	USER_PGTABLE_WALK_TL1(%g4, %g7, %g5, %g2, tsb_do_fault)
+
+	/* Load and check PTE.  */
+	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
+	brgez,pn	%g5, tsb_do_fault
+	 nop
+
+#ifdef CONFIG_HUGETLB_PAGE
+661:	sethi		%uhi(_PAGE_SZALL_4U), %g7
+	sllx		%g7, 32, %g7
+	.section	.sun4v_2insn_patch, "ax"
+	.word		661b
+	mov		_PAGE_SZALL_4V, %g7
+	nop
+	.previous
+
+	and		%g5, %g7, %g2
+
+661:	sethi		%uhi(_PAGE_SZHUGE_4U), %g7
+	sllx		%g7, 32, %g7
+	.section	.sun4v_2insn_patch, "ax"
+	.word		661b
+	mov		_PAGE_SZHUGE_4V, %g7
+	nop
+	.previous
+
+	cmp		%g2, %g7
+	bne,pt		%xcc, 60f
+	 nop
+
+	/* It is a huge page, use huge page TSB entry address we
+	 * calculated above.
+	 */
+	TRAP_LOAD_TRAP_BLOCK(%g7, %g2)
+	ldx		[%g7 + TRAP_PER_CPU_TSB_HUGE_TEMP], %g2
+	cmp		%g2, -1
+	movne		%xcc, %g2, %g1
+60:
+#endif
+
+	/* At this point we have:
+	 * %g1 --	TSB entry address
+	 * %g3 --	FAULT_CODE_{D,I}TLB
+	 * %g5 --	valid PTE
 	 * %g6 --	TAG TARGET (vaddr >> 22)
 	 */
 tsb_reload:
 	TSB_LOCK_TAG(%g1, %g2, %g7)
-
-	/* Load and check PTE.  */
-	ldxa		[%g5] ASI_PHYS_USE_EC, %g5
-	mov		1, %g7
-	sllx		%g7, TSB_TAG_INVALID_BIT, %g7
-	brgez,a,pn	%g5, tsb_do_fault
-	 TSB_STORE(%g1, %g7)
-
 	TSB_WRITE(%g1, %g5, %g6)
 
 	/* Finally, load TLB and return from trap.  */
@@ -240,10 +335,9 @@ tsb_flush:
 	 * schedule() time.
 	 *
 	 * %o0: page table physical address
-	 * %o1:	TSB register value
-	 * %o2:	TSB virtual address
-	 * %o3:	TSB mapping locked PTE
-	 * %o4:	Hypervisor TSB descriptor physical address
+	 * %o1:	TSB base config pointer
+	 * %o2:	TSB huge config pointer, or NULL if none
+	 * %o3:	Hypervisor TSB descriptor physical address
 	 *
 	 * We have to run this whole thing with interrupts
 	 * disabled so that the current cpu doesn't change
@@ -253,63 +347,79 @@ tsb_flush:
 	.globl	__tsb_context_switch
 	.type	__tsb_context_switch,#function
 __tsb_context_switch:
-	rdpr	%pstate, %o5
-	wrpr	%o5, PSTATE_IE, %pstate
+	rdpr	%pstate, %g1
+	wrpr	%g1, PSTATE_IE, %pstate
 
-	ldub	[%g6 + TI_CPU], %g1
-	sethi	%hi(trap_block), %g2
-	sllx	%g1, TRAP_BLOCK_SZ_SHIFT, %g1
-	or	%g2, %lo(trap_block), %g2
-	add	%g2, %g1, %g2
+	TRAP_LOAD_TRAP_BLOCK(%g2, %g3)
+
 	stx	%o0, [%g2 + TRAP_PER_CPU_PGD_PADDR]
 
-	sethi	%hi(tlb_type), %g1
-	lduw	[%g1 + %lo(tlb_type)], %g1
-	cmp	%g1, 3
-	bne,pt	%icc, 1f
+	ldx	[%o1 + TSB_CONFIG_REG_VAL], %o0
+	brz,pt	%o2, 1f
+	 mov	-1, %g3
+
+	ldx	[%o2 + TSB_CONFIG_REG_VAL], %g3
+
+1:	stx	%g3, [%g2 + TRAP_PER_CPU_TSB_HUGE]
+
+	sethi	%hi(tlb_type), %g2
+	lduw	[%g2 + %lo(tlb_type)], %g2
+	cmp	%g2, 3
+	bne,pt	%icc, 50f
 	 nop
 
 	/* Hypervisor TSB switch. */
-	mov	SCRATCHPAD_UTSBREG1, %g1
-	stxa	%o1, [%g1] ASI_SCRATCHPAD
-	mov	-1, %g2
-	mov	SCRATCHPAD_UTSBREG2, %g1
-	stxa	%g2, [%g1] ASI_SCRATCHPAD
+	mov	SCRATCHPAD_UTSBREG1, %o5
+	stxa	%o0, [%o5] ASI_SCRATCHPAD
+	mov	SCRATCHPAD_UTSBREG2, %o5
+	stxa	%g3, [%o5] ASI_SCRATCHPAD
 
-	/* Save away %o5's %pstate, we have to use %o5 for
-	 * the hypervisor call.
-	 */
-	mov	%o5, %g1
+	mov	2, %o0
+	cmp	%g3, -1
+	move	%xcc, 1, %o0
 
 	mov	HV_FAST_MMU_TSB_CTXNON0, %o5
-	mov	1, %o0
-	mov	%o4, %o1
+	mov	%o3, %o1
 	ta	HV_FAST_TRAP
 
-	/* Finish up and restore %o5.  */
+	/* Finish up.  */
 	ba,pt	%xcc, 9f
-	 mov	%g1, %o5
-
-	/* SUN4U TSB switch.  */
-1:	mov	TSB_REG, %g1
-	stxa	%o1, [%g1] ASI_DMMU
-	membar	#Sync
-	stxa	%o1, [%g1] ASI_IMMU
-	membar	#Sync
-
-2:	brz	%o2, 9f
 	 nop
 
+	/* SUN4U TSB switch.  */
+50:	mov	TSB_REG, %o5
+	stxa	%o0, [%o5] ASI_DMMU
+	membar	#Sync
+	stxa	%o0, [%o5] ASI_IMMU
+	membar	#Sync
+
+2:	ldx	[%o1 + TSB_CONFIG_MAP_VADDR], %o4
+	brz	%o4, 9f
+	 ldx	[%o1 + TSB_CONFIG_MAP_PTE], %o5
+
 	sethi	%hi(sparc64_highest_unlocked_tlb_ent), %g2
-	mov	TLB_TAG_ACCESS, %g1
+	mov	TLB_TAG_ACCESS, %g3
 	lduw	[%g2 + %lo(sparc64_highest_unlocked_tlb_ent)], %g2
-	stxa	%o2, [%g1] ASI_DMMU
+	stxa	%o4, [%g3] ASI_DMMU
 	membar	#Sync
 	sllx	%g2, 3, %g2
-	stxa	%o3, [%g2] ASI_DTLB_DATA_ACCESS
+	stxa	%o5, [%g2] ASI_DTLB_DATA_ACCESS
 	membar	#Sync
+
+	brz,pt	%o2, 9f
+	 nop
+
+	ldx	[%o2 + TSB_CONFIG_MAP_VADDR], %o4
+	ldx	[%o2 + TSB_CONFIG_MAP_PTE], %o5
+	mov	TLB_TAG_ACCESS, %g3
+	stxa	%o4, [%g3] ASI_DMMU
+	membar	#Sync
+	sub	%g2, (1 << 3), %g2
+	stxa	%o5, [%g2] ASI_DTLB_DATA_ACCESS
+	membar	#Sync
+
 9:
-	wrpr	%o5, %pstate
+	wrpr	%g1, %pstate
 
 	retl
 	 nop

@@ -71,7 +71,8 @@ struct trap_per_cpu {
 /* Dcache line 7: Physical addresses of CPU send mondo block and CPU list.  */
 	unsigned long		cpu_mondo_block_pa;
 	unsigned long		cpu_list_pa;
-	unsigned long		__pad1[2];
+	unsigned long		tsb_huge;
+	unsigned long		tsb_huge_temp;
 
 /* Dcache line 8: Unused, needed to keep trap_block a power-of-2 in size.  */
 	unsigned long		__pad2[4];
@@ -116,6 +117,8 @@ extern struct sun4v_2insn_patch_entry __sun4v_2insn_patch,
 #define TRAP_PER_CPU_FAULT_INFO		0x40
 #define TRAP_PER_CPU_CPU_MONDO_BLOCK_PA	0xc0
 #define TRAP_PER_CPU_CPU_LIST_PA	0xc8
+#define TRAP_PER_CPU_TSB_HUGE		0xd0
+#define TRAP_PER_CPU_TSB_HUGE_TEMP	0xd8
 
 #define TRAP_BLOCK_SZ_SHIFT		8
 

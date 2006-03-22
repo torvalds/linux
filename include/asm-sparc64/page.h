@@ -30,6 +30,23 @@
 
 #ifdef __KERNEL__
 
+#if defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
+#define HPAGE_SHIFT		22
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
+#define HPAGE_SHIFT		19
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
+#define HPAGE_SHIFT		16
+#endif
+
+#ifdef CONFIG_HUGETLB_PAGE
+#define HPAGE_SIZE		(_AC(1,UL) << HPAGE_SHIFT)
+#define HPAGE_MASK		(~(HPAGE_SIZE - 1UL))
+#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+#define ARCH_HAS_SETCLEAR_HUGE_PTE
+#define ARCH_HAS_HUGETLB_PREFAULT_HOOK
+#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+#endif
+
 #ifndef __ASSEMBLY__
 
 extern void _clear_page(void *page);
@@ -89,23 +106,6 @@ typedef unsigned long pgprot_t;
 #define __pgprot(x)	(x)
 
 #endif /* (STRICT_MM_TYPECHECKS) */
-
-#if defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
-#define HPAGE_SHIFT		22
-#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
-#define HPAGE_SHIFT		19
-#elif defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
-#define HPAGE_SHIFT		16
-#endif
-
-#ifdef CONFIG_HUGETLB_PAGE
-#define HPAGE_SIZE		(_AC(1,UL) << HPAGE_SHIFT)
-#define HPAGE_MASK		(~(HPAGE_SIZE - 1UL))
-#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
-#define ARCH_HAS_SETCLEAR_HUGE_PTE
-#define ARCH_HAS_HUGETLB_PREFAULT_HOOK
-#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-#endif
 
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_32BIT) ? \
 				 (_AC(0x0000000070000000,UL)) : \
