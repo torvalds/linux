@@ -970,7 +970,7 @@ out:
 	return ret;
 err:
 	kfree(values);
-	d_genocide(dir);
+	sel_remove_bools(dir);
 	ret = -ENOMEM;
 	goto out;
 }
@@ -1226,9 +1226,6 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		goto err;
 
 	bool_dir = dentry;
-	ret = sel_make_bools();
-	if (ret)
-		goto err;
 
 	dentry = d_alloc_name(sb->s_root, NULL_FILE_NAME);
 	if (!dentry) {
