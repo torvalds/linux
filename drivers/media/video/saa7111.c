@@ -70,8 +70,10 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 /* ----------------------------------------------------------------------- */
 
+#define SAA7111_NR_REG		0x18
+
 struct saa7111 {
-	unsigned char reg[32];
+	unsigned char reg[SAA7111_NR_REG];
 
 	int norm;
 	int input;
@@ -227,11 +229,11 @@ saa7111_command (struct i2c_client *client,
 	{
 		int i;
 
-		for (i = 0; i < 32; i += 16) {
+		for (i = 0; i < SAA7111_NR_REG; i += 16) {
 			int j;
 
 			printk(KERN_DEBUG "%s: %03x", I2C_NAME(client), i);
-			for (j = 0; j < 16; ++j) {
+			for (j = 0; j < 16 && i + j < SAA7111_NR_REG; ++j) {
 				printk(" %02x",
 				       saa7111_read(client, i + j));
 			}
