@@ -67,6 +67,62 @@ static u_char mpc85xx_ads_openpic_initsenses[] __initdata = {
 	0x0,			/* External 11: */
 };
 
+#ifdef CONFIG_PCI
+/*
+ * interrupt routing
+ */
+
+int
+mpc85xx_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
+{
+	static char pci_irq_table[][4] =
+	    /*
+	     * This is little evil, but works around the fact
+	     * that revA boards have IDSEL starting at 18
+	     * and others boards (older) start at 12
+	     *
+	     *      PCI IDSEL/INTPIN->INTLINE
+	     *       A      B      C      D
+	     */
+	{
+		{PIRQA, PIRQB, PIRQC, PIRQD},	/* IDSEL 2 */
+		{PIRQD, PIRQA, PIRQB, PIRQC},
+		{PIRQC, PIRQD, PIRQA, PIRQB},
+		{PIRQB, PIRQC, PIRQD, PIRQA},	/* IDSEL 5 */
+		{0, 0, 0, 0},	/* -- */
+		{0, 0, 0, 0},	/* -- */
+		{0, 0, 0, 0},	/* -- */
+		{0, 0, 0, 0},	/* -- */
+		{0, 0, 0, 0},	/* -- */
+		{0, 0, 0, 0},	/* -- */
+		{PIRQA, PIRQB, PIRQC, PIRQD},	/* IDSEL 12 */
+		{PIRQD, PIRQA, PIRQB, PIRQC},
+		{PIRQC, PIRQD, PIRQA, PIRQB},
+		{PIRQB, PIRQC, PIRQD, PIRQA},	/* IDSEL 15 */
+		{0, 0, 0, 0},	/* -- */
+		{0, 0, 0, 0},	/* -- */
+		{PIRQA, PIRQB, PIRQC, PIRQD},	/* IDSEL 18 */
+		{PIRQD, PIRQA, PIRQB, PIRQC},
+		{PIRQC, PIRQD, PIRQA, PIRQB},
+		{PIRQB, PIRQC, PIRQD, PIRQA},	/* IDSEL 21 */
+	};
+
+	const long min_idsel = 2, max_idsel = 21, irqs_per_slot = 4;
+	return PCI_IRQ_TABLE_LOOKUP;
+}
+
+int
+mpc85xx_exclude_device(u_char bus, u_char devfn)
+{
+	if (bus == 0 && PCI_SLOT(devfn) == 0)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	else
+		return PCIBIOS_SUCCESSFUL;
+}
+
+#endif /* CONFIG_PCI */
+
+
 void __init mpc85xx_ads_pic_init(void)
 {
 	struct mpic *mpic1;
@@ -110,6 +166,7 @@ void __init mpc85xx_ads_pic_init(void)
 static void __init mpc85xx_ads_setup_arch(void)
 {
 	struct device_node *cpu;
+	struct device_node *np;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_ads_setup_arch()", 0);
@@ -125,6 +182,16 @@ static void __init mpc85xx_ads_setup_arch(void)
 			loops_per_jiffy = 50000000 / HZ;
 		of_node_put(cpu);
 	}
+
+#ifdef CONFIG_PCI
+	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
+		add_bridge(np);
+
+	ppc_md.pci_swizzle = common_swizzle;
+	ppc_md.pci_map_irq = mpc85xx_map_irq;
+	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
+#endif
+
 #ifdef  CONFIG_ROOT_NFS
 	ROOT_DEV = Root_NFS;
 #else
