@@ -36,8 +36,6 @@ ieee80211softmac_auth_req(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_auth_queue_item *auth;
 	unsigned long flags;
 	
-	function_enter();
-	
 	if (net->authenticating)
 		return 0;
 
@@ -78,8 +76,6 @@ ieee80211softmac_auth_queue(void *data)
 	struct ieee80211softmac_network *net;
 	unsigned long flags;
 
-	function_enter();
-	
 	auth = (struct ieee80211softmac_auth_queue_item *)data;
 	net = auth->net;
 	mac = auth->mac;
@@ -127,8 +123,6 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 	struct ieee80211softmac_network *net = NULL;
 	unsigned long flags;
 	u8 * data;
-	
-	function_enter();
 	
 	/* Find correct auth queue item */
 	spin_lock_irqsave(&mac->lock, flags);
@@ -277,8 +271,6 @@ ieee80211softmac_deauth_from_net(struct ieee80211softmac_device *mac,
 	struct list_head *list_ptr;
 	unsigned long flags;
 
-	function_enter();
-	
 	/* Lock and reset status flags */
 	spin_lock_irqsave(&mac->lock, flags);
 	net->authenticating = 0;
@@ -320,8 +312,6 @@ ieee80211softmac_deauth_req(struct ieee80211softmac_device *mac,
 {
 	int ret;
 	
-	function_enter();
-
 	/* Make sure the network is authenticated */
 	if (!net->authenticated)
 	{
@@ -347,8 +337,6 @@ ieee80211softmac_deauth_resp(struct net_device *dev, struct ieee80211_deauth *de
 	
 	struct ieee80211softmac_network *net = NULL;
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
-	
-	function_enter();
 	
 	if (!deauth) {
 		dprintk("deauth without deauth packet. eek!\n");

@@ -75,15 +75,6 @@
 # define dprintk(f, x...)  do { /* nothing */ } while (0)
 #endif
 
-#ifdef function_enter
-# undef function_enter
-#endif
-#ifdef CONFIG_IEEE80211_SOFTMAC_DEBUG
-# define function_enter() do { printk(KERN_DEBUG PFX "%s:%d:%s()\n", __FILE__, __LINE__, __FUNCTION__); } while (0)
-#else
-# define function_enter() do { /* nothing */ } while (0)
-#endif
-
 /* private definitions and prototypes */
 
 /*** prototypes from _scan.c */
