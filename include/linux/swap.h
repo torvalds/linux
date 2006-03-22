@@ -172,8 +172,8 @@ extern int rotate_reclaimable_page(struct page *page);
 extern void swap_setup(void);
 
 /* linux/mm/vmscan.c */
-extern int try_to_free_pages(struct zone **, gfp_t);
-extern int shrink_all_memory(int);
+extern unsigned long try_to_free_pages(struct zone **, gfp_t);
+extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
 
 #ifdef CONFIG_NUMA
@@ -190,11 +190,11 @@ static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 
 #ifdef CONFIG_MIGRATION
 extern int isolate_lru_page(struct page *p);
-extern int putback_lru_pages(struct list_head *l);
+extern unsigned long putback_lru_pages(struct list_head *l);
 extern int migrate_page(struct page *, struct page *);
 extern void migrate_page_copy(struct page *, struct page *);
 extern int migrate_page_remove_references(struct page *, struct page *, int);
-extern int migrate_pages(struct list_head *l, struct list_head *t,
+extern unsigned long migrate_pages(struct list_head *l, struct list_head *t,
 		struct list_head *moved, struct list_head *failed);
 extern int fail_migrate_page(struct page *, struct page *);
 #else
