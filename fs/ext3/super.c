@@ -472,7 +472,7 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 #ifdef CONFIG_EXT3_FS_XATTR
 		init_rwsem(&ei->xattr_sem);
 #endif
-		init_MUTEX(&ei->truncate_sem);
+		mutex_init(&ei->truncate_mutex);
 		inode_init_once(&ei->vfs_inode);
 	}
 }
