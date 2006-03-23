@@ -38,7 +38,7 @@ static void
 ieee80211softmac_assoc(struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net)
 {
 	unsigned long flags;
-	function_enter();
+
 	/* Switch to correct channel for this network */
 	mac->set_channel(mac->dev, net->channel);
 	
@@ -64,8 +64,6 @@ ieee80211softmac_assoc_timeout(void *d)
 	struct ieee80211softmac_device *mac = (struct ieee80211softmac_device *)d;
 	unsigned long flags;
 
-	function_enter();
-
 	spin_lock_irqsave(&mac->lock, flags);
 	/* we might race against ieee80211softmac_handle_assoc_response,
 	 * so make sure only one of us does something */
@@ -89,7 +87,6 @@ ieee80211softmac_disassoc(struct ieee80211softmac_device *mac, u16 reason)
 {
 	unsigned long flags;
 	struct ieee80211softmac_network *found;
-	function_enter();
 
 	if (mac->associnfo.bssvalid && mac->associated) {
 		found = ieee80211softmac_get_network_by_bssid(mac, mac->associnfo.bssid);
@@ -172,8 +169,6 @@ ieee80211softmac_assoc_work(void *d)
 	struct ieee80211softmac_network *found = NULL;
 	struct ieee80211_network *net = NULL, *best = NULL;
 	unsigned long flags;
-	
-	function_enter();
 	
 	/* meh */
 	if (mac->associated)
@@ -390,8 +385,6 @@ ieee80211softmac_handle_reassoc_req(struct net_device * dev,
 {
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 	struct ieee80211softmac_network *network;
-
-	function_enter();
 
 	network = ieee80211softmac_get_network_by_bssid(mac, resp->header.addr3);
 	if (!network) {

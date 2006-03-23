@@ -232,6 +232,13 @@ void ieee80211softmac_scan_finished(struct ieee80211softmac_device *sm)
 	sm->scanning = 0;
 	spin_unlock_irqrestore(&sm->lock, flags);
 	
+	if (sm->associnfo.bssvalid) {
+		struct ieee80211softmac_network *net;
+
+		net = ieee80211softmac_get_network_by_bssid(sm, sm->associnfo.bssid);
+		if (net)
+			sm->set_channel(sm->dev, net->channel);
+	}
 	ieee80211softmac_call_events(sm, IEEE80211SOFTMAC_EVENT_SCAN_FINISHED, NULL);
 }
 EXPORT_SYMBOL_GPL(ieee80211softmac_scan_finished);
