@@ -152,19 +152,20 @@ EXPORT_SYMBOL(__raw_bad_addr);
  */
 void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned long flags)
 {
+	void *addr;
+	struct vm_struct *area;
+	unsigned long offset, last_addr;
+
 #ifdef CONFIG_EISA
-	#error FIXME.
 	unsigned long end = phys_addr + size - 1;
 	/* Support EISA addresses */
 	if ((phys_addr >= 0x00080000 && end < 0x000fffff)
 			|| (phys_addr >= 0x00500000 && end < 0x03bfffff)) {
 		phys_addr |= 0xfc000000;
+#warning "FIXME: EISA regions do not work yet..."
+		return NULL;  /* XXX */
 	}
 #endif
-
-	void *addr;
-	struct vm_struct *area;
-	unsigned long offset, last_addr;
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
