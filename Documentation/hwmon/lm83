@@ -7,6 +7,10 @@ Supported chips:
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/pf/LM/LM83.html
+  * National Semiconductor LM82
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/pf/LM/LM82.html
 
 
 Author: Jean Delvare <khali@linux-fr.org>
@@ -15,10 +19,11 @@ Description
 -----------
 
 The LM83 is a digital temperature sensor. It senses its own temperature as
-well as the temperature of up to three external diodes. It is compatible
-with many other devices such as the LM84 and all other ADM1021 clones.
-The main difference between the LM83 and the LM84 in that the later can
-only sense the temperature of one external diode.
+well as the temperature of up to three external diodes. The LM82 is
+a stripped down version of the LM83 that only supports one external diode.
+Both are compatible with many other devices such as the LM84 and all
+other ADM1021 clones. The main difference between the LM83 and the LM84
+in that the later can only sense the temperature of one external diode.
 
 Using the adm1021 driver for a LM83 should work, but only two temperatures
 will be reported instead of four.
@@ -35,6 +40,9 @@ Unconfirmed motherboards:
     Gigabyte    GA-8IK1100
     Iwill       MPX2
     Soltek      SL-75DRV5
+
+The LM82 is confirmed to have been found on most AMD Geode reference
+designs and test platforms.
 
 The driver has been successfully tested by Magnus Forsström, who I'd
 like to thank here. More testers will be of course welcome.

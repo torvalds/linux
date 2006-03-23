@@ -236,11 +236,11 @@ config SENSORS_LM80
 	  will be called lm80.
 
 config SENSORS_LM83
-	tristate "National Semiconductor LM83"
+	tristate "National Semiconductor LM83 and compatibles"
 	depends on HWMON && I2C
 	help
 	  If you say yes here you get support for National Semiconductor
-	  LM83 sensor chips.
+	  LM82 and LM83 sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm83.
