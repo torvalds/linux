@@ -286,7 +286,7 @@ static int scsi_bus_suspend(struct device * dev, pm_message_t state)
 		return err;
 
 	if (sht->suspend)
-		err = sht->suspend(sdev);
+		err = sht->suspend(sdev, state);
 
 	return err;
 }

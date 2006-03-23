@@ -4336,14 +4336,15 @@ int ata_device_resume(struct ata_port *ap, struct ata_device *dev)
  *	Flush the cache on the drive, if appropriate, then issue a
  *	standbynow command.
  */
-int ata_device_suspend(struct ata_port *ap, struct ata_device *dev)
+int ata_device_suspend(struct ata_port *ap, struct ata_device *dev, pm_message_t state)
 {
 	if (!ata_dev_present(dev))
 		return 0;
 	if (dev->class == ATA_DEV_ATA)
 		ata_flush_cache(ap, dev);
 
-	ata_standby_drive(ap, dev);
+	if (state.event != PM_EVENT_FREEZE)
+		ata_standby_drive(ap, dev);
 	ap->flags |= ATA_FLAG_SUSPENDED;
 	return 0;
 }
