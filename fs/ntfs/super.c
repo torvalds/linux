@@ -3090,7 +3090,7 @@ static void ntfs_big_inode_init_once(void *foo, struct kmem_cache *cachep,
 struct kmem_cache *ntfs_attr_ctx_cache;
 struct kmem_cache *ntfs_index_ctx_cache;
 
-/* Driver wide semaphore. */
+/* Driver wide mutex. */
 DEFINE_MUTEX(ntfs_lock);
 
 static struct super_block *ntfs_get_sb(struct file_system_type *fs_type,
