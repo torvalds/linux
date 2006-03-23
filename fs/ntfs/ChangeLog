@@ -16,8 +16,6 @@ ToDo/Notes:
 	  inode having been discarded already.  Whether this can actually ever
 	  happen is unclear however so it is worth waiting until someone hits
 	  the problem.
-	- Enable the code for setting the NT4 compatibility flag when we start
-	  making NTFS 1.2 specific modifications.
 
 2.1.27 - Various bug fixes and cleanups.
 
@@ -43,6 +41,8 @@ ToDo/Notes:
 	  have an index allocation attribute failed.
 	- Add a missing call to flush_dcache_mft_record_page() in
 	  fs/ntfs/inode.c::ntfs_write_inode().
+	- Handle the recently introduced -ENAMETOOLONG return value from
+	  fs/ntfs/unistr.c::ntfs_nlstoucs() in fs/ntfs/namei.c::ntfs_lookup().
 
 2.1.26 - Minor bug fixes and updates.
 
