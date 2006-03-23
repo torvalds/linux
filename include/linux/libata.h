@@ -573,6 +573,8 @@ extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
 			      sector_t capacity, int geom[]);
 extern int ata_scsi_slave_config(struct scsi_device *sdev);
+extern struct ata_device *ata_dev_pair(struct ata_port *ap, 
+				       struct ata_device *adev);
 
 /*
  * Timing helpers

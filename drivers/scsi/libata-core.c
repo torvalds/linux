@@ -1576,6 +1576,23 @@ void sata_phy_reset(struct ata_port *ap)
 }
 
 /**
+ *	ata_dev_pair		-	return other device on cable
+ *	@ap: port
+ *	@adev: device
+ *
+ *	Obtain the other device on the same cable, or if none is
+ *	present NULL is returned
+ */
+ 
+struct ata_device *ata_dev_pair(struct ata_port *ap, struct ata_device *adev)
+{
+	struct ata_device *pair = &ap->device[1 - adev->devno];
+	if (!ata_dev_present(pair))
+		return NULL;
+	return pair;
+}
+
+/**
  *	ata_port_disable - Disable port.
  *	@ap: Port to be disabled.
  *
