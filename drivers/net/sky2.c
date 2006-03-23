@@ -1175,7 +1175,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		/* just drop the packet if non-linear expansion fails */
 		if (skb_header_cloned(skb) &&
 		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
-			dev_kfree_skb_any(skb);
+			dev_kfree_skb(skb);
 			goto out_unlock;
 		}
 
@@ -1324,7 +1324,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 				       PCI_DMA_TODEVICE);
 		}
 
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 	}
 
 	sky2->tx_cons = put;
