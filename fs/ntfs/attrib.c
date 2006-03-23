@@ -1695,7 +1695,9 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 			a->data.non_resident.initialized_size =
 			cpu_to_sle64(attr_size);
 	if (NInoSparse(ni) || NInoCompressed(ni)) {
-		a->data.non_resident.compression_unit = 4;
+		a->data.non_resident.compression_unit = 0;
+		if (NInoCompressed(ni) || vol->major_ver < 3)
+			a->data.non_resident.compression_unit = 4;
 		a->data.non_resident.compressed_size =
 				a->data.non_resident.allocated_size;
 	} else
@@ -1714,13 +1716,20 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 	ni->allocated_size = new_size;
 	if (NInoSparse(ni) || NInoCompressed(ni)) {
 		ni->itype.compressed.size = ni->allocated_size;
-		ni->itype.compressed.block_size = 1U <<
-				(a->data.non_resident.compression_unit +
-				vol->cluster_size_bits);
-		ni->itype.compressed.block_size_bits =
-				ffs(ni->itype.compressed.block_size) - 1;
-		ni->itype.compressed.block_clusters = 1U <<
-				a->data.non_resident.compression_unit;
+		if (a->data.non_resident.compression_unit) {
+			ni->itype.compressed.block_size = 1U << (a->data.
+					non_resident.compression_unit +
+					vol->cluster_size_bits);
+			ni->itype.compressed.block_size_bits =
+					ffs(ni->itype.compressed.block_size) -
+					1;
+			ni->itype.compressed.block_clusters = 1U <<
+					a->data.non_resident.compression_unit;
+		} else {
+			ni->itype.compressed.block_size = 0;
+			ni->itype.compressed.block_size_bits = 0;
+			ni->itype.compressed.block_clusters = 0;
+		}
 		vi->i_blocks = ni->itype.compressed.size >> 9;
 	} else
 		vi->i_blocks = ni->allocated_size >> 9;

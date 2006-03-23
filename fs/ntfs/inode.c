@@ -1,7 +1,7 @@
 /**
  * inode.c - NTFS kernel inode handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2005 Anton Altaparmakov
+ * Copyright (c) 2001-2006 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -24,8 +24,10 @@
 #include <linux/smp_lock.h>
 #include <linux/quotaops.h>
 #include <linux/mount.h>
+#include <linux/mutex.h>
 
 #include "aops.h"
+#include "attrib.h"
 #include "dir.h"
 #include "debug.h"
 #include "inode.h"
@@ -1064,10 +1066,10 @@ skip_large_dir_stuff:
 		if (a->non_resident) {
 			NInoSetNonResident(ni);
 			if (NInoCompressed(ni) || NInoSparse(ni)) {
-				if (a->data.non_resident.compression_unit !=
-						4) {
+				if (NInoCompressed(ni) && a->data.non_resident.
+						compression_unit != 4) {
 					ntfs_error(vi->i_sb, "Found "
-							"nonstandard "
+							"non-standard "
 							"compression unit (%u "
 							"instead of 4).  "
 							"Cannot handle this.",
@@ -1076,16 +1078,26 @@ skip_large_dir_stuff:
 					err = -EOPNOTSUPP;
 					goto unm_err_out;
 				}
-				ni->itype.compressed.block_clusters = 1U <<
-						a->data.non_resident.
-						compression_unit;
-				ni->itype.compressed.block_size = 1U << (
-						a->data.non_resident.
-						compression_unit +
-						vol->cluster_size_bits);
-				ni->itype.compressed.block_size_bits = ffs(
-						ni->itype.compressed.
-						block_size) - 1;
+				if (a->data.non_resident.compression_unit) {
+					ni->itype.compressed.block_size = 1U <<
+							(a->data.non_resident.
+							compression_unit +
+							vol->cluster_size_bits);
+					ni->itype.compressed.block_size_bits =
+							ffs(ni->itype.
+							compressed.
+							block_size) - 1;
+					ni->itype.compressed.block_clusters =
+							1U << a->data.
+							non_resident.
+							compression_unit;
+				} else {
+					ni->itype.compressed.block_size = 0;
+					ni->itype.compressed.block_size_bits =
+							0;
+					ni->itype.compressed.block_clusters =
+							0;
+				}
 				ni->itype.compressed.size = sle64_to_cpu(
 						a->data.non_resident.
 						compressed_size);
@@ -1338,8 +1350,9 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 			goto unm_err_out;
 		}
 		if (NInoCompressed(ni) || NInoSparse(ni)) {
-			if (a->data.non_resident.compression_unit != 4) {
-				ntfs_error(vi->i_sb, "Found nonstandard "
+			if (NInoCompressed(ni) && a->data.non_resident.
+					compression_unit != 4) {
+				ntfs_error(vi->i_sb, "Found non-standard "
 						"compression unit (%u instead "
 						"of 4).  Cannot handle this.",
 						a->data.non_resident.
@@ -1347,13 +1360,22 @@ static int ntfs_read_locked_attr_inode(struct inode *base_vi, struct inode *vi)
 				err = -EOPNOTSUPP;
 				goto unm_err_out;
 			}
-			ni->itype.compressed.block_clusters = 1U <<
-					a->data.non_resident.compression_unit;
-			ni->itype.compressed.block_size = 1U << (
-					a->data.non_resident.compression_unit +
-					vol->cluster_size_bits);
-			ni->itype.compressed.block_size_bits = ffs(
-					ni->itype.compressed.block_size) - 1;
+			if (a->data.non_resident.compression_unit) {
+				ni->itype.compressed.block_size = 1U <<
+						(a->data.non_resident.
+						compression_unit +
+						vol->cluster_size_bits);
+				ni->itype.compressed.block_size_bits =
+						ffs(ni->itype.compressed.
+						block_size) - 1;
+				ni->itype.compressed.block_clusters = 1U <<
+						a->data.non_resident.
+						compression_unit;
+			} else {
+				ni->itype.compressed.block_size = 0;
+				ni->itype.compressed.block_size_bits = 0;
+				ni->itype.compressed.block_clusters = 0;
+			}
 			ni->itype.compressed.size = sle64_to_cpu(
 					a->data.non_resident.compressed_size);
 		}

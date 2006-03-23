@@ -769,7 +769,7 @@ typedef struct {
 				compressed.  (This effectively limits the
 				compression unit size to be a power of two
 				clusters.)  WinNT4 only uses a value of 4.
-				Sparse files also have this set to 4. */
+				Sparse files have this set to 0 on XPSP2. */
 /* 35*/			u8 reserved[5];		/* Align to 8-byte boundary. */
 /* The sizes below are only used when lowest_vcn is zero, as otherwise it would
    be difficult to keep them up-to-date.*/
@@ -1076,16 +1076,21 @@ typedef struct {
 /* 20*/	sle64 last_access_time;		/* Time this mft record was last
 					   accessed. */
 /* 28*/	sle64 allocated_size;		/* Byte size of on-disk allocated space
-					   for the data attribute.  So for
-					   normal $DATA, this is the
+					   for the unnamed data attribute.  So
+					   for normal $DATA, this is the
 					   allocated_size from the unnamed
 					   $DATA attribute and for compressed
 					   and/or sparse $DATA, this is the
 					   compressed_size from the unnamed
-					   $DATA attribute.  NOTE: This is a
-					   multiple of the cluster size. */
-/* 30*/	sle64 data_size;		/* Byte size of actual data in data
-					   attribute. */
+					   $DATA attribute.  For a directory or
+					   other inode without an unnamed $DATA
+					   attribute, this is always 0.  NOTE:
+					   This is a multiple of the cluster
+					   size. */
+/* 30*/	sle64 data_size;		/* Byte size of actual data in unnamed
+					   data attribute.  For a directory or
+					   other inode without an unnamed $DATA
+					   attribute, this is always 0. */
 /* 38*/	FILE_ATTR_FLAGS file_attributes;	/* Flags describing the file. */
 /* 3c*/	union {
 	/* 3c*/	struct {
