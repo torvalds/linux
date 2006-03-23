@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/mutex.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
@@ -74,7 +75,7 @@ MODULE_PARM_DESC(input_mode,
 
 struct pcf8591_data {
 	struct i2c_client client;
-	struct semaphore update_lock;
+	struct mutex update_lock;
 
 	u8 control;
 	u8 aout;
@@ -144,13 +145,13 @@ static ssize_t set_out0_enable(struct device *dev, struct device_attribute *attr
 	struct pcf8591_data *data = i2c_get_clientdata(client);
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	if (val)
 		data->control |= PCF8591_CONTROL_AOEF;
 	else
 		data->control &= ~PCF8591_CONTROL_AOEF;
 	i2c_smbus_write_byte(client, data->control);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -200,7 +201,7 @@ static int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Fill in the remaining client fields and put it into the global 
 	   list */
 	strlcpy(new_client->name, "pcf8591", I2C_NAME_SIZE);
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -265,7 +266,7 @@ static int pcf8591_read_channel(struct device *dev, int channel)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pcf8591_data *data = i2c_get_clientdata(client);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if ((data->control & PCF8591_CONTROL_AICH_MASK) != channel) {
 		data->control = (data->control & ~PCF8591_CONTROL_AICH_MASK)
@@ -278,7 +279,7 @@ static int pcf8591_read_channel(struct device *dev, int channel)
 	}
 	value = i2c_smbus_read_byte(client);
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	if ((channel == 2 && input_mode == 2) ||
 	    (channel != 3 && (input_mode == 1 || input_mode == 3)))

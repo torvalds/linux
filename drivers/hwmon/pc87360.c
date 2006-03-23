@@ -43,6 +43,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 
 static u8 devid;
@@ -183,8 +184,8 @@ static inline u8 PWM_TO_REG(int val, int inv)
 struct pc87360_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore lock;
-	struct semaphore update_lock;
+	struct mutex lock;
+	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -283,7 +284,7 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *devattr,
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long fan_min = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	fan_min = FAN_TO_REG(fan_min, FAN_DIV_FROM_REG(data->fan_status[attr->index]));
 
 	/* If it wouldn't fit, change clock divisor */
@@ -300,23 +301,31 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *devattr,
 	/* Write new divider, preserve alarm bits */
 	pc87360_write_value(data, LD_FAN, NO_BANK, PC87360_REG_FAN_STATUS(attr->index),
 			    data->fan_status[attr->index] & 0xF9);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
 
-#define show_and_set_fan(offset) \
-static SENSOR_DEVICE_ATTR(fan##offset##_input, S_IRUGO, \
-	show_fan_input, NULL, offset-1); \
-static SENSOR_DEVICE_ATTR(fan##offset##_min, S_IWUSR | S_IRUGO, \
-	show_fan_min, set_fan_min, offset-1); \
-static SENSOR_DEVICE_ATTR(fan##offset##_div, S_IRUGO, \
-	show_fan_div, NULL, offset-1); \
-static SENSOR_DEVICE_ATTR(fan##offset##_status, S_IRUGO, \
-	show_fan_status, NULL, offset-1);
-show_and_set_fan(1)
-show_and_set_fan(2)
-show_and_set_fan(3)
+static struct sensor_device_attribute fan_input[] = {
+	SENSOR_ATTR(fan1_input, S_IRUGO, show_fan_input, NULL, 0),
+	SENSOR_ATTR(fan2_input, S_IRUGO, show_fan_input, NULL, 1),
+	SENSOR_ATTR(fan3_input, S_IRUGO, show_fan_input, NULL, 2),
+};
+static struct sensor_device_attribute fan_status[] = {
+	SENSOR_ATTR(fan1_status, S_IRUGO, show_fan_status, NULL, 0),
+	SENSOR_ATTR(fan2_status, S_IRUGO, show_fan_status, NULL, 1),
+	SENSOR_ATTR(fan3_status, S_IRUGO, show_fan_status, NULL, 2),
+};
+static struct sensor_device_attribute fan_div[] = {
+	SENSOR_ATTR(fan1_div, S_IRUGO, show_fan_div, NULL, 0),
+	SENSOR_ATTR(fan2_div, S_IRUGO, show_fan_div, NULL, 1),
+	SENSOR_ATTR(fan3_div, S_IRUGO, show_fan_div, NULL, 2),
+};
+static struct sensor_device_attribute fan_min[] = {
+	SENSOR_ATTR(fan1_min, S_IWUSR | S_IRUGO, show_fan_min, set_fan_min, 0),
+	SENSOR_ATTR(fan2_min, S_IWUSR | S_IRUGO, show_fan_min, set_fan_min, 1),
+	SENSOR_ATTR(fan3_min, S_IWUSR | S_IRUGO, show_fan_min, set_fan_min, 2),
+};
 
 static ssize_t show_pwm(struct device *dev, struct device_attribute *devattr, char *buf)
 {
@@ -335,21 +344,20 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr, con
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->pwm[attr->index] = PWM_TO_REG(val,
 			      FAN_CONFIG_INVERT(data->fan_conf, attr->index));
 	pc87360_write_value(data, LD_FAN, NO_BANK, PC87360_REG_PWM(attr->index),
 			    data->pwm[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
-#define show_and_set_pwm(offset) \
-static SENSOR_DEVICE_ATTR(pwm##offset, S_IWUSR | S_IRUGO, \
-	show_pwm, set_pwm, offset-1);
-show_and_set_pwm(1)
-show_and_set_pwm(2)
-show_and_set_pwm(3)
+static struct sensor_device_attribute pwm[] = {
+	SENSOR_ATTR(pwm1, S_IWUSR | S_IRUGO, show_pwm, set_pwm, 0),
+	SENSOR_ATTR(pwm2, S_IWUSR | S_IRUGO, show_pwm, set_pwm, 1),
+	SENSOR_ATTR(pwm3, S_IWUSR | S_IRUGO, show_pwm, set_pwm, 2),
+};
 
 static ssize_t show_in_input(struct device *dev, struct device_attribute *devattr, char *buf)
 {
@@ -386,11 +394,11 @@ static ssize_t set_in_min(struct device *dev, struct device_attribute *devattr, 
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_min[attr->index] = IN_TO_REG(val, data->in_vref);
 	pc87360_write_value(data, LD_IN, attr->index, PC87365_REG_IN_MIN,
 			    data->in_min[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 static ssize_t set_in_max(struct device *dev, struct device_attribute *devattr, const char *buf,
@@ -401,35 +409,67 @@ static ssize_t set_in_max(struct device *dev, struct device_attribute *devattr, 
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_max[attr->index] = IN_TO_REG(val,
 			       data->in_vref);
 	pc87360_write_value(data, LD_IN, attr->index, PC87365_REG_IN_MAX,
 			    data->in_max[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
-#define show_and_set_in(offset) \
-static SENSOR_DEVICE_ATTR(in##offset##_input, S_IRUGO, \
-	show_in_input, NULL, offset); \
-static SENSOR_DEVICE_ATTR(in##offset##_min, S_IWUSR | S_IRUGO, \
-	show_in_min, set_in_min, offset); \
-static SENSOR_DEVICE_ATTR(in##offset##_max, S_IWUSR | S_IRUGO, \
-	show_in_max, set_in_max, offset); \
-static SENSOR_DEVICE_ATTR(in##offset##_status, S_IRUGO, \
-	show_in_status, NULL, offset);
-show_and_set_in(0)
-show_and_set_in(1)
-show_and_set_in(2)
-show_and_set_in(3)
-show_and_set_in(4)
-show_and_set_in(5)
-show_and_set_in(6)
-show_and_set_in(7)
-show_and_set_in(8)
-show_and_set_in(9)
-show_and_set_in(10)
+static struct sensor_device_attribute in_input[] = {
+	SENSOR_ATTR(in0_input, S_IRUGO, show_in_input, NULL, 0),
+	SENSOR_ATTR(in1_input, S_IRUGO, show_in_input, NULL, 1),
+	SENSOR_ATTR(in2_input, S_IRUGO, show_in_input, NULL, 2),
+	SENSOR_ATTR(in3_input, S_IRUGO, show_in_input, NULL, 3),
+	SENSOR_ATTR(in4_input, S_IRUGO, show_in_input, NULL, 4),
+	SENSOR_ATTR(in5_input, S_IRUGO, show_in_input, NULL, 5),
+	SENSOR_ATTR(in6_input, S_IRUGO, show_in_input, NULL, 6),
+	SENSOR_ATTR(in7_input, S_IRUGO, show_in_input, NULL, 7),
+	SENSOR_ATTR(in8_input, S_IRUGO, show_in_input, NULL, 8),
+	SENSOR_ATTR(in9_input, S_IRUGO, show_in_input, NULL, 9),
+	SENSOR_ATTR(in10_input, S_IRUGO, show_in_input, NULL, 10),
+};
+static struct sensor_device_attribute in_status[] = {
+	SENSOR_ATTR(in0_status, S_IRUGO, show_in_status, NULL, 0),
+	SENSOR_ATTR(in1_status, S_IRUGO, show_in_status, NULL, 1),
+	SENSOR_ATTR(in2_status, S_IRUGO, show_in_status, NULL, 2),
+	SENSOR_ATTR(in3_status, S_IRUGO, show_in_status, NULL, 3),
+	SENSOR_ATTR(in4_status, S_IRUGO, show_in_status, NULL, 4),
+	SENSOR_ATTR(in5_status, S_IRUGO, show_in_status, NULL, 5),
+	SENSOR_ATTR(in6_status, S_IRUGO, show_in_status, NULL, 6),
+	SENSOR_ATTR(in7_status, S_IRUGO, show_in_status, NULL, 7),
+	SENSOR_ATTR(in8_status, S_IRUGO, show_in_status, NULL, 8),
+	SENSOR_ATTR(in9_status, S_IRUGO, show_in_status, NULL, 9),
+	SENSOR_ATTR(in10_status, S_IRUGO, show_in_status, NULL, 10),
+};
+static struct sensor_device_attribute in_min[] = {
+	SENSOR_ATTR(in0_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 0),
+	SENSOR_ATTR(in1_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 1),
+	SENSOR_ATTR(in2_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 2),
+	SENSOR_ATTR(in3_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 3),
+	SENSOR_ATTR(in4_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 4),
+	SENSOR_ATTR(in5_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 5),
+	SENSOR_ATTR(in6_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 6),
+	SENSOR_ATTR(in7_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 7),
+	SENSOR_ATTR(in8_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 8),
+	SENSOR_ATTR(in9_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 9),
+	SENSOR_ATTR(in10_min, S_IWUSR | S_IRUGO, show_in_min, set_in_min, 10),
+};
+static struct sensor_device_attribute in_max[] = {
+	SENSOR_ATTR(in0_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 0),
+	SENSOR_ATTR(in1_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 1),
+	SENSOR_ATTR(in2_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 2),
+	SENSOR_ATTR(in3_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 3),
+	SENSOR_ATTR(in4_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 4),
+	SENSOR_ATTR(in5_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 5),
+	SENSOR_ATTR(in6_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 6),
+	SENSOR_ATTR(in7_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 7),
+	SENSOR_ATTR(in8_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 8),
+	SENSOR_ATTR(in9_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 9),
+	SENSOR_ATTR(in10_max, S_IWUSR | S_IRUGO, show_in_max, set_in_max, 10),
+};
 
 static ssize_t show_therm_input(struct device *dev, struct device_attribute *devattr, char *buf)
 {
@@ -473,11 +513,11 @@ static ssize_t set_therm_min(struct device *dev, struct device_attribute *devatt
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_min[attr->index] = IN_TO_REG(val, data->in_vref);
 	pc87360_write_value(data, LD_IN, attr->index, PC87365_REG_TEMP_MIN,
 			    data->in_min[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 static ssize_t set_therm_max(struct device *dev, struct device_attribute *devattr, const char *buf,
@@ -488,11 +528,11 @@ static ssize_t set_therm_max(struct device *dev, struct device_attribute *devatt
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_max[attr->index] = IN_TO_REG(val, data->in_vref);
 	pc87360_write_value(data, LD_IN, attr->index, PC87365_REG_TEMP_MAX,
 			    data->in_max[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 static ssize_t set_therm_crit(struct device *dev, struct device_attribute *devattr, const char *buf,
@@ -503,28 +543,51 @@ static ssize_t set_therm_crit(struct device *dev, struct device_attribute *devat
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->in_crit[attr->index-11] = IN_TO_REG(val, data->in_vref);
 	pc87360_write_value(data, LD_IN, attr->index, PC87365_REG_TEMP_CRIT,
 			    data->in_crit[attr->index-11]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
-#define show_and_set_therm(offset) \
-static SENSOR_DEVICE_ATTR(temp##offset##_input, S_IRUGO, \
-	show_therm_input, NULL, 11+offset-4); \
-static SENSOR_DEVICE_ATTR(temp##offset##_min, S_IWUSR | S_IRUGO, \
-	show_therm_min, set_therm_min, 11+offset-4); \
-static SENSOR_DEVICE_ATTR(temp##offset##_max, S_IWUSR | S_IRUGO, \
-	show_therm_max, set_therm_max, 11+offset-4); \
-static SENSOR_DEVICE_ATTR(temp##offset##_crit, S_IWUSR | S_IRUGO, \
-	show_therm_crit, set_therm_crit, 11+offset-4); \
-static SENSOR_DEVICE_ATTR(temp##offset##_status, S_IRUGO, \
-	show_therm_status, NULL, 11+offset-4);
-show_and_set_therm(4)
-show_and_set_therm(5)
-show_and_set_therm(6)
+/* the +11 term below reflects the fact that VLM units 11,12,13 are
+   used in the chip to measure voltage across the thermistors
+*/
+static struct sensor_device_attribute therm_input[] = {
+	SENSOR_ATTR(temp4_input, S_IRUGO, show_therm_input, NULL, 0+11),
+	SENSOR_ATTR(temp5_input, S_IRUGO, show_therm_input, NULL, 1+11),
+	SENSOR_ATTR(temp6_input, S_IRUGO, show_therm_input, NULL, 2+11),
+};
+static struct sensor_device_attribute therm_status[] = {
+	SENSOR_ATTR(temp4_status, S_IRUGO, show_therm_status, NULL, 0+11),
+	SENSOR_ATTR(temp5_status, S_IRUGO, show_therm_status, NULL, 1+11),
+	SENSOR_ATTR(temp6_status, S_IRUGO, show_therm_status, NULL, 2+11),
+};
+static struct sensor_device_attribute therm_min[] = {
+	SENSOR_ATTR(temp4_min, S_IRUGO | S_IWUSR,
+		    show_therm_min, set_therm_min, 0+11),
+	SENSOR_ATTR(temp5_min, S_IRUGO | S_IWUSR,
+		    show_therm_min, set_therm_min, 1+11),
+	SENSOR_ATTR(temp6_min, S_IRUGO | S_IWUSR,
+		    show_therm_min, set_therm_min, 2+11),
+};
+static struct sensor_device_attribute therm_max[] = {
+	SENSOR_ATTR(temp4_max, S_IRUGO | S_IWUSR,
+		    show_therm_max, set_therm_max, 0+11),
+	SENSOR_ATTR(temp5_max, S_IRUGO | S_IWUSR,
+		    show_therm_max, set_therm_max, 1+11),
+	SENSOR_ATTR(temp6_max, S_IRUGO | S_IWUSR,
+		    show_therm_max, set_therm_max, 2+11),
+};
+static struct sensor_device_attribute therm_crit[] = {
+	SENSOR_ATTR(temp4_crit, S_IRUGO | S_IWUSR,
+		    show_therm_crit, set_therm_crit, 0+11),
+	SENSOR_ATTR(temp5_crit, S_IRUGO | S_IWUSR,
+		    show_therm_crit, set_therm_crit, 1+11),
+	SENSOR_ATTR(temp6_crit, S_IRUGO | S_IWUSR,
+		    show_therm_crit, set_therm_crit, 2+11),
+};
 
 static ssize_t show_vid(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -592,11 +655,11 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *devattr
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp_min[attr->index] = TEMP_TO_REG(val);
 	pc87360_write_value(data, LD_TEMP, attr->index, PC87365_REG_TEMP_MIN,
 			    data->temp_min[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 static ssize_t set_temp_max(struct device *dev, struct device_attribute *devattr, const char *buf,
@@ -607,11 +670,11 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *devattr
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp_max[attr->index] = TEMP_TO_REG(val);
 	pc87360_write_value(data, LD_TEMP, attr->index, PC87365_REG_TEMP_MAX,
 			    data->temp_max[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 static ssize_t set_temp_crit(struct device *dev, struct device_attribute *devattr, const char *buf,
@@ -622,28 +685,48 @@ static ssize_t set_temp_crit(struct device *dev, struct device_attribute *devatt
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	long val = simple_strtol(buf, NULL, 10);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp_crit[attr->index] = TEMP_TO_REG(val);
 	pc87360_write_value(data, LD_TEMP, attr->index, PC87365_REG_TEMP_CRIT,
 			    data->temp_crit[attr->index]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
-#define show_and_set_temp(offset) \
-static SENSOR_DEVICE_ATTR(temp##offset##_input, S_IRUGO, \
-	show_temp_input, NULL, offset-1); \
-static SENSOR_DEVICE_ATTR(temp##offset##_min, S_IWUSR | S_IRUGO, \
-	show_temp_min, set_temp_min, offset-1); \
-static SENSOR_DEVICE_ATTR(temp##offset##_max, S_IWUSR | S_IRUGO, \
-	show_temp_max, set_temp_max, offset-1); \
-static SENSOR_DEVICE_ATTR(temp##offset##_crit, S_IWUSR | S_IRUGO, \
-	show_temp_crit, set_temp_crit, offset-1); \
-static SENSOR_DEVICE_ATTR(temp##offset##_status, S_IRUGO, \
-	show_temp_status, NULL, offset-1);
-show_and_set_temp(1)
-show_and_set_temp(2)
-show_and_set_temp(3)
+static struct sensor_device_attribute temp_input[] = {
+	SENSOR_ATTR(temp1_input, S_IRUGO, show_temp_input, NULL, 0),
+	SENSOR_ATTR(temp2_input, S_IRUGO, show_temp_input, NULL, 1),
+	SENSOR_ATTR(temp3_input, S_IRUGO, show_temp_input, NULL, 2),
+};
+static struct sensor_device_attribute temp_status[] = {
+	SENSOR_ATTR(temp1_status, S_IRUGO, show_temp_status, NULL, 0),
+	SENSOR_ATTR(temp2_status, S_IRUGO, show_temp_status, NULL, 1),
+	SENSOR_ATTR(temp3_status, S_IRUGO, show_temp_status, NULL, 2),
+};
+static struct sensor_device_attribute temp_min[] = {
+	SENSOR_ATTR(temp1_min, S_IRUGO | S_IWUSR,
+		    show_temp_min, set_temp_min, 0),
+	SENSOR_ATTR(temp2_min, S_IRUGO | S_IWUSR,
+		    show_temp_min, set_temp_min, 1),
+	SENSOR_ATTR(temp3_min, S_IRUGO | S_IWUSR,
+		    show_temp_min, set_temp_min, 2),
+};
+static struct sensor_device_attribute temp_max[] = {
+	SENSOR_ATTR(temp1_max, S_IRUGO | S_IWUSR,
+		    show_temp_max, set_temp_max, 0),
+	SENSOR_ATTR(temp2_max, S_IRUGO | S_IWUSR,
+		    show_temp_max, set_temp_max, 1),
+	SENSOR_ATTR(temp3_max, S_IRUGO | S_IWUSR,
+		    show_temp_max, set_temp_max, 2),
+};
+static struct sensor_device_attribute temp_crit[] = {
+	SENSOR_ATTR(temp1_crit, S_IRUGO | S_IWUSR,
+		    show_temp_crit, set_temp_crit, 0),
+	SENSOR_ATTR(temp2_crit, S_IRUGO | S_IWUSR,
+		    show_temp_crit, set_temp_crit, 1),
+	SENSOR_ATTR(temp3_crit, S_IRUGO | S_IWUSR,
+		    show_temp_crit, set_temp_crit, 2),
+};
 
 static ssize_t show_temp_alarms(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -749,22 +832,24 @@ static int __init pc87360_find(int sioaddr, u8 *devid, unsigned short *addresses
 static int pc87360_detect(struct i2c_adapter *adapter)
 {
 	int i;
-	struct i2c_client *new_client;
+	struct i2c_client *client;
 	struct pc87360_data *data;
 	int err = 0;
 	const char *name = "pc87360";
 	int use_thermistors = 0;
+	struct device *dev;
 
 	if (!(data = kzalloc(sizeof(struct pc87360_data), GFP_KERNEL)))
 		return -ENOMEM;
 
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-	new_client->addr = address;
-	init_MUTEX(&data->lock);
-	new_client->adapter = adapter;
-	new_client->driver = &pc87360_driver;
-	new_client->flags = 0;
+	client = &data->client;
+	dev = &client->dev;
+	i2c_set_clientdata(client, data);
+	client->addr = address;
+	mutex_init(&data->lock);
+	client->adapter = adapter;
+	client->driver = &pc87360_driver;
+	client->flags = 0;
 
 	data->fannr = 2;
 	data->innr = 0;
@@ -792,15 +877,15 @@ static int pc87360_detect(struct i2c_adapter *adapter)
 		break;
 	}
 
-	strcpy(new_client->name, name);
+	strlcpy(client->name, name, sizeof(client->name));
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	for (i = 0; i < 3; i++) {
 		if (((data->address[i] = extra_isa[i]))
 		 && !request_region(extra_isa[i], PC87360_EXTENT,
 		 		    pc87360_driver.driver.name)) {
-			dev_err(&new_client->dev, "Region 0x%x-0x%x already "
+			dev_err(&client->dev, "Region 0x%x-0x%x already "
 				"in use!\n", extra_isa[i],
 				extra_isa[i]+PC87360_EXTENT-1);
 			for (i--; i >= 0; i--)
@@ -814,7 +899,7 @@ static int pc87360_detect(struct i2c_adapter *adapter)
 	if (data->fannr)
 		data->fan_conf = confreg[0] | (confreg[1] << 8);
 
-	if ((err = i2c_attach_client(new_client)))
+	if ((err = i2c_attach_client(client)))
 		goto ERROR2;
 
 	/* Use the correct reference voltage
@@ -828,7 +913,7 @@ static int pc87360_detect(struct i2c_adapter *adapter)
 						PC87365_REG_TEMP_CONFIG);
 		}
 		data->in_vref = (i&0x02) ? 3025 : 2966;
-		dev_dbg(&new_client->dev, "Using %s reference voltage\n",
+		dev_dbg(&client->dev, "Using %s reference voltage\n",
 			(i&0x02) ? "external" : "internal");
 
 		data->vid_conf = confreg[3];
@@ -847,154 +932,64 @@ static int pc87360_detect(struct i2c_adapter *adapter)
 		if (devid == 0xe9 && data->address[1]) /* PC87366 */
 			use_thermistors = confreg[2] & 0x40;
 
-		pc87360_init_client(new_client, use_thermistors);
+		pc87360_init_client(client, use_thermistors);
 	}
 
 	/* Register sysfs hooks */
-	data->class_dev = hwmon_device_register(&new_client->dev);
+	data->class_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->class_dev)) {
 		err = PTR_ERR(data->class_dev);
 		goto ERROR3;
 	}
 
 	if (data->innr) {
-		device_create_file(&new_client->dev, &sensor_dev_attr_in0_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in1_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in2_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in3_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in4_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in5_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in6_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in7_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in8_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in9_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in10_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in0_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in1_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in2_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in3_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in4_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in5_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in6_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in7_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in8_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in9_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in10_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in0_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in1_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in2_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in3_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in4_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in5_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in6_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in7_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in8_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in9_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in10_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in0_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in1_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in2_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in3_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in4_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in5_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in6_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in7_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in8_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in9_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_in10_status.dev_attr);
-
-		device_create_file(&new_client->dev, &dev_attr_cpu0_vid);
-		device_create_file(&new_client->dev, &dev_attr_vrm);
-		device_create_file(&new_client->dev, &dev_attr_alarms_in);
+		for (i = 0; i < 11; i++) {
+			device_create_file(dev, &in_input[i].dev_attr);
+			device_create_file(dev, &in_min[i].dev_attr);
+			device_create_file(dev, &in_max[i].dev_attr);
+			device_create_file(dev, &in_status[i].dev_attr);
+		}
+		device_create_file(dev, &dev_attr_cpu0_vid);
+		device_create_file(dev, &dev_attr_vrm);
+		device_create_file(dev, &dev_attr_alarms_in);
 	}
 
 	if (data->tempnr) {
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp1_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp2_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp1_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp2_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp1_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp2_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp1_crit.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp2_crit.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp1_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp2_status.dev_attr);
+		for (i = 0; i < data->tempnr; i++) {
+			device_create_file(dev, &temp_input[i].dev_attr);
+			device_create_file(dev, &temp_min[i].dev_attr);
+			device_create_file(dev, &temp_max[i].dev_attr);
+			device_create_file(dev, &temp_crit[i].dev_attr);
+			device_create_file(dev, &temp_status[i].dev_attr);
+		}
+		device_create_file(dev, &dev_attr_alarms_temp);
+	}
 
-		device_create_file(&new_client->dev, &dev_attr_alarms_temp);
-	}
-	if (data->tempnr == 3) {
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp3_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp3_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp3_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp3_crit.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp3_status.dev_attr);
-	}
 	if (data->innr == 14) {
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp4_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp5_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp6_input.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp4_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp5_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp6_min.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp4_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp5_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp6_max.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp4_crit.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp5_crit.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp6_crit.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp4_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp5_status.dev_attr);
-		device_create_file(&new_client->dev, &sensor_dev_attr_temp6_status.dev_attr);
+		for (i = 0; i < 3; i++) {
+			device_create_file(dev, &therm_input[i].dev_attr);
+			device_create_file(dev, &therm_min[i].dev_attr);
+			device_create_file(dev, &therm_max[i].dev_attr);
+			device_create_file(dev, &therm_crit[i].dev_attr);
+			device_create_file(dev, &therm_status[i].dev_attr);
+		}
 	}
 
-	if (data->fannr) {
-		if (FAN_CONFIG_MONITOR(data->fan_conf, 0)) {
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan1_input.dev_attr);
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan1_min.dev_attr);
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan1_div.dev_attr);
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan1_status.dev_attr);
+	for (i = 0; i < data->fannr; i++) {
+		if (FAN_CONFIG_MONITOR(data->fan_conf, i)) {
+			device_create_file(dev, &fan_input[i].dev_attr);
+			device_create_file(dev, &fan_min[i].dev_attr);
+			device_create_file(dev, &fan_div[i].dev_attr);
+			device_create_file(dev, &fan_status[i].dev_attr);
 		}
-
-		if (FAN_CONFIG_MONITOR(data->fan_conf, 1)) {
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan2_input.dev_attr);
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan2_min.dev_attr);
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan2_div.dev_attr);
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan2_status.dev_attr);
-		}
-
-		if (FAN_CONFIG_CONTROL(data->fan_conf, 0))
-			device_create_file(&new_client->dev, &sensor_dev_attr_pwm1.dev_attr);
-		if (FAN_CONFIG_CONTROL(data->fan_conf, 1))
-			device_create_file(&new_client->dev, &sensor_dev_attr_pwm2.dev_attr);
-	}
-	if (data->fannr == 3) {
-		if (FAN_CONFIG_MONITOR(data->fan_conf, 2)) {
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan3_input.dev_attr);
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan3_min.dev_attr);
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan3_div.dev_attr);
-			device_create_file(&new_client->dev,
-					   &sensor_dev_attr_fan3_status.dev_attr);
-		}
-
-		if (FAN_CONFIG_CONTROL(data->fan_conf, 2))
-			device_create_file(&new_client->dev, &sensor_dev_attr_pwm3.dev_attr);
+		if (FAN_CONFIG_CONTROL(data->fan_conf, i))
+			device_create_file(dev, &pwm[i].dev_attr);
 	}
 
 	return 0;
 
 ERROR3:
-	i2c_detach_client(new_client);
+	i2c_detach_client(client);
 ERROR2:
 	for (i = 0; i < 3; i++) {
 		if (data->address[i]) {
@@ -1033,11 +1028,11 @@ static int pc87360_read_value(struct pc87360_data *data, u8 ldi, u8 bank,
 {
 	int res;
 
-	down(&(data->lock));
+	mutex_lock(&(data->lock));
 	if (bank != NO_BANK)
 		outb_p(bank, data->address[ldi] + PC87365_REG_BANK);
 	res = inb_p(data->address[ldi] + reg);
-	up(&(data->lock));
+	mutex_unlock(&(data->lock));
 
 	return res;
 }
@@ -1045,11 +1040,11 @@ static int pc87360_read_value(struct pc87360_data *data, u8 ldi, u8 bank,
 static void pc87360_write_value(struct pc87360_data *data, u8 ldi, u8 bank,
 				u8 reg, u8 value)
 {
-	down(&(data->lock));
+	mutex_lock(&(data->lock));
 	if (bank != NO_BANK)
 		outb_p(bank, data->address[ldi] + PC87365_REG_BANK);
 	outb_p(value, data->address[ldi] + reg);
-	up(&(data->lock));
+	mutex_unlock(&(data->lock));
 }
 
 static void pc87360_init_client(struct i2c_client *client, int use_thermistors)
@@ -1071,7 +1066,7 @@ static void pc87360_init_client(struct i2c_client *client, int use_thermistors)
 	}
 
 	nr = data->innr < 11 ? data->innr : 11;
-	for (i=0; i<nr; i++) {
+	for (i = 0; i < nr; i++) {
 		if (init >= init_in[i]) {
 			/* Forcibly enable voltage channel */
 			reg = pc87360_read_value(data, LD_IN, i,
@@ -1088,14 +1083,14 @@ static void pc87360_init_client(struct i2c_client *client, int use_thermistors)
 
 	/* We can't blindly trust the Super-I/O space configuration bit,
 	   most BIOS won't set it properly */
-	for (i=11; i<data->innr; i++) {
+	for (i = 11; i < data->innr; i++) {
 		reg = pc87360_read_value(data, LD_IN, i,
 					 PC87365_REG_TEMP_STATUS);
 		use_thermistors = use_thermistors || (reg & 0x01);
 	}
 
 	i = use_thermistors ? 2 : 0;
-	for (; i<data->tempnr; i++) {
+	for (; i < data->tempnr; i++) {
 		if (init >= init_temp[i]) {
 			/* Forcibly enable temperature channel */
 			reg = pc87360_read_value(data, LD_TEMP, i,
@@ -1111,7 +1106,7 @@ static void pc87360_init_client(struct i2c_client *client, int use_thermistors)
 	}
 
 	if (use_thermistors) {
-		for (i=11; i<data->innr; i++) {
+		for (i = 11; i < data->innr; i++) {
 			if (init >= init_in[i]) {
 				/* The pin may already be used by thermal
 				   diodes */
@@ -1221,7 +1216,7 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 	struct pc87360_data *data = i2c_get_clientdata(client);
 	u8 i;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
 		dev_dbg(&client->dev, "Data update\n");
@@ -1321,7 +1316,7 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

@@ -32,7 +32,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/device.h>	/* for struct device */
 #include <linux/sched.h>	/* for completion */
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 /* --- For i2c-isa ---------------------------------------------------- */
 
@@ -225,8 +225,8 @@ struct i2c_adapter {
 	int (*client_unregister)(struct i2c_client *);
 
 	/* data fields that are valid for all devices	*/
-	struct semaphore bus_lock;
-	struct semaphore clist_lock;
+	struct mutex bus_lock;
+	struct mutex clist_lock;
 
 	int timeout;
 	int retries;

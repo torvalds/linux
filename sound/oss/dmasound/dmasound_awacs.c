@@ -88,8 +88,6 @@
 #include <linux/pmu.h>
 #endif
 
-#include <linux/i2c-dev.h>
-
 #include <asm/uaccess.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>

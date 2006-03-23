@@ -172,7 +172,6 @@
 #define I2C_HW_B_RIVA		0x010010 /* Riva based graphics cards */
 #define I2C_HW_B_IOC		0x010011 /* IOC bit-wiggling */
 #define I2C_HW_B_TSUNA		0x010012 /* DEC Tsunami chipset */
-#define I2C_HW_B_FRODO		0x010013 /* 2d3D SA-1110 Development Board */
 #define I2C_HW_B_OMAHA		0x010014 /* Omaha I2C interface (ARM) */
 #define I2C_HW_B_GUIDE		0x010015 /* Guide bit-basher */
 #define I2C_HW_B_IXP2000	0x010016 /* GPIO on IXP2000 systems */

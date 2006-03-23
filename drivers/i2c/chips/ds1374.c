@@ -26,6 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/mutex.h>
 
 #define DS1374_REG_TOD0		0x00
 #define DS1374_REG_TOD1		0x01
@@ -41,7 +42,7 @@
 
 #define	DS1374_DRV_NAME		"ds1374"
 
-static DECLARE_MUTEX(ds1374_mutex);
+static DEFINE_MUTEX(ds1374_mutex);
 
 static struct i2c_driver ds1374_driver;
 static struct i2c_client *save_client;
@@ -114,7 +115,7 @@ ulong ds1374_get_rtc_time(void)
 	ulong t1, t2;
 	int limit = 10;		/* arbitrary retry limit */
 
-	down(&ds1374_mutex);
+	mutex_lock(&ds1374_mutex);
 
 	/*
 	 * Since the reads are being performed one byte at a time using
@@ -127,7 +128,7 @@ ulong ds1374_get_rtc_time(void)
 		t2 = ds1374_read_rtc();
 	} while (t1 != t2 && limit--);
 
-	up(&ds1374_mutex);
+	mutex_unlock(&ds1374_mutex);
 
 	if (t1 != t2) {
 		dev_warn(&save_client->dev,
@@ -145,7 +146,7 @@ static void ds1374_set_tlet(ulong arg)
 
 	t1 = *(ulong *) arg;
 
-	down(&ds1374_mutex);
+	mutex_lock(&ds1374_mutex);
 
 	/*
 	 * Since the writes are being performed one byte at a time using
@@ -158,7 +159,7 @@ static void ds1374_set_tlet(ulong arg)
 		t2 = ds1374_read_rtc();
 	} while (t1 != t2 && limit--);
 
-	up(&ds1374_mutex);
+	mutex_unlock(&ds1374_mutex);
 
 	if (t1 != t2)
 		dev_warn(&save_client->dev,

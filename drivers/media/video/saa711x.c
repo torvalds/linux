@@ -45,7 +45,6 @@ MODULE_AUTHOR("Dave Perks, Jose Ignacio Gijon, Joerg Heckenbach, Mark McClelland
 MODULE_LICENSE("GPL");
 
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #define I2C_NAME(s) (s)->name
 
