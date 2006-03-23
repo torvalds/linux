@@ -125,7 +125,8 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 		kmem_cache_free(files_cachep, fdt->free_files);
 		return;
 	}
-	if (fdt->max_fdset <= __FD_SETSIZE && fdt->max_fds <= NR_OPEN_DEFAULT) {
+	if (fdt->max_fdset <= EMBEDDED_FD_SET_SIZE &&
+		fdt->max_fds <= NR_OPEN_DEFAULT) {
 		/*
 		 * The fdtable was embedded
 		 */
@@ -155,8 +156,9 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 
 void free_fdtable(struct fdtable *fdt)
 {
-	if (fdt->free_files || fdt->max_fdset > __FD_SETSIZE ||
-					fdt->max_fds > NR_OPEN_DEFAULT)
+	if (fdt->free_files ||
+		fdt->max_fdset > EMBEDDED_FD_SET_SIZE ||
+		fdt->max_fds > NR_OPEN_DEFAULT)
 		call_rcu(&fdt->rcu, free_fdtable_rcu);
 }
 
@@ -199,7 +201,6 @@ static void copy_fdtable(struct fdtable *nfdt, struct fdtable *fdt)
 		       (nfdt->max_fds - fdt->max_fds) *
 					sizeof(struct file *));
 	}
-	nfdt->next_fd = fdt->next_fd;
 }
 
 /*
@@ -220,11 +221,9 @@ fd_set * alloc_fdset(int num)
 
 void free_fdset(fd_set *array, int num)
 {
-	int size = num / 8;
-
-	if (num <= __FD_SETSIZE) /* Don't free an embedded fdset */
+	if (num <= EMBEDDED_FD_SET_SIZE) /* Don't free an embedded fdset */
 		return;
-	else if (size <= PAGE_SIZE)
+	else if (num <= 8 * PAGE_SIZE)
 		kfree(array);
 	else
 		vfree(array);
@@ -237,22 +236,17 @@ static struct fdtable *alloc_fdtable(int nr)
   	fd_set *new_openset = NULL, *new_execset = NULL;
 	struct file **new_fds;
 
-	fdt = kmalloc(sizeof(*fdt), GFP_KERNEL);
+	fdt = kzalloc(sizeof(*fdt), GFP_KERNEL);
 	if (!fdt)
   		goto out;
-	memset(fdt, 0, sizeof(*fdt));
 
-	nfds = __FD_SETSIZE;
+	nfds = 8 * L1_CACHE_BYTES;
   	/* Expand to the max in easy steps */
-  	do {
-		if (nfds < (PAGE_SIZE * 8))
-			nfds = PAGE_SIZE * 8;
-		else {
-			nfds = nfds * 2;
-			if (nfds > NR_OPEN)
-				nfds = NR_OPEN;
-		}
-	} while (nfds <= nr);
+  	while (nfds <= nr) {
+		nfds = nfds * 2;
+		if (nfds > NR_OPEN)
+			nfds = NR_OPEN;
+	}
 
   	new_openset = alloc_fdset(nfds);
   	new_execset = alloc_fdset(nfds);
