@@ -313,8 +313,6 @@ bnx2_disable_int(struct bnx2 *bp)
 static void
 bnx2_enable_int(struct bnx2 *bp)
 {
-	u32 val;
-
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 	       BNX2_PCICFG_INT_ACK_CMD_MASK_INT | bp->last_status_idx);
@@ -322,8 +320,7 @@ bnx2_enable_int(struct bnx2 *bp)
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID | bp->last_status_idx);
 
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW);
+	REG_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW);
 }
 
 static void
@@ -1926,6 +1923,13 @@ bnx2_poll(struct net_device *dev, int *budget)
 		spin_lock(&bp->phy_lock);
 		bnx2_phy_int(bp);
 		spin_unlock(&bp->phy_lock);
+
+		/* This is needed to take care of transient status
+		 * during link changes.
+		 */
+		REG_WR(bp, BNX2_HC_COMMAND,
+		       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+		REG_RD(bp, BNX2_HC_COMMAND);
 	}
 
 	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->hw_tx_cons)
@@ -3307,6 +3311,8 @@ bnx2_init_chip(struct bnx2 *bp)
 
 	udelay(20);
 
+	bp->hc_cmd = REG_RD(bp, BNX2_HC_COMMAND);
+
 	return rc;
 }
 
@@ -3746,7 +3752,6 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	struct sk_buff *skb, *rx_skb;
 	unsigned char *packet;
 	u16 rx_start_idx, rx_idx;
-	u32 val;
 	dma_addr_t map;
 	struct tx_bd *txbd;
 	struct sw_bd *rx_buf;
@@ -3777,8 +3782,9 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	map = pci_map_single(bp->pdev, skb->data, pkt_size,
 		PCI_DMA_TODEVICE);
 
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+	REG_WR(bp, BNX2_HC_COMMAND,
+	       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+
 	REG_RD(bp, BNX2_HC_COMMAND);
 
 	udelay(5);
@@ -3802,8 +3808,9 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 
 	udelay(100);
 
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+	REG_WR(bp, BNX2_HC_COMMAND,
+	       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
+
 	REG_RD(bp, BNX2_HC_COMMAND);
 
 	udelay(5);
@@ -3939,7 +3946,6 @@ static int
 bnx2_test_intr(struct bnx2 *bp)
 {
 	int i;
-	u32 val;
 	u16 status_idx;
 
 	if (!netif_running(bp->dev))
@@ -3948,8 +3954,7 @@ bnx2_test_intr(struct bnx2 *bp)
 	status_idx = REG_RD(bp, BNX2_PCICFG_INT_ACK_CMD) & 0xffff;
 
 	/* This register is not touched during run-time. */
-	val = REG_RD(bp, BNX2_HC_COMMAND);
-	REG_WR(bp, BNX2_HC_COMMAND, val | BNX2_HC_COMMAND_COAL_NOW);
+	REG_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW);
 	REG_RD(bp, BNX2_HC_COMMAND);
 
 	for (i = 0; i < 10; i++) {
