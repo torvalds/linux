@@ -206,7 +206,7 @@ void inode_init_once(struct inode *inode)
 	i_size_ordered_init(inode);
 #ifdef CONFIG_INOTIFY
 	INIT_LIST_HEAD(&inode->inotify_watches);
-	sema_init(&inode->inotify_sem, 1);
+	mutex_init(&inode->inotify_mutex);
 #endif
 }
 

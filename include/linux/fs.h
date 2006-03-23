@@ -509,7 +509,7 @@ struct inode {
 
 #ifdef CONFIG_INOTIFY
 	struct list_head	inotify_watches; /* watches on this inode */
-	struct semaphore	inotify_sem;	/* protects the watches list */
+	struct mutex		inotify_mutex;	/* protects the watches list */
 #endif
 
 	unsigned long		i_state;
