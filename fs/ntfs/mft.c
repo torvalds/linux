@@ -93,6 +93,7 @@ static inline MFT_RECORD *map_mft_record_page(ntfs_inode *ni)
 				"Run chkdsk.", ni->mft_no);
 		ntfs_unmap_page(page);
 		page = ERR_PTR(-EIO);
+		NVolSetErrors(vol);
 	}
 err_out:
 	ni->page = NULL;

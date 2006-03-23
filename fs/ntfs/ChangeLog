@@ -32,6 +32,8 @@ ToDo/Notes:
 	  unused, invalid mft records which are the same in both $MFT and
 	  $MFTMirr.
 	- Add support for sparse files which have a compression unit of 0.
+	- Remove all the make_bad_inode() calls.  This should only be called
+	  from read inode and new inode code paths.
 
 2.1.26 - Minor bug fixes and updates.
 

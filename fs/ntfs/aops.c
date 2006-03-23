@@ -1530,7 +1530,6 @@ err_out:
 				"error %i.", err);
 		SetPageError(page);
 		NVolSetErrors(ni->vol);
-		make_bad_inode(vi);
 	}
 	unlock_page(page);
 	if (ctx)

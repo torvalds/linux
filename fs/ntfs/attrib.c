@@ -2438,16 +2438,12 @@ undo_alloc:
 				"chkdsk to recover.", IS_ERR(m) ?
 				"restore attribute search context" :
 				"truncate attribute runlist");
-		make_bad_inode(vi);
-		make_bad_inode(VFS_I(base_ni));
 		NVolSetErrors(vol);
 	} else if (mp_rebuilt) {
 		if (ntfs_attr_record_resize(m, a, attr_len)) {
 			ntfs_error(vol->sb, "Failed to restore attribute "
 					"record in error code path.  Run "
 					"chkdsk to recover.");
-			make_bad_inode(vi);
-			make_bad_inode(VFS_I(base_ni));
 			NVolSetErrors(vol);
 		} else /* if (success) */ {
 			if (ntfs_mapping_pairs_build(vol, (u8*)a + le16_to_cpu(
@@ -2460,8 +2456,6 @@ undo_alloc:
 						"mapping pairs array in error "
 						"code path.  Run chkdsk to "
 						"recover.");
-				make_bad_inode(vi);
-				make_bad_inode(VFS_I(base_ni));
 				NVolSetErrors(vol);
 			}
 			flush_dcache_mft_record_page(ctx->ntfs_ino);
