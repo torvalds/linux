@@ -217,19 +217,17 @@ static void show_stack_log_lvl(struct task_struct *task, unsigned long *esp,
 	for(i = 0; i < kstack_depth_to_print; i++) {
 		if (kstack_end(stack))
 			break;
-		if (i && ((i % 8) == 0)) {
-			printk("\n");
-			printk("%s       ", log_lvl);
-		}
+		if (i && ((i % 8) == 0))
+			printk("\n%s       ", log_lvl);
 		printk("%08lx ", *stack++);
 	}
-	printk("\n");
-	printk("%sCall Trace:\n", log_lvl);
+	printk("\n%sCall Trace:\n", log_lvl);
 	show_trace_log_lvl(task, esp, log_lvl);
 }
 
 void show_stack(struct task_struct *task, unsigned long *esp)
 {
+	printk("       ");
 	show_stack_log_lvl(task, esp, "");
 }
 
