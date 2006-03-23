@@ -48,6 +48,7 @@
 #include <linux/workqueue.h>
 #include <linux/crc32.h>
 #include <linux/prefetch.h>
+#include <linux/cache.h>
 
 #include "bnx2.h"
 #include "bnx2_fw.h"

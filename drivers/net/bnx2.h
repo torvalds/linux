@@ -3877,15 +3877,17 @@ struct bnx2 {
 #define USING_MSI_FLAG			0x20
 #define ASF_ENABLE_FLAG			0x40
 
-	struct tx_bd		*tx_desc_ring;
-	struct sw_bd		*tx_buf_ring;
-	u32			tx_prod_bseq;
-	u16			tx_prod;
-	u16			tx_cons;
-	int			tx_ring_size;
+	/* Put tx producer and consumer fields in separate cache lines. */
 
-	u16			hw_tx_cons;
-	u16			hw_rx_cons;
+	u32		tx_prod_bseq __attribute__((aligned(L1_CACHE_BYTES)));
+	u16		tx_prod;
+
+	struct tx_bd	*tx_desc_ring;
+	struct sw_bd	*tx_buf_ring;
+	int		tx_ring_size;
+
+	u16		tx_cons __attribute__((aligned(L1_CACHE_BYTES)));
+	u16		hw_tx_cons;
 
 #ifdef BCM_VLAN 
 	struct			vlan_group *vlgrp;
@@ -3899,6 +3901,7 @@ struct bnx2 {
 	u32			rx_prod_bseq;
 	u16			rx_prod;
 	u16			rx_cons;
+	u16			hw_rx_cons;
 
 	u32			rx_csum;
 
