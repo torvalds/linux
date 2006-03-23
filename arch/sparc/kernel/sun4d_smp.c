@@ -249,11 +249,9 @@ void __init smp4d_boot_cpus(void)
 	} else {
 		unsigned long bogosum = 0;
 		
-		for(i = 0; i < NR_CPUS; i++) {
-			if (cpu_isset(i, cpu_present_map)) {
-				bogosum += cpu_data(i).udelay_val;
-				smp_highest_cpu = i;
-			}
+		for_each_present_cpu(i) {
+			bogosum += cpu_data(i).udelay_val;
+			smp_highest_cpu = i;
 		}
 		SMP_PRINTK(("Total of %d Processors activated (%lu.%02lu BogoMIPS).\n", cpucount + 1, bogosum/(500000/HZ), (bogosum/(5000/HZ))%100));
 		printk("Total of %d Processors activated (%lu.%02lu BogoMIPS).\n",

@@ -143,7 +143,7 @@ static int __init check_nmi_watchdog(void)
 	local_irq_enable();
 	mdelay((10*1000)/nmi_hz); // wait 10 ticks
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+	for_each_cpu(cpu) {
 #ifdef CONFIG_SMP
 		/* Check cpu_callin_map here because that is set
 		   after the timer is started. */
@@ -510,7 +510,7 @@ void touch_nmi_watchdog (void)
 	 * Just reset the alert counters, (other CPUs might be
 	 * spinning on locks we hold):
 	 */
-	for (i = 0; i < NR_CPUS; i++)
+	for_each_cpu(i)
 		alert_counter[i] = 0;
 
 	/*

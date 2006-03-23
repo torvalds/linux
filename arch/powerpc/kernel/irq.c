@@ -135,9 +135,8 @@ skip:
 #ifdef CONFIG_TAU_INT
 		if (tau_initialized){
 			seq_puts(p, "TAU: ");
-			for (j = 0; j < NR_CPUS; j++)
-				if (cpu_online(j))
-					seq_printf(p, "%10u ", tau_interrupts(j));
+			for_each_online_cpu(j)
+				seq_printf(p, "%10u ", tau_interrupts(j));
 			seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
 		}
 #endif

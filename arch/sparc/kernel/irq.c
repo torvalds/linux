@@ -184,9 +184,8 @@ int show_interrupts(struct seq_file *p, void *v)
 #ifndef CONFIG_SMP
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #else
-		for (j = 0; j < NR_CPUS; j++) {
-			if (cpu_online(j))
-				seq_printf(p, "%10u ",
+		for_each_online_cpu(j) {
+			seq_printf(p, "%10u ",
 				    kstat_cpu(cpu_logical_map(j)).irqs[i]);
 		}
 #endif
