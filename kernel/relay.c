@@ -866,131 +866,138 @@ static size_t relay_file_read_end_pos(struct rchan_buf *buf,
 }
 
 /**
- *	relay_file_read - read file op for relay files
- *	@filp: the file
- *	@buffer: the userspace buffer
- *	@count: number of bytes to read
- *	@ppos: position to read from
- *
- *	Reads count bytes or the number of bytes available in the
- *	current sub-buffer being read, whichever is smaller.
+ *	subbuf_read_actor - read up to one subbuf's worth of data
  */
-static ssize_t relay_file_read(struct file *filp,
-			       char __user *buffer,
-			       size_t count,
-			       loff_t *ppos)
+static int subbuf_read_actor(size_t read_start,
+			     struct rchan_buf *buf,
+			     size_t avail,
+			     read_descriptor_t *desc,
+			     read_actor_t actor)
 {
-	struct rchan_buf *buf = filp->private_data;
-	struct inode *inode = filp->f_dentry->d_inode;
-	size_t read_start, avail;
-	ssize_t ret = 0;
 	void *from;
-
-	mutex_lock(&inode->i_mutex);
-	if(!relay_file_read_avail(buf, *ppos))
-		goto out;
-
-	read_start = relay_file_read_start_pos(*ppos, buf);
-	avail = relay_file_read_subbuf_avail(read_start, buf);
-	if (!avail)
-		goto out;
+	int ret = 0;
 
 	from = buf->start + read_start;
-	ret = count = min(count, avail);
-	if (copy_to_user(buffer, from, count)) {
-		ret = -EFAULT;
-		goto out;
+	ret = avail;
+	if (copy_to_user(desc->arg.data, from, avail)) {
+		desc->error = -EFAULT;
+		ret = 0;
 	}
-	relay_file_read_consume(buf, read_start, count);
-	*ppos = relay_file_read_end_pos(buf, read_start, count);
-out:
-	mutex_unlock(&inode->i_mutex);
+	desc->arg.data += ret;
+	desc->written += ret;
+	desc->count -= ret;
+
 	return ret;
 }
 
-static ssize_t relay_file_sendsubbuf(struct file *filp, loff_t *ppos,
-				     size_t count, read_actor_t actor,
-				     void *target)
+/**
+ *	subbuf_send_actor - send up to one subbuf's worth of data
+ */
+static int subbuf_send_actor(size_t read_start,
+			     struct rchan_buf *buf,
+			     size_t avail,
+			     read_descriptor_t *desc,
+			     read_actor_t actor)
 {
-	struct rchan_buf *buf = filp->private_data;
-	read_descriptor_t desc;
-	size_t read_start, avail;
 	unsigned long pidx, poff;
 	unsigned int subbuf_pages;
-	ssize_t ret = 0;
+	int ret = 0;
 
-	if (!relay_file_read_avail(buf, *ppos))
+	subbuf_pages = buf->chan->alloc_size >> PAGE_SHIFT;
+	pidx = (read_start / PAGE_SIZE) % subbuf_pages;
+	poff = read_start & ~PAGE_MASK;
+	while (avail) {
+		struct page *p = buf->page_array[pidx];
+		unsigned int len;
+
+		len = PAGE_SIZE - poff;
+		if (len > avail)
+			len = avail;
+
+		len = actor(desc, p, poff, len);
+		if (desc->error)
+			break;
+
+		avail -= len;
+		ret += len;
+		poff = 0;
+		pidx = (pidx + 1) % subbuf_pages;
+	}
+
+	return ret;
+}
+
+typedef int (*subbuf_actor_t) (size_t read_start,
+			       struct rchan_buf *buf,
+			       size_t avail,
+			       read_descriptor_t *desc,
+			       read_actor_t actor);
+
+/**
+ *	relay_file_read_subbufs - read count bytes, bridging subbuf boundaries
+ */
+static inline ssize_t relay_file_read_subbufs(struct file *filp,
+					      loff_t *ppos,
+					      size_t count,
+					      subbuf_actor_t subbuf_actor,
+					      read_actor_t actor,
+					      void *target)
+{
+	struct rchan_buf *buf = filp->private_data;
+	size_t read_start, avail;
+	read_descriptor_t desc;
+	int ret;
+
+	if (!count)
 		return 0;
-
-	read_start = relay_file_read_start_pos(*ppos, buf);
-	avail = relay_file_read_subbuf_avail(read_start, buf);
-	if (!avail)
-		return 0;
-
-	count = min(count, avail);
 
 	desc.written = 0;
 	desc.count = count;
 	desc.arg.data = target;
 	desc.error = 0;
 
-	subbuf_pages = buf->chan->alloc_size >> PAGE_SHIFT;
-	pidx = (read_start / PAGE_SIZE) % subbuf_pages;
-	poff = read_start & ~PAGE_MASK;
-	while (count) {
-		struct page *p = buf->page_array[pidx];
-		unsigned int len;
-
-		len = PAGE_SIZE - poff;
-		if (len > count)
-			len = count;
-
-		len = actor(&desc, p, poff, len);
-
-		if (desc.error) {
-			if (!ret)
-				ret = desc.error;
+	mutex_lock(&filp->f_dentry->d_inode->i_mutex);
+	do {
+		if (!relay_file_read_avail(buf, *ppos))
 			break;
+
+		read_start = relay_file_read_start_pos(*ppos, buf);
+		avail = relay_file_read_subbuf_avail(read_start, buf);
+		if (!avail)
+			break;
+
+		avail = min(desc.count, avail);
+		ret = subbuf_actor(read_start, buf, avail, &desc, actor);
+		if (desc.error < 0)
+			break;
+
+		if (ret) {
+			relay_file_read_consume(buf, read_start, ret);
+			*ppos = relay_file_read_end_pos(buf, read_start, ret);
 		}
+	} while (desc.count && ret);
+	mutex_unlock(&filp->f_dentry->d_inode->i_mutex);
 
-		count -= len;
-		ret += len;
-		poff = 0;
-		pidx = (pidx + 1) % subbuf_pages;
-	}
-
-	if (ret > 0) {
-		relay_file_read_consume(buf, read_start, ret);
-		*ppos = relay_file_read_end_pos(buf, read_start, ret);
-	}
-
-	return ret;
+	return desc.written;
 }
 
-static ssize_t relay_file_sendfile(struct file *filp, loff_t *ppos,
-				   size_t count, read_actor_t actor,
+static ssize_t relay_file_read(struct file *filp,
+			       char __user *buffer,
+			       size_t count,
+			       loff_t *ppos)
+{
+	return relay_file_read_subbufs(filp, ppos, count, subbuf_read_actor,
+				       NULL, buffer);
+}
+
+static ssize_t relay_file_sendfile(struct file *filp,
+				   loff_t *ppos,
+				   size_t count,
+				   read_actor_t actor,
 				   void *target)
 {
-	ssize_t sent = 0, ret = 0;
-
-	if (!count)
-		return 0;
-
-	mutex_lock(&filp->f_dentry->d_inode->i_mutex);
-
-	do {
-		ret = relay_file_sendsubbuf(filp, ppos, count, actor, target);
-		if (ret < 0) {
-			if (!sent)
-				sent = ret;
-			break;
-		}
-		count -= ret;
-		sent += ret;
-	} while (count && ret);
-
-	mutex_unlock(&filp->f_dentry->d_inode->i_mutex);
-	return sent;
+	return relay_file_read_subbufs(filp, ppos, count, subbuf_send_actor,
+				       actor, target);
 }
 
 struct file_operations relay_file_operations = {
