@@ -138,17 +138,6 @@ config 64BIT
 	  enable this option otherwise. The 64bit kernel is significantly bigger
 	  and slower than the 32bit one.
 
-config HPPA_IOREMAP
-	bool "Enable IOREMAP functionality (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	default n
-	help
-	  Enable this option if you want to enable real IOREMAPPING on PA-RISC.
-	  Currently we just "simulate" I/O remapping, and enabling this option
-	  will just crash your machine.
-
-	  Say N here, unless you are a real PA-RISC Linux kernel hacker.
-
 config SMP
 	bool "Symmetric multi-processing support"
 	---help---

@@ -176,12 +176,7 @@ extern inline void * ioremap_nocache(unsigned long offset, unsigned long size)
 
 extern void iounmap(void __iomem *addr);
 
-/*
- * CONFIG_HPPA_IOREMAP is the magic flag to enable or disable real ioremap()
- * functionality.  It's currently disabled because it may not work on some
- * machines.
- */
-#ifdef CONFIG_HPPA_IOREMAP
+
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
 {
 	return (*(volatile unsigned char __force *) (addr));
@@ -215,57 +210,6 @@ static inline void __raw_writeq(unsigned long long b, volatile void __iomem *add
 {
 	*(volatile unsigned long long __force *) addr = b;
 }
-#else /* !CONFIG_HPPA_IOREMAP */
-static inline unsigned char __raw_readb(const volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	return gsc_readb((unsigned long) addr);
-}
-static inline unsigned short __raw_readw(const volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	return gsc_readw((unsigned long) addr);
-}
-static inline unsigned int __raw_readl(const volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	return gsc_readl((unsigned long) addr);
-}
-static inline unsigned long long __raw_readq(const volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	return gsc_readq((unsigned long) addr);
-}
-
-static inline void __raw_writeb(unsigned char b, volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	gsc_writeb(b, (unsigned long) addr);
-}
-static inline void __raw_writew(unsigned short b, volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	gsc_writew(b, (unsigned long) addr);
-}
-static inline void __raw_writel(unsigned int b, volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	gsc_writel(b, (unsigned long) addr);
-}
-static inline void __raw_writeq(unsigned long long b, volatile void __iomem *addr)
-{
-	__raw_check_addr(addr);
-
-	gsc_writeq(b, (unsigned long) addr);
-}
-#endif /* !CONFIG_HPPA_IOREMAP */
 
 /* readb can never be const, so use __fswab instead of le*_to_cpu */
 #define readb(addr) __raw_readb(addr)

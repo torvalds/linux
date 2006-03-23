@@ -72,7 +72,6 @@ remap_area_pmd(pmd_t *pmd, unsigned long address, unsigned long size,
 	return 0;
 }
 
-#ifdef CONFIG_HPPA_IOREMAP
 static int 
 remap_area_pages(unsigned long address, unsigned long phys_addr,
 		 unsigned long size, unsigned long flags)
@@ -114,7 +113,6 @@ remap_area_pages(unsigned long address, unsigned long phys_addr,
 
 	return error;
 }
-#endif /* CONFIG_HPPA_IOREMAP */
 
 #ifdef CONFIG_DEBUG_IOREMAP
 static unsigned long last = 0;
@@ -154,21 +152,16 @@ EXPORT_SYMBOL(__raw_bad_addr);
  */
 void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned long flags)
 {
-#if !defined(CONFIG_HPPA_IOREMAP)
+#ifdef CONFIG_EISA
+	#error FIXME.
 	unsigned long end = phys_addr + size - 1;
 	/* Support EISA addresses */
 	if ((phys_addr >= 0x00080000 && end < 0x000fffff)
 			|| (phys_addr >= 0x00500000 && end < 0x03bfffff)) {
 		phys_addr |= 0xfc000000;
 	}
-
-#ifdef CONFIG_DEBUG_IOREMAP
-	return (void __iomem *)(phys_addr - (0x1UL << NYBBLE_SHIFT));
-#else
-	return (void __iomem *)phys_addr;
 #endif
 
-#else
 	void *addr;
 	struct vm_struct *area;
 	unsigned long offset, last_addr;
@@ -216,15 +209,10 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	}
 
 	return (void __iomem *) (offset + (char *)addr);
-#endif
 }
 
 void iounmap(void __iomem *addr)
 {
-#ifdef CONFIG_HPPA_IOREMAP
 	if (addr > high_memory)
 		return vfree((void *) (PAGE_MASK & (unsigned long __force) addr));
-#else
-	return;
-#endif
 }
