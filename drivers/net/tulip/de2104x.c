@@ -1327,11 +1327,11 @@ static void de_clean_rings (struct de_private *de)
 		struct sk_buff *skb = de->tx_skb[i].skb;
 		if ((skb) && (skb != DE_DUMMY_SKB)) {
 			if (skb != DE_SETUP_SKB) {
-				dev_kfree_skb(skb);
 				de->net_stats.tx_dropped++;
 				pci_unmap_single(de->pdev,
 					de->tx_skb[i].mapping,
 					skb->len, PCI_DMA_TODEVICE);
+				dev_kfree_skb(skb);
 			} else {
 				pci_unmap_single(de->pdev,
 					de->tx_skb[i].mapping,
