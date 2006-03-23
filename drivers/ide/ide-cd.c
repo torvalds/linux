@@ -313,6 +313,7 @@
 #include <linux/cdrom.h>
 #include <linux/ide.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 
 #include <scsi/scsi.h>	/* For SCSI -> ATAPI command conversion */
 
@@ -324,7 +325,7 @@
 
 #include "ide-cd.h"
 
-static DECLARE_MUTEX(idecd_ref_sem);
+static DEFINE_MUTEX(idecd_ref_mutex);
 
 #define to_ide_cd(obj) container_of(obj, struct cdrom_info, kref) 
 
@@ -335,11 +336,11 @@ static struct cdrom_info *ide_cd_get(struct gendisk *disk)
 {
 	struct cdrom_info *cd = NULL;
 
-	down(&idecd_ref_sem);
+	mutex_lock(&idecd_ref_mutex);
 	cd = ide_cd_g(disk);
 	if (cd)
 		kref_get(&cd->kref);
-	up(&idecd_ref_sem);
+	mutex_unlock(&idecd_ref_mutex);
 	return cd;
 }
 
@@ -347,9 +348,9 @@ static void ide_cd_release(struct kref *);
 
 static void ide_cd_put(struct cdrom_info *cd)
 {
-	down(&idecd_ref_sem);
+	mutex_lock(&idecd_ref_mutex);
 	kref_put(&cd->kref, ide_cd_release);
-	up(&idecd_ref_sem);
+	mutex_unlock(&idecd_ref_mutex);
 }
 
 /****************************************************************************
