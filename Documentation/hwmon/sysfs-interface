@@ -218,6 +218,12 @@ temp[1-2]_crit_hyst
 		from the critical value.
 		Read/Write value.
 
+temp[1-4]_offset
+		Temperature offset which is added to the temperature reading
+		by the chip.
+		Unit: millidegree Celsius
+		Read/Write value.
+
 		If there are multiple temperature sensors, temp1_* is
 		generally the sensor inside the chip itself,
 		reported as "motherboard temperature".  temp2_* to

@@ -333,10 +333,31 @@ config SENSORS_SMSC47M1
 	help
 	  If you say yes here you get support for the integrated fan
 	  monitoring and control capabilities of the SMSC LPC47B27x,
-	  LPC47M10x, LPC47M13x, LPC47M14x, LPC47M15x and LPC47M192 chips.
+	  LPC47M10x, LPC47M13x, LPC47M14x, LPC47M15x, LPC47M192 and
+	  LPC47M997 chips.
+
+	  The temperature and voltage sensor features of the LPC47M192
+	  and LPC47M997 are supported by another driver, select also
+	  "SMSC LPC47M192 and compatibles" below for those.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called smsc47m1.
+
+config SENSORS_SMSC47M192
+	tristate "SMSC LPC47M192 and compatibles"
+	depends on HWMON && I2C && EXPERIMENTAL
+	select HWMON_VID
+	help
+	  If you say yes here you get support for the temperature and
+	  voltage sensors of the SMSC LPC47M192 and LPC47M997 chips.
+
+	  The fan monitoring and control capabilities of these chips
+	  are supported by another driver, select
+	  "SMSC LPC47M10x and compatibles" above. You need both drivers
+	  if you want fan control and voltage/temperature sensor support.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called smsc47m192.
 
 config SENSORS_SMSC47B397
 	tristate "SMSC LPC47B397-NC"
