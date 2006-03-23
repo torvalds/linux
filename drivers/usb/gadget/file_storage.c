@@ -71,6 +71,12 @@
  * requirement amounts to two 16K buffers, size configurable by a parameter.
  * Support is included for both full-speed and high-speed operation.
  *
+ * Note that the driver is slightly non-portable in that it assumes a
+ * single memory/DMA buffer will be useable for bulk-in, bulk-out, and
+ * interrupt-in endpoints.  With most device controllers this isn't an
+ * issue, but there may be some with hardware restrictions that prevent
+ * a buffer from being used by more than one endpoint.
+ *
  * Module options:
  *
  *	file=filename[,filename...]
@@ -3956,6 +3962,9 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	for (i = 0; i < NUM_BUFFERS; ++i) {
 		struct fsg_buffhd	*bh = &fsg->buffhds[i];
 
+		/* Allocate for the bulk-in endpoint.  We assume that
+		 * the buffer will also work with the bulk-out (and
+		 * interrupt-in) endpoint. */
 		bh->buf = usb_ep_alloc_buffer(fsg->bulk_in, mod_data.buflen,
 				&bh->dma, GFP_KERNEL);
 		if (!bh->buf)
