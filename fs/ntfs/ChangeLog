@@ -38,6 +38,9 @@ ToDo/Notes:
 	  allowed by NTFS, i.e. 255 Unicode characters, not including the
 	  terminating NULL (which is not stored on disk).
 	- Improve comments on file attribute flags in fs/ntfs/layout.h.
+	- Fix a bug in fs/ntfs/inode.c::ntfs_read_locked_index_inode() where we
+	  forgot to update a temporary variable so loading index inodes which
+	  have an index allocation attribute failed.
 
 2.1.26 - Minor bug fixes and updates.
 

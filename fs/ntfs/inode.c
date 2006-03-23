@@ -19,15 +19,19 @@
  * Foundation,Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/pagemap.h>
 #include <linux/buffer_head.h>
-#include <linux/smp_lock.h>
-#include <linux/quotaops.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
 #include <linux/mount.h>
 #include <linux/mutex.h>
+#include <linux/pagemap.h>
+#include <linux/quotaops.h>
+#include <linux/slab.h>
+#include <linux/smp_lock.h>
 
 #include "aops.h"
 #include "attrib.h"
+#include "bitmap.h"
 #include "dir.h"
 #include "debug.h"
 #include "inode.h"
@@ -1428,7 +1432,6 @@ err_out:
 			"Run chkdsk.", err, vi->i_ino, ni->type, ni->name_len,
 			base_vi->i_ino);
 	make_bad_inode(vi);
-	make_bad_inode(base_vi);
 	if (err != -ENOMEM)
 		NVolSetErrors(vol);
 	return err;
@@ -1613,6 +1616,7 @@ static int ntfs_read_locked_index_inode(struct inode *base_vi, struct inode *vi)
 					"$INDEX_ALLOCATION attribute.");
 		goto unm_err_out;
 	}
+	a = ctx->attr;
 	if (!a->non_resident) {
 		ntfs_error(vi->i_sb, "$INDEX_ALLOCATION attribute is "
 				"resident.");
@@ -2845,11 +2849,8 @@ done:
 old_bad_out:
 	old_size = -1;
 bad_out:
-	if (err != -ENOMEM && err != -EOPNOTSUPP) {
-		make_bad_inode(vi);
-		make_bad_inode(VFS_I(base_ni));
+	if (err != -ENOMEM && err != -EOPNOTSUPP)
 		NVolSetErrors(vol);
-	}
 	if (err != -EOPNOTSUPP)
 		NInoSetTruncateFailed(ni);
 	else if (old_size >= 0)
@@ -2864,11 +2865,8 @@ out:
 	ntfs_debug("Failed.  Returning error code %i.", err);
 	return err;
 conv_err_out:
-	if (err != -ENOMEM && err != -EOPNOTSUPP) {
-		make_bad_inode(vi);
-		make_bad_inode(VFS_I(base_ni));
+	if (err != -ENOMEM && err != -EOPNOTSUPP)
 		NVolSetErrors(vol);
-	}
 	if (err != -EOPNOTSUPP)
 		NInoSetTruncateFailed(ni);
 	else
@@ -3116,9 +3114,7 @@ err_out:
 				"retries later.");
 		mark_inode_dirty(vi);
 	} else {
-		ntfs_error(vi->i_sb, "Failed (error code %i):  Marking inode "
-				"as bad.  You should run chkdsk.", -err);
-		make_bad_inode(vi);
+		ntfs_error(vi->i_sb, "Failed (error %i):  Run chkdsk.", -err);
 		NVolSetErrors(ni->vol);
 	}
 	return err;

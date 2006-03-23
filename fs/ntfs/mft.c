@@ -651,10 +651,7 @@ err_out:
  * fs/ntfs/aops.c::mark_ntfs_record_dirty().
  *
  * On success, clean the mft record and return 0.  On error, leave the mft
- * record dirty and return -errno.  The caller should call make_bad_inode() on
- * the base inode to ensure no more access happens to this inode.  We do not do
- * it here as the caller may want to finish writing other extent mft records
- * first to minimize on-disk metadata inconsistencies.
+ * record dirty and return -errno.
  *
  * NOTE:  We always perform synchronous i/o and ignore the @sync parameter.
  * However, if the mft record has a counterpart in the mft mirror and @sync is
