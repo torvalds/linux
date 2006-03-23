@@ -591,12 +591,18 @@ static struct uart_amba_port amba_ports[UART_NR] = {
 
 #ifdef CONFIG_SERIAL_AMBA_PL010_CONSOLE
 
+static void pl010_console_putchar(struct uart_port *port, int ch)
+{
+	while (!UART_TX_READY(UART_GET_FR(port)))
+		barrier();
+	UART_PUT_CHAR(port, ch);
+}
+
 static void
 pl010_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct uart_port *port = &amba_ports[co->index].port;
 	unsigned int status, old_cr;
-	int i;
 
 	/*
 	 *	First save the CR then disable the interrupts
@@ -604,21 +610,7 @@ pl010_console_write(struct console *co, const char *s, unsigned int count)
 	old_cr = UART_GET_CR(port);
 	UART_PUT_CR(port, UART01x_CR_UARTEN);
 
-	/*
-	 *	Now, do each character
-	 */
-	for (i = 0; i < count; i++) {
-		do {
-			status = UART_GET_FR(port);
-		} while (!UART_TX_READY(status));
-		UART_PUT_CHAR(port, s[i]);
-		if (s[i] == '\n') {
-			do {
-				status = UART_GET_FR(port);
-			} while (!UART_TX_READY(status));
-			UART_PUT_CHAR(port, '\r');
-		}
-	}
+	uart_console_write(port, s, count, pl010_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty

@@ -821,25 +821,23 @@ static void wait_for_xmitr(struct uart_port *port)
 	}
 }
 
+static void siu_console_putchar(struct uart_port *port, int ch)
+{
+	wait_for_xmitr(port);
+	siu_write(port, UART_TX, ch);
+}
+
 static void siu_console_write(struct console *con, const char *s, unsigned count)
 {
 	struct uart_port *port;
 	uint8_t ier;
-	unsigned i;
 
 	port = &siu_uart_ports[con->index];
 
 	ier = siu_read(port, UART_IER);
 	siu_write(port, UART_IER, 0);
 
-	for (i = 0; i < count && *s != '\0'; i++, s++) {
-		wait_for_xmitr(port);
-		siu_write(port, UART_TX, *s);
-		if (*s == '\n') {
-			wait_for_xmitr(port);
-			siu_write(port, UART_TX, '\r');
-		}
-	}
+	uart_console_write(port, s, count, siu_console_putchar);
 
 	wait_for_xmitr(port);
 	siu_write(port, UART_IER, ier);
