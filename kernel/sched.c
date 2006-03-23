@@ -237,6 +237,7 @@ struct runqueue {
 
 	task_t *migration_thread;
 	struct list_head migration_queue;
+	int cpu;
 #endif
 
 #ifdef CONFIG_SCHEDSTATS
@@ -1654,6 +1655,9 @@ unsigned long nr_iowait(void)
 /*
  * double_rq_lock - safely lock two runqueues
  *
+ * We must take them in cpu order to match code in
+ * dependent_sleeper and wake_dependent_sleeper.
+ *
  * Note this does not disable interrupts like task_rq_lock,
  * you need to do so manually before calling.
  */
@@ -1665,7 +1669,7 @@ static void double_rq_lock(runqueue_t *rq1, runqueue_t *rq2)
 		spin_lock(&rq1->lock);
 		__acquire(rq2->lock);	/* Fake it out ;) */
 	} else {
-		if (rq1 < rq2) {
+		if (rq1->cpu < rq2->cpu) {
 			spin_lock(&rq1->lock);
 			spin_lock(&rq2->lock);
 		} else {
@@ -1701,7 +1705,7 @@ static void double_lock_balance(runqueue_t *this_rq, runqueue_t *busiest)
 	__acquires(this_rq->lock)
 {
 	if (unlikely(!spin_trylock(&busiest->lock))) {
-		if (busiest < this_rq) {
+		if (busiest->cpu < this_rq->cpu) {
 			spin_unlock(&this_rq->lock);
 			spin_lock(&busiest->lock);
 			spin_lock(&this_rq->lock);
@@ -6029,6 +6033,7 @@ void __init sched_init(void)
 		rq->push_cpu = 0;
 		rq->migration_thread = NULL;
 		INIT_LIST_HEAD(&rq->migration_queue);
+		rq->cpu = i;
 #endif
 		atomic_set(&rq->nr_iowait, 0);
 
