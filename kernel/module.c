@@ -39,6 +39,7 @@
 #include <linux/device.h>
 #include <linux/string.h>
 #include <linux/sched.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <asm/cacheflush.h>
@@ -63,15 +64,15 @@ static DEFINE_SPINLOCK(modlist_lock);
 static DECLARE_MUTEX(module_mutex);
 static LIST_HEAD(modules);
 
-static DECLARE_MUTEX(notify_mutex);
+static DEFINE_MUTEX(notify_mutex);
 static struct notifier_block * module_notify_list;
 
 int register_module_notifier(struct notifier_block * nb)
 {
 	int err;
-	down(&notify_mutex);
+	mutex_lock(&notify_mutex);
 	err = notifier_chain_register(&module_notify_list, nb);
-	up(&notify_mutex);
+	mutex_unlock(&notify_mutex);
 	return err;
 }
 EXPORT_SYMBOL(register_module_notifier);
@@ -79,9 +80,9 @@ EXPORT_SYMBOL(register_module_notifier);
 int unregister_module_notifier(struct notifier_block * nb)
 {
 	int err;
-	down(&notify_mutex);
+	mutex_lock(&notify_mutex);
 	err = notifier_chain_unregister(&module_notify_list, nb);
-	up(&notify_mutex);
+	mutex_unlock(&notify_mutex);
 	return err;
 }
 EXPORT_SYMBOL(unregister_module_notifier);
@@ -1989,9 +1990,9 @@ sys_init_module(void __user *umod,
 	/* Drop lock so they can recurse */
 	up(&module_mutex);
 
-	down(&notify_mutex);
+	mutex_lock(&notify_mutex);
 	notifier_call_chain(&module_notify_list, MODULE_STATE_COMING, mod);
-	up(&notify_mutex);
+	mutex_unlock(&notify_mutex);
 
 	/* Start the module */
 	if (mod->init != NULL)

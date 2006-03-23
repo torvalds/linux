@@ -23,6 +23,7 @@
 #include <linux/cpu.h>
 #include <linux/profile.h>
 #include <linux/highmem.h>
+#include <linux/mutex.h>
 #include <asm/sections.h>
 #include <asm/semaphore.h>
 
@@ -44,7 +45,7 @@ static cpumask_t prof_cpu_mask = CPU_MASK_ALL;
 #ifdef CONFIG_SMP
 static DEFINE_PER_CPU(struct profile_hit *[2], cpu_profile_hits);
 static DEFINE_PER_CPU(int, cpu_profile_flip);
-static DECLARE_MUTEX(profile_flip_mutex);
+static DEFINE_MUTEX(profile_flip_mutex);
 #endif /* CONFIG_SMP */
 
 static int __init profile_setup(char * str)
@@ -243,7 +244,7 @@ static void profile_flip_buffers(void)
 {
 	int i, j, cpu;
 
-	down(&profile_flip_mutex);
+	mutex_lock(&profile_flip_mutex);
 	j = per_cpu(cpu_profile_flip, get_cpu());
 	put_cpu();
 	on_each_cpu(__profile_flip_buffers, NULL, 0, 1);
@@ -259,14 +260,14 @@ static void profile_flip_buffers(void)
 			hits[i].hits = hits[i].pc = 0;
 		}
 	}
-	up(&profile_flip_mutex);
+	mutex_unlock(&profile_flip_mutex);
 }
 
 static void profile_discard_flip_buffers(void)
 {
 	int i, cpu;
 
-	down(&profile_flip_mutex);
+	mutex_lock(&profile_flip_mutex);
 	i = per_cpu(cpu_profile_flip, get_cpu());
 	put_cpu();
 	on_each_cpu(__profile_flip_buffers, NULL, 0, 1);
@@ -274,7 +275,7 @@ static void profile_discard_flip_buffers(void)
 		struct profile_hit *hits = per_cpu(cpu_profile_hits, cpu)[i];
 		memset(hits, 0, NR_PROFILE_HIT*sizeof(struct profile_hit));
 	}
-	up(&profile_flip_mutex);
+	mutex_unlock(&profile_flip_mutex);
 }
 
 void profile_hit(int type, void *__pc)
