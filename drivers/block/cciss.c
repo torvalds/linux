@@ -3268,8 +3268,8 @@ clean2:
 	unregister_blkdev(hba[i]->major, hba[i]->devname);
 clean1:
 	release_io_mem(hba[i]);
-	free_hba(i);
 	hba[i]->busy_initializing = 0;
+	free_hba(i);
 	return(-1);
 }
 
