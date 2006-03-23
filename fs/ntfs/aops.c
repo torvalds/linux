@@ -1278,18 +1278,18 @@ unm_done:
 		
 		tni = locked_nis[nr_locked_nis];
 		/* Get the base inode. */
-		down(&tni->extent_lock);
+		mutex_lock(&tni->extent_lock);
 		if (tni->nr_extents >= 0)
 			base_tni = tni;
 		else {
 			base_tni = tni->ext.base_ntfs_ino;
 			BUG_ON(!base_tni);
 		}
-		up(&tni->extent_lock);
+		mutex_unlock(&tni->extent_lock);
 		ntfs_debug("Unlocking %s inode 0x%lx.",
 				tni == base_tni ? "base" : "extent",
 				tni->mft_no);
-		up(&tni->mrec_lock);
+		mutex_unlock(&tni->mrec_lock);
 		atomic_dec(&tni->count);
 		iput(VFS_I(base_tni));
 	}

@@ -1677,11 +1677,11 @@ read_partial_upcase_page:
 	ntfs_debug("Read %llu bytes from $UpCase (expected %zu bytes).",
 			i_size, 64 * 1024 * sizeof(ntfschar));
 	iput(ino);
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (!default_upcase) {
 		ntfs_debug("Using volume specified $UpCase since default is "
 				"not present.");
-		up(&ntfs_lock);
+		mutex_unlock(&ntfs_lock);
 		return TRUE;
 	}
 	max = default_upcase_len;
@@ -1695,12 +1695,12 @@ read_partial_upcase_page:
 		vol->upcase = default_upcase;
 		vol->upcase_len = max;
 		ntfs_nr_upcase_users++;
-		up(&ntfs_lock);
+		mutex_unlock(&ntfs_lock);
 		ntfs_debug("Volume specified $UpCase matches default. Using "
 				"default.");
 		return TRUE;
 	}
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	ntfs_debug("Using volume specified $UpCase since it does not match "
 			"the default.");
 	return TRUE;
@@ -1709,17 +1709,17 @@ iput_upcase_failed:
 	ntfs_free(vol->upcase);
 	vol->upcase = NULL;
 upcase_failed:
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (default_upcase) {
 		vol->upcase = default_upcase;
 		vol->upcase_len = default_upcase_len;
 		ntfs_nr_upcase_users++;
-		up(&ntfs_lock);
+		mutex_unlock(&ntfs_lock);
 		ntfs_error(sb, "Failed to load $UpCase from the volume. Using "
 				"default.");
 		return TRUE;
 	}
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	ntfs_error(sb, "Failed to initialize upcase table.");
 	return FALSE;
 }
@@ -2195,12 +2195,12 @@ iput_attrdef_err_out:
 iput_upcase_err_out:
 #endif /* NTFS_RW */
 	vol->upcase_len = 0;
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (vol->upcase == default_upcase) {
 		ntfs_nr_upcase_users--;
 		vol->upcase = NULL;
 	}
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	if (vol->upcase) {
 		ntfs_free(vol->upcase);
 		vol->upcase = NULL;
@@ -2405,7 +2405,7 @@ static void ntfs_put_super(struct super_block *sb)
 	 * Destroy the global default upcase table if necessary.  Also decrease
 	 * the number of upcase users if we are a user.
 	 */
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (vol->upcase == default_upcase) {
 		ntfs_nr_upcase_users--;
 		vol->upcase = NULL;
@@ -2416,7 +2416,7 @@ static void ntfs_put_super(struct super_block *sb)
 	}
 	if (vol->cluster_size <= 4096 && !--ntfs_nr_compression_users)
 		free_compression_buffers();
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	if (vol->upcase) {
 		ntfs_free(vol->upcase);
 		vol->upcase = NULL;
@@ -2890,7 +2890,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 			ntfs_error(sb, "Failed to load essential metadata.");
 		goto iput_tmp_ino_err_out_now;
 	}
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	/*
 	 * The current mount is a compression user if the cluster size is
 	 * less than or equal 4kiB.
@@ -2901,7 +2901,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 			ntfs_error(NULL, "Failed to allocate buffers "
 					"for compression engine.");
 			ntfs_nr_compression_users--;
-			up(&ntfs_lock);
+			mutex_unlock(&ntfs_lock);
 			goto iput_tmp_ino_err_out_now;
 		}
 	}
@@ -2913,7 +2913,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	if (!default_upcase)
 		default_upcase = generate_default_upcase();
 	ntfs_nr_upcase_users++;
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	/*
 	 * From now on, ignore @silent parameter. If we fail below this line,
 	 * it will be due to a corrupt fs or a system error, so we report it.
@@ -2931,12 +2931,12 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		atomic_inc(&vol->root_ino->i_count);
 		ntfs_debug("Exiting, status successful.");
 		/* Release the default upcase if it has no users. */
-		down(&ntfs_lock);
+		mutex_lock(&ntfs_lock);
 		if (!--ntfs_nr_upcase_users && default_upcase) {
 			ntfs_free(default_upcase);
 			default_upcase = NULL;
 		}
-		up(&ntfs_lock);
+		mutex_unlock(&ntfs_lock);
 		sb->s_export_op = &ntfs_export_ops;
 		lock_kernel();
 		return 0;
@@ -3004,12 +3004,12 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		vol->attrdef = NULL;
 	}
 	vol->upcase_len = 0;
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (vol->upcase == default_upcase) {
 		ntfs_nr_upcase_users--;
 		vol->upcase = NULL;
 	}
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	if (vol->upcase) {
 		ntfs_free(vol->upcase);
 		vol->upcase = NULL;
@@ -3024,14 +3024,14 @@ unl_upcase_iput_tmp_ino_err_out_now:
 	 * Decrease the number of upcase users and destroy the global default
 	 * upcase table if necessary.
 	 */
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (!--ntfs_nr_upcase_users && default_upcase) {
 		ntfs_free(default_upcase);
 		default_upcase = NULL;
 	}
 	if (vol->cluster_size <= 4096 && !--ntfs_nr_compression_users)
 		free_compression_buffers();
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 iput_tmp_ino_err_out_now:
 	iput(tmp_ino);
 	if (vol->mft_ino && vol->mft_ino != tmp_ino)
@@ -3091,7 +3091,7 @@ struct kmem_cache *ntfs_attr_ctx_cache;
 struct kmem_cache *ntfs_index_ctx_cache;
 
 /* Driver wide semaphore. */
-DECLARE_MUTEX(ntfs_lock);
+DEFINE_MUTEX(ntfs_lock);
 
 static struct super_block *ntfs_get_sb(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)

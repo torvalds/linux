@@ -388,7 +388,7 @@ void __ntfs_init_inode(struct super_block *sb, ntfs_inode *ni)
 	atomic_set(&ni->count, 1);
 	ni->vol = NTFS_SB(sb);
 	ntfs_init_runlist(&ni->runlist);
-	init_MUTEX(&ni->mrec_lock);
+	mutex_init(&ni->mrec_lock);
 	ni->page = NULL;
 	ni->page_ofs = 0;
 	ni->attr_list_size = 0;
@@ -400,7 +400,7 @@ void __ntfs_init_inode(struct super_block *sb, ntfs_inode *ni)
 	ni->itype.index.collation_rule = 0;
 	ni->itype.index.block_size_bits = 0;
 	ni->itype.index.vcn_size_bits = 0;
-	init_MUTEX(&ni->extent_lock);
+	mutex_init(&ni->extent_lock);
 	ni->nr_extents = 0;
 	ni->ext.base_ntfs_ino = NULL;
 }
@@ -3066,7 +3066,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 	 */
 	if (modified) {
 		flush_dcache_mft_record_page(ctx->ntfs_ino);
-		if (!NInoTestSetDirty(ctx->ntfs_ino)) {
+		if (!NInoTestSetDirty(ctx->ntfs_ino))
 			mark_ntfs_record_dirty(ctx->ntfs_ino->page,
 					ctx->ntfs_ino->page_ofs);
 	}
@@ -3075,7 +3075,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 	if (NInoDirty(ni))
 		err = write_mft_record(ni, m, sync);
 	/* Write all attached extent mft records. */
-	down(&ni->extent_lock);
+	mutex_lock(&ni->extent_lock);
 	if (ni->nr_extents > 0) {
 		ntfs_inode **extent_nis = ni->ext.extent_ntfs_inos;
 		int i;
@@ -3102,7 +3102,7 @@ int ntfs_write_inode(struct inode *vi, int sync)
 			}
 		}
 	}
-	up(&ni->extent_lock);
+	mutex_unlock(&ni->extent_lock);
 	unmap_mft_record(ni);
 	if (unlikely(err))
 		goto err_out;

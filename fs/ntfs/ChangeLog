@@ -43,6 +43,7 @@ ToDo/Notes:
 	  fs/ntfs/inode.c::ntfs_write_inode().
 	- Handle the recently introduced -ENAMETOOLONG return value from
 	  fs/ntfs/unistr.c::ntfs_nlstoucs() in fs/ntfs/namei.c::ntfs_lookup().
+	- Semaphore to mutex conversion.  (Ingo Molnar)
 
 2.1.26 - Minor bug fixes and updates.
 
