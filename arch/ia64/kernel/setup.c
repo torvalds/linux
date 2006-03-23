@@ -389,6 +389,14 @@ check_for_logical_procs (void)
 }
 #endif
 
+static __initdata int nomca;
+static __init int setup_nomca(char *s)
+{
+	nomca = 1;
+	return 0;
+}
+early_param("nomca", setup_nomca);
+
 void __init
 setup_arch (char **cmdline_p)
 {
@@ -402,35 +410,15 @@ setup_arch (char **cmdline_p)
 	efi_init();
 	io_port_init();
 
+	parse_early_param();
+
 #ifdef CONFIG_IA64_GENERIC
-	{
-		const char *mvec_name = strstr (*cmdline_p, "machvec=");
-		char str[64];
-
-		if (mvec_name) {
-			const char *end;
-			size_t len;
-
-			mvec_name += 8;
-			end = strchr (mvec_name, ' ');
-			if (end)
-				len = end - mvec_name;
-			else
-				len = strlen (mvec_name);
-			len = min(len, sizeof (str) - 1);
-			strncpy (str, mvec_name, len);
-			str[len] = '\0';
-			mvec_name = str;
-		} else
-			mvec_name = acpi_get_sysname();
-		machvec_init(mvec_name);
-	}
+	machvec_init(NULL);
 #endif
 
 	if (early_console_setup(*cmdline_p) == 0)
 		mark_bsp_online();
 
-	parse_early_param();
 #ifdef CONFIG_ACPI
 	/* Initialize the ACPI boot-time table parser */
 	acpi_table_init();
@@ -493,7 +481,7 @@ setup_arch (char **cmdline_p)
 #endif
 
 	/* enable IA-64 Machine Check Abort Handling unless disabled */
-	if (!strstr(saved_command_line, "nomca"))
+	if (!nomca)
 		ia64_mca_init();
 
 	platform_setup(cmdline_p);
