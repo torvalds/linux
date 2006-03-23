@@ -149,8 +149,6 @@ static const struct pci_device_id nv_pci_tbl[] = {
 	{ 0, } /* terminate list */
 };
 
-#define NV_HOST_FLAGS_SCR_MMIO	0x00000001
-
 struct nv_host_desc
 {
 	enum nv_host_type	host_type;
@@ -306,36 +304,23 @@ static irqreturn_t nv_interrupt (int irq, void *dev_instance,
 
 static u32 nv_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
-	struct ata_host_set *host_set = ap->host_set;
-	struct nv_host *host = host_set->private_data;
-
 	if (sc_reg > SCR_CONTROL)
 		return 0xffffffffU;
 
-	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO)
-		return readl((void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
-	else
-		return inl(ap->ioaddr.scr_addr + (sc_reg * 4));
+	return ioread32((void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 {
-	struct ata_host_set *host_set = ap->host_set;
-	struct nv_host *host = host_set->private_data;
-
 	if (sc_reg > SCR_CONTROL)
 		return;
 
-	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO)
-		writel(val, (void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
-	else
-		outl(val, ap->ioaddr.scr_addr + (sc_reg * 4));
+	iowrite32(val, (void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 static void nv_host_stop (struct ata_host_set *host_set)
 {
 	struct nv_host *host = host_set->private_data;
-	struct pci_dev *pdev = to_pci_dev(host_set->dev);
 
 	// Disable hotplug event interrupts.
 	if (host->host_desc->disable_hotplug)
@@ -343,8 +328,7 @@ static void nv_host_stop (struct ata_host_set *host_set)
 
 	kfree(host);
 
-	if (host_set->mmio_base)
-		pci_iounmap(pdev, host_set->mmio_base);
+	ata_pci_host_stop(host_set);
 }
 
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -356,6 +340,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	int pci_dev_busy = 0;
 	int rc;
 	u32 bar;
+	unsigned long base;
 
         // Make sure this is a SATA controller by counting the number of bars
         // (NVIDIA SATA controllers will always have six bars).  Otherwise,
@@ -400,31 +385,16 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	probe_ent->private_data = host;
 
-	if (pci_resource_flags(pdev, 5) & IORESOURCE_MEM)
-		host->host_flags |= NV_HOST_FLAGS_SCR_MMIO;
-
-	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO) {
-		unsigned long base;
-
-		probe_ent->mmio_base = pci_iomap(pdev, 5, 0);
-		if (probe_ent->mmio_base == NULL) {
-			rc = -EIO;
-			goto err_out_free_host;
-		}
-
-		base = (unsigned long)probe_ent->mmio_base;
-
-		probe_ent->port[0].scr_addr =
-			base + NV_PORT0_SCR_REG_OFFSET;
-		probe_ent->port[1].scr_addr =
-			base + NV_PORT1_SCR_REG_OFFSET;
-	} else {
-
-		probe_ent->port[0].scr_addr =
-			pci_resource_start(pdev, 5) | NV_PORT0_SCR_REG_OFFSET;
-		probe_ent->port[1].scr_addr =
-			pci_resource_start(pdev, 5) | NV_PORT1_SCR_REG_OFFSET;
+	probe_ent->mmio_base = pci_iomap(pdev, 5, 0);
+	if (!probe_ent->mmio_base) {
+		rc = -EIO;
+		goto err_out_free_host;
 	}
+
+	base = (unsigned long)probe_ent->mmio_base;
+
+	probe_ent->port[0].scr_addr = base + NV_PORT0_SCR_REG_OFFSET;
+	probe_ent->port[1].scr_addr = base + NV_PORT1_SCR_REG_OFFSET;
 
 	pci_set_master(pdev);
 
@@ -441,8 +411,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 err_out_iounmap:
-	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO)
-		pci_iounmap(pdev, probe_ent->mmio_base);
+	pci_iounmap(pdev, probe_ent->mmio_base);
 err_out_free_host:
 	kfree(host);
 err_out_free_ent:
