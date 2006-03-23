@@ -83,7 +83,7 @@ static int save_highmem_zone(struct zone *zone)
 		void *kaddr;
 		unsigned long pfn = zone_pfn + zone->zone_start_pfn;
 
-		if (!(pfn%1000))
+		if (!(pfn%10000))
 			printk(".");
 		if (!pfn_valid(pfn))
 			continue;
@@ -122,13 +122,14 @@ int save_highmem(void)
 	struct zone *zone;
 	int res = 0;
 
-	pr_debug("swsusp: Saving Highmem\n");
+	pr_debug("swsusp: Saving Highmem");
 	for_each_zone (zone) {
 		if (is_highmem(zone))
 			res = save_highmem_zone(zone);
 		if (res)
 			return res;
 	}
+	printk("\n");
 	return 0;
 }
 
