@@ -8938,6 +8938,47 @@ static void __devinit tg3_get_5752_nvram_info(struct tg3 *tp)
 	}
 }
 
+static void __devinit tg3_get_5755_nvram_info(struct tg3 *tp)
+{
+	u32 nvcfg1;
+
+	nvcfg1 = tr32(NVRAM_CFG1);
+
+	/* NVRAM protection for TPM */
+	if (nvcfg1 & (1 << 27))
+		tp->tg3_flags2 |= TG3_FLG2_PROTECTED_NVRAM;
+
+	switch (nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK) {
+		case FLASH_5755VENDOR_ATMEL_EEPROM_64KHZ:
+		case FLASH_5755VENDOR_ATMEL_EEPROM_376KHZ:
+			tp->nvram_jedecnum = JEDEC_ATMEL;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->nvram_pagesize = ATMEL_AT24C512_CHIP_SIZE;
+
+			nvcfg1 &= ~NVRAM_CFG1_COMPAT_BYPASS;
+			tw32(NVRAM_CFG1, nvcfg1);
+			break;
+		case FLASH_5752VENDOR_ATMEL_FLASH_BUFFERED:
+		case FLASH_5755VENDOR_ATMEL_FLASH_1:
+		case FLASH_5755VENDOR_ATMEL_FLASH_2:
+		case FLASH_5755VENDOR_ATMEL_FLASH_3:
+		case FLASH_5755VENDOR_ATMEL_FLASH_4:
+			tp->nvram_jedecnum = JEDEC_ATMEL;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->tg3_flags2 |= TG3_FLG2_FLASH;
+			tp->nvram_pagesize = 264;
+			break;
+		case FLASH_5752VENDOR_ST_M45PE10:
+		case FLASH_5752VENDOR_ST_M45PE20:
+		case FLASH_5752VENDOR_ST_M45PE40:
+			tp->nvram_jedecnum = JEDEC_ST;
+			tp->tg3_flags |= TG3_FLAG_NVRAM_BUFFERED;
+			tp->tg3_flags2 |= TG3_FLG2_FLASH;
+			tp->nvram_pagesize = 256;
+			break;
+	}
+}
+
 static void __devinit tg3_get_5787_nvram_info(struct tg3 *tp)
 {
 	u32 nvcfg1;
@@ -9011,6 +9052,8 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
 			tg3_get_5752_nvram_info(tp);
+		else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755)
+			tg3_get_5755_nvram_info(tp);
 		else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787)
 			tg3_get_5787_nvram_info(tp);
 		else
