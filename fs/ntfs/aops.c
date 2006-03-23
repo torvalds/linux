@@ -22,6 +22,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
@@ -1551,6 +1552,9 @@ struct address_space_operations ntfs_aops = {
 #ifdef NTFS_RW
 	.writepage	= ntfs_writepage,	/* Write dirty page to disk. */
 #endif /* NTFS_RW */
+	.migratepage	= buffer_migrate_page,	/* Move a page cache page from
+						   one physical page to an
+						   other. */
 };
 
 /**
@@ -1567,6 +1571,9 @@ struct address_space_operations ntfs_mst_aops = {
 						   without touching the buffers
 						   belonging to the page. */
 #endif /* NTFS_RW */
+	.migratepage	= buffer_migrate_page,	/* Move a page cache page from
+						   one physical page to an
+						   other. */
 };
 
 #ifdef NTFS_RW

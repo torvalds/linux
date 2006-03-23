@@ -19,13 +19,15 @@ ToDo/Notes:
 	- Enable the code for setting the NT4 compatibility flag when we start
 	  making NTFS 1.2 specific modifications.
 
-2.1.27 - Various bug fixes.
+2.1.27 - Various bug fixes and cleanups.
 
 	- Fix two compiler warnings on Alpha.  Thanks to Andrew Morton for
 	  reporting them.
 	- Fix an (innocent) off-by-one error in the runlist code.
 	- Fix a buggette in an "should be impossible" case handling where we
 	  continued the attribute lookup loop instead of aborting it.
+	- Use buffer_migrate_page() for the ->migratepage function of all ntfs
+	  address space operations.
 
 2.1.26 - Minor bug fixes and updates.
 
