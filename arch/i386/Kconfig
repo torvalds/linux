@@ -660,13 +660,10 @@ config BOOT_IOREMAP
 	default y
 
 config REGPARM
-	bool "Use register arguments (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	default n
+	bool "Use register arguments"
 	help
 	Compile the kernel with -mregparm=3. This uses a different ABI
 	and passes the first three arguments of a function call in registers.
-	This will probably break binary only modules.
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
