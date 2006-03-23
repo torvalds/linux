@@ -29,34 +29,6 @@
  *  NV-specific details such as register offsets, SATA phy location,
  *  hotplug info, etc.
  *
- *  0.10
- *     - Fixed spurious interrupts issue seen with the Maxtor 6H500F0 500GB
- *       drive.  Also made the check_hotplug() callbacks return whether there
- *       was a hotplug interrupt or not.  This was not the source of the
- *       spurious interrupts, but is the right thing to do anyway.
- *
- *  0.09
- *     - Fixed bug introduced by 0.08's MCP51 and MCP55 support.
- *
- *  0.08
- *     - Added support for MCP51 and MCP55.
- *
- *  0.07
- *     - Added support for RAID class code.
- *
- *  0.06
- *     - Added generic SATA support by using a pci_device_id that filters on
- *       the IDE storage class code.
- *
- *  0.03
- *     - Fixed a bug where the hotplug handlers for non-CK804/MCP04 were using
- *       mmio_base, which is only set for the CK804/MCP04 case.
- *
- *  0.02
- *     - Added support for CK804 SATA controller.
- *
- *  0.01
- *     - Initial revision.
  */
 
 #include <linux/config.h>
@@ -74,53 +46,55 @@
 #define DRV_NAME			"sata_nv"
 #define DRV_VERSION			"0.8"
 
-#define NV_PORTS			2
-#define NV_PIO_MASK			0x1f
-#define NV_MWDMA_MASK			0x07
-#define NV_UDMA_MASK			0x7f
-#define NV_PORT0_SCR_REG_OFFSET		0x00
-#define NV_PORT1_SCR_REG_OFFSET		0x40
+enum {
+	NV_PORTS			= 2,
+	NV_PIO_MASK			= 0x1f,
+	NV_MWDMA_MASK			= 0x07,
+	NV_UDMA_MASK			= 0x7f,
+	NV_PORT0_SCR_REG_OFFSET		= 0x00,
+	NV_PORT1_SCR_REG_OFFSET		= 0x40,
 
-#define NV_INT_STATUS			0x10
-#define NV_INT_STATUS_CK804		0x440
-#define NV_INT_STATUS_PDEV_INT		0x01
-#define NV_INT_STATUS_PDEV_PM		0x02
-#define NV_INT_STATUS_PDEV_ADDED	0x04
-#define NV_INT_STATUS_PDEV_REMOVED	0x08
-#define NV_INT_STATUS_SDEV_INT		0x10
-#define NV_INT_STATUS_SDEV_PM		0x20
-#define NV_INT_STATUS_SDEV_ADDED	0x40
-#define NV_INT_STATUS_SDEV_REMOVED	0x80
-#define NV_INT_STATUS_PDEV_HOTPLUG	(NV_INT_STATUS_PDEV_ADDED | \
-					NV_INT_STATUS_PDEV_REMOVED)
-#define NV_INT_STATUS_SDEV_HOTPLUG	(NV_INT_STATUS_SDEV_ADDED | \
-					NV_INT_STATUS_SDEV_REMOVED)
-#define NV_INT_STATUS_HOTPLUG		(NV_INT_STATUS_PDEV_HOTPLUG | \
-					NV_INT_STATUS_SDEV_HOTPLUG)
+	NV_INT_STATUS			= 0x10,
+	NV_INT_STATUS_CK804		= 0x440,
+	NV_INT_STATUS_PDEV_INT		= 0x01,
+	NV_INT_STATUS_PDEV_PM		= 0x02,
+	NV_INT_STATUS_PDEV_ADDED	= 0x04,
+	NV_INT_STATUS_PDEV_REMOVED	= 0x08,
+	NV_INT_STATUS_SDEV_INT		= 0x10,
+	NV_INT_STATUS_SDEV_PM		= 0x20,
+	NV_INT_STATUS_SDEV_ADDED	= 0x40,
+	NV_INT_STATUS_SDEV_REMOVED	= 0x80,
+	NV_INT_STATUS_PDEV_HOTPLUG	= (NV_INT_STATUS_PDEV_ADDED |
+					   NV_INT_STATUS_PDEV_REMOVED),
+	NV_INT_STATUS_SDEV_HOTPLUG	= (NV_INT_STATUS_SDEV_ADDED |
+					   NV_INT_STATUS_SDEV_REMOVED),
+	NV_INT_STATUS_HOTPLUG		= (NV_INT_STATUS_PDEV_HOTPLUG |
+					   NV_INT_STATUS_SDEV_HOTPLUG),
 
-#define NV_INT_ENABLE			0x11
-#define NV_INT_ENABLE_CK804		0x441
-#define NV_INT_ENABLE_PDEV_MASK		0x01
-#define NV_INT_ENABLE_PDEV_PM		0x02
-#define NV_INT_ENABLE_PDEV_ADDED	0x04
-#define NV_INT_ENABLE_PDEV_REMOVED	0x08
-#define NV_INT_ENABLE_SDEV_MASK		0x10
-#define NV_INT_ENABLE_SDEV_PM		0x20
-#define NV_INT_ENABLE_SDEV_ADDED	0x40
-#define NV_INT_ENABLE_SDEV_REMOVED	0x80
-#define NV_INT_ENABLE_PDEV_HOTPLUG	(NV_INT_ENABLE_PDEV_ADDED | \
-					NV_INT_ENABLE_PDEV_REMOVED)
-#define NV_INT_ENABLE_SDEV_HOTPLUG	(NV_INT_ENABLE_SDEV_ADDED | \
-					NV_INT_ENABLE_SDEV_REMOVED)
-#define NV_INT_ENABLE_HOTPLUG		(NV_INT_ENABLE_PDEV_HOTPLUG | \
-					NV_INT_ENABLE_SDEV_HOTPLUG)
+	NV_INT_ENABLE			= 0x11,
+	NV_INT_ENABLE_CK804		= 0x441,
+	NV_INT_ENABLE_PDEV_MASK		= 0x01,
+	NV_INT_ENABLE_PDEV_PM		= 0x02,
+	NV_INT_ENABLE_PDEV_ADDED	= 0x04,
+	NV_INT_ENABLE_PDEV_REMOVED	= 0x08,
+	NV_INT_ENABLE_SDEV_MASK		= 0x10,
+	NV_INT_ENABLE_SDEV_PM		= 0x20,
+	NV_INT_ENABLE_SDEV_ADDED	= 0x40,
+	NV_INT_ENABLE_SDEV_REMOVED	= 0x80,
+	NV_INT_ENABLE_PDEV_HOTPLUG	= (NV_INT_ENABLE_PDEV_ADDED |
+					   NV_INT_ENABLE_PDEV_REMOVED),
+	NV_INT_ENABLE_SDEV_HOTPLUG	= (NV_INT_ENABLE_SDEV_ADDED |
+					   NV_INT_ENABLE_SDEV_REMOVED),
+	NV_INT_ENABLE_HOTPLUG		= (NV_INT_ENABLE_PDEV_HOTPLUG |
+					   NV_INT_ENABLE_SDEV_HOTPLUG),
 
-#define NV_INT_CONFIG			0x12
-#define NV_INT_CONFIG_METHD		0x01 // 0 = INT, 1 = SMI
+	NV_INT_CONFIG			= 0x12,
+	NV_INT_CONFIG_METHD		= 0x01, // 0 = INT, 1 = SMI
 
-// For PCI config register 20
-#define NV_MCP_SATA_CFG_20		0x50
-#define NV_MCP_SATA_CFG_20_SATA_SPACE_EN	0x04
+	// For PCI config register 20
+	NV_MCP_SATA_CFG_20		= 0x50,
+	NV_MCP_SATA_CFG_20_SATA_SPACE_EN = 0x04,
+};
 
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static irqreturn_t nv_interrupt (int irq, void *dev_instance,
