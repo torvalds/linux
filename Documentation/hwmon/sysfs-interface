@@ -252,9 +252,68 @@ curr[1-n]_input	Current input value
 		Read only.
 
 
-*********
-* Other *
-*********
+**********
+* Alarms *
+**********
+
+Each channel or limit may have an associated alarm file, containing a
+boolean value. 1 means than an alarm condition exists, 0 means no alarm.
+
+Usually a given chip will either use channel-related alarms, or
+limit-related alarms, not both. The driver should just reflect the hardware
+implementation.
+
+in[0-n]_alarm
+fan[1-n]_alarm
+temp[1-n]_alarm
+		Channel alarm
+		Boolean
+		Read-only
+
+OR
+
+in[0-n]_min_alarm
+in[0-n]_max_alarm
+fan[1-n]_min_alarm
+temp[1-n]_min_alarm
+temp[1-n]_max_alarm
+temp[1-n]_crit_alarm
+		Limit alarm
+		Boolean
+		Read-only
+
+Each input channel may have an associated fault file. This can be used
+to notify open diodes, unconnected fans etc. where the hardware
+supports it. When this boolean has value 1, the measurement for that
+channel should not be trusted.
+
+in[0-n]_input_fault
+fan[1-n]_input_fault
+temp[1-n]_input_fault
+		Input fault condition
+		Boolean
+		Read-only
+
+Some chips also offer the possibility to get beeped when an alarm occurs:
+
+beep_enable	Master beep enable
+		Boolean
+		Read/Write
+
+in[0-n]_beep
+fan[1-n]_beep
+temp[1-n]_beep
+		Channel beep
+		0 to disable.
+		1 to enable.
+		Read/write
+
+In theory, a chip could provide per-limit beep masking, but no such chip
+was seen so far.
+
+Old drivers provided a different, non-standard interface to alarms and
+beeps. These interface files are deprecated, but will be kept around
+for compatibility reasons:
 
 alarms		Alarm bitmask.
 		Read only.
@@ -265,32 +324,21 @@ alarms		Alarm bitmask.
 		if it is still valid.
 		Generally a direct representation of a chip's internal
 		alarm registers; there is no standard for the position
-		of individual bits.
+		of individual bits. For this reason, the use of this
+		interface file for new drivers is discouraged. Use
+		individual *_alarm and *_fault files instead.
 		Bits are defined in kernel/include/sensors.h.
 
-alarms_in	Alarm bitmask relative to in (voltage) channels
-		Read only
-		A '1' bit means an alarm, LSB corresponds to in0 and so on
-		Prefered to 'alarms' for newer chips
-
-alarms_fan	Alarm bitmask relative to fan channels
-		Read only
-		A '1' bit means an alarm, LSB corresponds to fan1 and so on
-		Prefered to 'alarms' for newer chips
-
-alarms_temp	Alarm bitmask relative to temp (temperature) channels
-		Read only
-		A '1' bit means an alarm, LSB corresponds to temp1 and so on
-		Prefered to 'alarms' for newer chips
-
-beep_enable	Beep/interrupt enable
-		0 to disable.
-		1 to enable.
-		Read/Write
-
 beep_mask	Bitmask for beep.
-		Same format as 'alarms' with the same bit locations.
+		Same format as 'alarms' with the same bit locations,
+		use discouraged for the same reason. Use individual
+		*_beep files instead.
 		Read/Write
+
+
+*********
+* Other *
+*********
 
 eeprom		Raw EEPROM data in binary form.
 		Read only.
