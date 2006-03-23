@@ -254,7 +254,7 @@ void show_registers(struct pt_regs *regs)
 
 	esp = (unsigned long) (&regs->esp);
 	savesegment(ss, ss);
-	if (user_mode(regs)) {
+	if (user_mode_vm(regs)) {
 		in_kernel = 0;
 		esp = regs->esp;
 		ss = regs->xss & 0xffff;
@@ -644,7 +644,7 @@ void die_nmi (struct pt_regs *regs, const char *msg)
 	/* If we are in kernel we are probably nested up pretty bad
 	 * and might aswell get out now while we still can.
 	*/
-	if (!user_mode(regs)) {
+	if (!user_mode_vm(regs)) {
 		current->thread.trap_no = 2;
 		crash_kexec(regs);
 	}
