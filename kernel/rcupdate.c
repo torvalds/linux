@@ -47,6 +47,7 @@
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/cpu.h>
+#include <linux/mutex.h>
 
 /* Definition for rcupdate control block. */
 struct rcu_ctrlblk rcu_ctrlblk = {
@@ -75,7 +76,7 @@ static int rsinterval = 1000;
 #endif
 
 static atomic_t rcu_barrier_cpu_count;
-static struct semaphore rcu_barrier_sema;
+static DEFINE_MUTEX(rcu_barrier_mutex);
 static struct completion rcu_barrier_completion;
 
 #ifdef CONFIG_SMP
@@ -207,13 +208,13 @@ static void rcu_barrier_func(void *notused)
 void rcu_barrier(void)
 {
 	BUG_ON(in_interrupt());
-	/* Take cpucontrol semaphore to protect against CPU hotplug */
-	down(&rcu_barrier_sema);
+	/* Take cpucontrol mutex to protect against CPU hotplug */
+	mutex_lock(&rcu_barrier_mutex);
 	init_completion(&rcu_barrier_completion);
 	atomic_set(&rcu_barrier_cpu_count, 0);
 	on_each_cpu(rcu_barrier_func, NULL, 0, 1);
 	wait_for_completion(&rcu_barrier_completion);
-	up(&rcu_barrier_sema);
+	mutex_unlock(&rcu_barrier_mutex);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
 
@@ -549,7 +550,6 @@ static struct notifier_block __devinitdata rcu_nb = {
  */
 void __init rcu_init(void)
 {
-	sema_init(&rcu_barrier_sema, 1);
 	rcu_cpu_notify(&rcu_nb, CPU_UP_PREPARE,
 			(void *)(long)smp_processor_id());
 	/* Register notifier for non-boot CPUs */
