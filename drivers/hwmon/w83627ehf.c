@@ -141,6 +141,10 @@ static const u16 W83627EHF_REG_TEMP_CONFIG[] = { 0x152, 0x252 };
 #define W83627EHF_REG_DIODE		0x59
 #define W83627EHF_REG_SMI_OVT		0x4C
 
+#define W83627EHF_REG_ALARM1		0x459
+#define W83627EHF_REG_ALARM2		0x45A
+#define W83627EHF_REG_ALARM3		0x45B
+
 /*
  * Conversions
  */
@@ -218,6 +222,7 @@ struct w83627ehf_data {
 	s16 temp[2];
 	s16 temp_max[2];
 	s16 temp_max_hyst[2];
+	u32 alarms;
 };
 
 static inline int is_word_sized(u16 reg)
@@ -427,6 +432,13 @@ static struct w83627ehf_data *w83627ehf_update_device(struct device *dev)
 						 W83627EHF_REG_TEMP_HYST[i]);
 		}
 
+		data->alarms = w83627ehf_read_value(client,
+					W83627EHF_REG_ALARM1) |
+			       (w83627ehf_read_value(client,
+					W83627EHF_REG_ALARM2) << 8) |
+			       (w83627ehf_read_value(client,
+					W83627EHF_REG_ALARM3) << 16);
+
 		data->last_updated = jiffies;
 		data->valid = 1;
 	}
@@ -474,6 +486,14 @@ store_in_##reg (struct device *dev, struct device_attribute *attr, \
 store_in_reg(MIN, min)
 store_in_reg(MAX, max)
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct w83627ehf_data *data = w83627ehf_update_device(dev);
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int nr = sensor_attr->index;
+	return sprintf(buf, "%u\n", (data->alarms >> nr) & 0x01);
+}
+
 static struct sensor_device_attribute sda_in_input[] = {
 	SENSOR_ATTR(in0_input, S_IRUGO, show_in, NULL, 0),
 	SENSOR_ATTR(in1_input, S_IRUGO, show_in, NULL, 1),
@@ -485,6 +505,19 @@ static struct sensor_device_attribute sda_in_input[] = {
 	SENSOR_ATTR(in7_input, S_IRUGO, show_in, NULL, 7),
 	SENSOR_ATTR(in8_input, S_IRUGO, show_in, NULL, 8),
 	SENSOR_ATTR(in9_input, S_IRUGO, show_in, NULL, 9),
+};
+
+static struct sensor_device_attribute sda_in_alarm[] = {
+	SENSOR_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0),
+	SENSOR_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1),
+	SENSOR_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2),
+	SENSOR_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3),
+	SENSOR_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 8),
+	SENSOR_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 21),
+	SENSOR_ATTR(in6_alarm, S_IRUGO, show_alarm, NULL, 20),
+	SENSOR_ATTR(in7_alarm, S_IRUGO, show_alarm, NULL, 16),
+	SENSOR_ATTR(in8_alarm, S_IRUGO, show_alarm, NULL, 17),
+	SENSOR_ATTR(in9_alarm, S_IRUGO, show_alarm, NULL, 19),
 };
 
 static struct sensor_device_attribute sda_in_min[] = {
@@ -516,6 +549,7 @@ static struct sensor_device_attribute sda_in_max[] = {
 static void device_create_file_in(struct device *dev, int i)
 {
 	device_create_file(dev, &sda_in_input[i].dev_attr);
+	device_create_file(dev, &sda_in_alarm[i].dev_attr);
 	device_create_file(dev, &sda_in_min[i].dev_attr);
 	device_create_file(dev, &sda_in_max[i].dev_attr);
 }
@@ -618,6 +652,14 @@ static struct sensor_device_attribute sda_fan_input[] = {
 	SENSOR_ATTR(fan5_input, S_IRUGO, show_fan, NULL, 4),
 };
 
+static struct sensor_device_attribute sda_fan_alarm[] = {
+	SENSOR_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 6),
+	SENSOR_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 7),
+	SENSOR_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 11),
+	SENSOR_ATTR(fan4_alarm, S_IRUGO, show_alarm, NULL, 10),
+	SENSOR_ATTR(fan5_alarm, S_IRUGO, show_alarm, NULL, 23),
+};
+
 static struct sensor_device_attribute sda_fan_min[] = {
 	SENSOR_ATTR(fan1_min, S_IWUSR | S_IRUGO, show_fan_min,
 		    store_fan_min, 0),
@@ -642,6 +684,7 @@ static struct sensor_device_attribute sda_fan_div[] = {
 static void device_create_file_fan(struct device *dev, int i)
 {
 	device_create_file(dev, &sda_fan_input[i].dev_attr);
+	device_create_file(dev, &sda_fan_alarm[i].dev_attr);
 	device_create_file(dev, &sda_fan_div[i].dev_attr);
 	device_create_file(dev, &sda_fan_min[i].dev_attr);
 }
@@ -729,6 +772,9 @@ static struct sensor_device_attribute sda_temp[] = {
 		    store_temp_max_hyst, 0),
 	SENSOR_ATTR(temp3_max_hyst, S_IRUGO | S_IWUSR, show_temp_max_hyst,
 		    store_temp_max_hyst, 1),
+	SENSOR_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 4),
+	SENSOR_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 5),
+	SENSOR_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13),
 };
 
 /*
