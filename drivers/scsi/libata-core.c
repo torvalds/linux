@@ -4659,6 +4659,8 @@ static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
 	if (!host)
 		return NULL;
 
+	host->transportt = &ata_scsi_transport_template;
+
 	ap = (struct ata_port *) &host->hostdata[0];
 
 	ata_host_init(ap, host, host_set, ent, port_no);
@@ -5091,7 +5093,6 @@ EXPORT_SYMBOL_GPL(ata_busy_sleep);
 EXPORT_SYMBOL_GPL(ata_port_queue_task);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
-EXPORT_SYMBOL_GPL(ata_scsi_timed_out);
 EXPORT_SYMBOL_GPL(ata_scsi_error);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 EXPORT_SYMBOL_GPL(ata_scsi_release);

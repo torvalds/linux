@@ -1176,7 +1176,7 @@ irqreturn_t pcxhr_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		mgr->dsp_time_last = dsp_time_new;
 
 		if (timer_toggle == mgr->timer_toggle)
-			snd_printk(KERN_ERR "ERROR TIMER TOGGLE\n");
+			snd_printdd("ERROR TIMER TOGGLE\n");
 		mgr->timer_toggle = timer_toggle;
 
 		reg &= ~PCXHR_IRQ_TIMER;

@@ -140,7 +140,7 @@ void free_initmem(void)
 	for (; addr < (unsigned long)__init_end; addr += PAGE_SIZE) {
 		memset((void *)addr, 0xcc, PAGE_SIZE);
 		ClearPageReserved(virt_to_page(addr));
-		set_page_count(virt_to_page(addr), 1);
+		init_page_count(virt_to_page(addr));
 		free_page(addr);
 		totalram_pages++;
 	}
@@ -155,7 +155,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		printk ("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
-		set_page_count(virt_to_page(start), 1);
+		init_page_count(virt_to_page(start));
 		free_page(start);
 		totalram_pages++;
 	}

@@ -30,6 +30,8 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include "filemap.h"
+#include "internal.h"
+
 /*
  * FIXME: remove all knowledge of the buffer layer from the core VM
  */

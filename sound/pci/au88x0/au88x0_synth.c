@@ -32,7 +32,7 @@ static void vortex_connection_mixin_mix(vortex_t * vortex, int en,
 					unsigned char mix, int a);
 static void vortex_fifo_wtinitialize(vortex_t * vortex, int fifo, int j);
 static int vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
-			    unsigned long val);
+			    u32 val);
 
 /* WT */
 
@@ -166,7 +166,7 @@ static int vortex_wt_GetReg(vortex_t * vortex, char reg, int wt)
 /* WT hardware abstraction layer generic register interface. */
 static int
 vortex_wt_SetReg2(vortex_t * vortex, unsigned char reg, int wt,
-		  unsigned short val)
+		  u16 val)
 {
 	/*
 	   int eax, edx;
@@ -190,7 +190,7 @@ vortex_wt_SetReg2(vortex_t * vortex, unsigned char reg, int wt,
 #endif
 static int
 vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
-		 unsigned long val)
+		 u32 val)
 {
 	int ecx;
 
@@ -279,7 +279,7 @@ vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
 
 static void vortex_wt_init(vortex_t * vortex)
 {
-	int var4, var8, varc, var10 = 0, edi;
+	u32 var4, var8, varc, var10 = 0, edi;
 
 	var10 &= 0xFFFFFFE3;
 	var10 |= 0x22;
@@ -353,7 +353,7 @@ static void vortex_wt_SetVolume(vortex_t * vortex, int wt, int vol[])
 static void vortex_wt_SetFrequency(vortex_t * vortex, int wt, unsigned int sr)
 {
 	wt_voice_t *voice = &(vortex->wt_voice[wt]);
-	long int eax, edx;
+	u32 eax, edx;
 
 	//FIXME: 64 bit operation.
 	eax = ((sr << 0xf) * 0x57619F1) & 0xffffffff;

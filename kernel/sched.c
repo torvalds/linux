@@ -707,12 +707,6 @@ static int recalc_task_prio(task_t *p, unsigned long long now)
 						DEF_TIMESLICE);
 		} else {
 			/*
-			 * The lower the sleep avg a task has the more
-			 * rapidly it will rise with sleep time.
-			 */
-			sleep_time *= (MAX_BONUS - CURRENT_BONUS(p)) ? : 1;
-
-			/*
 			 * Tasks waking from uninterruptible sleep are
 			 * limited in their sleep_avg rise as they
 			 * are likely to be waiting on I/O

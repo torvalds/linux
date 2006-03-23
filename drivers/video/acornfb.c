@@ -1269,7 +1269,7 @@ free_unused_pages(unsigned int virtual_start, unsigned int virtual_end)
 		 */
 		page = virt_to_page(virtual_start);
 		ClearPageReserved(page);
-		set_page_count(page, 1);
+		init_page_count(page);
 		free_page(virtual_start);
 
 		virtual_start += PAGE_SIZE;

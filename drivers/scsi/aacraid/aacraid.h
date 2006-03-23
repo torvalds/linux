@@ -997,7 +997,7 @@ struct aac_dev
 	int			maximum_num_physicals;
 	int			maximum_num_channels;
 	struct fsa_dev_info	*fsa_dev;
-	pid_t			thread_pid;
+	struct task_struct	*thread;
 	int			cardtype;
 	
 	/*
@@ -1017,7 +1017,6 @@ struct aac_dev
 	 *	AIF thread states
 	 */
 	u32			aif_thread;
-	struct completion	aif_completion;
 	struct aac_adapter_info adapter_info;
 	struct aac_supplement_adapter_info supplement_adapter_info;
 	/* These are in adapter info but they are in the io flow so
@@ -1797,7 +1796,7 @@ int aac_sa_init(struct aac_dev *dev);
 unsigned int aac_response_normal(struct aac_queue * q);
 unsigned int aac_command_normal(struct aac_queue * q);
 unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index);
-int aac_command_thread(struct aac_dev * dev);
+int aac_command_thread(void *data);
 int aac_close_fib_context(struct aac_dev * dev, struct aac_fib_context *fibctx);
 int aac_fib_adapter_complete(struct fib * fibptr, unsigned short size);
 struct aac_driver_ident* aac_get_driver_ident(int devtype);

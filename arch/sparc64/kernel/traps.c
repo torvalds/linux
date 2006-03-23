@@ -2482,6 +2482,7 @@ void init_cur_cpu_trap(struct thread_info *t)
 
 extern void thread_info_offsets_are_bolixed_dave(void);
 extern void trap_per_cpu_offsets_are_bolixed_dave(void);
+extern void tsb_config_offsets_are_bolixed_dave(void);
 
 /* Only invoked on boot processor. */
 void __init trap_init(void)
@@ -2535,8 +2536,26 @@ void __init trap_init(void)
 	    (TRAP_PER_CPU_CPU_MONDO_BLOCK_PA !=
 	     offsetof(struct trap_per_cpu, cpu_mondo_block_pa)) ||
 	    (TRAP_PER_CPU_CPU_LIST_PA !=
-	     offsetof(struct trap_per_cpu, cpu_list_pa)))
+	     offsetof(struct trap_per_cpu, cpu_list_pa)) ||
+	    (TRAP_PER_CPU_TSB_HUGE !=
+	     offsetof(struct trap_per_cpu, tsb_huge)) ||
+	    (TRAP_PER_CPU_TSB_HUGE_TEMP !=
+	     offsetof(struct trap_per_cpu, tsb_huge_temp)))
 		trap_per_cpu_offsets_are_bolixed_dave();
+
+	if ((TSB_CONFIG_TSB !=
+	     offsetof(struct tsb_config, tsb)) ||
+	    (TSB_CONFIG_RSS_LIMIT !=
+	     offsetof(struct tsb_config, tsb_rss_limit)) ||
+	    (TSB_CONFIG_NENTRIES !=
+	     offsetof(struct tsb_config, tsb_nentries)) ||
+	    (TSB_CONFIG_REG_VAL !=
+	     offsetof(struct tsb_config, tsb_reg_val)) ||
+	    (TSB_CONFIG_MAP_VADDR !=
+	     offsetof(struct tsb_config, tsb_map_vaddr)) ||
+	    (TSB_CONFIG_MAP_PTE !=
+	     offsetof(struct tsb_config, tsb_map_pte)))
+		tsb_config_offsets_are_bolixed_dave();
 
 	/* Attach to the address space of init_task.  On SMP we
 	 * do this in smp.c:smp_callin for other cpus.

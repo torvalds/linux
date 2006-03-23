@@ -36,7 +36,7 @@ static void snd_instr_lock_ops(struct snd_seq_kinstr_list *list)
 	if (!(list->flags & SNDRV_SEQ_INSTR_FLG_DIRECT)) {
 		spin_lock_irqsave(&list->ops_lock, list->ops_flags);
 	} else {
-		down(&list->ops_mutex);
+		mutex_lock(&list->ops_mutex);
 	}
 }
 
@@ -45,7 +45,7 @@ static void snd_instr_unlock_ops(struct snd_seq_kinstr_list *list)
 	if (!(list->flags & SNDRV_SEQ_INSTR_FLG_DIRECT)) {
 		spin_unlock_irqrestore(&list->ops_lock, list->ops_flags);
 	} else {
-		up(&list->ops_mutex);
+		mutex_unlock(&list->ops_mutex);
 	}
 }
 
@@ -82,7 +82,7 @@ struct snd_seq_kinstr_list *snd_seq_instr_list_new(void)
 		return NULL;
 	spin_lock_init(&list->lock);
 	spin_lock_init(&list->ops_lock);
-	init_MUTEX(&list->ops_mutex);
+	mutex_init(&list->ops_mutex);
 	list->owner = -1;
 	return list;
 }

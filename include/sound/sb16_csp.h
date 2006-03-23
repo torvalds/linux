@@ -158,7 +158,7 @@ struct snd_sb_csp {
 	struct snd_kcontrol *qsound_switch;
 	struct snd_kcontrol *qsound_space;
 
-	struct semaphore access_mutex;	/* locking */
+	struct mutex access_mutex;	/* locking */
 };
 
 int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep);

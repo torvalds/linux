@@ -2,8 +2,9 @@
    3w-9xxx.h -- 3ware 9000 Storage Controller device driver for Linux.
 
    Written By: Adam Radford <linuxraid@amcc.com>
+   Modifications By: Tom Couch <linuxraid@amcc.com>
 
-   Copyright (C) 2004-2005 Applied Micro Circuits Corporation.
+   Copyright (C) 2004-2006 Applied Micro Circuits Corporation.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -287,9 +288,6 @@ static twa_message_type twa_error_table[] = {
 #define TW_STATUS_UNEXPECTED_BITS	       0x00F00000
 #define TW_STATUS_VALID_INTERRUPT              0x00DF0000
 
-/* RESPONSE QUEUE BIT DEFINITIONS */
-#define TW_RESPONSE_ID_MASK		       0x00000FF0
-
 /* PCI related defines */
 #define TW_NUMDEVICES 1
 #define TW_PCI_CLEAR_PARITY_ERRORS 0xc100
@@ -471,6 +469,7 @@ printk(KERN_WARNING "3w-9xxx: ERROR: (0x%02X:0x%04X): %s.\n",a,b,c); \
 #define TW_APACHE_MAX_SGL_LENGTH (sizeof(dma_addr_t) > 4 ? 72 : 109)
 #define TW_ESCALADE_MAX_SGL_LENGTH (sizeof(dma_addr_t) > 4 ? 41 : 62)
 #define TW_PADDING_LENGTH (sizeof(dma_addr_t) > 4 ? 8 : 0)
+#define TW_CPU_TO_SGL(x) (sizeof(dma_addr_t) > 4 ? cpu_to_le64(x) : cpu_to_le32(x))
 
 #pragma pack(1)
 
@@ -614,13 +613,6 @@ typedef union TAG_TW_Response_Queue {
 	u32 value;
 } TW_Response_Queue;
 
-typedef struct TAG_TW_Info {
-	char *buffer;
-	int length;
-	int offset;
-	int position;
-} TW_Info;
-
 /* Compatibility information structure */
 typedef struct TAG_TW_Compatibility_Info
 {
@@ -635,6 +627,8 @@ typedef struct TAG_TW_Compatibility_Info
 	unsigned short driver_branch_low;
 	unsigned short driver_build_low;
 } TW_Compatibility_Info;
+
+#pragma pack()
 
 typedef struct TAG_TW_Device_Extension {
 	u32                     __iomem *base_addr;
@@ -678,8 +672,6 @@ typedef struct TAG_TW_Device_Extension {
 	unsigned short		working_branch;
 	unsigned short		working_build;
 } TW_Device_Extension;
-
-#pragma pack()
 
 #endif /* _3W_9XXX_H */
 

@@ -24,6 +24,7 @@
 #define __SOUND_PCXHR_H
 
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
 #include <sound/pcm.h>
 
 #define PCXHR_DRIVER_VERSION		0x000804	/* 0.8.4 */
@@ -76,8 +77,8 @@ struct pcxhr_mgr {
 	spinlock_t lock;		/* interrupt spinlock */
 	spinlock_t msg_lock;		/* message spinlock */
 
-	struct semaphore setup_mutex;	/* mutex used in hw_params, open and close */
-	struct semaphore mixer_mutex;	/* mutex for mixer */
+	struct mutex setup_mutex;	/* mutex used in hw_params, open and close */
+	struct mutex mixer_mutex;	/* mutex for mixer */
 
 	/* hardware interface */
 	unsigned int dsp_loaded;	/* bit flags of loaded dsp indices */

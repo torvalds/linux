@@ -53,6 +53,7 @@
 
 #include "driver.h"
 #include <linux/time.h>
+#include <linux/mutex.h>
 #include "core.h"
 #include "hwdep.h"
 #include "timer.h"
@@ -312,7 +313,7 @@ struct snd_opl3 {
 	int sys_timer_status;		/* system timer run status */
 	spinlock_t sys_timer_lock;	/* Lock for system timer access */
 #endif
-	struct semaphore access_mutex;	/* locking */
+	struct mutex access_mutex;	/* locking */
 };
 
 /* opl3.c */

@@ -64,7 +64,7 @@ struct snd_seq_kinstr_list {
 
 	spinlock_t lock;
 	spinlock_t ops_lock;
-	struct semaphore ops_mutex;
+	struct mutex ops_mutex;
 	unsigned long ops_flags;
 };
 

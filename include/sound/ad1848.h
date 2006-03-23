@@ -154,7 +154,7 @@ struct snd_ad1848 {
 #endif
 
 	spinlock_t reg_lock;
-	struct semaphore open_mutex;
+	struct mutex open_mutex;
 };
 
 /* exported functions */

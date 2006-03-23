@@ -477,7 +477,7 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static unsigned int cyc2ns_scale;
+static unsigned int cyc2ns_scale __read_mostly;
 #define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
 
 static inline void set_cyc2ns_scale(unsigned long cpu_khz)
