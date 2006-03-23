@@ -61,7 +61,7 @@
 static DEFINE_SPINLOCK(modlist_lock);
 
 /* List of modules, protected by module_mutex AND modlist_lock */
-static DECLARE_MUTEX(module_mutex);
+static DEFINE_MUTEX(module_mutex);
 static LIST_HEAD(modules);
 
 static DEFINE_MUTEX(notify_mutex);
@@ -602,7 +602,7 @@ static void free_module(struct module *mod);
 static void wait_for_zero_refcount(struct module *mod)
 {
 	/* Since we might sleep for some time, drop the semaphore first */
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 	for (;;) {
 		DEBUGP("Looking at refcount...\n");
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -611,7 +611,7 @@ static void wait_for_zero_refcount(struct module *mod)
 		schedule();
 	}
 	current->state = TASK_RUNNING;
-	down(&module_mutex);
+	mutex_lock(&module_mutex);
 }
 
 asmlinkage long
@@ -628,7 +628,7 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 		return -EFAULT;
 	name[MODULE_NAME_LEN-1] = '\0';
 
-	if (down_interruptible(&module_mutex) != 0)
+	if (mutex_lock_interruptible(&module_mutex) != 0)
 		return -EINTR;
 
 	mod = find_module(name);
@@ -677,14 +677,14 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 
 	/* Final destruction now noone is using it. */
 	if (mod->exit != NULL) {
-		up(&module_mutex);
+		mutex_unlock(&module_mutex);
 		mod->exit();
-		down(&module_mutex);
+		mutex_lock(&module_mutex);
 	}
 	free_module(mod);
 
  out:
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 	return ret;
 }
 
@@ -1973,13 +1973,13 @@ sys_init_module(void __user *umod,
 		return -EPERM;
 
 	/* Only one module load at a time, please */
-	if (down_interruptible(&module_mutex) != 0)
+	if (mutex_lock_interruptible(&module_mutex) != 0)
 		return -EINTR;
 
 	/* Do all the hard work */
 	mod = load_module(umod, len, uargs);
 	if (IS_ERR(mod)) {
-		up(&module_mutex);
+		mutex_unlock(&module_mutex);
 		return PTR_ERR(mod);
 	}
 
@@ -1988,7 +1988,7 @@ sys_init_module(void __user *umod,
 	stop_machine_run(__link_module, mod, NR_CPUS);
 
 	/* Drop lock so they can recurse */
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 
 	mutex_lock(&notify_mutex);
 	notifier_call_chain(&module_notify_list, MODULE_STATE_COMING, mod);
@@ -2007,15 +2007,15 @@ sys_init_module(void __user *umod,
 			       mod->name);
 		else {
 			module_put(mod);
-			down(&module_mutex);
+			mutex_lock(&module_mutex);
 			free_module(mod);
-			up(&module_mutex);
+			mutex_unlock(&module_mutex);
 		}
 		return ret;
 	}
 
 	/* Now it's a first class citizen! */
-	down(&module_mutex);
+	mutex_lock(&module_mutex);
 	mod->state = MODULE_STATE_LIVE;
 	/* Drop initial reference. */
 	module_put(mod);
@@ -2023,7 +2023,7 @@ sys_init_module(void __user *umod,
 	mod->module_init = NULL;
 	mod->init_size = 0;
 	mod->init_text_size = 0;
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 
 	return 0;
 }
@@ -2113,7 +2113,7 @@ struct module *module_get_kallsym(unsigned int symnum,
 {
 	struct module *mod;
 
-	down(&module_mutex);
+	mutex_lock(&module_mutex);
 	list_for_each_entry(mod, &modules, list) {
 		if (symnum < mod->num_symtab) {
 			*value = mod->symtab[symnum].st_value;
@@ -2121,12 +2121,12 @@ struct module *module_get_kallsym(unsigned int symnum,
 			strncpy(namebuf,
 				mod->strtab + mod->symtab[symnum].st_name,
 				127);
-			up(&module_mutex);
+			mutex_unlock(&module_mutex);
 			return mod;
 		}
 		symnum -= mod->num_symtab;
 	}
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 	return NULL;
 }
 
@@ -2169,7 +2169,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 	struct list_head *i;
 	loff_t n = 0;
 
-	down(&module_mutex);
+	mutex_lock(&module_mutex);
 	list_for_each(i, &modules) {
 		if (n++ == *pos)
 			break;
@@ -2190,7 +2190,7 @@ static void *m_next(struct seq_file *m, void *p, loff_t *pos)
 
 static void m_stop(struct seq_file *m, void *p)
 {
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 }
 
 static int m_show(struct seq_file *m, void *p)
