@@ -85,14 +85,15 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 
 	for (i = 0; i < num; i++) {
 
-		switch (msg[i].addr) {
-			case 0x63:
-				cxusb_gpio_tuner(d,0);
-				break;
-			default:
-				cxusb_gpio_tuner(d,1);
-				break;
-		}
+		if (d->udev->descriptor.idVendor == USB_VID_MEDION)
+			switch (msg[i].addr) {
+				case 0x63:
+					cxusb_gpio_tuner(d,0);
+					break;
+				default:
+					cxusb_gpio_tuner(d,1);
+					break;
+			}
 
 		/* read request */
 		if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
