@@ -138,6 +138,7 @@
 #define   ASIC_REV_5752			 0x06
 #define   ASIC_REV_5780			 0x08
 #define   ASIC_REV_5714			 0x09
+#define   ASIC_REV_5755			 0x0a
 #define   ASIC_REV_5787			 0x0b
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
@@ -456,6 +457,7 @@
 #define  RX_MODE_PROMISC		 0x00000100
 #define  RX_MODE_NO_CRC_CHECK		 0x00000200
 #define  RX_MODE_KEEP_VLAN_TAG		 0x00000400
+#define  RX_MODE_IPV6_CSUM_ENABLE	 0x01000000
 #define MAC_RX_STATUS			0x0000046c
 #define  RX_STATUS_REMOTE_TX_XOFFED	 0x00000001
 #define  RX_STATUS_XOFF_RCVD		 0x00000002
@@ -1340,6 +1342,7 @@
 #define  GRC_LCLCTRL_CLEARINT		0x00000002
 #define  GRC_LCLCTRL_SETINT		0x00000004
 #define  GRC_LCLCTRL_INT_ON_ATTN	0x00000008
+#define  GRC_LCLCTRL_GPIO_UART_SEL	0x00000010	/* 5755 only */
 #define  GRC_LCLCTRL_USE_SIG_DETECT	0x00000010	/* 5714/5780 only */
 #define  GRC_LCLCTRL_USE_EXT_SIG_DETECT	0x00000020	/* 5714/5780 only */
 #define  GRC_LCLCTRL_GPIO_INPUT3	0x00000020
@@ -2259,6 +2262,7 @@ struct tg3 {
 #define PHY_ID_BCM5752			0x60008100
 #define PHY_ID_BCM5714			0x60008340
 #define PHY_ID_BCM5780			0x60008350
+#define PHY_ID_BCM5755			0xbc050cc0
 #define PHY_ID_BCM5787			0xbc050ce0
 #define PHY_ID_BCM8002			0x60010140
 #define PHY_ID_INVALID			0xffffffff
@@ -2286,7 +2290,7 @@ struct tg3 {
 	 (X) == PHY_ID_BCM5705 || (X) == PHY_ID_BCM5750 || \
 	 (X) == PHY_ID_BCM5752 || (X) == PHY_ID_BCM5714 || \
 	 (X) == PHY_ID_BCM5780 || (X) == PHY_ID_BCM5787 || \
-	 (X) == PHY_ID_BCM8002)
+	 (X) == PHY_ID_BCM5755 || (X) == PHY_ID_BCM8002)
 
 	struct tg3_hw_stats		*hw_stats;
 	dma_addr_t			stats_mapping;
