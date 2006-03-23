@@ -1126,6 +1126,11 @@ running once the system is up.
 	pas16=		[HW,SCSI]
 			See header of drivers/scsi/pas16.c.
 
+	pause_on_oops=
+			Halt all CPUs after the first oops has been printed for
+			the specified number of seconds.  This is to be used if
+			your oopses keep scrolling off the screen.
+
 	pcbit=		[HW,ISDN]
 
 	pcd.		[PARIDE]

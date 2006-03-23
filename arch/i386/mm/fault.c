@@ -509,24 +509,31 @@ no_context:
 
 	bust_spinlocks(1);
 
-#ifdef CONFIG_X86_PAE
-	if (error_code & 16) {
-		pte_t *pte = lookup_address(address);
+	if (oops_may_print()) {
+	#ifdef CONFIG_X86_PAE
+		if (error_code & 16) {
+			pte_t *pte = lookup_address(address);
 
-		if (pte && pte_present(*pte) && !pte_exec_kernel(*pte))
-			printk(KERN_CRIT "kernel tried to execute NX-protected page - exploit attempt? (uid: %d)\n", current->uid);
+			if (pte && pte_present(*pte) && !pte_exec_kernel(*pte))
+				printk(KERN_CRIT "kernel tried to execute "
+					"NX-protected page - exploit attempt? "
+					"(uid: %d)\n", current->uid);
+		}
+	#endif
+		if (address < PAGE_SIZE)
+			printk(KERN_ALERT "BUG: unable to handle kernel NULL "
+					"pointer dereference");
+		else
+			printk(KERN_ALERT "BUG: unable to handle kernel paging"
+					" request");
+		printk(" at virtual address %08lx\n",address);
+		printk(KERN_ALERT " printing eip:\n");
+		printk("%08lx\n", regs->eip);
 	}
-#endif
-	if (address < PAGE_SIZE)
-		printk(KERN_ALERT "BUG: unable to handle kernel NULL pointer dereference");
-	else
-		printk(KERN_ALERT "BUG: unable to handle kernel paging request");
-	printk(" at virtual address %08lx\n",address);
-	printk(KERN_ALERT " printing eip:\n");
-	printk("%08lx\n", regs->eip);
 	page = read_cr3();
 	page = ((unsigned long *) __va(page))[address >> 22];
-	printk(KERN_ALERT "*pde = %08lx\n", page);
+	if (oops_may_print())
+		printk(KERN_ALERT "*pde = %08lx\n", page);
 	/*
 	 * We must not directly access the pte in the highpte
 	 * case, the page table might be allocated in highmem.
@@ -534,7 +541,7 @@ no_context:
 	 * it's allocated already.
 	 */
 #ifndef CONFIG_HIGHPTE
-	if (page & 1) {
+	if ((page & 1) && oops_may_print()) {
 		page &= PAGE_MASK;
 		address &= 0x003ff000;
 		page = ((unsigned long *) __va(page))[address >> PAGE_SHIFT];

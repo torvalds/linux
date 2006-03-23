@@ -352,6 +352,8 @@ void die(const char * str, struct pt_regs * regs, long err)
 	static int die_counter;
 	unsigned long flags;
 
+	oops_enter();
+
 	if (die.lock_owner != raw_smp_processor_id()) {
 		console_verbose();
 		spin_lock_irqsave(&die.lock, flags);
@@ -404,6 +406,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 		ssleep(5);
 		panic("Fatal exception");
 	}
+	oops_exit();
 	do_exit(SIGSEGV);
 }
 
