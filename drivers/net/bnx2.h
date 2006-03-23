@@ -13,46 +13,6 @@
 #ifndef BNX2_H
 #define BNX2_H
 
-#include <linux/config.h>
-
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-
-#include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/interrupt.h>
-#include <linux/pci.h>
-#include <linux/init.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-#include <linux/dma-mapping.h>
-#include <asm/bitops.h>
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <linux/delay.h>
-#include <asm/byteorder.h>
-#include <linux/time.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-#ifdef NETIF_F_HW_VLAN_TX
-#include <linux/if_vlan.h>
-#define BCM_VLAN 1
-#endif
-#ifdef NETIF_F_TSO
-#include <net/ip.h>
-#include <net/tcp.h>
-#include <net/checksum.h>
-#define BCM_TSO 1
-#endif
-#include <linux/workqueue.h>
-#include <linux/crc32.h>
-#include <linux/prefetch.h>
-
 /* Hardware data structures and register definitions automatically
  * generated from RTL code. Do not modify.
  */
