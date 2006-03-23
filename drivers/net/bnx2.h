@@ -4083,6 +4083,8 @@ struct bnx2 {
 
 	struct flash_spec	*flash_info;
 	u32			flash_size;
+
+	int			status_stats_size;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);

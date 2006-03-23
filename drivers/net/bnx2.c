@@ -359,15 +359,11 @@ bnx2_free_mem(struct bnx2 *bp)
 {
 	int i;
 
-	if (bp->stats_blk) {
-		pci_free_consistent(bp->pdev, sizeof(struct statistics_block),
-				    bp->stats_blk, bp->stats_blk_mapping);
-		bp->stats_blk = NULL;
-	}
 	if (bp->status_blk) {
-		pci_free_consistent(bp->pdev, sizeof(struct status_block),
+		pci_free_consistent(bp->pdev, bp->status_stats_size,
 				    bp->status_blk, bp->status_blk_mapping);
 		bp->status_blk = NULL;
+		bp->stats_blk = NULL;
 	}
 	if (bp->tx_desc_ring) {
 		pci_free_consistent(bp->pdev,
@@ -392,14 +388,13 @@ bnx2_free_mem(struct bnx2 *bp)
 static int
 bnx2_alloc_mem(struct bnx2 *bp)
 {
-	int i;
+	int i, status_blk_size;
 
-	bp->tx_buf_ring = kmalloc(sizeof(struct sw_bd) * TX_DESC_CNT,
-				     GFP_KERNEL);
+	bp->tx_buf_ring = kzalloc(sizeof(struct sw_bd) * TX_DESC_CNT,
+				  GFP_KERNEL);
 	if (bp->tx_buf_ring == NULL)
 		return -ENOMEM;
 
-	memset(bp->tx_buf_ring, 0, sizeof(struct sw_bd) * TX_DESC_CNT);
 	bp->tx_desc_ring = pci_alloc_consistent(bp->pdev,
 					        sizeof(struct tx_bd) *
 						TX_DESC_CNT,
@@ -425,21 +420,22 @@ bnx2_alloc_mem(struct bnx2 *bp)
 
 	}
 
-	bp->status_blk = pci_alloc_consistent(bp->pdev,
-					      sizeof(struct status_block),
+	/* Combine status and statistics blocks into one allocation. */
+	status_blk_size = L1_CACHE_ALIGN(sizeof(struct status_block));
+	bp->status_stats_size = status_blk_size +
+				sizeof(struct statistics_block);
+
+	bp->status_blk = pci_alloc_consistent(bp->pdev, bp->status_stats_size,
 					      &bp->status_blk_mapping);
 	if (bp->status_blk == NULL)
 		goto alloc_mem_err;
 
-	memset(bp->status_blk, 0, sizeof(struct status_block));
+	memset(bp->status_blk, 0, bp->status_stats_size);
 
-	bp->stats_blk = pci_alloc_consistent(bp->pdev,
-					     sizeof(struct statistics_block),
-					     &bp->stats_blk_mapping);
-	if (bp->stats_blk == NULL)
-		goto alloc_mem_err;
+	bp->stats_blk = (void *) ((unsigned long) bp->status_blk +
+				  status_blk_size);
 
-	memset(bp->stats_blk, 0, sizeof(struct statistics_block));
+	bp->stats_blk_mapping = bp->status_blk_mapping + status_blk_size;
 
 	return 0;
 
