@@ -26,9 +26,9 @@ extern suspend_disk_method_t pm_disk_mode;
 
 extern int swsusp_shrink_memory(void);
 extern int swsusp_suspend(void);
-extern int swsusp_write(struct pbe *pblist, unsigned int nr_pages);
+extern int swsusp_write(void);
 extern int swsusp_check(void);
-extern int swsusp_read(struct pbe **pblist_ptr);
+extern int swsusp_read(void);
 extern void swsusp_close(void);
 extern int swsusp_resume(void);
 
@@ -69,10 +69,6 @@ static void power_down(suspend_disk_method_t mode)
 	printk(KERN_CRIT "Please power me down manually\n");
 	while(1);
 }
-
-
-static int in_suspend __nosavedata = 0;
-
 
 static inline void platform_finish(void)
 {
@@ -145,7 +141,7 @@ int pm_suspend_disk(void)
 	if (in_suspend) {
 		device_resume();
 		pr_debug("PM: writing image.\n");
-		error = swsusp_write(pagedir_nosave, nr_copy_pages);
+		error = swsusp_write();
 		if (!error)
 			power_down(pm_disk_mode);
 		else {
@@ -216,7 +212,7 @@ static int software_resume(void)
 
 	pr_debug("PM: Reading swsusp image.\n");
 
-	if ((error = swsusp_read(&pagedir_nosave))) {
+	if ((error = swsusp_read())) {
 		swsusp_free();
 		goto Thaw;
 	}

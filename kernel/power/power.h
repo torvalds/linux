@@ -37,21 +37,31 @@ extern struct subsystem power_subsys;
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;
 
-extern unsigned int nr_copy_pages;
 extern struct pbe *pagedir_nosave;
 
 /* Preferred image size in bytes (default 500 MB) */
 extern unsigned long image_size;
 
+extern int in_suspend;
+
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
 
 extern unsigned int count_data_pages(void);
-extern void free_pagedir(struct pbe *pblist);
-extern void release_eaten_pages(void);
-extern struct pbe *alloc_pagedir(unsigned nr_pages, gfp_t gfp_mask, int safe_needed);
 extern void swsusp_free(void);
-extern int alloc_data_pages(struct pbe *pblist, gfp_t gfp_mask, int safe_needed);
-extern unsigned int snapshot_nr_pages(void);
-extern struct pbe *snapshot_pblist(void);
-extern void snapshot_pblist_set(struct pbe *pblist);
+
+struct snapshot_handle {
+	loff_t		offset;
+	unsigned int	page;
+	unsigned int	page_offset;
+	unsigned int	prev;
+	struct pbe	*pbe;
+	void		*buffer;
+	unsigned int	buf_offset;
+};
+
+#define data_of(handle)	((handle).buffer + (handle).buf_offset)
+
+extern int snapshot_read_next(struct snapshot_handle *handle, size_t count);
+extern int snapshot_write_next(struct snapshot_handle *handle, size_t count);
+int snapshot_image_loaded(struct snapshot_handle *handle);
