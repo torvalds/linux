@@ -2155,7 +2155,7 @@ static int skge_up(struct net_device *dev)
 		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
 
 	if (dev->mtu > RX_BUF_SIZE)
-		skge->rx_buf_size = dev->mtu + ETH_HLEN + NET_IP_ALIGN;
+		skge->rx_buf_size = dev->mtu + ETH_HLEN;
 	else
 		skge->rx_buf_size = RX_BUF_SIZE;
 
@@ -2611,6 +2611,7 @@ static inline struct sk_buff *skge_rx_get(struct skge_port *skge,
 		if (!nskb)
 			goto resubmit;
 
+		skb_reserve(nskb, NET_IP_ALIGN);
 		pci_unmap_single(skge->hw->pdev,
 				 pci_unmap_addr(e, mapaddr),
 				 pci_unmap_len(e, maplen),
