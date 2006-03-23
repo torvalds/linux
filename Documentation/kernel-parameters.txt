@@ -1008,7 +1008,9 @@ running once the system is up.
 			noexec=on: enable non-executable mappings (default)
 			noexec=off: disable nn-executable mappings
 
-	nofxsr		[BUGS=IA-32]
+	nofxsr		[BUGS=IA-32] Disables x86 floating point extended
+			register save and restore. The kernel will only save
+			legacy floating-point registers on task switch.
 
 	nohlt		[BUGS=ARM]
 
@@ -1052,6 +1054,8 @@ running once the system is up.
 			reader made by F.H. Papenmeier (Germany).
 
 	nosbagart	[IA-64]
+
+	nosep		[BUGS=IA-32] Disables x86 SYSENTER/SYSEXIT support.
 
 	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel.
 

@@ -26,8 +26,9 @@ DEFINE_PER_CPU(unsigned char, cpu_16bit_stack[CPU_16BIT_STACK_SIZE]);
 EXPORT_PER_CPU_SYMBOL(cpu_16bit_stack);
 
 static int cachesize_override __cpuinitdata = -1;
-static int disable_x86_fxsr __cpuinitdata = 0;
+static int disable_x86_fxsr __cpuinitdata;
 static int disable_x86_serial_nr __cpuinitdata = 1;
+static int disable_x86_sep __cpuinitdata;
 
 struct cpu_dev * cpu_devs[X86_VENDOR_NUM] = {};
 
@@ -185,6 +186,14 @@ static int __init x86_fxsr_setup(char * s)
 	return 1;
 }
 __setup("nofxsr", x86_fxsr_setup);
+
+
+static int __init x86_sep_setup(char * s)
+{
+	disable_x86_sep = 1;
+	return 1;
+}
+__setup("nosep", x86_sep_setup);
 
 
 /* Standard macro to see if a specific flag is changeable */
@@ -404,6 +413,10 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		clear_bit(X86_FEATURE_FXSR, c->x86_capability);
 		clear_bit(X86_FEATURE_XMM, c->x86_capability);
 	}
+
+	/* SEP disabled? */
+	if (disable_x86_sep)
+		clear_bit(X86_FEATURE_SEP, c->x86_capability);
 
 	if (disable_pse)
 		clear_bit(X86_FEATURE_PSE, c->x86_capability);
