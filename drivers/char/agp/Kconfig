@@ -103,7 +103,7 @@ config AGP_SWORKS
 
 config AGP_VIA
 	tristate "VIA chipset support"
-	depends on AGP && X86_32
+	depends on AGP
 	help
 	  This option gives you AGP support for the GLX component of
 	  X on VIA MVP3/Apollo Pro chipsets.
