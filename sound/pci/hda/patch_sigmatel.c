@@ -534,6 +534,22 @@ static int stac92xx_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static unsigned int stac92xx_get_vref(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int pincap = snd_hda_param_read(codec, nid,
+						 AC_PAR_PIN_CAP);
+	pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
+	if (pincap & AC_PINCAP_VREF_100)
+		return AC_PINCTL_VREF_100;
+	if (pincap & AC_PINCAP_VREF_80)
+		return AC_PINCTL_VREF_80;
+	if (pincap & AC_PINCAP_VREF_50)
+		return AC_PINCTL_VREF_50;
+	if (pincap & AC_PINCAP_VREF_GRD)
+		return AC_PINCTL_VREF_GRD;
+	return 0;
+}
+
 static void stac92xx_auto_set_pinctl(struct hda_codec *codec, hda_nid_t nid, int pin_type)
 
 {
@@ -571,9 +587,12 @@ static int stac92xx_io_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 
 	if (val)
 		stac92xx_auto_set_pinctl(codec, nid, AC_PINCTL_OUT_EN);
-	else
-		stac92xx_auto_set_pinctl(codec, nid, AC_PINCTL_IN_EN);
-
+	else {
+		unsigned int pinctl = AC_PINCTL_IN_EN;
+		if (io_idx) /* set VREF for mic */
+			pinctl |= stac92xx_get_vref(codec, nid);
+		stac92xx_auto_set_pinctl(codec, nid, pinctl);
+	}
         return 1;
 }
 
@@ -951,9 +970,13 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac92xx_auto_init_hp_out(codec);
 	}
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		if (cfg->input_pins[i])
-			stac92xx_auto_set_pinctl(codec, cfg->input_pins[i],
-						 AC_PINCTL_IN_EN);
+		hda_nid_t nid = cfg->input_pins[i];
+		if (nid) {
+			unsigned int pinctl = AC_PINCTL_IN_EN;
+			if (i == AUTO_PIN_MIC || i == AUTO_PIN_FRONT_MIC)
+				pinctl |= stac92xx_get_vref(codec, nid);
+			stac92xx_auto_set_pinctl(codec, nid, pinctl);
+		}
 	}
 	if (cfg->dig_out_pin)
 		stac92xx_auto_set_pinctl(codec, cfg->dig_out_pin,
