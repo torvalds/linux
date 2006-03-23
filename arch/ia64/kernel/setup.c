@@ -131,8 +131,8 @@ EXPORT_SYMBOL(ia64_max_iommu_merge_mask);
 /*
  * We use a special marker for the end of memory and it uses the extra (+1) slot
  */
-struct rsvd_region rsvd_region[IA64_MAX_RSVD_REGIONS + 1];
-int num_rsvd_regions;
+struct rsvd_region rsvd_region[IA64_MAX_RSVD_REGIONS + 1] __initdata;
+int num_rsvd_regions __initdata;
 
 
 /*
@@ -141,7 +141,7 @@ int num_rsvd_regions;
  * caller-specified function is called with the memory ranges that remain after filtering.
  * This routine does not assume the incoming segments are sorted.
  */
-int
+int __init
 filter_rsvd_memory (unsigned long start, unsigned long end, void *arg)
 {
 	unsigned long range_start, range_end, prev_start;
@@ -177,7 +177,7 @@ filter_rsvd_memory (unsigned long start, unsigned long end, void *arg)
 	return 0;
 }
 
-static void
+static void __init
 sort_regions (struct rsvd_region *rsvd_region, int max)
 {
 	int j;
@@ -218,7 +218,7 @@ __initcall(register_memory);
  * initrd, etc.  There are currently %IA64_MAX_RSVD_REGIONS defined,
  * see include/asm-ia64/meminit.h if you need to define more.
  */
-void
+void __init
 reserve_memory (void)
 {
 	int n = 0;
@@ -270,7 +270,7 @@ reserve_memory (void)
  * Grab the initrd start and end from the boot parameter struct given us by
  * the boot loader.
  */
-void
+void __init
 find_initrd (void)
 {
 #ifdef CONFIG_BLK_DEV_INITRD
