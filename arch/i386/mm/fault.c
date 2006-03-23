@@ -518,9 +518,9 @@ no_context:
 	}
 #endif
 	if (address < PAGE_SIZE)
-		printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference");
+		printk(KERN_ALERT "BUG: unable to handle kernel NULL pointer dereference");
 	else
-		printk(KERN_ALERT "Unable to handle kernel paging request");
+		printk(KERN_ALERT "BUG: unable to handle kernel paging request");
 	printk(" at virtual address %08lx\n",address);
 	printk(KERN_ALERT " printing eip:\n");
 	printk("%08lx\n", regs->eip);

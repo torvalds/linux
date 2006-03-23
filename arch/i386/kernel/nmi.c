@@ -543,7 +543,7 @@ void nmi_watchdog_tick (struct pt_regs * regs)
 			/*
 			 * die_nmi will return ONLY if NOTIFY_STOP happens..
 			 */
-			die_nmi(regs, "NMI Watchdog detected LOCKUP");
+			die_nmi(regs, "BUG: NMI Watchdog detected LOCKUP");
 	} else {
 		last_irq_sums[cpu] = sum;
 		alert_counter[cpu] = 0;

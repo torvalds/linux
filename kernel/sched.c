@@ -2873,7 +2873,7 @@ asmlinkage void __sched schedule(void)
 	 */
 	if (likely(!current->exit_state)) {
 		if (unlikely(in_atomic())) {
-			printk(KERN_ERR "scheduling while atomic: "
+			printk(KERN_ERR "BUG: scheduling while atomic: "
 				"%s/0x%08x/%d\n",
 				current->comm, preempt_count(), current->pid);
 			dump_stack();
@@ -6074,7 +6074,7 @@ void __might_sleep(char *file, int line)
 		if (time_before(jiffies, prev_jiffy + HZ) && prev_jiffy)
 			return;
 		prev_jiffy = jiffies;
-		printk(KERN_ERR "Debug: sleeping function called from invalid"
+		printk(KERN_ERR "BUG: sleeping function called from invalid"
 				" context at %s:%d\n", file, line);
 		printk("in_atomic():%d, irqs_disabled():%d\n",
 			in_atomic(), irqs_disabled());
