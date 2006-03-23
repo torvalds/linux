@@ -41,6 +41,8 @@ ToDo/Notes:
 	- Fix a bug in fs/ntfs/inode.c::ntfs_read_locked_index_inode() where we
 	  forgot to update a temporary variable so loading index inodes which
 	  have an index allocation attribute failed.
+	- Add a missing call to flush_dcache_mft_record_page() in
+	  fs/ntfs/inode.c::ntfs_write_inode().
 
 2.1.26 - Minor bug fixes and updates.
 

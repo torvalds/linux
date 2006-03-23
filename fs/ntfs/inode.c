@@ -3064,9 +3064,12 @@ int ntfs_write_inode(struct inode *vi, int sync)
 	 * record will be cleaned and written out to disk below, i.e. before
 	 * this function returns.
 	 */
-	if (modified && !NInoTestSetDirty(ctx->ntfs_ino))
-		mark_ntfs_record_dirty(ctx->ntfs_ino->page,
-				ctx->ntfs_ino->page_ofs);
+	if (modified) {
+		flush_dcache_mft_record_page(ctx->ntfs_ino);
+		if (!NInoTestSetDirty(ctx->ntfs_ino)) {
+			mark_ntfs_record_dirty(ctx->ntfs_ino->page,
+					ctx->ntfs_ino->page_ofs);
+	}
 	ntfs_attr_put_search_ctx(ctx);
 	/* Now the access times are updated, write the base mft record. */
 	if (NInoDirty(ni))
