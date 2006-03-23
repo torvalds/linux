@@ -1099,26 +1099,38 @@ static BOOL check_mft_mirror(ntfs_volume *vol)
 			kmirr = page_address(mirr_page);
 			++index;
 		}
-		/* Make sure the record is ok. */
-		if (ntfs_is_baad_recordp((le32*)kmft)) {
-			ntfs_error(sb, "Incomplete multi sector transfer "
-					"detected in mft record %i.", i);
+		/* Do not check the record if it is not in use. */
+		if (((MFT_RECORD*)kmft)->flags & MFT_RECORD_IN_USE) {
+			/* Make sure the record is ok. */
+			if (ntfs_is_baad_recordp((le32*)kmft)) {
+				ntfs_error(sb, "Incomplete multi sector "
+						"transfer detected in mft "
+						"record %i.", i);
 mm_unmap_out:
-			ntfs_unmap_page(mirr_page);
+				ntfs_unmap_page(mirr_page);
 mft_unmap_out:
-			ntfs_unmap_page(mft_page);
-			return FALSE;
+				ntfs_unmap_page(mft_page);
+				return FALSE;
+			}
 		}
-		if (ntfs_is_baad_recordp((le32*)kmirr)) {
-			ntfs_error(sb, "Incomplete multi sector transfer "
-					"detected in mft mirror record %i.", i);
-			goto mm_unmap_out;
+		/* Do not check the mirror record if it is not in use. */
+		if (((MFT_RECORD*)kmirr)->flags & MFT_RECORD_IN_USE) {
+			if (ntfs_is_baad_recordp((le32*)kmirr)) {
+				ntfs_error(sb, "Incomplete multi sector "
+						"transfer detected in mft "
+						"mirror record %i.", i);
+				goto mm_unmap_out;
+			}
 		}
 		/* Get the amount of data in the current record. */
 		bytes = le32_to_cpu(((MFT_RECORD*)kmft)->bytes_in_use);
-		if (!bytes || bytes > vol->mft_record_size) {
+		if (bytes < sizeof(MFT_RECORD_OLD) ||
+				bytes > vol->mft_record_size ||
+				ntfs_is_baad_recordp((le32*)kmft)) {
 			bytes = le32_to_cpu(((MFT_RECORD*)kmirr)->bytes_in_use);
-			if (!bytes || bytes > vol->mft_record_size)
+			if (bytes < sizeof(MFT_RECORD_OLD) ||
+					bytes > vol->mft_record_size ||
+					ntfs_is_baad_recordp((le32*)kmirr))
 				bytes = vol->mft_record_size;
 		}
 		/* Compare the two records. */
