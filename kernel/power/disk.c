@@ -22,17 +22,6 @@
 #include "power.h"
 
 
-extern suspend_disk_method_t pm_disk_mode;
-
-extern int swsusp_shrink_memory(void);
-extern int swsusp_suspend(void);
-extern int swsusp_write(void);
-extern int swsusp_check(void);
-extern int swsusp_read(void);
-extern void swsusp_close(void);
-extern int swsusp_resume(void);
-
-
 static int noresume = 0;
 char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;

@@ -48,7 +48,6 @@ extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
 
 extern unsigned int count_data_pages(void);
-extern void swsusp_free(void);
 
 struct snapshot_handle {
 	loff_t		offset;
@@ -91,6 +90,11 @@ extern struct bitmap_page *alloc_bitmap(unsigned int nr_bits);
 extern unsigned long alloc_swap_page(int swap, struct bitmap_page *bitmap);
 extern void free_all_swap_pages(int swap, struct bitmap_page *bitmap);
 
+extern int swsusp_check(void);
 extern int swsusp_shrink_memory(void);
+extern void swsusp_free(void);
 extern int swsusp_suspend(void);
 extern int swsusp_resume(void);
+extern int swsusp_read(void);
+extern int swsusp_write(void);
+extern void swsusp_close(void);
