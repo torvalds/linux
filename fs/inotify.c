@@ -54,7 +54,7 @@ int inotify_max_queued_events;
  * Lock ordering:
  *
  * dentry->d_lock (used to keep d_move() away from dentry->d_parent)
- * iprune_sem (synchronize shrink_icache_memory())
+ * iprune_mutex (synchronize shrink_icache_memory())
  * 	inode_lock (protects the super_block->s_inodes list)
  * 	inode->inotify_mutex (protects inode->inotify_watches and watches->i_list)
  * 		inotify_dev->mutex (protects inotify_device and watches->d_list)
@@ -569,7 +569,7 @@ EXPORT_SYMBOL_GPL(inotify_get_cookie);
  * @list: list of inodes being unmounted (sb->s_inodes)
  *
  * Called with inode_lock held, protecting the unmounting super block's list
- * of inodes, and with iprune_sem held, keeping shrink_icache_memory() at bay.
+ * of inodes, and with iprune_mutex held, keeping shrink_icache_memory() at bay.
  * We temporarily drop inode_lock, however, and CAN block.
  */
 void inotify_unmount_inodes(struct list_head *list)
@@ -618,7 +618,7 @@ void inotify_unmount_inodes(struct list_head *list)
 		 * We can safely drop inode_lock here because we hold
 		 * references on both inode and next_i.  Also no new inodes
 		 * will be added since the umount has begun.  Finally,
-		 * iprune_sem keeps shrink_icache_memory() away.
+		 * iprune_mutex keeps shrink_icache_memory() away.
 		 */
 		spin_unlock(&inode_lock);
 
