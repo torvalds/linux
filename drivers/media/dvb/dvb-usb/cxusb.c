@@ -109,7 +109,7 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 				break;
 
 			if (ibuf[0] != 0x08)
-				deb_info("i2c read may have failed\n");
+				deb_i2c("i2c read may have failed\n");
 
 			memcpy(msg[i+1].buf,&ibuf[1],msg[i+1].len);
 
@@ -123,7 +123,7 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 			if (cxusb_ctrl_msg(d,CMD_I2C_WRITE, obuf, 2+msg[i].len, &ibuf,1) < 0)
 				break;
 			if (ibuf != 0x08)
-				deb_info("i2c write may have failed\n");
+				deb_i2c("i2c write may have failed\n");
 		}
 	}
 
