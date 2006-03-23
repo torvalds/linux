@@ -104,6 +104,8 @@ static struct hlist_head fib_rules;
 
 /* writer func called from netlink -- rtnl_sem hold*/
 
+static void rtmsg_rule(int, struct fib_rule *);
+
 int inet_rtm_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
 	struct rtattr **rta = arg;
@@ -131,6 +133,7 @@ int inet_rtm_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 			hlist_del_rcu(&r->hlist);
 			r->r_dead = 1;
+			rtmsg_rule(RTM_DELRULE, r);
 			fib_rule_put(r);
 			err = 0;
 			break;
@@ -253,6 +256,7 @@ int inet_rtm_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	else
 		hlist_add_before_rcu(&new_r->hlist, &r->hlist);
 
+	rtmsg_rule(RTM_NEWRULE, new_r);
 	return 0;
 }
 
@@ -382,14 +386,14 @@ static struct notifier_block fib_rules_notifier = {
 
 static __inline__ int inet_fill_rule(struct sk_buff *skb,
 				     struct fib_rule *r,
-				     struct netlink_callback *cb,
+				     u32 pid, u32 seq, int event,
 				     unsigned int flags)
 {
 	struct rtmsg *rtm;
 	struct nlmsghdr  *nlh;
 	unsigned char	 *b = skb->tail;
 
-	nlh = NLMSG_NEW_ANSWER(skb, cb, RTM_NEWRULE, sizeof(*rtm), flags);
+	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*rtm), flags);
 	rtm = NLMSG_DATA(nlh);
 	rtm->rtm_family = AF_INET;
 	rtm->rtm_dst_len = r->r_dst_len;
@@ -430,6 +434,21 @@ rtattr_failure:
 
 /* callers should hold rtnl semaphore */
 
+static void rtmsg_rule(int event, struct fib_rule *r)
+{
+	int size = NLMSG_SPACE(sizeof(struct rtmsg) + 128);
+	struct sk_buff *skb = alloc_skb(size, GFP_KERNEL);
+
+	if (!skb)
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV4_RULE, ENOBUFS);
+	else if (inet_fill_rule(skb, r, 0, 0, event, 0) < 0) {
+		kfree_skb(skb);
+		netlink_set_err(rtnl, 0, RTNLGRP_IPV4_RULE, EINVAL);
+	} else {
+		netlink_broadcast(rtnl, skb, 0, RTNLGRP_IPV4_RULE, GFP_KERNEL);
+	}
+}
+
 int inet_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	int idx = 0;
@@ -442,7 +461,9 @@ int inet_dump_rules(struct sk_buff *skb, struct netlink_callback *cb)
 
 		if (idx < s_idx)
 			continue;
-		if (inet_fill_rule(skb, r, cb, NLM_F_MULTI) < 0)
+		if (inet_fill_rule(skb, r, NETLINK_CB(cb->skb).pid,
+				   cb->nlh->nlmsg_seq,
+				   RTM_NEWRULE, NLM_F_MULTI) < 0)
 			break;
 		idx++;
 	}

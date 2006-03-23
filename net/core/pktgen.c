@@ -106,6 +106,9 @@
  *
  * interruptible_sleep_on_timeout() replaced Nishanth Aravamudan <nacc@us.ibm.com> 
  * 050103
+ *
+ * MPLS support by Steven Whitehouse <steve@chygwyn.com>
+ *
  */
 #include <linux/sys.h>
 #include <linux/types.h>
@@ -154,7 +157,7 @@
 #include <asm/div64.h>		/* do_div */
 #include <asm/timex.h>
 
-#define VERSION  "pktgen v2.66: Packet Generator for packet performance testing.\n"
+#define VERSION  "pktgen v2.67: Packet Generator for packet performance testing.\n"
 
 /* #define PG_DEBUG(a) a */
 #define PG_DEBUG(a)
@@ -162,6 +165,8 @@
 /* The buckets are exponential in 'width' */
 #define LAT_BUCKETS_MAX 32
 #define IP_NAME_SZ 32
+#define MAX_MPLS_LABELS 16 /* This is the max label stack depth */
+#define MPLS_STACK_BOTTOM __constant_htonl(0x00000100)
 
 /* Device flag bits */
 #define F_IPSRC_RND   (1<<0)	/* IP-Src Random  */
@@ -172,6 +177,7 @@
 #define F_MACDST_RND  (1<<5)	/* MAC-Dst Random */
 #define F_TXSIZE_RND  (1<<6)	/* Transmit size is random */
 #define F_IPV6        (1<<7)	/* Interface in IPV6 Mode */
+#define F_MPLS_RND    (1<<8)	/* Random MPLS labels */
 
 /* Thread control flag bits */
 #define T_TERMINATE   (1<<0)
@@ -277,6 +283,10 @@ struct pktgen_dev {
 	__u16 udp_src_max;	/* exclusive, source UDP port */
 	__u16 udp_dst_min;	/* inclusive, dest UDP port */
 	__u16 udp_dst_max;	/* exclusive, dest UDP port */
+
+	/* MPLS */
+	unsigned nr_labels;	/* Depth of stack, 0 = no MPLS */
+	__be32 labels[MAX_MPLS_LABELS];
 
 	__u32 src_mac_count;	/* How many MACs to iterate through */
 	__u32 dst_mac_count;	/* How many MACs to iterate through */
@@ -623,8 +633,18 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 		   pkt_dev->udp_dst_min, pkt_dev->udp_dst_max);
 
 	seq_printf(seq,
-		   "     src_mac_count: %d  dst_mac_count: %d \n     Flags: ",
+		   "     src_mac_count: %d  dst_mac_count: %d\n",
 		   pkt_dev->src_mac_count, pkt_dev->dst_mac_count);
+
+	if (pkt_dev->nr_labels) {
+		unsigned i;
+		seq_printf(seq, "     mpls: ");
+		for(i = 0; i < pkt_dev->nr_labels; i++)
+			seq_printf(seq, "%08x%s", ntohl(pkt_dev->labels[i]),
+				   i == pkt_dev->nr_labels-1 ? "\n" : ", ");
+	}
+
+	seq_printf(seq, "     Flags: ");
 
 	if (pkt_dev->flags & F_IPV6)
 		seq_printf(seq, "IPV6  ");
@@ -643,6 +663,9 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 
 	if (pkt_dev->flags & F_UDPDST_RND)
 		seq_printf(seq, "UDPDST_RND  ");
+
+	if (pkt_dev->flags & F_MPLS_RND)
+		seq_printf(seq,  "MPLS_RND  ");
 
 	if (pkt_dev->flags & F_MACSRC_RND)
 		seq_printf(seq, "MACSRC_RND  ");
@@ -689,6 +712,29 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "Result: Idle\n");
 
 	return 0;
+}
+
+
+static int hex32_arg(const char __user *user_buffer, __u32 *num)
+{
+	int i = 0;
+	*num = 0;
+
+	for(; i < 8; i++) {
+		char c;
+		*num <<= 4;
+		if (get_user(c, &user_buffer[i]))
+			return -EFAULT;
+		if ((c >= '0') && (c <= '9'))
+			*num |= c - '0';
+		else if ((c >= 'a') && (c <= 'f'))
+			*num |= c - 'a' + 10;
+		else if ((c >= 'A') && (c <= 'F'))
+			*num |= c - 'A' + 10;
+		else
+			break;
+	}
+	return i;
 }
 
 static int count_trail_chars(const char __user * user_buffer,
@@ -756,6 +802,35 @@ static int strn_len(const char __user * user_buffer, unsigned int maxlen)
 		};
 	}
 done_str:
+	return i;
+}
+
+static ssize_t get_labels(const char __user *buffer, struct pktgen_dev *pkt_dev)
+{
+	unsigned n = 0;
+	char c;
+	ssize_t i = 0;
+	int len;
+
+	pkt_dev->nr_labels = 0;
+	do {
+		__u32 tmp;
+		len = hex32_arg(&buffer[i], &tmp);
+		if (len <= 0)
+			return len;
+		pkt_dev->labels[n] = htonl(tmp);
+		if (pkt_dev->labels[n] & MPLS_STACK_BOTTOM)
+			pkt_dev->flags |= F_MPLS_RND;
+		i += len;
+		if (get_user(c, &buffer[i]))
+			return -EFAULT;
+		i++;
+		n++;
+		if (n >= MAX_MPLS_LABELS)
+			return -E2BIG;
+	} while(c == ',');
+
+	pkt_dev->nr_labels = n;
 	return i;
 }
 
@@ -1059,6 +1134,12 @@ static ssize_t pktgen_if_write(struct file *file,
 		else if (strcmp(f, "!MACDST_RND") == 0)
 			pkt_dev->flags &= ~F_MACDST_RND;
 
+		else if (strcmp(f, "MPLS_RND") == 0)
+			pkt_dev->flags |= F_MPLS_RND;
+
+		else if (strcmp(f, "!MPLS_RND") == 0)
+			pkt_dev->flags &= ~F_MPLS_RND;
+
 		else {
 			sprintf(pg_result,
 				"Flag -:%s:- unknown\nAvailable flags, (prepend ! to un-set flag):\n%s",
@@ -1351,6 +1432,19 @@ static ssize_t pktgen_if_write(struct file *file,
 		i += len;
 		pkt_dev->lflow = value;
 		sprintf(pg_result, "OK: flowlen=%u", pkt_dev->lflow);
+		return count;
+	}
+
+	if (!strcmp(name, "mpls")) {
+		unsigned n, offset;
+		len = get_labels(&user_buffer[i], pkt_dev);
+		if (len < 0) { return len; }
+		i += len;
+		offset = sprintf(pg_result, "OK: mpls=");
+		for(n = 0; n < pkt_dev->nr_labels; n++)
+			offset += sprintf(pg_result + offset,
+					  "%08x%s", ntohl(pkt_dev->labels[n]),
+					  n == pkt_dev->nr_labels-1 ? "" : ",");
 		return count;
 	}
 
@@ -1846,6 +1940,15 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 		pkt_dev->hh[1] = tmp;
 	}
 
+	if (pkt_dev->flags & F_MPLS_RND) {
+		unsigned i;
+		for(i = 0; i < pkt_dev->nr_labels; i++)
+			if (pkt_dev->labels[i] & MPLS_STACK_BOTTOM)
+				pkt_dev->labels[i] = MPLS_STACK_BOTTOM |
+						     (pktgen_random() &
+						      htonl(0x000fffff));
+	}
+
 	if (pkt_dev->udp_src_min < pkt_dev->udp_src_max) {
 		if (pkt_dev->flags & F_UDPSRC_RND)
 			pkt_dev->cur_udp_src =
@@ -1968,6 +2071,16 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 	pkt_dev->flows[flow].count++;
 }
 
+static void mpls_push(__be32 *mpls, struct pktgen_dev *pkt_dev)
+{
+	unsigned i;
+	for(i = 0; i < pkt_dev->nr_labels; i++) {
+		*mpls++ = pkt_dev->labels[i] & ~MPLS_STACK_BOTTOM;
+	}
+	mpls--;
+	*mpls |= MPLS_STACK_BOTTOM;
+}
+
 static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 					struct pktgen_dev *pkt_dev)
 {
@@ -1977,6 +2090,11 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	int datalen, iplen;
 	struct iphdr *iph;
 	struct pktgen_hdr *pgh = NULL;
+	__be16 protocol = __constant_htons(ETH_P_IP);
+	__be32 *mpls;
+
+	if (pkt_dev->nr_labels)
+		protocol = __constant_htons(ETH_P_MPLS_UC);
 
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
@@ -1984,7 +2102,8 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	mod_cur_headers(pkt_dev);
 
 	datalen = (odev->hard_header_len + 16) & ~0xf;
-	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + datalen, GFP_ATOMIC);
+	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + datalen +
+			pkt_dev->nr_labels*sizeof(u32), GFP_ATOMIC);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
@@ -1994,13 +2113,18 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 
 	/*  Reserve for ethernet and IP header  */
 	eth = (__u8 *) skb_push(skb, 14);
+	mpls = (__be32 *)skb_put(skb, pkt_dev->nr_labels*sizeof(__u32));
+	if (pkt_dev->nr_labels)
+		mpls_push(mpls, pkt_dev);
 	iph = (struct iphdr *)skb_put(skb, sizeof(struct iphdr));
 	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
 
 	memcpy(eth, pkt_dev->hh, 12);
-	*(u16 *) & eth[12] = __constant_htons(ETH_P_IP);
+	*(u16 *) & eth[12] = protocol;
 
-	datalen = pkt_dev->cur_pkt_size - 14 - 20 - 8;	/* Eth + IPh + UDPh */
+	/* Eth + IPh + UDPh + mpls */
+	datalen = pkt_dev->cur_pkt_size - 14 - 20 - 8 -
+		  pkt_dev->nr_labels*sizeof(u32);
 	if (datalen < sizeof(struct pktgen_hdr))
 		datalen = sizeof(struct pktgen_hdr);
 
@@ -2021,8 +2145,8 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	iph->tot_len = htons(iplen);
 	iph->check = 0;
 	iph->check = ip_fast_csum((void *)iph, iph->ihl);
-	skb->protocol = __constant_htons(ETH_P_IP);
-	skb->mac.raw = ((u8 *) iph) - 14;
+	skb->protocol = protocol;
+	skb->mac.raw = ((u8 *) iph) - 14 - pkt_dev->nr_labels*sizeof(u32);
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
 
@@ -2274,13 +2398,19 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	int datalen;
 	struct ipv6hdr *iph;
 	struct pktgen_hdr *pgh = NULL;
+	__be16 protocol = __constant_htons(ETH_P_IPV6);
+	__be32 *mpls;
+
+	if (pkt_dev->nr_labels)
+		protocol = __constant_htons(ETH_P_MPLS_UC);
 
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
 	 */
 	mod_cur_headers(pkt_dev);
 
-	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + 16, GFP_ATOMIC);
+	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + 16 +
+			pkt_dev->nr_labels*sizeof(u32), GFP_ATOMIC);
 	if (!skb) {
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
@@ -2290,13 +2420,19 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 
 	/*  Reserve for ethernet and IP header  */
 	eth = (__u8 *) skb_push(skb, 14);
+	mpls = (__be32 *)skb_put(skb, pkt_dev->nr_labels*sizeof(__u32));
+	if (pkt_dev->nr_labels)
+		mpls_push(mpls, pkt_dev);
 	iph = (struct ipv6hdr *)skb_put(skb, sizeof(struct ipv6hdr));
 	udph = (struct udphdr *)skb_put(skb, sizeof(struct udphdr));
 
 	memcpy(eth, pkt_dev->hh, 12);
 	*(u16 *) & eth[12] = __constant_htons(ETH_P_IPV6);
 
-	datalen = pkt_dev->cur_pkt_size - 14 - sizeof(struct ipv6hdr) - sizeof(struct udphdr);	/* Eth + IPh + UDPh */
+	/* Eth + IPh + UDPh + mpls */
+	datalen = pkt_dev->cur_pkt_size - 14 -
+		  sizeof(struct ipv6hdr) - sizeof(struct udphdr) -
+		  pkt_dev->nr_labels*sizeof(u32);
 
 	if (datalen < sizeof(struct pktgen_hdr)) {
 		datalen = sizeof(struct pktgen_hdr);
@@ -2320,8 +2456,8 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	ipv6_addr_copy(&iph->daddr, &pkt_dev->cur_in6_daddr);
 	ipv6_addr_copy(&iph->saddr, &pkt_dev->cur_in6_saddr);
 
-	skb->mac.raw = ((u8 *) iph) - 14;
-	skb->protocol = __constant_htons(ETH_P_IPV6);
+	skb->mac.raw = ((u8 *) iph) - 14 - pkt_dev->nr_labels*sizeof(u32);
+	skb->protocol = protocol;
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
 

@@ -347,8 +347,7 @@ static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n)
 	if (n->ht_down)
 		n->ht_down->refcnt--;
 #ifdef CONFIG_CLS_U32_PERF
-	if (n)
-		kfree(n->pf);
+	kfree(n->pf);
 #endif
 	kfree(n);
 	return 0;
@@ -680,8 +679,7 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 		return 0;
 	}
 #ifdef CONFIG_CLS_U32_PERF
-	if (n)
-		kfree(n->pf);
+	kfree(n->pf);
 #endif
 	kfree(n);
 	return err;

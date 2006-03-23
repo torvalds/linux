@@ -109,6 +109,22 @@ Examples:
                          cycle through the port range.
  pgset "udp_dst_max 9"   set UDP destination port max.
 
+ pgset "mpls 0001000a,0002000a,0000000a" set MPLS labels (in this example
+                                         outer label=16,middle label=32,
+					 inner label=0 (IPv4 NULL)) Note that
+					 there must be no spaces between the
+					 arguments. Leading zeros are required.
+					 Do not set the bottom of stack bit,
+					 thats done automatically. If you do
+					 set the bottom of stack bit, that
+					 indicates that you want to randomly
+					 generate that address and the flag
+					 MPLS_RND will be turned on. You
+					 can have any mix of random and fixed
+					 labels in the label stack.
+
+ pgset "mpls 0"		  turn off mpls (or any invalid argument works too!)
+
  pgset stop    	          aborts injection. Also, ^C aborts generator.
 
 
@@ -166,6 +182,8 @@ dst_mac_count
 pkt_size 
 min_pkt_size
 max_pkt_size
+
+mpls
 
 udp_src_min
 udp_src_max
