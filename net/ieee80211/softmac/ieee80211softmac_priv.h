@@ -167,7 +167,7 @@ static inline int ieee80211softmac_scan_sanity_check(struct ieee80211softmac_dev
 		) || ieee80211softmac_scan_handlers_check_self(sm);
 }
 
-#define IEEE80211SOFTMAC_PROBE_DELAY		HZ/2
+#define IEEE80211SOFTMAC_PROBE_DELAY		HZ/50
 #define IEEE80211SOFTMAC_WORKQUEUE_NAME_LEN	(17 + IFNAMSIZ)
 
 struct ieee80211softmac_network {
