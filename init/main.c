@@ -438,6 +438,15 @@ void __init parse_early_param(void)
  *	Activate the first processor.
  */
 
+static void __init boot_cpu_init(void)
+{
+	int cpu = smp_processor_id();
+	/* Mark the boot cpu "present", "online" etc for SMP and UP case */
+	cpu_set(cpu, cpu_online_map);
+	cpu_set(cpu, cpu_present_map);
+	cpu_set(cpu, cpu_possible_map);
+}
+
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
@@ -447,17 +456,13 @@ asmlinkage void __init start_kernel(void)
  * enable them
  */
 	lock_kernel();
+	boot_cpu_init();
 	page_address_init();
 	printk(KERN_NOTICE);
 	printk(linux_banner);
 	setup_arch(&command_line);
 	setup_per_cpu_areas();
-
-	/*
-	 * Mark the boot cpu "online" so that it can call console drivers in
-	 * printk() and can access its per-cpu storage.
-	 */
-	smp_prepare_boot_cpu();
+	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
