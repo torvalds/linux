@@ -133,13 +133,12 @@ static const struct serial_uart_config uart_config[PORT_MAX_8250+1] = {
 	{ "AU1X00_UART",16,	UART_CLEAR_FIFO | UART_USE_FIFO },
 };
 
-static _INLINE_ unsigned int serial_in(struct uart_8250_port *up, int offset)
+static unsigned int serial_in(struct uart_8250_port *up, int offset)
 {
 	return au_readl((unsigned long)up->port.membase + offset);
 }
 
-static _INLINE_ void
-serial_out(struct uart_8250_port *up, int offset, int value)
+static void serial_out(struct uart_8250_port *up, int offset, int value)
 {
 	au_writel(value, (unsigned long)up->port.membase + offset);
 }
@@ -237,7 +236,7 @@ static void serial8250_enable_ms(struct uart_port *port)
 	serial_out(up, UART_IER, up->ier);
 }
 
-static _INLINE_ void
+static void
 receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 {
 	struct tty_struct *tty = up->port.info->tty;
@@ -312,7 +311,7 @@ receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 	spin_lock(&up->port.lock);
 }
 
-static _INLINE_ void transmit_chars(struct uart_8250_port *up)
+static void transmit_chars(struct uart_8250_port *up)
 {
 	struct circ_buf *xmit = &up->port.info->xmit;
 	int count;
@@ -346,7 +345,7 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 		serial8250_stop_tx(&up->port);
 }
 
-static _INLINE_ void check_modem_status(struct uart_8250_port *up)
+static void check_modem_status(struct uart_8250_port *up)
 {
 	int status;
 

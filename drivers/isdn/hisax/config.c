@@ -25,7 +25,6 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #define HISAX_STATUS_BUFSIZE 4096
-#define INCLUDE_INLINE_FUNCS
 
 /*
  * This structure array contains one entry per card. An entry looks
