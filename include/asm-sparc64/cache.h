@@ -13,4 +13,6 @@
 #define        SMP_CACHE_BYTES_SHIFT	6
 #define        SMP_CACHE_BYTES		(1 << SMP_CACHE_BYTES_SHIFT) /* L2 cache line size. */
 
+#define __read_mostly __attribute__((__section__(".data.read_mostly")))
+
 #endif
