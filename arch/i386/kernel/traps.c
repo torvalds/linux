@@ -112,12 +112,30 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 		p < (void *)tinfo + THREAD_SIZE - 3;
 }
 
-static void print_addr_and_symbol(unsigned long addr, char *log_lvl)
+/*
+ * Print CONFIG_STACK_BACKTRACE_COLS address/symbol entries per line.
+ */
+static inline int print_addr_and_symbol(unsigned long addr, char *log_lvl,
+					int printed)
 {
-	printk(log_lvl);
+	if (!printed)
+		printk(log_lvl);
+
+#if CONFIG_STACK_BACKTRACE_COLS == 1
 	printk(" [<%08lx>] ", addr);
+#else
+	printk(" <%08lx> ", addr);
+#endif
 	print_symbol("%s", addr);
-	printk("\n");
+
+	printed = (printed + 1) % CONFIG_STACK_BACKTRACE_COLS;
+
+	if (printed)
+		printk("  ");
+	else
+		printk("\n");
+
+	return printed;
 }
 
 static inline unsigned long print_context_stack(struct thread_info *tinfo,
@@ -125,20 +143,24 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 				char *log_lvl)
 {
 	unsigned long addr;
+	int printed = 0; /* nr of entries already printed on current line */
 
 #ifdef	CONFIG_FRAME_POINTER
 	while (valid_stack_ptr(tinfo, (void *)ebp)) {
 		addr = *(unsigned long *)(ebp + 4);
-		print_addr_and_symbol(addr, log_lvl);
+		printed = print_addr_and_symbol(addr, log_lvl, printed);
 		ebp = *(unsigned long *)ebp;
 	}
 #else
 	while (valid_stack_ptr(tinfo, stack)) {
 		addr = *stack++;
 		if (__kernel_text_address(addr))
-			print_addr_and_symbol(addr, log_lvl);
+			printed = print_addr_and_symbol(addr, log_lvl, printed);
 	}
 #endif
+	if (printed)
+		printk("\n");
+
 	return ebp;
 }
 
