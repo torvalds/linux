@@ -174,8 +174,9 @@ static int dev_nvram_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	}
 #endif /* CONFIG_PPC_PMAC */
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
 }
 
 struct file_operations nvram_fops = {

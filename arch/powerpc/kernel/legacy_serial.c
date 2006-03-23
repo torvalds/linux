@@ -37,7 +37,7 @@ static int legacy_serial_console = -1;
 static int __init add_legacy_port(struct device_node *np, int want_index,
 				  int iotype, phys_addr_t base,
 				  phys_addr_t taddr, unsigned long irq,
-				  unsigned int flags)
+				  upf_t flags)
 {
 	u32 *clk, *spd, clock = BASE_BAUD * 16;
 	int index;
@@ -113,7 +113,7 @@ static int __init add_legacy_soc_port(struct device_node *np,
 {
 	phys_addr_t addr;
 	u32 *addrp;
-	unsigned int flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_SHARE_IRQ;
+	upf_t flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_SHARE_IRQ;
 
 	/* We only support ports that have a clock frequency properly
 	 * encoded in the device-tree.

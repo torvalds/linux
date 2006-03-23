@@ -362,7 +362,11 @@ static void show_instructions(struct pt_regs *regs)
 		if (!(i % 8))
 			printk("\n");
 
-		if (BAD_PC(pc) || __get_user(instr, (unsigned int *)pc)) {
+		/* We use __get_user here *only* to avoid an OOPS on a
+		 * bad address because the pc *should* only be a
+		 * kernel address.
+		 */
+		if (BAD_PC(pc) || __get_user(instr, (unsigned int __user *)pc)) {
 			printk("XXXXXXXX ");
 		} else {
 			if (regs->nip == pc)
