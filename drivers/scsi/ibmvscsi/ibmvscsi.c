@@ -853,14 +853,15 @@ static int send_srp_login(struct ibmvscsi_host_data *hostdata)
 	login->max_requested_initiator_to_target_iulen = sizeof(union srp_iu);
 	login->required_buffer_formats = 0x0006;
 	
+	spin_lock_irqsave(hostdata->host->host_lock, flags);
 	/* Start out with a request limit of 1, since this is negotiated in
 	 * the login request we are just sending
 	 */
 	atomic_set(&hostdata->request_limit, 1);
 
-	spin_lock_irqsave(hostdata->host->host_lock, flags);
 	rc = ibmvscsi_send_srp_event(evt_struct, hostdata);
 	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+	printk("ibmvscsic: sent SRP login\n");
 	return rc;
 };
 
@@ -1179,6 +1180,7 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			/* We need to re-setup the interpartition connection */
 			printk(KERN_INFO
 			       "ibmvscsi: Re-enabling adapter!\n");
+			atomic_set(&hostdata->request_limit, -1);
 			purge_requests(hostdata, DID_REQUEUE);
 			if (ibmvscsi_reenable_crq_queue(&hostdata->queue,
 							hostdata) == 0)
