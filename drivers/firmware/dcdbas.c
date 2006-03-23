@@ -33,6 +33,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/semaphore.h>
 
@@ -48,7 +49,7 @@ static u8 *smi_data_buf;
 static dma_addr_t smi_data_buf_handle;
 static unsigned long smi_data_buf_size;
 static u32 smi_data_buf_phys_addr;
-static DECLARE_MUTEX(smi_data_lock);
+static DEFINE_MUTEX(smi_data_lock);
 
 static unsigned int host_control_action;
 static unsigned int host_control_smi_type;
@@ -139,9 +140,9 @@ static ssize_t smi_data_buf_size_store(struct device *dev,
 	buf_size = simple_strtoul(buf, NULL, 10);
 
 	/* make sure SMI data buffer is at least buf_size */
-	down(&smi_data_lock);
+	mutex_lock(&smi_data_lock);
 	ret = smi_data_buf_realloc(buf_size);
-	up(&smi_data_lock);
+	mutex_unlock(&smi_data_lock);
 	if (ret)
 		return ret;
 
@@ -154,7 +155,7 @@ static ssize_t smi_data_read(struct kobject *kobj, char *buf, loff_t pos,
 	size_t max_read;
 	ssize_t ret;
 
-	down(&smi_data_lock);
+	mutex_lock(&smi_data_lock);
 
 	if (pos >= smi_data_buf_size) {
 		ret = 0;
@@ -165,7 +166,7 @@ static ssize_t smi_data_read(struct kobject *kobj, char *buf, loff_t pos,
 	ret = min(max_read, count);
 	memcpy(buf, smi_data_buf + pos, ret);
 out:
-	up(&smi_data_lock);
+	mutex_unlock(&smi_data_lock);
 	return ret;
 }
 
@@ -174,7 +175,7 @@ static ssize_t smi_data_write(struct kobject *kobj, char *buf, loff_t pos,
 {
 	ssize_t ret;
 
-	down(&smi_data_lock);
+	mutex_lock(&smi_data_lock);
 
 	ret = smi_data_buf_realloc(pos + count);
 	if (ret)
@@ -183,7 +184,7 @@ static ssize_t smi_data_write(struct kobject *kobj, char *buf, loff_t pos,
 	memcpy(smi_data_buf + pos, buf, count);
 	ret = count;
 out:
-	up(&smi_data_lock);
+	mutex_unlock(&smi_data_lock);
 	return ret;
 }
 
@@ -201,9 +202,9 @@ static ssize_t host_control_action_store(struct device *dev,
 	ssize_t ret;
 
 	/* make sure buffer is available for host control command */
-	down(&smi_data_lock);
+	mutex_lock(&smi_data_lock);
 	ret = smi_data_buf_realloc(sizeof(struct apm_cmd));
-	up(&smi_data_lock);
+	mutex_unlock(&smi_data_lock);
 	if (ret)
 		return ret;
 
@@ -302,7 +303,7 @@ static ssize_t smi_request_store(struct device *dev,
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 	ssize_t ret;
 
-	down(&smi_data_lock);
+	mutex_lock(&smi_data_lock);
 
 	if (smi_data_buf_size < sizeof(struct smi_cmd)) {
 		ret = -ENODEV;
@@ -334,7 +335,7 @@ static ssize_t smi_request_store(struct device *dev,
 	}
 
 out:
-	up(&smi_data_lock);
+	mutex_unlock(&smi_data_lock);
 	return ret;
 }
 
