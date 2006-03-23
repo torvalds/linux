@@ -562,6 +562,8 @@ intelfbhw_read_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 
 static int calc_vclock3(int index, int m, int n, int p)
 {
+	if (p == 0 || n == 0)
+		return 0;
 	return PLL_REFCLK * m / n / p;
 }
 		       
@@ -570,6 +572,8 @@ static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2)
 	switch(index)
 	{
 	case PLLS_I9xx:
+		if (p1 == 0)
+			return 0;
 		return ((PLL_REFCLK * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) /
 			 ((p1)) * (p2 ? 10 : 5)));
 	case PLLS_I8xx:
@@ -779,8 +783,20 @@ splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 
 	if (index == PLLS_I9xx)
 	{
-		p1 = (p / 10) + 1;
-		p2 = 0;
+		switch (p) {
+		case 10:
+			p1 = 2;
+			p2 = 0;
+			break;
+		case 20:
+			p1 = 1;
+			p2 = 0;
+			break;
+		default:
+			p1 = (p / 10) + 1;
+			p2 = 0;
+			break;
+		}
 		
 		*retp1 = (unsigned int)p1;
 		*retp2 = (unsigned int)p2;
@@ -813,8 +829,8 @@ static int
 calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *retp1,
 		u32 *retp2, u32 *retclock)
 {
-	u32 m1, m2, n, p1, p2, n1;
-	u32 f_vco, p, p_best = 0, m, f_out;
+	u32 m1, m2, n, p1, p2, n1, testm;
+	u32 f_vco, p, p_best = 0, m, f_out = 0;
 	u32 err_max, err_target, err_best = 10000000;
 	u32 n_best = 0, m_best = 0, f_best, f_err;
 	u32 p_min, p_max, p_inc, div_min, div_max;
@@ -826,7 +842,10 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 	DBG_MSG("Clock is %d\n", clock);
 
 	div_max = plls[index].max_vco_freq / clock;
-	div_min = ROUND_UP_TO(plls[index].min_vco_freq, clock) / clock;
+	if (index == PLLS_I9xx)
+		div_min = 5;
+	else
+		div_min = ROUND_UP_TO(plls[index].min_vco_freq, clock) / clock;
 
 	if (clock <= plls[index].p_transition_clock)
 		p_inc = plls[index].p_inc_lo;
@@ -838,6 +857,16 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 		p_min = plls[index].min_p;
 	if (p_max > plls[index].max_p)
 		p_max = plls[index].max_p;
+
+	if (clock < PLL_REFCLK && index==PLLS_I9xx)
+	{
+	  p_min = 10;
+	  p_max = 20;
+	  /* this makes 640x480 work it really shouldn't 
+	     - SOMEONE WITHOUT DOCS WOZ HERE */
+	  if (clock < 30000)
+	    clock *= 4;
+	}
 
 	DBG_MSG("p range is %d-%d (%d)\n", p_min, p_max, p_inc);
 
@@ -854,26 +883,28 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 		do {
 			m = ROUND_UP_TO(f_vco * n, PLL_REFCLK) / PLL_REFCLK;
 			if (m < plls[index].min_m)
-				m = plls[index].min_m;
+				m = plls[index].min_m + 1;
 			if (m > plls[index].max_m)
-				m = plls[index].max_m;
-			f_out = calc_vclock3(index, m, n, p);
-			if (splitm(index, m, &m1, &m2)) {
-				WRN_MSG("cannot split m = %d\n", m);
-				n++;
-				continue;
-			}
-			if (clock > f_out)
-				f_err = clock - f_out;
-			else
-				f_err = f_out - clock;
-
-			if (f_err < err_best) {
-				m_best = m;
-				n_best = n;
-				p_best = p;
-				f_best = f_out;
-				err_best = f_err;
+				m = plls[index].max_m - 1;
+			for (testm = m - 1; testm <= m; testm++) {
+				f_out = calc_vclock3(index, m, n, p);
+				if (splitm(index, m, &m1, &m2)) {
+					WRN_MSG("cannot split m = %d\n", m);
+					n++;
+					continue;
+				}
+				if (clock > f_out)
+					f_err = clock - f_out;
+				else/* slightly bias the error for bigger clocks */
+					f_err = f_out - clock + 1;
+				
+				if (f_err < err_best) {
+					m_best = m;
+					n_best = n;
+					p_best = p;
+					f_best = f_out;
+					err_best = f_err;
+				}
 			}
 			n++;
 		} while ((n <= plls[index].max_n) && (f_out >= clock));
@@ -1157,6 +1188,7 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 	u32 hsync_reg, htotal_reg, hblank_reg;
 	u32 vsync_reg, vtotal_reg, vblank_reg;
 	u32 src_size_reg;
+	u32 count, tmp_val[3];
 
 	/* Assume single pipe, display plane A, analog CRT. */
 
@@ -1225,6 +1257,28 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 		src_size_reg = SRC_SIZE_A;
 	}
 
+	/* turn off pipe */
+	tmp = INREG(pipe_conf_reg);
+	tmp &= ~PIPECONF_ENABLE;
+	OUTREG(pipe_conf_reg, tmp);
+	
+	count = 0;
+	do{
+	  tmp_val[count%3] = INREG(0x70000);
+	  if ((tmp_val[0] == tmp_val[1]) && (tmp_val[1]==tmp_val[2]))
+	    break;
+	  count++;
+	  udelay(1);
+	  if (count % 200 == 0)
+	  {
+	    tmp = INREG(pipe_conf_reg);
+	    tmp &= ~PIPECONF_ENABLE;
+	    OUTREG(pipe_conf_reg, tmp);
+	  }
+	} while(count < 2000);
+
+	OUTREG(ADPA, INREG(ADPA) & ~ADPA_DAC_ENABLE);
+
 	/* Disable planes A and B. */
 	tmp = INREG(DSPACNTR);
 	tmp &= ~DISPPLANE_PLANE_ENABLE;
@@ -1242,10 +1296,8 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 	tmp |= ADPA_DPMS_D3;
 	OUTREG(ADPA, tmp);
 
-	/* turn off pipe */
-	tmp = INREG(pipe_conf_reg);
-	tmp &= ~PIPECONF_ENABLE;
-	OUTREG(pipe_conf_reg, tmp);
+	/* do some funky magic - xyzzy */
+	OUTREG(0x61204, 0xabcd0000);
 
 	/* turn off PLL */
 	tmp = INREG(dpll_reg);
@@ -1257,6 +1309,22 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 	OUTREG(fp0_reg, *fp0);
 	OUTREG(fp1_reg, *fp1);
 
+	/* Enable PLL */
+	tmp = INREG(dpll_reg);
+	tmp |= DPLL_VCO_ENABLE;
+	OUTREG(dpll_reg, tmp);
+
+	/* Set DVOs B/C */
+	OUTREG(DVOB, hw->dvob);
+	OUTREG(DVOC, hw->dvoc);
+
+	/* undo funky magic */
+	OUTREG(0x61204, 0x00000000);
+
+	/* Set ADPA */
+	OUTREG(ADPA, INREG(ADPA) | ADPA_DAC_ENABLE);
+	OUTREG(ADPA, (hw->adpa & ~(ADPA_DPMS_CONTROL_MASK)) | ADPA_DPMS_D3);
+
 	/* Set pipe parameters */
 	OUTREG(hsync_reg, *hs);
 	OUTREG(hblank_reg, *hb);
@@ -1265,18 +1333,6 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 	OUTREG(vblank_reg, *vb);
 	OUTREG(vtotal_reg, *vt);
 	OUTREG(src_size_reg, *ss);
-
-	/* Set DVOs B/C */
-	OUTREG(DVOB, hw->dvob);
-	OUTREG(DVOC, hw->dvoc);
-
-	/* Set ADPA */
-	OUTREG(ADPA, (hw->adpa & ~(ADPA_DPMS_CONTROL_MASK)) | ADPA_DPMS_D3);
-
-	/* Enable PLL */
-	tmp = INREG(dpll_reg);
-	tmp |= DPLL_VCO_ENABLE;
-	OUTREG(dpll_reg, tmp);
 
 	/* Enable pipe */
 	OUTREG(pipe_conf_reg, *pipe_conf | PIPECONF_ENABLE);
