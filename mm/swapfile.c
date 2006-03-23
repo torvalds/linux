@@ -428,14 +428,16 @@ int swap_type_of(dev_t device)
 {
 	int i;
 
-	if (!device)
-		return -EINVAL;
 	spin_lock(&swap_lock);
 	for (i = 0; i < nr_swapfiles; i++) {
 		struct inode *inode;
 
 		if (!(swap_info[i].flags & SWP_WRITEOK))
 			continue;
+		if (!device) {
+			spin_unlock(&swap_lock);
+			return i;
+		}
 		inode = swap_info->swap_file->f_dentry->d_inode;
 		if (S_ISBLK(inode->i_mode) &&
 		    device == MKDEV(imajor(inode), iminor(inode))) {

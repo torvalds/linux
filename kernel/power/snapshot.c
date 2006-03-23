@@ -37,6 +37,7 @@
 struct pbe *pagedir_nosave;
 static unsigned int nr_copy_pages;
 static unsigned int nr_meta_pages;
+static unsigned long *buffer;
 
 #ifdef CONFIG_HIGHMEM
 unsigned int count_highmem_pages(void)
@@ -389,7 +390,7 @@ struct pbe *alloc_pagedir(unsigned int nr_pages, gfp_t gfp_mask, int safe_needed
 		free_pagedir(pblist);
 		pblist = NULL;
         } else
-        	create_pbe_list(pblist, nr_pages);
+		create_pbe_list(pblist, nr_pages);
 	return pblist;
 }
 
@@ -418,6 +419,7 @@ void swsusp_free(void)
 	nr_copy_pages = 0;
 	nr_meta_pages = 0;
 	pagedir_nosave = NULL;
+	buffer = NULL;
 }
 
 
@@ -523,6 +525,8 @@ static void init_header(struct swsusp_info *info)
 	info->cpus = num_online_cpus();
 	info->image_pages = nr_copy_pages;
 	info->pages = nr_copy_pages + nr_meta_pages + 1;
+	info->size = info->pages;
+	info->size <<= PAGE_SHIFT;
 }
 
 /**
@@ -568,8 +572,6 @@ static inline struct pbe *pack_orig_addresses(unsigned long *buf, struct pbe *pb
 
 int snapshot_read_next(struct snapshot_handle *handle, size_t count)
 {
-	static unsigned long *buffer;
-
 	if (handle->page > nr_meta_pages + nr_copy_pages)
 		return 0;
 	if (!buffer) {
@@ -774,7 +776,6 @@ static int create_image(struct snapshot_handle *handle)
 
 int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 {
-	static unsigned long *buffer;
 	int error = 0;
 
 	if (handle->prev && handle->page > nr_meta_pages + nr_copy_pages)
