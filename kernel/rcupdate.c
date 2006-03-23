@@ -50,13 +50,13 @@
 #include <linux/mutex.h>
 
 /* Definition for rcupdate control block. */
-struct rcu_ctrlblk rcu_ctrlblk = {
+static struct rcu_ctrlblk rcu_ctrlblk = {
 	.cur = -300,
 	.completed = -300,
 	.lock = SPIN_LOCK_UNLOCKED,
 	.cpumask = CPU_MASK_NONE,
 };
-struct rcu_ctrlblk rcu_bh_ctrlblk = {
+static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 	.cur = -300,
 	.completed = -300,
 	.lock = SPIN_LOCK_UNLOCKED,
