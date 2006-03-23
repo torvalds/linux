@@ -1,7 +1,7 @@
 /**
  * attrib.c - NTFS attribute operations.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2005 Anton Altaparmakov
+ * Copyright (c) 2001-2006 Anton Altaparmakov
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -1048,7 +1048,7 @@ do_next_attr_loop:
 				le32_to_cpu(ctx->mrec->bytes_allocated))
 			break;
 		if (a->type == AT_END)
-			continue;
+			break;
 		if (!a->length)
 			break;
 		if (al_entry->instance != a->instance)

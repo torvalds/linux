@@ -24,6 +24,8 @@ ToDo/Notes:
 	- Fix two compiler warnings on Alpha.  Thanks to Andrew Morton for
 	  reporting them.
 	- Fix an (innocent) off-by-one error in the runlist code.
+	- Fix a buggette in an "should be impossible" case handling where we
+	  continued the attribute lookup loop instead of aborting it.
 
 2.1.26 - Minor bug fixes and updates.
 
