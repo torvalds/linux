@@ -325,7 +325,7 @@ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
 #else
 
 #ifdef __GENERIC_PER_CPU
-unsigned long __per_cpu_offset[NR_CPUS];
+unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 
 EXPORT_SYMBOL(__per_cpu_offset);
 
@@ -343,11 +343,7 @@ static void __init setup_per_cpu_areas(void)
 #endif
 	ptr = alloc_bootmem(size * nr_possible_cpus);
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i)) {
-			__per_cpu_offset[i] = (char*)0 - __per_cpu_start;
-			continue;
-		}
+	for_each_cpu(i) {
 		__per_cpu_offset[i] = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 		ptr += size;
