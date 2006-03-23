@@ -77,8 +77,8 @@ static struct super_block *alloc_super(void)
 		s->s_count = S_BIAS;
 		atomic_set(&s->s_active, 1);
 		sema_init(&s->s_vfs_rename_sem,1);
-		sema_init(&s->s_dquot.dqio_sem, 1);
-		sema_init(&s->s_dquot.dqonoff_sem, 1);
+		mutex_init(&s->s_dquot.dqio_mutex);
+		mutex_init(&s->s_dquot.dqonoff_mutex);
 		init_rwsem(&s->s_dquot.dqptr_sem);
 		init_waitqueue_head(&s->s_wait_unfrozen);
 		s->s_maxbytes = MAX_NON_LFS;
