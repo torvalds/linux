@@ -397,8 +397,8 @@ struct block_device {
 	dev_t			bd_dev;  /* not a kdev_t - it's a search key */
 	struct inode *		bd_inode;	/* will die */
 	int			bd_openers;
-	struct semaphore	bd_sem;	/* open/close mutex */
-	struct semaphore	bd_mount_sem;	/* mount mutex */
+	struct mutex		bd_mutex;	/* open/close mutex */
+	struct mutex		bd_mount_mutex;	/* mount mutex */
 	struct list_head	bd_inodes;
 	void *			bd_holder;
 	int			bd_holders;
@@ -509,7 +509,7 @@ struct inode {
 
 #ifdef CONFIG_INOTIFY
 	struct list_head	inotify_watches; /* watches on this inode */
-	struct semaphore	inotify_sem;	/* protects the watches list */
+	struct mutex		inotify_mutex;	/* protects the watches list */
 #endif
 
 	unsigned long		i_state;
@@ -847,7 +847,7 @@ struct super_block {
 	 * The next field is for VFS *only*. No filesystems have any business
 	 * even looking at it. You had been warned.
 	 */
-	struct semaphore s_vfs_rename_sem;	/* Kludge */
+	struct mutex s_vfs_rename_mutex;	/* Kludge */
 
 	/* Granuality of c/m/atime in ns.
 	   Cannot be worse than a second */
@@ -1113,6 +1113,18 @@ static inline void mark_inode_dirty(struct inode *inode)
 static inline void mark_inode_dirty_sync(struct inode *inode)
 {
 	__mark_inode_dirty(inode, I_DIRTY_SYNC);
+}
+
+static inline void inode_inc_link_count(struct inode *inode)
+{
+	inode->i_nlink++;
+	mark_inode_dirty(inode);
+}
+
+static inline void inode_dec_link_count(struct inode *inode)
+{
+	inode->i_nlink--;
+	mark_inode_dirty(inode);
 }
 
 extern void touch_atime(struct vfsmount *mnt, struct dentry *dentry);
@@ -1534,7 +1546,7 @@ extern void destroy_inode(struct inode *);
 extern struct inode *new_inode(struct super_block *);
 extern int remove_suid(struct dentry *);
 extern void remove_dquot_ref(struct super_block *, int, struct list_head *);
-extern struct semaphore iprune_sem;
+extern struct mutex iprune_mutex;
 
 extern void __insert_inode_hash(struct inode *, unsigned long hashval);
 extern void remove_inode_hash(struct inode *);

@@ -149,22 +149,16 @@ struct disk_attribute {
 ({									\
 	typeof(gendiskp->dkstats->field) res = 0;			\
 	int i;								\
-	for (i=0; i < NR_CPUS; i++) {					\
-		if (!cpu_possible(i))					\
-			continue;					\
+	for_each_cpu(i)							\
 		res += per_cpu_ptr(gendiskp->dkstats, i)->field;	\
-	}								\
 	res;								\
 })
 
 static inline void disk_stat_set_all(struct gendisk *gendiskp, int value)	{
 	int i;
-	for (i=0; i < NR_CPUS; i++) {
-		if (cpu_possible(i)) {
-			memset(per_cpu_ptr(gendiskp->dkstats, i), value,	
-					sizeof (struct disk_stats));
-		}
-	}
+	for_each_cpu(i)
+		memset(per_cpu_ptr(gendiskp->dkstats, i), value,
+				sizeof (struct disk_stats));
 }		
 				
 #else

@@ -310,12 +310,12 @@ static int rd_ioctl(struct inode *inode, struct file *file,
 	 * cache
 	 */
 	error = -EBUSY;
-	down(&bdev->bd_sem);
+	mutex_lock(&bdev->bd_mutex);
 	if (bdev->bd_openers <= 2) {
 		truncate_inode_pages(bdev->bd_inode->i_mapping, 0);
 		error = 0;
 	}
-	up(&bdev->bd_sem);
+	mutex_unlock(&bdev->bd_mutex);
 	return error;
 }
 

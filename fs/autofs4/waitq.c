@@ -178,7 +178,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		return -ENOENT;
 	}
 
-	if (down_interruptible(&sbi->wq_sem)) {
+	if (mutex_lock_interruptible(&sbi->wq_mutex)) {
 		kfree(name);
 		return -EINTR;
 	}
@@ -194,7 +194,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		/* Can't wait for an expire if there's no mount */
 		if (notify == NFY_NONE && !d_mountpoint(dentry)) {
 			kfree(name);
-			up(&sbi->wq_sem);
+			mutex_unlock(&sbi->wq_mutex);
 			return -ENOENT;
 		}
 
@@ -202,7 +202,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		wq = kmalloc(sizeof(struct autofs_wait_queue),GFP_KERNEL);
 		if ( !wq ) {
 			kfree(name);
-			up(&sbi->wq_sem);
+			mutex_unlock(&sbi->wq_mutex);
 			return -ENOMEM;
 		}
 
@@ -218,10 +218,10 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		wq->status = -EINTR; /* Status return if interrupted */
 		atomic_set(&wq->wait_ctr, 2);
 		atomic_set(&wq->notified, 1);
-		up(&sbi->wq_sem);
+		mutex_unlock(&sbi->wq_mutex);
 	} else {
 		atomic_inc(&wq->wait_ctr);
-		up(&sbi->wq_sem);
+		mutex_unlock(&sbi->wq_mutex);
 		kfree(name);
 		DPRINTK("existing wait id = 0x%08lx, name = %.*s, nfy=%d",
 			(unsigned long) wq->wait_queue_token, wq->len, wq->name, notify);
@@ -282,19 +282,19 @@ int autofs4_wait_release(struct autofs_sb_info *sbi, autofs_wqt_t wait_queue_tok
 {
 	struct autofs_wait_queue *wq, **wql;
 
-	down(&sbi->wq_sem);
+	mutex_lock(&sbi->wq_mutex);
 	for ( wql = &sbi->queues ; (wq = *wql) != 0 ; wql = &wq->next ) {
 		if ( wq->wait_queue_token == wait_queue_token )
 			break;
 	}
 
 	if ( !wq ) {
-		up(&sbi->wq_sem);
+		mutex_unlock(&sbi->wq_mutex);
 		return -EINVAL;
 	}
 
 	*wql = wq->next;	/* Unlink from chain */
-	up(&sbi->wq_sem);
+	mutex_unlock(&sbi->wq_mutex);
 	kfree(wq->name);
 	wq->name = NULL;	/* Do not wait on this queue */
 

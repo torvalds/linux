@@ -28,6 +28,7 @@
 #include <linux/journal-head.h>
 #include <linux/stddef.h>
 #include <linux/bit_spinlock.h>
+#include <linux/mutex.h>
 #include <asm/semaphore.h>
 #endif
 
@@ -575,7 +576,7 @@ struct transaction_s
  * @j_wait_checkpoint:  Wait queue to trigger checkpointing
  * @j_wait_commit: Wait queue to trigger commit
  * @j_wait_updates: Wait queue to wait for updates to complete
- * @j_checkpoint_sem: Semaphore for locking against concurrent checkpoints
+ * @j_checkpoint_mutex: Mutex for locking against concurrent checkpoints
  * @j_head: Journal head - identifies the first unused block in the journal
  * @j_tail: Journal tail - identifies the oldest still-used block in the
  *  journal.
@@ -645,7 +646,7 @@ struct journal_s
 	int			j_barrier_count;
 
 	/* The barrier lock itself */
-	struct semaphore	j_barrier;
+	struct mutex		j_barrier;
 
 	/*
 	 * Transactions: The current running transaction...
@@ -687,7 +688,7 @@ struct journal_s
 	wait_queue_head_t	j_wait_updates;
 
 	/* Semaphore for locking against concurrent checkpoints */
-	struct semaphore 	j_checkpoint_sem;
+	struct mutex	 	j_checkpoint_mutex;
 
 	/*
 	 * Journal head: identifies the first unused block in the journal.

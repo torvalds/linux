@@ -99,6 +99,8 @@ int register_die_notifier(struct notifier_block *nb)
 {
 	int err = 0;
 	unsigned long flags;
+
+	vmalloc_sync_all();
 	spin_lock_irqsave(&die_notifier_lock, flags);
 	err = notifier_chain_register(&i386die_chain, nb);
 	spin_unlock_irqrestore(&die_notifier_lock, flags);
@@ -112,12 +114,30 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 		p < (void *)tinfo + THREAD_SIZE - 3;
 }
 
-static void print_addr_and_symbol(unsigned long addr, char *log_lvl)
+/*
+ * Print CONFIG_STACK_BACKTRACE_COLS address/symbol entries per line.
+ */
+static inline int print_addr_and_symbol(unsigned long addr, char *log_lvl,
+					int printed)
 {
-	printk(log_lvl);
+	if (!printed)
+		printk(log_lvl);
+
+#if CONFIG_STACK_BACKTRACE_COLS == 1
 	printk(" [<%08lx>] ", addr);
+#else
+	printk(" <%08lx> ", addr);
+#endif
 	print_symbol("%s", addr);
-	printk("\n");
+
+	printed = (printed + 1) % CONFIG_STACK_BACKTRACE_COLS;
+
+	if (printed)
+		printk("  ");
+	else
+		printk("\n");
+
+	return printed;
 }
 
 static inline unsigned long print_context_stack(struct thread_info *tinfo,
@@ -125,20 +145,24 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 				char *log_lvl)
 {
 	unsigned long addr;
+	int printed = 0; /* nr of entries already printed on current line */
 
 #ifdef	CONFIG_FRAME_POINTER
 	while (valid_stack_ptr(tinfo, (void *)ebp)) {
 		addr = *(unsigned long *)(ebp + 4);
-		print_addr_and_symbol(addr, log_lvl);
+		printed = print_addr_and_symbol(addr, log_lvl, printed);
 		ebp = *(unsigned long *)ebp;
 	}
 #else
 	while (valid_stack_ptr(tinfo, stack)) {
 		addr = *stack++;
 		if (__kernel_text_address(addr))
-			print_addr_and_symbol(addr, log_lvl);
+			printed = print_addr_and_symbol(addr, log_lvl, printed);
 	}
 #endif
+	if (printed)
+		printk("\n");
+
 	return ebp;
 }
 
@@ -166,8 +190,7 @@ static void show_trace_log_lvl(struct task_struct *task,
 		stack = (unsigned long*)context->previous_esp;
 		if (!stack)
 			break;
-		printk(log_lvl);
-		printk(" =======================\n");
+		printk("%s =======================\n", log_lvl);
 	}
 }
 
@@ -194,21 +217,17 @@ static void show_stack_log_lvl(struct task_struct *task, unsigned long *esp,
 	for(i = 0; i < kstack_depth_to_print; i++) {
 		if (kstack_end(stack))
 			break;
-		if (i && ((i % 8) == 0)) {
-			printk("\n");
-			printk(log_lvl);
-			printk("       ");
-		}
+		if (i && ((i % 8) == 0))
+			printk("\n%s       ", log_lvl);
 		printk("%08lx ", *stack++);
 	}
-	printk("\n");
-	printk(log_lvl);
-	printk("Call Trace:\n");
+	printk("\n%sCall Trace:\n", log_lvl);
 	show_trace_log_lvl(task, esp, log_lvl);
 }
 
 void show_stack(struct task_struct *task, unsigned long *esp)
 {
+	printk("       ");
 	show_stack_log_lvl(task, esp, "");
 }
 
@@ -233,7 +252,7 @@ void show_registers(struct pt_regs *regs)
 
 	esp = (unsigned long) (&regs->esp);
 	savesegment(ss, ss);
-	if (user_mode(regs)) {
+	if (user_mode_vm(regs)) {
 		in_kernel = 0;
 		esp = regs->esp;
 		ss = regs->xss & 0xffff;
@@ -333,6 +352,8 @@ void die(const char * str, struct pt_regs * regs, long err)
 	static int die_counter;
 	unsigned long flags;
 
+	oops_enter();
+
 	if (die.lock_owner != raw_smp_processor_id()) {
 		console_verbose();
 		spin_lock_irqsave(&die.lock, flags);
@@ -385,6 +406,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 		ssleep(5);
 		panic("Fatal exception");
 	}
+	oops_exit();
 	do_exit(SIGSEGV);
 }
 
@@ -623,7 +645,7 @@ void die_nmi (struct pt_regs *regs, const char *msg)
 	/* If we are in kernel we are probably nested up pretty bad
 	 * and might aswell get out now while we still can.
 	*/
-	if (!user_mode(regs)) {
+	if (!user_mode_vm(regs)) {
 		current->thread.trap_no = 2;
 		crash_kexec(regs);
 	}
@@ -694,6 +716,7 @@ fastcall void do_nmi(struct pt_regs * regs, long error_code)
 
 void set_nmi_callback(nmi_callback_t callback)
 {
+	vmalloc_sync_all();
 	rcu_assign_pointer(nmi_callback, callback);
 }
 EXPORT_SYMBOL_GPL(set_nmi_callback);

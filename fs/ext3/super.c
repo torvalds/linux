@@ -472,7 +472,7 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 #ifdef CONFIG_EXT3_FS_XATTR
 		init_rwsem(&ei->xattr_sem);
 #endif
-		init_MUTEX(&ei->truncate_sem);
+		mutex_init(&ei->truncate_mutex);
 		inode_init_once(&ei->vfs_inode);
 	}
 }
@@ -2382,8 +2382,8 @@ static int ext3_statfs (struct super_block * sb, struct kstatfs * buf)
  * Process 1                         Process 2
  * ext3_create()                     quota_sync()
  *   journal_start()                   write_dquot()
- *   DQUOT_INIT()                        down(dqio_sem)
- *     down(dqio_sem)                    journal_start()
+ *   DQUOT_INIT()                        down(dqio_mutex)
+ *     down(dqio_mutex)                    journal_start()
  *
  */
 

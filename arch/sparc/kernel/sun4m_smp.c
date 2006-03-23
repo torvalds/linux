@@ -218,10 +218,8 @@ void __init smp4m_boot_cpus(void)
 		cpu_present_map = cpumask_of_cpu(smp_processor_id());
 	} else {
 		unsigned long bogosum = 0;
-		for(i = 0; i < NR_CPUS; i++) {
-			if (cpu_isset(i, cpu_present_map))
-				bogosum += cpu_data(i).udelay_val;
-		}
+		for_each_present_cpu(i)
+			bogosum += cpu_data(i).udelay_val;
 		printk("Total of %d Processors activated (%lu.%02lu BogoMIPS).\n",
 		       cpucount + 1,
 		       bogosum/(500000/HZ),

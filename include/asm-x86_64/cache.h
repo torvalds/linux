@@ -20,6 +20,8 @@
        __attribute__((__section__(".data.page_aligned")))
 #endif
 
+#define __read_mostly __attribute__((__section__(".data.read_mostly")))
+
 #endif
 
 #endif

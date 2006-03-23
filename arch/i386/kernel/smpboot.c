@@ -899,6 +899,7 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	unsigned short nmi_high = 0, nmi_low = 0;
 
 	++cpucount;
+	alternatives_smp_switch(1);
 
 	/*
 	 * We can't use kernel_thread since we must avoid to
@@ -1368,6 +1369,8 @@ void __cpu_die(unsigned int cpu)
 		/* They ack this in play_dead by setting CPU_DEAD */
 		if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
 			printk ("CPU %d is now offline\n", cpu);
+			if (1 == num_online_cpus())
+				alternatives_smp_switch(0);
 			return;
 		}
 		msleep(100);

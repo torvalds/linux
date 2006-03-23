@@ -100,6 +100,8 @@
 #include <linux/smp_lock.h>
 #include <linux/ac97_codec.h>
 #include <linux/bitops.h>
+#include <linux/mutex.h>
+
 #include <asm/uaccess.h>
 
 #define DRIVER_VERSION "1.01"
@@ -331,7 +333,7 @@ struct i810_state {
 	struct i810_card *card;	/* Card info */
 
 	/* single open lock mechanism, only used for recording */
-	struct semaphore open_sem;
+	struct mutex open_mutex;
 	wait_queue_head_t open_wait;
 
 	/* file mode */
@@ -2597,7 +2599,7 @@ found_virt:
 	state->card = card;
 	state->magic = I810_STATE_MAGIC;
 	init_waitqueue_head(&dmabuf->wait);
-	init_MUTEX(&state->open_sem);
+	mutex_init(&state->open_mutex);
 	file->private_data = state;
 	dmabuf->trigger = 0;
 
@@ -3213,7 +3215,7 @@ static void __devinit i810_configure_clocking (void)
 		state->card = card;
 		state->magic = I810_STATE_MAGIC;
 		init_waitqueue_head(&dmabuf->wait);
-		init_MUTEX(&state->open_sem);
+		mutex_init(&state->open_mutex);
 		dmabuf->fmt = I810_FMT_STEREO | I810_FMT_16BIT;
 		dmabuf->trigger = PCM_ENABLE_OUTPUT;
 		i810_set_spdif_output(state, -1, 0);

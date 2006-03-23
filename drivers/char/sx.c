@@ -2318,7 +2318,7 @@ static int sx_init_portstructs (int nboards, int nports)
 			port->board = board;
 			port->gs.rd = &sx_real_driver;
 #ifdef NEW_WRITE_LOCKING
-			port->gs.port_write_sem = MUTEX;
+			port->gs.port_write_mutex = MUTEX;
 #endif
 			port->gs.driver_lock = SPIN_LOCK_UNLOCKED;
 			/*

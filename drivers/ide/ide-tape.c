@@ -443,6 +443,7 @@
 #include <linux/smp_lock.h>
 #include <linux/completion.h>
 #include <linux/bitops.h>
+#include <linux/mutex.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
@@ -1011,7 +1012,7 @@ typedef struct ide_tape_obj {
          int debug_level; 
 } idetape_tape_t;
 
-static DECLARE_MUTEX(idetape_ref_sem);
+static DEFINE_MUTEX(idetape_ref_mutex);
 
 static struct class *idetape_sysfs_class;
 
@@ -1024,11 +1025,11 @@ static struct ide_tape_obj *ide_tape_get(struct gendisk *disk)
 {
 	struct ide_tape_obj *tape = NULL;
 
-	down(&idetape_ref_sem);
+	mutex_lock(&idetape_ref_mutex);
 	tape = ide_tape_g(disk);
 	if (tape)
 		kref_get(&tape->kref);
-	up(&idetape_ref_sem);
+	mutex_unlock(&idetape_ref_mutex);
 	return tape;
 }
 
@@ -1036,9 +1037,9 @@ static void ide_tape_release(struct kref *);
 
 static void ide_tape_put(struct ide_tape_obj *tape)
 {
-	down(&idetape_ref_sem);
+	mutex_lock(&idetape_ref_mutex);
 	kref_put(&tape->kref, ide_tape_release);
-	up(&idetape_ref_sem);
+	mutex_unlock(&idetape_ref_mutex);
 }
 
 /*
@@ -1290,11 +1291,11 @@ static struct ide_tape_obj *ide_tape_chrdev_get(unsigned int i)
 {
 	struct ide_tape_obj *tape = NULL;
 
-	down(&idetape_ref_sem);
+	mutex_lock(&idetape_ref_mutex);
 	tape = idetape_devs[i];
 	if (tape)
 		kref_get(&tape->kref);
-	up(&idetape_ref_sem);
+	mutex_unlock(&idetape_ref_mutex);
 	return tape;
 }
 
@@ -4870,11 +4871,11 @@ static int ide_tape_probe(ide_drive_t *drive)
 
 	drive->driver_data = tape;
 
-	down(&idetape_ref_sem);
+	mutex_lock(&idetape_ref_mutex);
 	for (minor = 0; idetape_devs[minor]; minor++)
 		;
 	idetape_devs[minor] = tape;
-	up(&idetape_ref_sem);
+	mutex_unlock(&idetape_ref_mutex);
 
 	idetape_setup(drive, tape, minor);
 
