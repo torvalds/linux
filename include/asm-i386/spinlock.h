@@ -35,18 +35,23 @@
 #define __raw_spin_lock_string_flags \
 	"\n1:\t" \
 	"lock ; decb %0\n\t" \
-	"jns 4f\n\t" \
+	"jns 5f\n" \
 	"2:\t" \
 	"testl $0x200, %1\n\t" \
-	"jz 3f\n\t" \
-	"sti\n\t" \
+	"jz 4f\n\t" \
+	"sti\n" \
 	"3:\t" \
 	"rep;nop\n\t" \
 	"cmpb $0, %0\n\t" \
 	"jle 3b\n\t" \
 	"cli\n\t" \
 	"jmp 1b\n" \
-	"4:\n\t"
+	"4:\t" \
+	"rep;nop\n\t" \
+	"cmpb $0, %0\n\t" \
+	"jg 1b\n\t" \
+	"jmp 4b\n" \
+	"5:\n\t"
 
 #define __raw_spin_lock_string_up \
 	"\n\tdecb %0"
