@@ -138,7 +138,6 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 	case SNAPSHOT_FREEZE:
 		if (data->frozen)
 			break;
-		sys_sync();
 		down(&pm_sem);
 		pm_prepare_console();
 		disable_nonboot_cpus();
