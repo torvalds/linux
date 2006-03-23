@@ -847,8 +847,7 @@ static void skge_link_up(struct skge_port *skge)
 		    LED_BLK_OFF|LED_SYNC_OFF|LED_ON);
 
 	netif_carrier_on(skge->netdev);
-	if (skge->tx_avail > MAX_SKB_FRAGS + 1)
-		netif_wake_queue(skge->netdev);
+	netif_wake_queue(skge->netdev);
 
 	if (netif_msg_link(skge))
 		printk(KERN_INFO PFX
@@ -2190,8 +2189,6 @@ static int skge_up(struct net_device *dev)
 	if (err)
 		goto free_rx_ring;
 
-	skge->tx_avail = skge->tx_ring.count - 1;
-
 	/* Initialize MAC */
 	spin_lock_bh(&hw->phy_lock);
 	if (hw->chip_id == CHIP_ID_GENESIS)
@@ -2294,6 +2291,12 @@ static int skge_down(struct net_device *dev)
 	return 0;
 }
 
+static inline int skge_avail(const struct skge_ring *ring)
+{
+	return ((ring->to_clean > ring->to_use) ? 0 : ring->count)
+		+ (ring->to_clean - ring->to_use) - 1;
+}
+
 static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
 	struct skge_port *skge = netdev_priv(dev);
@@ -2314,7 +2317,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_LOCKED;
 	}
 
-	if (unlikely(skge->tx_avail < skb_shinfo(skb)->nr_frags +1)) {
+	if (unlikely(skge_avail(&skge->tx_ring) < skb_shinfo(skb)->nr_frags + 1)) {
 		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
 
@@ -2390,8 +2393,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		       dev->name, e - ring->start, skb->len);
 
 	ring->to_use = e->next;
-	skge->tx_avail -= skb_shinfo(skb)->nr_frags + 1;
-	if (skge->tx_avail <= MAX_SKB_FRAGS + 1) {
+	if (skge_avail(&skge->tx_ring) <= MAX_SKB_FRAGS + 1) {
 		pr_debug("%s: transmit queue full\n", dev->name);
 		netif_stop_queue(dev);
 	}
@@ -2416,14 +2418,12 @@ static void skge_tx_complete(struct skge_port *skge, struct skge_element *last)
 		e->skb = NULL;
 		pci_unmap_single(pdev, pci_unmap_addr(e, mapaddr),
 				 skb_headlen(skb), PCI_DMA_TODEVICE);
-		++skge->tx_avail;
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			e = e->next;
 			pci_unmap_page(pdev, pci_unmap_addr(e, mapaddr),
 				       skb_shinfo(skb)->frags[i].size,
 				       PCI_DMA_TODEVICE);
-			++skge->tx_avail;
 		}
 
 		dev_kfree_skb(skb);
@@ -2688,7 +2688,7 @@ static void skge_tx_done(struct skge_port *skge)
 
 	skge_write8(skge->hw, Q_ADDR(txqaddr[skge->port], Q_CSR), CSR_IRQ_CL_F);
 
-	if (skge->tx_avail > MAX_SKB_FRAGS + 1)
+	if (skge_avail(&skge->tx_ring) > MAX_SKB_FRAGS + 1)
 		netif_wake_queue(skge->netdev);
 
 	spin_unlock(&skge->tx_lock);
