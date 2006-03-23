@@ -252,6 +252,7 @@ void ipoib_event(struct ib_event_handler *handler,
 		container_of(handler, struct ipoib_dev_priv, event_handler);
 
 	if (record->event == IB_EVENT_PORT_ERR    ||
+	    record->event == IB_EVENT_PKEY_CHANGE ||
 	    record->event == IB_EVENT_PORT_ACTIVE ||
 	    record->event == IB_EVENT_LID_CHANGE  ||
 	    record->event == IB_EVENT_SM_CHANGE) {
