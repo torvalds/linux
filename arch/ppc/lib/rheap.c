@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/rheap.c
- *
  * A Remote Heap.  Remote means that we don't touch the memory that the
  * heap points to. Normal heap implementations use the memory they manage
  * to place their list. We cannot do that because the memory we manage may

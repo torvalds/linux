@@ -1,6 +1,4 @@
 /*
- * arch/ppc/kernel/ppc4xx_dma.c
- *
  * IBM PPC4xx DMA engine core library
  *
  * Copyright 2000-2004 MontaVista Software Inc.

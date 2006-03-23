@@ -1,6 +1,4 @@
 /*
- *  arch/ppc64/kernel/head.S
- *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *
@@ -279,6 +277,7 @@ exception_marker:
 	std	r10,0(r1);		/* make stack chain pointer	*/ \
 	std	r0,GPR0(r1);		/* save r0 in stackframe	*/ \
 	std	r10,GPR1(r1);		/* save r1 in stackframe	*/ \
+	ACCOUNT_CPU_USER_ENTRY(r9, r10);				   \
 	std	r2,GPR2(r1);		/* save r2 in stackframe	*/ \
 	SAVE_4GPRS(3, r1);		/* save r3 - r6 in stackframe	*/ \
 	SAVE_2GPRS(7, r1);		/* save r7, r8 in stackframe	*/ \
@@ -846,6 +845,14 @@ fast_exception_return:
 	ld	r11,_NIP(r1)
 	andi.	r3,r12,MSR_RI		/* check if RI is set */
 	beq-	unrecov_fer
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	andi.	r3,r12,MSR_PR
+	beq	2f
+	ACCOUNT_CPU_USER_EXIT(r3, r4)
+2:
+#endif
+
 	ld	r3,_CCR(r1)
 	ld	r4,_LINK(r1)
 	ld	r5,_CTR(r1)

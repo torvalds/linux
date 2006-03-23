@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/4xx_io/serial_sicc.c
- *
  *  Driver for IBM STB3xxx SICC serial port
  *
  *  Based on drivers/char/serial_amba.c, by ARM Ltd.
@@ -1639,9 +1637,8 @@ static struct SICC_info *siccuart_get(int line)
     state->count++;
     if (state->info)
         return state->info;
-    info = kmalloc(sizeof(struct SICC_info), GFP_KERNEL);
+    info = kzalloc(sizeof(struct SICC_info), GFP_KERNEL);
     if (info) {
-        memset(info, 0, sizeof(struct SICC_info));
         init_waitqueue_head(&info->open_wait);
         init_waitqueue_head(&info->close_wait);
         init_waitqueue_head(&info->delta_msr_wait);

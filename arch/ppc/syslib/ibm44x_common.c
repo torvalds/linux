@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/ibm44x_common.c
- *
  * PPC44x system library
  *
  * Matt Porter <mporter@kernel.crashing.org>

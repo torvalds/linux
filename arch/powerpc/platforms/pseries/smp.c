@@ -443,7 +443,7 @@ void __init smp_init_pSeries(void)
 	smp_ops->cpu_die = pSeries_cpu_die;
 
 	/* Processors can be added/removed only on LPAR */
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		pSeries_reconfig_notifier_register(&pSeries_smp_nb);
 #endif
 

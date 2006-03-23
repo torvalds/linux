@@ -1,7 +1,4 @@
-
 /*
- * arch/ppc/platforms/hdpu_setup.c
- *
  * Board setup routines for the Sky Computers HDPU Compute Blade.
  *
  * Written by Brian Waite <waite@skycomputers.com>
@@ -353,7 +350,7 @@ static void __init hdpu_fixup_cpustate_pdata(struct platform_device *pd)
 }
 #endif
 
-static int __init hdpu_platform_notify(struct device *dev)
+static int hdpu_platform_notify(struct device *dev)
 {
 	static struct {
 		char *bus_id;

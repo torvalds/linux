@@ -1,6 +1,4 @@
 /*
- *  arch/ppc64/kernel/maple_time.c
- *
  *  (c) Copyright 2004 Benjamin Herrenschmidt (benh@kernel.crashing.org),
  *                     IBM Corp. 
  *

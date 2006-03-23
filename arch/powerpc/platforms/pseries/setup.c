@@ -60,7 +60,6 @@
 #include <asm/time.h>
 #include <asm/nvram.h>
 #include "xics.h"
-#include <asm/firmware.h>
 #include <asm/pmc.h>
 #include <asm/mpic.h>
 #include <asm/ppc-pci.h>
@@ -70,6 +69,7 @@
 
 #include "plpar_wrappers.h"
 #include "ras.h"
+#include "firmware.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -246,7 +246,7 @@ static void __init pSeries_setup_arch(void)
 		ppc_md.idle_loop = default_idle;
 	}
 
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
 	else
 		ppc_md.enable_pmcs = power4_enable_pmcs;
@@ -261,53 +261,6 @@ static int __init pSeries_init_panel(void)
 	return 0;
 }
 arch_initcall(pSeries_init_panel);
-
-
-/* Build up the ppc64_firmware_features bitmask field
- * using contents of device-tree/ibm,hypertas-functions.
- * Ultimately this functionality may be moved into prom.c prom_init().
- */
-static void __init fw_feature_init(void)
-{
-	struct device_node * dn;
-	char * hypertas;
-	unsigned int len;
-
-	DBG(" -> fw_feature_init()\n");
-
-	ppc64_firmware_features = 0;
-	dn = of_find_node_by_path("/rtas");
-	if (dn == NULL) {
-		printk(KERN_ERR "WARNING ! Cannot find RTAS in device-tree !\n");
-		goto no_rtas;
-	}
-
-	hypertas = get_property(dn, "ibm,hypertas-functions", &len);
-	if (hypertas) {
-		while (len > 0){
-			int i, hypertas_len;
-			/* check value against table of strings */
-			for(i=0; i < FIRMWARE_MAX_FEATURES ;i++) {
-				if ((firmware_features_table[i].name) &&
-				    (strcmp(firmware_features_table[i].name,hypertas))==0) {
-					/* we have a match */
-					ppc64_firmware_features |= 
-						(firmware_features_table[i].val);
-					break;
-				} 
-			}
-			hypertas_len = strlen(hypertas);
-			len -= hypertas_len +1;
-			hypertas+= hypertas_len +1;
-		}
-	}
-
-	of_node_put(dn);
-no_rtas:
-
-	DBG(" <- fw_feature_init()\n");
-}
-
 
 static  void __init pSeries_discover_pic(void)
 {
@@ -367,21 +320,16 @@ static int pseries_set_xdabr(unsigned long dabr)
  */
 static void __init pSeries_init_early(void)
 {
-	int iommu_off = 0;
-
 	DBG(" -> pSeries_init_early()\n");
 
 	fw_feature_init();
 	
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		hpte_init_lpar();
-	else {
+	else
 		hpte_init_native();
-		iommu_off = (of_chosen &&
-			     get_property(of_chosen, "linux,iommu-off", NULL));
-	}
 
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		find_udbg_vterm();
 
 	if (firmware_has_feature(FW_FEATURE_DABR))
@@ -436,6 +384,9 @@ static int __init pSeries_probe(int platform)
 	/* if we have some ppc_md fixups for LPAR to do, do
 	 * it here ...
 	 */
+
+	if (platform == PLATFORM_PSERIES_LPAR)
+		ppc64_firmware_features |= FW_FEATURE_LPAR;
 
 	return 1;
 }
@@ -576,7 +527,7 @@ static void pseries_shared_idle(void)
 
 static int pSeries_pci_probe_mode(struct pci_bus *bus)
 {
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		return PCI_PROBE_DEVTREE;
 	return PCI_PROBE_NORMAL;
 }

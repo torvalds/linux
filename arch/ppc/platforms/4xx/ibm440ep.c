@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibm440ep.c
- *
  * PPC440EP I/O descriptions
  *
  * Wade Farnsworth <wfarnsworth@mvista.com>

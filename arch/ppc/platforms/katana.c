@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/katana.c
- *
  * Board setup routines for the Artesyn Katana cPCI boards.
  *
  * Author: Tim Montgomery <timm@artesyncp.com>
@@ -598,7 +596,7 @@ katana_fixup_mv64xxx_pdata(struct platform_device *pdev)
 }
 #endif
 
-static int __init
+static int
 katana_platform_notify(struct device *dev)
 {
 	static struct {
@@ -664,12 +662,11 @@ katana_setup_mtd(void)
 
 	ptbl_entries = (size >= (64*MB)) ? 6 : 4;
 
-	if ((ptbl = kmalloc(ptbl_entries * sizeof(struct mtd_partition),
+	if ((ptbl = kcalloc(ptbl_entries, sizeof(struct mtd_partition),
 			GFP_KERNEL)) == NULL) {
 		printk(KERN_WARNING "Can't alloc MTD partition table\n");
 		return -ENOMEM;
 	}
-	memset(ptbl, 0, ptbl_entries * sizeof(struct mtd_partition));
 
 	ptbl[0].name = "Monitor";
 	ptbl[0].size = KATANA_MTD_MONITOR_SIZE;

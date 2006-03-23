@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/mpc8xx_devices.c
- *
  * MPC8xx Device descriptions
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>

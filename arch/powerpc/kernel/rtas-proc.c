@@ -1,5 +1,4 @@
 /*
- *   arch/ppc64/kernel/rtas-proc.c
  *   Copyright (C) 2000 Tilmann Bitterberg
  *   (tilmann@bitterberg.de)
  *

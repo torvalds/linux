@@ -1,5 +1,4 @@
 /*
- * arch/ppc64/kernel/iommu.c
  * Copyright (C) 2001 Mike Corrigan & Dave Engebretsen, IBM Corporation
  * 
  * Rewrite, cleanup, new allocation schemes, virtual merging: 

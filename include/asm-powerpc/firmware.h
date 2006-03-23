@@ -41,6 +41,7 @@
 #define FW_FEATURE_MULTITCE	(1UL<<19)
 #define FW_FEATURE_SPLPAR	(1UL<<20)
 #define FW_FEATURE_ISERIES	(1UL<<21)
+#define FW_FEATURE_LPAR		(1UL<<22)
 
 enum {
 #ifdef CONFIG_PPC64
@@ -51,10 +52,10 @@ enum {
 		FW_FEATURE_MIGRATE | FW_FEATURE_PERFMON | FW_FEATURE_CRQ |
 		FW_FEATURE_VIO | FW_FEATURE_RDMA | FW_FEATURE_LLAN |
 		FW_FEATURE_BULK | FW_FEATURE_XDABR | FW_FEATURE_MULTITCE |
-		FW_FEATURE_SPLPAR,
+		FW_FEATURE_SPLPAR | FW_FEATURE_LPAR,
 	FW_FEATURE_PSERIES_ALWAYS = 0,
-	FW_FEATURE_ISERIES_POSSIBLE = FW_FEATURE_ISERIES,
-	FW_FEATURE_ISERIES_ALWAYS = FW_FEATURE_ISERIES,
+	FW_FEATURE_ISERIES_POSSIBLE = FW_FEATURE_ISERIES | FW_FEATURE_LPAR,
+	FW_FEATURE_ISERIES_ALWAYS = FW_FEATURE_ISERIES | FW_FEATURE_LPAR,
 	FW_FEATURE_POSSIBLE =
 #ifdef CONFIG_PPC_PSERIES
 		FW_FEATURE_PSERIES_POSSIBLE |
@@ -88,15 +89,6 @@ static inline unsigned long firmware_has_feature(unsigned long feature)
 	return (FW_FEATURE_ALWAYS & feature) ||
 		(FW_FEATURE_POSSIBLE & ppc64_firmware_features & feature);
 }
-
-#ifdef CONFIG_PPC_PSERIES
-typedef struct {
-    unsigned long val;
-    char * name;
-} firmware_feature_t;
-
-extern firmware_feature_t firmware_features_table[];
-#endif
 
 extern void system_reset_fwnmi(void);
 extern void machine_check_fwnmi(void);
