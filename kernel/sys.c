@@ -1227,7 +1227,7 @@ asmlinkage long sys_setsid(void)
 	struct pid *pid;
 	int err = -EPERM;
 
-	down(&tty_sem);
+	mutex_lock(&tty_mutex);
 	write_lock_irq(&tasklist_lock);
 
 	pid = find_pid(PIDTYPE_PGID, group_leader->pid);
@@ -1241,7 +1241,7 @@ asmlinkage long sys_setsid(void)
 	err = process_group(group_leader);
 out:
 	write_unlock_irq(&tasklist_lock);
-	up(&tty_sem);
+	mutex_unlock(&tty_mutex);
 	return err;
 }
 
