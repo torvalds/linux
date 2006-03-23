@@ -19,6 +19,7 @@
 #include <linux/kobject.h>
 #include <linux/kobj_map.h>
 #include <linux/cdev.h>
+#include <linux/mutex.h>
 
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
@@ -28,7 +29,7 @@ static struct kobj_map *cdev_map;
 
 #define MAX_PROBE_HASH 255	/* random */
 
-static DECLARE_MUTEX(chrdevs_lock);
+static DEFINE_MUTEX(chrdevs_lock);
 
 static struct char_device_struct {
 	struct char_device_struct *next;
@@ -88,13 +89,13 @@ out:
 
 void *acquire_chrdev_list(void)
 {
-	down(&chrdevs_lock);
+	mutex_lock(&chrdevs_lock);
 	return get_next_chrdev(NULL);
 }
 
 void release_chrdev_list(void *dev)
 {
-	up(&chrdevs_lock);
+	mutex_unlock(&chrdevs_lock);
 	kfree(dev);
 }
 
@@ -151,7 +152,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 
 	memset(cd, 0, sizeof(struct char_device_struct));
 
-	down(&chrdevs_lock);
+	mutex_lock(&chrdevs_lock);
 
 	/* temporary */
 	if (major == 0) {
@@ -186,10 +187,10 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 	}
 	cd->next = *cp;
 	*cp = cd;
-	up(&chrdevs_lock);
+	mutex_unlock(&chrdevs_lock);
 	return cd;
 out:
-	up(&chrdevs_lock);
+	mutex_unlock(&chrdevs_lock);
 	kfree(cd);
 	return ERR_PTR(ret);
 }
@@ -200,7 +201,7 @@ __unregister_chrdev_region(unsigned major, unsigned baseminor, int minorct)
 	struct char_device_struct *cd = NULL, **cp;
 	int i = major_to_index(major);
 
-	down(&chrdevs_lock);
+	mutex_lock(&chrdevs_lock);
 	for (cp = &chrdevs[i]; *cp; cp = &(*cp)->next)
 		if ((*cp)->major == major &&
 		    (*cp)->baseminor == baseminor &&
@@ -210,7 +211,7 @@ __unregister_chrdev_region(unsigned major, unsigned baseminor, int minorct)
 		cd = *cp;
 		*cp = cd->next;
 	}
-	up(&chrdevs_lock);
+	mutex_unlock(&chrdevs_lock);
 	return cd;
 }
 

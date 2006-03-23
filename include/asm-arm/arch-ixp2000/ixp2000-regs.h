@@ -353,8 +353,8 @@
  * Masks and shifts for various fields in the WTC and RTC registers.
  */
 #define	SLOWPORT_WRTC_MASK_HD		0x0003
-#define	SLOWPORT_WRTC_MASK_SU		0x003c
-#define	SLOWPORT_WRTC_MASK_PW		0x03c0
+#define	SLOWPORT_WRTC_MASK_PW		0x003c
+#define	SLOWPORT_WRTC_MASK_SU		0x03c0
 
 #define	SLOWPORT_WRTC_SHIFT_HD		0x00
 #define	SLOWPORT_WRTC_SHIFT_SU		0x02

@@ -847,10 +847,11 @@ int ip_append_data(struct sock *sk,
 	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&
 			(rt->u.dst.dev->features & NETIF_F_UFO)) {
 
-		if(ip_ufo_append_data(sk, getfrag, from, length, hh_len,
-			       fragheaderlen, transhdrlen, mtu, flags))
+		err = ip_ufo_append_data(sk, getfrag, from, length, hh_len,
+					 fragheaderlen, transhdrlen, mtu,
+					 flags);
+		if (err)
 			goto error;
-
 		return 0;
 	}
 
@@ -1248,11 +1249,7 @@ int ip_push_pending_frames(struct sock *sk)
 	iph->tos = inet->tos;
 	iph->tot_len = htons(skb->len);
 	iph->frag_off = df;
-	if (!df) {
-		__ip_select_ident(iph, &rt->u.dst, 0);
-	} else {
-		iph->id = htons(inet->id++);
-	}
+	ip_select_ident(iph, &rt->u.dst, sk);
 	iph->ttl = ttl;
 	iph->protocol = sk->sk_protocol;
 	iph->saddr = rt->rt_src;

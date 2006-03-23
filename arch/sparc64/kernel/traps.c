@@ -38,6 +38,7 @@
 #include <asm/processor.h>
 #include <asm/timer.h>
 #include <asm/kdebug.h>
+#include <asm/head.h>
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
@@ -72,12 +73,14 @@ struct tl1_traplog {
 
 static void dump_tl1_traplog(struct tl1_traplog *p)
 {
-	int i;
+	int i, limit;
 
-	printk("TRAPLOG: Error at trap level 0x%lx, dumping track stack.\n",
-	       p->tl);
-	for (i = 0; i < 4; i++) {
-		printk(KERN_CRIT
+	printk(KERN_EMERG "TRAPLOG: Error at trap level 0x%lx, "
+	       "dumping track stack.\n", p->tl);
+
+	limit = (tlb_type == hypervisor) ? 2 : 4;
+	for (i = 0; i < limit; i++) {
+		printk(KERN_EMERG
 		       "TRAPLOG: Trap level %d TSTATE[%016lx] TPC[%016lx] "
 		       "TNPC[%016lx] TT[%lx]\n",
 		       i + 1,
@@ -179,6 +182,45 @@ void spitfire_insn_access_exception_tl1(struct pt_regs *regs, unsigned long sfsr
 	spitfire_insn_access_exception(regs, sfsr, sfar);
 }
 
+void sun4v_insn_access_exception(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+{
+	unsigned short type = (type_ctx >> 16);
+	unsigned short ctx  = (type_ctx & 0xffff);
+	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "instruction access exception", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	if (regs->tstate & TSTATE_PRIV) {
+		printk("sun4v_insn_access_exception: ADDR[%016lx] "
+		       "CTX[%04x] TYPE[%04x], going.\n",
+		       addr, ctx, type);
+		die_if_kernel("Iax", regs);
+	}
+
+	if (test_thread_flag(TIF_32BIT)) {
+		regs->tpc &= 0xffffffff;
+		regs->tnpc &= 0xffffffff;
+	}
+	info.si_signo = SIGSEGV;
+	info.si_errno = 0;
+	info.si_code = SEGV_MAPERR;
+	info.si_addr = (void __user *) addr;
+	info.si_trapno = 0;
+	force_sig_info(SIGSEGV, &info, current);
+}
+
+void sun4v_insn_access_exception_tl1(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+{
+	if (notify_die(DIE_TRAP_TL1, "instruction access exception tl1", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
+	sun4v_insn_access_exception(regs, addr, type_ctx);
+}
+
 void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
 	siginfo_t info;
@@ -225,6 +267,45 @@ void spitfire_data_access_exception_tl1(struct pt_regs *regs, unsigned long sfsr
 
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
 	spitfire_data_access_exception(regs, sfsr, sfar);
+}
+
+void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+{
+	unsigned short type = (type_ctx >> 16);
+	unsigned short ctx  = (type_ctx & 0xffff);
+	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "data access exception", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	if (regs->tstate & TSTATE_PRIV) {
+		printk("sun4v_data_access_exception: ADDR[%016lx] "
+		       "CTX[%04x] TYPE[%04x], going.\n",
+		       addr, ctx, type);
+		die_if_kernel("Dax", regs);
+	}
+
+	if (test_thread_flag(TIF_32BIT)) {
+		regs->tpc &= 0xffffffff;
+		regs->tnpc &= 0xffffffff;
+	}
+	info.si_signo = SIGSEGV;
+	info.si_errno = 0;
+	info.si_code = SEGV_MAPERR;
+	info.si_addr = (void __user *) addr;
+	info.si_trapno = 0;
+	force_sig_info(SIGSEGV, &info, current);
+}
+
+void sun4v_data_access_exception_tl1(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+{
+	if (notify_die(DIE_TRAP_TL1, "data access exception tl1", regs,
+		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
+	sun4v_data_access_exception(regs, addr, type_ctx);
 }
 
 #ifdef CONFIG_PCI
@@ -788,7 +869,8 @@ void __init cheetah_ecache_flush_init(void)
 		cheetah_error_log[i].afsr = CHAFSR_INVALID;
 
 	__asm__ ("rdpr %%ver, %0" : "=r" (ver));
-	if ((ver >> 32) == 0x003e0016) {
+	if ((ver >> 32) == __JALAPENO_ID ||
+	    (ver >> 32) == __SERRANO_ID) {
 		cheetah_error_table = &__jalapeno_error_table[0];
 		cheetah_afsr_errors = JPAFSR_ERRORS;
 	} else if ((ver >> 32) == 0x003e0015) {
@@ -1666,6 +1748,238 @@ void cheetah_plus_parity_error(int type, struct pt_regs *regs)
 	       regs->tpc);
 }
 
+struct sun4v_error_entry {
+	u64		err_handle;
+	u64		err_stick;
+
+	u32		err_type;
+#define SUN4V_ERR_TYPE_UNDEFINED	0
+#define SUN4V_ERR_TYPE_UNCORRECTED_RES	1
+#define SUN4V_ERR_TYPE_PRECISE_NONRES	2
+#define SUN4V_ERR_TYPE_DEFERRED_NONRES	3
+#define SUN4V_ERR_TYPE_WARNING_RES	4
+
+	u32		err_attrs;
+#define SUN4V_ERR_ATTRS_PROCESSOR	0x00000001
+#define SUN4V_ERR_ATTRS_MEMORY		0x00000002
+#define SUN4V_ERR_ATTRS_PIO		0x00000004
+#define SUN4V_ERR_ATTRS_INT_REGISTERS	0x00000008
+#define SUN4V_ERR_ATTRS_FPU_REGISTERS	0x00000010
+#define SUN4V_ERR_ATTRS_USER_MODE	0x01000000
+#define SUN4V_ERR_ATTRS_PRIV_MODE	0x02000000
+#define SUN4V_ERR_ATTRS_RES_QUEUE_FULL	0x80000000
+
+	u64		err_raddr;
+	u32		err_size;
+	u16		err_cpu;
+	u16		err_pad;
+};
+
+static atomic_t sun4v_resum_oflow_cnt = ATOMIC_INIT(0);
+static atomic_t sun4v_nonresum_oflow_cnt = ATOMIC_INIT(0);
+
+static const char *sun4v_err_type_to_str(u32 type)
+{
+	switch (type) {
+	case SUN4V_ERR_TYPE_UNDEFINED:
+		return "undefined";
+	case SUN4V_ERR_TYPE_UNCORRECTED_RES:
+		return "uncorrected resumable";
+	case SUN4V_ERR_TYPE_PRECISE_NONRES:
+		return "precise nonresumable";
+	case SUN4V_ERR_TYPE_DEFERRED_NONRES:
+		return "deferred nonresumable";
+	case SUN4V_ERR_TYPE_WARNING_RES:
+		return "warning resumable";
+	default:
+		return "unknown";
+	};
+}
+
+static void sun4v_log_error(struct sun4v_error_entry *ent, int cpu, const char *pfx, atomic_t *ocnt)
+{
+	int cnt;
+
+	printk("%s: Reporting on cpu %d\n", pfx, cpu);
+	printk("%s: err_handle[%lx] err_stick[%lx] err_type[%08x:%s]\n",
+	       pfx,
+	       ent->err_handle, ent->err_stick,
+	       ent->err_type,
+	       sun4v_err_type_to_str(ent->err_type));
+	printk("%s: err_attrs[%08x:%s %s %s %s %s %s %s %s]\n",
+	       pfx,
+	       ent->err_attrs,
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_PROCESSOR) ?
+		"processor" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_MEMORY) ?
+		"memory" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_PIO) ?
+		"pio" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_INT_REGISTERS) ?
+		"integer-regs" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_FPU_REGISTERS) ?
+		"fpu-regs" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_USER_MODE) ?
+		"user" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_PRIV_MODE) ?
+		"privileged" : ""),
+	       ((ent->err_attrs & SUN4V_ERR_ATTRS_RES_QUEUE_FULL) ?
+		"queue-full" : ""));
+	printk("%s: err_raddr[%016lx] err_size[%u] err_cpu[%u]\n",
+	       pfx,
+	       ent->err_raddr, ent->err_size, ent->err_cpu);
+
+	if ((cnt = atomic_read(ocnt)) != 0) {
+		atomic_set(ocnt, 0);
+		wmb();
+		printk("%s: Queue overflowed %d times.\n",
+		       pfx, cnt);
+	}
+}
+
+/* We run with %pil set to 15 and PSTATE_IE enabled in %pstate.
+ * Log the event and clear the first word of the entry.
+ */
+void sun4v_resum_error(struct pt_regs *regs, unsigned long offset)
+{
+	struct sun4v_error_entry *ent, local_copy;
+	struct trap_per_cpu *tb;
+	unsigned long paddr;
+	int cpu;
+
+	cpu = get_cpu();
+
+	tb = &trap_block[cpu];
+	paddr = tb->resum_kernel_buf_pa + offset;
+	ent = __va(paddr);
+
+	memcpy(&local_copy, ent, sizeof(struct sun4v_error_entry));
+
+	/* We have a local copy now, so release the entry.  */
+	ent->err_handle = 0;
+	wmb();
+
+	put_cpu();
+
+	sun4v_log_error(&local_copy, cpu,
+			KERN_ERR "RESUMABLE ERROR",
+			&sun4v_resum_oflow_cnt);
+}
+
+/* If we try to printk() we'll probably make matters worse, by trying
+ * to retake locks this cpu already holds or causing more errors. So
+ * just bump a counter, and we'll report these counter bumps above.
+ */
+void sun4v_resum_overflow(struct pt_regs *regs)
+{
+	atomic_inc(&sun4v_resum_oflow_cnt);
+}
+
+/* We run with %pil set to 15 and PSTATE_IE enabled in %pstate.
+ * Log the event, clear the first word of the entry, and die.
+ */
+void sun4v_nonresum_error(struct pt_regs *regs, unsigned long offset)
+{
+	struct sun4v_error_entry *ent, local_copy;
+	struct trap_per_cpu *tb;
+	unsigned long paddr;
+	int cpu;
+
+	cpu = get_cpu();
+
+	tb = &trap_block[cpu];
+	paddr = tb->nonresum_kernel_buf_pa + offset;
+	ent = __va(paddr);
+
+	memcpy(&local_copy, ent, sizeof(struct sun4v_error_entry));
+
+	/* We have a local copy now, so release the entry.  */
+	ent->err_handle = 0;
+	wmb();
+
+	put_cpu();
+
+#ifdef CONFIG_PCI
+	/* Check for the special PCI poke sequence. */
+	if (pci_poke_in_progress && pci_poke_cpu == cpu) {
+		pci_poke_faulted = 1;
+		regs->tpc += 4;
+		regs->tnpc = regs->tpc + 4;
+		return;
+	}
+#endif
+
+	sun4v_log_error(&local_copy, cpu,
+			KERN_EMERG "NON-RESUMABLE ERROR",
+			&sun4v_nonresum_oflow_cnt);
+
+	panic("Non-resumable error.");
+}
+
+/* If we try to printk() we'll probably make matters worse, by trying
+ * to retake locks this cpu already holds or causing more errors. So
+ * just bump a counter, and we'll report these counter bumps above.
+ */
+void sun4v_nonresum_overflow(struct pt_regs *regs)
+{
+	/* XXX Actually even this can make not that much sense.  Perhaps
+	 * XXX we should just pull the plug and panic directly from here?
+	 */
+	atomic_inc(&sun4v_nonresum_oflow_cnt);
+}
+
+unsigned long sun4v_err_itlb_vaddr;
+unsigned long sun4v_err_itlb_ctx;
+unsigned long sun4v_err_itlb_pte;
+unsigned long sun4v_err_itlb_error;
+
+void sun4v_itlb_error_report(struct pt_regs *regs, int tl)
+{
+	if (tl > 1)
+		dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
+
+	printk(KERN_EMERG "SUN4V-ITLB: Error at TPC[%lx], tl %d\n",
+	       regs->tpc, tl);
+	printk(KERN_EMERG "SUN4V-ITLB: vaddr[%lx] ctx[%lx] "
+	       "pte[%lx] error[%lx]\n",
+	       sun4v_err_itlb_vaddr, sun4v_err_itlb_ctx,
+	       sun4v_err_itlb_pte, sun4v_err_itlb_error);
+
+	prom_halt();
+}
+
+unsigned long sun4v_err_dtlb_vaddr;
+unsigned long sun4v_err_dtlb_ctx;
+unsigned long sun4v_err_dtlb_pte;
+unsigned long sun4v_err_dtlb_error;
+
+void sun4v_dtlb_error_report(struct pt_regs *regs, int tl)
+{
+	if (tl > 1)
+		dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
+
+	printk(KERN_EMERG "SUN4V-DTLB: Error at TPC[%lx], tl %d\n",
+	       regs->tpc, tl);
+	printk(KERN_EMERG "SUN4V-DTLB: vaddr[%lx] ctx[%lx] "
+	       "pte[%lx] error[%lx]\n",
+	       sun4v_err_dtlb_vaddr, sun4v_err_dtlb_ctx,
+	       sun4v_err_dtlb_pte, sun4v_err_dtlb_error);
+
+	prom_halt();
+}
+
+void hypervisor_tlbop_error(unsigned long err, unsigned long op)
+{
+	printk(KERN_CRIT "SUN4V: TLB hv call error %lu for op %lu\n",
+	       err, op);
+}
+
+void hypervisor_tlbop_error_xcall(unsigned long err, unsigned long op)
+{
+	printk(KERN_CRIT "SUN4V: XCALL TLB hv call error %lu for op %lu\n",
+	       err, op);
+}
+
 void do_fpe_common(struct pt_regs *regs)
 {
 	if (regs->tstate & TSTATE_PRIV) {
@@ -1924,10 +2238,11 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 		}
 		user_instruction_dump ((unsigned int __user *) regs->tpc);
 	}
+#if 0
 #ifdef CONFIG_SMP
 	smp_report_regs();
 #endif
-                                                	
+#endif                                                	
 	if (regs->tstate & TSTATE_PRIV)
 		do_exit(SIGKILL);
 	do_exit(SIGSEGV);
@@ -1958,6 +2273,11 @@ void do_illegal_instruction(struct pt_regs *regs)
 		} else if ((insn & 0xc1580000) == 0xc1100000) /* LDQ/STQ */ {
 			if (handle_ldf_stq(insn, regs))
 				return;
+		} else if (tlb_type == hypervisor) {
+			extern int vis_emul(struct pt_regs *, unsigned int);
+
+			if (!vis_emul(regs, insn))
+				return;
 		}
 	}
 	info.si_signo = SIGILL;
@@ -1968,6 +2288,8 @@ void do_illegal_instruction(struct pt_regs *regs)
 	force_sig_info(SIGILL, &info, current);
 }
 
+extern void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn);
+
 void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr)
 {
 	siginfo_t info;
@@ -1977,19 +2299,33 @@ void mem_address_unaligned(struct pt_regs *regs, unsigned long sfar, unsigned lo
 		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
-		extern void kernel_unaligned_trap(struct pt_regs *regs,
-						  unsigned int insn, 
-						  unsigned long sfar,
-						  unsigned long sfsr);
-
-		kernel_unaligned_trap(regs, *((unsigned int *)regs->tpc),
-				      sfar, sfsr);
+		kernel_unaligned_trap(regs, *((unsigned int *)regs->tpc));
 		return;
 	}
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code = BUS_ADRALN;
 	info.si_addr = (void __user *)sfar;
+	info.si_trapno = 0;
+	force_sig_info(SIGBUS, &info, current);
+}
+
+void sun4v_do_mna(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
+{
+	siginfo_t info;
+
+	if (notify_die(DIE_TRAP, "memory address unaligned", regs,
+		       0, 0x34, SIGSEGV) == NOTIFY_STOP)
+		return;
+
+	if (regs->tstate & TSTATE_PRIV) {
+		kernel_unaligned_trap(regs, *((unsigned int *)regs->tpc));
+		return;
+	}
+	info.si_signo = SIGBUS;
+	info.si_errno = 0;
+	info.si_code = BUS_ADRALN;
+	info.si_addr = (void __user *) addr;
 	info.si_trapno = 0;
 	force_sig_info(SIGBUS, &info, current);
 }
@@ -2130,7 +2466,23 @@ void do_getpsr(struct pt_regs *regs)
 	}
 }
 
+struct trap_per_cpu trap_block[NR_CPUS];
+
+/* This can get invoked before sched_init() so play it super safe
+ * and use hard_smp_processor_id().
+ */
+void init_cur_cpu_trap(struct thread_info *t)
+{
+	int cpu = hard_smp_processor_id();
+	struct trap_per_cpu *p = &trap_block[cpu];
+
+	p->thread = t;
+	p->pgd_paddr = 0;
+}
+
 extern void thread_info_offsets_are_bolixed_dave(void);
+extern void trap_per_cpu_offsets_are_bolixed_dave(void);
+extern void tsb_config_offsets_are_bolixed_dave(void);
 
 /* Only invoked on boot processor. */
 void __init trap_init(void)
@@ -2154,7 +2506,6 @@ void __init trap_init(void)
 	    TI_KERN_CNTD0 != offsetof(struct thread_info, kernel_cntd0) ||
 	    TI_KERN_CNTD1 != offsetof(struct thread_info, kernel_cntd1) ||
 	    TI_PCR != offsetof(struct thread_info, pcr_reg) ||
-	    TI_CEE_STUFF != offsetof(struct thread_info, cee_stuff) ||
 	    TI_PRE_COUNT != offsetof(struct thread_info, preempt_count) ||
 	    TI_NEW_CHILD != offsetof(struct thread_info, new_child) ||
 	    TI_SYS_NOERROR != offsetof(struct thread_info, syscall_noerror) ||
@@ -2164,6 +2515,47 @@ void __init trap_init(void)
 	    TI_FPREGS != offsetof(struct thread_info, fpregs) ||
 	    (TI_FPREGS & (64 - 1)))
 		thread_info_offsets_are_bolixed_dave();
+
+	if (TRAP_PER_CPU_THREAD != offsetof(struct trap_per_cpu, thread) ||
+	    (TRAP_PER_CPU_PGD_PADDR !=
+	     offsetof(struct trap_per_cpu, pgd_paddr)) ||
+	    (TRAP_PER_CPU_CPU_MONDO_PA !=
+	     offsetof(struct trap_per_cpu, cpu_mondo_pa)) ||
+	    (TRAP_PER_CPU_DEV_MONDO_PA !=
+	     offsetof(struct trap_per_cpu, dev_mondo_pa)) ||
+	    (TRAP_PER_CPU_RESUM_MONDO_PA !=
+	     offsetof(struct trap_per_cpu, resum_mondo_pa)) ||
+	    (TRAP_PER_CPU_RESUM_KBUF_PA !=
+	     offsetof(struct trap_per_cpu, resum_kernel_buf_pa)) ||
+	    (TRAP_PER_CPU_NONRESUM_MONDO_PA !=
+	     offsetof(struct trap_per_cpu, nonresum_mondo_pa)) ||
+	    (TRAP_PER_CPU_NONRESUM_KBUF_PA !=
+	     offsetof(struct trap_per_cpu, nonresum_kernel_buf_pa)) ||
+	    (TRAP_PER_CPU_FAULT_INFO !=
+	     offsetof(struct trap_per_cpu, fault_info)) ||
+	    (TRAP_PER_CPU_CPU_MONDO_BLOCK_PA !=
+	     offsetof(struct trap_per_cpu, cpu_mondo_block_pa)) ||
+	    (TRAP_PER_CPU_CPU_LIST_PA !=
+	     offsetof(struct trap_per_cpu, cpu_list_pa)) ||
+	    (TRAP_PER_CPU_TSB_HUGE !=
+	     offsetof(struct trap_per_cpu, tsb_huge)) ||
+	    (TRAP_PER_CPU_TSB_HUGE_TEMP !=
+	     offsetof(struct trap_per_cpu, tsb_huge_temp)))
+		trap_per_cpu_offsets_are_bolixed_dave();
+
+	if ((TSB_CONFIG_TSB !=
+	     offsetof(struct tsb_config, tsb)) ||
+	    (TSB_CONFIG_RSS_LIMIT !=
+	     offsetof(struct tsb_config, tsb_rss_limit)) ||
+	    (TSB_CONFIG_NENTRIES !=
+	     offsetof(struct tsb_config, tsb_nentries)) ||
+	    (TSB_CONFIG_REG_VAL !=
+	     offsetof(struct tsb_config, tsb_reg_val)) ||
+	    (TSB_CONFIG_MAP_VADDR !=
+	     offsetof(struct tsb_config, tsb_map_vaddr)) ||
+	    (TSB_CONFIG_MAP_PTE !=
+	     offsetof(struct tsb_config, tsb_map_pte)))
+		tsb_config_offsets_are_bolixed_dave();
 
 	/* Attach to the address space of init_task.  On SMP we
 	 * do this in smp.c:smp_callin for other cpus.

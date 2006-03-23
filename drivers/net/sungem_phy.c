@@ -39,7 +39,7 @@
 #include "sungem_phy.h"
 
 /* Link modes of the BCM5400 PHY */
-static int phy_BCM5400_link_table[8][3] = {
+static const int phy_BCM5400_link_table[8][3] = {
 	{ 0, 0, 0 },	/* No link */
 	{ 0, 0, 0 },	/* 10BT Half Duplex */
 	{ 1, 0, 0 },	/* 10BT Full Duplex */

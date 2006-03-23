@@ -387,7 +387,7 @@ qla2x00_isp_firmware(scsi_qla_host_t *ha)
 
 		/* Verify checksum of loaded RISC code. */
 		rval = qla2x00_verify_checksum(ha,
-		    IS_QLA24XX(ha) || IS_QLA25XX(ha) ? RISC_SADDRESS :
+		    IS_QLA24XX(ha) || IS_QLA54XX(ha) ? RISC_SADDRESS :
 		    *ha->brd_info->fw_info[0].fwstart);
 	}
 
@@ -727,6 +727,7 @@ qla2x00_chip_diag(scsi_qla_host_t *ha)
 		DEBUG3(printk("scsi(%ld): Found QLA2200A chip.\n",
 		    ha->host_no));
 
+		ha->device_type |= DT_ISP2200A;
 		ha->fw_transfer_size = 128;
 	}
 
@@ -821,7 +822,7 @@ qla2x00_resize_request_q(scsi_qla_host_t *ha)
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
 		return;
 
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 		qla2x00_alloc_fw_dump(ha);
 
 	/* Retrieve IOCB counts available to the firmware. */
@@ -1001,6 +1002,10 @@ qla2x00_update_fw_options(scsi_qla_host_t *ha)
 	/* LED scheme. */
 	if (ha->flags.enable_led_scheme)
 		ha->fw_options[2] |= BIT_12;
+
+	/* Detect ISP6312. */
+	if (IS_QLA6312(ha))
+		ha->fw_options[2] |= BIT_13;
 
 	/* Update firmware options. */
 	qla2x00_set_fw_options(ha, ha->fw_options);
@@ -1500,9 +1505,9 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 				index = (ha->pdev->subsystem_device & 0xff);
 				if (index < QLA_MODEL_NAMES) {
 					strcpy(ha->model_number,
-					    qla2x00_model_name[index]);
+					    qla2x00_model_name[index * 2]);
 					ha->model_desc =
-					    qla2x00_model_desc[index];
+					    qla2x00_model_name[index * 2 + 1];
 				} else {
 					strcpy(ha->model_number, "QLA23xx");
 				}
@@ -1654,6 +1659,8 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
 		    ~(BIT_3 | BIT_2 | BIT_1 | BIT_0);
 		ha->flags.process_response_queue = 0;
 		if (ha->zio_mode != QLA_ZIO_DISABLED) {
+			ha->zio_mode = QLA_ZIO_MODE_6;
+
 			DEBUG2(printk("scsi(%ld): ZIO mode %d enabled; timer "
 			    "delay (%d us).\n", ha->host_no, ha->zio_mode,
 			    ha->zio_timer * 100));
@@ -2122,7 +2129,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 	LIST_HEAD(new_fcports);
 
 	/* If FL port exists, then SNS is present */
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 		loop_id = NPH_F_PORT;
 	else
 		loop_id = SNS_FL_PORT;
@@ -2148,7 +2155,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *ha)
 			qla2x00_fdmi_register(ha);
 
 		/* Ensure we are logged into the SNS. */
-		if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+		if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 			loop_id = NPH_SNS;
 		else
 			loop_id = SIMPLE_NAME_SERVER;
@@ -2639,7 +2646,7 @@ qla2x00_device_resync(scsi_qla_host_t *ha)
 			if (ql2xprocessrscn &&
 			    !IS_QLA2100(ha) && !IS_QLA2200(ha) &&
 			    !IS_QLA6312(ha) && !IS_QLA6322(ha) &&
-			    !IS_QLA24XX(ha) && !IS_QLA25XX(ha) &&
+			    !IS_QLA24XX(ha) && !IS_QLA54XX(ha) &&
 			    ha->flags.init_done) {
 				/* Handle port RSCN via asyncronous IOCBs */
 				rval2 = qla2x00_handle_port_rscn(ha, rscn_entry,
@@ -2881,13 +2888,13 @@ qla2x00_fabric_login(scsi_qla_host_t *ha, fc_port_t *fcport,
  *      3 - Fatal error
  */
 int
-qla2x00_local_device_login(scsi_qla_host_t *ha, uint16_t loop_id)
+qla2x00_local_device_login(scsi_qla_host_t *ha, fc_port_t *fcport)
 {
 	int		rval;
 	uint16_t	mb[MAILBOX_REGISTER_COUNT];
 
 	memset(mb, 0, sizeof(mb));
-	rval = qla2x00_login_local_device(ha, loop_id, mb, BIT_0);
+	rval = qla2x00_login_local_device(ha, fcport, mb, BIT_0);
 	if (rval == QLA_SUCCESS) {
 		/* Interrogate mailbox registers for any errors */
 		if (mb[0] == MBS_COMMAND_ERROR)
@@ -3129,7 +3136,7 @@ qla2x00_restart_isp(scsi_qla_host_t *ha)
 
 			spin_lock_irqsave(&ha->hardware_lock, flags);
 
-			if (!IS_QLA24XX(ha) && !IS_QLA25XX(ha)) {
+			if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha)) {
 				/*
 				 * Disable SRAM, Instruction RAM and GP RAM
 				 * parity.
@@ -3145,7 +3152,7 @@ qla2x00_restart_isp(scsi_qla_host_t *ha)
 
 			spin_lock_irqsave(&ha->hardware_lock, flags);
 
-			if (!IS_QLA24XX(ha) && !IS_QLA25XX(ha)) {
+			if (!IS_QLA24XX(ha) && !IS_QLA54XX(ha)) {
 				/* Enable proper parity */
 				if (IS_QLA2300(ha))
 					/* SRAM parity */
@@ -3258,8 +3265,12 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	/* Determine NVRAM starting address. */
 	ha->nvram_size = sizeof(struct nvram_24xx);
 	ha->nvram_base = FA_NVRAM_FUNC0_ADDR;
-	if (PCI_FUNC(ha->pdev->devfn))
+	ha->vpd_size = FA_NVRAM_VPD_SIZE;
+	ha->vpd_base = FA_NVRAM_VPD0_ADDR;
+	if (PCI_FUNC(ha->pdev->devfn)) {
 		ha->nvram_base = FA_NVRAM_FUNC1_ADDR;
+		ha->vpd_base = FA_NVRAM_VPD1_ADDR;
+	}
 
 	/* Get NVRAM data and calculate checksum. */
 	dptr = (uint32_t *)nv;
@@ -3368,7 +3379,7 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 
 		index = (ha->pdev->subsystem_device & 0xff);
 		if (index < QLA_MODEL_NAMES)
-			ha->model_desc = qla2x00_model_desc[index];
+			ha->model_desc = qla2x00_model_name[index * 2 + 1];
 	} else
 		strcpy(ha->model_number, "QLA2462");
 
@@ -3465,6 +3476,8 @@ qla24xx_nvram_config(scsi_qla_host_t *ha)
 	    ~(BIT_3 | BIT_2 | BIT_1 | BIT_0));
 	ha->flags.process_response_queue = 0;
 	if (ha->zio_mode != QLA_ZIO_DISABLED) {
+		ha->zio_mode = QLA_ZIO_MODE_6;
+
 		DEBUG2(printk("scsi(%ld): ZIO mode %d enabled; timer delay "
 		    "(%d us).\n", ha->host_no, ha->zio_mode,
 		    ha->zio_timer * 100));

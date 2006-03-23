@@ -1412,7 +1412,7 @@ static int __init depca_mca_probe(struct device *device)
 		irq = 11;
 		break;
 	default:
-		printk("%s: mca_probe IRQ error.  You should never get here (%d).\n", dev->name, where);
+		printk("%s: mca_probe IRQ error.  You should never get here (%d).\n", mdev->name, where);
 		return -EINVAL;
 	}
 

@@ -51,7 +51,6 @@
 #define HARD_MSGMAX 	(131072/sizeof(void*))
 #define DFLT_MSGSIZEMAX 8192	/* max message size */
 
-#define NOTIFY_COOKIE_LEN	32
 
 struct ext_wait_queue {		/* queue of sleeping tasks */
 	struct task_struct *task;

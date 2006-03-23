@@ -965,6 +965,7 @@ static struct crypto_alg des3_ede_alg = {
 	.cra_blocksize		=	DES3_EDE_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct des3_ede_ctx),
 	.cra_module		=	THIS_MODULE,
+	.cra_alignmask		=	3,
 	.cra_list		=	LIST_HEAD_INIT(des3_ede_alg.cra_list),
 	.cra_u			=	{ .cipher = {
 	.cia_min_keysize	=	DES3_EDE_KEY_SIZE,

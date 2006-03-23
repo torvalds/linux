@@ -23,9 +23,7 @@
 #include <linux/random.h>
 #include <net/checksum.h>
 
-#include <net/inet_common.h>
 #include <net/inet_sock.h>
-#include <net/protocol.h>
 #include <net/sock.h>
 #include <net/xfrm.h>
 
@@ -37,6 +35,7 @@
 
 #include "ccid.h"
 #include "dccp.h"
+#include "feat.h"
 
 DEFINE_SNMP_STAT(struct dccp_mib, dccp_statistics) __read_mostly;
 
@@ -46,11 +45,65 @@ atomic_t dccp_orphan_count = ATOMIC_INIT(0);
 
 EXPORT_SYMBOL_GPL(dccp_orphan_count);
 
-static struct net_protocol dccp_protocol = {
-	.handler	= dccp_v4_rcv,
-	.err_handler	= dccp_v4_err,
-	.no_policy	= 1,
+struct inet_hashinfo __cacheline_aligned dccp_hashinfo = {
+	.lhash_lock	= RW_LOCK_UNLOCKED,
+	.lhash_users	= ATOMIC_INIT(0),
+	.lhash_wait = __WAIT_QUEUE_HEAD_INITIALIZER(dccp_hashinfo.lhash_wait),
 };
+
+EXPORT_SYMBOL_GPL(dccp_hashinfo);
+
+void dccp_set_state(struct sock *sk, const int state)
+{
+	const int oldstate = sk->sk_state;
+
+	dccp_pr_debug("%s(%p) %-10.10s -> %s\n",
+		      dccp_role(sk), sk,
+		      dccp_state_name(oldstate), dccp_state_name(state));
+	WARN_ON(state == oldstate);
+
+	switch (state) {
+	case DCCP_OPEN:
+		if (oldstate != DCCP_OPEN)
+			DCCP_INC_STATS(DCCP_MIB_CURRESTAB);
+		break;
+
+	case DCCP_CLOSED:
+		if (oldstate == DCCP_CLOSING || oldstate == DCCP_OPEN)
+			DCCP_INC_STATS(DCCP_MIB_ESTABRESETS);
+
+		sk->sk_prot->unhash(sk);
+		if (inet_csk(sk)->icsk_bind_hash != NULL &&
+		    !(sk->sk_userlocks & SOCK_BINDPORT_LOCK))
+			inet_put_port(&dccp_hashinfo, sk);
+		/* fall through */
+	default:
+		if (oldstate == DCCP_OPEN)
+			DCCP_DEC_STATS(DCCP_MIB_CURRESTAB);
+	}
+
+	/* Change state AFTER socket is unhashed to avoid closed
+	 * socket sitting in hash tables.
+	 */
+	sk->sk_state = state;
+}
+
+EXPORT_SYMBOL_GPL(dccp_set_state);
+
+void dccp_done(struct sock *sk)
+{
+	dccp_set_state(sk, DCCP_CLOSED);
+	dccp_clear_xmit_timers(sk);
+
+	sk->sk_shutdown = SHUTDOWN_MASK;
+
+	if (!sock_flag(sk, SOCK_DEAD))
+		sk->sk_state_change(sk);
+	else
+		inet_csk_destroy_sock(sk);
+}
+
+EXPORT_SYMBOL_GPL(dccp_done);
 
 const char *dccp_packet_name(const int type)
 {
@@ -95,6 +148,120 @@ const char *dccp_state_name(const int state)
 }
 
 EXPORT_SYMBOL_GPL(dccp_state_name);
+
+void dccp_hash(struct sock *sk)
+{
+	inet_hash(&dccp_hashinfo, sk);
+}
+
+EXPORT_SYMBOL_GPL(dccp_hash);
+
+void dccp_unhash(struct sock *sk)
+{
+	inet_unhash(&dccp_hashinfo, sk);
+}
+
+EXPORT_SYMBOL_GPL(dccp_unhash);
+
+int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	dccp_minisock_init(&dp->dccps_minisock);
+	do_gettimeofday(&dp->dccps_epoch);
+
+	/*
+	 * FIXME: We're hardcoding the CCID, and doing this at this point makes
+	 * the listening (master) sock get CCID control blocks, which is not
+	 * necessary, but for now, to not mess with the test userspace apps,
+	 * lets leave it here, later the real solution is to do this in a
+	 * setsockopt(CCIDs-I-want/accept). -acme
+	 */
+	if (likely(ctl_sock_initialized)) {
+		int rc = dccp_feat_init(dmsk);
+
+		if (rc)
+			return rc;
+
+		if (dmsk->dccpms_send_ack_vector) {
+			dp->dccps_hc_rx_ackvec = dccp_ackvec_alloc(GFP_KERNEL);
+			if (dp->dccps_hc_rx_ackvec == NULL)
+				return -ENOMEM;
+		}
+		dp->dccps_hc_rx_ccid = ccid_hc_rx_new(dmsk->dccpms_rx_ccid,
+						      sk, GFP_KERNEL);
+		dp->dccps_hc_tx_ccid = ccid_hc_tx_new(dmsk->dccpms_tx_ccid,
+						      sk, GFP_KERNEL);
+	    	if (unlikely(dp->dccps_hc_rx_ccid == NULL ||
+			     dp->dccps_hc_tx_ccid == NULL)) {
+			ccid_hc_rx_delete(dp->dccps_hc_rx_ccid, sk);
+			ccid_hc_tx_delete(dp->dccps_hc_tx_ccid, sk);
+			if (dmsk->dccpms_send_ack_vector) {
+				dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
+				dp->dccps_hc_rx_ackvec = NULL;
+			}
+			dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
+			return -ENOMEM;
+		}
+	} else {
+		/* control socket doesn't need feat nego */
+		INIT_LIST_HEAD(&dmsk->dccpms_pending);
+		INIT_LIST_HEAD(&dmsk->dccpms_conf);
+	}
+
+	dccp_init_xmit_timers(sk);
+	icsk->icsk_rto		= DCCP_TIMEOUT_INIT;
+	sk->sk_state		= DCCP_CLOSED;
+	sk->sk_write_space	= dccp_write_space;
+	icsk->icsk_sync_mss	= dccp_sync_mss;
+	dp->dccps_mss_cache	= 536;
+	dp->dccps_role		= DCCP_ROLE_UNDEFINED;
+	dp->dccps_service	= DCCP_SERVICE_INVALID_VALUE;
+	dp->dccps_l_ack_ratio	= dp->dccps_r_ack_ratio = 1;
+
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(dccp_init_sock);
+
+int dccp_destroy_sock(struct sock *sk)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_minisock *dmsk = dccp_msk(sk);
+
+	/*
+	 * DCCP doesn't use sk_write_queue, just sk_send_head
+	 * for retransmissions
+	 */
+	if (sk->sk_send_head != NULL) {
+		kfree_skb(sk->sk_send_head);
+		sk->sk_send_head = NULL;
+	}
+
+	/* Clean up a referenced DCCP bind bucket. */
+	if (inet_csk(sk)->icsk_bind_hash != NULL)
+		inet_put_port(&dccp_hashinfo, sk);
+
+	kfree(dp->dccps_service_list);
+	dp->dccps_service_list = NULL;
+
+	if (dmsk->dccpms_send_ack_vector) {
+		dccp_ackvec_free(dp->dccps_hc_rx_ackvec);
+		dp->dccps_hc_rx_ackvec = NULL;
+	}
+	ccid_hc_rx_delete(dp->dccps_hc_rx_ccid, sk);
+	ccid_hc_tx_delete(dp->dccps_hc_tx_ccid, sk);
+	dp->dccps_hc_rx_ccid = dp->dccps_hc_tx_ccid = NULL;
+
+	/* clean up feature negotiation state */
+	dccp_feat_clean(dmsk);
+
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(dccp_destroy_sock);
 
 static inline int dccp_listen_start(struct sock *sk)
 {
@@ -220,7 +387,7 @@ int dccp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 
 EXPORT_SYMBOL_GPL(dccp_ioctl);
 
-static int dccp_setsockopt_service(struct sock *sk, const u32 service,
+static int dccp_setsockopt_service(struct sock *sk, const __be32 service,
 				   char __user *optval, int optlen)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -255,17 +422,45 @@ static int dccp_setsockopt_service(struct sock *sk, const u32 service,
 	return 0;
 }
 
-int dccp_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int optlen)
+/* byte 1 is feature.  the rest is the preference list */
+static int dccp_setsockopt_change(struct sock *sk, int type,
+				  struct dccp_so_feat __user *optval)
+{
+	struct dccp_so_feat opt;
+	u8 *val;
+	int rc;
+
+	if (copy_from_user(&opt, optval, sizeof(opt)))
+		return -EFAULT;
+
+	val = kmalloc(opt.dccpsf_len, GFP_KERNEL);
+	if (!val)
+		return -ENOMEM;
+
+	if (copy_from_user(val, opt.dccpsf_val, opt.dccpsf_len)) {
+		rc = -EFAULT;
+		goto out_free_val;
+	}
+
+	rc = dccp_feat_change(dccp_msk(sk), type, opt.dccpsf_feat,
+			      val, opt.dccpsf_len, GFP_KERNEL);
+	if (rc)
+		goto out_free_val;
+
+out:
+	return rc;
+
+out_free_val:
+	kfree(val);
+	goto out;
+}
+
+static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
+		char __user *optval, int optlen)
 {
 	struct dccp_sock *dp;
 	int err;
 	int val;
-
-	if (level != SOL_DCCP)
-		return inet_csk(sk)->icsk_af_ops->setsockopt(sk, level,
-							     optname, optval,
-							     optlen);
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -284,6 +479,25 @@ int dccp_setsockopt(struct sock *sk, int level, int optname,
 	case DCCP_SOCKOPT_PACKET_SIZE:
 		dp->dccps_packet_size = val;
 		break;
+
+	case DCCP_SOCKOPT_CHANGE_L:
+		if (optlen != sizeof(struct dccp_so_feat))
+			err = -EINVAL;
+		else
+			err = dccp_setsockopt_change(sk, DCCPO_CHANGE_L,
+					             (struct dccp_so_feat *)
+						     optval);
+		break;
+
+	case DCCP_SOCKOPT_CHANGE_R:
+		if (optlen != sizeof(struct dccp_so_feat))
+			err = -EINVAL;
+		else
+			err = dccp_setsockopt_change(sk, DCCPO_CHANGE_R,
+						     (struct dccp_so_feat *)
+						     optval);
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -293,10 +507,33 @@ int dccp_setsockopt(struct sock *sk, int level, int optname,
 	return err;
 }
 
+int dccp_setsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int optlen)
+{
+	if (level != SOL_DCCP)
+		return inet_csk(sk)->icsk_af_ops->setsockopt(sk, level,
+							     optname, optval,
+							     optlen);
+	return do_dccp_setsockopt(sk, level, optname, optval, optlen);
+}
+
 EXPORT_SYMBOL_GPL(dccp_setsockopt);
 
+#ifdef CONFIG_COMPAT
+int compat_dccp_setsockopt(struct sock *sk, int level, int optname,
+			   char __user *optval, int optlen)
+{
+	if (level != SOL_DCCP)
+		return inet_csk_compat_setsockopt(sk, level, optname,
+						  optval, optlen);
+	return do_dccp_setsockopt(sk, level, optname, optval, optlen);
+}
+
+EXPORT_SYMBOL_GPL(compat_dccp_setsockopt);
+#endif
+
 static int dccp_getsockopt_service(struct sock *sk, int len,
-				   u32 __user *optval,
+				   __be32 __user *optval,
 				   int __user *optlen)
 {
 	const struct dccp_sock *dp = dccp_sk(sk);
@@ -326,16 +563,12 @@ out:
 	return err;
 }
 
-int dccp_getsockopt(struct sock *sk, int level, int optname,
+static int do_dccp_getsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int __user *optlen)
 {
 	struct dccp_sock *dp;
 	int val, len;
 
-	if (level != SOL_DCCP)
-		return inet_csk(sk)->icsk_af_ops->getsockopt(sk, level,
-							     optname, optval,
-							     optlen);
 	if (get_user(len, optlen))
 		return -EFAULT;
 
@@ -351,7 +584,7 @@ int dccp_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case DCCP_SOCKOPT_SERVICE:
 		return dccp_getsockopt_service(sk, len,
-					       (u32 __user *)optval, optlen);
+					       (__be32 __user *)optval, optlen);
 	case 128 ... 191:
 		return ccid_hc_rx_getsockopt(dp->dccps_hc_rx_ccid, sk, optname,
 					     len, (u32 __user *)optval, optlen);
@@ -368,7 +601,30 @@ int dccp_getsockopt(struct sock *sk, int level, int optname,
 	return 0;
 }
 
+int dccp_getsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int __user *optlen)
+{
+	if (level != SOL_DCCP)
+		return inet_csk(sk)->icsk_af_ops->getsockopt(sk, level,
+							     optname, optval,
+							     optlen);
+	return do_dccp_getsockopt(sk, level, optname, optval, optlen);
+}
+
 EXPORT_SYMBOL_GPL(dccp_getsockopt);
+
+#ifdef CONFIG_COMPAT
+int compat_dccp_getsockopt(struct sock *sk, int level, int optname,
+			   char __user *optval, int __user *optlen)
+{
+	if (level != SOL_DCCP)
+		return inet_csk_compat_getsockopt(sk, level, optname,
+						  optval, optlen);
+	return do_dccp_getsockopt(sk, level, optname, optval, optlen);
+}
+
+EXPORT_SYMBOL_GPL(compat_dccp_getsockopt);
+#endif
 
 int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		 size_t len)
@@ -679,84 +935,7 @@ void dccp_shutdown(struct sock *sk, int how)
 
 EXPORT_SYMBOL_GPL(dccp_shutdown);
 
-static const struct proto_ops inet_dccp_ops = {
-	.family		= PF_INET,
-	.owner		= THIS_MODULE,
-	.release	= inet_release,
-	.bind		= inet_bind,
-	.connect	= inet_stream_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= inet_accept,
-	.getname	= inet_getname,
-	/* FIXME: work on tcp_poll to rename it to inet_csk_poll */
-	.poll		= dccp_poll,
-	.ioctl		= inet_ioctl,
-	/* FIXME: work on inet_listen to rename it to sock_common_listen */
-	.listen		= inet_dccp_listen,
-	.shutdown	= inet_shutdown,
-	.setsockopt	= sock_common_setsockopt,
-	.getsockopt	= sock_common_getsockopt,
-	.sendmsg	= inet_sendmsg,
-	.recvmsg	= sock_common_recvmsg,
-	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
-};
-
-extern struct net_proto_family inet_family_ops;
-
-static struct inet_protosw dccp_v4_protosw = {
-	.type		= SOCK_DCCP,
-	.protocol	= IPPROTO_DCCP,
-	.prot		= &dccp_prot,
-	.ops		= &inet_dccp_ops,
-	.capability	= -1,
-	.no_check	= 0,
-	.flags		= INET_PROTOSW_ICSK,
-};
-
-/*
- * This is the global socket data structure used for responding to
- * the Out-of-the-blue (OOTB) packets. A control sock will be created
- * for this socket at the initialization time.
- */
-struct socket *dccp_ctl_socket;
-
-static char dccp_ctl_socket_err_msg[] __initdata =
-	KERN_ERR "DCCP: Failed to create the control socket.\n";
-
-static int __init dccp_ctl_sock_init(void)
-{
-	int rc = sock_create_kern(PF_INET, SOCK_DCCP, IPPROTO_DCCP,
-				  &dccp_ctl_socket);
-	if (rc < 0)
-		printk(dccp_ctl_socket_err_msg);
-	else {
-		dccp_ctl_socket->sk->sk_allocation = GFP_ATOMIC;
-		inet_sk(dccp_ctl_socket->sk)->uc_ttl = -1;
-
-		/* Unhash it so that IP input processing does not even
-		 * see it, we do not wish this socket to see incoming
-		 * packets.
-		 */
-		dccp_ctl_socket->sk->sk_prot->unhash(dccp_ctl_socket->sk);
-	}
-
-	return rc;
-}
-
-#ifdef CONFIG_IP_DCCP_UNLOAD_HACK
-void dccp_ctl_sock_exit(void)
-{
-	if (dccp_ctl_socket != NULL) {
-		sock_release(dccp_ctl_socket);
-		dccp_ctl_socket = NULL;
-	}
-}
-
-EXPORT_SYMBOL_GPL(dccp_ctl_sock_exit);
-#endif
-
-static int __init init_dccp_v4_mibs(void)
+static int __init dccp_mib_init(void)
 {
 	int rc = -ENOMEM;
 
@@ -778,6 +957,13 @@ out_free_one:
 
 }
 
+static void dccp_mib_exit(void)
+{
+	free_percpu(dccp_statistics[0]);
+	free_percpu(dccp_statistics[1]);
+	dccp_statistics[0] = dccp_statistics[1] = NULL;
+}
+
 static int thash_entries;
 module_param(thash_entries, int, 0444);
 MODULE_PARM_DESC(thash_entries, "Number of ehash buckets");
@@ -794,17 +980,14 @@ static int __init dccp_init(void)
 {
 	unsigned long goal;
 	int ehash_order, bhash_order, i;
-	int rc = proto_register(&dccp_prot, 1);
-
-	if (rc)
-		goto out;
+	int rc = -ENOBUFS;
 
 	dccp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("dccp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
 				  SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (!dccp_hashinfo.bind_bucket_cachep)
-		goto out_proto_unregister;
+		goto out;
 
 	/*
 	 * Size and allocate the main established and bind bucket
@@ -866,27 +1049,23 @@ static int __init dccp_init(void)
 		INIT_HLIST_HEAD(&dccp_hashinfo.bhash[i].chain);
 	}
 
-	if (init_dccp_v4_mibs())
+	rc = dccp_mib_init();
+	if (rc)
 		goto out_free_dccp_bhash;
 
-	rc = -EAGAIN;
-	if (inet_add_protocol(&dccp_protocol, IPPROTO_DCCP))
-		goto out_free_dccp_v4_mibs;
-
-	inet_register_protosw(&dccp_v4_protosw);
-
-	rc = dccp_ctl_sock_init();
+	rc = dccp_ackvec_init();
 	if (rc)
-		goto out_unregister_protosw;
+		goto out_free_dccp_mib;
+
+	rc = dccp_sysctl_init();
+	if (rc)
+		goto out_ackvec_exit;
 out:
 	return rc;
-out_unregister_protosw:
-	inet_unregister_protosw(&dccp_v4_protosw);
-	inet_del_protocol(&dccp_protocol, IPPROTO_DCCP);
-out_free_dccp_v4_mibs:
-	free_percpu(dccp_statistics[0]);
-	free_percpu(dccp_statistics[1]);
-	dccp_statistics[0] = dccp_statistics[1] = NULL;
+out_ackvec_exit:
+	dccp_ackvec_exit();
+out_free_dccp_mib:
+	dccp_mib_exit();
 out_free_dccp_bhash:
 	free_pages((unsigned long)dccp_hashinfo.bhash, bhash_order);
 	dccp_hashinfo.bhash = NULL;
@@ -896,23 +1075,12 @@ out_free_dccp_ehash:
 out_free_bind_bucket_cachep:
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
 	dccp_hashinfo.bind_bucket_cachep = NULL;
-out_proto_unregister:
-	proto_unregister(&dccp_prot);
 	goto out;
 }
 
-static const char dccp_del_proto_err_msg[] __exitdata =
-	KERN_ERR "can't remove dccp net_protocol\n";
-
 static void __exit dccp_fini(void)
 {
-	inet_unregister_protosw(&dccp_v4_protosw);
-
-	if (inet_del_protocol(&dccp_protocol, IPPROTO_DCCP) < 0)
-		printk(dccp_del_proto_err_msg);
-
-	free_percpu(dccp_statistics[0]);
-	free_percpu(dccp_statistics[1]);
+	dccp_mib_exit();
 	free_pages((unsigned long)dccp_hashinfo.bhash,
 		   get_order(dccp_hashinfo.bhash_size *
 			     sizeof(struct inet_bind_hashbucket)));
@@ -920,19 +1088,13 @@ static void __exit dccp_fini(void)
 		   get_order(dccp_hashinfo.ehash_size *
 			     sizeof(struct inet_ehash_bucket)));
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
-	proto_unregister(&dccp_prot);
+	dccp_ackvec_exit();
+	dccp_sysctl_exit();
 }
 
 module_init(dccp_init);
 module_exit(dccp_fini);
 
-/*
- * __stringify doesn't likes enums, so use SOCK_DCCP (6) and IPPROTO_DCCP (33)
- * values directly, Also cover the case where the protocol is not specified,
- * i.e. net-pf-PF_INET-proto-0-type-SOCK_DCCP
- */
-MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-33-type-6");
-MODULE_ALIAS("net-pf-" __stringify(PF_INET) "-proto-0-type-6");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arnaldo Carvalho de Melo <acme@conectiva.com.br>");
 MODULE_DESCRIPTION("DCCP - Datagram Congestion Controlled Protocol");

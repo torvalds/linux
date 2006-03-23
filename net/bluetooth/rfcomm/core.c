@@ -37,6 +37,8 @@
 #include <linux/wait.h>
 #include <linux/device.h>
 #include <linux/net.h>
+#include <linux/mutex.h>
+
 #include <net/sock.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
@@ -57,9 +59,9 @@ static unsigned int l2cap_mtu = RFCOMM_MAX_L2CAP_MTU;
 
 static struct task_struct *rfcomm_thread;
 
-static DECLARE_MUTEX(rfcomm_sem);
-#define rfcomm_lock()	down(&rfcomm_sem);
-#define rfcomm_unlock()	up(&rfcomm_sem);
+static DEFINE_MUTEX(rfcomm_mutex);
+#define rfcomm_lock()	mutex_lock(&rfcomm_mutex)
+#define rfcomm_unlock()	mutex_unlock(&rfcomm_mutex)
 
 static unsigned long rfcomm_event;
 

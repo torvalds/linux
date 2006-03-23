@@ -401,8 +401,7 @@ static int period_to_str(char *buf, int period)
 }
 
 static ssize_t
-show_spi_transport_period_helper(struct class_device *cdev, char *buf,
-				 int period)
+show_spi_transport_period_helper(char *buf, int period)
 {
 	int len = period_to_str(buf, period);
 	buf[len++] = '\n';
@@ -459,7 +458,7 @@ show_spi_transport_period(struct class_device *cdev, char *buf)
 	if (i->f->get_period)
 		i->f->get_period(starget);
 
-	return show_spi_transport_period_helper(cdev, buf, tp->period);
+	return show_spi_transport_period_helper(buf, tp->period);
 }
 
 static ssize_t
@@ -494,7 +493,7 @@ show_spi_transport_min_period(struct class_device *cdev, char *buf)
 	struct spi_transport_attrs *tp =
 		(struct spi_transport_attrs *)&starget->starget_data;
 
-	return show_spi_transport_period_helper(cdev, buf, tp->min_period);
+	return show_spi_transport_period_helper(buf, tp->min_period);
 }
 
 static ssize_t
@@ -900,12 +899,10 @@ spi_dv_device(struct scsi_device *sdev)
 	if (unlikely(scsi_device_get(sdev)))
 		return;
 
-	buffer = kmalloc(len, GFP_KERNEL);
+	buffer = kzalloc(len, GFP_KERNEL);
 
 	if (unlikely(!buffer))
 		goto out_put;
-
-	memset(buffer, 0, len);
 
 	/* We need to verify that the actual device will quiesce; the
 	 * later target quiesce is just a nice to have */
@@ -1054,25 +1051,63 @@ void spi_display_xfer_agreement(struct scsi_target *starget)
 }
 EXPORT_SYMBOL(spi_display_xfer_agreement);
 
+int spi_populate_width_msg(unsigned char *msg, int width)
+{
+	msg[0] = EXTENDED_MESSAGE;
+	msg[1] = 2;
+	msg[2] = EXTENDED_WDTR;
+	msg[3] = width;
+	return 4;
+}
+EXPORT_SYMBOL_GPL(spi_populate_width_msg);
+
+int spi_populate_sync_msg(unsigned char *msg, int period, int offset)
+{
+	msg[0] = EXTENDED_MESSAGE;
+	msg[1] = 3;
+	msg[2] = EXTENDED_SDTR;
+	msg[3] = period;
+	msg[4] = offset;
+	return 5;
+}
+EXPORT_SYMBOL_GPL(spi_populate_sync_msg);
+
+int spi_populate_ppr_msg(unsigned char *msg, int period, int offset,
+		int width, int options)
+{
+	msg[0] = EXTENDED_MESSAGE;
+	msg[1] = 6;
+	msg[2] = EXTENDED_PPR;
+	msg[3] = period;
+	msg[4] = 0;
+	msg[5] = offset;
+	msg[6] = width;
+	msg[7] = options;
+	return 8;
+}
+EXPORT_SYMBOL_GPL(spi_populate_ppr_msg);
+
 #ifdef CONFIG_SCSI_CONSTANTS
 static const char * const one_byte_msgs[] = {
-/* 0x00 */ "Command Complete", NULL, "Save Pointers",
+/* 0x00 */ "Task Complete", NULL /* Extended Message */, "Save Pointers",
 /* 0x03 */ "Restore Pointers", "Disconnect", "Initiator Error", 
-/* 0x06 */ "Abort", "Message Reject", "Nop", "Message Parity Error",
+/* 0x06 */ "Abort Task Set", "Message Reject", "Nop", "Message Parity Error",
 /* 0x0a */ "Linked Command Complete", "Linked Command Complete w/flag",
-/* 0x0c */ "Bus device reset", "Abort Tag", "Clear Queue", 
-/* 0x0f */ "Initiate Recovery", "Release Recovery"
+/* 0x0c */ "Target Reset", "Abort Task", "Clear Task Set", 
+/* 0x0f */ "Initiate Recovery", "Release Recovery",
+/* 0x11 */ "Terminate Process", "Continue Task", "Target Transfer Disable",
+/* 0x14 */ NULL, NULL, "Clear ACA", "LUN Reset"
 };
 
 static const char * const two_byte_msgs[] = {
 /* 0x20 */ "Simple Queue Tag", "Head of Queue Tag", "Ordered Queue Tag",
-/* 0x23 */ "Ignore Wide Residue"
+/* 0x23 */ "Ignore Wide Residue", "ACA"
 };
 
 static const char * const extended_msgs[] = {
 /* 0x00 */ "Modify Data Pointer", "Synchronous Data Transfer Request",
 /* 0x02 */ "SCSI-I Extended Identify", "Wide Data Transfer Request",
-/* 0x04 */ "Parallel Protocol Request"
+/* 0x04 */ "Parallel Protocol Request", "Modify Bidirectional Data Pointer"
 };
 
 static void print_nego(const unsigned char *msg, int per, int off, int width)
@@ -1089,11 +1124,20 @@ static void print_nego(const unsigned char *msg, int per, int off, int width)
 		printk("width = %d ", 8 << msg[width]);
 }
 
+static void print_ptr(const unsigned char *msg, int msb, const char *desc)
+{
+	int ptr = (msg[msb] << 24) | (msg[msb+1] << 16) | (msg[msb+2] << 8) |
+			msg[msb+3];
+	printk("%s = %d ", desc, ptr);
+}
+
 int spi_print_msg(const unsigned char *msg)
 {
-	int len = 0, i;
+	int len = 1, i;
 	if (msg[0] == EXTENDED_MESSAGE) {
-		len = 3 + msg[1];
+		len = 2 + msg[1];
+		if (len == 2)
+			len += 256;
 		if (msg[2] < ARRAY_SIZE(extended_msgs))
 			printk ("%s ", extended_msgs[msg[2]]); 
 		else 
@@ -1101,8 +1145,7 @@ int spi_print_msg(const unsigned char *msg)
 				(int) msg[2]);
 		switch (msg[2]) {
 		case EXTENDED_MODIFY_DATA_POINTER:
-			printk("pointer = %d", (int) (msg[3] << 24) |
-				(msg[4] << 16) | (msg[5] << 8) | msg[6]);
+			print_ptr(msg, 3, "pointer");
 			break;
 		case EXTENDED_SDTR:
 			print_nego(msg, 3, 4, 0);
@@ -1112,6 +1155,10 @@ int spi_print_msg(const unsigned char *msg)
 			break;
 		case EXTENDED_PPR:
 			print_nego(msg, 3, 5, 6);
+			break;
+		case EXTENDED_MODIFY_BIDI_DATA_PTR:
+			print_ptr(msg, 3, "out");
+			print_ptr(msg, 7, "in");
 			break;
 		default:
 		for (i = 2; i < len; ++i) 
@@ -1123,14 +1170,14 @@ int spi_print_msg(const unsigned char *msg)
 			(msg[0] & 0x40) ? "" : "not ",
 			(msg[0] & 0x20) ? "target routine" : "lun",
 			msg[0] & 0x7);
-		len = 1;
 	/* Normal One byte */
 	} else if (msg[0] < 0x1f) {
-		if (msg[0] < ARRAY_SIZE(one_byte_msgs))
-			printk(one_byte_msgs[msg[0]]);
+		if (msg[0] < ARRAY_SIZE(one_byte_msgs) && one_byte_msgs[msg[0]])
+			printk("%s ", one_byte_msgs[msg[0]]);
 		else
 			printk("reserved (%02x) ", msg[0]);
-		len = 1;
+	} else if (msg[0] == 0x55) {
+		printk("QAS Request ");
 	/* Two byte */
 	} else if (msg[0] <= 0x2f) {
 		if ((msg[0] - 0x20) < ARRAY_SIZE(two_byte_msgs))
@@ -1141,7 +1188,7 @@ int spi_print_msg(const unsigned char *msg)
 				msg[0], msg[1]);
 		len = 2;
 	} else 
-		printk("reserved");
+		printk("reserved ");
 	return len;
 }
 EXPORT_SYMBOL(spi_print_msg);
@@ -1150,20 +1197,20 @@ EXPORT_SYMBOL(spi_print_msg);
 
 int spi_print_msg(const unsigned char *msg)
 {
-	int len = 0, i;
+	int len = 1, i;
 
 	if (msg[0] == EXTENDED_MESSAGE) {
-		len = 3 + msg[1];
+		len = 2 + msg[1];
+		if (len == 2)
+			len += 256;
 		for (i = 0; i < len; ++i)
 			printk("%02x ", msg[i]);
 	/* Identify */
 	} else if (msg[0] & 0x80) {
 		printk("%02x ", msg[0]);
-		len = 1;
 	/* Normal One byte */
-	} else if (msg[0] < 0x1f) {
+	} else if ((msg[0] < 0x1f) || (msg[0] == 0x55)) {
 		printk("%02x ", msg[0]);
-		len = 1;
 	/* Two byte */
 	} else if (msg[0] <= 0x2f) {
 		printk("%02x %02x", msg[0], msg[1]);
@@ -1265,14 +1312,12 @@ static DECLARE_ANON_TRANSPORT_CLASS(spi_device_class,
 struct scsi_transport_template *
 spi_attach_transport(struct spi_function_template *ft)
 {
-	struct spi_internal *i = kmalloc(sizeof(struct spi_internal),
-					 GFP_KERNEL);
 	int count = 0;
+	struct spi_internal *i = kzalloc(sizeof(struct spi_internal),
+					 GFP_KERNEL);
+
 	if (unlikely(!i))
 		return NULL;
-
-	memset(i, 0, sizeof(struct spi_internal));
-
 
 	i->t.target_attrs.ac.class = &spi_transport_class.class;
 	i->t.target_attrs.ac.attrs = &i->attrs[0];

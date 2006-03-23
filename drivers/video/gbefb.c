@@ -656,12 +656,15 @@ static int gbefb_set_par(struct fb_info *info)
 	switch (bytesPerPixel) {
 	case 1:
 		SET_GBE_FIELD(WID, TYP, val, GBE_CMODE_I8);
+		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
 		break;
 	case 2:
 		SET_GBE_FIELD(WID, TYP, val, GBE_CMODE_ARGB5);
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 	case 4:
 		SET_GBE_FIELD(WID, TYP, val, GBE_CMODE_RGB8);
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 	}
 	SET_GBE_FIELD(WID, BUF, val, GBE_BMODE_BOTH);

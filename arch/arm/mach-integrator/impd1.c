@@ -355,12 +355,11 @@ static int impd1_probe(struct lm_device *dev)
 	if (!request_mem_region(dev->resource.start, SZ_4K, "LM registers"))
 		return -EBUSY;
 
-	impd1 = kmalloc(sizeof(struct impd1_module), GFP_KERNEL);
+	impd1 = kzalloc(sizeof(struct impd1_module), GFP_KERNEL);
 	if (!impd1) {
 		ret = -ENOMEM;
 		goto release_lm;
 	}
-	memset(impd1, 0, sizeof(struct impd1_module));
 
 	impd1->base = ioremap(dev->resource.start, SZ_4K);
 	if (!impd1->base) {
@@ -389,11 +388,9 @@ static int impd1_probe(struct lm_device *dev)
 
 		pc_base = dev->resource.start + idev->offset;
 
-		d = kmalloc(sizeof(struct amba_device), GFP_KERNEL);
+		d = kzalloc(sizeof(struct amba_device), GFP_KERNEL);
 		if (!d)
 			continue;
-
-		memset(d, 0, sizeof(struct amba_device));
 
 		snprintf(d->dev.bus_id, sizeof(d->dev.bus_id),
 			 "lm%x:%5.5lx", dev->id, idev->offset >> 12);

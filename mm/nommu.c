@@ -53,7 +53,6 @@ DECLARE_RWSEM(nommu_vma_sem);
 struct vm_operations_struct generic_file_vm_ops = {
 };
 
-EXPORT_SYMBOL(vmalloc);
 EXPORT_SYMBOL(vfree);
 EXPORT_SYMBOL(vmalloc_to_page);
 EXPORT_SYMBOL(vmalloc_32);
@@ -160,7 +159,7 @@ void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 	/*
 	 * kmalloc doesn't like __GFP_HIGHMEM for some reason
 	 */
-	return kmalloc(size, gfp_mask & ~__GFP_HIGHMEM);
+	return kmalloc(size, (gfp_mask | __GFP_COMP) & ~__GFP_HIGHMEM);
 }
 
 struct page * vmalloc_to_page(void *addr)
@@ -205,6 +204,13 @@ void *vmalloc(unsigned long size)
 {
        return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL);
 }
+EXPORT_SYMBOL(vmalloc);
+
+void *vmalloc_node(unsigned long size, int node)
+{
+	return vmalloc(size);
+}
+EXPORT_SYMBOL(vmalloc_node);
 
 /*
  *	vmalloc_32  -  allocate virtually continguos memory (32bit addressable)
@@ -617,7 +623,7 @@ static int do_mmap_private(struct vm_area_struct *vma, unsigned long len)
 	 * - note that this may not return a page-aligned address if the object
 	 *   we're allocating is smaller than a page
 	 */
-	base = kmalloc(len, GFP_KERNEL);
+	base = kmalloc(len, GFP_KERNEL|__GFP_COMP);
 	if (!base)
 		goto enomem;
 

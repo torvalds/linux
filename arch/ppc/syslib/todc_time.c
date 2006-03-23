@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/todc_time.c
- *
  * Time of Day Clock support for the M48T35, M48T37, M48T59, and MC146818
  * Real Time Clocks/Timekeepers.
  *

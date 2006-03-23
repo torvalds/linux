@@ -269,9 +269,10 @@ struct snd_ymfpci_pcm {
 	enum snd_ymfpci_pcm_type type;
 	struct snd_pcm_substream *substream;
 	struct snd_ymfpci_voice *voices[2];	/* playback only */
-	unsigned int running: 1;
-	unsigned int output_front: 1;
-	unsigned int output_rear: 1;
+	unsigned int running: 1,
+	             output_front: 1,
+	             output_rear: 1,
+	             swap_rear: 1;
 	unsigned int update_pcm_vol;
 	u32 period_size;		/* cached from runtime->period_size */
 	u32 buffer_size;		/* cached from runtime->buffer_size */
@@ -344,6 +345,7 @@ struct snd_ymfpci {
 	struct snd_kcontrol *spdif_pcm_ctl;
 	int mode_dup4ch;
 	int rear_opened;
+	int rear_swap;
 	int spdif_opened;
 	struct {
 		u16 left;
@@ -376,7 +378,7 @@ int snd_ymfpci_pcm(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
 int snd_ymfpci_pcm2(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
 int snd_ymfpci_pcm_spdif(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
 int snd_ymfpci_pcm_4ch(struct snd_ymfpci *chip, int device, struct snd_pcm **rpcm);
-int snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch);
+int snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch, int rear_swap);
 int snd_ymfpci_timer(struct snd_ymfpci *chip, int device);
 
 #endif /* __SOUND_YMFPCI_H */

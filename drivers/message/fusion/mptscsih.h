@@ -60,16 +60,6 @@
 
 #define MPT_SCSI_MAX_SECTORS    8192
 
-/* To disable domain validation, uncomment the
- * following line. No effect for FC devices.
- * For SCSI devices, driver will negotiate to
- * NVRAM settings (if available) or to maximum adapter
- * capabilities.
- */
-
-#define MPTSCSIH_ENABLE_DOMAIN_VALIDATION
-
-
 /* SCSI driver setup structure. Settings can be overridden
  * by command line options.
  */
@@ -109,3 +99,5 @@ extern int mptscsih_ioc_reset(MPT_ADAPTER *ioc, int post_reset);
 extern int mptscsih_change_queue_depth(struct scsi_device *sdev, int qdepth);
 extern void mptscsih_timer_expired(unsigned long data);
 extern int mptscsih_TMHandler(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 target, u8 lun, int ctx2abort, ulong timeout);
+extern int mptscsih_raid_id_to_num(MPT_SCSI_HOST *hd, uint physdiskid);
+extern int mptscsih_is_phys_disk(MPT_ADAPTER *ioc, int id);

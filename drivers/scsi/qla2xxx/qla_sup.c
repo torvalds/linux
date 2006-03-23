@@ -1191,11 +1191,6 @@ qla2x00_poll_flash(scsi_qla_host_t *ha, uint32_t addr, uint8_t poll_data,
 	return status;
 }
 
-#define IS_OEM_001(ha) \
-	((ha)->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2322 && \
-	 (ha)->pdev->subsystem_vendor == 0x1028 && \
-	 (ha)->pdev->subsystem_device == 0x0170)
-
 /**
  * qla2x00_program_flash_address() - Programs a flash address
  * @ha: HA context
@@ -1354,7 +1349,7 @@ qla2x00_resume_hba(struct scsi_qla_host *ha)
 	/* Resume HBA. */
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 	set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-	up(ha->dpc_wait);
+	qla2xxx_wake_dpc(ha);
 	qla2x00_wait_for_hba_online(ha);
 	scsi_unblock_requests(ha->host);
 }
@@ -1652,7 +1647,7 @@ qla24xx_write_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 	/* Resume HBA -- RISC reset needed. */
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 	set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-	up(ha->dpc_wait);
+	qla2xxx_wake_dpc(ha);
 	qla2x00_wait_for_hba_online(ha);
 	scsi_unblock_requests(ha->host);
 

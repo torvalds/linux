@@ -64,7 +64,7 @@ typedef enum xena_max_outstanding_splits {
 #define	INTR_DBG	4
 
 /* Global variable that defines the present debug level of the driver. */
-int debug_level = ERR_DBG;	/* Default level. */
+static int debug_level = ERR_DBG;
 
 /* DEBUG message print. */
 #define DBG_PRINT(dbg_level, args...)  if(!(debug_level<dbg_level)) printk(args)
@@ -78,6 +78,13 @@ int debug_level = ERR_DBG;	/* Default level. */
 typedef struct {
 	unsigned long long single_ecc_errs;
 	unsigned long long double_ecc_errs;
+	/* LRO statistics */
+	unsigned long long clubbed_frms_cnt;
+	unsigned long long sending_both;
+	unsigned long long outof_sequence_pkts;
+	unsigned long long flush_max_pkts;
+	unsigned long long sum_avg_pkts_aggregated;
+	unsigned long long num_aggregations;
 } swStat_t;
 
 /* The statistics block of Xena */
@@ -268,7 +275,7 @@ typedef struct stat_block {
 #define MAX_RX_RINGS 8
 
 /* FIFO mappings for all possible number of fifos configured */
-int fifo_map[][MAX_TX_FIFOS] = {
+static int fifo_map[][MAX_TX_FIFOS] = {
 	{0, 0, 0, 0, 0, 0, 0, 0},
 	{0, 0, 0, 0, 1, 1, 1, 1},
 	{0, 0, 0, 1, 1, 1, 2, 2},
@@ -680,6 +687,24 @@ struct msix_info_st {
 	u64 data;
 };
 
+/* Data structure to represent a LRO session */
+typedef struct lro {
+	struct sk_buff	*parent;
+	u8		*l2h;
+	struct iphdr	*iph;
+	struct tcphdr	*tcph;
+	u32		tcp_next_seq;
+	u32		tcp_ack;
+	int		total_len;
+	int		frags_len;
+	int		sg_num;
+	int		in_use;
+	u16		window;
+	u32		cur_tsval;
+	u32		cur_tsecr;
+	u8		saw_ts;
+}lro_t;
+
 /* Structure representing one instance of the NIC */
 struct s2io_nic {
 	int rxd_mode;
@@ -783,6 +808,13 @@ struct s2io_nic {
 #define XFRAME_I_DEVICE		1
 #define XFRAME_II_DEVICE	2
 	u8 device_type;
+
+#define MAX_LRO_SESSIONS	32
+	lro_t lro0_n[MAX_LRO_SESSIONS];
+	unsigned long	clubbed_frms_cnt;
+	unsigned long	sending_both;
+	u8		lro;
+	u16		lro_max_aggr_per_sess;
 
 #define INTA	0
 #define MSI	1
@@ -911,18 +943,16 @@ static void tx_intr_handler(fifo_info_t *fifo_data);
 static void alarm_intr_handler(struct s2io_nic *sp);
 
 static int s2io_starter(void);
-void s2io_closer(void);
 static void s2io_tx_watchdog(struct net_device *dev);
 static void s2io_tasklet(unsigned long dev_addr);
 static void s2io_set_multicast(struct net_device *dev);
 static int rx_osm_handler(ring_info_t *ring_data, RxD_t * rxdp);
-void s2io_link(nic_t * sp, int link);
-void s2io_reset(nic_t * sp);
+static void s2io_link(nic_t * sp, int link);
 #if defined(CONFIG_S2IO_NAPI)
 static int s2io_poll(struct net_device *dev, int *budget);
 #endif
 static void s2io_init_pci(nic_t * sp);
-int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
+static int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
 static void s2io_alarm_handle(unsigned long data);
 static int s2io_enable_msi(nic_t *nic);
 static irqreturn_t s2io_msi_handle(int irq, void *dev_id, struct pt_regs *regs);
@@ -930,14 +960,19 @@ static irqreturn_t
 s2io_msix_ring_handle(int irq, void *dev_id, struct pt_regs *regs);
 static irqreturn_t
 s2io_msix_fifo_handle(int irq, void *dev_id, struct pt_regs *regs);
-int s2io_enable_msi_x(nic_t *nic);
 static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs);
 static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
 static struct ethtool_ops netdev_ethtool_ops;
 static void s2io_set_link(unsigned long data);
-int s2io_set_swapper(nic_t * sp);
+static int s2io_set_swapper(nic_t * sp);
 static void s2io_card_down(nic_t *nic);
 static int s2io_card_up(nic_t *nic);
-int get_xena_rev_id(struct pci_dev *pdev);
-void restore_xmsi_data(nic_t *nic);
+static int get_xena_rev_id(struct pci_dev *pdev);
+static void restore_xmsi_data(nic_t *nic);
+
+static int s2io_club_tcp_session(u8 *buffer, u8 **tcp, u32 *tcp_len, lro_t **lro, RxD_t *rxdp, nic_t *sp);
+static void clear_lro_session(lro_t *lro);
+static void queue_rx_frame(struct sk_buff *skb);
+static void update_L3L4_header(nic_t *sp, lro_t *lro);
+static void lro_append_pkt(nic_t *sp, lro_t *lro, struct sk_buff *skb, u32 tcp_len);
 #endif				/* _S2IO_H */

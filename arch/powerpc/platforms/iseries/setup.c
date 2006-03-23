@@ -50,6 +50,7 @@
 #include <asm/iseries/hv_call_xm.h>
 #include <asm/iseries/it_lp_queue.h>
 #include <asm/iseries/mf.h>
+#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/lpar_map.h>
 #include <asm/udbg.h>
@@ -88,8 +89,6 @@ extern unsigned long embedded_sysmap_end;
 
 extern unsigned long iSeries_recal_tb;
 extern unsigned long iSeries_recal_titan;
-
-static int mf_initialized;
 
 static unsigned long cmd_mem_limit;
 
@@ -303,8 +302,6 @@ static void __init iSeries_init_early(void)
 {
 	DBG(" -> iSeries_init_early()\n");
 
-	ppc64_firmware_features = FW_FEATURE_ISERIES;
-
 	ppc64_interrupt_controller = IC_ISERIES;
 
 #if defined(CONFIG_BLK_DEV_INITRD)
@@ -349,8 +346,6 @@ static void __init iSeries_init_early(void)
 	HvCallEvent_setLpEventQueueInterruptProc(0, 0);
 
 	mf_init();
-	mf_initialized = 1;
-	mb();
 
 	/* If we were passed an initrd, set the ROOT_DEV properly if the values
 	 * look sensible. If not, clear initrd reference.
@@ -560,39 +555,10 @@ static void iSeries_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "machine\t\t: 64-bit iSeries Logical Partition\n");
 }
 
-/*
- * Document me.
- */
-static void iSeries_restart(char *cmd)
-{
-	mf_reboot();
-}
-
-/*
- * Document me.
- */
-static void iSeries_power_off(void)
-{
-	mf_power_off();
-}
-
-/*
- * Document me.
- */
-static void iSeries_halt(void)
-{
-	mf_power_off();
-}
-
 static void __init iSeries_progress(char * st, unsigned short code)
 {
 	printk("Progress: [%04x] - %s\n", (unsigned)code, st);
-	if (!piranha_simulator && mf_initialized) {
-		if (code != 0xffff)
-			mf_display_progress(code);
-		else
-			mf_clear_src();
-	}
+	mf_display_progress(code);
 }
 
 static void __init iSeries_fixup_klimit(void)
@@ -711,7 +677,13 @@ void __init iSeries_init_IRQ(void) { }
 
 static int __init iseries_probe(int platform)
 {
-	return PLATFORM_ISERIES_LPAR == platform;
+	if (PLATFORM_ISERIES_LPAR != platform)
+		return 0;
+
+	ppc64_firmware_features |= FW_FEATURE_ISERIES;
+	ppc64_firmware_features |= FW_FEATURE_LPAR;
+
+	return 1;
 }
 
 struct machdep_calls __initdata iseries_md = {
@@ -721,9 +693,9 @@ struct machdep_calls __initdata iseries_md = {
 	.get_irq	= iSeries_get_irq,
 	.init_early	= iSeries_init_early,
 	.pcibios_fixup	= iSeries_pci_final_fixup,
-	.restart	= iSeries_restart,
-	.power_off	= iSeries_power_off,
-	.halt		= iSeries_halt,
+	.restart	= mf_reboot,
+	.power_off	= mf_power_off,
+	.halt		= mf_power_off,
 	.get_boot_time	= iSeries_get_boot_time,
 	.set_rtc_time	= iSeries_set_rtc_time,
 	.get_rtc_time	= iSeries_get_rtc_time,
@@ -917,6 +889,24 @@ void dt_cpus(struct iseries_flat_dt *dt)
 	dt_end_node(dt);
 }
 
+void dt_model(struct iseries_flat_dt *dt)
+{
+	char buf[16] = "IBM,";
+
+	/* "IBM," + mfgId[2:3] + systemSerial[1:5] */
+	strne2a(buf + 4, xItExtVpdPanel.mfgID + 2, 2);
+	strne2a(buf + 6, xItExtVpdPanel.systemSerial + 1, 5);
+	buf[11] = '\0';
+	dt_prop_str(dt, "system-id", buf);
+
+	/* "IBM," + machineType[0:4] */
+	strne2a(buf + 4, xItExtVpdPanel.machineType, 4);
+	buf[8] = '\0';
+	dt_prop_str(dt, "model", buf);
+
+	dt_prop_str(dt, "compatible", "IBM,iSeries");
+}
+
 void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 {
 	u64 tmp[2];
@@ -927,6 +917,7 @@ void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 
 	dt_prop_u32(dt, "#address-cells", 2);
 	dt_prop_u32(dt, "#size-cells", 2);
+	dt_model(dt);
 
 	/* /memory */
 	dt_start_node(dt, "memory@0");
@@ -940,6 +931,7 @@ void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 	/* /chosen */
 	dt_start_node(dt, "chosen");
 	dt_prop_u32(dt, "linux,platform", PLATFORM_ISERIES_LPAR);
+	dt_prop_str(dt, "bootargs", cmd_line);
 	if (cmd_mem_limit)
 		dt_prop_u64(dt, "linux,memory-limit", cmd_mem_limit);
 	dt_end_node(dt);

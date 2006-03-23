@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/common/mpc10x_common.c
- *
  * A routine to find out how much memory the machine has.
  *
  * Based on:

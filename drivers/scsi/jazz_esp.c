@@ -52,7 +52,6 @@ static volatile unsigned char cmd_buffer[16];
 				 * via PIO.
 				 */
 
-int jazz_esp_detect(struct scsi_host_template *tpnt);
 static int jazz_esp_release(struct Scsi_Host *shost)
 {
 	if (shost->irq)
@@ -65,27 +64,6 @@ static int jazz_esp_release(struct Scsi_Host *shost)
 	return 0;
 }
 
-static struct scsi_host_template driver_template = {
-	.proc_name		= "jazz_esp",
-	.proc_info		= &esp_proc_info,
-	.name			= "ESP 100/100a/200",
-	.detect			= jazz_esp_detect,
-	.slave_alloc		= esp_slave_alloc,
-	.slave_destroy		= esp_slave_destroy,
-	.release		= jazz_esp_release,
-	.info			= esp_info,
-	.queuecommand		= esp_queue,
-	.eh_abort_handler	= esp_abort,
-	.eh_bus_reset_handler	= esp_reset,
-	.can_queue		= 7,
-	.this_id		= 7,
-	.sg_tablesize		= SG_ALL,
-	.cmd_per_lun		= 1,
-	.use_clustering		= DISABLE_CLUSTERING,
-};
-
-#include "scsi_module.c"
-
 /***************************************************************** Detection */
 static int jazz_esp_detect(struct scsi_host_template *tpnt)
 {
@@ -96,7 +74,7 @@ static int jazz_esp_detect(struct scsi_host_template *tpnt)
      * first assumption it is there:-)
      */
     if (1) {
-	esp_dev = 0;
+	esp_dev = NULL;
 	esp = esp_allocate(tpnt, (void *) esp_dev);
 	
 	/* Do command transfer with programmed I/O */
@@ -115,13 +93,13 @@ static int jazz_esp_detect(struct scsi_host_template *tpnt)
 	esp->dma_setup = &dma_setup;
 
 	/* Optional functions */
-	esp->dma_barrier = 0;
-	esp->dma_drain = 0;
-	esp->dma_invalidate = 0;
-	esp->dma_irq_entry = 0;
-	esp->dma_irq_exit = 0;
-	esp->dma_poll = 0;
-	esp->dma_reset = 0;
+	esp->dma_barrier = NULL;
+	esp->dma_drain = NULL;
+	esp->dma_invalidate = NULL;
+	esp->dma_irq_entry = NULL;
+	esp->dma_irq_exit = NULL;
+	esp->dma_poll = NULL;
+	esp->dma_reset = NULL;
 	esp->dma_led_off = &dma_led_off;
 	esp->dma_led_on = &dma_led_on;
 	
@@ -141,7 +119,7 @@ static int jazz_esp_detect(struct scsi_host_template *tpnt)
 	 * of DMA channel, so we can use the jazz DMA functions
 	 * 
 	 */
-	esp->dregs = JAZZ_SCSI_DMA;
+	esp->dregs = (void *) JAZZ_SCSI_DMA;
 	
 	/* ESP register base */
 	esp->eregs = (struct ESP_regs *)(JAZZ_SCSI_BASE);

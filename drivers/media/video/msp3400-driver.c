@@ -411,9 +411,9 @@ static int msp_mode_v4l2_to_v4l1(int rxsubchans)
 	if (rxsubchans & V4L2_TUNER_SUB_STEREO)
 		mode |= VIDEO_SOUND_STEREO;
 	if (rxsubchans & V4L2_TUNER_SUB_LANG2)
-		mode |= VIDEO_SOUND_LANG2;
+		mode |= VIDEO_SOUND_LANG2 | VIDEO_SOUND_STEREO;
 	if (rxsubchans & V4L2_TUNER_SUB_LANG1)
-		mode |= VIDEO_SOUND_LANG1;
+		mode |= VIDEO_SOUND_LANG1 | VIDEO_SOUND_STEREO;
 	if (mode == 0)
 		mode |= VIDEO_SOUND_MONO;
 	return mode;
@@ -428,21 +428,6 @@ static int msp_mode_v4l1_to_v4l2(int mode)
 	if (mode & VIDEO_SOUND_LANG1)
 		return V4L2_TUNER_MODE_LANG1;
 	return V4L2_TUNER_MODE_MONO;
-}
-
-static void msp_any_detect_stereo(struct i2c_client *client)
-{
-	struct msp_state *state  = i2c_get_clientdata(client);
-
-	switch (state->opmode) {
-	case OPMODE_MANUAL:
-	case OPMODE_AUTODETECT:
-		autodetect_stereo(client);
-		break;
-	case OPMODE_AUTOSELECT:
-		msp34xxg_detect_stereo(client);
-		break;
-	}
 }
 
 static struct v4l2_queryctrl msp_qctrl_std[] = {
@@ -505,22 +490,6 @@ static struct v4l2_queryctrl msp_qctrl_sound_processing[] = {
 	},
 };
 
-
-static void msp_any_set_audmode(struct i2c_client *client, int audmode)
-{
-	struct msp_state *state = i2c_get_clientdata(client);
-
-	switch (state->opmode) {
-	case OPMODE_MANUAL:
-	case OPMODE_AUTODETECT:
-		state->watch_stereo = 0;
-		msp3400c_setstereo(client, audmode);
-		break;
-	case OPMODE_AUTOSELECT:
-		msp34xxg_set_audmode(client, audmode);
-		break;
-	}
-}
 
 static int msp_get_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 {
@@ -653,11 +622,10 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 		if (scart) {
 			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
-			state->audmode = V4L2_TUNER_MODE_STEREO;
 			msp_set_scart(client, scart, 0);
 			msp_write_dsp(client, 0x000d, 0x1900);
 			if (state->opmode != OPMODE_AUTOSELECT)
-				msp3400c_setstereo(client, state->audmode);
+				msp_set_audmode(client);
 		}
 		msp_wake_thread(client);
 		break;
@@ -671,8 +639,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		switch (state->opmode) {
 		case OPMODE_MANUAL:
 			/* set msp3400 to FM radio mode */
-			msp3400c_setmode(client, MSP_MODE_FM_RADIO);
-			msp3400c_setcarrier(client, MSP_CARRIER(10.7),
+			msp3400c_set_mode(client, MSP_MODE_FM_RADIO);
+			msp3400c_set_carrier(client, MSP_CARRIER(10.7),
 					    MSP_CARRIER(10.7));
 			msp_set_audio(client);
 			break;
@@ -706,7 +674,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (state->radio)
 			break;
 		if (state->opmode == OPMODE_AUTOSELECT)
-			msp_any_detect_stereo(client);
+			msp_detect_stereo(client);
 		va->mode = msp_mode_v4l2_to_v4l1(state->rxsubchans);
 		break;
 	}
@@ -722,8 +690,9 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		state->treble = va->treble;
 		msp_set_audio(client);
 
-		if (va->mode != 0 && state->radio == 0)
-			msp_any_set_audmode(client, msp_mode_v4l1_to_v4l2(va->mode));
+		if (va->mode != 0 && state->radio == 0) {
+			state->audmode = msp_mode_v4l1_to_v4l2(va->mode);
+		}
 		break;
 	}
 
@@ -831,11 +800,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			return -EINVAL;
 		}
 
-		msp_any_detect_stereo(client);
-		if (state->audmode == V4L2_TUNER_MODE_STEREO) {
-			a->capability = V4L2_AUDCAP_STEREO;
-		}
-
+		a->capability = V4L2_AUDCAP_STEREO;
+		a->mode = 0;  /* TODO: add support for AVL */
 		break;
 	}
 
@@ -865,16 +831,10 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 		if (scart) {
 			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
-			state->audmode = V4L2_TUNER_MODE_STEREO;
 			msp_set_scart(client, scart, 0);
 			msp_write_dsp(client, 0x000d, 0x1900);
 		}
-		if (sarg->capability == V4L2_AUDCAP_STEREO) {
-			state->audmode = V4L2_TUNER_MODE_STEREO;
-		} else {
-			state->audmode &= ~V4L2_TUNER_MODE_STEREO;
-		}
-		msp_any_set_audmode(client, state->audmode);
+		msp_set_audmode(client);
 		msp_wake_thread(client);
 		break;
 	}
@@ -886,7 +846,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (state->radio)
 			break;
 		if (state->opmode == OPMODE_AUTOSELECT)
-			msp_any_detect_stereo(client);
+			msp_detect_stereo(client);
 		vt->audmode    = state->audmode;
 		vt->rxsubchans = state->rxsubchans;
 		vt->capability = V4L2_TUNER_CAP_STEREO |
@@ -898,11 +858,11 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		struct v4l2_tuner *vt = (struct v4l2_tuner *)arg;
 
-		if (state->radio)
+		if (state->radio)  /* TODO: add mono/stereo support for radio */
 			break;
+		state->audmode = vt->audmode;
 		/* only set audmode */
-		if (vt->audmode != -1 && vt->audmode != 0)
-			msp_any_set_audmode(client, vt->audmode);
+		msp_set_audmode(client);
 		break;
 	}
 
@@ -927,7 +887,6 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			return -EINVAL;
 		}
 		break;
-
 	}
 
 	case VIDIOC_S_AUDOUT:
@@ -993,7 +952,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		const char *p;
 
 		if (state->opmode == OPMODE_AUTOSELECT)
-			msp_any_detect_stereo(client);
+			msp_detect_stereo(client);
 		v4l_info(client, "%s rev1 = 0x%04x rev2 = 0x%04x\n",
 				client->name, state->rev1, state->rev2);
 		v4l_info(client, "Audio:    volume %d%s\n",
@@ -1094,6 +1053,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	memset(state, 0, sizeof(*state));
 	state->v4l2_std = V4L2_STD_NTSC;
+	state->audmode = V4L2_TUNER_MODE_LANG1;
 	state->volume = 58880;	/* 0db gain */
 	state->balance = 32768;	/* 0db gain */
 	state->bass = 32768;

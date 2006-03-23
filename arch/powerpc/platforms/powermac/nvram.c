@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/platforms/pmac_nvram.c
- *
  *  Copyright (C) 2002 Benjamin Herrenschmidt (benh@kernel.crashing.org)
  *
  *  This program is free software; you can redistribute it and/or

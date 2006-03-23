@@ -67,7 +67,7 @@ config SERIAL_TEXT_DEBUG
 
 config PPC_OCP
 	bool
-	depends on IBM_OCP || XILINX_OCP
+	depends on IBM_OCP
 	default y
 
 endmenu

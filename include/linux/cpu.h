@@ -32,7 +32,7 @@ struct cpu {
 };
 
 extern int register_cpu(struct cpu *, int, struct node *);
-extern struct sys_device *get_cpu_sysdev(int cpu);
+extern struct sys_device *get_cpu_sysdev(unsigned cpu);
 #ifdef CONFIG_HOTPLUG_CPU
 extern void unregister_cpu(struct cpu *, struct node *);
 #endif

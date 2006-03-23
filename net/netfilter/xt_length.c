@@ -24,6 +24,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -39,6 +40,7 @@ static int
 match6(const struct sk_buff *skb,
        const struct net_device *in,
        const struct net_device *out,
+       const struct xt_match *match,
        const void *matchinfo,
        int offset,
        unsigned int protoff,
@@ -50,49 +52,39 @@ match6(const struct sk_buff *skb,
 	return (pktlen >= info->min && pktlen <= info->max) ^ info->invert;
 }
 
-static int
-checkentry(const char *tablename,
-           const void *ip,
-           void *matchinfo,
-           unsigned int matchsize,
-           unsigned int hook_mask)
-{
-	if (matchsize != XT_ALIGN(sizeof(struct xt_length_info)))
-		return 0;
-
-	return 1;
-}
-
 static struct xt_match length_match = {
 	.name		= "length",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_length_info),
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
+
 static struct xt_match length6_match = {
 	.name		= "length",
-	.match		= &match6,
-	.checkentry	= &checkentry,
+	.match		= match6,
+	.matchsize	= sizeof(struct xt_length_info),
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
 static int __init init(void)
 {
 	int ret;
-	ret = xt_register_match(AF_INET, &length_match);
+	ret = xt_register_match(&length_match);
 	if (ret)
 		return ret;
-	ret = xt_register_match(AF_INET6, &length6_match);
+	ret = xt_register_match(&length6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &length_match);
+		xt_unregister_match(&length_match);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET, &length_match);
-	xt_unregister_match(AF_INET6, &length6_match);
+	xt_unregister_match(&length_match);
+	xt_unregister_match(&length6_match);
 }
 
 module_init(init);

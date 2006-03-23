@@ -6,7 +6,8 @@ menu "Wireless LAN (non-hamradio)"
 	depends on NETDEVICES
 
 config NET_RADIO
-	bool "Wireless LAN drivers (non-hamradio) & Wireless Extensions"
+	bool "Wireless LAN drivers (non-hamradio)"
+	select WIRELESS_EXT
 	---help---
 	  Support for wireless LANs and everything having to do with radio,
 	  but not with amateur radio or FM broadcasting.
@@ -135,8 +136,9 @@ comment "Wireless 802.11b ISA/PCI cards support"
 
 config IPW2100
 	tristate "Intel PRO/Wireless 2100 Network Connection"
-	depends on NET_RADIO && PCI && IEEE80211
+	depends on NET_RADIO && PCI
 	select FW_LOADER
+	select IEEE80211
 	---help---
           A driver for the Intel PRO/Wireless 2100 Network 
 	  Connection 802.11b wireless network adapter.
@@ -188,8 +190,9 @@ config IPW2100_DEBUG
 
 config IPW2200
 	tristate "Intel PRO/Wireless 2200BG and 2915ABG Network Connection"
-	depends on NET_RADIO && IEEE80211 && PCI
+	depends on NET_RADIO && PCI
 	select FW_LOADER
+	select IEEE80211
 	---help---
           A driver for the Intel PRO/Wireless 2200BG and 2915ABG Network
 	  Connection adapters. 
@@ -201,7 +204,7 @@ config IPW2200
 	  In order to use this driver, you will need a firmware image for it.
           You can obtain the firmware from
 	  <http://ipw2200.sf.net/>.  See the above referenced README.ipw2200 
-	  for information on where to install the firmare images.
+	  for information on where to install the firmware images.
 
           You will also very likely need the Wireless Tools in order to
           configure your card:
@@ -212,6 +215,19 @@ config IPW2200
           inserted in and removed from the running kernel whenever you want),
           say M here and read <file:Documentation/modules.txt>.  The module
           will be called ipw2200.ko.
+
+config IPW2200_MONITOR
+        bool "Enable promiscuous mode"
+        depends on IPW2200
+        ---help---
+	  Enables promiscuous/monitor mode support for the ipw2200 driver.
+	  With this feature compiled into the driver, you can switch to 
+	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
+	  mode, no packets can be sent.
+
+config IPW_QOS
+        bool "Enable QoS support"
+        depends on IPW2200 && EXPERIMENTAL
 
 config IPW2200_DEBUG
 	bool "Enable full debugging output in IPW2200 module."
@@ -239,13 +255,14 @@ config IPW2200_DEBUG
 
 config AIRO
 	tristate "Cisco/Aironet 34X/35X/4500/4800 ISA and PCI cards"
-	depends on NET_RADIO && ISA_DMA_API && CRYPTO && (PCI || BROKEN)
+ 	depends on NET_RADIO && ISA_DMA_API && (PCI || BROKEN)
+	select CRYPTO
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet ISA and
 	  PCI 802.11 wireless cards.
 	  It supports the new 802.11b cards from Cisco (Cisco 34X, Cisco 35X
 	  - with or without encryption) as well as card before the Cisco
-	  aquisition (Aironet 4500, Aironet 4800, Aironet 4800B).
+	  acquisition (Aironet 4500, Aironet 4800, Aironet 4800B).
 
 	  This driver support both the standard Linux Wireless Extensions
 	  and Cisco proprietary API, so both the Linux Wireless Tools and the
@@ -387,13 +404,14 @@ config PCMCIA_SPECTRUM
 config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
 	depends on NET_RADIO && PCMCIA && (BROKEN || !M32R)
+	select CRYPTO
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet PCMCIA
 	  802.11 wireless cards.  This driver is the same as the Aironet
 	  driver part of the Linux Pcmcia package.
 	  It supports the new 802.11b cards from Cisco (Cisco 34X, Cisco 35X
 	  - with or without encryption) as well as card before the Cisco
-	  aquisition (Aironet 4500, Aironet 4800, Aironet 4800B). It also
+	  acquisition (Aironet 4500, Aironet 4800, Aironet 4800B). It also
 	  supports OEM of Cisco such as the DELL TrueMobile 4800 and Xircom
 	  802.11b cards.
 

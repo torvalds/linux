@@ -26,6 +26,7 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
   */
 
+
 #include <linux/module.h>
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
@@ -83,7 +84,7 @@ static int tea6420_switch(struct i2c_client *client, int i, int o, int g)
 		dprintk("i2c_smbus_write_byte() failed, ret:%d\n", ret);
 		return -EIO;
 	}
-	
+
 	return 0;
 }
 
@@ -167,7 +168,7 @@ static int command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 static struct i2c_driver driver = {
 	.driver = {
-		.name	= "tea6420",
+		.name = "tea6420",
 	},
 	.id	= I2C_DRIVERID_TEA6420,
 	.attach_adapter	= attach,

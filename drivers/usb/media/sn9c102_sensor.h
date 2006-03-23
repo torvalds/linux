@@ -66,6 +66,7 @@ extern int sn9c102_probe_hv7131d(struct sn9c102_device* cam);
 extern int sn9c102_probe_mi0343(struct sn9c102_device* cam);
 extern int sn9c102_probe_ov7630(struct sn9c102_device* cam);
 extern int sn9c102_probe_pas106b(struct sn9c102_device* cam);
+extern int sn9c102_probe_pas202bca(struct sn9c102_device* cam);
 extern int sn9c102_probe_pas202bcb(struct sn9c102_device* cam);
 extern int sn9c102_probe_tas5110c1b(struct sn9c102_device* cam);
 extern int sn9c102_probe_tas5130d1b(struct sn9c102_device* cam);
@@ -81,11 +82,16 @@ static int (*sn9c102_sensor_table[])(struct sn9c102_device*) = {              \
 	&sn9c102_probe_pas106b, /* strong detection based on SENSOR ids */    \
 	&sn9c102_probe_pas202bcb, /* strong detection based on SENSOR ids */  \
 	&sn9c102_probe_hv7131d, /* strong detection based on SENSOR ids */    \
+	&sn9c102_probe_pas202bca, /* detection mostly based on USB pid/vid */ \
 	&sn9c102_probe_ov7630, /* detection mostly based on USB pid/vid */    \
 	&sn9c102_probe_tas5110c1b, /* detection based on USB pid/vid */       \
 	&sn9c102_probe_tas5130d1b, /* detection based on USB pid/vid */       \
 	NULL,                                                                 \
 };
+
+/* Device identification */
+extern struct sn9c102_device*
+sn9c102_match_id(struct sn9c102_device* cam, const struct usb_device_id *id);
 
 /* Attach a probed sensor to the camera. */
 extern void 
@@ -108,6 +114,7 @@ sn9c102_attach_sensor(struct sn9c102_device* cam,
 static const struct usb_device_id sn9c102_id_table[] = {                      \
 	{ USB_DEVICE(0x0c45, 0x6001), }, /* TAS5110C1B */                     \
 	{ USB_DEVICE(0x0c45, 0x6005), }, /* TAS5110C1B */                     \
+	{ USB_DEVICE(0x0c45, 0x6007), },                                      \
 	{ USB_DEVICE(0x0c45, 0x6009), }, /* PAS106B */                        \
 	{ USB_DEVICE(0x0c45, 0x600d), }, /* PAS106B */                        \
 	{ USB_DEVICE(0x0c45, 0x6024), },                                      \
@@ -126,7 +133,7 @@ static const struct usb_device_id sn9c102_id_table[] = {                      \
 	{ SN9C102_USB_DEVICE(0x0c45, 0x6088, 0xff), },                        \
 	{ SN9C102_USB_DEVICE(0x0c45, 0x608a, 0xff), },                        \
 	{ SN9C102_USB_DEVICE(0x0c45, 0x608b, 0xff), },                        \
-	{ SN9C102_USB_DEVICE(0x0c45, 0x608c, 0xff), }, /* HV7131x */          \
+	{ SN9C102_USB_DEVICE(0x0c45, 0x608c, 0xff), }, /* HV7131/R */         \
 	{ SN9C102_USB_DEVICE(0x0c45, 0x608e, 0xff), }, /* CIS-VF10 */         \
 	{ SN9C102_USB_DEVICE(0x0c45, 0x608f, 0xff), }, /* OV7630 */           \
 	{ SN9C102_USB_DEVICE(0x0c45, 0x60a0, 0xff), },                        \
@@ -357,12 +364,6 @@ struct sn9c102_sensor {
 	   To be called on VIDIOC_S_FMT, when switching from the SBGGR8 to
 	   SN9C10X pixel format or viceversa. On error return the corresponding
 	   error code without rolling back.
-	*/
-
-	const struct usb_device* usbdev;
-	/*
-	   Points to the usb_device struct after the sensor is attached.
-	   Do not touch unless you know what you are doing.
 	*/
 
 	/*

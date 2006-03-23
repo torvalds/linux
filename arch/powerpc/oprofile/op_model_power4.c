@@ -10,6 +10,7 @@
 #include <linux/oprofile.h>
 #include <linux/init.h>
 #include <linux/smp.h>
+#include <asm/firmware.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
 #include <asm/processor.h>
@@ -232,7 +233,7 @@ static unsigned long get_pc(struct pt_regs *regs)
 	mmcra = mfspr(SPRN_MMCRA);
 
 	/* Were we in the hypervisor? */
-	if (platform_is_lpar() && (mmcra & MMCRA_SIHV))
+	if (firmware_has_feature(FW_FEATURE_LPAR) && (mmcra & MMCRA_SIHV))
 		/* function descriptor madness */
 		return *((unsigned long *)hypervisor_bucket);
 

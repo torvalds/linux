@@ -369,15 +369,12 @@ struct ahc_platform_data {
 
 	spinlock_t		 spin_lock;
 	u_int			 qfrozen;
-	struct semaphore	 eh_sem;
+	struct completion	*eh_done;
 	struct Scsi_Host        *host;		/* pointer to scsi host */
 #define AHC_LINUX_NOIRQ	((uint32_t)~0)
 	uint32_t		 irq;		/* IRQ for this adapter */
 	uint32_t		 bios_address;
 	uint32_t		 mem_busaddr;	/* Mem Base Addr */
-
-#define	AHC_UP_EH_SEMAPHORE	 0x1
-	uint32_t		 flags;
 };
 
 /************************** OS Utility Wrappers *******************************/

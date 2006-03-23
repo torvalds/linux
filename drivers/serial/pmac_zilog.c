@@ -1916,6 +1916,16 @@ static void __exit exit_pmz(void)
 
 #ifdef CONFIG_SERIAL_PMACZILOG_CONSOLE
 
+static void pmz_console_putchar(struct uart_port *port, int ch)
+{
+	struct uart_pmac_port *uap = (struct uart_pmac_port *)port;
+
+	/* Wait for the transmit buffer to empty. */
+	while ((read_zsreg(uap, R0) & Tx_BUF_EMP) == 0)
+		udelay(5);
+	write_zsdata(uap, ch);
+}
+
 /*
  * Print a string to the serial port trying not to disturb
  * any possible real use of the port...
@@ -1924,7 +1934,6 @@ static void pmz_console_write(struct console *con, const char *s, unsigned int c
 {
 	struct uart_pmac_port *uap = &pmz_ports[con->index];
 	unsigned long flags;
-	int i;
 
 	if (ZS_IS_ASLEEP(uap))
 		return;
@@ -1934,17 +1943,7 @@ static void pmz_console_write(struct console *con, const char *s, unsigned int c
 	write_zsreg(uap, R1, uap->curregs[1] & ~TxINT_ENAB);
 	write_zsreg(uap, R5, uap->curregs[5] | TxENABLE | RTS | DTR);
 
-	for (i = 0; i < count; i++) {
-		/* Wait for the transmit buffer to empty. */
-		while ((read_zsreg(uap, R0) & Tx_BUF_EMP) == 0)
-			udelay(5);
-		write_zsdata(uap, s[i]);
-		if (s[i] == 10) {
-			while ((read_zsreg(uap, R0) & Tx_BUF_EMP) == 0)
-				udelay(5);
-			write_zsdata(uap, R13);
-		}
-	}
+	uart_console_write(&uap->port, s, count, pmz_console_putchar);
 
 	/* Restore the values in the registers. */
 	write_zsreg(uap, R1, uap->curregs[1]);

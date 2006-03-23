@@ -344,7 +344,7 @@ bt878_device_control(struct bt878 *bt, unsigned int cmd, union dst_gpio_packet *
 	int retval;
 
 	retval = 0;
-	if (down_interruptible (&bt->gpio_lock))
+	if (mutex_lock_interruptible(&bt->gpio_lock))
 		return -ERESTARTSYS;
 	/* special gpio signal */
 	switch (cmd) {
@@ -375,14 +375,14 @@ bt878_device_control(struct bt878 *bt, unsigned int cmd, union dst_gpio_packet *
 		retval = -EINVAL;
 		break;
 	}
-	up(&bt->gpio_lock);
+	mutex_unlock(&bt->gpio_lock);
 	return retval;
 }
 
 EXPORT_SYMBOL(bt878_device_control);
 
 
-struct cards card_list[] __devinitdata = {
+static struct cards card_list[] __devinitdata = {
 
 	{ 0x01010071, BTTV_BOARD_NEBULA_DIGITV,			"Nebula Electronics DigiTV" },
 	{ 0x07611461, BTTV_BOARD_AVDVBT_761,			"AverMedia AverTV DVB-T 761" },

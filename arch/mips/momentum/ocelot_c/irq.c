@@ -41,11 +41,11 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/bitops.h>
+#include <linux/mv643xx.h>
 #include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
-#include <asm/mv64340.h>
 #include <asm/system.h>
 
 extern asmlinkage void ocelot_handle_int(void);

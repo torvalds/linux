@@ -5,6 +5,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -26,19 +27,19 @@ static int ipip_xfrm_rcv(struct xfrm_state *x, struct xfrm_decap_state *decap, s
 }
 
 static struct xfrm_tunnel *ipip_handler;
-static DECLARE_MUTEX(xfrm4_tunnel_sem);
+static DEFINE_MUTEX(xfrm4_tunnel_mutex);
 
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler)
 {
 	int ret;
 
-	down(&xfrm4_tunnel_sem);
+	mutex_lock(&xfrm4_tunnel_mutex);
 	ret = 0;
 	if (ipip_handler != NULL)
 		ret = -EINVAL;
 	if (!ret)
 		ipip_handler = handler;
-	up(&xfrm4_tunnel_sem);
+	mutex_unlock(&xfrm4_tunnel_mutex);
 
 	return ret;
 }
@@ -49,13 +50,13 @@ int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler)
 {
 	int ret;
 
-	down(&xfrm4_tunnel_sem);
+	mutex_lock(&xfrm4_tunnel_mutex);
 	ret = 0;
 	if (ipip_handler != handler)
 		ret = -EINVAL;
 	if (!ret)
 		ipip_handler = NULL;
-	up(&xfrm4_tunnel_sem);
+	mutex_unlock(&xfrm4_tunnel_mutex);
 
 	synchronize_net();
 

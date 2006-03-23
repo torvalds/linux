@@ -255,6 +255,6 @@ void ipoib_event(struct ib_event_handler *handler,
 	    record->event == IB_EVENT_LID_CHANGE  ||
 	    record->event == IB_EVENT_SM_CHANGE) {
 		ipoib_dbg(priv, "Port active event\n");
-		schedule_work(&priv->flush_task);
+		queue_work(ipoib_workqueue, &priv->flush_task);
 	}
 }

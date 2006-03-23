@@ -74,7 +74,7 @@ qeth_procfile_seq_next(struct seq_file *s, void *it, loff_t *offset)
 static inline const char *
 qeth_get_router_str(struct qeth_card *card, int ipv)
 {
-	int routing_type = 0;
+	enum qeth_routing_types routing_type = NO_ROUTER;
 
 	if (ipv == 4) {
 		routing_type = card->options.route4.type;
@@ -86,26 +86,26 @@ qeth_get_router_str(struct qeth_card *card, int ipv)
 #endif /* CONFIG_QETH_IPV6 */
 	}
 
-	if (routing_type == PRIMARY_ROUTER)
+	switch (routing_type){
+	case PRIMARY_ROUTER:
 		return "pri";
-	else if (routing_type == SECONDARY_ROUTER)
+	case SECONDARY_ROUTER:
 		return "sec";
-	else if (routing_type == MULTICAST_ROUTER) {
+	case MULTICAST_ROUTER:
 		if (card->info.broadcast_capable == QETH_BROADCAST_WITHOUT_ECHO)
 			return "mc+";
 		return "mc";
-	} else if (routing_type == PRIMARY_CONNECTOR) {
+	case PRIMARY_CONNECTOR:
 		if (card->info.broadcast_capable == QETH_BROADCAST_WITHOUT_ECHO)
 			return "p+c";
 		return "p.c";
-	} else if (routing_type == SECONDARY_CONNECTOR) {
+	case SECONDARY_CONNECTOR:
 		if (card->info.broadcast_capable == QETH_BROADCAST_WITHOUT_ECHO)
 			return "s+c";
 		return "s.c";
-	} else if (routing_type == NO_ROUTER)
+	default:   /* NO_ROUTER */
 		return "no";
-	else
-		return "unk";
+	}
 }
 
 static int
@@ -192,27 +192,27 @@ qeth_perf_procfile_seq_show(struct seq_file *s, void *it)
 			CARD_DDEV_ID(card),
 			QETH_CARD_IFNAME(card)
 		  );
-	seq_printf(s, "  Skb's/buffers received                 : %li/%i\n"
-		      "  Skb's/buffers sent                     : %li/%i\n\n",
+	seq_printf(s, "  Skb's/buffers received                 : %lu/%u\n"
+		      "  Skb's/buffers sent                     : %lu/%u\n\n",
 		        card->stats.rx_packets, card->perf_stats.bufs_rec,
 		        card->stats.tx_packets, card->perf_stats.bufs_sent
 		  );
-	seq_printf(s, "  Skb's/buffers sent without packing     : %li/%i\n"
-		      "  Skb's/buffers sent with packing        : %i/%i\n\n",
+	seq_printf(s, "  Skb's/buffers sent without packing     : %lu/%u\n"
+		      "  Skb's/buffers sent with packing        : %u/%u\n\n",
 		   card->stats.tx_packets - card->perf_stats.skbs_sent_pack,
 		   card->perf_stats.bufs_sent - card->perf_stats.bufs_sent_pack,
 		   card->perf_stats.skbs_sent_pack,
 		   card->perf_stats.bufs_sent_pack
 		  );
-	seq_printf(s, "  Skbs sent in SG mode                   : %i\n"
-		      "  Skb fragments sent in SG mode          : %i\n\n",
+	seq_printf(s, "  Skbs sent in SG mode                   : %u\n"
+		      "  Skb fragments sent in SG mode          : %u\n\n",
 		      card->perf_stats.sg_skbs_sent,
 		      card->perf_stats.sg_frags_sent);
-	seq_printf(s, "  large_send tx (in Kbytes)              : %i\n"
-		      "  large_send count                       : %i\n\n",
+	seq_printf(s, "  large_send tx (in Kbytes)              : %u\n"
+		      "  large_send count                       : %u\n\n",
 		      card->perf_stats.large_send_bytes >> 10,
 		      card->perf_stats.large_send_cnt);
-	seq_printf(s, "  Packing state changes no pkg.->packing : %i/%i\n"
+	seq_printf(s, "  Packing state changes no pkg.->packing : %u/%u\n"
 		      "  Watermarks L/H                         : %i/%i\n"
 		      "  Current buffer usage (outbound q's)    : "
 		      "%i/%i/%i/%i\n\n",
@@ -229,16 +229,16 @@ qeth_perf_procfile_seq_show(struct seq_file *s, void *it)
 				atomic_read(&card->qdio.out_qs[3]->used_buffers)
 				: 0
 		  );
-	seq_printf(s, "  Inbound handler time (in us)           : %i\n"
-		      "  Inbound handler count                  : %i\n"
-		      "  Inbound do_QDIO time (in us)           : %i\n"
-		      "  Inbound do_QDIO count                  : %i\n\n"
-		      "  Outbound handler time (in us)          : %i\n"
-		      "  Outbound handler count                 : %i\n\n"
-		      "  Outbound time (in us, incl QDIO)       : %i\n"
-		      "  Outbound count                         : %i\n"
-		      "  Outbound do_QDIO time (in us)          : %i\n"
-		      "  Outbound do_QDIO count                 : %i\n\n",
+	seq_printf(s, "  Inbound handler time (in us)           : %u\n"
+		      "  Inbound handler count                  : %u\n"
+		      "  Inbound do_QDIO time (in us)           : %u\n"
+		      "  Inbound do_QDIO count                  : %u\n\n"
+		      "  Outbound handler time (in us)          : %u\n"
+		      "  Outbound handler count                 : %u\n\n"
+		      "  Outbound time (in us, incl QDIO)       : %u\n"
+		      "  Outbound count                         : %u\n"
+		      "  Outbound do_QDIO time (in us)          : %u\n"
+		      "  Outbound do_QDIO count                 : %u\n\n",
 		        card->perf_stats.inbound_time,
 			card->perf_stats.inbound_cnt,
 		        card->perf_stats.inbound_do_qdio_time,

@@ -607,6 +607,7 @@ static void clearfb16(struct fb_info *info)
 
 static void epson1355fb_platform_release(struct device *device)
 {
+	dev_err(device, "This driver is broken, please bug the authors so they will fix it.\n");
 }
 
 static int epson1355fb_remove(struct platform_device *dev)

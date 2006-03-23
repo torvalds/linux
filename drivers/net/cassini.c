@@ -91,6 +91,7 @@
 #include <linux/mii.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include <linux/mutex.h>
 
 #include <net/checksum.h>
 
@@ -3892,7 +3893,7 @@ static void cas_reset(struct cas *cp, int blkflag)
 	spin_unlock(&cp->stat_lock[N_TX_RINGS]);
 }
 
-/* Shut down the chip, must be called with pm_sem held.  */
+/* Shut down the chip, must be called with pm_mutex held.  */
 static void cas_shutdown(struct cas *cp)
 {
 	unsigned long flags;
@@ -4311,11 +4312,11 @@ static int cas_open(struct net_device *dev)
 	int hw_was_up, err;
 	unsigned long flags;
 
-	down(&cp->pm_sem);
+	mutex_lock(&cp->pm_mutex);
 
 	hw_was_up = cp->hw_running;
 
-	/* The power-management semaphore protects the hw_running
+	/* The power-management mutex protects the hw_running
 	 * etc. state so it is safe to do this bit without cp->lock
 	 */
 	if (!cp->hw_running) {
@@ -4364,7 +4365,7 @@ static int cas_open(struct net_device *dev)
 	cas_unlock_all_restore(cp, flags);
 
 	netif_start_queue(dev);
-	up(&cp->pm_sem);
+	mutex_unlock(&cp->pm_mutex);
 	return 0;
 
 err_spare:
@@ -4372,7 +4373,7 @@ err_spare:
 	cas_free_rxds(cp);
 err_tx_tiny:
 	cas_tx_tiny_free(cp);
-	up(&cp->pm_sem);
+	mutex_unlock(&cp->pm_mutex);
 	return err;
 }
 
@@ -4382,7 +4383,7 @@ static int cas_close(struct net_device *dev)
 	struct cas *cp = netdev_priv(dev);
 
 	/* Make sure we don't get distracted by suspend/resume */
-	down(&cp->pm_sem);
+	mutex_lock(&cp->pm_mutex);
 
 	netif_stop_queue(dev);
 
@@ -4399,7 +4400,7 @@ static int cas_close(struct net_device *dev)
 	cas_spare_free(cp);
 	cas_free_rxds(cp);
 	cas_tx_tiny_free(cp);
-	up(&cp->pm_sem);
+	mutex_unlock(&cp->pm_mutex);
 	return 0;
 }
 
@@ -4834,10 +4835,10 @@ static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	unsigned long flags;
 	int rc = -EOPNOTSUPP;
 	
-	/* Hold the PM semaphore while doing ioctl's or we may collide
+	/* Hold the PM mutex while doing ioctl's or we may collide
 	 * with open/close and power management and oops.
 	 */
-	down(&cp->pm_sem);
+	mutex_lock(&cp->pm_mutex);
 	switch (cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		data->phy_id = cp->phy_addr;
@@ -4867,7 +4868,7 @@ static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 	};
 
-	up(&cp->pm_sem);
+	mutex_unlock(&cp->pm_mutex);
 	return rc;
 }
 
@@ -4994,7 +4995,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 		spin_lock_init(&cp->tx_lock[i]);
 	}
 	spin_lock_init(&cp->stat_lock[N_TX_RINGS]);
-	init_MUTEX(&cp->pm_sem);
+	mutex_init(&cp->pm_mutex);
 
 	init_timer(&cp->link_timer);
 	cp->link_timer.function = cas_link_timer;
@@ -5116,10 +5117,10 @@ err_out_free_consistent:
 			    cp->init_block, cp->block_dvma);
 
 err_out_iounmap:
-	down(&cp->pm_sem);
+	mutex_lock(&cp->pm_mutex);
 	if (cp->hw_running)
 		cas_shutdown(cp);
-	up(&cp->pm_sem);
+	mutex_unlock(&cp->pm_mutex);
 
 	iounmap(cp->regs);
 
@@ -5152,11 +5153,11 @@ static void __devexit cas_remove_one(struct pci_dev *pdev)
 	cp = netdev_priv(dev);
 	unregister_netdev(dev);
 
-	down(&cp->pm_sem);
+	mutex_lock(&cp->pm_mutex);
 	flush_scheduled_work();
 	if (cp->hw_running)
 		cas_shutdown(cp);
-	up(&cp->pm_sem);
+	mutex_unlock(&cp->pm_mutex);
 
 #if 1
 	if (cp->orig_cacheline_size) {
@@ -5183,10 +5184,7 @@ static int cas_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct cas *cp = netdev_priv(dev);
 	unsigned long flags;
 
-	/* We hold the PM semaphore during entire driver
-	 * sleep time
-	 */
-	down(&cp->pm_sem);
+	mutex_lock(&cp->pm_mutex);
 	
 	/* If the driver is opened, we stop the DMA */
 	if (cp->opened) {
@@ -5206,6 +5204,7 @@ static int cas_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (cp->hw_running)
 		cas_shutdown(cp);
+	mutex_unlock(&cp->pm_mutex);
 
 	return 0;
 }
@@ -5217,6 +5216,7 @@ static int cas_resume(struct pci_dev *pdev)
 
 	printk(KERN_INFO "%s: resuming\n", dev->name);
 
+	mutex_lock(&cp->pm_mutex);
 	cas_hard_reset(cp);
 	if (cp->opened) {
 		unsigned long flags;
@@ -5229,7 +5229,7 @@ static int cas_resume(struct pci_dev *pdev)
 
 		netif_device_attach(dev);
 	}
-	up(&cp->pm_sem);
+	mutex_unlock(&cp->pm_mutex);
 	return 0;
 }
 #endif /* CONFIG_PM */

@@ -533,30 +533,35 @@ static void __clone_and_map(struct clone_info *ci)
 
 	} else {
 		/*
-		 * Create two copy bios to deal with io that has
-		 * been split across a target.
+		 * Handle a bvec that must be split between two or more targets.
 		 */
 		struct bio_vec *bv = bio->bi_io_vec + ci->idx;
+		sector_t remaining = to_sector(bv->bv_len);
+		unsigned int offset = 0;
 
-		clone = split_bvec(bio, ci->sector, ci->idx,
-				   bv->bv_offset, max);
-		__map_bio(ti, clone, tio);
+		do {
+			if (offset) {
+				ti = dm_table_find_target(ci->map, ci->sector);
+				max = max_io_len(ci->md, ci->sector, ti);
 
-		ci->sector += max;
-		ci->sector_count -= max;
-		ti = dm_table_find_target(ci->map, ci->sector);
+				tio = alloc_tio(ci->md);
+				tio->io = ci->io;
+				tio->ti = ti;
+				memset(&tio->info, 0, sizeof(tio->info));
+			}
 
-		len = to_sector(bv->bv_len) - max;
-		clone = split_bvec(bio, ci->sector, ci->idx,
-				   bv->bv_offset + to_bytes(max), len);
-		tio = alloc_tio(ci->md);
-		tio->io = ci->io;
-		tio->ti = ti;
-		memset(&tio->info, 0, sizeof(tio->info));
-		__map_bio(ti, clone, tio);
+			len = min(remaining, max);
 
-		ci->sector += len;
-		ci->sector_count -= len;
+			clone = split_bvec(bio, ci->sector, ci->idx,
+					   bv->bv_offset + offset, len);
+
+			__map_bio(ti, clone, tio);
+
+			ci->sector += len;
+			ci->sector_count -= len;
+			offset += to_bytes(len);
+		} while (remaining -= len);
+
 		ci->idx++;
 	}
 }
@@ -840,7 +845,7 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
  bad3:
 	mempool_destroy(md->io_pool);
  bad2:
-	blk_put_queue(md->queue);
+	blk_cleanup_queue(md->queue);
 	free_minor(minor);
  bad1:
 	kfree(md);
@@ -849,12 +854,18 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 
 static void free_dev(struct mapped_device *md)
 {
-	free_minor(md->disk->first_minor);
+	unsigned int minor = md->disk->first_minor;
+
+	if (md->suspended_bdev) {
+		thaw_bdev(md->suspended_bdev, NULL);
+		bdput(md->suspended_bdev);
+	}
 	mempool_destroy(md->tio_pool);
 	mempool_destroy(md->io_pool);
 	del_gendisk(md->disk);
+	free_minor(minor);
 	put_disk(md->disk);
-	blk_put_queue(md->queue);
+	blk_cleanup_queue(md->queue);
 	kfree(md);
 }
 

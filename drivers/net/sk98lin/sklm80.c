@@ -34,79 +34,7 @@ static const char SysKonnectFileId[] =
 #include "h/lm80.h"
 #include "h/skdrv2nd.h"		/* Adapter Control- and Driver specific Def. */
 
-#ifdef	SK_DIAG
-#define	BREAK_OR_WAIT(pAC,IoC,Event)	SkI2cWait(pAC,IoC,Event)
-#else	/* nSK_DIAG */
 #define	BREAK_OR_WAIT(pAC,IoC,Event)	break
-#endif	/* nSK_DIAG */
-
-#ifdef	SK_DIAG
-/*
- * read the register 'Reg' from the device 'Dev'
- *
- * return 	read error	-1
- *		success		the read value
- */
-int	SkLm80RcvReg(
-SK_IOC	IoC,		/* Adapter Context */
-int		Dev,		/* I2C device address */
-int		Reg)		/* register to read */
-{
-	int	Val = 0;
-	int	TempExt;
-
-	/* Signal device number */
-	if (SkI2cSndDev(IoC, Dev, I2C_WRITE)) {
-		return(-1);
-	}
-
-	if (SkI2cSndByte(IoC, Reg)) {
-		return(-1);
-	}
-
-	/* repeat start */
-	if (SkI2cSndDev(IoC, Dev, I2C_READ)) {
-		return(-1);
-	}
-
-	switch (Reg) {
-	case LM80_TEMP_IN:
-		Val = (int)SkI2cRcvByte(IoC, 1);
-
-		/* First: correct the value: it might be negative */
-		if ((Val & 0x80) != 0) {
-			/* Value is negative */
-			Val = Val - 256;
-		}
-		Val = Val * SK_LM80_TEMP_LSB;
-		SkI2cStop(IoC);
-		
-		TempExt = (int)SkLm80RcvReg(IoC, LM80_ADDR, LM80_TEMP_CTRL);
-		
-		if (Val > 0) {
-			Val += ((TempExt >> 7) * SK_LM80_TEMPEXT_LSB);
-		}
-		else {
-			Val -= ((TempExt >> 7) * SK_LM80_TEMPEXT_LSB);
-		}
-		return(Val);
-		break;
-	case LM80_VT0_IN:
-	case LM80_VT1_IN:
-	case LM80_VT2_IN:
-	case LM80_VT3_IN:
-		Val = (int)SkI2cRcvByte(IoC, 1) * SK_LM80_VT_LSB;
-		break;
-	
-	default:
-		Val = (int)SkI2cRcvByte(IoC, 1);
-		break;
-	}
-
-	SkI2cStop(IoC);
-	return(Val);
-}
-#endif	/* SK_DIAG */
 
 /*
  * read a sensors value (LM80 specific)

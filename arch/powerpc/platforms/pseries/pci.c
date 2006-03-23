@@ -1,6 +1,4 @@
 /*
- * arch/ppc64/kernel/pSeries_pci.c
- *
  * Copyright (C) 2001 Dave Engebretsen, IBM Corporation
  * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
  *

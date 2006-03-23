@@ -47,6 +47,7 @@
 #include <linux/videodev.h>
 #include <linux/list.h>
 #include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 struct cpia_camera_ops
 {
@@ -246,7 +247,7 @@ enum v4l_camstates {
 struct cam_data {
 	struct list_head cam_data_list;
 
-        struct semaphore busy_lock;     /* guard against SMP multithreading */
+        struct mutex busy_lock;     /* guard against SMP multithreading */
 	struct cpia_camera_ops *ops;	/* lowlevel driver operations */
 	void *lowlevel_data;		/* private data for lowlevel driver */
 	u8 *raw_image;			/* buffer for raw image data */
@@ -261,7 +262,7 @@ struct cam_data {
 	u8 mainsFreq;			/* for flicker control */
 
 				/* proc interface */
-	struct semaphore param_lock;	/* params lock for this camera */
+	struct mutex param_lock;	/* params lock for this camera */
 	struct cam_params params;	/* camera settings */
 	struct proc_dir_entry *proc_entry;	/* /proc/cpia/videoX */
 	

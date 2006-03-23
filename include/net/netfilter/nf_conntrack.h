@@ -67,6 +67,18 @@ do {									\
 
 struct nf_conntrack_helper;
 
+/* nf_conn feature for connections that have a helper */
+struct nf_conn_help {
+	/* Helper. if any */
+	struct nf_conntrack_helper *helper;
+
+	union nf_conntrack_help help;
+
+	/* Current number of expected connections */
+	unsigned int expecting;
+};
+
+
 #include <net/netfilter/ipv4/nf_conntrack_ipv4.h>
 struct nf_conn
 {
@@ -81,6 +93,9 @@ struct nf_conn
 	/* Have we seen traffic both ways yet? (bitset) */
 	unsigned long status;
 
+	/* If we were expected by an expectation, this will be it */
+	struct nf_conn *master;
+
 	/* Timer function; drops refcnt when it goes off. */
 	struct timer_list timeout;
 
@@ -88,38 +103,22 @@ struct nf_conn
 	/* Accounting Information (same cache line as other written members) */
 	struct ip_conntrack_counter counters[IP_CT_DIR_MAX];
 #endif
-	/* If we were expected by an expectation, this will be it */
-	struct nf_conn *master;
-	
-	/* Current number of expected connections */
-	unsigned int expecting;
 
 	/* Unique ID that identifies this conntrack*/
 	unsigned int id;
 
-	/* Helper. if any */
-	struct nf_conntrack_helper *helper;
-
 	/* features - nat, helper, ... used by allocating system */
 	u_int32_t features;
-
-	/* Storage reserved for other modules: */
-
-	union nf_conntrack_proto proto;
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	u_int32_t mark;
 #endif
 
-	/* These members are dynamically allocated. */
+	/* Storage reserved for other modules: */
+	union nf_conntrack_proto proto;
 
-	union nf_conntrack_help *help;
-
-	/* Layer 3 dependent members. (ex: NAT) */
-	union {
-		struct nf_conntrack_ipv4 *ipv4;
-	} l3proto;
-	void *data[0];
+	/* features dynamically at the end: helper, nat (both optional) */
+	char data[0];
 };
 
 struct nf_conntrack_expect
@@ -195,6 +194,10 @@ static inline void nf_ct_put(struct nf_conn *ct)
 	NF_CT_ASSERT(ct);
 	nf_conntrack_put(&ct->ct_general);
 }
+
+/* Protocol module loading */
+extern int nf_ct_l3proto_try_module_get(unsigned short l3proto);
+extern void nf_ct_l3proto_module_put(unsigned short l3proto);
 
 extern struct nf_conntrack_tuple_hash *
 __nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
@@ -373,10 +376,23 @@ nf_conntrack_expect_event(enum ip_conntrack_expect_events event,
 #define NF_CT_F_NUM	4
 
 extern int
-nf_conntrack_register_cache(u_int32_t features, const char *name, size_t size,
-			    int (*init_conntrack)(struct nf_conn *, u_int32_t));
+nf_conntrack_register_cache(u_int32_t features, const char *name, size_t size);
 extern void
 nf_conntrack_unregister_cache(u_int32_t features);
+
+/* valid combinations:
+ * basic: nf_conn, nf_conn .. nf_conn_help
+ * nat: nf_conn .. nf_conn_nat, nf_conn .. nf_conn_nat, nf_conn help
+ */
+static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
+{
+	unsigned int offset = sizeof(struct nf_conn);
+
+	if (!(ct->features & NF_CT_F_HELP))
+		return NULL;
+
+	return (struct nf_conn_help *) ((void *)ct + offset);
+}
 
 #endif /* __KERNEL__ */
 #endif /* _NF_CONNTRACK_H */

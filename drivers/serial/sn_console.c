@@ -820,7 +820,7 @@ static int __init sn_sal_module_init(void)
 	int retval;
 
 	if (!ia64_platform_is("sn2"))
-		return -ENODEV;
+		return 0;
 
 	printk(KERN_INFO "sn_console: Console driver init\n");
 

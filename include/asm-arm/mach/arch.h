@@ -10,19 +10,16 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/compiler.h>
-
 struct tag;
 struct meminfo;
 struct sys_timer;
 
 struct machine_desc {
 	/*
-	 * Note! The first five elements are used
+	 * Note! The first four elements are used
 	 * by assembler code in head-armv.S
 	 */
 	unsigned int		nr;		/* architecture number	*/
-	unsigned int __deprecated phys_ram;	/* start of physical ram */
 	unsigned int		phys_io;	/* start of physical io	*/
 	unsigned int		io_pg_offst;	/* byte offset for io 
 						 * page tabe entry	*/

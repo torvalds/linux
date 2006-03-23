@@ -29,6 +29,7 @@
 #include <asm/lsu.h>
 #include <asm/sections.h>
 #include <asm/kdebug.h>
+#include <asm/mmu_context.h>
 
 /*
  * To debug kernel to catch accesses to certain virtual/physical addresses.
@@ -91,12 +92,13 @@ static void __kprobes unhandled_fault(unsigned long address,
 	die_if_kernel("Oops", regs);
 }
 
-static void bad_kernel_pc(struct pt_regs *regs)
+static void bad_kernel_pc(struct pt_regs *regs, unsigned long vaddr)
 {
 	unsigned long *ksp;
 
 	printk(KERN_CRIT "OOPS: Bogus kernel PC [%016lx] in fault handler\n",
 	       regs->tpc);
+	printk(KERN_CRIT "OOPS: Fault was to vaddr[%lx]\n", vaddr);
 	__asm__("mov %%sp, %0" : "=r" (ksp));
 	show_stack(current, ksp);
 	unhandled_fault(regs->tpc, current, regs);
@@ -137,7 +139,7 @@ static unsigned int get_user_insn(unsigned long tpc)
 	if (!pte_present(pte))
 		goto out;
 
-	pa  = (pte_val(pte) & _PAGE_PADDR);
+	pa  = (pte_pfn(pte) << PAGE_SHIFT);
 	pa += (tpc & ~PAGE_MASK);
 
 	/* Use phys bypass so we don't pollute dtlb/dcache. */
@@ -257,7 +259,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 	struct vm_area_struct *vma;
 	unsigned int insn = 0;
 	int si_code, fault_code;
-	unsigned long address;
+	unsigned long address, mm_rss;
 
 	fault_code = get_thread_fault_code();
 
@@ -280,7 +282,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		    (tpc >= MODULES_VADDR && tpc < MODULES_END)) {
 			/* Valid, no problems... */
 		} else {
-			bad_kernel_pc(regs);
+			bad_kernel_pc(regs, address);
 			return;
 		}
 	}
@@ -406,6 +408,20 @@ good_area:
 	}
 
 	up_read(&mm->mmap_sem);
+
+	mm_rss = get_mm_rss(mm);
+#ifdef CONFIG_HUGETLB_PAGE
+	mm_rss -= (mm->context.huge_pte_count * (HPAGE_SIZE / PAGE_SIZE));
+#endif
+	if (unlikely(mm_rss >=
+		     mm->context.tsb_block[MM_TSB_BASE].tsb_rss_limit))
+		tsb_grow(mm, MM_TSB_BASE, mm_rss);
+#ifdef CONFIG_HUGETLB_PAGE
+	mm_rss = mm->context.huge_pte_count;
+	if (unlikely(mm_rss >=
+		     mm->context.tsb_block[MM_TSB_HUGE].tsb_rss_limit))
+		tsb_grow(mm, MM_TSB_HUGE, mm_rss);
+#endif
 	return;
 
 	/*

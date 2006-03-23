@@ -133,16 +133,6 @@ config IP6_NF_MATCH_EUI64
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP6_NF_MATCH_POLICY
-	tristate "IPsec policy match support"
-	depends on IP6_NF_IPTABLES && XFRM
-	help
-	  Policy matching allows you to match packets based on the
-	  IPsec policy that was used during decapsulation/will
-	  be used during encapsulation.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 # The targets
 config IP6_NF_FILTER
 	tristate "Packet filtering"

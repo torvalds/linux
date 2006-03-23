@@ -172,9 +172,24 @@ extern int rotate_reclaimable_page(struct page *page);
 extern void swap_setup(void);
 
 /* linux/mm/vmscan.c */
-extern int try_to_free_pages(struct zone **, gfp_t);
-extern int shrink_all_memory(int);
+extern unsigned long try_to_free_pages(struct zone **, gfp_t);
+extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
+extern int remove_mapping(struct address_space *mapping, struct page *page);
+
+/* possible outcome of pageout() */
+typedef enum {
+	/* failed to write page out, page is locked */
+	PAGE_KEEP,
+	/* move page to the active list, page is locked */
+	PAGE_ACTIVATE,
+	/* page has been sent to the disk successfully, page is unlocked */
+	PAGE_SUCCESS,
+	/* page is clean and locked */
+	PAGE_CLEAN,
+} pageout_t;
+
+extern pageout_t pageout(struct page *page, struct address_space *mapping);
 
 #ifdef CONFIG_NUMA
 extern int zone_reclaim_mode;
@@ -186,25 +201,6 @@ static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 {
 	return 0;
 }
-#endif
-
-#ifdef CONFIG_MIGRATION
-extern int isolate_lru_page(struct page *p);
-extern int putback_lru_pages(struct list_head *l);
-extern int migrate_page(struct page *, struct page *);
-extern void migrate_page_copy(struct page *, struct page *);
-extern int migrate_page_remove_references(struct page *, struct page *, int);
-extern int migrate_pages(struct list_head *l, struct list_head *t,
-		struct list_head *moved, struct list_head *failed);
-extern int fail_migrate_page(struct page *, struct page *);
-#else
-static inline int isolate_lru_page(struct page *p) { return -ENOSYS; }
-static inline int putback_lru_pages(struct list_head *l) { return 0; }
-static inline int migrate_pages(struct list_head *l, struct list_head *t,
-	struct list_head *moved, struct list_head *failed) { return -ENOSYS; }
-/* Possible settings for the migrate_page() method in address_operations */
-#define migrate_page NULL
-#define fail_migrate_page NULL
 #endif
 
 #ifdef CONFIG_MMU

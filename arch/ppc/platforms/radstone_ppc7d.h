@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/radstone_ppc7d.h
- *
  * Board definitions for the Radstone PPC7D boards.
  *
  * Author: James Chapman <jchapman@katalix.com>

@@ -355,6 +355,13 @@ somaxconn - INTEGER
 	Defaults to 128.  See also tcp_max_syn_backlog for additional tuning
 	for TCP sockets.
 
+tcp_workaround_signed_windows - BOOLEAN
+	If set, assume no receipt of a window scaling option means the
+	remote TCP is broken and treats the window as a signed quantity.
+	If unset, assume the remote TCP is not broken even if we do
+	not receive a window scaling option from them.
+	Default: 0
+
 IP Variables:
 
 ip_local_port_range - 2 INTEGERS
@@ -619,6 +626,11 @@ arp_ignore - INTEGER
 	The max value from conf/{all,interface}/arp_ignore is used
 	when ARP request is received on the {interface}
 
+arp_accept - BOOLEAN
+	Define behavior when gratuitous arp replies are received:
+	0 - drop gratuitous arp frames
+	1 - accept gratuitous arp frames
+
 app_solicit - INTEGER
 	The maximum number of probes to send to the user space ARP daemon
 	via netlink before dropping back to multicast probes (see
@@ -717,6 +729,33 @@ accept_ra - BOOLEAN
 	Functional default: enabled if local forwarding is disabled.
 			    disabled if local forwarding is enabled.
 
+accept_ra_defrtr - BOOLEAN
+	Learn default router in Router Advertisement.
+
+	Functional default: enabled if accept_ra is enabled.
+			    disabled if accept_ra is disabled.
+
+accept_ra_pinfo - BOOLEAN
+	Learn Prefix Inforamtion in Router Advertisement.
+
+	Functional default: enabled if accept_ra is enabled.
+			    disabled if accept_ra is disabled.
+
+accept_ra_rt_info_max_plen - INTEGER
+	Maximum prefix length of Route Information in RA.
+
+	Route Information w/ prefix larger than or equal to this
+	variable shall be ignored.
+
+	Functional default: 0 if accept_ra_rtr_pref is enabled.
+			    -1 if accept_ra_rtr_pref is disabled.
+
+accept_ra_rtr_pref - BOOLEAN
+	Accept Router Preference in RA.
+
+	Functional default: enabled if accept_ra is enabled.
+			    disabled if accept_ra is disabled.
+
 accept_redirects - BOOLEAN
 	Accept Redirects.
 
@@ -727,8 +766,8 @@ autoconf - BOOLEAN
 	Autoconfigure addresses using Prefix Information in Router 
 	Advertisements.
 
-	Functional default: enabled if accept_ra is enabled.
-			    disabled if accept_ra is disabled.
+	Functional default: enabled if accept_ra_pinfo is enabled.
+			    disabled if accept_ra_pinfo is disabled.
 
 dad_transmits - INTEGER
 	The amount of Duplicate Address Detection probes to send.
@@ -770,6 +809,12 @@ hop_limit - INTEGER
 mtu - INTEGER
 	Default Maximum Transfer Unit
 	Default: 1280 (IPv6 required minimum)
+
+router_probe_interval - INTEGER
+	Minimum interval (in seconds) between Router Probing described
+	in RFC4191.
+
+	Default: 60
 
 router_solicitation_delay - INTEGER
 	Number of seconds to wait after interface is brought up

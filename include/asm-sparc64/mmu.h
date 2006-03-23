@@ -4,20 +4,9 @@
 #include <linux/config.h>
 #include <asm/page.h>
 #include <asm/const.h>
+#include <asm/hypervisor.h>
 
-/*
- * For the 8k pagesize kernel, use only 10 hw context bits to optimize some
- * shifts in the fast tlbmiss handlers, instead of all 13 bits (specifically
- * for vpte offset calculation). For other pagesizes, this optimization in
- * the tlbhandlers can not be done; but still, all 13 bits can not be used
- * because the tlb handlers use "andcc" instruction which sign extends 13
- * bit arguments.
- */
-#if PAGE_SHIFT == 13
-#define CTX_NR_BITS		10
-#else
-#define CTX_NR_BITS		12
-#endif
+#define CTX_NR_BITS		13
 
 #define TAG_CONTEXT_BITS	((_AC(1,UL) << CTX_NR_BITS) - _AC(1,UL))
 
@@ -90,10 +79,50 @@
 
 #ifndef __ASSEMBLY__
 
+#define TSB_ENTRY_ALIGNMENT	16
+
+struct tsb {
+	unsigned long tag;
+	unsigned long pte;
+} __attribute__((aligned(TSB_ENTRY_ALIGNMENT)));
+
+extern void __tsb_insert(unsigned long ent, unsigned long tag, unsigned long pte);
+extern void tsb_flush(unsigned long ent, unsigned long tag);
+extern void tsb_init(struct tsb *tsb, unsigned long size);
+
+struct tsb_config {
+	struct tsb		*tsb;
+	unsigned long		tsb_rss_limit;
+	unsigned long		tsb_nentries;
+	unsigned long		tsb_reg_val;
+	unsigned long		tsb_map_vaddr;
+	unsigned long		tsb_map_pte;
+};
+
+#define MM_TSB_BASE	0
+
+#ifdef CONFIG_HUGETLB_PAGE
+#define MM_TSB_HUGE	1
+#define MM_NUM_TSBS	2
+#else
+#define MM_NUM_TSBS	1
+#endif
+
 typedef struct {
-	unsigned long	sparc64_ctx_val;
+	spinlock_t		lock;
+	unsigned long		sparc64_ctx_val;
+	unsigned long		huge_pte_count;
+	struct tsb_config	tsb_block[MM_NUM_TSBS];
+	struct hv_tsb_descr	tsb_descr[MM_NUM_TSBS];
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */
+
+#define TSB_CONFIG_TSB		0x00
+#define TSB_CONFIG_RSS_LIMIT	0x08
+#define TSB_CONFIG_NENTRIES	0x10
+#define TSB_CONFIG_REG_VAL	0x18
+#define TSB_CONFIG_MAP_VADDR	0x20
+#define TSB_CONFIG_MAP_PTE	0x28
 
 #endif /* __MMU_H */

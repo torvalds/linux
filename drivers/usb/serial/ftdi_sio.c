@@ -469,8 +469,14 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, XSENS_CONVERTER_7_PID) },
 	{ USB_DEVICE(MOBILITY_VID, MOBILITY_USB_SERIAL_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ACTIVE_ROBOTS_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_KW_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_YS_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y6_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y8_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_IC_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_DB9_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_RS232_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y9_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_TERATRONIK_VCP_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_TERATRONIK_D2XX_PID) },
 	{ USB_DEVICE(EVOLUTION_VID, EVOLUTION_ER1_PID) },
@@ -486,6 +492,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_WESTREX_MODEL_777_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_WESTREX_MODEL_8900F_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_PCDJ_DAC2_PID) },
+	{ USB_DEVICE(ICOM_ID1_VID, ICOM_ID1_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
@@ -1135,12 +1142,11 @@ static int ftdi_sio_attach (struct usb_serial *serial)
 	
 	dbg("%s",__FUNCTION__);
 
-	priv = kmalloc(sizeof(struct ftdi_private), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct ftdi_private), GFP_KERNEL);
 	if (!priv){
 		err("%s- kmalloc(%Zd) failed.", __FUNCTION__, sizeof(struct ftdi_private));
 		return -ENOMEM;
 	}
-	memset(priv, 0, sizeof(*priv));
 
 	spin_lock_init(&priv->rx_lock);
         init_waitqueue_head(&priv->delta_msr_wait);

@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/kernel/open_pic_defs.h -- OpenPIC definitions
- *
  *  Copyright (C) 1997 Geert Uytterhoeven
  *
  *  This file is based on the following documentation:

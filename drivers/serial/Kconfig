@@ -582,6 +582,13 @@ config SERIAL_SUNSAB_CONSOLE
 	  on your Sparc system as the console, you can do so by answering
 	  Y to this option.
 
+config SERIAL_SUNHV
+	bool "Sun4v Hypervisor Console support"
+	depends on SPARC64
+	help
+	  This driver supports the console device found on SUN4V Sparc
+	  systems.  Say Y if you want to be able to use this device.
+
 config SERIAL_IP22_ZILOG
 	tristate "IP22 Zilog8530 serial support"
 	depends on SGI_IP22
@@ -859,7 +866,7 @@ config SERIAL_M32R_PLDSIO
 
 config SERIAL_TXX9
 	bool "TMPTX39XX/49XX SIO support"
-	depends HAS_TXX9_SERIAL && BROKEN
+	depends HAS_TXX9_SERIAL
 	select SERIAL_CORE
 	default y
 

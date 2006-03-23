@@ -898,12 +898,6 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	unsigned long start_eip;
 	unsigned short nmi_high = 0, nmi_low = 0;
 
-	if (!cpu_gdt_descr[cpu].address &&
-	    !(cpu_gdt_descr[cpu].address = get_zeroed_page(GFP_KERNEL))) {
-		printk("Failed to allocate GDT for CPU %d\n", cpu);
-		return 1;
-	}
-
 	++cpucount;
 
 	/*
@@ -1035,6 +1029,16 @@ int __devinit smp_prepare_cpu(int cpu)
 	int	apicid, ret;
 
 	lock_cpu_hotplug();
+
+	/*
+	 * On x86, CPU0 is never offlined.  Trying to bring up an
+	 * already-booted CPU will hang.  So check for that case.
+	 */
+	if (cpu_online(cpu)) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
 	apicid = x86_cpu_to_apicid[cpu];
 	if (apicid == BAD_APICID) {
 		ret = -ENODEV;

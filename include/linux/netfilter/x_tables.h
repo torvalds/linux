@@ -4,6 +4,62 @@
 #define XT_FUNCTION_MAXNAMELEN 30
 #define XT_TABLE_MAXNAMELEN 32
 
+struct xt_entry_match
+{
+	union {
+		struct {
+			u_int16_t match_size;
+
+			/* Used by userspace */
+			char name[XT_FUNCTION_MAXNAMELEN-1];
+
+			u_int8_t revision;
+		} user;
+		struct {
+			u_int16_t match_size;
+
+			/* Used inside the kernel */
+			struct xt_match *match;
+		} kernel;
+
+		/* Total length */
+		u_int16_t match_size;
+	} u;
+
+	unsigned char data[0];
+};
+
+struct xt_entry_target
+{
+	union {
+		struct {
+			u_int16_t target_size;
+
+			/* Used by userspace */
+			char name[XT_FUNCTION_MAXNAMELEN-1];
+
+			u_int8_t revision;
+		} user;
+		struct {
+			u_int16_t target_size;
+
+			/* Used inside the kernel */
+			struct xt_target *target;
+		} kernel;
+
+		/* Total length */
+		u_int16_t target_size;
+	} u;
+
+	unsigned char data[0];
+};
+
+struct xt_standard_target
+{
+	struct xt_entry_target target;
+	int verdict;
+};
+
 /* The argument to IPT_SO_GET_REVISION_*.  Returns highest revision
  * kernel supports, if >= revision. */
 struct xt_get_revision
@@ -92,8 +148,6 @@ struct xt_match
 
 	const char name[XT_FUNCTION_MAXNAMELEN-1];
 
-	u_int8_t revision;
-
 	/* Return true or false: return FALSE and set *hotdrop = 1 to
            force immediate packet drop. */
 	/* Arguments changed since 2.6.9, as this must now handle
@@ -102,6 +156,7 @@ struct xt_match
 	int (*match)(const struct sk_buff *skb,
 		     const struct net_device *in,
 		     const struct net_device *out,
+		     const struct xt_match *match,
 		     const void *matchinfo,
 		     int offset,
 		     unsigned int protoff,
@@ -111,15 +166,25 @@ struct xt_match
 	/* Should return true or false. */
 	int (*checkentry)(const char *tablename,
 			  const void *ip,
+			  const struct xt_match *match,
 			  void *matchinfo,
 			  unsigned int matchinfosize,
 			  unsigned int hook_mask);
 
 	/* Called when entry of this type deleted. */
-	void (*destroy)(void *matchinfo, unsigned int matchinfosize);
+	void (*destroy)(const struct xt_match *match, void *matchinfo,
+			unsigned int matchinfosize);
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
+
+	char *table;
+	unsigned int matchsize;
+	unsigned int hooks;
+	unsigned short proto;
+
+	unsigned short family;
+	u_int8_t revision;
 };
 
 /* Registration hooks for targets. */
@@ -129,8 +194,6 @@ struct xt_target
 
 	const char name[XT_FUNCTION_MAXNAMELEN-1];
 
-	u_int8_t revision;
-
 	/* Returns verdict. Argument order changed since 2.6.9, as this
 	   must now handle non-linear skbs, using skb_copy_bits and
 	   skb_ip_make_writable. */
@@ -138,6 +201,7 @@ struct xt_target
 			       const struct net_device *in,
 			       const struct net_device *out,
 			       unsigned int hooknum,
+			       const struct xt_target *target,
 			       const void *targinfo,
 			       void *userdata);
 
@@ -147,15 +211,25 @@ struct xt_target
 	/* Should return true or false. */
 	int (*checkentry)(const char *tablename,
 			  const void *entry,
+			  const struct xt_target *target,
 			  void *targinfo,
 			  unsigned int targinfosize,
 			  unsigned int hook_mask);
 
 	/* Called when entry of this type deleted. */
-	void (*destroy)(void *targinfo, unsigned int targinfosize);
+	void (*destroy)(const struct xt_target *target, void *targinfo,
+			unsigned int targinfosize);
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
+
+	char *table;
+	unsigned int targetsize;
+	unsigned int hooks;
+	unsigned short proto;
+
+	unsigned short family;
+	u_int8_t revision;
 };
 
 /* Furniture shopping... */
@@ -202,10 +276,17 @@ struct xt_table_info
 	char *entries[NR_CPUS];
 };
 
-extern int xt_register_target(int af, struct xt_target *target);
-extern void xt_unregister_target(int af, struct xt_target *target);
-extern int xt_register_match(int af, struct xt_match *target);
-extern void xt_unregister_match(int af, struct xt_match *target);
+extern int xt_register_target(struct xt_target *target);
+extern void xt_unregister_target(struct xt_target *target);
+extern int xt_register_match(struct xt_match *target);
+extern void xt_unregister_match(struct xt_match *target);
+
+extern int xt_check_match(const struct xt_match *match, unsigned short family,
+			  unsigned int size, const char *table, unsigned int hook,
+			  unsigned short proto, int inv_proto);
+extern int xt_check_target(const struct xt_target *target, unsigned short family,
+			   unsigned int size, const char *table, unsigned int hook,
+			   unsigned short proto, int inv_proto);
 
 extern int xt_register_table(struct xt_table *table,
 			     struct xt_table_info *bootstrap,

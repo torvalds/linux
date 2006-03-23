@@ -31,8 +31,8 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/videodev.h>
+#include <linux/mutex.h>
 
-#include <asm/semaphore.h>
 #include <asm/uaccess.h>
 #include <asm/m32r.h>
 #include <asm/io.h>
@@ -117,7 +117,7 @@ struct ar_device {
 	int width, height;
 	int frame_bytes, line_bytes;
 	wait_queue_head_t wait;
-	struct semaphore lock;
+	struct mutex lock;
 };
 
 static int video_nr = -1;	/* video device number (first free) */
@@ -288,7 +288,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 	if (ar->mode == AR_MODE_NORMAL)
 		arvcr1 |= ARVCR1_NORMAL;
 
-	down(&ar->lock);
+	mutex_lock(&ar->lock);
 
 #if USE_INT
 	local_irq_save(flags);
@@ -392,7 +392,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 	}
 	DEBUG(1, "ret = %d\n", ret);
 out_up:
-	up(&ar->lock);
+	mutex_unlock(&ar->lock);
 	return ret;
 }
 
@@ -456,7 +456,7 @@ static int ar_do_ioctl(struct inode *inode, struct file *file,
 		    (w->width != AR_WIDTH_QVGA || w->height != AR_HEIGHT_QVGA))
 				return -EINVAL;
 
-		down(&ar->lock);
+		mutex_lock(&ar->lock);
 		ar->width = w->width;
 		ar->height = w->height;
 		if (ar->width == AR_WIDTH_VGA) {
@@ -473,7 +473,7 @@ static int ar_do_ioctl(struct inode *inode, struct file *file,
 			ar->line_bytes = AR_LINE_BYTES_QVGA;
 			ar->mode = AR_MODE_INTERLACE;
 		}
-		up(&ar->lock);
+		mutex_unlock(&ar->lock);
 		return 0;
 	}
 	case VIDIOCGFBUF:
@@ -734,7 +734,7 @@ static int ar_initialize(struct video_device *dev)
 void ar_release(struct video_device *vfd)
 {
 	struct ar_device *ar = vfd->priv;
-	down(&ar->lock);
+	mutex_lock(&ar->lock);
 	video_device_release(vfd);
 }
 
@@ -824,7 +824,7 @@ static int __init ar_init(void)
 		ar->line_bytes	= AR_LINE_BYTES_QVGA;
 		ar->mode	= AR_MODE_INTERLACE;
 	}
-	init_MUTEX(&ar->lock);
+	mutex_init(&ar->lock);
 	init_waitqueue_head(&ar->wait);
 
 #if USE_INT

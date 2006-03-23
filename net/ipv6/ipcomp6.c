@@ -50,6 +50,7 @@
 #include <net/protocol.h>
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
+#include <linux/mutex.h>
 
 struct ipcomp6_tfms {
 	struct list_head list;
@@ -57,7 +58,7 @@ struct ipcomp6_tfms {
 	int users;
 };
 
-static DECLARE_MUTEX(ipcomp6_resource_sem);
+static DEFINE_MUTEX(ipcomp6_resource_mutex);
 static void **ipcomp6_scratches;
 static int ipcomp6_scratch_users;
 static LIST_HEAD(ipcomp6_tfms_list);
@@ -286,8 +287,8 @@ static void ipcomp6_free_scratches(void)
 
 	for_each_cpu(i) {
 		void *scratch = *per_cpu_ptr(scratches, i);
-		if (scratch)
-			vfree(scratch);
+
+		vfree(scratch);
 	}
 
 	free_percpu(scratches);
@@ -405,9 +406,9 @@ static void ipcomp6_destroy(struct xfrm_state *x)
 	if (!ipcd)
 		return;
 	xfrm_state_delete_tunnel(x);
-	down(&ipcomp6_resource_sem);
+	mutex_lock(&ipcomp6_resource_mutex);
 	ipcomp6_free_data(ipcd);
-	up(&ipcomp6_resource_sem);
+	mutex_unlock(&ipcomp6_resource_mutex);
 	kfree(ipcd);
 
 	xfrm6_tunnel_free_spi((xfrm_address_t *)&x->props.saddr);
@@ -427,23 +428,22 @@ static int ipcomp6_init_state(struct xfrm_state *x)
 		goto out;
 
 	err = -ENOMEM;
-	ipcd = kmalloc(sizeof(*ipcd), GFP_KERNEL);
+	ipcd = kzalloc(sizeof(*ipcd), GFP_KERNEL);
 	if (!ipcd)
 		goto out;
 
-	memset(ipcd, 0, sizeof(*ipcd));
 	x->props.header_len = 0;
 	if (x->props.mode)
 		x->props.header_len += sizeof(struct ipv6hdr);
 	
-	down(&ipcomp6_resource_sem);
+	mutex_lock(&ipcomp6_resource_mutex);
 	if (!ipcomp6_alloc_scratches())
 		goto error;
 
 	ipcd->tfms = ipcomp6_alloc_tfms(x->calg->alg_name);
 	if (!ipcd->tfms)
 		goto error;
-	up(&ipcomp6_resource_sem);
+	mutex_unlock(&ipcomp6_resource_mutex);
 
 	if (x->props.mode) {
 		err = ipcomp6_tunnel_attach(x);
@@ -459,10 +459,10 @@ static int ipcomp6_init_state(struct xfrm_state *x)
 out:
 	return err;
 error_tunnel:
-	down(&ipcomp6_resource_sem);
+	mutex_lock(&ipcomp6_resource_mutex);
 error:
 	ipcomp6_free_data(ipcd);
-	up(&ipcomp6_resource_sem);
+	mutex_unlock(&ipcomp6_resource_mutex);
 	kfree(ipcd);
 
 	goto out;

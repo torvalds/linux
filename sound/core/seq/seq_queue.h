@@ -54,7 +54,7 @@ struct snd_seq_queue {
 	/* clients which uses this queue (bitmap) */
 	DECLARE_BITMAP(clients_bitmap, SNDRV_SEQ_MAX_CLIENTS);
 	unsigned int clients;	/* users of this queue */
-	struct semaphore timer_mutex;
+	struct mutex timer_mutex;
 
 	snd_use_lock_t use_lock;
 };

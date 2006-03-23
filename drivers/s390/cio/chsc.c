@@ -1115,6 +1115,9 @@ chsc_enable_facility(int operation_code)
 		goto out;
 	}
 	switch (sda_area->response.code) {
+	case 0x0001: /* everything ok */
+		ret = 0;
+		break;
 	case 0x0003: /* invalid request block */
 	case 0x0007:
 		ret = -EINVAL;
@@ -1123,6 +1126,8 @@ chsc_enable_facility(int operation_code)
 	case 0x0101: /* facility not provided */
 		ret = -EOPNOTSUPP;
 		break;
+	default: /* something went wrong */
+		ret = -EIO;
 	}
  out:
 	free_page((unsigned long)sda_area);

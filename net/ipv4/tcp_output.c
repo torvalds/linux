@@ -45,11 +45,22 @@
 /* People can turn this off for buggy TCP's found in printers etc. */
 int sysctl_tcp_retrans_collapse = 1;
 
+/* People can turn this on to  work with those rare, broken TCPs that
+ * interpret the window field as a signed quantity.
+ */
+int sysctl_tcp_workaround_signed_windows = 0;
+
 /* This limits the percentage of the congestion window which we
  * will allow a single TSO frame to consume.  Building TSO frames
  * which are too large can cause TCP streams to be bursty.
  */
 int sysctl_tcp_tso_win_divisor = 3;
+
+int sysctl_tcp_mtu_probing = 0;
+int sysctl_tcp_base_mss = 512;
+
+EXPORT_SYMBOL(sysctl_tcp_mtu_probing);
+EXPORT_SYMBOL(sysctl_tcp_base_mss);
 
 static void update_send_head(struct sock *sk, struct tcp_sock *tp,
 			     struct sk_buff *skb)
@@ -171,12 +182,18 @@ void tcp_select_initial_window(int __space, __u32 mss,
 		space = (space / mss) * mss;
 
 	/* NOTE: offering an initial window larger than 32767
-	 * will break some buggy TCP stacks. We try to be nice.
-	 * If we are not window scaling, then this truncates
-	 * our initial window offering to 32k. There should also
-	 * be a sysctl option to stop being nice.
+	 * will break some buggy TCP stacks. If the admin tells us
+	 * it is likely we could be speaking with such a buggy stack
+	 * we will truncate our initial window offering to 32K-1
+	 * unless the remote has sent us a window scaling option,
+	 * which we interpret as a sign the remote TCP is not
+	 * misinterpreting the window field as a signed quantity.
 	 */
-	(*rcv_wnd) = min(space, MAX_TCP_WINDOW);
+	if (sysctl_tcp_workaround_signed_windows)
+		(*rcv_wnd) = min(space, MAX_TCP_WINDOW);
+	else
+		(*rcv_wnd) = space;
+
 	(*rcv_wscale) = 0;
 	if (wscale_ok) {
 		/* Set window scaling on max possible window
@@ -235,7 +252,7 @@ static u16 tcp_select_window(struct sock *sk)
 	/* Make sure we do not exceed the maximum possible
 	 * scaled window.
 	 */
-	if (!tp->rx_opt.rcv_wscale)
+	if (!tp->rx_opt.rcv_wscale && sysctl_tcp_workaround_signed_windows)
 		new_win = min(new_win, MAX_TCP_WINDOW);
 	else
 		new_win = min(new_win, (65535U << tp->rx_opt.rcv_wscale));
@@ -681,6 +698,62 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 	return 0;
 }
 
+/* Not accounting for SACKs here. */
+int tcp_mtu_to_mss(struct sock *sk, int pmtu)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	int mss_now;
+
+	/* Calculate base mss without TCP options:
+	   It is MMS_S - sizeof(tcphdr) of rfc1122
+	 */
+	mss_now = pmtu - icsk->icsk_af_ops->net_header_len - sizeof(struct tcphdr);
+
+	/* Clamp it (mss_clamp does not include tcp options) */
+	if (mss_now > tp->rx_opt.mss_clamp)
+		mss_now = tp->rx_opt.mss_clamp;
+
+	/* Now subtract optional transport overhead */
+	mss_now -= icsk->icsk_ext_hdr_len;
+
+	/* Then reserve room for full set of TCP options and 8 bytes of data */
+	if (mss_now < 48)
+		mss_now = 48;
+
+	/* Now subtract TCP options size, not including SACKs */
+	mss_now -= tp->tcp_header_len - sizeof(struct tcphdr);
+
+	return mss_now;
+}
+
+/* Inverse of above */
+int tcp_mss_to_mtu(struct sock *sk, int mss)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	int mtu;
+
+	mtu = mss +
+	      tp->tcp_header_len +
+	      icsk->icsk_ext_hdr_len +
+	      icsk->icsk_af_ops->net_header_len;
+
+	return mtu;
+}
+
+void tcp_mtup_init(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	icsk->icsk_mtup.enabled = sysctl_tcp_mtu_probing > 1;
+	icsk->icsk_mtup.search_high = tp->rx_opt.mss_clamp + sizeof(struct tcphdr) +
+	                       icsk->icsk_af_ops->net_header_len;
+	icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, sysctl_tcp_base_mss);
+	icsk->icsk_mtup.probe_size = 0;
+}
+
 /* This function synchronize snd mss to current pmtu/exthdr set.
 
    tp->rx_opt.user_mss is mss set by user by TCP_MAXSEG. It does NOT counts
@@ -708,25 +781,12 @@ unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
-	/* Calculate base mss without TCP options:
-	   It is MMS_S - sizeof(tcphdr) of rfc1122
-	 */
-	int mss_now = (pmtu - icsk->icsk_af_ops->net_header_len -
-		       sizeof(struct tcphdr));
+	int mss_now;
 
-	/* Clamp it (mss_clamp does not include tcp options) */
-	if (mss_now > tp->rx_opt.mss_clamp)
-		mss_now = tp->rx_opt.mss_clamp;
+	if (icsk->icsk_mtup.search_high > pmtu)
+		icsk->icsk_mtup.search_high = pmtu;
 
-	/* Now subtract optional transport overhead */
-	mss_now -= icsk->icsk_ext_hdr_len;
-
-	/* Then reserve room for full set of TCP options and 8 bytes of data */
-	if (mss_now < 48)
-		mss_now = 48;
-
-	/* Now subtract TCP options size, not including SACKs */
-	mss_now -= tp->tcp_header_len - sizeof(struct tcphdr);
+	mss_now = tcp_mtu_to_mss(sk, pmtu);
 
 	/* Bound mss with half of window */
 	if (tp->max_window && mss_now > (tp->max_window>>1))
@@ -734,6 +794,8 @@ unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 
 	/* And store cached results */
 	icsk->icsk_pmtu_cookie = pmtu;
+	if (icsk->icsk_mtup.enabled)
+		mss_now = min(mss_now, tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_low));
 	tp->mss_cache = mss_now;
 
 	return mss_now;
@@ -1036,6 +1098,10 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 
 	limit = min(send_win, cong_win);
 
+	/* If a full-sized TSO skb can be sent, do it. */
+	if (limit >= 65536)
+		return 0;
+
 	if (sysctl_tcp_tso_win_divisor) {
 		u32 chunk = min(tp->snd_wnd, tp->snd_cwnd * tp->mss_cache);
 
@@ -1059,6 +1125,140 @@ static int tcp_tso_should_defer(struct sock *sk, struct tcp_sock *tp, struct sk_
 	return 1;
 }
 
+/* Create a new MTU probe if we are ready.
+ * Returns 0 if we should wait to probe (no cwnd available),
+ *         1 if a probe was sent,
+ *         -1 otherwise */
+static int tcp_mtu_probe(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct sk_buff *skb, *nskb, *next;
+	int len;
+	int probe_size;
+	unsigned int pif;
+	int copy;
+	int mss_now;
+
+	/* Not currently probing/verifying,
+	 * not in recovery,
+	 * have enough cwnd, and
+	 * not SACKing (the variable headers throw things off) */
+	if (!icsk->icsk_mtup.enabled ||
+	    icsk->icsk_mtup.probe_size ||
+	    inet_csk(sk)->icsk_ca_state != TCP_CA_Open ||
+	    tp->snd_cwnd < 11 ||
+	    tp->rx_opt.eff_sacks)
+		return -1;
+
+	/* Very simple search strategy: just double the MSS. */
+	mss_now = tcp_current_mss(sk, 0);
+	probe_size = 2*tp->mss_cache;
+	if (probe_size > tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_high)) {
+		/* TODO: set timer for probe_converge_event */
+		return -1;
+	}
+
+	/* Have enough data in the send queue to probe? */
+	len = 0;
+	if ((skb = sk->sk_send_head) == NULL)
+		return -1;
+	while ((len += skb->len) < probe_size && !tcp_skb_is_last(sk, skb))
+		skb = skb->next;
+	if (len < probe_size)
+		return -1;
+
+	/* Receive window check. */
+	if (after(TCP_SKB_CB(skb)->seq + probe_size, tp->snd_una + tp->snd_wnd)) {
+		if (tp->snd_wnd < probe_size)
+			return -1;
+		else
+			return 0;
+	}
+
+	/* Do we need to wait to drain cwnd? */
+	pif = tcp_packets_in_flight(tp);
+	if (pif + 2 > tp->snd_cwnd) {
+		/* With no packets in flight, don't stall. */
+		if (pif == 0)
+			return -1;
+		else
+			return 0;
+	}
+
+	/* We're allowed to probe.  Build it now. */
+	if ((nskb = sk_stream_alloc_skb(sk, probe_size, GFP_ATOMIC)) == NULL)
+		return -1;
+	sk_charge_skb(sk, nskb);
+
+	skb = sk->sk_send_head;
+	__skb_insert(nskb, skb->prev, skb, &sk->sk_write_queue);
+	sk->sk_send_head = nskb;
+
+	TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(skb)->seq;
+	TCP_SKB_CB(nskb)->end_seq = TCP_SKB_CB(skb)->seq + probe_size;
+	TCP_SKB_CB(nskb)->flags = TCPCB_FLAG_ACK;
+	TCP_SKB_CB(nskb)->sacked = 0;
+	nskb->csum = 0;
+	if (skb->ip_summed == CHECKSUM_HW)
+		nskb->ip_summed = CHECKSUM_HW;
+
+	len = 0;
+	while (len < probe_size) {
+		next = skb->next;
+
+		copy = min_t(int, skb->len, probe_size - len);
+		if (nskb->ip_summed)
+			skb_copy_bits(skb, 0, skb_put(nskb, copy), copy);
+		else
+			nskb->csum = skb_copy_and_csum_bits(skb, 0,
+			                 skb_put(nskb, copy), copy, nskb->csum);
+
+		if (skb->len <= copy) {
+			/* We've eaten all the data from this skb.
+			 * Throw it away. */
+			TCP_SKB_CB(nskb)->flags |= TCP_SKB_CB(skb)->flags;
+			__skb_unlink(skb, &sk->sk_write_queue);
+			sk_stream_free_skb(sk, skb);
+		} else {
+			TCP_SKB_CB(nskb)->flags |= TCP_SKB_CB(skb)->flags &
+			                           ~(TCPCB_FLAG_FIN|TCPCB_FLAG_PSH);
+			if (!skb_shinfo(skb)->nr_frags) {
+				skb_pull(skb, copy);
+				if (skb->ip_summed != CHECKSUM_HW)
+					skb->csum = csum_partial(skb->data, skb->len, 0);
+			} else {
+				__pskb_trim_head(skb, copy);
+				tcp_set_skb_tso_segs(sk, skb, mss_now);
+			}
+			TCP_SKB_CB(skb)->seq += copy;
+		}
+
+		len += copy;
+		skb = next;
+	}
+	tcp_init_tso_segs(sk, nskb, nskb->len);
+
+	/* We're ready to send.  If this fails, the probe will
+	 * be resegmented into mss-sized pieces by tcp_write_xmit(). */
+	TCP_SKB_CB(nskb)->when = tcp_time_stamp;
+	if (!tcp_transmit_skb(sk, nskb, 1, GFP_ATOMIC)) {
+		/* Decrement cwnd here because we are sending
+		* effectively two packets. */
+		tp->snd_cwnd--;
+		update_send_head(sk, tp, nskb);
+
+		icsk->icsk_mtup.probe_size = tcp_mss_to_mtu(sk, nskb->len);
+		tp->mtu_probe.probe_seq_start = TCP_SKB_CB(nskb)->seq;
+		tp->mtu_probe.probe_seq_end = TCP_SKB_CB(nskb)->end_seq;
+
+		return 1;
+	}
+
+	return -1;
+}
+
+
 /* This routine writes packets to the network.  It advances the
  * send_head.  This happens as incoming acks open up the remote
  * window for us.
@@ -1072,6 +1272,7 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 	struct sk_buff *skb;
 	unsigned int tso_segs, sent_pkts;
 	int cwnd_quota;
+	int result;
 
 	/* If we are closed, the bytes will have to remain here.
 	 * In time closedown will finish, we empty the write queue and all
@@ -1081,6 +1282,14 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 		return 0;
 
 	sent_pkts = 0;
+
+	/* Do MTU probing. */
+	if ((result = tcp_mtu_probe(sk)) == 0) {
+		return 0;
+	} else if (result > 0) {
+		sent_pkts = 1;
+	}
+
 	while ((skb = sk->sk_send_head)) {
 		unsigned int limit;
 
@@ -1451,8 +1660,14 @@ void tcp_simple_retransmit(struct sock *sk)
 int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
  	unsigned int cur_mss = tcp_current_mss(sk, 0);
 	int err;
+
+	/* Inconslusive MTU probe */
+	if (icsk->icsk_mtup.probe_size) {
+		icsk->icsk_mtup.probe_size = 0;
+	}
 
 	/* Do not sent more than we queued. 1/4 is reserved for possible
 	 * copying overhead: fragmentation, tunneling, mangling etc.
@@ -1879,6 +2094,7 @@ static void tcp_connect_init(struct sock *sk)
 	if (tp->rx_opt.user_mss)
 		tp->rx_opt.mss_clamp = tp->rx_opt.user_mss;
 	tp->max_window = 0;
+	tcp_mtup_init(sk);
 	tcp_sync_mss(sk, dst_mtu(dst));
 
 	if (!tp->window_clamp)
@@ -2176,3 +2392,4 @@ EXPORT_SYMBOL(tcp_make_synack);
 EXPORT_SYMBOL(tcp_simple_retransmit);
 EXPORT_SYMBOL(tcp_sync_mss);
 EXPORT_SYMBOL(sysctl_tcp_tso_win_divisor);
+EXPORT_SYMBOL(tcp_mtup_init);

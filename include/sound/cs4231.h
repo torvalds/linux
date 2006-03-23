@@ -248,8 +248,8 @@ struct snd_cs4231 {
 	unsigned int c_dma_size;
 
 	spinlock_t reg_lock;
-	struct semaphore mce_mutex;
-	struct semaphore open_mutex;
+	struct mutex mce_mutex;
+	struct mutex open_mutex;
 
 	int (*rate_constraint) (struct snd_pcm_runtime *runtime);
 	void (*set_playback_format) (struct snd_cs4231 *chip, struct snd_pcm_hw_params *hw_params, unsigned char pdfr);

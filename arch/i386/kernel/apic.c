@@ -570,16 +570,18 @@ void __devinit setup_local_APIC(void)
  */
 void lapic_shutdown(void)
 {
+	unsigned long flags;
+
 	if (!cpu_has_apic)
 		return;
 
-	local_irq_disable();
+	local_irq_save(flags);
 	clear_local_APIC();
 
 	if (enabled_via_apicbase)
 		disable_local_APIC();
 
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_PM

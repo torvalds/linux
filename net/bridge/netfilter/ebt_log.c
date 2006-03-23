@@ -166,7 +166,12 @@ static void ebt_log(const struct sk_buff *skb, unsigned int hooknr,
 	li.u.log.level = info->loglevel;
 	li.u.log.logflags = info->bitmask;
 
-	nf_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li, info->prefix);
+	if (info->bitmask & EBT_LOG_NFLOG)
+		nf_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li,
+		              info->prefix);
+	else
+		ebt_log_packet(PF_BRIDGE, hooknr, skb, in, out, &li,
+		               info->prefix);
 }
 
 static struct ebt_watcher log =

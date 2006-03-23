@@ -55,6 +55,7 @@ void jfs_read_inode(struct inode *inode)
 		inode->i_op = &jfs_file_inode_operations;
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 	}
+	jfs_set_inode_flags(inode);
 }
 
 /*
@@ -89,16 +90,16 @@ int jfs_commit_inode(struct inode *inode, int wait)
 	}
 
 	tid = txBegin(inode->i_sb, COMMIT_INODE);
-	down(&JFS_IP(inode)->commit_sem);
+	mutex_lock(&JFS_IP(inode)->commit_mutex);
 
 	/*
-	 * Retest inode state after taking commit_sem
+	 * Retest inode state after taking commit_mutex
 	 */
 	if (inode->i_nlink && test_cflag(COMMIT_Dirty, inode))
 		rc = txCommit(tid, 1, &inode, wait ? COMMIT_SYNC : 0);
 
 	txEnd(tid);
-	up(&JFS_IP(inode)->commit_sem);
+	mutex_unlock(&JFS_IP(inode)->commit_mutex);
 	return rc;
 }
 
@@ -335,18 +336,18 @@ void jfs_truncate_nolock(struct inode *ip, loff_t length)
 		tid = txBegin(ip->i_sb, 0);
 
 		/*
-		 * The commit_sem cannot be taken before txBegin.
+		 * The commit_mutex cannot be taken before txBegin.
 		 * txBegin may block and there is a chance the inode
 		 * could be marked dirty and need to be committed
 		 * before txBegin unblocks
 		 */
-		down(&JFS_IP(ip)->commit_sem);
+		mutex_lock(&JFS_IP(ip)->commit_mutex);
 
 		newsize = xtTruncate(tid, ip, length,
 				     COMMIT_TRUNCATE | COMMIT_PWMAP);
 		if (newsize < 0) {
 			txEnd(tid);
-			up(&JFS_IP(ip)->commit_sem);
+			mutex_unlock(&JFS_IP(ip)->commit_mutex);
 			break;
 		}
 
@@ -355,7 +356,7 @@ void jfs_truncate_nolock(struct inode *ip, loff_t length)
 
 		txCommit(tid, 1, &ip, 0);
 		txEnd(tid);
-		up(&JFS_IP(ip)->commit_sem);
+		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 	} while (newsize > length);	/* Truncate isn't always atomic */
 }
 

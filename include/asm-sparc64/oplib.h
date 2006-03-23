@@ -12,18 +12,8 @@
 #include <linux/config.h>
 #include <asm/openprom.h>
 
-/* Enumeration to describe the prom major version we have detected. */
-enum prom_major_version {
-	PROM_V0,      /* Original sun4c V0 prom */
-	PROM_V2,      /* sun4c and early sun4m V2 prom */
-	PROM_V3,      /* sun4m and later, up to sun4d/sun4e machines V3 */
-	PROM_P1275,   /* IEEE compliant ISA based Sun PROM, only sun4u */
-        PROM_AP1000,  /* actually no prom at all */
-};
-
-extern enum prom_major_version prom_vers;
-/* Revision, and firmware revision. */
-extern unsigned int prom_rev, prom_prev;
+/* OBP version string. */
+extern char prom_version[];
 
 /* Root node of the prom device tree, this stays constant after
  * initialization is complete.
@@ -39,6 +29,9 @@ extern int prom_stdin, prom_stdout;
 extern int prom_chosen_node;
 
 /* Helper values and strings in arch/sparc64/kernel/head.S */
+extern const char prom_peer_name[];
+extern const char prom_compatible_name[];
+extern const char prom_root_compatible[];
 extern const char prom_finddev_name[];
 extern const char prom_chosen_path[];
 extern const char prom_getprop_name[];
@@ -130,15 +123,6 @@ extern void prom_setcallback(callback_func_t func_ptr);
  */
 extern unsigned char prom_get_idprom(char *idp_buffer, int idpbuf_size);
 
-/* Get the prom major version. */
-extern int prom_version(void);
-
-/* Get the prom plugin revision. */
-extern int prom_getrev(void);
-
-/* Get the prom firmware revision. */
-extern int prom_getprev(void);
-
 /* Character operations to/from the console.... */
 
 /* Non-blocking get character from console. */
@@ -164,6 +148,7 @@ enum prom_input_device {
 	PROMDEV_ITTYA,			/* input from ttya */
 	PROMDEV_ITTYB,			/* input from ttyb */
 	PROMDEV_IRSC,			/* input from rsc */
+	PROMDEV_IVCONS,			/* input from virtual-console */
 	PROMDEV_I_UNK,
 };
 
@@ -176,6 +161,7 @@ enum prom_output_device {
 	PROMDEV_OTTYA,			/* to ttya */
 	PROMDEV_OTTYB,			/* to ttyb */
 	PROMDEV_ORSC,			/* to rsc */
+	PROMDEV_OVCONS,			/* to virtual-console */
 	PROMDEV_O_UNK,
 };
 
@@ -183,10 +169,18 @@ extern enum prom_output_device prom_query_output_device(void);
 
 /* Multiprocessor operations... */
 #ifdef CONFIG_SMP
-/* Start the CPU with the given device tree node, context table, and context
- * at the passed program counter.
+/* Start the CPU with the given device tree node at the passed program
+ * counter with the given arg passed in via register %o0.
  */
-extern void prom_startcpu(int cpunode, unsigned long pc, unsigned long o0);
+extern void prom_startcpu(int cpunode, unsigned long pc, unsigned long arg);
+
+/* Start the CPU with the given cpu ID at the passed program
+ * counter with the given arg passed in via register %o0.
+ */
+extern void prom_startcpu_cpuid(int cpuid, unsigned long pc, unsigned long arg);
+
+/* Stop the CPU with the given cpu ID.  */
+extern void prom_stopcpu_cpuid(int cpuid);
 
 /* Stop the current CPU. */
 extern void prom_stopself(void);
@@ -335,6 +329,7 @@ int cpu_find_by_mid(int mid, int *prom_node);
 
 /* Client interface level routines. */
 extern void prom_set_trap_table(unsigned long tba);
+extern void prom_set_trap_table_sun4v(unsigned long tba, unsigned long mmfsa);
 
 extern long p1275_cmd(const char *, long, ...);
 				   

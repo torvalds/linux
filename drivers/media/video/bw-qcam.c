@@ -73,7 +73,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include <linux/parport.h>
 #include <linux/sched.h>
 #include <linux/videodev.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #include "bw-qcam.h"
@@ -168,7 +168,7 @@ static struct qcam_device *qcam_init(struct parport *port)
 	
 	memcpy(&q->vdev, &qcam_template, sizeof(qcam_template));
 	
-	init_MUTEX(&q->lock);
+	mutex_init(&q->lock);
 
 	q->port_mode = (QC_ANY | QC_NOTSET);
 	q->width = 320;
@@ -772,9 +772,9 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 			qcam->whitebal = p->whiteness>>8;
 			qcam->bpp = p->depth;
 
-			down(&qcam->lock);			
+			mutex_lock(&qcam->lock);
 			qc_setscanmode(qcam);
-			up(&qcam->lock);
+			mutex_unlock(&qcam->lock);
 			qcam->status |= QC_PARAM_CHANGE;
 
 			return 0;
@@ -805,9 +805,9 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 				qcam->height = 240;
 				qcam->transfer_scale = 1;
 			}
-			down(&qcam->lock);
+			mutex_lock(&qcam->lock);
 			qc_setscanmode(qcam);
-			up(&qcam->lock);
+			mutex_unlock(&qcam->lock);
 			
 			/* We must update the camera before we grab. We could
 			   just have changed the grab size */
@@ -854,7 +854,7 @@ static ssize_t qcam_read(struct file *file, char __user *buf,
 	int len;
 	parport_claim_or_block(qcam->pdev);
 	
-	down(&qcam->lock);
+	mutex_lock(&qcam->lock);
 	
 	qc_reset(qcam);
 
@@ -864,7 +864,7 @@ static ssize_t qcam_read(struct file *file, char __user *buf,
 
 	len=qc_capture(qcam, buf,count);
 	
-	up(&qcam->lock);
+	mutex_unlock(&qcam->lock);
 	
 	parport_release(qcam->pdev);
 	return len;

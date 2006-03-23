@@ -2021,8 +2021,8 @@ static int __devinit savagefb_probe (struct pci_dev* dev,
 #if defined(CONFIG_FB_SAVAGE_I2C)
 	savagefb_create_i2c_busses(info);
 	savagefb_probe_i2c_connector(info, &par->edid);
-	kfree(par->edid);
 	fb_edid_to_monspecs(par->edid, &info->monspecs);
+	kfree(par->edid);
 	fb_videomode_to_modelist(info->monspecs.modedb,
 				 info->monspecs.modedb_len,
 				 &info->modelist);

@@ -121,7 +121,7 @@ struct cm_id_private {
 
 	struct rb_node service_node;
 	struct rb_node sidr_id_node;
-	spinlock_t lock;
+	spinlock_t lock;	/* Do not acquire inside cm.lock */
 	wait_queue_head_t wait;
 	atomic_t refcount;
 
@@ -1547,28 +1547,6 @@ static int cm_rep_handler(struct cm_work *work)
 		return -EINVAL;
 	}
 
-	cm_id_priv->timewait_info->work.remote_id = rep_msg->local_comm_id;
-	cm_id_priv->timewait_info->remote_ca_guid = rep_msg->local_ca_guid;
-	cm_id_priv->timewait_info->remote_qpn = cm_rep_get_local_qpn(rep_msg);
-
-	spin_lock_irqsave(&cm.lock, flags);
-	/* Check for duplicate REP. */
-	if (cm_insert_remote_id(cm_id_priv->timewait_info)) {
-		spin_unlock_irqrestore(&cm.lock, flags);
-		ret = -EINVAL;
-		goto error;
-	}
-	/* Check for a stale connection. */
-	if (cm_insert_remote_qpn(cm_id_priv->timewait_info)) {
-		spin_unlock_irqrestore(&cm.lock, flags);
-		cm_issue_rej(work->port, work->mad_recv_wc,
-			     IB_CM_REJ_STALE_CONN, CM_MSG_RESPONSE_REP,
-			     NULL, 0);
-		ret = -EINVAL;
-		goto error;
-	}
-	spin_unlock_irqrestore(&cm.lock, flags);
-
 	cm_format_rep_event(work);
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
@@ -1581,6 +1559,34 @@ static int cm_rep_handler(struct cm_work *work)
 		ret = -EINVAL;
 		goto error;
 	}
+
+	cm_id_priv->timewait_info->work.remote_id = rep_msg->local_comm_id;
+	cm_id_priv->timewait_info->remote_ca_guid = rep_msg->local_ca_guid;
+	cm_id_priv->timewait_info->remote_qpn = cm_rep_get_local_qpn(rep_msg);
+
+	spin_lock(&cm.lock);
+	/* Check for duplicate REP. */
+	if (cm_insert_remote_id(cm_id_priv->timewait_info)) {
+		spin_unlock(&cm.lock);
+		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+		ret = -EINVAL;
+		goto error;
+	}
+	/* Check for a stale connection. */
+	if (cm_insert_remote_qpn(cm_id_priv->timewait_info)) {
+		rb_erase(&cm_id_priv->timewait_info->remote_id_node,
+			 &cm.remote_id_table);
+		cm_id_priv->timewait_info->inserted_remote_id = 0;
+		spin_unlock(&cm.lock);
+		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+		cm_issue_rej(work->port, work->mad_recv_wc,
+			     IB_CM_REJ_STALE_CONN, CM_MSG_RESPONSE_REP,
+			     NULL, 0);
+		ret = -EINVAL;
+		goto error;
+	}
+	spin_unlock(&cm.lock);
+
 	cm_id_priv->id.state = IB_CM_REP_RCVD;
 	cm_id_priv->id.remote_id = rep_msg->local_comm_id;
 	cm_id_priv->remote_qpn = cm_rep_get_local_qpn(rep_msg);
@@ -1603,7 +1609,7 @@ static int cm_rep_handler(struct cm_work *work)
 		cm_deref_id(cm_id_priv);
 	return 0;
 
-error:	cm_cleanup_timewait(cm_id_priv->timewait_info);
+error:
 	cm_deref_id(cm_id_priv);
 	return ret;
 }

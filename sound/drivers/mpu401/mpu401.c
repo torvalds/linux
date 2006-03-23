@@ -240,8 +240,10 @@ static int __init alsa_card_mpu401_init(void)
 		return err;
 
 	devices = 0;
-	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+	for (i = 0; i < SNDRV_CARDS; i++) {
 		struct platform_device *device;
+		if (! enable[i])
+			continue;
 #ifdef CONFIG_PNP
 		if (pnp[i])
 			continue;

@@ -434,7 +434,6 @@ config NET_EMATCH_TEXT
 
 config NET_CLS_ACT
 	bool "Actions"
-	depends on EXPERIMENTAL
 	select NET_ESTIMATOR
 	---help---
 	  Say Y here if you want to use traffic control actions. Actions

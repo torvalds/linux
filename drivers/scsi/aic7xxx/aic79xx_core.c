@@ -978,9 +978,13 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		break;
 	}
 	case INVALID_SEQINT:
-		printf("%s: Invalid Sequencer interrupt occurred.\n",
+		printf("%s: Invalid Sequencer interrupt occurred, "
+		       "resetting channel.\n",
 		       ahd_name(ahd));
-		ahd_dump_card_state(ahd);
+#ifdef AHD_DEBUG
+		if ((ahd_debug & AHD_SHOW_RECOVERY) != 0)
+			ahd_dump_card_state(ahd);
+#endif
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
 		break;
 	case STATUS_OVERRUN:
@@ -3762,11 +3766,8 @@ ahd_construct_sdtr(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 {
 	if (offset == 0)
 		period = AHD_ASYNC_XFER_PERIOD;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXTENDED;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_SDTR_LEN;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_SDTR;
-	ahd->msgout_buf[ahd->msgout_index++] = period;
-	ahd->msgout_buf[ahd->msgout_index++] = offset;
+	ahd->msgout_index += spi_populate_sync_msg(
+			ahd->msgout_buf + ahd->msgout_index, period, offset);
 	ahd->msgout_len += 5;
 	if (bootverbose) {
 		printf("(%s:%c:%d:%d): Sending SDTR period %x, offset %x\n",
@@ -3783,10 +3784,8 @@ static void
 ahd_construct_wdtr(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		   u_int bus_width)
 {
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXTENDED;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_WDTR_LEN;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_WDTR;
-	ahd->msgout_buf[ahd->msgout_index++] = bus_width;
+	ahd->msgout_index += spi_populate_width_msg(
+			ahd->msgout_buf + ahd->msgout_index, bus_width);
 	ahd->msgout_len += 4;
 	if (bootverbose) {
 		printf("(%s:%c:%d:%d): Sending WDTR %x\n",
@@ -3813,14 +3812,9 @@ ahd_construct_ppr(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		ppr_options |= MSG_EXT_PPR_PCOMP_EN;
 	if (offset == 0)
 		period = AHD_ASYNC_XFER_PERIOD;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXTENDED;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_PPR_LEN;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_PPR;
-	ahd->msgout_buf[ahd->msgout_index++] = period;
-	ahd->msgout_buf[ahd->msgout_index++] = 0;
-	ahd->msgout_buf[ahd->msgout_index++] = offset;
-	ahd->msgout_buf[ahd->msgout_index++] = bus_width;
-	ahd->msgout_buf[ahd->msgout_index++] = ppr_options;
+	ahd->msgout_index += spi_populate_ppr_msg(
+			ahd->msgout_buf + ahd->msgout_index, period, offset,
+			bus_width, ppr_options);
 	ahd->msgout_len += 8;
 	if (bootverbose) {
 		printf("(%s:%c:%d:%d): Sending PPR bus_width %x, period %x, "
@@ -7094,7 +7088,6 @@ ahd_pause_and_flushwork(struct ahd_softc *ahd)
 
 	ahd_flush_qoutfifo(ahd);
 
-	ahd_platform_flushwork(ahd);
 	ahd->flags &= ~AHD_ALL_INTERRUPTS;
 }
 

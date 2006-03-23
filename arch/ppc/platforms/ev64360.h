@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/ev64360.h
- *
  * Definitions for Marvell EV-64360-BP Evaluation Board.
  *
  * Author: Lee Nicks <allinux@gmail.com>

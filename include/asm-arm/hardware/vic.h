@@ -39,7 +39,7 @@
 #define VIC_VECT_CNTL_ENABLE		(1 << 5)
 
 #ifndef __ASSEMBLY__
-void vic_init(void __iomem *base, u32 vic_sources);
+void vic_init(void __iomem *base, unsigned int irq_start, u32 vic_sources);
 #endif
 
 #endif

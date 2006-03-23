@@ -605,7 +605,7 @@ struct file_operations rdwr_fifo_fops = {
 	.fasync		= pipe_rdwr_fasync,
 };
 
-struct file_operations read_pipe_fops = {
+static struct file_operations read_pipe_fops = {
 	.llseek		= no_llseek,
 	.read		= pipe_read,
 	.readv		= pipe_readv,
@@ -617,7 +617,7 @@ struct file_operations read_pipe_fops = {
 	.fasync		= pipe_read_fasync,
 };
 
-struct file_operations write_pipe_fops = {
+static struct file_operations write_pipe_fops = {
 	.llseek		= no_llseek,
 	.read		= bad_pipe_r,
 	.write		= pipe_write,
@@ -629,7 +629,7 @@ struct file_operations write_pipe_fops = {
 	.fasync		= pipe_write_fasync,
 };
 
-struct file_operations rdwr_pipe_fops = {
+static struct file_operations rdwr_pipe_fops = {
 	.llseek		= no_llseek,
 	.read		= pipe_read,
 	.readv		= pipe_readv,

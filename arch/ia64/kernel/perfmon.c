@@ -6722,6 +6722,7 @@ __initcall(pfm_init);
 void
 pfm_init_percpu (void)
 {
+	static int first_time=1;
 	/*
 	 * make sure no measurement is active
 	 * (may inherit programmed PMCs from EFI).
@@ -6734,8 +6735,10 @@ pfm_init_percpu (void)
 	 */
 	pfm_unfreeze_pmu();
 
-	if (smp_processor_id() == 0)
+	if (first_time) {
 		register_percpu_irq(IA64_PERFMON_VECTOR, &perfmon_irqaction);
+		first_time=0;
+	}
 
 	ia64_setreg(_IA64_REG_CR_PMV, IA64_PERFMON_VECTOR);
 	ia64_srlz_d();

@@ -194,8 +194,6 @@ static int dart_init(struct device_node *dart_node)
 	 * prefetching into invalid pages and corrupting data
 	 */
 	tmp = lmb_alloc(DART_PAGE_SIZE, DART_PAGE_SIZE);
-	if (!tmp)
-		panic("DART: Cannot allocate spare page!");
 	dart_emptyval = DARTMAP_VALID | ((tmp >> DART_PAGE_SHIFT) &
 					 DARTMAP_RPNMASK);
 

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/ibm405ep.c
- *
  * Support for IBM PPC 405EP processors.
  *
  * Author: SAW (IBM), derived from ibmnp405l.c.

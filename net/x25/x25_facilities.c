@@ -28,17 +28,27 @@
 #include <net/x25.h>
 
 /*
- *	Parse a set of facilities into the facilities structure. Unrecognised
+ * Parse a set of facilities into the facilities structures. Unrecognised
  *	facilities are written to the debug log file.
  */
-int x25_parse_facilities(struct sk_buff *skb,
-			 struct x25_facilities *facilities,
-			 unsigned long *vc_fac_mask)
+int x25_parse_facilities(struct sk_buff *skb, struct x25_facilities *facilities,
+		struct x25_dte_facilities *dte_facs, unsigned long *vc_fac_mask)
 {
 	unsigned char *p = skb->data;
 	unsigned int len = *p++;
 
 	*vc_fac_mask = 0;
+
+	/*
+	 * The kernel knows which facilities were set on an incoming call but
+	 * currently this information is not available to userspace.  Here we
+	 * give userspace who read incoming call facilities 0 length to indicate
+	 * it wasn't set.
+	 */
+	dte_facs->calling_len = 0;
+	dte_facs->called_len = 0;
+	memset(dte_facs->called_ae, '\0', sizeof(dte_facs->called_ae));
+	memset(dte_facs->calling_ae, '\0', sizeof(dte_facs->calling_ae));
 
 	while (len > 0) {
 		switch (*p & X25_FAC_CLASS_MASK) {
@@ -73,6 +83,8 @@ int x25_parse_facilities(struct sk_buff *skb,
 			case X25_FAC_THROUGHPUT:
 				facilities->throughput = p[1];
 				*vc_fac_mask |= X25_MASK_THROUGHPUT;
+				break;
+			case X25_MARKER:
 				break;
 			default:
 				printk(KERN_DEBUG "X.25: unknown facility "
@@ -112,11 +124,30 @@ int x25_parse_facilities(struct sk_buff *skb,
 			len -= 4;
 			break;
 		case X25_FAC_CLASS_D:
-			printk(KERN_DEBUG "X.25: unknown facility %02X, "
-			       "length %d, values %02X, %02X, %02X, %02X\n",
-			       p[0], p[1], p[2], p[3], p[4], p[5]);
+			switch (*p) {
+	 		case X25_FAC_CALLING_AE:
+	 			if (p[1] > X25_MAX_DTE_FACIL_LEN)
+					break;
+				dte_facs->calling_len = p[2];
+				memcpy(dte_facs->calling_ae, &p[3], p[1] - 1);
+				*vc_fac_mask |= X25_MASK_CALLING_AE;
+				break;
+			case X25_FAC_CALLED_AE:
+				if (p[1] > X25_MAX_DTE_FACIL_LEN)
+					break;
+				dte_facs->called_len = p[2];
+				memcpy(dte_facs->called_ae, &p[3], p[1] - 1);
+				*vc_fac_mask |= X25_MASK_CALLED_AE;
+				break;
+			default:
+				printk(KERN_DEBUG "X.25: unknown facility %02X,"
+					"length %d, values %02X, %02X, "
+					"%02X, %02X\n",
+					p[0], p[1], p[2], p[3], p[4], p[5]);
+				break;
+			}
 			len -= p[1] + 2;
-			p   += p[1] + 2;
+			p += p[1] + 2;
 			break;
 		}
 	}
@@ -128,8 +159,8 @@ int x25_parse_facilities(struct sk_buff *skb,
  *	Create a set of facilities.
  */
 int x25_create_facilities(unsigned char *buffer,
-			  struct x25_facilities *facilities,
-			  unsigned long facil_mask)
+		struct x25_facilities *facilities,
+		struct x25_dte_facilities *dte_facs, unsigned long facil_mask)
 {
 	unsigned char *p = buffer + 1;
 	int len;
@@ -168,6 +199,33 @@ int x25_create_facilities(unsigned char *buffer,
 		*p++ = facilities->winsize_out ? : facilities->winsize_in;
 	}
 
+	if (facil_mask & (X25_MASK_CALLING_AE|X25_MASK_CALLED_AE)) {
+		*p++ = X25_MARKER;
+		*p++ = X25_DTE_SERVICES;
+	}
+
+	if (dte_facs->calling_len && (facil_mask & X25_MASK_CALLING_AE)) {
+		unsigned bytecount = (dte_facs->calling_len % 2) ?
+					dte_facs->calling_len / 2 + 1 :
+					dte_facs->calling_len / 2;
+		*p++ = X25_FAC_CALLING_AE;
+		*p++ = 1 + bytecount;
+		*p++ = dte_facs->calling_len;
+		memcpy(p, dte_facs->calling_ae, bytecount);
+		p += bytecount;
+	}
+
+	if (dte_facs->called_len && (facil_mask & X25_MASK_CALLED_AE)) {
+		unsigned bytecount = (dte_facs->called_len % 2) ?
+		dte_facs->called_len / 2 + 1 :
+		dte_facs->called_len / 2;
+		*p++ = X25_FAC_CALLED_AE;
+		*p++ = 1 + bytecount;
+		*p++ = dte_facs->called_len;
+		memcpy(p, dte_facs->called_ae, bytecount);
+		p+=bytecount;
+	}
+
 	len       = p - buffer;
 	buffer[0] = len - 1;
 
@@ -180,7 +238,7 @@ int x25_create_facilities(unsigned char *buffer,
  *	The only real problem is with reverse charging.
  */
 int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
-			     struct x25_facilities *new)
+		struct x25_facilities *new, struct x25_dte_facilities *dte)
 {
 	struct x25_sock *x25 = x25_sk(sk);
 	struct x25_facilities *ours = &x25->facilities;
@@ -190,7 +248,7 @@ int x25_negotiate_facilities(struct sk_buff *skb, struct sock *sk,
 	memset(&theirs, 0, sizeof(theirs));
 	memcpy(new, ours, sizeof(*new));
 
-	len = x25_parse_facilities(skb, &theirs, &x25->vc_facil_mask);
+	len = x25_parse_facilities(skb, &theirs, dte, &x25->vc_facil_mask);
 
 	/*
 	 *	They want reverse charging, we won't accept it.

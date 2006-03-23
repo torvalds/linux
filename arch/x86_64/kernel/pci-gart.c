@@ -228,11 +228,6 @@ static inline int need_iommu(struct device *dev, unsigned long addr, size_t size
 	int mmu = high;
 	if (force_iommu) 
 		mmu = 1; 
-	if (no_iommu) { 
-		if (high) 
-			panic("PCI-DMA: high address but no IOMMU.\n"); 
-		mmu = 0; 
-	} 	
 	return mmu; 
 }
 
@@ -241,11 +236,6 @@ static inline int nonforced_iommu(struct device *dev, unsigned long addr, size_t
 	u64 mask = *dev->dma_mask;
 	int high = addr + size >= mask;
 	int mmu = high;
-	if (no_iommu) { 
-		if (high) 
-			panic("PCI-DMA: high address but no IOMMU.\n"); 
-		mmu = 0; 
-	} 	
 	return mmu; 
 }
 
@@ -310,7 +300,7 @@ void gart_unmap_sg(struct device *dev, struct scatterlist *sg, int nents, int di
 
 	for (i = 0; i < nents; i++) {
 		struct scatterlist *s = &sg[i];
-		if (!s->dma_length)
+		if (!s->dma_length || !s->length)
 			break;
 		dma_unmap_single(dev, s->dma_address, s->dma_length, dir);
 	}
@@ -364,6 +354,7 @@ static int __dma_map_cont(struct scatterlist *sg, int start, int stopat,
 		
 		BUG_ON(i > start && s->offset);
 		if (i == start) {
+			*sout = *s; 
 			sout->dma_address = iommu_bus_base;
 			sout->dma_address += iommu_page*PAGE_SIZE + s->offset;
 			sout->dma_length = s->length;
@@ -390,6 +381,7 @@ static inline int dma_map_cont(struct scatterlist *sg, int start, int stopat,
 {
 	if (!need) { 
 		BUG_ON(stopat - start != 1);
+		*sout = sg[start]; 
 		sout->dma_length = sg[start].length; 
 		return 0;
 	} 
@@ -632,17 +624,13 @@ static int __init pci_iommu_init(void)
 		(agp_copy_info(agp_bridge, &info) < 0);
 #endif	
 
-	if (swiotlb) { 
-		no_iommu = 1;
+	if (swiotlb)
 		return -1; 
-	} 
-	
+
 	if (no_iommu ||
 	    (!force_iommu && end_pfn <= MAX_DMA32_PFN) ||
 	    !iommu_aperture ||
 	    (no_agp && init_k8_gatt(&info) < 0)) {
-		no_iommu = 1;
-		no_iommu_init();
 		printk(KERN_INFO "PCI-DMA: Disabling IOMMU.\n");
 		if (end_pfn > MAX_DMA32_PFN) {
 			printk(KERN_ERR "WARNING more than 4GB of memory "

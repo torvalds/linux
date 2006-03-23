@@ -880,7 +880,6 @@ static int rtl8150_probe(struct usb_interface *intf,
 	}
 	fill_skb_pool(dev);
 	set_ethernet_addr(dev);
-	info("%s: rtl8150 is detected", netdev->name);
 	
 	usb_set_intfdata(intf, dev);
 	SET_NETDEV_DEV(netdev, &intf->dev);
@@ -888,6 +887,9 @@ static int rtl8150_probe(struct usb_interface *intf,
 		err("couldn't register the device");
 		goto out2;
 	}
+
+	info("%s: rtl8150 is detected", netdev->name);
+
 	return 0;
 
 out2:

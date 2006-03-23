@@ -39,6 +39,7 @@
 #include <linux/completion.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/kthread.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <asm/semaphore.h>
@@ -1045,8 +1046,9 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
  *	more FIBs.
  */
  
-int aac_command_thread(struct aac_dev * dev)
+int aac_command_thread(void *data)
 {
+	struct aac_dev *dev = data;
 	struct hw_fib *hw_fib, *hw_newfib;
 	struct fib *fib, *newfib;
 	struct aac_fib_context *fibctx;
@@ -1058,12 +1060,7 @@ int aac_command_thread(struct aac_dev * dev)
 	 */
 	if (dev->aif_thread)
 		return -EINVAL;
-	/*
-	 *	Set up the name that will appear in 'ps'
-	 *	stored in  task_struct.comm[16].
-	 */
-	daemonize("aacraid");
-	allow_signal(SIGKILL);
+
 	/*
 	 *	Let the DPC know it has a place to send the AIF's to.
 	 */
@@ -1266,13 +1263,12 @@ int aac_command_thread(struct aac_dev * dev)
 		spin_unlock_irqrestore(dev->queues->queue[HostNormCmdQueue].lock, flags);
 		schedule();
 
-		if(signal_pending(current))
+		if (kthread_should_stop())
 			break;
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
 	if (dev->queues)
 		remove_wait_queue(&dev->queues->queue[HostNormCmdQueue].cmdready, &wait);
 	dev->aif_thread = 0;
-	complete_and_exit(&dev->aif_completion, 0);
 	return 0;
 }

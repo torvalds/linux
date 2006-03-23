@@ -23,6 +23,8 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/sysrq.h>
+#include <linux/smp.h>
+#include <linux/nodemask.h>
 #include <asm/io.h>
 #include <asm/voyager.h>
 #include <asm/vic.h>
@@ -328,4 +330,3 @@ void machine_power_off(void)
 	if (pm_power_off)
 		pm_power_off();
 }
-

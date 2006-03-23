@@ -366,7 +366,7 @@ static int snd_usX2Y_usbpcm_hw_free(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_usX2Y_substream *subs = runtime->private_data,
 		*cap_subs2 = subs->usX2Y->subs[SNDRV_PCM_STREAM_CAPTURE + 2];
-	down(&subs->usX2Y->prepare_mutex);
+	mutex_lock(&subs->usX2Y->prepare_mutex);
 	snd_printdd("snd_usX2Y_usbpcm_hw_free(%p)\n", substream);
 
 	if (SNDRV_PCM_STREAM_PLAYBACK == substream->stream) {
@@ -395,7 +395,7 @@ static int snd_usX2Y_usbpcm_hw_free(struct snd_pcm_substream *substream)
 				usX2Y_usbpcm_urbs_release(cap_subs2);
 		}
 	}
-	up(&subs->usX2Y->prepare_mutex);
+	mutex_unlock(&subs->usX2Y->prepare_mutex);
 	return snd_pcm_lib_free_pages(substream);
 }
 
@@ -503,7 +503,7 @@ static int snd_usX2Y_usbpcm_prepare(struct snd_pcm_substream *substream)
 		memset(usX2Y->hwdep_pcm_shm, 0, sizeof(struct snd_usX2Y_hwdep_pcm_shm));
 	}
 
-	down(&usX2Y->prepare_mutex);
+	mutex_lock(&usX2Y->prepare_mutex);
 	usX2Y_subs_prepare(subs);
 // Start hardware streams
 // SyncStream first....
@@ -544,7 +544,7 @@ static int snd_usX2Y_usbpcm_prepare(struct snd_pcm_substream *substream)
 		usX2Y->hwdep_pcm_shm->capture_iso_start = -1;
 
  up_prepare_mutex:
-	up(&usX2Y->prepare_mutex);
+	mutex_unlock(&usX2Y->prepare_mutex);
 	return err;
 }
 
@@ -621,7 +621,7 @@ static int usX2Y_pcms_lock_check(struct snd_card *card)
 		if (dev->type != SNDRV_DEV_PCM)
 			continue;
 		pcm = dev->device_data;
-		down(&pcm->open_mutex);
+		mutex_lock(&pcm->open_mutex);
 	}
 	list_for_each(list, &card->devices) {
 		int s;
@@ -650,7 +650,7 @@ static void usX2Y_pcms_unlock(struct snd_card *card)
 		if (dev->type != SNDRV_DEV_PCM)
 			continue;
 		pcm = dev->device_data;
-		up(&pcm->open_mutex);
+		mutex_unlock(&pcm->open_mutex);
 	}
 }
 

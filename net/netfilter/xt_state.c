@@ -24,6 +24,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -44,28 +45,47 @@ match(const struct sk_buff *skb,
 }
 
 static int check(const char *tablename,
-		 const void *ip,
+		 const void *inf,
+		 const struct xt_match *match,
 		 void *matchinfo,
 		 unsigned int matchsize,
 		 unsigned int hook_mask)
 {
-	if (matchsize != XT_ALIGN(sizeof(struct xt_state_info)))
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
+		printk(KERN_WARNING "can't load nf_conntrack support for "
+				    "proto=%d\n", match->family);
 		return 0;
-
+	}
+#endif
 	return 1;
+}
+
+static void
+destroy(const struct xt_match *match, void *matchinfo, unsigned int matchsize)
+{
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_ct_l3proto_module_put(match->family);
+#endif
 }
 
 static struct xt_match state_match = {
 	.name		= "state",
-	.match		= &match,
-	.checkentry	= &check,
+	.match		= match,
+	.checkentry	= check,
+	.destroy	= destroy,
+	.matchsize	= sizeof(struct xt_state_info),
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
 static struct xt_match state6_match = {
 	.name		= "state",
-	.match		= &match,
-	.checkentry	= &check,
+	.match		= match,
+	.checkentry	= check,
+	.destroy	= destroy,
+	.matchsize	= sizeof(struct xt_state_info),
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
@@ -75,21 +95,21 @@ static int __init init(void)
 
 	need_conntrack();
 
-	ret = xt_register_match(AF_INET, &state_match);
+	ret = xt_register_match(&state_match);
 	if (ret < 0)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &state6_match);
+	ret = xt_register_match(&state6_match);
 	if (ret < 0)
-		xt_unregister_match(AF_INET,&state_match);
+		xt_unregister_match(&state_match);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET, &state_match);
-	xt_unregister_match(AF_INET6, &state6_match);
+	xt_unregister_match(&state_match);
+	xt_unregister_match(&state6_match);
 }
 
 module_init(init);

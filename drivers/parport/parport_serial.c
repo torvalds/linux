@@ -31,14 +31,8 @@ enum parport_pc_pci_cards {
 	netmos_9xx5_combo,
 	netmos_9855,
 	avlab_1s1p,
-	avlab_1s1p_650,
-	avlab_1s1p_850,
 	avlab_1s2p,
-	avlab_1s2p_650,
-	avlab_1s2p_850,
 	avlab_2s1p,
-	avlab_2s1p_650,
-	avlab_2s1p_850,
 	siig_1s1p_10x,
 	siig_2s1p_10x,
 	siig_2p1s_20x,
@@ -85,14 +79,8 @@ static struct parport_pc_pci cards[] __devinitdata = {
 	/* netmos_9xx5_combo */		{ 1, { { 2, -1 }, }, netmos_parallel_init },
 	/* netmos_9855 */		{ 1, { { 0, -1 }, }, netmos_parallel_init },
 	/* avlab_1s1p     */		{ 1, { { 1, 2}, } },
-	/* avlab_1s1p_650 */		{ 1, { { 1, 2}, } },
-	/* avlab_1s1p_850 */		{ 1, { { 1, 2}, } },
 	/* avlab_1s2p     */		{ 2, { { 1, 2}, { 3, 4 },} },
-	/* avlab_1s2p_650 */		{ 2, { { 1, 2}, { 3, 4 },} },
-	/* avlab_1s2p_850 */		{ 2, { { 1, 2}, { 3, 4 },} },
 	/* avlab_2s1p     */		{ 1, { { 2, 3}, } },
-	/* avlab_2s1p_650 */		{ 1, { { 2, 3}, } },
-	/* avlab_2s1p_850 */		{ 1, { { 2, 3}, } },
 	/* siig_1s1p_10x */		{ 1, { { 3, 4 }, } },
 	/* siig_2s1p_10x */		{ 1, { { 4, 5 }, } },
 	/* siig_2p1s_20x */		{ 2, { { 1, 2 }, { 3, 4 }, } },
@@ -119,15 +107,24 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9855,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9855 },
 	/* PCI_VENDOR_ID_AVLAB/Intek21 has another bunch of cards ...*/
-	{ 0x14db, 0x2110, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s1p},
-	{ 0x14db, 0x2111, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s1p_650},
-	{ 0x14db, 0x2112, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s1p_850},
-	{ 0x14db, 0x2140, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s2p},
-	{ 0x14db, 0x2141, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s2p_650},
-	{ 0x14db, 0x2142, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s2p_850},
-	{ 0x14db, 0x2160, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_2s1p},
-	{ 0x14db, 0x2161, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_2s1p_650},
-	{ 0x14db, 0x2162, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_2s1p_850},
+	{ PCI_VENDOR_ID_AFAVLAB, 0x2110,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s1p },
+	{ PCI_VENDOR_ID_AFAVLAB, 0x2111,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s1p },
+	{ PCI_VENDOR_ID_AFAVLAB, 0x2112,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s1p },
+	{ PCI_VENDOR_ID_AFAVLAB, 0x2140,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s2p },
+	{ PCI_VENDOR_ID_AFAVLAB, 0x2141,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s2p },
+	{ PCI_VENDOR_ID_AFAVLAB, 0x2142,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s2p },
+	{ PCI_VENDOR_ID_AFAVLAB, 0x2160,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_2s1p },
+	{ PCI_VENDOR_ID_AFAVLAB, 0x2161,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_2s1p },
+	{ PCI_VENDOR_ID_AFAVLAB, 0x2162,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_2s1p },
 	{ PCI_VENDOR_ID_SIIG, PCI_DEVICE_ID_SIIG_1S1P_10x_550,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, siig_1s1p_10x },
 	{ PCI_VENDOR_ID_SIIG, PCI_DEVICE_ID_SIIG_1S1P_10x_650,
@@ -201,49 +198,13 @@ static struct pciserial_board pci_parport_serial_boards[] __devinitdata = {
 		.base_baud	= 115200,
 		.uart_offset	= 8,
 	},
-	[avlab_1s1p_650] = { /* nt */
-		.flags		= FL_BASE0 | FL_BASE_BARS,
-		.num_ports	= 1,
-		.base_baud	= 115200,
-		.uart_offset	= 8,
-	},
-	[avlab_1s1p_850] = { /* nt */
-		.flags		= FL_BASE0 | FL_BASE_BARS,
-		.num_ports	= 1,
-		.base_baud	= 115200,
-		.uart_offset	= 8,
-	},
 	[avlab_1s2p] = { /* n/t */
 		.flags		= FL_BASE0 | FL_BASE_BARS,
 		.num_ports	= 1,
 		.base_baud	= 115200,
 		.uart_offset	= 8,
 	},
-	[avlab_1s2p_650] = { /* nt */
-		.flags		= FL_BASE0 | FL_BASE_BARS,
-		.num_ports	= 1,
-		.base_baud	= 115200,
-		.uart_offset	= 8,
-	},
-	[avlab_1s2p_850] = { /* nt */
-		.flags		= FL_BASE0 | FL_BASE_BARS,
-		.num_ports	= 1,
-		.base_baud	= 115200,
-		.uart_offset	= 8,
-	},
 	[avlab_2s1p] = { /* n/t */
-		.flags		= FL_BASE0 | FL_BASE_BARS,
-		.num_ports	= 2,
-		.base_baud	= 115200,
-		.uart_offset	= 8,
-	},
-	[avlab_2s1p_650] = { /* nt */
-		.flags		= FL_BASE0 | FL_BASE_BARS,
-		.num_ports	= 2,
-		.base_baud	= 115200,
-		.uart_offset	= 8,
-	},
-	[avlab_2s1p_850] = { /* nt */
 		.flags		= FL_BASE0 | FL_BASE_BARS,
 		.num_ports	= 2,
 		.base_baud	= 115200,
@@ -312,8 +273,7 @@ static int __devinit parport_register (struct pci_dev *dev,
 {
 	struct parport_pc_pci *card;
 	struct parport_serial_private *priv = pci_get_drvdata (dev);
-	int i = id->driver_data, n;
-	int success = 0;
+	int n, success = 0;
 
 	priv->par = cards[id->driver_data];
 	card = &priv->par;
@@ -344,10 +304,8 @@ static int __devinit parport_register (struct pci_dev *dev,
                                         "hi" as an offset (see SYBA
                                         def.) */
 		/* TODO: test if sharing interrupts works */
-		printk (KERN_DEBUG "PCI parallel port detected: %04x:%04x, "
-			"I/O at %#lx(%#lx)\n",
-			parport_serial_pci_tbl[i].vendor,
-			parport_serial_pci_tbl[i].device, io_lo, io_hi);
+		dev_dbg(&dev->dev, "PCI parallel port detected: I/O at "
+			"%#lx(%#lx)\n", io_lo, io_hi);
 		port = parport_pc_probe_port (io_lo, io_hi, PARPORT_IRQ_NONE,
 					      PARPORT_DMA_NONE, dev);
 		if (port) {
@@ -359,7 +317,7 @@ static int __devinit parport_register (struct pci_dev *dev,
 	if (card->postinit_hook)
 		card->postinit_hook (dev, card, !success);
 
-	return success ? 0 : 1;
+	return 0;
 }
 
 static int __devinit parport_serial_pci_probe (struct pci_dev *dev,
