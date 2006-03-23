@@ -46,7 +46,7 @@ int ncp_make_open(struct inode *inode, int right)
 		NCP_FINFO(inode)->volNumber, 
 		NCP_FINFO(inode)->dirEntNum);
 	error = -EACCES;
-	down(&NCP_FINFO(inode)->open_sem);
+	mutex_lock(&NCP_FINFO(inode)->open_mutex);
 	if (!atomic_read(&NCP_FINFO(inode)->opened)) {
 		struct ncp_entry_info finfo;
 		int result;
@@ -93,7 +93,7 @@ int ncp_make_open(struct inode *inode, int right)
 	}
 
 out_unlock:
-	up(&NCP_FINFO(inode)->open_sem);
+	mutex_unlock(&NCP_FINFO(inode)->open_mutex);
 out:
 	return error;
 }
