@@ -34,6 +34,9 @@ ToDo/Notes:
 	- Add support for sparse files which have a compression unit of 0.
 	- Remove all the make_bad_inode() calls.  This should only be called
 	  from read inode and new inode code paths.
+	- Limit name length in fs/ntfs/unistr.c::ntfs_nlstoucs() to maximum
+	  allowed by NTFS, i.e. 255 Unicode characters, not including the
+	  terminating NULL (which is not stored on disk).
 
 2.1.26 - Minor bug fixes and updates.
 
