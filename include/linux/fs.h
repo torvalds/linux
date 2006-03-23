@@ -847,7 +847,7 @@ struct super_block {
 	 * The next field is for VFS *only*. No filesystems have any business
 	 * even looking at it. You had been warned.
 	 */
-	struct semaphore s_vfs_rename_sem;	/* Kludge */
+	struct mutex s_vfs_rename_mutex;	/* Kludge */
 
 	/* Granuality of c/m/atime in ns.
 	   Cannot be worse than a second */
