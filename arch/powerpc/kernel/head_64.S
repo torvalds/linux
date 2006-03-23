@@ -1544,7 +1544,11 @@ _STATIC(__boot_from_prom)
 	mr	r28,r6
 	mr	r27,r7
 
-	/* Align the stack to 16-byte boundary for broken yaboot */
+	/*
+	 * Align the stack to 16-byte boundary
+	 * Depending on the size and layout of the ELF sections in the initial
+	 * boot binary, the stack pointer will be unalignet on PowerMac
+	 */
 	rldicr	r1,r1,0,59
 
 	/* Make sure we are running in 64 bits mode */
