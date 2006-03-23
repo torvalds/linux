@@ -26,7 +26,6 @@
 
 #include "w1.h"
 #include "w1_log.h"
-#include "w1_io.h"
 
 static int w1_delay_parm = 1;
 module_param_named(delay_coef, w1_delay_parm, int, 0);
@@ -268,13 +267,13 @@ u8 w1_calc_crc8(u8 * data, int len)
 	return crc;
 }
 
-void w1_search_devices(struct w1_master *dev, w1_slave_found_callback cb)
+void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb)
 {
 	dev->attempts++;
 	if (dev->bus_master->search)
-		dev->bus_master->search(dev->bus_master->data, cb);
+		dev->bus_master->search(dev->bus_master->data, search_type, cb);
 	else
-		w1_search(dev, cb);
+		w1_search(dev, search_type, cb);
 }
 
 /**
@@ -300,13 +299,4 @@ int w1_reset_select_slave(struct w1_slave *sl)
 	return 0;
 }
 
-EXPORT_SYMBOL(w1_touch_bit);
-EXPORT_SYMBOL(w1_write_8);
-EXPORT_SYMBOL(w1_read_8);
-EXPORT_SYMBOL(w1_reset_bus);
-EXPORT_SYMBOL(w1_calc_crc8);
-EXPORT_SYMBOL(w1_delay);
-EXPORT_SYMBOL(w1_read_block);
-EXPORT_SYMBOL(w1_write_block);
-EXPORT_SYMBOL(w1_search_devices);
-EXPORT_SYMBOL(w1_reset_select_slave);
+EXPORT_SYMBOL_GPL(w1_calc_crc8);

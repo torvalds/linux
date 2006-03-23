@@ -2,7 +2,7 @@
 # Makefile for the Dallas's 1-wire bus.
 #
 
-ifneq ($(CONFIG_NET), y)
+ifeq ($(CONFIG_CONNECTOR), n)
 EXTRA_CFLAGS	+= -DNETLINK_DISABLED
 endif
 

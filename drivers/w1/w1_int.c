@@ -27,9 +27,18 @@
 #include "w1.h"
 #include "w1_log.h"
 #include "w1_netlink.h"
-#include "w1_int.h"
 
 static u32 w1_ids = 1;
+
+extern struct device_driver w1_master_driver;
+extern struct bus_type w1_bus_type;
+extern struct device w1_master_device;
+extern int w1_max_slave_count;
+extern int w1_max_slave_ttl;
+extern struct list_head w1_masters;
+extern struct semaphore w1_mlock;
+
+extern int w1_process(void *);
 
 static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 				       struct device_driver *driver,
@@ -74,16 +83,11 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 
 	dev->driver = driver;
 
-	dev->groups = 1;
 	dev->seq = 1;
-	dev_init_netlink(dev);
 
 	err = device_register(&dev->dev);
 	if (err) {
 		printk(KERN_ERR "Failed to register master device. err=%d\n", err);
-
-		dev_fini_netlink(dev);
-
 		memset(dev, 0, sizeof(struct w1_master));
 		kfree(dev);
 		dev = NULL;
@@ -92,7 +96,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	return dev;
 }
 
-static void w1_free_dev(struct w1_master *dev)
+void w1_free_dev(struct w1_master *dev)
 {
 	device_unregister(&dev->dev);
 }
@@ -131,12 +135,12 @@ int w1_add_master_device(struct w1_bus_master *master)
 
 	dev->initialized = 1;
 
-	spin_lock(&w1_mlock);
+	down(&w1_mlock);
 	list_add(&dev->w1_master_entry, &w1_masters);
-	spin_unlock(&w1_mlock);
+	up(&w1_mlock);
 
+	memset(&msg, 0, sizeof(msg));
 	msg.id.mst.id = dev->id;
-	msg.id.mst.pid = dev->thread->pid;
 	msg.type = W1_MASTER_ADD;
 	w1_netlink_send(dev, &msg);
 
@@ -153,7 +157,6 @@ err_out_free_dev:
 void __w1_remove_master_device(struct w1_master *dev)
 {
 	struct w1_netlink_msg msg;
-	pid_t pid = dev->thread->pid;
 
 	set_bit(W1_MASTER_NEED_EXIT, &dev->flags);
 	kthread_stop(dev->thread);
@@ -166,8 +169,8 @@ void __w1_remove_master_device(struct w1_master *dev)
 			flush_signals(current);
 	}
 
+	memset(&msg, 0, sizeof(msg));
 	msg.id.mst.id = dev->id;
-	msg.id.mst.pid = pid;
 	msg.type = W1_MASTER_REMOVE;
 	w1_netlink_send(dev, &msg);
 

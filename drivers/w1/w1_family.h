@@ -64,5 +64,6 @@ void __w1_family_put(struct w1_family *);
 struct w1_family * w1_family_registered(u8);
 void w1_unregister_family(struct w1_family *);
 int w1_register_family(struct w1_family *);
+void w1_reconnect_slaves(struct w1_family *f);
 
 #endif /* __W1_FAMILY_H */
