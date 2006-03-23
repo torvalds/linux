@@ -134,6 +134,12 @@ intelfbhw_get_chipset(struct pci_dev *pdev, struct intelfb_info *dinfo)
 		dinfo->mobile = 0;
 		dinfo->pll_index = PLLS_I9xx;
 		return 0;
+	case PCI_DEVICE_ID_INTEL_945GM:
+		dinfo->name = "Intel(R) 945GM";
+		dinfo->chipset = INTEL_945GM;
+		dinfo->mobile = 1;
+		dinfo->pll_index = PLLS_I9xx;
+		return 0;
 	default:
 		return 1;
 	}
