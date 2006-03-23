@@ -188,8 +188,7 @@ static void show_trace_log_lvl(struct task_struct *task,
 		stack = (unsigned long*)context->previous_esp;
 		if (!stack)
 			break;
-		printk(log_lvl);
-		printk(" =======================\n");
+		printk("%s =======================\n", log_lvl);
 	}
 }
 
@@ -218,14 +217,12 @@ static void show_stack_log_lvl(struct task_struct *task, unsigned long *esp,
 			break;
 		if (i && ((i % 8) == 0)) {
 			printk("\n");
-			printk(log_lvl);
-			printk("       ");
+			printk("%s       ", log_lvl);
 		}
 		printk("%08lx ", *stack++);
 	}
 	printk("\n");
-	printk(log_lvl);
-	printk("Call Trace:\n");
+	printk("%sCall Trace:\n", log_lvl);
 	show_trace_log_lvl(task, esp, log_lvl);
 }
 
