@@ -801,13 +801,16 @@ typedef struct {
 typedef ATTR_RECORD ATTR_REC;
 
 /*
- * File attribute flags (32-bit).
+ * File attribute flags (32-bit) appearing in the file_attributes fields of the
+ * STANDARD_INFORMATION attribute of MFT_RECORDs and the FILENAME_ATTR
+ * attributes of MFT_RECORDs and directory index entries.
+ *
+ * All of the below flags appear in the directory index entries but only some
+ * appear in the STANDARD_INFORMATION attribute whilst only some others appear
+ * in the FILENAME_ATTR attribute of MFT_RECORDs.  Unless otherwise stated the
+ * flags appear in all of the above.
  */
 enum {
-	/*
-	 * The following flags are only present in the STANDARD_INFORMATION
-	 * attribute (in the field file_attributes).
-	 */
 	FILE_ATTR_READONLY		= const_cpu_to_le32(0x00000001),
 	FILE_ATTR_HIDDEN		= const_cpu_to_le32(0x00000002),
 	FILE_ATTR_SYSTEM		= const_cpu_to_le32(0x00000004),
@@ -839,18 +842,14 @@ enum {
 	   F_A_COMPRESSED, and F_A_ENCRYPTED and preserves the rest.  This mask
 	   is used to to obtain all flags that are valid for setting. */
 	/*
-	 * The following flag is only present in the FILE_NAME attribute (in
-	 * the field file_attributes).
+	 * The flag FILE_ATTR_DUP_FILENAME_INDEX_PRESENT is present in all
+	 * FILENAME_ATTR attributes but not in the STANDARD_INFORMATION
+	 * attribute of an mft record.
 	 */
 	FILE_ATTR_DUP_FILE_NAME_INDEX_PRESENT	= const_cpu_to_le32(0x10000000),
 	/* Note, this is a copy of the corresponding bit from the mft record,
 	   telling us whether this is a directory or not, i.e. whether it has
 	   an index root attribute or not. */
-	/*
-	 * The following flag is present both in the STANDARD_INFORMATION
-	 * attribute and in the FILE_NAME attribute (in the field
-	 * file_attributes).
-	 */
 	FILE_ATTR_DUP_VIEW_INDEX_PRESENT	= const_cpu_to_le32(0x20000000),
 	/* Note, this is a copy of the corresponding bit from the mft record,
 	   telling us whether this file has a view index present (eg. object id
@@ -891,7 +890,7 @@ typedef struct {
 					   Windows this is only updated when
 					   accessed if some time delta has
 					   passed since the last update. Also,
-					   last access times updates can be
+					   last access time updates can be
 					   disabled altogether for speed. */
 /* 32*/	FILE_ATTR_FLAGS file_attributes; /* Flags describing the file. */
 /* 36*/	union {
