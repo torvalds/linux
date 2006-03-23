@@ -330,7 +330,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 		}
 	}
 }
-static void __devinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
+static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
 {
 	struct _cpuid4_info	*this_leaf, *sibling_leaf;
 	int sibling;
