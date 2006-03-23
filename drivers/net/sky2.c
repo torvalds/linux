@@ -2607,7 +2607,7 @@ static struct net_device_stats *sky2_get_stats(struct net_device *dev)
 	sky2->net_stats.rx_bytes = data[1];
 	sky2->net_stats.tx_packets = data[2] + data[4] + data[6];
 	sky2->net_stats.rx_packets = data[3] + data[5] + data[7];
-	sky2->net_stats.multicast = data[5] + data[7];
+	sky2->net_stats.multicast = data[3] + data[5];
 	sky2->net_stats.collisions = data[10];
 	sky2->net_stats.tx_aborted_errors = data[12];
 
