@@ -828,6 +828,8 @@ void __init find_smp_config (void)
 		smp_scan_config(address, 0x400);
 }
 
+int es7000_plat;
+
 /* --------------------------------------------------------------------------
                             ACPI-based MP Configuration
    -------------------------------------------------------------------------- */
@@ -1010,8 +1012,6 @@ void __init mp_override_legacy_irq (
 
 	return;
 }
-
-int es7000_plat;
 
 void __init mp_config_acpi_legacy_irqs (void)
 {

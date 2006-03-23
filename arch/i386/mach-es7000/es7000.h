@@ -83,6 +83,7 @@ struct es7000_oem_table {
 	struct psai psai;
 };
 
+#ifdef CONFIG_ACPI
 struct acpi_table_sdt {
 	unsigned long pa;
 	unsigned long count;
@@ -99,6 +100,9 @@ struct oem_table {
 	u32 OEMTableSize;
 };
 
+extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
+#endif
+
 struct mip_reg {
 	unsigned long long off_0;
 	unsigned long long off_8;
@@ -114,7 +118,6 @@ struct mip_reg {
 #define	MIP_FUNC(VALUE) 	(VALUE & 0xff)
 
 extern int parse_unisys_oem (char *oemptr);
-extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
 extern void setup_unisys(void);
 extern int es7000_start_cpu(int cpu, unsigned long eip);
 extern void es7000_sw_apic(void);
