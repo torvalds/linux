@@ -163,7 +163,7 @@ config I2C_PXA_SLAVE
 	  I2C bus.
 
 config I2C_PIIX4
-	tristate "Intel PIIX4"
+	tristate "Intel PIIX4 and compatible (ATI/Serverworks/Broadcom/SMSC)"
 	depends on I2C && PCI
 	help
 	  If you say yes to this option, support will be included for the Intel
@@ -172,6 +172,9 @@ config I2C_PIIX4
 	  of Broadcom):
 	    Intel PIIX4
 	    Intel 440MX
+	    ATI IXP200
+	    ATI IXP300
+	    ATI IXP400
 	    Serverworks OSB4
 	    Serverworks CSB5
 	    Serverworks CSB6
