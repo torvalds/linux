@@ -60,7 +60,7 @@ struct w1_reg_num
 #define W1_READ_PSUPPLY		0xB4
 #define W1_MATCH_ROM		0x55
 
-#define W1_SLAVE_ACTIVE		(1<<0)
+#define W1_SLAVE_ACTIVE		0
 
 struct w1_slave
 {

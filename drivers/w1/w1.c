@@ -139,7 +139,74 @@ static struct bin_attribute w1_slave_attr_bin_id = {
 };
 
 /* Default family */
-static struct w1_family w1_default_family;
+
+static ssize_t w1_default_write(struct kobject *kobj, char *buf, loff_t off, size_t count)
+{
+	struct w1_slave *sl = kobj_to_w1_slave(kobj);
+
+	if (down_interruptible(&sl->master->mutex)) {
+		count = 0;
+		goto out;
+	}
+
+	if (w1_reset_select_slave(sl)) {
+		count = 0;
+		goto out_up;
+	}
+
+	w1_write_block(sl->master, buf, count);
+
+out_up:
+	up(&sl->master->mutex);
+out:
+	return count;
+}
+
+static ssize_t w1_default_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
+{
+	struct w1_slave *sl = kobj_to_w1_slave(kobj);
+
+	if (down_interruptible(&sl->master->mutex)) {
+		count = 0;
+		goto out;
+	}
+
+	w1_read_block(sl->master, buf, count);
+
+	up(&sl->master->mutex);
+out:
+	return count;
+}
+
+static struct bin_attribute w1_default_attr = {
+      .attr = {
+              .name = "rw",
+              .mode = S_IRUGO | S_IWUSR,
+              .owner = THIS_MODULE,
+      },
+      .size = PAGE_SIZE,
+      .read = w1_default_read,
+      .write = w1_default_write,
+};
+
+static int w1_default_add_slave(struct w1_slave *sl)
+{
+	return sysfs_create_bin_file(&sl->dev.kobj, &w1_default_attr);
+}
+
+static void w1_default_remove_slave(struct w1_slave *sl)
+{
+	sysfs_remove_bin_file(&sl->dev.kobj, &w1_default_attr);
+}
+
+static struct w1_family_ops w1_default_fops = {
+	.add_slave	= w1_default_add_slave,
+	.remove_slave	= w1_default_remove_slave,
+};
+
+static struct w1_family w1_default_family = {
+	.fops = &w1_default_fops,
+};
 
 static int w1_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size);
 
