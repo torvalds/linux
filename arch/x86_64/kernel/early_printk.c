@@ -17,9 +17,6 @@
 #define VGABASE		((void __iomem *)0xffffffff800b8000UL)
 #endif
 
-#define MAX_YPOS	max_ypos
-#define MAX_XPOS	max_xpos
-
 static int max_ypos = 25, max_xpos = 80;
 static int current_ypos = 25, current_xpos = 0;
 
@@ -29,26 +26,26 @@ static void early_vga_write(struct console *con, const char *str, unsigned n)
 	int  i, k, j;
 
 	while ((c = *str++) != '\0' && n-- > 0) {
-		if (current_ypos >= MAX_YPOS) {
+		if (current_ypos >= max_ypos) {
 			/* scroll 1 line up */
-			for (k = 1, j = 0; k < MAX_YPOS; k++, j++) {
-				for (i = 0; i < MAX_XPOS; i++) {
-					writew(readw(VGABASE + 2*(MAX_XPOS*k + i)),
-					       VGABASE + 2*(MAX_XPOS*j + i));
+			for (k = 1, j = 0; k < max_ypos; k++, j++) {
+				for (i = 0; i < max_xpos; i++) {
+					writew(readw(VGABASE+2*(max_xpos*k+i)),
+					       VGABASE + 2*(max_xpos*j + i));
 				}
 			}
-			for (i = 0; i < MAX_XPOS; i++)
-				writew(0x720, VGABASE + 2*(MAX_XPOS*j + i));
-			current_ypos = MAX_YPOS-1;
+			for (i = 0; i < max_xpos; i++)
+				writew(0x720, VGABASE + 2*(max_xpos*j + i));
+			current_ypos = max_ypos-1;
 		}
 		if (c == '\n') {
 			current_xpos = 0;
 			current_ypos++;
 		} else if (c != '\r')  {
 			writew(((0x7 << 8) | (unsigned short) c),
-			       VGABASE + 2*(MAX_XPOS*current_ypos +
+			       VGABASE + 2*(max_xpos*current_ypos +
 						current_xpos++));
-			if (current_xpos >= MAX_XPOS) {
+			if (current_xpos >= max_xpos) {
 				current_xpos = 0;
 				current_ypos++;
 			}
