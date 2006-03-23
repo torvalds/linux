@@ -1467,7 +1467,7 @@ static int
 intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
         struct intelfb_info *dinfo = GET_DINFO(info);
-	int ret;
+	u32 physical;
 #if VERBOSE > 0
 	DBG_MSG("intelfb_cursor\n");
 #endif
@@ -1478,12 +1478,10 @@ intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	intelfbhw_cursor_hide(dinfo);
 
 	/* If XFree killed the cursor - restore it */
-	if (dinfo->mobile || IS_I9xx(dinfo))
-	  ret = (INREG(CURSOR_A_BASEADDR) != dinfo->cursor.physical);
-	else
-	  ret = (INREG(CURSOR_A_BASEADDR) != dinfo->cursor.offset << 12);
+	physical = (dinfo->mobile || IS_I9xx(dinfo)) ? dinfo->cursor.physical :
+		   (dinfo->cursor.offset << 12);
 
-	if (ret) {
+	if (INREG(CURSOR_A_BASEADDR) != physical) {
 		u32 fg, bg;
 
 		DBG_MSG("the cursor was killed - restore it !!\n");

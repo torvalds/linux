@@ -566,7 +566,7 @@ static int calc_vclock3(int index, int m, int n, int p)
 		return 0;
 	return PLL_REFCLK * m / n / p;
 }
-		       
+
 static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2)
 {
 	switch(index)
@@ -578,7 +578,7 @@ static int calc_vclock(int index, int m1, int m2, int n, int p1, int p2)
 			 ((p1)) * (p2 ? 10 : 5)));
 	case PLLS_I8xx:
 	default:
-		return ((PLL_REFCLK * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / 
+		return ((PLL_REFCLK * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) /
 			 ((p1+2) * (1 << (p2 + 1)))));
 	}
 }
@@ -608,7 +608,7 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	p2 = (hw->vga_pd >> VGAPD_0_P2_SHIFT) & DPLL_P2_MASK;
 	printk("	VGA0: (m1, m2, n, p1, p2) = (%d, %d, %d, %d, %d)\n",
 	       m1, m2, n, p1, p2);
-	printk("	VGA0: clock is %d\n", 
+	printk("	VGA0: clock is %d\n",
 	       calc_vclock(index, m1, m2, n, p1, p2));
 	
 	n = (hw->vga1_divisor >> FP_N_DIVISOR_SHIFT) & FP_DIVISOR_MASK;
@@ -740,7 +740,7 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 	for (i = 0; i < 8; i++)
 		printk("	FENCE%d			0x%08x\n", i,
 		       hw->fence[i]);
-		       
+
 	printk("	INSTPM			0x%08x\n", hw->instpm);
 	printk("	MEM_MODE		0x%08x\n", hw->mem_mode);
 	printk("	FW_BLC_0		0x%08x\n", hw->fw_blc_0);
@@ -750,7 +750,7 @@ intelfbhw_print_hw_state(struct intelfb_info *dinfo, struct intelfb_hwstate *hw)
 #endif
 }
 
-	       
+
 
 /* Split the M parameter into M1 and M2. */
 static int
@@ -759,18 +759,15 @@ splitm(int index, unsigned int m, unsigned int *retm1, unsigned int *retm2)
 	int m1, m2;
 	int testm;
 	/* no point optimising too much - brute force m */
-	for (m1 = plls[index].min_m1; m1 < plls[index].max_m1+1; m1++)
-	{
-	  for (m2 = plls[index].min_m2; m2 < plls[index].max_m2+1; m2++)
-	  {
-	    testm  = ( 5 * ( m1 + 2 )) + (m2 + 2);
-	    if (testm == m)
-	    {
-		*retm1 = (unsigned int)m1;
-		*retm2 = (unsigned int)m2;	      
-		return 0;
-	    }
-	  }
+	for (m1 = plls[index].min_m1; m1 < plls[index].max_m1+1; m1++) {
+		for (m2 = plls[index].min_m2; m2 < plls[index].max_m2+1; m2++) {
+			testm  = ( 5 * ( m1 + 2 )) + (m2 + 2);
+			if (testm == m) {
+				*retm1 = (unsigned int)m1;
+				*retm2 = (unsigned int)m2;
+				return 0;
+			}
+		}
 	}
 	return 1;
 }
@@ -781,8 +778,7 @@ splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 {
 	int p1, p2;
 
-	if (index == PLLS_I9xx)
-	{
+	if (index == PLLS_I9xx) {
 		switch (p) {
 		case 10:
 			p1 = 2;
@@ -803,8 +799,7 @@ splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 		return 0;
 	}
 
-	if (index == PLLS_I8xx)
-	{
+	if (index == PLLS_I8xx) {
 		if (p % 4 == 0)
 			p2 = 1;
 		else
@@ -814,7 +809,9 @@ splitp(int index, unsigned int p, unsigned int *retp1, unsigned int *retp2)
 			p2 = 0;
 			p1 = (p / (1 << (p2 + 1))) - 2;
 		}
-		if (p1  < plls[index].min_p1 || p1 > plls[index].max_p1 || (p1 + 2) * (1 << (p2 + 1)) != p) {
+		if (p1 < plls[index].min_p1 ||
+		    p1 > plls[index].max_p1 ||
+		    (p1 + 2) * (1 << (p2 + 1)) != p) {
 			return 1;
 		} else {
 			*retp1 = (unsigned int)p1;
@@ -858,14 +855,13 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 	if (p_max > plls[index].max_p)
 		p_max = plls[index].max_p;
 
-	if (clock < PLL_REFCLK && index==PLLS_I9xx)
-	{
-	  p_min = 10;
-	  p_max = 20;
-	  /* this makes 640x480 work it really shouldn't 
-	     - SOMEONE WITHOUT DOCS WOZ HERE */
-	  if (clock < 30000)
-	    clock *= 4;
+	if (clock < PLL_REFCLK && index == PLLS_I9xx) {
+		p_min = 10;
+		p_max = 20;
+		/* this makes 640x480 work it really shouldn't
+		   - SOMEONE WITHOUT DOCS WOZ HERE */
+		if (clock < 30000)
+			clock *= 4;
 	}
 
 	DBG_MSG("p range is %d-%d (%d)\n", p_min, p_max, p_inc);
@@ -925,7 +921,7 @@ calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2, u32 *retn, u32 *re
 	DBG_MSG("m, n, p: %d (%d,%d), %d (%d), %d (%d,%d), "
 		"f: %d (%d), VCO: %d\n",
 		m, m1, m2, n, n1, p, p1, p2,
-		calc_vclock3(index, m, n, p), 
+		calc_vclock3(index, m, n, p),
 		calc_vclock(index, m1, m2, n1, p1, p2),
 		calc_vclock3(index, m, n, p) * p);
 	*retm1 = m1;
@@ -1030,7 +1026,8 @@ intelfbhw_mode_to_hw(struct intelfb_info *dinfo, struct intelfb_hwstate *hw,
 	/* Desired clock in kHz */
 	clock_target = 1000000000 / var->pixclock;
 
-	if (calc_pll_params(dinfo->pll_index, clock_target, &m1, &m2, &n, &p1, &p2, &clock)) {
+	if (calc_pll_params(dinfo->pll_index, clock_target, &m1, &m2, 
+			    &n, &p1, &p2, &clock)) {
 		WRN_MSG("calc_pll_params failed\n");
 		return 1;
 	}
@@ -1263,14 +1260,13 @@ intelfbhw_program_mode(struct intelfb_info *dinfo,
 	OUTREG(pipe_conf_reg, tmp);
 	
 	count = 0;
-	do{
+	do {
 	  tmp_val[count%3] = INREG(0x70000);
 	  if ((tmp_val[0] == tmp_val[1]) && (tmp_val[1]==tmp_val[2]))
 	    break;
 	  count++;
 	  udelay(1);
-	  if (count % 200 == 0)
-	  {
+	  if (count % 200 == 0) {
 	    tmp = INREG(pipe_conf_reg);
 	    tmp &= ~PIPECONF_ENABLE;
 	    OUTREG(pipe_conf_reg, tmp);
