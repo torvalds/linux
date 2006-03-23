@@ -17,6 +17,7 @@
 #include <linux/mempool.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
+#include <linux/blktrace_api.h>
 
 static const char *_name = DM_NAME;
 
@@ -334,6 +335,8 @@ static void dec_pending(struct dm_io *io, int error)
 			/* nudge anyone waiting on suspend queue */
 			wake_up(&io->md->wait);
 
+		blk_add_trace_bio(io->md->queue, io->bio, BLK_TA_COMPLETE);
+
 		bio_endio(io->bio, io->bio->bi_size, io->error);
 		free_io(io->md, io);
 	}
@@ -392,6 +395,7 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 		      struct target_io *tio)
 {
 	int r;
+	sector_t sector;
 
 	/*
 	 * Sanity checks.
@@ -407,10 +411,17 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 	 * this io.
 	 */
 	atomic_inc(&tio->io->io_count);
+	sector = clone->bi_sector;
 	r = ti->type->map(ti, clone, &tio->info);
-	if (r > 0)
+	if (r > 0) {
 		/* the bio has been remapped so dispatch it */
+
+		blk_add_trace_remap(bdev_get_queue(clone->bi_bdev), clone, 
+				    tio->io->bio->bi_bdev->bd_dev, sector, 
+				    clone->bi_sector);
+
 		generic_make_request(clone);
+	}
 
 	else if (r < 0) {
 		/* error the io and bail out */

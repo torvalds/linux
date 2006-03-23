@@ -38,6 +38,7 @@
 #include <linux/hdreg.h>
 #include <linux/spinlock.h>
 #include <linux/compat.h>
+#include <linux/blktrace_api.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -2331,6 +2332,7 @@ static inline void complete_command( ctlr_info_t *h, CommandList_struct *cmd,
 
 	cmd->rq->completion_data = cmd;
 	cmd->rq->errors = status;
+	blk_add_trace_rq(cmd->rq->q, cmd->rq, BLK_TA_COMPLETE);
 	blk_complete_request(cmd->rq);
 }
 

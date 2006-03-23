@@ -197,6 +197,10 @@ extern int dir_notify_enable;
 #define BLKBSZGET  _IOR(0x12,112,size_t)
 #define BLKBSZSET  _IOW(0x12,113,size_t)
 #define BLKGETSIZE64 _IOR(0x12,114,size_t)	/* return device size in bytes (u64 *arg) */
+#define BLKTRACESETUP _IOWR(0x12,115,struct blk_user_trace_setup)
+#define BLKTRACESTART _IO(0x12,116)
+#define BLKTRACESTOP _IO(0x12,117)
+#define BLKTRACETEARDOWN _IO(0x12,118)
 
 #define BMAP_IOCTL 1		/* obsolete - kept for compatibility */
 #define FIBMAP	   _IO(0x00,1)	/* bmap access */
