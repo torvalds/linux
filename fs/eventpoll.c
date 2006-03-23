@@ -452,15 +452,6 @@ static void ep_poll_safewake(struct poll_safewake *psw, wait_queue_head_t *wq)
 }
 
 
-/* Used to initialize the epoll bits inside the "struct file" */
-void eventpoll_init_file(struct file *file)
-{
-
-	INIT_LIST_HEAD(&file->f_ep_links);
-	spin_lock_init(&file->f_ep_lock);
-}
-
-
 /*
  * This is called from eventpoll_release() to unlink files from the eventpoll
  * interface. We need to have this facility to cleanup correctly files that are
