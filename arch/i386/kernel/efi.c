@@ -543,7 +543,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 		if ((md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT)) >
 		    0x100000000ULL)
 			continue;
-		res = alloc_bootmem_low(sizeof(struct resource));
+		res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
 		switch (md->type) {
 		case EFI_RESERVED_TYPE:
 			res->name = "Reserved Memory";

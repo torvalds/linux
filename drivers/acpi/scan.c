@@ -23,7 +23,6 @@ static LIST_HEAD(acpi_device_list);
 DEFINE_SPINLOCK(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
 
-static int acpi_bus_trim(struct acpi_device *start, int rmdevice);
 
 static void acpi_device_release(struct kobject *kobj)
 {
@@ -1284,7 +1283,7 @@ int acpi_bus_start(struct acpi_device *device)
 
 EXPORT_SYMBOL(acpi_bus_start);
 
-static int acpi_bus_trim(struct acpi_device *start, int rmdevice)
+int acpi_bus_trim(struct acpi_device *start, int rmdevice)
 {
 	acpi_status status;
 	struct acpi_device *parent, *child;
@@ -1337,6 +1336,8 @@ static int acpi_bus_trim(struct acpi_device *start, int rmdevice)
 	}
 	return err;
 }
+EXPORT_SYMBOL_GPL(acpi_bus_trim);
+
 
 static int acpi_bus_scan_fixed(struct acpi_device *root)
 {

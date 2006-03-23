@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2005-2006 Silicon Graphics, Inc. All rights reserved.
  *
  * This work was based on the 2.4/2.6 kernel development by Dick Reigner.
  * Work to add BIOS PROM support was completed by Mike Habeck.
@@ -230,6 +230,13 @@ static void sn_bus_free_data(struct pci_dev *dev)
 		list_for_each_entry(child, &subordinate_bus->devices, bus_list)
 			sn_bus_free_data(child);
 	}
+	/*
+	 * Some drivers may use dma accesses during the
+	 * driver remove function. We release the sysdata
+	 * areas after the driver remove functions have
+	 * been called.
+	 */
+	sn_bus_store_sysdata(dev);
 	sn_pci_unfixup_slot(dev);
 }
 
@@ -429,13 +436,6 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 				   PCI_DEVFN(slot->device_num + 1,
 				   	     PCI_FUNC(func)));
 		if (dev) {
-			/*
-			 * Some drivers may use dma accesses during the
-			 * driver remove function. We release the sysdata
-			 * areas after the driver remove functions have
-			 * been called.
-			 */
-			sn_bus_store_sysdata(dev);
 			sn_bus_free_data(dev);
 			pci_remove_bus_device(dev);
 			pci_dev_put(dev);
