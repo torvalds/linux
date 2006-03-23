@@ -139,12 +139,10 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		if (data->frozen)
 			break;
 		down(&pm_sem);
-		pm_prepare_console();
 		disable_nonboot_cpus();
 		if (freeze_processes()) {
 			thaw_processes();
 			enable_nonboot_cpus();
-			pm_restore_console();
 			error = -EBUSY;
 		}
 		up(&pm_sem);
@@ -158,7 +156,6 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		down(&pm_sem);
 		thaw_processes();
 		enable_nonboot_cpus();
-		pm_restore_console();
 		up(&pm_sem);
 		data->frozen = 0;
 		break;
