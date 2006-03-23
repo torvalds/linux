@@ -32,7 +32,6 @@
 #include <asm/pgtable.h>
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
-#include <asm/hardware.h>
 
 /*
  * This is the maximum size of an area which will be invalidated

@@ -19,7 +19,6 @@
 #include <linux/initrd.h>
 
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
 #include <asm/setup.h>
 #include <asm/tlb.h>
 

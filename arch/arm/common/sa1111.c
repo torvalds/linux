@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
@@ -35,10 +36,6 @@
 #include <asm/sizes.h>
 
 #include <asm/hardware/sa1111.h>
-
-#ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa-regs.h>
-#endif
 
 extern void __init sa1110_mb_enable(void);
 
@@ -51,6 +48,7 @@ extern void __init sa1110_mb_enable(void);
  */
 struct sa1111 {
 	struct device	*dev;
+	struct clk	*clk;
 	unsigned long	phys;
 	int		irq;
 	spinlock_t	lock;
@@ -451,19 +449,7 @@ static void sa1111_wake(struct sa1111 *sachip)
 
 	spin_lock_irqsave(&sachip->lock, flags);
 
-#ifdef CONFIG_ARCH_SA1100
-	/*
-	 * First, set up the 3.6864MHz clock on GPIO 27 for the SA-1111:
-	 * (SA-1110 Developer's Manual, section 9.1.2.1)
-	 */
-	GAFR |= GPIO_32_768kHz;
-	GPDR |= GPIO_32_768kHz;
-	TUCR = TUCR_3_6864MHz;
-#elif CONFIG_ARCH_PXA
-	pxa_gpio_mode(GPIO11_3_6MHz_MD);
-#else
-#error missing clock setup
-#endif
+	clk_enable(sachip->clk);
 
 	/*
 	 * Turn VCO on, and disable PLL Bypass.
@@ -555,12 +541,11 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 	struct sa1111_dev *dev;
 	int ret;
 
-	dev = kmalloc(sizeof(struct sa1111_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct sa1111_dev), GFP_KERNEL);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset(dev, 0, sizeof(struct sa1111_dev));
 
 	snprintf(dev->dev.bus_id, sizeof(dev->dev.bus_id),
 		 "%4.4lx", info->offset);
@@ -635,11 +620,15 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	unsigned int has_devs, val;
 	int i, ret = -ENODEV;
 
-	sachip = kmalloc(sizeof(struct sa1111), GFP_KERNEL);
+	sachip = kzalloc(sizeof(struct sa1111), GFP_KERNEL);
 	if (!sachip)
 		return -ENOMEM;
 
-	memset(sachip, 0, sizeof(struct sa1111));
+	sachip->clk = clk_get(me, "GPIO27_CLK");
+	if (!sachip->clk) {
+		ret = PTR_ERR(sachip->clk);
+		goto err_free;
+	}
 
 	spin_lock_init(&sachip->lock);
 
@@ -656,7 +645,7 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	sachip->base = ioremap(mem->start, PAGE_SIZE * 2);
 	if (!sachip->base) {
 		ret = -ENOMEM;
-		goto out;
+		goto err_clkput;
 	}
 
 	/*
@@ -666,7 +655,7 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	if ((id & SKID_ID_MASK) != SKID_SA1111_ID) {
 		printk(KERN_DEBUG "SA1111 not detected: ID = %08lx\n", id);
 		ret = -ENODEV;
-		goto unmap;
+		goto err_unmap;
 	}
 
 	printk(KERN_INFO "SA1111 Microprocessor Companion Chip: "
@@ -726,9 +715,11 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 
 	return 0;
 
- unmap:
+ err_unmap:
 	iounmap(sachip->base);
- out:
+ err_clkput:
+	clk_put(sachip->clk);
+ err_free:
 	kfree(sachip);
 	return ret;
 }
@@ -751,6 +742,8 @@ static void __sa1111_remove(struct sa1111 *sachip)
 	sa1111_writel(0, irqbase + SA1111_WAKEEN0);
 	sa1111_writel(0, irqbase + SA1111_WAKEEN1);
 
+	clk_disable(sachip->clk);
+
 	if (sachip->irq != NO_IRQ) {
 		set_irq_chained_handler(sachip->irq, NULL);
 		set_irq_data(sachip->irq, NULL);
@@ -759,6 +752,7 @@ static void __sa1111_remove(struct sa1111 *sachip)
 	}
 
 	iounmap(sachip->base);
+	clk_put(sachip->clk);
 	kfree(sachip);
 }
 
@@ -856,6 +850,8 @@ static int sa1111_suspend(struct platform_device *dev, pm_message_t state)
 	sa1111_writel(val | SKCR_SLEEP, sachip->base + SA1111_SKCR);
 	sa1111_writel(0, sachip->base + SA1111_SKPWM0);
 	sa1111_writel(0, sachip->base + SA1111_SKPWM1);
+
+	clk_disable(sachip->clk);
 
 	spin_unlock_irqrestore(&sachip->lock, flags);
 

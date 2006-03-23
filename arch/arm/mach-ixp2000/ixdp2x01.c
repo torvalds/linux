@@ -284,7 +284,7 @@ static int ixdp2x01_pci_setup(int nr, struct pci_sys_data *sys)
 {
 	sys->mem_offset = 0xe0000000;
 
-	if (machine_is_ixdp2801())
+	if (machine_is_ixdp2801() || machine_is_ixdp28x5())
 		sys->mem_offset -= ((*IXP2000_PCI_ADDR_EXT & 0xE000) << 16);
 
 	return ixp2000_pci_setup(nr, sys);
@@ -300,7 +300,8 @@ struct hw_pci ixdp2x01_pci __initdata = {
 
 int __init ixdp2x01_pci_init(void)
 {
-	if (machine_is_ixdp2401() || machine_is_ixdp2801())
+	if (machine_is_ixdp2401() || machine_is_ixdp2801() ||\
+		machine_is_ixdp28x5())
 		pci_common_init(&ixdp2x01_pci);
 
 	return 0;
@@ -391,6 +392,21 @@ MACHINE_END
 
 #ifdef CONFIG_ARCH_IXDP2801
 MACHINE_START(IXDP2801, "Intel IXDP2801 Development Platform")
+	/* Maintainer: MontaVista Software, Inc. */
+	.phys_io	= IXP2000_UART_PHYS_BASE,
+	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.map_io		= ixdp2x01_map_io,
+	.init_irq	= ixdp2x01_init_irq,
+	.timer		= &ixdp2x01_timer,
+	.init_machine	= ixdp2x01_init_machine,
+MACHINE_END
+
+/*
+ * IXDP28x5 is basically an IXDP2801 with a different CPU but Intel
+ * changed the machine ID in the bootloader
+ */
+MACHINE_START(IXDP28X5, "Intel IXDP2805/2855 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
 	.phys_io	= IXP2000_UART_PHYS_BASE,
 	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,

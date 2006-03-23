@@ -3,7 +3,7 @@
 #
 
 # Common support (must be linked before board specific support)
-obj-y += generic.o irq.o dma.o time.o
+obj-y += clock.o generic.o irq.o dma.o time.o
 obj-$(CONFIG_PXA25x) += pxa25x.o
 obj-$(CONFIG_PXA27x) += pxa27x.o
 

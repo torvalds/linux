@@ -23,18 +23,5 @@
 #endif
 		.endm
 
-		.macro	senduart,rd,rx
-		strb	\rd, [\rx]
-		.endm
-
-		.macro	busyuart,rd,rx
-1002:		ldrb	\rd, [\rx, #0x14]
-		tst	\rd, #0x20
-		beq	1002b
-		.endm
-
-		.macro	waituart,rd,rx
-		nop
-		nop
-		nop
-		.endm
+#define UART_SHIFT	2
+#include <asm/hardware/debug-8250.S>

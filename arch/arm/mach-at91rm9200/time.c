@@ -71,11 +71,11 @@ static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id, struct pt_r
 	if (at91_sys_read(AT91_ST_SR) & AT91_ST_PITS) {	/* This is a shared interrupt */
 		write_seqlock(&xtime_lock);
 
-		do {
+		while (((read_CRTR() - at91_sys_read(AT91_ST_RTAR)) & AT91_ST_ALMV) >= LATCH) {
 			timer_tick(regs);
 			rtar = (at91_sys_read(AT91_ST_RTAR) + LATCH) & AT91_ST_ALMV;
 			at91_sys_write(AT91_ST_RTAR, rtar);
-		} while (((read_CRTR() - at91_sys_read(AT91_ST_RTAR)) & AT91_ST_ALMV) >= LATCH);
+		}
 
 		write_sequnlock(&xtime_lock);
 

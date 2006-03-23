@@ -463,7 +463,7 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 	if (nr >= 1)
 		return 0;
 
-	res = kmalloc(sizeof(*res) * 2, GFP_KERNEL);
+	res = kzalloc(sizeof(*res) * 2, GFP_KERNEL);
 	if (res == NULL) {
 		/* 
 		 * If we're out of memory this early, something is wrong,
@@ -471,7 +471,6 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 		 */
 		panic("PCI: unable to allocate resources?\n");
 	}
-	memset(res, 0, sizeof(*res) * 2);
 
 	local_write_config(PCI_COMMAND, 2, PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY);
 

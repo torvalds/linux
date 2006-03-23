@@ -28,21 +28,8 @@
 #endif
 		.endm
 
-		.macro	senduart,rd,rx
-		strb	\rd, [\rx]
-		.endm
-
-		.macro	busyuart,rd,rx
-1002:		ldrb	\rd, [\rx, #0x5]
-		and	\rd, \rd, #0x60
-		teq	\rd, #0x60
-		bne	1002b
-		.endm
-
-		.macro	waituart,rd,rx
 #if !defined(CONFIG_ARCH_IQ80321) || !defined(CONFIG_ARCH_IQ31244) || !defined(CONFIG_ARCH_IQ80331)
-1001:		ldrb	\rd, [\rx, #0x6]
-		tst	\rd, #0x10
-		beq	1001b
+#define FLOW_CONTROL
 #endif
-		.endm
+#define UART_SHIFT	0
+#include <asm/hardware/debug-8250.S>

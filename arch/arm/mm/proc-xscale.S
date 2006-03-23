@@ -24,7 +24,6 @@
 #include <linux/init.h>
 #include <asm/assembler.h>
 #include <asm/procinfo.h>
-#include <asm/hardware.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
