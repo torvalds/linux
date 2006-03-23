@@ -31,6 +31,15 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
+config STACK_BACKTRACE_COLS
+	int "Stack backtraces per line" if DEBUG_KERNEL
+	range 1 3
+	default 2
+	help
+	  Selects how many stack backtrace entries per line to display.
+
+	  This can save screen space when displaying traces.
+
 comment "Page alloc debug is incompatible with Software Suspend on i386"
 	depends on DEBUG_KERNEL && SOFTWARE_SUSPEND
 

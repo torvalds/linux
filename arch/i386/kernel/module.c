@@ -104,26 +104,38 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	return -ENOEXEC;
 }
 
-extern void apply_alternatives(void *start, void *end); 
-
 int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
-	const Elf_Shdr *s;
+	const Elf_Shdr *s, *text = NULL, *alt = NULL, *locks = NULL;
 	char *secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 
-	/* look for .altinstructions to patch */ 
 	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) { 
-		void *seg; 		
-		if (strcmp(".altinstructions", secstrings + s->sh_name))
-			continue;
-		seg = (void *)s->sh_addr; 
-		apply_alternatives(seg, seg + s->sh_size); 
-	} 	
+		if (!strcmp(".text", secstrings + s->sh_name))
+			text = s;
+		if (!strcmp(".altinstructions", secstrings + s->sh_name))
+			alt = s;
+		if (!strcmp(".smp_locks", secstrings + s->sh_name))
+			locks= s;
+	}
+
+	if (alt) {
+		/* patch .altinstructions */
+		void *aseg = (void *)alt->sh_addr;
+		apply_alternatives(aseg, aseg + alt->sh_size);
+	}
+	if (locks && text) {
+		void *lseg = (void *)locks->sh_addr;
+		void *tseg = (void *)text->sh_addr;
+		alternatives_smp_module_add(me, me->name,
+					    lseg, lseg + locks->sh_size,
+					    tseg, tseg + text->sh_size);
+	}
 	return 0;
 }
 
 void module_arch_cleanup(struct module *mod)
 {
+	alternatives_smp_module_del(mod);
 }

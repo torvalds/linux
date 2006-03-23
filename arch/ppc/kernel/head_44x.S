@@ -1,6 +1,4 @@
 /*
- * arch/ppc/kernel/head_44x.S
- *
  * Kernel execution entry point code.
  *
  *    Copyright (c) 1995-1996 Gary Thomas <gdt@linuxppc.org>

@@ -799,9 +799,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
          */
 	print_cpu_info(&S390_lowcore.cpu_data);
 
-        for(i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i))
-			continue;
+        for_each_cpu(i) {
 		lowcore_ptr[i] = (struct _lowcore *)
 			__get_free_pages(GFP_KERNEL|GFP_DMA, 
 					sizeof(void*) == 8 ? 1 : 0);

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/mpc52xx_setup.c
- *
  * Common code for the boards based on Freescale MPC52xx embedded CPU.
  *
  * 

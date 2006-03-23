@@ -46,6 +46,7 @@
 #include <linux/rwsem.h>
 #include <linux/stddef.h>
 #include <linux/device.h>
+#include <linux/mutex.h>
 #include <net/slhc_vj.h>
 #include <asm/atomic.h>
 
@@ -198,11 +199,11 @@ static unsigned int cardmap_find_first_free(struct cardmap *map);
 static void cardmap_destroy(struct cardmap **map);
 
 /*
- * all_ppp_sem protects the all_ppp_units mapping.
+ * all_ppp_mutex protects the all_ppp_units mapping.
  * It also ensures that finding a ppp unit in the all_ppp_units map
  * and updating its file.refcnt field is atomic.
  */
-static DECLARE_MUTEX(all_ppp_sem);
+static DEFINE_MUTEX(all_ppp_mutex);
 static struct cardmap *all_ppp_units;
 static atomic_t ppp_unit_count = ATOMIC_INIT(0);
 
@@ -804,7 +805,7 @@ static int ppp_unattached_ioctl(struct ppp_file *pf, struct file *file,
 		/* Attach to an existing ppp unit */
 		if (get_user(unit, p))
 			break;
-		down(&all_ppp_sem);
+		mutex_lock(&all_ppp_mutex);
 		err = -ENXIO;
 		ppp = ppp_find_unit(unit);
 		if (ppp != 0) {
@@ -812,7 +813,7 @@ static int ppp_unattached_ioctl(struct ppp_file *pf, struct file *file,
 			file->private_data = &ppp->file;
 			err = 0;
 		}
-		up(&all_ppp_sem);
+		mutex_unlock(&all_ppp_mutex);
 		break;
 
 	case PPPIOCATTCHAN:
@@ -2446,7 +2447,7 @@ ppp_create_interface(int unit, int *retp)
 	dev->do_ioctl = ppp_net_ioctl;
 
 	ret = -EEXIST;
-	down(&all_ppp_sem);
+	mutex_lock(&all_ppp_mutex);
 	if (unit < 0)
 		unit = cardmap_find_first_free(all_ppp_units);
 	else if (cardmap_get(all_ppp_units, unit) != NULL)
@@ -2465,12 +2466,12 @@ ppp_create_interface(int unit, int *retp)
 
 	atomic_inc(&ppp_unit_count);
 	cardmap_set(&all_ppp_units, unit, ppp);
-	up(&all_ppp_sem);
+	mutex_unlock(&all_ppp_mutex);
 	*retp = 0;
 	return ppp;
 
 out2:
-	up(&all_ppp_sem);
+	mutex_unlock(&all_ppp_mutex);
 	free_netdev(dev);
 out1:
 	kfree(ppp);
@@ -2500,7 +2501,7 @@ static void ppp_shutdown_interface(struct ppp *ppp)
 {
 	struct net_device *dev;
 
-	down(&all_ppp_sem);
+	mutex_lock(&all_ppp_mutex);
 	ppp_lock(ppp);
 	dev = ppp->dev;
 	ppp->dev = NULL;
@@ -2514,7 +2515,7 @@ static void ppp_shutdown_interface(struct ppp *ppp)
 	ppp->file.dead = 1;
 	ppp->owner = NULL;
 	wake_up_interruptible(&ppp->file.rwait);
-	up(&all_ppp_sem);
+	mutex_unlock(&all_ppp_mutex);
 }
 
 /*
@@ -2556,7 +2557,7 @@ static void ppp_destroy_interface(struct ppp *ppp)
 
 /*
  * Locate an existing ppp unit.
- * The caller should have locked the all_ppp_sem.
+ * The caller should have locked the all_ppp_mutex.
  */
 static struct ppp *
 ppp_find_unit(int unit)
@@ -2601,7 +2602,7 @@ ppp_connect_channel(struct channel *pch, int unit)
 	int ret = -ENXIO;
 	int hdrlen;
 
-	down(&all_ppp_sem);
+	mutex_lock(&all_ppp_mutex);
 	ppp = ppp_find_unit(unit);
 	if (ppp == 0)
 		goto out;
@@ -2626,7 +2627,7 @@ ppp_connect_channel(struct channel *pch, int unit)
  outl:
 	write_unlock_bh(&pch->upl);
  out:
-	up(&all_ppp_sem);
+	mutex_unlock(&all_ppp_mutex);
 	return ret;
 }
 

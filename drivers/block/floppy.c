@@ -179,6 +179,7 @@ static int print_unex = 1;
 #include <linux/devfs_fs_kernel.h>
 #include <linux/platform_device.h>
 #include <linux/buffer_head.h>	/* for invalidate_buffers() */
+#include <linux/mutex.h>
 
 /*
  * PS/2 floppies have much slower step rates than regular floppies.
@@ -413,7 +414,7 @@ static struct floppy_write_errors write_errors[N_DRIVE];
 static struct timer_list motor_off_timer[N_DRIVE];
 static struct gendisk *disks[N_DRIVE];
 static struct block_device *opened_bdev[N_DRIVE];
-static DECLARE_MUTEX(open_lock);
+static DEFINE_MUTEX(open_lock);
 static struct floppy_raw_cmd *raw_cmd, default_raw_cmd;
 
 /*
@@ -3333,7 +3334,7 @@ static inline int set_geometry(unsigned int cmd, struct floppy_struct *g,
 	if (type) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		down(&open_lock);
+		mutex_lock(&open_lock);
 		LOCK_FDC(drive, 1);
 		floppy_type[type] = *g;
 		floppy_type[type].name = "user format";
@@ -3347,7 +3348,7 @@ static inline int set_geometry(unsigned int cmd, struct floppy_struct *g,
 				continue;
 			__invalidate_device(bdev);
 		}
-		up(&open_lock);
+		mutex_unlock(&open_lock);
 	} else {
 		int oldStretch;
 		LOCK_FDC(drive, 1);
@@ -3674,7 +3675,7 @@ static int floppy_release(struct inode *inode, struct file *filp)
 {
 	int drive = (long)inode->i_bdev->bd_disk->private_data;
 
-	down(&open_lock);
+	mutex_lock(&open_lock);
 	if (UDRS->fd_ref < 0)
 		UDRS->fd_ref = 0;
 	else if (!UDRS->fd_ref--) {
@@ -3684,7 +3685,7 @@ static int floppy_release(struct inode *inode, struct file *filp)
 	if (!UDRS->fd_ref)
 		opened_bdev[drive] = NULL;
 	floppy_release_irq_and_dma();
-	up(&open_lock);
+	mutex_unlock(&open_lock);
 	return 0;
 }
 
@@ -3702,7 +3703,7 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	char *tmp;
 
 	filp->private_data = (void *)0;
-	down(&open_lock);
+	mutex_lock(&open_lock);
 	old_dev = UDRS->fd_device;
 	if (opened_bdev[drive] && opened_bdev[drive] != inode->i_bdev)
 		goto out2;
@@ -3785,7 +3786,7 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		if ((filp->f_mode & 2) && !(UTESTF(FD_DISK_WRITABLE)))
 			goto out;
 	}
-	up(&open_lock);
+	mutex_unlock(&open_lock);
 	return 0;
 out:
 	if (UDRS->fd_ref < 0)
@@ -3796,7 +3797,7 @@ out:
 		opened_bdev[drive] = NULL;
 	floppy_release_irq_and_dma();
 out2:
-	up(&open_lock);
+	mutex_unlock(&open_lock);
 	return res;
 }
 

@@ -37,7 +37,7 @@ int seq_open(struct file *file, struct seq_operations *op)
 		file->private_data = p;
 	}
 	memset(p, 0, sizeof(*p));
-	sema_init(&p->sem, 1);
+	mutex_init(&p->lock);
 	p->op = op;
 
 	/*
@@ -71,7 +71,7 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 	void *p;
 	int err = 0;
 
-	down(&m->sem);
+	mutex_lock(&m->lock);
 	/*
 	 * seq_file->op->..m_start/m_stop/m_next may do special actions
 	 * or optimisations based on the file->f_version, so we want to
@@ -164,7 +164,7 @@ Done:
 	else
 		*ppos += copied;
 	file->f_version = m->version;
-	up(&m->sem);
+	mutex_unlock(&m->lock);
 	return copied;
 Enomem:
 	err = -ENOMEM;
@@ -237,7 +237,7 @@ loff_t seq_lseek(struct file *file, loff_t offset, int origin)
 	struct seq_file *m = (struct seq_file *)file->private_data;
 	long long retval = -EINVAL;
 
-	down(&m->sem);
+	mutex_lock(&m->lock);
 	m->version = file->f_version;
 	switch (origin) {
 		case 1:
@@ -260,7 +260,7 @@ loff_t seq_lseek(struct file *file, loff_t offset, int origin)
 				}
 			}
 	}
-	up(&m->sem);
+	mutex_unlock(&m->lock);
 	file->f_version = m->version;
 	return retval;
 }

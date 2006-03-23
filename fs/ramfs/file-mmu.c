@@ -24,18 +24,7 @@
  * caches is sufficient.
  */
 
-#include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/pagemap.h>
-#include <linux/highmem.h>
-#include <linux/init.h>
-#include <linux/string.h>
-#include <linux/smp_lock.h>
-#include <linux/backing-dev.h>
-#include <linux/ramfs.h>
-
-#include <asm/uaccess.h>
-#include "internal.h"
 
 struct address_space_operations ramfs_aops = {
 	.readpage	= simple_readpage,

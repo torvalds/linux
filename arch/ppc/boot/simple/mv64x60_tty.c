@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/simple/mv64x60_tty.c
- *
  * Bootloader version of the embedded MPSC/UART driver for the Marvell 64x60.
  * Note: Due to a GT64260A erratum, DMA will be used for UART input (via SDMA).
  *

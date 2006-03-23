@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/85xx/sbc8560.h
- *
  * Wind River SBC8560 board definitions
  *
  * Copyright 2003 Motorola Inc.

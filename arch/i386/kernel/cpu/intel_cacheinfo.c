@@ -174,7 +174,7 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 	unsigned int new_l1d = 0, new_l1i = 0; /* Cache sizes from cpuid(4) */
 	unsigned int new_l2 = 0, new_l3 = 0, i; /* Cache sizes from cpuid(4) */
 
-	if (c->cpuid_level > 4) {
+	if (c->cpuid_level > 3) {
 		static int is_initialized;
 
 		if (is_initialized == 0) {
@@ -330,7 +330,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 		}
 	}
 }
-static void __devinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
+static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
 {
 	struct _cpuid4_info	*this_leaf, *sibling_leaf;
 	int sibling;

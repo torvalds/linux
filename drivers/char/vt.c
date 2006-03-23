@@ -2489,7 +2489,7 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 }
 
 /*
- * We take tty_sem in here to prevent another thread from coming in via init_dev
+ * We take tty_mutex in here to prevent another thread from coming in via init_dev
  * and taking a ref against the tty while we're in the process of forgetting
  * about it and cleaning things up.
  *
@@ -2497,7 +2497,7 @@ static int con_open(struct tty_struct *tty, struct file *filp)
  */
 static void con_close(struct tty_struct *tty, struct file *filp)
 {
-	down(&tty_sem);
+	mutex_lock(&tty_mutex);
 	acquire_console_sem();
 	if (tty && tty->count == 1) {
 		struct vc_data *vc = tty->driver_data;
@@ -2507,15 +2507,15 @@ static void con_close(struct tty_struct *tty, struct file *filp)
 		tty->driver_data = NULL;
 		release_console_sem();
 		vcs_remove_devfs(tty);
-		up(&tty_sem);
+		mutex_unlock(&tty_mutex);
 		/*
-		 * tty_sem is released, but we still hold BKL, so there is
+		 * tty_mutex is released, but we still hold BKL, so there is
 		 * still exclusion against init_dev()
 		 */
 		return;
 	}
 	release_console_sem();
-	up(&tty_sem);
+	mutex_unlock(&tty_mutex);
 }
 
 static void vc_init(struct vc_data *vc, unsigned int rows,
@@ -2869,9 +2869,9 @@ void unblank_screen(void)
 }
 
 /*
- * We defer the timer blanking to work queue so it can take the console semaphore
+ * We defer the timer blanking to work queue so it can take the console mutex
  * (console operations can still happen at irq time, but only from printk which
- * has the console semaphore. Not perfect yet, but better than no locking
+ * has the console mutex. Not perfect yet, but better than no locking
  */
 static void blank_screen_t(unsigned long dummy)
 {
@@ -3232,6 +3232,14 @@ void vcs_scr_writew(struct vc_data *vc, u16 val, u16 *org)
 		softcursor_original = -1;
 		add_softcursor(vc);
 	}
+}
+
+int is_console_suspend_safe(void)
+{
+	/* It is unsafe to suspend devices while X has control of the
+	 * hardware. Make sure we are running on a kernel-controlled console.
+	 */
+	return vc_cons[fg_console].d->vc_mode == KD_TEXT;
 }
 
 /*

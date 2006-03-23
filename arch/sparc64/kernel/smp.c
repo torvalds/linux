@@ -57,25 +57,21 @@ void smp_info(struct seq_file *m)
 	int i;
 	
 	seq_printf(m, "State:\n");
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_online(i))
-			seq_printf(m,
-				   "CPU%d:\t\tonline\n", i);
-	}
+	for_each_online_cpu(i)
+		seq_printf(m, "CPU%d:\t\tonline\n", i);
 }
 
 void smp_bogo(struct seq_file *m)
 {
 	int i;
 	
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_online(i))
-			seq_printf(m,
-				   "Cpu%dBogo\t: %lu.%02lu\n"
-				   "Cpu%dClkTck\t: %016lx\n",
-				   i, cpu_data(i).udelay_val / (500000/HZ),
-				   (cpu_data(i).udelay_val / (5000/HZ)) % 100,
-				   i, cpu_data(i).clock_tick);
+	for_each_online_cpu(i)
+		seq_printf(m,
+			   "Cpu%dBogo\t: %lu.%02lu\n"
+			   "Cpu%dClkTck\t: %016lx\n",
+			   i, cpu_data(i).udelay_val / (500000/HZ),
+			   (cpu_data(i).udelay_val / (5000/HZ)) % 100,
+			   i, cpu_data(i).clock_tick);
 }
 
 void __init smp_store_cpu_info(int id)
@@ -1282,7 +1278,7 @@ int setup_profiling_timer(unsigned int multiplier)
 		return -EINVAL;
 
 	spin_lock_irqsave(&prof_setup_lock, flags);
-	for (i = 0; i < NR_CPUS; i++)
+	for_each_cpu(i)
 		prof_multiplier(i) = multiplier;
 	current_tick_offset = (timer_tick_offset / multiplier);
 	spin_unlock_irqrestore(&prof_setup_lock, flags);
@@ -1384,10 +1380,8 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	unsigned long bogosum = 0;
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_online(i))
-			bogosum += cpu_data(i).udelay_val;
-	}
+	for_each_online_cpu(i)
+		bogosum += cpu_data(i).udelay_val;
 	printk("Total of %ld processors activated "
 	       "(%lu.%02lu BogoMIPS).\n",
 	       (long) num_online_cpus(),

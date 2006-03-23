@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibm440sp.h
- *
  * PPC440SP definitions
  *
  * Matt Porter <mporter@kernel.crashing.org>

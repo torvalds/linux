@@ -1157,32 +1157,6 @@ static int cm206_audio_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
 	}
 }
 
-/* Ioctl. These ioctls are specific to the cm206 driver. I have made
-   some driver statistics accessible through ioctl calls.
- */
-
-static int cm206_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
-		       unsigned long arg)
-{
-	switch (cmd) {
-#ifdef STATISTICS
-	case CM206CTL_GET_STAT:
-		if (arg >= NR_STATS)
-			return -EINVAL;
-		else
-			return cd->stats[arg];
-	case CM206CTL_GET_LAST_STAT:
-		if (arg >= NR_STATS)
-			return -EINVAL;
-		else
-			return cd->last_stat[arg];
-#endif
-	default:
-		debug(("Unknown ioctl call 0x%x\n", cmd));
-		return -EINVAL;
-	}
-}
-
 static int cm206_media_changed(struct cdrom_device_info *cdi, int disc_nr)
 {
 	if (cd != NULL) {
@@ -1321,11 +1295,10 @@ static struct cdrom_device_ops cm206_dops = {
 	.get_mcn		= cm206_get_upc,
 	.reset			= cm206_reset,
 	.audio_ioctl		= cm206_audio_ioctl,
-	.dev_ioctl		= cm206_ioctl,
 	.capability		= CDC_CLOSE_TRAY | CDC_OPEN_TRAY | CDC_LOCK |
 				  CDC_MULTI_SESSION | CDC_MEDIA_CHANGED |
 				  CDC_MCN | CDC_PLAY_AUDIO | CDC_SELECT_SPEED |
-				  CDC_IOCTLS | CDC_DRIVE_STATUS,
+				  CDC_DRIVE_STATUS,
 	.n_minors		= 1,
 };
 
@@ -1350,6 +1323,21 @@ static int cm206_block_release(struct inode *inode, struct file *file)
 static int cm206_block_ioctl(struct inode *inode, struct file *file,
 				unsigned cmd, unsigned long arg)
 {
+	switch (cmd) {
+#ifdef STATISTICS
+	case CM206CTL_GET_STAT:
+		if (arg >= NR_STATS)
+			return -EINVAL;
+		return cd->stats[arg];
+	case CM206CTL_GET_LAST_STAT:
+		if (arg >= NR_STATS)
+			return -EINVAL;
+		return cd->last_stat[arg];
+#endif
+	default:
+		break;
+	}
+
 	return cdrom_ioctl(file, &cm206_info, inode, cmd, arg);
 }
 

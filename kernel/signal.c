@@ -1922,6 +1922,8 @@ int get_signal_to_deliver(siginfo_t *info, struct k_sigaction *return_ka,
 	sigset_t *mask = &current->blocked;
 	int signr = 0;
 
+	try_to_freeze();
+
 relock:
 	spin_lock_irq(&current->sighand->siglock);
 	for (;;) {
@@ -2099,10 +2101,11 @@ long do_no_restart_syscall(struct restart_block *param)
 int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
 {
 	int error;
-	sigset_t old_block;
 
 	spin_lock_irq(&current->sighand->siglock);
-	old_block = current->blocked;
+	if (oldset)
+		*oldset = current->blocked;
+
 	error = 0;
 	switch (how) {
 	case SIG_BLOCK:
@@ -2119,8 +2122,7 @@ int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
 	}
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
-	if (oldset)
-		*oldset = old_block;
+
 	return error;
 }
 
@@ -2307,7 +2309,6 @@ sys_rt_sigtimedwait(const sigset_t __user *uthese,
 
 			timeout = schedule_timeout_interruptible(timeout);
 
-			try_to_freeze();
 			spin_lock_irq(&current->sighand->siglock);
 			sig = dequeue_signal(current, &these, &info);
 			current->blocked = current->real_blocked;

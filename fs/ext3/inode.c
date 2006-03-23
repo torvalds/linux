@@ -671,7 +671,7 @@ err_out:
  * The BKL may not be held on entry here.  Be sure to take it early.
  */
 
-static int
+int
 ext3_get_block_handle(handle_t *handle, struct inode *inode, sector_t iblock,
 		struct buffer_head *bh_result, int create, int extend_disksize)
 {
@@ -702,7 +702,7 @@ ext3_get_block_handle(handle_t *handle, struct inode *inode, sector_t iblock,
 	if (!create || err == -EIO)
 		goto cleanup;
 
-	down(&ei->truncate_sem);
+	mutex_lock(&ei->truncate_mutex);
 
 	/*
 	 * If the indirect block is missing while we are reading
@@ -723,7 +723,7 @@ ext3_get_block_handle(handle_t *handle, struct inode *inode, sector_t iblock,
 		}
 		partial = ext3_get_branch(inode, depth, offsets, chain, &err);
 		if (!partial) {
-			up(&ei->truncate_sem);
+			mutex_unlock(&ei->truncate_mutex);
 			if (err)
 				goto cleanup;
 			clear_buffer_new(bh_result);
@@ -759,13 +759,13 @@ ext3_get_block_handle(handle_t *handle, struct inode *inode, sector_t iblock,
 		err = ext3_splice_branch(handle, inode, iblock, chain,
 					 partial, left);
 	/*
-	 * i_disksize growing is protected by truncate_sem.  Don't forget to
+	 * i_disksize growing is protected by truncate_mutex.  Don't forget to
 	 * protect it if you're about to implement concurrent
 	 * ext3_get_block() -bzzz
 	*/
 	if (!err && extend_disksize && inode->i_size > ei->i_disksize)
 		ei->i_disksize = inode->i_size;
-	up(&ei->truncate_sem);
+	mutex_unlock(&ei->truncate_mutex);
 	if (err)
 		goto cleanup;
 
@@ -1227,7 +1227,7 @@ static int journal_dirty_data_fn(handle_t *handle, struct buffer_head *bh)
  *	ext3_file_write() -> generic_file_write() -> __alloc_pages() -> ...
  *
  * Same applies to ext3_get_block().  We will deadlock on various things like
- * lock_journal and i_truncate_sem.
+ * lock_journal and i_truncate_mutex.
  *
  * Setting PF_MEMALLOC here doesn't work - too many internal memory
  * allocations fail.
@@ -2161,7 +2161,7 @@ void ext3_truncate(struct inode * inode)
 	 * From here we block out all ext3_get_block() callers who want to
 	 * modify the block allocation tree.
 	 */
-	down(&ei->truncate_sem);
+	mutex_lock(&ei->truncate_mutex);
 
 	if (n == 1) {		/* direct blocks */
 		ext3_free_data(handle, inode, NULL, i_data+offsets[0],
@@ -2228,7 +2228,7 @@ do_indirects:
 
 	ext3_discard_reservation(inode);
 
-	up(&ei->truncate_sem);
+	mutex_unlock(&ei->truncate_mutex);
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
 	ext3_mark_inode_dirty(handle, inode);
 

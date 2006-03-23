@@ -170,10 +170,10 @@ static void quota_sync_sb(struct super_block *sb, int type)
 
 	/* Now when everything is written we can discard the pagecache so
 	 * that userspace sees the changes. We need i_mutex and so we could
-	 * not do it inside dqonoff_sem. Moreover we need to be carefull
+	 * not do it inside dqonoff_mutex. Moreover we need to be carefull
 	 * about races with quotaoff() (that is the reason why we have own
 	 * reference to inode). */
-	down(&sb_dqopt(sb)->dqonoff_sem);
+	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		discard[cnt] = NULL;
 		if (type != -1 && cnt != type)
@@ -182,7 +182,7 @@ static void quota_sync_sb(struct super_block *sb, int type)
 			continue;
 		discard[cnt] = igrab(sb_dqopt(sb)->files[cnt]);
 	}
-	up(&sb_dqopt(sb)->dqonoff_sem);
+	mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (discard[cnt]) {
 			mutex_lock(&discard[cnt]->i_mutex);

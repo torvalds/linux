@@ -451,10 +451,9 @@ ocp_driver_init(void)
 	DBG(("ocp: ocp_driver_init()...\n"));
 
 	/* Allocate/register primary OCP bus */
-	ocp_bus = kmalloc(sizeof(struct device), GFP_KERNEL);
+	ocp_bus = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (ocp_bus == NULL)
 		return 1;
-	memset(ocp_bus, 0, sizeof(struct device));
 	strcpy(ocp_bus->bus_id, "ocp");
 
 	bus_register(&ocp_bus_type);

@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/vt_kern.h>
 #include <linux/device.h>
 #include "../base.h"
 #include "power.h"
@@ -62,7 +63,6 @@ int suspend_device(struct device * dev, pm_message_t state)
 	return error;
 }
 
-
 /**
  *	device_suspend - Save state and stop all devices in system.
  *	@state:		Power state to put each device in.
@@ -81,6 +81,9 @@ int suspend_device(struct device * dev, pm_message_t state)
 int device_suspend(pm_message_t state)
 {
 	int error = 0;
+
+	if (!is_console_suspend_safe())
+		return -EINVAL;
 
 	down(&dpm_sem);
 	down(&dpm_list_sem);

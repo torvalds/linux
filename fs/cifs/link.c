@@ -48,10 +48,10 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 /* No need to check for cross device links since server will do that
    BB note DFS case in future though (when we may have to check) */
 
-	down(&inode->i_sb->s_vfs_rename_sem);
+	mutex_lock(&inode->i_sb->s_vfs_rename_mutex);
 	fromName = build_path_from_dentry(old_file);
 	toName = build_path_from_dentry(direntry);
-	up(&inode->i_sb->s_vfs_rename_sem);
+	mutex_unlock(&inode->i_sb->s_vfs_rename_mutex);
 	if((fromName == NULL) || (toName == NULL)) {
 		rc = -ENOMEM;
 		goto cifs_hl_exit;
@@ -103,9 +103,9 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 
 	xid = GetXid();
 
-	down(&direntry->d_sb->s_vfs_rename_sem);
+	mutex_lock(&direntry->d_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(direntry);
-	up(&direntry->d_sb->s_vfs_rename_sem);
+	mutex_unlock(&direntry->d_sb->s_vfs_rename_mutex);
 
 	if (!full_path)
 		goto out_no_free;
@@ -164,9 +164,9 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
-	down(&inode->i_sb->s_vfs_rename_sem);
+	mutex_lock(&inode->i_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(direntry);
-	up(&inode->i_sb->s_vfs_rename_sem);
+	mutex_unlock(&inode->i_sb->s_vfs_rename_mutex);
 
 	if(full_path == NULL) {
 		FreeXid(xid);
@@ -232,9 +232,9 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 
 /* BB would it be safe against deadlock to grab this sem 
       even though rename itself grabs the sem and calls lookup? */
-/*       down(&inode->i_sb->s_vfs_rename_sem);*/
+/*       mutex_lock(&inode->i_sb->s_vfs_rename_mutex);*/
 	full_path = build_path_from_dentry(direntry);
-/*       up(&inode->i_sb->s_vfs_rename_sem);*/
+/*       mutex_unlock(&inode->i_sb->s_vfs_rename_mutex);*/
 
 	if(full_path == NULL) {
 		FreeXid(xid);

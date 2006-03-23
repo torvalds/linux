@@ -1145,9 +1145,7 @@ static int __cpuinit powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0;
 
-	for (i=0; i<NR_CPUS; i++) {
-		if (!cpu_online(i))
-			continue;
+	for_each_cpu(i) {
 		if (check_supported_cpu(i))
 			supported_cpus++;
 	}

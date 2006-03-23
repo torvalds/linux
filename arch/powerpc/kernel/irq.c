@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/kernel/irq.c
- *
  *  Derived from arch/i386/kernel/irq.c
  *    Copyright (C) 1992 Linus Torvalds
  *  Adapted from arch/i386 by Gary Thomas
@@ -137,9 +135,8 @@ skip:
 #ifdef CONFIG_TAU_INT
 		if (tau_initialized){
 			seq_puts(p, "TAU: ");
-			for (j = 0; j < NR_CPUS; j++)
-				if (cpu_online(j))
-					seq_printf(p, "%10u ", tau_interrupts(j));
+			for_each_online_cpu(j)
+				seq_printf(p, "%10u ", tau_interrupts(j));
 			seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
 		}
 #endif
@@ -371,6 +368,7 @@ unsigned int real_irq_to_virt_slowpath(unsigned int real_irq)
 	return NO_IRQ;
 
 }
+#endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_IRQSTACKS
 struct thread_info *softirq_ctx[NR_CPUS];
@@ -394,10 +392,24 @@ void irq_ctx_init(void)
 	}
 }
 
+static inline void do_softirq_onstack(void)
+{
+	struct thread_info *curtp, *irqtp;
+
+	curtp = current_thread_info();
+	irqtp = softirq_ctx[smp_processor_id()];
+	irqtp->task = curtp->task;
+	call_do_softirq(irqtp);
+	irqtp->task = NULL;
+}
+
+#else
+#define do_softirq_onstack()	__do_softirq()
+#endif /* CONFIG_IRQSTACKS */
+
 void do_softirq(void)
 {
 	unsigned long flags;
-	struct thread_info *curtp, *irqtp;
 
 	if (in_interrupt())
 		return;
@@ -405,19 +417,18 @@ void do_softirq(void)
 	local_irq_save(flags);
 
 	if (local_softirq_pending()) {
-		curtp = current_thread_info();
-		irqtp = softirq_ctx[smp_processor_id()];
-		irqtp->task = curtp->task;
-		call_do_softirq(irqtp);
-		irqtp->task = NULL;
+		account_system_vtime(current);
+		local_bh_disable();
+		do_softirq_onstack();
+		account_system_vtime(current);
+		__local_bh_enable();
 	}
 
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(do_softirq);
 
-#endif /* CONFIG_IRQSTACKS */
-
+#ifdef CONFIG_PPC64
 static int __init setup_noirqdistrib(char *str)
 {
 	distribute_irqs = 0;

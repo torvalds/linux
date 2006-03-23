@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/pal4.h
- *
  * Definitions for SBS Palomar IV board
  *
  * Author: Dan Cox

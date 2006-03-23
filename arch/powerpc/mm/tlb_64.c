@@ -36,7 +36,7 @@
 DEFINE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
 
 /* This is declared as we are using the more or less generic
- * include/asm-ppc64/tlb.h file -- tgall
+ * include/asm-powerpc/tlb.h file -- tgall
  */
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 DEFINE_PER_CPU(struct pte_freelist_batch *, pte_freelist_cur);

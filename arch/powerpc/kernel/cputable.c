@@ -894,7 +894,7 @@ struct cpu_spec	cpu_specs[] = {
 		.platform		= "ppc405",
 	},
 	{	/* Xilinx Virtex-II Pro  */
-		.pvr_mask		= 0xffff0000,
+		.pvr_mask		= 0xfffff000,
 		.pvr_value		= 0x20010000,
 		.cpu_name		= "Virtex-II Pro",
 		.cpu_features		= CPU_FTRS_40X,
@@ -903,6 +903,16 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.platform		= "ppc405",
+	},
+	{	/* Xilinx Virtex-4 FX */
+		.pvr_mask		= 0xfffff000,
+		.pvr_value		= 0x20011000,
+		.cpu_name		= "Virtex-4 FX",
+		.cpu_features		= CPU_FTRS_40X,
+		.cpu_user_features	= PPC_FEATURE_32 |
+			PPC_FEATURE_HAS_MMU | PPC_FEATURE_HAS_4xxMAC,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
 	},
 	{	/* 405EP */
 		.pvr_mask		= 0xffff0000,

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/kernel/ibm440gx_common.c
- *
  * PPC440GX system library
  *
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>

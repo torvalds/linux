@@ -108,7 +108,6 @@ static const char *ITACVer[] =
 #define ELSA_ASSIGN      4
 
 #define RS_ISR_PASS_LIMIT 256
-#define _INLINE_ inline
 #define FLG_MODEM_ACTIVE 1
 /* IPAC AUX */
 #define ELSA_IPAC_LINE_LED	0x40	/* Bit 6 Gelbe LED */

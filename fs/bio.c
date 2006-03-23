@@ -1243,11 +1243,11 @@ static int __init init_bio(void)
 		scale = 4;
 
 	/*
-	 * scale number of entries
+	 * Limit number of entries reserved -- mempools are only used when
+	 * the system is completely unable to allocate memory, so we only
+	 * need enough to make progress.
 	 */
-	bvec_pool_entries = megabytes * 2;
-	if (bvec_pool_entries > 256)
-		bvec_pool_entries = 256;
+	bvec_pool_entries = 1 + scale;
 
 	fs_bio_set = bioset_create(BIO_POOL_SIZE, bvec_pool_entries, scale);
 	if (!fs_bio_set)

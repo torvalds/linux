@@ -84,9 +84,9 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
-	down(&kprobe_mutex);
+	mutex_lock(&kprobe_mutex);
 	free_insn_slot(p->ainsn.insn);
-	up(&kprobe_mutex);
+	mutex_unlock(&kprobe_mutex);
 }
 
 static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)

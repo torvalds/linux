@@ -351,8 +351,8 @@ static inline void rotate_irqs_among_cpus(unsigned long useful_load_threshold)
 {
 	int i, j;
 	Dprintk("Rotating IRQs among CPUs.\n");
-	for (i = 0; i < NR_CPUS; i++) {
-		for (j = 0; cpu_online(i) && (j < NR_IRQS); j++) {
+	for_each_online_cpu(i) {
+		for (j = 0; j < NR_IRQS; j++) {
 			if (!irq_desc[j].action)
 				continue;
 			/* Is it a significant load ?  */
@@ -381,7 +381,7 @@ static void do_irq_balance(void)
 	unsigned long imbalance = 0;
 	cpumask_t allowed_mask, target_cpu_mask, tmp;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_cpu(i) {
 		int package_index;
 		CPU_IRQ(i) = 0;
 		if (!cpu_online(i))
@@ -422,9 +422,7 @@ static void do_irq_balance(void)
 		}
 	}
 	/* Find the least loaded processor package */
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_online(i))
-			continue;
+	for_each_online_cpu(i) {
 		if (i != CPU_TO_PACKAGEINDEX(i))
 			continue;
 		if (min_cpu_irq > CPU_IRQ(i)) {
@@ -441,9 +439,7 @@ tryanothercpu:
 	 */
 	tmp_cpu_irq = 0;
 	tmp_loaded = -1;
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_online(i))
-			continue;
+	for_each_online_cpu(i) {
 		if (i != CPU_TO_PACKAGEINDEX(i))
 			continue;
 		if (max_cpu_irq <= CPU_IRQ(i)) 
@@ -619,9 +615,7 @@ static int __init balanced_irq_init(void)
 	if (smp_num_siblings > 1 && !cpus_empty(tmp))
 		physical_balance = 1;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_online(i))
-			continue;
+	for_each_online_cpu(i) {
 		irq_cpu_data[i].irq_delta = kmalloc(sizeof(unsigned long) * NR_IRQS, GFP_KERNEL);
 		irq_cpu_data[i].last_irq = kmalloc(sizeof(unsigned long) * NR_IRQS, GFP_KERNEL);
 		if (irq_cpu_data[i].irq_delta == NULL || irq_cpu_data[i].last_irq == NULL) {
@@ -638,9 +632,11 @@ static int __init balanced_irq_init(void)
 	else 
 		printk(KERN_ERR "balanced_irq_init: failed to spawn balanced_irq");
 failed:
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_cpu(i) {
 		kfree(irq_cpu_data[i].irq_delta);
+		irq_cpu_data[i].irq_delta = NULL;
 		kfree(irq_cpu_data[i].last_irq);
+		irq_cpu_data[i].last_irq = NULL;
 	}
 	return 0;
 }
@@ -1761,7 +1757,8 @@ static void __init setup_ioapic_ids_from_mpc(void)
 	 * Don't check I/O APIC IDs for xAPIC systems.  They have
 	 * no meaning without the serial APIC bus.
 	 */
-	if (!(boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && boot_cpu_data.x86 < 15))
+	if (!(boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		|| APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
 		return;
 	/*
 	 * This is broken; anything with a real cpu count has to

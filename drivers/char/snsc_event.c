@@ -287,7 +287,7 @@ scdrv_event_init(struct sysctl_data_s *scd)
 {
 	int rv;
 
-	event_sd = kmalloc(sizeof (struct subch_data_s), GFP_KERNEL);
+	event_sd = kzalloc(sizeof (struct subch_data_s), GFP_KERNEL);
 	if (event_sd == NULL) {
 		printk(KERN_WARNING "%s: couldn't allocate subchannel info"
 		       " for event monitoring\n", __FUNCTION__);
@@ -295,7 +295,6 @@ scdrv_event_init(struct sysctl_data_s *scd)
 	}
 
 	/* initialize subch_data_s fields */
-	memset(event_sd, 0, sizeof (struct subch_data_s));
 	event_sd->sd_nasid = scd->scd_nasid;
 	spin_lock_init(&event_sd->sd_rlock);
 
@@ -321,5 +320,3 @@ scdrv_event_init(struct sysctl_data_s *scd)
 		return;
 	}
 }
-
-

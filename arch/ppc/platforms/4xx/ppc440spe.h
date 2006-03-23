@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibm440spe.h
- *
  * PPC440SPe definitions
  *
  * Roland Dreier <rolandd@cisco.com>
