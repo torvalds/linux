@@ -269,7 +269,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	sbi->sb = s;
 	sbi->version = 0;
 	sbi->sub_version = 0;
-	init_MUTEX(&sbi->wq_sem);
+	mutex_init(&sbi->wq_mutex);
 	spin_lock_init(&sbi->fs_lock);
 	sbi->queues = NULL;
 	s->s_blocksize = 1024;
