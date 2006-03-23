@@ -52,6 +52,7 @@ enum {
 	ALC880_CLEVO,
 	ALC880_TCL_S700,
 	ALC880_LG,
+	ALC880_LG_LW,
 #ifdef CONFIG_SND_DEBUG
 	ALC880_TEST,
 #endif
@@ -1427,6 +1428,82 @@ static void alc880_lg_unsol_event(struct hda_codec *codec, unsigned int res)
 }
 
 /*
+ * LG LW20
+ *
+ * Pin assignment:
+ *   Speaker-out: 0x14
+ *   Mic-In: 0x18
+ *   Built-in Mic-In: 0x19 (?)
+ *   HP-Out: 0x1b
+ *   SPDIF-Out: 0x1e
+ */
+
+/* seems analog CD is not working */
+static struct hda_input_mux alc880_lg_lw_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "Internal Mic", 0x1 },
+	},
+};
+
+static struct snd_kcontrol_new alc880_lg_lw_mixer[] = {
+	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Master Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
+	{ } /* end */
+};
+
+static struct hda_verb alc880_lg_lw_init_verbs[] = {
+	/* set capture source to mic-in */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(7)},
+	/* speaker-out */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* HP-out */
+	{0x13, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* mic-in to input */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* built-in mic */
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* jack sense */
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | 0x1},
+	{ }
+};
+
+/* toggle speaker-output according to the hp-jack state */
+static void alc880_lg_lw_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x1b, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
+				 0x80, present ? 0x80 : 0);
+	snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
+				 0x80, present ? 0x80 : 0);
+}
+
+static void alc880_lg_lw_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	/* Looks like the unsol event is incompatible with the standard
+	 * definition.  4bit tag is placed at 28 bit!
+	 */
+	if ((res >> 28) == 0x01)
+		alc880_lg_lw_automute(codec);
+}
+
+/*
  * Common callbacks
  */
 
@@ -2078,6 +2155,9 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .modelname = "lg", .config = ALC880_LG },
 	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x003b, .config = ALC880_LG },
 
+	{ .modelname = "lg-lw", .config = ALC880_LG_LW },
+	{ .pci_subvendor = 0x1854, .pci_subdevice = 0x0018, .config = ALC880_LG_LW },
+
 #ifdef CONFIG_SND_DEBUG
 	{ .modelname = "test", .config = ALC880_TEST },
 #endif
@@ -2267,6 +2347,19 @@ static struct alc_config_preset alc880_presets[] = {
 		.input_mux = &alc880_lg_capture_source,
 		.unsol_event = alc880_lg_unsol_event,
 		.init_hook = alc880_lg_automute,
+	},
+	[ALC880_LG_LW] = {
+		.mixers = { alc880_lg_lw_mixer },
+		.init_verbs = { alc880_volume_init_verbs,
+				alc880_lg_lw_init_verbs },
+		.num_dacs = 1, 
+		.dac_nids = alc880_dac_nids,
+		.dig_out_nid = ALC880_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc880_2_jack_modes),
+		.channel_mode = alc880_2_jack_modes,
+		.input_mux = &alc880_lg_lw_capture_source,
+		.unsol_event = alc880_lg_lw_unsol_event,
+		.init_hook = alc880_lg_lw_automute,
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST] = {

@@ -701,6 +701,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  uniwill	3-jack
 	  F1734		2-jack
 	  lg		LG laptop (m1 express dual)
+	  lg-lw		LG LW20 laptop
 	  test		for testing/debugging purpose, almost all controls can be
 			adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
