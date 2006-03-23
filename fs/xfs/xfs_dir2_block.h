@@ -43,8 +43,8 @@ struct xfs_trans;
 #define	XFS_DIR2_BLOCK_MAGIC	0x58443242	/* XD2B: for one block dirs */
 
 typedef struct xfs_dir2_block_tail {
-	__uint32_t	count;			/* count of leaf entries */
-	__uint32_t	stale;			/* count of stale lf entries */
+	__be32		count;			/* count of leaf entries */
+	__be32		stale;			/* count of stale lf entries */
 } xfs_dir2_block_tail_t;
 
 /*
@@ -75,8 +75,7 @@ xfs_dir2_block_tail_p(struct xfs_mount *mp, xfs_dir2_block_t *block)
 static inline struct xfs_dir2_leaf_entry *
 xfs_dir2_block_leaf_p(xfs_dir2_block_tail_t *btp)
 {
-	return (((struct xfs_dir2_leaf_entry *)
-		(btp)) - INT_GET((btp)->count, ARCH_CONVERT));
+	return ((struct xfs_dir2_leaf_entry *)btp) - be32_to_cpu(btp->count);
 }
 
 /*

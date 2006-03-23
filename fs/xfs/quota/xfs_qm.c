@@ -1704,9 +1704,9 @@ xfs_qm_get_rtblks(
 	xfs_qcnt_t	*O_rtblks)
 {
 	xfs_filblks_t	rtblks;			/* total rt blks */
+	xfs_extnum_t	idx;			/* extent record index */
 	xfs_ifork_t	*ifp;			/* inode fork pointer */
 	xfs_extnum_t	nextents;		/* number of extent entries */
-	xfs_bmbt_rec_t	*base;			/* base of extent array */
 	xfs_bmbt_rec_t	*ep;			/* pointer to an extent entry */
 	int		error;
 
@@ -1717,10 +1717,11 @@ xfs_qm_get_rtblks(
 			return error;
 	}
 	rtblks = 0;
-	nextents = ifp->if_bytes / sizeof(xfs_bmbt_rec_t);
-	base = &ifp->if_u1.if_extents[0];
-	for (ep = base; ep < &base[nextents]; ep++)
+	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
+	for (idx = 0; idx < nextents; idx++) {
+		ep = xfs_iext_get_ext(ifp, idx);
 		rtblks += xfs_bmbt_get_blockcount(ep);
+	}
 	*O_rtblks = (xfs_qcnt_t)rtblks;
 	return 0;
 }
@@ -2788,9 +2789,7 @@ xfs_qm_freelist_destroy(xfs_frlist_t *ql)
 		xfs_qm_dqdestroy(dqp);
 		dqp = nextdqp;
 	}
-	/*
-	 * Don't bother about unlocking.
-	 */
+	mutex_unlock(&ql->qh_lock);
 	mutex_destroy(&ql->qh_lock);
 
 	ASSERT(ql->qh_nelems == 0);

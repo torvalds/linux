@@ -73,6 +73,9 @@
 #include <linux/list.h>
 #include <linux/proc_fs.h>
 #include <linux/sort.h>
+#include <linux/cpu.h>
+#include <linux/notifier.h>
+#include <linux/delay.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
@@ -100,6 +103,11 @@
  */
 #undef  HAVE_REFCACHE	/* reference cache not needed for NFS in 2.6 */
 #define HAVE_SENDFILE	/* sendfile(2) exists in 2.6, but not in 2.4 */
+#ifdef CONFIG_SMP
+#define HAVE_PERCPU_SB	/* per cpu superblock counters are a 2.6 feature */
+#else
+#undef  HAVE_PERCPU_SB	/* per cpu superblock counters are a 2.6 feature */
+#endif
 
 /*
  * State flag for unwritten extent buffers.
@@ -226,7 +234,7 @@ BUFFER_FNS(PrivateStart, unwritten);
 #define xfs_sort(a,n,s,fn)	sort(a,n,s,fn,NULL)
 #define xfs_stack_trace()	dump_stack()
 #define xfs_itruncate_data(ip, off)	\
-	(-vmtruncate(LINVFS_GET_IP(XFS_ITOV(ip)), (off)))
+	(-vmtruncate(vn_to_inode(XFS_ITOV(ip)), (off)))
 #define xfs_statvfs_fsid(statp, mp)	\
 	({ u64 id = huge_encode_dev((mp)->m_ddev_targp->bt_dev); \
 	   __kernel_fsid_t *fsid = &(statp)->f_fsid;	\

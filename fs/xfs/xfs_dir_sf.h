@@ -35,19 +35,21 @@ typedef struct { __uint8_t i[sizeof(xfs_ino_t)]; } xfs_dir_ino_t;
  * and the elements much be memcpy'd out into a work area to get correct
  * alignment for the inode number fields.
  */
+typedef struct xfs_dir_sf_hdr {		/* constant-structure header block */
+	xfs_dir_ino_t	parent;		/* parent dir inode number */
+	__uint8_t	count;		/* count of active entries */
+} xfs_dir_sf_hdr_t;
+
+typedef struct xfs_dir_sf_entry {
+	xfs_dir_ino_t	inumber;	/* referenced inode number */
+	__uint8_t	namelen;	/* actual length of name (no NULL) */
+	__uint8_t	name[1];	/* name */
+} xfs_dir_sf_entry_t;
+
 typedef struct xfs_dir_shortform {
-	struct xfs_dir_sf_hdr {		/* constant-structure header block */
-		xfs_dir_ino_t parent;	/* parent dir inode number */
-		__uint8_t count;	/* count of active entries */
-	} hdr;
-	struct xfs_dir_sf_entry {
-		xfs_dir_ino_t inumber;	/* referenced inode number */
-		__uint8_t namelen;	/* actual length of name (no NULL) */
-		__uint8_t name[1];	/* name */
-	} list[1];			/* variable sized array */
+	xfs_dir_sf_hdr_t	hdr;
+	xfs_dir_sf_entry_t	list[1];	/* variable sized array */
 } xfs_dir_shortform_t;
-typedef struct xfs_dir_sf_hdr xfs_dir_sf_hdr_t;
-typedef struct xfs_dir_sf_entry xfs_dir_sf_entry_t;
 
 /*
  * We generate this then sort it, so that readdirs are returned in

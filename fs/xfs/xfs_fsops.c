@@ -462,6 +462,7 @@ xfs_fs_counts(
 {
 	unsigned long	s;
 
+	xfs_icsb_sync_counters_lazy(mp);
 	s = XFS_SB_LOCK(mp);
 	cnt->freedata = mp->m_sb.sb_fdblocks;
 	cnt->freertx = mp->m_sb.sb_frextents;

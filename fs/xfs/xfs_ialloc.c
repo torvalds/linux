@@ -138,8 +138,6 @@ xfs_ialloc_ag_alloc(
 	int		version;	/* inode version number to use */
 	int		isaligned;	/* inode allocation at stripe unit */
 					/* boundary */
-	xfs_dinode_core_t dic;          /* a dinode_core to copy to new */
-					/* inodes */
 
 	args.tp = tp;
 	args.mp = tp->t_mountp;
@@ -250,10 +248,6 @@ xfs_ialloc_ag_alloc(
 	else
 		version = XFS_DINODE_VERSION_1;
 
-	memset(&dic, 0, sizeof(xfs_dinode_core_t));
-	INT_SET(dic.di_magic, ARCH_CONVERT, XFS_DINODE_MAGIC);
-	INT_SET(dic.di_version, ARCH_CONVERT, version);
-
 	for (j = 0; j < nbufs; j++) {
 		/*
 		 * Get the block.
@@ -266,12 +260,13 @@ xfs_ialloc_ag_alloc(
 		ASSERT(fbuf);
 		ASSERT(!XFS_BUF_GETERROR(fbuf));
 		/*
-		 * Loop over the inodes in this buffer.
+		 * Set initial values for the inodes in this buffer.
 		 */
-
+		xfs_biozero(fbuf, 0, ninodes << args.mp->m_sb.sb_inodelog);
 		for (i = 0; i < ninodes; i++) {
 			free = XFS_MAKE_IPTR(args.mp, fbuf, i);
-			memcpy(&(free->di_core), &dic, sizeof(xfs_dinode_core_t));
+			INT_SET(free->di_core.di_magic, ARCH_CONVERT, XFS_DINODE_MAGIC);
+			INT_SET(free->di_core.di_version, ARCH_CONVERT, version);
 			INT_SET(free->di_next_unlinked, ARCH_CONVERT, NULLAGINO);
 			xfs_ialloc_log_di(tp, fbuf, i,
 				XFS_DI_CORE_BITS | XFS_DI_NEXT_UNLINKED);
