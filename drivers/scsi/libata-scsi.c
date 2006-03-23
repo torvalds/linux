@@ -267,19 +267,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 
 int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
 {
-	struct ata_port *ap;
-	struct ata_device *dev;
 	int val = -EINVAL, rc = -EINVAL;
-
-	ap = (struct ata_port *) &scsidev->host->hostdata[0];
-	if (!ap)
-		goto out;
-
-	dev = ata_scsi_find_dev(ap, scsidev);
-	if (!dev) {
-		rc = -ENODEV;
-		goto out;
-	}
 
 	switch (cmd) {
 	case ATA_IOC_GET_IO32:
@@ -309,7 +297,6 @@ int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
 		break;
 	}
 
-out:
 	return rc;
 }
 
