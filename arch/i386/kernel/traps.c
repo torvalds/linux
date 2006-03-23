@@ -99,6 +99,8 @@ int register_die_notifier(struct notifier_block *nb)
 {
 	int err = 0;
 	unsigned long flags;
+
+	vmalloc_sync_all();
 	spin_lock_irqsave(&die_notifier_lock, flags);
 	err = notifier_chain_register(&i386die_chain, nb);
 	spin_unlock_irqrestore(&die_notifier_lock, flags);
@@ -713,6 +715,7 @@ fastcall void do_nmi(struct pt_regs * regs, long error_code)
 
 void set_nmi_callback(nmi_callback_t callback)
 {
+	vmalloc_sync_all();
 	rcu_assign_pointer(nmi_callback, callback);
 }
 EXPORT_SYMBOL_GPL(set_nmi_callback);
