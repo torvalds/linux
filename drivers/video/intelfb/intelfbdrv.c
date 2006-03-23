@@ -6,6 +6,7 @@
  *
  * Copyright © 2002, 2003 David Dawes <dawes@xfree86.org>
  *                   2004 Sylvain Meyer
+ *                   2006 David Airlie
  *
  * This driver consists of two parts.  The first part (intelfbdrv.c) provides
  * the basic fbdev interfaces, is derived in part from the radeonfb and
@@ -551,8 +552,6 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	    (ent->device == PCI_DEVICE_ID_INTEL_945G)) {
 		aperture_bar = 2;
 		mmio_bar = 0;
-		/* Disable HW cursor on 9x5G/M (not implemented yet) */
-		hwcursor = 0;
 	}
 	dinfo->aperture.physical = pci_resource_start(pdev, aperture_bar);
 	dinfo->aperture.size     = pci_resource_len(pdev, aperture_bar);
@@ -1468,7 +1467,7 @@ static int
 intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
         struct intelfb_info *dinfo = GET_DINFO(info);
-
+	int ret;
 #if VERBOSE > 0
 	DBG_MSG("intelfb_cursor\n");
 #endif
@@ -1479,7 +1478,12 @@ intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	intelfbhw_cursor_hide(dinfo);
 
 	/* If XFree killed the cursor - restore it */
-	if (INREG(CURSOR_A_BASEADDR) != dinfo->cursor.offset << 12) {
+	if (dinfo->mobile || IS_I9xx(dinfo))
+	  ret = (INREG(CURSOR_A_BASEADDR) != dinfo->cursor.physical);
+	else
+	  ret = (INREG(CURSOR_A_BASEADDR) != dinfo->cursor.offset << 12);
+
+	if (ret) {
 		u32 fg, bg;
 
 		DBG_MSG("the cursor was killed - restore it !!\n");

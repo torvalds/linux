@@ -284,6 +284,8 @@ struct intelfb_info {
 	int pll_index;
 };
 
+#define IS_I9xx(dinfo) (((dinfo)->chipset == INTEL_915G)||(dinfo->chipset == INTEL_915GM)||((dinfo)->chipset == INTEL_945G))
+
 /*** function prototypes ***/
 
 extern int intelfb_var_to_depth(const struct fb_var_screeninfo *var);

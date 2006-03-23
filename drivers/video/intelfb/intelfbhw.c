@@ -1742,7 +1742,7 @@ intelfbhw_cursor_init(struct intelfb_info *dinfo)
 	DBG_MSG("intelfbhw_cursor_init\n");
 #endif
 
-	if (dinfo->mobile) {
+	if (dinfo->mobile || IS_I9xx(dinfo)) {
 		if (!dinfo->cursor.physical)
 			return;
 		tmp = INREG(CURSOR_A_CONTROL);
@@ -1775,7 +1775,7 @@ intelfbhw_cursor_hide(struct intelfb_info *dinfo)
 #endif
 
 	dinfo->cursor_on = 0;
-	if (dinfo->mobile) {
+	if (dinfo->mobile || IS_I9xx(dinfo)) {
 		if (!dinfo->cursor.physical)
 			return;
 		tmp = INREG(CURSOR_A_CONTROL);
@@ -1805,7 +1805,7 @@ intelfbhw_cursor_show(struct intelfb_info *dinfo)
 	if (dinfo->cursor_blanked)
 		return;
 
-	if (dinfo->mobile) {
+	if (dinfo->mobile || IS_I9xx(dinfo)) {
 		if (!dinfo->cursor.physical)
 			return;
 		tmp = INREG(CURSOR_A_CONTROL);
@@ -1839,6 +1839,10 @@ intelfbhw_cursor_setpos(struct intelfb_info *dinfo, int x, int y)
 	tmp = ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT) |
 	      ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
 	OUTREG(CURSOR_A_POSITION, tmp);
+
+	if (IS_I9xx(dinfo)) {
+		OUTREG(CURSOR_A_BASEADDR, dinfo->cursor.physical);
+	}
 }
 
 void
