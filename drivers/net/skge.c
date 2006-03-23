@@ -781,7 +781,7 @@ static void skge_rx_setup(struct skge_port *skge, struct skge_element *e,
  * Note: DMA address is not changed by chip.
  * 	 MTU not changed while receiver active.
  */
-static void skge_rx_reuse(struct skge_element *e, unsigned int size)
+static inline void skge_rx_reuse(struct skge_element *e, unsigned int size)
 {
 	struct skge_rx_desc *rd = e->desc;
 
@@ -2719,8 +2719,7 @@ static int skge_poll(struct net_device *dev, int *budget)
 			netif_receive_skb(skb);
 
 			++work_done;
-		} else
-			skge_rx_reuse(e, skge->rx_buf_size);
+		}
 	}
 	ring->to_clean = e;
 
