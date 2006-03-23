@@ -266,6 +266,42 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		}
 		break;
 
+	case SNAPSHOT_S2RAM:
+		if (!data->frozen) {
+			error = -EPERM;
+			break;
+		}
+
+		if (down_trylock(&pm_sem)) {
+			error = -EBUSY;
+			break;
+		}
+
+		if (pm_ops->prepare) {
+			error = pm_ops->prepare(PM_SUSPEND_MEM);
+			if (error)
+				goto OutS3;
+		}
+
+		/* Put devices to sleep */
+		error = device_suspend(PMSG_SUSPEND);
+		if (error) {
+			printk(KERN_ERR "Failed to suspend some devices.\n");
+		} else {
+			/* Enter S3, system is already frozen */
+			suspend_enter(PM_SUSPEND_MEM);
+
+			/* Wake up devices */
+			device_resume();
+		}
+
+		if (pm_ops->finish)
+			pm_ops->finish(PM_SUSPEND_MEM);
+
+OutS3:
+		up(&pm_sem);
+		break;
+
 	default:
 		error = -ENOTTY;
 
