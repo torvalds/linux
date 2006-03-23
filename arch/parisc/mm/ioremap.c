@@ -114,30 +114,6 @@ remap_area_pages(unsigned long address, unsigned long phys_addr,
 	return error;
 }
 
-#ifdef CONFIG_DEBUG_IOREMAP
-static unsigned long last = 0;
-
-void gsc_bad_addr(unsigned long addr)
-{
-	if (time_after(jiffies, last + HZ*10)) {
-		printk("gsc_foo() called with bad address 0x%lx\n", addr);
-		dump_stack();
-		last = jiffies;
-	}
-}
-EXPORT_SYMBOL(gsc_bad_addr);
-
-void __raw_bad_addr(const volatile void __iomem *addr)
-{
-	if (time_after(jiffies, last + HZ*10)) {
-		printk("__raw_foo() called with bad address 0x%p\n", addr);
-		dump_stack();
-		last = jiffies;
-	}
-}
-EXPORT_SYMBOL(__raw_bad_addr);
-#endif
-
 /*
  * Generic mapping function (not visible outside):
  */

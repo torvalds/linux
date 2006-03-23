@@ -263,11 +263,7 @@ static const struct iomap_ops iomem_ops = {
 
 const struct iomap_ops *iomap_ops[8] = {
 	[0] = &ioport_ops,
-#ifdef CONFIG_DEBUG_IOREMAP
-	[6] = &iomem_ops,
-#else
 	[7] = &iomem_ops
-#endif
 };
 
 

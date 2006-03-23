@@ -25,30 +25,10 @@ extern unsigned long parisc_vmerge_max_size;
  *   eg dev->hpa or 0xfee00000.
  */
 
-#ifdef CONFIG_DEBUG_IOREMAP
-#define NYBBLE_SHIFT (BITS_PER_LONG - 4)
-extern void gsc_bad_addr(unsigned long addr);
-extern void __raw_bad_addr(const volatile void __iomem *addr);
-#define gsc_check_addr(addr)					\
-	if ((addr >> NYBBLE_SHIFT) != 0xf) {			\
-		gsc_bad_addr(addr);				\
-		addr |= 0xfUL << NYBBLE_SHIFT;			\
-	}
-#define __raw_check_addr(addr)					\
-	if (((unsigned long)addr >> NYBBLE_SHIFT) != 0xe)	\
-		__raw_bad_addr(addr);			\
-	addr = (void __iomem *)((unsigned long)addr | (0xfUL << NYBBLE_SHIFT));
-#else
-#define gsc_check_addr(addr)
-#define __raw_check_addr(addr)
-#endif
-
 static inline unsigned char gsc_readb(unsigned long addr)
 {
 	long flags;
 	unsigned char ret;
-
-	gsc_check_addr(addr);
 
 	__asm__ __volatile__(
 	"	rsm	2,%0\n"
@@ -64,8 +44,6 @@ static inline unsigned short gsc_readw(unsigned long addr)
 	long flags;
 	unsigned short ret;
 
-	gsc_check_addr(addr);
-
 	__asm__ __volatile__(
 	"	rsm	2,%0\n"
 	"	ldhx	0(%2),%1\n"
@@ -79,8 +57,6 @@ static inline unsigned int gsc_readl(unsigned long addr)
 {
 	u32 ret;
 
-	gsc_check_addr(addr);
-
 	__asm__ __volatile__(
 	"	ldwax	0(%1),%0\n"
 	: "=r" (ret) : "r" (addr) );
@@ -91,7 +67,6 @@ static inline unsigned int gsc_readl(unsigned long addr)
 static inline unsigned long long gsc_readq(unsigned long addr)
 {
 	unsigned long long ret;
-	gsc_check_addr(addr);
 
 #ifdef __LP64__
 	__asm__ __volatile__(
@@ -108,8 +83,6 @@ static inline unsigned long long gsc_readq(unsigned long addr)
 static inline void gsc_writeb(unsigned char val, unsigned long addr)
 {
 	long flags;
-	gsc_check_addr(addr);
-
 	__asm__ __volatile__(
 	"	rsm	2,%0\n"
 	"	stbs	%1,0(%2)\n"
@@ -120,8 +93,6 @@ static inline void gsc_writeb(unsigned char val, unsigned long addr)
 static inline void gsc_writew(unsigned short val, unsigned long addr)
 {
 	long flags;
-	gsc_check_addr(addr);
-
 	__asm__ __volatile__(
 	"	rsm	2,%0\n"
 	"	sths	%1,0(%2)\n"
@@ -131,8 +102,6 @@ static inline void gsc_writew(unsigned short val, unsigned long addr)
 
 static inline void gsc_writel(unsigned int val, unsigned long addr)
 {
-	gsc_check_addr(addr);
-
 	__asm__ __volatile__(
 	"	stwas	%0,0(%1)\n"
 	: :  "r" (val), "r" (addr) );
@@ -140,8 +109,6 @@ static inline void gsc_writel(unsigned int val, unsigned long addr)
 
 static inline void gsc_writeq(unsigned long long val, unsigned long addr)
 {
-	gsc_check_addr(addr);
-
 #ifdef __LP64__
 	__asm__ __volatile__(
 	"	stda	%0,0(%1)\n"
