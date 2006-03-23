@@ -30,6 +30,12 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 
 #ifdef CONFIG_BUG
 
+/*
+ * BUG_ON() and WARN_ON() do their best to cooperate with compile-time
+ * optimisations. However depending on the complexity of the condition
+ * some compiler versions may not produce optimal results.
+ */
+
 #define BUG() do {							 \
 	__asm__ __volatile__(						 \
 		"1:	twi 31,0,0\n"					 \
@@ -40,17 +46,36 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 } while (0)
 
 #define BUG_ON(x) do {						\
-	__asm__ __volatile__(					\
+	if (__builtin_constant_p(x)) {				\
+		if (x)						\
+			BUG();					\
+	} else {						\
+		__asm__ __volatile__(				\
 		"1:	"PPC_TLNEI"	%0,0\n"			\
 		".section __bug_table,\"a\"\n"			\
 		"\t"PPC_LONG"	1b,%1,%2,%3\n"		\
 		".previous"					\
 		: : "r" ((long)(x)), "i" (__LINE__),		\
 		    "i" (__FILE__), "i" (__FUNCTION__));	\
+	}							\
+} while (0)
+
+#define WARN() do {						\
+	__asm__ __volatile__(					\
+		"1:	twi 31,0,0\n"				\
+		".section __bug_table,\"a\"\n"			\
+		"\t"PPC_LONG"	1b,%0,%1,%2\n"			\
+		".previous"					\
+		: : "i" (__LINE__ + BUG_WARNING_TRAP),		\
+		    "i" (__FILE__), "i" (__FUNCTION__));	\
 } while (0)
 
 #define WARN_ON(x) do {						\
-	__asm__ __volatile__(					\
+	if (__builtin_constant_p(x)) {				\
+		if (x)						\
+			WARN();					\
+	} else {						\
+		__asm__ __volatile__(				\
 		"1:	"PPC_TLNEI"	%0,0\n"			\
 		".section __bug_table,\"a\"\n"			\
 		"\t"PPC_LONG"	1b,%1,%2,%3\n"		\
@@ -58,6 +83,7 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 		: : "r" ((long)(x)),				\
 		    "i" (__LINE__ + BUG_WARNING_TRAP),		\
 		    "i" (__FILE__), "i" (__FUNCTION__));	\
+	}							\
 } while (0)
 
 #define HAVE_ARCH_BUG
