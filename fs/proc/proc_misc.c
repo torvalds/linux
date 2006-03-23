@@ -312,7 +312,7 @@ static void *devinfo_next(struct seq_file *f, void *v, loff_t *pos)
 		case BLK_HDR:
 			info->state = BLK_LIST;
 			(*pos)++;
-			break;
+			/*fallthrough*/
 		case BLK_LIST:
 			if (get_blkdev_info(info->blkdev,&idummy,&ndummy)) {
 				/*

@@ -459,9 +459,9 @@ static void do_nbd_request(request_queue_t * q)
 		req->errors = 0;
 		spin_unlock_irq(q->queue_lock);
 
-		down(&lo->tx_lock);
+		mutex_lock(&lo->tx_lock);
 		if (unlikely(!lo->sock)) {
-			up(&lo->tx_lock);
+			mutex_unlock(&lo->tx_lock);
 			printk(KERN_ERR "%s: Attempted send on closed socket\n",
 			       lo->disk->disk_name);
 			req->errors++;
@@ -484,7 +484,7 @@ static void do_nbd_request(request_queue_t * q)
 		}
 
 		lo->active_req = NULL;
-		up(&lo->tx_lock);
+		mutex_unlock(&lo->tx_lock);
 		wake_up_all(&lo->active_wq);
 
 		spin_lock_irq(q->queue_lock);
@@ -534,9 +534,9 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
  
 	case NBD_CLEAR_SOCK:
 		error = 0;
-		down(&lo->tx_lock);
+		mutex_lock(&lo->tx_lock);
 		lo->sock = NULL;
-		up(&lo->tx_lock);
+		mutex_unlock(&lo->tx_lock);
 		file = lo->file;
 		lo->file = NULL;
 		nbd_clear_que(lo);
@@ -590,7 +590,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		 * FIXME: This code is duplicated from sys_shutdown, but
 		 * there should be a more generic interface rather than
 		 * calling socket ops directly here */
-		down(&lo->tx_lock);
+		mutex_lock(&lo->tx_lock);
 		if (lo->sock) {
 			printk(KERN_WARNING "%s: shutting down socket\n",
 				lo->disk->disk_name);
@@ -598,7 +598,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 				SEND_SHUTDOWN|RCV_SHUTDOWN);
 			lo->sock = NULL;
 		}
-		up(&lo->tx_lock);
+		mutex_unlock(&lo->tx_lock);
 		file = lo->file;
 		lo->file = NULL;
 		nbd_clear_que(lo);
@@ -683,7 +683,7 @@ static int __init nbd_init(void)
 		nbd_dev[i].flags = 0;
 		spin_lock_init(&nbd_dev[i].queue_lock);
 		INIT_LIST_HEAD(&nbd_dev[i].queue_head);
-		init_MUTEX(&nbd_dev[i].tx_lock);
+		mutex_init(&nbd_dev[i].tx_lock);
 		init_waitqueue_head(&nbd_dev[i].active_wq);
 		nbd_dev[i].blksize = 1024;
 		nbd_dev[i].bytesize = 0x7ffffc00ULL << 10; /* 2TB */

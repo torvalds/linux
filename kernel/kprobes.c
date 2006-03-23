@@ -48,7 +48,7 @@
 static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
 static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 
-DECLARE_MUTEX(kprobe_mutex);		/* Protects kprobe_table */
+DEFINE_MUTEX(kprobe_mutex);		/* Protects kprobe_table */
 DEFINE_SPINLOCK(kretprobe_lock);	/* Protects kretprobe_inst_table */
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 
@@ -460,7 +460,7 @@ static int __kprobes __register_kprobe(struct kprobe *p,
 	}
 
 	p->nmissed = 0;
-	down(&kprobe_mutex);
+	mutex_lock(&kprobe_mutex);
 	old_p = get_kprobe(p->addr);
 	if (old_p) {
 		ret = register_aggr_kprobe(old_p, p);
@@ -477,7 +477,7 @@ static int __kprobes __register_kprobe(struct kprobe *p,
   	arch_arm_kprobe(p);
 
 out:
-	up(&kprobe_mutex);
+	mutex_unlock(&kprobe_mutex);
 
 	if (ret && probed_mod)
 		module_put(probed_mod);
@@ -496,10 +496,10 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 	struct kprobe *old_p, *list_p;
 	int cleanup_p;
 
-	down(&kprobe_mutex);
+	mutex_lock(&kprobe_mutex);
 	old_p = get_kprobe(p->addr);
 	if (unlikely(!old_p)) {
-		up(&kprobe_mutex);
+		mutex_unlock(&kprobe_mutex);
 		return;
 	}
 	if (p != old_p) {
@@ -507,7 +507,7 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 			if (list_p == p)
 			/* kprobe p is a valid probe */
 				goto valid_p;
-		up(&kprobe_mutex);
+		mutex_unlock(&kprobe_mutex);
 		return;
 	}
 valid_p:
@@ -523,7 +523,7 @@ valid_p:
 		cleanup_p = 0;
 	}
 
-	up(&kprobe_mutex);
+	mutex_unlock(&kprobe_mutex);
 
 	synchronize_sched();
 	if (p->mod_refcounted &&

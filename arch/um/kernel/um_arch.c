@@ -491,6 +491,16 @@ void __init check_bugs(void)
 	check_devanon();
 }
 
-void apply_alternatives(void *start, void *end)
+void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
+{
+}
+
+void alternatives_smp_module_add(struct module *mod, char *name,
+				 void *locks, void *locks_end,
+				 void *text,  void *text_end)
+{
+}
+
+void alternatives_smp_module_del(struct module *mod)
 {
 }

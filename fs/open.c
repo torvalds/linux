@@ -973,7 +973,7 @@ repeat:
 	fdt = files_fdtable(files);
  	fd = find_next_zero_bit(fdt->open_fds->fds_bits,
 				fdt->max_fdset,
-				fdt->next_fd);
+				files->next_fd);
 
 	/*
 	 * N.B. For clone tasks sharing a files structure, this test
@@ -998,7 +998,7 @@ repeat:
 
 	FD_SET(fd, fdt->open_fds);
 	FD_CLR(fd, fdt->close_on_exec);
-	fdt->next_fd = fd + 1;
+	files->next_fd = fd + 1;
 #if 1
 	/* Sanity check */
 	if (fdt->fd[fd] != NULL) {
@@ -1019,8 +1019,8 @@ static void __put_unused_fd(struct files_struct *files, unsigned int fd)
 {
 	struct fdtable *fdt = files_fdtable(files);
 	__FD_CLR(fd, fdt->open_fds);
-	if (fd < fdt->next_fd)
-		fdt->next_fd = fd;
+	if (fd < files->next_fd)
+		files->next_fd = fd;
 }
 
 void fastcall put_unused_fd(unsigned int fd)

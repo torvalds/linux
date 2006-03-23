@@ -243,9 +243,8 @@ int setup_profiling_timer(unsigned int multiplier)
 		return -EINVAL;
 
 	spin_lock_irqsave(&prof_setup_lock, flags);
-	for(i = 0; i < NR_CPUS; i++) {
-		if (cpu_possible(i))
-			load_profile_irq(i, lvl14_resolution / multiplier);
+	for_each_cpu(i) {
+		load_profile_irq(i, lvl14_resolution / multiplier);
 		prof_multiplier(i) = multiplier;
 	}
 	spin_unlock_irqrestore(&prof_setup_lock, flags);
@@ -273,13 +272,12 @@ void smp_bogo(struct seq_file *m)
 {
 	int i;
 	
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_online(i))
-			seq_printf(m,
-				   "Cpu%dBogo\t: %lu.%02lu\n", 
-				   i,
-				   cpu_data(i).udelay_val/(500000/HZ),
-				   (cpu_data(i).udelay_val/(5000/HZ))%100);
+	for_each_online_cpu(i) {
+		seq_printf(m,
+			   "Cpu%dBogo\t: %lu.%02lu\n",
+			   i,
+			   cpu_data(i).udelay_val/(500000/HZ),
+			   (cpu_data(i).udelay_val/(5000/HZ))%100);
 	}
 }
 
@@ -288,8 +286,6 @@ void smp_info(struct seq_file *m)
 	int i;
 
 	seq_printf(m, "State:\n");
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_online(i))
-			seq_printf(m, "CPU%d\t\t: online\n", i);
-	}
+	for_each_online_cpu(i)
+		seq_printf(m, "CPU%d\t\t: online\n", i);
 }

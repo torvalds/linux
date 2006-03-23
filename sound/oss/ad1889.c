@@ -38,6 +38,7 @@
 #include <linux/ac97_codec.h>
 #include <linux/sound.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
 
 #include <asm/delay.h>
 #include <asm/io.h>
@@ -238,7 +239,7 @@ static ad1889_dev_t *ad1889_alloc_dev(struct pci_dev *pci)
 
 	for (i = 0; i < AD_MAX_STATES; i++) {
 		dev->state[i].card = dev;
-		init_MUTEX(&dev->state[i].sem);
+		mutex_init(&dev->state[i].mutex);
 		init_waitqueue_head(&dev->state[i].dmabuf.wait);
 	}
 
@@ -461,7 +462,7 @@ static ssize_t ad1889_write(struct file *file, const char __user *buffer, size_t
 	ssize_t ret = 0;
 	DECLARE_WAITQUEUE(wait, current);
 
-	down(&state->sem);
+	mutex_lock(&state->mutex);
 #if 0
 	if (dmabuf->mapped) {
 		ret = -ENXIO;
@@ -546,7 +547,7 @@ static ssize_t ad1889_write(struct file *file, const char __user *buffer, size_t
 err2:
 	remove_wait_queue(&state->dmabuf.wait, &wait);
 err1:
-	up(&state->sem);
+	mutex_unlock(&state->mutex);
 	return ret;
 }
 

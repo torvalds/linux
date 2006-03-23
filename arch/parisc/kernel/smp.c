@@ -298,8 +298,8 @@ send_IPI_allbutself(enum ipi_message_type op)
 {
 	int i;
 	
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_online(i) && i != smp_processor_id())
+	for_each_online_cpu(i) {
+		if (i != smp_processor_id())
 			send_IPI_single(i, op);
 	}
 }
@@ -643,14 +643,13 @@ int sys_cpus(int argc, char **argv)
 	if ( argc == 1 ){
 	
 #ifdef DUMP_MORE_STATE
-		for(i=0; i<NR_CPUS; i++) {
+		for_each_online_cpu(i) {
 			int cpus_per_line = 4;
-			if(cpu_online(i)) {
-				if (j++ % cpus_per_line)
-					printk(" %3d",i);
-				else
-					printk("\n %3d",i);
-			}
+
+			if (j++ % cpus_per_line)
+				printk(" %3d",i);
+			else
+				printk("\n %3d",i);
 		}
 		printk("\n"); 
 #else
@@ -659,9 +658,7 @@ int sys_cpus(int argc, char **argv)
 	} else if((argc==2) && !(strcmp(argv[1],"-l"))) {
 		printk("\nCPUSTATE  TASK CPUNUM CPUID HARDCPU(HPA)\n");
 #ifdef DUMP_MORE_STATE
-		for(i=0;i<NR_CPUS;i++) {
-			if (!cpu_online(i))
-				continue;
+		for_each_online_cpu(i) {
 			if (cpu_data[i].cpuid != NO_PROC_ID) {
 				switch(cpu_data[i].state) {
 					case STATE_RENDEZVOUS:
@@ -695,9 +692,7 @@ int sys_cpus(int argc, char **argv)
 	} else if ((argc==2) && !(strcmp(argv[1],"-s"))) { 
 #ifdef DUMP_MORE_STATE
      		printk("\nCPUSTATE   CPUID\n");
-		for (i=0;i<NR_CPUS;i++) {
-			if (!cpu_online(i))
-				continue;
+		for_each_online_cpu(i) {
 			if (cpu_data[i].cpuid != NO_PROC_ID) {
 				switch(cpu_data[i].state) {
 					case STATE_RENDEZVOUS:

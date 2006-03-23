@@ -86,9 +86,9 @@ int cifs_dir_notify(struct file * file, unsigned long arg)
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
-	down(&file->f_dentry->d_sb->s_vfs_rename_sem);
+	mutex_lock(&file->f_dentry->d_sb->s_vfs_rename_mutex);
 	full_path = build_path_from_dentry(file->f_dentry);
-	up(&file->f_dentry->d_sb->s_vfs_rename_sem);
+	mutex_unlock(&file->f_dentry->d_sb->s_vfs_rename_mutex);
 
 	if(full_path == NULL) {
 		rc = -ENOMEM;

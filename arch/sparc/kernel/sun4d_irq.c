@@ -103,11 +103,9 @@ found_it:	seq_printf(p, "%3d: ", i);
 #ifndef CONFIG_SMP
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #else
-		for (x = 0; x < NR_CPUS; x++) {
-			if (cpu_online(x))
-				seq_printf(p, "%10u ",
-				       kstat_cpu(cpu_logical_map(x)).irqs[i]);
-		}
+		for_each_online_cpu(x)
+			seq_printf(p, "%10u ",
+			       kstat_cpu(cpu_logical_map(x)).irqs[i]);
 #endif
 		seq_printf(p, "%c %s",
 			(action->flags & SA_INTERRUPT) ? '+' : ' ',

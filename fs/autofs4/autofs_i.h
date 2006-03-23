@@ -13,6 +13,7 @@
 /* Internal header file for autofs */
 
 #include <linux/auto_fs4.h>
+#include <linux/mutex.h>
 #include <linux/list.h>
 
 /* This is the range of ioctl() numbers we claim as ours */
@@ -102,7 +103,7 @@ struct autofs_sb_info {
 	int reghost_enabled;
 	int needs_reghost;
 	struct super_block *sb;
-	struct semaphore wq_sem;
+	struct mutex wq_mutex;
 	spinlock_t fs_lock;
 	struct autofs_wait_queue *queues; /* Wait queue pointer */
 };

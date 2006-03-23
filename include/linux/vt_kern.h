@@ -73,6 +73,11 @@ int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc);
 int vt_waitactive(int vt);
 void change_console(struct vc_data *new_vc);
 void reset_vc(struct vc_data *vc);
+#ifdef CONFIG_VT
+int is_console_suspend_safe(void);
+#else
+static inline int is_console_suspend_safe(void) { return 1; }
+#endif
 
 /*
  * vc_screen.c shares this temporary buffer with the console write code so that

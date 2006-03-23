@@ -455,7 +455,7 @@ void journal_lock_updates(journal_t *journal)
 	 * to make sure that we serialise special journal-locked operations
 	 * too.
 	 */
-	down(&journal->j_barrier);
+	mutex_lock(&journal->j_barrier);
 }
 
 /**
@@ -470,7 +470,7 @@ void journal_unlock_updates (journal_t *journal)
 {
 	J_ASSERT(journal->j_barrier_count != 0);
 
-	up(&journal->j_barrier);
+	mutex_unlock(&journal->j_barrier);
 	spin_lock(&journal->j_state_lock);
 	--journal->j_barrier_count;
 	spin_unlock(&journal->j_state_lock);

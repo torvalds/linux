@@ -168,9 +168,8 @@ int show_cpuinfo(struct seq_file *m, void *v)
 		/* Show summary information */
 #ifdef CONFIG_SMP
 		unsigned long bogosum = 0;
-		for (i = 0; i < NR_CPUS; ++i)
-			if (cpu_online(i))
-				bogosum += cpu_data[i].loops_per_jiffy;
+		for_each_online_cpu(i)
+			bogosum += cpu_data[i].loops_per_jiffy;
 		seq_printf(m, "total bogomips\t: %lu.%02lu\n",
 			   bogosum/(500000/HZ), bogosum/(5000/HZ) % 100);
 #endif /* CONFIG_SMP */
@@ -712,9 +711,8 @@ int __init ppc_init(void)
 	if ( ppc_md.progress ) ppc_md.progress("             ", 0xffff);
 
 	/* register CPU devices */
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_possible(i))
-			register_cpu(&cpu_devices[i], i, NULL);
+	for_each_cpu(i)
+		register_cpu(&cpu_devices[i], i, NULL);
 
 	/* call platform init */
 	if (ppc_md.init != NULL) {

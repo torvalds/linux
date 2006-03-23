@@ -62,18 +62,15 @@ xfs_read_xfsstats(
 		while (j < xstats[i].endpoint) {
 			val = 0;
 			/* sum over all cpus */
-			for (c = 0; c < NR_CPUS; c++) {
-				if (!cpu_possible(c)) continue;
+			for_each_cpu(c)
 				val += *(((__u32*)&per_cpu(xfsstats, c) + j));
-			}
 			len += sprintf(buffer + len, " %u", val);
 			j++;
 		}
 		buffer[len++] = '\n';
 	}
 	/* extra precision counters */
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i)) continue;
+	for_each_cpu(i) {
 		xs_xstrat_bytes += per_cpu(xfsstats, i).xs_xstrat_bytes;
 		xs_write_bytes += per_cpu(xfsstats, i).xs_write_bytes;
 		xs_read_bytes += per_cpu(xfsstats, i).xs_read_bytes;

@@ -5,7 +5,7 @@ static inline void do_timer_interrupt_hook(struct pt_regs *regs)
 {
 	do_timer(regs);
 #ifndef CONFIG_SMP
-	update_process_times(user_mode(regs));
+	update_process_times(user_mode_vm(regs));
 #endif
 
 	voyager_timer_interrupt(regs);

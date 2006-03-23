@@ -102,9 +102,7 @@ struct uart_sunsu_port {
 #endif
 };
 
-#define _INLINE_
-
-static _INLINE_ unsigned int serial_in(struct uart_sunsu_port *up, int offset)
+static unsigned int serial_in(struct uart_sunsu_port *up, int offset)
 {
 	offset <<= up->port.regshift;
 
@@ -121,8 +119,7 @@ static _INLINE_ unsigned int serial_in(struct uart_sunsu_port *up, int offset)
 	}
 }
 
-static _INLINE_ void
-serial_out(struct uart_sunsu_port *up, int offset, int value)
+static void serial_out(struct uart_sunsu_port *up, int offset, int value)
 {
 #ifndef CONFIG_SPARC64
 	/*
@@ -316,7 +313,7 @@ static void sunsu_enable_ms(struct uart_port *port)
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
 
-static _INLINE_ struct tty_struct *
+static struct tty_struct *
 receive_chars(struct uart_sunsu_port *up, unsigned char *status, struct pt_regs *regs)
 {
 	struct tty_struct *tty = up->port.info->tty;
@@ -395,7 +392,7 @@ receive_chars(struct uart_sunsu_port *up, unsigned char *status, struct pt_regs 
 	return tty;
 }
 
-static _INLINE_ void transmit_chars(struct uart_sunsu_port *up)
+static void transmit_chars(struct uart_sunsu_port *up)
 {
 	struct circ_buf *xmit = &up->port.info->xmit;
 	int count;
@@ -431,7 +428,7 @@ static _INLINE_ void transmit_chars(struct uart_sunsu_port *up)
 		__stop_tx(up);
 }
 
-static _INLINE_ void check_modem_status(struct uart_sunsu_port *up)
+static void check_modem_status(struct uart_sunsu_port *up)
 {
 	int status;
 

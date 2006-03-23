@@ -404,9 +404,8 @@ static int __init topology_init(void)
 {
 	int cpu_id;
 
-	for (cpu_id = 0; cpu_id < NR_CPUS; cpu_id++)
-		if (cpu_possible(cpu_id))
-			register_cpu(&cpu[cpu_id], cpu_id, NULL);
+	for_each_cpu(cpu_id)
+		register_cpu(&cpu[cpu_id], cpu_id, NULL);
 
 	return 0;
 }
