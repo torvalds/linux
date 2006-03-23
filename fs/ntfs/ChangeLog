@@ -19,6 +19,12 @@ ToDo/Notes:
 	- Enable the code for setting the NT4 compatibility flag when we start
 	  making NTFS 1.2 specific modifications.
 
+2.1.27 - Various bug fixes.
+
+	- Fix two compiler warnings on Alpha.  Thanks to Andrew Morton for
+	  reporting them.
+	- Fix an (innocent) off-by-one error in the runlist code.
+
 2.1.26 - Minor bug fixes and updates.
 
 	- Fix a potential overflow in file.c where a cast to s64 was missing in
