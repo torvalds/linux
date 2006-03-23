@@ -2484,7 +2484,7 @@ static const struct sky2_stat {
 	{ "single_collisions", GM_TXF_SNG_COL },
 	{ "multi_collisions", GM_TXF_MUL_COL },
 
-	{ "rx_short",      GM_RXE_SHT },
+	{ "rx_short",      GM_RXF_SHT },
 	{ "rx_runt", 	   GM_RXE_FRAG },
 	{ "rx_64_byte_packets", GM_RXF_64B },
 	{ "rx_65_to_127_byte_packets", GM_RXF_127B },
