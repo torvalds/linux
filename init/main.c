@@ -333,6 +333,7 @@ static void __init setup_per_cpu_areas(void)
 {
 	unsigned long size, i;
 	char *ptr;
+	unsigned long nr_possible_cpus = num_possible_cpus();
 
 	/* Copy section for each CPU (we discard the original) */
 	size = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
@@ -340,12 +341,16 @@ static void __init setup_per_cpu_areas(void)
 	if (size < PERCPU_ENOUGH_ROOM)
 		size = PERCPU_ENOUGH_ROOM;
 #endif
+	ptr = alloc_bootmem(size * nr_possible_cpus);
 
-	ptr = alloc_bootmem(size * NR_CPUS);
-
-	for (i = 0; i < NR_CPUS; i++, ptr += size) {
+	for (i = 0; i < NR_CPUS; i++) {
+		if (!cpu_possible(i)) {
+			__per_cpu_offset[i] = (char*)0 - __per_cpu_start;
+			continue;
+		}
 		__per_cpu_offset[i] = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+		ptr += size;
 	}
 }
 #endif /* !__GENERIC_PER_CPU */
