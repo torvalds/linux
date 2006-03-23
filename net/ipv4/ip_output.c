@@ -1249,11 +1249,7 @@ int ip_push_pending_frames(struct sock *sk)
 	iph->tos = inet->tos;
 	iph->tot_len = htons(skb->len);
 	iph->frag_off = df;
-	if (!df) {
-		__ip_select_ident(iph, &rt->u.dst, 0);
-	} else {
-		iph->id = htons(inet->id++);
-	}
+	ip_select_ident(iph, &rt->u.dst, sk);
 	iph->ttl = ttl;
 	iph->protocol = sk->sk_protocol;
 	iph->saddr = rt->rt_src;

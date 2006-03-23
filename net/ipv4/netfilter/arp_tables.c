@@ -1146,12 +1146,14 @@ void arpt_unregister_table(struct arpt_table *table)
 static struct arpt_target arpt_standard_target = {
 	.name		= ARPT_STANDARD_TARGET,
 	.targetsize	= sizeof(int),
+	.family		= NF_ARP,
 };
 
 static struct arpt_target arpt_error_target = {
 	.name		= ARPT_ERROR_TARGET,
 	.target		= arpt_error,
 	.targetsize	= ARPT_FUNCTION_MAXNAMELEN,
+	.family		= NF_ARP,
 };
 
 static struct nf_sockopt_ops arpt_sockopts = {
@@ -1171,8 +1173,8 @@ static int __init init(void)
 	xt_proto_init(NF_ARP);
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	xt_register_target(NF_ARP, &arpt_standard_target);
-	xt_register_target(NF_ARP, &arpt_error_target);
+	xt_register_target(&arpt_standard_target);
+	xt_register_target(&arpt_error_target);
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&arpt_sockopts);

@@ -203,10 +203,39 @@ match(const struct sk_buff *skb,
 
 #endif /* CONFIG_NF_IP_CONNTRACK */
 
+static int
+checkentry(const char *tablename,
+	   const void *ip,
+	   const struct xt_match *match,
+	   void *matchinfo,
+	   unsigned int matchsize,
+	   unsigned int hook_mask)
+{
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
+		printk(KERN_WARNING "can't load nf_conntrack support for "
+				    "proto=%d\n", match->family);
+		return 0;
+	}
+#endif
+	return 1;
+}
+
+static void
+destroy(const struct xt_match *match, void *matchinfo, unsigned int matchsize)
+{
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_ct_l3proto_module_put(match->family);
+#endif
+}
+
 static struct xt_match conntrack_match = {
 	.name		= "conntrack",
 	.match		= match,
+	.checkentry	= checkentry,
+	.destroy	= destroy,
 	.matchsize	= sizeof(struct xt_conntrack_info),
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
@@ -214,14 +243,14 @@ static int __init init(void)
 {
 	int ret;
 	need_conntrack();
-	ret = xt_register_match(AF_INET, &conntrack_match);
+	ret = xt_register_match(&conntrack_match);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET, &conntrack_match);
+	xt_unregister_match(&conntrack_match);
 }
 
 module_init(init);

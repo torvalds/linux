@@ -45,17 +45,18 @@ static struct xt_match realm_match = {
 	.matchsize	= sizeof(struct xt_realm_info),
 	.hooks		= (1 << NF_IP_POST_ROUTING) | (1 << NF_IP_FORWARD) |
 			  (1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_LOCAL_IN),
+	.family		= AF_INET,
 	.me		= THIS_MODULE
 };
 
 static int __init init(void)
 {
-	return xt_register_match(AF_INET, &realm_match);
+	return xt_register_match(&realm_match);
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET, &realm_match);
+	xt_unregister_match(&realm_match);
 }
 
 module_init(init);
