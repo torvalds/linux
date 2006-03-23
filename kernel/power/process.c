@@ -83,7 +83,7 @@ int freeze_processes(void)
 		yield();			/* Yield is okay here */
 		if (todo && time_after(jiffies, start_time + TIMEOUT)) {
 			printk( "\n" );
-			printk(KERN_ERR " stopping tasks failed (%d tasks remaining)\n", todo );
+			printk(KERN_ERR " stopping tasks timed out (%d tasks remaining)\n", todo );
 			break;
 		}
 	} while(todo);
