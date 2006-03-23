@@ -2404,35 +2404,39 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static inline void skge_tx_free(struct skge_hw *hw, struct skge_element *e)
+static void skge_tx_complete(struct skge_port *skge, struct skge_element *last)
 {
-	/* This ring element can be skb or fragment */
-	if (e->skb) {
-		pci_unmap_single(hw->pdev,
-			       pci_unmap_addr(e, mapaddr),
-			       pci_unmap_len(e, maplen),
-			       PCI_DMA_TODEVICE);
-		dev_kfree_skb(e->skb);
+	struct pci_dev *pdev = skge->hw->pdev;
+	struct skge_element *e;
+
+	for (e = skge->tx_ring.to_clean; e != last; e = e->next) {
+		struct sk_buff *skb = e->skb;
+		int i;
+
 		e->skb = NULL;
-	} else {
-		pci_unmap_page(hw->pdev,
-			       pci_unmap_addr(e, mapaddr),
-			       pci_unmap_len(e, maplen),
-			       PCI_DMA_TODEVICE);
+		pci_unmap_single(pdev, pci_unmap_addr(e, mapaddr),
+				 skb_headlen(skb), PCI_DMA_TODEVICE);
+		++skge->tx_avail;
+
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+			e = e->next;
+			pci_unmap_page(pdev, pci_unmap_addr(e, mapaddr),
+				       skb_shinfo(skb)->frags[i].size,
+				       PCI_DMA_TODEVICE);
+			++skge->tx_avail;
+		}
+
+		dev_kfree_skb(skb);
 	}
+	skge->tx_ring.to_clean = e;
 }
 
 static void skge_tx_clean(struct skge_port *skge)
 {
-	struct skge_ring *ring = &skge->tx_ring;
-	struct skge_element *e;
 
 	spin_lock_bh(&skge->tx_lock);
-	for (e = ring->to_clean; e != ring->to_use; e = e->next) {
-		++skge->tx_avail;
-		skge_tx_free(skge->hw, e);
-	}
-	ring->to_clean = e;
+	skge_tx_complete(skge, skge->tx_ring.to_use);
+	netif_wake_queue(skge->netdev);
 	spin_unlock_bh(&skge->tx_lock);
 }
 
@@ -2662,27 +2666,26 @@ resubmit:
 static void skge_tx_done(struct skge_port *skge)
 {
 	struct skge_ring *ring = &skge->tx_ring;
-	struct skge_element *e;
+	struct skge_element *e, *last;
 
 	spin_lock(&skge->tx_lock);
-	for (e = ring->to_clean; prefetch(e->next), e != ring->to_use; e = e->next) {
+	last = ring->to_clean;
+	for (e = ring->to_clean; e != ring->to_use; e = e->next) {
 		struct skge_tx_desc *td = e->desc;
-		u32 control;
 
-		rmb();
-		control = td->control;
-		if (control & BMU_OWN)
+		if (td->control & BMU_OWN)
 			break;
 
-		if (unlikely(netif_msg_tx_done(skge)))
-			printk(KERN_DEBUG PFX "%s: tx done slot %td status 0x%x\n",
-			       skge->netdev->name, e - ring->start, td->status);
-
-		skge_tx_free(skge->hw, e);
-		e->skb = NULL;
-		++skge->tx_avail;
+		if (td->control & BMU_EOF) {
+			last = e->next;
+			if (unlikely(netif_msg_tx_done(skge)))
+				printk(KERN_DEBUG PFX "%s: tx done slot %td\n",
+				       skge->netdev->name, e - ring->start);
+		}
 	}
-	ring->to_clean = e;
+
+	skge_tx_complete(skge, last);
+
 	skge_write8(skge->hw, Q_ADDR(txqaddr[skge->port], Q_CSR), CSR_IRQ_CL_F);
 
 	if (skge->tx_avail > MAX_SKB_FRAGS + 1)
