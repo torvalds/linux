@@ -21,7 +21,7 @@
 #define MAX_XPOS	max_xpos
 
 static int max_ypos = 25, max_xpos = 80;
-static int current_ypos = 1, current_xpos = 0; 
+static int current_ypos = 25, current_xpos = 0;
 
 static void early_vga_write(struct console *con, const char *str, unsigned n)
 {
@@ -244,6 +244,7 @@ int __init setup_early_printk(char *opt)
 	           && SCREEN_INFO.orig_video_isVGA == 1) {
 		max_xpos = SCREEN_INFO.orig_video_cols;
 		max_ypos = SCREEN_INFO.orig_video_lines;
+		current_ypos = max_ypos;
 		early_console = &early_vga_console; 
  	} else if (!strncmp(buf, "simnow", 6)) {
  		simnow_init(buf + 6);

@@ -1459,6 +1459,16 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_cmdline_early(cmdline_p);
 
+#ifdef CONFIG_EARLY_PRINTK
+	{
+		char *s = strstr(*cmdline_p, "earlyprintk=");
+		if (s) {
+			setup_early_printk(strchr(s, '=') + 1);
+			printk("early console enabled\n");
+		}
+	}
+#endif
+
 	max_low_pfn = setup_memory();
 
 	/*
@@ -1482,19 +1492,6 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * NOTE: at this point the bootmem allocator is fully available.
 	 */
-
-#ifdef CONFIG_EARLY_PRINTK
-	{
-		char *s = strstr(*cmdline_p, "earlyprintk=");
-		if (s) {
-			extern void setup_early_printk(char *);
-
-			setup_early_printk(strchr(s, '=') + 1);
-			printk("early console enabled\n");
-		}
-	}
-#endif
-
 
 	dmi_scan_machine();
 
