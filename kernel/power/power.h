@@ -41,8 +41,8 @@ extern struct pbe *pagedir_nosave;
 
 /* Preferred image size in bytes (default 500 MB) */
 extern unsigned long image_size;
-
 extern int in_suspend;
+extern dev_t swsusp_resume_device;
 
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
@@ -65,3 +65,32 @@ struct snapshot_handle {
 extern int snapshot_read_next(struct snapshot_handle *handle, size_t count);
 extern int snapshot_write_next(struct snapshot_handle *handle, size_t count);
 int snapshot_image_loaded(struct snapshot_handle *handle);
+
+/**
+ *	The bitmap is used for tracing allocated swap pages
+ *
+ *	The entire bitmap consists of a number of bitmap_page
+ *	structures linked with the help of the .next member.
+ *	Thus each page can be allocated individually, so we only
+ *	need to make 0-order memory allocations to create
+ *	the bitmap.
+ */
+
+#define BITMAP_PAGE_SIZE	(PAGE_SIZE - sizeof(void *))
+#define BITMAP_PAGE_CHUNKS	(BITMAP_PAGE_SIZE / sizeof(long))
+#define BITS_PER_CHUNK		(sizeof(long) * 8)
+#define BITMAP_PAGE_BITS	(BITMAP_PAGE_CHUNKS * BITS_PER_CHUNK)
+
+struct bitmap_page {
+	unsigned long		chunks[BITMAP_PAGE_CHUNKS];
+	struct bitmap_page	*next;
+};
+
+extern void free_bitmap(struct bitmap_page *bitmap);
+extern struct bitmap_page *alloc_bitmap(unsigned int nr_bits);
+extern unsigned long alloc_swap_page(int swap, struct bitmap_page *bitmap);
+extern void free_all_swap_pages(int swap, struct bitmap_page *bitmap);
+
+extern int swsusp_shrink_memory(void);
+extern int swsusp_suspend(void);
+extern int swsusp_resume(void);
