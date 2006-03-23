@@ -407,7 +407,6 @@ int register_cdrom(struct cdrom_device_info *cdi)
 	ENSURE(get_mcn, CDC_MCN);
 	ENSURE(reset, CDC_RESET);
 	ENSURE(audio_ioctl, CDC_PLAY_AUDIO);
-	ENSURE(dev_ioctl, CDC_IOCTLS);
 	ENSURE(generic_packet, CDC_GENERIC_PACKET);
 	cdi->mc_flags = 0;
 	cdo->n_minors = 0;
@@ -2775,12 +2774,6 @@ int cdrom_ioctl(struct file * file, struct cdrom_device_info *cdi,
 	case CDROMRESUME:
 		return cdrom_ioctl_audioctl(cdi, cmd);
 	}
-
-	/*
-	 * Finally, do the device specific ioctls
-	 */
-	if (CDROM_CAN(CDC_IOCTLS))
-		return cdi->ops->dev_ioctl(cdi, cmd, arg);
 
 	return -ENOSYS;
 }
