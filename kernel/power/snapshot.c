@@ -123,6 +123,7 @@ int save_highmem(void)
 	int res = 0;
 
 	pr_debug("swsusp: Saving Highmem");
+	drain_local_pages();
 	for_each_zone (zone) {
 		if (is_highmem(zone))
 			res = save_highmem_zone(zone);
