@@ -27,9 +27,6 @@
 
 #include "w1.h"
 
-#define CN_W1_IDX	3
-#define CN_W1_VAL	1
-
 enum w1_netlink_message_types {
 	W1_SLAVE_ADD = 0,
 	W1_SLAVE_REMOVE,
