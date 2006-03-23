@@ -1761,7 +1761,8 @@ static void __init setup_ioapic_ids_from_mpc(void)
 	 * Don't check I/O APIC IDs for xAPIC systems.  They have
 	 * no meaning without the serial APIC bus.
 	 */
-	if (!(boot_cpu_data.x86_vendor == X86_VENDOR_INTEL && boot_cpu_data.x86 < 15))
+	if (!(boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		|| APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
 		return;
 	/*
 	 * This is broken; anything with a real cpu count has to
