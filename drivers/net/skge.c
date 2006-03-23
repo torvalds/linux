@@ -357,7 +357,7 @@ static struct net_device_stats *skge_get_stats(struct net_device *dev)
 	skge->net_stats.rx_bytes = data[1];
 	skge->net_stats.tx_packets = data[2] + data[4] + data[6];
 	skge->net_stats.rx_packets = data[3] + data[5] + data[7];
-	skge->net_stats.multicast = data[5] + data[7];
+	skge->net_stats.multicast = data[3] + data[5];
 	skge->net_stats.collisions = data[10];
 	skge->net_stats.tx_aborted_errors = data[12];
 
