@@ -95,11 +95,10 @@ static int ext3_readdir(struct file * filp,
 			 void * dirent, filldir_t filldir)
 {
 	int error = 0;
-	unsigned long offset, blk;
-	int i, num, stored;
-	struct buffer_head * bh, * tmp, * bha[16];
-	struct ext3_dir_entry_2 * de;
-	struct super_block * sb;
+	unsigned long offset;
+	int i, stored;
+	struct ext3_dir_entry_2 *de;
+	struct super_block *sb;
 	int err;
 	struct inode *inode = filp->f_dentry->d_inode;
 	int ret = 0;
@@ -124,38 +123,35 @@ static int ext3_readdir(struct file * filp,
 	}
 #endif
 	stored = 0;
-	bh = NULL;
 	offset = filp->f_pos & (sb->s_blocksize - 1);
 
 	while (!error && !stored && filp->f_pos < inode->i_size) {
-		blk = (filp->f_pos) >> EXT3_BLOCK_SIZE_BITS(sb);
-		bh = ext3_bread(NULL, inode, blk, 0, &err);
+		unsigned long blk = filp->f_pos >> EXT3_BLOCK_SIZE_BITS(sb);
+		struct buffer_head map_bh;
+		struct buffer_head *bh = NULL;
+
+		map_bh.b_state = 0;
+		err = ext3_get_block_handle(NULL, inode, blk, &map_bh, 0, 0);
+		if (!err) {
+			page_cache_readahead(sb->s_bdev->bd_inode->i_mapping,
+				&filp->f_ra,
+				filp,
+				map_bh.b_blocknr >>
+					(PAGE_CACHE_SHIFT - inode->i_blkbits),
+				1);
+			bh = ext3_bread(NULL, inode, blk, 0, &err);
+		}
+
+		/*
+		 * We ignore I/O errors on directories so users have a chance
+		 * of recovering data when there's a bad sector
+		 */
 		if (!bh) {
 			ext3_error (sb, "ext3_readdir",
 				"directory #%lu contains a hole at offset %lu",
 				inode->i_ino, (unsigned long)filp->f_pos);
 			filp->f_pos += sb->s_blocksize - offset;
 			continue;
-		}
-
-		/*
-		 * Do the readahead
-		 */
-		if (!offset) {
-			for (i = 16 >> (EXT3_BLOCK_SIZE_BITS(sb) - 9), num = 0;
-			     i > 0; i--) {
-				tmp = ext3_getblk (NULL, inode, ++blk, 0, &err);
-				if (tmp && !buffer_uptodate(tmp) &&
-						!buffer_locked(tmp))
-					bha[num++] = tmp;
-				else
-					brelse (tmp);
-			}
-			if (num) {
-				ll_rw_block (READA, num, bha);
-				for (i = 0; i < num; i++)
-					brelse (bha[i]);
-			}
 		}
 
 revalidate:

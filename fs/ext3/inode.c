@@ -671,7 +671,7 @@ err_out:
  * The BKL may not be held on entry here.  Be sure to take it early.
  */
 
-static int
+int
 ext3_get_block_handle(handle_t *handle, struct inode *inode, sector_t iblock,
 		struct buffer_head *bh_result, int create, int extend_disksize)
 {
