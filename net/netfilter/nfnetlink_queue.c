@@ -354,16 +354,17 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	QDEBUG("entered\n");
 
 	/* all macros expand to constant values at compile time */
-	size =    NLMSG_SPACE(sizeof(struct nfqnl_msg_packet_hdr))
-		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
-		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
+	size =    NLMSG_SPACE(sizeof(struct nfgenmsg)) +
+		+ NFA_SPACE(sizeof(struct nfqnl_msg_packet_hdr))
+		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
 #ifdef CONFIG_BRIDGE_NETFILTER
-		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
-		+ NLMSG_SPACE(sizeof(u_int32_t))	/* ifindex */
+		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
 #endif
-		+ NLMSG_SPACE(sizeof(u_int32_t))	/* mark */
-		+ NLMSG_SPACE(sizeof(struct nfqnl_msg_packet_hw))
-		+ NLMSG_SPACE(sizeof(struct nfqnl_msg_packet_timestamp));
+		+ NFA_SPACE(sizeof(u_int32_t))	/* mark */
+		+ NFA_SPACE(sizeof(struct nfqnl_msg_packet_hw))
+		+ NFA_SPACE(sizeof(struct nfqnl_msg_packet_timestamp));
 
 	outdev = entinf->outdev;
 
@@ -388,7 +389,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		else
 			data_len = queue->copy_range;
 		
-		size += NLMSG_SPACE(data_len);
+		size += NFA_SPACE(data_len);
 		break;
 	
 	default:
@@ -928,8 +929,12 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 
 	if (nfqa[NFQA_CFG_PARAMS-1]) {
 		struct nfqnl_msg_config_params *params;
-		params = NFA_DATA(nfqa[NFQA_CFG_PARAMS-1]);
 
+		if (!queue) {
+			ret = -ENOENT;
+			goto out_put;
+		}
+		params = NFA_DATA(nfqa[NFQA_CFG_PARAMS-1]);
 		nfqnl_set_mode(queue, params->copy_mode,
 				ntohl(params->copy_range));
 	}

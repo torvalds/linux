@@ -5,6 +5,7 @@
 #include <linux/videodev.h>
 #include <linux/smp_lock.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 
 #define OV511_DEBUG	/* Turn on debug messages */
 
@@ -435,7 +436,7 @@ struct usb_ov511 {
 
 	int led_policy;		/* LED: off|on|auto; OV511+ only */
 
-	struct semaphore lock;	/* Serializes user-accessible operations */
+	struct mutex lock;	/* Serializes user-accessible operations */
 	int user;		/* user count for exclusive use */
 
 	int streaming;		/* Are we streaming Isochronous? */
@@ -473,11 +474,9 @@ struct usb_ov511 {
 	int packet_size;	/* Frame size per isoc desc */
 	int packet_numbering;	/* Is ISO frame numbering enabled? */
 
-	struct semaphore param_lock;	/* params lock for this camera */
-
 	/* Framebuffer/sbuf management */
 	int buf_state;
-	struct semaphore buf_lock;
+	struct mutex buf_lock;
 
 	struct ov51x_decomp_ops *decomp_ops;
 
@@ -494,12 +493,12 @@ struct usb_ov511 {
 	int pal;		/* Device is designed for PAL resolution */
 
 	/* I2C interface */
-	struct semaphore i2c_lock;	  /* Protect I2C controller regs */
+	struct mutex i2c_lock;	  /* Protect I2C controller regs */
 	unsigned char primary_i2c_slave;  /* I2C write id of sensor */
 
 	/* Control transaction stuff */
 	unsigned char *cbuf;		/* Buffer for payload */
-	struct semaphore cbuf_lock;
+	struct mutex cbuf_lock;
 };
 
 /* Used to represent a list of values and their respective symbolic names */

@@ -152,7 +152,7 @@ static int is_elf64(void *hdr)
 	elf64ph = (Elf64_Phdr *)((unsigned long)elf64 +
 				 (unsigned long)elf64->e_phoff);
 	for (i = 0; i < (unsigned int)elf64->e_phnum; i++, elf64ph++)
-		if (elf64ph->p_type == PT_LOAD && elf64ph->p_offset != 0)
+		if (elf64ph->p_type == PT_LOAD)
 			break;
 	if (i >= (unsigned int)elf64->e_phnum)
 		return 0;
@@ -193,7 +193,7 @@ static int is_elf32(void *hdr)
 	elf32 = (Elf32_Ehdr *)elfheader;
 	elf32ph = (Elf32_Phdr *) ((unsigned long)elf32 + elf32->e_phoff);
 	for (i = 0; i < elf32->e_phnum; i++, elf32ph++)
-		if (elf32ph->p_type == PT_LOAD && elf32ph->p_offset != 0)
+		if (elf32ph->p_type == PT_LOAD)
 			break;
 	if (i >= elf32->e_phnum)
 		return 0;

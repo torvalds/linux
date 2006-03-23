@@ -1891,6 +1891,34 @@ static void tcp_try_to_open(struct sock *sk, struct tcp_sock *tp, int flag)
 	}
 }
 
+static void tcp_mtup_probe_failed(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	icsk->icsk_mtup.search_high = icsk->icsk_mtup.probe_size - 1;
+	icsk->icsk_mtup.probe_size = 0;
+}
+
+static void tcp_mtup_probe_success(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	/* FIXME: breaks with very large cwnd */
+	tp->prior_ssthresh = tcp_current_ssthresh(sk);
+	tp->snd_cwnd = tp->snd_cwnd *
+		       tcp_mss_to_mtu(sk, tp->mss_cache) /
+		       icsk->icsk_mtup.probe_size;
+	tp->snd_cwnd_cnt = 0;
+	tp->snd_cwnd_stamp = tcp_time_stamp;
+	tp->rcv_ssthresh = tcp_current_ssthresh(sk);
+
+	icsk->icsk_mtup.search_low = icsk->icsk_mtup.probe_size;
+	icsk->icsk_mtup.probe_size = 0;
+	tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
+}
+
+
 /* Process an event, which can update packets-in-flight not trivially.
  * Main goal of this function is to calculate new estimate for left_out,
  * taking into account both packets sitting in receiver's buffer and
@@ -2020,6 +2048,17 @@ tcp_fastretrans_alert(struct sock *sk, u32 prior_snd_una,
 
 		if (!tcp_time_to_recover(sk, tp)) {
 			tcp_try_to_open(sk, tp, flag);
+			return;
+		}
+
+		/* MTU probe failure: don't reduce cwnd */
+		if (icsk->icsk_ca_state < TCP_CA_CWR &&
+		    icsk->icsk_mtup.probe_size &&
+		    tp->snd_una == tp->mtu_probe.probe_seq_start) {
+			tcp_mtup_probe_failed(sk);
+			/* Restores the reduction we did in tcp_mtup_probe() */
+			tp->snd_cwnd++;
+			tcp_simple_retransmit(sk);
 			return;
 		}
 
@@ -2241,6 +2280,13 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 		} else {
 			acked |= FLAG_SYN_ACKED;
 			tp->retrans_stamp = 0;
+		}
+
+		/* MTU probing checks */
+		if (icsk->icsk_mtup.probe_size) {
+			if (!after(tp->mtu_probe.probe_seq_end, TCP_SKB_CB(skb)->end_seq)) {
+				tcp_mtup_probe_success(sk, skb);
+			}
 		}
 
 		if (sacked) {
@@ -4101,6 +4147,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		if (tp->rx_opt.sack_ok && sysctl_tcp_fack)
 			tp->rx_opt.sack_ok |= 2;
 
+		tcp_mtup_init(sk);
 		tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		tcp_initialize_rcv_mss(sk);
 
@@ -4211,6 +4258,7 @@ discard:
 		if (tp->ecn_flags&TCP_ECN_OK)
 			sock_set_flag(sk, SOCK_NO_LARGESEND);
 
+		tcp_mtup_init(sk);
 		tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		tcp_initialize_rcv_mss(sk);
 
@@ -4399,6 +4447,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 				 */
 				tp->lsndtime = tcp_time_stamp;
 
+				tcp_mtup_init(sk);
 				tcp_initialize_rcv_mss(sk);
 				tcp_init_buffer_space(sk);
 				tcp_fast_path_on(tp);

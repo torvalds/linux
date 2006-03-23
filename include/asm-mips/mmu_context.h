@@ -33,12 +33,7 @@ extern unsigned long pgd_current[];
 	write_c0_context((unsigned long) smp_processor_id() << 25);	\
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
 #endif
-#if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
-#define TLBMISS_HANDLER_SETUP()						\
-	write_c0_context((unsigned long) &pgd_current[smp_processor_id()] << 23); \
-	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)
-#endif
-#if defined(CONFIG_64BIT) && defined(CONFIG_BUILD_ELF64)
+#ifdef CONFIG_64BIT
 #define TLBMISS_HANDLER_SETUP()						\
 	write_c0_context((unsigned long) smp_processor_id() << 26);	\
 	TLBMISS_HANDLER_SETUP_PGD(swapper_pg_dir)

@@ -426,6 +426,7 @@ ip6t_log_target(struct sk_buff **pskb,
 		const struct net_device *in,
 		const struct net_device *out,
 		unsigned int hooknum,
+		const struct xt_target *target,
 		const void *targinfo,
 		void *userinfo)
 {
@@ -436,7 +437,12 @@ ip6t_log_target(struct sk_buff **pskb,
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
-	nf_log_packet(PF_INET6, hooknum, *pskb, in, out, &li, loginfo->prefix);
+	if (loginfo->logflags & IP6T_LOG_NFLOG)
+		nf_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
+		              loginfo->prefix);
+	else
+		ip6t_log_packet(PF_INET6, hooknum, *pskb, in, out, &li,
+		                loginfo->prefix);
 
 	return IP6T_CONTINUE;
 }
@@ -444,35 +450,29 @@ ip6t_log_target(struct sk_buff **pskb,
 
 static int ip6t_log_checkentry(const char *tablename,
 			       const void *entry,
+			       const struct xt_target *target,
 			       void *targinfo,
 			       unsigned int targinfosize,
 			       unsigned int hook_mask)
 {
 	const struct ip6t_log_info *loginfo = targinfo;
 
-	if (targinfosize != IP6T_ALIGN(sizeof(struct ip6t_log_info))) {
-		DEBUGP("LOG: targinfosize %u != %u\n",
-		       targinfosize, IP6T_ALIGN(sizeof(struct ip6t_log_info)));
-		return 0;
-	}
-
 	if (loginfo->level >= 8) {
 		DEBUGP("LOG: level %u >= 8\n", loginfo->level);
 		return 0;
 	}
-
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
 		DEBUGP("LOG: prefix term %i\n",
 		       loginfo->prefix[sizeof(loginfo->prefix)-1]);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ip6t_target ip6t_log_reg = {
 	.name 		= "LOG",
 	.target 	= ip6t_log_target, 
+	.targetsize	= sizeof(struct ip6t_log_info),
 	.checkentry	= ip6t_log_checkentry, 
 	.me 		= THIS_MODULE,
 };

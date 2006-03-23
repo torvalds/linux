@@ -86,6 +86,7 @@
 #include <linux/swap.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/migrate.h>
 
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
@@ -95,11 +96,8 @@
 #define MPOL_MF_INVERT (MPOL_MF_INTERNAL << 1)		/* Invert check for nodemask */
 #define MPOL_MF_STATS (MPOL_MF_INTERNAL << 2)		/* Gather statistics */
 
-/* The number of pages to migrate per call to migrate_pages() */
-#define MIGRATE_CHUNK_SIZE 256
-
-static kmem_cache_t *policy_cache;
-static kmem_cache_t *sn_cache;
+static struct kmem_cache *policy_cache;
+static struct kmem_cache *sn_cache;
 
 #define PDprintk(fmt...)
 
@@ -197,7 +195,7 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 	return policy;
 }
 
-static void gather_stats(struct page *, void *);
+static void gather_stats(struct page *, void *, int pte_dirty);
 static void migrate_page_add(struct page *page, struct list_head *pagelist,
 				unsigned long flags);
 
@@ -239,7 +237,7 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 			continue;
 
 		if (flags & MPOL_MF_STATS)
-			gather_stats(page, private);
+			gather_stats(page, private, pte_dirty(*pte));
 		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
 			migrate_page_add(page, private, flags);
 		else
@@ -330,9 +328,12 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 	int err;
 	struct vm_area_struct *first, *vma, *prev;
 
-	/* Clear the LRU lists so pages can be isolated */
-	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
-		lru_add_drain_all();
+	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+
+		err = migrate_prep();
+		if (err)
+			return ERR_PTR(err);
+	}
 
 	first = find_vma(mm, start);
 	if (!first)
@@ -540,78 +541,18 @@ long do_get_mempolicy(int *policy, nodemask_t *nmask,
 	return err;
 }
 
+#ifdef CONFIG_MIGRATION
 /*
  * page migration
  */
-
 static void migrate_page_add(struct page *page, struct list_head *pagelist,
 				unsigned long flags)
 {
 	/*
 	 * Avoid migrating a page that is shared with others.
 	 */
-	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1) {
-		if (isolate_lru_page(page))
-			list_add(&page->lru, pagelist);
-	}
-}
-
-/*
- * Migrate the list 'pagelist' of pages to a certain destination.
- *
- * Specify destination with either non-NULL vma or dest_node >= 0
- * Return the number of pages not migrated or error code
- */
-static int migrate_pages_to(struct list_head *pagelist,
-			struct vm_area_struct *vma, int dest)
-{
-	LIST_HEAD(newlist);
-	LIST_HEAD(moved);
-	LIST_HEAD(failed);
-	int err = 0;
-	int nr_pages;
-	struct page *page;
-	struct list_head *p;
-
-redo:
-	nr_pages = 0;
-	list_for_each(p, pagelist) {
-		if (vma)
-			page = alloc_page_vma(GFP_HIGHUSER, vma, vma->vm_start);
-		else
-			page = alloc_pages_node(dest, GFP_HIGHUSER, 0);
-
-		if (!page) {
-			err = -ENOMEM;
-			goto out;
-		}
-		list_add(&page->lru, &newlist);
-		nr_pages++;
-		if (nr_pages > MIGRATE_CHUNK_SIZE)
-			break;
-	}
-	err = migrate_pages(pagelist, &newlist, &moved, &failed);
-
-	putback_lru_pages(&moved);	/* Call release pages instead ?? */
-
-	if (err >= 0 && list_empty(&newlist) && !list_empty(pagelist))
-		goto redo;
-out:
-	/* Return leftover allocated pages */
-	while (!list_empty(&newlist)) {
-		page = list_entry(newlist.next, struct page, lru);
-		list_del(&page->lru);
-		__free_page(page);
-	}
-	list_splice(&failed, pagelist);
-	if (err < 0)
-		return err;
-
-	/* Calculate number of leftover pages */
-	nr_pages = 0;
-	list_for_each(p, pagelist)
-		nr_pages++;
-	return nr_pages;
+	if ((flags & MPOL_MF_MOVE_ALL) || page_mapcount(page) == 1)
+		isolate_lru_page(page, pagelist);
 }
 
 /*
@@ -718,7 +659,22 @@ int do_migrate_pages(struct mm_struct *mm,
 	if (err < 0)
 		return err;
 	return busy;
+
 }
+
+#else
+
+static void migrate_page_add(struct page *page, struct list_head *pagelist,
+				unsigned long flags)
+{
+}
+
+int do_migrate_pages(struct mm_struct *mm,
+	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags)
+{
+	return -ENOSYS;
+}
+#endif
 
 long do_mbind(unsigned long start, unsigned long len,
 		unsigned long mode, nodemask_t *nmask, unsigned long flags)
@@ -734,7 +690,7 @@ long do_mbind(unsigned long start, unsigned long len,
 				      MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
 	    || mode > MPOL_MAX)
 		return -EINVAL;
-	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_RESOURCE))
+	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_NICE))
 		return -EPERM;
 
 	if (start & ~PAGE_MASK)
@@ -784,6 +740,7 @@ long do_mbind(unsigned long start, unsigned long len,
 		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
 			err = -EIO;
 	}
+
 	if (!list_empty(&pagelist))
 		putback_lru_pages(&pagelist);
 
@@ -928,19 +885,20 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 	 */
 	if ((current->euid != task->suid) && (current->euid != task->uid) &&
 	    (current->uid != task->suid) && (current->uid != task->uid) &&
-	    !capable(CAP_SYS_ADMIN)) {
+	    !capable(CAP_SYS_NICE)) {
 		err = -EPERM;
 		goto out;
 	}
 
 	task_nodes = cpuset_mems_allowed(task);
 	/* Is the user allowed to access the target nodes? */
-	if (!nodes_subset(new, task_nodes) && !capable(CAP_SYS_ADMIN)) {
+	if (!nodes_subset(new, task_nodes) && !capable(CAP_SYS_NICE)) {
 		err = -EPERM;
 		goto out;
 	}
 
-	err = do_migrate_pages(mm, &old, &new, MPOL_MF_MOVE);
+	err = do_migrate_pages(mm, &old, &new,
+		capable(CAP_SYS_NICE) ? MPOL_MF_MOVE_ALL : MPOL_MF_MOVE);
 out:
 	mmput(mm);
 	return err;
@@ -1738,66 +1696,145 @@ static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
 struct numa_maps {
 	unsigned long pages;
 	unsigned long anon;
-	unsigned long mapped;
+	unsigned long active;
+	unsigned long writeback;
 	unsigned long mapcount_max;
+	unsigned long dirty;
+	unsigned long swapcache;
 	unsigned long node[MAX_NUMNODES];
 };
 
-static void gather_stats(struct page *page, void *private)
+static void gather_stats(struct page *page, void *private, int pte_dirty)
 {
 	struct numa_maps *md = private;
 	int count = page_mapcount(page);
 
-	if (count)
-		md->mapped++;
-
-	if (count > md->mapcount_max)
-		md->mapcount_max = count;
-
 	md->pages++;
+	if (pte_dirty || PageDirty(page))
+		md->dirty++;
+
+	if (PageSwapCache(page))
+		md->swapcache++;
+
+	if (PageActive(page))
+		md->active++;
+
+	if (PageWriteback(page))
+		md->writeback++;
 
 	if (PageAnon(page))
 		md->anon++;
 
+	if (count > md->mapcount_max)
+		md->mapcount_max = count;
+
 	md->node[page_to_nid(page)]++;
 	cond_resched();
 }
+
+#ifdef CONFIG_HUGETLB_PAGE
+static void check_huge_range(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end,
+		struct numa_maps *md)
+{
+	unsigned long addr;
+	struct page *page;
+
+	for (addr = start; addr < end; addr += HPAGE_SIZE) {
+		pte_t *ptep = huge_pte_offset(vma->vm_mm, addr & HPAGE_MASK);
+		pte_t pte;
+
+		if (!ptep)
+			continue;
+
+		pte = *ptep;
+		if (pte_none(pte))
+			continue;
+
+		page = pte_page(pte);
+		if (!page)
+			continue;
+
+		gather_stats(page, md, pte_dirty(*ptep));
+	}
+}
+#else
+static inline void check_huge_range(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end,
+		struct numa_maps *md)
+{
+}
+#endif
 
 int show_numa_map(struct seq_file *m, void *v)
 {
 	struct task_struct *task = m->private;
 	struct vm_area_struct *vma = v;
 	struct numa_maps *md;
+	struct file *file = vma->vm_file;
+	struct mm_struct *mm = vma->vm_mm;
 	int n;
 	char buffer[50];
 
-	if (!vma->vm_mm)
+	if (!mm)
 		return 0;
 
 	md = kzalloc(sizeof(struct numa_maps), GFP_KERNEL);
 	if (!md)
 		return 0;
 
-	check_pgd_range(vma, vma->vm_start, vma->vm_end,
-		    &node_online_map, MPOL_MF_STATS, md);
+	mpol_to_str(buffer, sizeof(buffer),
+			get_vma_policy(task, vma, vma->vm_start));
 
-	if (md->pages) {
-		mpol_to_str(buffer, sizeof(buffer),
-			    get_vma_policy(task, vma, vma->vm_start));
+	seq_printf(m, "%08lx %s", vma->vm_start, buffer);
 
-		seq_printf(m, "%08lx %s pages=%lu mapped=%lu maxref=%lu",
-			   vma->vm_start, buffer, md->pages,
-			   md->mapped, md->mapcount_max);
-
-		if (md->anon)
-			seq_printf(m," anon=%lu",md->anon);
-
-		for_each_online_node(n)
-			if (md->node[n])
-				seq_printf(m, " N%d=%lu", n, md->node[n]);
-
-		seq_putc(m, '\n');
+	if (file) {
+		seq_printf(m, " file=");
+		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n\t= ");
+	} else if (vma->vm_start <= mm->brk && vma->vm_end >= mm->start_brk) {
+		seq_printf(m, " heap");
+	} else if (vma->vm_start <= mm->start_stack &&
+			vma->vm_end >= mm->start_stack) {
+		seq_printf(m, " stack");
 	}
+
+	if (is_vm_hugetlb_page(vma)) {
+		check_huge_range(vma, vma->vm_start, vma->vm_end, md);
+		seq_printf(m, " huge");
+	} else {
+		check_pgd_range(vma, vma->vm_start, vma->vm_end,
+				&node_online_map, MPOL_MF_STATS, md);
+	}
+
+	if (!md->pages)
+		goto out;
+
+	if (md->anon)
+		seq_printf(m," anon=%lu",md->anon);
+
+	if (md->dirty)
+		seq_printf(m," dirty=%lu",md->dirty);
+
+	if (md->pages != md->anon && md->pages != md->dirty)
+		seq_printf(m, " mapped=%lu", md->pages);
+
+	if (md->mapcount_max > 1)
+		seq_printf(m, " mapmax=%lu", md->mapcount_max);
+
+	if (md->swapcache)
+		seq_printf(m," swapcache=%lu", md->swapcache);
+
+	if (md->active < md->pages && !is_vm_hugetlb_page(vma))
+		seq_printf(m," active=%lu", md->active);
+
+	if (md->writeback)
+		seq_printf(m," writeback=%lu", md->writeback);
+
+	for_each_online_node(n)
+		if (md->node[n])
+			seq_printf(m, " N%d=%lu", n, md->node[n]);
+out:
+	seq_putc(m, '\n');
 	kfree(md);
 
 	if (m->count < m->size)

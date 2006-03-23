@@ -20,6 +20,9 @@
  */
   
 #include <sound/driver.h>
+
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
+
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -47,7 +50,6 @@ struct rate_priv {
 	unsigned int pitch;
 	unsigned int pos;
 	rate_f func;
-	int get, put;
 	snd_pcm_sframes_t old_src_frames, old_dst_frames;
 	struct rate_channel channels[0];
 };
@@ -71,21 +73,12 @@ static void resample_expand(struct snd_pcm_plugin *plugin,
 	unsigned int pos = 0;
 	signed int val;
 	signed short S1, S2;
-	char *src, *dst;
+	signed short *src, *dst;
 	unsigned int channel;
 	int src_step, dst_step;
 	int src_frames1, dst_frames1;
 	struct rate_priv *data = (struct rate_priv *)plugin->extra_data;
 	struct rate_channel *rchannels = data->channels;
-
-#define GET_S16_LABELS
-#define PUT_S16_LABELS
-#include "plugin_ops.h"
-#undef GET_S16_LABELS
-#undef PUT_S16_LABELS
-	void *get = get_s16_labels[data->get];
-	void *put = put_s16_labels[data->put];
-	signed short sample = 0;
 	
 	for (channel = 0; channel < plugin->src_format.channels; channel++) {
 		pos = data->pos;
@@ -98,10 +91,12 @@ static void resample_expand(struct snd_pcm_plugin *plugin,
 			continue;
 		}
 		dst_channels[channel].enabled = 1;
-		src = (char *)src_channels[channel].area.addr + src_channels[channel].area.first / 8;
-		dst = (char *)dst_channels[channel].area.addr + dst_channels[channel].area.first / 8;
-		src_step = src_channels[channel].area.step / 8;
-		dst_step = dst_channels[channel].area.step / 8;
+		src = (signed short *)src_channels[channel].area.addr +
+			src_channels[channel].area.first / 8 / 2;
+		dst = (signed short *)dst_channels[channel].area.addr +
+			dst_channels[channel].area.first / 8 / 2;
+		src_step = src_channels[channel].area.step / 8 / 2;
+		dst_step = dst_channels[channel].area.step / 8 / 2;
 		src_frames1 = src_frames;
 		dst_frames1 = dst_frames;
 		while (dst_frames1-- > 0) {
@@ -109,12 +104,7 @@ static void resample_expand(struct snd_pcm_plugin *plugin,
 				pos &= R_MASK;
 				S1 = S2;
 				if (src_frames1-- > 0) {
-					goto *get;
-#define GET_S16_END after_get
-#include "plugin_ops.h"
-#undef GET_S16_END
-				after_get:
-					S2 = sample;
+					S2 = *src;
 					src += src_step;
 				}
 			}
@@ -123,12 +113,7 @@ static void resample_expand(struct snd_pcm_plugin *plugin,
 				val = -32768;
 			else if (val > 32767)
 				val = 32767;
-			sample = val;
-			goto *put;
-#define PUT_S16_END after_put
-#include "plugin_ops.h"
-#undef PUT_S16_END
-		after_put:
+			*dst = val;
 			dst += dst_step;
 			pos += data->pitch;
 		}
@@ -147,21 +132,12 @@ static void resample_shrink(struct snd_pcm_plugin *plugin,
 	unsigned int pos = 0;
 	signed int val;
 	signed short S1, S2;
-	char *src, *dst;
+	signed short *src, *dst;
 	unsigned int channel;
 	int src_step, dst_step;
 	int src_frames1, dst_frames1;
 	struct rate_priv *data = (struct rate_priv *)plugin->extra_data;
 	struct rate_channel *rchannels = data->channels;
-	
-#define GET_S16_LABELS
-#define PUT_S16_LABELS
-#include "plugin_ops.h"
-#undef GET_S16_LABELS
-#undef PUT_S16_LABELS
-	void *get = get_s16_labels[data->get];
-	void *put = put_s16_labels[data->put];
-	signed short sample = 0;
 
 	for (channel = 0; channel < plugin->src_format.channels; ++channel) {
 		pos = data->pos;
@@ -174,21 +150,18 @@ static void resample_shrink(struct snd_pcm_plugin *plugin,
 			continue;
 		}
 		dst_channels[channel].enabled = 1;
-		src = (char *)src_channels[channel].area.addr + src_channels[channel].area.first / 8;
-		dst = (char *)dst_channels[channel].area.addr + dst_channels[channel].area.first / 8;
-		src_step = src_channels[channel].area.step / 8;
-		dst_step = dst_channels[channel].area.step / 8;
+		src = (signed short *)src_channels[channel].area.addr +
+			src_channels[channel].area.first / 8 / 2;
+		dst = (signed short *)dst_channels[channel].area.addr +
+			dst_channels[channel].area.first / 8 / 2;
+		src_step = src_channels[channel].area.step / 8 / 2;
+		dst_step = dst_channels[channel].area.step / 8 / 2;
 		src_frames1 = src_frames;
 		dst_frames1 = dst_frames;
 		while (dst_frames1 > 0) {
 			S1 = S2;
 			if (src_frames1-- > 0) {
-				goto *get;
-#define GET_S16_END after_get
-#include "plugin_ops.h"
-#undef GET_S16_END
-			after_get:
-				S2 = sample;
+				S1 = *src;
 				src += src_step;
 			}
 			if (pos & ~R_MASK) {
@@ -198,12 +171,7 @@ static void resample_shrink(struct snd_pcm_plugin *plugin,
 					val = -32768;
 				else if (val > 32767)
 					val = 32767;
-				sample = val;
-				goto *put;
-#define PUT_S16_END after_put
-#include "plugin_ops.h"
-#undef PUT_S16_END
-			after_put:
+				*dst = val;
 				dst += dst_step;
 				dst_frames1--;
 			}
@@ -343,8 +311,8 @@ int snd_pcm_plugin_build_rate(struct snd_pcm_substream *plug,
 
 	snd_assert(src_format->channels == dst_format->channels, return -ENXIO);
 	snd_assert(src_format->channels > 0, return -ENXIO);
-	snd_assert(snd_pcm_format_linear(src_format->format) != 0, return -ENXIO);
-	snd_assert(snd_pcm_format_linear(dst_format->format) != 0, return -ENXIO);
+	snd_assert(src_format->format == SNDRV_PCM_FORMAT_S16, return -ENXIO);
+	snd_assert(dst_format->format == SNDRV_PCM_FORMAT_S16, return -ENXIO);
 	snd_assert(src_format->rate != dst_format->rate, return -ENXIO);
 
 	err = snd_pcm_plugin_build(plug, "rate conversion",
@@ -355,11 +323,6 @@ int snd_pcm_plugin_build_rate(struct snd_pcm_substream *plug,
 	if (err < 0)
 		return err;
 	data = (struct rate_priv *)plugin->extra_data;
-	data->get = getput_index(src_format->format);
-	snd_assert(data->get >= 0 && data->get < 4*2*2, return -EINVAL);
-	data->put = getput_index(dst_format->format);
-	snd_assert(data->put >= 0 && data->put < 4*2*2, return -EINVAL);
-
 	if (src_format->rate < dst_format->rate) {
 		data->pitch = ((src_format->rate << SHIFT) + (dst_format->rate >> 1)) / dst_format->rate;
 		data->func = resample_expand;
@@ -377,3 +340,5 @@ int snd_pcm_plugin_build_rate(struct snd_pcm_substream *plug,
 	*r_plugin = plugin;
 	return 0;
 }
+
+#endif

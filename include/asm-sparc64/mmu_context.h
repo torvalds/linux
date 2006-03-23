@@ -19,96 +19,103 @@ extern unsigned long tlb_context_cache;
 extern unsigned long mmu_context_bmap[];
 
 extern void get_new_mmu_context(struct mm_struct *mm);
+#ifdef CONFIG_SMP
+extern void smp_new_mmu_context_version(void);
+#else
+#define smp_new_mmu_context_version() do { } while (0)
+#endif
 
-/* Initialize a new mmu context.  This is invoked when a new
- * address space instance (unique or shared) is instantiated.
- * This just needs to set mm->context to an invalid context.
- */
-#define init_new_context(__tsk, __mm)	\
-	(((__mm)->context.sparc64_ctx_val = 0UL), 0)
+extern int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
+extern void destroy_context(struct mm_struct *mm);
 
-/* Destroy a dead context.  This occurs when mmput drops the
- * mm_users count to zero, the mmaps have been released, and
- * all the page tables have been flushed.  Our job is to destroy
- * any remaining processor-specific state, and in the sparc64
- * case this just means freeing up the mmu context ID held by
- * this task if valid.
- */
-#define destroy_context(__mm)					\
-do {	spin_lock(&ctx_alloc_lock);				\
-	if (CTX_VALID((__mm)->context)) {			\
-		unsigned long nr = CTX_NRBITS((__mm)->context);	\
-		mmu_context_bmap[nr>>6] &= ~(1UL << (nr & 63));	\
-	}							\
-	spin_unlock(&ctx_alloc_lock);				\
-} while(0)
+extern void __tsb_context_switch(unsigned long pgd_pa,
+				 struct tsb_config *tsb_base,
+				 struct tsb_config *tsb_huge,
+				 unsigned long tsb_descr_pa);
 
-/* Reload the two core values used by TLB miss handler
- * processing on sparc64.  They are:
- * 1) The physical address of mm->pgd, when full page
- *    table walks are necessary, this is where the
- *    search begins.
- * 2) A "PGD cache".  For 32-bit tasks only pgd[0] is
- *    ever used since that maps the entire low 4GB
- *    completely.  To speed up TLB miss processing we
- *    make this value available to the handlers.  This
- *    decreases the amount of memory traffic incurred.
- */
-#define reload_tlbmiss_state(__tsk, __mm) \
-do { \
-	register unsigned long paddr asm("o5"); \
-	register unsigned long pgd_cache asm("o4"); \
-	paddr = __pa((__mm)->pgd); \
-	pgd_cache = 0UL; \
-	if (task_thread_info(__tsk)->flags & _TIF_32BIT) \
-		pgd_cache = get_pgd_cache((__mm)->pgd); \
-	__asm__ __volatile__("wrpr	%%g0, 0x494, %%pstate\n\t" \
-			     "mov	%3, %%g4\n\t" \
-			     "mov	%0, %%g7\n\t" \
-			     "stxa	%1, [%%g4] %2\n\t" \
-			     "membar	#Sync\n\t" \
-			     "wrpr	%%g0, 0x096, %%pstate" \
-			     : /* no outputs */ \
-			     : "r" (paddr), "r" (pgd_cache),\
-			       "i" (ASI_DMMU), "i" (TSB_REG)); \
-} while(0)
+static inline void tsb_context_switch(struct mm_struct *mm)
+{
+	__tsb_context_switch(__pa(mm->pgd),
+			     &mm->context.tsb_block[0],
+#ifdef CONFIG_HUGETLB_PAGE
+			     (mm->context.tsb_block[1].tsb ?
+			      &mm->context.tsb_block[1] :
+			      NULL)
+#else
+			     NULL
+#endif
+			     , __pa(&mm->context.tsb_descr[0]));
+}
+
+extern void tsb_grow(struct mm_struct *mm, unsigned long tsb_index, unsigned long mm_rss);
+#ifdef CONFIG_SMP
+extern void smp_tsb_sync(struct mm_struct *mm);
+#else
+#define smp_tsb_sync(__mm) do { } while (0)
+#endif
 
 /* Set MMU context in the actual hardware. */
 #define load_secondary_context(__mm) \
-	__asm__ __volatile__("stxa	%0, [%1] %2\n\t" \
-			     "flush	%%g6" \
-			     : /* No outputs */ \
-			     : "r" (CTX_HWBITS((__mm)->context)), \
-			       "r" (SECONDARY_CONTEXT), "i" (ASI_DMMU))
+	__asm__ __volatile__( \
+	"\n661:	stxa		%0, [%1] %2\n" \
+	"	.section	.sun4v_1insn_patch, \"ax\"\n" \
+	"	.word		661b\n" \
+	"	stxa		%0, [%1] %3\n" \
+	"	.previous\n" \
+	"	flush		%%g6\n" \
+	: /* No outputs */ \
+	: "r" (CTX_HWBITS((__mm)->context)), \
+	  "r" (SECONDARY_CONTEXT), "i" (ASI_DMMU), "i" (ASI_MMU))
 
 extern void __flush_tlb_mm(unsigned long, unsigned long);
 
-/* Switch the current MM context. */
+/* Switch the current MM context.  Interrupts are disabled.  */
 static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, struct task_struct *tsk)
 {
-	unsigned long ctx_valid;
+	unsigned long ctx_valid, flags;
 	int cpu;
 
-	/* Note: page_table_lock is used here to serialize switch_mm
-	 * and activate_mm, and their calls to get_new_mmu_context.
-	 * This use of page_table_lock is unrelated to its other uses.
-	 */ 
-	spin_lock(&mm->page_table_lock);
+	spin_lock_irqsave(&mm->context.lock, flags);
 	ctx_valid = CTX_VALID(mm->context);
 	if (!ctx_valid)
 		get_new_mmu_context(mm);
-	spin_unlock(&mm->page_table_lock);
 
-	if (!ctx_valid || (old_mm != mm)) {
-		load_secondary_context(mm);
-		reload_tlbmiss_state(tsk, mm);
-	}
+	/* We have to be extremely careful here or else we will miss
+	 * a TSB grow if we switch back and forth between a kernel
+	 * thread and an address space which has it's TSB size increased
+	 * on another processor.
+	 *
+	 * It is possible to play some games in order to optimize the
+	 * switch, but the safest thing to do is to unconditionally
+	 * perform the secondary context load and the TSB context switch.
+	 *
+	 * For reference the bad case is, for address space "A":
+	 *
+	 *		CPU 0			CPU 1
+	 *	run address space A
+	 *	set cpu0's bits in cpu_vm_mask
+	 *	switch to kernel thread, borrow
+	 *	address space A via entry_lazy_tlb
+	 *					run address space A
+	 *					set cpu1's bit in cpu_vm_mask
+	 *					flush_tlb_pending()
+	 *					reset cpu_vm_mask to just cpu1
+	 *					TSB grow
+	 *	run address space A
+	 *	context was valid, so skip
+	 *	TSB context switch
+	 *
+	 * At that point cpu0 continues to use a stale TSB, the one from
+	 * before the TSB grow performed on cpu1.  cpu1 did not cross-call
+	 * cpu0 to update it's TSB because at that point the cpu_vm_mask
+	 * only had cpu1 set in it.
+	 */
+	load_secondary_context(mm);
+	tsb_context_switch(mm);
 
-	/* Even if (mm == old_mm) we _must_ check
-	 * the cpu_vm_mask.  If we do not we could
-	 * corrupt the TLB state because of how
-	 * smp_flush_tlb_{page,range,mm} on sparc64
-	 * and lazy tlb switches work. -DaveM
+	/* Any time a processor runs a context on an address space
+	 * for the first time, we must flush that context out of the
+	 * local TLB.
 	 */
 	cpu = smp_processor_id();
 	if (!ctx_valid || !cpu_isset(cpu, mm->cpu_vm_mask)) {
@@ -116,6 +123,7 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 		__flush_tlb_mm(CTX_HWBITS(mm->context),
 			       SECONDARY_CONTEXT);
 	}
+	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
@@ -123,23 +131,20 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 /* Activate a new MM instance for the current task. */
 static inline void activate_mm(struct mm_struct *active_mm, struct mm_struct *mm)
 {
+	unsigned long flags;
 	int cpu;
 
-	/* Note: page_table_lock is used here to serialize switch_mm
-	 * and activate_mm, and their calls to get_new_mmu_context.
-	 * This use of page_table_lock is unrelated to its other uses.
-	 */ 
-	spin_lock(&mm->page_table_lock);
+	spin_lock_irqsave(&mm->context.lock, flags);
 	if (!CTX_VALID(mm->context))
 		get_new_mmu_context(mm);
 	cpu = smp_processor_id();
 	if (!cpu_isset(cpu, mm->cpu_vm_mask))
 		cpu_set(cpu, mm->cpu_vm_mask);
-	spin_unlock(&mm->page_table_lock);
 
 	load_secondary_context(mm);
 	__flush_tlb_mm(CTX_HWBITS(mm->context), SECONDARY_CONTEXT);
-	reload_tlbmiss_state(current, mm);
+	tsb_context_switch(mm);
+	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
 
 #endif /* !(__ASSEMBLY__) */

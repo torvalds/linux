@@ -68,6 +68,7 @@ static int
 ipt_limit_match(const struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
+		const struct xt_match *match,
 		const void *matchinfo,
 		int offset,
 		unsigned int protoff,
@@ -107,14 +108,12 @@ user2credits(u_int32_t user)
 static int
 ipt_limit_checkentry(const char *tablename,
 		     const void *inf,
+		     const struct xt_match *match,
 		     void *matchinfo,
 		     unsigned int matchsize,
 		     unsigned int hook_mask)
 {
 	struct xt_rateinfo *r = matchinfo;
-
-	if (matchsize != XT_ALIGN(sizeof(struct xt_rateinfo)))
-		return 0;
 
 	/* Check for overflow. */
 	if (r->burst == 0
@@ -140,13 +139,17 @@ ipt_limit_checkentry(const char *tablename,
 static struct xt_match ipt_limit_reg = {
 	.name		= "limit",
 	.match		= ipt_limit_match,
+	.matchsize	= sizeof(struct xt_rateinfo),
 	.checkentry	= ipt_limit_checkentry,
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 static struct xt_match limit6_reg = {
 	.name		= "limit",
 	.match		= ipt_limit_match,
+	.matchsize	= sizeof(struct xt_rateinfo),
 	.checkentry	= ipt_limit_checkentry,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
@@ -154,21 +157,21 @@ static int __init init(void)
 {
 	int ret;
 	
-	ret = xt_register_match(AF_INET, &ipt_limit_reg);
+	ret = xt_register_match(&ipt_limit_reg);
 	if (ret)
 		return ret;
 	
-	ret = xt_register_match(AF_INET6, &limit6_reg);
+	ret = xt_register_match(&limit6_reg);
 	if (ret)
-		xt_unregister_match(AF_INET, &ipt_limit_reg);
+		xt_unregister_match(&ipt_limit_reg);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET, &ipt_limit_reg);
-	xt_unregister_match(AF_INET6, &limit6_reg);
+	xt_unregister_match(&ipt_limit_reg);
+	xt_unregister_match(&limit6_reg);
 }
 
 module_init(init);

@@ -25,7 +25,7 @@
 #include <linux/icmp.h>
 #include <net/ip.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/proc_fs.h>
 #include <linux/err.h>
 #include <linux/cpumask.h>
@@ -179,6 +179,7 @@ ipt_error(struct sk_buff **pskb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  unsigned int hooknum,
+	  const struct xt_target *target,
 	  const void *targinfo,
 	  void *userinfo)
 {
@@ -197,8 +198,8 @@ int do_match(struct ipt_entry_match *m,
 	     int *hotdrop)
 {
 	/* Stop iteration if it doesn't match */
-	if (!m->u.kernel.match->match(skb, in, out, m->data, offset, 
-	    skb->nh.iph->ihl*4, hotdrop))
+	if (!m->u.kernel.match->match(skb, in, out, m->u.kernel.match, m->data,
+				      offset, skb->nh.iph->ihl*4, hotdrop))
 		return 1;
 	else
 		return 0;
@@ -305,6 +306,7 @@ ipt_do_table(struct sk_buff **pskb,
 				verdict = t->u.kernel.target->target(pskb,
 								     in, out,
 								     hook,
+								     t->u.kernel.target,
 								     t->data,
 								     userdata);
 
@@ -464,7 +466,7 @@ cleanup_match(struct ipt_entry_match *m, unsigned int *i)
 		return 1;
 
 	if (m->u.kernel.match->destroy)
-		m->u.kernel.match->destroy(m->data,
+		m->u.kernel.match->destroy(m->u.kernel.match, m->data,
 					   m->u.match_size - sizeof(*m));
 	module_put(m->u.kernel.match->me);
 	return 0;
@@ -477,21 +479,12 @@ standard_check(const struct ipt_entry_target *t,
 	struct ipt_standard_target *targ = (void *)t;
 
 	/* Check standard info. */
-	if (t->u.target_size
-	    != IPT_ALIGN(sizeof(struct ipt_standard_target))) {
-		duprintf("standard_check: target size %u != %u\n",
-			 t->u.target_size,
-			 IPT_ALIGN(sizeof(struct ipt_standard_target)));
-		return 0;
-	}
-
 	if (targ->verdict >= 0
 	    && targ->verdict > max_offset - sizeof(struct ipt_entry)) {
 		duprintf("ipt_standard_check: bad verdict (%i)\n",
 			 targ->verdict);
 		return 0;
 	}
-
 	if (targ->verdict < -NF_MAX_VERDICT - 1) {
 		duprintf("ipt_standard_check: bad negative verdict (%i)\n",
 			 targ->verdict);
@@ -508,6 +501,7 @@ check_match(struct ipt_entry_match *m,
 	    unsigned int *i)
 {
 	struct ipt_match *match;
+	int ret;
 
 	match = try_then_request_module(xt_find_match(AF_INET, m->u.user.name,
 						   m->u.user.revision),
@@ -518,18 +512,27 @@ check_match(struct ipt_entry_match *m,
 	}
 	m->u.kernel.match = match;
 
+	ret = xt_check_match(match, AF_INET, m->u.match_size - sizeof(*m),
+			     name, hookmask, ip->proto,
+			     ip->invflags & IPT_INV_PROTO);
+	if (ret)
+		goto err;
+
 	if (m->u.kernel.match->checkentry
-	    && !m->u.kernel.match->checkentry(name, ip, m->data,
+	    && !m->u.kernel.match->checkentry(name, ip, match, m->data,
 					      m->u.match_size - sizeof(*m),
 					      hookmask)) {
-		module_put(m->u.kernel.match->me);
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 m->u.kernel.match->name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	(*i)++;
 	return 0;
+err:
+	module_put(m->u.kernel.match->me);
+	return ret;
 }
 
 static struct ipt_target ipt_standard_target;
@@ -565,26 +568,32 @@ check_entry(struct ipt_entry *e, const char *name, unsigned int size,
 	}
 	t->u.kernel.target = target;
 
+	ret = xt_check_target(target, AF_INET, t->u.target_size - sizeof(*t),
+			      name, e->comefrom, e->ip.proto,
+			      e->ip.invflags & IPT_INV_PROTO);
+	if (ret)
+		goto err;
+
 	if (t->u.kernel.target == &ipt_standard_target) {
 		if (!standard_check(t, size)) {
 			ret = -EINVAL;
 			goto cleanup_matches;
 		}
 	} else if (t->u.kernel.target->checkentry
-		   && !t->u.kernel.target->checkentry(name, e, t->data,
+		   && !t->u.kernel.target->checkentry(name, e, target, t->data,
 						      t->u.target_size
 						      - sizeof(*t),
 						      e->comefrom)) {
-		module_put(t->u.kernel.target->me);
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
 		ret = -EINVAL;
-		goto cleanup_matches;
+		goto err;
 	}
 
 	(*i)++;
 	return 0;
-
+ err:
+	module_put(t->u.kernel.target->me);
  cleanup_matches:
 	IPT_MATCH_ITERATE(e, cleanup_match, &j);
 	return ret;
@@ -645,7 +654,7 @@ cleanup_entry(struct ipt_entry *e, unsigned int *i)
 	IPT_MATCH_ITERATE(e, cleanup_match, NULL);
 	t = ipt_get_target(e);
 	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->data,
+		t->u.kernel.target->destroy(t->u.kernel.target, t->data,
 					    t->u.target_size - sizeof(*t));
 	module_put(t->u.kernel.target->me);
 	return 0;
@@ -1277,6 +1286,7 @@ static int
 icmp_match(const struct sk_buff *skb,
 	   const struct net_device *in,
 	   const struct net_device *out,
+	   const struct xt_match *match,
 	   const void *matchinfo,
 	   int offset,
 	   unsigned int protoff,
@@ -1310,28 +1320,29 @@ icmp_match(const struct sk_buff *skb,
 static int
 icmp_checkentry(const char *tablename,
 	   const void *info,
+	   const struct xt_match *match,
 	   void *matchinfo,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
-	const struct ipt_ip *ip = info;
 	const struct ipt_icmp *icmpinfo = matchinfo;
 
-	/* Must specify proto == ICMP, and no unknown invflags */
-	return ip->proto == IPPROTO_ICMP
-		&& !(ip->invflags & IPT_INV_PROTO)
-		&& matchsize == IPT_ALIGN(sizeof(struct ipt_icmp))
-		&& !(icmpinfo->invflags & ~IPT_ICMP_INV);
+	/* Must specify no unknown invflags */
+	return !(icmpinfo->invflags & ~IPT_ICMP_INV);
 }
 
 /* The built-in targets: standard (NULL) and error. */
 static struct ipt_target ipt_standard_target = {
 	.name		= IPT_STANDARD_TARGET,
+	.targetsize	= sizeof(int),
+	.family		= AF_INET,
 };
 
 static struct ipt_target ipt_error_target = {
 	.name		= IPT_ERROR_TARGET,
 	.target		= ipt_error,
+	.targetsize	= IPT_FUNCTION_MAXNAMELEN,
+	.family		= AF_INET,
 };
 
 static struct nf_sockopt_ops ipt_sockopts = {
@@ -1346,8 +1357,11 @@ static struct nf_sockopt_ops ipt_sockopts = {
 
 static struct ipt_match icmp_matchstruct = {
 	.name		= "icmp",
-	.match		= &icmp_match,
-	.checkentry	= &icmp_checkentry,
+	.match		= icmp_match,
+	.matchsize	= sizeof(struct ipt_icmp),
+	.proto		= IPPROTO_ICMP,
+	.family		= AF_INET,
+	.checkentry	= icmp_checkentry,
 };
 
 static int __init init(void)
@@ -1357,9 +1371,9 @@ static int __init init(void)
 	xt_proto_init(AF_INET);
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	xt_register_target(AF_INET, &ipt_standard_target);
-	xt_register_target(AF_INET, &ipt_error_target);
-	xt_register_match(AF_INET, &icmp_matchstruct);
+	xt_register_target(&ipt_standard_target);
+	xt_register_target(&ipt_error_target);
+	xt_register_match(&icmp_matchstruct);
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&ipt_sockopts);
@@ -1376,9 +1390,9 @@ static void __exit fini(void)
 {
 	nf_unregister_sockopt(&ipt_sockopts);
 
-	xt_unregister_match(AF_INET, &icmp_matchstruct);
-	xt_unregister_target(AF_INET, &ipt_error_target);
-	xt_unregister_target(AF_INET, &ipt_standard_target);
+	xt_unregister_match(&icmp_matchstruct);
+	xt_unregister_target(&ipt_error_target);
+	xt_unregister_target(&ipt_standard_target);
 
 	xt_proto_fini(AF_INET);
 }

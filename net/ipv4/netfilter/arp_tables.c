@@ -22,7 +22,7 @@
 #include <linux/init.h>
 
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_arp/arp_tables.h>
@@ -208,6 +208,7 @@ static unsigned int arpt_error(struct sk_buff **pskb,
 			       const struct net_device *in,
 			       const struct net_device *out,
 			       unsigned int hooknum,
+			       const struct xt_target *target,
 			       const void *targinfo,
 			       void *userinfo)
 {
@@ -300,6 +301,7 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 				verdict = t->u.kernel.target->target(pskb,
 								     in, out,
 								     hook,
+								     t->u.kernel.target,
 								     t->data,
 								     userdata);
 
@@ -480,26 +482,31 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 	}
 	t->u.kernel.target = target;
 
+	ret = xt_check_target(target, NF_ARP, t->u.target_size - sizeof(*t),
+			      name, e->comefrom, 0, 0);
+	if (ret)
+		goto err;
+
 	if (t->u.kernel.target == &arpt_standard_target) {
 		if (!standard_check(t, size)) {
 			ret = -EINVAL;
 			goto out;
 		}
 	} else if (t->u.kernel.target->checkentry
-		   && !t->u.kernel.target->checkentry(name, e, t->data,
+		   && !t->u.kernel.target->checkentry(name, e, target, t->data,
 						      t->u.target_size
 						      - sizeof(*t),
 						      e->comefrom)) {
-		module_put(t->u.kernel.target->me);
 		duprintf("arp_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
 		ret = -EINVAL;
-		goto out;
+		goto err;
 	}
 
 	(*i)++;
 	return 0;
-
+err:
+	module_put(t->u.kernel.target->me);
 out:
 	return ret;
 }
@@ -555,7 +562,7 @@ static inline int cleanup_entry(struct arpt_entry *e, unsigned int *i)
 
 	t = arpt_get_target(e);
 	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->data,
+		t->u.kernel.target->destroy(t->u.kernel.target, t->data,
 					    t->u.target_size - sizeof(*t));
 	module_put(t->u.kernel.target->me);
 	return 0;
@@ -771,7 +778,7 @@ static int get_entries(const struct arpt_get_entries *entries,
 	struct arpt_table *t;
 
 	t = xt_find_table_lock(NF_ARP, entries->name);
-	if (t || !IS_ERR(t)) {
+	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		duprintf("t->private->number = %u\n",
 			 private->number);
@@ -1138,11 +1145,15 @@ void arpt_unregister_table(struct arpt_table *table)
 /* The built-in targets: standard (NULL) and error. */
 static struct arpt_target arpt_standard_target = {
 	.name		= ARPT_STANDARD_TARGET,
+	.targetsize	= sizeof(int),
+	.family		= NF_ARP,
 };
 
 static struct arpt_target arpt_error_target = {
 	.name		= ARPT_ERROR_TARGET,
 	.target		= arpt_error,
+	.targetsize	= ARPT_FUNCTION_MAXNAMELEN,
+	.family		= NF_ARP,
 };
 
 static struct nf_sockopt_ops arpt_sockopts = {
@@ -1162,8 +1173,8 @@ static int __init init(void)
 	xt_proto_init(NF_ARP);
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	xt_register_target(NF_ARP, &arpt_standard_target);
-	xt_register_target(NF_ARP, &arpt_error_target);
+	xt_register_target(&arpt_standard_target);
+	xt_register_target(&arpt_error_target);
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&arpt_sockopts);

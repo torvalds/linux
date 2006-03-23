@@ -56,7 +56,7 @@
    the slave is bound to it). Otherwise it doesn't need this functions and
    therfor they may not be initialized.
 
-   The other fuctions are just for convenience, as they are for shure used by
+   The other fuctions are just for convenience, as they are for sure used by
    most/all of the codecs. The last ones may be ommited, too. 
 
    See the structure declaration below for more information and which data has

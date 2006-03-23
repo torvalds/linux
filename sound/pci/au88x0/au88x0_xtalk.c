@@ -562,7 +562,7 @@ static void
 vortex_XtalkHw_SetDelay(vortex_t * vortex, unsigned short right,
 			unsigned short left)
 {
-	int esp0 = 0;
+	u32 esp0 = 0;
 
 	esp0 &= 0x1FFFFFFF;
 	esp0 |= 0xA0000000;
@@ -632,18 +632,18 @@ static void vortex_XtalkHw_GetRightDline(vortex_t * vortex, xtalk_dline_t dline)
 /* Control/Global stuff */
 
 #if 0
-static void vortex_XtalkHw_SetControlReg(vortex_t * vortex, unsigned long ctrl)
+static void vortex_XtalkHw_SetControlReg(vortex_t * vortex, u32 ctrl)
 {
 	hwwrite(vortex->mmio, 0x24660, ctrl);
 }
-static void vortex_XtalkHw_GetControlReg(vortex_t * vortex, unsigned long *ctrl)
+static void vortex_XtalkHw_GetControlReg(vortex_t * vortex, u32 *ctrl)
 {
 	*ctrl = hwread(vortex->mmio, 0x24660);
 }
 #endif
-static void vortex_XtalkHw_SetSampleRate(vortex_t * vortex, int sr)
+static void vortex_XtalkHw_SetSampleRate(vortex_t * vortex, u32 sr)
 {
-	int temp;
+	u32 temp;
 
 	temp = (hwread(vortex->mmio, 0x24660) & 0x1FFFFFFF) | 0xC0000000;
 	temp = (temp & 0xffffff07) | ((sr & 0x1f) << 3);
@@ -651,7 +651,7 @@ static void vortex_XtalkHw_SetSampleRate(vortex_t * vortex, int sr)
 }
 
 #if 0
-static void vortex_XtalkHw_GetSampleRate(vortex_t * vortex, int *sr)
+static void vortex_XtalkHw_GetSampleRate(vortex_t * vortex, u32 *sr)
 {
 	*sr = (hwread(vortex->mmio, 0x24660) >> 3) & 0x1f;
 }
@@ -659,7 +659,7 @@ static void vortex_XtalkHw_GetSampleRate(vortex_t * vortex, int *sr)
 #endif
 static void vortex_XtalkHw_Enable(vortex_t * vortex)
 {
-	int temp;
+	u32 temp;
 
 	temp = (hwread(vortex->mmio, 0x24660) & 0x1FFFFFFF) | 0xC0000000;
 	temp |= 1;
@@ -669,7 +669,7 @@ static void vortex_XtalkHw_Enable(vortex_t * vortex)
 
 static void vortex_XtalkHw_Disable(vortex_t * vortex)
 {
-	int temp;
+	u32 temp;
 
 	temp = (hwread(vortex->mmio, 0x24660) & 0x1FFFFFFF) | 0xC0000000;
 	temp &= 0xfffffffe;

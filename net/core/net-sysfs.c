@@ -91,6 +91,7 @@ NETDEVICE_SHOW(iflink, fmt_dec);
 NETDEVICE_SHOW(ifindex, fmt_dec);
 NETDEVICE_SHOW(features, fmt_long_hex);
 NETDEVICE_SHOW(type, fmt_dec);
+NETDEVICE_SHOW(link_mode, fmt_dec);
 
 /* use same locking rules as GIFHWADDR ioctl's */
 static ssize_t format_addr(char *buf, const unsigned char *addr, int len)
@@ -131,6 +132,43 @@ static ssize_t show_carrier(struct class_device *dev, char *buf)
 		return sprintf(buf, fmt_dec, !!netif_carrier_ok(netdev));
 	}
 	return -EINVAL;
+}
+
+static ssize_t show_dormant(struct class_device *dev, char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+
+	if (netif_running(netdev))
+		return sprintf(buf, fmt_dec, !!netif_dormant(netdev));
+
+	return -EINVAL;
+}
+
+static const char *operstates[] = {
+	"unknown",
+	"notpresent", /* currently unused */
+	"down",
+	"lowerlayerdown",
+	"testing", /* currently unused */
+	"dormant",
+	"up"
+};
+
+static ssize_t show_operstate(struct class_device *dev, char *buf)
+{
+	const struct net_device *netdev = to_net_dev(dev);
+	unsigned char operstate;
+
+	read_lock(&dev_base_lock);
+	operstate = netdev->operstate;
+	if (!netif_running(netdev))
+		operstate = IF_OPER_DOWN;
+	read_unlock(&dev_base_lock);
+
+	if (operstate >= sizeof(operstates))
+		return -EINVAL; /* should not happen */
+
+	return sprintf(buf, "%s\n", operstates[operstate]);
 }
 
 /* read-write attributes */
@@ -190,9 +228,12 @@ static struct class_device_attribute net_class_attributes[] = {
 	__ATTR(ifindex, S_IRUGO, show_ifindex, NULL),
 	__ATTR(features, S_IRUGO, show_features, NULL),
 	__ATTR(type, S_IRUGO, show_type, NULL),
+	__ATTR(link_mode, S_IRUGO, show_link_mode, NULL),
 	__ATTR(address, S_IRUGO, show_address, NULL),
 	__ATTR(broadcast, S_IRUGO, show_broadcast, NULL),
 	__ATTR(carrier, S_IRUGO, show_carrier, NULL),
+	__ATTR(dormant, S_IRUGO, show_dormant, NULL),
+	__ATTR(operstate, S_IRUGO, show_operstate, NULL),
 	__ATTR(mtu, S_IRUGO | S_IWUSR, show_mtu, store_mtu),
 	__ATTR(flags, S_IRUGO | S_IWUSR, show_flags, store_flags),
 	__ATTR(tx_queue_len, S_IRUGO | S_IWUSR, show_tx_queue_len,

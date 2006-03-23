@@ -29,6 +29,7 @@
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_eh.h>
+#include <scsi/scsi_transport.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi_request.h>
@@ -163,16 +164,12 @@ void scsi_times_out(struct scsi_cmnd *scmd)
 {
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
-	if (scmd->device->host->hostt->eh_timed_out)
-		switch (scmd->device->host->hostt->eh_timed_out(scmd)) {
+	if (scmd->device->host->transportt->eh_timed_out)
+		switch (scmd->device->host->transportt->eh_timed_out(scmd)) {
 		case EH_HANDLED:
 			__scsi_done(scmd);
 			return;
 		case EH_RESET_TIMER:
-			/* This allows a single retry even of a command
-			 * with allowed == 0 */
-			if (scmd->retries++ > scmd->allowed)
-				break;
 			scsi_add_timer(scmd, scmd->timeout_per_command,
 				       scsi_times_out);
 			return;
@@ -584,8 +581,7 @@ static int scsi_request_sense(struct scsi_cmnd *scmd)
  *    keep a list of pending commands for final completion, and once we
  *    are ready to leave error handling we handle completion for real.
  **/
-static void scsi_eh_finish_cmd(struct scsi_cmnd *scmd,
-			       struct list_head *done_q)
+void scsi_eh_finish_cmd(struct scsi_cmnd *scmd, struct list_head *done_q)
 {
 	scmd->device->host->host_failed--;
 	scmd->eh_eflags = 0;
@@ -597,6 +593,7 @@ static void scsi_eh_finish_cmd(struct scsi_cmnd *scmd,
 	scsi_setup_cmd_retry(scmd);
 	list_move_tail(&scmd->eh_entry, done_q);
 }
+EXPORT_SYMBOL(scsi_eh_finish_cmd);
 
 /**
  * scsi_eh_get_sense - Get device sense data.
@@ -1308,7 +1305,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 	 * the request was not marked fast fail.  Note that above,
 	 * even if the request is marked fast fail, we still requeue
 	 * for queue congestion conditions (QUEUE_FULL or BUSY) */
-	if ((++scmd->retries) < scmd->allowed 
+	if ((++scmd->retries) <= scmd->allowed
 	    && !blk_noretry_request(scmd->request)) {
 		return NEEDS_RETRY;
 	} else {
@@ -1425,7 +1422,7 @@ static void scsi_eh_ready_devs(struct Scsi_Host *shost,
  * @done_q:	list_head of processed commands.
  *
  **/
-static void scsi_eh_flush_done_q(struct list_head *done_q)
+void scsi_eh_flush_done_q(struct list_head *done_q)
 {
 	struct scsi_cmnd *scmd, *next;
 
@@ -1433,7 +1430,7 @@ static void scsi_eh_flush_done_q(struct list_head *done_q)
 		list_del_init(&scmd->eh_entry);
 		if (scsi_device_online(scmd->device) &&
 		    !blk_noretry_request(scmd->request) &&
-		    (++scmd->retries < scmd->allowed)) {
+		    (++scmd->retries <= scmd->allowed)) {
 			SCSI_LOG_ERROR_RECOVERY(3, printk("%s: flush"
 							  " retry cmd: %p\n",
 							  current->comm,
@@ -1454,6 +1451,7 @@ static void scsi_eh_flush_done_q(struct list_head *done_q)
 		}
 	}
 }
+EXPORT_SYMBOL(scsi_eh_flush_done_q);
 
 /**
  * scsi_unjam_host - Attempt to fix a host which has a cmd that failed.

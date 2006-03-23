@@ -86,7 +86,7 @@ static struct top_srv topsrv = { 0 };
  * Returns converted value
  */
 
-static inline u32 htohl(u32 in, int swap)
+static u32 htohl(u32 in, int swap)
 {
 	char *c = (char *)&in;
 
@@ -381,7 +381,7 @@ static void subscr_named_msg_event(void *usr_handle,
 				   struct tipc_name_seq const *dest)
 {
 	struct subscriber *subscriber;
-	struct iovec msg_sect = {0, 0};
+	struct iovec msg_sect = {NULL, 0};
 	spinlock_t *subscriber_lock;
 
 	dbg("subscr_named_msg_event: orig = %x own = %x,\n",
@@ -413,13 +413,13 @@ static void subscr_named_msg_event(void *usr_handle,
 	tipc_createport(topsrv.user_ref,
 			(void *)(unsigned long)subscriber->ref,
 			importance,
-			0,
-			0,
+			NULL,
+			NULL,
 			subscr_conn_shutdown_event,
-			0,
-			0,
+			NULL,
+			NULL,
 			subscr_conn_msg_event,
-			0,
+			NULL,
 			&subscriber->port_ref);
 	if (subscriber->port_ref == 0) {
 		warn("Memory squeeze; failed to create subscription port\n");
@@ -461,22 +461,22 @@ int tipc_subscr_start(void)
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 
 	spin_lock_bh(&topsrv.lock);
-	res = tipc_attach(&topsrv.user_ref, 0, 0);
+	res = tipc_attach(&topsrv.user_ref, NULL, NULL);
 	if (res) {
 		spin_unlock_bh(&topsrv.lock);
 		return res;
 	}
 
  	res = tipc_createport(topsrv.user_ref,
- 			      0,
+ 			      NULL,
  			      TIPC_CRITICAL_IMPORTANCE,
- 			      0,
- 			      0,
- 			      0,
- 			      0,
+ 			      NULL,
+ 			      NULL,
+ 			      NULL,
+ 			      NULL,
  			      subscr_named_msg_event,
- 			      0,
- 			      0,
+ 			      NULL,
+ 			      NULL,
  			      &topsrv.setup_port);
  	if (res)
 		goto failed;

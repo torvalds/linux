@@ -478,9 +478,9 @@ static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 	rc = __condition;					\
 	if (!rc) {						\
 		*(__timeo) = schedule_timeout(*(__timeo));	\
-		rc = __condition;				\
 	}							\
 	lock_sock(__sk);					\
+	rc = __condition;					\
 	rc;							\
 })
 
@@ -520,6 +520,14 @@ struct proto {
 	int			(*getsockopt)(struct sock *sk, int level, 
 					int optname, char __user *optval, 
 					int __user *option);  	 
+	int			(*compat_setsockopt)(struct sock *sk,
+					int level,
+					int optname, char __user *optval,
+					int optlen);
+	int			(*compat_getsockopt)(struct sock *sk,
+					int level,
+					int optname, char __user *optval,
+					int __user *option);
 	int			(*sendmsg)(struct kiocb *iocb, struct sock *sk,
 					   struct msghdr *msg, size_t len);
 	int			(*recvmsg)(struct kiocb *iocb, struct sock *sk,
@@ -816,6 +824,10 @@ extern int sock_common_recvmsg(struct kiocb *iocb, struct socket *sock,
 			       struct msghdr *msg, size_t size, int flags);
 extern int sock_common_setsockopt(struct socket *sock, int level, int optname,
 				  char __user *optval, int optlen);
+extern int compat_sock_common_getsockopt(struct socket *sock, int level,
+		int optname, char __user *optval, int __user *optlen);
+extern int compat_sock_common_setsockopt(struct socket *sock, int level,
+		int optname, char __user *optval, int optlen);
 
 extern void sk_common_release(struct sock *sk);
 

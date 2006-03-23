@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2006 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -28,18 +28,24 @@
  * This is used by Fibre Channel protocol to support FCP.
  */
 
+/* worker thread events */
+enum lpfc_work_type {
+	LPFC_EVT_NODEV_TMO,
+	LPFC_EVT_ONLINE,
+	LPFC_EVT_OFFLINE,
+	LPFC_EVT_WARM_START,
+	LPFC_EVT_KILL,
+	LPFC_EVT_ELS_RETRY,
+};
+
 /* structure used to queue event to the discovery tasklet */
 struct lpfc_work_evt {
 	struct list_head      evt_listp;
 	void                * evt_arg1;
 	void                * evt_arg2;
-	uint32_t              evt;
+	enum lpfc_work_type   evt;
 };
 
-#define LPFC_EVT_NODEV_TMO	0x1
-#define LPFC_EVT_ONLINE		0x2
-#define LPFC_EVT_OFFLINE	0x3
-#define LPFC_EVT_ELS_RETRY	0x4
 
 struct lpfc_nodelist {
 	struct list_head nlp_listp;
@@ -56,6 +62,7 @@ struct lpfc_nodelist {
 
 	uint16_t        nlp_rpi;
 	uint16_t        nlp_state;		/* state transition indicator */
+	uint16_t        nlp_prev_state;		/* state transition indicator */
 	uint16_t        nlp_xri;		/* output exchange id for RPI */
 	uint16_t        nlp_sid;		/* scsi id */
 #define NLP_NO_SID		0xffff

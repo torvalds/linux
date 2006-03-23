@@ -116,7 +116,7 @@
 */
 
 rwlock_t tipc_net_lock = RW_LOCK_UNLOCKED;
-struct network tipc_net = { 0 };
+struct network tipc_net = { NULL };
 
 struct node *tipc_net_select_remote_node(u32 addr, u32 ref) 
 {
@@ -128,13 +128,14 @@ u32 tipc_net_select_router(u32 addr, u32 ref)
 	return tipc_zone_select_router(tipc_net.zones[tipc_zone(addr)], addr, ref);
 }
 
-
+#if 0
 u32 tipc_net_next_node(u32 a)
 {
 	if (tipc_net.zones[tipc_zone(a)])
 		return tipc_zone_next_node(a);
 	return 0;
 }
+#endif
 
 void tipc_net_remove_as_router(u32 router)
 {
@@ -181,7 +182,7 @@ static void net_stop(void)
 		tipc_zone_delete(tipc_net.zones[z_num]);
 	}
 	kfree(tipc_net.zones);
-	tipc_net.zones = 0;
+	tipc_net.zones = NULL;
 }
 
 static void net_route_named_msg(struct sk_buff *buf)

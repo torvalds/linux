@@ -156,6 +156,10 @@ enum {
 	XFRM_MSG_FLUSHPOLICY,
 #define XFRM_MSG_FLUSHPOLICY XFRM_MSG_FLUSHPOLICY
 
+	XFRM_MSG_NEWAE,
+#define XFRM_MSG_NEWAE XFRM_MSG_NEWAE
+	XFRM_MSG_GETAE,
+#define XFRM_MSG_GETAE XFRM_MSG_GETAE
 	__XFRM_MSG_MAX
 };
 #define XFRM_MSG_MAX (__XFRM_MSG_MAX - 1)
@@ -194,6 +198,21 @@ struct xfrm_encap_tmpl {
 	xfrm_address_t	encap_oa;
 };
 
+/* AEVENT flags  */
+enum xfrm_ae_ftype_t {
+	XFRM_AE_UNSPEC,
+	XFRM_AE_RTHR=1,	/* replay threshold*/
+	XFRM_AE_RVAL=2, /* replay value */
+	XFRM_AE_LVAL=4, /* lifetime value */
+	XFRM_AE_ETHR=8, /* expiry timer threshold */
+	XFRM_AE_CR=16, /* Event cause is replay update */
+	XFRM_AE_CE=32, /* Event cause is timer expiry */
+	XFRM_AE_CU=64, /* Event cause is policy update */
+	__XFRM_AE_MAX
+
+#define XFRM_AE_MAX (__XFRM_AE_MAX - 1)
+};
+
 /* Netlink message attributes.  */
 enum xfrm_attr_type_t {
 	XFRMA_UNSPEC,
@@ -205,6 +224,10 @@ enum xfrm_attr_type_t {
 	XFRMA_SA,
 	XFRMA_POLICY,
 	XFRMA_SEC_CTX,		/* struct xfrm_sec_ctx */
+	XFRMA_LTIME_VAL,
+	XFRMA_REPLAY_VAL,
+	XFRMA_REPLAY_THRESH,
+	XFRMA_ETIMER_THRESH,
 	__XFRMA_MAX
 
 #define XFRMA_MAX (__XFRMA_MAX - 1)
@@ -233,6 +256,11 @@ struct xfrm_usersa_id {
 	__u32				spi;
 	__u16				family;
 	__u8				proto;
+};
+
+struct xfrm_aevent_id {
+	struct xfrm_usersa_id		sa_id;
+	__u32				flags;
 };
 
 struct xfrm_userspi_info {
@@ -306,6 +334,8 @@ enum xfrm_nlgroups {
 #define XFRMNLGRP_SA		XFRMNLGRP_SA
 	XFRMNLGRP_POLICY,
 #define XFRMNLGRP_POLICY	XFRMNLGRP_POLICY
+	XFRMNLGRP_AEVENTS,
+#define XFRMNLGRP_AEVENTS	XFRMNLGRP_AEVENTS
 	__XFRMNLGRP_MAX
 };
 #define XFRMNLGRP_MAX	(__XFRMNLGRP_MAX - 1)

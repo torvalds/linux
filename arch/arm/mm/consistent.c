@@ -223,6 +223,8 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		pte = consistent_pte[idx] + off;
 		c->vm_pages = page;
 
+		split_page(page, order);
+
 		/*
 		 * Set the "dma handle"
 		 */
@@ -231,7 +233,6 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		do {
 			BUG_ON(!pte_none(*pte));
 
-			set_page_count(page, 1);
 			/*
 			 * x86 does not mark the pages reserved...
 			 */
@@ -250,7 +251,6 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		 * Free the otherwise unused pages.
 		 */
 		while (page < end) {
-			set_page_count(page, 1);
 			__free_page(page);
 			page++;
 		}

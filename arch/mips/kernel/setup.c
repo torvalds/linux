@@ -447,21 +447,10 @@ static inline void resource_init(void)
 {
 	int i;
 
-#if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
-	/*
-	 * The 64bit code in 32bit object format trick can't represent
-	 * 64bit wide relocations for linker script symbols.
-	 */
-	code_resource.start = CPHYSADDR(&_text);
-	code_resource.end = CPHYSADDR(&_etext) - 1;
-	data_resource.start = CPHYSADDR(&_etext);
-	data_resource.end = CPHYSADDR(&_edata) - 1;
-#else
 	code_resource.start = virt_to_phys(&_text);
 	code_resource.end = virt_to_phys(&_etext) - 1;
 	data_resource.start = virt_to_phys(&_etext);
 	data_resource.end = virt_to_phys(&_edata) - 1;
-#endif
 
 	/*
 	 * Request address space for all standard RAM.
@@ -540,6 +529,9 @@ void __init setup_arch(char **cmdline_p)
 	sparse_init();
 	paging_init();
 	resource_init();
+#ifdef CONFIG_SMP
+	plat_smp_setup();
+#endif
 }
 
 int __init fpu_disable(char *s)

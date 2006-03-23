@@ -27,8 +27,9 @@ static inline int match_type(u_int32_t addr, u_int16_t mask)
 	return !!(mask & (1 << inet_addr_type(addr)));
 }
 
-static int match(const struct sk_buff *skb, const struct net_device *in,
-		 const struct net_device *out, const void *matchinfo,
+static int match(const struct sk_buff *skb,
+		 const struct net_device *in, const struct net_device *out,
+		 const struct xt_match *match, const void *matchinfo,
 		 int offset, unsigned int protoff, int *hotdrop)
 {
 	const struct ipt_addrtype_info *info = matchinfo;
@@ -43,23 +44,10 @@ static int match(const struct sk_buff *skb, const struct net_device *in,
 	return ret;
 }
 
-static int checkentry(const char *tablename, const void *ip,
-		      void *matchinfo, unsigned int matchsize,
-		      unsigned int hook_mask)
-{
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_addrtype_info))) {
-		printk(KERN_ERR "ipt_addrtype: invalid size (%u != %Zu)\n",
-		       matchsize, IPT_ALIGN(sizeof(struct ipt_addrtype_info)));
-		return 0;
-	}
-
-	return 1;
-}
-
 static struct ipt_match addrtype_match = {
 	.name		= "addrtype",
 	.match		= match,
-	.checkentry	= checkentry,
+	.matchsize	= sizeof(struct ipt_addrtype_info),
 	.me		= THIS_MODULE
 };
 

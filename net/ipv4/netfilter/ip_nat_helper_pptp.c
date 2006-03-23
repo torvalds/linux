@@ -52,6 +52,8 @@
 
 #define IP_NAT_PPTP_VERSION "3.0"
 
+#define REQ_CID(req, off)		(*(u_int16_t *)((char *)(req) + (off)))
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@gnumonks.org>");
 MODULE_DESCRIPTION("Netfilter NAT helper module for PPTP");
@@ -198,7 +200,7 @@ pptp_outbound_pkt(struct sk_buff **pskb,
 	/* only OUT_CALL_REQUEST, IN_CALL_REPLY, CALL_CLEAR_REQUEST pass
 	 * down to here */
 	DEBUGP("altering call id from 0x%04x to 0x%04x\n",
-		ntohs(*(u_int16_t *)pptpReq + cid_off), ntohs(new_callid));
+		ntohs(REQ_CID(pptpReq, cid_off)), ntohs(new_callid));
 
 	/* mangle packet */
 	if (ip_nat_mangle_tcp_packet(pskb, ct, ctinfo,
@@ -342,7 +344,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 
 	/* mangle packet */
 	DEBUGP("altering peer call id from 0x%04x to 0x%04x\n",
-		ntohs(*(u_int16_t *)pptpReq + pcid_off), ntohs(new_pcid));
+		ntohs(REQ_CID(pptpReq, pcid_off)), ntohs(new_pcid));
 
 	if (ip_nat_mangle_tcp_packet(pskb, ct, ctinfo,
 	                             pcid_off + sizeof(struct pptp_pkt_hdr) +
@@ -353,7 +355,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 
 	if (new_cid) {
 		DEBUGP("altering call id from 0x%04x to 0x%04x\n",
-			ntohs(*(u_int16_t *)pptpReq + cid_off), ntohs(new_cid));
+			ntohs(REQ_CID(pptpReq, cid_off)), ntohs(new_cid));
 		if (ip_nat_mangle_tcp_packet(pskb, ct, ctinfo,
 		                             cid_off + sizeof(struct pptp_pkt_hdr) +
 					     sizeof(struct PptpControlHeader),

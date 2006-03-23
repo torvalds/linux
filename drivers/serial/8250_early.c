@@ -74,7 +74,7 @@ static void __init wait_for_xmitr(struct uart_port *port)
 	}
 }
 
-static void __init putc(struct uart_port *port, unsigned char c)
+static void __init putc(struct uart_port *port, int c)
 {
 	wait_for_xmitr(port);
 	serial_out(port, UART_TX, c);
@@ -89,12 +89,7 @@ static void __init early_uart_write(struct console *console, const char *s, unsi
 	ier = serial_in(port, UART_IER);
 	serial_out(port, UART_IER, 0);
 
-	while (*s && count-- > 0) {
-		putc(port, *s);
-		if (*s == '\n')
-			putc(port, '\r');
-		s++;
-	}
+	uart_console_write(port, s, count, putc);
 
 	/* Wait for transmitter to become empty and restore the IER */
 	wait_for_xmitr(port);

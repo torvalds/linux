@@ -45,7 +45,7 @@ static inline void pmax_setup_memory_region(void)
 	 */
 	for (memory_page = (unsigned char *)CKSEG1 + CHUNK_SIZE;
 	     mem_err == 0 && memory_page < (unsigned char *)CKSEG1 + 0x1e00000;
-  	     memory_page += CHUNK_SIZE) {
+	     memory_page += CHUNK_SIZE) {
 		dummy = *memory_page;
 	}
 	memcpy((void *)(CKSEG0 + 0x80), &old_handler, 0x80);
@@ -118,7 +118,7 @@ unsigned long __init prom_free_prom_memory(void)
 	addr = PAGE_SIZE;
 	while (addr < end) {
 		ClearPageReserved(virt_to_page(__va(addr)));
-		set_page_count(virt_to_page(__va(addr)), 1);
+		init_page_count(virt_to_page(__va(addr)));
 		free_page((unsigned long)__va(addr));
 		addr += PAGE_SIZE;
 	}

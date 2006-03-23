@@ -62,6 +62,7 @@
 #include <asm/fpumacro.h>
 #include <asm/semaphore.h>
 #include <asm/mmu_context.h>
+#include <asm/a.out.h>
 
 asmlinkage long sys32_chown16(const char __user * filename, u16 user, u16 group)
 {
@@ -1039,15 +1040,15 @@ asmlinkage unsigned long sys32_mremap(unsigned long addr,
 	unsigned long ret = -EINVAL;
 	unsigned long new_addr = __new_addr;
 
-	if (old_len > 0xf0000000UL || new_len > 0xf0000000UL)
+	if (old_len > STACK_TOP32 || new_len > STACK_TOP32)
 		goto out;
-	if (addr > 0xf0000000UL - old_len)
+	if (addr > STACK_TOP32 - old_len)
 		goto out;
 	down_write(&current->mm->mmap_sem);
 	if (flags & MREMAP_FIXED) {
-		if (new_addr > 0xf0000000UL - new_len)
+		if (new_addr > STACK_TOP32 - new_len)
 			goto out_sem;
-	} else if (addr > 0xf0000000UL - new_len) {
+	} else if (addr > STACK_TOP32 - new_len) {
 		unsigned long map_flags = 0;
 		struct file *file = NULL;
 

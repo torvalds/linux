@@ -113,11 +113,11 @@ static int media[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 static int num_media = 0;
 
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
-static int max_interrupt_work = 20;
+static const int max_interrupt_work = 20;
 
 /* Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
    The RTL chips use a 64 element hash table based on the Ethernet CRC. */
-static int multicast_filter_limit = 32;
+static const int multicast_filter_limit = 32;
 
 /* MAC address length */
 #define MAC_ADDR_LEN	6

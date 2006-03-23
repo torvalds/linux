@@ -54,7 +54,7 @@ struct paca_struct {
 #endif /* CONFIG_PPC_ISERIES */
 
 	/*
-	 * MAGIC: the spinlock functions in arch/ppc64/lib/locks.c
+	 * MAGIC: the spinlock functions in arch/powerpc/lib/locks.c 
 	 * load lock_token and paca_index with a single lwz
 	 * instruction.  They must travel together and be properly
 	 * aligned.
@@ -96,6 +96,11 @@ struct paca_struct {
 	u64 saved_r1;			/* r1 save for RTAS calls */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u8 proc_enabled;		/* irq soft-enable flag */
+
+	/* Stuff for accurate time accounting */
+	u64 user_time;			/* accumulated usermode TB ticks */
+	u64 system_time;		/* accumulated system TB ticks */
+	u64 startpurr;			/* PURR/TB value snapshot */
 };
 
 extern struct paca_struct paca[];

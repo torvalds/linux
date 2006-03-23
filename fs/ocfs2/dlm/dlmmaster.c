@@ -564,7 +564,7 @@ static void dlm_lockres_release(struct kref *kref)
 
 	/* By the time we're ready to blow this guy away, we shouldn't
 	 * be on any lists. */
-	BUG_ON(!list_empty(&res->list));
+	BUG_ON(!hlist_unhashed(&res->hash_node));
 	BUG_ON(!list_empty(&res->granted));
 	BUG_ON(!list_empty(&res->converting));
 	BUG_ON(!list_empty(&res->blocked));
@@ -605,7 +605,7 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 
 	init_waitqueue_head(&res->wq);
 	spin_lock_init(&res->spinlock);
-	INIT_LIST_HEAD(&res->list);
+	INIT_HLIST_NODE(&res->hash_node);
 	INIT_LIST_HEAD(&res->granted);
 	INIT_LIST_HEAD(&res->converting);
 	INIT_LIST_HEAD(&res->blocked);

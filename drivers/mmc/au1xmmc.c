@@ -37,7 +37,7 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
@@ -194,7 +194,7 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 
 	u32 mmccmd = (cmd->opcode << SD_CMD_CI_SHIFT);
 
-	switch (mmc_rsp_type(cmd->flags)) {
+	switch (mmc_resp_type(cmd)) {
 	case MMC_RSP_R1:
 		mmccmd |= SD_CMD_RT_1;
 		break;
@@ -740,7 +740,6 @@ static void au1xmmc_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 static void au1xmmc_dma_callback(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct au1xmmc_host *host = (struct au1xmmc_host *) dev_id;
-	u32 status;
 
 	/* Avoid spurious interrupts */
 
@@ -887,7 +886,7 @@ struct mmc_host_ops au1xmmc_ops = {
 	.set_ios	= au1xmmc_set_ios,
 };
 
-static int au1xmmc_probe(struct device *dev)
+static int __devinit au1xmmc_probe(struct platform_device *pdev)
 {
 
 	int i, ret = 0;
@@ -904,7 +903,7 @@ static int au1xmmc_probe(struct device *dev)
 	disable_irq(AU1100_SD_IRQ);
 
 	for(i = 0; i < AU1XMMC_CONTROLLER_COUNT; i++) {
-		struct mmc_host *mmc = mmc_alloc_host(sizeof(struct au1xmmc_host), dev);
+		struct mmc_host *mmc = mmc_alloc_host(sizeof(struct au1xmmc_host), &pdev->dev);
 		struct au1xmmc_host *host = 0;
 
 		if (!mmc) {
@@ -967,7 +966,7 @@ static int au1xmmc_probe(struct device *dev)
 	return 0;
 }
 
-static int au1xmmc_remove(struct device *dev)
+static int __devexit au1xmmc_remove(struct platform_device *pdev)
 {
 
 	int i;
@@ -997,23 +996,24 @@ static int au1xmmc_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver au1xmmc_driver = {
-	.name          = DRIVER_NAME,
-	.bus           = &platform_bus_type,
+static struct platform_driver au1xmmc_driver = {
 	.probe         = au1xmmc_probe,
 	.remove        = au1xmmc_remove,
 	.suspend       = NULL,
-	.resume        = NULL
+	.resume        = NULL,
+	.driver        = {
+		.name  = DRIVER_NAME,
+	},
 };
 
 static int __init au1xmmc_init(void)
 {
-	return driver_register(&au1xmmc_driver);
+	return platform_driver_register(&au1xmmc_driver);
 }
 
 static void __exit au1xmmc_exit(void)
 {
-	driver_unregister(&au1xmmc_driver);
+	platform_driver_unregister(&au1xmmc_driver);
 }
 
 module_init(au1xmmc_init);

@@ -1062,10 +1062,10 @@ static int lh7a40x_ep_enable(struct usb_ep *_ep,
 	ep->pio_irqs = 0;
 	ep->ep.maxpacket = le16_to_cpu(desc->wMaxPacketSize);
 
+	spin_unlock_irqrestore(&ep->dev->lock, flags);
+
 	/* Reset halt state (does flush) */
 	lh7a40x_set_halt(_ep, 0);
-
-	spin_unlock_irqrestore(&ep->dev->lock, flags);
 
 	DEBUG("%s: enabled %s\n", __FUNCTION__, _ep->name);
 	return 0;
@@ -1114,11 +1114,10 @@ static struct usb_request *lh7a40x_alloc_request(struct usb_ep *ep,
 
 	DEBUG("%s, %p\n", __FUNCTION__, ep);
 
-	req = kmalloc(sizeof *req, gfp_flags);
+	req = kzalloc(sizeof(*req), gfp_flags);
 	if (!req)
 		return 0;
 
-	memset(req, 0, sizeof *req);
 	INIT_LIST_HEAD(&req->queue);
 
 	return &req->req;
@@ -1775,6 +1774,7 @@ static void lh7a40x_ep0_setup(struct lh7a40x_udc *dev, u32 csr)
 					break;
 
 				qep = &dev->ep[ep_num];
+				spin_unlock(&dev->lock);
 				if (ctrl.bRequest == USB_REQ_SET_FEATURE) {
 					DEBUG_SETUP("SET_FEATURE (%d)\n",
 						    ep_num);
@@ -1784,6 +1784,7 @@ static void lh7a40x_ep0_setup(struct lh7a40x_udc *dev, u32 csr)
 						    ep_num);
 					lh7a40x_set_halt(&qep->ep, 0);
 				}
+				spin_lock(&dev->lock);
 				usb_set_index(0);
 
 				/* Reply with a ZLP on next IN token */

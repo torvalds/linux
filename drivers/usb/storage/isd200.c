@@ -1361,21 +1361,19 @@ static int isd200_init_info(struct us_data *us)
 	struct isd200_info *info;
 
 	info = (struct isd200_info *)
-			kmalloc(sizeof(struct isd200_info), GFP_KERNEL);
+			kzalloc(sizeof(struct isd200_info), GFP_KERNEL);
 	if (!info)
 		retStatus = ISD200_ERROR;
 	else {
-		memset(info, 0, sizeof(struct isd200_info));
 		info->id = (struct hd_driveid *)
-				kmalloc(sizeof(struct hd_driveid), GFP_KERNEL);
+				kzalloc(sizeof(struct hd_driveid), GFP_KERNEL);
 		info->RegsBuf = (unsigned char *)
 				kmalloc(sizeof(info->ATARegs), GFP_KERNEL);
 		if (!info->id || !info->RegsBuf) {
 			isd200_free_info_ptrs(info);
 			kfree(info);
 			retStatus = ISD200_ERROR;
-		} else
-			memset(info->id, 0, sizeof(struct hd_driveid));
+		}
 	}
 
 	if (retStatus == ISD200_GOOD) {
@@ -1384,7 +1382,7 @@ static int isd200_init_info(struct us_data *us)
 	} else
 		US_DEBUGP("ERROR - kmalloc failure\n");
 
-	return(retStatus);
+	return retStatus;
 }
 
 /**************************************************************************

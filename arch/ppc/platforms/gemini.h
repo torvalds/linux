@@ -1,7 +1,4 @@
 /*
- *  arch/ppc/platforms/gemini.h
- *
- *
  *  Onboard registers and descriptions for Synergy Microsystems'
  *  "Gemini" boards.
  *

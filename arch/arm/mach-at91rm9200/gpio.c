@@ -261,7 +261,7 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 	void __iomem	*pio;
 	u32		isr;
 
-	pio = (void __force __iomem *) desc->chipdata;
+	pio = desc->base;
 
 	/* temporarily mask (level sensitive) parent IRQ */
 	desc->chip->ack(irq);
@@ -274,8 +274,18 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 		gpio = &irq_desc[pin];
 
 		while (isr) {
-			if (isr & 1)
-				gpio->handle(pin, gpio, regs);
+			if (isr & 1) {
+				if (unlikely(gpio->disable_depth)) {
+					/*
+					 * The core ARM interrupt handler lazily disables IRQs so
+					 * another IRQ must be generated before it actually gets
+					 * here to be disabled on the GPIO controller.
+					 */
+					gpio_irq_mask(pin);
+				}
+				else
+					gpio->handle(pin, gpio, regs);
+			}
 			pin++;
 			gpio++;
 			isr >>= 1;
@@ -302,7 +312,7 @@ void __init at91_gpio_irq_setup(unsigned banks)
 		__raw_writel(~0, controller + PIO_IDR);
 
 		set_irq_data(id, (void *) pin);
-		set_irq_chipdata(id, (void __force *) controller);
+		set_irq_chipdata(id, controller);
 
 		for (i = 0; i < 32; i++, pin++) {
 			set_irq_chip(pin, &gpio_irqchip);

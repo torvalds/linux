@@ -587,14 +587,12 @@ static struct uart_amba_port *amba_ports[UART_NR];
 
 #ifdef CONFIG_SERIAL_AMBA_PL011_CONSOLE
 
-static inline void
-pl011_console_write_char(struct uart_amba_port *uap, char ch)
+static void pl011_console_putchar(struct uart_port *port, int ch)
 {
-	unsigned int status;
+	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 
-	do {
-		status = readw(uap->port.membase + UART01x_FR);
-	} while (status & UART01x_FR_TXFF);
+	while (readw(uap->port.membase + UART01x_FR) & UART01x_FR_TXFF)
+		barrier();
 	writew(ch, uap->port.membase + UART01x_DR);
 }
 
@@ -603,7 +601,6 @@ pl011_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct uart_amba_port *uap = amba_ports[co->index];
 	unsigned int status, old_cr, new_cr;
-	int i;
 
 	clk_enable(uap->clk);
 
@@ -615,14 +612,7 @@ pl011_console_write(struct console *co, const char *s, unsigned int count)
 	new_cr |= UART01x_CR_UARTEN | UART011_CR_TXE;
 	writew(new_cr, uap->port.membase + UART011_CR);
 
-	/*
-	 *	Now, do each character
-	 */
-	for (i = 0; i < count; i++) {
-		pl011_console_write_char(uap, s[i]);
-		if (s[i] == '\n')
-			pl011_console_write_char(uap, '\r');
-	}
+	uart_console_write(&uap->port, s, count, pl011_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty

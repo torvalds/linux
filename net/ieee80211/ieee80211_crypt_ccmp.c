@@ -131,7 +131,7 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	a4_included = ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
 		       (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS));
 	qc_included = ((WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA) &&
-		       (WLAN_FC_GET_STYPE(fc) & 0x08));
+		       (WLAN_FC_GET_STYPE(fc) & IEEE80211_STYPE_QOS_DATA));
 	aad_len = 22;
 	if (a4_included)
 		aad_len += 6;
@@ -190,7 +190,8 @@ static void ccmp_init_blocks(struct crypto_tfm *tfm,
 	ieee80211_ccmp_aes_encrypt(tfm, b0, s0);
 }
 
-static int ieee80211_ccmp_hdr(struct sk_buff *skb, int hdr_len, void *priv)
+static int ieee80211_ccmp_hdr(struct sk_buff *skb, int hdr_len,
+			      u8 *aeskey, int keylen, void *priv)
 {
 	struct ieee80211_ccmp_data *key = priv;
 	int i;
@@ -198,6 +199,9 @@ static int ieee80211_ccmp_hdr(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (skb_headroom(skb) < CCMP_HDR_LEN || skb->len < hdr_len)
 		return -1;
+
+	if (aeskey != NULL && keylen >= CCMP_TK_LEN)
+		memcpy(aeskey, key->key, CCMP_TK_LEN);
 
 	pos = skb_push(skb, CCMP_HDR_LEN);
 	memmove(pos, pos + CCMP_HDR_LEN, hdr_len);
@@ -238,7 +242,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 
 	data_len = skb->len - hdr_len;
-	len = ieee80211_ccmp_hdr(skb, hdr_len, priv);
+	len = ieee80211_ccmp_hdr(skb, hdr_len, NULL, 0, priv);
 	if (len < 0)
 		return -1;
 

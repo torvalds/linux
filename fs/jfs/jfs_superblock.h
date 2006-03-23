@@ -113,12 +113,9 @@ extern int jfs_mount(struct super_block *);
 extern int jfs_mount_rw(struct super_block *, int);
 extern int jfs_umount(struct super_block *);
 extern int jfs_umount_rw(struct super_block *);
-
-extern int jfs_stop_threads;
-extern struct completion jfsIOwait;
-extern wait_queue_head_t jfs_IO_thread_wait;
-extern wait_queue_head_t jfs_commit_thread_wait;
-extern wait_queue_head_t jfs_sync_thread_wait;
 extern int jfs_extendfs(struct super_block *, s64, int);
+
+extern struct task_struct *jfsIOthread;
+extern struct task_struct *jfsSyncThread;
 
 #endif /*_H_JFS_SUPERBLOCK */

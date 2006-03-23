@@ -56,13 +56,11 @@
 
 #include <asm/tlbflush.h>
 
-//#define RMAP_DEBUG /* can be enabled only for debugging */
-
-kmem_cache_t *anon_vma_cachep;
+struct kmem_cache *anon_vma_cachep;
 
 static inline void validate_anon_vma(struct vm_area_struct *find_vma)
 {
-#ifdef RMAP_DEBUG
+#ifdef CONFIG_DEBUG_VM
 	struct anon_vma *anon_vma = find_vma->anon_vma;
 	struct vm_area_struct *vma;
 	unsigned int mapcount = 0;
@@ -166,7 +164,8 @@ void anon_vma_unlink(struct vm_area_struct *vma)
 		anon_vma_free(anon_vma);
 }
 
-static void anon_vma_ctor(void *data, kmem_cache_t *cachep, unsigned long flags)
+static void anon_vma_ctor(void *data, struct kmem_cache *cachep,
+			  unsigned long flags)
 {
 	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 						SLAB_CTOR_CONSTRUCTOR) {
@@ -212,25 +211,33 @@ out:
  * through real pte's pointing to valid pages and then releasing
  * the page from the swap cache.
  *
- * Must hold page lock on page.
+ * Must hold page lock on page and mmap_sem of one vma that contains
+ * the page.
  */
 void remove_from_swap(struct page *page)
 {
 	struct anon_vma *anon_vma;
 	struct vm_area_struct *vma;
+	unsigned long mapping;
 
-	if (!PageAnon(page) || !PageSwapCache(page))
+	if (!PageSwapCache(page))
 		return;
 
-	anon_vma = page_lock_anon_vma(page);
-	if (!anon_vma)
+	mapping = (unsigned long)page->mapping;
+
+	if (!mapping || (mapping & PAGE_MAPPING_ANON) == 0)
 		return;
+
+	/*
+	 * We hold the mmap_sem lock. So no need to call page_lock_anon_vma.
+	 */
+	anon_vma = (struct anon_vma *) (mapping - PAGE_MAPPING_ANON);
+	spin_lock(&anon_vma->lock);
 
 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node)
 		remove_vma_swap(vma, page);
 
 	spin_unlock(&anon_vma->lock);
-
 	delete_from_swap_cache(page);
 }
 EXPORT_SYMBOL(remove_from_swap);
@@ -529,9 +536,6 @@ void page_add_new_anon_rmap(struct page *page,
  */
 void page_add_file_rmap(struct page *page)
 {
-	BUG_ON(PageAnon(page));
-	BUG_ON(!pfn_valid(page_to_pfn(page)));
-
 	if (atomic_inc_and_test(&page->_mapcount))
 		__inc_page_state(nr_mapped);
 }
@@ -545,13 +549,14 @@ void page_add_file_rmap(struct page *page)
 void page_remove_rmap(struct page *page)
 {
 	if (atomic_add_negative(-1, &page->_mapcount)) {
-		if (page_mapcount(page) < 0) {
+#ifdef CONFIG_DEBUG_VM
+		if (unlikely(page_mapcount(page) < 0)) {
 			printk (KERN_EMERG "Eeek! page_mapcount(page) went negative! (%d)\n", page_mapcount(page));
 			printk (KERN_EMERG "  page->flags = %lx\n", page->flags);
 			printk (KERN_EMERG "  page->count = %x\n", page_count(page));
 			printk (KERN_EMERG "  page->mapping = %p\n", page->mapping);
 		}
-
+#endif
 		BUG_ON(page_mapcount(page) < 0);
 		/*
 		 * It would be tidy to reset the PageAnon mapping here,

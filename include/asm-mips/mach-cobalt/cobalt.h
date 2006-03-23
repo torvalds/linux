@@ -113,4 +113,6 @@ do {									\
 # define COBALT_KEY_SELECT	(1 << 7)
 # define COBALT_KEY_MASK	0xfe
 
+#define COBALT_UART		((volatile unsigned char *) CKSEG1ADDR(0x1c800000))
+
 #endif /* __ASM_COBALT_H */

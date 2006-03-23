@@ -129,9 +129,11 @@ void __init get_region(unsigned int nid, unsigned long *start_pfn,
 		*start_pfn = 0;
 }
 
-static inline void map_cpu_to_node(int cpu, int node)
+static void __cpuinit map_cpu_to_node(int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
+
+	dbg("adding cpu %d to node %d\n", cpu, node);
 
 	if (!(cpu_isset(cpu, numa_cpumask_lookup_table[node])))
 		cpu_set(cpu, numa_cpumask_lookup_table[node]);
@@ -153,7 +155,7 @@ static void unmap_cpu_from_node(unsigned long cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static struct device_node *find_cpu_node(unsigned int cpu)
+static struct device_node * __cpuinit find_cpu_node(unsigned int cpu)
 {
 	unsigned int hw_cpuid = get_hard_smp_processor_id(cpu);
 	struct device_node *cpu_node = NULL;
@@ -189,23 +191,29 @@ static int *of_get_associativity(struct device_node *dev)
 	return (unsigned int *)get_property(dev, "ibm,associativity", NULL);
 }
 
-static int of_node_numa_domain(struct device_node *device)
+/* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if no useful numa
+ * info is found.
+ */
+static int of_node_to_nid(struct device_node *device)
 {
-	int numa_domain;
+	int nid = -1;
 	unsigned int *tmp;
 
 	if (min_common_depth == -1)
-		return 0;
+		goto out;
 
 	tmp = of_get_associativity(device);
-	if (tmp && (tmp[0] >= min_common_depth)) {
-		numa_domain = tmp[min_common_depth];
-	} else {
-		dbg("WARNING: no NUMA information for %s\n",
-		    device->full_name);
-		numa_domain = 0;
-	}
-	return numa_domain;
+	if (!tmp)
+		goto out;
+
+	if (tmp[0] >= min_common_depth)
+		nid = tmp[min_common_depth];
+
+	/* POWER4 LPAR uses 0xffff as invalid node */
+	if (nid == 0xffff || nid >= MAX_NUMNODES)
+		nid = -1;
+out:
+	return nid;
 }
 
 /*
@@ -246,8 +254,7 @@ static int __init find_min_common_depth(void)
 	if ((len >= 1) && ref_points) {
 		depth = ref_points[1];
 	} else {
-		dbg("WARNING: could not find NUMA "
-		    "associativity reference point\n");
+		dbg("NUMA: ibm,associativity-reference-points not found.\n");
 		depth = -1;
 	}
 	of_node_put(rtas_root);
@@ -283,9 +290,9 @@ static unsigned long __devinit read_n_cells(int n, unsigned int **buf)
  * Figure out to which domain a cpu belongs and stick it there.
  * Return the id of the domain used.
  */
-static int numa_setup_cpu(unsigned long lcpu)
+static int __cpuinit numa_setup_cpu(unsigned long lcpu)
 {
-	int numa_domain = 0;
+	int nid = 0;
 	struct device_node *cpu = find_cpu_node(lcpu);
 
 	if (!cpu) {
@@ -293,27 +300,16 @@ static int numa_setup_cpu(unsigned long lcpu)
 		goto out;
 	}
 
-	numa_domain = of_node_numa_domain(cpu);
+	nid = of_node_to_nid(cpu);
 
-	if (numa_domain >= num_online_nodes()) {
-		/*
-		 * POWER4 LPAR uses 0xffff as invalid node,
-		 * dont warn in this case.
-		 */
-		if (numa_domain != 0xffff)
-			printk(KERN_ERR "WARNING: cpu %ld "
-			       "maps to invalid NUMA node %d\n",
-			       lcpu, numa_domain);
-		numa_domain = 0;
-	}
+	if (nid < 0 || !node_online(nid))
+		nid = any_online_node(NODE_MASK_ALL);
 out:
-	node_set_online(numa_domain);
-
-	map_cpu_to_node(lcpu, numa_domain);
+	map_cpu_to_node(lcpu, nid);
 
 	of_node_put(cpu);
 
-	return numa_domain;
+	return nid;
 }
 
 static int cpu_numa_callback(struct notifier_block *nfb,
@@ -325,10 +321,7 @@ static int cpu_numa_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_UP_PREPARE:
-		if (min_common_depth == -1 || !numa_enabled)
-			map_cpu_to_node(lcpu, 0);
-		else
-			numa_setup_cpu(lcpu);
+		numa_setup_cpu(lcpu);
 		ret = NOTIFY_OK;
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
@@ -375,7 +368,7 @@ static int __init parse_numa_properties(void)
 {
 	struct device_node *cpu = NULL;
 	struct device_node *memory = NULL;
-	int max_domain;
+	int default_nid = 0;
 	unsigned long i;
 
 	if (numa_enabled == 0) {
@@ -385,32 +378,32 @@ static int __init parse_numa_properties(void)
 
 	min_common_depth = find_min_common_depth();
 
-	dbg("NUMA associativity depth for CPU/Memory: %d\n", min_common_depth);
 	if (min_common_depth < 0)
 		return min_common_depth;
 
-	max_domain = numa_setup_cpu(boot_cpuid);
+	dbg("NUMA associativity depth for CPU/Memory: %d\n", min_common_depth);
 
 	/*
-	 * Even though we connect cpus to numa domains later in SMP init,
-	 * we need to know the maximum node id now. This is because each
-	 * node id must have NODE_DATA etc backing it.
-	 * As a result of hotplug we could still have cpus appear later on
-	 * with larger node ids. In that case we force the cpu into node 0.
+	 * Even though we connect cpus to numa domains later in SMP
+	 * init, we need to know the node ids now. This is because
+	 * each node to be onlined must have NODE_DATA etc backing it.
 	 */
-	for_each_cpu(i) {
-		int numa_domain;
+	for_each_present_cpu(i) {
+		int nid;
 
 		cpu = find_cpu_node(i);
+		BUG_ON(!cpu);
+		nid = of_node_to_nid(cpu);
+		of_node_put(cpu);
 
-		if (cpu) {
-			numa_domain = of_node_numa_domain(cpu);
-			of_node_put(cpu);
-
-			if (numa_domain < MAX_NUMNODES &&
-			    max_domain < numa_domain)
-				max_domain = numa_domain;
-		}
+		/*
+		 * Don't fall back to default_nid yet -- we will plug
+		 * cpus into nodes once the memory scan has discovered
+		 * the topology.
+		 */
+		if (nid < 0)
+			continue;
+		node_set_online(nid);
 	}
 
 	get_n_mem_cells(&n_mem_addr_cells, &n_mem_size_cells);
@@ -418,7 +411,7 @@ static int __init parse_numa_properties(void)
 	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
 		unsigned long start;
 		unsigned long size;
-		int numa_domain;
+		int nid;
 		int ranges;
 		unsigned int *memcell_buf;
 		unsigned int len;
@@ -439,18 +432,15 @@ new_range:
 		start = read_n_cells(n_mem_addr_cells, &memcell_buf);
 		size = read_n_cells(n_mem_size_cells, &memcell_buf);
 
-		numa_domain = of_node_numa_domain(memory);
-
-		if (numa_domain >= MAX_NUMNODES) {
-			if (numa_domain != 0xffff)
-				printk(KERN_ERR "WARNING: memory at %lx maps "
-				       "to invalid NUMA node %d\n", start,
-				       numa_domain);
-			numa_domain = 0;
-		}
-
-		if (max_domain < numa_domain)
-			max_domain = numa_domain;
+		/*
+		 * Assumption: either all memory nodes or none will
+		 * have associativity properties.  If none, then
+		 * everything goes to default_nid.
+		 */
+		nid = of_node_to_nid(memory);
+		if (nid < 0)
+			nid = default_nid;
+		node_set_online(nid);
 
 		if (!(size = numa_enforce_memory_limit(start, size))) {
 			if (--ranges)
@@ -459,15 +449,12 @@ new_range:
 				continue;
 		}
 
-		add_region(numa_domain, start >> PAGE_SHIFT,
+		add_region(nid, start >> PAGE_SHIFT,
 			   size >> PAGE_SHIFT);
 
 		if (--ranges)
 			goto new_range;
 	}
-
-	for (i = 0; i <= max_domain; i++)
-		node_set_online(i);
 
 	return 0;
 }
@@ -483,7 +470,6 @@ static void __init setup_nonnuma(void)
 	printk(KERN_INFO "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 
-	map_cpu_to_node(boot_cpuid, 0);
 	for (i = 0; i < lmb.memory.cnt; ++i)
 		add_region(0, lmb.memory.region[i].base >> PAGE_SHIFT,
 			   lmb_size_pages(&lmb.memory, i));
@@ -570,11 +556,11 @@ static void __init *careful_allocation(int nid, unsigned long size,
 				       unsigned long end_pfn)
 {
 	int new_nid;
-	unsigned long ret = lmb_alloc_base(size, align, end_pfn << PAGE_SHIFT);
+	unsigned long ret = __lmb_alloc_base(size, align, end_pfn << PAGE_SHIFT);
 
 	/* retry over all memory */
 	if (!ret)
-		ret = lmb_alloc_base(size, align, lmb_end_of_DRAM());
+		ret = __lmb_alloc_base(size, align, lmb_end_of_DRAM());
 
 	if (!ret)
 		panic("numa.c: cannot allocate %lu bytes on node %d",
@@ -620,6 +606,8 @@ void __init do_init_bootmem(void)
 		dump_numa_memory_topology();
 
 	register_cpu_notifier(&ppc64_numa_nb);
+	cpu_numa_callback(&ppc64_numa_nb, CPU_UP_PREPARE,
+			  (void *)(unsigned long)boot_cpuid);
 
 	for_each_online_node(nid) {
 		unsigned long start_pfn, end_pfn, pages_present;
@@ -767,10 +755,10 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 {
 	struct device_node *memory = NULL;
 	nodemask_t nodes;
-	int numa_domain = 0;
+	int default_nid = any_online_node(NODE_MASK_ALL);
 
 	if (!numa_enabled || (min_common_depth < 0))
-		return numa_domain;
+		return default_nid;
 
 	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
 		unsigned long start, size;
@@ -787,15 +775,15 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 ha_new_range:
 		start = read_n_cells(n_mem_addr_cells, &memcell_buf);
 		size = read_n_cells(n_mem_size_cells, &memcell_buf);
-		numa_domain = of_node_numa_domain(memory);
+		nid = of_node_to_nid(memory);
 
 		/* Domains not present at boot default to 0 */
-		if (!node_online(numa_domain))
-			numa_domain = any_online_node(NODE_MASK_ALL);
+		if (nid < 0 || !node_online(nid))
+			nid = default_nid;
 
 		if ((scn_addr >= start) && (scn_addr < (start + size))) {
 			of_node_put(memory);
-			goto got_numa_domain;
+			goto got_nid;
 		}
 
 		if (--ranges)		/* process all ranges in cell */
@@ -804,12 +792,12 @@ ha_new_range:
 	BUG();	/* section address should be found above */
 
 	/* Temporary code to ensure that returned node is not empty */
-got_numa_domain:
+got_nid:
 	nodes_setall(nodes);
-	while (NODE_DATA(numa_domain)->node_spanned_pages == 0) {
-		node_clear(numa_domain, nodes);
-		numa_domain = any_online_node(nodes);
+	while (NODE_DATA(nid)->node_spanned_pages == 0) {
+		node_clear(nid, nodes);
+		nid = any_online_node(nodes);
 	}
-	return numa_domain;
+	return nid;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */

@@ -401,6 +401,7 @@ static int __init vfb_setup(char *options)
 static void vfb_platform_release(struct device *device)
 {
 	// This is called when the reference count goes to zero.
+	dev_err(device, "This driver is broken, please bug the authors so they will fix it.\n");
 }
 
 static int __init vfb_probe(struct platform_device *dev)

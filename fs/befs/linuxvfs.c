@@ -561,7 +561,7 @@ befs_utf2nls(struct super_block *sb, const char *in,
  * @sb: Superblock
  * @src: Input string buffer in NLS format
  * @srclen: Length of input string in bytes
- * @dest: The output string in UTF8 format
+ * @dest: The output string in UTF-8 format
  * @destlen: Length of the output buffer
  * 
  * Converts input string @src, which is in the format of the loaded NLS map,

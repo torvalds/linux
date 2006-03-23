@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/lite5200.c
- *
  * Platform support file for the Freescale LITE5200 based on MPC52xx.
  * A maximum of this file should be moved to syslib/mpc52xx_?????
  * so that new platform based on MPC52xx need a minimal platform file

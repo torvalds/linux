@@ -37,6 +37,7 @@ target(struct sk_buff **pskb,
        const struct net_device *in,
        const struct net_device *out,
        unsigned int hooknum,
+       const struct xt_target *target,
        const void *targinfo,
        void *userinfo)
 {
@@ -74,17 +75,12 @@ target(struct sk_buff **pskb,
 static int
 checkentry(const char *tablename,
 	   const void *entry,
+	   const struct xt_target *target,
 	   void *targinfo,
 	   unsigned int targinfosize,
 	   unsigned int hook_mask)
 {
 	struct xt_connmark_target_info *matchinfo = targinfo;
-	if (targinfosize != XT_ALIGN(sizeof(struct xt_connmark_target_info))) {
-		printk(KERN_WARNING "CONNMARK: targinfosize %u != %Zu\n",
-		       targinfosize,
-		       XT_ALIGN(sizeof(struct xt_connmark_target_info)));
-		return 0;
-	}
 
 	if (matchinfo->mode == XT_CONNMARK_RESTORE) {
 	    if (strcmp(tablename, "mangle") != 0) {
@@ -102,16 +98,21 @@ checkentry(const char *tablename,
 }
 
 static struct xt_target connmark_reg = {
-	.name = "CONNMARK",
-	.target = &target,
-	.checkentry = &checkentry,
-	.me = THIS_MODULE
+	.name		= "CONNMARK",
+	.target		= target,
+	.targetsize	= sizeof(struct xt_connmark_target_info),
+	.checkentry	= checkentry,
+	.family		= AF_INET,
+	.me		= THIS_MODULE
 };
+
 static struct xt_target connmark6_reg = {
-	.name = "CONNMARK",
-	.target = &target,
-	.checkentry = &checkentry,
-	.me = THIS_MODULE
+	.name		= "CONNMARK",
+	.target		= target,
+	.targetsize	= sizeof(struct xt_connmark_target_info),
+	.checkentry	= checkentry,
+	.family		= AF_INET6,
+	.me		= THIS_MODULE
 };
 
 static int __init init(void)
@@ -120,21 +121,21 @@ static int __init init(void)
 
 	need_conntrack();
 
-	ret = xt_register_target(AF_INET, &connmark_reg);
+	ret = xt_register_target(&connmark_reg);
 	if (ret)
 		return ret;
 
-	ret = xt_register_target(AF_INET6, &connmark6_reg);
+	ret = xt_register_target(&connmark6_reg);
 	if (ret)
-		xt_unregister_target(AF_INET, &connmark_reg);
+		xt_unregister_target(&connmark_reg);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_target(AF_INET, &connmark_reg);
-	xt_unregister_target(AF_INET6, &connmark6_reg);
+	xt_unregister_target(&connmark_reg);
+	xt_unregister_target(&connmark6_reg);
 }
 
 module_init(init);

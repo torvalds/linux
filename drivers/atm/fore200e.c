@@ -555,7 +555,7 @@ fore200e_pca_reset(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_pca_map(struct fore200e* fore200e)
 {
     DPRINTK(2, "device %s being mapped in memory\n", fore200e->name);
@@ -589,7 +589,7 @@ fore200e_pca_unmap(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_pca_configure(struct fore200e* fore200e)
 {
     struct pci_dev* pci_dev = (struct pci_dev*)fore200e->bus_dev;
@@ -2125,7 +2125,7 @@ fore200e_change_qos(struct atm_vcc* vcc,struct atm_qos* qos, int flags)
 }
     
 
-static int __init
+static int __devinit
 fore200e_irq_request(struct fore200e* fore200e)
 {
     if (request_irq(fore200e->irq, fore200e_interrupt, SA_SHIRQ, fore200e->name, fore200e->atm_dev) < 0) {
@@ -2148,7 +2148,7 @@ fore200e_irq_request(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_get_esi(struct fore200e* fore200e)
 {
     struct prom_data* prom = fore200e_kmalloc(sizeof(struct prom_data), GFP_KERNEL | GFP_DMA);
@@ -2180,7 +2180,7 @@ fore200e_get_esi(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_alloc_rx_buf(struct fore200e* fore200e)
 {
     int scheme, magn, nbr, size, i;
@@ -2245,7 +2245,7 @@ fore200e_alloc_rx_buf(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_init_bs_queue(struct fore200e* fore200e)
 {
     int scheme, magn, i;
@@ -2308,7 +2308,7 @@ fore200e_init_bs_queue(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_init_rx_queue(struct fore200e* fore200e)
 {
     struct host_rxq*     rxq =  &fore200e->host_rxq;
@@ -2368,7 +2368,7 @@ fore200e_init_rx_queue(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_init_tx_queue(struct fore200e* fore200e)
 {
     struct host_txq*     txq =  &fore200e->host_txq;
@@ -2431,7 +2431,7 @@ fore200e_init_tx_queue(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_init_cmd_queue(struct fore200e* fore200e)
 {
     struct host_cmdq*     cmdq =  &fore200e->host_cmdq;
@@ -2487,7 +2487,7 @@ fore200e_param_bs_queue(struct fore200e* fore200e,
 }
 
 
-static int __init
+static int __devinit
 fore200e_initialize(struct fore200e* fore200e)
 {
     struct cp_queues __iomem * cpq;
@@ -2539,7 +2539,7 @@ fore200e_initialize(struct fore200e* fore200e)
 }
 
 
-static void __init
+static void __devinit
 fore200e_monitor_putc(struct fore200e* fore200e, char c)
 {
     struct cp_monitor __iomem * monitor = fore200e->cp_monitor;
@@ -2551,7 +2551,7 @@ fore200e_monitor_putc(struct fore200e* fore200e, char c)
 }
 
 
-static int __init
+static int __devinit
 fore200e_monitor_getc(struct fore200e* fore200e)
 {
     struct cp_monitor __iomem * monitor = fore200e->cp_monitor;
@@ -2576,7 +2576,7 @@ fore200e_monitor_getc(struct fore200e* fore200e)
 }
 
 
-static void __init
+static void __devinit
 fore200e_monitor_puts(struct fore200e* fore200e, char* str)
 {
     while (*str) {
@@ -2591,7 +2591,7 @@ fore200e_monitor_puts(struct fore200e* fore200e, char* str)
 }
 
 
-static int __init
+static int __devinit
 fore200e_start_fw(struct fore200e* fore200e)
 {
     int               ok;
@@ -2622,7 +2622,7 @@ fore200e_start_fw(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_load_fw(struct fore200e* fore200e)
 {
     u32* fw_data = (u32*) fore200e->bus->fw_data;
@@ -2648,7 +2648,7 @@ fore200e_load_fw(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_register(struct fore200e* fore200e)
 {
     struct atm_dev* atm_dev;
@@ -2675,7 +2675,7 @@ fore200e_register(struct fore200e* fore200e)
 }
 
 
-static int __init
+static int __devinit
 fore200e_init(struct fore200e* fore200e)
 {
     if (fore200e_register(fore200e) < 0)
@@ -2721,7 +2721,7 @@ fore200e_init(struct fore200e* fore200e)
 	return -EBUSY;
 
     fore200e_supply(fore200e);
-    
+
     /* all done, board initialization is now complete */
     fore200e->state = FORE200E_STATE_COMPLETE;
     return 0;

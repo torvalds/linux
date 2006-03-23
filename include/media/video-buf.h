@@ -177,7 +177,7 @@ struct videobuf_queue_ops {
 };
 
 struct videobuf_queue {
-	struct semaphore           lock;
+	struct mutex               lock;
 	spinlock_t                 *irqlock;
 	struct pci_dev             *pci;
 

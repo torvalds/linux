@@ -570,10 +570,9 @@ static int auerchain_setup (pauerchain_t acp, unsigned int numElements)
 
         /* fill the list of free elements */
         for (;numElements; numElements--) {
-                acep = (pauerchainelement_t) kmalloc (sizeof (auerchainelement_t), GFP_KERNEL);
+                acep = kzalloc(sizeof(auerchainelement_t), GFP_KERNEL);
                 if (!acep)
 			goto ac_fail;
-		memset (acep, 0, sizeof (auerchainelement_t));
                 INIT_LIST_HEAD (&acep->list);
                 list_add_tail (&acep->list, &acp->free_list);
         }
@@ -761,10 +760,9 @@ static int auerbuf_setup (pauerbufctl_t bcp, unsigned int numElements, unsigned 
 
         /* fill the list of free elements */
         for (;numElements; numElements--) {
-                bep = (pauerbuf_t) kmalloc (sizeof (auerbuf_t), GFP_KERNEL);
+                bep = kzalloc(sizeof(auerbuf_t), GFP_KERNEL);
                 if (!bep)
 			goto bl_fail;
-	        memset (bep, 0, sizeof (auerbuf_t));
                 bep->list = bcp;
                 INIT_LIST_HEAD (&bep->buff_list);
                 bep->bufp = kmalloc (bufsize, GFP_KERNEL);

@@ -73,7 +73,7 @@ cpm_mask_irq(unsigned int irq)
 {
 	int cpm_vec = irq - CPM_IRQ_OFFSET;
 
-	out_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr, in_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr) & ~(1 << cpm_vec));
+	clrbits32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr, (1 << cpm_vec));
 }
 
 static void
@@ -81,7 +81,7 @@ cpm_unmask_irq(unsigned int irq)
 {
 	int cpm_vec = irq - CPM_IRQ_OFFSET;
 
-	out_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr, in_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr) | (1 << cpm_vec));
+	setbits32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr, (1 << cpm_vec));
 }
 
 static void
@@ -198,7 +198,7 @@ cpm_interrupt_init(void)
 	if (setup_irq(CPM_IRQ_OFFSET + CPMVEC_ERROR, &cpm_error_irqaction))
 		panic("Could not allocate CPM error IRQ!");
 
-	out_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cicr, in_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cicr) | CICR_IEN);
+	setbits32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cicr, CICR_IEN);
 }
 
 /*

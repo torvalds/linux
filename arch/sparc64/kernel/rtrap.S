@@ -223,12 +223,26 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		ldx			[%sp + PTREGS_OFF + PT_V9_G3], %g3
 		ldx			[%sp + PTREGS_OFF + PT_V9_G4], %g4
 		ldx			[%sp + PTREGS_OFF + PT_V9_G5], %g5
-		mov			TSB_REG, %g6
-		brnz,a,pn		%l3, 1f
-		 ldxa			[%g6] ASI_IMMU, %g5
-1:		ldx			[%sp + PTREGS_OFF + PT_V9_G6], %g6
+		brz,pt			%l3, 1f
+		mov			%g6, %l2
+
+		/* Must do this before thread reg is clobbered below.  */
+		LOAD_PER_CPU_BASE(%g5, %g6, %i0, %i1, %i2)
+1:
+		ldx			[%sp + PTREGS_OFF + PT_V9_G6], %g6
 		ldx			[%sp + PTREGS_OFF + PT_V9_G7], %g7
-		wrpr			%g0, RTRAP_PSTATE_AG_IRQOFF, %pstate
+
+		/* Normal globals are restored, go to trap globals.  */
+661:		wrpr			%g0, RTRAP_PSTATE_AG_IRQOFF, %pstate
+		nop
+		.section		.sun4v_2insn_patch, "ax"
+		.word			661b
+		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
+		SET_GL(1)
+		.previous
+
+		mov			%l2, %g6
+
 		ldx			[%sp + PTREGS_OFF + PT_V9_I0], %i0
 		ldx			[%sp + PTREGS_OFF + PT_V9_I1], %i1
 
@@ -252,27 +266,108 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 
 		brnz,pn			%l3, kern_rtt
 		 mov			PRIMARY_CONTEXT, %l7
-		ldxa			[%l7 + %l7] ASI_DMMU, %l0
+
+661:		ldxa			[%l7 + %l7] ASI_DMMU, %l0
+		.section		.sun4v_1insn_patch, "ax"
+		.word			661b
+		ldxa			[%l7 + %l7] ASI_MMU, %l0
+		.previous
+
 		sethi			%hi(sparc64_kern_pri_nuc_bits), %l1
 		ldx			[%l1 + %lo(sparc64_kern_pri_nuc_bits)], %l1
 		or			%l0, %l1, %l0
-		stxa			%l0, [%l7] ASI_DMMU
-		flush			%g6
+
+661:		stxa			%l0, [%l7] ASI_DMMU
+		.section		.sun4v_1insn_patch, "ax"
+		.word			661b
+		stxa			%l0, [%l7] ASI_MMU
+		.previous
+
+		sethi			%hi(KERNBASE), %l7
+		flush			%l7
 		rdpr			%wstate, %l1
 		rdpr			%otherwin, %l2
 		srl			%l1, 3, %l1
 
 		wrpr			%l2, %g0, %canrestore
 		wrpr			%l1, %g0, %wstate
-		wrpr			%g0, %g0, %otherwin
+		brnz,pt			%l2, user_rtt_restore
+		 wrpr			%g0, %g0, %otherwin
+
+		ldx			[%g6 + TI_FLAGS], %g3
+		wr			%g0, ASI_AIUP, %asi
+		rdpr			%cwp, %g1
+		andcc			%g3, _TIF_32BIT, %g0
+		sub			%g1, 1, %g1
+		bne,pt			%xcc, user_rtt_fill_32bit
+		 wrpr			%g1, %cwp
+		ba,a,pt			%xcc, user_rtt_fill_64bit
+
+user_rtt_fill_fixup:
+		rdpr	%cwp, %g1
+		add	%g1, 1, %g1
+		wrpr	%g1, 0x0, %cwp
+
+		rdpr	%wstate, %g2
+		sll	%g2, 3, %g2
+		wrpr	%g2, 0x0, %wstate
+
+		/* We know %canrestore and %otherwin are both zero.  */
+
+		sethi	%hi(sparc64_kern_pri_context), %g2
+		ldx	[%g2 + %lo(sparc64_kern_pri_context)], %g2
+		mov	PRIMARY_CONTEXT, %g1
+
+661:		stxa	%g2, [%g1] ASI_DMMU
+		.section .sun4v_1insn_patch, "ax"
+		.word	661b
+		stxa	%g2, [%g1] ASI_MMU
+		.previous
+
+		sethi	%hi(KERNBASE), %g1
+		flush	%g1
+
+		or	%g4, FAULT_CODE_WINFIXUP, %g4
+		stb	%g4, [%g6 + TI_FAULT_CODE]
+		stx	%g5, [%g6 + TI_FAULT_ADDR]
+
+		mov	%g6, %l1
+		wrpr	%g0, 0x0, %tl
+
+661:		nop
+		.section		.sun4v_1insn_patch, "ax"
+		.word			661b
+		SET_GL(0)
+		.previous
+
+		wrpr	%g0, RTRAP_PSTATE, %pstate
+
+		mov	%l1, %g6
+		ldx	[%g6 + TI_TASK], %g4
+		LOAD_PER_CPU_BASE(%g5, %g6, %g1, %g2, %g3)
+		call	do_sparc64_fault
+		 add	%sp, PTREGS_OFF, %o0
+		ba,pt	%xcc, rtrap
+		 nop
+
+user_rtt_pre_restore:
+		add			%g1, 1, %g1
+		wrpr			%g1, 0x0, %cwp
+
+user_rtt_restore:
 		restore
 		rdpr			%canrestore, %g1
 		wrpr			%g1, 0x0, %cleanwin
 		retry
 		nop
 
-kern_rtt:	restore
+kern_rtt:	rdpr			%canrestore, %g1
+		brz,pn			%g1, kern_rtt_fill
+		 nop
+kern_rtt_restore:
+		restore
 		retry
+
 to_kernel:
 #ifdef CONFIG_PREEMPT
 		ldsw			[%g6 + TI_PRE_COUNT], %l5

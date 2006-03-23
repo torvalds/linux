@@ -1,6 +1,4 @@
 /*
- *  linux/arch/ppc64/kernel/ptrace-common.h
- *
  *    Copyright (c) 2002 Stephen Rothwell, IBM Coproration
  *    Extracted from ptrace.c and ptrace32.c
  *

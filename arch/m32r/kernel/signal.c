@@ -36,7 +36,7 @@ int do_signal(struct pt_regs *, sigset_t *);
 asmlinkage int
 sys_rt_sigsuspend(sigset_t *unewset, size_t sigsetsize,
 		  unsigned long r2, unsigned long r3, unsigned long r4,
-		  unsigned long r5, unsigned long r6, struct pt_regs regs)
+		  unsigned long r5, unsigned long r6, struct pt_regs *regs)
 {
 	sigset_t saveset, newset;
 
@@ -54,21 +54,21 @@ sys_rt_sigsuspend(sigset_t *unewset, size_t sigsetsize,
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	regs.r0 = -EINTR;
+	regs->r0 = -EINTR;
 	while (1) {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule();
-		if (do_signal(&regs, &saveset))
-			return regs.r0;
+		if (do_signal(regs, &saveset))
+			return regs->r0;
 	}
 }
 
 asmlinkage int
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		unsigned long r2, unsigned long r3, unsigned long r4,
-		unsigned long r5, unsigned long r6, struct pt_regs regs)
+		unsigned long r5, unsigned long r6, struct pt_regs *regs)
 {
-	return do_sigaltstack(uss, uoss, regs.spu);
+	return do_sigaltstack(uss, uoss, regs->spu);
 }
 
 
@@ -140,11 +140,10 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 asmlinkage int
 sys_rt_sigreturn(unsigned long r0, unsigned long r1,
 		 unsigned long r2, unsigned long r3, unsigned long r4,
-		 unsigned long r5, unsigned long r6, struct pt_regs regs)
+		 unsigned long r5, unsigned long r6, struct pt_regs *regs)
 {
-	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)regs.spu;
+	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)regs->spu;
 	sigset_t set;
-	stack_t st;
 	int result;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
@@ -158,14 +157,11 @@ sys_rt_sigreturn(unsigned long r0, unsigned long r1,
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(&regs, &frame->uc.uc_mcontext, &result))
+	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &result))
 		goto badframe;
 
-	if (__copy_from_user(&st, &frame->uc.uc_stack, sizeof(st)))
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->spu) == -EFAULT)
 		goto badframe;
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	do_sigaltstack(&st, NULL, regs.spu);
 
 	return result;
 

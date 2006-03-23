@@ -158,7 +158,7 @@ unsigned long __init prom_free_prom_memory(void)
 		while (addr < boot_mem_map.map[i].addr
 			      + boot_mem_map.map[i].size) {
 			ClearPageReserved(virt_to_page(__va(addr)));
-			set_page_count(virt_to_page(__va(addr)), 1);
+			init_page_count(virt_to_page(__va(addr)));
 			free_page((unsigned long)__va(addr));
 			addr += PAGE_SIZE;
 			freed += PAGE_SIZE;

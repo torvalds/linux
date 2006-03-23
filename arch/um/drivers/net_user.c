@@ -47,10 +47,12 @@ void tap_check_ips(char *gate_addr, unsigned char *eth_addr)
 	}
 }
 
+/* Do reliable error handling as this fails frequently enough. */
 void read_output(int fd, char *output, int len)
 {
-	int remain, n, actual;
+	int remain, ret, expected;
 	char c;
+	char *str;
 
 	if(output == NULL){
 		output = &c;
@@ -58,23 +60,31 @@ void read_output(int fd, char *output, int len)
 	}
 		
 	*output = '\0';
-	n = os_read_file(fd, &remain, sizeof(remain));
-	if(n != sizeof(remain)){
-		printk("read_output - read of length failed, err = %d\n", -n);
-		return;
+	ret = os_read_file(fd, &remain, sizeof(remain));
+
+	if (ret != sizeof(remain)) {
+		expected = sizeof(remain);
+		str = "length";
+		goto err;
 	}
 
 	while(remain != 0){
-		n = (remain < len) ? remain : len;
-		actual = os_read_file(fd, output, n);
-		if(actual != n){
-			printk("read_output - read of data failed, "
-			       "err = %d\n", -actual);
-			return;
+		expected = (remain < len) ? remain : len;
+		ret = os_read_file(fd, output, expected);
+		if (ret != expected) {
+			str = "data";
+			goto err;
 		}
-		remain -= actual;
+		remain -= ret;
 	}
+
 	return;
+
+err:
+	if (ret < 0)
+		printk("read_output - read of %s failed, errno = %d\n", str, -ret);
+	else
+		printk("read_output - read of %s failed, read only %d of %d bytes\n", str, ret, expected);
 }
 
 int net_read(int fd, void *buf, int len)

@@ -392,9 +392,9 @@ config SH_TMU
 
 endmenu
 
-source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
+#source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
 
-source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
+#source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"

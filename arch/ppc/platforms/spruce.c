@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/spruce.c
- *
  * Board and PCI setup routines for IBM Spruce
  *
  * Author: MontaVista Software <source@mvista.com>

@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/mm/fault.c
- *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *

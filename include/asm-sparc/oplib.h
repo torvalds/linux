@@ -165,6 +165,7 @@ enum prom_input_device {
 	PROMDEV_ITTYA,			/* input from ttya */
 	PROMDEV_ITTYB,			/* input from ttyb */
 	PROMDEV_IRSC,			/* input from rsc */
+	PROMDEV_IVCONS,			/* input from virtual-console */
 	PROMDEV_I_UNK,
 };
 
@@ -177,6 +178,7 @@ enum prom_output_device {
 	PROMDEV_OTTYA,			/* to ttya */
 	PROMDEV_OTTYB,			/* to ttyb */
 	PROMDEV_ORSC,			/* to rsc */
+	PROMDEV_OVCONS,			/* to virtual-console */
 	PROMDEV_O_UNK,
 };
 

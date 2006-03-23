@@ -25,6 +25,7 @@ extern char h8300_debug_device[];
 /* platform dependent support */
 
 EXPORT_SYMBOL(strnlen);
+EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(strchr);

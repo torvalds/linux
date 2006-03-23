@@ -772,8 +772,6 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 		goto out_return_cmd;
 
 	cmd->scmd = scmd;
-	scmd->SCp.ptr = (char *)cmd;
-	scmd->SCp.sent_command = jiffies;
 
 	/*
 	 * Issue the command to the FW
@@ -790,6 +788,26 @@ megasas_queue_command(struct scsi_cmnd *scmd, void (*done) (struct scsi_cmnd *))
 	megasas_return_cmd(instance, cmd);
  out_done:
 	done(scmd);
+	return 0;
+}
+
+static int megasas_slave_configure(struct scsi_device *sdev)
+{
+	/*
+	 * Don't export physical disk devices to the disk driver.
+	 *
+	 * FIXME: Currently we don't export them to the midlayer at all.
+	 * 	  That will be fixed once LSI engineers have audited the
+	 * 	  firmware for possible issues.
+	 */
+	if (sdev->channel < MEGASAS_MAX_PD_CHANNELS && sdev->type == TYPE_DISK)
+		return -ENXIO;
+
+	/*
+	 * The RAID firmware may require extended timeouts.
+	 */
+	if (sdev->channel >= MEGASAS_MAX_PD_CHANNELS)
+		sdev->timeout = 90 * HZ;
 	return 0;
 }
 
@@ -861,23 +879,6 @@ static int megasas_generic_reset(struct scsi_cmnd *scmd)
 	return ret_val;
 }
 
-static enum scsi_eh_timer_return megasas_reset_timer(struct scsi_cmnd *scmd)
-{
-	unsigned long seconds;
-
-	if (scmd->SCp.ptr) {
-		seconds = (jiffies - scmd->SCp.sent_command) / HZ;
-
-		if (seconds < 90) {
-			return EH_RESET_TIMER;
-		} else {
-			return EH_NOT_HANDLED;
-		}
-	}
-
-	return EH_HANDLED;
-}
-
 /**
  * megasas_reset_device -	Device reset handler entry point
  */
@@ -901,7 +902,7 @@ static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
 	int ret;
 
 	/*
-	 * Frist wait for all commands to complete
+	 * First wait for all commands to complete
 	 */
 	ret = megasas_generic_reset(scmd);
 
@@ -943,11 +944,11 @@ static struct scsi_host_template megasas_template = {
 	.module = THIS_MODULE,
 	.name = "LSI Logic SAS based MegaRAID driver",
 	.proc_name = "megaraid_sas",
+	.slave_configure = megasas_slave_configure,
 	.queuecommand = megasas_queue_command,
 	.eh_device_reset_handler = megasas_reset_device,
 	.eh_bus_reset_handler = megasas_reset_bus_host,
 	.eh_host_reset_handler = megasas_reset_bus_host,
-	.eh_timed_out = megasas_reset_timer,
 	.use_clustering = ENABLE_CLUSTERING,
 };
 
@@ -1069,20 +1070,6 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 			cmd->sync_cmd = 0;
 			megasas_complete_int_cmd(instance, cmd);
 			break;
-		}
-
-		/*
-		 * Don't export physical disk devices to mid-layer.
-		 */
-		if (!MEGASAS_IS_LOGICAL(cmd->scmd) &&
-		    (hdr->cmd_status == MFI_STAT_OK) &&
-		    (cmd->scmd->cmnd[0] == INQUIRY)) {
-
-			if (((*(u8 *) cmd->scmd->request_buffer) & 0x1F) ==
-			    TYPE_DISK) {
-				cmd->scmd->result = DID_BAD_TARGET << 16;
-				exception = 1;
-			}
 		}
 
 	case MFI_CMD_LD_READ:

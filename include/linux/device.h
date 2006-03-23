@@ -378,6 +378,7 @@ extern void device_bind_driver(struct device * dev);
 extern void device_release_driver(struct device * dev);
 extern int  device_attach(struct device * dev);
 extern void driver_attach(struct device_driver * drv);
+extern void device_reprobe(struct device *dev);
 
 
 /*
@@ -399,7 +400,7 @@ extern struct device * get_device(struct device * dev);
 extern void put_device(struct device * dev);
 
 
-/* drivers/base/power.c */
+/* drivers/base/power/shutdown.c */
 extern void device_shutdown(void);
 
 
@@ -424,6 +425,8 @@ extern void firmware_unregister(struct subsystem *);
 	dev_printk(KERN_INFO , dev , format , ## arg)
 #define dev_warn(dev, format, arg...)		\
 	dev_printk(KERN_WARNING , dev , format , ## arg)
+#define dev_notice(dev, format, arg...)		\
+	dev_printk(KERN_NOTICE , dev , format , ## arg)
 
 /* Create alias, so I can be autoloaded. */
 #define MODULE_ALIAS_CHARDEV(major,minor) \

@@ -67,7 +67,7 @@
 #define SNDRV_SEQ_LFLG_OPEN	(SNDRV_SEQ_LFLG_INPUT|SNDRV_SEQ_LFLG_OUTPUT)
 
 static DEFINE_SPINLOCK(clients_lock);
-static DECLARE_MUTEX(register_mutex);
+static DEFINE_MUTEX(register_mutex);
 
 /*
  * client table
@@ -237,7 +237,7 @@ static struct snd_seq_client *seq_create_client1(int client_index, int poolsize)
 	client->type = NO_CLIENT;
 	snd_use_lock_init(&client->use_lock);
 	rwlock_init(&client->ports_lock);
-	init_MUTEX(&client->ports_mutex);
+	mutex_init(&client->ports_mutex);
 	INIT_LIST_HEAD(&client->ports_list_head);
 
 	/* find free slot in the client table */
@@ -290,7 +290,7 @@ static int seq_free_client1(struct snd_seq_client *client)
 
 static void seq_free_client(struct snd_seq_client * client)
 {
-	down(&register_mutex);
+	mutex_lock(&register_mutex);
 	switch (client->type) {
 	case NO_CLIENT:
 		snd_printk(KERN_WARNING "Seq: Trying to free unused client %d\n",
@@ -306,7 +306,7 @@ static void seq_free_client(struct snd_seq_client * client)
 		snd_printk(KERN_ERR "Seq: Trying to free client %d with undefined type = %d\n",
 			   client->number, client->type);
 	}
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 
 	snd_seq_system_client_ev_client_exit(client->number);
 }
@@ -322,11 +322,11 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 	struct snd_seq_client *client;
 	struct snd_seq_user_client *user;
 
-	if (down_interruptible(&register_mutex))
+	if (mutex_lock_interruptible(&register_mutex))
 		return -ERESTARTSYS;
 	client = seq_create_client1(-1, SNDRV_SEQ_DEFAULT_EVENTS);
 	if (client == NULL) {
-		up(&register_mutex);
+		mutex_unlock(&register_mutex);
 		return -ENOMEM;	/* failure code */
 	}
 
@@ -346,14 +346,14 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 		if (user->fifo == NULL) {
 			seq_free_client1(client);
 			kfree(client);
-			up(&register_mutex);
+			mutex_unlock(&register_mutex);
 			return -ENOMEM;
 		}
 	}
 
 	usage_alloc(&client_usage, 1);
 	client->type = USER_CLIENT;
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 
 	c = client->number;
 	file->private_data = client;
@@ -1743,7 +1743,7 @@ static int snd_seq_ioctl_get_queue_timer(struct snd_seq_client *client,
 	if (queue == NULL)
 		return -EINVAL;
 
-	if (down_interruptible(&queue->timer_mutex)) {
+	if (mutex_lock_interruptible(&queue->timer_mutex)) {
 		queuefree(queue);
 		return -ERESTARTSYS;
 	}
@@ -1756,7 +1756,7 @@ static int snd_seq_ioctl_get_queue_timer(struct snd_seq_client *client,
 		timer.u.alsa.id = tmr->alsa_id;
 		timer.u.alsa.resolution = tmr->preferred_resolution;
 	}
-	up(&queue->timer_mutex);
+	mutex_unlock(&queue->timer_mutex);
 	queuefree(queue);
 	
 	if (copy_to_user(arg, &timer, sizeof(timer)))
@@ -1785,7 +1785,7 @@ static int snd_seq_ioctl_set_queue_timer(struct snd_seq_client *client,
 		q = queueptr(timer.queue);
 		if (q == NULL)
 			return -ENXIO;
-		if (down_interruptible(&q->timer_mutex)) {
+		if (mutex_lock_interruptible(&q->timer_mutex)) {
 			queuefree(q);
 			return -ERESTARTSYS;
 		}
@@ -1797,7 +1797,7 @@ static int snd_seq_ioctl_set_queue_timer(struct snd_seq_client *client,
 			tmr->preferred_resolution = timer.u.alsa.resolution;
 		}
 		result = snd_seq_queue_timer_open(timer.queue);
-		up(&q->timer_mutex);
+		mutex_unlock(&q->timer_mutex);
 		queuefree(q);
 	} else {
 		return -EPERM;
@@ -1866,8 +1866,7 @@ static int snd_seq_ioctl_get_client_pool(struct snd_seq_client *client,
 	info.output_pool = cptr->pool->size;
 	info.output_room = cptr->pool->room;
 	info.output_free = info.output_pool;
-	if (cptr->pool)
-		info.output_free = snd_seq_unused_cells(cptr->pool);
+	info.output_free = snd_seq_unused_cells(cptr->pool);
 	if (cptr->type == USER_CLIENT) {
 		info.input_pool = cptr->data.user.fifo_pool_size;
 		info.input_free = info.input_pool;
@@ -2230,7 +2229,7 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 	if (card == NULL && client_index >= SNDRV_SEQ_GLOBAL_CLIENTS)
 		return -EINVAL;
 
-	if (down_interruptible(&register_mutex))
+	if (mutex_lock_interruptible(&register_mutex))
 		return -ERESTARTSYS;
 
 	if (card) {
@@ -2243,7 +2242,7 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 	/* empty write queue as default */
 	client = seq_create_client1(client_index, 0);
 	if (client == NULL) {
-		up(&register_mutex);
+		mutex_unlock(&register_mutex);
 		return -EBUSY;	/* failure code */
 	}
 	usage_alloc(&client_usage, 1);
@@ -2256,7 +2255,7 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 	va_end(args);
 
 	client->type = KERNEL_CLIENT;
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 
 	/* make others aware this new client */
 	snd_seq_system_client_ev_client_start(client->number);
@@ -2464,7 +2463,7 @@ static void snd_seq_info_dump_ports(struct snd_info_buffer *buffer,
 {
 	struct list_head *l;
 
-	down(&client->ports_mutex);
+	mutex_lock(&client->ports_mutex);
 	list_for_each(l, &client->ports_list_head) {
 		struct snd_seq_client_port *p = list_entry(l, struct snd_seq_client_port, list);
 		snd_iprintf(buffer, "  Port %3d : \"%s\" (%c%c%c%c)\n",
@@ -2476,7 +2475,7 @@ static void snd_seq_info_dump_ports(struct snd_info_buffer *buffer,
 		snd_seq_info_dump_subscribers(buffer, &p->c_src, 1, "    Connecting To: ");
 		snd_seq_info_dump_subscribers(buffer, &p->c_dest, 0, "    Connected From: ");
 	}
-	up(&client->ports_mutex);
+	mutex_unlock(&client->ports_mutex);
 }
 
 
@@ -2550,16 +2549,16 @@ int __init snd_sequencer_device_init(void)
 {
 	int err;
 
-	if (down_interruptible(&register_mutex))
+	if (mutex_lock_interruptible(&register_mutex))
 		return -ERESTARTSYS;
 
 	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_SEQUENCER, NULL, 0,
 				       &snd_seq_f_ops, NULL, "seq")) < 0) {
-		up(&register_mutex);
+		mutex_unlock(&register_mutex);
 		return err;
 	}
 	
-	up(&register_mutex);
+	mutex_unlock(&register_mutex);
 
 	return 0;
 }

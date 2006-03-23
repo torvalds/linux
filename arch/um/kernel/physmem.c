@@ -279,7 +279,7 @@ int init_maps(unsigned long physmem, unsigned long iomem, unsigned long highmem)
 
 	for(i = 0; i < total_pages; i++){
 		p = &map[i];
-		set_page_count(p, 0);
+		memset(p, 0, sizeof(struct page));
 		SetPageReserved(p);
 		INIT_LIST_HEAD(&p->lru);
 	}

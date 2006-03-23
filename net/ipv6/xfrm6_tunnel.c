@@ -31,6 +31,7 @@
 #include <net/protocol.h>
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
+#include <linux/mutex.h>
 
 #ifdef CONFIG_IPV6_XFRM6_TUNNEL_DEBUG
 # define X6TDEBUG	3
@@ -357,19 +358,19 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct xfrm_decap_state *dec
 }
 
 static struct xfrm6_tunnel *xfrm6_tunnel_handler;
-static DECLARE_MUTEX(xfrm6_tunnel_sem);
+static DEFINE_MUTEX(xfrm6_tunnel_mutex);
 
 int xfrm6_tunnel_register(struct xfrm6_tunnel *handler)
 {
 	int ret;
 
-	down(&xfrm6_tunnel_sem);
+	mutex_lock(&xfrm6_tunnel_mutex);
 	ret = 0;
 	if (xfrm6_tunnel_handler != NULL)
 		ret = -EINVAL;
 	if (!ret)
 		xfrm6_tunnel_handler = handler;
-	up(&xfrm6_tunnel_sem);
+	mutex_unlock(&xfrm6_tunnel_mutex);
 
 	return ret;
 }
@@ -380,13 +381,13 @@ int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler)
 {
 	int ret;
 
-	down(&xfrm6_tunnel_sem);
+	mutex_lock(&xfrm6_tunnel_mutex);
 	ret = 0;
 	if (xfrm6_tunnel_handler != handler)
 		ret = -EINVAL;
 	if (!ret)
 		xfrm6_tunnel_handler = NULL;
-	up(&xfrm6_tunnel_sem);
+	mutex_unlock(&xfrm6_tunnel_mutex);
 
 	synchronize_net();
 

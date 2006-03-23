@@ -19,6 +19,7 @@
 #include <linux/config.h>
 #include <linux/videodev.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 
 /* Most helpful debugging aid */
 #define assert(expr) ((void) ((expr) ? 0 : (err("assert failed at line %d",__LINE__))))
@@ -213,7 +214,7 @@ struct uvd {
 	unsigned long flags;		/* FLAGS_USBVIDEO_xxx */
 	unsigned long paletteBits;	/* Which palettes we accept? */
 	unsigned short defaultPalette;	/* What palette to use for read() */
-	struct semaphore lock;
+	struct mutex lock;
 	int user;		/* user count for exclusive use */
 
 	videosize_t videosize;	/* Current setting */
@@ -272,7 +273,7 @@ struct usbvideo {
 	int num_cameras;		/* As allocated */
 	struct usb_driver usbdrv;	/* Interface to the USB stack */
 	char drvName[80];		/* Driver name */
-	struct semaphore lock;		/* Mutex protecting camera structures */
+	struct mutex lock;		/* Mutex protecting camera structures */
 	struct usbvideo_cb cb;		/* Table of callbacks (virtual methods) */
 	struct video_device vdt;	/* Video device template */
 	struct uvd *cam;			/* Array of camera structures */

@@ -13,16 +13,17 @@
 #include <linux/kernel.h>
 #include <linux/notifier.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 #include "usb.h"
 
 
 static struct notifier_block *usb_notifier_list;
-static DECLARE_MUTEX(usb_notifier_lock);
+static DEFINE_MUTEX(usb_notifier_lock);
 
 static void usb_notifier_chain_register(struct notifier_block **list,
 					struct notifier_block *n)
 {
-	down(&usb_notifier_lock);
+	mutex_lock(&usb_notifier_lock);
 	while (*list) {
 		if (n->priority > (*list)->priority)
 			break;
@@ -30,13 +31,13 @@ static void usb_notifier_chain_register(struct notifier_block **list,
 	}
 	n->next = *list;
 	*list = n;
-	up(&usb_notifier_lock);
+	mutex_unlock(&usb_notifier_lock);
 }
 
 static void usb_notifier_chain_unregister(struct notifier_block **nl,
 				   struct notifier_block *n)
 {
-	down(&usb_notifier_lock);
+	mutex_lock(&usb_notifier_lock);
 	while ((*nl)!=NULL) {
 		if ((*nl)==n) {
 			*nl = n->next;
@@ -45,7 +46,7 @@ static void usb_notifier_chain_unregister(struct notifier_block **nl,
 		nl=&((*nl)->next);
 	}
 exit:
-	up(&usb_notifier_lock);
+	mutex_unlock(&usb_notifier_lock);
 }
 
 static int usb_notifier_call_chain(struct notifier_block **n,
@@ -54,7 +55,7 @@ static int usb_notifier_call_chain(struct notifier_block **n,
 	int ret=NOTIFY_DONE;
 	struct notifier_block *nb = *n;
 
-	down(&usb_notifier_lock);
+	mutex_lock(&usb_notifier_lock);
 	while (nb) {
 		ret = nb->notifier_call(nb,val,v);
 		if (ret&NOTIFY_STOP_MASK) {
@@ -63,7 +64,7 @@ static int usb_notifier_call_chain(struct notifier_block **n,
 		nb = nb->next;
 	}
 exit:
-	up(&usb_notifier_lock);
+	mutex_unlock(&usb_notifier_lock);
 	return ret;
 }
 

@@ -34,7 +34,7 @@ void momenco_ocelot_restart(char *command)
 		0xfc807000;
 #endif
 
- 	/* Ask the NVRAM/RTC/watchdog chip to assert reset in 1/16 second */
+	/* Ask the NVRAM/RTC/watchdog chip to assert reset in 1/16 second */
 	writeb(0x84, nvram + 0xff7);
 
 	/* wait for the watchdog to go off */

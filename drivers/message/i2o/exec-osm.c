@@ -57,6 +57,13 @@ struct i2o_exec_wait {
 	struct list_head list;	/* node in global wait list */
 };
 
+/* Work struct needed to handle LCT NOTIFY replies */
+struct i2o_exec_lct_notify_work {
+	struct work_struct work;	/* work struct */
+	struct i2o_controller *c;	/* controller on which the LCT NOTIFY
+					   was received */
+};
+
 /* Exec OSM class handling definition */
 static struct i2o_class_id i2o_exec_class_id[] = {
 	{I2O_CLASS_EXECUTIVE},
@@ -355,9 +362,12 @@ static int i2o_exec_remove(struct device *dev)
  *	new LCT and if the buffer for the LCT was to small sends a LCT NOTIFY
  *	again, otherwise send LCT NOTIFY to get informed on next LCT change.
  */
-static void i2o_exec_lct_modified(struct i2o_controller *c)
+static void i2o_exec_lct_modified(struct i2o_exec_lct_notify_work *work)
 {
 	u32 change_ind = 0;
+	struct i2o_controller *c = work->c;
+
+	kfree(work);
 
 	if (i2o_device_parse_lct(c) != -EAGAIN)
 		change_ind = c->lct->change_ind + 1;
@@ -410,7 +420,7 @@ static int i2o_exec_reply(struct i2o_controller *c, u32 m,
 		return i2o_msg_post_wait_complete(c, m, msg, context);
 
 	if ((le32_to_cpu(msg->u.head[1]) >> 24) == I2O_CMD_LCT_NOTIFY) {
-		struct work_struct *work;
+		struct i2o_exec_lct_notify_work *work;
 
 		pr_debug("%s: LCT notify received\n", c->name);
 
@@ -418,8 +428,11 @@ static int i2o_exec_reply(struct i2o_controller *c, u32 m,
 		if (!work)
 			return -ENOMEM;
 
-		INIT_WORK(work, (void (*)(void *))i2o_exec_lct_modified, c);
-		queue_work(i2o_exec_driver.event_queue, work);
+		work->c = c;
+
+		INIT_WORK(&work->work, (void (*)(void *))i2o_exec_lct_modified,
+			  work);
+		queue_work(i2o_exec_driver.event_queue, &work->work);
 		return 1;
 	}
 

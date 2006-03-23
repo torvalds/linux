@@ -481,6 +481,53 @@ config WINCEPT
 
 endchoice
 
+menu "Freescale Ethernet driver platform-specific options"
+	depends on FS_ENET
+
+	config MPC8xx_SECOND_ETH
+	bool "Second Ethernet channel"
+	depends on (MPC885ADS || MPC86XADS)
+	default y
+	help
+	  This enables support for second Ethernet on MPC885ADS and MPC86xADS boards.
+	  The latter will use SCC1, for 885ADS you can select it below.
+
+	choice
+		prompt "Second Ethernet channel"
+		depends on MPC8xx_SECOND_ETH
+		default MPC8xx_SECOND_ETH_FEC2
+
+		config MPC8xx_SECOND_ETH_FEC2
+		bool "FEC2"
+		depends on MPC885ADS
+		help
+		  Enable FEC2 to serve as 2-nd Ethernet channel. Note that SMC2
+		  (often 2-nd UART) will not work if this is enabled.
+
+		config MPC8xx_SECOND_ETH_SCC1
+		bool "SCC1"
+		depends on MPC86XADS
+		select MPC8xx_SCC_ENET_FIXED
+		help
+		  Enable SCC1 to serve as 2-nd Ethernet channel. Note that SMC1
+		  (often 1-nd UART) will not work if this is enabled.
+
+		config MPC8xx_SECOND_ETH_SCC3
+		bool "SCC3"
+		depends on MPC885ADS
+		help
+		  Enable SCC3 to serve as 2-nd Ethernet channel. Note that SMC1
+		  (often 1-nd UART) will not work if this is enabled.
+
+	endchoice
+
+	config MPC8xx_SCC_ENET_FIXED
+	depends on MPC8xx_SECOND_ETH_SCC
+	default n
+	bool "Use fixed MII-less mode for SCC Ethernet"
+
+endmenu
+
 choice
 	prompt "Machine Type"
 	depends on 6xx || POWER3

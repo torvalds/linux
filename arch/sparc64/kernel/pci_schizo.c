@@ -243,8 +243,8 @@ static unsigned char schizo_pil_table[] = {
 /*0x0c*/0, 0, 0, 0,	/* PCI slot 3  Int A, B, C, D	*/
 /*0x10*/0, 0, 0, 0,	/* PCI slot 4  Int A, B, C, D	*/
 /*0x14*/0, 0, 0, 0,	/* PCI slot 5  Int A, B, C, D	*/
-/*0x18*/4,		/* SCSI				*/
-/*0x19*/4,		/* second SCSI			*/
+/*0x18*/5,		/* SCSI				*/
+/*0x19*/5,		/* second SCSI			*/
 /*0x1a*/0,		/* UNKNOWN			*/
 /*0x1b*/0,		/* UNKNOWN			*/
 /*0x1c*/8,		/* Parallel			*/
@@ -254,7 +254,7 @@ static unsigned char schizo_pil_table[] = {
 /*0x20*/13,		/* Audio Record			*/
 /*0x21*/14,		/* Audio Playback		*/
 /*0x22*/12,		/* Serial			*/
-/*0x23*/4,		/* EBUS I2C 			*/
+/*0x23*/5,		/* EBUS I2C 			*/
 /*0x24*/10,		/* RTC Clock			*/
 /*0x25*/11,		/* Floppy			*/
 /*0x26*/0,		/* UNKNOWN			*/
@@ -296,11 +296,11 @@ static int schizo_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 
 	ret = schizo_pil_table[ino];
 	if (ret == 0 && pdev == NULL) {
-		ret = 4;
+		ret = 5;
 	} else if (ret == 0) {
 		switch ((pdev->class >> 16) & 0xff) {
 		case PCI_BASE_CLASS_STORAGE:
-			ret = 4;
+			ret = 5;
 			break;
 
 		case PCI_BASE_CLASS_NETWORK:
@@ -319,7 +319,7 @@ static int schizo_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 			break;
 
 		default:
-			ret = 4;
+			ret = 5;
 			break;
 		};
 	}
@@ -1525,7 +1525,7 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 static void pbm_scan_bus(struct pci_controller_info *p,
 			 struct pci_pbm_info *pbm)
 {
-	struct pcidev_cookie *cookie = kmalloc(sizeof(*cookie), GFP_KERNEL);
+	struct pcidev_cookie *cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
 
 	if (!cookie) {
 		prom_printf("%s: Critical allocation failure.\n", pbm->name);
@@ -1533,7 +1533,6 @@ static void pbm_scan_bus(struct pci_controller_info *p,
 	}
 
 	/* All we care about is the PBM. */
-	memset(cookie, 0, sizeof(*cookie));
 	cookie->pbm = pbm;
 
 	pbm->pci_bus = pci_scan_bus(pbm->pci_first_busno,
@@ -2120,27 +2119,24 @@ static void __schizo_init(int node, char *model_name, int chip_type)
 		}
 	}
 
-	p = kmalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
+	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
 	if (!p) {
 		prom_printf("SCHIZO: Fatal memory allocation error.\n");
 		prom_halt();
 	}
-	memset(p, 0, sizeof(*p));
 
-	iommu = kmalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
 	if (!iommu) {
 		prom_printf("SCHIZO: Fatal memory allocation error.\n");
 		prom_halt();
 	}
-	memset(iommu, 0, sizeof(*iommu));
 	p->pbm_A.iommu = iommu;
 
-	iommu = kmalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct pci_iommu), GFP_ATOMIC);
 	if (!iommu) {
 		prom_printf("SCHIZO: Fatal memory allocation error.\n");
 		prom_halt();
 	}
-	memset(iommu, 0, sizeof(*iommu));
 	p->pbm_B.iommu = iommu;
 
 	p->next = pci_controller_root;

@@ -55,7 +55,7 @@ struct qcam_device {
 	struct video_device vdev;
 	struct pardevice *pdev;
 	struct parport *pport;
-	struct semaphore lock;
+	struct mutex lock;
 	int width, height;
 	int bpp;
 	int mode;

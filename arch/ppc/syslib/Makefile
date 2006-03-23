@@ -17,8 +17,8 @@ obj-$(CONFIG_440GX)		+= ibm440gx_common.o
 obj-$(CONFIG_440SP)		+= ibm440gx_common.o ibm440sp_common.o
 obj-$(CONFIG_440SPE)		+= ibm440gx_common.o ibm440sp_common.o ppc440spe_pcie.o
 ifeq ($(CONFIG_4xx),y)
-ifeq ($(CONFIG_VIRTEX_II_PRO),y)
-obj-$(CONFIG_40x)		+= xilinx_pic.o
+ifeq ($(CONFIG_XILINX_VIRTEX),y)
+obj-$(CONFIG_40x)		+= xilinx_pic.o ppc_sys.o
 else
 ifeq ($(CONFIG_403),y)
 obj-$(CONFIG_40x)		+= ppc403_pic.o

@@ -1131,7 +1131,7 @@ static void mm_pci_remove(struct pci_dev *dev)
 		pci_free_consistent(card->dev, PAGE_SIZE*2,
 				    card->mm_pages[1].desc,
 				    card->mm_pages[1].page_dma);
-	blk_put_queue(card->queue);
+	blk_cleanup_queue(card->queue);
 }
 
 static const struct pci_device_id mm_pci_ids[] = { {

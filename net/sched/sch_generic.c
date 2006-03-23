@@ -234,7 +234,7 @@ static void dev_watchdog_down(struct net_device *dev)
 {
 	spin_lock_bh(&dev->xmit_lock);
 	if (del_timer(&dev->watchdog_timer))
-		__dev_put(dev);
+		dev_put(dev);
 	spin_unlock_bh(&dev->xmit_lock);
 }
 

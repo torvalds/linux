@@ -153,7 +153,9 @@ MODULE_AUTHOR("Eric Youngdale, David S. Miller, Jakub Jelinek");
 #undef MODULE_DESCRIPTION
 #undef MODULE_AUTHOR
 
+#include <asm/a.out.h>
+
 #undef TASK_SIZE
-#define TASK_SIZE 0xf0000000
+#define TASK_SIZE STACK_TOP32
 
 #include "../../../fs/binfmt_elf.c"

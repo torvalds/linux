@@ -20,6 +20,7 @@
 #include <linux/gfp.h>
 #include <linux/radix-tree.h>
 #include <linux/cpu.h>
+#include <asm/firmware.h>
 #include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -536,7 +537,7 @@ nextnode:
 		of_node_put(np);
 	}
 
-	if (platform_is_lpar())
+	if (firmware_has_feature(FW_FEATURE_LPAR))
 		ops = &pSeriesLP_ops;
 	else {
 #ifdef CONFIG_SMP

@@ -34,8 +34,8 @@ static int ov7630_init(struct sn9c102_device* cam)
 	err += sn9c102_write_reg(cam, 0x0f, 0x18);
 	err += sn9c102_write_reg(cam, 0x50, 0x19);
 
-	err += sn9c102_i2c_write(cam, 0x12, 0x8d);
-	err += sn9c102_i2c_write(cam, 0x11, 0x00);
+	err += sn9c102_i2c_write(cam, 0x12, 0x80);
+	err += sn9c102_i2c_write(cam, 0x11, 0x01);
 	err += sn9c102_i2c_write(cam, 0x15, 0x34);
 	err += sn9c102_i2c_write(cam, 0x16, 0x03);
 	err += sn9c102_i2c_write(cam, 0x17, 0x1c);
@@ -43,12 +43,14 @@ static int ov7630_init(struct sn9c102_device* cam)
 	err += sn9c102_i2c_write(cam, 0x19, 0x06);
 	err += sn9c102_i2c_write(cam, 0x1a, 0xf6);
 	err += sn9c102_i2c_write(cam, 0x1b, 0x04);
-	err += sn9c102_i2c_write(cam, 0x20, 0x44);
+	err += sn9c102_i2c_write(cam, 0x20, 0xf6);
 	err += sn9c102_i2c_write(cam, 0x23, 0xee);
 	err += sn9c102_i2c_write(cam, 0x26, 0xa0);
 	err += sn9c102_i2c_write(cam, 0x27, 0x9a);
-	err += sn9c102_i2c_write(cam, 0x28, 0x20);
+	err += sn9c102_i2c_write(cam, 0x28, 0xa0);
 	err += sn9c102_i2c_write(cam, 0x29, 0x30);
+	err += sn9c102_i2c_write(cam, 0x2a, 0xa0);
+	err += sn9c102_i2c_write(cam, 0x2b, 0x1f);
 	err += sn9c102_i2c_write(cam, 0x2f, 0x3d);
 	err += sn9c102_i2c_write(cam, 0x30, 0x24);
 	err += sn9c102_i2c_write(cam, 0x32, 0x86);
@@ -80,7 +82,7 @@ static int ov7630_set_ctrl(struct sn9c102_device* cam,
 		err += sn9c102_i2c_write(cam, 0x02, ctrl->value);
 		break;
 	case V4L2_CID_BLUE_BALANCE:
-		err += sn9c102_i2c_write(cam, 0x03, ctrl->value);
+		err += sn9c102_i2c_write(cam, 0x01, ctrl->value);
 		break;
 	case V4L2_CID_GAIN:
 		err += sn9c102_i2c_write(cam, 0x00, ctrl->value);
@@ -108,7 +110,7 @@ static int ov7630_set_ctrl(struct sn9c102_device* cam,
 		err += sn9c102_i2c_write(cam, 0x0d, ctrl->value);
 		break;
 	case V4L2_CID_AUTO_WHITE_BALANCE:
-		err += sn9c102_i2c_write(cam, 0x12, (ctrl->value << 2) | 0x09);
+		err += sn9c102_i2c_write(cam, 0x12, (ctrl->value << 2) | 0x78);
 		break;
 	case V4L2_CID_AUTOGAIN:
 		err += sn9c102_i2c_write(cam, 0x13, ctrl->value);
@@ -371,26 +373,29 @@ static struct sn9c102_sensor ov7630 = {
 
 int sn9c102_probe_ov7630(struct sn9c102_device* cam)
 {
+	const struct usb_device_id ov7630_id_table[] = {
+		{ USB_DEVICE(0x0c45, 0x602c), },
+		{ USB_DEVICE(0x0c45, 0x602d), },
+		{ USB_DEVICE(0x0c45, 0x608f), },
+		{ USB_DEVICE(0x0c45, 0x60b0), },
+		{ }
+	};
 	int err = 0;
 
-	sn9c102_attach_sensor(cam, &ov7630);
-
-	if (le16_to_cpu(ov7630.usbdev->descriptor.idProduct) != 0x602c &&
-	    le16_to_cpu(ov7630.usbdev->descriptor.idProduct) != 0x602d &&
-	    le16_to_cpu(ov7630.usbdev->descriptor.idProduct) != 0x608f &&
-	    le16_to_cpu(ov7630.usbdev->descriptor.idProduct) != 0x60b0)
+	if (!sn9c102_match_id(cam, ov7630_id_table))
 		return -ENODEV;
 
 	err += sn9c102_write_reg(cam, 0x01, 0x01);
 	err += sn9c102_write_reg(cam, 0x00, 0x01);
 	err += sn9c102_write_reg(cam, 0x28, 0x17);
-
 	if (err)
 		return -EIO;
 
-	err += sn9c102_i2c_write(cam, 0x0b, 0);
+	err += sn9c102_i2c_try_write(cam, &ov7630, 0x0b, 0);
 	if (err)
 		return -ENODEV;
+
+	sn9c102_attach_sensor(cam, &ov7630);
 
 	return 0;
 }

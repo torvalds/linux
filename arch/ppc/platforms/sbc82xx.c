@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/sbc82xx.c
- *
  * SBC82XX platform support
  *
  * Author: Guy Streeter <streeter@redhat.com>

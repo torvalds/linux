@@ -154,10 +154,9 @@ int hid_lgff_init(struct hid_device* hid)
 		return -1;
 	}
 
-	private = kmalloc(sizeof(struct lgff_device), GFP_KERNEL);
+	private = kzalloc(sizeof(struct lgff_device), GFP_KERNEL);
 	if (!private)
 		return -1;
-	memset(private, 0, sizeof(struct lgff_device));
 	hid->ff_private = private;
 
 	/* Input init */
@@ -228,13 +227,12 @@ static struct hid_report* hid_lgff_duplicate_report(struct hid_report* report)
 	}
 	*ret->field[0] = *report->field[0];
 
-	ret->field[0]->value = kmalloc(sizeof(s32[8]), GFP_KERNEL);
+	ret->field[0]->value = kzalloc(sizeof(s32[8]), GFP_KERNEL);
 	if (!ret->field[0]->value) {
 		kfree(ret->field[0]);
 		kfree(ret);
 		return NULL;
 	}
-	memset(ret->field[0]->value, 0, sizeof(s32[8]));
 
 	return ret;
 }

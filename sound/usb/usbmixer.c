@@ -434,7 +434,6 @@ static int add_control_to_empty(struct mixer_build *state, struct snd_kcontrol *
 		kctl->id.index++;
 	if ((err = snd_ctl_add(state->chip->card, kctl)) < 0) {
 		snd_printd(KERN_ERR "cannot add control (err = %d)\n", err);
-		snd_ctl_free_one(kctl);
 		return err;
 	}
 	cval->elem_id = &kctl->id;
@@ -1469,6 +1468,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, unsi
 	kctl = snd_ctl_new1(&mixer_selectunit_ctl, cval);
 	if (! kctl) {
 		snd_printk(KERN_ERR "cannot malloc kcontrol\n");
+		kfree(namelist);
 		kfree(cval);
 		return -ENOMEM;
 	}

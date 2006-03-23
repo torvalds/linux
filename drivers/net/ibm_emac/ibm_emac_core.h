@@ -155,7 +155,7 @@ struct ibm_emac_error_stats {
 
 struct ocp_enet_private {
 	struct net_device		*ndev;		/* 0 */
-	struct emac_regs		*emacp;
+	struct emac_regs		__iomem *emacp;
 	
 	struct mal_descriptor		*tx_desc;
 	int				tx_cnt;

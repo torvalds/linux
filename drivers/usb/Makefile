@@ -15,10 +15,9 @@ obj-$(CONFIG_USB_OHCI_HCD)	+= host/
 obj-$(CONFIG_USB_UHCI_HCD)	+= host/
 obj-$(CONFIG_USB_SL811_HCD)	+= host/
 obj-$(CONFIG_ETRAX_USB_HOST)	+= host/
+obj-$(CONFIG_USB_OHCI_AT91)	+= host/
 
 obj-$(CONFIG_USB_ACM)		+= class/
-obj-$(CONFIG_USB_AUDIO)		+= class/
-obj-$(CONFIG_USB_MIDI)		+= class/
 obj-$(CONFIG_USB_PRINTER)	+= class/
 
 obj-$(CONFIG_USB_STORAGE)	+= storage/
@@ -48,6 +47,7 @@ obj-$(CONFIG_USB_SN9C102)	+= media/
 obj-$(CONFIG_USB_STV680)	+= media/
 obj-$(CONFIG_USB_VICAM)		+= media/
 obj-$(CONFIG_USB_W9968CF)	+= media/
+obj-$(CONFIG_USB_ZC0301)	+= media/
 
 obj-$(CONFIG_USB_CATC)		+= net/
 obj-$(CONFIG_USB_KAWETH)	+= net/

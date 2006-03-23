@@ -702,7 +702,7 @@ qh_make (
 	}
 
 	/* support for tt scheduling, and access to toggles */
-	qh->dev = usb_get_dev (urb->dev);
+	qh->dev = urb->dev;
 
 	/* using TT? */
 	switch (urb->dev->speed) {
@@ -721,7 +721,14 @@ qh_make (
 		info1 |= maxp << 16;
 
 		info2 |= (EHCI_TUNE_MULT_TT << 30);
-		info2 |= urb->dev->ttport << 23;
+
+		/* Some Freescale processors have an erratum in which the
+		 * port number in the queue head was 0..N-1 instead of 1..N.
+		 */
+		if (ehci_has_fsl_portno_bug(ehci))
+			info2 |= (urb->dev->ttport-1) << 23;
+		else
+			info2 |= urb->dev->ttport << 23;
 
 		/* set the address of the TT; for TDI's integrated
 		 * root hub tt, leave it zeroed.
@@ -1015,12 +1022,14 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/* stop async schedule right now? */
 	if (unlikely (qh == ehci->async)) {
 		/* can't get here without STS_ASS set */
-		if (ehci_to_hcd(ehci)->state != HC_STATE_HALT) {
+		if (ehci_to_hcd(ehci)->state != HC_STATE_HALT
+				&& !ehci->reclaim) {
+			/* ... and CMD_IAAD clear */
 			writel (cmd & ~CMD_ASE, &ehci->regs->command);
 			wmb ();
 			// handshake later, if we need to
+			timer_action_done (ehci, TIMER_ASYNC_OFF);
 		}
-		timer_action_done (ehci, TIMER_ASYNC_OFF);
 		return;
 	} 
 

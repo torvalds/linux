@@ -30,6 +30,7 @@
 #include <linux/ppp_channel.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
 #include <asm/uaccess.h>
 #include <asm/string.h>
 
@@ -570,7 +571,7 @@ ppp_async_encode(struct asyncppp *ap)
 		 * character if necessary.
 		 */
 		if (islcp || flag_time == 0
-		    || jiffies - ap->last_xmit >= flag_time)
+		    || time_after_eq(jiffies, ap->last_xmit + flag_time))
 			*buf++ = PPP_FLAG;
 		ap->last_xmit = jiffies;
 		fcs = PPP_INITFCS;

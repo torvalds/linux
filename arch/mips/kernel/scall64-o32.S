@@ -293,7 +293,7 @@ sys_call_table:
 	PTR	sys_uselib
 	PTR	sys_swapon
 	PTR	sys_reboot
-	PTR	sys32_readdir
+	PTR	compat_sys_old_readdir
 	PTR	old_mmap			/* 4090 */
 	PTR	sys_munmap
 	PTR	sys_truncate
@@ -345,7 +345,7 @@ sys_call_table:
 	PTR	sys_setfsuid
 	PTR	sys_setfsgid
 	PTR	sys32_llseek			/* 4140 */
-	PTR	sys32_getdents
+	PTR	compat_sys_getdents
 	PTR	compat_sys_select
 	PTR	sys_flock
 	PTR	sys_msync

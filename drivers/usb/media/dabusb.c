@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/usb.h>
 #include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include "dabusb.h"
 #include "dabfirmware.h"
@@ -217,12 +218,11 @@ static int dabusb_alloc_buffers (pdabusb_t s)
 		 pipesize, packets, transfer_buffer_length);
 
 	while (buffers < (s->total_buffer_size << 10)) {
-		b = (pbuff_t) kmalloc (sizeof (buff_t), GFP_KERNEL);
+		b = (pbuff_t) kzalloc (sizeof (buff_t), GFP_KERNEL);
 		if (!b) {
-			err("kmalloc(sizeof(buff_t))==NULL");
+			err("kzalloc(sizeof(buff_t))==NULL");
 			goto err;
 		}
-		memset (b, 0, sizeof (buff_t));
 		b->s = s;
 		b->purb = usb_alloc_urb(packets, GFP_KERNEL);
 		if (!b->purb) {
@@ -571,7 +571,7 @@ static ssize_t dabusb_read (struct file *file, char __user *buf, size_t count, l
 			s->readptr = 0;
 		}
 	}
-      err:			//up(&s->mutex);
+      err:			//mutex_unlock(&s->mutex);
 	return ret;
 }
 
@@ -586,10 +586,10 @@ static int dabusb_open (struct inode *inode, struct file *file)
 	s = &dabusb[devnum - DABUSB_MINOR];
 
 	dbg("dabusb_open");
-	down (&s->mutex);
+	mutex_lock(&s->mutex);
 
 	while (!s->usbdev || s->opened) {
-		up (&s->mutex);
+		mutex_unlock(&s->mutex);
 
 		if (file->f_flags & O_NONBLOCK) {
 			return -EBUSY;
@@ -599,15 +599,15 @@ static int dabusb_open (struct inode *inode, struct file *file)
 		if (signal_pending (current)) {
 			return -EAGAIN;
 		}
-		down (&s->mutex);
+		mutex_lock(&s->mutex);
 	}
 	if (usb_set_interface (s->usbdev, _DABUSB_IF, 1) < 0) {
-		up(&s->mutex);
+		mutex_unlock(&s->mutex);
 		err("set_interface failed");
 		return -EINVAL;
 	}
 	s->opened = 1;
-	up (&s->mutex);
+	mutex_unlock(&s->mutex);
 
 	file->f_pos = 0;
 	file->private_data = s;
@@ -621,10 +621,10 @@ static int dabusb_release (struct inode *inode, struct file *file)
 
 	dbg("dabusb_release");
 
-	down (&s->mutex);
+	mutex_lock(&s->mutex);
 	dabusb_stop (s);
 	dabusb_free_buffers (s);
-	up (&s->mutex);
+	mutex_unlock(&s->mutex);
 
 	if (!s->remove_pending) {
 		if (usb_set_interface (s->usbdev, _DABUSB_IF, 0) < 0)
@@ -649,10 +649,10 @@ static int dabusb_ioctl (struct inode *inode, struct file *file, unsigned int cm
 	if (s->remove_pending)
 		return -EIO;
 
-	down (&s->mutex);
+	mutex_lock(&s->mutex);
 
 	if (!s->usbdev) {
-		up (&s->mutex);
+		mutex_unlock(&s->mutex);
 		return -EIO;
 	}
 
@@ -692,7 +692,7 @@ static int dabusb_ioctl (struct inode *inode, struct file *file, unsigned int cm
 		ret = -ENOIOCTLCMD;
 		break;
 	}
-	up (&s->mutex);
+	mutex_unlock(&s->mutex);
 	return ret;
 }
 
@@ -738,7 +738,7 @@ static int dabusb_probe (struct usb_interface *intf,
 
 	s = &dabusb[intf->minor];
 
-	down (&s->mutex);
+	mutex_lock(&s->mutex);
 	s->remove_pending = 0;
 	s->usbdev = usbdev;
 	s->devnum = intf->minor;
@@ -761,7 +761,7 @@ static int dabusb_probe (struct usb_interface *intf,
 	}
 	dbg("bound to interface: %d", intf->altsetting->desc.bInterfaceNumber);
 	usb_set_intfdata (intf, s);
-	up (&s->mutex);
+	mutex_unlock(&s->mutex);
 
 	retval = usb_register_dev(intf, &dabusb_class);
 	if (retval) {
@@ -772,7 +772,7 @@ static int dabusb_probe (struct usb_interface *intf,
 	return 0;
 
       reject:
-	up (&s->mutex);
+	mutex_unlock(&s->mutex);
 	s->usbdev = NULL;
 	return -ENODEV;
 }
@@ -829,7 +829,7 @@ static int __init dabusb_init (void)
 	for (u = 0; u < NRDABUSB; u++) {
 		pdabusb_t s = &dabusb[u];
 		memset (s, 0, sizeof (dabusb_t));
-		init_MUTEX (&s->mutex);
+		mutex_init (&s->mutex);
 		s->usbdev = NULL;
 		s->total_buffer_size = buffers;
 		init_waitqueue_head (&s->wait);

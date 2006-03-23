@@ -486,7 +486,7 @@ void __init clear_kernel_mapping(unsigned long address, unsigned long size)
 void online_page(struct page *page)
 {
 	ClearPageReserved(page);
-	set_page_count(page, 1);
+	init_page_count(page);
 	__free_page(page);
 	totalram_pages++;
 	num_physpages++;
@@ -592,7 +592,7 @@ void free_initmem(void)
 	addr = (unsigned long)(&__init_begin);
 	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
-		set_page_count(virt_to_page(addr), 1);
+		init_page_count(virt_to_page(addr));
 		memset((void *)(addr & ~(PAGE_SIZE-1)), 0xcc, PAGE_SIZE); 
 		free_page(addr);
 		totalram_pages++;
@@ -632,7 +632,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 	printk ("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
-		set_page_count(virt_to_page(start), 1);
+		init_page_count(virt_to_page(start));
 		free_page(start);
 		totalram_pages++;
 	}

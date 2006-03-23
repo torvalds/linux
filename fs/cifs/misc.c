@@ -475,7 +475,7 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 	return 0;
 }
 int
-is_valid_oplock_break(struct smb_hdr *buf)
+is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 {    
 	struct smb_com_lock_req * pSMB = (struct smb_com_lock_req *)buf;
 	struct list_head *tmp;
@@ -535,7 +535,7 @@ is_valid_oplock_break(struct smb_hdr *buf)
 	read_lock(&GlobalSMBSeslock);
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		if (tcon->tid == buf->Tid) {
+		if ((tcon->tid == buf->Tid) && (srv == tcon->ses->server)) {
 			cifs_stats_inc(&tcon->num_oplock_brks);
 			list_for_each(tmp1,&tcon->openFileList){
 				netfile = list_entry(tmp1,struct cifsFileInfo,

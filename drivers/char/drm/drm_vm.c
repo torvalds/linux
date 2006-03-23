@@ -619,6 +619,7 @@ int drm_mmap(struct file *filp, struct vm_area_struct *vma)
 #endif
 		offset = dev->driver->get_reg_ofs(dev);
 #ifdef __sparc__
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 		if (io_remap_pfn_range(DRM_RPR_ARG(vma) vma->vm_start,
 				       (map->offset + offset) >> PAGE_SHIFT,
 				       vma->vm_end - vma->vm_start,

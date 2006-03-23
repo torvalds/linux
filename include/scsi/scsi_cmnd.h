@@ -104,10 +104,10 @@ struct scsi_cmnd {
 				   	   working on */
 
 #define SCSI_SENSE_BUFFERSIZE 	96
-	unsigned char sense_buffer[SCSI_SENSE_BUFFERSIZE];		/* obtained by REQUEST SENSE
-						 * when CHECK CONDITION is
-						 * received on original command 
-						 * (auto-sense) */
+	unsigned char sense_buffer[SCSI_SENSE_BUFFERSIZE];
+				/* obtained by REQUEST SENSE when
+				 * CHECK CONDITION is received on original
+				 * command (auto-sense) */
 
 	/* Low-level done function - can be used by low-level driver to point
 	 *        to completion function.  Not used by mid/upper level code. */
@@ -120,12 +120,12 @@ struct scsi_cmnd {
 	struct scsi_pointer SCp;	/* Scratchpad used by some host adapters */
 
 	unsigned char *host_scribble;	/* The host adapter is allowed to
-					   * call scsi_malloc and get some memory
-					   * and hang it here.     The host adapter
-					   * is also expected to call scsi_free
-					   * to release this memory.  (The memory
-					   * obtained by scsi_malloc is guaranteed
-					   * to be at an address < 16Mb). */
+					 * call scsi_malloc and get some memory
+					 * and hang it here.  The host adapter
+					 * is also expected to call scsi_free
+					 * to release this memory.  (The memory
+					 * obtained by scsi_malloc is guaranteed
+					 * to be at an address < 16Mb). */
 
 	int result;		/* Status code from lower level driver */
 

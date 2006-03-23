@@ -416,6 +416,7 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	ret = ipoib_ib_post_receives(dev);
 	if (ret) {
 		ipoib_warn(priv, "ipoib_ib_post_receives returned %d\n", ret);
+		ipoib_ib_dev_stop(dev);
 		return -1;
 	}
 
@@ -434,7 +435,7 @@ int ipoib_ib_dev_up(struct net_device *dev)
 	return ipoib_mcast_start_thread(dev);
 }
 
-int ipoib_ib_dev_down(struct net_device *dev)
+int ipoib_ib_dev_down(struct net_device *dev, int flush)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
@@ -449,10 +450,11 @@ int ipoib_ib_dev_down(struct net_device *dev)
 		set_bit(IPOIB_PKEY_STOP, &priv->flags);
 		cancel_delayed_work(&priv->pkey_task);
 		mutex_unlock(&pkey_mutex);
-		flush_workqueue(ipoib_workqueue);
+		if (flush)
+			flush_workqueue(ipoib_workqueue);
 	}
 
-	ipoib_mcast_stop_thread(dev, 1);
+	ipoib_mcast_stop_thread(dev, flush);
 	ipoib_mcast_dev_flush(dev);
 
 	ipoib_flush_paths(dev);
@@ -590,7 +592,7 @@ void ipoib_ib_dev_flush(void *_dev)
 
 	ipoib_dbg(priv, "flushing\n");
 
-	ipoib_ib_dev_down(dev);
+	ipoib_ib_dev_down(dev, 0);
 
 	/*
 	 * The device could have been brought down between the start and when

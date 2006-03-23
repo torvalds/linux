@@ -139,6 +139,7 @@ enum ppc_sys_devices {
 	MPC85xx_eTSEC4,
 	MPC85xx_IIC2,
 	MPC85xx_MDIO,
+	NUM_PPC_SYS_DEVS,
 };
 
 /* Internal interrupts are all Level Sensitive, and Positive Polarity */

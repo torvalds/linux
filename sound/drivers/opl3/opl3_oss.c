@@ -104,8 +104,10 @@ static int snd_opl3_oss_create_port(struct snd_opl3 * opl3)
 							  voices, voices,
 							  name);
 	if (opl3->oss_chset->port < 0) {
+		int port;
+		port = opl3->oss_chset->port;
 		snd_midi_channel_free_set(opl3->oss_chset);
-		return opl3->oss_chset->port;
+		return port;
 	}
 	return 0;
 }
@@ -136,17 +138,17 @@ void snd_opl3_init_seq_oss(struct snd_opl3 *opl3, char *name)
 	arg->oper = oss_callback;
 	arg->private_data = opl3;
 
-	snd_opl3_oss_create_port(opl3);
-
-	/* register to OSS synth table */
-	snd_device_register(opl3->card, dev);
+	if (snd_opl3_oss_create_port(opl3)) {
+		/* register to OSS synth table */
+		snd_device_register(opl3->card, dev);
+	}
 }
 
 /* unregister */
 void snd_opl3_free_seq_oss(struct snd_opl3 *opl3)
 {
 	if (opl3->oss_seq_dev) {
-		snd_device_free(opl3->card, opl3->oss_seq_dev);
+		/* The instance should have been released in prior */
 		opl3->oss_seq_dev = NULL;
 	}
 }

@@ -217,7 +217,7 @@ solaris_unimplemented:
 	ba,pt		%xcc, ret_from_solaris
 	 nop
 
-	.section	__ex_table,#alloc
+	.section	__ex_table,"a"
 	.align		4
 	.word		exen, exenf
 

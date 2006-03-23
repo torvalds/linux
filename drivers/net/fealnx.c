@@ -160,7 +160,7 @@ struct chip_info {
 	int flags;
 };
 
-static struct chip_info skel_netdrv_tbl[] = {
+static const struct chip_info skel_netdrv_tbl[] = {
 	{"100/10M Ethernet PCI Adapter", 136, HAS_MII_XCVR},
 	{"100/10M Ethernet PCI Adapter", 136, HAS_CHIP_XCVR},
 	{"1000/100/10M Ethernet PCI Adapter", 136, HAS_MII_XCVR},

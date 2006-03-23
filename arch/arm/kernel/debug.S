@@ -11,7 +11,6 @@
  */
 #include <linux/config.h>
 #include <linux/linkage.h>
-#include <asm/hardware.h>
 
 		.text
 

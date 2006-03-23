@@ -29,7 +29,7 @@
 #include <linux/icmpv6.h>
 #include <net/ipv6.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/proc_fs.h>
 #include <linux/cpumask.h>
 
@@ -94,19 +94,6 @@ do {								\
 #define up(x) do { printk("UP:%u:" #x "\n", __LINE__); up(x); } while(0)
 #endif
 
-int
-ip6_masked_addrcmp(const struct in6_addr *addr1, const struct in6_addr *mask,
-                   const struct in6_addr *addr2)
-{
-	int i;
-	for( i = 0; i < 16; i++){
-		if((addr1->s6_addr[i] & mask->s6_addr[i]) != 
-		   (addr2->s6_addr[i] & mask->s6_addr[i]))
-			return 1;
-	}
-	return 0;
-}
-
 /* Check for an extension */
 int 
 ip6t_ext_hdr(u8 nexthdr)
@@ -135,10 +122,10 @@ ip6_packet_match(const struct sk_buff *skb,
 
 #define FWINV(bool,invflg) ((bool) ^ !!(ip6info->invflags & invflg))
 
-	if (FWINV(ip6_masked_addrcmp(&ipv6->saddr, &ip6info->smsk,
-	                             &ip6info->src), IP6T_INV_SRCIP)
-	    || FWINV(ip6_masked_addrcmp(&ipv6->daddr, &ip6info->dmsk,
-	                                &ip6info->dst), IP6T_INV_DSTIP)) {
+	if (FWINV(ipv6_masked_addr_cmp(&ipv6->saddr, &ip6info->smsk,
+	                               &ip6info->src), IP6T_INV_SRCIP)
+	    || FWINV(ipv6_masked_addr_cmp(&ipv6->daddr, &ip6info->dmsk,
+	                                  &ip6info->dst), IP6T_INV_DSTIP)) {
 		dprintf("Source or dest mismatch.\n");
 /*
 		dprintf("SRC: %u. Mask: %u. Target: %u.%s\n", ip->saddr,
@@ -232,6 +219,7 @@ ip6t_error(struct sk_buff **pskb,
 	  const struct net_device *in,
 	  const struct net_device *out,
 	  unsigned int hooknum,
+	  const struct xt_target *target,
 	  const void *targinfo,
 	  void *userinfo)
 {
@@ -251,7 +239,7 @@ int do_match(struct ip6t_entry_match *m,
 	     int *hotdrop)
 {
 	/* Stop iteration if it doesn't match */
-	if (!m->u.kernel.match->match(skb, in, out, m->data,
+	if (!m->u.kernel.match->match(skb, in, out, m->u.kernel.match, m->data,
 				      offset, protoff, hotdrop))
 		return 1;
 	else
@@ -373,6 +361,7 @@ ip6t_do_table(struct sk_buff **pskb,
 				verdict = t->u.kernel.target->target(pskb,
 								     in, out,
 								     hook,
+								     t->u.kernel.target,
 								     t->data,
 								     userdata);
 
@@ -531,7 +520,7 @@ cleanup_match(struct ip6t_entry_match *m, unsigned int *i)
 		return 1;
 
 	if (m->u.kernel.match->destroy)
-		m->u.kernel.match->destroy(m->data,
+		m->u.kernel.match->destroy(m->u.kernel.match, m->data,
 					   m->u.match_size - sizeof(*m));
 	module_put(m->u.kernel.match->me);
 	return 0;
@@ -544,21 +533,12 @@ standard_check(const struct ip6t_entry_target *t,
 	struct ip6t_standard_target *targ = (void *)t;
 
 	/* Check standard info. */
-	if (t->u.target_size
-	    != IP6T_ALIGN(sizeof(struct ip6t_standard_target))) {
-		duprintf("standard_check: target size %u != %u\n",
-			 t->u.target_size,
-			 IP6T_ALIGN(sizeof(struct ip6t_standard_target)));
-		return 0;
-	}
-
 	if (targ->verdict >= 0
 	    && targ->verdict > max_offset - sizeof(struct ip6t_entry)) {
 		duprintf("ip6t_standard_check: bad verdict (%i)\n",
 			 targ->verdict);
 		return 0;
 	}
-
 	if (targ->verdict < -NF_MAX_VERDICT - 1) {
 		duprintf("ip6t_standard_check: bad negative verdict (%i)\n",
 			 targ->verdict);
@@ -575,6 +555,7 @@ check_match(struct ip6t_entry_match *m,
 	    unsigned int *i)
 {
 	struct ip6t_match *match;
+	int ret;
 
 	match = try_then_request_module(xt_find_match(AF_INET6, m->u.user.name,
 			      		m->u.user.revision),
@@ -585,18 +566,27 @@ check_match(struct ip6t_entry_match *m,
 	}
 	m->u.kernel.match = match;
 
+	ret = xt_check_match(match, AF_INET6, m->u.match_size - sizeof(*m),
+			     name, hookmask, ipv6->proto,
+			     ipv6->invflags & IP6T_INV_PROTO);
+	if (ret)
+		goto err;
+
 	if (m->u.kernel.match->checkentry
-	    && !m->u.kernel.match->checkentry(name, ipv6, m->data,
+	    && !m->u.kernel.match->checkentry(name, ipv6, match,  m->data,
 					      m->u.match_size - sizeof(*m),
 					      hookmask)) {
-		module_put(m->u.kernel.match->me);
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 m->u.kernel.match->name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	(*i)++;
 	return 0;
+err:
+	module_put(m->u.kernel.match->me);
+	return ret;
 }
 
 static struct ip6t_target ip6t_standard_target;
@@ -632,26 +622,32 @@ check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 	}
 	t->u.kernel.target = target;
 
+	ret = xt_check_target(target, AF_INET6, t->u.target_size - sizeof(*t),
+			      name, e->comefrom, e->ipv6.proto,
+			      e->ipv6.invflags & IP6T_INV_PROTO);
+	if (ret)
+		goto err;
+
 	if (t->u.kernel.target == &ip6t_standard_target) {
 		if (!standard_check(t, size)) {
 			ret = -EINVAL;
 			goto cleanup_matches;
 		}
 	} else if (t->u.kernel.target->checkentry
-		   && !t->u.kernel.target->checkentry(name, e, t->data,
+		   && !t->u.kernel.target->checkentry(name, e, target, t->data,
 						      t->u.target_size
 						      - sizeof(*t),
 						      e->comefrom)) {
-		module_put(t->u.kernel.target->me);
 		duprintf("ip_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
 		ret = -EINVAL;
-		goto cleanup_matches;
+		goto err;
 	}
 
 	(*i)++;
 	return 0;
-
+ err:
+	module_put(t->u.kernel.target->me);
  cleanup_matches:
 	IP6T_MATCH_ITERATE(e, cleanup_match, &j);
 	return ret;
@@ -712,7 +708,7 @@ cleanup_entry(struct ip6t_entry *e, unsigned int *i)
 	IP6T_MATCH_ITERATE(e, cleanup_match, NULL);
 	t = ip6t_get_target(e);
 	if (t->u.kernel.target->destroy)
-		t->u.kernel.target->destroy(t->data,
+		t->u.kernel.target->destroy(t->u.kernel.target, t->data,
 					    t->u.target_size - sizeof(*t));
 	module_put(t->u.kernel.target->me);
 	return 0;
@@ -1333,6 +1329,7 @@ static int
 icmp6_match(const struct sk_buff *skb,
 	   const struct net_device *in,
 	   const struct net_device *out,
+	   const struct xt_match *match,
 	   const void *matchinfo,
 	   int offset,
 	   unsigned int protoff,
@@ -1365,28 +1362,29 @@ icmp6_match(const struct sk_buff *skb,
 static int
 icmp6_checkentry(const char *tablename,
 	   const void *entry,
+	   const struct xt_match *match,
 	   void *matchinfo,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
-	const struct ip6t_ip6 *ipv6 = entry;
 	const struct ip6t_icmp *icmpinfo = matchinfo;
 
-	/* Must specify proto == ICMP, and no unknown invflags */
-	return ipv6->proto == IPPROTO_ICMPV6
-		&& !(ipv6->invflags & IP6T_INV_PROTO)
-		&& matchsize == IP6T_ALIGN(sizeof(struct ip6t_icmp))
-		&& !(icmpinfo->invflags & ~IP6T_ICMP_INV);
+	/* Must specify no unknown invflags */
+	return !(icmpinfo->invflags & ~IP6T_ICMP_INV);
 }
 
 /* The built-in targets: standard (NULL) and error. */
 static struct ip6t_target ip6t_standard_target = {
 	.name		= IP6T_STANDARD_TARGET,
+	.targetsize	= sizeof(int),
+	.family		= AF_INET6,
 };
 
 static struct ip6t_target ip6t_error_target = {
 	.name		= IP6T_ERROR_TARGET,
 	.target		= ip6t_error,
+	.targetsize	= IP6T_FUNCTION_MAXNAMELEN,
+	.family		= AF_INET6,
 };
 
 static struct nf_sockopt_ops ip6t_sockopts = {
@@ -1402,7 +1400,10 @@ static struct nf_sockopt_ops ip6t_sockopts = {
 static struct ip6t_match icmp6_matchstruct = {
 	.name		= "icmp6",
 	.match		= &icmp6_match,
-	.checkentry	= &icmp6_checkentry,
+	.matchsize	= sizeof(struct ip6t_icmp),
+	.checkentry	= icmp6_checkentry,
+	.proto		= IPPROTO_ICMPV6,
+	.family		= AF_INET6,
 };
 
 static int __init init(void)
@@ -1412,9 +1413,9 @@ static int __init init(void)
 	xt_proto_init(AF_INET6);
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	xt_register_target(AF_INET6, &ip6t_standard_target);
-	xt_register_target(AF_INET6, &ip6t_error_target);
-	xt_register_match(AF_INET6, &icmp6_matchstruct);
+	xt_register_target(&ip6t_standard_target);
+	xt_register_target(&ip6t_error_target);
+	xt_register_match(&icmp6_matchstruct);
 
 	/* Register setsockopt */
 	ret = nf_register_sockopt(&ip6t_sockopts);
@@ -1431,9 +1432,9 @@ static int __init init(void)
 static void __exit fini(void)
 {
 	nf_unregister_sockopt(&ip6t_sockopts);
-	xt_unregister_match(AF_INET6, &icmp6_matchstruct);
-	xt_unregister_target(AF_INET6, &ip6t_error_target);
-	xt_unregister_target(AF_INET6, &ip6t_standard_target);
+	xt_unregister_match(&icmp6_matchstruct);
+	xt_unregister_target(&ip6t_error_target);
+	xt_unregister_target(&ip6t_standard_target);
 	xt_proto_fini(AF_INET6);
 }
 
@@ -1515,7 +1516,6 @@ EXPORT_SYMBOL(ip6t_unregister_table);
 EXPORT_SYMBOL(ip6t_do_table);
 EXPORT_SYMBOL(ip6t_ext_hdr);
 EXPORT_SYMBOL(ipv6_find_hdr);
-EXPORT_SYMBOL(ip6_masked_addrcmp);
 
 module_init(init);
 module_exit(fini);

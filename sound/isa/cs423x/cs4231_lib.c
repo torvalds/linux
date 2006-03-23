@@ -531,7 +531,7 @@ static void snd_cs4231_playback_format(struct snd_cs4231 *chip,
 	unsigned long flags;
 	int full_calib = 1;
 
-	down(&chip->mce_mutex);
+	mutex_lock(&chip->mce_mutex);
 	snd_cs4231_calibrate_mute(chip, 1);
 	if (chip->hardware == CS4231_HW_CS4231A ||
 	    (chip->hardware & CS4231_HW_CS4232_MASK)) {
@@ -560,7 +560,7 @@ static void snd_cs4231_playback_format(struct snd_cs4231 *chip,
 		snd_cs4231_mce_down(chip);
 	}
 	snd_cs4231_calibrate_mute(chip, 0);
-	up(&chip->mce_mutex);
+	mutex_unlock(&chip->mce_mutex);
 }
 
 static void snd_cs4231_capture_format(struct snd_cs4231 *chip,
@@ -570,7 +570,7 @@ static void snd_cs4231_capture_format(struct snd_cs4231 *chip,
 	unsigned long flags;
 	int full_calib = 1;
 
-	down(&chip->mce_mutex);
+	mutex_lock(&chip->mce_mutex);
 	snd_cs4231_calibrate_mute(chip, 1);
 	if (chip->hardware == CS4231_HW_CS4231A ||
 	    (chip->hardware & CS4231_HW_CS4232_MASK)) {
@@ -603,7 +603,7 @@ static void snd_cs4231_capture_format(struct snd_cs4231 *chip,
 		snd_cs4231_mce_down(chip);
 	}
 	snd_cs4231_calibrate_mute(chip, 0);
-	up(&chip->mce_mutex);
+	mutex_unlock(&chip->mce_mutex);
 }
 
 /*
@@ -709,15 +709,15 @@ static int snd_cs4231_open(struct snd_cs4231 *chip, unsigned int mode)
 {
 	unsigned long flags;
 
-	down(&chip->open_mutex);
+	mutex_lock(&chip->open_mutex);
 	if ((chip->mode & mode) ||
 	    ((chip->mode & CS4231_MODE_OPEN) && chip->single_dma)) {
-		up(&chip->open_mutex);
+		mutex_unlock(&chip->open_mutex);
 		return -EAGAIN;
 	}
 	if (chip->mode & CS4231_MODE_OPEN) {
 		chip->mode |= mode;
-		up(&chip->open_mutex);
+		mutex_unlock(&chip->open_mutex);
 		return 0;
 	}
 	/* ok. now enable and ack CODEC IRQ */
@@ -737,7 +737,7 @@ static int snd_cs4231_open(struct snd_cs4231 *chip, unsigned int mode)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 
 	chip->mode = mode;
-	up(&chip->open_mutex);
+	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
 
@@ -745,10 +745,10 @@ static void snd_cs4231_close(struct snd_cs4231 *chip, unsigned int mode)
 {
 	unsigned long flags;
 
-	down(&chip->open_mutex);
+	mutex_lock(&chip->open_mutex);
 	chip->mode &= ~mode;
 	if (chip->mode & CS4231_MODE_OPEN) {
-		up(&chip->open_mutex);
+		mutex_unlock(&chip->open_mutex);
 		return;
 	}
 	snd_cs4231_calibrate_mute(chip, 1);
@@ -785,7 +785,7 @@ static void snd_cs4231_close(struct snd_cs4231 *chip, unsigned int mode)
 	snd_cs4231_calibrate_mute(chip, 0);
 
 	chip->mode = 0;
-	up(&chip->open_mutex);
+	mutex_unlock(&chip->open_mutex);
 }
 
 /*
@@ -1408,8 +1408,8 @@ static int snd_cs4231_new(struct snd_card *card,
 	chip->hwshare = hwshare;
 
 	spin_lock_init(&chip->reg_lock);
-	init_MUTEX(&chip->mce_mutex);
-	init_MUTEX(&chip->open_mutex);
+	mutex_init(&chip->mce_mutex);
+	mutex_init(&chip->open_mutex);
 	chip->card = card;
 	chip->rate_constraint = snd_cs4231_xrate;
 	chip->set_playback_format = snd_cs4231_playback_format;
@@ -1538,8 +1538,8 @@ int snd_cs4231_pcm(struct snd_cs4231 *chip, int device, struct snd_pcm **rpcm)
 		return err;
 
 	spin_lock_init(&chip->reg_lock);
-	init_MUTEX(&chip->mce_mutex);
-	init_MUTEX(&chip->open_mutex);
+	mutex_init(&chip->mce_mutex);
+	mutex_init(&chip->open_mutex);
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_cs4231_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_cs4231_capture_ops);
