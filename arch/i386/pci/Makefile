@@ -1,4 +1,4 @@
-obj-y				:= i386.o
+obj-y				:= i386.o init.o
 
 obj-$(CONFIG_PCI_BIOS)		+= pcbios.o
 obj-$(CONFIG_PCI_MMCONFIG)	+= mmconfig.o direct.o
