@@ -394,6 +394,15 @@ static const char *ata_mode_string(unsigned int xfer_mask)
 	return "<n/a>";
 }
 
+static void ata_dev_disable(struct ata_port *ap, struct ata_device *dev)
+{
+	if (ata_dev_present(dev)) {
+		printk(KERN_WARNING "ata%u: dev %u disabled\n",
+		       ap->id, dev->devno);
+		dev->class++;
+	}
+}
+
 /**
  *	ata_pio_devchk - PATA device presence detection
  *	@ap: ATA channel to examine
