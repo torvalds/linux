@@ -296,8 +296,7 @@ map_single(struct device *hwdev, char *buffer, size_t size, int dir)
 	else
 		stride = 1;
 
-	if (!nslots)
-		BUG();
+	BUG_ON(!nslots);
 
 	/*
 	 * Find suitable number of IO TLB entries size that will fit this
@@ -416,14 +415,14 @@ sync_single(struct device *hwdev, char *dma_addr, size_t size,
 	case SYNC_FOR_CPU:
 		if (likely(dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL))
 			memcpy(buffer, dma_addr, size);
-		else if (dir != DMA_TO_DEVICE)
-			BUG();
+		else
+			BUG_ON(dir != DMA_TO_DEVICE);
 		break;
 	case SYNC_FOR_DEVICE:
 		if (likely(dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL))
 			memcpy(dma_addr, buffer, size);
-		else if (dir != DMA_FROM_DEVICE)
-			BUG();
+		else
+			BUG_ON(dir != DMA_FROM_DEVICE);
 		break;
 	default:
 		BUG();
@@ -529,8 +528,7 @@ swiotlb_map_single(struct device *hwdev, void *ptr, size_t size, int dir)
 	unsigned long dev_addr = virt_to_phys(ptr);
 	void *map;
 
-	if (dir == DMA_NONE)
-		BUG();
+	BUG_ON(dir == DMA_NONE);
 	/*
 	 * If the pointer passed in happens to be in the device's DMA window,
 	 * we can safely return the device addr and not worry about bounce
@@ -592,8 +590,7 @@ swiotlb_unmap_single(struct device *hwdev, dma_addr_t dev_addr, size_t size,
 {
 	char *dma_addr = phys_to_virt(dev_addr);
 
-	if (dir == DMA_NONE)
-		BUG();
+	BUG_ON(dir == DMA_NONE);
 	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
 		unmap_single(hwdev, dma_addr, size, dir);
 	else if (dir == DMA_FROM_DEVICE)
@@ -616,8 +613,7 @@ swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
 {
 	char *dma_addr = phys_to_virt(dev_addr);
 
-	if (dir == DMA_NONE)
-		BUG();
+	BUG_ON(dir == DMA_NONE);
 	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
 		sync_single(hwdev, dma_addr, size, dir, target);
 	else if (dir == DMA_FROM_DEVICE)
@@ -648,8 +644,7 @@ swiotlb_sync_single_range(struct device *hwdev, dma_addr_t dev_addr,
 {
 	char *dma_addr = phys_to_virt(dev_addr) + offset;
 
-	if (dir == DMA_NONE)
-		BUG();
+	BUG_ON(dir == DMA_NONE);
 	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
 		sync_single(hwdev, dma_addr, size, dir, target);
 	else if (dir == DMA_FROM_DEVICE)
@@ -696,8 +691,7 @@ swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
 	unsigned long dev_addr;
 	int i;
 
-	if (dir == DMA_NONE)
-		BUG();
+	BUG_ON(dir == DMA_NONE);
 
 	for (i = 0; i < nelems; i++, sg++) {
 		addr = SG_ENT_VIRT_ADDRESS(sg);
@@ -730,8 +724,7 @@ swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
 {
 	int i;
 
-	if (dir == DMA_NONE)
-		BUG();
+	BUG_ON(dir == DMA_NONE);
 
 	for (i = 0; i < nelems; i++, sg++)
 		if (sg->dma_address != SG_ENT_PHYS_ADDRESS(sg))
@@ -753,8 +746,7 @@ swiotlb_sync_sg(struct device *hwdev, struct scatterlist *sg,
 {
 	int i;
 
-	if (dir == DMA_NONE)
-		BUG();
+	BUG_ON(dir == DMA_NONE);
 
 	for (i = 0; i < nelems; i++, sg++)
 		if (sg->dma_address != SG_ENT_PHYS_ADDRESS(sg))
