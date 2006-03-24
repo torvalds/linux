@@ -40,73 +40,7 @@
 #endif
 #define _cirrus_h 1
 
-
-
-/* Bit fields for particular registers */
-
-/* GCR */
-#define GCR_SERIAL	0x00	/* Configure as serial channel */
-#define GCR_PARALLEL	0x80	/* Configure as parallel channel */
-
-/* RDSR - when status read from FIFO */
-#define	RDSR_BREAK		0x08	/* Break received */
-#define RDSR_TIMEOUT    	0x80	/* No new data timeout */
-#define RDSR_SC1  	  	0x10	/* Special char 1 (tx XON) matched */
-#define RDSR_SC2  	  	0x20	/* Special char 2 (tx XOFF) matched */
-#define RDSR_SC12_MASK	  	0x30	/* Mask for special chars 1 and 2 */
-
-/* PPR */
-#define PPR_DEFAULT	0x31	/* Default value - for a 25Mhz clock gives
-				   a timeout period of 1ms */
-
-/* LIVR */
-#define	LIVR_EXCEPTION	0x07	/* Receive exception interrupt */
-
-/* CCR */
-#define	CCR_RESET	0x80	/* Reset channel */
-#define	CCR_CHANGE	0x4e	/* COR's have changed - NB always change all
-				   COR's */
-#define	CCR_WFLUSH	0x82	/* Flush transmit FIFO and TSR / THR */
-
-#define	CCR_SENDSC1	0x21	/* Send special character one */
-#define CCR_SENDSC2	0x22	/* Send special character two */
-#define CCR_SENDSC3	0x23	/* Send special character three */
-#define CCR_SENDSC4	0x24	/* Send special character four */
-
-#define CCR_TENABLE	0x18	/* Enable transmitter */
-#define	CCR_TDISABLE	0x14	/* Disable transmitter */
-#define CCR_RENABLE	0x12	/* Enable receiver */
-#define CCR_RDISABLE	0x11	/* Disable receiver */
-
-#define	CCR_READY	0x00	/* CCR is ready for another command */
-
-/* CCSR */
-#define CCSR_TXENABLE	0x08	/* Transmitter enable */
-#define CCSR_RXENABLE	0x80	/* Receiver enable */
-#define CCSR_TXFLOWOFF	0x04	/* Transmit flow off */
-#define CCSR_TXFLOWON	0x02	/* Transmit flow on */
-
-/* SVRR */
-#define	SVRR_RECEIVE	0x01	/* Receive interrupt pending */
-#define	SVRR_TRANSMIT	0x02	/* Transmit interrupt pending */
-#define	SVRR_MODEM	0x04	/* Modem interrupt pending */
-
-/* CAR */
-#define CAR_PORTS	0x03	/* Bit fields for ports */
-
-/* IER */
-#define	IER_MODEM	0x80	/* Change in modem status */
-#define	IER_RECEIVE	0x10	/* Good data / data exception */
-#define IER_TRANSMITR	0x04	/* Transmit ready (FIFO empty) */
-#define	IER_TRANSMITE	0x02	/* Transmit empty */
-#define IER_TIMEOUT	0x01	/* Timeout on no data */
-
-#define	IER_DEFAULT	0x94	/* Default values */
-#define IER_PARALLEL    0x84	/* Default for Parallel */
-#define	IER_EMPTY	0x92	/* Transmitter empty rather than ready */
-
-/* COR1 - Driver only */
-#define	COR1_INPCK	0x10	/* Check parity of received characters */
+/* Bit fields for particular registers shared with driver */
 
 /* COR1 - driver and RTA */
 #define	COR1_ODD	0x80	/* Odd parity */
@@ -222,35 +156,6 @@
 
 #define	MSVR1_HOST	0xf3	/* The bits the host wants */
 
-/* MSVR2 */
-#define	MSVR2_DSR	0x02	/* DSR output pin (DTR on Cirrus) */
-
-/* MCOR */
-#define	MCOR_CD	        0x80	/* CD (DSR on Cirrus) */
-#define	MCOR_RTS	0x40	/* RTS (CTS on Cirrus) */
-#define	MCOR_RI	        0x20	/* RI */
-#define	MCOR_DTR	0x10	/* DTR (CD on Cirrus) */
-
-#define MCOR_DEFAULT    (MCOR_CD | MCOR_RTS | MCOR_RI | MCOR_DTR)
-#define MCOR_FULLMODEM  MCOR_DEFAULT
-#define MCOR_RJ45       (MCOR_CD | MCOR_RTS | MCOR_DTR)
-#define MCOR_RESTRICTED (MCOR_CD | MCOR_RTS)
-
-/* More MCOR - H/W Handshake (flowcontrol) stuff */
-#define	MCOR_THRESH8	0x08	/* eight characters then we stop */
-#define	MCOR_THRESH9	0x09	/* nine characters then we stop */
-#define	MCOR_THRESH10	0x0A	/* ten characters then we stop */
-#define	MCOR_THRESH11	0x0B	/* eleven characters then we stop */
-
-#define	MCOR_THRESHBITS 0x0F	/* mask for ANDing out the above */
-
-#define	MCOR_THRESHOLD	MCOR_THRESH9	/* MUST BE GREATER THAN COR3_THRESHOLD */
-
-
-/* RTPR */
-#define RTPR_DEFAULT	0x02	/* Default */
-
-
 /* Defines for the subscripts of a CONFIG packet */
 #define	CONFIG_COR1	1	/* Option register 1 */
 #define	CONFIG_COR2	2	/* Option register 2 */
@@ -263,19 +168,6 @@
 #define CONFIG_LNEXT	9	/* LNEXT character */
 #define	CONFIG_TXBAUD	10	/* Tx baud rate */
 #define	CONFIG_RXBAUD	11	/* Rx baud rate */
-
-/* Port status stuff */
-#define	IDLE_CLOSED	0	/* Closed */
-#define IDLE_OPEN	1	/* Idle open */
-#define IDLE_BREAK	2	/* Idle on break */
-
-/* Subscript of MODEM STATUS packet */
-#define	MODEM_VALUE	3	/* Current values of handshake pins */
-/* Subscript of SBREAK packet */
-#define BREAK_LENGTH	1	/* Length of a break in slices of 0.01 seconds
-				   0 = stay on break until an EBREAK command
-				   is sent */
-
 
 #define	PRE_EMPTIVE	0x80	/* Pre-emptive bit in command field */
 

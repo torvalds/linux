@@ -47,17 +47,17 @@
 typedef struct PARM_MAP PARM_MAP;
 
 struct PARM_MAP {
-	PHB_ptr phb_ptr;	/* Pointer to the PHB array */
+	u16 phb_ptr;	/* Pointer to the PHB array */
 	u16 phb_num_ptr;	/* Ptr to Number of PHB's */
-	FREE_LIST_ptr free_list;	/* Free List pointer */
-	FREE_LIST_ptr free_list_end;	/* Free List End pointer */
-	Q_BUF_ptr_ptr q_free_list_ptr;	/* Ptr to Q_BUF variable */
+	u16 free_list;	/* Free List pointer */
+	u16 free_list_end;	/* Free List End pointer */
+	u16 q_free_list_ptr;	/* Ptr to Q_BUF variable */
 	u16 unit_id_ptr;	/* Unit Id */
-	LPB_ptr link_str_ptr;	/* Link Structure Array */
+	u16 link_str_ptr;	/* Link Structure Array */
 	u16 bootloader_1;	/* 1st Stage Boot Loader */
 	u16 bootloader_2;	/* 2nd Stage Boot Loader */
 	u16 port_route_map_ptr;	/* Port Route Map */
-	ROUTE_STR_ptr route_ptr;	/* Unit Route Map */
+	u16 route_ptr;		/* Unit Route Map */
 	u16 map_present;	/* Route Map present */
 	s16 pkt_num;		/* Total number of packets */
 	s16 q_num;		/* Total number of Q packets */
@@ -70,7 +70,7 @@ struct PARM_MAP {
 	u16 rx_limit;		/* For high / low watermarks */
 	s16 links;		/* Links to use */
 	s16 timer;		/* Interrupts per second */
-	RUP_ptr rups;		/* Pointer to the RUPs */
+	u16 rups;		/* Pointer to the RUPs */
 	u16 max_phb;		/* Mostly for debugging */
 	u16 living;		/* Just increments!! */
 	u16 init_done;		/* Initialisation over */

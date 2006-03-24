@@ -56,7 +56,7 @@ struct Host {
 	unsigned char Slot;		/* Slot */
 	caddr_t Caddr;			/* KV address of DPRAM */
 	struct DpRam *CardP;		/* KV address of DPRAM, with overlay */
-	paddr_t PaddrP;			/* Phys. address of DPRAM */
+	unsigned long PaddrP;		/* Phys. address of DPRAM */
 	char Name[MAX_NAME_LEN];	/* The name of the host */
 	unsigned int UniqueNum;		/* host unique number */
 	spinlock_t HostLock;	/* Lock structure for MPX */

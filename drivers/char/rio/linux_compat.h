@@ -25,10 +25,6 @@ struct ttystatics {
 	struct termios tm;
 };
 
-#define bcopy(src, dest, n) memcpy ((dest), (src), (n))
-
-#define SEM_SIGIGNORE 0x1234
-
 extern int rio_debug;
 
 #define RIO_DEBUG_INIT         0x000001

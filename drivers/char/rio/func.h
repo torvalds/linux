@@ -49,7 +49,7 @@ void msec_timeout(struct Host *);
 int RIOBootRup(struct rio_info *, unsigned int, struct Host *, struct PKT *);
 int RIOBootOk(struct rio_info *, struct Host *, unsigned long);
 int RIORtaBound(struct rio_info *, unsigned int);
-void FillSlot(int, int, unsigned int, struct Host *);
+void rio_fill_host_slot(int, int, unsigned int, struct Host *);
 
 /* riocmd.c */
 int RIOFoadRta(struct Host *, struct Map *);
@@ -66,7 +66,6 @@ void RIOPollHostCommands(struct rio_info *, struct Host *);
 int RIOWFlushMark(unsigned long, struct CmdBlk *);
 int RIORFlushEnable(unsigned long, struct CmdBlk *);
 int RIOUnUse(unsigned long, struct CmdBlk *);
-void ShowPacket(unsigned int, struct PKT *);
 
 /* rioctrl.c */
 int riocontrol(struct rio_info *, dev_t, int, caddr_t, int);
@@ -79,13 +78,11 @@ void RIOISAinit(struct rio_info *, int);
 int RIODoAT(struct rio_info *, int, int);
 caddr_t RIOCheckForATCard(int);
 int RIOAssignAT(struct rio_info *, int, caddr_t, int);
-int RIOBoardTest(paddr_t, caddr_t, unsigned char, int);
+int RIOBoardTest(unsigned long, caddr_t, unsigned char, int);
 void RIOAllocDataStructs(struct rio_info *);
 void RIOSetupDataStructs(struct rio_info *);
 int RIODefaultName(struct rio_info *, struct Host *, unsigned int);
 struct rioVersion *RIOVersid(void);
-int RIOMapin(paddr_t, int, caddr_t *);
-void RIOMapout(paddr_t, long, caddr_t);
 void RIOHostReset(unsigned int, struct DpRam *, unsigned int);
 
 /* riointr.c */

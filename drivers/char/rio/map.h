@@ -47,17 +47,17 @@ static char *_map_h_sccs_ = "@(#)map.h	1.2";
 #define	MAX_NAME_LEN 32
 
 struct Map {
-	uint HostUniqueNum;	/* Supporting hosts unique number */
-	uint RtaUniqueNum;	/* Unique number */
+	unsigned int HostUniqueNum;	/* Supporting hosts unique number */
+	unsigned int RtaUniqueNum;	/* Unique number */
 	/*
 	 ** The next two IDs must be swapped on big-endian architectures
 	 ** when using a v2.04 /etc/rio/config with a v3.00 driver (when
 	 ** upgrading for example).
 	 */
-	ushort ID;		/* ID used in the subnet */
-	ushort ID2;		/* ID of 2nd block of 8 for 16 port */
-	ulong Flags;		/* Booted, ID Given, Disconnected */
-	ulong SysPort;		/* First tty mapped to this port */
+	unsigned short ID;		/* ID used in the subnet */
+	unsigned short ID2;		/* ID of 2nd block of 8 for 16 port */
+	unsigned long Flags;		/* Booted, ID Given, Disconnected */
+	unsigned long SysPort;		/* First tty mapped to this port */
 	struct Top Topology[LINKS_PER_UNIT];	/* ID connected to each link */
 	char Name[MAX_NAME_LEN];	/* Cute name by which RTA is known */
 };

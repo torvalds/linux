@@ -117,7 +117,7 @@
  * the start. The pointer tx_add points to a SPACE to put a Packet.
  * The pointer tx_remove points to the next Packet to remove
  *************************************************************************/
-typedef struct PHB PHB;
+
 struct PHB {
 	u8 source;
 	u8 handshake;

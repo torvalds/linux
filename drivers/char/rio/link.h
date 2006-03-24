@@ -50,8 +50,8 @@
 
 struct LPB {
 	u16 link_number;	/* Link Number */
-	Channel_ptr in_ch;	/* Link In Channel */
-	Channel_ptr out_ch;	/* Link Out Channel */
+	u16 in_ch;	/* Link In Channel */
+	u16 out_ch;	/* Link Out Channel */
 	u8 attached_serial[4];  /* Attached serial number */
 	u8 attached_host_serial[4];
 	/* Serial number of Host who
@@ -59,8 +59,8 @@ struct LPB {
 	u16 descheduled;	/* Currently Descheduled */
 	u16 state;		/* Current state */
 	u16 send_poll;		/* Send a Poll Packet */
-	Process_ptr ltt_p;	/* Process Descriptor */
-	Process_ptr lrt_p;	/* Process Descriptor */
+	u16 ltt_p;	/* Process Descriptor */
+	u16 lrt_p;	/* Process Descriptor */
 	u16 lrt_status;		/* Current lrt status */
 	u16 ltt_status;		/* Current ltt status */
 	u16 timeout;		/* Timeout value */
@@ -71,8 +71,8 @@ struct LPB {
 	u16 add_packet_list;	/* Add packets to here */
 	u16 remove_packet_list;	/* Send packets from here */
 
-	Channel_ptr lrt_fail_chan;	/* Lrt's failure channel */
-	Channel_ptr ltt_fail_chan;	/* Ltt's failure channel */
+	u16 lrt_fail_chan;	/* Lrt's failure channel */
+	u16 ltt_fail_chan;	/* Ltt's failure channel */
 
 	/* RUP structure for HOST to driver communications */
 	struct RUP rup;
