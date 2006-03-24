@@ -1656,6 +1656,13 @@ asmlinkage long sys_setrlimit(unsigned int resource, struct rlimit __user *rlim)
 
 	if (resource != RLIMIT_CPU)
 		goto out;
+
+	/*
+	 * RLIMIT_CPU handling.   Note that the kernel fails to return an error
+	 * code if it rejected the user's attempt to set RLIMIT_CPU.  This is a
+	 * very long-standing error, and fixing it now risks breakage of
+	 * applications, so we live with it
+	 */
 	if (new_rlim.rlim_cur == RLIM_INFINITY)
 		goto out;
 
