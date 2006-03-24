@@ -293,19 +293,19 @@ static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned
 {
 	if (!pte_dirty(*ptep))
 		return 0;
-	return test_and_clear_bit(_PAGE_BIT_DIRTY, ptep);
+	return test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte);
 }
 
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	if (!pte_young(*ptep))
 		return 0;
-	return test_and_clear_bit(_PAGE_BIT_ACCESSED, ptep);
+	return test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte);
 }
 
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	clear_bit(_PAGE_BIT_RW, ptep);
+	clear_bit(_PAGE_BIT_RW, &ptep->pte);
 }
 
 /*
