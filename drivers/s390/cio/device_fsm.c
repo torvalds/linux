@@ -827,6 +827,17 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 		}
 		return;
 	}
+	/*
+	 * Check if a halt or clear has been issued in the meanwhile. If yes,
+	 * only deliver the halt/clear interrupt to the device driver as if it
+	 * had killed the original request.
+	 */
+	if (irb->scsw.fctl & (SCSW_FCTL_CLEAR_FUNC | SCSW_FCTL_HALT_FUNC)) {
+		cdev->private->flags.dosense = 0;
+		memset(&cdev->private->irb, 0, sizeof(struct irb));
+		ccw_device_accumulate_irb(cdev, irb);
+		goto call_handler;
+	}
 	/* Add basic sense info to irb. */
 	ccw_device_accumulate_basic_sense(cdev, irb);
 	if (cdev->private->flags.dosense) {
@@ -834,6 +845,7 @@ ccw_device_w4sense(struct ccw_device *cdev, enum dev_event dev_event)
 		ccw_device_do_sense(cdev, irb);
 		return;
 	}
+call_handler:
 	cdev->private->state = DEV_STATE_ONLINE;
 	/* Call the handler. */
 	if (ccw_device_call_handler(cdev) && cdev->private->flags.doverify)
