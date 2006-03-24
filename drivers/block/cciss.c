@@ -2727,9 +2727,9 @@ static void __devinit cciss_interrupt_mode(ctlr_info_t *c, struct pci_dev *pdev,
                         return;
                 }
         }
+default_int_mode:
 #endif /* CONFIG_PCI_MSI */
 	/* if we get here we're going to use the default interrupt mode */
-default_int_mode:
         c->intr[SIMPLE_MODE_INT] = pdev->irq;
 	return;
 }
