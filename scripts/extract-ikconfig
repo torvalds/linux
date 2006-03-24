@@ -45,7 +45,7 @@ then
 	exit 1
 fi
 
-TMPFILE="/tmp/ikconfig-$$"
+TMPFILE=`mktemp -t ikconfig-XXXXXX` || exit 1
 image="$1"
 
 # vmlinux: Attempt to dump the configuration from the file directly
