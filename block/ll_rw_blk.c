@@ -28,6 +28,7 @@
 #include <linux/writeback.h>
 #include <linux/interrupt.h>
 #include <linux/cpu.h>
+#include <linux/blktrace_api.h>
 
 /*
  * for max sense size
@@ -1556,8 +1557,10 @@ void blk_plug_device(request_queue_t *q)
 	if (test_bit(QUEUE_FLAG_STOPPED, &q->queue_flags))
 		return;
 
-	if (!test_and_set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags))
+	if (!test_and_set_bit(QUEUE_FLAG_PLUGGED, &q->queue_flags)) {
 		mod_timer(&q->unplug_timer, jiffies + q->unplug_delay);
+		blk_add_trace_generic(q, NULL, 0, BLK_TA_PLUG);
+	}
 }
 
 EXPORT_SYMBOL(blk_plug_device);
@@ -1621,13 +1624,20 @@ static void blk_backing_dev_unplug(struct backing_dev_info *bdi,
 	/*
 	 * devices don't necessarily have an ->unplug_fn defined
 	 */
-	if (q->unplug_fn)
+	if (q->unplug_fn) {
+		blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_IO, NULL,
+					q->rq.count[READ] + q->rq.count[WRITE]);
+
 		q->unplug_fn(q);
+	}
 }
 
 static void blk_unplug_work(void *data)
 {
 	request_queue_t *q = data;
+
+	blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_IO, NULL,
+				q->rq.count[READ] + q->rq.count[WRITE]);
 
 	q->unplug_fn(q);
 }
@@ -1635,6 +1645,9 @@ static void blk_unplug_work(void *data)
 static void blk_unplug_timeout(unsigned long data)
 {
 	request_queue_t *q = (request_queue_t *)data;
+
+	blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_TIMER, NULL,
+				q->rq.count[READ] + q->rq.count[WRITE]);
 
 	kblockd_schedule_work(&q->unplug_work);
 }
@@ -1752,6 +1765,9 @@ static void blk_release_queue(struct kobject *kobj)
 
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
+
+	if (q->blk_trace)
+		blk_trace_shutdown(q);
 
 	kmem_cache_free(requestq_cachep, q);
 }
@@ -2129,6 +2145,8 @@ rq_starved:
 	
 	rq_init(q, rq);
 	rq->rl = rl;
+
+	blk_add_trace_generic(q, bio, rw, BLK_TA_GETRQ);
 out:
 	return rq;
 }
@@ -2156,6 +2174,8 @@ static struct request *get_request_wait(request_queue_t *q, int rw,
 
 		if (!rq) {
 			struct io_context *ioc;
+
+			blk_add_trace_generic(q, bio, rw, BLK_TA_SLEEPRQ);
 
 			__generic_unplug_device(q);
 			spin_unlock_irq(q->queue_lock);
@@ -2210,6 +2230,8 @@ EXPORT_SYMBOL(blk_get_request);
  */
 void blk_requeue_request(request_queue_t *q, struct request *rq)
 {
+	blk_add_trace_rq(q, rq, BLK_TA_REQUEUE);
+
 	if (blk_rq_tagged(rq))
 		blk_queue_end_tag(q, rq);
 
@@ -2844,6 +2866,8 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 			if (!q->back_merge_fn(q, req, bio))
 				break;
 
+			blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE);
+
 			req->biotail->bi_next = bio;
 			req->biotail = bio;
 			req->nr_sectors = req->hard_nr_sectors += nr_sectors;
@@ -2858,6 +2882,8 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 
 			if (!q->front_merge_fn(q, req, bio))
 				break;
+
+			blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE);
 
 			bio->bi_next = req->bio;
 			req->bio = bio;
@@ -2976,6 +3002,7 @@ void generic_make_request(struct bio *bio)
 	request_queue_t *q;
 	sector_t maxsector;
 	int ret, nr_sectors = bio_sectors(bio);
+	dev_t old_dev;
 
 	might_sleep();
 	/* Test device or partition size, when known. */
@@ -3002,6 +3029,8 @@ void generic_make_request(struct bio *bio)
 	 * NOTE: we don't repeat the blk_size check for each new device.
 	 * Stacking drivers are expected to know what they are doing.
 	 */
+	maxsector = -1;
+	old_dev = 0;
 	do {
 		char b[BDEVNAME_SIZE];
 
@@ -3033,6 +3062,15 @@ end_io:
 		 * of partition p to block n+start(p) of the disk.
 		 */
 		blk_partition_remap(bio);
+
+		if (maxsector != -1)
+			blk_add_trace_remap(q, bio, old_dev, bio->bi_sector, 
+					    maxsector);
+
+		blk_add_trace_bio(q, bio, BLK_TA_QUEUE);
+
+		maxsector = bio->bi_sector;
+		old_dev = bio->bi_bdev->bd_dev;
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);
@@ -3152,6 +3190,8 @@ static int __end_that_request_first(struct request *req, int uptodate,
 {
 	int total_bytes, bio_nbytes, error, next_idx = 0;
 	struct bio *bio;
+
+	blk_add_trace_rq(req->q, req, BLK_TA_COMPLETE);
 
 	/*
 	 * extend uptodate bool to allow < 0 value to be direct io error

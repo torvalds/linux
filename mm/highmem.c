@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/hash.h>
 #include <linux/highmem.h>
+#include <linux/blktrace_api.h>
 #include <asm/tlbflush.h>
 
 static mempool_t *page_pool, *isa_page_pool;
@@ -482,6 +483,8 @@ void blk_queue_bounce(request_queue_t *q, struct bio **bio_orig)
 		BUG_ON(!isa_page_pool);
 		pool = isa_page_pool;
 	}
+
+	blk_add_trace_bio(q, *bio_orig, BLK_TA_BOUNCE);
 
 	/*
 	 * slow path

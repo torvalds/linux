@@ -706,6 +706,7 @@ struct task_struct {
 	prio_array_t *array;
 
 	unsigned short ioprio;
+	unsigned int btrace_seq;
 
 	unsigned long sleep_avg;
 	unsigned long long timestamp, last_ran;

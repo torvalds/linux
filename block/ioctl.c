@@ -5,6 +5,7 @@
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/smp_lock.h>
+#include <linux/blktrace_api.h>
 #include <asm/uaccess.h>
 
 static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user *arg)
@@ -189,6 +190,11 @@ static int blkdev_locked_ioctl(struct file *file, struct block_device *bdev,
 		return put_ulong(arg, bdev->bd_inode->i_size >> 9);
 	case BLKGETSIZE64:
 		return put_u64(arg, bdev->bd_inode->i_size);
+	case BLKTRACESTART:
+	case BLKTRACESTOP:
+	case BLKTRACESETUP:
+	case BLKTRACETEARDOWN:
+		return blk_trace_ioctl(bdev, cmd, (char __user *) arg);
 	}
 	return -ENOIOCTLCMD;
 }

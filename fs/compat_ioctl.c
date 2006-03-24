@@ -72,6 +72,7 @@
 #include <linux/i2c-dev.h>
 #include <linux/wireless.h>
 #include <linux/atalk.h>
+#include <linux/blktrace_api.h>
 
 #include <net/sock.h>          /* siocdevprivate_ioctl */
 #include <net/bluetooth/bluetooth.h>
