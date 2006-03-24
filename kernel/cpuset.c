@@ -4,15 +4,14 @@
  *  Processor and Memory placement constraints for sets of tasks.
  *
  *  Copyright (C) 2003 BULL SA.
- *  Copyright (C) 2004 Silicon Graphics, Inc.
+ *  Copyright (C) 2004-2006 Silicon Graphics, Inc.
  *
  *  Portions derived from Patrick Mochel's sysfs code.
  *  sysfs is Copyright (c) 2001-3 Patrick Mochel
- *  Portions Copyright (c) 2004 Silicon Graphics, Inc.
  *
- *  2003-10-10 Written by Simon Derr <simon.derr@bull.net>
+ *  2003-10-10 Written by Simon Derr.
  *  2003-10-22 Updates by Stephen Hemminger.
- *  2004 May-July Rework by Paul Jackson <pj@sgi.com>
+ *  2004 May-July Rework by Paul Jackson.
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of the Linux
@@ -108,7 +107,9 @@ typedef enum {
 	CS_MEM_EXCLUSIVE,
 	CS_MEMORY_MIGRATE,
 	CS_REMOVED,
-	CS_NOTIFY_ON_RELEASE
+	CS_NOTIFY_ON_RELEASE,
+	CS_SPREAD_PAGE,
+	CS_SPREAD_SLAB,
 } cpuset_flagbits_t;
 
 /* convenient tests for these bits */
@@ -135,6 +136,16 @@ static inline int notify_on_release(const struct cpuset *cs)
 static inline int is_memory_migrate(const struct cpuset *cs)
 {
 	return test_bit(CS_MEMORY_MIGRATE, &cs->flags);
+}
+
+static inline int is_spread_page(const struct cpuset *cs)
+{
+	return test_bit(CS_SPREAD_PAGE, &cs->flags);
+}
+
+static inline int is_spread_slab(const struct cpuset *cs)
+{
+	return test_bit(CS_SPREAD_SLAB, &cs->flags);
 }
 
 /*
@@ -657,6 +668,14 @@ void cpuset_update_task_memory_state(void)
 		cs = tsk->cpuset;	/* Maybe changed when task not locked */
 		guarantee_online_mems(cs, &tsk->mems_allowed);
 		tsk->cpuset_mems_generation = cs->mems_generation;
+		if (is_spread_page(cs))
+			tsk->flags |= PF_SPREAD_PAGE;
+		else
+			tsk->flags &= ~PF_SPREAD_PAGE;
+		if (is_spread_slab(cs))
+			tsk->flags |= PF_SPREAD_SLAB;
+		else
+			tsk->flags &= ~PF_SPREAD_SLAB;
 		task_unlock(tsk);
 		mutex_unlock(&callback_mutex);
 		mpol_rebind_task(tsk, &tsk->mems_allowed);
@@ -956,7 +975,8 @@ static int update_memory_pressure_enabled(struct cpuset *cs, char *buf)
 /*
  * update_flag - read a 0 or a 1 in a file and update associated flag
  * bit:	the bit to update (CS_CPU_EXCLUSIVE, CS_MEM_EXCLUSIVE,
- *				CS_NOTIFY_ON_RELEASE, CS_MEMORY_MIGRATE)
+ *				CS_NOTIFY_ON_RELEASE, CS_MEMORY_MIGRATE,
+ *				CS_SPREAD_PAGE, CS_SPREAD_SLAB)
  * cs:	the cpuset to update
  * buf:	the buffer where we read the 0 or 1
  *
@@ -1187,6 +1207,8 @@ typedef enum {
 	FILE_NOTIFY_ON_RELEASE,
 	FILE_MEMORY_PRESSURE_ENABLED,
 	FILE_MEMORY_PRESSURE,
+	FILE_SPREAD_PAGE,
+	FILE_SPREAD_SLAB,
 	FILE_TASKLIST,
 } cpuset_filetype_t;
 
@@ -1245,6 +1267,14 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 		break;
 	case FILE_MEMORY_PRESSURE:
 		retval = -EACCES;
+		break;
+	case FILE_SPREAD_PAGE:
+		retval = update_flag(CS_SPREAD_PAGE, cs, buffer);
+		cs->mems_generation = atomic_inc_return(&cpuset_mems_generation);
+		break;
+	case FILE_SPREAD_SLAB:
+		retval = update_flag(CS_SPREAD_SLAB, cs, buffer);
+		cs->mems_generation = atomic_inc_return(&cpuset_mems_generation);
 		break;
 	case FILE_TASKLIST:
 		retval = attach_task(cs, buffer, &pathbuf);
@@ -1354,6 +1384,12 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 		break;
 	case FILE_MEMORY_PRESSURE:
 		s += sprintf(s, "%d", fmeter_getrate(&cs->fmeter));
+		break;
+	case FILE_SPREAD_PAGE:
+		*s++ = is_spread_page(cs) ? '1' : '0';
+		break;
+	case FILE_SPREAD_SLAB:
+		*s++ = is_spread_slab(cs) ? '1' : '0';
 		break;
 	default:
 		retval = -EINVAL;
@@ -1718,6 +1754,16 @@ static struct cftype cft_memory_pressure = {
 	.private = FILE_MEMORY_PRESSURE,
 };
 
+static struct cftype cft_spread_page = {
+	.name = "memory_spread_page",
+	.private = FILE_SPREAD_PAGE,
+};
+
+static struct cftype cft_spread_slab = {
+	.name = "memory_spread_slab",
+	.private = FILE_SPREAD_SLAB,
+};
+
 static int cpuset_populate_dir(struct dentry *cs_dentry)
 {
 	int err;
@@ -1735,6 +1781,10 @@ static int cpuset_populate_dir(struct dentry *cs_dentry)
 	if ((err = cpuset_add_file(cs_dentry, &cft_memory_migrate)) < 0)
 		return err;
 	if ((err = cpuset_add_file(cs_dentry, &cft_memory_pressure)) < 0)
+		return err;
+	if ((err = cpuset_add_file(cs_dentry, &cft_spread_page)) < 0)
+		return err;
+	if ((err = cpuset_add_file(cs_dentry, &cft_spread_slab)) < 0)
 		return err;
 	if ((err = cpuset_add_file(cs_dentry, &cft_tasks)) < 0)
 		return err;
@@ -1764,6 +1814,10 @@ static long cpuset_create(struct cpuset *parent, const char *name, int mode)
 	cs->flags = 0;
 	if (notify_on_release(parent))
 		set_bit(CS_NOTIFY_ON_RELEASE, &cs->flags);
+	if (is_spread_page(parent))
+		set_bit(CS_SPREAD_PAGE, &cs->flags);
+	if (is_spread_slab(parent))
+		set_bit(CS_SPREAD_SLAB, &cs->flags);
 	cs->cpus_allowed = CPU_MASK_NONE;
 	cs->mems_allowed = NODE_MASK_NONE;
 	atomic_set(&cs->count, 0);
@@ -2199,6 +2253,44 @@ void cpuset_unlock(void)
 {
 	mutex_unlock(&callback_mutex);
 }
+
+/**
+ * cpuset_mem_spread_node() - On which node to begin search for a page
+ *
+ * If a task is marked PF_SPREAD_PAGE or PF_SPREAD_SLAB (as for
+ * tasks in a cpuset with is_spread_page or is_spread_slab set),
+ * and if the memory allocation used cpuset_mem_spread_node()
+ * to determine on which node to start looking, as it will for
+ * certain page cache or slab cache pages such as used for file
+ * system buffers and inode caches, then instead of starting on the
+ * local node to look for a free page, rather spread the starting
+ * node around the tasks mems_allowed nodes.
+ *
+ * We don't have to worry about the returned node being offline
+ * because "it can't happen", and even if it did, it would be ok.
+ *
+ * The routines calling guarantee_online_mems() are careful to
+ * only set nodes in task->mems_allowed that are online.  So it
+ * should not be possible for the following code to return an
+ * offline node.  But if it did, that would be ok, as this routine
+ * is not returning the node where the allocation must be, only
+ * the node where the search should start.  The zonelist passed to
+ * __alloc_pages() will include all nodes.  If the slab allocator
+ * is passed an offline node, it will fall back to the local node.
+ * See kmem_cache_alloc_node().
+ */
+
+int cpuset_mem_spread_node(void)
+{
+	int node;
+
+	node = next_node(current->cpuset_mem_spread_rotor, current->mems_allowed);
+	if (node == MAX_NUMNODES)
+		node = first_node(current->mems_allowed);
+	current->cpuset_mem_spread_rotor = node;
+	return node;
+}
+EXPORT_SYMBOL_GPL(cpuset_mem_spread_node);
 
 /**
  * cpuset_excl_nodes_overlap - Do we overlap @p's mem_exclusive ancestors?
