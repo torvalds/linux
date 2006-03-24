@@ -175,7 +175,7 @@ static int sync_page(void *word)
  * dirty pages that lie within the byte offsets <start, end>
  * @mapping:	address space structure to write
  * @start:	offset in bytes where the range starts
- * @end:	offset in bytes where the range ends
+ * @end:	offset in bytes where the range ends (inclusive)
  * @sync_mode:	enable synchronous operation
  *
  * If sync_mode is WB_SYNC_ALL then this is a "data integrity" operation, as
@@ -368,6 +368,12 @@ int filemap_write_and_wait(struct address_space *mapping)
 }
 EXPORT_SYMBOL(filemap_write_and_wait);
 
+/*
+ * Write out and wait upon file offsets lstart->lend, inclusive.
+ *
+ * Note that `lend' is inclusive (describes the last byte to be written) so
+ * that this function can be used to write to the very end-of-file (end = -1).
+ */
 int filemap_write_and_wait_range(struct address_space *mapping,
 				 loff_t lstart, loff_t lend)
 {
