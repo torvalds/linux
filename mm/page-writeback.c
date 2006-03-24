@@ -256,8 +256,9 @@ static void balance_dirty_pages(struct address_space *mapping)
 }
 
 /**
- * balance_dirty_pages_ratelimited - balance dirty memory state
+ * balance_dirty_pages_ratelimited_nr - balance dirty memory state
  * @mapping: address_space which was dirtied
+ * @nr_pages: number of pages which the caller has just dirtied
  *
  * Processes which are dirtying memory should call in here once for each page
  * which was newly dirtied.  The function will periodically check the system's
@@ -268,10 +269,12 @@ static void balance_dirty_pages(struct address_space *mapping)
  * limit we decrease the ratelimiting by a lot, to prevent individual processes
  * from overshooting the limit by (ratelimit_pages) each.
  */
-void balance_dirty_pages_ratelimited(struct address_space *mapping)
+void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
+					unsigned long nr_pages_dirtied)
 {
-	static DEFINE_PER_CPU(int, ratelimits) = 0;
-	long ratelimit;
+	static DEFINE_PER_CPU(unsigned long, ratelimits) = 0;
+	unsigned long ratelimit;
+	unsigned long *p;
 
 	ratelimit = ratelimit_pages;
 	if (dirty_exceeded)
@@ -281,15 +284,18 @@ void balance_dirty_pages_ratelimited(struct address_space *mapping)
 	 * Check the rate limiting. Also, we do not want to throttle real-time
 	 * tasks in balance_dirty_pages(). Period.
 	 */
-	if (get_cpu_var(ratelimits)++ >= ratelimit) {
-		__get_cpu_var(ratelimits) = 0;
-		put_cpu_var(ratelimits);
+	preempt_disable();
+	p =  &__get_cpu_var(ratelimits);
+	*p += nr_pages_dirtied;
+	if (unlikely(*p >= ratelimit)) {
+		*p = 0;
+		preempt_enable();
 		balance_dirty_pages(mapping);
 		return;
 	}
-	put_cpu_var(ratelimits);
+	preempt_enable();
 }
-EXPORT_SYMBOL(balance_dirty_pages_ratelimited);
+EXPORT_SYMBOL(balance_dirty_pages_ratelimited_nr);
 
 void throttle_vm_writeout(void)
 {
