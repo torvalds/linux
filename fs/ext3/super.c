@@ -2326,7 +2326,8 @@ restore_opts:
 
 static int ext3_statfs (struct super_block * sb, struct kstatfs * buf)
 {
-	struct ext3_super_block *es = EXT3_SB(sb)->s_es;
+	struct ext3_sb_info *sbi = EXT3_SB(sb);
+	struct ext3_super_block *es = sbi->s_es;
 	unsigned long overhead;
 	int i;
 
@@ -2368,12 +2369,12 @@ static int ext3_statfs (struct super_block * sb, struct kstatfs * buf)
 	buf->f_type = EXT3_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = le32_to_cpu(es->s_blocks_count) - overhead;
-	buf->f_bfree = ext3_count_free_blocks (sb);
+	buf->f_bfree = percpu_counter_sum(&sbi->s_freeblocks_counter);
 	buf->f_bavail = buf->f_bfree - le32_to_cpu(es->s_r_blocks_count);
 	if (buf->f_bfree < le32_to_cpu(es->s_r_blocks_count))
 		buf->f_bavail = 0;
 	buf->f_files = le32_to_cpu(es->s_inodes_count);
-	buf->f_ffree = ext3_count_free_inodes (sb);
+	buf->f_ffree = percpu_counter_sum(&sbi->s_freeinodes_counter);
 	buf->f_namelen = EXT3_NAME_LEN;
 	return 0;
 }
