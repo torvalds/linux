@@ -1727,7 +1727,7 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 		pTxd->VDataHigh = (SK_U32) (PhysAddr >> 32);
 		pTxd->pMBuf     = pMessage;
 		
-		pTxd->TBControl = Control | BMU_OWN | sk_frag->size;;
+		pTxd->TBControl = Control | BMU_OWN | sk_frag->size;
 
 		/* 
 		** Do we have the last fragment? 

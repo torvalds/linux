@@ -1215,7 +1215,7 @@ static void hid_irq_out(struct urb *urb, struct pt_regs *regs)
 
 	if (hid->outhead != hid->outtail) {
 		if (hid_submit_out(hid)) {
-			clear_bit(HID_OUT_RUNNING, &hid->iofl);;
+			clear_bit(HID_OUT_RUNNING, &hid->iofl);
 			wake_up(&hid->wait);
 		}
 		spin_unlock_irqrestore(&hid->outlock, flags);

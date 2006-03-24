@@ -315,7 +315,7 @@ ok:
  		spin_unlock(&head->lock);
 
  		if (tw) {
- 			inet_twsk_deschedule(tw, death_row);;
+ 			inet_twsk_deschedule(tw, death_row);
  			inet_twsk_put(tw);
  		}
 

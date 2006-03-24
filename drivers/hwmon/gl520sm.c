@@ -456,7 +456,7 @@ static ssize_t set_temp_max(struct i2c_client *client, struct gl520_data *data, 
 	long v = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
-	data->temp_max[n - 1] = TEMP_TO_REG(v);;
+	data->temp_max[n - 1] = TEMP_TO_REG(v);
 	gl520_write_value(client, reg, data->temp_max[n - 1]);
 	mutex_unlock(&data->update_lock);
 	return count;

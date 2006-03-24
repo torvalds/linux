@@ -727,7 +727,7 @@ void handler_irq(int irq, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_BLK_DEV_FD
-extern irqreturn_t floppy_interrupt(int, void *, struct pt_regs *);;
+extern irqreturn_t floppy_interrupt(int, void *, struct pt_regs *);
 
 /* XXX No easy way to include asm/floppy.h XXX */
 extern unsigned char *pdma_vaddr;

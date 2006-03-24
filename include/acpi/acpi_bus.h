@@ -269,7 +269,7 @@ struct acpi_device_wakeup_state {
 
 struct acpi_device_wakeup {
 	acpi_handle gpe_device;
-	acpi_integer gpe_number;;
+	acpi_integer gpe_number;
 	acpi_integer sleep_state;
 	struct acpi_handle_list resources;
 	struct acpi_device_wakeup_state state;
