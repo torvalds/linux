@@ -1021,6 +1021,7 @@ static task_t *copy_process(unsigned long clone_flags,
  		p->mempolicy = NULL;
  		goto bad_fork_cleanup_cpuset;
  	}
+	mpol_fix_fork_child_flag(p);
 #endif
 
 #ifdef CONFIG_DEBUG_MUTEXES
