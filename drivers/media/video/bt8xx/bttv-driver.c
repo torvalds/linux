@@ -42,7 +42,7 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
-#include "rds.h"
+#include <media/rds.h>
 
 
 unsigned int bttv_num;			/* number of Bt848s in use */

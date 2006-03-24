@@ -960,7 +960,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (saa7134_no_overlay <= 0) {
 		saa7134_video_template.type |= VID_TYPE_OVERLAY;
 	} else {
-		printk("bttv: Overlay support disabled.\n");
+		printk("%s: Overlay support disabled.\n",dev->name);
 	}
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,

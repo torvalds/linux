@@ -30,13 +30,13 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/init.h>
 
-#include "bttv.h"
 #include <media/audiochip.h>
+
+#include <media/i2c-addr.h>
 
 static int debug; /* insmod parameter */
 module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_LICENSE("GPL");
-
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] =  {

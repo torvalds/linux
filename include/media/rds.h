@@ -42,7 +42,3 @@ struct rds_command {
 #define RDS_CMD_POLL	_IOR('R',4,int)
 
 #endif
-
-
-
-

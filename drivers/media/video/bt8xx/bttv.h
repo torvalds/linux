@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
+#include <media/i2c-addr.h>
 
 /* ---------------------------------------------------------- */
 /* exported by bttv-cards.c                                   */
@@ -167,25 +168,6 @@
 #define BTTV_BOARD_SABRENT_TVFM   	   0x8e
 #define BTTV_BOARD_HAUPPAUGE_IMPACTVCB     0x8f
 #define BTTV_BOARD_MACHTV_MAGICTV          0x90
-
-/* i2c address list */
-#define I2C_TSA5522        0xc2
-#define I2C_TDA7432        0x8a
-#define I2C_BT832_ALT1	   0x88
-#define I2C_BT832_ALT2	   0x8a // alternate setting
-#define I2C_TDA8425        0x82
-#define I2C_TDA9840        0x84
-#define I2C_TDA9850        0xb6 /* also used by 9855,9873 */
-#define I2C_TDA9874        0xb0 /* also used by 9875 */
-#define I2C_TDA9875        0xb0
-#define I2C_HAUPEE         0xa0
-#define I2C_STBEE          0xae
-#define I2C_VHX            0xc0
-#define I2C_MSP3400        0x80
-#define I2C_MSP3400_ALT    0x88
-#define I2C_TEA6300        0x80 /* also used by 6320 */
-#define I2C_DPL3518	   0x84
-#define I2C_TDA9887	   0x86
 
 /* more card-specific defines */
 #define PT2254_L_CHANNEL 0x10
