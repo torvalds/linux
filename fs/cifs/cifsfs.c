@@ -479,7 +479,7 @@ cifs_get_sb(struct file_system_type *fs_type,
 
 	sb->s_flags = flags;
 
-	rc = cifs_read_super(sb, data, dev_name, flags & MS_VERBOSE ? 1 : 0);
+	rc = cifs_read_super(sb, data, dev_name, flags & MS_SILENT ? 1 : 0);
 	if (rc) {
 		up_write(&sb->s_umount);
 		deactivate_super(sb);

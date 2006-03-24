@@ -1679,7 +1679,7 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 
 	s->s_flags = flags;
 
-	error = nfs_fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
+	error = nfs_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 	if (error) {
 		up_write(&s->s_umount);
 		deactivate_super(s);
@@ -1996,7 +1996,7 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 
 	s->s_flags = flags;
 
-	error = nfs4_fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
+	error = nfs4_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 	if (error) {
 		up_write(&s->s_umount);
 		deactivate_super(s);

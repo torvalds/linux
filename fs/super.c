@@ -712,7 +712,7 @@ struct super_block *get_sb_bdev(struct file_system_type *fs_type,
 		s->s_flags = flags;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(bdev));
-		error = fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
+		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 		if (error) {
 			up_write(&s->s_umount);
 			deactivate_super(s);
@@ -756,7 +756,7 @@ struct super_block *get_sb_nodev(struct file_system_type *fs_type,
 
 	s->s_flags = flags;
 
-	error = fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
+	error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 	if (error) {
 		up_write(&s->s_umount);
 		deactivate_super(s);
@@ -785,7 +785,7 @@ struct super_block *get_sb_single(struct file_system_type *fs_type,
 		return s;
 	if (!s->s_root) {
 		s->s_flags = flags;
-		error = fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
+		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 		if (error) {
 			up_write(&s->s_umount);
 			deactivate_super(s);
