@@ -185,6 +185,17 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
+What:	remove EXPORT_SYMBOL(tasklist_lock)
+When:	August 2006
+Files:	kernel/fork.c
+Why:	tasklist_lock protects the kernel internal task list.  Modules have
+	no business looking at it, and all instances in drivers have been due
+	to use of too-lowlevel APIs.  Having this symbol exported prevents
+	moving to more scalable locking schemes for the task list.
+Who:	Christoph Hellwig <hch@lst.de>
+
+---------------------------
+
 What:	mount/umount uevents
 When:	February 2007
 Why:	These events are not correct, and do not properly let userspace know
