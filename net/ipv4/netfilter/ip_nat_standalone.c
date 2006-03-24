@@ -394,7 +394,7 @@ static int init_or_cleanup(int init)
 	ret = nf_register_hook(&ip_nat_local_out_ops);
 	if (ret < 0) {
 		printk("ip_nat_init: can't register local out hook.\n");
-		goto cleanup_adjustout_ops;;
+		goto cleanup_adjustout_ops;
 	}
 	ret = nf_register_hook(&ip_nat_local_in_ops);
 	if (ret < 0) {

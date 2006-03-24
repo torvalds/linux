@@ -2,7 +2,7 @@
  * namei.c - NTFS kernel directory inode operations. Part of the Linux-NTFS
  *	     project.
  *
- * Copyright (c) 2001-2004 Anton Altaparmakov
+ * Copyright (c) 2001-2006 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -115,7 +115,9 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 	uname_len = ntfs_nlstoucs(vol, dent->d_name.name, dent->d_name.len,
 			&uname);
 	if (uname_len < 0) {
-		ntfs_error(vol->sb, "Failed to convert name to Unicode.");
+		if (uname_len != -ENAMETOOLONG)
+			ntfs_error(vol->sb, "Failed to convert name to "
+					"Unicode.");
 		return ERR_PTR(uname_len);
 	}
 	mref = ntfs_lookup_inode_by_name(NTFS_I(dir_ino), uname, uname_len,
@@ -157,7 +159,7 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 		/* Return the error code. */
 		return (struct dentry *)dent_inode;
 	}
-	/* It is guaranteed that name is no longer allocated at this point. */
+	/* It is guaranteed that @name is no longer allocated at this point. */
 	if (MREF_ERR(mref) == -ENOENT) {
 		ntfs_debug("Entry was not found, adding negative dentry.");
 		/* The dcache will handle negative entries. */
@@ -168,7 +170,6 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 	ntfs_error(vol->sb, "ntfs_lookup_ino_by_name() failed with error "
 			"code %i.", -MREF_ERR(mref));
 	return ERR_PTR(MREF_ERR(mref));
-
 	// TODO: Consider moving this lot to a separate function! (AIA)
 handle_name:
    {

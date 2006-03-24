@@ -84,14 +84,14 @@ static struct hlist_head *inode_hashtable;
 DEFINE_SPINLOCK(inode_lock);
 
 /*
- * iprune_sem provides exclusion between the kswapd or try_to_free_pages
+ * iprune_mutex provides exclusion between the kswapd or try_to_free_pages
  * icache shrinking path, and the umount path.  Without this exclusion,
  * by the time prune_icache calls iput for the inode whose pages it has
  * been invalidating, or by the time it calls clear_inode & destroy_inode
  * from its final dispose_list, the struct super_block they refer to
  * (for inode->i_sb->s_op) may already have been freed and reused.
  */
-DECLARE_MUTEX(iprune_sem);
+DEFINE_MUTEX(iprune_mutex);
 
 /*
  * Statistics gathering..
@@ -206,7 +206,7 @@ void inode_init_once(struct inode *inode)
 	i_size_ordered_init(inode);
 #ifdef CONFIG_INOTIFY
 	INIT_LIST_HEAD(&inode->inotify_watches);
-	sema_init(&inode->inotify_sem, 1);
+	mutex_init(&inode->inotify_mutex);
 #endif
 }
 
@@ -319,7 +319,7 @@ static int invalidate_list(struct list_head *head, struct list_head *dispose)
 		/*
 		 * We can reschedule here without worrying about the list's
 		 * consistency because the per-sb list of inodes must not
-		 * change during umount anymore, and because iprune_sem keeps
+		 * change during umount anymore, and because iprune_mutex keeps
 		 * shrink_icache_memory() away.
 		 */
 		cond_resched_lock(&inode_lock);
@@ -355,14 +355,14 @@ int invalidate_inodes(struct super_block * sb)
 	int busy;
 	LIST_HEAD(throw_away);
 
-	down(&iprune_sem);
+	mutex_lock(&iprune_mutex);
 	spin_lock(&inode_lock);
 	inotify_unmount_inodes(&sb->s_inodes);
 	busy = invalidate_list(&sb->s_inodes, &throw_away);
 	spin_unlock(&inode_lock);
 
 	dispose_list(&throw_away);
-	up(&iprune_sem);
+	mutex_unlock(&iprune_mutex);
 
 	return busy;
 }
@@ -377,7 +377,7 @@ int __invalidate_device(struct block_device *bdev)
 	if (sb) {
 		/*
 		 * no need to lock the super, get_super holds the
-		 * read semaphore so the filesystem cannot go away
+		 * read mutex so the filesystem cannot go away
 		 * under us (->put_super runs with the write lock
 		 * hold).
 		 */
@@ -423,7 +423,7 @@ static void prune_icache(int nr_to_scan)
 	int nr_scanned;
 	unsigned long reap = 0;
 
-	down(&iprune_sem);
+	mutex_lock(&iprune_mutex);
 	spin_lock(&inode_lock);
 	for (nr_scanned = 0; nr_scanned < nr_to_scan; nr_scanned++) {
 		struct inode *inode;
@@ -459,7 +459,7 @@ static void prune_icache(int nr_to_scan)
 	spin_unlock(&inode_lock);
 
 	dispose_list(&freeable);
-	up(&iprune_sem);
+	mutex_unlock(&iprune_mutex);
 
 	if (current_is_kswapd())
 		mod_page_state(kswapd_inodesteal, reap);
@@ -1375,8 +1375,13 @@ void __init inode_init(unsigned long mempages)
 	int loop;
 
 	/* inode slab cache */
-	inode_cachep = kmem_cache_create("inode_cache", sizeof(struct inode),
-				0, SLAB_RECLAIM_ACCOUNT|SLAB_PANIC, init_once, NULL);
+	inode_cachep = kmem_cache_create("inode_cache",
+					 sizeof(struct inode),
+					 0,
+					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
+					 SLAB_MEM_SPREAD),
+					 init_once,
+					 NULL);
 	set_shrinker(DEFAULT_SEEKS, shrink_icache_memory);
 
 	/* Hash may have been set up in inode_init_early */

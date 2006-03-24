@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/amiga/cia.c - CIA support
- *
  *  Copyright (C) 1996 Roman Zippel
  *
  *  The concept of some functions bases on the original Amiga OS function

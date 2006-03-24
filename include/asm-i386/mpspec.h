@@ -22,7 +22,6 @@ extern int mp_bus_id_to_type [MAX_MP_BUSSES];
 extern int mp_irq_entries;
 extern struct mpc_config_intsrc mp_irqs [MAX_IRQ_SOURCES];
 extern int mpc_default_type;
-extern int mp_bus_id_to_pci_bus [MAX_MP_BUSSES];
 extern unsigned long mp_lapic_addr;
 extern int pic_mode;
 extern int using_apic_timer;

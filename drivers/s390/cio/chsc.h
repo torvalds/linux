@@ -12,6 +12,16 @@ struct chsc_header {
 	u16 code;
 };
 
+#define NR_MEASUREMENT_CHARS 5
+struct cmg_chars {
+	u32 values[NR_MEASUREMENT_CHARS];
+};
+
+#define NR_MEASUREMENT_ENTRIES 8
+struct cmg_entry {
+	u32 values[NR_MEASUREMENT_ENTRIES];
+};
+
 struct channel_path_desc {
 	u8 flags;
 	u8 lsn;
@@ -27,6 +37,10 @@ struct channel_path {
 	int id;
 	int state;
 	struct channel_path_desc desc;
+	/* Channel-measurement related stuff: */
+	int cmg;
+	int shared;
+	void *cmg_chars;
 	struct device dev;
 };
 
@@ -52,7 +66,11 @@ struct css_general_char {
 
 struct css_chsc_char {
 	u64 res;
-	u64 : 43;
+	u64 : 20;
+	u32 secm : 1; /* bit 84 */
+	u32 : 1;
+	u32 scmc : 1; /* bit 86 */
+	u32 : 20;
 	u32 scssc : 1;  /* bit 107 */
 	u32 scsscf : 1; /* bit 108 */
 	u32 : 19;
@@ -67,6 +85,8 @@ extern int css_characteristics_avail;
 extern void *chsc_get_chp_desc(struct subchannel*, int);
 
 extern int chsc_enable_facility(int);
+struct channel_subsystem;
+extern int chsc_secm(struct channel_subsystem *, int);
 
 #define to_channelpath(device) container_of(device, struct channel_path, dev)
 

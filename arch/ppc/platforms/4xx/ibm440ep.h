@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibm440ep.h
- *
  * PPC440EP definitions
  *
  * Wade Farnsworth <wfarnsworth@mvista.com>

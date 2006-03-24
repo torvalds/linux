@@ -148,6 +148,7 @@ v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid)
 	return ret;
 }
 
+#if 0
 /**
  * v9fs_v9fs_t_flush - flush a pending transaction
  * @v9ses: 9P2000 session information
@@ -171,6 +172,7 @@ int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 oldtag)
 
 	return ret;
 }
+#endif  /*  0  */
 
 /**
  * v9fs_t_stat - read a file's meta-data

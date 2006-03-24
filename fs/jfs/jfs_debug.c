@@ -111,7 +111,7 @@ static struct {
 	{ "loglevel",	loglevel_read, loglevel_write }
 #endif
 };
-#define NPROCENT	(sizeof(Entries)/sizeof(Entries[0]))
+#define NPROCENT	ARRAY_SIZE(Entries)
 
 void jfs_proc_init(void)
 {

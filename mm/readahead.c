@@ -555,6 +555,7 @@ recheck:
 out:
 	return ra->prev_page + 1;
 }
+EXPORT_SYMBOL_GPL(page_cache_readahead);
 
 /*
  * handle_ra_miss() is called when it is known that a page which should have

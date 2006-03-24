@@ -1227,7 +1227,7 @@ asmlinkage long sys_setsid(void)
 	struct pid *pid;
 	int err = -EPERM;
 
-	down(&tty_sem);
+	mutex_lock(&tty_mutex);
 	write_lock_irq(&tasklist_lock);
 
 	pid = find_pid(PIDTYPE_PGID, group_leader->pid);
@@ -1241,7 +1241,7 @@ asmlinkage long sys_setsid(void)
 	err = process_group(group_leader);
 out:
 	write_unlock_irq(&tasklist_lock);
-	up(&tty_sem);
+	mutex_unlock(&tty_mutex);
 	return err;
 }
 
@@ -1630,20 +1630,21 @@ asmlinkage long sys_old_getrlimit(unsigned int resource, struct rlimit __user *r
 asmlinkage long sys_setrlimit(unsigned int resource, struct rlimit __user *rlim)
 {
 	struct rlimit new_rlim, *old_rlim;
+	unsigned long it_prof_secs;
 	int retval;
 
 	if (resource >= RLIM_NLIMITS)
 		return -EINVAL;
-	if(copy_from_user(&new_rlim, rlim, sizeof(*rlim)))
+	if (copy_from_user(&new_rlim, rlim, sizeof(*rlim)))
 		return -EFAULT;
-       if (new_rlim.rlim_cur > new_rlim.rlim_max)
-               return -EINVAL;
+	if (new_rlim.rlim_cur > new_rlim.rlim_max)
+		return -EINVAL;
 	old_rlim = current->signal->rlim + resource;
 	if ((new_rlim.rlim_max > old_rlim->rlim_max) &&
 	    !capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 	if (resource == RLIMIT_NOFILE && new_rlim.rlim_max > NR_OPEN)
-			return -EPERM;
+		return -EPERM;
 
 	retval = security_task_setrlimit(resource, &new_rlim);
 	if (retval)
@@ -1653,19 +1654,40 @@ asmlinkage long sys_setrlimit(unsigned int resource, struct rlimit __user *rlim)
 	*old_rlim = new_rlim;
 	task_unlock(current->group_leader);
 
-	if (resource == RLIMIT_CPU && new_rlim.rlim_cur != RLIM_INFINITY &&
-	    (cputime_eq(current->signal->it_prof_expires, cputime_zero) ||
-	     new_rlim.rlim_cur <= cputime_to_secs(
-		     current->signal->it_prof_expires))) {
-		cputime_t cputime = secs_to_cputime(new_rlim.rlim_cur);
+	if (resource != RLIMIT_CPU)
+		goto out;
+
+	/*
+	 * RLIMIT_CPU handling.   Note that the kernel fails to return an error
+	 * code if it rejected the user's attempt to set RLIMIT_CPU.  This is a
+	 * very long-standing error, and fixing it now risks breakage of
+	 * applications, so we live with it
+	 */
+	if (new_rlim.rlim_cur == RLIM_INFINITY)
+		goto out;
+
+	it_prof_secs = cputime_to_secs(current->signal->it_prof_expires);
+	if (it_prof_secs == 0 || new_rlim.rlim_cur <= it_prof_secs) {
+		unsigned long rlim_cur = new_rlim.rlim_cur;
+		cputime_t cputime;
+
+		if (rlim_cur == 0) {
+			/*
+			 * The caller is asking for an immediate RLIMIT_CPU
+			 * expiry.  But we use the zero value to mean "it was
+			 * never set".  So let's cheat and make it one second
+			 * instead
+			 */
+			rlim_cur = 1;
+		}
+		cputime = secs_to_cputime(rlim_cur);
 		read_lock(&tasklist_lock);
 		spin_lock_irq(&current->sighand->siglock);
-		set_process_cpu_timer(current, CPUCLOCK_PROF,
-				      &cputime, NULL);
+		set_process_cpu_timer(current, CPUCLOCK_PROF, &cputime, NULL);
 		spin_unlock_irq(&current->sighand->siglock);
 		read_unlock(&tasklist_lock);
 	}
-
+out:
 	return 0;
 }
 
@@ -1677,9 +1699,6 @@ asmlinkage long sys_setrlimit(unsigned int resource, struct rlimit __user *rlim)
  * a lot simpler!  (Which we're not doing right now because we're not
  * measuring them yet).
  *
- * This expects to be called with tasklist_lock read-locked or better,
- * and the siglock not locked.  It may momentarily take the siglock.
- *
  * When sampling multiple threads for RUSAGE_SELF, under SMP we might have
  * races with threads incrementing their own counters.  But since word
  * reads are atomic, we either get new values or old values and we don't
@@ -1687,6 +1706,25 @@ asmlinkage long sys_setrlimit(unsigned int resource, struct rlimit __user *rlim)
  * the c* fields from p->signal from races with exit.c updating those
  * fields when reaping, so a sample either gets all the additions of a
  * given child after it's reaped, or none so this sample is before reaping.
+ *
+ * tasklist_lock locking optimisation:
+ * If we are current and single threaded, we do not need to take the tasklist
+ * lock or the siglock.  No one else can take our signal_struct away,
+ * no one else can reap the children to update signal->c* counters, and
+ * no one else can race with the signal-> fields.
+ * If we do not take the tasklist_lock, the signal-> fields could be read
+ * out of order while another thread was just exiting. So we place a
+ * read memory barrier when we avoid the lock.  On the writer side,
+ * write memory barrier is implied in  __exit_signal as __exit_signal releases
+ * the siglock spinlock after updating the signal-> fields.
+ *
+ * We don't really need the siglock when we access the non c* fields
+ * of the signal_struct (for RUSAGE_SELF) even in multithreaded
+ * case, since we take the tasklist lock for read and the non c* signal->
+ * fields are updated only in __exit_signal, which is called with
+ * tasklist_lock taken for write, hence these two threads cannot execute
+ * concurrently.
+ *
  */
 
 static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
@@ -1694,13 +1732,23 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 	struct task_struct *t;
 	unsigned long flags;
 	cputime_t utime, stime;
+	int need_lock = 0;
 
 	memset((char *) r, 0, sizeof *r);
-
-	if (unlikely(!p->signal))
-		return;
-
 	utime = stime = cputime_zero;
+
+	if (p != current || !thread_group_empty(p))
+		need_lock = 1;
+
+	if (need_lock) {
+		read_lock(&tasklist_lock);
+		if (unlikely(!p->signal)) {
+			read_unlock(&tasklist_lock);
+			return;
+		}
+	} else
+		/* See locking comments above */
+		smp_rmb();
 
 	switch (who) {
 		case RUSAGE_BOTH:
@@ -1740,6 +1788,8 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			BUG();
 	}
 
+	if (need_lock)
+		read_unlock(&tasklist_lock);
 	cputime_to_timeval(utime, &r->ru_utime);
 	cputime_to_timeval(stime, &r->ru_stime);
 }
@@ -1747,9 +1797,7 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 int getrusage(struct task_struct *p, int who, struct rusage __user *ru)
 {
 	struct rusage r;
-	read_lock(&tasklist_lock);
 	k_getrusage(p, who, &r);
-	read_unlock(&tasklist_lock);
 	return copy_to_user(ru, &r, sizeof(r)) ? -EFAULT : 0;
 }
 

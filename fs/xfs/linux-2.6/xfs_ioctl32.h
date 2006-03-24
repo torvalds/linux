@@ -18,7 +18,7 @@
 #ifndef __XFS_IOCTL32_H__
 #define __XFS_IOCTL32_H__
 
-extern long linvfs_compat_ioctl(struct file *, unsigned, unsigned long);
-extern long linvfs_compat_invis_ioctl(struct file *f, unsigned, unsigned long);
+extern long xfs_file_compat_ioctl(struct file *, unsigned, unsigned long);
+extern long xfs_file_compat_invis_ioctl(struct file *, unsigned, unsigned long);
 
 #endif /* __XFS_IOCTL32_H__ */

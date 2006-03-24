@@ -54,11 +54,6 @@
 #include <asm/uaccess.h>
 #include <asm/unwind.h>
 
-void default_idle(void)
-{
-	barrier();
-}
-
 /*
  * The idle thread. There's no useful work to be
  * done, so just try to conserve power and have a

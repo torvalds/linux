@@ -406,13 +406,14 @@ config SENSORS_W83L785TS
 	  will be called w83l785ts.
 
 config SENSORS_W83627HF
-	tristate "Winbond W83627HF, W83627THF, W83637HF, W83697HF"
-	depends on HWMON && I2C && EXPERIMENTAL
+	tristate "Winbond W83627HF, W83627THF, W83637HF, W83687THF, W83697HF"
+	depends on HWMON && I2C
 	select I2C_ISA
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the Winbond W836X7 series
-	  of sensor chips: the W83627HF, W83627THF, W83637HF, and the W83697HF
+	  of sensor chips: the W83627HF, W83627THF, W83637HF, W83687THF and
+	  W83697HF.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627hf.

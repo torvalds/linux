@@ -1145,16 +1145,14 @@ static int __cpuinit powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0;
 
-	for (i=0; i<NR_CPUS; i++) {
-		if (!cpu_online(i))
-			continue;
+	for_each_online_cpu(i) {
 		if (check_supported_cpu(i))
 			supported_cpus++;
 	}
 
 	if (supported_cpus == num_online_cpus()) {
-		printk(KERN_INFO PFX "Found %d AMD Athlon 64 / Opteron processors (" VERSION ")\n",
-			supported_cpus);
+		printk(KERN_INFO PFX "Found %d AMD Athlon 64 / Opteron "
+			"processors (" VERSION ")\n", supported_cpus);
 		return cpufreq_register_driver(&cpufreq_amd64_driver);
 	}
 

@@ -928,15 +928,15 @@ static int hfa384x_set_rid(struct net_device *dev, u16 rid, void *buf, int len)
 
 	res = hfa384x_cmd(dev, HFA384X_CMDCODE_ACCESS_WRITE, rid, NULL, NULL);
 	up(&local->rid_bap_sem);
+
 	if (res) {
 		printk(KERN_DEBUG "%s: hfa384x_set_rid: CMDCODE_ACCESS_WRITE "
 		       "failed (res=%d, rid=%04x, len=%d)\n",
 		       dev->name, res, rid, len);
-		return res;
-	}
 
-	if (res == -ETIMEDOUT)
-		prism2_hw_reset(dev);
+		if (res == -ETIMEDOUT)
+			prism2_hw_reset(dev);
+	}
 
 	return res;
 }

@@ -1804,7 +1804,7 @@ struct sky2_rx_le {
 	__le16	length;
 	u8	ctrl;
 	u8	opcode;
-} __attribute((packed));;
+} __attribute((packed));
 
 struct sky2_status_le {
 	__le32	status;	/* also checksum */

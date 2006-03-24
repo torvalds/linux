@@ -103,7 +103,7 @@ static struct rpc_version *	nfs_version[] = {
 static struct rpc_program	nfs_program = {
 	.name			= "nfs",
 	.number			= NFS_PROGRAM,
-	.nrvers			= sizeof(nfs_version) / sizeof(nfs_version[0]),
+	.nrvers			= ARRAY_SIZE(nfs_version),
 	.version		= nfs_version,
 	.stats			= &nfs_rpcstat,
 	.pipe_dir_name		= "/nfs",
@@ -118,7 +118,7 @@ static struct rpc_version *	nfsacl_version[] = {
 struct rpc_program		nfsacl_program = {
 	.name =			"nfsacl",
 	.number =		NFS_ACL_PROGRAM,
-	.nrvers =		sizeof(nfsacl_version) / sizeof(nfsacl_version[0]),
+	.nrvers =		ARRAY_SIZE(nfsacl_version),
 	.version =		nfsacl_version,
 	.stats =		&nfsacl_rpcstat,
 };
@@ -1679,7 +1679,7 @@ static struct super_block *nfs_get_sb(struct file_system_type *fs_type,
 
 	s->s_flags = flags;
 
-	error = nfs_fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
+	error = nfs_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 	if (error) {
 		up_write(&s->s_umount);
 		deactivate_super(s);
@@ -1996,7 +1996,7 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 
 	s->s_flags = flags;
 
-	error = nfs4_fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
+	error = nfs4_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
 	if (error) {
 		up_write(&s->s_umount);
 		deactivate_super(s);
@@ -2163,7 +2163,8 @@ static int nfs_init_inodecache(void)
 {
 	nfs_inode_cachep = kmem_cache_create("nfs_inode_cache",
 					     sizeof(struct nfs_inode),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     init_once, NULL);
 	if (nfs_inode_cachep == NULL)
 		return -ENOMEM;

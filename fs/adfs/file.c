@@ -19,11 +19,7 @@
  *
  *  adfs regular file handling primitives           
  */
-#include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/fcntl.h>
-#include <linux/time.h>
-#include <linux/stat.h>
 #include <linux/buffer_head.h>			/* for file_fsync() */
 #include <linux/adfs_fs.h>
 

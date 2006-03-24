@@ -41,7 +41,6 @@
 #include <linux/serial_core.h>
 #include <linux/efi.h>
 #include <linux/initrd.h>
-#include <linux/platform.h>
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
 

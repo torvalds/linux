@@ -184,6 +184,7 @@ struct fat_slot_info {
 #include <linux/string.h>
 #include <linux/nls.h>
 #include <linux/fs.h>
+#include <linux/mutex.h>
 
 struct fat_mount_options {
 	uid_t fs_uid;
@@ -226,7 +227,7 @@ struct msdos_sb_info {
 	unsigned long max_cluster;   /* maximum cluster number */
 	unsigned long root_cluster;  /* first cluster of the root directory */
 	unsigned long fsinfo_sector; /* sector number of FAT32 fsinfo */
-	struct semaphore fat_lock;
+	struct mutex fat_lock;
 	unsigned int prev_free;      /* previously allocated cluster number */
 	unsigned int free_clusters;  /* -1 if undefined */
 	struct fat_mount_options options;

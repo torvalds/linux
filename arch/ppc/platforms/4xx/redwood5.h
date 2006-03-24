@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/redwood5.h
- *
  * Macros, definitions, and data structures specific to the IBM PowerPC
  * STB03xxx "Redwood" evaluation board.
  *

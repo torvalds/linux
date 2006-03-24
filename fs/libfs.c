@@ -7,6 +7,8 @@
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
+#include <linux/mutex.h>
+
 #include <asm/uaccess.h>
 
 int simple_getattr(struct vfsmount *mnt, struct dentry *dentry,
@@ -530,7 +532,7 @@ struct simple_attr {
 	char set_buf[24];
 	void *data;
 	const char *fmt;	/* format for read operation */
-	struct semaphore sem;	/* protects access to these buffers */
+	struct mutex mutex;	/* protects access to these buffers */
 };
 
 /* simple_attr_open is called by an actual attribute open file operation
@@ -549,7 +551,7 @@ int simple_attr_open(struct inode *inode, struct file *file,
 	attr->set = set;
 	attr->data = inode->u.generic_ip;
 	attr->fmt = fmt;
-	init_MUTEX(&attr->sem);
+	mutex_init(&attr->mutex);
 
 	file->private_data = attr;
 
@@ -575,7 +577,7 @@ ssize_t simple_attr_read(struct file *file, char __user *buf,
 	if (!attr->get)
 		return -EACCES;
 
-	down(&attr->sem);
+	mutex_lock(&attr->mutex);
 	if (*ppos) /* continued read */
 		size = strlen(attr->get_buf);
 	else	  /* first read */
@@ -584,7 +586,7 @@ ssize_t simple_attr_read(struct file *file, char __user *buf,
 				 (unsigned long long)attr->get(attr->data));
 
 	ret = simple_read_from_buffer(buf, len, ppos, attr->get_buf, size);
-	up(&attr->sem);
+	mutex_unlock(&attr->mutex);
 	return ret;
 }
 
@@ -602,7 +604,7 @@ ssize_t simple_attr_write(struct file *file, const char __user *buf,
 	if (!attr->set)
 		return -EACCES;
 
-	down(&attr->sem);
+	mutex_lock(&attr->mutex);
 	ret = -EFAULT;
 	size = min(sizeof(attr->set_buf) - 1, len);
 	if (copy_from_user(attr->set_buf, buf, size))
@@ -613,7 +615,7 @@ ssize_t simple_attr_write(struct file *file, const char __user *buf,
 	val = simple_strtol(attr->set_buf, NULL, 0);
 	attr->set(attr->data, val);
 out:
-	up(&attr->sem);
+	mutex_unlock(&attr->mutex);
 	return ret;
 }
 

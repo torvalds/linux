@@ -13,6 +13,10 @@
 
 #include <asm/ppcboot.h>
 
+#if defined(CONFIG_ADS8272)
+#define BOARD_CHIP_NAME "8272"
+#endif
+
 /* Memory map is configured by the PROM startup.
  * We just map a few things we need.  The CSR is actually 4 byte-wide
  * registers that can be accessed as 8-, 16-, or 32-bit values.

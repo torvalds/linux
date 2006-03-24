@@ -634,7 +634,7 @@ xfs_dir_leaf_removename(xfs_da_args_t *args, int *count, int *totallen)
 		return(retval);
 	ASSERT(bp != NULL);
 	leaf = bp->data;
-	ASSERT(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) == XFS_DIR_LEAF_MAGIC);
+	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR_LEAF_MAGIC);
 	retval = xfs_dir_leaf_lookup_int(bp, args, &index);
 	if (retval == EEXIST) {
 		(void)xfs_dir_leaf_remove(args->trans, bp, index);
@@ -912,7 +912,7 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 			return(error);
 		if (bp)
 			leaf = bp->data;
-		if (bp && INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) != XFS_DIR_LEAF_MAGIC) {
+		if (bp && be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR_LEAF_MAGIC) {
 			xfs_dir_trace_g_dub("node: block not a leaf",
 						   dp, uio, bno);
 			xfs_da_brelse(trans, bp);
@@ -949,17 +949,17 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 			if (bp == NULL)
 				return(XFS_ERROR(EFSCORRUPTED));
 			node = bp->data;
-			if (INT_GET(node->hdr.info.magic, ARCH_CONVERT) != XFS_DA_NODE_MAGIC)
+			if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC)
 				break;
 			btree = &node->btree[0];
 			xfs_dir_trace_g_dun("node: node detail", dp, uio, node);
-			for (i = 0; i < INT_GET(node->hdr.count, ARCH_CONVERT); btree++, i++) {
-				if (INT_GET(btree->hashval, ARCH_CONVERT) >= cookhash) {
-					bno = INT_GET(btree->before, ARCH_CONVERT);
+			for (i = 0; i < be16_to_cpu(node->hdr.count); btree++, i++) {
+				if (be32_to_cpu(btree->hashval) >= cookhash) {
+					bno = be32_to_cpu(btree->before);
 					break;
 				}
 			}
-			if (i == INT_GET(node->hdr.count, ARCH_CONVERT)) {
+			if (i == be16_to_cpu(node->hdr.count)) {
 				xfs_da_brelse(trans, bp);
 				xfs_dir_trace_g_du("node: hash beyond EOF",
 							  dp, uio);
@@ -982,7 +982,7 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 	 */
 	for (;;) {
 		leaf = bp->data;
-		if (unlikely(INT_GET(leaf->hdr.info.magic, ARCH_CONVERT) != XFS_DIR_LEAF_MAGIC)) {
+		if (unlikely(be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR_LEAF_MAGIC)) {
 			xfs_dir_trace_g_dul("node: not a leaf", dp, uio, leaf);
 			xfs_da_brelse(trans, bp);
 			XFS_CORRUPTION_ERROR("xfs_dir_node_getdents(1)",
@@ -990,7 +990,7 @@ xfs_dir_node_getdents(xfs_trans_t *trans, xfs_inode_t *dp, uio_t *uio,
 			return XFS_ERROR(EFSCORRUPTED);
 		}
 		xfs_dir_trace_g_dul("node: leaf detail", dp, uio, leaf);
-		if ((nextbno = INT_GET(leaf->hdr.info.forw, ARCH_CONVERT))) {
+		if ((nextbno = be32_to_cpu(leaf->hdr.info.forw))) {
 			nextda = xfs_da_reada_buf(trans, dp, nextbno,
 						  XFS_DATA_FORK);
 		} else
@@ -1118,21 +1118,20 @@ void
 xfs_dir_trace_g_dun(char *where, xfs_inode_t *dp, uio_t *uio,
 			xfs_da_intnode_t *node)
 {
-	int	last = INT_GET(node->hdr.count, ARCH_CONVERT) - 1;
+	int	last = be16_to_cpu(node->hdr.count) - 1;
 
 	xfs_dir_trace_enter(XFS_DIR_KTRACE_G_DUN, where,
 		     (void *)dp, (void *)dp->i_mount,
 		     (void *)((unsigned long)(uio->uio_offset >> 32)),
 		     (void *)((unsigned long)(uio->uio_offset & 0xFFFFFFFF)),
 		     (void *)(unsigned long)uio->uio_resid,
+		     (void *)(unsigned long)be32_to_cpu(node->hdr.info.forw),
 		     (void *)(unsigned long)
-			INT_GET(node->hdr.info.forw, ARCH_CONVERT),
+			be16_to_cpu(node->hdr.count),
 		     (void *)(unsigned long)
-			INT_GET(node->hdr.count, ARCH_CONVERT),
+			be32_to_cpu(node->btree[0].hashval),
 		     (void *)(unsigned long)
-			INT_GET(node->btree[0].hashval, ARCH_CONVERT),
-		     (void *)(unsigned long)
-			INT_GET(node->btree[last].hashval, ARCH_CONVERT),
+			be32_to_cpu(node->btree[last].hashval),
 		     NULL, NULL, NULL);
 }
 
@@ -1150,8 +1149,7 @@ xfs_dir_trace_g_dul(char *where, xfs_inode_t *dp, uio_t *uio,
 		     (void *)((unsigned long)(uio->uio_offset >> 32)),
 		     (void *)((unsigned long)(uio->uio_offset & 0xFFFFFFFF)),
 		     (void *)(unsigned long)uio->uio_resid,
-		     (void *)(unsigned long)
-			INT_GET(leaf->hdr.info.forw, ARCH_CONVERT),
+		     (void *)(unsigned long)be32_to_cpu(leaf->hdr.info.forw),
 		     (void *)(unsigned long)
 			INT_GET(leaf->hdr.count, ARCH_CONVERT),
 		     (void *)(unsigned long)

@@ -24,6 +24,8 @@
 #include <linux/coda_psdev.h>
 #include <linux/coda_proc.h>
 
+#include "coda_int.h"
+
 /* if CODA_STORE fails with EOPNOTSUPP, venus clearly doesn't support
  * CODA_STORE/CODA_RELEASE and we fall back on using the CODA_CLOSE upcall */
 static int use_coda_close;

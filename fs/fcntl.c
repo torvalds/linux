@@ -73,8 +73,8 @@ repeat:
 	 * orig_start..fdt->next_fd
 	 */
 	start = orig_start;
-	if (start < fdt->next_fd)
-		start = fdt->next_fd;
+	if (start < files->next_fd)
+		start = files->next_fd;
 
 	newfd = start;
 	if (start < fdt->max_fdset) {
@@ -102,9 +102,8 @@ repeat:
 	 * we reacquire the fdtable pointer and use it while holding
 	 * the lock, no one can free it during that time.
 	 */
-	fdt = files_fdtable(files);
-	if (start <= fdt->next_fd)
-		fdt->next_fd = newfd + 1;
+	if (start <= files->next_fd)
+		files->next_fd = newfd + 1;
 
 	error = newfd;
 	

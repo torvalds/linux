@@ -147,7 +147,7 @@ struct pdi {
 	__le16 _len;		/* length of ID and data, in words */
 	__le16 _id;		/* record ID */
 	char data[0];		/* plug data */
-} __attribute__ ((packed));;
+} __attribute__ ((packed));
 
 
 /* Functions for access to little-endian data */

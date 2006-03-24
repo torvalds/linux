@@ -1,86 +1,30 @@
-config 85xx
-	bool
-	depends on E500
-	default y
-
-config PPC_INDIRECT_PCI_BE
-	bool
-	depends on 85xx
-	default y
-
-menu "Freescale 85xx options"
-	depends on E500
+menu "Platform support"
+	depends on PPC_85xx
 
 choice
 	prompt "Machine Type"
-	depends on 85xx
 	default MPC8540_ADS
 
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
 	help
-	  This option enables support for the MPC 8540 ADS evaluation board.
-
-config MPC8548_CDS
-	bool "Freescale MPC8548 CDS"
-	help
-	  This option enablese support for the MPC8548 CDS evaluation board.
-
-config MPC8555_CDS
-	bool "Freescale MPC8555 CDS"
-	help
-	  This option enablese support for the MPC8555 CDS evaluation board.
-
-config MPC8560_ADS
-	bool "Freescale MPC8560 ADS"
-	help
-	  This option enables support for the MPC 8560 ADS evaluation board.
-
-config SBC8560
-	bool "WindRiver PowerQUICC III SBC8560"
-	help
-	  This option enables support for the WindRiver PowerQUICC III 
-	  SBC8560 board.
-
-config STX_GP3
-	bool "Silicon Turnkey Express GP3"
-	help
-	  This option enables support for the Silicon Turnkey Express GP3
-	  board.
+	  This option enables support for the MPC 8540 ADS board
 
 endchoice
 
-# It's often necessary to know the specific 85xx processor type.
-# Fortunately, it is implied (so far) from the board type, so we
-# don't need to ask more redundant questions.
 config MPC8540
 	bool
-	depends on MPC8540_ADS
-	default y
+	select PPC_UDBG_16550
+	select PPC_INDIRECT_PCI
+	default y if MPC8540_ADS
 
-config MPC8548
+config PPC_INDIRECT_PCI_BE
 	bool
-	depends on MPC8548_CDS
+	depends on PPC_85xx
 	default y
 
-config MPC8555
+config MPIC
 	bool
-	depends on MPC8555_CDS
-	default y
-
-config MPC8560
-	bool
-	depends on SBC8560 || MPC8560_ADS || STX_GP3
-	default y
-
-config 85xx_PCI2
-	bool "Supprt for 2nd PCI host controller"
-	depends on MPC8555_CDS
-	default y
-
-config PPC_GEN550
-	bool
-	depends on MPC8540 || SBC8560 || MPC8555
 	default y
 
 endmenu

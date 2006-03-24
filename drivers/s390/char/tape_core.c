@@ -453,16 +453,14 @@ tape_alloc_device(void)
 {
 	struct tape_device *device;
 
-	device = (struct tape_device *)
-		kmalloc(sizeof(struct tape_device), GFP_KERNEL);
+	device = kzalloc(sizeof(struct tape_device), GFP_KERNEL);
 	if (device == NULL) {
 		DBF_EXCEPTION(2, "ti:no mem\n");
 		PRINT_INFO ("can't allocate memory for "
 			    "tape info structure\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	memset(device, 0, sizeof(struct tape_device));
-	device->modeset_byte = (char *) kmalloc(1, GFP_KERNEL | GFP_DMA);
+	device->modeset_byte = kmalloc(1, GFP_KERNEL | GFP_DMA);
 	if (device->modeset_byte == NULL) {
 		DBF_EXCEPTION(2, "ti:no mem\n");
 		PRINT_INFO("can't allocate memory for modeset byte\n");
@@ -659,34 +657,30 @@ tape_alloc_request(int cplength, int datasize)
 
 	DBF_LH(6, "tape_alloc_request(%d, %d)\n", cplength, datasize);
 
-	request = (struct tape_request *) kmalloc(sizeof(struct tape_request),
-						  GFP_KERNEL);
+	request = kzalloc(sizeof(struct tape_request), GFP_KERNEL);
 	if (request == NULL) {
 		DBF_EXCEPTION(1, "cqra nomem\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	memset(request, 0, sizeof(struct tape_request));
 	/* allocate channel program */
 	if (cplength > 0) {
-		request->cpaddr = kmalloc(cplength*sizeof(struct ccw1),
+		request->cpaddr = kcalloc(cplength, sizeof(struct ccw1),
 					  GFP_ATOMIC | GFP_DMA);
 		if (request->cpaddr == NULL) {
 			DBF_EXCEPTION(1, "cqra nomem\n");
 			kfree(request);
 			return ERR_PTR(-ENOMEM);
 		}
-		memset(request->cpaddr, 0, cplength*sizeof(struct ccw1));
 	}
 	/* alloc small kernel buffer */
 	if (datasize > 0) {
-		request->cpdata = kmalloc(datasize, GFP_KERNEL | GFP_DMA);
+		request->cpdata = kzalloc(datasize, GFP_KERNEL | GFP_DMA);
 		if (request->cpdata == NULL) {
 			DBF_EXCEPTION(1, "cqra nomem\n");
 			kfree(request->cpaddr);
 			kfree(request);
 			return ERR_PTR(-ENOMEM);
 		}
-		memset(request->cpdata, 0, datasize);
 	}
 	DBF_LH(6, "New request %p(%p/%p)\n", request, request->cpaddr,
 		request->cpdata);
@@ -760,6 +754,13 @@ __tape_start_next_request(struct tape_device *device)
 		 * once.
 		 */
 		if (request->status == TAPE_REQUEST_IN_IO)
+			return;
+		/*
+		 * Request has already been stopped. We have to wait until
+		 * the request is removed from the queue in the interrupt
+		 * handling.
+		 */
+		if (request->status == TAPE_REQUEST_DONE)
 			return;
 
 		/*
@@ -1015,11 +1016,25 @@ tape_do_io_interruptible(struct tape_device *device,
 				wq,
 				(request->callback == NULL)
 			);
-		} while (rc != -ERESTARTSYS);
+		} while (rc == -ERESTARTSYS);
 
 		DBF_EVENT(3, "IO stopped on %08x\n", device->cdev_id);
 		rc = -ERESTARTSYS;
 	}
+	return rc;
+}
+
+/*
+ * Stop running ccw.
+ */
+int
+tape_cancel_io(struct tape_device *device, struct tape_request *request)
+{
+	int rc;
+
+	spin_lock_irq(get_ccwdev_lock(device->cdev));
+	rc = __tape_cancel_io(device, request);
+	spin_unlock_irq(get_ccwdev_lock(device->cdev));
 	return rc;
 }
 
@@ -1064,15 +1079,16 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	/*
 	 * If the condition code is not zero and the start function bit is
 	 * still set, this is an deferred error and the last start I/O did
-	 * not succeed. Restart the request now.
+	 * not succeed. At this point the condition that caused the deferred
+	 * error might still apply. So we just schedule the request to be
+	 * started later.
 	 */
-	if (irb->scsw.cc != 0 && (irb->scsw.fctl & SCSW_FCTL_START_FUNC)) {
-		PRINT_WARN("(%s): deferred cc=%i. restaring\n",
-			cdev->dev.bus_id,
-			irb->scsw.cc);
-		rc = __tape_start_io(device, request);
-		if (rc)
-			__tape_end_request(device, request, rc);
+	if (irb->scsw.cc != 0 && (irb->scsw.fctl & SCSW_FCTL_START_FUNC) &&
+	    (request->status == TAPE_REQUEST_IN_IO)) {
+		DBF_EVENT(3,"(%08x): deferred cc=%i, fctl=%i. restarting\n",
+			device->cdev_id, irb->scsw.cc, irb->scsw.fctl);
+		request->status = TAPE_REQUEST_QUEUED;
+		schedule_delayed_work(&device->tape_dnr, HZ);
 		return;
 	}
 
@@ -1286,4 +1302,5 @@ EXPORT_SYMBOL(tape_dump_sense_dbf);
 EXPORT_SYMBOL(tape_do_io);
 EXPORT_SYMBOL(tape_do_io_async);
 EXPORT_SYMBOL(tape_do_io_interruptible);
+EXPORT_SYMBOL(tape_cancel_io);
 EXPORT_SYMBOL(tape_mtop);

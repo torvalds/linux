@@ -25,10 +25,10 @@
 #include <linux/delay.h>
 
 #include "w1_family.h"
+#include "w1.h"
 
 DEFINE_SPINLOCK(w1_flock);
 static LIST_HEAD(w1_families);
-extern void w1_reconnect_slaves(struct w1_family *f);
 
 int w1_register_family(struct w1_family *newf)
 {

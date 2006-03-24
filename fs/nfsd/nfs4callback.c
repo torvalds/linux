@@ -335,7 +335,7 @@ static struct rpc_procinfo     nfs4_cb_procedures[] = {
 
 static struct rpc_version       nfs_cb_version4 = {
         .number                 = 1,
-        .nrprocs                = sizeof(nfs4_cb_procedures)/sizeof(nfs4_cb_procedures[0]),
+        .nrprocs                = ARRAY_SIZE(nfs4_cb_procedures),
         .procs                  = nfs4_cb_procedures
 };
 
@@ -411,7 +411,7 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	/* Initialize rpc_program */
 	program->name = "nfs4_cb";
 	program->number = cb->cb_prog;
-	program->nrvers = sizeof(nfs_cb_version)/sizeof(nfs_cb_version[0]);
+	program->nrvers = ARRAY_SIZE(nfs_cb_version);
 	program->version = nfs_cb_version;
 	program->stats = stat;
 

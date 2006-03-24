@@ -98,8 +98,8 @@ xfs_dir2_block_sfsize(
 	/*
 	 * Iterate over the block's data entries by using the leaf pointers.
 	 */
-	for (i = 0; i < INT_GET(btp->count, ARCH_CONVERT); i++) {
-		if ((addr = INT_GET(blp[i].address, ARCH_CONVERT)) == XFS_DIR2_NULL_DATAPTR)
+	for (i = 0; i < be32_to_cpu(btp->count); i++) {
+		if ((addr = be32_to_cpu(blp[i].address)) == XFS_DIR2_NULL_DATAPTR)
 			continue;
 		/*
 		 * Calculate the pointer to the entry at hand.
@@ -220,8 +220,8 @@ xfs_dir2_block_to_sf(
 		 * If it's unused, just skip over it.
 		 */
 		dup = (xfs_dir2_data_unused_t *)ptr;
-		if (INT_GET(dup->freetag, ARCH_CONVERT) == XFS_DIR2_DATA_FREE_TAG) {
-			ptr += INT_GET(dup->length, ARCH_CONVERT);
+		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
+			ptr += be16_to_cpu(dup->length);
 			continue;
 		}
 		dep = (xfs_dir2_data_entry_t *)ptr;

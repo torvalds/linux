@@ -1828,8 +1828,8 @@ void __flush_tlb_all(void)
 void online_page(struct page *page)
 {
 	ClearPageReserved(page);
-	set_page_count(page, 0);
-	free_cold_page(page);
+	init_page_count(page);
+	__free_page(page);
 	totalram_pages++;
 	num_physpages++;
 }

@@ -521,7 +521,8 @@ static int init_inodecache(void)
 	reiserfs_inode_cachep = kmem_cache_create("reiser_inode_cache",
 						  sizeof(struct
 							 reiserfs_inode_info),
-						  0, SLAB_RECLAIM_ACCOUNT,
+						  0, (SLAB_RECLAIM_ACCOUNT|
+							SLAB_MEM_SPREAD),
 						  init_once, NULL);
 	if (reiserfs_inode_cachep == NULL)
 		return -ENOMEM;

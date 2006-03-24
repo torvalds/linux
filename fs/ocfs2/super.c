@@ -950,9 +950,11 @@ static void ocfs2_inode_init_once(void *data,
 static int ocfs2_initialize_mem_caches(void)
 {
 	ocfs2_inode_cachep = kmem_cache_create("ocfs2_inode_cache",
-					       sizeof(struct ocfs2_inode_info),
-					       0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
-					       ocfs2_inode_init_once, NULL);
+				       sizeof(struct ocfs2_inode_info),
+				       0,
+				       (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
+				       ocfs2_inode_init_once, NULL);
 	if (!ocfs2_inode_cachep)
 		return -ENOMEM;
 

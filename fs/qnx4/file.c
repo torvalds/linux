@@ -12,10 +12,7 @@
  * 27-06-1998 by Frank Denis : file overwriting.
  */
 
-#include <linux/config.h>
-#include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/time.h>
 #include <linux/qnx4_fs.h>
 
 /*

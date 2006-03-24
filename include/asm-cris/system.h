@@ -71,4 +71,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 
 #define arch_align_stack(x) (x)
 
+void default_idle(void);
+
 #endif

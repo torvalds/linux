@@ -146,7 +146,7 @@ void s3c24xx_set_board(struct s3c24xx_board *b)
 	board = b;
 
 	if (b->clocks_count != 0) {
-		struct clk **ptr = b->clocks;;
+		struct clk **ptr = b->clocks;
 
 		for (i = b->clocks_count; i > 0; i--, ptr++)
 			s3c24xx_register_clock(*ptr);

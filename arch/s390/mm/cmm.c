@@ -339,19 +339,19 @@ static struct ctl_table cmm_table[] = {
 	{
 		.ctl_name	= VM_CMM_PAGES,
 		.procname	= "cmm_pages",
-		.mode		= 0600,
+		.mode		= 0644,
 		.proc_handler	= &cmm_pages_handler,
 	},
 	{
 		.ctl_name	= VM_CMM_TIMED_PAGES,
 		.procname	= "cmm_timed_pages",
-		.mode		= 0600,
+		.mode		= 0644,
 		.proc_handler	= &cmm_pages_handler,
 	},
 	{
 		.ctl_name	= VM_CMM_TIMEOUT,
 		.procname	= "cmm_timeout",
-		.mode		= 0600,
+		.mode		= 0644,
 		.proc_handler	= &cmm_timeout_handler,
 	},
 	{ .ctl_name = 0 }

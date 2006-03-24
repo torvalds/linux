@@ -94,6 +94,7 @@
 #include	<linux/interrupt.h>
 #include	<linux/init.h>
 #include	<linux/compiler.h>
+#include	<linux/cpuset.h>
 #include	<linux/seq_file.h>
 #include	<linux/notifier.h>
 #include	<linux/kallsyms.h>
@@ -173,12 +174,12 @@
 			 SLAB_CACHE_DMA | \
 			 SLAB_MUST_HWCACHE_ALIGN | SLAB_STORE_USER | \
 			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | \
-			 SLAB_DESTROY_BY_RCU)
+			 SLAB_DESTROY_BY_RCU | SLAB_MEM_SPREAD)
 #else
 # define CREATE_MASK	(SLAB_HWCACHE_ALIGN | \
 			 SLAB_CACHE_DMA | SLAB_MUST_HWCACHE_ALIGN | \
 			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | \
-			 SLAB_DESTROY_BY_RCU)
+			 SLAB_DESTROY_BY_RCU | SLAB_MEM_SPREAD)
 #endif
 
 /*
@@ -898,6 +899,7 @@ static struct array_cache *alloc_arraycache(int node, int entries,
 
 #ifdef CONFIG_NUMA
 static void *__cache_alloc_node(struct kmem_cache *, gfp_t, int);
+static void *alternate_node_alloc(struct kmem_cache *, gfp_t);
 
 static struct array_cache **alloc_alien_cache(int node, int limit)
 {
@@ -2807,11 +2809,10 @@ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 	struct array_cache *ac;
 
 #ifdef CONFIG_NUMA
-	if (unlikely(current->mempolicy && !in_interrupt())) {
-		int nid = slab_node(current->mempolicy);
-
-		if (nid != numa_node_id())
-			return __cache_alloc_node(cachep, flags, nid);
+	if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY))) {
+		objp = alternate_node_alloc(cachep, flags);
+		if (objp != NULL)
+			return objp;
 	}
 #endif
 
@@ -2846,6 +2847,28 @@ static __always_inline void *__cache_alloc(struct kmem_cache *cachep,
 }
 
 #ifdef CONFIG_NUMA
+/*
+ * Try allocating on another node if PF_SPREAD_SLAB|PF_MEMPOLICY.
+ *
+ * If we are in_interrupt, then process context, including cpusets and
+ * mempolicy, may not apply and should not be used for allocation policy.
+ */
+static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
+{
+	int nid_alloc, nid_here;
+
+	if (in_interrupt())
+		return NULL;
+	nid_alloc = nid_here = numa_node_id();
+	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
+		nid_alloc = cpuset_mem_spread_node();
+	else if (current->mempolicy)
+		nid_alloc = slab_node(current->mempolicy);
+	if (nid_alloc != nid_here)
+		return __cache_alloc_node(cachep, flags, nid_alloc);
+	return NULL;
+}
+
 /*
  * A interface to enable slab creation on nodeid
  */

@@ -21,6 +21,9 @@
  * instruction clobbers %esp, the user's %esp won't even survive entry
  * into the kernel. We store %esp in %ebp. Code in entry.S must fetch
  * arg6 from the stack.
+ *
+ * You can not use this vsyscall for the clone() syscall because the
+ * three dwords on the parent stack do not get copied to the child.
  */
 	.text
 	.globl __kernel_vsyscall

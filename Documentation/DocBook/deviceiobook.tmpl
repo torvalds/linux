@@ -270,25 +270,6 @@ CPU B:  spin_unlock_irqrestore(&amp;dev_lock, flags)
       </para>
     </sect1>
 
-    <sect1>
-      <title>ISA legacy functions</title>
-      <para>
-	On older kernels (2.2 and earlier) the ISA bus could be read or
-	written with these functions and without ioremap being used. This is
-	no longer true in Linux 2.4. A set of equivalent functions exist for
-	easy legacy driver porting. The functions available are prefixed
-	with 'isa_' and are <function>isa_readb</function>,
-	<function>isa_writeb</function>, <function>isa_readw</function>, 
-	<function>isa_writew</function>, <function>isa_readl</function>,
-	<function>isa_writel</function>, <function>isa_memcpy_fromio</function>
-	and <function>isa_memcpy_toio</function>
-      </para>
-      <para>
-	These functions should not be used in new drivers, and will
-	eventually be going away.
-      </para>
-    </sect1>
-
   </chapter>
 
   <chapter>

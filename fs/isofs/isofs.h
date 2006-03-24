@@ -178,15 +178,3 @@ extern struct inode_operations isofs_dir_inode_operations;
 extern struct file_operations isofs_dir_operations;
 extern struct address_space_operations isofs_symlink_aops;
 extern struct export_operations isofs_export_ops;
-
-/* The following macros are used to check for memory leaks. */
-#ifdef LEAK_CHECK
-#define free_s leak_check_free_s
-#define malloc leak_check_malloc
-#define sb_bread leak_check_bread
-#define brelse leak_check_brelse
-extern void * leak_check_malloc(unsigned int size);
-extern void leak_check_free_s(void * obj, int size);
-extern struct buffer_head * leak_check_bread(struct super_block *sb, int block);
-extern void leak_check_brelse(struct buffer_head * bh);
-#endif /* LEAK_CHECK */

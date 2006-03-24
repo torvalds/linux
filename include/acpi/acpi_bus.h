@@ -269,7 +269,7 @@ struct acpi_device_wakeup_state {
 
 struct acpi_device_wakeup {
 	acpi_handle gpe_device;
-	acpi_integer gpe_number;;
+	acpi_integer gpe_number;
 	acpi_integer sleep_state;
 	struct acpi_handle_list resources;
 	struct acpi_device_wakeup_state state;
@@ -330,6 +330,7 @@ int acpi_bus_register_driver(struct acpi_driver *driver);
 int acpi_bus_unregister_driver(struct acpi_driver *driver);
 int acpi_bus_add(struct acpi_device **child, struct acpi_device *parent,
 		 acpi_handle handle, int type);
+int acpi_bus_trim(struct acpi_device *start, int rmdevice);
 int acpi_bus_start(struct acpi_device *device);
 
 int acpi_match_ids(struct acpi_device *device, char *ids);

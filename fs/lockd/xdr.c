@@ -599,7 +599,7 @@ static struct rpc_stat		nlm_stats;
 struct rpc_program		nlm_program = {
 		.name		= "lockd",
 		.number		= NLM_PROGRAM,
-		.nrvers		= sizeof(nlm_versions) / sizeof(nlm_versions[0]),
+		.nrvers		= ARRAY_SIZE(nlm_versions),
 		.version	= nlm_versions,
 		.stats		= &nlm_stats,
 };

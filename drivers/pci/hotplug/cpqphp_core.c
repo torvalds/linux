@@ -347,26 +347,22 @@ static int ctrl_slot_setup(struct controller *ctrl,
 	slot_number = ctrl->first_slot;
 
 	while (number_of_slots) {
-		slot = kmalloc(sizeof(*slot), GFP_KERNEL);
+		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 		if (!slot)
 			goto error;
 
-		memset(slot, 0, sizeof(struct slot));
-		slot->hotplug_slot = kmalloc(sizeof(*(slot->hotplug_slot)),
+		slot->hotplug_slot = kzalloc(sizeof(*(slot->hotplug_slot)),
 						GFP_KERNEL);
 		if (!slot->hotplug_slot)
 			goto error_slot;
 		hotplug_slot = slot->hotplug_slot;
-		memset(hotplug_slot, 0, sizeof(struct hotplug_slot));
 
 		hotplug_slot->info =
-				kmalloc(sizeof(*(hotplug_slot->info)),
+				kzalloc(sizeof(*(hotplug_slot->info)),
 							GFP_KERNEL);
 		if (!hotplug_slot->info)
 			goto error_hpslot;
 		hotplug_slot_info = hotplug_slot->info;
-		memset(hotplug_slot_info, 0,
-				sizeof(struct hotplug_slot_info));
 		hotplug_slot->name = kmalloc(SLOT_NAME_SIZE, GFP_KERNEL);
 
 		if (!hotplug_slot->name)
@@ -599,7 +595,7 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 	hp_slot = func->device - ctrl->slot_device_offset;
 
 	// Wait for exclusive access to hardware
-	down(&ctrl->crit_sect);
+	mutex_lock(&ctrl->crit_sect);
 
 	if (status == 1) {
 		amber_LED_on (ctrl, hp_slot);
@@ -607,7 +603,7 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 		amber_LED_off (ctrl, hp_slot);
 	} else {
 		// Done with exclusive hardware access
-		up(&ctrl->crit_sect);
+		mutex_unlock(&ctrl->crit_sect);
 		return(1);
 	}
 
@@ -617,7 +613,7 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 	wait_for_ctrl_irq (ctrl);
 
 	// Done with exclusive hardware access
-	up(&ctrl->crit_sect);
+	mutex_unlock(&ctrl->crit_sect);
 
 	return(0);
 }
@@ -854,13 +850,12 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto err_disable_device;
 		}
 
-		ctrl = (struct controller *) kmalloc(sizeof(struct controller), GFP_KERNEL);
+		ctrl = kzalloc(sizeof(struct controller), GFP_KERNEL);
 		if (!ctrl) {
 			err("%s : out of memory\n", __FUNCTION__);
 			rc = -ENOMEM;
 			goto err_disable_device;
 		}
-		memset(ctrl, 0, sizeof(struct controller));
 
 		rc = pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &subsystem_deviceid);
 		if (rc) {
@@ -1084,7 +1079,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dbg("bus device function rev: %d %d %d %d\n", ctrl->bus,
 		PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn), ctrl->rev);
 
-	init_MUTEX(&ctrl->crit_sect);
+	mutex_init(&ctrl->crit_sect);
 	init_waitqueue_head(&ctrl->queue);
 
 	/* initialize our threads if they haven't already been started up */
@@ -1223,7 +1218,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	// turn off empty slots here unless command line option "ON" set
 	// Wait for exclusive access to hardware
-	down(&ctrl->crit_sect);
+	mutex_lock(&ctrl->crit_sect);
 
 	num_of_slots = readb(ctrl->hpc_reg + SLOT_MASK) & 0x0F;
 
@@ -1270,12 +1265,12 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = init_SERR(ctrl);
 	if (rc) {
 		err("init_SERR failed\n");
-		up(&ctrl->crit_sect);
+		mutex_unlock(&ctrl->crit_sect);
 		goto err_free_irq;
 	}
 
 	// Done with exclusive hardware access
-	up(&ctrl->crit_sect);
+	mutex_unlock(&ctrl->crit_sect);
 
 	cpqhp_create_debugfs_files(ctrl);
 

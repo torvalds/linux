@@ -31,6 +31,8 @@
 #include <linux/coda_fs_i.h>
 #include <linux/coda_cache.h>
 
+#include "coda_int.h"
+
 /* VFS super_block ops */
 static void coda_clear_inode(struct inode *);
 static void coda_put_super(struct super_block *);
@@ -69,7 +71,7 @@ int coda_init_inodecache(void)
 {
 	coda_inode_cachep = kmem_cache_create("coda_inode_cache",
 				sizeof(struct coda_inode_info),
-				0, SLAB_RECLAIM_ACCOUNT,
+				0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
 				init_once, NULL);
 	if (coda_inode_cachep == NULL)
 		return -ENOMEM;

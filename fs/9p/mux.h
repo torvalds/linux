@@ -50,8 +50,6 @@ void v9fs_mux_destroy(struct v9fs_mux_data *);
 int v9fs_mux_send(struct v9fs_mux_data *m, struct v9fs_fcall *tc);
 struct v9fs_fcall *v9fs_mux_recv(struct v9fs_mux_data *m);
 int v9fs_mux_rpc(struct v9fs_mux_data *m, struct v9fs_fcall *tc, struct v9fs_fcall **rc);
-int v9fs_mux_rpcnb(struct v9fs_mux_data *m, struct v9fs_fcall *tc,
-	v9fs_mux_req_callback cb, void *a);
 
 void v9fs_mux_flush(struct v9fs_mux_data *m, int sendflush);
 void v9fs_mux_cancel(struct v9fs_mux_data *m, int err);

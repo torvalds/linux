@@ -1282,9 +1282,7 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 	u8 hp_slot;
 	u8 temp_byte;
 	u8 adapter_speed;
-	u32 index;
 	u32 rc = 0;
-	u32 src = 8;
 
 	hp_slot = func->device - ctrl->slot_device_offset;
 
@@ -1299,7 +1297,7 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 		 **********************************/
 		rc = CARD_FUNCTIONING;
 	} else {
-		down(&ctrl->crit_sect);
+		mutex_lock(&ctrl->crit_sect);
 
 		/* turn on board without attaching to the bus */
 		enable_slot_power (ctrl, hp_slot);
@@ -1333,12 +1331,12 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 		/* Wait for SOBS to be unset */
 		wait_for_ctrl_irq (ctrl);
 
-		up(&ctrl->crit_sect);
+		mutex_unlock(&ctrl->crit_sect);
 
 		if (rc)
 			return rc;
 
-		down(&ctrl->crit_sect);
+		mutex_lock(&ctrl->crit_sect);
 
 		slot_enable (ctrl, hp_slot);
 		green_LED_blink (ctrl, hp_slot);
@@ -1350,7 +1348,7 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 		/* Wait for SOBS to be unset */
 		wait_for_ctrl_irq (ctrl);
 
-		up(&ctrl->crit_sect);
+		mutex_unlock(&ctrl->crit_sect);
 
 		/* Wait for ~1 second because of hot plug spec */
 		long_delay(1*HZ);
@@ -1368,84 +1366,13 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 
 			rc = cpqhp_configure_board(ctrl, func);
 
-			if (rc || src) {
-				/* If configuration fails, turn it off
-				 * Get slot won't work for devices behind
-				 * bridges, but in this case it will always be
-				 * called for the "base" bus/dev/func of an
-				 * adapter. */
+			/* If configuration fails, turn it off
+			 * Get slot won't work for devices behind
+			 * bridges, but in this case it will always be
+			 * called for the "base" bus/dev/func of an
+			 * adapter. */
 
-				down(&ctrl->crit_sect);
-
-				amber_LED_on (ctrl, hp_slot);
-				green_LED_off (ctrl, hp_slot);
-				slot_disable (ctrl, hp_slot);
-
-				set_SOGO(ctrl);
-
-				/* Wait for SOBS to be unset */
-				wait_for_ctrl_irq (ctrl);
-
-				up(&ctrl->crit_sect);
-
-				if (rc)
-					return rc;
-				else
-					return 1;
-			}
-
-			func->status = 0;
-			func->switch_save = 0x10;
-
-			index = 1;
-			while (((func = cpqhp_slot_find(func->bus, func->device, index)) != NULL) && !rc) {
-				rc |= cpqhp_configure_board(ctrl, func);
-				index++;
-			}
-
-			if (rc) {
-				/* If configuration fails, turn it off
-				 * Get slot won't work for devices behind
-				 * bridges, but in this case it will always be
-				 * called for the "base" bus/dev/func of an
-				 * adapter. */
-
-				down(&ctrl->crit_sect);
-
-				amber_LED_on (ctrl, hp_slot);
-				green_LED_off (ctrl, hp_slot);
-				slot_disable (ctrl, hp_slot);
-
-				set_SOGO(ctrl);
-
-				/* Wait for SOBS to be unset */
-				wait_for_ctrl_irq (ctrl);
-
-				up(&ctrl->crit_sect);
-
-				return rc;
-			}
-			/* Done configuring so turn LED on full time */
-
-			down(&ctrl->crit_sect);
-
-			green_LED_on (ctrl, hp_slot);
-
-			set_SOGO(ctrl);
-
-			/* Wait for SOBS to be unset */
-			wait_for_ctrl_irq (ctrl);
-
-			up(&ctrl->crit_sect);
-			rc = 0;
-		} else {
-			/* Something is wrong
-
-			 * Get slot won't work for devices behind bridges, but
-			 * in this case it will always be called for the "base"
-			 * bus/dev/func of an adapter. */
-
-			down(&ctrl->crit_sect);
+			mutex_lock(&ctrl->crit_sect);
 
 			amber_LED_on (ctrl, hp_slot);
 			green_LED_off (ctrl, hp_slot);
@@ -1456,7 +1383,32 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 			/* Wait for SOBS to be unset */
 			wait_for_ctrl_irq (ctrl);
 
-			up(&ctrl->crit_sect);
+			mutex_unlock(&ctrl->crit_sect);
+
+			if (rc)
+				return rc;
+			else
+				return 1;
+
+		} else {
+			/* Something is wrong
+
+			 * Get slot won't work for devices behind bridges, but
+			 * in this case it will always be called for the "base"
+			 * bus/dev/func of an adapter. */
+
+			mutex_lock(&ctrl->crit_sect);
+
+			amber_LED_on (ctrl, hp_slot);
+			green_LED_off (ctrl, hp_slot);
+			slot_disable (ctrl, hp_slot);
+
+			set_SOGO(ctrl);
+
+			/* Wait for SOBS to be unset */
+			wait_for_ctrl_irq (ctrl);
+
+			mutex_unlock(&ctrl->crit_sect);
 		}
 
 	}
@@ -1488,7 +1440,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	dbg("%s: func->device, slot_offset, hp_slot = %d, %d ,%d\n",
 	    __FUNCTION__, func->device, ctrl->slot_device_offset, hp_slot);
 
-	down(&ctrl->crit_sect);
+	mutex_lock(&ctrl->crit_sect);
 
 	/* turn on board without attaching to the bus */
 	enable_slot_power(ctrl, hp_slot);
@@ -1522,7 +1474,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	/* Wait for SOBS to be unset */
 	wait_for_ctrl_irq(ctrl);
 
-	up(&ctrl->crit_sect);
+	mutex_unlock(&ctrl->crit_sect);
 
 	if (rc)
 		return rc;
@@ -1532,7 +1484,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	/* turn on board and blink green LED */
 
 	dbg("%s: before down\n", __FUNCTION__);
-	down(&ctrl->crit_sect);
+	mutex_lock(&ctrl->crit_sect);
 	dbg("%s: after down\n", __FUNCTION__);
 
 	dbg("%s: before slot_enable\n", __FUNCTION__);
@@ -1553,7 +1505,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	dbg("%s: after wait_for_ctrl_irq\n", __FUNCTION__);
 
 	dbg("%s: before up\n", __FUNCTION__);
-	up(&ctrl->crit_sect);
+	mutex_unlock(&ctrl->crit_sect);
 	dbg("%s: after up\n", __FUNCTION__);
 
 	/* Wait for ~1 second because of hot plug spec */
@@ -1607,7 +1559,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 		cpqhp_resource_sort_and_combine(&(ctrl->bus_head));
 
 		if (rc) {
-			down(&ctrl->crit_sect);
+			mutex_lock(&ctrl->crit_sect);
 
 			amber_LED_on (ctrl, hp_slot);
 			green_LED_off (ctrl, hp_slot);
@@ -1618,7 +1570,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 			/* Wait for SOBS to be unset */
 			wait_for_ctrl_irq (ctrl);
 
-			up(&ctrl->crit_sect);
+			mutex_unlock(&ctrl->crit_sect);
 			return rc;
 		} else {
 			cpqhp_save_slot_config(ctrl, func);
@@ -1640,7 +1592,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 			}
 		} while (new_slot);
 
-		down(&ctrl->crit_sect);
+		mutex_lock(&ctrl->crit_sect);
 
 		green_LED_on (ctrl, hp_slot);
 
@@ -1649,9 +1601,9 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 		/* Wait for SOBS to be unset */
 		wait_for_ctrl_irq (ctrl);
 
-		up(&ctrl->crit_sect);
+		mutex_unlock(&ctrl->crit_sect);
 	} else {
-		down(&ctrl->crit_sect);
+		mutex_lock(&ctrl->crit_sect);
 
 		amber_LED_on (ctrl, hp_slot);
 		green_LED_off (ctrl, hp_slot);
@@ -1662,7 +1614,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 		/* Wait for SOBS to be unset */
 		wait_for_ctrl_irq (ctrl);
 
-		up(&ctrl->crit_sect);
+		mutex_unlock(&ctrl->crit_sect);
 
 		return rc;
 	}
@@ -1721,7 +1673,7 @@ static u32 remove_board(struct pci_func * func, u32 replace_flag, struct control
 		func->status = 0x01;
 	func->configured = 0;
 
-	down(&ctrl->crit_sect);
+	mutex_lock(&ctrl->crit_sect);
 
 	green_LED_off (ctrl, hp_slot);
 	slot_disable (ctrl, hp_slot);
@@ -1736,7 +1688,7 @@ static u32 remove_board(struct pci_func * func, u32 replace_flag, struct control
 	/* Wait for SOBS to be unset */
 	wait_for_ctrl_irq (ctrl);
 
-	up(&ctrl->crit_sect);
+	mutex_unlock(&ctrl->crit_sect);
 
 	if (!replace_flag && ctrl->add_support) {
 		while (func) {
@@ -1899,7 +1851,7 @@ static void interrupt_event_handler(struct controller *ctrl)
 					dbg("button cancel\n");
 					del_timer(&p_slot->task_event);
 
-					down(&ctrl->crit_sect);
+					mutex_lock(&ctrl->crit_sect);
 
 					if (p_slot->state == BLINKINGOFF_STATE) {
 						/* slot is on */
@@ -1922,7 +1874,7 @@ static void interrupt_event_handler(struct controller *ctrl)
 					/* Wait for SOBS to be unset */
 					wait_for_ctrl_irq (ctrl);
 
-					up(&ctrl->crit_sect);
+					mutex_unlock(&ctrl->crit_sect);
 				}
 				/*** button Released (No action on press...) */
 				else if (ctrl->event_queue[loop].event_type == INT_BUTTON_RELEASE) {
@@ -1937,7 +1889,7 @@ static void interrupt_event_handler(struct controller *ctrl)
 						p_slot->state = BLINKINGON_STATE;
 						info(msg_button_on, p_slot->number);
 					}
-					down(&ctrl->crit_sect);
+					mutex_lock(&ctrl->crit_sect);
 					
 					dbg("blink green LED and turn off amber\n");
 					
@@ -1949,7 +1901,7 @@ static void interrupt_event_handler(struct controller *ctrl)
 					/* Wait for SOBS to be unset */
 					wait_for_ctrl_irq (ctrl);
 
-					up(&ctrl->crit_sect);
+					mutex_unlock(&ctrl->crit_sect);
 					init_timer(&p_slot->task_event);
 					p_slot->hp_slot = hp_slot;
 					p_slot->ctrl = ctrl;

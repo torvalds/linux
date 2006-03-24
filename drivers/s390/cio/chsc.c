@@ -98,10 +98,8 @@ chsc_get_sch_desc_irq(struct subchannel *sch, void *page)
 
 	ssd_area = page;
 
-	ssd_area->request = (struct chsc_header) {
-		.length = 0x0010,
-		.code   = 0x0004,
-	};
+	ssd_area->request.length = 0x0010;
+	ssd_area->request.code = 0x0004;
 
 	ssd_area->ssid = sch->schid.ssid;
 	ssd_area->f_sch = sch->schid.sch_no;
@@ -517,10 +515,8 @@ chsc_process_crw(void)
 		struct device *dev;
 		memset(sei_area, 0, sizeof(*sei_area));
 		memset(&res_data, 0, sizeof(struct res_acc_data));
-		sei_area->request = (struct chsc_header) {
-			.length = 0x0010,
-			.code   = 0x000e,
-		};
+		sei_area->request.length = 0x0010;
+		sei_area->request.code = 0x000e;
 
 		ccode = chsc(sei_area);
 		if (ccode > 0)
@@ -875,6 +871,264 @@ s390_vary_chpid( __u8 chpid, int on)
 }
 
 /*
+ * Channel measurement related functions
+ */
+static ssize_t
+chp_measurement_chars_read(struct kobject *kobj, char *buf, loff_t off,
+			   size_t count)
+{
+	struct channel_path *chp;
+	unsigned int size;
+
+	chp = to_channelpath(container_of(kobj, struct device, kobj));
+	if (!chp->cmg_chars)
+		return 0;
+
+	size = sizeof(struct cmg_chars);
+
+	if (off > size)
+		return 0;
+	if (off + count > size)
+		count = size - off;
+	memcpy(buf, chp->cmg_chars + off, count);
+	return count;
+}
+
+static struct bin_attribute chp_measurement_chars_attr = {
+	.attr = {
+		.name = "measurement_chars",
+		.mode = S_IRUSR,
+		.owner = THIS_MODULE,
+	},
+	.size = sizeof(struct cmg_chars),
+	.read = chp_measurement_chars_read,
+};
+
+static void
+chp_measurement_copy_block(struct cmg_entry *buf,
+			   struct channel_subsystem *css, int chpid)
+{
+	void *area;
+	struct cmg_entry *entry, reference_buf;
+	int idx;
+
+	if (chpid < 128) {
+		area = css->cub_addr1;
+		idx = chpid;
+	} else {
+		area = css->cub_addr2;
+		idx = chpid - 128;
+	}
+	entry = area + (idx * sizeof(struct cmg_entry));
+	do {
+		memcpy(buf, entry, sizeof(*entry));
+		memcpy(&reference_buf, entry, sizeof(*entry));
+	} while (reference_buf.values[0] != buf->values[0]);
+}
+
+static ssize_t
+chp_measurement_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
+{
+	struct channel_path *chp;
+	struct channel_subsystem *css;
+	unsigned int size;
+
+	chp = to_channelpath(container_of(kobj, struct device, kobj));
+	css = to_css(chp->dev.parent);
+
+	size = sizeof(struct cmg_chars);
+
+	/* Only allow single reads. */
+	if (off || count < size)
+		return 0;
+	chp_measurement_copy_block((struct cmg_entry *)buf, css, chp->id);
+	return count;
+}
+
+static struct bin_attribute chp_measurement_attr = {
+	.attr = {
+		.name = "measurement",
+		.mode = S_IRUSR,
+		.owner = THIS_MODULE,
+	},
+	.size = sizeof(struct cmg_entry),
+	.read = chp_measurement_read,
+};
+
+static void
+chsc_remove_chp_cmg_attr(struct channel_path *chp)
+{
+	sysfs_remove_bin_file(&chp->dev.kobj, &chp_measurement_chars_attr);
+	sysfs_remove_bin_file(&chp->dev.kobj, &chp_measurement_attr);
+}
+
+static int
+chsc_add_chp_cmg_attr(struct channel_path *chp)
+{
+	int ret;
+
+	ret = sysfs_create_bin_file(&chp->dev.kobj,
+				    &chp_measurement_chars_attr);
+	if (ret)
+		return ret;
+	ret = sysfs_create_bin_file(&chp->dev.kobj, &chp_measurement_attr);
+	if (ret)
+		sysfs_remove_bin_file(&chp->dev.kobj,
+				      &chp_measurement_chars_attr);
+	return ret;
+}
+
+static void
+chsc_remove_cmg_attr(struct channel_subsystem *css)
+{
+	int i;
+
+	for (i = 0; i <= __MAX_CHPID; i++) {
+		if (!css->chps[i])
+			continue;
+		chsc_remove_chp_cmg_attr(css->chps[i]);
+	}
+}
+
+static int
+chsc_add_cmg_attr(struct channel_subsystem *css)
+{
+	int i, ret;
+
+	ret = 0;
+	for (i = 0; i <= __MAX_CHPID; i++) {
+		if (!css->chps[i])
+			continue;
+		ret = chsc_add_chp_cmg_attr(css->chps[i]);
+		if (ret)
+			goto cleanup;
+	}
+	return ret;
+cleanup:
+	for (--i; i >= 0; i--) {
+		if (!css->chps[i])
+			continue;
+		chsc_remove_chp_cmg_attr(css->chps[i]);
+	}
+	return ret;
+}
+
+
+static int
+__chsc_do_secm(struct channel_subsystem *css, int enable, void *page)
+{
+	struct {
+		struct chsc_header request;
+		u32 operation_code : 2;
+		u32 : 30;
+		u32 key : 4;
+		u32 : 28;
+		u32 zeroes1;
+		u32 cub_addr1;
+		u32 zeroes2;
+		u32 cub_addr2;
+		u32 reserved[13];
+		struct chsc_header response;
+		u32 status : 8;
+		u32 : 4;
+		u32 fmt : 4;
+		u32 : 16;
+	} *secm_area;
+	int ret, ccode;
+
+	secm_area = page;
+	secm_area->request.length = 0x0050;
+	secm_area->request.code = 0x0016;
+
+	secm_area->key = PAGE_DEFAULT_KEY;
+	secm_area->cub_addr1 = (u64)(unsigned long)css->cub_addr1;
+	secm_area->cub_addr2 = (u64)(unsigned long)css->cub_addr2;
+
+	secm_area->operation_code = enable ? 0 : 1;
+
+	ccode = chsc(secm_area);
+	if (ccode > 0)
+		return (ccode == 3) ? -ENODEV : -EBUSY;
+
+	switch (secm_area->response.code) {
+	case 0x0001: /* Success. */
+		ret = 0;
+		break;
+	case 0x0003: /* Invalid block. */
+	case 0x0007: /* Invalid format. */
+	case 0x0008: /* Other invalid block. */
+		CIO_CRW_EVENT(2, "Error in chsc request block!\n");
+		ret = -EINVAL;
+		break;
+	case 0x0004: /* Command not provided in model. */
+		CIO_CRW_EVENT(2, "Model does not provide secm\n");
+		ret = -EOPNOTSUPP;
+		break;
+	case 0x0102: /* cub adresses incorrect */
+		CIO_CRW_EVENT(2, "Invalid addresses in chsc request block\n");
+		ret = -EINVAL;
+		break;
+	case 0x0103: /* key error */
+		CIO_CRW_EVENT(2, "Access key error in secm\n");
+		ret = -EINVAL;
+		break;
+	case 0x0105: /* error while starting */
+		CIO_CRW_EVENT(2, "Error while starting channel measurement\n");
+		ret = -EIO;
+		break;
+	default:
+		CIO_CRW_EVENT(2, "Unknown CHSC response %d\n",
+			      secm_area->response.code);
+		ret = -EIO;
+	}
+	return ret;
+}
+
+int
+chsc_secm(struct channel_subsystem *css, int enable)
+{
+	void  *secm_area;
+	int ret;
+
+	secm_area = (void *)get_zeroed_page(GFP_KERNEL |  GFP_DMA);
+	if (!secm_area)
+		return -ENOMEM;
+
+	mutex_lock(&css->mutex);
+	if (enable && !css->cm_enabled) {
+		css->cub_addr1 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+		css->cub_addr2 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+		if (!css->cub_addr1 || !css->cub_addr2) {
+			free_page((unsigned long)css->cub_addr1);
+			free_page((unsigned long)css->cub_addr2);
+			free_page((unsigned long)secm_area);
+			mutex_unlock(&css->mutex);
+			return -ENOMEM;
+		}
+	}
+	ret = __chsc_do_secm(css, enable, secm_area);
+	if (!ret) {
+		css->cm_enabled = enable;
+		if (css->cm_enabled) {
+			ret = chsc_add_cmg_attr(css);
+			if (ret) {
+				memset(secm_area, 0, PAGE_SIZE);
+				__chsc_do_secm(css, 0, secm_area);
+				css->cm_enabled = 0;
+			}
+		} else
+			chsc_remove_cmg_attr(css);
+	}
+	if (enable && !css->cm_enabled) {
+		free_page((unsigned long)css->cub_addr1);
+		free_page((unsigned long)css->cub_addr2);
+	}
+	mutex_unlock(&css->mutex);
+	free_page((unsigned long)secm_area);
+	return ret;
+}
+
+/*
  * Files for the channel path entries.
  */
 static ssize_t
@@ -925,9 +1179,39 @@ chp_type_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static DEVICE_ATTR(type, 0444, chp_type_show, NULL);
 
+static ssize_t
+chp_cmg_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct channel_path *chp = to_channelpath(dev);
+
+	if (!chp)
+		return 0;
+	if (chp->cmg == -1) /* channel measurements not available */
+		return sprintf(buf, "unknown\n");
+	return sprintf(buf, "%x\n", chp->cmg);
+}
+
+static DEVICE_ATTR(cmg, 0444, chp_cmg_show, NULL);
+
+static ssize_t
+chp_shared_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct channel_path *chp = to_channelpath(dev);
+
+	if (!chp)
+		return 0;
+	if (chp->shared == -1) /* channel measurements not available */
+		return sprintf(buf, "unknown\n");
+	return sprintf(buf, "%x\n", chp->shared);
+}
+
+static DEVICE_ATTR(shared, 0444, chp_shared_show, NULL);
+
 static struct attribute * chp_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_type.attr,
+	&dev_attr_cmg.attr,
+	&dev_attr_shared.attr,
 	NULL,
 };
 
@@ -966,10 +1250,8 @@ chsc_determine_channel_path_description(int chpid,
 	if (!scpd_area)
 		return -ENOMEM;
 
-	scpd_area->request = (struct chsc_header) {
-		.length = 0x0010,
-		.code   = 0x0002,
-	};
+	scpd_area->request.length = 0x0010;
+	scpd_area->request.code = 0x0002;
 
 	scpd_area->first_chpid = chpid;
 	scpd_area->last_chpid = chpid;
@@ -1006,6 +1288,111 @@ out:
 	return ret;
 }
 
+static void
+chsc_initialize_cmg_chars(struct channel_path *chp, u8 cmcv,
+			  struct cmg_chars *chars)
+{
+	switch (chp->cmg) {
+	case 2:
+	case 3:
+		chp->cmg_chars = kmalloc(sizeof(struct cmg_chars),
+					 GFP_KERNEL);
+		if (chp->cmg_chars) {
+			int i, mask;
+			struct cmg_chars *cmg_chars;
+
+			cmg_chars = chp->cmg_chars;
+			for (i = 0; i < NR_MEASUREMENT_CHARS; i++) {
+				mask = 0x80 >> (i + 3);
+				if (cmcv & mask)
+					cmg_chars->values[i] = chars->values[i];
+				else
+					cmg_chars->values[i] = 0;
+			}
+		}
+		break;
+	default:
+		/* No cmg-dependent data. */
+		break;
+	}
+}
+
+static int
+chsc_get_channel_measurement_chars(struct channel_path *chp)
+{
+	int ccode, ret;
+
+	struct {
+		struct chsc_header request;
+		u32 : 24;
+		u32 first_chpid : 8;
+		u32 : 24;
+		u32 last_chpid : 8;
+		u32 zeroes1;
+		struct chsc_header response;
+		u32 zeroes2;
+		u32 not_valid : 1;
+		u32 shared : 1;
+		u32 : 22;
+		u32 chpid : 8;
+		u32 cmcv : 5;
+		u32 : 11;
+		u32 cmgq : 8;
+		u32 cmg : 8;
+		u32 zeroes3;
+		u32 data[NR_MEASUREMENT_CHARS];
+	} *scmc_area;
+
+	scmc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!scmc_area)
+		return -ENOMEM;
+
+	scmc_area->request.length = 0x0010;
+	scmc_area->request.code = 0x0022;
+
+	scmc_area->first_chpid = chp->id;
+	scmc_area->last_chpid = chp->id;
+
+	ccode = chsc(scmc_area);
+	if (ccode > 0) {
+		ret = (ccode == 3) ? -ENODEV : -EBUSY;
+		goto out;
+	}
+
+	switch (scmc_area->response.code) {
+	case 0x0001: /* Success. */
+		if (!scmc_area->not_valid) {
+			chp->cmg = scmc_area->cmg;
+			chp->shared = scmc_area->shared;
+			chsc_initialize_cmg_chars(chp, scmc_area->cmcv,
+						  (struct cmg_chars *)
+						  &scmc_area->data);
+		} else {
+			chp->cmg = -1;
+			chp->shared = -1;
+		}
+		ret = 0;
+		break;
+	case 0x0003: /* Invalid block. */
+	case 0x0007: /* Invalid format. */
+	case 0x0008: /* Invalid bit combination. */
+		CIO_CRW_EVENT(2, "Error in chsc request block!\n");
+		ret = -EINVAL;
+		break;
+	case 0x0004: /* Command not provided. */
+		CIO_CRW_EVENT(2, "Model does not provide scmc\n");
+		ret = -EOPNOTSUPP;
+		break;
+	default:
+		CIO_CRW_EVENT(2, "Unknown CHSC response %d\n",
+			      scmc_area->response.code);
+		ret = -EIO;
+	}
+out:
+	free_page((unsigned long)scmc_area);
+	return ret;
+}
+
 /*
  * Entries for chpids on the system bus.
  * This replaces /proc/chpids.
@@ -1016,10 +1403,9 @@ new_channel_path(int chpid)
 	struct channel_path *chp;
 	int ret;
 
-	chp = kmalloc(sizeof(struct channel_path), GFP_KERNEL);
+	chp = kzalloc(sizeof(struct channel_path), GFP_KERNEL);
 	if (!chp)
 		return -ENOMEM;
-	memset(chp, 0, sizeof(struct channel_path));
 
 	/* fill in status, etc. */
 	chp->id = chpid;
@@ -1034,6 +1420,22 @@ new_channel_path(int chpid)
 	ret = chsc_determine_channel_path_description(chpid, &chp->desc);
 	if (ret)
 		goto out_free;
+	/* Get channel-measurement characteristics. */
+	if (css_characteristics_avail && css_chsc_characteristics.scmc
+	    && css_chsc_characteristics.secm) {
+		ret = chsc_get_channel_measurement_chars(chp);
+		if (ret)
+			goto out_free;
+	} else {
+		static int msg_done;
+
+		if (!msg_done) {
+			printk(KERN_WARNING "cio: Channel measurements not "
+			       "available, continuing.\n");
+			msg_done = 1;
+		}
+		chp->cmg = -1;
+	}
 
 	/* make it known to the system */
 	ret = device_register(&chp->dev);
@@ -1046,8 +1448,19 @@ new_channel_path(int chpid)
 	if (ret) {
 		device_unregister(&chp->dev);
 		goto out_free;
-	} else
-		css[0]->chps[chpid] = chp;
+	}
+	mutex_lock(&css[0]->mutex);
+	if (css[0]->cm_enabled) {
+		ret = chsc_add_chp_cmg_attr(chp);
+		if (ret) {
+			sysfs_remove_group(&chp->dev.kobj, &chp_attr_group);
+			device_unregister(&chp->dev);
+			mutex_unlock(&css[0]->mutex);
+			goto out_free;
+		}
+	}
+	css[0]->chps[chpid] = chp;
+	mutex_unlock(&css[0]->mutex);
 	return ret;
 out_free:
 	kfree(chp);
@@ -1103,10 +1516,8 @@ chsc_enable_facility(int operation_code)
 	sda_area = (void *)get_zeroed_page(GFP_KERNEL|GFP_DMA);
 	if (!sda_area)
 		return -ENOMEM;
-	sda_area->request = (struct chsc_header) {
-		.length = 0x0400,
-		.code = 0x0031,
-	};
+	sda_area->request.length = 0x0400;
+	sda_area->request.code = 0x0031;
 	sda_area->operation_code = operation_code;
 
 	ret = chsc(sda_area);
@@ -1161,10 +1572,8 @@ chsc_determine_css_characteristics(void)
 		return -ENOMEM;
 	}
 
-	scsc_area->request = (struct chsc_header) {
-		.length = 0x0010,
-		.code   = 0x0010,
-	};
+	scsc_area->request.length = 0x0010;
+	scsc_area->request.code = 0x0010;
 
 	result = chsc(scsc_area);
 	if (result) {

@@ -78,8 +78,6 @@ extern int _text,_etext, _edata, _end;
 
 #include <asm/setup.h>
 
-static char command_line[COMMAND_LINE_SIZE] = { 0, };
-
 static struct resource code_resource = {
 	.name  = "Kernel code",
 	.start = (unsigned long) &_text,
@@ -335,63 +333,38 @@ add_memory_hole(unsigned long start, unsigned long end)
 	}
 }
 
-static void __init
-parse_cmdline_early(char **cmdline_p)
+static int __init early_parse_mem(char *p)
 {
-	char c = ' ', cn, *to = command_line, *from = COMMAND_LINE;
+	memory_end = memparse(p, &p);
+	return 0;
+}
+early_param("mem", early_parse_mem);
+
+/*
+ * "ipldelay=XXX[sm]" sets ipl delay in seconds or minutes
+ */
+static int __init early_parse_ipldelay(char *p)
+{
 	unsigned long delay = 0;
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	memcpy(saved_command_line, COMMAND_LINE, COMMAND_LINE_SIZE);
-	saved_command_line[COMMAND_LINE_SIZE-1] = '\0';
+	delay = simple_strtoul(p, &p, 0);
 
-	for (;;) {
-		/*
-		 * "mem=XXX[kKmM]" sets memsize
-		 */
-		if (c == ' ' && strncmp(from, "mem=", 4) == 0) {
-			memory_end = simple_strtoul(from+4, &from, 0);
-			if ( *from == 'K' || *from == 'k' ) {
-				memory_end = memory_end << 10;
-				from++;
-			} else if ( *from == 'M' || *from == 'm' ) {
-				memory_end = memory_end << 20;
-				from++;
-			}
-		}
-		/*
-		 * "ipldelay=XXX[sm]" sets ipl delay in seconds or minutes
-		 */
-		if (c == ' ' && strncmp(from, "ipldelay=", 9) == 0) {
-			delay = simple_strtoul(from+9, &from, 0);
-			if (*from == 's' || *from == 'S') {
-				delay = delay*1000000;
-				from++;
-			} else if (*from == 'm' || *from == 'M') {
-				delay = delay*60*1000000;
-				from++;
-			}
-			/* now wait for the requested amount of time */
-			udelay(delay);
-		}
-		cn = *(from++);
-		if (!cn)
-			break;
-		if (cn == '\n')
-			cn = ' ';  /* replace newlines with space */
-		if (cn == 0x0d)
-			cn = ' ';  /* replace 0x0d with space */
-		if (cn == ' ' && c == ' ')
-			continue;  /* remove additional spaces */
-		c = cn;
-		if (to - command_line >= COMMAND_LINE_SIZE)
-			break;
-		*(to++) = c;
+	switch (*p) {
+	case 's':
+	case 'S':
+		delay *= 1000000;
+		break;
+	case 'm':
+	case 'M':
+		delay *= 60 * 1000000;
 	}
-	if (c == ' ' && to > command_line) to--;
-	*to = '\0';
-	*cmdline_p = command_line;
+
+	/* now wait for the requested amount of time */
+	udelay(delay);
+
+	return 0;
 }
+early_param("ipldelay", early_parse_ipldelay);
 
 static void __init
 setup_lowcore(void)
@@ -580,9 +553,26 @@ setup_arch(char **cmdline_p)
 	       "We are running native (64 bit mode)\n");
 #endif /* CONFIG_64BIT */
 
+	/* Save unparsed command line copy for /proc/cmdline */
+	strlcpy(saved_command_line, COMMAND_LINE, COMMAND_LINE_SIZE);
+
+	*cmdline_p = COMMAND_LINE;
+	*(*cmdline_p + COMMAND_LINE_SIZE - 1) = '\0';
+
         ROOT_DEV = Root_RAM0;
+
+	init_mm.start_code = PAGE_OFFSET;
+	init_mm.end_code = (unsigned long) &_etext;
+	init_mm.end_data = (unsigned long) &_edata;
+	init_mm.brk = (unsigned long) &_end;
+
+	memory_end = memory_size;
+
+	parse_early_param();
+
 #ifndef CONFIG_64BIT
-	memory_end = memory_size & ~0x400000UL;  /* align memory end to 4MB */
+	memory_end &= ~0x400000UL;
+
         /*
          * We need some free virtual space to be able to do vmalloc.
          * On a machine with 2GB memory we make sure that we have at
@@ -591,16 +581,8 @@ setup_arch(char **cmdline_p)
         if (memory_end > 1920*1024*1024)
                 memory_end = 1920*1024*1024;
 #else /* CONFIG_64BIT */
-	memory_end = memory_size & ~0x200000UL;  /* detected in head.s */
+	memory_end &= ~0x200000UL;
 #endif /* CONFIG_64BIT */
-
-	init_mm.start_code = PAGE_OFFSET;
-	init_mm.end_code = (unsigned long) &_etext;
-	init_mm.end_data = (unsigned long) &_edata;
-	init_mm.brk = (unsigned long) &_end;
-
-	parse_cmdline_early(cmdline_p);
-	parse_early_param();
 
 	setup_memory();
 	setup_resources();

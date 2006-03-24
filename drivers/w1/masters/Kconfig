@@ -1,0 +1,48 @@
+#
+# 1-wire bus master configuration
+#
+
+menu "1-wire Bus Masters"
+	depends on W1
+
+config W1_MASTER_MATROX
+	tristate "Matrox G400 transport layer for 1-wire"
+	depends on W1 && PCI
+	help
+	  Say Y here if you want to communicate with your 1-wire devices
+	  using Matrox's G400 GPIO pins.
+
+	  This support is also available as a module.  If so, the module
+	  will be called matrox_w1.ko.
+
+config W1_MASTER_DS9490
+	tristate "DS9490R transport layer driver"
+	depends on W1 && USB
+	help
+	  Say Y here if you want to have a driver for DS9490R UWB <-> W1 bridge.
+
+	  This support is also available as a module.  If so, the module
+	  will be called ds9490r.ko.
+
+config W1_MASTER_DS9490_BRIDGE
+	tristate "DS9490R USB <-> W1 transport layer for 1-wire"
+	depends on W1_MASTER_DS9490
+	help
+	  Say Y here if you want to communicate with your 1-wire devices
+	  using DS9490R USB bridge.
+
+	  This support is also available as a module.  If so, the module
+	  will be called ds_w1_bridge.ko.
+
+config W1_MASTER_DS2482
+	tristate "Maxim DS2482 I2C to 1-Wire bridge"
+	depends on I2C && W1 && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Maxim DS2482
+	  I2C to 1-Wire bridge.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds2482.
+
+endmenu
+

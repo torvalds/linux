@@ -53,7 +53,7 @@ static inline u8 _rtc8564_ctrl2(struct i2c_client *client)
 #define CTRL1(c) _rtc8564_ctrl1(c)
 #define CTRL2(c) _rtc8564_ctrl2(c)
 
-static int debug;;
+static int debug;
 module_param(debug, int, S_IRUGO | S_IWUSR);
 
 static struct i2c_driver rtc8564_driver;

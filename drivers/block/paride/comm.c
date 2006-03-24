@@ -60,7 +60,7 @@ static int comm_read_regr( PIA *pi, int cont, int regr )
 
 	case 2:
 	case 3:
-        case 4: w3(r+0x20); r1(); 
+        case 4: w3(r+0x20); (void)r1();
         	w2(0x24); h = r4(); w2(4);
                 return h;
 
@@ -82,7 +82,7 @@ static void comm_write_regr( PIA *pi, int cont, int regr, int val )
 
 	case 2:
 	case 3:
-        case 4: w3(r); r1(); w4(val); 
+        case 4: w3(r); (void)r1(); w4(val);
                 break;
         }
 }
@@ -126,17 +126,17 @@ static void comm_read_block( PIA *pi, char * buf, int count )
 		w2(4);
 		break;
 		
-	case 2: w3(0x68); r1(); w2(0x24);
+	case 2: w3(0x68); (void)r1(); w2(0x24);
 		for (i=0;i<count;i++) buf[i] = r4();
 		w2(4);
 		break;
 
-        case 3: w3(0x68); r1(); w2(0x24);
+        case 3: w3(0x68); (void)r1(); w2(0x24);
                 for (i=0;i<count/2;i++) ((u16 *)buf)[i] = r4w();
                 w2(4);
                 break;
 
-        case 4: w3(0x68); r1(); w2(0x24);
+        case 4: w3(0x68); (void)r1(); w2(0x24);
                 for (i=0;i<count/4;i++) ((u32 *)buf)[i] = r4l();
                 w2(4);
                 break;
@@ -160,15 +160,15 @@ static void comm_write_block( PIA *pi, char * buf, int count )
                 w2(5); w2(4);
                 break;
 
-        case 2: w3(0x48); r1();
+        case 2: w3(0x48); (void)r1();
                 for (k=0;k<count;k++) w4(buf[k^1]);
                 break;
 
-        case 3: w3(0x48); r1();
+        case 3: w3(0x48); (void)r1();
                 for (k=0;k<count/2;k++) w4w(pi_swab16(buf,k));
                 break;
 
-        case 4: w3(0x48); r1();
+        case 4: w3(0x48); (void)r1();
                 for (k=0;k<count/4;k++) w4l(pi_swab32(buf,k));
                 break;
 

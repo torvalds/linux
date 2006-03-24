@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibm440gp.c
- *
  * PPC440GP I/O descriptions
  *
  * Matt Porter <mporter@mvista.com>

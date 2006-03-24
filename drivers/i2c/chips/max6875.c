@@ -31,7 +31,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 /* Do not scan - the MAX6875 access method will write to some EEPROM chips */
 static unsigned short normal_i2c[] = {I2C_CLIENT_END};
@@ -54,7 +54,7 @@ I2C_CLIENT_INSMOD_1(max6875);
 /* Each client has this additional data */
 struct max6875_data {
 	struct i2c_client	client;
-	struct semaphore	update_lock;
+	struct mutex		update_lock;
 
 	u32			valid;
 	u8			data[USER_EEPROM_SIZE];
@@ -83,7 +83,7 @@ static void max6875_update_slice(struct i2c_client *client, int slice)
 	if (slice >= USER_EEPROM_SLICES)
 		return;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	buf = &data->data[slice << SLICE_BITS];
 
@@ -122,7 +122,7 @@ static void max6875_update_slice(struct i2c_client *client, int slice)
 		data->valid |= (1 << slice);
 	}
 exit_up:
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 }
 
 static ssize_t max6875_read(struct kobject *kobj, char *buf, loff_t off,
@@ -196,7 +196,7 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	real_client->driver = &max6875_driver;
 	real_client->flags = 0;
 	strlcpy(real_client->name, "max6875", I2C_NAME_SIZE);
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Init fake client data */
 	/* set the client data to the i2c_client so that it will get freed */

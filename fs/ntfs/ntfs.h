@@ -91,7 +91,7 @@ extern void free_compression_buffers(void);
 
 /* From fs/ntfs/super.c */
 #define default_upcase_len 0x10000
-extern struct semaphore ntfs_lock;
+extern struct mutex ntfs_lock;
 
 typedef struct {
 	int val;

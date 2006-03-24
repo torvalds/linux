@@ -33,7 +33,6 @@ int v9fs_deserialize_fcall(void *buf, u32 buflen, struct v9fs_fcall *rcall,
 void v9fs_set_tag(struct v9fs_fcall *fc, u16 tag);
 
 struct v9fs_fcall *v9fs_create_tversion(u32 msize, char *version);
-struct v9fs_fcall *v9fs_create_tauth(u32 afid, char *uname, char *aname);
 struct v9fs_fcall *v9fs_create_tattach(u32 fid, u32 afid, char *uname,
 	char *aname);
 struct v9fs_fcall *v9fs_create_tflush(u16 oldtag);

@@ -200,9 +200,7 @@ static struct i2c_adapter iic_ite_ops = {
 	.owner		= THIS_MODULE,
 	.id		= I2C_HW_I_IIC,
 	.algo_data	= &iic_ite_data,
-	.dev		= {
-		.name	= "ITE IIC adapter",
-	},
+	.name		= "ITE IIC adapter",
 };
 
 /* Called when the module is loaded.  This function starts the

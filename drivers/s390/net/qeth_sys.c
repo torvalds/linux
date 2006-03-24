@@ -1145,11 +1145,10 @@ qeth_dev_ipato_add_store(const char *buf, size_t count,
 	if ((rc = qeth_parse_ipatoe(buf, proto, addr, &mask_bits)))
 		return rc;
 
-	if (!(ipatoe = kmalloc(sizeof(struct qeth_ipato_entry), GFP_KERNEL))){
+	if (!(ipatoe = kzalloc(sizeof(struct qeth_ipato_entry), GFP_KERNEL))){
 		PRINT_WARN("No memory to allocate ipato entry\n");
 		return -ENOMEM;
 	}
-	memset(ipatoe, 0, sizeof(struct qeth_ipato_entry));
 	ipatoe->proto = proto;
 	memcpy(ipatoe->addr, addr, (proto == QETH_PROT_IPV4)? 4:16);
 	ipatoe->mask_bits = mask_bits;

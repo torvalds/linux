@@ -140,6 +140,7 @@ __set_personality(u_long personality)
 	ep = lookup_exec_domain(personality);
 	if (ep == current_thread_info()->exec_domain) {
 		current->personality = personality;
+		module_put(ep->module);
 		return 0;
 	}
 

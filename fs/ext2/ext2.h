@@ -138,6 +138,9 @@ extern void ext2_set_inode_flags(struct inode *inode);
 extern int ext2_ioctl (struct inode *, struct file *, unsigned int,
 		       unsigned long);
 
+/* namei.c */
+struct dentry *ext2_get_parent(struct dentry *child);
+
 /* super.c */
 extern void ext2_error (struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));

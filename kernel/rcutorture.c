@@ -441,6 +441,16 @@ rcu_torture_shuffle(void *arg)
 	return 0;
 }
 
+static inline void
+rcu_torture_print_module_parms(char *tag)
+{
+	printk(KERN_ALERT TORTURE_FLAG "--- %s: nreaders=%d "
+		"stat_interval=%d verbose=%d test_no_idle_hz=%d "
+		"shuffle_interval = %d\n",
+		tag, nrealreaders, stat_interval, verbose, test_no_idle_hz,
+		shuffle_interval);
+}
+
 static void
 rcu_torture_cleanup(void)
 {
@@ -483,9 +493,10 @@ rcu_torture_cleanup(void)
 	rcu_barrier();
 
 	rcu_torture_stats_print();  /* -After- the stats thread is stopped! */
-	printk(KERN_ALERT TORTURE_FLAG
-	       "--- End of test: %s\n",
-	       atomic_read(&n_rcu_torture_error) == 0 ? "SUCCESS" : "FAILURE");
+	if (atomic_read(&n_rcu_torture_error))
+		rcu_torture_print_module_parms("End of test: FAILURE");
+	else
+		rcu_torture_print_module_parms("End of test: SUCCESS");
 }
 
 static int
@@ -501,11 +512,7 @@ rcu_torture_init(void)
 		nrealreaders = nreaders;
 	else
 		nrealreaders = 2 * num_online_cpus();
-	printk(KERN_ALERT TORTURE_FLAG "--- Start of test: nreaders=%d "
-		"stat_interval=%d verbose=%d test_no_idle_hz=%d "
-		"shuffle_interval = %d\n",
-		nrealreaders, stat_interval, verbose, test_no_idle_hz,
-		shuffle_interval);
+	rcu_torture_print_module_parms("Start of test");
 	fullstop = 0;
 
 	/* Set up the freelist. */

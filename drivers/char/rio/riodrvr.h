@@ -72,42 +72,42 @@ struct rio_info {
 */
 	int RIOHalted;		/* halted ? */
 	int RIORtaDisCons;	/* RTA connections/disconnections */
-	uint RIOReadCheck;	/* Rio read check */
-	uint RIONoMessage;	/* To display message or not */
-	uint RIONumBootPkts;	/* how many packets for an RTA */
-	uint RIOBootCount;	/* size of RTA code */
-	uint RIOBooting;	/* count of outstanding boots */
-	uint RIOSystemUp;	/* Booted ?? */
-	uint RIOCounting;	/* for counting interrupts */
-	uint RIOIntCount;	/* # of intr since last check */
-	uint RIOTxCount;	/* number of xmit intrs  */
-	uint RIORxCount;	/* number of rx intrs */
-	uint RIORupCount;	/* number of rup intrs */
+	unsigned int RIOReadCheck;	/* Rio read check */
+	unsigned int RIONoMessage;	/* To display message or not */
+	unsigned int RIONumBootPkts;	/* how many packets for an RTA */
+	unsigned int RIOBootCount;	/* size of RTA code */
+	unsigned int RIOBooting;	/* count of outstanding boots */
+	unsigned int RIOSystemUp;	/* Booted ?? */
+	unsigned int RIOCounting;	/* for counting interrupts */
+	unsigned int RIOIntCount;	/* # of intr since last check */
+	unsigned int RIOTxCount;	/* number of xmit intrs  */
+	unsigned int RIORxCount;	/* number of rx intrs */
+	unsigned int RIORupCount;	/* number of rup intrs */
 	int RIXTimer;
 	int RIOBufferSize;	/* Buffersize */
 	int RIOBufferMask;	/* Buffersize */
 
 	int RIOFirstMajor;	/* First host card's major no */
 
-	uint RIOLastPortsMapped;	/* highest port number known */
-	uint RIOFirstPortsMapped;	/* lowest port number known */
+	unsigned int RIOLastPortsMapped;	/* highest port number known */
+	unsigned int RIOFirstPortsMapped;	/* lowest port number known */
 
-	uint RIOLastPortsBooted;	/* highest port number running */
-	uint RIOFirstPortsBooted;	/* lowest port number running */
+	unsigned int RIOLastPortsBooted;	/* highest port number running */
+	unsigned int RIOFirstPortsBooted;	/* lowest port number running */
 
-	uint RIOLastPortsOpened;	/* highest port number running */
-	uint RIOFirstPortsOpened;	/* lowest port number running */
+	unsigned int RIOLastPortsOpened;	/* highest port number running */
+	unsigned int RIOFirstPortsOpened;	/* lowest port number running */
 
 	/* Flag to say that the topology information has been changed. */
-	uint RIOQuickCheck;
-	uint CdRegister;	/* ??? */
+	unsigned int RIOQuickCheck;
+	unsigned int CdRegister;	/* ??? */
 	int RIOSignalProcess;	/* Signalling process */
 	int rio_debug;		/* To debug ... */
 	int RIODebugWait;	/* For what ??? */
 	int tpri;		/* Thread prio */
 	int tid;		/* Thread id */
-	uint _RIO_Polled;	/* Counter for polling */
-	uint _RIO_Interrupted;	/* Counter for interrupt */
+	unsigned int _RIO_Polled;	/* Counter for polling */
+	unsigned int _RIO_Interrupted;	/* Counter for interrupt */
 	int intr_tid;		/* iointset return value */
 	int TxEnSem;		/* TxEnable Semaphore */
 
@@ -121,9 +121,9 @@ struct rio_info {
 	struct Map RIOSavedTable[TOTAL_MAP_ENTRIES];
 
 	/* RTA to host binding table for master/slave operation */
-	ulong RIOBindTab[MAX_RTA_BINDINGS];
+	unsigned long RIOBindTab[MAX_RTA_BINDINGS];
 	/* RTA memory dump variable */
-	uchar RIOMemDump[MEMDUMP_SIZE];
+	unsigned char RIOMemDump[MEMDUMP_SIZE];
 	struct ModuleInfo RIOModuleTypes[MAX_MODULE_TYPES];
 
 };
@@ -138,7 +138,5 @@ struct rio_info {
 
 
 #define RIO_RESET_INT	0x7d80
-#define WRBYTE(x,y)		*(volatile unsigned char *)((x)) = \
-					(unsigned char)(y)
 
 #endif				/* __riodrvr.h */

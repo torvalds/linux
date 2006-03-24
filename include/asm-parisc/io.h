@@ -294,22 +294,6 @@ void memset_io(volatile void __iomem *addr, unsigned char val, int count);
 void memcpy_fromio(void *dst, const volatile void __iomem *src, int count);
 void memcpy_toio(volatile void __iomem *dst, const void *src, int count);
 
-/* Support old drivers which don't ioremap.
- * NB this interface is scheduled to disappear in 2.5
- */
-
-#define __isa_addr(x) (void __iomem *)(F_EXTEND(0xfc000000) | (x))
-#define isa_readb(a) readb(__isa_addr(a))
-#define isa_readw(a) readw(__isa_addr(a))
-#define isa_readl(a) readl(__isa_addr(a))
-#define isa_writeb(b,a) writeb((b), __isa_addr(a))
-#define isa_writew(b,a) writew((b), __isa_addr(a))
-#define isa_writel(b,a) writel((b), __isa_addr(a))
-#define isa_memset_io(a,b,c) memset_io(__isa_addr(a), (b), (c))
-#define isa_memcpy_fromio(a,b,c) memcpy_fromio((a), __isa_addr(b), (c))
-#define isa_memcpy_toio(a,b,c) memcpy_toio(__isa_addr(a), (b), (c))
-
-
 /*
  * XXX - We don't have csum_partial_copy_fromio() yet, so we cheat here and 
  * just copy it. The net code will then do the checksum later. Presently 
@@ -318,8 +302,6 @@ void memcpy_toio(volatile void __iomem *dst, const void *src, int count);
 
 #define eth_io_copy_and_sum(skb,src,len,unused) \
   memcpy_fromio((skb)->data,(src),(len))
-#define isa_eth_io_copy_and_sum(skb,src,len,unused) \
-  isa_memcpy_fromio((skb)->data,(src),(len))
 
 /* Port-space IO */
 

@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/kernel/process.c
- *
  *  Derived from "arch/i386/kernel/process.c"
  *    Copyright (C) 1995  Linus Torvalds
  *
@@ -47,9 +45,9 @@
 #include <asm/mmu.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
+#include <asm/time.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
-#include <asm/time.h>
 #endif
 
 extern unsigned long _get_SP(void);
@@ -330,6 +328,11 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #endif
 
 	local_irq_save(flags);
+
+	account_system_vtime(current);
+	account_process_vtime(current);
+	calculate_steal_time();
+
 	last = _switch(old_thread, new_thread);
 
 	local_irq_restore(flags);

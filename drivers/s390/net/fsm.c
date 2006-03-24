@@ -21,38 +21,34 @@ init_fsm(char *name, const char **state_names, const char **event_names, int nr_
 	fsm_function_t *m;
 	fsm *f;
 
-	this = (fsm_instance *)kmalloc(sizeof(fsm_instance), order);
+	this = kzalloc(sizeof(fsm_instance), order);
 	if (this == NULL) {
 		printk(KERN_WARNING
 			"fsm(%s): init_fsm: Couldn't alloc instance\n", name);
 		return NULL;
 	}
-	memset(this, 0, sizeof(fsm_instance));
 	strlcpy(this->name, name, sizeof(this->name));
 
-	f = (fsm *)kmalloc(sizeof(fsm), order);
+	f = kzalloc(sizeof(fsm), order);
 	if (f == NULL) {
 		printk(KERN_WARNING
 			"fsm(%s): init_fsm: Couldn't alloc fsm\n", name);
 		kfree_fsm(this);
 		return NULL;
 	}
-	memset(f, 0, sizeof(fsm));
 	f->nr_events = nr_events;
 	f->nr_states = nr_states;
 	f->event_names = event_names;
 	f->state_names = state_names;
 	this->f = f;
 
-	m = (fsm_function_t *)kmalloc(
-			sizeof(fsm_function_t) * nr_states * nr_events, order);
+	m = kcalloc(nr_states*nr_events, sizeof(fsm_function_t), order);
 	if (m == NULL) {
 		printk(KERN_WARNING
 			"fsm(%s): init_fsm: Couldn't alloc jumptable\n", name);
 		kfree_fsm(this);
 		return NULL;
 	}
-	memset(m, 0, sizeof(fsm_function_t) * f->nr_states * f->nr_events);
 	f->jumpmatrix = m;
 
 	for (i = 0; i < tmpl_len; i++) {

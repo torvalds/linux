@@ -114,7 +114,7 @@ void exit_idle(void)
  * We use this if we don't have any better
  * idle routine..
  */
-void default_idle(void)
+static void default_idle(void)
 {
 	local_irq_enable();
 

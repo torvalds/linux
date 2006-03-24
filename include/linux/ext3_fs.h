@@ -772,9 +772,12 @@ extern unsigned long ext3_count_free (struct buffer_head *, unsigned);
 
 
 /* inode.c */
-extern int ext3_forget(handle_t *, int, struct inode *, struct buffer_head *, int);
-extern struct buffer_head * ext3_getblk (handle_t *, struct inode *, long, int, int *);
-extern struct buffer_head * ext3_bread (handle_t *, struct inode *, int, int, int *);
+int ext3_forget(handle_t *, int, struct inode *, struct buffer_head *, int);
+struct buffer_head * ext3_getblk (handle_t *, struct inode *, long, int, int *);
+struct buffer_head * ext3_bread (handle_t *, struct inode *, int, int, int *);
+int ext3_get_block_handle(handle_t *handle, struct inode *inode,
+	sector_t iblock, struct buffer_head *bh_result, int create,
+	int extend_disksize);
 
 extern void ext3_read_inode (struct inode *);
 extern int  ext3_write_inode (struct inode *, int);

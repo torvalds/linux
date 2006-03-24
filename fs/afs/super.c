@@ -341,7 +341,7 @@ static struct super_block *afs_get_sb(struct file_system_type *fs_type,
 
 	sb->s_flags = flags;
 
-	ret = afs_fill_super(sb, &params, flags & MS_VERBOSE ? 1 : 0);
+	ret = afs_fill_super(sb, &params, flags & MS_SILENT ? 1 : 0);
 	if (ret < 0) {
 		up_write(&sb->s_umount);
 		deactivate_super(sb);

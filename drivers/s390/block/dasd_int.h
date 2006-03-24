@@ -69,15 +69,6 @@
  */
 struct dasd_device;
 
-typedef int (*dasd_ioctl_fn_t) (struct block_device *bdev, int no, long args);
-
-struct dasd_ioctl {
-	struct list_head list;
-	struct module *owner;
-	int no;
-	dasd_ioctl_fn_t handler;
-};
-
 typedef enum {
 	dasd_era_fatal = -1,	/* no chance to recover		     */
 	dasd_era_none = 0,	/* don't recover, everything alright */
@@ -272,9 +263,27 @@ struct dasd_discipline {
         /* i/o control functions. */
 	int (*fill_geometry) (struct dasd_device *, struct hd_geometry *);
 	int (*fill_info) (struct dasd_device *, struct dasd_information2_t *);
+	int (*ioctl) (struct dasd_device *, unsigned int, void __user *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
+
+
+/*
+ * Notification numbers for extended error reporting notifications:
+ * The DASD_EER_DISABLE notification is sent before a dasd_device (and it's
+ * eer pointer) is freed. The error reporting module needs to do all necessary
+ * cleanup steps.
+ * The DASD_EER_TRIGGER notification sends the actual error reports (triggers).
+ */
+#define DASD_EER_DISABLE 0
+#define DASD_EER_TRIGGER 1
+
+/* Trigger IDs for extended error reporting DASD_EER_TRIGGER notification */
+#define DASD_EER_FATALERROR  1
+#define DASD_EER_NOPATH      2
+#define DASD_EER_STATECHANGE 3
+#define DASD_EER_PPRCSUSPEND 4
 
 struct dasd_device {
 	/* Block device stuff. */
@@ -288,6 +297,9 @@ struct dasd_device {
 	unsigned int s2b_shift;		/* log2 (bp_block/512) */
 	unsigned long flags;		/* per device flags */
 	unsigned short features;        /* copy of devmap-features (read-only!) */
+
+	/* extended error reporting stuff (eer) */
+	struct dasd_ccw_req *eer_cqr;
 
 	/* Device discipline stuff. */
 	struct dasd_discipline *discipline;
@@ -334,6 +346,8 @@ struct dasd_device {
 /* per device flags */
 #define DASD_FLAG_DSC_ERROR	2	/* return -EIO when disconnected */
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */
+#define DASD_FLAG_EER_SNSS	4	/* A SNSS is required */
+#define DASD_FLAG_EER_IN_USE	5	/* A SNSS request is running */
 
 void dasd_put_device_wake(struct dasd_device *);
 
@@ -523,10 +537,6 @@ int dasd_scan_partitions(struct dasd_device *);
 void dasd_destroy_partitions(struct dasd_device *);
 
 /* externals in dasd_ioctl.c */
-int  dasd_ioctl_init(void);
-void dasd_ioctl_exit(void);
-int  dasd_ioctl_no_register(struct module *, int, dasd_ioctl_fn_t);
-int  dasd_ioctl_no_unregister(struct module *, int, dasd_ioctl_fn_t);
 int  dasd_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
 long dasd_compat_ioctl(struct file *, unsigned int, unsigned long);
 
@@ -556,6 +566,30 @@ dasd_era_t dasd_9336_erp_examine(struct dasd_ccw_req *, struct irb *);
 /* externals in dasd_9336_erp.c */
 dasd_era_t dasd_9343_erp_examine(struct dasd_ccw_req *, struct irb *);
 struct dasd_ccw_req *dasd_9343_erp_action(struct dasd_ccw_req *);
+
+/* externals in dasd_eer.c */
+#ifdef CONFIG_DASD_EER
+int dasd_eer_init(void);
+void dasd_eer_exit(void);
+int dasd_eer_enable(struct dasd_device *);
+void dasd_eer_disable(struct dasd_device *);
+void dasd_eer_write(struct dasd_device *, struct dasd_ccw_req *cqr,
+		    unsigned int id);
+void dasd_eer_snss(struct dasd_device *);
+
+static inline int dasd_eer_enabled(struct dasd_device *device)
+{
+	return device->eer_cqr != NULL;
+}
+#else
+#define dasd_eer_init()		(0)
+#define dasd_eer_exit()		do { } while (0)
+#define dasd_eer_enable(d)	(0)
+#define dasd_eer_disable(d)	do { } while (0)
+#define dasd_eer_write(d,c,i)	do { } while (0)
+#define dasd_eer_snss(d)	do { } while (0)
+#define dasd_eer_enabled(d)	(0)
+#endif	/* CONFIG_DASD_ERR */
 
 #endif				/* __KERNEL__ */
 

@@ -1,0 +1,1301 @@
+/*
+ *  drivers/s390/char/tape_3590.c
+ *    tape device discipline for 3590 tapes.
+ *
+ *    Copyright (C) IBM Corp. 2001,2006
+ *    Author(s): Stefan Bader <shbader@de.ibm.com>
+ *		 Michael Holzheu <holzheu@de.ibm.com>
+ *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
+ */
+
+#include <linux/config.h>
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/bio.h>
+
+#define TAPE_DBF_AREA	tape_3590_dbf
+
+#include "tape.h"
+#include "tape_std.h"
+#include "tape_3590.h"
+
+/*
+ * Pointer to debug area.
+ */
+debug_info_t *TAPE_DBF_AREA = NULL;
+EXPORT_SYMBOL(TAPE_DBF_AREA);
+
+/*******************************************************************
+ * Error Recovery fuctions:
+ * - Read Opposite:		 implemented
+ * - Read Device (buffered) log: BRA
+ * - Read Library log:		 BRA
+ * - Swap Devices:		 BRA
+ * - Long Busy:			 BRA
+ * - Special Intercept:		 BRA
+ * - Read Alternate:		 implemented
+ *******************************************************************/
+
+#define PRINTK_HEADER "TAPE_3590: "
+
+static const char *tape_3590_msg[TAPE_3590_MAX_MSG] = {
+	[0x00] = "",
+	[0x10] = "Lost Sense",
+	[0x11] = "Assigned Elsewhere",
+	[0x12] = "Allegiance Reset",
+	[0x13] = "Shared Access Violation",
+	[0x20] = "Command Reject",
+	[0x21] = "Configuration Error",
+	[0x22] = "Protection Exception",
+	[0x23] = "Write Protect",
+	[0x24] = "Write Length",
+	[0x25] = "Read-Only Format",
+	[0x31] = "Beginning of Partition",
+	[0x33] = "End of Partition",
+	[0x34] = "End of Data",
+	[0x35] = "Block not found",
+	[0x40] = "Device Intervention",
+	[0x41] = "Loader Intervention",
+	[0x42] = "Library Intervention",
+	[0x50] = "Write Error",
+	[0x51] = "Erase Error",
+	[0x52] = "Formatting Error",
+	[0x53] = "Read Error",
+	[0x54] = "Unsupported Format",
+	[0x55] = "No Formatting",
+	[0x56] = "Positioning lost",
+	[0x57] = "Read Length",
+	[0x60] = "Unsupported Medium",
+	[0x61] = "Medium Length Error",
+	[0x62] = "Medium removed",
+	[0x64] = "Load Check",
+	[0x65] = "Unload Check",
+	[0x70] = "Equipment Check",
+	[0x71] = "Bus out Check",
+	[0x72] = "Protocol Error",
+	[0x73] = "Interface Error",
+	[0x74] = "Overrun",
+	[0x75] = "Halt Signal",
+	[0x90] = "Device fenced",
+	[0x91] = "Device Path fenced",
+	[0xa0] = "Volume misplaced",
+	[0xa1] = "Volume inaccessible",
+	[0xa2] = "Volume in input",
+	[0xa3] = "Volume ejected",
+	[0xa4] = "All categories reserved",
+	[0xa5] = "Duplicate Volume",
+	[0xa6] = "Library Manager Offline",
+	[0xa7] = "Library Output Station full",
+	[0xa8] = "Vision System non-operational",
+	[0xa9] = "Library Manager Equipment Check",
+	[0xaa] = "Library Equipment Check",
+	[0xab] = "All Library Cells full",
+	[0xac] = "No Cleaner Volumes in Library",
+	[0xad] = "I/O Station door open",
+	[0xae] = "Subsystem environmental alert",
+};
+
+/*
+ * 3590 IOCTL Overload
+ */
+static int
+tape_3590_ioctl(struct tape_device *device, unsigned int cmd, unsigned long arg)
+{
+	switch (cmd) {
+	case TAPE390_DISPLAY: {
+		struct display_struct disp;
+
+		if (copy_from_user(&disp, (char __user *) arg, sizeof(disp)))
+			return -EFAULT;
+
+		return tape_std_display(device, &disp);
+	}
+	default:
+		return -EINVAL;	/* no additional ioctls */
+	}
+}
+
+/*
+ * SENSE Medium: Get Sense data about medium state
+ */
+static int
+tape_3590_sense_medium(struct tape_device *device)
+{
+	struct tape_request *request;
+
+	request = tape_alloc_request(1, 128);
+	if (IS_ERR(request))
+		return PTR_ERR(request);
+	request->op = TO_MSEN;
+	tape_ccw_end(request->cpaddr, MEDIUM_SENSE, 128, request->cpdata);
+	return tape_do_io_free(device, request);
+}
+
+/*
+ * MTTELL: Tell block. Return the number of block relative to current file.
+ */
+static int
+tape_3590_mttell(struct tape_device *device, int mt_count)
+{
+	__u64 block_id;
+	int rc;
+
+	rc = tape_std_read_block_id(device, &block_id);
+	if (rc)
+		return rc;
+	return block_id >> 32;
+}
+
+/*
+ * MTSEEK: seek to the specified block.
+ */
+static int
+tape_3590_mtseek(struct tape_device *device, int count)
+{
+	struct tape_request *request;
+
+	DBF_EVENT(6, "xsee id: %x\n", count);
+	request = tape_alloc_request(3, 4);
+	if (IS_ERR(request))
+		return PTR_ERR(request);
+	request->op = TO_LBL;
+	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
+	*(__u32 *) request->cpdata = count;
+	tape_ccw_cc(request->cpaddr + 1, LOCATE, 4, request->cpdata);
+	tape_ccw_end(request->cpaddr + 2, NOP, 0, NULL);
+	return tape_do_io_free(device, request);
+}
+
+/*
+ * Read Opposite Error Recovery Function:
+ * Used, when Read Forward does not work
+ */
+static void
+tape_3590_read_opposite(struct tape_device *device,
+			struct tape_request *request)
+{
+	struct tape_3590_disc_data *data;
+
+	/*
+	 * We have allocated 4 ccws in tape_std_read, so we can now
+	 * transform the request to a read backward, followed by a
+	 * forward space block.
+	 */
+	request->op = TO_RBA;
+	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
+	data = device->discdata;
+	tape_ccw_cc_idal(request->cpaddr + 1, data->read_back_op,
+			 device->char_data.idal_buf);
+	tape_ccw_cc(request->cpaddr + 2, FORSPACEBLOCK, 0, NULL);
+	tape_ccw_end(request->cpaddr + 3, NOP, 0, NULL);
+	DBF_EVENT(6, "xrop ccwg\n");
+}
+
+/*
+ * Read Attention Msg
+ * This should be done after an interrupt with attention bit (0x80)
+ * in device state.
+ *
+ * After a "read attention message" request there are two possible
+ * results:
+ *
+ * 1. A unit check is presented, when attention sense is present (e.g. when
+ * a medium has been unloaded). The attention sense comes then
+ * together with the unit check. The recovery action is either "retry"
+ * (in case there is an attention message pending) or "permanent error".
+ *
+ * 2. The attention msg is written to the "read subsystem data" buffer.
+ * In this case we probably should print it to the console.
+ */
+static int
+tape_3590_read_attmsg(struct tape_device *device)
+{
+	struct tape_request *request;
+	char *buf;
+
+	request = tape_alloc_request(3, 4096);
+	if (IS_ERR(request))
+		return PTR_ERR(request);
+	request->op = TO_READ_ATTMSG;
+	buf = request->cpdata;
+	buf[0] = PREP_RD_SS_DATA;
+	buf[6] = RD_ATTMSG;	/* read att msg */
+	tape_ccw_cc(request->cpaddr, PERFORM_SS_FUNC, 12, buf);
+	tape_ccw_cc(request->cpaddr + 1, READ_SS_DATA, 4096 - 12, buf + 12);
+	tape_ccw_end(request->cpaddr + 2, NOP, 0, NULL);
+	return tape_do_io_free(device, request);
+}
+
+/*
+ * These functions are used to schedule follow-up actions from within an
+ * interrupt context (like unsolicited interrupts).
+ */
+static void
+tape_3590_work_handler(void *data)
+{
+	struct {
+		struct tape_device *device;
+		enum tape_op op;
+		struct work_struct work;
+	} *p = data;
+
+	switch (p->op) {
+	case TO_MSEN:
+		tape_3590_sense_medium(p->device);
+		break;
+	case TO_READ_ATTMSG:
+		tape_3590_read_attmsg(p->device);
+		break;
+	default:
+		DBF_EVENT(3, "T3590: work handler undefined for "
+			  "operation 0x%02x\n", p->op);
+	}
+	tape_put_device(p->device);
+	kfree(p);
+}
+
+static int
+tape_3590_schedule_work(struct tape_device *device, enum tape_op op)
+{
+	struct {
+		struct tape_device *device;
+		enum tape_op op;
+		struct work_struct work;
+	} *p;
+
+	if ((p = kzalloc(sizeof(*p), GFP_ATOMIC)) == NULL)
+		return -ENOMEM;
+
+	INIT_WORK(&p->work, tape_3590_work_handler, p);
+
+	p->device = tape_get_device_reference(device);
+	p->op = op;
+
+	schedule_work(&p->work);
+	return 0;
+}
+
+#ifdef CONFIG_S390_TAPE_BLOCK
+/*
+ * Tape Block READ
+ */
+static struct tape_request *
+tape_3590_bread(struct tape_device *device, struct request *req)
+{
+	struct tape_request *request;
+	struct ccw1 *ccw;
+	int count = 0, start_block, i;
+	unsigned off;
+	char *dst;
+	struct bio_vec *bv;
+	struct bio *bio;
+
+	DBF_EVENT(6, "xBREDid:");
+	start_block = req->sector >> TAPEBLOCK_HSEC_S2B;
+	DBF_EVENT(6, "start_block = %i\n", start_block);
+
+	rq_for_each_bio(bio, req) {
+		bio_for_each_segment(bv, bio, i) {
+			count += bv->bv_len >> (TAPEBLOCK_HSEC_S2B + 9);
+		}
+	}
+	request = tape_alloc_request(2 + count + 1, 4);
+	if (IS_ERR(request))
+		return request;
+	request->op = TO_BLOCK;
+	*(__u32 *) request->cpdata = start_block;
+	ccw = request->cpaddr;
+	ccw = tape_ccw_cc(ccw, MODE_SET_DB, 1, device->modeset_byte);
+
+	/*
+	 * We always setup a nop after the mode set ccw. This slot is
+	 * used in tape_std_check_locate to insert a locate ccw if the
+	 * current tape position doesn't match the start block to be read.
+	 */
+	ccw = tape_ccw_cc(ccw, NOP, 0, NULL);
+
+	rq_for_each_bio(bio, req) {
+		bio_for_each_segment(bv, bio, i) {
+			dst = kmap(bv->bv_page) + bv->bv_offset;
+			for (off = 0; off < bv->bv_len;
+			     off += TAPEBLOCK_HSEC_SIZE) {
+				ccw->flags = CCW_FLAG_CC;
+				ccw->cmd_code = READ_FORWARD;
+				ccw->count = TAPEBLOCK_HSEC_SIZE;
+				set_normalized_cda(ccw, (void *) __pa(dst));
+				ccw++;
+				dst += TAPEBLOCK_HSEC_SIZE;
+			}
+			if (off > bv->bv_len)
+				BUG();
+		}
+	}
+	ccw = tape_ccw_end(ccw, NOP, 0, NULL);
+	DBF_EVENT(6, "xBREDccwg\n");
+	return request;
+}
+
+static void
+tape_3590_free_bread(struct tape_request *request)
+{
+	struct ccw1 *ccw;
+
+	/* Last ccw is a nop and doesn't need clear_normalized_cda */
+	for (ccw = request->cpaddr; ccw->flags & CCW_FLAG_CC; ccw++)
+		if (ccw->cmd_code == READ_FORWARD)
+			clear_normalized_cda(ccw);
+	tape_free_request(request);
+}
+
+/*
+ * check_locate is called just before the tape request is passed to
+ * the common io layer for execution. It has to check the current
+ * tape position and insert a locate ccw if it doesn't match the
+ * start block for the request.
+ */
+static void
+tape_3590_check_locate(struct tape_device *device, struct tape_request *request)
+{
+	__u32 *start_block;
+
+	start_block = (__u32 *) request->cpdata;
+	if (*start_block != device->blk_data.block_position) {
+		/* Add the start offset of the file to get the real block. */
+		*start_block += device->bof;
+		tape_ccw_cc(request->cpaddr + 1, LOCATE, 4, request->cpdata);
+	}
+}
+#endif
+
+/*
+ * The done handler is called at device/channel end and wakes up the sleeping
+ * process
+ */
+static int
+tape_3590_done(struct tape_device *device, struct tape_request *request)
+{
+	struct tape_3590_med_sense *sense;
+
+	DBF_EVENT(6, "%s done\n", tape_op_verbose[request->op]);
+
+	switch (request->op) {
+	case TO_BSB:
+	case TO_BSF:
+	case TO_DSE:
+	case TO_FSB:
+	case TO_FSF:
+	case TO_LBL:
+	case TO_RFO:
+	case TO_RBA:
+	case TO_REW:
+	case TO_WRI:
+	case TO_WTM:
+	case TO_BLOCK:
+	case TO_LOAD:
+		tape_med_state_set(device, MS_LOADED);
+		break;
+	case TO_RUN:
+		tape_med_state_set(device, MS_UNLOADED);
+		break;
+	case TO_MSEN:
+		sense = (struct tape_3590_med_sense *) request->cpdata;
+		if (sense->masst == MSENSE_UNASSOCIATED)
+			tape_med_state_set(device, MS_UNLOADED);
+		if (sense->masst == MSENSE_ASSOCIATED_MOUNT)
+			tape_med_state_set(device, MS_LOADED);
+		break;
+	case TO_RBI:	/* RBI seems to succeed even without medium loaded. */
+	case TO_NOP:	/* Same to NOP. */
+	case TO_READ_CONFIG:
+	case TO_READ_ATTMSG:
+	case TO_DIS:
+	case TO_ASSIGN:
+	case TO_UNASSIGN:
+		break;
+	case TO_SIZE:
+		break;
+	}
+	return TAPE_IO_SUCCESS;
+}
+
+/*
+ * This fuction is called, when error recovery was successfull
+ */
+static inline int
+tape_3590_erp_succeded(struct tape_device *device, struct tape_request *request)
+{
+	DBF_EVENT(3, "Error Recovery successfull for %s\n",
+		  tape_op_verbose[request->op]);
+	return tape_3590_done(device, request);
+}
+
+/*
+ * This fuction is called, when error recovery was not successfull
+ */
+static inline int
+tape_3590_erp_failed(struct tape_device *device, struct tape_request *request,
+		     struct irb *irb, int rc)
+{
+	DBF_EVENT(3, "Error Recovery failed for %s\n",
+		  tape_op_verbose[request->op]);
+	tape_dump_sense_dbf(device, request, irb);
+	return rc;
+}
+
+/*
+ * Error Recovery do retry
+ */
+static inline int
+tape_3590_erp_retry(struct tape_device *device, struct tape_request *request,
+		    struct irb *irb)
+{
+	DBF_EVENT(2, "Retry: %s\n", tape_op_verbose[request->op]);
+	tape_dump_sense_dbf(device, request, irb);
+	return TAPE_IO_RETRY;
+}
+
+/*
+ * Handle unsolicited interrupts
+ */
+static int
+tape_3590_unsolicited_irq(struct tape_device *device, struct irb *irb)
+{
+	if (irb->scsw.dstat == DEV_STAT_CHN_END)
+		/* Probably result of halt ssch */
+		return TAPE_IO_PENDING;
+	else if (irb->scsw.dstat == 0x85)
+		/* Device Ready -> check medium state */
+		tape_3590_schedule_work(device, TO_MSEN);
+	else if (irb->scsw.dstat & DEV_STAT_ATTENTION)
+		tape_3590_schedule_work(device, TO_READ_ATTMSG);
+	else {
+		DBF_EVENT(3, "unsol.irq! dev end: %08x\n", device->cdev_id);
+		PRINT_WARN("Unsolicited IRQ (Device End) caught.\n");
+		tape_dump_sense(device, NULL, irb);
+	}
+	return TAPE_IO_SUCCESS;
+}
+
+/*
+ * Basic Recovery routine
+ */
+static int
+tape_3590_erp_basic(struct tape_device *device, struct tape_request *request,
+		    struct irb *irb, int rc)
+{
+	struct tape_3590_sense *sense;
+
+	sense = (struct tape_3590_sense *) irb->ecw;
+
+	switch (sense->bra) {
+	case SENSE_BRA_PER:
+		return tape_3590_erp_failed(device, request, irb, rc);
+	case SENSE_BRA_CONT:
+		return tape_3590_erp_succeded(device, request);
+	case SENSE_BRA_RE:
+		return tape_3590_erp_retry(device, request, irb);
+	case SENSE_BRA_DRE:
+		return tape_3590_erp_failed(device, request, irb, rc);
+	default:
+		PRINT_ERR("Unknown BRA %x - This should not happen!\n",
+			  sense->bra);
+		BUG();
+		return TAPE_IO_STOP;
+	}
+}
+
+/*
+ *  RDL: Read Device (buffered) log
+ */
+static int
+tape_3590_erp_read_buf_log(struct tape_device *device,
+			   struct tape_request *request, struct irb *irb)
+{
+	/*
+	 * We just do the basic error recovery at the moment (retry).
+	 * Perhaps in the future, we read the log and dump it somewhere...
+	 */
+	return tape_3590_erp_basic(device, request, irb, -EIO);
+}
+
+/*
+ *  SWAP: Swap Devices
+ */
+static int
+tape_3590_erp_swap(struct tape_device *device, struct tape_request *request,
+		   struct irb *irb)
+{
+	/*
+	 * This error recovery should swap the tapes
+	 * if the original has a problem. The operation
+	 * should proceed with the new tape... this
+	 * should probably be done in user space!
+	 */
+	PRINT_WARN("(%s): Swap Tape Device!\n", device->cdev->dev.bus_id);
+	return tape_3590_erp_basic(device, request, irb, -EIO);
+}
+
+/*
+ *  LBY: Long Busy
+ */
+static int
+tape_3590_erp_long_busy(struct tape_device *device,
+			struct tape_request *request, struct irb *irb)
+{
+	/* FIXME: how about WAITING for a minute ? */
+	PRINT_WARN("(%s): Device is busy! Please wait a minute!\n",
+		   device->cdev->dev.bus_id);
+	return tape_3590_erp_basic(device, request, irb, -EBUSY);
+}
+
+/*
+ *  SPI: Special Intercept
+ */
+static int
+tape_3590_erp_special_interrupt(struct tape_device *device,
+				struct tape_request *request, struct irb *irb)
+{
+	return tape_3590_erp_basic(device, request, irb, -EIO);
+}
+
+/*
+ *  RDA: Read Alternate
+ */
+static int
+tape_3590_erp_read_alternate(struct tape_device *device,
+			     struct tape_request *request, struct irb *irb)
+{
+	struct tape_3590_disc_data *data;
+
+	/*
+	 * The issued Read Backward or Read Previous command is not
+	 * supported by the device
+	 * The recovery action should be to issue another command:
+	 * Read Revious: if Read Backward is not supported
+	 * Read Backward: if Read Previous is not supported
+	 */
+	data = device->discdata;
+	if (data->read_back_op == READ_PREVIOUS) {
+		DBF_EVENT(2, "(%08x): No support for READ_PREVIOUS command\n",
+			  device->cdev_id);
+		data->read_back_op = READ_BACKWARD;
+	} else {
+		DBF_EVENT(2, "(%08x): No support for READ_BACKWARD command\n",
+			  device->cdev_id);
+		data->read_back_op = READ_PREVIOUS;
+	}
+	tape_3590_read_opposite(device, request);
+	return tape_3590_erp_retry(device, request, irb);
+}
+
+/*
+ * Error Recovery read opposite
+ */
+static int
+tape_3590_erp_read_opposite(struct tape_device *device,
+			    struct tape_request *request, struct irb *irb)
+{
+	switch (request->op) {
+	case TO_RFO:
+		/*
+		 * We did read forward, but the data could not be read.
+		 * We will read backward and then skip forward again.
+		 */
+		tape_3590_read_opposite(device, request);
+		return tape_3590_erp_retry(device, request, irb);
+	case TO_RBA:
+		/* We tried to read forward and backward, but hat no success */
+		return tape_3590_erp_failed(device, request, irb, -EIO);
+		break;
+	default:
+		PRINT_WARN("read_opposite_recovery_called_with_op: %s\n",
+			   tape_op_verbose[request->op]);
+		return tape_3590_erp_failed(device, request, irb, -EIO);
+	}
+}
+
+/*
+ * Print an MIM (Media Information  Message) (message code f0)
+ */
+static void
+tape_3590_print_mim_msg_f0(struct tape_device *device, struct irb *irb)
+{
+	struct tape_3590_sense *sense;
+
+	sense = (struct tape_3590_sense *) irb->ecw;
+	/* Exception Message */
+	switch (sense->fmt.f70.emc) {
+	case 0x02:
+		PRINT_WARN("(%s): Data degraded\n", device->cdev->dev.bus_id);
+		break;
+	case 0x03:
+		PRINT_WARN("(%s): Data degraded in partion %i\n",
+			   device->cdev->dev.bus_id, sense->fmt.f70.mp);
+		break;
+	case 0x04:
+		PRINT_WARN("(%s): Medium degraded\n", device->cdev->dev.bus_id);
+		break;
+	case 0x05:
+		PRINT_WARN("(%s): Medium degraded in partition %i\n",
+			   device->cdev->dev.bus_id, sense->fmt.f70.mp);
+		break;
+	case 0x06:
+		PRINT_WARN("(%s): Block 0 Error\n", device->cdev->dev.bus_id);
+		break;
+	case 0x07:
+		PRINT_WARN("(%s): Medium Exception 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f70.md);
+		break;
+	default:
+		PRINT_WARN("(%s): MIM ExMsg: 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f70.emc);
+		break;
+	}
+	/* Service Message */
+	switch (sense->fmt.f70.smc) {
+	case 0x02:
+		PRINT_WARN("(%s): Reference Media maintenance procedure %i\n",
+			   device->cdev->dev.bus_id, sense->fmt.f70.md);
+		break;
+	default:
+		PRINT_WARN("(%s): MIM ServiceMsg: 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f70.smc);
+		break;
+	}
+}
+
+/*
+ * Print an I/O Subsystem Service Information Message (message code f1)
+ */
+static void
+tape_3590_print_io_sim_msg_f1(struct tape_device *device, struct irb *irb)
+{
+	struct tape_3590_sense *sense;
+
+	sense = (struct tape_3590_sense *) irb->ecw;
+	/* Exception Message */
+	switch (sense->fmt.f71.emc) {
+	case 0x01:
+		PRINT_WARN("(%s): Effect of failure is unknown\n",
+			   device->cdev->dev.bus_id);
+		break;
+	case 0x02:
+		PRINT_WARN("(%s): CU Exception - no performance impact\n",
+			   device->cdev->dev.bus_id);
+		break;
+	case 0x03:
+		PRINT_WARN("(%s): CU Exception on channel interface 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.md[0]);
+		break;
+	case 0x04:
+		PRINT_WARN("(%s): CU Exception on device path 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.md[0]);
+		break;
+	case 0x05:
+		PRINT_WARN("(%s): CU Exception on library path 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.md[0]);
+		break;
+	case 0x06:
+		PRINT_WARN("(%s): CU Exception on node 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.md[0]);
+		break;
+	case 0x07:
+		PRINT_WARN("(%s): CU Exception on partition 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.md[0]);
+		break;
+	default:
+		PRINT_WARN("(%s): SIM ExMsg: 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.emc);
+	}
+	/* Service Message */
+	switch (sense->fmt.f71.smc) {
+	case 0x01:
+		PRINT_WARN("(%s): Repair impact is unknown\n",
+			   device->cdev->dev.bus_id);
+		break;
+	case 0x02:
+		PRINT_WARN("(%s): Repair will not impact cu performance\n",
+			   device->cdev->dev.bus_id);
+		break;
+	case 0x03:
+		if (sense->fmt.f71.mdf == 0)
+			PRINT_WARN("(%s): Repair will disable node "
+				   "0x%x on CU\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1]);
+		else
+			PRINT_WARN("(%s): Repair will disable nodes "
+				   "(0x%x-0x%x) on CU\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+		break;
+	case 0x04:
+		if (sense->fmt.f71.mdf == 0)
+			PRINT_WARN("(%s): Repair will disable cannel path "
+				   "0x%x on CU\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1]);
+		else
+			PRINT_WARN("(%s): Repair will disable cannel paths "
+				   "(0x%x-0x%x) on CU\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+		break;
+	case 0x05:
+		if (sense->fmt.f71.mdf == 0)
+			PRINT_WARN("(%s): Repair will disable device path "
+				   "0x%x on CU\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1]);
+		else
+			PRINT_WARN("(%s): Repair will disable device paths "
+				   "(0x%x-0x%x) on CU\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+		break;
+	case 0x06:
+		if (sense->fmt.f71.mdf == 0)
+			PRINT_WARN("(%s): Repair will disable library path "
+				   "0x%x on CU\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1]);
+		else
+			PRINT_WARN("(%s): Repair will disable library paths "
+				   "(0x%x-0x%x) on CU\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+		break;
+	case 0x07:
+		PRINT_WARN("(%s): Repair will disable access to CU\n",
+			   device->cdev->dev.bus_id);
+		break;
+	default:
+		PRINT_WARN("(%s): SIM ServiceMsg: 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.smc);
+	}
+}
+
+/*
+ * Print an Device Subsystem Service Information Message (message code f2)
+ */
+static void
+tape_3590_print_dev_sim_msg_f2(struct tape_device *device, struct irb *irb)
+{
+	struct tape_3590_sense *sense;
+
+	sense = (struct tape_3590_sense *) irb->ecw;
+	/* Exception Message */
+	switch (sense->fmt.f71.emc) {
+	case 0x01:
+		PRINT_WARN("(%s): Effect of failure is unknown\n",
+			   device->cdev->dev.bus_id);
+		break;
+	case 0x02:
+		PRINT_WARN("(%s): DV Exception - no performance impact\n",
+			   device->cdev->dev.bus_id);
+		break;
+	case 0x03:
+		PRINT_WARN("(%s): DV Exception on channel interface 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.md[0]);
+		break;
+	case 0x04:
+		PRINT_WARN("(%s): DV Exception on loader 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.md[0]);
+		break;
+	case 0x05:
+		PRINT_WARN("(%s): DV Exception on message display 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.md[0]);
+		break;
+	case 0x06:
+		PRINT_WARN("(%s): DV Exception in tape path\n",
+			   device->cdev->dev.bus_id);
+		break;
+	case 0x07:
+		PRINT_WARN("(%s): DV Exception in drive\n",
+			   device->cdev->dev.bus_id);
+		break;
+	default:
+		PRINT_WARN("(%s): DSIM ExMsg: 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.emc);
+	}
+	/* Service Message */
+	switch (sense->fmt.f71.smc) {
+	case 0x01:
+		PRINT_WARN("(%s): Repair impact is unknown\n",
+			   device->cdev->dev.bus_id);
+		break;
+	case 0x02:
+		PRINT_WARN("(%s): Repair will not impact device performance\n",
+			   device->cdev->dev.bus_id);
+		break;
+	case 0x03:
+		if (sense->fmt.f71.mdf == 0)
+			PRINT_WARN("(%s): Repair will disable channel path "
+				   "0x%x on DV\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1]);
+		else
+			PRINT_WARN("(%s): Repair will disable channel path "
+				   "(0x%x-0x%x) on DV\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+		break;
+	case 0x04:
+		if (sense->fmt.f71.mdf == 0)
+			PRINT_WARN("(%s): Repair will disable interface 0x%x "
+				   "on DV\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1]);
+		else
+			PRINT_WARN("(%s): Repair will disable interfaces "
+				   "(0x%x-0x%x) on DV\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+		break;
+	case 0x05:
+		if (sense->fmt.f71.mdf == 0)
+			PRINT_WARN("(%s): Repair will disable loader 0x%x "
+				   "on DV\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1]);
+		else
+			PRINT_WARN("(%s): Repair will disable loader "
+				   "(0x%x-0x%x) on DV\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+		break;
+	case 0x07:
+		PRINT_WARN("(%s): Repair will disable access to DV\n",
+			   device->cdev->dev.bus_id);
+		break;
+	case 0x08:
+		if (sense->fmt.f71.mdf == 0)
+			PRINT_WARN("(%s): Repair will disable message "
+				   "display 0x%x on DV\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1]);
+		else
+			PRINT_WARN("(%s): Repair will disable message "
+				   "displays (0x%x-0x%x) on DV\n",
+				   device->cdev->dev.bus_id,
+				   sense->fmt.f71.md[1], sense->fmt.f71.md[2]);
+		break;
+	case 0x09:
+		PRINT_WARN("(%s): Clean DV\n", device->cdev->dev.bus_id);
+		break;
+	default:
+		PRINT_WARN("(%s): DSIM ServiceMsg: 0x%02x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.smc);
+	}
+}
+
+/*
+ * Print standard ERA Message
+ */
+static void
+tape_3590_print_era_msg(struct tape_device *device, struct irb *irb)
+{
+	struct tape_3590_sense *sense;
+
+	sense = (struct tape_3590_sense *) irb->ecw;
+	if (sense->mc == 0)
+		return;
+	if ((sense->mc > 0) && (sense->mc < TAPE_3590_MAX_MSG)) {
+		if (tape_3590_msg[sense->mc] != NULL)
+			PRINT_WARN("(%s): %s\n", device->cdev->dev.bus_id,
+				   tape_3590_msg[sense->mc]);
+		else {
+			PRINT_WARN("(%s): Message Code 0x%x\n",
+				   device->cdev->dev.bus_id, sense->mc);
+		}
+		return;
+	}
+	if (sense->mc == 0xf0) {
+		/* Standard Media Information Message */
+		PRINT_WARN("(%s): MIM SEV=%i, MC=%02x, ES=%x/%x, "
+			   "RC=%02x-%04x-%02x\n", device->cdev->dev.bus_id,
+			   sense->fmt.f70.sev, sense->mc,
+			   sense->fmt.f70.emc, sense->fmt.f70.smc,
+			   sense->fmt.f70.refcode, sense->fmt.f70.mid,
+			   sense->fmt.f70.fid);
+		tape_3590_print_mim_msg_f0(device, irb);
+		return;
+	}
+	if (sense->mc == 0xf1) {
+		/* Standard I/O Subsystem Service Information Message */
+		PRINT_WARN("(%s): IOSIM SEV=%i, DEVTYPE=3590/%02x, "
+			   "MC=%02x, ES=%x/%x, REF=0x%04x-0x%04x-0x%04x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.sev,
+			   device->cdev->id.dev_model,
+			   sense->mc, sense->fmt.f71.emc,
+			   sense->fmt.f71.smc, sense->fmt.f71.refcode1,
+			   sense->fmt.f71.refcode2, sense->fmt.f71.refcode3);
+		tape_3590_print_io_sim_msg_f1(device, irb);
+		return;
+	}
+	if (sense->mc == 0xf2) {
+		/* Standard Device Service Information Message */
+		PRINT_WARN("(%s): DEVSIM SEV=%i, DEVTYPE=3590/%02x, "
+			   "MC=%02x, ES=%x/%x, REF=0x%04x-0x%04x-0x%04x\n",
+			   device->cdev->dev.bus_id, sense->fmt.f71.sev,
+			   device->cdev->id.dev_model,
+			   sense->mc, sense->fmt.f71.emc,
+			   sense->fmt.f71.smc, sense->fmt.f71.refcode1,
+			   sense->fmt.f71.refcode2, sense->fmt.f71.refcode3);
+		tape_3590_print_dev_sim_msg_f2(device, irb);
+		return;
+	}
+	if (sense->mc == 0xf3) {
+		/* Standard Library Service Information Message */
+		return;
+	}
+	PRINT_WARN("(%s): Device Message(%x)\n",
+		   device->cdev->dev.bus_id, sense->mc);
+}
+
+/*
+ *  3590 error Recovery routine:
+ *  If possible, it tries to recover from the error. If this is not possible,
+ *  inform the user about the problem.
+ */
+static int
+tape_3590_unit_check(struct tape_device *device, struct tape_request *request,
+		     struct irb *irb)
+{
+	struct tape_3590_sense *sense;
+	int rc;
+
+#ifdef CONFIG_S390_TAPE_BLOCK
+	if (request->op == TO_BLOCK) {
+		/*
+		 * Recovery for block device requests. Set the block_position
+		 * to something invalid and retry.
+		 */
+		device->blk_data.block_position = -1;
+		if (request->retries-- <= 0)
+			return tape_3590_erp_failed(device, request, irb, -EIO);
+		else
+			return tape_3590_erp_retry(device, request, irb);
+	}
+#endif
+
+	sense = (struct tape_3590_sense *) irb->ecw;
+
+	/*
+	 * First check all RC-QRCs where we want to do something special
+	 *   - "break":     basic error recovery is done
+	 *   - "goto out:": just print error message if available
+	 */
+	rc = -EIO;
+	switch (sense->rc_rqc) {
+
+	case 0x1110:
+		tape_3590_print_era_msg(device, irb);
+		return tape_3590_erp_read_buf_log(device, request, irb);
+
+	case 0x2011:
+		tape_3590_print_era_msg(device, irb);
+		return tape_3590_erp_read_alternate(device, request, irb);
+
+	case 0x2230:
+	case 0x2231:
+		tape_3590_print_era_msg(device, irb);
+		return tape_3590_erp_special_interrupt(device, request, irb);
+
+	case 0x3010:
+		DBF_EVENT(2, "(%08x): Backward at Beginning of Partition\n",
+			  device->cdev_id);
+		return tape_3590_erp_basic(device, request, irb, -ENOSPC);
+	case 0x3012:
+		DBF_EVENT(2, "(%08x): Forward at End of Partition\n",
+			  device->cdev_id);
+		return tape_3590_erp_basic(device, request, irb, -ENOSPC);
+	case 0x3020:
+		DBF_EVENT(2, "(%08x): End of Data Mark\n", device->cdev_id);
+		return tape_3590_erp_basic(device, request, irb, -ENOSPC);
+
+	case 0x3122:
+		DBF_EVENT(2, "(%08x): Rewind Unload initiated\n",
+			  device->cdev_id);
+		return tape_3590_erp_basic(device, request, irb, -EIO);
+	case 0x3123:
+		DBF_EVENT(2, "(%08x): Rewind Unload complete\n",
+			  device->cdev_id);
+		tape_med_state_set(device, MS_UNLOADED);
+		return tape_3590_erp_basic(device, request, irb, 0);
+
+	case 0x4010:
+		/*
+		 * print additional msg since default msg
+		 * "device intervention" is not very meaningfull
+		 */
+		PRINT_WARN("(%s): Tape operation when medium not loaded\n",
+			   device->cdev->dev.bus_id);
+		tape_med_state_set(device, MS_UNLOADED);
+		return tape_3590_erp_basic(device, request, irb, -ENOMEDIUM);
+	case 0x4012:		/* Device Long Busy */
+		tape_3590_print_era_msg(device, irb);
+		return tape_3590_erp_long_busy(device, request, irb);
+
+	case 0x5010:
+		if (sense->rac == 0xd0) {
+			/* Swap */
+			tape_3590_print_era_msg(device, irb);
+			return tape_3590_erp_swap(device, request, irb);
+		}
+		if (sense->rac == 0x26) {
+			/* Read Opposite */
+			tape_3590_print_era_msg(device, irb);
+			return tape_3590_erp_read_opposite(device, request,
+							   irb);
+		}
+		return tape_3590_erp_basic(device, request, irb, -EIO);
+	case 0x5020:
+	case 0x5021:
+	case 0x5022:
+	case 0x5040:
+	case 0x5041:
+	case 0x5042:
+		tape_3590_print_era_msg(device, irb);
+		return tape_3590_erp_swap(device, request, irb);
+
+	case 0x5110:
+	case 0x5111:
+		return tape_3590_erp_basic(device, request, irb, -EMEDIUMTYPE);
+
+	case 0x5120:
+	case 0x1120:
+		tape_med_state_set(device, MS_UNLOADED);
+		return tape_3590_erp_basic(device, request, irb, -ENOMEDIUM);
+
+	case 0x6020:
+		PRINT_WARN("(%s): Cartridge of wrong type ?\n",
+			   device->cdev->dev.bus_id);
+		return tape_3590_erp_basic(device, request, irb, -EMEDIUMTYPE);
+
+	case 0x8011:
+		PRINT_WARN("(%s): Another host has reserved the tape device\n",
+			   device->cdev->dev.bus_id);
+		return tape_3590_erp_basic(device, request, irb, -EPERM);
+	case 0x8013:
+		PRINT_WARN("(%s): Another host has priviliged access to the "
+			   "tape device\n", device->cdev->dev.bus_id);
+		PRINT_WARN("(%s): To solve the problem unload the current "
+			   "cartridge!\n", device->cdev->dev.bus_id);
+		return tape_3590_erp_basic(device, request, irb, -EPERM);
+	default:
+		return tape_3590_erp_basic(device, request, irb, -EIO);
+	}
+}
+
+/*
+ * 3590 interrupt handler:
+ */
+static int
+tape_3590_irq(struct tape_device *device, struct tape_request *request,
+	      struct irb *irb)
+{
+	if (request == NULL)
+		return tape_3590_unsolicited_irq(device, irb);
+
+	if ((irb->scsw.dstat & DEV_STAT_UNIT_EXCEP) &&
+	    (irb->scsw.dstat & DEV_STAT_DEV_END) && (request->op == TO_WRI)) {
+		/* Write at end of volume */
+		DBF_EVENT(2, "End of volume\n");
+		return tape_3590_erp_failed(device, request, irb, -ENOSPC);
+	}
+
+	if (irb->scsw.dstat & DEV_STAT_UNIT_CHECK)
+		return tape_3590_unit_check(device, request, irb);
+
+	if (irb->scsw.dstat & DEV_STAT_DEV_END) {
+		if (irb->scsw.dstat == DEV_STAT_UNIT_EXCEP) {
+			if (request->op == TO_FSB || request->op == TO_BSB)
+				request->rescnt++;
+			else
+				DBF_EVENT(5, "Unit Exception!\n");
+		}
+
+		return tape_3590_done(device, request);
+	}
+
+	if (irb->scsw.dstat & DEV_STAT_CHN_END) {
+		DBF_EVENT(2, "cannel end\n");
+		return TAPE_IO_PENDING;
+	}
+
+	if (irb->scsw.dstat & DEV_STAT_ATTENTION) {
+		DBF_EVENT(2, "Unit Attention when busy..\n");
+		return TAPE_IO_PENDING;
+	}
+
+	DBF_EVENT(6, "xunknownirq\n");
+	PRINT_ERR("Unexpected interrupt.\n");
+	PRINT_ERR("Current op is: %s", tape_op_verbose[request->op]);
+	tape_dump_sense(device, request, irb);
+	return TAPE_IO_STOP;
+}
+
+/*
+ * Setup device function
+ */
+static int
+tape_3590_setup_device(struct tape_device *device)
+{
+	int rc;
+	struct tape_3590_disc_data *data;
+
+	DBF_EVENT(6, "3590 device setup\n");
+	data = kmalloc(sizeof(struct tape_3590_disc_data),
+		       GFP_KERNEL | GFP_DMA);
+	if (data == NULL)
+		return -ENOMEM;
+	data->read_back_op = READ_PREVIOUS;
+	device->discdata = data;
+
+	if ((rc = tape_std_assign(device)) == 0) {
+		/* Try to find out if medium is loaded */
+		if ((rc = tape_3590_sense_medium(device)) != 0)
+			DBF_LH(3, "3590 medium sense returned %d\n", rc);
+	}
+
+	return rc;
+}
+
+/*
+ * Cleanup device function
+ */
+static void
+tape_3590_cleanup_device(struct tape_device *device)
+{
+	tape_std_unassign(device);
+
+	kfree(device->discdata);
+	device->discdata = NULL;
+}
+
+/*
+ * List of 3590 magnetic tape commands.
+ */
+static tape_mtop_fn tape_3590_mtop[TAPE_NR_MTOPS] = {
+	[MTRESET]	 = tape_std_mtreset,
+	[MTFSF]		 = tape_std_mtfsf,
+	[MTBSF]		 = tape_std_mtbsf,
+	[MTFSR]		 = tape_std_mtfsr,
+	[MTBSR]		 = tape_std_mtbsr,
+	[MTWEOF]	 = tape_std_mtweof,
+	[MTREW]		 = tape_std_mtrew,
+	[MTOFFL]	 = tape_std_mtoffl,
+	[MTNOP]		 = tape_std_mtnop,
+	[MTRETEN]	 = tape_std_mtreten,
+	[MTBSFM]	 = tape_std_mtbsfm,
+	[MTFSFM]	 = tape_std_mtfsfm,
+	[MTEOM]		 = tape_std_mteom,
+	[MTERASE]	 = tape_std_mterase,
+	[MTRAS1]	 = NULL,
+	[MTRAS2]	 = NULL,
+	[MTRAS3]	 = NULL,
+	[MTSETBLK]	 = tape_std_mtsetblk,
+	[MTSETDENSITY]	 = NULL,
+	[MTSEEK]	 = tape_3590_mtseek,
+	[MTTELL]	 = tape_3590_mttell,
+	[MTSETDRVBUFFER] = NULL,
+	[MTFSS]		 = NULL,
+	[MTBSS]		 = NULL,
+	[MTWSM]		 = NULL,
+	[MTLOCK]	 = NULL,
+	[MTUNLOCK]	 = NULL,
+	[MTLOAD]	 = tape_std_mtload,
+	[MTUNLOAD]	 = tape_std_mtunload,
+	[MTCOMPRESSION]	 = tape_std_mtcompression,
+	[MTSETPART]	 = NULL,
+	[MTMKPART]	 = NULL
+};
+
+/*
+ * Tape discipline structure for 3590.
+ */
+static struct tape_discipline tape_discipline_3590 = {
+	.owner = THIS_MODULE,
+	.setup_device = tape_3590_setup_device,
+	.cleanup_device = tape_3590_cleanup_device,
+	.process_eov = tape_std_process_eov,
+	.irq = tape_3590_irq,
+	.read_block = tape_std_read_block,
+	.write_block = tape_std_write_block,
+#ifdef CONFIG_S390_TAPE_BLOCK
+	.bread = tape_3590_bread,
+	.free_bread = tape_3590_free_bread,
+	.check_locate = tape_3590_check_locate,
+#endif
+	.ioctl_fn = tape_3590_ioctl,
+	.mtop_array = tape_3590_mtop
+};
+
+static struct ccw_device_id tape_3590_ids[] = {
+	{CCW_DEVICE_DEVTYPE(0x3590, 0, 0x3590, 0), .driver_info = tape_3590},
+	{ /* end of list */ }
+};
+
+static int
+tape_3590_online(struct ccw_device *cdev)
+{
+	return tape_generic_online(cdev->dev.driver_data,
+				   &tape_discipline_3590);
+}
+
+static int
+tape_3590_offline(struct ccw_device *cdev)
+{
+	return tape_generic_offline(cdev->dev.driver_data);
+}
+
+static struct ccw_driver tape_3590_driver = {
+	.name = "tape_3590",
+	.owner = THIS_MODULE,
+	.ids = tape_3590_ids,
+	.probe = tape_generic_probe,
+	.remove = tape_generic_remove,
+	.set_offline = tape_3590_offline,
+	.set_online = tape_3590_online,
+};
+
+/*
+ * Setup discipline structure.
+ */
+static int
+tape_3590_init(void)
+{
+	int rc;
+
+	TAPE_DBF_AREA = debug_register("tape_3590", 2, 2, 4 * sizeof(long));
+	debug_register_view(TAPE_DBF_AREA, &debug_sprintf_view);
+#ifdef DBF_LIKE_HELL
+	debug_set_level(TAPE_DBF_AREA, 6);
+#endif
+
+	DBF_EVENT(3, "3590 init\n");
+	/* Register driver for 3590 tapes. */
+	rc = ccw_driver_register(&tape_3590_driver);
+	if (rc)
+		DBF_EVENT(3, "3590 init failed\n");
+	else
+		DBF_EVENT(3, "3590 registered\n");
+	return rc;
+}
+
+static void
+tape_3590_exit(void)
+{
+	ccw_driver_unregister(&tape_3590_driver);
+
+	debug_unregister(TAPE_DBF_AREA);
+}
+
+MODULE_DEVICE_TABLE(ccw, tape_3590_ids);
+MODULE_AUTHOR("(C) 2001,2006 IBM Corporation");
+MODULE_DESCRIPTION("Linux on zSeries channel attached 3590 tape device driver");
+MODULE_LICENSE("GPL");
+
+module_init(tape_3590_init);
+module_exit(tape_3590_exit);

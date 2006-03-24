@@ -19,55 +19,11 @@
 #include <linux/interrupt.h>
 
 
-#define disable(oldspl) save_flags (oldspl)
-#define restore(oldspl) restore_flags (oldspl)
-
-#define sysbrk(x) kmalloc ((x),in_interrupt()? GFP_ATOMIC : GFP_KERNEL)
-#define sysfree(p,size) kfree ((p))
-
-#define WBYTE(p,v) writeb(v, &p)
-#define RBYTE(p)   readb (&p)
-#define WWORD(p,v) writew(v, &p)
-#define RWORD(p)   readw(&p)
-#define WINDW(p,v) writew(v, p)
-#define RINDW(p)   readw(p)
-
 #define DEBUG_ALL
-
-#define cprintf printk
-
-#ifdef __KERNEL__
-#define INKERNEL
-#endif
 
 struct ttystatics {
 	struct termios tm;
 };
-
-#define bzero(d, n)         memset((d), 0, (n))
-#define bcopy(src, dest, n) memcpy ((dest), (src), (n))
-
-#define SEM_SIGIGNORE 0x1234
-
-#ifdef DEBUG_SEM
-#define swait(a,b)      printk ("waiting:    " __FILE__ " line %d\n", __LINE__)
-#define ssignal(sem)    printk ("signalling: " __FILE__ " line %d\n", __LINE__)
-
-#define sreset(sem)     printk ("sreset:     " __FILE__ "\n")
-#define sem_init(sem,v) printk ("sreset:     " __FILE__ "\n")
-#endif
-
-
-#define getpid()    (current->pid)
-
-#define QSIZE SERIAL_XMIT_SIZE
-
-#define pseterr(errno) return (- errno)
-
-#define V_CBAUD CBAUD
-
-/* For one reason or another rioboot.c uses delay instead of RIODelay. */
-#define delay(x,y) RIODelay(NULL, y)
 
 extern int rio_debug;
 
@@ -90,6 +46,7 @@ extern int rio_debug;
 #define RIO_DEBUG_SPINLOCK     0x010000
 #define RIO_DEBUG_DELAY        0x020000
 #define RIO_DEBUG_MOD_COUNT    0x040000
+
 
 /* Copied over from riowinif.h . This is ugly. The winif file declares
 also much other stuff which is incompatible with the headers from

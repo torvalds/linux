@@ -1493,10 +1493,31 @@ static int ext3_group_sparse(int group)
  */
 int ext3_bg_has_super(struct super_block *sb, int group)
 {
-	if (EXT3_HAS_RO_COMPAT_FEATURE(sb,EXT3_FEATURE_RO_COMPAT_SPARSE_SUPER)&&
-	    !ext3_group_sparse(group))
+	if (EXT3_HAS_RO_COMPAT_FEATURE(sb,
+				EXT3_FEATURE_RO_COMPAT_SPARSE_SUPER) &&
+			!ext3_group_sparse(group))
 		return 0;
 	return 1;
+}
+
+static unsigned long ext3_bg_num_gdb_meta(struct super_block *sb, int group)
+{
+	unsigned long metagroup = group / EXT3_DESC_PER_BLOCK(sb);
+	unsigned long first = metagroup * EXT3_DESC_PER_BLOCK(sb);
+	unsigned long last = first + EXT3_DESC_PER_BLOCK(sb) - 1;
+
+	if (group == first || group == first + 1 || group == last)
+		return 1;
+	return 0;
+}
+
+static unsigned long ext3_bg_num_gdb_nometa(struct super_block *sb, int group)
+{
+	if (EXT3_HAS_RO_COMPAT_FEATURE(sb,
+				EXT3_FEATURE_RO_COMPAT_SPARSE_SUPER) &&
+			!ext3_group_sparse(group))
+		return 0;
+	return EXT3_SB(sb)->s_gdb_count;
 }
 
 /**
@@ -1510,9 +1531,14 @@ int ext3_bg_has_super(struct super_block *sb, int group)
  */
 unsigned long ext3_bg_num_gdb(struct super_block *sb, int group)
 {
-	if (EXT3_HAS_RO_COMPAT_FEATURE(sb,EXT3_FEATURE_RO_COMPAT_SPARSE_SUPER)&&
-	    !ext3_group_sparse(group))
-		return 0;
-	return EXT3_SB(sb)->s_gdb_count;
-}
+	unsigned long first_meta_bg =
+			le32_to_cpu(EXT3_SB(sb)->s_es->s_first_meta_bg);
+	unsigned long metagroup = group / EXT3_DESC_PER_BLOCK(sb);
 
+	if (!EXT3_HAS_INCOMPAT_FEATURE(sb,EXT3_FEATURE_INCOMPAT_META_BG) ||
+			metagroup < first_meta_bg)
+		return ext3_bg_num_gdb_nometa(sb,group);
+
+	return ext3_bg_num_gdb_meta(sb,group);
+
+}

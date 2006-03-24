@@ -139,8 +139,7 @@ static void mce_panic(char *msg, struct mce *backup, unsigned long start)
 
 static int mce_available(struct cpuinfo_x86 *c)
 {
-	return test_bit(X86_FEATURE_MCE, &c->x86_capability) &&
-	       test_bit(X86_FEATURE_MCA, &c->x86_capability);
+	return cpu_has(c, X86_FEATURE_MCE) && cpu_has(c, X86_FEATURE_MCA);
 }
 
 static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)

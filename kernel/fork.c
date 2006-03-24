@@ -181,6 +181,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	/* One for us, one for whoever does the "release_task()" (usually parent) */
 	atomic_set(&tsk->usage,2);
 	atomic_set(&tsk->fs_excl, 0);
+	tsk->btrace_seq = 0;
 	return tsk;
 }
 
@@ -607,12 +608,12 @@ static struct files_struct *alloc_files(void)
 	atomic_set(&newf->count, 1);
 
 	spin_lock_init(&newf->file_lock);
+	newf->next_fd = 0;
 	fdt = &newf->fdtab;
-	fdt->next_fd = 0;
 	fdt->max_fds = NR_OPEN_DEFAULT;
-	fdt->max_fdset = __FD_SETSIZE;
-	fdt->close_on_exec = &newf->close_on_exec_init;
-	fdt->open_fds = &newf->open_fds_init;
+	fdt->max_fdset = EMBEDDED_FD_SET_SIZE;
+	fdt->close_on_exec = (fd_set *)&newf->close_on_exec_init;
+	fdt->open_fds = (fd_set *)&newf->open_fds_init;
 	fdt->fd = &newf->fd_array[0];
 	INIT_RCU_HEAD(&fdt->rcu);
 	fdt->free_files = NULL;
@@ -1020,6 +1021,7 @@ static task_t *copy_process(unsigned long clone_flags,
  		p->mempolicy = NULL;
  		goto bad_fork_cleanup_cpuset;
  	}
+	mpol_fix_fork_child_flag(p);
 #endif
 
 #ifdef CONFIG_DEBUG_MUTEXES

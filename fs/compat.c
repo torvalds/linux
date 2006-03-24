@@ -114,6 +114,7 @@ asmlinkage long compat_sys_newlstat(char __user * filename,
 	return error;
 }
 
+#ifndef __ARCH_WANT_STAT64
 asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user *filename,
 		struct compat_stat __user *statbuf, int flag)
 {
@@ -134,6 +135,7 @@ asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user *filename,
 out:
 	return error;
 }
+#endif
 
 asmlinkage long compat_sys_newfstat(unsigned int fd,
 		struct compat_stat __user * statbuf)

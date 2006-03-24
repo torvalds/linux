@@ -371,7 +371,7 @@ static void sil_dev_config(struct ata_port *ap, struct ata_device *dev)
 	if (quirks & SIL_QUIRK_UDMA5MAX) {
 		printk(KERN_INFO "ata%u(%u): applying Maxtor errata fix %s\n",
 		       ap->id, dev->devno, model_num);
-		ap->udma_mask &= ATA_UDMA5;
+		dev->udma_mask &= ATA_UDMA5;
 		return;
 	}
 }

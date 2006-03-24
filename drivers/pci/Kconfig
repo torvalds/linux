@@ -11,24 +11,11 @@ config PCI_MSI
 	   generate an interrupt using an inbound Memory Write on its
 	   PCI bus instead of asserting a device IRQ pin.
 
+	   Use of PCI MSI interrupts can be disabled at kernel boot time
+	   by using the 'pci=nomsi' option.  This disables MSI for the
+	   entire system.
+
 	   If you don't know what to do here, say N.
-
-config PCI_LEGACY_PROC
-	bool "Legacy /proc/pci interface"
-	depends on PCI
-	---help---
-	  This feature enables a procfs file -- /proc/pci -- that provides a 
-	  summary of PCI devices in the system. 
-
-	  This feature has been deprecated as of v2.5.53, in favor of using the 
-	  tool lspci(8). This feature may be removed at a future date. 
-
-	  lspci can provide the same data, as well as much more. lspci is a part of
-	  the pci-utils package, which should be installed by your distribution. 
-	  See <file:Documentation/Changes> for information on where to get the latest
-	  version. 
-
-	  When in doubt, say N.
 
 config PCI_DEBUG
 	bool "PCI Debugging"

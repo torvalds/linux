@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/kernel/hashtable.S
- *
  *  $Id: hashtable.S,v 1.6 1999/10/08 01:56:15 paulus Exp $
  *
  *  PowerPC version

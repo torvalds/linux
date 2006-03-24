@@ -4384,7 +4384,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
 
 struct rpc_version		nfs_version4 = {
 	.number			= 4,
-	.nrprocs		= sizeof(nfs4_procedures)/sizeof(nfs4_procedures[0]),
+	.nrprocs		= ARRAY_SIZE(nfs4_procedures),
 	.procs			= nfs4_procedures
 };
 

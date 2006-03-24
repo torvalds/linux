@@ -26,6 +26,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("System voltages control via Attansic ATXP1");
@@ -60,7 +61,7 @@ static struct i2c_driver atxp1_driver = {
 struct atxp1_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	unsigned long last_updated;
 	u8 valid;
 	struct {
@@ -80,7 +81,7 @@ static struct atxp1_data * atxp1_update_device(struct device *dev)
 	client = to_i2c_client(dev);
 	data = i2c_get_clientdata(client);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
 
@@ -93,7 +94,7 @@ static struct atxp1_data * atxp1_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return(data);
 }
@@ -309,7 +310,7 @@ static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	data->valid = 0;
 
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	err = i2c_attach_client(new_client);
 

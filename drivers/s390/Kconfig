@@ -183,7 +183,13 @@ config S390_TAPE_34XX
 	  tape subsystems and 100% compatibles.
 	  It is safe to say "Y" here.
 
-
+config S390_TAPE_3590
+	tristate "Support for 3590 tape hardware"
+	depends on S390_TAPE
+	help
+	  Select this option if you want to access IBM 3590 magnetic
+	  tape subsystems and 100% compatibles.
+	  It is safe to say "Y" here.
 
 config VMLOGRDR
 	tristate "Support for the z/VM recording system services (VM only)"

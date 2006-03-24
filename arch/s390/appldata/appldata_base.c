@@ -531,12 +531,11 @@ int appldata_register_ops(struct appldata_ops *ops)
 		P_ERROR("ctl_nr %i already in use!\n", ops->ctl_nr);
 		return -EBUSY;
 	}
-	ops->ctl_table = kmalloc(4*sizeof(struct ctl_table), GFP_KERNEL);
+	ops->ctl_table = kzalloc(4*sizeof(struct ctl_table), GFP_KERNEL);
 	if (ops->ctl_table == NULL) {
 		P_ERROR("Not enough memory for %s ctl_table!\n", ops->name);
 		return -ENOMEM;
 	}
-	memset(ops->ctl_table, 0, 4*sizeof(struct ctl_table));
 
 	spin_lock(&appldata_ops_lock);
 	list_for_each(lh, &appldata_ops_list) {

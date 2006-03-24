@@ -1,9 +1,8 @@
 /*
- *  drivers/s390/char/tape_34xx.h
+ *  drivers/s390/char/tape_std.h
  *    standard tape device functions for ibm tapes.
  *
- *  S390 and zSeries version
- *    Copyright (C) 2001,2002 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright (C) IBM Corp. 2001,2006
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *		 Tuan Ngo-Anh <ngoanh@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -148,5 +147,12 @@ void tape_std_error_recovery_succeded(struct tape_device *);
 void tape_std_error_recovery_do_retry(struct tape_device *);
 void tape_std_error_recovery_read_opposite(struct tape_device *);
 void tape_std_error_recovery_HWBUG(struct tape_device *, int condno);
+
+/* S390 tape types */
+enum s390_tape_type {
+        tape_3480,
+        tape_3490,
+        tape_3590,
+};
 
 #endif // _TAPE_STD_H

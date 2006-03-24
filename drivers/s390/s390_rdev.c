@@ -27,10 +27,9 @@ s390_root_dev_register(const char *name)
 
 	if (!strlen(name))
 		return ERR_PTR(-EINVAL);
-	dev = kmalloc(sizeof(struct device), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
-	memset(dev, 0, sizeof(struct device));
 	strncpy(dev->bus_id, name, min(strlen(name), (size_t)BUS_ID_SIZE));
 	dev->release = s390_root_dev_release;
 	ret = device_register(dev);

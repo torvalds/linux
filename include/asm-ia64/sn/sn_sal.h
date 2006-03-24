@@ -1037,7 +1037,7 @@ ia64_sn_get_sn_info(int fc, u8 *shubtype, u16 *nasid_bitmask, u8 *nasid_shift,
 
 /***** BEGIN HACK - temp til old proms no longer supported ********/
 	if (ret_stuff.status == SALRET_NOT_IMPLEMENTED) {
-		int nasid = get_sapicid() & 0xfff;;
+		int nasid = get_sapicid() & 0xfff;
 #define SH_SHUB_ID_NODES_PER_BIT_MASK 0x001f000000000000UL
 #define SH_SHUB_ID_NODES_PER_BIT_SHFT 48
 		if (shubtype) *shubtype = 0;

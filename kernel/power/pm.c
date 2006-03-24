@@ -25,6 +25,7 @@
 #include <linux/pm.h>
 #include <linux/pm_legacy.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
 
 int pm_active;
 
@@ -40,7 +41,7 @@ int pm_active;
  *	until a resume but that will be fine.
  */
  
-static DECLARE_MUTEX(pm_devs_lock);
+static DEFINE_MUTEX(pm_devs_lock);
 static LIST_HEAD(pm_devs);
 
 /**
@@ -67,9 +68,9 @@ struct pm_dev *pm_register(pm_dev_t type,
 		dev->id = id;
 		dev->callback = callback;
 
-		down(&pm_devs_lock);
+		mutex_lock(&pm_devs_lock);
 		list_add(&dev->entry, &pm_devs);
-		up(&pm_devs_lock);
+		mutex_unlock(&pm_devs_lock);
 	}
 	return dev;
 }
@@ -85,9 +86,9 @@ struct pm_dev *pm_register(pm_dev_t type,
 void pm_unregister(struct pm_dev *dev)
 {
 	if (dev) {
-		down(&pm_devs_lock);
+		mutex_lock(&pm_devs_lock);
 		list_del(&dev->entry);
-		up(&pm_devs_lock);
+		mutex_unlock(&pm_devs_lock);
 
 		kfree(dev);
 	}
@@ -118,7 +119,7 @@ void pm_unregister_all(pm_callback callback)
 	if (!callback)
 		return;
 
-	down(&pm_devs_lock);
+	mutex_lock(&pm_devs_lock);
 	entry = pm_devs.next;
 	while (entry != &pm_devs) {
 		struct pm_dev *dev = list_entry(entry, struct pm_dev, entry);
@@ -126,7 +127,7 @@ void pm_unregister_all(pm_callback callback)
 		if (dev->callback == callback)
 			__pm_unregister(dev);
 	}
-	up(&pm_devs_lock);
+	mutex_unlock(&pm_devs_lock);
 }
 
 /**
@@ -234,7 +235,7 @@ int pm_send_all(pm_request_t rqst, void *data)
 {
 	struct list_head *entry;
 	
-	down(&pm_devs_lock);
+	mutex_lock(&pm_devs_lock);
 	entry = pm_devs.next;
 	while (entry != &pm_devs) {
 		struct pm_dev *dev = list_entry(entry, struct pm_dev, entry);
@@ -246,13 +247,13 @@ int pm_send_all(pm_request_t rqst, void *data)
 				 */
 				if (rqst == PM_SUSPEND)
 					pm_undo_all(dev);
-				up(&pm_devs_lock);
+				mutex_unlock(&pm_devs_lock);
 				return status;
 			}
 		}
 		entry = entry->next;
 	}
-	up(&pm_devs_lock);
+	mutex_unlock(&pm_devs_lock);
 	return 0;
 }
 

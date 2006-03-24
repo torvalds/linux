@@ -201,7 +201,7 @@ int fsync_bdev(struct block_device *bdev)
  * freeze_bdev  --  lock a filesystem and force it into a consistent state
  * @bdev:	blockdevice to lock
  *
- * This takes the block device bd_mount_sem to make sure no new mounts
+ * This takes the block device bd_mount_mutex to make sure no new mounts
  * happen on bdev until thaw_bdev() is called.
  * If a superblock is found on this device, we take the s_umount semaphore
  * on it to make sure nobody unmounts until the snapshot creation is done.
@@ -210,7 +210,7 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 {
 	struct super_block *sb;
 
-	down(&bdev->bd_mount_sem);
+	mutex_lock(&bdev->bd_mount_mutex);
 	sb = get_super(bdev);
 	if (sb && !(sb->s_flags & MS_RDONLY)) {
 		sb->s_frozen = SB_FREEZE_WRITE;
@@ -264,7 +264,7 @@ void thaw_bdev(struct block_device *bdev, struct super_block *sb)
 		drop_super(sb);
 	}
 
-	up(&bdev->bd_mount_sem);
+	mutex_unlock(&bdev->bd_mount_mutex);
 }
 EXPORT_SYMBOL(thaw_bdev);
 
@@ -327,31 +327,24 @@ int file_fsync(struct file *filp, struct dentry *dentry, int datasync)
 	return ret;
 }
 
-static long do_fsync(unsigned int fd, int datasync)
+long do_fsync(struct file *file, int datasync)
 {
-	struct file * file;
-	struct address_space *mapping;
-	int ret, err;
+	int ret;
+	int err;
+	struct address_space *mapping = file->f_mapping;
 
-	ret = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-
-	ret = -EINVAL;
 	if (!file->f_op || !file->f_op->fsync) {
 		/* Why?  We can still call filemap_fdatawrite */
-		goto out_putf;
+		ret = -EINVAL;
+		goto out;
 	}
-
-	mapping = file->f_mapping;
 
 	current->flags |= PF_SYNCWRITE;
 	ret = filemap_fdatawrite(mapping);
 
 	/*
-	 * We need to protect against concurrent writers,
-	 * which could cause livelocks in fsync_buffers_list
+	 * We need to protect against concurrent writers, which could cause
+	 * livelocks in fsync_buffers_list().
 	 */
 	mutex_lock(&mapping->host->i_mutex);
 	err = file->f_op->fsync(file, file->f_dentry, datasync);
@@ -362,21 +355,31 @@ static long do_fsync(unsigned int fd, int datasync)
 	if (!ret)
 		ret = err;
 	current->flags &= ~PF_SYNCWRITE;
-
-out_putf:
-	fput(file);
 out:
+	return ret;
+}
+
+static long __do_fsync(unsigned int fd, int datasync)
+{
+	struct file *file;
+	int ret = -EBADF;
+
+	file = fget(fd);
+	if (file) {
+		ret = do_fsync(file, datasync);
+		fput(file);
+	}
 	return ret;
 }
 
 asmlinkage long sys_fsync(unsigned int fd)
 {
-	return do_fsync(fd, 0);
+	return __do_fsync(fd, 0);
 }
 
 asmlinkage long sys_fdatasync(unsigned int fd)
 {
-	return do_fsync(fd, 1);
+	return __do_fsync(fd, 1);
 }
 
 /*
@@ -865,8 +868,8 @@ int __set_page_dirty_buffers(struct page *page)
 		}
 		write_unlock_irq(&mapping->tree_lock);
 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+		return 1;
 	}
-	
 	return 0;
 }
 EXPORT_SYMBOL(__set_page_dirty_buffers);
@@ -3078,7 +3081,7 @@ static void recalc_bh_state(void)
 	if (__get_cpu_var(bh_accounting).ratelimit++ < 4096)
 		return;
 	__get_cpu_var(bh_accounting).ratelimit = 0;
-	for_each_cpu(i)
+	for_each_online_cpu(i)
 		tot += per_cpu(bh_accounting, i).nr;
 	buffer_heads_over_limit = (tot > max_buffer_heads);
 }
@@ -3127,6 +3130,9 @@ static void buffer_exit_cpu(int cpu)
 		brelse(b->bhs[i]);
 		b->bhs[i] = NULL;
 	}
+	get_cpu_var(bh_accounting).nr += per_cpu(bh_accounting, cpu).nr;
+	per_cpu(bh_accounting, cpu).nr = 0;
+	put_cpu_var(bh_accounting);
 }
 
 static int buffer_cpu_notify(struct notifier_block *self,
@@ -3143,8 +3149,11 @@ void __init buffer_init(void)
 	int nrpages;
 
 	bh_cachep = kmem_cache_create("buffer_head",
-			sizeof(struct buffer_head), 0,
-			SLAB_RECLAIM_ACCOUNT|SLAB_PANIC, init_buffer_head, NULL);
+					sizeof(struct buffer_head), 0,
+					(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
+					SLAB_MEM_SPREAD),
+					init_buffer_head,
+					NULL);
 
 	/*
 	 * Limit the bh occupancy to 10% of ZONE_NORMAL

@@ -32,6 +32,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/sound.h>
 #include <linux/soundcard.h>
+#include <linux/mutex.h>
+
 
 #include <asm/io.h>
 #include <asm/sgi/hpc3.h>
@@ -92,7 +94,7 @@ struct hal2_codec {
 
 	wait_queue_head_t dma_wait;
 	spinlock_t lock;
-	struct semaphore sem;
+	struct mutex sem;
 
 	int usecount;			/* recording and playback are
 					 * independent */
@@ -1178,7 +1180,7 @@ static ssize_t hal2_read(struct file *file, char *buffer,
 
 	if (!count)
 		return 0;
-	if (down_interruptible(&adc->sem))
+	if (mutex_lock_interruptible(&adc->sem))
 		return -EINTR;
 	if (file->f_flags & O_NONBLOCK) {
 		err = hal2_get_buffer(hal2, buffer, count);
@@ -1217,7 +1219,7 @@ static ssize_t hal2_read(struct file *file, char *buffer,
 			}
 		} while (count > 0 && err >= 0);
 	}
-	up(&adc->sem);
+	mutex_unlock(&adc->sem);
 
 	return err;
 }
@@ -1232,7 +1234,7 @@ static ssize_t hal2_write(struct file *file, const char *buffer,
 
 	if (!count)
 		return 0;
-	if (down_interruptible(&dac->sem))
+	if (mutex_lock_interruptible(&dac->sem))
 		return -EINTR;
 	if (file->f_flags & O_NONBLOCK) {
 		err = hal2_add_buffer(hal2, buf, count);
@@ -1271,7 +1273,7 @@ static ssize_t hal2_write(struct file *file, const char *buffer,
 			}
 		} while (count > 0 && err >= 0);
 	}
-	up(&dac->sem);
+	mutex_unlock(&dac->sem);
 
 	return err;
 }
@@ -1356,20 +1358,20 @@ static int hal2_release(struct inode *inode, struct file *file)
 	if (file->f_mode & FMODE_READ) {
 		struct hal2_codec *adc = &hal2->adc;
 
-		down(&adc->sem);
+		mutex_lock(&adc->sem);
 		hal2_stop_adc(hal2);
 		hal2_free_adc_dmabuf(adc);
 		adc->usecount--;
-		up(&adc->sem);
+		mutex_unlock(&adc->sem);
 	}
 	if (file->f_mode & FMODE_WRITE) {
 		struct hal2_codec *dac = &hal2->dac;
 
-		down(&dac->sem);
+		mutex_lock(&dac->sem);
 		hal2_sync_dac(hal2);
 		hal2_free_dac_dmabuf(dac);
 		dac->usecount--;
-		up(&dac->sem);
+		mutex_unlock(&dac->sem);
 	}
 
 	return 0;
@@ -1400,7 +1402,7 @@ static void hal2_init_codec(struct hal2_codec *codec, struct hpc3_regs *hpc3,
 	codec->pbus.pbusnr = index;
 	codec->pbus.pbus = &hpc3->pbdma[index];
 	init_waitqueue_head(&codec->dma_wait);
-	init_MUTEX(&codec->sem);
+	mutex_init(&codec->sem);
 	spin_lock_init(&codec->lock);
 }
 

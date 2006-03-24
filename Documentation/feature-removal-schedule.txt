@@ -116,6 +116,17 @@ Who:	Harald Welte <laforge@netfilter.org>
 
 ---------------------------
 
+What:	remove EXPORT_SYMBOL(kernel_thread)
+When:	August 2006
+Files:	arch/*/kernel/*_ksyms.c
+Why:	kernel_thread is a low-level implementation detail.  Drivers should
+        use the <linux/kthread.h> API instead which shields them from
+	implementation details and provides a higherlevel interface that
+	prevents bugs and code duplication
+Who:	Christoph Hellwig <hch@lst.de>
+
+---------------------------
+
 What:	EXPORT_SYMBOL(lookup_hash)
 When:	January 2006
 Why:	Too low-level interface.  Use lookup_one_len or lookup_create instead.
@@ -158,13 +169,6 @@ Who:    Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	Legacy /proc/pci interface (PCI_LEGACY_PROC)
-When:	March 2006
-Why:	deprecated since 2.5.53 in favor of lspci(8)
-Who:	Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
 What:	pci_module_init(driver)
 When:	January 2007
 Why:	Is replaced by pci_register_driver(pci_driver).
@@ -178,6 +182,17 @@ Why:	The ISA interface is faster and should be always available. The I2C
 	probing is also known to cause trouble in at least one case (see
 	bug #5889.)
 Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	remove EXPORT_SYMBOL(tasklist_lock)
+When:	August 2006
+Files:	kernel/fork.c
+Why:	tasklist_lock protects the kernel internal task list.  Modules have
+	no business looking at it, and all instances in drivers have been due
+	to use of too-lowlevel APIs.  Having this symbol exported prevents
+	moving to more scalable locking schemes for the task list.
+Who:	Christoph Hellwig <hch@lst.de>
 
 ---------------------------
 

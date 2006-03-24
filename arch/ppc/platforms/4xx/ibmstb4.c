@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibmstb4.c
- *
  * Author: Armin Kuster <akuster@mvista.com>
  *
  * 2000-2001 (c) MontaVista, Software, Inc.  This file is licensed under

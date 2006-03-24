@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/pm.h>
 #include <linux/ptrace.h>
-#include <linux/platform.h>
 #include <linux/kallsyms.h>
 #include <linux/kexec.h>
 

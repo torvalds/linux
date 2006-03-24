@@ -1629,7 +1629,7 @@ void tipc_link_retransmit(struct link *l_ptr, struct sk_buff *buf,
                                         tipc_msg_print(TIPC_CONS, buf_msg(buf), ">RETR>");
                                         info("...Retransmitted %u times\n",
 					     l_ptr->stale_count);
-                                        link_print(l_ptr, TIPC_CONS, "Resetting Link\n");;
+                                        link_print(l_ptr, TIPC_CONS, "Resetting Link\n");
                                         tipc_link_reset(l_ptr);
                                         break;
                                 }

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/83xx/mpc83xx_sys.c
- *
  * MPC83xx System descriptions
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>

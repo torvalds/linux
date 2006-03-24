@@ -103,7 +103,7 @@ extern void s390_handle_mcck(void);
 /*
  * The idle loop on a S390...
  */
-void default_idle(void)
+static void default_idle(void)
 {
 	int cpu, rc;
 

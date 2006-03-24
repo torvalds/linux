@@ -536,6 +536,7 @@ struct v9fs_fcall *v9fs_create_tversion(u32 msize, char *version)
 	return fc;
 }
 
+#if 0
 struct v9fs_fcall *v9fs_create_tauth(u32 afid, char *uname, char *aname)
 {
 	int size;
@@ -559,6 +560,7 @@ struct v9fs_fcall *v9fs_create_tauth(u32 afid, char *uname, char *aname)
       error:
 	return fc;
 }
+#endif  /*  0  */
 
 struct v9fs_fcall *
 v9fs_create_tattach(u32 fid, u32 afid, char *uname, char *aname)

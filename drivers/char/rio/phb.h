@@ -37,13 +37,6 @@
 #ifndef _phb_h
 #define _phb_h 1
 
-#ifdef SCCS_LABELS
-#ifndef lint
-/* static char *_rio_phb_h_sccs = "@(#)phb.h	1.12"; */
-#endif
-#endif
-
-
 /*************************************************
  * Handshake asserted. Deasserted by the LTT(s)
  ************************************************/
@@ -124,23 +117,23 @@
  * the start. The pointer tx_add points to a SPACE to put a Packet.
  * The pointer tx_remove points to the next Packet to remove
  *************************************************************************/
-typedef struct PHB PHB;
-struct PHB {
-	WORD source;
-	WORD handshake;
-	WORD status;
-	NUMBER timeout;		/* Maximum of 1.9 seconds */
-	WORD link;		/* Send down this link */
-	WORD destination;
-	PKT_ptr_ptr tx_start;
-	PKT_ptr_ptr tx_end;
-	PKT_ptr_ptr tx_add;
-	PKT_ptr_ptr tx_remove;
 
-	PKT_ptr_ptr rx_start;
-	PKT_ptr_ptr rx_end;
-	PKT_ptr_ptr rx_add;
-	PKT_ptr_ptr rx_remove;
+struct PHB {
+	u8 source;
+	u8 handshake;
+	u8 status;
+	u16 timeout;		/* Maximum of 1.9 seconds */
+	u8 link;		/* Send down this link */
+	u8 destination;
+	u16 tx_start;
+	u16 tx_end;
+	u16 tx_add;
+	u16 tx_remove;
+
+	u16 rx_start;
+	u16 rx_end;
+	u16 rx_add;
+	u16 rx_remove;
 
 };
 

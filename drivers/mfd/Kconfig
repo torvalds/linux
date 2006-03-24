@@ -3,6 +3,7 @@
 #
 
 menu "Multimedia Capabilities Port drivers"
+	depends on ARCH_SA1100
 
 config MCP
 	tristate

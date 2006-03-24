@@ -115,11 +115,10 @@ lcs_alloc_channel(struct lcs_channel *channel)
 	LCS_DBF_TEXT(2, setup, "ichalloc");
 	for (cnt = 0; cnt < LCS_NUM_BUFFS; cnt++) {
 		/* alloc memory fo iobuffer */
-		channel->iob[cnt].data = (void *)
-			kmalloc(LCS_IOBUFFERSIZE, GFP_DMA | GFP_KERNEL);
+		channel->iob[cnt].data =
+			kzalloc(LCS_IOBUFFERSIZE, GFP_DMA | GFP_KERNEL);
 		if (channel->iob[cnt].data == NULL)
 			break;
-		memset(channel->iob[cnt].data, 0, LCS_IOBUFFERSIZE);
 		channel->iob[cnt].state = BUF_STATE_EMPTY;
 	}
 	if (cnt < LCS_NUM_BUFFS) {
@@ -182,10 +181,9 @@ lcs_alloc_card(void)
 
 	LCS_DBF_TEXT(2, setup, "alloclcs");
 
-	card = kmalloc(sizeof(struct lcs_card), GFP_KERNEL | GFP_DMA);
+	card = kzalloc(sizeof(struct lcs_card), GFP_KERNEL | GFP_DMA);
 	if (card == NULL)
 		return NULL;
-	memset(card, 0, sizeof(struct lcs_card));
 	card->lan_type = LCS_FRAME_TYPE_AUTO;
 	card->pkt_seq = 0;
 	card->lancmd_timeout = LCS_LANCMD_TIMEOUT_DEFAULT;
@@ -793,10 +791,9 @@ lcs_alloc_reply(struct lcs_cmd *cmd)
 
 	LCS_DBF_TEXT(4, trace, "getreply");
 
-	reply = kmalloc(sizeof(struct lcs_reply), GFP_ATOMIC);
+	reply = kzalloc(sizeof(struct lcs_reply), GFP_ATOMIC);
 	if (!reply)
 		return NULL;
-	memset(reply,0,sizeof(struct lcs_reply));
 	atomic_set(&reply->refcnt,1);
 	reply->sequence_no = cmd->sequence_no;
 	reply->received = 0;
