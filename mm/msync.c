@@ -9,6 +9,7 @@
  */
 #include <linux/slab.h>
 #include <linux/pagemap.h>
+#include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/hugetlb.h>
@@ -214,23 +215,9 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
 			vma = find_vma(current->mm, start);
 		} else if ((flags & MS_SYNC) && file &&
 				(vma->vm_flags & VM_SHARED)) {
-			struct address_space *mapping;
-			int err;
-
 			get_file(file);
 			up_read(&current->mm->mmap_sem);
-			mapping = file->f_mapping;
-			error = filemap_fdatawrite(mapping);
-			if (file->f_op && file->f_op->fsync) {
-				mutex_lock(&mapping->host->i_mutex);
-				err = file->f_op->fsync(file,file->f_dentry,1);
-				mutex_unlock(&mapping->host->i_mutex);
-				if (err && !error)
-					error = err;
-			}
-			err = filemap_fdatawait(mapping);
-			if (err && !error)
-				error = err;
+			error = do_fsync(file, 0);
 			fput(file);
 			down_read(&current->mm->mmap_sem);
 			if (error)
