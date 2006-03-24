@@ -327,31 +327,24 @@ int file_fsync(struct file *filp, struct dentry *dentry, int datasync)
 	return ret;
 }
 
-static long do_fsync(unsigned int fd, int datasync)
+long do_fsync(struct file *file, int datasync)
 {
-	struct file * file;
-	struct address_space *mapping;
-	int ret, err;
+	int ret;
+	int err;
+	struct address_space *mapping = file->f_mapping;
 
-	ret = -EBADF;
-	file = fget(fd);
-	if (!file)
-		goto out;
-
-	ret = -EINVAL;
 	if (!file->f_op || !file->f_op->fsync) {
 		/* Why?  We can still call filemap_fdatawrite */
-		goto out_putf;
+		ret = -EINVAL;
+		goto out;
 	}
-
-	mapping = file->f_mapping;
 
 	current->flags |= PF_SYNCWRITE;
 	ret = filemap_fdatawrite(mapping);
 
 	/*
-	 * We need to protect against concurrent writers,
-	 * which could cause livelocks in fsync_buffers_list
+	 * We need to protect against concurrent writers, which could cause
+	 * livelocks in fsync_buffers_list().
 	 */
 	mutex_lock(&mapping->host->i_mutex);
 	err = file->f_op->fsync(file, file->f_dentry, datasync);
@@ -362,21 +355,31 @@ static long do_fsync(unsigned int fd, int datasync)
 	if (!ret)
 		ret = err;
 	current->flags &= ~PF_SYNCWRITE;
-
-out_putf:
-	fput(file);
 out:
+	return ret;
+}
+
+static long __do_fsync(unsigned int fd, int datasync)
+{
+	struct file *file;
+	int ret = -EBADF;
+
+	file = fget(fd);
+	if (file) {
+		ret = do_fsync(file, datasync);
+		fput(file);
+	}
 	return ret;
 }
 
 asmlinkage long sys_fsync(unsigned int fd)
 {
-	return do_fsync(fd, 0);
+	return __do_fsync(fd, 0);
 }
 
 asmlinkage long sys_fdatasync(unsigned int fd)
 {
-	return do_fsync(fd, 1);
+	return __do_fsync(fd, 1);
 }
 
 /*

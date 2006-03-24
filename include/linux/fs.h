@@ -1478,6 +1478,7 @@ extern int wait_on_page_writeback_range(struct address_space *mapping,
 extern int __filemap_fdatawrite_range(struct address_space *mapping,
 				loff_t start, loff_t end, int sync_mode);
 
+extern long do_fsync(struct file *file, int datasync);
 extern void sync_supers(void);
 extern void sync_filesystems(int wait);
 extern void emergency_sync(void);
