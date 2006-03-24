@@ -348,8 +348,6 @@ int v9fs_t_attach(struct v9fs_session_info *v9ses, char *uname, char *aname,
 
 int v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid);
 
-int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 oldtag);
-
 int v9fs_t_stat(struct v9fs_session_info *v9ses, u32 fid,
 		struct v9fs_fcall **rcall);
 

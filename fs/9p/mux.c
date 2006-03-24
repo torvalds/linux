@@ -143,7 +143,7 @@ void v9fs_mux_global_exit(void)
  *
  * The current implementation returns sqrt of the number of mounts.
  */
-inline int v9fs_mux_calc_poll_procs(int muxnum)
+static int v9fs_mux_calc_poll_procs(int muxnum)
 {
 	int n;
 
@@ -384,7 +384,7 @@ v9fs_pollwait(struct file *filp, wait_queue_head_t * wait_address,
 /**
  * v9fs_poll_mux - polls a mux and schedules read or write works if necessary
  */
-static inline void v9fs_poll_mux(struct v9fs_mux_data *m)
+static void v9fs_poll_mux(struct v9fs_mux_data *m)
 {
 	int n;
 
@@ -762,9 +762,8 @@ static struct v9fs_req *v9fs_send_request(struct v9fs_mux_data *m,
 	return req;
 }
 
-static inline void
-v9fs_mux_flush_cb(void *a, struct v9fs_fcall *tc, struct v9fs_fcall *rc,
-		  int err)
+static void v9fs_mux_flush_cb(void *a, struct v9fs_fcall *tc,
+			      struct v9fs_fcall *rc, int err)
 {
 	v9fs_mux_req_callback cb;
 	int tag;
@@ -902,6 +901,7 @@ v9fs_mux_rpc(struct v9fs_mux_data *m, struct v9fs_fcall *tc,
 	return err;
 }
 
+#if 0
 /**
  * v9fs_mux_rpcnb - sends 9P request without waiting for response.
  * @m: mux data
@@ -925,6 +925,7 @@ int v9fs_mux_rpcnb(struct v9fs_mux_data *m, struct v9fs_fcall *tc,
 	dprintk(DEBUG_MUX, "mux %p tc %p tag %d\n", m, tc, req->tag);
 	return 0;
 }
+#endif  /*  0  */
 
 /**
  * v9fs_mux_cancel - cancel all pending requests with error
