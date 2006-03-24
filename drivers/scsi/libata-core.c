@@ -1363,8 +1363,6 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 	return 0;
 
 err_out_nosup:
-	printk(KERN_WARNING "ata%u: dev %u not supported, ignoring\n",
-	       ap->id, dev->devno);
 	DPRINTK("EXIT, err\n");
 	return rc;
 }
@@ -1431,7 +1429,7 @@ static int ata_bus_probe(struct ata_port *ap)
 		}
 
 		if (ata_dev_configure(ap, dev, 1)) {
-			dev->class++;	/* disable device */
+			ata_dev_disable(ap, dev);
 			continue;
 		}
 
