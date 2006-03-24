@@ -32,7 +32,7 @@
 
 -TODO: at one time or another test that the mode is acceptable by the monitor
 -ASK: Can I choose different ordering for the color bitfields (rgba argb ...)
-      wich one should i use ? is there any preferred one ? It seems ARGB is
+      which one should i use ? is there any preferred one ? It seems ARGB is
       the one ...
 -TODO: in  set_var check the validity of timings (hsync vsync)...
 -TODO: check and recheck the use of sst_wait_idle : we don't flush the fifo via
