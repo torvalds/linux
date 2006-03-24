@@ -1,9 +1,9 @@
 /*
  *  linux/drivers/s390/crypto/z90main.c
  *
- *  z90crypt 1.3.2
+ *  z90crypt 1.3.3
  *
- *  Copyright (C)  2001, 2004 IBM Corporation
+ *  Copyright (C)  2001, 2005 IBM Corporation
  *  Author(s): Robert Burroughs (burrough@us.ibm.com)
  *             Eric Rossman (edrossma@us.ibm.com)
  *
@@ -991,6 +991,7 @@ remove_device(struct device *device_p)
  * PCIXCC_MCL2   512-2048     ----- (applying any GA LIC will make an MCL3 card)
  * PCIXCC_MCL3   -----        128-2048
  * CEX2C         512-2048     128-2048
+ * CEX2A          ??-2048     same (the lower limit is less than 128 bit...)
  *
  * ext_bitlens (extended bitlengths) is a global, since you should not apply an
  * MCL to just one card in a machine. We assume, at first, that all cards have
