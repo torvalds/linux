@@ -517,6 +517,10 @@ else
 CFLAGS		+= -fomit-frame-pointer
 endif
 
+ifdef CONFIG_UNWIND_INFO
+CFLAGS		+= -fasynchronous-unwind-tables
+endif
+
 ifdef CONFIG_DEBUG_INFO
 CFLAGS		+= -g
 endif
