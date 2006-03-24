@@ -404,6 +404,7 @@ config PCMCIA_HERMES
 config PCMCIA_SPECTRUM
 	tristate "Symbol Spectrum24 Trilogy PCMCIA card support"
 	depends on NET_RADIO && PCMCIA && HERMES
+	select FW_LOADER
 	---help---
 
 	  This is a driver for 802.11b cards using RAM-loadable Symbol
