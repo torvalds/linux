@@ -1009,6 +1009,22 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 
 	ata_qc_free(qc);
 
+	/* XXX - Some LLDDs (sata_mv) disable port on command failure.
+	 * Until those drivers are fixed, we detect the condition
+	 * here, fail the command with AC_ERR_SYSTEM and reenable the
+	 * port.
+	 *
+	 * Note that this doesn't change any behavior as internal
+	 * command failure results in disabling the device in the
+	 * higher layer for LLDDs without new reset/EH callbacks.
+	 *
+	 * Kill the following code as soon as those drivers are fixed.
+	 */
+	if (ap->flags & ATA_FLAG_PORT_DISABLED) {
+		err_mask |= AC_ERR_SYSTEM;
+		ata_port_probe(ap);
+	}
+
 	return err_mask;
 }
 
