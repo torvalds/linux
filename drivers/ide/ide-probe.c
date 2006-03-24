@@ -858,6 +858,15 @@ static void probe_hwif(ide_hwif_t *hwif)
 			}
 		}
 	}
+
+	for (unit = 0; unit < MAX_DRIVES; ++unit) {
+		ide_drive_t *drive = &hwif->drives[unit];
+
+		if (hwif->no_io_32bit)
+			drive->no_io_32bit = 1;
+		else
+			drive->no_io_32bit = drive->id->dword_io ? 1 : 0;
+	}
 }
 
 static int hwif_init(ide_hwif_t *hwif);
