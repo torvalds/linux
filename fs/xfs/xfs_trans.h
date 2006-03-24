@@ -380,7 +380,7 @@ typedef struct xfs_trans {
 	xfs_trans_header_t	t_header;	/* header for in-log trans */
 	unsigned int		t_busy_free;	/* busy descs free */
 	xfs_log_busy_chunk_t	t_busy;		/* busy/async free blocks */
-        xfs_pflags_t            t_pflags;       /* saved pflags state */
+	unsigned long		t_pflags;	/* saved process flags state */
 } xfs_trans_t;
 
 #endif	/* __KERNEL__ */

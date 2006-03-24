@@ -80,15 +80,13 @@
 #include <linux/kmod.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #ifdef CONFIG_ADB_CUDA
 #include <linux/cuda.h>
 #endif
 #ifdef CONFIG_ADB_PMU
 #include <linux/pmu.h>
 #endif
-
-#include <linux/i2c-dev.h>
 
 #include <asm/uaccess.h>
 #include <asm/prom.h>
@@ -130,7 +128,7 @@ static struct resource awacs_rsrc[3];
 static char awacs_name[64];
 static int awacs_revision;
 static int awacs_sleeping;
-static DECLARE_MUTEX(dmasound_sem);
+static DEFINE_MUTEX(dmasound_mutex);
 
 static int sound_device_id;		/* exists after iMac revA */
 static int hw_can_byteswap = 1 ;	/* most pmac sound h/w can */
@@ -312,11 +310,11 @@ extern int daca_enter_sleep(void);
 extern int daca_leave_sleep(void);
 
 #define TRY_LOCK()	\
-	if ((rc = down_interruptible(&dmasound_sem)) != 0)	\
+	if ((rc = mutex_lock_interruptible(&dmasound_mutex)) != 0)	\
 		return rc;
-#define LOCK()		down(&dmasound_sem);
+#define LOCK()		mutex_lock(&dmasound_mutex);
 
-#define UNLOCK()	up(&dmasound_sem);
+#define UNLOCK()	mutex_unlock(&dmasound_mutex);
 
 /* We use different versions that the ones provided in dmasound.h
  * 

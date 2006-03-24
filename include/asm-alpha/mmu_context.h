@@ -231,9 +231,8 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_online(i))
-			mm->context[i] = 0;
+	for_each_online_cpu(i)
+		mm->context[i] = 0;
 	if (tsk != current)
 		task_thread_info(tsk)->pcb.ptbr
 		  = ((unsigned long)mm->pgd - IDENT_ADDR) >> PAGE_SHIFT;

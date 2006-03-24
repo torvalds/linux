@@ -278,13 +278,11 @@ enum {
 	Y2_IS_CHK_TXS1	= 1<<1,		/* Descriptor error TXS 1 */
 	Y2_IS_CHK_TXA1	= 1<<0,		/* Descriptor error TXA 1 */
 
-	Y2_IS_BASE	= Y2_IS_HW_ERR | Y2_IS_STAT_BMU |
-			  Y2_IS_POLL_CHK | Y2_IS_TWSI_RDY |
-			  Y2_IS_IRQ_SW | Y2_IS_TIMINT,
-	Y2_IS_PORT_1	= Y2_IS_IRQ_PHY1 | Y2_IS_IRQ_MAC1 |
-			  Y2_IS_CHK_RX1 | Y2_IS_CHK_TXA1 | Y2_IS_CHK_TXS1,
-	Y2_IS_PORT_2	= Y2_IS_IRQ_PHY2 | Y2_IS_IRQ_MAC2 |
-			  Y2_IS_CHK_RX2 | Y2_IS_CHK_TXA2 | Y2_IS_CHK_TXS2,
+	Y2_IS_BASE	= Y2_IS_HW_ERR | Y2_IS_STAT_BMU,
+	Y2_IS_PORT_1	= Y2_IS_IRQ_PHY1 | Y2_IS_IRQ_MAC1
+		          | Y2_IS_CHK_TXA1 | Y2_IS_CHK_RX1,
+	Y2_IS_PORT_2	= Y2_IS_IRQ_PHY2 | Y2_IS_IRQ_MAC2
+			  | Y2_IS_CHK_TXA2 | Y2_IS_CHK_RX2,
 };
 
 /*	B2_IRQM_HWE_MSK	32 bit	IRQ Moderation HW Error Mask */
@@ -1375,23 +1373,23 @@ enum {
 	GM_SMI_CTRL	= 0x0080,	/* 16 bit r/w	SMI Control Register */
 	GM_SMI_DATA	= 0x0084,	/* 16 bit r/w	SMI Data Register */
 	GM_PHY_ADDR	= 0x0088,	/* 16 bit r/w	GPHY Address Register */
+/* MIB Counters */
+	GM_MIB_CNT_BASE	= 0x0100,	/* Base Address of MIB Counters */
+	GM_MIB_CNT_SIZE	= 256,
 };
 
-/* MIB Counters */
-#define GM_MIB_CNT_BASE	0x0100		/* Base Address of MIB Counters */
-#define GM_MIB_CNT_SIZE	44		/* Number of MIB Counters */
 
 /*
  * MIB Counters base address definitions (low word) -
  * use offset 4 for access to high word	(32 bit r/o)
  */
 enum {
-	GM_RXF_UC_OK  = GM_MIB_CNT_BASE + 0,	/* Unicast Frames Received OK */
+	GM_RXF_UC_OK    = GM_MIB_CNT_BASE + 0,	/* Unicast Frames Received OK */
 	GM_RXF_BC_OK	= GM_MIB_CNT_BASE + 8,	/* Broadcast Frames Received OK */
 	GM_RXF_MPAUSE	= GM_MIB_CNT_BASE + 16,	/* Pause MAC Ctrl Frames Received */
 	GM_RXF_MC_OK	= GM_MIB_CNT_BASE + 24,	/* Multicast Frames Received OK */
 	GM_RXF_FCS_ERR	= GM_MIB_CNT_BASE + 32,	/* Rx Frame Check Seq. Error */
-	/* GM_MIB_CNT_BASE + 40:	reserved */
+
 	GM_RXO_OK_LO	= GM_MIB_CNT_BASE + 48,	/* Octets Received OK Low */
 	GM_RXO_OK_HI	= GM_MIB_CNT_BASE + 56,	/* Octets Received OK High */
 	GM_RXO_ERR_LO	= GM_MIB_CNT_BASE + 64,	/* Octets Received Invalid Low */
@@ -1399,37 +1397,36 @@ enum {
 	GM_RXF_SHT	= GM_MIB_CNT_BASE + 80,	/* Frames <64 Byte Received OK */
 	GM_RXE_FRAG	= GM_MIB_CNT_BASE + 88,	/* Frames <64 Byte Received with FCS Err */
 	GM_RXF_64B	= GM_MIB_CNT_BASE + 96,	/* 64 Byte Rx Frame */
-	GM_RXF_127B	= GM_MIB_CNT_BASE + 104,	/* 65-127 Byte Rx Frame */
-	GM_RXF_255B	= GM_MIB_CNT_BASE + 112,	/* 128-255 Byte Rx Frame */
-	GM_RXF_511B	= GM_MIB_CNT_BASE + 120,	/* 256-511 Byte Rx Frame */
-	GM_RXF_1023B	= GM_MIB_CNT_BASE + 128,	/* 512-1023 Byte Rx Frame */
-	GM_RXF_1518B	= GM_MIB_CNT_BASE + 136,	/* 1024-1518 Byte Rx Frame */
-	GM_RXF_MAX_SZ	= GM_MIB_CNT_BASE + 144,	/* 1519-MaxSize Byte Rx Frame */
-	GM_RXF_LNG_ERR	= GM_MIB_CNT_BASE + 152,	/* Rx Frame too Long Error */
-	GM_RXF_JAB_PKT	= GM_MIB_CNT_BASE + 160,	/* Rx Jabber Packet Frame */
-	/* GM_MIB_CNT_BASE + 168:	reserved */
-	GM_RXE_FIFO_OV	= GM_MIB_CNT_BASE + 176,	/* Rx FIFO overflow Event */
-	/* GM_MIB_CNT_BASE + 184:	reserved */
-	GM_TXF_UC_OK	= GM_MIB_CNT_BASE + 192,	/* Unicast Frames Xmitted OK */
-	GM_TXF_BC_OK	= GM_MIB_CNT_BASE + 200,	/* Broadcast Frames Xmitted OK */
-	GM_TXF_MPAUSE	= GM_MIB_CNT_BASE + 208,	/* Pause MAC Ctrl Frames Xmitted */
-	GM_TXF_MC_OK	= GM_MIB_CNT_BASE + 216,	/* Multicast Frames Xmitted OK */
-	GM_TXO_OK_LO	= GM_MIB_CNT_BASE + 224,	/* Octets Transmitted OK Low */
-	GM_TXO_OK_HI	= GM_MIB_CNT_BASE + 232,	/* Octets Transmitted OK High */
-	GM_TXF_64B	= GM_MIB_CNT_BASE + 240,	/* 64 Byte Tx Frame */
-	GM_TXF_127B	= GM_MIB_CNT_BASE + 248,	/* 65-127 Byte Tx Frame */
-	GM_TXF_255B	= GM_MIB_CNT_BASE + 256,	/* 128-255 Byte Tx Frame */
-	GM_TXF_511B	= GM_MIB_CNT_BASE + 264,	/* 256-511 Byte Tx Frame */
-	GM_TXF_1023B	= GM_MIB_CNT_BASE + 272,	/* 512-1023 Byte Tx Frame */
-	GM_TXF_1518B	= GM_MIB_CNT_BASE + 280,	/* 1024-1518 Byte Tx Frame */
-	GM_TXF_MAX_SZ	= GM_MIB_CNT_BASE + 288,	/* 1519-MaxSize Byte Tx Frame */
+	GM_RXF_127B	= GM_MIB_CNT_BASE + 104,/* 65-127 Byte Rx Frame */
+	GM_RXF_255B	= GM_MIB_CNT_BASE + 112,/* 128-255 Byte Rx Frame */
+	GM_RXF_511B	= GM_MIB_CNT_BASE + 120,/* 256-511 Byte Rx Frame */
+	GM_RXF_1023B	= GM_MIB_CNT_BASE + 128,/* 512-1023 Byte Rx Frame */
+	GM_RXF_1518B	= GM_MIB_CNT_BASE + 136,/* 1024-1518 Byte Rx Frame */
+	GM_RXF_MAX_SZ	= GM_MIB_CNT_BASE + 144,/* 1519-MaxSize Byte Rx Frame */
+	GM_RXF_LNG_ERR	= GM_MIB_CNT_BASE + 152,/* Rx Frame too Long Error */
+	GM_RXF_JAB_PKT	= GM_MIB_CNT_BASE + 160,/* Rx Jabber Packet Frame */
 
-	GM_TXF_COL	= GM_MIB_CNT_BASE + 304,	/* Tx Collision */
-	GM_TXF_LAT_COL	= GM_MIB_CNT_BASE + 312,	/* Tx Late Collision */
-	GM_TXF_ABO_COL	= GM_MIB_CNT_BASE + 320,	/* Tx aborted due to Exces. Col. */
-	GM_TXF_MUL_COL	= GM_MIB_CNT_BASE + 328,	/* Tx Multiple Collision */
-	GM_TXF_SNG_COL	= GM_MIB_CNT_BASE + 336,	/* Tx Single Collision */
-	GM_TXE_FIFO_UR	= GM_MIB_CNT_BASE + 344,	/* Tx FIFO Underrun Event */
+	GM_RXE_FIFO_OV	= GM_MIB_CNT_BASE + 176,/* Rx FIFO overflow Event */
+	GM_TXF_UC_OK	= GM_MIB_CNT_BASE + 192,/* Unicast Frames Xmitted OK */
+	GM_TXF_BC_OK	= GM_MIB_CNT_BASE + 200,/* Broadcast Frames Xmitted OK */
+	GM_TXF_MPAUSE	= GM_MIB_CNT_BASE + 208,/* Pause MAC Ctrl Frames Xmitted */
+	GM_TXF_MC_OK	= GM_MIB_CNT_BASE + 216,/* Multicast Frames Xmitted OK */
+	GM_TXO_OK_LO	= GM_MIB_CNT_BASE + 224,/* Octets Transmitted OK Low */
+	GM_TXO_OK_HI	= GM_MIB_CNT_BASE + 232,/* Octets Transmitted OK High */
+	GM_TXF_64B	= GM_MIB_CNT_BASE + 240,/* 64 Byte Tx Frame */
+	GM_TXF_127B	= GM_MIB_CNT_BASE + 248,/* 65-127 Byte Tx Frame */
+	GM_TXF_255B	= GM_MIB_CNT_BASE + 256,/* 128-255 Byte Tx Frame */
+	GM_TXF_511B	= GM_MIB_CNT_BASE + 264,/* 256-511 Byte Tx Frame */
+	GM_TXF_1023B	= GM_MIB_CNT_BASE + 272,/* 512-1023 Byte Tx Frame */
+	GM_TXF_1518B	= GM_MIB_CNT_BASE + 280,/* 1024-1518 Byte Tx Frame */
+	GM_TXF_MAX_SZ	= GM_MIB_CNT_BASE + 288,/* 1519-MaxSize Byte Tx Frame */
+
+	GM_TXF_COL	= GM_MIB_CNT_BASE + 304,/* Tx Collision */
+	GM_TXF_LAT_COL	= GM_MIB_CNT_BASE + 312,/* Tx Late Collision */
+	GM_TXF_ABO_COL	= GM_MIB_CNT_BASE + 320,/* Tx aborted due to Exces. Col. */
+	GM_TXF_MUL_COL	= GM_MIB_CNT_BASE + 328,/* Tx Multiple Collision */
+	GM_TXF_SNG_COL	= GM_MIB_CNT_BASE + 336,/* Tx Single Collision */
+	GM_TXE_FIFO_UR	= GM_MIB_CNT_BASE + 344,/* Tx FIFO Underrun Event */
 };
 
 /* GMAC Bit Definitions */
@@ -1832,6 +1829,7 @@ struct sky2_port {
 	struct net_device    *netdev;
 	unsigned	     port;
 	u32		     msg_enable;
+	spinlock_t	     phy_lock;
 
 	spinlock_t	     tx_lock  ____cacheline_aligned_in_smp;
 	struct tx_ring_info  *tx_ring;
@@ -1840,7 +1838,6 @@ struct sky2_port {
 	u16		     tx_prod;		/* next le to use */
 	u32		     tx_addr64;
 	u16		     tx_pending;
-	u16		     tx_last_put;
 	u16		     tx_last_mss;
 
 	struct ring_info     *rx_ring ____cacheline_aligned_in_smp;
@@ -1849,7 +1846,6 @@ struct sky2_port {
 	u16		     rx_next;		/* next re to check */
 	u16		     rx_put;		/* next le index to use */
 	u16		     rx_pending;
-	u16		     rx_last_put;
 	u16		     rx_bufsize;
 #ifdef SKY2_VLAN_TAG_USED
 	u16		     rx_tag;
@@ -1865,20 +1861,15 @@ struct sky2_port {
 	u8		     rx_pause;
 	u8		     tx_pause;
 	u8		     rx_csum;
-	u8		     wol;
 
 	struct net_device_stats net_stats;
 
-	struct work_struct   phy_task;
-	struct semaphore     phy_sema;
 };
 
 struct sky2_hw {
 	void __iomem  	     *regs;
 	struct pci_dev	     *pdev;
 	struct net_device    *dev[2];
-	spinlock_t	     hw_lock;
-	u32		     intr_mask;
 
 	int		     pm_cap;
 	u8	     	     chip_id;
@@ -1889,6 +1880,8 @@ struct sky2_hw {
 	struct sky2_status_le *st_le;
 	u32		     st_idx;
 	dma_addr_t   	     st_dma;
+	int		     msi_detected;
+	wait_queue_head_t    msi_wait;
 };
 
 /* Register accessor for memory mapped device */

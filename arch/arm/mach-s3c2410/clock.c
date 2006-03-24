@@ -38,12 +38,14 @@
 #include <linux/ioport.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
+#include <linux/delay.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
 #include <asm/arch/regs-clock.h>
+#include <asm/arch/regs-gpio.h>
 
 #include "clock.h"
 #include "cpu.h"
@@ -51,7 +53,8 @@
 /* clock information */
 
 static LIST_HEAD(clocks);
-static DEFINE_MUTEX(clocks_mutex);
+
+DEFINE_MUTEX(clocks_mutex);
 
 /* old functions */
 
@@ -178,17 +181,46 @@ unsigned long clk_get_rate(struct clk *clk)
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
+	if (!IS_ERR(clk) && clk->round_rate)
+		return (clk->round_rate)(clk, rate);
+
 	return rate;
 }
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	return -EINVAL;
+	int ret;
+
+	if (IS_ERR(clk))
+		return -EINVAL;
+
+	mutex_lock(&clocks_mutex);
+	ret = (clk->set_rate)(clk, rate);
+	mutex_unlock(&clocks_mutex);
+
+	return ret;
 }
 
 struct clk *clk_get_parent(struct clk *clk)
 {
 	return clk->parent;
+}
+
+int clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	int ret = 0;
+
+	if (IS_ERR(clk))
+		return -EINVAL;
+
+	mutex_lock(&clocks_mutex);
+
+	if (clk->set_parent)
+		ret = (clk->set_parent)(clk, parent);
+
+	mutex_unlock(&clocks_mutex);
+
+	return ret;
 }
 
 EXPORT_SYMBOL(clk_get);
@@ -199,6 +231,29 @@ EXPORT_SYMBOL(clk_get_rate);
 EXPORT_SYMBOL(clk_round_rate);
 EXPORT_SYMBOL(clk_set_rate);
 EXPORT_SYMBOL(clk_get_parent);
+EXPORT_SYMBOL(clk_set_parent);
+
+/* base clock enable */
+
+static int s3c24xx_upll_enable(struct clk *clk, int enable)
+{
+	unsigned long clkslow = __raw_readl(S3C2410_CLKSLOW);
+	unsigned long orig = clkslow;
+
+	if (enable)
+		clkslow &= ~S3C2410_CLKSLOW_UCLK_OFF;
+	else
+		clkslow |= S3C2410_CLKSLOW_UCLK_OFF;
+
+	__raw_writel(clkslow, S3C2410_CLKSLOW);
+
+	/* if we started the UPLL, then allow to settle */
+
+	if (enable && !(orig & S3C2410_CLKSLOW_UCLK_OFF))
+		udelay(200);
+
+	return 0;
+}
 
 /* base clocks */
 
@@ -207,6 +262,14 @@ static struct clk clk_xtal = {
 	.id		= -1,
 	.rate		= 0,
 	.parent		= NULL,
+	.ctrlbit	= 0,
+};
+
+static struct clk clk_upll = {
+	.name		= "upll",
+	.id		= -1,
+	.parent		= NULL,
+	.enable		= s3c24xx_upll_enable,
 	.ctrlbit	= 0,
 };
 
@@ -234,26 +297,124 @@ static struct clk clk_p = {
 	.ctrlbit	= 0,
 };
 
+struct clk clk_usb_bus = {
+	.name		= "usb-bus",
+	.id		= -1,
+	.rate		= 0,
+	.parent		= &clk_upll,
+};
+
 /* clocks that could be registered by external code */
+
+static int s3c24xx_dclk_enable(struct clk *clk, int enable)
+{
+	unsigned long dclkcon = __raw_readl(S3C2410_DCLKCON);
+
+	if (enable)
+		dclkcon |= clk->ctrlbit;
+	else
+		dclkcon &= ~clk->ctrlbit;
+
+	__raw_writel(dclkcon, S3C2410_DCLKCON);
+
+	return 0;
+}
+
+static int s3c24xx_dclk_setparent(struct clk *clk, struct clk *parent)
+{
+	unsigned long dclkcon;
+	unsigned int uclk;
+
+	if (parent == &clk_upll)
+		uclk = 1;
+	else if (parent == &clk_p)
+		uclk = 0;
+	else
+		return -EINVAL;
+
+	clk->parent = parent;
+
+	dclkcon = __raw_readl(S3C2410_DCLKCON);
+
+	if (clk->ctrlbit == S3C2410_DCLKCON_DCLK0EN) {
+		if (uclk)
+			dclkcon |= S3C2410_DCLKCON_DCLK0_UCLK;
+		else
+			dclkcon &= ~S3C2410_DCLKCON_DCLK0_UCLK;
+	} else {
+		if (uclk)
+			dclkcon |= S3C2410_DCLKCON_DCLK1_UCLK;
+		else
+			dclkcon &= ~S3C2410_DCLKCON_DCLK1_UCLK;
+	}
+
+	__raw_writel(dclkcon, S3C2410_DCLKCON);
+
+	return 0;
+}
+
+
+static int s3c24xx_clkout_setparent(struct clk *clk, struct clk *parent)
+{
+	unsigned long mask;
+	unsigned long source;
+
+	/* calculate the MISCCR setting for the clock */
+
+	if (parent == &clk_xtal)
+		source = S3C2410_MISCCR_CLK0_MPLL;
+	else if (parent == &clk_upll)
+		source = S3C2410_MISCCR_CLK0_UPLL;
+	else if (parent == &clk_f)
+		source = S3C2410_MISCCR_CLK0_FCLK;
+	else if (parent == &clk_p)
+		source = S3C2410_MISCCR_CLK0_PCLK;
+	else if (clk == &s3c24xx_clkout0 && parent == &s3c24xx_dclk0)
+		source = S3C2410_MISCCR_CLK0_DCLK0;
+	else if (clk == &s3c24xx_clkout1 && parent == &s3c24xx_dclk1)
+		source = S3C2410_MISCCR_CLK0_DCLK0;
+	else
+		return -EINVAL;
+
+	if (clk == &s3c24xx_dclk0)
+		mask = S3C2410_MISCCR_CLK0_MASK;
+	else {
+		source <<= 4;
+		mask = S3C2410_MISCCR_CLK1_MASK;
+	}
+
+	s3c2410_modify_misccr(mask, source);
+	return 0;
+}
+
+/* external clock definitions */
 
 struct clk s3c24xx_dclk0 = {
 	.name		= "dclk0",
 	.id		= -1,
+	.ctrlbit	= S3C2410_DCLKCON_DCLK0EN,
+	.enable	        = s3c24xx_dclk_enable,
+	.set_parent	= s3c24xx_dclk_setparent,
 };
 
 struct clk s3c24xx_dclk1 = {
 	.name		= "dclk1",
 	.id		= -1,
+	.ctrlbit	= S3C2410_DCLKCON_DCLK0EN,
+	.enable		= s3c24xx_dclk_enable,
+	.set_parent	= s3c24xx_dclk_setparent,
 };
 
 struct clk s3c24xx_clkout0 = {
 	.name		= "clkout0",
 	.id		= -1,
+	.set_parent	= s3c24xx_clkout_setparent,
 };
 
 struct clk s3c24xx_clkout1 = {
 	.name		= "clkout1",
 	.id		= -1,
+	.set_parent	= s3c24xx_clkout_setparent,
 };
 
 struct clk s3c24xx_uclk = {
@@ -262,7 +423,7 @@ struct clk s3c24xx_uclk = {
 };
 
 
-/* clock definitions */
+/* standard clock definitions */
 
 static struct clk init_clocks[] = {
 	{
@@ -374,7 +535,7 @@ int s3c24xx_register_clock(struct clk *clk)
 
 	/* if this is a standard clock, set the usage state */
 
-	if (clk->ctrlbit) {
+	if (clk->ctrlbit && clk->enable == s3c24xx_clkcon_enable) {
 		unsigned long clkcon = __raw_readl(S3C2410_CLKCON);
 
 		clk->usage = (clkcon & clk->ctrlbit) ? 1 : 0;
@@ -396,6 +557,7 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 				unsigned long hclk,
 				unsigned long pclk)
 {
+	unsigned long upllcon = __raw_readl(S3C2410_UPLLCON);
 	unsigned long clkslow = __raw_readl(S3C2410_CLKSLOW);
 	struct clk *clkp = init_clocks;
 	int ptr;
@@ -406,6 +568,7 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 	/* initialise the main system clocks */
 
 	clk_xtal.rate = xtal;
+	clk_upll.rate = s3c2410_get_pll(upllcon, xtal);
 
 	clk_h.rate = hclk;
 	clk_p.rate = pclk;
@@ -439,6 +602,9 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 	if (s3c24xx_register_clock(&clk_xtal) < 0)
 		printk(KERN_ERR "failed to register master xtal\n");
 
+	if (s3c24xx_register_clock(&clk_upll) < 0)
+		printk(KERN_ERR "failed to register upll clock\n");
+
 	if (s3c24xx_register_clock(&clk_f) < 0)
 		printk(KERN_ERR "failed to register cpu fclk\n");
 
@@ -447,6 +613,10 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 
 	if (s3c24xx_register_clock(&clk_p) < 0)
 		printk(KERN_ERR "failed to register cpu pclk\n");
+
+
+	if (s3c24xx_register_clock(&clk_usb_bus) < 0)
+		printk(KERN_ERR "failed to register usb bus clock\n");
 
 	/* register clocks from clock array */
 

@@ -34,9 +34,11 @@
 #include <linux/pci.h>
 #include <linux/smp_lock.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
+
 #include "ibmphp.h"
 
-static int to_debug = FALSE;
+static int to_debug = 0;
 #define debug_polling(fmt, arg...)	do { if (to_debug) debug (fmt, arg); } while (0)
 
 //----------------------------------------------------------------------------
@@ -93,15 +95,15 @@ static int to_debug = FALSE;
 //----------------------------------------------------------------------------
 // macro utilities
 //----------------------------------------------------------------------------
-// if bits 20,22,25,26,27,29,30 are OFF return TRUE
-#define HPC_I2CSTATUS_CHECK(s)	((u8)((s & 0x00000A76) ? FALSE : TRUE))
+// if bits 20,22,25,26,27,29,30 are OFF return 1
+#define HPC_I2CSTATUS_CHECK(s)	((u8)((s & 0x00000A76) ? 0 : 1))
 
 //----------------------------------------------------------------------------
 // global variables
 //----------------------------------------------------------------------------
 static int ibmphp_shutdown;
 static int tid_poll;
-static struct semaphore sem_hpcaccess;	// lock access to HPC
+static struct mutex sem_hpcaccess;	// lock access to HPC
 static struct semaphore semOperations;	// lock all operations and
 					// access to data structures
 static struct semaphore sem_exit;	// make sure polling thread goes away
@@ -131,11 +133,11 @@ void __init ibmphp_hpc_initvars (void)
 {
 	debug ("%s - Entry\n", __FUNCTION__);
 
-	init_MUTEX (&sem_hpcaccess);
+	mutex_init(&sem_hpcaccess);
 	init_MUTEX (&semOperations);
 	init_MUTEX_LOCKED (&sem_exit);
-	to_debug = FALSE;
-	ibmphp_shutdown = FALSE;
+	to_debug = 0;
+	ibmphp_shutdown = 0;
 	tid_poll = 0;
 
 	debug ("%s - Exit\n", __FUNCTION__);
@@ -737,21 +739,21 @@ int ibmphp_hpc_writeslot (struct slot * pslot, u8 cmd)
 		// check controller is still not working on the command
 		//--------------------------------------------------------------------
 		timeout = CMD_COMPLETE_TOUT_SEC;
-		done = FALSE;
+		done = 0;
 		while (!done) {
 			rc = hpc_wait_ctlr_notworking (HPC_CTLR_WORKING_TOUT, ctlr_ptr, wpg_bbar,
 							&status);
 			if (!rc) {
 				if (NEEDTOCHECK_CMDSTATUS (cmd)) {
 					if (CTLR_FINISHED (status) == HPC_CTLR_FINISHED_YES)
-						done = TRUE;
+						done = 1;
 				} else
-					done = TRUE;
+					done = 1;
 			}
 			if (!done) {
 				msleep(1000);
 				if (timeout < 1) {
-					done = TRUE;
+					done = 1;
 					err ("%s - Error command complete timeout\n", __FUNCTION__);
 					rc = -EFAULT;
 				} else
@@ -778,7 +780,7 @@ int ibmphp_hpc_writeslot (struct slot * pslot, u8 cmd)
 *---------------------------------------------------------------------*/
 static void get_hpc_access (void)
 {
-	down (&sem_hpcaccess);
+	mutex_lock(&sem_hpcaccess);
 }
 
 /*----------------------------------------------------------------------
@@ -786,7 +788,7 @@ static void get_hpc_access (void)
 *---------------------------------------------------------------------*/
 void free_hpc_access (void)
 {
-	up (&sem_hpcaccess);
+	mutex_unlock(&sem_hpcaccess);
 }
 
 /*----------------------------------------------------------------------
@@ -797,7 +799,7 @@ void free_hpc_access (void)
 void ibmphp_lock_operations (void)
 {
 	down (&semOperations);
-	to_debug = TRUE;
+	to_debug = 1;
 }
 
 /*----------------------------------------------------------------------
@@ -807,7 +809,7 @@ void ibmphp_unlock_operations (void)
 {
 	debug ("%s - Entry\n", __FUNCTION__);
 	up (&semOperations);
-	to_debug = FALSE;
+	to_debug = 0;
 	debug ("%s - Exit\n", __FUNCTION__);
 }
 
@@ -935,40 +937,40 @@ static int process_changeinstatus (struct slot *pslot, struct slot *poldslot)
 {
 	u8 status;
 	int rc = 0;
-	u8 disable = FALSE;
-	u8 update = FALSE;
+	u8 disable = 0;
+	u8 update = 0;
 
 	debug ("process_changeinstatus - Entry pslot[%p], poldslot[%p]\n", pslot, poldslot);
 
 	// bit 0 - HPC_SLOT_POWER
 	if ((pslot->status & 0x01) != (poldslot->status & 0x01))
-		update = TRUE;
+		update = 1;
 
 	// bit 1 - HPC_SLOT_CONNECT
 	// ignore
 
 	// bit 2 - HPC_SLOT_ATTN
 	if ((pslot->status & 0x04) != (poldslot->status & 0x04))
-		update = TRUE;
+		update = 1;
 
 	// bit 3 - HPC_SLOT_PRSNT2
 	// bit 4 - HPC_SLOT_PRSNT1
 	if (((pslot->status & 0x08) != (poldslot->status & 0x08))
 		|| ((pslot->status & 0x10) != (poldslot->status & 0x10)))
-		update = TRUE;
+		update = 1;
 
 	// bit 5 - HPC_SLOT_PWRGD
 	if ((pslot->status & 0x20) != (poldslot->status & 0x20))
 		// OFF -> ON: ignore, ON -> OFF: disable slot
 		if ((poldslot->status & 0x20) && (SLOT_CONNECT (poldslot->status) == HPC_SLOT_CONNECTED) && (SLOT_PRESENT (poldslot->status))) 
-			disable = TRUE;
+			disable = 1;
 
 	// bit 6 - HPC_SLOT_BUS_SPEED
 	// ignore
 
 	// bit 7 - HPC_SLOT_LATCH
 	if ((pslot->status & 0x80) != (poldslot->status & 0x80)) {
-		update = TRUE;
+		update = 1;
 		// OPEN -> CLOSE
 		if (pslot->status & 0x80) {
 			if (SLOT_PWRGD (pslot->status)) {
@@ -977,7 +979,7 @@ static int process_changeinstatus (struct slot *pslot, struct slot *poldslot)
 				msleep(1000);
 				rc = ibmphp_hpc_readslot (pslot, READ_SLOTSTATUS, &status);
 				if (SLOT_PWRGD (status))
-					update = TRUE;
+					update = 1;
 				else	// overwrite power in pslot to OFF
 					pslot->status &= ~HPC_SLOT_POWER;
 			}
@@ -985,17 +987,17 @@ static int process_changeinstatus (struct slot *pslot, struct slot *poldslot)
 		// CLOSE -> OPEN 
 		else if ((SLOT_PWRGD (poldslot->status) == HPC_SLOT_PWRGD_GOOD)
 			&& (SLOT_CONNECT (poldslot->status) == HPC_SLOT_CONNECTED) && (SLOT_PRESENT (poldslot->status))) {
-			disable = TRUE;
+			disable = 1;
 		}
 		// else - ignore
 	}
 	// bit 4 - HPC_SLOT_BLINK_ATTN
 	if ((pslot->ext_status & 0x08) != (poldslot->ext_status & 0x08))
-		update = TRUE;
+		update = 1;
 
 	if (disable) {
 		debug ("process_changeinstatus - disable slot\n");
-		pslot->flag = FALSE;
+		pslot->flag = 0;
 		rc = ibmphp_do_disable_slot (pslot);
 	}
 
@@ -1100,7 +1102,7 @@ void __exit ibmphp_hpc_stop_poll_thread (void)
 {
 	debug ("%s - Entry\n", __FUNCTION__);
 
-	ibmphp_shutdown = TRUE;
+	ibmphp_shutdown = 1;
 	debug ("before locking operations \n");
 	ibmphp_lock_operations ();
 	debug ("after locking operations \n");
@@ -1134,7 +1136,7 @@ static int hpc_wait_ctlr_notworking (int timeout, struct controller *ctlr_ptr, v
 				    u8 * pstatus)
 {
 	int rc = 0;
-	u8 done = FALSE;
+	u8 done = 0;
 
 	debug_polling ("hpc_wait_ctlr_notworking - Entry timeout[%d]\n", timeout);
 
@@ -1142,14 +1144,14 @@ static int hpc_wait_ctlr_notworking (int timeout, struct controller *ctlr_ptr, v
 		*pstatus = ctrl_read (ctlr_ptr, wpg_bbar, WPG_CTLR_INDEX);
 		if (*pstatus == HPC_ERROR) {
 			rc = HPC_ERROR;
-			done = TRUE;
+			done = 1;
 		}
 		if (CTLR_WORKING (*pstatus) == HPC_CTLR_WORKING_NO)
-			done = TRUE;
+			done = 1;
 		if (!done) {
 			msleep(1000);
 			if (timeout < 1) {
-				done = TRUE;
+				done = 1;
 				err ("HPCreadslot - Error ctlr timeout\n");
 				rc = HPC_ERROR;
 			} else

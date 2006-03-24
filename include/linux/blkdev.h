@@ -22,6 +22,7 @@ typedef struct request_queue request_queue_t;
 struct elevator_queue;
 typedef struct elevator_queue elevator_t;
 struct request_pm_state;
+struct blk_trace;
 
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_MAX_RQ	128	/* Default maximum */
@@ -415,6 +416,8 @@ struct request_queue
 	unsigned int		sg_timeout;
 	unsigned int		sg_reserved_size;
 	int			node;
+
+	struct blk_trace	*blk_trace;
 
 	/*
 	 * reserved for flush operations

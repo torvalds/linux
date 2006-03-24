@@ -20,6 +20,7 @@
 
 struct getbmap;
 struct xfs_bmbt_irec;
+struct xfs_ifork;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
@@ -347,8 +348,27 @@ xfs_bmap_count_blocks(
  */
 int
 xfs_check_nostate_extents(
-	xfs_bmbt_rec_t		*ep,
+	struct xfs_ifork	*ifp,
+	xfs_extnum_t		idx,
 	xfs_extnum_t		num);
+
+/*
+ * Call xfs_bmap_do_search_extents() to search for the extent
+ * record containing block bno. If in multi-level in-core extent
+ * allocation mode, find and extract the target extent buffer,
+ * otherwise just use the direct extent list.
+ */
+xfs_bmbt_rec_t *
+xfs_bmap_search_multi_extents(struct xfs_ifork *, xfs_fileoff_t, int *,
+			xfs_extnum_t *, xfs_bmbt_irec_t *, xfs_bmbt_irec_t *);
+
+/*
+ * Search an extent list for the extent which includes block
+ * bno.
+ */
+xfs_bmbt_rec_t *xfs_bmap_do_search_extents(xfs_bmbt_rec_t *,
+			xfs_extnum_t, xfs_extnum_t, xfs_fileoff_t, int *,
+			xfs_extnum_t *, xfs_bmbt_irec_t *, xfs_bmbt_irec_t *);
 
 #endif	/* __KERNEL__ */
 

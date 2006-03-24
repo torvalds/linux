@@ -1914,7 +1914,7 @@ config E1000_DISABLE_PACKET_SPLIT
 	depends on E1000
 	help
 	  Say Y here if you want to use the legacy receive path for PCI express
-	  hadware.
+	  hardware.
 
 	  If in doubt, say N.
 
@@ -2172,6 +2172,7 @@ config BNX2
 config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"
 	depends on PCI && PPC_CELL
+	select FW_LOADER
 	help
 	  This driver supports the Gigabit Ethernet chips present on the
 	  Cell Processor-Based Blades from IBM.

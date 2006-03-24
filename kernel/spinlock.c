@@ -179,16 +179,16 @@ EXPORT_SYMBOL(_write_lock);
 #define BUILD_LOCK_OPS(op, locktype)					\
 void __lockfunc _##op##_lock(locktype##_t *lock)			\
 {									\
-	preempt_disable();						\
 	for (;;) {							\
+		preempt_disable();					\
 		if (likely(_raw_##op##_trylock(lock)))			\
 			break;						\
 		preempt_enable();					\
+									\
 		if (!(lock)->break_lock)				\
 			(lock)->break_lock = 1;				\
 		while (!op##_can_lock(lock) && (lock)->break_lock)	\
 			cpu_relax();					\
-		preempt_disable();					\
 	}								\
 	(lock)->break_lock = 0;						\
 }									\
@@ -199,19 +199,18 @@ unsigned long __lockfunc _##op##_lock_irqsave(locktype##_t *lock)	\
 {									\
 	unsigned long flags;						\
 									\
-	preempt_disable();						\
 	for (;;) {							\
+		preempt_disable();					\
 		local_irq_save(flags);					\
 		if (likely(_raw_##op##_trylock(lock)))			\
 			break;						\
 		local_irq_restore(flags);				\
-									\
 		preempt_enable();					\
+									\
 		if (!(lock)->break_lock)				\
 			(lock)->break_lock = 1;				\
 		while (!op##_can_lock(lock) && (lock)->break_lock)	\
 			cpu_relax();					\
-		preempt_disable();					\
 	}								\
 	(lock)->break_lock = 0;						\
 	return flags;							\

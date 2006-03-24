@@ -13,45 +13,6 @@
 #ifndef BNX2_H
 #define BNX2_H
 
-#include <linux/config.h>
-
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-
-#include <linux/kernel.h>
-#include <linux/timer.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
-#include <linux/pci.h>
-#include <linux/init.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-#include <linux/dma-mapping.h>
-#include <asm/bitops.h>
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <linux/delay.h>
-#include <asm/byteorder.h>
-#include <linux/time.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-#ifdef NETIF_F_HW_VLAN_TX
-#include <linux/if_vlan.h>
-#define BCM_VLAN 1
-#endif
-#ifdef NETIF_F_TSO
-#include <net/ip.h>
-#include <net/tcp.h>
-#include <net/checksum.h>
-#define BCM_TSO 1
-#endif
-#include <linux/workqueue.h>
-#include <linux/crc32.h>
-#include <linux/prefetch.h>
-
 /* Hardware data structures and register definitions automatically
  * generated from RTL code. Do not modify.
  */
@@ -3792,8 +3753,10 @@ struct l2_fhdr {
 #define TX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct tx_bd))
 #define MAX_TX_DESC_CNT (TX_DESC_CNT - 1)
 
+#define MAX_RX_RINGS	4
 #define RX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
 #define MAX_RX_DESC_CNT (RX_DESC_CNT - 1)
+#define MAX_TOTAL_RX_DESC_CNT (MAX_RX_DESC_CNT * MAX_RX_RINGS)
 
 #define NEXT_TX_BD(x) (((x) & (MAX_TX_DESC_CNT - 1)) ==			\
 		(MAX_TX_DESC_CNT - 1)) ?				\
@@ -3805,8 +3768,10 @@ struct l2_fhdr {
 		(MAX_RX_DESC_CNT - 1)) ?				\
 	(x) + 2 : (x) + 1
 
-#define RX_RING_IDX(x) ((x) & MAX_RX_DESC_CNT)
+#define RX_RING_IDX(x) ((x) & bp->rx_max_ring_idx)
 
+#define RX_RING(x) (((x) & ~MAX_RX_DESC_CNT) >> 8)
+#define RX_IDX(x) ((x) & MAX_RX_DESC_CNT)
 
 /* Context size. */
 #define CTX_SHIFT                   7
@@ -3903,15 +3868,26 @@ struct bnx2 {
 	struct status_block	*status_blk;
 	u32 			last_status_idx;
 
-	struct tx_bd		*tx_desc_ring;
-	struct sw_bd		*tx_buf_ring;
-	u32			tx_prod_bseq;
-	u16			tx_prod;
-	u16			tx_cons;
-	int			tx_ring_size;
+	u32			flags;
+#define PCIX_FLAG			1
+#define PCI_32BIT_FLAG			2
+#define ONE_TDMA_FLAG			4	/* no longer used */
+#define NO_WOL_FLAG			8
+#define USING_DAC_FLAG			0x10
+#define USING_MSI_FLAG			0x20
+#define ASF_ENABLE_FLAG			0x40
 
-	u16			hw_tx_cons;
-	u16			hw_rx_cons;
+	/* Put tx producer and consumer fields in separate cache lines. */
+
+	u32		tx_prod_bseq __attribute__((aligned(L1_CACHE_BYTES)));
+	u16		tx_prod;
+
+	struct tx_bd	*tx_desc_ring;
+	struct sw_bd	*tx_buf_ring;
+	int		tx_ring_size;
+
+	u16		tx_cons __attribute__((aligned(L1_CACHE_BYTES)));
+	u16		hw_tx_cons;
 
 #ifdef BCM_VLAN 
 	struct			vlan_group *vlgrp;
@@ -3920,19 +3896,23 @@ struct bnx2 {
 	u32			rx_offset;
 	u32			rx_buf_use_size;	/* useable size */
 	u32			rx_buf_size;		/* with alignment */
-	struct rx_bd		*rx_desc_ring;
-	struct sw_bd		*rx_buf_ring;
+	u32			rx_max_ring_idx;
+
 	u32			rx_prod_bseq;
 	u16			rx_prod;
 	u16			rx_cons;
+	u16			hw_rx_cons;
 
 	u32			rx_csum;
+
+	struct sw_bd		*rx_buf_ring;
+	struct rx_bd		*rx_desc_ring[MAX_RX_RINGS];
 
 	/* Only used to synchronize netif_stop_queue/wake_queue when tx */
 	/* ring is full */
 	spinlock_t		tx_lock;
 
-	/* End of fileds used in the performance code paths. */
+	/* End of fields used in the performance code paths. */
 
 	char			*name;
 
@@ -3944,15 +3924,6 @@ struct bnx2 {
 
 	/* Used to synchronize phy accesses. */
 	spinlock_t		phy_lock;
-
-	u32			flags;
-#define PCIX_FLAG			1
-#define PCI_32BIT_FLAG			2
-#define ONE_TDMA_FLAG			4	/* no longer used */
-#define NO_WOL_FLAG			8
-#define USING_DAC_FLAG			0x10
-#define USING_MSI_FLAG			0x20
-#define ASF_ENABLE_FLAG			0x40
 
 	u32			phy_flags;
 #define PHY_SERDES_FLAG			1
@@ -4004,8 +3975,9 @@ struct bnx2 {
 	dma_addr_t		tx_desc_mapping;
 
 
+	int			rx_max_ring;
 	int			rx_ring_size;
-	dma_addr_t		rx_desc_mapping;
+	dma_addr_t		rx_desc_mapping[MAX_RX_RINGS];
 
 	u16			tx_quick_cons_trip;
 	u16			tx_quick_cons_trip_int;
@@ -4029,6 +4001,7 @@ struct bnx2 {
 	struct statistics_block	*stats_blk;
 	dma_addr_t		stats_blk_mapping;
 
+	u32			hc_cmd;
 	u32			rx_mode;
 
 	u16			req_line_speed;
@@ -4073,6 +4046,8 @@ struct bnx2 {
 
 	struct flash_spec	*flash_info;
 	u32			flash_size;
+
+	int			status_stats_size;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);

@@ -540,8 +540,8 @@ void __init mem_init(void)
 		struct page *end, *p;
 
 		/*
-	 	 * This will free up the bootmem, ie, slot 0 memory.
-	 	 */
+		 * This will free up the bootmem, ie, slot 0 memory.
+		 */
 		totalram_pages += free_all_bootmem_node(NODE_DATA(node));
 
 		/*
@@ -559,7 +559,7 @@ void __init mem_init(void)
 				/* if (!page_is_ram(pgnr)) continue; */
 				/* commented out until page_is_ram works */
 				ClearPageReserved(p);
-				set_page_count(p, 1);
+				init_page_count(p);
 				__free_page(p);
 				totalram_pages++;
 			}

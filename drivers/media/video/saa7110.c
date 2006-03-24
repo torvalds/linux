@@ -39,7 +39,6 @@ MODULE_AUTHOR("Pauline Middelink");
 MODULE_LICENSE("GPL");
 
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #define I2C_NAME(s) (s)->name
 
@@ -108,13 +107,8 @@ saa7110_write_block (struct i2c_client *client,
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		struct saa7110 *decoder = i2c_get_clientdata(client);
-		struct i2c_msg msg;
 
-		msg.len = len;
-		msg.buf = (char *) data;
-		msg.addr = client->addr;
-		msg.flags = 0;
-		ret = i2c_transfer(client->adapter, &msg, 1);
+		ret = i2c_master_send(client, data, len);
 
 		/* Cache the written data */
 		memcpy(decoder->reg + reg, data + 1, len - 1);
@@ -432,15 +426,13 @@ saa7110_command (struct i2c_client *client,
 		break;
 
 	case DECODER_DUMP:
-		for (v = 0; v < 0x34; v += 16) {
+		for (v = 0; v < SAA7110_NR_REG; v += 16) {
 			int j;
-			dprintk(1, KERN_INFO "%s: %03x\n", I2C_NAME(client),
+			dprintk(1, KERN_DEBUG "%s: %02x:", I2C_NAME(client),
 				v);
-			for (j = 0; j < 16; j++) {
-				dprintk(1, KERN_INFO " %02x",
-					decoder->reg[v + j]);
-			}
-			dprintk(1, KERN_INFO "\n");
+			for (j = 0; j < 16 && v + j < SAA7110_NR_REG; j++)
+				dprintk(1, " %02x", decoder->reg[v + j]);
+			dprintk(1, "\n");
 		}
 		break;
 

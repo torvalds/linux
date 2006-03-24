@@ -255,13 +255,11 @@ int __init dc21285_setup(int nr, struct pci_sys_data *sys)
 	if (nr || !footbridge_cfn_mode())
 		return 0;
 
-	res = kmalloc(sizeof(struct resource) * 2, GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
 	if (!res) {
 		printk("out of memory for root bus resources");
 		return 0;
 	}
-
-	memset(res, 0, sizeof(struct resource) * 2);
 
 	res[0].flags = IORESOURCE_MEM;
 	res[0].name  = "Footbridge non-prefetch";

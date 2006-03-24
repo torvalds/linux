@@ -248,11 +248,10 @@ static struct pcie_device* alloc_pcie_device(struct pci_dev *parent,
 {
 	struct pcie_device *device;
 
-	device = kmalloc(sizeof(struct pcie_device), GFP_KERNEL);
+	device = kzalloc(sizeof(struct pcie_device), GFP_KERNEL);
 	if (!device)
 		return NULL;
 
-	memset(device, 0, sizeof(struct pcie_device));
 	pcie_device_init(parent, device, port_type, service_type, irq,irq_mode);
 	printk(KERN_DEBUG "Allocate Port Service[%s]\n", device->device.bus_id);
 	return device;

@@ -935,13 +935,19 @@ enum {
 
 static struct {
 	u64 latest_fw;
-	int is_memfree;
-	int is_pcie;
+	u32 flags;
 } mthca_hca_table[] = {
-	[TAVOR]        = { .latest_fw = MTHCA_FW_VER(3, 3, 3), .is_memfree = 0, .is_pcie = 0 },
-	[ARBEL_COMPAT] = { .latest_fw = MTHCA_FW_VER(4, 7, 0), .is_memfree = 0, .is_pcie = 1 },
-	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 1, 0), .is_memfree = 1, .is_pcie = 1 },
-	[SINAI]        = { .latest_fw = MTHCA_FW_VER(1, 0, 1), .is_memfree = 1, .is_pcie = 1 }
+	[TAVOR]        = { .latest_fw = MTHCA_FW_VER(3, 4, 0),
+			   .flags     = 0 },
+	[ARBEL_COMPAT] = { .latest_fw = MTHCA_FW_VER(4, 7, 400),
+			   .flags     = MTHCA_FLAG_PCIE },
+	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 1, 0),
+			   .flags     = MTHCA_FLAG_MEMFREE |
+					MTHCA_FLAG_PCIE },
+	[SINAI]        = { .latest_fw = MTHCA_FW_VER(1, 0, 800),
+			   .flags     = MTHCA_FLAG_MEMFREE |
+					MTHCA_FLAG_PCIE    |
+					MTHCA_FLAG_SINAI_OPT }
 };
 
 static int __devinit mthca_init_one(struct pci_dev *pdev,
@@ -1031,12 +1037,9 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 
 	mdev->pdev = pdev;
 
+	mdev->mthca_flags = mthca_hca_table[id->driver_data].flags;
 	if (ddr_hidden)
 		mdev->mthca_flags |= MTHCA_FLAG_DDR_HIDDEN;
-	if (mthca_hca_table[id->driver_data].is_memfree)
-		mdev->mthca_flags |= MTHCA_FLAG_MEMFREE;
-	if (mthca_hca_table[id->driver_data].is_pcie)
-		mdev->mthca_flags |= MTHCA_FLAG_PCIE;
 
 	/*
 	 * Now reset the HCA before we touch the PCI capabilities or

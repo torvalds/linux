@@ -181,6 +181,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	/* One for us, one for whoever does the "release_task()" (usually parent) */
 	atomic_set(&tsk->usage,2);
 	atomic_set(&tsk->fs_excl, 0);
+	tsk->btrace_seq = 0;
 	return tsk;
 }
 
@@ -607,12 +608,12 @@ static struct files_struct *alloc_files(void)
 	atomic_set(&newf->count, 1);
 
 	spin_lock_init(&newf->file_lock);
+	newf->next_fd = 0;
 	fdt = &newf->fdtab;
-	fdt->next_fd = 0;
 	fdt->max_fds = NR_OPEN_DEFAULT;
-	fdt->max_fdset = __FD_SETSIZE;
-	fdt->close_on_exec = &newf->close_on_exec_init;
-	fdt->open_fds = &newf->open_fds_init;
+	fdt->max_fdset = EMBEDDED_FD_SET_SIZE;
+	fdt->close_on_exec = (fd_set *)&newf->close_on_exec_init;
+	fdt->open_fds = (fd_set *)&newf->open_fds_init;
 	fdt->fd = &newf->fd_array[0];
 	INIT_RCU_HEAD(&fdt->rcu);
 	fdt->free_files = NULL;
@@ -1533,6 +1534,12 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	struct sem_undo_list *new_ulist = NULL;
 
 	check_unshare_flags(&unshare_flags);
+
+	/* Return -EINVAL for all unsupported flags */
+	err = -EINVAL;
+	if (unshare_flags & ~(CLONE_THREAD|CLONE_FS|CLONE_NEWNS|CLONE_SIGHAND|
+				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM))
+		goto bad_unshare_out;
 
 	if ((err = unshare_thread(unshare_flags)))
 		goto bad_unshare_out;

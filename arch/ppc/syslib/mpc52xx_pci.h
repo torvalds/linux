@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/mpc52xx_pci.h
- *
  * PCI Include file the Freescale MPC52xx embedded cpu chips
  *
  *

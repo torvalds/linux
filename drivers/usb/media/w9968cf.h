@@ -32,7 +32,7 @@
 #include <linux/param.h>
 #include <linux/types.h>
 #include <linux/rwsem.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include <media/ovcamchip.h>
 
@@ -194,14 +194,6 @@ enum w9968cf_vpp_flag {
 	VPP_UYVY_TO_RGBX = 0x08,
 };
 
-static struct w9968cf_vpp_t* w9968cf_vpp;
-static DECLARE_WAIT_QUEUE_HEAD(w9968cf_vppmod_wait);
-
-static LIST_HEAD(w9968cf_dev_list); /* head of V4L registered cameras list */
-static DECLARE_MUTEX(w9968cf_devlist_sem); /* semaphore for list traversal */
-
-static DECLARE_RWSEM(w9968cf_disconnect); /* prevent races with open() */
-
 /* Main device driver structure */
 struct w9968cf_device {
 	struct device dev; /* device structure */
@@ -277,8 +269,8 @@ struct w9968cf_device {
 	struct i2c_client* sensor_client;
 
 	/* Locks */
-	struct semaphore dev_sem,    /* for probe, disconnect,open and close */
-	                 fileop_sem; /* for read and ioctl */
+	struct mutex dev_mutex,    /* for probe, disconnect,open and close */
+	                 fileop_mutex; /* for read and ioctl */
 	spinlock_t urb_lock,   /* for submit_urb() and unlink_urb() */
 	           flist_lock; /* for requested frame list accesses */
 	wait_queue_head_t open, wait_queue;

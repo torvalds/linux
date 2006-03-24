@@ -1755,6 +1755,27 @@ static int uart_read_proc(char *page, char **start, off_t off,
 
 #ifdef CONFIG_SERIAL_CORE_CONSOLE
 /*
+ *	uart_console_write - write a console message to a serial port
+ *	@port: the port to write the message
+ *	@s: array of characters
+ *	@count: number of characters in string to write
+ *	@write: function to write character to port
+ */
+void uart_console_write(struct uart_port *port, const char *s,
+			unsigned int count,
+			void (*putchar)(struct uart_port *, int))
+{
+	unsigned int i;
+
+	for (i = 0; i < count; i++, s++) {
+		if (*s == '\n')
+			putchar(port, '\r');
+		putchar(port, *s);
+	}
+}
+EXPORT_SYMBOL_GPL(uart_console_write);
+
+/*
  *	Check whether an invalid uart number has been specified, and
  *	if so, search for the first available port that does have
  *	console support.

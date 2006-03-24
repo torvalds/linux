@@ -403,7 +403,6 @@ char *strpbrk(const char *cs, const char *ct)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL(strpbrk);
 #endif
 
 #ifndef __HAVE_ARCH_STRSEP

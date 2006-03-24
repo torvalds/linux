@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2004-2006 Silicon Graphics, Inc. All rights reserved.
  */
 
 /*
@@ -187,7 +187,8 @@ scdrv_event_severity(int code)
 static void
 scdrv_dispatch_event(char *event, int len)
 {
-	int code, esp_code, src;
+	static int snsc_shutting_down = 0;
+	int code, esp_code, src, class;
 	char desc[CHUNKSIZE];
 	char *severity;
 
@@ -199,8 +200,24 @@ scdrv_dispatch_event(char *event, int len)
 	/* how urgent is the message? */
 	severity = scdrv_event_severity(code);
 
-	if ((code & EV_CLASS_MASK) == EV_CLASS_PWRD_NOTIFY) {
+	class = (code & EV_CLASS_MASK);
+
+	if (class == EV_CLASS_PWRD_NOTIFY || code == ENV_PWRDN_PEND) {
 		struct task_struct *p;
+
+		if (snsc_shutting_down)
+			return;
+
+		snsc_shutting_down = 1;
+
+		/* give a message for each type of event */
+		if (class == EV_CLASS_PWRD_NOTIFY)
+			printk(KERN_NOTICE "Power off indication received."
+			       " Sending SIGPWR to init...\n");
+		else if (code == ENV_PWRDN_PEND)
+			printk(KERN_CRIT "WARNING: Shutting down the system"
+			       " due to a critical environmental condition."
+			       " Sending SIGPWR to init...\n");
 
 		/* give a SIGPWR signal to init proc */
 
@@ -210,12 +227,11 @@ scdrv_dispatch_event(char *event, int len)
 			if (p->pid == 1)
 				break;
 		}
-		if (p) { /* we found init's task */
-			printk(KERN_EMERG "Power off indication received. Initiating power fail sequence...\n");
+		if (p) {
 			force_sig(SIGPWR, p);
-		} else { /* failed to find init's task - just give message(s) */
-			printk(KERN_WARNING "Failed to find init proc to handle power off!\n");
-			printk("%s|$(0x%x)%s\n", severity, esp_code, desc);
+		} else {
+			printk(KERN_ERR "Failed to signal init!\n");
+			snsc_shutting_down = 0; /* so can try again (?) */
 		}
 		read_unlock(&tasklist_lock);
 	} else {
@@ -271,7 +287,7 @@ scdrv_event_init(struct sysctl_data_s *scd)
 {
 	int rv;
 
-	event_sd = kmalloc(sizeof (struct subch_data_s), GFP_KERNEL);
+	event_sd = kzalloc(sizeof (struct subch_data_s), GFP_KERNEL);
 	if (event_sd == NULL) {
 		printk(KERN_WARNING "%s: couldn't allocate subchannel info"
 		       " for event monitoring\n", __FUNCTION__);
@@ -279,7 +295,6 @@ scdrv_event_init(struct sysctl_data_s *scd)
 	}
 
 	/* initialize subch_data_s fields */
-	memset(event_sd, 0, sizeof (struct subch_data_s));
 	event_sd->sd_nasid = scd->scd_nasid;
 	spin_lock_init(&event_sd->sd_rlock);
 
@@ -305,5 +320,3 @@ scdrv_event_init(struct sysctl_data_s *scd)
 		return;
 	}
 }
-
-

@@ -26,6 +26,7 @@
 #include <linux/netlink.h>
 #include <linux/moduleparam.h>
 #include <linux/connector.h>
+#include <linux/mutex.h>
 
 #include <net/sock.h>
 
@@ -41,7 +42,7 @@ module_param(cn_val, uint, 0);
 MODULE_PARM_DESC(cn_idx, "Connector's main device idx.");
 MODULE_PARM_DESC(cn_val, "Connector's main device val.");
 
-static DECLARE_MUTEX(notify_lock);
+static DEFINE_MUTEX(notify_lock);
 static LIST_HEAD(notify_list);
 
 static struct cn_dev cdev;
@@ -97,6 +98,9 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 		group = __group;
 	}
 
+	if (!netlink_has_listeners(dev->nls, group))
+		return -ESRCH;
+
 	size = NLMSG_SPACE(sizeof(*msg) + msg->len);
 
 	skb = alloc_skb(size, gfp_mask);
@@ -111,9 +115,7 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 
 	NETLINK_CB(skb).dst_group = group;
 
-	netlink_broadcast(dev->nls, skb, 0, group, gfp_mask);
-
-	return 0;
+	return netlink_broadcast(dev->nls, skb, 0, group, gfp_mask);
 
 nlmsg_failure:
 	kfree_skb(skb);
@@ -259,7 +261,7 @@ static void cn_notify(struct cb_id *id, u32 notify_event)
 {
 	struct cn_ctl_entry *ent;
 
-	down(&notify_lock);
+	mutex_lock(&notify_lock);
 	list_for_each_entry(ent, &notify_list, notify_entry) {
 		int i;
 		struct cn_notify_req *req;
@@ -292,7 +294,7 @@ static void cn_notify(struct cb_id *id, u32 notify_event)
 			cn_netlink_send(&m, ctl->group, GFP_KERNEL);
 		}
 	}
-	up(&notify_lock);
+	mutex_unlock(&notify_lock);
 }
 
 /*
@@ -406,14 +408,14 @@ static void cn_callback(void *data)
 	if (ctl->group == 0) {
 		struct cn_ctl_entry *n;
 
-		down(&notify_lock);
+		mutex_lock(&notify_lock);
 		list_for_each_entry_safe(ent, n, &notify_list, notify_entry) {
 			if (cn_ctl_msg_equals(ent->msg, ctl)) {
 				list_del(&ent->notify_entry);
 				kfree(ent);
 			}
 		}
-		up(&notify_lock);
+		mutex_unlock(&notify_lock);
 
 		return;
 	}
@@ -428,9 +430,9 @@ static void cn_callback(void *data)
 
 	memcpy(ent->msg, ctl, size - sizeof(*ent));
 
-	down(&notify_lock);
+	mutex_lock(&notify_lock);
 	list_add(&ent->notify_entry, &notify_list);
-	up(&notify_lock);
+	mutex_unlock(&notify_lock);
 }
 
 static int __init cn_init(void)

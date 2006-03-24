@@ -218,10 +218,8 @@ void __init smp4m_boot_cpus(void)
 		cpu_present_map = cpumask_of_cpu(smp_processor_id());
 	} else {
 		unsigned long bogosum = 0;
-		for(i = 0; i < NR_CPUS; i++) {
-			if (cpu_isset(i, cpu_present_map))
-				bogosum += cpu_data(i).udelay_val;
-		}
+		for_each_present_cpu(i)
+			bogosum += cpu_data(i).udelay_val;
 		printk("Total of %d Processors activated (%lu.%02lu BogoMIPS).\n",
 		       cpucount + 1,
 		       bogosum/(500000/HZ),
@@ -233,21 +231,21 @@ void __init smp4m_boot_cpus(void)
 	/* Free unneeded trap tables */
 	if (!cpu_isset(i, cpu_present_map)) {
 		ClearPageReserved(virt_to_page(trapbase_cpu1));
-		set_page_count(virt_to_page(trapbase_cpu1), 1);
+		init_page_count(virt_to_page(trapbase_cpu1));
 		free_page((unsigned long)trapbase_cpu1);
 		totalram_pages++;
 		num_physpages++;
 	}
 	if (!cpu_isset(2, cpu_present_map)) {
 		ClearPageReserved(virt_to_page(trapbase_cpu2));
-		set_page_count(virt_to_page(trapbase_cpu2), 1);
+		init_page_count(virt_to_page(trapbase_cpu2));
 		free_page((unsigned long)trapbase_cpu2);
 		totalram_pages++;
 		num_physpages++;
 	}
 	if (!cpu_isset(3, cpu_present_map)) {
 		ClearPageReserved(virt_to_page(trapbase_cpu3));
-		set_page_count(virt_to_page(trapbase_cpu3), 1);
+		init_page_count(virt_to_page(trapbase_cpu3));
 		free_page((unsigned long)trapbase_cpu3);
 		totalram_pages++;
 		num_physpages++;

@@ -38,6 +38,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 #define __DQUOT_VERSION__	"dquot_6.5.1"
 #define __DQUOT_NUM_VERSION__	6*10000+5*100+1
@@ -215,7 +216,7 @@ struct dquot {
 	struct list_head dq_inuse;	/* List of all quotas */
 	struct list_head dq_free;	/* Free list element */
 	struct list_head dq_dirty;	/* List of dirty dquots */
-	struct semaphore dq_lock;	/* dquot IO lock */
+	struct mutex dq_lock;		/* dquot IO lock */
 	atomic_t dq_count;		/* Use count */
 	wait_queue_head_t dq_wait_unused;	/* Wait queue for dquot to become unused */
 	struct super_block *dq_sb;	/* superblock this applies to */
@@ -285,8 +286,8 @@ struct quota_format_type {
 
 struct quota_info {
 	unsigned int flags;			/* Flags for diskquotas on this device */
-	struct semaphore dqio_sem;		/* lock device while I/O in progress */
-	struct semaphore dqonoff_sem;		/* Serialize quotaon & quotaoff */
+	struct mutex dqio_mutex;		/* lock device while I/O in progress */
+	struct mutex dqonoff_mutex;		/* Serialize quotaon & quotaoff */
 	struct rw_semaphore dqptr_sem;		/* serialize ops using quota_info struct, pointers from inode to dquots */
 	struct inode *files[MAXQUOTAS];		/* inodes of quotafiles */
 	struct mem_dqinfo info[MAXQUOTAS];	/* Information for each quota type */

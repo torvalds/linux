@@ -27,10 +27,9 @@
 #define percpu_modcopy(pcpudst, src, size)			\
 do {								\
 	unsigned int __i;					\
-	for (__i = 0; __i < NR_CPUS; __i++)			\
-		if (cpu_possible(__i))				\
-			memcpy((pcpudst)+__per_cpu_offset(__i),	\
-			       (src), (size));			\
+	for_each_cpu(__i)					\
+		memcpy((pcpudst)+__per_cpu_offset(__i),		\
+		       (src), (size));				\
 } while (0)
 
 extern void setup_per_cpu_areas(void);

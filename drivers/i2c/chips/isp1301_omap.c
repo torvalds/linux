@@ -1635,8 +1635,6 @@ static struct i2c_driver isp1301_driver = {
 	.driver = {
 		.name	= "isp1301_omap",
 	},
-	.id		= 1301,		/* FIXME "official", i2c-ids.h */
-	.class		= I2C_CLASS_HWMON,
 	.attach_adapter	= isp1301_scan_bus,
 	.detach_client	= isp1301_detach_client,
 };

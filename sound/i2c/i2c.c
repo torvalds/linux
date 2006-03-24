@@ -88,7 +88,7 @@ int snd_i2c_bus_create(struct snd_card *card, const char *name,
 	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (bus == NULL)
 		return -ENOMEM;
-	init_MUTEX(&bus->lock_mutex);
+	mutex_init(&bus->lock_mutex);
 	INIT_LIST_HEAD(&bus->devices);
 	INIT_LIST_HEAD(&bus->buses);
 	bus->card = card;

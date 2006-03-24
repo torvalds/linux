@@ -52,61 +52,9 @@ struct ipt_ip {
 	u_int8_t invflags;
 };
 
-struct ipt_entry_match
-{
-	union {
-		struct {
-			u_int16_t match_size;
-
-			/* Used by userspace */
-			char name[IPT_FUNCTION_MAXNAMELEN-1];
-
-			u_int8_t revision;
-		} user;
-		struct {
-			u_int16_t match_size;
-
-			/* Used inside the kernel */
-			struct ipt_match *match;
-		} kernel;
-
-		/* Total length */
-		u_int16_t match_size;
-	} u;
-
-	unsigned char data[0];
-};
-
-struct ipt_entry_target
-{
-	union {
-		struct {
-			u_int16_t target_size;
-
-			/* Used by userspace */
-			char name[IPT_FUNCTION_MAXNAMELEN-1];
-
-			u_int8_t revision;
-		} user;
-		struct {
-			u_int16_t target_size;
-
-			/* Used inside the kernel */
-			struct ipt_target *target;
-		} kernel;
-
-		/* Total length */
-		u_int16_t target_size;
-	} u;
-
-	unsigned char data[0];
-};
-
-struct ipt_standard_target
-{
-	struct ipt_entry_target target;
-	int verdict;
-};
+#define ipt_entry_match xt_entry_match
+#define ipt_entry_target xt_entry_target
+#define ipt_standard_target xt_standard_target
 
 #define ipt_counters xt_counters
 
@@ -321,11 +269,15 @@ ipt_get_target(struct ipt_entry *e)
 #include <linux/init.h>
 extern void ipt_init(void) __init;
 
-#define ipt_register_target(tgt) xt_register_target(AF_INET, tgt)
-#define ipt_unregister_target(tgt) xt_unregister_target(AF_INET, tgt)
+#define ipt_register_target(tgt) 	\
+({	(tgt)->family = AF_INET;	\
+ 	xt_register_target(tgt); })
+#define ipt_unregister_target(tgt) xt_unregister_target(tgt)
 
-#define ipt_register_match(mtch) xt_register_match(AF_INET, mtch)
-#define ipt_unregister_match(mtch) xt_unregister_match(AF_INET, mtch)
+#define ipt_register_match(mtch) 	\
+({	(mtch)->family = AF_INET;	\
+	xt_register_match(mtch); })
+#define ipt_unregister_match(mtch) xt_unregister_match(mtch)
 
 //#define ipt_register_table(tbl, repl) xt_register_table(AF_INET, tbl, repl)
 //#define ipt_unregister_table(tbl) xt_unregister_table(AF_INET, tbl)

@@ -586,8 +586,8 @@ void neigh_destroy(struct neighbour *neigh)
 			kfree(hh);
 	}
 
-	if (neigh->ops && neigh->ops->destructor)
-		(neigh->ops->destructor)(neigh);
+	if (neigh->parms->neigh_destructor)
+		(neigh->parms->neigh_destructor)(neigh);
 
 	skb_queue_purge(&neigh->arp_queue);
 
@@ -750,11 +750,13 @@ static void neigh_timer_handler(unsigned long arg)
 					  neigh->used + neigh->parms->delay_probe_time)) {
 			NEIGH_PRINTK2("neigh %p is delayed.\n", neigh);
 			neigh->nud_state = NUD_DELAY;
+			neigh->updated = jiffies;
 			neigh_suspect(neigh);
 			next = now + neigh->parms->delay_probe_time;
 		} else {
 			NEIGH_PRINTK2("neigh %p is suspected.\n", neigh);
 			neigh->nud_state = NUD_STALE;
+			neigh->updated = jiffies;
 			neigh_suspect(neigh);
 		}
 	} else if (state & NUD_DELAY) {
@@ -762,11 +764,13 @@ static void neigh_timer_handler(unsigned long arg)
 				   neigh->confirmed + neigh->parms->delay_probe_time)) {
 			NEIGH_PRINTK2("neigh %p is now reachable.\n", neigh);
 			neigh->nud_state = NUD_REACHABLE;
+			neigh->updated = jiffies;
 			neigh_connect(neigh);
 			next = neigh->confirmed + neigh->parms->reachable_time;
 		} else {
 			NEIGH_PRINTK2("neigh %p is probed.\n", neigh);
 			neigh->nud_state = NUD_PROBE;
+			neigh->updated = jiffies;
 			atomic_set(&neigh->probes, 0);
 			next = now + neigh->parms->retrans_time;
 		}
@@ -780,6 +784,7 @@ static void neigh_timer_handler(unsigned long arg)
 		struct sk_buff *skb;
 
 		neigh->nud_state = NUD_FAILED;
+		neigh->updated = jiffies;
 		notify = 1;
 		NEIGH_CACHE_STAT_INC(neigh->tbl, res_failed);
 		NEIGH_PRINTK2("neigh %p is failed.\n", neigh);
@@ -843,10 +848,12 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 		if (neigh->parms->mcast_probes + neigh->parms->app_probes) {
 			atomic_set(&neigh->probes, neigh->parms->ucast_probes);
 			neigh->nud_state     = NUD_INCOMPLETE;
+			neigh->updated = jiffies;
 			neigh_hold(neigh);
 			neigh_add_timer(neigh, now + 1);
 		} else {
 			neigh->nud_state = NUD_FAILED;
+			neigh->updated = jiffies;
 			write_unlock_bh(&neigh->lock);
 
 			if (skb)
@@ -857,6 +864,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 		NEIGH_PRINTK2("neigh %p is delayed.\n", neigh);
 		neigh_hold(neigh);
 		neigh->nud_state = NUD_DELAY;
+		neigh->updated = jiffies;
 		neigh_add_timer(neigh,
 				jiffies + neigh->parms->delay_probe_time);
 	}

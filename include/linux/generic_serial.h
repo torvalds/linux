@@ -12,6 +12,8 @@
 #ifndef GENERIC_SERIAL_H
 #define GENERIC_SERIAL_H
 
+#include <linux/mutex.h>
+
 struct real_driver {
   void                    (*disable_tx_interrupts) (void *);
   void                    (*enable_tx_interrupts) (void *);
@@ -34,7 +36,7 @@ struct gs_port {
   int                     xmit_head;
   int                     xmit_tail;
   int                     xmit_cnt;
-  struct semaphore        port_write_sem;
+  struct mutex            port_write_mutex;
   int                     flags;
   wait_queue_head_t       open_wait;
   wait_queue_head_t       close_wait;

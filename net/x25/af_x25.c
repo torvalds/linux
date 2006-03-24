@@ -54,7 +54,10 @@
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
 #include <linux/notifier.h>
 #include <linux/init.h>
+#include <linux/compat.h>
+
 #include <net/x25.h>
+#include <net/compat.h>
 
 int sysctl_x25_restart_request_timeout = X25_DEFAULT_T20;
 int sysctl_x25_call_request_timeout    = X25_DEFAULT_T21;
@@ -68,6 +71,14 @@ DEFINE_RWLOCK(x25_list_lock);
 static const struct proto_ops x25_proto_ops;
 
 static struct x25_address null_x25_address = {"               "};
+
+#ifdef CONFIG_COMPAT
+struct compat_x25_subscrip_struct {
+	char device[200-sizeof(compat_ulong_t)];
+	compat_ulong_t global_facil_mask;
+	compat_uint_t extended;
+};
+#endif
 
 int x25_addr_ntoa(unsigned char *p, struct x25_address *called_addr,
 		  struct x25_address *calling_addr)
@@ -514,6 +525,13 @@ static int x25_create(struct socket *sock, int protocol)
 	x25->facilities.pacsize_out = X25_DEFAULT_PACKET_SIZE;
 	x25->facilities.throughput  = X25_DEFAULT_THROUGHPUT;
 	x25->facilities.reverse     = X25_DEFAULT_REVERSE;
+ 	x25->dte_facilities.calling_len = 0;
+ 	x25->dte_facilities.called_len = 0;
+ 	memset(x25->dte_facilities.called_ae, '\0',
+		 	sizeof(x25->dte_facilities.called_ae));
+ 	memset(x25->dte_facilities.calling_ae, '\0',
+		 	sizeof(x25->dte_facilities.calling_ae));
+
 	rc = 0;
 out:
 	return rc;
@@ -550,6 +568,7 @@ static struct sock *x25_make_new(struct sock *osk)
 	x25->t2         = ox25->t2;
 	x25->facilities = ox25->facilities;
 	x25->qbitincl   = ox25->qbitincl;
+	x25->dte_facilities = ox25->dte_facilities;
 	x25->cudmatchlength = ox25->cudmatchlength;
 	x25->accptapprv = ox25->accptapprv;
 
@@ -733,7 +752,7 @@ out:
 	return rc;
 }
 
-static int x25_wait_for_data(struct sock *sk, int timeout)
+static int x25_wait_for_data(struct sock *sk, long timeout)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	int rc = 0;
@@ -829,6 +848,7 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	struct x25_sock *makex25;
 	struct x25_address source_addr, dest_addr;
 	struct x25_facilities facilities;
+	struct x25_dte_facilities dte_facilities;
 	int len, rc;
 
 	/*
@@ -865,7 +885,8 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	/*
 	 *	Try to reach a compromise on the requested facilities.
 	 */
-	if ((len = x25_negotiate_facilities(skb, sk, &facilities)) == -1)
+	len = x25_negotiate_facilities(skb, sk, &facilities, &dte_facilities);
+	if (len == -1)
 		goto out_sock_put;
 
 	/*
@@ -896,9 +917,12 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	makex25->source_addr   = source_addr;
 	makex25->neighbour     = nb;
 	makex25->facilities    = facilities;
+	makex25->dte_facilities= dte_facilities;
 	makex25->vc_facil_mask = x25_sk(sk)->vc_facil_mask;
 	/* ensure no reverse facil on accept */
 	makex25->vc_facil_mask &= ~X25_MASK_REVERSE;
+	/* ensure no calling address extension on accept */
+	makex25->vc_facil_mask &= ~X25_MASK_CALLING_AE;
 	makex25->cudmatchlength = x25_sk(sk)->cudmatchlength;
 
 	/* Normally all calls are accepted immediatly */
@@ -1305,6 +1329,36 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+		case SIOCX25GDTEFACILITIES: {
+ 			rc = copy_to_user(argp, &x25->dte_facilities,
+						sizeof(x25->dte_facilities));
+			if (rc)
+				rc = -EFAULT;
+ 			break;
+ 		}
+
+	 	case SIOCX25SDTEFACILITIES: {
+	 		struct x25_dte_facilities dtefacs;
+	 		rc = -EFAULT;
+		 	if (copy_from_user(&dtefacs, argp, sizeof(dtefacs)))
+				break;
+			rc = -EINVAL;
+			if (sk->sk_state != TCP_LISTEN &&
+					sk->sk_state != TCP_CLOSE)
+				break;
+			if (dtefacs.calling_len > X25_MAX_AE_LEN)
+				break;
+			if (dtefacs.calling_ae == NULL)
+				break;
+			if (dtefacs.called_len > X25_MAX_AE_LEN)
+				break;
+			if (dtefacs.called_ae == NULL)
+				break;
+			x25->dte_facilities = dtefacs;
+			rc = 0;
+			break;
+		}
+
 		case SIOCX25GCALLUSERDATA: {
 			struct x25_calluserdata cud = x25->calluserdata;
 			rc = copy_to_user(argp, &cud,
@@ -1387,6 +1441,118 @@ static struct net_proto_family x25_family_ops = {
 	.owner	=	THIS_MODULE,
 };
 
+#ifdef CONFIG_COMPAT
+static int compat_x25_subscr_ioctl(unsigned int cmd,
+		struct compat_x25_subscrip_struct __user *x25_subscr32)
+{
+	struct compat_x25_subscrip_struct x25_subscr;
+	struct x25_neigh *nb;
+	struct net_device *dev;
+	int rc = -EINVAL;
+
+	rc = -EFAULT;
+	if (copy_from_user(&x25_subscr, x25_subscr32, sizeof(*x25_subscr32)))
+		goto out;
+
+	rc = -EINVAL;
+	dev = x25_dev_get(x25_subscr.device);
+	if (dev == NULL)
+		goto out;
+
+	nb = x25_get_neigh(dev);
+	if (nb == NULL)
+		goto out_dev_put;
+
+	dev_put(dev);
+
+	if (cmd == SIOCX25GSUBSCRIP) {
+		x25_subscr.extended = nb->extended;
+		x25_subscr.global_facil_mask = nb->global_facil_mask;
+		rc = copy_to_user(x25_subscr32, &x25_subscr,
+				sizeof(*x25_subscr32)) ? -EFAULT : 0;
+	} else {
+		rc = -EINVAL;
+		if (x25_subscr.extended == 0 || x25_subscr.extended == 1) {
+			rc = 0;
+			nb->extended = x25_subscr.extended;
+			nb->global_facil_mask = x25_subscr.global_facil_mask;
+		}
+	}
+	x25_neigh_put(nb);
+out:
+	return rc;
+out_dev_put:
+	dev_put(dev);
+	goto out;
+}
+
+static int compat_x25_ioctl(struct socket *sock, unsigned int cmd,
+				unsigned long arg)
+{
+	void __user *argp = compat_ptr(arg);
+	struct sock *sk = sock->sk;
+
+	int rc = -ENOIOCTLCMD;
+
+	switch(cmd) {
+	case TIOCOUTQ:
+	case TIOCINQ:
+		rc = x25_ioctl(sock, cmd, (unsigned long)argp);
+		break;
+	case SIOCGSTAMP:
+		rc = -EINVAL;
+		if (sk)
+			rc = compat_sock_get_timestamp(sk,
+					(struct timeval __user*)argp);
+		break;
+	case SIOCGIFADDR:
+	case SIOCSIFADDR:
+	case SIOCGIFDSTADDR:
+	case SIOCSIFDSTADDR:
+	case SIOCGIFBRDADDR:
+	case SIOCSIFBRDADDR:
+	case SIOCGIFNETMASK:
+	case SIOCSIFNETMASK:
+	case SIOCGIFMETRIC:
+	case SIOCSIFMETRIC:
+		rc = -EINVAL;
+		break;
+	case SIOCADDRT:
+	case SIOCDELRT:
+		rc = -EPERM;
+		if (!capable(CAP_NET_ADMIN))
+			break;
+		rc = x25_route_ioctl(cmd, argp);
+		break;
+	case SIOCX25GSUBSCRIP:
+		rc = compat_x25_subscr_ioctl(cmd, argp);
+		break;
+	case SIOCX25SSUBSCRIP:
+		rc = -EPERM;
+		if (!capable(CAP_NET_ADMIN))
+			break;
+		rc = compat_x25_subscr_ioctl(cmd, argp);
+		break;
+	case SIOCX25GFACILITIES:
+	case SIOCX25SFACILITIES:
+	case SIOCX25GDTEFACILITIES:
+	case SIOCX25SDTEFACILITIES:
+	case SIOCX25GCALLUSERDATA:
+	case SIOCX25SCALLUSERDATA:
+	case SIOCX25GCAUSEDIAG:
+	case SIOCX25SCUDMATCHLEN:
+	case SIOCX25CALLACCPTAPPRV:
+	case SIOCX25SENDCALLACCPT:
+		rc = x25_ioctl(sock, cmd, (unsigned long)argp);
+		break;
+	default:
+		rc = -ENOIOCTLCMD;
+		break;
+	}
+	return rc;
+}
+#endif
+
 static const struct proto_ops SOCKOPS_WRAPPED(x25_proto_ops) = {
 	.family =	AF_X25,
 	.owner =	THIS_MODULE,
@@ -1398,6 +1564,9 @@ static const struct proto_ops SOCKOPS_WRAPPED(x25_proto_ops) = {
 	.getname =	x25_getname,
 	.poll =		datagram_poll,
 	.ioctl =	x25_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = compat_x25_ioctl,
+#endif
 	.listen =	x25_listen,
 	.shutdown =	sock_no_shutdown,
 	.setsockopt =	x25_setsockopt,

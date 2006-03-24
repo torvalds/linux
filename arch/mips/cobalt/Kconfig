@@ -1,0 +1,7 @@
+config EARLY_PRINTK
+	bool "Early console support"
+	depends on MIPS_COBALT
+	help
+	  Provide early console support by direct access to the
+	  on board UART. The UART must have been previously
+	  initialised by the boot loader.

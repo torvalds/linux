@@ -184,7 +184,7 @@ static void scc_init_portstructs(void)
 		port->gs.closing_wait = 30 * HZ;
 		port->gs.rd = &scc_real_driver;
 #ifdef NEW_WRITE_LOCKING
-		port->gs.port_write_sem = MUTEX;
+		port->gs.port_write_mutex = MUTEX;
 #endif
 		init_waitqueue_head(&port->gs.open_wait);
 		init_waitqueue_head(&port->gs.close_wait);

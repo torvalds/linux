@@ -43,8 +43,6 @@ int mthca_pd_alloc(struct mthca_dev *dev, int privileged, struct mthca_pd *pd)
 {
 	int err = 0;
 
-	might_sleep();
-
 	pd->privileged = privileged;
 
 	atomic_set(&pd->sqp_count, 0);
@@ -66,7 +64,6 @@ int mthca_pd_alloc(struct mthca_dev *dev, int privileged, struct mthca_pd *pd)
 
 void mthca_pd_free(struct mthca_dev *dev, struct mthca_pd *pd)
 {
-	might_sleep();
 	if (pd->privileged)
 		mthca_free_mr(dev, &pd->ntmr);
 	mthca_free(&dev->pd_table.alloc, pd->pd_num);

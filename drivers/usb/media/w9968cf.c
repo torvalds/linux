@@ -47,6 +47,13 @@
 #include "w9968cf.h"
 #include "w9968cf_decoder.h"
 
+static struct w9968cf_vpp_t* w9968cf_vpp;
+static DECLARE_WAIT_QUEUE_HEAD(w9968cf_vppmod_wait);
+
+static LIST_HEAD(w9968cf_dev_list); /* head of V4L registered cameras list */
+static DEFINE_MUTEX(w9968cf_devlist_mutex); /* semaphore for list traversal */
+
+static DECLARE_RWSEM(w9968cf_disconnect); /* prevent races with open() */
 
 
 /****************************************************************************
@@ -695,13 +702,12 @@ static int w9968cf_allocate_memory(struct w9968cf_device* cam)
 	/* Allocate memory for the isochronous transfer buffers */
 	for (i = 0; i < W9968CF_URBS; i++) {
 		if (!(cam->transfer_buffer[i] =
-		      kmalloc(W9968CF_ISO_PACKETS*p_size, GFP_KERNEL))) {
+		      kzalloc(W9968CF_ISO_PACKETS*p_size, GFP_KERNEL))) {
 			DBG(1, "Couldn't allocate memory for the isochronous "
 			       "transfer buffers (%u bytes)", 
 			    p_size * W9968CF_ISO_PACKETS)
 			return -ENOMEM;
 		}
-		memset(cam->transfer_buffer[i], 0, W9968CF_ISO_PACKETS*p_size);
 	}
 
 	/* Allocate memory for the temporary frame buffer */
@@ -2419,7 +2425,7 @@ w9968cf_configure_camera(struct w9968cf_device* cam,
                          enum w9968cf_model_id mod_id,
                          const unsigned short dev_nr)
 {
-	init_MUTEX(&cam->fileop_sem);
+	mutex_init(&cam->fileop_mutex);
 	init_waitqueue_head(&cam->open);
 	spin_lock_init(&cam->urb_lock);
 	spin_lock_init(&cam->flist_lock);
@@ -2647,7 +2653,7 @@ static void w9968cf_adjust_configuration(struct w9968cf_device* cam)
   --------------------------------------------------------------------------*/
 static void w9968cf_release_resources(struct w9968cf_device* cam)
 {
-	down(&w9968cf_devlist_sem);
+	mutex_lock(&w9968cf_devlist_mutex);
 
 	DBG(2, "V4L device deregistered: /dev/video%d", cam->v4ldev->minor)
 
@@ -2658,7 +2664,7 @@ static void w9968cf_release_resources(struct w9968cf_device* cam)
 	kfree(cam->control_buffer);
 	kfree(cam->data_buffer);
 
-	up(&w9968cf_devlist_sem);
+	mutex_unlock(&w9968cf_devlist_mutex);
 }
 
 
@@ -2678,14 +2684,14 @@ static int w9968cf_open(struct inode* inode, struct file* filp)
 
 	cam = (struct w9968cf_device*)video_get_drvdata(video_devdata(filp));
 
-	down(&cam->dev_sem);
+	mutex_lock(&cam->dev_mutex);
 
 	if (cam->sensor == CC_UNKNOWN) {
 		DBG(2, "No supported image sensor has been detected by the "
 		       "'ovcamchip' module for the %s (/dev/video%d). Make "
 		       "sure it is loaded *before* (re)connecting the camera.",
 		    symbolic(camlist, cam->id), cam->v4ldev->minor)
-		up(&cam->dev_sem);
+		mutex_unlock(&cam->dev_mutex);
 		up_read(&w9968cf_disconnect);
 		return -ENODEV;
 	}
@@ -2694,11 +2700,11 @@ static int w9968cf_open(struct inode* inode, struct file* filp)
 		DBG(2, "%s (/dev/video%d) has been already occupied by '%s'",
 		    symbolic(camlist, cam->id),cam->v4ldev->minor,cam->command)
 		if ((filp->f_flags & O_NONBLOCK)||(filp->f_flags & O_NDELAY)) {
-			up(&cam->dev_sem);
+			mutex_unlock(&cam->dev_mutex);
 			up_read(&w9968cf_disconnect);
 			return -EWOULDBLOCK;
 		}
-		up(&cam->dev_sem);
+		mutex_unlock(&cam->dev_mutex);
 		err = wait_event_interruptible_exclusive(cam->open,
 		                                         cam->disconnected ||
 		                                         !cam->users);
@@ -2710,7 +2716,7 @@ static int w9968cf_open(struct inode* inode, struct file* filp)
 			up_read(&w9968cf_disconnect);
 			return -ENODEV;
 		}
-		down(&cam->dev_sem);
+		mutex_lock(&cam->dev_mutex);
 	}
 
 	DBG(5, "Opening '%s', /dev/video%d ...",
@@ -2739,7 +2745,7 @@ static int w9968cf_open(struct inode* inode, struct file* filp)
 
 	DBG(5, "Video device is open")
 
-	up(&cam->dev_sem);
+	mutex_unlock(&cam->dev_mutex);
 	up_read(&w9968cf_disconnect);
 
 	return 0;
@@ -2747,7 +2753,7 @@ static int w9968cf_open(struct inode* inode, struct file* filp)
 deallocate_memory:
 	w9968cf_deallocate_memory(cam);
 	DBG(2, "Failed to open the video device")
-	up(&cam->dev_sem);
+	mutex_unlock(&cam->dev_mutex);
 	up_read(&w9968cf_disconnect);
 	return err;
 }
@@ -2759,13 +2765,13 @@ static int w9968cf_release(struct inode* inode, struct file* filp)
 
 	cam = (struct w9968cf_device*)video_get_drvdata(video_devdata(filp));
 
-	down(&cam->dev_sem); /* prevent disconnect() to be called */
+	mutex_lock(&cam->dev_mutex); /* prevent disconnect() to be called */
 
 	w9968cf_stop_transfer(cam);
 
 	if (cam->disconnected) {
 		w9968cf_release_resources(cam);
-		up(&cam->dev_sem);
+		mutex_unlock(&cam->dev_mutex);
 		kfree(cam);
 		return 0;
 	}
@@ -2775,7 +2781,7 @@ static int w9968cf_release(struct inode* inode, struct file* filp)
 	wake_up_interruptible_nr(&cam->open, 1);
 
 	DBG(5, "Video device closed")
-	up(&cam->dev_sem);
+	mutex_unlock(&cam->dev_mutex);
 	return 0;
 }
 
@@ -2792,18 +2798,18 @@ w9968cf_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 	if (filp->f_flags & O_NONBLOCK)
 		return -EWOULDBLOCK;
 
-	if (down_interruptible(&cam->fileop_sem))
+	if (mutex_lock_interruptible(&cam->fileop_mutex))
 		return -ERESTARTSYS;
 
 	if (cam->disconnected) {
 		DBG(2, "Device not present")
-		up(&cam->fileop_sem);
+		mutex_unlock(&cam->fileop_mutex);
 		return -ENODEV;
 	}
 
 	if (cam->misconfigured) {
 		DBG(2, "The camera is misconfigured. Close and open it again.")
-		up(&cam->fileop_sem);
+		mutex_unlock(&cam->fileop_mutex);
 		return -EIO;
 	}
 
@@ -2818,11 +2824,11 @@ w9968cf_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 	                               cam->frame[1].status == F_READY ||
 	                               cam->disconnected);
 	if (err) {
-		up(&cam->fileop_sem);
+		mutex_unlock(&cam->fileop_mutex);
 		return err;
 	}
 	if (cam->disconnected) {
-		up(&cam->fileop_sem);
+		mutex_unlock(&cam->fileop_mutex);
 		return -ENODEV;
 	}
 
@@ -2836,7 +2842,7 @@ w9968cf_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 
 	if (copy_to_user(buf, fr->buffer, count)) {
 		fr->status = F_UNUSED;
-		up(&cam->fileop_sem);
+		mutex_unlock(&cam->fileop_mutex);
 		return -EFAULT;
 	}
 	*f_pos += count;
@@ -2845,7 +2851,7 @@ w9968cf_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 
 	DBG(5, "%zu bytes read", count)
 
-	up(&cam->fileop_sem);
+	mutex_unlock(&cam->fileop_mutex);
 	return count;
 }
 
@@ -2899,24 +2905,24 @@ w9968cf_ioctl(struct inode* inode, struct file* filp,
 
 	cam = (struct w9968cf_device*)video_get_drvdata(video_devdata(filp));
 
-	if (down_interruptible(&cam->fileop_sem))
+	if (mutex_lock_interruptible(&cam->fileop_mutex))
 		return -ERESTARTSYS;
 
 	if (cam->disconnected) {
 		DBG(2, "Device not present")
-		up(&cam->fileop_sem);
+		mutex_unlock(&cam->fileop_mutex);
 		return -ENODEV;
 	}
 
 	if (cam->misconfigured) {
 		DBG(2, "The camera is misconfigured. Close and open it again.")
-		up(&cam->fileop_sem);
+		mutex_unlock(&cam->fileop_mutex);
 		return -EIO;
 	}
 
 	err = w9968cf_v4l_ioctl(inode, filp, cmd, (void __user *)arg);
 
-	up(&cam->fileop_sem);
+	mutex_unlock(&cam->fileop_mutex);
 	return err;
 }
 
@@ -3499,14 +3505,12 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		return -ENODEV;
 
 	cam = (struct w9968cf_device*)
-	          kmalloc(sizeof(struct w9968cf_device), GFP_KERNEL);
+	          kzalloc(sizeof(struct w9968cf_device), GFP_KERNEL);
 	if (!cam)
 		return -ENOMEM;
 
-	memset(cam, 0, sizeof(*cam));
-
-	init_MUTEX(&cam->dev_sem);
-	down(&cam->dev_sem);
+	mutex_init(&cam->dev_mutex);
+	mutex_lock(&cam->dev_mutex);
 
 	cam->usbdev = udev;
 	/* NOTE: a local copy is used to avoid possible race conditions */
@@ -3518,10 +3522,10 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		simcams = W9968CF_SIMCAMS;
 
 	/* How many cameras are connected ? */
-	down(&w9968cf_devlist_sem);
+	mutex_lock(&w9968cf_devlist_mutex);
 	list_for_each(ptr, &w9968cf_dev_list)
 		sc++;
-	up(&w9968cf_devlist_sem);
+	mutex_unlock(&w9968cf_devlist_mutex);
 
 	if (sc >= simcams) {
 		DBG(2, "Device rejected: too many connected cameras "
@@ -3532,21 +3536,19 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 
 	/* Allocate 2 bytes of memory for camera control USB transfers */
-	if (!(cam->control_buffer = kmalloc(2, GFP_KERNEL))) {
+	if (!(cam->control_buffer = kzalloc(2, GFP_KERNEL))) {
 		DBG(1,"Couldn't allocate memory for camera control transfers")
 		err = -ENOMEM;
 		goto fail;
 	}
-	memset(cam->control_buffer, 0, 2);
 
 	/* Allocate 8 bytes of memory for USB data transfers to the FSB */
-	if (!(cam->data_buffer = kmalloc(8, GFP_KERNEL))) {
+	if (!(cam->data_buffer = kzalloc(8, GFP_KERNEL))) {
 		DBG(1, "Couldn't allocate memory for data "
 		       "transfers to the FSB")
 		err = -ENOMEM;
 		goto fail;
 	}
-	memset(cam->data_buffer, 0, 8);
 
 	/* Register the V4L device */
 	cam->v4ldev = video_device_alloc();
@@ -3583,9 +3585,9 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	w9968cf_configure_camera(cam, udev, mod_id, dev_nr);
 
 	/* Add a new entry into the list of V4L registered devices */
-	down(&w9968cf_devlist_sem);
+	mutex_lock(&w9968cf_devlist_mutex);
 	list_add(&cam->v4llist, &w9968cf_dev_list);
-	up(&w9968cf_devlist_sem);
+	mutex_unlock(&w9968cf_devlist_mutex);
 	dev_nr = (dev_nr < W9968CF_MAX_DEVICES-1) ? dev_nr+1 : 0;
 
 	w9968cf_turn_on_led(cam);
@@ -3593,7 +3595,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	w9968cf_i2c_init(cam);
 
 	usb_set_intfdata(intf, cam);
-	up(&cam->dev_sem);
+	mutex_unlock(&cam->dev_mutex);
 	return 0;
 
 fail: /* Free unused memory */
@@ -3601,7 +3603,7 @@ fail: /* Free unused memory */
 	kfree(cam->data_buffer);
 	if (cam->v4ldev)
 		video_device_release(cam->v4ldev);
-	up(&cam->dev_sem);
+	mutex_unlock(&cam->dev_mutex);
 	kfree(cam);
 	return err;
 }
@@ -3616,7 +3618,7 @@ static void w9968cf_usb_disconnect(struct usb_interface* intf)
 
 	if (cam) {
 		/* Prevent concurrent accesses to data */
-		down(&cam->dev_sem); 
+		mutex_lock(&cam->dev_mutex);
 
 		cam->disconnected = 1;
 
@@ -3635,7 +3637,7 @@ static void w9968cf_usb_disconnect(struct usb_interface* intf)
 		} else
 			w9968cf_release_resources(cam);
 
-		up(&cam->dev_sem);
+		mutex_unlock(&cam->dev_mutex);
 
 		if (!cam->users)
 			kfree(cam);

@@ -33,7 +33,9 @@
 #include <linux/types.h>
 #include <linux/param.h>
 #include <linux/rwsem.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
+#include <linux/string.h>
+#include <linux/stddef.h>
 
 #include "sn9c102_sensor.h"
 
@@ -50,6 +52,7 @@
 #define SN9C102_ALTERNATE_SETTING 8
 #define SN9C102_URB_TIMEOUT       msecs_to_jiffies(2 * SN9C102_ISO_PACKETS)
 #define SN9C102_CTRL_TIMEOUT      300
+#define SN9C102_FRAME_TIMEOUT     2
 
 /*****************************************************************************/
 
@@ -107,16 +110,17 @@ struct sn9c102_sysfs_attr {
 
 struct sn9c102_module_param {
 	u8 force_munmap;
+	u16 frame_timeout;
 };
 
-static DECLARE_MUTEX(sn9c102_sysfs_lock);
+static DEFINE_MUTEX(sn9c102_sysfs_lock);
 static DECLARE_RWSEM(sn9c102_disconnect);
 
 struct sn9c102_device {
 	struct video_device* v4ldev;
 
 	enum sn9c102_bridge bridge;
-	struct sn9c102_sensor* sensor;
+	struct sn9c102_sensor sensor;
 
 	struct usb_device* usbdev;
 	struct urb* urb[SN9C102_URBS];
@@ -141,19 +145,28 @@ struct sn9c102_device {
 	enum sn9c102_dev_state state;
 	u8 users;
 
-	struct semaphore dev_sem, fileop_sem;
+	struct mutex dev_mutex, fileop_mutex;
 	spinlock_t queue_lock;
 	wait_queue_head_t open, wait_frame, wait_stream;
 };
 
 /*****************************************************************************/
 
+struct sn9c102_device*
+sn9c102_match_id(struct sn9c102_device* cam, const struct usb_device_id *id)
+{
+	if (usb_match_id(usb_ifnum_to_if(cam->usbdev, 0), id))
+		return cam;
+
+	return NULL;
+}
+
+
 void
 sn9c102_attach_sensor(struct sn9c102_device* cam,
                       struct sn9c102_sensor* sensor)
 {
-	cam->sensor = sensor;
-	cam->sensor->usbdev = cam->usbdev;
+	memcpy(&cam->sensor, sensor, sizeof(struct sn9c102_sensor));
 }
 
 /*****************************************************************************/
@@ -196,7 +209,8 @@ do {                                                                          \
 
 #undef PDBG
 #define PDBG(fmt, args...)                                                    \
-dev_info(&cam->dev, "[%s:%d] " fmt "\n", __FUNCTION__, __LINE__ , ## args)
+dev_info(&cam->usbdev->dev, "[%s:%d] " fmt "\n",                              \
+         __FUNCTION__, __LINE__ , ## args)
 
 #undef PDBGG
 #define PDBGG(fmt, args...) do {;} while(0) /* placeholder */

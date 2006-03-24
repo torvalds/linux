@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/simple/relocate.S
- *
  * This is the common part of the loader relocation and initialization
  * process.  All of the board/processor specific initialization is
  * done before we get here.

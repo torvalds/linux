@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/common/cpc700_memory.c
- *
  * Find memory based upon settings in the CPC700 bridge
  *
  * Author: Dan Cox

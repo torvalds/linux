@@ -1,7 +1,7 @@
 
 		Video issues with S3 resume
 		~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		  2003-2005, Pavel Machek
+		  2003-2006, Pavel Machek
 
 During S3 resume, hardware needs to be reinitialized. For most
 devices, this is easy, and kernel driver knows how to do
@@ -14,6 +14,27 @@ This is not problem for swsusp, because during swsusp resume, BIOS is
 run normally so video card is normally initialized. It should not be
 problem for S1 standby, because hardware should retain its state over
 that.
+
+We either have to run video BIOS during early resume, or interpret it
+using vbetool later, or maybe nothing is neccessary on particular
+system because video state is preserved. Unfortunately different
+methods work on different systems, and no known method suits all of
+them.
+
+Userland application called s2ram has been developed; it contains long
+whitelist of systems, and automatically selects working method for a
+given system. It can be downloaded from CVS at
+www.sf.net/projects/suspend . If you get a system that is not in the
+whitelist, please try to find a working solution, and submit whitelist
+entry so that work does not need to be repeated.
+
+Currently, VBE_SAVE method (6 below) works on most
+systems. Unfortunately, vbetool only runs after userland is resumed,
+so it makes debugging of early resume problems
+hard/impossible. Methods that do not rely on userland are preferable.
+
+Details
+~~~~~~~
 
 There are a few types of systems where video works after S3 resume:
 
@@ -104,6 +125,7 @@ HP NX7000			??? (*)
 HP Pavilion ZD7000		vbetool post needed, need open-source nv driver for X
 HP Omnibook XE3	athlon version	none (1)
 HP Omnibook XE3GC		none (1), video is S3 Savage/IX-MV
+HP Omnibook 5150		none (1), (S1 also works OK)
 IBM TP T20, model 2647-44G	none (1), video is S3 Inc. 86C270-294 Savage/IX-MV, vesafb gets "interesting" but X work.
 IBM TP A31 / Type 2652-M5G      s3_mode (3) [works ok with BIOS 1.04 2002-08-23, but not at all with BIOS 1.11 2004-11-05 :-(]
 IBM TP R32 / Type 2658-MMG      none (1)
@@ -120,18 +142,24 @@ IBM ThinkPad T42p (2373-GTG)	s3_bios (2)
 IBM TP X20			??? (*)
 IBM TP X30			s3_bios (2)
 IBM TP X31 / Type 2672-XXH      none (1), use radeontool (http://fdd.com/software/radeon/) to turn off backlight.
-IBM TP X32			none (1), but backlight is on and video is trashed after long suspend
+IBM TP X32			none (1), but backlight is on and video is trashed after long suspend. s3_bios,s3_mode (4) works too. Perhaps that gets better results?
 IBM Thinkpad X40 Type 2371-7JG  s3_bios,s3_mode (4)
+IBM TP 600e			none(1), but a switch to console and back to X is needed
 Medion MD4220			??? (*)
 Samsung P35			vbetool needed (6)
-Sharp PC-AR10 (ATI rage)	none (1)
+Sharp PC-AR10 (ATI rage)	none (1), backlight does not switch off
 Sony Vaio PCG-C1VRX/K		s3_bios (2)
 Sony Vaio PCG-F403		??? (*)
+Sony Vaio PCG-GRT995MP		none (1), works with 'nv' X driver
+Sony Vaio PCG-GR7/K		none (1), but needs radeonfb, use radeontool (http://fdd.com/software/radeon/) to turn off backlight.
 Sony Vaio PCG-N505SN		??? (*)
 Sony Vaio vgn-s260		X or boot-radeon can init it (5)
+Sony Vaio vgn-S580BH		vga=normal, but suspend from X. Console will be blank unless you return to X.
+Sony Vaio vgn-FS115B		s3_bios (2),s3_mode (4)
 Toshiba Libretto L5		none (1)
-Toshiba Satellite 4030CDT	s3_mode (3)
-Toshiba Satellite 4080XCDT      s3_mode (3)
+Toshiba Portege 3020CT		s3_mode (3)
+Toshiba Satellite 4030CDT	s3_mode (3) (S1 also works OK)
+Toshiba Satellite 4080XCDT      s3_mode (3) (S1 also works OK)
 Toshiba Satellite 4090XCDT      ??? (*)
 Toshiba Satellite P10-554       s3_bios,s3_mode (4)(****)
 Toshiba M30                     (2) xor X with nvidia driver using internal AGP
@@ -151,39 +179,3 @@ Asus A7V8X	    nVidia RIVA TNT2 model 64	  s3_bios,s3_mode (4)
 (***) To be tested with a newer kernel.
 
 (****) Not with SMP kernel, UP only.
-
-VBEtool details
-~~~~~~~~~~~~~~~
-(with thanks to Carl-Daniel Hailfinger)
-
-First, boot into X and run the following script ONCE:
-#!/bin/bash
-statedir=/root/s3/state
-mkdir -p $statedir
-chvt 2
-sleep 1
-vbetool vbestate save >$statedir/vbe
-
-
-To suspend and resume properly, call the following script as root:
-#!/bin/bash
-statedir=/root/s3/state
-curcons=`fgconsole`
-fuser /dev/tty$curcons 2>/dev/null|xargs ps -o comm= -p|grep -q X && chvt 2
-cat /dev/vcsa >$statedir/vcsa
-sync
-echo 3 >/proc/acpi/sleep
-sync
-vbetool post
-vbetool vbestate restore <$statedir/vbe
-cat $statedir/vcsa >/dev/vcsa
-rckbd restart
-chvt $[curcons%6+1]
-chvt $curcons
-
-
-Unless you change your graphics card or other hardware configuration,
-the state once saved will be OK for every resume afterwards.
-NOTE: The "rckbd restart" command may be different for your
-distribution. Simply replace it with the command you would use to
-set the fonts on screen.

@@ -86,11 +86,10 @@ int ppc_override_l2cr = 0;
 int ppc_override_l2cr_value;
 int has_l2cache = 0;
 
-int pmac_newworld = 1;
+int pmac_newworld;
 
 static int current_root_goodness = -1;
 
-extern int pmac_newworld;
 extern struct machdep_calls pmac_md;
 
 #define DEFAULT_ROOT_DEVICE Root_SDA1	/* sda1 - slightly silly choice */
@@ -308,9 +307,10 @@ static void __init pmac_setup_arch(void)
 	for (ic = NULL; (ic = of_find_all_nodes(ic)) != NULL; )
 		if (get_property(ic, "interrupt-controller", NULL))
 			break;
-	pmac_newworld = (ic != NULL);
-	if (ic)
+	if (ic) {
+		pmac_newworld = 1;
 		of_node_put(ic);
+	}
 
 	/* Lookup PCI hosts */
 	pmac_pci_init();

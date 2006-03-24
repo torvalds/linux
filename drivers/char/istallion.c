@@ -181,7 +181,6 @@ static struct tty_driver	*stli_serial;
  *	is already swapping a shared buffer won't make things any worse.
  */
 static char			*stli_tmpwritebuf;
-static DECLARE_MUTEX(stli_tmpwritesem);
 
 #define	STLI_TXBUFSIZE		4096
 

@@ -172,9 +172,24 @@ extern int rotate_reclaimable_page(struct page *page);
 extern void swap_setup(void);
 
 /* linux/mm/vmscan.c */
-extern int try_to_free_pages(struct zone **, gfp_t);
-extern int shrink_all_memory(int);
+extern unsigned long try_to_free_pages(struct zone **, gfp_t);
+extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
+extern int remove_mapping(struct address_space *mapping, struct page *page);
+
+/* possible outcome of pageout() */
+typedef enum {
+	/* failed to write page out, page is locked */
+	PAGE_KEEP,
+	/* move page to the active list, page is locked */
+	PAGE_ACTIVATE,
+	/* page has been sent to the disk successfully, page is unlocked */
+	PAGE_SUCCESS,
+	/* page is clean and locked */
+	PAGE_CLEAN,
+} pageout_t;
+
+extern pageout_t pageout(struct page *page, struct address_space *mapping);
 
 #ifdef CONFIG_NUMA
 extern int zone_reclaim_mode;
@@ -186,25 +201,6 @@ static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 {
 	return 0;
 }
-#endif
-
-#ifdef CONFIG_MIGRATION
-extern int isolate_lru_page(struct page *p);
-extern int putback_lru_pages(struct list_head *l);
-extern int migrate_page(struct page *, struct page *);
-extern void migrate_page_copy(struct page *, struct page *);
-extern int migrate_page_remove_references(struct page *, struct page *, int);
-extern int migrate_pages(struct list_head *l, struct list_head *t,
-		struct list_head *moved, struct list_head *failed);
-extern int fail_migrate_page(struct page *, struct page *);
-#else
-static inline int isolate_lru_page(struct page *p) { return -ENOSYS; }
-static inline int putback_lru_pages(struct list_head *l) { return 0; }
-static inline int migrate_pages(struct list_head *l, struct list_head *t,
-	struct list_head *moved, struct list_head *failed) { return -ENOSYS; }
-/* Possible settings for the migrate_page() method in address_operations */
-#define migrate_page NULL
-#define fail_migrate_page NULL
 #endif
 
 #ifdef CONFIG_MMU
@@ -238,14 +234,15 @@ extern struct page * read_swap_cache_async(swp_entry_t, struct vm_area_struct *v
 /* linux/mm/swapfile.c */
 extern long total_swap_pages;
 extern unsigned int nr_swapfiles;
-extern struct swap_info_struct swap_info[];
 extern void si_swapinfo(struct sysinfo *);
 extern swp_entry_t get_swap_page(void);
-extern swp_entry_t get_swap_page_of_type(int type);
+extern swp_entry_t get_swap_page_of_type(int);
 extern int swap_duplicate(swp_entry_t);
 extern int valid_swaphandles(swp_entry_t, unsigned long *);
 extern void swap_free(swp_entry_t);
 extern void free_swap_and_cache(swp_entry_t);
+extern int swap_type_of(dev_t);
+extern unsigned int count_swap_pages(int, int);
 extern sector_t map_swap_page(struct swap_info_struct *, pgoff_t);
 extern struct swap_info_struct *get_swap_info_struct(unsigned);
 extern int can_share_swap_page(struct page *);

@@ -1,6 +1,4 @@
 /*
- *  arch/ppc64/kernel/entry.S
- *
  *  PowerPC version 
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *  Rewritten by Cort Dougan (cort@cs.nmt.edu) for PReP
@@ -63,6 +61,7 @@ system_call_common:
 	std	r12,_MSR(r1)
 	std	r0,GPR0(r1)
 	std	r10,GPR1(r1)
+	ACCOUNT_CPU_USER_ENTRY(r10, r11)
 	std	r2,GPR2(r1)
 	std	r3,GPR3(r1)
 	std	r4,GPR4(r1)
@@ -170,8 +169,9 @@ syscall_error_cont:
 	stdcx.	r0,0,r1			/* to clear the reservation */
 	andi.	r6,r8,MSR_PR
 	ld	r4,_LINK(r1)
-	beq-	1f			/* only restore r13 if */
-	ld	r13,GPR13(r1)		/* returning to usermode */
+	beq-	1f
+	ACCOUNT_CPU_USER_EXIT(r11, r12)
+	ld	r13,GPR13(r1)	/* only restore r13 if returning to usermode */
 1:	ld	r2,GPR2(r1)
 	li	r12,MSR_RI
 	andc	r11,r10,r12
@@ -322,7 +322,7 @@ _GLOBAL(ret_from_fork)
  * the fork code also.
  *
  * The code which creates the new task context is in 'copy_thread'
- * in arch/ppc64/kernel/process.c
+ * in arch/powerpc/kernel/process.c 
  */
 	.align	7
 _GLOBAL(_switch)
@@ -486,6 +486,7 @@ restore:
 	 * userspace
 	 */
 	beq	1f
+	ACCOUNT_CPU_USER_EXIT(r3, r4)
 	REST_GPR(13, r1)
 1:
 	ld	r3,_CTR(r1)

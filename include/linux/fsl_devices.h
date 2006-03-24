@@ -83,5 +83,32 @@ struct fsl_i2c_platform_data {
 #define FSL_I2C_DEV_SEPARATE_DFSRR	0x00000001
 #define FSL_I2C_DEV_CLOCK_5200		0x00000002
 
+
+enum fsl_usb2_operating_modes {
+	FSL_USB2_MPH_HOST,
+	FSL_USB2_DR_HOST,
+	FSL_USB2_DR_DEVICE,
+	FSL_USB2_DR_OTG,
+};
+
+enum fsl_usb2_phy_modes {
+	FSL_USB2_PHY_NONE,
+	FSL_USB2_PHY_ULPI,
+	FSL_USB2_PHY_UTMI,
+	FSL_USB2_PHY_UTMI_WIDE,
+	FSL_USB2_PHY_SERIAL,
+};
+
+struct fsl_usb2_platform_data {
+	/* board specific information */
+	enum fsl_usb2_operating_modes operating_mode;
+	enum fsl_usb2_phy_modes phy_mode;
+	unsigned int port_enables;
+};
+
+/* Flags in fsl_usb2_mph_platform_data */
+#define FSL_USB2_PORT0_ENABLED	0x00000001
+#define FSL_USB2_PORT1_ENABLED	0x00000002
+
 #endif				/* _FSL_DEVICE_H_ */
 #endif				/* __KERNEL__ */

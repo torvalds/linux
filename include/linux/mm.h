@@ -286,43 +286,34 @@ struct page {
  *
  * Also, many kernel routines increase the page count before a critical
  * routine so they can be sure the page doesn't go away from under them.
- *
- * Since 2.6.6 (approx), a free page has ->_count = -1.  This is so that we
- * can use atomic_add_negative(-1, page->_count) to detect when the page
- * becomes free and so that we can also use atomic_inc_and_test to atomically
- * detect when we just tried to grab a ref on a page which some other CPU has
- * already deemed to be freeable.
- *
- * NO code should make assumptions about this internal detail!  Use the provided
- * macros which retain the old rules: page_count(page) == 0 is a free page.
  */
 
 /*
  * Drop a ref, return true if the logical refcount fell to zero (the page has
  * no users)
  */
-#define put_page_testzero(p)				\
-	({						\
-		BUG_ON(atomic_read(&(p)->_count) == -1);\
-		atomic_add_negative(-1, &(p)->_count);	\
-	})
+static inline int put_page_testzero(struct page *page)
+{
+	BUG_ON(atomic_read(&page->_count) == 0);
+	return atomic_dec_and_test(&page->_count);
+}
 
 /*
- * Grab a ref, return true if the page previously had a logical refcount of
- * zero.  ie: returns true if we just grabbed an already-deemed-to-be-free page
+ * Try to grab a ref unless the page has a refcount of zero, return false if
+ * that is the case.
  */
-#define get_page_testone(p)	atomic_inc_and_test(&(p)->_count)
-
-#define set_page_count(p,v) 	atomic_set(&(p)->_count, (v) - 1)
-#define __put_page(p)		atomic_dec(&(p)->_count)
+static inline int get_page_unless_zero(struct page *page)
+{
+	return atomic_inc_not_zero(&page->_count);
+}
 
 extern void FASTCALL(__page_cache_release(struct page *));
 
 static inline int page_count(struct page *page)
 {
-	if (PageCompound(page))
+	if (unlikely(PageCompound(page)))
 		page = (struct page *)page_private(page);
-	return atomic_read(&page->_count) + 1;
+	return atomic_read(&page->_count);
 }
 
 static inline void get_page(struct page *page)
@@ -332,7 +323,18 @@ static inline void get_page(struct page *page)
 	atomic_inc(&page->_count);
 }
 
+/*
+ * Setup the page count before being freed into the page allocator for
+ * the first time (boot or memory hotplug)
+ */
+static inline void init_page_count(struct page *page)
+{
+	atomic_set(&page->_count, 1);
+}
+
 void put_page(struct page *page);
+
+void split_page(struct page *page, unsigned int order);
 
 /*
  * Multiple processes may "see" the same page. E.g. for untouched
@@ -1046,7 +1048,7 @@ int in_gate_area_no_task(unsigned long addr);
 
 int drop_caches_sysctl_handler(struct ctl_table *, int, struct file *,
 					void __user *, size_t *, loff_t *);
-int shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 			unsigned long lru_pages);
 void drop_pagecache(void);
 void drop_slab(void);

@@ -214,6 +214,17 @@ config CPUSETS
 
 	  Say N if unsure.
 
+config RELAY
+	bool "Kernel->user space relay support (formerly relayfs)"
+	help
+	  This option enables support for relay interface support in
+	  certain file systems (such as debugfs).
+	  It is designed to provide an efficient mechanism for tools and
+	  facilities to relay large amounts of data from kernel space to
+	  user space.
+
+	  If unsure, say N.
+
 source "usr/Kconfig"
 
 config UID16

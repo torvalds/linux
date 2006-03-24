@@ -49,7 +49,6 @@ MODULE_AUTHOR("Dave Perks");
 MODULE_LICENSE("GPL");
 
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #define I2C_NAME(s) (s)->name
 
@@ -68,8 +67,6 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 /* ----------------------------------------------------------------------- */
 
 struct adv7175 {
-	unsigned char reg[128];
-
 	int norm;
 	int input;
 	int enable;
@@ -95,9 +92,6 @@ adv7175_write (struct i2c_client *client,
 	       u8                 reg,
 	       u8                 value)
 {
-	struct adv7175 *encoder = i2c_get_clientdata(client);
-
-	encoder->reg[reg] = value;
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
@@ -120,25 +114,21 @@ adv7175_write_block (struct i2c_client *client,
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		/* do raw I2C, not smbus compatible */
-		struct adv7175 *encoder = i2c_get_clientdata(client);
-		struct i2c_msg msg;
 		u8 block_data[32];
+		int block_len;
 
-		msg.addr = client->addr;
-		msg.flags = 0;
 		while (len >= 2) {
-			msg.buf = (char *) block_data;
-			msg.len = 0;
-			block_data[msg.len++] = reg = data[0];
+			block_len = 0;
+			block_data[block_len++] = reg = data[0];
 			do {
-				block_data[msg.len++] =
-				    encoder->reg[reg++] = data[1];
+				block_data[block_len++] = data[1];
+				reg++;
 				len -= 2;
 				data += 2;
 			} while (len >= 2 && data[0] == reg &&
-				 msg.len < 32);
-			if ((ret = i2c_transfer(client->adapter,
-						&msg, 1)) < 0)
+				 block_len < 32);
+			if ((ret = i2c_master_send(client, block_data,
+						   block_len)) < 0)
 				break;
 		}
 	} else {
@@ -170,24 +160,6 @@ set_subcarrier_freq (struct i2c_client *client,
 	adv7175_write(client, 0x04, 0x55);
 	adv7175_write(client, 0x05, 0x25);
 }
-
-#ifdef ENCODER_DUMP
-static void
-dump (struct i2c_client *client)
-{
-	struct adv7175 *encoder = i2c_get_clientdata(client);
-	int i, j;
-
-	printk(KERN_INFO "%s: registry dump\n", I2C_NAME(client));
-	for (i = 0; i < 182 / 8; i++) {
-		printk("%s: 0x%02x -", I2C_NAME(client), i * 8);
-		for (j = 0; j < 8; j++) {
-			printk(" 0x%02x", encoder->reg[i * 8 + j]);
-		}
-		printk("\n");
-	}
-}
-#endif
 
 /* ----------------------------------------------------------------------- */
 // Output filter:  S-Video  Composite
@@ -406,14 +378,6 @@ adv7175_command (struct i2c_client *client,
 		encoder->enable = !!*iarg;
 	}
 		break;
-
-#ifdef ENCODER_DUMP
-	case ENCODER_DUMP:
-	{
-		dump(client);
-	}
-		break;
-#endif
 
 	default:
 		return -EINVAL;

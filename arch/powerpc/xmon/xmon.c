@@ -191,6 +191,7 @@ Commands:\n\
   di	dump instructions\n\
   df	dump float values\n\
   dd	dump double values\n\
+  dr	dump stream of raw bytes\n\
   e	print exception information\n\
   f	flush cache\n\
   la	lookup symbol+offset of specified address\n\
@@ -1938,6 +1939,28 @@ bsesc(void)
 	return c;
 }
 
+static void xmon_rawdump (unsigned long adrs, long ndump)
+{
+	long n, m, r, nr;
+	unsigned char temp[16];
+
+	for (n = ndump; n > 0;) {
+		r = n < 16? n: 16;
+		nr = mread(adrs, temp, r);
+		adrs += nr;
+		for (m = 0; m < r; ++m) {
+			if (m < nr)
+				printf("%.2x", temp[m]);
+			else
+				printf("%s", fault_chars[fault_type]);
+		}
+		n -= r;
+		if (nr < r)
+			break;
+	}
+	printf("\n");
+}
+
 #define isxdigit(c)	(('0' <= (c) && (c) <= '9') \
 			 || ('a' <= (c) && (c) <= 'f') \
 			 || ('A' <= (c) && (c) <= 'F'))
@@ -1960,6 +1983,13 @@ dump(void)
 			nidump = MAX_DUMP;
 		adrs += ppc_inst_dump(adrs, nidump, 1);
 		last_cmd = "di\n";
+	} else if (c == 'r') {
+		scanhex(&ndump);
+		if (ndump == 0)
+			ndump = 64;
+		xmon_rawdump(adrs, ndump);
+		adrs += ndump;
+		last_cmd = "dr\n";
 	} else {
 		scanhex(&ndump);
 		if (ndump == 0)

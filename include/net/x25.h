@@ -101,8 +101,16 @@ enum {
 #define	X25_FAC_PACKET_SIZE	0x42
 #define	X25_FAC_WINDOW_SIZE	0x43
 
-#define	X25_MAX_FAC_LEN		20		/* Plenty to spare */
+#define X25_MAX_FAC_LEN 	60
 #define	X25_MAX_CUD_LEN		128
+
+#define X25_FAC_CALLING_AE 	0xCB
+#define X25_FAC_CALLED_AE 	0xC9
+
+#define X25_MARKER 		0x00
+#define X25_DTE_SERVICES 	0x0F
+#define X25_MAX_AE_LEN 		40			/* Max num of semi-octets in AE - OSI Nw */
+#define X25_MAX_DTE_FACIL_LEN	21			/* Max length of DTE facility params */
 
 /**
  *	struct x25_route - x25 routing entry
@@ -148,6 +156,7 @@ struct x25_sock {
 	struct timer_list	timer;
 	struct x25_causediag	causediag;
 	struct x25_facilities	facilities;
+	struct x25_dte_facilities dte_facilities;
 	struct x25_calluserdata	calluserdata;
 	unsigned long 		vc_facil_mask;	/* inc_call facilities mask */
 };
@@ -180,9 +189,13 @@ extern void x25_establish_link(struct x25_neigh *);
 extern void x25_terminate_link(struct x25_neigh *);
 
 /* x25_facilities.c */
-extern int  x25_parse_facilities(struct sk_buff *, struct x25_facilities *, unsigned long *);
-extern int  x25_create_facilities(unsigned char *, struct x25_facilities *, unsigned long);
-extern int  x25_negotiate_facilities(struct sk_buff *, struct sock *, struct x25_facilities *);
+extern int x25_parse_facilities(struct sk_buff *, struct x25_facilities *,
+				struct x25_dte_facilities *, unsigned long *);
+extern int x25_create_facilities(unsigned char *, struct x25_facilities *,
+				struct x25_dte_facilities *, unsigned long);
+extern int x25_negotiate_facilities(struct sk_buff *, struct sock *,
+				struct x25_facilities *,
+				struct x25_dte_facilities *);
 extern void x25_limit_facilities(struct x25_facilities *, struct x25_neigh *);
 
 /* x25_in.c */

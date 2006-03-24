@@ -130,6 +130,6 @@ struct r1bio_s {
  * with failure when last write completes (and all failed).
  * Record that bi_end_io was called with this flag...
  */
-#define	R1BIO_Returned 4
+#define	R1BIO_Returned 6
 
 #endif

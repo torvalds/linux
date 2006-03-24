@@ -66,3 +66,4 @@ config IEEE80211_CRYPT_TKIP
 	This can be compiled as a modules and it will be called
 	"ieee80211_crypt_tkip".
 
+source "net/ieee80211/softmac/Kconfig"

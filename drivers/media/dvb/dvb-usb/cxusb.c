@@ -77,7 +77,7 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i;
 
-	if (down_interruptible(&d->i2c_sem) < 0)
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
 	if (num > 2)
@@ -126,7 +126,7 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 		}
 	}
 
-	up(&d->i2c_sem);
+	mutex_unlock(&d->i2c_mutex);
 	return i;
 }
 

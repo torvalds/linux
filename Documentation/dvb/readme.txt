@@ -20,11 +20,23 @@ http://linuxtv.org/downloads/
 
 What's inside this directory:
 
+"avermedia.txt"
+contains detailed information about the
+Avermedia DVB-T cards. See also "bt8xx.txt".
+
+"bt8xx.txt"
+contains detailed information about the
+various bt8xx based "budget" DVB cards.
+
 "cards.txt"
 contains a list of supported hardware.
 
+"ci.txt"
+contains detailed information about the
+CI module as part from TwinHan cards and Clones.
+
 "contributors.txt"
-is the who-is-who of DVB development
+is the who-is-who of DVB development.
 
 "faq.txt"
 contains frequently asked questions and their answers.
@@ -34,19 +46,17 @@ script to download and extract firmware for those devices
 that require it.
 
 "ttusb-dec.txt"
-contains detailed informations about the
+contains detailed information about the
 TT DEC2000/DEC3000 USB DVB hardware.
-
-"bt8xx.txt"
-contains detailed installation instructions for the
-various bt8xx based "budget" DVB cards
-(Nebula, Pinnacle PCTV, Twinhan DST)
-
-"README.dibusb"
-contains detailed information about adapters
-based on DiBcom reference design.
 
 "udev.txt"
 how to get DVB and udev up and running.
+
+"README.dvb-usb"
+contains detailed information about the DVB USB cards.
+
+"README.flexcop"
+contains detailed information about the
+Technisat- and Flexcop B2C2 drivers.
 
 Good luck and have fun!

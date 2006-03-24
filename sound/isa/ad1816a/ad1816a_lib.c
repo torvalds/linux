@@ -1,4 +1,3 @@
-
 /*
     ad1816a.c - lowlevel code for Analog Devices AD1816A chip.
     Copyright (C) 1999-2000 by Massimo Piccioni <dafastidio@libero.it>
@@ -175,7 +174,7 @@ static void snd_ad1816a_close(struct snd_ad1816a *chip, unsigned int mode)
 
 
 static int snd_ad1816a_trigger(struct snd_ad1816a *chip, unsigned char what,
-			       int channel, int cmd)
+			       int channel, int cmd, int iscapture)
 {
 	int error = 0;
 
@@ -184,10 +183,14 @@ static int snd_ad1816a_trigger(struct snd_ad1816a *chip, unsigned char what,
 	case SNDRV_PCM_TRIGGER_STOP:
 		spin_lock(&chip->lock);
 		cmd = (cmd == SNDRV_PCM_TRIGGER_START) ? 0xff: 0x00;
-		if (what & AD1816A_PLAYBACK_ENABLE)
+		/* if (what & AD1816A_PLAYBACK_ENABLE) */
+		/* That is not valid, because playback and capture enable
+		 * are the same bit pattern, just to different addresses
+		 */
+		if (! iscapture)
 			snd_ad1816a_out_mask(chip, AD1816A_PLAYBACK_CONFIG,
 				AD1816A_PLAYBACK_ENABLE, cmd);
-		if (what & AD1816A_CAPTURE_ENABLE)
+		else
 			snd_ad1816a_out_mask(chip, AD1816A_CAPTURE_CONFIG,
 				AD1816A_CAPTURE_ENABLE, cmd);
 		spin_unlock(&chip->lock);
@@ -204,14 +207,14 @@ static int snd_ad1816a_playback_trigger(struct snd_pcm_substream *substream, int
 {
 	struct snd_ad1816a *chip = snd_pcm_substream_chip(substream);
 	return snd_ad1816a_trigger(chip, AD1816A_PLAYBACK_ENABLE,
-		SNDRV_PCM_STREAM_PLAYBACK, cmd);
+				   SNDRV_PCM_STREAM_PLAYBACK, cmd, 0);
 }
 
 static int snd_ad1816a_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_ad1816a *chip = snd_pcm_substream_chip(substream);
 	return snd_ad1816a_trigger(chip, AD1816A_CAPTURE_ENABLE,
-		SNDRV_PCM_STREAM_CAPTURE, cmd);
+				   SNDRV_PCM_STREAM_CAPTURE, cmd, 1);
 }
 
 static int snd_ad1816a_hw_params(struct snd_pcm_substream *substream,

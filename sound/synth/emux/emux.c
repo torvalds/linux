@@ -45,7 +45,7 @@ int snd_emux_new(struct snd_emux **remu)
 		return -ENOMEM;
 
 	spin_lock_init(&emu->voice_lock);
-	init_MUTEX(&emu->register_mutex);
+	mutex_init(&emu->register_mutex);
 
 	emu->client = -1;
 #ifdef CONFIG_SND_SEQUENCER_OSS

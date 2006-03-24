@@ -1,5 +1,7 @@
 #ifndef __SOUND_UTIL_MEM_H
 #define __SOUND_UTIL_MEM_H
+
+#include <linux/mutex.h>
 /*
  *  Copyright (C) 2000 Takashi Iwai <tiwai@suse.de>
  *
@@ -40,7 +42,7 @@ struct snd_util_memhdr {
 	int nblocks;			/* # of allocated blocks */
 	unsigned int used;		/* used memory size */
 	int block_extra_size;		/* extra data size of chunk */
-	struct semaphore block_mutex;	/* lock */
+	struct mutex block_mutex;	/* lock */
 };
 
 /*

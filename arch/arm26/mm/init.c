@@ -324,7 +324,7 @@ static inline void free_area(unsigned long addr, unsigned long end, char *s)
 	for (; addr < end; addr += PAGE_SIZE) {
 		struct page *page = virt_to_page(addr);
 		ClearPageReserved(page);
-		set_page_count(page, 1);
+		init_page_count(page);
 		free_page(addr);
 		totalram_pages++;
 	}

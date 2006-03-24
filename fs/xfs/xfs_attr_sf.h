@@ -32,8 +32,8 @@ struct xfs_inode;
  */
 typedef struct xfs_attr_shortform {
 	struct xfs_attr_sf_hdr {	/* constant-structure header block */
-		__uint16_t totsize;	/* total bytes in shortform list */
-		__uint8_t count;	/* count of active entries */
+		__be16	totsize;	/* total bytes in shortform list */
+		__u8	count;	/* count of active entries */
 	} hdr;
 	struct xfs_attr_sf_entry {
 		__uint8_t namelen;	/* actual length of name (no NULL) */
@@ -66,8 +66,8 @@ typedef struct xfs_attr_sf_sort {
 #define XFS_ATTR_SF_NEXTENTRY(sfep)		/* next entry in struct */ \
 	((xfs_attr_sf_entry_t *)((char *)(sfep) + XFS_ATTR_SF_ENTSIZE(sfep)))
 #define XFS_ATTR_SF_TOTSIZE(dp)			/* total space in use */ \
-	(INT_GET(((xfs_attr_shortform_t *)	\
-		((dp)->i_afp->if_u1.if_data))->hdr.totsize, ARCH_CONVERT))
+	(be16_to_cpu(((xfs_attr_shortform_t *)	\
+		((dp)->i_afp->if_u1.if_data))->hdr.totsize))
 
 #if defined(XFS_ATTR_TRACE)
 /*

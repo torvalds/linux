@@ -39,6 +39,7 @@
 #include <linux/device.h>
 #include <linux/string.h>
 #include <linux/sched.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <asm/cacheflush.h>
@@ -60,18 +61,18 @@
 static DEFINE_SPINLOCK(modlist_lock);
 
 /* List of modules, protected by module_mutex AND modlist_lock */
-static DECLARE_MUTEX(module_mutex);
+static DEFINE_MUTEX(module_mutex);
 static LIST_HEAD(modules);
 
-static DECLARE_MUTEX(notify_mutex);
+static DEFINE_MUTEX(notify_mutex);
 static struct notifier_block * module_notify_list;
 
 int register_module_notifier(struct notifier_block * nb)
 {
 	int err;
-	down(&notify_mutex);
+	mutex_lock(&notify_mutex);
 	err = notifier_chain_register(&module_notify_list, nb);
-	up(&notify_mutex);
+	mutex_unlock(&notify_mutex);
 	return err;
 }
 EXPORT_SYMBOL(register_module_notifier);
@@ -79,9 +80,9 @@ EXPORT_SYMBOL(register_module_notifier);
 int unregister_module_notifier(struct notifier_block * nb)
 {
 	int err;
-	down(&notify_mutex);
+	mutex_lock(&notify_mutex);
 	err = notifier_chain_unregister(&module_notify_list, nb);
-	up(&notify_mutex);
+	mutex_unlock(&notify_mutex);
 	return err;
 }
 EXPORT_SYMBOL(unregister_module_notifier);
@@ -126,14 +127,29 @@ extern const struct kernel_symbol __start___ksymtab[];
 extern const struct kernel_symbol __stop___ksymtab[];
 extern const struct kernel_symbol __start___ksymtab_gpl[];
 extern const struct kernel_symbol __stop___ksymtab_gpl[];
+extern const struct kernel_symbol __start___ksymtab_gpl_future[];
+extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
 extern const unsigned long __start___kcrctab[];
 extern const unsigned long __start___kcrctab_gpl[];
+extern const unsigned long __start___kcrctab_gpl_future[];
 
 #ifndef CONFIG_MODVERSIONS
 #define symversion(base, idx) NULL
 #else
 #define symversion(base, idx) ((base) ? ((base) + (idx)) : NULL)
 #endif
+
+/* lookup symbol in given range of kernel_symbols */
+static const struct kernel_symbol *lookup_symbol(const char *name,
+	const struct kernel_symbol *start,
+	const struct kernel_symbol *stop)
+{
+	const struct kernel_symbol *ks = start;
+	for (; ks < stop; ks++)
+		if (strcmp(ks->name, name) == 0)
+			return ks;
+	return NULL;
+}
 
 /* Find a symbol, return value, crc and module which owns it */
 static unsigned long __find_symbol(const char *name,
@@ -142,40 +158,75 @@ static unsigned long __find_symbol(const char *name,
 				   int gplok)
 {
 	struct module *mod;
-	unsigned int i;
+	const struct kernel_symbol *ks;
 
 	/* Core kernel first. */ 
 	*owner = NULL;
-	for (i = 0; __start___ksymtab+i < __stop___ksymtab; i++) {
-		if (strcmp(__start___ksymtab[i].name, name) == 0) {
-			*crc = symversion(__start___kcrctab, i);
-			return __start___ksymtab[i].value;
-		}
+	ks = lookup_symbol(name, __start___ksymtab, __stop___ksymtab);
+	if (ks) {
+		*crc = symversion(__start___kcrctab, (ks - __start___ksymtab));
+		return ks->value;
 	}
 	if (gplok) {
-		for (i = 0; __start___ksymtab_gpl+i<__stop___ksymtab_gpl; i++)
-			if (strcmp(__start___ksymtab_gpl[i].name, name) == 0) {
-				*crc = symversion(__start___kcrctab_gpl, i);
-				return __start___ksymtab_gpl[i].value;
-			}
+		ks = lookup_symbol(name, __start___ksymtab_gpl,
+					 __stop___ksymtab_gpl);
+		if (ks) {
+			*crc = symversion(__start___kcrctab_gpl,
+					  (ks - __start___ksymtab_gpl));
+			return ks->value;
+		}
+	}
+	ks = lookup_symbol(name, __start___ksymtab_gpl_future,
+				 __stop___ksymtab_gpl_future);
+	if (ks) {
+		if (!gplok) {
+			printk(KERN_WARNING "Symbol %s is being used "
+			       "by a non-GPL module, which will not "
+			       "be allowed in the future\n", name);
+			printk(KERN_WARNING "Please see the file "
+			       "Documentation/feature-removal-schedule.txt "
+			       "in the kernel source tree for more "
+			       "details.\n");
+		}
+		*crc = symversion(__start___kcrctab_gpl_future,
+				  (ks - __start___ksymtab_gpl_future));
+		return ks->value;
 	}
 
 	/* Now try modules. */ 
 	list_for_each_entry(mod, &modules, list) {
 		*owner = mod;
-		for (i = 0; i < mod->num_syms; i++)
-			if (strcmp(mod->syms[i].name, name) == 0) {
-				*crc = symversion(mod->crcs, i);
-				return mod->syms[i].value;
-			}
+		ks = lookup_symbol(name, mod->syms, mod->syms + mod->num_syms);
+		if (ks) {
+			*crc = symversion(mod->crcs, (ks - mod->syms));
+			return ks->value;
+		}
 
 		if (gplok) {
-			for (i = 0; i < mod->num_gpl_syms; i++) {
-				if (strcmp(mod->gpl_syms[i].name, name) == 0) {
-					*crc = symversion(mod->gpl_crcs, i);
-					return mod->gpl_syms[i].value;
-				}
+			ks = lookup_symbol(name, mod->gpl_syms,
+					   mod->gpl_syms + mod->num_gpl_syms);
+			if (ks) {
+				*crc = symversion(mod->gpl_crcs,
+						  (ks - mod->gpl_syms));
+				return ks->value;
 			}
+		}
+		ks = lookup_symbol(name, mod->gpl_future_syms,
+				   (mod->gpl_future_syms +
+				    mod->num_gpl_future_syms));
+		if (ks) {
+			if (!gplok) {
+				printk(KERN_WARNING "Symbol %s is being used "
+				       "by a non-GPL module, which will not "
+				       "be allowed in the future\n", name);
+				printk(KERN_WARNING "Please see the file "
+				       "Documentation/feature-removal-schedule.txt "
+				       "in the kernel source tree for more "
+				       "details.\n");
+			}
+			*crc = symversion(mod->gpl_future_crcs,
+					  (ks - mod->gpl_future_syms));
+			return ks->value;
 		}
 	}
 	DEBUGP("Failed to find symbol %s\n", name);
@@ -379,7 +430,6 @@ static inline void percpu_modcopy(void *pcpudst, const void *src,
 }
 #endif /* CONFIG_SMP */
 
-#ifdef CONFIG_MODULE_UNLOAD
 #define MODINFO_ATTR(field)	\
 static void setup_modinfo_##field(struct module *mod, const char *s)  \
 {                                                                     \
@@ -411,12 +461,7 @@ static struct module_attribute modinfo_##field = {                    \
 MODINFO_ATTR(version);
 MODINFO_ATTR(srcversion);
 
-static struct module_attribute *modinfo_attrs[] = {
-	&modinfo_version,
-	&modinfo_srcversion,
-	NULL,
-};
-
+#ifdef CONFIG_MODULE_UNLOAD
 /* Init the unload section of the module. */
 static void module_unload_init(struct module *mod)
 {
@@ -557,7 +602,7 @@ static void free_module(struct module *mod);
 static void wait_for_zero_refcount(struct module *mod)
 {
 	/* Since we might sleep for some time, drop the semaphore first */
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 	for (;;) {
 		DEBUGP("Looking at refcount...\n");
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -566,7 +611,7 @@ static void wait_for_zero_refcount(struct module *mod)
 		schedule();
 	}
 	current->state = TASK_RUNNING;
-	down(&module_mutex);
+	mutex_lock(&module_mutex);
 }
 
 asmlinkage long
@@ -583,7 +628,7 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 		return -EFAULT;
 	name[MODULE_NAME_LEN-1] = '\0';
 
-	if (down_interruptible(&module_mutex) != 0)
+	if (mutex_lock_interruptible(&module_mutex) != 0)
 		return -EINTR;
 
 	mod = find_module(name);
@@ -632,14 +677,14 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 
 	/* Final destruction now noone is using it. */
 	if (mod->exit != NULL) {
-		up(&module_mutex);
+		mutex_unlock(&module_mutex);
 		mod->exit();
-		down(&module_mutex);
+		mutex_lock(&module_mutex);
 	}
 	free_module(mod);
 
  out:
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 	return ret;
 }
 
@@ -730,6 +775,15 @@ static inline void module_unload_init(struct module *mod)
 {
 }
 #endif /* CONFIG_MODULE_UNLOAD */
+
+static struct module_attribute *modinfo_attrs[] = {
+	&modinfo_version,
+	&modinfo_srcversion,
+#ifdef CONFIG_MODULE_UNLOAD
+	&refcnt,
+#endif
+	NULL,
+};
 
 #ifdef CONFIG_OBSOLETE_MODPARM
 /* Bounds checking done below */
@@ -1056,37 +1110,28 @@ static inline void remove_sect_attrs(struct module *mod)
 }
 #endif /* CONFIG_KALLSYMS */
 
-
-#ifdef CONFIG_MODULE_UNLOAD
-static inline int module_add_refcnt_attr(struct module *mod)
-{
-	return sysfs_create_file(&mod->mkobj.kobj, &refcnt.attr);
-}
-static void module_remove_refcnt_attr(struct module *mod)
-{
-	return sysfs_remove_file(&mod->mkobj.kobj, &refcnt.attr);
-}
-#else
-static inline int module_add_refcnt_attr(struct module *mod)
-{
-	return 0;
-}
-static void module_remove_refcnt_attr(struct module *mod)
-{
-}
-#endif
-
-#ifdef CONFIG_MODULE_UNLOAD
 static int module_add_modinfo_attrs(struct module *mod)
 {
 	struct module_attribute *attr;
+	struct module_attribute *temp_attr;
 	int error = 0;
 	int i;
 
+	mod->modinfo_attrs = kzalloc((sizeof(struct module_attribute) *
+					(ARRAY_SIZE(modinfo_attrs) + 1)),
+					GFP_KERNEL);
+	if (!mod->modinfo_attrs)
+		return -ENOMEM;
+
+	temp_attr = mod->modinfo_attrs;
 	for (i = 0; (attr = modinfo_attrs[i]) && !error; i++) {
 		if (!attr->test ||
-		    (attr->test && attr->test(mod)))
-			error = sysfs_create_file(&mod->mkobj.kobj,&attr->attr);
+		    (attr->test && attr->test(mod))) {
+			memcpy(temp_attr, attr, sizeof(*temp_attr));
+			temp_attr->attr.owner = mod;
+			error = sysfs_create_file(&mod->mkobj.kobj,&temp_attr->attr);
+			++temp_attr;
+		}
 	}
 	return error;
 }
@@ -1096,12 +1141,16 @@ static void module_remove_modinfo_attrs(struct module *mod)
 	struct module_attribute *attr;
 	int i;
 
-	for (i = 0; (attr = modinfo_attrs[i]); i++) {
+	for (i = 0; (attr = &mod->modinfo_attrs[i]); i++) {
+		/* pick a field to test for end of list */
+		if (!attr->attr.name)
+			break;
 		sysfs_remove_file(&mod->mkobj.kobj,&attr->attr);
-		attr->free(mod);
+		if (attr->free)
+			attr->free(mod);
 	}
+	kfree(mod->modinfo_attrs);
 }
-#endif
 
 static int mod_sysfs_setup(struct module *mod,
 			   struct kernel_param *kparam,
@@ -1119,19 +1168,13 @@ static int mod_sysfs_setup(struct module *mod,
 	if (err)
 		goto out;
 
-	err = module_add_refcnt_attr(mod);
-	if (err)
-		goto out_unreg;
-
 	err = module_param_sysfs_setup(mod, kparam, num_params);
 	if (err)
 		goto out_unreg;
 
-#ifdef CONFIG_MODULE_UNLOAD
 	err = module_add_modinfo_attrs(mod);
 	if (err)
 		goto out_unreg;
-#endif
 
 	return 0;
 
@@ -1143,10 +1186,7 @@ out:
 
 static void mod_kobject_remove(struct module *mod)
 {
-#ifdef CONFIG_MODULE_UNLOAD
 	module_remove_modinfo_attrs(mod);
-#endif
-	module_remove_refcnt_attr(mod);
 	module_param_sysfs_remove(mod);
 
 	kobject_unregister(&mod->mkobj.kobj);
@@ -1424,7 +1464,6 @@ static char *get_modinfo(Elf_Shdr *sechdrs,
 	return NULL;
 }
 
-#ifdef CONFIG_MODULE_UNLOAD
 static void setup_modinfo(struct module *mod, Elf_Shdr *sechdrs,
 			  unsigned int infoindex)
 {
@@ -1439,23 +1478,17 @@ static void setup_modinfo(struct module *mod, Elf_Shdr *sechdrs,
 						attr->attr.name));
 	}
 }
-#endif
 
 #ifdef CONFIG_KALLSYMS
 int is_exported(const char *name, const struct module *mod)
 {
-	unsigned int i;
-
-	if (!mod) {
-		for (i = 0; __start___ksymtab+i < __stop___ksymtab; i++)
-			if (strcmp(__start___ksymtab[i].name, name) == 0)
-				return 1;
-		return 0;
-	}
-	for (i = 0; i < mod->num_syms; i++)
-		if (strcmp(mod->syms[i].name, name) == 0)
+	if (!mod && lookup_symbol(name, __start___ksymtab, __stop___ksymtab))
+		return 1;
+	else
+		if (lookup_symbol(name, mod->syms, mod->syms + mod->num_syms))
 			return 1;
-	return 0;
+		else
+			return 0;
 }
 
 /* As per nm */
@@ -1537,7 +1570,8 @@ static struct module *load_module(void __user *umod,
 	char *secstrings, *args, *modmagic, *strtab = NULL;
 	unsigned int i, symindex = 0, strindex = 0, setupindex, exindex,
 		exportindex, modindex, obsparmindex, infoindex, gplindex,
-		crcindex, gplcrcindex, versindex, pcpuindex;
+		crcindex, gplcrcindex, versindex, pcpuindex, gplfutureindex,
+		gplfuturecrcindex;
 	long arglen;
 	struct module *mod;
 	long err = 0;
@@ -1618,8 +1652,10 @@ static struct module *load_module(void __user *umod,
 	/* Optional sections */
 	exportindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab");
 	gplindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_gpl");
+	gplfutureindex = find_sec(hdr, sechdrs, secstrings, "__ksymtab_gpl_future");
 	crcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab");
 	gplcrcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab_gpl");
+	gplfuturecrcindex = find_sec(hdr, sechdrs, secstrings, "__kcrctab_gpl_future");
 	setupindex = find_sec(hdr, sechdrs, secstrings, "__param");
 	exindex = find_sec(hdr, sechdrs, secstrings, "__ex_table");
 	obsparmindex = find_sec(hdr, sechdrs, secstrings, "__obsparm");
@@ -1755,10 +1791,8 @@ static struct module *load_module(void __user *umod,
 	if (strcmp(mod->name, "driverloader") == 0)
 		add_taint(TAINT_PROPRIETARY_MODULE);
 
-#ifdef CONFIG_MODULE_UNLOAD
 	/* Set up MODINFO_ATTR fields */
 	setup_modinfo(mod, sechdrs, infoindex);
-#endif
 
 	/* Fix up syms, so that st_value is a pointer to location. */
 	err = simplify_symbols(sechdrs, symindex, strtab, versindex, pcpuindex,
@@ -1775,10 +1809,16 @@ static struct module *load_module(void __user *umod,
 	mod->gpl_syms = (void *)sechdrs[gplindex].sh_addr;
 	if (gplcrcindex)
 		mod->gpl_crcs = (void *)sechdrs[gplcrcindex].sh_addr;
+	mod->num_gpl_future_syms = sechdrs[gplfutureindex].sh_size /
+					sizeof(*mod->gpl_future_syms);
+	mod->gpl_future_syms = (void *)sechdrs[gplfutureindex].sh_addr;
+	if (gplfuturecrcindex)
+		mod->gpl_future_crcs = (void *)sechdrs[gplfuturecrcindex].sh_addr;
 
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !crcindex) || 
-	    (mod->num_gpl_syms && !gplcrcindex)) {
+	    (mod->num_gpl_syms && !gplcrcindex) ||
+	    (mod->num_gpl_future_syms && !gplfuturecrcindex)) {
 		printk(KERN_WARNING "%s: No versions for exported symbols."
 		       " Tainting kernel.\n", mod->name);
 		add_taint(TAINT_FORCED_MODULE);
@@ -1933,13 +1973,13 @@ sys_init_module(void __user *umod,
 		return -EPERM;
 
 	/* Only one module load at a time, please */
-	if (down_interruptible(&module_mutex) != 0)
+	if (mutex_lock_interruptible(&module_mutex) != 0)
 		return -EINTR;
 
 	/* Do all the hard work */
 	mod = load_module(umod, len, uargs);
 	if (IS_ERR(mod)) {
-		up(&module_mutex);
+		mutex_unlock(&module_mutex);
 		return PTR_ERR(mod);
 	}
 
@@ -1948,11 +1988,11 @@ sys_init_module(void __user *umod,
 	stop_machine_run(__link_module, mod, NR_CPUS);
 
 	/* Drop lock so they can recurse */
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 
-	down(&notify_mutex);
+	mutex_lock(&notify_mutex);
 	notifier_call_chain(&module_notify_list, MODULE_STATE_COMING, mod);
-	up(&notify_mutex);
+	mutex_unlock(&notify_mutex);
 
 	/* Start the module */
 	if (mod->init != NULL)
@@ -1967,15 +2007,15 @@ sys_init_module(void __user *umod,
 			       mod->name);
 		else {
 			module_put(mod);
-			down(&module_mutex);
+			mutex_lock(&module_mutex);
 			free_module(mod);
-			up(&module_mutex);
+			mutex_unlock(&module_mutex);
 		}
 		return ret;
 	}
 
 	/* Now it's a first class citizen! */
-	down(&module_mutex);
+	mutex_lock(&module_mutex);
 	mod->state = MODULE_STATE_LIVE;
 	/* Drop initial reference. */
 	module_put(mod);
@@ -1983,7 +2023,7 @@ sys_init_module(void __user *umod,
 	mod->module_init = NULL;
 	mod->init_size = 0;
 	mod->init_text_size = 0;
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 
 	return 0;
 }
@@ -2073,7 +2113,7 @@ struct module *module_get_kallsym(unsigned int symnum,
 {
 	struct module *mod;
 
-	down(&module_mutex);
+	mutex_lock(&module_mutex);
 	list_for_each_entry(mod, &modules, list) {
 		if (symnum < mod->num_symtab) {
 			*value = mod->symtab[symnum].st_value;
@@ -2081,12 +2121,12 @@ struct module *module_get_kallsym(unsigned int symnum,
 			strncpy(namebuf,
 				mod->strtab + mod->symtab[symnum].st_name,
 				127);
-			up(&module_mutex);
+			mutex_unlock(&module_mutex);
 			return mod;
 		}
 		symnum -= mod->num_symtab;
 	}
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 	return NULL;
 }
 
@@ -2129,7 +2169,7 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 	struct list_head *i;
 	loff_t n = 0;
 
-	down(&module_mutex);
+	mutex_lock(&module_mutex);
 	list_for_each(i, &modules) {
 		if (n++ == *pos)
 			break;
@@ -2150,7 +2190,7 @@ static void *m_next(struct seq_file *m, void *p, loff_t *pos)
 
 static void m_stop(struct seq_file *m, void *p)
 {
-	up(&module_mutex);
+	mutex_unlock(&module_mutex);
 }
 
 static int m_show(struct seq_file *m, void *p)

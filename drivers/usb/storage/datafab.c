@@ -512,13 +512,12 @@ int datafab_transport(struct scsi_cmnd * srb, struct us_data *us)
 	};
 
 	if (!us->extra) {
-		us->extra = kmalloc(sizeof(struct datafab_info), GFP_NOIO);
+		us->extra = kzalloc(sizeof(struct datafab_info), GFP_NOIO);
 		if (!us->extra) {
 			US_DEBUGP("datafab_transport:  Gah! "
 				  "Can't allocate storage for Datafab info struct!\n");
 			return USB_STOR_TRANSPORT_ERROR;
 		}
-		memset(us->extra, 0, sizeof(struct datafab_info));
 		us->extra_destructor = datafab_info_destructor;
   		((struct datafab_info *)us->extra)->lun = -1;
 	}

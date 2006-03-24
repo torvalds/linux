@@ -21,6 +21,7 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 				   const struct net_device *in,
 				   const struct net_device *out,
 				   unsigned int hooknum,
+				   const struct xt_target *target,
 				   const void *targinfo, void *userinfo)
 {
 	struct ipv6hdr *ip6h;
@@ -63,43 +64,31 @@ static unsigned int ip6t_hl_target(struct sk_buff **pskb,
 
 static int ip6t_hl_checkentry(const char *tablename,
 		const void *entry,
+		const struct xt_target *target,
 		void *targinfo,
 		unsigned int targinfosize,
 		unsigned int hook_mask)
 {
 	struct ip6t_HL_info *info = targinfo;
 
-	if (targinfosize != IP6T_ALIGN(sizeof(struct ip6t_HL_info))) {
-		printk(KERN_WARNING "ip6t_HL: targinfosize %u != %Zu\n",
-				targinfosize,
-				IP6T_ALIGN(sizeof(struct ip6t_HL_info)));
-		return 0;	
-	}	
-
-	if (strcmp(tablename, "mangle")) {
-		printk(KERN_WARNING "ip6t_HL: can only be called from "
-			"\"mangle\" table, not \"%s\"\n", tablename);
-		return 0;
-	}
-
 	if (info->mode > IP6T_HL_MAXMODE) {
 		printk(KERN_WARNING "ip6t_HL: invalid or unknown Mode %u\n", 
 			info->mode);
 		return 0;
 	}
-
 	if ((info->mode != IP6T_HL_SET) && (info->hop_limit == 0)) {
 		printk(KERN_WARNING "ip6t_HL: increment/decrement doesn't "
 			"make sense with value 0\n");
 		return 0;
 	}
-	
 	return 1;
 }
 
 static struct ip6t_target ip6t_HL = { 
 	.name 		= "HL", 
 	.target		= ip6t_hl_target, 
+	.targetsize	= sizeof(struct ip6t_HL_info),
+	.table		= "mangle",
 	.checkentry	= ip6t_hl_checkentry, 
 	.me		= THIS_MODULE
 };

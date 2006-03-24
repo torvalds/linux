@@ -1,6 +1,4 @@
 /*
- * arch/ppc/math-emu/math.c
- *
  * Copyright (C) 1999  Eddie C. Dost  (ecd@atecom.com)
  */
 

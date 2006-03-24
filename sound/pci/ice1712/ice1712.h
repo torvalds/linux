@@ -325,6 +325,7 @@ struct snd_ice1712 {
 
 	unsigned int pro_volumes[20];
 	unsigned int omni: 1;		/* Delta Omni I/O */
+	unsigned int dxr_enable: 1;	/* Terratec DXR enable for DMX6FIRE */
 	unsigned int vt1724: 1;
 	unsigned int vt1720: 1;
 	unsigned int has_spdif: 1;	/* VT1720/4 - has SPDIF I/O */
@@ -334,7 +335,7 @@ struct snd_ice1712 {
 	unsigned int num_total_adcs;	/* total ADCs */
 	unsigned int cur_rate;		/* current rate */
 
-	struct semaphore open_mutex;
+	struct mutex open_mutex;
 	struct snd_pcm_substream *pcm_reserved[4];
 	struct snd_pcm_hw_constraint_list *hw_rates; /* card-specific rate constraints */
 
@@ -342,7 +343,7 @@ struct snd_ice1712 {
 	struct snd_akm4xxx *akm;
 	struct snd_ice1712_spdif spdif;
 
-	struct semaphore i2c_mutex;	/* I2C mutex for ICE1724 registers */
+	struct mutex i2c_mutex;	/* I2C mutex for ICE1724 registers */
 	struct snd_i2c_bus *i2c;		/* I2C bus */
 	struct snd_i2c_device *cs8427;	/* CS8427 I2C device */
 	unsigned int cs8427_timeout;	/* CS8427 reset timeout in HZ/100 */
@@ -360,7 +361,7 @@ struct snd_ice1712 {
 		void (*set_pro_rate)(struct snd_ice1712 *ice, unsigned int rate);
 		void (*i2s_mclk_changed)(struct snd_ice1712 *ice);
 	} gpio;
-	struct semaphore gpio_mutex;
+	struct mutex gpio_mutex;
 
 	/* other board-specific data */
 	union {
@@ -423,7 +424,7 @@ static inline unsigned int snd_ice1712_gpio_read(struct snd_ice1712 *ice)
  */
 static inline void snd_ice1712_save_gpio_status(struct snd_ice1712 *ice)
 {
-	down(&ice->gpio_mutex);
+	mutex_lock(&ice->gpio_mutex);
 	ice->gpio.saved[0] = ice->gpio.direction;
 	ice->gpio.saved[1] = ice->gpio.write_mask;
 }
@@ -434,7 +435,7 @@ static inline void snd_ice1712_restore_gpio_status(struct snd_ice1712 *ice)
 	ice->gpio.set_mask(ice, ice->gpio.saved[1]);
 	ice->gpio.direction = ice->gpio.saved[0];
 	ice->gpio.write_mask = ice->gpio.saved[1];
-	up(&ice->gpio_mutex);
+	mutex_unlock(&ice->gpio_mutex);
 }
 
 /* for bit controls */

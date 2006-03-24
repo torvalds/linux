@@ -23,10 +23,13 @@
 struct lpfc_hba;
 
 #define list_remove_head(list, entry, type, member)		\
+	do {							\
+	entry = NULL;						\
 	if (!list_empty(list)) {				\
 		entry = list_entry((list)->next, type, member);	\
 		list_del_init(&entry->member);			\
-	}
+	}							\
+	} while(0)
 
 #define list_get_first(list, type, member)			\
 	(list_empty(list)) ? NULL :				\

@@ -925,7 +925,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		if (p->palette != VIDEO_PALETTE_YUV422)
 			return -EINVAL;
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		sonypi_camera_command(SONYPI_COMMAND_SETCAMERABRIGHTNESS,
 				      p->brightness >> 10);
 		sonypi_camera_command(SONYPI_COMMAND_SETCAMERAHUE,
@@ -935,7 +935,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		sonypi_camera_command(SONYPI_COMMAND_SETCAMERACONTRAST,
 				      p->contrast >> 10);
 		meye.picture = *p;
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -946,21 +946,21 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		if (*i < 0 || *i >= gbuffers)
 			return -EINVAL;
 
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 
 		switch (meye.grab_buffer[*i].state) {
 
 		case MEYE_BUF_UNUSED:
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EINVAL;
 		case MEYE_BUF_USING:
 			if (file->f_flags & O_NONBLOCK) {
-				up(&meye.lock);
+				mutex_unlock(&meye.lock);
 				return -EAGAIN;
 			}
 			if (wait_event_interruptible(meye.proc_list,
 						     (meye.grab_buffer[*i].state != MEYE_BUF_USING))) {
-				up(&meye.lock);
+				mutex_unlock(&meye.lock);
 				return -EINTR;
 			}
 			/* fall through */
@@ -968,7 +968,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			meye.grab_buffer[*i].state = MEYE_BUF_UNUSED;
 			kfifo_get(meye.doneq, (unsigned char *)&unused, sizeof(int));
 		}
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -987,7 +987,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		if (meye.grab_buffer[vm->frame].state != MEYE_BUF_UNUSED)
 			return -EBUSY;
 
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		if (vm->width == 640 && vm->height == 480) {
 			if (meye.params.subsample) {
 				meye.params.subsample = 0;
@@ -999,7 +999,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 				restart = 1;
 			}
 		} else {
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EINVAL;
 		}
 
@@ -1007,7 +1007,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			mchip_continuous_start();
 		meye.grab_buffer[vm->frame].state = MEYE_BUF_USING;
 		kfifo_put(meye.grabq, (unsigned char *)&vm->frame, sizeof(int));
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -1039,7 +1039,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		if (jp->framerate > 31)
 			return -EINVAL;
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		if (meye.params.subsample != jp->subsample ||
 		    meye.params.quality != jp->quality)
 			mchip_hic_stop();	/* need restart */
@@ -1050,7 +1050,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 				      meye.params.agc);
 		sonypi_camera_command(SONYPI_COMMAND_SETCAMERAPICTURE,
 				      meye.params.picture);
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -1068,12 +1068,12 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		}
 		if (meye.grab_buffer[*nb].state != MEYE_BUF_UNUSED)
 			return -EBUSY;
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		if (meye.mchip_mode != MCHIP_HIC_MODE_CONT_COMP)
 			mchip_cont_compression_start();
 		meye.grab_buffer[*nb].state = MEYE_BUF_USING;
 		kfifo_put(meye.grabq, (unsigned char *)nb, sizeof(int));
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -1084,20 +1084,20 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		if (*i < 0 || *i >= gbuffers)
 			return -EINVAL;
 
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		switch (meye.grab_buffer[*i].state) {
 
 		case MEYE_BUF_UNUSED:
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EINVAL;
 		case MEYE_BUF_USING:
 			if (file->f_flags & O_NONBLOCK) {
-				up(&meye.lock);
+				mutex_unlock(&meye.lock);
 				return -EAGAIN;
 			}
 			if (wait_event_interruptible(meye.proc_list,
 						     (meye.grab_buffer[*i].state != MEYE_BUF_USING))) {
-				up(&meye.lock);
+				mutex_unlock(&meye.lock);
 				return -EINTR;
 			}
 			/* fall through */
@@ -1106,7 +1106,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			kfifo_get(meye.doneq, (unsigned char *)&unused, sizeof(int));
 		}
 		*i = meye.grab_buffer[*i].size;
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -1116,14 +1116,14 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		if (meye.grab_buffer[0].state != MEYE_BUF_UNUSED)
 			return -EBUSY;
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		meye.grab_buffer[0].state = MEYE_BUF_USING;
 		mchip_take_picture();
 		mchip_get_picture(
 			meye.grab_fbuffer,
 			mchip_hsize() * mchip_vsize() * 2);
 		meye.grab_buffer[0].state = MEYE_BUF_DONE;
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -1134,7 +1134,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		if (meye.grab_buffer[0].state != MEYE_BUF_UNUSED)
 			return -EBUSY;
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		meye.grab_buffer[0].state = MEYE_BUF_USING;
 		*len = -1;
 		while (*len == -1) {
@@ -1142,7 +1142,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			*len = mchip_compress_frame(meye.grab_fbuffer, gbufsize);
 		}
 		meye.grab_buffer[0].state = MEYE_BUF_DONE;
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -1285,7 +1285,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_S_CTRL: {
 		struct v4l2_control *c = arg;
 
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		switch (c->id) {
 		case V4L2_CID_BRIGHTNESS:
 			sonypi_camera_command(
@@ -1329,17 +1329,17 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			meye.params.framerate = c->value;
 			break;
 		default:
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EINVAL;
 		}
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
 	case VIDIOC_G_CTRL: {
 		struct v4l2_control *c = arg;
 
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		switch (c->id) {
 		case V4L2_CID_BRIGHTNESS:
 			c->value = meye.picture.brightness >> 10;
@@ -1369,10 +1369,10 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			c->value = meye.params.framerate;
 			break;
 		default:
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EINVAL;
 		}
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -1469,7 +1469,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		    f->fmt.pix.field != V4L2_FIELD_NONE)
 			return -EINVAL;
 		f->fmt.pix.field = V4L2_FIELD_NONE;
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		if (f->fmt.pix.width <= 320) {
 			f->fmt.pix.width = 320;
 			f->fmt.pix.height = 240;
@@ -1487,7 +1487,7 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			meye.mchip_mode = MCHIP_HIC_MODE_CONT_COMP;
 			break;
 		}
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		f->fmt.pix.bytesperline = f->fmt.pix.width * 2;
 		f->fmt.pix.sizeimage = f->fmt.pix.height *
 				       f->fmt.pix.bytesperline;
@@ -1509,11 +1509,11 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			/* already allocated, no modifications */
 			break;
 		}
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		if (meye.grab_fbuffer) {
 			for (i = 0; i < gbuffers; i++)
 				if (meye.vma_use_count[i]) {
-					up(&meye.lock);
+					mutex_unlock(&meye.lock);
 					return -EINVAL;
 				}
 			rvfree(meye.grab_fbuffer, gbuffers * gbufsize);
@@ -1525,12 +1525,12 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		if (!meye.grab_fbuffer) {
 			printk(KERN_ERR "meye: v4l framebuffer allocation"
 					" failed\n");
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -ENOMEM;
 		}
 		for (i = 0; i < gbuffers; i++)
 			meye.vma_use_count[i] = 0;
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -1569,12 +1569,12 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		if (meye.grab_buffer[buf->index].state != MEYE_BUF_UNUSED)
 			return -EINVAL;
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		buf->flags |= V4L2_BUF_FLAG_QUEUED;
 		buf->flags &= ~V4L2_BUF_FLAG_DONE;
 		meye.grab_buffer[buf->index].state = MEYE_BUF_USING;
 		kfifo_put(meye.grabq, (unsigned char *)&buf->index, sizeof(int));
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -1587,23 +1587,23 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		if (buf->memory != V4L2_MEMORY_MMAP)
 			return -EINVAL;
 
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		if (kfifo_len(meye.doneq) == 0 && file->f_flags & O_NONBLOCK) {
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EAGAIN;
 		}
 		if (wait_event_interruptible(meye.proc_list,
 					     kfifo_len(meye.doneq) != 0) < 0) {
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EINTR;
 		}
 		if (!kfifo_get(meye.doneq, (unsigned char *)&reqnr,
 			       sizeof(int))) {
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EBUSY;
 		}
 		if (meye.grab_buffer[reqnr].state != MEYE_BUF_DONE) {
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EINVAL;
 		}
 		buf->index = reqnr;
@@ -1616,12 +1616,12 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 		buf->m.offset = reqnr * gbufsize;
 		buf->length = gbufsize;
 		meye.grab_buffer[reqnr].state = MEYE_BUF_UNUSED;
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
 	case VIDIOC_STREAMON: {
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		switch (meye.mchip_mode) {
 		case MCHIP_HIC_MODE_CONT_OUT:
 			mchip_continuous_start();
@@ -1630,23 +1630,23 @@ static int meye_do_ioctl(struct inode *inode, struct file *file,
 			mchip_cont_compression_start();
 			break;
 		default:
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EINVAL;
 		}
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
 	case VIDIOC_STREAMOFF: {
 		int i;
 
-		down(&meye.lock);
+		mutex_lock(&meye.lock);
 		mchip_hic_stop();
 		kfifo_reset(meye.grabq);
 		kfifo_reset(meye.doneq);
 		for (i = 0; i < MEYE_MAX_BUFNBRS; i++)
 			meye.grab_buffer[i].state = MEYE_BUF_UNUSED;
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		break;
 	}
 
@@ -1672,11 +1672,11 @@ static unsigned int meye_poll(struct file *file, poll_table *wait)
 {
 	unsigned int res = 0;
 
-	down(&meye.lock);
+	mutex_lock(&meye.lock);
 	poll_wait(file, &meye.proc_list, wait);
 	if (kfifo_len(meye.doneq))
 		res = POLLIN | POLLRDNORM;
-	up(&meye.lock);
+	mutex_unlock(&meye.lock);
 	return res;
 }
 
@@ -1704,9 +1704,9 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long page, pos;
 
-	down(&meye.lock);
+	mutex_lock(&meye.lock);
 	if (size > gbuffers * gbufsize) {
-		up(&meye.lock);
+		mutex_unlock(&meye.lock);
 		return -EINVAL;
 	}
 	if (!meye.grab_fbuffer) {
@@ -1716,7 +1716,7 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
 		meye.grab_fbuffer = rvmalloc(gbuffers*gbufsize);
 		if (!meye.grab_fbuffer) {
 			printk(KERN_ERR "meye: v4l framebuffer allocation failed\n");
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -ENOMEM;
 		}
 		for (i = 0; i < gbuffers; i++)
@@ -1727,7 +1727,7 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
 	while (size > 0) {
 		page = vmalloc_to_pfn((void *)pos);
 		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-			up(&meye.lock);
+			mutex_unlock(&meye.lock);
 			return -EAGAIN;
 		}
 		start += PAGE_SIZE;
@@ -1744,7 +1744,7 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_private_data = (void *) (offset / gbufsize);
 	meye_vm_open(vma);
 
-	up(&meye.lock);
+	mutex_unlock(&meye.lock);
 	return 0;
 }
 
@@ -1913,7 +1913,7 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 		goto outvideoreg;
 	}
 
-	init_MUTEX(&meye.lock);
+	mutex_init(&meye.lock);
 	init_waitqueue_head(&meye.proc_list);
 	meye.picture.depth = 16;
 	meye.picture.palette = VIDEO_PALETTE_YUV422;

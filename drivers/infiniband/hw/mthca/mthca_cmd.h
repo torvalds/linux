@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2006 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -73,9 +74,9 @@ enum {
 	MTHCA_CMD_STAT_REG_BOUND      = 0x21,
 	/* HCA local attached memory not present: */
 	MTHCA_CMD_STAT_LAM_NOT_PRE    = 0x22,
-        /* Bad management packet (silently discarded): */
+	/* Bad management packet (silently discarded): */
 	MTHCA_CMD_STAT_BAD_PKT 	      = 0x30,
-        /* More outstanding CQEs in CQ than new CQ size: */
+	/* More outstanding CQEs in CQ than new CQ size: */
 	MTHCA_CMD_STAT_BAD_SIZE       = 0x40
 };
 
@@ -298,13 +299,18 @@ int mthca_SW2HW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int cq_num, u8 *status);
 int mthca_HW2SW_CQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		   int cq_num, u8 *status);
+int mthca_RESIZE_CQ(struct mthca_dev *dev, int cq_num, u32 lkey, u8 log_size,
+		    u8 *status);
 int mthca_SW2HW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int srq_num, u8 *status);
 int mthca_HW2SW_SRQ(struct mthca_dev *dev, struct mthca_mailbox *mailbox,
 		    int srq_num, u8 *status);
+int mthca_QUERY_SRQ(struct mthca_dev *dev, u32 num,
+		    struct mthca_mailbox *mailbox, u8 *status);
 int mthca_ARM_SRQ(struct mthca_dev *dev, int srq_num, int limit, u8 *status);
-int mthca_MODIFY_QP(struct mthca_dev *dev, int trans, u32 num,
-		    int is_ee, struct mthca_mailbox *mailbox, u32 optmask,
+int mthca_MODIFY_QP(struct mthca_dev *dev, enum ib_qp_state cur,
+		    enum ib_qp_state next, u32 num, int is_ee,
+		    struct mthca_mailbox *mailbox, u32 optmask,
 		    u8 *status);
 int mthca_QUERY_QP(struct mthca_dev *dev, u32 num, int is_ee,
 		   struct mthca_mailbox *mailbox, u8 *status);

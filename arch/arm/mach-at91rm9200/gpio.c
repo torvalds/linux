@@ -261,7 +261,7 @@ static void gpio_irq_handler(unsigned irq, struct irqdesc *desc, struct pt_regs 
 	void __iomem	*pio;
 	u32		isr;
 
-	pio = (void __force __iomem *) desc->chipdata;
+	pio = desc->base;
 
 	/* temporarily mask (level sensitive) parent IRQ */
 	desc->chip->ack(irq);
@@ -312,7 +312,7 @@ void __init at91_gpio_irq_setup(unsigned banks)
 		__raw_writel(~0, controller + PIO_IDR);
 
 		set_irq_data(id, (void *) pin);
-		set_irq_chipdata(id, (void __force *) controller);
+		set_irq_chipdata(id, controller);
 
 		for (i = 0; i < 32; i++, pin++) {
 			set_irq_chip(pin, &gpio_irqchip);

@@ -157,14 +157,14 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-static int mst_audio_startup(snd_pcm_substream_t *substream, void *priv)
+static int mst_audio_startup(struct snd_pcm_substream *substream, void *priv)
 {
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		MST_MSCWR2 &= ~MST_MSCWR2_AC97_SPKROFF;
 	return 0;
 }
 
-static void mst_audio_shutdown(snd_pcm_substream_t *substream, void *priv)
+static void mst_audio_shutdown(struct snd_pcm_substream *substream, void *priv)
 {
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		MST_MSCWR2 |= MST_MSCWR2_AC97_SPKROFF;

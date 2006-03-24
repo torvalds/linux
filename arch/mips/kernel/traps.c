@@ -576,7 +576,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		}
 #endif
 		/*
-	 	 * Unimplemented operation exception.  If we've got the full
+		 * Unimplemented operation exception.  If we've got the full
 		 * software emulator on-board, let's use it...
 		 *
 		 * Force FPU to dump state into task/thread context.  We're

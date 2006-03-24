@@ -27,12 +27,14 @@
 #define  AUREON_DEVICE_DESC 	       "{Terratec,Aureon 5.1 Sky},"\
 				       "{Terratec,Aureon 7.1 Space},"\
 				       "{Terratec,Aureon 7.1 Universe}," \
-					"{AudioTrak,Prodigy 7.1},"
+					"{AudioTrak,Prodigy 7.1}," \
+					"{AudioTrak,Prodigy 7.1 LT},"
 
 #define VT1724_SUBDEVICE_AUREON51_SKY	0x3b154711	/* Aureon 5.1 Sky */
 #define VT1724_SUBDEVICE_AUREON71_SPACE	0x3b154511	/* Aureon 7.1 Space */
 #define VT1724_SUBDEVICE_AUREON71_UNIVERSE	0x3b155311	/* Aureon 7.1 Universe */
 #define VT1724_SUBDEVICE_PRODIGY71	0x33495345	/* PRODIGY 7.1 */
+#define VT1724_SUBDEVICE_PRODIGY71LT	0x32315441	/* PRODIGY 7.1 LT */
 
 extern struct snd_ice1712_card_info  snd_vt1724_aureon_cards[];
 
@@ -52,5 +54,9 @@ extern struct snd_ice1712_card_info  snd_vt1724_aureon_cards[];
 #define AUREON_AC97_DATA_LOW	(1 << 9)
 #define AUREON_AC97_DATA_HIGH	(1 << 8)
 #define AUREON_AC97_DATA_MASK	0xFF
+
+#define PRODIGY_WM_CS		(1 << 8)
+#define PRODIGY_SPI_MOSI	(1 << 10)
+#define PRODIGY_SPI_CLK		(1 << 9)
 
 #endif /* __SOUND_AUREON_H */

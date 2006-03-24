@@ -108,8 +108,8 @@ EXPORT_SYMBOL(phys_mem_access_prot);
 void online_page(struct page *page)
 {
 	ClearPageReserved(page);
-	set_page_count(page, 0);
-	free_cold_page(page);
+	init_page_count(page);
+	__free_page(page);
 	totalram_pages++;
 	num_physpages++;
 }
@@ -125,7 +125,7 @@ int __devinit add_memory(u64 start, u64 size)
 	nid = hot_add_scn_to_nid(start);
 	pgdata = NODE_DATA(nid);
 
-	start = __va(start);
+	start = (unsigned long)__va(start);
 	create_section_mapping(start, start + size);
 
 	/* this should work for most non-highmem platforms */
@@ -249,7 +249,6 @@ void __init do_init_bootmem(void)
 	bootmap_pages = bootmem_bootmap_pages(total_pages);
 
 	start = lmb_alloc(bootmap_pages << PAGE_SHIFT, PAGE_SIZE);
-	BUG_ON(!start);
 
 	boot_mapsize = init_bootmem(start >> PAGE_SHIFT, total_pages);
 
@@ -376,7 +375,7 @@ void __init mem_init(void)
 			struct page *page = pfn_to_page(pfn);
 
 			ClearPageReserved(page);
-			set_page_count(page, 1);
+			init_page_count(page);
 			__free_page(page);
 			totalhigh_pages++;
 		}

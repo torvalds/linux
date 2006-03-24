@@ -55,7 +55,6 @@ unsigned long totalhigh_pages __read_mostly;
 long nr_swap_pages;
 int percpu_pagelist_fraction;
 
-static void fastcall free_hot_cold_page(struct page *page, int cold);
 static void __free_pages_ok(struct page *page, unsigned int order);
 
 /*
@@ -190,7 +189,7 @@ static void prep_compound_page(struct page *page, unsigned long order)
 	for (i = 0; i < nr_pages; i++) {
 		struct page *p = page + i;
 
-		SetPageCompound(p);
+		__SetPageCompound(p);
 		set_page_private(p, (unsigned long)page);
 	}
 }
@@ -209,8 +208,22 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 		if (unlikely(!PageCompound(p) |
 				(page_private(p) != (unsigned long)page)))
 			bad_page(page);
-		ClearPageCompound(p);
+		__ClearPageCompound(p);
 	}
+}
+
+static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
+{
+	int i;
+
+	BUG_ON((gfp_flags & (__GFP_WAIT | __GFP_HIGHMEM)) == __GFP_HIGHMEM);
+	/*
+	 * clear_highpage() will use KM_USER0, so it's a bug to use __GFP_ZERO
+	 * and __GFP_HIGHMEM from hard or soft interrupt context.
+	 */
+	BUG_ON((gfp_flags & __GFP_HIGHMEM) && in_interrupt());
+	for (i = 0; i < (1 << order); i++)
+		clear_highpage(page + i);
 }
 
 /*
@@ -423,11 +436,6 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 		mutex_debug_check_no_locks_freed(page_address(page),
 						 PAGE_SIZE<<order);
 
-#ifndef CONFIG_MMU
-	for (i = 1 ; i < (1 << order) ; ++i)
-		__put_page(page + i);
-#endif
-
 	for (i = 0 ; i < (1 << order) ; ++i)
 		reserved += free_pages_check(page + i);
 	if (reserved)
@@ -448,28 +456,23 @@ void fastcall __init __free_pages_bootmem(struct page *page, unsigned int order)
 	if (order == 0) {
 		__ClearPageReserved(page);
 		set_page_count(page, 0);
-
-		free_hot_cold_page(page, 0);
+		set_page_refcounted(page);
+		__free_page(page);
 	} else {
-		LIST_HEAD(list);
 		int loop;
 
+		prefetchw(page);
 		for (loop = 0; loop < BITS_PER_LONG; loop++) {
 			struct page *p = &page[loop];
 
-			if (loop + 16 < BITS_PER_LONG)
-				prefetchw(p + 16);
+			if (loop + 1 < BITS_PER_LONG)
+				prefetchw(p + 1);
 			__ClearPageReserved(p);
 			set_page_count(p, 0);
 		}
 
-		arch_free_page(page, order);
-
-		mod_page_state(pgfree, 1 << order);
-
-		list_add(&page->lru, &list);
-		kernel_map_pages(page, 1 << order, 0);
-		free_pages_bulk(page_zone(page), 1, &list, order);
+		set_page_refcounted(page);
+		__free_pages(page, order);
 	}
 }
 
@@ -507,7 +510,7 @@ static inline void expand(struct zone *zone, struct page *page,
 /*
  * This page is about to be returned from the page allocator
  */
-static int prep_new_page(struct page *page, int order)
+static int prep_new_page(struct page *page, int order, gfp_t gfp_flags)
 {
 	if (unlikely(page_mapcount(page) |
 		(page->mapping != NULL)  |
@@ -536,8 +539,15 @@ static int prep_new_page(struct page *page, int order)
 			1 << PG_referenced | 1 << PG_arch_1 |
 			1 << PG_checked | 1 << PG_mappedtodisk);
 	set_page_private(page, 0);
-	set_page_refs(page, order);
+	set_page_refcounted(page);
 	kernel_map_pages(page, 1 << order, 1);
+
+	if (gfp_flags & __GFP_ZERO)
+		prep_zero_page(page, order, gfp_flags);
+
+	if (order && (gfp_flags & __GFP_COMP))
+		prep_compound_page(page, order);
+
 	return 0;
 }
 
@@ -593,13 +603,14 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 /*
  * Called from the slab reaper to drain pagesets on a particular node that
  * belong to the currently executing processor.
+ * Note that this function must be called with the thread pinned to
+ * a single processor.
  */
 void drain_node_pages(int nodeid)
 {
 	int i, z;
 	unsigned long flags;
 
-	local_irq_save(flags);
 	for (z = 0; z < MAX_NR_ZONES; z++) {
 		struct zone *zone = NODE_DATA(nodeid)->node_zones + z;
 		struct per_cpu_pageset *pset;
@@ -609,11 +620,14 @@ void drain_node_pages(int nodeid)
 			struct per_cpu_pages *pcp;
 
 			pcp = &pset->pcp[i];
-			free_pages_bulk(zone, pcp->count, &pcp->list, 0);
-			pcp->count = 0;
+			if (pcp->count) {
+				local_irq_save(flags);
+				free_pages_bulk(zone, pcp->count, &pcp->list, 0);
+				pcp->count = 0;
+				local_irq_restore(flags);
+			}
 		}
 	}
-	local_irq_restore(flags);
 }
 #endif
 
@@ -743,13 +757,22 @@ void fastcall free_cold_page(struct page *page)
 	free_hot_cold_page(page, 1);
 }
 
-static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
+/*
+ * split_page takes a non-compound higher-order page, and splits it into
+ * n (1<<order) sub-pages: page[0..n]
+ * Each sub-page must be freed individually.
+ *
+ * Note: this is probably too low level an operation for use in drivers.
+ * Please consult with lkml before using this in your driver.
+ */
+void split_page(struct page *page, unsigned int order)
 {
 	int i;
 
-	BUG_ON((gfp_flags & (__GFP_WAIT | __GFP_HIGHMEM)) == __GFP_HIGHMEM);
-	for(i = 0; i < (1 << order); i++)
-		clear_highpage(page + i);
+	BUG_ON(PageCompound(page));
+	BUG_ON(!page_count(page));
+	for (i = 1; i < (1 << order); i++)
+		set_page_refcounted(page + i);
 }
 
 /*
@@ -795,14 +818,8 @@ again:
 	put_cpu();
 
 	BUG_ON(bad_range(zone, page));
-	if (prep_new_page(page, order))
+	if (prep_new_page(page, order, gfp_flags))
 		goto again;
-
-	if (gfp_flags & __GFP_ZERO)
-		prep_zero_page(page, order, gfp_flags);
-
-	if (order && (gfp_flags & __GFP_COMP))
-		prep_compound_page(page, order);
 	return page;
 
 failed:
@@ -1214,24 +1231,22 @@ DEFINE_PER_CPU(long, nr_pagecache_local) = 0;
 
 static void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
 {
-	int cpu = 0;
+	unsigned cpu;
 
 	memset(ret, 0, nr * sizeof(unsigned long));
 	cpus_and(*cpumask, *cpumask, cpu_online_map);
 
-	cpu = first_cpu(*cpumask);
-	while (cpu < NR_CPUS) {
-		unsigned long *in, *out, off;
-
-		if (!cpu_isset(cpu, *cpumask))
-			continue;
+	for_each_cpu_mask(cpu, *cpumask) {
+		unsigned long *in;
+		unsigned long *out;
+		unsigned off;
+		unsigned next_cpu;
 
 		in = (unsigned long *)&per_cpu(page_states, cpu);
 
-		cpu = next_cpu(cpu, *cpumask);
-
-		if (likely(cpu < NR_CPUS))
-			prefetch(&per_cpu(page_states, cpu));
+		next_cpu = next_cpu(cpu, *cpumask);
+		if (likely(next_cpu < NR_CPUS))
+			prefetch(&per_cpu(page_states, next_cpu));
 
 		out = (unsigned long *)ret;
 		for (off = 0; off < nr; off++)
@@ -1764,7 +1779,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 			continue;
 		page = pfn_to_page(pfn);
 		set_page_links(page, zone, nid, pfn);
-		set_page_count(page, 1);
+		init_page_count(page);
 		reset_page_mapcount(page);
 		SetPageReserved(page);
 		INIT_LIST_HEAD(&page->lru);

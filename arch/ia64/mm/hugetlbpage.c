@@ -68,9 +68,10 @@ huge_pte_offset (struct mm_struct *mm, unsigned long addr)
 #define mk_pte_huge(entry) { pte_val(entry) |= _PAGE_P; }
 
 /*
- * This function checks for proper alignment of input addr and len parameters.
+ * Don't actually need to do any preparation, but need to make sure
+ * the address is in the right region.
  */
-int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
+int prepare_hugepage_range(unsigned long addr, unsigned long len)
 {
 	if (len & ~HPAGE_MASK)
 		return -EINVAL;

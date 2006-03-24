@@ -60,6 +60,7 @@ enum ppc_sys_devices {
 	MPC52xx_ATA,
 	MPC52xx_I2C1,
 	MPC52xx_I2C2,
+	NUM_PPC_SYS_DEVS,
 };
 
 

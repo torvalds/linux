@@ -18,7 +18,7 @@ typedef enum { _stopped=0, _started } driver_state_t;
 
 typedef struct
 {
-	struct semaphore mutex;
+	struct mutex mutex;
 	struct usb_device *usbdev;
 	wait_queue_head_t wait;
 	wait_queue_head_t remove_ok;

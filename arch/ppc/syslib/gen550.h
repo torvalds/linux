@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/gen550.h
- *
  * gen550 prototypes
  *
  * Matt Porter <mporter@kernel.crashing.org>

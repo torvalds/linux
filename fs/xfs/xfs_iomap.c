@@ -76,7 +76,7 @@ xfs_iomap_enter_trace(
 		(void *)((unsigned long)count),
 		(void *)((unsigned long)((io->io_new_size >> 32) & 0xffffffff)),
 		(void *)((unsigned long)(io->io_new_size & 0xffffffff)),
-		(void *)NULL,
+		(void *)((unsigned long)current_pid()),
 		(void *)NULL,
 		(void *)NULL,
 		(void *)NULL,

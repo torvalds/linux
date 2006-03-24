@@ -57,6 +57,7 @@
 #include <linux/usb.h>
 #include <linux/smp_lock.h>
 #include <linux/usbdevice_fs.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #include "usb.h"
@@ -570,7 +571,7 @@ static ssize_t usb_device_read(struct file *file, char __user *buf, size_t nbyte
 	if (!access_ok(VERIFY_WRITE, buf, nbytes))
 		return -EFAULT;
 
-	down (&usb_bus_list_lock);
+	mutex_lock(&usb_bus_list_lock);
 	/* print devices for all busses */
 	list_for_each_entry(bus, &usb_bus_list, bus_list) {
 		/* recurse through all children of the root hub */
@@ -580,12 +581,12 @@ static ssize_t usb_device_read(struct file *file, char __user *buf, size_t nbyte
 		ret = usb_device_dump(&buf, &nbytes, &skip_bytes, ppos, bus->root_hub, bus, 0, 0, 0);
 		usb_unlock_device(bus->root_hub);
 		if (ret < 0) {
-			up(&usb_bus_list_lock);
+			mutex_unlock(&usb_bus_list_lock);
 			return ret;
 		}
 		total_written += ret;
 	}
-	up (&usb_bus_list_lock);
+	mutex_unlock(&usb_bus_list_lock);
 	return total_written;
 }
 

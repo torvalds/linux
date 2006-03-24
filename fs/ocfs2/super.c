@@ -959,7 +959,7 @@ static int ocfs2_initialize_mem_caches(void)
 	ocfs2_lock_cache = kmem_cache_create("ocfs2_lock",
 					     sizeof(struct ocfs2_journal_lock),
 					     0,
-					     SLAB_NO_REAP|SLAB_HWCACHE_ALIGN,
+					     SLAB_HWCACHE_ALIGN,
 					     NULL, NULL);
 	if (!ocfs2_lock_cache)
 		return -ENOMEM;

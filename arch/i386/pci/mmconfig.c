@@ -172,25 +172,20 @@ static __init void unreachable_devices(void)
 	}
 }
 
-static int __init pci_mmcfg_init(void)
+void __init pci_mmcfg_init(void)
 {
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
-		goto out;
+		return;
 
 	acpi_table_parse(ACPI_MCFG, acpi_parse_mcfg);
 	if ((pci_mmcfg_config_num == 0) ||
 	    (pci_mmcfg_config == NULL) ||
 	    (pci_mmcfg_config[0].base_address == 0))
-		goto out;
+		return;
 
 	printk(KERN_INFO "PCI: Using MMCONFIG\n");
 	raw_pci_ops = &pci_mmcfg;
 	pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;
 
 	unreachable_devices();
-
- out:
-	return 0;
 }
-
-arch_initcall(pci_mmcfg_init);

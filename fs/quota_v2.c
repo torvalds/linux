@@ -394,7 +394,7 @@ static int v2_write_dquot(struct dquot *dquot)
 	ssize_t ret;
 	struct v2_disk_dqblk ddquot, empty;
 
-	/* dq_off is guarded by dqio_sem */
+	/* dq_off is guarded by dqio_mutex */
 	if (!dquot->dq_off)
 		if ((ret = dq_insert_tree(dquot)) < 0) {
 			printk(KERN_ERR "VFS: Error %zd occurred while creating quota.\n", ret);

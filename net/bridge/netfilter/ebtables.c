@@ -35,6 +35,7 @@
 #define ASSERT_READ_LOCK(x)
 #define ASSERT_WRITE_LOCK(x)
 #include <linux/netfilter_ipv4/listhelp.h>
+#include <linux/mutex.h>
 
 #if 0
 /* use this for remote debugging
@@ -81,7 +82,7 @@ static void print_string(char *str)
 
 
 
-static DECLARE_MUTEX(ebt_mutex);
+static DEFINE_MUTEX(ebt_mutex);
 static LIST_HEAD(ebt_tables);
 static LIST_HEAD(ebt_targets);
 static LIST_HEAD(ebt_matches);
@@ -296,18 +297,18 @@ letscontinue:
 /* If it succeeds, returns element and locks mutex */
 static inline void *
 find_inlist_lock_noload(struct list_head *head, const char *name, int *error,
-   struct semaphore *mutex)
+   struct mutex *mutex)
 {
 	void *ret;
 
-	*error = down_interruptible(mutex);
+	*error = mutex_lock_interruptible(mutex);
 	if (*error != 0)
 		return NULL;
 
 	ret = list_named_find(head, name);
 	if (!ret) {
 		*error = -ENOENT;
-		up(mutex);
+		mutex_unlock(mutex);
 	}
 	return ret;
 }
@@ -317,7 +318,7 @@ find_inlist_lock_noload(struct list_head *head, const char *name, int *error,
 #else
 static void *
 find_inlist_lock(struct list_head *head, const char *name, const char *prefix,
-   int *error, struct semaphore *mutex)
+   int *error, struct mutex *mutex)
 {
 	void *ret;
 
@@ -331,25 +332,25 @@ find_inlist_lock(struct list_head *head, const char *name, const char *prefix,
 #endif
 
 static inline struct ebt_table *
-find_table_lock(const char *name, int *error, struct semaphore *mutex)
+find_table_lock(const char *name, int *error, struct mutex *mutex)
 {
 	return find_inlist_lock(&ebt_tables, name, "ebtable_", error, mutex);
 }
 
 static inline struct ebt_match *
-find_match_lock(const char *name, int *error, struct semaphore *mutex)
+find_match_lock(const char *name, int *error, struct mutex *mutex)
 {
 	return find_inlist_lock(&ebt_matches, name, "ebt_", error, mutex);
 }
 
 static inline struct ebt_watcher *
-find_watcher_lock(const char *name, int *error, struct semaphore *mutex)
+find_watcher_lock(const char *name, int *error, struct mutex *mutex)
 {
 	return find_inlist_lock(&ebt_watchers, name, "ebt_", error, mutex);
 }
 
 static inline struct ebt_target *
-find_target_lock(const char *name, int *error, struct semaphore *mutex)
+find_target_lock(const char *name, int *error, struct mutex *mutex)
 {
 	return find_inlist_lock(&ebt_targets, name, "ebt_", error, mutex);
 }
@@ -369,10 +370,10 @@ ebt_check_match(struct ebt_entry_match *m, struct ebt_entry *e,
 		return ret;
 	m->u.match = match;
 	if (!try_module_get(match->me)) {
-		up(&ebt_mutex);
+		mutex_unlock(&ebt_mutex);
 		return -ENOENT;
 	}
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 	if (match->check &&
 	   match->check(name, hookmask, e, m->data, m->match_size) != 0) {
 		BUGPRINT("match->check failed\n");
@@ -398,10 +399,10 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct ebt_entry *e,
 		return ret;
 	w->u.watcher = watcher;
 	if (!try_module_get(watcher->me)) {
-		up(&ebt_mutex);
+		mutex_unlock(&ebt_mutex);
 		return -ENOENT;
 	}
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 	if (watcher->check &&
 	   watcher->check(name, hookmask, e, w->data, w->watcher_size) != 0) {
 		BUGPRINT("watcher->check failed\n");
@@ -638,11 +639,11 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	if (!target)
 		goto cleanup_watchers;
 	if (!try_module_get(target->me)) {
-		up(&ebt_mutex);
+		mutex_unlock(&ebt_mutex);
 		ret = -ENOENT;
 		goto cleanup_watchers;
 	}
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 
 	t->u.target = target;
 	if (t->u.target == &ebt_standard_target) {
@@ -1015,7 +1016,7 @@ static int do_replace(void __user *user, unsigned int len)
 
 	t->private = newinfo;
 	write_unlock_bh(&t->lock);
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 	/* so, a user can change the chains while having messed up her counter
 	   allocation. Only reason why this is done is because this way the lock
 	   is held only once, while this doesn't bring the kernel into a
@@ -1045,7 +1046,7 @@ static int do_replace(void __user *user, unsigned int len)
 	return ret;
 
 free_unlock:
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 free_iterate:
 	EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 	   ebt_cleanup_entry, NULL);
@@ -1068,69 +1069,69 @@ int ebt_register_target(struct ebt_target *target)
 {
 	int ret;
 
-	ret = down_interruptible(&ebt_mutex);
+	ret = mutex_lock_interruptible(&ebt_mutex);
 	if (ret != 0)
 		return ret;
 	if (!list_named_insert(&ebt_targets, target)) {
-		up(&ebt_mutex);
+		mutex_unlock(&ebt_mutex);
 		return -EEXIST;
 	}
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 
 	return 0;
 }
 
 void ebt_unregister_target(struct ebt_target *target)
 {
-	down(&ebt_mutex);
+	mutex_lock(&ebt_mutex);
 	LIST_DELETE(&ebt_targets, target);
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 }
 
 int ebt_register_match(struct ebt_match *match)
 {
 	int ret;
 
-	ret = down_interruptible(&ebt_mutex);
+	ret = mutex_lock_interruptible(&ebt_mutex);
 	if (ret != 0)
 		return ret;
 	if (!list_named_insert(&ebt_matches, match)) {
-		up(&ebt_mutex);
+		mutex_unlock(&ebt_mutex);
 		return -EEXIST;
 	}
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 
 	return 0;
 }
 
 void ebt_unregister_match(struct ebt_match *match)
 {
-	down(&ebt_mutex);
+	mutex_lock(&ebt_mutex);
 	LIST_DELETE(&ebt_matches, match);
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 }
 
 int ebt_register_watcher(struct ebt_watcher *watcher)
 {
 	int ret;
 
-	ret = down_interruptible(&ebt_mutex);
+	ret = mutex_lock_interruptible(&ebt_mutex);
 	if (ret != 0)
 		return ret;
 	if (!list_named_insert(&ebt_watchers, watcher)) {
-		up(&ebt_mutex);
+		mutex_unlock(&ebt_mutex);
 		return -EEXIST;
 	}
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 
 	return 0;
 }
 
 void ebt_unregister_watcher(struct ebt_watcher *watcher)
 {
-	down(&ebt_mutex);
+	mutex_lock(&ebt_mutex);
 	LIST_DELETE(&ebt_watchers, watcher);
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 }
 
 int ebt_register_table(struct ebt_table *table)
@@ -1178,7 +1179,7 @@ int ebt_register_table(struct ebt_table *table)
 
 	table->private = newinfo;
 	rwlock_init(&table->lock);
-	ret = down_interruptible(&ebt_mutex);
+	ret = mutex_lock_interruptible(&ebt_mutex);
 	if (ret != 0)
 		goto free_chainstack;
 
@@ -1194,10 +1195,10 @@ int ebt_register_table(struct ebt_table *table)
 		goto free_unlock;
 	}
 	list_prepend(&ebt_tables, table);
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 	return 0;
 free_unlock:
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 free_chainstack:
 	if (newinfo->chainstack) {
 		for_each_cpu(i)
@@ -1218,9 +1219,9 @@ void ebt_unregister_table(struct ebt_table *table)
 		BUGPRINT("Request to unregister NULL table!!!\n");
 		return;
 	}
-	down(&ebt_mutex);
+	mutex_lock(&ebt_mutex);
 	LIST_DELETE(&ebt_tables, table);
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 	vfree(table->private->entries);
 	if (table->private->chainstack) {
 		for_each_cpu(i)
@@ -1281,7 +1282,7 @@ static int update_counters(void __user *user, unsigned int len)
 	write_unlock_bh(&t->lock);
 	ret = 0;
 unlock_mutex:
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 free_tmp:
 	vfree(tmp);
 	return ret;
@@ -1328,7 +1329,7 @@ static inline int ebt_make_names(struct ebt_entry *e, char *base, char *ubase)
 	return 0;
 }
 
-/* called with ebt_mutex down */
+/* called with ebt_mutex locked */
 static int copy_everything_to_user(struct ebt_table *t, void __user *user,
    int *len, int cmd)
 {
@@ -1440,7 +1441,7 @@ static int do_ebt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	case EBT_SO_GET_INIT_INFO:
 		if (*len != sizeof(struct ebt_replace)){
 			ret = -EINVAL;
-			up(&ebt_mutex);
+			mutex_unlock(&ebt_mutex);
 			break;
 		}
 		if (cmd == EBT_SO_GET_INFO) {
@@ -1452,7 +1453,7 @@ static int do_ebt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 			tmp.entries_size = t->table->entries_size;
 			tmp.valid_hooks = t->table->valid_hooks;
 		}
-		up(&ebt_mutex);
+		mutex_unlock(&ebt_mutex);
 		if (copy_to_user(user, &tmp, *len) != 0){
 			BUGPRINT("c2u Didn't work\n");
 			ret = -EFAULT;
@@ -1464,11 +1465,11 @@ static int do_ebt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	case EBT_SO_GET_ENTRIES:
 	case EBT_SO_GET_INIT_ENTRIES:
 		ret = copy_everything_to_user(t, user, len, cmd);
-		up(&ebt_mutex);
+		mutex_unlock(&ebt_mutex);
 		break;
 
 	default:
-		up(&ebt_mutex);
+		mutex_unlock(&ebt_mutex);
 		ret = -EINVAL;
 	}
 
@@ -1476,17 +1477,23 @@ static int do_ebt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 }
 
 static struct nf_sockopt_ops ebt_sockopts =
-{ { NULL, NULL }, PF_INET, EBT_BASE_CTL, EBT_SO_SET_MAX + 1, do_ebt_set_ctl,
-    EBT_BASE_CTL, EBT_SO_GET_MAX + 1, do_ebt_get_ctl, 0, NULL
+{
+	.pf		= PF_INET,
+	.set_optmin	= EBT_BASE_CTL,
+	.set_optmax	= EBT_SO_SET_MAX + 1,
+	.set		= do_ebt_set_ctl,
+	.get_optmin	= EBT_BASE_CTL,
+	.get_optmax	= EBT_SO_GET_MAX + 1,
+	.get		= do_ebt_get_ctl,
 };
 
 static int __init init(void)
 {
 	int ret;
 
-	down(&ebt_mutex);
+	mutex_lock(&ebt_mutex);
 	list_named_insert(&ebt_targets, &ebt_standard_target);
-	up(&ebt_mutex);
+	mutex_unlock(&ebt_mutex);
 	if ((ret = nf_register_sockopt(&ebt_sockopts)) < 0)
 		return ret;
 

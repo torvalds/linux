@@ -23,18 +23,8 @@
  *  ext2 fs regular file handling primitives
  */
 
-#include <asm/uaccess.h>
-#include <asm/system.h>
-
-#include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/ufs_fs.h>
-#include <linux/fcntl.h>
-#include <linux/time.h>
-#include <linux/stat.h>
-#include <linux/mm.h>
-#include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 
 /*
  * We have mostly NULL's here: the current defaults are ok for

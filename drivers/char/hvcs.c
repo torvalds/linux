@@ -118,7 +118,7 @@
  * the hvcs_final_close() function in order to get it out of the spinlock.
  * Rearranged hvcs_close().  Cleaned up some printks and did some housekeeping
  * on the changelog.  Removed local CLC_LENGTH and used HVCS_CLC_LENGTH from
- * arch/ppc64/hvcserver.h.
+ * include/asm-powerpc/hvcserver.h 
  *
  * 1.3.2 -> 1.3.3 Replaced yield() in hvcs_close() with tty_wait_until_sent() to
  * prevent possible lockup with realtime scheduling as similarily pointed out by
@@ -168,9 +168,10 @@ MODULE_VERSION(HVCS_DRIVER_VERSION);
 
 /*
  * The hcall interface involves putting 8 chars into each of two registers.
- * We load up those 2 registers (in arch/ppc64/hvconsole.c) by casting char[16]
- * to long[2].  It would work without __ALIGNED__, but a little (tiny) bit
- * slower because an unaligned load is slower than aligned load.
+ * We load up those 2 registers (in arch/powerpc/platforms/pseries/hvconsole.c)
+ * by casting char[16] to long[2].  It would work without __ALIGNED__, but a 
+ * little (tiny) bit slower because an unaligned load is slower than aligned 
+ * load.
  */
 #define __ALIGNED__	__attribute__((__aligned__(8)))
 

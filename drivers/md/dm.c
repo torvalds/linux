@@ -17,6 +17,7 @@
 #include <linux/mempool.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
+#include <linux/blktrace_api.h>
 
 static const char *_name = DM_NAME;
 
@@ -334,6 +335,8 @@ static void dec_pending(struct dm_io *io, int error)
 			/* nudge anyone waiting on suspend queue */
 			wake_up(&io->md->wait);
 
+		blk_add_trace_bio(io->md->queue, io->bio, BLK_TA_COMPLETE);
+
 		bio_endio(io->bio, io->bio->bi_size, io->error);
 		free_io(io->md, io);
 	}
@@ -392,6 +395,7 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 		      struct target_io *tio)
 {
 	int r;
+	sector_t sector;
 
 	/*
 	 * Sanity checks.
@@ -407,10 +411,17 @@ static void __map_bio(struct dm_target *ti, struct bio *clone,
 	 * this io.
 	 */
 	atomic_inc(&tio->io->io_count);
+	sector = clone->bi_sector;
 	r = ti->type->map(ti, clone, &tio->info);
-	if (r > 0)
+	if (r > 0) {
 		/* the bio has been remapped so dispatch it */
+
+		blk_add_trace_remap(bdev_get_queue(clone->bi_bdev), clone, 
+				    tio->io->bio->bi_bdev->bd_dev, sector, 
+				    clone->bi_sector);
+
 		generic_make_request(clone);
+	}
 
 	else if (r < 0) {
 		/* error the io and bail out */
@@ -533,30 +544,35 @@ static void __clone_and_map(struct clone_info *ci)
 
 	} else {
 		/*
-		 * Create two copy bios to deal with io that has
-		 * been split across a target.
+		 * Handle a bvec that must be split between two or more targets.
 		 */
 		struct bio_vec *bv = bio->bi_io_vec + ci->idx;
+		sector_t remaining = to_sector(bv->bv_len);
+		unsigned int offset = 0;
 
-		clone = split_bvec(bio, ci->sector, ci->idx,
-				   bv->bv_offset, max);
-		__map_bio(ti, clone, tio);
+		do {
+			if (offset) {
+				ti = dm_table_find_target(ci->map, ci->sector);
+				max = max_io_len(ci->md, ci->sector, ti);
 
-		ci->sector += max;
-		ci->sector_count -= max;
-		ti = dm_table_find_target(ci->map, ci->sector);
+				tio = alloc_tio(ci->md);
+				tio->io = ci->io;
+				tio->ti = ti;
+				memset(&tio->info, 0, sizeof(tio->info));
+			}
 
-		len = to_sector(bv->bv_len) - max;
-		clone = split_bvec(bio, ci->sector, ci->idx,
-				   bv->bv_offset + to_bytes(max), len);
-		tio = alloc_tio(ci->md);
-		tio->io = ci->io;
-		tio->ti = ti;
-		memset(&tio->info, 0, sizeof(tio->info));
-		__map_bio(ti, clone, tio);
+			len = min(remaining, max);
 
-		ci->sector += len;
-		ci->sector_count -= len;
+			clone = split_bvec(bio, ci->sector, ci->idx,
+					   bv->bv_offset + offset, len);
+
+			__map_bio(ti, clone, tio);
+
+			ci->sector += len;
+			ci->sector_count -= len;
+			offset += to_bytes(len);
+		} while (remaining -= len);
+
 		ci->idx++;
 	}
 }

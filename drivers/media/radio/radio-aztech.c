@@ -42,7 +42,7 @@
 static int io = CONFIG_RADIO_AZTECH_PORT; 
 static int radio_nr = -1;
 static int radio_wait_time = 1000;
-static struct semaphore lock;
+static struct mutex lock;
 
 struct az_device
 {
@@ -87,9 +87,9 @@ static void send_1_byte (struct az_device *dev)
 
 static int az_setvol(struct az_device *dev, int vol)
 {
-	down(&lock);
+	mutex_lock(&lock);
 	outb (volconvert(vol), io);
-	up(&lock);
+	mutex_unlock(&lock);
 	return 0;
 }
 
@@ -122,7 +122,7 @@ static int az_setfreq(struct az_device *dev, unsigned long frequency)
 	frequency += 171200;		/* Add 10.7 MHz IF		*/
 	frequency /= 800;		/* Convert to 50 kHz units	*/
 					
-	down(&lock);
+	mutex_lock(&lock);
 	
 	send_0_byte (dev);		/*  0: LSB of frequency       */
 
@@ -152,7 +152,7 @@ static int az_setfreq(struct az_device *dev, unsigned long frequency)
 	udelay (radio_wait_time);
 	outb_p(128+64+volconvert(dev->curvol), io);
 	
-	up(&lock);
+	mutex_unlock(&lock);
 
 	return 0;
 }
@@ -283,7 +283,7 @@ static int __init aztech_init(void)
 		return -EBUSY;
 	}
 
-	init_MUTEX(&lock);
+	mutex_init(&lock);
 	aztech_radio.priv=&aztech_unit;
 	
 	if(video_register_device(&aztech_radio, VFL_TYPE_RADIO, radio_nr)==-1)

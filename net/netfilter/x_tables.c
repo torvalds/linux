@@ -52,11 +52,17 @@ enum {
 	MATCH,
 };
 
+static const char *xt_prefix[NPROTO] = {
+	[AF_INET] 	= "ip",
+	[AF_INET6] 	= "ip6",
+	[NF_ARP]	= "arp",
+};
+
 /* Registration hooks for targets. */
 int
-xt_register_target(int af, struct xt_target *target)
+xt_register_target(struct xt_target *target)
 {
-	int ret;
+	int ret, af = target->family;
 
 	ret = down_interruptible(&xt[af].mutex);
 	if (ret != 0)
@@ -68,8 +74,10 @@ xt_register_target(int af, struct xt_target *target)
 EXPORT_SYMBOL(xt_register_target);
 
 void
-xt_unregister_target(int af, struct xt_target *target)
+xt_unregister_target(struct xt_target *target)
 {
+	int af = target->family;
+
 	down(&xt[af].mutex);
 	LIST_DELETE(&xt[af].target, target);
 	up(&xt[af].mutex);
@@ -77,9 +85,9 @@ xt_unregister_target(int af, struct xt_target *target)
 EXPORT_SYMBOL(xt_unregister_target);
 
 int
-xt_register_match(int af, struct xt_match *match)
+xt_register_match(struct xt_match *match)
 {
-	int ret;
+	int ret, af = match->family;
 
 	ret = down_interruptible(&xt[af].mutex);
 	if (ret != 0)
@@ -93,8 +101,10 @@ xt_register_match(int af, struct xt_match *match)
 EXPORT_SYMBOL(xt_register_match);
 
 void
-xt_unregister_match(int af, struct xt_match *match)
+xt_unregister_match(struct xt_match *match)
 {
+	int af =  match->family;
+
 	down(&xt[af].mutex);
 	LIST_DELETE(&xt[af].match, match);
 	up(&xt[af].mutex);
@@ -158,18 +168,12 @@ struct xt_target *xt_find_target(int af, const char *name, u8 revision)
 }
 EXPORT_SYMBOL(xt_find_target);
 
-static const char *xt_prefix[NPROTO] = {
-	[AF_INET] 	= "ipt_%s",
-	[AF_INET6] 	= "ip6t_%s",
-	[NF_ARP]	= "arpt_%s",
-};
-
 struct xt_target *xt_request_find_target(int af, const char *name, u8 revision)
 {
 	struct xt_target *target;
 
 	target = try_then_request_module(xt_find_target(af, name, revision),
-					 xt_prefix[af], name);
+					 "%st_%s", xt_prefix[af], name);
 	if (IS_ERR(target) || !target)
 		return NULL;
 	return target;
@@ -236,6 +240,64 @@ int xt_find_revision(int af, const char *name, u8 revision, int target,
 	return 1;
 }
 EXPORT_SYMBOL_GPL(xt_find_revision);
+
+int xt_check_match(const struct xt_match *match, unsigned short family,
+                   unsigned int size, const char *table, unsigned int hook_mask,
+		   unsigned short proto, int inv_proto)
+{
+	if (XT_ALIGN(match->matchsize) != size) {
+		printk("%s_tables: %s match: invalid size %Zu != %u\n",
+		       xt_prefix[family], match->name,
+		       XT_ALIGN(match->matchsize), size);
+		return -EINVAL;
+	}
+	if (match->table && strcmp(match->table, table)) {
+		printk("%s_tables: %s match: only valid in %s table, not %s\n",
+		       xt_prefix[family], match->name, match->table, table);
+		return -EINVAL;
+	}
+	if (match->hooks && (hook_mask & ~match->hooks) != 0) {
+		printk("%s_tables: %s match: bad hook_mask %u\n",
+		       xt_prefix[family], match->name, hook_mask);
+		return -EINVAL;
+	}
+	if (match->proto && (match->proto != proto || inv_proto)) {
+		printk("%s_tables: %s match: only valid for protocol %u\n",
+		       xt_prefix[family], match->name, match->proto);
+		return -EINVAL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xt_check_match);
+
+int xt_check_target(const struct xt_target *target, unsigned short family,
+		    unsigned int size, const char *table, unsigned int hook_mask,
+		    unsigned short proto, int inv_proto)
+{
+	if (XT_ALIGN(target->targetsize) != size) {
+		printk("%s_tables: %s target: invalid size %Zu != %u\n",
+		       xt_prefix[family], target->name,
+		       XT_ALIGN(target->targetsize), size);
+		return -EINVAL;
+	}
+	if (target->table && strcmp(target->table, table)) {
+		printk("%s_tables: %s target: only valid in %s table, not %s\n",
+		       xt_prefix[family], target->name, target->table, table);
+		return -EINVAL;
+	}
+	if (target->hooks && (hook_mask & ~target->hooks) != 0) {
+		printk("%s_tables: %s target: bad hook_mask %u\n",
+		       xt_prefix[family], target->name, hook_mask);
+		return -EINVAL;
+	}
+	if (target->proto && (target->proto != proto || inv_proto)) {
+		printk("%s_tables: %s target: only valid for protocol %u\n",
+		       xt_prefix[family], target->name, target->proto);
+		return -EINVAL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xt_check_target);
 
 struct xt_table_info *xt_alloc_table_info(unsigned int size)
 {

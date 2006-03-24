@@ -88,7 +88,7 @@ static int change_outputs(struct phidget_interfacekit *kit, int output_num, int 
 	int retval;
 	int n;
 
-	buffer = kmalloc(4, GFP_KERNEL);
+	buffer = kzalloc(4, GFP_KERNEL);
 	if (!buffer) {
 		dev_err(&kit->udev->dev, "%s - out of memory\n",
 			__FUNCTION__);
@@ -96,7 +96,6 @@ static int change_outputs(struct phidget_interfacekit *kit, int output_num, int 
 	}
 
 	kit->outputs[output_num] = enable;
-	memset(buffer, 0, 4);
 	for (n=0; n<8; n++) {
 		if (kit->outputs[n]) {
 			buffer[0] |= 1 << n;
@@ -192,7 +191,7 @@ static ssize_t set_backlight(struct device *dev, struct device_attribute *attr, 
 	unsigned char *buffer;
 	int retval = -ENOMEM;
 	
-	buffer = kmalloc(8, GFP_KERNEL);
+	buffer = kzalloc(8, GFP_KERNEL);
 	if (!buffer) {
 		dev_err(&kit->udev->dev, "%s - out of memory\n", __FUNCTION__);
 		goto exit;
@@ -202,7 +201,6 @@ static ssize_t set_backlight(struct device *dev, struct device_attribute *attr, 
 		retval = -EINVAL;
 		goto exit;
 	}
-	memset(buffer, 0x00, 8);
 	if (enabled)
 		buffer[0] = 0x01;
 	buffer[7] = 0x11;
@@ -406,12 +404,11 @@ static int interfacekit_probe(struct usb_interface *intf, const struct usb_devic
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 	
-	kit = kmalloc(sizeof(*kit), GFP_KERNEL);
+	kit = kzalloc(sizeof(*kit), GFP_KERNEL);
 	if (kit  == NULL) {
 		dev_err(&intf->dev, "%s - out of memory\n", __FUNCTION__);
 		return -ENOMEM;
 	}
-	memset(kit, 0, sizeof(*kit));
 	kit->ifkit = ifkit;
 
 	kit->data = usb_buffer_alloc(dev, 8, SLAB_ATOMIC, &kit->data_dma);

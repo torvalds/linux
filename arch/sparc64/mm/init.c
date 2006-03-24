@@ -283,6 +283,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 	struct mm_struct *mm;
 	struct tsb *tsb;
 	unsigned long tag, flags;
+	unsigned long tsb_index, tsb_hash_shift;
 
 	if (tlb_type != hypervisor) {
 		unsigned long pfn = pte_pfn(pte);
@@ -312,10 +313,26 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t p
 
 	mm = vma->vm_mm;
 
+	tsb_index = MM_TSB_BASE;
+	tsb_hash_shift = PAGE_SHIFT;
+
 	spin_lock_irqsave(&mm->context.lock, flags);
 
-	tsb = &mm->context.tsb[(address >> PAGE_SHIFT) &
-			       (mm->context.tsb_nentries - 1UL)];
+#ifdef CONFIG_HUGETLB_PAGE
+	if (mm->context.tsb_block[MM_TSB_HUGE].tsb != NULL) {
+		if ((tlb_type == hypervisor &&
+		     (pte_val(pte) & _PAGE_SZALL_4V) == _PAGE_SZHUGE_4V) ||
+		    (tlb_type != hypervisor &&
+		     (pte_val(pte) & _PAGE_SZALL_4U) == _PAGE_SZHUGE_4U)) {
+			tsb_index = MM_TSB_HUGE;
+			tsb_hash_shift = HPAGE_SHIFT;
+		}
+	}
+#endif
+
+	tsb = mm->context.tsb_block[tsb_index].tsb;
+	tsb += ((address >> tsb_hash_shift) &
+		(mm->context.tsb_block[tsb_index].tsb_nentries - 1UL));
 	tag = (address >> 22UL);
 	tsb_insert(tsb, tag, pte_val(pte));
 
@@ -1461,7 +1478,7 @@ void free_initmem(void)
 		p = virt_to_page(page);
 
 		ClearPageReserved(p);
-		set_page_count(p, 1);
+		init_page_count(p);
 		__free_page(p);
 		num_physpages++;
 		totalram_pages++;
@@ -1477,7 +1494,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		struct page *p = virt_to_page(start);
 
 		ClearPageReserved(p);
-		set_page_count(p, 1);
+		init_page_count(p);
 		__free_page(p);
 		num_physpages++;
 		totalram_pages++;
@@ -1811,8 +1828,8 @@ void __flush_tlb_all(void)
 void online_page(struct page *page)
 {
 	ClearPageReserved(page);
-	set_page_count(page, 0);
-	free_cold_page(page);
+	init_page_count(page);
+	__free_page(page);
 	totalram_pages++;
 	num_physpages++;
 }

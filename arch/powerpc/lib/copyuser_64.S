@@ -1,6 +1,4 @@
 /*
- * arch/ppc64/lib/copyuser.S
- *
  * Copyright (C) 2002 Paul Mackerras, IBM Corp.
  *
  * This program is free software; you can redistribute it and/or

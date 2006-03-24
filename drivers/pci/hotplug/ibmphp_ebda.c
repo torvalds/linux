@@ -72,13 +72,7 @@ static int ebda_rio_table (void);
 
 static struct ebda_hpc_list * __init alloc_ebda_hpc_list (void)
 {
-	struct ebda_hpc_list *list;
-
-	list = kmalloc (sizeof (struct ebda_hpc_list), GFP_KERNEL);
-	if (!list)
-		return NULL;
-	memset (list, 0, sizeof (*list));
-	return list;
+	return kzalloc(sizeof(struct ebda_hpc_list), GFP_KERNEL);
 }
 
 static struct controller *alloc_ebda_hpc (u32 slot_count, u32 bus_count)
@@ -87,21 +81,18 @@ static struct controller *alloc_ebda_hpc (u32 slot_count, u32 bus_count)
 	struct ebda_hpc_slot *slots;
 	struct ebda_hpc_bus *buses;
 
-	controller = kmalloc (sizeof (struct controller), GFP_KERNEL);
+	controller = kzalloc(sizeof(struct controller), GFP_KERNEL);
 	if (!controller)
 		goto error;
-	memset (controller, 0, sizeof (*controller));
 
-	slots = kmalloc (sizeof (struct ebda_hpc_slot) * slot_count, GFP_KERNEL);
+	slots = kcalloc(slot_count, sizeof(struct ebda_hpc_slot), GFP_KERNEL);
 	if (!slots)
 		goto error_contr;
-	memset (slots, 0, sizeof (*slots) * slot_count);
 	controller->slots = slots;
 
-	buses = kmalloc (sizeof (struct ebda_hpc_bus) * bus_count, GFP_KERNEL);
+	buses = kcalloc(bus_count, sizeof(struct ebda_hpc_bus), GFP_KERNEL);
 	if (!buses)
 		goto error_slots;
-	memset (buses, 0, sizeof (*buses) * bus_count);
 	controller->buses = buses;
 
 	return controller;
@@ -122,24 +113,12 @@ static void free_ebda_hpc (struct controller *controller)
 
 static struct ebda_rsrc_list * __init alloc_ebda_rsrc_list (void)
 {
-	struct ebda_rsrc_list *list;
-
-	list = kmalloc (sizeof (struct ebda_rsrc_list), GFP_KERNEL);
-	if (!list)
-		return NULL;
-	memset (list, 0, sizeof (*list));
-	return list;
+	return kzalloc(sizeof(struct ebda_rsrc_list), GFP_KERNEL);
 }
 
 static struct ebda_pci_rsrc *alloc_ebda_pci_rsrc (void)
 {
-	struct ebda_pci_rsrc *resource;
-
-	resource = kmalloc (sizeof (struct ebda_pci_rsrc), GFP_KERNEL);
-	if (!resource)
-		return NULL;
-	memset (resource, 0, sizeof (*resource));
-	return resource;
+	return kzalloc(sizeof(struct ebda_pci_rsrc), GFP_KERNEL);
 }
 
 static void __init print_bus_info (void)
@@ -390,10 +369,9 @@ int __init ibmphp_access_ebda (void)
 			debug ("now enter io table ---\n");
 			debug ("rio blk id: %x\n", blk_id);
 
-			rio_table_ptr = kmalloc (sizeof (struct rio_table_hdr), GFP_KERNEL);
+			rio_table_ptr = kzalloc(sizeof(struct rio_table_hdr), GFP_KERNEL);
 			if (!rio_table_ptr)
 				return -ENOMEM; 
-			memset (rio_table_ptr, 0, sizeof (struct rio_table_hdr) );
 			rio_table_ptr->ver_num = readb (io_mem + offset);
 			rio_table_ptr->scal_count = readb (io_mem + offset + 1);
 			rio_table_ptr->riodev_count = readb (io_mem + offset + 2);
@@ -445,10 +423,9 @@ static int __init ebda_rio_table (void)
 
 	// we do concern about rio details
 	for (i = 0; i < rio_table_ptr->riodev_count; i++) {
-		rio_detail_ptr = kmalloc (sizeof (struct rio_detail), GFP_KERNEL);
+		rio_detail_ptr = kzalloc(sizeof(struct rio_detail), GFP_KERNEL);
 		if (!rio_detail_ptr)
 			return -ENOMEM;
-		memset (rio_detail_ptr, 0, sizeof (struct rio_detail));
 		rio_detail_ptr->rio_node_id = readb (io_mem + offset);
 		rio_detail_ptr->bbar = readl (io_mem + offset + 1);
 		rio_detail_ptr->rio_type = readb (io_mem + offset + 5);
@@ -503,10 +480,9 @@ static int __init combine_wpg_for_chassis (void)
 		rio_detail_ptr = list_entry (list_head_ptr, struct rio_detail, rio_detail_list);
 		opt_rio_ptr = search_opt_vg (rio_detail_ptr->chassis_num);
 		if (!opt_rio_ptr) {
-			opt_rio_ptr = (struct opt_rio *) kmalloc (sizeof (struct opt_rio), GFP_KERNEL);
+			opt_rio_ptr = kzalloc(sizeof(struct opt_rio), GFP_KERNEL);
 			if (!opt_rio_ptr)
 				return -ENOMEM;
-			memset (opt_rio_ptr, 0, sizeof (struct opt_rio));
 			opt_rio_ptr->rio_type = rio_detail_ptr->rio_type;
 			opt_rio_ptr->chassis_num = rio_detail_ptr->chassis_num;
 			opt_rio_ptr->first_slot_num = rio_detail_ptr->first_slot_num;
@@ -546,10 +522,9 @@ static int combine_wpg_for_expansion (void)
 		rio_detail_ptr = list_entry (list_head_ptr, struct rio_detail, rio_detail_list);
 		opt_rio_lo_ptr = search_opt_lo (rio_detail_ptr->chassis_num);
 		if (!opt_rio_lo_ptr) {
-			opt_rio_lo_ptr = (struct opt_rio_lo *) kmalloc (sizeof (struct opt_rio_lo), GFP_KERNEL);
+			opt_rio_lo_ptr = kzalloc(sizeof(struct opt_rio_lo), GFP_KERNEL);
 			if (!opt_rio_lo_ptr)
 				return -ENOMEM;
-			memset (opt_rio_lo_ptr, 0, sizeof (struct opt_rio_lo));
 			opt_rio_lo_ptr->rio_type = rio_detail_ptr->rio_type;
 			opt_rio_lo_ptr->chassis_num = rio_detail_ptr->chassis_num;
 			opt_rio_lo_ptr->first_slot_num = rio_detail_ptr->first_slot_num;
@@ -842,12 +817,11 @@ static int __init ebda_rsrc_controller (void)
 
 			bus_info_ptr2 = ibmphp_find_same_bus_num (slot_ptr->slot_bus_num);
 			if (!bus_info_ptr2) {
-				bus_info_ptr1 = (struct bus_info *) kmalloc (sizeof (struct bus_info), GFP_KERNEL);
+				bus_info_ptr1 = kzalloc(sizeof(struct bus_info), GFP_KERNEL);
 				if (!bus_info_ptr1) {
 					rc = -ENOMEM;
 					goto error_no_hp_slot;
 				}
-				memset (bus_info_ptr1, 0, sizeof (struct bus_info));
 				bus_info_ptr1->slot_min = slot_ptr->slot_num;
 				bus_info_ptr1->slot_max = slot_ptr->slot_num;
 				bus_info_ptr1->slot_count += 1;
@@ -946,19 +920,17 @@ static int __init ebda_rsrc_controller (void)
 		// register slots with hpc core as well as create linked list of ibm slot
 		for (index = 0; index < hpc_ptr->slot_count; index++) {
 
-			hp_slot_ptr = kmalloc(sizeof(*hp_slot_ptr), GFP_KERNEL);
+			hp_slot_ptr = kzalloc(sizeof(*hp_slot_ptr), GFP_KERNEL);
 			if (!hp_slot_ptr) {
 				rc = -ENOMEM;
 				goto error_no_hp_slot;
 			}
-			memset(hp_slot_ptr, 0, sizeof(*hp_slot_ptr));
 
-			hp_slot_ptr->info = kmalloc (sizeof(struct hotplug_slot_info), GFP_KERNEL);
+			hp_slot_ptr->info = kzalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
 			if (!hp_slot_ptr->info) {
 				rc = -ENOMEM;
 				goto error_no_hp_info;
 			}
-			memset(hp_slot_ptr->info, 0, sizeof(struct hotplug_slot_info));
 
 			hp_slot_ptr->name = kmalloc(30, GFP_KERNEL);
 			if (!hp_slot_ptr->name) {
@@ -966,14 +938,13 @@ static int __init ebda_rsrc_controller (void)
 				goto error_no_hp_name;
 			}
 
-			tmp_slot = kmalloc(sizeof(*tmp_slot), GFP_KERNEL);
+			tmp_slot = kzalloc(sizeof(*tmp_slot), GFP_KERNEL);
 			if (!tmp_slot) {
 				rc = -ENOMEM;
 				goto error_no_slot;
 			}
-			memset(tmp_slot, 0, sizeof(*tmp_slot));
 
-			tmp_slot->flag = TRUE;
+			tmp_slot->flag = 1;
 
 			tmp_slot->capabilities = hpc_ptr->slots[index].slot_cap;
 			if ((hpc_ptr->slots[index].slot_cap & EBDA_SLOT_133_MAX) == EBDA_SLOT_133_MAX)

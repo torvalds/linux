@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/katana.h
- *
  * Definitions for Artesyn Katana750i/3750 board.
  *
  * Author: Tim Montgomery <timm@artesyncp.com>

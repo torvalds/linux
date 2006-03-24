@@ -1508,7 +1508,7 @@ static int i810fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		int size = ((cursor->image.width + 7) >> 3) *
 			cursor->image.height;
 		int i;
-		u8 *data = kmalloc(64 * 8, GFP_KERNEL);
+		u8 *data = kmalloc(64 * 8, GFP_ATOMIC);
 
 		if (data == NULL)
 			return -ENOMEM;

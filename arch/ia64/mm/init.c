@@ -197,7 +197,7 @@ free_initmem (void)
 	eaddr = (unsigned long) ia64_imva(__init_end);
 	while (addr < eaddr) {
 		ClearPageReserved(virt_to_page(addr));
-		set_page_count(virt_to_page(addr), 1);
+		init_page_count(virt_to_page(addr));
 		free_page(addr);
 		++totalram_pages;
 		addr += PAGE_SIZE;
@@ -252,7 +252,7 @@ free_initrd_mem (unsigned long start, unsigned long end)
 			continue;
 		page = virt_to_page(start);
 		ClearPageReserved(page);
-		set_page_count(page, 1);
+		init_page_count(page);
 		free_page(start);
 		++totalram_pages;
 	}
@@ -640,7 +640,7 @@ mem_init (void)
 void online_page(struct page *page)
 {
 	ClearPageReserved(page);
-	set_page_count(page, 1);
+	init_page_count(page);
 	__free_page(page);
 	totalram_pages++;
 	num_physpages++;

@@ -614,6 +614,7 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	sb = dir->i_sb;
 	v9ses = v9fs_inode2v9ses(dir);
+	dentry->d_op = &v9fs_dentry_operations;
 	dirfid = v9fs_fid_lookup(dentry->d_parent);
 
 	if (!dirfid) {
@@ -681,8 +682,6 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto FreeFcall;
 
 	fid->qid = fcall->params.rstat.stat.qid;
-
-	dentry->d_op = &v9fs_dentry_operations;
 	v9fs_stat2inode(&fcall->params.rstat.stat, inode, inode->i_sb);
 
 	d_add(dentry, inode);

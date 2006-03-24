@@ -122,7 +122,7 @@ static void nmi_save_registers(void * dummy)
 static void free_msrs(void)
 {
 	int i;
-	for (i = 0; i < NR_CPUS; ++i) {
+	for_each_cpu(i) {
 		kfree(cpu_msrs[i].counters);
 		cpu_msrs[i].counters = NULL;
 		kfree(cpu_msrs[i].controls);
@@ -138,10 +138,7 @@ static int allocate_msrs(void)
 	size_t counters_size = sizeof(struct op_msr) * model->num_counters;
 
 	int i;
-	for (i = 0; i < NR_CPUS; ++i) {
-		if (!cpu_online(i))
-			continue;
-
+	for_each_online_cpu(i) {
 		cpu_msrs[i].counters = kmalloc(counters_size, GFP_KERNEL);
 		if (!cpu_msrs[i].counters) {
 			success = 0;

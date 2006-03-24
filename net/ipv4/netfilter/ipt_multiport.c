@@ -95,6 +95,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -127,6 +128,7 @@ static int
 match_v1(const struct sk_buff *skb,
 	 const struct net_device *in,
 	 const struct net_device *out,
+	 const struct xt_match *match,
 	 const void *matchinfo,
 	 int offset,
 	 unsigned int protoff,
@@ -153,40 +155,19 @@ match_v1(const struct sk_buff *skb,
 	return ports_match_v1(multiinfo, ntohs(pptr[0]), ntohs(pptr[1]));
 }
 
-/* Called when user tries to insert an entry of this type. */
-static int
-checkentry(const char *tablename,
-	   const void *ip,
-	   void *matchinfo,
-	   unsigned int matchsize,
-	   unsigned int hook_mask)
-{
-	return (matchsize == IPT_ALIGN(sizeof(struct ipt_multiport)));
-}
-
-static int
-checkentry_v1(const char *tablename,
-	      const void *ip,
-	      void *matchinfo,
-	      unsigned int matchsize,
-	      unsigned int hook_mask)
-{
-	return (matchsize == IPT_ALIGN(sizeof(struct ipt_multiport_v1)));
-}
-
 static struct ipt_match multiport_match = {
 	.name		= "multiport",
 	.revision	= 0,
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ipt_multiport),
 	.me		= THIS_MODULE,
 };
 
 static struct ipt_match multiport_match_v1 = {
 	.name		= "multiport",
 	.revision	= 1,
-	.match		= &match_v1,
-	.checkentry	= &checkentry_v1,
+	.match		= match_v1,
+	.matchsize	= sizeof(struct ipt_multiport_v1),
 	.me		= THIS_MODULE,
 };
 

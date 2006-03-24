@@ -265,8 +265,8 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 	    SLAB_CTOR_CONSTRUCTOR)
 	{
 		memset(bdev, 0, sizeof(*bdev));
-		sema_init(&bdev->bd_sem, 1);
-		sema_init(&bdev->bd_mount_sem, 1);
+		mutex_init(&bdev->bd_mutex);
+		mutex_init(&bdev->bd_mount_mutex);
 		INIT_LIST_HEAD(&bdev->bd_inodes);
 		INIT_LIST_HEAD(&bdev->bd_list);
 		inode_init_once(&ei->vfs_inode);
@@ -574,7 +574,7 @@ static int do_open(struct block_device *bdev, struct file *file)
 	}
 	owner = disk->fops->owner;
 
-	down(&bdev->bd_sem);
+	mutex_lock(&bdev->bd_mutex);
 	if (!bdev->bd_openers) {
 		bdev->bd_disk = disk;
 		bdev->bd_contains = bdev;
@@ -605,21 +605,21 @@ static int do_open(struct block_device *bdev, struct file *file)
 			if (ret)
 				goto out_first;
 			bdev->bd_contains = whole;
-			down(&whole->bd_sem);
+			mutex_lock(&whole->bd_mutex);
 			whole->bd_part_count++;
 			p = disk->part[part - 1];
 			bdev->bd_inode->i_data.backing_dev_info =
 			   whole->bd_inode->i_data.backing_dev_info;
 			if (!(disk->flags & GENHD_FL_UP) || !p || !p->nr_sects) {
 				whole->bd_part_count--;
-				up(&whole->bd_sem);
+				mutex_unlock(&whole->bd_mutex);
 				ret = -ENXIO;
 				goto out_first;
 			}
 			kobject_get(&p->kobj);
 			bdev->bd_part = p;
 			bd_set_size(bdev, (loff_t) p->nr_sects << 9);
-			up(&whole->bd_sem);
+			mutex_unlock(&whole->bd_mutex);
 		}
 	} else {
 		put_disk(disk);
@@ -633,13 +633,13 @@ static int do_open(struct block_device *bdev, struct file *file)
 			if (bdev->bd_invalidated)
 				rescan_partitions(bdev->bd_disk, bdev);
 		} else {
-			down(&bdev->bd_contains->bd_sem);
+			mutex_lock(&bdev->bd_contains->bd_mutex);
 			bdev->bd_contains->bd_part_count++;
-			up(&bdev->bd_contains->bd_sem);
+			mutex_unlock(&bdev->bd_contains->bd_mutex);
 		}
 	}
 	bdev->bd_openers++;
-	up(&bdev->bd_sem);
+	mutex_unlock(&bdev->bd_mutex);
 	unlock_kernel();
 	return 0;
 
@@ -652,7 +652,7 @@ out_first:
 	put_disk(disk);
 	module_put(owner);
 out:
-	up(&bdev->bd_sem);
+	mutex_unlock(&bdev->bd_mutex);
 	unlock_kernel();
 	if (ret)
 		bdput(bdev);
@@ -714,7 +714,7 @@ int blkdev_put(struct block_device *bdev)
 	struct inode *bd_inode = bdev->bd_inode;
 	struct gendisk *disk = bdev->bd_disk;
 
-	down(&bdev->bd_sem);
+	mutex_lock(&bdev->bd_mutex);
 	lock_kernel();
 	if (!--bdev->bd_openers) {
 		sync_blockdev(bdev);
@@ -724,9 +724,9 @@ int blkdev_put(struct block_device *bdev)
 		if (disk->fops->release)
 			ret = disk->fops->release(bd_inode, NULL);
 	} else {
-		down(&bdev->bd_contains->bd_sem);
+		mutex_lock(&bdev->bd_contains->bd_mutex);
 		bdev->bd_contains->bd_part_count--;
-		up(&bdev->bd_contains->bd_sem);
+		mutex_unlock(&bdev->bd_contains->bd_mutex);
 	}
 	if (!bdev->bd_openers) {
 		struct module *owner = disk->fops->owner;
@@ -746,7 +746,7 @@ int blkdev_put(struct block_device *bdev)
 		bdev->bd_contains = NULL;
 	}
 	unlock_kernel();
-	up(&bdev->bd_sem);
+	mutex_unlock(&bdev->bd_mutex);
 	bdput(bdev);
 	return ret;
 }

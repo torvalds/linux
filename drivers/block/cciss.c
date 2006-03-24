@@ -38,6 +38,7 @@
 #include <linux/hdreg.h>
 #include <linux/spinlock.h>
 #include <linux/compat.h>
+#include <linux/blktrace_api.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -2137,7 +2138,7 @@ static void start_io( ctlr_info_t *h)
 			break;
 		}
 
-		/* Get the frist entry from the Request Q */ 
+		/* Get the first entry from the Request Q */ 
 		removeQ(&(h->reqQ), c);
 		h->Qdepth--;
 	
@@ -2331,6 +2332,7 @@ static inline void complete_command( ctlr_info_t *h, CommandList_struct *cmd,
 
 	cmd->rq->completion_data = cmd;
 	cmd->rq->errors = status;
+	blk_add_trace_rq(cmd->rq->q, cmd->rq, BLK_TA_COMPLETE);
 	blk_complete_request(cmd->rq);
 }
 
@@ -3251,8 +3253,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 
 clean4:
 #ifdef CONFIG_CISS_SCSI_TAPE
-	if(hba[i]->scsi_rejects.complete)
-		kfree(hba[i]->scsi_rejects.complete);
+	kfree(hba[i]->scsi_rejects.complete);
 #endif
 	kfree(hba[i]->cmd_pool_bits);
 	if(hba[i]->cmd_pool)
@@ -3269,8 +3270,8 @@ clean2:
 	unregister_blkdev(hba[i]->major, hba[i]->devname);
 clean1:
 	release_io_mem(hba[i]);
-	free_hba(i);
 	hba[i]->busy_initializing = 0;
+	free_hba(i);
 	return(-1);
 }
 

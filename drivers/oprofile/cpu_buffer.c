@@ -38,9 +38,8 @@ void free_cpu_buffers(void)
 {
 	int i;
  
-	for_each_online_cpu(i) {
+	for_each_online_cpu(i)
 		vfree(cpu_buffer[i].buffer);
-	}
 }
 
 int alloc_cpu_buffers(void)

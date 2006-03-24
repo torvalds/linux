@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>		/* signal_pending() */
 #include <linux/pcieport_if.h>
+#include <linux/mutex.h>
 #include "pci_hotplug.h"
 
 #define MY_NAME	"pciehp"
@@ -49,12 +50,6 @@ extern int pciehp_force;
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
-struct hotplug_params {
-	u8 cache_line_size;
-	u8 latency_timer;
-	u8 enable_serr;
-	u8 enable_perr;
-};
 
 struct slot {
 	struct slot *next;
@@ -96,7 +91,7 @@ struct php_ctlr_state_s {
 #define MAX_EVENTS		10
 struct controller {
 	struct controller *next;
-	struct semaphore crit_sect;	/* critical section semaphore */
+	struct mutex crit_sect;		/* critical section mutex */
 	struct php_ctlr_state_s *hpc_ctlr_handle; /* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
@@ -191,9 +186,6 @@ extern u8	pciehp_handle_power_fault	(u8 hp_slot, void *inst_id);
 /* pci functions */
 extern int	pciehp_configure_device		(struct slot *p_slot);
 extern int	pciehp_unconfigure_device	(struct slot *p_slot);
-extern int	pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev);
-extern void	pciehp_get_hp_params_from_firmware(struct pci_dev *dev,
-	       	struct hotplug_params *hpp);
 
 
 
@@ -285,4 +277,19 @@ struct hpc_ops {
 	int	(*check_lnk_status)	(struct controller *ctrl);
 };
 
+
+#ifdef CONFIG_ACPI
+#define pciehp_get_hp_hw_control_from_firmware(dev) \
+	pciehp_acpi_get_hp_hw_control_from_firmware(dev)
+static inline int pciehp_get_hp_params_from_firmware(struct pci_dev *dev,
+			struct hotplug_params *hpp)
+{
+	if (ACPI_FAILURE(acpi_get_hp_params_from_firmware(dev, hpp)))
+		return -ENODEV;
+	return 0;
+}
+#else
+#define pciehp_get_hp_hw_control_from_firmware(dev) 	0
+#define pciehp_get_hp_params_from_firmware(dev, hpp)    (-ENODEV)
+#endif 				/* CONFIG_ACPI */
 #endif				/* _PCIEHP_H */

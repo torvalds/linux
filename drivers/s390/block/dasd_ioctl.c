@@ -151,9 +151,9 @@ dasd_ioctl_enable(struct block_device *bdev, int no, long args)
 		return -ENODEV;
 	dasd_enable_device(device);
 	/* Formatting the dasd device can change the capacity. */
-	down(&bdev->bd_sem);
+	mutex_lock(&bdev->bd_mutex);
 	i_size_write(bdev->bd_inode, (loff_t)get_capacity(device->gdp) << 9);
-	up(&bdev->bd_sem);
+	mutex_unlock(&bdev->bd_mutex);
 	return 0;
 }
 
@@ -184,9 +184,9 @@ dasd_ioctl_disable(struct block_device *bdev, int no, long args)
 	 * Set i_size to zero, since read, write, etc. check against this
 	 * value.
 	 */
-	down(&bdev->bd_sem);
+	mutex_lock(&bdev->bd_mutex);
 	i_size_write(bdev->bd_inode, 0);
-	up(&bdev->bd_sem);
+	mutex_unlock(&bdev->bd_mutex);
 	return 0;
 }
 

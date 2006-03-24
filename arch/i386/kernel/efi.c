@@ -115,7 +115,7 @@ static void efi_call_phys_epilog(void)
 	unsigned long cr4;
 	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, 0);
 
-	cpu_gdt_descr->address = __va(cpu_gdt_descr->address);
+	cpu_gdt_descr->address = (unsigned long)__va(cpu_gdt_descr->address);
 	load_gdt(cpu_gdt_descr);
 
 	cr4 = read_cr4();
@@ -543,7 +543,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 		if ((md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT)) >
 		    0x100000000ULL)
 			continue;
-		res = alloc_bootmem_low(sizeof(struct resource));
+		res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
 		switch (md->type) {
 		case EFI_RESERVED_TYPE:
 			res->name = "Reserved Memory";

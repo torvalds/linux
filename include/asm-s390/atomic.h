@@ -89,10 +89,15 @@ static __inline__ int atomic_cmpxchg(atomic_t *v, int old, int new)
 static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int c, old;
-
 	c = atomic_read(v);
-	while (c != u && (old = atomic_cmpxchg(v, c, c + a)) != c)
+	for (;;) {
+		if (unlikely(c == u))
+			break;
+		old = atomic_cmpxchg(v, c, c + a);
+		if (likely(old == c))
+			break;
 		c = old;
+	}
 	return c != u;
 }
 
@@ -167,10 +172,15 @@ static __inline__ int atomic64_add_unless(atomic64_t *v,
 					  long long a, long long u)
 {
 	long long c, old;
-
 	c = atomic64_read(v);
-	while (c != u && (old = atomic64_cmpxchg(v, c, c + a)) != c)
+	for (;;) {
+		if (unlikely(c == u))
+			break;
+		old = atomic64_cmpxchg(v, c, c + a);
+		if (likely(old == c))
+			break;
 		c = old;
+	}
 	return c != u;
 }
 
