@@ -865,8 +865,8 @@ int __set_page_dirty_buffers(struct page *page)
 		}
 		write_unlock_irq(&mapping->tree_lock);
 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+		return 1;
 	}
-	
 	return 0;
 }
 EXPORT_SYMBOL(__set_page_dirty_buffers);

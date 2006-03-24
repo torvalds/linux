@@ -628,8 +628,6 @@ EXPORT_SYMBOL(write_one_page);
  */
 int __set_page_dirty_nobuffers(struct page *page)
 {
-	int ret = 0;
-
 	if (!TestSetPageDirty(page)) {
 		struct address_space *mapping = page_mapping(page);
 		struct address_space *mapping2;
@@ -651,8 +649,9 @@ int __set_page_dirty_nobuffers(struct page *page)
 							I_DIRTY_PAGES);
 			}
 		}
+		return 1;
 	}
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(__set_page_dirty_nobuffers);
 
@@ -682,8 +681,10 @@ int fastcall set_page_dirty(struct page *page)
 			return (*spd)(page);
 		return __set_page_dirty_buffers(page);
 	}
-	if (!PageDirty(page))
-		SetPageDirty(page);
+	if (!PageDirty(page)) {
+		if (!TestSetPageDirty(page))
+			return 1;
+	}
 	return 0;
 }
 EXPORT_SYMBOL(set_page_dirty);

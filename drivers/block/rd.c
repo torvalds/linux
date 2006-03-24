@@ -186,7 +186,8 @@ static int ramdisk_writepages(struct address_space *mapping,
  */
 static int ramdisk_set_page_dirty(struct page *page)
 {
-	SetPageDirty(page);
+	if (!TestSetPageDirty(page))
+		return 1;
 	return 0;
 }
 
