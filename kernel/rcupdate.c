@@ -416,8 +416,8 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 		rdp->curtail = &rdp->curlist;
 	}
 
-	local_irq_disable();
 	if (rdp->nxtlist && !rdp->curlist) {
+		local_irq_disable();
 		rdp->curlist = rdp->nxtlist;
 		rdp->curtail = rdp->nxttail;
 		rdp->nxtlist = NULL;
@@ -442,9 +442,8 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 			rcu_start_batch(rcp);
 			spin_unlock(&rcp->lock);
 		}
-	} else {
-		local_irq_enable();
 	}
+
 	rcu_check_quiescent_state(rcp, rdp);
 	if (rdp->donelist)
 		rcu_do_batch(rdp);
