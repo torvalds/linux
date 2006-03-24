@@ -2008,13 +2008,12 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
 	 */
 	msleep(150);
 
-
 	/* Before we perform post reset processing we want to see if
-	   the bus shows 0xFF because the odd clown forgets the D7 pulldown
-	   resistor */
-
+	 * the bus shows 0xFF because the odd clown forgets the D7
+	 * pulldown resistor.
+	 */
 	if (ata_check_status(ap) == 0xFF)
-		return 1;	/* Positive is failure for some reason */
+		return AC_ERR_OTHER;
 
 	ata_bus_post_reset(ap, devmask);
 
