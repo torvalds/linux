@@ -677,39 +677,38 @@ int bitmap_bitremap(int oldbit, const unsigned long *old,
 EXPORT_SYMBOL(bitmap_bitremap);
 
 /**
- *	bitmap_find_free_region - find a contiguous aligned mem region
+ * bitmap_find_free_region - find a contiguous aligned mem region
  *	@bitmap: an array of unsigned longs corresponding to the bitmap
  *	@bits: number of bits in the bitmap
  *	@order: region size to find (size is actually 1<<order)
  *
- * This is used to allocate a memory region from a bitmap.  The idea is
- * that the region has to be 1<<order sized and 1<<order aligned (this
- * makes the search algorithm much faster).
+ * Find a sequence of free (zero) bits in a bitmap and allocate
+ * them (set them to one).  Only consider sequences of length a
+ * power ('order') of two, aligned to that power of two, which
+ * makes the search algorithm much faster.
  *
- * The region is marked as set bits in the bitmap if a free one is
- * found.
- *
- * Returns either beginning of region or negative error
+ * Return the bit offset in bitmap of the allocated sequence,
+ * or -errno on failure.
  */
 int bitmap_find_free_region(unsigned long *bitmap, int bits, int order)
 {
 	unsigned long mask;
-	int pages = 1 << order;
+	int nbits = 1 << order;
 	int i;
 
-	if(pages > BITS_PER_LONG)
+	if (nbits > BITS_PER_LONG)
 		return -EINVAL;
 
 	/* make a mask of the order */
-	mask = (1ul << (pages - 1));
+	mask = (1UL << (nbits - 1));
 	mask += mask - 1;
 
-	/* run up the bitmap pages bits at a time */
-	for (i = 0; i < bits; i += pages) {
-		int index = i/BITS_PER_LONG;
+	/* run up the bitmap nbits at a time */
+	for (i = 0; i < bits; i += nbits) {
+		int index = i / BITS_PER_LONG;
 		int offset = i - (index * BITS_PER_LONG);
-		if((bitmap[index] & (mask << offset)) == 0) {
-			/* set region in bimap */
+		if ((bitmap[index] & (mask << offset)) == 0) {
+			/* set region in bitmap */
 			bitmap[index] |= (mask << offset);
 			return i;
 		}
@@ -719,7 +718,7 @@ int bitmap_find_free_region(unsigned long *bitmap, int bits, int order)
 EXPORT_SYMBOL(bitmap_find_free_region);
 
 /**
- *	bitmap_release_region - release allocated bitmap region
+ * bitmap_release_region - release allocated bitmap region
  *	@bitmap: a pointer to the bitmap
  *	@pos: the beginning of the region
  *	@order: the order of the bits to release (number is 1<<order)
@@ -729,27 +728,40 @@ EXPORT_SYMBOL(bitmap_find_free_region);
  */
 void bitmap_release_region(unsigned long *bitmap, int pos, int order)
 {
-	int pages = 1 << order;
-	unsigned long mask = (1ul << (pages - 1));
-	int index = pos/BITS_PER_LONG;
+	int nbits = 1 << order;
+	unsigned long mask = (1UL << (nbits - 1));
+	int index = pos / BITS_PER_LONG;
 	int offset = pos - (index * BITS_PER_LONG);
+
 	mask += mask - 1;
 	bitmap[index] &= ~(mask << offset);
 }
 EXPORT_SYMBOL(bitmap_release_region);
 
+/**
+ * bitmap_allocate_region - allocate bitmap region
+ *	@bitmap: a pointer to the bitmap
+ *	@pos: the beginning of the region
+ *	@order: the order of the bits to allocate (number is 1<<order)
+ *
+ * Allocate (set bits in) a specified region of a bitmap.
+ * Return 0 on success, or -EBUSY if specified region wasn't
+ * free (not all bits were zero).
+ */
 int bitmap_allocate_region(unsigned long *bitmap, int pos, int order)
 {
-	int pages = 1 << order;
-	unsigned long mask = (1ul << (pages - 1));
-	int index = pos/BITS_PER_LONG;
+	int nbits = 1 << order;
+	unsigned long mask = (1UL << (nbits - 1));
+	int index = pos / BITS_PER_LONG;
 	int offset = pos - (index * BITS_PER_LONG);
 
-	/* We don't do regions of pages > BITS_PER_LONG.  The
+	/*
+	 * We don't do regions of nbits > BITS_PER_LONG.  The
 	 * algorithm would be a simple look for multiple zeros in the
 	 * array, but there's no driver today that needs this.  If you
-	 * trip this BUG(), you get to code it... */
-	BUG_ON(pages > BITS_PER_LONG);
+	 * trip this BUG(), you get to code it...
+	 */
+	BUG_ON(nbits > BITS_PER_LONG);
 	mask += mask - 1;
 	if (bitmap[index] & (mask << offset))
 		return -EBUSY;
