@@ -756,6 +756,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 	struct device_node *memory = NULL;
 	nodemask_t nodes;
 	int default_nid = any_online_node(NODE_MASK_ALL);
+	int nid;
 
 	if (!numa_enabled || (min_common_depth < 0))
 		return default_nid;
@@ -790,6 +791,7 @@ ha_new_range:
 			goto ha_new_range;
 	}
 	BUG();	/* section address should be found above */
+	return 0;
 
 	/* Temporary code to ensure that returned node is not empty */
 got_nid:
