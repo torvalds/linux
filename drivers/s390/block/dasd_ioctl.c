@@ -29,7 +29,7 @@ static int
 dasd_ioctl_api_version(void __user *argp)
 {
 	int ver = DASD_API_VERSION;
-	return put_user(ver, (int *)argp);
+	return put_user(ver, (int __user *)argp);
 }
 
 /*
