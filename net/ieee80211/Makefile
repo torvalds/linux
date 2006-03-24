@@ -10,3 +10,4 @@ ieee80211-objs := \
 	ieee80211_wx.o \
 	ieee80211_geo.o
 
+obj-$(CONFIG_IEEE80211_SOFTMAC) += softmac/

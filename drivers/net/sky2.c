@@ -1175,7 +1175,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		/* just drop the packet if non-linear expansion fails */
 		if (skb_header_cloned(skb) &&
 		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
-			dev_kfree_skb_any(skb);
+			dev_kfree_skb(skb);
 			goto out_unlock;
 		}
 
@@ -1324,7 +1324,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 				       PCI_DMA_TODEVICE);
 		}
 
-		dev_kfree_skb_any(skb);
+		dev_kfree_skb(skb);
 	}
 
 	sky2->tx_cons = put;
@@ -2484,7 +2484,7 @@ static const struct sky2_stat {
 	{ "single_collisions", GM_TXF_SNG_COL },
 	{ "multi_collisions", GM_TXF_MUL_COL },
 
-	{ "rx_short",      GM_RXE_SHT },
+	{ "rx_short",      GM_RXF_SHT },
 	{ "rx_runt", 	   GM_RXE_FRAG },
 	{ "rx_64_byte_packets", GM_RXF_64B },
 	{ "rx_65_to_127_byte_packets", GM_RXF_127B },
@@ -2607,7 +2607,7 @@ static struct net_device_stats *sky2_get_stats(struct net_device *dev)
 	sky2->net_stats.rx_bytes = data[1];
 	sky2->net_stats.tx_packets = data[2] + data[4] + data[6];
 	sky2->net_stats.rx_packets = data[3] + data[5] + data[7];
-	sky2->net_stats.multicast = data[5] + data[7];
+	sky2->net_stats.multicast = data[3] + data[5];
 	sky2->net_stats.collisions = data[10];
 	sky2->net_stats.tx_aborted_errors = data[12];
 

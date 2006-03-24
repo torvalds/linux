@@ -368,7 +368,7 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 
 		switch (cis[pos]) {
 		case CISTPL_CONFIG:
-			if (cis[pos + 1] < 1)
+			if (cis[pos + 1] < 2)
 				goto cis_error;
 			rmsz = (cis[pos + 2] & 0x3c) >> 2;
 			rasz = cis[pos + 2] & 0x03;
@@ -390,7 +390,7 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 			break;
 
 		case CISTPL_MANFID:
-			if (cis[pos + 1] < 4)
+			if (cis[pos + 1] < 5)
 				goto cis_error;
 			manfid1 = cis[pos + 2] + (cis[pos + 3] << 8);
 			manfid2 = cis[pos + 4] + (cis[pos + 5] << 8);
@@ -452,7 +452,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	memset(hw_priv, 0, sizeof(*hw_priv));
 
 	if (pci_enable_device(pdev))
-		return -EIO;
+		goto err_out_free;
 
 	/* National Datacomm NCP130 based on TMD7160, not PLX9052. */
 	tmd7160 = (pdev->vendor == 0x15e8) && (pdev->device == 0x0131);
@@ -567,9 +567,6 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	return hostap_hw_ready(dev);
 
  fail:
-	prism2_free_local_data(dev);
-	kfree(hw_priv);
-
 	if (irq_registered && dev)
 		free_irq(dev->irq, dev);
 
@@ -577,6 +574,10 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 		iounmap(attr_mem);
 
 	pci_disable_device(pdev);
+	prism2_free_local_data(dev);
+
+ err_out_free:
+	kfree(hw_priv);
 
 	return -ENODEV;
 }

@@ -2418,7 +2418,6 @@ struct skge_port {
 	int		     port;
 
 	spinlock_t	     tx_lock;
-	u32		     tx_avail;
 	struct skge_ring     tx_ring;
 	struct skge_ring     rx_ring;
 

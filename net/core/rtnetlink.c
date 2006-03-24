@@ -51,6 +51,10 @@
 #include <net/sock.h>
 #include <net/pkt_sched.h>
 #include <net/netlink.h>
+#ifdef CONFIG_NET_WIRELESS_RTNETLINK
+#include <linux/wireless.h>
+#include <net/iw_handler.h>
+#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
 
 static DEFINE_MUTEX(rtnl_mutex);
 
@@ -467,6 +471,17 @@ static int do_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 			goto out;
 	}
 
+#ifdef CONFIG_NET_WIRELESS_RTNETLINK
+	if (ida[IFLA_WIRELESS - 1]) {
+
+		/* Call Wireless Extensions.
+		 * Various stuff checked in there... */
+		err = wireless_rtnetlink_set(dev, RTA_DATA(ida[IFLA_WIRELESS - 1]), ida[IFLA_WIRELESS - 1]->rta_len);
+		if (err)
+			goto out;
+	}
+#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
+
 	err = 0;
 
 out:
@@ -476,6 +491,83 @@ out:
 	dev_put(dev);
 	return err;
 }
+
+#ifdef CONFIG_NET_WIRELESS_RTNETLINK
+static int do_getlink(struct sk_buff *in_skb, struct nlmsghdr* in_nlh, void *arg)
+{
+	struct ifinfomsg  *ifm = NLMSG_DATA(in_nlh);
+	struct rtattr    **ida = arg;
+	struct net_device *dev;
+	struct ifinfomsg *r;
+	struct nlmsghdr  *nlh;
+	int err = -ENOBUFS;
+	struct sk_buff *skb;
+	unsigned char	 *b;
+	char *iw_buf = NULL;
+	int iw_buf_len = 0;
+
+	if (ifm->ifi_index >= 0)
+		dev = dev_get_by_index(ifm->ifi_index);
+	else
+		return -EINVAL;
+	if (!dev)
+		return -ENODEV;
+
+#ifdef CONFIG_NET_WIRELESS_RTNETLINK
+	if (ida[IFLA_WIRELESS - 1]) {
+
+		/* Call Wireless Extensions. We need to know the size before
+		 * we can alloc. Various stuff checked in there... */
+		err = wireless_rtnetlink_get(dev, RTA_DATA(ida[IFLA_WIRELESS - 1]), ida[IFLA_WIRELESS - 1]->rta_len, &iw_buf, &iw_buf_len);
+		if (err)
+			goto out;
+	}
+#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
+
+	/* Create a skb big enough to include all the data.
+	 * Some requests are way bigger than 4k... Jean II */
+	skb = alloc_skb((NLMSG_LENGTH(sizeof(*r))) + (RTA_SPACE(iw_buf_len)),
+			GFP_KERNEL);
+	if (!skb)
+		goto out;
+	b = skb->tail;
+
+	/* Put in the message the usual good stuff */
+	nlh = NLMSG_PUT(skb, NETLINK_CB(in_skb).pid, in_nlh->nlmsg_seq,
+			RTM_NEWLINK, sizeof(*r));
+	r = NLMSG_DATA(nlh);
+	r->ifi_family = AF_UNSPEC;
+	r->__ifi_pad = 0;
+	r->ifi_type = dev->type;
+	r->ifi_index = dev->ifindex;
+	r->ifi_flags = dev->flags;
+	r->ifi_change = 0;
+
+	/* Put the wireless payload if it exist */
+	if(iw_buf != NULL)
+		RTA_PUT(skb, IFLA_WIRELESS, iw_buf_len,
+			iw_buf + IW_EV_POINT_OFF);
+
+	nlh->nlmsg_len = skb->tail - b;
+
+	/* Needed ? */
+	NETLINK_CB(skb).dst_pid = NETLINK_CB(in_skb).pid;
+
+	err = netlink_unicast(rtnl, skb, NETLINK_CB(in_skb).pid, MSG_DONTWAIT);
+	if (err > 0)
+		err = 0;
+out:
+	if(iw_buf != NULL)
+		kfree(iw_buf);
+	dev_put(dev);
+	return err;
+
+rtattr_failure:
+nlmsg_failure:
+	kfree_skb(skb);
+	goto out;
+}
+#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
 
 static int rtnetlink_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -642,7 +734,11 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 
 static struct rtnetlink_link link_rtnetlink_table[RTM_NR_MSGTYPES] =
 {
-	[RTM_GETLINK     - RTM_BASE] = { .dumpit = rtnetlink_dump_ifinfo },
+	[RTM_GETLINK     - RTM_BASE] = {
+#ifdef CONFIG_NET_WIRELESS_RTNETLINK
+					 .doit   = do_getlink,
+#endif	/* CONFIG_NET_WIRELESS_RTNETLINK */
+					 .dumpit = rtnetlink_dump_ifinfo },
 	[RTM_SETLINK     - RTM_BASE] = { .doit   = do_setlink		 },
 	[RTM_GETADDR     - RTM_BASE] = { .dumpit = rtnetlink_dump_all	 },
 	[RTM_GETROUTE    - RTM_BASE] = { .dumpit = rtnetlink_dump_all	 },

@@ -3141,7 +3141,7 @@ int hostap_add_sta(struct ap_data *ap, u8 *sta_addr)
 	if (ret == 1) {
 		sta = ap_add_sta(ap, sta_addr);
 		if (!sta)
-			ret = -1;
+			return -1;
 		sta->flags = WLAN_STA_AUTH | WLAN_STA_ASSOC;
 		sta->ap = 1;
 		memset(sta->supported_rates, 0, sizeof(sta->supported_rates));
