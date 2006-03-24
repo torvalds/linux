@@ -3,6 +3,7 @@ Mounting the root filesystem via NFS (nfsroot)
 
 Written 1996 by Gero Kuhlmann <gero@gkminix.han.de>
 Updated 1997 by Martin Mares <mj@atrey.karlin.mff.cuni.cz>
+Updated 2006 by Nico Schottelius <nico-kernel-nfsroot@schottelius.org>
 
 
 
@@ -168,7 +169,6 @@ depend on what facilities are available:
 	root. If it got a BOOTP answer the directory name in that answer
 	is used.
 
-
 3.2) Using LILO
 	When using LILO you can specify all necessary command line
 	parameters with the 'append=' command in the LILO configuration
@@ -177,7 +177,11 @@ depend on what facilities are available:
 	LILO and its 'append=' command please refer to the LILO
 	documentation.
 
-3.3) Using loadlin
+3.3) Using GRUB
+	When you use GRUB, you simply append the parameters after the kernel
+	specification: "kernel <kernel> <parameters>" (without the quotes).
+
+3.4) Using loadlin
 	When you want to boot Linux from a DOS command prompt without
 	having a local hard disk to mount as root, you can use loadlin.
 	I was told that it works, but haven't used it myself yet. In
@@ -185,7 +189,7 @@ depend on what facilities are available:
 	lar to how LILO is doing it. Please refer to the loadlin docu-
 	mentation for further information.
 
-3.4) Using a boot ROM
+3.5) Using a boot ROM
 	This is probably the most elegant way of booting a diskless
 	client. With a boot ROM the kernel gets loaded using the TFTP
 	protocol. As far as I know, no commercial boot ROMs yet
@@ -193,6 +197,13 @@ depend on what facilities are available:
 	free implementations of a boot ROM available on sunsite.unc.edu
 	and its mirrors. They are called 'netboot-nfs' and 'etherboot'.
 	Both contain everything you need to boot a diskless Linux client.
+
+3.6) Using pxelinux
+	Using pxelinux you specify the kernel you built with
+	"kernel <relative-path-below /tftpboot>". The nfsroot parameters
+	are passed to the kernel by adding them to the "append" line.
+	You may perhaps also want to fine tune the console output,
+	see Documentation/serial-console.txt for serial console help.
 
 
 
