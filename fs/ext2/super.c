@@ -258,7 +258,6 @@ static struct super_operations ext2_sops = {
  * systems, but can be improved upon.
  * Currently only get_parent is required.
  */
-struct dentry *ext2_get_parent(struct dentry *child);
 static struct export_operations ext2_export_ops = {
 	.get_parent = ext2_get_parent,
 };
