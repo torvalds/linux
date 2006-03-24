@@ -66,7 +66,7 @@ static int on26_read_regr( PIA *pi, int cont, int regr )
 	case 3:
         case 4: w3(1); w3(1); w2(5); w4(r); w2(4);
 		w3(0); w3(0); w2(0x24); a = r4(); w2(4);
-		w2(0x24); r4(); w2(4);
+		w2(0x24); (void)r4(); w2(4);
                 return a;
 
         }
