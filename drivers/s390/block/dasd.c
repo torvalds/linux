@@ -1807,7 +1807,6 @@ dasd_exit(void)
 #ifdef CONFIG_PROC_FS
 	dasd_proc_exit();
 #endif
-	dasd_ioctl_exit();
         if (dasd_page_cache != NULL) {
 		kmem_cache_destroy(dasd_page_cache);
 		dasd_page_cache = NULL;
@@ -2091,9 +2090,6 @@ dasd_init(void)
 	if (rc)
 		goto failed;
 	rc = dasd_parse();
-	if (rc)
-		goto failed;
-	rc = dasd_ioctl_init();
 	if (rc)
 		goto failed;
 #ifdef CONFIG_PROC_FS
