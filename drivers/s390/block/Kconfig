@@ -55,4 +55,12 @@ config DASD_DIAG
 	  Disks under VM.  If you are not running under VM or unsure what it is,
 	  say "N".
 
+config DASD_EER
+	bool "Extended error reporting (EER)"
+	depends on DASD
+	help
+	  This driver provides a character device interface to the
+	  DASD extended error reporting. This is only needed if you want to
+	  use applications written for the EER facility.
+
 endif
