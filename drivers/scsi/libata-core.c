@@ -64,7 +64,8 @@
 static unsigned int ata_dev_init_params(struct ata_port *ap,
 					struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
-static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev);
+static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
+					 struct ata_device *dev);
 static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev);
 
 static unsigned int ata_unique_id = 1;
@@ -1742,20 +1743,28 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	return 0;
 }
 
-static void ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
+static int ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 {
-	if (!ata_dev_present(dev) || (ap->flags & ATA_FLAG_PORT_DISABLED))
-		return;
+	unsigned int err_mask;
+	int rc;
 
 	if (dev->xfer_shift == ATA_SHIFT_PIO)
 		dev->flags |= ATA_DFLAG_PIO;
 
-	ata_dev_set_xfermode(ap, dev);
+	err_mask = ata_dev_set_xfermode(ap, dev);
+	if (err_mask) {
+		printk(KERN_ERR
+		       "ata%u: failed to set xfermode (err_mask=0x%x)\n",
+		       ap->id, err_mask);
+		return -EIO;
+	}
 
-	if (ata_dev_revalidate(ap, dev, 0)) {
-		printk(KERN_ERR "ata%u: failed to revalidate after set "
-		       "xfermode, disabled\n", ap->id);
-		ata_port_disable(ap);
+	rc = ata_dev_revalidate(ap, dev, 0);
+	if (rc) {
+		printk(KERN_ERR
+		       "ata%u: failed to revalidate after set xfermode\n",
+		       ap->id);
+		return rc;
 	}
 
 	DPRINTK("xfer_shift=%u, xfer_mode=0x%x\n",
@@ -1764,6 +1773,7 @@ static void ata_dev_set_mode(struct ata_port *ap, struct ata_device *dev)
 	printk(KERN_INFO "ata%u: dev %u configured for %s\n",
 	       ap->id, dev->devno,
 	       ata_mode_string(ata_xfer_mode2mask(dev->xfer_mode)));
+	return 0;
 }
 
 static int ata_host_set_pio(struct ata_port *ap)
@@ -1847,11 +1857,15 @@ static void ata_set_mode(struct ata_port *ap)
 	ata_host_set_dma(ap);
 
 	/* step 4: update devices' xfer mode */
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		ata_dev_set_mode(ap, &ap->device[i]);
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		struct ata_device *dev = &ap->device[i];
 
-	if (ap->flags & ATA_FLAG_PORT_DISABLED)
-		return;
+		if (!ata_dev_present(dev))
+			continue;
+
+		if (ata_dev_set_mode(ap, dev))
+			goto err_out;
+	}
 
 	if (ap->ops->post_set_mode)
 		ap->ops->post_set_mode(ap);
@@ -2724,11 +2738,16 @@ static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
  *
  *	LOCKING:
  *	PCI/etc. bus probe sem.
+ *
+ *	RETURNS:
+ *	0 on success, AC_ERR_* mask otherwise.
  */
 
-static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
+static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
+					 struct ata_device *dev)
 {
 	struct ata_taskfile tf;
+	unsigned int err_mask;
 
 	/* set up set-features taskfile */
 	DPRINTK("set features - xfer mode\n");
@@ -2740,13 +2759,10 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 	tf.protocol = ATA_PROT_NODATA;
 	tf.nsect = dev->xfer_mode;
 
-	if (ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0)) {
-		printk(KERN_ERR "ata%u: failed to set xfermode, disabled\n",
-		       ap->id);
-		ata_port_disable(ap);
-	}
+	err_mask = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
 
-	DPRINTK("EXIT\n");
+	DPRINTK("EXIT, err_mask=%x\n", err_mask);
+	return err_mask;
 }
 
 /**
