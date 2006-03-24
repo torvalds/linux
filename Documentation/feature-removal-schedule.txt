@@ -116,6 +116,17 @@ Who:	Harald Welte <laforge@netfilter.org>
 
 ---------------------------
 
+What:	remove EXPORT_SYMBOL(kernel_thread)
+When:	August 2006
+Files:	arch/*/kernel/*_ksyms.c
+Why:	kernel_thread is a low-level implementation detail.  Drivers should
+        use the <linux/kthread.h> API instead which shields them from
+	implementation details and provides a higherlevel interface that
+	prevents bugs and code duplication
+Who:	Christoph Hellwig <hch@lst.de>
+
+---------------------------
+
 What:	EXPORT_SYMBOL(lookup_hash)
 When:	January 2006
 Why:	Too low-level interface.  Use lookup_one_len or lookup_create instead.
