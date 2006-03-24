@@ -503,8 +503,10 @@ err:
 static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 			struct srp_request *req)
 {
+	struct scatterlist *scat;
 	struct srp_cmd *cmd = req->cmd->buf;
-	int len;
+	int len, nents, count;
+	int i;
 	u8 fmt;
 
 	if (!scmnd->request_buffer || scmnd->sc_data_direction == DMA_NONE)
@@ -517,89 +519,72 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 		return -EINVAL;
 	}
 
-	if (scmnd->use_sg) {
-		struct scatterlist *scat = scmnd->request_buffer;
-		int n;
-		int i;
-
-		n = dma_map_sg(target->srp_host->dev->dma_device,
-			       scat, scmnd->use_sg, scmnd->sc_data_direction);
-
-		if (n == 1) {
-			struct srp_direct_buf *buf = (void *) cmd->add_data;
-
-			fmt = SRP_DATA_DESC_DIRECT;
-
-			buf->va  = cpu_to_be64(sg_dma_address(scat));
-			buf->key = cpu_to_be32(target->srp_host->mr->rkey);
-			buf->len = cpu_to_be32(sg_dma_len(scat));
-
-			len = sizeof (struct srp_cmd) +
-				sizeof (struct srp_direct_buf);
-		} else {
-			struct srp_indirect_buf *buf = (void *) cmd->add_data;
-			u32 datalen = 0;
-
-			fmt = SRP_DATA_DESC_INDIRECT;
-
-			if (scmnd->sc_data_direction == DMA_TO_DEVICE)
-				cmd->data_out_desc_cnt = n;
-			else
-				cmd->data_in_desc_cnt = n;
-
-			buf->table_desc.va  = cpu_to_be64(req->cmd->dma +
-							  sizeof *cmd +
-							  sizeof *buf);
-			buf->table_desc.key =
-				cpu_to_be32(target->srp_host->mr->rkey);
-			buf->table_desc.len =
-				cpu_to_be32(n * sizeof (struct srp_direct_buf));
-
-			for (i = 0; i < n; ++i) {
-				buf->desc_list[i].va  = cpu_to_be64(sg_dma_address(&scat[i]));
-				buf->desc_list[i].key =
-					cpu_to_be32(target->srp_host->mr->rkey);
-				buf->desc_list[i].len = cpu_to_be32(sg_dma_len(&scat[i]));
-
-				datalen += sg_dma_len(&scat[i]);
-			}
-
-			buf->len = cpu_to_be32(datalen);
-
-			len = sizeof (struct srp_cmd) +
-				sizeof (struct srp_indirect_buf) +
-				n * sizeof (struct srp_direct_buf);
-		}
+	/*
+	 * This handling of non-SG commands can be killed when the
+	 * SCSI midlayer no longer generates non-SG commands.
+	 */
+	if (likely(scmnd->use_sg)) {
+		nents = scmnd->use_sg;
+		scat  = scmnd->request_buffer;
 	} else {
+		nents = 1;
+		scat  = &req->fake_sg;
+		sg_init_one(scat, scmnd->request_buffer, scmnd->request_bufflen);
+	}
+
+	count = dma_map_sg(target->srp_host->dev->dma_device, scat, nents,
+			   scmnd->sc_data_direction);
+
+	if (count == 1) {
 		struct srp_direct_buf *buf = (void *) cmd->add_data;
-		dma_addr_t dma;
-
-		dma = dma_map_single(target->srp_host->dev->dma_device,
-				     scmnd->request_buffer, scmnd->request_bufflen,
-				     scmnd->sc_data_direction);
-		if (dma_mapping_error(dma)) {
-			printk(KERN_WARNING PFX "unable to map %p/%d (dir %d)\n",
-			       scmnd->request_buffer, (int) scmnd->request_bufflen,
-			       scmnd->sc_data_direction);
-			return -EINVAL;
-		}
-
-		pci_unmap_addr_set(req, direct_mapping, dma);
-
-		buf->va  = cpu_to_be64(dma);
-		buf->key = cpu_to_be32(target->srp_host->mr->rkey);
-		buf->len = cpu_to_be32(scmnd->request_bufflen);
 
 		fmt = SRP_DATA_DESC_DIRECT;
 
-		len = sizeof (struct srp_cmd) + sizeof (struct srp_direct_buf);
+		buf->va  = cpu_to_be64(sg_dma_address(scat));
+		buf->key = cpu_to_be32(target->srp_host->mr->rkey);
+		buf->len = cpu_to_be32(sg_dma_len(scat));
+
+		len = sizeof (struct srp_cmd) +
+			sizeof (struct srp_direct_buf);
+	} else {
+		struct srp_indirect_buf *buf = (void *) cmd->add_data;
+		u32 datalen = 0;
+
+		fmt = SRP_DATA_DESC_INDIRECT;
+
+		if (scmnd->sc_data_direction == DMA_TO_DEVICE)
+			cmd->data_out_desc_cnt = count;
+		else
+			cmd->data_in_desc_cnt = count;
+
+		buf->table_desc.va  = cpu_to_be64(req->cmd->dma +
+						  sizeof *cmd +
+						  sizeof *buf);
+		buf->table_desc.key =
+			cpu_to_be32(target->srp_host->mr->rkey);
+		buf->table_desc.len =
+			cpu_to_be32(count * sizeof (struct srp_direct_buf));
+
+		for (i = 0; i < count; ++i) {
+			buf->desc_list[i].va  = cpu_to_be64(sg_dma_address(&scat[i]));
+			buf->desc_list[i].key =
+				cpu_to_be32(target->srp_host->mr->rkey);
+			buf->desc_list[i].len = cpu_to_be32(sg_dma_len(&scat[i]));
+
+			datalen += sg_dma_len(&scat[i]);
+		}
+
+		buf->len = cpu_to_be32(datalen);
+
+		len = sizeof (struct srp_cmd) +
+			sizeof (struct srp_indirect_buf) +
+			count * sizeof (struct srp_direct_buf);
 	}
 
 	if (scmnd->sc_data_direction == DMA_TO_DEVICE)
 		cmd->buf_fmt = fmt << 4;
 	else
 		cmd->buf_fmt = fmt;
-
 
 	return len;
 }
@@ -608,20 +593,28 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
 			   struct srp_target_port *target,
 			   struct srp_request *req)
 {
+	struct scatterlist *scat;
+	int nents;
+
 	if (!scmnd->request_buffer ||
 	    (scmnd->sc_data_direction != DMA_TO_DEVICE &&
 	     scmnd->sc_data_direction != DMA_FROM_DEVICE))
-	    return;
+		return;
 
-	if (scmnd->use_sg)
-		dma_unmap_sg(target->srp_host->dev->dma_device,
-			     (struct scatterlist *) scmnd->request_buffer,
-			     scmnd->use_sg, scmnd->sc_data_direction);
-	else
-		dma_unmap_single(target->srp_host->dev->dma_device,
-				 pci_unmap_addr(req, direct_mapping),
-				 scmnd->request_bufflen,
-				 scmnd->sc_data_direction);
+	/*
+	 * This handling of non-SG commands can be killed when the
+	 * SCSI midlayer no longer generates non-SG commands.
+	 */
+	if (likely(scmnd->use_sg)) {
+		nents = scmnd->use_sg;
+		scat  = (struct scatterlist *) scmnd->request_buffer;
+	} else {
+		nents = 1;
+		scat  = (struct scatterlist *) scmnd->request_buffer;
+	}
+
+	dma_unmap_sg(target->srp_host->dev->dma_device, scat, nents,
+		     scmnd->sc_data_direction);
 }
 
 static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
