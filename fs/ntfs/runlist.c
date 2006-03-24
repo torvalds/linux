@@ -381,6 +381,7 @@ static inline runlist_element *ntfs_rl_insert(runlist_element *dst,
 static inline runlist_element *ntfs_rl_replace(runlist_element *dst,
 		int dsize, runlist_element *src, int ssize, int loc)
 {
+	signed delta;
 	BOOL left = FALSE;	/* Left end of @src needs merging. */
 	BOOL right = FALSE;	/* Right end of @src needs merging. */
 	int tail;		/* Start of tail of @dst. */
@@ -396,11 +397,14 @@ static inline runlist_element *ntfs_rl_replace(runlist_element *dst,
 		left = ntfs_are_rl_mergeable(dst + loc - 1, src);
 	/*
 	 * Allocate some space.  We will need less if the left, right, or both
-	 * ends get merged.
+	 * ends get merged.  The -1 accounts for the run being replaced.
 	 */
-	dst = ntfs_rl_realloc(dst, dsize, dsize + ssize - left - right);
-	if (IS_ERR(dst))
-		return dst;
+	delta = ssize - 1 - left - right;
+	if (delta > 0) {
+		dst = ntfs_rl_realloc(dst, dsize, dsize + delta);
+		if (IS_ERR(dst))
+			return dst;
+	}
 	/*
 	 * We are guaranteed to succeed from here so can start modifying the
 	 * original runlists.

@@ -93,6 +93,7 @@ static inline MFT_RECORD *map_mft_record_page(ntfs_inode *ni)
 				"Run chkdsk.", ni->mft_no);
 		ntfs_unmap_page(page);
 		page = ERR_PTR(-EIO);
+		NVolSetErrors(vol);
 	}
 err_out:
 	ni->page = NULL;
@@ -104,8 +105,8 @@ err_out:
  * map_mft_record - map, pin and lock an mft record
  * @ni:		ntfs inode whose MFT record to map
  *
- * First, take the mrec_lock semaphore. We might now be sleeping, while waiting
- * for the semaphore if it was already locked by someone else.
+ * First, take the mrec_lock mutex.  We might now be sleeping, while waiting
+ * for the mutex if it was already locked by someone else.
  *
  * The page of the record is mapped using map_mft_record_page() before being
  * returned to the caller.
@@ -135,9 +136,9 @@ err_out:
  * So that code will end up having to own the mrec_lock of all mft
  * records/inodes present in the page before I/O can proceed. In that case we
  * wouldn't need to bother with PG_locked and PG_uptodate as nobody will be
- * accessing anything without owning the mrec_lock semaphore. But we do need
- * to use them because of the read_cache_page() invocation and the code becomes
- * so much simpler this way that it is well worth it.
+ * accessing anything without owning the mrec_lock mutex.  But we do need to
+ * use them because of the read_cache_page() invocation and the code becomes so
+ * much simpler this way that it is well worth it.
  *
  * The mft record is now ours and we return a pointer to it. You need to check
  * the returned pointer with IS_ERR() and if that is true, PTR_ERR() will return
@@ -160,13 +161,13 @@ MFT_RECORD *map_mft_record(ntfs_inode *ni)
 	atomic_inc(&ni->count);
 
 	/* Serialize access to this mft record. */
-	down(&ni->mrec_lock);
+	mutex_lock(&ni->mrec_lock);
 
 	m = map_mft_record_page(ni);
 	if (likely(!IS_ERR(m)))
 		return m;
 
-	up(&ni->mrec_lock);
+	mutex_unlock(&ni->mrec_lock);
 	atomic_dec(&ni->count);
 	ntfs_error(ni->vol->sb, "Failed with error code %lu.", -PTR_ERR(m));
 	return m;
@@ -217,7 +218,7 @@ void unmap_mft_record(ntfs_inode *ni)
 	ntfs_debug("Entering for mft_no 0x%lx.", ni->mft_no);
 
 	unmap_mft_record_page(ni);
-	up(&ni->mrec_lock);
+	mutex_unlock(&ni->mrec_lock);
 	atomic_dec(&ni->count);
 	/*
 	 * If pure ntfs_inode, i.e. no vfs inode attached, we leave it to
@@ -261,7 +262,7 @@ MFT_RECORD *map_extent_mft_record(ntfs_inode *base_ni, MFT_REF mref,
 	 * in which case just return it. If not found, add it to the base
 	 * inode before returning it.
 	 */
-	down(&base_ni->extent_lock);
+	mutex_lock(&base_ni->extent_lock);
 	if (base_ni->nr_extents > 0) {
 		extent_nis = base_ni->ext.extent_ntfs_inos;
 		for (i = 0; i < base_ni->nr_extents; i++) {
@@ -274,7 +275,7 @@ MFT_RECORD *map_extent_mft_record(ntfs_inode *base_ni, MFT_REF mref,
 		}
 	}
 	if (likely(ni != NULL)) {
-		up(&base_ni->extent_lock);
+		mutex_unlock(&base_ni->extent_lock);
 		atomic_dec(&base_ni->count);
 		/* We found the record; just have to map and return it. */
 		m = map_mft_record(ni);
@@ -301,7 +302,7 @@ map_err_out:
 	/* Record wasn't there. Get a new ntfs inode and initialize it. */
 	ni = ntfs_new_extent_inode(base_ni->vol->sb, mft_no);
 	if (unlikely(!ni)) {
-		up(&base_ni->extent_lock);
+		mutex_unlock(&base_ni->extent_lock);
 		atomic_dec(&base_ni->count);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -312,7 +313,7 @@ map_err_out:
 	/* Now map the record. */
 	m = map_mft_record(ni);
 	if (IS_ERR(m)) {
-		up(&base_ni->extent_lock);
+		mutex_unlock(&base_ni->extent_lock);
 		atomic_dec(&base_ni->count);
 		ntfs_clear_extent_inode(ni);
 		goto map_err_out;
@@ -347,14 +348,14 @@ map_err_out:
 		base_ni->ext.extent_ntfs_inos = tmp;
 	}
 	base_ni->ext.extent_ntfs_inos[base_ni->nr_extents++] = ni;
-	up(&base_ni->extent_lock);
+	mutex_unlock(&base_ni->extent_lock);
 	atomic_dec(&base_ni->count);
 	ntfs_debug("Done 2.");
 	*ntfs_ino = ni;
 	return m;
 unm_err_out:
 	unmap_mft_record(ni);
-	up(&base_ni->extent_lock);
+	mutex_unlock(&base_ni->extent_lock);
 	atomic_dec(&base_ni->count);
 	/*
 	 * If the extent inode was not attached to the base inode we need to
@@ -399,12 +400,12 @@ void __mark_mft_record_dirty(ntfs_inode *ni)
 	BUG_ON(NInoAttr(ni));
 	mark_ntfs_record_dirty(ni->page, ni->page_ofs);
 	/* Determine the base vfs inode and mark it dirty, too. */
-	down(&ni->extent_lock);
+	mutex_lock(&ni->extent_lock);
 	if (likely(ni->nr_extents >= 0))
 		base_ni = ni;
 	else
 		base_ni = ni->ext.base_ntfs_ino;
-	up(&ni->extent_lock);
+	mutex_unlock(&ni->extent_lock);
 	__mark_inode_dirty(VFS_I(base_ni), I_DIRTY_SYNC | I_DIRTY_DATASYNC);
 }
 
@@ -650,10 +651,7 @@ err_out:
  * fs/ntfs/aops.c::mark_ntfs_record_dirty().
  *
  * On success, clean the mft record and return 0.  On error, leave the mft
- * record dirty and return -errno.  The caller should call make_bad_inode() on
- * the base inode to ensure no more access happens to this inode.  We do not do
- * it here as the caller may want to finish writing other extent mft records
- * first to minimize on-disk metadata inconsistencies.
+ * record dirty and return -errno.
  *
  * NOTE:  We always perform synchronous i/o and ignore the @sync parameter.
  * However, if the mft record has a counterpart in the mft mirror and @sync is
@@ -983,7 +981,7 @@ BOOL ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 		}
 		ntfs_debug("Inode 0x%lx is not dirty.", mft_no);
 		/* The inode is not dirty, try to take the mft record lock. */
-		if (unlikely(down_trylock(&ni->mrec_lock))) {
+		if (unlikely(!mutex_trylock(&ni->mrec_lock))) {
 			ntfs_debug("Mft record 0x%lx is already locked, do "
 					"not write it.", mft_no);
 			atomic_dec(&ni->count);
@@ -1043,13 +1041,13 @@ BOOL ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 	 * corresponding to this extent mft record attached.
 	 */
 	ni = NTFS_I(vi);
-	down(&ni->extent_lock);
+	mutex_lock(&ni->extent_lock);
 	if (ni->nr_extents <= 0) {
 		/*
 		 * The base inode has no attached extent inodes, write this
 		 * extent mft record.
 		 */
-		up(&ni->extent_lock);
+		mutex_unlock(&ni->extent_lock);
 		iput(vi);
 		ntfs_debug("Base inode 0x%lx has no attached extent inodes, "
 				"write the extent record.", na.mft_no);
@@ -1072,7 +1070,7 @@ BOOL ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 	 * extent mft record.
 	 */
 	if (!eni) {
-		up(&ni->extent_lock);
+		mutex_unlock(&ni->extent_lock);
 		iput(vi);
 		ntfs_debug("Extent inode 0x%lx is not attached to its base "
 				"inode 0x%lx, write the extent record.",
@@ -1083,12 +1081,12 @@ BOOL ntfs_may_write_mft_record(ntfs_volume *vol, const unsigned long mft_no,
 			mft_no, na.mft_no);
 	/* Take a reference to the extent ntfs inode. */
 	atomic_inc(&eni->count);
-	up(&ni->extent_lock);
+	mutex_unlock(&ni->extent_lock);
 	/*
 	 * Found the extent inode coresponding to this extent mft record.
 	 * Try to take the mft record lock.
 	 */
-	if (unlikely(down_trylock(&eni->mrec_lock))) {
+	if (unlikely(!mutex_trylock(&eni->mrec_lock))) {
 		atomic_dec(&eni->count);
 		iput(vi);
 		ntfs_debug("Extent mft record 0x%lx is already locked, do "
@@ -2711,7 +2709,7 @@ mft_rec_already_initialized:
 		 * have its page mapped and it is very easy to do.
 		 */
 		atomic_inc(&ni->count);
-		down(&ni->mrec_lock);
+		mutex_lock(&ni->mrec_lock);
 		ni->page = page;
 		ni->page_ofs = ofs;
 		/*
@@ -2798,22 +2796,22 @@ int ntfs_extent_mft_record_free(ntfs_inode *ni, MFT_RECORD *m)
 	BUG_ON(NInoAttr(ni));
 	BUG_ON(ni->nr_extents != -1);
 
-	down(&ni->extent_lock);
+	mutex_lock(&ni->extent_lock);
 	base_ni = ni->ext.base_ntfs_ino;
-	up(&ni->extent_lock);
+	mutex_unlock(&ni->extent_lock);
 
 	BUG_ON(base_ni->nr_extents <= 0);
 
 	ntfs_debug("Entering for extent inode 0x%lx, base inode 0x%lx.\n",
 			mft_no, base_ni->mft_no);
 
-	down(&base_ni->extent_lock);
+	mutex_lock(&base_ni->extent_lock);
 
 	/* Make sure we are holding the only reference to the extent inode. */
 	if (atomic_read(&ni->count) > 2) {
 		ntfs_error(vol->sb, "Tried to free busy extent inode 0x%lx, "
 				"not freeing.", base_ni->mft_no);
-		up(&base_ni->extent_lock);
+		mutex_unlock(&base_ni->extent_lock);
 		return -EBUSY;
 	}
 
@@ -2831,7 +2829,7 @@ int ntfs_extent_mft_record_free(ntfs_inode *ni, MFT_RECORD *m)
 		break;
 	}
 
-	up(&base_ni->extent_lock);
+	mutex_unlock(&base_ni->extent_lock);
 
 	if (unlikely(err)) {
 		ntfs_error(vol->sb, "Extent inode 0x%lx is not attached to "
@@ -2890,7 +2888,7 @@ rollback_error:
 	return 0;
 rollback:
 	/* Rollback what we did... */
-	down(&base_ni->extent_lock);
+	mutex_lock(&base_ni->extent_lock);
 	extent_nis = base_ni->ext.extent_ntfs_inos;
 	if (!(base_ni->nr_extents & 3)) {
 		int new_size = (base_ni->nr_extents + 4) * sizeof(ntfs_inode*);
@@ -2899,7 +2897,7 @@ rollback:
 		if (unlikely(!extent_nis)) {
 			ntfs_error(vol->sb, "Failed to allocate internal "
 					"buffer during rollback.%s", es);
-			up(&base_ni->extent_lock);
+			mutex_unlock(&base_ni->extent_lock);
 			NVolSetErrors(vol);
 			goto rollback_error;
 		}
@@ -2914,7 +2912,7 @@ rollback:
 	m->flags |= MFT_RECORD_IN_USE;
 	m->sequence_number = old_seq_no;
 	extent_nis[base_ni->nr_extents++] = ni;
-	up(&base_ni->extent_lock);
+	mutex_unlock(&base_ni->extent_lock);
 	mark_mft_record_dirty(ni);
 	return err;
 }
