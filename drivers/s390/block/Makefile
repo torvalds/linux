@@ -12,6 +12,5 @@ obj-$(CONFIG_DASD) += dasd_mod.o
 obj-$(CONFIG_DASD_DIAG) += dasd_diag_mod.o
 obj-$(CONFIG_DASD_ECKD) += dasd_eckd_mod.o
 obj-$(CONFIG_DASD_FBA)  += dasd_fba_mod.o
-obj-$(CONFIG_DASD_CMB)  += dasd_cmb.o
 obj-$(CONFIG_BLK_DEV_XPRAM) += xpram.o
 obj-$(CONFIG_DCSSBLK) += dcssblk.o

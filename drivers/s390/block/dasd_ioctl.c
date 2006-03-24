@@ -16,6 +16,7 @@
 #include <linux/blkpg.h>
 
 #include <asm/ccwdev.h>
+#include <asm/cmb.h>
 #include <asm/uaccess.h>
 
 /* This is ugly... */
@@ -406,6 +407,21 @@ dasd_ioctl_set_ro(struct block_device *bdev, void __user *argp)
 	return dasd_set_feature(device->cdev, DASD_FEATURE_READONLY, intval);
 }
 
+static int
+dasd_ioctl_readall_cmb(struct dasd_device *device, unsigned int cmd,
+		unsigned long arg)
+{
+	struct cmbdata __user *argp = (void __user *) arg;
+	size_t size = _IOC_SIZE(cmd);
+	struct cmbdata data;
+	int ret;
+
+	ret = cmf_readall(device->cdev, &data);
+	if (!ret && copy_to_user(argp, &data, min(size, sizeof(*argp))))
+		return -EFAULT;
+	return ret;
+}
+
 int
 dasd_ioctl(struct inode *inode, struct file *file,
 	   unsigned int cmd, unsigned long arg)
@@ -447,6 +463,12 @@ dasd_ioctl(struct inode *inode, struct file *file,
 		return dasd_ioctl_set_ro(bdev, argp);
 	case DASDAPIVER:
 		return dasd_ioctl_api_version(argp);
+	case BIODASDCMFENABLE:
+		return enable_cmf(device->cdev);
+	case BIODASDCMFDISABLE:
+		return disable_cmf(device->cdev);
+	case BIODASDREADALLCMB:
+		return dasd_ioctl_readall_cmb(device, cmd, arg);
 	default:
 		/* if the discipline has an ioctl method try it. */
 		if (device->discipline->ioctl) {
