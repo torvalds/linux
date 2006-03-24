@@ -132,35 +132,14 @@ static int msync_interval(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long end, int flags,
 			unsigned long *nr_pages_dirtied)
 {
-	int ret = 0;
 	struct file *file = vma->vm_file;
 
 	if ((flags & MS_INVALIDATE) && (vma->vm_flags & VM_LOCKED))
 		return -EBUSY;
 
-	if (file && (vma->vm_flags & VM_SHARED)) {
+	if (file && (vma->vm_flags & VM_SHARED))
 		*nr_pages_dirtied = msync_page_range(vma, addr, end);
-
-		if (flags & MS_SYNC) {
-			struct address_space *mapping = file->f_mapping;
-			int err;
-
-			ret = filemap_fdatawrite(mapping);
-			if (file->f_op && file->f_op->fsync) {
-				/*
-				 * We don't take i_mutex here because mmap_sem
-				 * is already held.
-				 */
-				err = file->f_op->fsync(file,file->f_dentry,1);
-				if (err && !ret)
-					ret = err;
-			}
-			err = filemap_fdatawait(mapping);
-			if (!ret)
-				ret = err;
-		}
-	}
-	return ret;
+	return 0;
 }
 
 asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
@@ -232,6 +211,30 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
 							nr_pages_dirtied);
 			fput(file);
 			down_read(&current->mm->mmap_sem);
+			vma = find_vma(current->mm, start);
+		} else if ((flags & MS_SYNC) && file &&
+				(vma->vm_flags & VM_SHARED)) {
+			struct address_space *mapping;
+			int err;
+
+			get_file(file);
+			up_read(&current->mm->mmap_sem);
+			mapping = file->f_mapping;
+			error = filemap_fdatawrite(mapping);
+			if (file->f_op && file->f_op->fsync) {
+				mutex_lock(&mapping->host->i_mutex);
+				err = file->f_op->fsync(file,file->f_dentry,1);
+				mutex_unlock(&mapping->host->i_mutex);
+				if (err && !error)
+					error = err;
+			}
+			err = filemap_fdatawait(mapping);
+			if (err && !error)
+				error = err;
+			fput(file);
+			down_read(&current->mm->mmap_sem);
+			if (error)
+				goto out_unlock;
 			vma = find_vma(current->mm, start);
 		} else {
 			vma = vma->vm_next;
