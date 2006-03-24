@@ -31,6 +31,8 @@
 #include <linux/coda_fs_i.h>
 #include <linux/coda_cache.h>
 
+#include "coda_int.h"
+
 /* VFS super_block ops */
 static void coda_clear_inode(struct inode *);
 static void coda_put_super(struct super_block *);
