@@ -94,6 +94,7 @@
 #include	<linux/interrupt.h>
 #include	<linux/init.h>
 #include	<linux/compiler.h>
+#include	<linux/cpuset.h>
 #include	<linux/seq_file.h>
 #include	<linux/notifier.h>
 #include	<linux/kallsyms.h>
@@ -173,12 +174,12 @@
 			 SLAB_CACHE_DMA | \
 			 SLAB_MUST_HWCACHE_ALIGN | SLAB_STORE_USER | \
 			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | \
-			 SLAB_DESTROY_BY_RCU)
+			 SLAB_DESTROY_BY_RCU | SLAB_MEM_SPREAD)
 #else
 # define CREATE_MASK	(SLAB_HWCACHE_ALIGN | \
 			 SLAB_CACHE_DMA | SLAB_MUST_HWCACHE_ALIGN | \
 			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC | \
-			 SLAB_DESTROY_BY_RCU)
+			 SLAB_DESTROY_BY_RCU | SLAB_MEM_SPREAD)
 #endif
 
 /*
@@ -2809,6 +2810,14 @@ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 #ifdef CONFIG_NUMA
 	if (unlikely(current->mempolicy && !in_interrupt())) {
 		int nid = slab_node(current->mempolicy);
+
+		if (nid != numa_node_id())
+			return __cache_alloc_node(cachep, flags, nid);
+	}
+	if (unlikely(cpuset_do_slab_mem_spread() &&
+					(cachep->flags & SLAB_MEM_SPREAD) &&
+					!in_interrupt())) {
+		int nid = cpuset_mem_spread_node();
 
 		if (nid != numa_node_id())
 			return __cache_alloc_node(cachep, flags, nid);

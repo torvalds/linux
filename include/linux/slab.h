@@ -46,6 +46,7 @@ typedef struct kmem_cache kmem_cache_t;
 						   what is reclaimable later*/
 #define SLAB_PANIC		0x00040000UL	/* panic if kmem_cache_create() fails */
 #define SLAB_DESTROY_BY_RCU	0x00080000UL	/* defer freeing pages to RCU */
+#define SLAB_MEM_SPREAD		0x00100000UL	/* Spread some memory over cpuset */
 
 /* flags passed to a constructor func */
 #define	SLAB_CTOR_CONSTRUCTOR	0x001UL		/* if not set, then deconstructor */
