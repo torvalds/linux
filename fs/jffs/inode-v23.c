@@ -1812,15 +1812,17 @@ init_jffs_fs(void)
 	}
 #endif
 	fm_cache = kmem_cache_create("jffs_fm", sizeof(struct jffs_fm),
-				     0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
-				     NULL, NULL);
+		       0,
+		       SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
+		       NULL, NULL);
 	if (!fm_cache) {
 		return -ENOMEM;
 	}
 
 	node_cache = kmem_cache_create("jffs_node",sizeof(struct jffs_node),
-				       0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
-				       NULL, NULL);
+		       0,
+		       SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
+		       NULL, NULL);
 	if (!node_cache) {
 		kmem_cache_destroy(fm_cache);
 		return -ENOMEM;
