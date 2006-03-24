@@ -43,25 +43,21 @@
 #endif
 #endif
 
-typedef unsigned short NUMBER_ptr;
-typedef unsigned short WORD_ptr;
-typedef unsigned short BYTE_ptr;
-typedef unsigned short char_ptr;
-typedef unsigned short Channel_ptr;
-typedef unsigned short FREE_LIST_ptr_ptr;
-typedef unsigned short FREE_LIST_ptr;
-typedef unsigned short LPB_ptr;
-typedef unsigned short Process_ptr;
-typedef unsigned short PHB_ptr;
-typedef unsigned short PKT_ptr;
-typedef unsigned short PKT_ptr_ptr;
-typedef unsigned short Q_BUF_ptr;
-typedef unsigned short Q_BUF_ptr_ptr;
-typedef unsigned short ROUTE_STR_ptr;
-typedef unsigned short RUP_ptr;
-typedef unsigned short short_ptr;
-typedef unsigned short u_short_ptr;
-typedef unsigned short ushort_ptr;
+typedef u16 char_ptr;
+typedef u16 Channel_ptr;
+typedef u16 FREE_LIST_ptr_ptr;
+typedef u16 FREE_LIST_ptr;
+typedef u16 LPB_ptr;
+typedef u16 Process_ptr;
+typedef u16 PHB_ptr;
+typedef u16 PKT_ptr;
+typedef u16 Q_BUF_ptr;
+typedef u16 Q_BUF_ptr_ptr;
+typedef u16 ROUTE_STR_ptr;
+typedef u16 RUP_ptr;
+typedef u16 short_ptr;
+typedef u16 u_short_ptr;
+typedef u16 ushort_ptr;
 
 #endif				/* __riotypes__ */
 

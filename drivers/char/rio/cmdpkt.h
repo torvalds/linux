@@ -55,24 +55,24 @@ static char *_cmdpkt_h_sccs_ = "@(#)cmdpkt.h	1.2";
 ** at Data[2] in the actual pkt!
 */
 struct BootSequence {
-	WORD NumPackets;
-	WORD LoadBase;
-	WORD CodeSize;
+	u16 NumPackets;
+	u16 LoadBase;
+	u16 CodeSize;
 };
 
 #define	BOOT_SEQUENCE_LEN	8
 
 struct SamTop {
-	BYTE Unit;
-	BYTE Link;
+	u8 Unit;
+	u8 Link;
 };
 
 struct CmdHdr {
-	BYTE PcCommand;
+	u8 PcCommand;
 	union {
-		BYTE PcPhbNum;
-		BYTE PcLinkNum;
-		BYTE PcIDNum;
+		u8 PcPhbNum;
+		u8 PcLinkNum;
+		u8 PcIDNum;
 	} U0;
 };
 
@@ -84,28 +84,28 @@ struct PktCmd {
 			struct BootSequence PcBootSequence;
 		} S1;
 		struct {
-			WORD PcSequence;
-			BYTE PcBootData[RTA_BOOT_DATA_SIZE];
+			u16 PcSequence;
+			u8 PcBootData[RTA_BOOT_DATA_SIZE];
 		} S2;
 		struct {
-			WORD __crud__;
-			BYTE PcUniqNum[4];	/* this is really a uint. */
-			BYTE PcModuleTypes;	/* what modules are fitted */
+			u16 __crud__;
+			u8 PcUniqNum[4];	/* this is really a uint. */
+			u8 PcModuleTypes;	/* what modules are fitted */
 		} S3;
 		struct {
 			struct CmdHdr CmdHdr;
-			BYTE __undefined__;
-			BYTE PcModemStatus;
-			BYTE PcPortStatus;
-			BYTE PcSubCommand;	/* commands like mem or register dump */
-			WORD PcSubAddr;	/* Address for command */
-			BYTE PcSubData[64];	/* Date area for command */
+			u8 __undefined__;
+			u8 PcModemStatus;
+			u8 PcPortStatus;
+			u8 PcSubCommand;	/* commands like mem or register dump */
+			u16 PcSubAddr;	/* Address for command */
+			u8 PcSubData[64];	/* Date area for command */
 		} S4;
 		struct {
 			struct CmdHdr CmdHdr;
-			BYTE PcCommandText[1];
-			BYTE __crud__[20];
-			BYTE PcIDNum2;	/* It had to go somewhere! */
+			u8 PcCommandText[1];
+			u8 __crud__[20];
+			u8 PcIDNum2;	/* It had to go somewhere! */
 		} S5;
 		struct {
 			struct CmdHdr CmdHdr;

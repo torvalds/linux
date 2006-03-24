@@ -33,23 +33,16 @@
 #ifndef __rio_typdef_h__
 #define __rio_typdef_h__
 
-#ifdef SCCS_LABELS
-static char *_typdef_h_sccs_ = "@(#)typdef.h	1.2";
-#endif
-
-#undef VPIX
-
 /*
 ** IT IS REALLY, REALLY, IMPORTANT THAT BYTES ARE UNSIGNED!
 **
 ** These types are ONLY to be used for refering to data structures
 ** on the RIO Host card!
 */
-typedef volatile unsigned char BYTE;
-typedef volatile unsigned short WORD;
-typedef volatile unsigned int DWORD;
-typedef volatile unsigned short RIOP;
-typedef volatile short NUMBER;
+typedef volatile u8 BYTE;
+typedef volatile u16 WORD;
+typedef volatile u32 DWORD;
+typedef volatile u16 RIOP;
 
 
 /*
