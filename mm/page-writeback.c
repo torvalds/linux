@@ -75,12 +75,12 @@ int vm_dirty_ratio = 40;
  * The interval between `kupdate'-style writebacks, in centiseconds
  * (hundredths of a second)
  */
-int dirty_writeback_centisecs = 5 * 100;
+int dirty_writeback_interval = 5 * HZ;
 
 /*
  * The longest number of centiseconds for which data is allowed to remain dirty
  */
-int dirty_expire_centisecs = 30 * 100;
+int dirty_expire_interval = 30 * HZ;
 
 /*
  * Flag that makes the machine dump writes/reads and block dirtyings.
@@ -380,8 +380,8 @@ static DEFINE_TIMER(laptop_mode_wb_timer, laptop_timer_fn, 0, 0);
  * just walks the superblock inode list, writing back any inodes which are
  * older than a specific point in time.
  *
- * Try to run once per dirty_writeback_centisecs.  But if a writeback event
- * takes longer than a dirty_writeback_centisecs interval, then leave a
+ * Try to run once per dirty_writeback_interval.  But if a writeback event
+ * takes longer than a dirty_writeback_interval interval, then leave a
  * one-second gap.
  *
  * older_than_this takes precedence over nr_to_write.  So we'll only write back
@@ -406,9 +406,9 @@ static void wb_kupdate(unsigned long arg)
 	sync_supers();
 
 	get_writeback_state(&wbs);
-	oldest_jif = jiffies - (dirty_expire_centisecs * HZ) / 100;
+	oldest_jif = jiffies - dirty_expire_interval;
 	start_jif = jiffies;
-	next_jif = start_jif + (dirty_writeback_centisecs * HZ) / 100;
+	next_jif = start_jif + dirty_writeback_interval;
 	nr_to_write = wbs.nr_dirty + wbs.nr_unstable +
 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
 	while (nr_to_write > 0) {
@@ -425,7 +425,7 @@ static void wb_kupdate(unsigned long arg)
 	}
 	if (time_before(next_jif, jiffies + HZ))
 		next_jif = jiffies + HZ;
-	if (dirty_writeback_centisecs)
+	if (dirty_writeback_interval)
 		mod_timer(&wb_timer, next_jif);
 }
 
@@ -435,11 +435,11 @@ static void wb_kupdate(unsigned long arg)
 int dirty_writeback_centisecs_handler(ctl_table *table, int write,
 		struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
 {
-	proc_dointvec(table, write, file, buffer, length, ppos);
-	if (dirty_writeback_centisecs) {
+	proc_dointvec_userhz_jiffies(table, write, file, buffer, length, ppos);
+	if (dirty_writeback_interval) {
 		mod_timer(&wb_timer,
-			jiffies + (dirty_writeback_centisecs * HZ) / 100);
-	} else {
+			jiffies + dirty_writeback_interval);
+		} else {
 		del_timer(&wb_timer);
 	}
 	return 0;
@@ -544,7 +544,7 @@ void __init page_writeback_init(void)
 		if (vm_dirty_ratio <= 0)
 			vm_dirty_ratio = 1;
 	}
-	mod_timer(&wb_timer, jiffies + (dirty_writeback_centisecs * HZ) / 100);
+	mod_timer(&wb_timer, jiffies + dirty_writeback_interval);
 	set_ratelimit();
 	register_cpu_notifier(&ratelimit_nb);
 }

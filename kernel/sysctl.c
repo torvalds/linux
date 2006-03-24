@@ -742,18 +742,18 @@ static ctl_table vm_table[] = {
 	{
 		.ctl_name	= VM_DIRTY_WB_CS,
 		.procname	= "dirty_writeback_centisecs",
-		.data		= &dirty_writeback_centisecs,
-		.maxlen		= sizeof(dirty_writeback_centisecs),
+		.data		= &dirty_writeback_interval,
+		.maxlen		= sizeof(dirty_writeback_interval),
 		.mode		= 0644,
 		.proc_handler	= &dirty_writeback_centisecs_handler,
 	},
 	{
 		.ctl_name	= VM_DIRTY_EXPIRE_CS,
 		.procname	= "dirty_expire_centisecs",
-		.data		= &dirty_expire_centisecs,
-		.maxlen		= sizeof(dirty_expire_centisecs),
+		.data		= &dirty_expire_interval,
+		.maxlen		= sizeof(dirty_expire_interval),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= &proc_dointvec_userhz_jiffies,
 	},
 	{
 		.ctl_name	= VM_NR_PDFLUSH_THREADS,
