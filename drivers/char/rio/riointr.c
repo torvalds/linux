@@ -54,15 +54,12 @@ static char *_riointr_c_sccs_ = "@(#)riointr.c	1.2";
 
 #include "linux_compat.h"
 #include "rio_linux.h"
-#include "typdef.h"
 #include "pkt.h"
 #include "daemon.h"
 #include "rio.h"
 #include "riospace.h"
-#include "top.h"
 #include "cmdpkt.h"
 #include "map.h"
-#include "riotypes.h"
 #include "rup.h"
 #include "port.h"
 #include "riodrvr.h"
@@ -75,12 +72,10 @@ static char *_riointr_c_sccs_ = "@(#)riointr.c	1.2";
 #include "unixrup.h"
 #include "board.h"
 #include "host.h"
-#include "error.h"
 #include "phb.h"
 #include "link.h"
 #include "cmdblk.h"
 #include "route.h"
-#include "control.h"
 #include "cirrus.h"
 #include "rioioctl.h"
 
@@ -396,7 +391,6 @@ void RIOServiceHost(struct rio_info *p, struct Host *HostP, int From)
 			/* For now don't handle RTA reboots. -- REW.
 			   Reenabled. Otherwise RTA reboots didn't work. Duh. -- REW */
 			if (PortP->MagicFlags) {
-#if 1
 				if (PortP->MagicFlags & MAGIC_REBOOT) {
 					/*
 					 ** well, the RTA has been rebooted, and there is room
@@ -413,13 +407,12 @@ void RIOServiceHost(struct rio_info *p, struct Host *HostP, int From)
 					PortP->InUse = NOT_INUSE;
 
 					rio_spin_unlock(&PortP->portSem);
-					if (RIOParam(PortP, OPEN, ((PortP->Cor2Copy & (COR2_RTSFLOW | COR2_CTSFLOW)) == (COR2_RTSFLOW | COR2_CTSFLOW)) ? TRUE : FALSE, DONT_SLEEP) == RIO_FAIL) {
+					if (RIOParam(PortP, OPEN, ((PortP->Cor2Copy & (COR2_RTSFLOW | COR2_CTSFLOW)) == (COR2_RTSFLOW | COR2_CTSFLOW)) ? 1 : 0, DONT_SLEEP) == RIO_FAIL) {
 						continue;	/* with next port */
 					}
 					rio_spin_lock(&PortP->portSem);
 					PortP->MagicFlags &= ~MAGIC_REBOOT;
 				}
-#endif
 
 				/*
 				 ** As mentioned above, this is a tacky hack to cope

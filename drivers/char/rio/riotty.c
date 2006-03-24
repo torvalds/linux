@@ -56,15 +56,12 @@ static char *_riotty_c_sccs_ = "@(#)riotty.c	1.3";
 
 #include "linux_compat.h"
 #include "rio_linux.h"
-#include "typdef.h"
 #include "pkt.h"
 #include "daemon.h"
 #include "rio.h"
 #include "riospace.h"
-#include "top.h"
 #include "cmdpkt.h"
 #include "map.h"
-#include "riotypes.h"
 #include "rup.h"
 #include "port.h"
 #include "riodrvr.h"
@@ -77,58 +74,18 @@ static char *_riotty_c_sccs_ = "@(#)riotty.c	1.3";
 #include "unixrup.h"
 #include "board.h"
 #include "host.h"
-#include "error.h"
 #include "phb.h"
 #include "link.h"
 #include "cmdblk.h"
 #include "route.h"
-#include "control.h"
 #include "cirrus.h"
 #include "rioioctl.h"
 #include "param.h"
-#include "list.h"
-#include "sam.h"
 
 static void RIOClearUp(struct Port *PortP);
+
+/* Below belongs in func.h */
 int RIOShortCommand(struct rio_info *p, struct Port *PortP, int command, int len, int arg);
-
-
-extern int conv_vb[];		/* now defined in ttymgr.c */
-extern int conv_bv[];		/* now defined in ttymgr.c */
-
-/*
-** 16.09.1998 ARG - Fix to build riotty.k.o for Modular Kernel Support
-**
-** ep.def.h is necessary for Modular Kernel Support
-** DO NOT place any kernel 'extern's after this line
-** or this source file will not build riotty.k.o
-*/
-#ifdef uLYNX
-#include <ep.def.h>
-#endif
-
-#ifdef NEED_THIS2
-static struct old_sgttyb default_sg = {
-	B19200, B19200,		/* input and output speed */
-	'H' - '@',		/* erase char */
-	-1,			/* 2nd erase char */
-	'U' - '@',		/* kill char */
-	ECHO | CRMOD,		/* mode */
-	'C' - '@',		/* interrupt character */
-	'\\' - '@',		/* quit char */
-	'Q' - '@',		/* start char */
-	'S' - '@',		/* stop char */
-	'D' - '@',		/* EOF */
-	-1,			/* brk */
-	(LCRTBS | LCRTERA | LCRTKIL | LCTLECH),	/* local mode word */
-	'Z' - '@',		/* process stop */
-	'Y' - '@',		/* delayed stop */
-	'R' - '@',		/* reprint line */
-	'O' - '@',		/* flush output */
-	'W' - '@',		/* word erase */
-	'V' - '@'		/* literal next char */
-};
-#endif
 
 
 extern struct rio_info *p;
@@ -137,7 +94,6 @@ extern struct rio_info *p;
 int riotopen(struct tty_struct *tty, struct file *filp)
 {
 	unsigned int SysPort;
-	int Modem;
 	int repeat_this = 250;
 	struct Port *PortP;	/* pointer to the port structure */
 	unsigned long flags;
@@ -151,7 +107,6 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 	tty->driver_data = NULL;
 
 	SysPort = rio_minor(tty);
-	Modem = rio_ismodem(tty);
 
 	if (p->RIOFailed) {
 		rio_dprintk(RIO_DEBUG_TTY, "System initialisation failed\n");
@@ -159,7 +114,7 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 		return -ENXIO;
 	}
 
-	rio_dprintk(RIO_DEBUG_TTY, "port open SysPort %d (%s) (mapped:%d)\n", SysPort, Modem ? "Modem" : "tty", p->RIOPortp[SysPort]->Mapped);
+	rio_dprintk(RIO_DEBUG_TTY, "port open SysPort %d (mapped:%d)\n", SysPort, p->RIOPortp[SysPort]->Mapped);
 
 	/*
 	 ** Validate that we have received a legitimate request.
@@ -305,15 +260,12 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 		/* PortP->gs.xmit_cnt = 0; */
 
 		rio_spin_unlock_irqrestore(&PortP->portSem, flags);
-#ifdef NEED_THIS
-		ttyseth(PortP, tp, (struct old_sgttyb *) &default_sg);
-#endif
 
 		/* Someone explain to me why this delay/config is
 		   here. If I read the docs correctly the "open"
 		   command piggybacks the parameters immediately.
 		   -- REW */
-		RIOParam(PortP, OPEN, Modem, OK_TO_SLEEP);	/* Open the port */
+		RIOParam(PortP, OPEN, 1, OK_TO_SLEEP);	/* Open the port */
 		rio_spin_lock_irqsave(&PortP->portSem, flags);
 
 		/*
@@ -321,20 +273,6 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 		 */
 		while (!(PortP->PortState & PORT_ISOPEN) && !p->RIOHalted) {
 			rio_dprintk(RIO_DEBUG_TTY, "Waiting for PORT_ISOPEN-currently %x\n", PortP->PortState);
-/*
-** 15.10.1998 ARG - ESIL 0759
-** (Part) fix for port being trashed when opened whilst RTA "disconnected"
-** Take out the limited wait - now wait for ever or until user
-** bangs us out.
-**
-			if (repeat_this -- <= 0) {
-				rio_dprint(RIO_DEBUG_TTY, ("Waiting for open to finish timed out.\n"));
-				RIOPreemptiveCmd(p, PortP, FCLOSE ); 
-				rio_spin_unlock_irqrestore(&PortP->portSem, flags);
-				return -EINTR;
-			}
-**
-*/
 			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 			if (RIODelay(PortP, HUNDRED_MS) == RIO_FAIL) {
 				rio_dprintk(RIO_DEBUG_TTY, "Waiting for open to finish broken by signal\n");
@@ -354,74 +292,58 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 		}
 		rio_dprintk(RIO_DEBUG_TTY, "PORT_ISOPEN found\n");
 	}
-#ifdef MODEM_SUPPORT
-	if (Modem) {
-		rio_dprintk(RIO_DEBUG_TTY, "Modem - test for carrier\n");
+	rio_dprintk(RIO_DEBUG_TTY, "Modem - test for carrier\n");
+	/*
+	 ** ACTION
+	 ** insert test for carrier here. -- ???
+	 ** I already see that test here. What's the deal? -- REW
+	 */
+	if ((PortP->gs.tty->termios->c_cflag & CLOCAL) || (PortP->ModemState & MSVR1_CD)) {
+		rio_dprintk(RIO_DEBUG_TTY, "open(%d) Modem carr on\n", SysPort);
 		/*
-		 ** ACTION
-		 ** insert test for carrier here. -- ???
-		 ** I already see that test here. What's the deal? -- REW
+		   tp->tm.c_state |= CARR_ON;
+		   wakeup((caddr_t) &tp->tm.c_canq);
 		 */
-		if ((PortP->gs.tty->termios->c_cflag & CLOCAL) || (PortP->ModemState & MSVR1_CD)) {
-			rio_dprintk(RIO_DEBUG_TTY, "open(%d) Modem carr on\n", SysPort);
+		PortP->State |= RIO_CARR_ON;
+		wake_up_interruptible(&PortP->gs.open_wait);
+	} else {	/* no carrier - wait for DCD */
 			/*
-			   tp->tm.c_state |= CARR_ON;
-			   wakeup((caddr_t) &tp->tm.c_canq);
-			 */
-			PortP->State |= RIO_CARR_ON;
-			wake_up_interruptible(&PortP->gs.open_wait);
-		} else {	/* no carrier - wait for DCD */
-
-			/*
-			   while (!(PortP->gs.tty->termios->c_state & CARR_ON) &&
-			   !(filp->f_flags & O_NONBLOCK) && !p->RIOHalted )
-			 */
-			while (!(PortP->State & RIO_CARR_ON) && !(filp->f_flags & O_NONBLOCK) && !p->RIOHalted) {
-
+		   while (!(PortP->gs.tty->termios->c_state & CARR_ON) &&
+		   !(filp->f_flags & O_NONBLOCK) && !p->RIOHalted )
+		 */
+		while (!(PortP->State & RIO_CARR_ON) && !(filp->f_flags & O_NONBLOCK) && !p->RIOHalted) {
 				rio_dprintk(RIO_DEBUG_TTY, "open(%d) sleeping for carr on\n", SysPort);
+			/*
+			   PortP->gs.tty->termios->c_state |= WOPEN;
+			 */
+			PortP->State |= RIO_WOPEN;
+			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
+			if (RIODelay(PortP, HUNDRED_MS) == RIO_FAIL) {
 				/*
-				   PortP->gs.tty->termios->c_state |= WOPEN;
+				 ** ACTION: verify that this is a good thing
+				 ** to do here. -- ???
+				 ** I think it's OK. -- REW
 				 */
-				PortP->State |= RIO_WOPEN;
+				rio_dprintk(RIO_DEBUG_TTY, "open(%d) sleeping for carr broken by signal\n", SysPort);
+				RIOPreemptiveCmd(p, PortP, FCLOSE);
+				/*
+				   tp->tm.c_state &= ~WOPEN;
+				 */
+				PortP->State &= ~RIO_WOPEN;
 				rio_spin_unlock_irqrestore(&PortP->portSem, flags);
-				if (RIODelay(PortP, HUNDRED_MS) == RIO_FAIL)
-					{
-						/*
-						 ** ACTION: verify that this is a good thing
-						 ** to do here. -- ???
-						 ** I think it's OK. -- REW
-						 */
-						rio_dprintk(RIO_DEBUG_TTY, "open(%d) sleeping for carr broken by signal\n", SysPort);
-						RIOPreemptiveCmd(p, PortP, FCLOSE);
-						/*
-						   tp->tm.c_state &= ~WOPEN;
-						 */
-						PortP->State &= ~RIO_WOPEN;
-						rio_spin_unlock_irqrestore(&PortP->portSem, flags);
-						func_exit();
-						return -EINTR;
-					}
+				func_exit();
+				return -EINTR;
 			}
-			PortP->State &= ~RIO_WOPEN;
 		}
-		if (p->RIOHalted)
-			goto bombout;
-		rio_dprintk(RIO_DEBUG_TTY, "Setting RIO_MOPEN\n");
-		PortP->State |= RIO_MOPEN;
-	} else
-#endif
-	{
-		/*
-		 ** ACTION
-		 ** Direct line open - force carrier (will probably mean
-		 ** that sleeping Modem line fubar)
-		 */
-		PortP->State |= RIO_LOPEN;
+		PortP->State &= ~RIO_WOPEN;
 	}
-
-	if (p->RIOHalted) {
+	if (p->RIOHalted)
 		goto bombout;
-	}
+	rio_dprintk(RIO_DEBUG_TTY, "Setting RIO_MOPEN\n");
+	PortP->State |= RIO_MOPEN;
+
+	if (p->RIOHalted)
+		goto bombout;
 
 	rio_dprintk(RIO_DEBUG_TTY, "high level open done\n");
 
@@ -453,23 +375,21 @@ int riotclose(void *ptr)
 	unsigned long end_time;
 	struct tty_struct *tty;
 	unsigned long flags;
-	int Modem;
 	int rv = 0;
 
 	rio_dprintk(RIO_DEBUG_TTY, "port close SysPort %d\n", PortP->PortNum);
 
 	/* PortP = p->RIOPortp[SysPort]; */
-	rio_dprintk(RIO_DEBUG_TTY, "Port is at address 0x%p\n", PortP);
+	rio_dprintk(RIO_DEBUG_TTY, "Port is at address %p\n", PortP);
 	/* tp = PortP->TtyP; *//* Get tty */
 	tty = PortP->gs.tty;
-	rio_dprintk(RIO_DEBUG_TTY, "TTY is at address 0x%p\n", tty);
+	rio_dprintk(RIO_DEBUG_TTY, "TTY is at address %p\n", tty);
 
 	if (PortP->gs.closing_wait)
 		end_time = jiffies + PortP->gs.closing_wait;
 	else
 		end_time = jiffies + MAX_SCHEDULE_TIMEOUT;
 
-	Modem = rio_ismodem(tty);
 	rio_spin_lock_irqsave(&PortP->portSem, flags);
 
 	/*
@@ -493,7 +413,7 @@ int riotclose(void *ptr)
 	/*
 	 ** clear the open bits for this device
 	 */
-	PortP->State &= (Modem ? ~RIO_MOPEN : ~RIO_LOPEN);
+	PortP->State &= ~RIO_MOPEN;
 	PortP->State &= ~RIO_CARR_ON;
 	PortP->ModemState &= ~MSVR1_CD;
 	/*
@@ -613,7 +533,7 @@ int riotclose(void *ptr)
 	if (PortP->statsGather)
 		PortP->closes++;
 
-      close_end:
+close_end:
 	/* XXX: Why would a "DELETED" flag be reset here? I'd have
 	   thought that a "deleted" flag means that the port was
 	   permanently gone, but here we can make it reappear by it
@@ -629,8 +549,7 @@ int riotclose(void *ptr)
 
 
 
-static void RIOClearUp(PortP)
-struct Port *PortP;
+static void RIOClearUp(struct Port *PortP)
 {
 	rio_dprintk(RIO_DEBUG_TTY, "RIOHalted set\n");
 	PortP->Config = 0;	/* Direct semaphore */
@@ -657,7 +576,7 @@ struct Port *PortP;
 */
 int RIOShortCommand(struct rio_info *p, struct Port *PortP, int command, int len, int arg)
 {
-	PKT *PacketP;
+	struct PKT *PacketP;
 	int retries = 20;	/* at 10 per second -> 2 seconds */
 	unsigned long flags;
 

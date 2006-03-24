@@ -47,15 +47,12 @@
 
 #include "linux_compat.h"
 #include "rio_linux.h"
-#include "typdef.h"
 #include "pkt.h"
 #include "daemon.h"
 #include "rio.h"
 #include "riospace.h"
-#include "top.h"
 #include "cmdpkt.h"
 #include "map.h"
-#include "riotypes.h"
 #include "rup.h"
 #include "port.h"
 #include "riodrvr.h"
@@ -68,7 +65,6 @@
 #include "unixrup.h"
 #include "board.h"
 #include "host.h"
-#include "error.h"
 #include "phb.h"
 #include "link.h"
 #include "cmdblk.h"
@@ -386,7 +382,7 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 		 */
 		offset = (p->RIOConf.HostLoadBase - 2) - 0x7FFC;
 
-		writeb(NFIX(((ushort) (~offset) >> (ushort) 12) & 0xF), DestP);
+		writeb(NFIX(((unsigned short) (~offset) >> (unsigned short) 12) & 0xF), DestP);
 		writeb(PFIX((offset >> 8) & 0xF), DestP + 1);
 		writeb(PFIX((offset >> 4) & 0xF), DestP + 2);
 		writeb(JUMP(offset & 0xF), DestP + 3);
@@ -515,10 +511,10 @@ int RIOBootCodeHOST(struct rio_info *p, struct DownLoad *rbp)
 		 ** 32 bit pointers for the driver in ioremap space.
 		 */
 		HostP->ParmMapP = ParmMapP;
-		HostP->PhbP = (PHB *) RIO_PTR(Cad, readw(&ParmMapP->phb_ptr));
-		HostP->RupP = (RUP *) RIO_PTR(Cad, readw(&ParmMapP->rups));
-		HostP->PhbNumP = (ushort *) RIO_PTR(Cad, readw(&ParmMapP->phb_num_ptr));
-		HostP->LinkStrP = (LPB *) RIO_PTR(Cad, readw(&ParmMapP->link_str_ptr));
+		HostP->PhbP = (struct PHB *) RIO_PTR(Cad, readw(&ParmMapP->phb_ptr));
+		HostP->RupP = (struct RUP *) RIO_PTR(Cad, readw(&ParmMapP->rups));
+		HostP->PhbNumP = (unsigned short *) RIO_PTR(Cad, readw(&ParmMapP->phb_num_ptr));
+		HostP->LinkStrP = (struct LPB *) RIO_PTR(Cad, readw(&ParmMapP->link_str_ptr));
 
 		/*
 		 ** point the UnixRups at the real Rups
@@ -639,7 +635,7 @@ int RIOBootRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct 
 	/*
 	 ** Fill in the default info on the command block
 	 */
-	CmdBlkP->Packet.dest_unit = Rup < (ushort) MAX_RUP ? Rup : 0;
+	CmdBlkP->Packet.dest_unit = Rup < (unsigned short) MAX_RUP ? Rup : 0;
 	CmdBlkP->Packet.dest_port = BOOT_RUP;
 	CmdBlkP->Packet.src_unit = 0;
 	CmdBlkP->Packet.src_port = BOOT_RUP;
@@ -748,7 +744,7 @@ static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int 
 	 */
 
 	RtaType = GetUnitType(RtaUniq);
-	if (Rup >= (ushort) MAX_RUP)
+	if (Rup >= (unsigned short) MAX_RUP)
 		rio_dprintk(RIO_DEBUG_BOOT, "RIO: Host %s has booted an RTA(%d) on link %c\n", HostP->Name, 8 * RtaType, readb(&PktCmdP->LinkNum) + 'A');
 	else
 		rio_dprintk(RIO_DEBUG_BOOT, "RIO: RTA %s has booted an RTA(%d) on link %c\n", HostP->Mapping[Rup].Name, 8 * RtaType, readb(&PktCmdP->LinkNum) + 'A');
@@ -757,7 +753,7 @@ static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int 
 
 	if (RtaUniq == 0x00000000 || RtaUniq == 0xffffffff) {
 		rio_dprintk(RIO_DEBUG_BOOT, "Illegal RTA Uniq Number\n");
-		return TRUE;
+		return 1;
 	}
 
 	/*
@@ -785,7 +781,7 @@ static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int 
 			 */
 			writew(30, &HostP->LinkStrP[MyLink].WaitNoBoot);
 		rio_dprintk(RIO_DEBUG_BOOT, "RTA %x not owned - suspend booting down link %c on unit %x\n", RtaUniq, 'A' + MyLink, HostP->Mapping[Rup].RtaUniqueNum);
-		return TRUE;
+		return 1;
 	}
 
 	/*
@@ -826,7 +822,7 @@ static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int 
 				rio_dprintk(RIO_DEBUG_BOOT, "RTA will be given IDs %d+%d\n", entry + 1, entry2 + 1);
 			else
 				rio_dprintk(RIO_DEBUG_BOOT, "RTA will be given ID %d\n", entry + 1);
-			return TRUE;
+			return 1;
 		}
 	}
 
@@ -868,7 +864,7 @@ static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int 
 				rio_dprintk(RIO_DEBUG_BOOT, "Found previous tentative slot (%d)\n", entry);
 			if (!p->RIONoMessage)
 				printk("RTA connected to %s '%s' (%c) not configured.\n", MyType, MyName, MyLink + 'A');
-			return TRUE;
+			return 1;
 		}
 	}
 
@@ -961,13 +957,13 @@ static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int 
 	if (RtaType == TYPE_RTA16) {
 		if (RIOFindFreeID(p, HostP, &entry, &entry2) == 0) {
 			RIODefaultName(p, HostP, entry);
-			FillSlot(entry, entry2, RtaUniq, HostP);
+			rio_fill_host_slot(entry, entry2, RtaUniq, HostP);
 			EmptySlot = 0;
 		}
 	} else {
 		if (RIOFindFreeID(p, HostP, &entry, NULL) == 0) {
 			RIODefaultName(p, HostP, entry);
-			FillSlot(entry, 0, RtaUniq, HostP);
+			rio_fill_host_slot(entry, 0, RtaUniq, HostP);
 			EmptySlot = 0;
 		}
 	}
@@ -1023,7 +1019,7 @@ static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int 
 		} else if (!p->RIONoMessage)
 			printk("RTA connected to %s '%s' (%c) not configured.\n", MyType, MyName, MyLink + 'A');
 		RIOSetChange(p);
-		return TRUE;
+		return 1;
 	}
 
 	/*
@@ -1038,7 +1034,7 @@ static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int 
 			/*
 			 ** already got it!
 			 */
-			return TRUE;
+			return 1;
 		}
 	}
 	/*
@@ -1046,13 +1042,13 @@ static int RIOBootComplete(struct rio_info *p, struct Host *HostP, unsigned int 
 	 */
 	if (HostP->NumExtraBooted < MAX_EXTRA_UNITS)
 		HostP->ExtraUnits[HostP->NumExtraBooted++] = RtaUniq;
-	return TRUE;
+	return 1;
 }
 
 
 /*
 ** If the RTA or its host appears in the RIOBindTab[] structure then
-** we mustn't boot the RTA and should return FALSE.
+** we mustn't boot the RTA and should return 0.
 ** This operation is slightly different from the other drivers for RIO
 ** in that this is designed to work with the new utilities
 ** not config.rio and is FAR SIMPLER.
@@ -1080,38 +1076,38 @@ int RIOBootOk(struct rio_info *p, struct Host *HostP, unsigned long RtaUniq)
 ** slots tentative, and the second one RTA_SECOND_SLOT as well.
 */
 
-void FillSlot(int entry, int entry2, unsigned int RtaUniq, struct Host *HostP)
+void rio_fill_host_slot(int entry, int entry2, unsigned int rta_uniq, struct Host *host)
 {
 	int link;
 
-	rio_dprintk(RIO_DEBUG_BOOT, "FillSlot(%d, %d, 0x%x...)\n", entry, entry2, RtaUniq);
+	rio_dprintk(RIO_DEBUG_BOOT, "rio_fill_host_slot(%d, %d, 0x%x...)\n", entry, entry2, rta_uniq);
 
-	HostP->Mapping[entry].Flags = (RTA_BOOTED | RTA_NEWBOOT | SLOT_TENTATIVE);
-	HostP->Mapping[entry].SysPort = NO_PORT;
-	HostP->Mapping[entry].RtaUniqueNum = RtaUniq;
-	HostP->Mapping[entry].HostUniqueNum = HostP->UniqueNum;
-	HostP->Mapping[entry].ID = entry + 1;
-	HostP->Mapping[entry].ID2 = 0;
+	host->Mapping[entry].Flags = (RTA_BOOTED | RTA_NEWBOOT | SLOT_TENTATIVE);
+	host->Mapping[entry].SysPort = NO_PORT;
+	host->Mapping[entry].RtaUniqueNum = rta_uniq;
+	host->Mapping[entry].HostUniqueNum = host->UniqueNum;
+	host->Mapping[entry].ID = entry + 1;
+	host->Mapping[entry].ID2 = 0;
 	if (entry2) {
-		HostP->Mapping[entry2].Flags = (RTA_BOOTED | RTA_NEWBOOT | SLOT_TENTATIVE | RTA16_SECOND_SLOT);
-		HostP->Mapping[entry2].SysPort = NO_PORT;
-		HostP->Mapping[entry2].RtaUniqueNum = RtaUniq;
-		HostP->Mapping[entry2].HostUniqueNum = HostP->UniqueNum;
-		HostP->Mapping[entry2].Name[0] = '\0';
-		HostP->Mapping[entry2].ID = entry2 + 1;
-		HostP->Mapping[entry2].ID2 = entry + 1;
-		HostP->Mapping[entry].ID2 = entry2 + 1;
+		host->Mapping[entry2].Flags = (RTA_BOOTED | RTA_NEWBOOT | SLOT_TENTATIVE | RTA16_SECOND_SLOT);
+		host->Mapping[entry2].SysPort = NO_PORT;
+		host->Mapping[entry2].RtaUniqueNum = rta_uniq;
+		host->Mapping[entry2].HostUniqueNum = host->UniqueNum;
+		host->Mapping[entry2].Name[0] = '\0';
+		host->Mapping[entry2].ID = entry2 + 1;
+		host->Mapping[entry2].ID2 = entry + 1;
+		host->Mapping[entry].ID2 = entry2 + 1;
 	}
 	/*
 	 ** Must set these up, so that utilities show
 	 ** topology of 16 port RTAs correctly
 	 */
 	for (link = 0; link < LINKS_PER_UNIT; link++) {
-		HostP->Mapping[entry].Topology[link].Unit = ROUTE_DISCONNECT;
-		HostP->Mapping[entry].Topology[link].Link = NO_LINK;
+		host->Mapping[entry].Topology[link].Unit = ROUTE_DISCONNECT;
+		host->Mapping[entry].Topology[link].Link = NO_LINK;
 		if (entry2) {
-			HostP->Mapping[entry2].Topology[link].Unit = ROUTE_DISCONNECT;
-			HostP->Mapping[entry2].Topology[link].Link = NO_LINK;
+			host->Mapping[entry2].Topology[link].Unit = ROUTE_DISCONNECT;
+			host->Mapping[entry2].Topology[link].Link = NO_LINK;
 		}
 	}
 }

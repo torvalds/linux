@@ -57,15 +57,12 @@
 #include <asm/uaccess.h>
 
 #include "linux_compat.h"
-#include "typdef.h"
 #include "pkt.h"
 #include "daemon.h"
 #include "rio.h"
 #include "riospace.h"
-#include "top.h"
 #include "cmdpkt.h"
 #include "map.h"
-#include "riotypes.h"
 #include "rup.h"
 #include "port.h"
 #include "riodrvr.h"
@@ -78,17 +75,13 @@
 #include "unixrup.h"
 #include "board.h"
 #include "host.h"
-#include "error.h"
 #include "phb.h"
 #include "link.h"
 #include "cmdblk.h"
 #include "route.h"
-#include "control.h"
 #include "cirrus.h"
 #include "rioioctl.h"
 #include "param.h"
-#include "list.h"
-#include "sam.h"
 #include "protsts.h"
 #include "rioboard.h"
 
@@ -350,27 +343,9 @@ int rio_minor(struct tty_struct *tty)
 	return tty->index + (tty->driver == rio_driver) ? 0 : 256;
 }
 
-int rio_ismodem(struct tty_struct *tty)
-{
-	return 1;
-}
-
-
 static int rio_set_real_termios(void *ptr)
 {
-	int rv, modem;
-	struct tty_struct *tty;
-	func_enter();
-
-	tty = ((struct Port *) ptr)->gs.tty;
-
-	modem = rio_ismodem(tty);
-
-	rv = RIOParam((struct Port *) ptr, CONFIG, modem, 1);
-
-	func_exit();
-
-	return rv;
+	return RIOParam((struct Port *) ptr, CONFIG, 1, 1);
 }
 
 
@@ -973,7 +948,6 @@ static int __init rio_init(void)
 
 #ifdef CONFIG_PCI
 	struct pci_dev *pdev = NULL;
-	unsigned int tint;
 	unsigned short tshort;
 #endif
 
@@ -998,6 +972,8 @@ static int __init rio_init(void)
 #ifdef CONFIG_PCI
 	/* First look for the JET devices: */
 	while ((pdev = pci_get_device(PCI_VENDOR_ID_SPECIALIX, PCI_DEVICE_ID_SPECIALIX_SX_XIO_IO8, pdev))) {
+		u32 tint;
+
 		if (pci_enable_device(pdev))
 			continue;
 
@@ -1008,7 +984,6 @@ static int __init rio_init(void)
 		   Also, reading a non-aligned dword doesn't work. So we read the
 		   whole dword at 0x2c and extract the word at 0x2e (SUBSYSTEM_ID)
 		   ourselves */
-		/* I don't know why the define doesn't work, constant 0x2c does --REW */
 		pci_read_config_dword(pdev, 0x2c, &tint);
 		tshort = (tint >> 16) & 0xffff;
 		rio_dprintk(RIO_DEBUG_PROBE, "Got a specialix card: %x.\n", tint);
@@ -1018,10 +993,8 @@ static int __init rio_init(void)
 		}
 		rio_dprintk(RIO_DEBUG_PROBE, "cp1\n");
 
-		pci_read_config_dword(pdev, PCI_BASE_ADDRESS_2, &tint);
-
 		hp = &p->RIOHosts[p->RIONumHosts];
-		hp->PaddrP = tint & PCI_BASE_ADDRESS_MEM_MASK;
+		hp->PaddrP = pci_resource_start(pdev, 2);
 		hp->Ivec = pdev->irq;
 		if (((1 << hp->Ivec) & rio_irqmask) == 0)
 			hp->Ivec = 0;
@@ -1035,7 +1008,7 @@ static int __init rio_init(void)
 		rio_start_card_running(hp);
 
 		rio_dprintk(RIO_DEBUG_PROBE, "Going to test it (%p/%p).\n", (void *) p->RIOHosts[p->RIONumHosts].PaddrP, p->RIOHosts[p->RIONumHosts].Caddr);
-		if (RIOBoardTest(p->RIOHosts[p->RIONumHosts].PaddrP, p->RIOHosts[p->RIONumHosts].Caddr, RIO_PCI, 0) == RIO_SUCCESS) {
+		if (RIOBoardTest(p->RIOHosts[p->RIONumHosts].PaddrP, p->RIOHosts[p->RIONumHosts].Caddr, RIO_PCI, 0) == 0) {
 			rio_dprintk(RIO_DEBUG_INIT, "Done RIOBoardTest\n");
 			writeb(0xFF, &p->RIOHosts[p->RIONumHosts].ResetInt);
 			p->RIOHosts[p->RIONumHosts].UniqueNum =
@@ -1044,7 +1017,7 @@ static int __init rio_init(void)
 			rio_dprintk(RIO_DEBUG_PROBE, "Hmm Tested ok, uniqid = %x.\n", p->RIOHosts[p->RIONumHosts].UniqueNum);
 
 			fix_rio_pci(pdev);
-			p->RIOLastPCISearch = RIO_SUCCESS;
+			p->RIOLastPCISearch = 0;
 			p->RIONumHosts++;
 			found++;
 		} else {
@@ -1067,10 +1040,8 @@ static int __init rio_init(void)
 			continue;
 
 #ifdef CONFIG_RIO_OLDPCI
-		pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &tint);
-
 		hp = &p->RIOHosts[p->RIONumHosts];
-		hp->PaddrP = tint & PCI_BASE_ADDRESS_MEM_MASK;
+		hp->PaddrP = pci_resource_start(pdev, 0);
 		hp->Ivec = pdev->irq;
 		if (((1 << hp->Ivec) & rio_irqmask) == 0)
 			hp->Ivec = 0;
@@ -1088,14 +1059,14 @@ static int __init rio_init(void)
 		rio_reset_interrupt(hp);
 		rio_start_card_running(hp);
 		rio_dprintk(RIO_DEBUG_PROBE, "Going to test it (%p/%p).\n", (void *) p->RIOHosts[p->RIONumHosts].PaddrP, p->RIOHosts[p->RIONumHosts].Caddr);
-		if (RIOBoardTest(p->RIOHosts[p->RIONumHosts].PaddrP, p->RIOHosts[p->RIONumHosts].Caddr, RIO_PCI, 0) == RIO_SUCCESS) {
+		if (RIOBoardTest(p->RIOHosts[p->RIONumHosts].PaddrP, p->RIOHosts[p->RIONumHosts].Caddr, RIO_PCI, 0) == 0) {
 			writeb(0xFF, &p->RIOHosts[p->RIONumHosts].ResetInt);
 			p->RIOHosts[p->RIONumHosts].UniqueNum =
 			    ((readb(&p->RIOHosts[p->RIONumHosts].Unique[0]) & 0xFF) << 0) |
 			    ((readb(&p->RIOHosts[p->RIONumHosts].Unique[1]) & 0xFF) << 8) | ((readb(&p->RIOHosts[p->RIONumHosts].Unique[2]) & 0xFF) << 16) | ((readb(&p->RIOHosts[p->RIONumHosts].Unique[3]) & 0xFF) << 24);
 			rio_dprintk(RIO_DEBUG_PROBE, "Hmm Tested ok, uniqid = %x.\n", p->RIOHosts[p->RIONumHosts].UniqueNum);
 
-			p->RIOLastPCISearch = RIO_SUCCESS;
+			p->RIOLastPCISearch = 0;
 			p->RIONumHosts++;
 			found++;
 		} else {
@@ -1129,7 +1100,7 @@ static int __init rio_init(void)
 		okboard = 0;
 		if ((strncmp(vpdp->identifier, RIO_ISA_IDENT, 16) == 0) || (strncmp(vpdp->identifier, RIO_ISA2_IDENT, 16) == 0) || (strncmp(vpdp->identifier, RIO_ISA3_IDENT, 16) == 0)) {
 			/* Board is present... */
-			if (RIOBoardTest(hp->PaddrP, hp->Caddr, RIO_AT, 0) == RIO_SUCCESS) {
+			if (RIOBoardTest(hp->PaddrP, hp->Caddr, RIO_AT, 0) == 0) {
 				/* ... and feeling fine!!!! */
 				rio_dprintk(RIO_DEBUG_PROBE, "Hmm Tested ok, uniqid = %x.\n", p->RIOHosts[p->RIONumHosts].UniqueNum);
 				if (RIOAssignAT(p, hp->PaddrP, hp->Caddr, 0)) {
@@ -1231,24 +1202,3 @@ static void __exit rio_exit(void)
 
 module_init(rio_init);
 module_exit(rio_exit);
-
-/*
- * Anybody who knows why this doesn't work for me, please tell me -- REW.
- * Snatched from scsi.c (fixed one spelling error):
- * Overrides for Emacs so that we follow Linus' tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local Variables:
- * c-indent-level: 4
- * c-brace-imaginary-offset: 0
- * c-brace-offset: -4
- * c-argdecl-indent: 4
- * c-label-offset: -4
- * c-continued-statement-offset: 4
- * c-continued-brace-offset: 0
- * indent-tabs-mode: nil
- * tab-width: 8
- * End:
- */

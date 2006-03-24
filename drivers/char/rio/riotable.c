@@ -53,15 +53,12 @@ static char *_riotable_c_sccs_ = "@(#)riotable.c	1.2";
 
 #include "linux_compat.h"
 #include "rio_linux.h"
-#include "typdef.h"
 #include "pkt.h"
 #include "daemon.h"
 #include "rio.h"
 #include "riospace.h"
-#include "top.h"
 #include "cmdpkt.h"
 #include "map.h"
-#include "riotypes.h"
 #include "rup.h"
 #include "port.h"
 #include "riodrvr.h"
@@ -74,17 +71,13 @@ static char *_riotable_c_sccs_ = "@(#)riotable.c	1.2";
 #include "unixrup.h"
 #include "board.h"
 #include "host.h"
-#include "error.h"
 #include "phb.h"
 #include "link.h"
 #include "cmdblk.h"
 #include "route.h"
-#include "control.h"
 #include "cirrus.h"
 #include "rioioctl.h"
 #include "param.h"
-#include "list.h"
-#include "sam.h"
 #include "protsts.h"
 
 /*
@@ -136,7 +129,7 @@ int RIONewTable(struct rio_info *p)
 			cptr = MapP->Name;	/* (2) */
 			cptr[MAX_NAME_LEN - 1] = '\0';
 			if (cptr[0] == '\0') {
-				bcopy(MapP->RtaUniqueNum ? "RTA	NN" : "HOST NN", MapP->Name, 8);
+				memcpy(MapP->Name, MapP->RtaUniqueNum ? "RTA	NN" : "HOST NN", 8);
 				MapP->Name[5] = '0' + Entry / 10;
 				MapP->Name[6] = '0' + Entry % 10;
 			}
@@ -325,7 +318,7 @@ int RIONewTable(struct rio_info *p)
 		 */
 		if (MapP->ID == 0) {
 			rio_dprintk(RIO_DEBUG_TABLE, "Host entry found. Name %s\n", MapP->Name);
-			bcopy(MapP->Name, HostP->Name, MAX_NAME_LEN);
+			memcpy(HostP->Name, MapP->Name, MAX_NAME_LEN);
 			continue;
 		}
 
@@ -369,7 +362,7 @@ int RIONewTable(struct rio_info *p)
 			}
 		}
 		if (!p->RIOHosts[Host].Name[0]) {
-			bcopy("HOST 1", p->RIOHosts[Host].Name, 7);
+			memcpy(p->RIOHosts[Host].Name, "HOST 1", 7);
 			p->RIOHosts[Host].Name[5] += Host;
 		}
 		/*
@@ -397,7 +390,7 @@ int RIONewTable(struct rio_info *p)
 		 */
 		if (Host1 != Host) {
 			rio_dprintk(RIO_DEBUG_TABLE, "Default name %s already used\n", p->RIOHosts[Host].Name);
-			bcopy("HOST 1", p->RIOHosts[Host].Name, 7);
+			memcpy(p->RIOHosts[Host].Name, "HOST 1", 7);
 			p->RIOHosts[Host].Name[5] += Host1;
 		}
 		rio_dprintk(RIO_DEBUG_TABLE, "Assigning default name %s\n", p->RIOHosts[Host].Name);
@@ -440,7 +433,7 @@ int RIOApel(struct rio_info *p)
 		MapP->SysPort = NO_PORT;
 		for (link = 0; link < LINKS_PER_UNIT; link++)
 			MapP->Topology[link] = HostP->Topology[link];
-		bcopy(HostP->Name, MapP->Name, MAX_NAME_LEN);
+		memcpy(MapP->Name, HostP->Name, MAX_NAME_LEN);
 		for (Rup = 0; Rup < MAX_RUP; Rup++) {
 			if (HostP->Mapping[Rup].Flags & (SLOT_IN_USE | SLOT_TENTATIVE)) {
 				p->RIOConnectTable[Next] = HostP->Mapping[Rup];
@@ -539,10 +532,10 @@ int RIODeleteRta(struct rio_info *p, struct Map *MapP)
 						 ** the phb to port mappings in RIORouteRup.
 						 */
 						if (PortP->SecondBlock) {
-							ushort dest_unit = HostMapP->ID;
-							ushort dest_port = port - SysPort;
+							u16 dest_unit = HostMapP->ID;
+							u16 dest_port = port - SysPort;
 							u16 *TxPktP;
-							PKT *Pkt;
+							struct PKT *Pkt;
 
 							for (TxPktP = PortP->TxStart; TxPktP <= PortP->TxEnd; TxPktP++) {
 								/*
@@ -552,7 +545,7 @@ int RIODeleteRta(struct rio_info *p, struct Map *MapP)
 								 ** a 32 bit pointer so it can be
 								 ** accessed from the driver.
 								 */
-								Pkt = (PKT *) RIO_PTR(HostP->Caddr, readw(&*TxPktP));
+								Pkt = (struct PKT *) RIO_PTR(HostP->Caddr, readw(&*TxPktP));
 								rio_dprintk(RIO_DEBUG_TABLE, "Tx packet (%x) destination: Old %x:%x New %x:%x\n", *TxPktP, Pkt->dest_unit, Pkt->dest_port, dest_unit, dest_port);
 								writew(dest_unit, &Pkt->dest_unit);
 								writew(dest_port, &Pkt->dest_port);
@@ -600,7 +593,7 @@ int RIOAssignRta(struct rio_info *p, struct Map *MapP)
 
 	rio_dprintk(RIO_DEBUG_TABLE, "Assign entry on host %x, rta %x, ID %d, Sysport %d\n", MapP->HostUniqueNum, MapP->RtaUniqueNum, MapP->ID, (int) MapP->SysPort);
 
-	if ((MapP->ID != (ushort) - 1) && ((int) MapP->ID < (int) 1 || (int) MapP->ID > MAX_RUP)) {
+	if ((MapP->ID != (u16) - 1) && ((int) MapP->ID < (int) 1 || (int) MapP->ID > MAX_RUP)) {
 		rio_dprintk(RIO_DEBUG_TABLE, "Bad ID in map entry!\n");
 		p->RIOError.Error = ID_NUMBER_OUT_OF_RANGE;
 		return -EINVAL;
@@ -646,7 +639,7 @@ int RIOAssignRta(struct rio_info *p, struct Map *MapP)
 			 ** Now we have a host we need to allocate an ID
 			 ** if the entry does not already have one.
 			 */
-			if (MapP->ID == (ushort) - 1) {
+			if (MapP->ID == (u16) - 1) {
 				int nNewID;
 
 				rio_dprintk(RIO_DEBUG_TABLE, "Attempting to get a new ID for rta \"%s\"\n", MapP->Name);
@@ -665,7 +658,7 @@ int RIOAssignRta(struct rio_info *p, struct Map *MapP)
 					p->RIOError.Error = COULDNT_FIND_ENTRY;
 					return -EBUSY;
 				}
-				MapP->ID = (ushort) nNewID + 1;
+				MapP->ID = (u16) nNewID + 1;
 				rio_dprintk(RIO_DEBUG_TABLE, "Allocated ID %d for this new RTA.\n", MapP->ID);
 				HostMapP = &p->RIOHosts[host].Mapping[nNewID];
 				HostMapP->RtaUniqueNum = MapP->RtaUniqueNum;
@@ -706,7 +699,7 @@ int RIOAssignRta(struct rio_info *p, struct Map *MapP)
 			 */
 			HostMapP->SysPort = MapP->SysPort;
 			if ((MapP->Flags & RTA16_SECOND_SLOT) == 0)
-				CCOPY(MapP->Name, HostMapP->Name, MAX_NAME_LEN);
+				memcpy(HostMapP->Name, MapP->Name, MAX_NAME_LEN);
 			HostMapP->Flags = SLOT_IN_USE | RTA_BOOTED;
 #ifdef NEED_TO_FIX
 			RIO_SV_BROADCAST(p->RIOHosts[host].svFlags[MapP->ID - 1]);
@@ -743,10 +736,10 @@ int RIOAssignRta(struct rio_info *p, struct Map *MapP)
 int RIOReMapPorts(struct rio_info *p, struct Host *HostP, struct Map *HostMapP)
 {
 	struct Port *PortP;
-	uint SubEnt;
-	uint HostPort;
-	uint SysPort;
-	ushort RtaType;
+	unsigned int SubEnt;
+	unsigned int HostPort;
+	unsigned int SysPort;
+	u16 RtaType;
 	unsigned long flags;
 
 	rio_dprintk(RIO_DEBUG_TABLE, "Mapping sysport %d to id %d\n", (int) HostMapP->SysPort, HostMapP->ID);
@@ -808,10 +801,10 @@ int RIOReMapPorts(struct rio_info *p, struct Host *HostP, struct Map *HostMapP)
 		PortP->RupNum = HostMapP->ID - 1;
 		if (HostMapP->Flags & RTA16_SECOND_SLOT) {
 			PortP->ID2 = HostMapP->ID2 - 1;
-			PortP->SecondBlock = TRUE;
+			PortP->SecondBlock = 1;
 		} else {
 			PortP->ID2 = 0;
-			PortP->SecondBlock = FALSE;
+			PortP->SecondBlock = 0;
 		}
 		PortP->RtaUniqueNum = HostMapP->RtaUniqueNum;
 
@@ -931,7 +924,7 @@ int RIOChangeName(struct rio_info *p, struct Map *MapP)
 				return -ENXIO;
 			}
 			if (MapP->ID == 0) {
-				CCOPY(MapP->Name, p->RIOHosts[host].Name, MAX_NAME_LEN);
+				memcpy(p->RIOHosts[host].Name, MapP->Name, MAX_NAME_LEN);
 				return 0;
 			}
 
@@ -941,7 +934,7 @@ int RIOChangeName(struct rio_info *p, struct Map *MapP)
 				p->RIOError.Error = RTA_NUMBER_WRONG;
 				return -ENXIO;
 			}
-			CCOPY(MapP->Name, HostMapP->Name, MAX_NAME_LEN);
+			memcpy(HostMapP->Name, MapP->Name, MAX_NAME_LEN);
 			return 0;
 		}
 	}

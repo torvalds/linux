@@ -50,15 +50,12 @@ static char *_rioroute_c_sccs_ = "@(#)rioroute.c	1.3";
 
 #include "linux_compat.h"
 #include "rio_linux.h"
-#include "typdef.h"
 #include "pkt.h"
 #include "daemon.h"
 #include "rio.h"
 #include "riospace.h"
-#include "top.h"
 #include "cmdpkt.h"
 #include "map.h"
-#include "riotypes.h"
 #include "rup.h"
 #include "port.h"
 #include "riodrvr.h"
@@ -71,29 +68,25 @@ static char *_rioroute_c_sccs_ = "@(#)rioroute.c	1.3";
 #include "unixrup.h"
 #include "board.h"
 #include "host.h"
-#include "error.h"
 #include "phb.h"
 #include "link.h"
 #include "cmdblk.h"
 #include "route.h"
-#include "control.h"
 #include "cirrus.h"
 #include "rioioctl.h"
 #include "param.h"
-#include "list.h"
-#include "sam.h"
 
-static int RIOCheckIsolated(struct rio_info *, struct Host *, uint);
-static int RIOIsolate(struct rio_info *, struct Host *, uint);
-static int RIOCheck(struct Host *, uint);
-static void RIOConCon(struct rio_info *, struct Host *, uint, uint, uint, uint, int);
+static int RIOCheckIsolated(struct rio_info *, struct Host *, unsigned int);
+static int RIOIsolate(struct rio_info *, struct Host *, unsigned int);
+static int RIOCheck(struct Host *, unsigned int);
+static void RIOConCon(struct rio_info *, struct Host *, unsigned int, unsigned int, unsigned int, unsigned int, int);
 
 
 /*
 ** Incoming on the ROUTE_RUP
 ** I wrote this while I was tired. Forgive me.
 */
-int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
+int RIORouteRup(struct rio_info *p, unsigned int Rup, struct Host *HostP, struct PKT * PacketP)
 {
 	struct PktCmd *PktCmdP = (struct PktCmd *) PacketP->data;
 	struct PktCmd_M *PktReplyP;
@@ -104,10 +97,10 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 	int ThisLink, ThisLinkMin, ThisLinkMax;
 	int port;
 	int Mod, Mod1, Mod2;
-	ushort RtaType;
-	uint RtaUniq;
-	uint ThisUnit, ThisUnit2;	/* 2 ids to accommodate 16 port RTA */
-	uint OldUnit, NewUnit, OldLink, NewLink;
+	unsigned short RtaType;
+	unsigned int RtaUniq;
+	unsigned int ThisUnit, ThisUnit2;	/* 2 ids to accommodate 16 port RTA */
+	unsigned int OldUnit, NewUnit, OldLink, NewLink;
 	char *MyType, *MyName;
 	int Lies;
 	unsigned long flags;
@@ -125,7 +118,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 		 ** from an RTA then we need to fill in the Mapping structure's
 		 ** Topology array for the unit.
 		 */
-		if (Rup >= (ushort) MAX_RUP) {
+		if (Rup >= (unsigned short) MAX_RUP) {
 			ThisUnit = HOST_ID;
 			TopP = HostP->Topology;
 			MyType = "Host";
@@ -151,7 +144,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 			 ** it won't lie about network interconnect, total disconnects
 			 ** and no-IDs. (or at least, it doesn't *matter* if it does)
 			 */
-			if (readb(&PktCmdP->RouteTopology[ThisLink].Unit) > (ushort) MAX_RUP)
+			if (readb(&PktCmdP->RouteTopology[ThisLink].Unit) > (unsigned short) MAX_RUP)
 				continue;
 
 			for (NewLink = ThisLinkMin; NewLink < ThisLink; NewLink++) {
@@ -168,7 +161,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 				    'A' + readb(&PktCmdP->RouteTopology[0].Link),
 				    readb(&PktCmdP->RouteTopology[1].Unit),
 				    'A' + readb(&PktCmdP->RouteTopology[1].Link), readb(&PktCmdP->RouteTopology[2].Unit), 'A' + readb(&PktCmdP->RouteTopology[2].Link), readb(&PktCmdP->RouteTopology[3].Unit), 'A' + readb(&PktCmdP->RouteTopology[3].Link));
-			return TRUE;
+			return 1;
 		}
 
 		/*
@@ -258,7 +251,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 				RIOCheckIsolated(p, HostP, OldUnit);
 			}
 		}
-		return TRUE;
+		return 1;
 	}
 
 	/*
@@ -266,7 +259,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 	 */
 	if (readb(&PktCmdP->Command) != ROUTE_REQUEST) {
 		rio_dprintk(RIO_DEBUG_ROUTE, "Unknown command %d received on rup %d host %p ROUTE_RUP\n", readb(&PktCmdP->Command), Rup, HostP);
-		return TRUE;
+		return 1;
 	}
 
 	RtaUniq = (readb(&PktCmdP->UniqNum[0])) + (readb(&PktCmdP->UniqNum[1]) << 8) + (readb(&PktCmdP->UniqNum[2]) << 16) + (readb(&PktCmdP->UniqNum[3]) << 24);
@@ -290,10 +283,6 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 	} else {
 		Mod2 = HINYBLE(Mod);
 		rio_dprintk(RIO_DEBUG_ROUTE, "Module types are %s (ports 0-3) and %s (ports 4-7)\n", p->RIOModuleTypes[Mod1].Name, p->RIOModuleTypes[Mod2].Name);
-	}
-
-	if (RtaUniq == 0xffffffff) {
-		ShowPacket(DBG_SPECIAL, PacketP);
 	}
 
 	/*
@@ -320,7 +309,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 		PktReplyP->Command = ROUTE_FOAD;
 		HostP->Copy("RT_FOAD", PktReplyP->CommandText, 7);
 		RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
-		return TRUE;
+		return 1;
 	}
 
 	/*
@@ -354,7 +343,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 				PktReplyP->Command = ROUTE_FOAD;
 				HostP->Copy("RT_FOAD", PktReplyP->CommandText, 7);
 				RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
-				return TRUE;
+				return 1;
 			}
 
 			/*
@@ -447,7 +436,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 			/*
 			 ** Job done, get on with the interrupts!
 			 */
-			return TRUE;
+			return 1;
 		}
 	}
 	/*
@@ -491,28 +480,25 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 		if (RtaType == TYPE_RTA16) {
 			if (RIOFindFreeID(p, HostP, &ThisUnit, &ThisUnit2) == 0) {
 				RIODefaultName(p, HostP, ThisUnit);
-				FillSlot(ThisUnit, ThisUnit2, RtaUniq, HostP);
+				rio_fill_host_slot(ThisUnit, ThisUnit2, RtaUniq, HostP);
 			}
 		} else {
 			if (RIOFindFreeID(p, HostP, &ThisUnit, NULL) == 0) {
 				RIODefaultName(p, HostP, ThisUnit);
-				FillSlot(ThisUnit, 0, RtaUniq, HostP);
+				rio_fill_host_slot(ThisUnit, 0, RtaUniq, HostP);
 			}
 		}
 		PktReplyP->Command = ROUTE_USED;
 		HostP->Copy("RT_USED", PktReplyP->CommandText, 7);
 	}
 	RIOQueueCmdBlk(HostP, Rup, CmdBlkP);
-	return TRUE;
+	return 1;
 }
 
 
-void RIOFixPhbs(p, HostP, unit)
-struct rio_info *p;
-struct Host *HostP;
-uint unit;
+void RIOFixPhbs(struct rio_info *p, struct Host *HostP, unsigned int unit)
 {
-	ushort link, port;
+	unsigned short link, port;
 	struct Port *PortP;
 	unsigned long flags;
 	int PortN = HostP->Mapping[unit].SysPort;
@@ -520,7 +506,7 @@ uint unit;
 	rio_dprintk(RIO_DEBUG_ROUTE, "RIOFixPhbs unit %d sysport %d\n", unit, PortN);
 
 	if (PortN != -1) {
-		ushort dest_unit = HostP->Mapping[unit].ID2;
+		unsigned short dest_unit = HostP->Mapping[unit].ID2;
 
 		/*
 		 ** Get the link number used for the 1st 8 phbs on this unit.
@@ -530,9 +516,9 @@ uint unit;
 		link = readw(&PortP->PhbP->link);
 
 		for (port = 0; port < PORTS_PER_RTA; port++, PortN++) {
-			ushort dest_port = port + 8;
-			WORD *TxPktP;
-			PKT *Pkt;
+			unsigned short dest_port = port + 8;
+			u16 *TxPktP;
+			struct PKT *Pkt;
 
 			PortP = p->RIOPortp[PortN];
 
@@ -569,12 +555,12 @@ uint unit;
 				 ** card. This needs to be translated into a 32 bit pointer
 				 ** so it can be accessed from the driver.
 				 */
-				Pkt = (PKT *) RIO_PTR(HostP->Caddr, readw(TxPktP));
+				Pkt = (struct PKT *) RIO_PTR(HostP->Caddr, readw(TxPktP));
 
 				/*
 				 ** If the packet is used, reset it.
 				 */
-				Pkt = (PKT *) ((unsigned long) Pkt & ~PKT_IN_USE);
+				Pkt = (struct PKT *) ((unsigned long) Pkt & ~PKT_IN_USE);
 				writeb(dest_unit, &Pkt->dest_unit);
 				writeb(dest_port, &Pkt->dest_port);
 			}
@@ -603,10 +589,7 @@ uint unit;
 ** the world about it. This is done to ensure that the configurator
 ** only gets up-to-date information about what is going on.
 */
-static int RIOCheckIsolated(p, HostP, UnitId)
-struct rio_info *p;
-struct Host *HostP;
-uint UnitId;
+static int RIOCheckIsolated(struct rio_info *p, struct Host *HostP, unsigned int UnitId)
 {
 	unsigned long flags;
 	rio_spin_lock_irqsave(&HostP->HostLock, flags);
@@ -628,12 +611,9 @@ uint UnitId;
 ** all the units attached to it. This will mean that the entire
 ** subnet will re-introduce itself.
 */
-static int RIOIsolate(p, HostP, UnitId)
-struct rio_info *p;
-struct Host *HostP;
-uint UnitId;
+static int RIOIsolate(struct rio_info *p, struct Host *HostP, unsigned int UnitId)
 {
-	uint link, unit;
+	unsigned int link, unit;
 
 	UnitId--;		/* this trick relies on the Unit Id being UNSIGNED! */
 
@@ -658,9 +638,7 @@ uint UnitId;
 	return 1;
 }
 
-static int RIOCheck(HostP, UnitId)
-struct Host *HostP;
-uint UnitId;
+static int RIOCheck(struct Host *HostP, unsigned int UnitId)
 {
 	unsigned char link;
 
@@ -714,8 +692,7 @@ uint UnitId;
 ** Returns the type of unit (host, 16/8 port RTA)
 */
 
-uint GetUnitType(Uniq)
-uint Uniq;
+unsigned int GetUnitType(unsigned int Uniq)
 {
 	switch ((Uniq >> 28) & 0xf) {
 	case RIO_AT:
@@ -736,8 +713,7 @@ uint Uniq;
 	}
 }
 
-int RIOSetChange(p)
-struct rio_info *p;
+int RIOSetChange(struct rio_info *p)
 {
 	if (p->RIOQuickCheck != NOT_CHANGED)
 		return (0);
@@ -751,14 +727,13 @@ struct rio_info *p;
 	return (0);
 }
 
-static void RIOConCon(p, HostP, FromId, FromLink, ToId, ToLink, Change)
-struct rio_info *p;
-struct Host *HostP;
-uint FromId;
-uint FromLink;
-uint ToId;
-uint ToLink;
-int Change;
+static void RIOConCon(struct rio_info *p,
+		      struct Host *HostP,
+		      unsigned int FromId,
+		      unsigned int FromLink,
+		      unsigned int ToId,
+		      unsigned int ToLink,
+		      int Change)
 {
 	char *FromName;
 	char *FromType;
@@ -912,7 +887,8 @@ static int RIOFreeDisconnected(struct rio_info *p, struct Host *HostP, int unit)
 ** This function scans the given host table for either one
 ** or two free unit ID's.
 */
-int RIOFindFreeID(struct rio_info *p, struct Host *HostP, uint * pID1, uint * pID2)
+
+int RIOFindFreeID(struct rio_info *p, struct Host *HostP, unsigned int * pID1, unsigned int * pID2)
 {
 	int unit, tempID;
 

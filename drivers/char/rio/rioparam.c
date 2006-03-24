@@ -52,15 +52,12 @@ static char *_rioparam_c_sccs_ = "@(#)rioparam.c	1.3";
 
 #include "linux_compat.h"
 #include "rio_linux.h"
-#include "typdef.h"
 #include "pkt.h"
 #include "daemon.h"
 #include "rio.h"
 #include "riospace.h"
-#include "top.h"
 #include "cmdpkt.h"
 #include "map.h"
-#include "riotypes.h"
 #include "rup.h"
 #include "port.h"
 #include "riodrvr.h"
@@ -73,17 +70,13 @@ static char *_rioparam_c_sccs_ = "@(#)rioparam.c	1.3";
 #include "unixrup.h"
 #include "board.h"
 #include "host.h"
-#include "error.h"
 #include "phb.h"
 #include "link.h"
 #include "cmdblk.h"
 #include "route.h"
-#include "control.h"
 #include "cirrus.h"
 #include "rioioctl.h"
 #include "param.h"
-#include "list.h"
-#include "sam.h"
 
 
 
@@ -162,7 +155,7 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 	struct tty_struct *TtyP;
 	int retval;
 	struct phb_param *phb_param_ptr;
-	PKT *PacketP;
+	struct PKT *PacketP;
 	int res;
 	u8 Cor1 = 0, Cor2 = 0, Cor4 = 0, Cor5 = 0;
 	u8 TxXon = 0, TxXoff = 0, RxXon = 0, RxXoff = 0;
@@ -228,7 +221,7 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 		if (PortP->State & RIO_DELETED) {
 			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 			func_exit();
-			return RIO_SUCCESS;
+			return 0;
 		}
 	}
 
@@ -240,7 +233,7 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 	}
 
 	rio_dprintk(RIO_DEBUG_PARAM, "can_add_transmit() returns %x\n", res);
-	rio_dprintk(RIO_DEBUG_PARAM, "Packet is 0x%p\n", PacketP);
+	rio_dprintk(RIO_DEBUG_PARAM, "Packet is %p\n", PacketP);
 
 	phb_param_ptr = (struct phb_param *) PacketP->data;
 
@@ -579,7 +572,7 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 	 */
 	func_exit();
 
-	return RIO_SUCCESS;
+	return 0;
 }
 
 
@@ -587,11 +580,11 @@ int RIOParam(struct Port *PortP, int cmd, int Modem, int SleepFlag)
 ** We can add another packet to a transmit queue if the packet pointer pointed
 ** to by the TxAdd pointer has PKT_IN_USE clear in its address.
 */
-int can_add_transmit(PKT **PktP, struct Port *PortP)
+int can_add_transmit(struct PKT **PktP, struct Port *PortP)
 {
-	PKT *tp;
+	struct PKT *tp;
 
-	*PktP = tp = (PKT *) RIO_PTR(PortP->Caddr, readw(PortP->TxAdd));
+	*PktP = tp = (struct PKT *) RIO_PTR(PortP->Caddr, readw(PortP->TxAdd));
 
 	return !((unsigned long) tp & PKT_IN_USE);
 }
@@ -615,10 +608,10 @@ void add_transmit(struct Port *PortP)
  * Put a packet onto the end of the
  * free list
  ****************************************/
-void put_free_end(struct Host *HostP, PKT *PktP)
+void put_free_end(struct Host *HostP, struct PKT *PktP)
 {
-	FREE_LIST *tmp_pointer;
-	ushort old_end, new_end;
+	struct rio_free_list *tmp_pointer;
+	unsigned short old_end, new_end;
 	unsigned long flags;
 
 	rio_spin_lock_irqsave(&HostP->HostLock, flags);
@@ -632,15 +625,15 @@ void put_free_end(struct Host *HostP, PKT *PktP)
 
 	if ((old_end = readw(&HostP->ParmMapP->free_list_end)) != TPNULL) {
 		new_end = RIO_OFF(HostP->Caddr, PktP);
-		tmp_pointer = (FREE_LIST *) RIO_PTR(HostP->Caddr, old_end);
+		tmp_pointer = (struct rio_free_list *) RIO_PTR(HostP->Caddr, old_end);
 		writew(new_end, &tmp_pointer->next);
-		writew(old_end, &((FREE_LIST *) PktP)->prev);
-		writew(TPNULL, &((FREE_LIST *) PktP)->next);
+		writew(old_end, &((struct rio_free_list *) PktP)->prev);
+		writew(TPNULL, &((struct rio_free_list *) PktP)->next);
 		writew(new_end, &HostP->ParmMapP->free_list_end);
 	} else {		/* First packet on the free list this should never happen! */
 		rio_dprintk(RIO_DEBUG_PFE, "put_free_end(): This should never happen\n");
 		writew(RIO_OFF(HostP->Caddr, PktP), &HostP->ParmMapP->free_list_end);
-		tmp_pointer = (FREE_LIST *) PktP;
+		tmp_pointer = (struct rio_free_list *) PktP;
 		writew(TPNULL, &tmp_pointer->prev);
 		writew(TPNULL, &tmp_pointer->next);
 	}
@@ -654,10 +647,10 @@ void put_free_end(struct Host *HostP, PKT *PktP)
 ** relevant packet, [having cleared the PKT_IN_USE bit]. If PKT_IN_USE is clear,
 ** then can_remove_receive() returns 0.
 */
-int can_remove_receive(PKT **PktP, struct Port *PortP)
+int can_remove_receive(struct PKT **PktP, struct Port *PortP)
 {
 	if (readw(PortP->RxRemove) & PKT_IN_USE) {
-		*PktP = (PKT *) RIO_PTR(PortP->Caddr, readw(PortP->RxRemove) & ~PKT_IN_USE);
+		*PktP = (struct PKT *) RIO_PTR(PortP->Caddr, readw(PortP->RxRemove) & ~PKT_IN_USE);
 		return 1;
 	}
 	return 0;

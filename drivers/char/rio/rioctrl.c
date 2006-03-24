@@ -51,15 +51,12 @@ static char *_rioctrl_c_sccs_ = "@(#)rioctrl.c	1.3";
 
 #include "linux_compat.h"
 #include "rio_linux.h"
-#include "typdef.h"
 #include "pkt.h"
 #include "daemon.h"
 #include "rio.h"
 #include "riospace.h"
-#include "top.h"
 #include "cmdpkt.h"
 #include "map.h"
-#include "riotypes.h"
 #include "rup.h"
 #include "port.h"
 #include "riodrvr.h"
@@ -72,12 +69,10 @@ static char *_rioctrl_c_sccs_ = "@(#)rioctrl.c	1.3";
 #include "unixrup.h"
 #include "board.h"
 #include "host.h"
-#include "error.h"
 #include "phb.h"
 #include "link.h"
 #include "cmdblk.h"
 #include "route.h"
-#include "control.h"
 #include "cirrus.h"
 #include "rioioctl.h"
 
@@ -144,7 +139,7 @@ int su;
 	ushort loop;
 	int Entry;
 	struct Port *PortP;
-	PKT *PacketP;
+	struct PKT *PacketP;
 	int retval = 0;
 	unsigned long flags;
 
@@ -154,7 +149,7 @@ int su;
 	Host = 0;
 	PortP = NULL;
 
-	rio_dprintk(RIO_DEBUG_CTRL, "control ioctl cmd: 0x%x arg: 0x%p\n", cmd, arg);
+	rio_dprintk(RIO_DEBUG_CTRL, "control ioctl cmd: 0x%x arg: %p\n", cmd, arg);
 
 	switch (cmd) {
 		/*
@@ -572,8 +567,8 @@ int su;
 		PortSetup.Store = p->RIOPortp[port]->Store;
 		PortSetup.Lock = p->RIOPortp[port]->Lock;
 		PortSetup.XpCps = p->RIOPortp[port]->Xprint.XpCps;
-		bcopy(p->RIOPortp[port]->Xprint.XpOn, PortSetup.XpOn, MAX_XP_CTRL_LEN);
-		bcopy(p->RIOPortp[port]->Xprint.XpOff, PortSetup.XpOff, MAX_XP_CTRL_LEN);
+		memcpy(PortSetup.XpOn, p->RIOPortp[port]->Xprint.XpOn, MAX_XP_CTRL_LEN);
+		memcpy(PortSetup.XpOff, p->RIOPortp[port]->Xprint.XpOff, MAX_XP_CTRL_LEN);
 		PortSetup.XpOn[MAX_XP_CTRL_LEN - 1] = '\0';
 		PortSetup.XpOff[MAX_XP_CTRL_LEN - 1] = '\0';
 
@@ -1404,7 +1399,7 @@ int RIOPreemptiveCmd(struct rio_info *p, struct Port *PortP, u8 Cmd)
 		return RIO_FAIL;
 	}
 
-	rio_dprintk(RIO_DEBUG_CTRL, "Command blk 0x%p - InUse now %d\n", CmdBlkP, PortP->InUse);
+	rio_dprintk(RIO_DEBUG_CTRL, "Command blk %p - InUse now %d\n", CmdBlkP, PortP->InUse);
 
 	PktCmdP = (struct PktCmd_M *) &CmdBlkP->Packet.data[0];
 
@@ -1430,38 +1425,38 @@ int RIOPreemptiveCmd(struct rio_info *p, struct Port *PortP, u8 Cmd)
 
 	switch (Cmd) {
 	case MEMDUMP:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue MEMDUMP command blk 0x%p (addr 0x%x)\n", CmdBlkP, (int) SubCmd.Addr);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue MEMDUMP command blk %p (addr 0x%x)\n", CmdBlkP, (int) SubCmd.Addr);
 		PktCmdP->SubCommand = MEMDUMP;
 		PktCmdP->SubAddr = SubCmd.Addr;
 		break;
 	case FCLOSE:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue FCLOSE command blk 0x%p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue FCLOSE command blk %p\n", CmdBlkP);
 		break;
 	case READ_REGISTER:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue READ_REGISTER (0x%x) command blk 0x%p\n", (int) SubCmd.Addr, CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue READ_REGISTER (0x%x) command blk %p\n", (int) SubCmd.Addr, CmdBlkP);
 		PktCmdP->SubCommand = READ_REGISTER;
 		PktCmdP->SubAddr = SubCmd.Addr;
 		break;
 	case RESUME:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue RESUME command blk 0x%p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue RESUME command blk %p\n", CmdBlkP);
 		break;
 	case RFLUSH:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue RFLUSH command blk 0x%p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue RFLUSH command blk %p\n", CmdBlkP);
 		CmdBlkP->PostFuncP = RIORFlushEnable;
 		break;
 	case SUSPEND:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue SUSPEND command blk 0x%p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue SUSPEND command blk %p\n", CmdBlkP);
 		break;
 
 	case MGET:
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue MGET command blk 0x%p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue MGET command blk %p\n", CmdBlkP);
 		break;
 
 	case MSET:
 	case MBIC:
 	case MBIS:
 		CmdBlkP->Packet.data[4] = (char) PortP->ModemLines;
-		rio_dprintk(RIO_DEBUG_CTRL, "Queue MSET/MBIC/MBIS command blk 0x%p\n", CmdBlkP);
+		rio_dprintk(RIO_DEBUG_CTRL, "Queue MSET/MBIC/MBIS command blk %p\n", CmdBlkP);
 		break;
 
 	case WFLUSH:
@@ -1475,7 +1470,7 @@ int RIOPreemptiveCmd(struct rio_info *p, struct Port *PortP, u8 Cmd)
 			RIOFreeCmdBlk(CmdBlkP);
 			return (RIO_FAIL);
 		} else {
-			rio_dprintk(RIO_DEBUG_CTRL, "Queue WFLUSH command blk 0x%p\n", CmdBlkP);
+			rio_dprintk(RIO_DEBUG_CTRL, "Queue WFLUSH command blk %p\n", CmdBlkP);
 			CmdBlkP->PostFuncP = RIOWFlushMark;
 		}
 		break;

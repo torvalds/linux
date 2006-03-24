@@ -51,15 +51,12 @@ static char *_rioinit_c_sccs_ = "@(#)rioinit.c	1.3";
 
 
 #include "linux_compat.h"
-#include "typdef.h"
 #include "pkt.h"
 #include "daemon.h"
 #include "rio.h"
 #include "riospace.h"
-#include "top.h"
 #include "cmdpkt.h"
 #include "map.h"
-#include "riotypes.h"
 #include "rup.h"
 #include "port.h"
 #include "riodrvr.h"
@@ -72,19 +69,17 @@ static char *_rioinit_c_sccs_ = "@(#)rioinit.c	1.3";
 #include "unixrup.h"
 #include "board.h"
 #include "host.h"
-#include "error.h"
 #include "phb.h"
 #include "link.h"
 #include "cmdblk.h"
 #include "route.h"
-#include "control.h"
 #include "cirrus.h"
 #include "rioioctl.h"
 #include "rio_linux.h"
 
 int RIOPCIinit(struct rio_info *p, int Mode);
 
-static int RIOScrub(int, BYTE *, int);
+static int RIOScrub(int, u8 *, int);
 
 
 /**
@@ -156,7 +151,7 @@ static	u8	val[] = {
 ** RAM test a board. 
 ** Nothing too complicated, just enough to check it out.
 */
-int RIOBoardTest(paddr_t paddr, caddr_t	caddr, unsigned char type, int slot)
+int RIOBoardTest(unsigned long paddr, caddr_t	caddr, unsigned char type, int slot)
 {
 	struct DpRam *DpRam = (struct DpRam *)caddr;
 	char *ram[4];
@@ -164,7 +159,7 @@ int RIOBoardTest(paddr_t paddr, caddr_t	caddr, unsigned char type, int slot)
 	int  op, bank;
 	int  nbanks;
 
-	rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Reset host type=%d, DpRam=0x%p, slot=%d\n",
+	rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Reset host type=%d, DpRam=%p, slot=%d\n",
 			type, DpRam, slot);
 
 	RIOHostReset(type, DpRam, slot);
@@ -193,10 +188,10 @@ int RIOBoardTest(paddr_t paddr, caddr_t	caddr, unsigned char type, int slot)
 
 
 	if (nbanks == 3) {
-		rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Memory: 0x%p(0x%x), 0x%p(0x%x), 0x%p(0x%x)\n",
+		rio_dprintk (RIO_DEBUG_INIT, "RIO-init: Memory: %p(0x%x), %p(0x%x), %p(0x%x)\n",
 				ram[0], size[0], ram[1], size[1], ram[2], size[2]);
 	} else {
-		rio_dprintk (RIO_DEBUG_INIT, "RIO-init: 0x%p(0x%x), 0x%p(0x%x), 0x%p(0x%x), 0x%p(0x%x)\n",
+		rio_dprintk (RIO_DEBUG_INIT, "RIO-init: %p(0x%x), %p(0x%x), %p(0x%x), %p(0x%x)\n",
 				ram[0], size[0], ram[1], size[1], ram[2], size[2], ram[3], size[3]);
 	}
 
@@ -207,7 +202,7 @@ int RIOBoardTest(paddr_t paddr, caddr_t	caddr, unsigned char type, int slot)
 	*/
 	for (op=0; op<TEST_END; op++) {
 		for (bank=0; bank<nbanks; bank++) {
-			if (RIOScrub(op, (BYTE *)ram[bank], size[bank]) == RIO_FAIL) {
+			if (RIOScrub(op, (u8 *)ram[bank], size[bank]) == RIO_FAIL) {
 				rio_dprintk (RIO_DEBUG_INIT, "RIO-init: RIOScrub band %d, op %d failed\n", 
 							bank, op);
 				return RIO_FAIL;
@@ -216,7 +211,7 @@ int RIOBoardTest(paddr_t paddr, caddr_t	caddr, unsigned char type, int slot)
 	}
 
 	rio_dprintk (RIO_DEBUG_INIT, "Test completed\n");
-	return RIO_SUCCESS;
+	return 0;
 }
 
 
@@ -232,7 +227,7 @@ int RIOBoardTest(paddr_t paddr, caddr_t	caddr, unsigned char type, int slot)
 ** to check that the data from the previous phase was retained.
 */
 
-static int RIOScrub(int op, BYTE *ram, int size)
+static int RIOScrub(int op, u8 *ram, int size)
 {
 	int off;
 	unsigned char	oldbyte;
@@ -364,7 +359,7 @@ static int RIOScrub(int op, BYTE *ram, int size)
 		}
 		writew(newword, ram + off);
 	}
-	return RIO_SUCCESS;
+	return 0;
 }
 
 
