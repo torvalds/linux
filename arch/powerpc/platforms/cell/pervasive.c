@@ -203,7 +203,7 @@ found:
 
 	pr_debug("pervasive area for CPU %d at %lx, size %x\n",
 			cpu, real_address, size);
-	p->regs = __ioremap(real_address, size, _PAGE_NO_CACHE);
+	p->regs = ioremap(real_address, size);
 	p->thread = thread;
 	return 0;
 }

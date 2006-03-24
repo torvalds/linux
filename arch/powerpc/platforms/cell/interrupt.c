@@ -226,9 +226,7 @@ static int setup_iic_hardcoded(void)
 			regs += 0x20;
 
 		printk(KERN_INFO "IIC for CPU %d at %lx\n", cpu, regs);
-		iic->regs = __ioremap(regs, sizeof(struct iic_regs),
-				      _PAGE_NO_CACHE);
-
+		iic->regs = ioremap(regs, sizeof(struct iic_regs));
 		iic->target_id = (nodeid << 4) + ((cpu & 1) ? 0xf : 0xe);
 	}
 
@@ -269,14 +267,12 @@ static int setup_iic(void)
 		}
 
  		iic = &per_cpu(iic, np[0]);
- 		iic->regs = __ioremap(regs[0], sizeof(struct iic_regs),
- 				      _PAGE_NO_CACHE);
+ 		iic->regs = ioremap(regs[0], sizeof(struct iic_regs));
 		iic->target_id = ((np[0] & 2) << 3) + ((np[0] & 1) ? 0xf : 0xe);
  		printk("IIC for CPU %d at %lx mapped to %p\n", np[0], regs[0], iic->regs);
 
  		iic = &per_cpu(iic, np[1]);
- 		iic->regs = __ioremap(regs[2], sizeof(struct iic_regs),
- 				      _PAGE_NO_CACHE);
+ 		iic->regs = ioremap(regs[2], sizeof(struct iic_regs));
 		iic->target_id = ((np[1] & 2) << 3) + ((np[1] & 1) ? 0xf : 0xe);
  		printk("IIC for CPU %d at %lx mapped to %p\n", np[1], regs[2], iic->regs);
 

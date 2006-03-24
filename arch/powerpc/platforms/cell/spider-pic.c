@@ -159,7 +159,7 @@ void spider_init_IRQ_hardcoded(void)
 	for (node = 0; node < num_present_cpus()/2; node++) {
 		spiderpic = pics[node];
 		printk(KERN_DEBUG "SPIDER addr: %lx\n", spiderpic);
-		spider_pics[node] = __ioremap(spiderpic, 0x800, _PAGE_NO_CACHE);
+		spider_pics[node] = ioremap(spiderpic, 0x800);
 		for (n = 0; n < IIC_NUM_EXT; n++) {
 			int irq = n + IIC_EXT_OFFSET + node * IIC_NODE_STRIDE;
 			get_irq_desc(irq)->handler = &spider_pic;
@@ -210,7 +210,7 @@ void spider_init_IRQ(void)
 		if ( n != 2)
 			printk("reg property with invalid number of elements \n");
 
-		spider_pics[node] = __ioremap(spider_reg, 0x800, _PAGE_NO_CACHE);
+		spider_pics[node] = ioremap(spider_reg, 0x800);
 
 		printk("SPIDER addr: %lx with %i addr_cells mapped to %p\n",
 		       spider_reg, n, spider_pics[node]);

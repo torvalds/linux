@@ -344,8 +344,8 @@ static int cell_map_iommu_hardcoded(int num_nodes)
 
 	/* node 0 */
 	iommu = &cell_iommus[0];
-	iommu->mapped_base = __ioremap(0x20000511000, 0x1000, _PAGE_NO_CACHE);
-	iommu->mapped_mmio_base = __ioremap(0x20000510000, 0x1000, _PAGE_NO_CACHE);
+	iommu->mapped_base = ioremap(0x20000511000, 0x1000);
+	iommu->mapped_mmio_base = ioremap(0x20000510000, 0x1000);
 
 	enable_mapping(iommu->mapped_base, iommu->mapped_mmio_base);
 
@@ -357,8 +357,8 @@ static int cell_map_iommu_hardcoded(int num_nodes)
 
 	/* node 1 */
 	iommu = &cell_iommus[1];
-	iommu->mapped_base = __ioremap(0x30000511000, 0x1000, _PAGE_NO_CACHE);
-	iommu->mapped_mmio_base = __ioremap(0x30000510000, 0x1000, _PAGE_NO_CACHE);
+	iommu->mapped_base = ioremap(0x30000511000, 0x1000);
+	iommu->mapped_mmio_base = ioremap(0x30000510000, 0x1000);
 
 	enable_mapping(iommu->mapped_base, iommu->mapped_mmio_base);
 
@@ -407,8 +407,8 @@ static int cell_map_iommu(void)
 		iommu->base = *base;
 		iommu->mmio_base = *mmio_base;
 
-		iommu->mapped_base = __ioremap(*base, 0x1000, _PAGE_NO_CACHE);
-		iommu->mapped_mmio_base = __ioremap(*mmio_base, 0x1000, _PAGE_NO_CACHE);
+		iommu->mapped_base = ioremap(*base, 0x1000);
+		iommu->mapped_mmio_base = ioremap(*mmio_base, 0x1000);
 
 		enable_mapping(iommu->mapped_base,
 			       iommu->mapped_mmio_base);
