@@ -130,6 +130,15 @@ SECTIONS
 	  __initcall_end = .;
 	}
 
+  /* MCA table */
+  . = ALIGN(16);
+  __mca_table : AT(ADDR(__mca_table) - LOAD_OFFSET)
+	{
+	  __start___mca_table = .;
+	  *(__mca_table)
+	  __stop___mca_table = .;
+	}
+
   .data.patch.vtop : AT(ADDR(.data.patch.vtop) - LOAD_OFFSET)
 	{
 	  __start___vtop_patchlist = .;

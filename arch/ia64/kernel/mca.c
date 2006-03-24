@@ -83,6 +83,7 @@
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
 
+#include "mca_drv.h"
 #include "entry.h"
 
 #if defined(IA64_MCA_DEBUG_INFO)
@@ -280,6 +281,50 @@ ia64_mca_log_sal_error_record(int sal_info_type)
 	if (rh->severity == sal_log_severity_corrected)
 		ia64_sal_clear_state_info(sal_info_type);
 }
+
+/*
+ * search_mca_table
+ *  See if the MCA surfaced in an instruction range
+ *  that has been tagged as recoverable.
+ *
+ *  Inputs
+ *	first	First address range to check
+ *	last	Last address range to check
+ *	ip	Instruction pointer, address we are looking for
+ *
+ * Return value:
+ *      1 on Success (in the table)/ 0 on Failure (not in the  table)
+ */
+int
+search_mca_table (const struct mca_table_entry *first,
+                const struct mca_table_entry *last,
+                unsigned long ip)
+{
+        const struct mca_table_entry *curr;
+        u64 curr_start, curr_end;
+
+        curr = first;
+        while (curr <= last) {
+                curr_start = (u64) &curr->start_addr + curr->start_addr;
+                curr_end = (u64) &curr->end_addr + curr->end_addr;
+
+                if ((ip >= curr_start) && (ip <= curr_end)) {
+                        return 1;
+                }
+                curr++;
+        }
+        return 0;
+}
+
+/* Given an address, look for it in the mca tables. */
+int mca_recover_range(unsigned long addr)
+{
+	extern struct mca_table_entry __start___mca_table[];
+	extern struct mca_table_entry __stop___mca_table[];
+
+	return search_mca_table(__start___mca_table, __stop___mca_table-1, addr);
+}
+EXPORT_SYMBOL_GPL(mca_recover_range);
 
 #ifdef CONFIG_ACPI
 
@@ -747,31 +792,34 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 		ia64_mca_modify_comm(previous_current);
 		goto no_mod;
 	}
-	if (r13 != sos->prev_IA64_KR_CURRENT) {
-		msg = "inconsistent previous current and r13";
-		goto no_mod;
-	}
-	if ((r12 - r13) >= KERNEL_STACK_SIZE) {
-		msg = "inconsistent r12 and r13";
-		goto no_mod;
-	}
-	if ((ar_bspstore - r13) >= KERNEL_STACK_SIZE) {
-		msg = "inconsistent ar.bspstore and r13";
-		goto no_mod;
-	}
-	va.p = old_bspstore;
-	if (va.f.reg < 5) {
-		msg = "old_bspstore is in the wrong region";
-		goto no_mod;
-	}
-	if ((ar_bsp - r13) >= KERNEL_STACK_SIZE) {
-		msg = "inconsistent ar.bsp and r13";
-		goto no_mod;
-	}
-	size += (ia64_rse_skip_regs(old_bspstore, slots) - old_bspstore) * 8;
-	if (ar_bspstore + size > r12) {
-		msg = "no room for blocked state";
-		goto no_mod;
+
+	if (!mca_recover_range(ms->pmsa_iip)) {
+		if (r13 != sos->prev_IA64_KR_CURRENT) {
+			msg = "inconsistent previous current and r13";
+			goto no_mod;
+		}
+		if ((r12 - r13) >= KERNEL_STACK_SIZE) {
+			msg = "inconsistent r12 and r13";
+			goto no_mod;
+		}
+		if ((ar_bspstore - r13) >= KERNEL_STACK_SIZE) {
+			msg = "inconsistent ar.bspstore and r13";
+			goto no_mod;
+		}
+		va.p = old_bspstore;
+		if (va.f.reg < 5) {
+			msg = "old_bspstore is in the wrong region";
+			goto no_mod;
+		}
+		if ((ar_bsp - r13) >= KERNEL_STACK_SIZE) {
+			msg = "inconsistent ar.bsp and r13";
+			goto no_mod;
+		}
+		size += (ia64_rse_skip_regs(old_bspstore, slots) - old_bspstore) * 8;
+		if (ar_bspstore + size > r12) {
+			msg = "no room for blocked state";
+			goto no_mod;
+		}
 	}
 
 	ia64_mca_modify_comm(previous_current);
