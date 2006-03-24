@@ -1064,15 +1064,16 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	/*
 	 * If the condition code is not zero and the start function bit is
 	 * still set, this is an deferred error and the last start I/O did
-	 * not succeed. Restart the request now.
+	 * not succeed. At this point the condition that caused the deferred
+	 * error might still apply. So we just schedule the request to be
+	 * started later.
 	 */
 	if (irb->scsw.cc != 0 && (irb->scsw.fctl & SCSW_FCTL_START_FUNC)) {
 		PRINT_WARN("(%s): deferred cc=%i. restaring\n",
 			cdev->dev.bus_id,
 			irb->scsw.cc);
-		rc = __tape_start_io(device, request);
-		if (rc)
-			__tape_end_request(device, request, rc);
+		request->status = TAPE_REQUEST_QUEUED;
+		schedule_work(&device->tape_dnr);
 		return;
 	}
 
