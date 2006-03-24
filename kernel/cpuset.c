@@ -858,8 +858,7 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 
 	mutex_lock(&callback_mutex);
 	cs->mems_allowed = trialcs.mems_allowed;
-	atomic_inc(&cpuset_mems_generation);
-	cs->mems_generation = atomic_read(&cpuset_mems_generation);
+	cs->mems_generation = atomic_inc_return(&cpuset_mems_generation);
 	mutex_unlock(&callback_mutex);
 
 	set_cpuset_being_rebound(cs);		/* causes mpol_copy() rebind */
@@ -1770,8 +1769,7 @@ static long cpuset_create(struct cpuset *parent, const char *name, int mode)
 	atomic_set(&cs->count, 0);
 	INIT_LIST_HEAD(&cs->sibling);
 	INIT_LIST_HEAD(&cs->children);
-	atomic_inc(&cpuset_mems_generation);
-	cs->mems_generation = atomic_read(&cpuset_mems_generation);
+	cs->mems_generation = atomic_inc_return(&cpuset_mems_generation);
 	fmeter_init(&cs->fmeter);
 
 	cs->parent = parent;
@@ -1861,7 +1859,7 @@ int __init cpuset_init_early(void)
 	struct task_struct *tsk = current;
 
 	tsk->cpuset = &top_cpuset;
-	tsk->cpuset->mems_generation = atomic_read(&cpuset_mems_generation);
+	tsk->cpuset->mems_generation = atomic_inc_return(&cpuset_mems_generation);
 	return 0;
 }
 
@@ -1880,8 +1878,7 @@ int __init cpuset_init(void)
 	top_cpuset.mems_allowed = NODE_MASK_ALL;
 
 	fmeter_init(&top_cpuset.fmeter);
-	atomic_inc(&cpuset_mems_generation);
-	top_cpuset.mems_generation = atomic_read(&cpuset_mems_generation);
+	top_cpuset.mems_generation = atomic_inc_return(&cpuset_mems_generation);
 
 	init_task.cpuset = &top_cpuset;
 
