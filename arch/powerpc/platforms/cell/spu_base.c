@@ -486,14 +486,13 @@ int spu_irq_class_1_bottom(struct spu *spu)
 
 	ea = spu->dar;
 	dsisr = spu->dsisr;
-	if (dsisr & MFC_DSISR_PTE_NOT_FOUND) {
+	if (dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED)) {
 		access = (_PAGE_PRESENT | _PAGE_USER);
 		access |= (dsisr & MFC_DSISR_ACCESS_PUT) ? _PAGE_RW : 0UL;
 		if (hash_page(ea, access, 0x300) != 0)
 			error |= CLASS1_ENABLE_STORAGE_FAULT_INTR;
 	}
-	if ((error & CLASS1_ENABLE_STORAGE_FAULT_INTR) ||
-	    (dsisr & MFC_DSISR_ACCESS_DENIED)) {
+	if (error & CLASS1_ENABLE_STORAGE_FAULT_INTR) {
 		if ((ret = spu_handle_mm_fault(spu)) != 0)
 			error |= CLASS1_ENABLE_STORAGE_FAULT_INTR;
 		else
