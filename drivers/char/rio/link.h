@@ -68,8 +68,8 @@ struct LPB {
 	u16 mon_ltt;
 	u16 mon_lrt;
 	u16 WaitNoBoot;	/* Secs to hold off booting */
-	PKT_ptr add_packet_list;	/* Add packets to here */
-	PKT_ptr remove_packet_list;	/* Send packets from here */
+	u16 add_packet_list;	/* Add packets to here */
+	u16 remove_packet_list;	/* Send packets from here */
 
 	Channel_ptr lrt_fail_chan;	/* Lrt's failure channel */
 	Channel_ptr ltt_fail_chan;	/* Ltt's failure channel */

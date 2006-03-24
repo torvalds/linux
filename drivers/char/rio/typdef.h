@@ -39,10 +39,10 @@
 ** These types are ONLY to be used for refering to data structures
 ** on the RIO Host card!
 */
-typedef volatile u8 BYTE;
-typedef volatile u16 WORD;
-typedef volatile u32 DWORD;
-typedef volatile u16 RIOP;
+typedef u8 BYTE;
+typedef u16 WORD;
+typedef u32 DWORD;
+typedef u16 RIOP;
 
 
 /*
@@ -57,8 +57,7 @@ typedef unsigned short ushort_t;
 typedef unsigned char uchar_t;
 typedef unsigned char queue_t;
 typedef unsigned char mblk_t;
-typedef unsigned int paddr_t;
-typedef unsigned char uchar;
+typedef unsigned long paddr_t;
 
 #define	TPNULL	((ushort)(0x8000))
 

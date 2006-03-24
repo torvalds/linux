@@ -40,7 +40,7 @@ struct Port {
 	struct gs_port gs;
 	int PortNum;			/* RIO port no., 0-511 */
 	struct Host *HostP;
-	volatile caddr_t Caddr;
+	caddr_t Caddr;
 	unsigned short HostPort;	/* Port number on host card */
 	unsigned char RupNum;		/* Number of RUP for port */
 	unsigned char ID2;		/* Second ID of RTA for port */

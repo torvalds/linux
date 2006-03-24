@@ -118,45 +118,45 @@ struct PktCmd_M {
 	union {
 		struct {
 			struct {
-				uchar PcCommand;
+				u8 PcCommand;
 				union {
-					uchar PcPhbNum;
-					uchar PcLinkNum;
-					uchar PcIDNum;
+					u8 PcPhbNum;
+					u8 PcLinkNum;
+					u8 PcIDNum;
 				} U0;
 			} CmdHdr;
 			struct {
-				ushort NumPackets;
-				ushort LoadBase;
-				ushort CodeSize;
+				u16 NumPackets;
+				u16 LoadBase;
+				u16 CodeSize;
 			} PcBootSequence;
 		} S1;
 		struct {
-			ushort PcSequence;
-			uchar PcBootData[RTA_BOOT_DATA_SIZE];
+			u16 PcSequence;
+			u8 PcBootData[RTA_BOOT_DATA_SIZE];
 		} S2;
 		struct {
-			ushort __crud__;
-			uchar PcUniqNum[4];	/* this is really a uint. */
-			uchar PcModuleTypes;	/* what modules are fitted */
+			u16 __crud__;
+			u8 PcUniqNum[4];	/* this is really a uint. */
+			u8 PcModuleTypes;	/* what modules are fitted */
 		} S3;
 		struct {
-			ushort __cmd_hdr__;
-			uchar __undefined__;
-			uchar PcModemStatus;
-			uchar PcPortStatus;
-			uchar PcSubCommand;
-			ushort PcSubAddr;
-			uchar PcSubData[64];
+			u16 __cmd_hdr__;
+			u8 __undefined__;
+			u8 PcModemStatus;
+			u8 PcPortStatus;
+			u8 PcSubCommand;
+			u16 PcSubAddr;
+			u8 PcSubData[64];
 		} S4;
 		struct {
-			ushort __cmd_hdr__;
-			uchar PcCommandText[1];
-			uchar __crud__[20];
-			uchar PcIDNum2;	/* Tacked on end */
+			u16 __cmd_hdr__;
+			u8 PcCommandText[1];
+			u8 __crud__[20];
+			u8 PcIDNum2;	/* Tacked on end */
 		} S5;
 		struct {
-			ushort __cmd_hdr__;
+			u16 __cmd_hdr__;
 			struct Top Topology[LINKS_PER_UNIT];
 		} S6;
 	} U1;

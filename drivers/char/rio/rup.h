@@ -53,8 +53,8 @@
 #define RUP_NO_OWNER             0xff	/* RUP not owned by any process */
 
 struct RUP {
-	PKT_ptr txpkt;		/* Outgoing packet */
-	PKT_ptr rxpkt;		/* Incoming packet */
+	u16 txpkt;		/* Outgoing packet */
+	u16 rxpkt;		/* Incoming packet */
 	u16 link;		/* Which link to send down? */
 	u8 rup_dest_unit[2];	/* Destination unit */
 	u16 handshake;		/* For handshaking */
