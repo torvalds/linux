@@ -605,7 +605,7 @@ void ipoib_ib_dev_flush(void *_dev)
 
 	/* Flush any child interfaces too */
 	list_for_each_entry(cpriv, &priv->child_intfs, list)
-		ipoib_ib_dev_flush(&cpriv->dev);
+		ipoib_ib_dev_flush(cpriv->dev);
 
 	mutex_unlock(&priv->vlan_mutex);
 }
