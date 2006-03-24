@@ -103,7 +103,7 @@ static struct rpc_version *	nfs_version[] = {
 static struct rpc_program	nfs_program = {
 	.name			= "nfs",
 	.number			= NFS_PROGRAM,
-	.nrvers			= sizeof(nfs_version) / sizeof(nfs_version[0]),
+	.nrvers			= ARRAY_SIZE(nfs_version),
 	.version		= nfs_version,
 	.stats			= &nfs_rpcstat,
 	.pipe_dir_name		= "/nfs",
@@ -118,7 +118,7 @@ static struct rpc_version *	nfsacl_version[] = {
 struct rpc_program		nfsacl_program = {
 	.name =			"nfsacl",
 	.number =		NFS_ACL_PROGRAM,
-	.nrvers =		sizeof(nfsacl_version) / sizeof(nfsacl_version[0]),
+	.nrvers =		ARRAY_SIZE(nfsacl_version),
 	.version =		nfsacl_version,
 	.stats =		&nfsacl_rpcstat,
 };

@@ -224,8 +224,8 @@ static struct rpc_procinfo	nsm_procedures[] = {
 };
 
 static struct rpc_version	nsm_version1 = {
-		.number		= 1, 
-		.nrprocs	= sizeof(nsm_procedures)/sizeof(nsm_procedures[0]),
+		.number		= 1,
+		.nrprocs	= ARRAY_SIZE(nsm_procedures),
 		.procs		= nsm_procedures
 };
 
@@ -238,7 +238,7 @@ static struct rpc_stat		nsm_stats;
 static struct rpc_program	nsm_program = {
 		.name		= "statd",
 		.number		= SM_PROGRAM,
-		.nrvers		= sizeof(nsm_version)/sizeof(nsm_version[0]),
+		.nrvers		= ARRAY_SIZE(nsm_version),
 		.version	= nsm_version,
 		.stats		= &nsm_stats
 };

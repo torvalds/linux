@@ -268,8 +268,6 @@ static unsigned char euc2sjisibm_g3upper_map[][2] = {
 	{0xFC, 0x4B},
 };
 
-#define MAP_ELEMENT_OF(map)	(sizeof(map) / sizeof(map[0]))
-
 static inline int sjisibm2euc(unsigned char *euc, const unsigned char sjis_hi,
 			      const unsigned char sjis_lo);
 static inline int euc2sjisibm_jisx0212(unsigned char *sjis, const unsigned char euc_hi,
@@ -310,7 +308,7 @@ static inline int euc2sjisibm_jisx0212(unsigned char *sjis, const unsigned char 
 	unsigned short euc;
 
 	min_index = 0;
-	max_index = MAP_ELEMENT_OF(euc2sjisibm_jisx0212_map) - 1;
+	max_index = ARRAY_SIZE(euc2sjisibm_jisx0212_map) - 1;
 	euc = (euc_hi << 8) | euc_lo;
 
 	while (min_index <= max_index) {
@@ -339,7 +337,7 @@ static inline int euc2sjisibm_g3upper(unsigned char *sjis, const unsigned char e
 	else
 		index = ((euc_hi << 8) | euc_lo) - 0xF4A1 + 12;
 
-	if ((index < 0) || (index >= MAP_ELEMENT_OF(euc2sjisibm_g3upper_map)))
+	if ((index < 0) || (index >= ARRAY_SIZE(euc2sjisibm_g3upper_map)))
 		return 0;
 
 	sjis[0] = euc2sjisibm_g3upper_map[index][0];

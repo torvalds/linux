@@ -1522,8 +1522,7 @@ static struct {
 	{ ATM_QUERYLOOP32,   ATM_QUERYLOOP }
 };
 
-#define NR_ATM_IOCTL (sizeof(atm_ioctl_map)/sizeof(atm_ioctl_map[0]))
-
+#define NR_ATM_IOCTL ARRAY_SIZE(atm_ioctl_map)
 
 static int do_atm_iobuf(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
@@ -1824,7 +1823,7 @@ static struct {
 	{ FDWERRORGET32, FDWERRORGET }
 };
 
-#define NR_FD_IOCTL_TRANS (sizeof(fd_ioctl_trans_table)/sizeof(fd_ioctl_trans_table[0]))
+#define NR_FD_IOCTL_TRANS ARRAY_SIZE(fd_ioctl_trans_table)
 
 static int fd_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 {

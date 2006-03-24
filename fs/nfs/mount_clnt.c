@@ -174,7 +174,7 @@ static struct rpc_stat		mnt_stats;
 static struct rpc_program	mnt_program = {
 	.name		= "mount",
 	.number		= NFS_MNT_PROGRAM,
-	.nrvers		= sizeof(mnt_version)/sizeof(mnt_version[0]),
+	.nrvers		= ARRAY_SIZE(mnt_version),
 	.version	= mnt_version,
 	.stats		= &mnt_stats,
 };

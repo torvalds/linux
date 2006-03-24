@@ -1335,7 +1335,7 @@ xfs_inactive_symlink_rmt(
 	 */
 	done = 0;
 	XFS_BMAP_INIT(&free_list, &first_block);
-	nmaps = sizeof(mval) / sizeof(mval[0]);
+	nmaps = ARRAY_SIZE(mval);
 	if ((error = xfs_bmapi(tp, ip, 0, XFS_B_TO_FSB(mp, size),
 			XFS_BMAPI_METADATA, &first_block, 0, mval, &nmaps,
 			&free_list)))

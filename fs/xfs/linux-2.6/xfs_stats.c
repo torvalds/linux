@@ -56,7 +56,7 @@ xfs_read_xfsstats(
 	};
 
 	/* Loop over all stats groups */
-	for (i=j=len = 0; i < sizeof(xstats)/sizeof(struct xstats_entry); i++) {
+	for (i=j=len = 0; i < ARRAY_SIZE(xstats); i++) {
 		len += sprintf(buffer + len, xstats[i].desc);
 		/* inner loop does each group */
 		while (j < xstats[i].endpoint) {

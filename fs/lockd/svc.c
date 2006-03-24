@@ -509,7 +509,7 @@ static struct svc_version *	nlmsvc_version[] = {
 
 static struct svc_stat		nlmsvc_stats;
 
-#define NLM_NRVERS	(sizeof(nlmsvc_version)/sizeof(nlmsvc_version[0]))
+#define NLM_NRVERS	ARRAY_SIZE(nlmsvc_version)
 static struct svc_program	nlmsvc_program = {
 	.pg_prog		= NLM_PROGRAM,		/* program number */
 	.pg_nvers		= NLM_NRVERS,		/* number of entries in nlmsvc_version */
