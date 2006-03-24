@@ -276,6 +276,20 @@ void __init mem_init(void)
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
+void free_init_pages(char *what, unsigned long begin, unsigned long end)
+{
+	unsigned long addr;
+
+	for (addr = begin; addr < end; addr += PAGE_SIZE) {
+		ClearPageReserved(virt_to_page(addr));
+		init_page_count(virt_to_page(addr));
+		memset((void *)addr, 0xcc, PAGE_SIZE);
+		free_page(addr);
+		totalram_pages++;
+	}
+	printk(KERN_INFO "Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
+}
+
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
@@ -284,16 +298,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 	start = (unsigned long)phys_to_virt(CPHYSADDR(start));
 	end = (unsigned long)phys_to_virt(CPHYSADDR(end));
 #endif
-	if (start < end)
-		printk(KERN_INFO "Freeing initrd memory: %ldk freed\n",
-		       (end - start) >> 10);
-
-	for (; start < end; start += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(start));
-		init_page_count(virt_to_page(start));
-		free_page(start);
-		totalram_pages++;
-	}
+	free_init_pages("initrd memory", start, end);
 }
 #endif
 
@@ -301,24 +306,17 @@ extern unsigned long prom_free_prom_memory(void);
 
 void free_initmem(void)
 {
-	unsigned long addr, page, freed;
+	unsigned long start, end, freed;
 
 	freed = prom_free_prom_memory();
+	if (freed)
+		printk(KERN_INFO "Freeing firmware memory: %ldk freed\n",freed);
 
-	addr = (unsigned long) &__init_begin;
-	while (addr < (unsigned long) &__init_end) {
+	start = (unsigned long)(&__init_begin);
+	end = (unsigned long)(&__init_end);
 #ifdef CONFIG_64BIT
-		page = PAGE_OFFSET | CPHYSADDR(addr);
-#else
-		page = addr;
+	start = PAGE_OFFSET | CPHYSADDR(start);
+	end = PAGE_OFFSET | CPHYSADDR(end);
 #endif
-		ClearPageReserved(virt_to_page(page));
-		init_page_count(virt_to_page(page));
-		free_page(page);
-		totalram_pages++;
-		freed += PAGE_SIZE;
-		addr += PAGE_SIZE;
-	}
-	printk(KERN_INFO "Freeing unused kernel memory: %ldk freed\n",
-	       freed >> 10);
+	free_init_pages("unused kernel memory", start, end);
 }
