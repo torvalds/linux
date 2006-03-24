@@ -24,59 +24,6 @@
 
 #include "dasd_int.h"
 
-/*
- * SECTION: ioctl functions.
- */
-static struct list_head dasd_ioctl_list = LIST_HEAD_INIT(dasd_ioctl_list);
-
-/*
- * Find the ioctl with number no.
- */
-static struct dasd_ioctl *
-dasd_find_ioctl(int no)
-{
-	struct dasd_ioctl *ioctl;
-
-	list_for_each_entry (ioctl, &dasd_ioctl_list, list)
-		if (ioctl->no == no)
-			return ioctl;
-	return NULL;
-}
-
-/*
- * Register ioctl with number no.
- */
-int
-dasd_ioctl_no_register(struct module *owner, int no, dasd_ioctl_fn_t handler)
-{
-	struct dasd_ioctl *new;
-	if (dasd_find_ioctl(no))
-		return -EBUSY;
-	new = kmalloc(sizeof (struct dasd_ioctl), GFP_KERNEL);
-	if (new == NULL)
-		return -ENOMEM;
-	new->owner = owner;
-	new->no = no;
-	new->handler = handler;
-	list_add(&new->list, &dasd_ioctl_list);
-	return 0;
-}
-
-/*
- * Deregister ioctl with number no.
- */
-int
-dasd_ioctl_no_unregister(struct module *owner, int no, dasd_ioctl_fn_t handler)
-{
-	struct dasd_ioctl *old = dasd_find_ioctl(no);
-	if (old == NULL)
-		return -ENOENT;
-	if (old->no != no || old->handler != handler || owner != old->owner)
-		return -EINVAL;
-	list_del(&old->list);
-	kfree(old);
-	return 0;
-}
 
 static int
 dasd_ioctl_api_version(void __user *argp)
@@ -429,8 +376,6 @@ dasd_ioctl(struct inode *inode, struct file *file,
 	struct block_device *bdev = inode->i_bdev;
 	struct dasd_device *device = bdev->bd_disk->private_data;
 	void __user *argp = (void __user *)arg;
-	struct dasd_ioctl *ioctl;
-	int rc;
 
 	if (!device)
                 return -ENODEV;
@@ -477,17 +422,6 @@ dasd_ioctl(struct inode *inode, struct file *file,
 				return rval;
 		}
 
-		/* else resort to the deprecated dynamic ioctl list */
-		list_for_each_entry(ioctl, &dasd_ioctl_list, list) {
-			if (ioctl->no == cmd) {
-				/* Found a matching ioctl. Call it. */
-				if (!try_module_get(ioctl->owner))
-					continue;
-				rc = ioctl->handler(bdev, cmd, arg);
-				module_put(ioctl->owner);
-				return rc;
-			}
-		}
 		return -EINVAL;
 	}
 }
@@ -503,6 +437,3 @@ dasd_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	return (rval == -EINVAL) ? -ENOIOCTLCMD : rval;
 }
-
-EXPORT_SYMBOL(dasd_ioctl_no_register);
-EXPORT_SYMBOL(dasd_ioctl_no_unregister);
