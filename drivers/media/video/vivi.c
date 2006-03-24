@@ -26,6 +26,7 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <linux/videodev2.h>
+#include <linux/interrupt.h>
 #include <media/video-buf.h>
 #include <media/v4l2-common.h>
 #include <linux/kthread.h>
