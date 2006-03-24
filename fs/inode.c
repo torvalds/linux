@@ -1375,8 +1375,13 @@ void __init inode_init(unsigned long mempages)
 	int loop;
 
 	/* inode slab cache */
-	inode_cachep = kmem_cache_create("inode_cache", sizeof(struct inode),
-				0, SLAB_RECLAIM_ACCOUNT|SLAB_PANIC, init_once, NULL);
+	inode_cachep = kmem_cache_create("inode_cache",
+					 sizeof(struct inode),
+					 0,
+					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
+					 SLAB_MEM_SPREAD),
+					 init_once,
+					 NULL);
 	set_shrinker(DEFAULT_SEEKS, shrink_icache_memory);
 
 	/* Hash may have been set up in inode_init_early */

@@ -100,7 +100,7 @@ extern void  kmem_free(void *, size_t);
 
 #define KM_ZONE_HWALIGN	SLAB_HWCACHE_ALIGN
 #define KM_ZONE_RECLAIM	SLAB_RECLAIM_ACCOUNT
-#define KM_ZONE_SPREAD	0
+#define KM_ZONE_SPREAD	SLAB_MEM_SPREAD
 
 #define kmem_zone	kmem_cache
 #define kmem_zone_t	struct kmem_cache
