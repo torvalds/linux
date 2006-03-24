@@ -183,8 +183,8 @@ static int sync_page(void *word)
  * these two operations is that if a dirty page/buffer is encountered, it must
  * be waited upon, and not just skipped over.
  */
-static int __filemap_fdatawrite_range(struct address_space *mapping,
-	loff_t start, loff_t end, int sync_mode)
+int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
+				loff_t end, int sync_mode)
 {
 	int ret;
 	struct writeback_control wbc = {
@@ -213,8 +213,8 @@ int filemap_fdatawrite(struct address_space *mapping)
 }
 EXPORT_SYMBOL(filemap_fdatawrite);
 
-static int filemap_fdatawrite_range(struct address_space *mapping,
-	loff_t start, loff_t end)
+static int filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
+				loff_t end)
 {
 	return __filemap_fdatawrite_range(mapping, start, end, WB_SYNC_ALL);
 }
@@ -233,7 +233,7 @@ EXPORT_SYMBOL(filemap_flush);
  * Wait for writeback to complete against pages indexed by start->end
  * inclusive
  */
-static int wait_on_page_writeback_range(struct address_space *mapping,
+int wait_on_page_writeback_range(struct address_space *mapping,
 				pgoff_t start, pgoff_t end)
 {
 	struct pagevec pvec;

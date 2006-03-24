@@ -1473,6 +1473,11 @@ extern int filemap_fdatawait(struct address_space *);
 extern int filemap_write_and_wait(struct address_space *mapping);
 extern int filemap_write_and_wait_range(struct address_space *mapping,
 				        loff_t lstart, loff_t lend);
+extern int wait_on_page_writeback_range(struct address_space *mapping,
+				pgoff_t start, pgoff_t end);
+extern int __filemap_fdatawrite_range(struct address_space *mapping,
+				loff_t start, loff_t end, int sync_mode);
+
 extern void sync_supers(void);
 extern void sync_filesystems(int wait);
 extern void emergency_sync(void);

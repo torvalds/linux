@@ -18,4 +18,10 @@
 #define POSIX_FADV_NOREUSE	5 /* Data will be accessed once.  */
 #endif
 
+/*
+ * Linux-specific fadvise() extensions:
+ */
+#define LINUX_FADV_ASYNC_WRITE	32	/* Start writeout on range */
+#define LINUX_FADV_WRITE_WAIT	33	/* Wait upon writeout to range */
+
 #endif	/* FADVISE_H_INCLUDED */
