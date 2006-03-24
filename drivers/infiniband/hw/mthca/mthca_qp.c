@@ -777,21 +777,20 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 
 	err = mthca_MODIFY_QP(dev, cur_state, new_state, qp->qpn, 0,
 			      mailbox, sqd_event, &status);
+	if (err)
+		goto out;
 	if (status) {
 		mthca_warn(dev, "modify QP %d->%d returned status %02x.\n",
 			   cur_state, new_state, status);
 		err = -EINVAL;
+		goto out;
 	}
 
-	if (!err) {
-		qp->state = new_state;
-		if (attr_mask & IB_QP_ACCESS_FLAGS)
-			qp->atomic_rd_en = attr->qp_access_flags;
-		if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
-			qp->resp_depth = attr->max_dest_rd_atomic;
-	}
-
-	mthca_free_mailbox(dev, mailbox);
+	qp->state = new_state;
+	if (attr_mask & IB_QP_ACCESS_FLAGS)
+		qp->atomic_rd_en = attr->qp_access_flags;
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
+		qp->resp_depth = attr->max_dest_rd_atomic;
 
 	if (is_sqp(dev, qp))
 		store_attrs(to_msqp(qp), attr, attr_mask);
@@ -816,7 +815,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	 * If we moved a kernel QP to RESET, clean up all old CQ
 	 * entries and reinitialize the QP.
 	 */
-	if (!err && new_state == IB_QPS_RESET && !qp->ibqp.uobject) {
+	if (new_state == IB_QPS_RESET && !qp->ibqp.uobject) {
 		mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq)->cqn, qp->qpn,
 			       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 		if (qp->ibqp.send_cq != qp->ibqp.recv_cq)
@@ -835,6 +834,8 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		}
 	}
 
+out:
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
