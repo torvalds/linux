@@ -499,4 +499,6 @@ static inline void sched_cacheflush(void)
 extern unsigned long arch_align_stack(unsigned long sp);
 extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
 
+void default_idle(void);
+
 #endif

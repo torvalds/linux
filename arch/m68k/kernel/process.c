@@ -77,7 +77,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 /*
  * The idle loop on an m68k..
  */
-void default_idle(void)
+static void default_idle(void)
 {
 	if (!need_resched())
 #if defined(MACH_ATARI_ONLY) && !defined(CONFIG_HADES)
