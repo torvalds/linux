@@ -146,7 +146,8 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
 {
 	unsigned long end;
 	struct vm_area_struct *vma;
-	int unmapped_error, error = -EINVAL;
+	int unmapped_error = 0;
+	int error = -EINVAL;
 	int done = 0;
 
 	if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
@@ -171,15 +172,14 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
 	if (flags & MS_SYNC)
 		current->flags |= PF_SYNCWRITE;
 	vma = find_vma(current->mm, start);
-	unmapped_error = 0;
+	if (!vma) {
+		error = -ENOMEM;
+		goto out_unlock;
+	}
 	do {
 		unsigned long nr_pages_dirtied = 0;
 		struct file *file;
 
-		/* Still start < end. */
-		error = -ENOMEM;
-		if (!vma)
-			goto out_unlock;
 		/* Here start < vma->vm_end. */
 		if (start < vma->vm_start) {
 			unmapped_error = -ENOMEM;
@@ -239,7 +239,7 @@ asmlinkage long sys_msync(unsigned long start, size_t len, int flags)
 		} else {
 			vma = vma->vm_next;
 		}
-	} while (!done);
+	} while (vma && !done);
 out_unlock:
 	current->flags &= ~PF_SYNCWRITE;
 	up_read(&current->mm->mmap_sem);
