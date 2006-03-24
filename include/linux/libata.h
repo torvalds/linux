@@ -161,7 +161,6 @@ enum {
 	ATA_QCFLAG_EH_SCHEDULED = (1 << 5), /* EH scheduled */
 
 	/* various lengths of time */
-	ATA_TMOUT_EDD		= 5 * HZ,	/* heuristic */
 	ATA_TMOUT_PIO		= 30 * HZ,
 	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
 	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* heuristic */
