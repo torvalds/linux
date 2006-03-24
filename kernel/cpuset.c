@@ -2023,7 +2023,7 @@ void cpuset_fork(struct task_struct *child)
  * because tsk is already marked PF_EXITING, so attach_task() won't
  * mess with it, or task is a failed fork, never visible to attach_task.
  *
- * Hack:
+ * the_top_cpuset_hack:
  *
  *    Set the exiting tasks cpuset to the root cpuset (top_cpuset).
  *
@@ -2062,7 +2062,7 @@ void cpuset_exit(struct task_struct *tsk)
 	struct cpuset *cs;
 
 	cs = tsk->cpuset;
-	tsk->cpuset = &top_cpuset;	/* Hack - see comment above */
+	tsk->cpuset = &top_cpuset;	/* the_top_cpuset_hack - see above */
 
 	if (notify_on_release(cs)) {
 		char *pathbuf = NULL;
@@ -2373,12 +2373,12 @@ void __cpuset_memory_pressure_bump(void)
  *  - No need to task_lock(tsk) on this tsk->cpuset reference, as it
  *    doesn't really matter if tsk->cpuset changes after we read it,
  *    and we take manage_mutex, keeping attach_task() from changing it
- *    anyway.
+ *    anyway.  No need to check that tsk->cpuset != NULL, thanks to
+ *    the_top_cpuset_hack in cpuset_exit(), which sets an exiting tasks
+ *    cpuset to top_cpuset.
  */
-
 static int proc_cpuset_show(struct seq_file *m, void *v)
 {
-	struct cpuset *cs;
 	struct task_struct *tsk;
 	char *buf;
 	int retval = 0;
@@ -2389,13 +2389,7 @@ static int proc_cpuset_show(struct seq_file *m, void *v)
 
 	tsk = m->private;
 	mutex_lock(&manage_mutex);
-	cs = tsk->cpuset;
-	if (!cs) {
-		retval = -EINVAL;
-		goto out;
-	}
-
-	retval = cpuset_path(cs, buf, PAGE_SIZE);
+	retval = cpuset_path(tsk->cpuset, buf, PAGE_SIZE);
 	if (retval < 0)
 		goto out;
 	seq_puts(m, buf);
