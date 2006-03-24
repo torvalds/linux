@@ -850,7 +850,7 @@ int register_rpc_pipefs(void)
 {
 	rpc_inode_cachep = kmem_cache_create("rpc_inode_cache",
                                              sizeof(struct rpc_inode),
-                                             0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+                                             0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
                                              init_once, NULL);
 	if (!rpc_inode_cachep)
 		return -ENOMEM;
