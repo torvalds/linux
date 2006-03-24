@@ -665,7 +665,9 @@ __cpu_up(unsigned int cpu)
         cpu_lowcore->current_task = (unsigned long) idle;
         cpu_lowcore->cpu_data.cpu_nr = cpu;
 	eieio();
-	signal_processor(cpu,sigp_restart);
+
+	while (signal_processor(cpu,sigp_restart) == sigp_busy)
+		udelay(10);
 
 	while (!cpu_online(cpu))
 		cpu_relax();
