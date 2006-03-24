@@ -692,26 +692,44 @@ EXPORT_SYMBOL(bitmap_bitremap);
  */
 int bitmap_find_free_region(unsigned long *bitmap, int bits, int order)
 {
-	unsigned long mask;
-	int nbits = 1 << order;
-	int i;
+	int nbits;		/* number of bits in region */
+	int nlongs;		/* num longs spanned by region in bitmap */
+	int nbitsinlong;	/* num bits of region in each spanned long */
+	unsigned long mask;	/* bitmask of bits [0 .. nbitsinlong-1] */
+	int i;			/* scans bitmap by longs */
 
-	if (nbits > BITS_PER_LONG)
-		return -EINVAL;
+	nbits = 1 << order;
+	nlongs = (nbits + (BITS_PER_LONG - 1)) / BITS_PER_LONG;
+	nbitsinlong = nbits;
+	if (nbitsinlong > BITS_PER_LONG)
+		nbitsinlong = BITS_PER_LONG;
 
 	/* make a mask of the order */
-	mask = (1UL << (nbits - 1));
+	mask = (1UL << (nbitsinlong - 1));
 	mask += mask - 1;
 
-	/* run up the bitmap nbits at a time */
-	for (i = 0; i < bits; i += nbits) {
+	/* run up the bitmap nbitsinlong at a time */
+	for (i = 0; i < bits; i += nbitsinlong) {
 		int index = i / BITS_PER_LONG;
 		int offset = i - (index * BITS_PER_LONG);
-		if ((bitmap[index] & (mask << offset)) == 0) {
+		int j, space = 1;
+
+		/* find space in the bitmap */
+		for (j = 0; j < nlongs; j++)
+			if ((bitmap[index + j] & (mask << offset))) {
+				space = 0;
+				break;
+			}
+
+		/* keep looking */
+		if (unlikely(!space))
+			continue;
+
+		for (j = 0; j < nlongs; j++)
 			/* set region in bitmap */
-			bitmap[index] |= (mask << offset);
-			return i;
-		}
+			bitmap[index + j] |= (mask << offset);
+
+		return i;
 	}
 	return -ENOMEM;
 }
@@ -728,13 +746,28 @@ EXPORT_SYMBOL(bitmap_find_free_region);
  */
 void bitmap_release_region(unsigned long *bitmap, int pos, int order)
 {
-	int nbits = 1 << order;
-	unsigned long mask = (1UL << (nbits - 1));
-	int index = pos / BITS_PER_LONG;
-	int offset = pos - (index * BITS_PER_LONG);
+	int nbits;		/* number of bits in region */
+	int nlongs;		/* num longs spanned by region in bitmap */
+	int index;		/* index first long of region in bitmap */
+	int offset;		/* bit offset region in bitmap[index] */
+	int nbitsinlong;	/* num bits of region in each spanned long */
+	unsigned long mask;	/* bitmask of bits [0 .. nbitsinlong-1] */
+	int i;			/* scans bitmap by longs */
 
+	nbits = 1 << order;
+	nlongs = (nbits + (BITS_PER_LONG - 1)) / BITS_PER_LONG;
+	index = pos / BITS_PER_LONG;
+	offset = pos - (index * BITS_PER_LONG);
+
+	nbitsinlong = nbits;
+	if (nbitsinlong > BITS_PER_LONG)
+		nbitsinlong = BITS_PER_LONG;
+
+	mask = (1UL << (nbitsinlong - 1));
 	mask += mask - 1;
-	bitmap[index] &= ~(mask << offset);
+
+	for (i = 0; i < nlongs; i++)
+		bitmap[index + i] &= ~(mask << offset);
 }
 EXPORT_SYMBOL(bitmap_release_region);
 
@@ -750,22 +783,31 @@ EXPORT_SYMBOL(bitmap_release_region);
  */
 int bitmap_allocate_region(unsigned long *bitmap, int pos, int order)
 {
-	int nbits = 1 << order;
-	unsigned long mask = (1UL << (nbits - 1));
-	int index = pos / BITS_PER_LONG;
-	int offset = pos - (index * BITS_PER_LONG);
+	int nbits;		/* number of bits in region */
+	int nlongs;		/* num longs spanned by region in bitmap */
+	int index;		/* index first long of region in bitmap */
+	int offset;		/* bit offset region in bitmap[index] */
+	int nbitsinlong;	/* num bits of region in each spanned long */
+	unsigned long mask;	/* bitmask of bits [0 .. nbitsinlong-1] */
+	int i;			/* scans bitmap by longs */
 
-	/*
-	 * We don't do regions of nbits > BITS_PER_LONG.  The
-	 * algorithm would be a simple look for multiple zeros in the
-	 * array, but there's no driver today that needs this.  If you
-	 * trip this BUG(), you get to code it...
-	 */
-	BUG_ON(nbits > BITS_PER_LONG);
+	nbits = 1 << order;
+	nlongs = (nbits + (BITS_PER_LONG - 1)) / BITS_PER_LONG;
+	index = pos / BITS_PER_LONG;
+	offset = pos - (index * BITS_PER_LONG);
+
+	nbitsinlong = nbits;
+	if (nbitsinlong > BITS_PER_LONG)
+		nbitsinlong = BITS_PER_LONG;
+
+	mask = (1UL << (nbitsinlong - 1));
 	mask += mask - 1;
-	if (bitmap[index] & (mask << offset))
-		return -EBUSY;
-	bitmap[index] |= (mask << offset);
+
+	for (i = 0; i < nlongs; i++)
+		if (bitmap[index + i] & (mask << offset))
+			return -EBUSY;
+	for (i = 0; i < nlongs; i++)
+		bitmap[index + i] |= (mask << offset);
 	return 0;
 }
 EXPORT_SYMBOL(bitmap_allocate_region);
