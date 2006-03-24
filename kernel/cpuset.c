@@ -2205,7 +2205,7 @@ int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 {
 	int node;			/* node that zone z is on */
 	const struct cpuset *cs;	/* current cpuset ancestors */
-	int allowed = 1;		/* is allocation in zone z allowed? */
+	int allowed;			/* is allocation in zone z allowed? */
 
 	if (in_interrupt())
 		return 1;
