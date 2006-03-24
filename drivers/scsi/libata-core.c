@@ -252,6 +252,29 @@ static unsigned int ata_pack_xfermask(unsigned int pio_mask,
 		((udma_mask << ATA_SHIFT_UDMA) & ATA_MASK_UDMA);
 }
 
+/**
+ *	ata_unpack_xfermask - Unpack xfer_mask into pio, mwdma and udma masks
+ *	@xfer_mask: xfer_mask to unpack
+ *	@pio_mask: resulting pio_mask
+ *	@mwdma_mask: resulting mwdma_mask
+ *	@udma_mask: resulting udma_mask
+ *
+ *	Unpack @xfer_mask into @pio_mask, @mwdma_mask and @udma_mask.
+ *	Any NULL distination masks will be ignored.
+ */
+static void ata_unpack_xfermask(unsigned int xfer_mask,
+				unsigned int *pio_mask,
+				unsigned int *mwdma_mask,
+				unsigned int *udma_mask)
+{
+	if (pio_mask)
+		*pio_mask = (xfer_mask & ATA_MASK_PIO) >> ATA_SHIFT_PIO;
+	if (mwdma_mask)
+		*mwdma_mask = (xfer_mask & ATA_MASK_MWDMA) >> ATA_SHIFT_MWDMA;
+	if (udma_mask)
+		*udma_mask = (xfer_mask & ATA_MASK_UDMA) >> ATA_SHIFT_UDMA;
+}
+
 static const struct ata_xfer_ent {
 	unsigned int shift, bits;
 	u8 base;
