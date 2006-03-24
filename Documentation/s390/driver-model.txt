@@ -16,10 +16,12 @@ devices/
            - 0.0.0000/0.0.0815/
 	   - 0.0.0001/0.0.4711/
 	   - 0.0.0002/
+	   - 0.1.0000/0.1.1234/
 	   ...
 
-In this example, device 0815 is accessed via subchannel 0, device 4711 via 
-subchannel 1, and subchannel 2 is a non-I/O subchannel.
+In this example, device 0815 is accessed via subchannel 0 in subchannel set 0,
+device 4711 via subchannel 1 in subchannel set 0, and subchannel 2 is a non-I/O
+subchannel. Device 1234 is accessed via subchannel 0 in subchannel set 1.
 
 You should address a ccw device via its bus id (e.g. 0.0.4711); the device can
 be found under bus/ccw/devices/.
@@ -97,7 +99,7 @@ is not available to the device driver.
 
 Each driver should declare in a MODULE_DEVICE_TABLE into which CU types/models
 and/or device types/models it is interested. This information can later be found
-found in the struct ccw_device_id fields:
+in the struct ccw_device_id fields:
 
 struct ccw_device_id {
 	__u16	match_flags;	
@@ -208,6 +210,11 @@ Each ccwgroup device also provides an 'ungroup' attribute to destroy the device
 again (only when offline). This is a generic ccwgroup mechanism (the driver does
 not need to implement anything beyond normal removal routines).
 
+A ccw device which is a member of a ccwgroup device carries a pointer to the
+ccwgroup device in the driver_data of its device struct. This field must not be
+touched by the driver - it should use the ccwgroup device's driver_data for its
+private data.
+
 To implement a ccwgroup driver, please refer to include/asm/ccwgroup.h. Keep in
 mind that most drivers will need to implement both a ccwgroup and a ccw driver
 (unless you have a meta ccw driver, like cu3088 for lcs and ctc).
@@ -229,6 +236,8 @@ status - Can be 'online' or 'offline'.
 	 the chpid connects to. This can be used to force the kernel to re-use
 	 a channel path the user knows to be online, but the machine hasn't
 	 created a machine check for.
+
+type - The physical type of the channel path.
 
 
 3. System devices
