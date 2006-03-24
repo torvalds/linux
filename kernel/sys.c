@@ -1661,8 +1661,19 @@ asmlinkage long sys_setrlimit(unsigned int resource, struct rlimit __user *rlim)
 
 	it_prof_secs = cputime_to_secs(current->signal->it_prof_expires);
 	if (it_prof_secs == 0 || new_rlim.rlim_cur <= it_prof_secs) {
-		cputime_t cputime = secs_to_cputime(new_rlim.rlim_cur);
+		unsigned long rlim_cur = new_rlim.rlim_cur;
+		cputime_t cputime;
 
+		if (rlim_cur == 0) {
+			/*
+			 * The caller is asking for an immediate RLIMIT_CPU
+			 * expiry.  But we use the zero value to mean "it was
+			 * never set".  So let's cheat and make it one second
+			 * instead
+			 */
+			rlim_cur = 1;
+		}
+		cputime = secs_to_cputime(rlim_cur);
 		read_lock(&tasklist_lock);
 		spin_lock_irq(&current->sighand->siglock);
 		set_process_cpu_timer(current, CPUCLOCK_PROF, &cputime, NULL);
