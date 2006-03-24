@@ -814,6 +814,9 @@ asmlinkage long sys_shmdt(char __user *shmaddr)
 	loff_t size = 0;
 	int retval = -EINVAL;
 
+	if (addr & ~PAGE_MASK)
+		return retval;
+
 	down_write(&mm->mmap_sem);
 
 	/*
