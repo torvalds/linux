@@ -2000,8 +2000,8 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		wmb();
 		((struct mthca_next_seg *) prev_wqe)->ee_nds =
 			cpu_to_be32(MTHCA_NEXT_DBD | size |
-                                    ((wr->send_flags & IB_SEND_FENCE) ?
-                                    MTHCA_NEXT_FENCE : 0));
+				    ((wr->send_flags & IB_SEND_FENCE) ?
+				     MTHCA_NEXT_FENCE : 0));
 
 		if (!size0) {
 			size0 = size;
