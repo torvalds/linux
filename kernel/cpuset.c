@@ -114,27 +114,27 @@ typedef enum {
 /* convenient tests for these bits */
 static inline int is_cpu_exclusive(const struct cpuset *cs)
 {
-	return !!test_bit(CS_CPU_EXCLUSIVE, &cs->flags);
+	return test_bit(CS_CPU_EXCLUSIVE, &cs->flags);
 }
 
 static inline int is_mem_exclusive(const struct cpuset *cs)
 {
-	return !!test_bit(CS_MEM_EXCLUSIVE, &cs->flags);
+	return test_bit(CS_MEM_EXCLUSIVE, &cs->flags);
 }
 
 static inline int is_removed(const struct cpuset *cs)
 {
-	return !!test_bit(CS_REMOVED, &cs->flags);
+	return test_bit(CS_REMOVED, &cs->flags);
 }
 
 static inline int notify_on_release(const struct cpuset *cs)
 {
-	return !!test_bit(CS_NOTIFY_ON_RELEASE, &cs->flags);
+	return test_bit(CS_NOTIFY_ON_RELEASE, &cs->flags);
 }
 
 static inline int is_memory_migrate(const struct cpuset *cs)
 {
-	return !!test_bit(CS_MEMORY_MIGRATE, &cs->flags);
+	return test_bit(CS_MEMORY_MIGRATE, &cs->flags);
 }
 
 /*
