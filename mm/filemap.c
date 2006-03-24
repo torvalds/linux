@@ -29,6 +29,7 @@
 #include <linux/blkdev.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
+#include <linux/cpuset.h>
 #include "filemap.h"
 #include "internal.h"
 
@@ -426,6 +427,28 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 		lru_cache_add(page);
 	return ret;
 }
+
+#ifdef CONFIG_NUMA
+struct page *page_cache_alloc(struct address_space *x)
+{
+	if (cpuset_do_page_mem_spread()) {
+		int n = cpuset_mem_spread_node();
+		return alloc_pages_node(n, mapping_gfp_mask(x), 0);
+	}
+	return alloc_pages(mapping_gfp_mask(x), 0);
+}
+EXPORT_SYMBOL(page_cache_alloc);
+
+struct page *page_cache_alloc_cold(struct address_space *x)
+{
+	if (cpuset_do_page_mem_spread()) {
+		int n = cpuset_mem_spread_node();
+		return alloc_pages_node(n, mapping_gfp_mask(x)|__GFP_COLD, 0);
+	}
+	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD, 0);
+}
+EXPORT_SYMBOL(page_cache_alloc_cold);
+#endif
 
 /*
  * In order to wait for pages to become available there must be
