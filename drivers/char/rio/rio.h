@@ -186,8 +186,8 @@ static char *_rio_h_sccs_ = "@(#)rio.h	1.3";
 **	RIO_OBJ takes hostp->Caddr and a UNIX pointer to an object and
 **	returns the offset into the DP RAM area.
 */
-#define	RIO_PTR(C,O) (((caddr_t)(C))+(0xFFFF&(O)))
-#define	RIO_OFF(C,O) ((int)(O)-(int)(C))
+#define	RIO_PTR(C,O) (((unsigned char *)(C))+(0xFFFF&(O)))
+#define	RIO_OFF(C,O) ((long)(O)-(long)(C))
 
 /*
 **	How to convert from various different device number formats:
