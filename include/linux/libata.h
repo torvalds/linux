@@ -358,6 +358,11 @@ struct ata_device {
 	unsigned int		max_sectors;	/* per-device max sectors */
 	unsigned int		cdb_len;
 
+	/* per-dev xfer mask */
+	unsigned int		pio_mask;
+	unsigned int		mwdma_mask;
+	unsigned int		udma_mask;
+
 	/* for CHS addressing */
 	u16			cylinders;	/* Number of cylinders */
 	u16			heads;		/* Number of heads */

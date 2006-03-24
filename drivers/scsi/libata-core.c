@@ -65,8 +65,7 @@ static unsigned int ata_dev_init_params(struct ata_port *ap,
 					struct ata_device *dev);
 static void ata_set_mode(struct ata_port *ap);
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev);
-static unsigned int ata_dev_xfermask(struct ata_port *ap,
-				     struct ata_device *dev);
+static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev);
 
 static unsigned int ata_unique_id = 1;
 static struct workqueue_struct *ata_wq;
@@ -1801,16 +1800,19 @@ static void ata_set_mode(struct ata_port *ap)
 	/* step 1: calculate xfer_mask */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *dev = &ap->device[i];
-		unsigned int xfer_mask;
+		unsigned int pio_mask, dma_mask;
 
 		if (!ata_dev_present(dev))
 			continue;
 
-		xfer_mask = ata_dev_xfermask(ap, dev);
+		ata_dev_xfermask(ap, dev);
 
-		dev->pio_mode = ata_xfer_mask2mode(xfer_mask & ATA_MASK_PIO);
-		dev->dma_mode = ata_xfer_mask2mode(xfer_mask & (ATA_MASK_MWDMA |
-								ATA_MASK_UDMA));
+		/* TODO: let LLDD filter dev->*_mask here */
+
+		pio_mask = ata_pack_xfermask(dev->pio_mask, 0, 0);
+		dma_mask = ata_pack_xfermask(0, dev->mwdma_mask, dev->udma_mask);
+		dev->pio_mode = ata_xfer_mask2mode(pio_mask);
+		dev->dma_mode = ata_xfer_mask2mode(dma_mask);
 	}
 
 	/* step 2: always set host PIO timings */
@@ -2653,18 +2655,15 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
  *	@ap: Port on which the device to compute xfermask for resides
  *	@dev: Device to compute xfermask for
  *
- *	Compute supported xfermask of @dev.  This function is
- *	responsible for applying all known limits including host
- *	controller limits, device blacklist, etc...
+ *	Compute supported xfermask of @dev and store it in
+ *	dev->*_mask.  This function is responsible for applying all
+ *	known limits including host controller limits, device
+ *	blacklist, etc...
  *
  *	LOCKING:
  *	None.
- *
- *	RETURNS:
- *	Computed xfermask.
  */
-static unsigned int ata_dev_xfermask(struct ata_port *ap,
-				     struct ata_device *dev)
+static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 {
 	unsigned long xfer_mask;
 	int i;
@@ -2677,6 +2676,8 @@ static unsigned int ata_dev_xfermask(struct ata_port *ap,
 		struct ata_device *d = &ap->device[i];
 		if (!ata_dev_present(d))
 			continue;
+		xfer_mask &= ata_pack_xfermask(d->pio_mask, d->mwdma_mask,
+					       d->udma_mask);
 		xfer_mask &= ata_id_xfermask(d->id);
 		if (ata_dma_blacklisted(d))
 			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
@@ -2686,7 +2687,8 @@ static unsigned int ata_dev_xfermask(struct ata_port *ap,
 		printk(KERN_WARNING "ata%u: dev %u is on DMA blacklist, "
 		       "disabling DMA\n", ap->id, dev->devno);
 
-	return xfer_mask;
+	ata_unpack_xfermask(xfer_mask, &dev->pio_mask, &dev->mwdma_mask,
+			    &dev->udma_mask);
 }
 
 /**
@@ -4436,8 +4438,13 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	INIT_WORK(&ap->port_task, NULL, NULL);
 	INIT_LIST_HEAD(&ap->eh_done_q);
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++)
-		ap->device[i].devno = i;
+	for (i = 0; i < ATA_MAX_DEVICES; i++) {
+		struct ata_device *dev = &ap->device[i];
+		dev->devno = i;
+		dev->pio_mask = UINT_MAX;
+		dev->mwdma_mask = UINT_MAX;
+		dev->udma_mask = UINT_MAX;
+	}
 
 #ifdef ATA_IRQ_TRAP
 	ap->stats.unhandled_irq = 1;
