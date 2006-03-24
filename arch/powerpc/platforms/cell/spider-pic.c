@@ -88,7 +88,7 @@ static void spider_enable_irq(unsigned int irq)
 	void __iomem *cfg = spider_get_irq_config(irq);
 	irq = spider_get_nr(irq);
 
-	out_be32(cfg, in_be32(cfg) | 0x3107000eu | nodeid);
+	out_be32(cfg, (in_be32(cfg) & ~0xf0)| 0x3107000eu | nodeid);
 	out_be32(cfg + 4, in_be32(cfg + 4) | 0x00020000u | irq);
 }
 
