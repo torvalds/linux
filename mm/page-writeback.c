@@ -88,7 +88,8 @@ int dirty_expire_interval = 30 * HZ;
 int block_dump;
 
 /*
- * Flag that puts the machine in "laptop mode".
+ * Flag that puts the machine in "laptop mode". Doubles as a timeout in jiffies:
+ * a full sync is triggered after this time elapses without any disk activity.
  */
 int laptop_mode;
 
@@ -468,7 +469,7 @@ static void laptop_timer_fn(unsigned long unused)
  */
 void laptop_io_completion(void)
 {
-	mod_timer(&laptop_mode_wb_timer, jiffies + laptop_mode * HZ);
+	mod_timer(&laptop_mode_wb_timer, jiffies + laptop_mode);
 }
 
 /*
