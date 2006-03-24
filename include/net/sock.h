@@ -210,6 +210,7 @@ struct sock {
 	gfp_t			sk_allocation;
 	int			sk_sndbuf;
 	int			sk_route_caps;
+	int			sk_rcvlowat;
 	unsigned long 		sk_flags;
 	unsigned long	        sk_lingertime;
 	/*
@@ -230,7 +231,6 @@ struct sock {
 	unsigned short		sk_max_ack_backlog;
 	__u32			sk_priority;
 	struct ucred		sk_peercred;
-	int			sk_rcvlowat;
 	long			sk_rcvtimeo;
 	long			sk_sndtimeo;
 	struct sk_filter      	*sk_filter;
