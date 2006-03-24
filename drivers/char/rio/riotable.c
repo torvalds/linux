@@ -91,8 +91,7 @@ static char *_riotable_c_sccs_ = "@(#)riotable.c	1.2";
 ** A configuration table has been loaded. It is now up to us
 ** to sort it out and use the information contained therein.
 */
-int RIONewTable(p)
-struct rio_info *p;
+int RIONewTable(struct rio_info *p)
 {
 	int Host, Host1, Host2, NameIsUnique, Entry, SubEnt;
 	struct Map *MapP;
@@ -298,9 +297,9 @@ struct rio_info *p;
 	 */
 	for (Host = 0; Host < RIO_HOSTS; Host++) {
 		for (Entry = 0; Entry < MAX_RUP; Entry++) {
-			bzero((caddr_t) & p->RIOHosts[Host].Mapping[Entry], sizeof(struct Map));
+			memset(&p->RIOHosts[Host].Mapping[Entry], 0, sizeof(struct Map));
 		}
-		bzero((caddr_t) & p->RIOHosts[Host].Name[0], sizeof(p->RIOHosts[Host].Name));
+		memset(&p->RIOHosts[Host].Name[0], 0, sizeof(p->RIOHosts[Host].Name));
 	}
 
 	/*
@@ -409,9 +408,10 @@ struct rio_info *p;
 /*
 ** User process needs the config table - build it from first
 ** principles.
+**
+*	FIXME: SMP locking
 */
-int RIOApel(p)
-struct rio_info *p;
+int RIOApel(struct rio_info *p)
 {
 	int Host;
 	int link;
@@ -419,17 +419,17 @@ struct rio_info *p;
 	int Next = 0;
 	struct Map *MapP;
 	struct Host *HostP;
-	long oldspl;
-
-	disable(oldspl);	/* strange but true! */
+	unsigned long flags;
 
 	rio_dprintk(RIO_DEBUG_TABLE, "Generating a table to return to config.rio\n");
 
-	bzero((caddr_t) & p->RIOConnectTable[0], sizeof(struct Map) * TOTAL_MAP_ENTRIES);
+	memset(&p->RIOConnectTable[0], 0, sizeof(struct Map) * TOTAL_MAP_ENTRIES);
 
 	for (Host = 0; Host < RIO_HOSTS; Host++) {
 		rio_dprintk(RIO_DEBUG_TABLE, "Processing host %d\n", Host);
 		HostP = &p->RIOHosts[Host];
+		rio_spin_lock_irqsave(&HostP->HostLock, flags);
+
 		MapP = &p->RIOConnectTable[Next++];
 		MapP->HostUniqueNum = HostP->UniqueNum;
 		if ((HostP->Flags & RUN_STATE) != RC_RUNNING)
@@ -453,8 +453,8 @@ struct rio_info *p;
 				Next++;
 			}
 		}
+		rio_spin_unlock_irqrestore(&HostP->HostLock, flags);
 	}
-	restore(oldspl);
 	return 0;
 }
 
@@ -463,9 +463,7 @@ struct rio_info *p;
 ** if the entry is suitably inactive, then we can gob on it and remove
 ** it from the table.
 */
-int RIODeleteRta(p, MapP)
-struct rio_info *p;
-struct Map *MapP;
+int RIODeleteRta(struct rio_info *p, struct Map *MapP)
 {
 	int host, entry, port, link;
 	int SysPort;
@@ -543,7 +541,7 @@ struct Map *MapP;
 						if (PortP->SecondBlock) {
 							ushort dest_unit = HostMapP->ID;
 							ushort dest_port = port - SysPort;
-							WORD *TxPktP;
+							u16 *TxPktP;
 							PKT *Pkt;
 
 							for (TxPktP = PortP->TxStart; TxPktP <= PortP->TxEnd; TxPktP++) {
@@ -554,19 +552,19 @@ struct Map *MapP;
 								 ** a 32 bit pointer so it can be
 								 ** accessed from the driver.
 								 */
-								Pkt = (PKT *) RIO_PTR(HostP->Caddr, RWORD(*TxPktP));
+								Pkt = (PKT *) RIO_PTR(HostP->Caddr, readw(&*TxPktP));
 								rio_dprintk(RIO_DEBUG_TABLE, "Tx packet (%x) destination: Old %x:%x New %x:%x\n", *TxPktP, Pkt->dest_unit, Pkt->dest_port, dest_unit, dest_port);
-								WWORD(Pkt->dest_unit, dest_unit);
-								WWORD(Pkt->dest_port, dest_port);
+								writew(dest_unit, &Pkt->dest_unit);
+								writew(dest_port, &Pkt->dest_port);
 							}
 							rio_dprintk(RIO_DEBUG_TABLE, "Port %d phb destination: Old %x:%x New %x:%x\n", port, PortP->PhbP->destination & 0xff, (PortP->PhbP->destination >> 8) & 0xff, dest_unit, dest_port);
-							WWORD(PortP->PhbP->destination, dest_unit + (dest_port << 8));
+							writew(dest_unit + (dest_port << 8), &PortP->PhbP->destination);
 						}
 						rio_spin_unlock_irqrestore(&PortP->portSem, sem_flags);
 					}
 				}
 				rio_dprintk(RIO_DEBUG_TABLE, "Entry nulled.\n");
-				bzero((char *) HostMapP, sizeof(struct Map));
+				memset(HostMapP, 0, sizeof(struct Map));
 				work_done++;
 			}
 		}
@@ -576,11 +574,11 @@ struct Map *MapP;
 	/* XXXXX lock me up */
 	for (entry = 0; entry < TOTAL_MAP_ENTRIES; entry++) {
 		if (p->RIOSavedTable[entry].RtaUniqueNum == MapP->RtaUniqueNum) {
-			bzero((char *) &p->RIOSavedTable[entry], sizeof(struct Map));
+			memset(&p->RIOSavedTable[entry], 0, sizeof(struct Map));
 			work_done++;
 		}
 		if (p->RIOConnectTable[entry].RtaUniqueNum == MapP->RtaUniqueNum) {
-			bzero((char *) &p->RIOConnectTable[entry], sizeof(struct Map));
+			memset(&p->RIOConnectTable[entry], 0, sizeof(struct Map));
 			work_done++;
 		}
 	}
@@ -742,12 +740,9 @@ int RIOAssignRta(struct rio_info *p, struct Map *MapP)
 }
 
 
-int RIOReMapPorts(p, HostP, HostMapP)
-struct rio_info *p;
-struct Host *HostP;
-struct Map *HostMapP;
+int RIOReMapPorts(struct rio_info *p, struct Host *HostP, struct Map *HostMapP)
 {
-	register struct Port *PortP;
+	struct Port *PortP;
 	uint SubEnt;
 	uint HostPort;
 	uint SysPort;
@@ -794,12 +789,12 @@ struct Map *HostMapP;
 		 */
 		if ((HostP->Flags & RUN_STATE) == RC_RUNNING) {
 			struct PHB *PhbP = PortP->PhbP = &HostP->PhbP[HostPort];
-			PortP->TxAdd = (WORD *) RIO_PTR(HostP->Caddr, RWORD(PhbP->tx_add));
-			PortP->TxStart = (WORD *) RIO_PTR(HostP->Caddr, RWORD(PhbP->tx_start));
-			PortP->TxEnd = (WORD *) RIO_PTR(HostP->Caddr, RWORD(PhbP->tx_end));
-			PortP->RxRemove = (WORD *) RIO_PTR(HostP->Caddr, RWORD(PhbP->rx_remove));
-			PortP->RxStart = (WORD *) RIO_PTR(HostP->Caddr, RWORD(PhbP->rx_start));
-			PortP->RxEnd = (WORD *) RIO_PTR(HostP->Caddr, RWORD(PhbP->rx_end));
+			PortP->TxAdd = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->tx_add));
+			PortP->TxStart = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->tx_start));
+			PortP->TxEnd = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->tx_end));
+			PortP->RxRemove = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->rx_remove));
+			PortP->RxStart = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->rx_start));
+			PortP->RxEnd = (u16 *) RIO_PTR(HostP->Caddr, readw(&PhbP->rx_end));
 		} else
 			PortP->PhbP = NULL;
 
@@ -866,9 +861,6 @@ struct Map *HostMapP;
 		PortP->RxDataStart = 0;
 		PortP->Cor2Copy = 0;
 		PortP->Name = &HostMapP->Name[0];
-#ifdef STATS
-		bzero((caddr_t) & PortP->Stat, sizeof(struct RIOStats));
-#endif
 		PortP->statsGather = 0;
 		PortP->txchars = 0;
 		PortP->rxchars = 0;
@@ -876,10 +868,10 @@ struct Map *HostMapP;
 		PortP->closes = 0;
 		PortP->ioctls = 0;
 		if (PortP->TxRingBuffer)
-			bzero(PortP->TxRingBuffer, p->RIOBufferSize);
+			memset(PortP->TxRingBuffer, 0, p->RIOBufferSize);
 		else if (p->RIOBufferSize) {
-			PortP->TxRingBuffer = sysbrk(p->RIOBufferSize);
-			bzero(PortP->TxRingBuffer, p->RIOBufferSize);
+			PortP->TxRingBuffer = kmalloc(p->RIOBufferSize, GFP_KERNEL);
+			memset(PortP->TxRingBuffer, 0, p->RIOBufferSize);
 		}
 		PortP->TxBufferOut = 0;
 		PortP->TxBufferIn = 0;
@@ -890,7 +882,7 @@ struct Map *HostMapP;
 		 ** If the same, we have received the same rx pkt from the RTA
 		 ** twice. Initialise to a value not equal to PHB_RX_TGL or 0.
 		 */
-		PortP->LastRxTgl = ~(uchar) PHB_RX_TGL;
+		PortP->LastRxTgl = ~(u8) PHB_RX_TGL;
 
 		/*
 		 ** and mark the port as usable
@@ -906,9 +898,7 @@ struct Map *HostMapP;
 	return 0;
 }
 
-int RIOChangeName(p, MapP)
-struct rio_info *p;
-struct Map *MapP;
+int RIOChangeName(struct rio_info *p, struct Map *MapP)
 {
 	int host;
 	struct Map *HostMapP;

@@ -115,7 +115,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 	/*
 	 ** Is this unit telling us it's current link topology?
 	 */
-	if (RBYTE(PktCmdP->Command) == ROUTE_TOPOLOGY) {
+	if (readb(&PktCmdP->Command) == ROUTE_TOPOLOGY) {
 		MapP = HostP->Mapping;
 
 		/*
@@ -151,11 +151,11 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 			 ** it won't lie about network interconnect, total disconnects
 			 ** and no-IDs. (or at least, it doesn't *matter* if it does)
 			 */
-			if (RBYTE(PktCmdP->RouteTopology[ThisLink].Unit) > (ushort) MAX_RUP)
+			if (readb(&PktCmdP->RouteTopology[ThisLink].Unit) > (ushort) MAX_RUP)
 				continue;
 
 			for (NewLink = ThisLinkMin; NewLink < ThisLink; NewLink++) {
-				if ((RBYTE(PktCmdP->RouteTopology[ThisLink].Unit) == RBYTE(PktCmdP->RouteTopology[NewLink].Unit)) && (RBYTE(PktCmdP->RouteTopology[ThisLink].Link) == RBYTE(PktCmdP->RouteTopology[NewLink].Link))) {
+				if ((readb(&PktCmdP->RouteTopology[ThisLink].Unit) == readb(&PktCmdP->RouteTopology[NewLink].Unit)) && (readb(&PktCmdP->RouteTopology[ThisLink].Link) == readb(&PktCmdP->RouteTopology[NewLink].Link))) {
 					Lies++;
 				}
 			}
@@ -164,10 +164,10 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 		if (Lies) {
 			rio_dprintk(RIO_DEBUG_ROUTE, "LIES! DAMN LIES! %d LIES!\n", Lies);
 			rio_dprintk(RIO_DEBUG_ROUTE, "%d:%c %d:%c %d:%c %d:%c\n",
-				    RBYTE(PktCmdP->RouteTopology[0].Unit),
-				    'A' + RBYTE(PktCmdP->RouteTopology[0].Link),
-				    RBYTE(PktCmdP->RouteTopology[1].Unit),
-				    'A' + RBYTE(PktCmdP->RouteTopology[1].Link), RBYTE(PktCmdP->RouteTopology[2].Unit), 'A' + RBYTE(PktCmdP->RouteTopology[2].Link), RBYTE(PktCmdP->RouteTopology[3].Unit), 'A' + RBYTE(PktCmdP->RouteTopology[3].Link));
+				    readb(&PktCmdP->RouteTopology[0].Unit),
+				    'A' + readb(&PktCmdP->RouteTopology[0].Link),
+				    readb(&PktCmdP->RouteTopology[1].Unit),
+				    'A' + readb(&PktCmdP->RouteTopology[1].Link), readb(&PktCmdP->RouteTopology[2].Unit), 'A' + readb(&PktCmdP->RouteTopology[2].Link), readb(&PktCmdP->RouteTopology[3].Unit), 'A' + readb(&PktCmdP->RouteTopology[3].Link));
 			return TRUE;
 		}
 
@@ -184,8 +184,8 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 			/*
 			 ** this is what it is now connected to
 			 */
-			NewUnit = RBYTE(PktCmdP->RouteTopology[ThisLink].Unit);
-			NewLink = RBYTE(PktCmdP->RouteTopology[ThisLink].Link);
+			NewUnit = readb(&PktCmdP->RouteTopology[ThisLink].Unit);
+			NewLink = readb(&PktCmdP->RouteTopology[ThisLink].Link);
 
 			if (OldUnit != NewUnit || OldLink != NewLink) {
 				/*
@@ -219,7 +219,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 
 					if (NewUnit == ROUTE_INTERCONNECT) {
 						if (!p->RIONoMessage)
-							cprintf("%s '%s' (%c) is connected to another network.\n", MyType, MyName, 'A' + ThisLink);
+							printk(KERN_DEBUG "rio: %s '%s' (%c) is connected to another network.\n", MyType, MyName, 'A' + ThisLink);
 					}
 
 					/*
@@ -264,12 +264,12 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 	/*
 	 ** The only other command we recognise is a route_request command
 	 */
-	if (RBYTE(PktCmdP->Command) != ROUTE_REQUEST) {
-		rio_dprintk(RIO_DEBUG_ROUTE, "Unknown command %d received on rup %d host %d ROUTE_RUP\n", RBYTE(PktCmdP->Command), Rup, (int) HostP);
+	if (readb(&PktCmdP->Command) != ROUTE_REQUEST) {
+		rio_dprintk(RIO_DEBUG_ROUTE, "Unknown command %d received on rup %d host %p ROUTE_RUP\n", readb(&PktCmdP->Command), Rup, HostP);
 		return TRUE;
 	}
 
-	RtaUniq = (RBYTE(PktCmdP->UniqNum[0])) + (RBYTE(PktCmdP->UniqNum[1]) << 8) + (RBYTE(PktCmdP->UniqNum[2]) << 16) + (RBYTE(PktCmdP->UniqNum[3]) << 24);
+	RtaUniq = (readb(&PktCmdP->UniqNum[0])) + (readb(&PktCmdP->UniqNum[1]) << 8) + (readb(&PktCmdP->UniqNum[2]) << 16) + (readb(&PktCmdP->UniqNum[3]) << 24);
 
 	/*
 	 ** Determine if 8 or 16 port RTA
@@ -278,7 +278,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 
 	rio_dprintk(RIO_DEBUG_ROUTE, "Received a request for an ID for serial number %x\n", RtaUniq);
 
-	Mod = RBYTE(PktCmdP->ModuleTypes);
+	Mod = readb(&PktCmdP->ModuleTypes);
 	Mod1 = LONYBLE(Mod);
 	if (RtaType == TYPE_RTA16) {
 		/*
@@ -348,7 +348,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 			if ((HostP->Mapping[ThisUnit].Flags & SLOT_IN_USE) && !(HostP->Mapping[ThisUnit].Flags & RTA_BOOTED)) {
 				if (!(HostP->Mapping[ThisUnit].Flags & MSG_DONE)) {
 					if (!p->RIONoMessage)
-						cprintf("RTA '%s' is being updated.\n", HostP->Mapping[ThisUnit].Name);
+						printk(KERN_DEBUG "rio: RTA '%s' is being updated.\n", HostP->Mapping[ThisUnit].Name);
 					HostP->Mapping[ThisUnit].Flags |= MSG_DONE;
 				}
 				PktReplyP->Command = ROUTE_FOAD;
@@ -475,7 +475,7 @@ int RIORouteRup(struct rio_info *p, uint Rup, struct Host *HostP, PKT * PacketP)
 
 		if (!UnknownMesgDone) {
 			if (!p->RIONoMessage)
-				cprintf("One or more unknown RTAs are being updated.\n");
+				printk(KERN_DEBUG "rio: One or more unknown RTAs are being updated.\n");
 			UnknownMesgDone = 1;
 		}
 
@@ -527,7 +527,7 @@ uint unit;
 		 */
 		PortP = p->RIOPortp[HostP->Mapping[dest_unit - 1].SysPort];
 
-		link = RWORD(PortP->PhbP->link);
+		link = readw(&PortP->PhbP->link);
 
 		for (port = 0; port < PORTS_PER_RTA; port++, PortN++) {
 			ushort dest_port = port + 8;
@@ -569,18 +569,18 @@ uint unit;
 				 ** card. This needs to be translated into a 32 bit pointer
 				 ** so it can be accessed from the driver.
 				 */
-				Pkt = (PKT *) RIO_PTR(HostP->Caddr, RINDW(TxPktP));
+				Pkt = (PKT *) RIO_PTR(HostP->Caddr, readw(TxPktP));
 
 				/*
 				 ** If the packet is used, reset it.
 				 */
-				Pkt = (PKT *) ((uint) Pkt & ~PKT_IN_USE);
-				WBYTE(Pkt->dest_unit, dest_unit);
-				WBYTE(Pkt->dest_port, dest_port);
+				Pkt = (PKT *) ((unsigned long) Pkt & ~PKT_IN_USE);
+				writeb(dest_unit, &Pkt->dest_unit);
+				writeb(dest_port, &Pkt->dest_port);
 			}
-			rio_dprintk(RIO_DEBUG_ROUTE, "phb dest: Old %x:%x New %x:%x\n", RWORD(PortP->PhbP->destination) & 0xff, (RWORD(PortP->PhbP->destination) >> 8) & 0xff, dest_unit, dest_port);
-			WWORD(PortP->PhbP->destination, dest_unit + (dest_port << 8));
-			WWORD(PortP->PhbP->link, link);
+			rio_dprintk(RIO_DEBUG_ROUTE, "phb dest: Old %x:%x New %x:%x\n", readw(&PortP->PhbP->destination) & 0xff, (readw(&PortP->PhbP->destination) >> 8) & 0xff, dest_unit, dest_port);
+			writew(dest_unit + (dest_port << 8), &PortP->PhbP->destination);
+			writew(link, &PortP->PhbP->link);
 
 			rio_spin_unlock_irqrestore(&PortP->portSem, flags);
 		}
@@ -590,9 +590,9 @@ uint unit;
 		 */
 		if (link > 3)
 			return;
-		if (((unit * 8) + 7) > RWORD(HostP->LinkStrP[link].last_port)) {
+		if (((unit * 8) + 7) > readw(&HostP->LinkStrP[link].last_port)) {
 			rio_dprintk(RIO_DEBUG_ROUTE, "last port on host link %d: %d\n", link, (unit * 8) + 7);
-			WWORD(HostP->LinkStrP[link].last_port, (unit * 8) + 7);
+			writew((unit * 8) + 7, &HostP->LinkStrP[link].last_port);
 		}
 	}
 }
@@ -818,7 +818,7 @@ int Change;
 	ToType = ToId ? "RTA" : "HOST";
 
 	rio_dprintk(RIO_DEBUG_ROUTE, "Link between %s '%s' (%c) and %s '%s' (%c) %s.\n", FromType, FromName, 'A' + FromLink, ToType, ToName, 'A' + ToLink, (Change == CONNECT) ? "established" : "disconnected");
-	cprintf("Link between %s '%s' (%c) and %s '%s' (%c) %s.\n", FromType, FromName, 'A' + FromLink, ToType, ToName, 'A' + ToLink, (Change == CONNECT) ? "established" : "disconnected");
+	printk(KERN_DEBUG "rio: Link between %s '%s' (%c) and %s '%s' (%c) %s.\n", FromType, FromName, 'A' + FromLink, ToType, ToName, 'A' + ToLink, (Change == CONNECT) ? "established" : "disconnected");
 }
 
 /*
@@ -838,7 +838,7 @@ static int RIORemoveFromSavedTable(struct rio_info *p, struct Map *pMap)
 	 */
 	for (entry = 0; entry < TOTAL_MAP_ENTRIES; entry++) {
 		if (p->RIOSavedTable[entry].RtaUniqueNum == pMap->RtaUniqueNum) {
-			bzero((caddr_t) & p->RIOSavedTable[entry], sizeof(struct Map));
+			memset(&p->RIOSavedTable[entry], 0, sizeof(struct Map));
 		}
 	}
 	return 0;
@@ -898,7 +898,7 @@ static int RIOFreeDisconnected(struct rio_info *p, struct Host *HostP, int unit)
 		int nOther = (HostP->Mapping[unit].ID2) - 1;
 
 		rio_dprintk(RIO_DEBUG_ROUTE, "RioFreedis second slot %d.\n", nOther);
-		bzero((caddr_t) & HostP->Mapping[nOther], sizeof(struct Map));
+		memset(&HostP->Mapping[nOther], 0, sizeof(struct Map));
 	}
 	RIORemoveFromSavedTable(p, &HostP->Mapping[unit]);
 
@@ -997,7 +997,7 @@ int RIOFindFreeID(struct rio_info *p, struct Host *HostP, uint * pID1, uint * pI
 				/*
 				 ** Clear out this slot now that we intend to use it.
 				 */
-				bzero(&HostP->Mapping[unit], sizeof(struct Map));
+				memset(&HostP->Mapping[unit], 0, sizeof(struct Map));
 
 				/*
 				 ** If the second ID is not needed then we can return
@@ -1015,7 +1015,7 @@ int RIOFindFreeID(struct rio_info *p, struct Host *HostP, uint * pID1, uint * pI
 				/*
 				 ** Clear out this slot now that we intend to use it.
 				 */
-				bzero(&HostP->Mapping[unit], sizeof(struct Map));
+				memset(&HostP->Mapping[unit], 0, sizeof(struct Map));
 
 				/* At this point under the right(wrong?) conditions
 				 ** we may have a first unit ID being higher than the

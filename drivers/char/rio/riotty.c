@@ -136,7 +136,7 @@ extern struct rio_info *p;
 
 int riotopen(struct tty_struct *tty, struct file *filp)
 {
-	register uint SysPort;
+	unsigned int SysPort;
 	int Modem;
 	int repeat_this = 250;
 	struct Port *PortP;	/* pointer to the port structure */
@@ -155,7 +155,6 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 
 	if (p->RIOFailed) {
 		rio_dprintk(RIO_DEBUG_TTY, "System initialisation failed\n");
-		pseterr(ENXIO);
 		func_exit();
 		return -ENXIO;
 	}
@@ -170,7 +169,6 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 	 */
 	if (SysPort >= RIO_PORTS) {	/* out of range ? */
 		rio_dprintk(RIO_DEBUG_TTY, "Illegal port number %d\n", SysPort);
-		pseterr(ENXIO);
 		func_exit();
 		return -ENXIO;
 	}
@@ -187,7 +185,6 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 		 */
 		rio_dprintk(RIO_DEBUG_TTY, "port not mapped into system\n");
 		func_exit();
-		pseterr(ENXIO);
 		return -ENXIO;
 	}
 
@@ -209,7 +206,6 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 	 */
 	if ((PortP->HostP->Flags & RUN_STATE) != RC_RUNNING) {
 		rio_dprintk(RIO_DEBUG_TTY, "Host not running\n");
-		pseterr(ENXIO);
 		func_exit();
 		return -ENXIO;
 	}
@@ -429,9 +425,6 @@ int riotopen(struct tty_struct *tty, struct file *filp)
 
 	rio_dprintk(RIO_DEBUG_TTY, "high level open done\n");
 
-#ifdef STATS
-	PortP->Stat.OpenCnt++;
-#endif
 	/*
 	 ** Count opens for port statistics reporting
 	 */
@@ -466,10 +459,10 @@ int riotclose(void *ptr)
 	rio_dprintk(RIO_DEBUG_TTY, "port close SysPort %d\n", PortP->PortNum);
 
 	/* PortP = p->RIOPortp[SysPort]; */
-	rio_dprintk(RIO_DEBUG_TTY, "Port is at address 0x%x\n", (int) PortP);
+	rio_dprintk(RIO_DEBUG_TTY, "Port is at address 0x%p\n", PortP);
 	/* tp = PortP->TtyP; *//* Get tty */
 	tty = PortP->gs.tty;
-	rio_dprintk(RIO_DEBUG_TTY, "TTY is at address 0x%x\n", (int) tty);
+	rio_dprintk(RIO_DEBUG_TTY, "TTY is at address 0x%p\n", tty);
 
 	if (PortP->gs.closing_wait)
 		end_time = jiffies + PortP->gs.closing_wait;
@@ -536,7 +529,6 @@ int riotclose(void *ptr)
 
 	if (!deleted)
 		while ((PortP->InUse != NOT_INUSE) && !p->RIOHalted && (PortP->TxBufferIn != PortP->TxBufferOut)) {
-			cprintf("Need to flush the ttyport\n");
 			if (repeat_this-- <= 0) {
 				rv = -EINTR;
 				rio_dprintk(RIO_DEBUG_TTY, "Waiting for not idle closed broken by signal\n");
@@ -615,9 +607,6 @@ int riotclose(void *ptr)
 */
 	PortP->Config &= ~(RIO_CTSFLOW | RIO_RTSFLOW);
 
-#ifdef STATS
-	PortP->Stat.CloseCnt++;
-#endif
 	/*
 	 ** Count opens for port statistics reporting
 	 */
@@ -722,15 +711,15 @@ int RIOShortCommand(struct rio_info *p, struct Port *PortP, int command, int len
 	/*
 	 ** set the command byte and the argument byte
 	 */
-	WBYTE(PacketP->data[0], command);
+	writeb(command, &PacketP->data[0]);
 
 	if (len == 2)
-		WBYTE(PacketP->data[1], arg);
+		writeb(arg, &PacketP->data[1]);
 
 	/*
 	 ** set the length of the packet and set the command bit.
 	 */
-	WBYTE(PacketP->len, PKT_CMD_BIT | len);
+	writeb(PKT_CMD_BIT | len, &PacketP->len);
 
 	add_transmit(PortP);
 	/*
