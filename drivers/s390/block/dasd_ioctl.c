@@ -448,7 +448,14 @@ dasd_ioctl(struct inode *inode, struct file *file,
 	case DASDAPIVER:
 		return dasd_ioctl_api_version(argp);
 	default:
-		/* resort to the deprecated dynamic ioctl list */
+		/* if the discipline has an ioctl method try it. */
+		if (device->discipline->ioctl) {
+			int rval = device->discipline->ioctl(device, cmd, argp);
+			if (rval != -ENOIOCTLCMD)
+				return rval;
+		}
+
+		/* else resort to the deprecated dynamic ioctl list */
 		list_for_each_entry(ioctl, &dasd_ioctl_list, list) {
 			if (ioctl->no == cmd) {
 				/* Found a matching ioctl. Call it. */

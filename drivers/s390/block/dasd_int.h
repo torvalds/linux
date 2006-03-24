@@ -272,6 +272,7 @@ struct dasd_discipline {
         /* i/o control functions. */
 	int (*fill_geometry) (struct dasd_device *, struct hd_geometry *);
 	int (*fill_info) (struct dasd_device *, struct dasd_information2_t *);
+	int (*ioctl) (struct dasd_device *, unsigned int, void __user *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
