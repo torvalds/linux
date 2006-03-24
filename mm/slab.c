@@ -2809,8 +2809,7 @@ static inline void *____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 	struct array_cache *ac;
 
 #ifdef CONFIG_NUMA
-	if (unlikely(current->flags & (PF_SPREAD_PAGE | PF_SPREAD_SLAB |
-							PF_MEMPOLICY))) {
+	if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY))) {
 		objp = alternate_node_alloc(cachep, flags);
 		if (objp != NULL)
 			return objp;
@@ -2849,7 +2848,7 @@ static __always_inline void *__cache_alloc(struct kmem_cache *cachep,
 
 #ifdef CONFIG_NUMA
 /*
- * Try allocating on another node if PF_SPREAD_PAGE|PF_SPREAD_SLAB|PF_MEMPOLICY.
+ * Try allocating on another node if PF_SPREAD_SLAB|PF_MEMPOLICY.
  *
  * If we are in_interrupt, then process context, including cpusets and
  * mempolicy, may not apply and should not be used for allocation policy.
