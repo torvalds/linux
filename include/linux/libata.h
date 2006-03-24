@@ -358,6 +358,11 @@ struct ata_device {
 	unsigned int		max_sectors;	/* per-device max sectors */
 	unsigned int		cdb_len;
 
+	/* per-dev xfer mask */
+	unsigned int		pio_mask;
+	unsigned int		mwdma_mask;
+	unsigned int		udma_mask;
+
 	/* for CHS addressing */
 	u16			cylinders;	/* Number of cylinders */
 	u16			heads;		/* Number of heads */
@@ -395,6 +400,7 @@ struct ata_port {
 
 	struct ata_host_stats	stats;
 	struct ata_host_set	*host_set;
+	struct device 		*dev;
 
 	struct work_struct	port_task;
 
@@ -515,9 +521,9 @@ extern void ata_eh_qc_retry(struct ata_queued_cmd *qc);
 extern int ata_scsi_release(struct Scsi_Host *host);
 extern unsigned int ata_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc);
 extern int ata_scsi_device_resume(struct scsi_device *);
-extern int ata_scsi_device_suspend(struct scsi_device *);
+extern int ata_scsi_device_suspend(struct scsi_device *, pm_message_t state);
 extern int ata_device_resume(struct ata_port *, struct ata_device *);
-extern int ata_device_suspend(struct ata_port *, struct ata_device *);
+extern int ata_device_suspend(struct ata_port *, struct ata_device *, pm_message_t state);
 extern int ata_ratelimit(void);
 extern unsigned int ata_busy_sleep(struct ata_port *ap,
 				   unsigned long timeout_pat,
@@ -568,6 +574,8 @@ extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
 			      sector_t capacity, int geom[]);
 extern int ata_scsi_slave_config(struct scsi_device *sdev);
+extern struct ata_device *ata_dev_pair(struct ata_port *ap, 
+				       struct ata_device *adev);
 
 /*
  * Timing helpers
