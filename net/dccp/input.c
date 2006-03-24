@@ -32,7 +32,7 @@ static void dccp_fin(struct sock *sk, struct sk_buff *skb)
 
 static void dccp_rcv_close(struct sock *sk, struct sk_buff *skb)
 {
-	dccp_v4_send_reset(sk, DCCP_RESET_CODE_CLOSED);
+	dccp_send_reset(sk, DCCP_RESET_CODE_CLOSED);
 	dccp_fin(sk, skb);
 	dccp_set_state(sk, DCCP_CLOSED);
 	sk_wake_async(sk, 1, POLL_HUP);
@@ -56,11 +56,11 @@ static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 	dccp_send_close(sk, 0);
 }
 
-static inline void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
+static void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
-	if (dp->dccps_options.dccpo_send_ack_vector)
+	if (dccp_msk(sk)->dccpms_send_ack_vector)
 		dccp_ackvec_check_rcv_ackno(dp->dccps_hc_rx_ackvec, sk,
 					    DCCP_SKB_CB(skb)->dccpd_ack_seq);
 }
@@ -151,9 +151,8 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static inline int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
-					 const struct dccp_hdr *dh,
-					 const unsigned len)
+static int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
+				  const struct dccp_hdr *dh, const unsigned len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
@@ -247,7 +246,7 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 		dccp_event_ack_recv(sk, skb);
 
-	if (dp->dccps_options.dccpo_send_ack_vector &&
+	if (dccp_msk(sk)->dccpms_send_ack_vector &&
 	    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
 			    DCCP_SKB_CB(skb)->dccpd_seq,
 			    DCCP_ACKVEC_STATE_RECEIVED))
@@ -300,7 +299,10 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 			goto out_invalid_packet;
 		}
 
-                if (dp->dccps_options.dccpo_send_ack_vector &&
+		if (dccp_parse_options(sk, skb))
+			goto out_invalid_packet;
+
+                if (dccp_msk(sk)->dccpms_send_ack_vector &&
                     dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
                                     DCCP_SKB_CB(skb)->dccpd_seq,
                                     DCCP_ACKVEC_STATE_RECEIVED))
@@ -320,14 +322,6 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		 */
 		dccp_set_seqno(&dp->dccps_swl,
 			       max48(dp->dccps_swl, dp->dccps_isr));
-
-		if (ccid_hc_rx_init(dp->dccps_hc_rx_ccid, sk) != 0 ||
-		    ccid_hc_tx_init(dp->dccps_hc_tx_ccid, sk) != 0) {
-			ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
-			ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);
-			/* FIXME: send appropriate RESET code */
-			goto out_invalid_packet;
-		}
 
 		dccp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 
@@ -492,7 +486,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (dcb->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 			dccp_event_ack_recv(sk, skb);
 
- 		if (dp->dccps_options.dccpo_send_ack_vector &&
+ 		if (dccp_msk(sk)->dccpms_send_ack_vector &&
 		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
  				    DCCP_SKB_CB(skb)->dccpd_seq,
  				    DCCP_ACKVEC_STATE_RECEIVED))

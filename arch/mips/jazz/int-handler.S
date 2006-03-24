@@ -248,17 +248,17 @@ loc_call:	/*
 		and	t2,s1
 		sh	t2,JAZZ_IO_IRQ_ENABLE
 
- 		nor	s1,zero,s1
+		nor	s1,zero,s1
 		jal	do_IRQ
 
- 		/*
- 		 * Reenable interrupt
- 		 */
+		/*
+		 * Reenable interrupt
+		 */
 		lhu	t2,JAZZ_IO_IRQ_ENABLE
- 		or	t2,s1
+		or	t2,s1
 		sh	t2,JAZZ_IO_IRQ_ENABLE
 
- 		j	ret_from_irq
+		j	ret_from_irq
 
 /*
  * "Jump extender" to reach spurious_interrupt

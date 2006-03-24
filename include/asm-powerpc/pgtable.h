@@ -468,11 +468,6 @@ extern pgd_t swapper_pg_dir[];
 
 extern void paging_init(void);
 
-#ifdef CONFIG_HUGETLB_PAGE
-#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) \
-	free_pgd_range(tlb, addr, end, floor, ceiling)
-#endif
-
 /*
  * This gets called at the end of handling a page fault, when
  * the kernel has put a new PTE into the page table for the process.

@@ -66,6 +66,11 @@ int snd_hda_mixer_amp_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 int snd_hda_mixer_amp_switch_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo);
 int snd_hda_mixer_amp_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
 int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
+/* lowlevel accessor with caching; use carefully */
+int snd_hda_codec_amp_read(struct hda_codec *codec, hda_nid_t nid, int ch,
+			   int direction, int index);
+int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
+			     int direction, int idx, int mask, int val);
 
 /* mono switch binding multiple inputs */
 #define HDA_BIND_MUTE_MONO(xname, nid, channel, indices, direction) \
@@ -130,6 +135,7 @@ struct hda_multi_out {
 	int num_dacs;		/* # of DACs, must be more than 1 */
 	hda_nid_t *dac_nids;	/* DAC list */
 	hda_nid_t hp_nid;	/* optional DAC for HP, 0 when not exists */
+	hda_nid_t extra_out_nid[3];	/* optional DACs, 0 when not exists */
 	hda_nid_t dig_out_nid;	/* digital out audio widget */
 	int max_channels;	/* currently supported analog channels */
 	int dig_out_used;	/* current usage of digital out (HDA_DIG_XXX) */
@@ -216,7 +222,8 @@ extern const char *auto_pin_cfg_labels[AUTO_PIN_LAST];
 struct auto_pin_cfg {
 	int line_outs;
 	hda_nid_t line_out_pins[5]; /* sorted in the order of Front/Surr/CLFE/Side */
-	hda_nid_t speaker_pin;
+	int speaker_outs;
+	hda_nid_t speaker_pins[5];
 	hda_nid_t hp_pin;
 	hda_nid_t input_pins[AUTO_PIN_LAST];
 	hda_nid_t dig_out_pin;

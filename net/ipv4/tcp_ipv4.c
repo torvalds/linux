@@ -900,6 +900,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		inet_csk(newsk)->icsk_ext_hdr_len = newinet->opt->optlen;
 	newinet->id = newtp->write_seq ^ jiffies;
 
+	tcp_mtup_init(newsk);
 	tcp_sync_mss(newsk, dst_mtu(dst));
 	newtp->advmss = dst_metric(dst, RTAX_ADVMSS);
 	tcp_initialize_rcv_mss(newsk);
@@ -1216,17 +1217,21 @@ int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw)
 }
 
 struct inet_connection_sock_af_ops ipv4_specific = {
-	.queue_xmit	=	ip_queue_xmit,
-	.send_check	=	tcp_v4_send_check,
-	.rebuild_header	=	inet_sk_rebuild_header,
-	.conn_request	=	tcp_v4_conn_request,
-	.syn_recv_sock	=	tcp_v4_syn_recv_sock,
-	.remember_stamp	=	tcp_v4_remember_stamp,
-	.net_header_len	=	sizeof(struct iphdr),
-	.setsockopt	=	ip_setsockopt,
-	.getsockopt	=	ip_getsockopt,
-	.addr2sockaddr	=	inet_csk_addr2sockaddr,
-	.sockaddr_len	=	sizeof(struct sockaddr_in),
+	.queue_xmit	   = ip_queue_xmit,
+	.send_check	   = tcp_v4_send_check,
+	.rebuild_header	   = inet_sk_rebuild_header,
+	.conn_request	   = tcp_v4_conn_request,
+	.syn_recv_sock	   = tcp_v4_syn_recv_sock,
+	.remember_stamp	   = tcp_v4_remember_stamp,
+	.net_header_len	   = sizeof(struct iphdr),
+	.setsockopt	   = ip_setsockopt,
+	.getsockopt	   = ip_getsockopt,
+	.addr2sockaddr	   = inet_csk_addr2sockaddr,
+	.sockaddr_len	   = sizeof(struct sockaddr_in),
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = compat_ip_setsockopt,
+	.compat_getsockopt = compat_ip_getsockopt,
+#endif
 };
 
 /* NOTE: A lot of things set to zero explicitly by call to
@@ -1825,23 +1830,16 @@ struct proto tcp_prot = {
 	.obj_size		= sizeof(struct tcp_sock),
 	.twsk_prot		= &tcp_timewait_sock_ops,
 	.rsk_prot		= &tcp_request_sock_ops,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_tcp_setsockopt,
+	.compat_getsockopt	= compat_tcp_getsockopt,
+#endif
 };
-
-
 
 void __init tcp_v4_init(struct net_proto_family *ops)
 {
-	int err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_TCP, &tcp_socket);
-	if (err < 0)
+	if (inet_csk_ctl_sock_create(&tcp_socket, PF_INET, SOCK_RAW, IPPROTO_TCP) < 0)
 		panic("Failed to create the TCP control socket.\n");
-	tcp_socket->sk->sk_allocation   = GFP_ATOMIC;
-	inet_sk(tcp_socket->sk)->uc_ttl = -1;
-
-	/* Unhash it so that IP input processing does not even
-	 * see it, we do not wish this socket to see incoming
-	 * packets.
-	 */
-	tcp_socket->sk->sk_prot->unhash(tcp_socket->sk);
 }
 
 EXPORT_SYMBOL(ipv4_specific);

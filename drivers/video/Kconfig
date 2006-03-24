@@ -899,8 +899,6 @@ config FB_RADEON_OLD
 	  Choose this option if you want to use an ATI Radeon graphics card as
 	  a framebuffer device.  There are both PCI and AGP versions.  You
 	  don't need to choose this to run the Radeon in plain VGA mode.
-	  There is a product page at
-	  <http://www.ati.com/na/pages/products/pc/radeon32/index.html>.
 
 config FB_RADEON
 	tristate "ATI Radeon display support"

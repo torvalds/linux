@@ -116,7 +116,7 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 				last_in_cluster = offset + SWAPFILE_CLUSTER;
 			else if (offset == last_in_cluster) {
 				spin_lock(&swap_lock);
-				si->cluster_next = offset-SWAPFILE_CLUSTER-1;
+				si->cluster_next = offset-SWAPFILE_CLUSTER+1;
 				goto cluster;
 			}
 			if (unlikely(--latency_ration < 0)) {

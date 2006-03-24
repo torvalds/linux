@@ -108,6 +108,13 @@ config ARCH_EBSA110
 	  Ethernet interface, two PCMCIA sockets, two serial ports and a
 	  parallel port.
 
+config ARCH_EP93XX
+	bool "EP93xx-based"
+	select ARM_AMBA
+	select ARM_VIC
+	help
+	  This enables support for the Cirrus EP93xx series of CPUs.
+
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select FOOTBRIDGE
@@ -249,6 +256,8 @@ config ARCH_AT91RM9200
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
+
+source "arch/arm/mach-ep93xx/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
 
@@ -433,6 +442,13 @@ config NO_IDLE_HZ
 	  timekeeping on some platforms depending on the implementation.
 	  Currently at least OMAP, PXA2xx and SA11x0 platforms are known
 	  to have accurate timekeeping with dynamic tick.
+
+config HZ
+	int
+	default 128 if ARCH_L7200
+	default 200 if ARCH_EBSA110 || ARCH_S3C2410
+	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
+	default 100
 
 config AEABI
 	bool "Use the ARM EABI to compile the kernel"
@@ -798,6 +814,8 @@ source "drivers/char/Kconfig"
 source "drivers/i2c/Kconfig"
 
 source "drivers/spi/Kconfig"
+
+source "drivers/w1/Kconfig"
 
 source "drivers/hwmon/Kconfig"
 

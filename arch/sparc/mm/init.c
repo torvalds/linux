@@ -383,7 +383,7 @@ void map_high_region(unsigned long start_pfn, unsigned long end_pfn)
 		struct page *page = pfn_to_page(tmp);
 
 		ClearPageReserved(page);
-		set_page_count(page, 1);
+		init_page_count(page);
 		__free_page(page);
 		totalhigh_pages++;
 	}
@@ -480,7 +480,7 @@ void free_initmem (void)
 		p = virt_to_page(addr);
 
 		ClearPageReserved(p);
-		set_page_count(p, 1);
+		init_page_count(p);
 		__free_page(p);
 		totalram_pages++;
 		num_physpages++;
@@ -497,7 +497,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		struct page *p = virt_to_page(start);
 
 		ClearPageReserved(p);
-		set_page_count(p, 1);
+		init_page_count(p);
 		__free_page(p);
 		num_physpages++;
 	}

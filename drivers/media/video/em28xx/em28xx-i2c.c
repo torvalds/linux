@@ -420,7 +420,6 @@ static int em28xx_set_tuner(int check_eeprom, struct i2c_client *client)
 		tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
 		tun_setup.type = dev->tuner_type;
 		tun_setup.addr = dev->tuner_addr;
-
 		em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 	}
 

@@ -33,6 +33,7 @@
 #include <sound/pcm-indirect.h>
 #include <sound/timer.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 
 /* ------------------- DEFINES -------------------- */
@@ -1022,7 +1023,7 @@ struct snd_emu10k1_fx8010 {
 	int gpr_size;			/* size of allocated GPR controls */
 	int gpr_count;			/* count of used kcontrols */
 	struct list_head gpr_ctl;	/* GPR controls */
-	struct semaphore lock;
+	struct mutex lock;
 	struct snd_emu10k1_fx8010_pcm pcm[8];
 	spinlock_t irq_lock;
 	struct snd_emu10k1_fx8010_irq *irq_handlers;
@@ -1122,7 +1123,6 @@ struct snd_emu10k1 {
 	spinlock_t reg_lock;
 	spinlock_t emu_lock;
 	spinlock_t voice_lock;
-	struct semaphore ptb_lock;
 
 	struct snd_emu10k1_voice voices[NUM_G];
 	struct snd_emu10k1_voice p16v_voices[4];

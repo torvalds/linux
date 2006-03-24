@@ -44,6 +44,7 @@ enum ultra_tlb_layout {
 	spitfire = 0,
 	cheetah = 1,
 	cheetah_plus = 2,
+	hypervisor = 3,
 };
 
 extern enum ultra_tlb_layout tlb_type;

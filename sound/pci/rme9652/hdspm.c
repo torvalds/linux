@@ -474,7 +474,7 @@ static inline unsigned int hdspm_read(struct hdspm * hdspm, unsigned int reg)
 static inline int hdspm_read_in_gain(struct hdspm * hdspm, unsigned int chan,
 				     unsigned int in)
 {
-	if (chan > HDSPM_MIXER_CHANNELS || in > HDSPM_MIXER_CHANNELS)
+	if (chan >= HDSPM_MIXER_CHANNELS || in >= HDSPM_MIXER_CHANNELS)
 		return 0;
 
 	return hdspm->mixer->ch[chan].in[in];
@@ -483,7 +483,7 @@ static inline int hdspm_read_in_gain(struct hdspm * hdspm, unsigned int chan,
 static inline int hdspm_read_pb_gain(struct hdspm * hdspm, unsigned int chan,
 				     unsigned int pb)
 {
-	if (chan > HDSPM_MIXER_CHANNELS || pb > HDSPM_MIXER_CHANNELS)
+	if (chan >= HDSPM_MIXER_CHANNELS || pb >= HDSPM_MIXER_CHANNELS)
 		return 0;
 	return hdspm->mixer->ch[chan].pb[pb];
 }

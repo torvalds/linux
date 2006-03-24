@@ -66,7 +66,7 @@ config BONDING
 	  'Trunking' by Sun, 802.3ad by the IEEE, and 'Bonding' in Linux.
 
 	  The driver supports multiple bonding modes to allow for both high
-	  perfomance and high availability operation.
+	  performance and high availability operation.
 
 	  Refer to <file:Documentation/networking/bonding.txt> for more
 	  information.
@@ -698,8 +698,8 @@ config VORTEX
 	depends on NET_VENDOR_3COM && (PCI || EISA)
 	select MII
 	---help---
-	  This option enables driver support for a large number of 10mbps and
-	  10/100mbps EISA, PCI and PCMCIA 3Com network cards:
+	  This option enables driver support for a large number of 10Mbps and
+	  10/100Mbps EISA, PCI and PCMCIA 3Com network cards:
 
 	  "Vortex"    (Fast EtherLink 3c590/3c592/3c595/3c597) EISA and PCI
 	  "Boomerang" (EtherLink XL 3c900 or 3c905)            PCI
@@ -1021,7 +1021,7 @@ config EEXPRESS_PRO
 	depends on NET_ISA
 	---help---
 	  If you have a network (Ethernet) card of this type, say Y. This
-	  driver supports intel i82595{FX,TX} based boards. Note however
+	  driver supports Intel i82595{FX,TX} based boards. Note however
 	  that the EtherExpress PRO/100 Ethernet card has its own separate
 	  driver.  Please read the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
@@ -1208,7 +1208,7 @@ config IBM_EMAC_RX_SKB_HEADROOM
 	help
 	  Additional receive skb headroom. Note, that driver
 	  will always reserve at least 2 bytes to make IP header
-	  aligned, so usualy there is no need to add any additional
+	  aligned, so usually there is no need to add any additional
 	  headroom.
 	  
 	  If unsure, set to 0.
@@ -1372,8 +1372,8 @@ config B44
 	  called b44.
 
 config FORCEDETH
-	tristate "Reverse Engineered nForce Ethernet support (EXPERIMENTAL)"
-	depends on NET_PCI && PCI && EXPERIMENTAL
+	tristate "nForce Ethernet support"
+	depends on NET_PCI && PCI
 	help
 	  If you have a network (Ethernet) controller of this type, say Y and
 	  read the Ethernet-HOWTO, available from
@@ -1614,11 +1614,7 @@ config SIS900
 	---help---
 	  This is a driver for the Fast Ethernet PCI network cards based on
 	  the SiS 900 and SiS 7016 chips. The SiS 900 core is also embedded in
-	  SiS 630 and SiS 540 chipsets.  If you have one of those, say Y and
-	  read the Ethernet-HOWTO, available at
-	  <http://www.tldp.org/docs.html#howto>.  Please read
-	  <file:Documentation/networking/sis900.txt> and comments at the
-	  beginning of <file:drivers/net/sis900.c> for more information.
+	  SiS 630 and SiS 540 chipsets.
 
 	  This driver also supports AMD 79C901 HomePNA so that you can use
 	  your phone line as a network cable.
@@ -1918,7 +1914,7 @@ config E1000_DISABLE_PACKET_SPLIT
 	depends on E1000
 	help
 	  Say Y here if you want to use the legacy receive path for PCI express
-	  hadware.
+	  hardware.
 
 	  If in doubt, say N.
 
@@ -1934,7 +1930,7 @@ config MYRI_SBUS
 	  will be called myri_sbus.  This is recommended.
 
 config NS83820
-	tristate "National Semiconduct DP83820 support"
+	tristate "National Semiconductor DP83820 support"
 	depends on PCI
 	help
 	  This is a driver for the National Semiconductor DP83820 series
@@ -2195,6 +2191,7 @@ config GFAR_NAPI
 config MV643XX_ETH
 	tristate "MV-643XX Ethernet support"
 	depends on MOMENCO_OCELOT_C || MOMENCO_JAGUAR_ATX || MV64360 || MOMENCO_OCELOT_3 || PPC_MULTIPLATFORM
+	select MII
 	help
 	  This driver supports the gigabit Ethernet on the Marvell MV643XX
 	  chipset which is used in the Momenco Ocelot C and Jaguar ATX and
@@ -2514,7 +2511,7 @@ config PPP_FILTER
 	  Say Y here if you want to be able to filter the packets passing over
 	  PPP interfaces.  This allows you to control which packets count as
 	  activity (i.e. which packets will reset the idle timer or bring up
-	  a demand-dialled link) and which packets are to be dropped entirely.
+	  a demand-dialed link) and which packets are to be dropped entirely.
 	  You need to say Y here if you wish to use the pass-filter and
 	  active-filter options to pppd.
 
@@ -2702,8 +2699,8 @@ config SHAPER
 	  <file:Documentation/networking/shaper.txt> for more information.
 
 	  An alternative to this traffic shaper is the experimental
-	  Class-Based Queueing (CBQ) scheduling support which you get if you
-	  say Y to "QoS and/or fair queueing" above.
+	  Class-Based Queuing (CBQ) scheduling support which you get if you
+	  say Y to "QoS and/or fair queuing" above.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called shaper.  If unsure, say N.

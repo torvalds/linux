@@ -1157,21 +1157,21 @@ static int se401_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long size  = vma->vm_end-vma->vm_start;
 	unsigned long page, pos;
 
-	down(&se401->lock);
+	mutex_lock(&se401->lock);
 
 	if (se401->dev == NULL) {
-		up(&se401->lock);
+		mutex_unlock(&se401->lock);
 		return -EIO;
 	}
 	if (size > (((SE401_NUMFRAMES * se401->maxframesize) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))) {
-		up(&se401->lock);
+		mutex_unlock(&se401->lock);
 		return -EINVAL;
 	}
 	pos = (unsigned long)se401->fbuf;
 	while (size > 0) {
 		page = vmalloc_to_pfn((void *)pos);
 		if (remap_pfn_range(vma, start, page, PAGE_SIZE, PAGE_SHARED)) {
-			up(&se401->lock);
+			mutex_unlock(&se401->lock);
 			return -EAGAIN;
 		}
 		start += PAGE_SIZE;
@@ -1181,7 +1181,7 @@ static int se401_mmap(struct file *file, struct vm_area_struct *vma)
 		else
 			size = 0;
 	}
-	up(&se401->lock);
+	mutex_unlock(&se401->lock);
 
         return 0;
 }
@@ -1345,12 +1345,10 @@ static int se401_probe(struct usb_interface *intf,
         /* We found one */
         info("SE401 camera found: %s", camera_name);
 
-        if ((se401 = kmalloc(sizeof(*se401), GFP_KERNEL)) == NULL) {
+        if ((se401 = kzalloc(sizeof(*se401), GFP_KERNEL)) == NULL) {
                 err("couldn't kmalloc se401 struct");
 		return -ENOMEM;
         }
-
-        memset(se401, 0, sizeof(*se401));
 
         se401->dev = dev;
         se401->iface = interface->bInterfaceNumber;
@@ -1366,7 +1364,7 @@ static int se401_probe(struct usb_interface *intf,
 	memcpy(&se401->vdev, &se401_template, sizeof(se401_template));
 	memcpy(se401->vdev.name, se401->camera_name, strlen(se401->camera_name));
 	init_waitqueue_head(&se401->wq);
-	init_MUTEX(&se401->lock);
+	mutex_init(&se401->lock);
 	wmb();
 
 	if (video_register_device(&se401->vdev, VFL_TYPE_GRABBER, video_nr) == -1) {

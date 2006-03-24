@@ -117,6 +117,8 @@ static struct security_operations *secondary_ops = NULL;
 static LIST_HEAD(superblock_security_head);
 static DEFINE_SPINLOCK(sb_security_lock);
 
+static kmem_cache_t *sel_inode_cache;
+
 /* Allocate and free functions for each kind of security blob. */
 
 static int task_alloc_security(struct task_struct *task)
@@ -146,10 +148,11 @@ static int inode_alloc_security(struct inode *inode)
 	struct task_security_struct *tsec = current->security;
 	struct inode_security_struct *isec;
 
-	isec = kzalloc(sizeof(struct inode_security_struct), GFP_KERNEL);
+	isec = kmem_cache_alloc(sel_inode_cache, SLAB_KERNEL);
 	if (!isec)
 		return -ENOMEM;
 
+	memset(isec, 0, sizeof(*isec));
 	init_MUTEX(&isec->sem);
 	INIT_LIST_HEAD(&isec->list);
 	isec->inode = inode;
@@ -172,7 +175,7 @@ static void inode_free_security(struct inode *inode)
 	spin_unlock(&sbsec->isec_lock);
 
 	inode->i_security = NULL;
-	kfree(isec);
+	kmem_cache_free(sel_inode_cache, isec);
 }
 
 static int file_alloc_security(struct file *file)
@@ -1929,7 +1932,6 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	struct task_security_struct *tsec;
 	struct inode_security_struct *dsec;
 	struct superblock_security_struct *sbsec;
-	struct inode_security_struct *isec;
 	u32 newsid, clen;
 	int rc;
 	char *namep = NULL, *context;
@@ -1937,7 +1939,6 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	tsec = current->security;
 	dsec = dir->i_security;
 	sbsec = dir->i_sb->s_security;
-	isec = inode->i_security;
 
 	if (tsec->create_sid && sbsec->behavior != SECURITY_FS_USE_MNTPOINT) {
 		newsid = tsec->create_sid;
@@ -1957,7 +1958,7 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 
 	inode_security_set_sid(inode, newsid);
 
-	if (sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
+	if (!ss_initialized || sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
 		return -EOPNOTSUPP;
 
 	if (name) {
@@ -3318,24 +3319,38 @@ out:
 	return err;
 }
 
-static int selinux_socket_getpeersec(struct socket *sock, char __user *optval,
-				     int __user *optlen, unsigned len)
+static int selinux_socket_getpeersec_stream(struct socket *sock, char __user *optval,
+					    int __user *optlen, unsigned len)
 {
 	int err = 0;
 	char *scontext;
 	u32 scontext_len;
 	struct sk_security_struct *ssec;
 	struct inode_security_struct *isec;
+	u32 peer_sid = 0;
 
 	isec = SOCK_INODE(sock)->i_security;
-	if (isec->sclass != SECCLASS_UNIX_STREAM_SOCKET) {
+
+	/* if UNIX_STREAM check peer_sid, if TCP check dst for labelled sa */
+	if (isec->sclass == SECCLASS_UNIX_STREAM_SOCKET) {
+		ssec = sock->sk->sk_security;
+		peer_sid = ssec->peer_sid;
+	}
+	else if (isec->sclass == SECCLASS_TCP_SOCKET) {
+		peer_sid = selinux_socket_getpeer_stream(sock->sk);
+
+		if (peer_sid == SECSID_NULL) {
+			err = -ENOPROTOOPT;
+			goto out;
+		}
+	}
+	else {
 		err = -ENOPROTOOPT;
 		goto out;
 	}
 
-	ssec = sock->sk->sk_security;
-	
-	err = security_sid_to_context(ssec->peer_sid, &scontext, &scontext_len);
+	err = security_sid_to_context(peer_sid, &scontext, &scontext_len);
+
 	if (err)
 		goto out;
 
@@ -3355,6 +3370,23 @@ out_len:
 out:	
 	return err;
 }
+
+static int selinux_socket_getpeersec_dgram(struct sk_buff *skb, char **secdata, u32 *seclen)
+{
+	int err = 0;
+	u32 peer_sid = selinux_socket_getpeer_dgram(skb);
+
+	if (peer_sid == SECSID_NULL)
+		return -EINVAL;
+
+	err = security_sid_to_context(peer_sid, secdata, seclen);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+
 
 static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
@@ -4344,7 +4376,8 @@ static struct security_operations selinux_ops = {
 	.socket_setsockopt =		selinux_socket_setsockopt,
 	.socket_shutdown =		selinux_socket_shutdown,
 	.socket_sock_rcv_skb =		selinux_socket_sock_rcv_skb,
-	.socket_getpeersec =		selinux_socket_getpeersec,
+	.socket_getpeersec_stream =	selinux_socket_getpeersec_stream,
+	.socket_getpeersec_dgram =	selinux_socket_getpeersec_dgram,
 	.sk_alloc_security =		selinux_sk_alloc_security,
 	.sk_free_security =		selinux_sk_free_security,
 	.sk_getsid = 			selinux_sk_getsid_security,
@@ -4376,6 +4409,9 @@ static __init int selinux_init(void)
 	tsec = current->security;
 	tsec->osid = tsec->sid = SECINITSID_KERNEL;
 
+	sel_inode_cache = kmem_cache_create("selinux_inode_security",
+					    sizeof(struct inode_security_struct),
+					    0, SLAB_PANIC, NULL, NULL);
 	avc_init();
 
 	original_ops = secondary_ops = security_ops;

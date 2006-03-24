@@ -23,6 +23,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -36,55 +37,56 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
            const void *entry,
+	   const struct xt_match *match,
            void *matchinfo,
            unsigned int matchsize,
            unsigned int hook_mask)
 {
 	struct xt_mark_info *minfo = (struct xt_mark_info *) matchinfo;
 
-	if (matchsize != XT_ALIGN(sizeof(struct xt_mark_info)))
-		return 0;
-
 	if (minfo->mark > 0xffffffff || minfo->mask > 0xffffffff) {
 		printk(KERN_WARNING "mark: only supports 32bit mark\n");
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct xt_match mark_match = {
 	.name		= "mark",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_mark_info),
+	.checkentry	= checkentry,
+	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
 static struct xt_match mark6_match = {
 	.name		= "mark",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct xt_mark_info),
+	.checkentry	= checkentry,
+	.family		= AF_INET6,
 	.me		= THIS_MODULE,
 };
 
 static int __init init(void)
 {
 	int ret;
-	ret = xt_register_match(AF_INET, &mark_match);
+	ret = xt_register_match(&mark_match);
 	if (ret)
 		return ret;
 
-	ret = xt_register_match(AF_INET6, &mark6_match);
+	ret = xt_register_match(&mark6_match);
 	if (ret)
-		xt_unregister_match(AF_INET, &mark_match);
+		xt_unregister_match(&mark_match);
 
 	return ret;
 }
 
 static void __exit fini(void)
 {
-	xt_unregister_match(AF_INET, &mark_match);
-	xt_unregister_match(AF_INET6, &mark6_match);
+	xt_unregister_match(&mark_match);
+	xt_unregister_match(&mark6_match);
 }
 
 module_init(init);

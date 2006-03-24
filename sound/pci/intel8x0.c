@@ -178,6 +178,8 @@ DEFINE_REGSET(SP, 0x60);	/* SPDIF out */
 #define   ICH_SAMPLE_CAP	0x00c00000	/* ICH4: sample capability bits (RO) */
 #define   ICH_SAMPLE_16_20	0x00400000	/* ICH4: 16- and 20-bit samples */
 #define   ICH_MULTICHAN_CAP	0x00300000	/* ICH4: multi-channel capability bits (RO) */
+#define   ICH_SIS_TRI		0x00080000	/* SIS: tertiary resume irq */
+#define   ICH_SIS_TCR		0x00040000	/* SIS: tertiary codec ready */
 #define   ICH_MD3		0x00020000	/* modem power down semaphore */
 #define   ICH_AD3		0x00010000	/* audio power down semaphore */
 #define   ICH_RCS		0x00008000	/* read completion status */
@@ -398,6 +400,10 @@ struct intel8x0 {
 	struct snd_ac97_bus *ac97_bus;
 	struct snd_ac97 *ac97[3];
 	unsigned int ac97_sdin[3];
+	unsigned int max_codecs, ncodecs;
+	unsigned int *codec_bit;
+	unsigned int codec_isr_bits;
+	unsigned int codec_ready_bits;
 
 	spinlock_t reg_lock;
 	
@@ -516,18 +522,6 @@ static void iaputword(struct intel8x0 *chip, u32 offset, u16 val)
  * access to AC97 codec via normal i/o (for ICH and SIS7012)
  */
 
-/* return the GLOB_STA bit for the corresponding codec */
-static unsigned int get_ich_codec_bit(struct intel8x0 *chip, unsigned int codec)
-{
-	static unsigned int codec_bit[3] = {
-		ICH_PCR, ICH_SCR, ICH_TCR
-	};
-	snd_assert(codec < 3, return ICH_PCR);
-	if (chip->device_type == DEVICE_INTEL_ICH4)
-		codec = chip->ac97_sdin[codec];
-	return codec_bit[codec];
-}
-
 static int snd_intel8x0_codec_semaphore(struct intel8x0 *chip, unsigned int codec)
 {
 	int time;
@@ -537,9 +531,9 @@ static int snd_intel8x0_codec_semaphore(struct intel8x0 *chip, unsigned int code
 	if (chip->in_sdin_init) {
 		/* we don't know the ready bit assignment at the moment */
 		/* so we check any */
-		codec = ICH_PCR | ICH_SCR | ICH_TCR;
+		codec = chip->codec_isr_bits;
 	} else {
-		codec = get_ich_codec_bit(chip, codec);
+		codec = chip->codec_bit[chip->ac97_sdin[codec]];
 	}
 
 	/* codec ready ? */
@@ -596,7 +590,7 @@ static unsigned short snd_intel8x0_codec_read(struct snd_ac97 *ac97,
 		if ((tmp = igetdword(chip, ICHREG(GLOB_STA))) & ICH_RCS) {
 			/* reset RCS and preserve other R/WC bits */
 			iputdword(chip, ICHREG(GLOB_STA), tmp &
-				  ~(ICH_SRI|ICH_PRI|ICH_TRI|ICH_GSCI));
+				  ~(chip->codec_ready_bits | ICH_GSCI));
 			if (! chip->in_ac97_init)
 				snd_printk(KERN_ERR "codec_read %d: read timeout for register 0x%x\n", ac97->num, reg);
 			res = 0xffff;
@@ -605,7 +599,8 @@ static unsigned short snd_intel8x0_codec_read(struct snd_ac97 *ac97,
 	return res;
 }
 
-static void snd_intel8x0_codec_read_test(struct intel8x0 *chip, unsigned int codec)
+static void __devinit snd_intel8x0_codec_read_test(struct intel8x0 *chip,
+						   unsigned int codec)
 {
 	unsigned int tmp;
 
@@ -614,7 +609,7 @@ static void snd_intel8x0_codec_read_test(struct intel8x0 *chip, unsigned int cod
 		if ((tmp = igetdword(chip, ICHREG(GLOB_STA))) & ICH_RCS) {
 			/* reset RCS and preserve other R/WC bits */
 			iputdword(chip, ICHREG(GLOB_STA), tmp &
-				  ~(ICH_SRI|ICH_PRI|ICH_TRI|ICH_GSCI));
+				  ~(chip->codec_ready_bits | ICH_GSCI));
 		}
 	}
 }
@@ -2078,23 +2073,24 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 	if (chip->device_type != DEVICE_ALI) {
 		glob_sta = igetdword(chip, ICHREG(GLOB_STA));
 		ops = &standard_bus_ops;
-		if (chip->device_type == DEVICE_INTEL_ICH4) {
-			codecs = 0;
-			if (glob_sta & ICH_PCR)
-				codecs++;
-			if (glob_sta & ICH_SCR)
-				codecs++;
-			if (glob_sta & ICH_TCR)
-				codecs++;
-			chip->in_sdin_init = 1;
-			for (i = 0; i < codecs; i++) {
-				snd_intel8x0_codec_read_test(chip, i);
-				chip->ac97_sdin[i] = igetbyte(chip, ICHREG(SDM)) & ICH_LDI_MASK;
-			}
-			chip->in_sdin_init = 0;
-		} else {
-			codecs = glob_sta & ICH_SCR ? 2 : 1;
+		chip->in_sdin_init = 1;
+		codecs = 0;
+		for (i = 0; i < chip->max_codecs; i++) {
+			if (! (glob_sta & chip->codec_bit[i]))
+				continue;
+			if (chip->device_type == DEVICE_INTEL_ICH4) {
+				snd_intel8x0_codec_read_test(chip, codecs);
+				chip->ac97_sdin[codecs] =
+					igetbyte(chip, ICHREG(SDM)) & ICH_LDI_MASK;
+				snd_assert(chip->ac97_sdin[codecs] < 3,
+					   chip->ac97_sdin[codecs] = 0);
+			} else
+				chip->ac97_sdin[codecs] = i;
+			codecs++;
 		}
+		chip->in_sdin_init = 0;
+		if (! codecs)
+			codecs = 1;
 	} else {
 		ops = &ali_bus_ops;
 		codecs = 1;
@@ -2120,6 +2116,7 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 	else
 		pbus->dra = 1;
 	chip->ac97_bus = pbus;
+	chip->ncodecs = codecs;
 
 	ac97.pci = chip->pci;
 	for (i = 0; i < codecs; i++) {
@@ -2264,7 +2261,7 @@ static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
 		end_time = jiffies + HZ;
 		do {
 			status = igetdword(chip, ICHREG(GLOB_STA)) &
-				(ICH_PCR | ICH_SCR | ICH_TCR);
+				chip->codec_isr_bits;
 			if (status)
 				break;
 			schedule_timeout_uninterruptible(1);
@@ -2276,32 +2273,27 @@ static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
 			return -EIO;
 		}
 
-		if (chip->device_type == DEVICE_INTEL_ICH4)
-			/* ICH4 can have three codecs */
-			nstatus = ICH_PCR | ICH_SCR | ICH_TCR;
-		else
-			/* others up to two codecs */
-			nstatus = ICH_PCR | ICH_SCR;
-
 		/* wait for other codecs ready status. */
 		end_time = jiffies + HZ / 4;
-		while (status != nstatus && time_after_eq(end_time, jiffies)) {
+		while (status != chip->codec_isr_bits &&
+		       time_after_eq(end_time, jiffies)) {
 			schedule_timeout_uninterruptible(1);
-			status |= igetdword(chip, ICHREG(GLOB_STA)) & nstatus;
+			status |= igetdword(chip, ICHREG(GLOB_STA)) &
+				chip->codec_isr_bits;
 		}
 
 	} else {
 		/* resume phase */
 		int i;
 		status = 0;
-		for (i = 0; i < 3; i++)
+		for (i = 0; i < chip->ncodecs; i++)
 			if (chip->ac97[i])
-				status |= get_ich_codec_bit(chip, i);
+				status |= chip->codec_bit[chip->ac97_sdin[i]];
 		/* wait until all the probed codecs are ready */
 		end_time = jiffies + HZ;
 		do {
 			nstatus = igetdword(chip, ICHREG(GLOB_STA)) &
-				(ICH_PCR | ICH_SCR | ICH_TCR);
+				chip->codec_isr_bits;
 			if (status == nstatus)
 				break;
 			schedule_timeout_uninterruptible(1);
@@ -2359,7 +2351,7 @@ static int snd_intel8x0_ali_chip_init(struct intel8x0 *chip, int probing)
 
 static int snd_intel8x0_chip_init(struct intel8x0 *chip, int probing)
 {
-	unsigned int i;
+	unsigned int i, timeout;
 	int err;
 	
 	if (chip->device_type != DEVICE_ALI) {
@@ -2377,6 +2369,15 @@ static int snd_intel8x0_chip_init(struct intel8x0 *chip, int probing)
 	/* reset channels */
 	for (i = 0; i < chip->bdbars_count; i++)
 		iputbyte(chip, ICH_REG_OFF_CR + chip->ichd[i].reg_offset, ICH_RESETREGS);
+	for (i = 0; i < chip->bdbars_count; i++) {
+	        timeout = 100000;
+	        while (--timeout != 0) {
+        		if ((igetbyte(chip, ICH_REG_OFF_CR + chip->ichd[i].reg_offset) & ICH_RESETREGS) == 0)
+        		        break;
+                }
+                if (timeout == 0)
+                        printk(KERN_ERR "intel8x0: reset of registers failed?\n");
+        }
 	/* initialize Buffer Descriptor Lists */
 	for (i = 0; i < chip->bdbars_count; i++)
 		iputdword(chip, ICH_REG_OFF_BDBAR + chip->ichd[i].reg_offset,
@@ -2447,7 +2448,7 @@ static int intel8x0_suspend(struct pci_dev *pci, pm_message_t state)
 			}
 		}
 	}
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < chip->ncodecs; i++)
 		snd_ac97_suspend(chip->ac97[i]);
 	if (chip->device_type == DEVICE_INTEL_ICH4)
 		chip->sdm_saved = igetbyte(chip, ICHREG(SDM));
@@ -2488,7 +2489,7 @@ static int intel8x0_resume(struct pci_dev *pci)
 	if (chip->fix_nocache)
 		fill_nocache(chip->bdbars.area, chip->bdbars.bytes, 1);
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < chip->ncodecs; i++)
 		snd_ac97_resume(chip->ac97[i]);
 
 	/* refill nocache */
@@ -2619,12 +2620,20 @@ static void snd_intel8x0_proc_read(struct snd_info_entry * entry,
 	snd_iprintf(buffer, "Global status         : 0x%08x\n", tmp);
 	if (chip->device_type == DEVICE_INTEL_ICH4)
 		snd_iprintf(buffer, "SDM                   : 0x%08x\n", igetdword(chip, ICHREG(SDM)));
-	snd_iprintf(buffer, "AC'97 codecs ready    :%s%s%s%s\n",
-			tmp & ICH_PCR ? " primary" : "",
-			tmp & ICH_SCR ? " secondary" : "",
-			tmp & ICH_TCR ? " tertiary" : "",
-			(tmp & (ICH_PCR | ICH_SCR | ICH_TCR)) == 0 ? " none" : "");
-	if (chip->device_type == DEVICE_INTEL_ICH4)
+	snd_iprintf(buffer, "AC'97 codecs ready    :");
+	if (tmp & chip->codec_isr_bits) {
+		int i;
+		static const char *codecs[3] = {
+			"primary", "secondary", "tertiary"
+		};
+		for (i = 0; i < chip->max_codecs; i++)
+			if (tmp & chip->codec_bit[i])
+				snd_iprintf(buffer, " %s", codecs[i]);
+	} else
+		snd_iprintf(buffer, " none");
+	snd_iprintf(buffer, "\n");
+	if (chip->device_type == DEVICE_INTEL_ICH4 ||
+	    chip->device_type == DEVICE_SIS)
 		snd_iprintf(buffer, "AC'97 codecs SDIN     : %i %i %i\n",
 			chip->ac97_sdin[0],
 			chip->ac97_sdin[1],
@@ -2651,6 +2660,13 @@ static int snd_intel8x0_dev_free(struct snd_device *device)
 struct ich_reg_info {
 	unsigned int int_sta_mask;
 	unsigned int offset;
+};
+
+static unsigned int ich_codec_bits[3] = {
+	ICH_PCR, ICH_SCR, ICH_TCR
+};
+static unsigned int sis_codec_bits[3] = {
+	ICH_PCR, ICH_SCR, ICH_SIS_TCR
 };
 
 static int __devinit snd_intel8x0_create(struct snd_card *card,
@@ -2834,6 +2850,29 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 	chip->irq = pci->irq;
 	pci_set_master(pci);
 	synchronize_irq(chip->irq);
+
+	switch(chip->device_type) {
+	case DEVICE_INTEL_ICH4:
+		/* ICH4 can have three codecs */
+		chip->max_codecs = 3;
+		chip->codec_bit = ich_codec_bits;
+		chip->codec_ready_bits = ICH_PRI | ICH_SRI | ICH_TRI;
+		break;
+	case DEVICE_SIS:
+		/* recent SIS7012 can have three codecs */
+		chip->max_codecs = 3;
+		chip->codec_bit = sis_codec_bits;
+		chip->codec_ready_bits = ICH_PRI | ICH_SRI | ICH_SIS_TRI;
+		break;
+	default:
+		/* others up to two codecs */
+		chip->max_codecs = 2;
+		chip->codec_bit = ich_codec_bits;
+		chip->codec_ready_bits = ICH_PRI | ICH_SRI;
+		break;
+	}
+	for (i = 0; i < chip->max_codecs; i++)
+		chip->codec_isr_bits |= chip->codec_bit[i];
 
 	if ((err = snd_intel8x0_chip_init(chip, 1)) < 0) {
 		snd_intel8x0_free(chip);

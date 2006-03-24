@@ -20,16 +20,5 @@
 						@ byte writes used - Big Endian.
                 .endm
 
-               .macro  senduart,rd,rx
-                strb    \rd, [\rx]
-                .endm
-
-                .macro  waituart,rd,rx
-1002:           ldrb    \rd, [\rx, #0x14]
-                and     \rd, \rd, #0x60		@ check THRE and TEMT bits
-                teq     \rd, #0x60
-                bne     1002b
-                .endm
-
-                .macro  busyuart,rd,rx
-                .endm
+#define UART_SHIFT	2
+#include <asm/hardware/debug-8250.S>

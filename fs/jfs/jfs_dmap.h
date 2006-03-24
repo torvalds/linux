@@ -243,7 +243,7 @@ struct dbmap {
 struct bmap {
 	struct dbmap db_bmap;		/* on-disk aggregate map descriptor */
 	struct inode *db_ipbmap;	/* ptr to aggregate map incore inode */
-	struct semaphore db_bmaplock;	/* aggregate map lock */
+	struct mutex db_bmaplock;	/* aggregate map lock */
 	atomic_t db_active[MAXAG];	/* count of active, open files in AG */
 	u32 *db_DBmap;
 };

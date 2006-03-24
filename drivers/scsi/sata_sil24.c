@@ -281,7 +281,6 @@ static struct scsi_host_template sil24_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_timed_out		= ata_scsi_timed_out,
 	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
@@ -843,9 +842,10 @@ static void sil24_port_stop(struct ata_port *ap)
 static void sil24_host_stop(struct ata_host_set *host_set)
 {
 	struct sil24_host_priv *hpriv = host_set->private_data;
+	struct pci_dev *pdev = to_pci_dev(host_set->dev);
 
-	iounmap(hpriv->host_base);
-	iounmap(hpriv->port_base);
+	pci_iounmap(pdev, hpriv->host_base);
+	pci_iounmap(pdev, hpriv->port_base);
 	kfree(hpriv);
 }
 
@@ -872,26 +872,23 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable;
 
 	rc = -ENOMEM;
-	/* ioremap mmio registers */
-	host_base = ioremap(pci_resource_start(pdev, 0),
-			    pci_resource_len(pdev, 0));
+	/* map mmio registers */
+	host_base = pci_iomap(pdev, 0, 0);
 	if (!host_base)
 		goto out_free;
-	port_base = ioremap(pci_resource_start(pdev, 2),
-			    pci_resource_len(pdev, 2));
+	port_base = pci_iomap(pdev, 2, 0);
 	if (!port_base)
 		goto out_free;
 
 	/* allocate & init probe_ent and hpriv */
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
+	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
 	if (!probe_ent)
 		goto out_free;
 
-	hpriv = kmalloc(sizeof(*hpriv), GFP_KERNEL);
+	hpriv = kzalloc(sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv)
 		goto out_free;
 
-	memset(probe_ent, 0, sizeof(*probe_ent));
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
@@ -908,7 +905,6 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->mmio_base = port_base;
 	probe_ent->private_data = hpriv;
 
-	memset(hpriv, 0, sizeof(*hpriv));
 	hpriv->host_base = host_base;
 	hpriv->port_base = port_base;
 
@@ -1012,9 +1008,9 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
  out_free:
 	if (host_base)
-		iounmap(host_base);
+		pci_iounmap(pdev, host_base);
 	if (port_base)
-		iounmap(port_base);
+		pci_iounmap(pdev, port_base);
 	kfree(probe_ent);
 	kfree(hpriv);
 	pci_release_regions(pdev);

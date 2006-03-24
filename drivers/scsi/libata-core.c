@@ -72,7 +72,7 @@ static unsigned int ata_dev_xfermask(struct ata_port *ap,
 static unsigned int ata_unique_id = 1;
 static struct workqueue_struct *ata_wq;
 
-int atapi_enabled = 0;
+int atapi_enabled = 1;
 module_param(atapi_enabled, int, 0444);
 MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
 
@@ -820,7 +820,10 @@ static unsigned int ata_id_xfermask(const u16 *id)
 	}
 
 	mwdma_mask = id[ATA_ID_MWDMA_MODES] & 0x07;
-	udma_mask = id[ATA_ID_UDMA_MODES] & 0xff;
+
+	udma_mask = 0;
+	if (id[ATA_ID_FIELD_VALID] & (1 << 2))
+		udma_mask = id[ATA_ID_UDMA_MODES] & 0xff;
 
 	return ata_pack_xfermask(pio_mask, mwdma_mask, udma_mask);
 }
@@ -960,6 +963,8 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	if (!wait_for_completion_timeout(&wait, ATA_TMOUT_INTERNAL)) {
+		ata_port_flush_task(ap);
+
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 
 		/* We're racing with irq here.  If we lose, the
@@ -1118,12 +1123,6 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 
 	swap_buf_le16(id, ATA_ID_WORDS);
 
-	/* print device capabilities */
-	printk(KERN_DEBUG "ata%u: dev %u cfg "
-	       "49:%04x 82:%04x 83:%04x 84:%04x 85:%04x 86:%04x 87:%04x 88:%04x\n",
-	       ap->id, dev->devno,
-	       id[49], id[82], id[83], id[84], id[85], id[86], id[87], id[88]);
-
 	/* sanity check */
 	if ((class == ATA_DEV_ATA) != ata_id_is_ata(id)) {
 		rc = -EINVAL;
@@ -1191,6 +1190,7 @@ static inline u8 ata_dev_knobble(const struct ata_port *ap,
 static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 			     int print_info)
 {
+	const u16 *id = dev->id;
 	unsigned int xfer_mask;
 	int i, rc;
 
@@ -1201,6 +1201,13 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 	}
 
 	DPRINTK("ENTER, host %u, dev %u\n", ap->id, dev->devno);
+
+	/* print device capabilities */
+	if (print_info)
+		printk(KERN_DEBUG "ata%u: dev %u cfg 49:%04x 82:%04x 83:%04x "
+		       "84:%04x 85:%04x 86:%04x 87:%04x 88:%04x\n",
+		       ap->id, dev->devno, id[49], id[82], id[83],
+		       id[84], id[85], id[86], id[87], id[88]);
 
 	/* initialize to-be-configured parameters */
 	dev->flags = 0;
@@ -1215,28 +1222,21 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 	 * common ATA, ATAPI feature tests
 	 */
 
-	/* we require DMA support (bits 8 of word 49) */
-	if (!ata_id_has_dma(dev->id)) {
-		printk(KERN_DEBUG "ata%u: no dma\n", ap->id);
-		rc = -EINVAL;
-		goto err_out_nosup;
-	}
-
 	/* find max transfer mode; for printk only */
-	xfer_mask = ata_id_xfermask(dev->id);
+	xfer_mask = ata_id_xfermask(id);
 
-	ata_dump_id(dev->id);
+	ata_dump_id(id);
 
 	/* ATA-specific feature tests */
 	if (dev->class == ATA_DEV_ATA) {
-		dev->n_sectors = ata_id_n_sectors(dev->id);
+		dev->n_sectors = ata_id_n_sectors(id);
 
-		if (ata_id_has_lba(dev->id)) {
+		if (ata_id_has_lba(id)) {
 			const char *lba_desc;
 
 			lba_desc = "LBA";
 			dev->flags |= ATA_DFLAG_LBA;
-			if (ata_id_has_lba48(dev->id)) {
+			if (ata_id_has_lba48(id)) {
 				dev->flags |= ATA_DFLAG_LBA48;
 				lba_desc = "LBA48";
 			}
@@ -1246,7 +1246,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 				printk(KERN_INFO "ata%u: dev %u ATA-%d, "
 				       "max %s, %Lu sectors: %s\n",
 				       ap->id, dev->devno,
-				       ata_id_major_version(dev->id),
+				       ata_id_major_version(id),
 				       ata_mode_string(xfer_mask),
 				       (unsigned long long)dev->n_sectors,
 				       lba_desc);
@@ -1254,15 +1254,15 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 			/* CHS */
 
 			/* Default translation */
-			dev->cylinders	= dev->id[1];
-			dev->heads	= dev->id[3];
-			dev->sectors	= dev->id[6];
+			dev->cylinders	= id[1];
+			dev->heads	= id[3];
+			dev->sectors	= id[6];
 
-			if (ata_id_current_chs_valid(dev->id)) {
+			if (ata_id_current_chs_valid(id)) {
 				/* Current CHS translation is valid. */
-				dev->cylinders = dev->id[54];
-				dev->heads     = dev->id[55];
-				dev->sectors   = dev->id[56];
+				dev->cylinders = id[54];
+				dev->heads     = id[55];
+				dev->sectors   = id[56];
 			}
 
 			/* print device info to dmesg */
@@ -1270,7 +1270,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 				printk(KERN_INFO "ata%u: dev %u ATA-%d, "
 				       "max %s, %Lu sectors: CHS %u/%u/%u\n",
 				       ap->id, dev->devno,
-				       ata_id_major_version(dev->id),
+				       ata_id_major_version(id),
 				       ata_mode_string(xfer_mask),
 				       (unsigned long long)dev->n_sectors,
 				       dev->cylinders, dev->heads, dev->sectors);
@@ -1286,7 +1286,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 
 	/* ATAPI-specific feature tests */
 	else if (dev->class == ATA_DEV_ATAPI) {
-		rc = atapi_cdb_len(dev->id);
+		rc = atapi_cdb_len(id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
 			printk(KERN_WARNING "ata%u: unsupported CDB len\n", ap->id);
 			rc = -EINVAL;
@@ -1353,31 +1353,29 @@ static int ata_bus_probe(struct ata_port *ap)
 
 	ata_port_probe(ap);
 
-	/* reset */
-	if (ap->ops->probe_reset) {
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			classes[i] = ATA_DEV_UNKNOWN;
+	/* reset and determine device classes */
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		classes[i] = ATA_DEV_UNKNOWN;
 
+	if (ap->ops->probe_reset) {
 		rc = ap->ops->probe_reset(ap, classes);
 		if (rc) {
 			printk("ata%u: reset failed (errno=%d)\n", ap->id, rc);
 			return rc;
 		}
-
-		for (i = 0; i < ATA_MAX_DEVICES; i++)
-			if (classes[i] == ATA_DEV_UNKNOWN)
-				classes[i] = ATA_DEV_NONE;
 	} else {
 		ap->ops->phy_reset(ap);
 
-		for (i = 0; i < ATA_MAX_DEVICES; i++) {
-			if (!(ap->flags & ATA_FLAG_PORT_DISABLED))
+		if (!(ap->flags & ATA_FLAG_PORT_DISABLED))
+			for (i = 0; i < ATA_MAX_DEVICES; i++)
 				classes[i] = ap->device[i].class;
-			else
-				ap->device[i].class = ATA_DEV_UNKNOWN;
-		}
+
 		ata_port_probe(ap);
 	}
+
+	for (i = 0; i < ATA_MAX_DEVICES; i++)
+		if (classes[i] == ATA_DEV_UNKNOWN)
+			classes[i] = ATA_DEV_NONE;
 
 	/* read IDENTIFY page and configure devices */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
@@ -1743,7 +1741,7 @@ static int ata_host_set_pio(struct ata_port *ap)
 			continue;
 
 		if (!dev->pio_mode) {
-			printk(KERN_WARNING "ata%u: no PIO support\n", ap->id);
+			printk(KERN_WARNING "ata%u: no PIO support for device %d.\n", ap->id, i);
 			return -1;
 		}
 
@@ -2005,8 +2003,18 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
 	 * status is checked.  Because waiting for "a while" before
 	 * checking status is fine, post SRST, we perform this magic
 	 * delay here as well.
+	 *
+	 * Old drivers/ide uses the 2mS rule and then waits for ready
 	 */
 	msleep(150);
+
+	
+	/* Before we perform post reset processing we want to see if 
+	   the bus shows 0xFF because the odd clown forgets the D7 pulldown
+	   resistor */
+	
+	if (ata_check_status(ap) == 0xFF)
+		return 1;	/* Positive is failure for some reason */
 
 	ata_bus_post_reset(ap, devmask);
 
@@ -2557,48 +2565,72 @@ int ata_dev_revalidate(struct ata_port *ap, struct ata_device *dev,
 }
 
 static const char * const ata_dma_blacklist [] = {
-	"WDC AC11000H",
-	"WDC AC22100H",
-	"WDC AC32500H",
-	"WDC AC33100H",
-	"WDC AC31600H",
-	"WDC AC32100H",
-	"WDC AC23200L",
-	"Compaq CRD-8241B",
-	"CRD-8400B",
-	"CRD-8480B",
-	"CRD-8482B",
- 	"CRD-84",
-	"SanDisk SDP3B",
-	"SanDisk SDP3B-64",
-	"SANYO CD-ROM CRD",
-	"HITACHI CDR-8",
-	"HITACHI CDR-8335",
-	"HITACHI CDR-8435",
-	"Toshiba CD-ROM XM-6202B",
-	"TOSHIBA CD-ROM XM-1702BC",
-	"CD-532E-A",
-	"E-IDE CD-ROM CR-840",
-	"CD-ROM Drive/F5A",
-	"WPI CDD-820",
-	"SAMSUNG CD-ROM SC-148C",
-	"SAMSUNG CD-ROM SC",
-	"SanDisk SDP3B-64",
-	"ATAPI CD-ROM DRIVE 40X MAXIMUM",
-	"_NEC DV5800A",
+	"WDC AC11000H", NULL,
+	"WDC AC22100H", NULL,
+	"WDC AC32500H", NULL,
+	"WDC AC33100H", NULL,
+	"WDC AC31600H", NULL,
+	"WDC AC32100H", "24.09P07",
+	"WDC AC23200L", "21.10N21",
+	"Compaq CRD-8241B",  NULL,
+	"CRD-8400B", NULL,
+	"CRD-8480B", NULL,
+	"CRD-8482B", NULL,
+ 	"CRD-84", NULL,
+	"SanDisk SDP3B", NULL,
+	"SanDisk SDP3B-64", NULL,
+	"SANYO CD-ROM CRD", NULL,
+	"HITACHI CDR-8", NULL,
+	"HITACHI CDR-8335", NULL, 
+	"HITACHI CDR-8435", NULL,
+	"Toshiba CD-ROM XM-6202B", NULL, 
+	"TOSHIBA CD-ROM XM-1702BC", NULL, 
+	"CD-532E-A", NULL, 
+	"E-IDE CD-ROM CR-840", NULL, 
+	"CD-ROM Drive/F5A", NULL, 
+	"WPI CDD-820", NULL, 
+	"SAMSUNG CD-ROM SC-148C", NULL,
+	"SAMSUNG CD-ROM SC", NULL, 
+	"SanDisk SDP3B-64", NULL,
+	"ATAPI CD-ROM DRIVE 40X MAXIMUM",NULL,
+	"_NEC DV5800A", NULL,
+	"SAMSUNG CD-ROM SN-124", "N001"
 };
+ 
+static int ata_strim(char *s, size_t len)
+{
+	len = strnlen(s, len);
+
+	/* ATAPI specifies that empty space is blank-filled; remove blanks */
+	while ((len > 0) && (s[len - 1] == ' ')) {
+		len--;
+		s[len] = 0;
+	}
+	return len;
+}
 
 static int ata_dma_blacklisted(const struct ata_device *dev)
 {
-	unsigned char model_num[41];
+	unsigned char model_num[40];
+	unsigned char model_rev[16];
+	unsigned int nlen, rlen;
 	int i;
 
-	ata_id_c_string(dev->id, model_num, ATA_ID_PROD_OFS, sizeof(model_num));
+	ata_id_string(dev->id, model_num, ATA_ID_PROD_OFS,
+			  sizeof(model_num));
+	ata_id_string(dev->id, model_rev, ATA_ID_FW_REV_OFS,
+			  sizeof(model_rev));
+	nlen = ata_strim(model_num, sizeof(model_num));
+	rlen = ata_strim(model_rev, sizeof(model_rev));
 
-	for (i = 0; i < ARRAY_SIZE(ata_dma_blacklist); i++)
-		if (!strcmp(ata_dma_blacklist[i], model_num))
-			return 1;
-
+	for (i = 0; i < ARRAY_SIZE(ata_dma_blacklist); i += 2) {
+		if (!strncmp(ata_dma_blacklist[i], model_num, nlen)) {
+			if (ata_dma_blacklist[i+1] == NULL)
+				return 1;
+			if (!strncmp(ata_dma_blacklist[i], model_rev, rlen))
+				return 1;
+		}
+	}
 	return 0;
 }
 
@@ -2868,6 +2900,8 @@ void ata_qc_prep(struct ata_queued_cmd *qc)
 
 	ata_fill_sg(qc);
 }
+
+void ata_noop_qc_prep(struct ata_queued_cmd *qc) { }
 
 /**
  *	ata_sg_init_one - Associate command with memory buffer
@@ -4089,7 +4123,6 @@ static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
 
 	case ATA_PROT_ATAPI:
 	case ATA_PROT_PIO:
-	case ATA_PROT_PIO_MULT:
 		if (ap->flags & ATA_FLAG_PIO_DMA)
 			return 1;
 
@@ -4278,237 +4311,6 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_bmdma_setup_mmio - Set up PCI IDE BMDMA transaction
- *	@qc: Info associated with this ATA transaction.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-
-static void ata_bmdma_setup_mmio (struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
-	u8 dmactl;
-	void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
-
-	/* load PRD table addr. */
-	mb();	/* make sure PRD table writes are visible to controller */
-	writel(ap->prd_dma, mmio + ATA_DMA_TABLE_OFS);
-
-	/* specify data direction, triple-check start bit is clear */
-	dmactl = readb(mmio + ATA_DMA_CMD);
-	dmactl &= ~(ATA_DMA_WR | ATA_DMA_START);
-	if (!rw)
-		dmactl |= ATA_DMA_WR;
-	writeb(dmactl, mmio + ATA_DMA_CMD);
-
-	/* issue r/w command */
-	ap->ops->exec_command(ap, &qc->tf);
-}
-
-/**
- *	ata_bmdma_start_mmio - Start a PCI IDE BMDMA transaction
- *	@qc: Info associated with this ATA transaction.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-
-static void ata_bmdma_start_mmio (struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
-	u8 dmactl;
-
-	/* start host DMA transaction */
-	dmactl = readb(mmio + ATA_DMA_CMD);
-	writeb(dmactl | ATA_DMA_START, mmio + ATA_DMA_CMD);
-
-	/* Strictly, one may wish to issue a readb() here, to
-	 * flush the mmio write.  However, control also passes
-	 * to the hardware at this point, and it will interrupt
-	 * us when we are to resume control.  So, in effect,
-	 * we don't care when the mmio write flushes.
-	 * Further, a read of the DMA status register _immediately_
-	 * following the write may not be what certain flaky hardware
-	 * is expected, so I think it is best to not add a readb()
-	 * without first all the MMIO ATA cards/mobos.
-	 * Or maybe I'm just being paranoid.
-	 */
-}
-
-/**
- *	ata_bmdma_setup_pio - Set up PCI IDE BMDMA transaction (PIO)
- *	@qc: Info associated with this ATA transaction.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-
-static void ata_bmdma_setup_pio (struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
-	u8 dmactl;
-
-	/* load PRD table addr. */
-	outl(ap->prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
-
-	/* specify data direction, triple-check start bit is clear */
-	dmactl = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	dmactl &= ~(ATA_DMA_WR | ATA_DMA_START);
-	if (!rw)
-		dmactl |= ATA_DMA_WR;
-	outb(dmactl, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-
-	/* issue r/w command */
-	ap->ops->exec_command(ap, &qc->tf);
-}
-
-/**
- *	ata_bmdma_start_pio - Start a PCI IDE BMDMA transaction (PIO)
- *	@qc: Info associated with this ATA transaction.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-
-static void ata_bmdma_start_pio (struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	u8 dmactl;
-
-	/* start host DMA transaction */
-	dmactl = inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	outb(dmactl | ATA_DMA_START,
-	     ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-}
-
-
-/**
- *	ata_bmdma_start - Start a PCI IDE BMDMA transaction
- *	@qc: Info associated with this ATA transaction.
- *
- *	Writes the ATA_DMA_START flag to the DMA command register.
- *
- *	May be used as the bmdma_start() entry in ata_port_operations.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-void ata_bmdma_start(struct ata_queued_cmd *qc)
-{
-	if (qc->ap->flags & ATA_FLAG_MMIO)
-		ata_bmdma_start_mmio(qc);
-	else
-		ata_bmdma_start_pio(qc);
-}
-
-
-/**
- *	ata_bmdma_setup - Set up PCI IDE BMDMA transaction
- *	@qc: Info associated with this ATA transaction.
- *
- *	Writes address of PRD table to device's PRD Table Address
- *	register, sets the DMA control register, and calls
- *	ops->exec_command() to start the transfer.
- *
- *	May be used as the bmdma_setup() entry in ata_port_operations.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-void ata_bmdma_setup(struct ata_queued_cmd *qc)
-{
-	if (qc->ap->flags & ATA_FLAG_MMIO)
-		ata_bmdma_setup_mmio(qc);
-	else
-		ata_bmdma_setup_pio(qc);
-}
-
-
-/**
- *	ata_bmdma_irq_clear - Clear PCI IDE BMDMA interrupt.
- *	@ap: Port associated with this ATA transaction.
- *
- *	Clear interrupt and error flags in DMA status register.
- *
- *	May be used as the irq_clear() entry in ata_port_operations.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-
-void ata_bmdma_irq_clear(struct ata_port *ap)
-{
-    if (ap->flags & ATA_FLAG_MMIO) {
-        void __iomem *mmio = ((void __iomem *) ap->ioaddr.bmdma_addr) + ATA_DMA_STATUS;
-        writeb(readb(mmio), mmio);
-    } else {
-        unsigned long addr = ap->ioaddr.bmdma_addr + ATA_DMA_STATUS;
-        outb(inb(addr), addr);
-    }
-
-}
-
-
-/**
- *	ata_bmdma_status - Read PCI IDE BMDMA status
- *	@ap: Port associated with this ATA transaction.
- *
- *	Read and return BMDMA status register.
- *
- *	May be used as the bmdma_status() entry in ata_port_operations.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-
-u8 ata_bmdma_status(struct ata_port *ap)
-{
-	u8 host_stat;
-	if (ap->flags & ATA_FLAG_MMIO) {
-		void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
-		host_stat = readb(mmio + ATA_DMA_STATUS);
-	} else
-		host_stat = inb(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-	return host_stat;
-}
-
-
-/**
- *	ata_bmdma_stop - Stop PCI IDE BMDMA transfer
- *	@qc: Command we are ending DMA for
- *
- *	Clears the ATA_DMA_START flag in the dma control register
- *
- *	May be used as the bmdma_stop() entry in ata_port_operations.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host_set lock)
- */
-
-void ata_bmdma_stop(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	if (ap->flags & ATA_FLAG_MMIO) {
-		void __iomem *mmio = (void __iomem *) ap->ioaddr.bmdma_addr;
-
-		/* clear start/stop bit */
-		writeb(readb(mmio + ATA_DMA_CMD) & ~ATA_DMA_START,
-			mmio + ATA_DMA_CMD);
-	} else {
-		/* clear start/stop bit */
-		outb(inb(ap->ioaddr.bmdma_addr + ATA_DMA_CMD) & ~ATA_DMA_START,
-			ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	}
-
-	/* one-PIO-cycle guaranteed wait, per spec, for HDMA1:0 transition */
-	ata_altstatus(ap);        /* dummy read */
-}
-
-/**
  *	ata_host_intr - Handle host interrupt for given (port, task)
  *	@ap: Port on which interrupt arrived (possibly...)
  *	@qc: Taskfile currently active in engine
@@ -4692,9 +4494,9 @@ idle_irq:
 
 #ifdef ATA_IRQ_TRAP
 	if ((ap->stats.idle_irq % 1000) == 0) {
-		handled = 1;
 		ata_irq_ack(ap, 0); /* debug trap */
 		printk(KERN_WARNING "ata%d: irq trap\n", ap->id);
+		return 1;
 	}
 #endif
 	return 0;	/* irq not handled */
@@ -5007,6 +4809,8 @@ static struct ata_port * ata_host_add(const struct ata_probe_ent *ent,
 	host = scsi_host_alloc(ent->sht, sizeof(struct ata_port));
 	if (!host)
 		return NULL;
+
+	host->transportt = &ata_scsi_transport_template;
 
 	ap = (struct ata_port *) &host->hostdata[0];
 
@@ -5417,6 +5221,7 @@ EXPORT_SYMBOL_GPL(ata_port_stop);
 EXPORT_SYMBOL_GPL(ata_host_stop);
 EXPORT_SYMBOL_GPL(ata_interrupt);
 EXPORT_SYMBOL_GPL(ata_qc_prep);
+EXPORT_SYMBOL_GPL(ata_noop_qc_prep);
 EXPORT_SYMBOL_GPL(ata_bmdma_setup);
 EXPORT_SYMBOL_GPL(ata_bmdma_start);
 EXPORT_SYMBOL_GPL(ata_bmdma_irq_clear);
@@ -5439,7 +5244,6 @@ EXPORT_SYMBOL_GPL(ata_busy_sleep);
 EXPORT_SYMBOL_GPL(ata_port_queue_task);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
-EXPORT_SYMBOL_GPL(ata_scsi_timed_out);
 EXPORT_SYMBOL_GPL(ata_scsi_error);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 EXPORT_SYMBOL_GPL(ata_scsi_release);
@@ -5463,6 +5267,8 @@ EXPORT_SYMBOL_GPL(ata_pci_init_one);
 EXPORT_SYMBOL_GPL(ata_pci_remove_one);
 EXPORT_SYMBOL_GPL(ata_pci_device_suspend);
 EXPORT_SYMBOL_GPL(ata_pci_device_resume);
+EXPORT_SYMBOL_GPL(ata_pci_default_filter);
+EXPORT_SYMBOL_GPL(ata_pci_clear_simplex);
 #endif /* CONFIG_PCI */
 
 EXPORT_SYMBOL_GPL(ata_device_suspend);

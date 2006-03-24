@@ -621,10 +621,9 @@ static int zd1201_drvr_start(struct zd1201 *zd)
 	__le16 zdmax;
 	unsigned char *buffer;
 	
-	buffer = kmalloc(ZD1201_RXSIZE, GFP_KERNEL);
+	buffer = kzalloc(ZD1201_RXSIZE, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
-	memset(buffer, 0, ZD1201_RXSIZE);
 
 	usb_fill_bulk_urb(zd->rx_urb, zd->usb, 
 	    usb_rcvbulkpipe(zd->usb, zd->endp_in), buffer, ZD1201_RXSIZE,
@@ -1750,11 +1749,9 @@ static int zd1201_probe(struct usb_interface *interface,
 
 	usb = interface_to_usbdev(interface);
 
-	zd = kmalloc(sizeof(struct zd1201), GFP_KERNEL);
-	if (!zd) {
+	zd = kzalloc(sizeof(struct zd1201), GFP_KERNEL);
+	if (!zd)
 		return -ENOMEM;
-	}
-	memset(zd, 0, sizeof(struct zd1201));
 	zd->ap = ap;
 	zd->usb = usb;
 	zd->removed = 0;

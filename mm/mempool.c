@@ -278,14 +278,14 @@ EXPORT_SYMBOL(mempool_free);
  */
 void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data)
 {
-	kmem_cache_t *mem = (kmem_cache_t *) pool_data;
+	struct kmem_cache *mem = pool_data;
 	return kmem_cache_alloc(mem, gfp_mask);
 }
 EXPORT_SYMBOL(mempool_alloc_slab);
 
 void mempool_free_slab(void *element, void *pool_data)
 {
-	kmem_cache_t *mem = (kmem_cache_t *) pool_data;
+	struct kmem_cache *mem = pool_data;
 	kmem_cache_free(mem, element);
 }
 EXPORT_SYMBOL(mempool_free_slab);

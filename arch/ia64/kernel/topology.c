@@ -36,7 +36,7 @@ int arch_register_cpu(int num)
 	parent = &sysfs_nodes[cpu_to_node(num)];
 #endif /* CONFIG_NUMA */
 
-#ifdef CONFIG_ACPI
+#if defined (CONFIG_ACPI) && defined (CONFIG_HOTPLUG_CPU)
 	/*
 	 * If CPEI cannot be re-targetted, and this is
 	 * CPEI target, then dont create the control file

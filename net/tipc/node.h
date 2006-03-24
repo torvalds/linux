@@ -121,7 +121,7 @@ static inline struct node *tipc_node_find(u32 addr)
 		if (c_ptr)
 			return c_ptr->nodes[tipc_node(addr)];
 	}
-	return 0;
+	return NULL;
 }
 
 static inline struct node *tipc_node_select(u32 addr, u32 selector)

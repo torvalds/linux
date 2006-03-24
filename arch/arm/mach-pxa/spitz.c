@@ -33,7 +33,6 @@
 #include <asm/mach/irq.h>
 
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/irq.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/ohci.h>

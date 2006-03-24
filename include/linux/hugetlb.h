@@ -20,10 +20,7 @@ void unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned long)
 int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
 int hugetlb_report_meminfo(char *);
 int hugetlb_report_node_meminfo(int, char *);
-int is_hugepage_mem_enough(size_t);
 unsigned long hugetlb_total_pages(void);
-struct page *alloc_huge_page(struct vm_area_struct *, unsigned long);
-void free_huge_page(struct page *);
 int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, int write_access);
 
@@ -39,18 +36,35 @@ struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
 			      int write);
 struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
 				pmd_t *pmd, int write);
-int is_aligned_hugepage_range(unsigned long addr, unsigned long len);
 int pmd_huge(pmd_t pmd);
+void hugetlb_change_protection(struct vm_area_struct *vma,
+		unsigned long address, unsigned long end, pgprot_t newprot);
 
 #ifndef ARCH_HAS_HUGEPAGE_ONLY_RANGE
 #define is_hugepage_only_range(mm, addr, len)	0
-#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) \
-						do { } while (0)
+#endif
+
+#ifndef ARCH_HAS_HUGETLB_FREE_PGD_RANGE
+#define hugetlb_free_pgd_range	free_pgd_range
+#else
+void hugetlb_free_pgd_range(struct mmu_gather **tlb, unsigned long addr,
+			    unsigned long end, unsigned long floor,
+			    unsigned long ceiling);
 #endif
 
 #ifndef ARCH_HAS_PREPARE_HUGEPAGE_RANGE
-#define prepare_hugepage_range(addr, len)	\
-	is_aligned_hugepage_range(addr, len)
+/*
+ * If the arch doesn't supply something else, assume that hugepage
+ * size aligned regions are ok without further preparation.
+ */
+static inline int prepare_hugepage_range(unsigned long addr, unsigned long len)
+{
+	if (len & ~HPAGE_MASK)
+		return -EINVAL;
+	if (addr & ~HPAGE_MASK)
+		return -EINVAL;
+	return 0;
+}
 #else
 int prepare_hugepage_range(unsigned long addr, unsigned long len);
 #endif
@@ -87,19 +101,16 @@ static inline unsigned long hugetlb_total_pages(void)
 #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
 #define hugetlb_prefault(mapping, vma)		({ BUG(); 0; })
 #define unmap_hugepage_range(vma, start, end)	BUG()
-#define is_hugepage_mem_enough(size)		0
 #define hugetlb_report_meminfo(buf)		0
 #define hugetlb_report_node_meminfo(n, buf)	0
 #define follow_huge_pmd(mm, addr, pmd, write)	NULL
-#define is_aligned_hugepage_range(addr, len)	0
 #define prepare_hugepage_range(addr, len)	(-EINVAL)
 #define pmd_huge(x)	0
 #define is_hugepage_only_range(mm, addr, len)	0
-#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) \
-						do { } while (0)
-#define alloc_huge_page(vma, addr)		({ NULL; })
-#define free_huge_page(p)			({ (void)(p); BUG(); })
+#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) ({BUG(); 0; })
 #define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
+
+#define hugetlb_change_protection(vma, address, end, newprot)
 
 #ifndef HPAGE_MASK
 #define HPAGE_MASK	PAGE_MASK		/* Keep the compiler happy */
@@ -128,6 +139,8 @@ struct hugetlbfs_sb_info {
 
 struct hugetlbfs_inode_info {
 	struct shared_policy policy;
+	/* Protected by the (global) hugetlb_lock */
+	unsigned long prereserved_hpages;
 	struct inode vfs_inode;
 };
 
@@ -144,6 +157,10 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
 extern struct file_operations hugetlbfs_file_operations;
 extern struct vm_operations_struct hugetlb_vm_ops;
 struct file *hugetlb_zero_setup(size_t);
+int hugetlb_extend_reservation(struct hugetlbfs_inode_info *info,
+			       unsigned long atleast_hpages);
+void hugetlb_truncate_reservation(struct hugetlbfs_inode_info *info,
+				  unsigned long atmost_hpages);
 int hugetlb_get_quota(struct address_space *mapping);
 void hugetlb_put_quota(struct address_space *mapping);
 

@@ -438,7 +438,7 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!r || irq == NO_IRQ)
+	if (!r || irq < 0)
 		return -ENXIO;
 
 	r = request_mem_region(r->start, SZ_4K, DRIVER_NAME);

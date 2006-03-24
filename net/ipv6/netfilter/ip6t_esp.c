@@ -44,6 +44,7 @@ static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
       const struct net_device *out,
+      const struct xt_match *match,
       const void *matchinfo,
       int offset,
       unsigned int protoff,
@@ -77,17 +78,13 @@ match(const struct sk_buff *skb,
 static int
 checkentry(const char *tablename,
 	   const void *ip,
+	   const struct xt_match *match,
 	   void *matchinfo,
 	   unsigned int matchinfosize,
 	   unsigned int hook_mask)
 {
 	const struct ip6t_esp *espinfo = matchinfo;
 
-	if (matchinfosize != IP6T_ALIGN(sizeof(struct ip6t_esp))) {
-		DEBUGP("ip6t_esp: matchsize %u != %u\n",
-			 matchinfosize, IP6T_ALIGN(sizeof(struct ip6t_esp)));
-		return 0;
-	}
 	if (espinfo->invflags & ~IP6T_ESP_INV_MASK) {
 		DEBUGP("ip6t_esp: unknown flags %X\n",
 			 espinfo->invflags);
@@ -98,8 +95,9 @@ checkentry(const char *tablename,
 
 static struct ip6t_match esp_match = {
 	.name		= "esp",
-	.match		= &match,
-	.checkentry	= &checkentry,
+	.match		= match,
+	.matchsize	= sizeof(struct ip6t_esp),
+	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };
 

@@ -1349,10 +1349,10 @@ S:	Maintained
 INTEL PRO/100 ETHERNET SUPPORT
 P:	John Ronciak
 M:	john.ronciak@intel.com
-P:	Ganesh Venkatesan
-M:	ganesh.venkatesan@intel.com
 P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
+P:	Jeff Kirsher
+M:	jeffrey.t.kirsher@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1361,18 +1361,22 @@ P:	Jeb Cramer
 M:	cramerj@intel.com
 P:	John Ronciak
 M:	john.ronciak@intel.com
-P:	Ganesh Venkatesan
-M:	ganesh.venkatesan@intel.com
+P:	Jesse Brandeburg
+M:	jesse.brandeburg@intel.com
+P:	Jeff Kirsher
+M:	jeffrey.t.kirsher@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
 INTEL PRO/10GbE SUPPORT
+P:	Jeff Kirsher
+M:	jeffrey.t.kirsher@intel.com
 P:	Ayyappan Veeraiyan
 M:	ayyappan.veeraiyan@intel.com
-P:	Ganesh Venkatesan
-M:	ganesh.venkatesan@intel.com
 P:	John Ronciak
 M:	john.ronciak@intel.com
+P:	Jesse Brandeburg
+M:	jesse.brandeburg@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
@@ -1524,12 +1528,6 @@ M:	davem@davemloft.net
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
-LANMEDIA WAN CARD DRIVER
-P:	Andrew Stanley-Jones
-M:	asj@lanmedia.com
-W:	http://www.lanmedia.com/
-S:	Supported
- 
 LAPB module
 P:	Henner Eisen
 M:	eis@baty.hanse.de
@@ -1752,7 +1750,8 @@ P:	Ralf Baechle
 M:	ralf@linux-mips.org
 W:	http://www.linux-mips.org/
 L:	linux-mips@linux-mips.org
-S:	Maintained
+T:	git www.linux-mips.org:/pub/scm/linux.git
+S:	Supported
 
 MISCELLANEOUS MCA-SUPPORT
 P:	James Bottomley
@@ -2146,7 +2145,7 @@ S:	Maintained
 
 QLOGIC QLA2XXX FC-SCSI DRIVER
 P:	Andrew Vasquez
-M:	andrew.vasquez@qlogic.com
+M:	linux-driver@qlogic.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 
@@ -2894,6 +2893,14 @@ L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 
 USB W996[87]CF DRIVER
+P:	Luca Risolia
+M:	luca.risolia@studio.unibo.it
+L:	linux-usb-devel@lists.sourceforge.net
+L:	video4linux-list@redhat.com
+W:	http://www.linux-projects.org
+S:	Maintained
+
+USB ZC0301 DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
 L:	linux-usb-devel@lists.sourceforge.net

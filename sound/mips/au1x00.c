@@ -43,6 +43,7 @@
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <sound/ac97_codec.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1000_dma.h>
@@ -153,6 +154,7 @@ au1000_setup_dma_link(struct audio_stream *stream, unsigned int period_bytes,
 {
 	struct snd_pcm_substream *substream = stream->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct au1000_period *pointer;
 	unsigned long dma_start;
 	int i;
 
@@ -559,12 +561,13 @@ snd_au1000_ac97_new(struct snd_au1000 *au1000)
 		.read = snd_au1000_ac97_read,
 	};
 
-	if ((au1000->ac97_res_port = request_region(AC97C_CONFIG,
-	       		sizeof(struct au1000_ac97_reg), "Au1x00 AC97")) == NULL) {
+	if ((au1000->ac97_res_port = request_mem_region(CPHYSADDR(AC97C_CONFIG),
+	       		0x100000, "Au1x00 AC97")) == NULL) {
 		snd_printk(KERN_ERR "ALSA AC97: can't grap AC97 port\n");
 		return -EBUSY;
 	}
-	au1000->ac97_ioport = (struct au1000_ac97_reg *) au1000->ac97_res_port->start;
+	au1000->ac97_ioport = (struct au1000_ac97_reg *)
+		KSEG1ADDR(au1000->ac97_res_port->start);
 
 	spin_lock_init(&au1000->ac97_lock);
 
@@ -610,14 +613,17 @@ snd_au1000_free(struct snd_card *card)
 		release_and_free_resource(au1000->ac97_res_port);
 	}
 
-	if (au1000->stream[PLAYBACK]->dma >= 0)
-		free_au1000_dma(au1000->stream[PLAYBACK]->dma);
+	if (au1000->stream[PLAYBACK]) {
+	  	if (au1000->stream[PLAYBACK]->dma >= 0)
+			free_au1000_dma(au1000->stream[PLAYBACK]->dma);
+		kfree(au1000->stream[PLAYBACK]);
+	}
 
-	if (au1000->stream[CAPTURE]->dma >= 0)
-		free_au1000_dma(au1000->stream[CAPTURE]->dma);
-
-	kfree(au1000->stream[PLAYBACK]);
-	kfree(au1000->stream[CAPTURE]);
+	if (au1000->stream[CAPTURE]) {
+		if (au1000->stream[CAPTURE]->dma >= 0)
+			free_au1000_dma(au1000->stream[CAPTURE]->dma);
+		kfree(au1000->stream[CAPTURE]);
+	}
 }
 
 
@@ -636,15 +642,19 @@ au1000_init(void)
 
 	card->private_free = snd_au1000_free;
 	au1000 = card->private_data;
-	/* so that snd_au1000_free will work as intended */
 	au1000->card = card;
-	au1000->stream[PLAYBACK]->dma = -1;
-	au1000->stream[CAPTURE]->dma = -1;
- 	au1000->ac97_res_port = NULL;
+
 	au1000->stream[PLAYBACK] = kmalloc(sizeof(struct audio_stream), GFP_KERNEL);
-	au1000->stream[CAPTURE] = kmalloc(sizeof(struct audio_stream), GFP_KERNEL);
+	au1000->stream[CAPTURE ] = kmalloc(sizeof(struct audio_stream), GFP_KERNEL);
+	/* so that snd_au1000_free will work as intended */
+ 	au1000->ac97_res_port = NULL;
+	if (au1000->stream[PLAYBACK])
+		au1000->stream[PLAYBACK]->dma = -1;
+	if (au1000->stream[CAPTURE ])
+		au1000->stream[CAPTURE ]->dma = -1;
+
 	if (au1000->stream[PLAYBACK] == NULL ||
-	    au1000->stream[CAPTURE] == NULL) {
+	    au1000->stream[CAPTURE ] == NULL) {
 		snd_card_free(card);
 		return -ENOMEM;
 	}

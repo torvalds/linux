@@ -533,17 +533,17 @@ static unsigned char sabre_pil_table[] = {
 /*0x14*/0, 0, 0, 0,	/* PCI B slot 1  Int A, B, C, D */
 /*0x18*/0, 0, 0, 0,	/* PCI B slot 2  Int A, B, C, D */
 /*0x1c*/0, 0, 0, 0,	/* PCI B slot 3  Int A, B, C, D */
-/*0x20*/4,		/* SCSI				*/
+/*0x20*/5,		/* SCSI				*/
 /*0x21*/5,		/* Ethernet			*/
 /*0x22*/8,		/* Parallel Port		*/
 /*0x23*/13,		/* Audio Record			*/
 /*0x24*/14,		/* Audio Playback		*/
 /*0x25*/15,		/* PowerFail			*/
-/*0x26*/4,		/* second SCSI			*/
+/*0x26*/5,		/* second SCSI			*/
 /*0x27*/11,		/* Floppy			*/
-/*0x28*/4,		/* Spare Hardware		*/
+/*0x28*/5,		/* Spare Hardware		*/
 /*0x29*/9,		/* Keyboard			*/
-/*0x2a*/4,		/* Mouse			*/
+/*0x2a*/5,		/* Mouse			*/
 /*0x2b*/12,		/* Serial			*/
 /*0x2c*/10,		/* Timer 0			*/
 /*0x2d*/11,		/* Timer 1			*/
@@ -565,11 +565,11 @@ static int sabre_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 
 	ret = sabre_pil_table[ino];
 	if (ret == 0 && pdev == NULL) {
-		ret = 4;
+		ret = 5;
 	} else if (ret == 0) {
 		switch ((pdev->class >> 16) & 0xff) {
 		case PCI_BASE_CLASS_STORAGE:
-			ret = 4;
+			ret = 5;
 			break;
 
 		case PCI_BASE_CLASS_NETWORK:
@@ -588,7 +588,7 @@ static int sabre_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 			break;
 
 		default:
-			ret = 4;
+			ret = 5;
 			break;
 		};
 	}
@@ -1167,7 +1167,7 @@ static void apb_init(struct pci_controller_info *p, struct pci_bus *sabre_bus)
 
 static struct pcidev_cookie *alloc_bridge_cookie(struct pci_pbm_info *pbm)
 {
-	struct pcidev_cookie *cookie = kmalloc(sizeof(*cookie), GFP_KERNEL);
+	struct pcidev_cookie *cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
 
 	if (!cookie) {
 		prom_printf("SABRE: Critical allocation failure.\n");
@@ -1175,7 +1175,6 @@ static struct pcidev_cookie *alloc_bridge_cookie(struct pci_pbm_info *pbm)
 	}
 
 	/* All we care about is the PBM. */
-	memset(cookie, 0, sizeof(*cookie));
 	cookie->pbm = pbm;
 
 	return cookie;
@@ -1556,19 +1555,17 @@ void sabre_init(int pnode, char *model_name)
 		}
 	}
 
-	p = kmalloc(sizeof(*p), GFP_ATOMIC);
+	p = kzalloc(sizeof(*p), GFP_ATOMIC);
 	if (!p) {
 		prom_printf("SABRE: Error, kmalloc(pci_controller_info) failed.\n");
 		prom_halt();
 	}
-	memset(p, 0, sizeof(*p));
 
-	iommu = kmalloc(sizeof(*iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(*iommu), GFP_ATOMIC);
 	if (!iommu) {
 		prom_printf("SABRE: Error, kmalloc(pci_iommu) failed.\n");
 		prom_halt();
 	}
-	memset(iommu, 0, sizeof(*iommu));
 	p->pbm_A.iommu = p->pbm_B.iommu = iommu;
 
 	upa_portid = prom_getintdefault(pnode, "upa-portid", 0xff);

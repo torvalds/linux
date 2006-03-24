@@ -143,7 +143,6 @@ static struct scsi_host_template adma_ata_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_timed_out		= ata_scsi_timed_out,
 	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
@@ -322,7 +321,7 @@ static int adma_fill_sg(struct ata_queued_cmd *qc)
 			= (pFLAGS & pEND) ? 0 : cpu_to_le32(pp->pkt_dma + i + 4);
 		i += 4;
 
-		VPRINTK("PRD[%u] = (0x%lX, 0x%X)\n", nelem,
+		VPRINTK("PRD[%u] = (0x%lX, 0x%X)\n", i/4,
 					(unsigned long)addr, len);
 	}
 	return i;

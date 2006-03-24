@@ -22,8 +22,6 @@ struct ctx_list *ctx_list_pool;
 struct ctx_list ctx_free;
 struct ctx_list ctx_used;
 
-unsigned int pg_iobits;
-
 extern void ld_mmu_sun4c(void);
 extern void ld_mmu_srmmu(void);
 

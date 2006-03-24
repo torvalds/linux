@@ -359,7 +359,7 @@ static unsigned long do_fast_cp0_gettimeoffset(void)
 		: "hi", "lo", GCC_REG_ACCUM);
 
 	/*
- 	 * Due to possible jiffies inconsistencies, we need to check
+	 * Due to possible jiffies inconsistencies, we need to check
 	 * the result so that we'll get a timer that is monotonic.
 	 */
 	if (res >= USECS_PER_JIFFY)

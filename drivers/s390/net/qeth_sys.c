@@ -115,7 +115,7 @@ qeth_dev_portno_store(struct device *dev, struct device_attribute *attr, const c
 		return -EPERM;
 
 	portno = simple_strtoul(buf, &tmp, 16);
-	if ((portno < 0) || (portno > MAX_PORTNO)){
+	if (portno > MAX_PORTNO){
 		PRINT_WARN("portno 0x%X is out of range\n", portno);
 		return -EINVAL;
 	}

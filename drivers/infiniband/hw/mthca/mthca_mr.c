@@ -76,6 +76,8 @@ struct mthca_mpt_entry {
 #define MTHCA_MPT_STATUS_SW 0xF0
 #define MTHCA_MPT_STATUS_HW 0x00
 
+#define SINAI_FMR_KEY_INC 0x1000000
+
 /*
  * Buddy allocator for MTT segments (currently not very efficient
  * since it doesn't keep a free list and just searches linearly
@@ -330,6 +332,14 @@ static inline u32 key_to_hw_index(struct mthca_dev *dev, u32 key)
 		return tavor_key_to_hw_index(key);
 }
 
+static inline u32 adjust_key(struct mthca_dev *dev, u32 key)
+{
+	if (dev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
+		return ((key << 20) & 0x800000) | (key & 0x7fffff);
+	else
+		return key;
+}
+
 int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 		   u64 iova, u64 total_size, u32 access, struct mthca_mr *mr)
 {
@@ -340,13 +350,12 @@ int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 	int err;
 	u8 status;
 
-	might_sleep();
-
 	WARN_ON(buffer_size_shift >= 32);
 
 	key = mthca_alloc(&dev->mr_table.mpt_alloc);
 	if (key == -1)
 		return -ENOMEM;
+	key = adjust_key(dev, key);
 	mr->ibmr.rkey = mr->ibmr.lkey = hw_index_to_key(dev, key);
 
 	if (mthca_is_memfree(dev)) {
@@ -467,8 +476,6 @@ void mthca_free_mr(struct mthca_dev *dev, struct mthca_mr *mr)
 	int err;
 	u8 status;
 
-	might_sleep();
-
 	err = mthca_HW2SW_MPT(dev, NULL,
 			      key_to_hw_index(dev, mr->ibmr.lkey) &
 			      (dev->limits.num_mpts - 1),
@@ -495,9 +502,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 	int err = -ENOMEM;
 	int i;
 
-	might_sleep();
-
-	if (mr->attr.page_size < 12 || mr->attr.page_size >= 32)
+	if (mr->attr.page_shift < 12 || mr->attr.page_shift >= 32)
 		return -EINVAL;
 
 	/* For Arbel, all MTTs must fit in the same page. */
@@ -510,6 +515,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 	key = mthca_alloc(&dev->mr_table.mpt_alloc);
 	if (key == -1)
 		return -ENOMEM;
+	key = adjust_key(dev, key);
 
 	idx = key & (dev->limits.num_mpts - 1);
 	mr->ibmr.rkey = mr->ibmr.lkey = hw_index_to_key(dev, key);
@@ -523,7 +529,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 		BUG_ON(!mr->mem.arbel.mpt);
 	} else
 		mr->mem.tavor.mpt = dev->mr_table.tavor_fmr.mpt_base +
-		       	sizeof *(mr->mem.tavor.mpt) * idx;
+			sizeof *(mr->mem.tavor.mpt) * idx;
 
 	mr->mtt = __mthca_alloc_mtt(dev, list_len, dev->mr_table.fmr_mtt_buddy);
 	if (IS_ERR(mr->mtt))
@@ -549,7 +555,7 @@ int mthca_fmr_alloc(struct mthca_dev *dev, u32 pd,
 				       MTHCA_MPT_FLAG_REGION      |
 				       access);
 
-	mpt_entry->page_size = cpu_to_be32(mr->attr.page_size - 12);
+	mpt_entry->page_size = cpu_to_be32(mr->attr.page_shift - 12);
 	mpt_entry->key       = cpu_to_be32(key);
 	mpt_entry->pd        = cpu_to_be32(pd);
 	memset(&mpt_entry->start, 0,
@@ -617,7 +623,7 @@ static inline int mthca_check_fmr(struct mthca_fmr *fmr, u64 *page_list,
 	if (list_len > fmr->attr.max_pages)
 		return -EINVAL;
 
-	page_mask = (1 << fmr->attr.page_size) - 1;
+	page_mask = (1 << fmr->attr.page_shift) - 1;
 
 	/* We are getting page lists, so va must be page aligned. */
 	if (iova & page_mask)
@@ -665,7 +671,7 @@ int mthca_tavor_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 	}
 
 	mpt_entry.lkey   = cpu_to_be32(key);
-	mpt_entry.length = cpu_to_be64(list_len * (1ull << fmr->attr.page_size));
+	mpt_entry.length = cpu_to_be64(list_len * (1ull << fmr->attr.page_shift));
 	mpt_entry.start  = cpu_to_be64(iova);
 
 	__raw_writel((__force u32) mpt_entry.lkey, &fmr->mem.tavor.mpt->key);
@@ -693,7 +699,10 @@ int mthca_arbel_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 	++fmr->maps;
 
 	key = arbel_key_to_hw_index(fmr->ibmr.lkey);
-	key += dev->limits.num_mpts;
+	if (dev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
+		key += SINAI_FMR_KEY_INC;
+	else
+		key += dev->limits.num_mpts;
 	fmr->ibmr.lkey = fmr->ibmr.rkey = arbel_hw_index_to_key(key);
 
 	*(u8 *) fmr->mem.arbel.mpt = MTHCA_MPT_STATUS_SW;
@@ -706,7 +715,7 @@ int mthca_arbel_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 
 	fmr->mem.arbel.mpt->key    = cpu_to_be32(key);
 	fmr->mem.arbel.mpt->lkey   = cpu_to_be32(key);
-	fmr->mem.arbel.mpt->length = cpu_to_be64(list_len * (1ull << fmr->attr.page_size));
+	fmr->mem.arbel.mpt->length = cpu_to_be64(list_len * (1ull << fmr->attr.page_shift));
 	fmr->mem.arbel.mpt->start  = cpu_to_be64(iova);
 
 	wmb();
@@ -766,6 +775,9 @@ int __devinit mthca_init_mr_table(struct mthca_dev *dev)
 	else
 		dev->mthca_flags |= MTHCA_FLAG_FMR;
 
+	if (dev->mthca_flags & MTHCA_FLAG_SINAI_OPT)
+		mthca_dbg(dev, "Memory key throughput optimization activated.\n");
+
 	err = mthca_buddy_init(&dev->mr_table.mtt_buddy,
 			       fls(dev->limits.num_mtt_segs - 1));
 
@@ -785,7 +797,7 @@ int __devinit mthca_init_mr_table(struct mthca_dev *dev)
 		}
 
 		dev->mr_table.tavor_fmr.mpt_base =
-		       	ioremap(dev->mr_table.mpt_base,
+			ioremap(dev->mr_table.mpt_base,
 				(1 << i) * sizeof (struct mthca_mpt_entry));
 
 		if (!dev->mr_table.tavor_fmr.mpt_base) {
@@ -813,7 +825,7 @@ int __devinit mthca_init_mr_table(struct mthca_dev *dev)
 			goto err_reserve_fmr;
 
 		dev->mr_table.fmr_mtt_buddy =
-		       	&dev->mr_table.tavor_fmr.mtt_buddy;
+			&dev->mr_table.tavor_fmr.mtt_buddy;
 	} else
 		dev->mr_table.fmr_mtt_buddy = &dev->mr_table.mtt_buddy;
 

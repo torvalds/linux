@@ -168,8 +168,8 @@ void tipc_named_withdraw(struct publication *publ)
 void tipc_named_node_up(unsigned long node)
 {
 	struct publication *publ;
-	struct distr_item *item = 0;
-	struct sk_buff *buf = 0;
+	struct distr_item *item = NULL;
+	struct sk_buff *buf = NULL;
 	u32 left = 0;
 	u32 rest;
 	u32 max_item_buf;
@@ -200,7 +200,7 @@ void tipc_named_node_up(unsigned long node)
 			    "<%u.%u.%u>\n", tipc_zone(node), 
 			    tipc_cluster(node), tipc_node(node));
 			tipc_link_send(buf, node, node);
-			buf = 0;
+			buf = NULL;
 		}
 	}
 exit:

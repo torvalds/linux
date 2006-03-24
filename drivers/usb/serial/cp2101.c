@@ -32,7 +32,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.06"
+#define DRIVER_VERSION "v0.07"
 #define DRIVER_DESC "Silicon Labs CP2101/CP2102 RS232 serial adaptor driver"
 
 /*
@@ -58,6 +58,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x10A6, 0xAA26) }, /* Knock-off DCU-11 cable */
 	{ USB_DEVICE(0x10AB, 0x10C5) }, /* Siemens MC60 Cable */
 	{ USB_DEVICE(0x10B5, 0xAC70) }, /* Nokia CA-42 USB */
+	{ USB_DEVICE(0x10C4, 0x803B) }, /* Pololu USB-serial converter */
 	{ USB_DEVICE(0x10C4, 0x807A) }, /* Crumb128 board */
 	{ USB_DEVICE(0x10C4, 0x80CA) }, /* Degree Controls Inc */
 	{ USB_DEVICE(0x10C4, 0x80F6) }, /* Suunto sports instrument */
@@ -169,9 +170,7 @@ static int cp2101_get_config(struct usb_serial_port* port, u8 request,
 	/* Number of integers required to contain the array */
 	length = (((size - 1) | 3) + 1)/4;
 
-	buf = kmalloc (length * sizeof(u32), GFP_KERNEL);
-	memset(buf, 0, length * sizeof(u32));
-
+	buf = kcalloc(length, sizeof(u32), GFP_KERNEL);
 	if (!buf) {
 		dev_err(&port->dev, "%s - out of memory.\n", __FUNCTION__);
 		return -ENOMEM;

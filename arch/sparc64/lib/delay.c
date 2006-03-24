@@ -1,6 +1,6 @@
 /* delay.c: Delay loops for sparc64
  *
- * Copyright (C) 2004 David S. Miller <davem@redhat.com>
+ * Copyright (C) 2004, 2006 David S. Miller <davem@davemloft.net>
  *
  * Based heavily upon x86 variant which is:
  *	Copyright (C) 1993 Linus Torvalds
@@ -8,19 +8,16 @@
  */
 
 #include <linux/delay.h>
+#include <asm/timer.h>
 
 void __delay(unsigned long loops)
 {
-	__asm__ __volatile__(
-"	b,pt	%%xcc, 1f\n"
-"	 cmp	%0, 0\n"
-"	.align	32\n"
-"1:\n"
-"	bne,pt	%%xcc, 1b\n"
-"	 subcc	%0, 1, %0\n"
-	: "=&r" (loops)
-	: "0" (loops)
-	: "cc");
+	unsigned long bclock, now;
+	
+	bclock = tick_ops->get_tick();
+	do {
+		now = tick_ops->get_tick();
+	} while ((now-bclock) < loops);
 }
 
 /* We used to multiply by HZ after shifting down by 32 bits

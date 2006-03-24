@@ -47,52 +47,58 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_vsc"
-#define DRV_VERSION	"1.1"
+#define DRV_VERSION	"1.2"
 
-/* Interrupt register offsets (from chip base address) */
-#define VSC_SATA_INT_STAT_OFFSET	0x00
-#define VSC_SATA_INT_MASK_OFFSET	0x04
+enum {
+	/* Interrupt register offsets (from chip base address) */
+	VSC_SATA_INT_STAT_OFFSET	= 0x00,
+	VSC_SATA_INT_MASK_OFFSET	= 0x04,
 
-/* Taskfile registers offsets */
-#define VSC_SATA_TF_CMD_OFFSET		0x00
-#define VSC_SATA_TF_DATA_OFFSET		0x00
-#define VSC_SATA_TF_ERROR_OFFSET	0x04
-#define VSC_SATA_TF_FEATURE_OFFSET	0x06
-#define VSC_SATA_TF_NSECT_OFFSET	0x08
-#define VSC_SATA_TF_LBAL_OFFSET		0x0c
-#define VSC_SATA_TF_LBAM_OFFSET		0x10
-#define VSC_SATA_TF_LBAH_OFFSET		0x14
-#define VSC_SATA_TF_DEVICE_OFFSET	0x18
-#define VSC_SATA_TF_STATUS_OFFSET	0x1c
-#define VSC_SATA_TF_COMMAND_OFFSET	0x1d
-#define VSC_SATA_TF_ALTSTATUS_OFFSET	0x28
-#define VSC_SATA_TF_CTL_OFFSET		0x29
+	/* Taskfile registers offsets */
+	VSC_SATA_TF_CMD_OFFSET		= 0x00,
+	VSC_SATA_TF_DATA_OFFSET		= 0x00,
+	VSC_SATA_TF_ERROR_OFFSET	= 0x04,
+	VSC_SATA_TF_FEATURE_OFFSET	= 0x06,
+	VSC_SATA_TF_NSECT_OFFSET	= 0x08,
+	VSC_SATA_TF_LBAL_OFFSET		= 0x0c,
+	VSC_SATA_TF_LBAM_OFFSET		= 0x10,
+	VSC_SATA_TF_LBAH_OFFSET		= 0x14,
+	VSC_SATA_TF_DEVICE_OFFSET	= 0x18,
+	VSC_SATA_TF_STATUS_OFFSET	= 0x1c,
+	VSC_SATA_TF_COMMAND_OFFSET	= 0x1d,
+	VSC_SATA_TF_ALTSTATUS_OFFSET	= 0x28,
+	VSC_SATA_TF_CTL_OFFSET		= 0x29,
 
-/* DMA base */
-#define VSC_SATA_UP_DESCRIPTOR_OFFSET	0x64
-#define VSC_SATA_UP_DATA_BUFFER_OFFSET	0x6C
-#define VSC_SATA_DMA_CMD_OFFSET		0x70
+	/* DMA base */
+	VSC_SATA_UP_DESCRIPTOR_OFFSET	= 0x64,
+	VSC_SATA_UP_DATA_BUFFER_OFFSET	= 0x6C,
+	VSC_SATA_DMA_CMD_OFFSET		= 0x70,
 
-/* SCRs base */
-#define VSC_SATA_SCR_STATUS_OFFSET	0x100
-#define VSC_SATA_SCR_ERROR_OFFSET	0x104
-#define VSC_SATA_SCR_CONTROL_OFFSET	0x108
+	/* SCRs base */
+	VSC_SATA_SCR_STATUS_OFFSET	= 0x100,
+	VSC_SATA_SCR_ERROR_OFFSET	= 0x104,
+	VSC_SATA_SCR_CONTROL_OFFSET	= 0x108,
 
-/* Port stride */
-#define VSC_SATA_PORT_OFFSET		0x200
+	/* Port stride */
+	VSC_SATA_PORT_OFFSET		= 0x200,
 
-/* Error interrupt status bit offsets */
-#define VSC_SATA_INT_ERROR_E_OFFSET	2
-#define VSC_SATA_INT_ERROR_P_OFFSET	4
-#define VSC_SATA_INT_ERROR_T_OFFSET	5
-#define VSC_SATA_INT_ERROR_M_OFFSET	1
+	/* Error interrupt status bit offsets */
+	VSC_SATA_INT_ERROR_CRC		= 0x40,
+	VSC_SATA_INT_ERROR_T		= 0x20,
+	VSC_SATA_INT_ERROR_P		= 0x10,
+	VSC_SATA_INT_ERROR_R		= 0x8,
+	VSC_SATA_INT_ERROR_E		= 0x4,
+	VSC_SATA_INT_ERROR_M		= 0x2,
+	VSC_SATA_INT_PHY_CHANGE		= 0x1,
+	VSC_SATA_INT_ERROR = (VSC_SATA_INT_ERROR_CRC  | VSC_SATA_INT_ERROR_T | \
+			      VSC_SATA_INT_ERROR_P    | VSC_SATA_INT_ERROR_R | \
+			      VSC_SATA_INT_ERROR_E    | VSC_SATA_INT_ERROR_M | \
+			      VSC_SATA_INT_PHY_CHANGE),
+};
+
+
 #define is_vsc_sata_int_err(port_idx, int_status) \
-	 (int_status & ((1 << (VSC_SATA_INT_ERROR_E_OFFSET + (8 * port_idx))) | \
-		        (1 << (VSC_SATA_INT_ERROR_P_OFFSET + (8 * port_idx))) | \
-		        (1 << (VSC_SATA_INT_ERROR_T_OFFSET + (8 * port_idx))) | \
-		        (1 << (VSC_SATA_INT_ERROR_M_OFFSET + (8 * port_idx)))   \
-		       )\
- 	 )
+	 (int_status & (VSC_SATA_INT_ERROR << (8 * port_idx)))
 
 
 static u32 vsc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
@@ -223,18 +229,33 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 				handled++;
 			}
 
-			if (ap && !(ap->flags & ATA_FLAG_PORT_DISABLED)) {
+			if (ap && !(ap->flags &
+				    (ATA_FLAG_PORT_DISABLED|ATA_FLAG_NOINTR))) {
 				struct ata_queued_cmd *qc;
 
 				qc = ata_qc_from_tag(ap, ap->active_tag);
 				if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 					handled += ata_host_intr(ap, qc);
-				else {
-					printk(KERN_DEBUG "%s: ignoring interrupt(s)\n", __FUNCTION__);
+				} else if (is_vsc_sata_int_err(i, int_status)) {
+					/*
+					 * On some chips (i.e. Intel 31244), an error 
+					 * interrupt will sneak in at initialization
+					 * time (phy state changes).  Clearing the SCR
+					 * error register is not required, but it prevents
+					 * the phy state change interrupts from recurring 
+					 * later.
+					 */
+					u32 err_status;
+					err_status = vsc_sata_scr_read(ap, SCR_ERROR);
+					printk(KERN_DEBUG "%s: clearing interrupt, "
+					       "status %x; sata err status %x\n",
+					       __FUNCTION__,
+					       int_status, err_status);
+					vsc_sata_scr_write(ap, SCR_ERROR, err_status);
+					/* Clear interrupt status */
 					ata_chk_status(ap);
 					handled++;
 				}
-
 			}
 		}
 	}
@@ -250,7 +271,6 @@ static struct scsi_host_template vsc_sata_sht = {
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
 	.queuecommand		= ata_scsi_queuecmd,
-	.eh_timed_out		= ata_scsi_timed_out,
 	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,

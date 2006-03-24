@@ -214,7 +214,7 @@ int snd_opl4_create(struct snd_card *card,
 	opl4->fm_port = fm_port;
 	opl4->pcm_port = pcm_port;
 	spin_lock_init(&opl4->reg_lock);
-	init_MUTEX(&opl4->access_mutex);
+	mutex_init(&opl4->access_mutex);
 
 	err = snd_opl4_detect(opl4);
 	if (err < 0) {

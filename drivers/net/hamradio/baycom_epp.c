@@ -905,7 +905,7 @@ static int epp_open(struct net_device *dev)
 	/* autoprobe baud rate */
 	tstart = jiffies;
 	i = 0;
-	while ((signed)(jiffies-tstart-HZ/3) < 0) {
+	while (time_before(jiffies, tstart + HZ/3)) {
 		if (pp->ops->epp_read_addr(pp, &stat, 1, 0) != 1)
 			goto epptimeout;
 		if ((stat & (EPP_NRAEF|EPP_NRHF)) == EPP_NRHF) {

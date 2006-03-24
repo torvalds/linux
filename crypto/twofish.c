@@ -44,6 +44,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/crypto.h>
+#include <linux/bitops.h>
 
 
 /* The large precomputed tables for the Twofish cipher (twofish.c)
@@ -542,9 +543,9 @@ static const u8 calc_sb_tbl[512] = {
 #define CALC_K(a, j, k, l, m, n) \
    x = CALC_K_2 (k, l, k, l, 0); \
    y = CALC_K_2 (m, n, m, n, 4); \
-   y = (y << 8) + (y >> 24); \
+   y = rol32(y, 8); \
    x += y; y += x; ctx->a[j] = x; \
-   ctx->a[(j) + 1] = (y << 9) + (y >> 23)
+   ctx->a[(j) + 1] = rol32(y, 9)
 
 #define CALC_K192_2(a, b, c, d, j) \
    CALC_K_2 (q0[a ^ key[(j) + 16]], \
@@ -555,9 +556,9 @@ static const u8 calc_sb_tbl[512] = {
 #define CALC_K192(a, j, k, l, m, n) \
    x = CALC_K192_2 (l, l, k, k, 0); \
    y = CALC_K192_2 (n, n, m, m, 4); \
-   y = (y << 8) + (y >> 24); \
+   y = rol32(y, 8); \
    x += y; y += x; ctx->a[j] = x; \
-   ctx->a[(j) + 1] = (y << 9) + (y >> 23)
+   ctx->a[(j) + 1] = rol32(y, 9)
 
 #define CALC_K256_2(a, b, j) \
    CALC_K192_2 (q1[b ^ key[(j) + 24]], \
@@ -568,9 +569,9 @@ static const u8 calc_sb_tbl[512] = {
 #define CALC_K256(a, j, k, l, m, n) \
    x = CALC_K256_2 (k, l, 0); \
    y = CALC_K256_2 (m, n, 4); \
-   y = (y << 8) + (y >> 24); \
+   y = rol32(y, 8); \
    x += y; y += x; ctx->a[j] = x; \
-   ctx->a[(j) + 1] = (y << 9) + (y >> 23)
+   ctx->a[(j) + 1] = rol32(y, 9)
 
 
 /* Macros to compute the g() function in the encryption and decryption
@@ -594,15 +595,15 @@ static const u8 calc_sb_tbl[512] = {
    x = G1 (a); y = G2 (b); \
    x += y; y += x + ctx->k[2 * (n) + 1]; \
    (c) ^= x + ctx->k[2 * (n)]; \
-   (c) = ((c) >> 1) + ((c) << 31); \
-   (d) = (((d) << 1)+((d) >> 31)) ^ y
+   (c) = ror32((c), 1); \
+   (d) = rol32((d), 1) ^ y
 
 #define DECROUND(n, a, b, c, d) \
    x = G1 (a); y = G2 (b); \
    x += y; y += x; \
    (d) ^= y + ctx->k[2 * (n) + 1]; \
-   (d) = ((d) >> 1) + ((d) << 31); \
-   (c) = (((c) << 1)+((c) >> 31)); \
+   (d) = ror32((d), 1); \
+   (c) = rol32((c), 1); \
    (c) ^= (x + ctx->k[2 * (n)])
 
 /* Encryption and decryption cycles; each one is simply two Feistel rounds

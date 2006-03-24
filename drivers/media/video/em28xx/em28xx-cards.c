@@ -72,6 +72,24 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		}},
 	},
+	[EM2820_BOARD_KWORLD_PVRTV2800RF] = {
+		.name         = "Kworld PVR TV 2800 RF",
+		.is_em2800    = 0,
+		.vchannels    = 2,
+		.norm         = VIDEO_MODE_PAL,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.decoder      = EM28XX_SAA7113,
+		.input           = {{
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = 0,
+			.amux     = 1,
+		},{
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = 9,
+			.amux     = 1,
+		}},
+	},
 	[EM2820_BOARD_TERRATEC_CINERGY_250] = {
 		.name         = "Terratec Cinergy 250 USB",
 		.vchannels    = 3,
@@ -83,7 +101,7 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 2,
-			.amux     = 0,
+			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
@@ -257,27 +275,51 @@ struct usb_device_id em28xx_id_table [] = {
 	{ },
 };
 
+void em28xx_pre_card_setup(struct em28xx *dev)
+{
+	/* request some modules */
+	switch(dev->model){
+		case EM2880_BOARD_TERRATEC_PRODIGY_XS:
+		case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+		case EM2880_BOARD_TERRATEC_HYBRID_XS:
+			{
+				em28xx_write_regs_req(dev, 0x00, 0x08, "\x7d", 1); // reset through GPIO?
+				break;
+			}
+	}
+}
+
 void em28xx_card_setup(struct em28xx *dev)
 {
 	/* request some modules */
-	if (dev->model == EM2820_BOARD_HAUPPAUGE_WINTV_USB_2) {
-		struct tveeprom tv;
+	switch(dev->model){
+		case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
+			{
+				struct tveeprom tv;
 #ifdef CONFIG_MODULES
-		request_module("tveeprom");
-		request_module("ir-kbd-i2c");
-		request_module("msp3400");
+				request_module("tveeprom");
+				request_module("ir-kbd-i2c");
+				request_module("msp3400");
 #endif
-		/* Call first TVeeprom */
+				/* Call first TVeeprom */
 
-		dev->i2c_client.addr = 0xa0 >> 1;
-		tveeprom_hauppauge_analog(&dev->i2c_client, &tv, dev->eedata);
+				dev->i2c_client.addr = 0xa0 >> 1;
+				tveeprom_hauppauge_analog(&dev->i2c_client, &tv, dev->eedata);
 
-		dev->tuner_type= tv.tuner_type;
-		if (tv.audio_processor == AUDIO_CHIP_MSP34XX) {
-			dev->i2s_speed=2048000;
-			dev->has_msp34xx=1;
-		} else
-			dev->has_msp34xx=0;
+				dev->tuner_type= tv.tuner_type;
+				if (tv.audio_processor == AUDIO_CHIP_MSP34XX) {
+					dev->i2s_speed=2048000;
+					dev->has_msp34xx=1;
+				} else
+					dev->has_msp34xx=0;
+				break;
+			}
+		case EM2820_BOARD_KWORLD_PVRTV2800RF:
+			{
+				em28xx_write_regs_req(dev,0x00,0x08, "\xf9", 1); // GPIO enables sound on KWORLD PVR TV 2800RF
+				break;
+			}
+
 	}
 }
 

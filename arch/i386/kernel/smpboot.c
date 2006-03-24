@@ -1029,6 +1029,16 @@ int __devinit smp_prepare_cpu(int cpu)
 	int	apicid, ret;
 
 	lock_cpu_hotplug();
+
+	/*
+	 * On x86, CPU0 is never offlined.  Trying to bring up an
+	 * already-booted CPU will hang.  So check for that case.
+	 */
+	if (cpu_online(cpu)) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
 	apicid = x86_cpu_to_apicid[cpu];
 	if (apicid == BAD_APICID) {
 		ret = -ENODEV;

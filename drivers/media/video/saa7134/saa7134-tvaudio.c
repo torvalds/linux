@@ -140,6 +140,12 @@ static struct saa7134_tvaudio tvaudio[] = {
 		.carr2         = 5850,
 		.mode          = TVAUDIO_NICAM_AM,
 	},{
+		.name          = "SECAM-L MONO",
+		.std           = V4L2_STD_SECAM,
+		.carr1         = 6500,
+		.carr2         = -1,
+		.mode          = TVAUDIO_AM_MONO,
+	},{
 		.name          = "SECAM-D/K",
 		.std           = V4L2_STD_SECAM,
 		.carr1         = 6500,
@@ -334,6 +340,12 @@ static void tvaudio_setmode(struct saa7134_dev *dev,
 		saa_writeb(SAA7134_STEREO_DAC_OUTPUT_SELECT,  0xa1);
 		saa_writeb(SAA7134_NICAM_CONFIG,              0x00);
 		break;
+	case TVAUDIO_AM_MONO:
+		saa_writeb(SAA7134_DEMODULATOR,               0x12);
+		saa_writeb(SAA7134_DCXO_IDENT_CTRL,           0x00);
+		saa_writeb(SAA7134_FM_DEEMPHASIS,             0x44);
+		saa_writeb(SAA7134_STEREO_DAC_OUTPUT_SELECT,  0xa0);
+		break;
 	case TVAUDIO_FM_SAT_STEREO:
 		/* not implemented (yet) */
 		break;
@@ -414,6 +426,7 @@ static int tvaudio_getstereo(struct saa7134_dev *dev, struct saa7134_tvaudio *au
 
 	switch (audio->mode) {
 	case TVAUDIO_FM_MONO:
+	case TVAUDIO_AM_MONO:
 		return V4L2_TUNER_SUB_MONO;
 	case TVAUDIO_FM_K_STEREO:
 	case TVAUDIO_FM_BG_STEREO:
@@ -480,6 +493,7 @@ static int tvaudio_setstereo(struct saa7134_dev *dev, struct saa7134_tvaudio *au
 
 	switch (audio->mode) {
 	case TVAUDIO_FM_MONO:
+	case TVAUDIO_AM_MONO:
 		/* nothing to do ... */
 		break;
 	case TVAUDIO_FM_K_STEREO:

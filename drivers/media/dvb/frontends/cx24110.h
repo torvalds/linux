@@ -35,6 +35,7 @@ struct cx24110_config
 	/* PLL maintenance */
 	int (*pll_init)(struct dvb_frontend* fe);
 	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
+	int (*pll_sleep)(struct dvb_frontend* fe);
 };
 
 extern struct dvb_frontend* cx24110_attach(const struct cx24110_config* config,

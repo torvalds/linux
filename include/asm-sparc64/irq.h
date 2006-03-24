@@ -72,8 +72,11 @@ struct ino_bucket {
 #define IMAP_VALID		0x80000000	/* IRQ Enabled		*/
 #define IMAP_TID_UPA		0x7c000000	/* UPA TargetID		*/
 #define IMAP_TID_JBUS		0x7c000000	/* JBUS TargetID	*/
+#define IMAP_TID_SHIFT		26
 #define IMAP_AID_SAFARI		0x7c000000	/* Safari AgentID	*/
+#define IMAP_AID_SHIFT		26
 #define IMAP_NID_SAFARI		0x03e00000	/* Safari NodeID	*/
+#define IMAP_NID_SHIFT		21
 #define IMAP_IGN		0x000007c0	/* IRQ Group Number	*/
 #define IMAP_INO		0x0000003f	/* IRQ Number		*/
 #define IMAP_INR		0x000007ff	/* Full interrupt number*/
@@ -111,6 +114,7 @@ extern void disable_irq(unsigned int);
 #define disable_irq_nosync disable_irq
 extern void enable_irq(unsigned int);
 extern unsigned int build_irq(int pil, int inofixup, unsigned long iclr, unsigned long imap);
+extern unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino, int pil, unsigned char flags);
 extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
 
 static __inline__ void set_softint(unsigned long bits)

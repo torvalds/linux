@@ -71,7 +71,7 @@ struct snd_ak4531 {
 	void (*private_free) (struct snd_ak4531 *ak4531);
 	/* --- */
 	unsigned char regs[0x20];
-	struct semaphore reg_mutex;
+	struct mutex reg_mutex;
 };
 
 int snd_ak4531_mixer(struct snd_card *card, struct snd_ak4531 *_ak4531,

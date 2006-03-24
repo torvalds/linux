@@ -25,7 +25,8 @@
 #include <asm/const.h>
 
 /* The kernel image occupies 0x4000000 to 0x1000000 (4MB --> 32MB).
- * The page copy blockops can use 0x2000000 to 0x10000000.
+ * The page copy blockops can use 0x2000000 to 0x4000000.
+ * The TSB is mapped in the 0x4000000 to 0x6000000 range.
  * The PROM resides in an area spanning 0xf0000000 to 0x100000000.
  * The vmalloc area spans 0x100000000 to 0x200000000.
  * Since modules need to be in the lowest 32-bits of the address space,
@@ -34,6 +35,7 @@
  * 0x400000000.
  */
 #define	TLBTEMP_BASE		_AC(0x0000000002000000,UL)
+#define	TSBMAP_BASE		_AC(0x0000000004000000,UL)
 #define MODULES_VADDR		_AC(0x0000000010000000,UL)
 #define MODULES_LEN		_AC(0x00000000e0000000,UL)
 #define MODULES_END		_AC(0x00000000f0000000,UL)
@@ -88,132 +90,134 @@
 
 #endif /* !(__ASSEMBLY__) */
 
-/* Spitfire/Cheetah TTE bits. */
-#define _PAGE_VALID	_AC(0x8000000000000000,UL) /* Valid TTE              */
-#define _PAGE_R		_AC(0x8000000000000000,UL) /* Keep ref bit up to date*/
-#define _PAGE_SZ4MB	_AC(0x6000000000000000,UL) /* 4MB Page               */
-#define _PAGE_SZ512K	_AC(0x4000000000000000,UL) /* 512K Page              */
-#define _PAGE_SZ64K	_AC(0x2000000000000000,UL) /* 64K Page               */
-#define _PAGE_SZ8K	_AC(0x0000000000000000,UL) /* 8K Page                */
-#define _PAGE_NFO	_AC(0x1000000000000000,UL) /* No Fault Only          */
-#define _PAGE_IE	_AC(0x0800000000000000,UL) /* Invert Endianness      */
-#define _PAGE_SOFT2	_AC(0x07FC000000000000,UL) /* Software bits, set 2   */
-#define _PAGE_RES1	_AC(0x0002000000000000,UL) /* Reserved               */
-#define _PAGE_SZ32MB	_AC(0x0001000000000000,UL) /* (Panther) 32MB page    */
-#define _PAGE_SZ256MB	_AC(0x2001000000000000,UL) /* (Panther) 256MB page   */
-#define _PAGE_SN	_AC(0x0000800000000000,UL) /* (Cheetah) Snoop        */
-#define _PAGE_RES2	_AC(0x0000780000000000,UL) /* Reserved               */
-#define _PAGE_PADDR_SF	_AC(0x000001FFFFFFE000,UL) /* (Spitfire) paddr[40:13]*/
-#define _PAGE_PADDR	_AC(0x000007FFFFFFE000,UL) /* (Cheetah) paddr[42:13] */
-#define _PAGE_SOFT	_AC(0x0000000000001F80,UL) /* Software bits          */
-#define _PAGE_L		_AC(0x0000000000000040,UL) /* Locked TTE             */
-#define _PAGE_CP	_AC(0x0000000000000020,UL) /* Cacheable in P-Cache   */
-#define _PAGE_CV	_AC(0x0000000000000010,UL) /* Cacheable in V-Cache   */
-#define _PAGE_E		_AC(0x0000000000000008,UL) /* side-Effect            */
-#define _PAGE_P		_AC(0x0000000000000004,UL) /* Privileged Page        */
-#define _PAGE_W		_AC(0x0000000000000002,UL) /* Writable               */
-#define _PAGE_G		_AC(0x0000000000000001,UL) /* Global                 */
+/* PTE bits which are the same in SUN4U and SUN4V format.  */
+#define _PAGE_VALID	  _AC(0x8000000000000000,UL) /* Valid TTE            */
+#define _PAGE_R	  	  _AC(0x8000000000000000,UL) /* Keep ref bit uptodate*/
 
-/* Here are the SpitFire software bits we use in the TTE's.
- *
- * WARNING: If you are going to try and start using some
- *          of the soft2 bits, you will need to make
- *          modifications to the swap entry implementation.
- *	    For example, one thing that could happen is that
- *          swp_entry_to_pte() would BUG_ON() if you tried
- *          to use one of the soft2 bits for _PAGE_FILE.
- *
- * Like other architectures, I have aliased _PAGE_FILE with
- * _PAGE_MODIFIED.  This works because _PAGE_FILE is never
- * interpreted that way unless _PAGE_PRESENT is clear.
- */
-#define _PAGE_EXEC	_AC(0x0000000000001000,UL)	/* Executable SW bit */
-#define _PAGE_MODIFIED	_AC(0x0000000000000800,UL)	/* Modified (dirty)  */
-#define _PAGE_FILE	_AC(0x0000000000000800,UL)	/* Pagecache page    */
-#define _PAGE_ACCESSED	_AC(0x0000000000000400,UL)	/* Accessed (ref'd)  */
-#define _PAGE_READ	_AC(0x0000000000000200,UL)	/* Readable SW Bit   */
-#define _PAGE_WRITE	_AC(0x0000000000000100,UL)	/* Writable SW Bit   */
-#define _PAGE_PRESENT	_AC(0x0000000000000080,UL)	/* Present           */
+/* SUN4U pte bits... */
+#define _PAGE_SZ4MB_4U	  _AC(0x6000000000000000,UL) /* 4MB Page             */
+#define _PAGE_SZ512K_4U	  _AC(0x4000000000000000,UL) /* 512K Page            */
+#define _PAGE_SZ64K_4U	  _AC(0x2000000000000000,UL) /* 64K Page             */
+#define _PAGE_SZ8K_4U	  _AC(0x0000000000000000,UL) /* 8K Page              */
+#define _PAGE_NFO_4U	  _AC(0x1000000000000000,UL) /* No Fault Only        */
+#define _PAGE_IE_4U	  _AC(0x0800000000000000,UL) /* Invert Endianness    */
+#define _PAGE_SOFT2_4U	  _AC(0x07FC000000000000,UL) /* Software bits, set 2 */
+#define _PAGE_RES1_4U	  _AC(0x0002000000000000,UL) /* Reserved             */
+#define _PAGE_SZ32MB_4U	  _AC(0x0001000000000000,UL) /* (Panther) 32MB page  */
+#define _PAGE_SZ256MB_4U  _AC(0x2001000000000000,UL) /* (Panther) 256MB page */
+#define _PAGE_SZALL_4U	  _AC(0x6001000000000000,UL) /* All pgsz bits        */
+#define _PAGE_SN_4U	  _AC(0x0000800000000000,UL) /* (Cheetah) Snoop      */
+#define _PAGE_RES2_4U	  _AC(0x0000780000000000,UL) /* Reserved             */
+#define _PAGE_PADDR_4U	  _AC(0x000007FFFFFFE000,UL) /* (Cheetah) pa[42:13]  */
+#define _PAGE_SOFT_4U	  _AC(0x0000000000001F80,UL) /* Software bits:       */
+#define _PAGE_EXEC_4U	  _AC(0x0000000000001000,UL) /* Executable SW bit    */
+#define _PAGE_MODIFIED_4U _AC(0x0000000000000800,UL) /* Modified (dirty)     */
+#define _PAGE_FILE_4U	  _AC(0x0000000000000800,UL) /* Pagecache page       */
+#define _PAGE_ACCESSED_4U _AC(0x0000000000000400,UL) /* Accessed (ref'd)     */
+#define _PAGE_READ_4U	  _AC(0x0000000000000200,UL) /* Readable SW Bit      */
+#define _PAGE_WRITE_4U	  _AC(0x0000000000000100,UL) /* Writable SW Bit      */
+#define _PAGE_PRESENT_4U  _AC(0x0000000000000080,UL) /* Present              */
+#define _PAGE_L_4U	  _AC(0x0000000000000040,UL) /* Locked TTE           */
+#define _PAGE_CP_4U	  _AC(0x0000000000000020,UL) /* Cacheable in P-Cache */
+#define _PAGE_CV_4U	  _AC(0x0000000000000010,UL) /* Cacheable in V-Cache */
+#define _PAGE_E_4U	  _AC(0x0000000000000008,UL) /* side-Effect          */
+#define _PAGE_P_4U	  _AC(0x0000000000000004,UL) /* Privileged Page      */
+#define _PAGE_W_4U	  _AC(0x0000000000000002,UL) /* Writable             */
+
+/* SUN4V pte bits... */
+#define _PAGE_NFO_4V	  _AC(0x4000000000000000,UL) /* No Fault Only        */
+#define _PAGE_SOFT2_4V	  _AC(0x3F00000000000000,UL) /* Software bits, set 2 */
+#define _PAGE_MODIFIED_4V _AC(0x2000000000000000,UL) /* Modified (dirty)     */
+#define _PAGE_ACCESSED_4V _AC(0x1000000000000000,UL) /* Accessed (ref'd)     */
+#define _PAGE_READ_4V	  _AC(0x0800000000000000,UL) /* Readable SW Bit      */
+#define _PAGE_WRITE_4V	  _AC(0x0400000000000000,UL) /* Writable SW Bit      */
+#define _PAGE_PADDR_4V	  _AC(0x00FFFFFFFFFFE000,UL) /* paddr[55:13]         */
+#define _PAGE_IE_4V	  _AC(0x0000000000001000,UL) /* Invert Endianness    */
+#define _PAGE_E_4V	  _AC(0x0000000000000800,UL) /* side-Effect          */
+#define _PAGE_CP_4V	  _AC(0x0000000000000400,UL) /* Cacheable in P-Cache */
+#define _PAGE_CV_4V	  _AC(0x0000000000000200,UL) /* Cacheable in V-Cache */
+#define _PAGE_P_4V	  _AC(0x0000000000000100,UL) /* Privileged Page      */
+#define _PAGE_EXEC_4V	  _AC(0x0000000000000080,UL) /* Executable Page      */
+#define _PAGE_W_4V	  _AC(0x0000000000000040,UL) /* Writable             */
+#define _PAGE_SOFT_4V	  _AC(0x0000000000000030,UL) /* Software bits        */
+#define _PAGE_FILE_4V	  _AC(0x0000000000000020,UL) /* Pagecache page       */
+#define _PAGE_PRESENT_4V  _AC(0x0000000000000010,UL) /* Present              */
+#define _PAGE_RESV_4V	  _AC(0x0000000000000008,UL) /* Reserved             */
+#define _PAGE_SZ16GB_4V	  _AC(0x0000000000000007,UL) /* 16GB Page            */
+#define _PAGE_SZ2GB_4V	  _AC(0x0000000000000006,UL) /* 2GB Page             */
+#define _PAGE_SZ256MB_4V  _AC(0x0000000000000005,UL) /* 256MB Page           */
+#define _PAGE_SZ32MB_4V	  _AC(0x0000000000000004,UL) /* 32MB Page            */
+#define _PAGE_SZ4MB_4V	  _AC(0x0000000000000003,UL) /* 4MB Page             */
+#define _PAGE_SZ512K_4V	  _AC(0x0000000000000002,UL) /* 512K Page            */
+#define _PAGE_SZ64K_4V	  _AC(0x0000000000000001,UL) /* 64K Page             */
+#define _PAGE_SZ8K_4V	  _AC(0x0000000000000000,UL) /* 8K Page              */
+#define _PAGE_SZALL_4V	  _AC(0x0000000000000007,UL) /* All pgsz bits        */
 
 #if PAGE_SHIFT == 13
-#define _PAGE_SZBITS	_PAGE_SZ8K
+#define _PAGE_SZBITS_4U	_PAGE_SZ8K_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ8K_4V
 #elif PAGE_SHIFT == 16
-#define _PAGE_SZBITS	_PAGE_SZ64K
+#define _PAGE_SZBITS_4U	_PAGE_SZ64K_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ64K_4V
 #elif PAGE_SHIFT == 19
-#define _PAGE_SZBITS	_PAGE_SZ512K
+#define _PAGE_SZBITS_4U	_PAGE_SZ512K_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ512K_4V
 #elif PAGE_SHIFT == 22
-#define _PAGE_SZBITS	_PAGE_SZ4MB
+#define _PAGE_SZBITS_4U	_PAGE_SZ4MB_4U
+#define _PAGE_SZBITS_4V	_PAGE_SZ4MB_4V
 #else
 #error Wrong PAGE_SHIFT specified
 #endif
 
 #if defined(CONFIG_HUGETLB_PAGE_SIZE_4MB)
-#define _PAGE_SZHUGE	_PAGE_SZ4MB
+#define _PAGE_SZHUGE_4U	_PAGE_SZ4MB_4U
+#define _PAGE_SZHUGE_4V	_PAGE_SZ4MB_4V
 #elif defined(CONFIG_HUGETLB_PAGE_SIZE_512K)
-#define _PAGE_SZHUGE	_PAGE_SZ512K
+#define _PAGE_SZHUGE_4U	_PAGE_SZ512K_4U
+#define _PAGE_SZHUGE_4V	_PAGE_SZ512K_4V
 #elif defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
-#define _PAGE_SZHUGE	_PAGE_SZ64K
+#define _PAGE_SZHUGE_4U	_PAGE_SZ64K_4U
+#define _PAGE_SZHUGE_4V	_PAGE_SZ64K_4V
 #endif
 
-#define _PAGE_CACHE	(_PAGE_CP | _PAGE_CV)
+/* These are actually filled in at boot time by sun4{u,v}_pgprot_init() */
+#define __P000	__pgprot(0)
+#define __P001	__pgprot(0)
+#define __P010	__pgprot(0)
+#define __P011	__pgprot(0)
+#define __P100	__pgprot(0)
+#define __P101	__pgprot(0)
+#define __P110	__pgprot(0)
+#define __P111	__pgprot(0)
 
-#define __DIRTY_BITS	(_PAGE_MODIFIED | _PAGE_WRITE | _PAGE_W)
-#define __ACCESS_BITS	(_PAGE_ACCESSED | _PAGE_READ | _PAGE_R)
-#define __PRIV_BITS	_PAGE_P
-
-#define PAGE_NONE	__pgprot (_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_CACHE)
-
-/* Don't set the TTE _PAGE_W bit here, else the dirty bit never gets set. */
-#define PAGE_SHARED	__pgprot (_PAGE_PRESENT | _PAGE_VALID | _PAGE_CACHE | \
-				  __ACCESS_BITS | _PAGE_WRITE | _PAGE_EXEC)
-
-#define PAGE_COPY	__pgprot (_PAGE_PRESENT | _PAGE_VALID | _PAGE_CACHE | \
-				  __ACCESS_BITS | _PAGE_EXEC)
-
-#define PAGE_READONLY	__pgprot (_PAGE_PRESENT | _PAGE_VALID | _PAGE_CACHE | \
-				  __ACCESS_BITS | _PAGE_EXEC)
-
-#define PAGE_KERNEL	__pgprot (_PAGE_PRESENT | _PAGE_VALID | _PAGE_CACHE | \
-				  __PRIV_BITS | \
-				  __ACCESS_BITS | __DIRTY_BITS | _PAGE_EXEC)
-
-#define PAGE_SHARED_NOEXEC	__pgprot (_PAGE_PRESENT | _PAGE_VALID | \
-					  _PAGE_CACHE | \
-					  __ACCESS_BITS | _PAGE_WRITE)
-
-#define PAGE_COPY_NOEXEC	__pgprot (_PAGE_PRESENT | _PAGE_VALID | \
-					  _PAGE_CACHE | __ACCESS_BITS)
-
-#define PAGE_READONLY_NOEXEC	__pgprot (_PAGE_PRESENT | _PAGE_VALID | \
-					  _PAGE_CACHE | __ACCESS_BITS)
-
-#define _PFN_MASK	_PAGE_PADDR
-
-#define pg_iobits (_PAGE_VALID | _PAGE_PRESENT | __DIRTY_BITS | \
-		   __ACCESS_BITS | _PAGE_E)
-
-#define __P000	PAGE_NONE
-#define __P001	PAGE_READONLY_NOEXEC
-#define __P010	PAGE_COPY_NOEXEC
-#define __P011	PAGE_COPY_NOEXEC
-#define __P100	PAGE_READONLY
-#define __P101	PAGE_READONLY
-#define __P110	PAGE_COPY
-#define __P111	PAGE_COPY
-
-#define __S000	PAGE_NONE
-#define __S001	PAGE_READONLY_NOEXEC
-#define __S010	PAGE_SHARED_NOEXEC
-#define __S011	PAGE_SHARED_NOEXEC
-#define __S100	PAGE_READONLY
-#define __S101	PAGE_READONLY
-#define __S110	PAGE_SHARED
-#define __S111	PAGE_SHARED
+#define __S000	__pgprot(0)
+#define __S001	__pgprot(0)
+#define __S010	__pgprot(0)
+#define __S011	__pgprot(0)
+#define __S100	__pgprot(0)
+#define __S101	__pgprot(0)
+#define __S110	__pgprot(0)
+#define __S111	__pgprot(0)
 
 #ifndef __ASSEMBLY__
 
-extern unsigned long phys_base;
-extern unsigned long pfn_base;
+extern pte_t mk_pte_io(unsigned long, pgprot_t, int, unsigned long);
+
+extern unsigned long pte_sz_bits(unsigned long size);
+
+extern pgprot_t PAGE_KERNEL;
+extern pgprot_t PAGE_KERNEL_LOCKED;
+extern pgprot_t PAGE_COPY;
+extern pgprot_t PAGE_SHARED;
+
+/* XXX This uglyness is for the atyfb driver's sparc mmap() support. XXX */
+extern unsigned long _PAGE_IE;
+extern unsigned long _PAGE_E;
+extern unsigned long _PAGE_CACHE;
+
+extern unsigned long pg_iobits;
+extern unsigned long _PAGE_ALL_SZ_BITS;
+extern unsigned long _PAGE_SZBITS;
 
 extern struct page *mem_map_zero;
 #define ZERO_PAGE(vaddr)	(mem_map_zero)
@@ -223,27 +227,403 @@ extern struct page *mem_map_zero;
  * the first physical page in the machine is at some huge physical address,
  * such as 4GB.   This is common on a partitioned E10000, for example.
  */
+static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
+{
+	unsigned long paddr = pfn << PAGE_SHIFT;
+	unsigned long sz_bits;
 
-#define pfn_pte(pfn, prot)	\
-	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot) | _PAGE_SZBITS)
+	sz_bits = 0UL;
+	if (_PAGE_SZBITS_4U != 0UL || _PAGE_SZBITS_4V != 0UL) {
+		__asm__ __volatile__(
+		"\n661:	sethi		%uhi(%1), %0\n"
+		"	sllx		%0, 32, %0\n"
+		"	.section	.sun4v_2insn_patch, \"ax\"\n"
+		"	.word		661b\n"
+		"	mov		%2, %0\n"
+		"	nop\n"
+		"	.previous\n"
+		: "=r" (sz_bits)
+		: "i" (_PAGE_SZBITS_4U), "i" (_PAGE_SZBITS_4V));
+	}
+	return __pte(paddr | sz_bits | pgprot_val(prot));
+}
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
 
-#define pte_pfn(x)		((pte_val(x) & _PAGE_PADDR)>>PAGE_SHIFT)
-#define pte_page(x)		pfn_to_page(pte_pfn(x))
-
-static inline pte_t pte_modify(pte_t orig_pte, pgprot_t new_prot)
+/* This one can be done with two shifts.  */
+static inline unsigned long pte_pfn(pte_t pte)
 {
-	pte_t __pte;
-	const unsigned long preserve_mask = (_PFN_MASK |
-					     _PAGE_MODIFIED | _PAGE_ACCESSED |
-					     _PAGE_CACHE | _PAGE_E |
-					     _PAGE_PRESENT | _PAGE_SZBITS);
+	unsigned long ret;
 
-	pte_val(__pte) = (pte_val(orig_pte) & preserve_mask) |
-		(pgprot_val(new_prot) & ~preserve_mask);
+	__asm__ __volatile__(
+	"\n661:	sllx		%1, %2, %0\n"
+	"	srlx		%0, %3, %0\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sllx		%1, %4, %0\n"
+	"	srlx		%0, %5, %0\n"
+	"	.previous\n"
+	: "=r" (ret)
+	: "r" (pte_val(pte)),
+	  "i" (21), "i" (21 + PAGE_SHIFT),
+	  "i" (8), "i" (8 + PAGE_SHIFT));
 
-	return __pte;
+	return ret;
 }
+#define pte_page(x) pfn_to_page(pte_pfn(x))
+
+static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
+{
+	unsigned long mask, tmp;
+
+	/* SUN4U: 0x600307ffffffecb8 (negated == 0x9ffcf80000001347)
+	 * SUN4V: 0x30ffffffffffee17 (negated == 0xcf000000000011e8)
+	 *
+	 * Even if we use negation tricks the result is still a 6
+	 * instruction sequence, so don't try to play fancy and just
+	 * do the most straightforward implementation.
+	 *
+	 * Note: We encode this into 3 sun4v 2-insn patch sequences.
+	 */
+
+	__asm__ __volatile__(
+	"\n661:	sethi		%%uhi(%2), %1\n"
+	"	sethi		%%hi(%2), %0\n"
+	"\n662:	or		%1, %%ulo(%2), %1\n"
+	"	or		%0, %%lo(%2), %0\n"
+	"\n663:	sllx		%1, 32, %1\n"
+	"	or		%0, %1, %0\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%3), %1\n"
+	"	sethi		%%hi(%3), %0\n"
+	"	.word		662b\n"
+	"	or		%1, %%ulo(%3), %1\n"
+	"	or		%0, %%lo(%3), %0\n"
+	"	.word		663b\n"
+	"	sllx		%1, 32, %1\n"
+	"	or		%0, %1, %0\n"
+	"	.previous\n"
+	: "=r" (mask), "=r" (tmp)
+	: "i" (_PAGE_PADDR_4U | _PAGE_MODIFIED_4U | _PAGE_ACCESSED_4U |
+	       _PAGE_CP_4U | _PAGE_CV_4U | _PAGE_E_4U | _PAGE_PRESENT_4U |
+	       _PAGE_SZBITS_4U),
+	  "i" (_PAGE_PADDR_4V | _PAGE_MODIFIED_4V | _PAGE_ACCESSED_4V |
+	       _PAGE_CP_4V | _PAGE_CV_4V | _PAGE_E_4V | _PAGE_PRESENT_4V |
+	       _PAGE_SZBITS_4V));
+
+	return __pte((pte_val(pte) & mask) | (pgprot_val(prot) & ~mask));
+}
+
+static inline pte_t pgoff_to_pte(unsigned long off)
+{
+	off <<= PAGE_SHIFT;
+
+	__asm__ __volatile__(
+	"\n661:	or		%0, %2, %0\n"
+	"	.section	.sun4v_1insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	or		%0, %3, %0\n"
+	"	.previous\n"
+	: "=r" (off)
+	: "0" (off), "i" (_PAGE_FILE_4U), "i" (_PAGE_FILE_4V));
+
+	return __pte(off);
+}
+
+static inline pgprot_t pgprot_noncached(pgprot_t prot)
+{
+	unsigned long val = pgprot_val(prot);
+
+	__asm__ __volatile__(
+	"\n661:	andn		%0, %2, %0\n"
+	"	or		%0, %3, %0\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	andn		%0, %4, %0\n"
+	"	or		%0, %3, %0\n"
+	"	.previous\n"
+	: "=r" (val)
+	: "0" (val), "i" (_PAGE_CP_4U | _PAGE_CV_4U), "i" (_PAGE_E_4U),
+	             "i" (_PAGE_CP_4V | _PAGE_CV_4V), "i" (_PAGE_E_4V));
+
+	return __pgprot(val);
+}
+/* Various pieces of code check for platform support by ifdef testing
+ * on "pgprot_noncached".  That's broken and should be fixed, but for
+ * now...
+ */
+#define pgprot_noncached pgprot_noncached
+
+#ifdef CONFIG_HUGETLB_PAGE
+static inline pte_t pte_mkhuge(pte_t pte)
+{
+	unsigned long mask;
+
+	__asm__ __volatile__(
+	"\n661:	sethi		%%uhi(%1), %0\n"
+	"	sllx		%0, 32, %0\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	mov		%2, %0\n"
+	"	nop\n"
+	"	.previous\n"
+	: "=r" (mask)
+	: "i" (_PAGE_SZHUGE_4U), "i" (_PAGE_SZHUGE_4V));
+
+	return __pte(pte_val(pte) | mask);
+}
+#endif
+
+static inline pte_t pte_mkdirty(pte_t pte)
+{
+	unsigned long val = pte_val(pte), tmp;
+
+	__asm__ __volatile__(
+	"\n661:	or		%0, %3, %0\n"
+	"	nop\n"
+	"\n662:	nop\n"
+	"	nop\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%4), %1\n"
+	"	sllx		%1, 32, %1\n"
+	"	.word		662b\n"
+	"	or		%1, %%lo(%4), %1\n"
+	"	or		%0, %1, %0\n"
+	"	.previous\n"
+	: "=r" (val), "=r" (tmp)
+	: "0" (val), "i" (_PAGE_MODIFIED_4U | _PAGE_W_4U),
+	  "i" (_PAGE_MODIFIED_4V | _PAGE_W_4V));
+
+	return __pte(val);
+}
+
+static inline pte_t pte_mkclean(pte_t pte)
+{
+	unsigned long val = pte_val(pte), tmp;
+
+	__asm__ __volatile__(
+	"\n661:	andn		%0, %3, %0\n"
+	"	nop\n"
+	"\n662:	nop\n"
+	"	nop\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%4), %1\n"
+	"	sllx		%1, 32, %1\n"
+	"	.word		662b\n"
+	"	or		%1, %%lo(%4), %1\n"
+	"	andn		%0, %1, %0\n"
+	"	.previous\n"
+	: "=r" (val), "=r" (tmp)
+	: "0" (val), "i" (_PAGE_MODIFIED_4U | _PAGE_W_4U),
+	  "i" (_PAGE_MODIFIED_4V | _PAGE_W_4V));
+
+	return __pte(val);
+}
+
+static inline pte_t pte_mkwrite(pte_t pte)
+{
+	unsigned long val = pte_val(pte), mask;
+
+	__asm__ __volatile__(
+	"\n661:	mov		%1, %0\n"
+	"	nop\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%2), %0\n"
+	"	sllx		%0, 32, %0\n"
+	"	.previous\n"
+	: "=r" (mask)
+	: "i" (_PAGE_WRITE_4U), "i" (_PAGE_WRITE_4V));
+
+	return __pte(val | mask);
+}
+
+static inline pte_t pte_wrprotect(pte_t pte)
+{
+	unsigned long val = pte_val(pte), tmp;
+
+	__asm__ __volatile__(
+	"\n661:	andn		%0, %3, %0\n"
+	"	nop\n"
+	"\n662:	nop\n"
+	"	nop\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%4), %1\n"
+	"	sllx		%1, 32, %1\n"
+	"	.word		662b\n"
+	"	or		%1, %%lo(%4), %1\n"
+	"	andn		%0, %1, %0\n"
+	"	.previous\n"
+	: "=r" (val), "=r" (tmp)
+	: "0" (val), "i" (_PAGE_WRITE_4U | _PAGE_W_4U),
+	  "i" (_PAGE_WRITE_4V | _PAGE_W_4V));
+
+	return __pte(val);
+}
+
+static inline pte_t pte_mkold(pte_t pte)
+{
+	unsigned long mask;
+
+	__asm__ __volatile__(
+	"\n661:	mov		%1, %0\n"
+	"	nop\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%2), %0\n"
+	"	sllx		%0, 32, %0\n"
+	"	.previous\n"
+	: "=r" (mask)
+	: "i" (_PAGE_ACCESSED_4U), "i" (_PAGE_ACCESSED_4V));
+
+	mask |= _PAGE_R;
+
+	return __pte(pte_val(pte) & ~mask);
+}
+
+static inline pte_t pte_mkyoung(pte_t pte)
+{
+	unsigned long mask;
+
+	__asm__ __volatile__(
+	"\n661:	mov		%1, %0\n"
+	"	nop\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%2), %0\n"
+	"	sllx		%0, 32, %0\n"
+	"	.previous\n"
+	: "=r" (mask)
+	: "i" (_PAGE_ACCESSED_4U), "i" (_PAGE_ACCESSED_4V));
+
+	mask |= _PAGE_R;
+
+	return __pte(pte_val(pte) | mask);
+}
+
+static inline unsigned long pte_young(pte_t pte)
+{
+	unsigned long mask;
+
+	__asm__ __volatile__(
+	"\n661:	mov		%1, %0\n"
+	"	nop\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%2), %0\n"
+	"	sllx		%0, 32, %0\n"
+	"	.previous\n"
+	: "=r" (mask)
+	: "i" (_PAGE_ACCESSED_4U), "i" (_PAGE_ACCESSED_4V));
+
+	return (pte_val(pte) & mask);
+}
+
+static inline unsigned long pte_dirty(pte_t pte)
+{
+	unsigned long mask;
+
+	__asm__ __volatile__(
+	"\n661:	mov		%1, %0\n"
+	"	nop\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%2), %0\n"
+	"	sllx		%0, 32, %0\n"
+	"	.previous\n"
+	: "=r" (mask)
+	: "i" (_PAGE_MODIFIED_4U), "i" (_PAGE_MODIFIED_4V));
+
+	return (pte_val(pte) & mask);
+}
+
+static inline unsigned long pte_write(pte_t pte)
+{
+	unsigned long mask;
+
+	__asm__ __volatile__(
+	"\n661:	mov		%1, %0\n"
+	"	nop\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%2), %0\n"
+	"	sllx		%0, 32, %0\n"
+	"	.previous\n"
+	: "=r" (mask)
+	: "i" (_PAGE_WRITE_4U), "i" (_PAGE_WRITE_4V));
+
+	return (pte_val(pte) & mask);
+}
+
+static inline unsigned long pte_exec(pte_t pte)
+{
+	unsigned long mask;
+
+	__asm__ __volatile__(
+	"\n661:	sethi		%%hi(%1), %0\n"
+	"	.section	.sun4v_1insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	mov		%2, %0\n"
+	"	.previous\n"
+	: "=r" (mask)
+	: "i" (_PAGE_EXEC_4U), "i" (_PAGE_EXEC_4V));
+
+	return (pte_val(pte) & mask);
+}
+
+static inline unsigned long pte_read(pte_t pte)
+{
+	unsigned long mask;
+
+	__asm__ __volatile__(
+	"\n661:	mov		%1, %0\n"
+	"	nop\n"
+	"	.section	.sun4v_2insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	sethi		%%uhi(%2), %0\n"
+	"	sllx		%0, 32, %0\n"
+	"	.previous\n"
+	: "=r" (mask)
+	: "i" (_PAGE_READ_4U), "i" (_PAGE_READ_4V));
+
+	return (pte_val(pte) & mask);
+}
+
+static inline unsigned long pte_file(pte_t pte)
+{
+	unsigned long val = pte_val(pte);
+
+	__asm__ __volatile__(
+	"\n661:	and		%0, %2, %0\n"
+	"	.section	.sun4v_1insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	and		%0, %3, %0\n"
+	"	.previous\n"
+	: "=r" (val)
+	: "0" (val), "i" (_PAGE_FILE_4U), "i" (_PAGE_FILE_4V));
+
+	return val;
+}
+
+static inline unsigned long pte_present(pte_t pte)
+{
+	unsigned long val = pte_val(pte);
+
+	__asm__ __volatile__(
+	"\n661:	and		%0, %2, %0\n"
+	"	.section	.sun4v_1insn_patch, \"ax\"\n"
+	"	.word		661b\n"
+	"	and		%0, %3, %0\n"
+	"	.previous\n"
+	: "=r" (val)
+	: "0" (val), "i" (_PAGE_PRESENT_4U), "i" (_PAGE_PRESENT_4V));
+
+	return val;
+}
+
 #define pmd_set(pmdp, ptep)	\
 	(pmd_val(*(pmdp)) = (__pa((unsigned long) (ptep)) >> 11UL))
 #define pud_set(pudp, pmdp)	\
@@ -253,8 +633,6 @@ static inline pte_t pte_modify(pte_t orig_pte, pgprot_t new_prot)
 #define pmd_page(pmd) 			virt_to_page((void *)__pmd_page(pmd))
 #define pud_page(pud)		\
 	((unsigned long) __va((((unsigned long)pud_val(pud))<<11UL)))
-#define pte_none(pte) 			(!pte_val(pte))
-#define pte_present(pte)		(pte_val(pte) & _PAGE_PRESENT)
 #define pmd_none(pmd)			(!pmd_val(pmd))
 #define pmd_bad(pmd)			(0)
 #define pmd_present(pmd)		(pmd_val(pmd) != 0U)
@@ -264,30 +642,8 @@ static inline pte_t pte_modify(pte_t orig_pte, pgprot_t new_prot)
 #define pud_present(pud)		(pud_val(pud) != 0U)
 #define pud_clear(pudp)			(pud_val(*(pudp)) = 0U)
 
-/* The following only work if pte_present() is true.
- * Undefined behaviour if not..
- */
-#define pte_read(pte)		(pte_val(pte) & _PAGE_READ)
-#define pte_exec(pte)		(pte_val(pte) & _PAGE_EXEC)
-#define pte_write(pte)		(pte_val(pte) & _PAGE_WRITE)
-#define pte_dirty(pte)		(pte_val(pte) & _PAGE_MODIFIED)
-#define pte_young(pte)		(pte_val(pte) & _PAGE_ACCESSED)
-#define pte_wrprotect(pte)	(__pte(pte_val(pte) & ~(_PAGE_WRITE|_PAGE_W)))
-#define pte_rdprotect(pte)	\
-	(__pte(((pte_val(pte)<<1UL)>>1UL) & ~_PAGE_READ))
-#define pte_mkclean(pte)	\
-	(__pte(pte_val(pte) & ~(_PAGE_MODIFIED|_PAGE_W)))
-#define pte_mkold(pte)		\
-	(__pte(((pte_val(pte)<<1UL)>>1UL) & ~_PAGE_ACCESSED))
-
-/* Permanent address of a page. */
-#define __page_address(page)	page_address(page)
-
-/* Be very careful when you change these three, they are delicate. */
-#define pte_mkyoung(pte)	(__pte(pte_val(pte) | _PAGE_ACCESSED | _PAGE_R))
-#define pte_mkwrite(pte)	(__pte(pte_val(pte) | _PAGE_WRITE))
-#define pte_mkdirty(pte)	(__pte(pte_val(pte) | _PAGE_MODIFIED | _PAGE_W))
-#define pte_mkhuge(pte)		(__pte(pte_val(pte) | _PAGE_SZHUGE))
+/* Same in both SUN4V and SUN4U.  */
+#define pte_none(pte) 			(!pte_val(pte))
 
 /* to find an entry in a page-table-directory. */
 #define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
@@ -295,11 +651,6 @@ static inline pte_t pte_modify(pte_t orig_pte, pgprot_t new_prot)
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
-
-/* extract the pgd cache used for optimizing the tlb miss
- * slow path when executing 32-bit compat processes
- */
-#define get_pgd_cache(pgd)	((unsigned long) pgd_val(*pgd) << 11)
 
 /* Find an entry in the second-level page table.. */
 #define pmd_offset(pudp, address)	\
@@ -327,6 +678,9 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *p
 
 	/* It is more efficient to let flush_tlb_kernel_range()
 	 * handle init_mm tlb flushes.
+	 *
+	 * SUN4V NOTE: _PAGE_VALID is the same value in both the SUN4U
+	 *             and SUN4V pte layout, so this inline test is fine.
 	 */
 	if (likely(mm != &init_mm) && (pte_val(orig) & _PAGE_VALID))
 		tlb_batch_add(mm, addr, ptep, orig);
@@ -361,42 +715,23 @@ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
 /* File offset in PTE support. */
-#define pte_file(pte)		(pte_val(pte) & _PAGE_FILE)
+extern unsigned long pte_file(pte_t);
 #define pte_to_pgoff(pte)	(pte_val(pte) >> PAGE_SHIFT)
-#define pgoff_to_pte(off)	(__pte(((off) << PAGE_SHIFT) | _PAGE_FILE))
+extern pte_t pgoff_to_pte(unsigned long);
 #define PTE_FILE_MAX_BITS	(64UL - PAGE_SHIFT - 1UL)
 
 extern unsigned long prom_virt_to_phys(unsigned long, int *);
 
-static __inline__ unsigned long
-sun4u_get_pte (unsigned long addr)
-{
-	pgd_t *pgdp;
-	pud_t *pudp;
-	pmd_t *pmdp;
-	pte_t *ptep;
+extern unsigned long sun4u_get_pte(unsigned long);
 
-	if (addr >= PAGE_OFFSET)
-		return addr & _PAGE_PADDR;
-	if ((addr >= LOW_OBP_ADDRESS) && (addr < HI_OBP_ADDRESS))
-		return prom_virt_to_phys(addr, NULL);
-	pgdp = pgd_offset_k(addr);
-	pudp = pud_offset(pgdp, addr);
-	pmdp = pmd_offset(pudp, addr);
-	ptep = pte_offset_kernel(pmdp, addr);
-	return pte_val(*ptep) & _PAGE_PADDR;
+static inline unsigned long __get_phys(unsigned long addr)
+{
+	return sun4u_get_pte(addr);
 }
 
-static __inline__ unsigned long
-__get_phys (unsigned long addr)
+static inline int __get_iospace(unsigned long addr)
 {
-	return sun4u_get_pte (addr);
-}
-
-static __inline__ int
-__get_iospace (unsigned long addr)
-{
-	return ((sun4u_get_pte (addr) & 0xf0000000) >> 28);
+	return ((sun4u_get_pte(addr) & 0xf0000000) >> 28);
 }
 
 extern unsigned long *sparc64_valid_addr_bitmap;
@@ -409,11 +744,6 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 			       unsigned long pfn,
 			       unsigned long size, pgprot_t prot);
 
-/* Clear virtual and physical cachability, set side-effect bit.  */
-#define pgprot_noncached(prot) \
-	(__pgprot((pgprot_val(prot) & ~(_PAGE_CP | _PAGE_CV)) | \
-	 _PAGE_E))
-
 /*
  * For sparc32&64, the pfn in io_remap_pfn_range() carries <iospace> in
  * its high 4 bits.  These macros/functions put it there or get it from there.
@@ -424,8 +754,11 @@ extern int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 
 #include <asm-generic/pgtable.h>
 
-/* We provide our own get_unmapped_area to cope with VA holes for userland */
+/* We provide our own get_unmapped_area to cope with VA holes and
+ * SHM area cache aliasing for userland.
+ */
 #define HAVE_ARCH_UNMAPPED_AREA
+#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
 /* We provide a special get_unmapped_area for framebuffer mmaps to try and use
  * the largest alignment possible such that larget PTEs can be used.
@@ -435,12 +768,9 @@ extern unsigned long get_fb_unmapped_area(struct file *filp, unsigned long,
 					  unsigned long);
 #define HAVE_ARCH_FB_UNMAPPED_AREA
 
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()	do { } while (0)
-
-extern void check_pgt_cache(void);
+extern void pgtable_cache_init(void);
+extern void sun4v_register_fault_status(void);
+extern void sun4v_ktsb_register(void);
 
 #endif /* !(__ASSEMBLY__) */
 

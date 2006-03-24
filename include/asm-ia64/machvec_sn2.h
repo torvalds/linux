@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2003, 2006 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2002-2003,2006 Silicon Graphics, Inc.  All Rights Reserved.
  * 
  * This program is free software; you can redistribute it and/or modify it 
  * under the terms of version 2 of the GNU General Public License 
@@ -66,6 +66,7 @@ extern ia64_mv_dma_sync_single_for_device sn_dma_sync_single_for_device;
 extern ia64_mv_dma_sync_sg_for_device	sn_dma_sync_sg_for_device;
 extern ia64_mv_dma_mapping_error	sn_dma_mapping_error;
 extern ia64_mv_dma_supported		sn_dma_supported;
+extern ia64_mv_migrate_t		sn_migrate;
 
 /*
  * This stuff has dual use!
@@ -115,6 +116,7 @@ extern ia64_mv_dma_supported		sn_dma_supported;
 #define platform_dma_sync_sg_for_device	sn_dma_sync_sg_for_device
 #define platform_dma_mapping_error		sn_dma_mapping_error
 #define platform_dma_supported		sn_dma_supported
+#define platform_migrate		sn_migrate
 
 #include <asm/sn/io.h>
 

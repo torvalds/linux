@@ -6,8 +6,6 @@
 config IPV6
 	tristate "The IPv6 protocol"
 	default m
-	select CRYPTO if IPV6_PRIVACY
-	select CRYPTO_MD5 if IPV6_PRIVACY
 	---help---
 	  This is complemental support for the IP version 6.
 	  You will still be able to do traditional IPv4 networking as well.
@@ -22,7 +20,7 @@ config IPV6
 	  module will be called ipv6.
 
 config IPV6_PRIVACY
-	bool "IPv6: Privacy Extensions (RFC 3041) support"
+	bool "IPv6: Privacy Extensions support"
 	depends on IPV6
 	---help---
 	  Privacy Extensions for Stateless Address Autoconfiguration in IPv6
@@ -30,12 +28,34 @@ config IPV6_PRIVACY
 	  pseudo-random global-scope unicast address(es) will assigned to
 	  your interface(s).
 	
+	  We use our standard pseudo random algorithm to generate randomized
+	  interface identifier, instead of one described in RFC 3041.
+
 	  By default, kernel do not generate temporary addresses.
 	  To use temporary addresses, do
 	
 	        echo 2 >/proc/sys/net/ipv6/conf/all/use_tempaddr 
 
 	  See <file:Documentation/networking/ip-sysctl.txt> for details.
+
+config IPV6_ROUTER_PREF
+	bool "IPv6: Router Preference (RFC 4191) support"
+	depends on IPV6
+	---help---
+	  Router Preference is an optional extension to the Router
+	  Advertisement message to improve the ability of hosts
+	  to pick more appropriate router, especially when the hosts
+	  is placed in a multi-homed network.
+
+	  If unsure, say N.
+
+config IPV6_ROUTE_INFO
+	bool "IPv6: Route Information (RFC 4191) support (EXPERIMENTAL)"
+	depends on IPV6_ROUTER_PREF && EXPERIMENTAL
+	---help---
+	  This is experimental support of Route Information.
+
+	  If unsure, say N.
 
 config INET6_AH
 	tristate "IPv6: AH transformation"

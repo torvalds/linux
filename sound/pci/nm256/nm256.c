@@ -32,6 +32,8 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
+#include <linux/mutex.h>
+
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/control.h>
@@ -226,6 +228,7 @@ struct nm256 {
 	unsigned int use_cache: 1;	/* use one big coef. table */
 	unsigned int reset_workaround: 1; /* Workaround for some laptops to avoid freeze */
 	unsigned int reset_workaround_2: 1; /* Extended workaround for some other laptops to avoid freeze */
+	unsigned int in_resume: 1;
 
 	int mixer_base;			/* register offset of ac97 mixer */
 	int mixer_status_offset;	/* offset of mixer status reg. */
@@ -235,11 +238,12 @@ struct nm256 {
 	int irq_acks;
 	irqreturn_t (*interrupt)(int, void *, struct pt_regs *);
 	int badintrcount;		/* counter to check bogus interrupts */
-	struct semaphore irq_mutex;
+	struct mutex irq_mutex;
 
 	struct nm256_stream streams[2];
 
 	struct snd_ac97 *ac97;
+	unsigned short *ac97_regs; /* register caches, only for valid regs */
 
 	struct snd_pcm *pcm;
 
@@ -459,32 +463,32 @@ snd_nm256_set_format(struct nm256 *chip, struct nm256_stream *s,
 /* acquire interrupt */
 static int snd_nm256_acquire_irq(struct nm256 *chip)
 {
-	down(&chip->irq_mutex);
+	mutex_lock(&chip->irq_mutex);
 	if (chip->irq < 0) {
 		if (request_irq(chip->pci->irq, chip->interrupt, SA_INTERRUPT|SA_SHIRQ,
 				chip->card->driver, chip)) {
 			snd_printk(KERN_ERR "unable to grab IRQ %d\n", chip->pci->irq);
-			up(&chip->irq_mutex);
+			mutex_unlock(&chip->irq_mutex);
 			return -EBUSY;
 		}
 		chip->irq = chip->pci->irq;
 	}
 	chip->irq_acks++;
-	up(&chip->irq_mutex);
+	mutex_unlock(&chip->irq_mutex);
 	return 0;
 }
 
 /* release interrupt */
 static void snd_nm256_release_irq(struct nm256 *chip)
 {
-	down(&chip->irq_mutex);
+	mutex_lock(&chip->irq_mutex);
 	if (chip->irq_acks > 0)
 		chip->irq_acks--;
 	if (chip->irq_acks == 0 && chip->irq >= 0) {
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
 	}
-	up(&chip->irq_mutex);
+	mutex_unlock(&chip->irq_mutex);
 }
 
 /*
@@ -1151,23 +1155,63 @@ snd_nm256_ac97_ready(struct nm256 *chip)
 	return 0;
 }
 
+/* 
+ * Initial register values to be written to the AC97 mixer.
+ * While most of these are identical to the reset values, we do this
+ * so that we have most of the register contents cached--this avoids
+ * reading from the mixer directly (which seems to be problematic,
+ * probably due to ignorance).
+ */
+
+struct initialValues {
+	unsigned short reg;
+	unsigned short value;
+};
+
+static struct initialValues nm256_ac97_init_val[] =
+{
+	{ AC97_MASTER, 		0x8000 },
+	{ AC97_HEADPHONE,	0x8000 },
+	{ AC97_MASTER_MONO,	0x8000 },
+	{ AC97_PC_BEEP,		0x8000 },
+	{ AC97_PHONE,		0x8008 },
+	{ AC97_MIC,		0x8000 },
+	{ AC97_LINE,		0x8808 },
+	{ AC97_CD,		0x8808 },
+	{ AC97_VIDEO,		0x8808 },
+	{ AC97_AUX,		0x8808 },
+	{ AC97_PCM,		0x8808 },
+	{ AC97_REC_SEL,		0x0000 },
+	{ AC97_REC_GAIN,	0x0B0B },
+	{ AC97_GENERAL_PURPOSE,	0x0000 },
+	{ AC97_3D_CONTROL,	0x8000 }, 
+	{ AC97_VENDOR_ID1, 	0x8384 },
+	{ AC97_VENDOR_ID2,	0x7609 },
+};
+
+static int nm256_ac97_idx(unsigned short reg)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(nm256_ac97_init_val); i++)
+		if (nm256_ac97_init_val[i].reg == reg)
+			return i;
+	return -1;
+}
+
 /*
+ * some nm256 easily crash when reading from mixer registers
+ * thus we're treating it as a write-only mixer and cache the
+ * written values
  */
 static unsigned short
 snd_nm256_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	struct nm256 *chip = ac97->private_data;
-	int res;
+	int idx = nm256_ac97_idx(reg);
 
-	if (reg >= 128)
+	if (idx < 0)
 		return 0;
-
-	if (! snd_nm256_ac97_ready(chip))
-		return 0;
-	res = snd_nm256_readw(chip, chip->mixer_base + reg);
-	/* Magic delay.  Bleah yucky.  */
-	msleep(1);
-	return res;
+	return chip->ac97_regs[idx];
 }
 
 /* 
@@ -1178,7 +1222,11 @@ snd_nm256_ac97_write(struct snd_ac97 *ac97,
 {
 	struct nm256 *chip = ac97->private_data;
 	int tries = 2;
+	int idx = nm256_ac97_idx(reg);
 	u32 base;
+
+	if (idx < 0)
+		return;
 
 	base = chip->mixer_base;
 
@@ -1188,11 +1236,31 @@ snd_nm256_ac97_write(struct snd_ac97 *ac97,
 	while (tries-- > 0) {
 		snd_nm256_writew(chip, base + reg, val);
 		msleep(1);  /* a little delay here seems better.. */
-		if (snd_nm256_ac97_ready(chip))
+		if (snd_nm256_ac97_ready(chip)) {
+			/* successful write: set cache */
+			chip->ac97_regs[idx] = val;
 			return;
+		}
 	}
 	snd_printd("nm256: ac97 codec not ready..\n");
 }
+
+/* static resolution table */
+static struct snd_ac97_res_table nm256_res_table[] = {
+	{ AC97_MASTER, 0x1f1f },
+	{ AC97_HEADPHONE, 0x1f1f },
+	{ AC97_MASTER_MONO, 0x001f },
+	{ AC97_PC_BEEP, 0x001f },
+	{ AC97_PHONE, 0x001f },
+	{ AC97_MIC, 0x001f },
+	{ AC97_LINE, 0x1f1f },
+	{ AC97_CD, 0x1f1f },
+	{ AC97_VIDEO, 0x1f1f },
+	{ AC97_AUX, 0x1f1f },
+	{ AC97_PCM, 0x1f1f },
+	{ AC97_REC_GAIN, 0x0f0f },
+	{ } /* terminator */
+};
 
 /* initialize the ac97 into a known state */
 static void
@@ -1211,6 +1279,16 @@ snd_nm256_ac97_reset(struct snd_ac97 *ac97)
 		snd_nm256_writeb(chip, 0x6cc, 0x80);
 		snd_nm256_writeb(chip, 0x6cc, 0x0);
 	}
+	if (! chip->in_resume) {
+		int i;
+		for (i = 0; i < ARRAY_SIZE(nm256_ac97_init_val); i++) {
+			/* preload the cache, so as to avoid even a single
+			 * read of the mixer regs
+			 */
+			snd_nm256_ac97_write(ac97, nm256_ac97_init_val[i].reg,
+					     nm256_ac97_init_val[i].value);
+		}
+	}
 }
 
 /* create an ac97 mixer interface */
@@ -1219,32 +1297,25 @@ snd_nm256_mixer(struct nm256 *chip)
 {
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
-	int i, err;
+	int err;
 	static struct snd_ac97_bus_ops ops = {
 		.reset = snd_nm256_ac97_reset,
 		.write = snd_nm256_ac97_write,
 		.read = snd_nm256_ac97_read,
 	};
-	/* looks like nm256 hangs up when unexpected registers are touched... */
-	static int mixer_regs[] = {
-		AC97_MASTER, AC97_HEADPHONE, AC97_MASTER_MONO,
-		AC97_PC_BEEP, AC97_PHONE, AC97_MIC, AC97_LINE, AC97_CD,
-		AC97_VIDEO, AC97_AUX, AC97_PCM, AC97_REC_SEL,
-		AC97_REC_GAIN, AC97_GENERAL_PURPOSE, AC97_3D_CONTROL,
-		/*AC97_EXTENDED_ID,*/
-		AC97_VENDOR_ID1, AC97_VENDOR_ID2,
-		-1
-	};
+
+	chip->ac97_regs = kcalloc(sizeof(short),
+				  ARRAY_SIZE(nm256_ac97_init_val), GFP_KERNEL);
+	if (! chip->ac97_regs)
+		return -ENOMEM;
 
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, NULL, &pbus)) < 0)
 		return err;
 
 	memset(&ac97, 0, sizeof(ac97));
 	ac97.scaps = AC97_SCAP_AUDIO; /* we support audio! */
-	ac97.limited_regs = 1;
-	for (i = 0; mixer_regs[i] >= 0; i++)
-		set_bit(mixer_regs[i], ac97.reg_accessed);
 	ac97.private_data = chip;
+	ac97.res_table = nm256_res_table;
 	pbus->no_vra = 1;
 	err = snd_ac97_mixer(pbus, &ac97, &chip->ac97);
 	if (err < 0)
@@ -1329,6 +1400,7 @@ static int nm256_resume(struct pci_dev *pci)
 	int i;
 
 	/* Perform a full reset on the hardware */
+	chip->in_resume = 1;
 	pci_restore_state(pci);
 	pci_enable_device(pci);
 	snd_nm256_init_chip(chip);
@@ -1346,6 +1418,7 @@ static int nm256_resume(struct pci_dev *pci)
 	}
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	chip->in_resume = 0;
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -1370,6 +1443,7 @@ static int snd_nm256_free(struct nm256 *chip)
 		free_irq(chip->irq, chip);
 
 	pci_disable_device(chip->pci);
+	kfree(chip->ac97_regs);
 	kfree(chip);
 	return 0;
 }
@@ -1407,7 +1481,7 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 	chip->use_cache = use_cache;
 	spin_lock_init(&chip->reg_lock);
 	chip->irq = -1;
-	init_MUTEX(&chip->irq_mutex);
+	mutex_init(&chip->irq_mutex);
 
 	/* store buffer sizes in bytes */
 	chip->streams[SNDRV_PCM_STREAM_PLAYBACK].bufsize = playback_bufsize * 1024;

@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/bitops.h>
 
 #include <asm/addrspace.h>
 #include <asm/bcache.h>
@@ -43,14 +44,7 @@ static void rm7k_sc_wback_inv(unsigned long addr, unsigned long size)
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
-	a = addr & ~(sc_lsize - 1);
-	end = (addr + size - 1) & ~(sc_lsize - 1);
-	while (1) {
-		flush_scache_line(a);	/* Hit_Writeback_Inv_SD */
-		if (a == end)
-			break;
-		a += sc_lsize;
-	}
+	blast_scache_range(addr, addr + size);
 
 	if (!rm7k_tcache_enabled)
 		return;
@@ -74,14 +68,7 @@ static void rm7k_sc_inv(unsigned long addr, unsigned long size)
 	/* Catch bad driver code */
 	BUG_ON(size == 0);
 
-	a = addr & ~(sc_lsize - 1);
-	end = (addr + size - 1) & ~(sc_lsize - 1);
-	while (1) {
-		invalidate_scache_line(a);	/* Hit_Invalidate_SD */
-		if (a == end)
-			break;
-		a += sc_lsize;
-	}
+	blast_inv_scache_range(addr, addr + size);
 
 	if (!rm7k_tcache_enabled)
 		return;
@@ -143,11 +130,17 @@ struct bcache_ops rm7k_sc_ops = {
 
 void __init rm7k_sc_init(void)
 {
+	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int config = read_c0_config();
 
 	if ((config & RM7K_CONF_SC))
 		return;
 
+	c->scache.linesz = sc_lsize;
+	c->scache.ways = 4;
+	c->scache.waybit= ffs(scache_size / c->scache.ways) - 1;
+	c->scache.waysize = scache_size / c->scache.ways;
+	c->scache.sets = scache_size / (c->scache.linesz * c->scache.ways);
 	printk(KERN_INFO "Secondary cache size %dK, linesize %d bytes.\n",
 	       (scache_size >> 10), sc_lsize);
 

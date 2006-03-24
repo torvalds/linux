@@ -30,6 +30,8 @@
 #include <asm/io.h>
 #include <linux/sched.h>
 #include <linux/videodev.h>
+#include <linux/mutex.h>
+
 #include <asm/uaccess.h>
 
 
@@ -44,7 +46,7 @@ struct pms_device
 	struct video_picture picture;
 	int height;
 	int width;
-	struct semaphore lock;
+	struct mutex lock;
 };
 
 struct i2c_info
@@ -724,10 +726,10 @@ static int pms_do_ioctl(struct inode *inode, struct file *file,
 			struct video_channel *v = arg;
 			if(v->channel<0 || v->channel>3)
 				return -EINVAL;
-			down(&pd->lock);
+			mutex_lock(&pd->lock);
 			pms_videosource(v->channel&1);
 			pms_vcrinput(v->channel>>1);
-			up(&pd->lock);
+			mutex_unlock(&pd->lock);
 			return 0;
 		}
 		case VIDIOCGTUNER:
@@ -761,7 +763,7 @@ static int pms_do_ioctl(struct inode *inode, struct file *file,
 			struct video_tuner *v = arg;
 			if(v->tuner)
 				return -EINVAL;
-			down(&pd->lock);
+			mutex_lock(&pd->lock);
 			switch(v->mode)
 			{
 				case VIDEO_MODE_AUTO:
@@ -785,10 +787,10 @@ static int pms_do_ioctl(struct inode *inode, struct file *file,
 					pms_format(2);
 					break;
 				default:
-					up(&pd->lock);
+					mutex_unlock(&pd->lock);
 					return -EINVAL;
 			}
-			up(&pd->lock);
+			mutex_unlock(&pd->lock);
 			return 0;
 		}
 		case VIDIOCGPICT:
@@ -809,12 +811,12 @@ static int pms_do_ioctl(struct inode *inode, struct file *file,
 			 *	Now load the card.
 			 */
 
-			down(&pd->lock);
+			mutex_lock(&pd->lock);
 			pms_brightness(p->brightness>>8);
 			pms_hue(p->hue>>8);
 			pms_colour(p->colour>>8);
 			pms_contrast(p->contrast>>8);	
-			up(&pd->lock);
+			mutex_unlock(&pd->lock);
 			return 0;
 		}
 		case VIDIOCSWIN:
@@ -830,9 +832,9 @@ static int pms_do_ioctl(struct inode *inode, struct file *file,
 				return -EINVAL;
 			pd->width=vw->width;
 			pd->height=vw->height;
-			down(&pd->lock);
+			mutex_lock(&pd->lock);
 			pms_resolution(pd->width, pd->height);
-			up(&pd->lock);			/* Ok we figured out what to use from our wide choice */
+			mutex_unlock(&pd->lock);			/* Ok we figured out what to use from our wide choice */
 			return 0;
 		}
 		case VIDIOCGWIN:
@@ -872,9 +874,9 @@ static ssize_t pms_read(struct file *file, char __user *buf,
 	struct pms_device *pd=(struct pms_device *)v;
 	int len;
 	
-	down(&pd->lock);
+	mutex_lock(&pd->lock);
 	len=pms_capture(pd, buf, (pd->picture.depth==16)?0:1,count);
-	up(&pd->lock);
+	mutex_unlock(&pd->lock);
 	return len;
 }
 
@@ -1029,7 +1031,7 @@ static int __init init_pms_cards(void)
 		return -ENODEV;
 	}
 	memcpy(&pms_device, &pms_template, sizeof(pms_template));
-	init_MUTEX(&pms_device.lock);
+	mutex_init(&pms_device.lock);
 	pms_device.height=240;
 	pms_device.width=320;
 	pms_swsense(75);

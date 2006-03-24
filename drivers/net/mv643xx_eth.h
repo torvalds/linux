@@ -5,45 +5,9 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/mii.h>
 
 #include <linux/mv643xx.h>
-
-#define	BIT0	0x00000001
-#define	BIT1	0x00000002
-#define	BIT2	0x00000004
-#define	BIT3	0x00000008
-#define	BIT4	0x00000010
-#define	BIT5	0x00000020
-#define	BIT6	0x00000040
-#define	BIT7	0x00000080
-#define	BIT8	0x00000100
-#define	BIT9	0x00000200
-#define	BIT10	0x00000400
-#define	BIT11	0x00000800
-#define	BIT12	0x00001000
-#define	BIT13	0x00002000
-#define	BIT14	0x00004000
-#define	BIT15	0x00008000
-#define	BIT16	0x00010000
-#define	BIT17	0x00020000
-#define	BIT18	0x00040000
-#define	BIT19	0x00080000
-#define	BIT20	0x00100000
-#define	BIT21	0x00200000
-#define	BIT22	0x00400000
-#define	BIT23	0x00800000
-#define	BIT24	0x01000000
-#define	BIT25	0x02000000
-#define	BIT26	0x04000000
-#define	BIT27	0x08000000
-#define	BIT28	0x10000000
-#define	BIT29	0x20000000
-#define	BIT30	0x40000000
-#define	BIT31	0x80000000
-
-/*
- *  The first part is the high level driver of the gigE ethernet ports.
- */
 
 /* Checksum offload for Tx works for most packets, but
  * fails if previous packet sent did not use hw csum
@@ -51,7 +15,6 @@
 #define	MV643XX_CHECKSUM_OFFLOAD_TX
 #define	MV643XX_NAPI
 #define	MV643XX_TX_FAST_REFILL
-#undef	MV643XX_RX_QUEUE_FILL_ON_TASK	/* Does not work, yet */
 #undef	MV643XX_COAL
 
 /*
@@ -73,25 +36,50 @@
 #define MV643XX_RX_COAL 100
 #endif
 
-/*
- * The second part is the low level driver of the gigE ethernet ports.
- */
+#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
+#define MAX_DESCS_PER_SKB	(MAX_SKB_FRAGS + 1)
+#else
+#define MAX_DESCS_PER_SKB	1
+#endif
 
 /*
- * Header File for : MV-643xx network interface header
- *
- * DESCRIPTION:
- *	This header file contains macros typedefs and function declaration for
- *	the Marvell Gig Bit Ethernet Controller.
- *
- * DEPENDENCIES:
- *	None.
- *
+ * The MV643XX HW requires 8-byte alignment.  However, when I/O
+ * is non-cache-coherent, we need to ensure that the I/O buffers
+ * we use don't share cache lines with other data.
  */
+#if defined(CONFIG_DMA_NONCOHERENT) || defined(CONFIG_NOT_COHERENT_CACHE)
+#define ETH_DMA_ALIGN		L1_CACHE_BYTES
+#else
+#define ETH_DMA_ALIGN		8
+#endif
 
-/* MAC accepet/reject macros */
-#define ACCEPT_MAC_ADDR				0
-#define REJECT_MAC_ADDR				1
+#define ETH_VLAN_HLEN		4
+#define ETH_FCS_LEN		4
+#define ETH_HW_IP_ALIGN		2		/* hw aligns IP header */
+#define ETH_WRAPPER_LEN		(ETH_HW_IP_ALIGN + ETH_HLEN + \
+					ETH_VLAN_HLEN + ETH_FCS_LEN)
+#define ETH_RX_SKB_SIZE		(dev->mtu + ETH_WRAPPER_LEN + ETH_DMA_ALIGN)
+
+#define ETH_RX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for receive */
+#define ETH_TX_QUEUES_ENABLED	(1 << 0)	/* use only Q0 for transmit */
+
+#define ETH_INT_CAUSE_RX_DONE	(ETH_RX_QUEUES_ENABLED << 2)
+#define ETH_INT_CAUSE_RX_ERROR	(ETH_RX_QUEUES_ENABLED << 9)
+#define ETH_INT_CAUSE_RX	(ETH_INT_CAUSE_RX_DONE | ETH_INT_CAUSE_RX_ERROR)
+#define ETH_INT_CAUSE_EXT	0x00000002
+#define ETH_INT_UNMASK_ALL	(ETH_INT_CAUSE_RX | ETH_INT_CAUSE_EXT)
+
+#define ETH_INT_CAUSE_TX_DONE	(ETH_TX_QUEUES_ENABLED << 0)
+#define ETH_INT_CAUSE_TX_ERROR	(ETH_TX_QUEUES_ENABLED << 8)
+#define ETH_INT_CAUSE_TX	(ETH_INT_CAUSE_TX_DONE | ETH_INT_CAUSE_TX_ERROR)
+#define ETH_INT_CAUSE_PHY	0x00010000
+#define ETH_INT_UNMASK_ALL_EXT	(ETH_INT_CAUSE_TX | ETH_INT_CAUSE_PHY)
+
+#define ETH_INT_MASK_ALL	0x00000000
+#define ETH_INT_MASK_ALL_EXT	0x00000000
+
+#define PHY_WAIT_ITERATIONS	1000	/* 1000 iterations * 10uS = 10mS max */
+#define PHY_WAIT_MICRO_SECONDS	10
 
 /* Buffer offset from buffer pointer */
 #define RX_BUF_OFFSET				0x2
@@ -133,88 +121,71 @@
 #define ETH_MIB_LATE_COLLISION			0x7c
 
 /* Port serial status reg (PSR) */
-#define ETH_INTERFACE_GMII_MII			0
-#define ETH_INTERFACE_PCM			BIT0
-#define ETH_LINK_IS_DOWN			0
-#define ETH_LINK_IS_UP				BIT1
-#define ETH_PORT_AT_HALF_DUPLEX			0
-#define ETH_PORT_AT_FULL_DUPLEX			BIT2
-#define ETH_RX_FLOW_CTRL_DISABLED		0
-#define ETH_RX_FLOW_CTRL_ENBALED		BIT3
-#define ETH_GMII_SPEED_100_10			0
-#define ETH_GMII_SPEED_1000			BIT4
-#define ETH_MII_SPEED_10			0
-#define ETH_MII_SPEED_100			BIT5
-#define ETH_NO_TX				0
-#define ETH_TX_IN_PROGRESS			BIT7
-#define ETH_BYPASS_NO_ACTIVE			0
-#define ETH_BYPASS_ACTIVE			BIT8
-#define ETH_PORT_NOT_AT_PARTITION_STATE		0
-#define ETH_PORT_AT_PARTITION_STATE		BIT9
-#define ETH_PORT_TX_FIFO_NOT_EMPTY		0
-#define ETH_PORT_TX_FIFO_EMPTY			BIT10
-
-#define ETH_DEFAULT_RX_BPDU_QUEUE_3		(BIT23 | BIT22)
-#define ETH_DEFAULT_RX_BPDU_QUEUE_4		BIT24
-#define ETH_DEFAULT_RX_BPDU_QUEUE_5		(BIT24 | BIT22)
-#define ETH_DEFAULT_RX_BPDU_QUEUE_6		(BIT24 | BIT23)
-#define ETH_DEFAULT_RX_BPDU_QUEUE_7		(BIT24 | BIT23 | BIT22)
+#define ETH_INTERFACE_PCM			0x00000001
+#define ETH_LINK_IS_UP				0x00000002
+#define ETH_PORT_AT_FULL_DUPLEX			0x00000004
+#define ETH_RX_FLOW_CTRL_ENABLED		0x00000008
+#define ETH_GMII_SPEED_1000			0x00000010
+#define ETH_MII_SPEED_100			0x00000020
+#define ETH_TX_IN_PROGRESS			0x00000080
+#define ETH_BYPASS_ACTIVE			0x00000100
+#define ETH_PORT_AT_PARTITION_STATE		0x00000200
+#define ETH_PORT_TX_FIFO_EMPTY			0x00000400
 
 /* SMI reg */
-#define ETH_SMI_BUSY		BIT28	/* 0 - Write, 1 - Read		*/
-#define ETH_SMI_READ_VALID	BIT27	/* 0 - Write, 1 - Read		*/
-#define ETH_SMI_OPCODE_WRITE	0	/* Completion of Read operation */
-#define ETH_SMI_OPCODE_READ 	BIT26	/* Operation is in progress	*/
+#define ETH_SMI_BUSY		0x10000000	/* 0 - Write, 1 - Read	*/
+#define ETH_SMI_READ_VALID	0x08000000	/* 0 - Write, 1 - Read	*/
+#define ETH_SMI_OPCODE_WRITE	0		/* Completion of Read	*/
+#define ETH_SMI_OPCODE_READ 	0x04000000	/* Operation is in progress */
+
+/* Interrupt Cause Register Bit Definitions */
 
 /* SDMA command status fields macros */
 
 /* Tx & Rx descriptors status */
-#define ETH_ERROR_SUMMARY			(BIT0)
+#define ETH_ERROR_SUMMARY			0x00000001
 
 /* Tx & Rx descriptors command */
-#define ETH_BUFFER_OWNED_BY_DMA			(BIT31)
+#define ETH_BUFFER_OWNED_BY_DMA			0x80000000
 
 /* Tx descriptors status */
-#define ETH_LC_ERROR				(0    )
-#define ETH_UR_ERROR				(BIT1 )
-#define ETH_RL_ERROR				(BIT2 )
-#define ETH_LLC_SNAP_FORMAT			(BIT9 )
+#define ETH_LC_ERROR				0
+#define ETH_UR_ERROR				0x00000002
+#define ETH_RL_ERROR				0x00000004
+#define ETH_LLC_SNAP_FORMAT			0x00000200
 
 /* Rx descriptors status */
-#define ETH_CRC_ERROR				(0    )
-#define ETH_OVERRUN_ERROR			(BIT1 )
-#define ETH_MAX_FRAME_LENGTH_ERROR		(BIT2 )
-#define ETH_RESOURCE_ERROR			((BIT2 | BIT1))
-#define ETH_VLAN_TAGGED				(BIT19)
-#define ETH_BPDU_FRAME				(BIT20)
-#define ETH_TCP_FRAME_OVER_IP_V_4		(0    )
-#define ETH_UDP_FRAME_OVER_IP_V_4		(BIT21)
-#define ETH_OTHER_FRAME_TYPE			(BIT22)
-#define ETH_LAYER_2_IS_ETH_V_2			(BIT23)
-#define ETH_FRAME_TYPE_IP_V_4			(BIT24)
-#define ETH_FRAME_HEADER_OK			(BIT25)
-#define ETH_RX_LAST_DESC			(BIT26)
-#define ETH_RX_FIRST_DESC			(BIT27)
-#define ETH_UNKNOWN_DESTINATION_ADDR		(BIT28)
-#define ETH_RX_ENABLE_INTERRUPT			(BIT29)
-#define ETH_LAYER_4_CHECKSUM_OK			(BIT30)
+#define ETH_OVERRUN_ERROR			0x00000002
+#define ETH_MAX_FRAME_LENGTH_ERROR		0x00000004
+#define ETH_RESOURCE_ERROR			0x00000006
+#define ETH_VLAN_TAGGED				0x00080000
+#define ETH_BPDU_FRAME				0x00100000
+#define ETH_UDP_FRAME_OVER_IP_V_4		0x00200000
+#define ETH_OTHER_FRAME_TYPE			0x00400000
+#define ETH_LAYER_2_IS_ETH_V_2			0x00800000
+#define ETH_FRAME_TYPE_IP_V_4			0x01000000
+#define ETH_FRAME_HEADER_OK			0x02000000
+#define ETH_RX_LAST_DESC			0x04000000
+#define ETH_RX_FIRST_DESC			0x08000000
+#define ETH_UNKNOWN_DESTINATION_ADDR		0x10000000
+#define ETH_RX_ENABLE_INTERRUPT			0x20000000
+#define ETH_LAYER_4_CHECKSUM_OK			0x40000000
 
 /* Rx descriptors byte count */
-#define ETH_FRAME_FRAGMENTED			(BIT2)
+#define ETH_FRAME_FRAGMENTED			0x00000004
 
 /* Tx descriptors command */
-#define ETH_LAYER_4_CHECKSUM_FIRST_DESC		(BIT10)
-#define ETH_FRAME_SET_TO_VLAN			(BIT15)
-#define ETH_TCP_FRAME				(0    )
-#define ETH_UDP_FRAME				(BIT16)
-#define ETH_GEN_TCP_UDP_CHECKSUM		(BIT17)
-#define ETH_GEN_IP_V_4_CHECKSUM			(BIT18)
-#define ETH_ZERO_PADDING			(BIT19)
-#define ETH_TX_LAST_DESC			(BIT20)
-#define ETH_TX_FIRST_DESC			(BIT21)
-#define ETH_GEN_CRC				(BIT22)
-#define ETH_TX_ENABLE_INTERRUPT			(BIT23)
-#define ETH_AUTO_MODE				(BIT30)
+#define ETH_LAYER_4_CHECKSUM_FIRST_DESC		0x00000400
+#define ETH_FRAME_SET_TO_VLAN			0x00008000
+#define ETH_UDP_FRAME				0x00010000
+#define ETH_GEN_TCP_UDP_CHECKSUM		0x00020000
+#define ETH_GEN_IP_V_4_CHECKSUM			0x00040000
+#define ETH_ZERO_PADDING			0x00080000
+#define ETH_TX_LAST_DESC			0x00100000
+#define ETH_TX_FIRST_DESC			0x00200000
+#define ETH_GEN_CRC				0x00400000
+#define ETH_TX_ENABLE_INTERRUPT			0x00800000
+#define ETH_AUTO_MODE				0x40000000
 
 #define ETH_TX_IHL_SHIFT			11
 
@@ -324,13 +295,6 @@ struct mv643xx_mib_counters {
 
 struct mv643xx_private {
 	int port_num;			/* User Ethernet port number	*/
-	u8 port_mac_addr[6];		/* User defined port MAC address.*/
-	u32 port_config;		/* User port configuration value*/
-	u32 port_config_extend;		/* User port config extend value*/
-	u32 port_sdma_config;		/* User port SDMA config value	*/
-	u32 port_serial_control;	/* User port serial control value */
-	u32 port_tx_queue_command;	/* Port active Tx queues summary*/
-	u32 port_rx_queue_command;	/* Port active Rx queues summary*/
 
 	u32 rx_sram_addr;		/* Base address of rx sram area */
 	u32 rx_sram_size;		/* Size of rx sram area		*/
@@ -338,7 +302,6 @@ struct mv643xx_private {
 	u32 tx_sram_size;		/* Size of tx sram area		*/
 
 	int rx_resource_err;		/* Rx ring resource error flag */
-	int tx_resource_err;		/* Tx ring resource error flag */
 
 	/* Tx/Rx rings managment indexes fields. For driver use */
 
@@ -347,10 +310,6 @@ struct mv643xx_private {
 
 	/* Next available and first returning Tx resource */
 	int tx_curr_desc_q, tx_used_desc_q;
-#ifdef MV643XX_CHECKSUM_OFFLOAD_TX
-	int tx_first_desc_q;
-	u32 tx_first_command;
-#endif
 
 #ifdef MV643XX_TX_FAST_REFILL
 	u32 tx_clean_threshold;
@@ -358,54 +317,43 @@ struct mv643xx_private {
 
 	struct eth_rx_desc *p_rx_desc_area;
 	dma_addr_t rx_desc_dma;
-	unsigned int rx_desc_area_size;
+	int rx_desc_area_size;
 	struct sk_buff **rx_skb;
 
 	struct eth_tx_desc *p_tx_desc_area;
 	dma_addr_t tx_desc_dma;
-	unsigned int tx_desc_area_size;
+	int tx_desc_area_size;
 	struct sk_buff **tx_skb;
 
 	struct work_struct tx_timeout_task;
 
-	/*
-	 * Former struct mv643xx_eth_priv members start here
-	 */
 	struct net_device_stats stats;
 	struct mv643xx_mib_counters mib_counters;
 	spinlock_t lock;
 	/* Size of Tx Ring per queue */
-	unsigned int tx_ring_size;
-	/* Ammont of SKBs outstanding on Tx queue */
-	unsigned int tx_ring_skbs;
+	int tx_ring_size;
+	/* Number of tx descriptors in use */
+	int tx_desc_count;
 	/* Size of Rx Ring per queue */
-	unsigned int rx_ring_size;
-	/* Ammount of SKBs allocated to Rx Ring per queue */
-	unsigned int rx_ring_skbs;
-
-	/*
-	 * rx_task used to fill RX ring out of bottom half context
-	 */
-	struct work_struct rx_task;
+	int rx_ring_size;
+	/* Number of rx descriptors in use */
+	int rx_desc_count;
 
 	/*
 	 * Used in case RX Ring is empty, which can be caused when
 	 * system does not have resources (skb's)
 	 */
 	struct timer_list timeout;
-	long rx_task_busy __attribute__ ((aligned(SMP_CACHE_BYTES)));
-	unsigned rx_timer_flag;
 
 	u32 rx_int_coal;
 	u32 tx_int_coal;
+	struct mii_if_info mii;
 };
-
-/* ethernet.h API list */
 
 /* Port operation control routines */
 static void eth_port_init(struct mv643xx_private *mp);
 static void eth_port_reset(unsigned int eth_port_num);
-static void eth_port_start(struct mv643xx_private *mp);
+static void eth_port_start(struct net_device *dev);
 
 /* Port MAC address routines */
 static void eth_port_uc_addr_set(unsigned int eth_port_num,
@@ -423,10 +371,6 @@ static void eth_port_read_smi_reg(unsigned int eth_port_num,
 static void eth_clear_mib_counters(unsigned int eth_port_num);
 
 /* Port data flow control routines */
-static ETH_FUNC_RET_STATUS eth_port_send(struct mv643xx_private *mp,
-					 struct pkt_info *p_pkt_info);
-static ETH_FUNC_RET_STATUS eth_tx_return_desc(struct mv643xx_private *mp,
-					      struct pkt_info *p_pkt_info);
 static ETH_FUNC_RET_STATUS eth_port_receive(struct mv643xx_private *mp,
 					    struct pkt_info *p_pkt_info);
 static ETH_FUNC_RET_STATUS eth_rx_return_buff(struct mv643xx_private *mp,

@@ -434,7 +434,7 @@ static int
 iop3xx_i2c_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	int ret;
+	int ret, irq;
 	struct i2c_adapter *new_adapter;
 	struct i2c_algo_iop3xx_data *adapter_data;
 
@@ -470,7 +470,12 @@ iop3xx_i2c_probe(struct platform_device *pdev)
 		goto release_region;
 	}
 
-	ret = request_irq(platform_get_irq(pdev, 0), iop3xx_i2c_irq_handler, 0,
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = -ENXIO;
+		goto unmap;
+	}
+	ret = request_irq(irq, iop3xx_i2c_irq_handler, 0,
 				pdev->name, adapter_data);
 
 	if (ret) {

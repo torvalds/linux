@@ -37,7 +37,7 @@ struct dn_fib_nh {
 	int			nh_weight;
 	int			nh_power;
 	int			nh_oif;
-	u32			nh_gw;
+	__le16			nh_gw;
 };
 
 struct dn_fib_info {
@@ -48,7 +48,7 @@ struct dn_fib_info {
 	int			fib_dead;
 	unsigned		fib_flags;
 	int			fib_protocol;
-	dn_address		fib_prefsrc;
+	__le16			fib_prefsrc;
 	__u32			fib_priority;
 	__u32			fib_metrics[RTAX_MAX];
 #define dn_fib_mtu  fib_metrics[RTAX_MTU-1]
@@ -71,15 +71,15 @@ struct dn_fib_info {
 #define DN_FIB_RES_OIF(res)	(DN_FIB_RES_NH(res).nh_oif)
 
 typedef struct {
-	u16	datum;
+	__le16	datum;
 } dn_fib_key_t;
 
 typedef struct {
-	u16	datum;
+	__le16	datum;
 } dn_fib_hash_t;
 
 typedef struct {
-	u16	datum;
+	__u16	datum;
 } dn_fib_idx_t;
 
 struct dn_fib_node {
@@ -126,11 +126,11 @@ extern int dn_fib_semantic_match(int type, struct dn_fib_info *fi,
 			const struct flowi *fl,
 			struct dn_fib_res *res);
 extern void dn_fib_release_info(struct dn_fib_info *fi);
-extern u16 dn_fib_get_attr16(struct rtattr *attr, int attrlen, int type);
+extern __le16 dn_fib_get_attr16(struct rtattr *attr, int attrlen, int type);
 extern void dn_fib_flush(void);
 extern void dn_fib_select_multipath(const struct flowi *fl,
 					struct dn_fib_res *res);
-extern int dn_fib_sync_down(dn_address local, struct net_device *dev, 
+extern int dn_fib_sync_down(__le16 local, struct net_device *dev,
 				int force);
 extern int dn_fib_sync_up(struct net_device *dev);
 
@@ -148,8 +148,8 @@ extern void dn_fib_table_cleanup(void);
 extern void dn_fib_rules_init(void);
 extern void dn_fib_rules_cleanup(void);
 extern void dn_fib_rule_put(struct dn_fib_rule *);
-extern __u16 dn_fib_rules_policy(__u16 saddr, struct dn_fib_res *res, unsigned *flags);
-extern unsigned dnet_addr_type(__u16 addr);
+extern __le16 dn_fib_rules_policy(__le16 saddr, struct dn_fib_res *res, unsigned *flags);
+extern unsigned dnet_addr_type(__le16 addr);
 extern int dn_fib_lookup(const struct flowi *fl, struct dn_fib_res *res);
 
 /*
@@ -194,10 +194,10 @@ extern struct dn_fib_table *dn_fib_tables[];
 
 #endif /* CONFIG_DECNET_ROUTER */
 
-static inline u16 dnet_make_mask(int n)
+static inline __le16 dnet_make_mask(int n)
 {
         if (n)
-                return htons(~((1<<(16-n))-1));
+                return dn_htons(~((1<<(16-n))-1));
         return 0;
 }
 

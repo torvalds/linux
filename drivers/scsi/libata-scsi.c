@@ -41,6 +41,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_request.h>
+#include <scsi/scsi_transport.h>
 #include <linux/libata.h>
 #include <linux/hdreg.h>
 #include <asm/uaccess.h>
@@ -52,6 +53,7 @@
 typedef unsigned int (*ata_xlat_func_t)(struct ata_queued_cmd *qc, const u8 *scsicmd);
 static struct ata_device *
 ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev);
+enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd);
 
 #define RW_RECOVERY_MPAGE 0x1
 #define RW_RECOVERY_MPAGE_LEN 12
@@ -90,6 +92,14 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
 	0,	/* [QAM+QERR may be 1, see 05-359r1] */
 	0, 0, 0, 0, 0xff, 0xff,
 	0, 30	/* extended self test time, see 05-359r1 */
+};
+
+/*
+ * libata transport template.  libata doesn't do real transport stuff.
+ * It just needs the eh_timed_out hook.
+ */
+struct scsi_transport_template ata_scsi_transport_template = {
+	.eh_timed_out		= ata_scsi_timed_out,
 };
 
 
@@ -511,13 +521,11 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 	printk(KERN_WARNING "ata%u: no sense translation for status: 0x%02x\n", 
 	       id, drv_stat);
 
-	/* For our last chance pick, use medium read error because
-	 * it's much more common than an ATA drive telling you a write
-	 * has failed.
-	 */
-	*sk = MEDIUM_ERROR;
-	*asc = 0x11; /* "unrecovered read error" */
-	*ascq = 0x04; /*  "auto-reallocation failed" */
+	/* We need a sensible error return here, which is tricky, and one
+	   that won't cause people to do things like return a disk wrongly */
+	*sk = ABORTED_COMMAND;
+	*asc = 0x00;
+	*ascq = 0x00;
 
  translate_done:
 	printk(KERN_ERR "ata%u: translated ATA stat/err 0x%02x/%02x to "
@@ -662,6 +670,41 @@ void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
 	}
 }
 
+static void ata_scsi_sdev_config(struct scsi_device *sdev)
+{
+	sdev->use_10_for_rw = 1;
+	sdev->use_10_for_ms = 1;
+}
+
+static void ata_scsi_dev_config(struct scsi_device *sdev,
+				struct ata_device *dev)
+{
+	unsigned int max_sectors;
+
+	/* TODO: 2048 is an arbitrary number, not the
+	 * hardware maximum.  This should be increased to
+	 * 65534 when Jens Axboe's patch for dynamically
+	 * determining max_sectors is merged.
+	 */
+	max_sectors = ATA_MAX_SECTORS;
+	if (dev->flags & ATA_DFLAG_LBA48)
+		max_sectors = 2048;
+	if (dev->max_sectors)
+		max_sectors = dev->max_sectors;
+
+	blk_queue_max_sectors(sdev->request_queue, max_sectors);
+
+	/*
+	 * SATA DMA transfers must be multiples of 4 byte, so
+	 * we need to pad ATAPI transfers using an extra sg.
+	 * Decrement max hw segments accordingly.
+	 */
+	if (dev->class == ATA_DEV_ATAPI) {
+		request_queue_t *q = sdev->request_queue;
+		blk_queue_max_hw_segments(q, q->max_hw_segments - 1);
+	}
+}
+
 /**
  *	ata_scsi_slave_config - Set SCSI device attributes
  *	@sdev: SCSI device to examine
@@ -676,41 +719,18 @@ void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
 
 int ata_scsi_slave_config(struct scsi_device *sdev)
 {
-	sdev->use_10_for_rw = 1;
-	sdev->use_10_for_ms = 1;
+	ata_scsi_sdev_config(sdev);
 
 	blk_queue_max_phys_segments(sdev->request_queue, LIBATA_MAX_PRD);
 
 	if (sdev->id < ATA_MAX_DEVICES) {
 		struct ata_port *ap;
 		struct ata_device *dev;
-		unsigned int max_sectors;
 
 		ap = (struct ata_port *) &sdev->host->hostdata[0];
 		dev = &ap->device[sdev->id];
 
-		/* TODO: 2048 is an arbitrary number, not the
-		 * hardware maximum.  This should be increased to
-		 * 65534 when Jens Axboe's patch for dynamically
-		 * determining max_sectors is merged.
-		 */
-		max_sectors = ATA_MAX_SECTORS;
-		if (dev->flags & ATA_DFLAG_LBA48)
-			max_sectors = 2048;
-		if (dev->max_sectors)
-			max_sectors = dev->max_sectors;
-
-		blk_queue_max_sectors(sdev->request_queue, max_sectors);
-
-		/*
-		 * SATA DMA transfers must be multiples of 4 byte, so
-		 * we need to pad ATAPI transfers using an extra sg.
-		 * Decrement max hw segments accordingly.
-		 */
-		if (dev->class == ATA_DEV_ATAPI) {
-			request_queue_t *q = sdev->request_queue;
-			blk_queue_max_hw_segments(q, q->max_hw_segments - 1);
-		}
+		ata_scsi_dev_config(sdev, dev);
 	}
 
 	return 0;	/* scsi layer doesn't check return value, sigh */
@@ -1542,7 +1562,7 @@ void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
  *	@buflen: Response buffer length.
  *
  *	Returns standard device identification data associated
- *	with non-EVPD INQUIRY command output.
+ *	with non-VPD INQUIRY command output.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
@@ -1593,12 +1613,12 @@ unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
 }
 
 /**
- *	ata_scsiop_inq_00 - Simulate INQUIRY EVPD page 0, list of pages
+ *	ata_scsiop_inq_00 - Simulate INQUIRY VPD page 0, list of pages
  *	@args: device IDENTIFY data / SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *	@buflen: Response buffer length.
  *
- *	Returns list of inquiry EVPD pages available.
+ *	Returns list of inquiry VPD pages available.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
@@ -1612,7 +1632,7 @@ unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf,
 		0x80,	/* page 0x80, unit serial no page */
 		0x83	/* page 0x83, device ident page */
 	};
-	rbuf[3] = sizeof(pages);	/* number of supported EVPD pages */
+	rbuf[3] = sizeof(pages);	/* number of supported VPD pages */
 
 	if (buflen > 6)
 		memcpy(rbuf + 4, pages, sizeof(pages));
@@ -1621,7 +1641,7 @@ unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf,
 }
 
 /**
- *	ata_scsiop_inq_80 - Simulate INQUIRY EVPD page 80, device serial number
+ *	ata_scsiop_inq_80 - Simulate INQUIRY VPD page 80, device serial number
  *	@args: device IDENTIFY data / SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *	@buflen: Response buffer length.
@@ -1650,16 +1670,16 @@ unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
 	return 0;
 }
 
-static const char * const inq_83_str = "Linux ATA-SCSI simulator";
-
 /**
- *	ata_scsiop_inq_83 - Simulate INQUIRY EVPD page 83, device identity
+ *	ata_scsiop_inq_83 - Simulate INQUIRY VPD page 83, device identity
  *	@args: device IDENTIFY data / SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *	@buflen: Response buffer length.
  *
- *	Returns device identification.  Currently hardcoded to
- *	return "Linux ATA-SCSI simulator".
+ *	Yields two logical unit device identification designators:
+ *	 - vendor specific ASCII containing the ATA serial number
+ *	 - SAT defined "t10 vendor id based" containing ASCII vendor
+ *	   name ("ATA     "), model and serial numbers.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
@@ -1668,16 +1688,39 @@ static const char * const inq_83_str = "Linux ATA-SCSI simulator";
 unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
 			      unsigned int buflen)
 {
+	int num;
+	const int sat_model_serial_desc_len = 68;
+	const int ata_model_byte_len = 40;
+
 	rbuf[1] = 0x83;			/* this page code */
-	rbuf[3] = 4 + strlen(inq_83_str);	/* page len */
+	num = 4;
 
-	/* our one and only identification descriptor (vendor-specific) */
-	if (buflen > (strlen(inq_83_str) + 4 + 4 - 1)) {
-		rbuf[4 + 0] = 2;	/* code set: ASCII */
-		rbuf[4 + 3] = strlen(inq_83_str);
-		memcpy(rbuf + 4 + 4, inq_83_str, strlen(inq_83_str));
+	if (buflen > (ATA_SERNO_LEN + num + 3)) {
+		/* piv=0, assoc=lu, code_set=ACSII, designator=vendor */
+		rbuf[num + 0] = 2;	
+		rbuf[num + 3] = ATA_SERNO_LEN;
+		num += 4;
+		ata_id_string(args->id, (unsigned char *) rbuf + num,
+			      ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
+		num += ATA_SERNO_LEN;
 	}
-
+	if (buflen > (sat_model_serial_desc_len + num + 3)) {
+		/* SAT defined lu model and serial numbers descriptor */
+		/* piv=0, assoc=lu, code_set=ACSII, designator=t10 vendor id */
+		rbuf[num + 0] = 2;	
+		rbuf[num + 1] = 1;	
+		rbuf[num + 3] = sat_model_serial_desc_len;
+		num += 4;
+		memcpy(rbuf + num, "ATA     ", 8);
+		num += 8;
+		ata_id_string(args->id, (unsigned char *) rbuf + num,
+			      ATA_ID_PROD_OFS, ata_model_byte_len);
+		num += ata_model_byte_len;
+		ata_id_string(args->id, (unsigned char *) rbuf + num,
+			      ATA_ID_SERNO_OFS, ATA_SERNO_LEN);
+		num += ATA_SERNO_LEN;
+	}
+	rbuf[3] = num - 4;    /* page len (assume less than 256 bytes) */
 	return 0;
 }
 
@@ -2356,9 +2399,6 @@ ata_scsi_map_proto(u8 byte1)
 
 		case 4:		/* PIO Data-in */
 		case 5:		/* PIO Data-out */
-			if (byte1 & 0xe0) {
-				return ATA_PROT_PIO_MULT;
-			}
 			return ATA_PROT_PIO;
 
 		case 10:	/* Device Reset */
@@ -2395,6 +2435,10 @@ ata_scsi_pass_thru(struct ata_queued_cmd *qc, const u8 *scsicmd)
 	struct scsi_cmnd *cmd = qc->scsicmd;
 
 	if ((tf->protocol = ata_scsi_map_proto(scsicmd[1])) == ATA_PROT_UNKNOWN)
+		goto invalid_fld;
+
+	if (scsicmd[1] & 0xe0)
+		/* PIO multi not supported yet */
 		goto invalid_fld;
 
 	/*

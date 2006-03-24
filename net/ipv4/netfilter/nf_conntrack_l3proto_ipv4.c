@@ -141,19 +141,21 @@ static unsigned int ipv4_conntrack_help(unsigned int hooknum,
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
+	struct nf_conn_help *help;
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(*pskb, &ctinfo);
-	if (ct && ct->helper) {
-		unsigned int ret;
-		ret = ct->helper->help(pskb,
-				       (*pskb)->nh.raw - (*pskb)->data
-						       + (*pskb)->nh.iph->ihl*4,
-				       ct, ctinfo);
-		if (ret != NF_ACCEPT)
-			return ret;
-	}
-	return NF_ACCEPT;
+	if (!ct)
+		return NF_ACCEPT;
+
+	help = nfct_help(ct);
+	if (!help || !help->helper)
+		return NF_ACCEPT;
+
+	return help->helper->help(pskb,
+			       (*pskb)->nh.raw - (*pskb)->data
+					       + (*pskb)->nh.iph->ihl*4,
+			       ct, ctinfo);
 }
 
 static unsigned int ipv4_conntrack_defrag(unsigned int hooknum,
@@ -566,6 +568,7 @@ static int init_or_cleanup(int init)
 	return ret;
 }
 
+MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET));
 MODULE_LICENSE("GPL");
 
 static int __init init(void)

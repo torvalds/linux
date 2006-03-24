@@ -733,28 +733,29 @@ int ip6_dst_lookup(struct sock *sk, struct dst_entry **dst, struct flowi *fl)
 		if (*dst) {
 			struct rt6_info *rt = (struct rt6_info*)*dst;
 	
-				/* Yes, checking route validity in not connected
-				   case is not very simple. Take into account,
-				   that we do not support routing by source, TOS,
-				   and MSG_DONTROUTE 		--ANK (980726)
-	
-				   1. If route was host route, check that
-				      cached destination is current.
-				      If it is network route, we still may
-				      check its validity using saved pointer
-				      to the last used address: daddr_cache.
-				      We do not want to save whole address now,
-				      (because main consumer of this service
-				       is tcp, which has not this problem),
-				      so that the last trick works only on connected
-				      sockets.
-				   2. oif also should be the same.
-				 */
-	
+			/* Yes, checking route validity in not connected
+			 * case is not very simple. Take into account,
+			 * that we do not support routing by source, TOS,
+			 * and MSG_DONTROUTE 		--ANK (980726)
+			 *
+			 * 1. If route was host route, check that
+			 *    cached destination is current.
+			 *    If it is network route, we still may
+			 *    check its validity using saved pointer
+			 *    to the last used address: daddr_cache.
+			 *    We do not want to save whole address now,
+			 *    (because main consumer of this service
+			 *    is tcp, which has not this problem),
+			 *    so that the last trick works only on connected
+			 *    sockets.
+			 * 2. oif also should be the same.
+			 */
 			if (((rt->rt6i_dst.plen != 128 ||
-			      !ipv6_addr_equal(&fl->fl6_dst, &rt->rt6i_dst.addr))
+			      !ipv6_addr_equal(&fl->fl6_dst,
+					       &rt->rt6i_dst.addr))
 			     && (np->daddr_cache == NULL ||
-				 !ipv6_addr_equal(&fl->fl6_dst, np->daddr_cache)))
+				 !ipv6_addr_equal(&fl->fl6_dst,
+						  np->daddr_cache)))
 			    || (fl->oif && fl->oif != (*dst)->dev->ifindex)) {
 				dst_release(*dst);
 				*dst = NULL;
@@ -889,7 +890,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		np->cork.hop_limit = hlimit;
 		np->cork.tclass = tclass;
 		mtu = dst_mtu(rt->u.dst.path);
-		if (np && np->frag_size < mtu) {
+		if (np->frag_size < mtu) {
 			if (np->frag_size)
 				mtu = np->frag_size;
 		}
@@ -944,10 +945,11 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&
 	    (rt->u.dst.dev->features & NETIF_F_UFO)) {
 
-		if(ip6_ufo_append_data(sk, getfrag, from, length, hh_len,
-				fragheaderlen, transhdrlen, mtu, flags))
+		err = ip6_ufo_append_data(sk, getfrag, from, length, hh_len,
+					  fragheaderlen, transhdrlen, mtu,
+					  flags);
+		if (err)
 			goto error;
-
 		return 0;
 	}
 

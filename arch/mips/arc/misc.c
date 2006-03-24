@@ -9,7 +9,6 @@
  * Copyright (C) 1999 Ralf Baechle (ralf@gnu.org)
  * Copyright (C) 1999 Silicon Graphics, Inc.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 
@@ -20,17 +19,11 @@
 #include <asm/bootinfo.h>
 #include <asm/system.h>
 
-extern void *sgiwd93_host;
-extern void reset_wd33c93(void *instance);
-
 VOID
 ArcHalt(VOID)
 {
 	bc_disable();
 	local_irq_disable();
-#ifdef CONFIG_SCSI_SGIWD93
-	reset_wd33c93(sgiwd93_host);
-#endif
 	ARC_CALL0(halt);
 never:	goto never;
 }
@@ -40,9 +33,6 @@ ArcPowerDown(VOID)
 {
 	bc_disable();
 	local_irq_disable();
-#ifdef CONFIG_SCSI_SGIWD93
-	reset_wd33c93(sgiwd93_host);
-#endif
 	ARC_CALL0(pdown);
 never:	goto never;
 }
@@ -53,9 +43,6 @@ ArcRestart(VOID)
 {
 	bc_disable();
 	local_irq_disable();
-#ifdef CONFIG_SCSI_SGIWD93
-	reset_wd33c93(sgiwd93_host);
-#endif
 	ARC_CALL0(restart);
 never:	goto never;
 }
@@ -65,9 +52,6 @@ ArcReboot(VOID)
 {
 	bc_disable();
 	local_irq_disable();
-#ifdef CONFIG_SCSI_SGIWD93
-	reset_wd33c93(sgiwd93_host);
-#endif
 	ARC_CALL0(reboot);
 never:	goto never;
 }
@@ -77,9 +61,6 @@ ArcEnterInteractiveMode(VOID)
 {
 	bc_disable();
 	local_irq_disable();
-#ifdef CONFIG_SCSI_SGIWD93
-	reset_wd33c93(sgiwd93_host);
-#endif
 	ARC_CALL0(imode);
 never:	goto never;
 }

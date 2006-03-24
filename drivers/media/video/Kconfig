@@ -26,6 +26,7 @@ config VIDEO_BT848
 	select VIDEO_IR
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
+	select VIDEO_MSP3400
 	---help---
 	  Support for BT848 based frame grabber/overlay boards. This includes
 	  the Miro, Hauppauge and STB boards. Please read the material in
@@ -141,6 +142,8 @@ config VIDEO_CPIA_USB
 	  If you have the USB version of one of these cameras, say Y here,
 	  otherwise say N. This will not work with the Creative Webcam III.
 	  It is also available as a module (cpia_usb).
+
+source "drivers/media/video/cpia2/Kconfig"
 
 config VIDEO_SAA5246A
 	tristate "SAA5246A, SAA5281 Teletext processor"
@@ -339,18 +342,53 @@ config VIDEO_M32R_AR_M64278
 	  Say Y here to use the Renesas M64278E-800 camera module,
 	  which supports VGA(640x480 pixcels) size of images.
 
-config VIDEO_AUDIO_DECODER
-	tristate "Add support for additional audio chipsets"
-	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+config VIDEO_MSP3400
+	tristate "Micronas MSP34xx audio decoders"
+	depends on VIDEO_DEV && I2C
 	---help---
-	  Say Y here to compile drivers for WM8775 and CS53L32A audio
-	  decoders.
+	  Support for the Micronas MSP34xx series of audio decoders.
 
-config VIDEO_DECODER
-	tristate "Add support for additional video chipsets"
+	  To compile this driver as a module, choose M here: the
+	  module will be called msp3400
+
+config VIDEO_CS53L32A
+	tristate "Cirrus Logic CS53L32A audio ADC"
 	depends on VIDEO_DEV && I2C && EXPERIMENTAL
 	---help---
-	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
-	  video decoders.
+	  Support for the Cirrus Logic CS53L32A low voltage
+	  stereo A/D converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cs53l32a
+
+config VIDEO_WM8775
+	tristate "Wolfson Microelectronics WM8775 audio ADC"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Wolfson Microelectronics WM8775
+	  high performance stereo A/D Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wm8775
+
+source "drivers/media/video/cx25840/Kconfig"
+
+config VIDEO_SAA711X
+	tristate "Philips SAA7113/4/5 video decoders"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Philips SAA7113/4/5 video decoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7115
+
+config VIDEO_SAA7127
+	tristate "Philips SAA7127/9 digital video encoders"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Philips SAA7127/9 digital video encoders.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7127
 
 endmenu

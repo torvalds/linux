@@ -1404,7 +1404,7 @@ add_claw_reads(struct net_device *dev, struct ccwbk* p_first,
 
         if ( privptr-> p_read_active_first ==NULL ) {
 #ifdef DEBUGMSG
-                printk(KERN_INFO "%s:%s p_read_active_frist == NULL \n",
+                printk(KERN_INFO "%s:%s p_read_active_first == NULL \n",
 			dev->name,__FUNCTION__);
                 printk(KERN_INFO "%s:%s Read active first/last changed \n",
 			dev->name,__FUNCTION__);

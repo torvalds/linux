@@ -1280,6 +1280,7 @@ static int __init sunsu_kbd_ms_init(struct uart_sunsu_port *up, int channel)
 	struct serio *serio;
 #endif
 
+	spin_lock_init(&up->port.lock);
 	up->port.line = channel;
 	up->port.type = PORT_UNKNOWN;
 	up->port.uartclk = (SU_BASE_BAUD * 16);
@@ -1376,6 +1377,14 @@ static __inline__ void wait_for_xmitr(struct uart_sunsu_port *up)
 	}
 }
 
+static void sunsu_console_putchar(struct uart_port *port, int ch)
+{
+	struct uart_sunsu_port *up = (struct uart_sunsu_port *)port;
+
+	wait_for_xmitr(up);
+	serial_out(up, UART_TX, ch);
+}
+
 /*
  *	Print a string to the serial port trying not to disturb
  *	any possible real use of the port...
@@ -1385,7 +1394,6 @@ static void sunsu_console_write(struct console *co, const char *s,
 {
 	struct uart_sunsu_port *up = &sunsu_ports[co->index];
 	unsigned int ier;
-	int i;
 
 	/*
 	 *	First save the UER then disable the interrupts
@@ -1393,22 +1401,7 @@ static void sunsu_console_write(struct console *co, const char *s,
 	ier = serial_in(up, UART_IER);
 	serial_out(up, UART_IER, 0);
 
-	/*
-	 *	Now, do each character
-	 */
-	for (i = 0; i < count; i++, s++) {
-		wait_for_xmitr(up);
-
-		/*
-		 *	Send the character out.
-		 *	If a LF, also do CR...
-		 */
-		serial_out(up, UART_TX, *s);
-		if (*s == 10) {
-			wait_for_xmitr(up);
-			serial_out(up, UART_TX, 13);
-		}
-	}
+	uart_console_write(&up->port, s, count, sunsu_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty
@@ -1464,18 +1457,17 @@ static struct console sunsu_cons = {
 	.index	=	-1,
 	.data	=	&sunsu_reg,
 };
-#define SUNSU_CONSOLE	(&sunsu_cons)
 
 /*
  *	Register console.
  */
 
-static int __init sunsu_serial_console_init(void)
+static inline struct console *SUNSU_CONSOLE(void)
 {
 	int i;
 
 	if (con_is_present())
-		return 0;
+		return NULL;
 
 	for (i = 0; i < UART_NR; i++) {
 		int this_minor = sunsu_reg.minor + i;
@@ -1484,16 +1476,16 @@ static int __init sunsu_serial_console_init(void)
 			break;
 	}
 	if (i == UART_NR)
-		return 0;
+		return NULL;
 	if (sunsu_ports[i].port_node == 0)
-		return 0;
+		return NULL;
 
 	sunsu_cons.index = i;
-	register_console(&sunsu_cons);
-	return 0;
+
+	return &sunsu_cons;
 }
 #else
-#define SUNSU_CONSOLE			(NULL)
+#define SUNSU_CONSOLE()			(NULL)
 #define sunsu_serial_console_init()	do { } while (0)
 #endif
 
@@ -1510,6 +1502,7 @@ static int __init sunsu_serial_init(void)
 		    up->su_type == SU_PORT_KBD)
 			continue;
 
+		spin_lock_init(&up->port.lock);
 		up->port.flags |= UPF_BOOT_AUTOCONF;
 		up->port.type = PORT_UNKNOWN;
 		up->port.uartclk = (SU_BASE_BAUD * 16);
@@ -1523,16 +1516,19 @@ static int __init sunsu_serial_init(void)
 	}
 
 	sunsu_reg.minor = sunserial_current_minor;
-	sunserial_current_minor += instance;
 
 	sunsu_reg.nr = instance;
-	sunsu_reg.cons = SUNSU_CONSOLE;
 
 	ret = uart_register_driver(&sunsu_reg);
 	if (ret < 0)
 		return ret;
 
-	sunsu_serial_console_init();
+	sunsu_reg.tty_driver->name_base = sunsu_reg.minor - 64;
+
+	sunserial_current_minor += instance;
+
+	sunsu_reg.cons = SUNSU_CONSOLE();
+
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_sunsu_port *up = &sunsu_ports[i];
 

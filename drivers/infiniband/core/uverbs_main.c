@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 PathScale, Inc. All rights reserved.
@@ -91,10 +91,12 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_DEREG_MR]      	= ib_uverbs_dereg_mr,
 	[IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL] = ib_uverbs_create_comp_channel,
 	[IB_USER_VERBS_CMD_CREATE_CQ]     	= ib_uverbs_create_cq,
+	[IB_USER_VERBS_CMD_RESIZE_CQ]     	= ib_uverbs_resize_cq,
 	[IB_USER_VERBS_CMD_POLL_CQ]     	= ib_uverbs_poll_cq,
 	[IB_USER_VERBS_CMD_REQ_NOTIFY_CQ]     	= ib_uverbs_req_notify_cq,
 	[IB_USER_VERBS_CMD_DESTROY_CQ]    	= ib_uverbs_destroy_cq,
 	[IB_USER_VERBS_CMD_CREATE_QP]     	= ib_uverbs_create_qp,
+	[IB_USER_VERBS_CMD_QUERY_QP]     	= ib_uverbs_query_qp,
 	[IB_USER_VERBS_CMD_MODIFY_QP]     	= ib_uverbs_modify_qp,
 	[IB_USER_VERBS_CMD_DESTROY_QP]    	= ib_uverbs_destroy_qp,
 	[IB_USER_VERBS_CMD_POST_SEND]    	= ib_uverbs_post_send,
@@ -106,6 +108,7 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_DETACH_MCAST]  	= ib_uverbs_detach_mcast,
 	[IB_USER_VERBS_CMD_CREATE_SRQ]    	= ib_uverbs_create_srq,
 	[IB_USER_VERBS_CMD_MODIFY_SRQ]    	= ib_uverbs_modify_srq,
+	[IB_USER_VERBS_CMD_QUERY_SRQ]     	= ib_uverbs_query_srq,
 	[IB_USER_VERBS_CMD_DESTROY_SRQ]   	= ib_uverbs_destroy_srq,
 };
 
@@ -461,7 +464,6 @@ void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
 	ib_uverbs_async_handler(uobj->uverbs_file, uobj->uobject.user_handle,
 				event->event, &uobj->async_list,
 				&uobj->async_events_reported);
-				
 }
 
 void ib_uverbs_qp_event_handler(struct ib_event *event, void *context_ptr)

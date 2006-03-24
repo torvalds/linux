@@ -16,6 +16,7 @@
 #include <asm/mach/hardware.h>
 #include <asm/mach/irqs.h>
 
+#include "common.h"
 
   /* KEV7a400 CPLD IRQ handling */
 

@@ -104,14 +104,12 @@ int msp_sleep(struct msp_state *state, int timeout);
 
 /* msp3400-kthreads.c */
 const char *msp_standard_std_name(int std);
-void msp3400c_setcarrier(struct i2c_client *client, int cdo1, int cdo2);
-void msp3400c_setmode(struct i2c_client *client, int type);
-void msp3400c_setstereo(struct i2c_client *client, int mode);
-int autodetect_stereo(struct i2c_client *client);
+void msp_set_audmode(struct i2c_client *client);
+void msp_detect_stereo(struct i2c_client *client);
 int msp3400c_thread(void *data);
 int msp3410d_thread(void *data);
 int msp34xxg_thread(void *data);
-void msp34xxg_detect_stereo(struct i2c_client *client);
-void msp34xxg_set_audmode(struct i2c_client *client, int audmode);
+void msp3400c_set_mode(struct i2c_client *client, int mode);
+void msp3400c_set_carrier(struct i2c_client *client, int cdo1, int cdo2);
 
 #endif /* MSP3400_H */
