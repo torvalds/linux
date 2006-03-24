@@ -206,11 +206,11 @@ extern void update_process_times(int user);
 extern void scheduler_tick(void);
 
 #ifdef CONFIG_DETECT_SOFTLOCKUP
-extern void softlockup_tick(struct pt_regs *regs);
+extern void softlockup_tick(void);
 extern void spawn_softlockup_task(void);
 extern void touch_softlockup_watchdog(void);
 #else
-static inline void softlockup_tick(struct pt_regs *regs)
+static inline void softlockup_tick(void)
 {
 }
 static inline void spawn_softlockup_task(void)

@@ -915,6 +915,7 @@ static void run_timer_softirq(struct softirq_action *h)
 void run_local_timers(void)
 {
 	raise_softirq(TIMER_SOFTIRQ);
+	softlockup_tick();
 }
 
 /*
@@ -945,7 +946,6 @@ void do_timer(struct pt_regs *regs)
 	/* prevent loading jiffies before storing new jiffies_64 value. */
 	barrier();
 	update_times();
-	softlockup_tick(regs);
 }
 
 #ifdef __ARCH_WANT_SYS_ALARM
