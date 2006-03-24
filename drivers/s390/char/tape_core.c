@@ -1015,7 +1015,7 @@ tape_do_io_interruptible(struct tape_device *device,
 				wq,
 				(request->callback == NULL)
 			);
-		} while (rc != -ERESTARTSYS);
+		} while (rc == -ERESTARTSYS);
 
 		DBF_EVENT(3, "IO stopped on %08x\n", device->cdev_id);
 		rc = -ERESTARTSYS;
