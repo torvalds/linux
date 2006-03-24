@@ -2361,8 +2361,7 @@ queue:
 	if (!creq)
 		goto startio;
 
-	if (creq->nr_phys_segments > MAXSGENTRIES)
-                BUG();
+	BUG_ON(creq->nr_phys_segments > MAXSGENTRIES);
 
 	if (( c = cmd_alloc(h, 1)) == NULL)
 		goto full;
