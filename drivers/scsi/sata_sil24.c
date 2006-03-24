@@ -342,7 +342,7 @@ static struct ata_port_info sil24_port_info[] = {
 		.udma_mask	= 0x3f,			/* udma0-5 */
 		.port_ops	= &sil24_ops,
 	},
-	/* sil_3132 */ 
+	/* sil_3132 */
 	{
 		.sht		= &sil24_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |

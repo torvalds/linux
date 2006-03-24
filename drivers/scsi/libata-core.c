@@ -190,7 +190,7 @@ static const u8 ata_rw_cmds[] = {
  *	ata_rwcmd_protocol - set taskfile r/w commands and protocol
  *	@qc: command to examine and configure
  *
- *	Examine the device configuration and tf->flags to calculate 
+ *	Examine the device configuration and tf->flags to calculate
  *	the proper read/write commands and protocol to use.
  *
  *	LOCKING:
@@ -203,7 +203,7 @@ int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 	u8 cmd;
 
 	int index, fua, lba48, write;
- 
+
 	fua = (tf->flags & ATA_TFLAG_FUA) ? 4 : 0;
 	lba48 = (tf->flags & ATA_TFLAG_LBA48) ? 2 : 0;
 	write = (tf->flags & ATA_TFLAG_WRITE) ? 1 : 0;
@@ -1055,7 +1055,7 @@ unsigned int ata_pio_need_iordy(const struct ata_device *adev)
 		return 0;
 	if (speed > 2)
 		return 1;
-		
+
 	/* If we have no drive specific rule, then PIO 2 is non IORDY */
 
 	if (adev->id[ATA_ID_FIELD_VALID] & 2) {	/* EIDE */
@@ -1583,7 +1583,7 @@ void sata_phy_reset(struct ata_port *ap)
  *	Obtain the other device on the same cable, or if none is
  *	present NULL is returned
  */
- 
+
 struct ata_device *ata_dev_pair(struct ata_port *ap, struct ata_device *adev)
 {
 	struct ata_device *pair = &ap->device[1 - adev->devno];
@@ -1620,7 +1620,7 @@ void ata_port_disable(struct ata_port *ap)
  * PIO 0-5, MWDMA 0-2 and UDMA 0-6 timings (in nanoseconds).
  * These were taken from ATA/ATAPI-6 standard, rev 0a, except
  * for PIO 5, which is a nonstandard extension and UDMA6, which
- * is currently supported only by Maxtor drives. 
+ * is currently supported only by Maxtor drives.
  */
 
 static const struct ata_timing ata_timing[] = {
@@ -1635,11 +1635,11 @@ static const struct ata_timing ata_timing[] = {
 	{ XFER_UDMA_0,     0,   0,   0,   0,   0,   0,   0, 120 },
 
 /*	{ XFER_UDMA_SLOW,  0,   0,   0,   0,   0,   0,   0, 150 }, */
-                                          
+
 	{ XFER_MW_DMA_2,  25,   0,   0,   0,  70,  25, 120,   0 },
 	{ XFER_MW_DMA_1,  45,   0,   0,   0,  80,  50, 150,   0 },
 	{ XFER_MW_DMA_0,  60,   0,   0,   0, 215, 215, 480,   0 },
-                                          
+
 	{ XFER_SW_DMA_2,  60,   0,   0,   0, 120, 120, 240,   0 },
 	{ XFER_SW_DMA_1,  90,   0,   0,   0, 240, 240, 480,   0 },
 	{ XFER_SW_DMA_0, 120,   0,   0,   0, 480, 480, 960,   0 },
@@ -1692,7 +1692,7 @@ static const struct ata_timing* ata_timing_find_mode(unsigned short speed)
 	for (t = ata_timing; t->mode != speed; t++)
 		if (t->mode == 0xFF)
 			return NULL;
-	return t; 
+	return t;
 }
 
 int ata_timing_compute(struct ata_device *adev, unsigned short speed,
@@ -1702,7 +1702,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	struct ata_timing p;
 
 	/*
-	 * Find the mode. 
+	 * Find the mode.
 	 */
 
 	if (!(s = ata_timing_find_mode(speed)))
@@ -2078,11 +2078,11 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
 	 */
 	msleep(150);
 
-	
-	/* Before we perform post reset processing we want to see if 
+
+	/* Before we perform post reset processing we want to see if
 	   the bus shows 0xFF because the odd clown forgets the D7 pulldown
 	   resistor */
-	
+
 	if (ata_check_status(ap) == 0xFF)
 		return 1;	/* Positive is failure for some reason */
 
@@ -2651,22 +2651,22 @@ static const char * const ata_dma_blacklist [] = {
 	"SanDisk SDP3B-64", NULL,
 	"SANYO CD-ROM CRD", NULL,
 	"HITACHI CDR-8", NULL,
-	"HITACHI CDR-8335", NULL, 
+	"HITACHI CDR-8335", NULL,
 	"HITACHI CDR-8435", NULL,
-	"Toshiba CD-ROM XM-6202B", NULL, 
-	"TOSHIBA CD-ROM XM-1702BC", NULL, 
-	"CD-532E-A", NULL, 
-	"E-IDE CD-ROM CR-840", NULL, 
-	"CD-ROM Drive/F5A", NULL, 
-	"WPI CDD-820", NULL, 
+	"Toshiba CD-ROM XM-6202B", NULL,
+	"TOSHIBA CD-ROM XM-1702BC", NULL,
+	"CD-532E-A", NULL,
+	"E-IDE CD-ROM CR-840", NULL,
+	"CD-ROM Drive/F5A", NULL,
+	"WPI CDD-820", NULL,
 	"SAMSUNG CD-ROM SC-148C", NULL,
-	"SAMSUNG CD-ROM SC", NULL, 
+	"SAMSUNG CD-ROM SC", NULL,
 	"SanDisk SDP3B-64", NULL,
 	"ATAPI CD-ROM DRIVE 40X MAXIMUM",NULL,
 	"_NEC DV5800A", NULL,
 	"SAMSUNG CD-ROM SN-124", "N001"
 };
- 
+
 static int ata_strim(char *s, size_t len)
 {
 	len = strnlen(s, len);
@@ -3697,7 +3697,7 @@ static void ata_pio_error(struct ata_port *ap)
 	if (qc->tf.command != ATA_CMD_PACKET)
 		printk(KERN_WARNING "ata%u: PIO error\n", ap->id);
 
-	/* make sure qc->err_mask is available to 
+	/* make sure qc->err_mask is available to
 	 * know what's wrong and recover
 	 */
 	WARN_ON(qc->err_mask == 0);
@@ -4695,7 +4695,7 @@ err_free_ret:
  *	ata_host_set_remove - PCI layer callback for device removal
  *	@host_set: ATA host set that was removed
  *
- *	Unregister all objects associated with this host set. Free those 
+ *	Unregister all objects associated with this host set. Free those
  *	objects.
  *
  *	LOCKING:
@@ -4967,6 +4967,8 @@ EXPORT_SYMBOL_GPL(ata_std_postreset);
 EXPORT_SYMBOL_GPL(ata_std_probe_reset);
 EXPORT_SYMBOL_GPL(ata_drive_probe_reset);
 EXPORT_SYMBOL_GPL(ata_dev_revalidate);
+EXPORT_SYMBOL_GPL(ata_dev_classify);
+EXPORT_SYMBOL_GPL(ata_dev_pair);
 EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
 EXPORT_SYMBOL_GPL(ata_busy_sleep);
@@ -4977,7 +4979,6 @@ EXPORT_SYMBOL_GPL(ata_scsi_error);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
 EXPORT_SYMBOL_GPL(ata_scsi_release);
 EXPORT_SYMBOL_GPL(ata_host_intr);
-EXPORT_SYMBOL_GPL(ata_dev_classify);
 EXPORT_SYMBOL_GPL(ata_id_string);
 EXPORT_SYMBOL_GPL(ata_id_c_string);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);

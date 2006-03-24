@@ -742,7 +742,7 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 /**
  *	piix_check_450nx_errata	-	Check for problem 450NX setup
  *	@ata_dev: the PCI device to check
- *	
+ *
  *	Check for the present of 450NX errata #19 and errata #25. If
  *	they are found return an error code so we can turn off DMA
  */
@@ -753,7 +753,7 @@ static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
 	u16 cfg;
 	u8 rev;
 	int no_piix_dma = 0;
-	
+
 	while((pdev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev)) != NULL)
 	{
 		/* Look for 450NX PXB. Check for problem configurations
@@ -772,7 +772,7 @@ static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
 	if(no_piix_dma == 2)
 		dev_printk(KERN_WARNING, &ata_dev->dev, "A BIOS update may resolve this.\n");
 	return no_piix_dma;
-}		
+}
 
 static void __devinit piix_init_sata_map(struct pci_dev *pdev,
 					 struct ata_port_info *pinfo)

@@ -256,7 +256,7 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	scsi_cmd[14] = args[0];
 
 	/* Good values for timeout and retries?  Values below
-	   from scsi_ioctl_send_command() for default case... */	
+	   from scsi_ioctl_send_command() for default case... */
 	if (scsi_execute_req(scsidev, scsi_cmd, DMA_NONE, NULL, 0, &sshdr,
 			     (10*HZ), 5))
 		rc = -EIO;
@@ -438,7 +438,7 @@ int ata_scsi_device_suspend(struct scsi_device *sdev, pm_message_t state)
  *	LOCKING:
  *	spin_lock_irqsave(host_set lock)
  */
-void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc, 
+void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 			u8 *ascq)
 {
 	int i;
@@ -495,7 +495,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 		/* Look for drv_err */
 		for (i = 0; sense_table[i][0] != 0xFF; i++) {
 			/* Look for best matches first */
-			if ((sense_table[i][0] & drv_err) == 
+			if ((sense_table[i][0] & drv_err) ==
 			    sense_table[i][0]) {
 				*sk = sense_table[i][1];
 				*asc = sense_table[i][2];
@@ -518,7 +518,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 		}
 	}
 	/* No error?  Undecoded? */
-	printk(KERN_WARNING "ata%u: no sense translation for status: 0x%02x\n", 
+	printk(KERN_WARNING "ata%u: no sense translation for status: 0x%02x\n",
 	       id, drv_stat);
 
 	/* We need a sensible error return here, which is tricky, and one
@@ -1150,14 +1150,14 @@ static unsigned int ata_scsi_verify_xlat(struct ata_queued_cmd *qc, const u8 *sc
 
 		DPRINTK("block %u track %u cyl %u head %u sect %u\n",
 			(u32)block, track, cyl, head, sect);
-		
-		/* Check whether the converted CHS can fit. 
-		   Cylinder: 0-65535 
+
+		/* Check whether the converted CHS can fit.
+		   Cylinder: 0-65535
 		   Head: 0-15
 		   Sector: 1-255*/
-		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect)) 
+		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect))
 			goto out_of_range;
-		
+
 		tf->command = ATA_CMD_VERIFY;
 		tf->nsect = n_block & 0xff; /* Sector count 0 means 256 sectors */
 		tf->lbal = sect;
@@ -1289,7 +1289,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		tf->lbal = block & 0xff;
 
 		tf->device |= ATA_LBA;
-	} else { 
+	} else {
 		/* CHS */
 		u32 sect, head, cyl, track;
 
@@ -1309,8 +1309,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		DPRINTK("block %u track %u cyl %u head %u sect %u\n",
 			(u32)block, track, cyl, head, sect);
 
-		/* Check whether the converted CHS can fit. 
-		   Cylinder: 0-65535 
+		/* Check whether the converted CHS can fit.
+		   Cylinder: 0-65535
 		   Head: 0-15
 		   Sector: 1-255*/
 		if ((cyl >> 16) || (head >> 4) || (sect >> 8) || (!sect))
@@ -1697,7 +1697,7 @@ unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
 
 	if (buflen > (ATA_SERNO_LEN + num + 3)) {
 		/* piv=0, assoc=lu, code_set=ACSII, designator=vendor */
-		rbuf[num + 0] = 2;	
+		rbuf[num + 0] = 2;
 		rbuf[num + 3] = ATA_SERNO_LEN;
 		num += 4;
 		ata_id_string(args->id, (unsigned char *) rbuf + num,
@@ -1707,8 +1707,8 @@ unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf,
 	if (buflen > (sat_model_serial_desc_len + num + 3)) {
 		/* SAT defined lu model and serial numbers descriptor */
 		/* piv=0, assoc=lu, code_set=ACSII, designator=t10 vendor id */
-		rbuf[num + 0] = 2;	
-		rbuf[num + 1] = 1;	
+		rbuf[num + 0] = 2;
+		rbuf[num + 1] = 1;
 		rbuf[num + 3] = sat_model_serial_desc_len;
 		num += 4;
 		memcpy(rbuf + num, "ATA     ", 8);
