@@ -94,7 +94,7 @@ static inline void __read_lock(raw_rwlock_t *rw)
 #define __raw_read_lock(lock) \
 do {	unsigned long flags; \
 	local_irq_save(flags); \
-	__raw_read_lock(lock); \
+	__read_lock(lock); \
 	local_irq_restore(flags); \
 } while(0)
 
@@ -114,11 +114,11 @@ static inline void __read_unlock(raw_rwlock_t *rw)
 #define __raw_read_unlock(lock) \
 do {	unsigned long flags; \
 	local_irq_save(flags); \
-	__raw_read_unlock(lock); \
+	__read_unlock(lock); \
 	local_irq_restore(flags); \
 } while(0)
 
-extern __inline__ void __raw_write_lock(raw_rwlock_t *rw)
+static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
 	register raw_rwlock_t *lp asm("g1");
 	lp = rw;
@@ -131,9 +131,28 @@ extern __inline__ void __raw_write_lock(raw_rwlock_t *rw)
 	: "g2", "g4", "memory", "cc");
 }
 
+static inline int __raw_write_trylock(raw_rwlock_t *rw)
+{
+	unsigned int val;
+
+	__asm__ __volatile__("ldstub [%1 + 3], %0"
+			     : "=r" (val)
+			     : "r" (&rw->lock)
+			     : "memory");
+
+	if (val == 0) {
+		val = rw->lock & ~0xff;
+		if (val)
+			((volatile u8*)&rw->lock)[3] = 0;
+	}
+
+	return (val == 0);
+}
+
 #define __raw_write_unlock(rw)	do { (rw)->lock = 0; } while(0)
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
+#define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
 
 #endif /* !(__ASSEMBLY__) */
 

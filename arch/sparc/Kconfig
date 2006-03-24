@@ -23,7 +23,6 @@ menu "General machine setup"
 
 config SMP
 	bool "Symmetric multi-processing support (does not work on sun4/sun4c)"
-	depends on BROKEN
 	---help---
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
