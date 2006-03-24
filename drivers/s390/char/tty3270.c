@@ -691,10 +691,9 @@ tty3270_alloc_view(void)
 	struct tty3270 *tp;
 	int pages;
 
-	tp = kmalloc(sizeof(struct tty3270),GFP_KERNEL);
+	tp = kzalloc(sizeof(struct tty3270), GFP_KERNEL);
 	if (!tp)
 		goto out_err;
-	memset(tp, 0, sizeof(struct tty3270));
 	tp->freemem_pages =
 		kmalloc(sizeof(void *) * TTY3270_STRING_PAGES, GFP_KERNEL);
 	if (!tp->freemem_pages)
@@ -767,16 +766,14 @@ tty3270_alloc_screen(struct tty3270 *tp)
 	int lines;
 
 	size = sizeof(struct tty3270_line) * (tp->view.rows - 2);
-	tp->screen = kmalloc(size, GFP_KERNEL);
+	tp->screen = kzalloc(size, GFP_KERNEL);
 	if (!tp->screen)
 		goto out_err;
-	memset(tp->screen, 0, size);
 	for (lines = 0; lines < tp->view.rows - 2; lines++) {
 		size = sizeof(struct tty3270_cell) * tp->view.cols;
-		tp->screen[lines].cells = kmalloc(size, GFP_KERNEL);
+		tp->screen[lines].cells = kzalloc(size, GFP_KERNEL);
 		if (!tp->screen[lines].cells)
 			goto out_screen;
-		memset(tp->screen[lines].cells, 0, size);
 	}
 	return 0;
 out_screen:

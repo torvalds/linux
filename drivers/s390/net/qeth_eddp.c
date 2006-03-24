@@ -389,9 +389,8 @@ qeth_eddp_create_eddp_data(struct qeth_hdr *qh, u8 *nh, u8 nhl, u8 *th, u8 thl)
 	struct qeth_eddp_data *eddp;
 
 	QETH_DBF_TEXT(trace, 5, "eddpcrda");
-	eddp = kmalloc(sizeof(struct qeth_eddp_data), GFP_ATOMIC);
+	eddp = kzalloc(sizeof(struct qeth_eddp_data), GFP_ATOMIC);
 	if (eddp){
-		memset(eddp, 0, sizeof(struct qeth_eddp_data));
 		eddp->nhl = nhl;
 		eddp->thl = thl;
 		memcpy(&eddp->qh, qh, sizeof(struct qeth_hdr));
@@ -542,12 +541,11 @@ qeth_eddp_create_context_generic(struct qeth_card *card, struct sk_buff *skb,
 
 	QETH_DBF_TEXT(trace, 5, "creddpcg");
 	/* create the context and allocate pages */
-	ctx = kmalloc(sizeof(struct qeth_eddp_context), GFP_ATOMIC);
+	ctx = kzalloc(sizeof(struct qeth_eddp_context), GFP_ATOMIC);
 	if (ctx == NULL){
 		QETH_DBF_TEXT(trace, 2, "ceddpcn1");
 		return NULL;
 	}
-	memset(ctx, 0, sizeof(struct qeth_eddp_context));
 	ctx->type = QETH_LARGE_SEND_EDDP;
 	qeth_eddp_calc_num_pages(ctx, skb, hdr_len);
 	if (ctx->elements_per_skb > QETH_MAX_BUFFER_ELEMENTS(card)){
@@ -555,13 +553,12 @@ qeth_eddp_create_context_generic(struct qeth_card *card, struct sk_buff *skb,
 		kfree(ctx);
 		return NULL;
 	}
-	ctx->pages = kmalloc(ctx->num_pages * sizeof(u8 *), GFP_ATOMIC);
+	ctx->pages = kcalloc(ctx->num_pages, sizeof(u8 *), GFP_ATOMIC);
 	if (ctx->pages == NULL){
 		QETH_DBF_TEXT(trace, 2, "ceddpcn2");
 		kfree(ctx);
 		return NULL;
 	}
-	memset(ctx->pages, 0, ctx->num_pages * sizeof(u8 *));
 	for (i = 0; i < ctx->num_pages; ++i){
 		addr = (u8 *)__get_free_page(GFP_ATOMIC);
 		if (addr == NULL){
@@ -573,15 +570,13 @@ qeth_eddp_create_context_generic(struct qeth_card *card, struct sk_buff *skb,
 		memset(addr, 0, PAGE_SIZE);
 		ctx->pages[i] = addr;
 	}
-	ctx->elements = kmalloc(ctx->num_elements *
+	ctx->elements = kcalloc(ctx->num_elements,
 				sizeof(struct qeth_eddp_element), GFP_ATOMIC);
 	if (ctx->elements == NULL){
 		QETH_DBF_TEXT(trace, 2, "ceddpcn4");
 		qeth_eddp_free_context(ctx);
 		return NULL;
 	}
-	memset(ctx->elements, 0,
-	       ctx->num_elements * sizeof(struct qeth_eddp_element));
 	/* reset num_elements; will be incremented again in fill_buffer to
 	 * reflect number of actually used elements */
 	ctx->num_elements = 0;

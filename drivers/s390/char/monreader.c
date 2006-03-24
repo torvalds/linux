@@ -257,14 +257,13 @@ mon_alloc_mem(void)
 	int i,j;
 	struct mon_private *monpriv;
 
-	monpriv = kmalloc(sizeof(struct mon_private), GFP_KERNEL);
+	monpriv = kzalloc(sizeof(struct mon_private), GFP_KERNEL);
 	if (!monpriv) {
 		P_ERROR("no memory for monpriv\n");
 		return NULL;
 	}
-	memset(monpriv, 0, sizeof(struct mon_private));
 	for (i = 0; i < MON_MSGLIM; i++) {
-		monpriv->msg_array[i] = kmalloc(sizeof(struct mon_msg),
+		monpriv->msg_array[i] = kzalloc(sizeof(struct mon_msg),
 						    GFP_KERNEL);
 		if (!monpriv->msg_array[i]) {
 			P_ERROR("open, no memory for msg_array\n");
@@ -272,7 +271,6 @@ mon_alloc_mem(void)
 				kfree(monpriv->msg_array[j]);
 			return NULL;
 		}
-		memset(monpriv->msg_array[i], 0, sizeof(struct mon_msg));
 	}
 	return monpriv;
 }

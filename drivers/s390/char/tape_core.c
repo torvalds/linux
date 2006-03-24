@@ -453,16 +453,14 @@ tape_alloc_device(void)
 {
 	struct tape_device *device;
 
-	device = (struct tape_device *)
-		kmalloc(sizeof(struct tape_device), GFP_KERNEL);
+	device = kzalloc(sizeof(struct tape_device), GFP_KERNEL);
 	if (device == NULL) {
 		DBF_EXCEPTION(2, "ti:no mem\n");
 		PRINT_INFO ("can't allocate memory for "
 			    "tape info structure\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	memset(device, 0, sizeof(struct tape_device));
-	device->modeset_byte = (char *) kmalloc(1, GFP_KERNEL | GFP_DMA);
+	device->modeset_byte = kmalloc(1, GFP_KERNEL | GFP_DMA);
 	if (device->modeset_byte == NULL) {
 		DBF_EXCEPTION(2, "ti:no mem\n");
 		PRINT_INFO("can't allocate memory for modeset byte\n");
@@ -659,34 +657,30 @@ tape_alloc_request(int cplength, int datasize)
 
 	DBF_LH(6, "tape_alloc_request(%d, %d)\n", cplength, datasize);
 
-	request = (struct tape_request *) kmalloc(sizeof(struct tape_request),
-						  GFP_KERNEL);
+	request = kzalloc(sizeof(struct tape_request), GFP_KERNEL);
 	if (request == NULL) {
 		DBF_EXCEPTION(1, "cqra nomem\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	memset(request, 0, sizeof(struct tape_request));
 	/* allocate channel program */
 	if (cplength > 0) {
-		request->cpaddr = kmalloc(cplength*sizeof(struct ccw1),
+		request->cpaddr = kcalloc(cplength, sizeof(struct ccw1),
 					  GFP_ATOMIC | GFP_DMA);
 		if (request->cpaddr == NULL) {
 			DBF_EXCEPTION(1, "cqra nomem\n");
 			kfree(request);
 			return ERR_PTR(-ENOMEM);
 		}
-		memset(request->cpaddr, 0, cplength*sizeof(struct ccw1));
 	}
 	/* alloc small kernel buffer */
 	if (datasize > 0) {
-		request->cpdata = kmalloc(datasize, GFP_KERNEL | GFP_DMA);
+		request->cpdata = kzalloc(datasize, GFP_KERNEL | GFP_DMA);
 		if (request->cpdata == NULL) {
 			DBF_EXCEPTION(1, "cqra nomem\n");
 			kfree(request->cpaddr);
 			kfree(request);
 			return ERR_PTR(-ENOMEM);
 		}
-		memset(request->cpdata, 0, datasize);
 	}
 	DBF_LH(6, "New request %p(%p/%p)\n", request, request->cpaddr,
 		request->cpdata);

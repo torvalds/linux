@@ -1403,10 +1403,9 @@ new_channel_path(int chpid)
 	struct channel_path *chp;
 	int ret;
 
-	chp = kmalloc(sizeof(struct channel_path), GFP_KERNEL);
+	chp = kzalloc(sizeof(struct channel_path), GFP_KERNEL);
 	if (!chp)
 		return -ENOMEM;
-	memset(chp, 0, sizeof(struct channel_path));
 
 	/* fill in status, etc. */
 	chp->id = chpid;

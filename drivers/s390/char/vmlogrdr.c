@@ -759,9 +759,8 @@ vmlogrdr_register_device(struct vmlogrdr_priv_t *priv) {
 	struct device *dev;
 	int ret;
 
-	dev = kmalloc(sizeof(struct device), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (dev) {
-		memset(dev, 0, sizeof(struct device));
 		snprintf(dev->bus_id, BUS_ID_SIZE, "%s",
 			 priv->internal_name);
 		dev->bus = &iucv_bus;

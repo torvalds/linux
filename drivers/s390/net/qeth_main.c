@@ -297,12 +297,10 @@ qeth_alloc_card(void)
 	struct qeth_card *card;
 
 	QETH_DBF_TEXT(setup, 2, "alloccrd");
-	card = (struct qeth_card *) kmalloc(sizeof(struct qeth_card),
-					    GFP_DMA|GFP_KERNEL);
+	card = kzalloc(sizeof(struct qeth_card), GFP_DMA|GFP_KERNEL);
 	if (!card)
 		return NULL;
 	QETH_DBF_HEX(setup, 2, &card, sizeof(void *));
-	memset(card, 0, sizeof(struct qeth_card));
 	if (qeth_setup_channel(&card->read)) {
 		kfree(card);
 		return NULL;
@@ -1632,9 +1630,8 @@ qeth_alloc_reply(struct qeth_card *card)
 {
 	struct qeth_reply *reply;
 
-	reply = kmalloc(sizeof(struct qeth_reply), GFP_ATOMIC);
+	reply = kzalloc(sizeof(struct qeth_reply), GFP_ATOMIC);
 	if (reply){
-		memset(reply, 0, sizeof(struct qeth_reply));
 		atomic_set(&reply->refcnt, 1);
 		reply->card = card;
 	};
@@ -3348,12 +3345,10 @@ qeth_qdio_establish(struct qeth_card *card)
 
 	QETH_DBF_TEXT(setup, 2, "qdioest");
 
-	qib_param_field = kmalloc(QDIO_MAX_BUFFERS_PER_Q * sizeof(char),
+	qib_param_field = kzalloc(QDIO_MAX_BUFFERS_PER_Q * sizeof(char),
 			      GFP_KERNEL);
  	if (!qib_param_field)
 		return -ENOMEM;
-
- 	memset(qib_param_field, 0, QDIO_MAX_BUFFERS_PER_Q * sizeof(char));
 
 	qeth_create_qib_param_field(card, qib_param_field);
 	qeth_create_qib_param_field_blkt(card, qib_param_field);
@@ -4819,9 +4814,8 @@ qeth_arp_query(struct qeth_card *card, char *udata)
 	/* get size of userspace buffer and mask_bits -> 6 bytes */
 	if (copy_from_user(&qinfo, udata, 6))
 		return -EFAULT;
-	if (!(qinfo.udata = kmalloc(qinfo.udata_len, GFP_KERNEL)))
+	if (!(qinfo.udata = kzalloc(qinfo.udata_len, GFP_KERNEL)))
 		return -ENOMEM;
-	memset(qinfo.udata, 0, qinfo.udata_len);
 	qinfo.udata_offset = QETH_QARP_ENTRIES_OFFSET;
 	iob = qeth_get_setassparms_cmd(card, IPA_ARP_PROCESSING,
 				       IPA_CMD_ASS_ARP_QUERY_INFO,
@@ -4969,11 +4963,10 @@ qeth_snmp_command(struct qeth_card *card, char *udata)
 		return -EFAULT;
 	}
 	qinfo.udata_len = ureq->hdr.data_len;
-	if (!(qinfo.udata = kmalloc(qinfo.udata_len, GFP_KERNEL))){
+	if (!(qinfo.udata = kzalloc(qinfo.udata_len, GFP_KERNEL))){
 		kfree(ureq);
 		return -ENOMEM;
 	}
-	memset(qinfo.udata, 0, qinfo.udata_len);
 	qinfo.udata_offset = sizeof(struct qeth_snmp_ureq_hdr);
 
 	iob = qeth_get_adapter_cmd(card, IPA_SETADP_SET_SNMP_CONTROL,
@@ -5564,12 +5557,11 @@ qeth_get_addr_buffer(enum qeth_prot_versions prot)
 {
 	struct qeth_ipaddr *addr;
 
-	addr = kmalloc(sizeof(struct qeth_ipaddr), GFP_ATOMIC);
+	addr = kzalloc(sizeof(struct qeth_ipaddr), GFP_ATOMIC);
 	if (addr == NULL) {
 		PRINT_WARN("Not enough memory to add address\n");
 		return NULL;
 	}
-	memset(addr,0,sizeof(struct qeth_ipaddr));
 	addr->type = QETH_IP_TYPE_NORMAL;
 	addr->proto = prot;
 	return addr;

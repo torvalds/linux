@@ -71,10 +71,9 @@ dasd_alloc_device(void)
 {
 	struct dasd_device *device;
 
-	device = kmalloc(sizeof (struct dasd_device), GFP_ATOMIC);
+	device = kzalloc(sizeof (struct dasd_device), GFP_ATOMIC);
 	if (device == NULL)
 		return ERR_PTR(-ENOMEM);
-	memset(device, 0, sizeof (struct dasd_device));
 	/* open_count = 0 means device online but not in use */
 	atomic_set(&device->open_count, -1);
 
@@ -547,29 +546,26 @@ dasd_kmalloc_request(char *magic, int cplength, int datasize,
 	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE)
 		BUG();
 
-	cqr = kmalloc(sizeof(struct dasd_ccw_req), GFP_ATOMIC);
+	cqr = kzalloc(sizeof(struct dasd_ccw_req), GFP_ATOMIC);
 	if (cqr == NULL)
 		return ERR_PTR(-ENOMEM);
-	memset(cqr, 0, sizeof(struct dasd_ccw_req));
 	cqr->cpaddr = NULL;
 	if (cplength > 0) {
-		cqr->cpaddr = kmalloc(cplength*sizeof(struct ccw1),
+		cqr->cpaddr = kcalloc(cplength, sizeof(struct ccw1),
 				      GFP_ATOMIC | GFP_DMA);
 		if (cqr->cpaddr == NULL) {
 			kfree(cqr);
 			return ERR_PTR(-ENOMEM);
 		}
-		memset(cqr->cpaddr, 0, cplength*sizeof(struct ccw1));
 	}
 	cqr->data = NULL;
 	if (datasize > 0) {
-		cqr->data = kmalloc(datasize, GFP_ATOMIC | GFP_DMA);
+		cqr->data = kzalloc(datasize, GFP_ATOMIC | GFP_DMA);
 		if (cqr->data == NULL) {
 			kfree(cqr->cpaddr);
 			kfree(cqr);
 			return ERR_PTR(-ENOMEM);
 		}
-		memset(cqr->data, 0, datasize);
 	}
 	strncpy((char *) &cqr->magic, magic, 4);
 	ASCEBC((char *) &cqr->magic, 4);

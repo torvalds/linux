@@ -707,13 +707,12 @@ z90crypt_open(struct inode *inode, struct file *filp)
 	if (quiesce_z90crypt)
 		return -EQUIESCE;
 
-	private_data_p = kmalloc(sizeof(struct priv_data), GFP_KERNEL);
+	private_data_p = kzalloc(sizeof(struct priv_data), GFP_KERNEL);
 	if (!private_data_p) {
 		PRINTK("Memory allocate failed\n");
 		return -ENOMEM;
 	}
 
-	memset((void *)private_data_p, 0, sizeof(struct priv_data));
 	private_data_p->status = STAT_OPEN;
 	private_data_p->opener_pid = PID();
 	filp->private_data = private_data_p;
@@ -2737,13 +2736,11 @@ create_z90crypt(int *cdx_p)
 	z90crypt.max_count = Z90CRYPT_NUM_DEVS;
 	z90crypt.cdx = *cdx_p;
 
-	hdware_blk_p = (struct hdware_block *)
-		kmalloc(sizeof(struct hdware_block), GFP_ATOMIC);
+	hdware_blk_p = kzalloc(sizeof(struct hdware_block), GFP_ATOMIC);
 	if (!hdware_blk_p) {
 		PDEBUG("kmalloc for hardware block failed\n");
 		return ENOMEM;
 	}
-	memset(hdware_blk_p, 0x00, sizeof(struct hdware_block));
 	z90crypt.hdware_info = hdware_blk_p;
 
 	return 0;
@@ -2978,12 +2975,11 @@ create_crypto_device(int index)
 		total_size = sizeof(struct device) +
 			     z90crypt.q_depth_array[index] * sizeof(int);
 
-		dev_ptr = (struct device *) kmalloc(total_size, GFP_ATOMIC);
+		dev_ptr = kzalloc(total_size, GFP_ATOMIC);
 		if (!dev_ptr) {
 			PRINTK("kmalloc device %d failed\n", index);
 			return ENOMEM;
 		}
-		memset(dev_ptr, 0, total_size);
 		dev_ptr->dev_resp_p = kmalloc(MAX_RESPONSE_SIZE, GFP_ATOMIC);
 		if (!dev_ptr->dev_resp_p) {
 			kfree(dev_ptr);
