@@ -27,6 +27,7 @@ config NET_RADIO
 
 config NET_WIRELESS_RTNETLINK
 	bool "Wireless Extension API over RtNetlink"
+	depends on NET_RADIO
 	---help---
 	  Support the Wireless Extension API over the RtNetlink socket
 	  in addition to the traditional ioctl interface (selected above).
