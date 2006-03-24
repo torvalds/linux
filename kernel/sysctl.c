@@ -2053,6 +2053,8 @@ static int do_proc_dointvec_jiffies_conv(int *negp, unsigned long *lvalp,
 					 int write, void *data)
 {
 	if (write) {
+		if (*lvalp > LONG_MAX / HZ)
+			return 1;
 		*valp = *negp ? -(*lvalp*HZ) : (*lvalp*HZ);
 	} else {
 		int val = *valp;
@@ -2074,6 +2076,8 @@ static int do_proc_dointvec_userhz_jiffies_conv(int *negp, unsigned long *lvalp,
 						int write, void *data)
 {
 	if (write) {
+		if (USER_HZ < HZ && *lvalp > (LONG_MAX / HZ) * USER_HZ)
+			return 1;
 		*valp = clock_t_to_jiffies(*negp ? -*lvalp : *lvalp);
 	} else {
 		int val = *valp;
