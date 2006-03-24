@@ -56,7 +56,7 @@ struct pll_min_max {
 #define PLLS_I9xx 1
 #define PLLS_MAX 2
 
-struct pll_min_max plls[PLLS_MAX] = {
+static struct pll_min_max plls[PLLS_MAX] = {
 	{ 108, 140, 18, 26, 6, 16, 3, 16, 4, 128, 0, 31, 930000, 1400000, 165000, 4, 22 }, //I8xx
 	{  75, 120, 10, 20, 5, 9, 4,  7, 5, 80, 1, 8, 930000, 2800000, 200000, 10, 5 }  //I9xx
 };
