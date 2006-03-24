@@ -1572,7 +1572,6 @@ static struct module *load_module(void __user *umod,
 		exportindex, modindex, obsparmindex, infoindex, gplindex,
 		crcindex, gplcrcindex, versindex, pcpuindex, gplfutureindex,
 		gplfuturecrcindex;
-	long arglen;
 	struct module *mod;
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
@@ -1691,23 +1690,11 @@ static struct module *load_module(void __user *umod,
 	}
 
 	/* Now copy in args */
-	arglen = strlen_user(uargs);
-	if (!arglen) {
-		err = -EFAULT;
+	args = strndup_user(uargs, ~0UL >> 1);
+	if (IS_ERR(args)) {
+		err = PTR_ERR(args);
 		goto free_hdr;
 	}
-	args = kmalloc(arglen, GFP_KERNEL);
-	if (!args) {
-		err = -ENOMEM;
-		goto free_hdr;
-	}
-	if (copy_from_user(args, uargs, arglen) != 0) {
-		err = -EFAULT;
-		goto free_mod;
-	}
-
-	/* Userspace could have altered the string after the strlen_user() */
-	args[arglen - 1] = '\0';
 
 	if (find_module(mod->name)) {
 		err = -EEXIST;
