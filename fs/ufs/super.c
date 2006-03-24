@@ -575,7 +575,7 @@ static int ufs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!silent)
 			printk("You didn't specify the type of your ufs filesystem\n\n"
 			"mount -t ufs -o ufstype="
-			"sun|sunx86|44bsd|ufs2|5xbsd|old|hp|nextstep|netxstep-cd|openstep ...\n\n"
+			"sun|sunx86|44bsd|ufs2|5xbsd|old|hp|nextstep|nextstep-cd|openstep ...\n\n"
 			">>>WARNING<<< Wrong ufstype may corrupt your filesystem, "
 			"default is ufstype=old\n");
 		ufs_set_opt (sbi->s_mount_opt, UFSTYPE_OLD);
