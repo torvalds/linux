@@ -21,7 +21,7 @@ function dump_config {
     let start="$start + 8"
     let size="$end - $start"
 
-    head --bytes="$end" "$file" | tail --bytes="$size" | zcat
+    dd if="$file" ibs=1 skip="$start" count="$size" 2>/dev/null | zcat
 
     clean_up
     exit 0
