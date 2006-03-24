@@ -149,7 +149,7 @@ static inline int is_spread_slab(const struct cpuset *cs)
 }
 
 /*
- * Increment this atomic integer everytime any cpuset changes its
+ * Increment this integer everytime any cpuset changes its
  * mems_allowed value.  Users of cpusets can track this generation
  * number, and avoid having to lock and reload mems_allowed unless
  * the cpuset they're using changes generation.
@@ -163,8 +163,11 @@ static inline int is_spread_slab(const struct cpuset *cs)
  * on every visit to __alloc_pages(), to efficiently check whether
  * its current->cpuset->mems_allowed has changed, requiring an update
  * of its current->mems_allowed.
+ *
+ * Since cpuset_mems_generation is guarded by manage_mutex,
+ * there is no need to mark it atomic.
  */
-static atomic_t cpuset_mems_generation = ATOMIC_INIT(1);
+static int cpuset_mems_generation;
 
 static struct cpuset top_cpuset = {
 	.flags = ((1 << CS_CPU_EXCLUSIVE) | (1 << CS_MEM_EXCLUSIVE)),
@@ -877,7 +880,7 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 
 	mutex_lock(&callback_mutex);
 	cs->mems_allowed = trialcs.mems_allowed;
-	cs->mems_generation = atomic_inc_return(&cpuset_mems_generation);
+	cs->mems_generation = cpuset_mems_generation++;
 	mutex_unlock(&callback_mutex);
 
 	set_cpuset_being_rebound(cs);		/* causes mpol_copy() rebind */
@@ -1270,11 +1273,11 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 		break;
 	case FILE_SPREAD_PAGE:
 		retval = update_flag(CS_SPREAD_PAGE, cs, buffer);
-		cs->mems_generation = atomic_inc_return(&cpuset_mems_generation);
+		cs->mems_generation = cpuset_mems_generation++;
 		break;
 	case FILE_SPREAD_SLAB:
 		retval = update_flag(CS_SPREAD_SLAB, cs, buffer);
-		cs->mems_generation = atomic_inc_return(&cpuset_mems_generation);
+		cs->mems_generation = cpuset_mems_generation++;
 		break;
 	case FILE_TASKLIST:
 		retval = attach_task(cs, buffer, &pathbuf);
@@ -1823,7 +1826,7 @@ static long cpuset_create(struct cpuset *parent, const char *name, int mode)
 	atomic_set(&cs->count, 0);
 	INIT_LIST_HEAD(&cs->sibling);
 	INIT_LIST_HEAD(&cs->children);
-	cs->mems_generation = atomic_inc_return(&cpuset_mems_generation);
+	cs->mems_generation = cpuset_mems_generation++;
 	fmeter_init(&cs->fmeter);
 
 	cs->parent = parent;
@@ -1913,7 +1916,7 @@ int __init cpuset_init_early(void)
 	struct task_struct *tsk = current;
 
 	tsk->cpuset = &top_cpuset;
-	tsk->cpuset->mems_generation = atomic_inc_return(&cpuset_mems_generation);
+	tsk->cpuset->mems_generation = cpuset_mems_generation++;
 	return 0;
 }
 
@@ -1932,7 +1935,7 @@ int __init cpuset_init(void)
 	top_cpuset.mems_allowed = NODE_MASK_ALL;
 
 	fmeter_init(&top_cpuset.fmeter);
-	top_cpuset.mems_generation = atomic_inc_return(&cpuset_mems_generation);
+	top_cpuset.mems_generation = cpuset_mems_generation++;
 
 	init_task.cpuset = &top_cpuset;
 
