@@ -1299,6 +1299,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 				ap->id, device, dev->multi_count);
 		}
 
+		dev->cdb_len = 16;
 	}
 
 	/* ATAPI-specific feature tests */
@@ -4288,7 +4289,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		/* send cdb by polling if no cdb interrupt */
 		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
 		    (qc->tf.flags & ATA_TFLAG_POLLING))
-			ata_port_queue_task(ap, atapi_packet_task, ap, 0);
+			ata_port_queue_task(ap, ata_pio_task, ap, 0);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
@@ -4300,7 +4301,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 		/* send cdb by polling if no cdb interrupt */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
-			ata_port_queue_task(ap, atapi_packet_task, ap, 0);
+			ata_port_queue_task(ap, ata_pio_task, ap, 0);
 		break;
 
 	default:
