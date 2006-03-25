@@ -75,7 +75,9 @@ static int speedstep_smi_ownership (void)
 	__asm__ __volatile__(
 		"out %%al, (%%dx)\n"
 		: "=D" (result)
-		: "a" (command), "b" (function), "c" (0), "d" (smi_port), "D" (0), "S" (magic)
+		: "a" (command), "b" (function), "c" (0), "d" (smi_port),
+			"D" (0), "S" (magic)
+		: "memory"
 	);
 
 	dprintk("result is %x\n", result);
