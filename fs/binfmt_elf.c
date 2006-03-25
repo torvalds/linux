@@ -500,17 +500,22 @@ out:
 #define INTERPRETER_AOUT 1
 #define INTERPRETER_ELF 2
 
+#ifndef STACK_RND_MASK
+#define STACK_RND_MASK 0x7ff		/* with 4K pages 8MB of VA */
+#endif
 
 static unsigned long randomize_stack_top(unsigned long stack_top)
 {
 	unsigned int random_variable = 0;
 
-	if (current->flags & PF_RANDOMIZE)
-		random_variable = get_random_int() % (8*1024*1024);
+	if (current->flags & PF_RANDOMIZE) {
+		random_variable = get_random_int() & STACK_RND_MASK;
+		random_variable <<= PAGE_SHIFT;
+	}
 #ifdef CONFIG_STACK_GROWSUP
-	return PAGE_ALIGN(stack_top + random_variable);
+	return PAGE_ALIGN(stack_top) + random_variable;
 #else
-	return PAGE_ALIGN(stack_top - random_variable);
+	return PAGE_ALIGN(stack_top) - random_variable;
 #endif
 }
 
