@@ -33,9 +33,11 @@
 #include <linux/mm.h>
 #include <linux/suspend.h>
 #include <linux/pagemap.h>
+#include <linux/kthread.h>
+#include <linux/proc_fs.h>
+
 #include <asm/uaccess.h>
 #include <asm/page.h>
-#include <linux/proc_fs.h>
 
 EXPORT_SYMBOL(journal_start);
 EXPORT_SYMBOL(journal_restart);
@@ -113,8 +115,6 @@ static int kjournald(void *arg)
 {
 	journal_t *journal = arg;
 	transaction_t *transaction;
-
-	daemonize("kjournald");
 
 	/*
 	 * Set up an interval timer which can be used to trigger a commit wakeup
@@ -211,7 +211,7 @@ end_loop:
 
 static void journal_start_thread(journal_t *journal)
 {
-	kernel_thread(kjournald, journal, CLONE_VM|CLONE_FS|CLONE_FILES);
+	kthread_run(kjournald, journal, "kjournald");
 	wait_event(journal->j_wait_done_commit, journal->j_task != 0);
 }
 
