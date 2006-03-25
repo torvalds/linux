@@ -1,5 +1,5 @@
 /*
- *  linux/fs/9p/9p.c
+ *  linux/fs/9p/fcall.c
  *
  *  This file contains functions to perform synchronous 9P calls
  *
@@ -154,7 +154,6 @@ v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid)
  * @tag: tag to release
  *
  */
-
 int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 oldtag)
 {
 	int ret;
@@ -171,7 +170,7 @@ int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 oldtag)
 
 	return ret;
 }
-#endif  /*  0  */
+#endif
 
 /**
  * v9fs_t_stat - read a file's meta-data

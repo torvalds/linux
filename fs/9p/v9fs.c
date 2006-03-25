@@ -50,7 +50,7 @@ enum {
 	Opt_port, Opt_msize, Opt_uid, Opt_gid, Opt_afid, Opt_debug,
 	Opt_rfdno, Opt_wfdno,
 	/* String options */
-	Opt_name, Opt_remotename,
+	Opt_uname, Opt_remotename,
 	/* Options that take no arguments */
 	Opt_legacy, Opt_nodevmap, Opt_unix, Opt_tcp, Opt_fd,
 	/* Error token */
@@ -66,7 +66,7 @@ static match_table_t tokens = {
 	{Opt_rfdno, "rfdno=%u"},
 	{Opt_wfdno, "wfdno=%u"},
 	{Opt_debug, "debug=%x"},
-	{Opt_name, "name=%s"},
+	{Opt_uname, "uname=%s"},
 	{Opt_remotename, "aname=%s"},
 	{Opt_unix, "proto=unix"},
 	{Opt_tcp, "proto=tcp"},
@@ -115,7 +115,7 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 		if (!*p)
 			continue;
 		token = match_token(p, tokens, args);
-		if (token < Opt_name) {
+		if (token < Opt_uname) {
 			if ((ret = match_int(&args[0], &option)) < 0) {
 				dprintk(DEBUG_ERROR,
 					"integer field, but no integer?\n");
@@ -157,7 +157,7 @@ static void v9fs_parse_options(char *options, struct v9fs_session_info *v9ses)
 		case Opt_fd:
 			v9ses->proto = PROTO_FD;
 			break;
-		case Opt_name:
+		case Opt_uname:
 			match_strcpy(v9ses->name, &args[0]);
 			break;
 		case Opt_remotename:
