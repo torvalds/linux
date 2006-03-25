@@ -161,7 +161,7 @@ static __u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 	int num, slot, func;
 
 	/* Poor man's PCI discovery */
-	for (num = 0; num < 32; num++) { 
+	for (num = 0; num < 256; num++) { 
 		for (slot = 0; slot < 32; slot++) { 
 			for (func = 0; func < 8; func++) { 
 				u32 class, cap;
