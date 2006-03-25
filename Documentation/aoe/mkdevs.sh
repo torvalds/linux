@@ -27,6 +27,8 @@ rm -f $dir/discover
 mknod -m 0200 $dir/discover c $MAJOR 3
 rm -f $dir/interfaces
 mknod -m 0200 $dir/interfaces c $MAJOR 4
+rm -f $dir/revalidate
+mknod -m 0200 $dir/revalidate c $MAJOR 5
 
 export n_partitions
 mkshelf=`echo $0 | sed 's!mkdevs!mkshelf!'`
