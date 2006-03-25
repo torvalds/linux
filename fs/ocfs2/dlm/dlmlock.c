@@ -141,13 +141,23 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 					  res->lockname.len)) {
 			kick_thread = 1;
 			call_ast = 1;
+		} else {
+			mlog(0, "%s: returning DLM_NORMAL to "
+			     "node %u for reco lock\n", dlm->name,
+			     lock->ml.node);
 		}
 	} else {
 		/* for NOQUEUE request, unless we get the
 		 * lock right away, return DLM_NOTQUEUED */
-		if (flags & LKM_NOQUEUE)
+		if (flags & LKM_NOQUEUE) {
 			status = DLM_NOTQUEUED;
-		else {
+			if (dlm_is_recovery_lock(res->lockname.name,
+						 res->lockname.len)) {
+				mlog(0, "%s: returning NOTQUEUED to "
+				     "node %u for reco lock\n", dlm->name,
+				     lock->ml.node);
+			}
+		} else {
 			dlm_lock_get(lock);
 			list_add_tail(&lock->list, &res->blocked);
 			kick_thread = 1;
