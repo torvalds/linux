@@ -162,13 +162,8 @@ enum {
 	ATA_QCFLAG_EH_SCHEDULED = (1 << 5), /* EH scheduled */
 
 	/* various lengths of time */
-	ATA_TMOUT_PIO		= 30 * HZ,
 	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
 	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* heuristic */
-	ATA_TMOUT_DATAOUT	= 30 * HZ,
-	ATA_TMOUT_DATAOUT_QUICK	= 5 * HZ,
-	ATA_TMOUT_CDB		= 30 * HZ,
-	ATA_TMOUT_CDB_QUICK	= 5 * HZ,
 	ATA_TMOUT_INTERNAL	= 30 * HZ,
 	ATA_TMOUT_INTERNAL_QUICK = 5 * HZ,
 
@@ -216,11 +211,8 @@ enum {
 enum hsm_task_states {
 	HSM_ST_UNKNOWN,		/* state unknown */
 	HSM_ST_IDLE,		/* no command on going */
-	HSM_ST_POLL,		/* same as HSM_ST, waits longer */
-	HSM_ST_TMOUT,		/* timeout */
 	HSM_ST,			/* (waiting the device to) transfer data */
 	HSM_ST_LAST,		/* (waiting the device to) complete command */
-	HSM_ST_LAST_POLL,	/* same as HSM_ST_LAST, waits longer */
 	HSM_ST_ERR,		/* error */
 	HSM_ST_FIRST,		/* (waiting the device to)
 				   write CDB or first data block */
@@ -409,7 +401,6 @@ struct ata_port {
 	struct work_struct	port_task;
 
 	unsigned int		hsm_task_state;
-	unsigned long		pio_task_timeout;
 
 	u32			msg_enable;
 	struct list_head	eh_done_q;
