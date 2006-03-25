@@ -124,7 +124,7 @@ int printk_address(unsigned long address)
 	if (!modname) 
 		modname = delim = ""; 		
         return printk("<%016lx>{%s%s%s%s%+ld}",
-		      address,delim,modname,delim,symname,offset); 
+		      address, delim, modname, delim, symname, offset); 
 } 
 #else
 int printk_address(unsigned long address)
@@ -336,13 +336,12 @@ void show_registers(struct pt_regs *regs)
 		show_stack(NULL, (unsigned long*)rsp);
 
 		printk("\nCode: ");
-		if(regs->rip < PAGE_OFFSET)
+		if (regs->rip < PAGE_OFFSET)
 			goto bad;
 
-		for(i=0;i<20;i++)
-		{
+		for (i=0; i<20; i++) {
 			unsigned char c;
-			if(__get_user(c, &((unsigned char*)regs->rip)[i])) {
+			if (__get_user(c, &((unsigned char*)regs->rip)[i])) {
 bad:
 				printk(" Bad RIP value.");
 				break;
@@ -481,7 +480,7 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 			printk(KERN_INFO
 			       "%s[%d] trap %s rip:%lx rsp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid, str,
-			       regs->rip,regs->rsp,error_code); 
+			       regs->rip, regs->rsp, error_code); 
 
 		if (info)
 			force_sig_info(signr, info, tsk);
@@ -495,9 +494,9 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 	{	     
 		const struct exception_table_entry *fixup;
 		fixup = search_exception_tables(regs->rip);
-		if (fixup) {
+		if (fixup)
 			regs->rip = fixup->fixup;
-		} else	
+		else	
 			die(str, regs, error_code);
 		return;
 	}
@@ -570,7 +569,7 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 			printk(KERN_INFO
 		       "%s[%d] general protection rip:%lx rsp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid,
-			       regs->rip,regs->rsp,error_code); 
+			       regs->rip, regs->rsp, error_code); 
 
 		force_sig(SIGSEGV, tsk);
 		return;
