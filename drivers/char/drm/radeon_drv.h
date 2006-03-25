@@ -139,6 +139,7 @@ enum radeon_chip_flags {
 	CHIP_IS_AGP = 0x00080000UL,
 	CHIP_HAS_HIERZ = 0x00100000UL,
 	CHIP_IS_PCIE = 0x00200000UL,
+	CHIP_NEW_MEMMAP = 0x00400000UL,
 };
 
 #define GET_RING_HEAD(dev_priv)	(dev_priv->writeback_works ? \
