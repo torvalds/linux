@@ -200,23 +200,6 @@ static inline __u64 __readq(const volatile void __iomem *addr)
 
 #define mmiowb()
 
-#ifdef CONFIG_UNORDERED_IO
-static inline void __writel(__u32 val, volatile void __iomem *addr)
-{
-	volatile __u32 __iomem *target = addr;
-	asm volatile("movnti %1,%0"
-		     : "=m" (*target)
-		     : "r" (val) : "memory");
-}
-
-static inline void __writeq(__u64 val, volatile void __iomem *addr)
-{
-	volatile __u64 __iomem *target = addr;
-	asm volatile("movnti %1,%0"
-		     : "=m" (*target)
-		     : "r" (val) : "memory");
-}
-#else
 static inline void __writel(__u32 b, volatile void __iomem *addr)
 {
 	*(__force volatile __u32 *)addr = b;
@@ -225,7 +208,6 @@ static inline void __writeq(__u64 b, volatile void __iomem *addr)
 {
 	*(__force volatile __u64 *)addr = b;
 }
-#endif
 static inline void __writeb(__u8 b, volatile void __iomem *addr)
 {
 	*(__force volatile __u8 *)addr = b;

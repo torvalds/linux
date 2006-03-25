@@ -520,16 +520,6 @@ config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
 	depends on PCI && ACPI
 
-config UNORDERED_IO
-       bool "Unordered IO mapping access"
-       depends on EXPERIMENTAL
-       help
-         Use unordered stores to access IO memory mappings in device drivers.
-	 Still very experimental. When a driver works on IA64/ppc64/pa-risc it should
-	 work with this option, but it makes the drivers behave differently
-	 from i386. Requires that the driver writer used memory barriers
-	 properly.
-
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
