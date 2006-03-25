@@ -7,11 +7,11 @@
  * Universite Pierre et Marie Curie (Paris VI)
  */
 
-#ifdef EXT3FS_DEBUG
-
 #include <linux/buffer_head.h>
+#include <linux/jbd.h>
+#include <linux/ext3_fs.h>
 
-#include "ext3_fs.h"
+#ifdef EXT3FS_DEBUG
 
 static int nibblemap[] = {4, 3, 3, 2, 3, 2, 2, 1, 3, 2, 2, 1, 2, 1, 1, 0};
 
