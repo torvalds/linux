@@ -57,7 +57,7 @@
    therfor they may not be initialized.
 
    The other fuctions are just for convenience, as they are for sure used by
-   most/all of the codecs. The last ones may be ommited, too. 
+   most/all of the codecs. The last ones may be ommited, too.
 
    See the structure declaration below for more information and which data has
    to be set up for the master and the slave.
@@ -75,52 +75,52 @@
 /* ========================================== */
 
 /*
-   ==== master setup ==== 
+   ==== master setup ====
    name -> name of the device structure for reference and debugging
    master_data ->  data ref. for the master (e.g. the zr36055,57,67)
    readreg -> ref. to read-fn from register (setup by master, used by slave)
    writereg -> ref. to write-fn to register (setup by master, used by slave)
-               this two functions do the lowlevel I/O job
+	       this two functions do the lowlevel I/O job
 
-   ==== slave functionality setup ==== 
-   slave_data -> data ref. for the slave (e.g. the zr36050,60) 
+   ==== slave functionality setup ====
+   slave_data -> data ref. for the slave (e.g. the zr36050,60)
    check -> fn-ref. checks availability of an device, returns -EIO on failure or
-            the type on success
-            this makes espcecially sense if a driver module supports more than
-            one codec which may be quite similar to access, nevertheless it
-            is good for a first functionality check 
+	    the type on success
+	    this makes espcecially sense if a driver module supports more than
+	    one codec which may be quite similar to access, nevertheless it
+	    is good for a first functionality check
 
-   -- main functions you always need for compression/decompression -- 
+   -- main functions you always need for compression/decompression --
 
    set_mode -> this fn-ref. resets the entire codec, and sets up the mode
-               with the last defined norm/size (or device default if not
-               available) - it returns 0 if the mode is possible 
+	       with the last defined norm/size (or device default if not
+	       available) - it returns 0 if the mode is possible
    set_size -> this fn-ref. sets the norm and image size for
-               compression/decompression (returns 0 on success) 
-               the norm param is defined in videodev.h (VIDEO_MODE_*) 
+	       compression/decompression (returns 0 on success)
+	       the norm param is defined in videodev.h (VIDEO_MODE_*)
 
    additional setup may be available, too - but the codec should work with
-   some default values even without this 
+   some default values even without this
 
-   set_data -> sets device-specific data (tables, quality etc.) 
-   get_data -> query device-specific data (tables, quality etc.) 
+   set_data -> sets device-specific data (tables, quality etc.)
+   get_data -> query device-specific data (tables, quality etc.)
 
-   if the device delivers interrupts, they may be setup/handled here 
-   setup_interrupt -> codec irq setup (not needed for 36050/60) 
-   handle_interrupt -> codec irq handling (not needed for 36050/60) 
+   if the device delivers interrupts, they may be setup/handled here
+   setup_interrupt -> codec irq setup (not needed for 36050/60)
+   handle_interrupt -> codec irq handling (not needed for 36050/60)
 
-   if the device delivers pictures, they may be handled here 
-   put_image -> puts image data to the codec (not needed for 36050/60) 
-   get_image -> gets image data from the codec (not needed for 36050/60) 
-                the calls include frame numbers and flags (even/odd/...) 
-                if needed and a flag which allows blocking until its ready 
+   if the device delivers pictures, they may be handled here
+   put_image -> puts image data to the codec (not needed for 36050/60)
+   get_image -> gets image data from the codec (not needed for 36050/60)
+		the calls include frame numbers and flags (even/odd/...)
+		if needed and a flag which allows blocking until its ready
 */
 
 /* ============== */
 /* user interface */
 /* ============== */
 
-/* 
+/*
    Currently there is only a information display planned, as the layer
    is not visible for the user space at all.
 

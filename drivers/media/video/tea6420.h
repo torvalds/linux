@@ -2,8 +2,8 @@
 #define __INCLUDED_TEA6420__
 
 /* possible addresses */
-#define	I2C_TEA6420_1		0x4c
-#define	I2C_TEA6420_2		0x4d
+#define	I2C_ADDR_TEA6420_1		0x4c
+#define	I2C_ADDR_TEA6420_2		0x4d
 
 struct tea6420_multiplex
 {

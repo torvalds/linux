@@ -541,6 +541,7 @@ static struct usb_device_id flexcop_usb_table [] = {
 	    { USB_DEVICE(0x0af7, 0x0101) },
 	    { }
 };
+MODULE_DEVICE_TABLE (usb, flexcop_usb_table);
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver flexcop_usb_driver = {

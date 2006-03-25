@@ -1,4 +1,4 @@
-/* 
+/*
  *  bt819 - BT819A VideoStream Decoder (Rockwell Part)
  *
  * Copyright (C) 1999 Mike Bernson <mike@mlb.org>
@@ -6,7 +6,7 @@
  *
  * Modifications for LML33/DC10plus unified driver
  * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
- *  
+ *
  * Changes by Ronald Bultje <rbultje@ronald.bitfreak.net>
  *    - moved over to linux>=2.4.x i2c protocol (9/9/2002)
  *
@@ -206,9 +206,9 @@ bt819_init (struct i2c_client *client)
 					   Bug in the bt819 stepping on my board?
 					*/
 		0x14, 0x00,	/* 0x14 Vertial Scaling lsb */
-		0x16, 0x07,	/* 0x16 Video Timing Polarity 
+		0x16, 0x07,	/* 0x16 Video Timing Polarity
 					   ACTIVE=active low
-					   FIELD: high=odd, 
+					   FIELD: high=odd,
 					   vreset=active high,
 					   hreset=active high */
 		0x18, 0x68,	/* 0x18 AGC Delay */
@@ -497,7 +497,7 @@ static unsigned short normal_i2c[] = {
 };
 
 static unsigned short ignore = I2C_CLIENT_END;
-                                                                                
+
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,

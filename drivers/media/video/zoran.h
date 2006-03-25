@@ -1,4 +1,4 @@
-/* 
+/*
  * zoran - Iomega Buz driver
  *
  * Copyright (C) 1999 Rainer Johanni <Rainer@Johanni.de>

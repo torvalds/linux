@@ -1,4 +1,4 @@
-/* 
+/*
     planb - PlanB frame grabber driver
 
     PlanB is used in the 7x00/8x00 series of PowerMacintosh
@@ -167,7 +167,7 @@ struct planb {
 	struct	video_device video_dev;
 	struct	video_picture picture;		/* Current picture params */
 	struct	video_audio audio_dev;		/* Current audio params */
-  
+
 	volatile struct planb_registers *planb_base;	/* virt base of planb */
 	struct planb_registers *planb_base_phys;	/* phys base of planb */
 	void	*priv_space;			/* Org. alloc. mem for kfree */
@@ -209,7 +209,7 @@ struct planb {
 	int gwidth[MAX_GBUFFERS], gheight[MAX_GBUFFERS];
 	unsigned int gfmt[MAX_GBUFFERS];
 	int gnorm_switch[MAX_GBUFFERS];
-        volatile unsigned int *frame_stat;
+	volatile unsigned int *frame_stat;
 #define GBUFFER_UNUSED       0x00U
 #define GBUFFER_GRABBING     0x01U
 #define GBUFFER_DONE         0x02U

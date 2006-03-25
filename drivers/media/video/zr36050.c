@@ -34,7 +34,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
-/* includes for structures and defines regarding video 
+/* includes for structures and defines regarding video
    #include<linux/videodev.h> */
 
 /* I/O commands, error codes */
@@ -171,7 +171,7 @@ zr36050_wait_end (struct zr36050 *ptr)
 /* =========================================================================
    Local helper function:
 
-   basic test of "connectivity", writes/reads to/from memory the SOF marker 
+   basic test of "connectivity", writes/reads to/from memory the SOF marker
    ========================================================================= */
 
 static int
@@ -218,9 +218,9 @@ zr36050_basic_test (struct zr36050 *ptr)
 
 static int
 zr36050_pushit (struct zr36050 *ptr,
-	        u16             startreg,
-	        u16             len,
-	        const char     *data)
+		u16             startreg,
+		u16             len,
+		const char     *data)
 {
 	int i = 0;
 
@@ -345,7 +345,7 @@ static const char zr36050_decimation_v[8] = { 1, 1, 1, 0, 0, 0, 0, 0 };
 /* ------------------------------------------------------------------------- */
 
 /* SOF (start of frame) segment depends on width, height and sampling ratio
-                         of each color component */
+			 of each color component */
 
 static int
 zr36050_set_sof (struct zr36050 *ptr)
@@ -376,8 +376,8 @@ zr36050_set_sof (struct zr36050 *ptr)
 
 /* ------------------------------------------------------------------------- */
 
-/* SOS (start of scan) segment depends on the used scan components 
-                        of each color component */
+/* SOS (start of scan) segment depends on the used scan components
+			of each color component */
 
 static int
 zr36050_set_sos (struct zr36050 *ptr)

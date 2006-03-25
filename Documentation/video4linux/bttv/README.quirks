@@ -38,9 +38,9 @@ tolerate.
 ------------------------
 
 When using the 430FX PCI, the following rules will ensure
-compatibility: 
+compatibility:
 
- (1) Deassert REQ at the same time as asserting FRAME. 
+ (1) Deassert REQ at the same time as asserting FRAME.
  (2) Do not reassert REQ to request another bus transaction until after
      finish-ing the previous transaction.
 

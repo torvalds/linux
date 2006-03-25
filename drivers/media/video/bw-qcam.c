@@ -150,7 +150,7 @@ static int qc_calibrate(struct qcam_device *q)
 static struct qcam_device *qcam_init(struct parport *port)
 {
 	struct qcam_device *q;
-	
+
 	q = kmalloc(sizeof(struct qcam_device), GFP_KERNEL);
 	if(q==NULL)
 		return NULL;
@@ -158,16 +158,16 @@ static struct qcam_device *qcam_init(struct parport *port)
 	q->pport = port;
 	q->pdev = parport_register_device(port, "bw-qcam", NULL, NULL,
 					  NULL, 0, NULL);
-	if (q->pdev == NULL) 
+	if (q->pdev == NULL)
 	{
 		printk(KERN_ERR "bw-qcam: couldn't register for %s.\n",
 		       port->name);
 		kfree(q);
 		return NULL;
 	}
-	
+
 	memcpy(&q->vdev, &qcam_template, sizeof(qcam_template));
-	
+
 	mutex_init(&q->lock);
 
 	q->port_mode = (QC_ANY | QC_NOTSET);
@@ -236,12 +236,12 @@ static int qc_waithand(struct qcam_device *q, int val)
 		while (!((status = read_lpstatus(q)) & 8))
 		{
 			/* 1000 is enough spins on the I/O for all normal
-			   cases, at that point we start to poll slowly 
+			   cases, at that point we start to poll slowly
 			   until the camera wakes up. However, we are
 			   busy blocked until the camera responds, so
 			   setting it lower is much better for interactive
 			   response. */
-			   
+
 			if(runs++>maxpoll)
 			{
 				msleep_interruptible(5);
@@ -255,12 +255,12 @@ static int qc_waithand(struct qcam_device *q, int val)
 		while (((status = read_lpstatus(q)) & 8))
 		{
 			/* 1000 is enough spins on the I/O for all normal
-			   cases, at that point we start to poll slowly 
+			   cases, at that point we start to poll slowly
 			   until the camera wakes up. However, we are
 			   busy blocked until the camera responds, so
 			   setting it lower is much better for interactive
 			   response. */
-			   
+
 			if(runs++>maxpoll)
 			{
 				msleep_interruptible(5);
@@ -282,17 +282,17 @@ static unsigned int qc_waithand2(struct qcam_device *q, int val)
 {
 	unsigned int status;
 	int runs=0;
-	
-	do 
+
+	do
 	{
 		status = read_lpdata(q);
 		/* 1000 is enough spins on the I/O for all normal
-		   cases, at that point we start to poll slowly 
+		   cases, at that point we start to poll slowly
 		   until the camera wakes up. However, we are
 		   busy blocked until the camera responds, so
 		   setting it lower is much better for interactive
 		   response. */
-		   
+
 		if(runs++>maxpoll)
 		{
 			msleep_interruptible(5);
@@ -321,7 +321,7 @@ static int qc_detect(struct qcam_device *q)
 
 	lastreg = reg = read_lpstatus(q) & 0xf0;
 
-	for (i = 0; i < 500; i++) 
+	for (i = 0; i < 500; i++)
 	{
 		reg = read_lpstatus(q) & 0xf0;
 		if (reg != lastreg)
@@ -357,7 +357,7 @@ static int qc_detect(struct qcam_device *q)
 
 static void qc_reset(struct qcam_device *q)
 {
-	switch (q->port_mode & QC_FORCE_MASK) 
+	switch (q->port_mode & QC_FORCE_MASK)
 	{
 		case QC_FORCE_UNIDIR:
 			q->port_mode = (q->port_mode & ~QC_MODE_MASK) | QC_UNIDIR;
@@ -370,7 +370,7 @@ static void qc_reset(struct qcam_device *q)
 		case QC_ANY:
 			write_lpcontrol(q, 0x20);
 			write_lpdata(q, 0x75);
-	
+
 			if (read_lpdata(q) != 0x75) {
 				q->port_mode = (q->port_mode & ~QC_MODE_MASK) | QC_BIDIR;
 			} else {
@@ -398,8 +398,8 @@ static void qc_reset(struct qcam_device *q)
 static int qc_setscanmode(struct qcam_device *q)
 {
 	int old_mode = q->mode;
-	
-	switch (q->transfer_scale) 
+
+	switch (q->transfer_scale)
 	{
 		case 1:
 			q->mode = 0;
@@ -412,7 +412,7 @@ static int qc_setscanmode(struct qcam_device *q)
 			break;
 	}
 
-	switch (q->bpp) 
+	switch (q->bpp)
 	{
 		case 4:
 			break;
@@ -421,7 +421,7 @@ static int qc_setscanmode(struct qcam_device *q)
 			break;
 	}
 
-	switch (q->port_mode & QC_MODE_MASK) 
+	switch (q->port_mode & QC_MODE_MASK)
 	{
 		case QC_BIDIR:
 			q->mode += 1;
@@ -430,10 +430,10 @@ static int qc_setscanmode(struct qcam_device *q)
 		case QC_UNIDIR:
 			break;
 	}
-	
+
 	if (q->mode != old_mode)
 		q->status |= QC_PARAM_CHANGE;
-	
+
 	return 0;
 }
 
@@ -451,7 +451,7 @@ static void qc_set(struct qcam_device *q)
 	/* Set the brightness.  Yes, this is repetitive, but it works.
 	 * Shorter versions seem to fail subtly.  Feel free to try :-). */
 	/* I think the problem was in qc_command, not here -- bls */
-	
+
 	qc_command(q, 0xb);
 	qc_command(q, q->brightness);
 
@@ -502,13 +502,13 @@ static inline int qc_readbytes(struct qcam_device *q, char buffer[])
 	unsigned int hi2, lo2;
 	static int state = 0;
 
-	if (buffer == NULL) 
+	if (buffer == NULL)
 	{
 		state = 0;
 		return 0;
 	}
-	
-	switch (q->port_mode & QC_MODE_MASK) 
+
+	switch (q->port_mode & QC_MODE_MASK)
 	{
 		case QC_BIDIR:		/* Bi-directional Port */
 			write_lpcontrol(q, 0x26);
@@ -517,7 +517,7 @@ static inline int qc_readbytes(struct qcam_device *q, char buffer[])
 			write_lpcontrol(q, 0x2e);
 			lo2 = (qc_waithand2(q, 0) >> 1);
 			hi2 = (read_lpstatus(q) >> 3) & 0x1f;
-			switch (q->bpp) 
+			switch (q->bpp)
 			{
 				case 4:
 					buffer[0] = lo & 0xf;
@@ -544,7 +544,7 @@ static inline int qc_readbytes(struct qcam_device *q, char buffer[])
 			write_lpcontrol(q, 0xe);
 			hi = (qc_waithand(q, 0) & 0xf0) >> 4;
 
-			switch (q->bpp) 
+			switch (q->bpp)
 			{
 				case 4:
 					buffer[0] = lo;
@@ -552,7 +552,7 @@ static inline int qc_readbytes(struct qcam_device *q, char buffer[])
 					ret = 2;
 					break;
 				case 6:
-					switch (state) 
+					switch (state)
 					{
 						case 0:
 							buffer[0] = (lo << 2) | ((hi & 0xc) >> 2);
@@ -604,13 +604,13 @@ static long qc_capture(struct qcam_device * q, char __user *buf, unsigned long l
 	int  shift=8-q->bpp;
 	char invert;
 
-	if (q->mode == -1) 
+	if (q->mode == -1)
 		return -ENXIO;
 
 	qc_command(q, 0x7);
 	qc_command(q, q->mode);
 
-	if ((q->port_mode & QC_MODE_MASK) == QC_BIDIR) 
+	if ((q->port_mode & QC_MODE_MASK) == QC_BIDIR)
 	{
 		write_lpcontrol(q, 0x2e);	/* turn port around */
 		write_lpcontrol(q, 0x26);
@@ -618,7 +618,7 @@ static long qc_capture(struct qcam_device * q, char __user *buf, unsigned long l
 		write_lpcontrol(q, 0x2e);
 		(void) qc_waithand(q, 0);
 	}
-	
+
 	/* strange -- should be 15:63 below, but 4bpp is odd */
 	invert = (q->bpp == 4) ? 16 : 63;
 
@@ -629,15 +629,15 @@ static long qc_capture(struct qcam_device * q, char __user *buf, unsigned long l
 	    q->transfer_scale;
 	transperline = (transperline + divisor - 1) / divisor;
 
-	for (i = 0, yield = yieldlines; i < linestotrans; i++) 
+	for (i = 0, yield = yieldlines; i < linestotrans; i++)
 	{
-		for (pixels_read = j = 0; j < transperline; j++) 
+		for (pixels_read = j = 0; j < transperline; j++)
 		{
 			bytes = qc_readbytes(q, buffer);
-			for (k = 0; k < bytes && (pixels_read + k) < pixels_per_line; k++) 
+			for (k = 0; k < bytes && (pixels_read + k) < pixels_per_line; k++)
 			{
 				int o;
-				if (buffer[k] == 0 && invert == 16) 
+				if (buffer[k] == 0 && invert == 16)
 				{
 					/* 4bpp is odd (again) -- inverter is 16, not 15, but output
 					   must be 0-15 -- bls */
@@ -653,7 +653,7 @@ static long qc_capture(struct qcam_device * q, char __user *buf, unsigned long l
 			pixels_read += bytes;
 		}
 		(void) qc_readbytes(q, NULL);	/* reset state machine */
-		
+
 		/* Grabbing an entire frame from the quickcam is a lengthy
 		   process. We don't (usually) want to busy-block the
 		   processor for the entire frame. yieldlines is a module
@@ -666,7 +666,7 @@ static long qc_capture(struct qcam_device * q, char __user *buf, unsigned long l
 		}
 	}
 
-	if ((q->port_mode & QC_MODE_MASK) == QC_BIDIR) 
+	if ((q->port_mode & QC_MODE_MASK) == QC_BIDIR)
 	{
 		write_lpcontrol(q, 2);
 		write_lpcontrol(q, 6);
@@ -687,7 +687,7 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 {
 	struct video_device *dev = video_devdata(file);
 	struct qcam_device *qcam=(struct qcam_device *)dev;
-	
+
 	switch(cmd)
 	{
 		case VIDIOCGCAP:
@@ -762,7 +762,7 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 			    	return -EINVAL;
 			if(p->depth!=4 && p->depth!=6)
 				return -EINVAL;
-			
+
 			/*
 			 *	Now load the camera.
 			 */
@@ -790,11 +790,11 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 				return -EINVAL;
 			if(vw->width<80||vw->width>320)
 				return -EINVAL;
-				
+
 			qcam->width = 320;
 			qcam->height = 240;
 			qcam->transfer_scale = 4;
-			
+
 			if(vw->width>=160 && vw->height>=120)
 			{
 				qcam->transfer_scale = 2;
@@ -808,11 +808,11 @@ static int qcam_do_ioctl(struct inode *inode, struct file *file,
 			mutex_lock(&qcam->lock);
 			qc_setscanmode(qcam);
 			mutex_unlock(&qcam->lock);
-			
+
 			/* We must update the camera before we grab. We could
 			   just have changed the grab size */
 			qcam->status |= QC_PARAM_CHANGE;
-			
+
 			/* Ok we figured out what to use from our wide choice */
 			return 0;
 		}
@@ -853,9 +853,9 @@ static ssize_t qcam_read(struct file *file, char __user *buf,
 	struct qcam_device *qcam=(struct qcam_device *)v;
 	int len;
 	parport_claim_or_block(qcam->pdev);
-	
+
 	mutex_lock(&qcam->lock);
-	
+
 	qc_reset(qcam);
 
 	/* Update the camera parameters if we need to */
@@ -863,13 +863,13 @@ static ssize_t qcam_read(struct file *file, char __user *buf,
 		qc_set(qcam);
 
 	len=qc_capture(qcam, buf,count);
-	
+
 	mutex_unlock(&qcam->lock);
-	
+
 	parport_release(qcam->pdev);
 	return len;
 }
- 
+
 static struct file_operations qcam_fops = {
 	.owner		= THIS_MODULE,
 	.open           = video_exclusive_open,
@@ -905,11 +905,11 @@ static int init_bwqcam(struct parport *port)
 	qcam=qcam_init(port);
 	if(qcam==NULL)
 		return -ENODEV;
-		
+
 	parport_claim_or_block(qcam->pdev);
 
 	qc_reset(qcam);
-	
+
 	if(qc_detect(qcam)==0)
 	{
 		parport_release(qcam->pdev);
@@ -920,9 +920,9 @@ static int init_bwqcam(struct parport *port)
 	qc_calibrate(qcam);
 
 	parport_release(qcam->pdev);
-	
+
 	printk(KERN_INFO "Connectix Quickcam on %s\n", qcam->pport->name);
-	
+
 	if(video_register_device(&qcam->vdev, VFL_TYPE_GRABBER, video_nr)==-1)
 	{
 		parport_unregister_device(qcam->pdev);
@@ -1013,7 +1013,7 @@ static int __init init_bw_qcams(void)
 		printk("Connectix Quickcam max-poll was above 5000. Using 5000.\n");
 		maxpoll = 5000;
 	}
-	
+
 	if (yieldlines < 1) {
 		printk("Connectix Quickcam yieldlines was less than 1. Using 1.\n");
 		yieldlines = 1;
