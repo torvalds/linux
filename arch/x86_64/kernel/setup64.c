@@ -248,7 +248,7 @@ void __cpuinit cpu_init (void)
 		switch (v + 1) {
 #if DEBUG_STKSZ > EXCEPTION_STKSZ
 		case DEBUG_STACK:
-			cpu_pda[cpu].debugstack = (unsigned long)estacks;
+			cpu_pda(cpu)->debugstack = (unsigned long)estacks;
 			estacks += DEBUG_STKSZ;
 			break;
 #endif
