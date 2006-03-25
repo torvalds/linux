@@ -18,8 +18,16 @@ void move_native_irq(int irq)
 	cpumask_t tmp;
 	irq_desc_t *desc = irq_descp(irq);
 
-	if (likely (!desc->move_irq))
+	if (likely(!desc->move_irq))
 		return;
+
+	/*
+	 * Paranoia: cpu-local interrupts shouldn't be calling in here anyway.
+	 */
+	if (CHECK_IRQ_PER_CPU(desc->status)) {
+		WARN_ON(1);
+		return;
+	}
 
 	desc->move_irq = 0;
 
@@ -29,7 +37,8 @@ void move_native_irq(int irq)
 	if (!desc->handler->set_affinity)
 		return;
 
-	/* note - we hold the desc->lock */
+	assert_spin_locked(&desc->lock);
+
 	cpus_and(tmp, pending_irq_cpumask[irq], cpu_online_map);
 
 	/*
@@ -42,9 +51,13 @@ void move_native_irq(int irq)
 	 * Being paranoid i guess!
 	 */
 	if (unlikely(!cpus_empty(tmp))) {
-		desc->handler->disable(irq);
+		if (likely(!(desc->status & IRQ_DISABLED)))
+			desc->handler->disable(irq);
+
 		desc->handler->set_affinity(irq,tmp);
-		desc->handler->enable(irq);
+
+		if (likely(!(desc->status & IRQ_DISABLED)))
+			desc->handler->enable(irq);
 	}
 	cpus_clear(pending_irq_cpumask[irq]);
 }
