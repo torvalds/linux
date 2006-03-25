@@ -646,8 +646,10 @@ static int __init isapnp_create_device(struct pnp_card *card,
 				size = 0;
 				skip = 0;
 				option = pnp_register_independent_option(dev);
-				if (!option)
+				if (!option) {
+					kfree(dev);
 					return 1;
+				}
 				pnp_add_card_device(card,dev);
 			} else {
 				skip = 1;
