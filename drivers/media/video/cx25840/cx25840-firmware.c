@@ -20,8 +20,9 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/firmware.h>
 #include <media/v4l2-common.h>
+#include <media/cx25840.h>
 
-#include "cx25840.h"
+#include "cx25840-core.h"
 
 #define FWFILE "v4l-cx25840.fw"
 #define FWSEND 1024
