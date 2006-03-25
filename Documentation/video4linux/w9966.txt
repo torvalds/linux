@@ -26,7 +26,7 @@ is called VIDEO_PALETTE_YUV422 (16 bpp).
 A minimal test application (with source) is available from:
   http://hem.fyristorg.com/mogul/w9966.html
 
-The slow framerate is due to missing DMA ECP read support in the 
+The slow framerate is due to missing DMA ECP read support in the
 parport drivers. I might add working EPP support later.
 
 Good luck!
