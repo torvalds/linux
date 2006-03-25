@@ -39,3 +39,7 @@ cflags-$(CONFIG_X86_ELAN)	+= -march=i486
 # Geode GX1 support
 cflags-$(CONFIG_MGEODEGX1)	+= -march=pentium-mmx
 
+# add at the end to overwrite eventual tuning options from earlier
+# cpu entries
+cflags-$(CONFIG_X86_GENERIC) 	+= $(call tune,generic)
+

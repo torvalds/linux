@@ -29,6 +29,7 @@ CHECKFLAGS      += -D__x86_64__ -m64
 
 cflags-$(CONFIG_MK8) += $(call cc-option,-march=k8)
 cflags-$(CONFIG_MPSC) += $(call cc-option,-march=nocona)
+cflags-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mtune=generic)
 CFLAGS += $(cflags-y)
 
 CFLAGS += -m64
