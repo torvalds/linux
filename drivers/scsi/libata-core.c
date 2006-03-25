@@ -2633,6 +2633,10 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
  *	known limits including host controller limits, device
  *	blacklist, etc...
  *
+ *	FIXME: The current implementation limits all transfer modes to
+ *	the fastest of the lowested device on the port.  This is not
+ *	required on most controllers. 
+ *
  *	LOCKING:
  *	None.
  */
