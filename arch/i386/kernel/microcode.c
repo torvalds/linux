@@ -202,8 +202,6 @@ static inline void mark_microcode_update (int cpu_num, microcode_header_t *mc_he
 	} else if (mc_header->rev == uci->rev) {
 		/* notify the caller of success on this cpu */
 		uci->err = MC_SUCCESS;
-		printk(KERN_ERR "microcode: CPU%d already at revision"
-			" 0x%x (current=0x%x)\n", cpu_num, mc_header->rev, uci->rev);
 		goto out;
 	}
 
@@ -369,7 +367,6 @@ static void do_update_one (void * unused)
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 
 	if (uci->mc == NULL) {
-		printk(KERN_INFO "microcode: No new microcode data for CPU%d\n", cpu_num);
 		return;
 	}
 
@@ -511,7 +508,6 @@ static int __init microcode_init (void)
 static void __exit microcode_exit (void)
 {
 	misc_deregister(&microcode_dev);
-	printk(KERN_INFO "IA-32 Microcode Update Driver v" MICROCODE_VERSION " unregistered\n");
 }
 
 module_init(microcode_init)
