@@ -3710,7 +3710,7 @@ fsm_start:
 			    (!(qc->tf.flags & ATA_TFLAG_WRITE))) {
 				/* all data read */
 				ata_altstatus(ap);
-				status = ata_chk_status(ap);
+				status = ata_wait_idle(ap);
 				goto fsm_start;
 			}
 		}
