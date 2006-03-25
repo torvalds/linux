@@ -823,34 +823,38 @@ EXPORT_SYMBOL(hvc_remove);
  * interfaces start to become available. */
 int __init hvc_init(void)
 {
+	struct tty_driver *drv;
+
 	/* We need more than hvc_count adapters due to hotplug additions. */
-	hvc_driver = alloc_tty_driver(HVC_ALLOC_TTY_ADAPTERS);
-	if (!hvc_driver)
+	drv = alloc_tty_driver(HVC_ALLOC_TTY_ADAPTERS);
+	if (!drv)
 		return -ENOMEM;
 
-	hvc_driver->owner = THIS_MODULE;
-	hvc_driver->devfs_name = "hvc/";
-	hvc_driver->driver_name = "hvc";
-	hvc_driver->name = "hvc";
-	hvc_driver->major = HVC_MAJOR;
-	hvc_driver->minor_start = HVC_MINOR;
-	hvc_driver->type = TTY_DRIVER_TYPE_SYSTEM;
-	hvc_driver->init_termios = tty_std_termios;
-	hvc_driver->flags = TTY_DRIVER_REAL_RAW;
-	tty_set_operations(hvc_driver, &hvc_ops);
+	drv->owner = THIS_MODULE;
+	drv->devfs_name = "hvc/";
+	drv->driver_name = "hvc";
+	drv->name = "hvc";
+	drv->major = HVC_MAJOR;
+	drv->minor_start = HVC_MINOR;
+	drv->type = TTY_DRIVER_TYPE_SYSTEM;
+	drv->init_termios = tty_std_termios;
+	drv->flags = TTY_DRIVER_REAL_RAW;
+	tty_set_operations(drv, &hvc_ops);
 
 	/* Always start the kthread because there can be hotplug vty adapters
 	 * added later. */
 	hvc_task = kthread_run(khvcd, NULL, "khvcd");
 	if (IS_ERR(hvc_task)) {
 		panic("Couldn't create kthread for console.\n");
-		put_tty_driver(hvc_driver);
+		put_tty_driver(drv);
 		return -EIO;
 	}
 
-	if (tty_register_driver(hvc_driver))
+	if (tty_register_driver(drv))
 		panic("Couldn't register hvc console driver\n");
 
+	mb();
+	hvc_driver = drv;
 	return 0;
 }
 module_init(hvc_init);
