@@ -364,13 +364,15 @@ config GART_IOMMU
 	select SWIOTLB
 	depends on PCI
 	help
-	  Support the IOMMU. Needed to run systems with more than 3GB of memory
-	  properly with 32-bit PCI devices that do not support DAC (Double Address
-	  Cycle). The IOMMU can be turned off at runtime with the iommu=off parameter.
-	  Normally the kernel will take the right choice by itself.
-	  This option includes a driver for the AMD Opteron/Athlon64 northbridge IOMMU
-	  and a software emulation used on other systems.
-	  If unsure, say Y.
+	  Support for hardware IOMMU in AMD's Opteron/Athlon64 Processors
+	  and for the bounce buffering software IOMMU.
+	  Needed to run systems with more than 3GB of memory properly with
+	  32-bit PCI devices that do not support DAC (Double Address Cycle).
+	  The IOMMU can be turned off at runtime with the iommu=off parameter.
+  	  Normally the kernel will take the right choice by itself.
+  	  This option includes a driver for the AMD Opteron/Athlon64 IOMMU
+  	  northbridge and a software emulation used on other systems without
+	  hardware IOMMU.  If unsure, say Y.
 
 # need this always enabled with GART_IOMMU for the VIA workaround
 config SWIOTLB
