@@ -3424,37 +3424,38 @@ static int alloc_kmemlist(struct kmem_cache *cachep)
 {
 	int node;
 	struct kmem_list3 *l3;
-	int err = 0;
+	struct array_cache *new_shared;
+	struct array_cache **new_alien;
 
 	for_each_online_node(node) {
-		struct array_cache *nc = NULL, *new;
-		struct array_cache **new_alien = NULL;
-#ifdef CONFIG_NUMA
+
 		new_alien = alloc_alien_cache(node, cachep->limit);
 		if (!new_alien)
 			goto fail;
-#endif
-		new = alloc_arraycache(node, cachep->shared*cachep->batchcount,
+
+		new_shared = alloc_arraycache(node, cachep->shared*cachep->batchcount,
 					0xbaadf00d);
-		if (!new)
+		if (!new_shared)
 			goto fail;
+
 		l3 = cachep->nodelists[node];
 		if (l3) {
+			struct array_cache *shared = l3->shared;
+
 			spin_lock_irq(&l3->list_lock);
 
-			nc = cachep->nodelists[node]->shared;
-			if (nc)
-				free_block(cachep, nc->entry, nc->avail, node);
+			if (shared)
+				free_block(cachep, shared->entry, shared->avail, node);
 
-			l3->shared = new;
-			if (!cachep->nodelists[node]->alien) {
+			l3->shared = new_shared;
+			if (!l3->alien) {
 				l3->alien = new_alien;
 				new_alien = NULL;
 			}
 			l3->free_limit = (1 + nr_cpus_node(node)) *
 					cachep->batchcount + cachep->num;
 			spin_unlock_irq(&l3->list_lock);
-			kfree(nc);
+			kfree(shared);
 			free_alien_cache(new_alien);
 			continue;
 		}
@@ -3465,16 +3466,15 @@ static int alloc_kmemlist(struct kmem_cache *cachep)
 		kmem_list3_init(l3);
 		l3->next_reap = jiffies + REAPTIMEOUT_LIST3 +
 				((unsigned long)cachep) % REAPTIMEOUT_LIST3;
-		l3->shared = new;
+		l3->shared = new_shared;
 		l3->alien = new_alien;
 		l3->free_limit = (1 + nr_cpus_node(node)) *
 					cachep->batchcount + cachep->num;
 		cachep->nodelists[node] = l3;
 	}
-	return err;
+	return 0;
 fail:
-	err = -ENOMEM;
-	return err;
+	return -ENOMEM;
 }
 
 struct ccupdate_struct {
