@@ -190,7 +190,7 @@ static ssize_t sd_store_cache_type(struct class_device *cdev, const char *buf,
 	if (scsi_mode_sense(sdp, 0x08, 8, buffer, sizeof(buffer), SD_TIMEOUT,
 			    SD_MAX_RETRIES, &data, NULL))
 		return -EINVAL;
-	len = min(sizeof(buffer), data.length - data.header_length -
+	len = min_t(size_t, sizeof(buffer), data.length - data.header_length -
 		  data.block_descriptor_length);
 	buffer_data = buffer + data.header_length +
 		data.block_descriptor_length;
