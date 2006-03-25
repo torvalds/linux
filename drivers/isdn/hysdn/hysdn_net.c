@@ -24,7 +24,7 @@
 #include "hysdn_defs.h"
 
 unsigned int hynet_enable = 0xffffffff; 
-MODULE_PARM(hynet_enable, "i");
+module_param(hynet_enable, uint, 0);
 
 /* store the actual version for log reporting */
 char *hysdn_net_revision = "$Revision: 1.8.6.4 $";

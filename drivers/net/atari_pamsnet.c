@@ -119,7 +119,7 @@ static char *version =
  * Global variable 'pamsnet_debug'. Can be set at load time by 'insmod'
  */
 unsigned int pamsnet_debug = NET_DEBUG;
-MODULE_PARM(pamsnet_debug, "i");
+module_param(pamsnet_debug, int, 0);
 MODULE_PARM_DESC(pamsnet_debug, "pamsnet debug enable (0-1)");
 MODULE_LICENSE("GPL");
 

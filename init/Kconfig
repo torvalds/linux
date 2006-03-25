@@ -470,15 +470,6 @@ config MODULE_FORCE_UNLOAD
 	  rmmod).  This is mainly for kernel developers and desperate users.
 	  If unsure, say N.
 
-config OBSOLETE_MODPARM
-	bool
-	default y
-	depends on MODULES
-	help
-	  You need this option to use module parameters on modules which
-	  have not been converted to the new module parameter system yet.
-	  If unsure, say Y.
-
 config MODVERSIONS
 	bool "Module versioning support"
 	depends on MODULES

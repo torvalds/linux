@@ -54,15 +54,15 @@ static int verbose;		/* Print more debug info. */
 static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 5; /* Interval between shuffles (in sec)*/
 
-MODULE_PARM(nreaders, "i");
+module_param(nreaders, int, 0);
 MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
-MODULE_PARM(stat_interval, "i");
+module_param(stat_interval, int, 0);
 MODULE_PARM_DESC(stat_interval, "Number of seconds between stats printk()s");
-MODULE_PARM(verbose, "i");
+module_param(verbose, bool, 0);
 MODULE_PARM_DESC(verbose, "Enable verbose debugging printk()s");
-MODULE_PARM(test_no_idle_hz, "i");
+module_param(test_no_idle_hz, bool, 0);
 MODULE_PARM_DESC(test_no_idle_hz, "Test support for tickless idle CPUs");
-MODULE_PARM(shuffle_interval, "i");
+module_param(shuffle_interval, int, 0);
 MODULE_PARM_DESC(shuffle_interval, "Number of seconds between shuffles");
 #define TORTURE_FLAG "rcutorture: "
 #define PRINTK_STRING(s) \

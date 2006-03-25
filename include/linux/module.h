@@ -554,25 +554,6 @@ static inline void module_remove_driver(struct device_driver *driver)
 
 /* BELOW HERE ALL THESE ARE OBSOLETE AND WILL VANISH */
 
-struct obsolete_modparm {
-	char name[64];
-	char type[64-sizeof(void *)];
-	void *addr;
-};
-
-static inline void MODULE_PARM_(void) { }
-#ifdef MODULE
-/* DEPRECATED: Do not use. */
-#define MODULE_PARM(var,type)						    \
-extern struct obsolete_modparm __parm_##var \
-__attribute__((section("__obsparm"))); \
-struct obsolete_modparm __parm_##var = \
-{ __stringify(var), type, &MODULE_PARM_ }; \
-__MODULE_PARM_TYPE(var, type);
-#else
-#define MODULE_PARM(var,type) static void __attribute__((__unused__)) *__parm_##var = &MODULE_PARM_;
-#endif
-
 #define __MODULE_STRING(x) __stringify(x)
 
 /* Use symbol_get and symbol_put instead.  You'll thank me. */

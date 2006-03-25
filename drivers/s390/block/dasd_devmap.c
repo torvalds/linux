@@ -16,6 +16,7 @@
 #include <linux/config.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 #include <asm/debug.h>
 #include <asm/uaccess.h>
@@ -69,6 +70,8 @@ int dasd_autodetect = 0;	/* is true, when autodetection is active */
  * strings when running as a module.
  */
 static char *dasd[256];
+module_param_array(dasd, charp, NULL, 0);
+
 /*
  * Single spinlock to protect devmap structures and lists.
  */

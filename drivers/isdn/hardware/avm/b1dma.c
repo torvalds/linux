@@ -39,7 +39,7 @@ MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
 
 static int suppress_pollack = 0;
-MODULE_PARM(suppress_pollack, "0-1i");
+module_param(suppress_pollack, bool, 0);
 
 /* ------------------------------------------------------------- */
 

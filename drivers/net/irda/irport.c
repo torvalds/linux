@@ -1118,9 +1118,9 @@ static void __exit irport_cleanup(void)
  	}
 }
 
-MODULE_PARM(io, "1-4i");
+module_param_array(io, int, NULL, 0);
 MODULE_PARM_DESC(io, "Base I/O addresses");
-MODULE_PARM(irq, "1-4i");
+module_param_array(irq, int, NULL, 0);
 MODULE_PARM_DESC(irq, "IRQ lines");
 
 MODULE_AUTHOR("Dag Brattli <dagb@cs.uit.no>");

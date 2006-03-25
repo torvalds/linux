@@ -69,7 +69,7 @@ are available, for example IRQ, address, DMA.
 
 Warning, the options for different cards sometime use different names 
 for the same or a similar feature (dma1= versus dma16=).  As a last 
-resort, inspect the code (search for MODULE_PARM).
+resort, inspect the code (search for module_param).
 
 Notes:
 

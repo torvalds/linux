@@ -31,7 +31,7 @@
 static char hycapi_revision[]="$Revision: 1.8.6.4 $";
 
 unsigned int hycapi_enable = 0xffffffff; 
-MODULE_PARM(hycapi_enable, "i");
+module_param(hycapi_enable, uint, 0);
 
 typedef struct _hycapi_appl {
 	unsigned int ctrl_mask;

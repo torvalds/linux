@@ -124,7 +124,7 @@ MODULE_LICENSE("GPL");
 
 static int dflt_msg_enable = DFLT_MSG_ENABLE;
 
-MODULE_PARM(dflt_msg_enable, "i");
+module_param(dflt_msg_enable, int, 0);
 MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T1 message enable bitmap");
 
 

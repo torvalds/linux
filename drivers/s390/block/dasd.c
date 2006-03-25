@@ -43,7 +43,6 @@ MODULE_AUTHOR("Holger Smolinski <Holger.Smolinski@de.ibm.com>");
 MODULE_DESCRIPTION("Linux on S/390 DASD device driver,"
 		   " Copyright 2000 IBM Corporation");
 MODULE_SUPPORTED_DEVICE("dasd");
-MODULE_PARM(dasd, "1-" __MODULE_STRING(256) "s");
 MODULE_LICENSE("GPL");
 
 /*

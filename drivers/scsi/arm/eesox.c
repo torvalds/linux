@@ -674,6 +674,6 @@ module_exit(eesox_exit);
 
 MODULE_AUTHOR("Russell King");
 MODULE_DESCRIPTION("EESOX 'Fast' SCSI driver for Acorn machines");
-MODULE_PARM(term, "1-8i");
+module_param_array(term, int, NULL, 0);
 MODULE_PARM_DESC(term, "SCSI bus termination");
 MODULE_LICENSE("GPL");

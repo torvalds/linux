@@ -70,10 +70,10 @@ MODULE_AUTHOR("Pauline Middelink <middelin@polyware.nl>");
 MODULE_DESCRIPTION("Zoran ZR36120 based framegrabber");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM(triton1,"i");
-MODULE_PARM(cardtype,"1-" __MODULE_STRING(ZORAN_MAX) "i");
-MODULE_PARM(video_nr,"i");
-MODULE_PARM(vbi_nr,"i");
+module_param(triton1, uint, 0);
+module_param_array(cardtype, uint, NULL, 0);
+module_param(video_nr, int, 0);
+module_param(vbi_nr, int, 0);
 
 static int zoran_cards;
 static struct zoran zorans[ZORAN_MAX];

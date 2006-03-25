@@ -280,7 +280,7 @@ static unsigned long rand;
 
 MODULE_AUTHOR("Klaus Kudielka");
 MODULE_DESCRIPTION("Driver for high-speed SCC boards");
-MODULE_PARM(io, "1-" __MODULE_STRING(MAX_NUM_DEVS) "i");
+module_param_array(io, int, NULL, 0);
 MODULE_LICENSE("GPL");
 
 static void __exit dmascc_exit(void)

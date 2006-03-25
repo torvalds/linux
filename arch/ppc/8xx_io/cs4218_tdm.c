@@ -126,11 +126,11 @@ static int numReadBufs = 4, readbufSize = 32;
 */
 static volatile cbd_t	*rx_base, *rx_cur, *tx_base, *tx_cur;
 
-MODULE_PARM(catchRadius, "i");
-MODULE_PARM(numBufs, "i");
-MODULE_PARM(bufSize, "i");
-MODULE_PARM(numreadBufs, "i");
-MODULE_PARM(readbufSize, "i");
+module_param(catchRadius, int, 0);
+module_param(numBufs, int, 0);
+module_param(bufSize, int, 0);
+module_param(numreadBufs, int, 0);
+module_param(readbufSize, int, 0);
 
 #define arraysize(x)	(sizeof(x)/sizeof(*(x)))
 #define le2be16(x)	(((x)<<8 & 0xff00) | ((x)>>8 & 0x00ff))

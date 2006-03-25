@@ -22,7 +22,7 @@ static char *isdnloop_id = "loop0";
 MODULE_DESCRIPTION("ISDN4Linux: Pseudo Driver that simulates an ISDN card");
 MODULE_AUTHOR("Fritz Elfert");
 MODULE_LICENSE("GPL");
-MODULE_PARM(isdnloop_id, "s");
+module_param(isdnloop_id, charp, 0);
 MODULE_PARM_DESC(isdnloop_id, "ID-String of first card");
 
 static int isdnloop_addcard(char *);

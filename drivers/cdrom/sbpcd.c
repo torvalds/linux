@@ -464,8 +464,13 @@ static int sbpcd[] =
 static  __cacheline_aligned DEFINE_SPINLOCK(sbpcd_lock);
 static struct request_queue *sbpcd_queue;
 
-MODULE_PARM(sbpcd, "2i");
-MODULE_PARM(max_drives, "i");
+/* You can only set the first pair, from old MODULE_PARM code.  */
+static int sbpcd_set(const char *val, struct kernel_param *kp)
+{
+	get_options((char *)val, 2, (int *)sbpcd);
+	return 0;
+}
+module_param_call(sbpcd, sbpcd_set, NULL, NULL, 0);
 
 #define NUM_PROBE  (sizeof(sbpcd) / sizeof(int))
 
@@ -553,6 +558,7 @@ static unsigned char msgnum;
 static char msgbuf[80];
 
 static int max_drives = MAX_DRIVES;
+module_param(max_drives, int, 0);
 #ifndef MODULE
 static unsigned char setup_done;
 static const char *str_sb_l = "soundblaster";

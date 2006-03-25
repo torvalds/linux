@@ -50,7 +50,7 @@ MODULE_DEVICE_TABLE(pci, c4_pci_tbl);
 MODULE_DESCRIPTION("CAPI4Linux: Driver for AVM C2/C4 cards");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
-MODULE_PARM(suppress_pollack, "0-1i");
+module_param(suppress_pollack, bool, 0);
 
 /* ------------------------------------------------------------- */
 
