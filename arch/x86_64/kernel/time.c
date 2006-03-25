@@ -354,7 +354,7 @@ void main_timer_handler(struct pt_regs *regs)
 {
 	static unsigned long rtc_update = 0;
 	unsigned long tsc;
-	int delay, offset = 0, lost = 0;
+	int delay = 0, offset = 0, lost = 0;
 
 /*
  * Here we are in the timer irq handler. We have irqs locally disabled (so we
@@ -375,7 +375,7 @@ void main_timer_handler(struct pt_regs *regs)
 		 */
 		offset = hpet_readl(HPET_T0_CMP) - hpet_tick;
 		delay = hpet_readl(HPET_COUNTER) - offset;
-	} else {
+	} else if (!pmtmr_ioport) {
 		spin_lock(&i8253_lock);
 		outb_p(0x00, 0x43);
 		delay = inb_p(0x40);
