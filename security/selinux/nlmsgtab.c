@@ -106,6 +106,9 @@ static struct nlmsg_perm nlmsg_audit_perms[] =
 	{ AUDIT_LIST,		NETLINK_AUDIT_SOCKET__NLMSG_READPRIV },
 	{ AUDIT_ADD,		NETLINK_AUDIT_SOCKET__NLMSG_WRITE    },
 	{ AUDIT_DEL,		NETLINK_AUDIT_SOCKET__NLMSG_WRITE    },
+	{ AUDIT_LIST_RULES,	NETLINK_AUDIT_SOCKET__NLMSG_READPRIV },
+	{ AUDIT_ADD_RULE,	NETLINK_AUDIT_SOCKET__NLMSG_WRITE    },
+	{ AUDIT_DEL_RULE,	NETLINK_AUDIT_SOCKET__NLMSG_WRITE    },
 	{ AUDIT_USER,		NETLINK_AUDIT_SOCKET__NLMSG_RELAY    },
 	{ AUDIT_SIGNAL_INFO,	NETLINK_AUDIT_SOCKET__NLMSG_READ     },
 };
@@ -152,8 +155,10 @@ int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm)
 		break;
 
 	case SECCLASS_NETLINK_AUDIT_SOCKET:
-		if (nlmsg_type >= AUDIT_FIRST_USER_MSG &&
-		    nlmsg_type <= AUDIT_LAST_USER_MSG) {
+		if ((nlmsg_type >= AUDIT_FIRST_USER_MSG &&
+		     nlmsg_type <= AUDIT_LAST_USER_MSG) ||
+		    (nlmsg_type >= AUDIT_FIRST_USER_MSG2 &&
+                     nlmsg_type <= AUDIT_LAST_USER_MSG2)) {
 			*perm = NETLINK_AUDIT_SOCKET__NLMSG_RELAY;
 		} else {
 			err = nlmsg_perm(nlmsg_type, perm, nlmsg_audit_perms,

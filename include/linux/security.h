@@ -869,6 +869,11 @@ struct swap_info_struct;
  *	@ipcp contains the kernel IPC permission structure
  *	@flag contains the desired (requested) permission set
  *	Return 0 if permission is granted.
+ * @ipc_getsecurity:
+ *      Copy the security label associated with the ipc object into
+ *      @buffer.  @buffer may be NULL to request the size of the buffer 
+ *      required.  @size indicates the size of @buffer in bytes. Return 
+ *      number of bytes used/required on success.
  *
  * Security hooks for individual messages held in System V IPC message queues
  * @msg_msg_alloc_security:
@@ -1168,7 +1173,8 @@ struct security_operations {
 	int (*inode_getxattr) (struct dentry *dentry, char *name);
 	int (*inode_listxattr) (struct dentry *dentry);
 	int (*inode_removexattr) (struct dentry *dentry, char *name);
-  	int (*inode_getsecurity)(struct inode *inode, const char *name, void *buffer, size_t size, int err);
+	const char *(*inode_xattr_getsuffix) (void);
+  	int (*inode_getsecurity)(const struct inode *inode, const char *name, void *buffer, size_t size, int err);
   	int (*inode_setsecurity)(struct inode *inode, const char *name, const void *value, size_t size, int flags);
   	int (*inode_listsecurity)(struct inode *inode, char *buffer, size_t buffer_size);
 
@@ -1217,6 +1223,7 @@ struct security_operations {
 	void (*task_to_inode)(struct task_struct *p, struct inode *inode);
 
 	int (*ipc_permission) (struct kern_ipc_perm * ipcp, short flag);
+	int (*ipc_getsecurity)(struct kern_ipc_perm *ipcp, void *buffer, size_t size);
 
 	int (*msg_msg_alloc_security) (struct msg_msg * msg);
 	void (*msg_msg_free_security) (struct msg_msg * msg);
@@ -1680,7 +1687,12 @@ static inline int security_inode_removexattr (struct dentry *dentry, char *name)
 	return security_ops->inode_removexattr (dentry, name);
 }
 
-static inline int security_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
+static inline const char *security_inode_xattr_getsuffix(void)
+{
+	return security_ops->inode_xattr_getsuffix();
+}
+
+static inline int security_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	if (unlikely (IS_PRIVATE (inode)))
 		return 0;
@@ -1873,6 +1885,11 @@ static inline int security_ipc_permission (struct kern_ipc_perm *ipcp,
 					   short flag)
 {
 	return security_ops->ipc_permission (ipcp, flag);
+}
+
+static inline int security_ipc_getsecurity(struct kern_ipc_perm *ipcp, void *buffer, size_t size)
+{
+	return security_ops->ipc_getsecurity(ipcp, buffer, size);
 }
 
 static inline int security_msg_msg_alloc (struct msg_msg * msg)
@@ -2327,7 +2344,12 @@ static inline int security_inode_removexattr (struct dentry *dentry, char *name)
 	return cap_inode_removexattr(dentry, name);
 }
 
-static inline int security_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
+static inline const char *security_inode_xattr_getsuffix (void)
+{
+	return NULL ;
+}
+
+static inline int security_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	return -EOPNOTSUPP;
 }
@@ -2508,6 +2530,11 @@ static inline int security_ipc_permission (struct kern_ipc_perm *ipcp,
 					   short flag)
 {
 	return 0;
+}
+
+static inline int security_ipc_getsecurity(struct kern_ipc_perm *ipcp, void *buffer, size_t size)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline int security_msg_msg_alloc (struct msg_msg * msg)
