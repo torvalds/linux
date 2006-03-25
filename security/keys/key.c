@@ -1,6 +1,6 @@
 /* key.c: basic authentication token and access key management
  *
- * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004-6 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -271,7 +271,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	 * its description */
 	if (!not_in_quota) {
 		spin_lock(&user->lock);
-		if (user->qnkeys + 1 >= KEYQUOTA_MAX_KEYS &&
+		if (user->qnkeys + 1 >= KEYQUOTA_MAX_KEYS ||
 		    user->qnbytes + quotalen >= KEYQUOTA_MAX_BYTES
 		    )
 			goto no_quota;
