@@ -1546,10 +1546,10 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 		}
 	}
 
-	if ((file->f_flags & O_SYNC) || IS_SYNC(inode))
-		res =
-		    generic_osync_inode(inode, file->f_mapping,
-					OSYNC_METADATA | OSYNC_DATA);
+	if (likely(res >= 0) &&
+	    (unlikely((file->f_flags & O_SYNC) || IS_SYNC(inode))))
+		res = generic_osync_inode(inode, file->f_mapping,
+		                          OSYNC_METADATA | OSYNC_DATA);
 
 	mutex_unlock(&inode->i_mutex);
 	reiserfs_async_progress_wait(inode->i_sb);
