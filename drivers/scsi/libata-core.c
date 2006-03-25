@@ -4397,7 +4397,7 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 fsm_start:
 	switch (ap->hsm_task_state) {
 	case HSM_ST_FIRST:
-		/* Some pre-ATAPI-4 devices assert INTRQ 
+		/* Some pre-ATAPI-4 devices assert INTRQ
 		 * at this state when ready to receive CDB.
 		 */
 
@@ -4422,7 +4422,7 @@ fsm_start:
 				ap->hsm_task_state = HSM_ST_LAST;
 				goto fsm_start;
 			}
-			
+
 			atapi_pio_bytes(qc);
 
 			if (unlikely(ap->hsm_task_state == HSM_ST_ERR))
@@ -4476,7 +4476,7 @@ fsm_start:
 			printk(KERN_ERR "ata%u: command error, drv_stat 0x%x host_stat 0x%x\n",
 			       ap->id, status, host_stat);
 
-		/* make sure qc->err_mask is available to 
+		/* make sure qc->err_mask is available to
 		 * know what's wrong and recover
 		 */
 		WARN_ON(qc->err_mask == 0);
