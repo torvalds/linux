@@ -160,12 +160,7 @@ int sync_blockdev(struct block_device *bdev)
 }
 EXPORT_SYMBOL(sync_blockdev);
 
-/*
- * Write out and wait upon all dirty data associated with this
- * superblock.  Filesystem data as well as the underlying block
- * device.  Takes the superblock lock.
- */
-int fsync_super(struct super_block *sb)
+static void __fsync_super(struct super_block *sb)
 {
 	sync_inodes_sb(sb, 0);
 	DQUOT_SYNC(sb);
@@ -177,7 +172,16 @@ int fsync_super(struct super_block *sb)
 		sb->s_op->sync_fs(sb, 1);
 	sync_blockdev(sb->s_bdev);
 	sync_inodes_sb(sb, 1);
+}
 
+/*
+ * Write out and wait upon all dirty data associated with this
+ * superblock.  Filesystem data as well as the underlying block
+ * device.  Takes the superblock lock.
+ */
+int fsync_super(struct super_block *sb)
+{
+	__fsync_super(sb);
 	return sync_blockdev(sb->s_bdev);
 }
 
@@ -216,19 +220,7 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 		sb->s_frozen = SB_FREEZE_WRITE;
 		smp_wmb();
 
-		sync_inodes_sb(sb, 0);
-		DQUOT_SYNC(sb);
-
-		lock_super(sb);
-		if (sb->s_dirt && sb->s_op->write_super)
-			sb->s_op->write_super(sb);
-		unlock_super(sb);
-
-		if (sb->s_op->sync_fs)
-			sb->s_op->sync_fs(sb, 1);
-
-		sync_blockdev(sb->s_bdev);
-		sync_inodes_sb(sb, 1);
+		__fsync_super(sb);
 
 		sb->s_frozen = SB_FREEZE_TRANS;
 		smp_wmb();
