@@ -2170,8 +2170,11 @@ asmlinkage long compat_sys_nfsservctl(int cmd, struct compat_nfsctl_arg __user *
 
 	default:
 		err = -EINVAL;
-		goto done;
+		break;
 	}
+
+	if (err)
+		goto done;
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
