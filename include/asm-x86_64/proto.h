@@ -127,7 +127,6 @@ extern int fix_aperture;
 #define iommu_aperture 0
 #define iommu_aperture_allowed 0
 #endif
-extern int force_iommu;
 
 extern int reboot_force;
 extern int notsc_setup(char *);
