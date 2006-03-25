@@ -1295,7 +1295,7 @@ static int ata_dev_configure(struct ata_port *ap, struct ata_device *dev,
 		if (dev->id[59] & 0x100) {
 			dev->multi_count = dev->id[59] & 0xff;
 			DPRINTK("ata%u: dev %u multi count %u\n",
-				ap->id, device, dev->multi_count);
+				ap->id, dev->devno, dev->multi_count);
 		}
 
 		dev->cdb_len = 16;
@@ -3594,6 +3594,9 @@ static int ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 	}
 
 fsm_start:
+	DPRINTK("ata%u: protocol %d task_state %d (dev_stat 0x%X)\n",
+		ap->id, qc->tf.protocol, ap->hsm_task_state, status);
+
 	switch (ap->hsm_task_state) {
 	case HSM_ST_FIRST:
 		/* Send first data block or PACKET CDB */
@@ -3720,6 +3723,7 @@ fsm_start:
 
 		ap->hsm_task_state = HSM_ST_IDLE;
 
+		/* complete taskfile transaction */
 		if (in_wq)
 			ata_poll_qc_complete(qc);
 		else
@@ -4240,9 +4244,6 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 	status = ata_chk_status(ap);
 	if (unlikely(status & ATA_BUSY))
 		goto idle_irq;
-
-	DPRINTK("ata%u: protocol %d task_state %d (dev_stat 0x%X)\n",
-		ap->id, qc->tf.protocol, ap->hsm_task_state, status);
 
 	/* ack bmdma irq events */
 	ap->ops->irq_clear(ap);
