@@ -708,6 +708,12 @@ void __init setup_arch(char **cmdline_p)
 
 	check_ioapic();
 
+	/*
+	 * set this early, so we dont allocate cpu0
+	 * if MADT list doesnt list BSP first
+	 * mpparse.c/MP_processor_info() allocates logical cpu numbers.
+	 */
+	cpu_set(0, cpu_present_map);
 #ifdef CONFIG_ACPI
 	/*
 	 * Read APIC and some other early information from ACPI tables.
