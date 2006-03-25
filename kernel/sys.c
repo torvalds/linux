@@ -1363,7 +1363,7 @@ static void groups_sort(struct group_info *group_info)
 /* a simple bsearch */
 int groups_search(struct group_info *group_info, gid_t grp)
 {
-	int left, right;
+	unsigned int left, right;
 
 	if (!group_info)
 		return 0;
@@ -1371,7 +1371,7 @@ int groups_search(struct group_info *group_info, gid_t grp)
 	left = 0;
 	right = group_info->ngroups;
 	while (left < right) {
-		int mid = (left+right)/2;
+		unsigned int mid = (left+right)/2;
 		int cmp = grp - GROUP_AT(group_info, mid);
 		if (cmp > 0)
 			left = mid + 1;
