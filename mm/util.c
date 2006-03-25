@@ -5,18 +5,18 @@
 #include <asm/uaccess.h>
 
 /**
- * kzalloc - allocate memory. The memory is set to zero.
+ * __kzalloc - allocate memory. The memory is set to zero.
  * @size: how many bytes of memory are required.
  * @flags: the type of memory to allocate.
  */
-void *kzalloc(size_t size, gfp_t flags)
+void *__kzalloc(size_t size, gfp_t flags)
 {
 	void *ret = ____kmalloc(size, flags);
 	if (ret)
 		memset(ret, 0, size);
 	return ret;
 }
-EXPORT_SYMBOL(kzalloc);
+EXPORT_SYMBOL(__kzalloc);
 
 /*
  * kstrdup - allocate space for and copy an existing string
