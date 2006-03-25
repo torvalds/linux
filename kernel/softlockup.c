@@ -118,6 +118,7 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			printk("watchdog for %i failed\n", hotcpu);
 			return NOTIFY_BAD;
 		}
+  		per_cpu(touch_timestamp, hotcpu) = jiffies;
   		per_cpu(watchdog_task, hotcpu) = p;
 		kthread_bind(p, hotcpu);
  		break;
