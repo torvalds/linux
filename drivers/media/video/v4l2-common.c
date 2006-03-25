@@ -472,7 +472,7 @@ void v4l_printk_ioctl_arg(char *s,unsigned int cmd, void *arg)
 				prt_names(p->memory,v4l2_memory_names),
 				p->m.userptr);
 		printk ("%s: timecode= %02d:%02d:%02d type=%d, "
-			"flags=0x%08x, frames=%d, userbits=0x%08p\n",
+			"flags=0x%08x, frames=%d, userbits=0x%p\n",
 				s,tc->hours,tc->minutes,tc->seconds,
 				tc->type, tc->flags, tc->frames, tc->userbits);
 		break;
