@@ -400,6 +400,7 @@ static int ir_probe(struct i2c_adapter *adap)
 	*/
 
 	static const int probe_bttv[] = { 0x1a, 0x18, 0x4b, 0x64, 0x30, -1};
+	static const int probe_cx2341x[] = { 0x18, 0x7a, -1};
 	static const int probe_saa7134[] = { 0x7a, 0x47, -1 };
 	static const int probe_em28XX[] = { 0x30, 0x47, -1 };
 	const int *probe = NULL;
@@ -410,6 +411,9 @@ static int ir_probe(struct i2c_adapter *adap)
 	switch (adap->id) {
 	case I2C_HW_B_BT848:
 		probe = probe_bttv;
+		break;
+	case I2C_HW_B_CX2341X:
+		probe = probe_cx2341x;
 		break;
 	case I2C_HW_SAA7134:
 		probe = probe_saa7134;
