@@ -736,6 +736,11 @@ static void ipoib_set_mcast_list(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
+	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags)) {
+		ipoib_dbg(priv, "IPOIB_FLAG_OPER_UP not set");
+		return;
+	}
+
 	queue_work(ipoib_workqueue, &priv->restart_task);
 }
 
