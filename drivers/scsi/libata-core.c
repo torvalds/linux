@@ -3986,44 +3986,40 @@ fsm_start:
 static void ata_pio_task(void *_data)
 {
 	struct ata_port *ap = _data;
-	unsigned long timeout;
-	int has_next;
+	struct ata_queued_cmd *qc;
+	u8 status;
+	int poll_next;
 
 fsm_start:
-	timeout = 0;
-	has_next = 1;
+	WARN_ON(ap->hsm_task_state == HSM_ST_IDLE);
 
-	switch (ap->hsm_task_state) {
-	case HSM_ST_FIRST:
-		has_next = ata_pio_first_block(ap);
-		break;
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	WARN_ON(qc == NULL);
 
-	case HSM_ST:
-		ata_pio_block(ap);
-		break;
-
-	case HSM_ST_LAST:
-		has_next = ata_pio_complete(ap);
-		break;
-
-	case HSM_ST_POLL:
-	case HSM_ST_LAST_POLL:
-		timeout = ata_pio_poll(ap);
-		break;
-
-	case HSM_ST_TMOUT:
-	case HSM_ST_ERR:
-		ata_pio_error(ap);
-		return;
-
-	default:
-		BUG();
-		return;
+	/*
+	 * This is purely heuristic.  This is a fast path.
+	 * Sometimes when we enter, BSY will be cleared in
+	 * a chk-status or two.  If not, the drive is probably seeking
+	 * or something.  Snooze for a couple msecs, then
+	 * chk-status again.  If still busy, queue delayed work.
+	 */
+	status = ata_busy_wait(ap, ATA_BUSY, 5);
+	if (status & ATA_BUSY) {
+		msleep(2);
+		status = ata_busy_wait(ap, ATA_BUSY, 10);
+		if (status & ATA_BUSY) {
+			ata_port_queue_task(ap, ata_pio_task, ap, ATA_SHORT_PAUSE);
+			return;
+		}
 	}
 
-	if (timeout)
-		ata_port_queue_task(ap, ata_pio_task, ap, timeout);
-	else if (has_next)
+	/* move the HSM */
+	poll_next = ata_hsm_move(ap, qc, status, 1);
+
+	/* another command or interrupt handler
+	 * may be running at this point.
+	 */
+	if (poll_next)
 		goto fsm_start;
 }
 
