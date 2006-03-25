@@ -709,11 +709,11 @@ static void seq_local_event(unsigned char *event_rec)
 
 static void seq_sysex_message(unsigned char *event_rec)
 {
-	int dev = event_rec[1];
+	unsigned int dev = event_rec[1];
 	int i, l = 0;
 	unsigned char  *buf = &event_rec[2];
 
-	if ((int) dev > max_synthdev)
+	if (dev > max_synthdev)
 		return;
 	if (!(synth_open_mask & (1 << dev)))
 		return;
