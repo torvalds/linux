@@ -299,3 +299,33 @@ struct dmi_device * dmi_find_device(int type, const char *name,
 	return NULL;
 }
 EXPORT_SYMBOL(dmi_find_device);
+
+/**
+ *	dmi_get_year - Return year of a DMI date
+ *	@field:	data index (like dmi_get_system_info)
+ *
+ *	Returns -1 when the field doesn't exist. 0 when it is broken.
+ */
+int dmi_get_year(int field)
+{
+	int year;
+	char *s = dmi_get_system_info(field);
+
+	if (!s)
+		return -1;
+	if (*s == '\0')
+		return 0;
+	s = strrchr(s, '/');
+	if (!s)
+		return 0;
+
+	s += 1;
+	year = simple_strtoul(s, NULL, 0);
+	if (year && year < 100) {	/* 2-digit year */
+		year += 1900;
+		if (year < 1996)	/* no dates < spec 1.0 */
+			year += 100;
+	}
+
+	return year;
+}
