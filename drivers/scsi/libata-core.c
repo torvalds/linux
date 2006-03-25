@@ -3587,12 +3587,6 @@ static int ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 	 */
 	WARN_ON(in_wq != ata_hsm_ok_in_wq(ap, qc));
 
-	/* check error */
-	if (unlikely(status & (ATA_ERR | ATA_DF))) {
-		qc->err_mask |= AC_ERR_DEV;
-		ap->hsm_task_state = HSM_ST_ERR;
-	}
-
 fsm_start:
 	DPRINTK("ata%u: protocol %d task_state %d (dev_stat 0x%X)\n",
 		ap->id, qc->tf.protocol, ap->hsm_task_state, status);
@@ -3613,6 +3607,17 @@ fsm_start:
 			qc->err_mask |= AC_ERR_HSM;
 			ap->hsm_task_state = HSM_ST_ERR;
 			goto fsm_start;
+		}
+
+		/* Device should not ask for data transfer (DRQ=1)
+		 * when it finds something wrong.
+		 * Anyway, we respect DRQ here and let HSM go on
+		 * without changing hsm_task_state to HSM_ST_ERR.
+		 */
+		if (unlikely(status & (ATA_ERR | ATA_DF))) {
+			printk(KERN_WARNING "ata%d: DRQ=1 with device error, dev_stat 0x%X\n",
+			       ap->id, status);
+			qc->err_mask |= AC_ERR_DEV;
 		}
 
 		/* Send the CDB (atapi) or the first data block (ata pio out).
@@ -3657,6 +3662,17 @@ fsm_start:
 				goto fsm_start;
 			}
 
+			/* Device should not ask for data transfer (DRQ=1)
+			 * when it finds something wrong.
+			 * Anyway, we respect DRQ here and let HSM go on
+			 * without changing hsm_task_state to HSM_ST_ERR.
+			 */
+			if (unlikely(status & (ATA_ERR | ATA_DF))) {
+				printk(KERN_WARNING "ata%d: DRQ=1 with device error, dev_stat 0x%X\n",
+				       ap->id, status);
+				qc->err_mask |= AC_ERR_DEV;
+			}
+
 			atapi_pio_bytes(qc);
 
 			if (unlikely(ap->hsm_task_state == HSM_ST_ERR))
@@ -3670,6 +3686,22 @@ fsm_start:
 				qc->err_mask |= AC_ERR_HSM;
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
+			}
+
+			/* Some devices may ask for data transfer (DRQ=1)
+			 * alone with ERR=1 for PIO reads.
+			 * We respect DRQ here and let HSM go on without
+			 * changing hsm_task_state to HSM_ST_ERR.
+			 */
+			if (unlikely(status & (ATA_ERR | ATA_DF))) {
+				/* For writes, ERR=1 DRQ=1 doesn't make
+				 * sense since the data block has been
+				 * transferred to the device.
+				 */
+				WARN_ON(qc->tf.flags & ATA_TFLAG_WRITE);
+
+				/* data might be corrputed */
+				qc->err_mask |= AC_ERR_DEV;
 			}
 
 			ata_pio_sectors(qc);
