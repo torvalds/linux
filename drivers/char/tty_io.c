@@ -354,7 +354,7 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
-int tty_insert_flip_string(struct tty_struct *tty, unsigned char *chars, size_t size)
+int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars, size_t size)
 {
 	int copied = 0;
 	do {
@@ -378,7 +378,7 @@ int tty_insert_flip_string(struct tty_struct *tty, unsigned char *chars, size_t 
 
 EXPORT_SYMBOL_GPL(tty_insert_flip_string);
 
-int tty_insert_flip_string_flags(struct tty_struct *tty, unsigned char *chars, char *flags, size_t size)
+int tty_insert_flip_string_flags(struct tty_struct *tty, const unsigned char *chars, const char *flags, size_t size)
 {
 	int copied = 0;
 	do {
