@@ -2627,16 +2627,27 @@ int __page_symlink(struct inode *inode, const char *symname, int len,
 	int err = -ENOMEM;
 	char *kaddr;
 
+retry:
 	page = find_or_create_page(mapping, 0, gfp_mask);
 	if (!page)
 		goto fail;
 	err = mapping->a_ops->prepare_write(NULL, page, 0, len-1);
+	if (err == AOP_TRUNCATED_PAGE) {
+		page_cache_release(page);
+		goto retry;
+	}
 	if (err)
 		goto fail_map;
 	kaddr = kmap_atomic(page, KM_USER0);
 	memcpy(kaddr, symname, len-1);
 	kunmap_atomic(kaddr, KM_USER0);
-	mapping->a_ops->commit_write(NULL, page, 0, len-1);
+	err = mapping->a_ops->commit_write(NULL, page, 0, len-1);
+	if (err == AOP_TRUNCATED_PAGE) {
+		page_cache_release(page);
+		goto retry;
+	}
+	if (err)
+		goto fail_map;
 	/*
 	 * Notice that we are _not_ going to block here - end of page is
 	 * unmapped, so this will only try to map the rest of page, see
@@ -2646,7 +2657,8 @@ int __page_symlink(struct inode *inode, const char *symname, int len,
 	 */
 	if (!PageUptodate(page)) {
 		err = mapping->a_ops->readpage(NULL, page);
-		wait_on_page_locked(page);
+		if (err != AOP_TRUNCATED_PAGE)
+			wait_on_page_locked(page);
 	} else {
 		unlock_page(page);
 	}
