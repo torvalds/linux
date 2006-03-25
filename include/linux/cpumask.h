@@ -215,15 +215,12 @@ static inline void __cpus_shift_left(cpumask_t *dstp,
 #ifdef CONFIG_SMP
 int __first_cpu(const cpumask_t *srcp);
 #define first_cpu(src) __first_cpu(&(src))
+int __next_cpu(int n, const cpumask_t *srcp);
+#define next_cpu(n, src) __next_cpu((n), &(src))
 #else
-#define first_cpu(src)	0
+#define first_cpu(src)		0
+#define next_cpu(n, src)	1
 #endif
-
-#define next_cpu(n, src) __next_cpu((n), &(src), NR_CPUS)
-static inline int __next_cpu(int n, const cpumask_t *srcp, int nbits)
-{
-	return min_t(int, nbits, find_next_bit(srcp->bits, nbits, n+1));
-}
 
 #define cpumask_of_cpu(cpu)						\
 ({									\
