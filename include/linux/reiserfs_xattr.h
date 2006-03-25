@@ -101,13 +101,13 @@ static inline void reiserfs_mark_inode_private(struct inode *inode)
 #else
 
 #define is_reiserfs_priv_object(inode) 0
-#define reiserfs_mark_inode_private(inode)
+#define reiserfs_mark_inode_private(inode) do {;} while(0)
 #define reiserfs_getxattr NULL
 #define reiserfs_setxattr NULL
 #define reiserfs_listxattr NULL
 #define reiserfs_removexattr NULL
-#define reiserfs_write_lock_xattrs(sb)
-#define reiserfs_write_unlock_xattrs(sb)
+#define reiserfs_write_lock_xattrs(sb) do {;} while(0)
+#define reiserfs_write_unlock_xattrs(sb) do {;} while(0)
 #define reiserfs_read_lock_xattrs(sb)
 #define reiserfs_read_unlock_xattrs(sb)
 
