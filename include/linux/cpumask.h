@@ -398,22 +398,15 @@ extern cpumask_t cpu_present_map;
 
 #ifdef CONFIG_SMP
 int highest_possible_processor_id(void);
+#define any_online_cpu(mask) __any_online_cpu(&(mask))
+int __any_online_cpu(const cpumask_t *mask);
 #else
 #define highest_possible_processor_id()	0
+#define any_online_cpu(mask)		0
 #endif
-
-#define any_online_cpu(mask)			\
-({						\
-	int cpu;				\
-	for_each_cpu_mask(cpu, (mask))		\
-		if (cpu_online(cpu))		\
-			break;			\
-	cpu;					\
-})
 
 #define for_each_cpu(cpu)	  for_each_cpu_mask((cpu), cpu_possible_map)
 #define for_each_online_cpu(cpu)  for_each_cpu_mask((cpu), cpu_online_map)
 #define for_each_present_cpu(cpu) for_each_cpu_mask((cpu), cpu_present_map)
-
 
 #endif /* __LINUX_CPUMASK_H */

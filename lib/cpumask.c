@@ -31,3 +31,15 @@ int highest_possible_processor_id(void)
 	return highest;
 }
 EXPORT_SYMBOL(highest_possible_processor_id);
+
+int __any_online_cpu(const cpumask_t *mask)
+{
+	int cpu;
+
+	for_each_cpu_mask(cpu, *mask) {
+		if (cpu_online(cpu))
+			break;
+	}
+	return cpu;
+}
+EXPORT_SYMBOL(__any_online_cpu);
