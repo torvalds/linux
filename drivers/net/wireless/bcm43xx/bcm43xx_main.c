@@ -570,6 +570,7 @@ static int bcm43xx_read_radioinfo(struct bcm43xx_private *bcm)
 	radio->baseband_atten = bcm43xx_default_baseband_attenuation(bcm);
 	radio->radio_atten = bcm43xx_default_radio_attenuation(bcm);
 	radio->txctl1 = bcm43xx_default_txctl1(bcm);
+	radio->txctl2 = 0xFFFF;
 	if (phy->type == BCM43xx_PHYTYPE_A)
 		radio->txpower_desired = bcm->sprom.maxpower_aphy;
 	else
@@ -2635,7 +2636,8 @@ static int bcm43xx_probe_cores(struct bcm43xx_private *bcm)
 	}
 
 	bcm->chip_id = chip_id_16;
-	bcm->chip_rev = (chip_id_32 & 0x000f0000) >> 16;
+	bcm->chip_rev = (chip_id_32 & 0x000F0000) >> 16;
+	bcm->chip_package = (chip_id_32 & 0x00F00000) >> 20;
 
 	dprintk(KERN_INFO PFX "Chip ID 0x%x, rev 0x%x\n",
 		bcm->chip_id, bcm->chip_rev);

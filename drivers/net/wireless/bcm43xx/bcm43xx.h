@@ -495,6 +495,10 @@ struct bcm43xx_phyinfo {
 	const s8 *tssi2dbm;
 	/* idle TSSI value */
 	s8 idle_tssi;
+
+	/* Values from bcm43xx_calc_loopback_gain() */
+	u16 loopback_gain[2];
+
 	/* PHY lock for core.rev < 3
 	 * This lock is only used by bcm43xx_phy_{un}lock()
 	 */
@@ -674,6 +678,7 @@ struct bcm43xx_private {
 
 	u16 chip_id;
 	u8 chip_rev;
+	u8 chip_package;
 
 	struct bcm43xx_sprominfo sprom;
 #define BCM43xx_NR_LEDS		4
