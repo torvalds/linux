@@ -154,9 +154,10 @@ static inline int __attribute_pure__ long_log2(unsigned long x)
 	return r;
 }
 
-static inline unsigned long __attribute_const__ roundup_pow_of_two(unsigned long x)
+static inline unsigned long
+__attribute_const__ roundup_pow_of_two(unsigned long x)
 {
-	return (1UL << fls(x - 1));
+	return 1UL << fls_long(x - 1);
 }
 
 extern int printk_ratelimit(void);

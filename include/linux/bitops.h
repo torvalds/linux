@@ -175,4 +175,11 @@ static inline __u32 ror32(__u32 word, unsigned int shift)
 	return (word >> shift) | (word << (32 - shift));
 }
 
+static inline unsigned fls_long(unsigned long l)
+{
+	if (sizeof(l) == 4)
+		return fls(l);
+	return fls64(l);
+}
+
 #endif
