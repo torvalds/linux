@@ -846,7 +846,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	unsigned bits;
 #ifdef CONFIG_NUMA
 	int node = 0;
-	unsigned apicid = phys_proc_id[cpu];
+	unsigned apicid = hard_smp_processor_id();
 #endif
 
 	bits = 0;
@@ -856,7 +856,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	/* Low order bits define the core id (index of core in socket) */
 	cpu_core_id[cpu] = phys_proc_id[cpu] & ((1 << bits)-1);
 	/* Convert the APIC ID into the socket ID */
-	phys_proc_id[cpu] >>= bits;
+	phys_proc_id[cpu] = phys_pkg_id(bits);
 
 #ifdef CONFIG_NUMA
   	node = phys_proc_id[cpu];
