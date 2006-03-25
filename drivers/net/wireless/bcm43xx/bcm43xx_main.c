@@ -38,6 +38,7 @@
 #include <linux/wireless.h>
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
+#include <linux/dma-mapping.h>
 #include <net/iw_handler.h>
 
 #include "bcm43xx.h"

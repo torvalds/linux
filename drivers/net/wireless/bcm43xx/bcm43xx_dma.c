@@ -34,11 +34,10 @@
 #include "bcm43xx_power.h"
 #include "bcm43xx_xmit.h"
 
-#include <linux/dmapool.h>
+#include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
-#include <asm/semaphore.h>
 
 
 static inline int free_slots(struct bcm43xx_dmaring *ring)
