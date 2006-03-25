@@ -176,6 +176,18 @@ Who:	Richard Knutsson <ricknu-0@student.ltu.se> and Greg Kroah-Hartman <gregkh@s
 
 ---------------------------
 
+What:	Usage of invalid timevals in setitimer
+When:	March 2007
+Why:	POSIX requires to validate timevals in the setitimer call. This
+	was never done by Linux. The invalid (e.g. negative timevals) were
+	silently converted to more or less random timeouts and intervals.
+	Until the removal a per boot limited number of warnings is printed
+	and the timevals are sanitized.
+
+Who:	Thomas Gleixner <tglx@linutronix.de>
+
+---------------------------
+
 What:	I2C interface of the it87 driver
 When:	January 2007
 Why:	The ISA interface is faster and should be always available. The I2C
