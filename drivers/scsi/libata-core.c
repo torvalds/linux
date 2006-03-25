@@ -3805,6 +3805,111 @@ static void ata_pio_error(struct ata_port *ap)
 	ata_poll_qc_complete(qc);
 }
 
+static void ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
+			 u8 status)
+{
+	/* check error */
+	if (unlikely(status & (ATA_ERR | ATA_DF))) {
+		qc->err_mask |= AC_ERR_DEV;
+		ap->hsm_task_state = HSM_ST_ERR;
+	}
+
+fsm_start:
+	switch (ap->hsm_task_state) {
+	case HSM_ST_FIRST:
+		/* Some pre-ATAPI-4 devices assert INTRQ
+		 * at this state when ready to receive CDB.
+		 */
+
+		/* check device status */
+		if (unlikely((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)) {
+			/* Wrong status. Let EH handle this */
+			qc->err_mask |= AC_ERR_HSM;
+			ap->hsm_task_state = HSM_ST_ERR;
+			goto fsm_start;
+		}
+
+		atapi_send_cdb(ap, qc);
+
+		break;
+
+	case HSM_ST:
+		/* complete command or read/write the data register */
+		if (qc->tf.protocol == ATA_PROT_ATAPI) {
+			/* ATAPI PIO protocol */
+			if ((status & ATA_DRQ) == 0) {
+				/* no more data to transfer */
+				ap->hsm_task_state = HSM_ST_LAST;
+				goto fsm_start;
+			}
+
+			atapi_pio_bytes(qc);
+
+			if (unlikely(ap->hsm_task_state == HSM_ST_ERR))
+				/* bad ireason reported by device */
+				goto fsm_start;
+
+		} else {
+			/* ATA PIO protocol */
+			if (unlikely((status & ATA_DRQ) == 0)) {
+				/* handle BSY=0, DRQ=0 as error */
+				qc->err_mask |= AC_ERR_HSM;
+				ap->hsm_task_state = HSM_ST_ERR;
+				goto fsm_start;
+			}
+
+			ata_pio_sectors(qc);
+
+			if (ap->hsm_task_state == HSM_ST_LAST &&
+			    (!(qc->tf.flags & ATA_TFLAG_WRITE))) {
+				/* all data read */
+				ata_altstatus(ap);
+				status = ata_chk_status(ap);
+				goto fsm_start;
+			}
+		}
+
+		ata_altstatus(ap); /* flush */
+		break;
+
+	case HSM_ST_LAST:
+		if (unlikely(status & ATA_DRQ)) {
+			/* handle DRQ=1 as error */
+			qc->err_mask |= AC_ERR_HSM;
+			ap->hsm_task_state = HSM_ST_ERR;
+			goto fsm_start;
+		}
+
+		/* no more data to transfer */
+		DPRINTK("ata%u: command complete, drv_stat 0x%x\n",
+			ap->id, status);
+
+		ap->hsm_task_state = HSM_ST_IDLE;
+
+		/* complete taskfile transaction */
+		qc->err_mask |= ac_err_mask(status);
+		ata_qc_complete(qc);
+		break;
+
+	case HSM_ST_ERR:
+		if (qc->tf.command != ATA_CMD_PACKET)
+			printk(KERN_ERR "ata%u: command error, drv_stat 0x%x host_stat 0x%x\n",
+			       ap->id, status, host_stat);
+
+		/* make sure qc->err_mask is available to
+		 * know what's wrong and recover
+		 */
+		WARN_ON(qc->err_mask == 0);
+
+		ap->hsm_task_state = HSM_ST_IDLE;
+		ata_qc_complete(qc);
+		break;
+	default:
+		goto idle_irq;
+	}
+
+}
+
 static void ata_pio_task(void *_data)
 {
 	struct ata_port *ap = _data;
@@ -4316,106 +4421,7 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 	/* ack bmdma irq events */
 	ap->ops->irq_clear(ap);
 
-	/* check error */
-	if (unlikely(status & (ATA_ERR | ATA_DF))) {
-		qc->err_mask |= AC_ERR_DEV;
-		ap->hsm_task_state = HSM_ST_ERR;
-	}
-
-fsm_start:
-	switch (ap->hsm_task_state) {
-	case HSM_ST_FIRST:
-		/* Some pre-ATAPI-4 devices assert INTRQ
-		 * at this state when ready to receive CDB.
-		 */
-
-		/* check device status */
-		if (unlikely((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)) {
-			/* Wrong status. Let EH handle this */
-			qc->err_mask |= AC_ERR_HSM;
-			ap->hsm_task_state = HSM_ST_ERR;
-			goto fsm_start;
-		}
-
-		atapi_send_cdb(ap, qc);
-
-		break;
-
-	case HSM_ST:
-		/* complete command or read/write the data register */
-		if (qc->tf.protocol == ATA_PROT_ATAPI) {
-			/* ATAPI PIO protocol */
-			if ((status & ATA_DRQ) == 0) {
-				/* no more data to transfer */
-				ap->hsm_task_state = HSM_ST_LAST;
-				goto fsm_start;
-			}
-
-			atapi_pio_bytes(qc);
-
-			if (unlikely(ap->hsm_task_state == HSM_ST_ERR))
-				/* bad ireason reported by device */
-				goto fsm_start;
-
-		} else {
-			/* ATA PIO protocol */
-			if (unlikely((status & ATA_DRQ) == 0)) {
-				/* handle BSY=0, DRQ=0 as error */
-				qc->err_mask |= AC_ERR_HSM;
-				ap->hsm_task_state = HSM_ST_ERR;
-				goto fsm_start;
-			}
-
-			ata_pio_sectors(qc);
-
-			if (ap->hsm_task_state == HSM_ST_LAST &&
-			    (!(qc->tf.flags & ATA_TFLAG_WRITE))) {
-				/* all data read */
-				ata_altstatus(ap);
-				status = ata_chk_status(ap);
-				goto fsm_start;
-			}
-		}
-
-		ata_altstatus(ap); /* flush */
-		break;
-
-	case HSM_ST_LAST:
-		if (unlikely(status & ATA_DRQ)) {
-			/* handle DRQ=1 as error */
-			qc->err_mask |= AC_ERR_HSM;
-			ap->hsm_task_state = HSM_ST_ERR;
-			goto fsm_start;
-		}
-
-		/* no more data to transfer */
-		DPRINTK("ata%u: command complete, drv_stat 0x%x\n",
-			ap->id, status);
-
-		ap->hsm_task_state = HSM_ST_IDLE;
-
-		/* complete taskfile transaction */
-		qc->err_mask |= ac_err_mask(status);
-		ata_qc_complete(qc);
-		break;
-
-	case HSM_ST_ERR:
-		if (qc->tf.command != ATA_CMD_PACKET)
-			printk(KERN_ERR "ata%u: command error, drv_stat 0x%x host_stat 0x%x\n",
-			       ap->id, status, host_stat);
-
-		/* make sure qc->err_mask is available to
-		 * know what's wrong and recover
-		 */
-		WARN_ON(qc->err_mask == 0);
-
-		ap->hsm_task_state = HSM_ST_IDLE;
-		ata_qc_complete(qc);
-		break;
-	default:
-		goto idle_irq;
-	}
-
+	ata_hsm_move(ap, qc, status);
 	return 1;	/* irq handled */
 
 idle_irq:
