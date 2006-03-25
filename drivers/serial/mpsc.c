@@ -1165,7 +1165,7 @@ mpsc_startup(struct uart_port *port)
 			flag = SA_SHIRQ;
 
 		if (request_irq(pi->port.irq, mpsc_sdma_intr, flag,
-				"mpsc/sdma", pi))
+				"mpsc-sdma", pi))
 			printk(KERN_ERR "MPSC: Can't get SDMA IRQ %d\n",
 			       pi->port.irq);
 
