@@ -92,8 +92,6 @@ void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 void hostap_dump_tx_80211(const char *name, struct sk_buff *skb);
 int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev);
-struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
-				   struct ieee80211_crypt_data *crypt);
 int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 #endif /* HOSTAP_80211_H */
