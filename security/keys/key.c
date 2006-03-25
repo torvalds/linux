@@ -795,12 +795,16 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 		goto error_3;
 	}
 
-	/* search for an existing key of the same type and description in the
-	 * destination keyring
+	/* if it's possible to update this type of key, search for an existing
+	 * key of the same type and description in the destination keyring and
+	 * update that instead if possible
 	 */
-	key_ref = __keyring_search_one(keyring_ref, ktype, description, 0);
-	if (!IS_ERR(key_ref))
-		goto found_matching_key;
+	if (ktype->update) {
+		key_ref = __keyring_search_one(keyring_ref, ktype, description,
+					       0);
+		if (!IS_ERR(key_ref))
+			goto found_matching_key;
+	}
 
 	/* decide on the permissions we want */
 	perm = KEY_POS_VIEW | KEY_POS_SEARCH | KEY_POS_LINK | KEY_POS_SETATTR;
