@@ -257,6 +257,7 @@
 #include <linux/fs.h>
 #include <linux/random.h>
 #include <linux/bootmem.h>
+#include <linux/cache.h>
 
 #include <net/icmp.h>
 #include <net/tcp.h>
@@ -275,9 +276,9 @@ atomic_t tcp_orphan_count = ATOMIC_INIT(0);
 
 EXPORT_SYMBOL_GPL(tcp_orphan_count);
 
-int sysctl_tcp_mem[3];
-int sysctl_tcp_wmem[3];
-int sysctl_tcp_rmem[3];
+int sysctl_tcp_mem[3] __read_mostly;
+int sysctl_tcp_wmem[3] __read_mostly;
+int sysctl_tcp_rmem[3] __read_mostly;
 
 EXPORT_SYMBOL(sysctl_tcp_mem);
 EXPORT_SYMBOL(sysctl_tcp_rmem);
