@@ -352,12 +352,13 @@ void __init check_for_initrd(void)
  * must be called before using this.
  *
  * While we're here, we may as well set the "physical" cpu ids in the paca.
+ *
+ * NOTE: This must match the parsing done in early_init_dt_scan_cpus.
  */
 void __init smp_setup_cpu_maps(void)
 {
 	struct device_node *dn = NULL;
 	int cpu = 0;
-	int swap_cpuid = 0;
 
 	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < NR_CPUS) {
 		int *intserv;
@@ -376,22 +377,9 @@ void __init smp_setup_cpu_maps(void)
 		for (j = 0; j < nthreads && cpu < NR_CPUS; j++) {
 			cpu_set(cpu, cpu_present_map);
 			set_hard_smp_processor_id(cpu, intserv[j]);
-
-			if (intserv[j] == boot_cpuid_phys)
-				swap_cpuid = cpu;
 			cpu_set(cpu, cpu_possible_map);
 			cpu++;
 		}
-	}
-
-	/* Swap CPU id 0 with boot_cpuid_phys, so we can always assume that
-	 * boot cpu is logical 0.
-	 */
-	if (boot_cpuid_phys != get_hard_smp_processor_id(0)) {
-		u32 tmp;
-		tmp = get_hard_smp_processor_id(0);
-		set_hard_smp_processor_id(0, boot_cpuid_phys);
-		set_hard_smp_processor_id(swap_cpuid, tmp);
 	}
 
 #ifdef CONFIG_PPC64

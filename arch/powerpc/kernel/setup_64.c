@@ -73,7 +73,6 @@
 
 int have_of = 1;
 int boot_cpuid = 0;
-int boot_cpuid_phys = 0;
 dev_t boot_dev;
 u64 ppc64_pft_size;
 
@@ -208,7 +207,6 @@ static struct machdep_calls __initdata *machines[] = {
 
 void __init early_setup(unsigned long dt_ptr)
 {
-	struct paca_struct *lpaca = get_paca();
 	static struct machdep_calls **mach;
 
 	/* Enable early debugging if any specified (see udbg.h) */
@@ -222,6 +220,14 @@ void __init early_setup(unsigned long dt_ptr)
 	 * calculating/retreiving the hash table size
 	 */
 	early_init_devtree(__va(dt_ptr));
+
+	/* Now we know the logical id of our boot cpu, setup the paca. */
+	setup_boot_paca();
+
+	/* Fix up paca fields required for the boot cpu */
+	get_paca()->cpu_start = 1;
+	get_paca()->stab_real = __pa((u64)&initial_stab);
+	get_paca()->stab_addr = (u64)&initial_stab;
 
 	/*
 	 * Iterate all ppc_md structures until we find the proper
@@ -260,7 +266,7 @@ void __init early_setup(unsigned long dt_ptr)
 		if (cpu_has_feature(CPU_FTR_SLB))
 			slb_initialize();
 		else
-			stab_initialize(lpaca->stab_real);
+			stab_initialize(get_paca()->stab_real);
 	}
 
 	DBG(" <- early_setup()\n");

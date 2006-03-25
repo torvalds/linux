@@ -854,35 +854,70 @@ void __init unflatten_device_tree(void)
 	DBG(" <- unflatten_device_tree()\n");
 }
 
-
 static int __init early_init_dt_scan_cpus(unsigned long node,
-					  const char *uname, int depth, void *data)
+					  const char *uname, int depth,
+					  void *data)
 {
-	u32 *prop;
-	unsigned long size;
-	char *type = of_get_flat_dt_prop(node, "device_type", &size);
+	static int logical_cpuid = 0;
+	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	u32 *prop, *intserv;
+	int i, nthreads;
+	unsigned long len;
+	int found = 0;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
-	boot_cpuid = 0;
-	boot_cpuid_phys = 0;
-	if (initial_boot_params && initial_boot_params->version >= 2) {
-		/* version 2 of the kexec param format adds the phys cpuid
-		 * of booted proc.
-		 */
-		boot_cpuid_phys = initial_boot_params->boot_cpuid_phys;
+	/* Get physical cpuid */
+	intserv = of_get_flat_dt_prop(node, "ibm,ppc-interrupt-server#s", &len);
+	if (intserv) {
+		nthreads = len / sizeof(int);
 	} else {
-		/* Check if it's the boot-cpu, set it's hw index now */
-		if (of_get_flat_dt_prop(node,
-					"linux,boot-cpu", NULL) != NULL) {
-			prop = of_get_flat_dt_prop(node, "reg", NULL);
-			if (prop != NULL)
-				boot_cpuid_phys = *prop;
-		}
+		intserv = of_get_flat_dt_prop(node, "reg", NULL);
+		nthreads = 1;
 	}
-	set_hard_smp_processor_id(0, boot_cpuid_phys);
+
+	/*
+	 * Now see if any of these threads match our boot cpu.
+	 * NOTE: This must match the parsing done in smp_setup_cpu_maps.
+	 */
+	for (i = 0; i < nthreads; i++) {
+		/*
+		 * version 2 of the kexec param format adds the phys cpuid of
+		 * booted proc.
+		 */
+		if (initial_boot_params && initial_boot_params->version >= 2) {
+			if (intserv[i] ==
+					initial_boot_params->boot_cpuid_phys) {
+				found = 1;
+				break;
+			}
+		} else {
+			/*
+			 * Check if it's the boot-cpu, set it's hw index now,
+			 * unfortunately this format did not support booting
+			 * off secondary threads.
+			 */
+			if (of_get_flat_dt_prop(node,
+					"linux,boot-cpu", NULL) != NULL) {
+				found = 1;
+				break;
+			}
+		}
+
+#ifdef CONFIG_SMP
+		/* logical cpu id is always 0 on UP kernels */
+		logical_cpuid++;
+#endif
+	}
+
+	if (found) {
+		DBG("boot cpu: logical %d physical %d\n", logical_cpuid,
+			intserv[i]);
+		boot_cpuid = logical_cpuid;
+		set_hard_smp_processor_id(boot_cpuid, intserv[i]);
+	}
 
 #ifdef CONFIG_ALTIVEC
 	/* Check if we have a VMX and eventually update CPU features */
@@ -901,16 +936,10 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef CONFIG_PPC_PSERIES
-	/*
-	 * Check for an SMT capable CPU and set the CPU feature. We do
-	 * this by looking at the size of the ibm,ppc-interrupt-server#s
-	 * property
-	 */
-	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,ppc-interrupt-server#s",
-				       &size);
-	cur_cpu_spec->cpu_features &= ~CPU_FTR_SMT;
-	if (prop && ((size / sizeof(u32)) > 1))
+	if (nthreads > 1)
 		cur_cpu_spec->cpu_features |= CPU_FTR_SMT;
+	else
+		cur_cpu_spec->cpu_features &= ~CPU_FTR_SMT;
 #endif
 
 	return 0;

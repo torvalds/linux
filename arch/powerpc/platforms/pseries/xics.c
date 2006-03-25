@@ -500,7 +500,7 @@ nextnode:
 	     np;
 	     np = of_find_node_by_type(np, "cpu")) {
 		ireg = (uint *)get_property(np, "reg", &ilen);
-		if (ireg && ireg[0] == boot_cpuid_phys) {
+		if (ireg && ireg[0] == get_hard_smp_processor_id(boot_cpuid)) {
 			ireg = (uint *)get_property(np, "ibm,ppc-interrupt-gserver#s",
 						    &ilen);
 			i = ilen / sizeof(int);
