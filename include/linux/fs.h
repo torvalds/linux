@@ -678,7 +678,6 @@ extern spinlock_t files_lock;
 #define FL_POSIX	1
 #define FL_FLOCK	2
 #define FL_ACCESS	8	/* not trying to lock, just looking */
-#define FL_LOCKD	16	/* lock held by rpc.lockd */
 #define FL_LEASE	32	/* lease held on this file */
 #define FL_SLEEP	128	/* A blocking lock */
 
@@ -742,8 +741,6 @@ struct file_lock {
 #define OFFT_OFFSET_MAX	INT_LIMIT(off_t)
 #endif
 
-extern struct list_head file_lock_list;
-
 #include <linux/fcntl.h>
 
 extern int fcntl_getlk(struct file *, struct flock __user *);
@@ -765,10 +762,9 @@ extern void locks_init_lock(struct file_lock *);
 extern void locks_copy_lock(struct file_lock *, struct file_lock *);
 extern void locks_remove_posix(struct file *, fl_owner_t);
 extern void locks_remove_flock(struct file *);
-extern struct file_lock *posix_test_lock(struct file *, struct file_lock *);
+extern int posix_test_lock(struct file *, struct file_lock *, struct file_lock *);
 extern int posix_lock_file(struct file *, struct file_lock *);
 extern int posix_lock_file_wait(struct file *, struct file_lock *);
-extern void posix_block_lock(struct file_lock *, struct file_lock *);
 extern int posix_unblock_lock(struct file *, struct file_lock *);
 extern int posix_locks_deadlock(struct file_lock *, struct file_lock *);
 extern int flock_lock_file_wait(struct file *filp, struct file_lock *fl);
@@ -1097,6 +1093,7 @@ struct super_operations {
 	void (*umount_begin) (struct super_block *);
 
 	int (*show_options)(struct seq_file *, struct vfsmount *);
+	int (*show_stats)(struct seq_file *, struct vfsmount *);
 
 	ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
 	ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);

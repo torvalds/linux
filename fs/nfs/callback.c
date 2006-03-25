@@ -55,7 +55,12 @@ static void nfs_callback_svc(struct svc_rqst *rqstp)
 
 	complete(&nfs_callback_info.started);
 
-	while (nfs_callback_info.users != 0 || !signalled()) {
+	for(;;) {
+		if (signalled()) {
+			if (nfs_callback_info.users == 0)
+				break;
+			flush_signals(current);
+		}
 		/*
 		 * Listen for a request on the socket
 		 */
@@ -73,6 +78,7 @@ static void nfs_callback_svc(struct svc_rqst *rqstp)
 		svc_process(serv, rqstp);
 	}
 
+	svc_exit_thread(rqstp);
 	nfs_callback_info.pid = 0;
 	complete(&nfs_callback_info.stopped);
 	unlock_kernel();
@@ -134,11 +140,13 @@ int nfs_callback_down(void)
 
 	lock_kernel();
 	down(&nfs_callback_sema);
-	if (--nfs_callback_info.users || nfs_callback_info.pid == 0)
-		goto out;
-	kill_proc(nfs_callback_info.pid, SIGKILL, 1);
-	wait_for_completion(&nfs_callback_info.stopped);
-out:
+	nfs_callback_info.users--;
+	do {
+		if (nfs_callback_info.users != 0 || nfs_callback_info.pid == 0)
+			break;
+		if (kill_proc(nfs_callback_info.pid, SIGKILL, 1) < 0)
+			break;
+	} while (wait_for_completion_timeout(&nfs_callback_info.stopped, 5*HZ) == 0);
 	up(&nfs_callback_sema);
 	unlock_kernel();
 	return ret;

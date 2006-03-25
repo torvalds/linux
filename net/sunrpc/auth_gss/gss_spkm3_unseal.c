@@ -56,7 +56,8 @@ spkm3_read_token(struct spkm3_ctx *ctx,
 {
 	s32			code;
 	struct xdr_netobj	wire_cksum = {.len =0, .data = NULL};
-	struct xdr_netobj	md5cksum = {.len = 0, .data = NULL};
+	char			cksumdata[16];
+	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	unsigned char		*ptr = (unsigned char *)read_token->data;
 	unsigned char           *cksum;
 	int			bodysize, md5elen;
@@ -120,7 +121,6 @@ spkm3_read_token(struct spkm3_ctx *ctx,
 	/* XXX: need to add expiration and sequencing */
 	ret = GSS_S_COMPLETE;
 out:
-	kfree(md5cksum.data);
 	kfree(wire_cksum.data);
 	return ret;
 }

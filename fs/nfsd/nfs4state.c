@@ -2639,7 +2639,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 	struct nfs4_stateid *lock_stp;
 	struct file *filp;
 	struct file_lock file_lock;
-	struct file_lock *conflock;
+	struct file_lock conflock;
 	int status = 0;
 	unsigned int strhashval;
 
@@ -2775,11 +2775,11 @@ conflicting_lock:
 	/* XXX There is a race here. Future patch needed to provide 
 	 * an atomic posix_lock_and_test_file
 	 */
-	if (!(conflock = posix_test_lock(filp, &file_lock))) {
+	if (!posix_test_lock(filp, &file_lock, &conflock)) {
 		status = nfserr_serverfault;
 		goto out;
 	}
-	nfs4_set_lock_denied(conflock, &lock->lk_denied);
+	nfs4_set_lock_denied(&conflock, &lock->lk_denied);
 out:
 	if (status && lock->lk_is_new && lock_sop)
 		release_stateowner(lock_sop);
@@ -2800,7 +2800,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock
 	struct inode *inode;
 	struct file file;
 	struct file_lock file_lock;
-	struct file_lock *conflicting_lock;
+	struct file_lock conflock;
 	int status;
 
 	if (nfs4_in_grace())
@@ -2864,10 +2864,9 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock
 	file.f_dentry = current_fh->fh_dentry;
 
 	status = nfs_ok;
-	conflicting_lock = posix_test_lock(&file, &file_lock);
-	if (conflicting_lock) {
+	if (posix_test_lock(&file, &file_lock, &conflock)) {
 		status = nfserr_denied;
-		nfs4_set_lock_denied(conflicting_lock, &lockt->lt_denied);
+		nfs4_set_lock_denied(&conflock, &lockt->lt_denied);
 	}
 out:
 	nfs4_unlock_state();

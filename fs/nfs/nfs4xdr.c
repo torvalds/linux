@@ -4344,6 +4344,8 @@ nfs_stat_to_errno(int stat)
 	.p_encode = (kxdrproc_t) nfs4_xdr_##argtype,		\
 	.p_decode = (kxdrproc_t) nfs4_xdr_##restype,		\
 	.p_bufsiz = MAX(NFS4_##argtype##_sz,NFS4_##restype##_sz) << 2,	\
+	.p_statidx = NFSPROC4_CLNT_##proc,			\
+	.p_name   = #proc,					\
     }
 
 struct rpc_procinfo	nfs4_procedures[] = {

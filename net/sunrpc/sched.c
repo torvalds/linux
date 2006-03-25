@@ -65,7 +65,7 @@ static LIST_HEAD(all_tasks);
  */
 static DEFINE_MUTEX(rpciod_mutex);
 static unsigned int		rpciod_users;
-static struct workqueue_struct *rpciod_workqueue;
+struct workqueue_struct *rpciod_workqueue;
 
 /*
  * Spinlock for other critical sections of code.
@@ -182,6 +182,7 @@ static void __rpc_add_wait_queue(struct rpc_wait_queue *queue, struct rpc_task *
 	else
 		list_add_tail(&task->u.tk_wait.list, &queue->tasks[0]);
 	task->u.tk_wait.rpc_waitq = queue;
+	queue->qlen++;
 	rpc_set_queued(task);
 
 	dprintk("RPC: %4d added to queue %p \"%s\"\n",
@@ -216,6 +217,7 @@ static void __rpc_remove_wait_queue(struct rpc_task *task)
 		__rpc_remove_wait_queue_priority(task);
 	else
 		list_del(&task->u.tk_wait.list);
+	queue->qlen--;
 	dprintk("RPC: %4d removed from queue %p \"%s\"\n",
 				task->tk_pid, queue, rpc_qname(queue));
 }
@@ -816,6 +818,9 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, cons
 
 	BUG_ON(task->tk_ops == NULL);
 
+	/* starting timestamp */
+	task->tk_start = jiffies;
+
 	dprintk("RPC: %4d new task procpid %d\n", task->tk_pid,
 				current->pid);
 }
@@ -917,8 +922,11 @@ struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
 {
 	struct rpc_task *task;
 	task = rpc_new_task(clnt, flags, ops, data);
-	if (task == NULL)
+	if (task == NULL) {
+		if (ops->rpc_release != NULL)
+			ops->rpc_release(data);
 		return ERR_PTR(-ENOMEM);
+	}
 	atomic_inc(&task->tk_count);
 	rpc_execute(task);
 	return task;

@@ -977,6 +977,7 @@ out:
 out_error:
 	printk(KERN_WARNING "Error: state recovery failed on NFSv4 server %u.%u.%u.%u with error %d\n",
 				NIPQUAD(clp->cl_addr.s_addr), -status);
+	set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
 	goto out;
 }
 

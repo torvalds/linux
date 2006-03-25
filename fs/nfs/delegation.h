@@ -41,6 +41,7 @@ void nfs_delegation_reap_unclaimed(struct nfs4_client *clp);
 int nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4_stateid *stateid);
 int nfs4_open_delegation_recall(struct dentry *dentry, struct nfs4_state *state);
 int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl);
+int nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode);
 
 static inline int nfs_have_delegation(struct inode *inode, int flags)
 {

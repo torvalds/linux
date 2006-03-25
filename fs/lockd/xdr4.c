@@ -130,10 +130,11 @@ nlm4_decode_lock(u32 *p, struct nlm_lock *lock)
 	 || !(p = nlm4_decode_fh(p, &lock->fh))
 	 || !(p = nlm4_decode_oh(p, &lock->oh)))
 		return NULL;
+	lock->svid  = ntohl(*p++);
 
 	locks_init_lock(fl);
 	fl->fl_owner = current->files;
-	fl->fl_pid   = ntohl(*p++);
+	fl->fl_pid   = (pid_t)lock->svid;
 	fl->fl_flags = FL_POSIX;
 	fl->fl_type  = F_RDLCK;		/* as good as anything else */
 	p = xdr_decode_hyper(p, &start);
@@ -167,7 +168,7 @@ nlm4_encode_lock(u32 *p, struct nlm_lock *lock)
 	 || (fl->fl_end > NLM4_OFFSET_MAX && fl->fl_end != OFFSET_MAX))
 		return NULL;
 
-	*p++ = htonl(fl->fl_pid);
+	*p++ = htonl(lock->svid);
 
 	start = loff_t_to_s64(fl->fl_start);
 	if (fl->fl_end == OFFSET_MAX)
@@ -198,7 +199,7 @@ nlm4_encode_testres(u32 *p, struct nlm_res *resp)
 		struct file_lock	*fl = &resp->lock.fl;
 
 		*p++ = (fl->fl_type == F_RDLCK)? xdr_zero : xdr_one;
-		*p++ = htonl(fl->fl_pid);
+		*p++ = htonl(resp->lock.svid);
 
 		/* Encode owner handle. */
 		if (!(p = xdr_encode_netobj(p, &resp->lock.oh)))
@@ -212,8 +213,8 @@ nlm4_encode_testres(u32 *p, struct nlm_res *resp)
 		
 		p = xdr_encode_hyper(p, start);
 		p = xdr_encode_hyper(p, len);
-		dprintk("xdr: encode_testres (status %d pid %d type %d start %Ld end %Ld)\n",
-			resp->status, fl->fl_pid, fl->fl_type,
+		dprintk("xdr: encode_testres (status %u pid %d type %d start %Ld end %Ld)\n",
+			resp->status, (int)resp->lock.svid, fl->fl_type,
 			(long long)fl->fl_start,  (long long)fl->fl_end);
 	}
 
@@ -303,7 +304,8 @@ nlm4svc_decode_shareargs(struct svc_rqst *rqstp, u32 *p, nlm_args *argp)
 
 	memset(lock, 0, sizeof(*lock));
 	locks_init_lock(&lock->fl);
-	lock->fl.fl_pid = ~(u32) 0;
+	lock->svid = ~(u32) 0;
+	lock->fl.fl_pid = (pid_t)lock->svid;
 
 	if (!(p = nlm4_decode_cookie(p, &argp->cookie))
 	 || !(p = xdr_decode_string_inplace(p, &lock->caller,
@@ -420,7 +422,8 @@ nlm4clt_decode_testres(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
 		memset(&resp->lock, 0, sizeof(resp->lock));
 		locks_init_lock(fl);
 		excl = ntohl(*p++);
-		fl->fl_pid = ntohl(*p++);
+		resp->lock.svid = ntohl(*p++);
+		fl->fl_pid = (pid_t)resp->lock.svid;
 		if (!(p = nlm4_decode_oh(p, &resp->lock.oh)))
 			return -EIO;
 
@@ -548,7 +551,9 @@ nlm4clt_decode_res(struct rpc_rqst *req, u32 *p, struct nlm_res *resp)
 	.p_proc      = NLMPROC_##proc,					\
 	.p_encode    = (kxdrproc_t) nlm4clt_encode_##argtype,		\
 	.p_decode    = (kxdrproc_t) nlm4clt_decode_##restype,		\
-	.p_bufsiz    = MAX(NLM4_##argtype##_sz, NLM4_##restype##_sz) << 2	\
+	.p_bufsiz    = MAX(NLM4_##argtype##_sz, NLM4_##restype##_sz) << 2,	\
+	.p_statidx   = NLMPROC_##proc,					\
+	.p_name      = #proc,						\
 	}
 
 static struct rpc_procinfo	nlm4_procedures[] = {

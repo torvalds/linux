@@ -382,6 +382,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		/* If we've sent the entire packet, immediately
 		 * reset the count of bytes sent. */
 		req->rq_bytes_sent += status;
+		task->tk_bytes_sent += status;
 		if (likely(req->rq_bytes_sent >= req->rq_slen)) {
 			req->rq_bytes_sent = 0;
 			return 0;
@@ -1114,6 +1115,8 @@ static void xs_tcp_connect_worker(void *args)
 	}
 
 	/* Tell the socket layer to start connecting... */
+	xprt->stat.connect_count++;
+	xprt->stat.connect_start = jiffies;
 	status = sock->ops->connect(sock, (struct sockaddr *) &xprt->addr,
 			sizeof(xprt->addr), O_NONBLOCK);
 	dprintk("RPC: %p  connect status %d connected %d sock state %d\n",
@@ -1177,6 +1180,50 @@ static void xs_connect(struct rpc_task *task)
 	}
 }
 
+/**
+ * xs_udp_print_stats - display UDP socket-specifc stats
+ * @xprt: rpc_xprt struct containing statistics
+ * @seq: output file
+ *
+ */
+static void xs_udp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
+{
+	seq_printf(seq, "\txprt:\tudp %u %lu %lu %lu %lu %Lu %Lu\n",
+			xprt->port,
+			xprt->stat.bind_count,
+			xprt->stat.sends,
+			xprt->stat.recvs,
+			xprt->stat.bad_xids,
+			xprt->stat.req_u,
+			xprt->stat.bklog_u);
+}
+
+/**
+ * xs_tcp_print_stats - display TCP socket-specifc stats
+ * @xprt: rpc_xprt struct containing statistics
+ * @seq: output file
+ *
+ */
+static void xs_tcp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
+{
+	long idle_time = 0;
+
+	if (xprt_connected(xprt))
+		idle_time = (long)(jiffies - xprt->last_used) / HZ;
+
+	seq_printf(seq, "\txprt:\ttcp %u %lu %lu %lu %ld %lu %lu %lu %Lu %Lu\n",
+			xprt->port,
+			xprt->stat.bind_count,
+			xprt->stat.connect_count,
+			xprt->stat.connect_time,
+			idle_time,
+			xprt->stat.sends,
+			xprt->stat.recvs,
+			xprt->stat.bad_xids,
+			xprt->stat.req_u,
+			xprt->stat.bklog_u);
+}
+
 static struct rpc_xprt_ops xs_udp_ops = {
 	.set_buffer_size	= xs_udp_set_buffer_size,
 	.reserve_xprt		= xprt_reserve_xprt_cong,
@@ -1191,6 +1238,7 @@ static struct rpc_xprt_ops xs_udp_ops = {
 	.release_request	= xprt_release_rqst_cong,
 	.close			= xs_close,
 	.destroy		= xs_destroy,
+	.print_stats		= xs_udp_print_stats,
 };
 
 static struct rpc_xprt_ops xs_tcp_ops = {
@@ -1204,6 +1252,7 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
 	.close			= xs_close,
 	.destroy		= xs_destroy,
+	.print_stats		= xs_tcp_print_stats,
 };
 
 /**

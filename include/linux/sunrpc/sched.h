@@ -86,6 +86,12 @@ struct rpc_task {
 		struct work_struct	tk_work;	/* Async task work queue */
 		struct rpc_wait		tk_wait;	/* RPC wait */
 	} u;
+
+	unsigned short		tk_timeouts;	/* maj timeouts */
+	size_t			tk_bytes_sent;	/* total bytes sent */
+	unsigned long		tk_start;	/* RPC task init timestamp */
+	long			tk_rtt;		/* round-trip time (jiffies) */
+
 #ifdef RPC_DEBUG
 	unsigned short		tk_pid;		/* debugging aid */
 #endif
@@ -203,6 +209,7 @@ struct rpc_wait_queue {
 	unsigned char		priority;		/* current priority */
 	unsigned char		count;			/* # task groups remaining serviced so far */
 	unsigned char		nr;			/* # tasks remaining for cookie */
+	unsigned short		qlen;			/* total # tasks waiting in queue */
 #ifdef RPC_DEBUG
 	const char *		name;
 #endif
@@ -269,13 +276,13 @@ void *		rpc_malloc(struct rpc_task *, size_t);
 void		rpc_free(struct rpc_task *);
 int		rpciod_up(void);
 void		rpciod_down(void);
-void		rpciod_wake_up(void);
 int		__rpc_wait_for_completion_task(struct rpc_task *task, int (*)(void *));
 #ifdef RPC_DEBUG
 void		rpc_show_tasks(void);
 #endif
 int		rpc_init_mempool(void);
 void		rpc_destroy_mempool(void);
+extern struct workqueue_struct *rpciod_workqueue;
 
 static inline void rpc_exit(struct rpc_task *task, int status)
 {

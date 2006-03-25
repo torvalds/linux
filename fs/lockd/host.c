@@ -123,6 +123,8 @@ nlm_lookup_host(int server, struct sockaddr_in *sin,
 	nlm_hosts[hash]    = host;
 	INIT_LIST_HEAD(&host->h_lockowners);
 	spin_lock_init(&host->h_lock);
+	INIT_LIST_HEAD(&host->h_granted);
+	INIT_LIST_HEAD(&host->h_reclaim);
 
 	if (++nrhosts > NLM_HOST_MAX)
 		next_gc = 0;
@@ -191,11 +193,12 @@ nlm_bind_host(struct nlm_host *host)
 		xprt->resvport = 1;	/* NLM requires a reserved port */
 
 		/* Existing NLM servers accept AUTH_UNIX only */
-		clnt = rpc_create_client(xprt, host->h_name, &nlm_program,
+		clnt = rpc_new_client(xprt, host->h_name, &nlm_program,
 					host->h_version, RPC_AUTH_UNIX);
 		if (IS_ERR(clnt))
 			goto forgetit;
 		clnt->cl_autobind = 1;	/* turn on pmap queries */
+		clnt->cl_softrtry = 1; /* All queries are soft */
 
 		host->h_rpcclnt = clnt;
 	}
@@ -242,8 +245,12 @@ void nlm_release_host(struct nlm_host *host)
 {
 	if (host != NULL) {
 		dprintk("lockd: release host %s\n", host->h_name);
-		atomic_dec(&host->h_count);
 		BUG_ON(atomic_read(&host->h_count) < 0);
+		if (atomic_dec_and_test(&host->h_count)) {
+			BUG_ON(!list_empty(&host->h_lockowners));
+			BUG_ON(!list_empty(&host->h_granted));
+			BUG_ON(!list_empty(&host->h_reclaim));
+		}
 	}
 }
 
@@ -331,7 +338,6 @@ nlm_gc_hosts(void)
 					rpc_destroy_client(host->h_rpcclnt);
 				}
 			}
-			BUG_ON(!list_empty(&host->h_lockowners));
 			kfree(host);
 			nrhosts--;
 		}
