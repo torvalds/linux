@@ -344,7 +344,7 @@ void __meminit init_memory_mapping(unsigned long start, unsigned long end)
 		pud_t *pud;
 
 		if (after_bootmem)
-			pud = pud_offset_k(pgd, __PAGE_OFFSET);
+			pud = pud_offset_k(pgd, start & PGDIR_MASK);
 		else
 			pud = alloc_low_page(&map, &pud_phys);
 
