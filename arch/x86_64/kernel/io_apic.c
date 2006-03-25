@@ -50,7 +50,7 @@ static int no_timer_check;
 
 int disable_timer_pin_1 __initdata;
 
-int timer_over_8254 __initdata = 1;
+int timer_over_8254 __initdata = 0;
 
 /* Where if anywhere is the i8259 connect in external int mode */
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
