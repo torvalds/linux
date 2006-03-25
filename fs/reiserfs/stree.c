@@ -981,6 +981,8 @@ static inline int prepare_for_direntry_item(struct path *path,
 	return M_CUT;
 }
 
+#define JOURNAL_FOR_FREE_BLOCK_AND_UPDATE_SD (2 * JOURNAL_PER_BALANCE_CNT + 1)
+
 /*  If the path points to a directory or direct item, calculate mode and the size cut, for balance.
     If the path points to an indirect item, remove some number of its unformatted nodes.
     In case of file truncate calculate whether this item must be deleted/truncated or last
@@ -1020,148 +1022,79 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 
 	/* Case of an indirect item. */
 	{
-		int n_unfm_number,	/* Number of the item unformatted nodes. */
-		 n_counter, n_blk_size;
-		__le32 *p_n_unfm_pointer;	/* Pointer to the unformatted node number. */
-		__u32 tmp;
-		struct item_head s_ih;	/* Item header. */
-		char c_mode;	/* Returned mode of the balance. */
-		int need_research;
+	    int blk_size = p_s_sb->s_blocksize;
+	    struct item_head s_ih;
+	    int need_re_search;
+	    int delete = 0;
+	    int result = M_CUT;
+	    int pos = 0;
 
-		n_blk_size = p_s_sb->s_blocksize;
+	    if ( n_new_file_length == max_reiserfs_offset (inode) ) {
+		/* prepare_for_delete_or_cut() is called by
+		 * reiserfs_delete_item() */
+		n_new_file_length = 0;
+		delete = 1;
+	    }
 
-		/* Search for the needed object indirect item until there are no unformatted nodes to be removed. */
-		do {
-			need_research = 0;
-			p_s_bh = PATH_PLAST_BUFFER(p_s_path);
-			/* Copy indirect item header to a temp variable. */
-			copy_item_head(&s_ih, PATH_PITEM_HEAD(p_s_path));
-			/* Calculate number of unformatted nodes in this item. */
-			n_unfm_number = I_UNFM_NUM(&s_ih);
+	    do {
+		need_re_search = 0;
+		*p_n_cut_size = 0;
+		p_s_bh = PATH_PLAST_BUFFER(p_s_path);
+		copy_item_head(&s_ih, PATH_PITEM_HEAD(p_s_path));
+		pos = I_UNFM_NUM(&s_ih);
 
-			RFALSE(!is_indirect_le_ih(&s_ih) || !n_unfm_number ||
-			       pos_in_item(p_s_path) + 1 != n_unfm_number,
-			       "PAP-5240: invalid item %h "
-			       "n_unfm_number = %d *p_n_pos_in_item = %d",
-			       &s_ih, n_unfm_number, pos_in_item(p_s_path));
+		while (le_ih_k_offset (&s_ih) + (pos - 1) * blk_size > n_new_file_length) {
+		    __u32 *unfm, block;
 
-			/* Calculate balance mode and position in the item to remove unformatted nodes. */
-			if (n_new_file_length == max_reiserfs_offset(inode)) {	/* Case of delete. */
-				pos_in_item(p_s_path) = 0;
-				*p_n_cut_size = -(IH_SIZE + ih_item_len(&s_ih));
-				c_mode = M_DELETE;
-			} else {	/* Case of truncate. */
-				if (n_new_file_length < le_ih_k_offset(&s_ih)) {
-					pos_in_item(p_s_path) = 0;
-					*p_n_cut_size =
-					    -(IH_SIZE + ih_item_len(&s_ih));
-					c_mode = M_DELETE;	/* Delete this item. */
-				} else {
-					/* indirect item must be truncated starting from *p_n_pos_in_item-th position */
-					pos_in_item(p_s_path) =
-					    (n_new_file_length + n_blk_size -
-					     le_ih_k_offset(&s_ih)) >> p_s_sb->
-					    s_blocksize_bits;
+		    /* Each unformatted block deletion may involve one additional
+		     * bitmap block into the transaction, thereby the initial
+		     * journal space reservation might not be enough. */
+		    if (!delete && (*p_n_cut_size) != 0 &&
+			reiserfs_transaction_free_space(th) < JOURNAL_FOR_FREE_BLOCK_AND_UPDATE_SD) {
+			break;
+		    }
 
-					RFALSE(pos_in_item(p_s_path) >
-					       n_unfm_number,
-					       "PAP-5250: invalid position in the item");
+		    unfm = (__u32 *)B_I_PITEM(p_s_bh, &s_ih) + pos - 1;
+		    block = get_block_num(unfm, 0);
 
-					/* Either convert last unformatted node of indirect item to direct item or increase
-					   its free space.  */
-					if (pos_in_item(p_s_path) ==
-					    n_unfm_number) {
-						*p_n_cut_size = 0;	/* Nothing to cut. */
-						return M_CONVERT;	/* Maybe convert last unformatted node to the direct item. */
-					}
-					/* Calculate size to cut. */
-					*p_n_cut_size =
-					    -(ih_item_len(&s_ih) -
-					      pos_in_item(p_s_path) *
-					      UNFM_P_SIZE);
-
-					c_mode = M_CUT;	/* Cut from this indirect item. */
-				}
-			}
-
-			RFALSE(n_unfm_number <= pos_in_item(p_s_path),
-			       "PAP-5260: invalid position in the indirect item");
-
-			/* pointers to be cut */
-			n_unfm_number -= pos_in_item(p_s_path);
-			/* Set pointer to the last unformatted node pointer that is to be cut. */
-			p_n_unfm_pointer =
-			    (__le32 *) B_I_PITEM(p_s_bh,
-						 &s_ih) + I_UNFM_NUM(&s_ih) -
-			    1 - *p_n_removed;
-
-			/* We go through the unformatted nodes pointers of the indirect
-			   item and look for the unformatted nodes in the cache. If we
-			   found some of them we free it, zero corresponding indirect item
-			   entry and log buffer containing that indirect item. For this we
-			   need to prepare last path element for logging. If some
-			   unformatted node has b_count > 1 we must not free this
-			   unformatted node since it is in use. */
+		    if (block != 0) {
 			reiserfs_prepare_for_journal(p_s_sb, p_s_bh, 1);
-			// note: path could be changed, first line in for loop takes care
-			// of it
+			put_block_num(unfm, 0, 0);
+			journal_mark_dirty (th, p_s_sb, p_s_bh);
+			reiserfs_free_block(th, inode, block, 1);
+		    }
 
-			for (n_counter = *p_n_removed;
-			     n_counter < n_unfm_number;
-			     n_counter++, p_n_unfm_pointer--) {
+		    cond_resched();
 
-				cond_resched();
-				if (item_moved(&s_ih, p_s_path)) {
-					need_research = 1;
-					break;
-				}
-				RFALSE(p_n_unfm_pointer <
-				       (__le32 *) B_I_PITEM(p_s_bh, &s_ih)
-				       || p_n_unfm_pointer >
-				       (__le32 *) B_I_PITEM(p_s_bh,
-							    &s_ih) +
-				       I_UNFM_NUM(&s_ih) - 1,
-				       "vs-5265: pointer out of range");
+		    if (item_moved (&s_ih, p_s_path))  {
+			need_re_search = 1;
+			break;
+		    }
 
-				/* Hole, nothing to remove. */
-				if (!get_block_num(p_n_unfm_pointer, 0)) {
-					(*p_n_removed)++;
-					continue;
-				}
+		    pos --;
+		    (*p_n_removed) ++;
+		    (*p_n_cut_size) -= UNFM_P_SIZE;
 
-				(*p_n_removed)++;
+		    if (pos == 0) {
+			(*p_n_cut_size) -= IH_SIZE;
+			result = M_DELETE;
+			break;
+		    }
+		}
+		/* a trick.  If the buffer has been logged, this will do nothing.  If
+		** we've broken the loop without logging it, it will restore the
+		** buffer */
+		reiserfs_restore_prepared_buffer(p_s_sb, p_s_bh);
+	    } while (need_re_search &&
+		     search_for_position_by_key(p_s_sb, p_s_item_key, p_s_path) == POSITION_FOUND);
+	    pos_in_item(p_s_path) = pos * UNFM_P_SIZE;
 
-				tmp = get_block_num(p_n_unfm_pointer, 0);
-				put_block_num(p_n_unfm_pointer, 0, 0);
-				journal_mark_dirty(th, p_s_sb, p_s_bh);
-				reiserfs_free_block(th, inode, tmp, 1);
-				if (item_moved(&s_ih, p_s_path)) {
-					need_research = 1;
-					break;
-				}
-			}
-
-			/* a trick.  If the buffer has been logged, this
-			 ** will do nothing.  If we've broken the loop without
-			 ** logging it, it will restore the buffer
-			 **
-			 */
-			reiserfs_restore_prepared_buffer(p_s_sb, p_s_bh);
-
-			/* This loop can be optimized. */
-		} while ((*p_n_removed < n_unfm_number || need_research) &&
-			 search_for_position_by_key(p_s_sb, p_s_item_key,
-						    p_s_path) ==
-			 POSITION_FOUND);
-
-		RFALSE(*p_n_removed < n_unfm_number,
-		       "PAP-5310: indirect item is not found");
-		RFALSE(item_moved(&s_ih, p_s_path),
-		       "after while, comp failed, retry");
-
-		if (c_mode == M_CUT)
-			pos_in_item(p_s_path) *= UNFM_P_SIZE;
-		return c_mode;
+	    if (*p_n_cut_size == 0) {
+		/* Nothing were cut. maybe convert last unformatted node to the
+		 * direct item? */
+		result = M_CONVERT;
+	    }
+	    return result;
 	}
 }
 
@@ -1948,7 +1881,8 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
 		 ** sure the file is consistent before ending the current trans
 		 ** and starting a new one
 		 */
-		if (journal_transaction_should_end(th, th->t_blocks_allocated)) {
+		if (journal_transaction_should_end(th, 0) ||
+		    reiserfs_transaction_free_space(th) <= JOURNAL_FOR_FREE_BLOCK_AND_UPDATE_SD) {
 			int orig_len_alloc = th->t_blocks_allocated;
 			decrement_counters_in_path(&s_search_path);
 
@@ -1962,7 +1896,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th, struct inode *p
 			if (err)
 				goto out;
 			err = journal_begin(th, p_s_inode->i_sb,
-					    JOURNAL_PER_BALANCE_CNT * 6);
+					    JOURNAL_FOR_FREE_BLOCK_AND_UPDATE_SD + JOURNAL_PER_BALANCE_CNT * 4) ;
 			if (err)
 				goto out;
 			reiserfs_update_inode_transaction(p_s_inode);

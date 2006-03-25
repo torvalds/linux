@@ -1704,6 +1704,11 @@ static inline int reiserfs_transaction_running(struct super_block *s)
 	return 0;
 }
 
+static inline int reiserfs_transaction_free_space(struct reiserfs_transaction_handle *th)
+{
+	return th->t_blocks_allocated - th->t_blocks_logged;
+}
+
 int reiserfs_async_progress_wait(struct super_block *s);
 
 struct reiserfs_transaction_handle *reiserfs_persistent_transaction(struct
