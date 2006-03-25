@@ -878,8 +878,8 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
  	}
 	numa_set_node(cpu, node);
 
-  	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
-  			cpu, c->x86_max_cores, node, cpu_core_id[cpu]);
+  	printk(KERN_INFO "CPU %d/%x(%d) -> Node %d -> Core %d\n",
+  			cpu, apicid, c->x86_max_cores, node, cpu_core_id[cpu]);
 #endif
 #endif
 }
