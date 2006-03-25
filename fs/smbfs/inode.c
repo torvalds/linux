@@ -217,7 +217,7 @@ smb_set_inode_attr(struct inode *inode, struct smb_fattr *fattr)
 	if (inode->i_mtime.tv_sec != last_time || inode->i_size != last_sz) {
 		VERBOSE("%ld changed, old=%ld, new=%ld, oz=%ld, nz=%ld\n",
 			inode->i_ino,
-			(long) last_time, (long) inode->i_mtime,
+			(long) last_time, (long) inode->i_mtime.tv_sec,
 			(long) last_sz, (long) inode->i_size);
 
 		if (!S_ISDIR(inode->i_mode))
