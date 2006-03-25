@@ -782,7 +782,8 @@ isdn_ppp_read(int min, struct file *file, char __user *buf, int count)
 	is->first = b;
 
 	spin_unlock_irqrestore(&is->buflock, flags);
-	copy_to_user(buf, save_buf, count);
+	if (copy_to_user(buf, save_buf, count))
+		count = -EFAULT;
 	kfree(save_buf);
 
 	return count;
