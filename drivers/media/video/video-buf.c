@@ -923,7 +923,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 		/* need to capture a new frame */
 		retval = -ENOMEM;
 		q->read_buf = videobuf_alloc(q->msize);
-		dprintk(1,"video alloc=0x%08x\n",(unsigned int) q->read_buf);
+		dprintk(1,"video alloc=0x%p\n", q->read_buf);
 		if (NULL == q->read_buf)
 			goto done;
 		q->read_buf->memory = V4L2_MEMORY_USERPTR;

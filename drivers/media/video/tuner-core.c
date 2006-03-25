@@ -401,7 +401,7 @@ static void tuner_status(struct i2c_client *client)
 	}
 	tuner_info("Tuner mode:      %s\n", p);
 	tuner_info("Frequency:       %lu.%02lu MHz\n", freq, freq_fraction);
-	tuner_info("Standard:        0x%08llx\n", t->std);
+	tuner_info("Standard:        0x%08lx\n", (unsigned long)t->std);
 	if (t->mode != V4L2_TUNER_RADIO)
 	       return;
 	if (t->has_signal) {
