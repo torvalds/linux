@@ -32,7 +32,7 @@ static int cpufreq_governor_performance(struct cpufreq_policy *policy,
 	}
 	return 0;
 }
-                                                            
+
 struct cpufreq_governor cpufreq_gov_performance = {
 	.name		= "performance",
 	.governor	= cpufreq_governor_performance,

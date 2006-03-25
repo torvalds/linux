@@ -6,12 +6,12 @@
  *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
- *      version 2 as published by the Free Software Foundation 
+ *      version 2 as published by the Free Software Foundation
  *
  *      The author(s) of this software shall not be held liable for damages
  *      of any nature resulting due to the use of this software. This
  *      software is provided AS-IS with no warranties.
- *	
+ *
  * Theoritical note:
  *
  *	(see Geode(tm) CS5530 manual (rev.4.1) page.56)
@@ -21,18 +21,18 @@
  *
  *	Suspend Modulation works by asserting and de-asserting the SUSP# pin
  *	to CPU(GX1/GXLV) for configurable durations. When asserting SUSP#
- *	the CPU enters an idle state. GX1 stops its core clock when SUSP# is 
+ *	the CPU enters an idle state. GX1 stops its core clock when SUSP# is
  *	asserted then power consumption is reduced.
  *
- *	Suspend Modulation's OFF/ON duration are configurable 
+ *	Suspend Modulation's OFF/ON duration are configurable
  *	with 'Suspend Modulation OFF Count Register'
  *	and 'Suspend Modulation ON Count Register'.
- *	These registers are 8bit counters that represent the number of 
+ *	These registers are 8bit counters that represent the number of
  *	32us intervals which the SUSP# pin is asserted(ON)/de-asserted(OFF)
  *	to the processor.
  *
- *	These counters define a ratio which is the effective frequency 
- * 	of operation of the system.
+ *	These counters define a ratio which is the effective frequency
+ *	of operation of the system.
  *
  *			       OFF Count
  *	F_eff = Fgx * ----------------------
@@ -40,24 +40,24 @@
  *
  *	0 <= On Count, Off Count <= 255
  *
- *	From these limits, we can get register values 
+ *	From these limits, we can get register values
  *
  *	off_duration + on_duration <= MAX_DURATION
  *	on_duration = off_duration * (stock_freq - freq) / freq
  *
- *      off_duration  =  (freq * DURATION) / stock_freq 
- *      on_duration = DURATION - off_duration 
+ *      off_duration  =  (freq * DURATION) / stock_freq
+ *      on_duration = DURATION - off_duration
  *
  *
  *---------------------------------------------------------------------------
  *
  * ChangeLog:
- *  	Dec. 12, 2003	Hiroshi Miura <miura@da-cha.org>
- *  		- fix on/off register mistake
- *  		- fix cpu_khz calc when it stops cpu modulation.
+ *	Dec. 12, 2003	Hiroshi Miura <miura@da-cha.org>
+ *		- fix on/off register mistake
+ *		- fix cpu_khz calc when it stops cpu modulation.
  *
- *	Dec. 11, 2002 	Hiroshi Miura <miura@da-cha.org>
- *		- rewrite for Cyrix MediaGX Cx5510/5520 and 
+ *	Dec. 11, 2002	Hiroshi Miura <miura@da-cha.org>
+ *		- rewrite for Cyrix MediaGX Cx5510/5520 and
  *		  NatSemi Geode Cs5530(A).
  *
  *	Jul. ??, 2002  Zwane Mwaikambo <zwane@commfireservices.com>
@@ -74,40 +74,40 @@
  ************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/module.h> 
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/cpufreq.h>
 #include <linux/pci.h>
-#include <asm/processor.h> 
+#include <asm/processor.h>
 #include <asm/errno.h>
 
 /* PCI config registers, all at F0 */
-#define PCI_PMER1              0x80    /* power management enable register 1 */
-#define PCI_PMER2              0x81    /* power management enable register 2 */
-#define PCI_PMER3              0x82    /* power management enable register 3 */
-#define PCI_IRQTC              0x8c    /* irq speedup timer counter register:typical 2 to 4ms */
-#define PCI_VIDTC              0x8d    /* video speedup timer counter register: typical 50 to 100ms */
-#define PCI_MODOFF             0x94    /* suspend modulation OFF counter register, 1 = 32us */
-#define PCI_MODON              0x95    /* suspend modulation ON counter register */
-#define PCI_SUSCFG             0x96    /* suspend configuration register */
+#define PCI_PMER1	0x80	/* power management enable register 1 */
+#define PCI_PMER2	0x81	/* power management enable register 2 */
+#define PCI_PMER3	0x82	/* power management enable register 3 */
+#define PCI_IRQTC	0x8c	/* irq speedup timer counter register:typical 2 to 4ms */
+#define PCI_VIDTC	0x8d	/* video speedup timer counter register: typical 50 to 100ms */
+#define PCI_MODOFF	0x94	/* suspend modulation OFF counter register, 1 = 32us */
+#define PCI_MODON	0x95	/* suspend modulation ON counter register */
+#define PCI_SUSCFG	0x96	/* suspend configuration register */
 
 /* PMER1 bits */
-#define GPM                    (1<<0)  /* global power management */
-#define GIT                    (1<<1)  /* globally enable PM device idle timers */
-#define GTR                    (1<<2)  /* globally enable IO traps */
-#define IRQ_SPDUP              (1<<3)  /* disable clock throttle during interrupt handling */
-#define VID_SPDUP              (1<<4)  /* disable clock throttle during vga video handling */
+#define GPM		(1<<0)	/* global power management */
+#define GIT		(1<<1)	/* globally enable PM device idle timers */
+#define GTR		(1<<2)	/* globally enable IO traps */
+#define IRQ_SPDUP	(1<<3)	/* disable clock throttle during interrupt handling */
+#define VID_SPDUP	(1<<4)	/* disable clock throttle during vga video handling */
 
 /* SUSCFG bits */
-#define SUSMOD                 (1<<0)  /* enable/disable suspend modulation */
-/* the belows support only with cs5530 (after rev.1.2)/cs5530A */ 
-#define SMISPDUP               (1<<1)  /* select how SMI re-enable suspend modulation: */
-                                       /* IRQTC timer or read SMI speedup disable reg.(F1BAR[08-09h]) */
-#define SUSCFG                 (1<<2)  /* enable powering down a GXLV processor. "Special 3Volt Suspend" mode */
-/* the belows support only with cs5530A */ 
-#define PWRSVE_ISA             (1<<3)  /* stop ISA clock  */
-#define PWRSVE                 (1<<4)  /* active idle */
+#define SUSMOD		(1<<0)	/* enable/disable suspend modulation */
+/* the belows support only with cs5530 (after rev.1.2)/cs5530A */
+#define SMISPDUP	(1<<1)	/* select how SMI re-enable suspend modulation: */
+				/* IRQTC timer or read SMI speedup disable reg.(F1BAR[08-09h]) */
+#define SUSCFG		(1<<2)	/* enable powering down a GXLV processor. "Special 3Volt Suspend" mode */
+/* the belows support only with cs5530A */
+#define PWRSVE_ISA	(1<<3)	/* stop ISA clock  */
+#define PWRSVE		(1<<4)	/* active idle */
 
 struct gxfreq_params {
 	u8 on_duration;
@@ -128,7 +128,7 @@ module_param (pci_busclk, int, 0444);
 
 /* maximum duration for which the cpu may be suspended
  * (32us * MAX_DURATION). If no parameter is given, this defaults
- * to 255. 
+ * to 255.
  * Note that this leads to a maximum of 8 ms(!) where the CPU clock
  * is suspended -- processing power is just 0.39% of what it used to be,
  * though. 781.25 kHz(!) for a 200 MHz processor -- wow. */
@@ -144,17 +144,17 @@ module_param (max_duration, int, 0444);
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "gx-suspmod", msg)
 
 /**
- *      we can detect a core multipiler from dir0_lsb 
- *      from GX1 datasheet p.56, 
- *	   MULT[3:0]:
- *	   0000 = SYSCLK multiplied by 4 (test only)
- *	   0001 = SYSCLK multiplied by 10
- *	   0010 = SYSCLK multiplied by 4
- *	   0011 = SYSCLK multiplied by 6
- *	   0100 = SYSCLK multiplied by 9
- *	   0101 = SYSCLK multiplied by 5
- *	   0110 = SYSCLK multiplied by 7
- *	   0111 = SYSCLK multiplied by 8
+ * we can detect a core multipiler from dir0_lsb
+ * from GX1 datasheet p.56,
+ *	MULT[3:0]:
+ *	0000 = SYSCLK multiplied by 4 (test only)
+ *	0001 = SYSCLK multiplied by 10
+ *	0010 = SYSCLK multiplied by 4
+ *	0011 = SYSCLK multiplied by 6
+ *	0100 = SYSCLK multiplied by 9
+ *	0101 = SYSCLK multiplied by 5
+ *	0110 = SYSCLK multiplied by 7
+ *	0111 = SYSCLK multiplied by 8
  *              of 33.3MHz
  **/
 static int gx_freq_mult[16] = {
@@ -164,17 +164,17 @@ static int gx_freq_mult[16] = {
 
 
 /****************************************************************
- * 	Low Level chipset interface				*
+ *	Low Level chipset interface				*
  ****************************************************************/
 static struct pci_device_id gx_chipset_tbl[] __initdata = {
-        { PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_LEGACY, PCI_ANY_ID, PCI_ANY_ID },
-        { PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5520, PCI_ANY_ID, PCI_ANY_ID },
-        { PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5510, PCI_ANY_ID, PCI_ANY_ID },
-        { 0, },
+	{ PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_LEGACY, PCI_ANY_ID, PCI_ANY_ID },
+	{ PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5520, PCI_ANY_ID, PCI_ANY_ID },
+	{ PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5510, PCI_ANY_ID, PCI_ANY_ID },
+	{ 0, },
 };
 
 /**
- *     gx_detect_chipset:
+ * gx_detect_chipset:
  *
  **/
 static __init struct pci_dev *gx_detect_chipset(void)
@@ -182,17 +182,16 @@ static __init struct pci_dev *gx_detect_chipset(void)
 	struct pci_dev *gx_pci = NULL;
 
 	/* check if CPU is a MediaGX or a Geode. */
-        if ((current_cpu_data.x86_vendor != X86_VENDOR_NSC) && 
+	if ((current_cpu_data.x86_vendor != X86_VENDOR_NSC) &&
 	    (current_cpu_data.x86_vendor != X86_VENDOR_CYRIX)) {
 		dprintk("error: no MediaGX/Geode processor found!\n");
-		return NULL;		
+		return NULL;
 	}
 
 	/* detect which companion chip is used */
 	while ((gx_pci = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, gx_pci)) != NULL) {
-		if ((pci_match_id(gx_chipset_tbl, gx_pci)) != NULL) {
+		if ((pci_match_id(gx_chipset_tbl, gx_pci)) != NULL)
 			return gx_pci;
-		}
 	}
 
 	dprintk("error: no supported chipset found!\n");
@@ -200,24 +199,24 @@ static __init struct pci_dev *gx_detect_chipset(void)
 }
 
 /**
- *      gx_get_cpuspeed:
+ * gx_get_cpuspeed:
  *
  * Finds out at which efficient frequency the Cyrix MediaGX/NatSemi Geode CPU runs.
  */
 static unsigned int gx_get_cpuspeed(unsigned int cpu)
 {
-	if ((gx_params->pci_suscfg & SUSMOD) == 0) 
+	if ((gx_params->pci_suscfg & SUSMOD) == 0)
 		return stock_freq;
 
-	return (stock_freq * gx_params->off_duration) 
+	return (stock_freq * gx_params->off_duration)
 		/ (gx_params->on_duration + gx_params->off_duration);
 }
 
 /**
  *      gx_validate_speed:
  *      determine current cpu speed
- *       
-**/
+ *
+ **/
 
 static unsigned int gx_validate_speed(unsigned int khz, u8 *on_duration, u8 *off_duration)
 {
@@ -230,7 +229,7 @@ static unsigned int gx_validate_speed(unsigned int khz, u8 *on_duration, u8 *off
 	*on_duration=0;
 
 	for (i=max_duration; i>0; i--) {
-		tmp_off = ((khz * i) / stock_freq) & 0xff; 
+		tmp_off = ((khz * i) / stock_freq) & 0xff;
 		tmp_on = i - tmp_off;
 		tmp_freq = (stock_freq * tmp_off) / i;
 		/* if this relation is closer to khz, use this. If it's equal,
@@ -247,17 +246,16 @@ static unsigned int gx_validate_speed(unsigned int khz, u8 *on_duration, u8 *off
 
 
 /**
- * 	gx_set_cpuspeed:
- *		set cpu speed in khz.
+ * gx_set_cpuspeed:
+ * set cpu speed in khz.
  **/
 
 static void gx_set_cpuspeed(unsigned int khz)
 {
-        u8 suscfg, pmer1;
+	u8 suscfg, pmer1;
 	unsigned int new_khz;
 	unsigned long flags;
 	struct cpufreq_freqs freqs;
-
 
 	freqs.cpu = 0;
 	freqs.old = gx_get_cpuspeed(0);
@@ -303,18 +301,18 @@ static void gx_set_cpuspeed(unsigned int khz)
 	pci_write_config_byte(gx_params->cs55x0, PCI_MODOFF, gx_params->off_duration);
 	pci_write_config_byte(gx_params->cs55x0, PCI_MODON, gx_params->on_duration);
 
-        pci_write_config_byte(gx_params->cs55x0, PCI_SUSCFG, suscfg);
-        pci_read_config_byte(gx_params->cs55x0, PCI_SUSCFG, &suscfg);
+	pci_write_config_byte(gx_params->cs55x0, PCI_SUSCFG, suscfg);
+	pci_read_config_byte(gx_params->cs55x0, PCI_SUSCFG, &suscfg);
 
-        local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	gx_params->pci_suscfg = suscfg;
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
-        dprintk("suspend modulation w/ duration of ON:%d us, OFF:%d us\n",
-                gx_params->on_duration * 32, gx_params->off_duration * 32);
-	dprintk("suspend modulation w/ clock speed: %d kHz.\n", freqs.new); 
+	dprintk("suspend modulation w/ duration of ON:%d us, OFF:%d us\n",
+		gx_params->on_duration * 32, gx_params->off_duration * 32);
+	dprintk("suspend modulation w/ clock speed: %d kHz.\n", freqs.new);
 }
 
 /****************************************************************
@@ -322,10 +320,10 @@ static void gx_set_cpuspeed(unsigned int khz)
  ****************************************************************/
 
 /*
- *	cpufreq_gx_verify: test if frequency range is valid 
+ *	cpufreq_gx_verify: test if frequency range is valid
  *
- *	This function checks if a given frequency range in kHz is valid 
- *      for the hardware supported by the driver. 
+ *	This function checks if a given frequency range in kHz is valid
+ *      for the hardware supported by the driver.
  */
 
 static int cpufreq_gx_verify(struct cpufreq_policy *policy)
@@ -333,8 +331,8 @@ static int cpufreq_gx_verify(struct cpufreq_policy *policy)
 	unsigned int tmp_freq = 0;
 	u8 tmp1, tmp2;
 
-        if (!stock_freq || !policy)
-                return -EINVAL;
+	if (!stock_freq || !policy)
+		return -EINVAL;
 
 	policy->cpu = 0;
 	cpufreq_verify_within_limits(policy, (stock_freq / max_duration), stock_freq);
@@ -342,14 +340,14 @@ static int cpufreq_gx_verify(struct cpufreq_policy *policy)
 	/* it needs to be assured that at least one supported frequency is
 	 * within policy->min and policy->max. If it is not, policy->max
 	 * needs to be increased until one freuqency is supported.
-	 * policy->min may not be decreased, though. This way we guarantee a 
+	 * policy->min may not be decreased, though. This way we guarantee a
 	 * specific processing capacity.
 	 */
 	tmp_freq = gx_validate_speed(policy->min, &tmp1, &tmp2);
-	if (tmp_freq < policy->min) 
+	if (tmp_freq < policy->min)
 		tmp_freq += stock_freq / max_duration;
 	policy->min = tmp_freq;
-	if (policy->min > policy->max) 
+	if (policy->min > policy->max)
 		policy->max = tmp_freq;
 	tmp_freq = gx_validate_speed(policy->max, &tmp1, &tmp2);
 	if (tmp_freq > policy->max)
@@ -358,12 +356,12 @@ static int cpufreq_gx_verify(struct cpufreq_policy *policy)
 	if (policy->max < policy->min)
 		policy->max = policy->min;
 	cpufreq_verify_within_limits(policy, (stock_freq / max_duration), stock_freq);
-	
+
 	return 0;
 }
 
 /*
- *      cpufreq_gx_target:  
+ *      cpufreq_gx_target:
  *
  */
 static int cpufreq_gx_target(struct cpufreq_policy *policy,
@@ -373,8 +371,8 @@ static int cpufreq_gx_target(struct cpufreq_policy *policy,
 	u8 tmp1, tmp2;
 	unsigned int tmp_freq;
 
-        if (!stock_freq || !policy)
-                return -EINVAL;
+	if (!stock_freq || !policy)
+		return -EINVAL;
 
 	policy->cpu = 0;
 
@@ -431,7 +429,7 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-/* 
+/*
  * cpufreq_gx_init:
  *   MediaGX/Geode GX initialize cpufreq driver
  */
@@ -452,7 +450,7 @@ static int __init cpufreq_gx_init(void)
 	u32 class_rev;
 
 	/* Test if we have the right hardware */
-	if ((gx_pci = gx_detect_chipset()) == NULL) 
+	if ((gx_pci = gx_detect_chipset()) == NULL)
 		return -ENODEV;
 
 	/* check whether module parameters are sane */
@@ -461,10 +459,9 @@ static int __init cpufreq_gx_init(void)
 
 	dprintk("geode suspend modulation available.\n");
 
-	params = kmalloc(sizeof(struct gxfreq_params), GFP_KERNEL);
+	params = kzalloc(sizeof(struct gxfreq_params), GFP_KERNEL);
 	if (params == NULL)
 		return -ENOMEM;
-	memset(params, 0, sizeof(struct gxfreq_params));
 
 	params->cs55x0 = gx_pci;
 	gx_params = params;
@@ -478,7 +475,7 @@ static int __init cpufreq_gx_init(void)
         pci_read_config_dword(params->cs55x0, PCI_CLASS_REVISION, &class_rev);
 	params->pci_rev = class_rev && 0xff;
 
-	if ((ret = cpufreq_register_driver(&gx_suspmod_driver))) { 
+	if ((ret = cpufreq_register_driver(&gx_suspmod_driver))) {
 		kfree(params);
 		return ret;                   /* register error! */
 	}
