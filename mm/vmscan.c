@@ -1356,7 +1356,9 @@ static int __init kswapd_init(void)
 
 		pid = kernel_thread(kswapd, pgdat, CLONE_KERNEL);
 		BUG_ON(pid < 0);
+		read_lock(&tasklist_lock);
 		pgdat->kswapd = find_task_by_pid(pid);
+		read_unlock(&tasklist_lock);
 	}
 	total_memory = nr_free_pagecache_pages();
 	hotcpu_notifier(cpu_callback, 0);
