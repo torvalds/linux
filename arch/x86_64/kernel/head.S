@@ -26,6 +26,7 @@
  */
 
 	.text
+	.section .bootstrap.text
 	.code32
 	.globl startup_32
 /* %bx:	 1 if coming from smp trampoline on secondary cpu */ 

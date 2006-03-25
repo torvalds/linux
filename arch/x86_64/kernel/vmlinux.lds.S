@@ -20,6 +20,7 @@ SECTIONS
   phys_startup_64 = startup_64 - LOAD_OFFSET;
   _text = .;			/* Text and read-only data */
   .text :  AT(ADDR(.text) - LOAD_OFFSET) {
+	*(.bootstrap.text)
 	*(.text)
 	SCHED_TEXT
 	LOCK_TEXT
