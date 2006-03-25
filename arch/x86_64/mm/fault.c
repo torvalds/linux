@@ -314,11 +314,13 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	unsigned long flags;
 	siginfo_t info;
 
+	tsk = current;
+	mm = tsk->mm;
+	prefetchw(&mm->mmap_sem);
+
 	/* get the address */
 	__asm__("movq %%cr2,%0":"=r" (address));
 
-	tsk = current;
-	mm = tsk->mm;
 	info.si_code = SEGV_MAPERR;
 
 
