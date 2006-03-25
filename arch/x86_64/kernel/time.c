@@ -517,6 +517,7 @@ static unsigned long get_cmos_time(void)
 	unsigned int timeout = 1000000, year, mon, day, hour, min, sec;
 	unsigned char uip = 0, this = 0;
 	unsigned long flags;
+	unsigned extyear = 0;
 
 /*
  * The Linux interpretation of the CMOS clock register contents: When the
@@ -545,6 +546,11 @@ static unsigned long get_cmos_time(void)
 	mon = CMOS_READ(RTC_MONTH);
 	year = CMOS_READ(RTC_YEAR);
 
+#ifdef CONFIG_ACPI
+	if (acpi_fadt.revision >= FADT2_REVISION_ID && acpi_fadt.century)
+		extyear = CMOS_READ(acpi_fadt.century);
+#endif
+
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	/*
@@ -559,11 +565,17 @@ static unsigned long get_cmos_time(void)
 	BCD_TO_BIN(mon);
 	BCD_TO_BIN(year);
 
-	/*
-	 * x86-64 systems only exists since 2002.
-	 * This will work up to Dec 31, 2100
-	 */
-	year += 2000;
+	if (extyear) {
+		BCD_TO_BIN(extyear);
+		year += extyear;
+		printk(KERN_INFO "Extended CMOS year: %d\n", extyear);
+	} else { 
+		/*
+		 * x86-64 systems only exists since 2002.
+		 * This will work up to Dec 31, 2100
+	 	 */
+		year += 2000;
+	}
 
 	return mktime(year, mon, day, hour, min, sec);
 }
