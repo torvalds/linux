@@ -148,9 +148,12 @@ static void flush_gart(struct device *dev)
 			if (!northbridges[i])
 				continue;
 			/* Make sure the hardware actually executed the flush. */
-			do { 
+			for (;;) { 
 				pci_read_config_dword(northbridges[i], 0x9c, &w);
-			} while (w & 1);
+				if (!(w & 1))
+					break;
+				cpu_relax();
+			}
 		} 
 		if (!flushed) 
 			printk("nothing to flush?\n");
