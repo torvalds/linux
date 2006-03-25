@@ -7,6 +7,8 @@ lib-y := errno.o ctype.o string.o vsprintf.o cmdline.o \
 	 idr.o div64.o int_sqrt.o bitmap.o extable.o prio_tree.o \
 	 sha1.o
 
+lib-$(CONFIG_SMP) += cpumask.o
+
 lib-y	+= kobject.o kref.o kobject_uevent.o klist.o
 
 obj-y += sort.o parser.o halfmd4.o iomap_copy.o

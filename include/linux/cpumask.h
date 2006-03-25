@@ -212,11 +212,12 @@ static inline void __cpus_shift_left(cpumask_t *dstp,
 	bitmap_shift_left(dstp->bits, srcp->bits, n, nbits);
 }
 
-#define first_cpu(src) __first_cpu(&(src), NR_CPUS)
-static inline int __first_cpu(const cpumask_t *srcp, int nbits)
-{
-	return min_t(int, nbits, find_first_bit(srcp->bits, nbits));
-}
+#ifdef CONFIG_SMP
+int __first_cpu(const cpumask_t *srcp);
+#define first_cpu(src) __first_cpu(&(src))
+#else
+#define first_cpu(src)	0
+#endif
 
 #define next_cpu(n, src) __next_cpu((n), &(src), NR_CPUS)
 static inline int __next_cpu(int n, const cpumask_t *srcp, int nbits)
