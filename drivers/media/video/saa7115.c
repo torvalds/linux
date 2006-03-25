@@ -40,6 +40,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/saa7115.h>
 #include <asm/div64.h>
 
 MODULE_DESCRIPTION("Philips SAA7113/SAA7114/SAA7115 video decoder driver");
@@ -1179,6 +1180,46 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 	case AUDC_SET_RADIO:
 		state->radio = 1;
 		break;
+
+	case VIDIOC_INT_G_VIDEO_ROUTING:
+	{
+		struct v4l2_routing *route = arg;
+
+		route->input = state->input;
+		route->output = 0;
+		break;
+	}
+
+	case VIDIOC_INT_S_VIDEO_ROUTING:
+	{
+		struct v4l2_routing *route = arg;
+
+		v4l_dbg(1, debug, client, "decoder set input %d\n", route->input);
+		/* saa7113 does not have these inputs */
+		if (state->ident == V4L2_IDENT_SAA7113 &&
+		    (route->input == SAA7115_COMPOSITE4 ||
+		     route->input == SAA7115_COMPOSITE5)) {
+			return -EINVAL;
+		}
+		if (route->input > SAA7115_SVIDEO3)
+			return -EINVAL;
+		if (state->input == route->input)
+			break;
+		v4l_dbg(1, debug, client, "now setting %s input\n",
+			(route->input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite");
+		state->input = route->input;
+
+		/* select mode */
+		saa7115_write(client, 0x02,
+			      (saa7115_read(client, 0x02) & 0xf0) |
+			       state->input);
+
+		/* bypass chrominance trap for S-Video modes */
+		saa7115_write(client, 0x09,
+			      (saa7115_read(client, 0x09) & 0x7f) |
+			       (state->input >= SAA7115_SVIDEO0 ? 0x80 : 0x0));
+		break;
+	}
 
 	case VIDIOC_G_INPUT:
 		*(int *)arg = state->input;
