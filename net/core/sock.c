@@ -404,8 +404,9 @@ set_rcvbuf:
 			if (!valbool) {
 				sk->sk_bound_dev_if = 0;
 			} else {
-				if (optlen > IFNAMSIZ) 
-					optlen = IFNAMSIZ; 
+				if (optlen > IFNAMSIZ - 1)
+					optlen = IFNAMSIZ - 1;
+				memset(devname, 0, sizeof(devname));
 				if (copy_from_user(devname, optval, optlen)) {
 					ret = -EFAULT;
 					break;
