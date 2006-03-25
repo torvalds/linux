@@ -1628,6 +1628,12 @@ do_last:
 		goto exit;
 	}
 
+	if (IS_ERR(nd->intent.open.file)) {
+		mutex_unlock(&dir->d_inode->i_mutex);
+		error = PTR_ERR(nd->intent.open.file);
+		goto exit_dput;
+	}
+
 	/* Negative dentry, just create the file */
 	if (!path.dentry->d_inode) {
 		if (!IS_POSIXACL(dir->d_inode))
