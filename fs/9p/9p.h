@@ -235,6 +235,7 @@ struct Tcreate {
 	struct v9fs_str name;
 	u32 perm;
 	u8 mode;
+	struct v9fs_str extension;
 };
 
 struct Rcreate {
@@ -364,7 +365,7 @@ int v9fs_t_remove(struct v9fs_session_info *v9ses, u32 fid,
 		  struct v9fs_fcall **rcall);
 
 int v9fs_t_create(struct v9fs_session_info *v9ses, u32 fid, char *name,
-		  u32 perm, u8 mode, struct v9fs_fcall **rcall);
+	u32 perm, u8 mode, char *extension, struct v9fs_fcall **rcall);
 
 int v9fs_t_read(struct v9fs_session_info *v9ses, u32 fid,
 		u64 offset, u32 count, struct v9fs_fcall **rcall);

@@ -334,8 +334,8 @@ v9fs_t_remove(struct v9fs_session_info *v9ses, u32 fid,
  */
 
 int
-v9fs_t_create(struct v9fs_session_info *v9ses, u32 fid, char *name,
-	      u32 perm, u8 mode, struct v9fs_fcall **rcp)
+v9fs_t_create(struct v9fs_session_info *v9ses, u32 fid, char *name, u32 perm,
+	u8 mode, char *extension, struct v9fs_fcall **rcp)
 {
 	int ret;
 	struct v9fs_fcall *tc;
@@ -343,7 +343,9 @@ v9fs_t_create(struct v9fs_session_info *v9ses, u32 fid, char *name,
 	dprintk(DEBUG_9P, "fid %d name '%s' perm %x mode %d\n",
 		fid, name, perm, mode);
 
-	tc = v9fs_create_tcreate(fid, name, perm, mode);
+	tc = v9fs_create_tcreate(fid, name, perm, mode, extension,
+		v9ses->extended);
+
 	if (!IS_ERR(tc)) {
 		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
 		kfree(tc);

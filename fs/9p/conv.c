@@ -666,7 +666,8 @@ struct v9fs_fcall *v9fs_create_topen(u32 fid, u8 mode)
 	return fc;
 }
 
-struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode)
+struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode,
+	char *extension, int extended)
 {
 	int size;
 	struct v9fs_fcall *fc;
@@ -674,6 +675,9 @@ struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode)
 	struct cbuf *bufp = &buffer;
 
 	size = 4 + 2 + strlen(name) + 4 + 1;	/* fid[4] name[s] perm[4] mode[1] */
+	if (extended && extension!=NULL)
+		size += 2 + strlen(extension);	/* extension[s] */
+
 	fc = v9fs_create_common(bufp, size, TCREATE);
 	if (IS_ERR(fc))
 		goto error;
@@ -682,6 +686,8 @@ struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode)
 	v9fs_put_str(bufp, name, &fc->params.tcreate.name);
 	v9fs_put_int32(bufp, perm, &fc->params.tcreate.perm);
 	v9fs_put_int8(bufp, mode, &fc->params.tcreate.mode);
+	if (extended)
+		v9fs_put_str(bufp, extension, &fc->params.tcreate.extension);
 
 	if (buf_check_overflow(bufp)) {
 		kfree(fc);

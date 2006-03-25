@@ -39,7 +39,8 @@ struct v9fs_fcall *v9fs_create_tflush(u16 oldtag);
 struct v9fs_fcall *v9fs_create_twalk(u32 fid, u32 newfid, u16 nwname,
 	char **wnames);
 struct v9fs_fcall *v9fs_create_topen(u32 fid, u8 mode);
-struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode);
+struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode,
+	char *extension, int extended);
 struct v9fs_fcall *v9fs_create_tread(u32 fid, u64 offset, u32 count);
 struct v9fs_fcall *v9fs_create_twrite(u32 fid, u64 offset, u32 count,
 	const char __user *data);

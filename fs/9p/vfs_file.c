@@ -69,29 +69,30 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 	fid = v9fs_get_idpool(&v9ses->fidpool);
 	if (fid < 0) {
-			eprintk(KERN_WARNING, "newfid fails!\n");
-			return -ENOSPC;
-		}
+		eprintk(KERN_WARNING, "newfid fails!\n");
+		return -ENOSPC;
+	}
 
 	err = v9fs_t_walk(v9ses, vfid->fid, fid, NULL, NULL);
 	if (err < 0) {
-			dprintk(DEBUG_ERROR, "rewalk didn't work\n");
+		dprintk(DEBUG_ERROR, "rewalk didn't work\n");
 		goto put_fid;
+	}
+
+	/* TODO: do special things for O_EXCL, O_NOFOLLOW, O_SYNC */
+	/* translate open mode appropriately */
+	omode = v9fs_uflags2omode(file->f_flags);
+	err = v9fs_t_open(v9ses, fid, omode, &fcall);
+	if (err < 0) {
+		PRINT_FCALL_ERROR("open failed", fcall);
+		goto clunk_fid;
 	}
 
 	vfid = kmalloc(sizeof(struct v9fs_fid), GFP_KERNEL);
 	if (vfid == NULL) {
 		dprintk(DEBUG_ERROR, "out of memory\n");
+		err = -ENOMEM;
 		goto clunk_fid;
-		}
-
-		/* TODO: do special things for O_EXCL, O_NOFOLLOW, O_SYNC */
-		/* translate open mode appropriately */
-	omode = v9fs_uflags2omode(file->f_flags);
-	err = v9fs_t_open(v9ses, fid, omode, &fcall);
-	if (err < 0) {
-		PRINT_FCALL_ERROR("open failed", fcall);
-		goto destroy_vfid;
 	}
 
 	file->private_data = vfid;
@@ -106,15 +107,12 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 	return 0;
 
-destroy_vfid:
-	v9fs_fid_destroy(vfid);
-
 clunk_fid:
 	v9fs_t_clunk(v9ses, fid);
 
 put_fid:
 	v9fs_put_idpool(fid, &v9ses->fidpool);
-		kfree(fcall);
+	kfree(fcall);
 
 	return err;
 }
