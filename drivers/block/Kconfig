@@ -401,7 +401,6 @@ config BLK_DEV_RAM_SIZE
 
 config BLK_DEV_INITRD
 	bool "Initial RAM disk (initrd) support"
-	depends on BLK_DEV_RAM=y
 	help
 	  The initial RAM disk is a RAM disk that is loaded by the boot loader
 	  (loadlin or lilo) and that is mounted as root before the normal boot
