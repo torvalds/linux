@@ -216,11 +216,9 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 
 		copied = copy_from_user(ptr, buf, sz);
 		if (copied) {
-			ssize_t ret;
-
-			ret = written + (sz - copied);
-			if (ret)
-				return ret;
+			written += sz - copied;
+			if (written)
+				break;
 			return -EFAULT;
 		}
 		buf += sz;
@@ -456,11 +454,9 @@ do_write_kmem(void *p, unsigned long realp, const char __user * buf,
 
 		copied = copy_from_user(ptr, buf, sz);
 		if (copied) {
-			ssize_t ret;
-
-			ret = written + (sz - copied);
-			if (ret)
-				return ret;
+			written += sz - copied;
+			if (written)
+				break;
 			return -EFAULT;
 		}
 		buf += sz;
@@ -514,11 +510,10 @@ static ssize_t write_kmem(struct file * file, const char __user * buf,
 			if (len) {
 				written = copy_from_user(kbuf, buf, len);
 				if (written) {
-					ssize_t ret;
-
+					if (wrote + virtr)
+						break;
 					free_page((unsigned long)kbuf);
-					ret = wrote + virtr + (len - written);
-					return ret ? ret : -EFAULT;
+					return -EFAULT;
 				}
 			}
 			len = vwrite(kbuf, (char *)p, len);
@@ -563,8 +558,11 @@ static ssize_t write_port(struct file * file, const char __user * buf,
 		return -EFAULT;
 	while (count-- > 0 && i < 65536) {
 		char c;
-		if (__get_user(c, tmp)) 
+		if (__get_user(c, tmp)) {
+			if (tmp > buf)
+				break;
 			return -EFAULT; 
+		}
 		outb(c,i);
 		i++;
 		tmp++;
