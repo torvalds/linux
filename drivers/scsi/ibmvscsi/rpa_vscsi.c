@@ -34,7 +34,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include "ibmvscsi.h"
-#include "srp.h"
 
 static char partition_name[97] = "UNKNOWN";
 static unsigned int partition_number = -1;
