@@ -5,6 +5,7 @@
 #include <linux/dmi.h>
 #include <linux/bootmem.h>
 #include <linux/slab.h>
+#include <asm/dmi.h>
 
 static char * __init dmi_string(struct dmi_header *dm, u8 s)
 {

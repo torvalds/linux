@@ -68,6 +68,7 @@
 #include <asm/swiotlb.h>
 #include <asm/sections.h>
 #include <asm/gart-mapping.h>
+#include <asm/dmi.h>
 
 /*
  * Machine setup..
@@ -91,6 +92,12 @@ int acpi_numa __initdata;
 int bootloader_type;
 
 unsigned long saved_video_mode;
+
+/* 
+ * Early DMI memory
+ */
+int dmi_alloc_index;
+char dmi_alloc_data[DMI_MAX_DATA];
 
 /*
  * Setup options
@@ -619,6 +626,8 @@ void __init setup_arch(char **cmdline_p)
 	check_efer();
 
 	init_memory_mapping(0, (end_pfn_map << PAGE_SHIFT));
+
+	dmi_scan_machine();
 
 	zap_low_mappings(0);
 
@@ -1411,11 +1420,4 @@ struct seq_operations cpuinfo_op = {
 	.stop =	c_stop,
 	.show =	show_cpuinfo,
 };
-
-static int __init run_dmi_scan(void)
-{
-	dmi_scan_machine();
-	return 0;
-}
-core_initcall(run_dmi_scan);
 

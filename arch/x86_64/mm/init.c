@@ -225,6 +225,33 @@ static __meminit void unmap_low_page(int i)
 	ti->allocated = 0; 
 } 
 
+/* Must run before zap_low_mappings */
+__init void *early_ioremap(unsigned long addr, unsigned long size)
+{
+	unsigned long map = round_down(addr, LARGE_PAGE_SIZE); 
+
+	/* actually usually some more */
+	if (size >= LARGE_PAGE_SIZE) { 
+		printk("SMBIOS area too long %lu\n", size);
+		return NULL;
+	}
+	set_pmd(temp_mappings[0].pmd,  __pmd(map | _KERNPG_TABLE | _PAGE_PSE));
+	map += LARGE_PAGE_SIZE;
+	set_pmd(temp_mappings[1].pmd,  __pmd(map | _KERNPG_TABLE | _PAGE_PSE));
+	__flush_tlb();
+	return temp_mappings[0].address + (addr & (LARGE_PAGE_SIZE-1));
+}
+
+/* To avoid virtual aliases later */
+__init void early_iounmap(void *addr, unsigned long size)
+{
+	if ((void *)round_down((unsigned long)addr, LARGE_PAGE_SIZE) != temp_mappings[0].address)
+		printk("early_iounmap: bad address %p\n", addr);
+	set_pmd(temp_mappings[0].pmd, __pmd(0));
+	set_pmd(temp_mappings[1].pmd, __pmd(0));
+	__flush_tlb();
+}
+
 static void __meminit
 phys_pmd_init(pmd_t *pmd, unsigned long address, unsigned long end)
 {
