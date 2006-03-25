@@ -60,7 +60,7 @@ static u32 __init allocate_aperture(void)
 		printk("Cannot allocate aperture memory hole (%p,%uK)\n",
 		       p, aper_size>>10);
 		if (p)
-			free_bootmem_node(nd0, (unsigned long)p, aper_size); 
+			free_bootmem_node(nd0, __pa(p), aper_size); 
 		return 0;
 	}
 	printk("Mapping aperture over %d KB of RAM @ %lx\n",
