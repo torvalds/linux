@@ -614,6 +614,7 @@ void __init setup_arch(char **cmdline_p)
 	 * we are rounding upwards:
 	 */
 	end_pfn = e820_end_of_ram();
+	num_physpages = end_pfn;		/* for pfn_valid */
 
 	check_efer();
 
