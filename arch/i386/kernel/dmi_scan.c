@@ -106,7 +106,7 @@ static void __init dmi_save_devices(struct dmi_header *dm)
 	struct dmi_device *dev;
 
 	for (i = 0; i < count; i++) {
-		char *d = ((char *) dm) + (i * 2);
+		char *d = (char *)(dm + 1) + (i * 2);
 
 		/* Skip disabled device */
 		if ((*d & 0x80) == 0)
