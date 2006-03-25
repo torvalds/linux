@@ -65,4 +65,23 @@ obj-$(CONFIG_VIDEO_CX25840) += cx25840/
 obj-$(CONFIG_VIDEO_SAA711X) += saa7115.o
 obj-$(CONFIG_VIDEO_SAA7127) += saa7127.o
 
+et61x251-objs   := et61x251_core.o et61x251_tas5130d1b.o
+zc0301-objs     := zc0301_core.o zc0301_pas202bcb.o
+
+obj-$(CONFIG_USB_DABUSB)        += dabusb.o
+obj-$(CONFIG_USB_DSBR)          += dsbr100.o
+obj-$(CONFIG_USB_OV511)         += ov511.o
+obj-$(CONFIG_USB_SE401)         += se401.o
+obj-$(CONFIG_USB_STV680)        += stv680.o
+obj-$(CONFIG_USB_W9968CF)       += w9968cf.o
+
+obj-$(CONFIG_USB_SN9C102)       += sn9c102/
+obj-$(CONFIG_USB_ET61X251)      += et61x251/
+obj-$(CONFIG_USB_PWC)           += pwc/
+obj-$(CONFIG_USB_ZC0301)        += zc0301/
+
+obj-$(CONFIG_USB_IBMCAM)        += usbvideo/
+obj-$(CONFIG_USB_KONICAWC)      += usbvideo/
+obj-$(CONFIG_USB_VICAM)         += usbvideo/
+
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core
