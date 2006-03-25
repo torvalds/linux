@@ -2224,13 +2224,6 @@ S:	Maintained
 RISCOM8 DRIVER
 S:	Orphan
 
-RTLINUX  REALTIME  LINUX
-P:	Victor Yodaiken
-M:	yodaiken@fsmlabs.com
-L:	rtl@rtlinux.org
-W:	www.rtlinux.org
-S:	Maintained
-
 S3 SAVAGE FRAMEBUFFER DRIVER
 P:      Antonino Daplas
 M:      adaplas@pol.net
