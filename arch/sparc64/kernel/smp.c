@@ -1298,6 +1298,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		while (!cpu_find_by_instance(instance, NULL, &mid)) {
 			if (mid != boot_cpu_id) {
 				cpu_clear(mid, phys_cpu_present_map);
+				cpu_clear(mid, cpu_present_map);
 				if (num_possible_cpus() <= max_cpus)
 					break;
 			}
@@ -1332,8 +1333,10 @@ void __init smp_setup_cpu_possible_map(void)
 
 	instance = 0;
 	while (!cpu_find_by_instance(instance, NULL, &mid)) {
-		if (mid < NR_CPUS)
+		if (mid < NR_CPUS) {
 			cpu_set(mid, phys_cpu_present_map);
+			cpu_set(mid, cpu_present_map);
+		}
 		instance++;
 	}
 }
