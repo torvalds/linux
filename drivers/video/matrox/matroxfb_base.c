@@ -99,7 +99,6 @@
  *
  */
 
-/* make checkconfig does not check included files... */
 #include <linux/config.h>
 #include <linux/version.h>
 

@@ -17,6 +17,7 @@ This document describes the Linux kernel Makefiles.
 	   --- 3.8 Command line dependency
 	   --- 3.9 Dependency tracking
 	   --- 3.10 Special Rules
+	   --- 3.11 $(CC) support functions
 
 	=== 4 Host Program support
 	   --- 4.1 Simple Host Program
@@ -38,7 +39,6 @@ This document describes the Linux kernel Makefiles.
 	   --- 6.6 Commands useful for building a boot image
 	   --- 6.7 Custom kbuild commands
 	   --- 6.8 Preprocessing linker scripts
-	   --- 6.9 $(CC) support functions
 
 	=== 7 Kbuild Variables
 	=== 8 Makefile language
@@ -106,9 +106,9 @@ This document is aimed towards normal developers and arch developers.
 Most Makefiles within the kernel are kbuild Makefiles that use the
 kbuild infrastructure. This chapter introduce the syntax used in the
 kbuild makefiles.
-The preferred name for the kbuild files is 'Kbuild' but 'Makefile' will
-continue to be supported. All new developmen is expected to use the
-Kbuild filename.
+The preferred name for the kbuild files are 'Makefile' but 'Kbuild' can
+be used and if both a 'Makefile' and a 'Kbuild' file exists then the 'Kbuild'
+file will be used.
 
 Section 3.1 "Goal definitions" is a quick intro, further chapters provide
 more details, with real examples.
@@ -384,6 +384,102 @@ more details, with real examples.
 	to the target file are prefixed with $(obj), references
 	to prerequisites are referenced with $(src) (because they are not
 	generated files).
+
+--- 3.11 $(CC) support functions
+
+	The kernel may be build with several different versions of
+	$(CC), each supporting a unique set of features and options.
+	kbuild provide basic support to check for valid options for $(CC).
+	$(CC) is useally the gcc compiler, but other alternatives are
+	available.
+
+    as-option
+    	as-option is used to check if $(CC) when used to compile
+	assembler (*.S) files supports the given option. An optional
+	second option may be specified if first option are not supported.
+
+	Example:
+		#arch/sh/Makefile
+		cflags-y += $(call as-option,-Wa$(comma)-isa=$(isa-y),)
+
+	In the above example cflags-y will be assinged the the option
+	-Wa$(comma)-isa=$(isa-y) if it is supported by $(CC).
+	The second argument is optional, and if supplied will be used
+	if first argument is not supported.
+
+    cc-option
+	cc-option is used to check if $(CC) support a given option, and not
+	supported to use an optional second option.
+
+	Example:
+		#arch/i386/Makefile
+		cflags-y += $(call cc-option,-march=pentium-mmx,-march=i586)
+
+	In the above example cflags-y will be assigned the option
+	-march=pentium-mmx if supported by $(CC), otherwise -march-i586.
+	The second argument to cc-option is optional, and if omitted
+	cflags-y will be assigned no value if first option is not supported.
+
+   cc-option-yn
+   	cc-option-yn is used to check if gcc supports a given option
+	and return 'y' if supported, otherwise 'n'.
+
+	Example:
+		#arch/ppc/Makefile
+		biarch := $(call cc-option-yn, -m32)
+		aflags-$(biarch) += -a32
+		cflags-$(biarch) += -m32
+	
+	In the above example $(biarch) is set to y if $(CC) supports the -m32
+	option. When $(biarch) equals to y the expanded variables $(aflags-y)
+	and $(cflags-y) will be assigned the values -a32 and -m32.
+
+    cc-option-align
+	gcc version >= 3.0 shifted type of options used to speify
+	alignment of functions, loops etc. $(cc-option-align) whrn used
+	as prefix to the align options will select the right prefix:
+	gcc < 3.00
+		cc-option-align = -malign
+	gcc >= 3.00
+		cc-option-align = -falign
+	
+	Example:
+		CFLAGS += $(cc-option-align)-functions=4
+
+	In the above example the option -falign-functions=4 is used for
+	gcc >= 3.00. For gcc < 3.00 -malign-functions=4 is used.
+	
+    cc-version
+	cc-version return a numerical version of the $(CC) compiler version.
+	The format is <major><minor> where both are two digits. So for example
+	gcc 3.41 would return 0341.
+	cc-version is useful when a specific $(CC) version is faulty in one
+	area, for example the -mregparm=3 were broken in some gcc version
+	even though the option was accepted by gcc.
+
+	Example:
+		#arch/i386/Makefile
+		cflags-y += $(shell \
+		if [ $(call cc-version) -ge 0300 ] ; then \
+			echo "-mregparm=3"; fi ;)
+
+	In the above example -mregparm=3 is only used for gcc version greater
+	than or equal to gcc 3.0.
+
+    cc-ifversion
+	cc-ifversion test the version of $(CC) and equals last argument if
+	version expression is true.
+
+	Example:
+		#fs/reiserfs/Makefile
+		EXTRA_CFLAGS := $(call cc-ifversion, -lt, 0402, -O1)
+
+	In this example EXTRA_CFLAGS will be assigned the value -O1 if the
+	$(CC) version is less than 4.2.
+	cc-ifversion takes all the shell operators: 
+	-eq, -ne, -lt, -le, -gt, and -ge
+	The third parameter may be a text as in this example, but it may also
+	be an expanded variable or a macro.
 
 
 === 4 Host Program support
@@ -972,74 +1068,6 @@ When kbuild executes the following steps are followed (roughly):
 	The kbuild infrastructure for *lds file are used in several
 	architecture specific files.
 
-
---- 6.9 $(CC) support functions
-
-	The kernel may be build with several different versions of
-	$(CC), each supporting a unique set of features and options.
-	kbuild provide basic support to check for valid options for $(CC).
-	$(CC) is useally the gcc compiler, but other alternatives are
-	available.
-
-    cc-option
-	cc-option is used to check if $(CC) support a given option, and not
-	supported to use an optional second option.
-
-	Example:
-		#arch/i386/Makefile
-		cflags-y += $(call cc-option,-march=pentium-mmx,-march=i586)
-
-	In the above example cflags-y will be assigned the option
-	-march=pentium-mmx if supported by $(CC), otherwise -march-i586.
-	The second argument to cc-option is optional, and if omitted
-	cflags-y will be assigned no value if first option is not supported.
-
-   cc-option-yn
-   	cc-option-yn is used to check if gcc supports a given option
-	and return 'y' if supported, otherwise 'n'.
-
-	Example:
-		#arch/ppc/Makefile
-		biarch := $(call cc-option-yn, -m32)
-		aflags-$(biarch) += -a32
-		cflags-$(biarch) += -m32
-	
-	In the above example $(biarch) is set to y if $(CC) supports the -m32
-	option. When $(biarch) equals to y the expanded variables $(aflags-y)
-	and $(cflags-y) will be assigned the values -a32 and -m32.
-
-    cc-option-align
-	gcc version >= 3.0 shifted type of options used to speify
-	alignment of functions, loops etc. $(cc-option-align) whrn used
-	as prefix to the align options will select the right prefix:
-	gcc < 3.00
-		cc-option-align = -malign
-	gcc >= 3.00
-		cc-option-align = -falign
-	
-	Example:
-		CFLAGS += $(cc-option-align)-functions=4
-
-	In the above example the option -falign-functions=4 is used for
-	gcc >= 3.00. For gcc < 3.00 -malign-functions=4 is used.
-	
-    cc-version
-	cc-version return a numerical version of the $(CC) compiler version.
-	The format is <major><minor> where both are two digits. So for example
-	gcc 3.41 would return 0341.
-	cc-version is useful when a specific $(CC) version is faulty in one
-	area, for example the -mregparm=3 were broken in some gcc version
-	even though the option was accepted by gcc.
-
-	Example:
-		#arch/i386/Makefile
-		cflags-y += $(shell \
-		if [ $(call cc-version) -ge 0300 ] ; then \
-			echo "-mregparm=3"; fi ;)
-
-	In the above example -mregparm=3 is only used for gcc version greater
-	than or equal to gcc 3.0.
-	
 
 === 7 Kbuild Variables
 

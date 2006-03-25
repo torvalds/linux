@@ -32,12 +32,11 @@ MKSPEC     := $(srctree)/scripts/package/mkspec
 PREV       := set -e; cd ..;
 
 # rpm-pkg
-.PHONY: rpm-pkg rpm
-
+# ---------------------------------------------------------------------------
 $(objtree)/kernel.spec: $(MKSPEC) $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) > $@
 
-rpm-pkg rpm: $(objtree)/kernel.spec
+rpm-pkg rpm: $(objtree)/kernel.spec FORCE
 	$(MAKE) clean
 	$(PREV) ln -sf $(srctree) $(KERNELPATH)
 	$(PREV) tar -cz $(RCS_TAR_IGNORE) -f $(KERNELPATH).tar.gz $(KERNELPATH)/.
@@ -54,11 +53,11 @@ rpm-pkg rpm: $(objtree)/kernel.spec
 clean-files := $(objtree)/kernel.spec
 
 # binrpm-pkg
-.PHONY: binrpm-pkg
+# ---------------------------------------------------------------------------
 $(objtree)/binkernel.spec: $(MKSPEC) $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $@
-	
-binrpm-pkg: $(objtree)/binkernel.spec
+
+binrpm-pkg: $(objtree)/binkernel.spec FORCE
 	$(MAKE) KBUILD_SRC=
 	set -e; \
 	$(CONFIG_SHELL) $(srctree)/scripts/mkversion > $(objtree)/.tmp_version
@@ -71,9 +70,7 @@ clean-files += $(objtree)/binkernel.spec
 
 # Deb target
 # ---------------------------------------------------------------------------
-#
-.PHONY: deb-pkg
-deb-pkg:
+deb-pkg: FORCE
 	$(MAKE) KBUILD_SRC=
 	$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
 
@@ -82,8 +79,7 @@ clean-dirs += $(objtree)/debian/
 
 # tarball targets
 # ---------------------------------------------------------------------------
-.PHONY: tar%pkg
-tar%pkg:
+tar%pkg: FORCE
 	$(MAKE) KBUILD_SRC=
 	$(CONFIG_SHELL) $(srctree)/scripts/package/buildtar $@
 
@@ -92,7 +88,7 @@ clean-dirs += $(objtree)/tar-install/
 
 # Help text displayed when executing 'make help'
 # ---------------------------------------------------------------------------
-help:
+help: FORCE
 	@echo '  rpm-pkg         - Build the kernel as an RPM package'
 	@echo '  binrpm-pkg      - Build an rpm package containing the compiled kernel'
 	@echo '                    and modules'

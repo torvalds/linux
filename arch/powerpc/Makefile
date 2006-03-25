@@ -150,7 +150,7 @@ CPPFLAGS_vmlinux.lds	:= -Upowerpc
 
 BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm uImage vmlinux.bin
 
-.PHONY: $(BOOT_TARGETS)
+PHONY += $(BOOT_TARGETS)
 
 boot := arch/$(ARCH)/boot
 

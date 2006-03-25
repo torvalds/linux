@@ -1,5 +1,8 @@
 # Makefile for making bootable images on various OpenFirmware machines.
 #
+# This file is included by the global makefile so that you can add your own
+# architecture-specific flags and dependencies.
+#
 # Paul Mackerras	January 1997
 #	XCOFF bootable images for PowerMacs
 # Geert Uytterhoeven	September 1997
@@ -86,7 +89,7 @@ $(images)/zImage.chrp-rs6k $(images)/zImage.initrd.chrp-rs6k: \
 
 # The targets used on the make command-line
 
-.PHONY: zImage zImage.initrd
+PHONY += zImage zImage.initrd
 zImage:		 $(images)/zImage.chrp		\
 		 $(images)/zImage.chrp-rs6k
 	@echo '  kernel: $@ is ready ($<)'
@@ -96,7 +99,7 @@ zImage.initrd:	 $(images)/zImage.initrd.chrp		\
 
 TFTPIMAGE	:= /tftpboot/zImage
 
-.PHONY: znetboot znetboot.initrd
+PHONY += znetboot znetboot.initrd
 znetboot:	$(images)/zImage.chrp
 	cp $(images)/zImage.chrp      $(TFTPIMAGE).chrp$(END)
 	@echo '  kernel: $@ is ready ($<)'

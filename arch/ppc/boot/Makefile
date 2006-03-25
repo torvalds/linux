@@ -1,3 +1,9 @@
+#
+# arch/ppc/boot/Makefile
+#
+# This file is included by the global makefile so that you can add your own
+# architecture-specific flags and dependencies.
+#
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
 # for more details.
@@ -22,7 +28,7 @@ subdir-				+= simple openfirmware
 
 hostprogs-y := $(addprefix utils/, addnote mknote hack-coff mkprep mkbugboot mktree)
 
-.PHONY: $(BOOT_TARGETS) $(bootdir-y)
+PHONY += $(BOOT_TARGETS) $(bootdir-y)
 
 $(BOOT_TARGETS): $(bootdir-y)
 

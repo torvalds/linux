@@ -2,7 +2,7 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-.PHONY: oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-config
+PHONY += oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-config
 
 xconfig: $(obj)/qconf
 	$< arch/$(ARCH)/Kconfig
@@ -42,7 +42,7 @@ update-po-config: $(obj)/kxgettext
 	$(Q)rm -f arch/um/Kconfig_arch
 	$(Q)rm -f scripts/kconfig/linux_*.pot scripts/kconfig/config.pot
 
-.PHONY: randconfig allyesconfig allnoconfig allmodconfig defconfig
+PHONY += randconfig allyesconfig allnoconfig allmodconfig defconfig
 
 randconfig: $(obj)/conf
 	$< -r arch/$(ARCH)/Kconfig
@@ -78,7 +78,7 @@ help:
 	@echo  '  defconfig	  - New config with default answer to all options'
 	@echo  '  allmodconfig	  - New config selecting modules when possible'
 	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
-	@echo  '  allnoconfig	  - New minimal config'
+	@echo  '  allnoconfig	  - New config where all options are answered with no'
 
 # ===========================================================================
 # Shared Makefile for the various kconfig executables:
