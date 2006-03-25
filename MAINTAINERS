@@ -2655,7 +2655,7 @@ S:	Maintained
 
 TUN/TAP driver
 P:	Maxim Krasnyansky
-M:	maxk@qualcomm.com, max_mk@yahoo.com
+M:	maxk@qualcomm.com
 L:	vtun@office.satix.net
 W:	http://vtun.sourceforge.net/tun
 S:	Maintained
