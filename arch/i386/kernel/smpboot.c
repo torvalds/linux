@@ -1003,7 +1003,6 @@ void cpu_exit_clear(void)
 
 	cpu_clear(cpu, cpu_callout_map);
 	cpu_clear(cpu, cpu_callin_map);
-	cpu_clear(cpu, cpu_present_map);
 
 	cpu_clear(cpu, smp_commenced_mask);
 	unmap_cpu_to_logical_apicid(cpu);
@@ -1015,30 +1014,19 @@ struct warm_boot_cpu_info {
 	int cpu;
 };
 
-static void __devinit do_warm_boot_cpu(void *p)
+static void __cpuinit do_warm_boot_cpu(void *p)
 {
 	struct warm_boot_cpu_info *info = p;
 	do_boot_cpu(info->apicid, info->cpu);
 	complete(info->complete);
 }
 
-int __devinit smp_prepare_cpu(int cpu)
+static int __cpuinit __smp_prepare_cpu(int cpu)
 {
 	DECLARE_COMPLETION(done);
 	struct warm_boot_cpu_info info;
 	struct work_struct task;
 	int	apicid, ret;
-
-	lock_cpu_hotplug();
-
-	/*
-	 * On x86, CPU0 is never offlined.  Trying to bring up an
-	 * already-booted CPU will hang.  So check for that case.
-	 */
-	if (cpu_online(cpu)) {
-		ret = -EINVAL;
-		goto exit;
-	}
 
 	apicid = x86_cpu_to_apicid[cpu];
 	if (apicid == BAD_APICID) {
@@ -1064,7 +1052,6 @@ int __devinit smp_prepare_cpu(int cpu)
 	zap_low_mappings();
 	ret = 0;
 exit:
-	unlock_cpu_hotplug();
 	return ret;
 }
 #endif
@@ -1392,6 +1379,22 @@ void __cpu_die(unsigned int cpu)
 
 int __devinit __cpu_up(unsigned int cpu)
 {
+#ifdef CONFIG_HOTPLUG_CPU
+	int ret=0;
+
+	/*
+	 * We do warm boot only on cpus that had booted earlier
+	 * Otherwise cold boot is all handled from smp_boot_cpus().
+	 * cpu_callin_map is set during AP kickstart process. Its reset
+	 * when a cpu is taken offline from cpu_exit_clear().
+	 */
+	if (!cpu_isset(cpu, cpu_callin_map))
+		ret = __smp_prepare_cpu(cpu);
+
+	if (ret)
+		return -EIO;
+#endif
+
 	/* In case one didn't come up */
 	if (!cpu_isset(cpu, cpu_callin_map)) {
 		printk(KERN_DEBUG "skipping cpu%d, didn't come online\n", cpu);
