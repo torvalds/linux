@@ -244,17 +244,10 @@ static void set_rtc_mmss(unsigned long nowtime)
 		real_minutes += 30;		/* correct for half hour time zone */
 	real_minutes %= 60;
 
-#if 0
-	/* AMD 8111 is a really bad time keeper and hits this regularly. 
-	   It probably was an attempt to avoid screwing up DST, but ignore
-	   that for now. */	   
 	if (abs(real_minutes - cmos_minutes) >= 30) {
 		printk(KERN_WARNING "time.c: can't update CMOS clock "
 		       "from %d to %d\n", cmos_minutes, real_minutes);
-	} else
-#endif
-
-	{
+	} else {
 		BIN_TO_BCD(real_seconds);
 		BIN_TO_BCD(real_minutes);
 		CMOS_WRITE(real_seconds, RTC_SECONDS);
