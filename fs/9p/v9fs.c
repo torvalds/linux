@@ -289,7 +289,7 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 	/* set global debug level */
 	v9fs_debug_level = v9ses->debug;
 
-	/* id pools that are session-dependent: FIDs and TIDs */
+	/* id pools that are session-dependent: fids and tags */
 	idr_init(&v9ses->fidpool.pool);
 	init_MUTEX(&v9ses->fidpool.lock);
 

@@ -91,6 +91,3 @@ void v9fs_session_cancel(struct v9fs_session_info *v9ses);
 #define V9FS_DEFUSER	"nobody"
 #define V9FS_DEFANAME	""
 
-/* inital pool sizes for fids and tags */
-#define V9FS_START_FIDS 8192
-#define V9FS_START_TIDS 256

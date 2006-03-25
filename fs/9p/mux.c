@@ -70,7 +70,7 @@ struct v9fs_mux_data {
 	int msize;
 	unsigned char *extended;
 	struct v9fs_transport *trans;
-	struct v9fs_idpool tidpool;
+	struct v9fs_idpool tagpool;
 	int err;
 	wait_queue_head_t equeue;
 	struct list_head req_list;
@@ -280,8 +280,8 @@ struct v9fs_mux_data *v9fs_mux_init(struct v9fs_transport *trans, int msize,
 	m->msize = msize;
 	m->extended = extended;
 	m->trans = trans;
-	idr_init(&m->tidpool.pool);
-	init_MUTEX(&m->tidpool.lock);
+	idr_init(&m->tagpool.pool);
+	init_MUTEX(&m->tagpool.lock);
 	m->err = 0;
 	init_waitqueue_head(&m->equeue);
 	INIT_LIST_HEAD(&m->req_list);
@@ -965,7 +965,7 @@ static u16 v9fs_mux_get_tag(struct v9fs_mux_data *m)
 {
 	int tag;
 
-	tag = v9fs_get_idpool(&m->tidpool);
+	tag = v9fs_get_idpool(&m->tagpool);
 	if (tag < 0)
 		return V9FS_NOTAG;
 	else
@@ -974,6 +974,6 @@ static u16 v9fs_mux_get_tag(struct v9fs_mux_data *m)
 
 static void v9fs_mux_put_tag(struct v9fs_mux_data *m, u16 tag)
 {
-	if (tag != V9FS_NOTAG && v9fs_check_idpool(tag, &m->tidpool))
-		v9fs_put_idpool(tag, &m->tidpool);
+	if (tag != V9FS_NOTAG && v9fs_check_idpool(tag, &m->tagpool))
+		v9fs_put_idpool(tag, &m->tagpool);
 }
