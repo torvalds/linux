@@ -2536,7 +2536,6 @@ S:	Unsupported ?
 STRADIS MPEG-2 DECODER DRIVER
 P:	Nathan Laredo
 M:	laredo@gnu.org
-W:	http://mpeg.openprojects.net/
 W:	http://www.stradis.com/
 S:	Maintained
 
