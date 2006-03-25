@@ -1532,7 +1532,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 		buf += write_bytes;
 		*ppos = pos += write_bytes;
 		count -= write_bytes;
-		balance_dirty_pages_ratelimited(inode->i_mapping);
+		balance_dirty_pages_ratelimited_nr(inode->i_mapping, num_pages);
 	}
 
 	/* this is only true on error */
