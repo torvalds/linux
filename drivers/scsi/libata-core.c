@@ -3536,6 +3536,33 @@ err_out:
 }
 
 /**
+ *	ata_hsm_ok_in_wq - Check if the qc can be handled in the workqueue.
+ *	@ap: the target ata_port
+ *	@qc: qc on going
+ *
+ *	RETURNS:
+ *	1 if ok in workqueue, 0 otherwise.
+ */
+
+static inline int ata_hsm_ok_in_wq(struct ata_port *ap, struct ata_queued_cmd *qc)
+{
+	if (qc->tf.flags & ATA_TFLAG_POLLING)
+		return 1;
+
+	if (ap->hsm_task_state == HSM_ST_FIRST) {
+		if (qc->tf.protocol == ATA_PROT_PIO &&
+		    (qc->tf.flags & ATA_TFLAG_WRITE))
+		    return 1;
+
+		if (is_atapi_taskfile(&qc->tf) &&
+		    !(qc->dev->flags & ATA_DFLAG_CDB_INTR))
+			return 1;
+	}
+
+	return 0;
+}
+
+/**
  *	ata_hsm_move - move the HSM to the next state.
  *	@ap: the target ata_port
  *	@qc: qc on going
@@ -3558,12 +3585,7 @@ static int ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 	 * like DMA polling into the workqueue. Notice that
 	 * in_wq is not equivalent to (qc->tf.flags & ATA_TFLAG_POLLING).
 	 */
-	WARN_ON(in_wq != ((qc->tf.flags & ATA_TFLAG_POLLING) ||
-			  (ap->hsm_task_state == HSM_ST_FIRST &&
-			   ((qc->tf.protocol == ATA_PROT_PIO &&
-			     (qc->tf.flags & ATA_TFLAG_WRITE)) ||
-			    (is_atapi_taskfile(&qc->tf) &&
-			     !(qc->dev->flags & ATA_DFLAG_CDB_INTR))))));
+	WARN_ON(in_wq != ata_hsm_ok_in_wq(ap, qc));
 
 	/* check error */
 	if (unlikely(status & (ATA_ERR | ATA_DF))) {
