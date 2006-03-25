@@ -54,7 +54,7 @@ static DECLARE_MUTEX(fidvid_sem);
 static struct powernow_k8_data *powernow_data[NR_CPUS];
 
 #ifndef CONFIG_SMP
-static cpumask_t cpu_core_map[1];
+static cpumask_t cpu_core_map[1] = { CPU_MASK_ALL };
 #endif
 
 /* Return a frequency in MHz, given an input fid */
@@ -976,7 +976,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
 	struct powernow_k8_data *data;
 	cpumask_t oldmask = CPU_MASK_ALL;
-	int rc;
+	int rc, i;
 
 	if (!cpu_online(pol->cpu))
 		return -ENODEV;
@@ -1062,7 +1062,8 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	printk("cpu_init done, current fid 0x%x, vid 0x%x\n",
 	       data->currfid, data->currvid);
 
-	powernow_data[pol->cpu] = data;
+	for_each_cpu_mask(i, cpu_core_map[pol->cpu])
+		powernow_data[i] = data;
 
 	return 0;
 
