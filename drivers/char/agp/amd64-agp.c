@@ -725,7 +725,7 @@ static struct pci_device_id agp_amd64_pci_table[] = {
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
 	.class_mask	= ~0,
 	.vendor		= PCI_VENDOR_ID_AL,
-	.device		= 0x1689,
+	.device		= 0x1695,
 	.subvendor	= PCI_ANY_ID,
 	.subdevice	= PCI_ANY_ID,
 	},
