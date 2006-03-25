@@ -2007,13 +2007,14 @@ S: University of Stuttgart, Germany and
 S: Ecole Nationale Superieure des Telecommunications, Paris
 
 N: Jamie Lokier
-E: jamie@imbolc.ucc.ie
+E: jamie@shareable.org
+W: http://www.shareable.org/
 D: Reboot-through-BIOS for broken 486 motherboards
-D: Some parport fixes
-S: 11 Goodson Walk
-S: Marston
+D: Parport fixes, futex improvements
+D: First instruction of x86 sysenter path :)
+S: 51 Sunningwell Road
 S: Oxford
-S: OX3 0HX
+S: OX1 4SZ
 S: United Kingdom
 
 N: Mark Lord
