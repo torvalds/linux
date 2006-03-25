@@ -65,6 +65,11 @@ extern int dir_notify_enable;
 #define FMODE_PREAD	8
 #define FMODE_PWRITE	FMODE_PREAD	/* These go hand in hand */
 
+/* File is being opened for execution. Primary users of this flag are
+   distributed filesystems that can use it to achieve correct ETXTBUSY
+   behavior for cross-node execution/opening_for_writing of files */
+#define FMODE_EXEC	16
+
 #define RW_MASK		1
 #define RWA_MASK	2
 #define READ 0
