@@ -310,7 +310,7 @@ void __init check_ioapic(void)
 					     force_iommu) &&
 					    !iommu_aperture_allowed) {
 						printk(KERN_INFO
-    "Looks like a VIA chipset. Disabling IOMMU. Overwrite with \"iommu=allowed\"\n");
+    "Looks like a VIA chipset. Disabling IOMMU. Override with \"iommu=allowed\"\n");
 						iommu_aperture_disabled = 1;
 					}
 #endif
