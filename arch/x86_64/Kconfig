@@ -323,7 +323,7 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-256)"
-	range 2 256
+	range 2 255
 	depends on SMP
 	default "8"
 	help
