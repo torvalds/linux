@@ -556,7 +556,7 @@ static void bitmap_mask_state(struct bitmap *bitmap, enum bitmap_state bits,
 	unsigned long flags;
 
 	spin_lock_irqsave(&bitmap->lock, flags);
-	if (!bitmap || !bitmap->sb_page) { /* can't set the state */
+	if (!bitmap->sb_page) { /* can't set the state */
 		spin_unlock_irqrestore(&bitmap->lock, flags);
 		return;
 	}
