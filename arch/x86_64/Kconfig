@@ -464,6 +464,14 @@ config SECCOMP
 
 source kernel/Kconfig.hz
 
+config REORDER
+	bool "Function reordering"
+	default n
+	help
+         This option enables the toolchain to reorder functions for a more 
+         optimal TLB usage. If you have pretty much any version of binutils, 
+	 this can increase your kernel build time by roughly one minute.
+
 endmenu
 
 #

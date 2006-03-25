@@ -36,6 +36,7 @@ CFLAGS += -m64
 CFLAGS += -mno-red-zone
 CFLAGS += -mcmodel=kernel
 CFLAGS += -pipe
+cflags-$(CONFIG_REORDER) += -ffunction-sections
 # this makes reading assembly source easier, but produces worse code
 # actually it makes the kernel smaller too.
 CFLAGS += -fno-reorder-blocks	
