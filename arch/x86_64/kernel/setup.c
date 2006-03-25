@@ -46,6 +46,7 @@
 #include <linux/cpufreq.h>
 #include <linux/dmi.h>
 #include <linux/dma-mapping.h>
+#include <linux/ctype.h>
 
 #include <asm/mtrr.h>
 #include <asm/uaccess.h>
@@ -270,6 +271,13 @@ static void __init probe_roms(void)
 	}
 }
 
+/* Check for full argument with no trailing characters */
+static int fullarg(char *p, char *arg)
+{
+	int l = strlen(arg);
+	return !memcmp(p, arg, l) && (p[l] == 0 || isspace(p[l]));
+}
+
 static __init void parse_cmdline_early (char ** cmdline_p)
 {
 	char c = ' ', *to = command_line, *from = COMMAND_LINE;
@@ -293,10 +301,10 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 #endif
 #ifdef CONFIG_ACPI
 		/* "acpi=off" disables both ACPI table parsing and interpreter init */
-		if (!memcmp(from, "acpi=off", 8))
+		if (fullarg(from,"acpi=off"))
 			disable_acpi();
 
-		if (!memcmp(from, "acpi=force", 10)) { 
+		if (fullarg(from, "acpi=force")) { 
 			/* add later when we do DMI horrors: */
 			acpi_force = 1;
 			acpi_disabled = 0;
@@ -304,52 +312,47 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 
 		/* acpi=ht just means: do ACPI MADT parsing 
 		   at bootup, but don't enable the full ACPI interpreter */
-		if (!memcmp(from, "acpi=ht", 7)) { 
+		if (fullarg(from, "acpi=ht")) { 
 			if (!acpi_force)
 				disable_acpi();
 			acpi_ht = 1; 
 		}
-                else if (!memcmp(from, "pci=noacpi", 10)) 
+                else if (fullarg(from, "pci=noacpi")) 
 			acpi_disable_pci();
-		else if (!memcmp(from, "acpi=noirq", 10))
+		else if (fullarg(from, "acpi=noirq"))
 			acpi_noirq_set();
 
-		else if (!memcmp(from, "acpi_sci=edge", 13))
+		else if (fullarg(from, "acpi_sci=edge"))
 			acpi_sci_flags.trigger =  1;
-		else if (!memcmp(from, "acpi_sci=level", 14))
+		else if (fullarg(from, "acpi_sci=level"))
 			acpi_sci_flags.trigger = 3;
-		else if (!memcmp(from, "acpi_sci=high", 13))
+		else if (fullarg(from, "acpi_sci=high"))
 			acpi_sci_flags.polarity = 1;
-		else if (!memcmp(from, "acpi_sci=low", 12))
+		else if (fullarg(from, "acpi_sci=low"))
 			acpi_sci_flags.polarity = 3;
 
 		/* acpi=strict disables out-of-spec workarounds */
-		else if (!memcmp(from, "acpi=strict", 11)) {
+		else if (fullarg(from, "acpi=strict")) {
 			acpi_strict = 1;
 		}
 #ifdef CONFIG_X86_IO_APIC
-		else if (!memcmp(from, "acpi_skip_timer_override", 24))
+		else if (fullarg(from, "acpi_skip_timer_override"))
 			acpi_skip_timer_override = 1;
 #endif
 #endif
 
-		if (!memcmp(from, "disable_timer_pin_1", 19))
+		if (fullarg(from, "disable_timer_pin_1"))
 			disable_timer_pin_1 = 1;
-		if (!memcmp(from, "enable_timer_pin_1", 18))
+		if (fullarg(from, "enable_timer_pin_1"))
 			disable_timer_pin_1 = -1;
 
-		if (!memcmp(from, "nolapic", 7) ||
-		    !memcmp(from, "disableapic", 11))
+		if (fullarg(from, "nolapic") || fullarg(from, "disableapic"))
 			disable_apic = 1;
 
-		/* Don't confuse with noapictimer */
-		if (!memcmp(from, "noapic", 6) &&
-			(from[6] == ' ' || from[6] == 0))
+		if (fullarg(from, "noapic"))
 			skip_ioapic_setup = 1;
 
-		/* Make sure to not confuse with apic= */
-		if (!memcmp(from, "apic", 4) &&
-			(from[4] == ' ' || from[4] == 0)) {
+		if (fullarg(from,"apic")) {
 			skip_ioapic_setup = 0;
 			ioapic_force = 1;
 		}
@@ -388,7 +391,7 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 			iommu_setup(from+6); 
 		}
 
-		if (!memcmp(from,"oops=panic", 10))
+		if (fullarg(from,"oops=panic"))
 			panic_on_oops = 1;
 
 		if (!memcmp(from, "noexec=", 7))
