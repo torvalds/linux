@@ -890,6 +890,10 @@ EXPORT_SYMBOL(filp_open);
  * a fully instantiated struct file to the caller.
  * This function is meant to be called from within a filesystem's
  * lookup method.
+ * Beware of calling it for non-regular files! Those ->open methods might block
+ * (e.g. in fifo_open), leaving you with parent locked (and in case of fifo,
+ * leading to a deadlock, as nobody can open that fifo anymore, because
+ * another process to open fifo will block on locked parent when doing lookup).
  * Note that in case of error, nd->intent.open.file is destroyed, but the
  * path information remains valid.
  * If the open callback is set to NULL, then the standard f_op->open()
