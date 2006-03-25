@@ -1848,7 +1848,7 @@ static inline void check_timer(void)
 		 */
 		setup_ExtINT_IRQ0_pin(apic2, pin2, vector);
 		if (timer_irq_works()) {
-			printk("works.\n");
+			apic_printk(APIC_VERBOSE," works.\n");
 			nmi_watchdog_default();
 			if (nmi_watchdog == NMI_IO_APIC) {
 				setup_nmi();
@@ -1860,7 +1860,7 @@ static inline void check_timer(void)
 		 */
 		clear_IO_APIC_pin(apic2, pin2);
 	}
-	printk(" failed.\n");
+	apic_printk(APIC_VERBOSE," failed.\n");
 
 	if (nmi_watchdog == NMI_IO_APIC) {
 		printk(KERN_WARNING "timer doesn't work through the IO-APIC - disabling NMI Watchdog!\n");
@@ -1875,7 +1875,7 @@ static inline void check_timer(void)
 	enable_8259A_irq(0);
 
 	if (timer_irq_works()) {
-		apic_printk(APIC_QUIET, " works.\n");
+		apic_printk(APIC_VERBOSE," works.\n");
 		return;
 	}
 	apic_write(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_FIXED | vector);
