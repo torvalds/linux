@@ -1244,6 +1244,8 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 		return -EINVAL;
 
 	name = __getname();
+	if (!name)
+		return -ENOMEM;
 	/* build extension */
 	if (S_ISBLK(mode))
 		sprintf(name, "b %u %u", MAJOR(rdev), MINOR(rdev));
