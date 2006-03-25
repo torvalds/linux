@@ -106,7 +106,6 @@ static int bcm43xx_wx_set_channelfreq(struct net_device *net_dev,
 				      char *extra)
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
-	struct ieee80211softmac_device *softmac = bcm->softmac;
 	unsigned long flags;
 	u8 channel;
 	int freq;
@@ -202,24 +201,6 @@ static int bcm43xx_wx_get_mode(struct net_device *net_dev,
 	data->mode = bcm->ieee->iw_mode;
 	bcm43xx_unlock(bcm, flags);
 
-	return 0;
-}
-
-static int bcm43xx_wx_set_sensitivity(struct net_device *net_dev,
-				      struct iw_request_info *info,
-				      union iwreq_data *data,
-				      char *extra)
-{
-	/*TODO*/
-	return 0;
-}
-
-static int bcm43xx_wx_get_sensitivity(struct net_device *net_dev,
-				      struct iw_request_info *info,
-				      union iwreq_data *data,
-				      char *extra)
-{
-	/*TODO*/
 	return 0;
 }
 
@@ -517,24 +498,6 @@ out_unlock:
 	return err;
 }
 
-static int bcm43xx_wx_set_retry(struct net_device *net_dev,
-				struct iw_request_info *info,
-				union iwreq_data *data,
-				char *extra)
-{
-	/*TODO*/
-	return 0;
-}
-
-static int bcm43xx_wx_get_retry(struct net_device *net_dev,
-				struct iw_request_info *info,
-				union iwreq_data *data,
-				char *extra)
-{
-	/*TODO*/
-	return 0;
-}
-
 static int bcm43xx_wx_set_encoding(struct net_device *net_dev,
 				   struct iw_request_info *info,
 				   union iwreq_data *data,
@@ -585,24 +548,6 @@ static int bcm43xx_wx_get_encodingext(struct net_device *net_dev,
         err = ieee80211_wx_get_encodeext(bcm->ieee, info, data, extra);
 
         return err;
-}
-
-static int bcm43xx_wx_set_power(struct net_device *net_dev,
-				struct iw_request_info *info,
-				union iwreq_data *data,
-				char *extra)
-{
-	/*TODO*/
-	return 0;
-}
-
-static int bcm43xx_wx_get_power(struct net_device *net_dev,
-				struct iw_request_info *info,
-				union iwreq_data *data,
-				char *extra)
-{
-	/*TODO*/
-	return 0;
 }
 
 static int bcm43xx_wx_set_interfmode(struct net_device *net_dev,

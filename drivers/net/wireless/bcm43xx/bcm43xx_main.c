@@ -404,6 +404,8 @@ static void bcm43xx_write_mac_bssid_templates(struct bcm43xx_private *bcm)
 		bcm43xx_ram_write(bcm, 0x478 + i, *((u32 *)(mac_bssid + i)));
 }
 
+//FIXME: Well, we should probably call them from somewhere.
+#if 0
 static void bcm43xx_set_slot_time(struct bcm43xx_private *bcm, u16 slot_time)
 {
 	/* slot_time is in usec. */
@@ -422,8 +424,12 @@ static void bcm43xx_short_slot_timing_disable(struct bcm43xx_private *bcm)
 {
 	bcm43xx_set_slot_time(bcm, 20);
 }
+#endif
 
-//FIXME: rename this func?
+/* FIXME: To get the MAC-filter working, we need to implement the
+ *        following functions (and rename them :)
+ */
+#if 0
 static void bcm43xx_disassociate(struct bcm43xx_private *bcm)
 {
 	bcm43xx_mac_suspend(bcm);
@@ -451,7 +457,6 @@ static void bcm43xx_disassociate(struct bcm43xx_private *bcm)
 	bcm43xx_mac_enable(bcm);
 }
 
-//FIXME: rename this func?
 static void bcm43xx_associate(struct bcm43xx_private *bcm,
 			      const u8 *mac)
 {
@@ -462,6 +467,7 @@ static void bcm43xx_associate(struct bcm43xx_private *bcm,
 	bcm43xx_write_mac_bssid_templates(bcm);
 	bcm43xx_mac_enable(bcm);
 }
+#endif
 
 /* Enable a Generic IRQ. "mask" is the mask of which IRQs to enable.
  * Returns the _previously_ enabled IRQ mask.

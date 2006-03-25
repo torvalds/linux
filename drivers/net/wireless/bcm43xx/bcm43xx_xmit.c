@@ -215,7 +215,7 @@ static void bcm43xx_generate_rts(const struct bcm43xx_phyinfo *phy,
 	u8 fallback_bitrate;
 	int ofdm_modulation;
 	int fallback_ofdm_modulation;
-	u8 *sa, *da;
+//	u8 *sa, *da;
 	u16 flen;
 
 //FIXME	sa = ieee80211_get_SA((struct ieee80211_hdr *)wlhdr);
@@ -267,7 +267,7 @@ assert(dur);
 //printk(BCM43xx_MACFMT "  " BCM43xx_MACFMT "  " BCM43xx_MACFMT "\n", BCM43xx_MACARG(wlhdr->addr1), BCM43xx_MACARG(wlhdr->addr2), BCM43xx_MACARG(wlhdr->addr3));
 //printk(BCM43xx_MACFMT "  " BCM43xx_MACFMT "\n", BCM43xx_MACARG(sa), BCM43xx_MACARG(da));
 	memcpy(txhdr->rts_cts_mac1, wlhdr->addr1, ETH_ALEN);//FIXME!
-	memcpy(txhdr->rts_cts_mac2, sa, ETH_ALEN);
+//	memcpy(txhdr->rts_cts_mac2, sa, ETH_ALEN);
 
 	*flags |= BCM43xx_TXHDRFLAG_RTSCTS;
 	*flags |= BCM43xx_TXHDRFLAG_RTS;
@@ -439,6 +439,8 @@ static s8 bcm43xx_rssi_postprocess(struct bcm43xx_private *bcm,
 	return (s8)tmp;
 }
 
+//TODO
+#if 0
 static s8 bcm43xx_rssinoise_postprocess(struct bcm43xx_private *bcm,
 					u8 in_rssi)
 {
@@ -453,6 +455,7 @@ static s8 bcm43xx_rssinoise_postprocess(struct bcm43xx_private *bcm,
 
 	return ret;
 }
+#endif
 
 int bcm43xx_rx(struct bcm43xx_private *bcm,
 	       struct sk_buff *skb,

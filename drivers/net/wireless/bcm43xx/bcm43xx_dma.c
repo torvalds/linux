@@ -787,7 +787,6 @@ int bcm43xx_dma_tx(struct bcm43xx_private *bcm,
 void bcm43xx_dma_handle_xmitstatus(struct bcm43xx_private *bcm,
 				   struct bcm43xx_xmitstatus *status)
 {
-	struct bcm43xx_dma *dma = bcm43xx_current_dma(bcm);
 	struct bcm43xx_dmaring *ring;
 	struct bcm43xx_dmadesc *desc;
 	struct bcm43xx_dmadesc_meta *meta;
