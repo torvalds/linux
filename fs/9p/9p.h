@@ -372,3 +372,4 @@ int v9fs_t_read(struct v9fs_session_info *v9ses, u32 fid,
 int v9fs_t_write(struct v9fs_session_info *v9ses, u32 fid, u64 offset,
 		 u32 count, const char __user * data,
 		 struct v9fs_fcall **rcall);
+int v9fs_printfcall(char *, int, struct v9fs_fcall *, int);

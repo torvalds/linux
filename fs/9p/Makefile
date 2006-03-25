@@ -13,5 +13,6 @@ obj-$(CONFIG_9P_FS) := 9p2000.o
 	vfs_dentry.o \
 	error.o \
 	v9fs.o \
-	fid.o
+	fid.o \
+	fcprint.o
 

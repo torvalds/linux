@@ -635,6 +635,14 @@ static void v9fs_read_work(void *a)
 			goto error;
 		}
 
+		if ((v9fs_debug_level&DEBUG_FCALL) == DEBUG_FCALL) {
+			char buf[150];
+
+			v9fs_printfcall(buf, sizeof(buf), m->rcall,
+				*m->extended);
+			printk(KERN_NOTICE ">>> %p %s\n", m, buf);
+		}
+
 		rcall = m->rcall;
 		rbuf = m->rbuf;
 		if (m->rpos > n) {
@@ -739,6 +747,13 @@ static struct v9fs_req *v9fs_send_request(struct v9fs_mux_data *m,
 		return ERR_PTR(-ENOMEM);
 
 	v9fs_set_tag(tc, n);
+
+	if ((v9fs_debug_level&DEBUG_FCALL) == DEBUG_FCALL) {
+		char buf[150];
+
+		v9fs_printfcall(buf, sizeof(buf), tc, *m->extended);
+		printk(KERN_NOTICE "<<< %p %s\n", m, buf);
+	}
 
 	req->tag = n;
 	req->tcall = tc;

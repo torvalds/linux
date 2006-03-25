@@ -51,7 +51,7 @@
  *
  */
 
-int v9fs_dentry_delete(struct dentry *dentry)
+static int v9fs_dentry_delete(struct dentry *dentry)
 {
 	dprintk(DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_iname, dentry);
 	return 1;

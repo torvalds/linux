@@ -348,7 +348,7 @@ error:
 	return ERR_PTR(err);
 }
 
-struct inode *
+static struct inode *
 v9fs_inode_from_fid(struct v9fs_session_info *v9ses, u32 fid,
 	struct super_block *sb)
 {

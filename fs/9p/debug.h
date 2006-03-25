@@ -30,6 +30,7 @@
 #define DEBUG_MUX		(1<<5)
 #define DEBUG_TRANS		(1<<6)
 #define DEBUG_SLABS	      	(1<<7)
+#define DEBUG_FCALL		(1<<8)
 
 #define DEBUG_DUMP_PKT		0
 
