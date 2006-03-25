@@ -2883,6 +2883,15 @@ int ata_check_atapi_dma(struct ata_queued_cmd *qc)
 	if (ap->ops->check_atapi_dma)
 		rc = ap->ops->check_atapi_dma(qc);
 
+	/* We don't support polling DMA.
+	 * Use PIO if the LLDD handles only interrupts in
+	 * the HSM_ST_LAST state and the ATAPI device
+	 * generates CDB interrupts.
+	 */
+	if ((ap->flags & ATA_FLAG_PIO_POLLING) &&
+	    (qc->dev->flags & ATA_DFLAG_CDB_INTR))
+		rc = 1;
+
 	return rc;
 }
 /**
@@ -4038,6 +4047,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 			break;
 		case ATA_PROT_ATAPI_DMA:
 			if (qc->dev->flags & ATA_DFLAG_CDB_INTR)
+				/* see ata_check_atapi_dma() */
 				BUG();
 			break;
 		default:
