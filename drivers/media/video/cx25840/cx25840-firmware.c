@@ -25,7 +25,17 @@
 #include "cx25840-core.h"
 
 #define FWFILE "v4l-cx25840.fw"
-#define FWSEND 1024
+
+/*
+ * Mike Isely <isely@pobox.com> - The FWSEND parameter controls the
+ * size of the firmware chunks sent down the I2C bus to the chip.
+ * Previously this had been set to 1024 but unfortunately some I2C
+ * implementations can't transfer data in such big gulps.
+ * Specifically, the pvrusb2 driver has a hard limit of around 60
+ * bytes, due to the encapsulation there of I2C traffic into USB
+ * messages.  So we have to significantly reduce this parameter.
+ */
+#define FWSEND 48
 
 #define FWDEV(x) &((x)->adapter->dev)
 
