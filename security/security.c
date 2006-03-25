@@ -174,31 +174,8 @@ int mod_unreg_security(const char *name, struct security_operations *ops)
 	return security_ops->unregister_security(name, ops);
 }
 
-/**
- * capable - calls the currently loaded security module's capable() function with the specified capability
- * @cap: the requested capability level.
- *
- * This function calls the currently loaded security module's capable()
- * function with a pointer to the current task and the specified @cap value.
- *
- * This allows the security module to implement the capable function call
- * however it chooses to.
- */
-int capable(int cap)
-{
-	if (security_ops->capable(current, cap)) {
-		/* capability denied */
-		return 0;
-	}
-
-	/* capability granted */
-	current->flags |= PF_SUPERPRIV;
-	return 1;
-}
-
 EXPORT_SYMBOL_GPL(register_security);
 EXPORT_SYMBOL_GPL(unregister_security);
 EXPORT_SYMBOL_GPL(mod_reg_security);
 EXPORT_SYMBOL_GPL(mod_unreg_security);
-EXPORT_SYMBOL(capable);
 EXPORT_SYMBOL(security_ops);

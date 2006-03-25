@@ -233,3 +233,19 @@ out:
 
      return ret;
 }
+
+int __capable(struct task_struct *t, int cap)
+{
+	if (security_capable(t, cap) == 0) {
+		t->flags |= PF_SUPERPRIV;
+		return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(__capable);
+
+int capable(int cap)
+{
+	return __capable(current, cap);
+}
+EXPORT_SYMBOL(capable);

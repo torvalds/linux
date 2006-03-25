@@ -1040,6 +1040,11 @@ struct swap_info_struct;
  *	@effective contains the effective capability set.
  *	@inheritable contains the inheritable capability set.
  *	@permitted contains the permitted capability set.
+ * @capable:
+ *	Check whether the @tsk process has the @cap capability.
+ *	@tsk contains the task_struct for the process.
+ *	@cap contains the capability <include/linux/capability.h>.
+ *	Return 0 if the capability is granted for @tsk.
  * @acct:
  *	Check permission before enabling or disabling process accounting.  If
  *	accounting is being enabled, then @file refers to the open file used to
@@ -1053,11 +1058,6 @@ struct swap_info_struct;
  *	@table contains the ctl_table structure for the sysctl variable.
  *	@op contains the operation (001 = search, 002 = write, 004 = read).
  *	Return 0 if permission is granted.
- * @capable:
- *	Check whether the @tsk process has the @cap capability.
- *	@tsk contains the task_struct for the process.
- *	@cap contains the capability <include/linux/capability.h>.
- *	Return 0 if the capability is granted for @tsk.
  * @syslog:
  *	Check permission before accessing the kernel message ring or changing
  *	logging to the console.
@@ -1099,9 +1099,9 @@ struct security_operations {
 			    kernel_cap_t * effective,
 			    kernel_cap_t * inheritable,
 			    kernel_cap_t * permitted);
+	int (*capable) (struct task_struct * tsk, int cap);
 	int (*acct) (struct file * file);
 	int (*sysctl) (struct ctl_table * table, int op);
-	int (*capable) (struct task_struct * tsk, int cap);
 	int (*quotactl) (int cmds, int type, int id, struct super_block * sb);
 	int (*quota_on) (struct dentry * dentry);
 	int (*syslog) (int type);
@@ -1345,6 +1345,11 @@ static inline void security_capset_set (struct task_struct *target,
 					kernel_cap_t *permitted)
 {
 	security_ops->capset_set (target, effective, inheritable, permitted);
+}
+
+static inline int security_capable(struct task_struct *tsk, int cap)
+{
+	return security_ops->capable(tsk, cap);
 }
 
 static inline int security_acct (struct file *file)
@@ -2048,6 +2053,11 @@ static inline void security_capset_set (struct task_struct *target,
 					kernel_cap_t *permitted)
 {
 	cap_capset_set (target, effective, inheritable, permitted);
+}
+
+static inline int security_capable(struct task_struct *tsk, int cap)
+{
+	return cap_capable(tsk, cap);
 }
 
 static inline int security_acct (struct file *file)
