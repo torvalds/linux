@@ -971,6 +971,13 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
 
 	if (ac->avail) {
 		spin_lock(&rl3->list_lock);
+		/*
+		 * Stuff objects into the remote nodes shared array first.
+		 * That way we could avoid the overhead of putting the objects
+		 * into the free lists and getting them back later.
+		 */
+		transfer_objects(rl3->shared, ac, ac->limit);
+
 		free_block(cachep, ac->entry, ac->avail, node);
 		ac->avail = 0;
 		spin_unlock(&rl3->list_lock);
@@ -986,8 +993,8 @@ static void reap_alien(struct kmem_cache *cachep, struct kmem_list3 *l3)
 
 	if (l3->alien) {
 		struct array_cache *ac = l3->alien[node];
-		if (ac && ac->avail) {
-			spin_lock_irq(&ac->lock);
+
+		if (ac && ac->avail && spin_trylock_irq(&ac->lock)) {
 			__drain_alien_cache(cachep, ac, node);
 			spin_unlock_irq(&ac->lock);
 		}
