@@ -3418,7 +3418,7 @@ const char *kmem_cache_name(struct kmem_cache *cachep)
 EXPORT_SYMBOL_GPL(kmem_cache_name);
 
 /*
- * This initializes kmem_list3 for all nodes.
+ * This initializes kmem_list3 or resizes varioius caches for all nodes.
  */
 static int alloc_kmemlist(struct kmem_cache *cachep)
 {
@@ -3433,10 +3433,13 @@ static int alloc_kmemlist(struct kmem_cache *cachep)
 		if (!new_alien)
 			goto fail;
 
-		new_shared = alloc_arraycache(node, cachep->shared*cachep->batchcount,
+		new_shared = alloc_arraycache(node,
+				cachep->shared*cachep->batchcount,
 					0xbaadf00d);
-		if (!new_shared)
+		if (!new_shared) {
+			free_alien_cache(new_alien);
 			goto fail;
+		}
 
 		l3 = cachep->nodelists[node];
 		if (l3) {
@@ -3445,7 +3448,8 @@ static int alloc_kmemlist(struct kmem_cache *cachep)
 			spin_lock_irq(&l3->list_lock);
 
 			if (shared)
-				free_block(cachep, shared->entry, shared->avail, node);
+				free_block(cachep, shared->entry,
+						shared->avail, node);
 
 			l3->shared = new_shared;
 			if (!l3->alien) {
@@ -3460,8 +3464,11 @@ static int alloc_kmemlist(struct kmem_cache *cachep)
 			continue;
 		}
 		l3 = kmalloc_node(sizeof(struct kmem_list3), GFP_KERNEL, node);
-		if (!l3)
+		if (!l3) {
+			free_alien_cache(new_alien);
+			kfree(new_shared);
 			goto fail;
+		}
 
 		kmem_list3_init(l3);
 		l3->next_reap = jiffies + REAPTIMEOUT_LIST3 +
@@ -3473,7 +3480,23 @@ static int alloc_kmemlist(struct kmem_cache *cachep)
 		cachep->nodelists[node] = l3;
 	}
 	return 0;
+
 fail:
+	if (!cachep->next.next) {
+		/* Cache is not active yet. Roll back what we did */
+		node--;
+		while (node >= 0) {
+			if (cachep->nodelists[node]) {
+				l3 = cachep->nodelists[node];
+
+				kfree(l3->shared);
+				free_alien_cache(l3->alien);
+				kfree(l3);
+				cachep->nodelists[node] = NULL;
+			}
+			node--;
+		}
+	}
 	return -ENOMEM;
 }
 
