@@ -4594,7 +4594,7 @@ static void __init parse_floppy_cfg_string(char *cfg)
 	}
 }
 
-int init_module(void)
+int __init init_module(void)
 {
 	if (floppy)
 		parse_floppy_cfg_string(floppy);
