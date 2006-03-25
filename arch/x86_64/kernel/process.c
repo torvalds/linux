@@ -508,7 +508,7 @@ out:
 /*
  * This special macro can be used to load a debugging register
  */
-#define loaddebug(thread,r) set_debug(thread->debugreg ## r, r)
+#define loaddebug(thread,r) set_debugreg(thread->debugreg ## r, r)
 
 /*
  *	switch_to(x,y) should switch tasks from x to y.

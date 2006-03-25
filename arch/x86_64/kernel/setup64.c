@@ -281,12 +281,12 @@ void __cpuinit cpu_init (void)
 	 * Clear all 6 debug registers:
 	 */
 
-	set_debug(0UL, 0);
-	set_debug(0UL, 1);
-	set_debug(0UL, 2);
-	set_debug(0UL, 3);
-	set_debug(0UL, 6);
-	set_debug(0UL, 7);
+	set_debugreg(0UL, 0);
+	set_debugreg(0UL, 1);
+	set_debugreg(0UL, 2);
+	set_debugreg(0UL, 3);
+	set_debugreg(0UL, 6);
+	set_debugreg(0UL, 7);
 
 	fpu_init(); 
 }

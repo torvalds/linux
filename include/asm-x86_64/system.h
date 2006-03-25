@@ -70,12 +70,6 @@ extern void load_gs_index(unsigned);
 		".previous"			\
 		: :"r" (value), "r" (0))
 
-#define set_debug(value,register) \
-                __asm__("movq %0,%%db" #register  \
-		: /* no output */ \
-		:"r" ((unsigned long) value))
-
-
 #ifdef __KERNEL__
 struct alt_instr { 
 	__u8 *instr; 		/* original instruction */
