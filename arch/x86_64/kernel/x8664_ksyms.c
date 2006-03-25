@@ -144,7 +144,6 @@ EXPORT_SYMBOL(rwsem_down_write_failed_thunk);
 EXPORT_SYMBOL(empty_zero_page);
 
 EXPORT_SYMBOL(die_chain);
-EXPORT_SYMBOL(register_die_notifier);
 
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(cpu_sibling_map);
