@@ -25,8 +25,7 @@
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
-int memnode_shift;
-u8  memnodemap[NODEMAPSIZE];
+struct memnode memnode;
 
 unsigned char cpu_to_node[NR_CPUS] __read_mostly = {
 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
@@ -367,8 +366,7 @@ void __init init_cpu_to_node(void)
 
 EXPORT_SYMBOL(cpu_to_node);
 EXPORT_SYMBOL(node_to_cpumask);
-EXPORT_SYMBOL(memnode_shift);
-EXPORT_SYMBOL(memnodemap);
+EXPORT_SYMBOL(memnode);
 EXPORT_SYMBOL(node_data);
 
 #ifdef CONFIG_DISCONTIGMEM

@@ -15,8 +15,13 @@
 #define NODEMAPSIZE 0xfff
 
 /* Simple perfect hash to map physical addresses to node numbers */
-extern int memnode_shift; 
-extern u8  memnodemap[NODEMAPSIZE]; 
+struct memnode {
+	int shift;
+	u8 map[NODEMAPSIZE];
+} ____cacheline_aligned;
+extern struct memnode memnode;
+#define memnode_shift memnode.shift
+#define memnodemap memnode.map
 
 extern struct pglist_data *node_data[];
 
