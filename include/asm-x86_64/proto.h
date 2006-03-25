@@ -53,8 +53,6 @@ extern int sysctl_vsyscall;
 extern int nohpet;
 extern unsigned long vxtime_hz;
 
-extern void do_softirq_thunk(void);
-
 extern int numa_setup(char *opt);
 
 extern int setup_early_printk(char *); 

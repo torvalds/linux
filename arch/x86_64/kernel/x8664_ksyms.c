@@ -151,9 +151,6 @@ EXPORT_SYMBOL(cpu_sibling_map);
 EXPORT_SYMBOL(smp_num_siblings);
 #endif
 
-extern void do_softirq_thunk(void);
-EXPORT_SYMBOL(do_softirq_thunk);
-
 #ifdef CONFIG_BUG
 EXPORT_SYMBOL(out_of_line_bug);
 #endif
