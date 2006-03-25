@@ -12,10 +12,10 @@
  *	Most of this code is directly derived from his userspace driver.
  *	His driver works so send any reports to alan@redhat.com unless the
  *	userspace driver also doesn't work for you...
- *      
+ *
  *      Changes:
  *      08/07/2003        Daniele Bellucci <bellucda@tiscali.it>
- *                        - pms_capture: report back -EFAULT 
+ *                        - pms_capture: report back -EFAULT
  */
 
 #include <linux/module.h>
@@ -66,14 +66,14 @@ static int standard 		= 0;	/* 0 - auto 1 - ntsc 2 - pal 3 - secam */
 /*
  *	I/O ports and Shared Memory
  */
- 
+
 static int io_port		=	0x250;
 static int data_port		=	0x251;
 static int mem_base		=	0xC8000;
 static void __iomem *mem;
 static int video_nr             =       -1;
 
-	
+
 
 static inline void mvv_write(u8 index, u8 value)
 {
@@ -90,9 +90,9 @@ static int pms_i2c_stat(u8 slave)
 {
 	int counter;
 	int i;
-	
+
 	outb(0x28, io_port);
-	
+
 	counter=0;
 	while((inb(data_port)&0x01)==0)
 		if(counter++==256)
@@ -101,9 +101,9 @@ static int pms_i2c_stat(u8 slave)
 	while((inb(data_port)&0x01)!=0)
 		if(counter++==256)
 			break;
-			
+
 	outb(slave, io_port);
-	
+
 	counter=0;
 	while((inb(data_port)&0x01)==0)
 		if(counter++==256)
@@ -112,7 +112,7 @@ static int pms_i2c_stat(u8 slave)
 	while((inb(data_port)&0x01)!=0)
 		if(counter++==256)
 			break;
-			
+
 	for(i=0;i<12;i++)
 	{
 		char st=inb(data_port);
@@ -122,7 +122,7 @@ static int pms_i2c_stat(u8 slave)
 			break;
 	}
 	outb(0x29, io_port);
-	return inb(data_port);		
+	return inb(data_port);
 }
 
 static int pms_i2c_write(u16 slave, u16 sub, u16 data)
@@ -130,19 +130,19 @@ static int pms_i2c_write(u16 slave, u16 sub, u16 data)
 	int skip=0;
 	int count;
 	int i;
-	
+
 	for(i=0;i<i2c_count;i++)
 	{
 		if((i2cinfo[i].slave==slave) &&
 		   (i2cinfo[i].sub == sub))
 		{
-		   	if(i2cinfo[i].data==data)
-		   		skip=1;
-		   	i2cinfo[i].data=data;
-		   	i=i2c_count+1;
+			if(i2cinfo[i].data==data)
+				skip=1;
+			i2cinfo[i].data=data;
+			i=i2c_count+1;
 		}
 	}
-	
+
 	if(i==i2c_count && i2c_count<64)
 	{
 		i2cinfo[i2c_count].slave=slave;
@@ -150,16 +150,16 @@ static int pms_i2c_write(u16 slave, u16 sub, u16 data)
 		i2cinfo[i2c_count].data=data;
 		i2c_count++;
 	}
-	
+
 	if(skip)
 		return 0;
-		
+
 	mvv_write(0x29, sub);
 	mvv_write(0x2A, data);
 	mvv_write(0x28, slave);
-	
+
 	outb(0x28, io_port);
-	
+
 	count=0;
 	while((inb(data_port)&1)==0)
 		if(count>255)
@@ -167,9 +167,9 @@ static int pms_i2c_write(u16 slave, u16 sub, u16 data)
 	while((inb(data_port)&1)!=0)
 		if(count>255)
 			break;
-			
+
 	count=inb(data_port);
-	
+
 	if(count&2)
 		return -1;
 	return count;
@@ -189,8 +189,8 @@ static int pms_i2c_read(int slave, int sub)
 
 static void pms_i2c_andor(int slave, int sub, int and, int or)
 {
-	u8 tmp;	
-	
+	u8 tmp;
+
 	tmp=pms_i2c_read(slave, sub);
 	tmp = (tmp&and)|or;
 	pms_i2c_write(slave, sub, tmp);
@@ -199,7 +199,7 @@ static void pms_i2c_andor(int slave, int sub, int and, int or)
 /*
  *	Control functions
  */
- 
+
 
 static void pms_videosource(short source)
 {
@@ -234,8 +234,8 @@ static void pms_colour(short colour)
 			break;
 	}
 }
- 
- 
+
+
 static void pms_contrast(short contrast)
 {
 	switch(decoder)
@@ -269,14 +269,14 @@ static void pms_format(short format)
 {
 	int target;
 	standard = format;
-	
+
 	if(decoder==PHILIPS1)
 		target=0x42;
 	else if(decoder==PHILIPS2)
 		target=0x8A;
 	else
 		return;
-				
+
 	switch(format)
 	{
 		case 0:	/* Auto */
@@ -302,7 +302,7 @@ static void pms_format(short format)
 
 /*
  *	These features of the PMS card are not currently exposes. They
- *	could become a private v4l ioctl for PMSCONFIG or somesuch if 
+ *	could become a private v4l ioctl for PMSCONFIG or somesuch if
  *	people need it. We also don't yet use the PMS interrupt.
  */
 
@@ -324,7 +324,7 @@ static void pms_hstart(short start)
 /*
  *	Bandpass filters
  */
- 
+
 static void pms_bandpass(short pass)
 {
 	if(decoder==PHILIPS2)
@@ -493,7 +493,7 @@ static void pms_vert(u8 deciden, u8 decinum)
 /*
  *	Turn 16bit ratios into best small ratio the chipset can grok
  */
- 
+
 static void pms_vertdeci(unsigned short decinum, unsigned short deciden)
 {
 	/* Knock it down by /5 once */
@@ -546,7 +546,7 @@ static void pms_horzdeci(short decinum, short deciden)
 		decinum=512;
 		deciden=640;	/* 768 would be ideal */
 	}
-	
+
 	while(((decinum|deciden)&1)==0)
 	{
 		decinum>>=1;
@@ -559,7 +559,7 @@ static void pms_horzdeci(short decinum, short deciden)
 	}
 	if(deciden==32)
 		deciden--;
-		
+
 	mvv_write(0x24, 0x80|deciden);
 	mvv_write(0x25, decinum);
 }
@@ -567,14 +567,14 @@ static void pms_horzdeci(short decinum, short deciden)
 static void pms_resolution(short width, short height)
 {
 	int fg_height;
-	
+
 	fg_height=height;
 	if(fg_height>280)
 		fg_height=280;
-		
+
 	mvv_write(0x18, fg_height);
 	mvv_write(0x19, fg_height>>8);
-	
+
 	if(standard==1)
 	{
 		mvv_write(0x1A, 0xFC);
@@ -598,7 +598,7 @@ static void pms_resolution(short width, short height)
 	mvv_write(0x42, 0x00);
 	mvv_write(0x43, 0x00);
 	mvv_write(0x44, MVVMEMORYWIDTH);
-	
+
 	mvv_write(0x22, width+8);
 	mvv_write(0x23, (width+8)>> 8);
 
@@ -618,7 +618,7 @@ static void pms_resolution(short width, short height)
 /*
  *	Set Input
  */
- 
+
 static void pms_vcrinput(short input)
 {
 	if(decoder==PHILIPS2)
@@ -643,20 +643,20 @@ static int pms_capture(struct pms_device *dev, char __user *buf, int rgb555, int
 	mvv_write(0x08,r8); /* capture rgb555/565, init DRAM, PC enable */
 
 /*	printf("%d %d %d %d %d %x %x\n",width,height,voff,nom,den,mvv_buf); */
-  
-	for (y = 0; y < dev->height; y++ ) 
+
+	for (y = 0; y < dev->height; y++ )
 	{
 		writeb(0, mem);  /* synchronisiert neue Zeile */
-		
+
 		/*
 		 *	This is in truth a fifo, be very careful as if you
 		 *	forgot this odd things will occur 8)
 		 */
-		 
+
 		memcpy_fromio(tmp, mem, dw+32); /* discard 16 word   */
 		cnt -= dev->height;
-		while (cnt <= 0) 
-		{ 
+		while (cnt <= 0)
+		{
 			/*
 			 *	Don't copy too far
 			 */
@@ -666,7 +666,7 @@ static int pms_capture(struct pms_device *dev, char __user *buf, int rgb555, int
 			cnt += dev->height;
 			if (copy_to_user(buf, tmp+32, dt))
 				return len ? len : -EFAULT;
-			buf += dt;    
+			buf += dt;
 			len += dt;
 		}
 	}
@@ -683,7 +683,7 @@ static int pms_do_ioctl(struct inode *inode, struct file *file,
 {
 	struct video_device *dev = video_devdata(file);
 	struct pms_device *pd=(struct pms_device *)dev;
-	
+
 	switch(cmd)
 	{
 		case VIDIOCGCAP:
@@ -806,7 +806,7 @@ static int pms_do_ioctl(struct inode *inode, struct file *file,
 			    ||(p->palette==VIDEO_PALETTE_RGB555 && p->depth==15)))
 			    	return -EINVAL;
 			pd->picture= *p;
-			
+
 			/*
 			 *	Now load the card.
 			 */
@@ -815,7 +815,7 @@ static int pms_do_ioctl(struct inode *inode, struct file *file,
 			pms_brightness(p->brightness>>8);
 			pms_hue(p->hue>>8);
 			pms_colour(p->colour>>8);
-			pms_contrast(p->contrast>>8);	
+			pms_contrast(p->contrast>>8);
 			mutex_unlock(&pd->lock);
 			return 0;
 		}
@@ -873,7 +873,7 @@ static ssize_t pms_read(struct file *file, char __user *buf,
 	struct video_device *v = video_devdata(file);
 	struct pms_device *pd=(struct pms_device *)v;
 	int len;
-	
+
 	mutex_lock(&pd->lock);
 	len=pms_capture(pd, buf, (pd->picture.depth==16)?0:1,count);
 	mutex_unlock(&pd->lock);
@@ -905,13 +905,13 @@ static struct pms_device pms_device;
 /*
  *	Probe for and initialise the Mediavision PMS
  */
- 
+
 static int init_mediavision(void)
 {
 	int id;
 	int idec, decst;
 	int i;
-		
+
 	unsigned char i2c_defs[]={
 		0x4C,0x30,0x00,0xE8,
 		0xB6,0xE2,0x00,0x00,
@@ -925,7 +925,7 @@ static int init_mediavision(void)
 	mem = ioremap(mem_base, 0x800);
 	if (!mem)
 		return -ENOMEM;
-	
+
 	if (!request_region(0x9A01, 1, "Mediavision PMS config"))
 	{
 		printk(KERN_WARNING "mediavision: unable to detect: 0x9A01 in use.\n");
@@ -941,18 +941,18 @@ static int init_mediavision(void)
 	}
 	outb(0xB8, 0x9A01);		/* Unlock */
 	outb(io_port>>4, 0x9A01);	/* Set IO port */
-	
-	
+
+
 	id=mvv_read(3);
 	decst=pms_i2c_stat(0x43);
-	
+
 	if(decst!=-1)
 		idec=2;
 	else if(pms_i2c_stat(0xb9)!=-1)
 		idec=3;
 	else if(pms_i2c_stat(0x8b)!=-1)
 		idec=1;
-	else 
+	else
 		idec=0;
 
 	printk(KERN_INFO "PMS type is %d\n", idec);
@@ -966,11 +966,11 @@ static int init_mediavision(void)
 	/*
 	 *	Ok we have a PMS of some sort
 	 */
-	
+
 	mvv_write(0x04, mem_base>>12);	/* Set the memory area */
-	
+
 	/* Ok now load the defaults */
-	
+
 	for(i=0;i<0x19;i++)
 	{
 		if(i2c_defs[i]==0xFF)
@@ -978,7 +978,7 @@ static int init_mediavision(void)
 		else
 			pms_i2c_write(0x8A, i, i2c_defs[i]);
 	}
-	
+
 	pms_i2c_write(0xB8,0x00,0x12);
 	pms_i2c_write(0xB8,0x04,0x00);
 	pms_i2c_write(0xB8,0x07,0x00);
@@ -987,18 +987,18 @@ static int init_mediavision(void)
 	pms_i2c_write(0xB8,0x0A,0x00);
 	pms_i2c_write(0xB8,0x0B,0x10);
 	pms_i2c_write(0xB8,0x10,0x03);
-	
+
 	mvv_write(0x01, 0x00);
 	mvv_write(0x05, 0xA0);
 	mvv_write(0x08, 0x25);
 	mvv_write(0x09, 0x00);
-	mvv_write(0x0A, 0x20|MVVMEMORYWIDTH);	
-	
+	mvv_write(0x0A, 0x20|MVVMEMORYWIDTH);
+
 	mvv_write(0x10, 0x02);
 	mvv_write(0x1E, 0x0C);
 	mvv_write(0x1F, 0x03);
 	mvv_write(0x26, 0x06);
-	
+
 	mvv_write(0x2B, 0x00);
 	mvv_write(0x2C, 0x20);
 	mvv_write(0x2D, 0x00);
@@ -1018,13 +1018,13 @@ static int init_mediavision(void)
 /*
  *	Initialization and module stuff
  */
- 
+
 static int __init init_pms_cards(void)
 {
 	printk(KERN_INFO "Mediavision Pro Movie Studio driver 0.02\n");
-	
+
 	data_port = io_port +1;
-	
+
 	if(init_mediavision())
 	{
 		printk(KERN_INFO "Board not found.\n");

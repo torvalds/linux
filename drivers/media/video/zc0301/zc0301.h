@@ -157,7 +157,7 @@ do {                                                                          \
 			dev_info(&cam->usbdev->dev, fmt "\n", ## args);       \
 		else if ((level) >= 3)                                        \
 			dev_info(&cam->usbdev->dev, "[%s:%d] " fmt "\n",      \
-			         __FUNCTION__, __LINE__ , ## args);           \
+				 __FUNCTION__, __LINE__ , ## args);           \
 	}                                                                     \
 } while (0)
 #	define KDBG(level, fmt, args...)                                      \
@@ -167,7 +167,7 @@ do {                                                                          \
 			pr_info("zc0301: " fmt "\n", ## args);                \
 		else if ((level) == 3)                                        \
 			pr_debug("zc0301: [%s:%d] " fmt "\n", __FUNCTION__,   \
-			         __LINE__ , ## args);                         \
+				 __LINE__ , ## args);                         \
 	}                                                                     \
 } while (0)
 #	define V4LDBG(level, name, cmd)                                       \
@@ -184,7 +184,7 @@ do {                                                                          \
 #undef PDBG
 #define PDBG(fmt, args...)                                                    \
 dev_info(&cam->usbdev->dev, "[%s:%d] " fmt "\n",                              \
-         __FUNCTION__, __LINE__ , ## args)
+	 __FUNCTION__, __LINE__ , ## args)
 
 #undef PDBGG
 #define PDBGG(fmt, args...) do {;} while(0) /* placeholder */

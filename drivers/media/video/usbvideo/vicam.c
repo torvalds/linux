@@ -69,10 +69,10 @@
 #define VICAM_HEADER_SIZE       64
 
 #define clamp( x, l, h )        max_t( __typeof__( x ),         \
-                                       ( l ),                   \
-                                       min_t( __typeof__( x ),  \
-                                              ( h ),            \
-                                              ( x ) ) )
+				       ( l ),                   \
+				       min_t( __typeof__( x ),  \
+					      ( h ),            \
+					      ( x ) ) )
 
 /* Not sure what all the bytes in these char
  * arrays do, but they're necessary to make
@@ -357,7 +357,7 @@ static unsigned char setup5[] = {
  * Not sure why these are not yet non-statics which I can reference through
  * usbvideo.h the same as it is in 2.4.20.  I bet this will get fixed sometime
  * in the future.
- * 
+ *
 */
 static void *rvmalloc(unsigned long size)
 {
@@ -603,12 +603,12 @@ vicam_ioctl(struct inode *inode, struct file *file, unsigned int ioctlnr, unsign
 	case VIDIOCSPICT:
 		{
 			struct video_picture vp;
-			
+
 			if (copy_from_user(&vp, user_arg, sizeof(vp))) {
 				retval = -EFAULT;
 				break;
 			}
-			
+
 			DBG("VIDIOCSPICT depth = %d, pal = %d\n", vp.depth,
 			    vp.palette);
 
@@ -655,7 +655,7 @@ vicam_ioctl(struct inode *inode, struct file *file, unsigned int ioctlnr, unsign
 			}
 
 			DBG("VIDIOCSWIN %d x %d\n", vw.width, vw.height);
-			
+
 			if ( vw.width != 320 || vw.height != 240 )
 				retval = -EFAULT;
 
@@ -809,12 +809,12 @@ vicam_open(struct inode *inode, struct file *file)
 	cam->needsDummyRead = 1;
 	cam->open_count++;
 
-	file->private_data = cam;	
-	
+	file->private_data = cam;
+
 	return 0;
 }
 
-static int 
+static int
 vicam_close(struct inode *inode, struct file *file)
 {
 	struct vicam_camera *cam = file->private_data;
@@ -1187,7 +1187,7 @@ vicam_create_proc_entry(struct vicam_camera *cam)
 
 	if ( !cam->proc_dir )
 		return; // FIXME: We should probably return an error here
-	
+
 	ent = create_proc_entry("shutter", S_IFREG | S_IRUGO | S_IWUSR,
 				cam->proc_dir);
 	if (ent) {
@@ -1282,7 +1282,7 @@ vicam_probe( struct usb_interface *intf, const struct usb_device_id *id)
 	const struct usb_host_interface *interface;
 	const struct usb_endpoint_descriptor *endpoint;
 	struct vicam_camera *cam;
-	
+
 	printk(KERN_INFO "ViCam based webcam connected\n");
 
 	interface = intf->cur_altsetting;
@@ -1331,7 +1331,7 @@ vicam_probe( struct usb_interface *intf, const struct usb_device_id *id)
 	printk(KERN_INFO "ViCam webcam driver now controlling video device %d\n",cam->vdev.minor);
 
 	usb_set_intfdata (intf, cam);
-	
+
 	return 0;
 }
 

@@ -54,7 +54,7 @@ static int pas202bca_init(struct sn9c102_device* cam)
 
 
 static int pas202bca_set_pix_format(struct sn9c102_device* cam,
-                                    const struct v4l2_pix_format* pix)
+				    const struct v4l2_pix_format* pix)
 {
 	int err = 0;
 
@@ -68,7 +68,7 @@ static int pas202bca_set_pix_format(struct sn9c102_device* cam,
 
 
 static int pas202bca_set_ctrl(struct sn9c102_device* cam,
-                              const struct v4l2_control* ctrl)
+			      const struct v4l2_control* ctrl)
 {
 	int err = 0;
 
@@ -102,7 +102,7 @@ static int pas202bca_set_ctrl(struct sn9c102_device* cam,
 
 
 static int pas202bca_set_crop(struct sn9c102_device* cam,
-                              const struct v4l2_rect* rect)
+			      const struct v4l2_rect* rect)
 {
 	struct sn9c102_sensor* s = &pas202bca;
 	int err = 0;

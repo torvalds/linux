@@ -71,39 +71,39 @@ MODULE_SUPPORTED_DEVICE("Video");
 static int ovmod_load = W9968CF_OVMOD_LOAD;
 static unsigned short simcams = W9968CF_SIMCAMS;
 static short video_nr[]={[0 ... W9968CF_MAX_DEVICES-1] = -1}; /*-1=first free*/
-static unsigned int packet_size[] = {[0 ... W9968CF_MAX_DEVICES-1] = 
-                                     W9968CF_PACKET_SIZE};
-static unsigned short max_buffers[] = {[0 ... W9968CF_MAX_DEVICES-1] = 
-                                       W9968CF_BUFFERS};
-static int double_buffer[] = {[0 ... W9968CF_MAX_DEVICES-1] = 
-                              W9968CF_DOUBLE_BUFFER};
+static unsigned int packet_size[] = {[0 ... W9968CF_MAX_DEVICES-1] =
+				     W9968CF_PACKET_SIZE};
+static unsigned short max_buffers[] = {[0 ... W9968CF_MAX_DEVICES-1] =
+				       W9968CF_BUFFERS};
+static int double_buffer[] = {[0 ... W9968CF_MAX_DEVICES-1] =
+			      W9968CF_DOUBLE_BUFFER};
 static int clamping[] = {[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_CLAMPING};
-static unsigned short filter_type[]= {[0 ... W9968CF_MAX_DEVICES-1] = 
-                                      W9968CF_FILTER_TYPE};
+static unsigned short filter_type[]= {[0 ... W9968CF_MAX_DEVICES-1] =
+				      W9968CF_FILTER_TYPE};
 static int largeview[]= {[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_LARGEVIEW};
-static unsigned short decompression[] = {[0 ... W9968CF_MAX_DEVICES-1] = 
-                                         W9968CF_DECOMPRESSION};
+static unsigned short decompression[] = {[0 ... W9968CF_MAX_DEVICES-1] =
+					 W9968CF_DECOMPRESSION};
 static int upscaling[]= {[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_UPSCALING};
 static unsigned short force_palette[] = {[0 ... W9968CF_MAX_DEVICES-1] = 0};
 static int force_rgb[] = {[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_FORCE_RGB};
 static int autobright[] = {[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_AUTOBRIGHT};
 static int autoexp[] = {[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_AUTOEXP};
-static unsigned short lightfreq[] = {[0 ... W9968CF_MAX_DEVICES-1] = 
-                                     W9968CF_LIGHTFREQ};
+static unsigned short lightfreq[] = {[0 ... W9968CF_MAX_DEVICES-1] =
+				     W9968CF_LIGHTFREQ};
 static int bandingfilter[] = {[0 ... W9968CF_MAX_DEVICES-1]=
-                              W9968CF_BANDINGFILTER};
+			      W9968CF_BANDINGFILTER};
 static short clockdiv[] = {[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_CLOCKDIV};
 static int backlight[] = {[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_BACKLIGHT};
 static int mirror[] = {[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_MIRROR};
 static int monochrome[] = {[0 ... W9968CF_MAX_DEVICES-1]=W9968CF_MONOCHROME};
-static unsigned int brightness[] = {[0 ... W9968CF_MAX_DEVICES-1] = 
-                                    W9968CF_BRIGHTNESS};
+static unsigned int brightness[] = {[0 ... W9968CF_MAX_DEVICES-1] =
+				    W9968CF_BRIGHTNESS};
 static unsigned int hue[] = {[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_HUE};
 static unsigned int colour[]={[0 ... W9968CF_MAX_DEVICES-1] = W9968CF_COLOUR};
-static unsigned int contrast[] = {[0 ... W9968CF_MAX_DEVICES-1] = 
-                                  W9968CF_CONTRAST};
-static unsigned int whiteness[] = {[0 ... W9968CF_MAX_DEVICES-1] = 
-                                   W9968CF_WHITENESS};
+static unsigned int contrast[] = {[0 ... W9968CF_MAX_DEVICES-1] =
+				  W9968CF_CONTRAST};
+static unsigned int whiteness[] = {[0 ... W9968CF_MAX_DEVICES-1] =
+				   W9968CF_WHITENESS};
 #ifdef W9968CF_DEBUG
 static unsigned short debug = W9968CF_DEBUG_LEVEL;
 static int specific_debug = W9968CF_SPECIFIC_DEBUG;
@@ -145,251 +145,251 @@ module_param(specific_debug, bool, 0644);
 #endif
 
 #ifdef CONFIG_KMOD
-MODULE_PARM_DESC(ovmod_load, 
-                 "\n<0|1> Automatic 'ovcamchip' module loading."
-                 "\n0 disabled, 1 enabled."
-                 "\nIf enabled,'insmod' searches for the required 'ovcamchip'"
-                 "\nmodule in the system, according to its configuration, and"
-                 "\nattempts to load that module automatically. This action is"
-                 "\nperformed once as soon as the 'w9968cf' module is loaded"
-                 "\ninto memory."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_OVMOD_LOAD)"."
-                 "\n");
+MODULE_PARM_DESC(ovmod_load,
+		 "\n<0|1> Automatic 'ovcamchip' module loading."
+		 "\n0 disabled, 1 enabled."
+		 "\nIf enabled,'insmod' searches for the required 'ovcamchip'"
+		 "\nmodule in the system, according to its configuration, and"
+		 "\nattempts to load that module automatically. This action is"
+		 "\nperformed once as soon as the 'w9968cf' module is loaded"
+		 "\ninto memory."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_OVMOD_LOAD)"."
+		 "\n");
 #endif
-MODULE_PARM_DESC(simcams, 
-                 "\n<n> Number of cameras allowed to stream simultaneously."
-                 "\nn may vary from 0 to "
-                 __MODULE_STRING(W9968CF_MAX_DEVICES)"."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_SIMCAMS)"."
-                 "\n");
+MODULE_PARM_DESC(simcams,
+		 "\n<n> Number of cameras allowed to stream simultaneously."
+		 "\nn may vary from 0 to "
+		 __MODULE_STRING(W9968CF_MAX_DEVICES)"."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_SIMCAMS)"."
+		 "\n");
 MODULE_PARM_DESC(video_nr,
-                 "\n<-1|n[,...]> Specify V4L minor mode number."
-                 "\n -1 = use next available (default)"
-                 "\n  n = use minor number n (integer >= 0)"
-                 "\nYou can specify up to "__MODULE_STRING(W9968CF_MAX_DEVICES)
-                 " cameras this way."
-                 "\nFor example:"
-                 "\nvideo_nr=-1,2,-1 would assign minor number 2 to"
-                 "\nthe second camera and use auto for the first"
-                 "\none and for every other camera."
-                 "\n");
+		 "\n<-1|n[,...]> Specify V4L minor mode number."
+		 "\n -1 = use next available (default)"
+		 "\n  n = use minor number n (integer >= 0)"
+		 "\nYou can specify up to "__MODULE_STRING(W9968CF_MAX_DEVICES)
+		 " cameras this way."
+		 "\nFor example:"
+		 "\nvideo_nr=-1,2,-1 would assign minor number 2 to"
+		 "\nthe second camera and use auto for the first"
+		 "\none and for every other camera."
+		 "\n");
 MODULE_PARM_DESC(packet_size,
-                 "\n<n[,...]> Specify the maximum data payload"
-                 "\nsize in bytes for alternate settings, for each device."
-                 "\nn is scaled between 63 and 1023 "
-                 "(default is "__MODULE_STRING(W9968CF_PACKET_SIZE)")."
-                 "\n");
+		 "\n<n[,...]> Specify the maximum data payload"
+		 "\nsize in bytes for alternate settings, for each device."
+		 "\nn is scaled between 63 and 1023 "
+		 "(default is "__MODULE_STRING(W9968CF_PACKET_SIZE)")."
+		 "\n");
 MODULE_PARM_DESC(max_buffers,
-                 "\n<n[,...]> For advanced users."
-                 "\nSpecify the maximum number of video frame buffers"
-                 "\nto allocate for each device, from 2 to "
-                 __MODULE_STRING(W9968CF_MAX_BUFFERS)
-                 ". (default is "__MODULE_STRING(W9968CF_BUFFERS)")."
-                 "\n");
-MODULE_PARM_DESC(double_buffer, 
-                 "\n<0|1[,...]> "
-                 "Hardware double buffering: 0 disabled, 1 enabled."
-                 "\nIt should be enabled if you want smooth video output: if"
-                 "\nyou obtain out of sync. video, disable it, or try to"
-                 "\ndecrease the 'clockdiv' module parameter value."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_DOUBLE_BUFFER)
-                 " for every device."
-                 "\n");
-MODULE_PARM_DESC(clamping, 
-                 "\n<0|1[,...]> Video data clamping: 0 disabled, 1 enabled."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_CLAMPING)
-                 " for every device."
-                 "\n");
-MODULE_PARM_DESC(filter_type, 
-                 "\n<0|1|2[,...]> Video filter type."
-                 "\n0 none, 1 (1-2-1) 3-tap filter, "
-                 "2 (2-3-6-3-2) 5-tap filter."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_FILTER_TYPE)
-                 " for every device."
-                 "\nThe filter is used to reduce noise and aliasing artifacts"
-                 "\nproduced by the CCD or CMOS image sensor, and the scaling"
-                 " process."
-                 "\n");
-MODULE_PARM_DESC(largeview, 
-                 "\n<0|1[,...]> Large view: 0 disabled, 1 enabled."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_LARGEVIEW)
-                 " for every device."
-                 "\n");
-MODULE_PARM_DESC(upscaling, 
-                 "\n<0|1[,...]> Software scaling (for non-compressed video):"
-                 "\n0 disabled, 1 enabled."
-                 "\nDisable it if you have a slow CPU or you don't have"
-                 " enough memory."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_UPSCALING)
-                 " for every device."
-                 "\nIf 'w9968cf-vpp' is not present, this parameter is"
-                 " set to 0."
-                 "\n");
+		 "\n<n[,...]> For advanced users."
+		 "\nSpecify the maximum number of video frame buffers"
+		 "\nto allocate for each device, from 2 to "
+		 __MODULE_STRING(W9968CF_MAX_BUFFERS)
+		 ". (default is "__MODULE_STRING(W9968CF_BUFFERS)")."
+		 "\n");
+MODULE_PARM_DESC(double_buffer,
+		 "\n<0|1[,...]> "
+		 "Hardware double buffering: 0 disabled, 1 enabled."
+		 "\nIt should be enabled if you want smooth video output: if"
+		 "\nyou obtain out of sync. video, disable it, or try to"
+		 "\ndecrease the 'clockdiv' module parameter value."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_DOUBLE_BUFFER)
+		 " for every device."
+		 "\n");
+MODULE_PARM_DESC(clamping,
+		 "\n<0|1[,...]> Video data clamping: 0 disabled, 1 enabled."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_CLAMPING)
+		 " for every device."
+		 "\n");
+MODULE_PARM_DESC(filter_type,
+		 "\n<0|1|2[,...]> Video filter type."
+		 "\n0 none, 1 (1-2-1) 3-tap filter, "
+		 "2 (2-3-6-3-2) 5-tap filter."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_FILTER_TYPE)
+		 " for every device."
+		 "\nThe filter is used to reduce noise and aliasing artifacts"
+		 "\nproduced by the CCD or CMOS image sensor, and the scaling"
+		 " process."
+		 "\n");
+MODULE_PARM_DESC(largeview,
+		 "\n<0|1[,...]> Large view: 0 disabled, 1 enabled."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_LARGEVIEW)
+		 " for every device."
+		 "\n");
+MODULE_PARM_DESC(upscaling,
+		 "\n<0|1[,...]> Software scaling (for non-compressed video):"
+		 "\n0 disabled, 1 enabled."
+		 "\nDisable it if you have a slow CPU or you don't have"
+		 " enough memory."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_UPSCALING)
+		 " for every device."
+		 "\nIf 'w9968cf-vpp' is not present, this parameter is"
+		 " set to 0."
+		 "\n");
 MODULE_PARM_DESC(decompression,
-                 "\n<0|1|2[,...]> Software video decompression:"
-                 "\n- 0 disables decompression (doesn't allow formats needing"
-                 " decompression)"
-                 "\n- 1 forces decompression (allows formats needing"
-                 " decompression only);"
-                 "\n- 2 allows any permitted formats."
-                 "\nFormats supporting compressed video are YUV422P and"
-                 " YUV420P/YUV420 "
-                 "\nin any resolutions where both width and height are "
-                 "a multiple of 16."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_DECOMPRESSION)
-                 " for every device."
-                 "\nIf 'w9968cf-vpp' is not present, forcing decompression is "
-                 "\nnot allowed; in this case this parameter is set to 2."
-                 "\n");
+		 "\n<0|1|2[,...]> Software video decompression:"
+		 "\n- 0 disables decompression (doesn't allow formats needing"
+		 " decompression)"
+		 "\n- 1 forces decompression (allows formats needing"
+		 " decompression only);"
+		 "\n- 2 allows any permitted formats."
+		 "\nFormats supporting compressed video are YUV422P and"
+		 " YUV420P/YUV420 "
+		 "\nin any resolutions where both width and height are "
+		 "a multiple of 16."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_DECOMPRESSION)
+		 " for every device."
+		 "\nIf 'w9968cf-vpp' is not present, forcing decompression is "
+		 "\nnot allowed; in this case this parameter is set to 2."
+		 "\n");
 MODULE_PARM_DESC(force_palette,
-                 "\n<0"
-                 "|" __MODULE_STRING(VIDEO_PALETTE_UYVY)
-                 "|" __MODULE_STRING(VIDEO_PALETTE_YUV420)
-                 "|" __MODULE_STRING(VIDEO_PALETTE_YUV422P)
-                 "|" __MODULE_STRING(VIDEO_PALETTE_YUV420P)
-                 "|" __MODULE_STRING(VIDEO_PALETTE_YUYV)
-                 "|" __MODULE_STRING(VIDEO_PALETTE_YUV422)
-                 "|" __MODULE_STRING(VIDEO_PALETTE_GREY)
-                 "|" __MODULE_STRING(VIDEO_PALETTE_RGB555)
-                 "|" __MODULE_STRING(VIDEO_PALETTE_RGB565)
-                 "|" __MODULE_STRING(VIDEO_PALETTE_RGB24)
-                 "|" __MODULE_STRING(VIDEO_PALETTE_RGB32)
-                 "[,...]>"
-                 " Force picture palette."
-                 "\nIn order:"
-                 "\n- 0 allows any of the following formats:"
-                 "\n- UYVY    16 bpp - Original video, compression disabled"
-                 "\n- YUV420  12 bpp - Original video, compression enabled"
-                 "\n- YUV422P 16 bpp - Original video, compression enabled"
-                 "\n- YUV420P 12 bpp - Original video, compression enabled"
-                 "\n- YUVY    16 bpp - Software conversion from UYVY"
-                 "\n- YUV422  16 bpp - Software conversion from UYVY"
-                 "\n- GREY     8 bpp - Software conversion from UYVY"
-                 "\n- RGB555  16 bpp - Software conversion from UYVY"
-                 "\n- RGB565  16 bpp - Software conversion from UYVY"
-                 "\n- RGB24   24 bpp - Software conversion from UYVY"
-                 "\n- RGB32   32 bpp - Software conversion from UYVY"
-                 "\nWhen not 0, this parameter will override 'decompression'."
-                 "\nDefault value is 0 for every device."
-                 "\nInitial palette is "
-                 __MODULE_STRING(W9968CF_PALETTE_DECOMP_ON)"."
-                 "\nIf 'w9968cf-vpp' is not present, this parameter is"
-                 " set to 9 (UYVY)."
-                 "\n");
-MODULE_PARM_DESC(force_rgb, 
-                 "\n<0|1[,...]> Read RGB video data instead of BGR:"
-                 "\n 1 = use RGB component ordering."
-                 "\n 0 = use BGR component ordering."
-                 "\nThis parameter has effect when using RGBX palettes only."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_FORCE_RGB)
-                 " for every device."
-                 "\n");
+		 "\n<0"
+		 "|" __MODULE_STRING(VIDEO_PALETTE_UYVY)
+		 "|" __MODULE_STRING(VIDEO_PALETTE_YUV420)
+		 "|" __MODULE_STRING(VIDEO_PALETTE_YUV422P)
+		 "|" __MODULE_STRING(VIDEO_PALETTE_YUV420P)
+		 "|" __MODULE_STRING(VIDEO_PALETTE_YUYV)
+		 "|" __MODULE_STRING(VIDEO_PALETTE_YUV422)
+		 "|" __MODULE_STRING(VIDEO_PALETTE_GREY)
+		 "|" __MODULE_STRING(VIDEO_PALETTE_RGB555)
+		 "|" __MODULE_STRING(VIDEO_PALETTE_RGB565)
+		 "|" __MODULE_STRING(VIDEO_PALETTE_RGB24)
+		 "|" __MODULE_STRING(VIDEO_PALETTE_RGB32)
+		 "[,...]>"
+		 " Force picture palette."
+		 "\nIn order:"
+		 "\n- 0 allows any of the following formats:"
+		 "\n- UYVY    16 bpp - Original video, compression disabled"
+		 "\n- YUV420  12 bpp - Original video, compression enabled"
+		 "\n- YUV422P 16 bpp - Original video, compression enabled"
+		 "\n- YUV420P 12 bpp - Original video, compression enabled"
+		 "\n- YUVY    16 bpp - Software conversion from UYVY"
+		 "\n- YUV422  16 bpp - Software conversion from UYVY"
+		 "\n- GREY     8 bpp - Software conversion from UYVY"
+		 "\n- RGB555  16 bpp - Software conversion from UYVY"
+		 "\n- RGB565  16 bpp - Software conversion from UYVY"
+		 "\n- RGB24   24 bpp - Software conversion from UYVY"
+		 "\n- RGB32   32 bpp - Software conversion from UYVY"
+		 "\nWhen not 0, this parameter will override 'decompression'."
+		 "\nDefault value is 0 for every device."
+		 "\nInitial palette is "
+		 __MODULE_STRING(W9968CF_PALETTE_DECOMP_ON)"."
+		 "\nIf 'w9968cf-vpp' is not present, this parameter is"
+		 " set to 9 (UYVY)."
+		 "\n");
+MODULE_PARM_DESC(force_rgb,
+		 "\n<0|1[,...]> Read RGB video data instead of BGR:"
+		 "\n 1 = use RGB component ordering."
+		 "\n 0 = use BGR component ordering."
+		 "\nThis parameter has effect when using RGBX palettes only."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_FORCE_RGB)
+		 " for every device."
+		 "\n");
 MODULE_PARM_DESC(autobright,
-                 "\n<0|1[,...]> Image sensor automatically changes brightness:"
-                 "\n 0 = no, 1 = yes"
-                 "\nDefault value is "__MODULE_STRING(W9968CF_AUTOBRIGHT)
-                 " for every device."
-                 "\n");
+		 "\n<0|1[,...]> Image sensor automatically changes brightness:"
+		 "\n 0 = no, 1 = yes"
+		 "\nDefault value is "__MODULE_STRING(W9968CF_AUTOBRIGHT)
+		 " for every device."
+		 "\n");
 MODULE_PARM_DESC(autoexp,
-                 "\n<0|1[,...]> Image sensor automatically changes exposure:"
-                 "\n 0 = no, 1 = yes"
-                 "\nDefault value is "__MODULE_STRING(W9968CF_AUTOEXP)
-                 " for every device."
-                 "\n");
+		 "\n<0|1[,...]> Image sensor automatically changes exposure:"
+		 "\n 0 = no, 1 = yes"
+		 "\nDefault value is "__MODULE_STRING(W9968CF_AUTOEXP)
+		 " for every device."
+		 "\n");
 MODULE_PARM_DESC(lightfreq,
-                 "\n<50|60[,...]> Light frequency in Hz:"
-                 "\n 50 for European and Asian lighting,"
-                 " 60 for American lighting."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_LIGHTFREQ)
-                 " for every device."
-                 "\n");
+		 "\n<50|60[,...]> Light frequency in Hz:"
+		 "\n 50 for European and Asian lighting,"
+		 " 60 for American lighting."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_LIGHTFREQ)
+		 " for every device."
+		 "\n");
 MODULE_PARM_DESC(bandingfilter,
-                 "\n<0|1[,...]> Banding filter to reduce effects of"
-                 " fluorescent lighting:"
-                 "\n 0 disabled, 1 enabled."
-                 "\nThis filter tries to reduce the pattern of horizontal"
-                 "\nlight/dark bands caused by some (usually fluorescent)"
-                 " lighting."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_BANDINGFILTER)
-                 " for every device."
-                 "\n");
+		 "\n<0|1[,...]> Banding filter to reduce effects of"
+		 " fluorescent lighting:"
+		 "\n 0 disabled, 1 enabled."
+		 "\nThis filter tries to reduce the pattern of horizontal"
+		 "\nlight/dark bands caused by some (usually fluorescent)"
+		 " lighting."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_BANDINGFILTER)
+		 " for every device."
+		 "\n");
 MODULE_PARM_DESC(clockdiv,
-                 "\n<-1|n[,...]> "
-                 "Force pixel clock divisor to a specific value (for experts):"
-                 "\n  n may vary from 0 to 127."
-                 "\n -1 for automatic value."
-                 "\nSee also the 'double_buffer' module parameter."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_CLOCKDIV)
-                 " for every device."
-                 "\n");
+		 "\n<-1|n[,...]> "
+		 "Force pixel clock divisor to a specific value (for experts):"
+		 "\n  n may vary from 0 to 127."
+		 "\n -1 for automatic value."
+		 "\nSee also the 'double_buffer' module parameter."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_CLOCKDIV)
+		 " for every device."
+		 "\n");
 MODULE_PARM_DESC(backlight,
-                 "\n<0|1[,...]> Objects are lit from behind:"
-                 "\n 0 = no, 1 = yes"
-                 "\nDefault value is "__MODULE_STRING(W9968CF_BACKLIGHT)
-                 " for every device."
-                 "\n");
+		 "\n<0|1[,...]> Objects are lit from behind:"
+		 "\n 0 = no, 1 = yes"
+		 "\nDefault value is "__MODULE_STRING(W9968CF_BACKLIGHT)
+		 " for every device."
+		 "\n");
 MODULE_PARM_DESC(mirror,
-                 "\n<0|1[,...]> Reverse image horizontally:"
-                 "\n 0 = no, 1 = yes"
-                 "\nDefault value is "__MODULE_STRING(W9968CF_MIRROR)
-                 " for every device."
-                 "\n");
+		 "\n<0|1[,...]> Reverse image horizontally:"
+		 "\n 0 = no, 1 = yes"
+		 "\nDefault value is "__MODULE_STRING(W9968CF_MIRROR)
+		 " for every device."
+		 "\n");
 MODULE_PARM_DESC(monochrome,
-                 "\n<0|1[,...]> Use image sensor as monochrome sensor:"
-                 "\n 0 = no, 1 = yes"
-                 "\nNot all the sensors support monochrome color."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_MONOCHROME)
-                 " for every device."
-                 "\n");
-MODULE_PARM_DESC(brightness, 
-                 "\n<n[,...]> Set picture brightness (0-65535)."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_BRIGHTNESS)
-                 " for every device."
-                 "\nThis parameter has no effect if 'autobright' is enabled."
-                 "\n");
-MODULE_PARM_DESC(hue, 
-                 "\n<n[,...]> Set picture hue (0-65535)."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_HUE)
-                 " for every device."
-                 "\n");
-MODULE_PARM_DESC(colour, 
-                 "\n<n[,...]> Set picture saturation (0-65535)."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_COLOUR)
-                 " for every device."
-                 "\n");
-MODULE_PARM_DESC(contrast, 
-                 "\n<n[,...]> Set picture contrast (0-65535)."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_CONTRAST)
-                 " for every device."
-                 "\n");
-MODULE_PARM_DESC(whiteness, 
-                 "\n<n[,...]> Set picture whiteness (0-65535)."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_WHITENESS)
-                 " for every device."
-                 "\n");
+		 "\n<0|1[,...]> Use image sensor as monochrome sensor:"
+		 "\n 0 = no, 1 = yes"
+		 "\nNot all the sensors support monochrome color."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_MONOCHROME)
+		 " for every device."
+		 "\n");
+MODULE_PARM_DESC(brightness,
+		 "\n<n[,...]> Set picture brightness (0-65535)."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_BRIGHTNESS)
+		 " for every device."
+		 "\nThis parameter has no effect if 'autobright' is enabled."
+		 "\n");
+MODULE_PARM_DESC(hue,
+		 "\n<n[,...]> Set picture hue (0-65535)."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_HUE)
+		 " for every device."
+		 "\n");
+MODULE_PARM_DESC(colour,
+		 "\n<n[,...]> Set picture saturation (0-65535)."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_COLOUR)
+		 " for every device."
+		 "\n");
+MODULE_PARM_DESC(contrast,
+		 "\n<n[,...]> Set picture contrast (0-65535)."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_CONTRAST)
+		 " for every device."
+		 "\n");
+MODULE_PARM_DESC(whiteness,
+		 "\n<n[,...]> Set picture whiteness (0-65535)."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_WHITENESS)
+		 " for every device."
+		 "\n");
 #ifdef W9968CF_DEBUG
 MODULE_PARM_DESC(debug,
-                 "\n<n> Debugging information level, from 0 to 6:"
-                 "\n0 = none (use carefully)"
-                 "\n1 = critical errors"
-                 "\n2 = significant informations"
-                 "\n3 = configuration or general messages"
-                 "\n4 = warnings"
-                 "\n5 = called functions"
-                 "\n6 = function internals"
-                 "\nLevel 5 and 6 are useful for testing only, when only "
-                 "one device is used."
-                 "\nDefault value is "__MODULE_STRING(W9968CF_DEBUG_LEVEL)"."
-                 "\n");
+		 "\n<n> Debugging information level, from 0 to 6:"
+		 "\n0 = none (use carefully)"
+		 "\n1 = critical errors"
+		 "\n2 = significant informations"
+		 "\n3 = configuration or general messages"
+		 "\n4 = warnings"
+		 "\n5 = called functions"
+		 "\n6 = function internals"
+		 "\nLevel 5 and 6 are useful for testing only, when only "
+		 "one device is used."
+		 "\nDefault value is "__MODULE_STRING(W9968CF_DEBUG_LEVEL)"."
+		 "\n");
 MODULE_PARM_DESC(specific_debug,
-                 "\n<0|1> Enable or disable specific debugging messages:"
-                 "\n0 = print messages concerning every level"
-                 " <= 'debug' level."
-                 "\n1 = print messages concerning the level"
-                 " indicated by 'debug'."
-                 "\nDefault value is "
-                 __MODULE_STRING(W9968CF_SPECIFIC_DEBUG)"."
-                 "\n");
+		 "\n<0|1> Enable or disable specific debugging messages:"
+		 "\n0 = print messages concerning every level"
+		 " <= 'debug' level."
+		 "\n1 = print messages concerning the level"
+		 " indicated by 'debug'."
+		 "\nDefault value is "
+		 __MODULE_STRING(W9968CF_SPECIFIC_DEBUG)"."
+		 "\n");
 #endif /* W9968CF_DEBUG */
 
 
@@ -406,7 +406,7 @@ static int w9968cf_mmap(struct file*, struct vm_area_struct*);
 static int w9968cf_ioctl(struct inode*, struct file*, unsigned, unsigned long);
 static ssize_t w9968cf_read(struct file*, char __user *, size_t, loff_t*);
 static int w9968cf_v4l_ioctl(struct inode*, struct file*, unsigned int,
-                             void __user *);
+			     void __user *);
 
 /* USB-specific */
 static int w9968cf_start_transfer(struct w9968cf_device*);
@@ -428,25 +428,25 @@ static int w9968cf_smbus_write_ack(struct w9968cf_device*);
 static int w9968cf_smbus_read_ack(struct w9968cf_device*);
 static int w9968cf_smbus_refresh_bus(struct w9968cf_device*);
 static int w9968cf_i2c_adap_read_byte(struct w9968cf_device* cam,
-                                      u16 address, u8* value);
-static int w9968cf_i2c_adap_read_byte_data(struct w9968cf_device*, u16 address, 
-                                           u8 subaddress, u8* value);
+				      u16 address, u8* value);
+static int w9968cf_i2c_adap_read_byte_data(struct w9968cf_device*, u16 address,
+					   u8 subaddress, u8* value);
 static int w9968cf_i2c_adap_write_byte(struct w9968cf_device*,
-                                       u16 address, u8 subaddress);
+				       u16 address, u8 subaddress);
 static int w9968cf_i2c_adap_fastwrite_byte_data(struct w9968cf_device*,
-                                                u16 address, u8 subaddress,
-                                                u8 value);
+						u16 address, u8 subaddress,
+						u8 value);
 
 /* I2C interface to kernel */
 static int w9968cf_i2c_init(struct w9968cf_device*);
-static int w9968cf_i2c_smbus_xfer(struct i2c_adapter*, u16 addr, 
-                                  unsigned short flags, char read_write, 
-                                  u8 command, int size, union i2c_smbus_data*);
+static int w9968cf_i2c_smbus_xfer(struct i2c_adapter*, u16 addr,
+				  unsigned short flags, char read_write,
+				  u8 command, int size, union i2c_smbus_data*);
 static u32 w9968cf_i2c_func(struct i2c_adapter*);
 static int w9968cf_i2c_attach_inform(struct i2c_client*);
 static int w9968cf_i2c_detach_inform(struct i2c_client*);
 static int w9968cf_i2c_control(struct i2c_adapter*, unsigned int cmd,
-                               unsigned long arg);
+			       unsigned long arg);
 
 /* Memory management */
 static void* rvmalloc(unsigned long size);
@@ -458,17 +458,17 @@ static int  w9968cf_allocate_memory(struct w9968cf_device*);
 static int w9968cf_sensor_set_control(struct w9968cf_device*,int cid,int val);
 static int w9968cf_sensor_get_control(struct w9968cf_device*,int cid,int *val);
 static int w9968cf_sensor_cmd(struct w9968cf_device*,
-                              unsigned int cmd, void *arg);
+			      unsigned int cmd, void *arg);
 static int w9968cf_sensor_init(struct w9968cf_device*);
 static int w9968cf_sensor_update_settings(struct w9968cf_device*);
 static int w9968cf_sensor_get_picture(struct w9968cf_device*);
-static int w9968cf_sensor_update_picture(struct w9968cf_device*, 
-                                         struct video_picture pict);
+static int w9968cf_sensor_update_picture(struct w9968cf_device*,
+					 struct video_picture pict);
 
 /* Other helper functions */
 static void w9968cf_configure_camera(struct w9968cf_device*,struct usb_device*,
-                                     enum w9968cf_model_id, 
-                                     const unsigned short dev_nr);
+				     enum w9968cf_model_id,
+				     const unsigned short dev_nr);
 static void w9968cf_adjust_configuration(struct w9968cf_device*);
 static int w9968cf_turn_on_led(struct w9968cf_device*);
 static int w9968cf_init_chip(struct w9968cf_device*);
@@ -477,8 +477,8 @@ static inline u16 w9968cf_valid_depth(u16 palette);
 static inline u8 w9968cf_need_decompression(u16 palette);
 static int w9968cf_set_picture(struct w9968cf_device*, struct video_picture);
 static int w9968cf_set_window(struct w9968cf_device*, struct video_window);
-static int w9968cf_postprocess_frame(struct w9968cf_device*, 
-                                     struct w9968cf_frame_t*);
+static int w9968cf_postprocess_frame(struct w9968cf_device*,
+				     struct w9968cf_frame_t*);
 static int w9968cf_adjust_window_size(struct w9968cf_device*, u16* w, u16* h);
 static void w9968cf_init_framelist(struct w9968cf_device*);
 static void w9968cf_push_frame(struct w9968cf_device*, u8 f_num);
@@ -497,11 +497,11 @@ struct w9968cf_symbolic_list {
 	const char *name;
 };
 
-/*-------------------------------------------------------------------------- 
+/*--------------------------------------------------------------------------
   Returns the name of the matching element in the symbolic_list array. The
   end of the list must be marked with an element that has a NULL name.
   --------------------------------------------------------------------------*/
-static inline const char * 
+static inline const char *
 symbolic(struct w9968cf_symbolic_list list[], const int num)
 {
 	int i;
@@ -568,7 +568,7 @@ static struct w9968cf_symbolic_list v4l1_plist[] = {
 static struct w9968cf_symbolic_list decoder_errlist[] = {
 	{ W9968CF_DEC_ERR_CORRUPTED_DATA, "Corrupted data" },
 	{ W9968CF_DEC_ERR_BUF_OVERFLOW,   "Buffer overflow" },
-	{ W9968CF_DEC_ERR_NO_SOI,         "SOI marker not found" },     
+	{ W9968CF_DEC_ERR_NO_SOI,         "SOI marker not found" },
 	{ W9968CF_DEC_ERR_NO_SOF0,        "SOF0 marker not found" },
 	{ W9968CF_DEC_ERR_NO_SOS,         "SOS marker not found" },
 	{ W9968CF_DEC_ERR_NO_EOI,         "EOI marker not found" },
@@ -695,7 +695,7 @@ static int w9968cf_allocate_memory(struct w9968cf_device* cam)
 	bpp = (w9968cf_vpp) ? 4 : 2;
 	if (cam->upscaling)
 		vpp_bufsize = max(W9968CF_MAX_WIDTH*W9968CF_MAX_HEIGHT*bpp,
-		                  cam->maxwidth*cam->maxheight*bpp);
+				  cam->maxwidth*cam->maxheight*bpp);
 	else
 		vpp_bufsize = cam->maxwidth*cam->maxheight*bpp;
 
@@ -704,7 +704,7 @@ static int w9968cf_allocate_memory(struct w9968cf_device* cam)
 		if (!(cam->transfer_buffer[i] =
 		      kzalloc(W9968CF_ISO_PACKETS*p_size, GFP_KERNEL))) {
 			DBG(1, "Couldn't allocate memory for the isochronous "
-			       "transfer buffers (%u bytes)", 
+			       "transfer buffers (%u bytes)",
 			    p_size * W9968CF_ISO_PACKETS)
 			return -ENOMEM;
 		}
@@ -780,7 +780,7 @@ static int w9968cf_allocate_memory(struct w9968cf_device* cam)
   of the next video frame; if an error is encountered in a packet, the entire
   video frame is discarded and grabbed again.
   If there are no requested frames in the FIFO list, packets are collected into
-  a temporary buffer. 
+  a temporary buffer.
   --------------------------------------------------------------------------*/
 static void w9968cf_urb_complete(struct urb *urb, struct pt_regs *regs)
 {
@@ -799,7 +799,7 @@ static void w9968cf_urb_complete(struct urb *urb, struct pt_regs *regs)
 	/* "(*f)" will be used instead of "cam->frame_current" */
 	f = &cam->frame_current;
 
-	/* If a frame has been requested and we are grabbing into  
+	/* If a frame has been requested and we are grabbing into
 	   the temporary frame, we'll switch to that requested frame */
 	if ((*f) == &cam->frame_tmp && *cam->requested_frame) {
 		if (cam->frame_tmp.status == F_GRABBING) {
@@ -808,7 +808,7 @@ static void w9968cf_urb_complete(struct urb *urb, struct pt_regs *regs)
 			(*f)->length = cam->frame_tmp.length;
 			memcpy((*f)->buffer, cam->frame_tmp.buffer,
 			       (*f)->length);
-			DBG(6, "Switched from temp. frame to frame #%d", 
+			DBG(6, "Switched from temp. frame to frame #%d",
 			    (*f)->number)
 		}
 	}
@@ -850,7 +850,7 @@ static void w9968cf_urb_complete(struct urb *urb, struct pt_regs *regs)
 
 			if (cam->vpp_flag & VPP_DECOMPRESSION) {
 				err = w9968cf_vpp->check_headers((*f)->buffer,
-				                                 (*f)->length);
+								 (*f)->length);
 				if (err) {
 					DBG(4, "Skip corrupted frame: %s",
 					    symbolic(decoder_errlist, err))
@@ -975,7 +975,7 @@ static int w9968cf_start_transfer(struct w9968cf_device* cam)
 	cam->frame_current = &cam->frame_tmp;
 
 	if (!(cam->vpp_flag & VPP_DECOMPRESSION))
-		DBG(5, "Isochronous transfer size: %lu bytes/frame", 
+		DBG(5, "Isochronous transfer size: %lu bytes/frame",
 		    (unsigned long)t_size*2)
 
 	DBG(5, "Starting the isochronous transfer...")
@@ -992,7 +992,7 @@ static int w9968cf_start_transfer(struct w9968cf_device* cam)
 				usb_free_urb(cam->urb[j]);
 			}
 			DBG(1, "Couldn't send a transfer request to the "
-			       "USB core (error #%d, %s)", err, 
+			       "USB core (error #%d, %s)", err,
 			    symbolic(urb_errlist, err))
 			return err;
 		}
@@ -1016,7 +1016,7 @@ static int w9968cf_stop_transfer(struct w9968cf_device* cam)
 	if (!cam->streaming)
 		return 0;
 
-	/* This avoids race conditions with usb_submit_urb() 
+	/* This avoids race conditions with usb_submit_urb()
 	   in the URB completition handler */
 	spin_lock_irqsave(&cam->urb_lock, lock_flags);
 	cam->streaming = 0;
@@ -1050,7 +1050,7 @@ exit:
 
 
 /*--------------------------------------------------------------------------
-  Write a W9968CF register. 
+  Write a W9968CF register.
   Return 0 on success, -1 otherwise.
   --------------------------------------------------------------------------*/
 static int w9968cf_write_reg(struct w9968cf_device* cam, u16 value, u16 index)
@@ -1059,8 +1059,8 @@ static int w9968cf_write_reg(struct w9968cf_device* cam, u16 value, u16 index)
 	int res;
 
 	res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0,
-	                      USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
-	                      value, index, NULL, 0, W9968CF_USB_CTRL_TIMEOUT);
+			      USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
+			      value, index, NULL, 0, W9968CF_USB_CTRL_TIMEOUT);
 
 	if (res < 0)
 		DBG(4, "Failed to write a register "
@@ -1072,7 +1072,7 @@ static int w9968cf_write_reg(struct w9968cf_device* cam, u16 value, u16 index)
 
 
 /*--------------------------------------------------------------------------
-  Read a W9968CF register. 
+  Read a W9968CF register.
   Return the register value on success, -1 otherwise.
   --------------------------------------------------------------------------*/
 static int w9968cf_read_reg(struct w9968cf_device* cam, u16 index)
@@ -1082,8 +1082,8 @@ static int w9968cf_read_reg(struct w9968cf_device* cam, u16 index)
 	int res;
 
 	res = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), 1,
-	                      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-	                      0, index, buff, 2, W9968CF_USB_CTRL_TIMEOUT);
+			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      0, index, buff, 2, W9968CF_USB_CTRL_TIMEOUT);
 
 	if (res < 0)
 		DBG(4, "Failed to read a register "
@@ -1107,8 +1107,8 @@ static int w9968cf_write_fsb(struct w9968cf_device* cam, u16* data)
 	value = *data++;
 
 	res = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0,
-	                      USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
-	                      value, 0x06, data, 6, W9968CF_USB_CTRL_TIMEOUT);
+			      USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
+			      value, 0x06, data, 6, W9968CF_USB_CTRL_TIMEOUT);
 
 	if (res < 0)
 		DBG(4, "Failed to write the FSB registers "
@@ -1287,9 +1287,9 @@ static int w9968cf_smbus_refresh_bus(struct w9968cf_device* cam)
 
 
 /* SMBus protocol: S Addr Wr [A] Subaddr [A] Value [A] P */
-static int 
-w9968cf_i2c_adap_fastwrite_byte_data(struct w9968cf_device* cam, 
-                                     u16 address, u8 subaddress,u8 value)
+static int
+w9968cf_i2c_adap_fastwrite_byte_data(struct w9968cf_device* cam,
+				     u16 address, u8 subaddress,u8 value)
 {
 	u16* data = cam->data_buffer;
 	int err = 0;
@@ -1348,7 +1348,7 @@ w9968cf_i2c_adap_fastwrite_byte_data(struct w9968cf_device* cam,
 		       "value 0x%02X", address, subaddress, value)
 	else
 		DBG(5, "I2C write byte data failed, addr.0x%04X, "
-		       "subaddr.0x%02X, value 0x%02X", 
+		       "subaddr.0x%02X, value 0x%02X",
 		    address, subaddress, value)
 
 	return err;
@@ -1356,10 +1356,10 @@ w9968cf_i2c_adap_fastwrite_byte_data(struct w9968cf_device* cam,
 
 
 /* SMBus protocol: S Addr Wr [A] Subaddr [A] P S Addr+1 Rd [A] [Value] NA P */
-static int 
-w9968cf_i2c_adap_read_byte_data(struct w9968cf_device* cam, 
-                                u16 address, u8 subaddress, 
-                                u8* value)
+static int
+w9968cf_i2c_adap_read_byte_data(struct w9968cf_device* cam,
+				u16 address, u8 subaddress,
+				u8* value)
 {
 	int err = 0;
 
@@ -1384,7 +1384,7 @@ w9968cf_i2c_adap_read_byte_data(struct w9968cf_device* cam,
 
 	if (!err)
 		DBG(5, "I2C read byte data done, addr.0x%04X, "
-		       "subaddr.0x%02X, value 0x%02X", 
+		       "subaddr.0x%02X, value 0x%02X",
 		    address, subaddress, *value)
 	else
 		DBG(5, "I2C read byte data failed, addr.0x%04X, "
@@ -1396,9 +1396,9 @@ w9968cf_i2c_adap_read_byte_data(struct w9968cf_device* cam,
 
 
 /* SMBus protocol: S Addr+1 Rd [A] [Value] NA P */
-static int 
+static int
 w9968cf_i2c_adap_read_byte(struct w9968cf_device* cam,
-                           u16 address, u8* value)
+			   u16 address, u8* value)
 {
 	int err = 0;
 
@@ -1411,7 +1411,7 @@ w9968cf_i2c_adap_read_byte(struct w9968cf_device* cam,
 	err += w9968cf_smbus_read_byte(cam, value);
 	err += w9968cf_smbus_write_ack(cam);
 	err += w9968cf_smbus_stop(cam);
- 
+
 	/* Serial data disable */
 	err += w9968cf_write_sb(cam, 0x0000);
 
@@ -1427,9 +1427,9 @@ w9968cf_i2c_adap_read_byte(struct w9968cf_device* cam,
 
 
 /* SMBus protocol: S Addr Wr [A] Value [A] P */
-static int 
+static int
 w9968cf_i2c_adap_write_byte(struct w9968cf_device* cam,
-                            u16 address, u8 value)
+			    u16 address, u8 value)
 {
 	DBG(4, "i2c_write_byte() is an unsupported transfer mode")
 	return -EINVAL;
@@ -1442,13 +1442,13 @@ w9968cf_i2c_adap_write_byte(struct w9968cf_device* cam,
  ****************************************************************************/
 
 static int
-w9968cf_i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr, 
-                       unsigned short flags, char read_write, u8 command,
-                       int size, union i2c_smbus_data *data)
+w9968cf_i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
+		       unsigned short flags, char read_write, u8 command,
+		       int size, union i2c_smbus_data *data)
 {
 	struct w9968cf_device* cam = i2c_get_adapdata(adapter);
 	u8 i;
-	int err = 0; 
+	int err = 0;
 
 	switch (addr) {
 		case OV6xx0_SID:
@@ -1464,20 +1464,20 @@ w9968cf_i2c_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 		addr <<= 1;
 
 		if (read_write == I2C_SMBUS_WRITE)
- 			err = w9968cf_i2c_adap_write_byte(cam, addr, command);
-		else if (read_write == I2C_SMBUS_READ) 
+			err = w9968cf_i2c_adap_write_byte(cam, addr, command);
+		else if (read_write == I2C_SMBUS_READ)
 			err = w9968cf_i2c_adap_read_byte(cam,addr,&data->byte);
 
 	} else if (size == I2C_SMBUS_BYTE_DATA) {
 		addr <<= 1;
 
 		if (read_write == I2C_SMBUS_WRITE)
- 			err = w9968cf_i2c_adap_fastwrite_byte_data(cam, addr,
-			                                  command, data->byte);
+			err = w9968cf_i2c_adap_fastwrite_byte_data(cam, addr,
+							  command, data->byte);
 		else if (read_write == I2C_SMBUS_READ) {
 			for (i = 1; i <= W9968CF_I2C_RW_RETRIES; i++) {
 				err = w9968cf_i2c_adap_read_byte_data(cam,addr,
-				                         command, &data->byte);
+							 command, &data->byte);
 				if (err) {
 					if (w9968cf_smbus_refresh_bus(cam)) {
 						err = -EIO;
@@ -1520,7 +1520,7 @@ static int w9968cf_i2c_attach_inform(struct i2c_client* client)
 			return err;
 		}
 	} else {
-		DBG(4, "Rejected client [%s] with driver [%s]", 
+		DBG(4, "Rejected client [%s] with driver [%s]",
 		    client->name, client->driver->driver.name)
 		return -EINVAL;
 	}
@@ -1545,9 +1545,9 @@ static int w9968cf_i2c_detach_inform(struct i2c_client* client)
 }
 
 
-static int 
+static int
 w9968cf_i2c_control(struct i2c_adapter* adapter, unsigned int cmd,
-                    unsigned long arg)
+		    unsigned long arg)
 {
 	return 0;
 }
@@ -1625,12 +1625,12 @@ static int w9968cf_turn_on_led(struct w9968cf_device* cam)
 static int w9968cf_init_chip(struct w9968cf_device* cam)
 {
 	unsigned long hw_bufsize = cam->maxwidth*cam->maxheight*2,
-	              y0 = 0x0000,
-	              u0 = y0 + hw_bufsize/2,
-	              v0 = u0 + hw_bufsize/4,
-	              y1 = v0 + hw_bufsize/4,
-	              u1 = y1 + hw_bufsize/2,
-	              v1 = u1 + hw_bufsize/4;
+		      y0 = 0x0000,
+		      u0 = y0 + hw_bufsize/2,
+		      v0 = u0 + hw_bufsize/4,
+		      y1 = v0 + hw_bufsize/4,
+		      u1 = y1 + hw_bufsize/2,
+		      v1 = u1 + hw_bufsize/4;
 	int err = 0;
 
 	err += w9968cf_write_reg(cam, 0xff00, 0x00); /* power off */
@@ -1762,7 +1762,7 @@ w9968cf_set_picture(struct w9968cf_device* cam, struct video_picture pict)
 			cam->vpp_flag = VPP_SWAP_YUV_BYTES;
 			hw_palette = VIDEO_PALETTE_UYVY;
 			break;
-		/* Original video is used instead of RGBX palettes. 
+		/* Original video is used instead of RGBX palettes.
 		   Software conversion later. */
 		case VIDEO_PALETTE_GREY:
 		case VIDEO_PALETTE_RGB555:
@@ -1777,7 +1777,7 @@ w9968cf_set_picture(struct w9968cf_device* cam, struct video_picture pict)
 	}
 
 	/* NOTE: due to memory issues, it is better to disable the hardware
-	         double buffering during compression */
+		 double buffering during compression */
 	if (cam->double_buffer && !(cam->vpp_flag & VPP_DECOMPRESSION))
 		reg_v |= 0x0080;
 
@@ -1832,8 +1832,8 @@ w9968cf_set_window(struct w9968cf_device* cam, struct video_window win)
 	#define __UNSC(x) ((x) >> 10)
 
 	/* Make sure we are using a supported resolution */
-	if ((err = w9968cf_adjust_window_size(cam, (u16*)&win.width, 
-	                                      (u16*)&win.height)))
+	if ((err = w9968cf_adjust_window_size(cam, (u16*)&win.width,
+					      (u16*)&win.height)))
 		goto error;
 
 	/* Scaling factors */
@@ -1962,7 +1962,7 @@ w9968cf_set_window(struct w9968cf_device* cam, struct video_window win)
 	/* Settings changed, so we clear the frame buffers */
 	memset(cam->frame[0].buffer, 0, cam->nbuffers*cam->frame[0].size);
 
-	DBG(4, "The capture area is %dx%d, Offset (x,y)=(%u,%u)", 
+	DBG(4, "The capture area is %dx%d, Offset (x,y)=(%u,%u)",
 	    win.width, win.height, win.x, win.y)
 
 	PDBGG("x=%u ,y=%u, w=%u, h=%u, ax=%u, ay=%u, s_win.x=%u, s_win.y=%u, "
@@ -1978,11 +1978,11 @@ error:
 }
 
 
-/*-------------------------------------------------------------------------- 
+/*--------------------------------------------------------------------------
   Adjust the asked values for window width and height.
   Return 0 on success, -1 otherwise.
   --------------------------------------------------------------------------*/
-static int 
+static int
 w9968cf_adjust_window_size(struct w9968cf_device* cam, u16* width, u16* height)
 {
 	u16 maxw, maxh;
@@ -1992,10 +1992,10 @@ w9968cf_adjust_window_size(struct w9968cf_device* cam, u16* width, u16* height)
 
 	maxw = cam->upscaling && !(cam->vpp_flag & VPP_DECOMPRESSION) &&
 	       w9968cf_vpp ? max((u16)W9968CF_MAX_WIDTH, cam->maxwidth)
-	                   : cam->maxwidth;
+			   : cam->maxwidth;
 	maxh = cam->upscaling && !(cam->vpp_flag & VPP_DECOMPRESSION) &&
 	       w9968cf_vpp ? max((u16)W9968CF_MAX_HEIGHT, cam->maxheight)
-	                   : cam->maxheight;
+			   : cam->maxheight;
 
 	if (*width > maxw)
 		*width = maxw;
@@ -2054,7 +2054,7 @@ static void w9968cf_push_frame(struct w9968cf_device* cam, u8 f_num)
   Read, store and remove the first pointer in the FIFO list of requested
   frames. This function is called in interrupt context.
   --------------------------------------------------------------------------*/
-static void 
+static void
 w9968cf_pop_frame(struct w9968cf_device* cam, struct w9968cf_frame_t** framep)
 {
 	u8 i;
@@ -2078,9 +2078,9 @@ w9968cf_pop_frame(struct w9968cf_device* cam, struct w9968cf_frame_t** framep)
   High-level video post-processing routine on grabbed frames.
   Return 0 on success, a negative number otherwise.
   --------------------------------------------------------------------------*/
-static int 
-w9968cf_postprocess_frame(struct w9968cf_device* cam, 
-                          struct w9968cf_frame_t* fr)
+static int
+w9968cf_postprocess_frame(struct w9968cf_device* cam,
+			  struct w9968cf_frame_t* fr)
 {
 	void *pIn = fr->buffer, *pOut = cam->frame_vpp.buffer, *tmp;
 	u16 w = cam->window.width,
@@ -2127,7 +2127,7 @@ w9968cf_postprocess_frame(struct w9968cf_device* cam,
 		w9968cf_vpp->uyvy_to_rgbx(pIn, fr->length, pOut, fmt, rgb);
 		fr->length = (w*h*d)/8;
 		_PSWAP(pIn, pOut)
-		DBG(6, "UYVY-16bit to %s conversion done", 
+		DBG(6, "UYVY-16bit to %s conversion done",
 		    symbolic(v4l1_plist, fmt))
 	}
 
@@ -2143,7 +2143,7 @@ w9968cf_postprocess_frame(struct w9968cf_device* cam,
  * Image sensor control routines                                            *
  ****************************************************************************/
 
-static int 
+static int
 w9968cf_sensor_set_control(struct w9968cf_device* cam, int cid, int val)
 {
 	struct ovcamchip_control ctl;
@@ -2158,7 +2158,7 @@ w9968cf_sensor_set_control(struct w9968cf_device* cam, int cid, int val)
 }
 
 
-static int 
+static int
 w9968cf_sensor_get_control(struct w9968cf_device* cam, int cid, int* val)
 {
 	struct ovcamchip_control ctl;
@@ -2198,38 +2198,38 @@ static int w9968cf_sensor_update_settings(struct w9968cf_device* cam)
 	int err = 0;
 
 	/* Auto brightness */
-	err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_AUTOBRIGHT, 
-	                                 cam->auto_brt);
+	err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_AUTOBRIGHT,
+					 cam->auto_brt);
 	if (err)
 		return err;
 
 	/* Auto exposure */
-	err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_AUTOEXP, 
-	                                 cam->auto_exp);
+	err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_AUTOEXP,
+					 cam->auto_exp);
 	if (err)
 		return err;
 
 	/* Banding filter */
-	err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_BANDFILT, 
-	                                 cam->bandfilt);
+	err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_BANDFILT,
+					 cam->bandfilt);
 	if (err)
 		return err;
 
 	/* Light frequency */
 	err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_FREQ,
-	                                 cam->lightfreq);
+					 cam->lightfreq);
 	if (err)
 		return err;
 
 	/* Back light */
 	err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_BACKLIGHT,
-	                                 cam->backlight);
+					 cam->backlight);
 	if (err)
 		return err;
 
 	/* Mirror */
 	err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_MIRROR,
-	                                 cam->mirror);
+					 cam->mirror);
 	if (err)
 		return err;
 
@@ -2281,15 +2281,15 @@ static int w9968cf_sensor_get_picture(struct w9968cf_device* cam)
   Returns: 0 on success, a negative number otherwise.
   --------------------------------------------------------------------------*/
 static int
-w9968cf_sensor_update_picture(struct w9968cf_device* cam, 
-                              struct video_picture pict)
+w9968cf_sensor_update_picture(struct w9968cf_device* cam,
+			      struct video_picture pict)
 {
 	int err = 0;
 
 	if ((!cam->sensor_initialized)
 	    || pict.contrast != cam->picture.contrast) {
 		err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_CONT,
-		                                 pict.contrast);
+						 pict.contrast);
 		if (err)
 			goto fail;
 		DBG(4, "Contrast changed from %u to %u",
@@ -2297,10 +2297,10 @@ w9968cf_sensor_update_picture(struct w9968cf_device* cam,
 		cam->picture.contrast = pict.contrast;
 	}
 
-	if (((!cam->sensor_initialized) || 
+	if (((!cam->sensor_initialized) ||
 	    pict.brightness != cam->picture.brightness) && (!cam->auto_brt)) {
-		err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_BRIGHT, 
-		                                 pict.brightness);
+		err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_BRIGHT,
+						 pict.brightness);
 		if (err)
 			goto fail;
 		DBG(4, "Brightness changed from %u to %u",
@@ -2309,8 +2309,8 @@ w9968cf_sensor_update_picture(struct w9968cf_device* cam,
 	}
 
 	if ((!cam->sensor_initialized) || pict.colour != cam->picture.colour) {
-		err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_SAT, 
-		                                 pict.colour);
+		err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_SAT,
+						 pict.colour);
 		if (err)
 			goto fail;
 		DBG(4, "Colour changed from %u to %u",
@@ -2319,8 +2319,8 @@ w9968cf_sensor_update_picture(struct w9968cf_device* cam,
 	}
 
 	if ((!cam->sensor_initialized) || pict.hue != cam->picture.hue) {
-		err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_HUE, 
-		                                 pict.hue);
+		err = w9968cf_sensor_set_control(cam, OVCAMCHIP_CID_HUE,
+						 pict.hue);
 		if (err)
 			goto fail;
 		DBG(4, "Hue changed from %u to %u",
@@ -2349,12 +2349,12 @@ static int w9968cf_sensor_init(struct w9968cf_device* cam)
 {
 	int err = 0;
 
-	if ((err = w9968cf_sensor_cmd(cam, OVCAMCHIP_CMD_INITIALIZE, 
-	                              &cam->monochrome)))
+	if ((err = w9968cf_sensor_cmd(cam, OVCAMCHIP_CMD_INITIALIZE,
+				      &cam->monochrome)))
 		goto error;
 
-	if ((err = w9968cf_sensor_cmd(cam, OVCAMCHIP_CMD_Q_SUBTYPE, 
-	                              &cam->sensor)))
+	if ((err = w9968cf_sensor_cmd(cam, OVCAMCHIP_CMD_Q_SUBTYPE,
+				      &cam->sensor)))
 		goto error;
 
 	/* NOTE: Make sure width and height are a multiple of 16 */
@@ -2416,14 +2416,14 @@ error:
 
 /*--------------------------------------------------------------------------
   Fill some basic fields in the main device data structure.
-  This function is called once on w9968cf_usb_probe() for each recognized 
+  This function is called once on w9968cf_usb_probe() for each recognized
   camera.
   --------------------------------------------------------------------------*/
 static void
 w9968cf_configure_camera(struct w9968cf_device* cam,
-                         struct usb_device* udev,
-                         enum w9968cf_model_id mod_id,
-                         const unsigned short dev_nr)
+			 struct usb_device* udev,
+			 enum w9968cf_model_id mod_id,
+			 const unsigned short dev_nr)
 {
 	mutex_init(&cam->fileop_mutex);
 	init_waitqueue_head(&cam->open);
@@ -2444,60 +2444,60 @@ w9968cf_configure_camera(struct w9968cf_device* cam,
 	     packet_size[dev_nr] < wMaxPacketSize[cam->altsetting-1];
 	     cam->altsetting++);
 
-	cam->max_buffers = (max_buffers[dev_nr] < 2 || 
-	                    max_buffers[dev_nr] > W9968CF_MAX_BUFFERS)
-	                   ? W9968CF_BUFFERS : (u8)max_buffers[dev_nr];
+	cam->max_buffers = (max_buffers[dev_nr] < 2 ||
+			    max_buffers[dev_nr] > W9968CF_MAX_BUFFERS)
+			   ? W9968CF_BUFFERS : (u8)max_buffers[dev_nr];
 
-	cam->double_buffer = (double_buffer[dev_nr] == 0 || 
-	                      double_buffer[dev_nr] == 1)
-	                     ? (u8)double_buffer[dev_nr]:W9968CF_DOUBLE_BUFFER;
+	cam->double_buffer = (double_buffer[dev_nr] == 0 ||
+			      double_buffer[dev_nr] == 1)
+			     ? (u8)double_buffer[dev_nr]:W9968CF_DOUBLE_BUFFER;
 
 	cam->clamping = (clamping[dev_nr] == 0 || clamping[dev_nr] == 1)
-	                ? (u8)clamping[dev_nr] : W9968CF_CLAMPING;
-	
+			? (u8)clamping[dev_nr] : W9968CF_CLAMPING;
+
 	cam->filter_type = (filter_type[dev_nr] == 0 ||
-	                    filter_type[dev_nr] == 1 ||
-	                    filter_type[dev_nr] == 2)
-	                   ? (u8)filter_type[dev_nr] : W9968CF_FILTER_TYPE;
+			    filter_type[dev_nr] == 1 ||
+			    filter_type[dev_nr] == 2)
+			   ? (u8)filter_type[dev_nr] : W9968CF_FILTER_TYPE;
 
 	cam->capture = 1;
 
 	cam->largeview = (largeview[dev_nr] == 0 || largeview[dev_nr] == 1)
-	                 ? (u8)largeview[dev_nr] : W9968CF_LARGEVIEW;
+			 ? (u8)largeview[dev_nr] : W9968CF_LARGEVIEW;
 
-	cam->decompression = (decompression[dev_nr] == 0 || 
-	                      decompression[dev_nr] == 1 ||
-	                      decompression[dev_nr] == 2)
-	                     ? (u8)decompression[dev_nr]:W9968CF_DECOMPRESSION;
+	cam->decompression = (decompression[dev_nr] == 0 ||
+			      decompression[dev_nr] == 1 ||
+			      decompression[dev_nr] == 2)
+			     ? (u8)decompression[dev_nr]:W9968CF_DECOMPRESSION;
 
-	cam->upscaling = (upscaling[dev_nr] == 0 || 
-	                  upscaling[dev_nr] == 1)
-	                 ? (u8)upscaling[dev_nr] : W9968CF_UPSCALING;
+	cam->upscaling = (upscaling[dev_nr] == 0 ||
+			  upscaling[dev_nr] == 1)
+			 ? (u8)upscaling[dev_nr] : W9968CF_UPSCALING;
 
 	cam->auto_brt = (autobright[dev_nr] == 0 || autobright[dev_nr] == 1)
-	                ? (u8)autobright[dev_nr] : W9968CF_AUTOBRIGHT;
+			? (u8)autobright[dev_nr] : W9968CF_AUTOBRIGHT;
 
 	cam->auto_exp = (autoexp[dev_nr] == 0 || autoexp[dev_nr] == 1)
-	                ? (u8)autoexp[dev_nr] : W9968CF_AUTOEXP;
+			? (u8)autoexp[dev_nr] : W9968CF_AUTOEXP;
 
 	cam->lightfreq = (lightfreq[dev_nr] == 50 || lightfreq[dev_nr] == 60)
-	                 ? (u8)lightfreq[dev_nr] : W9968CF_LIGHTFREQ;
+			 ? (u8)lightfreq[dev_nr] : W9968CF_LIGHTFREQ;
 
-	cam->bandfilt = (bandingfilter[dev_nr] == 0 || 
-	                 bandingfilter[dev_nr] == 1)
-	                ? (u8)bandingfilter[dev_nr] : W9968CF_BANDINGFILTER;
+	cam->bandfilt = (bandingfilter[dev_nr] == 0 ||
+			 bandingfilter[dev_nr] == 1)
+			? (u8)bandingfilter[dev_nr] : W9968CF_BANDINGFILTER;
 
 	cam->backlight = (backlight[dev_nr] == 0 || backlight[dev_nr] == 1)
-	                 ? (u8)backlight[dev_nr] : W9968CF_BACKLIGHT;
+			 ? (u8)backlight[dev_nr] : W9968CF_BACKLIGHT;
 
 	cam->clockdiv = (clockdiv[dev_nr] == -1 || clockdiv[dev_nr] >= 0)
-	                ? (s8)clockdiv[dev_nr] : W9968CF_CLOCKDIV;
+			? (s8)clockdiv[dev_nr] : W9968CF_CLOCKDIV;
 
 	cam->mirror = (mirror[dev_nr] == 0 || mirror[dev_nr] == 1)
-	              ? (u8)mirror[dev_nr] : W9968CF_MIRROR;
+		      ? (u8)mirror[dev_nr] : W9968CF_MIRROR;
 
 	cam->monochrome = (monochrome[dev_nr] == 0 || monochrome[dev_nr] == 1)
-	                  ? monochrome[dev_nr] : W9968CF_MONOCHROME;
+			  ? monochrome[dev_nr] : W9968CF_MONOCHROME;
 
 	cam->picture.brightness = (u16)brightness[dev_nr];
 	cam->picture.hue = (u16)hue[dev_nr];
@@ -2519,7 +2519,7 @@ w9968cf_configure_camera(struct w9968cf_device* cam,
 	cam->picture.depth = w9968cf_valid_depth(cam->picture.palette);
 
 	cam->force_rgb = (force_rgb[dev_nr] == 0 || force_rgb[dev_nr] == 1)
-	                 ? (u8)force_rgb[dev_nr] : W9968CF_FORCE_RGB;
+			 ? (u8)force_rgb[dev_nr] : W9968CF_FORCE_RGB;
 
 	cam->window.x = 0;
 	cam->window.y = 0;
@@ -2531,16 +2531,16 @@ w9968cf_configure_camera(struct w9968cf_device* cam,
 
 	DBG(3, "%s configured with settings #%u:",
 	    symbolic(camlist, cam->id), dev_nr)
-	
+
 	DBG(3, "- Data packet size for USB isochrnous transfer: %u bytes",
 	    wMaxPacketSize[cam->altsetting-1])
-	
+
 	DBG(3, "- Number of requested video frame buffers: %u",
 	    cam->max_buffers)
 
 	if (cam->double_buffer)
 		DBG(3, "- Hardware double buffering enabled")
-	else 
+	else
 		DBG(3, "- Hardware double buffering disabled")
 
 	if (cam->filter_type == 0)
@@ -2648,7 +2648,7 @@ static void w9968cf_adjust_configuration(struct w9968cf_device* cam)
 
 /*--------------------------------------------------------------------------
   Release the resources used by the driver.
-  This function is called on disconnect 
+  This function is called on disconnect
   (or on close if deallocation has been deferred)
   --------------------------------------------------------------------------*/
 static void w9968cf_release_resources(struct w9968cf_device* cam)
@@ -2706,8 +2706,8 @@ static int w9968cf_open(struct inode* inode, struct file* filp)
 		}
 		mutex_unlock(&cam->dev_mutex);
 		err = wait_event_interruptible_exclusive(cam->open,
-		                                         cam->disconnected ||
-		                                         !cam->users);
+							 cam->disconnected ||
+							 !cam->users);
 		if (err) {
 			up_read(&w9968cf_disconnect);
 			return err;
@@ -2820,9 +2820,9 @@ w9968cf_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 		w9968cf_push_frame(cam, 1);
 
 	err = wait_event_interruptible(cam->wait_queue,
-	                               cam->frame[0].status == F_READY ||
-	                               cam->frame[1].status == F_READY ||
-	                               cam->disconnected);
+				       cam->frame[0].status == F_READY ||
+				       cam->frame[1].status == F_READY ||
+				       cam->disconnected);
 	if (err) {
 		mutex_unlock(&cam->fileop_mutex);
 		return err;
@@ -2859,12 +2859,12 @@ w9968cf_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 static int w9968cf_mmap(struct file* filp, struct vm_area_struct *vma)
 {
 	struct w9968cf_device* cam = (struct w9968cf_device*)
-	                             video_get_drvdata(video_devdata(filp));
+				     video_get_drvdata(video_devdata(filp));
 	unsigned long vsize = vma->vm_end - vma->vm_start,
-	              psize = cam->nbuffers * cam->frame[0].size,
-	              start = vma->vm_start,
-	              pos = (unsigned long)cam->frame[0].buffer,
-	              page;
+		      psize = cam->nbuffers * cam->frame[0].size,
+		      start = vma->vm_start,
+		      pos = (unsigned long)cam->frame[0].buffer,
+		      page;
 
 	if (cam->disconnected) {
 		DBG(2, "Device not present")
@@ -2898,7 +2898,7 @@ static int w9968cf_mmap(struct file* filp, struct vm_area_struct *vma)
 
 static int
 w9968cf_ioctl(struct inode* inode, struct file* filp,
-              unsigned int cmd, unsigned long arg)
+	      unsigned int cmd, unsigned long arg)
 {
 	struct w9968cf_device* cam;
 	int err;
@@ -2928,21 +2928,21 @@ w9968cf_ioctl(struct inode* inode, struct file* filp,
 
 
 static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
-                             unsigned int cmd, void __user * arg)
+			     unsigned int cmd, void __user * arg)
 {
 	struct w9968cf_device* cam;
 	const char* v4l1_ioctls[] = {
-		"?", "CGAP", "GCHAN", "SCHAN", "GTUNER", "STUNER", 
+		"?", "CGAP", "GCHAN", "SCHAN", "GTUNER", "STUNER",
 		"GPICT", "SPICT", "CCAPTURE", "GWIN", "SWIN", "GFBUF",
 		"SFBUF", "KEY", "GFREQ", "SFREQ", "GAUDIO", "SAUDIO",
 		"SYNC", "MCAPTURE", "GMBUF", "GUNIT", "GCAPTURE", "SCAPTURE",
-		"SPLAYMODE", "SWRITEMODE", "GPLAYINFO", "SMICROCODE", 
-		"GVBIFMT", "SVBIFMT" 
+		"SPLAYMODE", "SWRITEMODE", "GPLAYINFO", "SMICROCODE",
+		"GVBIFMT", "SVBIFMT"
 	};
 
 	#define V4L1_IOCTL(cmd) \
-	        ((_IOC_NR((cmd)) < ARRAY_SIZE(v4l1_ioctls)) ? \
-	        v4l1_ioctls[_IOC_NR((cmd))] : "?")
+		((_IOC_NR((cmd)) < ARRAY_SIZE(v4l1_ioctls)) ? \
+		v4l1_ioctls[_IOC_NR((cmd))] : "?")
 
 	cam = (struct w9968cf_device*)video_get_drvdata(video_devdata(filp));
 
@@ -2957,14 +2957,14 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 			.minwidth = cam->minwidth,
 			.minheight = cam->minheight,
 		};
-		sprintf(cap.name, "W996[87]CF USB Camera #%d", 
-		        cam->v4ldev->minor);
+		sprintf(cap.name, "W996[87]CF USB Camera #%d",
+			cam->v4ldev->minor);
 		cap.maxwidth = (cam->upscaling && w9968cf_vpp)
-		               ? max((u16)W9968CF_MAX_WIDTH, cam->maxwidth) 
-		                 : cam->maxwidth;
+			       ? max((u16)W9968CF_MAX_WIDTH, cam->maxwidth)
+				 : cam->maxwidth;
 		cap.maxheight = (cam->upscaling && w9968cf_vpp)
-		                ? max((u16)W9968CF_MAX_HEIGHT, cam->maxheight)
-		                  : cam->maxheight;
+				? max((u16)W9968CF_MAX_HEIGHT, cam->maxheight)
+				  : cam->maxheight;
 
 		if (copy_to_user(arg, &cap, sizeof(cap)))
 			return -EFAULT;
@@ -3029,7 +3029,7 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 		if (copy_from_user(&pict, arg, sizeof(pict)))
 			return -EFAULT;
 
-		if ( (cam->force_palette || !w9968cf_vpp) 
+		if ( (cam->force_palette || !w9968cf_vpp)
 		     && pict.palette != cam->picture.palette ) {
 			DBG(4, "Palette %s rejected: only %s is allowed",
 			    symbolic(v4l1_plist, pict.palette),
@@ -3046,24 +3046,24 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 		if (!cam->force_palette) {
 		   if (cam->decompression == 0) {
 		      if (w9968cf_need_decompression(pict.palette)) {
-		         DBG(4, "Decompression disabled: palette %s is not "
-		                "allowed. VIDIOCSPICT failed",
-		             symbolic(v4l1_plist, pict.palette))
-		         return -EINVAL;
+			 DBG(4, "Decompression disabled: palette %s is not "
+				"allowed. VIDIOCSPICT failed",
+			     symbolic(v4l1_plist, pict.palette))
+			 return -EINVAL;
 		      }
 		   } else if (cam->decompression == 1) {
 		      if (!w9968cf_need_decompression(pict.palette)) {
-		         DBG(4, "Decompression forced: palette %s is not "
-		                "allowed. VIDIOCSPICT failed",
-		             symbolic(v4l1_plist, pict.palette))
-		         return -EINVAL;
+			 DBG(4, "Decompression forced: palette %s is not "
+				"allowed. VIDIOCSPICT failed",
+			     symbolic(v4l1_plist, pict.palette))
+			 return -EINVAL;
 		      }
 		   }
 		}
 
 		if (pict.depth != w9968cf_valid_depth(pict.palette)) {
 			DBG(4, "Requested depth %u bpp is not valid for %s "
-			       "palette: ignored and changed to %u bpp", 
+			       "palette: ignored and changed to %u bpp",
 			    pict.depth, symbolic(v4l1_plist, pict.palette),
 			    w9968cf_valid_depth(pict.palette))
 			pict.depth = w9968cf_valid_depth(pict.palette);
@@ -3074,9 +3074,9 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 			   || cam->frame_current->queued) {
 				err = wait_event_interruptible
 				      ( cam->wait_queue,
-				        cam->disconnected ||
-				        (!*cam->requested_frame &&
-				         !cam->frame_current->queued) );
+					cam->disconnected ||
+					(!*cam->requested_frame &&
+					 !cam->frame_current->queued) );
 				if (err)
 					return err;
 				if (cam->disconnected)
@@ -3116,7 +3116,7 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 			return -EINVAL;
 
 		if ((err = w9968cf_adjust_window_size(cam, (u16*)&win.width,
-		                                      (u16*)&win.height))) {
+						      (u16*)&win.height))) {
 			DBG(4, "Resolution not supported (%ux%u). "
 			       "VIDIOCSWIN failed", win.width, win.height)
 			return err;
@@ -3130,9 +3130,9 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 			   || cam->frame_current->queued) {
 				err = wait_event_interruptible
 				      ( cam->wait_queue,
-				        cam->disconnected ||
-				        (!*cam->requested_frame &&
-				         !cam->frame_current->queued) );
+					cam->disconnected ||
+					(!*cam->requested_frame &&
+					 !cam->frame_current->queued) );
 				if (err)
 					return err;
 				if (cam->disconnected)
@@ -3175,7 +3175,7 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 		mbuf.frames = cam->nbuffers;
 		for (i = 0; i < cam->nbuffers; i++)
 			mbuf.offsets[i] = (unsigned long)cam->frame[i].buffer -
-			                  (unsigned long)cam->frame[0].buffer;
+					  (unsigned long)cam->frame[0].buffer;
 
 		if (copy_to_user(arg, &mbuf, sizeof(mbuf)))
 			return -EFAULT;
@@ -3194,7 +3194,7 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 			return -EFAULT;
 
 		DBG(6, "VIDIOCMCAPTURE called: frame #%u, format=%s, %dx%d",
-		    mmap.frame, symbolic(v4l1_plist, mmap.format), 
+		    mmap.frame, symbolic(v4l1_plist, mmap.format),
 		    mmap.width, mmap.height)
 
 		if (mmap.frame >= cam->nbuffers) {
@@ -3203,7 +3203,7 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 			return -EINVAL;
 		}
 
-		if (mmap.format!=cam->picture.palette && 
+		if (mmap.format!=cam->picture.palette &&
 		    (cam->force_palette || !w9968cf_vpp)) {
 			DBG(4, "Palette %s rejected: only %s is allowed",
 			    symbolic(v4l1_plist, mmap.format),
@@ -3213,7 +3213,7 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 
 		if (!w9968cf_valid_palette(mmap.format)) {
 			DBG(4, "Palette %s not supported. "
-			       "VIDIOCMCAPTURE failed", 
+			       "VIDIOCMCAPTURE failed",
 			    symbolic(v4l1_plist, mmap.format))
 			return -EINVAL;
 		}
@@ -3221,23 +3221,23 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 		if (!cam->force_palette) {
 		   if (cam->decompression == 0) {
 		      if (w9968cf_need_decompression(mmap.format)) {
-		         DBG(4, "Decompression disabled: palette %s is not "
-		                "allowed. VIDIOCSPICT failed",
-		             symbolic(v4l1_plist, mmap.format))
-		         return -EINVAL;
+			 DBG(4, "Decompression disabled: palette %s is not "
+				"allowed. VIDIOCSPICT failed",
+			     symbolic(v4l1_plist, mmap.format))
+			 return -EINVAL;
 		      }
 		   } else if (cam->decompression == 1) {
 		      if (!w9968cf_need_decompression(mmap.format)) {
-		         DBG(4, "Decompression forced: palette %s is not "
-		                "allowed. VIDIOCSPICT failed",
-		             symbolic(v4l1_plist, mmap.format))
-		         return -EINVAL;
+			 DBG(4, "Decompression forced: palette %s is not "
+				"allowed. VIDIOCSPICT failed",
+			     symbolic(v4l1_plist, mmap.format))
+			 return -EINVAL;
 		      }
 		   }
 		}
 
-		if ((err = w9968cf_adjust_window_size(cam, (u16*)&mmap.width, 
-		                                      (u16*)&mmap.height))) {
+		if ((err = w9968cf_adjust_window_size(cam, (u16*)&mmap.width,
+						      (u16*)&mmap.height))) {
 			DBG(4, "Resolution not supported (%dx%d). "
 			       "VIDIOCMCAPTURE failed",
 			    mmap.width, mmap.height)
@@ -3258,12 +3258,12 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 				DBG(6, "VIDIOCMCAPTURE. Change settings for "
 				       "frame #%u: %dx%d, format %s. Wait...",
 				    mmap.frame, mmap.width, mmap.height,
-			            symbolic(v4l1_plist, mmap.format))
+				    symbolic(v4l1_plist, mmap.format))
 				err = wait_event_interruptible
 				      ( cam->wait_queue,
-				        cam->disconnected ||
-				        (!*cam->requested_frame &&
-				         !cam->frame_current->queued) );
+					cam->disconnected ||
+					(!*cam->requested_frame &&
+					 !cam->frame_current->queued) );
 				if (err)
 					return err;
 				if (cam->disconnected)
@@ -3280,7 +3280,7 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 				goto ioctl_fail;
 
 			/* This before set_window */
-			if (w9968cf_set_picture(cam, pict)) 
+			if (w9968cf_set_picture(cam, pict))
 				goto ioctl_fail;
 
 			if (w9968cf_set_window(cam, win))
@@ -3292,10 +3292,10 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 		} else 	if (fr->queued) {
 
 			DBG(6, "Wait until frame #%u is free", mmap.frame)
-			
-			err = wait_event_interruptible(cam->wait_queue, 
-			                               cam->disconnected ||
-			                               (!fr->queued));
+
+			err = wait_event_interruptible(cam->wait_queue,
+						       cam->disconnected ||
+						       (!fr->queued));
 			if (err)
 				return err;
 			if (cam->disconnected)
@@ -3335,9 +3335,9 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 			}
 		case F_ERROR:
 		case F_GRABBING:
-			err = wait_event_interruptible(cam->wait_queue, 
-			                               (fr->status == F_READY)
-			                               || cam->disconnected);
+			err = wait_event_interruptible(cam->wait_queue,
+						       (fr->status == F_READY)
+						       || cam->disconnected);
 			if (err)
 				return err;
 			if (cam->disconnected)
@@ -3439,7 +3439,7 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 		DBG(4, "Unsupported V4L1 IOCtl: VIDIOC%s "
 		       "(type 0x%01X, "
 		       "n. 0x%01X, "
-		       "dir. 0x%01X, " 
+		       "dir. 0x%01X, "
 		       "size 0x%02X)",
 		    V4L1_IOCTL(cmd),
 		    _IOC_TYPE(cmd),_IOC_NR(cmd),_IOC_DIR(cmd),_IOC_SIZE(cmd))
@@ -3499,13 +3499,13 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	    le16_to_cpu(udev->descriptor.idProduct) == winbond_id_table[0].idProduct)
 		mod_id = W9968CF_MOD_CLVBWGP; /* see camlist[] table */
 	else if (le16_to_cpu(udev->descriptor.idVendor)  == winbond_id_table[1].idVendor &&
-	         le16_to_cpu(udev->descriptor.idProduct) == winbond_id_table[1].idProduct)
+		 le16_to_cpu(udev->descriptor.idProduct) == winbond_id_table[1].idProduct)
 		mod_id = W9968CF_MOD_GENERIC; /* see camlist[] table */
 	else
 		return -ENODEV;
 
 	cam = (struct w9968cf_device*)
-	          kzalloc(sizeof(struct w9968cf_device), GFP_KERNEL);
+		  kzalloc(sizeof(struct w9968cf_device), GFP_KERNEL);
 	if (!cam)
 		return -ENOMEM;
 
@@ -3569,7 +3569,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	cam->v4ldev->dev = &cam->dev;
 
 	err = video_register_device(cam->v4ldev, VFL_TYPE_GRABBER,
-	                            video_nr[dev_nr]);
+				    video_nr[dev_nr]);
 	if (err) {
 		DBG(1, "V4L device registration failed")
 		if (err == -ENFILE && video_nr[dev_nr] == -1)
@@ -3611,7 +3611,7 @@ fail: /* Free unused memory */
 
 static void w9968cf_usb_disconnect(struct usb_interface* intf)
 {
-	struct w9968cf_device* cam = 
+	struct w9968cf_device* cam =
 	   (struct w9968cf_device*)usb_get_intfdata(intf);
 
 	down_write(&w9968cf_disconnect);

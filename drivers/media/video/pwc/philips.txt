@@ -47,17 +47,17 @@ don't know how to set it properly in the driver. The options are:
 size
    Can be one of 'sqcif', 'qsif', 'qcif', 'sif', 'cif' or
    'vga', for an image size of resp. 128x96, 160x120, 176x144,
-   320x240, 352x288 and 640x480 (of course, only for those cameras that 
+   320x240, 352x288 and 640x480 (of course, only for those cameras that
    support these resolutions).
 
 fps
    Specifies the desired framerate. Is an integer in the range of 4-30.
 
 fbufs
-   This paramter specifies the number of internal buffers to use for storing 
-   frames from the cam. This will help if the process that reads images from 
-   the cam is a bit slow or momentarely busy. However, on slow machines it 
-   only introduces lag, so choose carefully. The default is 3, which is 
+   This paramter specifies the number of internal buffers to use for storing
+   frames from the cam. This will help if the process that reads images from
+   the cam is a bit slow or momentarely busy. However, on slow machines it
+   only introduces lag, so choose carefully. The default is 3, which is
    reasonable. You can set it between 2 and 5.
 
 mbufs
@@ -65,9 +65,9 @@ mbufs
    buffers to reserve for mmap(), VIDIOCCGMBUF, VIDIOCMCAPTURE and friends.
    The default is 2, which is adequate for most applications (double
    buffering).
-      
+
    Should you experience a lot of 'Dumping frame...' messages during
-   grabbing with a tool that uses mmap(), you might want to increase if. 
+   grabbing with a tool that uses mmap(), you might want to increase if.
    However, it doesn't really buffer images, it just gives you a bit more
    slack when your program is behind. But you need a multi-threaded or
    forked program to really take advantage of these buffers.
@@ -88,15 +88,15 @@ power_save
 
 compression (only useful with the plugin)
    With this option you can control the compression factor that the camera
-   uses to squeeze the image through the USB bus. You can set the 
+   uses to squeeze the image through the USB bus. You can set the
    parameter between 0 and 3:
      0 = prefer uncompressed images; if the requested mode is not available
-         in an uncompressed format, the driver will silently switch to low
-         compression.
+	 in an uncompressed format, the driver will silently switch to low
+	 compression.
      1 = low compression.
      2 = medium compression.
      3 = high compression.
-      
+
    High compression takes less bandwidth of course, but it could also
    introduce some unwanted artefacts. The default is 2, medium compression.
    See the FAQ on the website for an overview of which modes require
@@ -112,7 +112,7 @@ leds
    this is let the LED blink while the camera is in use. This:
 
      leds=500,500
-      
+
    will blink the LED once every second. But with:
 
      leds=0,0
@@ -123,7 +123,7 @@ leds
    when the camera is not used anymore.
 
    This parameter works only with the ToUCam range of cameras (720, 730, 740,
-   750) and OEMs. For other cameras this command is silently ignored, and 
+   750) and OEMs. For other cameras this command is silently ignored, and
    the LED cannot be controlled.
 
    Finally: this parameters does not take effect UNTIL the first time you
@@ -144,35 +144,35 @@ dev_hint
    format:
 
       [type[.serialnumber]:]node
-      
+
    The square brackets mean that both the type and the serialnumber are
    optional, but a serialnumber cannot be specified without a type (which
    would be rather pointless). The serialnumber is separated from the type
    by a '.'; the node number by a ':'.
-   
+
    This somewhat cryptic syntax is best explained by a few examples:
 
      dev_hint=3,5              The first detected cam gets assigned
-                               /dev/video3, the second /dev/video5. Any
-                               other cameras will get the first free 
-                               available slot (see below).
+			       /dev/video3, the second /dev/video5. Any
+			       other cameras will get the first free
+			       available slot (see below).
 
      dev_hint=645:1,680:2      The PCA645 camera will get /dev/video1,
-                               and a PCVC680 /dev/video2.
-                               
-     dev_hint=645.0123:3,645.4567:0	The PCA645 camera with serialnumber 
-                                        0123 goes to /dev/video3, the same
-                                        camera model with the 4567 serial
-                                        gets /dev/video0.
+			       and a PCVC680 /dev/video2.
 
-     dev_hint=750:1,4,5,6       The PCVC750 camera will get /dev/video1, the 
-                                next 3 Philips cams will use /dev/video4 
-                                through /dev/video6.
+     dev_hint=645.0123:3,645.4567:0	The PCA645 camera with serialnumber
+					0123 goes to /dev/video3, the same
+					camera model with the 4567 serial
+					gets /dev/video0.
+
+     dev_hint=750:1,4,5,6       The PCVC750 camera will get /dev/video1, the
+				next 3 Philips cams will use /dev/video4
+				through /dev/video6.
 
    Some points worth knowing:
-   - Serialnumbers are case sensitive and must be written full, including 
+   - Serialnumbers are case sensitive and must be written full, including
      leading zeroes (it's treated as a string).
-   - If a device node is already occupied, registration will fail and 
+   - If a device node is already occupied, registration will fail and
      the webcam is not available.
    - You can have up to 64 video devices; be sure to make enough device
      nodes in /dev if you want to spread the numbers (this does not apply
@@ -186,13 +186,13 @@ trace
    kernel log at debug level.
 
    The trace variable is a bitmask; each bit represents a certain feature.
-   If you want to trace something, look up the bit value(s) in the table 
+   If you want to trace something, look up the bit value(s) in the table
    below, add the values together and supply that to the trace variable.
 
    Value  Value   Description					   Default
    (dec)  (hex)
        1    0x1   Module initialization; this will log messages       On
-                  while loading and unloading the module
+		  while loading and unloading the module
 
        2    0x2   probe() and disconnect() traces                     On
 
@@ -203,7 +203,7 @@ trace
       16   0x10   Memory allocation of buffers, etc.                  Off
 
       32   0x20   Showing underflow, overflow and Dumping frame       On
-                  messages
+		  messages
 
       64   0x40   Show viewport and image sizes                       Off
 
@@ -217,7 +217,7 @@ trace
 
 
 Example:
-     
+
      # modprobe pwc size=cif fps=15 power_save=1
 
 The fbufs, mbufs and trace parameters are global and apply to all connected

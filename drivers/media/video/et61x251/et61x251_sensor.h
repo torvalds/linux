@@ -47,7 +47,7 @@ et61x251_match_id(struct et61x251_device* cam, const struct usb_device_id *id);
 
 extern void
 et61x251_attach_sensor(struct et61x251_device* cam,
-                       struct et61x251_sensor* sensor);
+		       struct et61x251_sensor* sensor);
 
 /*****************************************************************************/
 
@@ -56,13 +56,13 @@ extern int et61x251_read_reg(struct et61x251_device*, u16 index);
 extern int et61x251_i2c_write(struct et61x251_device*, u8 address, u8 value);
 extern int et61x251_i2c_read(struct et61x251_device*, u8 address);
 extern int et61x251_i2c_try_write(struct et61x251_device*,
-                                  struct et61x251_sensor*, u8 address,
-                                  u8 value);
+				  struct et61x251_sensor*, u8 address,
+				  u8 value);
 extern int et61x251_i2c_try_read(struct et61x251_device*,
-                                 struct et61x251_sensor*, u8 address);
+				 struct et61x251_sensor*, u8 address);
 extern int et61x251_i2c_raw_write(struct et61x251_device*, u8 n, u8 data1,
-                                  u8 data2, u8 data3, u8 data4, u8 data5,
-                                  u8 data6, u8 data7, u8 data8, u8 address);
+				  u8 data2, u8 data3, u8 data4, u8 data5,
+				  u8 data6, u8 data7, u8 data8, u8 address);
 
 /*****************************************************************************/
 
@@ -100,13 +100,13 @@ struct et61x251_sensor {
 
 	int (*init)(struct et61x251_device* cam);
 	int (*get_ctrl)(struct et61x251_device* cam,
-	                struct v4l2_control* ctrl);
+			struct v4l2_control* ctrl);
 	int (*set_ctrl)(struct et61x251_device* cam,
-	                const struct v4l2_control* ctrl);
+			const struct v4l2_control* ctrl);
 	int (*set_crop)(struct et61x251_device* cam,
-	                const struct v4l2_rect* rect);
+			const struct v4l2_rect* rect);
 	int (*set_pix_format)(struct et61x251_device* cam,
-	                      const struct v4l2_pix_format* pix);
+			      const struct v4l2_pix_format* pix);
 
 	/* Private */
 	struct v4l2_queryctrl _qctrl[ET61X251_MAX_CTRLS];

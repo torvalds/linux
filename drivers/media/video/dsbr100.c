@@ -37,28 +37,28 @@
   Markus: Updates for 2.6.x kernels, code layout changes, name sanitizing
 
  Version 0.30:
- 	Markus: Updates for 2.5.x kernel and more ISO compliant source
+	Markus: Updates for 2.5.x kernel and more ISO compliant source
 
  Version 0.25:
-        PSL and Markus: Cleanup, radio now doesn't stop on device close
+	PSL and Markus: Cleanup, radio now doesn't stop on device close
 
  Version 0.24:
- 	Markus: Hope I got these silly VIDEO_TUNER_LOW issues finally
+	Markus: Hope I got these silly VIDEO_TUNER_LOW issues finally
 	right.  Some minor cleanup, improved standalone compilation
 
  Version 0.23:
- 	Markus: Sign extension bug fixed by declaring transfer_buffer unsigned
+	Markus: Sign extension bug fixed by declaring transfer_buffer unsigned
 
  Version 0.22:
- 	Markus: Some (brown bag) cleanup in what VIDIOCSTUNER returns, 
+	Markus: Some (brown bag) cleanup in what VIDIOCSTUNER returns,
 	thanks to Mike Cox for pointing the problem out.
 
  Version 0.21:
- 	Markus: Minor cleanup, warnings if something goes wrong, lame attempt
+	Markus: Minor cleanup, warnings if something goes wrong, lame attempt
 	to adhere to Documentation/CodingStyle
 
- Version 0.2: 
- 	Brad Hards <bradh@dynamite.com.au>: Fixes to make it work as non-module
+ Version 0.2:
+	Brad Hards <bradh@dynamite.com.au>: Fixes to make it work as non-module
 	Markus: Copyright clarification
 
  Version 0.01: Markus: initial release
@@ -163,11 +163,11 @@ static struct usb_driver usb_dsbr100_driver = {
 static int dsbr100_start(dsbr100_device *radio)
 {
 	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			USB_REQ_GET_STATUS, 
+			USB_REQ_GET_STATUS,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			0x00, 0xC7, radio->transfer_buffer, 8, 300)<0 ||
 	usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			DSB100_ONOFF, 
+			DSB100_ONOFF,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			0x01, 0x00, radio->transfer_buffer, 8, 300)<0)
 		return -1;
@@ -179,11 +179,11 @@ static int dsbr100_start(dsbr100_device *radio)
 static int dsbr100_stop(dsbr100_device *radio)
 {
 	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			USB_REQ_GET_STATUS, 
+			USB_REQ_GET_STATUS,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			0x16, 0x1C, radio->transfer_buffer, 8, 300)<0 ||
 	usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			DSB100_ONOFF, 
+			DSB100_ONOFF,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			0x00, 0x00, radio->transfer_buffer, 8, 300)<0)
 		return -1;
@@ -195,16 +195,16 @@ static int dsbr100_setfreq(dsbr100_device *radio, int freq)
 {
 	freq = (freq/16*80)/1000+856;
 	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			DSB100_TUNE, 
+			DSB100_TUNE,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-			(freq>>8)&0x00ff, freq&0xff, 
+			(freq>>8)&0x00ff, freq&0xff,
 			radio->transfer_buffer, 8, 300)<0 ||
 	   usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-		 	USB_REQ_GET_STATUS, 
+			USB_REQ_GET_STATUS,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			0x96, 0xB7, radio->transfer_buffer, 8, 300)<0 ||
 	usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-			USB_REQ_GET_STATUS, 
+			USB_REQ_GET_STATUS,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE |  USB_DIR_IN,
 			0x00, 0x24, radio->transfer_buffer, 8, 300)<0) {
 		radio->stereo = -1;
@@ -219,7 +219,7 @@ sees a stereo signal or not.  Pity. */
 static void dsbr100_getstat(dsbr100_device *radio)
 {
 	if (usb_control_msg(radio->usbdev, usb_rcvctrlpipe(radio->usbdev, 0),
-		USB_REQ_GET_STATUS, 
+		USB_REQ_GET_STATUS,
 		USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 		0x00 , 0x24, radio->transfer_buffer, 8, 300)<0)
 		radio->stereo = -1;
@@ -232,7 +232,7 @@ static void dsbr100_getstat(dsbr100_device *radio)
 
 /* check if the device is present and register with v4l and
 usb if it is */
-static int usb_dsbr100_probe(struct usb_interface *intf, 
+static int usb_dsbr100_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
 	dsbr100_device *radio;
@@ -243,7 +243,7 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 		kfree(radio);
 		return -ENOMEM;
 	}
-	memcpy(radio->videodev, &dsbr100_videodev_template, 
+	memcpy(radio->videodev, &dsbr100_videodev_template,
 		sizeof(dsbr100_videodev_template));
 	radio->removed = 0;
 	radio->users = 0;
@@ -310,7 +310,7 @@ static int usb_dsbr100_do_ioctl(struct inode *inode, struct file *file,
 			struct video_tuner *v = arg;
 
 			dsbr100_getstat(radio);
-			if(v->tuner)	/* Only 1 tuner */ 
+			if(v->tuner)	/* Only 1 tuner */
 				return -EINVAL;
 			v->rangelow = FREQ_MIN*FREQ_MUL;
 			v->rangehigh = FREQ_MAX*FREQ_MUL;
@@ -355,12 +355,12 @@ static int usb_dsbr100_do_ioctl(struct inode *inode, struct file *file,
 			v->volume = 1;
 			v->step = 1;
 			strcpy(v->name, "Radio");
-			return 0;			
+			return 0;
 		}
 		case VIDIOCSAUDIO: {
 			struct video_audio *v = arg;
 
-			if (v->audio) 
+			if (v->audio)
 				return -EINVAL;
 			if (v->flags&VIDEO_AUDIO_MUTE) {
 				if (dsbr100_stop(radio)==-1)

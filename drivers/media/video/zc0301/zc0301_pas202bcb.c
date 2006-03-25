@@ -24,10 +24,10 @@
 
 /*
    NOTE: Sensor controls are disabled for now, becouse changing them while
-         streaming sometimes results in out-of-sync video frames. We'll use
-         the default initialization, until we know how to stop and start video
-         in the chip. However, the image quality still looks good under various
-         light conditions.
+	 streaming sometimes results in out-of-sync video frames. We'll use
+	 the default initialization, until we know how to stop and start video
+	 in the chip. However, the image quality still looks good under various
+	 light conditions.
 */
 
 #include <linux/delay.h>
@@ -165,7 +165,7 @@ static int pas202bcb_init(struct zc0301_device* cam)
 
 
 static int pas202bcb_get_ctrl(struct zc0301_device* cam,
-                              struct v4l2_control* ctrl)
+			      struct v4l2_control* ctrl)
 {
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
@@ -208,7 +208,7 @@ static int pas202bcb_get_ctrl(struct zc0301_device* cam,
 
 
 static int pas202bcb_set_ctrl(struct zc0301_device* cam,
-                              const struct v4l2_control* ctrl)
+			      const struct v4l2_control* ctrl)
 {
 	int err = 0;
 

@@ -1,7 +1,7 @@
-/*  
+/*
     saa7146.h - definitions philips saa7146 based cards
     Copyright (C) 1999 Nathan Laredo (laredo@gnu.org)
-    
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -27,7 +27,7 @@
 
 #include <linux/videodev.h>
 
-#ifndef O_NONCAP  
+#ifndef O_NONCAP
 #define O_NONCAP	O_TRUNC
 #endif
 
@@ -36,7 +36,7 @@
 
 #ifdef __KERNEL__
 
-struct saa7146_window 
+struct saa7146_window
 {
 	int x, y;
 	ushort width, height;
@@ -70,7 +70,7 @@ struct saa7146
 	int irqstate;		/* irq routine is state driven */
 	int writemode;
 	int playmode;
-        unsigned int nr;
+	unsigned int nr;
 	unsigned long irq;          /* IRQ used by SAA7146 card */
 	unsigned short id;
 	unsigned char revision;

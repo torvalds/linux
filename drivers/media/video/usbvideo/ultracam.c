@@ -23,7 +23,7 @@
 typedef struct {
 	int initialized;	/* Had we already sent init sequence? */
 	int camera_model;	/* What type of IBM camera we got? */
-        int has_hdr;
+	int has_hdr;
 } ultracam_t;
 #define	ULTRACAM_T(uvd)	((ultracam_t *)((uvd)->user_data))
 

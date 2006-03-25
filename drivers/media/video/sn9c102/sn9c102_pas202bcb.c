@@ -58,8 +58,8 @@ static int pas202bcb_init(struct sn9c102_device* cam)
 }
 
 
-static int pas202bcb_get_ctrl(struct sn9c102_device* cam, 
-                              struct v4l2_control* ctrl)
+static int pas202bcb_get_ctrl(struct sn9c102_device* cam,
+			      struct v4l2_control* ctrl)
 {
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
@@ -101,8 +101,8 @@ static int pas202bcb_get_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int pas202bcb_set_pix_format(struct sn9c102_device* cam, 
-                                    const struct v4l2_pix_format* pix)
+static int pas202bcb_set_pix_format(struct sn9c102_device* cam,
+				    const struct v4l2_pix_format* pix)
 {
 	int err = 0;
 
@@ -115,8 +115,8 @@ static int pas202bcb_set_pix_format(struct sn9c102_device* cam,
 }
 
 
-static int pas202bcb_set_ctrl(struct sn9c102_device* cam, 
-                              const struct v4l2_control* ctrl)
+static int pas202bcb_set_ctrl(struct sn9c102_device* cam,
+			      const struct v4l2_control* ctrl)
 {
 	int err = 0;
 
@@ -149,8 +149,8 @@ static int pas202bcb_set_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int pas202bcb_set_crop(struct sn9c102_device* cam, 
-                              const struct v4l2_rect* rect)
+static int pas202bcb_set_crop(struct sn9c102_device* cam,
+			      const struct v4l2_rect* rect)
 {
 	struct sn9c102_sensor* s = &pas202bcb;
 	int err = 0;
@@ -167,7 +167,7 @@ static int pas202bcb_set_crop(struct sn9c102_device* cam,
 static struct sn9c102_sensor pas202bcb = {
 	.name = "PAS202BCB",
 	.maintainer = "Carlos Eduardo Medaglia Dyonisio "
-	              "<medaglia@undl.org.br>",
+		      "<medaglia@undl.org.br>",
 	.sysfs_ops = SN9C102_I2C_READ | SN9C102_I2C_WRITE,
 	.frequency = SN9C102_I2C_400KHZ | SN9C102_I2C_100KHZ,
 	.interface = SN9C102_I2C_2WIRES,

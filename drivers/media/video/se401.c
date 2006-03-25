@@ -4,7 +4,7 @@
  * Copyright (c) 2000 Jeroen B. Vreeken (pe1rxq@amsat.org)
  *
  * Still somewhat based on the Linux ov511 driver.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -114,16 +114,16 @@ static int se401_sndctrl(int set, struct usb_se401 *se401, unsigned short req,
 			 unsigned short value, unsigned char *cp, int size)
 {
 	return usb_control_msg (
-                se401->dev,
-                set ? usb_sndctrlpipe(se401->dev, 0) : usb_rcvctrlpipe(se401->dev, 0),
-                req,
-                (set ? USB_DIR_OUT : USB_DIR_IN) | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-                value,
-                0,
-                cp,
-                size,
-                1000
-        );
+		se401->dev,
+		set ? usb_sndctrlpipe(se401->dev, 0) : usb_rcvctrlpipe(se401->dev, 0),
+		req,
+		(set ? USB_DIR_OUT : USB_DIR_IN) | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		value,
+		0,
+		cp,
+		size,
+		1000
+	);
 }
 
 static int se401_set_feature(struct usb_se401 *se401, unsigned short selector,
@@ -140,30 +140,30 @@ static int se401_set_feature(struct usb_se401 *se401, unsigned short selector,
 		USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		param,
 		selector,
-                NULL,
-                0,
-                1000
-        );
+		NULL,
+		0,
+		1000
+	);
 }
 
-static unsigned short se401_get_feature(struct usb_se401 *se401, 
-				        unsigned short selector)
+static unsigned short se401_get_feature(struct usb_se401 *se401,
+					unsigned short selector)
 {
 	/* For 'set' the selecetor should be in index, not sure if the spec is
 	   wrong here to....
 	 */
 	unsigned char cp[2];
-        usb_control_msg (
-                se401->dev,
-                usb_rcvctrlpipe(se401->dev, 0),
-                SE401_REQ_GET_EXT_FEATURE,
-                USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-        	0,
-                selector,
-                cp,
-                2,
-                1000
-        );
+	usb_control_msg (
+		se401->dev,
+		usb_rcvctrlpipe(se401->dev, 0),
+		SE401_REQ_GET_EXT_FEATURE,
+		USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		0,
+		selector,
+		cp,
+		2,
+		1000
+	);
 	return cp[0]+cp[1]*256;
 }
 
@@ -183,14 +183,14 @@ static int se401_send_pict(struct usb_se401 *se401)
 	se401_set_feature(se401, HV7131_REG_ARCG, se401->rgain);/* red color gain */
 	se401_set_feature(se401, HV7131_REG_AGCG, se401->ggain);/* green color gain */
 	se401_set_feature(se401, HV7131_REG_ABCG, se401->bgain);/* blue color gain */
-	    	
+
 	return 0;
 }
 
 static void se401_set_exposure(struct usb_se401 *se401, int brightness)
 {
 	int integration=brightness<<5;
-	
+
 	if (flickerless==50) {
 		integration=integration-integration%106667;
 	}
@@ -255,11 +255,11 @@ static void se401_auto_resetlevel(struct usb_se401 *se401)
 	/* For some reason this normally read-only register doesn't get reset
 	   to zero after reading them just once...
 	 */
-	se401_get_feature(se401, HV7131_REG_HIREFNOH); 
+	se401_get_feature(se401, HV7131_REG_HIREFNOH);
 	se401_get_feature(se401, HV7131_REG_HIREFNOL);
 	se401_get_feature(se401, HV7131_REG_LOREFNOH);
 	se401_get_feature(se401, HV7131_REG_LOREFNOL);
-	ahrc=256*se401_get_feature(se401, HV7131_REG_HIREFNOH) + 
+	ahrc=256*se401_get_feature(se401, HV7131_REG_HIREFNOH) +
 	    se401_get_feature(se401, HV7131_REG_HIREFNOL);
 	alrc=256*se401_get_feature(se401, HV7131_REG_LOREFNOH) +
 	    se401_get_feature(se401, HV7131_REG_LOREFNOL);
@@ -287,12 +287,12 @@ static void se401_button_irq(struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_se401 *se401 = urb->context;
 	int status;
-	
+
 	if (!se401->dev) {
 		info("ohoh: device vapourished");
 		return;
 	}
-	
+
 	switch (urb->status) {
 	case 0:
 		/* success */
@@ -368,7 +368,7 @@ static void se401_video_irq(struct urb *urb, struct pt_regs *regs)
 		if (se401->nullpackets > SE401_MAX_NULLPACKETS) {
 			if (waitqueue_active(&se401->wq)) {
 				wake_up_interruptible(&se401->wq);
-			}		
+			}
 		}
 	}
 
@@ -433,8 +433,8 @@ static int se401_start_stream(struct usb_se401 *se401)
 	int err=0, i;
 	se401->streaming=1;
 
-        se401_sndctrl(1, se401, SE401_REQ_CAMERA_POWER, 1, NULL, 0);
-        se401_sndctrl(1, se401, SE401_REQ_LED_CONTROL, 1, NULL, 0);
+	se401_sndctrl(1, se401, SE401_REQ_CAMERA_POWER, 1, NULL, 0);
+	se401_sndctrl(1, se401, SE401_REQ_LED_CONTROL, 1, NULL, 0);
 
 	/* Set picture settings */
 	se401_set_feature(se401, HV7131_REG_MODE_B, 0x05);/*windowed + pix intg */
@@ -571,7 +571,7 @@ static inline void decode_JangGu_integrate(struct usb_se401 *se401, int data)
 	}
 
 	/* First three are absolute, all others relative.
-	 * Format is rgb from right to left (mirrorred image), 
+	 * Format is rgb from right to left (mirrorred image),
 	 * we flip it to get bgr from left to right. */
 	if (frame->curlinepix < 3) {
 		*(frame->curline-frame->curlinepix)=1+data*4;
@@ -703,7 +703,7 @@ static inline void decode_bayer (struct usb_se401 *se401, struct se401_scratch *
 	int width=se401->cwidth;
 	int blineoffset=0, bline;
 	int linelength=width*3, i;
-	
+
 
 	if (frame->curpix==0) {
 		if (frame->grabstate==FRAME_READY) {
@@ -831,7 +831,7 @@ static int se401_newframe(struct usb_se401 *se401, int framenr)
 			se401->nullpackets=0;
 			info("to many null length packets, restarting capture");
 			se401_stop_stream(se401);
-			se401_start_stream(se401);			
+			se401_start_stream(se401);
 		} else {
 			if (se401->scratch[se401->scratch_use].state!=BUFFER_READY) {
 				se401->frame[framenr].grabstate=FRAME_ERROR;
@@ -866,7 +866,7 @@ static void usb_se401_remove_disconnected (struct usb_se401 *se401)
 {
 	int i;
 
-        se401->dev = NULL;
+	se401->dev = NULL;
 
 	for (i=0; i<SE401_NUMSBUF; i++)
 		if (se401->urb[i]) {
@@ -882,9 +882,9 @@ static void usb_se401_remove_disconnected (struct usb_se401 *se401)
 		usb_kill_urb(se401->inturb);
 		usb_free_urb(se401->inturb);
 	}
-        info("%s disconnected", se401->camera_name);
+	info("%s disconnected", se401->camera_name);
 
-        /* Free the memory */
+	/* Free the memory */
 	kfree(se401->width);
 	kfree(se401->height);
 	kfree(se401);
@@ -910,7 +910,7 @@ static int se401_open(struct inode *inode, struct file *file)
 	se401->fbuf = rvmalloc(se401->maxframesize * SE401_NUMFRAMES);
 	if (se401->fbuf)
 		file->private_data = dev;
-	else 
+	else
 		err = -ENOMEM;
 	se401->user = !err;
 
@@ -920,11 +920,11 @@ static int se401_open(struct inode *inode, struct file *file)
 static int se401_close(struct inode *inode, struct file *file)
 {
 	struct video_device *dev = file->private_data;
-        struct usb_se401 *se401 = (struct usb_se401 *)dev;
+	struct usb_se401 *se401 = (struct usb_se401 *)dev;
 	int i;
 
 	rvfree(se401->fbuf, se401->maxframesize * SE401_NUMFRAMES);
-        if (se401->removed) {
+	if (se401->removed) {
 		usb_se401_remove_disconnected(se401);
 		info("device unregistered");
 	} else {
@@ -942,12 +942,12 @@ static int se401_do_ioctl(struct inode *inode, struct file *file,
 			  unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
-        struct usb_se401 *se401 = (struct usb_se401 *)vdev;
+	struct usb_se401 *se401 = (struct usb_se401 *)vdev;
 
-        if (!se401->dev)
-                return -EIO;
+	if (!se401->dev)
+		return -EIO;
 
-        switch (cmd) {
+	switch (cmd) {
 	case VIDIOCGCAP:
 	{
 		struct video_capability *b = arg;
@@ -981,8 +981,8 @@ static int se401_do_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		return 0;
 	}
-        case VIDIOCGPICT:
-        {
+	case VIDIOCGPICT:
+	{
 		struct video_picture *p = arg;
 
 		se401_get_pict(se401, p);
@@ -1007,7 +1007,7 @@ static int se401_do_ioctl(struct inode *inode, struct file *file,
 		if (se401_set_size(se401, vw->width, vw->height))
 			return -EINVAL;
 		return 0;
-        }
+	}
 	case VIDIOCGWIN:
 	{
 		struct video_window *vw = arg;
@@ -1095,11 +1095,11 @@ static int se401_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOCGAUDIO:
 	case VIDIOCSAUDIO:
 		return -EINVAL;
-        default:
-                return -ENOIOCTLCMD;
-        } /* end switch */
+	default:
+		return -ENOIOCTLCMD;
+	} /* end switch */
 
-        return 0;
+	return 0;
 }
 
 static int se401_ioctl(struct inode *inode, struct file *file,
@@ -1142,7 +1142,7 @@ static ssize_t se401_read(struct file *file, char __user *buf,
 
 	se401->frame[0].grabstate=FRAME_UNUSED;
 	if (ret)
-		return ret;	
+		return ret;
 	if (copy_to_user(buf, se401->frame[0].data, realcount))
 		return -EFAULT;
 
@@ -1183,24 +1183,24 @@ static int se401_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 	mutex_unlock(&se401->lock);
 
-        return 0;
+	return 0;
 }
 
 static struct file_operations se401_fops = {
 	.owner =	THIS_MODULE,
-        .open =         se401_open,
-        .release =      se401_close,
-        .read =         se401_read,
-        .mmap =         se401_mmap,
+	.open =         se401_open,
+	.release =      se401_close,
+	.read =         se401_read,
+	.mmap =         se401_mmap,
 	.ioctl =        se401_ioctl,
 	.compat_ioctl = v4l_compat_ioctl32,
 	.llseek =       no_llseek,
 };
 static struct video_device se401_template = {
 	.owner =	THIS_MODULE,
-        .name =         "se401 USB camera",
-        .type =         VID_TYPE_CAPTURE,
-        .hardware =     VID_HARDWARE_SE401,
+	.name =         "se401 USB camera",
+	.type =         VID_TYPE_CAPTURE,
+	.hardware =     VID_HARDWARE_SE401,
 	.fops =         &se401_fops,
 };
 
@@ -1209,12 +1209,12 @@ static struct video_device se401_template = {
 /***************************/
 static int se401_init(struct usb_se401 *se401, int button)
 {
-        int i=0, rc;
-        unsigned char cp[0x40];
+	int i=0, rc;
+	unsigned char cp[0x40];
 	char temp[200];
 
 	/* led on */
-        se401_sndctrl(1, se401, SE401_REQ_LED_CONTROL, 1, NULL, 0);
+	se401_sndctrl(1, se401, SE401_REQ_LED_CONTROL, 1, NULL, 0);
 
 	/* get camera descriptor */
 	rc=se401_sndctrl(0, se401, SE401_REQ_GET_CAMERA_DESCRIPTOR, 0, cp, sizeof(cp));
@@ -1254,7 +1254,7 @@ static int se401_init(struct usb_se401 *se401, int button)
 		return 1;
 	}
 	/* set output mode (BAYER) */
-        se401_sndctrl(1, se401, SE401_REQ_SET_OUTPUT_MODE, SE401_FORMAT_BAYER, NULL, 0);
+	se401_sndctrl(1, se401, SE401_REQ_SET_OUTPUT_MODE, SE401_FORMAT_BAYER, NULL, 0);
 
 	rc=se401_sndctrl(0, se401, SE401_REQ_GET_BRT, 0, cp, sizeof(cp));
 	se401->brightness=cp[0]+cp[1]*256;
@@ -1292,71 +1292,71 @@ static int se401_init(struct usb_se401 *se401, int button)
 	} else
 		se401->inturb=NULL;
 
-        /* Flash the led */
-        se401_sndctrl(1, se401, SE401_REQ_CAMERA_POWER, 1, NULL, 0);
-        se401_sndctrl(1, se401, SE401_REQ_LED_CONTROL, 1, NULL, 0);
-        se401_sndctrl(1, se401, SE401_REQ_CAMERA_POWER, 0, NULL, 0);
+	/* Flash the led */
+	se401_sndctrl(1, se401, SE401_REQ_CAMERA_POWER, 1, NULL, 0);
+	se401_sndctrl(1, se401, SE401_REQ_LED_CONTROL, 1, NULL, 0);
+	se401_sndctrl(1, se401, SE401_REQ_CAMERA_POWER, 0, NULL, 0);
 	se401_sndctrl(1, se401, SE401_REQ_LED_CONTROL, 0, NULL, 0);
 
-        return 0;
+	return 0;
 }
 
 static int se401_probe(struct usb_interface *intf,
 	const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
-        struct usb_interface_descriptor *interface;
-        struct usb_se401 *se401;
-        char *camera_name=NULL;
+	struct usb_interface_descriptor *interface;
+	struct usb_se401 *se401;
+	char *camera_name=NULL;
 	int button=1;
 
-        /* We don't handle multi-config cameras */
-        if (dev->descriptor.bNumConfigurations != 1)
-                return -ENODEV;
+	/* We don't handle multi-config cameras */
+	if (dev->descriptor.bNumConfigurations != 1)
+		return -ENODEV;
 
-        interface = &intf->cur_altsetting->desc;
+	interface = &intf->cur_altsetting->desc;
 
-        /* Is it an se401? */
-        if (le16_to_cpu(dev->descriptor.idVendor) == 0x03e8 &&
-            le16_to_cpu(dev->descriptor.idProduct) == 0x0004) {
-                camera_name="Endpoints/Aox SE401";
-        } else if (le16_to_cpu(dev->descriptor.idVendor) == 0x0471 &&
-            le16_to_cpu(dev->descriptor.idProduct) == 0x030b) {
-                camera_name="Philips PCVC665K";
-        } else if (le16_to_cpu(dev->descriptor.idVendor) == 0x047d &&
+	/* Is it an se401? */
+	if (le16_to_cpu(dev->descriptor.idVendor) == 0x03e8 &&
+	    le16_to_cpu(dev->descriptor.idProduct) == 0x0004) {
+		camera_name="Endpoints/Aox SE401";
+	} else if (le16_to_cpu(dev->descriptor.idVendor) == 0x0471 &&
+	    le16_to_cpu(dev->descriptor.idProduct) == 0x030b) {
+		camera_name="Philips PCVC665K";
+	} else if (le16_to_cpu(dev->descriptor.idVendor) == 0x047d &&
 	    le16_to_cpu(dev->descriptor.idProduct) == 0x5001) {
 		camera_name="Kensington VideoCAM 67014";
-        } else if (le16_to_cpu(dev->descriptor.idVendor) == 0x047d &&
+	} else if (le16_to_cpu(dev->descriptor.idVendor) == 0x047d &&
 	    le16_to_cpu(dev->descriptor.idProduct) == 0x5002) {
 		camera_name="Kensington VideoCAM 6701(5/7)";
-        } else if (le16_to_cpu(dev->descriptor.idVendor) == 0x047d &&
+	} else if (le16_to_cpu(dev->descriptor.idVendor) == 0x047d &&
 	    le16_to_cpu(dev->descriptor.idProduct) == 0x5003) {
 		camera_name="Kensington VideoCAM 67016";
 		button=0;
 	} else
 		return -ENODEV;
 
-        /* Checking vendor/product should be enough, but what the hell */
-        if (interface->bInterfaceClass != 0x00)
+	/* Checking vendor/product should be enough, but what the hell */
+	if (interface->bInterfaceClass != 0x00)
 		return -ENODEV;
-        if (interface->bInterfaceSubClass != 0x00)
+	if (interface->bInterfaceSubClass != 0x00)
 		return -ENODEV;
 
-        /* We found one */
-        info("SE401 camera found: %s", camera_name);
+	/* We found one */
+	info("SE401 camera found: %s", camera_name);
 
-        if ((se401 = kzalloc(sizeof(*se401), GFP_KERNEL)) == NULL) {
-                err("couldn't kmalloc se401 struct");
+	if ((se401 = kzalloc(sizeof(*se401), GFP_KERNEL)) == NULL) {
+		err("couldn't kmalloc se401 struct");
 		return -ENOMEM;
-        }
+	}
 
-        se401->dev = dev;
-        se401->iface = interface->bInterfaceNumber;
-        se401->camera_name = camera_name;
+	se401->dev = dev;
+	se401->iface = interface->bInterfaceNumber;
+	se401->camera_name = camera_name;
 
 	info("firmware version: %02x", le16_to_cpu(dev->descriptor.bcdDevice) & 255);
 
-        if (se401_init(se401, button)) {
+	if (se401_init(se401, button)) {
 		kfree(se401);
 		return -EIO;
 	}
@@ -1375,7 +1375,7 @@ static int se401_probe(struct usb_interface *intf,
 	info("registered new video device: video%d", se401->vdev.minor);
 
 	usb_set_intfdata (intf, se401);
-        return 0;
+	return 0;
 }
 
 static void se401_disconnect(struct usb_interface *intf)
@@ -1400,10 +1400,10 @@ static void se401_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver se401_driver = {
-        .name		= "se401",
-        .id_table	= device_table,
+	.name		= "se401",
+	.id_table	= device_table,
 	.probe		= se401_probe,
-        .disconnect	= se401_disconnect,
+	.disconnect	= se401_disconnect,
 };
 
 

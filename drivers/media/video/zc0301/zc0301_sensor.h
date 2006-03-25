@@ -51,7 +51,7 @@ zc0301_attach_sensor(struct zc0301_device* cam, struct zc0301_sensor* sensor);
 
 #define ZC0301_USB_DEVICE(vend, prod, intclass)                               \
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |                           \
-	               USB_DEVICE_ID_MATCH_INT_CLASS,                         \
+		       USB_DEVICE_ID_MATCH_INT_CLASS,                         \
 	.idVendor = (vend),                                                   \
 	.idProduct = (prod),                                                  \
 	.bInterfaceClass = (intclass)
@@ -92,7 +92,7 @@ struct zc0301_sensor {
 	int (*init)(struct zc0301_device*);
 	int (*get_ctrl)(struct zc0301_device*, struct v4l2_control* ctrl);
 	int (*set_ctrl)(struct zc0301_device*,
-	                const struct v4l2_control* ctrl);
+			const struct v4l2_control* ctrl);
 	int (*set_crop)(struct zc0301_device*, const struct v4l2_rect* rect);
 
 	/* Private */

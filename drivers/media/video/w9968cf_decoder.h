@@ -78,9 +78,9 @@ static const unsigned char UV_QUANTABLE[64] = {
 #define W9968CF_DEC_ERR_NO_EOI          -6
 
 extern void w9968cf_init_decoder(void);
-extern int w9968cf_check_headers(const unsigned char* Pin, 
-                                 const unsigned long BUF_SIZE);
-extern int w9968cf_decode(const char* Pin, const unsigned long BUF_SIZE, 
-                          const unsigned W, const unsigned H, char* Pout);
+extern int w9968cf_check_headers(const unsigned char* Pin,
+				 const unsigned long BUF_SIZE);
+extern int w9968cf_decode(const char* Pin, const unsigned long BUF_SIZE,
+			  const unsigned W, const unsigned H, char* Pout);
 
 #endif /* _W9968CF_DECODER_H_ */

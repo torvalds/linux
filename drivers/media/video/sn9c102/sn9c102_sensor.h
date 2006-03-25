@@ -58,7 +58,7 @@ struct sn9c102_sensor;
    Probing functions: on success, you must attach the sensor to the camera
    by calling sn9c102_attach_sensor() provided below.
    To enable the I2C communication, you might need to perform a really basic
-   initialization of the SN9C10X chip by using the write function declared 
+   initialization of the SN9C10X chip by using the write function declared
    ahead.
    Functions must return 0 on success, the appropriate error otherwise.
 */
@@ -73,7 +73,7 @@ extern int sn9c102_probe_tas5130d1b(struct sn9c102_device* cam);
 
 /*
    Add the above entries to this table. Be sure to add the entry in the right
-   place, since, on failure, the next probing routine is called according to 
+   place, since, on failure, the next probing routine is called according to
    the order of the list below, from top to bottom.
 */
 #define SN9C102_SENSOR_TABLE                                                  \
@@ -94,9 +94,9 @@ extern struct sn9c102_device*
 sn9c102_match_id(struct sn9c102_device* cam, const struct usb_device_id *id);
 
 /* Attach a probed sensor to the camera. */
-extern void 
+extern void
 sn9c102_attach_sensor(struct sn9c102_device* cam,
-                      struct sn9c102_sensor* sensor);
+		      struct sn9c102_sensor* sensor);
 
 /*
    Each SN9C10x camera has proper PID/VID identifiers.
@@ -105,7 +105,7 @@ sn9c102_attach_sensor(struct sn9c102_device* cam,
 */
 #define SN9C102_USB_DEVICE(vend, prod, intclass)                              \
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |                           \
-	               USB_DEVICE_ID_MATCH_INT_CLASS,                         \
+		       USB_DEVICE_ID_MATCH_INT_CLASS,                         \
 	.idVendor = (vend),                                                   \
 	.idProduct = (prod),                                                  \
 	.bInterfaceClass = (intclass)
@@ -162,19 +162,19 @@ static const struct usb_device_id sn9c102_id_table[] = {                      \
    Read/write routines: they always return -1 on error, 0 or the read value
    otherwise. NOTE that a real read operation is not supported by the SN9C10X
    chip for some of its registers. To work around this problem, a pseudo-read
-   call is provided instead: it returns the last successfully written value 
+   call is provided instead: it returns the last successfully written value
    on the register (0 if it has never been written), the usual -1 on error.
 */
 
 /* The "try" I2C I/O versions are used when probing the sensor */
 extern int sn9c102_i2c_try_write(struct sn9c102_device*,struct sn9c102_sensor*,
-                                 u8 address, u8 value);
+				 u8 address, u8 value);
 extern int sn9c102_i2c_try_read(struct sn9c102_device*,struct sn9c102_sensor*,
-                                u8 address);
+				u8 address);
 
 /*
    These must be used if and only if the sensor doesn't implement the standard
-   I2C protocol. There are a number of good reasons why you must use the 
+   I2C protocol. There are a number of good reasons why you must use the
    single-byte versions of these functions: do not abuse. The first function
    writes n bytes, from data0 to datan, to registers 0x09 - 0x09+n of SN9C10X
    chip. The second one programs the registers 0x09 and 0x10 with data0 and
@@ -184,12 +184,12 @@ extern int sn9c102_i2c_try_read(struct sn9c102_device*,struct sn9c102_sensor*,
    byte.
 */
 extern int sn9c102_i2c_try_raw_write(struct sn9c102_device* cam,
-                                     struct sn9c102_sensor* sensor, u8 n, 
-                                     u8 data0, u8 data1, u8 data2, u8 data3,
-                                     u8 data4, u8 data5);
+				     struct sn9c102_sensor* sensor, u8 n,
+				     u8 data0, u8 data1, u8 data2, u8 data3,
+				     u8 data4, u8 data5);
 extern int sn9c102_i2c_try_raw_read(struct sn9c102_device* cam,
-                                    struct sn9c102_sensor* sensor, u8 data0,
-                                    u8 data1, u8 n, u8 buffer[]);
+				    struct sn9c102_sensor* sensor, u8 data0,
+				    u8 data1, u8 n, u8 buffer[]);
 
 /* To be used after the sensor struct has been attached to the camera struct */
 extern int sn9c102_i2c_write(struct sn9c102_device*, u8 address, u8 value);
@@ -252,17 +252,17 @@ struct sn9c102_sensor {
 
 	/*
 	   NOTE: Where not noted,most of the functions below are not mandatory.
-	         Set to null if you do not implement them. If implemented,
-	         they must return 0 on success, the proper error otherwise.
+		 Set to null if you do not implement them. If implemented,
+		 they must return 0 on success, the proper error otherwise.
 	*/
 
 	int (*init)(struct sn9c102_device* cam);
 	/*
-	   This function will be called after the sensor has been attached. 
+	   This function will be called after the sensor has been attached.
 	   It should be used to initialize the sensor only, but may also
 	   configure part of the SN9C10X chip if necessary. You don't need to
 	   setup picture settings like brightness, contrast, etc.. here, if
-	   the corrisponding controls are implemented (see below), since 
+	   the corrisponding controls are implemented (see below), since
 	   they are adjusted in the core driver by calling the set_ctrl()
 	   method after init(), where the arguments are the default values
 	   specified in the v4l2_queryctrl list of supported controls;
@@ -273,13 +273,13 @@ struct sn9c102_sensor {
 
 	struct v4l2_queryctrl qctrl[SN9C102_MAX_CTRLS];
 	/*
-	   Optional list of default controls, defined as indicated in the 
+	   Optional list of default controls, defined as indicated in the
 	   V4L2 API. Menu type controls are not handled by this interface.
 	*/
 
 	int (*get_ctrl)(struct sn9c102_device* cam, struct v4l2_control* ctrl);
 	int (*set_ctrl)(struct sn9c102_device* cam,
-	                const struct v4l2_control* ctrl);
+			const struct v4l2_control* ctrl);
 	/*
 	   You must implement at least the set_ctrl method if you have defined
 	   the list above. The returned value must follow the V4L2
@@ -306,7 +306,7 @@ struct sn9c102_sensor {
 	   specified in the cropcap substructures 'bounds' and 'defrect'.
 	   By default, the source rectangle should cover the largest possible
 	   area. Again, it is not always true that the largest source rectangle
-	   can cover the entire active window, although it is a rare case for 
+	   can cover the entire active window, although it is a rare case for
 	   the hardware we have. The bounds of the source rectangle _must_ be
 	   multiple of 16 and must use the same coordinate system as indicated
 	   before; their centers shall align initially.
@@ -317,13 +317,13 @@ struct sn9c102_sensor {
 	   defined the correct default bounds in the structures.
 	   See the V4L2 API for further details.
 	   NOTE: once you have defined the bounds of the active window
-	         (struct cropcap.bounds) you must not change them.anymore.
+		 (struct cropcap.bounds) you must not change them.anymore.
 	   Only 'bounds' and 'defrect' fields are mandatory, other fields
 	   will be ignored.
 	*/
 
 	int (*set_crop)(struct sn9c102_device* cam,
-	                const struct v4l2_rect* rect);
+			const struct v4l2_rect* rect);
 	/*
 	   To be called on VIDIOC_C_SETCROP. The core module always calls a
 	   default routine which configures the appropriate SN9C10X regs (also
@@ -332,12 +332,12 @@ struct sn9c102_sensor {
 	   case you override the default function, you always have to program
 	   the chip to match those values; on error return the corresponding
 	   error code without rolling back.
-	   NOTE: in case, you must program the SN9C10X chip to get rid of 
-	         blank pixels or blank lines at the _start_ of each line or
-	         frame after each HSYNC or VSYNC, so that the image starts with
-	         real RGB data (see regs 0x12, 0x13) (having set H_SIZE and,
-	         V_SIZE you don't have to care about blank pixels or blank
-	         lines at the end of each line or frame).
+	   NOTE: in case, you must program the SN9C10X chip to get rid of
+		 blank pixels or blank lines at the _start_ of each line or
+		 frame after each HSYNC or VSYNC, so that the image starts with
+		 real RGB data (see regs 0x12, 0x13) (having set H_SIZE and,
+		 V_SIZE you don't have to care about blank pixels or blank
+		 lines at the end of each line or frame).
 	*/
 
 	struct v4l2_pix_format pix_format;
@@ -349,17 +349,17 @@ struct sn9c102_sensor {
 	   number of bits per pixel for uncompressed video, 8 or 9 (despite the
 	   current value of 'pixelformat').
 	   NOTE 1: both 'width' and 'height' _must_ be either 1/1 or 1/2 or 1/4
-	           of cropcap.defrect.width and cropcap.defrect.height. I
-	           suggest 1/1.
+		   of cropcap.defrect.width and cropcap.defrect.height. I
+		   suggest 1/1.
 	   NOTE 2: The initial compression quality is defined by the first bit
-	           of reg 0x17 during the initialization of the image sensor.
+		   of reg 0x17 during the initialization of the image sensor.
 	   NOTE 3: as said above, you have to program the SN9C10X chip to get
-	           rid of any blank pixels, so that the output of the sensor
-	           matches the RGB bayer sequence (i.e. BGBGBG...GRGRGR).
+		   rid of any blank pixels, so that the output of the sensor
+		   matches the RGB bayer sequence (i.e. BGBGBG...GRGRGR).
 	*/
 
 	int (*set_pix_format)(struct sn9c102_device* cam,
-	                      const struct v4l2_pix_format* pix);
+			      const struct v4l2_pix_format* pix);
 	/*
 	   To be called on VIDIOC_S_FMT, when switching from the SBGGR8 to
 	   SN9C10X pixel format or viceversa. On error return the corresponding

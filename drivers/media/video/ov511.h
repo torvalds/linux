@@ -130,7 +130,7 @@
 #define R511_COMP_QVY		0x76
 #define R511_COMP_QVUV		0x77
 #define R511_COMP_EN		0x78
-#define R511_COMP_LUT_EN	0x79		
+#define R511_COMP_LUT_EN	0x79
 #define R511_COMP_LUT_BEGIN	0x80
 
 /* --------------------------------- */
@@ -459,14 +459,14 @@ struct usb_ov511 {
 	int subh;		/* Pix Array subcapture height */
 
 	int curframe;		/* Current receiving sbuf */
-	struct ov511_frame frame[OV511_NUMFRAMES];	
+	struct ov511_frame frame[OV511_NUMFRAMES];
 
 	struct ov511_sbuf sbuf[OV511_NUMSBUF];
 
 	wait_queue_head_t wq;	/* Processes waiting */
 
 	int snap_enabled;	/* Snapshot mode enabled */
-	
+
 	int bridge;		/* Type of bridge (BRG_*) */
 	int bclass;		/* Class of bridge (BCL_*) */
 	int sensor;		/* Type of image sensor chip (SEN_*) */
@@ -512,7 +512,7 @@ struct symbolic_list {
 /* Returns the name of the matching element in the symbolic_list array. The
  * end of the list must be marked with an element that has a NULL name.
  */
-static inline char * 
+static inline char *
 symbolic(struct symbolic_list list[], int num)
 {
 	int i;

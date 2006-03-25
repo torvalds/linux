@@ -26,7 +26,7 @@
 	Does any other model using the w9966 interface chip exist ?
 
 	Todo:
-	
+
 	*Add a working EPP mode, since DMA ECP read isn't implemented
 	in the parport drivers. (That's why it's so sloow)
 
@@ -47,9 +47,9 @@
 	*Probably some bugs that I don't know of
 
 	Please support me by sending feedback!
-	
+
 	Changes:
-	
+
 	Alan Cox:	Removed RGB mode for kernel merge, added THIS_MODULE
 			and owner support for newer module locks
 */
@@ -204,7 +204,7 @@ static struct video_device w9966_template = {
  */
 
 
-// Set camera phase flags, so we know what to uninit when terminating 
+// Set camera phase flags, so we know what to uninit when terminating
 static inline void w9966_setState(struct w9966_dev* cam, int mask, int val)
 {
 	cam->dev_state = (cam->dev_state & ~mask) ^ val;
@@ -233,7 +233,7 @@ static inline void w9966_pdev_release(struct w9966_dev* cam)
 	parport_release(cam->pdev);
 	w9966_setState(cam, W9966_STATE_CLAIMED, 0);
 }
- 
+
 // Read register from W9966 interface-chip
 // Expects a claimed pdev
 // -1 on error, else register data (byte)
@@ -242,7 +242,7 @@ static int w9966_rReg(struct w9966_dev* cam, int reg)
 	// ECP, read, regtransfer, REG, REG, REG, REG, REG
 	const unsigned char addr = 0x80 | (reg & 0x1f);
 	unsigned char val;
-	
+
 	if (parport_negotiate(cam->pport, cam->ppmode | IEEE1284_ADDR) != 0)
 		return -1;
 	if (parport_write(cam->pport, &addr, 1) != 1)
@@ -263,7 +263,7 @@ static int w9966_wReg(struct w9966_dev* cam, int reg, int data)
 	// ECP, write, regtransfer, REG, REG, REG, REG, REG
 	const unsigned char addr = 0xc0 | (reg & 0x1f);
 	const unsigned char val = data;
-	
+
 	if (parport_negotiate(cam->pport, cam->ppmode | IEEE1284_ADDR) != 0)
 		return -1;
 	if (parport_write(cam->pport, &addr, 1) != 1)
@@ -284,7 +284,7 @@ static int w9966_init(struct w9966_dev* cam, struct parport* port)
 {
 	if (cam->dev_state != 0)
 		return -1;
-	
+
 	cam->pport = port;
 	cam->brightness = 128;
 	cam->contrast = 64;
@@ -302,7 +302,7 @@ static int w9966_init(struct w9966_dev* cam, struct parport* port)
 			cam->ppmode = IEEE1284_MODE_EPP;
 		else
 			cam->ppmode = IEEE1284_MODE_ECP;
-		break;	
+		break;
 	case 1:		// hw- or sw-ecp
 		cam->ppmode = IEEE1284_MODE_ECP;
 		break;
@@ -310,7 +310,7 @@ static int w9966_init(struct w9966_dev* cam, struct parport* port)
 		cam->ppmode = IEEE1284_MODE_EPP;
 	break;
 	}
-	
+
 // Tell the parport driver that we exists
 	cam->pdev = parport_register_device(port, "w9966", NULL, NULL, NULL, 0, NULL);
 	if (cam->pdev == NULL) {
@@ -320,7 +320,7 @@ static int w9966_init(struct w9966_dev* cam, struct parport* port)
 	w9966_setState(cam, W9966_STATE_PDEV, W9966_STATE_PDEV);
 
 	w9966_pdev_claim(cam);
-	
+
 // Setup a default capture mode
 	if (w9966_setup(cam, 0, 0, 1023, 1023, 200, 160) != 0) {
 		DPRINTF("w9966_setup() failed.\n");
@@ -333,11 +333,11 @@ static int w9966_init(struct w9966_dev* cam, struct parport* port)
 	memcpy(&cam->vdev, &w9966_template, sizeof(struct video_device));
 	cam->vdev.priv = cam;
 
-	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, video_nr) == -1)		 
+	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, video_nr) == -1)
 		return -1;
-	
+
 	w9966_setState(cam, W9966_STATE_VDEV, W9966_STATE_VDEV);
-	
+
 	// All ok
 	printk(
 		"w9966cf: Found and initialized a webcam on %s.\n",
@@ -391,7 +391,7 @@ static int w9966_findlen(int near, int size, int maxlen)
 		// Only continue as long as we keep getting better values
 		if (err > besterr)
 			break;
-		
+
 		besterr = err;
 		bestlen = len;
 	}
@@ -399,7 +399,7 @@ static int w9966_findlen(int near, int size, int maxlen)
 	return bestlen;
 }
 
-// Modify capture window (if necessary) 
+// Modify capture window (if necessary)
 // and calculate downscaling
 // Return -1 on error
 static int w9966_calcscale(int size, int min, int max, int* beg, int* end, unsigned char* factor)
@@ -407,7 +407,7 @@ static int w9966_calcscale(int size, int min, int max, int* beg, int* end, unsig
 	int maxlen = max - min;
 	int len = *end - *beg + 1;
 	int newlen = w9966_findlen(len, size, maxlen);
-	int err = newlen - len; 
+	int err = newlen - len;
 
 	// Check for bad format
 	if (newlen > maxlen || newlen < size)
@@ -452,8 +452,8 @@ static int w9966_setup(struct w9966_dev* cam, int x1, int y1, int x2, int y2, in
 		0x48, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x71, 0xe7, 0x00, 0x00, 0xc0
 	};
-	
-	
+
+
 	if (w*h*2 > W9966_SRAMSIZE)
 	{
 		DPRINTF("capture window exceeds SRAM size!.\n");
@@ -469,9 +469,9 @@ static int w9966_setup(struct w9966_dev* cam, int x1, int y1, int x2, int y2, in
 	cam->width = w;
 	cam->height = h;
 
-	enh_s = 0;	
+	enh_s = 0;
 	enh_e = w*h*2;
-	
+
 // Modify capture window if necessary and calculate downscaling
 	if (
 		w9966_calcscale(w, W9966_WND_MIN_X, W9966_WND_MAX_X, &x1, &x2, &scale_x) != 0 ||
@@ -482,14 +482,14 @@ static int w9966_setup(struct w9966_dev* cam, int x1, int y1, int x2, int y2, in
 		"%dx%d, x: %d<->%d, y: %d<->%d, sx: %d/64, sy: %d/64.\n",
 		w, h, x1, x2, y1, y2, scale_x&~0x80, scale_y&~0x80
 	);
-	
+
 // Setup registers
 	regs[0x00] = 0x00;			// Set normal operation
 	regs[0x01] = 0x18;			// Capture mode
 	regs[0x02] = scale_y;			// V-scaling
 	regs[0x03] = scale_x;			// H-scaling
-	
-	// Capture window	
+
+	// Capture window
 	regs[0x04] = (x1 & 0x0ff);		// X-start (8 low bits)
 	regs[0x05] = (x1 & 0x300)>>8;		// X-start (2 high bits)
 	regs[0x06] = (y1 & 0x0ff);		// Y-start (8 low bits)
@@ -499,7 +499,7 @@ static int w9966_setup(struct w9966_dev* cam, int x1, int y1, int x2, int y2, in
 	regs[0x0a] = (y2 & 0x0ff);		// Y-end (8 low bits)
 
 	regs[0x0c] = W9966_SRAMID;		// SRAM-banks (1x 128kb)
-	
+
 	// Enhancement layer
 	regs[0x0d] = (enh_s& 0x000ff);		// Enh. start (0-7)
 	regs[0x0e] = (enh_s& 0x0ff00)>>8;	// Enh. start (8-15)
@@ -515,7 +515,7 @@ static int w9966_setup(struct w9966_dev* cam, int x1, int y1, int x2, int y2, in
 	regs[0x19] = 0xff;			// I/O port direction control
 	regs[0x1a] = 0xff;			// I/O port data register
 	regs[0x1b] = 0x10;			// ???
-	
+
 	// SAA7111 chip settings
 	saa7111_regs[0x0a] = cam->brightness;
 	saa7111_regs[0x0b] = cam->contrast;
@@ -551,7 +551,7 @@ static inline void w9966_i2c_setsda(struct w9966_dev* cam, int state)
 		cam->i2c_state |= W9966_I2C_W_DATA;
 	else
 		cam->i2c_state &= ~W9966_I2C_W_DATA;
-	
+
 	w9966_wReg(cam, 0x18, cam->i2c_state);
 	udelay(5);
 }
@@ -577,7 +577,7 @@ static inline int w9966_i2c_setscl(struct w9966_dev* cam, int state)
 
 	w9966_wReg(cam, 0x18, cam->i2c_state);
 	udelay(5);
-	
+
 	// we go to high, we also expect the peripheral to ack.
 	if (state) {
 		timeout = jiffies + 100;
@@ -607,16 +607,16 @@ static int w9966_i2c_wbyte(struct w9966_dev* cam, int data)
 		w9966_i2c_setsda(cam, (data >> i) & 0x01);
 
 		if (w9966_i2c_setscl(cam, 1) == -1)
-			return -1;			
+			return -1;
 		w9966_i2c_setscl(cam, 0);
 	}
 
 	w9966_i2c_setsda(cam, 1);
-	
+
 	if (w9966_i2c_setscl(cam, 1) == -1)
 		return -1;
 	w9966_i2c_setscl(cam, 0);
-	
+
 	return 0;
 }
 
@@ -626,8 +626,8 @@ static int w9966_i2c_wbyte(struct w9966_dev* cam, int data)
 static int w9966_i2c_rbyte(struct w9966_dev* cam)
 {
 	unsigned char data = 0x00;
-	int i;	
-	
+	int i;
+
 	w9966_i2c_setsda(cam, 1);
 
 	for (i = 0; i < 8; i++)
@@ -637,7 +637,7 @@ static int w9966_i2c_rbyte(struct w9966_dev* cam)
 		data = data << 1;
 		if (w9966_i2c_getsda(cam))
 			data |= 0x01;
-		
+
 		w9966_i2c_setscl(cam, 0);
 	}
 	return data;
@@ -673,11 +673,11 @@ static int w9966_rReg_i2c(struct w9966_dev* cam, int reg)
 		return -1;
 
 	w9966_i2c_setsda(cam, 0);
-	
+
 	if (w9966_i2c_setscl(cam, 1) == -1)
 		return -1;
 	w9966_i2c_setsda(cam, 1);
-	
+
 	return data;
 }
 #endif
@@ -699,7 +699,7 @@ static int w9966_wReg_i2c(struct w9966_dev* cam, int reg, int data)
 	w9966_i2c_setsda(cam, 0);
 	if (w9966_i2c_setscl(cam, 1) == -1)
 		return -1;
-		
+
 	w9966_i2c_setsda(cam, 1);
 
 	return 0;
@@ -714,7 +714,7 @@ static int w9966_v4l_do_ioctl(struct inode *inode, struct file *file,
 {
 	struct video_device *vdev = video_devdata(file);
 	struct w9966_dev *cam = vdev->priv;
-	
+
 	switch(cmd)
 	{
 	case VIDIOCGCAP:
@@ -790,14 +790,14 @@ static int w9966_v4l_do_ioctl(struct inode *inode, struct file *file,
 		struct video_picture *vpic = arg;
 		if (vpic->depth != 16 || vpic->palette != VIDEO_PALETTE_YUV422)
 			return -EINVAL;
-			
+
 		cam->brightness = vpic->brightness >> 8;
 		cam->hue = (vpic->hue >> 8) - 128;
 		cam->color = vpic->colour >> 9;
 		cam->contrast = vpic->contrast >> 9;
 
 		w9966_pdev_claim(cam);
-		
+
 		if (
 			w9966_wReg_i2c(cam, 0x0a, cam->brightness) == -1 ||
 			w9966_wReg_i2c(cam, 0x0b, cam->contrast) == -1 ||
@@ -807,7 +807,7 @@ static int w9966_v4l_do_ioctl(struct inode *inode, struct file *file,
 			w9966_pdev_release(cam);
 			return -EIO;
 		}
-		
+
 		w9966_pdev_release(cam);
 		return 0;
 	}
@@ -815,13 +815,13 @@ static int w9966_v4l_do_ioctl(struct inode *inode, struct file *file,
 	{
 		int ret;
 		struct video_window *vwin = arg;
-		
+
 		if (vwin->flags != 0)
 			return -EINVAL;
 		if (vwin->clipcount != 0)
 			return -EINVAL;
 		if (vwin->width < 2 || vwin->width > W9966_WND_MAX_W)
-			return -EINVAL;		
+			return -EINVAL;
 		if (vwin->height < 1 || vwin->height > W9966_WND_MAX_H)
 			return -EINVAL;
 
@@ -829,12 +829,12 @@ static int w9966_v4l_do_ioctl(struct inode *inode, struct file *file,
 		w9966_pdev_claim(cam);
 		ret = w9966_setup(cam, 0, 0, 1023, 1023, vwin->width, vwin->height);
 		w9966_pdev_release(cam);
-		
+
 		if (ret != 0) {
 			DPRINTF("VIDIOCSWIN: w9966_setup() failed.\n");
 			return -EIO;
 		}
-		
+
 		return 0;
 	}
 	case VIDIOCGWIN:
@@ -846,7 +846,7 @@ static int w9966_v4l_do_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	}
 	// Unimplemented
-	case VIDIOCCAPTURE:	
+	case VIDIOCCAPTURE:
 	case VIDIOCGFBUF:
 	case VIDIOCSFBUF:
 	case VIDIOCKEY:
@@ -877,17 +877,17 @@ static ssize_t w9966_v4l_read(struct file *file, char  __user *buf,
 	unsigned char __user *dest = (unsigned char __user *)buf;
 	unsigned long dleft = count;
 	unsigned char *tbuf;
-	
+
 	// Why would anyone want more than this??
 	if (count > cam->width * cam->height * 2)
 		return -EINVAL;
-	
+
 	w9966_pdev_claim(cam);
 	w9966_wReg(cam, 0x00, 0x02);	// Reset ECP-FIFO buffer
 	w9966_wReg(cam, 0x00, 0x00);	// Return to normal operation
 	w9966_wReg(cam, 0x01, 0x98);	// Enable capture
 
-	// write special capture-addr and negotiate into data transfer	
+	// write special capture-addr and negotiate into data transfer
 	if (
 		(parport_negotiate(cam->pport, cam->ppmode|IEEE1284_ADDR) != 0	)||
 		(parport_write(cam->pport, &addr, 1) != 1						)||
@@ -906,7 +906,7 @@ static ssize_t w9966_v4l_read(struct file *file, char  __user *buf,
 	while(dleft > 0)
 	{
 		unsigned long tsize = (dleft > W9966_RBUFFER) ? W9966_RBUFFER : dleft;
-	
+
 		if (parport_read(cam->pport, tbuf, tsize) < tsize) {
 			count = -EFAULT;
 			goto out;
@@ -933,7 +933,7 @@ out:
 static void w9966_attach(struct parport *port)
 {
 	int i;
-	
+
 	for (i = 0; i < W9966_MAXCAMS; i++)
 	{
 		if (w9966_cams[i].dev_state != 0)	// Cam is already assigned

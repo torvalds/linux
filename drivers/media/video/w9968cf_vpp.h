@@ -29,7 +29,7 @@ struct w9968cf_vpp_t {
 	struct module* owner;
 	int (*check_headers)(const unsigned char*, const unsigned long);
 	int (*decode)(const char*, const unsigned long, const unsigned,
-	              const unsigned, char*);
+		      const unsigned, char*);
 	void (*swap_yuvbytes)(void*, unsigned long);
 	void (*uyvy_to_rgbx)(u8*, unsigned long, u8*, u16, u8);
 	void (*scale_up)(u8*, u8*, u16, u16, u16, u16, u16);

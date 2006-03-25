@@ -15,6 +15,6 @@ default:
 endif
 
 clean:
-	rm -f *.[oas] .*.flags *.ko .*.cmd .*.d .*.tmp *.mod.c 
+	rm -f *.[oas] .*.flags *.ko .*.cmd .*.d .*.tmp *.mod.c
 	rm -rf .tmp_versions
 

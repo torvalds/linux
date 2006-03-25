@@ -46,20 +46,20 @@ static int tas5130d1b_init(struct et61x251_device* cam)
 
 
 static int tas5130d1b_set_ctrl(struct et61x251_device* cam,
-                               const struct v4l2_control* ctrl)
+			       const struct v4l2_control* ctrl)
 {
 	int err = 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_GAIN:
 		err += et61x251_i2c_raw_write(cam, 2, 0x20,
-		                              0xf6-ctrl->value, 0, 0, 0,
-		                              0, 0, 0, 0);
+					      0xf6-ctrl->value, 0, 0, 0,
+					      0, 0, 0, 0);
 		break;
 	case V4L2_CID_EXPOSURE:
 		err += et61x251_i2c_raw_write(cam, 2, 0x40,
-		                              0x47-ctrl->value, 0, 0, 0,
-		                              0, 0, 0, 0);
+					      0x47-ctrl->value, 0, 0, 0,
+					      0, 0, 0, 0);
 		break;
 	default:
 		return -EINVAL;

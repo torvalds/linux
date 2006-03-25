@@ -109,9 +109,9 @@ int pwc_decompress(struct pwc_device *pdev)
 		   in planar format immediately.
 		 */
 		int flags;
-                
-                flags = PWCX_FLAG_PLANAR;
-                if (pdev->vsize == PSZ_VGA && pdev->vframes == 5 && pdev->vsnapshot)
+
+		flags = PWCX_FLAG_PLANAR;
+		if (pdev->vsize == PSZ_VGA && pdev->vframes == 5 && pdev->vsnapshot)
 		 {
 		   printk(KERN_ERR "pwc: Mode Bayer is not supported for now\n");
 		   flags |= PWCX_FLAG_BAYER;

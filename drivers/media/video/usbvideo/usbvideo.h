@@ -189,11 +189,11 @@ struct usbvideo_frame {
 
 /* Statistics that can be overlaid on screen */
 struct usbvideo_statistics {
-        unsigned long frame_num;	/* Sequential number of the frame */
-        unsigned long urb_count;        /* How many URBs we received so far */
-        unsigned long urb_length;       /* Length of last URB */
-        unsigned long data_count;       /* How many bytes we received */
-        unsigned long header_count;     /* How many frame headers we found */
+	unsigned long frame_num;	/* Sequential number of the frame */
+	unsigned long urb_count;        /* How many URBs we received so far */
+	unsigned long urb_length;       /* Length of last URB */
+	unsigned long data_count;       /* How many bytes we received */
+	unsigned long header_count;     /* How many frame headers we found */
 	unsigned long iso_skip_count;	/* How many empty ISO packets received */
 	unsigned long iso_err_count;	/* How many bad ISO packets received */
 };

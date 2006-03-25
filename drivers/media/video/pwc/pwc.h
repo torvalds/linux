@@ -123,7 +123,7 @@ struct pwc_device
 #endif
    /* Pointer to our usb_device */
    struct usb_device *udev;
-   
+
    int type;                    /* type of cam (645, 646, 675, 680, 690, 720, 730, 740, 750) */
    int release;			/* release number */
    int features;		/* feature bits */
@@ -149,7 +149,7 @@ struct pwc_device
    char vsnapshot;		/* snapshot mode */
    char vsync;			/* used by isoc handler */
    char vmirror;		/* for ToUCaM series */
-   
+
    int cmd_len;
    unsigned char cmd_buf[13];
 

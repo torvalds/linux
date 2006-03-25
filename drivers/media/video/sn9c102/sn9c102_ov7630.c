@@ -69,7 +69,7 @@ static int ov7630_init(struct sn9c102_device* cam)
 
 
 static int ov7630_set_ctrl(struct sn9c102_device* cam,
-                           const struct v4l2_control* ctrl)
+			   const struct v4l2_control* ctrl)
 {
 	int err = 0;
 
@@ -89,8 +89,8 @@ static int ov7630_set_ctrl(struct sn9c102_device* cam,
 		break;
 	case V4L2_CID_CONTRAST:
 		err += ctrl->value ? sn9c102_i2c_write(cam, 0x05,
-		                                       (ctrl->value-1) | 0x20)
-		                   : sn9c102_i2c_write(cam, 0x05, 0x00);
+						       (ctrl->value-1) | 0x20)
+				   : sn9c102_i2c_write(cam, 0x05, 0x00);
 		break;
 	case V4L2_CID_BRIGHTNESS:
 		err += sn9c102_i2c_write(cam, 0x06, ctrl->value);
@@ -100,8 +100,8 @@ static int ov7630_set_ctrl(struct sn9c102_device* cam,
 		break;
 	case V4L2_CID_HUE:
 		err += ctrl->value ? sn9c102_i2c_write(cam, 0x04,
-		                                       (ctrl->value-1) | 0x20)
-		                   : sn9c102_i2c_write(cam, 0x04, 0x00);
+						       (ctrl->value-1) | 0x20)
+				   : sn9c102_i2c_write(cam, 0x04, 0x00);
 		break;
 	case V4L2_CID_DO_WHITE_BALANCE:
 		err += sn9c102_i2c_write(cam, 0x0c, ctrl->value);
@@ -139,7 +139,7 @@ static int ov7630_set_ctrl(struct sn9c102_device* cam,
 
 
 static int ov7630_set_crop(struct sn9c102_device* cam,
-                           const struct v4l2_rect* rect)
+			   const struct v4l2_rect* rect)
 {
 	struct sn9c102_sensor* s = &ov7630;
 	int err = 0;
@@ -152,7 +152,7 @@ static int ov7630_set_crop(struct sn9c102_device* cam,
 
 
 static int ov7630_set_pix_format(struct sn9c102_device* cam,
-                                 const struct v4l2_pix_format* pix)
+				 const struct v4l2_pix_format* pix)
 {
 	int err = 0;
 

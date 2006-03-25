@@ -10,7 +10,7 @@ typedef struct
 #define DABUSB_VERSION 0x1000
 #define IOCTL_DAB_BULK              _IOWR('d', 0x30, bulk_transfer_t)
 #define IOCTL_DAB_OVERRUNS	    _IOR('d',  0x15, int)
-#define IOCTL_DAB_VERSION           _IOR('d', 0x3f, int) 
+#define IOCTL_DAB_VERSION           _IOR('d', 0x3f, int)
 
 #ifdef __KERNEL__
 
@@ -36,7 +36,7 @@ typedef struct
 	struct list_head rec_buff_list;
 } dabusb_t,*pdabusb_t;
 
-typedef struct 
+typedef struct
 {
 	pdabusb_t s;
 	struct urb *purb;

@@ -86,7 +86,7 @@ static int dabusb_add_buf_tail (pdabusb_t s, struct list_head *dst, struct list_
 	return ret;
 }
 /*-------------------------------------------------------------------*/
-#ifdef DEBUG 
+#ifdef DEBUG
 static void dump_urb (struct urb *urb)
 {
 	dbg("urb                   :%p", urb);
@@ -136,7 +136,7 @@ static int dabusb_free_queue (struct list_head *q)
 	for (p = q->next; p != q;) {
 		b = list_entry (p, buff_t, buff_list);
 
-#ifdef DEBUG 
+#ifdef DEBUG
 		dump_urb(b->purb);
 #endif
 		kfree(b->purb->transfer_buffer);
@@ -287,7 +287,7 @@ static int dabusb_bulk (pdabusb_t s, pbulk_transfer_t pb)
 		}
 
 	}
-	
+
 	if( ret == -EPIPE ) {
 		warn("CLEAR_FEATURE request to remove STALL condition.");
 		if(usb_clear_halt(s->usbdev, usb_pipeendpoint(pipe)))
@@ -328,7 +328,7 @@ static int dabusb_loadmem (pdabusb_t s, const char *fname)
 	PINTEL_HEX_RECORD ptr = firmware;
 
 	dbg("Enter dabusb_loadmem (internal)");
-	
+
 	ret = dabusb_8051_reset (s, 1);
 	while (ptr->Type == 0) {
 
@@ -449,7 +449,7 @@ static int dabusb_startrek (pdabusb_t s)
 	if (!list_empty (&s->free_buff_list)) {
 		pbuff_t end;
 		int ret;
-		
+
 	while (!dabusb_add_buf_tail (s, &s->rec_buff_list, &s->free_buff_list)) {
 
 			dbg("submitting: end:%p s->rec_buff_list:%p", s->rec_buff_list.prev, &s->rec_buff_list);
@@ -506,7 +506,7 @@ static ssize_t dabusb_read (struct file *file, char __user *buf, size_t count, l
 			err("error: rec_buf_list is empty");
 			goto err;
 		}
-		
+
 		b = list_entry (s->rec_buff_list.next, buff_t, buff_list);
 		purb = b->purb;
 
@@ -783,9 +783,9 @@ static void dabusb_disconnect (struct usb_interface *intf)
 	pdabusb_t s = usb_get_intfdata (intf);
 
 	dbg("dabusb_disconnect");
-	
+
 	init_waitqueue_entry(&__wait, current);
-	
+
 	usb_set_intfdata (intf, NULL);
 	if (s) {
 		usb_deregister_dev (intf, &dabusb_class);
@@ -797,7 +797,7 @@ static void dabusb_disconnect (struct usb_interface *intf)
 			schedule();
 		current->state = TASK_RUNNING;
 		remove_wait_queue(&s->remove_ok, &__wait);
-		
+
 		s->usbdev = NULL;
 		s->overruns = 0;
 	}

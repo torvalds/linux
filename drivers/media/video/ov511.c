@@ -15,7 +15,7 @@
  *
  * Based on the Linux CPiA driver written by Peter Pregler,
  * Scott J. Bertin and Johannes Erdfelt.
- * 
+ *
  * Please see the file: Documentation/usb/ov511.txt
  * and the website at:  http://alpha.dyndns.org/ov511
  * for more info.
@@ -433,7 +433,7 @@ reg_w_mask(struct usb_ov511 *ov,
 	return (reg_w(ov, reg, newval));
 }
 
-/* 
+/*
  * Writes multiple (n) byte value to a single register. Only valid with certain
  * registers (0x30 and 0xc4 - 0xce).
  */
@@ -629,7 +629,7 @@ ov511_i2c_write_internal(struct usb_ov511 *ov,
 		/* Retry until idle */
 		do
 			rc = reg_r(ov, R511_I2C_CTL);
-		while (rc > 0 && ((rc&1) == 0)); 
+		while (rc > 0 && ((rc&1) == 0));
 		if (rc < 0)
 			break;
 
@@ -1752,7 +1752,7 @@ sensor_set_picture(struct usb_ov511 *ov, struct video_picture *p)
 	ov->whiteness = p->whiteness;
 
 	/* Don't return error if a setting is unsupported, or rest of settings
-         * will not be performed */
+	 * will not be performed */
 
 	rc = sensor_set_contrast(ov, p->contrast);
 	if (FATAL_ERROR(rc))
@@ -1781,7 +1781,7 @@ sensor_get_picture(struct usb_ov511 *ov, struct video_picture *p)
 	PDEBUG(4, "sensor_get_picture");
 
 	/* Don't return error if a setting is unsupported, or rest of settings
-         * will not be performed */
+	 * will not be performed */
 
 	rc = sensor_get_contrast(ov, &(p->contrast));
 	if (FATAL_ERROR(rc))
@@ -2251,7 +2251,7 @@ mode_init_ov_sensor_regs(struct usb_ov511 *ov, int width, int height,
 
 	/******** Clock programming ********/
 
-	/* The OV6620 needs special handling. This prevents the 
+	/* The OV6620 needs special handling. This prevents the
 	 * severe banding that normally occurs */
 	if (ov->sensor == SEN_OV6620 || ov->sensor == SEN_OV6630)
 	{
@@ -2326,7 +2326,7 @@ set_ov_sensor_window(struct usb_ov511 *ov, int width, int height, int mode,
 		     int sub_flag)
 {
 	int ret;
-	int hwsbase, hwebase, vwsbase, vwebase, hwsize, vwsize; 
+	int hwsbase, hwebase, vwsbase, vwebase, hwsize, vwsize;
 	int hoffset, voffset, hwscale = 0, vwscale = 0;
 
 	/* The different sensor ICs handle setting up of window differently.
@@ -2575,7 +2575,7 @@ ov518_mode_init_regs(struct usb_ov511 *ov,
 		/* OV518 needs U and V swapped */
 		i2c_w_mask(ov, 0x15, 0x00, 0x01);
 
-	 	if (mode == VIDEO_PALETTE_GREY) {
+		if (mode == VIDEO_PALETTE_GREY) {
 			/* Set 16-bit input format (UV data are ignored) */
 			reg_w_mask(ov, 0x20, 0x00, 0x08);
 
@@ -2894,7 +2894,7 @@ make_8x8(unsigned char *pIn, unsigned char *pOut, int w)
  *           ...              ...                    ...
  *     56 57 ... 63   120 121 ... 127        248 249 ... 255
  *
- */ 
+ */
 static void
 yuv400raw_to_yuv400p(struct ov511_frame *frame,
 		     unsigned char *pIn0, unsigned char *pOut0)
@@ -2923,7 +2923,7 @@ yuv400raw_to_yuv400p(struct ov511_frame *frame,
  *
  *      0  1 ...  7
  *      8  9 ... 15
- *           ...   
+ *           ...
  *     56 57 ... 63
  *
  * U and V are shipped at half resolution (1 U,V sample -> one 2x2 block).
@@ -3034,7 +3034,7 @@ decompress(struct usb_ov511 *ov, struct ov511_frame *frame,
  */
 static void
 deinterlace(struct ov511_frame *frame, int rawformat,
-            unsigned char *pIn0, unsigned char *pOut0)
+	    unsigned char *pIn0, unsigned char *pOut0)
 {
 	const int fieldheight = frame->rawheight / 2;
 	const int fieldpix = fieldheight * frame->rawwidth;
@@ -3112,7 +3112,7 @@ ov51x_postprocess_grey(struct usb_ov511 *ov, struct ov511_frame *frame)
 						     frame->tempdata);
 
 			deinterlace(frame, RAWFMT_YUV400, frame->tempdata,
-			            frame->data);
+				    frame->data);
 		} else {
 			if (frame->compressed)
 				decompress(ov, frame, frame->rawdata,
@@ -3136,7 +3136,7 @@ ov51x_postprocess_yuv420(struct usb_ov511 *ov, struct ov511_frame *frame)
 					     frame->tempdata);
 
 		deinterlace(frame, RAWFMT_YUV420, frame->tempdata,
-		            frame->data);
+			    frame->data);
 	} else {
 		if (frame->compressed)
 			decompress(ov, frame, frame->rawdata, frame->data);
@@ -3226,7 +3226,7 @@ ov511_move_data(struct usb_ov511 *ov, unsigned char *in, int n)
 		frame->rawwidth = ((int)(in[9]) + 1) * 8;
 		frame->rawheight = ((int)(in[10]) + 1) * 8;
 
- 		PDEBUG(4, "Frame end, frame=%d, pnum=%d, w=%d, h=%d, recvd=%d",
+		PDEBUG(4, "Frame end, frame=%d, pnum=%d, w=%d, h=%d, recvd=%d",
 			ov->curframe, pnum, frame->rawwidth, frame->rawheight,
 			frame->bytes_recvd);
 
@@ -3527,10 +3527,10 @@ ov51x_isoc_irq(struct urb *urb, struct pt_regs *regs)
 		return;
 	}
 
-        if (urb->status == -ENOENT || urb->status == -ECONNRESET) {
-                PDEBUG(4, "URB unlinked");
-                return;
-        }
+	if (urb->status == -ENOENT || urb->status == -ECONNRESET) {
+		PDEBUG(4, "URB unlinked");
+		return;
+	}
 
 	if (urb->status != -EINPROGRESS && urb->status != 0) {
 		err("ERROR: urb->status=%d: %s", urb->status,
@@ -4627,8 +4627,8 @@ ov51x_v4l1_mmap(struct file *file, struct vm_area_struct *vma)
 	PDEBUG(4, "mmap: %ld (%lX) bytes", size, size);
 
 	if (size > (((OV511_NUMFRAMES
-	              * MAX_DATA_SIZE(ov->maxwidth, ov->maxheight)
-	              + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))))
+		      * MAX_DATA_SIZE(ov->maxwidth, ov->maxheight)
+		      + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))))
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&ov->lock))
@@ -5062,7 +5062,7 @@ ov6xx0_configure(struct usb_ov511 *ov)
 }
 
 /* This initializes the KS0127 and KS0127B video decoders. */
-static int 
+static int
 ks0127_configure(struct usb_ov511 *ov)
 {
 	int rc;
@@ -5193,7 +5193,7 @@ saa7111a_configure(struct usb_ov511 *ov)
 		return -1;
 
 	/* Detect version of decoder. This must be done after writing the
-         * initial regs or the decoder will lock up. */
+	 * initial regs or the decoder will lock up. */
 	rc = i2c_r(ov, 0x00);
 
 	if (rc < 0) {
@@ -5216,13 +5216,13 @@ saa7111a_configure(struct usb_ov511 *ov)
 }
 
 /* This initializes the OV511/OV511+ and the sensor */
-static int 
+static int
 ov511_configure(struct usb_ov511 *ov)
 {
 	static struct ov511_regvals aRegvalsInit511[] = {
 		{ OV511_REG_BUS, R51x_SYS_RESET,	0x7f },
-	 	{ OV511_REG_BUS, R51x_SYS_INIT,		0x01 },
-	 	{ OV511_REG_BUS, R51x_SYS_RESET,	0x7f },
+		{ OV511_REG_BUS, R51x_SYS_INIT,		0x01 },
+		{ OV511_REG_BUS, R51x_SYS_RESET,	0x7f },
 		{ OV511_REG_BUS, R51x_SYS_INIT,		0x01 },
 		{ OV511_REG_BUS, R51x_SYS_RESET,	0x3f },
 		{ OV511_REG_BUS, R51x_SYS_INIT,		0x01 },
@@ -5269,7 +5269,7 @@ ov511_configure(struct usb_ov511 *ov)
 		err("Please notify " EMAIL " of the name,");
 		err("manufacturer, model, and this number of your camera.");
 		err("Also include the output of the detection process.");
-	} 
+	}
 
 	if (ov->customid == 70)		/* USB Life TV (PAL/SECAM) */
 		ov->pal = 1;
@@ -5336,17 +5336,17 @@ ov511_configure(struct usb_ov511 *ov)
 
 					if (i2c_w(ov, 0x10, 0x00) < 0) {
 						err("Can't determine sensor slave IDs");
-		 				goto error;
+						goto error;
 					} else {
 						if (ks0127_configure(ov) < 0) {
 							err("Failed to configure KS0127");
-	 						goto error;
+							goto error;
 						}
 					}
 				} else {
 					if (saa7111a_configure(ov) < 0) {
 						err("Failed to configure SAA7111A");
-	 					goto error;
+						goto error;
 					}
 				}
 			} else {
@@ -5356,13 +5356,13 @@ ov511_configure(struct usb_ov511 *ov)
 		} else {
 			if (ov6xx0_configure(ov) < 0) {
 				err("Failed to configure OV6xx0");
- 				goto error;
+				goto error;
 			}
 		}
 	} else {
 		if (ov7xx0_configure(ov) < 0) {
 			err("Failed to configure OV7xx0");
-	 		goto error;
+			goto error;
 		}
 	}
 
@@ -5381,12 +5381,12 @@ ov518_configure(struct usb_ov511 *ov)
 	/* For 518 and 518+ */
 	static struct ov511_regvals aRegvalsInit518[] = {
 		{ OV511_REG_BUS, R51x_SYS_RESET,	0x40 },
-	 	{ OV511_REG_BUS, R51x_SYS_INIT,		0xe1 },
-	 	{ OV511_REG_BUS, R51x_SYS_RESET,	0x3e },
+		{ OV511_REG_BUS, R51x_SYS_INIT,		0xe1 },
+		{ OV511_REG_BUS, R51x_SYS_RESET,	0x3e },
 		{ OV511_REG_BUS, R51x_SYS_INIT,		0xe1 },
 		{ OV511_REG_BUS, R51x_SYS_RESET,	0x00 },
 		{ OV511_REG_BUS, R51x_SYS_INIT,		0xe1 },
-		{ OV511_REG_BUS, 0x46,			0x00 }, 
+		{ OV511_REG_BUS, 0x46,			0x00 },
 		{ OV511_REG_BUS, 0x5d,			0x03 },
 		{ OV511_DONE_BUS, 0x0, 0x00},
 	};
@@ -5517,7 +5517,7 @@ ov518_configure(struct usb_ov511 *ov)
 
 			if (init_ov_sensor(ov) < 0) {
 				err("Can't determine sensor slave IDs");
- 				goto error;
+				goto error;
 			} else {
 				err("Detected unsupported OV8xx0 sensor");
 				goto error;
@@ -5525,13 +5525,13 @@ ov518_configure(struct usb_ov511 *ov)
 		} else {
 			if (ov6xx0_configure(ov) < 0) {
 				err("Failed to configure OV6xx0");
- 				goto error;
+				goto error;
 			}
 		}
 	} else {
 		if (ov7xx0_configure(ov) < 0) {
 			err("Failed to configure OV7xx0");
-	 		goto error;
+			goto error;
 		}
 	}
 
@@ -5564,28 +5564,28 @@ static ssize_t show_custom_id(struct class_device *cd, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	return sprintf(buf, "%d\n", ov->customid);
-} 
+}
 static CLASS_DEVICE_ATTR(custom_id, S_IRUGO, show_custom_id, NULL);
 
 static ssize_t show_model(struct class_device *cd, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	return sprintf(buf, "%s\n", ov->desc);
-} 
+}
 static CLASS_DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
 
 static ssize_t show_bridge(struct class_device *cd, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	return sprintf(buf, "%s\n", symbolic(brglist, ov->bridge));
-} 
+}
 static CLASS_DEVICE_ATTR(bridge, S_IRUGO, show_bridge, NULL);
 
 static ssize_t show_sensor(struct class_device *cd, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	return sprintf(buf, "%s\n", symbolic(senlist, ov->sensor));
-} 
+}
 static CLASS_DEVICE_ATTR(sensor, S_IRUGO, show_sensor, NULL);
 
 static ssize_t show_brightness(struct class_device *cd, char *buf)
@@ -5597,7 +5597,7 @@ static ssize_t show_brightness(struct class_device *cd, char *buf)
 		return -ENODEV;
 	sensor_get_brightness(ov, &x);
 	return sprintf(buf, "%d\n", x >> 8);
-} 
+}
 static CLASS_DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
 
 static ssize_t show_saturation(struct class_device *cd, char *buf)
@@ -5609,7 +5609,7 @@ static ssize_t show_saturation(struct class_device *cd, char *buf)
 		return -ENODEV;
 	sensor_get_saturation(ov, &x);
 	return sprintf(buf, "%d\n", x >> 8);
-} 
+}
 static CLASS_DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
 
 static ssize_t show_contrast(struct class_device *cd, char *buf)
@@ -5621,7 +5621,7 @@ static ssize_t show_contrast(struct class_device *cd, char *buf)
 		return -ENODEV;
 	sensor_get_contrast(ov, &x);
 	return sprintf(buf, "%d\n", x >> 8);
-} 
+}
 static CLASS_DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
 
 static ssize_t show_hue(struct class_device *cd, char *buf)
@@ -5633,7 +5633,7 @@ static ssize_t show_hue(struct class_device *cd, char *buf)
 		return -ENODEV;
 	sensor_get_hue(ov, &x);
 	return sprintf(buf, "%d\n", x >> 8);
-} 
+}
 static CLASS_DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
 
 static ssize_t show_exposure(struct class_device *cd, char *buf)
@@ -5645,7 +5645,7 @@ static ssize_t show_exposure(struct class_device *cd, char *buf)
 		return -ENODEV;
 	sensor_get_exposure(ov, &exp);
 	return sprintf(buf, "%d\n", exp >> 8);
-} 
+}
 static CLASS_DEVICE_ATTR(exposure, S_IRUGO, show_exposure, NULL);
 
 static void ov_create_sysfs(struct video_device *vdev)

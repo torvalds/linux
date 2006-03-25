@@ -36,7 +36,7 @@
 enum ctrl_req {
 	SetWhitebal	= 0x01,
 	SetBrightness	= 0x02,
-        SetSharpness	= 0x03,
+	SetSharpness	= 0x03,
 	SetContrast	= 0x04,
 	SetSaturation	= 0x05,
 };
@@ -47,7 +47,7 @@ enum frame_sizes {
 	SIZE_160X136	= 1,
 	SIZE_176X144	= 2,
 	SIZE_320X240	= 3,
-	
+
 };
 
 #define MAX_FRAME_SIZE	SIZE_320X240
@@ -69,7 +69,7 @@ static const int debug = 0;
 /* Some default values for initial camera settings,
    can be set by modprobe */
 
-static int size;	
+static int size;
 static int speed = 6;		/* Speed (fps) 0 (slowest) to 6 (fastest) */
 static int brightness =	MAX_BRIGHTNESS/2;
 static int contrast =	MAX_CONTRAST/2;
@@ -132,24 +132,24 @@ struct konicawc {
 
 static int konicawc_ctrl_msg(struct uvd *uvd, u8 dir, u8 request, u16 value, u16 index, void *buf, int len)
 {
-        int retval = usb_control_msg(uvd->dev,
+	int retval = usb_control_msg(uvd->dev,
 		dir ? usb_rcvctrlpipe(uvd->dev, 0) : usb_sndctrlpipe(uvd->dev, 0),
 		    request, 0x40 | dir, value, index, buf, len, 1000);
-        return retval < 0 ? retval : 0;
+	return retval < 0 ? retval : 0;
 }
 
 
 static inline void konicawc_camera_on(struct uvd *uvd)
 {
-        DEBUG(0, "camera on");
-        konicawc_set_misc(uvd, 0x2, 1, 0x0b);
+	DEBUG(0, "camera on");
+	konicawc_set_misc(uvd, 0x2, 1, 0x0b);
 }
 
 
 static inline void konicawc_camera_off(struct uvd *uvd)
 {
-        DEBUG(0, "camera off");
-        konicawc_set_misc(uvd, 0x2, 0, 0x0b);
+	DEBUG(0, "camera off");
+	konicawc_set_misc(uvd, 0x2, 0, 0x0b);
 }
 
 
@@ -317,7 +317,7 @@ static int konicawc_compress_iso(struct uvd *uvd, struct urb *dataurb, struct ur
 			button = !!(sts & 0x40);
 			sts &= ~0x40;
 		}
-		
+
 		/* work out the button status, but don't do
 		   anything with it for now */
 
@@ -331,7 +331,7 @@ static int konicawc_compress_iso(struct uvd *uvd, struct urb *dataurb, struct ur
 			discard++;
 			continue;
 		}
-		
+
 		if((sts > 0x01) && (sts < 0x80)) {
 			info("unknown status %2.2x", sts);
 			bad++;
@@ -350,7 +350,7 @@ static int konicawc_compress_iso(struct uvd *uvd, struct urb *dataurb, struct ur
 				DEBUG(2, "found initial image");
 				cam->lastframe = -1;
 			}
-				
+
 			marker[3] = sts & 0x7F;
 			RingQueue_Enqueue(&uvd->dp, marker, 4);
 			totlen += 4;
@@ -367,16 +367,16 @@ static int konicawc_compress_iso(struct uvd *uvd, struct urb *dataurb, struct ur
 
 static void resubmit_urb(struct uvd *uvd, struct urb *urb)
 {
-        int i, ret;
-        for (i = 0; i < FRAMES_PER_DESC; i++) {
-                urb->iso_frame_desc[i].status = 0;
-        }
-        urb->dev = uvd->dev;
-        urb->status = 0;
+	int i, ret;
+	for (i = 0; i < FRAMES_PER_DESC; i++) {
+		urb->iso_frame_desc[i].status = 0;
+	}
+	urb->dev = uvd->dev;
+	urb->status = 0;
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	DEBUG(3, "submitting urb of length %d", urb->transfer_buffer_length);
-        if(ret)
-                err("usb_submit_urb error (%d)", ret);
+	if(ret)
+		err("usb_submit_urb error (%d)", ret);
 
 }
 
@@ -490,7 +490,7 @@ static int konicawc_start_data(struct uvd *uvd)
 	}
 
 	cam->last_data_urb = NULL;
-	
+
 	/* Submit all URBs */
 	for (i=0; i < USBVIDEO_NUMSBUF; i++) {
 		errFlag = usb_submit_urb(cam->sts_urb[i], GFP_KERNEL);
@@ -539,7 +539,7 @@ static void konicawc_stop_data(struct uvd *uvd)
 
 
 static void konicawc_process_isoc(struct uvd *uvd, struct usbvideo_frame *frame)
-{	
+{
 	struct konicawc *cam = (struct konicawc *)uvd->user_data;
 	int maxline = cam->maxline;
 	int yplanesz = cam->yplanesz;
@@ -583,13 +583,13 @@ static void konicawc_process_isoc(struct uvd *uvd, struct usbvideo_frame *frame)
 
 	if(frame->scanstate == ScanState_Scanning)
 		return;
-		
+
 	/* Try to move data from queue into frame buffer
 	 * We get data in blocks of 384 bytes made up of:
 	 * 256 Y, 64 U, 64 V.
 	 * This needs to be written out as a Y plane, a U plane and a V plane.
 	 */
-		
+
 	while ( frame->curline < maxline && (RingQueue_GetLength(&uvd->dp) >= 384)) {
 		/* Y */
 		RingQueue_Dequeue(&uvd->dp, frame->data + (frame->curline * 256), 256);

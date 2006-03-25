@@ -64,7 +64,7 @@
 #define PAL_MSB_VERTICAL	0x40	/* 7c */
 
 /* Initialization Sequence */
-	 
+
 static __u8 init7121ntsc[] = {
 	0x26, 0x0,	0x27, 0x0,
 	0x28, NTSC_BURST_START,		0x29, NTSC_BURST_END,
@@ -95,7 +95,7 @@ static __u8 init7121ntsc[] = {
 	0x78, 0x0,	0x79, 0x0,	0x7a, NTSC_FIRST_ACTIVE,
 	0x7b, NTSC_LAST_ACTIVE,		0x7c, NTSC_MSB_VERTICAL,
 	0x7d, 0x0,	0x7e, 0x0,	0x7f, 0x0
-}; 
+};
 #define INIT7121LEN	(sizeof(init7121ntsc)/2)
 
 static __u8 init7121pal[] = {
@@ -128,5 +128,5 @@ static __u8 init7121pal[] = {
 	0x78, 0x0,	0x79, 0x0,	0x7a, PAL_FIRST_ACTIVE,
 	0x7b, PAL_LAST_ACTIVE,		0x7c, PAL_MSB_VERTICAL,
 	0x7d, 0x0,	0x7e, 0x0,	0x7f, 0x0
-}; 
+};
 #endif

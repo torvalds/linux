@@ -22,7 +22,7 @@
  */
 
 /* define _CPIA_DEBUG_ for verbose debug output (see cpia.h) */
-/* #define _CPIA_DEBUG_  1 */  
+/* #define _CPIA_DEBUG_  1 */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -85,7 +85,7 @@ struct usb_cpia {
 
 static int cpia_usb_open(void *privdata);
 static int cpia_usb_registerCallback(void *privdata, void (*cb) (void *cbdata),
-			             void *cbdata);
+				     void *cbdata);
 static int cpia_usb_transferCmd(void *privdata, u8 *command, u8 *data);
 static int cpia_usb_streamStart(void *privdata);
 static int cpia_usb_streamStop(void *privdata);
@@ -127,7 +127,7 @@ static void cpia_usb_complete(struct urb *urb, struct pt_regs *regs)
 		ucpia->workbuff->status = FRAME_READING;
 		ucpia->workbuff->length = 0;
 	}
- 		  
+
 	for (i = 0; i < urb->number_of_packets; i++) {
 		int n = urb->iso_frame_desc[i].actual_length;
 		int st = urb->iso_frame_desc[i].status;
@@ -141,9 +141,9 @@ static void cpia_usb_complete(struct urb *urb, struct pt_regs *regs)
 			printk(KERN_DEBUG "cpia: scratch buf overflow!scr_len: %d, n: %d\n", ucpia->workbuff->length, n);
 			return;
 		}
-	    
+
 		if (n) {
-			if ((ucpia->workbuff->length > 0) || 
+			if ((ucpia->workbuff->length > 0) ||
 			    (0x19 == cdata[0] && 0x68 == cdata[1])) {
 				memcpy(ucpia->workbuff->data + ucpia->workbuff->length, cdata, n);
 				ucpia->workbuff->length += n;
@@ -160,7 +160,7 @@ static void cpia_usb_complete(struct urb *urb, struct pt_regs *regs)
 				ucpia->workbuff = ucpia->workbuff->next;
 				ucpia->workbuff->status = FRAME_EMPTY;
 				ucpia->workbuff->length = 0;
-		  
+
 				if (waitqueue_active(&ucpia->wq_stream))
 					wake_up_interruptible(&ucpia->wq_stream);
 			}
@@ -178,7 +178,7 @@ static int cpia_usb_open(void *privdata)
 	struct usb_cpia *ucpia = (struct usb_cpia *) privdata;
 	struct urb *urb;
 	int ret, retval = 0, fx, err;
-  
+
 	if (!ucpia)
 		return -EINVAL;
 
@@ -191,7 +191,7 @@ static int cpia_usb_open(void *privdata)
 		retval = -EINVAL;
 		goto error_0;
 	}
-	
+
 	ret = usb_set_interface(ucpia->dev, ucpia->iface, 3);
 	if (ret < 0) {
 		printk(KERN_ERR "cpia_usb_open: usb_set_interface error (ret = %d)\n", ret);
@@ -286,7 +286,7 @@ error_1:
 error_0:
 	kfree (ucpia->sbuf[0].data);
 	ucpia->sbuf[0].data = NULL;
-	
+
 	return retval;
 }
 
@@ -307,7 +307,7 @@ static int WritePacket(struct usb_device *udev, const u8 *packet, u8 *buf, size_
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			 packet[1] + (packet[0] << 8),
 			 USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			 packet[2] + (packet[3] << 8), 
+			 packet[2] + (packet[3] << 8),
 			 packet[4] + (packet[5] << 8), buf, size, 1000);
 }
 
@@ -324,7 +324,7 @@ static int ReadPacket(struct usb_device *udev, u8 *packet, u8 *buf, size_t size)
 	return usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			 packet[1] + (packet[0] << 8),
 			 USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			 packet[2] + (packet[3] << 8), 
+			 packet[2] + (packet[3] << 8),
 			 packet[4] + (packet[5] << 8), buf, size, 1000);
 }
 
@@ -393,7 +393,7 @@ static int cpia_usb_streamRead(void *privdata, u8 *frame, int noblock)
 
 	if (!ucpia || !ucpia->present)
 		return -1;
-  
+
 	if (ucpia->curbuff->status != FRAME_READY)
 		interruptible_sleep_on(&ucpia->wq_stream);
 	else
@@ -403,7 +403,7 @@ static int cpia_usb_streamRead(void *privdata, u8 *frame, int noblock)
 
 	if (!mybuff)
 		return -1;
-  
+
 	if (mybuff->status != FRAME_READY || mybuff->length < 4) {
 		DBG("Something went wrong!\n");
 		return -1;
@@ -411,7 +411,7 @@ static int cpia_usb_streamRead(void *privdata, u8 *frame, int noblock)
 
 	memcpy(frame, mybuff->data, mybuff->length);
 	mybuff->status = FRAME_EMPTY;
-  
+
 /*   DBG("read done, %d bytes, Header: %x/%x, Footer: %x%x%x%x\n",  */
 /*       mybuff->length, frame[0], frame[1], */
 /*       frame[mybuff->length-4], frame[mybuff->length-3],  */
@@ -447,7 +447,7 @@ static void cpia_usb_free_resources(struct usb_cpia *ucpia, int try)
 
 	kfree(ucpia->sbuf[1].data);
 	ucpia->sbuf[1].data = NULL;
- 
+
 	if (ucpia->sbuf[0].urb) {
 		usb_kill_urb(ucpia->sbuf[0].urb);
 		usb_free_urb(ucpia->sbuf[0].urb);
@@ -490,7 +490,7 @@ static int cpia_probe(struct usb_interface *intf,
 	struct usb_cpia *ucpia;
 	struct cam_data *cam;
 	int ret;
-  
+
 	/* A multi-config CPiA camera? */
 	if (udev->descriptor.bNumConfigurations != 1)
 		return -ENODEV;
@@ -539,7 +539,7 @@ static int cpia_probe(struct usb_interface *intf,
 
 	/* Before register_camera, important */
 	ucpia->present = 1;
-  
+
 	cam = cpia_register_camera(&cpia_usb_ops, ucpia);
 	if (!cam) {
 		LOG("failed to cpia_register_camera\n");
@@ -591,7 +591,7 @@ static void cpia_disconnect(struct usb_interface *intf)
 	struct cam_data *cam = usb_get_intfdata(intf);
 	struct usb_cpia *ucpia;
 	struct usb_device *udev;
-  
+
 	usb_set_intfdata(intf, NULL);
 	if (!cam)
 		return;
@@ -600,7 +600,7 @@ static void cpia_disconnect(struct usb_interface *intf)
 	spin_lock( &cam_list_lock_usb );
 	list_del(&cam->cam_data_list);
 	spin_unlock( &cam_list_lock_usb );
-	
+
 	ucpia->present = 0;
 
 	cpia_unregister_camera(cam);
@@ -631,7 +631,7 @@ static void cpia_disconnect(struct usb_interface *intf)
 
 static int __init usb_cpia_init(void)
 {
-	printk(KERN_INFO "%s v%d.%d.%d\n",ABOUT, 
+	printk(KERN_INFO "%s v%d.%d.%d\n",ABOUT,
 	       CPIA_USB_MAJ_VER,CPIA_USB_MIN_VER,CPIA_USB_PATCH_VER);
 
 	spin_lock_init(&cam_list_lock_usb);

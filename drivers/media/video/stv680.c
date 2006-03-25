@@ -1,16 +1,16 @@
 /*
  *  STV0680 USB Camera Driver, by Kevin Sisson (kjsisson@bellsouth.net)
- *  
- * Thanks to STMicroelectronics for information on the usb commands, and 
- * to Steve Miller at STM for his help and encouragement while I was 
+ *
+ * Thanks to STMicroelectronics for information on the usb commands, and
+ * to Steve Miller at STM for his help and encouragement while I was
  * writing this driver.
  *
- * This driver is based heavily on the 
+ * This driver is based heavily on the
  * Endpoints (formerly known as AOX) se401 USB Camera Driver
  * Copyright (c) 2000 Jeroen B. Vreeken (pe1rxq@amsat.org)
  *
  * Still somewhat based on the Linux ov511 driver.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -25,18 +25,18 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * History: 
- * ver 0.1 October, 2001. Initial attempt. 
+ * History:
+ * ver 0.1 October, 2001. Initial attempt.
  *
  * ver 0.2 November, 2001. Fixed asbility to resize, added brightness
  *                         function, made more stable (?)
  *
- * ver 0.21 Nov, 2001.     Added gamma correction and white balance, 
- *                         due to Alexander Schwartz. Still trying to 
+ * ver 0.21 Nov, 2001.     Added gamma correction and white balance,
+ *                         due to Alexander Schwartz. Still trying to
  *                         improve stablility. Moved stuff into stv680.h
  *
- * ver 0.22 Nov, 2001.	   Added sharpen function (by Michael Sweet, 
- *                         mike@easysw.com) from GIMP, also used in pencam. 
+ * ver 0.22 Nov, 2001.	   Added sharpen function (by Michael Sweet,
+ *                         mike@easysw.com) from GIMP, also used in pencam.
  *                         Simple, fast, good integer math routine.
  *
  * ver 0.23 Dec, 2001 (gkh)
@@ -44,11 +44,11 @@
  * 			   Lindent, and did other minor tweaks to get
  * 			   things to work properly with 2.5.1
  *
- * ver 0.24 Jan, 2002 (kjs) 
+ * ver 0.24 Jan, 2002 (kjs)
  *                         Fixed the problem with webcam crashing after
- *                         two pictures. Changed the way pic is halved to 
- *                         improve quality. Got rid of green line around 
- *                         frame. Fix brightness reset when changing size 
+ *                         two pictures. Changed the way pic is halved to
+ *                         improve quality. Got rid of green line around
+ *                         frame. Fix brightness reset when changing size
  *                         bug. Adjusted gamma filters slightly.
  *
  * ver 0.25 Jan, 2002 (kjs)
@@ -484,7 +484,7 @@ exit:
 		PDEBUG (1, "STV(i): swapRGB is (forced) ON");
 	else if (swapRGB_on == -1)
 		PDEBUG (1, "STV(i): swapRGB is (forced) OFF");
-	
+
 	if (stv_set_video_mode (stv680) < 0) {
 		PDEBUG (0, "STV(e): Could not set video mode in stv_init");
 		return -1;
@@ -570,7 +570,7 @@ static int stv680_set_pict (struct usb_stv *stv680, struct video_picture *p)
 	if (stv680->brightness != p->brightness) {
 		stv680->chgbright = 1;
 		stv680->brightness = p->brightness;
-	} 
+	}
 
 	stv680->whiteness = p->whiteness;	/* greyscale */
 	stv680->colour = p->colour;
@@ -612,7 +612,7 @@ static void stv680_video_irq (struct urb *urb, struct pt_regs *regs)
 
 		case BUFFER_UNUSED:
 			memcpy (stv680->scratch[stv680->scratch_next].data,
-			        (unsigned char *) urb->transfer_buffer, length);
+				(unsigned char *) urb->transfer_buffer, length);
 			stv680->scratch[stv680->scratch_next].state = BUFFER_READY;
 			stv680->scratch[stv680->scratch_next].length = length;
 			if (waitqueue_active (&stv680->wq)) {
@@ -752,7 +752,7 @@ static int stv680_set_size (struct usb_stv *stv680, int width, int height)
 		PDEBUG (1, "STV(e): request for non-supported size: request: v.width = %i, v.height = %i  actual: stv.width = %i, stv.height = %i", width, height, stv680->vwidth, stv680->vheight);
 		return 1;
 	}
-	
+
 	/* Stop a current stream and start it again at the new size */
 	if (wasstreaming)
 		stv680_stop_stream (stv680);
@@ -773,7 +773,7 @@ static int stv680_set_size (struct usb_stv *stv680, int width, int height)
 
 /*
  * STV0680 Vision Camera Chipset Driver
- * Copyright (C) 2000 Adam Harrison <adam@antispin.org> 
+ * Copyright (C) 2000 Adam Harrison <adam@antispin.org>
 */
 
 #define RED 0
@@ -842,7 +842,7 @@ static void bayer_unshuffle (struct usb_stv *stv680, struct stv680_scratch *buff
 				colour = 2;
 				break;
 			}
-			i = (y * vw + x) * 3;	
+			i = (y * vw + x) * 3;
 			*(output + i + colour) = (unsigned char) p;
 		}		/* for x */
 
@@ -850,9 +850,9 @@ static void bayer_unshuffle (struct usb_stv *stv680, struct stv680_scratch *buff
 
 	/****** gamma correction plus hardcoded white balance */
 	/* Thanks to Alexander Schwartx <alexander.schwartx@gmx.net> for this code.
-	   Correction values red[], green[], blue[], are generated by 
-	   (pow(i/256.0, GAMMA)*255.0)*white balanceRGB where GAMMA=0.55, 1<i<255. 
-	   White balance (RGB)= 1.0, 1.17, 1.48. Values are calculated as double float and 
+	   Correction values red[], green[], blue[], are generated by
+	   (pow(i/256.0, GAMMA)*255.0)*white balanceRGB where GAMMA=0.55, 1<i<255.
+	   White balance (RGB)= 1.0, 1.17, 1.48. Values are calculated as double float and
 	   converted to unsigned char. Values are in stv680.h  */
 
 	for (y = 0; y < vh; y++) {

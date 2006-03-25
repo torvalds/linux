@@ -1,4 +1,4 @@
-/* Linux driver for Philips webcam 
+/* Linux driver for Philips webcam
    Various miscellaneous functions and tables.
    (C) 1999-2003 Nemosoft Unv.
    (C) 2004      Luc Saillard (luc@saillard.org)
@@ -44,17 +44,17 @@ int pwc_decode_size(struct pwc_device *pdev, int width, int height)
 	int i, find;
 
 	/* Make sure we don't go beyond our max size.
-           NB: we have different limits for RAW and normal modes. In case
-           you don't have the decompressor loaded or use RAW mode, 
-           the maximum viewable size is smaller.
-        */
+	   NB: we have different limits for RAW and normal modes. In case
+	   you don't have the decompressor loaded or use RAW mode,
+	   the maximum viewable size is smaller.
+	*/
 	if (pdev->vpalette == VIDEO_PALETTE_RAW)
 	{
 		if (width > pdev->abs_max.x || height > pdev->abs_max.y)
 		{
 			Debug("VIDEO_PALETTE_RAW: going beyond abs_max.\n");
-                	return -1;
-                }
+			return -1;
+		}
 	}
 	else
 	{
@@ -88,8 +88,8 @@ void pwc_construct(struct pwc_device *pdev)
 		pdev->view_min.y =  96;
 		pdev->view_max.x = 352;
 		pdev->view_max.y = 288;
-                pdev->abs_max.x  = 352;
-                pdev->abs_max.y  = 288;
+		pdev->abs_max.x  = 352;
+		pdev->abs_max.y  = 288;
 		pdev->image_mask = 1 << PSZ_SQCIF | 1 << PSZ_QCIF | 1 << PSZ_CIF;
 		pdev->vcinterface = 2;
 		pdev->vendpoint = 4;
@@ -105,8 +105,8 @@ void pwc_construct(struct pwc_device *pdev)
 		pdev->view_max.x = 640;
 		pdev->view_max.y = 480;
 		pdev->image_mask = 1 << PSZ_SQCIF | 1 << PSZ_QSIF | 1 << PSZ_QCIF | 1 << PSZ_SIF | 1 << PSZ_CIF | 1 << PSZ_VGA;
-                pdev->abs_max.x = 640;
-                pdev->abs_max.y = 480;
+		pdev->abs_max.x = 640;
+		pdev->abs_max.y = 480;
 		pdev->vcinterface = 3;
 		pdev->vendpoint = 4;
 		pdev->frame_header_size = 0;
@@ -121,8 +121,8 @@ void pwc_construct(struct pwc_device *pdev)
 		pdev->view_max.x = 640;
 		pdev->view_max.y = 480;
 		pdev->image_mask = 1 << PSZ_QSIF | 1 << PSZ_SIF | 1 << PSZ_VGA;
-                pdev->abs_max.x = 640;
-                pdev->abs_max.y = 480;
+		pdev->abs_max.x = 640;
+		pdev->abs_max.y = 480;
 		pdev->vcinterface = 3;
 		pdev->vendpoint = 5;
 		pdev->frame_header_size = TOUCAM_HEADER_SIZE;

@@ -1300,11 +1300,11 @@ static void ibmcam_model2_Packet1(struct uvd *uvd, unsigned short v1, unsigned s
 /*
  * ibmcam_model3_Packet1()
  *
- * 00_0078_012d	
+ * 00_0078_012d
  * 00_0097_012f
- * 00_d141_0124	
+ * 00_d141_0124
  * 00_0096_0127
- * 00_fea8_0124	
+ * 00_fea8_0124
 */
 static void ibmcam_model3_Packet1(struct uvd *uvd, unsigned short v1, unsigned short v2)
 {
@@ -2687,7 +2687,7 @@ static void ibmcam_model4_setup_after_video_if(struct uvd *uvd)
 		ibmcam_veio(uvd, 0, 0x0004, 0x0127);
 		ibmcam_veio(uvd, 0, 0xfea8, 0x0124);
 		ibmcam_veio(uvd, 0, 0x00c0, 0x010c);
-		break; 
+		break;
 	}
 	usb_clear_halt(uvd->dev, usb_rcvisocpipe(uvd->dev, uvd->video_endp));
 }
@@ -3238,7 +3238,7 @@ static void ibmcam_model3_setup_after_video_if(struct uvd *uvd)
 		{0, 0x0062, 0x0107},
 		{0, 0x0003, 0x0111},
 	};
-#define NUM_INIT_DATA 
+#define NUM_INIT_DATA
 
 	unsigned short compression = 0;	/* 0=none, 7=best frame rate  */
 	int f_rate; /* 0=Fastest 7=slowest */

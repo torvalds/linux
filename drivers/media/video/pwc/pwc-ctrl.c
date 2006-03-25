@@ -31,17 +31,17 @@
 
 /*
    Changes
-   2001/08/03  Alvarado   Added methods for changing white balance and 
-                          red/green gains
+   2001/08/03  Alvarado   Added methods for changing white balance and
+			  red/green gains
  */
 
 /* Control functions for the cam; brightness, contrast, video mode, etc. */
 
 #ifdef __KERNEL__
-#include <asm/uaccess.h> 
+#include <asm/uaccess.h>
 #endif
 #include <asm/errno.h>
- 
+
 #include "pwc.h"
 #include "pwc-ioctl.h"
 #include "pwc-uncompress.h"
@@ -116,13 +116,13 @@ static const char *size2name[PSZ_MAX] =
 	"SIF",
 	"CIF",
 	"VGA",
-};  
+};
 
 /********/
 
-/* Entries for the Nala (645/646) camera; the Nala doesn't have compression 
+/* Entries for the Nala (645/646) camera; the Nala doesn't have compression
    preferences, so you either get compressed or non-compressed streams.
-   
+
    An alternate value of 0 means this mode is not available at all.
  */
 
@@ -205,13 +205,13 @@ static inline int set_video_mode_Nala(struct pwc_device *pdev, int size, int fra
 	{ /* closest match of framerate */
 	   0,  0,  0,  0,  4,  /*  0-4  */
 	   5,  5,  7,  7, 10,  /*  5-9  */
-          10, 10, 12, 12, 15,  /* 10-14 */
-          15, 15, 15, 20, 20,  /* 15-19 */
-          20, 20, 20, 24, 24,  /* 20-24 */
-          24, 24, 24, 24, 24,  /* 25-29 */
-          24                   /* 30    */
+	  10, 10, 12, 12, 15,  /* 10-14 */
+	  15, 15, 15, 20, 20,  /* 15-19 */
+	  20, 20, 20, 24, 24,  /* 20-24 */
+	  24, 24, 24, 24, 24,  /* 25-29 */
+	  24                   /* 30    */
 	};
-	int frames2table[31] = 
+	int frames2table[31] =
 	{ 0, 0, 0, 0, 0, /*  0-4  */
 	  1, 1, 1, 2, 2, /*  5-9  */
 	  3, 3, 4, 4, 4, /* 10-14 */
@@ -220,7 +220,7 @@ static inline int set_video_mode_Nala(struct pwc_device *pdev, int size, int fra
 	  7, 7, 7, 7, 7, /* 25-29 */
 	  7              /* 30    */
 	};
-	
+
 	if (size < 0 || size > PSZ_CIF || frames < 4 || frames > 25)
 		return -EINVAL;
 	frames = frames2frames[frames];
@@ -232,7 +232,7 @@ static inline int set_video_mode_Nala(struct pwc_device *pdev, int size, int fra
 	if (pEntry->compressed)
 		return -ENOENT; /* Not supported. */
 
-	memcpy(buf, pEntry->mode, 3);	
+	memcpy(buf, pEntry->mode, 3);
 	ret = send_video_command(pdev->udev, pdev->vendpoint, buf, 3);
 	if (ret < 0) {
 		Debug("Failed to send video command... %d\n", ret);
@@ -257,7 +257,7 @@ static inline int set_video_mode_Nala(struct pwc_device *pdev, int size, int fra
 	       break;
 	   }
 	}
- 
+
 	pdev->cmd_len = 3;
 	memcpy(pdev->cmd_buf, buf, 3);
 
@@ -352,13 +352,13 @@ static inline int set_video_mode_Kiara(struct pwc_device *pdev, int size, int fr
 	/* special case: VGA @ 5 fps and snapshot is raw bayer mode */
 	if (size == PSZ_VGA && frames == 5 && snapshot)
 	{
-		/* Only available in case the raw palette is selected or 
-		   we have the decompressor available. This mode is 
-		   only available in compressed form 
+		/* Only available in case the raw palette is selected or
+		   we have the decompressor available. This mode is
+		   only available in compressed form
 		*/
 		if (pdev->vpalette == VIDEO_PALETTE_RAW)
 		{
-	                Info("Choosing VGA/5 BAYER mode (%d).\n", pdev->vpalette);
+			Info("Choosing VGA/5 BAYER mode (%d).\n", pdev->vpalette);
 			pChoose = &RawEntry;
 		}
 		else
@@ -368,9 +368,9 @@ static inline int set_video_mode_Kiara(struct pwc_device *pdev, int size, int fr
 	}
 	else
 	{
-        	/* Find a supported framerate with progressively higher compression ratios
+		/* Find a supported framerate with progressively higher compression ratios
 		   if the preferred ratio is not available.
-                   Skip this step when using RAW modes.
+		   Skip this step when using RAW modes.
 		*/
 		while (compression <= 3) {
 			pChoose = &Kiara_table[size][fps][compression];
@@ -383,7 +383,7 @@ static inline int set_video_mode_Kiara(struct pwc_device *pdev, int size, int fr
 		return -ENOENT; /* Not supported. */
 
 	Debug("Using alternate setting %d.\n", pChoose->alternate);
-	
+
 	/* usb_control_msg won't take staticly allocated arrays as argument?? */
 	memcpy(buf, pChoose->mode, 12);
 	if (snapshot)
@@ -463,9 +463,9 @@ static void pwc_set_image_buffer_size(struct pwc_device *pdev)
  */
 int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frames, int compression, int snapshot)
 {
-        int ret, size;
+	int ret, size;
 
-        Trace(TRACE_FLOW, "set_video_mode(%dx%d @ %d, palette %d).\n", width, height, frames, pdev->vpalette);
+	Trace(TRACE_FLOW, "set_video_mode(%dx%d @ %d, palette %d).\n", width, height, frames, pdev->vpalette);
 	size = pwc_decode_size(pdev, width, height);
 	if (size < 0) {
 		Debug("Could not find suitable size.\n");
@@ -473,7 +473,7 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frame
 	}
 	Debug("decode_size = %d.\n", size);
 
-        ret = -EINVAL;
+	ret = -EINVAL;
 	switch(pdev->type) {
 	case 645:
 	case 646:
@@ -485,7 +485,7 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frame
 	case 690:
 		ret = set_video_mode_Timon(pdev, size, frames, compression, snapshot);
 		break;
-	
+
 	case 720:
 	case 730:
 	case 740:
@@ -517,7 +517,7 @@ int pwc_get_brightness(struct pwc_device *pdev)
 	char buf;
 	int ret;
 
-	ret = RecvControlMsg(GET_LUM_CTL, BRIGHTNESS_FORMATTER, 1);	
+	ret = RecvControlMsg(GET_LUM_CTL, BRIGHTNESS_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
 	return buf << 9;
@@ -566,7 +566,7 @@ int pwc_get_gamma(struct pwc_device *pdev)
 {
 	char buf;
 	int ret;
-	
+
 	ret = RecvControlMsg(GET_LUM_CTL, GAMMA_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
@@ -622,14 +622,14 @@ static inline int pwc_set_agc(struct pwc_device *pdev, int mode, int value)
 {
 	char buf;
 	int ret;
-	
+
 	if (mode)
 		buf = 0x0; /* auto */
 	else
 		buf = 0xff; /* fixed */
 
 	ret = SendControlMsg(SET_LUM_CTL, AGC_MODE_FORMATTER, 1);
-	
+
 	if (!mode && ret >= 0) {
 		if (value < 0)
 			value = 0;
@@ -647,7 +647,7 @@ static inline int pwc_get_agc(struct pwc_device *pdev, int *value)
 {
 	unsigned char buf;
 	int ret;
-	
+
 	ret = RecvControlMsg(GET_LUM_CTL, AGC_MODE_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
@@ -658,7 +658,7 @@ static inline int pwc_get_agc(struct pwc_device *pdev, int *value)
 			return ret;
 		if (buf > 0x3F)
 			buf = 0x3F;
-		*value = (buf << 10);		
+		*value = (buf << 10);
 	}
 	else { /* auto */
 		ret = RecvControlMsg(GET_STATUS_CTL, READ_AGC_FORMATTER, 1);
@@ -683,7 +683,7 @@ static inline int pwc_set_shutter_speed(struct pwc_device *pdev, int mode, int v
 		buf[0] = 0x0;	/* auto */
 	else
 		buf[0] = 0xff; /* fixed */
-	
+
 	ret = SendControlMsg(SET_LUM_CTL, SHUTTER_MODE_FORMATTER, 1);
 
 	if (!mode && ret >= 0) {
@@ -713,7 +713,7 @@ static inline int pwc_set_shutter_speed(struct pwc_device *pdev, int mode, int v
 		ret = SendControlMsg(SET_LUM_CTL, PRESET_SHUTTER_FORMATTER, 2);
 	}
 	return ret;
-}	
+}
 
 
 /* POWER */
@@ -765,22 +765,22 @@ static inline int pwc_restore_factory(struct pwc_device *pdev)
   * 02: fluorescent lighting
   * 03: manual
   * 04: auto
-  */ 
+  */
 static inline int pwc_set_awb(struct pwc_device *pdev, int mode)
 {
 	char buf;
 	int ret;
-	
+
 	if (mode < 0)
 	    mode = 0;
-	
+
 	if (mode > 4)
 	    mode = 4;
-	
+
 	buf = mode & 0x07; /* just the lowest three bits */
-	
+
 	ret = SendControlMsg(SET_CHROM_CTL, WB_MODE_FORMATTER, 1);
-	
+
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -790,17 +790,17 @@ static inline int pwc_get_awb(struct pwc_device *pdev)
 {
 	unsigned char buf;
 	int ret;
-	
+
 	ret = RecvControlMsg(GET_CHROM_CTL, WB_MODE_FORMATTER, 1);
 
-	if (ret < 0) 
+	if (ret < 0)
 		return ret;
 	return buf;
 }
 
 static inline int pwc_set_red_gain(struct pwc_device *pdev, int value)
 {
-        unsigned char buf;
+	unsigned char buf;
 
 	if (value < 0)
 		value = 0;
@@ -815,7 +815,7 @@ static inline int pwc_get_red_gain(struct pwc_device *pdev, int *value)
 {
 	unsigned char buf;
 	int ret;
-	
+
 	ret = RecvControlMsg(GET_CHROM_CTL, PRESET_MANUAL_RED_GAIN_FORMATTER, 1);
 	if (ret < 0)
 	    return ret;
@@ -841,7 +841,7 @@ static inline int pwc_get_blue_gain(struct pwc_device *pdev, int *value)
 {
 	unsigned char buf;
 	int ret;
-	
+
 	ret = RecvControlMsg(GET_CHROM_CTL, PRESET_MANUAL_BLUE_GAIN_FORMATTER, 1);
 	if (ret < 0)
 	    return ret;
@@ -851,14 +851,14 @@ static inline int pwc_get_blue_gain(struct pwc_device *pdev, int *value)
 
 
 /* The following two functions are different, since they only read the
-   internal red/blue gains, which may be different from the manual 
+   internal red/blue gains, which may be different from the manual
    gains set or read above.
- */   
+ */
 static inline int pwc_read_red_gain(struct pwc_device *pdev, int *value)
 {
 	unsigned char buf;
 	int ret;
-	
+
 	ret = RecvControlMsg(GET_STATUS_CTL, READ_RED_GAIN_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
@@ -870,7 +870,7 @@ static inline int pwc_read_blue_gain(struct pwc_device *pdev, int *value)
 {
 	unsigned char buf;
 	int ret;
-	
+
 	ret = RecvControlMsg(GET_STATUS_CTL, READ_BLUE_GAIN_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
@@ -882,7 +882,7 @@ static inline int pwc_read_blue_gain(struct pwc_device *pdev, int *value)
 static inline int pwc_set_wb_speed(struct pwc_device *pdev, int speed)
 {
 	unsigned char buf;
-	
+
 	/* useful range is 0x01..0x20 */
 	buf = speed / 0x7f0;
 	return SendControlMsg(SET_CHROM_CTL, AWB_CONTROL_SPEED_FORMATTER, 1);
@@ -892,7 +892,7 @@ static inline int pwc_get_wb_speed(struct pwc_device *pdev, int *value)
 {
 	unsigned char buf;
 	int ret;
-	
+
 	ret = RecvControlMsg(GET_CHROM_CTL, AWB_CONTROL_SPEED_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
@@ -904,7 +904,7 @@ static inline int pwc_get_wb_speed(struct pwc_device *pdev, int *value)
 static inline int pwc_set_wb_delay(struct pwc_device *pdev, int delay)
 {
 	unsigned char buf;
-	
+
 	/* useful range is 0x01..0x3F */
 	buf = (delay >> 10);
 	return SendControlMsg(SET_CHROM_CTL, AWB_CONTROL_DELAY_FORMATTER, 1);
@@ -914,7 +914,7 @@ static inline int pwc_get_wb_delay(struct pwc_device *pdev, int *value)
 {
 	unsigned char buf;
 	int ret;
-	
+
 	ret = RecvControlMsg(GET_CHROM_CTL, AWB_CONTROL_DELAY_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
@@ -950,7 +950,7 @@ static int pwc_get_leds(struct pwc_device *pdev, int *on_value, int *off_value)
 {
 	unsigned char buf[2];
 	int ret;
-	
+
 	if (pdev->type < 730) {
 		*on_value = -1;
 		*off_value = -1;
@@ -969,7 +969,7 @@ static inline int pwc_set_contour(struct pwc_device *pdev, int contour)
 {
 	unsigned char buf;
 	int ret;
-	
+
 	if (contour < 0)
 		buf = 0xff; /* auto contour on */
 	else
@@ -977,16 +977,16 @@ static inline int pwc_set_contour(struct pwc_device *pdev, int contour)
 	ret = SendControlMsg(SET_LUM_CTL, AUTO_CONTOUR_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
-	
+
 	if (contour < 0)
 		return 0;
 	if (contour > 0xffff)
 		contour = 0xffff;
-	
+
 	buf = (contour >> 10); /* contour preset is [0..3f] */
 	ret = SendControlMsg(SET_LUM_CTL, PRESET_CONTOUR_FORMATTER, 1);
-	if (ret < 0)	
-		return ret;	
+	if (ret < 0)
+		return ret;
 	return 0;
 }
 
@@ -994,7 +994,7 @@ static inline int pwc_get_contour(struct pwc_device *pdev, int *contour)
 {
 	unsigned char buf;
 	int ret;
-	
+
 	ret = RecvControlMsg(GET_LUM_CTL, AUTO_CONTOUR_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
@@ -1002,7 +1002,7 @@ static inline int pwc_get_contour(struct pwc_device *pdev, int *contour)
 	if (buf == 0) {
 		/* auto mode off, query current preset value */
 		ret = RecvControlMsg(GET_LUM_CTL, PRESET_CONTOUR_FORMATTER, 1);
-		if (ret < 0)	
+		if (ret < 0)
 			return ret;
 		*contour = buf << 10;
 	}
@@ -1015,7 +1015,7 @@ static inline int pwc_get_contour(struct pwc_device *pdev, int *contour)
 static inline int pwc_set_backlight(struct pwc_device *pdev, int backlight)
 {
 	unsigned char buf;
-	
+
 	if (backlight)
 		buf = 0xff;
 	else
@@ -1027,7 +1027,7 @@ static inline int pwc_get_backlight(struct pwc_device *pdev, int *backlight)
 {
 	int ret;
 	unsigned char buf;
-	
+
 	ret = RecvControlMsg(GET_LUM_CTL, BACK_LIGHT_COMPENSATION_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
@@ -1039,7 +1039,7 @@ static inline int pwc_get_backlight(struct pwc_device *pdev, int *backlight)
 static inline int pwc_set_flicker(struct pwc_device *pdev, int flicker)
 {
 	unsigned char buf;
-	
+
 	if (flicker)
 		buf = 0xff;
 	else
@@ -1051,7 +1051,7 @@ static inline int pwc_get_flicker(struct pwc_device *pdev, int *flicker)
 {
 	int ret;
 	unsigned char buf;
-	
+
 	ret = RecvControlMsg(GET_LUM_CTL, FLICKERLESS_MODE_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
@@ -1076,7 +1076,7 @@ static inline int pwc_get_dynamic_noise(struct pwc_device *pdev, int *noise)
 {
 	int ret;
 	unsigned char buf;
-	
+
 	ret = RecvControlMsg(GET_LUM_CTL, DYNAMIC_NOISE_CONTROL_FORMATTER, 1);
 	if (ret < 0)
 		return ret;
@@ -1087,7 +1087,7 @@ static inline int pwc_get_dynamic_noise(struct pwc_device *pdev, int *noise)
 static int pwc_mpt_reset(struct pwc_device *pdev, int flags)
 {
 	unsigned char buf;
-	
+
 	buf = flags & 0x03; // only lower two bits are currently used
 	return SendControlMsg(SET_MPT_CTL, PT_RESET_CONTROL_FORMATTER, 1);
 }
@@ -1095,7 +1095,7 @@ static int pwc_mpt_reset(struct pwc_device *pdev, int flags)
 static inline int pwc_mpt_set_angle(struct pwc_device *pdev, int pan, int tilt)
 {
 	unsigned char buf[4];
-	
+
 	/* set new relative angle; angles are expressed in degrees * 100,
 	   but cam as .5 degree resolution, hence divide by 200. Also
 	   the angle must be multiplied by 64 before it's send to
@@ -1114,7 +1114,7 @@ static inline int pwc_mpt_get_status(struct pwc_device *pdev, struct pwc_mpt_sta
 {
 	int ret;
 	unsigned char buf[5];
-	
+
 	ret = RecvControlMsg(GET_MPT_CTL, PT_STATUS_FORMATTER, 5);
 	if (ret < 0)
 		return ret;
@@ -1129,14 +1129,14 @@ int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor)
 {
 	unsigned char buf;
 	int ret = -1, request;
-	
+
 	if (pdev->type < 675)
 		request = SENSOR_TYPE_FORMATTER1;
 	else if (pdev->type < 730)
 		return -1; /* The Vesta series doesn't have this call */
 	else
 		request = SENSOR_TYPE_FORMATTER2;
-	
+
 	ret = RecvControlMsg(GET_STATUS_CTL, request, 1);
 	if (ret < 0)
 		return ret;
@@ -1163,23 +1163,23 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 			ret = -EINVAL;
 		break;
 	}
-	
+
 	case VIDIOCPWCSUSER:
 	{
 		if (pwc_save_user(pdev))
 			ret = -EINVAL;
 		break;
 	}
-		
+
 	case VIDIOCPWCFACTORY:
 	{
 		if (pwc_restore_factory(pdev))
 			ret = -EINVAL;
 		break;
 	}
-	
+
 	case VIDIOCPWCSCQUAL:
-	{	
+	{
 		int *qual = arg;
 
 		if (*qual < 0 || *qual > 3)
@@ -1190,14 +1190,14 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 			pdev->vcompression = *qual;
 		break;
 	}
-	
+
 	case VIDIOCPWCGCQUAL:
 	{
 		int *qual = arg;
 		*qual = pdev->vcompression;
 		break;
 	}
-	
+
 	case VIDIOCPWCPROBE:
 	{
 		struct pwc_probe *probe = arg;
@@ -1220,27 +1220,27 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 			ret = -EINVAL;
 		break;
 	}
-	
+
 	case VIDIOCPWCGAGC:
 	{
 		int *agc = arg;
-		
+
 		if (pwc_get_agc(pdev, agc))
 			ret = -EINVAL;
 		break;
 	}
-	
+
 	case VIDIOCPWCSSHUTTER:
 	{
 		int *shutter_speed = arg;
 		ret = pwc_set_shutter_speed(pdev, *shutter_speed < 0 ? 1 : 0, *shutter_speed);
 		break;
 	}
-	
-        case VIDIOCPWCSAWB:
+
+	case VIDIOCPWCSAWB:
 	{
 		struct pwc_whitebalance *wb = arg;
-		
+
 		ret = pwc_set_awb(pdev, wb->mode);
 		if (ret >= 0 && wb->mode == PWC_WB_MANUAL) {
 			pwc_set_red_gain(pdev, wb->manual_red);
@@ -1270,18 +1270,18 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 				ret = pwc_read_red_gain(pdev, &wb->read_red);
 				if (ret < 0)
 					break;
- 				ret = pwc_read_blue_gain(pdev, &wb->read_blue);
- 				if (ret < 0)
- 					break;
+				ret = pwc_read_blue_gain(pdev, &wb->read_blue);
+				if (ret < 0)
+					break;
 			}
 		}
 		break;
 	}
-	
+
 	case VIDIOCPWCSAWBSPEED:
 	{
 		struct pwc_wb_speed *wbs = arg;
-		
+
 		if (wbs->control_speed > 0) {
 			ret = pwc_set_wb_speed(pdev, wbs->control_speed);
 		}
@@ -1290,11 +1290,11 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 		}
 		break;
 	}
-	
+
 	case VIDIOCPWCGAWBSPEED:
 	{
 		struct pwc_wb_speed *wbs = arg;
-		
+
 		ret = pwc_get_wb_speed(pdev, &wbs->control_speed);
 		if (ret < 0)
 			break;
@@ -1304,7 +1304,7 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 		break;
 	}
 
-        case VIDIOCPWCSLED:
+	case VIDIOCPWCSLED:
 	{
 		struct pwc_leds *leds = arg;
 		ret = pwc_set_leds(pdev, leds->led_on, leds->led_off);
@@ -1325,14 +1325,14 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 		ret = pwc_set_contour(pdev, *contour);
 		break;
 	}
-			
+
 	case VIDIOCPWCGCONTOUR:
 	{
 		int *contour = arg;
 		ret = pwc_get_contour(pdev, contour);
 		break;
 	}
-	
+
 	case VIDIOCPWCSBACKLIGHT:
 	{
 		int *backlight = arg;
@@ -1346,7 +1346,7 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 		ret = pwc_get_backlight(pdev, backlight);
 		break;
 	}
-	
+
 	case VIDIOCPWCSFLICKER:
 	{
 		int *flicker = arg;
@@ -1360,14 +1360,14 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 		ret = pwc_get_flicker(pdev, flicker);
 		break;
 	}
-	
+
 	case VIDIOCPWCSDYNNOISE:
 	{
 		int *dynnoise = arg;
 		ret = pwc_set_dynamic_noise(pdev, *dynnoise);
 		break;
 	}
-	
+
 	case VIDIOCPWCGDYNNOISE:
 	{
 		int *dynnoise = arg;
@@ -1381,61 +1381,61 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 		size->width = pdev->image.x;
 		size->height = pdev->image.y;
 		break;
- 	}
- 	
- 	case VIDIOCPWCMPTRESET:
- 	{
- 		if (pdev->features & FEATURE_MOTOR_PANTILT)
- 		{
-	 		int *flags = arg;
+	}
+
+	case VIDIOCPWCMPTRESET:
+	{
+		if (pdev->features & FEATURE_MOTOR_PANTILT)
+		{
+			int *flags = arg;
 
 			ret = pwc_mpt_reset(pdev, *flags);
- 			if (ret >= 0)
- 			{
- 				pdev->pan_angle = 0;
- 				pdev->tilt_angle = 0;
- 			}
- 		}
- 		else
- 		{
- 			ret = -ENXIO;
- 		}
- 		break;		
- 	}
- 	
- 	case VIDIOCPWCMPTGRANGE:
- 	{
- 		if (pdev->features & FEATURE_MOTOR_PANTILT)
- 		{
- 			struct pwc_mpt_range *range = arg;
- 			*range = pdev->angle_range;
- 		}
- 		else
- 		{	
- 			ret = -ENXIO;
- 		}
- 		break;
- 	}
- 	
- 	case VIDIOCPWCMPTSANGLE:
- 	{
- 		int new_pan, new_tilt;
- 		
- 		if (pdev->features & FEATURE_MOTOR_PANTILT)
- 		{
-	 		struct pwc_mpt_angles *angles = arg;
+			if (ret >= 0)
+			{
+				pdev->pan_angle = 0;
+				pdev->tilt_angle = 0;
+			}
+		}
+		else
+		{
+			ret = -ENXIO;
+		}
+		break;
+	}
+
+	case VIDIOCPWCMPTGRANGE:
+	{
+		if (pdev->features & FEATURE_MOTOR_PANTILT)
+		{
+			struct pwc_mpt_range *range = arg;
+			*range = pdev->angle_range;
+		}
+		else
+		{
+			ret = -ENXIO;
+		}
+		break;
+	}
+
+	case VIDIOCPWCMPTSANGLE:
+	{
+		int new_pan, new_tilt;
+
+		if (pdev->features & FEATURE_MOTOR_PANTILT)
+		{
+			struct pwc_mpt_angles *angles = arg;
 			/* The camera can only set relative angles, so
 			   do some calculations when getting an absolute angle .
 			 */
 			if (angles->absolute)
 			{
- 				new_pan  = angles->pan;
- 				new_tilt = angles->tilt;
- 			}
- 			else
- 			{
- 				new_pan  = pdev->pan_angle  + angles->pan;
- 				new_tilt = pdev->tilt_angle + angles->tilt;
+				new_pan  = angles->pan;
+				new_tilt = angles->tilt;
+			}
+			else
+			{
+				new_pan  = pdev->pan_angle  + angles->pan;
+				new_tilt = pdev->tilt_angle + angles->tilt;
 			}
 			/* check absolute ranges */
 			if (new_pan  < pdev->angle_range.pan_min  ||
@@ -1463,53 +1463,53 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 					pdev->tilt_angle += new_tilt;
 				}
 				if (ret == -EPIPE) /* stall -> out of range */
-					ret = -ERANGE;				
+					ret = -ERANGE;
 			}
- 		}
- 		else
- 		{
- 			ret = -ENXIO;
- 		}
- 		break;
- 	}
+		}
+		else
+		{
+			ret = -ENXIO;
+		}
+		break;
+	}
 
- 	case VIDIOCPWCMPTGANGLE:
- 	{
- 		
- 		if (pdev->features & FEATURE_MOTOR_PANTILT)
- 		{
-	 		struct pwc_mpt_angles *angles = arg;
+	case VIDIOCPWCMPTGANGLE:
+	{
 
- 			angles->absolute = 1;
- 			angles->pan  = pdev->pan_angle;
- 			angles->tilt = pdev->tilt_angle;
- 		}
- 		else
- 		{
- 			ret = -ENXIO;
- 		}
- 		break;
- 	}
- 
- 	case VIDIOCPWCMPTSTATUS:
- 	{
- 		if (pdev->features & FEATURE_MOTOR_PANTILT)
- 		{
- 			struct pwc_mpt_status *status = arg;
- 			ret = pwc_mpt_get_status(pdev, status);
- 		}
- 		else
- 		{
- 			ret = -ENXIO;
- 		}
- 		break;
+		if (pdev->features & FEATURE_MOTOR_PANTILT)
+		{
+			struct pwc_mpt_angles *angles = arg;
+
+			angles->absolute = 1;
+			angles->pan  = pdev->pan_angle;
+			angles->tilt = pdev->tilt_angle;
+		}
+		else
+		{
+			ret = -ENXIO;
+		}
+		break;
+	}
+
+	case VIDIOCPWCMPTSTATUS:
+	{
+		if (pdev->features & FEATURE_MOTOR_PANTILT)
+		{
+			struct pwc_mpt_status *status = arg;
+			ret = pwc_mpt_get_status(pdev, status);
+		}
+		else
+		{
+			ret = -ENXIO;
+		}
+		break;
 	}
 
 	case VIDIOCPWCGVIDCMD:
 	{
 		struct pwc_video_command *cmd = arg;
-		
-                cmd->type = pdev->type;
+
+		cmd->type = pdev->type;
 		cmd->release = pdev->release;
 		cmd->command_len = pdev->cmd_len;
 		memcpy(&cmd->command_buf, pdev->cmd_buf, pdev->cmd_len);
@@ -1531,7 +1531,7 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 		ret = -ENOIOCTLCMD;
 		break;
 	}
-	
+
 	if (ret > 0)
 		return 0;
 	return ret;

@@ -24,7 +24,7 @@
 
 /* This file is the bridge between the kernel module and the plugin; it
    describes the structures and datatypes used in both modules. Any
-   significant change should be reflected by increasing the 
+   significant change should be reflected by increasing the
    pwc_decompressor_version major number.
  */
 #ifndef PWC_UNCOMPRESS_H

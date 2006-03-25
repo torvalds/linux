@@ -574,7 +574,7 @@ void usbvideo_TestPattern(struct uvd *uvd, int fullframe, int pmode)
 			} else {
 				/* Just the blue screen */
 			}
-				
+
 			*f++ = cb;
 			*f++ = cg;
 			*f++ = cr;
@@ -1243,7 +1243,7 @@ static int usbvideo_v4l_close(struct inode *inode, struct file *file)
 
 #if USBVIDEO_REPORT_STATS
 	usbvideo_ReportStatistics(uvd);
-#endif    
+#endif
 
 	uvd->user--;
 	if (uvd->remove_pending) {
@@ -1290,7 +1290,7 @@ static int usbvideo_v4l_do_ioctl(struct inode *inode, struct file *file,
 			return 0;
 		}
 		case VIDIOCSCHAN:
-		{	
+		{
 			struct video_channel *v = arg;
 			if (v->channel != 0)
 				return -EINVAL;
@@ -1347,7 +1347,7 @@ static int usbvideo_v4l_do_ioctl(struct inode *inode, struct file *file,
 			vw->chromakey = 0;
 			if (VALID_CALLBACK(uvd, getFPS))
 				vw->flags = GET_CALLBACK(uvd, getFPS)(uvd);
-			else 
+			else
 				vw->flags = 10; /* FIXME: do better! */
 			return 0;
 		}
@@ -1359,7 +1359,7 @@ static int usbvideo_v4l_do_ioctl(struct inode *inode, struct file *file,
 			memset(vm, 0, sizeof(*vm));
 			vm->size = uvd->max_frame_size * USBVIDEO_NUMFRAMES;
 			vm->frames = USBVIDEO_NUMFRAMES;
-			for(i = 0; i < USBVIDEO_NUMFRAMES; i++) 
+			for(i = 0; i < USBVIDEO_NUMFRAMES; i++)
 			  vm->offsets[i] = i * uvd->max_frame_size;
 
 			return 0;
@@ -1425,7 +1425,7 @@ static int usbvideo_v4l_do_ioctl(struct inode *inode, struct file *file,
 
 			if (*frameNum < 0 || *frameNum >= USBVIDEO_NUMFRAMES)
 				return -EINVAL;
-				
+
 			if (uvd->debug >= 1)
 				info("VIDIOCSYNC: syncing to frame %d.", *frameNum);
 			if (uvd->flags & FLAGS_NO_DECODING)
@@ -1454,8 +1454,8 @@ static int usbvideo_v4l_do_ioctl(struct inode *inode, struct file *file,
 			struct video_buffer *vb = arg;
 
 			memset(vb, 0, sizeof(*vb));
- 			return 0;
- 		}
+			return 0;
+		}
 		case VIDIOCKEY:
 			return 0;
 
@@ -1704,7 +1704,7 @@ static void usbvideo_IsocIrq(struct urb *urb, struct pt_regs *regs)
 			info("Not streaming, but interrupt!");
 		return;
 	}
-	
+
 	uvd->stats.urb_count++;
 	if (urb->actual_length <= 0)
 		goto urb_done_with;
@@ -1763,7 +1763,7 @@ static int usbvideo_StartDataPump(struct uvd *uvd)
 	}
 	if (VALID_CALLBACK(uvd, videoStart))
 		GET_CALLBACK(uvd, videoStart)(uvd);
-	else 
+	else
 		err("%s: videoStart not set", __FUNCTION__);
 
 	/* We double buffer the Iso lists */
@@ -1830,7 +1830,7 @@ static void usbvideo_StopDataPump(struct uvd *uvd)
 		/* Invoke minidriver's magic to stop the camera */
 		if (VALID_CALLBACK(uvd, videoStop))
 			GET_CALLBACK(uvd, videoStop)(uvd);
-		else 
+		else
 			err("%s: videoStop not set", __FUNCTION__);
 
 		/* Set packet size to 0 */
@@ -1963,14 +1963,14 @@ static int usbvideo_GetFrame(struct uvd *uvd, int frameNum)
 		info("%s($%p,%d.)", __FUNCTION__, uvd, frameNum);
 
 	switch (frame->frameState) {
-        case FrameState_Unused:
+	case FrameState_Unused:
 		if (uvd->debug >= 2)
 			info("%s: FrameState_Unused", __FUNCTION__);
 		return -EINVAL;
-        case FrameState_Ready:
-        case FrameState_Grabbing:
-        case FrameState_Error:
-        {
+	case FrameState_Ready:
+	case FrameState_Grabbing:
+	case FrameState_Error:
+	{
 		int ntries, signalPending;
 	redo:
 		if (!CAMERA_IS_OPERATIONAL(uvd)) {
@@ -1978,7 +1978,7 @@ static int usbvideo_GetFrame(struct uvd *uvd, int frameNum)
 				info("%s: Camera is not operational (1)", __FUNCTION__);
 			return -EIO;
 		}
-		ntries = 0; 
+		ntries = 0;
 		do {
 			RingQueue_InterruptibleSleepOn(&uvd->dp);
 			signalPending = signal_pending(current);
@@ -2010,7 +2010,7 @@ static int usbvideo_GetFrame(struct uvd *uvd, int frameNum)
 					usbvideo_CollectRawData(uvd, frame);
 				else if (VALID_CALLBACK(uvd, processData))
 					GET_CALLBACK(uvd, processData)(uvd, frame);
-				else 
+				else
 					err("%s: processData not set", __FUNCTION__);
 			}
 		} while (frame->frameState == FrameState_Grabbing);
@@ -2027,8 +2027,8 @@ static int usbvideo_GetFrame(struct uvd *uvd, int frameNum)
 			goto redo;
 		}
 		/* Note that we fall through to meet our destiny below */
-        }
-        case FrameState_Done:
+	}
+	case FrameState_Done:
 		/*
 		 * Do all necessary postprocessing of data prepared in
 		 * "interrupt" code and the collecting code above. The
@@ -2157,7 +2157,7 @@ EXPORT_SYMBOL(usbvideo_DeinterlaceFrame);
  * History:
  * 09-Feb-2001  Created.
  */
-static void usbvideo_SoftwareContrastAdjustment(struct uvd *uvd, 
+static void usbvideo_SoftwareContrastAdjustment(struct uvd *uvd,
 						struct usbvideo_frame *frame)
 {
 	int i, j, v4l_linesize;

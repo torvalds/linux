@@ -164,7 +164,7 @@ sn9c102_match_id(struct sn9c102_device* cam, const struct usb_device_id *id)
 
 void
 sn9c102_attach_sensor(struct sn9c102_device* cam,
-                      struct sn9c102_sensor* sensor)
+		      struct sn9c102_sensor* sensor)
 {
 	memcpy(&cam->sensor, sensor, sizeof(struct sn9c102_sensor));
 }
@@ -183,7 +183,7 @@ do {                                                                          \
 			dev_info(&cam->usbdev->dev, fmt "\n", ## args);       \
 		else if ((level) >= 3)                                        \
 			dev_info(&cam->usbdev->dev, "[%s:%d] " fmt "\n",      \
-			         __FUNCTION__, __LINE__ , ## args);           \
+				 __FUNCTION__, __LINE__ , ## args);           \
 	}                                                                     \
 } while (0)
 #	define V4LDBG(level, name, cmd)                                       \
@@ -198,7 +198,7 @@ do {                                                                          \
 			pr_info("sn9c102: " fmt "\n", ## args);               \
 		else if ((level) == 3)                                        \
 			pr_debug("sn9c102: [%s:%d] " fmt "\n", __FUNCTION__,  \
-			         __LINE__ , ## args);                         \
+				 __LINE__ , ## args);                         \
 	}                                                                     \
 } while (0)
 #else
@@ -210,7 +210,7 @@ do {                                                                          \
 #undef PDBG
 #define PDBG(fmt, args...)                                                    \
 dev_info(&cam->usbdev->dev, "[%s:%d] " fmt "\n",                              \
-         __FUNCTION__, __LINE__ , ## args)
+	 __FUNCTION__, __LINE__ , ## args)
 
 #undef PDBGG
 #define PDBGG(fmt, args...) do {;} while(0) /* placeholder */

@@ -39,64 +39,64 @@ static int mi0343_init(struct sn9c102_device* cam)
 	err += sn9c102_write_reg(cam, 0xa0, 0x19);
 
 	err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4, mi0343.i2c_slave_id,
-	                                 0x0d, 0x00, 0x01, 0, 0);
+					 0x0d, 0x00, 0x01, 0, 0);
 	err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4, mi0343.i2c_slave_id,
-	                                 0x0d, 0x00, 0x00, 0, 0);
+					 0x0d, 0x00, 0x00, 0, 0);
 	err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4, mi0343.i2c_slave_id,
-	                                 0x03, 0x01, 0xe1, 0, 0);
+					 0x03, 0x01, 0xe1, 0, 0);
 	err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4, mi0343.i2c_slave_id,
-	                                 0x04, 0x02, 0x81, 0, 0);
+					 0x04, 0x02, 0x81, 0, 0);
 	err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4, mi0343.i2c_slave_id,
-	                                 0x05, 0x00, 0x17, 0, 0);
+					 0x05, 0x00, 0x17, 0, 0);
 	err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4, mi0343.i2c_slave_id,
-	                                 0x06, 0x00, 0x11, 0, 0);
+					 0x06, 0x00, 0x11, 0, 0);
 	err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4, mi0343.i2c_slave_id,
-	                                 0x62, 0x04, 0x9a, 0, 0);
+					 0x62, 0x04, 0x9a, 0, 0);
 
 	return err;
 }
 
 
-static int mi0343_get_ctrl(struct sn9c102_device* cam, 
-                           struct v4l2_control* ctrl)
+static int mi0343_get_ctrl(struct sn9c102_device* cam,
+			   struct v4l2_control* ctrl)
 {
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		if (sn9c102_i2c_try_raw_read(cam, &mi0343, mi0343.i2c_slave_id,
-		                             0x09, 2+1, mi0343_i2c_data) < 0)
+					     0x09, 2+1, mi0343_i2c_data) < 0)
 			return -EIO;
 		ctrl->value = mi0343_i2c_data[2];
 		return 0;
 	case V4L2_CID_GAIN:
 		if (sn9c102_i2c_try_raw_read(cam, &mi0343, mi0343.i2c_slave_id,
-		                             0x35, 2+1, mi0343_i2c_data) < 0)
+					     0x35, 2+1, mi0343_i2c_data) < 0)
 			return -EIO;
 		break;
 	case V4L2_CID_HFLIP:
 		if (sn9c102_i2c_try_raw_read(cam, &mi0343, mi0343.i2c_slave_id,
-		                             0x20, 2+1, mi0343_i2c_data) < 0)
+					     0x20, 2+1, mi0343_i2c_data) < 0)
 			return -EIO;
 		ctrl->value = mi0343_i2c_data[3] & 0x20 ? 1 : 0;
 		return 0;
 	case V4L2_CID_VFLIP:
 		if (sn9c102_i2c_try_raw_read(cam, &mi0343, mi0343.i2c_slave_id,
-		                             0x20, 2+1, mi0343_i2c_data) < 0)
+					     0x20, 2+1, mi0343_i2c_data) < 0)
 			return -EIO;
 		ctrl->value = mi0343_i2c_data[3] & 0x80 ? 1 : 0;
 		return 0;
 	case V4L2_CID_RED_BALANCE:
 		if (sn9c102_i2c_try_raw_read(cam, &mi0343, mi0343.i2c_slave_id,
-		                             0x2d, 2+1, mi0343_i2c_data) < 0)
+					     0x2d, 2+1, mi0343_i2c_data) < 0)
 			return -EIO;
 		break;
 	case V4L2_CID_BLUE_BALANCE:
 		if (sn9c102_i2c_try_raw_read(cam, &mi0343, mi0343.i2c_slave_id,
-		                             0x2c, 2+1, mi0343_i2c_data) < 0)
+					     0x2c, 2+1, mi0343_i2c_data) < 0)
 			return -EIO;
 		break;
 	case SN9C102_V4L2_CID_GREEN_BALANCE:
 		if (sn9c102_i2c_try_raw_read(cam, &mi0343, mi0343.i2c_slave_id,
-		                             0x2e, 2+1, mi0343_i2c_data) < 0)
+					     0x2e, 2+1, mi0343_i2c_data) < 0)
 			return -EIO;
 		break;
 	default:
@@ -121,8 +121,8 @@ static int mi0343_get_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int mi0343_set_ctrl(struct sn9c102_device* cam, 
-                           const struct v4l2_control* ctrl)
+static int mi0343_set_ctrl(struct sn9c102_device* cam,
+			   const struct v4l2_control* ctrl)
 {
 	u16 reg = 0;
 	int err = 0;
@@ -144,51 +144,51 @@ static int mi0343_set_ctrl(struct sn9c102_device* cam,
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4,
-		                                 mi0343.i2c_slave_id,
-		                                 0x09, ctrl->value, 0x00,
-		                                 0, 0);
+						 mi0343.i2c_slave_id,
+						 0x09, ctrl->value, 0x00,
+						 0, 0);
 		break;
 	case V4L2_CID_GAIN:
 		err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4,
-		                                 mi0343.i2c_slave_id,
-		                                 0x35, reg >> 8, reg & 0xff,
-		                                 0, 0);
+						 mi0343.i2c_slave_id,
+						 0x35, reg >> 8, reg & 0xff,
+						 0, 0);
 		break;
 	case V4L2_CID_HFLIP:
 		err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4,
-		                                 mi0343.i2c_slave_id,
-		                                 0x20, ctrl->value ? 0x40:0x00,
-		                                 ctrl->value ? 0x20:0x00,
-		                                 0, 0);
+						 mi0343.i2c_slave_id,
+						 0x20, ctrl->value ? 0x40:0x00,
+						 ctrl->value ? 0x20:0x00,
+						 0, 0);
 		break;
 	case V4L2_CID_VFLIP:
 		err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4,
-		                                 mi0343.i2c_slave_id,
-		                                 0x20, ctrl->value ? 0x80:0x00,
-		                                 ctrl->value ? 0x80:0x00,
-		                                 0, 0);
+						 mi0343.i2c_slave_id,
+						 0x20, ctrl->value ? 0x80:0x00,
+						 ctrl->value ? 0x80:0x00,
+						 0, 0);
 		break;
 	case V4L2_CID_RED_BALANCE:
 		err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4,
-		                                 mi0343.i2c_slave_id,
-		                                 0x2d, reg >> 8, reg & 0xff,
-		                                 0, 0);
+						 mi0343.i2c_slave_id,
+						 0x2d, reg >> 8, reg & 0xff,
+						 0, 0);
 		break;
 	case V4L2_CID_BLUE_BALANCE:
 		err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4,
-		                                 mi0343.i2c_slave_id,
-		                                 0x2c, reg >> 8, reg & 0xff,
-		                                 0, 0);
+						 mi0343.i2c_slave_id,
+						 0x2c, reg >> 8, reg & 0xff,
+						 0, 0);
 		break;
 	case SN9C102_V4L2_CID_GREEN_BALANCE:
 		err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4,
-		                                 mi0343.i2c_slave_id,
-		                                 0x2b, reg >> 8, reg & 0xff,
-		                                 0, 0);
+						 mi0343.i2c_slave_id,
+						 0x2b, reg >> 8, reg & 0xff,
+						 0, 0);
 		err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4,
-		                                 mi0343.i2c_slave_id,
-		                                 0x2e, reg >> 8, reg & 0xff,
-		                                 0, 0);
+						 mi0343.i2c_slave_id,
+						 0x2e, reg >> 8, reg & 0xff,
+						 0, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -198,8 +198,8 @@ static int mi0343_set_ctrl(struct sn9c102_device* cam,
 }
 
 
-static int mi0343_set_crop(struct sn9c102_device* cam, 
-                            const struct v4l2_rect* rect)
+static int mi0343_set_crop(struct sn9c102_device* cam,
+			    const struct v4l2_rect* rect)
 {
 	struct sn9c102_sensor* s = &mi0343;
 	int err = 0;
@@ -213,20 +213,20 @@ static int mi0343_set_crop(struct sn9c102_device* cam,
 }
 
 
-static int mi0343_set_pix_format(struct sn9c102_device* cam, 
-                                 const struct v4l2_pix_format* pix)
+static int mi0343_set_pix_format(struct sn9c102_device* cam,
+				 const struct v4l2_pix_format* pix)
 {
 	int err = 0;
 
 	if (pix->pixelformat == V4L2_PIX_FMT_SN9C10X) {
 		err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4,
-		                                 mi0343.i2c_slave_id,
-		                                 0x0a, 0x00, 0x03, 0, 0);
+						 mi0343.i2c_slave_id,
+						 0x0a, 0x00, 0x03, 0, 0);
 		err += sn9c102_write_reg(cam, 0x20, 0x19);
 	} else {
 		err += sn9c102_i2c_try_raw_write(cam, &mi0343, 4,
-		                                 mi0343.i2c_slave_id,
-		                                 0x0a, 0x00, 0x05, 0, 0);
+						 mi0343.i2c_slave_id,
+						 0x0a, 0x00, 0x05, 0, 0);
 		err += sn9c102_write_reg(cam, 0xa0, 0x19);
 	}
 
@@ -351,7 +351,7 @@ int sn9c102_probe_mi0343(struct sn9c102_device* cam)
 		return -EIO;
 
 	if (sn9c102_i2c_try_raw_read(cam, &mi0343, mi0343.i2c_slave_id, 0x00,
-	                             2, mi0343_i2c_data) < 0)
+				     2, mi0343_i2c_data) < 0)
 		return -EIO;
 
 	if (mi0343_i2c_data[4] != 0x32 && mi0343_i2c_data[3] != 0xe3)

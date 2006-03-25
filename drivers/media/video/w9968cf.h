@@ -61,7 +61,7 @@
 
 /* Maximum data payload sizes in bytes for alternate settings */
 static const u16 wMaxPacketSize[] = {1023, 959, 895, 831, 767, 703, 639, 575,
-                                      511, 447, 383, 319, 255, 191, 127,  63};
+				      511, 447, 383, 319, 255, 191, 127,  63};
 #define W9968CF_PACKET_SIZE      1023 /* according to wMaxPacketSizes[] */
 #define W9968CF_MIN_PACKET_SIZE  63 /* minimum value */
 #define W9968CF_ISO_PACKETS      5 /* n.of packets for isochronous transfers */
@@ -134,7 +134,7 @@ static const struct w9968cf_format w9968cf_formatlist[] = {
  ****************************************************************************/
 
 #define W9968CF_MODULE_NAME     "V4L driver for W996[87]CF JPEG USB " \
-                                "Dual Mode Camera Chip"
+				"Dual Mode Camera Chip"
 #define W9968CF_MODULE_VERSION  "1:1.33-basic"
 #define W9968CF_MODULE_AUTHOR   "(C) 2002-2004 Luca Risolia"
 #define W9968CF_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
@@ -270,9 +270,9 @@ struct w9968cf_device {
 
 	/* Locks */
 	struct mutex dev_mutex,    /* for probe, disconnect,open and close */
-	                 fileop_mutex; /* for read and ioctl */
+			 fileop_mutex; /* for read and ioctl */
 	spinlock_t urb_lock,   /* for submit_urb() and unlink_urb() */
-	           flist_lock; /* for requested frame list accesses */
+		   flist_lock; /* for requested frame list accesses */
 	wait_queue_head_t open, wait_queue;
 
 	char command[16]; /* name of the program holding the device */
@@ -299,7 +299,7 @@ struct w9968cf_device {
 			dev_warn(&cam->dev, fmt "\n", ## args);               \
 		else if ((level) >= 5)                                        \
 			dev_info(&cam->dev, "[%s:%d] " fmt "\n",              \
-			         __FUNCTION__, __LINE__ , ## args);           \
+				 __FUNCTION__, __LINE__ , ## args);           \
 	}                                                                     \
 }
 /* For generic kernel (not device specific) messages */
@@ -311,7 +311,7 @@ struct w9968cf_device {
 			pr_info("w9968cf: " fmt "\n", ## args);               \
 		else if ((level) >= 5)                                        \
 			pr_debug("w9968cf: [%s:%d] " fmt "\n", __FUNCTION__,  \
-			         __LINE__ , ## args);                         \
+				 __LINE__ , ## args);                         \
 	}                                                                     \
 }
 #else

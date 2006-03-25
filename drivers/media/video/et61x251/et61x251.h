@@ -180,7 +180,7 @@ et61x251_match_id(struct et61x251_device* cam, const struct usb_device_id *id)
 
 void
 et61x251_attach_sensor(struct et61x251_device* cam,
-                       struct et61x251_sensor* sensor)
+		       struct et61x251_sensor* sensor)
 {
 	memcpy(&cam->sensor, sensor, sizeof(struct et61x251_sensor));
 }
@@ -199,7 +199,7 @@ do {                                                                          \
 			dev_info(&cam->usbdev->dev, fmt "\n", ## args);       \
 		else if ((level) >= 3)                                        \
 			dev_info(&cam->usbdev->dev, "[%s:%d] " fmt "\n",      \
-			         __FUNCTION__, __LINE__ , ## args);           \
+				 __FUNCTION__, __LINE__ , ## args);           \
 	}                                                                     \
 } while (0)
 #	define KDBG(level, fmt, args...)                                      \
@@ -209,7 +209,7 @@ do {                                                                          \
 			pr_info("et61x251: " fmt "\n", ## args);              \
 		else if ((level) == 3)                                        \
 			pr_debug("et61x251: [%s:%d] " fmt "\n", __FUNCTION__, \
-			         __LINE__ , ## args);                         \
+				 __LINE__ , ## args);                         \
 	}                                                                     \
 } while (0)
 #	define V4LDBG(level, name, cmd)                                       \
@@ -226,7 +226,7 @@ do {                                                                          \
 #undef PDBG
 #define PDBG(fmt, args...)                                                    \
 dev_info(&cam->usbdev->dev, "[%s:%d] " fmt "\n",                              \
-         __FUNCTION__, __LINE__ , ## args)
+	 __FUNCTION__, __LINE__ , ## args)
 
 #undef PDBGG
 #define PDBGG(fmt, args...) do {;} while(0) /* placeholder */

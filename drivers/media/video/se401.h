@@ -177,7 +177,7 @@ struct usb_se401 {
 	int expose_m;
 	int expose_l;
 	int resetlevel;
-	
+
 	int enhance;
 
 	int format;
@@ -200,12 +200,12 @@ struct usb_se401 {
 
 	struct urb *urb[SE401_NUMSBUF];
 	struct urb *inturb;
-	
+
 	int button;
 	int buttonpressed;
 
 	int curframe;		/* Current receiving frame */
-	struct se401_frame frame[SE401_NUMFRAMES];	
+	struct se401_frame frame[SE401_NUMFRAMES];
 	int readcount;
 	int framecount;
 	int error;
