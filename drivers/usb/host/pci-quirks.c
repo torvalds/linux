@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
+#include "pci-quirks.h"
 
 
 #define UHCI_USBLEGSUP		0xc0		/* legacy support */

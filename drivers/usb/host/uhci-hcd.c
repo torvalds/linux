@@ -50,6 +50,7 @@
 
 #include "../core/hcd.h"
 #include "uhci-hcd.h"
+#include "pci-quirks.h"
 
 /*
  * Version Information
@@ -99,9 +100,6 @@ static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
 #include "uhci-debug.c"
 #include "uhci-q.c"
 #include "uhci-hub.c"
-
-extern void uhci_reset_hc(struct pci_dev *pdev, unsigned long base);
-extern int uhci_check_and_reset_hc(struct pci_dev *pdev, unsigned long base);
 
 /*
  * Finish up a host controller reset and update the recorded state.
