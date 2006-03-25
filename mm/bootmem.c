@@ -152,7 +152,7 @@ static void __init free_bootmem_core(bootmem_data_t *bdata, unsigned long addr, 
  *
  * NOTE:  This function is _not_ reentrant.
  */
-static void * __init
+void * __init
 __alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
 	      unsigned long align, unsigned long goal, unsigned long limit)
 {
