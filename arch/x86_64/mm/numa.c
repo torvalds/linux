@@ -47,7 +47,7 @@ int numa_off __initdata;
  * -1 if node overlap or lost ram (shift too big)
  */
 static int __init
-populate_memnodemap(const struct node *nodes, int numnodes, int shift)
+populate_memnodemap(const struct bootnode *nodes, int numnodes, int shift)
 {
 	int i; 
 	int res = -1;
@@ -74,7 +74,7 @@ populate_memnodemap(const struct node *nodes, int numnodes, int shift)
 	return res;
 }
 
-int __init compute_hash_shift(struct node *nodes, int numnodes)
+int __init compute_hash_shift(struct bootnode *nodes, int numnodes)
 {
 	int shift = 20;
 
@@ -191,7 +191,7 @@ int numa_fake __initdata = 0;
 static int numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
 {
  	int i;
- 	struct node nodes[MAX_NUMNODES];
+ 	struct bootnode nodes[MAX_NUMNODES];
  	unsigned long sz = ((end_pfn - start_pfn)<<PAGE_SHIFT) / numa_fake;
 
  	/* Kludge needed for the hash function */
