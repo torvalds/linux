@@ -1990,10 +1990,9 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	align = ralign;
 
 	/* Get cache's description obj. */
-	cachep = kmem_cache_alloc(&cache_cache, SLAB_KERNEL);
+	cachep = kmem_cache_zalloc(&cache_cache, SLAB_KERNEL);
 	if (!cachep)
 		goto oops;
-	memset(cachep, 0, sizeof(struct kmem_cache));
 
 #if DEBUG
 	cachep->obj_size = size;
