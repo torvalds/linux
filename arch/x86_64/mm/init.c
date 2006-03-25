@@ -94,7 +94,7 @@ void show_mem(void)
 
 int after_bootmem;
 
-static void *spp_getpage(void)
+static __init void *spp_getpage(void)
 { 
 	void *ptr;
 	if (after_bootmem)
@@ -108,7 +108,7 @@ static void *spp_getpage(void)
 	return ptr;
 } 
 
-static void set_pte_phys(unsigned long vaddr,
+static __init void set_pte_phys(unsigned long vaddr,
 			 unsigned long phys, pgprot_t prot)
 {
 	pgd_t *pgd;
@@ -157,7 +157,8 @@ static void set_pte_phys(unsigned long vaddr,
 }
 
 /* NOTE: this is meant to be run only at boot */
-void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
+void __init 
+__set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 {
 	unsigned long address = __fix_to_virt(idx);
 
