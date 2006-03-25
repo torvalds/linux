@@ -17,6 +17,25 @@
 #include <linux/inotify.h>
 
 /*
+ * fsnotify_d_instantiate - instantiate a dentry for inode
+ * Called with dcache_lock held.
+ */
+static inline void fsnotify_d_instantiate(struct dentry *entry,
+						struct inode *inode)
+{
+	inotify_d_instantiate(entry, inode);
+}
+
+/*
+ * fsnotify_d_move - entry has been moved
+ * Called with dcache_lock and entry->d_lock held.
+ */
+static inline void fsnotify_d_move(struct dentry *entry)
+{
+	inotify_d_move(entry);
+}
+
+/*
  * fsnotify_move - file old_name at old_dir was moved to new_name at new_dir
  */
 static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
