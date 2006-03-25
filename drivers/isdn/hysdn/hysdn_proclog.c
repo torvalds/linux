@@ -28,7 +28,7 @@ static void put_log_buffer(hysdn_card * card, char *cp);
 /*************************************************/
 struct log_data {
 	struct log_data *next;
-	ulong usage_cnt;	/* number of files still to work */
+	unsigned long usage_cnt;/* number of files still to work */
 	void *proc_ctrl;	/* pointer to own control procdata structure */
 	char log_start[2];	/* log string start (final len aligned by size) */
 };
@@ -42,7 +42,7 @@ struct procdata {
 	struct log_data *log_head, *log_tail;	/* head and tail for queue */
 	int if_used;		/* open count for interface */
 	int volatile del_lock;	/* lock for delete operations */
-	uchar logtmp[LOG_MAX_LINELEN];
+	unsigned char logtmp[LOG_MAX_LINELEN];
 	wait_queue_head_t rd_queue;
 };
 
@@ -153,9 +153,9 @@ put_log_buffer(hysdn_card * card, char *cp)
 static ssize_t
 hysdn_log_write(struct file *file, const char __user *buf, size_t count, loff_t * off)
 {
-	ulong u = 0;
+	unsigned long u = 0;
 	int found = 0;
-	uchar *cp, valbuf[128];
+	unsigned char *cp, valbuf[128];
 	long base = 10;
 	hysdn_card *card = (hysdn_card *) file->private_data;
 
@@ -249,7 +249,7 @@ hysdn_log_open(struct inode *ino, struct file *filep)
 {
 	hysdn_card *card;
 	struct procdata *pd = NULL;
-	ulong flags;
+	unsigned long flags;
 
 	lock_kernel();
 	card = card_root;

@@ -30,17 +30,17 @@
 /* needed during boot and so allocated dynamically.         */
 /************************************************************/
 struct boot_data {
-	word Cryptor;		/* for use with Decrypt function */
-	word Nrecs;		/* records remaining in file */
-	uchar pof_state;	/* actual state of read handler */
-	uchar is_crypted;	/* card data is crypted */
+	unsigned short Cryptor;	/* for use with Decrypt function */
+	unsigned short Nrecs;	/* records remaining in file */
+	unsigned char pof_state;/* actual state of read handler */
+	unsigned char is_crypted;/* card data is crypted */
 	int BufSize;		/* actual number of bytes bufferd */
 	int last_error;		/* last occurred error */
-	word pof_recid;		/* actual pof recid */
-	ulong pof_reclen;	/* total length of pof record data */
-	ulong pof_recoffset;	/* actual offset inside pof record */
+	unsigned short pof_recid;/* actual pof recid */
+	unsigned long pof_reclen;/* total length of pof record data */
+	unsigned long pof_recoffset;/* actual offset inside pof record */
 	union {
-		uchar BootBuf[BOOT_BUF_SIZE];	/* buffer as byte count */
+		unsigned char BootBuf[BOOT_BUF_SIZE];/* buffer as byte count */
 		tPofRecHdr PofRecHdr;	/* header for actual record/chunk */
 		tPofFileHdr PofFileHdr;		/* header from POF file */
 		tPofTimeStamp PofTime;	/* time information */
@@ -69,11 +69,11 @@ StartDecryption(struct boot_data *boot)
 static void
 DecryptBuf(struct boot_data *boot, int cnt)
 {
-	uchar *bufp = boot->buf.BootBuf;
+	unsigned char *bufp = boot->buf.BootBuf;
 
 	while (cnt--) {
 		boot->Cryptor = (boot->Cryptor >> 1) ^ ((boot->Cryptor & 1U) ? CRYPT_FEEDTERM : 0);
-		*bufp++ ^= (uchar) boot->Cryptor;
+		*bufp++ ^= (unsigned char)boot->Cryptor;
 	}
 }				/* DecryptBuf */
 
@@ -86,7 +86,7 @@ pof_handle_data(hysdn_card * card, int datlen)
 {
 	struct boot_data *boot = card->boot;	/* pointer to boot specific data */
 	long l;
-	uchar *imgp;
+	unsigned char *imgp;
 	int img_len;
 
 	/* handle the different record types */
@@ -197,7 +197,7 @@ pof_write_buffer(hysdn_card * card, int datlen)
 				break;
 			}
 			/* Setup the new state and vars */
-			boot->Nrecs = (word) (boot->buf.PofFileHdr.N_PofRecs);	/* limited to 65535 */
+			boot->Nrecs = (unsigned short)(boot->buf.PofFileHdr.N_PofRecs);	/* limited to 65535 */
 			boot->pof_state = POF_READ_TAG_HEAD;	/* now start with single tags */
 			boot->last_error = sizeof(tPofRecHdr);	/* new length */
 			break;
@@ -268,7 +268,7 @@ pof_write_buffer(hysdn_card * card, int datlen)
 /* occurred. Additionally the pointer to the buffer data area is set on success */
 /*******************************************************************************/
 int
-pof_write_open(hysdn_card * card, uchar ** bufp)
+pof_write_open(hysdn_card * card, unsigned char **bufp)
 {
 	struct boot_data *boot;	/* pointer to boot specific data */
 
@@ -335,7 +335,7 @@ pof_write_close(hysdn_card * card)
 /* when POF has been booted. A return value of 0 is used if no error occurred.    */
 /*********************************************************************************/
 int
-EvalSysrTokData(hysdn_card * card, uchar * cp, int len)
+EvalSysrTokData(hysdn_card *card, unsigned char *cp, int len)
 {
 	u_char *p;
 	u_char crc;

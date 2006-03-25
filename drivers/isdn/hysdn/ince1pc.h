@@ -62,7 +62,7 @@
  *                     s. RotlCRC algorithm
  *
  *  RotlCRC algorithm:
- *      ucSum= 0                        1 uchar
+ *      ucSum= 0                        1 unsigned char
  *      for all NonEndTokenChunk bytes:
  *          ROTL(ucSum,1)               rotate left by 1
  *          ucSum += Char;              add current byte with swap around
@@ -85,13 +85,13 @@
 
 typedef struct ErrLogEntry_tag {
 	
-/*00 */ ulong ulErrType;
+/*00 */ unsigned long ulErrType;
 	
-/*04 */ ulong ulErrSubtype;
+/*04 */ unsigned long ulErrSubtype;
 	
-/*08 */ uchar ucTextSize;
+/*08 */ unsigned char ucTextSize;
 	
-	/*09 */ uchar ucText[ERRLOG_TEXT_SIZE];
+	/*09 */ unsigned char ucText[ERRLOG_TEXT_SIZE];
 	/* ASCIIZ of len ucTextSize-1 */
 	
 /*40 */ 
@@ -111,13 +111,13 @@ typedef struct ErrLogEntry_tag {
 #define DPRAM_SPOOLER_DATA_SIZE 0x20
 typedef struct DpramBootSpooler_tag {
 	
-/*00 */ uchar Len;
+/*00 */ unsigned char Len;
 	
-/*01 */ volatile uchar RdPtr;
+/*01 */ volatile unsigned char RdPtr;
 	
-/*02 */ uchar WrPtr;
+/*02 */ unsigned char WrPtr;
 	
-/*03 */ uchar Data[DPRAM_SPOOLER_DATA_SIZE];
+/*03 */ unsigned char Data[DPRAM_SPOOLER_DATA_SIZE];
 	
 /*23 */ 
 } tDpramBootSpooler;

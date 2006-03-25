@@ -523,7 +523,7 @@ New nccis are created if necessary.
 *******************************************************************/
 
 void
-hycapi_rx_capipkt(hysdn_card * card, uchar * buf, word len)
+hycapi_rx_capipkt(hysdn_card * card, unsigned char *buf, unsigned short len)
 {
 	struct sk_buff *skb;
 	hycapictrl_info *cinfo = card->hyctrlinfo;
