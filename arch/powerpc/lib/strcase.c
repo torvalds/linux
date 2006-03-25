@@ -1,4 +1,6 @@
+#include <linux/types.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 
 int strcasecmp(const char *s1, const char *s2)
 {
@@ -11,7 +13,7 @@ int strcasecmp(const char *s1, const char *s2)
 	return c1 - c2;
 }
 
-int strncasecmp(const char *s1, const char *s2, int n)
+int strncasecmp(const char *s1, const char *s2, size_t n)
 {
 	int c1, c2;
 
