@@ -485,6 +485,40 @@ static struct file_operations proc_slabinfo_operations = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
+
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+extern struct seq_operations slabstats_op;
+static int slabstats_open(struct inode *inode, struct file *file)
+{
+	unsigned long *n = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	int ret = -ENOMEM;
+	if (n) {
+		ret = seq_open(file, &slabstats_op);
+		if (!ret) {
+			struct seq_file *m = file->private_data;
+			*n = PAGE_SIZE / (2 * sizeof(unsigned long));
+			m->private = n;
+			n = NULL;
+		}
+		kfree(n);
+	}
+	return ret;
+}
+
+static int slabstats_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *m = file->private_data;
+	kfree(m->private);
+	return seq_release(inode, file);
+}
+
+static struct file_operations proc_slabstats_operations = {
+	.open		= slabstats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= slabstats_release,
+};
+#endif
 #endif
 
 static int show_stat(struct seq_file *p, void *v)
@@ -744,6 +778,9 @@ void __init proc_misc_init(void)
 	create_seq_entry("interrupts", 0, &proc_interrupts_operations);
 #ifdef CONFIG_SLAB
 	create_seq_entry("slabinfo",S_IWUSR|S_IRUGO,&proc_slabinfo_operations);
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+	create_seq_entry("slab_allocators", 0 ,&proc_slabstats_operations);
+#endif
 #endif
 	create_seq_entry("buddyinfo",S_IRUGO, &fragmentation_file_operations);
 	create_seq_entry("vmstat",S_IRUGO, &proc_vmstat_file_operations);

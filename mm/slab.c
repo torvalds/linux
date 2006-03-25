@@ -204,7 +204,8 @@
 typedef unsigned int kmem_bufctl_t;
 #define BUFCTL_END	(((kmem_bufctl_t)(~0U))-0)
 #define BUFCTL_FREE	(((kmem_bufctl_t)(~0U))-1)
-#define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-2)
+#define	BUFCTL_ACTIVE	(((kmem_bufctl_t)(~0U))-2)
+#define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-3)
 
 /* Max number of objs-per-slab for caches which use off-slab slabs.
  * Needed to avoid a possible looping condition in cache_grow().
@@ -2399,7 +2400,7 @@ static void slab_put_obj(struct kmem_cache *cachep, struct slab *slabp,
 	/* Verify that the slab belongs to the intended node */
 	WARN_ON(slabp->nodeid != nodeid);
 
-	if (slab_bufctl(slabp)[objnr] != BUFCTL_FREE) {
+	if (slab_bufctl(slabp)[objnr] + 1 <= SLAB_LIMIT + 1) {
 		printk(KERN_ERR "slab: double free detected in cache "
 				"'%s', objp %p\n", cachep->name, objp);
 		BUG();
@@ -2605,6 +2606,9 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 		 */
 		cachep->dtor(objp + obj_offset(cachep), cachep, 0);
 	}
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+	slab_bufctl(slabp)[objnr] = BUFCTL_FREE;
+#endif
 	if (cachep->flags & SLAB_POISON) {
 #ifdef CONFIG_DEBUG_PAGEALLOC
 		if ((cachep->buffer_size % PAGE_SIZE)==0 && OFF_SLAB(cachep)) {
@@ -2788,6 +2792,16 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 		*dbg_redzone1(cachep, objp) = RED_ACTIVE;
 		*dbg_redzone2(cachep, objp) = RED_ACTIVE;
 	}
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+	{
+		struct slab *slabp;
+		unsigned objnr;
+
+		slabp = page_get_slab(virt_to_page(objp));
+		objnr = (unsigned)(objp - slabp->s_mem) / cachep->buffer_size;
+		slab_bufctl(slabp)[objnr] = BUFCTL_ACTIVE;
+	}
+#endif
 	objp += obj_offset(cachep);
 	if (cachep->ctor && cachep->flags & SLAB_POISON) {
 		unsigned long ctor_flags = SLAB_CTOR_CONSTRUCTOR;
@@ -3220,22 +3234,23 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 	return __cache_alloc(cachep, flags, caller);
 }
 
-#ifndef CONFIG_DEBUG_SLAB
 
 void *__kmalloc(size_t size, gfp_t flags)
 {
+#ifndef CONFIG_DEBUG_SLAB
 	return __do_kmalloc(size, flags, NULL);
+#else
+	return __do_kmalloc(size, flags, __builtin_return_address(0));
+#endif
 }
 EXPORT_SYMBOL(__kmalloc);
 
-#else
-
+#ifdef CONFIG_DEBUG_SLAB
 void *__kmalloc_track_caller(size_t size, gfp_t flags, void *caller)
 {
 	return __do_kmalloc(size, flags, caller);
 }
 EXPORT_SYMBOL(__kmalloc_track_caller);
-
 #endif
 
 #ifdef CONFIG_SMP
@@ -3899,6 +3914,159 @@ ssize_t slabinfo_write(struct file *file, const char __user * buffer,
 		res = count;
 	return res;
 }
+
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+
+static void *leaks_start(struct seq_file *m, loff_t *pos)
+{
+	loff_t n = *pos;
+	struct list_head *p;
+
+	mutex_lock(&cache_chain_mutex);
+	p = cache_chain.next;
+	while (n--) {
+		p = p->next;
+		if (p == &cache_chain)
+			return NULL;
+	}
+	return list_entry(p, struct kmem_cache, next);
+}
+
+static inline int add_caller(unsigned long *n, unsigned long v)
+{
+	unsigned long *p;
+	int l;
+	if (!v)
+		return 1;
+	l = n[1];
+	p = n + 2;
+	while (l) {
+		int i = l/2;
+		unsigned long *q = p + 2 * i;
+		if (*q == v) {
+			q[1]++;
+			return 1;
+		}
+		if (*q > v) {
+			l = i;
+		} else {
+			p = q + 2;
+			l -= i + 1;
+		}
+	}
+	if (++n[1] == n[0])
+		return 0;
+	memmove(p + 2, p, n[1] * 2 * sizeof(unsigned long) - ((void *)p - (void *)n));
+	p[0] = v;
+	p[1] = 1;
+	return 1;
+}
+
+static void handle_slab(unsigned long *n, struct kmem_cache *c, struct slab *s)
+{
+	void *p;
+	int i;
+	if (n[0] == n[1])
+		return;
+	for (i = 0, p = s->s_mem; i < c->num; i++, p += c->buffer_size) {
+		if (slab_bufctl(s)[i] != BUFCTL_ACTIVE)
+			continue;
+		if (!add_caller(n, (unsigned long)*dbg_userword(c, p)))
+			return;
+	}
+}
+
+static void show_symbol(struct seq_file *m, unsigned long address)
+{
+#ifdef CONFIG_KALLSYMS
+	char *modname;
+	const char *name;
+	unsigned long offset, size;
+	char namebuf[KSYM_NAME_LEN+1];
+
+	name = kallsyms_lookup(address, &size, &offset, &modname, namebuf);
+
+	if (name) {
+		seq_printf(m, "%s+%#lx/%#lx", name, offset, size);
+		if (modname)
+			seq_printf(m, " [%s]", modname);
+		return;
+	}
+#endif
+	seq_printf(m, "%p", (void *)address);
+}
+
+static int leaks_show(struct seq_file *m, void *p)
+{
+	struct kmem_cache *cachep = p;
+	struct list_head *q;
+	struct slab *slabp;
+	struct kmem_list3 *l3;
+	const char *name;
+	unsigned long *n = m->private;
+	int node;
+	int i;
+
+	if (!(cachep->flags & SLAB_STORE_USER))
+		return 0;
+	if (!(cachep->flags & SLAB_RED_ZONE))
+		return 0;
+
+	/* OK, we can do it */
+
+	n[1] = 0;
+
+	for_each_online_node(node) {
+		l3 = cachep->nodelists[node];
+		if (!l3)
+			continue;
+
+		check_irq_on();
+		spin_lock_irq(&l3->list_lock);
+
+		list_for_each(q, &l3->slabs_full) {
+			slabp = list_entry(q, struct slab, list);
+			handle_slab(n, cachep, slabp);
+		}
+		list_for_each(q, &l3->slabs_partial) {
+			slabp = list_entry(q, struct slab, list);
+			handle_slab(n, cachep, slabp);
+		}
+		spin_unlock_irq(&l3->list_lock);
+	}
+	name = cachep->name;
+	if (n[0] == n[1]) {
+		/* Increase the buffer size */
+		mutex_unlock(&cache_chain_mutex);
+		m->private = kzalloc(n[0] * 4 * sizeof(unsigned long), GFP_KERNEL);
+		if (!m->private) {
+			/* Too bad, we are really out */
+			m->private = n;
+			mutex_lock(&cache_chain_mutex);
+			return -ENOMEM;
+		}
+		*(unsigned long *)m->private = n[0] * 2;
+		kfree(n);
+		mutex_lock(&cache_chain_mutex);
+		/* Now make sure this entry will be retried */
+		m->count = m->size;
+		return 0;
+	}
+	for (i = 0; i < n[1]; i++) {
+		seq_printf(m, "%s: %lu ", name, n[2*i+3]);
+		show_symbol(m, n[2*i+2]);
+		seq_putc(m, '\n');
+	}
+	return 0;
+}
+
+struct seq_operations slabstats_op = {
+	.start = leaks_start,
+	.next = s_next,
+	.stop = s_stop,
+	.show = leaks_show,
+};
+#endif
 #endif
 
 /**

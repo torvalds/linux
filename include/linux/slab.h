@@ -77,11 +77,12 @@ struct cache_sizes {
 };
 extern struct cache_sizes malloc_sizes[];
 
-#ifndef CONFIG_DEBUG_SLAB
 extern void *__kmalloc(size_t, gfp_t);
+#ifndef CONFIG_DEBUG_SLAB
+#define ____kmalloc(size, flags) __kmalloc(size, flags)
 #else
 extern void *__kmalloc_track_caller(size_t, gfp_t, void*);
-#define __kmalloc(size, flags) \
+#define ____kmalloc(size, flags) \
     __kmalloc_track_caller(size, flags, __builtin_return_address(0))
 #endif
 
@@ -173,6 +174,7 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 #define kmem_ptr_validate(a, b) (0)
 #define kmem_cache_alloc_node(c, f, n) kmem_cache_alloc(c, f)
 #define kmalloc_node(s, f, n) kmalloc(s, f)
+#define ____kmalloc kmalloc
 
 #endif /* CONFIG_SLOB */
 
