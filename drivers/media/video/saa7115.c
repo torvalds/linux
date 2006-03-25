@@ -53,7 +53,7 @@ module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 static unsigned short normal_i2c[] = {
-		0x4a >>1, 0x48 >>1,	/* SAA7113 */
+		0x4a >> 1, 0x48 >> 1,	/* SAA7113 */
 		0x42 >> 1, 0x40 >> 1,	/* SAA7114 and SAA7115 */
 		I2C_CLIENT_END };
 
@@ -722,16 +722,16 @@ static void saa7115_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 	100 reserved                    NTSC-Japan (3.58MHz)
 	*/
 	if (state->ident == V4L2_IDENT_SAA7113) {
-		u8 reg =  saa7115_read(client, 0x0e) & 0x8f;
+		u8 reg = saa7115_read(client, 0x0e) & 0x8f;
 
 		if (std == V4L2_STD_PAL_M) {
-			reg|=0x30;
+			reg |= 0x30;
 		} else if (std == V4L2_STD_PAL_N) {
-			reg|=0x20;
+			reg |= 0x20;
 		} else if (std == V4L2_STD_PAL_60) {
-			reg|=0x10;
+			reg |= 0x10;
 		} else if (std == V4L2_STD_NTSC_M_JP) {
-			reg|=0x40;
+			reg |= 0x40;
 		}
 		saa7115_write(client, 0x0e, reg);
 	}
@@ -811,7 +811,7 @@ static void saa7115_set_lcr(struct i2c_client *client, struct v4l2_sliced_vbi_fo
 	u8 lcr[24];
 	int i, x;
 
-	/* saa7113/71144 doesn't yet support VBI */
+	/* saa7113/7114 doesn't yet support VBI */
 	if (state->ident != V4L2_IDENT_SAA7115)
 		return;
 
@@ -1321,7 +1321,7 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	saa7115_write(client, 0, 5);
 	chip_id = saa7115_read(client, 0) & 0x0f;
-	if (chip_id <3 && chip_id > 5) {
+	if (chip_id < 3 && chip_id > 5) {
 		v4l_dbg(1, debug, client, "saa7115 not found\n");
 		kfree(client);
 		return 0;
@@ -1360,7 +1360,7 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	v4l_dbg(1, debug, client, "writing init values\n");
 
 	/* init to 60hz/48khz */
-	if (state->ident==V4L2_IDENT_SAA7113)
+	if (state->ident == V4L2_IDENT_SAA7113)
 		saa7115_writeregs(client, saa7113_init_auto_input);
 	else
 		saa7115_writeregs(client, saa7115_init_auto_input);
