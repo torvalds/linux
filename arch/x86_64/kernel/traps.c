@@ -78,6 +78,8 @@ int register_die_notifier(struct notifier_block *nb)
 {
 	int err = 0;
 	unsigned long flags;
+
+	vmalloc_sync_all();
 	spin_lock_irqsave(&die_notifier_lock, flags);
 	err = notifier_chain_register(&die_chain, nb);
 	spin_unlock_irqrestore(&die_notifier_lock, flags);

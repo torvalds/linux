@@ -534,6 +534,7 @@ asmlinkage __kprobes void do_nmi(struct pt_regs * regs, long error_code)
 
 void set_nmi_callback(nmi_callback_t callback)
 {
+	vmalloc_sync_all();
 	rcu_assign_pointer(nmi_callback, callback);
 }
 
