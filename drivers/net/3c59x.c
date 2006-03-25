@@ -1096,14 +1096,18 @@ static int __init vortex_eisa_init (void)
 	int orig_cards_found = vortex_cards_found;
 
 #ifdef CONFIG_EISA
-	if (eisa_driver_register (&vortex_eisa_driver) >= 0) {
-			/* Because of the way EISA bus is probed, we cannot assume
-			 * any device have been found when we exit from
-			 * eisa_driver_register (the bus root driver may not be
-			 * initialized yet). So we blindly assume something was
-			 * found, and let the sysfs magic happend... */
-			
-			eisa_found = 1;
+	int err;
+
+	err = eisa_driver_register (&vortex_eisa_driver);
+	if (!err) {
+		/*
+		 * Because of the way EISA bus is probed, we cannot assume
+		 * any device have been found when we exit from
+		 * eisa_driver_register (the bus root driver may not be
+		 * initialized yet). So we blindly assume something was
+		 * found, and let the sysfs magic happend...
+		 */
+		eisa_found = 1;
 	}
 #endif
 	

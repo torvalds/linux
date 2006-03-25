@@ -1551,7 +1551,7 @@ MODULE_PARM_DESC(nicmode, "Digi RightSwitch operating mode (1: switch, 2: multi-
 static int __init dgrs_init_module (void)
 {
 	int	i;
-	int	cardcount = 0;
+	int	err;
 
 	/*
 	 *	Command line variable overrides
@@ -1593,13 +1593,13 @@ static int __init dgrs_init_module (void)
 	 *	Find and configure all the cards
 	 */
 #ifdef CONFIG_EISA
-	cardcount = eisa_driver_register(&dgrs_eisa_driver);
-	if (cardcount < 0)
-		return cardcount;
+	err = eisa_driver_register(&dgrs_eisa_driver);
+	if (err)
+		return err;
 #endif
-	cardcount = pci_register_driver(&dgrs_pci_driver);
-	if (cardcount)
-		return cardcount;
+	err = pci_register_driver(&dgrs_pci_driver);
+	if (err)
+		return err;
 	return 0;
 }
 
