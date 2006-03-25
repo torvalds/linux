@@ -3805,10 +3805,35 @@ static void ata_pio_error(struct ata_port *ap)
 	ata_poll_qc_complete(qc);
 }
 
-static void ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
-			 u8 status)
+/**
+ *	ata_hsm_move - move the HSM to the next state.
+ *	@ap: the target ata_port
+ *	@qc: qc on going
+ *	@status: current device status
+ *	@in_wq: 1 if called from workqueue, 0 otherwise
+ *
+ *	RETURNS:
+ *	1 when poll next status needed, 0 otherwise.
+ */
+
+static int ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
+			 u8 status, int in_wq)
 {
+	unsigned long flags = 0;
+	int poll_next;
+
 	WARN_ON((qc->flags & ATA_QCFLAG_ACTIVE) == 0);
+
+	/* Make sure ata_qc_issue_prot() does not throw things
+	 * like DMA polling into the workqueue. Notice that
+	 * in_wq is not equivalent to (qc->tf.flags & ATA_TFLAG_POLLING).
+	 */
+	WARN_ON(in_wq != ((qc->tf.flags & ATA_TFLAG_POLLING) ||
+			  (ap->hsm_task_state == HSM_ST_FIRST &&
+			   ((qc->tf.protocol == ATA_PROT_PIO &&
+			     (qc->tf.flags & ATA_TFLAG_WRITE)) ||
+			    (is_atapi_taskfile(&qc->tf) &&
+			     !(qc->dev->flags & ATA_DFLAG_CDB_INTR))))));
 
 	/* check error */
 	if (unlikely(status & (ATA_ERR | ATA_DF))) {
@@ -3819,6 +3844,14 @@ static void ata_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 fsm_start:
 	switch (ap->hsm_task_state) {
 	case HSM_ST_FIRST:
+		/* Send first data block or PACKET CDB */
+
+		/* If polling, we will stay in the work queue after
+		 * sending the data. Otherwise, interrupt handler
+		 * takes over after sending the data.
+		 */
+		poll_next = (qc->tf.flags & ATA_TFLAG_POLLING);
+
 		/* check device status */
 		if (unlikely((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)) {
 			/* Wrong status. Let EH handle this */
@@ -3827,8 +3860,36 @@ fsm_start:
 			goto fsm_start;
 		}
 
-		atapi_send_cdb(ap, qc);
+		/* Send the CDB (atapi) or the first data block (ata pio out).
+		 * During the state transition, interrupt handler shouldn't
+		 * be invoked before the data transfer is complete and
+		 * hsm_task_state is changed. Hence, the following locking.
+		 */
+		if (in_wq)
+			spin_lock_irqsave(&ap->host_set->lock, flags);
 
+		if (qc->tf.protocol == ATA_PROT_PIO) {
+			/* PIO data out protocol.
+			 * send first data block.
+			 */
+
+			/* ata_pio_sectors() might change the state
+			 * to HSM_ST_LAST. so, the state is changed here
+			 * before ata_pio_sectors().
+			 */
+			ap->hsm_task_state = HSM_ST;
+			ata_pio_sectors(qc);
+			ata_altstatus(ap); /* flush */
+		} else
+			/* send CDB */
+			atapi_send_cdb(ap, qc);
+
+		if (in_wq)
+			spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+		/* if polling, ata_pio_task() handles the rest.
+		 * otherwise, interrupt handler takes over from here.
+		 */
 		break;
 
 	case HSM_ST:
@@ -3868,6 +3929,7 @@ fsm_start:
 		}
 
 		ata_altstatus(ap); /* flush */
+		poll_next = 1;
 		break;
 
 	case HSM_ST_LAST:
@@ -3886,7 +3948,12 @@ fsm_start:
 		ap->hsm_task_state = HSM_ST_IDLE;
 
 		/* complete taskfile transaction */
-		ata_qc_complete(qc);
+		if (in_wq)
+			ata_poll_qc_complete(qc);
+		else
+			ata_qc_complete(qc);
+
+		poll_next = 0;
 		break;
 
 	case HSM_ST_ERR:
@@ -3900,12 +3967,20 @@ fsm_start:
 		WARN_ON(qc->err_mask == 0);
 
 		ap->hsm_task_state = HSM_ST_IDLE;
-		ata_qc_complete(qc);
+
+		if (in_wq)
+			ata_poll_qc_complete(qc);
+		else
+			ata_qc_complete(qc);
+
+		poll_next = 0;
 		break;
 	default:
+		poll_next = 0;
 		BUG();
 	}
 
+	return poll_next;
 }
 
 static void ata_pio_task(void *_data)
@@ -4423,7 +4498,7 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 	/* ack bmdma irq events */
 	ap->ops->irq_clear(ap);
 
-	ata_hsm_move(ap, qc, status);
+	ata_hsm_move(ap, qc, status, 0);
 	return 1;	/* irq handled */
 
 idle_irq:
