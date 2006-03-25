@@ -291,5 +291,3 @@ void bcm43xx_leds_switch_all(struct bcm43xx_private *bcm, int on)
 	}
 	bcm43xx_write16(bcm, BCM43xx_MMIO_GPIO_CONTROL, ledctl);
 }
-
-/* vim: set ts=8 sw=8 sts=8: */

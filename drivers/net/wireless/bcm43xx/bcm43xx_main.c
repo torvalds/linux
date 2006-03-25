@@ -3956,5 +3956,3 @@ static void __exit bcm43xx_exit(void)
 
 module_init(bcm43xx_init)
 module_exit(bcm43xx_exit)
-
-/* vim: set ts=8 sw=8 sts=8: */

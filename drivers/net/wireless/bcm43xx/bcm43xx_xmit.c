@@ -577,5 +577,3 @@ int bcm43xx_rx(struct bcm43xx_private *bcm,
 
 	return err;
 }
-
-/* vim: set ts=8 sw=8 sts=8: */

@@ -320,5 +320,3 @@ void bcm43xx_sysfs_unregister(struct bcm43xx_private *bcm)
 	device_remove_file(dev, &sysfs->attr_interfmode);
 	device_remove_file(dev, &sysfs->attr_sprom);
 }
-
-/* vim: set ts=8 sw=8 sts=8: */

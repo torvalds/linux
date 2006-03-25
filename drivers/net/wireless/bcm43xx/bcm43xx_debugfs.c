@@ -497,5 +497,3 @@ void bcm43xx_printk_bitdump(const unsigned char *data,
 	}
 	printk("\n");
 }
-
-/* vim: set ts=8 sw=8 sts=8: */

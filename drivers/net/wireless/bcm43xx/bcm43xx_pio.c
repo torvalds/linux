@@ -604,5 +604,3 @@ data_ready:
 	}
 	bcm43xx_rx(queue->bcm, skb, rxhdr);
 }
-
-/* vim: set ts=8 sw=8 sts=8: */

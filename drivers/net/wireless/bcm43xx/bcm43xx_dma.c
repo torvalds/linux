@@ -968,5 +968,3 @@ void bcm43xx_dma_tx_resume(struct bcm43xx_dmaring *ring)
 			  & ~BCM43xx_DMA_TXCTRL_SUSPEND);
 	bcm43xx_power_saving_ctl_bits(ring->bcm, -1, -1);
 }
-
-/* vim: set ts=8 sw=8 sts=8: */

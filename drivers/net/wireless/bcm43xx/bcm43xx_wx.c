@@ -1055,5 +1055,3 @@ const struct iw_handler_def bcm43xx_wx_handlers_def = {
 	.private_args		= bcm43xx_priv_wx_args,
 	.get_wireless_stats	= bcm43xx_get_wireless_stats,
 };
-
-/* vim: set ts=8 sw=8 sts=8: */
