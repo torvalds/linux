@@ -1421,7 +1421,6 @@ asmlinkage long sys_getgroups(int gidsetsize, gid_t __user *grouplist)
 		return -EINVAL;
 
 	/* no need to grab task_lock here; it cannot change */
-	get_group_info(current->group_info);
 	i = current->group_info->ngroups;
 	if (gidsetsize) {
 		if (i > gidsetsize) {
@@ -1434,7 +1433,6 @@ asmlinkage long sys_getgroups(int gidsetsize, gid_t __user *grouplist)
 		}
 	}
 out:
-	put_group_info(current->group_info);
 	return i;
 }
 
@@ -1475,9 +1473,7 @@ int in_group_p(gid_t grp)
 {
 	int retval = 1;
 	if (grp != current->fsgid) {
-		get_group_info(current->group_info);
 		retval = groups_search(current->group_info, grp);
-		put_group_info(current->group_info);
 	}
 	return retval;
 }
@@ -1488,9 +1484,7 @@ int in_egroup_p(gid_t grp)
 {
 	int retval = 1;
 	if (grp != current->egid) {
-		get_group_info(current->group_info);
 		retval = groups_search(current->group_info, grp);
-		put_group_info(current->group_info);
 	}
 	return retval;
 }
