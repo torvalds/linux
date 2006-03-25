@@ -223,8 +223,7 @@ int __devinit cpu_up(unsigned int cpu)
 	ret = __cpu_up(cpu);
 	if (ret != 0)
 		goto out_notify;
-	if (!cpu_online(cpu))
-		BUG();
+	BUG_ON(!cpu_online(cpu));
 
 	/* Now call notifier in preparation. */
 	notifier_call_chain(&cpu_chain, CPU_ONLINE, hcpu);

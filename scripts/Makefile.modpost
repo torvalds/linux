@@ -4,7 +4,7 @@
 #
 # Stage one of module building created the following:
 # a) The individual .o files used for the module
-# b) A <module>.o file wich is the .o files above linked together
+# b) A <module>.o file which is the .o files above linked together
 # c) A <module>.mod file in $(MODVERDIR)/, listing the name of the
 #    the preliminary <module>.o file, plus all .o files
 

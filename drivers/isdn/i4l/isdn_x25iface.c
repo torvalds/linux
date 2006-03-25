@@ -7,7 +7,7 @@
  *
  * stuff needed to support the Linux X.25 PLP code on top of devices that
  * can provide a lab_b service using the concap_proto mechanism.
- * This module supports a network interface wich provides lapb_sematics
+ * This module supports a network interface which provides lapb_sematics
  * -- as defined in Documentation/networking/x25-iface.txt -- to
  * the upper layer and assumes that the lower layer provides a reliable
  * data link service by means of the concap_device_ops callbacks.
