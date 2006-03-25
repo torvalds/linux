@@ -23,7 +23,6 @@ char __init inkernel_firmware[] = "let's say that this is firmware\n";
 #endif
 
 static struct device ghost_device = {
-	.name      = "Ghost Device",
 	.bus_id    = "ghost0",
 };
 
@@ -92,7 +91,7 @@ static void sample_probe_async(void)
 {
 	/* Let's say that I can't sleep */
 	int error;
-	error = request_firmware_nowait (THIS_MODULE,
+	error = request_firmware_nowait (THIS_MODULE, FW_ACTION_NOHOTPLUG,
 					 "sample_driver_fw", &ghost_device,
 					 "my device pointer",
 					 sample_probe_async_cont);
