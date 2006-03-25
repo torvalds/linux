@@ -59,7 +59,7 @@ int __init nonx_setup(char *str)
 } 
 __setup("noexec=", nonx_setup);	/* parsed early actually */
 
-int force_personality32 = READ_IMPLIES_EXEC;
+int force_personality32 = 0; 
 
 /* noexec32=on|off
 Control non executable heap for 32bit processes.
