@@ -29,6 +29,8 @@
 #include <linux/stddef.h>
 #include <linux/bit_spinlock.h>
 #include <linux/mutex.h>
+#include <linux/timer.h>
+
 #include <asm/semaphore.h>
 #endif
 
@@ -787,7 +789,7 @@ struct journal_s
 	unsigned long		j_commit_interval;
 
 	/* The timer used to wakeup the commit thread: */
-	struct timer_list	*j_commit_timer;
+	struct timer_list	j_commit_timer;
 
 	/*
 	 * The revoke table: maintains the list of revoked blocks in the
