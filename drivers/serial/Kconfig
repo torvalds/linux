@@ -827,6 +827,7 @@ config SERIAL_ICOM
 	tristate "IBM Multiport Serial Adapter"
 	depends on PCI && (PPC_ISERIES || PPC_PSERIES)
 	select SERIAL_CORE
+	select FW_LOADER
 	help
 	  This driver is for a family of multiport serial adapters
 	  including 2 port RVX, 2 port internal modem, 4 port internal
