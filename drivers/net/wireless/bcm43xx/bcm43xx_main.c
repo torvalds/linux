@@ -2509,7 +2509,7 @@ error:
 	return -ENODEV;
 }
 
-void bcm43xx_init_struct_phyinfo(struct bcm43xx_phyinfo *phy)
+static void bcm43xx_init_struct_phyinfo(struct bcm43xx_phyinfo *phy)
 {
 	/* Initialize a "phyinfo" structure. The structure is already
 	 * zeroed out.
@@ -2521,7 +2521,7 @@ void bcm43xx_init_struct_phyinfo(struct bcm43xx_phyinfo *phy)
 	spin_lock_init(&phy->lock);
 }
 
-void bcm43xx_init_struct_radioinfo(struct bcm43xx_radioinfo *radio)
+static void bcm43xx_init_struct_radioinfo(struct bcm43xx_radioinfo *radio)
 {
 	/* Initialize a "radioinfo" structure. The structure is already
 	 * zeroed out.

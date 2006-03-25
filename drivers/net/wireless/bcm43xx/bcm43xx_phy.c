@@ -1057,9 +1057,14 @@ static void bcm43xx_phy_initg(struct bcm43xx_private *bcm)
 			bcm43xx_phy_write(bcm, 0x002F, 0x0202);
 	}
 
-	if ((bcm->sprom.boardflags & BCM43xx_BFL_RSSI) == 0) {
-		FIXME();//FIXME: 0x7FFFFFFF should be 16-bit !
-		bcm43xx_nrssi_hw_update(bcm, (u16)0x7FFFFFFF);
+	if (!(bcm->sprom.boardflags & BCM43xx_BFL_RSSI)) {
+		/* The specs state to update the NRSSI LT with
+		 * the value 0x7FFFFFFF here. I think that is some weird
+		 * compiler optimization in the original driver.
+		 * Essentially, what we do here is resetting all NRSSI LT
+		 * entries to -32 (see the limit_value() in nrssi_hw_update())
+		 */
+		bcm43xx_nrssi_hw_update(bcm, 0xFFFF);
 		bcm43xx_calc_nrssi_threshold(bcm);
 	} else if (phy->connected) {
 		if (radio->nrssi[0] == -1000) {
