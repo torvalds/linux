@@ -95,12 +95,12 @@ static void uninorth_cleanup(void)
 static int uninorth_configure(void)
 {
 	struct aper_size_info_32 *current_size;
-	
+
 	current_size = A_SIZE_32(agp_bridge->current_size);
 
 	printk(KERN_INFO PFX "configuring for size idx: %d\n",
 	       current_size->size_value);
-	
+
 	/* aperture size and gatt addr */
 	pci_write_config_dword(agp_bridge->dev,
 		UNI_N_CFG_GART_BASE,
@@ -127,7 +127,7 @@ static int uninorth_configure(void)
 				       UNI_N_CFG_GART_DUMMY_PAGE,
 				       agp_bridge->scratch_page_real >> 12);
 	}
-	
+
 	return 0;
 }
 
@@ -162,7 +162,7 @@ static int uninorth_insert_memory(struct agp_memory *mem, off_t pg_start,
 	}
 	(void)in_le32((volatile u32*)&agp_bridge->gatt_table[pg_start]);
 	mb();
-	flush_dcache_range((unsigned long)&agp_bridge->gatt_table[pg_start], 
+	flush_dcache_range((unsigned long)&agp_bridge->gatt_table[pg_start],
 		(unsigned long)&agp_bridge->gatt_table[pg_start + mem->page_count]);
 
 	uninorth_tlbflush(mem);
@@ -235,7 +235,7 @@ static void uninorth_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 
 	command = agp_collect_device_status(bridge, mode, status);
 	command |= PCI_AGP_COMMAND_AGP;
-	
+
 	if (uninorth_rev == 0x21) {
 		/*
 		 * Darwin disable AGP 4x on this revision, thus we
@@ -456,7 +456,7 @@ static struct aper_size_info_32 uninorth_sizes[7] =
 	{256, 65536, 6, 64},
 	{128, 32768, 5, 32},
 	{64, 16384, 4, 16},
-#endif	
+#endif
 	{32, 8192, 3, 8},
 	{16, 4096, 2, 4},
 	{8, 2048, 1, 2},
