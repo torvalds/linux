@@ -74,6 +74,22 @@ static int sal_pcibr_error_interrupt(struct pcibus_info *soft)
 	return (int)ret_stuff.v0;
 }
 
+u16 sn_ioboard_to_pci_bus(struct pci_bus *pci_bus)
+{
+	s64 rc;
+	u16 ioboard;
+	nasid_t nasid = NASID_GET(SN_PCIBUS_BUSSOFT(pci_bus)->bs_base);
+
+	rc = ia64_sn_sysctl_ioboard_get(nasid, &ioboard);
+	if (rc) {
+		printk(KERN_WARNING "ia64_sn_sysctl_ioboard_get failed: %ld\n",
+		       rc);
+		return 0;
+	}
+
+	return ioboard;
+}
+
 /* 
  * PCI Bridge Error interrupt handler.  Gets invoked whenever a PCI 
  * bridge sends an error interrupt.
@@ -255,3 +271,4 @@ pcibr_init_provider(void)
 
 EXPORT_SYMBOL_GPL(sal_pcibr_slot_enable);
 EXPORT_SYMBOL_GPL(sal_pcibr_slot_disable);
+EXPORT_SYMBOL_GPL(sn_ioboard_to_pci_bus);

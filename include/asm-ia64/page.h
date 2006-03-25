@@ -149,7 +149,7 @@ typedef union ia64_va {
 				 | (REGION_OFFSET(x) >> (HPAGE_SHIFT-PAGE_SHIFT)))
 # define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 # define is_hugepage_only_range(mm, addr, len)		\
-	 (REGION_NUMBER(addr) == RGN_HPAGE &&	\
+	 (REGION_NUMBER(addr) == RGN_HPAGE ||	\
 	  REGION_NUMBER((addr)+(len)-1) == RGN_HPAGE)
 extern unsigned int hpage_shift;
 #endif

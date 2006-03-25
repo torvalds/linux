@@ -97,7 +97,7 @@ find_max_pfn (unsigned long start, unsigned long end, void *arg)
  * Find a place to put the bootmap and return its starting address in
  * bootmap_start.  This address must be page-aligned.
  */
-int
+static int __init
 find_bootmap_location (unsigned long start, unsigned long end, void *arg)
 {
 	unsigned long needed = *(unsigned long *)arg;
@@ -141,7 +141,7 @@ find_bootmap_location (unsigned long start, unsigned long end, void *arg)
  * Walk the EFI memory map and find usable memory for the system, taking
  * into account reserved areas.
  */
-void
+void __init
 find_memory (void)
 {
 	unsigned long bootmap_size;
@@ -176,7 +176,7 @@ find_memory (void)
  *
  * Allocate and setup per-cpu data areas.
  */
-void *
+void * __cpuinit
 per_cpu_init (void)
 {
 	void *cpu_data;
@@ -228,7 +228,7 @@ count_dma_pages (u64 start, u64 end, void *arg)
  * Set up the page tables.
  */
 
-void
+void __init
 paging_init (void)
 {
 	unsigned long max_dma;
