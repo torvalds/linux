@@ -469,7 +469,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (local->ieee_802_1x && meta->ethertype == ETH_P_PAE && tx.crypt &&
-	    !(fc & IEEE80211_FCTL_VERS)) {
+	    !(fc & IEEE80211_FCTL_PROTECTED)) {
 		no_encrypt = 1;
 		PDEBUG(DEBUG_EXTRA2, "%s: TX: IEEE 802.1X - passing "
 		       "unencrypted EAPOL frame\n", dev->name);
