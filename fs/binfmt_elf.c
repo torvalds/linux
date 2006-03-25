@@ -1465,12 +1465,11 @@ static int elf_core_dump(long signr, struct pt_regs * regs, struct file * file)
 		read_lock(&tasklist_lock);
 		do_each_thread(g,p)
 			if (current->mm == p->mm && current != p) {
-				tmp = kmalloc(sizeof(*tmp), GFP_ATOMIC);
+				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
 				if (!tmp) {
 					read_unlock(&tasklist_lock);
 					goto cleanup;
 				}
-				memset(tmp, 0, sizeof(*tmp));
 				INIT_LIST_HEAD(&tmp->list);
 				tmp->thread = p;
 				list_add(&tmp->list, &thread_list);

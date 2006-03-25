@@ -146,11 +146,9 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 	int ret = 0;
 	int i;
 
-	cd = kmalloc(sizeof(struct char_device_struct), GFP_KERNEL);
+	cd = kzalloc(sizeof(struct char_device_struct), GFP_KERNEL);
 	if (cd == NULL)
 		return ERR_PTR(-ENOMEM);
-
-	memset(cd, 0, sizeof(struct char_device_struct));
 
 	mutex_lock(&chrdevs_lock);
 
@@ -466,9 +464,8 @@ static struct kobj_type ktype_cdev_dynamic = {
 
 struct cdev *cdev_alloc(void)
 {
-	struct cdev *p = kmalloc(sizeof(struct cdev), GFP_KERNEL);
+	struct cdev *p = kzalloc(sizeof(struct cdev), GFP_KERNEL);
 	if (p) {
-		memset(p, 0, sizeof(struct cdev));
 		p->kobj.ktype = &ktype_cdev_dynamic;
 		INIT_LIST_HEAD(&p->list);
 		kobject_init(&p->kobj);

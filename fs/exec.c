@@ -1143,10 +1143,9 @@ int do_execve(char * filename,
 	int i;
 
 	retval = -ENOMEM;
-	bprm = kmalloc(sizeof(*bprm), GFP_KERNEL);
+	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
 	if (!bprm)
 		goto out_ret;
-	memset(bprm, 0, sizeof(*bprm));
 
 	file = open_exec(filename);
 	retval = PTR_ERR(file);

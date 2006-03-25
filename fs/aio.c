@@ -122,10 +122,9 @@ static int aio_setup_ring(struct kioctx *ctx)
 	info->nr = 0;
 	info->ring_pages = info->internal_pages;
 	if (nr_pages > AIO_RING_PAGES) {
-		info->ring_pages = kmalloc(sizeof(struct page *) * nr_pages, GFP_KERNEL);
+		info->ring_pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 		if (!info->ring_pages)
 			return -ENOMEM;
-		memset(info->ring_pages, 0, sizeof(struct page *) * nr_pages);
 	}
 
 	info->mmap_size = nr_pages * PAGE_SIZE;

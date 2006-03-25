@@ -55,11 +55,10 @@ DEFINE_SPINLOCK(sb_lock);
  */
 static struct super_block *alloc_super(void)
 {
-	struct super_block *s = kmalloc(sizeof(struct super_block),  GFP_USER);
+	struct super_block *s = kzalloc(sizeof(struct super_block),  GFP_USER);
 	static struct super_operations default_op;
 
 	if (s) {
-		memset(s, 0, sizeof(struct super_block));
 		if (security_sb_alloc(s)) {
 			kfree(s);
 			s = NULL;

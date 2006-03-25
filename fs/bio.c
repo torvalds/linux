@@ -636,11 +636,9 @@ static struct bio *__bio_map_user_iov(request_queue_t *q,
 		return ERR_PTR(-ENOMEM);
 
 	ret = -ENOMEM;
-	pages = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
+	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		goto out;
-
-	memset(pages, 0, nr_pages * sizeof(struct page *));
 
 	for (i = 0; i < iov_count; i++) {
 		unsigned long uaddr = (unsigned long)iov[i].iov_base;
@@ -1186,12 +1184,11 @@ void bioset_free(struct bio_set *bs)
 
 struct bio_set *bioset_create(int bio_pool_size, int bvec_pool_size, int scale)
 {
-	struct bio_set *bs = kmalloc(sizeof(*bs), GFP_KERNEL);
+	struct bio_set *bs = kzalloc(sizeof(*bs), GFP_KERNEL);
 
 	if (!bs)
 		return NULL;
 
-	memset(bs, 0, sizeof(*bs));
 	bs->bio_pool = mempool_create(bio_pool_size, mempool_alloc_slab,
 			mempool_free_slab, bio_slab);
 

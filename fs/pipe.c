@@ -662,10 +662,9 @@ struct inode* pipe_new(struct inode* inode)
 {
 	struct pipe_inode_info *info;
 
-	info = kmalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
 	if (!info)
 		goto fail_page;
-	memset(info, 0, sizeof(*info));
 	inode->i_pipe = info;
 
 	init_waitqueue_head(PIPE_WAIT(*inode));
