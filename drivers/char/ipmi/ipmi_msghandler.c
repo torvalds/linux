@@ -736,7 +736,8 @@ int ipmi_create_user(unsigned int          if_num,
 	intf = ipmi_interfaces[if_num];
 	if ((if_num >= MAX_IPMI_INTERFACES) || IPMI_INVALID_INTERFACE(intf)) {
 		spin_unlock_irqrestore(&interfaces_lock, flags);
-		return -EINVAL;
+		rv = -EINVAL;
+		goto out_kfree;
 	}
 
 	/* Note that each existing user holds a refcount to the interface. */
@@ -751,14 +752,14 @@ int ipmi_create_user(unsigned int          if_num,
 
 	if (!try_module_get(intf->handlers->owner)) {
 		rv = -ENODEV;
-		goto out_err;
+		goto out_kref;
 	}
 
 	if (intf->handlers->inc_usecount) {
 		rv = intf->handlers->inc_usecount(intf->send_info);
 		if (rv) {
 			module_put(intf->handlers->owner);
-			goto out_err;
+			goto out_kref;
 		}
 	}
 
@@ -769,9 +770,10 @@ int ipmi_create_user(unsigned int          if_num,
 	*user = new_user;
 	return 0;
 
- out_err:
-	kfree(new_user);
+out_kref:
 	kref_put(&intf->refcount, intf_free);
+out_kfree:
+	kfree(new_user);
 	return rv;
 }
 
