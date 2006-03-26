@@ -233,6 +233,49 @@ static struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
 	{ 0xfe, 0x4e, KEY_POWER },
 };
 
+static struct dvb_usb_rc_key dvico_portable_rc_keys[] = {
+	{ 0xfc, 0x02, KEY_SETUP },       /* Profile */
+	{ 0xfc, 0x43, KEY_POWER2 },
+	{ 0xfc, 0x06, KEY_EPG },
+	{ 0xfc, 0x5a, KEY_BACK },
+	{ 0xfc, 0x05, KEY_MENU },
+	{ 0xfc, 0x47, KEY_INFO },
+	{ 0xfc, 0x01, KEY_TAB },
+	{ 0xfc, 0x42, KEY_PREVIOUSSONG },/* Replay */
+	{ 0xfc, 0x49, KEY_VOLUMEUP },
+	{ 0xfc, 0x09, KEY_VOLUMEDOWN },
+	{ 0xfc, 0x54, KEY_CHANNELUP },
+	{ 0xfc, 0x0b, KEY_CHANNELDOWN },
+	/*
+	  { 0xfc, 0x56, KEY_CAMERA },
+	  Camera and Record keys both send the same code,
+	  but the camera key doesn't repeat.
+	*/
+	{ 0xfc, 0x40, KEY_TUNER },	/* ATV/DTV */
+	{ 0xfc, 0x45, KEY_OPEN },
+	{ 0xfc, 0x19, KEY_1 },
+	{ 0xfc, 0x18, KEY_2 },
+	{ 0xfc, 0x1b, KEY_3 },
+	{ 0xfc, 0x1a, KEY_4 },
+	{ 0xfc, 0x58, KEY_5 },
+	{ 0xfc, 0x59, KEY_6 },
+	{ 0xfc, 0x15, KEY_7 },
+	{ 0xfc, 0x14, KEY_8 },
+	{ 0xfc, 0x17, KEY_9 },
+	{ 0xfc, 0x44, KEY_ANGLE },	/* Aspect */
+	{ 0xfc, 0x55, KEY_0 },
+	{ 0xfc, 0x07, KEY_ZOOM },
+	{ 0xfc, 0x0a, KEY_REWIND },
+	{ 0xfc, 0x08, KEY_PLAYPAUSE },
+	{ 0xfc, 0x4b, KEY_FASTFORWARD },
+	{ 0xfc, 0x5b, KEY_MUTE },
+	{ 0xfc, 0x04, KEY_STOP },
+	{ 0xfc, 0x56, KEY_RECORD },
+	{ 0xfc, 0x57, KEY_POWER },
+	{ 0xfc, 0x41, KEY_UNKNOWN },    /* INPUT */
+	{ 0xfc, 0x00, KEY_UNKNOWN },    /* HD */
+};
+
 static int cxusb_dee1601_demod_init(struct dvb_frontend* fe)
 {
 	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x28 };
@@ -511,6 +554,11 @@ static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
+	.rc_interval      = 100,
+	.rc_key_map       = dvico_portable_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_query         = cxusb_rc_query,
+
 	.generic_bulk_ctrl_endpoint = 0x01,
 	/* parameter for the MPEG2-data transfer */
 	.urb = {
@@ -600,6 +648,11 @@ static struct dvb_usb_properties cxusb_bluebird_lgz201_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
+	.rc_interval      = 100,
+	.rc_key_map       = dvico_portable_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_query         = cxusb_rc_query,
+
 	.generic_bulk_ctrl_endpoint = 0x01,
 	/* parameter for the MPEG2-data transfer */
 	.urb = {
@@ -639,6 +692,11 @@ static struct dvb_usb_properties cxusb_bluebird_dtt7579_properties = {
 	.tuner_attach     = cxusb_dtt7579_tuner_attach,
 
 	.i2c_algo         = &cxusb_i2c_algo,
+
+	.rc_interval      = 100,
+	.rc_key_map       = dvico_portable_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 	/* parameter for the MPEG2-data transfer */
