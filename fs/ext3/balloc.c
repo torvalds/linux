@@ -1206,7 +1206,7 @@ int ext3_new_blocks(handle_t *handle, struct inode *inode,
 	/*
 	 * Check quota for allocation of this block.
 	 */
-	if (DQUOT_ALLOC_BLOCK(inode, 1)) {
+	if (DQUOT_ALLOC_BLOCK(inode, num)) {
 		*errp = -EDQUOT;
 		return 0;
 	}
@@ -1333,13 +1333,15 @@ allocated:
 	target_block = ret_block + group_no * EXT3_BLOCKS_PER_GROUP(sb)
 				+ le32_to_cpu(es->s_first_data_block);
 
-	if (target_block == le32_to_cpu(gdp->bg_block_bitmap) ||
-	    target_block == le32_to_cpu(gdp->bg_inode_bitmap) ||
+	if (in_range(le32_to_cpu(gdp->bg_block_bitmap), target_block, num) ||
+	    in_range(le32_to_cpu(gdp->bg_inode_bitmap), target_block, num) ||
 	    in_range(target_block, le32_to_cpu(gdp->bg_inode_table),
+		      EXT3_SB(sb)->s_itb_per_group) ||
+	    in_range(target_block + num - 1, le32_to_cpu(gdp->bg_inode_table),
 		      EXT3_SB(sb)->s_itb_per_group))
 		ext3_error(sb, "ext3_new_block",
 			    "Allocating block in system zone - "
-			    "block = %u", target_block);
+			    "blocks from %u, length %lu", target_block, num);
 
 	performed_allocation = 1;
 
@@ -1358,10 +1360,14 @@ allocated:
 	jbd_lock_bh_state(bitmap_bh);
 	spin_lock(sb_bgl_lock(sbi, group_no));
 	if (buffer_jbd(bitmap_bh) && bh2jh(bitmap_bh)->b_committed_data) {
-		if (ext3_test_bit(ret_block,
-				bh2jh(bitmap_bh)->b_committed_data)) {
-			printk("%s: block was unexpectedly set in "
-				"b_committed_data\n", __FUNCTION__);
+		int i;
+
+		for (i = 0; i < num; i++) {
+			if (ext3_test_bit(ret_block,
+					bh2jh(bitmap_bh)->b_committed_data)) {
+				printk("%s: block was unexpectedly set in "
+					"b_committed_data\n", __FUNCTION__);
+			}
 		}
 	}
 	ext3_debug("found bit %d\n", ret_block);
@@ -1372,7 +1378,7 @@ allocated:
 	/* ret_block was blockgroup-relative.  Now it becomes fs-relative */
 	ret_block = target_block;
 
-	if (ret_block >= le32_to_cpu(es->s_blocks_count)) {
+	if (ret_block + num - 1 >= le32_to_cpu(es->s_blocks_count)) {
 		ext3_error(sb, "ext3_new_block",
 			    "block(%d) >= blocks count(%d) - "
 			    "block_group = %d, es == %p ", ret_block,
@@ -1390,9 +1396,9 @@ allocated:
 
 	spin_lock(sb_bgl_lock(sbi, group_no));
 	gdp->bg_free_blocks_count =
-			cpu_to_le16(le16_to_cpu(gdp->bg_free_blocks_count) - 1);
+			cpu_to_le16(le16_to_cpu(gdp->bg_free_blocks_count) - num);
 	spin_unlock(sb_bgl_lock(sbi, group_no));
-	percpu_counter_mod(&sbi->s_freeblocks_counter, -1);
+	percpu_counter_mod(&sbi->s_freeblocks_counter, -num);
 
 	BUFFER_TRACE(gdp_bh, "journal_dirty_metadata for group descriptor");
 	err = ext3_journal_dirty_metadata(handle, gdp_bh);
@@ -1405,6 +1411,7 @@ allocated:
 
 	*errp = 0;
 	brelse(bitmap_bh);
+	DQUOT_FREE_BLOCK(inode, *count-num);
 	*count = num;
 	return ret_block;
 
@@ -1419,7 +1426,7 @@ out:
 	 * Undo the block allocation
 	 */
 	if (!performed_allocation)
-		DQUOT_FREE_BLOCK(inode, 1);
+		DQUOT_FREE_BLOCK(inode, *count);
 	brelse(bitmap_bh);
 	return 0;
 }
