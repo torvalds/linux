@@ -333,17 +333,44 @@ no_kprobe:
  * here. When a retprobed function returns, this probe is hit and
  * trampoline_probe_handler() runs, calling the kretprobe's handler.
  */
- void kretprobe_trampoline_holder(void)
+ void __kprobes kretprobe_trampoline_holder(void)
  {
- 	asm volatile (  ".global kretprobe_trampoline\n"
+	asm volatile ( ".global kretprobe_trampoline\n"
  			"kretprobe_trampoline: \n"
- 			"nop\n");
- }
+			"	pushf\n"
+			/* skip cs, eip, orig_eax, es, ds */
+			"	subl $20, %esp\n"
+			"	pushl %eax\n"
+			"	pushl %ebp\n"
+			"	pushl %edi\n"
+			"	pushl %esi\n"
+			"	pushl %edx\n"
+			"	pushl %ecx\n"
+			"	pushl %ebx\n"
+			"	movl %esp, %eax\n"
+			"	call trampoline_handler\n"
+			/* move eflags to cs */
+			"	movl 48(%esp), %edx\n"
+			"	movl %edx, 44(%esp)\n"
+			/* save true return address on eflags */
+			"	movl %eax, 48(%esp)\n"
+			"	popl %ebx\n"
+			"	popl %ecx\n"
+			"	popl %edx\n"
+			"	popl %esi\n"
+			"	popl %edi\n"
+			"	popl %ebp\n"
+			"	popl %eax\n"
+			/* skip eip, orig_eax, es, ds */
+			"	addl $16, %esp\n"
+			"	popf\n"
+			"	ret\n");
+}
 
 /*
- * Called when we hit the probe point at kretprobe_trampoline
+ * Called from kretprobe_trampoline
  */
-int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+fastcall void *__kprobes trampoline_handler(struct pt_regs *regs)
 {
         struct kretprobe_instance *ri = NULL;
         struct hlist_head *head;
@@ -372,8 +399,11 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 			/* another task is sharing our hash bucket */
                         continue;
 
-		if (ri->rp && ri->rp->handler)
+		if (ri->rp && ri->rp->handler){
+			__get_cpu_var(current_kprobe) = &ri->rp->kp;
 			ri->rp->handler(ri, regs);
+			__get_cpu_var(current_kprobe) = NULL;
+		}
 
 		orig_ret_address = (unsigned long)ri->ret_addr;
 		recycle_rp_inst(ri);
@@ -388,18 +418,10 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	}
 
 	BUG_ON(!orig_ret_address || (orig_ret_address == trampoline_address));
-	regs->eip = orig_ret_address;
 
-	reset_current_kprobe();
 	spin_unlock_irqrestore(&kretprobe_lock, flags);
-	preempt_enable_no_resched();
 
-	/*
-	 * By returning a non-zero value, we are telling
-	 * kprobe_handler() that we don't want the post_handler
-	 * to run (and have re-enabled preemption)
-	 */
-        return 1;
+	return (void*)orig_ret_address;
 }
 
 /*
@@ -646,12 +668,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	return 0;
 }
 
-static struct kprobe trampoline_p = {
-	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
-	.pre_handler = trampoline_probe_handler
-};
-
 int __init arch_init_kprobes(void)
 {
-	return register_kprobe(&trampoline_p);
+	return 0;
 }
