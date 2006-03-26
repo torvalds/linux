@@ -7,6 +7,12 @@
 
 #include <asm/cacheflush.h>
 
+#ifndef ARCH_HAS_FLUSH_ANON_PAGE
+static inline void flush_anon_page(struct page *page, unsigned long vmaddr)
+{
+}
+#endif
+
 #ifdef CONFIG_HIGHMEM
 
 #include <asm/highmem.h>

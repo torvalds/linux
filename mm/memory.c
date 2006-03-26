@@ -1071,6 +1071,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			}
 			if (pages) {
 				pages[i] = page;
+
+				flush_anon_page(page, start);
 				flush_dcache_page(page);
 			}
 			if (vmas)
