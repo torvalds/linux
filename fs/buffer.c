@@ -3007,7 +3007,7 @@ out:
 }
 EXPORT_SYMBOL(try_to_free_buffers);
 
-int block_sync_page(struct page *page)
+void block_sync_page(struct page *page)
 {
 	struct address_space *mapping;
 
@@ -3015,7 +3015,6 @@ int block_sync_page(struct page *page)
 	mapping = page_mapping(page);
 	if (mapping)
 		blk_run_backing_dev(mapping->backing_dev_info, page);
-	return 0;
 }
 
 /*
