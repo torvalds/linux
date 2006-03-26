@@ -792,9 +792,7 @@ out:
 	return error;
 }
 
-EXPORT_SYMBOL(posix_lock_file);
-
-static int __posix_lock_file(struct inode *inode, struct file_lock *request)
+static int __posix_lock_file_conf(struct inode *inode, struct file_lock *request, struct file_lock *conflock)
 {
 	struct file_lock *fl;
 	struct file_lock *new_fl, *new_fl2;
@@ -818,6 +816,8 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request)
 				continue;
 			if (!posix_locks_conflict(request, fl))
 				continue;
+			if (conflock)
+				locks_copy_lock(conflock, fl);
 			error = -EAGAIN;
 			if (!(request->fl_flags & FL_SLEEP))
 				goto out;
@@ -987,8 +987,24 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request)
  */
 int posix_lock_file(struct file *filp, struct file_lock *fl)
 {
-	return __posix_lock_file(filp->f_dentry->d_inode, fl);
+	return __posix_lock_file_conf(filp->f_dentry->d_inode, fl, NULL);
 }
+EXPORT_SYMBOL(posix_lock_file);
+
+/**
+ * posix_lock_file_conf - Apply a POSIX-style lock to a file
+ * @filp: The file to apply the lock to
+ * @fl: The lock to be applied
+ * @conflock: Place to return a copy of the conflicting lock, if found.
+ *
+ * Except for the conflock parameter, acts just like posix_lock_file.
+ */
+int posix_lock_file_conf(struct file *filp, struct file_lock *fl,
+			struct file_lock *conflock)
+{
+	return __posix_lock_file_conf(filp->f_dentry->d_inode, fl, conflock);
+}
+EXPORT_SYMBOL(posix_lock_file_conf);
 
 /**
  * posix_lock_file_wait - Apply a POSIX-style lock to a file
@@ -1004,7 +1020,7 @@ int posix_lock_file_wait(struct file *filp, struct file_lock *fl)
 	int error;
 	might_sleep ();
 	for (;;) {
-		error = __posix_lock_file(filp->f_dentry->d_inode, fl);
+		error = posix_lock_file(filp, fl);
 		if ((error != -EAGAIN) || !(fl->fl_flags & FL_SLEEP))
 			break;
 		error = wait_event_interruptible(fl->fl_wait, !fl->fl_next);
@@ -1076,7 +1092,7 @@ int locks_mandatory_area(int read_write, struct inode *inode,
 	fl.fl_end = offset + count - 1;
 
 	for (;;) {
-		error = __posix_lock_file(inode, &fl);
+		error = __posix_lock_file_conf(inode, &fl, NULL);
 		if (error != -EAGAIN)
 			break;
 		if (!(fl.fl_flags & FL_SLEEP))
@@ -1689,7 +1705,7 @@ again:
 		error = filp->f_op->lock(filp, cmd, file_lock);
 	else {
 		for (;;) {
-			error = __posix_lock_file(inode, file_lock);
+			error = posix_lock_file(filp, file_lock);
 			if ((error != -EAGAIN) || (cmd == F_SETLK))
 				break;
 			error = wait_event_interruptible(file_lock->fl_wait,
@@ -1832,7 +1848,7 @@ again:
 		error = filp->f_op->lock(filp, cmd, file_lock);
 	else {
 		for (;;) {
-			error = __posix_lock_file(inode, file_lock);
+			error = posix_lock_file(filp, file_lock);
 			if ((error != -EAGAIN) || (cmd == F_SETLK64))
 				break;
 			error = wait_event_interruptible(file_lock->fl_wait,
