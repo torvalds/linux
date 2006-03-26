@@ -437,9 +437,7 @@ static inline unsigned int t1_get_slice(unsigned int base,
 #endif
 					dp += i;
 					i = 0;
-					if (i == 0)
-						break;
-					/* fall through */
+					break;
 				default:
 					*dp++ = b1_get_byte(base);
 					i--;
