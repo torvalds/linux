@@ -34,6 +34,7 @@
 #include <asm/mpc52xx.h>
 #include <asm/ppc_sys.h>
 #include <asm/machdep.h>
+#include <asm/pci-bridge.h>
 
 #include <syslib/mpc52xx_pci.h>
 
@@ -68,11 +69,31 @@ lite5200_show_cpuinfo(struct seq_file *m)
 }
 
 #ifdef CONFIG_PCI
+#ifdef CONFIG_LITE5200B
+static int
+lite5200_map_irq(struct pci_dev *dev, unsigned char idsel,
+		    unsigned char pin)
+{
+	static char pci_irq_table[][4] =
+	/*
+	 *      PCI IDSEL/INTPIN->INTLINE
+	 *        A             B             C             D
+	 */
+	{
+		{MPC52xx_IRQ0, MPC52xx_IRQ1, MPC52xx_IRQ2, MPC52xx_IRQ3},
+		{MPC52xx_IRQ1, MPC52xx_IRQ2, MPC52xx_IRQ3, MPC52xx_IRQ0},
+	};
+
+	const long min_idsel = 24, max_idsel = 25, irqs_per_slot = 4;
+	return PCI_IRQ_TABLE_LOOKUP;
+}
+#else /* Original Lite */
 static int
 lite5200_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 {
 	return (pin == 1) && (idsel==24) ? MPC52xx_IRQ0 : -1;
 }
+#endif
 #endif
 
 static void __init
@@ -127,11 +148,17 @@ lite5200_setup_cpu(void)
 	out_be32(&xlb->config, in_be32(&xlb->config) | MPC52xx_XLB_CFG_SNOOP);
 	out_be32(&xlb->snoop_window, MPC52xx_PCI_TARGET_MEM | 0x1d);
 
-	/* IRQ[0-3] setup : IRQ0     - Level Active Low  */
-	/*                  IRQ[1-3] - Level Active High */
+	/* IRQ[0-3] setup */
 	intr_ctrl = in_be32(&intr->ctrl);
 	intr_ctrl &= ~0x00ff0000;
-	intr_ctrl |=  0x00c00000;
+#ifdef CONFIG_LITE5200B
+	/* IRQ[0-3] Level Active Low */
+	intr_ctrl |=  0x00ff0000;
+#else
+	/* IRQ0 Level Active Low
+	 * IRQ[1-3] Level Active High */
+ 	intr_ctrl |=  0x00c00000;
+#endif
 	out_be32(&intr->ctrl, intr_ctrl);
 
 	/* Unmap reg zone */

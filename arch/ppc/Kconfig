@@ -715,6 +715,13 @@ config LITE5200
 	  much but it's only been tested on this board version. I think this
 	  board is also known as IceCube.
 
+config LITE5200B
+	bool "Freescale LITE5200B"
+	depends LITE5200
+	help
+	  Support for the LITE5200B dev board for the MPC5200 from Freescale.
+	  This is the new board with 2 PCI slots.
+
 config MPC834x_SYS
 	bool "Freescale MPC834x SYS"
 	help
