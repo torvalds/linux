@@ -220,7 +220,7 @@ static __inline__ unsigned long __ffs(unsigned long x)
 }
 
 /* Undefined if no bit is zero. */
-#define ffz(x)	__ffs(~x)
+#define ffz(x)	__ffs(~(x))
 
 /*
  * ffs: find first bit set. returns 1 to BITS_PER_LONG or 0 (if none set)
