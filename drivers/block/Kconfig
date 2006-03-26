@@ -400,13 +400,16 @@ config BLK_DEV_RAM_SIZE
 	  8192.
 
 config BLK_DEV_INITRD
-	bool "Initial RAM disk (initrd) support"
+	bool "Initial RAM filesystem and RAM disk (initramfs/initrd) support"
 	help
-	  The initial RAM disk is a RAM disk that is loaded by the boot loader
-	  (loadlin or lilo) and that is mounted as root before the normal boot
-	  procedure. It is typically used to load modules needed to mount the
-	  "real" root file system, etc. See <file:Documentation/initrd.txt>
-	  for details.
+	  The initial RAM filesystem is a ramfs which is loaded by the
+	  boot loader (loadlin or lilo) and that is mounted as root
+	  before the normal boot procedure. It is typically used to
+	  load modules needed to mount the "real" root file system,
+	  etc. See <file:Documentation/initrd.txt> for details.
+
+	  If RAM disk support (BLK_DEV_RAM) is also included, this
+	  also enables initial RAM disk (initrd) support.
 
 
 config CDROM_PKTCDVD
