@@ -30,6 +30,7 @@
 #include <linux/tty.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/serial_8250.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -132,7 +133,7 @@ void __init ixdp2x01_init_irq(void)
 
 
 /*************************************************************************
- * IXDP2x01 memory map and serial ports
+ * IXDP2x01 memory map
  *************************************************************************/
 static struct map_desc ixdp2x01_io_desc __initdata = {
 	.virtual	= IXDP2X01_VIRT_CPLD_BASE, 
@@ -141,40 +142,78 @@ static struct map_desc ixdp2x01_io_desc __initdata = {
 	.type		= MT_DEVICE
 };
 
-static struct uart_port ixdp2x01_serial_ports[2] = {
-	{
-		.membase	= (char *)(IXDP2X01_UART1_VIRT_BASE),
-		.mapbase	= (unsigned long)IXDP2X01_UART1_PHYS_BASE,
-		.irq		= IRQ_IXDP2X01_UART1,
-		.flags		= UPF_SKIP_TEST,
-		.iotype		= UPIO_MEM32,
-		.regshift	= 2,
-		.uartclk	= IXDP2X01_UART_CLK,
-		.line		= 1,
-		.type		= PORT_16550A,
-		.fifosize	= 16
-	}, {
-		.membase	= (char *)(IXDP2X01_UART2_VIRT_BASE),
-		.mapbase	= (unsigned long)IXDP2X01_UART2_PHYS_BASE,
-		.irq		= IRQ_IXDP2X01_UART2,
-		.flags		= UPF_SKIP_TEST,
-		.iotype		= UPIO_MEM32,
-		.regshift	= 2,
-		.uartclk	= IXDP2X01_UART_CLK,
-		.line		= 2,
-		.type		= PORT_16550A,
-		.fifosize	= 16
-	}, 
-};
-
 static void __init ixdp2x01_map_io(void)
 {
-	ixp2000_map_io();	
-
+	ixp2000_map_io();
 	iotable_init(&ixdp2x01_io_desc, 1);
+}
 
-	early_serial_setup(&ixdp2x01_serial_ports[0]);
-	early_serial_setup(&ixdp2x01_serial_ports[1]);
+
+/*************************************************************************
+ * IXDP2x01 serial ports
+ *************************************************************************/
+static struct plat_serial8250_port ixdp2x01_serial_port1[] = {
+	{
+		.mapbase	= (unsigned long)IXDP2X01_UART1_PHYS_BASE,
+		.membase	= (char *)IXDP2X01_UART1_VIRT_BASE,
+		.irq		= IRQ_IXDP2X01_UART1,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.iotype		= UPIO_MEM32,
+		.regshift	= 2,
+		.uartclk	= IXDP2X01_UART_CLK,
+	},
+	{ }
+};
+
+static struct resource ixdp2x01_uart_resource1 = {
+	.start		= IXDP2X01_UART1_PHYS_BASE,
+	.end		= IXDP2X01_UART1_PHYS_BASE + 0xffff,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device ixdp2x01_serial_device1 = {
+	.name		= "serial8250",
+	.id		= PLAT8250_DEV_PLATFORM1,
+	.dev		= {
+		.platform_data		= ixdp2x01_serial_port1,
+	},
+	.num_resources	= 1,
+	.resource	= &ixdp2x01_uart_resource1,
+};
+
+static struct plat_serial8250_port ixdp2x01_serial_port2[] = {
+	{
+		.mapbase	= (unsigned long)IXDP2X01_UART2_PHYS_BASE,
+		.membase	= (char *)IXDP2X01_UART2_VIRT_BASE,
+		.irq		= IRQ_IXDP2X01_UART2,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.iotype		= UPIO_MEM32,
+		.regshift	= 2,
+		.uartclk	= IXDP2X01_UART_CLK,
+	}, 
+	{ }
+};
+
+static struct resource ixdp2x01_uart_resource2 = {
+	.start		= IXDP2X01_UART2_PHYS_BASE,
+	.end		= IXDP2X01_UART2_PHYS_BASE + 0xffff,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device ixdp2x01_serial_device2 = {
+	.name		= "serial8250",
+	.id		= PLAT8250_DEV_PLATFORM2,
+	.dev		= {
+		.platform_data		= ixdp2x01_serial_port2,
+	},
+	.num_resources	= 1,
+	.resource	= &ixdp2x01_uart_resource2,
+};
+
+static void ixdp2x01_uart_init(void)
+{
+	platform_device_register(&ixdp2x01_serial_device1);
+	platform_device_register(&ixdp2x01_serial_device2);
 }
 
 
@@ -374,6 +413,7 @@ static void __init ixdp2x01_init_machine(void)
 
 	platform_add_devices(ixdp2x01_devices, ARRAY_SIZE(ixdp2x01_devices));
 	ixp2000_uart_init();
+	ixdp2x01_uart_init();
 }
 
 
