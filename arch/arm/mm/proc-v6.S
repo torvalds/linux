@@ -14,6 +14,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/hardware/arm_scu.h>
 #include <asm/procinfo.h>
+#include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 
 #include "proc-macros.S"
