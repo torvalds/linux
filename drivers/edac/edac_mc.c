@@ -1451,6 +1451,24 @@ static int add_mc_to_global_list (struct mem_ctl_info *mci)
 }
 
 
+static void complete_mc_list_del (struct rcu_head *head)
+{
+	struct mem_ctl_info *mci;
+
+	mci = container_of(head, struct mem_ctl_info, rcu);
+	INIT_LIST_HEAD(&mci->link);
+	complete(&mci->complete);
+}
+
+
+static void del_mc_from_global_list (struct mem_ctl_info *mci)
+{
+	list_del_rcu(&mci->link);
+	init_completion(&mci->complete);
+	call_rcu(&mci->rcu, complete_mc_list_del);
+	wait_for_completion(&mci->complete);
+}
+
 
 EXPORT_SYMBOL(edac_mc_add_mc);
 
@@ -1510,24 +1528,6 @@ finish:
 	return rc;
 }
 
-
-
-static void complete_mc_list_del (struct rcu_head *head)
-{
-	struct mem_ctl_info *mci;
-
-	mci = container_of(head, struct mem_ctl_info, rcu);
-	INIT_LIST_HEAD(&mci->link);
-	complete(&mci->complete);
-}
-
-static void del_mc_from_global_list (struct mem_ctl_info *mci)
-{
-	list_del_rcu(&mci->link);
-	init_completion(&mci->complete);
-	call_rcu(&mci->rcu, complete_mc_list_del);
-	wait_for_completion(&mci->complete);
-}
 
 EXPORT_SYMBOL(edac_mc_del_mc);
 
