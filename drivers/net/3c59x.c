@@ -1907,8 +1907,6 @@ vortex_timer(unsigned long data)
 		printk(KERN_DEBUG "dev->watchdog_timeo=%d\n", dev->watchdog_timeo);
 	}
 
-	if (vp->medialock)
-		goto leave_media_alone;
 	disable_irq(dev->irq);
 	old_window = ioread16(ioaddr + EL3_CMD) >> 13;
 	EL3WINDOW(4);
@@ -1947,6 +1945,9 @@ vortex_timer(unsigned long data)
 	if (!netif_carrier_ok(dev))
 		next_tick = 5*HZ;
 
+	if (vp->medialock)
+		goto leave_media_alone;
+
 	if ( ! ok) {
 		unsigned int config;
 
@@ -1980,14 +1981,14 @@ vortex_timer(unsigned long data)
 			printk(KERN_DEBUG "wrote 0x%08x to Wn3_Config\n", config);
 		/* AKPM: FIXME: Should reset Rx & Tx here.  P60 of 3c90xc.pdf */
 	}
-	EL3WINDOW(old_window);
-	enable_irq(dev->irq);
 
 leave_media_alone:
 	if (vortex_debug > 2)
 	  printk(KERN_DEBUG "%s: Media selection timer finished, %s.\n",
 			 dev->name, media_tbl[dev->if_port].name);
 
+	EL3WINDOW(old_window);
+	enable_irq(dev->irq);
 	mod_timer(&vp->timer, RUN_AT(next_tick));
 	if (vp->deferred)
 		iowrite16(FakeIntr, ioaddr + EL3_CMD);
