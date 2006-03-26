@@ -900,7 +900,6 @@ static void acpi_set_WOL(struct net_device *dev);
 static struct ethtool_ops vortex_ethtool_ops;
 static void set_8021q_mode(struct net_device *dev, int enable);
 
-
 /* This driver uses 'options' to pass the media type, full-duplex flag, etc. */
 /* Option count limit only -- unlimited interfaces are supported. */
 #define MAX_UNITS 8
@@ -914,8 +913,6 @@ static int global_options = -1;
 static int global_full_duplex = -1;
 static int global_enable_wol = -1;
 static int global_use_mmio = -1;
-
-/* #define dev_alloc_skb dev_alloc_skb_debug */
 
 /* Variables to work-around the Compaq PCI BIOS32 problem. */
 static int compaq_ioaddr, compaq_irq, compaq_device_id = 0x5900;
@@ -972,7 +969,7 @@ static void poll_vortex(struct net_device *dev)
 
 #ifdef CONFIG_PM
 
-static int vortex_suspend (struct pci_dev *pdev, pm_message_t state)
+static int vortex_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
@@ -990,7 +987,7 @@ static int vortex_suspend (struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int vortex_resume (struct pci_dev *pdev)
+static int vortex_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct vortex_private *vp = netdev_priv(dev);
@@ -1023,8 +1020,8 @@ static struct eisa_device_id vortex_eisa_ids[] = {
 	{ "" }
 };
 
-static int vortex_eisa_probe (struct device *device);
-static int vortex_eisa_remove (struct device *device);
+static int vortex_eisa_probe(struct device *device);
+static int vortex_eisa_remove(struct device *device);
 
 static struct eisa_driver vortex_eisa_driver = {
 	.id_table = vortex_eisa_ids,
@@ -1035,12 +1032,12 @@ static struct eisa_driver vortex_eisa_driver = {
 	}
 };
 
-static int vortex_eisa_probe (struct device *device)
+static int vortex_eisa_probe(struct device *device)
 {
 	void __iomem *ioaddr;
 	struct eisa_device *edev;
 
-	edev = to_eisa_device (device);
+	edev = to_eisa_device(device);
 
 	if (!request_region(edev->base_addr, VORTEX_TOTAL_SIZE, DRV_NAME))
 		return -EBUSY;
@@ -1049,7 +1046,7 @@ static int vortex_eisa_probe (struct device *device)
 
 	if (vortex_probe1(device, ioaddr, ioread16(ioaddr + 0xC88) >> 12,
 					  edev->id.driver_data, vortex_cards_found)) {
-		release_region (edev->base_addr, VORTEX_TOTAL_SIZE);
+		release_region(edev->base_addr, VORTEX_TOTAL_SIZE);
 		return -ENODEV;
 	}
 
@@ -1058,15 +1055,15 @@ static int vortex_eisa_probe (struct device *device)
 	return 0;
 }
 
-static int vortex_eisa_remove (struct device *device)
+static int vortex_eisa_remove(struct device *device)
 {
 	struct eisa_device *edev;
 	struct net_device *dev;
 	struct vortex_private *vp;
 	void __iomem *ioaddr;
 
-	edev = to_eisa_device (device);
-	dev = eisa_get_drvdata (edev);
+	edev = to_eisa_device(device);
+	dev = eisa_get_drvdata(edev);
 
 	if (!dev) {
 		printk("vortex_eisa_remove called for Compaq device!\n");
@@ -1076,17 +1073,17 @@ static int vortex_eisa_remove (struct device *device)
 	vp = netdev_priv(dev);
 	ioaddr = vp->ioaddr;
 	
-	unregister_netdev (dev);
-	iowrite16 (TotalReset|0x14, ioaddr + EL3_CMD);
-	release_region (dev->base_addr, VORTEX_TOTAL_SIZE);
+	unregister_netdev(dev);
+	iowrite16(TotalReset|0x14, ioaddr + EL3_CMD);
+	release_region(dev->base_addr, VORTEX_TOTAL_SIZE);
 
-	free_netdev (dev);
+	free_netdev(dev);
 	return 0;
 }
 #endif
 
 /* returns count found (>= 0), or negative on error */
-static int __init vortex_eisa_init (void)
+static int __init vortex_eisa_init(void)
 {
 	int eisa_found = 0;
 	int orig_cards_found = vortex_cards_found;
@@ -1117,7 +1114,7 @@ static int __init vortex_eisa_init (void)
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit vortex_init_one (struct pci_dev *pdev,
+static int __devinit vortex_init_one(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
 	int rc, unit, pci_bar;
@@ -1125,7 +1122,7 @@ static int __devinit vortex_init_one (struct pci_dev *pdev,
 	void __iomem *ioaddr;
 
 	/* wake up and enable device */		
-	rc = pci_enable_device (pdev);
+	rc = pci_enable_device(pdev);
 	if (rc < 0)
 		goto out;
 
@@ -1147,7 +1144,7 @@ static int __devinit vortex_init_one (struct pci_dev *pdev,
 	rc = vortex_probe1(&pdev->dev, ioaddr, pdev->irq,
 			   ent->driver_data, unit);
 	if (rc < 0) {
-		pci_disable_device (pdev);
+		pci_disable_device(pdev);
 		goto out;
 	}
 
@@ -1262,7 +1259,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 
 		/* enable bus-mastering if necessary */		
 		if (vci->flags & PCI_USES_MASTER)
-			pci_set_master (pdev);
+			pci_set_master(pdev);
 
 		if (vci->drv_flags & IS_VORTEX) {
 			u8 pci_latency;
@@ -1306,7 +1303,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	if (pdev)
 		pci_set_drvdata(pdev, dev);
 	if (edev)
-		eisa_set_drvdata (edev, dev);
+		eisa_set_drvdata(edev, dev);
 
 	vp->media_override = 7;
 	if (option >= 0) {
@@ -1808,7 +1805,6 @@ vortex_up(struct net_device *dev)
 	set_8021q_mode(dev, 1);
 	iowrite16(StatsEnable, ioaddr + EL3_CMD); /* Turn on statistics. */
 
-//	issue_and_wait(dev, SetTxStart|0x07ff);
 	iowrite16(RxEnable, ioaddr + EL3_CMD); /* Enable the receiver. */
 	iowrite16(TxEnable, ioaddr + EL3_CMD); /* Enable transmitter. */
 	/* Allow status bits to be seen. */
@@ -1944,7 +1940,7 @@ vortex_timer(unsigned long data)
 	if (vp->medialock)
 		goto leave_media_alone;
 
-	if ( ! ok) {
+	if (!ok) {
 		unsigned int config;
 
 		do {
@@ -2179,7 +2175,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (vp->bus_master) {
 		/* Set the bus-master controller to transfer the packet. */
 		int len = (skb->len + 3) & ~3;
-		iowrite32(	vp->tx_skb_dma = pci_map_single(VORTEX_PCI(vp), skb->data, len, PCI_DMA_TODEVICE),
+		iowrite32(vp->tx_skb_dma = pci_map_single(VORTEX_PCI(vp), skb->data, len, PCI_DMA_TODEVICE),
 				ioaddr + Wn7_MasterAddr);
 		iowrite16(len, ioaddr + Wn7_MasterLen);
 		vp->tx_skb = skb;
@@ -3058,7 +3054,7 @@ static struct ethtool_ops vortex_ethtool_ops = {
 	.set_settings           = vortex_set_settings,
 	.get_link               = ethtool_op_get_link,
 	.nway_reset             = vortex_nway_reset,
-	.get_perm_addr			= ethtool_op_get_perm_addr,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 #ifdef CONFIG_PCI
@@ -3259,7 +3255,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 	}
 	return;
 }
-
+
 /* ACPI: Advanced Configuration and Power Interface. */
 /* Set Wake-On-LAN mode and put the board into D3 (power-down) state. */
 static void acpi_set_WOL(struct net_device *dev)
@@ -3283,7 +3279,7 @@ static void acpi_set_WOL(struct net_device *dev)
 }
 
 
-static void __devexit vortex_remove_one (struct pci_dev *pdev)
+static void __devexit vortex_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct vortex_private *vp;
@@ -3339,7 +3335,7 @@ static int vortex_have_pci;
 static int vortex_have_eisa;
 
 
-static int __init vortex_init (void)
+static int __init vortex_init(void)
 {
 	int pci_rc, eisa_rc;
 
@@ -3355,14 +3351,14 @@ static int __init vortex_init (void)
 }
 
 
-static void __exit vortex_eisa_cleanup (void)
+static void __exit vortex_eisa_cleanup(void)
 {
 	struct vortex_private *vp;
 	void __iomem *ioaddr;
 
 #ifdef CONFIG_EISA
 	/* Take care of the EISA devices */
-	eisa_driver_unregister (&vortex_eisa_driver);
+	eisa_driver_unregister(&vortex_eisa_driver);
 #endif
 	
 	if (compaq_net_device) {
@@ -3370,33 +3366,24 @@ static void __exit vortex_eisa_cleanup (void)
 		ioaddr = ioport_map(compaq_net_device->base_addr,
 		                    VORTEX_TOTAL_SIZE);
 
-		unregister_netdev (compaq_net_device);
-		iowrite16 (TotalReset, ioaddr + EL3_CMD);
+		unregister_netdev(compaq_net_device);
+		iowrite16(TotalReset, ioaddr + EL3_CMD);
 		release_region(compaq_net_device->base_addr,
 		               VORTEX_TOTAL_SIZE);
 
-		free_netdev (compaq_net_device);
+		free_netdev(compaq_net_device);
 	}
 }
 
 
-static void __exit vortex_cleanup (void)
+static void __exit vortex_cleanup(void)
 {
 	if (vortex_have_pci)
-		pci_unregister_driver (&vortex_driver);
+		pci_unregister_driver(&vortex_driver);
 	if (vortex_have_eisa)
-		vortex_eisa_cleanup ();
+		vortex_eisa_cleanup();
 }
 
 
 module_init(vortex_init);
 module_exit(vortex_cleanup);
-
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  c-basic-offset: 4
- *  tab-width: 4
- * End:
- */
