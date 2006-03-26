@@ -1199,7 +1199,6 @@ static void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 
 #ifdef CONFIG_EDAC_DEBUG
 
-EXPORT_SYMBOL(edac_mc_dump_channel);
 
 void edac_mc_dump_channel(struct channel_info *chan)
 {
@@ -1209,9 +1208,8 @@ void edac_mc_dump_channel(struct channel_info *chan)
 	debugf4("\tchannel->label = '%s'\n", chan->label);
 	debugf4("\tchannel->csrow = %p\n\n", chan->csrow);
 }
+EXPORT_SYMBOL(edac_mc_dump_channel);
 
-
-EXPORT_SYMBOL(edac_mc_dump_csrow);
 
 void edac_mc_dump_csrow(struct csrow_info *csrow)
 {
@@ -1227,9 +1225,8 @@ void edac_mc_dump_csrow(struct csrow_info *csrow)
 	debugf4("\tcsrow->channels = %p\n", csrow->channels);
 	debugf4("\tcsrow->mci = %p\n\n", csrow->mci);
 }
+EXPORT_SYMBOL(edac_mc_dump_csrow);
 
-
-EXPORT_SYMBOL(edac_mc_dump_mci);
 
 void edac_mc_dump_mci(struct mem_ctl_info *mci)
 {
@@ -1245,6 +1242,7 @@ void edac_mc_dump_mci(struct mem_ctl_info *mci)
 		mci->mod_name, mci->ctl_name);
 	debugf3("\tpvt_info = %p\n\n", mci->pvt_info);
 }
+EXPORT_SYMBOL(edac_mc_dump_mci);
 
 
 #endif				/* CONFIG_EDAC_DEBUG */
@@ -1283,8 +1281,6 @@ static inline char * align_ptr (void *ptr, unsigned size)
 	return (char *) (((unsigned long) ptr) + align - r);
 }
 
-
-EXPORT_SYMBOL(edac_mc_alloc);
 
 /**
  * edac_mc_alloc: Allocate a struct mem_ctl_info structure
@@ -1357,9 +1353,8 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 
 	return mci;
 }
+EXPORT_SYMBOL(edac_mc_alloc);
 
-
-EXPORT_SYMBOL(edac_mc_free);
 
 /**
  * edac_mc_free:  Free a previously allocated 'mci' structure
@@ -1369,6 +1364,7 @@ void edac_mc_free(struct mem_ctl_info *mci)
 {
 	kfree(mci);
 }
+EXPORT_SYMBOL(edac_mc_free);
 
 static struct mem_ctl_info *find_mci_by_pdev(struct pci_dev *pdev)
 {
@@ -1450,8 +1446,6 @@ static void del_mc_from_global_list (struct mem_ctl_info *mci)
 }
 
 
-EXPORT_SYMBOL(edac_mc_add_mc);
-
 /**
  * edac_mc_add_mc: Insert the 'mci' structure into the mci global list and
  *                 create sysfs entries associated with mci structure
@@ -1509,9 +1503,8 @@ fail0:
 	up(&mem_ctls_mutex);
 	return 1;
 }
+EXPORT_SYMBOL(edac_mc_add_mc);
 
-
-EXPORT_SYMBOL(edac_mc_del_mc);
 
 /**
  * edac_mc_del_mc: Remove sysfs entries for specified mci structure and
@@ -1540,9 +1533,8 @@ struct mem_ctl_info * edac_mc_del_mc(struct pci_dev *pdev)
 		mci->mod_name, mci->ctl_name, pci_name(mci->pdev));
 	return mci;
 }
+EXPORT_SYMBOL(edac_mc_del_mc);
 
-
-EXPORT_SYMBOL(edac_mc_scrub_block);
 
 void edac_mc_scrub_block(unsigned long page, unsigned long offset,
 			      u32 size)
@@ -1574,11 +1566,10 @@ void edac_mc_scrub_block(unsigned long page, unsigned long offset,
 	if (PageHighMem(pg))
 		local_irq_restore(flags);
 }
+EXPORT_SYMBOL(edac_mc_scrub_block);
 
 
 /* FIXME - should return -1 */
-EXPORT_SYMBOL(edac_mc_find_csrow_by_page);
-
 int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 				    unsigned long page)
 {
@@ -1615,9 +1606,8 @@ int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 
 	return row;
 }
+EXPORT_SYMBOL(edac_mc_find_csrow_by_page);
 
-
-EXPORT_SYMBOL(edac_mc_handle_ce);
 
 /* FIXME - setable log (warning/emerg) levels */
 /* FIXME - integrate with evlog: http://evlog.sourceforge.net/ */
@@ -1681,9 +1671,8 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 					 mci->csrows[row].grain);
 	}
 }
+EXPORT_SYMBOL(edac_mc_handle_ce);
 
-
-EXPORT_SYMBOL(edac_mc_handle_ce_no_info);
 
 void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci,
 				    const char *msg)
@@ -1694,9 +1683,8 @@ void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci,
 	mci->ce_noinfo_count++;
 	mci->ce_count++;
 }
+EXPORT_SYMBOL(edac_mc_handle_ce_no_info);
 
-
-EXPORT_SYMBOL(edac_mc_handle_ue);
 
 void edac_mc_handle_ue(struct mem_ctl_info *mci,
 			    unsigned long page_frame_number,
@@ -1750,9 +1738,8 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 	mci->ue_count++;
 	mci->csrows[row].ue_count++;
 }
+EXPORT_SYMBOL(edac_mc_handle_ue);
 
-
-EXPORT_SYMBOL(edac_mc_handle_ue_no_info);
 
 void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci,
 				    const char *msg)
@@ -1766,6 +1753,7 @@ void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci,
 	mci->ue_noinfo_count++;
 	mci->ue_count++;
 }
+EXPORT_SYMBOL(edac_mc_handle_ue_no_info);
 
 
 #ifdef CONFIG_PCI
