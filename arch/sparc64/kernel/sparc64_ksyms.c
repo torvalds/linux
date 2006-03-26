@@ -175,11 +175,6 @@ EXPORT_SYMBOL(set_bit);
 EXPORT_SYMBOL(clear_bit);
 EXPORT_SYMBOL(change_bit);
 
-/* Bit searching */
-EXPORT_SYMBOL(find_next_bit);
-EXPORT_SYMBOL(find_next_zero_bit);
-EXPORT_SYMBOL(find_next_zero_le_bit);
-
 EXPORT_SYMBOL(ivector_table);
 EXPORT_SYMBOL(enable_irq);
 EXPORT_SYMBOL(disable_irq);
