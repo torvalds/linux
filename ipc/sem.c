@@ -229,8 +229,7 @@ asmlinkage long sys_semget (key_t key, int nsems, int semflg)
 		err = -EEXIST;
 	} else {
 		sma = sem_lock(id);
-		if(sma==NULL)
-			BUG();
+		BUG_ON(sma==NULL);
 		if (nsems > sma->sem_nsems)
 			err = -EINVAL;
 		else if (ipcperms(&sma->sem_perm, semflg))
@@ -1183,8 +1182,7 @@ retry_undos:
 
 	sma = sem_lock(semid);
 	if(sma==NULL) {
-		if(queue.prev != NULL)
-			BUG();
+		BUG_ON(queue.prev != NULL);
 		error = -EIDRM;
 		goto out_free;
 	}

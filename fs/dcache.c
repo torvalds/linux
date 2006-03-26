@@ -34,7 +34,6 @@
 #include <linux/swap.h>
 #include <linux/bootmem.h>
 
-/* #define DCACHE_DEBUG 1 */
 
 int sysctl_vfs_cache_pressure __read_mostly = 100;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
@@ -603,10 +602,6 @@ resume:
 		 */
 		if (!list_empty(&dentry->d_subdirs)) {
 			this_parent = dentry;
-#ifdef DCACHE_DEBUG
-printk(KERN_DEBUG "select_parent: descending to %s/%s, found=%d\n",
-dentry->d_parent->d_name.name, dentry->d_name.name, found);
-#endif
 			goto repeat;
 		}
 	}
@@ -616,10 +611,6 @@ dentry->d_parent->d_name.name, dentry->d_name.name, found);
 	if (this_parent != parent) {
 		next = this_parent->d_u.d_child.next;
 		this_parent = this_parent->d_parent;
-#ifdef DCACHE_DEBUG
-printk(KERN_DEBUG "select_parent: ascending to %s/%s, found=%d\n",
-this_parent->d_parent->d_name.name, this_parent->d_name.name, found);
-#endif
 		goto resume;
 	}
 out:
@@ -798,7 +789,7 @@ struct dentry *d_alloc_name(struct dentry *parent, const char *name)
  
 void d_instantiate(struct dentry *entry, struct inode * inode)
 {
-	if (!list_empty(&entry->d_alias)) BUG();
+	BUG_ON(!list_empty(&entry->d_alias));
 	spin_lock(&dcache_lock);
 	if (inode)
 		list_add(&entry->d_alias, &inode->i_dentry);

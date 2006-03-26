@@ -543,14 +543,12 @@ void tty_ldisc_put(int disc)
 	struct tty_ldisc *ld;
 	unsigned long flags;
 	
-	if (disc < N_TTY || disc >= NR_LDISCS)
-		BUG();
+	BUG_ON(disc < N_TTY || disc >= NR_LDISCS);
 		
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
 	ld = &tty_ldiscs[disc];
-	if(ld->refcount == 0)
-		BUG();
-	ld->refcount --;
+	BUG_ON(ld->refcount == 0);
+	ld->refcount--;
 	module_put(ld->owner);
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 }
@@ -645,8 +643,7 @@ void tty_ldisc_deref(struct tty_ldisc *ld)
 {
 	unsigned long flags;
 
-	if(ld == NULL)
-		BUG();
+	BUG_ON(ld == NULL);
 		
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
 	if(ld->refcount == 0)

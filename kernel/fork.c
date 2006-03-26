@@ -769,8 +769,7 @@ int unshare_files(void)
 	struct files_struct *files  = current->files;
 	int rc;
 
-	if(!files)
-		BUG();
+	BUG_ON(!files);
 
 	/* This can race but the race causes us to copy when we don't
 	   need to and drop the copy */

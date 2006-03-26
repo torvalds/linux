@@ -437,8 +437,7 @@ dasd_forget_ranges(void)
 	spin_lock(&dasd_devmap_lock);
 	for (i = 0; i < 256; i++) {
 		list_for_each_entry_safe(devmap, n, &dasd_hashlists[i], list) {
-			if (devmap->device != NULL)
-				BUG();
+			BUG_ON(devmap->device != NULL);
 			list_del(&devmap->list);
 			kfree(devmap);
 		}
@@ -547,8 +546,7 @@ dasd_delete_device(struct dasd_device *device)
 
 	/* First remove device pointer from devmap. */
 	devmap = dasd_find_busid(device->cdev->dev.bus_id);
-	if (IS_ERR(devmap))
-		BUG();
+	BUG_ON(IS_ERR(devmap));
 	spin_lock(&dasd_devmap_lock);
 	if (devmap->device != device) {
 		spin_unlock(&dasd_devmap_lock);

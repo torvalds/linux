@@ -352,8 +352,7 @@ static int open_dev(struct dm_dev *d, dev_t dev)
 
 	int r;
 
-	if (d->bdev)
-		BUG();
+	BUG_ON(d->bdev);
 
 	bdev = open_by_devnum(dev, d->mode);
 	if (IS_ERR(bdev))
@@ -427,8 +426,7 @@ static int __table_get_device(struct dm_table *t, struct dm_target *ti,
 	struct dm_dev *dd;
 	unsigned int major, minor;
 
-	if (!t)
-		BUG();
+	BUG_ON(!t);
 
 	if (sscanf(path, "%u:%u", &major, &minor) == 2) {
 		/* Extract the major/minor numbers */

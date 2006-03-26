@@ -25,9 +25,8 @@ config MTD_JEDECPROBE
 	  compatible with the Common Flash Interface, but will use the common
 	  CFI-targetted flash drivers for any chips which are identified which
 	  are in fact compatible in all but the probe method. This actually
-	  covers most AMD/Fujitsu-compatible chips, and will shortly cover also
-	  non-CFI Intel chips (that code is in MTD CVS and should shortly be sent
-	  for inclusion in Linus' tree)
+	  covers most AMD/Fujitsu-compatible chips and also non-CFI
+	  Intel chips.
 
 config MTD_GEN_PROBE
 	tristate
