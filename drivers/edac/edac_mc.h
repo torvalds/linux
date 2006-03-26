@@ -43,10 +43,29 @@
 #define PAGES_TO_MiB( pages )	( ( pages ) << ( PAGE_SHIFT - 20 ) )
 #endif
 
+#define edac_printk(level, prefix, fmt, arg...) \
+    printk(level "EDAC " prefix ": " fmt, ##arg)
+
+#define edac_mc_printk(mci, level, fmt, arg...) \
+    printk(level "EDAC MC%d: " fmt, mci->mc_idx, ##arg)
+
+#define edac_mc_chipset_printk(mci, level, prefix, fmt, arg...) \
+    printk(level "EDAC " prefix " MC%d: " fmt, mci->mc_idx, ##arg)
+
+/* prefixes for edac_printk() and edac_mc_printk() */
+#define EDAC_MC "MC"
+#define EDAC_PCI "PCI"
+#define EDAC_DEBUG "DEBUG"
+
 #ifdef CONFIG_EDAC_DEBUG
 extern int edac_debug_level;
-#define edac_debug_printk(level, fmt, args...) \
-do { if (level <= edac_debug_level) printk(KERN_DEBUG fmt, ##args); } while(0)
+
+#define edac_debug_printk(level, fmt, arg...)                            \
+	do {                                                             \
+		if (level <= edac_debug_level)                           \
+			edac_printk(KERN_DEBUG, EDAC_DEBUG, fmt, ##arg); \
+	} while(0)
+
 #define debugf0( ... ) edac_debug_printk(0, __VA_ARGS__ )
 #define debugf1( ... ) edac_debug_printk(1, __VA_ARGS__ )
 #define debugf2( ... ) edac_debug_printk(2, __VA_ARGS__ )

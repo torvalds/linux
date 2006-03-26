@@ -32,6 +32,14 @@
 #include "edac_mc.h"
 
 
+#define e7xxx_printk(level, fmt, arg...) \
+    edac_printk(level, "e7xxx", fmt, ##arg)
+
+
+#define e7xxx_mc_printk(mci, level, fmt, arg...) \
+    edac_mc_chipset_printk(mci, level, "e7xxx", fmt, ##arg)
+
+
 #ifndef PCI_DEVICE_ID_INTEL_7205_0
 #define PCI_DEVICE_ID_INTEL_7205_0	0x255d
 #endif				/* PCI_DEVICE_ID_INTEL_7205_0 */
@@ -161,7 +169,7 @@ static const struct e7xxx_dev_info e7xxx_devs[] = {
 /* FIXME - is this valid for both SECDED and S4ECD4ED? */
 static inline int e7xxx_find_channel(u16 syndrome)
 {
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	if ((syndrome & 0xff00) == 0)
 		return 0;
@@ -179,7 +187,7 @@ ctl_page_to_phys(struct mem_ctl_info *mci, unsigned long page)
 	u32 remap;
 	struct e7xxx_pvt *pvt = (struct e7xxx_pvt *) mci->pvt_info;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	if ((page < pvt->tolm) ||
 	    ((page >= 0x100000) && (page < pvt->remapbase)))
@@ -187,7 +195,7 @@ ctl_page_to_phys(struct mem_ctl_info *mci, unsigned long page)
 	remap = (page - pvt->tolm) + pvt->remapbase;
 	if (remap < pvt->remaplimit)
 		return remap;
-	printk(KERN_ERR "Invalid page %lx - out of range\n", page);
+	e7xxx_printk(KERN_ERR, "Invalid page %lx - out of range\n", page);
 	return pvt->tolm - 1;
 }
 
@@ -199,7 +207,7 @@ static void process_ce(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 	int row;
 	int channel;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	/* read the error address */
 	error_1b = info->dram_celog_add;
@@ -218,7 +226,7 @@ static void process_ce(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 
 static void process_ce_no_info(struct mem_ctl_info *mci)
 {
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 	edac_mc_handle_ce_no_info(mci, "e7xxx CE log register overflow");
 }
 
@@ -228,7 +236,7 @@ static void process_ue(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 	u32 error_2b, block_page;
 	int row;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	/* read the error address */
 	error_2b = info->dram_uelog_add;
@@ -241,7 +249,7 @@ static void process_ue(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
 
 static void process_ue_no_info(struct mem_ctl_info *mci)
 {
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 	edac_mc_handle_ue_no_info(mci, "e7xxx UE log register overflow");
 }
 
@@ -330,7 +338,7 @@ static void e7xxx_check(struct mem_ctl_info *mci)
 {
 	struct e7xxx_error_info info;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 	e7xxx_get_error_info(mci, &info);
 	e7xxx_process_error_info(mci, &info, 1);
 }
@@ -351,7 +359,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	unsigned long last_cumul_size;
 
 
-	debugf0("MC: " __FILE__ ": %s(): mci\n", __func__);
+	debugf0("%s(): mci\n", __func__);
 
 	/* need to find out the number of channels */
 	pci_read_config_dword(pdev, E7XXX_DRC, &drc);
@@ -369,7 +377,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail;
 	}
 
-	debugf3("MC: " __FILE__ ": %s(): init mci\n", __func__);
+	debugf3("%s(): init mci\n", __func__);
 
 	mci->mtype_cap = MEM_FLAG_RDDR;
 	mci->edac_ctl_cap =
@@ -379,21 +387,21 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->mod_ver = "$Revision: 1.5.2.9 $";
 	mci->pdev = pdev;
 
-	debugf3("MC: " __FILE__ ": %s(): init pvt\n", __func__);
+	debugf3("%s(): init pvt\n", __func__);
 	pvt = (struct e7xxx_pvt *) mci->pvt_info;
 	pvt->dev_info = &e7xxx_devs[dev_idx];
 	pvt->bridge_ck = pci_get_device(PCI_VENDOR_ID_INTEL,
 					 pvt->dev_info->err_dev,
 					 pvt->bridge_ck);
 	if (!pvt->bridge_ck) {
-		printk(KERN_ERR
-		       "MC: error reporting device not found:"
-		       "vendor %x device 0x%x (broken BIOS?)\n",
-		       PCI_VENDOR_ID_INTEL, e7xxx_devs[dev_idx].err_dev);
+		e7xxx_printk(KERN_ERR, "error reporting device not found:"
+			     "vendor %x device 0x%x (broken BIOS?)\n",
+			     PCI_VENDOR_ID_INTEL,
+			     e7xxx_devs[dev_idx].err_dev);
 		goto fail;
 	}
 
-	debugf3("MC: " __FILE__ ": %s(): more mci init\n", __func__);
+	debugf3("%s(): more mci init\n", __func__);
 	mci->ctl_name = pvt->dev_info->ctl_name;
 
 	mci->edac_check = e7xxx_check;
@@ -418,8 +426,8 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 		pci_read_config_byte(mci->pdev, E7XXX_DRB + index, &value);
 		/* convert a 64 or 32 MiB DRB to a page size. */
 		cumul_size = value << (25 + drc_drbg - PAGE_SHIFT);
-		debugf3("MC: " __FILE__ ": %s(): (%d) cumul_size 0x%x\n",
-			__func__, index, cumul_size);
+		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
+			cumul_size);
 		if (cumul_size == last_cumul_size)
 			continue;	/* not populated */
 
@@ -449,8 +457,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 
 	mci->edac_cap |= EDAC_FLAG_NONE;
 
-	debugf3("MC: " __FILE__ ": %s(): tolm, remapbase, remaplimit\n",
-		__func__);
+	debugf3("%s(): tolm, remapbase, remaplimit\n", __func__);
 	/* load the top of low memory, remap base, and remap limit vars */
 	pci_read_config_word(mci->pdev, E7XXX_TOLM, &pci_data);
 	pvt->tolm = ((u32) pci_data) << 4;
@@ -458,22 +465,21 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	pvt->remapbase = ((u32) pci_data) << 14;
 	pci_read_config_word(mci->pdev, E7XXX_REMAPLIMIT, &pci_data);
 	pvt->remaplimit = ((u32) pci_data) << 14;
-	printk("tolm = %x, remapbase = %x, remaplimit = %x\n", pvt->tolm,
-	       pvt->remapbase, pvt->remaplimit);
+	e7xxx_printk(KERN_INFO,
+		     "tolm = %x, remapbase = %x, remaplimit = %x\n",
+		     pvt->tolm, pvt->remapbase, pvt->remaplimit);
 
 	/* clear any pending errors, or initial state bits */
 	pci_write_bits8(pvt->bridge_ck, E7XXX_DRAM_FERR, 0x03, 0x03);
 	pci_write_bits8(pvt->bridge_ck, E7XXX_DRAM_NERR, 0x03, 0x03);
 
 	if (edac_mc_add_mc(mci) != 0) {
-		debugf3("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n",
-			__func__);
+		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
 		goto fail;
 	}
 
 	/* get this far and it's successful */
-	debugf3("MC: " __FILE__ ": %s(): success\n", __func__);
+	debugf3("%s(): success\n", __func__);
 	return 0;
 
 fail:
@@ -490,7 +496,7 @@ fail:
 static int __devinit
 e7xxx_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	/* wake up and enable device */
 	return pci_enable_device(pdev) ?
@@ -503,7 +509,7 @@ static void __devexit e7xxx_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 	struct e7xxx_pvt *pvt;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	if (((mci = edac_mc_find_mci_by_pdev(pdev)) != 0) &&
 	    edac_mc_del_mc(mci)) {

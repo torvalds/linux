@@ -37,7 +37,7 @@
 
 #include "edac_mc.h"
 
-#define	EDAC_MC_VERSION	"edac_mc  Ver: 2.0.0 " __DATE__
+#define	EDAC_MC_VERSION	"Ver: 2.0.0 " __DATE__
 
 /* For now, disable the EDAC sysfs code.  The sysfs interface that EDAC
  * presents to user space needs more thought, and is likely to change
@@ -243,7 +243,7 @@ static struct memctrl_dev_attribute *memctrl_attr[] = {
 /* Main MC kobject release() function */
 static void edac_memctrl_master_release(struct kobject *kobj)
 {
-	debugf1("EDAC MC: " __FILE__ ": %s()\n", __func__);
+	debugf1("%s()\n", __func__);
 }
 
 static struct kobj_type ktype_memctrl = {
@@ -271,7 +271,7 @@ static int edac_sysfs_memctrl_setup(void)
 {
 	int err=0;
 
-	debugf1("MC: " __FILE__ ": %s()\n", __func__);
+	debugf1("%s()\n", __func__);
 
 	/* create the /sys/devices/system/edac directory */
 	err = sysdev_class_register(&edac_class);
@@ -295,7 +295,7 @@ static int edac_sysfs_memctrl_setup(void)
 			}
 		}
 	} else {
-		debugf1(KERN_WARNING "__FILE__ %s() error=%d\n", __func__,err);
+		debugf1("%s() error=%d\n", __func__, err);
 	}
 
 	return err;
@@ -567,7 +567,7 @@ static struct edac_pci_dev_attribute *edac_pci_attr[] = {
 /* No memory to release */
 static void edac_pci_release(struct kobject *kobj)
 {
-	debugf1("EDAC PCI: " __FILE__ ": %s()\n", __func__);
+	debugf1("%s()\n", __func__);
 }
 
 static struct kobj_type ktype_edac_pci = {
@@ -591,7 +591,7 @@ static int edac_sysfs_pci_setup(void)
 {
 	int err;
 
-	debugf1("MC: " __FILE__ ": %s()\n", __func__);
+	debugf1("%s()\n", __func__);
 
 	memset(&edac_pci_kobj, 0, sizeof(edac_pci_kobj));
 
@@ -616,7 +616,7 @@ static int edac_sysfs_pci_setup(void)
 static void edac_sysfs_pci_teardown(void)
 {
 #ifndef DISABLE_EDAC_SYSFS
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	kobject_unregister(&edac_pci_kobj);
 	kobject_put(&edac_pci_kobj);
@@ -808,7 +808,7 @@ static struct csrowdev_attribute *csrow_attr[] = {
 /* No memory to release */
 static void edac_csrow_instance_release(struct kobject *kobj)
 {
-	debugf1("EDAC MC: " __FILE__ ": %s()\n", __func__);
+	debugf1("%s()\n", __func__);
 }
 
 static struct kobj_type ktype_csrow = {
@@ -823,7 +823,7 @@ static int edac_create_csrow_object(struct kobject *edac_mci_kobj,
 {
 	int err = 0;
 
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	memset(&csrow->kobj, 0, sizeof(csrow->kobj));
 
@@ -1066,8 +1066,7 @@ static void edac_mci_instance_release(struct kobject *kobj)
 	struct mem_ctl_info *mci;
 	mci = container_of(kobj,struct mem_ctl_info,edac_mci_kobj);
 
-	debugf0("MC: " __FILE__ ": %s() idx=%d calling kfree\n",
-		__func__, mci->mc_idx);
+	debugf0("%s() idx=%d calling kfree\n", __func__, mci->mc_idx);
 
 	kfree(mci);
 }
@@ -1102,7 +1101,7 @@ static int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	struct csrow_info *csrow;
 	struct kobject *edac_mci_kobj=&mci->edac_mci_kobj;
 
-	debugf0("MC: " __FILE__ ": %s() idx=%d\n", __func__, mci->mc_idx);
+	debugf0("%s() idx=%d\n", __func__, mci->mc_idx);
 
 	memset(edac_mci_kobj, 0, sizeof(*edac_mci_kobj));
 	kobject_init(edac_mci_kobj);
@@ -1174,7 +1173,7 @@ static void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 #ifndef DISABLE_EDAC_SYSFS
 	int i;
 
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	/* remove all csrow kobjects */
 	for (i = 0; i < mci->nr_csrows; i++) {
@@ -1396,7 +1395,7 @@ struct mem_ctl_info *edac_mc_find_mci_by_pdev(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 	struct list_head *item;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	list_for_each(item, &mc_devices) {
 		mci = list_entry(item, struct mem_ctl_info, link);
@@ -1419,10 +1418,11 @@ static int add_mc_to_global_list (struct mem_ctl_info *mci)
 		insert_before = &mc_devices;
 	} else {
 		if (edac_mc_find_mci_by_pdev(mci->pdev)) {
-			printk(KERN_WARNING
-				"EDAC MC: %s (%s) %s %s already assigned %d\n",
-				mci->pdev->dev.bus_id, pci_name(mci->pdev),
-				mci->mod_name, mci->ctl_name, mci->mc_idx);
+			edac_printk(KERN_WARNING, EDAC_MC,
+				"%s (%s) %s %s already assigned %d\n",
+				mci->pdev->dev.bus_id,
+				pci_name(mci->pdev), mci->mod_name,
+				mci->ctl_name, mci->mc_idx);
 			return 1;
 		}
 
@@ -1468,7 +1468,7 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 {
 	int rc = 1;
 
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 #ifdef CONFIG_EDAC_DEBUG
 	if (edac_debug_level >= 3)
 		edac_mc_dump_mci(mci);
@@ -1493,19 +1493,15 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 	mci->start_time = jiffies;
 
         if (edac_create_sysfs_mci_device(mci)) {
-                printk(KERN_WARNING
-                       "EDAC MC%d: failed to create sysfs device\n",
-                       mci->mc_idx);
+                edac_mc_printk(mci, KERN_WARNING,
+			"failed to create sysfs device\n");
 		/* FIXME - should there be an error code and unwind? */
                 goto finish;
         }
 
 	/* Report action taken */
-	printk(KERN_INFO
-	       "EDAC MC%d: Giving out device to %s %s: PCI %s\n",
-	       mci->mc_idx, mci->mod_name, mci->ctl_name,
-	       pci_name(mci->pdev));
-
+	edac_mc_printk(mci, KERN_INFO, "Giving out device to %s %s: PCI %s\n",
+		mci->mod_name, mci->ctl_name, pci_name(mci->pdev));
 
 	rc = 0;
 
@@ -1547,13 +1543,12 @@ int edac_mc_del_mc(struct mem_ctl_info *mci)
 {
 	int rc = 1;
 
-	debugf0("MC%d: " __FILE__ ": %s()\n", mci->mc_idx, __func__);
+	debugf0("MC%d: %s()\n", mci->mc_idx, __func__);
 	down(&mem_ctls_mutex);
 	del_mc_from_global_list(mci);
-	printk(KERN_INFO
-	       "EDAC MC%d: Removed device %d for %s %s: PCI %s\n",
-	       mci->mc_idx, mci->mc_idx, mci->mod_name, mci->ctl_name,
-	       pci_name(mci->pdev));
+	edac_printk(KERN_INFO, EDAC_MC,
+		"Removed device %d for %s %s: PCI %s\n", mci->mc_idx,
+		mci->mod_name, mci->ctl_name, pci_name(mci->pdev));
 	rc = 0;
 	up(&mem_ctls_mutex);
 
@@ -1570,7 +1565,7 @@ void edac_mc_scrub_block(unsigned long page, unsigned long offset,
 	void *virt_addr;
 	unsigned long flags = 0;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	/* ECC error page was not in our memory. Ignore it. */
 	if(!pfn_valid(page))
@@ -1604,8 +1599,7 @@ int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 	struct csrow_info *csrows = mci->csrows;
 	int row, i;
 
-	debugf1("MC%d: " __FILE__ ": %s(): 0x%lx\n", mci->mc_idx, __func__,
-		page);
+	debugf1("MC%d: %s(): 0x%lx\n", mci->mc_idx, __func__, page);
 	row = -1;
 
 	for (i = 0; i < mci->nr_csrows; i++) {
@@ -1614,11 +1608,10 @@ int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 		if (csrow->nr_pages == 0)
 			continue;
 
-		debugf3("MC%d: " __FILE__
-			": %s(): first(0x%lx) page(0x%lx)"
-			" last(0x%lx) mask(0x%lx)\n", mci->mc_idx,
-			__func__, csrow->first_page, page,
-			csrow->last_page, csrow->page_mask);
+		debugf3("MC%d: %s(): first(0x%lx) page(0x%lx) last(0x%lx) "
+			"mask(0x%lx)\n", mci->mc_idx, __func__,
+			csrow->first_page, page, csrow->last_page,
+			csrow->page_mask);
 
 		if ((page >= csrow->first_page) &&
 		    (page <= csrow->last_page) &&
@@ -1630,9 +1623,9 @@ int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 	}
 
 	if (row == -1)
-		printk(KERN_ERR
-		       "EDAC MC%d: could not look up page error address %lx\n",
-		       mci->mc_idx, (unsigned long) page);
+		edac_mc_printk(mci, KERN_ERR,
+			"could not look up page error address %lx\n",
+			(unsigned long) page);
 
 	return row;
 }
@@ -1650,36 +1643,35 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 {
 	unsigned long remapped_page;
 
-	debugf3("MC%d: " __FILE__ ": %s()\n", mci->mc_idx, __func__);
+	debugf3("MC%d: %s()\n", mci->mc_idx, __func__);
 
 	/* FIXME - maybe make panic on INTERNAL ERROR an option */
 	if (row >= mci->nr_csrows || row < 0) {
 		/* something is wrong */
-		printk(KERN_ERR
-		       "EDAC MC%d: INTERNAL ERROR: row out of range (%d >= %d)\n",
-		       mci->mc_idx, row, mci->nr_csrows);
+		edac_mc_printk(mci, KERN_ERR,
+			"INTERNAL ERROR: row out of range "
+			"(%d >= %d)\n", row, mci->nr_csrows);
 		edac_mc_handle_ce_no_info(mci, "INTERNAL ERROR");
 		return;
 	}
 	if (channel >= mci->csrows[row].nr_channels || channel < 0) {
 		/* something is wrong */
-		printk(KERN_ERR
-		       "EDAC MC%d: INTERNAL ERROR: channel out of range "
-		       "(%d >= %d)\n",
-		       mci->mc_idx, channel, mci->csrows[row].nr_channels);
+		edac_mc_printk(mci, KERN_ERR,
+			"INTERNAL ERROR: channel out of range "
+			"(%d >= %d)\n", channel,
+			mci->csrows[row].nr_channels);
 		edac_mc_handle_ce_no_info(mci, "INTERNAL ERROR");
 		return;
 	}
 
 	if (log_ce)
 		/* FIXME - put in DIMM location */
-		printk(KERN_WARNING
-		       "EDAC MC%d: CE page 0x%lx, offset 0x%lx,"
-		       " grain %d, syndrome 0x%lx, row %d, channel %d,"
-		       " label \"%s\": %s\n", mci->mc_idx,
-		       page_frame_number, offset_in_page,
-		       mci->csrows[row].grain, syndrome, row, channel,
-		       mci->csrows[row].channels[channel].label, msg);
+		edac_mc_printk(mci, KERN_WARNING,
+			"CE page 0x%lx, offset 0x%lx, grain %d, syndrome "
+			"0x%lx, row %d, channel %d, label \"%s\": %s\n",
+			page_frame_number, offset_in_page,
+			mci->csrows[row].grain, syndrome, row, channel,
+			mci->csrows[row].channels[channel].label, msg);
 
 	mci->ce_count++;
 	mci->csrows[row].ce_count++;
@@ -1711,9 +1703,8 @@ void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci,
 				    const char *msg)
 {
 	if (log_ce)
-		printk(KERN_WARNING
-		       "EDAC MC%d: CE - no information available: %s\n",
-		       mci->mc_idx, msg);
+		edac_mc_printk(mci, KERN_WARNING,
+			"CE - no information available: %s\n", msg);
 	mci->ce_noinfo_count++;
 	mci->ce_count++;
 }
@@ -1732,14 +1723,14 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 	int chan;
 	int chars;
 
-	debugf3("MC%d: " __FILE__ ": %s()\n", mci->mc_idx, __func__);
+	debugf3("MC%d: %s()\n", mci->mc_idx, __func__);
 
 	/* FIXME - maybe make panic on INTERNAL ERROR an option */
 	if (row >= mci->nr_csrows || row < 0) {
 		/* something is wrong */
-		printk(KERN_ERR
-		       "EDAC MC%d: INTERNAL ERROR: row out of range (%d >= %d)\n",
-		       mci->mc_idx, row, mci->nr_csrows);
+		edac_mc_printk(mci, KERN_ERR,
+			"INTERNAL ERROR: row out of range "
+			"(%d >= %d)\n", row, mci->nr_csrows);
 		edac_mc_handle_ue_no_info(mci, "INTERNAL ERROR");
 		return;
 	}
@@ -1757,11 +1748,11 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 	}
 
 	if (log_ue)
-		printk(KERN_EMERG
-		       "EDAC MC%d: UE page 0x%lx, offset 0x%lx, grain %d, row %d,"
-		       " labels \"%s\": %s\n", mci->mc_idx,
-		       page_frame_number, offset_in_page,
-		       mci->csrows[row].grain, row, labels, msg);
+		edac_mc_printk(mci, KERN_EMERG,
+			"UE page 0x%lx, offset 0x%lx, grain %d, row %d, "
+			"labels \"%s\": %s\n", page_frame_number,
+			offset_in_page, mci->csrows[row].grain, row, labels,
+			msg);
 
 	if (panic_on_ue)
 		panic
@@ -1784,9 +1775,8 @@ void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci,
 		panic("EDAC MC%d: Uncorrected Error", mci->mc_idx);
 
 	if (log_ue)
-		printk(KERN_WARNING
-		       "EDAC MC%d: UE - no information available: %s\n",
-		       mci->mc_idx, msg);
+		edac_mc_printk(mci, KERN_WARNING,
+			"UE - no information available: %s\n", msg);
 	mci->ue_noinfo_count++;
 	mci->ue_count++;
 }
@@ -1856,25 +1846,22 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
 	/* check the status reg for errors */
 	if (status) {
 		if (status & (PCI_STATUS_SIG_SYSTEM_ERROR))
-			printk(KERN_CRIT
-			   	"EDAC PCI- "
+			edac_printk(KERN_CRIT, EDAC_PCI,
 				"Signaled System Error on %s\n",
-				pci_name (dev));
+				pci_name(dev));
 
 		if (status & (PCI_STATUS_PARITY)) {
-			printk(KERN_CRIT
-			   	"EDAC PCI- "
+			edac_printk(KERN_CRIT, EDAC_PCI,
 				"Master Data Parity Error on %s\n",
-				pci_name (dev));
+				pci_name(dev));
 
 			atomic_inc(&pci_parity_count);
 		}
 
 		if (status & (PCI_STATUS_DETECTED_PARITY)) {
-			printk(KERN_CRIT
-			   	"EDAC PCI- "
+			edac_printk(KERN_CRIT, EDAC_PCI,
 				"Detected Parity Error on %s\n",
-				pci_name (dev));
+				pci_name(dev));
 
 			atomic_inc(&pci_parity_count);
 		}
@@ -1895,25 +1882,22 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
 		/* check the secondary status reg for errors */
 		if (status) {
 			if (status & (PCI_STATUS_SIG_SYSTEM_ERROR))
-				printk(KERN_CRIT
-					"EDAC PCI-Bridge- "
+				edac_printk(KERN_CRIT, EDAC_PCI, "Bridge "
 					"Signaled System Error on %s\n",
-					pci_name (dev));
+					pci_name(dev));
 
 			if (status & (PCI_STATUS_PARITY)) {
-				printk(KERN_CRIT
-					"EDAC PCI-Bridge- "
-					"Master Data Parity Error on %s\n",
-					pci_name (dev));
+				edac_printk(KERN_CRIT, EDAC_PCI, "Bridge "
+					"Master Data Parity Error on "
+					"%s\n", pci_name(dev));
 
 				atomic_inc(&pci_parity_count);
 			}
 
 			if (status & (PCI_STATUS_DETECTED_PARITY)) {
-				printk(KERN_CRIT
-					"EDAC PCI-Bridge- "
+				edac_printk(KERN_CRIT, EDAC_PCI, "Bridge "
 					"Detected Parity Error on %s\n",
-					pci_name (dev));
+					pci_name(dev));
 
 				atomic_inc(&pci_parity_count);
 			}
@@ -1992,7 +1976,7 @@ static void do_pci_parity_check(void)
 	unsigned long flags;
 	int before_count;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	if (!check_pci_parity)
 		return;
@@ -2050,7 +2034,7 @@ static inline void check_mc_devices (void)
 	struct list_head *item;
 	struct mem_ctl_info *mci;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	/* during poll, have interrupts off */
 	local_irq_save(flags);
@@ -2076,10 +2060,8 @@ static inline void check_mc_devices (void)
  */
 static void do_edac_check(void)
 {
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
-
+	debugf3("%s()\n", __func__);
 	check_mc_devices();
-
 	do_pci_parity_check();
 }
 
@@ -2102,7 +2084,7 @@ static int edac_kernel_thread(void *arg)
  */
 static int __init edac_mc_init(void)
 {
-	printk(KERN_INFO "MC: " __FILE__ " version " EDAC_MC_VERSION "\n");
+	edac_printk(KERN_INFO, EDAC_MC, EDAC_MC_VERSION "\n");
 
 	/*
 	 * Harvest and clear any boot/initialization PCI parity errors
@@ -2118,14 +2100,16 @@ static int __init edac_mc_init(void)
 
 	/* Create the MC sysfs entires */
 	if (edac_sysfs_memctrl_setup()) {
-		printk(KERN_ERR "EDAC MC: Error initializing sysfs code\n");
+		edac_printk(KERN_ERR, EDAC_MC,
+			"Error initializing sysfs code\n");
 		return -ENODEV;
 	}
 
 	/* Create the PCI parity sysfs entries */
 	if (edac_sysfs_pci_setup()) {
 		edac_sysfs_memctrl_teardown();
-		printk(KERN_ERR "EDAC PCI: Error initializing sysfs code\n");
+		edac_printk(KERN_ERR, EDAC_MC,
+			"EDAC PCI: Error initializing sysfs code\n");
 		return -ENODEV;
 	}
 
@@ -2148,7 +2132,7 @@ static int __init edac_mc_init(void)
  */
 static void __exit edac_mc_exit(void)
 {
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	kthread_stop(edac_thread);
 

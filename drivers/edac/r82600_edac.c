@@ -26,6 +26,12 @@
 
 #include "edac_mc.h"
 
+#define r82600_printk(level, fmt, arg...) \
+    edac_printk(level, "r82600", fmt, ##arg)
+
+#define r82600_mc_printk(mci, level, fmt, arg...) \
+    edac_mc_chipset_printk(mci, level, "r82600", fmt, ##arg)
+
 /* Radisys say "The 82600 integrates a main memory SDRAM controller that
  * supports up to four banks of memory. The four banks can support a mix of
  * sizes of 64 bit wide (72 bits with ECC) Synchronous DRAM (SDRAM) DIMMs,
@@ -196,7 +202,7 @@ static void r82600_check(struct mem_ctl_info *mci)
 {
 	struct r82600_error_info info;
 
-	debugf1("MC%d: " __FILE__ ": %s()\n", mci->mc_idx, __func__);
+	debugf1("MC%d: %s()\n", mci->mc_idx, __func__);
 	r82600_get_error_info(mci, &info);
 	r82600_process_error_info(mci, &info, 1);
 }
@@ -215,7 +221,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	u32 row_high_limit_last = 0;
 	u32 eap_init_bits;
 
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 
 	pci_read_config_byte(pdev, R82600_DRAMC, &dramcr);
@@ -226,11 +232,10 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	scrub_disabled = eapr & BIT(31);
 	sdram_refresh_rate = dramcr & (BIT(0) | BIT(1));
 
-	debugf2("MC: " __FILE__ ": %s(): sdram refresh rate = %#0x\n",
-		__func__, sdram_refresh_rate);
+	debugf2("%s(): sdram refresh rate = %#0x\n", __func__,
+		sdram_refresh_rate);
 
-	debugf2("MC: " __FILE__ ": %s(): DRAMC register = %#0x\n", __func__,
-		dramcr);
+	debugf2("%s(): DRAMC register = %#0x\n", __func__, dramcr);
 
 	mci = edac_mc_alloc(0, R82600_NR_CSROWS, R82600_NR_CHANS);
 
@@ -239,7 +244,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail;
 	}
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
+	debugf0("%s(): mci = %p\n", __func__, mci);
 
 	mci->pdev = pdev;
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_DDR;
@@ -255,9 +260,8 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	if (ecc_on) {
 		if (scrub_disabled)
-			debugf3("MC: " __FILE__ ": %s(): mci = %p - "
-				"Scrubbing disabled! EAP: %#0x\n", __func__,
-				mci, eapr);
+			debugf3("%s(): mci = %p - Scrubbing disabled! EAP: "
+				"%#0x\n", __func__, mci, eapr);
 	} else
 		mci->edac_cap = EDAC_FLAG_NONE;
 
@@ -276,16 +280,15 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 		/* find the DRAM Chip Select Base address and mask */
 		pci_read_config_byte(mci->pdev, R82600_DRBA + index, &drbar);
 
-		debugf1("MC%d: " __FILE__ ": %s() Row=%d DRBA = %#0x\n",
-			mci->mc_idx, __func__, index, drbar);
+		debugf1("MC%d: %s() Row=%d DRBA = %#0x\n", mci->mc_idx,
+			__func__, index, drbar);
 
 		row_high_limit = ((u32) drbar << 24);
 /*		row_high_limit = ((u32)drbar << 24) | 0xffffffUL; */
 
-		debugf1("MC%d: " __FILE__ ": %s() Row=%d, "
-			"Boundry Address=%#0x, Last = %#0x \n",
-			mci->mc_idx, __func__, index, row_high_limit,
-			row_high_limit_last);
+		debugf1("MC%d: %s() Row=%d, Boundry Address=%#0x, Last = "
+			"%#0x \n", mci->mc_idx, __func__, index,
+			row_high_limit, row_high_limit_last);
 
 		/* Empty row [p.57] */
 		if (row_high_limit == row_high_limit_last)
@@ -312,8 +315,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	/* FIXME should we? */
 
 	if (edac_mc_add_mc(mci)) {
-		debugf3("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
 		goto fail;
 	}
 
@@ -325,14 +327,14 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	eap_init_bits = BIT(0) & BIT(1);
 	if (disable_hardware_scrub) {
 		eap_init_bits |= BIT(31);
-		debugf3("MC: " __FILE__ ": %s(): Disabling Hardware Scrub "
-			"(scrub on error)\n", __func__);
+		debugf3("%s(): Disabling Hardware Scrub (scrub on error)\n",
+			__func__);
 	}
 
 	pci_write_bits32(mci->pdev, R82600_EAP, eap_init_bits,
 			 eap_init_bits);
 
-	debugf3("MC: " __FILE__ ": %s(): success\n", __func__);
+	debugf3("%s(): success\n", __func__);
 	return 0;
 
 fail:
@@ -346,7 +348,7 @@ fail:
 static int __devinit r82600_init_one(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	/* don't need to call pci_device_enable() */
 	return r82600_probe1(pdev, ent->driver_data);
@@ -357,7 +359,7 @@ static void __devexit r82600_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	if (((mci = edac_mc_find_mci_by_pdev(pdev)) != NULL) &&
 	    !edac_mc_del_mc(mci))

@@ -19,6 +19,14 @@
 #include "edac_mc.h"
 
 
+#define i82860_printk(level, fmt, arg...) \
+    edac_printk(level, "i82860", fmt, ##arg)
+
+
+#define i82860_mc_printk(mci, level, fmt, arg...) \
+    edac_mc_chipset_printk(mci, level, "i82860", fmt, ##arg)
+
+
 #ifndef PCI_DEVICE_ID_INTEL_82860_0
 #define PCI_DEVICE_ID_INTEL_82860_0	0x2531
 #endif				/* PCI_DEVICE_ID_INTEL_82860_0 */
@@ -117,7 +125,7 @@ static void i82860_check(struct mem_ctl_info *mci)
 {
 	struct i82860_error_info info;
 
-	debugf1("MC%d: " __FILE__ ": %s()\n", mci->mc_idx, __func__);
+	debugf1("MC%d: %s()\n", mci->mc_idx, __func__);
 	i82860_get_error_info(mci, &info);
 	i82860_process_error_info(mci, &info, 1);
 }
@@ -143,7 +151,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	if (!mci)
 		return -ENOMEM;
 
-	debugf3("MC: " __FILE__ ": %s(): init mci\n", __func__);
+	debugf3("%s(): init mci\n", __func__);
 
 	mci->pdev = pdev;
 	mci->mtype_cap = MEM_FLAG_DDR;
@@ -179,8 +187,8 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 
 		cumul_size = (value & I82860_GBA_MASK) <<
 		    (I82860_GBA_SHIFT - PAGE_SHIFT);
-		debugf3("MC: " __FILE__ ": %s(): (%d) cumul_size 0x%x\n",
-			__func__, index, cumul_size);
+		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
+			cumul_size);
 		if (cumul_size == last_cumul_size)
 			continue;	/* not populated */
 
@@ -198,13 +206,11 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	pci_write_bits16(mci->pdev, I82860_ERRSTS, 0x0003, 0x0003);
 
 	if (edac_mc_add_mc(mci)) {
-		debugf3("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n",
-			__func__);
+		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
 		edac_mc_free(mci);
 	} else {
 		/* get this far and it's successful */
-		debugf3("MC: " __FILE__ ": %s(): success\n", __func__);
+		debugf3("%s(): success\n", __func__);
 		rc = 0;
 	}
 	return rc;
@@ -216,9 +222,9 @@ static int __devinit i82860_init_one(struct pci_dev *pdev,
 {
 	int rc;
 
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
-	printk(KERN_INFO "i82860 init one\n");
+	i82860_printk(KERN_INFO, "i82860 init one\n");
 	if(pci_enable_device(pdev) < 0)
 		return -EIO;
 	rc = i82860_probe1(pdev, ent->driver_data);
@@ -231,7 +237,7 @@ static void __devexit i82860_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	mci = edac_mc_find_mci_by_pdev(pdev);
 	if ((mci != NULL) && (edac_mc_del_mc(mci) == 0))
@@ -257,7 +263,7 @@ static int __init i82860_init(void)
 {
 	int pci_rc;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 	if ((pci_rc = pci_register_driver(&i82860_driver)) < 0)
 		return pci_rc;
 
@@ -281,7 +287,7 @@ static int __init i82860_init(void)
 
 static void __exit i82860_exit(void)
 {
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	pci_unregister_driver(&i82860_driver);
 	if (!i82860_registered) {

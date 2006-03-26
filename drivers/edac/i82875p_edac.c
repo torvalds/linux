@@ -26,6 +26,14 @@
 #include "edac_mc.h"
 
 
+#define i82875p_printk(level, fmt, arg...) \
+    edac_printk(level, "i82875p", fmt, ##arg)
+
+
+#define i82875p_mc_printk(mci, level, fmt, arg...) \
+    edac_mc_chipset_printk(mci, level, "i82875p", fmt, ##arg)
+
+
 #ifndef PCI_DEVICE_ID_INTEL_82875_0
 #define PCI_DEVICE_ID_INTEL_82875_0	0x2578
 #endif				/* PCI_DEVICE_ID_INTEL_82875_0 */
@@ -254,7 +262,7 @@ static void i82875p_check(struct mem_ctl_info *mci)
 {
 	struct i82875p_error_info info;
 
-	debugf1("MC%d: " __FILE__ ": %s()\n", mci->mc_idx, __func__);
+	debugf1("MC%d: %s()\n", mci->mc_idx, __func__);
 	i82875p_get_error_info(mci, &info);
 	i82875p_process_error_info(mci, &info, 1);
 }
@@ -279,7 +287,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	u32 nr_chans;
 	u32 drc_ddim;		/* DRAM Data Integrity Mode 0=none,2=edac */
 
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	ovrfl_pdev = pci_find_device(PCI_VEND_DEV(INTEL, 82875_6), NULL);
 
@@ -298,16 +306,16 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 #ifdef CONFIG_PROC_FS
 	if (!ovrfl_pdev->procent && pci_proc_attach_device(ovrfl_pdev)) {
-		printk(KERN_ERR "MC: " __FILE__
-		       ": %s(): Failed to attach overflow device\n",
-		       __func__);
+		i82875p_printk(KERN_ERR,
+			       "%s(): Failed to attach overflow device\n",
+			       __func__);
 		goto fail;
 	}
 #endif				/* CONFIG_PROC_FS */
 	if (pci_enable_device(ovrfl_pdev)) {
-		printk(KERN_ERR "MC: " __FILE__
-		       ": %s(): Failed to enable overflow device\n",
-		       __func__);
+		i82875p_printk(KERN_ERR,
+			       "%s(): Failed to enable overflow device\n",
+			       __func__);
 		goto fail;
 	}
 
@@ -321,8 +329,8 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 				       pci_resource_len(ovrfl_pdev, 0));
 
 	if (!ovrfl_window) {
-		printk(KERN_ERR "MC: " __FILE__
-		       ": %s(): Failed to ioremap bar6\n", __func__);
+		i82875p_printk(KERN_ERR, "%s(): Failed to ioremap bar6\n",
+			       __func__);
 		goto fail;
 	}
 
@@ -340,7 +348,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail;
 	}
 
-	debugf3("MC: " __FILE__ ": %s(): init mci\n", __func__);
+	debugf3("%s(): init mci\n", __func__);
 
 	mci->pdev = pdev;
 	mci->mtype_cap = MEM_FLAG_DDR;
@@ -355,7 +363,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_check = i82875p_check;
 	mci->ctl_page_to_phys = NULL;
 
-	debugf3("MC: " __FILE__ ": %s(): init pvt\n", __func__);
+	debugf3("%s(): init pvt\n", __func__);
 
 	pvt = (struct i82875p_pvt *) mci->pvt_info;
 	pvt->ovrfl_pdev = ovrfl_pdev;
@@ -374,8 +382,8 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 
 		value = readb(ovrfl_window + I82875P_DRB + index);
 		cumul_size = value << (I82875P_DRB_SHIFT - PAGE_SHIFT);
-		debugf3("MC: " __FILE__ ": %s(): (%d) cumul_size 0x%x\n",
-			__func__, index, cumul_size);
+		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
+			cumul_size);
 		if (cumul_size == last_cumul_size)
 			continue;	/* not populated */
 
@@ -393,13 +401,12 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	pci_write_bits16(mci->pdev, I82875P_ERRSTS, 0x0081, 0x0081);
 
 	if (edac_mc_add_mc(mci)) {
-		debugf3("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
 		goto fail;
 	}
 
 	/* get this far and it's successful */
-	debugf3("MC: " __FILE__ ": %s(): success\n", __func__);
+	debugf3("%s(): success\n", __func__);
 	return 0;
 
       fail:
@@ -425,9 +432,9 @@ static int __devinit i82875p_init_one(struct pci_dev *pdev,
 {
 	int rc;
 
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
-	printk(KERN_INFO "i82875p init one\n");
+	i82875p_printk(KERN_INFO, "i82875p init one\n");
 	if(pci_enable_device(pdev) < 0)
 		return -EIO;
 	rc = i82875p_probe1(pdev, ent->driver_data);
@@ -442,7 +449,7 @@ static void __devexit i82875p_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 	struct i82875p_pvt *pvt = NULL;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	if ((mci = edac_mc_find_mci_by_pdev(pdev)) == NULL)
 		return;
@@ -487,7 +494,7 @@ static int __init i82875p_init(void)
 {
 	int pci_rc;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 	pci_rc = pci_register_driver(&i82875p_driver);
 	if (pci_rc < 0)
 		return pci_rc;
@@ -513,7 +520,7 @@ static int __init i82875p_init(void)
 
 static void __exit i82875p_exit(void)
 {
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	pci_unregister_driver(&i82875p_driver);
 	if (!i82875p_registered) {

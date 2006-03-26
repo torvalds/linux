@@ -25,6 +25,14 @@
 #include "edac_mc.h"
 
 
+#define amd76x_printk(level, fmt, arg...) \
+    edac_printk(level, "amd76x", fmt, ##arg)
+
+
+#define amd76x_mc_printk(mci, level, fmt, arg...) \
+    edac_mc_chipset_printk(mci, level, "amd76x", fmt, ##arg)
+
+
 #define AMD76X_NR_CSROWS 8
 #define AMD76X_NR_CHANS  1
 #define AMD76X_NR_DIMMS  4
@@ -174,7 +182,7 @@ static int amd76x_process_error_info (struct mem_ctl_info *mci,
 static void amd76x_check(struct mem_ctl_info *mci)
 {
 	struct amd76x_error_info info;
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 	amd76x_get_error_info(mci, &info);
 	amd76x_process_error_info(mci, &info, 1);
 }
@@ -204,7 +212,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	u32 ems;
 	u32 ems_mode;
 
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	pci_read_config_dword(pdev, AMD76X_ECC_MODE_STATUS, &ems);
 	ems_mode = (ems >> 10) & 0x3;
@@ -216,7 +224,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail;
 	}
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
+	debugf0("%s(): mci = %p\n", __func__, mci);
 
 	mci->pdev = pci_dev_get(pdev);
 	mci->mtype_cap = MEM_FLAG_RDDR;
@@ -267,13 +275,12 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 			 (u32) (0x3 << 8));
 
 	if (edac_mc_add_mc(mci)) {
-		debugf3("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
 		goto fail;
 	}
 
 	/* get this far and it's successful */
-	debugf3("MC: " __FILE__ ": %s(): success\n", __func__);
+	debugf3("%s(): success\n", __func__);
 	return 0;
 
 fail:
@@ -289,7 +296,7 @@ fail:
 static int __devinit amd76x_init_one(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	/* don't need to call pci_device_enable() */
 	return amd76x_probe1(pdev, ent->driver_data);
@@ -309,7 +316,7 @@ static void __devexit amd76x_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	if ((mci = edac_mc_find_mci_by_pdev(pdev)) == NULL)
 		return;
