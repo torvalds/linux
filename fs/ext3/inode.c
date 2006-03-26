@@ -44,16 +44,16 @@ static int ext3_writepage_trans_blocks(struct inode *inode);
 /*
  * Test whether an inode is a fast symlink.
  */
-static inline int ext3_inode_is_fast_symlink(struct inode *inode)
+static int ext3_inode_is_fast_symlink(struct inode *inode)
 {
 	int ea_blocks = EXT3_I(inode)->i_file_acl ?
 		(inode->i_sb->s_blocksize >> 9) : 0;
 
-	return (S_ISLNK(inode->i_mode) &&
-		inode->i_blocks - ea_blocks == 0);
+	return (S_ISLNK(inode->i_mode) && inode->i_blocks - ea_blocks == 0);
 }
 
-/* The ext3 forget function must perform a revoke if we are freeing data
+/*
+ * The ext3 forget function must perform a revoke if we are freeing data
  * which has been journaled.  Metadata (eg. indirect blocks) must be
  * revoked in all cases. 
  *
@@ -61,10 +61,8 @@ static inline int ext3_inode_is_fast_symlink(struct inode *inode)
  * but there may still be a record of it in the journal, and that record
  * still needs to be revoked.
  */
-
-int ext3_forget(handle_t *handle, int is_metadata,
-		       struct inode *inode, struct buffer_head *bh,
-		       int blocknr)
+int ext3_forget(handle_t *handle, int is_metadata, struct inode *inode,
+			struct buffer_head *bh, int blocknr)
 {
 	int err;
 
@@ -104,10 +102,9 @@ int ext3_forget(handle_t *handle, int is_metadata,
 }
 
 /*
- * Work out how many blocks we need to progress with the next chunk of a
+ * Work out how many blocks we need to proceed with the next chunk of a
  * truncate transaction.
  */
-
 static unsigned long blocks_for_truncate(struct inode *inode) 
 {
 	unsigned long needed;
@@ -141,7 +138,6 @@ static unsigned long blocks_for_truncate(struct inode *inode)
  * extend fails, we need to propagate the failure up and restart the
  * transaction in the top-level truncate loop. --sct 
  */
-
 static handle_t *start_transaction(struct inode *inode) 
 {
 	handle_t *result;
@@ -194,9 +190,11 @@ void ext3_delete_inode (struct inode * inode)
 
 	handle = start_transaction(inode);
 	if (IS_ERR(handle)) {
-		/* If we're going to skip the normal cleanup, we still
-		 * need to make sure that the in-core orphan linked list
-		 * is properly cleaned up. */
+		/*
+		 * If we're going to skip the normal cleanup, we still need to
+		 * make sure that the in-core orphan linked list is properly
+		 * cleaned up.
+		 */
 		ext3_orphan_del(NULL, inode);
 		goto no_delete;
 	}
@@ -247,7 +245,7 @@ static inline void add_chain(Indirect *p, struct buffer_head *bh, __le32 *v)
 	p->bh = bh;
 }
 
-static inline int verify_chain(Indirect *from, Indirect *to)
+static int verify_chain(Indirect *from, Indirect *to)
 {
 	while (from <= to && from->key == *from->p)
 		from++;
@@ -317,7 +315,7 @@ static int ext3_block_to_path(struct inode *inode,
 		offsets[n++] = i_block & (ptrs - 1);
 		final = ptrs;
 	} else {
-		ext3_warning (inode->i_sb, "ext3_block_to_path", "block > big");
+		ext3_warning(inode->i_sb, "ext3_block_to_path", "block > big");
 	}
 	if (boundary)
 		*boundary = final - 1 - (i_block & (ptrs - 1));
@@ -409,7 +407,6 @@ no_block:
  *
  *	Caller must make sure that @ind is valid and will stay that way.
  */
-
 static unsigned long ext3_find_near(struct inode *inode, Indirect *ind)
 {
 	struct ext3_inode_info *ei = EXT3_I(inode);
@@ -419,17 +416,18 @@ static unsigned long ext3_find_near(struct inode *inode, Indirect *ind)
 	unsigned long colour;
 
 	/* Try to find previous block */
-	for (p = ind->p - 1; p >= start; p--)
+	for (p = ind->p - 1; p >= start; p--) {
 		if (*p)
 			return le32_to_cpu(*p);
+	}
 
 	/* No such thing, so let's try location of indirect block */
 	if (ind->bh)
 		return ind->bh->b_blocknr;
 
 	/*
-	 * It is going to be refered from inode itself? OK, just put it into
-	 * the same cylinder group then.
+	 * It is going to be referred to from the inode itself? OK, just put it
+	 * into the same cylinder group then.
 	 */
 	bg_start = (ei->i_block_group * EXT3_BLOCKS_PER_GROUP(inode->i_sb)) +
 		le32_to_cpu(EXT3_SB(inode->i_sb)->s_es->s_first_data_block);
@@ -453,7 +451,9 @@ static unsigned long ext3_find_near(struct inode *inode, Indirect *ind)
 static unsigned long ext3_find_goal(struct inode *inode, long block,
 		Indirect chain[4], Indirect *partial)
 {
-	struct ext3_block_alloc_info *block_i =  EXT3_I(inode)->i_block_alloc_info;
+	struct ext3_block_alloc_info *block_i;
+
+	block_i =  EXT3_I(inode)->i_block_alloc_info;
 
 	/*
 	 * try the heuristic for sequential allocation,
@@ -466,6 +466,7 @@ static unsigned long ext3_find_goal(struct inode *inode, long block,
 
 	return ext3_find_near(inode, partial);
 }
+
 /**
  *	ext3_blks_to_allocate: Look up the block map and count the number
  *	of direct blocks need to be allocated for the given branch.
@@ -478,8 +479,7 @@ static unsigned long ext3_find_goal(struct inode *inode, long block,
  *	return the total number of blocks to be allocate, including the
  *	direct and indirect blocks.
  */
-static int
-ext3_blks_to_allocate(Indirect * branch, int k, unsigned long blks,
+static int ext3_blks_to_allocate(Indirect *branch, int k, unsigned long blks,
 		int blocks_to_boundary)
 {
 	unsigned long count = 0;
@@ -489,7 +489,7 @@ ext3_blks_to_allocate(Indirect * branch, int k, unsigned long blks,
 	 * then it's clear blocks on that path have not allocated
 	 */
 	if (k > 0) {
-		/* right now don't hanel cross boundary allocation */
+		/* right now we don't handle cross boundary allocation */
 		if (blks < blocks_to_boundary + 1)
 			count += blks;
 		else
@@ -538,7 +538,7 @@ static int ext3_alloc_blocks(handle_t *handle, struct inode *inode,
 	while (1) {
 		count = target;
 		/* allocating blocks for indirect blocks and direct blocks */
-		current_block = ext3_new_blocks(handle, inode, goal, &count, err);
+		current_block = ext3_new_blocks(handle,inode,goal,&count,err);
 		if (*err)
 			goto failed_out;
 
@@ -591,7 +591,6 @@ failed_out:
  *	ext3_alloc_block() (normally -ENOSPC). Otherwise we set the chain
  *	as described above and return 0.
  */
-
 static int ext3_alloc_branch(handle_t *handle, struct inode *inode,
 			int indirect_blks, int *blks, unsigned long goal,
 			int *offsets, Indirect *branch)
@@ -670,27 +669,28 @@ failed:
 }
 
 /**
- *	ext3_splice_branch - splice the allocated branch onto inode.
- *	@inode: owner
- *	@block: (logical) number of block we are adding
- *	@chain: chain of indirect blocks (with a missing link - see
- *		ext3_alloc_branch)
- *	@where: location of missing link
- *	@num:   number of indirect blocks we are adding
- *	@blks:  number of direct blocks we are adding
+ * ext3_splice_branch - splice the allocated branch onto inode.
+ * @inode: owner
+ * @block: (logical) number of block we are adding
+ * @chain: chain of indirect blocks (with a missing link - see
+ *	ext3_alloc_branch)
+ * @where: location of missing link
+ * @num:   number of indirect blocks we are adding
+ * @blks:  number of direct blocks we are adding
  *
- *	This function fills the missing link and does all housekeeping needed in
- *	inode (->i_blocks, etc.). In case of success we end up with the full
- *	chain to new block and return 0.
+ * This function fills the missing link and does all housekeeping needed in
+ * inode (->i_blocks, etc.). In case of success we end up with the full
+ * chain to new block and return 0.
  */
-
-static int ext3_splice_branch(handle_t *handle, struct inode *inode, long block,
-			      Indirect *where, int num, int blks)
+static int ext3_splice_branch(handle_t *handle, struct inode *inode,
+			long block, Indirect *where, int num, int blks)
 {
 	int i;
 	int err = 0;
-	struct ext3_block_alloc_info *block_i = EXT3_I(inode)->i_block_alloc_info;
+	struct ext3_block_alloc_info *block_i;
 	unsigned long current_block;
+
+	block_i = EXT3_I(inode)->i_block_alloc_info;
 	/*
 	 * If we're splicing into a [td]indirect block (as opposed to the
 	 * inode) then we need to get write access to the [td]indirect block
@@ -705,8 +705,11 @@ static int ext3_splice_branch(handle_t *handle, struct inode *inode, long block,
 	/* That's it */
 
 	*where->p = where->key;
-	/* update host bufferhead or inode to point to
-	 * more just allocated direct blocks blocks */
+
+	/*
+	 * Update the host buffer_head or inode to point to more just allocated
+	 * direct blocks blocks
+	 */
 	if (num == 0 && blks > 1) {
 		current_block = le32_to_cpu(where->key + 1);
 		for (i = 1; i < blks; i++)
@@ -720,7 +723,8 @@ static int ext3_splice_branch(handle_t *handle, struct inode *inode, long block,
 	 */
 	if (block_i) {
 		block_i->last_alloc_logical_block = block + blks - 1;
-		block_i->last_alloc_physical_block = le32_to_cpu(where[num].key + blks - 1);
+		block_i->last_alloc_physical_block =
+				le32_to_cpu(where[num].key + blks - 1);
 	}
 
 	/* We are done with atomic stuff, now do the rest of housekeeping */
@@ -731,7 +735,7 @@ static int ext3_splice_branch(handle_t *handle, struct inode *inode, long block,
 	/* had we spliced it onto indirect block? */
 	if (where->bh) {
 		/*
-		 * akpm: If we spliced it onto an indirect block, we haven't
+		 * If we spliced it onto an indirect block, we haven't
 		 * altered the inode.  Note however that if it is being spliced
 		 * onto an indirect block at the very end of the file (the
 		 * file is growing) then we *will* alter the inode to reflect
@@ -756,7 +760,7 @@ err_out:
 	for (i = 1; i <= num; i++) {
 		BUFFER_TRACE(where[i].bh, "call journal_forget");
 		ext3_journal_forget(handle, where[i].bh);
-		ext3_free_blocks(handle, inode, le32_to_cpu(where[i-1].key), 1);
+		ext3_free_blocks(handle,inode,le32_to_cpu(where[i-1].key),1);
 	}
 	ext3_free_blocks(handle, inode, le32_to_cpu(where[num].key), blks);
 
@@ -775,17 +779,16 @@ err_out:
  * allocations is needed - we simply release blocks and do not touch anything
  * reachable from inode.
  *
- * akpm: `handle' can be NULL if create == 0.
+ * `handle' can be NULL if create == 0.
  *
  * The BKL may not be held on entry here.  Be sure to take it early.
  * return > 0, # of blocks mapped or allocated.
  * return = 0, if plain lookup failed.
  * return < 0, error case.
  */
-
-int
-ext3_get_blocks_handle(handle_t *handle, struct inode *inode, sector_t iblock,
-		unsigned long maxblocks, struct buffer_head *bh_result,
+int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,
+		sector_t iblock, unsigned long maxblocks,
+		struct buffer_head *bh_result,
 		int create, int extend_disksize)
 {
 	int err = -EIO;
@@ -802,7 +805,7 @@ ext3_get_blocks_handle(handle_t *handle, struct inode *inode, sector_t iblock,
 
 
 	J_ASSERT(handle != NULL || create == 0);
-	depth = ext3_block_to_path(inode, iblock, offsets, &blocks_to_boundary);
+	depth = ext3_block_to_path(inode,iblock,offsets,&blocks_to_boundary);
 
 	if (depth == 0)
 		goto out;
@@ -998,8 +1001,8 @@ static int ext3_get_block(struct inode *inode, sector_t iblock,
 /*
  * `handle' can be NULL if create is zero
  */
-struct buffer_head *ext3_getblk(handle_t *handle, struct inode * inode,
-				long block, int create, int * errp)
+struct buffer_head *ext3_getblk(handle_t *handle, struct inode *inode,
+				long block, int create, int *errp)
 {
 	struct buffer_head dummy;
 	int fatal = 0, err;
@@ -1029,17 +1032,18 @@ struct buffer_head *ext3_getblk(handle_t *handle, struct inode * inode,
 			J_ASSERT(create != 0);
 			J_ASSERT(handle != 0);
 
-			/* Now that we do not always journal data, we
-			   should keep in mind whether this should
-			   always journal the new buffer as metadata.
-			   For now, regular file writes use
-			   ext3_get_block instead, so it's not a
-			   problem. */
+			/*
+			 * Now that we do not always journal data, we should
+			 * keep in mind whether this should always journal the
+			 * new buffer as metadata.  For now, regular file
+			 * writes use ext3_get_block instead, so it's not a
+			 * problem.
+			 */
 			lock_buffer(bh);
 			BUFFER_TRACE(bh, "call get_create_access");
 			fatal = ext3_journal_get_create_access(handle, bh);
 			if (!fatal && !buffer_uptodate(bh)) {
-				memset(bh->b_data, 0, inode->i_sb->s_blocksize);
+				memset(bh->b_data,0,inode->i_sb->s_blocksize);
 				set_buffer_uptodate(bh);
 			}
 			unlock_buffer(bh);
@@ -1061,7 +1065,7 @@ err:
 	return NULL;
 }
 
-struct buffer_head *ext3_bread(handle_t *handle, struct inode * inode,
+struct buffer_head *ext3_bread(handle_t *handle, struct inode *inode,
 			       int block, int create, int *err)
 {
 	struct buffer_head * bh;
@@ -1137,9 +1141,8 @@ static int walk_page_buffers(	handle_t *handle,
  * is elevated.  We'll still have enough credits for the tiny quotafile
  * write.  
  */
-
-static int do_journal_get_write_access(handle_t *handle, 
-				       struct buffer_head *bh)
+static int do_journal_get_write_access(handle_t *handle,
+					struct buffer_head *bh)
 {
 	if (!buffer_mapped(bh) || buffer_freed(bh))
 		return 0;
@@ -1180,8 +1183,7 @@ out:
 	return ret;
 }
 
-int
-ext3_journal_dirty_data(handle_t *handle, struct buffer_head *bh)
+int ext3_journal_dirty_data(handle_t *handle, struct buffer_head *bh)
 {
 	int err = journal_dirty_data(handle, bh);
 	if (err)
@@ -1206,7 +1208,6 @@ static int commit_write_fn(handle_t *handle, struct buffer_head *bh)
  * ext3 never places buffers on inode->i_mapping->private_list.  metadata
  * buffers are managed internally.
  */
-
 static int ext3_ordered_commit_write(struct file *file, struct page *page,
 			     unsigned from, unsigned to)
 {
@@ -1416,7 +1417,7 @@ static int journal_dirty_data_fn(handle_t *handle, struct buffer_head *bh)
  * we don't need to open a transaction here.
  */
 static int ext3_ordered_writepage(struct page *page,
-			struct writeback_control *wbc)
+				struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
 	struct buffer_head *page_bufs;
@@ -1907,11 +1908,8 @@ static inline int all_zeroes(__le32 *p, __le32 *q)
  *		c) free the subtrees growing from the inode past the @chain[0].
  *			(no partially truncated stuff there).  */
 
-static Indirect *ext3_find_shared(struct inode *inode,
-				int depth,
-				int offsets[4],
-				Indirect chain[4],
-				__le32 *top)
+static Indirect *ext3_find_shared(struct inode *inode, int depth,
+			int offsets[4], Indirect chain[4], __le32 *top)
 {
 	Indirect *partial, *p;
 	int k, err;
@@ -1950,8 +1948,7 @@ static Indirect *ext3_find_shared(struct inode *inode,
 	}
 	/* Writer: end */
 
-	while(partial > p)
-	{
+	while(partial > p) {
 		brelse(partial->bh);
 		partial--;
 	}
@@ -1967,10 +1964,9 @@ no_top:
  * We release `count' blocks on disk, but (last - first) may be greater
  * than `count' because there can be holes in there.
  */
-static void
-ext3_clear_blocks(handle_t *handle, struct inode *inode, struct buffer_head *bh,
-		unsigned long block_to_free, unsigned long count,
-		__le32 *first, __le32 *last)
+static void ext3_clear_blocks(handle_t *handle, struct inode *inode,
+		struct buffer_head *bh, unsigned long block_to_free,
+		unsigned long count, __le32 *first, __le32 *last)
 {
 	__le32 *p;
 	if (try_to_extend_transaction(handle, inode)) {
@@ -2231,8 +2227,7 @@ static void ext3_free_branches(handle_t *handle, struct inode *inode,
  * that's fine - as long as they are linked from the inode, the post-crash
  * ext3_truncate() run will find them and release them.
  */
-
-void ext3_truncate(struct inode * inode)
+void ext3_truncate(struct inode *inode)
 {
 	handle_t *handle;
 	struct ext3_inode_info *ei = EXT3_I(inode);
@@ -2356,29 +2351,26 @@ void ext3_truncate(struct inode * inode)
 do_indirects:
 	/* Kill the remaining (whole) subtrees */
 	switch (offsets[0]) {
-		default:
-			nr = i_data[EXT3_IND_BLOCK];
-			if (nr) {
-				ext3_free_branches(handle, inode, NULL,
-						   &nr, &nr+1, 1);
-				i_data[EXT3_IND_BLOCK] = 0;
-			}
-		case EXT3_IND_BLOCK:
-			nr = i_data[EXT3_DIND_BLOCK];
-			if (nr) {
-				ext3_free_branches(handle, inode, NULL,
-						   &nr, &nr+1, 2);
-				i_data[EXT3_DIND_BLOCK] = 0;
-			}
-		case EXT3_DIND_BLOCK:
-			nr = i_data[EXT3_TIND_BLOCK];
-			if (nr) {
-				ext3_free_branches(handle, inode, NULL,
-						   &nr, &nr+1, 3);
-				i_data[EXT3_TIND_BLOCK] = 0;
-			}
-		case EXT3_TIND_BLOCK:
-			;
+	default:
+		nr = i_data[EXT3_IND_BLOCK];
+		if (nr) {
+			ext3_free_branches(handle, inode, NULL, &nr, &nr+1, 1);
+			i_data[EXT3_IND_BLOCK] = 0;
+		}
+	case EXT3_IND_BLOCK:
+		nr = i_data[EXT3_DIND_BLOCK];
+		if (nr) {
+			ext3_free_branches(handle, inode, NULL, &nr, &nr+1, 2);
+			i_data[EXT3_DIND_BLOCK] = 0;
+		}
+	case EXT3_DIND_BLOCK:
+		nr = i_data[EXT3_TIND_BLOCK];
+		if (nr) {
+			ext3_free_branches(handle, inode, NULL, &nr, &nr+1, 3);
+			i_data[EXT3_TIND_BLOCK] = 0;
+		}
+	case EXT3_TIND_BLOCK:
+		;
 	}
 
 	ext3_discard_reservation(inode);
@@ -2387,8 +2379,10 @@ do_indirects:
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
 	ext3_mark_inode_dirty(handle, inode);
 
-	/* In a multi-transaction truncate, we only make the final
-	 * transaction synchronous */
+	/*
+	 * In a multi-transaction truncate, we only make the final transaction
+	 * synchronous
+	 */
 	if (IS_SYNC(inode))
 		handle->h_sync = 1;
 out_stop:
@@ -2414,20 +2408,16 @@ static unsigned long ext3_get_inode_block(struct super_block *sb,
 	struct ext3_group_desc * gdp;
 
 
-	if ((ino != EXT3_ROOT_INO &&
-		ino != EXT3_JOURNAL_INO &&
-		ino != EXT3_RESIZE_INO &&
-		ino < EXT3_FIRST_INO(sb)) ||
-		ino > le32_to_cpu(
-			EXT3_SB(sb)->s_es->s_inodes_count)) {
-		ext3_error (sb, "ext3_get_inode_block",
+	if ((ino != EXT3_ROOT_INO && ino != EXT3_JOURNAL_INO &&
+		ino != EXT3_RESIZE_INO && ino < EXT3_FIRST_INO(sb)) ||
+		ino > le32_to_cpu(EXT3_SB(sb)->s_es->s_inodes_count)) {
+		ext3_error(sb, "ext3_get_inode_block",
 			    "bad inode number: %lu", ino);
 		return 0;
 	}
 	block_group = (ino - 1) / EXT3_INODES_PER_GROUP(sb);
 	if (block_group >= EXT3_SB(sb)->s_groups_count) {
-		ext3_error (sb, "ext3_get_inode_block",
-			    "group >= groups count");
+		ext3_error(sb,"ext3_get_inode_block","group >= groups count");
 		return 0;
 	}
 	smp_rmb();
@@ -2440,7 +2430,7 @@ static unsigned long ext3_get_inode_block(struct super_block *sb,
 		return 0;
 	}
 
-	gdp = (struct ext3_group_desc *) bh->b_data;
+	gdp = (struct ext3_group_desc *)bh->b_data;
 	/*
 	 * Figure out the offset within the block group inode table
 	 */
@@ -2989,7 +2979,7 @@ err_out:
 
 
 /*
- * akpm: how many blocks doth make a writepage()?
+ * How many blocks doth make a writepage()?
  *
  * With N blocks per page, it may be:
  * N data blocks
@@ -3079,8 +3069,8 @@ ext3_reserve_inode_write(handle_t *handle, struct inode *inode,
 }
 
 /*
- * akpm: What we do here is to mark the in-core inode as clean
- * with respect to inode dirtiness (it may still be data-dirty).
+ * What we do here is to mark the in-core inode as clean with respect to inode
+ * dirtiness (it may still be data-dirty).
  * This means that the in-core inode may be reaped by prune_icache
  * without having to perform any I/O.  This is a very good thing,
  * because *any* task may call prune_icache - even ones which
@@ -3112,7 +3102,7 @@ int ext3_mark_inode_dirty(handle_t *handle, struct inode *inode)
 }
 
 /*
- * akpm: ext3_dirty_inode() is called from __mark_inode_dirty()
+ * ext3_dirty_inode() is called from __mark_inode_dirty()
  *
  * We're really interested in the case where a file is being extended.
  * i_size has been changed by generic_commit_write() and we thus need
@@ -3148,7 +3138,7 @@ out:
 	return;
 }
 
-#ifdef AKPM
+#if 0
 /* 
  * Bind an inode's backing buffer_head into this transaction, to prevent
  * it from being flushed to disk early.  Unlike
@@ -3156,8 +3146,7 @@ out:
  * returns no iloc structure, so the caller needs to repeat the iloc
  * lookup to mark the inode dirty later.
  */
-static inline int
-ext3_pin_inode(handle_t *handle, struct inode *inode)
+static int ext3_pin_inode(handle_t *handle, struct inode *inode)
 {
 	struct ext3_iloc iloc;
 
