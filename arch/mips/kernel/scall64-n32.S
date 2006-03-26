@@ -273,7 +273,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_pivot_root
 	PTR	sys32_sysctl
 	PTR	sys_prctl
-	PTR	sys32_adjtimex
+	PTR	compat_sys_adjtimex
 	PTR	compat_sys_setrlimit		/* 6155 */
 	PTR	sys_chroot
 	PTR	sys_sync

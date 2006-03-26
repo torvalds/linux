@@ -207,5 +207,7 @@ static inline int compat_timespec_compare(struct compat_timespec *lhs,
 	return lhs->tv_nsec - rhs->tv_nsec;
 }
 
+asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
+
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */

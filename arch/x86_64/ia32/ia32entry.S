@@ -501,7 +501,7 @@ ia32_sys_call_table:
 	.quad sys_setdomainname
 	.quad sys_uname
 	.quad sys_modify_ldt
-	.quad sys32_adjtimex
+	.quad compat_sys_adjtimex
 	.quad sys32_mprotect		/* 125 */
 	.quad compat_sys_sigprocmask
 	.quad quiet_ni_syscall		/* create_module */

@@ -30,7 +30,6 @@
 #include <linux/resource.h>
 #include <linux/times.h>
 #include <linux/utsname.h>
-#include <linux/timex.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/sem.h>
@@ -764,69 +763,6 @@ sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset, s32 count)
 	if (offset && put_user(of, offset))
 		return -EFAULT;
 		
-	return ret;
-}
-
-/* Handle adjtimex compatibility. */
-
-extern int do_adjtimex(struct timex *);
-
-asmlinkage long
-sys32_adjtimex(struct compat_timex __user *utp)
-{
-	struct timex txc;
-	int ret;
-
-	memset(&txc, 0, sizeof(struct timex));
-
-	if (!access_ok(VERIFY_READ, utp, sizeof(struct compat_timex)) ||
-	   __get_user(txc.modes, &utp->modes) ||
-	   __get_user(txc.offset, &utp->offset) ||
-	   __get_user(txc.freq, &utp->freq) ||
-	   __get_user(txc.maxerror, &utp->maxerror) ||
-	   __get_user(txc.esterror, &utp->esterror) ||
-	   __get_user(txc.status, &utp->status) ||
-	   __get_user(txc.constant, &utp->constant) ||
-	   __get_user(txc.precision, &utp->precision) ||
-	   __get_user(txc.tolerance, &utp->tolerance) ||
-	   __get_user(txc.time.tv_sec, &utp->time.tv_sec) ||
-	   __get_user(txc.time.tv_usec, &utp->time.tv_usec) ||
-	   __get_user(txc.tick, &utp->tick) ||
-	   __get_user(txc.ppsfreq, &utp->ppsfreq) ||
-	   __get_user(txc.jitter, &utp->jitter) ||
-	   __get_user(txc.shift, &utp->shift) ||
-	   __get_user(txc.stabil, &utp->stabil) ||
-	   __get_user(txc.jitcnt, &utp->jitcnt) ||
-	   __get_user(txc.calcnt, &utp->calcnt) ||
-	   __get_user(txc.errcnt, &utp->errcnt) ||
-	   __get_user(txc.stbcnt, &utp->stbcnt))
-		return -EFAULT;
-
-	ret = do_adjtimex(&txc);
-
-	if (!access_ok(VERIFY_WRITE, utp, sizeof(struct compat_timex)) ||
-	   __put_user(txc.modes, &utp->modes) ||
-	   __put_user(txc.offset, &utp->offset) ||
-	   __put_user(txc.freq, &utp->freq) ||
-	   __put_user(txc.maxerror, &utp->maxerror) ||
-	   __put_user(txc.esterror, &utp->esterror) ||
-	   __put_user(txc.status, &utp->status) ||
-	   __put_user(txc.constant, &utp->constant) ||
-	   __put_user(txc.precision, &utp->precision) ||
-	   __put_user(txc.tolerance, &utp->tolerance) ||
-	   __put_user(txc.time.tv_sec, &utp->time.tv_sec) ||
-	   __put_user(txc.time.tv_usec, &utp->time.tv_usec) ||
-	   __put_user(txc.tick, &utp->tick) ||
-	   __put_user(txc.ppsfreq, &utp->ppsfreq) ||
-	   __put_user(txc.jitter, &utp->jitter) ||
-	   __put_user(txc.shift, &utp->shift) ||
-	   __put_user(txc.stabil, &utp->stabil) ||
-	   __put_user(txc.jitcnt, &utp->jitcnt) ||
-	   __put_user(txc.calcnt, &utp->calcnt) ||
-	   __put_user(txc.errcnt, &utp->errcnt) ||
-	   __put_user(txc.stbcnt, &utp->stbcnt))
-		ret = -EFAULT;
-
 	return ret;
 }
 

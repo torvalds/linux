@@ -21,7 +21,6 @@
 #include <linux/times.h>
 #include <linux/utsname.h>
 #include <linux/time.h>
-#include <linux/timex.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/sem.h>
@@ -564,34 +563,6 @@ asmlinkage int sys32_sendfile64(int out_fd, int in_fd, compat_loff_t __user *off
 		return -EFAULT;
 		
 	return ret;
-}
-
-
-asmlinkage long sys32_adjtimex(struct compat_timex __user *txc_p32)
-{
-	struct timex txc;
-	struct compat_timex t32;
-	int ret;
-	extern int do_adjtimex(struct timex *txc);
-
-	if(copy_from_user(&t32, txc_p32, sizeof(struct compat_timex)))
-		return -EFAULT;
-#undef CP
-#define CP(x) txc.x = t32.x
-	CP(modes); CP(offset); CP(freq); CP(maxerror); CP(esterror);
-	CP(status); CP(constant); CP(precision); CP(tolerance);
-	CP(time.tv_sec); CP(time.tv_usec); CP(tick); CP(ppsfreq); CP(jitter);
-	CP(shift); CP(stabil); CP(jitcnt); CP(calcnt); CP(errcnt);
-	CP(stbcnt);
-	ret = do_adjtimex(&txc);
-#undef CP
-#define CP(x) t32.x = txc.x
-	CP(modes); CP(offset); CP(freq); CP(maxerror); CP(esterror);
-	CP(status); CP(constant); CP(precision); CP(tolerance);
-	CP(time.tv_sec); CP(time.tv_usec); CP(tick); CP(ppsfreq); CP(jitter);
-	CP(shift); CP(stabil); CP(jitcnt); CP(calcnt); CP(errcnt);
-	CP(stbcnt);
-	return copy_to_user(txc_p32, &t32, sizeof(struct compat_timex)) ? -EFAULT : ret;
 }
 
 

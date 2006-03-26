@@ -307,6 +307,8 @@ time_interpolator_reset(void)
 /* Returns how long ticks are at present, in ns / 2^(SHIFT_SCALE-10). */
 extern u64 current_tick_length(void);
 
+extern int do_adjtimex(struct timex *);
+
 #endif /* KERNEL */
 
 #endif /* LINUX_TIMEX_H */
