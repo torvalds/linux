@@ -50,11 +50,12 @@ struct si_sm_io
 
 	/* Generic info used by the actual handling routines, the
            state machine shouldn't touch these. */
-	void *info;
 	void __iomem *addr;
 	int  regspacing;
 	int  regsize;
 	int  regshift;
+	int addr_type;
+	long addr_data;
 };
 
 /* Results of SMI events. */
