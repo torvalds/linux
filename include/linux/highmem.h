@@ -13,6 +13,12 @@ static inline void flush_anon_page(struct page *page, unsigned long vmaddr)
 }
 #endif
 
+#ifndef ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
+static inline void flush_kernel_dcache_page(struct page *page)
+{
+}
+#endif
+
 #ifdef CONFIG_HIGHMEM
 
 #include <asm/highmem.h>
