@@ -620,22 +620,6 @@ config SERIAL_SH_SCI_CONSOLE
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
 
-config SERIAL_AU1X00
-	bool "Enable Au1x00 UART Support"
-	depends on MIPS && SOC_AU1X00
-	select SERIAL_CORE
-	help
-	  If you have an Alchemy AU1X00 processor (MIPS based) and you want
-	  to use serial ports, say Y.  Otherwise, say N.
-
-config SERIAL_AU1X00_CONSOLE
-	bool "Enable Au1x00 serial console"
-	depends on SERIAL_AU1X00
-	select SERIAL_CORE_CONSOLE
-	help
-	  If you have an Alchemy AU1X00 processor (MIPS based) and you want
-	  to use a console on a serial port, say Y.  Otherwise, say N.
-
 config SERIAL_CORE
 	tristate
 
