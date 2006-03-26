@@ -34,13 +34,7 @@ enum hrtimer_restart {
 	HRTIMER_RESTART,
 };
 
-/*
- * Timer states:
- */
-enum hrtimer_state {
-	HRTIMER_INACTIVE,		/* Timer is inactive */
-	HRTIMER_PENDING,		/* Timer is pending */
-};
+#define HRTIMER_INACTIVE	((void *)1UL)
 
 struct hrtimer_base;
 
@@ -61,7 +55,6 @@ struct hrtimer_base;
 struct hrtimer {
 	struct rb_node		node;
 	ktime_t			expires;
-	enum hrtimer_state	state;
 	int			(*function)(void *);
 	void			*data;
 	struct hrtimer_base	*base;
@@ -124,7 +117,7 @@ extern ktime_t hrtimer_get_next_event(void);
 
 static inline int hrtimer_active(const struct hrtimer *timer)
 {
-	return timer->state == HRTIMER_PENDING;
+	return timer->node.rb_parent != HRTIMER_INACTIVE;
 }
 
 /* Forward a hrtimer so it expires after now: */

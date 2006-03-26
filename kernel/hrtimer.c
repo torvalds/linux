@@ -374,8 +374,6 @@ static void enqueue_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 	rb_link_node(&timer->node, parent, link);
 	rb_insert_color(&timer->node, &base->active);
 
-	timer->state = HRTIMER_PENDING;
-
 	if (!base->first || timer->expires.tv64 <
 	    rb_entry(base->first, struct hrtimer, node)->expires.tv64)
 		base->first = &timer->node;
@@ -395,6 +393,7 @@ static void __remove_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 	if (base->first == &timer->node)
 		base->first = rb_next(&timer->node);
 	rb_erase(&timer->node, &base->active);
+	timer->node.rb_parent = HRTIMER_INACTIVE;
 }
 
 /*
@@ -405,7 +404,6 @@ remove_hrtimer(struct hrtimer *timer, struct hrtimer_base *base)
 {
 	if (hrtimer_active(timer)) {
 		__remove_hrtimer(timer, base);
-		timer->state = HRTIMER_INACTIVE;
 		return 1;
 	}
 	return 0;
@@ -579,6 +577,7 @@ void hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 		clock_id = CLOCK_MONOTONIC;
 
 	timer->base = &bases[clock_id];
+	timer->node.rb_parent = HRTIMER_INACTIVE;
 }
 
 /**
@@ -625,7 +624,6 @@ static inline void run_hrtimer_queue(struct hrtimer_base *base)
 		fn = timer->function;
 		data = timer->data;
 		set_curr_timer(base, timer);
-		timer->state = HRTIMER_INACTIVE;
 		__remove_hrtimer(timer, base);
 		spin_unlock_irq(&base->lock);
 
@@ -633,12 +631,10 @@ static inline void run_hrtimer_queue(struct hrtimer_base *base)
 
 		spin_lock_irq(&base->lock);
 
-		/* Another CPU has added back the timer */
-		if (timer->state != HRTIMER_INACTIVE)
-			continue;
-
-		if (restart != HRTIMER_NORESTART)
+		if (restart != HRTIMER_NORESTART) {
+			BUG_ON(hrtimer_active(timer));
 			enqueue_hrtimer(timer, base);
+		}
 	}
 	set_curr_timer(base, NULL);
 	spin_unlock_irq(&base->lock);
