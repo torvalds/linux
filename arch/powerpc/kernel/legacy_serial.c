@@ -236,6 +236,23 @@ static int __init add_legacy_pci_port(struct device_node *np,
 }
 #endif
 
+static void __init setup_legacy_serial_console(int console)
+{
+	struct legacy_serial_info *info =
+		&legacy_serial_infos[console];
+	void __iomem *addr;
+
+	if (info->taddr == 0)
+		return;
+	addr = ioremap(info->taddr, 0x1000);
+	if (addr == NULL)
+		return;
+	if (info->speed == 0)
+		info->speed = udbg_probe_uart_speed(addr, info->clock);
+	DBG("default console speed = %d\n", info->speed);
+	udbg_init_uart(addr, info->speed, info->clock);
+}
+
 /*
  * This is called very early, as part of setup_system() or eventually
  * setup_arch(), basically before anything else in this file. This function
@@ -318,25 +335,8 @@ void __init find_legacy_serial_ports(void)
 #endif
 
 	DBG("legacy_serial_console = %d\n", legacy_serial_console);
-
-	/* udbg is 64 bits only for now, that will change soon though ... */
-	while (legacy_serial_console >= 0) {
-		struct legacy_serial_info *info =
-			&legacy_serial_infos[legacy_serial_console];
-		void __iomem *addr;
-
-		if (info->taddr == 0)
-			break;
-		addr = ioremap(info->taddr, 0x1000);
-		if (addr == NULL)
-			break;
-		if (info->speed == 0)
-			info->speed = udbg_probe_uart_speed(addr, info->clock);
-		DBG("default console speed = %d\n", info->speed);
-		udbg_init_uart(addr, info->speed, info->clock);
-		break;
-	}
-
+	if (legacy_serial_console >= 0)
+		setup_legacy_serial_console(legacy_serial_console);
 	DBG(" <- find_legacy_serial_port()\n");
 }
 
