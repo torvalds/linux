@@ -261,7 +261,7 @@ static inline unsigned long ffz_b(unsigned long x)
 
 static inline unsigned long ffz(unsigned long word)
 {
-#if defined(__alpha_cix__) && defined(__alpha_fix__)
+#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 	/* Whee.  EV67 can calculate it directly.  */
 	return __kernel_cttz(~word);
 #else
@@ -281,7 +281,7 @@ static inline unsigned long ffz(unsigned long word)
  */
 static inline unsigned long __ffs(unsigned long word)
 {
-#if defined(__alpha_cix__) && defined(__alpha_fix__)
+#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 	/* Whee.  EV67 can calculate it directly.  */
 	return __kernel_cttz(word);
 #else
@@ -313,7 +313,7 @@ static inline int ffs(int word)
 /*
  * fls: find last bit set.
  */
-#if defined(__alpha_cix__) && defined(__alpha_fix__)
+#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 static inline int fls(int word)
 {
 	return 64 - __kernel_ctlz(word & 0xffffffff);
@@ -326,7 +326,7 @@ static inline int fls(int word)
 /* Compute powers of two for the given integer.  */
 static inline long floor_log2(unsigned long word)
 {
-#if defined(__alpha_cix__) && defined(__alpha_fix__)
+#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 	return 63 - __kernel_ctlz(word);
 #else
 	long bit;
@@ -347,7 +347,7 @@ static inline long ceil_log2(unsigned long word)
  * of bits set) of a N-bit word
  */
 
-#if defined(__alpha_cix__) && defined(__alpha_fix__)
+#if defined(CONFIG_ALPHA_EV6) && defined(CONFIG_ALPHA_EV67)
 /* Whee.  EV67 can calculate it directly.  */
 static inline unsigned long hweight64(unsigned long w)
 {
