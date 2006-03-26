@@ -582,7 +582,8 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	}
 
 	mlog(0, "inode->i_size = %lld\n", inode->i_size);
-	mlog(0, "inode->i_blocks = %lu\n", inode->i_blocks);
+	mlog(0, "inode->i_blocks = %llu\n",
+			(unsigned long long)inode->i_blocks);
 	mlog(0, "inode->ip_clusters = %u\n", OCFS2_I(inode)->ip_clusters);
 
 	/* call the kernels journal init function now */
@@ -850,8 +851,9 @@ static int ocfs2_force_read_journal(struct inode *inode)
 
 	memset(bhs, 0, sizeof(struct buffer_head *) * CONCURRENT_JOURNAL_FILL);
 
-	mlog(0, "Force reading %lu blocks\n",
-	     (inode->i_blocks >> (inode->i_sb->s_blocksize_bits - 9)));
+	mlog(0, "Force reading %llu blocks\n",
+		(unsigned long long)(inode->i_blocks >>
+			(inode->i_sb->s_blocksize_bits - 9)));
 
 	v_blkno = 0;
 	while (v_blkno <

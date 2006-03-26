@@ -163,9 +163,9 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 		if (num_of_bytes < end_of_file)
 			cFYI(1, ("allocation size less than end of file"));
-		cFYI(1,
-		     ("Size %ld and blocks %ld",
-		      (unsigned long) inode->i_size, inode->i_blocks));
+		cFYI(1, ("Size %ld and blocks %llu",
+			(unsigned long) inode->i_size,
+			(unsigned long long)inode->i_blocks));
 		if (S_ISREG(inode->i_mode)) {
 			cFYI(1, ("File inode"));
 			inode->i_op = &cifs_file_inode_ops;

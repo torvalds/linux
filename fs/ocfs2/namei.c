@@ -1444,8 +1444,9 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 	 * write i_size + 1 bytes. */
 	blocks = (bytes_left + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
 
-	mlog_entry("i_blocks = %lu, i_size = %llu, blocks = %d\n",
-		       inode->i_blocks, i_size_read(inode), blocks);
+	mlog_entry("i_blocks = %llu, i_size = %llu, blocks = %d\n",
+			(unsigned long long)inode->i_blocks,
+			i_size_read(inode), blocks);
 
 	/* Sanity check -- make sure we're going to fit. */
 	if (bytes_left >
