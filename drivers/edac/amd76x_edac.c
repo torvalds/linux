@@ -226,7 +226,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 
 	debugf0("%s(): mci = %p\n", __func__, mci);
 
-	mci->pdev = pci_dev_get(pdev);
+	mci->pdev = pdev;
 	mci->mtype_cap = MEM_FLAG_RDDR;
 
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
@@ -284,11 +284,8 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	return 0;
 
 fail:
-	if (mci) {
-		if(mci->pdev)
-			pci_dev_put(mci->pdev);
+	if (mci != NULL)
 		edac_mc_free(mci);
-	}
 	return rc;
 }
 
@@ -322,7 +319,6 @@ static void __devexit amd76x_remove_one(struct pci_dev *pdev)
 		return;
 	if (edac_mc_del_mc(mci))
 		return;
-	pci_dev_put(mci->pdev);
 	edac_mc_free(mci);
 }
 
