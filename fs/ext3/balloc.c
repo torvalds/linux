@@ -1011,6 +1011,31 @@ retry:
 	goto retry;
 }
 
+static void try_to_extend_reservation(struct ext3_reserve_window_node *my_rsv,
+			struct super_block *sb, int size)
+{
+	struct ext3_reserve_window_node *next_rsv;
+	struct rb_node *next;
+	spinlock_t *rsv_lock = &EXT3_SB(sb)->s_rsv_window_lock;
+
+	if (!spin_trylock(rsv_lock))
+		return;
+
+	next = rb_next(&my_rsv->rsv_node);
+
+	if (!next)
+		my_rsv->rsv_end += size;
+	else {
+		next_rsv = list_entry(next, struct ext3_reserve_window_node, rsv_node);
+
+		if ((next_rsv->rsv_start - my_rsv->rsv_end - 1) >= size)
+			my_rsv->rsv_end += size;
+		else
+			my_rsv->rsv_end = next_rsv->rsv_start - 1;
+	}
+	spin_unlock(rsv_lock);
+}
+
 /*
  * This is the main function used to allocate a new block and its reservation
  * window.
@@ -1095,6 +1120,8 @@ ext3_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 	while (1) {
 		if (rsv_is_empty(&my_rsv->rsv_window) || (ret < 0) ||
 			!goal_in_my_reservation(&my_rsv->rsv_window, goal, group, sb)) {
+			if (my_rsv->rsv_goal_size < *count)
+				my_rsv->rsv_goal_size = *count;
 			ret = alloc_new_reservation(my_rsv, goal, sb,
 							group, bitmap_bh);
 			if (ret < 0)
@@ -1102,7 +1129,10 @@ ext3_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 
 			if (!goal_in_my_reservation(&my_rsv->rsv_window, goal, group, sb))
 				goal = -1;
-		}
+		} else if (goal > 0 && (my_rsv->rsv_end-goal+1) < *count)
+			try_to_extend_reservation(my_rsv, sb,
+					*count-my_rsv->rsv_end + goal - 1);
+
 		if ((my_rsv->rsv_start >= group_first_block + EXT3_BLOCKS_PER_GROUP(sb))
 		    || (my_rsv->rsv_end < group_first_block))
 			BUG();
