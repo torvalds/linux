@@ -675,7 +675,7 @@ fail_page:
 	return NULL;
 }
 
-static struct vfsmount *pipe_mnt;
+static struct vfsmount *pipe_mnt __read_mostly;
 static int pipefs_delete_dentry(struct dentry *dentry)
 {
 	return 1;

@@ -30,7 +30,7 @@
 
 #define BIO_POOL_SIZE 256
 
-static kmem_cache_t *bio_slab;
+static kmem_cache_t *bio_slab __read_mostly;
 
 #define BIOVEC_NR_POOLS 6
 
@@ -39,7 +39,7 @@ static kmem_cache_t *bio_slab;
  * basically we just need to survive
  */
 #define BIO_SPLIT_ENTRIES 8	
-mempool_t *bio_split_pool;
+mempool_t *bio_split_pool __read_mostly;
 
 struct biovec_slab {
 	int nr_vecs;

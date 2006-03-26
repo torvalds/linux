@@ -39,15 +39,15 @@
 
 static atomic_t inotify_cookie;
 
-static kmem_cache_t *watch_cachep;
-static kmem_cache_t *event_cachep;
+static kmem_cache_t *watch_cachep __read_mostly;
+static kmem_cache_t *event_cachep __read_mostly;
 
-static struct vfsmount *inotify_mnt;
+static struct vfsmount *inotify_mnt __read_mostly;
 
 /* these are configurable via /proc/sys/fs/inotify/ */
-int inotify_max_user_instances;
-int inotify_max_user_watches;
-int inotify_max_queued_events;
+int inotify_max_user_instances __read_mostly;
+int inotify_max_user_watches __read_mostly;
+int inotify_max_queued_events __read_mostly;
 
 /*
  * Lock ordering:

@@ -234,7 +234,7 @@ static int block_fsync(struct file *filp, struct dentry *dentry, int datasync)
  */
 
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(bdev_lock);
-static kmem_cache_t * bdev_cachep;
+static kmem_cache_t * bdev_cachep __read_mostly;
 
 static struct inode *bdev_alloc_inode(struct super_block *sb)
 {
@@ -308,7 +308,7 @@ static struct file_system_type bd_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-static struct vfsmount *bd_mnt;
+static struct vfsmount *bd_mnt __read_mostly;
 struct super_block *blockdev_superblock;
 
 void __init bdev_cache_init(void)
