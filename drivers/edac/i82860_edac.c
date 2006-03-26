@@ -162,7 +162,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_cap = EDAC_FLAG_SECDED;
 	/* adjust FLAGS */
 
-	mci->mod_name = BS_MOD_STR;
+	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = "$Revision: 1.1.2.6 $";
 	mci->ctl_name = i82860_devs[dev_idx].ctl_name;
 	mci->edac_check = i82860_check;
@@ -253,7 +253,7 @@ static const struct pci_device_id i82860_pci_tbl[] __devinitdata = {
 MODULE_DEVICE_TABLE(pci, i82860_pci_tbl);
 
 static struct pci_driver i82860_driver = {
-	.name = BS_MOD_STR,
+	.name = EDAC_MOD_STR,
 	.probe = i82860_init_one,
 	.remove = __devexit_p(i82860_remove_one),
 	.id_table = i82860_pci_tbl,

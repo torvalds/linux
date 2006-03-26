@@ -265,7 +265,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	} else
 		mci->edac_cap = EDAC_FLAG_NONE;
 
-	mci->mod_name = BS_MOD_STR;
+	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = "$Revision: 1.1.2.6 $";
 	mci->ctl_name = "R82600";
 	mci->edac_check = r82600_check;
@@ -376,7 +376,7 @@ MODULE_DEVICE_TABLE(pci, r82600_pci_tbl);
 
 
 static struct pci_driver r82600_driver = {
-	.name = BS_MOD_STR,
+	.name = EDAC_MOD_STR,
 	.probe = r82600_init_one,
 	.remove = __devexit_p(r82600_remove_one),
 	.id_table = r82600_pci_tbl,

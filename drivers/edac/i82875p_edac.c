@@ -357,7 +357,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_cap = EDAC_FLAG_UNKNOWN;
 	/* adjust FLAGS */
 
-	mci->mod_name = BS_MOD_STR;
+	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = "$Revision: 1.5.2.11 $";
 	mci->ctl_name = i82875p_devs[dev_idx].ctl_name;
 	mci->edac_check = i82875p_check;
@@ -483,7 +483,7 @@ MODULE_DEVICE_TABLE(pci, i82875p_pci_tbl);
 
 
 static struct pci_driver i82875p_driver = {
-	.name = BS_MOD_STR,
+	.name = EDAC_MOD_STR,
 	.probe = i82875p_init_one,
 	.remove = __devexit_p(i82875p_remove_one),
 	.id_table = i82875p_pci_tbl,

@@ -80,9 +80,9 @@ extern int edac_debug_level;
 #endif				/* !CONFIG_EDAC_DEBUG */
 
 
-#define bs_xstr(s) bs_str(s)
-#define bs_str(s) #s
-#define BS_MOD_STR bs_xstr(KBUILD_BASENAME)
+#define edac_xstr(s) edac_str(s)
+#define edac_str(s) #s
+#define EDAC_MOD_STR edac_xstr(KBUILD_BASENAME)
 
 #define BIT(x) (1 << (x))
 

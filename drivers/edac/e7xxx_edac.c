@@ -383,7 +383,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_ctl_cap =
 	    EDAC_FLAG_NONE | EDAC_FLAG_SECDED | EDAC_FLAG_S4ECD4ED;
 	/* FIXME - what if different memory types are in different csrows? */
-	mci->mod_name = BS_MOD_STR;
+	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = "$Revision: 1.5.2.9 $";
 	mci->pdev = pdev;
 
@@ -536,7 +536,7 @@ MODULE_DEVICE_TABLE(pci, e7xxx_pci_tbl);
 
 
 static struct pci_driver e7xxx_driver = {
-	.name = BS_MOD_STR,
+	.name = EDAC_MOD_STR,
 	.probe = e7xxx_init_one,
 	.remove = __devexit_p(e7xxx_remove_one),
 	.id_table = e7xxx_pci_tbl,

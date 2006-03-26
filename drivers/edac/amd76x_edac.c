@@ -233,7 +233,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_cap = ems_mode ?
 	    (EDAC_FLAG_EC | EDAC_FLAG_SECDED) : EDAC_FLAG_NONE;
 
-	mci->mod_name = BS_MOD_STR;
+	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = "$Revision: 1.4.2.5 $";
 	mci->ctl_name = amd76x_devs[dev_idx].ctl_name;
 	mci->edac_check = amd76x_check;
@@ -339,7 +339,7 @@ MODULE_DEVICE_TABLE(pci, amd76x_pci_tbl);
 
 
 static struct pci_driver amd76x_driver = {
-	.name = BS_MOD_STR,
+	.name = EDAC_MOD_STR,
 	.probe = amd76x_init_one,
 	.remove = __devexit_p(amd76x_remove_one),
 	.id_table = amd76x_pci_tbl,
