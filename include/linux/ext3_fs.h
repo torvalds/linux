@@ -36,7 +36,8 @@ struct statfs;
  * Define EXT3_RESERVATION to reserve data blocks for expanding files
  */
 #define EXT3_DEFAULT_RESERVE_BLOCKS     8
-#define EXT3_MAX_RESERVE_BLOCKS         1024
+/*max window size: 1024(direct blocks) + 3([t,d]indirect blocks) */
+#define EXT3_MAX_RESERVE_BLOCKS         1027
 #define EXT3_RESERVE_WINDOW_NOT_ALLOCATED 0
 /*
  * Always enable hashed directories
@@ -732,6 +733,8 @@ struct dir_private_info {
 extern int ext3_bg_has_super(struct super_block *sb, int group);
 extern unsigned long ext3_bg_num_gdb(struct super_block *sb, int group);
 extern int ext3_new_block (handle_t *, struct inode *, unsigned long, int *);
+extern int ext3_new_blocks (handle_t *, struct inode *, unsigned long,
+			unsigned long *, int *);
 extern void ext3_free_blocks (handle_t *, struct inode *, unsigned long,
 			      unsigned long);
 extern void ext3_free_blocks_sb (handle_t *, struct super_block *,

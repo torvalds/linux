@@ -653,9 +653,11 @@ claim_block(spinlock_t *lock, int block, struct buffer_head *bh)
  */
 static int
 ext3_try_to_allocate(struct super_block *sb, handle_t *handle, int group,
-	struct buffer_head *bitmap_bh, int goal, struct ext3_reserve_window *my_rsv)
+			struct buffer_head *bitmap_bh, int goal,
+			unsigned long *count, struct ext3_reserve_window *my_rsv)
 {
 	int group_first_block, start, end;
+	unsigned long num = 0;
 
 	/* we do allocation within the reservation window if we have a window */
 	if (my_rsv) {
@@ -713,8 +715,18 @@ repeat:
 			goto fail_access;
 		goto repeat;
 	}
-	return goal;
+	num++;
+	goal++;
+	while (num < *count && goal < end
+		&& ext3_test_allocatable(goal, bitmap_bh)
+		&& claim_block(sb_bgl_lock(EXT3_SB(sb), group), goal, bitmap_bh)) {
+		num++;
+		goal++;
+	}
+	*count = num;
+	return goal - num;
 fail_access:
+	*count = num;
 	return -1;
 }
 
@@ -1024,11 +1036,12 @@ static int
 ext3_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 			unsigned int group, struct buffer_head *bitmap_bh,
 			int goal, struct ext3_reserve_window_node * my_rsv,
-			int *errp)
+			unsigned long *count, int *errp)
 {
 	unsigned long group_first_block;
 	int ret = 0;
 	int fatal;
+	unsigned long num = *count;
 
 	*errp = 0;
 
@@ -1051,7 +1064,8 @@ ext3_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 	 * or last attempt to allocate a block with reservation turned on failed
 	 */
 	if (my_rsv == NULL ) {
-		ret = ext3_try_to_allocate(sb, handle, group, bitmap_bh, goal, NULL);
+		ret = ext3_try_to_allocate(sb, handle, group, bitmap_bh,
+						goal, count, NULL);
 		goto out;
 	}
 	/*
@@ -1093,11 +1107,13 @@ ext3_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
 		    || (my_rsv->rsv_end < group_first_block))
 			BUG();
 		ret = ext3_try_to_allocate(sb, handle, group, bitmap_bh, goal,
-					   &my_rsv->rsv_window);
+					   &num, &my_rsv->rsv_window);
 		if (ret >= 0) {
-			my_rsv->rsv_alloc_hit++;
+			my_rsv->rsv_alloc_hit += num;
+			*count = num;
 			break;				/* succeed */
 		}
+		num = *count;
 	}
 out:
 	if (ret >= 0) {
@@ -1154,8 +1170,8 @@ int ext3_should_retry_alloc(struct super_block *sb, int *retries)
  * bitmap, and then for any free bit if that fails.
  * This function also updates quota and i_blocks field.
  */
-int ext3_new_block(handle_t *handle, struct inode *inode,
-			unsigned long goal, int *errp)
+int ext3_new_blocks(handle_t *handle, struct inode *inode,
+			unsigned long goal, unsigned long *count, int *errp)
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct buffer_head *gdp_bh;
@@ -1178,6 +1194,7 @@ int ext3_new_block(handle_t *handle, struct inode *inode,
 	static int goal_hits, goal_attempts;
 #endif
 	unsigned long ngroups;
+	unsigned long num = *count;
 
 	*errp = -ENOSPC;
 	sb = inode->i_sb;
@@ -1244,7 +1261,7 @@ retry:
 		if (!bitmap_bh)
 			goto io_error;
 		ret_block = ext3_try_to_allocate_with_rsv(sb, handle, group_no,
-					bitmap_bh, ret_block, my_rsv, &fatal);
+					bitmap_bh, ret_block, my_rsv, &num, &fatal);
 		if (fatal)
 			goto out;
 		if (ret_block >= 0)
@@ -1281,7 +1298,7 @@ retry:
 		if (!bitmap_bh)
 			goto io_error;
 		ret_block = ext3_try_to_allocate_with_rsv(sb, handle, group_no,
-					bitmap_bh, -1, my_rsv, &fatal);
+					bitmap_bh, -1, my_rsv, &num, &fatal);
 		if (fatal)
 			goto out;
 		if (ret_block >= 0) 
@@ -1388,6 +1405,7 @@ allocated:
 
 	*errp = 0;
 	brelse(bitmap_bh);
+	*count = num;
 	return ret_block;
 
 io_error:
@@ -1404,6 +1422,14 @@ out:
 		DQUOT_FREE_BLOCK(inode, 1);
 	brelse(bitmap_bh);
 	return 0;
+}
+
+int ext3_new_block(handle_t *handle, struct inode *inode,
+			unsigned long goal, int *errp)
+{
+	unsigned long count = 1;
+
+	return ext3_new_blocks(handle, inode, goal, &count, errp);
 }
 
 unsigned long ext3_count_free_blocks(struct super_block *sb)
