@@ -69,6 +69,7 @@
 #include <linux/kernel.h>
 #include <linux/smp.h>
 #include <linux/workqueue.h>
+#include <linux/cpumask.h>
 
 #include <asm/delay.h>
 #include <asm/kdebug.h>
@@ -1505,7 +1506,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 	ti->cpu = cpu;
 	p->thread_info = ti;
 	p->state = TASK_UNINTERRUPTIBLE;
-	__set_bit(cpu, &p->cpus_allowed);
+	cpu_set(cpu, p->cpus_allowed);
 	INIT_LIST_HEAD(&p->tasks);
 	p->parent = p->real_parent = p->group_leader = p;
 	INIT_LIST_HEAD(&p->children);
