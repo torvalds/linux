@@ -29,6 +29,7 @@
 #include <linux/list.h>
 #include <linux/sysdev.h>
 #include <linux/ctype.h>
+#include <linux/kthread.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -63,6 +64,8 @@ static atomic_t pci_parity_count = ATOMIC_INIT(0);
 /* lock to memory controller's control array */
 static DECLARE_MUTEX(mem_ctls_mutex);
 static struct list_head mc_devices = LIST_HEAD_INIT(mc_devices);
+
+static struct task_struct *edac_thread;
 
 /* Structure of the whitelist and blacklist arrays */
 struct edac_pci_device_list {
@@ -2073,7 +2076,6 @@ static inline void check_mc_devices (void)
  */
 static void do_edac_check(void)
 {
-
 	debugf3("MC: " __FILE__ ": %s()\n", __func__);
 
 	check_mc_devices();
@@ -2081,61 +2083,15 @@ static void do_edac_check(void)
 	do_pci_parity_check();
 }
 
-
-/*
- * EDAC thread state information
- */
-struct bs_thread_info
-{
-	struct task_struct *task;
-	struct completion *event;
-	char *name;
-	void (*run)(void);
-};
-
-static struct bs_thread_info bs_thread;
-
-/*
- *  edac_kernel_thread
- *      This the kernel thread that processes edac operations
- *      in a normal thread environment
- */
 static int edac_kernel_thread(void *arg)
 {
-	struct bs_thread_info *thread = (struct bs_thread_info *) arg;
-
-	/* detach thread */
-	daemonize(thread->name);
-
-	current->exit_signal = SIGCHLD;
-	allow_signal(SIGKILL);
-	thread->task = current;
-
-	/* indicate to starting task we have started */
-	complete(thread->event);
-
-	/* loop forever, until we are told to stop */
-	while(thread->run != NULL) {
-		void (*run)(void);
-
-		/* call the function to check the memory controllers */
-		run = thread->run;
-		if (run)
-			run();
-
-		if (signal_pending(current))
-			flush_signals(current);
-
-		/* ensure we are interruptable */
-		set_current_state(TASK_INTERRUPTIBLE);
+	while (!kthread_should_stop()) {
+		do_edac_check();
 
 		/* goto sleep for the interval */
-		schedule_timeout((HZ * poll_msec) / 1000);
+		schedule_timeout_interruptible((HZ * poll_msec) / 1000);
 		try_to_freeze();
 	}
-
-	/* notify waiter that we are exiting */
-	complete(thread->event);
 
 	return 0;
 }
@@ -2146,9 +2102,6 @@ static int edac_kernel_thread(void *arg)
  */
 static int __init edac_mc_init(void)
 {
-	int ret;
-	struct completion event;
-
 	printk(KERN_INFO "MC: " __FILE__ " version " EDAC_MC_VERSION "\n");
 
 	/*
@@ -2176,23 +2129,14 @@ static int __init edac_mc_init(void)
 		return -ENODEV;
 	}
 
-	/* Create our kernel thread */
-	init_completion(&event);
-	bs_thread.event = &event;
-	bs_thread.name = "kedac";
-	bs_thread.run = do_edac_check;
-
 	/* create our kernel thread */
-	ret = kernel_thread(edac_kernel_thread, &bs_thread, CLONE_KERNEL);
-	if (ret < 0) {
+	edac_thread = kthread_run(edac_kernel_thread, NULL, "kedac");
+	if (IS_ERR(edac_thread)) {
 		/* remove the sysfs entries */
 		edac_sysfs_memctrl_teardown();
 		edac_sysfs_pci_teardown();
-		return -ENOMEM;
+		return PTR_ERR(edac_thread);
 	}
-
-	/* wait for our kernel theard ack that it is up and running */
-	wait_for_completion(&event);
 
 	return 0;
 }
@@ -2204,21 +2148,9 @@ static int __init edac_mc_init(void)
  */
 static void __exit edac_mc_exit(void)
 {
-	struct completion event;
-
 	debugf0("MC: " __FILE__ ": %s()\n", __func__);
 
-	init_completion(&event);
-	bs_thread.event = &event;
-
-	/* As soon as ->run is set to NULL, the task could disappear,
-	 * so we need to hold tasklist_lock until we have sent the signal
-	 */
-	read_lock(&tasklist_lock);
-	bs_thread.run = NULL;
-	send_sig(SIGKILL, bs_thread.task, 1);
-	read_unlock(&tasklist_lock);
-	wait_for_completion(&event);
+	kthread_stop(edac_thread);
 
         /* tear down the sysfs device */
 	edac_sysfs_memctrl_teardown();
