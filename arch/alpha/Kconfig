@@ -25,6 +25,10 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config GENERIC_FIND_NEXT_BIT
+	bool
+	default y
+
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
@@ -446,6 +450,10 @@ config ALPHA_IRONGATE
 	bool
 	depends on ALPHA_NAUTILUS
 	default y
+
+config GENERIC_HWEIGHT
+	bool
+	default y if !ALPHA_EV6 && !ALPHA_EV67
 
 config ALPHA_AVANTI
 	bool
