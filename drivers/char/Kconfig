@@ -187,6 +187,7 @@ config MOXA_SMARTIO
 config ISI
 	tristate "Multi-Tech multiport card support (EXPERIMENTAL)"
 	depends on SERIAL_NONSTANDARD
+	select FW_LOADER
 	help
 	  This is a driver for the Multi-Tech cards which provide several
 	  serial ports.  The driver is experimental and can currently only be
