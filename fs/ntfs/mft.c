@@ -2670,7 +2670,7 @@ mft_rec_already_initialized:
 			ni->name_len = 4;
 
 			ni->itype.index.block_size = 4096;
-			ni->itype.index.block_size_bits = generic_ffs(4096) - 1;
+			ni->itype.index.block_size_bits = ntfs_ffs(4096) - 1;
 			ni->itype.index.collation_rule = COLLATION_FILE_NAME;
 			if (vol->cluster_size <= ni->itype.index.block_size) {
 				ni->itype.index.vcn_size = vol->cluster_size;
