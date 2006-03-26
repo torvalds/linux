@@ -56,7 +56,7 @@ struct proc_dir_entry {
 	nlink_t nlink;
 	uid_t uid;
 	gid_t gid;
-	unsigned long size;
+	loff_t size;
 	struct inode_operations * proc_iops;
 	struct file_operations * proc_fops;
 	get_info_t *get_info;
