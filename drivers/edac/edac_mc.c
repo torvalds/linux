@@ -12,7 +12,6 @@
  *
  */
 
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
@@ -30,14 +29,12 @@
 #include <linux/sysdev.h>
 #include <linux/ctype.h>
 #include <linux/kthread.h>
-
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/edac.h>
-
 #include "edac_mc.h"
 
-#define	EDAC_MC_VERSION	"Ver: 2.0.0 " __DATE__
+#define EDAC_MC_VERSION "Ver: 2.0.0 " __DATE__
 
 /* For now, disable the EDAC sysfs code.  The sysfs interface that EDAC
  * presents to user space needs more thought, and is likely to change
@@ -72,7 +69,6 @@ struct edac_pci_device_list {
 	unsigned int  vendor;		/* Vendor ID */
 	unsigned int  device;		/* Deviice ID */
 };
-
 
 #define MAX_LISTED_PCI_DEVICES		32
 
@@ -126,7 +122,6 @@ static const char *edac_caps[] = {
 	[EDAC_S16ECD16ED] = "S16ECD16ED"
 };
 
-
 /* sysfs object: /sys/devices/system/edac */
 static struct sysdev_class edac_class = {
 	set_kset_name("edac"),
@@ -147,7 +142,7 @@ static struct completion edac_pci_kobj_complete;
 
 /*
  * /sys/devices/system/edac/mc;
- * 	data structures and methods
+ *	data structures and methods
  */
 #if 0
 static ssize_t memctrl_string_show(void *ptr, char *buffer)
@@ -174,33 +169,34 @@ static ssize_t memctrl_int_store(void *ptr, const char *buffer, size_t count)
 }
 
 struct memctrl_dev_attribute {
-	struct attribute	attr;
-	void	*value;
+	struct attribute attr;
+	void *value;
 	ssize_t (*show)(void *,char *);
 	ssize_t (*store)(void *, const char *, size_t);
 };
 
 /* Set of show/store abstract level functions for memory control object */
-static ssize_t
-memctrl_dev_show(struct kobject *kobj, struct attribute *attr, char *buffer)
+static ssize_t memctrl_dev_show(struct kobject *kobj,
+		struct attribute *attr, char *buffer)
 {
 	struct memctrl_dev_attribute *memctrl_dev;
 	memctrl_dev = (struct memctrl_dev_attribute*)attr;
 
 	if (memctrl_dev->show)
 		return memctrl_dev->show(memctrl_dev->value, buffer);
+
 	return -EIO;
 }
 
-static ssize_t
-memctrl_dev_store(struct kobject *kobj, struct attribute *attr,
-			const char *buffer, size_t count)
+static ssize_t memctrl_dev_store(struct kobject *kobj, struct attribute *attr,
+		const char *buffer, size_t count)
 {
 	struct memctrl_dev_attribute *memctrl_dev;
 	memctrl_dev = (struct memctrl_dev_attribute*)attr;
 
 	if (memctrl_dev->store)
 		return memctrl_dev->store(memctrl_dev->value, buffer, count);
+
 	return -EIO;
 }
 
@@ -236,7 +232,6 @@ MEMCTRL_ATTR(log_ue,S_IRUGO|S_IWUSR,memctrl_int_show,memctrl_int_store);
 MEMCTRL_ATTR(log_ce,S_IRUGO|S_IWUSR,memctrl_int_show,memctrl_int_store);
 MEMCTRL_ATTR(poll_msec,S_IRUGO|S_IWUSR,memctrl_int_show,memctrl_int_store);
 
-
 /* Base Attributes of the memory ECC object */
 static struct memctrl_dev_attribute *memctrl_attr[] = {
 	&attr_panic_on_ue,
@@ -254,9 +249,9 @@ static void edac_memctrl_master_release(struct kobject *kobj)
 }
 
 static struct kobj_type ktype_memctrl = {
-	.release	= edac_memctrl_master_release,
-	.sysfs_ops	= &memctrlfs_ops,
-	.default_attrs	= (struct attribute **) memctrl_attr,
+	.release = edac_memctrl_master_release,
+	.sysfs_ops = &memctrlfs_ops,
+	.default_attrs = (struct attribute **) memctrl_attr,
 };
 
 #endif  /* DISABLE_EDAC_SYSFS */
@@ -282,6 +277,7 @@ static int edac_sysfs_memctrl_setup(void)
 
 	/* create the /sys/devices/system/edac directory */
 	err = sysdev_class_register(&edac_class);
+
 	if (!err) {
 		/* Init the MC's kobject */
 		memset(&edac_memctrl_kobj, 0, sizeof (edac_memctrl_kobj));
@@ -290,18 +286,18 @@ static int edac_sysfs_memctrl_setup(void)
 
 		/* generate sysfs "..../edac/mc"   */
 		err = kobject_set_name(&edac_memctrl_kobj,"mc");
+
 		if (!err) {
 			/* FIXME: maybe new sysdev_create_subdir() */
 			err = kobject_register(&edac_memctrl_kobj);
-			if (err) {
+
+			if (err)
 				debugf1("Failed to register '.../edac/mc'\n");
-			} else {
+			else
 				debugf1("Registered '.../edac/mc' kobject\n");
-			}
 		}
-	} else {
+	} else
 		debugf1("%s() error=%d\n", __func__, err);
-	}
 
 	return err;
 }
@@ -340,7 +336,6 @@ struct list_control {
 	int *count;
 };
 
-
 #if 0
 /* Output the list as:  vendor_id:device:id<,vendor_id:device_id> */
 static ssize_t edac_pci_list_string_show(void *ptr, char *buffer)
@@ -365,7 +360,6 @@ static ssize_t edac_pci_list_string_show(void *ptr, char *buffer)
 	}
 
 	len += snprintf(p + len,(PAGE_SIZE-len), "\n");
-
 	return (ssize_t) len;
 }
 
@@ -387,7 +381,7 @@ static int parse_one_device(const char **s,const char **e,
 
 	/* if null byte, we are done */
 	if (!**s) {
-		(*s)++;	/* keep *s moving */
+		(*s)++;  /* keep *s moving */
 		return 0;
 	}
 
@@ -404,6 +398,7 @@ static int parse_one_device(const char **s,const char **e,
 
 	/* parse vendor_id */
 	runner = *s;
+
 	while (runner < *e) {
 		/* scan for vendor:device delimiter */
 		if (*runner == ':') {
@@ -411,6 +406,7 @@ static int parse_one_device(const char **s,const char **e,
 			runner = p + 1;
 			break;
 		}
+
 		runner++;
 	}
 
@@ -426,12 +422,11 @@ static int parse_one_device(const char **s,const char **e,
 	}
 
 	*s = runner;
-
 	return 1;
 }
 
 static ssize_t edac_pci_list_string_store(void *ptr, const char *buffer,
-					size_t count)
+		size_t count)
 {
 	struct list_control *listctl;
 	struct edac_pci_device_list *list;
@@ -441,14 +436,12 @@ static ssize_t edac_pci_list_string_store(void *ptr, const char *buffer,
 
 	s = (char*)buffer;
 	e = s + count;
-
 	listctl = ptr;
 	list = listctl->list;
 	index = listctl->count;
-
 	*index = 0;
-	while (*index < MAX_LISTED_PCI_DEVICES) {
 
+	while (*index < MAX_LISTED_PCI_DEVICES) {
 		if (parse_one_device(&s,&e,&vendor_id,&device_id)) {
 			list[ *index ].vendor = vendor_id;
 			list[ *index ].device = device_id;
@@ -481,15 +474,15 @@ static ssize_t edac_pci_int_store(void *ptr, const char *buffer, size_t count)
 }
 
 struct edac_pci_dev_attribute {
-	struct attribute	attr;
-	void	*value;
+	struct attribute attr;
+	void *value;
 	ssize_t (*show)(void *,char *);
 	ssize_t (*store)(void *, const char *,size_t);
 };
 
 /* Set of show/store abstract level functions for PCI Parity object */
 static ssize_t edac_pci_dev_show(struct kobject *kobj, struct attribute *attr,
-				char *buffer)
+		char *buffer)
 {
 	struct edac_pci_dev_attribute *edac_pci_dev;
 	edac_pci_dev= (struct edac_pci_dev_attribute*)attr;
@@ -499,8 +492,8 @@ static ssize_t edac_pci_dev_show(struct kobject *kobj, struct attribute *attr,
 	return -EIO;
 }
 
-static ssize_t edac_pci_dev_store(struct kobject *kobj, struct attribute *attr,
-				const char *buffer, size_t count)
+static ssize_t edac_pci_dev_store(struct kobject *kobj,
+		struct attribute *attr, const char *buffer, size_t count)
 {
 	struct edac_pci_dev_attribute *edac_pci_dev;
 	edac_pci_dev= (struct edac_pci_dev_attribute*)attr;
@@ -514,7 +507,6 @@ static struct sysfs_ops edac_pci_sysfs_ops = {
 	.show   = edac_pci_dev_show,
 	.store  = edac_pci_dev_store
 };
-
 
 #define EDAC_PCI_ATTR(_name,_mode,_show,_store)			\
 struct edac_pci_dev_attribute edac_pci_attr_##_name = {		\
@@ -558,9 +550,11 @@ EDAC_PCI_STRING_ATTR(pci_parity_blacklist,
 #endif
 
 /* PCI Parity control files */
-EDAC_PCI_ATTR(check_pci_parity,S_IRUGO|S_IWUSR,edac_pci_int_show,edac_pci_int_store);
-EDAC_PCI_ATTR(panic_on_pci_parity,S_IRUGO|S_IWUSR,edac_pci_int_show,edac_pci_int_store);
-EDAC_PCI_ATTR(pci_parity_count,S_IRUGO,edac_pci_int_show,NULL);
+EDAC_PCI_ATTR(check_pci_parity, S_IRUGO|S_IWUSR, edac_pci_int_show,
+	edac_pci_int_store);
+EDAC_PCI_ATTR(panic_on_pci_parity, S_IRUGO|S_IWUSR, edac_pci_int_show,
+	edac_pci_int_store);
+EDAC_PCI_ATTR(pci_parity_count, S_IRUGO, edac_pci_int_show, NULL);
 
 /* Base Attributes of the memory ECC object */
 static struct edac_pci_dev_attribute *edac_pci_attr[] = {
@@ -578,9 +572,9 @@ static void edac_pci_release(struct kobject *kobj)
 }
 
 static struct kobj_type ktype_edac_pci = {
-	.release	= edac_pci_release,
-	.sysfs_ops	= &edac_pci_sysfs_ops,
-	.default_attrs	= (struct attribute **) edac_pci_attr,
+	.release = edac_pci_release,
+	.sysfs_ops = &edac_pci_sysfs_ops,
+	.default_attrs = (struct attribute **) edac_pci_attr,
 };
 
 #endif  /* DISABLE_EDAC_SYSFS */
@@ -603,17 +597,19 @@ static int edac_sysfs_pci_setup(void)
 	memset(&edac_pci_kobj, 0, sizeof(edac_pci_kobj));
 	edac_pci_kobj.parent = &edac_class.kset.kobj;
 	edac_pci_kobj.ktype = &ktype_edac_pci;
-
 	err = kobject_set_name(&edac_pci_kobj, "pci");
+
 	if (!err) {
 		/* Instanstiate the csrow object */
 		/* FIXME: maybe new sysdev_create_subdir() */
 		err = kobject_register(&edac_pci_kobj);
+
 		if (err)
 			debugf1("Failed to register '.../edac/pci'\n");
 		else
 			debugf1("Registered '.../edac/pci' kobject\n");
 	}
+
 	return err;
 }
 #endif  /* DISABLE_EDAC_SYSFS */
@@ -641,6 +637,7 @@ static ssize_t csrow_ch0_dimm_label_show(struct csrow_info *csrow, char *data)
 		size = snprintf(data, EDAC_MC_LABEL_LEN,"%s\n",
 			csrow->channels[0].label);
 	}
+
 	return size;
 }
 
@@ -652,11 +649,12 @@ static ssize_t csrow_ch1_dimm_label_show(struct csrow_info *csrow, char *data)
 		size = snprintf(data, EDAC_MC_LABEL_LEN, "%s\n",
 			csrow->channels[1].label);
 	}
+
 	return size;
 }
 
 static ssize_t csrow_ch0_dimm_label_store(struct csrow_info *csrow,
-			const char *data, size_t size)
+		const char *data, size_t size)
 {
 	ssize_t max_size = 0;
 
@@ -665,11 +663,12 @@ static ssize_t csrow_ch0_dimm_label_store(struct csrow_info *csrow,
 		strncpy(csrow->channels[0].label, data, max_size);
 		csrow->channels[0].label[max_size] = '\0';
 	}
+
 	return size;
 }
 
 static ssize_t csrow_ch1_dimm_label_store(struct csrow_info *csrow,
-			const char *data, size_t size)
+		const char *data, size_t size)
 {
 	ssize_t max_size = 0;
 
@@ -678,6 +677,7 @@ static ssize_t csrow_ch1_dimm_label_store(struct csrow_info *csrow,
 		strncpy(csrow->channels[1].label, data, max_size);
 		csrow->channels[1].label[max_size] = '\0';
 	}
+
 	return max_size;
 }
 
@@ -698,6 +698,7 @@ static ssize_t csrow_ch0_ce_count_show(struct csrow_info *csrow, char *data)
 	if (csrow->nr_channels > 0) {
 		size = sprintf(data,"%u\n", csrow->channels[0].ce_count);
 	}
+
 	return size;
 }
 
@@ -708,6 +709,7 @@ static ssize_t csrow_ch1_ce_count_show(struct csrow_info *csrow, char *data)
 	if (csrow->nr_channels > 1) {
 		size = sprintf(data,"%u\n", csrow->channels[1].ce_count);
 	}
+
 	return size;
 }
 
@@ -732,7 +734,7 @@ static ssize_t csrow_edac_mode_show(struct csrow_info *csrow, char *data)
 }
 
 struct csrowdev_attribute {
-	struct attribute	attr;
+	struct attribute attr;
 	ssize_t (*show)(struct csrow_info *,char *);
 	ssize_t (*store)(struct csrow_info *, const char *,size_t);
 };
@@ -742,24 +744,26 @@ struct csrowdev_attribute {
 
 /* Set of show/store higher level functions for csrow objects */
 static ssize_t csrowdev_show(struct kobject *kobj, struct attribute *attr,
-				char *buffer)
+		char *buffer)
 {
 	struct csrow_info *csrow = to_csrow(kobj);
 	struct csrowdev_attribute *csrowdev_attr = to_csrowdev_attr(attr);
 
 	if (csrowdev_attr->show)
 		return csrowdev_attr->show(csrow, buffer);
+
 	return -EIO;
 }
 
 static ssize_t csrowdev_store(struct kobject *kobj, struct attribute *attr,
-				const char *buffer, size_t count)
+		const char *buffer, size_t count)
 {
 	struct csrow_info *csrow = to_csrow(kobj);
 	struct csrowdev_attribute * csrowdev_attr = to_csrowdev_attr(attr);
 
 	if (csrowdev_attr->store)
 		return csrowdev_attr->store(csrow, buffer, count);
+
 	return -EIO;
 }
 
@@ -793,7 +797,6 @@ CSROWDEV_ATTR(ch1_dimm_label,S_IRUGO|S_IWUSR,
 		csrow_ch1_dimm_label_show,
 		csrow_ch1_dimm_label_store);
 
-
 /* Attributes of the CSROW<id> object */
 static struct csrowdev_attribute *csrow_attr[] = {
 	&attr_dev_type,
@@ -809,7 +812,6 @@ static struct csrowdev_attribute *csrow_attr[] = {
 	NULL,
 };
 
-
 /* No memory to release */
 static void edac_csrow_instance_release(struct kobject *kobj)
 {
@@ -821,19 +823,18 @@ static void edac_csrow_instance_release(struct kobject *kobj)
 }
 
 static struct kobj_type ktype_csrow = {
-	.release	= edac_csrow_instance_release,
-	.sysfs_ops	= &csrowfs_ops,
-	.default_attrs	= (struct attribute **) csrow_attr,
+	.release = edac_csrow_instance_release,
+	.sysfs_ops = &csrowfs_ops,
+	.default_attrs = (struct attribute **) csrow_attr,
 };
 
 /* Create a CSROW object under specifed edac_mc_device */
 static int edac_create_csrow_object(struct kobject *edac_mci_kobj,
-				struct csrow_info *csrow, int index )
+		struct csrow_info *csrow, int index)
 {
 	int err = 0;
 
 	debugf0("%s()\n", __func__);
-
 	memset(&csrow->kobj, 0, sizeof(csrow->kobj));
 
 	/* generate ..../edac/mc/mc<id>/csrow<index>   */
@@ -843,9 +844,11 @@ static int edac_create_csrow_object(struct kobject *edac_mci_kobj,
 
 	/* name this instance of csrow<id> */
 	err = kobject_set_name(&csrow->kobj,"csrow%d",index);
+
 	if (!err) {
 		/* Instanstiate the csrow object */
 		err = kobject_register(&csrow->kobj);
+
 		if (err)
 			debugf0("Failed to register CSROW%d\n",index);
 		else
@@ -857,8 +860,8 @@ static int edac_create_csrow_object(struct kobject *edac_mci_kobj,
 
 /* sysfs data structures and methods for the MCI kobjects */
 
-static ssize_t mci_reset_counters_store(struct mem_ctl_info  *mci,
-					const char *data, size_t count )
+static ssize_t mci_reset_counters_store(struct mem_ctl_info *mci,
+		const char *data, size_t count)
 {
 	int row, chan;
 
@@ -866,16 +869,18 @@ static ssize_t mci_reset_counters_store(struct mem_ctl_info  *mci,
 	mci->ce_noinfo_count = 0;
 	mci->ue_count = 0;
 	mci->ce_count = 0;
+
 	for (row = 0; row < mci->nr_csrows; row++) {
 		struct csrow_info *ri = &mci->csrows[row];
 
 		ri->ue_count = 0;
 		ri->ce_count = 0;
+
 		for (chan = 0; chan < ri->nr_channels; chan++)
 			ri->channels[chan].ce_count = 0;
 	}
-	mci->start_time = jiffies;
 
+	mci->start_time = jiffies;
 	return count;
 }
 
@@ -933,18 +938,16 @@ static ssize_t mci_edac_capability_show(struct mem_ctl_info *mci, char *data)
 
 	p += mci_output_edac_cap(p,mci->edac_ctl_cap);
 	p += sprintf(p, "\n");
-
 	return p - data;
 }
 
 static ssize_t mci_edac_current_capability_show(struct mem_ctl_info *mci,
-						char *data)
+		char *data)
 {
 	char *p = data;
 
 	p += mci_output_edac_cap(p,mci->edac_cap);
 	p += sprintf(p, "\n");
-
 	return p - data;
 }
 
@@ -961,13 +964,13 @@ static int mci_output_mtype_cap(char *buf, unsigned long mtype_cap)
 	return p - buf;
 }
 
-static ssize_t mci_supported_mem_type_show(struct mem_ctl_info *mci, char *data)
+static ssize_t mci_supported_mem_type_show(struct mem_ctl_info *mci,
+		char *data)
 {
 	char *p = data;
 
 	p += mci_output_mtype_cap(p,mci->mtype_cap);
 	p += sprintf(p, "\n");
-
 	return p - data;
 }
 
@@ -981,6 +984,7 @@ static ssize_t mci_size_mb_show(struct mem_ctl_info *mci, char *data)
 
 		if (!csrow->nr_pages)
 			continue;
+
 		total_pages += csrow->nr_pages;
 	}
 
@@ -988,7 +992,7 @@ static ssize_t mci_size_mb_show(struct mem_ctl_info *mci, char *data)
 }
 
 struct mcidev_attribute {
-	struct attribute	attr;
+	struct attribute attr;
 	ssize_t (*show)(struct mem_ctl_info *,char *);
 	ssize_t (*store)(struct mem_ctl_info *, const char *,size_t);
 };
@@ -997,30 +1001,32 @@ struct mcidev_attribute {
 #define to_mcidev_attr(a) container_of(a, struct mcidev_attribute, attr)
 
 static ssize_t mcidev_show(struct kobject *kobj, struct attribute *attr,
-			char *buffer)
+		char *buffer)
 {
 	struct mem_ctl_info *mem_ctl_info = to_mci(kobj);
 	struct mcidev_attribute * mcidev_attr = to_mcidev_attr(attr);
 
 	if (mcidev_attr->show)
 		return mcidev_attr->show(mem_ctl_info, buffer);
+
 	return -EIO;
 }
 
 static ssize_t mcidev_store(struct kobject *kobj, struct attribute *attr,
-				const char *buffer, size_t count)
+		const char *buffer, size_t count)
 {
 	struct mem_ctl_info *mem_ctl_info = to_mci(kobj);
 	struct mcidev_attribute * mcidev_attr = to_mcidev_attr(attr);
 
 	if (mcidev_attr->store)
 		return mcidev_attr->store(mem_ctl_info, buffer, count);
+
 	return -EIO;
 }
 
 static struct sysfs_ops mci_ops = {
-	.show   = mcidev_show,
-	.store  = mcidev_store
+	.show = mcidev_show,
+	.store = mcidev_store
 };
 
 #define MCIDEV_ATTR(_name,_mode,_show,_store)			\
@@ -1048,7 +1054,6 @@ MCIDEV_ATTR(edac_current_capability,S_IRUGO,
 MCIDEV_ATTR(supported_mem_type,S_IRUGO,
 	mci_supported_mem_type_show,NULL);
 
-
 static struct mcidev_attribute *mci_attr[] = {
 	&mci_attr_reset_counters,
 	&mci_attr_module_name,
@@ -1065,7 +1070,6 @@ static struct mcidev_attribute *mci_attr[] = {
 	NULL
 };
 
-
 /*
  * Release of a MC controlling instance
  */
@@ -1079,9 +1083,9 @@ static void edac_mci_instance_release(struct kobject *kobj)
 }
 
 static struct kobj_type ktype_mci = {
-	.release	= edac_mci_instance_release,
-	.sysfs_ops	= &mci_ops,
-	.default_attrs	= (struct attribute **) mci_attr,
+	.release = edac_mci_instance_release,
+	.sysfs_ops = &mci_ops,
+	.default_attrs = (struct attribute **) mci_attr,
 };
 
 #endif  /* DISABLE_EDAC_SYSFS */
@@ -1109,11 +1113,11 @@ static int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	struct kobject *edac_mci_kobj=&mci->edac_mci_kobj;
 
 	debugf0("%s() idx=%d\n", __func__, mci->mc_idx);
-
 	memset(edac_mci_kobj, 0, sizeof(*edac_mci_kobj));
 
 	/* set the name of the mc<id> object */
 	err = kobject_set_name(edac_mci_kobj,"mc%d",mci->mc_idx);
+
 	if (err)
 		return err;
 
@@ -1123,12 +1127,14 @@ static int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 
 	/* register the mc<id> kobject */
 	err = kobject_register(edac_mci_kobj);
+
 	if (err)
 		return err;
 
 	/* create a symlink for the device */
 	err = sysfs_create_link(edac_mci_kobj, &mci->pdev->dev.kobj,
 				EDAC_DEVICE_SYMLINK);
+
 	if (err)
 		goto fail0;
 
@@ -1136,19 +1142,18 @@ static int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	 * under the mc<id> kobject
 	 */
 	for (i = 0; i < mci->nr_csrows; i++) {
-
 		csrow = &mci->csrows[i];
 
 		/* Only expose populated CSROWs */
 		if (csrow->nr_pages > 0) {
 			err = edac_create_csrow_object(edac_mci_kobj,csrow,i);
+
 			if (err)
 				goto fail1;
 		}
 	}
 
 	return 0;
-
 
 	/* CSROW error: backout what has already been registered,  */
 fail1:
@@ -1164,7 +1169,6 @@ fail0:
 	init_completion(&mci->kobj_complete);
 	kobject_unregister(edac_mci_kobj);
 	wait_for_completion(&mci->kobj_complete);
-
 	return err;
 }
 #endif  /* DISABLE_EDAC_SYSFS */
@@ -1199,7 +1203,6 @@ static void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 
 #ifdef CONFIG_EDAC_DEBUG
 
-
 void edac_mc_dump_channel(struct channel_info *chan)
 {
 	debugf4("\tchannel = %p\n", chan);
@@ -1209,7 +1212,6 @@ void edac_mc_dump_channel(struct channel_info *chan)
 	debugf4("\tchannel->csrow = %p\n\n", chan->csrow);
 }
 EXPORT_SYMBOL(edac_mc_dump_channel);
-
 
 void edac_mc_dump_csrow(struct csrow_info *csrow)
 {
@@ -1227,7 +1229,6 @@ void edac_mc_dump_csrow(struct csrow_info *csrow)
 }
 EXPORT_SYMBOL(edac_mc_dump_csrow);
 
-
 void edac_mc_dump_mci(struct mem_ctl_info *mci)
 {
 	debugf3("\tmci = %p\n", mci);
@@ -1244,8 +1245,7 @@ void edac_mc_dump_mci(struct mem_ctl_info *mci)
 }
 EXPORT_SYMBOL(edac_mc_dump_mci);
 
-
-#endif				/* CONFIG_EDAC_DEBUG */
+#endif  /* CONFIG_EDAC_DEBUG */
 
 /* 'ptr' points to a possibly unaligned item X such that sizeof(X) is 'size'.
  * Adjust 'ptr' so that its alignment is at least as stringent as what the
@@ -1254,7 +1254,7 @@ EXPORT_SYMBOL(edac_mc_dump_mci);
  * If 'size' is a constant, the compiler will optimize this whole function
  * down to either a no-op or the addition of a constant to the value of 'ptr'.
  */
-static inline char * align_ptr (void *ptr, unsigned size)
+static inline char * align_ptr(void *ptr, unsigned size)
 {
 	unsigned align, r;
 
@@ -1281,7 +1281,6 @@ static inline char * align_ptr (void *ptr, unsigned size)
 	return (char *) (((unsigned long) ptr) + align - r);
 }
 
-
 /**
  * edac_mc_alloc: Allocate a struct mem_ctl_info structure
  * @size_pvt:	size of private storage needed
@@ -1299,7 +1298,7 @@ static inline char * align_ptr (void *ptr, unsigned size)
  *	struct mem_ctl_info pointer
  */
 struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
-					unsigned nr_chans)
+		unsigned nr_chans)
 {
 	struct mem_ctl_info *mci;
 	struct csrow_info *csi, *csrow;
@@ -1330,8 +1329,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	chi = (struct channel_info *) (((char *) mci) + ((unsigned long) chi));
 	pvt = sz_pvt ? (((char *) mci) + ((unsigned long) pvt)) : NULL;
 
-	memset(mci, 0, size);	/* clear all fields */
-
+	memset(mci, 0, size);  /* clear all fields */
 	mci->csrows = csi;
 	mci->pvt_info = pvt;
 	mci->nr_csrows = nr_csrows;
@@ -1354,7 +1352,6 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	return mci;
 }
 EXPORT_SYMBOL(edac_mc_alloc);
-
 
 /**
  * edac_mc_free:  Free a previously allocated 'mci' structure
@@ -1383,7 +1380,7 @@ static struct mem_ctl_info *find_mci_by_pdev(struct pci_dev *pdev)
 	return NULL;
 }
 
-static int add_mc_to_global_list (struct mem_ctl_info *mci)
+static int add_mc_to_global_list(struct mem_ctl_info *mci)
 {
 	struct list_head *item, *insert_before;
 	struct mem_ctl_info *p;
@@ -1426,8 +1423,7 @@ static int add_mc_to_global_list (struct mem_ctl_info *mci)
 	return 0;
 }
 
-
-static void complete_mc_list_del (struct rcu_head *head)
+static void complete_mc_list_del(struct rcu_head *head)
 {
 	struct mem_ctl_info *mci;
 
@@ -1436,15 +1432,13 @@ static void complete_mc_list_del (struct rcu_head *head)
 	complete(&mci->complete);
 }
 
-
-static void del_mc_from_global_list (struct mem_ctl_info *mci)
+static void del_mc_from_global_list(struct mem_ctl_info *mci)
 {
 	list_del_rcu(&mci->link);
 	init_completion(&mci->complete);
 	call_rcu(&mci->rcu, complete_mc_list_del);
 	wait_for_completion(&mci->complete);
 }
-
 
 /**
  * edac_mc_add_mc: Insert the 'mci' structure into the mci global list and
@@ -1463,15 +1457,17 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 #ifdef CONFIG_EDAC_DEBUG
 	if (edac_debug_level >= 3)
 		edac_mc_dump_mci(mci);
+
 	if (edac_debug_level >= 4) {
 		int i;
 
 		for (i = 0; i < mci->nr_csrows; i++) {
 			int j;
+
 			edac_mc_dump_csrow(&mci->csrows[i]);
 			for (j = 0; j < mci->csrows[i].nr_channels; j++)
-				edac_mc_dump_channel(&mci->csrows[i].
-							  channels[j]);
+				edac_mc_dump_channel(
+					&mci->csrows[i].channels[j]);
 		}
 	}
 #endif
@@ -1505,7 +1501,6 @@ fail0:
 }
 EXPORT_SYMBOL(edac_mc_add_mc);
 
-
 /**
  * edac_mc_del_mc: Remove sysfs entries for specified mci structure and
  *                 remove mci structure from global list
@@ -1535,9 +1530,7 @@ struct mem_ctl_info * edac_mc_del_mc(struct pci_dev *pdev)
 }
 EXPORT_SYMBOL(edac_mc_del_mc);
 
-
-void edac_mc_scrub_block(unsigned long page, unsigned long offset,
-			      u32 size)
+void edac_mc_scrub_block(unsigned long page, unsigned long offset, u32 size)
 {
 	struct page *pg;
 	void *virt_addr;
@@ -1568,10 +1561,8 @@ void edac_mc_scrub_block(unsigned long page, unsigned long offset,
 }
 EXPORT_SYMBOL(edac_mc_scrub_block);
 
-
 /* FIXME - should return -1 */
-int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
-				    unsigned long page)
+int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci, unsigned long page)
 {
 	struct csrow_info *csrows = mci->csrows;
 	int row, i;
@@ -1608,14 +1599,11 @@ int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 }
 EXPORT_SYMBOL(edac_mc_find_csrow_by_page);
 
-
 /* FIXME - setable log (warning/emerg) levels */
 /* FIXME - integrate with evlog: http://evlog.sourceforge.net/ */
 void edac_mc_handle_ce(struct mem_ctl_info *mci,
-			    unsigned long page_frame_number,
-			    unsigned long offset_in_page,
-			    unsigned long syndrome, int row, int channel,
-			    const char *msg)
+		unsigned long page_frame_number, unsigned long offset_in_page,
+		unsigned long syndrome, int row, int channel, const char *msg)
 {
 	unsigned long remapped_page;
 
@@ -1630,6 +1618,7 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 		edac_mc_handle_ce_no_info(mci, "INTERNAL ERROR");
 		return;
 	}
+
 	if (channel >= mci->csrows[row].nr_channels || channel < 0) {
 		/* something is wrong */
 		edac_mc_printk(mci, KERN_ERR,
@@ -1668,28 +1657,25 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 		    page_frame_number;
 
 		edac_mc_scrub_block(remapped_page, offset_in_page,
-					 mci->csrows[row].grain);
+					mci->csrows[row].grain);
 	}
 }
 EXPORT_SYMBOL(edac_mc_handle_ce);
 
-
-void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci,
-				    const char *msg)
+void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci, const char *msg)
 {
 	if (log_ce)
 		edac_mc_printk(mci, KERN_WARNING,
 			"CE - no information available: %s\n", msg);
+
 	mci->ce_noinfo_count++;
 	mci->ce_count++;
 }
 EXPORT_SYMBOL(edac_mc_handle_ce_no_info);
 
-
 void edac_mc_handle_ue(struct mem_ctl_info *mci,
-			    unsigned long page_frame_number,
-			    unsigned long offset_in_page, int row,
-			    const char *msg)
+		unsigned long page_frame_number, unsigned long offset_in_page,
+		int row, const char *msg)
 {
 	int len = EDAC_MC_LABEL_LEN * 4;
 	char labels[len + 1];
@@ -1710,13 +1696,14 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 	}
 
 	chars = snprintf(pos, len + 1, "%s",
-			 mci->csrows[row].channels[0].label);
+			mci->csrows[row].channels[0].label);
 	len -= chars;
 	pos += chars;
+
 	for (chan = 1; (chan < mci->csrows[row].nr_channels) && (len > 0);
 	     chan++) {
 		chars = snprintf(pos, len + 1, ":%s",
-				 mci->csrows[row].channels[chan].label);
+				mci->csrows[row].channels[chan].label);
 		len -= chars;
 		pos += chars;
 	}
@@ -1729,20 +1716,17 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 			msg);
 
 	if (panic_on_ue)
-		panic
-		    ("EDAC MC%d: UE page 0x%lx, offset 0x%lx, grain %d, row %d,"
-		     " labels \"%s\": %s\n", mci->mc_idx,
-		     page_frame_number, offset_in_page,
-		     mci->csrows[row].grain, row, labels, msg);
+		panic("EDAC MC%d: UE page 0x%lx, offset 0x%lx, grain %d, "
+			"row %d, labels \"%s\": %s\n", mci->mc_idx,
+			page_frame_number, offset_in_page,
+			mci->csrows[row].grain, row, labels, msg);
 
 	mci->ue_count++;
 	mci->csrows[row].ue_count++;
 }
 EXPORT_SYMBOL(edac_mc_handle_ue);
 
-
-void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci,
-				    const char *msg)
+void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci, const char *msg)
 {
 	if (panic_on_ue)
 		panic("EDAC MC%d: Uncorrected Error", mci->mc_idx);
@@ -1755,7 +1739,6 @@ void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci,
 }
 EXPORT_SYMBOL(edac_mc_handle_ue_no_info);
 
-
 #ifdef CONFIG_PCI
 
 static u16 get_pci_parity_status(struct pci_dev *dev, int secondary)
@@ -1766,18 +1749,22 @@ static u16 get_pci_parity_status(struct pci_dev *dev, int secondary)
 	where = secondary ? PCI_SEC_STATUS : PCI_STATUS;
 	pci_read_config_word(dev, where, &status);
 
-	/* If we get back 0xFFFF then we must suspect that the card has been pulled but
-	   the Linux PCI layer has not yet finished cleaning up. We don't want to report
-	   on such devices */
+	/* If we get back 0xFFFF then we must suspect that the card has been
+	 * pulled but the Linux PCI layer has not yet finished cleaning up.
+	 * We don't want to report on such devices
+	 */
 
 	if (status == 0xFFFF) {
 		u32 sanity;
+
 		pci_read_config_dword(dev, 0, &sanity);
+
 		if (sanity == 0xFFFFFFFF)
 			return 0;
 	}
+
 	status &= PCI_STATUS_DETECTED_PARITY | PCI_STATUS_SIG_SYSTEM_ERROR |
-		  PCI_STATUS_PARITY;
+		PCI_STATUS_PARITY;
 
 	if (status)
 		/* reset only the bits we are interested in */
@@ -1789,7 +1776,7 @@ static u16 get_pci_parity_status(struct pci_dev *dev, int secondary)
 typedef void (*pci_parity_check_fn_t) (struct pci_dev *dev);
 
 /* Clear any PCI parity errors logged by this device. */
-static void edac_pci_dev_parity_clear( struct pci_dev *dev )
+static void edac_pci_dev_parity_clear(struct pci_dev *dev)
 {
 	u8 header_type;
 
@@ -1890,58 +1877,55 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
  * Returns:  	0 not found
  *		1 found on list
  */
-static int check_dev_on_list(struct edac_pci_device_list *list, int free_index,
-				struct pci_dev *dev)
+static int check_dev_on_list(struct edac_pci_device_list *list,
+		int free_index, struct pci_dev *dev)
 {
-        int i;
-        int rc = 0;     /* Assume not found */
-        unsigned short vendor=dev->vendor;
-        unsigned short device=dev->device;
+	int i;
+	int rc = 0;     /* Assume not found */
+	unsigned short vendor=dev->vendor;
+	unsigned short device=dev->device;
 
-        /* Scan the list, looking for a vendor/device match
-         */
-        for (i = 0; i < free_index; i++, list++ ) {
-                if (    (list->vendor == vendor ) &&
-                        (list->device == device )) {
-                        rc = 1;
-                        break;
-                }
-        }
+	/* Scan the list, looking for a vendor/device match */
+	for (i = 0; i < free_index; i++, list++ ) {
+		if ((list->vendor == vendor ) && (list->device == device )) {
+			rc = 1;
+			break;
+		}
+	}
 
-        return rc;
+	return rc;
 }
 
 /*
  * pci_dev parity list iterator
- * 	Scan the PCI device list for one iteration, looking for SERRORs
+ *	Scan the PCI device list for one iteration, looking for SERRORs
  *	Master Parity ERRORS or Parity ERRORs on primary or secondary devices
  */
 static inline void edac_pci_dev_parity_iterator(pci_parity_check_fn_t fn)
 {
-	struct pci_dev *dev=NULL;
+	struct pci_dev *dev = NULL;
 
 	/* request for kernel access to the next PCI device, if any,
 	 * and while we are looking at it have its reference count
 	 * bumped until we are done with it
 	 */
 	while((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-
-                /* if whitelist exists then it has priority, so only scan those
-                 * devices on the whitelist
-                 */
-                if (pci_whitelist_count > 0 ) {
-                        if (check_dev_on_list(pci_whitelist,
+		/* if whitelist exists then it has priority, so only scan
+		 * those devices on the whitelist
+		 */
+		if (pci_whitelist_count > 0 ) {
+			if (check_dev_on_list(pci_whitelist,
 					pci_whitelist_count, dev))
 				fn(dev);
-                } else {
+		} else {
 			/*
 			 * if no whitelist, then check if this devices is
 			 * blacklisted
 			 */
-                        if (!check_dev_on_list(pci_blacklist,
+			if (!check_dev_on_list(pci_blacklist,
 					pci_blacklist_count, dev))
 				fn(dev);
-                }
+		}
 	}
 }
 
@@ -1972,7 +1956,6 @@ static void do_pci_parity_check(void)
 	}
 }
 
-
 static inline void clear_pci_parity_errors(void)
 {
 	/* Clear any PCI bus parity errors that devices initially have logged
@@ -1981,34 +1964,29 @@ static inline void clear_pci_parity_errors(void)
 	edac_pci_dev_parity_iterator(edac_pci_dev_parity_clear);
 }
 
-
 #else  /* CONFIG_PCI */
-
 
 static inline void do_pci_parity_check(void)
 {
 	/* no-op */
 }
 
-
 static inline void clear_pci_parity_errors(void)
 {
 	/* no-op */
 }
-
 
 #endif  /* CONFIG_PCI */
 
 /*
  * Iterate over all MC instances and check for ECC, et al, errors
  */
-static inline void check_mc_devices (void)
+static inline void check_mc_devices(void)
 {
 	struct list_head *item;
 	struct mem_ctl_info *mci;
 
 	debugf3("%s()\n", __func__);
-
 	down(&mem_ctls_mutex);
 
 	list_for_each(item, &mc_devices) {
@@ -2020,7 +1998,6 @@ static inline void check_mc_devices (void)
 
 	up(&mem_ctls_mutex);
 }
-
 
 /*
  * Check MC status every poll_msec.
@@ -2084,6 +2061,7 @@ static int __init edac_mc_init(void)
 
 	/* create our kernel thread */
 	edac_thread = kthread_run(edac_kernel_thread, NULL, "kedac");
+
 	if (IS_ERR(edac_thread)) {
 		/* remove the sysfs entries */
 		edac_sysfs_memctrl_teardown();
@@ -2094,7 +2072,6 @@ static int __init edac_mc_init(void)
 	return 0;
 }
 
-
 /*
  * edac_mc_exit()
  *      module exit/termination functioni
@@ -2102,7 +2079,6 @@ static int __init edac_mc_init(void)
 static void __exit edac_mc_exit(void)
 {
 	debugf0("%s()\n", __func__);
-
 	kthread_stop(edac_thread);
 
         /* tear down the sysfs device */
@@ -2110,15 +2086,12 @@ static void __exit edac_mc_exit(void)
 	edac_sysfs_pci_teardown();
 }
 
-
-
-
 module_init(edac_mc_init);
 module_exit(edac_mc_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Linux Networx (http://lnxi.com) Thayne Harbaugh et al\n"
-	      "Based on.work by Dan Hollis et al");
+	"Based on work by Dan Hollis et al");
 MODULE_DESCRIPTION("Core library routines for MC reporting");
 
 module_param(panic_on_ue, int, 0644);

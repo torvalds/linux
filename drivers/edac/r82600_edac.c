@@ -18,19 +18,16 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
-
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-
 #include <linux/slab.h>
-
 #include "edac_mc.h"
 
 #define r82600_printk(level, fmt, arg...) \
-    edac_printk(level, "r82600", fmt, ##arg)
+	edac_printk(level, "r82600", fmt, ##arg)
 
 #define r82600_mc_printk(mci, level, fmt, arg...) \
-    edac_mc_chipset_printk(mci, level, "r82600", fmt, ##arg)
+	edac_mc_chipset_printk(mci, level, "r82600", fmt, ##arg)
 
 /* Radisys say "The 82600 integrates a main memory SDRAM controller that
  * supports up to four banks of memory. The four banks can support a mix of
@@ -132,9 +129,7 @@ struct r82600_error_info {
 	u32 eapr;
 };
 
-
 static unsigned int disable_hardware_scrub = 0;
-
 
 static void r82600_get_error_info (struct mem_ctl_info *mci,
 		struct r82600_error_info *info)
@@ -144,16 +139,15 @@ static void r82600_get_error_info (struct mem_ctl_info *mci,
 	if (info->eapr & BIT(0))
 		/* Clear error to allow next error to be reported [p.62] */
 		pci_write_bits32(mci->pdev, R82600_EAP,
-				   ((u32) BIT(0) & (u32) BIT(1)),
-				   ((u32) BIT(0) & (u32) BIT(1)));
+				((u32) BIT(0) & (u32) BIT(1)),
+				((u32) BIT(0) & (u32) BIT(1)));
 
 	if (info->eapr & BIT(1))
 		/* Clear error to allow next error to be reported [p.62] */
 		pci_write_bits32(mci->pdev, R82600_EAP,
-				   ((u32) BIT(0) & (u32) BIT(1)),
-				   ((u32) BIT(0) & (u32) BIT(1)));
+				((u32) BIT(0) & (u32) BIT(1)),
+				((u32) BIT(0) & (u32) BIT(1)));
 }
-
 
 static int r82600_process_error_info (struct mem_ctl_info *mci,
 		struct r82600_error_info *info, int handle_errors)
@@ -173,26 +167,25 @@ static int r82600_process_error_info (struct mem_ctl_info *mci,
 	 * granularity (upper 19 bits only)     */
 	page = eapaddr >> PAGE_SHIFT;
 
-	if (info->eapr & BIT(0)) { 	/* CE? */
+	if (info->eapr & BIT(0)) {  /* CE? */
 		error_found = 1;
 
 		if (handle_errors)
-			edac_mc_handle_ce(
-			    mci, page, 0,	/* not avail */
-			    syndrome,
-			    edac_mc_find_csrow_by_page(mci, page),
-			    0,	/* channel */
-			    mci->ctl_name);
+			edac_mc_handle_ce(mci, page, 0,  /* not avail */
+					syndrome,
+					edac_mc_find_csrow_by_page(mci, page),
+					0,  /* channel */
+					mci->ctl_name);
 	}
 
-	if (info->eapr & BIT(1)) { 	/* UE? */
+	if (info->eapr & BIT(1)) {  /* UE? */
 		error_found = 1;
 
 		if (handle_errors)
 			/* 82600 doesn't give enough info */
 			edac_mc_handle_ue(mci, page, 0,
-			    edac_mc_find_csrow_by_page(mci, page),
-			    mci->ctl_name);
+				edac_mc_find_csrow_by_page(mci, page),
+				mci->ctl_name);
 	}
 
 	return error_found;
@@ -222,21 +215,15 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	struct r82600_error_info discard;
 
 	debugf0("%s()\n", __func__);
-
-
 	pci_read_config_byte(pdev, R82600_DRAMC, &dramcr);
 	pci_read_config_dword(pdev, R82600_EAP, &eapr);
-
 	ecc_on = dramcr & BIT(5);
 	reg_sdram = dramcr & BIT(4);
 	scrub_disabled = eapr & BIT(31);
 	sdram_refresh_rate = dramcr & (BIT(0) | BIT(1));
-
 	debugf2("%s(): sdram refresh rate = %#0x\n", __func__,
 		sdram_refresh_rate);
-
 	debugf2("%s(): DRAMC register = %#0x\n", __func__, dramcr);
-
 	mci = edac_mc_alloc(0, R82600_NR_CSROWS, R82600_NR_CHANS);
 
 	if (mci == NULL) {
@@ -245,19 +232,19 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	debugf0("%s(): mci = %p\n", __func__, mci);
-
 	mci->pdev = pdev;
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_DDR;
-
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
-	/* FIXME try to work out if the chip leads have been                 *
-	 * used for COM2 instead on this board? [MA6?]       MAYBE:          */
+	/* FIXME try to work out if the chip leads have been used for COM2
+	 * instead on this board? [MA6?] MAYBE:
+	 */
 
 	/* On the R82600, the pins for memory bits 72:65 - i.e. the   *
 	 * EC bits are shared with the pins for COM2 (!), so if COM2  *
 	 * is enabled, we assume COM2 is wired up, and thus no EDAC   *
 	 * is possible.                                               */
 	mci->edac_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
+
 	if (ecc_on) {
 		if (scrub_disabled)
 			debugf3("%s(): mci = %p - Scrubbing disabled! EAP: "
@@ -295,7 +282,6 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 			continue;
 
 		row_base = row_high_limit_last;
-
 		csrow->first_page = row_base >> PAGE_SHIFT;
 		csrow->last_page = (row_high_limit >> PAGE_SHIFT) - 1;
 		csrow->nr_pages = csrow->last_page - csrow->first_page + 1;
@@ -338,14 +324,13 @@ fail:
 
 /* returns count (>= 0), or negative on error */
 static int __devinit r82600_init_one(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+		const struct pci_device_id *ent)
 {
 	debugf0("%s()\n", __func__);
 
 	/* don't need to call pci_device_enable() */
 	return r82600_probe1(pdev, ent->driver_data);
 }
-
 
 static void __devexit r82600_remove_one(struct pci_dev *pdev)
 {
@@ -359,14 +344,16 @@ static void __devexit r82600_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-
 static const struct pci_device_id r82600_pci_tbl[] __devinitdata = {
-	{PCI_DEVICE(PCI_VENDOR_ID_RADISYS, R82600_BRIDGE_ID)},
-	{0,}			/* 0 terminated list. */
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_RADISYS, R82600_BRIDGE_ID)
+	},
+	{
+		0,
+	}	/* 0 terminated list. */
 };
 
 MODULE_DEVICE_TABLE(pci, r82600_pci_tbl);
-
 
 static struct pci_driver r82600_driver = {
 	.name = EDAC_MOD_STR,
@@ -375,26 +362,22 @@ static struct pci_driver r82600_driver = {
 	.id_table = r82600_pci_tbl,
 };
 
-
 static int __init r82600_init(void)
 {
 	return pci_register_driver(&r82600_driver);
 }
-
 
 static void __exit r82600_exit(void)
 {
 	pci_unregister_driver(&r82600_driver);
 }
 
-
 module_init(r82600_init);
 module_exit(r82600_exit);
 
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Tim Small <tim@buttersideup.com> - WPAD Ltd. "
-	      "on behalf of EADS Astrium");
+	"on behalf of EADS Astrium");
 MODULE_DESCRIPTION("MC support for Radisys 82600 memory controllers");
 
 module_param(disable_hardware_scrub, bool, 0644);

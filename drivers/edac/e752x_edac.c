@@ -17,26 +17,19 @@
  *
  */
 
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
-
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-
 #include <linux/slab.h>
-
 #include "edac_mc.h"
 
-
 #define e752x_printk(level, fmt, arg...) \
-    edac_printk(level, "e752x", fmt, ##arg)
-
+	edac_printk(level, "e752x", fmt, ##arg)
 
 #define e752x_mc_printk(mci, level, fmt, arg...) \
-    edac_mc_chipset_printk(mci, level, "e752x", fmt, ##arg)
-
+	edac_mc_chipset_printk(mci, level, "e752x", fmt, ##arg)
 
 #ifndef PCI_DEVICE_ID_INTEL_7520_0
 #define PCI_DEVICE_ID_INTEL_7520_0      0x3590
@@ -63,7 +56,6 @@
 #endif				/* PCI_DEVICE_ID_INTEL_7320_1_ERR */
 
 #define E752X_NR_CSROWS		8	/* number of csrows */
-
 
 /* E752X register addresses - device 0 function 0 */
 #define E752X_DRB		0x60	/* DRAM row boundary register (8b) */
@@ -164,7 +156,6 @@ enum e752x_chips {
 	E7320 = 2
 };
 
-
 struct e752x_pvt {
 	struct pci_dev *bridge_ck;
 	struct pci_dev *dev_d0f0;
@@ -177,7 +168,6 @@ struct e752x_pvt {
 	int map_type;
 	const struct e752x_dev_info *dev_info;
 };
-
 
 struct e752x_dev_info {
 	u16 err_dev;
@@ -207,22 +197,24 @@ struct e752x_error_info {
 
 static const struct e752x_dev_info e752x_devs[] = {
 	[E7520] = {
-		   .err_dev = PCI_DEVICE_ID_INTEL_7520_1_ERR,
-		   .ctl_dev = PCI_DEVICE_ID_INTEL_7520_0,
-		   .ctl_name = "E7520"},
+		.err_dev = PCI_DEVICE_ID_INTEL_7520_1_ERR,
+		.ctl_dev = PCI_DEVICE_ID_INTEL_7520_0,
+		.ctl_name = "E7520"
+	},
 	[E7525] = {
-		   .err_dev = PCI_DEVICE_ID_INTEL_7525_1_ERR,
-		   .ctl_dev = PCI_DEVICE_ID_INTEL_7525_0,
-		   .ctl_name = "E7525"},
+		.err_dev = PCI_DEVICE_ID_INTEL_7525_1_ERR,
+		.ctl_dev = PCI_DEVICE_ID_INTEL_7525_0,
+		.ctl_name = "E7525"
+	},
 	[E7320] = {
-		   .err_dev = PCI_DEVICE_ID_INTEL_7320_1_ERR,
-		   .ctl_dev = PCI_DEVICE_ID_INTEL_7320_0,
-		   .ctl_name = "E7320"},
+		.err_dev = PCI_DEVICE_ID_INTEL_7320_1_ERR,
+		.ctl_dev = PCI_DEVICE_ID_INTEL_7320_0,
+		.ctl_name = "E7320"
+	},
 };
 
-
 static unsigned long ctl_page_to_phys(struct mem_ctl_info *mci,
-				      unsigned long page)
+		unsigned long page)
 {
 	u32 remap;
 	struct e752x_pvt *pvt = (struct e752x_pvt *) mci->pvt_info;
@@ -231,17 +223,21 @@ static unsigned long ctl_page_to_phys(struct mem_ctl_info *mci,
 
 	if (page < pvt->tolm)
 		return page;
+
 	if ((page >= 0x100000) && (page < pvt->remapbase))
 		return page;
+
 	remap = (page - pvt->tolm) + pvt->remapbase;
+
 	if (remap < pvt->remaplimit)
 		return remap;
+
 	e752x_printk(KERN_ERR, "Invalid page %lx - out of range\n", page);
 	return pvt->tolm - 1;
 }
 
 static void do_process_ce(struct mem_ctl_info *mci, u16 error_one,
-		       u32 sec1_add, u16 sec1_syndrome)
+		u32 sec1_add, u16 sec1_syndrome)
 {
 	u32 page;
 	int row;
@@ -259,33 +255,35 @@ static void do_process_ce(struct mem_ctl_info *mci, u16 error_one,
 		/* chip select are bits 14 & 13 */
 		row = ((page >> 1) & 3);
 		e752x_printk(KERN_WARNING,
-			     "Test row %d Table %d %d %d %d %d %d %d %d\n",
-			     row, pvt->map[0], pvt->map[1], pvt->map[2],
-			     pvt->map[3], pvt->map[4], pvt->map[5],
-			     pvt->map[6], pvt->map[7]);
+			"Test row %d Table %d %d %d %d %d %d %d %d\n", row,
+			pvt->map[0], pvt->map[1], pvt->map[2], pvt->map[3],
+			pvt->map[4], pvt->map[5], pvt->map[6], pvt->map[7]);
 
 		/* test for channel remapping */
 		for (i = 0; i < 8; i++) {
 			if (pvt->map[i] == row)
 				break;
 		}
+
 		e752x_printk(KERN_WARNING, "Test computed row %d\n", i);
+
 		if (i < 8)
 			row = i;
 		else
 			e752x_mc_printk(mci, KERN_WARNING,
-			    "row %d not found in remap table\n", row);
+				"row %d not found in remap table\n", row);
 	} else
 		row = edac_mc_find_csrow_by_page(mci, page);
+
 	/* 0 = channel A, 1 = channel B */
 	channel = !(error_one & 1);
 
 	if (!pvt->map_type)
 		row = 7 - row;
-	edac_mc_handle_ce(mci, page, 0, sec1_syndrome, row, channel,
-	    "e752x CE");
-}
 
+	edac_mc_handle_ce(mci, page, 0, sec1_syndrome, row, channel,
+		"e752x CE");
+}
 
 static inline void process_ce(struct mem_ctl_info *mci, u16 error_one,
 		u32 sec1_add, u16 sec1_syndrome, int *error_found,
@@ -297,8 +295,8 @@ static inline void process_ce(struct mem_ctl_info *mci, u16 error_one,
 		do_process_ce(mci, error_one, sec1_add, sec1_syndrome);
 }
 
-static void do_process_ue(struct mem_ctl_info *mci, u16 error_one, u32 ded_add,
-		u32 scrb_add)
+static void do_process_ue(struct mem_ctl_info *mci, u16 error_one,
+		u32 ded_add, u32 scrb_add)
 {
 	u32 error_2b, block_page;
 	int row;
@@ -308,25 +306,31 @@ static void do_process_ue(struct mem_ctl_info *mci, u16 error_one, u32 ded_add,
 
 	if (error_one & 0x0202) {
 		error_2b = ded_add;
+
 		/* convert to 4k address */
 		block_page = error_2b >> (PAGE_SHIFT - 4);
+
 		row = pvt->mc_symmetric ?
-		    /* chip select are bits 14 & 13 */
-		    ((block_page >> 1) & 3) :
-		    edac_mc_find_csrow_by_page(mci, block_page);
+			/* chip select are bits 14 & 13 */
+			((block_page >> 1) & 3) :
+			edac_mc_find_csrow_by_page(mci, block_page);
+
 		edac_mc_handle_ue(mci, block_page, 0, row,
-				       "e752x UE from Read");
+			"e752x UE from Read");
 	}
 	if (error_one & 0x0404) {
 		error_2b = scrb_add;
+
 		/* convert to 4k address */
 		block_page = error_2b >> (PAGE_SHIFT - 4);
+
 		row = pvt->mc_symmetric ?
-		    /* chip select are bits 14 & 13 */
-		    ((block_page >> 1) & 3) :
-		    edac_mc_find_csrow_by_page(mci, block_page);
+			/* chip select are bits 14 & 13 */
+			((block_page >> 1) & 3) :
+			edac_mc_find_csrow_by_page(mci, block_page);
+
 		edac_mc_handle_ue(mci, block_page, 0, row,
-				       "e752x UE from Scruber");
+				"e752x UE from Scruber");
 	}
 }
 
@@ -359,13 +363,13 @@ static void do_process_ded_retry(struct mem_ctl_info *mci, u16 error,
 	struct e752x_pvt *pvt = (struct e752x_pvt *) mci->pvt_info;
 
 	error_1b = retry_add;
-	page = error_1b >> (PAGE_SHIFT - 4);	/* convert the addr to 4k page */
+	page = error_1b >> (PAGE_SHIFT - 4); /* convert the addr to 4k page */
 	row = pvt->mc_symmetric ?
-	    ((page >> 1) & 3) :	/* chip select are bits 14 & 13 */
-	    edac_mc_find_csrow_by_page(mci, page);
+		((page >> 1) & 3) : /* chip select are bits 14 & 13 */
+		edac_mc_find_csrow_by_page(mci, page);
 	e752x_mc_printk(mci, KERN_WARNING,
-	    "CE page 0x%lx, row %d : Memory read retry\n",
-	    (long unsigned int) page, row);
+		"CE page 0x%lx, row %d : Memory read retry\n",
+		(long unsigned int) page, row);
 }
 
 static inline void process_ded_retry(struct mem_ctl_info *mci, u16 error,
@@ -402,7 +406,7 @@ static void do_global_error(int fatal, u32 errors)
 	for (i = 0; i < 11; i++) {
 		if (errors & (1 << i))
 			e752x_printk(KERN_WARNING, "%sError %s\n",
-			       fatal_message[fatal], global_message[i]);
+				fatal_message[fatal], global_message[i]);
 	}
 }
 
@@ -429,7 +433,7 @@ static void do_hub_error(int fatal, u8 errors)
 	for (i = 0; i < 7; i++) {
 		if (errors & (1 << i))
 			e752x_printk(KERN_WARNING, "%sError %s\n",
-			       fatal_message[fatal], hub_message[i]);
+				fatal_message[fatal], hub_message[i]);
 	}
 }
 
@@ -456,7 +460,7 @@ static void do_membuf_error(u8 errors)
 	for (i = 0; i < 4; i++) {
 		if (errors & (1 << i))
 			e752x_printk(KERN_WARNING, "Non-Fatal Error %s\n",
-			       membuf_message[i]);
+				membuf_message[i]);
 	}
 }
 
@@ -489,7 +493,7 @@ static void do_sysbus_error(int fatal, u32 errors)
 	for (i = 0; i < 10; i++) {
 		if (errors & (1 << i))
 			e752x_printk(KERN_WARNING, "%sError System Bus %s\n",
-			       fatal_message[fatal], global_message[i]);
+				fatal_message[fatal], global_message[i]);
 	}
 }
 
@@ -502,33 +506,42 @@ static inline void sysbus_error(int fatal, u32 errors, int *error_found,
 		do_sysbus_error(fatal, errors);
 }
 
-static void e752x_check_hub_interface (struct e752x_error_info *info,
+static void e752x_check_hub_interface(struct e752x_error_info *info,
 		int *error_found, int handle_error)
 {
 	u8 stat8;
 
 	//pci_read_config_byte(dev,E752X_HI_FERR,&stat8);
+
 	stat8 = info->hi_ferr;
+
 	if(stat8 & 0x7f) { /* Error, so process */
 		stat8 &= 0x7f;
+
 		if(stat8 & 0x2b)
 			hub_error(1, stat8 & 0x2b, error_found, handle_error);
+
 		if(stat8 & 0x54)
 			hub_error(0, stat8 & 0x54, error_found, handle_error);
 	}
+
 	//pci_read_config_byte(dev,E752X_HI_NERR,&stat8);
+
 	stat8 = info->hi_nerr;
+
 	if(stat8 & 0x7f) { /* Error, so process */
 		stat8 &= 0x7f;
+
 		if (stat8 & 0x2b)
 			hub_error(1, stat8 & 0x2b, error_found, handle_error);
+
 		if(stat8 & 0x54)
 			hub_error(0, stat8 & 0x54, error_found, handle_error);
 	}
 }
 
-static void e752x_check_sysbus (struct e752x_error_info *info, int *error_found,
-		int handle_error)
+static void e752x_check_sysbus(struct e752x_error_info *info,
+		int *error_found, int handle_error)
 {
 	u32 stat32, error32;
 
@@ -540,27 +553,34 @@ static void e752x_check_sysbus (struct e752x_error_info *info, int *error_found,
 
 	error32 = (stat32 >> 16) & 0x3ff;
 	stat32 = stat32 & 0x3ff;
+
 	if(stat32 & 0x083)
 		sysbus_error(1, stat32 & 0x083, error_found, handle_error);
+
 	if(stat32 & 0x37c)
 		sysbus_error(0, stat32 & 0x37c, error_found, handle_error);
+
 	if(error32 & 0x083)
 		sysbus_error(1, error32 & 0x083, error_found, handle_error);
+
 	if(error32 & 0x37c)
 		sysbus_error(0, error32 & 0x37c, error_found, handle_error);
 }
 
-static void e752x_check_membuf (struct e752x_error_info *info, int *error_found,
-		int handle_error)
+static void e752x_check_membuf (struct e752x_error_info *info,
+		int *error_found, int handle_error)
 {
 	u8 stat8;
 
 	stat8 = info->buf_ferr;
+
 	if (stat8 & 0x0f) { /* Error, so process */
 		stat8 &= 0x0f;
 		membuf_error(stat8, error_found, handle_error);
 	}
+
 	stat8 = info->buf_nerr;
+
 	if (stat8 & 0x0f) { /* Error, so process */
 		stat8 &= 0x0f;
 		membuf_error(stat8, error_found, handle_error);
@@ -568,7 +588,8 @@ static void e752x_check_membuf (struct e752x_error_info *info, int *error_found,
 }
 
 static void e752x_check_dram (struct mem_ctl_info *mci,
-		struct e752x_error_info *info, int *error_found, int handle_error)
+		struct e752x_error_info *info, int *error_found,
+		int handle_error)
 {
 	u16 error_one, error_next;
 
@@ -618,7 +639,7 @@ static void e752x_check_dram (struct mem_ctl_info *mci,
 }
 
 static void e752x_get_error_info (struct mem_ctl_info *mci,
-				  struct e752x_error_info *info)
+		struct e752x_error_info *info)
 {
 	struct pci_dev *dev;
 	struct e752x_pvt *pvt;
@@ -626,7 +647,6 @@ static void e752x_get_error_info (struct mem_ctl_info *mci,
 	memset(info, 0, sizeof(*info));
 	pvt = (struct e752x_pvt *) mci->pvt_info;
 	dev = pvt->dev_d0f1;
-
 	pci_read_config_dword(dev, E752X_FERR_GLOBAL, &info->ferr_global);
 
 	if (info->ferr_global) {
@@ -737,6 +757,7 @@ static int e752x_process_error_info (struct mem_ctl_info *mci,
 static void e752x_check(struct mem_ctl_info *mci)
 {
 	struct e752x_error_info info;
+
 	debugf3("%s()\n", __func__);
 	e752x_get_error_info(mci, &info);
 	e752x_process_error_info(mci, &info, 1);
@@ -752,9 +773,9 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	struct e752x_pvt *pvt = NULL;
 	u16 ddrcsr;
 	u32 drc;
-	int drc_chan;		/* Number of channels 0=1chan,1=2chan */
-	int drc_drbg;		/* DRB granularity 0=64mb,1=128mb */
-	int drc_ddim;		/* DRAM Data Integrity Mode 0=none,2=edac */
+	int drc_chan;	/* Number of channels 0=1chan,1=2chan */
+	int drc_drbg;	/* DRB granularity 0=64mb, 1=128mb */
+	int drc_ddim;	/* DRAM Data Integrity Mode 0=none,2=edac */
 	u32 dra;
 	unsigned long last_cumul_size;
 	struct pci_dev *dev = NULL;
@@ -785,7 +806,6 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	debugf3("%s(): init mci\n", __func__);
-
 	mci->mtype_cap = MEM_FLAG_RDDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED |
 	    EDAC_FLAG_S4ECD4ED;
@@ -798,19 +818,21 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	pvt = (struct e752x_pvt *) mci->pvt_info;
 	pvt->dev_info = &e752x_devs[dev_idx];
 	pvt->bridge_ck = pci_get_device(PCI_VENDOR_ID_INTEL,
-					 pvt->dev_info->err_dev,
-					 pvt->bridge_ck);
+					pvt->dev_info->err_dev,
+					pvt->bridge_ck);
+
 	if (pvt->bridge_ck == NULL)
 		pvt->bridge_ck = pci_scan_single_device(pdev->bus,
-							PCI_DEVFN(0, 1));
+					PCI_DEVFN(0, 1));
+
 	if (pvt->bridge_ck == NULL) {
 		e752x_printk(KERN_ERR, "error reporting device not found:"
-		       "vendor %x device 0x%x (broken BIOS?)\n",
-		       PCI_VENDOR_ID_INTEL, e752x_devs[dev_idx].err_dev);
+			"vendor %x device 0x%x (broken BIOS?)\n",
+			PCI_VENDOR_ID_INTEL, e752x_devs[dev_idx].err_dev);
 		goto fail;
 	}
-	pvt->mc_symmetric = ((ddrcsr & 0x10) != 0);
 
+	pvt->mc_symmetric = ((ddrcsr & 0x10) != 0);
 	debugf3("%s(): more mci init\n", __func__);
 	mci->ctl_name = pvt->dev_info->ctl_name;
 	mci->edac_check = e752x_check;
@@ -828,6 +850,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	for (last_cumul_size = index = 0; index < mci->nr_csrows; index++) {
 		u8 value;
 		u32 cumul_size;
+
 		/* mem_dev 0=x8, 1=x4 */
 		int mem_dev = (dra >> (index * 4 + 2)) & 0x3;
 		struct csrow_info *csrow = &mci->csrows[index];
@@ -838,15 +861,16 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 		cumul_size = value << (25 + drc_drbg - PAGE_SHIFT);
 		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
 			cumul_size);
+
 		if (cumul_size == last_cumul_size)
-			continue;	/* not populated */
+			continue; /* not populated */
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
 		csrow->nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 12;	/* 4KiB - resolution of CELOG */
-		csrow->mtype = MEM_RDDR;	/* only one type supported */
+		csrow->grain = 1 << 12;  /* 4KiB - resolution of CELOG */
+		csrow->mtype = MEM_RDDR;  /* only one type supported */
 		csrow->dtype = mem_dev ? DEV_X4 : DEV_X8;
 
 		/*
@@ -870,29 +894,32 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 		u8 value;
 		u8 last = 0;
 		u8 row = 0;
-		for (index = 0; index < 8; index += 2) {
 
+		for (index = 0; index < 8; index += 2) {
 			pci_read_config_byte(mci->pdev, E752X_DRB + index,
-					     &value);
+					&value);
+
 			/* test if there is a dimm in this slot */
 			if (value == last) {
 				/* no dimm in the slot, so flag it as empty */
 				pvt->map[index] = 0xff;
 				pvt->map[index + 1] = 0xff;
-			} else {	/* there is a dimm in the slot */
+			} else { /* there is a dimm in the slot */
 				pvt->map[index] = row;
 				row++;
 				last = value;
 				/* test the next value to see if the dimm is
 				   double sided */
 				pci_read_config_byte(mci->pdev,
-						     E752X_DRB + index + 1,
-						     &value);
+						E752X_DRB + index + 1,
+						&value);
 				pvt->map[index + 1] = (value == last) ?
-				    0xff :	/* the dimm is single sided,
-						   so flag as empty */
-				    row;	/* this is a double sided dimm
-						   to save the next row # */
+					0xff :	/* the dimm is single sided,
+						 * so flag as empty
+						 */
+					row;	/* this is a double sided dimm
+						 * to save the next row #
+						 */
 				row++;
 				last = value;
 			}
@@ -904,8 +931,8 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	pvt->map_type = ((stat8 & 0x0f) > ((stat8 >> 4) & 0x0f));
 
 	mci->edac_cap |= EDAC_FLAG_NONE;
-
 	debugf3("%s(): tolm, remapbase, remaplimit\n", __func__);
+
 	/* load the top of low memory, remap base, and remap limit vars */
 	pci_read_config_word(mci->pdev, E752X_TOLM, &pci_data);
 	pvt->tolm = ((u32) pci_data) << 4;
@@ -914,8 +941,8 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	pci_read_config_word(mci->pdev, E752X_REMAPLIMIT, &pci_data);
 	pvt->remaplimit = ((u32) pci_data) << 14;
 	e752x_printk(KERN_INFO,
-		     "tolm = %x, remapbase = %x, remaplimit = %x\n",
-		     pvt->tolm, pvt->remapbase, pvt->remaplimit);
+		"tolm = %x, remapbase = %x, remaplimit = %x\n", pvt->tolm,
+		pvt->remapbase, pvt->remaplimit);
 
 	if (edac_mc_add_mc(mci)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
@@ -923,7 +950,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	dev = pci_get_device(PCI_VENDOR_ID_INTEL, e752x_devs[dev_idx].ctl_dev,
-			     NULL);
+			NULL);
 	pvt->dev_d0f0 = dev;
 	/* find the error reporting device and clear errors */
 	dev = pvt->dev_d0f1 = pci_dev_get(pvt->bridge_ck);
@@ -936,8 +963,8 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	pci_write_config_byte(dev, E752X_BUF_SMICMD, 0x00);
 	pci_write_config_byte(dev, E752X_DRAM_ERRMASK, 0x00);
 	pci_write_config_byte(dev, E752X_DRAM_SMICMD, 0x00);
-	/* clear other MCH errors */
-	e752x_get_error_info(mci, &discard);
+
+	e752x_get_error_info(mci, &discard); /* clear other MCH errors */
 
 	/* get this far and it's successful */
 	debugf3("%s(): success\n", __func__);
@@ -947,27 +974,31 @@ fail:
 	if (mci) {
 		if (pvt->dev_d0f0)
 			pci_dev_put(pvt->dev_d0f0);
+
 		if (pvt->dev_d0f1)
 			pci_dev_put(pvt->dev_d0f1);
+
 		if (pvt->bridge_ck)
 			pci_dev_put(pvt->bridge_ck);
+
 		edac_mc_free(mci);
 	}
+
 	return rc;
 }
 
 /* returns count (>= 0), or negative on error */
 static int __devinit e752x_init_one(struct pci_dev *pdev,
-				    const struct pci_device_id *ent)
+		const struct pci_device_id *ent)
 {
 	debugf0("%s()\n", __func__);
 
 	/* wake up and enable device */
 	if(pci_enable_device(pdev) < 0)
 		return -EIO;
+
 	return e752x_probe1(pdev, ent->driver_data);
 }
-
 
 static void __devexit e752x_remove_one(struct pci_dev *pdev)
 {
@@ -986,19 +1017,25 @@ static void __devexit e752x_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-
 static const struct pci_device_id e752x_pci_tbl[] __devinitdata = {
-	{PCI_VEND_DEV(INTEL, 7520_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7520},
-	{PCI_VEND_DEV(INTEL, 7525_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7525},
-	{PCI_VEND_DEV(INTEL, 7320_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7320},
-	{0,}			/* 0 terminated list. */
+	{
+		PCI_VEND_DEV(INTEL, 7520_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		E7520
+	},
+	{
+		PCI_VEND_DEV(INTEL, 7525_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		E7525
+	},
+	{
+		PCI_VEND_DEV(INTEL, 7320_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		E7320
+	},
+	{
+		0,
+	}	/* 0 terminated list. */
 };
 
 MODULE_DEVICE_TABLE(pci, e752x_pci_tbl);
-
 
 static struct pci_driver e752x_driver = {
 	.name = EDAC_MOD_STR,
@@ -1006,7 +1043,6 @@ static struct pci_driver e752x_driver = {
 	.remove = __devexit_p(e752x_remove_one),
 	.id_table = e752x_pci_tbl,
 };
-
 
 static int __init e752x_init(void)
 {
@@ -1017,13 +1053,11 @@ static int __init e752x_init(void)
 	return (pci_rc < 0) ? pci_rc : 0;
 }
 
-
 static void __exit e752x_exit(void)
 {
 	debugf3("%s()\n", __func__);
 	pci_unregister_driver(&e752x_driver);
 }
-
 
 module_init(e752x_init);
 module_exit(e752x_exit);
