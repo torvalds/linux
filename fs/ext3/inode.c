@@ -1430,7 +1430,7 @@ ext3_readpages(struct file *file, struct address_space *mapping,
 	return mpage_readpages(mapping, pages, nr_pages, ext3_get_block);
 }
 
-static int ext3_invalidatepage(struct page *page, unsigned long offset)
+static void ext3_invalidatepage(struct page *page, unsigned long offset)
 {
 	journal_t *journal = EXT3_JOURNAL(page->mapping->host);
 
@@ -1440,7 +1440,7 @@ static int ext3_invalidatepage(struct page *page, unsigned long offset)
 	if (offset == 0)
 		ClearPageChecked(page);
 
-	return journal_invalidatepage(journal, page, offset);
+	journal_invalidatepage(journal, page, offset);
 }
 
 static int ext3_releasepage(struct page *page, gfp_t wait)

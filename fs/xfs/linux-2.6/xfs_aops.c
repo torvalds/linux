@@ -1442,14 +1442,14 @@ xfs_vm_readpages(
 	return mpage_readpages(mapping, pages, nr_pages, xfs_get_block);
 }
 
-STATIC int
+STATIC void
 xfs_vm_invalidatepage(
 	struct page		*page,
 	unsigned long		offset)
 {
 	xfs_page_trace(XFS_INVALIDPAGE_ENTER,
 			page->mapping->host, page, offset);
-	return block_invalidatepage(page, offset);
+	block_invalidatepage(page, offset);
 }
 
 struct address_space_operations xfs_address_space_operations = {

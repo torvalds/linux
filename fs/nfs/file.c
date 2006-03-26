@@ -318,10 +318,9 @@ static int nfs_commit_write(struct file *file, struct page *page, unsigned offse
 	return status;
 }
 
-static int nfs_invalidate_page(struct page *page, unsigned long offset)
+static void nfs_invalidate_page(struct page *page, unsigned long offset)
 {
 	/* FIXME: we really should cancel any unstarted writes on this page */
-	return 1;
 }
 
 static int nfs_release_page(struct page *page, gfp_t gfp)
