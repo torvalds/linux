@@ -135,11 +135,9 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 #ifdef CONFIG_EISA
 	unsigned long end = phys_addr + size - 1;
 	/* Support EISA addresses */
-	if ((phys_addr >= 0x00080000 && end < 0x000fffff)
-			|| (phys_addr >= 0x00500000 && end < 0x03bfffff)) {
-		phys_addr |= 0xfc000000;
-#warning "FIXME: EISA regions do not work yet..."
-		return NULL;  /* XXX */
+	if ((phys_addr >= 0x00080000 && end < 0x000fffff) ||
+	    (phys_addr >= 0x00500000 && end < 0x03bfffff)) {
+		phys_addr |= F_EXTEND(0xfc000000);
 	}
 #endif
 
