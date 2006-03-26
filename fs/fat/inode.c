@@ -101,11 +101,11 @@ static int __fat_get_blocks(struct inode *inode, sector_t iblock,
 }
 
 static int fat_get_blocks(struct inode *inode, sector_t iblock,
-			  unsigned long max_blocks,
 			  struct buffer_head *bh_result, int create)
 {
 	struct super_block *sb = inode->i_sb;
 	int err;
+	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
 
 	err = __fat_get_blocks(inode, iblock, &max_blocks, bh_result, create);
 	if (err)

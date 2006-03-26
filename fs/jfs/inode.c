@@ -302,7 +302,7 @@ static ssize_t jfs_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode = file->f_mapping->host;
 
 	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				offset, nr_segs, jfs_get_blocks, NULL);
+				offset, nr_segs, jfs_get_block, NULL);
 }
 
 struct address_space_operations jfs_aops = {

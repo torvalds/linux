@@ -940,11 +940,11 @@ out:
 
 static int
 ext3_direct_io_get_blocks(struct inode *inode, sector_t iblock,
-		unsigned long max_blocks,
 		struct buffer_head *bh_result, int create)
 {
 	handle_t *handle = journal_current_handle();
 	int ret = 0;
+	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
 
 	if (!create)
 		goto get_block;		/* A read */
@@ -989,18 +989,10 @@ get_block:
 	return ret;
 }
 
-static int ext3_get_blocks(struct inode *inode, sector_t iblock,
-		unsigned long maxblocks, struct buffer_head *bh_result,
-		int create)
-{
-	return ext3_direct_io_get_blocks(inode, iblock, maxblocks,
-					bh_result, create);
-}
-
 static int ext3_get_block(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
 {
-	return ext3_get_blocks(inode, iblock, 1, bh_result, create);
+	return ext3_direct_io_get_blocks(inode, iblock, bh_result, create);
 }
 
 /*

@@ -252,9 +252,6 @@ extern void __init files_init(unsigned long);
 struct buffer_head;
 typedef int (get_block_t)(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create);
-typedef int (get_blocks_t)(struct inode *inode, sector_t iblock,
-			unsigned long max_blocks,
-			struct buffer_head *bh_result, int create);
 typedef void (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 			ssize_t bytes, void *private);
 
@@ -1645,7 +1642,7 @@ static inline void do_generic_file_read(struct file * filp, loff_t *ppos,
 
 ssize_t __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	struct block_device *bdev, const struct iovec *iov, loff_t offset,
-	unsigned long nr_segs, get_blocks_t get_blocks, dio_iodone_t end_io,
+	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
 	int lock_type);
 
 enum {
@@ -1656,29 +1653,29 @@ enum {
 
 static inline ssize_t blockdev_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode, struct block_device *bdev, const struct iovec *iov,
-	loff_t offset, unsigned long nr_segs, get_blocks_t get_blocks,
+	loff_t offset, unsigned long nr_segs, get_block_t get_block,
 	dio_iodone_t end_io)
 {
 	return __blockdev_direct_IO(rw, iocb, inode, bdev, iov, offset,
-				nr_segs, get_blocks, end_io, DIO_LOCKING);
+				nr_segs, get_block, end_io, DIO_LOCKING);
 }
 
 static inline ssize_t blockdev_direct_IO_no_locking(int rw, struct kiocb *iocb,
 	struct inode *inode, struct block_device *bdev, const struct iovec *iov,
-	loff_t offset, unsigned long nr_segs, get_blocks_t get_blocks,
+	loff_t offset, unsigned long nr_segs, get_block_t get_block,
 	dio_iodone_t end_io)
 {
 	return __blockdev_direct_IO(rw, iocb, inode, bdev, iov, offset,
-				nr_segs, get_blocks, end_io, DIO_NO_LOCKING);
+				nr_segs, get_block, end_io, DIO_NO_LOCKING);
 }
 
 static inline ssize_t blockdev_direct_IO_own_locking(int rw, struct kiocb *iocb,
 	struct inode *inode, struct block_device *bdev, const struct iovec *iov,
-	loff_t offset, unsigned long nr_segs, get_blocks_t get_blocks,
+	loff_t offset, unsigned long nr_segs, get_block_t get_block,
 	dio_iodone_t end_io)
 {
 	return __blockdev_direct_IO(rw, iocb, inode, bdev, iov, offset,
-				nr_segs, get_blocks, end_io, DIO_OWN_LOCKING);
+				nr_segs, get_block, end_io, DIO_OWN_LOCKING);
 }
 
 extern struct file_operations generic_ro_fops;

@@ -466,7 +466,6 @@ static int reiserfs_get_block_create_0(struct inode *inode, sector_t block,
    direct_IO request. */
 static int reiserfs_get_blocks_direct_io(struct inode *inode,
 					 sector_t iblock,
-					 unsigned long max_blocks,
 					 struct buffer_head *bh_result,
 					 int create)
 {

@@ -1319,12 +1319,12 @@ STATIC int
 xfs_get_blocks_direct(
 	struct inode		*inode,
 	sector_t		iblock,
-	unsigned long		max_blocks,
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __xfs_get_block(inode, iblock, max_blocks, bh_result,
-					create, 1, BMAPI_WRITE|BMAPI_DIRECT);
+	return __xfs_get_block(inode, iblock,
+				bh_result->b_size >> inode->i_blkbits,
+				bh_result, create, 1, BMAPI_WRITE|BMAPI_DIRECT);
 }
 
 STATIC void

@@ -540,7 +540,6 @@ bail:
  * 					fs_count, map_bh, dio->rw == WRITE);
  */
 static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
-				     unsigned long max_blocks,
 				     struct buffer_head *bh_result, int create)
 {
 	int ret;
@@ -548,6 +547,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	u64 p_blkno;
 	int contig_blocks;
 	unsigned char blocksize_bits;
+	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
 
 	if (!inode || !bh_result) {
 		mlog(ML_ERROR, "inode or bh_result is null\n");

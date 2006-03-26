@@ -86,12 +86,12 @@ struct dio {
 	unsigned first_block_in_page;	/* doesn't change, Used only once */
 	int boundary;			/* prev block is at a boundary */
 	int reap_counter;		/* rate limit reaping */
-	get_blocks_t *get_blocks;	/* block mapping function */
+	get_block_t *get_block;		/* block mapping function */
 	dio_iodone_t *end_io;		/* IO completion function */
 	sector_t final_block_in_bio;	/* current final block in bio + 1 */
 	sector_t next_block_for_io;	/* next block to be put under IO,
 					   in dio_blocks units */
-	struct buffer_head map_bh;	/* last get_blocks() result */
+	struct buffer_head map_bh;	/* last get_block() result */
 
 	/*
 	 * Deferred addition of a page to the dio.  These variables are
@@ -211,9 +211,9 @@ static struct page *dio_get_page(struct dio *dio)
 
 /*
  * Called when all DIO BIO I/O has been completed - let the filesystem
- * know, if it registered an interest earlier via get_blocks.  Pass the
+ * know, if it registered an interest earlier via get_block.  Pass the
  * private field of the map buffer_head so that filesystems can use it
- * to hold additional state between get_blocks calls and dio_complete.
+ * to hold additional state between get_block calls and dio_complete.
  */
 static void dio_complete(struct dio *dio, loff_t offset, ssize_t bytes)
 {
@@ -493,7 +493,7 @@ static int dio_bio_reap(struct dio *dio)
  * The fs is allowed to map lots of blocks at once.  If it wants to do that,
  * it uses the passed inode-relative block number as the file offset, as usual.
  *
- * get_blocks() is passed the number of i_blkbits-sized blocks which direct_io
+ * get_block() is passed the number of i_blkbits-sized blocks which direct_io
  * has remaining to do.  The fs should not map more than this number of blocks.
  *
  * If the fs has mapped a lot of blocks, it should populate bh->b_size to
@@ -506,7 +506,7 @@ static int dio_bio_reap(struct dio *dio)
  * In the case of filesystem holes: the fs may return an arbitrarily-large
  * hole by returning an appropriate value in b_size and by clearing
  * buffer_mapped().  However the direct-io code will only process holes one
- * block at a time - it will repeatedly call get_blocks() as it walks the hole.
+ * block at a time - it will repeatedly call get_block() as it walks the hole.
  */
 static int get_more_blocks(struct dio *dio)
 {
@@ -548,7 +548,8 @@ static int get_more_blocks(struct dio *dio)
 		 * at a higher level for inside-i_size block-instantiating
 		 * writes.
 		 */
-		ret = (*dio->get_blocks)(dio->inode, fs_startblk, fs_count,
+		map_bh->b_size = fs_count << dio->blkbits;
+		ret = (*dio->get_block)(dio->inode, fs_startblk,
 						map_bh, create);
 	}
 	return ret;
@@ -783,11 +784,11 @@ static void dio_zero_block(struct dio *dio, int end)
  * happily perform page-sized but 512-byte aligned IOs.  It is important that
  * blockdev IO be able to have fine alignment and large sizes.
  *
- * So what we do is to permit the ->get_blocks function to populate bh.b_size
+ * So what we do is to permit the ->get_block function to populate bh.b_size
  * with the size of IO which is permitted at this offset and this i_blkbits.
  *
  * For best results, the blockdev should be set up with 512-byte i_blkbits and
- * it should set b_size to PAGE_SIZE or more inside get_blocks().  This gives
+ * it should set b_size to PAGE_SIZE or more inside get_block().  This gives
  * fine alignment but still allows this function to work in PAGE_SIZE units.
  */
 static int do_direct_IO(struct dio *dio)
@@ -947,7 +948,7 @@ out:
 static ssize_t
 direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode, 
 	const struct iovec *iov, loff_t offset, unsigned long nr_segs, 
-	unsigned blkbits, get_blocks_t get_blocks, dio_iodone_t end_io,
+	unsigned blkbits, get_block_t get_block, dio_iodone_t end_io,
 	struct dio *dio)
 {
 	unsigned long user_addr; 
@@ -969,7 +970,7 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 
 	dio->boundary = 0;
 	dio->reap_counter = 0;
-	dio->get_blocks = get_blocks;
+	dio->get_block = get_block;
 	dio->end_io = end_io;
 	dio->map_bh.b_private = NULL;
 	dio->final_block_in_bio = -1;
@@ -1177,7 +1178,7 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 ssize_t
 __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	struct block_device *bdev, const struct iovec *iov, loff_t offset, 
-	unsigned long nr_segs, get_blocks_t get_blocks, dio_iodone_t end_io,
+	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
 	int dio_lock_type)
 {
 	int seg;
@@ -1273,7 +1274,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 		(end > i_size_read(inode)));
 
 	retval = direct_io_worker(rw, iocb, inode, iov, offset,
-				nr_segs, blkbits, get_blocks, end_io, dio);
+				nr_segs, blkbits, get_block, end_io, dio);
 
 	if (rw == READ && dio_lock_type == DIO_LOCKING)
 		release_i_mutex = 0;
