@@ -42,6 +42,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/isapnp.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 
 #if 0
@@ -92,7 +93,7 @@ MODULE_LICENSE("GPL");
 #define _LTAG_FIXEDMEM32RANGE	0x86
 
 static unsigned char isapnp_checksum_value;
-static DECLARE_MUTEX(isapnp_cfg_mutex);
+static DEFINE_MUTEX(isapnp_cfg_mutex);
 static int isapnp_detected;
 static int isapnp_csn_count;
 
@@ -903,7 +904,7 @@ int isapnp_cfg_begin(int csn, int logdev)
 {
 	if (csn < 1 || csn > isapnp_csn_count || logdev > 10)
 		return -EINVAL;
-	down(&isapnp_cfg_mutex);
+	mutex_lock(&isapnp_cfg_mutex);
 	isapnp_wait();
 	isapnp_key();
 	isapnp_wake(csn);
@@ -929,7 +930,7 @@ int isapnp_cfg_begin(int csn, int logdev)
 int isapnp_cfg_end(void)
 {
 	isapnp_wait();
-	up(&isapnp_cfg_mutex);
+	mutex_unlock(&isapnp_cfg_mutex);
 	return 0;
 }
 

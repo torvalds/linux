@@ -40,6 +40,7 @@
 
 #ifdef CONFIG_X86_POWERNOW_K8_ACPI
 #include <linux/acpi.h>
+#include <linux/mutex.h>
 #include <acpi/processor.h>
 #endif
 
@@ -49,7 +50,7 @@
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
-static DECLARE_MUTEX(fidvid_sem);
+static DEFINE_MUTEX(fidvid_mutex);
 
 static struct powernow_k8_data *powernow_data[NR_CPUS];
 
@@ -943,17 +944,17 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	if (cpufreq_frequency_table_target(pol, data->powernow_table, targfreq, relation, &newstate))
 		goto err_out;
 
-	down(&fidvid_sem);
+	mutex_lock(&fidvid_mutex);
 
 	powernow_k8_acpi_pst_values(data, newstate);
 
 	if (transition_frequency(data, newstate)) {
 		printk(KERN_ERR PFX "transition frequency failed\n");
 		ret = 1;
-		up(&fidvid_sem);
+		mutex_unlock(&fidvid_mutex);
 		goto err_out;
 	}
-	up(&fidvid_sem);
+	mutex_unlock(&fidvid_mutex);
 
 	pol->cur = find_khz_freq_from_fid(data->currfid);
 	ret = 0;

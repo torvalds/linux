@@ -21,6 +21,7 @@
 #include <linux/cpufreq.h>
 #include <linux/init.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
@@ -90,7 +91,7 @@ static void (*g5_switch_volt)(int speed_mode);
 static int (*g5_switch_freq)(int speed_mode);
 static int (*g5_query_freq)(void);
 
-static DECLARE_MUTEX(g5_switch_mutex);
+static DEFINE_MUTEX(g5_switch_mutex);
 
 
 static struct smu_sdbp_fvt *g5_fvt_table;	/* table of op. points */
@@ -327,7 +328,7 @@ static int g5_cpufreq_target(struct cpufreq_policy *policy,
 	if (g5_pmode_cur == newstate)
 		return 0;
 
-	down(&g5_switch_mutex);
+	mutex_lock(&g5_switch_mutex);
 
 	freqs.old = g5_cpu_freqs[g5_pmode_cur].frequency;
 	freqs.new = g5_cpu_freqs[newstate].frequency;
@@ -337,7 +338,7 @@ static int g5_cpufreq_target(struct cpufreq_policy *policy,
 	rc = g5_switch_freq(newstate);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
-	up(&g5_switch_mutex);
+	mutex_unlock(&g5_switch_mutex);
 
 	return rc;
 }

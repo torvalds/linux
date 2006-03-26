@@ -590,51 +590,51 @@ static void client_del(struct kcopyd_client *kc)
 	up(&_client_lock);
 }
 
-static DECLARE_MUTEX(kcopyd_init_lock);
+static DEFINE_MUTEX(kcopyd_init_lock);
 static int kcopyd_clients = 0;
 
 static int kcopyd_init(void)
 {
 	int r;
 
-	down(&kcopyd_init_lock);
+	mutex_lock(&kcopyd_init_lock);
 
 	if (kcopyd_clients) {
 		/* Already initialized. */
 		kcopyd_clients++;
-		up(&kcopyd_init_lock);
+		mutex_unlock(&kcopyd_init_lock);
 		return 0;
 	}
 
 	r = jobs_init();
 	if (r) {
-		up(&kcopyd_init_lock);
+		mutex_unlock(&kcopyd_init_lock);
 		return r;
 	}
 
 	_kcopyd_wq = create_singlethread_workqueue("kcopyd");
 	if (!_kcopyd_wq) {
 		jobs_exit();
-		up(&kcopyd_init_lock);
+		mutex_unlock(&kcopyd_init_lock);
 		return -ENOMEM;
 	}
 
 	kcopyd_clients++;
 	INIT_WORK(&_kcopyd_work, do_work, NULL);
-	up(&kcopyd_init_lock);
+	mutex_unlock(&kcopyd_init_lock);
 	return 0;
 }
 
 static void kcopyd_exit(void)
 {
-	down(&kcopyd_init_lock);
+	mutex_lock(&kcopyd_init_lock);
 	kcopyd_clients--;
 	if (!kcopyd_clients) {
 		jobs_exit();
 		destroy_workqueue(_kcopyd_wq);
 		_kcopyd_wq = NULL;
 	}
-	up(&kcopyd_init_lock);
+	mutex_unlock(&kcopyd_init_lock);
 }
 
 int kcopyd_client_create(unsigned int nr_pages, struct kcopyd_client **result)

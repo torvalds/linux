@@ -32,7 +32,7 @@
 
 #include <asm/io.h>
 #include <asm/prom.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <asm/spu.h>
 #include <asm/mmu_context.h>
 
@@ -342,7 +342,7 @@ spu_free_irqs(struct spu *spu)
 }
 
 static LIST_HEAD(spu_list);
-static DECLARE_MUTEX(spu_mutex);
+static DEFINE_MUTEX(spu_mutex);
 
 static void spu_init_channels(struct spu *spu)
 {
@@ -382,7 +382,7 @@ struct spu *spu_alloc(void)
 {
 	struct spu *spu;
 
-	down(&spu_mutex);
+	mutex_lock(&spu_mutex);
 	if (!list_empty(&spu_list)) {
 		spu = list_entry(spu_list.next, struct spu, list);
 		list_del_init(&spu->list);
@@ -391,7 +391,7 @@ struct spu *spu_alloc(void)
 		pr_debug("No SPU left\n");
 		spu = NULL;
 	}
-	up(&spu_mutex);
+	mutex_unlock(&spu_mutex);
 
 	if (spu)
 		spu_init_channels(spu);
@@ -402,9 +402,9 @@ EXPORT_SYMBOL_GPL(spu_alloc);
 
 void spu_free(struct spu *spu)
 {
-	down(&spu_mutex);
+	mutex_lock(&spu_mutex);
 	list_add_tail(&spu->list, &spu_list);
-	up(&spu_mutex);
+	mutex_unlock(&spu_mutex);
 }
 EXPORT_SYMBOL_GPL(spu_free);
 
@@ -633,14 +633,14 @@ static int __init create_spu(struct device_node *spe)
 	spu->wbox_callback = NULL;
 	spu->stop_callback = NULL;
 
-	down(&spu_mutex);
+	mutex_lock(&spu_mutex);
 	spu->number = number++;
 	ret = spu_request_irqs(spu);
 	if (ret)
 		goto out_unmap;
 
 	list_add(&spu->list, &spu_list);
-	up(&spu_mutex);
+	mutex_unlock(&spu_mutex);
 
 	pr_debug(KERN_DEBUG "Using SPE %s %02x %p %p %p %p %d\n",
 		spu->name, spu->isrc, spu->local_store,
@@ -648,7 +648,7 @@ static int __init create_spu(struct device_node *spe)
 	goto out;
 
 out_unmap:
-	up(&spu_mutex);
+	mutex_unlock(&spu_mutex);
 	spu_unmap(spu);
 out_free:
 	kfree(spu);
@@ -668,10 +668,10 @@ static void destroy_spu(struct spu *spu)
 static void cleanup_spu_base(void)
 {
 	struct spu *spu, *tmp;
-	down(&spu_mutex);
+	mutex_lock(&spu_mutex);
 	list_for_each_entry_safe(spu, tmp, &spu_list, list)
 		destroy_spu(spu);
-	up(&spu_mutex);
+	mutex_unlock(&spu_mutex);
 }
 module_exit(cleanup_spu_base);
 
