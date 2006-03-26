@@ -8,11 +8,11 @@
 struct kstatfs {
 	long f_type;
 	long f_bsize;
-	sector_t f_blocks;
-	sector_t f_bfree;
-	sector_t f_bavail;
-	sector_t f_files;
-	sector_t f_ffree;
+	u64 f_blocks;
+	u64 f_bfree;
+	u64 f_bavail;
+	u64 f_files;
+	u64 f_ffree;
 	__kernel_fsid_t f_fsid;
 	long f_namelen;
 	long f_frsize;
