@@ -192,6 +192,7 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
 				page_block++, block_in_file++) {
 		bh.b_state = 0;
 		if (block_in_file < last_block) {
+			bh.b_size = blocksize;
 			if (get_block(inode, block_in_file, &bh, 0))
 				goto confused;
 		}
@@ -472,6 +473,7 @@ __mpage_writepage(struct bio *bio, struct page *page, get_block_t get_block,
 	for (page_block = 0; page_block < blocks_per_page; ) {
 
 		map_bh.b_state = 0;
+		map_bh.b_size = 1 << blkbits;
 		if (get_block(inode, block_in_file, &map_bh, 1))
 			goto confused;
 		if (buffer_new(&map_bh))

@@ -280,6 +280,7 @@ map_bh(struct buffer_head *bh, struct super_block *sb, sector_t block)
 	set_buffer_mapped(bh);
 	bh->b_bdev = sb->s_bdev;
 	bh->b_blocknr = block;
+	bh->b_size = sb->s_blocksize;
 }
 
 /*
