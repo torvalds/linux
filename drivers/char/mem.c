@@ -88,21 +88,15 @@ static inline int uncached_access(struct file *file, unsigned long addr)
 }
 
 #ifndef ARCH_HAS_VALID_PHYS_ADDR_RANGE
-static inline int valid_phys_addr_range(unsigned long addr, size_t *count)
+static inline int valid_phys_addr_range(unsigned long addr, size_t count)
 {
-	unsigned long end_mem;
-
-	end_mem = __pa(high_memory);
-	if (addr >= end_mem)
+	if (addr + count > __pa(high_memory))
 		return 0;
-
-	if (*count > end_mem - addr)
-		*count = end_mem - addr;
 
 	return 1;
 }
 
-static inline int valid_mmap_phys_addr_range(unsigned long addr, size_t *size)
+static inline int valid_mmap_phys_addr_range(unsigned long addr, size_t size)
 {
 	return 1;
 }
@@ -119,7 +113,7 @@ static ssize_t read_mem(struct file * file, char __user * buf,
 	ssize_t read, sz;
 	char *ptr;
 
-	if (!valid_phys_addr_range(p, &count))
+	if (!valid_phys_addr_range(p, count))
 		return -EFAULT;
 	read = 0;
 #ifdef __ARCH_HAS_NO_PAGE_ZERO_MAPPED
@@ -177,7 +171,7 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 	unsigned long copied;
 	void *ptr;
 
-	if (!valid_phys_addr_range(p, &count))
+	if (!valid_phys_addr_range(p, count))
 		return -EFAULT;
 
 	written = 0;
@@ -249,7 +243,7 @@ static int mmap_mem(struct file * file, struct vm_area_struct * vma)
 {
 	size_t size = vma->vm_end - vma->vm_start;
 
-	if (!valid_mmap_phys_addr_range(vma->vm_pgoff << PAGE_SHIFT, &size))
+	if (!valid_mmap_phys_addr_range(vma->vm_pgoff << PAGE_SHIFT, size))
 		return -EINVAL;
 
 	vma->vm_page_prot = phys_mem_access_prot(file, vma->vm_pgoff,

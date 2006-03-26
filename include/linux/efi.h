@@ -292,6 +292,8 @@ extern void efi_enter_virtual_mode (void);	/* switch EFI to virtual mode, if pos
 extern u64 efi_get_iobase (void);
 extern u32 efi_mem_type (unsigned long phys_addr);
 extern u64 efi_mem_attributes (unsigned long phys_addr);
+extern int efi_mem_attribute_range (unsigned long phys_addr, unsigned long size,
+				    u64 attr);
 extern int __init efi_uart_console_only (void);
 extern void efi_initialize_iomem_resources(struct resource *code_resource,
 					struct resource *data_resource);

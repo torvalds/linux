@@ -677,27 +677,34 @@ EXPORT_SYMBOL(efi_mem_attributes);
 /*
  * Determines whether the memory at phys_addr supports the desired
  * attribute (WB, UC, etc).  If this returns 1, the caller can safely
- * access *size bytes at phys_addr with the specified attribute.
+ * access size bytes at phys_addr with the specified attribute.
  */
-static int
-efi_mem_attribute_range (unsigned long phys_addr, unsigned long *size, u64 attr)
+int
+efi_mem_attribute_range (unsigned long phys_addr, unsigned long size, u64 attr)
 {
+	unsigned long end = phys_addr + size;
 	efi_memory_desc_t *md = efi_memory_descriptor(phys_addr);
-	unsigned long md_end;
 
-	if (!md || (md->attribute & attr) != attr)
+	/*
+	 * Some firmware doesn't report MMIO regions in the EFI memory
+	 * map.  The Intel BigSur (a.k.a. HP i2000) has this problem.
+	 * On those platforms, we have to assume UC is valid everywhere.
+	 */
+	if (!md || (md->attribute & attr) != attr) {
+		if (attr == EFI_MEMORY_UC && !efi_memmap_has_mmio())
+			return 1;
 		return 0;
+	}
 
 	do {
-		md_end = efi_md_end(md);
-		if (phys_addr + *size <= md_end)
+		unsigned long md_end = efi_md_end(md);
+
+		if (end <= md_end)
 			return 1;
 
 		md = efi_memory_descriptor(md_end);
-		if (!md || (md->attribute & attr) != attr) {
-			*size = md_end - phys_addr;
-			return 1;
-		}
+		if (!md || (md->attribute & attr) != attr)
+			return 0;
 	} while (md);
 	return 0;
 }
@@ -708,7 +715,7 @@ efi_mem_attribute_range (unsigned long phys_addr, unsigned long *size, u64 attr)
  * control access size.
  */
 int
-valid_phys_addr_range (unsigned long phys_addr, unsigned long *size)
+valid_phys_addr_range (unsigned long phys_addr, unsigned long size)
 {
 	return efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_WB);
 }
@@ -723,20 +730,12 @@ valid_phys_addr_range (unsigned long phys_addr, unsigned long *size)
  * because that doesn't appear in the boot-time EFI memory map.
  */
 int
-valid_mmap_phys_addr_range (unsigned long phys_addr, unsigned long *size)
+valid_mmap_phys_addr_range (unsigned long phys_addr, unsigned long size)
 {
 	if (efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_WB))
 		return 1;
 
 	if (efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_UC))
-		return 1;
-
-	/*
-	 * Some firmware doesn't report MMIO regions in the EFI memory map.
-	 * The Intel BigSur (a.k.a. HP i2000) has this problem.  In this
-	 * case, we can't use the EFI memory map to validate mmap requests.
-	 */
-	if (!efi_memmap_has_mmio())
 		return 1;
 
 	return 0;
