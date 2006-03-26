@@ -278,8 +278,6 @@ static int edac_sysfs_memctrl_setup(void)
 	if (!err) {
 		/* Init the MC's kobject */
 		memset(&edac_memctrl_kobj, 0, sizeof (edac_memctrl_kobj));
-		kobject_init(&edac_memctrl_kobj);
-
 		edac_memctrl_kobj.parent = &edac_class.kset.kobj;
 		edac_memctrl_kobj.ktype = &ktype_memctrl;
 
@@ -313,9 +311,6 @@ static void edac_sysfs_memctrl_teardown(void)
 
 	/* Unregister the MC's kobject */
 	kobject_unregister(&edac_memctrl_kobj);
-
-	/* release the master edac mc kobject */
-	kobject_put(&edac_memctrl_kobj);
 
 	/* Unregister the 'edac' object */
 	sysdev_class_unregister(&edac_class);
@@ -594,8 +589,6 @@ static int edac_sysfs_pci_setup(void)
 	debugf1("%s()\n", __func__);
 
 	memset(&edac_pci_kobj, 0, sizeof(edac_pci_kobj));
-
-	kobject_init(&edac_pci_kobj);
 	edac_pci_kobj.parent = &edac_class.kset.kobj;
 	edac_pci_kobj.ktype = &ktype_edac_pci;
 
@@ -619,7 +612,6 @@ static void edac_sysfs_pci_teardown(void)
 	debugf0("%s()\n", __func__);
 
 	kobject_unregister(&edac_pci_kobj);
-	kobject_put(&edac_pci_kobj);
 #endif
 }
 
@@ -829,7 +821,6 @@ static int edac_create_csrow_object(struct kobject *edac_mci_kobj,
 
 	/* generate ..../edac/mc/mc<id>/csrow<index>   */
 
-	kobject_init(&csrow->kobj);
 	csrow->kobj.parent = edac_mci_kobj;
 	csrow->kobj.ktype = &ktype_csrow;
 
@@ -1104,7 +1095,6 @@ static int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	debugf0("%s() idx=%d\n", __func__, mci->mc_idx);
 
 	memset(edac_mci_kobj, 0, sizeof(*edac_mci_kobj));
-	kobject_init(edac_mci_kobj);
 
 	/* set the name of the mc<id> object */
 	err = kobject_set_name(edac_mci_kobj,"mc%d",mci->mc_idx);
@@ -1123,10 +1113,8 @@ static int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	/* create a symlink for the device */
 	err = sysfs_create_link(edac_mci_kobj, &mci->pdev->dev.kobj,
 				EDAC_DEVICE_SYMLINK);
-	if (err) {
-		kobject_unregister(edac_mci_kobj);
-		return err;
-	}
+	if (err)
+		goto fail0;
 
 	/* Make directories for each CSROW object
 	 * under the mc<id> kobject
@@ -1139,7 +1127,7 @@ static int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 		if (csrow->nr_pages > 0) {
 			err = edac_create_csrow_object(edac_mci_kobj,csrow,i);
 			if (err)
-				goto fail;
+				goto fail1;
 		}
 	}
 
@@ -1150,16 +1138,14 @@ static int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 
 
 	/* CSROW error: backout what has already been registered,  */
-fail:
+fail1:
 	for ( i--; i >= 0; i--) {
-		if (csrow->nr_pages > 0) {
+		if (csrow->nr_pages > 0)
 			kobject_unregister(&mci->csrows[i].kobj);
-			kobject_put(&mci->csrows[i].kobj);
-		}
 	}
 
+fail0:
 	kobject_unregister(edac_mci_kobj);
-	kobject_put(edac_mci_kobj);
 
 	return err;
 }
@@ -1177,16 +1163,13 @@ static void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 
 	/* remove all csrow kobjects */
 	for (i = 0; i < mci->nr_csrows; i++) {
-		if (mci->csrows[i].nr_pages > 0)  {
+		if (mci->csrows[i].nr_pages > 0)
 			kobject_unregister(&mci->csrows[i].kobj);
-			kobject_put(&mci->csrows[i].kobj);
-		}
 	}
 
 	sysfs_remove_link(&mci->edac_mci_kobj, EDAC_DEVICE_SYMLINK);
 
 	kobject_unregister(&mci->edac_mci_kobj);
-	kobject_put(&mci->edac_mci_kobj);
 #endif  /* DISABLE_EDAC_SYSFS */
 }
 
