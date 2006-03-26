@@ -362,10 +362,10 @@ static void __kprobes resume_execution(struct kprobe *p,
 		struct pt_regs *regs, struct kprobe_ctlblk *kcb)
 {
 	unsigned long *tos = (unsigned long *)&regs->esp;
-	unsigned long next_eip = 0;
 	unsigned long copy_eip = (unsigned long)p->ainsn.insn;
 	unsigned long orig_eip = (unsigned long)p->addr;
 
+	regs->eflags &= ~TF_MASK;
 	switch (p->ainsn.insn[0]) {
 	case 0x9c:		/* pushfl */
 		*tos &= ~(TF_MASK | IF_MASK);
@@ -375,9 +375,9 @@ static void __kprobes resume_execution(struct kprobe *p,
 	case 0xcb:
 	case 0xc2:
 	case 0xca:
-		regs->eflags &= ~TF_MASK;
-		/* eip is already adjusted, no more changes required*/
-		return;
+	case 0xea:		/* jmp absolute -- eip is correct */
+		/* eip is already adjusted, no more changes required */
+		goto no_change;
 	case 0xe8:		/* call relative - Fix return addr */
 		*tos = orig_eip + (*tos - copy_eip);
 		break;
@@ -385,27 +385,21 @@ static void __kprobes resume_execution(struct kprobe *p,
 		if ((p->ainsn.insn[1] & 0x30) == 0x10) {
 			/* call absolute, indirect */
 			/* Fix return addr; eip is correct. */
-			next_eip = regs->eip;
 			*tos = orig_eip + (*tos - copy_eip);
+			goto no_change;
 		} else if (((p->ainsn.insn[1] & 0x31) == 0x20) ||	/* jmp near, absolute indirect */
 			   ((p->ainsn.insn[1] & 0x31) == 0x21)) {	/* jmp far, absolute indirect */
 			/* eip is correct. */
-			next_eip = regs->eip;
+			goto no_change;
 		}
-		break;
-	case 0xea:		/* jmp absolute -- eip is correct */
-		next_eip = regs->eip;
-		break;
 	default:
 		break;
 	}
 
-	regs->eflags &= ~TF_MASK;
-	if (next_eip) {
-		regs->eip = next_eip;
-	} else {
-		regs->eip = orig_eip + (regs->eip - copy_eip);
-	}
+	regs->eip = orig_eip + (regs->eip - copy_eip);
+
+no_change:
+	return;
 }
 
 /*
