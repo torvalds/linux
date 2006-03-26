@@ -101,7 +101,6 @@ static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
 	retval = (mask & *adr) != 0;
 	*adr |= mask;
 	cris_atomic_restore(addr, flags);
-	local_irq_restore(flags);
 	return retval;
 }
 
