@@ -326,7 +326,7 @@ source "fs/xfs/Kconfig"
 
 config OCFS2_FS
 	tristate "OCFS2 file system support (EXPERIMENTAL)"
-	depends on NET && EXPERIMENTAL
+	depends on NET && SYSFS && EXPERIMENTAL
 	select CONFIGFS_FS
 	select JBD
 	select CRC32
