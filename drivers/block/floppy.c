@@ -250,6 +250,18 @@ static int irqdma_allocated;
 #include <linux/cdrom.h>	/* for the compatibility eject ioctl */
 #include <linux/completion.h>
 
+/*
+ * Interrupt freeing also means /proc VFS work - dont do it
+ * from interrupt context. We push this work into keventd:
+ */
+static void fd_free_irq_fn(void *data)
+{
+	fd_free_irq();
+}
+
+static DECLARE_WORK(fd_free_irq_work, fd_free_irq_fn, NULL);
+
+
 static struct request *current_req;
 static struct request_queue *floppy_queue;
 static void do_fd_request(request_queue_t * q);
@@ -4433,6 +4445,13 @@ static int floppy_grab_irq_and_dma(void)
 		return 0;
 	}
 	spin_unlock_irqrestore(&floppy_usage_lock, flags);
+
+	/*
+	 * We might have scheduled a free_irq(), wait it to
+	 * drain first:
+	 */
+	flush_scheduled_work();
+
 	if (fd_request_irq()) {
 		DPRINT("Unable to grab IRQ%d for the floppy driver\n",
 		       FLOPPY_IRQ);
@@ -4522,7 +4541,7 @@ static void floppy_release_irq_and_dma(void)
 	if (irqdma_allocated) {
 		fd_disable_dma();
 		fd_free_dma();
-		fd_free_irq();
+		schedule_work(&fd_free_irq_work);
 		irqdma_allocated = 0;
 	}
 	set_dor(0, ~0, 8);
@@ -4632,6 +4651,8 @@ void cleanup_module(void)
 
 	/* eject disk, if any */
 	fd_eject(0);
+
+	flush_scheduled_work();		/* fd_free_irq() might be pending */
 
 	wait_for_completion(&device_release);
 }
