@@ -180,22 +180,14 @@ acpi_status
 acpi_os_map_memory(acpi_physical_address phys, acpi_size size,
 		   void __iomem ** virt)
 {
-	if (efi_enabled) {
-		if (EFI_MEMORY_WB & efi_mem_attributes(phys)) {
-			*virt = (void __iomem *)phys_to_virt(phys);
-		} else {
-			*virt = ioremap(phys, size);
-		}
-	} else {
-		if (phys > ULONG_MAX) {
-			printk(KERN_ERR PREFIX "Cannot map memory that high\n");
-			return AE_BAD_PARAMETER;
-		}
-		/*
-		 * ioremap checks to ensure this is in reserved space
-		 */
-		*virt = ioremap((unsigned long)phys, size);
+	if (phys > ULONG_MAX) {
+		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
+		return AE_BAD_PARAMETER;
 	}
+	/*
+	 * ioremap checks to ensure this is in reserved space
+	 */
+	*virt = ioremap((unsigned long)phys, size);
 
 	if (!*virt)
 		return AE_NO_MEMORY;
@@ -407,18 +399,8 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
 {
 	u32 dummy;
 	void __iomem *virt_addr;
-	int iomem = 0;
 
-	if (efi_enabled) {
-		if (EFI_MEMORY_WB & efi_mem_attributes(phys_addr)) {
-			/* HACK ALERT! We can use readb/w/l on real memory too.. */
-			virt_addr = (void __iomem *)phys_to_virt(phys_addr);
-		} else {
-			iomem = 1;
-			virt_addr = ioremap(phys_addr, width);
-		}
-	} else
-		virt_addr = (void __iomem *)phys_to_virt(phys_addr);
+	virt_addr = ioremap(phys_addr, width);
 	if (!value)
 		value = &dummy;
 
@@ -436,10 +418,7 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
 		BUG();
 	}
 
-	if (efi_enabled) {
-		if (iomem)
-			iounmap(virt_addr);
-	}
+	iounmap(virt_addr);
 
 	return AE_OK;
 }
@@ -448,18 +427,8 @@ acpi_status
 acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 {
 	void __iomem *virt_addr;
-	int iomem = 0;
 
-	if (efi_enabled) {
-		if (EFI_MEMORY_WB & efi_mem_attributes(phys_addr)) {
-			/* HACK ALERT! We can use writeb/w/l on real memory too */
-			virt_addr = (void __iomem *)phys_to_virt(phys_addr);
-		} else {
-			iomem = 1;
-			virt_addr = ioremap(phys_addr, width);
-		}
-	} else
-		virt_addr = (void __iomem *)phys_to_virt(phys_addr);
+	virt_addr = ioremap(phys_addr, width);
 
 	switch (width) {
 	case 8:
@@ -475,8 +444,7 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 		BUG();
 	}
 
-	if (iomem)
-		iounmap(virt_addr);
+	iounmap(virt_addr);
 
 	return AE_OK;
 }
