@@ -143,7 +143,7 @@ static void sprintf_buffer_head(char *buf, struct buffer_head *bh)
 	char b[BDEVNAME_SIZE];
 
 	sprintf(buf,
-		"dev %s, size %d, blocknr %llu, count %d, state 0x%lx, page %p, (%s, %s, %s)",
+		"dev %s, size %zd, blocknr %llu, count %d, state 0x%lx, page %p, (%s, %s, %s)",
 		bdevname(bh->b_bdev, b), bh->b_size,
 		(unsigned long long)bh->b_blocknr, atomic_read(&(bh->b_count)),
 		bh->b_state, bh->b_page,
