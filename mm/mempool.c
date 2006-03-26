@@ -183,8 +183,8 @@ EXPORT_SYMBOL(mempool_resize);
  */
 void mempool_destroy(mempool_t *pool)
 {
-	if (pool->curr_nr != pool->min_nr)
-		BUG();		/* There were outstanding elements */
+	/* Check for outstanding elements */
+	BUG_ON(pool->curr_nr != pool->min_nr);
 	free_pool(pool);
 }
 EXPORT_SYMBOL(mempool_destroy);
