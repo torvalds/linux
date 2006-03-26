@@ -472,8 +472,7 @@ static inline void membuf_error(u8 errors, int *error_found, int handle_error)
 		do_membuf_error(errors);
 }
 
-#if 0
-char *sysbus_message[10] = {
+static char *sysbus_message[10] = {
 	"Addr or Request Parity",
 	"Data Strobe Glitch",
 	"Addr Strobe Glitch",
@@ -484,7 +483,6 @@ char *sysbus_message[10] = {
 	"Memory Parity",
 	"IO Subsystem Parity"
 };
-#endif  /*  0  */
 
 static void do_sysbus_error(int fatal, u32 errors)
 {
@@ -493,7 +491,7 @@ static void do_sysbus_error(int fatal, u32 errors)
 	for (i = 0; i < 10; i++) {
 		if (errors & (1 << i))
 			e752x_printk(KERN_WARNING, "%sError System Bus %s\n",
-				fatal_message[fatal], global_message[i]);
+				fatal_message[fatal], sysbus_message[i]);
 	}
 }
 
