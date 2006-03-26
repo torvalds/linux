@@ -306,8 +306,7 @@ u64 hpsb_allocate_and_register_addrspace(struct hpsb_highlevel *hl,
 	u64 align_mask = ~(alignment - 1);
 
 	if ((alignment & 3) || (alignment > 0x800000000000ULL) ||
-	    ((hweight32(alignment >> 32) +
-	      hweight32(alignment & 0xffffffff) != 1))) {
+	    (hweight64(alignment) != 1)) {
 		HPSB_ERR("%s called with invalid alignment: 0x%048llx",
 			 __FUNCTION__, (unsigned long long)alignment);
 		return retval;
