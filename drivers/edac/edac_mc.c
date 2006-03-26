@@ -1484,8 +1484,6 @@ EXPORT_SYMBOL(edac_mc_add_mc);
 /* FIXME - should a warning be printed if no error detection? correction? */
 int edac_mc_add_mc(struct mem_ctl_info *mci)
 {
-	int rc = 1;
-
 	debugf0("%s()\n", __func__);
 #ifdef CONFIG_EDAC_DEBUG
 	if (edac_debug_level >= 3)
@@ -1505,7 +1503,7 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 	down(&mem_ctls_mutex);
 
 	if (add_mc_to_global_list(mci))
-		goto finish;
+		goto fail0;
 
 	/* set load time so that error rate can be tracked */
 	mci->start_time = jiffies;
@@ -1513,19 +1511,22 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
         if (edac_create_sysfs_mci_device(mci)) {
                 edac_mc_printk(mci, KERN_WARNING,
 			"failed to create sysfs device\n");
-		/* FIXME - should there be an error code and unwind? */
-                goto finish;
+                goto fail1;
         }
 
 	/* Report action taken */
 	edac_mc_printk(mci, KERN_INFO, "Giving out device to %s %s: PCI %s\n",
 		mci->mod_name, mci->ctl_name, pci_name(mci->pdev));
 
-	rc = 0;
-
-finish:
 	up(&mem_ctls_mutex);
-	return rc;
+	return 0;
+
+fail1:
+	del_mc_from_global_list(mci);
+
+fail0:
+	up(&mem_ctls_mutex);
+	return 1;
 }
 
 
