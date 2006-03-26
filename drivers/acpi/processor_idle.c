@@ -876,10 +876,10 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 {
 	unsigned int i;
 	unsigned int working = 0;
-	int timer_broadcast = 0;
-	cpumask_t mask = cpumask_of_cpu(pr->id);
 
 #ifdef ARCH_APICTIMER_STOPS_ON_C3
+	int timer_broadcast = 0;
+	cpumask_t mask = cpumask_of_cpu(pr->id);
 	on_each_cpu(switch_ipi_to_APIC_timer, &mask, 1, 1);
 #endif
 
@@ -915,8 +915,10 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 			working++;
 	}
 
+#ifdef ARCH_APICTIMER_STOPS_ON_C3
 	if (timer_broadcast)
 		on_each_cpu(switch_APIC_timer_to_ipi, &mask, 1, 1);
+#endif
 
 	return (working);
 }
