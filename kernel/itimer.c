@@ -136,7 +136,8 @@ int it_real_fn(void *data)
 
 	if (tsk->signal->it_real_incr.tv64 != 0) {
 		hrtimer_forward(&tsk->signal->real_timer,
-			       tsk->signal->it_real_incr);
+				tsk->signal->real_timer.base->softirq_time,
+				tsk->signal->it_real_incr);
 
 		return HRTIMER_RESTART;
 	}

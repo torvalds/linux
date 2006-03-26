@@ -301,18 +301,17 @@ void unlock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
  * hrtimer_forward - forward the timer expiry
  *
  * @timer:	hrtimer to forward
+ * @now:	forward past this time
  * @interval:	the interval to forward
  *
  * Forward the timer expiry so it will expire in the future.
  * Returns the number of overruns.
  */
 unsigned long
-hrtimer_forward(struct hrtimer *timer, ktime_t interval)
+hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval)
 {
 	unsigned long orun = 1;
-	ktime_t delta, now;
-
-	now = timer->base->get_time();
+	ktime_t delta;
 
 	delta = ktime_sub(now, timer->expires);
 

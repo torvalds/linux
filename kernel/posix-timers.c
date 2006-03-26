@@ -251,15 +251,18 @@ __initcall(init_posix_timers);
 
 static void schedule_next_timer(struct k_itimer *timr)
 {
+	struct hrtimer *timer = &timr->it.real.timer;
+
 	if (timr->it.real.interval.tv64 == 0)
 		return;
 
-	timr->it_overrun += hrtimer_forward(&timr->it.real.timer,
+	timr->it_overrun += hrtimer_forward(timer, timer->base->get_time(),
 					    timr->it.real.interval);
+
 	timr->it_overrun_last = timr->it_overrun;
 	timr->it_overrun = -1;
 	++timr->it_requeue_pending;
-	hrtimer_restart(&timr->it.real.timer);
+	hrtimer_restart(timer);
 }
 
 /*
@@ -334,6 +337,7 @@ EXPORT_SYMBOL_GPL(posix_timer_event);
 static int posix_timer_fn(void *data)
 {
 	struct k_itimer *timr = data;
+	struct hrtimer *timer = &timr->it.real.timer;
 	unsigned long flags;
 	int si_private = 0;
 	int ret = HRTIMER_NORESTART;
@@ -351,7 +355,8 @@ static int posix_timer_fn(void *data)
 		 */
 		if (timr->it.real.interval.tv64 != 0) {
 			timr->it_overrun +=
-				hrtimer_forward(&timr->it.real.timer,
+				hrtimer_forward(timer,
+						timer->base->softirq_time,
 						timr->it.real.interval);
 			ret = HRTIMER_RESTART;
 			++timr->it_requeue_pending;
@@ -623,7 +628,8 @@ common_timer_get(struct k_itimer *timr, struct itimerspec *cur_setting)
 	if (timr->it_requeue_pending & REQUEUE_PENDING ||
 	    (timr->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE) {
 		timr->it_overrun +=
-			hrtimer_forward(timer, timr->it.real.interval);
+			hrtimer_forward(timer, timer->base->get_time(),
+					timr->it.real.interval);
 		remaining = hrtimer_get_remaining(timer);
 	}
  calci:
