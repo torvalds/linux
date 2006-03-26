@@ -185,11 +185,6 @@ enum scrub_type {
 #define SCRUB_FLAG_HW_PROG_SRC	BIT(SCRUB_HW_PROG_SRC_CORR)
 #define SCRUB_FLAG_HW_TUN	BIT(SCRUB_HW_TUNABLE)
 
-enum mci_sysfs_status {
-	MCI_SYSFS_INACTIVE = 0,	/* sysfs entries NOT registered */
-	MCI_SYSFS_ACTIVE	/* sysfs entries ARE registered */
-};
-
 /* FIXME - should have notify capabilities: NMI, LOG, PROC, etc */
 
 /*
@@ -299,6 +294,7 @@ struct csrow_info {
 	struct mem_ctl_info *mci;	/* the parent */
 
 	struct kobject kobj;	/* sysfs kobject for this csrow */
+	struct completion kobj_complete;
 
 	/* FIXME the number of CHANNELs might need to become dynamic */
 	u32 nr_channels;
@@ -319,8 +315,6 @@ struct mem_ctl_info {
 				   edac_cap would not have that capability. */
 	unsigned long scrub_cap;	/* chipset scrub capabilities */
 	enum scrub_type scrub_mode;	/* current scrub mode */
-
-	enum mci_sysfs_status sysfs_active;	/* status of sysfs */
 
 	/* pointer to edac checking routine */
 	void (*edac_check) (struct mem_ctl_info * mci);
@@ -359,6 +353,7 @@ struct mem_ctl_info {
 
 	/* edac sysfs device control */
 	struct kobject edac_mci_kobj;
+	struct completion kobj_complete;
 };
 
 
