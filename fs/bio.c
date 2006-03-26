@@ -1125,16 +1125,6 @@ struct bio_pair *bio_split(struct bio *bi, mempool_t *pool, int first_sectors)
 	return bp;
 }
 
-static void *bio_pair_alloc(gfp_t gfp_flags, void *data)
-{
-	return kmalloc(sizeof(struct bio_pair), gfp_flags);
-}
-
-static void bio_pair_free(void *bp, void *data)
-{
-	kfree(bp);
-}
-
 
 /*
  * create memory pools for biovec's in a bio_set.
@@ -1254,8 +1244,8 @@ static int __init init_bio(void)
 	if (!fs_bio_set)
 		panic("bio: can't allocate bios\n");
 
-	bio_split_pool = mempool_create(BIO_SPLIT_ENTRIES,
-				bio_pair_alloc, bio_pair_free, NULL);
+	bio_split_pool = mempool_create_kmalloc_pool(BIO_SPLIT_ENTRIES,
+						     sizeof(struct bio_pair));
 	if (!bio_split_pool)
 		panic("bio: can't create split pool\n");
 

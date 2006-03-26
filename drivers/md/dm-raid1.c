@@ -122,16 +122,6 @@ static inline sector_t region_to_sector(struct region_hash *rh, region_t region)
 /* FIXME move this */
 static void queue_bio(struct mirror_set *ms, struct bio *bio, int rw);
 
-static void *region_alloc(gfp_t gfp_mask, void *pool_data)
-{
-	return kmalloc(sizeof(struct region), gfp_mask);
-}
-
-static void region_free(void *element, void *pool_data)
-{
-	kfree(element);
-}
-
 #define MIN_REGIONS 64
 #define MAX_RECOVERY 1
 static int rh_init(struct region_hash *rh, struct mirror_set *ms,
@@ -173,8 +163,8 @@ static int rh_init(struct region_hash *rh, struct mirror_set *ms,
 	INIT_LIST_HEAD(&rh->quiesced_regions);
 	INIT_LIST_HEAD(&rh->recovered_regions);
 
-	rh->region_pool = mempool_create(MIN_REGIONS, region_alloc,
-					 region_free, NULL);
+	rh->region_pool = mempool_create_kmalloc_pool(MIN_REGIONS,
+						      sizeof(struct region));
 	if (!rh->region_pool) {
 		vfree(rh->buckets);
 		rh->buckets = NULL;
