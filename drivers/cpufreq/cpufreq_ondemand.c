@@ -351,6 +351,9 @@ static void dbs_check_cpu(int cpu)
 	freq_next = (freq_next * policy->cur) /
 			(dbs_tuners_ins.up_threshold - 10);
 
+	if (freq_next < policy->min)
+		freq_next = policy->min;
+
 	if (freq_next <= ((policy->cur * 95) / 100))
 		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_L);
 }
