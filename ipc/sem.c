@@ -75,6 +75,8 @@
 #include <linux/audit.h>
 #include <linux/capability.h>
 #include <linux/seq_file.h>
+#include <linux/mutex.h>
+
 #include <asm/uaccess.h>
 #include "util.h"
 
@@ -139,7 +141,7 @@ void __init sem_init (void)
  *   	* if it's IN_WAKEUP, then it must wait until the value changes
  *   	* if it's not -EINTR, then the operation was completed by
  *   	  update_queue. semtimedop can return queue.status without
- *   	  performing any operation on the semaphore array.
+ *   	  performing any operation on the sem array.
  *   	* otherwise it must acquire the spinlock and check what's up.
  *
  * The two-stage algorithm is necessary to protect against the following
@@ -214,7 +216,7 @@ asmlinkage long sys_semget (key_t key, int nsems, int semflg)
 
 	if (nsems < 0 || nsems > sc_semmsl)
 		return -EINVAL;
-	down(&sem_ids.sem);
+	mutex_lock(&sem_ids.mutex);
 	
 	if (key == IPC_PRIVATE) {
 		err = newary(key, nsems, semflg);
@@ -242,7 +244,7 @@ asmlinkage long sys_semget (key_t key, int nsems, int semflg)
 		sem_unlock(sma);
 	}
 
-	up(&sem_ids.sem);
+	mutex_unlock(&sem_ids.mutex);
 	return err;
 }
 
@@ -437,8 +439,8 @@ static int count_semzcnt (struct sem_array * sma, ushort semnum)
 	return semzcnt;
 }
 
-/* Free a semaphore set. freeary() is called with sem_ids.sem down and
- * the spinlock for this semaphore set hold. sem_ids.sem remains locked
+/* Free a semaphore set. freeary() is called with sem_ids.mutex locked and
+ * the spinlock for this semaphore set hold. sem_ids.mutex remains locked
  * on exit.
  */
 static void freeary (struct sem_array *sma, int id)
@@ -525,7 +527,7 @@ static int semctl_nolock(int semid, int semnum, int cmd, int version, union semu
 		seminfo.semmnu = SEMMNU;
 		seminfo.semmap = SEMMAP;
 		seminfo.semume = SEMUME;
-		down(&sem_ids.sem);
+		mutex_lock(&sem_ids.mutex);
 		if (cmd == SEM_INFO) {
 			seminfo.semusz = sem_ids.in_use;
 			seminfo.semaem = used_sems;
@@ -534,7 +536,7 @@ static int semctl_nolock(int semid, int semnum, int cmd, int version, union semu
 			seminfo.semaem = SEMAEM;
 		}
 		max_id = sem_ids.max_id;
-		up(&sem_ids.sem);
+		mutex_unlock(&sem_ids.mutex);
 		if (copy_to_user (arg.__buf, &seminfo, sizeof(struct seminfo))) 
 			return -EFAULT;
 		return (max_id < 0) ? 0: max_id;
@@ -885,9 +887,9 @@ asmlinkage long sys_semctl (int semid, int semnum, int cmd, union semun arg)
 		return err;
 	case IPC_RMID:
 	case IPC_SET:
-		down(&sem_ids.sem);
+		mutex_lock(&sem_ids.mutex);
 		err = semctl_down(semid,semnum,cmd,version,arg);
-		up(&sem_ids.sem);
+		mutex_unlock(&sem_ids.mutex);
 		return err;
 	default:
 		return -EINVAL;
@@ -1299,9 +1301,9 @@ found:
 		/* perform adjustments registered in u */
 		nsems = sma->sem_nsems;
 		for (i = 0; i < nsems; i++) {
-			struct sem * sem = &sma->sem_base[i];
+			struct sem * semaphore = &sma->sem_base[i];
 			if (u->semadj[i]) {
-				sem->semval += u->semadj[i];
+				semaphore->semval += u->semadj[i];
 				/*
 				 * Range checks of the new semaphore value,
 				 * not defined by sus:
@@ -1315,11 +1317,11 @@ found:
 				 *
 				 * 	Manfred <manfred@colorfullife.com>
 				 */
-				if (sem->semval < 0)
-					sem->semval = 0;
-				if (sem->semval > SEMVMX)
-					sem->semval = SEMVMX;
-				sem->sempid = current->tgid;
+				if (semaphore->semval < 0)
+					semaphore->semval = 0;
+				if (semaphore->semval > SEMVMX)
+					semaphore->semval = SEMVMX;
+				semaphore->sempid = current->tgid;
 			}
 		}
 		sma->sem_otime = get_seconds();

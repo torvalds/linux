@@ -30,7 +30,7 @@
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #include "util.h"
