@@ -382,8 +382,8 @@ static inline int sched_find_first_bit(unsigned long *b)
 #define hweight8(x) generic_hweight8(x)
 
 #ifdef __LITTLE_ENDIAN__
-#define ext2_set_bit(nr, addr) test_and_set_bit((nr), (addr))
-#define ext2_clear_bit(nr, addr) test_and_clear_bit((nr), (addr))
+#define ext2_set_bit(nr, addr) __test_and_set_bit((nr), (addr))
+#define ext2_clear_bit(nr, addr) __test_and_clear_bit((nr), (addr))
 #define ext2_test_bit(nr, addr) test_bit((nr), (addr))
 #define ext2_find_first_zero_bit(addr, size) find_first_zero_bit((addr), (size))
 #define ext2_find_next_zero_bit(addr, size, offset) \
@@ -392,30 +392,24 @@ static inline int sched_find_first_bit(unsigned long *b)
 static __inline__ int ext2_set_bit(int nr, volatile void * addr)
 {
 	int		mask, retval;
-	unsigned long	flags;
 	volatile unsigned char	*ADDR = (unsigned char *) addr;
 
 	ADDR += nr >> 3;
 	mask = 1 << (nr & 0x07);
-	local_irq_save(flags);
 	retval = (mask & *ADDR) != 0;
 	*ADDR |= mask;
-	local_irq_restore(flags);
 	return retval;
 }
 
 static __inline__ int ext2_clear_bit(int nr, volatile void * addr)
 {
 	int		mask, retval;
-	unsigned long	flags;
 	volatile unsigned char	*ADDR = (unsigned char *) addr;
 
 	ADDR += nr >> 3;
 	mask = 1 << (nr & 0x07);
-	local_irq_save(flags);
 	retval = (mask & *ADDR) != 0;
 	*ADDR &= ~mask;
-	local_irq_restore(flags);
 	return retval;
 }
 
@@ -502,9 +496,9 @@ found_middle:
 	})
 
 /* Bitmap functions for the minix filesystem.  */
-#define minix_test_and_set_bit(nr,addr) test_and_set_bit(nr,addr)
-#define minix_set_bit(nr,addr) set_bit(nr,addr)
-#define minix_test_and_clear_bit(nr,addr) test_and_clear_bit(nr,addr)
+#define minix_test_and_set_bit(nr,addr) __test_and_set_bit(nr,addr)
+#define minix_set_bit(nr,addr) __set_bit(nr,addr)
+#define minix_test_and_clear_bit(nr,addr) __test_and_clear_bit(nr,addr)
 #define minix_test_bit(nr,addr) test_bit(nr,addr)
 #define minix_find_first_zero_bit(addr,size) find_first_zero_bit(addr,size)
 

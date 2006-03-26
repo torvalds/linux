@@ -575,7 +575,7 @@ found_middle:
  */
 
 #ifdef __LITTLE_ENDIAN__
-#define ext2_set_bit			test_and_set_bit
+#define ext2_set_bit			__test_and_set_bit
 #define ext2_clear_bit			__test_and_clear_bit
 #define ext2_test_bit			test_bit
 #define ext2_find_first_zero_bit	find_first_zero_bit

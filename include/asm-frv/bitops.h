@@ -259,11 +259,11 @@ static inline int sched_find_first_bit(const unsigned long *b)
 #define hweight16(x) generic_hweight16(x)
 #define hweight8(x) generic_hweight8(x)
 
-#define ext2_set_bit(nr, addr)		test_and_set_bit  ((nr) ^ 0x18, (addr))
-#define ext2_clear_bit(nr, addr)	test_and_clear_bit((nr) ^ 0x18, (addr))
+#define ext2_set_bit(nr, addr)		__test_and_set_bit  ((nr) ^ 0x18, (addr))
+#define ext2_clear_bit(nr, addr)	__test_and_clear_bit((nr) ^ 0x18, (addr))
 
-#define ext2_set_bit_atomic(lock,nr,addr)	ext2_set_bit((nr), addr)
-#define ext2_clear_bit_atomic(lock,nr,addr)	ext2_clear_bit((nr), addr)
+#define ext2_set_bit_atomic(lock,nr,addr)	test_and_set_bit  ((nr) ^ 0x18, (addr))
+#define ext2_clear_bit_atomic(lock,nr,addr)	test_and_clear_bit((nr) ^ 0x18, (addr))
 
 static inline int ext2_test_bit(int nr, const volatile void * addr)
 {
@@ -331,9 +331,9 @@ found_middle:
 }
 
 /* Bitmap functions for the minix filesystem.  */
-#define minix_test_and_set_bit(nr,addr)		ext2_set_bit(nr,addr)
-#define minix_set_bit(nr,addr)			ext2_set_bit(nr,addr)
-#define minix_test_and_clear_bit(nr,addr)	ext2_clear_bit(nr,addr)
+#define minix_test_and_set_bit(nr,addr)		__test_and_set_bit  ((nr) ^ 0x18, (addr))
+#define minix_set_bit(nr,addr)			__set_bit((nr) ^ 0x18, (addr))
+#define minix_test_and_clear_bit(nr,addr)	__test_and_clear_bit((nr) ^ 0x18, (addr))
 #define minix_test_bit(nr,addr)			ext2_test_bit(nr,addr)
 #define minix_find_first_zero_bit(addr,size)	ext2_find_first_zero_bit(addr,size)
 

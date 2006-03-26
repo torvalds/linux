@@ -871,11 +871,11 @@ static inline int sched_find_first_bit(unsigned long *b)
  */
 
 #define ext2_set_bit(nr, addr)       \
-	test_and_set_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
+	__test_and_set_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
 #define ext2_set_bit_atomic(lock, nr, addr)       \
 	test_and_set_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
 #define ext2_clear_bit(nr, addr)     \
-	test_and_clear_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
+	__test_and_clear_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
 #define ext2_clear_bit_atomic(lock, nr, addr)     \
 	test_and_clear_bit((nr)^(__BITOPS_WORDSIZE - 8), (unsigned long *)addr)
 #define ext2_test_bit(nr, addr)      \
@@ -1014,11 +1014,11 @@ ext2_find_next_zero_bit(void *vaddr, unsigned long size, unsigned long offset)
 /* Bitmap functions for the minix filesystem.  */
 /* FIXME !!! */
 #define minix_test_and_set_bit(nr,addr) \
-	test_and_set_bit(nr,(unsigned long *)addr)
+	__test_and_set_bit(nr,(unsigned long *)addr)
 #define minix_set_bit(nr,addr) \
-	set_bit(nr,(unsigned long *)addr)
+	__set_bit(nr,(unsigned long *)addr)
 #define minix_test_and_clear_bit(nr,addr) \
-	test_and_clear_bit(nr,(unsigned long *)addr)
+	__test_and_clear_bit(nr,(unsigned long *)addr)
 #define minix_test_bit(nr,addr) \
 	test_bit(nr,(unsigned long *)addr)
 #define minix_find_first_zero_bit(addr,size) \

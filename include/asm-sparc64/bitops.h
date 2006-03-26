@@ -280,11 +280,11 @@ extern unsigned long find_next_zero_le_bit(unsigned long *, unsigned long, unsig
 
 /* Bitmap functions for the minix filesystem.  */
 #define minix_test_and_set_bit(nr,addr)	\
-	test_and_set_bit((nr),(unsigned long *)(addr))
+	__test_and_set_bit((nr),(unsigned long *)(addr))
 #define minix_set_bit(nr,addr)	\
-	set_bit((nr),(unsigned long *)(addr))
+	__set_bit((nr),(unsigned long *)(addr))
 #define minix_test_and_clear_bit(nr,addr) \
-	test_and_clear_bit((nr),(unsigned long *)(addr))
+	__test_and_clear_bit((nr),(unsigned long *)(addr))
 #define minix_test_bit(nr,addr)	\
 	test_bit((nr),(unsigned long *)(addr))
 #define minix_find_first_zero_bit(addr,size) \

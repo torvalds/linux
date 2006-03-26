@@ -336,18 +336,18 @@ static inline int sched_find_first_bit(unsigned long *b)
 #define hweight16(x) 			generic_hweight16 (x)
 #define hweight8(x) 			generic_hweight8 (x)
 
-#define ext2_set_bit			test_and_set_bit
+#define ext2_set_bit			__test_and_set_bit
 #define ext2_set_bit_atomic(l,n,a)      test_and_set_bit(n,a)
-#define ext2_clear_bit			test_and_clear_bit
+#define ext2_clear_bit			__test_and_clear_bit
 #define ext2_clear_bit_atomic(l,n,a)    test_and_clear_bit(n,a)
 #define ext2_test_bit			test_bit
 #define ext2_find_first_zero_bit	find_first_zero_bit
 #define ext2_find_next_zero_bit		find_next_zero_bit
 
 /* Bitmap functions for the minix filesystem.  */
-#define minix_test_and_set_bit		test_and_set_bit
-#define minix_set_bit			set_bit
-#define minix_test_and_clear_bit	test_and_clear_bit
+#define minix_test_and_set_bit		__test_and_set_bit
+#define minix_set_bit			__set_bit
+#define minix_test_and_clear_bit	__test_and_clear_bit
 #define minix_test_bit 			test_bit
 #define minix_find_first_zero_bit 	find_first_zero_bit
 
