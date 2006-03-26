@@ -613,21 +613,19 @@ static inline void run_hrtimer_queue(struct hrtimer_base *base)
 
 	while ((node = base->first)) {
 		struct hrtimer *timer;
-		int (*fn)(void *);
+		int (*fn)(struct hrtimer *);
 		int restart;
-		void *data;
 
 		timer = rb_entry(node, struct hrtimer, node);
 		if (base->softirq_time.tv64 <= timer->expires.tv64)
 			break;
 
 		fn = timer->function;
-		data = timer->data;
 		set_curr_timer(base, timer);
 		__remove_hrtimer(timer, base);
 		spin_unlock_irq(&base->lock);
 
-		restart = fn(data);
+		restart = fn(timer);
 
 		spin_lock_irq(&base->lock);
 
@@ -664,9 +662,10 @@ struct sleep_hrtimer {
 	int expired;
 };
 
-static int nanosleep_wakeup(void *data)
+static int nanosleep_wakeup(struct hrtimer *timer)
 {
-	struct sleep_hrtimer *t = data;
+	struct sleep_hrtimer *t =
+		container_of(timer, struct sleep_hrtimer, timer);
 
 	t->expired = 1;
 	wake_up_process(t->task);
@@ -677,7 +676,6 @@ static int nanosleep_wakeup(void *data)
 static int __sched do_nanosleep(struct sleep_hrtimer *t, enum hrtimer_mode mode)
 {
 	t->timer.function = nanosleep_wakeup;
-	t->timer.data = t;
 	t->task = current;
 	t->expired = 0;
 

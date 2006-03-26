@@ -128,17 +128,16 @@ asmlinkage long sys_getitimer(int which, struct itimerval __user *value)
 /*
  * The timer is automagically restarted, when interval != 0
  */
-int it_real_fn(void *data)
+int it_real_fn(struct hrtimer *timer)
 {
-	struct task_struct *tsk = (struct task_struct *) data;
+	struct signal_struct *sig =
+	    container_of(timer, struct signal_struct, real_timer);
 
-	send_group_sig_info(SIGALRM, SEND_SIG_PRIV, tsk);
+	send_group_sig_info(SIGALRM, SEND_SIG_PRIV, sig->tsk);
 
-	if (tsk->signal->it_real_incr.tv64 != 0) {
-		hrtimer_forward(&tsk->signal->real_timer,
-				tsk->signal->real_timer.base->softirq_time,
-				tsk->signal->it_real_incr);
-
+	if (sig->it_real_incr.tv64 != 0) {
+		hrtimer_forward(timer, timer->base->softirq_time,
+				sig->it_real_incr);
 		return HRTIMER_RESTART;
 	}
 	return HRTIMER_NORESTART;

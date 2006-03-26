@@ -45,9 +45,7 @@ struct hrtimer_base;
  * @expires:	the absolute expiry time in the hrtimers internal
  *		representation. The time is related to the clock on
  *		which the timer is based.
- * @state:	state of the timer
  * @function:	timer expiry callback function
- * @data:	argument for the callback function
  * @base:	pointer to the timer base (per cpu and per clock)
  *
  * The hrtimer structure must be initialized by init_hrtimer_#CLOCKTYPE()
@@ -55,8 +53,7 @@ struct hrtimer_base;
 struct hrtimer {
 	struct rb_node		node;
 	ktime_t			expires;
-	int			(*function)(void *);
-	void			*data;
+	int			(*function)(struct hrtimer *);
 	struct hrtimer_base	*base;
 };
 
