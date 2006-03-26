@@ -1039,6 +1039,15 @@ M:	khc@pm.waw.pl
 W:	http://www.kernel.org/pub/linux/utils/net/hdlc/
 S:	Maintained
 
+GIGASET ISDN DRIVERS
+P:	Hansjoerg Lipp
+M:	hjlipp@web.de
+P:	Tilman Schmidt
+M:	tilman@imap.cc
+L:	gigaset307x-common@lists.sourceforge.net
+W:	http://gigaset307x.sourceforge.net/
+S:	Maintained
+
 HARDWARE MONITORING
 P:	Jean Delvare
 M:	khali@linux-fr.org
