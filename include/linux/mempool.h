@@ -39,6 +39,18 @@ void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data);
 void mempool_free_slab(void *element, void *pool_data);
 
 /*
+ * A mempool_alloc_t and mempool_free_t to kmalloc the amount of memory
+ * specified by pool_data
+ */
+void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data);
+void mempool_kfree(void *element, void *pool_data);
+static inline mempool_t *mempool_create_kmalloc_pool(int min_nr, size_t size)
+{
+	return mempool_create(min_nr, mempool_kmalloc, mempool_kfree,
+			      (void *) size);
+}
+
+/*
  * A mempool_alloc_t and mempool_free_t for a simple page allocator that
  * allocates pages of the order specified by pool_data
  */

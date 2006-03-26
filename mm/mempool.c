@@ -291,6 +291,23 @@ void mempool_free_slab(void *element, void *pool_data)
 EXPORT_SYMBOL(mempool_free_slab);
 
 /*
+ * A commonly used alloc and free fn that kmalloc/kfrees the amount of memory
+ * specfied by pool_data
+ */
+void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data)
+{
+	size_t size = (size_t) pool_data;
+	return kmalloc(size, gfp_mask);
+}
+EXPORT_SYMBOL(mempool_kmalloc);
+
+void mempool_kfree(void *element, void *pool_data)
+{
+	kfree(element);
+}
+EXPORT_SYMBOL(mempool_kfree);
+
+/*
  * A simple mempool-backed page allocator that allocates pages
  * of the order specified by pool_data.
  */
