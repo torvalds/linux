@@ -610,7 +610,7 @@ void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec)
  *
  * Returns the timespec representation of the nsec parameter.
  */
-struct timespec ns_to_timespec(const nsec_t nsec)
+struct timespec ns_to_timespec(const s64 nsec)
 {
 	struct timespec ts;
 
@@ -630,7 +630,7 @@ struct timespec ns_to_timespec(const nsec_t nsec)
  *
  * Returns the timeval representation of the nsec parameter.
  */
-struct timeval ns_to_timeval(const nsec_t nsec)
+struct timeval ns_to_timeval(const s64 nsec)
 {
 	struct timespec ts = ns_to_timespec(nsec);
 	struct timeval tv;

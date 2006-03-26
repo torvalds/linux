@@ -266,7 +266,7 @@ ktime_t ktime_add_ns(const ktime_t kt, u64 nsec)
 /*
  * Divide a ktime value by a nanosecond value
  */
-static unsigned long ktime_divns(const ktime_t kt, nsec_t div)
+static unsigned long ktime_divns(const ktime_t kt, s64 div)
 {
 	u64 dclc, inc, dns;
 	int sft = 0;
@@ -322,7 +322,7 @@ hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval)
 		interval.tv64 = timer->base->resolution.tv64;
 
 	if (unlikely(delta.tv64 >= interval.tv64)) {
-		nsec_t incr = ktime_to_ns(interval);
+		s64 incr = ktime_to_ns(interval);
 
 		orun = ktime_divns(delta, incr);
 		timer->expires = ktime_add_ns(timer->expires, incr * orun);
