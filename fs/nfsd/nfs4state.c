@@ -2750,37 +2750,31 @@ nfsd4_lock(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_lock 
 	* Note: locks.c uses the BKL to protect the inode's lock list.
 	*/
 
-	status = posix_lock_file(filp, &file_lock);
-	dprintk("NFSD: nfsd4_lock: posix_lock_file status %d\n",status);
+	/* XXX?: Just to divert the locks_release_private at the start of
+	 * locks_copy_lock: */
+	conflock.fl_ops = NULL;
+	conflock.fl_lmops = NULL;
+	status = posix_lock_file_conf(filp, &file_lock, &conflock);
+	dprintk("NFSD: nfsd4_lock: posix_lock_file_conf status %d\n",status);
 	switch (-status) {
 	case 0: /* success! */
 		update_stateid(&lock_stp->st_stateid);
 		memcpy(&lock->lk_resp_stateid, &lock_stp->st_stateid, 
 				sizeof(stateid_t));
-		goto out;
-	case (EAGAIN):
-		goto conflicting_lock;
+		break;
+	case (EAGAIN):		/* conflock holds conflicting lock */
+		status = nfserr_denied;
+		dprintk("NFSD: nfsd4_lock: conflicting lock found!\n");
+		nfs4_set_lock_denied(&conflock, &lock->lk_denied);
+		break;
 	case (EDEADLK):
 		status = nfserr_deadlock;
-		dprintk("NFSD: nfsd4_lock: posix_lock_file() failed! status %d\n",status);
-		goto out;
+		break;
 	default:        
-		status = nfserrno(status);
-		dprintk("NFSD: nfsd4_lock: posix_lock_file() failed! status %d\n",status);
-		goto out;
+		dprintk("NFSD: nfsd4_lock: posix_lock_file_conf() failed! status %d\n",status);
+		status = nfserr_resource;
+		break;
 	}
-
-conflicting_lock:
-	dprintk("NFSD: nfsd4_lock: conflicting lock found!\n");
-	status = nfserr_denied;
-	/* XXX There is a race here. Future patch needed to provide 
-	 * an atomic posix_lock_and_test_file
-	 */
-	if (!posix_test_lock(filp, &file_lock, &conflock)) {
-		status = nfserr_serverfault;
-		goto out;
-	}
-	nfs4_set_lock_denied(&conflock, &lock->lk_denied);
 out:
 	if (status && lock->lk_is_new && lock_sop)
 		release_stateowner(lock_sop);
