@@ -94,20 +94,6 @@ struct crypt_config {
 static kmem_cache_t *_crypt_io_pool;
 
 /*
- * Mempool alloc and free functions for the page
- */
-static void *mempool_alloc_page(gfp_t gfp_mask, void *data)
-{
-	return alloc_page(gfp_mask);
-}
-
-static void mempool_free_page(void *page, void *data)
-{
-	__free_page(page);
-}
-
-
-/*
  * Different IV generation algorithms:
  *
  * plain: the initial vector is the 32-bit low-endian version of the sector
@@ -637,8 +623,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad3;
 	}
 
-	cc->page_pool = mempool_create(MIN_POOL_PAGES, mempool_alloc_page,
-				       mempool_free_page, NULL);
+	cc->page_pool = mempool_create_page_pool(MIN_POOL_PAGES, 0);
 	if (!cc->page_pool) {
 		ti->error = PFX "Cannot allocate page mempool";
 		goto bad4;
