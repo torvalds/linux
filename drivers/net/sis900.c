@@ -1693,7 +1693,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance, struct pt_regs 
  *
  *	Process receive interrupt events, 
  *	put buffer to higher layer and refill buffer pool
- *	Note: This fucntion is called by interrupt handler, 
+ *	Note: This function is called by interrupt handler,
  *	don't do "too much" work here
  */
 
@@ -1840,7 +1840,7 @@ static int sis900_rx(struct net_device *net_dev)
  *
  *	Check for error condition and free socket buffer etc 
  *	schedule for more transmission as needed
- *	Note: This fucntion is called by interrupt handler, 
+ *	Note: This function is called by interrupt handler,
  *	don't do "too much" work here
  */
 
