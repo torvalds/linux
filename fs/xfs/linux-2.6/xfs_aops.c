@@ -1310,8 +1310,9 @@ xfs_get_block(
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __xfs_get_block(inode, iblock, 0, bh_result,
-					create, 0, BMAPI_WRITE);
+	return __xfs_get_block(inode, iblock,
+				bh_result->b_size >> inode->i_blkbits,
+				bh_result, create, 0, BMAPI_WRITE);
 }
 
 STATIC int

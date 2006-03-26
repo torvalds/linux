@@ -258,7 +258,8 @@ jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
 static int jfs_get_block(struct inode *ip, sector_t lblock,
 			 struct buffer_head *bh_result, int create)
 {
-	return jfs_get_blocks(ip, lblock, 1, bh_result, create);
+	return jfs_get_blocks(ip, lblock, bh_result->b_size >> ip->i_blkbits,
+			bh_result, create);
 }
 
 static int jfs_writepage(struct page *page, struct writeback_control *wbc)
