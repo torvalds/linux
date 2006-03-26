@@ -2594,23 +2594,10 @@ sys32_setresgid(compat_gid_t rgid, compat_gid_t egid,
 
 /* Handle adjtimex compatibility. */
 
-struct timex32 {
-	u32 modes;
-	s32 offset, freq, maxerror, esterror;
-	s32 status, constant, precision, tolerance;
-	struct compat_timeval time;
-	s32 tick;
-	s32 ppsfreq, jitter, shift, stabil;
-	s32 jitcnt, calcnt, errcnt, stbcnt;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-};
-
 extern int do_adjtimex(struct timex *);
 
 asmlinkage long
-sys32_adjtimex(struct timex32 *utp)
+sys32_adjtimex(struct compat_timex *utp)
 {
 	struct timex txc;
 	int ret;

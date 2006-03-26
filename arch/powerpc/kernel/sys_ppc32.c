@@ -162,22 +162,9 @@ asmlinkage long compat_sys_sysfs(u32 option, u32 arg1, u32 arg2)
 }
 
 /* Handle adjtimex compatibility. */
-struct timex32 {
-	u32 modes;
-	s32 offset, freq, maxerror, esterror;
-	s32 status, constant, precision, tolerance;
-	struct compat_timeval time;
-	s32 tick;
-	s32 ppsfreq, jitter, shift, stabil;
-	s32 jitcnt, calcnt, errcnt, stbcnt;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-};
-
 extern int do_adjtimex(struct timex *);
 
-asmlinkage long compat_sys_adjtimex(struct timex32 __user *utp)
+asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp)
 {
 	struct timex txc;
 	int ret;

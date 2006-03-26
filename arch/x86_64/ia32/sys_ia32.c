@@ -769,30 +769,17 @@ sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset, s32 count)
 
 /* Handle adjtimex compatibility. */
 
-struct timex32 {
-	u32 modes;
-	s32 offset, freq, maxerror, esterror;
-	s32 status, constant, precision, tolerance;
-	struct compat_timeval time;
-	s32 tick;
-	s32 ppsfreq, jitter, shift, stabil;
-	s32 jitcnt, calcnt, errcnt, stbcnt;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-	s32  :32; s32  :32; s32  :32; s32  :32;
-};
-
 extern int do_adjtimex(struct timex *);
 
 asmlinkage long
-sys32_adjtimex(struct timex32 __user *utp)
+sys32_adjtimex(struct compat_timex __user *utp)
 {
 	struct timex txc;
 	int ret;
 
 	memset(&txc, 0, sizeof(struct timex));
 
-	if (!access_ok(VERIFY_READ, utp, sizeof(struct timex32)) ||
+	if (!access_ok(VERIFY_READ, utp, sizeof(struct compat_timex)) ||
 	   __get_user(txc.modes, &utp->modes) ||
 	   __get_user(txc.offset, &utp->offset) ||
 	   __get_user(txc.freq, &utp->freq) ||
@@ -817,7 +804,7 @@ sys32_adjtimex(struct timex32 __user *utp)
 
 	ret = do_adjtimex(&txc);
 
-	if (!access_ok(VERIFY_WRITE, utp, sizeof(struct timex32)) ||
+	if (!access_ok(VERIFY_WRITE, utp, sizeof(struct compat_timex)) ||
 	   __put_user(txc.modes, &utp->modes) ||
 	   __put_user(txc.offset, &utp->offset) ||
 	   __put_user(txc.freq, &utp->freq) ||
