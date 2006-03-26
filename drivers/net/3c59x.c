@@ -1335,7 +1335,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 			vp->enable_wol = 1;
 	}
 
-	vp->force_fd = vp->full_duplex;
+	vp->mii.force_media = vp->full_duplex;
 	vp->options = option;
 	/* Read the station address from the EEPROM. */
 	EL3WINDOW(0);
@@ -1625,6 +1625,46 @@ issue_and_wait(struct net_device *dev, int cmd)
 }
 
 static void
+vortex_set_duplex(struct net_device *dev)
+{
+	struct vortex_private *vp = netdev_priv(dev);
+	void __iomem *ioaddr = vp->ioaddr;
+
+	printk(KERN_INFO "%s:  setting %s-duplex.\n",
+		dev->name, (vp->full_duplex) ? "full" : "half");
+
+	EL3WINDOW(3);
+	/* Set the full-duplex bit. */
+	iowrite16(((vp->info1 & 0x8000) || vp->full_duplex ? 0x20 : 0) |
+		 	(vp->large_frames ? 0x40 : 0) |
+			((vp->full_duplex && vp->flow_ctrl && vp->partner_flow_ctrl) ?
+					0x100 : 0),
+			ioaddr + Wn3_MAC_Ctrl);
+
+	issue_and_wait(dev, TxReset);
+	/*
+	 * Don't reset the PHY - that upsets autonegotiation during DHCP operations.
+	 */
+	issue_and_wait(dev, RxReset|0x04);
+}
+
+static void vortex_check_media(struct net_device *dev, unsigned int init)
+{
+	struct vortex_private *vp = netdev_priv(dev);
+	unsigned int ok_to_print = 0;
+
+	if (vortex_debug > 3)
+		ok_to_print = 1;
+
+	if (mii_check_media(&vp->mii, ok_to_print, init)) {
+		vp->full_duplex = vp->mii.full_duplex;
+		vortex_set_duplex(dev);
+	} else if (init) {
+		vortex_set_duplex(dev);
+	}
+}
+
+static void
 vortex_up(struct net_device *dev)
 {
 	struct vortex_private *vp = netdev_priv(dev);
@@ -1684,53 +1724,20 @@ vortex_up(struct net_device *dev)
 		printk(KERN_DEBUG "%s: Initial media type %s.\n",
 			   dev->name, media_tbl[dev->if_port].name);
 
-	vp->full_duplex = vp->force_fd;
+	vp->full_duplex = vp->mii.force_media;
 	config = BFINS(config, dev->if_port, 20, 4);
 	if (vortex_debug > 6)
 		printk(KERN_DEBUG "vortex_up(): writing 0x%x to InternalConfig\n", config);
 	iowrite32(config, ioaddr + Wn3_Config);
 
+	netif_carrier_off(dev);
 	if (dev->if_port == XCVR_MII || dev->if_port == XCVR_NWAY) {
-		int mii_reg1, mii_reg5;
 		EL3WINDOW(4);
-		/* Read BMSR (reg1) only to clear old status. */
-		mii_reg1 = mdio_read(dev, vp->phys[0], MII_BMSR);
-		mii_reg5 = mdio_read(dev, vp->phys[0], MII_LPA);
-		if (mii_reg5 == 0xffff  ||  mii_reg5 == 0x0000) {
-			netif_carrier_off(dev); /* No MII device or no link partner report */
-		} else {
-			mii_reg5 &= vp->advertising;
-			if ((mii_reg5 & 0x0100) != 0	/* 100baseTx-FD */
-				 || (mii_reg5 & 0x00C0) == 0x0040) /* 10T-FD, but not 100-HD */
-			vp->full_duplex = 1;
-			netif_carrier_on(dev);
-		}
-		vp->partner_flow_ctrl = ((mii_reg5 & 0x0400) != 0);
-		if (vortex_debug > 1)
-			printk(KERN_INFO "%s: MII #%d status %4.4x, link partner capability %4.4x,"
-				   " info1 %04x, setting %s-duplex.\n",
-					dev->name, vp->phys[0],
-					mii_reg1, mii_reg5,
-					vp->info1, ((vp->info1 & 0x8000) || vp->full_duplex) ? "full" : "half");
-		EL3WINDOW(3);
+		vortex_check_media(dev, 1);
 	}
+	else
+		vortex_set_duplex(dev);
 
-	/* Set the full-duplex bit. */
-	iowrite16(	((vp->info1 & 0x8000) || vp->full_duplex ? 0x20 : 0) |
-		 	(vp->large_frames ? 0x40 : 0) |
-			((vp->full_duplex && vp->flow_ctrl && vp->partner_flow_ctrl) ? 0x100 : 0),
-			ioaddr + Wn3_MAC_Ctrl);
-
-	if (vortex_debug > 1) {
-		printk(KERN_DEBUG "%s: vortex_up() InternalConfig %8.8x.\n",
-			dev->name, config);
-	}
-
-	issue_and_wait(dev, TxReset);
-	/*
-	 * Don't reset the PHY - that upsets autonegotiation during DHCP operations.
-	 */
-	issue_and_wait(dev, RxReset|0x04);
 
 	iowrite16(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
 
@@ -1892,7 +1899,7 @@ vortex_timer(unsigned long data)
 	void __iomem *ioaddr = vp->ioaddr;
 	int next_tick = 60*HZ;
 	int ok = 0;
-	int media_status, mii_status, old_window;
+	int media_status, old_window;
 
 	if (vortex_debug > 2) {
 		printk(KERN_DEBUG "%s: Media selection timer tick happened, %s.\n",
@@ -1924,44 +1931,9 @@ vortex_timer(unsigned long data)
 		break;
 	case XCVR_MII: case XCVR_NWAY:
 		{
-			spin_lock_bh(&vp->lock);
-			mii_status = mdio_read(dev, vp->phys[0], MII_BMSR);
-			if (!(mii_status & BMSR_LSTATUS)) {
-				/* Re-read to get actual link status */
-				mii_status = mdio_read(dev, vp->phys[0], MII_BMSR);
-			}
 			ok = 1;
-			if (vortex_debug > 2)
-				printk(KERN_DEBUG "%s: MII transceiver has status %4.4x.\n",
-					dev->name, mii_status);
-			if (mii_status & BMSR_LSTATUS) {
-				int mii_reg5 = mdio_read(dev, vp->phys[0], MII_LPA);
-				if (! vp->force_fd  &&  mii_reg5 != 0xffff) {
-					int duplex;
-
-					mii_reg5 &= vp->advertising;
-					duplex = (mii_reg5&0x0100) || (mii_reg5 & 0x01C0) == 0x0040;
-					if (vp->full_duplex != duplex) {
-						vp->full_duplex = duplex;
-						printk(KERN_INFO "%s: Setting %s-duplex based on MII "
-							"#%d link partner capability of %4.4x.\n",
-							dev->name, vp->full_duplex ? "full" : "half",
-							vp->phys[0], mii_reg5);
-						/* Set the full-duplex bit. */
-						EL3WINDOW(3);
-						iowrite16(	(vp->full_duplex ? 0x20 : 0) |
-								(vp->large_frames ? 0x40 : 0) |
-								((vp->full_duplex && vp->flow_ctrl && vp->partner_flow_ctrl) ? 0x100 : 0),
-								ioaddr + Wn3_MAC_Ctrl);
-						if (vortex_debug > 1)
-							printk(KERN_DEBUG "Setting duplex in Wn3_MAC_Ctrl\n");
-						/* AKPM: bug: should reset Tx and Rx after setting Duplex.  Page 180 */
-					}
-				}
-				netif_carrier_on(dev);
-			} else {
-				netif_carrier_off(dev);
-			}
+			spin_lock_bh(&vp->lock);
+			vortex_check_media(dev, 0);
 			spin_unlock_bh(&vp->lock);
 		}
 		break;
