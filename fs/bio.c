@@ -1141,8 +1141,7 @@ static int biovec_create_pools(struct bio_set *bs, int pool_entries, int scale)
 		if (i >= scale)
 			pool_entries >>= 1;
 
-		*bvp = mempool_create(pool_entries, mempool_alloc_slab,
-					mempool_free_slab, bp->slab);
+		*bvp = mempool_create_slab_pool(pool_entries, bp->slab);
 		if (!*bvp)
 			return -ENOMEM;
 	}
@@ -1179,9 +1178,7 @@ struct bio_set *bioset_create(int bio_pool_size, int bvec_pool_size, int scale)
 	if (!bs)
 		return NULL;
 
-	bs->bio_pool = mempool_create(bio_pool_size, mempool_alloc_slab,
-			mempool_free_slab, bio_slab);
-
+	bs->bio_pool = mempool_create_slab_pool(bio_pool_size, bio_slab);
 	if (!bs->bio_pool)
 		goto bad;
 

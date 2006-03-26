@@ -663,10 +663,8 @@ int nfs_init_readpagecache(void)
 	if (nfs_rdata_cachep == NULL)
 		return -ENOMEM;
 
-	nfs_rdata_mempool = mempool_create(MIN_POOL_READ,
-					   mempool_alloc_slab,
-					   mempool_free_slab,
-					   nfs_rdata_cachep);
+	nfs_rdata_mempool = mempool_create_slab_pool(MIN_POOL_READ,
+						     nfs_rdata_cachep);
 	if (nfs_rdata_mempool == NULL)
 		return -ENOMEM;
 

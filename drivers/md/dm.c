@@ -823,13 +823,11 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 	md->queue->unplug_fn = dm_unplug_all;
 	md->queue->issue_flush_fn = dm_flush_all;
 
-	md->io_pool = mempool_create(MIN_IOS, mempool_alloc_slab,
-				     mempool_free_slab, _io_cache);
+	md->io_pool = mempool_create_slab_pool(MIN_IOS, _io_cache);
  	if (!md->io_pool)
  		goto bad2;
 
-	md->tio_pool = mempool_create(MIN_IOS, mempool_alloc_slab,
-				      mempool_free_slab, _tio_cache);
+	md->tio_pool = mempool_create_slab_pool(MIN_IOS, _tio_cache);
 	if (!md->tio_pool)
 		goto bad3;
 

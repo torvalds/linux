@@ -738,10 +738,8 @@ cifs_init_request_bufs(void)
 		cERROR(1,("cifs_min_rcv set to maximum (64)"));
 	}
 
-	cifs_req_poolp = mempool_create(cifs_min_rcv,
-					mempool_alloc_slab,
-					mempool_free_slab,
-					cifs_req_cachep);
+	cifs_req_poolp = mempool_create_slab_pool(cifs_min_rcv,
+						  cifs_req_cachep);
 
 	if(cifs_req_poolp == NULL) {
 		kmem_cache_destroy(cifs_req_cachep);
@@ -771,10 +769,8 @@ cifs_init_request_bufs(void)
 		cFYI(1,("cifs_min_small set to maximum (256)"));
 	}
 
-	cifs_sm_req_poolp = mempool_create(cifs_min_small,
-				mempool_alloc_slab,
-				mempool_free_slab,
-				cifs_sm_req_cachep);
+	cifs_sm_req_poolp = mempool_create_slab_pool(cifs_min_small,
+						     cifs_sm_req_cachep);
 
 	if(cifs_sm_req_poolp == NULL) {
 		mempool_destroy(cifs_req_poolp);
@@ -808,10 +804,8 @@ cifs_init_mids(void)
 	if (cifs_mid_cachep == NULL)
 		return -ENOMEM;
 
-	cifs_mid_poolp = mempool_create(3 /* a reasonable min simultan opers */,
-					mempool_alloc_slab,
-					mempool_free_slab,
-					cifs_mid_cachep);
+	/* 3 is a reasonable minimum number of simultaneous operations */
+	cifs_mid_poolp = mempool_create_slab_pool(3, cifs_mid_cachep);
 	if(cifs_mid_poolp == NULL) {
 		kmem_cache_destroy(cifs_mid_cachep);
 		return -ENOMEM;

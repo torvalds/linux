@@ -227,8 +227,7 @@ static int jobs_init(void)
 	if (!_job_cache)
 		return -ENOMEM;
 
-	_job_pool = mempool_create(MIN_JOBS, mempool_alloc_slab,
-				   mempool_free_slab, _job_cache);
+	_job_pool = mempool_create_slab_pool(MIN_JOBS, _job_cache);
 	if (!_job_pool) {
 		kmem_cache_destroy(_job_cache);
 		return -ENOMEM;

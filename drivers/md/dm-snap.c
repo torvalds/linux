@@ -1174,8 +1174,7 @@ static int __init dm_snapshot_init(void)
 		goto bad4;
 	}
 
-	pending_pool = mempool_create(128, mempool_alloc_slab,
-				      mempool_free_slab, pending_cache);
+	pending_pool = mempool_create_slab_pool(128, pending_cache);
 	if (!pending_pool) {
 		DMERR("Couldn't create pending pool.");
 		r = -ENOMEM;

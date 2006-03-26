@@ -2154,8 +2154,7 @@ qla2x00_allocate_sp_pool(scsi_qla_host_t *ha)
 	int      rval;
 
 	rval = QLA_SUCCESS;
-	ha->srb_mempool = mempool_create(SRB_MIN_REQ, mempool_alloc_slab,
-	    mempool_free_slab, srb_cachep);
+	ha->srb_mempool = mempool_create_slab_pool(SRB_MIN_REQ, srb_cachep);
 	if (ha->srb_mempool == NULL) {
 		qla_printk(KERN_INFO, ha, "Unable to allocate SRB mempool.\n");
 		rval = QLA_FUNCTION_FAILED;

@@ -616,8 +616,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		}
 	}
 
-	cc->io_pool = mempool_create(MIN_IOS, mempool_alloc_slab,
-				     mempool_free_slab, _crypt_io_pool);
+	cc->io_pool = mempool_create_slab_pool(MIN_IOS, _crypt_io_pool);
 	if (!cc->io_pool) {
 		ti->error = PFX "Cannot allocate crypt io mempool";
 		goto bad3;

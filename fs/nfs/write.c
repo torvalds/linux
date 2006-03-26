@@ -1521,17 +1521,13 @@ int nfs_init_writepagecache(void)
 	if (nfs_wdata_cachep == NULL)
 		return -ENOMEM;
 
-	nfs_wdata_mempool = mempool_create(MIN_POOL_WRITE,
-					   mempool_alloc_slab,
-					   mempool_free_slab,
-					   nfs_wdata_cachep);
+	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
+						     nfs_wdata_cachep);
 	if (nfs_wdata_mempool == NULL)
 		return -ENOMEM;
 
-	nfs_commit_mempool = mempool_create(MIN_POOL_COMMIT,
-					   mempool_alloc_slab,
-					   mempool_free_slab,
-					   nfs_wdata_cachep);
+	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
+						      nfs_wdata_cachep);
 	if (nfs_commit_mempool == NULL)
 		return -ENOMEM;
 

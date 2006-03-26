@@ -220,8 +220,8 @@ int __init metapage_init(void)
 	if (metapage_cache == NULL)
 		return -ENOMEM;
 
-	metapage_mempool = mempool_create(METAPOOL_MIN_PAGES, mempool_alloc_slab,
-					  mempool_free_slab, metapage_cache);
+	metapage_mempool = mempool_create_slab_pool(METAPOOL_MIN_PAGES,
+						    metapage_cache);
 
 	if (metapage_mempool == NULL) {
 		kmem_cache_destroy(metapage_cache);

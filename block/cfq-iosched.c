@@ -2191,7 +2191,7 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	if (!cfqd->cfq_hash)
 		goto out_cfqhash;
 
-	cfqd->crq_pool = mempool_create(BLKDEV_MIN_RQ, mempool_alloc_slab, mempool_free_slab, crq_pool);
+	cfqd->crq_pool = mempool_create_slab_pool(BLKDEV_MIN_RQ, crq_pool);
 	if (!cfqd->crq_pool)
 		goto out_crqpool;
 

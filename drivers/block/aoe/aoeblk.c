@@ -211,9 +211,7 @@ aoeblk_gdalloc(void *vp)
 		return;
 	}
 
-	d->bufpool = mempool_create(MIN_BUFS,
-				    mempool_alloc_slab, mempool_free_slab,
-				    buf_pool_cache);
+	d->bufpool = mempool_create_slab_pool(MIN_BUFS, buf_pool_cache);
 	if (d->bufpool == NULL) {
 		printk(KERN_ERR "aoe: aoeblk_gdalloc: cannot allocate bufpool "
 			"for %ld.%ld\n", d->aoemajor, d->aoeminor);
