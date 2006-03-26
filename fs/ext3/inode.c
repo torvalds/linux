@@ -941,9 +941,8 @@ out:
 
 #define DIO_CREDITS (EXT3_RESERVE_TRANS_BLOCKS + 32)
 
-static int
-ext3_direct_io_get_blocks(struct inode *inode, sector_t iblock,
-		struct buffer_head *bh_result, int create)
+static int ext3_get_block(struct inode *inode, sector_t iblock,
+			struct buffer_head *bh_result, int create)
 {
 	handle_t *handle = journal_current_handle();
 	int ret = 0;
@@ -990,12 +989,6 @@ get_block:
 		}
 	}
 	return ret;
-}
-
-static int ext3_get_block(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh_result, int create)
-{
-	return ext3_direct_io_get_blocks(inode, iblock, bh_result, create);
 }
 
 /*
@@ -1648,11 +1641,10 @@ static ssize_t ext3_direct_IO(int rw, struct kiocb *iocb,
 
 	ret = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov, 
 				 offset, nr_segs,
-				 ext3_direct_io_get_blocks, NULL);
+				 ext3_get_block, NULL);
 
 	/*
-	 * Reacquire the handle: ext3_direct_io_get_block() can restart the
-	 * transaction
+	 * Reacquire the handle: ext3_get_block() can restart the transaction
 	 */
 	handle = journal_current_handle();
 
