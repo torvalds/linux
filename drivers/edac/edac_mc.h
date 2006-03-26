@@ -410,13 +410,10 @@ void edac_mc_dump_csrow(struct csrow_info *csrow);
 #endif				/* CONFIG_EDAC_DEBUG */
 
 extern int edac_mc_add_mc(struct mem_ctl_info *mci);
-extern int edac_mc_del_mc(struct mem_ctl_info *mci);
+extern struct mem_ctl_info * edac_mc_del_mc(struct pci_dev *pdev);
 
 extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 					   unsigned long page);
-
-extern struct mem_ctl_info *edac_mc_find_mci_by_pdev(struct pci_dev
-							  *pdev);
 
 extern void edac_mc_scrub_block(unsigned long page,
 				     unsigned long offset, u32 size);

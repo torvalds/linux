@@ -452,7 +452,7 @@ static void __devexit i82875p_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if ((mci = edac_mc_find_mci_by_pdev(pdev)) == NULL)
+	if ((mci = edac_mc_del_mc(pdev)) == NULL)
 		return;
 
 	pvt = (struct i82875p_pvt *) mci->pvt_info;
@@ -466,9 +466,6 @@ static void __devexit i82875p_remove_one(struct pci_dev *pdev)
 		pci_disable_device(pvt->ovrfl_pdev);
 		pci_dev_put(pvt->ovrfl_pdev);
 	}
-
-	if (edac_mc_del_mc(mci))
-		return;
 
 	edac_mc_free(mci);
 }

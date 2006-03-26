@@ -237,9 +237,10 @@ static void __devexit i82860_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	mci = edac_mc_find_mci_by_pdev(pdev);
-	if ((mci != NULL) && (edac_mc_del_mc(mci) == 0))
-		edac_mc_free(mci);
+	if ((mci = edac_mc_del_mc(pdev)) == NULL)
+		return;
+
+	edac_mc_free(mci);
 }
 
 static const struct pci_device_id i82860_pci_tbl[] __devinitdata = {

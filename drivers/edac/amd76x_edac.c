@@ -314,10 +314,9 @@ static void __devexit amd76x_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if ((mci = edac_mc_find_mci_by_pdev(pdev)) == NULL)
+	if ((mci = edac_mc_del_mc(pdev)) == NULL)
 		return;
-	if (edac_mc_del_mc(mci))
-		return;
+
 	edac_mc_free(mci);
 }
 

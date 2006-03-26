@@ -510,12 +510,12 @@ static void __devexit e7xxx_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if (((mci = edac_mc_find_mci_by_pdev(pdev)) != 0) &&
-	    !edac_mc_del_mc(mci)) {
-		pvt = (struct e7xxx_pvt *) mci->pvt_info;
-		pci_dev_put(pvt->bridge_ck);
-		edac_mc_free(mci);
-	}
+	if ((mci = edac_mc_del_mc(pdev)) == NULL)
+		return;
+
+	pvt = (struct e7xxx_pvt *) mci->pvt_info;
+	pci_dev_put(pvt->bridge_ck);
+	edac_mc_free(mci);
 }
 
 

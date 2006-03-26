@@ -353,9 +353,10 @@ static void __devexit r82600_remove_one(struct pci_dev *pdev)
 
 	debugf0("%s()\n", __func__);
 
-	if (((mci = edac_mc_find_mci_by_pdev(pdev)) != NULL) &&
-	    !edac_mc_del_mc(mci))
-		edac_mc_free(mci);
+	if ((mci = edac_mc_del_mc(pdev)) == NULL)
+		return;
+
+	edac_mc_free(mci);
 }
 
 

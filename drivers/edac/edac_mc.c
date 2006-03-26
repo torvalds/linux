@@ -1370,11 +1370,7 @@ void edac_mc_free(struct mem_ctl_info *mci)
 	kfree(mci);
 }
 
-
-
-EXPORT_SYMBOL(edac_mc_find_mci_by_pdev);
-
-struct mem_ctl_info *edac_mc_find_mci_by_pdev(struct pci_dev *pdev)
+static struct mem_ctl_info *find_mci_by_pdev(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct list_head *item;
@@ -1401,7 +1397,7 @@ static int add_mc_to_global_list (struct mem_ctl_info *mci)
 		mci->mc_idx = 0;
 		insert_before = &mc_devices;
 	} else {
-		if (edac_mc_find_mci_by_pdev(mci->pdev)) {
+		if (find_mci_by_pdev(mci->pdev)) {
 			edac_printk(KERN_WARNING, EDAC_MC,
 				"%s (%s) %s %s already assigned %d\n",
 				mci->pdev->dev.bus_id,
@@ -1520,27 +1516,29 @@ EXPORT_SYMBOL(edac_mc_del_mc);
 /**
  * edac_mc_del_mc: Remove sysfs entries for specified mci structure and
  *                 remove mci structure from global list
- * @mci:	Pointer to struct mem_ctl_info structure
+ * @pdev: Pointer to 'struct pci_dev' representing mci structure to remove.
  *
- * Returns:
- *	0	Success
- *	1 	Failure
+ * Return pointer to removed mci structure, or NULL if device not found.
  */
-int edac_mc_del_mc(struct mem_ctl_info *mci)
+struct mem_ctl_info * edac_mc_del_mc(struct pci_dev *pdev)
 {
-	int rc = 1;
+	struct mem_ctl_info *mci;
 
-	debugf0("MC%d: %s()\n", mci->mc_idx, __func__);
-	edac_remove_sysfs_mci_device(mci);
+	debugf0("MC: %s()\n", __func__);
 	down(&mem_ctls_mutex);
+
+	if ((mci = find_mci_by_pdev(pdev)) == NULL) {
+		up(&mem_ctls_mutex);
+		return NULL;
+	}
+
+	edac_remove_sysfs_mci_device(mci);
 	del_mc_from_global_list(mci);
+	up(&mem_ctls_mutex);
 	edac_printk(KERN_INFO, EDAC_MC,
 		"Removed device %d for %s %s: PCI %s\n", mci->mc_idx,
 		mci->mod_name, mci->ctl_name, pci_name(mci->pdev));
-	rc = 0;
-	up(&mem_ctls_mutex);
-
-	return rc;
+	return mci;
 }
 
 
@@ -2018,14 +2016,12 @@ static inline void clear_pci_parity_errors(void)
  */
 static inline void check_mc_devices (void)
 {
-	unsigned long flags;
 	struct list_head *item;
 	struct mem_ctl_info *mci;
 
 	debugf3("%s()\n", __func__);
 
-	/* during poll, have interrupts off */
-	local_irq_save(flags);
+	down(&mem_ctls_mutex);
 
 	list_for_each(item, &mc_devices) {
 		mci = list_entry(item, struct mem_ctl_info, link);
@@ -2034,7 +2030,7 @@ static inline void check_mc_devices (void)
 			mci->edac_check(mci);
 	}
 
-	local_irq_restore(flags);
+	up(&mem_ctls_mutex);
 }
 
 
