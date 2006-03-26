@@ -105,7 +105,7 @@ static int get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-static int get_key_pinnacle_usb(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char buf[3];
 
@@ -148,8 +148,8 @@ void em28xx_set_ir(struct em28xx * dev,struct IR_i2c *ir)
 		snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (EM28XX Terratec)");
 		break;
 	case (EM2820_BOARD_PINNACLE_USB_2):
-		ir->ir_codes = ir_codes_em_pinnacle_usb;
-		ir->get_key = get_key_pinnacle_usb;
+		ir->ir_codes = ir_codes_pinnacle_grey;
+		ir->get_key = get_key_pinnacle_usb_grey;
 		snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (EM28XX Pinnacle PCTV)");
 		break;
 	case (EM2820_BOARD_HAUPPAUGE_WINTV_USB_2):

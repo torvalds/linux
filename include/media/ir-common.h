@@ -73,7 +73,7 @@ extern IR_KEYTAB_TYPE ir_codes_cinergy_1400[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_avertv_303[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_dntv_live_dvbt_pro[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_em_terratec[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_em_pinnacle_usb[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_flyvideo[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_flydvb[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_cinergy[IR_KEYTAB_SIZE];
@@ -87,7 +87,7 @@ extern IR_KEYTAB_TYPE ir_codes_pctv_sedna[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_rc5_tv[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE];
-extern IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_pinnacle_color[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_hauppauge_new[IR_KEYTAB_SIZE];
 
 #endif

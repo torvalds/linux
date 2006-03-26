@@ -618,7 +618,7 @@ IR_KEYTAB_TYPE ir_codes_em_terratec[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_em_terratec);
 
-IR_KEYTAB_TYPE ir_codes_em_pinnacle_usb[IR_KEYTAB_SIZE] = {
+IR_KEYTAB_TYPE ir_codes_pinnacle_grey[IR_KEYTAB_SIZE] = {
 	[ 0x3a ] = KEY_0,
 	[ 0x31 ] = KEY_1,
 	[ 0x32 ] = KEY_2,
@@ -670,7 +670,7 @@ IR_KEYTAB_TYPE ir_codes_em_pinnacle_usb[IR_KEYTAB_SIZE] = {
 	[ 0x27 ] = KEY_RECORD,
 };
 
-EXPORT_SYMBOL_GPL(ir_codes_em_pinnacle_usb);
+EXPORT_SYMBOL_GPL(ir_codes_pinnacle_grey);
 
 IR_KEYTAB_TYPE ir_codes_flyvideo[IR_KEYTAB_SIZE] = {
 	[ 0x0f ] = KEY_0,
@@ -1290,7 +1290,7 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_winfast);
 
-IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE] = {
+IR_KEYTAB_TYPE ir_codes_pinnacle_color[IR_KEYTAB_SIZE] = {
 	[ 0x59 ] = KEY_MUTE,
 	[ 0x4a ] = KEY_POWER,
 
@@ -1348,7 +1348,7 @@ IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE] = {
 	[ 0x0a ] = KEY_BACKSPACE,
 };
 
-EXPORT_SYMBOL_GPL(ir_codes_pinnacle);
+EXPORT_SYMBOL_GPL(ir_codes_pinnacle_color);
 
 /* Hauppauge: the newer, gray remotes (seems there are multiple
  * slightly different versions), shipped with cx88+ivtv cards.
