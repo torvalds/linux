@@ -435,6 +435,11 @@ iounmap (volatile void __iomem *addr)
 
 #define ioremap_nocache(o,s)	ioremap(o,s)
 
+/* Use normal IO mappings for DMI */
+#define dmi_ioremap ioremap
+#define dmi_iounmap(x,l) iounmap(x)
+#define dmi_alloc(l) kmalloc(l, GFP_ATOMIC)
+
 # ifdef __KERNEL__
 
 /*

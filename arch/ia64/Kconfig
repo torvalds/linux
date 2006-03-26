@@ -42,6 +42,10 @@ config TIME_INTERPOLATION
 	bool
 	default y
 
+config DMI
+	bool
+	default y
+
 config EFI
 	bool
 	default y
