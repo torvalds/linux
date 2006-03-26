@@ -246,11 +246,7 @@ static struct dvb_usb_rc_key dvico_portable_rc_keys[] = {
 	{ 0xfc, 0x09, KEY_VOLUMEDOWN },
 	{ 0xfc, 0x54, KEY_CHANNELUP },
 	{ 0xfc, 0x0b, KEY_CHANNELDOWN },
-	/*
-	  { 0xfc, 0x56, KEY_CAMERA },
-	  Camera and Record keys both send the same code,
-	  but the camera key doesn't repeat.
-	*/
+	{ 0xfc, 0x16, KEY_CAMERA },
 	{ 0xfc, 0x40, KEY_TUNER },	/* ATV/DTV */
 	{ 0xfc, 0x45, KEY_OPEN },
 	{ 0xfc, 0x19, KEY_1 },
