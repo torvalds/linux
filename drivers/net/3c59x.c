@@ -2960,20 +2960,6 @@ static int vortex_nway_reset(struct net_device *dev)
 	return rc;
 }
 
-static u32 vortex_get_link(struct net_device *dev)
-{
-	struct vortex_private *vp = netdev_priv(dev);
-	void __iomem *ioaddr = vp->ioaddr;
-	unsigned long flags;
-	int rc;
-
-	spin_lock_irqsave(&vp->lock, flags);
-	EL3WINDOW(4);
-	rc = mii_link_ok(&vp->mii);
-	spin_unlock_irqrestore(&vp->lock, flags);
-	return rc;
-}
-
 static int vortex_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct vortex_private *vp = netdev_priv(dev);
@@ -3075,7 +3061,7 @@ static struct ethtool_ops vortex_ethtool_ops = {
 	.get_stats_count        = vortex_get_stats_count,
 	.get_settings           = vortex_get_settings,
 	.set_settings           = vortex_set_settings,
-	.get_link               = vortex_get_link,
+	.get_link               = ethtool_op_get_link,
 	.nway_reset             = vortex_nway_reset,
 	.get_perm_addr			= ethtool_op_get_perm_addr,
 };
