@@ -1058,10 +1058,10 @@ static int __init
 free_available_memory(unsigned long start, unsigned long end, void *arg)
 {
 	/* check max_low_pfn */
-	if (start >= ((max_low_pfn + 1) << PAGE_SHIFT))
+	if (start >= (max_low_pfn << PAGE_SHIFT))
 		return 0;
-	if (end >= ((max_low_pfn + 1) << PAGE_SHIFT))
-		end = (max_low_pfn + 1) << PAGE_SHIFT;
+	if (end >= (max_low_pfn << PAGE_SHIFT))
+		end = max_low_pfn << PAGE_SHIFT;
 	if (start < end)
 		free_bootmem(start, end - start);
 

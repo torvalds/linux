@@ -229,7 +229,7 @@ void __init dmi_scan_machine(void)
 			goto out;
 
 		rc = dmi_present(p + 0x10); /* offset of _DMI_ string */
-		iounmap(p);
+		dmi_iounmap(p, 32);
 		if (!rc)
 			return;
 	}
