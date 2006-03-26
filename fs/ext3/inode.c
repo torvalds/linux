@@ -330,7 +330,7 @@ static int ext3_block_to_path(struct inode *inode,
 		ext3_warning (inode->i_sb, "ext3_block_to_path", "block > big");
 	}
 	if (boundary)
-		*boundary = (i_block & (ptrs - 1)) == (final - 1);
+		*boundary = final - 1 - (i_block & (ptrs - 1));
 	return n;
 }
 
@@ -669,11 +669,15 @@ err_out:
  * akpm: `handle' can be NULL if create == 0.
  *
  * The BKL may not be held on entry here.  Be sure to take it early.
+ * return > 0, # of blocks mapped or allocated.
+ * return = 0, if plain lookup failed.
+ * return < 0, error case.
  */
 
 int
-ext3_get_block_handle(handle_t *handle, struct inode *inode, sector_t iblock,
-		struct buffer_head *bh_result, int create, int extend_disksize)
+ext3_get_blocks_handle(handle_t *handle, struct inode *inode, sector_t iblock,
+		unsigned long maxblocks, struct buffer_head *bh_result,
+		int create, int extend_disksize)
 {
 	int err = -EIO;
 	int offsets[4];
@@ -681,11 +685,15 @@ ext3_get_block_handle(handle_t *handle, struct inode *inode, sector_t iblock,
 	Indirect *partial;
 	unsigned long goal;
 	int left;
-	int boundary = 0;
-	const int depth = ext3_block_to_path(inode, iblock, offsets, &boundary);
+	int blocks_to_boundary = 0;
+	int depth;
 	struct ext3_inode_info *ei = EXT3_I(inode);
+	int count = 0;
+	unsigned long first_block = 0;
+
 
 	J_ASSERT(handle != NULL || create == 0);
+	depth = ext3_block_to_path(inode, iblock, offsets, &blocks_to_boundary);
 
 	if (depth == 0)
 		goto out;
@@ -694,8 +702,31 @@ ext3_get_block_handle(handle_t *handle, struct inode *inode, sector_t iblock,
 
 	/* Simplest case - block found, no allocation needed */
 	if (!partial) {
+		first_block = chain[depth - 1].key;
 		clear_buffer_new(bh_result);
-		goto got_it;
+		count++;
+		/*map more blocks*/
+		while (count < maxblocks && count <= blocks_to_boundary) {
+			if (!verify_chain(chain, partial)) {
+				/*
+				 * Indirect block might be removed by
+				 * truncate while we were reading it.
+				 * Handling of that case: forget what we've
+				 * got now. Flag the err as EAGAIN, so it
+				 * will reread.
+				 */
+				err = -EAGAIN;
+				count = 0;
+				break;
+			}
+			if (le32_to_cpu(*(chain[depth-1].p+count) ==
+					(first_block + count)))
+				count++;
+			else
+				break;
+		}
+		if (err != -EAGAIN)
+			goto got_it;
 	}
 
 	/* Next simple case - plain lookup or failed read of indirect block */
@@ -723,6 +754,7 @@ ext3_get_block_handle(handle_t *handle, struct inode *inode, sector_t iblock,
 		}
 		partial = ext3_get_branch(inode, depth, offsets, chain, &err);
 		if (!partial) {
+			count++;
 			mutex_unlock(&ei->truncate_mutex);
 			if (err)
 				goto cleanup;
@@ -772,8 +804,9 @@ ext3_get_block_handle(handle_t *handle, struct inode *inode, sector_t iblock,
 	set_buffer_new(bh_result);
 got_it:
 	map_bh(bh_result, inode->i_sb, le32_to_cpu(chain[depth-1].key));
-	if (boundary)
+	if (blocks_to_boundary == 0)
 		set_buffer_boundary(bh_result);
+	err = count;
 	/* Clean up and exit */
 	partial = chain + depth - 1;	/* the whole chain */
 cleanup:
@@ -787,21 +820,6 @@ out:
 	return err;
 }
 
-static int ext3_get_block(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh_result, int create)
-{
-	handle_t *handle = NULL;
-	int ret;
-
-	if (create) {
-		handle = ext3_journal_current_handle();
-		J_ASSERT(handle != 0);
-	}
-	ret = ext3_get_block_handle(handle, inode, iblock,
-				bh_result, create, 1);
-	return ret;
-}
-
 #define DIO_CREDITS (EXT3_RESERVE_TRANS_BLOCKS + 32)
 
 static int
@@ -812,8 +830,11 @@ ext3_direct_io_get_blocks(struct inode *inode, sector_t iblock,
 	handle_t *handle = journal_current_handle();
 	int ret = 0;
 
-	if (!handle)
+	if (!create)
 		goto get_block;		/* A read */
+
+	if (max_blocks == 1)
+		goto get_block;		/* A single block get */
 
 	if (handle->h_transaction->t_state == T_LOCKED) {
 		/*
@@ -841,11 +862,29 @@ ext3_direct_io_get_blocks(struct inode *inode, sector_t iblock,
 	}
 
 get_block:
-	if (ret == 0)
-		ret = ext3_get_block_handle(handle, inode, iblock,
-					bh_result, create, 0);
-	bh_result->b_size = (1 << inode->i_blkbits);
+	if (ret == 0) {
+		ret = ext3_get_blocks_handle(handle, inode, iblock,
+					max_blocks, bh_result, create, 0);
+		if (ret > 0) {
+			bh_result->b_size = (ret << inode->i_blkbits);
+			ret = 0;
+		}
+	}
 	return ret;
+}
+
+static int ext3_get_blocks(struct inode *inode, sector_t iblock,
+		unsigned long maxblocks, struct buffer_head *bh_result,
+		int create)
+{
+	return ext3_direct_io_get_blocks(inode, iblock, maxblocks,
+					bh_result, create);
+}
+
+static int ext3_get_block(struct inode *inode, sector_t iblock,
+			struct buffer_head *bh_result, int create)
+{
+	return ext3_get_blocks(inode, iblock, 1, bh_result, create);
 }
 
 /*
@@ -862,8 +901,16 @@ struct buffer_head *ext3_getblk(handle_t *handle, struct inode * inode,
 	dummy.b_state = 0;
 	dummy.b_blocknr = -1000;
 	buffer_trace_init(&dummy.b_history);
-	*errp = ext3_get_block_handle(handle, inode, block, &dummy, create, 1);
-	if (!*errp && buffer_mapped(&dummy)) {
+	err = ext3_get_blocks_handle(handle, inode, block, 1,
+					&dummy, create, 1);
+	if (err == 1) {
+		err = 0;
+	} else if (err >= 0) {
+		WARN_ON(1);
+		err = -EIO;
+	}
+	*errp = err;
+	if (!err && buffer_mapped(&dummy)) {
 		struct buffer_head *bh;
 		bh = sb_getblk(inode->i_sb, dummy.b_blocknr);
 		if (!bh) {
