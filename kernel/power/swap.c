@@ -454,10 +454,11 @@ static int load_image(struct swap_map_handle *handle,
 			nr_pages++;
 		}
 	} while (ret > 0);
-	if (!error)
+	if (!error) {
 		printk("\b\b\b\bdone\n");
-	if (!snapshot_image_loaded(snapshot))
-		error = -ENODATA;
+		if (!snapshot_image_loaded(snapshot))
+			error = -ENODATA;
+	}
 	return error;
 }
 
