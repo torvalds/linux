@@ -72,14 +72,16 @@ struct hrtimer {
 /**
  * struct hrtimer_base - the timer base for a specific clock
  *
- * @index:	clock type index for per_cpu support when moving a timer
- *		to a base on another cpu.
- * @lock:	lock protecting the base and associated timers
- * @active:	red black tree root node for the active timers
- * @first:	pointer to the timer node which expires first
- * @resolution:	the resolution of the clock, in nanoseconds
- * @get_time:	function to retrieve the current time of the clock
- * @curr_timer:	the timer which is executing a callback right now
+ * @index:		clock type index for per_cpu support when moving a timer
+ *			to a base on another cpu.
+ * @lock:		lock protecting the base and associated timers
+ * @active:		red black tree root node for the active timers
+ * @first:		pointer to the timer node which expires first
+ * @resolution:		the resolution of the clock, in nanoseconds
+ * @get_time:		function to retrieve the current time of the clock
+ * @get_sofirq_time:	function to retrieve the current time from the softirq
+ * @curr_timer:		the timer which is executing a callback right now
+ * @softirq_time:	the time when running the hrtimer queue in the softirq
  */
 struct hrtimer_base {
 	clockid_t		index;
@@ -88,7 +90,9 @@ struct hrtimer_base {
 	struct rb_node		*first;
 	ktime_t			resolution;
 	ktime_t			(*get_time)(void);
+	ktime_t			(*get_softirq_time)(void);
 	struct hrtimer		*curr_timer;
+	ktime_t			softirq_time;
 };
 
 /*

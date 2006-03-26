@@ -123,6 +123,26 @@ void ktime_get_ts(struct timespec *ts)
 EXPORT_SYMBOL_GPL(ktime_get_ts);
 
 /*
+ * Get the coarse grained time at the softirq based on xtime and
+ * wall_to_monotonic.
+ */
+static void hrtimer_get_softirq_time(struct hrtimer_base *base)
+{
+	ktime_t xtim, tomono;
+	unsigned long seq;
+
+	do {
+		seq = read_seqbegin(&xtime_lock);
+		xtim = timespec_to_ktime(xtime);
+		tomono = timespec_to_ktime(wall_to_monotonic);
+
+	} while (read_seqretry(&xtime_lock, seq));
+
+	base[CLOCK_REALTIME].softirq_time = xtim;
+	base[CLOCK_MONOTONIC].softirq_time = ktime_add(xtim, tomono);
+}
+
+/*
  * Functions and macros which are different for UP/SMP systems are kept in a
  * single place
  */
@@ -586,8 +606,10 @@ int hrtimer_get_res(const clockid_t which_clock, struct timespec *tp)
  */
 static inline void run_hrtimer_queue(struct hrtimer_base *base)
 {
-	ktime_t now = base->get_time();
 	struct rb_node *node;
+
+	if (base->get_softirq_time)
+		base->softirq_time = base->get_softirq_time();
 
 	spin_lock_irq(&base->lock);
 
@@ -598,7 +620,7 @@ static inline void run_hrtimer_queue(struct hrtimer_base *base)
 		void *data;
 
 		timer = rb_entry(node, struct hrtimer, node);
-		if (now.tv64 <= timer->expires.tv64)
+		if (base->softirq_time.tv64 <= timer->expires.tv64)
 			break;
 
 		fn = timer->function;
@@ -640,6 +662,8 @@ void hrtimer_run_queues(void)
 {
 	struct hrtimer_base *base = __get_cpu_var(hrtimer_bases);
 	int i;
+
+	hrtimer_get_softirq_time(base);
 
 	for (i = 0; i < MAX_HRTIMER_BASES; i++)
 		run_hrtimer_queue(&base[i]);
