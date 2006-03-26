@@ -112,20 +112,13 @@ enum si_type {
 };
 static char *si_to_str[] = { "KCS", "SMIC", "BT" };
 
-struct ipmi_device_id {
-	unsigned char device_id;
-	unsigned char device_revision;
-	unsigned char firmware_revision_1;
-	unsigned char firmware_revision_2;
-	unsigned char ipmi_version;
-	unsigned char additional_device_support;
-	unsigned char manufacturer_id[3];
-	unsigned char product_id[2];
-	unsigned char aux_firmware_revision[4];
-} __attribute__((packed));
+#define DEVICE_NAME "ipmi_si"
 
-#define ipmi_version_major(v) ((v)->ipmi_version & 0xf)
-#define ipmi_version_minor(v) ((v)->ipmi_version >> 4)
+static struct device_driver ipmi_driver =
+{
+	.name = DEVICE_NAME,
+	.bus = &platform_bus_type
+};
 
 struct smi_info
 {
@@ -208,7 +201,16 @@ struct smi_info
 	   interrupts. */
 	int interrupt_disabled;
 
+	/* From the get device id response... */
 	struct ipmi_device_id device_id;
+
+	/* Driver model stuff. */
+	struct device *dev;
+	struct platform_device *pdev;
+
+	 /* True if we allocated the device, false if it came from
+	  * someplace else (like PCI). */
+	int dev_registered;
 
 	/* Slave address, could be reported from DMI. */
 	unsigned char slave_addr;
@@ -987,8 +989,6 @@ static LIST_HEAD(smi_infos);
 static DECLARE_MUTEX(smi_infos_lock);
 static int smi_num; /* Used to sequence the SMIs */
 
-#define DEVICE_NAME "ipmi_si"
-
 #define DEFAULT_REGSPACING	1
 
 static int           si_trydefaults = 1;
@@ -1164,7 +1164,6 @@ static void port_cleanup(struct smi_info *info)
 
 		release_region (addr, mapsize);
 	}
-	kfree(info);
 }
 
 static int port_setup(struct smi_info *info)
@@ -1273,7 +1272,6 @@ static void mem_cleanup(struct smi_info *info)
 
 		release_mem_region(addr, mapsize);
 	}
-	kfree(info);
 }
 
 static int mem_setup(struct smi_info *info)
@@ -1858,6 +1856,8 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 	if (info->irq)
 		info->irq_setup = std_irq_setup;
 
+	info->dev = &pdev->dev;
+
 	return try_smi_init(info);
 }
 
@@ -1898,11 +1898,11 @@ static struct pci_driver ipmi_pci_driver = {
 
 static int try_get_dev_id(struct smi_info *smi_info)
 {
-	unsigned char      msg[2];
-	unsigned char      *resp;
-	unsigned long      resp_len;
-	enum si_sm_result smi_result;
-	int               rv = 0;
+	unsigned char         msg[2];
+	unsigned char         *resp;
+	unsigned long         resp_len;
+	enum si_sm_result     smi_result;
+	int                   rv = 0;
 
 	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
 	if (!resp)
@@ -1941,7 +1941,7 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	/* Otherwise, we got some data. */
 	resp_len = smi_info->handlers->get_result(smi_info->si_sm,
 						  resp, IPMI_MAX_MSG_LENGTH);
-	if (resp_len < 6) {
+	if (resp_len < 14) {
 		/* That's odd, it should be longer. */
 		rv = -EINVAL;
 		goto out;
@@ -1954,8 +1954,7 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	}
 
 	/* Record info from the get device id, in case we need it. */
-	memcpy(&smi_info->device_id, &resp[3],
-	       min_t(unsigned long, resp_len-3, sizeof(smi_info->device_id)));
+	ipmi_demangle_device_id(resp+3, resp_len-3, &smi_info->device_id);
 
  out:
 	kfree(resp);
@@ -2058,15 +2057,14 @@ static int oem_data_avail_to_receive_msg_avail(struct smi_info *smi_info)
 #define DELL_POWEREDGE_8G_BMC_DEVICE_ID  0x20
 #define DELL_POWEREDGE_8G_BMC_DEVICE_REV 0x80
 #define DELL_POWEREDGE_8G_BMC_IPMI_VERSION 0x51
-#define DELL_IANA_MFR_ID {0xA2, 0x02, 0x00}
+#define DELL_IANA_MFR_ID 0x0002a2
 static void setup_dell_poweredge_oem_data_handler(struct smi_info *smi_info)
 {
 	struct ipmi_device_id *id = &smi_info->device_id;
-	const char mfr[3]=DELL_IANA_MFR_ID;
-	if (!memcmp(mfr, id->manufacturer_id, sizeof(mfr))) {
+	if (id->manufacturer_id == DELL_IANA_MFR_ID) {
 		if (id->device_id       == DELL_POWEREDGE_8G_BMC_DEVICE_ID  &&
 		    id->device_revision == DELL_POWEREDGE_8G_BMC_DEVICE_REV &&
-		    id->ipmi_version    == DELL_POWEREDGE_8G_BMC_IPMI_VERSION) {
+		    id->ipmi_version   == DELL_POWEREDGE_8G_BMC_IPMI_VERSION) {
 			smi_info->oem_data_avail_handler =
 				oem_data_avail_to_receive_msg_avail;
 		}
@@ -2138,8 +2136,7 @@ static void
 setup_dell_poweredge_bt_xaction_handler(struct smi_info *smi_info)
 {
 	struct ipmi_device_id *id = &smi_info->device_id;
-	const char mfr[3]=DELL_IANA_MFR_ID;
- 	if (!memcmp(mfr, id->manufacturer_id, sizeof(mfr)) &&
+	if (id->manufacturer_id == DELL_IANA_MFR_ID &&
 	    smi_info->si_type == SI_BT)
 		register_xaction_notifier(&dell_poweredge_bt_xaction_notifier);
 }
@@ -2358,10 +2355,36 @@ static int try_smi_init(struct smi_info *new_smi)
 		new_smi->thread = kthread_run(ipmi_thread, new_smi,
 					      "kipmi%d", new_smi->intf_num);
 
+	if (!new_smi->dev) {
+		/* If we don't already have a device from something
+		 * else (like PCI), then register a new one. */
+		new_smi->pdev = platform_device_alloc("ipmi_si",
+						      new_smi->intf_num);
+		if (rv) {
+			printk(KERN_ERR
+			       "ipmi_si_intf:"
+			       " Unable to allocate platform device\n");
+			goto out_err_stop_timer;
+		}
+		new_smi->dev = &new_smi->pdev->dev;
+		new_smi->dev->driver = &ipmi_driver;
+
+		rv = platform_device_register(new_smi->pdev);
+		if (rv) {
+			printk(KERN_ERR
+			       "ipmi_si_intf:"
+			       " Unable to register system interface device:"
+			       " %d\n",
+			       rv);
+			goto out_err_stop_timer;
+		}
+		new_smi->dev_registered = 1;
+	}
+
 	rv = ipmi_register_smi(&handlers,
 			       new_smi,
-			       ipmi_version_major(&new_smi->device_id),
-			       ipmi_version_minor(&new_smi->device_id),
+			       &new_smi->device_id,
+			       new_smi->dev,
 			       new_smi->slave_addr,
 			       &(new_smi->intf));
 	if (rv) {
@@ -2425,6 +2448,11 @@ static int try_smi_init(struct smi_info *new_smi)
 	if (new_smi->io_cleanup)
 		new_smi->io_cleanup(new_smi);
 
+	if (new_smi->dev_registered)
+		platform_device_unregister(new_smi->pdev);
+
+	kfree(new_smi);
+
 	up(&smi_infos_lock);
 
 	return rv;
@@ -2434,10 +2462,21 @@ static __devinit int init_ipmi_si(void)
 {
 	int  i;
 	char *str;
+	int  rv;
 
 	if (initialized)
 		return 0;
 	initialized = 1;
+
+	/* Register the device drivers. */
+	rv = driver_register(&ipmi_driver);
+	if (rv) {
+		printk(KERN_ERR
+		       "init_ipmi_si: Unable to register driver: %d\n",
+		       rv);
+		return rv;
+	}
+
 
 	/* Parse out the si_type string into its components. */
 	str = si_type_str;
@@ -2549,6 +2588,11 @@ static void __devexit cleanup_one_si(struct smi_info *to_clean)
 		to_clean->addr_source_cleanup(to_clean);
 	if (to_clean->io_cleanup)
 		to_clean->io_cleanup(to_clean);
+
+	if (to_clean->dev_registered)
+		platform_device_unregister(to_clean->pdev);
+
+	kfree(to_clean);
 }
 
 static __exit void cleanup_ipmi_si(void)
@@ -2566,6 +2610,8 @@ static __exit void cleanup_ipmi_si(void)
 	list_for_each_entry_safe(e, tmp_e, &smi_infos, link)
 		cleanup_one_si(e);
 	up(&smi_infos_lock);
+
+	driver_unregister(&ipmi_driver);
 }
 module_exit(cleanup_ipmi_si);
 

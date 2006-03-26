@@ -90,7 +90,7 @@ static unsigned int ipmi_poll(struct file *file, poll_table *wait)
 
 	spin_lock_irqsave(&priv->recv_msg_lock, flags);
 
-	if (! list_empty(&(priv->recv_msgs)))
+	if (!list_empty(&(priv->recv_msgs)))
 		mask |= (POLLIN | POLLRDNORM);
 
 	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
@@ -789,21 +789,53 @@ MODULE_PARM_DESC(ipmi_major, "Sets the major number of the IPMI device.  By"
 		 " interface.  Other values will set the major device number"
 		 " to that value.");
 
+/* Keep track of the devices that are registered. */
+struct ipmi_reg_list {
+	dev_t            dev;
+	struct list_head link;
+};
+static LIST_HEAD(reg_list);
+static DEFINE_MUTEX(reg_list_mutex);
+
 static struct class *ipmi_class;
 
-static void ipmi_new_smi(int if_num)
+static void ipmi_new_smi(int if_num, struct device *device)
 {
 	dev_t dev = MKDEV(ipmi_major, if_num);
+	struct ipmi_reg_list *entry;
 
 	devfs_mk_cdev(dev, S_IFCHR | S_IRUSR | S_IWUSR,
 		      "ipmidev/%d", if_num);
 
-	class_device_create(ipmi_class, NULL, dev, NULL, "ipmi%d", if_num);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		printk(KERN_ERR "ipmi_devintf: Unable to create the"
+		       " ipmi class device link\n");
+		return;
+	}
+	entry->dev = dev;
+
+	mutex_lock(&reg_list_mutex);
+	class_device_create(ipmi_class, NULL, dev, device, "ipmi%d", if_num);
+	list_add(&entry->link, &reg_list);
+	mutex_unlock(&reg_list_mutex);
 }
 
 static void ipmi_smi_gone(int if_num)
 {
-	class_device_destroy(ipmi_class, MKDEV(ipmi_major, if_num));
+	dev_t dev = MKDEV(ipmi_major, if_num);
+	struct ipmi_reg_list *entry;
+
+	mutex_lock(&reg_list_mutex);
+	list_for_each_entry(entry, &reg_list, link) {
+		if (entry->dev == dev) {
+			list_del(&entry->link);
+			kfree(entry);
+			break;
+		}
+	}
+	class_device_destroy(ipmi_class, dev);
+	mutex_unlock(&reg_list_mutex);
 	devfs_remove("ipmidev/%d", if_num);
 }
 
@@ -856,6 +888,14 @@ module_init(init_ipmi_devintf);
 
 static __exit void cleanup_ipmi(void)
 {
+	struct ipmi_reg_list *entry, *entry2;
+	mutex_lock(&reg_list_mutex);
+	list_for_each_entry_safe(entry, entry2, &reg_list, link) {
+		list_del(&entry->link);
+		class_device_destroy(ipmi_class, entry->dev);
+		kfree(entry);
+	}
+	mutex_unlock(&reg_list_mutex);
 	class_destroy(ipmi_class);
 	ipmi_smi_watcher_unregister(&smi_watcher);
 	devfs_remove(DEVICE_NAME);

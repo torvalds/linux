@@ -996,7 +996,7 @@ static struct notifier_block wdog_panic_notifier = {
 };
 
 
-static void ipmi_new_smi(int if_num)
+static void ipmi_new_smi(int if_num, struct device *device)
 {
 	ipmi_register_watchdog(if_num);
 }
