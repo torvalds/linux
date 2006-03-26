@@ -458,24 +458,33 @@ efi_init (void)
 	printk(KERN_INFO "EFI v%u.%.02u by %s:",
 	       efi.systab->hdr.revision >> 16, efi.systab->hdr.revision & 0xffff, vendor);
 
+	efi.mps        = EFI_INVALID_TABLE_ADDR;
+	efi.acpi       = EFI_INVALID_TABLE_ADDR;
+	efi.acpi20     = EFI_INVALID_TABLE_ADDR;
+	efi.smbios     = EFI_INVALID_TABLE_ADDR;
+	efi.sal_systab = EFI_INVALID_TABLE_ADDR;
+	efi.boot_info  = EFI_INVALID_TABLE_ADDR;
+	efi.hcdp       = EFI_INVALID_TABLE_ADDR;
+	efi.uga        = EFI_INVALID_TABLE_ADDR;
+
 	for (i = 0; i < (int) efi.systab->nr_tables; i++) {
 		if (efi_guidcmp(config_tables[i].guid, MPS_TABLE_GUID) == 0) {
-			efi.mps = __va(config_tables[i].table);
+			efi.mps = config_tables[i].table;
 			printk(" MPS=0x%lx", config_tables[i].table);
 		} else if (efi_guidcmp(config_tables[i].guid, ACPI_20_TABLE_GUID) == 0) {
-			efi.acpi20 = __va(config_tables[i].table);
+			efi.acpi20 = config_tables[i].table;
 			printk(" ACPI 2.0=0x%lx", config_tables[i].table);
 		} else if (efi_guidcmp(config_tables[i].guid, ACPI_TABLE_GUID) == 0) {
-			efi.acpi = __va(config_tables[i].table);
+			efi.acpi = config_tables[i].table;
 			printk(" ACPI=0x%lx", config_tables[i].table);
 		} else if (efi_guidcmp(config_tables[i].guid, SMBIOS_TABLE_GUID) == 0) {
-			efi.smbios = __va(config_tables[i].table);
+			efi.smbios = config_tables[i].table;
 			printk(" SMBIOS=0x%lx", config_tables[i].table);
 		} else if (efi_guidcmp(config_tables[i].guid, SAL_SYSTEM_TABLE_GUID) == 0) {
-			efi.sal_systab = __va(config_tables[i].table);
+			efi.sal_systab = config_tables[i].table;
 			printk(" SALsystab=0x%lx", config_tables[i].table);
 		} else if (efi_guidcmp(config_tables[i].guid, HCDP_TABLE_GUID) == 0) {
-			efi.hcdp = __va(config_tables[i].table);
+			efi.hcdp = config_tables[i].table;
 			printk(" HCDP=0x%lx", config_tables[i].table);
 		}
 	}

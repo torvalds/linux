@@ -156,12 +156,10 @@ acpi_status acpi_os_get_root_pointer(u32 flags, struct acpi_pointer *addr)
 {
 	if (efi_enabled) {
 		addr->pointer_type = ACPI_PHYSICAL_POINTER;
-		if (efi.acpi20)
-			addr->pointer.physical =
-			    (acpi_physical_address) virt_to_phys(efi.acpi20);
-		else if (efi.acpi)
-			addr->pointer.physical =
-			    (acpi_physical_address) virt_to_phys(efi.acpi);
+		if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
+			addr->pointer.physical = efi.acpi20;
+		else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
+			addr->pointer.physical = efi.acpi;
 		else {
 			printk(KERN_ERR PREFIX
 			       "System description tables not found\n");

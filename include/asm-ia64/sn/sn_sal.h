@@ -159,7 +159,7 @@
 static inline u32
 sn_sal_rev(void)
 {
-	struct ia64_sal_systab *systab = efi.sal_systab;
+	struct ia64_sal_systab *systab = __va(efi.sal_systab);
 
 	return (u32)(systab->sal_b_rev_major << 8 | systab->sal_b_rev_minor);
 }

@@ -434,7 +434,7 @@ setup_arch (char **cmdline_p)
 	find_memory();
 
 	/* process SAL system table: */
-	ia64_sal_init(efi.sal_systab);
+	ia64_sal_init(__va(efi.sal_systab));
 
 	ia64_setup_printk_clock();
 

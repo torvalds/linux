@@ -651,9 +651,9 @@ unsigned long __init acpi_find_rsdp(void)
 {
 	unsigned long rsdp_phys = 0;
 
-	if (efi.acpi20)
-		rsdp_phys = __pa(efi.acpi20);
-	else if (efi.acpi)
+	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
+		rsdp_phys = efi.acpi20;
+	else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
 		printk(KERN_WARNING PREFIX
 		       "v1.0/r0.71 tables no longer supported\n");
 	return rsdp_phys;
