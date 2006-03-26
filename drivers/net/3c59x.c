@@ -196,8 +196,6 @@
 
 
 #define DRV_NAME	"3c59x"
-#define DRV_VERSION	"LK1.1.19"
-#define DRV_RELDATE	"10 Nov 2002"
 
 
 
@@ -275,10 +273,8 @@ static char version[] __devinitdata =
 DRV_NAME ": Donald Becker and others. www.scyld.com/network/vortex.html\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
-MODULE_DESCRIPTION("3Com 3c59x/3c9xx ethernet driver "
-					DRV_VERSION " " DRV_RELDATE);
+MODULE_DESCRIPTION("3Com 3c59x/3c9xx ethernet driver ");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 
 /* Operational parameter that usually are not changed. */
@@ -1236,7 +1232,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	if (print_info)
 		printk (KERN_INFO "See Documentation/networking/vortex.txt\n");
 
-	printk(KERN_INFO "%s: 3Com %s %s at %p. Vers " DRV_VERSION "\n",
+	printk(KERN_INFO "%s: 3Com %s %s at %p.\n",
 	       print_name,
 	       pdev ? "PCI" : "EISA",
 	       vci->name,
@@ -3040,7 +3036,6 @@ static void vortex_get_drvinfo(struct net_device *dev,
 	struct vortex_private *vp = netdev_priv(dev);
 
 	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
 	if (VORTEX_PCI(vp)) {
 		strcpy(info->bus_info, pci_name(VORTEX_PCI(vp)));
 	} else {
