@@ -271,6 +271,7 @@ void free_irq(unsigned int irq, void *dev_id)
 	struct irqaction **p;
 	unsigned long flags;
 
+	WARN_ON(in_interrupt());
 	if (irq >= NR_IRQS)
 		return;
 
