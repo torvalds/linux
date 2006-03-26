@@ -136,9 +136,11 @@ void proc_device_tree_add_node(struct device_node *np,
 		 * properties are quite unimportant for us though, thus we
 		 * simply "skip" them here, but we do have to check.
 		 */
+		spin_lock(&proc_subdir_lock);
 		for (ent = de->subdir; ent != NULL; ent = ent->next)
 			if (!strcmp(ent->name, pp->name))
 				break;
+		spin_unlock(&proc_subdir_lock);
 		if (ent != NULL) {
 			printk(KERN_WARNING "device-tree: property \"%s\" name"
 			       " conflicts with node in %s\n", pp->name,

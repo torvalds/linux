@@ -4,6 +4,7 @@
 #include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/spinlock.h>
 #include <asm/atomic.h>
 
 /*
@@ -91,6 +92,8 @@ extern struct proc_dir_entry *proc_net_stat;
 extern struct proc_dir_entry *proc_bus;
 extern struct proc_dir_entry *proc_root_driver;
 extern struct proc_dir_entry *proc_root_kcore;
+
+extern spinlock_t proc_subdir_lock;
 
 extern void proc_root_init(void);
 extern void proc_misc_init(void);
