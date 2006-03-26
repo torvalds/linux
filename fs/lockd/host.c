@@ -16,6 +16,7 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
 #include <linux/lockd/sm_inter.h>
+#include <linux/mutex.h>
 
 
 #define NLMDBG_FACILITY		NLMDBG_HOSTCACHE
@@ -30,7 +31,7 @@
 static struct nlm_host *	nlm_hosts[NLM_HOST_NRHASH];
 static unsigned long		next_gc;
 static int			nrhosts;
-static DECLARE_MUTEX(nlm_host_sema);
+static DEFINE_MUTEX(nlm_host_mutex);
 
 
 static void			nlm_gc_hosts(void);
@@ -71,7 +72,7 @@ nlm_lookup_host(int server, struct sockaddr_in *sin,
 	hash = NLM_ADDRHASH(sin->sin_addr.s_addr);
 
 	/* Lock hash table */
-	down(&nlm_host_sema);
+	mutex_lock(&nlm_host_mutex);
 
 	if (time_after_eq(jiffies, next_gc))
 		nlm_gc_hosts();
@@ -91,7 +92,7 @@ nlm_lookup_host(int server, struct sockaddr_in *sin,
 				nlm_hosts[hash] = host;
 			}
 			nlm_get_host(host);
-			up(&nlm_host_sema);
+			mutex_unlock(&nlm_host_mutex);
 			return host;
 		}
 	}
@@ -130,7 +131,7 @@ nlm_lookup_host(int server, struct sockaddr_in *sin,
 		next_gc = 0;
 
 nohost:
-	up(&nlm_host_sema);
+	mutex_unlock(&nlm_host_mutex);
 	return host;
 }
 
@@ -141,19 +142,19 @@ nlm_find_client(void)
 	 * and return it
 	 */
 	int hash;
-	down(&nlm_host_sema);
+	mutex_lock(&nlm_host_mutex);
 	for (hash = 0 ; hash < NLM_HOST_NRHASH; hash++) {
 		struct nlm_host *host, **hp;
 		for (hp = &nlm_hosts[hash]; (host = *hp) != 0; hp = &host->h_next) {
 			if (host->h_server &&
 			    host->h_killed == 0) {
 				nlm_get_host(host);
-				up(&nlm_host_sema);
+				mutex_unlock(&nlm_host_mutex);
 				return host;
 			}
 		}
 	}
-	up(&nlm_host_sema);
+	mutex_unlock(&nlm_host_mutex);
 	return NULL;
 }
 
@@ -265,7 +266,7 @@ nlm_shutdown_hosts(void)
 	int		i;
 
 	dprintk("lockd: shutting down host module\n");
-	down(&nlm_host_sema);
+	mutex_lock(&nlm_host_mutex);
 
 	/* First, make all hosts eligible for gc */
 	dprintk("lockd: nuking all hosts...\n");
@@ -276,7 +277,7 @@ nlm_shutdown_hosts(void)
 
 	/* Then, perform a garbage collection pass */
 	nlm_gc_hosts();
-	up(&nlm_host_sema);
+	mutex_unlock(&nlm_host_mutex);
 
 	/* complain if any hosts are left */
 	if (nrhosts) {

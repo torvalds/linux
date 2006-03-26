@@ -37,6 +37,7 @@
 #include <linux/writeback.h>		/* for the emergency remount stuff */
 #include <linux/idr.h>
 #include <linux/kobject.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 
@@ -380,9 +381,9 @@ restart:
 void sync_filesystems(int wait)
 {
 	struct super_block *sb;
-	static DECLARE_MUTEX(mutex);
+	static DEFINE_MUTEX(mutex);
 
-	down(&mutex);		/* Could be down_interruptible */
+	mutex_lock(&mutex);		/* Could be down_interruptible */
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (!sb->s_op->sync_fs)
@@ -411,7 +412,7 @@ restart:
 			goto restart;
 	}
 	spin_unlock(&sb_lock);
-	up(&mutex);
+	mutex_unlock(&mutex);
 }
 
 /**

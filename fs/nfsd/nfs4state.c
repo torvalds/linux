@@ -49,6 +49,7 @@
 #include <linux/nfsd/state.h>
 #include <linux/nfsd/xdr4.h>
 #include <linux/namei.h>
+#include <linux/mutex.h>
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -77,11 +78,11 @@ static void nfs4_set_recdir(char *recdir);
 
 /* Locking:
  *
- * client_sema: 
+ * client_mutex:
  * 	protects clientid_hashtbl[], clientstr_hashtbl[],
  * 	unconfstr_hashtbl[], uncofid_hashtbl[].
  */
-static DECLARE_MUTEX(client_sema);
+static DEFINE_MUTEX(client_mutex);
 
 static kmem_cache_t *stateowner_slab = NULL;
 static kmem_cache_t *file_slab = NULL;
@@ -91,13 +92,13 @@ static kmem_cache_t *deleg_slab = NULL;
 void
 nfs4_lock_state(void)
 {
-	down(&client_sema);
+	mutex_lock(&client_mutex);
 }
 
 void
 nfs4_unlock_state(void)
 {
-	up(&client_sema);
+	mutex_unlock(&client_mutex);
 }
 
 static inline u32

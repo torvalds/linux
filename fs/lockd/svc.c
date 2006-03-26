@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/stats.h>
@@ -43,13 +44,13 @@ static struct svc_program	nlmsvc_program;
 struct nlmsvc_binding *		nlmsvc_ops;
 EXPORT_SYMBOL(nlmsvc_ops);
 
-static DECLARE_MUTEX(nlmsvc_sema);
+static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
 static pid_t			nlmsvc_pid;
 int				nlmsvc_grace_period;
 unsigned long			nlmsvc_timeout;
 
-static DECLARE_MUTEX_LOCKED(lockd_start);
+static DECLARE_COMPLETION(lockd_start_done);
 static DECLARE_WAIT_QUEUE_HEAD(lockd_exit);
 
 /*
@@ -112,7 +113,7 @@ lockd(struct svc_rqst *rqstp)
 	 * Let our maker know we're running.
 	 */
 	nlmsvc_pid = current->pid;
-	up(&lockd_start);
+	complete(&lockd_start_done);
 
 	daemonize("lockd");
 
@@ -215,7 +216,7 @@ lockd_up(void)
 	struct svc_serv *	serv;
 	int			error = 0;
 
-	down(&nlmsvc_sema);
+	mutex_lock(&nlmsvc_mutex);
 	/*
 	 * Unconditionally increment the user count ... this is
 	 * the number of clients who _want_ a lockd process.
@@ -263,7 +264,7 @@ lockd_up(void)
 			"lockd_up: create thread failed, error=%d\n", error);
 		goto destroy_and_out;
 	}
-	down(&lockd_start);
+	wait_for_completion(&lockd_start_done);
 
 	/*
 	 * Note: svc_serv structures have an initial use count of 1,
@@ -272,7 +273,7 @@ lockd_up(void)
 destroy_and_out:
 	svc_destroy(serv);
 out:
-	up(&nlmsvc_sema);
+	mutex_unlock(&nlmsvc_mutex);
 	return error;
 }
 EXPORT_SYMBOL(lockd_up);
@@ -285,7 +286,7 @@ lockd_down(void)
 {
 	static int warned;
 
-	down(&nlmsvc_sema);
+	mutex_lock(&nlmsvc_mutex);
 	if (nlmsvc_users) {
 		if (--nlmsvc_users)
 			goto out;
@@ -315,7 +316,7 @@ lockd_down(void)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 out:
-	up(&nlmsvc_sema);
+	mutex_unlock(&nlmsvc_mutex);
 }
 EXPORT_SYMBOL(lockd_down);
 
