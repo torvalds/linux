@@ -224,7 +224,7 @@ void __init dmi_scan_machine(void)
                 * needed during early boot.  This also means we can
                 * iounmap the space when we're done with it.
 		*/
-		p = dmi_ioremap((unsigned long)efi.smbios, 0x10000);
+		p = dmi_ioremap((unsigned long)efi.smbios, 32);
 		if (p == NULL)
 			goto out;
 
