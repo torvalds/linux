@@ -51,8 +51,6 @@
 #include <linux/amba/serial.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/hardware.h>
 
 #define UART_NR		2
 
@@ -65,26 +63,16 @@
 #define UART_RX_DATA(s)		(((s) & UART01x_FR_RXFE) == 0)
 #define UART_TX_READY(s)	(((s) & UART01x_FR_TXFF) == 0)
 
-#define UART_DUMMY_RSR_RX	/*256*/0
+#define UART_DUMMY_RSR_RX	256
 #define UART_PORT_SIZE		64
-
-/*
- * On the Integrator platform, the port RTS and DTR are provided by
- * bits in the following SC_CTRLS register bits:
- *        RTS  DTR
- *  UART0  7    6
- *  UART1  5    4
- */
-#define SC_CTRLC	(IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_CTRLC_OFFSET)
-#define SC_CTRLS	(IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_CTRLS_OFFSET)
 
 /*
  * We wrap our port structure around the generic uart_port.
  */
 struct uart_amba_port {
 	struct uart_port	port;
-	unsigned int		dtr_mask;
-	unsigned int		rts_mask;
+	struct amba_device	*dev;
+	struct amba_pl010_data	*data;
 	unsigned int		old_status;
 };
 
@@ -300,20 +288,9 @@ static unsigned int pl010_get_mctrl(struct uart_port *port)
 static void pl010_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
-	unsigned int ctrls = 0, ctrlc = 0;
 
-	if (mctrl & TIOCM_RTS)
-		ctrlc |= uap->rts_mask;
-	else
-		ctrls |= uap->rts_mask;
-
-	if (mctrl & TIOCM_DTR)
-		ctrlc |= uap->dtr_mask;
-	else
-		ctrls |= uap->dtr_mask;
-
-	__raw_writel(ctrls, SC_CTRLS);
-	__raw_writel(ctrlc, SC_CTRLC);
+	if (uap->data)
+		uap->data->set_mctrl(uap->dev, uap->port.membase, mctrl);
 }
 
 static void pl010_break_ctl(struct uart_port *port, int break_state)
@@ -539,38 +516,7 @@ static struct uart_ops amba_pl010_pops = {
 	.verify_port	= pl010_verify_port,
 };
 
-static struct uart_amba_port amba_ports[UART_NR] = {
-	{
-		.port	= {
-			.membase	= (void *)IO_ADDRESS(INTEGRATOR_UART0_BASE),
-			.mapbase	= INTEGRATOR_UART0_BASE,
-			.iotype		= UPIO_MEM,
-			.irq		= IRQ_UARTINT0,
-			.uartclk	= 14745600,
-			.fifosize	= 16,
-			.ops		= &amba_pl010_pops,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 0,
-		},
-		.dtr_mask	= 1 << 5,
-		.rts_mask	= 1 << 4,
-	},
-	{
-		.port	= {
-			.membase	= (void *)IO_ADDRESS(INTEGRATOR_UART1_BASE),
-			.mapbase	= INTEGRATOR_UART1_BASE,
-			.iotype		= UPIO_MEM,
-			.irq		= IRQ_UARTINT1,
-			.uartclk	= 14745600,
-			.fifosize	= 16,
-			.ops		= &amba_pl010_pops,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 1,
-		},
-		.dtr_mask	= 1 << 7,
-		.rts_mask	= 1 << 6,
-	}
-};
+static struct uart_amba_port *amba_ports[UART_NR];
 
 #ifdef CONFIG_SERIAL_AMBA_PL010_CONSOLE
 
@@ -588,7 +534,7 @@ static void pl010_console_putchar(struct uart_port *port, int ch)
 static void
 pl010_console_write(struct console *co, const char *s, unsigned int count)
 {
-	struct uart_port *port = &amba_ports[co->index].port;
+	struct uart_port *port = &amba_ports[co->index]->port;
 	unsigned int status, old_cr;
 
 	/*
@@ -651,7 +597,7 @@ static int __init pl010_console_setup(struct console *co, char *options)
 	 */
 	if (co->index >= UART_NR)
 		co->index = 0;
-	port = &amba_ports[co->index].port;
+	port = &amba_ports[co->index]->port;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -672,24 +618,6 @@ static struct console amba_console = {
 	.data		= &amba_reg,
 };
 
-static int __init amba_console_init(void)
-{
-	/*
-	 * All port initializations are done statically
-	 */
-	register_console(&amba_console);
-	return 0;
-}
-console_initcall(amba_console_init);
-
-static int __init amba_late_console_init(void)
-{
-	if (!(amba_console.flags & CON_ENABLED))
-		register_console(&amba_console);
-	return 0;
-}
-late_initcall(amba_late_console_init);
-
 #define AMBA_CONSOLE	&amba_console
 #else
 #define AMBA_CONSOLE	NULL
@@ -707,29 +635,75 @@ static struct uart_driver amba_reg = {
 
 static int pl010_probe(struct amba_device *dev, void *id)
 {
-	int i;
+	struct uart_amba_port *port;
+	void __iomem *base;
+	int i, ret;
 
-	for (i = 0; i < UART_NR; i++) {
-		if (amba_ports[i].port.mapbase != dev->res.start)
-			continue;
+	for (i = 0; i < ARRAY_SIZE(amba_ports); i++)
+		if (amba_ports[i] == NULL)
+			break;
 
-		amba_ports[i].port.dev = &dev->dev;
-		uart_add_one_port(&amba_reg, &amba_ports[i].port);
-		amba_set_drvdata(dev, &amba_ports[i]);
-		break;
+	if (i == ARRAY_SIZE(amba_ports)) {
+		ret = -EBUSY;
+		goto out;
 	}
 
-	return 0;
+	port = kzalloc(sizeof(struct uart_amba_port), GFP_KERNEL);
+	if (!port) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	base = ioremap(dev->res.start, PAGE_SIZE);
+	if (!base) {
+		ret = -ENOMEM;
+		goto free;
+	}
+
+	port->port.dev = &dev->dev;
+	port->port.mapbase = dev->res.start;
+	port->port.membase = base;
+	port->port.iotype = UPIO_MEM;
+	port->port.irq = dev->irq[0];
+	port->port.uartclk = 14745600;
+	port->port.fifosize = 16;
+	port->port.ops = &amba_pl010_pops;
+	port->port.flags = UPF_BOOT_AUTOCONF;
+	port->port.line = i;
+	port->dev = dev;
+	port->data = dev->dev.platform_data;
+
+	amba_ports[i] = port;
+
+	amba_set_drvdata(dev, port);
+	ret = uart_add_one_port(&amba_reg, &port->port);
+	if (ret) {
+		amba_set_drvdata(dev, NULL);
+		amba_ports[i] = NULL;
+		iounmap(base);
+ free:
+		kfree(port);
+	}
+
+ out:
+	return ret;
 }
 
 static int pl010_remove(struct amba_device *dev)
 {
-	struct uart_amba_port *uap = amba_get_drvdata(dev);
-
-	if (uap)
-		uart_remove_one_port(&amba_reg, &uap->port);
+	struct uart_amba_port *port = amba_get_drvdata(dev);
+	int i;
 
 	amba_set_drvdata(dev, NULL);
+
+	uart_remove_one_port(&amba_reg, &port->port);
+
+	for (i = 0; i < ARRAY_SIZE(amba_ports); i++)
+		if (amba_ports[i] == port)
+			amba_ports[i] = NULL;
+
+	iounmap(port->port.membase);
+	kfree(port);
 
 	return 0;
 }
