@@ -38,4 +38,16 @@ extern void mempool_free(void *element, mempool_t *pool);
 void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data);
 void mempool_free_slab(void *element, void *pool_data);
 
+/*
+ * A mempool_alloc_t and mempool_free_t for a simple page allocator that
+ * allocates pages of the order specified by pool_data
+ */
+void *mempool_alloc_pages(gfp_t gfp_mask, void *pool_data);
+void mempool_free_pages(void *element, void *pool_data);
+static inline mempool_t *mempool_create_page_pool(int min_nr, int order)
+{
+	return mempool_create(min_nr, mempool_alloc_pages, mempool_free_pages,
+			      (void *)(long)order);
+}
+
 #endif /* _LINUX_MEMPOOL_H */
