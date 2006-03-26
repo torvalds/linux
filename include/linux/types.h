@@ -137,6 +137,10 @@ typedef		__s64		int64_t;
 typedef unsigned long sector_t;
 #endif
 
+#ifndef HAVE_BLKCNT_T
+typedef unsigned long blkcnt_t;
+#endif
+
 /*
  * The type of an index into the pagecache.  Use a #define so asm/types.h
  * can override it.
