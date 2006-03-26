@@ -49,6 +49,7 @@
 #include <linux/syscalls.h>
 #include <linux/times.h>
 #include <linux/acct.h>
+#include <linux/kprobes.h>
 #include <asm/tlb.h>
 
 #include <asm/unistd.h>
@@ -1546,8 +1547,14 @@ static inline void finish_task_switch(runqueue_t *rq, task_t *prev)
 	finish_lock_switch(rq, prev);
 	if (mm)
 		mmdrop(mm);
-	if (unlikely(prev_task_flags & PF_DEAD))
+	if (unlikely(prev_task_flags & PF_DEAD)) {
+		/*
+		 * Remove function-return probe instances associated with this
+		 * task and put them back on the free list.
+	 	 */
+		kprobe_flush_task(prev);
 		put_task_struct(prev);
+	}
 }
 
 /**

@@ -35,7 +35,6 @@
 #include <linux/mqueue.h>
 #include <linux/hardirq.h>
 #include <linux/utsname.h>
-#include <linux/kprobes.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -460,7 +459,6 @@ void show_regs(struct pt_regs * regs)
 
 void exit_thread(void)
 {
-	kprobe_flush_task(current);
 	discard_lazy_cpu_state();
 }
 
