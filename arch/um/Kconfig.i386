@@ -52,3 +52,8 @@ config ARCH_HAS_SC_SIGNALS
 config ARCH_REUSE_HOST_VSYSCALL_AREA
 	bool
 	default y
+
+config GENERIC_HWEIGHT
+	bool
+	default y
+
