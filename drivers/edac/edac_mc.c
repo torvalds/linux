@@ -2095,9 +2095,6 @@ static int __init edac_mc_init(void)
 	 */
 	clear_pci_parity_errors();
 
-	/* perform check for first time to harvest boot leftovers */
-	do_edac_check();
-
 	/* Create the MC sysfs entires */
 	if (edac_sysfs_memctrl_setup()) {
 		edac_printk(KERN_ERR, EDAC_MC,

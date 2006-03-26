@@ -134,6 +134,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	int index;
 	struct mem_ctl_info *mci = NULL;
 	unsigned long last_cumul_size;
+	struct i82860_error_info discard;
 
 	u16 mchcfg_ddim;	/* DRAM Data Integrity Mode 0=none,2=edac */
 
@@ -200,8 +201,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 		csrow->edac_mode = mchcfg_ddim ? EDAC_SECDED : EDAC_NONE;
 	}
 
-	/* clear counters */
-	pci_write_bits16(mci->pdev, I82860_ERRSTS, 0x0003, 0x0003);
+	i82860_get_error_info(mci, &discard);  /* clear counters */
 
 	if (edac_mc_add_mc(mci)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);

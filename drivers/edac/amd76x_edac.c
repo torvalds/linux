@@ -211,6 +211,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	};
 	u32 ems;
 	u32 ems_mode;
+	struct amd76x_error_info discard;
 
 	debugf0("%s()\n", __func__);
 
@@ -270,9 +271,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 		csrow->edac_mode = ems_modes[ems_mode];
 	}
 
-	/* clear counters */
-	pci_write_bits32(mci->pdev, AMD76X_ECC_MODE_STATUS, (u32) (0x3 << 8),
-			 (u32) (0x3 << 8));
+	amd76x_get_error_info(mci, &discard);  /* clear counters */
 
 	if (edac_mc_add_mc(mci)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);

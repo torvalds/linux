@@ -747,8 +747,6 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	int rc = -ENODEV;
 	int index;
 	u16 pci_data;
-	u32 stat32;
-	u16 stat16;
 	u8 stat8;
 	struct mem_ctl_info *mci = NULL;
 	struct e752x_pvt *pvt = NULL;
@@ -760,6 +758,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	u32 dra;
 	unsigned long last_cumul_size;
 	struct pci_dev *dev = NULL;
+	struct e752x_error_info discard;
 
 	debugf0("%s(): mci\n", __func__);
 	debugf0("Starting Probe1\n");
@@ -938,24 +937,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	pci_write_config_byte(dev, E752X_DRAM_ERRMASK, 0x00);
 	pci_write_config_byte(dev, E752X_DRAM_SMICMD, 0x00);
 	/* clear other MCH errors */
-	pci_read_config_dword(dev, E752X_FERR_GLOBAL, &stat32);
-	pci_write_config_dword(dev, E752X_FERR_GLOBAL, stat32);
-	pci_read_config_dword(dev, E752X_NERR_GLOBAL, &stat32);
-	pci_write_config_dword(dev, E752X_NERR_GLOBAL, stat32);
-	pci_read_config_byte(dev, E752X_HI_FERR, &stat8);
-	pci_write_config_byte(dev, E752X_HI_FERR, stat8);
-	pci_read_config_byte(dev, E752X_HI_NERR, &stat8);
-	pci_write_config_byte(dev, E752X_HI_NERR, stat8);
-	pci_read_config_dword(dev, E752X_SYSBUS_FERR, &stat32);
-	pci_write_config_dword(dev, E752X_SYSBUS_FERR, stat32);
-	pci_read_config_byte(dev, E752X_BUF_FERR, &stat8);
-	pci_write_config_byte(dev, E752X_BUF_FERR, stat8);
-	pci_read_config_byte(dev, E752X_BUF_NERR, &stat8);
-	pci_write_config_byte(dev, E752X_BUF_NERR, stat8);
-	pci_read_config_word(dev, E752X_DRAM_FERR, &stat16);
-	pci_write_config_word(dev, E752X_DRAM_FERR, stat16);
-	pci_read_config_word(dev, E752X_DRAM_NERR, &stat16);
-	pci_write_config_word(dev, E752X_DRAM_NERR, stat16);
+	e752x_get_error_info(mci, &discard);
 
 	/* get this far and it's successful */
 	debugf3("%s(): success\n", __func__);

@@ -357,7 +357,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	int drc_ddim;		/* DRAM Data Integrity Mode 0=none,2=edac */
 	u32 dra;
 	unsigned long last_cumul_size;
-
+	struct e7xxx_error_info discard;
 
 	debugf0("%s(): mci\n", __func__);
 
@@ -470,8 +470,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 		     pvt->tolm, pvt->remapbase, pvt->remaplimit);
 
 	/* clear any pending errors, or initial state bits */
-	pci_write_bits8(pvt->bridge_ck, E7XXX_DRAM_FERR, 0x03, 0x03);
-	pci_write_bits8(pvt->bridge_ck, E7XXX_DRAM_NERR, 0x03, 0x03);
+	e7xxx_get_error_info(mci, &discard);
 
 	if (edac_mc_add_mc(mci) != 0) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);

@@ -286,6 +286,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	u32 drc_chan;		/* Number of channels 0=1chan,1=2chan */
 	u32 nr_chans;
 	u32 drc_ddim;		/* DRAM Data Integrity Mode 0=none,2=edac */
+	struct i82875p_error_info discard;
 
 	debugf0("%s()\n", __func__);
 
@@ -397,8 +398,7 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 		csrow->edac_mode = drc_ddim ? EDAC_SECDED : EDAC_NONE;
 	}
 
-	/* clear counters */
-	pci_write_bits16(mci->pdev, I82875P_ERRSTS, 0x0081, 0x0081);
+	i82875p_get_error_info(mci, &discard);  /* clear counters */
 
 	if (edac_mc_add_mc(mci)) {
 		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
