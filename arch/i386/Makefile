@@ -103,7 +103,7 @@ AFLAGS += $(mflags-y)
 boot := arch/i386/boot
 
 PHONY += zImage bzImage compressed zlilo bzlilo \
-         zdisk bzdisk fdimage fdimage144 fdimage288 install
+         zdisk bzdisk fdimage fdimage144 fdimage288 isoimage install
 
 all: bzImage
 
@@ -122,7 +122,7 @@ zlilo bzlilo: vmlinux
 zdisk bzdisk: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) zdisk
 
-fdimage fdimage144 fdimage288: vmlinux
+fdimage fdimage144 fdimage288 isoimage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) $@
 
 install:
@@ -139,6 +139,9 @@ define archhelp
   echo  '		   install to $$(INSTALL_PATH) and run lilo'
   echo  '  bzdisk       - Create a boot floppy in /dev/fd0'
   echo  '  fdimage      - Create a boot floppy image'
+  echo  '  isoimage     - Create a boot CD-ROM image'
 endef
 
-CLEAN_FILES += arch/$(ARCH)/boot/fdimage arch/$(ARCH)/boot/mtools.conf
+CLEAN_FILES += arch/$(ARCH)/boot/fdimage \
+	       arch/$(ARCH)/boot/image.iso \
+	       arch/$(ARCH)/boot/mtools.conf
