@@ -1943,6 +1943,10 @@ vortex_timer(unsigned long data)
 				 dev->name, media_tbl[dev->if_port].name, media_status);
 		ok = 1;
 	}
+
+	if (!netif_carrier_ok(dev))
+		next_tick = 5*HZ;
+
 	if ( ! ok) {
 		unsigned int config;
 
