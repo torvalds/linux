@@ -740,6 +740,9 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
 
+	if (args->regs && user_mode(args->regs))
+		return ret;
+
 	switch(val) {
 	case DIE_BREAK:
 		/* err is break number from ia64_bad_break() */

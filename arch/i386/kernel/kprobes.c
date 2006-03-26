@@ -203,12 +203,13 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *p;
 	int ret = 0;
-	kprobe_opcode_t *addr = NULL;
-	unsigned long *lp;
+	kprobe_opcode_t *addr;
 	struct kprobe_ctlblk *kcb;
 #ifdef CONFIG_PREEMPT
 	unsigned pre_preempt_count = preempt_count();
 #endif /* CONFIG_PREEMPT */
+
+	addr = (kprobe_opcode_t *)(regs->eip - sizeof(kprobe_opcode_t));
 
 	/*
 	 * We don't want to be preempted for the entire
@@ -217,17 +218,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	preempt_disable();
 	kcb = get_kprobe_ctlblk();
 
-	/* Check if the application is using LDT entry for its code segment and
-	 * calculate the address by reading the base address from the LDT entry.
-	 */
-	if ((regs->xcs & 4) && (current->mm)) {
-		lp = (unsigned long *) ((unsigned long)((regs->xcs >> 3) * 8)
-					+ (char *) current->mm->context.ldt);
-		addr = (kprobe_opcode_t *) (get_desc_base(lp) + regs->eip -
-						sizeof(kprobe_opcode_t));
-	} else {
-		addr = (kprobe_opcode_t *)(regs->eip - sizeof(kprobe_opcode_t));
-	}
 	/* Check we're not actually recursing */
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
@@ -578,6 +568,9 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 {
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
+
+	if (args->regs && user_mode(args->regs))
+		return ret;
 
 	switch (val) {
 	case DIE_INT3:
