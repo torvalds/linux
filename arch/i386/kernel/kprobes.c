@@ -41,6 +41,49 @@ void jprobe_return_end(void);
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
+/* insert a jmp code */
+static inline void set_jmp_op(void *from, void *to)
+{
+	struct __arch_jmp_op {
+		char op;
+		long raddr;
+	} __attribute__((packed)) *jop;
+	jop = (struct __arch_jmp_op *)from;
+	jop->raddr = (long)(to) - ((long)(from) + 5);
+	jop->op = RELATIVEJUMP_INSTRUCTION;
+}
+
+/*
+ * returns non-zero if opcodes can be boosted.
+ */
+static inline int can_boost(kprobe_opcode_t opcode)
+{
+	switch (opcode & 0xf0 ) {
+	case 0x70:
+		return 0; /* can't boost conditional jump */
+	case 0x90:
+		/* can't boost call and pushf */
+		return opcode != 0x9a && opcode != 0x9c;
+	case 0xc0:
+		/* can't boost undefined opcodes and soft-interruptions */
+		return (0xc1 < opcode && opcode < 0xc6) ||
+			(0xc7 < opcode && opcode < 0xcc) || opcode == 0xcf;
+	case 0xd0:
+		/* can boost AA* and XLAT */
+		return (opcode == 0xd4 || opcode == 0xd5 || opcode == 0xd7);
+	case 0xe0:
+		/* can boost in/out and (may be) jmps */
+		return (0xe3 < opcode && opcode != 0xe8);
+	case 0xf0:
+		/* clear and set flags can be boost */
+		return (opcode == 0xf5 || (0xf7 < opcode && opcode < 0xfe));
+	default:
+		/* currently, can't boost 2 bytes opcodes */
+		return opcode != 0x0f;
+	}
+}
+
+
 /*
  * returns non-zero if opcode modifies the interrupt flag.
  */
@@ -65,6 +108,11 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
 	p->opcode = *p->addr;
+	if (can_boost(p->opcode)) {
+		p->ainsn.boostable = 0;
+	} else {
+		p->ainsn.boostable = -1;
+	}
 	return 0;
 }
 
@@ -158,6 +206,9 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	kprobe_opcode_t *addr = NULL;
 	unsigned long *lp;
 	struct kprobe_ctlblk *kcb;
+#ifdef CONFIG_PREEMPT
+	unsigned pre_preempt_count = preempt_count();
+#endif /* CONFIG_PREEMPT */
 
 	/*
 	 * We don't want to be preempted for the entire
@@ -251,6 +302,21 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	if (p->pre_handler && p->pre_handler(p, regs))
 		/* handler has already set things up, so skip ss setup */
 		return 1;
+
+	if (p->ainsn.boostable == 1 &&
+#ifdef CONFIG_PREEMPT
+	    !(pre_preempt_count) && /*
+				       * This enables booster when the direct
+				       * execution path aren't preempted.
+				       */
+#endif /* CONFIG_PREEMPT */
+	    !p->post_handler && !p->break_handler ) {
+		/* Boost up -- we can execute copied instructions directly */
+		reset_current_kprobe();
+		regs->eip = (unsigned long)p->ainsn.insn;
+		preempt_enable_no_resched();
+		return 1;
+	}
 
 ss_probe:
 	prepare_singlestep(p, regs);
@@ -357,6 +423,8 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
  * 2) If the single-stepped instruction was a call, the return address
  * that is atop the stack is the address following the copied instruction.
  * We need to make it the address following the original instruction.
+ *
+ * This function also checks instruction size for preparing direct execution.
  */
 static void __kprobes resume_execution(struct kprobe *p,
 		struct pt_regs *regs, struct kprobe_ctlblk *kcb)
@@ -377,6 +445,7 @@ static void __kprobes resume_execution(struct kprobe *p,
 	case 0xca:
 	case 0xea:		/* jmp absolute -- eip is correct */
 		/* eip is already adjusted, no more changes required */
+		p->ainsn.boostable = 1;
 		goto no_change;
 	case 0xe8:		/* call relative - Fix return addr */
 		*tos = orig_eip + (*tos - copy_eip);
@@ -384,16 +453,35 @@ static void __kprobes resume_execution(struct kprobe *p,
 	case 0xff:
 		if ((p->ainsn.insn[1] & 0x30) == 0x10) {
 			/* call absolute, indirect */
-			/* Fix return addr; eip is correct. */
+			/*
+			 * Fix return addr; eip is correct.
+			 * But this is not boostable
+			 */
 			*tos = orig_eip + (*tos - copy_eip);
 			goto no_change;
 		} else if (((p->ainsn.insn[1] & 0x31) == 0x20) ||	/* jmp near, absolute indirect */
 			   ((p->ainsn.insn[1] & 0x31) == 0x21)) {	/* jmp far, absolute indirect */
-			/* eip is correct. */
+			/* eip is correct. And this is boostable */
+			p->ainsn.boostable = 1;
 			goto no_change;
 		}
 	default:
 		break;
+	}
+
+	if (p->ainsn.boostable == 0) {
+		if ((regs->eip > copy_eip) &&
+		    (regs->eip - copy_eip) + 5 < MAX_INSN_SIZE) {
+			/*
+			 * These instructions can be executed directly if it
+			 * jumps back to correct address.
+			 */
+			set_jmp_op((void *)regs->eip,
+				   (void *)orig_eip + (regs->eip - copy_eip));
+			p->ainsn.boostable = 1;
+		} else {
+			p->ainsn.boostable = -1;
+		}
 	}
 
 	regs->eip = orig_eip + (regs->eip - copy_eip);
