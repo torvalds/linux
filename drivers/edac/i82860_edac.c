@@ -62,8 +62,6 @@ static const struct i82860_dev_info i82860_devs[] = {
 static struct pci_dev *mci_pdev = NULL;	/* init dev: in case that AGP code
 					   has already registered driver */
 
-static int i82860_registered = 1;
-
 static void i82860_get_error_info (struct mem_ctl_info *mci,
 		struct i82860_error_info *info)
 {
@@ -265,24 +263,33 @@ static int __init i82860_init(void)
 
 	debugf3("%s()\n", __func__);
 	if ((pci_rc = pci_register_driver(&i82860_driver)) < 0)
-		return pci_rc;
+		goto fail0;
 
 	if (!mci_pdev) {
-		i82860_registered = 0;
 		mci_pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 					  PCI_DEVICE_ID_INTEL_82860_0, NULL);
 		if (mci_pdev == NULL) {
 			debugf0("860 pci_get_device fail\n");
-			return -ENODEV;
+			pci_rc = -ENODEV;
+			goto fail1;
 		}
 		pci_rc = i82860_init_one(mci_pdev, i82860_pci_tbl);
 		if (pci_rc < 0) {
 			debugf0("860 init fail\n");
-			pci_dev_put(mci_pdev);
-			return -ENODEV;
+			pci_rc = -ENODEV;
+			goto fail1;
 		}
 	}
 	return 0;
+
+fail1:
+	pci_unregister_driver(&i82860_driver);
+
+fail0:
+	if (mci_pdev != NULL)
+		pci_dev_put(mci_pdev);
+
+	return pci_rc;
 }
 
 static void __exit i82860_exit(void)
@@ -290,10 +297,9 @@ static void __exit i82860_exit(void)
 	debugf3("%s()\n", __func__);
 
 	pci_unregister_driver(&i82860_driver);
-	if (!i82860_registered) {
-		i82860_remove_one(mci_pdev);
+
+	if (mci_pdev != NULL)
 		pci_dev_put(mci_pdev);
-	}
 }
 
 module_init(i82860_init);
@@ -301,5 +307,5 @@ module_exit(i82860_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR
-    ("Red Hat Inc. (http://www.redhat.com.com) Ben Woodard <woodard@redhat.com>");
+    ("Red Hat Inc. (http://www.redhat.com) Ben Woodard <woodard@redhat.com>");
 MODULE_DESCRIPTION("ECC support for Intel 82860 memory hub controllers");
