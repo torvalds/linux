@@ -743,8 +743,7 @@ static long snd_legacy_find_free_ioport(long *port_table, long size)
 		struct resource *res;
 		if ((res = request_region(*port_table, size, 
 					  "ALSA test")) != NULL) {
-			release_resource(res);
-			kfree_nocheck(res);
+			release_and_free_resource(res);
 			return *port_table;
 		}
 		port_table++;
@@ -1150,8 +1149,7 @@ static int __init snd_card_miro_detect(struct snd_card *card, struct snd_miro *c
 			if (value == snd_miro_read(chip, OPTi9XX_MC_REG(1)))
 				return 1;
 
-		release_resource(chip->res_mc_base);
-		kfree_nocheck(chip->res_mc_base);
+		release_and_free_resource(chip->res_mc_base);
 		chip->res_mc_base = NULL;
 
 	}
