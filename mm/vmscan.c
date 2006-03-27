@@ -1305,7 +1305,7 @@ unsigned long shrink_all_memory(unsigned long nr_pages)
 
 	current->reclaim_state = &reclaim_state;
 repeat:
-	for_each_pgdat(pgdat) {
+	for_each_online_pgdat(pgdat) {
 		unsigned long freed;
 
 		freed = balance_pgdat(pgdat, nr_to_free, 0);
@@ -1335,7 +1335,7 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 	cpumask_t mask;
 
 	if (action == CPU_ONLINE) {
-		for_each_pgdat(pgdat) {
+		for_each_online_pgdat(pgdat) {
 			mask = node_to_cpumask(pgdat->node_id);
 			if (any_online_cpu(mask) != NR_CPUS)
 				/* One of our CPUs online: restore mask */
@@ -1351,7 +1351,7 @@ static int __init kswapd_init(void)
 	pg_data_t *pgdat;
 
 	swap_setup();
-	for_each_pgdat(pgdat) {
+	for_each_online_pgdat(pgdat) {
 		pid_t pid;
 
 		pid = kernel_thread(kswapd, pgdat, CLONE_KERNEL);

@@ -386,7 +386,7 @@ static void __init pgdat_insert(pg_data_t *pgdat)
 {
 	pg_data_t *prev = NULL, *next;
 
-	for_each_pgdat(next)
+	for_each_online_pgdat(next)
 		if (pgdat->node_id < next->node_id)
 			break;
 		else
@@ -560,7 +560,7 @@ void show_mem(void)
 	printk("Mem-info:\n");
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
-	for_each_pgdat(pgdat) {
+	for_each_online_pgdat(pgdat) {
 		unsigned long present;
 		unsigned long flags;
 		int shared = 0, cached = 0, reserved = 0;
