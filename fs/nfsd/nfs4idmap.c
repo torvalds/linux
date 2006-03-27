@@ -76,12 +76,6 @@ struct ent {
 	char              authname[IDMAP_NAMESZ];
 };
 
-#define DefineSimpleCacheLookupMap(STRUCT, FUNC)			\
-        DefineCacheLookup(struct STRUCT, h, FUNC##_lookup,		\
-        (struct STRUCT *item, int set), /*no setup */,			\
-	& FUNC##_cache, FUNC##_hash(item), FUNC##_match(item, tmp),	\
-	STRUCT##_init(new, item), STRUCT##_update(tmp, item), 0)
-
 /* Common entry handling */
 
 #define ENT_HASHBITS          8
@@ -264,7 +258,7 @@ out:
 	return error;
 }
 
-static DefineSimpleCacheLookupMap(ent, idtoname);
+static DefineSimpleCacheLookup(ent, idtoname);
 
 /*
  * Name -> ID cache
@@ -390,7 +384,7 @@ out:
 	return (error);
 }
 
-static DefineSimpleCacheLookupMap(ent, nametoid);
+static DefineSimpleCacheLookup(ent, nametoid);
 
 /*
  * Exported API

@@ -258,7 +258,7 @@ struct cache_detail ip_map_cache = {
 	.cache_show	= ip_map_show,
 };
 
-static DefineSimpleCacheLookup(ip_map, 0)
+static DefineSimpleCacheLookup(ip_map, ip_map)
 
 
 int auth_unix_add_addr(struct in_addr addr, struct auth_domain *dom)

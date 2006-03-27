@@ -259,7 +259,7 @@ static struct cache_detail rsi_cache = {
 	.cache_parse    = rsi_parse,
 };
 
-static DefineSimpleCacheLookup(rsi, 0)
+static DefineSimpleCacheLookup(rsi, rsi)
 
 /*
  * The rpcsec_context cache is used to store a context that is
@@ -446,7 +446,7 @@ static struct cache_detail rsc_cache = {
 	.cache_parse	= rsc_parse,
 };
 
-static DefineSimpleCacheLookup(rsc, 0);
+static DefineSimpleCacheLookup(rsc, rsc);
 
 static struct rsc *
 gss_svc_searchbyctx(struct xdr_netobj *handle)

@@ -133,14 +133,11 @@ struct cache_deferred_req {
  * If "set" == 0 :
  *    If an entry is found, it is returned
  *    If no entry is found, a new non-VALID entry is created.
- * If "set" == 1 and INPLACE == 0 :
+ * If "set" == 1 :
  *    If no entry is found a new one is inserted with data from "template"
  *    If a non-CACHE_VALID entry is found, it is updated from template using UPDATE
  *    If a CACHE_VALID entry is found, a new entry is swapped in with data
  *       from "template"
- * If set == 1, and INPLACE == 1 :
- *    As above, except that if a CACHE_VALID entry is found, we UPDATE in place
- *       instead of swapping in a new entry.
  *
  * If the passed handle has the CACHE_NEGATIVE flag set, then UPDATE is not
  * run but insteead CACHE_NEGATIVE is set in any new item.
@@ -159,13 +156,8 @@ struct cache_deferred_req {
  * TEST  tests if "tmp" matches "item"
  * INIT copies key information from "item" to "new"
  * UPDATE copies content information from "item" to "tmp"
- * INPLACE is true if updates can happen inplace rather than allocating a new structure
- *
- * WARNING: any substantial changes to this must be reflected in
- *   net/sunrpc/svcauth.c(auth_domain_lookup)
- *  which is a similar routine that is open-coded.
  */
-#define DefineCacheLookup(RTN,MEMBER,FNAME,ARGS,SETUP,DETAIL,HASHFN,TEST,INIT,UPDATE,INPLACE)	\
+#define DefineCacheLookup(RTN,MEMBER,FNAME,ARGS,SETUP,DETAIL,HASHFN,TEST,INIT,UPDATE)	\
 RTN *FNAME ARGS										\
 {											\
 	RTN *tmp, *new=NULL;								\
@@ -179,13 +171,13 @@ RTN *FNAME ARGS										\
 		tmp = container_of(*hp, RTN, MEMBER);					\
 		if (TEST) { /* found a match */						\
 											\
-			if (set && !INPLACE && test_bit(CACHE_VALID, &tmp->MEMBER.flags) && !new) \
+			if (set && test_bit(CACHE_VALID, &tmp->MEMBER.flags) && !new)	\
 				break;							\
 											\
 			if (new)							\
 				{INIT;}							\
 			if (set) {							\
-				if (!INPLACE && test_bit(CACHE_VALID, &tmp->MEMBER.flags))\
+				if (test_bit(CACHE_VALID, &tmp->MEMBER.flags))\
 				{ /* need to swap in new */				\
 					RTN *t2;					\
 											\
@@ -206,7 +198,7 @@ RTN *FNAME ARGS										\
 			else read_unlock(&(DETAIL)->hash_lock);				\
 			if (set)							\
 				cache_fresh(DETAIL, &tmp->MEMBER, item->MEMBER.expiry_time); \
-			if (set && !INPLACE && new) cache_fresh(DETAIL, &new->MEMBER, 0);	\
+			if (set && new) cache_fresh(DETAIL, &new->MEMBER, 0);	\
 			if (new) (DETAIL)->cache_put(&new->MEMBER, DETAIL);		\
 			return tmp;							\
 		}									\
@@ -239,10 +231,12 @@ RTN *FNAME ARGS										\
 	return NULL;									\
 }
 
-#define DefineSimpleCacheLookup(STRUCT,INPLACE)	\
-	DefineCacheLookup(struct STRUCT, h, STRUCT##_lookup, (struct STRUCT *item, int set), /*no setup */,	\
-			  & STRUCT##_cache, STRUCT##_hash(item), STRUCT##_match(item, tmp),\
-			  STRUCT##_init(new, item), STRUCT##_update(tmp, item),INPLACE)
+#define DefineSimpleCacheLookup(STRUCT, FUNC)				\
+        DefineCacheLookup(struct STRUCT, h, FUNC##_lookup,		\
+        (struct STRUCT *item, int set), /*no setup */,			\
+	& FUNC##_cache, FUNC##_hash(item), FUNC##_match(item, tmp),	\
+	STRUCT##_init(new, item), STRUCT##_update(tmp, item))
+
 
 #define cache_for_each(pos, detail, index, member) 						\
 	for (({read_lock(&(detail)->hash_lock); index = (detail)->hash_size;}) ;		\

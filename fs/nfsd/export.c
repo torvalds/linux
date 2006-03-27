@@ -250,7 +250,7 @@ static inline void svc_expkey_update(struct svc_expkey *new, struct svc_expkey *
 	new->ek_dentry = dget(item->ek_dentry);
 }
 
-static DefineSimpleCacheLookup(svc_expkey,0) /* no inplace updates */
+static DefineSimpleCacheLookup(svc_expkey, svc_expkey)
 
 #define	EXPORT_HASHBITS		8
 #define	EXPORT_HASHMAX		(1<< EXPORT_HASHBITS)
@@ -482,7 +482,7 @@ static inline void svc_export_update(struct svc_export *new, struct svc_export *
 	new->ex_fsid = item->ex_fsid;
 }
 
-static DefineSimpleCacheLookup(svc_export,1) /* allow inplace updates */
+static DefineSimpleCacheLookup(svc_export, svc_export)
 
 
 struct svc_expkey *
