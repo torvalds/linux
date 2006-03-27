@@ -201,7 +201,7 @@ static inline int simple_positive(struct dentry *dentry)
 	return dentry->d_inode && !d_unhashed(dentry);
 }
 
-static inline int simple_empty_nolock(struct dentry *dentry)
+static inline int __simple_empty(struct dentry *dentry)
 {
 	struct dentry *child;
 	int ret = 0;
