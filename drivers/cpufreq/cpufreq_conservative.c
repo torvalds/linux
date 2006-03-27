@@ -88,6 +88,8 @@ static struct dbs_tuners dbs_tuners_ins = {
 	.up_threshold 		= DEF_FREQUENCY_UP_THRESHOLD,
 	.down_threshold 	= DEF_FREQUENCY_DOWN_THRESHOLD,
 	.sampling_down_factor 	= DEF_SAMPLING_DOWN_FACTOR,
+	.ignore_nice		= 0,
+	.freq_step		= 5,
 };
 
 static inline unsigned int get_cpu_idle_time(unsigned int cpu)
@@ -490,8 +492,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				def_sampling_rate = MIN_STAT_SAMPLING_RATE;
 
 			dbs_tuners_ins.sampling_rate = def_sampling_rate;
-			dbs_tuners_ins.ignore_nice = 0;
-			dbs_tuners_ins.freq_step = 5;
 
 			dbs_timer_init();
 		}
