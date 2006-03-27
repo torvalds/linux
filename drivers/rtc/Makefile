@@ -17,3 +17,4 @@ obj-$(CONFIG_RTC_DRV_DS1672)	+= rtc-ds1672.o
 obj-$(CONFIG_RTC_DRV_PCF8563)	+= rtc-pcf8563.o
 obj-$(CONFIG_RTC_DRV_RS5C372)	+= rtc-rs5c372.o
 obj-$(CONFIG_RTC_DRV_EP93XX)	+= rtc-ep93xx.o
+obj-$(CONFIG_RTC_DRV_SA1100)	+= rtc-sa1100.o

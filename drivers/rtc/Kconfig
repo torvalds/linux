@@ -127,6 +127,15 @@ config RTC_DRV_EP93XX
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ep93xx.
 
+config RTC_DRV_SA1100
+	tristate "SA11x0/PXA2xx"
+	depends on RTC_CLASS && (ARCH_SA1100 || ARCH_PXA)
+	help
+	  If you say Y here you will get access to the real time clock
+	  built into your SA11x0 or PXA2xx CPU.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-sa1100.
 
 config RTC_DRV_TEST
 	tristate "Test driver/device"
