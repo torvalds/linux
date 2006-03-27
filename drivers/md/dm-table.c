@@ -97,6 +97,8 @@ static void combine_restrictions_low(struct io_restrictions *lhs,
 
 	lhs->seg_boundary_mask =
 		min_not_zero(lhs->seg_boundary_mask, rhs->seg_boundary_mask);
+
+	lhs->no_cluster |= rhs->no_cluster;
 }
 
 /*
@@ -523,6 +525,8 @@ int dm_get_device(struct dm_target *ti, const char *path, sector_t start,
 		rs->seg_boundary_mask =
 			min_not_zero(rs->seg_boundary_mask,
 				     q->seg_boundary_mask);
+
+		rs->no_cluster |= !test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
 	}
 
 	return r;
@@ -832,6 +836,11 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q)
 	q->hardsect_size = t->limits.hardsect_size;
 	q->max_segment_size = t->limits.max_segment_size;
 	q->seg_boundary_mask = t->limits.seg_boundary_mask;
+	if (t->limits.no_cluster)
+		q->queue_flags &= ~(1 << QUEUE_FLAG_CLUSTER);
+	else
+		q->queue_flags |= (1 << QUEUE_FLAG_CLUSTER);
+
 }
 
 unsigned int dm_table_get_num_targets(struct dm_table *t)
