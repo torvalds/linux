@@ -1409,7 +1409,11 @@ static int ata_bus_probe(struct ata_port *ap)
 	if (!found)
 		goto err_out_disable;
 
-	ata_set_mode(ap);
+	if (ap->ops->set_mode)
+		ap->ops->set_mode(ap);
+	else
+		ata_set_mode(ap);
+
 	if (ap->flags & ATA_FLAG_PORT_DISABLED)
 		goto err_out_disable;
 
