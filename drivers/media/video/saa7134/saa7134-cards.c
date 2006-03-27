@@ -208,7 +208,7 @@ struct saa7134_board saa7134_boards[] = {
 	[SAA7134_BOARD_FLYTVPLATINUM_FM] = {
 		/* LifeView FlyTV Platinum FM (LR214WF) */
 		/* "Peter Missel <peter.missel@onlinehome.de> */
-		.name           = "LifeView FlyTV Platinum FM",
+		.name           = "LifeView FlyTV Platinum FM / Gold",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -2671,7 +2671,7 @@ struct saa7134_board saa7134_boards[] = {
 	[SAA7134_BOARD_FLYDVBT_LR301] = {
 		/* LifeView FlyDVB-T */
 		/* Giampiero Giancipoli <gianci@libero.it> */
-		.name           = "LifeView FlyDVB-T",
+		.name           = "LifeView FlyDVB-T / Genius VideoWonder DVB-T",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_ABSENT,
 		.radio_type     = UNSET,
@@ -3332,6 +3332,18 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x16be,
 		.subdevice    = 0x0005,
 		.driver_data  = SAA7134_BOARD_MD7134_BRIDGE_2,
+	},{
+		.vendor = PCI_VENDOR_ID_PHILIPS,
+		.device = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor = 0x1489,
+		.subdevice = 0x0301,
+		.driver_data = SAA7134_BOARD_FLYDVBT_LR301,
+	},{
+		.vendor = PCI_VENDOR_ID_PHILIPS,
+		.device = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor = 0x5168, /* Animation Technologies (LifeView) */
+		.subdevice = 0x0304,
+		.driver_data = SAA7134_BOARD_FLYTVPLATINUM_FM,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
