@@ -546,33 +546,6 @@ struct path {
 	struct dentry *dentry;
 };
 
-static __always_inline int __do_follow_link(struct path *path, struct nameidata *nd)
-{
-	int error;
-	void *cookie;
-	struct dentry *dentry = path->dentry;
-
-	touch_atime(path->mnt, dentry);
-	nd_set_link(nd, NULL);
-
-	if (path->mnt == nd->mnt)
-		mntget(path->mnt);
-	cookie = dentry->d_inode->i_op->follow_link(dentry, nd);
-	error = PTR_ERR(cookie);
-	if (!IS_ERR(cookie)) {
-		char *s = nd_get_link(nd);
-		error = 0;
-		if (s)
-			error = __vfs_follow_link(nd, s);
-		if (dentry->d_inode->i_op->put_link)
-			dentry->d_inode->i_op->put_link(dentry, nd, cookie);
-	}
-	dput(dentry);
-	mntput(path->mnt);
-
-	return error;
-}
-
 static inline void dput_path(struct path *path, struct nameidata *nd)
 {
 	dput(path->dentry);
@@ -587,6 +560,36 @@ static inline void path_to_nameidata(struct path *path, struct nameidata *nd)
 		mntput(nd->mnt);
 	nd->mnt = path->mnt;
 	nd->dentry = path->dentry;
+}
+
+static __always_inline int __do_follow_link(struct path *path, struct nameidata *nd)
+{
+	int error;
+	void *cookie;
+	struct dentry *dentry = path->dentry;
+
+	touch_atime(path->mnt, dentry);
+	nd_set_link(nd, NULL);
+
+	if (path->mnt != nd->mnt) {
+		path_to_nameidata(path, nd);
+		dget(dentry);
+	}
+	mntget(path->mnt);
+	cookie = dentry->d_inode->i_op->follow_link(dentry, nd);
+	error = PTR_ERR(cookie);
+	if (!IS_ERR(cookie)) {
+		char *s = nd_get_link(nd);
+		error = 0;
+		if (s)
+			error = __vfs_follow_link(nd, s);
+		if (dentry->d_inode->i_op->put_link)
+			dentry->d_inode->i_op->put_link(dentry, nd, cookie);
+	}
+	dput(dentry);
+	mntput(path->mnt);
+
+	return error;
 }
 
 /*
