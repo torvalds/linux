@@ -800,10 +800,11 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	error = pci_enable_device(pdev);
 	if (error)
 		goto out;
+	error = -ENODEV;
 
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) || 
 			pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))
-		goto out;
+		goto out_disable_pdev;
 	/*
 	 * If the quirk31 bit is set, the adapter needs adapter
 	 * to driver communication memory to be allocated below 2gig
@@ -811,7 +812,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT) 
 		if (pci_set_dma_mask(pdev, DMA_31BIT_MASK) ||
 				pci_set_consistent_dma_mask(pdev, DMA_31BIT_MASK))
-			goto out;
+			goto out_disable_pdev;
 	
 	pci_set_master(pdev);
 
