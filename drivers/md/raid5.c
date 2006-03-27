@@ -1762,8 +1762,9 @@ static int make_request(request_queue_t *q, struct bio * bi)
 	for (;logical_sector < last_sector; logical_sector += STRIPE_SECTORS) {
 		DEFINE_WAIT(w);
 		int disks;
-		
+
 	retry:
+		prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 		if (likely(conf->expand_progress == MaxSector))
 			disks = conf->raid_disks;
 		else {
@@ -1771,6 +1772,13 @@ static int make_request(request_queue_t *q, struct bio * bi)
 			disks = conf->raid_disks;
 			if (logical_sector >= conf->expand_progress)
 				disks = conf->previous_raid_disks;
+			else {
+				if (logical_sector >= conf->expand_lo) {
+					spin_unlock_irq(&conf->device_lock);
+					schedule();
+					goto retry;
+				}
+			}
 			spin_unlock_irq(&conf->device_lock);
 		}
  		new_sector = raid5_compute_sector(logical_sector, disks, disks - 1,
@@ -1779,7 +1787,6 @@ static int make_request(request_queue_t *q, struct bio * bi)
 			(unsigned long long)new_sector, 
 			(unsigned long long)logical_sector);
 
-		prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 		sh = get_active_stripe(conf, new_sector, disks, pd_idx, (bi->bi_rw&RWA_MASK));
 		if (sh) {
 			if (unlikely(conf->expand_progress != MaxSector)) {
@@ -1877,6 +1884,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		 */
 		int i;
 		int dd_idx;
+		sector_t writepos, safepos, gap;
 
 		if (sector_nr == 0 &&
 		    conf->expand_progress != 0) {
@@ -1887,15 +1895,36 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			return sector_nr;
 		}
 
-		/* Cannot proceed until we've updated the superblock... */
-		wait_event(conf->wait_for_overlap,
-			   atomic_read(&conf->reshape_stripes)==0);
-		mddev->reshape_position = conf->expand_progress;
+		/* we update the metadata when there is more than 3Meg
+		 * in the block range (that is rather arbitrary, should
+		 * probably be time based) or when the data about to be
+		 * copied would over-write the source of the data at
+		 * the front of the range.
+		 * i.e. one new_stripe forward from expand_progress new_maps
+		 * to after where expand_lo old_maps to
+		 */
+		writepos = conf->expand_progress +
+			conf->chunk_size/512*(conf->raid_disks-1);
+		sector_div(writepos, conf->raid_disks-1);
+		safepos = conf->expand_lo;
+		sector_div(safepos, conf->previous_raid_disks-1);
+		gap = conf->expand_progress - conf->expand_lo;
 
-		mddev->sb_dirty = 1;
-		md_wakeup_thread(mddev->thread);
-		wait_event(mddev->sb_wait, mddev->sb_dirty == 0 ||
-			kthread_should_stop());
+		if (writepos >= safepos ||
+		    gap > (conf->raid_disks-1)*3000*2 /*3Meg*/) {
+			/* Cannot proceed until we've updated the superblock... */
+			wait_event(conf->wait_for_overlap,
+				   atomic_read(&conf->reshape_stripes)==0);
+			mddev->reshape_position = conf->expand_progress;
+			mddev->sb_dirty = 1;
+			md_wakeup_thread(mddev->thread);
+			wait_event(mddev->sb_wait, mddev->sb_dirty == 0 ||
+				   kthread_should_stop());
+			spin_lock_irq(&conf->device_lock);
+			conf->expand_lo = mddev->reshape_position;
+			spin_unlock_irq(&conf->device_lock);
+			wake_up(&conf->wait_for_overlap);
+		}
 
 		for (i=0; i < conf->chunk_size/512; i+= STRIPE_SECTORS) {
 			int j;
@@ -2322,6 +2351,7 @@ static int run(mddev_t *mddev)
 
 	if (conf->expand_progress != MaxSector) {
 		printk("...ok start reshape thread\n");
+		conf->expand_lo = conf->expand_progress;
 		atomic_set(&conf->reshape_stripes, 0);
 		clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 		clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
@@ -2610,6 +2640,7 @@ static int raid5_reshape(mddev_t *mddev, int raid_disks)
 	conf->previous_raid_disks = conf->raid_disks;
 	conf->raid_disks = raid_disks;
 	conf->expand_progress = 0;
+	conf->expand_lo = 0;
 	spin_unlock_irq(&conf->device_lock);
 
 	/* Add some new drives, as many as will fit.

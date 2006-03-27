@@ -217,6 +217,9 @@ struct raid5_private_data {
 
 	/* used during an expand */
 	sector_t		expand_progress;	/* MaxSector when no expand happening */
+	sector_t		expand_lo; /* from here up to expand_progress it out-of-bounds
+					    * as we haven't flushed the metadata yet
+					    */
 	int			previous_raid_disks;
 
 	struct list_head	handle_list; /* stripes needing handling */
