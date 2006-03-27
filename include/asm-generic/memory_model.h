@@ -45,11 +45,11 @@ extern unsigned long page_to_pfn(struct page *page);
 	NODE_DATA(__nid)->node_mem_map + arch_local_page_offset(__pfn, __nid);\
 })
 
-#define page_to_pfn(pg)			\
-({	struct page *__pg = (pg);		\
-	struct zone *__zone = page_zone(__pg);	\
-	(unsigned long)(__pg - __zone->zone_mem_map) +	\
-	 __zone->zone_start_pfn;			\
+#define page_to_pfn(pg)							\
+({	struct page *__pg = (pg);					\
+	struct pglist_data *__pgdat = NODE_DATA(page_to_nid(__pg));	\
+	(unsigned long)(__pg - __pgdat->node_mem_map) +			\
+	 __pgdat->node_start_pfn;					\
 })
 
 #elif defined(CONFIG_SPARSEMEM)

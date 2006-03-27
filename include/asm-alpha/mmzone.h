@@ -83,8 +83,7 @@ PLAT_NODE_DATA_LOCALNR(unsigned long p, int n)
 	pte_t pte;                                                           \
 	unsigned long pfn;                                                   \
 									     \
-	pfn = ((unsigned long)((page)-page_zone(page)->zone_mem_map)) << 32; \
-	pfn += page_zone(page)->zone_start_pfn << 32;			     \
+	pfn = page_to_pfn(page) << 32; \
 	pte_val(pte) = pfn | pgprot_val(pgprot);			     \
 									     \
 	pte;								     \

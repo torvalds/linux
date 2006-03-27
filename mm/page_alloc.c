@@ -2042,7 +2042,6 @@ static __meminit void init_currently_empty_zone(struct zone *zone,
 	zone_wait_table_init(zone, size);
 	pgdat->nr_zones = zone_idx(zone) + 1;
 
-	zone->zone_mem_map = pfn_to_page(zone_start_pfn);
 	zone->zone_start_pfn = zone_start_pfn;
 
 	memmap_init(size, pgdat->node_id, zone_idx(zone), zone_start_pfn);
@@ -2768,9 +2767,8 @@ struct page *pfn_to_page(unsigned long pfn)
 }
 unsigned long page_to_pfn(struct page *page)
 {
-	struct zone *zone = page_zone(page);
-	return (page - zone->zone_mem_map) + zone->zone_start_pfn;
-
+	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
+	return (page - pgdat->node_mem_map) + pgdat->node_start_pfn;
 }
 #elif defined(CONFIG_SPARSEMEM)
 struct page *pfn_to_page(unsigned long pfn)
