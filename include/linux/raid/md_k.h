@@ -151,6 +151,10 @@ struct mddev_s
 	sector_t			resync_mismatches; /* count of sectors where
 							    * parity/replica mismatch found
 							    */
+
+	/* allow user-space to request suspension of IO to regions of the array */
+	sector_t			suspend_lo;
+	sector_t			suspend_hi;
 	/* if zero, use the system-wide default */
 	int				sync_speed_min;
 	int				sync_speed_max;

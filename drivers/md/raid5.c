@@ -1805,6 +1805,15 @@ static int make_request(request_queue_t *q, struct bio * bi)
 					goto retry;
 				}
 			}
+			/* FIXME what if we get a false positive because these
+			 * are being updated.
+			 */
+			if (logical_sector >= mddev->suspend_lo &&
+			    logical_sector < mddev->suspend_hi) {
+				release_stripe(sh);
+				schedule();
+				goto retry;
+			}
 
 			if (test_bit(STRIPE_EXPANDING, &sh->state) ||
 			    !add_stripe_bio(sh, bi, dd_idx, (bi->bi_rw&RW_MASK))) {
@@ -2725,6 +2734,10 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 	raid5_conf_t *conf = mddev_to_conf(mddev);
 
 	switch(state) {
+	case 2: /* resume for a suspend */
+		wake_up(&conf->wait_for_overlap);
+		break;
+
 	case 1: /* stop all writes */
 		spin_lock_irq(&conf->device_lock);
 		conf->quiesce = 1;
@@ -2738,6 +2751,7 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 		spin_lock_irq(&conf->device_lock);
 		conf->quiesce = 0;
 		wake_up(&conf->wait_for_stripe);
+		wake_up(&conf->wait_for_overlap);
 		spin_unlock_irq(&conf->device_lock);
 		break;
 	}

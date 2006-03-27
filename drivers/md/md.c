@@ -2365,6 +2365,63 @@ sync_completed_show(mddev_t *mddev, char *page)
 static struct md_sysfs_entry
 md_sync_completed = __ATTR_RO(sync_completed);
 
+static ssize_t
+suspend_lo_show(mddev_t *mddev, char *page)
+{
+	return sprintf(page, "%llu\n", (unsigned long long)mddev->suspend_lo);
+}
+
+static ssize_t
+suspend_lo_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	char *e;
+	unsigned long long new = simple_strtoull(buf, &e, 10);
+
+	if (mddev->pers->quiesce == NULL)
+		return -EINVAL;
+	if (buf == e || (*e && *e != '\n'))
+		return -EINVAL;
+	if (new >= mddev->suspend_hi ||
+	    (new > mddev->suspend_lo && new < mddev->suspend_hi)) {
+		mddev->suspend_lo = new;
+		mddev->pers->quiesce(mddev, 2);
+		return len;
+	} else
+		return -EINVAL;
+}
+static struct md_sysfs_entry md_suspend_lo =
+__ATTR(suspend_lo, S_IRUGO|S_IWUSR, suspend_lo_show, suspend_lo_store);
+
+
+static ssize_t
+suspend_hi_show(mddev_t *mddev, char *page)
+{
+	return sprintf(page, "%llu\n", (unsigned long long)mddev->suspend_hi);
+}
+
+static ssize_t
+suspend_hi_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	char *e;
+	unsigned long long new = simple_strtoull(buf, &e, 10);
+
+	if (mddev->pers->quiesce == NULL)
+		return -EINVAL;
+	if (buf == e || (*e && *e != '\n'))
+		return -EINVAL;
+	if ((new <= mddev->suspend_lo && mddev->suspend_lo >= mddev->suspend_hi) ||
+	    (new > mddev->suspend_lo && new > mddev->suspend_hi)) {
+		mddev->suspend_hi = new;
+		mddev->pers->quiesce(mddev, 1);
+		mddev->pers->quiesce(mddev, 0);
+		return len;
+	} else
+		return -EINVAL;
+}
+static struct md_sysfs_entry md_suspend_hi =
+__ATTR(suspend_hi, S_IRUGO|S_IWUSR, suspend_hi_show, suspend_hi_store);
+
+
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
 	&md_raid_disks.attr,
@@ -2382,6 +2439,8 @@ static struct attribute *md_redundancy_attrs[] = {
 	&md_sync_max.attr,
 	&md_sync_speed.attr,
 	&md_sync_completed.attr,
+	&md_suspend_lo.attr,
+	&md_suspend_hi.attr,
 	NULL,
 };
 static struct attribute_group md_redundancy_group = {
