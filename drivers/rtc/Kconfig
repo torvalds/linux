@@ -117,6 +117,16 @@ config RTC_DRV_RS5C372
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rs5c372.
 
+config RTC_DRV_M48T86
+	tristate "ST M48T86/Dallas DS12887"
+	depends on RTC_CLASS
+	help
+	  If you say Y here you will get support for the
+	  ST M48T86 and Dallas DS12887 RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-m48t86.
+
 config RTC_DRV_EP93XX
 	tristate "Cirrus Logic EP93XX"
 	depends on RTC_CLASS && ARCH_EP93XX
