@@ -1,6 +1,46 @@
-#
+\#
 # RTC class/drivers configuration
 #
 
+menu "Real Time Clock"
+
 config RTC_LIB
 	tristate
+
+config RTC_CLASS
+	tristate "RTC class"
+	depends on EXPERIMENTAL
+	default n
+	select RTC_LIB
+	help
+	  Generic RTC class support. If you say yes here, you will
+ 	  be allowed to plug one or more RTCs to your system. You will
+	  probably want to enable one of more of the interfaces below.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-class.
+
+config RTC_HCTOSYS
+	bool "Set system time from RTC on startup"
+	depends on RTC_CLASS = y
+	default y
+	help
+	  If you say yes here, the system time will be set using
+	  the value read from the specified RTC device. This is useful
+	  in order to avoid unnecessary fschk runs.
+
+config RTC_HCTOSYS_DEVICE
+	string "The RTC to read the time from"
+	depends on RTC_HCTOSYS = y
+	default "rtc0"
+	help
+	  The RTC device that will be used as the source for
+	  the system time, usually rtc0.
+
+comment "RTC interfaces"
+	depends on RTC_CLASS
+
+comment "RTC drivers"
+	depends on RTC_CLASS
+
+endmenu
