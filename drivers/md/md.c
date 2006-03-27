@@ -43,6 +43,7 @@
 #include <linux/buffer_head.h> /* for invalidate_bdev */
 #include <linux/suspend.h>
 #include <linux/poll.h>
+#include <linux/mutex.h>
 
 #include <linux/init.h>
 
@@ -2500,7 +2501,7 @@ int mdp_major = 0;
 
 static struct kobject *md_probe(dev_t dev, int *part, void *data)
 {
-	static DECLARE_MUTEX(disks_sem);
+	static DEFINE_MUTEX(disks_mutex);
 	mddev_t *mddev = mddev_find(dev);
 	struct gendisk *disk;
 	int partitioned = (MAJOR(dev) != MD_MAJOR);
@@ -2510,15 +2511,15 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	if (!mddev)
 		return NULL;
 
-	down(&disks_sem);
+	mutex_lock(&disks_mutex);
 	if (mddev->gendisk) {
-		up(&disks_sem);
+		mutex_unlock(&disks_mutex);
 		mddev_put(mddev);
 		return NULL;
 	}
 	disk = alloc_disk(1 << shift);
 	if (!disk) {
-		up(&disks_sem);
+		mutex_unlock(&disks_mutex);
 		mddev_put(mddev);
 		return NULL;
 	}
@@ -2536,7 +2537,7 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	disk->queue = mddev->queue;
 	add_disk(disk);
 	mddev->gendisk = disk;
-	up(&disks_sem);
+	mutex_unlock(&disks_mutex);
 	mddev->kobj.parent = &disk->kobj;
 	mddev->kobj.k_name = NULL;
 	snprintf(mddev->kobj.name, KOBJ_NAME_LEN, "%s", "md");

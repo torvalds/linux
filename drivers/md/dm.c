@@ -10,6 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/moduleparam.h>
 #include <linux/blkpg.h>
 #include <linux/bio.h>
@@ -743,14 +744,14 @@ static int dm_any_congested(void *congested_data, int bdi_bits)
 /*-----------------------------------------------------------------
  * An IDR is used to keep track of allocated minor numbers.
  *---------------------------------------------------------------*/
-static DECLARE_MUTEX(_minor_lock);
+static DEFINE_MUTEX(_minor_lock);
 static DEFINE_IDR(_minor_idr);
 
 static void free_minor(unsigned int minor)
 {
-	down(&_minor_lock);
+	mutex_lock(&_minor_lock);
 	idr_remove(&_minor_idr, minor);
-	up(&_minor_lock);
+	mutex_unlock(&_minor_lock);
 }
 
 /*
@@ -763,7 +764,7 @@ static int specific_minor(struct mapped_device *md, unsigned int minor)
 	if (minor >= (1 << MINORBITS))
 		return -EINVAL;
 
-	down(&_minor_lock);
+	mutex_lock(&_minor_lock);
 
 	if (idr_find(&_minor_idr, minor)) {
 		r = -EBUSY;
@@ -788,7 +789,7 @@ static int specific_minor(struct mapped_device *md, unsigned int minor)
 	}
 
 out:
-	up(&_minor_lock);
+	mutex_unlock(&_minor_lock);
 	return r;
 }
 
@@ -797,7 +798,7 @@ static int next_free_minor(struct mapped_device *md, unsigned int *minor)
 	int r;
 	unsigned int m;
 
-	down(&_minor_lock);
+	mutex_lock(&_minor_lock);
 
 	r = idr_pre_get(&_minor_idr, GFP_KERNEL);
 	if (!r) {
@@ -819,7 +820,7 @@ static int next_free_minor(struct mapped_device *md, unsigned int *minor)
 	*minor = m;
 
 out:
-	up(&_minor_lock);
+	mutex_unlock(&_minor_lock);
 	return r;
 }
 
@@ -1014,13 +1015,13 @@ static struct mapped_device *dm_find_md(dev_t dev)
 	if (MAJOR(dev) != _major || minor >= (1 << MINORBITS))
 		return NULL;
 
-	down(&_minor_lock);
+	mutex_lock(&_minor_lock);
 
 	md = idr_find(&_minor_idr, minor);
 	if (!md || (dm_disk(md)->first_minor != minor))
 		md = NULL;
 
-	up(&_minor_lock);
+	mutex_unlock(&_minor_lock);
 
 	return md;
 }

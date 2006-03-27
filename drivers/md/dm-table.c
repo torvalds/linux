@@ -14,6 +14,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
 #include <asm/atomic.h>
 
 #define MAX_DEPTH 16
@@ -770,14 +771,14 @@ int dm_table_complete(struct dm_table *t)
 	return r;
 }
 
-static DECLARE_MUTEX(_event_lock);
+static DEFINE_MUTEX(_event_lock);
 void dm_table_event_callback(struct dm_table *t,
 			     void (*fn)(void *), void *context)
 {
-	down(&_event_lock);
+	mutex_lock(&_event_lock);
 	t->event_fn = fn;
 	t->event_context = context;
-	up(&_event_lock);
+	mutex_unlock(&_event_lock);
 }
 
 void dm_table_event(struct dm_table *t)
@@ -788,10 +789,10 @@ void dm_table_event(struct dm_table *t)
 	 */
 	BUG_ON(in_interrupt());
 
-	down(&_event_lock);
+	mutex_lock(&_event_lock);
 	if (t->event_fn)
 		t->event_fn(t->event_context);
-	up(&_event_lock);
+	mutex_unlock(&_event_lock);
 }
 
 sector_t dm_table_get_size(struct dm_table *t)

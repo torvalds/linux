@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 
 #include "kcopyd.h"
 
@@ -581,21 +582,21 @@ int kcopyd_cancel(struct kcopyd_job *job, int block)
 /*-----------------------------------------------------------------
  * Unit setup
  *---------------------------------------------------------------*/
-static DECLARE_MUTEX(_client_lock);
+static DEFINE_MUTEX(_client_lock);
 static LIST_HEAD(_clients);
 
 static void client_add(struct kcopyd_client *kc)
 {
-	down(&_client_lock);
+	mutex_lock(&_client_lock);
 	list_add(&kc->list, &_clients);
-	up(&_client_lock);
+	mutex_unlock(&_client_lock);
 }
 
 static void client_del(struct kcopyd_client *kc)
 {
-	down(&_client_lock);
+	mutex_lock(&_client_lock);
 	list_del(&kc->list);
-	up(&_client_lock);
+	mutex_unlock(&_client_lock);
 }
 
 static DEFINE_MUTEX(kcopyd_init_lock);
