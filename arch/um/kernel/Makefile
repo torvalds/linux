@@ -8,7 +8,7 @@ clean-files :=
 
 obj-y = config.o exec_kern.o exitcode.o \
 	init_task.o irq.o ksyms.o mem.o physmem.o \
-	process_kern.o ptrace.o reboot.o resource.o sigio_user.o sigio_kern.o \
+	process_kern.o ptrace.o reboot.o resource.o sigio_kern.o \
 	signal_kern.o smp.o syscall_kern.o sysrq.o \
 	time_kern.o tlb.o trap_kern.o uaccess.o um_arch.o umid.o
 

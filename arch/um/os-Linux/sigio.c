@@ -20,7 +20,7 @@
 #include "sigio.h"
 #include "os.h"
 
-/* Protected by sigio_lock(), also used by sigio_cleanup, which is an 
+/* Protected by sigio_lock(), also used by sigio_cleanup, which is an
  * exitcall.
  */
 static int write_sigio_pid = -1;
@@ -143,7 +143,7 @@ static void update_thread(void)
 	return;
  fail:
 	/* Critical section start */
-	if(write_sigio_pid != -1) 
+	if(write_sigio_pid != -1)
 		os_kill_process(write_sigio_pid, 1);
 	write_sigio_pid = -1;
 	close(sigio_private[0]);
@@ -160,13 +160,13 @@ int add_sigio_fd(int fd, int read)
 
 	sigio_lock();
 	for(i = 0; i < current_poll.used; i++){
-		if(current_poll.poll[i].fd == fd) 
+		if(current_poll.poll[i].fd == fd)
 			goto out;
 	}
 
 	n = current_poll.used + 1;
 	err = need_poll(n);
-	if(err) 
+	if(err)
 		goto out;
 
 	for(i = 0; i < current_poll.used; i++)
@@ -195,7 +195,7 @@ int ignore_sigio_fd(int fd)
 	}
 	if(i == current_poll.used)
 		goto out;
-	
+
 	err = need_poll(current_poll.used - 1);
 	if(err)
 		goto out;
@@ -216,7 +216,7 @@ int ignore_sigio_fd(int fd)
 	return(err);
 }
 
-static struct pollfd* setup_initial_poll(int fd)
+static struct pollfd *setup_initial_poll(int fd)
 {
 	struct pollfd *p;
 
@@ -256,7 +256,7 @@ void write_sigio_workaround(void)
 	}
 	err = os_pipe(l_sigio_private, 1, 1);
 	if(err < 0){
-		printk("write_sigio_workaround - os_pipe 1 failed, "
+		printk("write_sigio_workaround - os_pipe 2 failed, "
 		       "err = %d\n", -err);
 		goto out_close1;
 	}
@@ -317,7 +317,7 @@ void write_sigio_workaround(void)
 
 void sigio_cleanup(void)
 {
-	if (write_sigio_pid != -1) {
+	if(write_sigio_pid != -1){
 		os_kill_process(write_sigio_pid, 1);
 		write_sigio_pid = -1;
 	}

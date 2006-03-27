@@ -311,4 +311,9 @@ extern void os_set_pollfd(int i, int fd);
 extern void os_set_ioignore(void);
 extern void init_irq_signals(int on_sigstack);
 
+/* sigio.c */
+extern void write_sigio_workaround(void);
+extern int add_sigio_fd(int fd, int read);
+extern int ignore_sigio_fd(int fd);
+
 #endif
