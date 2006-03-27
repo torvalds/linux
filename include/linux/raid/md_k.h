@@ -185,7 +185,7 @@ struct mddev_s
 	unsigned long			recovery;
 
 	int				in_sync;	/* know to not need resync */
-	struct semaphore		reconfig_sem;
+	struct mutex			reconfig_mutex;
 	atomic_t			active;
 
 	int				changed;	/* true if we might need to reread partition info */

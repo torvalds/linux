@@ -255,7 +255,7 @@ static mddev_t * mddev_find(dev_t unit)
 	else
 		new->md_minor = MINOR(unit) >> MdpMinorShift;
 
-	init_MUTEX(&new->reconfig_sem);
+	mutex_init(&new->reconfig_mutex);
 	INIT_LIST_HEAD(&new->disks);
 	INIT_LIST_HEAD(&new->all_mddevs);
 	init_timer(&new->safemode_timer);
@@ -277,22 +277,22 @@ static mddev_t * mddev_find(dev_t unit)
 
 static inline int mddev_lock(mddev_t * mddev)
 {
-	return down_interruptible(&mddev->reconfig_sem);
+	return mutex_lock_interruptible(&mddev->reconfig_mutex);
 }
 
 static inline void mddev_lock_uninterruptible(mddev_t * mddev)
 {
-	down(&mddev->reconfig_sem);
+	mutex_lock(&mddev->reconfig_mutex);
 }
 
 static inline int mddev_trylock(mddev_t * mddev)
 {
-	return down_trylock(&mddev->reconfig_sem);
+	return mutex_trylock(&mddev->reconfig_mutex);
 }
 
 static inline void mddev_unlock(mddev_t * mddev)
 {
-	up(&mddev->reconfig_sem);
+	mutex_unlock(&mddev->reconfig_mutex);
 
 	md_wakeup_thread(mddev->thread);
 }
@@ -4893,7 +4893,7 @@ void md_check_recovery(mddev_t *mddev)
 		))
 		return;
 
-	if (mddev_trylock(mddev)==0) {
+	if (mddev_trylock(mddev)) {
 		int spares =0;
 
 		spin_lock_irq(&mddev->write_lock);
@@ -5029,7 +5029,7 @@ static int md_notify_reboot(struct notifier_block *this,
 		printk(KERN_INFO "md: stopping all md devices.\n");
 
 		ITERATE_MDDEV(mddev,tmp)
-			if (mddev_trylock(mddev)==0)
+			if (mddev_trylock(mddev))
 				do_md_stop (mddev, 1);
 		/*
 		 * certain more exotic SCSI devices are known to be
