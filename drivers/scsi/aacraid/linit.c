@@ -243,6 +243,7 @@ static struct aac_driver_ident aac_drivers[] = {
 static int aac_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	cmd->scsi_done = done;
+	cmd->SCp.phase = AAC_OWNER_LOWLEVEL;
 	return (aac_scsi_cmd(cmd) ? FAILED : 0);
 } 
 
@@ -471,7 +472,8 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		__shost_for_each_device(dev, host) {
 			spin_lock_irqsave(&dev->list_lock, flags);
 			list_for_each_entry(command, &dev->cmd_list, list) {
-				if (command->serial_number) {
+				if ((command != cmd) &&
+				    (command->SCp.phase == AAC_OWNER_FIRMWARE)) {
 					active++;
 					break;
 				}

@@ -1770,6 +1770,11 @@ static inline u32 cap_to_cyls(sector_t capacity, u32 divisor)
 }
 
 struct scsi_cmnd;
+/* SCp.phase values */
+#define AAC_OWNER_MIDLEVEL	0x101
+#define AAC_OWNER_LOWLEVEL	0x102
+#define AAC_OWNER_ERROR_HANDLER	0x103
+#define AAC_OWNER_FIRMWARE	0x106
 
 const char *aac_driverinfo(struct Scsi_Host *);
 struct fib *aac_fib_alloc(struct aac_dev *dev);

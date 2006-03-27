@@ -387,6 +387,7 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 	struct scsi_cmnd * scsicmd;
 
 	scsicmd = (struct scsi_cmnd *) context;
+	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
 	dprintk((KERN_DEBUG "get_container_name_callback[cpu %d]: t = %ld.\n", smp_processor_id(), jiffies));
 	if (fibptr == NULL)
@@ -453,8 +454,10 @@ static int aac_get_container_name(struct scsi_cmnd * scsicmd, int cid)
 	/*
 	 *	Check that the command queued to the controller
 	 */
-	if (status == -EINPROGRESS) 
+	if (status == -EINPROGRESS) {
+		scsicmd->SCp.phase = AAC_OWNER_FIRMWARE;
 		return 0;
+	}
 		
 	printk(KERN_WARNING "aac_get_container_name: aac_fib_send failed with status: %d.\n", status);
 	aac_fib_complete(cmd_fibcontext);
@@ -907,6 +910,7 @@ static void io_callback(void *context, struct fib * fibptr)
 	u32 cid;
 
 	scsicmd = (struct scsi_cmnd *) context;
+	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 	cid = scmd_id(scsicmd);
@@ -1151,8 +1155,10 @@ static int aac_read(struct scsi_cmnd * scsicmd, int cid)
 	/*
 	 *	Check that the command queued to the controller
 	 */
-	if (status == -EINPROGRESS) 
+	if (status == -EINPROGRESS) {
+		scsicmd->SCp.phase = AAC_OWNER_FIRMWARE;
 		return 0;
+	}
 		
 	printk(KERN_WARNING "aac_read: aac_fib_send failed with status: %d.\n", status);
 	/*
@@ -1318,8 +1324,8 @@ static int aac_write(struct scsi_cmnd * scsicmd, int cid)
 	/*
 	 *	Check that the command queued to the controller
 	 */
-	if (status == -EINPROGRESS)
-	{
+	if (status == -EINPROGRESS) {
+		scsicmd->SCp.phase = AAC_OWNER_FIRMWARE;
 		return 0;
 	}
 
@@ -1341,6 +1347,7 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 	struct scsi_cmnd *cmd;
 
 	cmd = context;
+	cmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 
 	dprintk((KERN_DEBUG "synchronize_callback[cpu %d]: t = %ld.\n", 
 				smp_processor_id(), jiffies));
@@ -1386,12 +1393,12 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd, int cid)
 	unsigned long flags;
 
 	/*
-	 * Wait for all commands to complete to this specific
-	 * target (block).
+	 * Wait for all outstanding queued commands to complete to this
+	 * specific target (block).
 	 */
 	spin_lock_irqsave(&sdev->list_lock, flags);
 	list_for_each_entry(cmd, &sdev->cmd_list, list)
-		if (cmd != scsicmd && cmd->serial_number != 0) {
+		if (cmd != scsicmd && cmd->SCp.phase == AAC_OWNER_FIRMWARE) {
 			++active;
 			break;
 		}
@@ -1434,8 +1441,10 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd, int cid)
 	/*
 	 *	Check that the command queued to the controller
 	 */
-	if (status == -EINPROGRESS)
+	if (status == -EINPROGRESS) {
+		scsicmd->SCp.phase = AAC_OWNER_FIRMWARE;
 		return 0;
+	}
 
 	printk(KERN_WARNING 
 		"aac_synchronize: aac_fib_send failed with status: %d.\n", status);
@@ -1458,7 +1467,6 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	struct Scsi_Host *host = scsicmd->device->host;
 	struct aac_dev *dev = (struct aac_dev *)host->hostdata;
 	struct fsa_dev_info *fsa_dev_ptr = dev->fsa_dev;
-	int ret;
 	
 	/*
 	 *	If the bus, id or lun is out of range, return fail
@@ -1729,24 +1737,19 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			 *	containers to /dev/sd device names
 			 */
 			 
-			spin_unlock_irq(host->host_lock);
 			if (scsicmd->request->rq_disk)
 				strlcpy(fsa_dev_ptr[cid].devname,
 				scsicmd->request->rq_disk->disk_name,
 			  	min(sizeof(fsa_dev_ptr[cid].devname),
 				sizeof(scsicmd->request->rq_disk->disk_name) + 1));
-			ret = aac_read(scsicmd, cid);
-			spin_lock_irq(host->host_lock);
-			return ret;
+
+			return aac_read(scsicmd, cid);
 
 		case WRITE_6:
 		case WRITE_10:
 		case WRITE_12:
 		case WRITE_16:
-			spin_unlock_irq(host->host_lock);
-			ret = aac_write(scsicmd, cid);
-			spin_lock_irq(host->host_lock);
-			return ret;
+			return aac_write(scsicmd, cid);
 
 		case SYNCHRONIZE_CACHE:
 			/* Issue FIB to tell Firmware to flush it's cache */
@@ -1891,6 +1894,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 	struct scsi_cmnd *scsicmd;
 
 	scsicmd = (struct scsi_cmnd *) context;
+	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 
 	if (fibptr == NULL)
@@ -2162,7 +2166,8 @@ static int aac_send_srb_fib(struct scsi_cmnd* scsicmd)
 	/*
 	 *	Check that the command queued to the controller
 	 */
-	if (status == -EINPROGRESS){
+	if (status == -EINPROGRESS) {
+		scsicmd->SCp.phase = AAC_OWNER_FIRMWARE;
 		return 0;
 	}
 
