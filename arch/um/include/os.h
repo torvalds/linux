@@ -122,6 +122,7 @@ static inline struct openflags of_cloexec(struct openflags flags)
 	return(flags); 
 }
   
+/* file.c */
 extern int os_stat_file(const char *file_name, struct uml_stat *buf);
 extern int os_stat_fd(const int fd, struct uml_stat *buf);
 extern int os_access(const char *file, int mode);
@@ -157,6 +158,15 @@ extern int os_connect_socket(char *name);
 extern int os_file_type(char *file);
 extern int os_file_mode(char *file, struct openflags *mode_out);
 extern int os_lock_file(int fd, int excl);
+extern void os_flush_stdout(void);
+extern int os_stat_filesystem(char *path, long *bsize_out,
+			      long long *blocks_out, long long *bfree_out,
+			      long long *bavail_out, long long *files_out,
+			      long long *ffree_out, void *fsid_out,
+			      int fsid_size, long *namelen_out,
+			      long *spare_out);
+extern int os_change_dir(char *dir);
+extern int os_fchange_dir(int fd);
 
 /* start_up.c */
 extern void os_early_checks(void);
@@ -315,5 +325,9 @@ extern void init_irq_signals(int on_sigstack);
 extern void write_sigio_workaround(void);
 extern int add_sigio_fd(int fd, int read);
 extern int ignore_sigio_fd(int fd);
+
+/* skas/trap */
+extern void sig_handler_common_skas(int sig, void *sc_ptr);
+extern void user_signal(int sig, union uml_pt_regs *regs, int pid);
 
 #endif
