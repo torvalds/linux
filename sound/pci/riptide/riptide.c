@@ -1838,10 +1838,7 @@ static int snd_riptide_free(struct snd_riptide *chip)
 	}
 	if (chip->fw_entry)
 		release_firmware(chip->fw_entry);
-	if (chip->res_port) {
-		release_resource(chip->res_port);
-		kfree_nocheck(chip->res_port);
-	}
+	release_and_free_resource(chip->res_port);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
 	kfree(chip);
