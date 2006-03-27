@@ -1372,18 +1372,24 @@ init_imstt(struct fb_info *info)
 	write_reg_le32(par->dc_regs, STGCTL, tmp & ~0x1);
 	write_reg_le32(par->dc_regs, SSR, 0);
 
-	/* set default values for DAC registers */ 
+	/* set default values for DAC registers */
 	if (par->ramdac == IBM) {
-		par->cmap_regs[PPMASK] = 0xff;	eieio();
-		par->cmap_regs[PIDXHI] = 0;	eieio();
-		for (i = 0; i < sizeof(ibm_initregs) / sizeof(*ibm_initregs); i++) {
-			par->cmap_regs[PIDXLO] = ibm_initregs[i].addr;	eieio();
-			par->cmap_regs[PIDXDATA] = ibm_initregs[i].value;	eieio();
+		par->cmap_regs[PPMASK] = 0xff;
+		eieio();
+		par->cmap_regs[PIDXHI] = 0;
+		eieio();
+		for (i = 0; i < ARRAY_SIZE(ibm_initregs); i++) {
+			par->cmap_regs[PIDXLO] = ibm_initregs[i].addr;
+			eieio();
+			par->cmap_regs[PIDXDATA] = ibm_initregs[i].value;
+			eieio();
 		}
 	} else {
-		for (i = 0; i < sizeof(tvp_initregs) / sizeof(*tvp_initregs); i++) {
-			par->cmap_regs[TVPADDRW] = tvp_initregs[i].addr;	eieio();
-			par->cmap_regs[TVPIDATA] = tvp_initregs[i].value;	eieio();
+		for (i = 0; i < ARRAY_SIZE(tvp_initregs); i++) {
+			par->cmap_regs[TVPADDRW] = tvp_initregs[i].addr;
+			eieio();
+			par->cmap_regs[TVPIDATA] = tvp_initregs[i].value;
+			eieio();
 		}
 	}
 

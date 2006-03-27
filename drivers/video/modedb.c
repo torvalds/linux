@@ -500,7 +500,7 @@ int fb_find_mode(struct fb_var_screeninfo *var,
     /* Set up defaults */
     if (!db) {
 	db = modedb;
-	dbsize = sizeof(modedb)/sizeof(*modedb);
+	dbsize = ARRAY_SIZE(modedb);
     }
     if (!default_mode)
 	default_mode = &modedb[DEFAULT_MODEDB_INDEX];

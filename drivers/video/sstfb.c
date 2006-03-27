@@ -1194,10 +1194,11 @@ static struct dac_switch dacs[] __devinitdata = {
 static int __devinit sst_detect_dactype(struct fb_info *info, struct sstfb_par *par)
 {
 	int i, ret = 0;
-	
-	for (i=0; i<sizeof(dacs)/sizeof(dacs[0]); i++) {
+
+	for (i = 0; i < ARRAY_SIZE(dacs); i++) {
 		ret = dacs[i].detect(info);
-		if (ret) break;
+		if (ret)
+			break;
 	}
 	if (!ret)
 		return 0;
@@ -1604,8 +1605,8 @@ static int sstfb_dump_regs(struct fb_info *info)
 		{FBZMODE,"fbzmode"},
 	};
 
-	const int pci_s = sizeof(pci_regs)/sizeof(pci_regs[0]);
-	const int sst_s = sizeof(sst_regs)/sizeof(sst_regs[0]);
+	const int pci_s = ARRAY_SIZE(pci_regs);
+	const int sst_s = ARRAY_SIZE(sst_regs);
 	struct sstfb_par *par = info->par;
 	struct pci_dev *dev = par->dev;
 	u32 pci_res[pci_s];

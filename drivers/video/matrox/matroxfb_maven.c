@@ -89,12 +89,12 @@ static const struct mctl maven_controls[] =
 	}, offsetof(struct matrox_fb_info, altout.tvo_params.hue) },
 	{ { V4L2_CID_GAMMA, V4L2_CTRL_TYPE_INTEGER,
 	  "gamma",
-	  0, sizeof(maven_gamma)/sizeof(maven_gamma[0])-1, 1, 3,
+	  0, ARRAY_SIZE(maven_gamma) - 1, 1, 3,
 	  0,
 	}, offsetof(struct matrox_fb_info, altout.tvo_params.gamma) },
 	{ { MATROXFB_CID_TESTOUT, V4L2_CTRL_TYPE_BOOLEAN,
 	  "test output",
-	  0, 1, 1, 0, 
+	  0, 1, 1, 0,
 	  0,
 	}, offsetof(struct matrox_fb_info, altout.tvo_params.testout) },
 	{ { MATROXFB_CID_DEFLICKER, V4L2_CTRL_TYPE_INTEGER,
@@ -105,7 +105,7 @@ static const struct mctl maven_controls[] =
 
 };
 
-#define MAVCTRLS (sizeof(maven_controls)/sizeof(maven_controls[0]))
+#define MAVCTRLS ARRAY_SIZE(maven_controls)
 
 /* Return: positive number: id found
            -EINVAL:         id not found, return failure
