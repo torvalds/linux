@@ -1743,6 +1743,7 @@ static int make_request(request_queue_t *q, struct bio * bi)
 	sector_t logical_sector, last_sector;
 	struct stripe_head *sh;
 	const int rw = bio_data_dir(bi);
+	int remaining;
 
 	if (unlikely(bio_barrier(bi))) {
 		bio_endio(bi, bi->bi_size, -EOPNOTSUPP);
@@ -1852,7 +1853,9 @@ static int make_request(request_queue_t *q, struct bio * bi)
 			
 	}
 	spin_lock_irq(&conf->device_lock);
-	if (--bi->bi_phys_segments == 0) {
+	remaining = --bi->bi_phys_segments;
+	spin_unlock_irq(&conf->device_lock);
+	if (remaining == 0) {
 		int bytes = bi->bi_size;
 
 		if ( bio_data_dir(bi) == WRITE )
@@ -1860,7 +1863,6 @@ static int make_request(request_queue_t *q, struct bio * bi)
 		bi->bi_size = 0;
 		bi->bi_end_io(bi, bytes, 0);
 	}
-	spin_unlock_irq(&conf->device_lock);
 	return 0;
 }
 
