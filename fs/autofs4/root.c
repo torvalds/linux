@@ -330,6 +330,10 @@ static int try_to_fill_dentry(struct vfsmount *mnt, struct dentry *dentry, int f
 	if (!autofs4_oz_mode(sbi))
 		autofs4_update_usage(mnt, dentry);
 
+	/* Initialize expiry counter after successful mount */
+	if (ino)
+		ino->last_used = jiffies;
+
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
 	spin_unlock(&dentry->d_lock);

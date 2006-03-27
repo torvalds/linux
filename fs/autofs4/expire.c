@@ -47,6 +47,7 @@ static inline int autofs4_can_expire(struct dentry *dentry,
 /* Check a mount point for busyness */
 static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 {
+	struct dentry *top = dentry;
 	int status = 1;
 
 	DPRINTK("dentry %p %.*s",
@@ -62,9 +63,14 @@ static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 	if (is_autofs4_dentry(dentry))
 		goto done;
 
-	/* The big question */
-	if (may_umount_tree(mnt) == 0)
-		status = 0;
+	/* Update the expiry counter if fs is busy */
+	if (may_umount_tree(mnt)) {
+		struct autofs_info *ino = autofs4_dentry_ino(top);
+		ino->last_used = jiffies;
+		goto done;
+	}
+
+	status = 0;
 done:
 	DPRINTK("returning = %d", status);
 	mntput(mnt);
@@ -101,7 +107,7 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 			     unsigned long timeout,
 			     int do_now)
 {
-	struct autofs_info *ino;
+	struct autofs_info *top_ino = autofs4_dentry_ino(top);
 	struct dentry *p;
 
 	DPRINTK("top %p %.*s",
@@ -127,14 +133,16 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 		 * Is someone visiting anywhere in the subtree ?
 		 * If there's no mount we need to check the usage
 		 * count for the autofs dentry.
+		 * If the fs is busy update the expiry counter.
 		 */
-		ino = autofs4_dentry_ino(p);
 		if (d_mountpoint(p)) {
 			if (autofs4_mount_busy(mnt, p)) {
+				top_ino->last_used = jiffies;
 				dput(p);
 				return 1;
 			}
 		} else {
+			struct autofs_info *ino = autofs4_dentry_ino(p);
 			unsigned int ino_count = atomic_read(&ino->count);
 
 			/* allow for dget above and top is already dgot */
@@ -144,6 +152,7 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 				ino_count++;
 
 			if (atomic_read(&p->d_count) > ino_count) {
+				top_ino->last_used = jiffies;
 				dput(p);
 				return 1;
 			}
@@ -183,14 +192,13 @@ static struct dentry *autofs4_check_leaves(struct vfsmount *mnt,
 		spin_unlock(&dcache_lock);
 
 		if (d_mountpoint(p)) {
-			/* Can we expire this guy */
-			if (!autofs4_can_expire(p, timeout, do_now))
+			/* Can we umount this guy */
+			if (autofs4_mount_busy(mnt, p))
 				goto cont;
 
-			/* Can we umount this guy */
-			if (!autofs4_mount_busy(mnt, p))
+			/* Can we expire this guy */
+			if (autofs4_can_expire(p, timeout, do_now))
 				return p;
-
 		}
 cont:
 		dput(p);
@@ -246,12 +254,12 @@ static struct dentry *autofs4_expire(struct super_block *sb,
 			DPRINTK("checking mountpoint %p %.*s",
 				dentry, (int)dentry->d_name.len, dentry->d_name.name);
 
-			/* Can we expire this guy */
-			if (!autofs4_can_expire(dentry, timeout, do_now))
+			/* Can we umount this guy */
+			if (autofs4_mount_busy(mnt, dentry))
 				goto next;
 
-			/* Can we umount this guy */
-			if (!autofs4_mount_busy(mnt, dentry)) {
+			/* Can we expire this guy */
+			if (autofs4_can_expire(dentry, timeout, do_now)) {
 				expired = dentry;
 				break;
 			}
