@@ -1607,13 +1607,14 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		cp[11] = 0;
 		cp[12] = 0;
 		aac_internal_transfer(scsicmd, cp, 0,
-		  min((unsigned int)scsicmd->cmnd[13], sizeof(cp)));
+		  min_t(size_t, scsicmd->cmnd[13], sizeof(cp)));
 		if (sizeof(cp) < scsicmd->cmnd[13]) {
 			unsigned int len, offset = sizeof(cp);
 
 			memset(cp, 0, offset);
 			do {
-				len = min(scsicmd->cmnd[13]-offset, sizeof(cp));
+				len = min_t(size_t, scsicmd->cmnd[13] - offset,
+						sizeof(cp));
 				aac_internal_transfer(scsicmd, cp, offset, len);
 			} while ((offset += len) < scsicmd->cmnd[13]);
 		}
@@ -2080,7 +2081,6 @@ static int aac_send_srb_fib(struct scsi_cmnd* scsicmd)
 		return 0;
 	}
 
-	dev = (struct aac_dev *)scsicmd->device->host->hostdata;
 	switch(scsicmd->sc_data_direction){
 	case DMA_TO_DEVICE:
 		flag = SRB_DataOut;
@@ -2198,8 +2198,6 @@ static unsigned long aac_build_sg(struct scsi_cmnd* scsicmd, struct sgmap* psg)
 			scsicmd->sc_data_direction);
 		psg->count = cpu_to_le32(sg_count);
 
-		byte_count = 0;
-
 		for (i = 0; i < sg_count; i++) {
 			psg->sg[i].addr = cpu_to_le32(sg_dma_address(sg));
 			psg->sg[i].count = cpu_to_le32(sg_dma_len(sg));
@@ -2255,18 +2253,17 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 
 		sg_count = pci_map_sg(dev->pdev, sg, scsicmd->use_sg,
 			scsicmd->sc_data_direction);
-		psg->count = cpu_to_le32(sg_count);
-
-		byte_count = 0;
 
 		for (i = 0; i < sg_count; i++) {
+			int count = sg_dma_len(sg);
 			addr = sg_dma_address(sg);
 			psg->sg[i].addr[0] = cpu_to_le32(addr & 0xffffffff);
 			psg->sg[i].addr[1] = cpu_to_le32(addr>>32);
-			psg->sg[i].count = cpu_to_le32(sg_dma_len(sg));
-			byte_count += sg_dma_len(sg);
+			psg->sg[i].count = cpu_to_le32(count);
+			byte_count += count;
 			sg++;
 		}
+		psg->count = cpu_to_le32(sg_count);
 		/* hba wants the size to be exact */
 		if(byte_count > scsicmd->request_bufflen){
 			u32 temp = le32_to_cpu(psg->sg[i-1].count) - 
@@ -2281,16 +2278,15 @@ static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* p
 		}
 	}
 	else if(scsicmd->request_bufflen) {
-		u64 addr; 
-		addr = pci_map_single(dev->pdev,
+		scsicmd->SCp.dma_handle = pci_map_single(dev->pdev,
 				scsicmd->request_buffer,
 				scsicmd->request_bufflen,
 				scsicmd->sc_data_direction);
+		addr = scsicmd->SCp.dma_handle;
 		psg->count = cpu_to_le32(1);
 		psg->sg[0].addr[0] = cpu_to_le32(addr & 0xffffffff);
 		psg->sg[0].addr[1] = cpu_to_le32(addr >> 32);
 		psg->sg[0].count = cpu_to_le32(scsicmd->request_bufflen);  
-		scsicmd->SCp.dma_handle = addr;
 		byte_count = scsicmd->request_bufflen;
 	}
 	return byte_count;

@@ -189,7 +189,7 @@ static int sa_sync_cmd(struct aac_dev *dev, u32 command,
 			ok = 1;
 			break;
 		}
-		schedule_timeout_uninterruptible(1);
+		msleep(1);
 	}
 
 	if (ok != 1)

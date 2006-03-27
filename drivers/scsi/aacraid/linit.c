@@ -73,7 +73,7 @@
 MODULE_AUTHOR("Red Hat Inc and Adaptec");
 MODULE_DESCRIPTION("Dell PERC2, 2/Si, 3/Si, 3/Di, "
 		   "Adaptec Advanced Raid Products, "
-		   "and HP NetRAID-4M SCSI driver");
+		   "HP NetRAID-4M, IBM ServeRAID & ICP SCSI driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(AAC_DRIVER_FULL_VERSION);
 
@@ -777,6 +777,7 @@ static struct scsi_host_template aac_driver_template = {
 	.cmd_per_lun    		= AAC_NUM_IO_FIB, 
 #endif	
 	.use_clustering			= ENABLE_CLUSTERING,
+	.emulated                       = 1,
 };
 
 
