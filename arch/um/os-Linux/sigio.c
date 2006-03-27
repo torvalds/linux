@@ -29,8 +29,10 @@ static int write_sigio_pid = -1;
  * the descriptors closed after it is killed.  So, it can't see them change.
  * On the UML side, they are changed under the sigio_lock.
  */
-static int write_sigio_fds[2] = { -1, -1 };
-static int sigio_private[2] = { -1, -1 };
+#define SIGIO_FDS_INIT {-1, -1}
+
+static int write_sigio_fds[2] = SIGIO_FDS_INIT;
+static int sigio_private[2] = SIGIO_FDS_INIT;
 
 struct pollfds {
 	struct pollfd *poll;
@@ -270,7 +272,17 @@ void write_sigio_workaround(void)
 	/* Did we race? Don't try to optimize this, please, it's not so likely
 	 * to happen, and no more than once at the boot. */
 	if(write_sigio_pid != -1)
-		goto out_unlock;
+		goto out_free;
+
+	current_poll = ((struct pollfds) { .poll 	= p,
+					   .used 	= 1,
+					   .size 	= 1 });
+
+	if (write_sigio_irq(l_write_sigio_fds[0]))
+		goto out_clear_poll;
+
+	memcpy(write_sigio_fds, l_write_sigio_fds, sizeof(l_write_sigio_fds));
+	memcpy(sigio_private, l_sigio_private, sizeof(l_sigio_private));
 
 	write_sigio_pid = run_helper_thread(write_sigio_thread, NULL,
 					    CLONE_FILES | CLONE_VM, &stack, 0);
@@ -278,41 +290,28 @@ void write_sigio_workaround(void)
 	if (write_sigio_pid < 0)
 		goto out_clear;
 
-	if (write_sigio_irq(l_write_sigio_fds[0]))
-		goto out_kill;
-
-	/* Success, finally. */
-	memcpy(write_sigio_fds, l_write_sigio_fds, sizeof(l_write_sigio_fds));
-	memcpy(sigio_private, l_sigio_private, sizeof(l_sigio_private));
-
-	current_poll = ((struct pollfds) { .poll 	= p,
-					   .used 	= 1,
-					   .size 	= 1 });
-
 	sigio_unlock();
 	return;
 
- out_kill:
-	l_write_sigio_pid = write_sigio_pid;
+out_clear:
 	write_sigio_pid = -1;
-	sigio_unlock();
-	/* Going to call waitpid, avoid holding the lock. */
-	os_kill_process(l_write_sigio_pid, 1);
-	goto out_free;
-
- out_clear:
-	write_sigio_pid = -1;
- out_unlock:
-	sigio_unlock();
- out_free:
+	write_sigio_fds[0] = -1;
+	write_sigio_fds[1] = -1;
+	sigio_private[0] = -1;
+	sigio_private[1] = -1;
+out_clear_poll:
+	current_poll = ((struct pollfds) { .poll	= NULL,
+					   .size	= 0,
+					   .used	= 0 });
+out_free:
 	kfree(p);
- out_close2:
+	sigio_unlock();
+out_close2:
 	close(l_sigio_private[0]);
 	close(l_sigio_private[1]);
- out_close1:
+out_close1:
 	close(l_write_sigio_fds[0]);
 	close(l_write_sigio_fds[1]);
-	return;
 }
 
 void sigio_cleanup(void)
