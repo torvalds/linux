@@ -208,7 +208,7 @@ int cache_check(struct cache_detail *detail,
 	if (rv == -EAGAIN)
 		cache_defer_req(rqstp, h);
 
-	if (rv && h)
+	if (rv)
 		detail->cache_put(h, detail);
 	return rv;
 }
@@ -223,8 +223,10 @@ void cache_fresh(struct cache_detail *detail,
 	head->last_refresh = get_seconds();
 	if (!test_and_set_bit(CACHE_VALID, &head->flags))
 		cache_revisit_request(head);
-	if (test_and_clear_bit(CACHE_PENDING, &head->flags))
+	if (test_and_clear_bit(CACHE_PENDING, &head->flags)) {
+		cache_revisit_request(head);
 		queue_loose(detail, head);
+	}
 }
 
 /*
@@ -551,7 +553,7 @@ static void cache_defer_req(struct cache_req *req, struct cache_head *item)
 		/* there was one too many */
 		dreq->revisit(dreq, 1);
 	}
-	if (test_bit(CACHE_VALID, &item->flags)) {
+	if (!test_bit(CACHE_PENDING, &item->flags)) {
 		/* must have just been validated... */
 		cache_revisit_request(item);
 	}
@@ -892,7 +894,7 @@ static void queue_loose(struct cache_detail *detail, struct cache_head *ch)
 			if (cr->item != ch)
 				continue;
 			if (cr->readers != 0)
-				break;
+				continue;
 			list_del(&cr->q.list);
 			spin_unlock(&queue_lock);
 			detail->cache_put(cr->item, detail);
@@ -1180,8 +1182,8 @@ static int c_show(struct seq_file *m, void *p)
 		return cd->cache_show(m, cd, NULL);
 
 	ifdebug(CACHE)
-		seq_printf(m, "# expiry=%ld refcnt=%d\n",
-			   cp->expiry_time, atomic_read(&cp->refcnt));
+		seq_printf(m, "# expiry=%ld refcnt=%d flags=%lx\n",
+			   cp->expiry_time, atomic_read(&cp->refcnt), cp->flags);
 	cache_get(cp);
 	if (cache_check(cd, cp, NULL))
 		/* cache_check does a cache_put on failure */
