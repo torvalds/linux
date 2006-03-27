@@ -600,12 +600,22 @@ static int dev_create(struct dm_ioctl *param, size_t param_size)
  */
 static struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 {
+	struct mapped_device *md;
+	void *mdptr = NULL;
+
 	if (*param->uuid)
 		return __get_uuid_cell(param->uuid);
-	else if (*param->name)
+
+	if (*param->name)
 		return __get_name_cell(param->name);
-	else
-		return dm_get_mdptr(huge_decode_dev(param->dev));
+
+	md = dm_get_md(huge_decode_dev(param->dev));
+	if (md) {
+		mdptr = dm_get_mdptr(md);
+		dm_put(md);
+	}
+
+	return mdptr;
 }
 
 static struct mapped_device *find_device(struct dm_ioctl *param)

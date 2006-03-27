@@ -990,15 +990,9 @@ struct mapped_device *dm_get_md(dev_t dev)
 	return md;
 }
 
-void *dm_get_mdptr(dev_t dev)
+void *dm_get_mdptr(struct mapped_device *md)
 {
-	struct mapped_device *md;
-	void *mdptr = NULL;
-
-	md = dm_find_md(dev);
-	if (md)
-		mdptr = md->interface_ptr;
-	return mdptr;
+	return md->interface_ptr;
 }
 
 void dm_set_mdptr(struct mapped_device *md, void *ptr)
