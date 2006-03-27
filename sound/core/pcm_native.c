@@ -1313,7 +1313,7 @@ static struct action_ops snd_pcm_action_prepare = {
  *
  * Prepare the PCM substream to be triggerable.
  */
-int snd_pcm_prepare(struct snd_pcm_substream *substream)
+static int snd_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	int res;
 	struct snd_card *card = substream->pcm->card;
@@ -2736,41 +2736,28 @@ static long snd_pcm_capture_ioctl(struct file *file, unsigned int cmd,
 	return snd_pcm_capture_ioctl1(pcm_file->substream, cmd, (void __user *)arg);
 }
 
-int snd_pcm_kernel_playback_ioctl(struct snd_pcm_substream *substream,
-				  unsigned int cmd, void *arg)
-{
-	mm_segment_t fs;
-	int result;
-	
-	fs = snd_enter_user();
-	result = snd_pcm_playback_ioctl1(substream, cmd, (void __user *)arg);
-	snd_leave_user(fs);
-	return result;
-}
-
-int snd_pcm_kernel_capture_ioctl(struct snd_pcm_substream *substream,
-				 unsigned int cmd, void *arg)
-{
-	mm_segment_t fs;
-	int result;
-	
-	fs = snd_enter_user();
-	result = snd_pcm_capture_ioctl1(substream, cmd, (void __user *)arg);
-	snd_leave_user(fs);
-	return result;
-}
-
 int snd_pcm_kernel_ioctl(struct snd_pcm_substream *substream,
 			 unsigned int cmd, void *arg)
 {
+	mm_segment_t fs;
+	int result;
+	
+	fs = snd_enter_user();
 	switch (substream->stream) {
 	case SNDRV_PCM_STREAM_PLAYBACK:
-		return snd_pcm_kernel_playback_ioctl(substream, cmd, arg);
+		result = snd_pcm_playback_ioctl1(substream,
+						 cmd, (void __user *)arg);
+		break;
 	case SNDRV_PCM_STREAM_CAPTURE:
-		return snd_pcm_kernel_capture_ioctl(substream, cmd, arg);
+		result = snd_pcm_capture_ioctl1(substream,
+						cmd, (void __user *)arg);
+		break;
 	default:
-		return -EINVAL;
+		result = -EINVAL;
+		break;
 	}
+	snd_leave_user(fs);
+	return result;
 }
 
 static ssize_t snd_pcm_read(struct file *file, char __user *buf, size_t count,

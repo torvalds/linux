@@ -959,12 +959,12 @@ static int snd_pcm_oss_reset(struct snd_pcm_oss_file *pcm_oss_file)
 
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	if (substream != NULL) {
-		snd_pcm_kernel_playback_ioctl(substream, SNDRV_PCM_IOCTL_DROP, NULL);
+		snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DROP, NULL);
 		substream->runtime->oss.prepare = 1;
 	}
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_CAPTURE];
 	if (substream != NULL) {
-		snd_pcm_kernel_capture_ioctl(substream, SNDRV_PCM_IOCTL_DROP, NULL);
+		snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DROP, NULL);
 		substream->runtime->oss.prepare = 1;
 	}
 	return 0;
@@ -979,7 +979,7 @@ static int snd_pcm_oss_post(struct snd_pcm_oss_file *pcm_oss_file)
 	if (substream != NULL) {
 		if ((err = snd_pcm_oss_make_ready(substream)) < 0)
 			return err;
-		snd_pcm_kernel_playback_ioctl(substream, SNDRV_PCM_IOCTL_START, NULL);
+		snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_START, NULL);
 	}
 	/* note: all errors from the start action are ignored */
 	/* OSS apps do not know, how to handle them */
@@ -1108,7 +1108,7 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 	      __direct:
 		saved_f_flags = substream->ffile->f_flags;
 		substream->ffile->f_flags &= ~O_NONBLOCK;
-		err = snd_pcm_kernel_playback_ioctl(substream, SNDRV_PCM_IOCTL_DRAIN, NULL);
+		err = snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DRAIN, NULL);
 		substream->ffile->f_flags = saved_f_flags;
 		if (err < 0)
 			return err;
@@ -1120,7 +1120,7 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 		if ((err = snd_pcm_oss_make_ready(substream)) < 0)
 			return err;
 		runtime = substream->runtime;
-		err = snd_pcm_kernel_capture_ioctl(substream, SNDRV_PCM_IOCTL_DROP, NULL);
+		err = snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DROP, NULL);
 		if (err < 0)
 			return err;
 		runtime->oss.buffer_used = 0;
@@ -1437,7 +1437,7 @@ static int snd_pcm_oss_set_trigger(struct snd_pcm_oss_file *pcm_oss_file, int tr
 			cmd = SNDRV_PCM_IOCTL_DROP;
 			runtime->oss.prepare = 1;
 		}
-		err = snd_pcm_kernel_playback_ioctl(psubstream, cmd, NULL);
+		err = snd_pcm_kernel_ioctl(psubstream, cmd, NULL);
 		if (err < 0)
 			return err;
 	}
@@ -1458,7 +1458,7 @@ static int snd_pcm_oss_set_trigger(struct snd_pcm_oss_file *pcm_oss_file, int tr
 			cmd = SNDRV_PCM_IOCTL_DROP;
 			runtime->oss.prepare = 1;
 		}
-		err = snd_pcm_kernel_capture_ioctl(csubstream, cmd, NULL);
+		err = snd_pcm_kernel_ioctl(csubstream, cmd, NULL);
 		if (err < 0)
 			return err;
 	}
@@ -1495,7 +1495,7 @@ static int snd_pcm_oss_get_odelay(struct snd_pcm_oss_file *pcm_oss_file)
 	runtime = substream->runtime;
 	if (runtime->oss.params || runtime->oss.prepare)
 		return 0;
-	err = snd_pcm_kernel_playback_ioctl(substream, SNDRV_PCM_IOCTL_DELAY, &delay);
+	err = snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DELAY, &delay);
 	if (err == -EPIPE)
 		delay = 0;	/* hack for broken OSS applications */
 	else if (err < 0)

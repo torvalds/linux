@@ -1111,8 +1111,6 @@ EXPORT_SYMBOL(snd_pcm_link_rwlock);
 EXPORT_SYMBOL(snd_pcm_suspend);
 EXPORT_SYMBOL(snd_pcm_suspend_all);
 #endif
-EXPORT_SYMBOL(snd_pcm_kernel_playback_ioctl);
-EXPORT_SYMBOL(snd_pcm_kernel_capture_ioctl);
 EXPORT_SYMBOL(snd_pcm_kernel_ioctl);
 EXPORT_SYMBOL(snd_pcm_mmap_data);
 #if SNDRV_PCM_INFO_MMAP_IOMEM
