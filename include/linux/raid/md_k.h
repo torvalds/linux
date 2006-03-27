@@ -132,6 +132,14 @@ struct mddev_s
 
 	char				uuid[16];
 
+	/* If the array is being reshaped, we need to record the
+	 * new shape and an indication of where we are up to.
+	 * This is written to the superblock.
+	 * If reshape_position is MaxSector, then no reshape is happening (yet).
+	 */
+	sector_t			reshape_position;
+	int				delta_disks, new_level, new_layout, new_chunk;
+
 	struct mdk_thread_s		*thread;	/* management thread */
 	struct mdk_thread_s		*sync_thread;	/* doing resync or reconstruct */
 	sector_t			curr_resync;	/* blocks scheduled */

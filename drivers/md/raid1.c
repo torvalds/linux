@@ -1789,6 +1789,11 @@ static int run(mddev_t *mddev)
 		       mdname(mddev), mddev->level);
 		goto out;
 	}
+	if (mddev->reshape_position != MaxSector) {
+		printk("raid1: %s: reshape_position set but not supported\n",
+		       mdname(mddev));
+		goto out;
+	}
 	/*
 	 * copy the already verified devices into our private RAID1
 	 * bookkeeping area. [whatever we allocate in run(),

@@ -95,6 +95,8 @@ extern int sync_page_io(struct block_device *bdev, sector_t sector, int size,
 extern void md_do_sync(mddev_t *mddev);
 extern void md_new_event(mddev_t *mddev);
 
+extern void md_update_sb(mddev_t * mddev);
+
 #define MD_BUG(x...) { printk("md: bug in file %s, line %d\n", __FILE__, __LINE__); md_print_devices(); }
 
 #endif 

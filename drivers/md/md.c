@@ -662,7 +662,8 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 	}
 
 	if (sb->major_version != 0 ||
-	    sb->minor_version != 90) {
+	    sb->minor_version < 90 ||
+	    sb->minor_version > 91) {
 		printk(KERN_WARNING "Bad version number %d.%d on %s\n",
 			sb->major_version, sb->minor_version,
 			b);
@@ -746,6 +747,20 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->events = md_event(sb);
 		mddev->bitmap_offset = 0;
 		mddev->default_bitmap_offset = MD_SB_BYTES >> 9;
+
+		if (mddev->minor_version >= 91) {
+			mddev->reshape_position = sb->reshape_position;
+			mddev->delta_disks = sb->delta_disks;
+			mddev->new_level = sb->new_level;
+			mddev->new_layout = sb->new_layout;
+			mddev->new_chunk = sb->new_chunk;
+		} else {
+			mddev->reshape_position = MaxSector;
+			mddev->delta_disks = 0;
+			mddev->new_level = mddev->level;
+			mddev->new_layout = mddev->layout;
+			mddev->new_chunk = mddev->chunk_size;
+		}
 
 		if (sb->state & (1<<MD_SB_CLEAN))
 			mddev->recovery_cp = MaxSector;
@@ -841,7 +856,6 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 
 	sb->md_magic = MD_SB_MAGIC;
 	sb->major_version = mddev->major_version;
-	sb->minor_version = mddev->minor_version;
 	sb->patch_version = mddev->patch_version;
 	sb->gvalid_words  = 0; /* ignored */
 	memcpy(&sb->set_uuid0, mddev->uuid+0, 4);
@@ -860,6 +874,17 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	sb->events_hi = (mddev->events>>32);
 	sb->events_lo = (u32)mddev->events;
 
+	if (mddev->reshape_position == MaxSector)
+		sb->minor_version = 90;
+	else {
+		sb->minor_version = 91;
+		sb->reshape_position = mddev->reshape_position;
+		sb->new_level = mddev->new_level;
+		sb->delta_disks = mddev->delta_disks;
+		sb->new_layout = mddev->new_layout;
+		sb->new_chunk = mddev->new_chunk;
+	}
+	mddev->minor_version = sb->minor_version;
 	if (mddev->in_sync)
 	{
 		sb->recovery_cp = mddev->recovery_cp;
@@ -1104,6 +1129,20 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 			}
 			mddev->bitmap_offset = (__s32)le32_to_cpu(sb->bitmap_offset);
 		}
+		if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_RESHAPE_ACTIVE)) {
+			mddev->reshape_position = le64_to_cpu(sb->reshape_position);
+			mddev->delta_disks = le32_to_cpu(sb->delta_disks);
+			mddev->new_level = le32_to_cpu(sb->new_level);
+			mddev->new_layout = le32_to_cpu(sb->new_layout);
+			mddev->new_chunk = le32_to_cpu(sb->new_chunk)<<9;
+		} else {
+			mddev->reshape_position = MaxSector;
+			mddev->delta_disks = 0;
+			mddev->new_level = mddev->level;
+			mddev->new_layout = mddev->layout;
+			mddev->new_chunk = mddev->chunk_size;
+		}
+
 	} else if (mddev->pers == NULL) {
 		/* Insist of good event counter while assembling */
 		__u64 ev1 = le64_to_cpu(sb->events);
@@ -1174,6 +1213,14 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	if (mddev->bitmap && mddev->bitmap_file == NULL) {
 		sb->bitmap_offset = cpu_to_le32((__u32)mddev->bitmap_offset);
 		sb->feature_map = cpu_to_le32(MD_FEATURE_BITMAP_OFFSET);
+	}
+	if (mddev->reshape_position != MaxSector) {
+		sb->feature_map |= cpu_to_le32(MD_FEATURE_RESHAPE_ACTIVE);
+		sb->reshape_position = cpu_to_le64(mddev->reshape_position);
+		sb->new_layout = cpu_to_le32(mddev->new_layout);
+		sb->delta_disks = cpu_to_le32(mddev->delta_disks);
+		sb->new_level = cpu_to_le32(mddev->new_level);
+		sb->new_chunk = cpu_to_le32(mddev->new_chunk>>9);
 	}
 
 	max_dev = 0;
@@ -1497,7 +1544,7 @@ static void sync_sbs(mddev_t * mddev)
 	}
 }
 
-static void md_update_sb(mddev_t * mddev)
+void md_update_sb(mddev_t * mddev)
 {
 	int err;
 	struct list_head *tmp;
@@ -1574,6 +1621,7 @@ repeat:
 	wake_up(&mddev->sb_wait);
 
 }
+EXPORT_SYMBOL_GPL(md_update_sb);
 
 /* words written to sysfs files may, or my not, be \n terminated.
  * We want to accept with case. For this we use cmd_match.
@@ -2545,6 +2593,14 @@ static int do_md_run(mddev_t * mddev)
 	mddev->level = pers->level;
 	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
 
+	if (mddev->reshape_position != MaxSector &&
+	    pers->reshape == NULL) {
+		/* This personality cannot handle reshaping... */
+		mddev->pers = NULL;
+		module_put(pers->owner);
+		return -EINVAL;
+	}
+
 	mddev->recovery = 0;
 	mddev->resync_max_sectors = mddev->size << 1; /* may be over-ridden by personality */
 	mddev->barriers_work = 1;
@@ -3433,10 +3489,17 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 	mddev->default_bitmap_offset = MD_SB_BYTES >> 9;
 	mddev->bitmap_offset = 0;
 
+	mddev->reshape_position = MaxSector;
+
 	/*
 	 * Generate a 128 bit UUID
 	 */
 	get_random_bytes(mddev->uuid, 16);
+
+	mddev->new_level = mddev->level;
+	mddev->new_chunk = mddev->chunk_size;
+	mddev->new_layout = mddev->layout;
+	mddev->delta_disks = 0;
 
 	return 0;
 }
