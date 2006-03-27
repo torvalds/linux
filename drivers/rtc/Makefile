@@ -10,3 +10,6 @@ rtc-core-y			:= class.o interface.o
 obj-$(CONFIG_RTC_INTF_SYSFS)	+= rtc-sysfs.o
 obj-$(CONFIG_RTC_INTF_PROC)	+= rtc-proc.o
 obj-$(CONFIG_RTC_INTF_DEV)	+= rtc-dev.o
+
+obj-$(CONFIG_RTC_DRV_X1205)	+= rtc-x1205.o
+
