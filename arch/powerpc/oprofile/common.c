@@ -126,8 +126,7 @@ static int op_powerpc_create_files(struct super_block *sb, struct dentry *root)
 	sys.enable_kernel = 1;
 	sys.enable_user = 1;
 #ifdef CONFIG_PPC64
-	/* Turn on backtracing through spinlocks by default */
-	sys.backtrace_spinlocks = 1;
+	sys.backtrace_spinlocks = 0;
 #endif
 
 	return 0;
@@ -168,6 +167,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	ops->shutdown = op_powerpc_shutdown;
 	ops->start = op_powerpc_start;
 	ops->stop = op_powerpc_stop;
+	ops->backtrace = op_powerpc_backtrace;
 
 	printk(KERN_INFO "oprofile: using %s performance monitoring.\n",
 	       ops->cpu_type);

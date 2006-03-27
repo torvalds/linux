@@ -293,7 +293,7 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 		val = ctr_read(i);
 		if (val < 0) {
 			if (oprofile_running && ctr[i].enabled) {
-				oprofile_add_pc(pc, is_kernel, i);
+				oprofile_add_ext_sample(pc, regs, i, is_kernel);
 				ctr_write(i, reset_value[i]);
 			} else {
 				ctr_write(i, 0);
