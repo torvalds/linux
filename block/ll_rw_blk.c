@@ -785,6 +785,8 @@ void blk_queue_stack_limits(request_queue_t *t, request_queue_t *b)
 	t->max_hw_segments = min(t->max_hw_segments,b->max_hw_segments);
 	t->max_segment_size = min(t->max_segment_size,b->max_segment_size);
 	t->hardsect_size = max(t->hardsect_size,b->hardsect_size);
+	if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags))
+		clear_bit(QUEUE_FLAG_CLUSTER, &t->queue_flags);
 }
 
 EXPORT_SYMBOL(blk_queue_stack_limits);
