@@ -104,9 +104,6 @@ struct machdep_calls {
 						unsigned long size,
 						pgprot_t vma_prot);
 
-	/* this is for modules, since _machine can be a define -- Cort */
-	int ppc_machine;
-
 	/* Motherboard/chipset features. This is a kind of general purpose
 	 * hook used to control some machine specific features (like reset
 	 * lines, chip power control, etc...).

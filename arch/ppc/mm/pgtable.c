@@ -39,7 +39,7 @@ unsigned long ioremap_base;
 unsigned long ioremap_bot;
 int io_bat_index;
 
-#if defined(CONFIG_6xx) || defined(CONFIG_POWER3)
+#if defined(CONFIG_6xx)
 #define HAVE_BATS	1
 #endif
 

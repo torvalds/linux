@@ -53,10 +53,7 @@
 #define platform_is_pseries()	(_machine == PLATFORM_PSERIES || \
 				 _machine == PLATFORM_PSERIES_LPAR)
 
-#if defined(CONFIG_PPC_MULTIPLATFORM)
-extern int _machine;
-
-#ifdef CONFIG_PPC32
+#ifdef CONFIG_PPC_PREP
 
 /* what kind of prep workstation we are */
 extern int _prep_type;
@@ -70,7 +67,10 @@ extern int _chrp_type;
 extern unsigned char ucBoardRev;
 extern unsigned char ucBoardRevMaj, ucBoardRevMin;
 
-#endif /* CONFIG_PPC32 */
+#endif /* CONFIG_PPC_PREP */
+
+#if defined(CONFIG_PPC_MULTIPLATFORM)
+extern int _machine;
 
 #elif defined(CONFIG_PPC_ISERIES)
 /*
