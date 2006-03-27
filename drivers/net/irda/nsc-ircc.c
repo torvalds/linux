@@ -207,7 +207,7 @@ static int __init nsc_ircc_init(void)
  	/* Register with PnP subsystem to detect disable ports */
 	ret = pnp_register_driver(&nsc_ircc_pnp_driver);
 
- 	if (ret >= 0)
+ 	if (!ret)
  		pnp_registered = 1;
 
 	ret = -ENODEV;
