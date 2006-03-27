@@ -135,6 +135,7 @@ struct stripe_head {
 	atomic_t		count;			/* nr of active thread/requests */
 	spinlock_t		lock;
 	int			bm_seq;	/* sequence number for bitmap flushes */
+	int			disks;			/* disks in stripe */
 	struct r5dev {
 		struct bio	req;
 		struct bio_vec	vec;
@@ -174,6 +175,7 @@ struct stripe_head {
 #define	STRIPE_DELAYED		6
 #define	STRIPE_DEGRADED		7
 #define	STRIPE_BIT_DELAY	8
+#define	STRIPE_EXPANDING	9
 
 /*
  * Plugging:
@@ -210,6 +212,10 @@ struct raid5_private_data {
 	int			chunk_size, level, algorithm;
 	int			raid_disks, working_disks, failed_disks;
 	int			max_nr_stripes;
+
+	/* used during an expand */
+	sector_t		expand_progress;	/* MaxSector when no expand happening */
+	int			previous_raid_disks;
 
 	struct list_head	handle_list; /* stripes needing handling */
 	struct list_head	delayed_list; /* stripes that have plugged requests */
