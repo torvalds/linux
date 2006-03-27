@@ -160,6 +160,9 @@ enum {
 	ATA_QCFLAG_DMAMAP	= ATA_QCFLAG_SG | ATA_QCFLAG_SINGLE,
 	ATA_QCFLAG_EH_SCHEDULED = (1 << 5), /* EH scheduled */
 
+	/* host set flags */
+	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host_set only */
+	
 	/* various lengths of time */
 	ATA_TMOUT_PIO		= 30 * HZ,
 	ATA_TMOUT_BOOT		= 30 * HZ,	/* heuristic */
@@ -278,6 +281,7 @@ struct ata_probe_ent {
 	unsigned long		irq;
 	unsigned int		irq_flags;
 	unsigned long		host_flags;
+	unsigned long		host_set_flags;
 	void __iomem		*mmio_base;
 	void			*private_data;
 };
