@@ -13,6 +13,7 @@
 #include <linux/initrd.h>
 #include <linux/nodemask.h>
 #include <linux/module.h>
+#include <linux/pfn.h>
 
 #include <asm/setup.h>
 

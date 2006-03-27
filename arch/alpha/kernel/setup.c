@@ -34,6 +34,7 @@
 #include <linux/root_dev.h>
 #include <linux/initrd.h>
 #include <linux/eisa.h>
+#include <linux/pfn.h>
 #ifdef CONFIG_MAGIC_SYSRQ
 #include <linux/sysrq.h>
 #include <linux/reboot.h>
@@ -241,9 +242,6 @@ reserve_std_resources(void)
 		request_resource(io, standard_io_resources+i);
 }
 
-#define PFN_UP(x)	(((x) + PAGE_SIZE-1) >> PAGE_SHIFT)
-#define PFN_DOWN(x)	((x) >> PAGE_SHIFT)
-#define PFN_PHYS(x)	((x) << PAGE_SHIFT)
 #define PFN_MAX		PFN_DOWN(0x80000000)
 #define for_each_mem_cluster(memdesc, cluster, i)		\
 	for ((cluster) = (memdesc)->cluster, (i) = 0;		\
@@ -471,11 +469,6 @@ page_is_ram(unsigned long pfn)
 
 	return 0;
 }
-
-#undef PFN_UP
-#undef PFN_DOWN
-#undef PFN_PHYS
-#undef PFN_MAX
 
 void __init
 setup_arch(char **cmdline_p)

@@ -31,6 +31,7 @@
 #include <linux/nodemask.h>
 #include <linux/module.h>
 #include <linux/kexec.h>
+#include <linux/pfn.h>
 
 #include <asm/e820.h>
 #include <asm/setup.h>
