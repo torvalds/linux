@@ -959,9 +959,9 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 				snap->store.fraction_full(&snap->store,
 							  &numerator,
 							  &denominator);
-				snprintf(result, maxlen,
-					 SECTOR_FORMAT "/" SECTOR_FORMAT,
-					 numerator, denominator);
+				snprintf(result, maxlen, "%llu/%llu",
+					(unsigned long long)numerator,
+					(unsigned long long)denominator);
 			}
 			else
 				snprintf(result, maxlen, "Unknown");
@@ -974,9 +974,10 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 		 * to make private copies if the output is to
 		 * make sense.
 		 */
-		snprintf(result, maxlen, "%s %s %c " SECTOR_FORMAT,
+		snprintf(result, maxlen, "%s %s %c %llu",
 			 snap->origin->name, snap->cow->name,
-			 snap->type, snap->chunk_size);
+			 snap->type,
+			 (unsigned long long)snap->chunk_size);
 		break;
 	}
 

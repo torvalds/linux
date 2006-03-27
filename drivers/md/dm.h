@@ -23,16 +23,6 @@
 #define DMEMIT(x...) sz += ((sz >= maxlen) ? \
 			  0 : scnprintf(result + sz, maxlen - sz, x))
 
-/*
- * FIXME: I think this should be with the definition of sector_t
- * in types.h.
- */
-#ifdef CONFIG_LBD
-#define SECTOR_FORMAT "%llu"
-#else
-#define SECTOR_FORMAT "%lu"
-#endif
-
 #define SECTOR_SHIFT 9
 
 /*

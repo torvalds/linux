@@ -934,9 +934,9 @@ static inline int _check_region_size(struct dm_target *ti, uint32_t size)
 static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 		      unsigned int mirror, char **argv)
 {
-	sector_t offset;
+	unsigned long long offset;
 
-	if (sscanf(argv[1], SECTOR_FORMAT, &offset) != 1) {
+	if (sscanf(argv[1], "%llu", &offset) != 1) {
 		ti->error = "dm-mirror: Invalid offset";
 		return -EINVAL;
 	}
@@ -1203,16 +1203,17 @@ static int mirror_status(struct dm_target *ti, status_type_t type,
 		for (m = 0; m < ms->nr_mirrors; m++)
 			DMEMIT("%s ", ms->mirror[m].dev->name);
 
-		DMEMIT(SECTOR_FORMAT "/" SECTOR_FORMAT,
-		       ms->rh.log->type->get_sync_count(ms->rh.log),
-		       ms->nr_regions);
+		DMEMIT("%llu/%llu",
+			(unsigned long long)ms->rh.log->type->
+				get_sync_count(ms->rh.log),
+			(unsigned long long)ms->nr_regions);
 		break;
 
 	case STATUSTYPE_TABLE:
 		DMEMIT("%d ", ms->nr_mirrors);
 		for (m = 0; m < ms->nr_mirrors; m++)
-			DMEMIT("%s " SECTOR_FORMAT " ",
-			       ms->mirror[m].dev->name, ms->mirror[m].offset);
+			DMEMIT("%s %llu ", ms->mirror[m].dev->name,
+				(unsigned long long)ms->mirror[m].offset);
 	}
 
 	return 0;
