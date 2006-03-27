@@ -689,6 +689,18 @@ static ssize_t aac_show_serial_number(struct class_device *class_dev,
 	return len;
 }
 
+static ssize_t aac_show_max_channel(struct class_device *class_dev, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+	  class_to_shost(class_dev)->max_channel);
+}
+
+static ssize_t aac_show_max_id(struct class_device *class_dev, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+	  class_to_shost(class_dev)->max_id);
+}
+
 
 static struct class_device_attribute aac_model = {
 	.attr = {
@@ -732,6 +744,20 @@ static struct class_device_attribute aac_serial_number = {
 	},
 	.show = aac_show_serial_number,
 };
+static struct class_device_attribute aac_max_channel = {
+	.attr = {
+		.name = "max_channel",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_max_channel,
+};
+static struct class_device_attribute aac_max_id = {
+	.attr = {
+		.name = "max_id",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_max_id,
+};
 
 static struct class_device_attribute *aac_attrs[] = {
 	&aac_model,
@@ -740,6 +766,8 @@ static struct class_device_attribute *aac_attrs[] = {
 	&aac_monitor_version,
 	&aac_bios_version,
 	&aac_serial_number,
+	&aac_max_channel,
+	&aac_max_id,
 	NULL
 };
 
