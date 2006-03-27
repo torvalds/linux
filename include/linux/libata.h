@@ -294,6 +294,9 @@ struct ata_host_set {
 	unsigned int		n_ports;
 	void			*private_data;
 	const struct ata_port_operations *ops;
+	unsigned long		flags;
+	int			simplex_claimed;	/* Keep seperate in case we
+							   ever need to do this locked */
 	struct ata_port *	ports[0];
 };
 
@@ -423,6 +426,7 @@ struct ata_port_operations {
 
 	void (*set_piomode) (struct ata_port *, struct ata_device *);
 	void (*set_dmamode) (struct ata_port *, struct ata_device *);
+	unsigned long (*mode_filter) (const struct ata_port *, struct ata_device *, unsigned long);
 
 	void (*tf_load) (struct ata_port *ap, const struct ata_taskfile *tf);
 	void (*tf_read) (struct ata_port *ap, struct ata_taskfile *tf);

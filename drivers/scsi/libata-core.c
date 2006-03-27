@@ -1818,7 +1818,7 @@ static void ata_host_set_dma(struct ata_port *ap)
  */
 static void ata_set_mode(struct ata_port *ap)
 {
-	int i, rc;
+	int i, rc, used_dma = 0;
 
 	/* step 1: calculate xfer_mask */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
@@ -1836,6 +1836,9 @@ static void ata_set_mode(struct ata_port *ap)
 		dma_mask = ata_pack_xfermask(0, dev->mwdma_mask, dev->udma_mask);
 		dev->pio_mode = ata_xfer_mask2mode(pio_mask);
 		dev->dma_mode = ata_xfer_mask2mode(dma_mask);
+
+		if (dev->dma_mode)
+			used_dma = 1;
 	}
 
 	/* step 2: always set host PIO timings */
@@ -1857,6 +1860,17 @@ static void ata_set_mode(struct ata_port *ap)
 			goto err_out;
 	}
 
+	/*
+	 *	Record simplex status. If we selected DMA then the other
+	 *	host channels are not permitted to do so.
+	 */
+
+	if (used_dma && (ap->host_set->flags & ATA_HOST_SIMPLEX))
+		ap->host_set->simplex_claimed = 1;
+
+	/*
+	 *	Chip specific finalisation
+	 */
 	if (ap->ops->post_set_mode)
 		ap->ops->post_set_mode(ap);
 
@@ -2646,13 +2660,14 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
  */
 static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 {
+	struct ata_host_set *hs = ap->host_set;
 	unsigned long xfer_mask;
 	int i;
 
 	xfer_mask = ata_pack_xfermask(ap->pio_mask, ap->mwdma_mask,
 				      ap->udma_mask);
 
-	/* use port-wide xfermask for now */
+	/* FIXME: Use port-wide xfermask for now */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *d = &ap->device[i];
 		if (!ata_dev_present(d))
@@ -2662,11 +2677,22 @@ static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 		xfer_mask &= ata_id_xfermask(d->id);
 		if (ata_dma_blacklisted(d))
 			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
+		/* Apply cable rule here. Don't apply it early because when
+		   we handle hot plug the cable type can itself change */
+		if (ap->cbl == ATA_CBL_PATA40)
+			xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
 	}
 
 	if (ata_dma_blacklisted(dev))
 		printk(KERN_WARNING "ata%u: dev %u is on DMA blacklist, "
 		       "disabling DMA\n", ap->id, dev->devno);
+
+	if (hs->flags & ATA_HOST_SIMPLEX) {
+		if (hs->simplex_claimed)
+			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
+	}
+	if (ap->ops->mode_filter)
+		xfer_mask = ap->ops->mode_filter(ap, dev, xfer_mask);
 
 	ata_unpack_xfermask(xfer_mask, &dev->pio_mask, &dev->mwdma_mask,
 			    &dev->udma_mask);
@@ -4531,6 +4557,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	host_set->mmio_base = ent->mmio_base;
 	host_set->private_data = ent->private_data;
 	host_set->ops = ent->port_ops;
+	host_set->flags = ent->host_set_flags;
 
 	/* register each port bound to this device */
 	for (i = 0; i < ent->n_ports; i++) {
