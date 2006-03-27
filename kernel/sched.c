@@ -2879,13 +2879,11 @@ asmlinkage void __sched schedule(void)
 	 * schedule() atomically, we ignore that path for now.
 	 * Otherwise, whine if we are scheduling when we should not be.
 	 */
-	if (likely(!current->exit_state)) {
-		if (unlikely(in_atomic())) {
-			printk(KERN_ERR "BUG: scheduling while atomic: "
-				"%s/0x%08x/%d\n",
-				current->comm, preempt_count(), current->pid);
-			dump_stack();
-		}
+	if (unlikely(in_atomic() && !current->exit_state)) {
+		printk(KERN_ERR "BUG: scheduling while atomic: "
+			"%s/0x%08x/%d\n",
+			current->comm, preempt_count(), current->pid);
+		dump_stack();
 	}
 	profile_hit(SCHED_PROFILING, __builtin_return_address(0));
 
