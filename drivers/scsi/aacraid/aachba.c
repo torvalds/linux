@@ -149,20 +149,20 @@ static int dacmode = -1;
 
 static int commit = -1;
 
-module_param(nondasd, int, 0);
+module_param(nondasd, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(nondasd, "Control scanning of hba for nondasd devices. 0=off, 1=on");
-module_param(dacmode, int, 0);
+module_param(dacmode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(dacmode, "Control whether dma addressing is using 64 bit DAC. 0=off, 1=on");
-module_param(commit, int, 0);
+module_param(commit, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(commit, "Control whether a COMMIT_CONFIG is issued to the adapter for foreign arrays.\nThis is typically needed in systems that do not have a BIOS. 0=off, 1=on");
 
 int numacb = -1;
 module_param(numacb, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(numacb, "Request a limit to the number of adapter control blocks (FIB) allocated. Valid\nvalues are 512 and down. Default is to use suggestion from Firmware.");
+MODULE_PARM_DESC(numacb, "Request a limit to the number of adapter control blocks (FIB) allocated. Valid values are 512 and down. Default is to use suggestion from Firmware.");
 
 int acbsize = -1;
 module_param(acbsize, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(acbsize, "Request a specific adapter control block (FIB) size. Valid values are 512,\n2048, 4096 and 8192. Default is to use suggestion from Firmware.");
+MODULE_PARM_DESC(acbsize, "Request a specific adapter control block (FIB) size. Valid values are 512, 2048, 4096 and 8192. Default is to use suggestion from Firmware.");
 /**
  *	aac_get_config_status	-	check the adapter configuration
  *	@common: adapter to query

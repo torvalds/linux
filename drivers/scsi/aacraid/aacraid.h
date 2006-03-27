@@ -10,6 +10,10 @@
  *              D E F I N E S
  *----------------------------------------------------------------------------*/
 
+#ifndef AAC_DRIVER_BUILD
+# define AAC_DRIVER_BUILD 2409
+# define AAC_DRIVER_BRANCH "-mh1"
+#endif
 #define MAXIMUM_NUM_CONTAINERS	32
 
 #define AAC_NUM_MGT_FIB         8

@@ -27,12 +27,6 @@
  * Abstract: Linux Driver entry module for Adaptec RAID Array Controller
  */
 
-#define AAC_DRIVER_VERSION		"1.1-4"
-#ifndef AAC_DRIVER_BRANCH
-#define AAC_DRIVER_BRANCH		""
-#endif
-#define AAC_DRIVER_BUILD_DATE		__DATE__ " " __TIME__
-#define AAC_DRIVERNAME			"aacraid"
 
 #include <linux/compat.h>
 #include <linux/blkdev.h>
@@ -61,6 +55,13 @@
 #include <scsi/scsi_eh.h>
 
 #include "aacraid.h"
+
+#define AAC_DRIVER_VERSION		"1.1-5"
+#ifndef AAC_DRIVER_BRANCH
+#define AAC_DRIVER_BRANCH		""
+#endif
+#define AAC_DRIVER_BUILD_DATE		__DATE__ " " __TIME__
+#define AAC_DRIVERNAME			"aacraid"
 
 #ifdef AAC_DRIVER_BUILD
 #define _str(x) #x
