@@ -96,6 +96,27 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 }
 EXPORT_SYMBOL(sunrpc_cache_lookup);
 
+
+static void queue_loose(struct cache_detail *detail, struct cache_head *ch);
+
+static int cache_fresh_locked(struct cache_head *head, time_t expiry)
+{
+	head->expiry_time = expiry;
+	head->last_refresh = get_seconds();
+	return !test_and_set_bit(CACHE_VALID, &head->flags);
+}
+
+static void cache_fresh_unlocked(struct cache_head *head,
+			struct cache_detail *detail, int new)
+{
+	if (new)
+		cache_revisit_request(head);
+	if (test_and_clear_bit(CACHE_PENDING, &head->flags)) {
+		cache_revisit_request(head);
+		queue_loose(detail, head);
+	}
+}
+
 struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 				       struct cache_head *new, struct cache_head *old, int hash)
 {
@@ -105,6 +126,7 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	 */
 	struct cache_head **head;
 	struct cache_head *tmp;
+	int is_new;
 
 	if (!test_bit(CACHE_VALID, &old->flags)) {
 		write_lock(&detail->hash_lock);
@@ -113,9 +135,9 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 				set_bit(CACHE_NEGATIVE, &old->flags);
 			else
 				detail->update(old, new);
-			/* FIXME cache_fresh should come first */
+			is_new = cache_fresh_locked(old, new->expiry_time);
 			write_unlock(&detail->hash_lock);
-			cache_fresh(detail, old, new->expiry_time);
+			cache_fresh_unlocked(old, detail, is_new);
 			return old;
 		}
 		write_unlock(&detail->hash_lock);
@@ -138,9 +160,11 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	tmp->next = *head;
 	*head = tmp;
 	cache_get(tmp);
+	is_new = cache_fresh_locked(tmp, new->expiry_time);
+	cache_fresh_locked(old, 0);
 	write_unlock(&detail->hash_lock);
-	cache_fresh(detail, tmp, new->expiry_time);
-	cache_fresh(detail, old, 0);
+	cache_fresh_unlocked(tmp, detail, is_new);
+	cache_fresh_unlocked(old, detail, 0);
 	detail->cache_put(old, detail);
 	return tmp;
 }
@@ -192,7 +216,8 @@ int cache_check(struct cache_detail *detail,
 				clear_bit(CACHE_PENDING, &h->flags);
 				if (rv == -EAGAIN) {
 					set_bit(CACHE_NEGATIVE, &h->flags);
-					cache_fresh(detail, h, get_seconds()+CACHE_NEW_EXPIRY);
+					cache_fresh_unlocked(h, detail,
+					     cache_fresh_locked(h, get_seconds()+CACHE_NEW_EXPIRY));
 					rv = -ENOENT;
 				}
 				break;
@@ -211,22 +236,6 @@ int cache_check(struct cache_detail *detail,
 	if (rv)
 		detail->cache_put(h, detail);
 	return rv;
-}
-
-static void queue_loose(struct cache_detail *detail, struct cache_head *ch);
-
-void cache_fresh(struct cache_detail *detail,
-		 struct cache_head *head, time_t expiry)
-{
-
-	head->expiry_time = expiry;
-	head->last_refresh = get_seconds();
-	if (!test_and_set_bit(CACHE_VALID, &head->flags))
-		cache_revisit_request(head);
-	if (test_and_clear_bit(CACHE_PENDING, &head->flags)) {
-		cache_revisit_request(head);
-		queue_loose(detail, head);
-	}
 }
 
 /*

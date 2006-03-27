@@ -165,8 +165,6 @@ static inline int cache_put(struct cache_head *h, struct cache_detail *cd)
 }
 
 extern void cache_init(struct cache_head *h);
-extern void cache_fresh(struct cache_detail *detail,
-			struct cache_head *head, time_t expiry);
 extern int cache_check(struct cache_detail *detail,
 		       struct cache_head *h, struct cache_req *rqstp);
 extern void cache_flush(void);
