@@ -406,8 +406,6 @@ struct sas_phy *sas_phy_alloc(struct device *parent, int number)
 	if (!phy)
 		return NULL;
 
-	get_device(parent);
-
 	phy->number = number;
 
 	device_initialize(&phy->dev);
@@ -459,10 +457,7 @@ EXPORT_SYMBOL(sas_phy_add);
 void sas_phy_free(struct sas_phy *phy)
 {
 	transport_destroy_device(&phy->dev);
-	put_device(phy->dev.parent);
-	put_device(phy->dev.parent);
-	put_device(phy->dev.parent);
-	kfree(phy);
+	put_device(&phy->dev);
 }
 EXPORT_SYMBOL(sas_phy_free);
 
@@ -484,7 +479,7 @@ sas_phy_delete(struct sas_phy *phy)
 	transport_remove_device(dev);
 	device_del(dev);
 	transport_destroy_device(dev);
-	put_device(dev->parent);
+	put_device(dev);
 }
 EXPORT_SYMBOL(sas_phy_delete);
 
@@ -800,7 +795,6 @@ struct sas_rphy *sas_end_device_alloc(struct sas_phy *parent)
 
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
 	if (!rdev) {
-		put_device(&parent->dev);
 		return NULL;
 	}
 
@@ -836,7 +830,6 @@ struct sas_rphy *sas_expander_alloc(struct sas_phy *parent,
 
 	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
 	if (!rdev) {
-		put_device(&parent->dev);
 		return NULL;
 	}
 
@@ -910,6 +903,7 @@ EXPORT_SYMBOL(sas_rphy_add);
  */
 void sas_rphy_free(struct sas_rphy *rphy)
 {
+	struct device *dev = &rphy->dev;
 	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent->parent);
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 
@@ -917,21 +911,9 @@ void sas_rphy_free(struct sas_rphy *rphy)
 	list_del(&rphy->list);
 	mutex_unlock(&sas_host->lock);
 
-	transport_destroy_device(&rphy->dev);
-	put_device(rphy->dev.parent);
-	put_device(rphy->dev.parent);
-	put_device(rphy->dev.parent);
-	if (rphy->identify.device_type == SAS_END_DEVICE) {
-		struct sas_end_device *edev = rphy_to_end_device(rphy);
+	transport_destroy_device(dev);
 
-		kfree(edev);
-	} else {
-		/* must be expander */
-		struct sas_expander_device *edev =
-			rphy_to_expander_device(rphy);
-
-		kfree(edev);
-	}
+	put_device(dev);
 }
 EXPORT_SYMBOL(sas_rphy_free);
 
@@ -971,7 +953,7 @@ sas_rphy_delete(struct sas_rphy *rphy)
 
 	parent->rphy = NULL;
 
-	put_device(&parent->dev);
+	put_device(dev);
 }
 EXPORT_SYMBOL(sas_rphy_delete);
 
