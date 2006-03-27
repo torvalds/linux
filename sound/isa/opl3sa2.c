@@ -95,6 +95,7 @@ static struct platform_device *platform_devices[SNDRV_CARDS];
 static int pnp_registered;
 static int pnpc_registered;
 #endif
+static unsigned int snd_opl3sa2_devices;
 
 /* control ports */
 #define OPL3SA2_PM_CTRL		0x01
@@ -760,6 +761,7 @@ static int __devinit snd_opl3sa2_pnp_detect(struct pnp_dev *pdev,
 	}
 	pnp_set_drvdata(pdev, card);
 	dev++;
+	snd_opl3sa2_devices++;
 	return 0;
 }
 
@@ -826,6 +828,7 @@ static int __devinit snd_opl3sa2_pnp_cdetect(struct pnp_card_link *pcard,
 	}
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
+	snd_opl3sa2_devices++;
 	return 0;
 }
 
@@ -944,7 +947,7 @@ static void __init_or_module snd_opl3sa2_unregister_all(void)
 
 static int __init alsa_card_opl3sa2_init(void)
 {
-	int i, err, cards = 0;
+	int i, err;
 
 	if ((err = platform_driver_register(&snd_opl3sa2_nonpnp_driver)) < 0)
 		return err;
@@ -964,23 +967,19 @@ static int __init alsa_card_opl3sa2_init(void)
 			goto errout;
 		}
 		platform_devices[i] = device;
-		cards++;
+		snd_opl3sa2_devices++;
 	}
 
 #ifdef CONFIG_PNP
 	err = pnp_register_driver(&opl3sa2_pnp_driver);
-	if (err >= 0) {
+	if (!err)
 		pnp_registered = 1;
-		cards += err;
-	}
 	err = pnp_register_card_driver(&opl3sa2_pnpc_driver);
-	if (err >= 0) {
+	if (!err)
 		pnpc_registered = 1;
-		cards += err;
-	}
 #endif
 
-	if (!cards) {
+	if (!snd_opl3sa2_devices) {
 #ifdef MODULE
 		snd_printk(KERN_ERR "Yamaha OPL3-SA soundcard not found or device busy\n");
 #endif
