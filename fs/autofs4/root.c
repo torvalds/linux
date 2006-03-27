@@ -699,7 +699,7 @@ static inline int autofs4_ask_umount(struct vfsmount *mnt, int __user *p)
 {
 	int status = 0;
 
-	if (may_umount(mnt) == 0)
+	if (may_umount(mnt))
 		status = 1;
 
 	DPRINTK("returning %d", status);
