@@ -190,6 +190,15 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-als300
+  -----------------
+
+    Module for  Avance Logic ALS300 and ALS300+
+
+    This module supports multiple cards.
+
+    The power-management is supported.
+
   Module snd-als4000
   ------------------
 
