@@ -35,6 +35,7 @@
 #include <linux/topology.h>
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
+#include <linux/futex.h>
 
 #include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
 
@@ -872,6 +873,8 @@ struct task_struct {
 	int cpuset_mems_generation;
 	int cpuset_mem_spread_rotor;
 #endif
+	struct robust_list_head __user *robust_list;
+
 	atomic_t fs_excl;	/* holding fs exclusive resources */
 	struct rcu_head rcu;
 };

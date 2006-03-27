@@ -31,6 +31,7 @@
 #include <linux/signal.h>
 #include <linux/cn_proc.h>
 #include <linux/mutex.h>
+#include <linux/futex.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -852,6 +853,8 @@ fastcall NORET_TYPE void do_exit(long code)
 		exit_itimers(tsk->signal);
 		acct_process(code);
 	}
+	if (unlikely(tsk->robust_list))
+		exit_robust_list(tsk);
 	exit_mm(tsk);
 
 	exit_sem(tsk);
