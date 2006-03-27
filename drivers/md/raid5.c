@@ -262,7 +262,7 @@ static struct stripe_head *get_active_stripe(raid5_conf_t *conf, sector_t sector
 						     < (conf->max_nr_stripes *3/4)
 						     || !conf->inactive_blocked),
 						    conf->device_lock,
-						    unplug_slaves(conf->mddev);
+						    unplug_slaves(conf->mddev)
 					);
 				conf->inactive_blocked = 0;
 			} else
@@ -407,7 +407,7 @@ static int resize_stripes(raid5_conf_t *conf, int newsize)
 		wait_event_lock_irq(conf->wait_for_stripe,
 				    !list_empty(&conf->inactive_list),
 				    conf->device_lock,
-				    unplug_slaves(conf->mddev);
+				    unplug_slaves(conf->mddev)
 			);
 		osh = get_free_stripe(conf);
 		spin_unlock_irq(&conf->device_lock);
