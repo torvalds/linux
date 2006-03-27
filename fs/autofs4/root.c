@@ -57,6 +57,9 @@ struct inode_operations autofs4_indirect_root_inode_operations = {
 
 struct inode_operations autofs4_direct_root_inode_operations = {
 	.lookup		= autofs4_lookup,
+	.unlink		= autofs4_dir_unlink,
+	.mkdir		= autofs4_dir_mkdir,
+	.rmdir		= autofs4_dir_rmdir,
 	.follow_link	= autofs4_follow_link,
 };
 
@@ -337,14 +340,49 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (oz_mode || !lookup_type)
 		goto done;
 
-	status = try_to_fill_dentry(dentry, 0);
-	if (status)
-		goto out_error;
+	/*
+	 * If a request is pending wait for it.
+	 * If it's a mount then it won't be expired till at least
+	 * a liitle later and if it's an expire then we might need
+	 * to mount it again.
+	 */
+	if (autofs4_ispending(dentry)) {
+		DPRINTK("waiting for active request %p name=%.*s",
+			dentry, dentry->d_name.len, dentry->d_name.name);
 
-	if (!autofs4_follow_mount(&nd->mnt, &nd->dentry)) {
-		status = -ENOENT;
-		goto out_error;
+		status = autofs4_wait(sbi, dentry, NFY_NONE);
+
+		DPRINTK("request done status=%d", status);
 	}
+
+	/*
+	 * If the dentry contains directories then it is an
+	 * autofs multi-mount with no root mount offset. So
+	 * don't try to mount it again.
+	 */
+	spin_lock(&dcache_lock);
+	if (!d_mountpoint(dentry) && list_empty(&dentry->d_subdirs)) {
+		spin_unlock(&dcache_lock);
+
+		status = try_to_fill_dentry(dentry, 0);
+		if (status)
+			goto out_error;
+
+		/*
+		 * The mount succeeded but if there is no root mount
+		 * it must be an autofs multi-mount with no root offset
+		 * so we don't need to follow the mount.
+		 */
+		if (d_mountpoint(dentry)) {
+			if (!autofs4_follow_mount(&nd->mnt, &nd->dentry)) {
+				status = -ENOENT;
+				goto out_error;
+			}
+		}
+
+		goto done;
+	}
+	spin_unlock(&dcache_lock);
 
 done:
 	return NULL;

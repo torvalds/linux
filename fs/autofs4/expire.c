@@ -113,10 +113,6 @@ static int autofs4_direct_busy(struct vfsmount *mnt,
 	DPRINTK("top %p %.*s",
 		top, (int) top->d_name.len, top->d_name.name);
 
-	/* Not a mountpoint - give up */
-	if (!d_mountpoint(top))
-		return 1;
-
 	/* If it's busy update the expiry counters */
 	if (!may_umount_tree(mnt)) {
 		struct autofs_info *ino = autofs4_dentry_ino(top);
