@@ -258,16 +258,6 @@ static DefineSimpleCacheLookup(svc_expkey, svc_expkey)
 
 static struct cache_head *export_table[EXPORT_HASHMAX];
 
-static inline int svc_export_hash(struct svc_export *item)
-{
-	int rv;
-
-	rv = hash_ptr(item->ex_client, EXPORT_HASHBITS);
-	rv ^= hash_ptr(item->ex_dentry, EXPORT_HASHBITS);
-	rv ^= hash_ptr(item->ex_mnt, EXPORT_HASHBITS);
-	return rv;
-}
-
 void svc_export_put(struct cache_head *item, struct cache_detail *cd)
 {
 	if (cache_put(item, cd)) {
@@ -298,7 +288,8 @@ static void svc_export_request(struct cache_detail *cd,
 	(*bpp)[-1] = '\n';
 }
 
-static struct svc_export *svc_export_lookup(struct svc_export *, int);
+struct svc_export *svc_export_update(struct svc_export *new, struct svc_export *old);
+static struct svc_export *svc_export_lookup(struct svc_export *);
 
 static int check_export(struct inode *inode, int flags)
 {
@@ -411,11 +402,16 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		if (err) goto out;
 	}
 
-	expp = svc_export_lookup(&exp, 1);
+	expp = svc_export_lookup(&exp);
 	if (expp)
-		exp_put(expp);
-	err = 0;
+		expp = svc_export_update(&exp, expp);
+	else
+		err = -ENOMEM;
 	cache_flush();
+	if (expp == NULL)
+		err = -ENOMEM;
+	else
+		exp_put(expp);
  out:
 	if (nd.dentry)
 		path_release(&nd);
@@ -449,6 +445,46 @@ static int svc_export_show(struct seq_file *m,
 	seq_puts(m, ")\n");
 	return 0;
 }
+static int svc_export_match(struct cache_head *a, struct cache_head *b)
+{
+	struct svc_export *orig = container_of(a, struct svc_export, h);
+	struct svc_export *new = container_of(b, struct svc_export, h);
+	return orig->ex_client == new->ex_client &&
+		orig->ex_dentry == new->ex_dentry &&
+		orig->ex_mnt == new->ex_mnt;
+}
+
+static void svc_export_init(struct cache_head *cnew, struct cache_head *citem)
+{
+	struct svc_export *new = container_of(cnew, struct svc_export, h);
+	struct svc_export *item = container_of(citem, struct svc_export, h);
+
+	kref_get(&item->ex_client->ref);
+	new->ex_client = item->ex_client;
+	new->ex_dentry = dget(item->ex_dentry);
+	new->ex_mnt = mntget(item->ex_mnt);
+}
+
+static void export_update(struct cache_head *cnew, struct cache_head *citem)
+{
+	struct svc_export *new = container_of(cnew, struct svc_export, h);
+	struct svc_export *item = container_of(citem, struct svc_export, h);
+
+	new->ex_flags = item->ex_flags;
+	new->ex_anon_uid = item->ex_anon_uid;
+	new->ex_anon_gid = item->ex_anon_gid;
+	new->ex_fsid = item->ex_fsid;
+}
+
+static struct cache_head *svc_export_alloc(void)
+{
+	struct svc_export *i = kmalloc(sizeof(*i), GFP_KERNEL);
+	if (i)
+		return &i->h;
+	else
+		return NULL;
+}
+
 struct cache_detail svc_export_cache = {
 	.owner		= THIS_MODULE,
 	.hash_size	= EXPORT_HASHMAX,
@@ -458,31 +494,46 @@ struct cache_detail svc_export_cache = {
 	.cache_request	= svc_export_request,
 	.cache_parse	= svc_export_parse,
 	.cache_show	= svc_export_show,
+	.match		= svc_export_match,
+	.init		= svc_export_init,
+	.update		= export_update,
+	.alloc		= svc_export_alloc,
 };
 
-static inline int svc_export_match(struct svc_export *a, struct svc_export *b)
+static struct svc_export *
+svc_export_lookup(struct svc_export *exp)
 {
-	return a->ex_client == b->ex_client &&
-		a->ex_dentry == b->ex_dentry &&
-		a->ex_mnt == b->ex_mnt;
-}
-static inline void svc_export_init(struct svc_export *new, struct svc_export *item)
-{
-	kref_get(&item->ex_client->ref);
-	new->ex_client = item->ex_client;
-	new->ex_dentry = dget(item->ex_dentry);
-	new->ex_mnt = mntget(item->ex_mnt);
+	struct cache_head *ch;
+	int hash;
+	hash = hash_ptr(exp->ex_client, EXPORT_HASHBITS);
+	hash ^= hash_ptr(exp->ex_dentry, EXPORT_HASHBITS);
+	hash ^= hash_ptr(exp->ex_mnt, EXPORT_HASHBITS);
+
+	ch = sunrpc_cache_lookup(&svc_export_cache, &exp->h,
+				 hash);
+	if (ch)
+		return container_of(ch, struct svc_export, h);
+	else
+		return NULL;
 }
 
-static inline void svc_export_update(struct svc_export *new, struct svc_export *item)
+struct svc_export *
+svc_export_update(struct svc_export *new, struct svc_export *old)
 {
-	new->ex_flags = item->ex_flags;
-	new->ex_anon_uid = item->ex_anon_uid;
-	new->ex_anon_gid = item->ex_anon_gid;
-	new->ex_fsid = item->ex_fsid;
-}
+	struct cache_head *ch;
+	int hash;
+	hash = hash_ptr(old->ex_client, EXPORT_HASHBITS);
+	hash ^= hash_ptr(old->ex_dentry, EXPORT_HASHBITS);
+	hash ^= hash_ptr(old->ex_mnt, EXPORT_HASHBITS);
 
-static DefineSimpleCacheLookup(svc_export, svc_export)
+	ch = sunrpc_cache_update(&svc_export_cache, &new->h,
+				 &old->h,
+				 hash);
+	if (ch)
+		return container_of(ch, struct svc_export, h);
+	else
+		return NULL;
+}
 
 
 struct svc_expkey *
@@ -568,7 +619,7 @@ exp_get_by_name(svc_client *clp, struct vfsmount *mnt, struct dentry *dentry,
 	key.ex_mnt = mnt;
 	key.ex_dentry = dentry;
 
-	exp = svc_export_lookup(&key, 0);
+	exp = svc_export_lookup(&key);
 	if (exp != NULL) 
 		switch (cache_check(&svc_export_cache, &exp->h, reqp)) {
 		case 0: break;
@@ -770,12 +821,12 @@ exp_export(struct nfsctl_export *nxp)
 	new.ex_anon_gid = nxp->ex_anon_gid;
 	new.ex_fsid = nxp->ex_dev;
 
-	exp = svc_export_lookup(&new, 1);
+	exp = svc_export_lookup(&new);
+	if (exp)
+		exp = svc_export_update(&new, exp);
 
-	if (exp == NULL)
+	if (!exp)
 		goto finish;
-
-	err = 0;
 
 	if (exp_hash(clp, exp) ||
 	    exp_fsid_hash(clp, exp)) {
