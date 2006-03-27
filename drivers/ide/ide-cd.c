@@ -2143,6 +2143,7 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	req.cmd[0] = GPCMD_READ_CDVD_CAPACITY;
 	req.data = (char *)&capbuf;
 	req.data_len = sizeof(capbuf);
+	req.flags |= REQ_QUIET;
 
 	stat = cdrom_queue_packet_command(drive, &req);
 	if (stat == 0) {
