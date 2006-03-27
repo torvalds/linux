@@ -402,9 +402,21 @@ static void rh_dec(struct region_hash *rh, region_t region)
 
 	spin_lock_irqsave(&rh->region_lock, flags);
 	if (atomic_dec_and_test(&reg->pending)) {
+		/*
+		 * There is no pending I/O for this region.
+		 * We can move the region to corresponding list for next action.
+		 * At this point, the region is not yet connected to any list.
+		 *
+		 * If the state is RH_NOSYNC, the region should be kept off
+		 * from clean list.
+		 * The hash entry for RH_NOSYNC will remain in memory
+		 * until the region is recovered or the map is reloaded.
+		 */
+
+		/* do nothing for RH_NOSYNC */
 		if (reg->state == RH_RECOVERING) {
 			list_add_tail(&reg->list, &rh->quiesced_regions);
-		} else {
+		} else if (reg->state == RH_DIRTY) {
 			reg->state = RH_CLEAN;
 			list_add(&reg->list, &rh->clean_regions);
 		}
