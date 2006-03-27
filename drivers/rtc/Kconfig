@@ -62,6 +62,17 @@ config RTC_INTF_PROC
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-proc.
 
+config RTC_INTF_DEV
+	tristate "dev"
+	depends on RTC_CLASS
+	default RTC_CLASS
+	help
+	  Say yes here if you want to use your RTC using the dev
+	  interface, /dev/rtc .
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-dev.
+
 comment "RTC drivers"
 	depends on RTC_CLASS
 
