@@ -1140,7 +1140,7 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 	swap_buf_le16(id, ATA_ID_WORDS);
 
 	/* sanity check */
-	if ((class == ATA_DEV_ATA) != ata_id_is_ata(id)) {
+	if ((class == ATA_DEV_ATA) != (ata_id_is_ata(id) | ata_id_is_cfa(id))) {
 		rc = -EINVAL;
 		reason = "device reports illegal type";
 		goto err_out;
