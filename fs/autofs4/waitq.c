@@ -33,7 +33,7 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 	sbi->catatonic = 1;
 	wq = sbi->queues;
 	sbi->queues = NULL;	/* Erase all wait queues */
-	while ( wq ) {
+	while (wq) {
 		nwq = wq->next;
 		wq->status = -ENOENT; /* Magic is gone - report failure */
 		kfree(wq->name);
@@ -45,7 +45,6 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 		fput(sbi->pipe);	/* Close the pipe */
 		sbi->pipe = NULL;
 	}
-
 	shrink_dcache_sb(sbi->sb);
 }
 
@@ -165,7 +164,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 	int len, status;
 
 	/* In catatonic mode, we don't wait for nobody */
-	if ( sbi->catatonic )
+	if (sbi->catatonic)
 		return -ENOENT;
 	
 	name = kmalloc(NAME_MAX + 1, GFP_KERNEL);
@@ -190,7 +189,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 			break;
 	}
 
-	if ( !wq ) {
+	if (!wq) {
 		/* Can't wait for an expire if there's no mount */
 		if (notify == NFY_NONE && !d_mountpoint(dentry)) {
 			kfree(name);
@@ -200,7 +199,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 
 		/* Create a new wait queue */
 		wq = kmalloc(sizeof(struct autofs_wait_queue),GFP_KERNEL);
-		if ( !wq ) {
+		if (!wq) {
 			kfree(name);
 			mutex_unlock(&sbi->wq_mutex);
 			return -ENOMEM;
@@ -240,14 +239,14 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 
 	/* wq->name is NULL if and only if the lock is already released */
 
-	if ( sbi->catatonic ) {
+	if (sbi->catatonic) {
 		/* We might have slept, so check again for catatonic mode */
 		wq->status = -ENOENT;
 		kfree(wq->name);
 		wq->name = NULL;
 	}
 
-	if ( wq->name ) {
+	if (wq->name) {
 		/* Block all but "shutdown" signals while waiting */
 		sigset_t oldset;
 		unsigned long irqflags;
@@ -283,12 +282,12 @@ int autofs4_wait_release(struct autofs_sb_info *sbi, autofs_wqt_t wait_queue_tok
 	struct autofs_wait_queue *wq, **wql;
 
 	mutex_lock(&sbi->wq_mutex);
-	for ( wql = &sbi->queues ; (wq = *wql) != 0 ; wql = &wq->next ) {
-		if ( wq->wait_queue_token == wait_queue_token )
+	for (wql = &sbi->queues ; (wq = *wql) != 0 ; wql = &wq->next) {
+		if (wq->wait_queue_token == wait_queue_token)
 			break;
 	}
 
-	if ( !wq ) {
+	if (!wq) {
 		mutex_unlock(&sbi->wq_mutex);
 		return -EINVAL;
 	}
