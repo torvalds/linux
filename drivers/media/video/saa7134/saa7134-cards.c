@@ -2660,7 +2660,7 @@ struct saa7134_board saa7134_boards[] = {
 		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs = {{
 			.name   = name_comp1,
-			.vmux   = 0,
+			.vmux   = 1,
 			.amux   = LINE1,
 		},{
 			.name   = name_svideo,
