@@ -87,11 +87,14 @@ struct autofs_wait_queue {
 struct autofs_sb_info {
 	u32 magic;
 	struct dentry *root;
+	int pipefd;
 	struct file *pipe;
 	pid_t oz_pgrp;
 	int catatonic;
 	int version;
 	int sub_version;
+	int min_proto;
+	int max_proto;
 	unsigned long exp_timeout;
 	int reghost_enabled;
 	int needs_reghost;
