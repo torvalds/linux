@@ -18,7 +18,6 @@
 #include <linux/bitops.h>
 
 #include <asm/page.h>
-#include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -262,9 +261,6 @@ EXPORT_SYMBOL(console_drivers);
 EXPORT_SYMBOL(xmon);
 EXPORT_SYMBOL(xmon_printf);
 #endif
-EXPORT_SYMBOL(__up);
-EXPORT_SYMBOL(__down);
-EXPORT_SYMBOL(__down_interruptible);
 
 #if defined(CONFIG_KGDB) || defined(CONFIG_XMON)
 extern void (*debugger)(struct pt_regs *regs);
