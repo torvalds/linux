@@ -1014,6 +1014,23 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-miro
+  ---------------
+
+    Module for Miro soundcards: miroSOUND PCM 1 pro, 
+				miroSOUND PCM 12,
+				miroSOUND PCM 20 Radio.
+
+    port	- Port # (0x530,0x604,0xe80,0xf40)
+    irq		- IRQ # (5,7,9,10,11)
+    dma1	- 1st dma # (0,1,3)
+    dma2	- 2nd dma # (0,1)
+    mpu_port	- MPU-401 port # (0x300,0x310,0x320,0x330)
+    mpu_irq	- MPU-401 irq # (5,7,9,10)
+    fm_port	- FM Port # (0x388)
+    wss		- enable WSS mode
+    ide		- enable onboard ide support
+
   Module snd-mixart
   -----------------
 
