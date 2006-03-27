@@ -35,6 +35,7 @@
 #include <linux/root_dev.h>
 #include <linux/initrd.h>
 #include <linux/module.h>
+#include <linux/timer.h>
 
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -60,6 +61,10 @@ int _chrp_type;
 EXPORT_SYMBOL(_chrp_type);
 
 struct mpic *chrp_mpic;
+
+/* Used for doing CHRP event-scans */
+DEFINE_PER_CPU(struct timer_list, heartbeat_timer);
+unsigned long event_scan_interval;
 
 /*
  * XXX this should be in xmon.h, but putting it there means xmon.h
@@ -229,8 +234,6 @@ void __init chrp_setup_arch(void)
 {
 	struct device_node *root = find_path_device ("/");
 	char *machine = NULL;
-	struct device_node *device;
-	unsigned int *p = NULL;
 
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000/HZ;
@@ -287,21 +290,6 @@ void __init chrp_setup_arch(void)
 	 */
 	sio_init();
 
-	/* Get the event scan rate for the rtas so we know how
-	 * often it expects a heartbeat. -- Cort
-	 */
-	device = find_devices("rtas");
-	if (device)
-		p = (unsigned int *) get_property
-			(device, "rtas-event-scan-rate", NULL);
-	if (p && *p) {
-		ppc_md.heartbeat = chrp_event_scan;
-		ppc_md.heartbeat_reset = HZ / (*p * 30) - 1;
-		ppc_md.heartbeat_count = 1;
-		printk("RTAS Event Scan Rate: %u (%lu jiffies)\n",
-		       *p, ppc_md.heartbeat_reset);
-	}
-
 	pci_create_OF_bus_map();
 
 	/*
@@ -312,7 +300,7 @@ void __init chrp_setup_arch(void)
 }
 
 void
-chrp_event_scan(void)
+chrp_event_scan(unsigned long unused)
 {
 	unsigned char log[1024];
 	int ret = 0;
@@ -320,7 +308,8 @@ chrp_event_scan(void)
 	/* XXX: we should loop until the hardware says no more error logs -- Cort */
 	rtas_call(rtas_token("event-scan"), 4, 1, &ret, 0xffffffff, 0,
 		  __pa(log), 1024);
-	ppc_md.heartbeat_count = ppc_md.heartbeat_reset;
+	mod_timer(&__get_cpu_var(heartbeat_timer),
+		  jiffies + event_scan_interval);
 }
 
 /*
@@ -465,6 +454,9 @@ void __init chrp_init_IRQ(void)
 void __init
 chrp_init2(void)
 {
+	struct device_node *device;
+	unsigned int *p = NULL;
+
 #ifdef CONFIG_NVRAM
 	chrp_nvram_init();
 #endif
@@ -475,6 +467,40 @@ chrp_init2(void)
 	request_region(0x40,0x20,"timer");
 	request_region(0x80,0x10,"dma page reg");
 	request_region(0xc0,0x20,"dma2");
+
+	/* Get the event scan rate for the rtas so we know how
+	 * often it expects a heartbeat. -- Cort
+	 */
+	device = find_devices("rtas");
+	if (device)
+		p = (unsigned int *) get_property
+			(device, "rtas-event-scan-rate", NULL);
+	if (p && *p) {
+		/*
+		 * Arrange to call chrp_event_scan at least *p times
+		 * per minute.  We use 59 rather than 60 here so that
+		 * the rate will be slightly higher than the minimum.
+		 * This all assumes we don't do hotplug CPU on any
+		 * machine that needs the event scans done.
+		 */
+		unsigned long interval, offset;
+		int cpu, ncpus;
+		struct timer_list *timer;
+
+		interval = HZ * 59 / *p;
+		offset = HZ;
+		ncpus = num_online_cpus();
+		event_scan_interval = ncpus * interval;
+		for (cpu = 0; cpu < ncpus; ++cpu) {
+			timer = &per_cpu(heartbeat_timer, cpu);
+			setup_timer(timer, chrp_event_scan, 0);
+			timer->expires = jiffies + offset;
+			add_timer_on(timer, cpu);
+			offset += interval;
+		}
+		printk("RTAS Event Scan Rate: %u (%lu jiffies)\n",
+		       *p, interval);
+	}
 
 	if (ppc_md.progress)
 		ppc_md.progress("  Have fun!    ", 0x7777);

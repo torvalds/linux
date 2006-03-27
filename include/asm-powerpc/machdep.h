@@ -176,10 +176,6 @@ struct machdep_calls {
 	   May be NULL. */
 	void		(*init)(void);
 
-	void		(*heartbeat)(void);
-	unsigned long	heartbeat_reset;
-	unsigned long	heartbeat_count;
-
 	void		(*setup_io_mappings)(void);
 
 	void		(*early_serial_map)(void);
