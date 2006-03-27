@@ -777,8 +777,9 @@ static void snd_pcm_tick_timer_func(unsigned long data)
 	snd_pcm_tick_elapsed(substream);
 }
 
-int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
-			   struct snd_pcm_substream **rsubstream)
+int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
+			     struct file *file,
+			     struct snd_pcm_substream **rsubstream)
 {
 	struct snd_pcm_str * pstr;
 	struct snd_pcm_substream *substream;
@@ -793,7 +794,7 @@ int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
 	*rsubstream = NULL;
 	snd_assert(pcm != NULL, return -ENXIO);
 	pstr = &pcm->streams[stream];
-	if (pstr->substream == NULL)
+	if (pstr->substream == NULL || pstr->substream_count == 0)
 		return -ENODEV;
 
 	card = pcm->card;
@@ -807,8 +808,6 @@ int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
 	}
 	up_read(&card->controls_rwsem);
 
-	if (pstr->substream_count == 0)
-		return -ENODEV;
 	switch (stream) {
 	case SNDRV_PCM_STREAM_PLAYBACK:
 		if (pcm->info_flags & SNDRV_PCM_INFO_HALF_DUPLEX) {
@@ -874,12 +873,13 @@ int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
 
 	substream->runtime = runtime;
 	substream->private_data = pcm->private_data;
+	substream->ffile = file;
 	pstr->substream_opened++;
 	*rsubstream = substream;
 	return 0;
 }
 
-void snd_pcm_release_substream(struct snd_pcm_substream *substream)
+void snd_pcm_detach_substream(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime;
 	substream->file = NULL;

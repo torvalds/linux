@@ -1671,6 +1671,18 @@ static struct snd_pcm_oss_setup *snd_pcm_oss_look_for_setup(struct snd_pcm *pcm,
 	return NULL;
 }
 
+static void snd_pcm_oss_release_substream(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime;
+	runtime = substream->runtime;
+	vfree(runtime->oss.buffer);
+	runtime->oss.buffer = NULL;
+#ifdef CONFIG_SND_PCM_OSS_PLUGINS
+	snd_pcm_oss_plugin_clear(substream);
+#endif
+	substream->oss.oss = 0;
+}
+
 static void snd_pcm_oss_init_substream(struct snd_pcm_substream *substream,
 				       struct snd_pcm_oss_setup *setup,
 				       int minor)
@@ -1679,6 +1691,10 @@ static void snd_pcm_oss_init_substream(struct snd_pcm_substream *substream,
 
 	substream->oss.oss = 1;
 	substream->oss.setup = setup;
+	if (setup->nonblock)
+		substream->ffile->f_flags |= O_NONBLOCK;
+	else
+		substream->ffile->f_flags &= ~O_NONBLOCK;
 	runtime = substream->runtime;
 	runtime->oss.params = 1;
 	runtime->oss.trigger = 1;
@@ -1697,18 +1713,7 @@ static void snd_pcm_oss_init_substream(struct snd_pcm_substream *substream,
 	runtime->oss.fragshift = 0;
 	runtime->oss.maxfrags = 0;
 	runtime->oss.subdivision = 0;
-}
-
-static void snd_pcm_oss_release_substream(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime;
-	runtime = substream->runtime;
-	vfree(runtime->oss.buffer);
-#ifdef CONFIG_SND_PCM_OSS_PLUGINS
-	snd_pcm_oss_plugin_clear(substream);
-#endif
-	substream->oss.file = NULL;
-	substream->oss.oss = 0;
+	substream->pcm_release = snd_pcm_oss_release_substream;
 }
 
 static int snd_pcm_oss_release_file(struct snd_pcm_oss_file *pcm_oss_file)
@@ -1717,23 +1722,8 @@ static int snd_pcm_oss_release_file(struct snd_pcm_oss_file *pcm_oss_file)
 	snd_assert(pcm_oss_file != NULL, return -ENXIO);
 	for (cidx = 0; cidx < 2; ++cidx) {
 		struct snd_pcm_substream *substream = pcm_oss_file->streams[cidx];
-		struct snd_pcm_runtime *runtime;
-		if (substream == NULL)
-			continue;
-		runtime = substream->runtime;
-		
-		snd_pcm_stream_lock_irq(substream);
-		if (snd_pcm_running(substream))
-			snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
-		snd_pcm_stream_unlock_irq(substream);
-		if (substream->ffile != NULL) {
-			if (substream->ops->hw_free != NULL)
-				substream->ops->hw_free(substream);
-			substream->ops->close(substream);
-			substream->ffile = NULL;
-		}
-		snd_pcm_oss_release_substream(substream);
-		snd_pcm_release_substream(substream);
+		if (substream)
+			snd_pcm_release_substream(substream);
 	}
 	kfree(pcm_oss_file);
 	return 0;
@@ -1743,12 +1733,11 @@ static int snd_pcm_oss_open_file(struct file *file,
 				 struct snd_pcm *pcm,
 				 struct snd_pcm_oss_file **rpcm_oss_file,
 				 int minor,
-				 struct snd_pcm_oss_setup *psetup,
-				 struct snd_pcm_oss_setup *csetup)
+				 struct snd_pcm_oss_setup **setup)
 {
-	int err = 0;
+	int idx, err;
 	struct snd_pcm_oss_file *pcm_oss_file;
-	struct snd_pcm_substream *psubstream = NULL, *csubstream = NULL;
+	struct snd_pcm_substream *substream;
 	unsigned int f_mode = file->f_mode;
 
 	snd_assert(rpcm_oss_file != NULL, return -EINVAL);
@@ -1761,72 +1750,30 @@ static int snd_pcm_oss_open_file(struct file *file,
 	if ((f_mode & (FMODE_WRITE|FMODE_READ)) == (FMODE_WRITE|FMODE_READ) &&
 	    (pcm->info_flags & SNDRV_PCM_INFO_HALF_DUPLEX))
 		f_mode = FMODE_WRITE;
-	if ((f_mode & FMODE_WRITE) && !(psetup && psetup->disable)) {
-		if ((err = snd_pcm_open_substream(pcm, SNDRV_PCM_STREAM_PLAYBACK,
-					       &psubstream)) < 0) {
+
+	for (idx = 0; idx < 2; idx++) {
+		if (! setup[idx] || setup[idx]->disable)
+			continue;
+		if (idx == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (! (f_mode & FMODE_WRITE))
+				continue;
+		} else {
+			if (! (f_mode & FMODE_READ))
+				continue;
+		}
+		err = snd_pcm_open_substream(pcm, idx, file, &substream);
+		if (err < 0) {
 			snd_pcm_oss_release_file(pcm_oss_file);
 			return err;
 		}
-		pcm_oss_file->streams[SNDRV_PCM_STREAM_PLAYBACK] = psubstream;
-	}
-	if ((f_mode & FMODE_READ) && !(csetup && csetup->disable)) {
-		if ((err = snd_pcm_open_substream(pcm, SNDRV_PCM_STREAM_CAPTURE, 
-					       &csubstream)) < 0) {
-			if (!(f_mode & FMODE_WRITE) || err != -ENODEV) {
-				snd_pcm_oss_release_file(pcm_oss_file);
-				return err;
-			} else {
-				csubstream = NULL;
-			}
-		}
-		pcm_oss_file->streams[SNDRV_PCM_STREAM_CAPTURE] = csubstream;
+
+		pcm_oss_file->streams[idx] = substream;
+		snd_pcm_oss_init_substream(substream, setup[idx], minor);
 	}
 	
-	if (psubstream == NULL && csubstream == NULL) {
+	if (! pcm_oss_file->streams[0] && pcm_oss_file->streams[1]) {
 		snd_pcm_oss_release_file(pcm_oss_file);
 		return -EINVAL;
-	}
-	if (psubstream != NULL) {
-		psubstream->oss.file = pcm_oss_file;
-		err = snd_pcm_hw_constraints_init(psubstream);
-		if (err < 0) {
-			snd_printd("snd_pcm_hw_constraint_init failed\n");
-			snd_pcm_oss_release_file(pcm_oss_file);
-			return err;
-		}
-		if ((err = psubstream->ops->open(psubstream)) < 0) {
-			snd_pcm_oss_release_file(pcm_oss_file);
-			return err;
-		}
-		psubstream->ffile = file;
-		err = snd_pcm_hw_constraints_complete(psubstream);
-		if (err < 0) {
-			snd_printd("snd_pcm_hw_constraint_complete failed\n");
-			snd_pcm_oss_release_file(pcm_oss_file);
-			return err;
-		}
-		snd_pcm_oss_init_substream(psubstream, psetup, minor);
-	}
-	if (csubstream != NULL) {
-		csubstream->oss.file = pcm_oss_file;
-		err = snd_pcm_hw_constraints_init(csubstream);
-		if (err < 0) {
-			snd_printd("snd_pcm_hw_constraint_init failed\n");
-			snd_pcm_oss_release_file(pcm_oss_file);
-			return err;
-		}
-		if ((err = csubstream->ops->open(csubstream)) < 0) {
-			snd_pcm_oss_release_file(pcm_oss_file);
-			return err;
-		}
-		csubstream->ffile = file;
-		err = snd_pcm_hw_constraints_complete(csubstream);
-		if (err < 0) {
-			snd_printd("snd_pcm_hw_constraint_complete failed\n");
-			snd_pcm_oss_release_file(pcm_oss_file);
-			return err;
-		}
-		snd_pcm_oss_init_substream(csubstream, csetup, minor);
 	}
 
 	file->private_data = pcm_oss_file;
@@ -1852,7 +1799,7 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 	char task_name[32];
 	struct snd_pcm *pcm;
 	struct snd_pcm_oss_file *pcm_oss_file;
-	struct snd_pcm_oss_setup *psetup = NULL, *csetup = NULL;
+	struct snd_pcm_oss_setup *setup[2];
 	int nonblock;
 	wait_queue_t wait;
 
@@ -1873,23 +1820,13 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 		err = -EFAULT;
 		goto __error;
 	}
+	memset(setup, 0, sizeof(*setup));
 	if (file->f_mode & FMODE_WRITE)
-		psetup = snd_pcm_oss_look_for_setup(pcm, SNDRV_PCM_STREAM_PLAYBACK, task_name);
+		setup[0] = snd_pcm_oss_look_for_setup(pcm, SNDRV_PCM_STREAM_PLAYBACK, task_name);
 	if (file->f_mode & FMODE_READ)
-		csetup = snd_pcm_oss_look_for_setup(pcm, SNDRV_PCM_STREAM_CAPTURE, task_name);
+		setup[1] = snd_pcm_oss_look_for_setup(pcm, SNDRV_PCM_STREAM_CAPTURE, task_name);
 
 	nonblock = !!(file->f_flags & O_NONBLOCK);
-	if (psetup && !psetup->disable) {
-		if (psetup->nonblock)
-			nonblock = 1;
-		else if (psetup->block)
-			nonblock = 0;
-	} else if (csetup && !csetup->disable) {
-		if (csetup->nonblock)
-			nonblock = 1;
-		else if (csetup->block)
-			nonblock = 0;
-	}
 	if (!nonblock)
 		nonblock = nonblock_open;
 
@@ -1898,7 +1835,7 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 	mutex_lock(&pcm->open_mutex);
 	while (1) {
 		err = snd_pcm_oss_open_file(file, pcm, &pcm_oss_file,
-					    iminor(inode), psetup, csetup);
+					    iminor(inode), setup);
 		if (err >= 0)
 			break;
 		if (err == -EAGAIN) {
