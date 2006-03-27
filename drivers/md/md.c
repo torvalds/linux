@@ -2247,7 +2247,14 @@ action_store(mddev_t *mddev, const char *page, size_t len)
 		return -EBUSY;
 	else if (cmd_match(page, "resync") || cmd_match(page, "recover"))
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-	else {
+	else if (cmd_match(page, "reshape")) {
+		int err;
+		if (mddev->pers->start_reshape == NULL)
+			return -EINVAL;
+		err = mddev->pers->start_reshape(mddev);
+		if (err)
+			return err;
+	} else {
 		if (cmd_match(page, "check"))
 			set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
 		else if (cmd_match(page, "repair"))
