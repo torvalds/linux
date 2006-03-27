@@ -418,20 +418,9 @@ extern struct pglist_data contig_page_data;
 
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
-static inline struct pglist_data *first_online_pgdat(void)
-{
-	return NODE_DATA(first_online_node);
-}
-
-static inline struct pglist_data *next_online_pgdat(struct pglist_data *pgdat)
-{
-	int nid = next_online_node(pgdat->node_id);
-
-	if (nid == MAX_NUMNODES)
-		return NULL;
-	return NODE_DATA(nid);
-}
-
+extern struct pglist_data *first_online_pgdat(void);
+extern struct pglist_data *next_online_pgdat(struct pglist_data *pgdat);
+extern struct zone *next_zone(struct zone *zone);
 
 /**
  * for_each_pgdat - helper macro to iterate over all nodes
@@ -441,27 +430,6 @@ static inline struct pglist_data *next_online_pgdat(struct pglist_data *pgdat)
 	for (pgdat = first_online_pgdat();		\
 	     pgdat;					\
 	     pgdat = next_online_pgdat(pgdat))
-
-/*
- * next_zone - helper magic for for_each_zone()
- * Thanks to William Lee Irwin III for this piece of ingenuity.
- */
-static inline struct zone *next_zone(struct zone *zone)
-{
-	pg_data_t *pgdat = zone->zone_pgdat;
-
-	if (zone < pgdat->node_zones + MAX_NR_ZONES - 1)
-		zone++;
-	else {
-		pgdat = next_online_pgdat(pgdat);
-		if (pgdat)
-			zone = pgdat->node_zones;
-		else
-			zone = NULL;
-	}
-	return zone;
-}
-
 /**
  * for_each_zone - helper macro to iterate over all memory zones
  * @zone - pointer to struct zone variable
