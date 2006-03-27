@@ -688,6 +688,8 @@ ia32_sys_call_table:
 	.quad sys_ni_syscall		/* pselect6 for now */
 	.quad sys_ni_syscall		/* ppoll for now */
 	.quad sys_unshare		/* 310 */
+	.quad compat_sys_set_robust_list
+	.quad compat_sys_get_robust_list
 ia32_syscall_end:		
 	.rept IA32_NR_syscalls-(ia32_syscall_end-ia32_sys_call_table)/8
 		.quad ni_syscall
