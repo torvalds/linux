@@ -80,21 +80,15 @@ struct robust_list_head {
 #define FUTEX_OWNER_DIED	0x40000000
 
 /*
- * Reserved bit:
- */
-#define FUTEX_OWNER_PENDING	0x20000000
-
-/*
  * The rest of the robust-futex field is for the TID:
  */
-#define FUTEX_TID_MASK		0x1fffffff
+#define FUTEX_TID_MASK		0x3fffffff
 
 /*
- * A limit of one million locks held per thread (!) ought to be enough
- * for some time. This also protects against a deliberately circular
- * list. Not worth introducing an rlimit for this:
+ * This limit protects against a deliberately circular list.
+ * (Not worth introducing an rlimit for it)
  */
-#define ROBUST_LIST_LIMIT	1048576
+#define ROBUST_LIST_LIMIT	2048
 
 long do_futex(unsigned long uaddr, int op, int val,
 		unsigned long timeout, unsigned long uaddr2, int val2,
