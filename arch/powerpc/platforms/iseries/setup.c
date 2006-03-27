@@ -680,8 +680,8 @@ static int __init iseries_probe(int platform)
 	if (PLATFORM_ISERIES_LPAR != platform)
 		return 0;
 
-	ppc64_firmware_features |= FW_FEATURE_ISERIES;
-	ppc64_firmware_features |= FW_FEATURE_LPAR;
+	powerpc_firmware_features |= FW_FEATURE_ISERIES;
+	powerpc_firmware_features |= FW_FEATURE_LPAR;
 
 	return 1;
 }

@@ -385,7 +385,7 @@ static int __init pSeries_probe(int platform)
 	 */
 
 	if (platform == PLATFORM_PSERIES_LPAR)
-		ppc64_firmware_features |= FW_FEATURE_LPAR;
+		powerpc_firmware_features |= FW_FEATURE_LPAR;
 
 	return 1;
 }
