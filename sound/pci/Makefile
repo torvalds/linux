@@ -62,6 +62,7 @@ obj-$(CONFIG_SND) += \
 	mixart/ \
 	nm256/ \
 	pcxhr/ \
+	riptide/ \
 	rme9652/ \
 	trident/ \
 	ymfpci/ \

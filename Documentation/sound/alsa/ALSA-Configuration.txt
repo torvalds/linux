@@ -1220,6 +1220,20 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-riptide
+  ------------------
+
+    Module for Conexant Riptide chip
+
+      joystick_port	- Joystick port # (default: 0x200)
+      mpu_port		- MPU401 port # (default: 0x330)
+      opl3_port		- OPL3 port # (default: 0x388)
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+    You need to install the firmware file "riptide.hex" to the standard
+    firmware path (e.g. /lib/firmware).
+
   Module snd-rme32
   ----------------
 
