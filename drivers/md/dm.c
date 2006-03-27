@@ -69,6 +69,7 @@ struct mapped_device {
 
 	request_queue_t *queue;
 	struct gendisk *disk;
+	char name[16];
 
 	void *interface_ptr;
 
@@ -842,6 +843,7 @@ static struct mapped_device *alloc_dev(unsigned int minor, int persistent)
 	md->disk->private_data = md;
 	sprintf(md->disk->disk_name, "dm-%d", minor);
 	add_disk(md->disk);
+	format_dev_t(md->name, MKDEV(_major, minor));
 
 	atomic_set(&md->pending, 0);
 	init_waitqueue_head(&md->wait);
