@@ -907,9 +907,9 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 * physical channels are address by their actual physical number+1
 	 */
 	if (aac->nondasd_support == 1)
-		shost->max_channel = aac->maximum_num_channels + 1;
+		shost->max_channel = aac->maximum_num_channels;
 	else
-		shost->max_channel = 1;
+		shost->max_channel = 0;
 
 	aac_get_config_status(aac);
 	aac_get_containers(aac);
