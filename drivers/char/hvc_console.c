@@ -39,8 +39,10 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
+
 #include <asm/uaccess.h>
-#include <asm/hvconsole.h>
+
+#include "hvc_console.h"
 
 #define HVC_MAJOR	229
 #define HVC_MINOR	0
@@ -54,17 +56,14 @@
 #define HVC_CLOSE_WAIT (HZ/100) /* 1/10 of a second */
 
 /*
- * The Linux TTY code does not support dynamic addition of tty derived devices
- * so we need to know how many tty devices we might need when space is allocated
- * for the tty device.  Since this driver supports hotplug of vty adapters we
- * need to make sure we have enough allocated.
+ * These sizes are most efficient for vio, because they are the
+ * native transfer size. We could make them selectable in the
+ * future to better deal with backends that want other buffer sizes.
  */
-#define HVC_ALLOC_TTY_ADAPTERS	8
-
 #define N_OUTBUF	16
 #define N_INBUF		16
 
-#define __ALIGNED__	__attribute__((__aligned__(8)))
+#define __ALIGNED__ __attribute__((__aligned__(sizeof(long))))
 
 static struct tty_driver *hvc_driver;
 static struct task_struct *hvc_task;
@@ -154,7 +153,7 @@ static uint32_t vtermnos[MAX_NR_HVC_CONSOLES] =
 
 void hvc_console_print(struct console *co, const char *b, unsigned count)
 {
-	char c[16] __ALIGNED__;
+	char c[N_OUTBUF] __ALIGNED__;
 	unsigned i = 0, n = 0;
 	int r, donecr = 0, index = co->index;
 
@@ -473,8 +472,10 @@ static void hvc_push(struct hvc_struct *hp)
 
 	n = hp->ops->put_chars(hp->vtermno, hp->outbuf, hp->n_outbuf);
 	if (n <= 0) {
-		if (n == 0)
+		if (n == 0) {
+			hp->do_wakeup = 1;
 			return;
+		}
 		/* throw away output on error; this happens when
 		   there is no session connected to the vterm. */
 		hp->n_outbuf = 0;
@@ -486,11 +487,18 @@ static void hvc_push(struct hvc_struct *hp)
 		hp->do_wakeup = 1;
 }
 
-static inline int __hvc_write_kernel(struct hvc_struct *hp,
-				   const unsigned char *buf, int count)
+static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
+	struct hvc_struct *hp = tty->driver_data;
 	unsigned long flags;
 	int rsize, written = 0;
+
+	/* This write was probably executed during a tty close. */
+	if (!hp)
+		return -EPIPE;
+
+	if (hp->count <= 0)
+		return -EIO;
 
 	spin_lock_irqsave(&hp->lock, flags);
 
@@ -510,26 +518,8 @@ static inline int __hvc_write_kernel(struct hvc_struct *hp,
 	}
 	spin_unlock_irqrestore(&hp->lock, flags);
 
-	return written;
-}
-static int hvc_write(struct tty_struct *tty, const unsigned char *buf, int count)
-{
-	struct hvc_struct *hp = tty->driver_data;
-	int written;
-
-	/* This write was probably executed during a tty close. */
-	if (!hp)
-		return -EPIPE;
-
-	if (hp->count <= 0)
-		return -EIO;
-
-	written = __hvc_write_kernel(hp, buf, count);
-
 	/*
 	 * Racy, but harmless, kick thread if there is still pending data.
-	 * There really is nothing wrong with kicking the thread, even if there
-	 * is no buffered data.
 	 */
 	if (hp->n_outbuf)
 		hvc_kick();
@@ -614,6 +604,13 @@ static int hvc_poll(struct hvc_struct *hp)
 				spin_unlock_irqrestore(&hp->lock, flags);
 				tty_hangup(tty);
 				spin_lock_irqsave(&hp->lock, flags);
+			} else if ( n == -EAGAIN ) {
+				/*
+				 * Some back-ends can only ensure a certain min
+				 * num of bytes read, which may be > 'count'.
+				 * Let the tty clear the flip buff to make room.
+				 */
+				poll_mask |= HVC_POLL_READ;
 			}
 			break;
 		}
@@ -635,16 +632,7 @@ static int hvc_poll(struct hvc_struct *hp)
 			tty_insert_flip_char(tty, buf[i], 0);
 		}
 
-		/*
-		 * Account for the total amount read in one loop, and if above
-		 * 64 bytes, we do a quick schedule loop to let the tty grok
-		 * the data and eventually throttle us.
-		 */
 		read_total += n;
-		if (read_total >= 64) {
-			poll_mask |= HVC_POLL_QUICK;
-			break;
-		}
 	}
  throttled:
 	/* Wakeup write queue if necessary */
@@ -767,7 +755,8 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int irq,
 	 * see if this vterm id matches one registered for console.
 	 */
 	for (i=0; i < MAX_NR_HVC_CONSOLES; i++)
-		if (vtermnos[i] == hp->vtermno)
+		if (vtermnos[i] == hp->vtermno &&
+		    cons_ops[i] == hp->ops)
 			break;
 
 	/* no matching slot, just use a counter */

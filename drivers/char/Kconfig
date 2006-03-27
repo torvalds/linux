@@ -561,9 +561,19 @@ config TIPAR
 
 	  If unsure, say N.
 
+config HVC_DRIVER
+	bool
+	help
+	  Users of pSeries machines that want to utilize the hvc console front-end
+	  module for their backend console driver should select this option.
+	  It will automatically be selected if one of the back-end console drivers
+	  is selected.
+
+
 config HVC_CONSOLE
 	bool "pSeries Hypervisor Virtual Console support"
 	depends on PPC_PSERIES
+	select HVC_DRIVER
 	help
 	  pSeries machines when partitioned support a hypervisor virtual
 	  console. This driver allows each pSeries partition to have a console
