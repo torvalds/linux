@@ -85,7 +85,7 @@ struct autofs_wait_queue {
 	pid_t tgid;
 	/* This is for status reporting upon return */
 	int status;
-	atomic_t notified;
+	atomic_t notify;
 	atomic_t wait_ctr;
 };
 

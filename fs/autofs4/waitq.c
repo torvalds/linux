@@ -263,7 +263,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		wq->tgid = current->tgid;
 		wq->status = -EINTR; /* Status return if interrupted */
 		atomic_set(&wq->wait_ctr, 2);
-		atomic_set(&wq->notified, 1);
+		atomic_set(&wq->notify, 1);
 		mutex_unlock(&sbi->wq_mutex);
 	} else {
 		atomic_inc(&wq->wait_ctr);
@@ -273,8 +273,10 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 			(unsigned long) wq->wait_queue_token, wq->len, wq->name, notify);
 	}
 
-	if (notify != NFY_NONE && atomic_dec_and_test(&wq->notified)) {
+	if (notify != NFY_NONE && atomic_read(&wq->notify)) {
 		int type;
+
+		atomic_dec(&wq->notify);
 
 		if (sbi->version < 5) {
 			if (notify == NFY_MOUNT)
