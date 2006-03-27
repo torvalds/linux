@@ -157,6 +157,7 @@ struct stripe_head {
 #define	R5_ReadError	8	/* seen a read error here recently */
 #define	R5_ReWrite	9	/* have tried to over-write the readerror */
 
+#define	R5_Expanded	10	/* This block now has post-expand data */
 /*
  * Write method
  */
@@ -176,7 +177,8 @@ struct stripe_head {
 #define	STRIPE_DEGRADED		7
 #define	STRIPE_BIT_DELAY	8
 #define	STRIPE_EXPANDING	9
-
+#define	STRIPE_EXPAND_SOURCE	10
+#define	STRIPE_EXPAND_READY	11
 /*
  * Plugging:
  *

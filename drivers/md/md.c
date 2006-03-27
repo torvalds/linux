@@ -2165,7 +2165,9 @@ action_show(mddev_t *mddev, char *page)
 	char *type = "idle";
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
 	    test_bit(MD_RECOVERY_NEEDED, &mddev->recovery)) {
-		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
+		if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
+			type = "reshape";
+		else if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
 			if (!test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
 				type = "resync";
 			else if (test_bit(MD_RECOVERY_CHECK, &mddev->recovery))
@@ -4088,8 +4090,10 @@ static void status_resync(struct seq_file *seq, mddev_t * mddev)
 		seq_printf(seq, "] ");
 	}
 	seq_printf(seq, " %s =%3u.%u%% (%llu/%llu)",
+		   (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery)?
+		    "reshape" :
 		      (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ?
-		       "resync" : "recovery"),
+		       "resync" : "recovery")),
 		      per_milli/10, per_milli % 10,
 		   (unsigned long long) resync,
 		   (unsigned long long) max_blocks);
@@ -4543,7 +4547,9 @@ static void md_do_sync(mddev_t *mddev)
 		 */
 		max_sectors = mddev->resync_max_sectors;
 		mddev->resync_mismatches = 0;
-	} else
+	} else if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
+		max_sectors = mddev->size << 1;
+	else
 		/* recovery follows the physical size of devices */
 		max_sectors = mddev->size << 1;
 
@@ -4679,6 +4685,8 @@ static void md_do_sync(mddev_t *mddev)
 	mddev->pers->sync_request(mddev, max_sectors, &skipped, 1);
 
 	if (!test_bit(MD_RECOVERY_ERR, &mddev->recovery) &&
+	    test_bit(MD_RECOVERY_SYNC, &mddev->recovery) &&
+	    !test_bit(MD_RECOVERY_CHECK, &mddev->recovery) &&
 	    mddev->curr_resync > 2 &&
 	    mddev->curr_resync >= mddev->recovery_cp) {
 		if (test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {

@@ -157,6 +157,9 @@ struct mddev_s
 	 * DONE:     thread is done and is waiting to be reaped
 	 * REQUEST:  user-space has requested a sync (used with SYNC)
 	 * CHECK:    user-space request for for check-only, no repair
+	 * RESHAPE:  A reshape is happening
+	 *
+	 * If neither SYNC or RESHAPE are set, then it is a recovery.
 	 */
 #define	MD_RECOVERY_RUNNING	0
 #define	MD_RECOVERY_SYNC	1
@@ -166,6 +169,7 @@ struct mddev_s
 #define	MD_RECOVERY_NEEDED	5
 #define	MD_RECOVERY_REQUESTED	6
 #define	MD_RECOVERY_CHECK	7
+#define MD_RECOVERY_RESHAPE	8
 	unsigned long			recovery;
 
 	int				in_sync;	/* know to not need resync */
