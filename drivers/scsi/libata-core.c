@@ -62,7 +62,9 @@
 #include "libata.h"
 
 static unsigned int ata_dev_init_params(struct ata_port *ap,
-					struct ata_device *dev);
+					struct ata_device *dev,
+					u16 heads,
+					u16 sectors);
 static void ata_set_mode(struct ata_port *ap);
 static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
 					 struct ata_device *dev);
@@ -1156,7 +1158,7 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 		 * Some drives were very specific about that exact sequence.
 		 */
 		if (ata_id_major_version(id) < 4 || !ata_id_has_lba(id)) {
-			err_mask = ata_dev_init_params(ap, dev);
+			err_mask = ata_dev_init_params(ap, dev, id[3], id[6]);
 			if (err_mask) {
 				rc = -EIO;
 				reason = "INIT_DEV_PARAMS failed";
@@ -2748,16 +2750,16 @@ static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
  */
 
 static unsigned int ata_dev_init_params(struct ata_port *ap,
-					struct ata_device *dev)
+					struct ata_device *dev,
+					u16 heads,
+					u16 sectors)
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
-	u16 sectors = dev->id[6];
-	u16 heads   = dev->id[3];
 
 	/* Number of sectors per track 1-255. Number of heads 1-16 */
 	if (sectors < 1 || sectors > 255 || heads < 1 || heads > 16)
-		return 0;
+		return AC_ERR_INVALID;
 
 	/* set up init dev params taskfile */
 	DPRINTK("init dev params \n");
