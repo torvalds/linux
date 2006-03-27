@@ -5621,6 +5621,32 @@ static int cpu_to_allnodes_group(int cpu)
 {
 	return cpu_to_node(cpu);
 }
+static void init_numa_sched_groups_power(struct sched_group *group_head)
+{
+	struct sched_group *sg = group_head;
+	int j;
+
+	if (!sg)
+		return;
+next_sg:
+	for_each_cpu_mask(j, sg->cpumask) {
+		struct sched_domain *sd;
+
+		sd = &per_cpu(phys_domains, j);
+		if (j != first_cpu(sd->groups->cpumask)) {
+			/*
+			 * Only add "power" once for each
+			 * physical package.
+			 */
+			continue;
+		}
+
+		sg->cpu_power += sd->groups->cpu_power;
+	}
+	sg = sg->next;
+	if (sg != group_head)
+		goto next_sg;
+}
 #endif
 
 /*
@@ -5866,43 +5892,13 @@ void build_sched_domains(const cpumask_t *cpu_map)
 				(cpus_weight(sd->groups->cpumask)-1) / 10;
 		sd->groups->cpu_power = power;
 #endif
-
-#ifdef CONFIG_NUMA
-		sd = &per_cpu(allnodes_domains, i);
-		if (sd->groups) {
-			power = SCHED_LOAD_SCALE + SCHED_LOAD_SCALE *
-				(cpus_weight(sd->groups->cpumask)-1) / 10;
-			sd->groups->cpu_power = power;
-		}
-#endif
 	}
 
 #ifdef CONFIG_NUMA
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		struct sched_group *sg = sched_group_nodes[i];
-		int j;
+	for (i = 0; i < MAX_NUMNODES; i++)
+		init_numa_sched_groups_power(sched_group_nodes[i]);
 
-		if (sg == NULL)
-			continue;
-next_sg:
-		for_each_cpu_mask(j, sg->cpumask) {
-			struct sched_domain *sd;
-
-			sd = &per_cpu(phys_domains, j);
-			if (j != first_cpu(sd->groups->cpumask)) {
-				/*
-				 * Only add "power" once for each
-				 * physical package.
-				 */
-				continue;
-			}
-
-			sg->cpu_power += sd->groups->cpu_power;
-		}
-		sg = sg->next;
-		if (sg != sched_group_nodes[i])
-			goto next_sg;
-	}
+	init_numa_sched_groups_power(sched_group_allnodes);
 #endif
 
 	/* Attach the domains */
