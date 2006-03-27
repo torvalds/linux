@@ -47,6 +47,104 @@ void cache_init(struct cache_head *h)
 	h->last_refresh = now;
 }
 
+struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
+				       struct cache_head *key, int hash)
+{
+	struct cache_head **head,  **hp;
+	struct cache_head *new = NULL;
+
+	head = &detail->hash_table[hash];
+
+	read_lock(&detail->hash_lock);
+
+	for (hp=head; *hp != NULL ; hp = &(*hp)->next) {
+		struct cache_head *tmp = *hp;
+		if (detail->match(tmp, key)) {
+			cache_get(tmp);
+			read_unlock(&detail->hash_lock);
+			return tmp;
+		}
+	}
+	read_unlock(&detail->hash_lock);
+	/* Didn't find anything, insert an empty entry */
+
+	new = detail->alloc();
+	if (!new)
+		return NULL;
+	cache_init(new);
+
+	write_lock(&detail->hash_lock);
+
+	/* check if entry appeared while we slept */
+	for (hp=head; *hp != NULL ; hp = &(*hp)->next) {
+		struct cache_head *tmp = *hp;
+		if (detail->match(tmp, key)) {
+			cache_get(tmp);
+			write_unlock(&detail->hash_lock);
+			detail->cache_put(new, detail);
+			return tmp;
+		}
+	}
+	detail->init(new, key);
+	new->next = *head;
+	*head = new;
+	detail->entries++;
+	cache_get(new);
+	write_unlock(&detail->hash_lock);
+
+	return new;
+}
+EXPORT_SYMBOL(sunrpc_cache_lookup);
+
+struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
+				       struct cache_head *new, struct cache_head *old, int hash)
+{
+	/* The 'old' entry is to be replaced by 'new'.
+	 * If 'old' is not VALID, we update it directly,
+	 * otherwise we need to replace it
+	 */
+	struct cache_head **head;
+	struct cache_head *tmp;
+
+	if (!test_bit(CACHE_VALID, &old->flags)) {
+		write_lock(&detail->hash_lock);
+		if (!test_bit(CACHE_VALID, &old->flags)) {
+			if (test_bit(CACHE_NEGATIVE, &new->flags))
+				set_bit(CACHE_NEGATIVE, &old->flags);
+			else
+				detail->update(old, new);
+			/* FIXME cache_fresh should come first */
+			write_unlock(&detail->hash_lock);
+			cache_fresh(detail, old, new->expiry_time);
+			return old;
+		}
+		write_unlock(&detail->hash_lock);
+	}
+	/* We need to insert a new entry */
+	tmp = detail->alloc();
+	if (!tmp) {
+		detail->cache_put(old, detail);
+		return NULL;
+	}
+	cache_init(tmp);
+	detail->init(tmp, old);
+	head = &detail->hash_table[hash];
+
+	write_lock(&detail->hash_lock);
+	if (test_bit(CACHE_NEGATIVE, &new->flags))
+		set_bit(CACHE_NEGATIVE, &tmp->flags);
+	else
+		detail->update(tmp, new);
+	tmp->next = *head;
+	*head = tmp;
+	cache_get(tmp);
+	write_unlock(&detail->hash_lock);
+	cache_fresh(detail, tmp, new->expiry_time);
+	cache_fresh(detail, old, 0);
+	detail->cache_put(old, detail);
+	return tmp;
+}
+EXPORT_SYMBOL(sunrpc_cache_update);
 
 static int cache_make_upcall(struct cache_detail *detail, struct cache_head *h);
 /*

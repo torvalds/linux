@@ -81,6 +81,11 @@ struct cache_detail {
 					      struct cache_detail *cd,
 					      struct cache_head *h);
 
+	struct cache_head *	(*alloc)(void);
+	int			(*match)(struct cache_head *orig, struct cache_head *new);
+	void			(*init)(struct cache_head *orig, struct cache_head *new);
+	void			(*update)(struct cache_head *orig, struct cache_head *new);
+
 	/* fields below this comment are for internal use
 	 * and should not be touched by cache owners
 	 */
@@ -236,6 +241,13 @@ RTN *FNAME ARGS										\
         (struct STRUCT *item, int set), /*no setup */,			\
 	& FUNC##_cache, FUNC##_hash(item), FUNC##_match(item, tmp),	\
 	STRUCT##_init(new, item), STRUCT##_update(tmp, item))
+
+extern struct cache_head *
+sunrpc_cache_lookup(struct cache_detail *detail,
+		    struct cache_head *key, int hash);
+extern struct cache_head *
+sunrpc_cache_update(struct cache_detail *detail,
+		    struct cache_head *new, struct cache_head *old, int hash);
 
 
 #define cache_for_each(pos, detail, index, member) 						\
