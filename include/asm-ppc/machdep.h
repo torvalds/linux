@@ -44,7 +44,7 @@ struct machdep_calls {
 	void		(*power_off)(void);
 	void		(*halt)(void);
 
-	void		(*idle)(void);
+	void		(*idle_loop)(void);
 	void		(*power_save)(void);
 
 	long		(*time_init)(void); /* Optional, may be NULL */

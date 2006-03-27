@@ -53,9 +53,6 @@
 extern void platform_init(void);
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
-extern void ppc6xx_idle(void);
-extern void power4_idle(void);
-
 boot_infos_t *boot_infos;
 struct ide_machdep_calls ppc_ide_md;
 
@@ -194,7 +191,9 @@ void __init machine_init(unsigned long dt_ptr, unsigned long phys)
 	platform_init();
 
 #ifdef CONFIG_6xx
-	ppc_md.power_save = ppc6xx_idle;
+	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
+	    cpu_has_feature(CPU_FTR_CAN_NAP))
+		ppc_md.power_save = ppc6xx_idle;
 #endif
 
 	if (ppc_md.progress)

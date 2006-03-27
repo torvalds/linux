@@ -733,7 +733,7 @@ struct machdep_calls __initdata pmac_md = {
 	.progress		= udbg_progress,
 #ifdef CONFIG_PPC64
 	.pci_probe_mode		= pmac_pci_probe_mode,
-	.idle_loop		= native_idle,
+	.power_save		= power4_idle,
 	.enable_pmcs		= power4_enable_pmcs,
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,

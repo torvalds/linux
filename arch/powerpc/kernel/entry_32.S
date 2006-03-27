@@ -135,10 +135,10 @@ transfer_to_handler:
 	mfspr	r11,SPRN_HID0
 	mtcr	r11
 BEGIN_FTR_SECTION
-	bt-	8,power_save_6xx_restore	/* Check DOZE */
+	bt-	8,4f			/* Check DOZE */
 END_FTR_SECTION_IFSET(CPU_FTR_CAN_DOZE)
 BEGIN_FTR_SECTION
-	bt-	9,power_save_6xx_restore	/* Check NAP */
+	bt-	9,4f			/* Check NAP */
 END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 #endif /* CONFIG_6xx */
 	.globl transfer_to_handler_cont
@@ -156,6 +156,10 @@ transfer_to_handler_cont:
 	mtlr	r9
 	SYNC
 	RFI				/* jump to handler, enable MMU */
+
+#ifdef CONFIG_6xx	
+4:	b	power_save_6xx_restore
+#endif
 
 /*
  * On kernel stack overflow, load up an initial stack pointer

@@ -290,7 +290,7 @@ struct machdep_calls __initdata maple_md = {
        	.get_rtc_time		= maple_get_rtc_time,
       	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= maple_progress,
-	.idle_loop		= native_idle,
+	.power_save		= power4_idle,
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,

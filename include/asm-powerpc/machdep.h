@@ -158,6 +158,12 @@ struct machdep_calls {
 	/* Idle loop for this platform, leave empty for default idle loop */
 	void		(*idle_loop)(void);
 
+	/*
+	 * Function for waiting for work with reduced power in idle loop;
+	 * called with interrupts disabled.
+	 */
+	void		(*power_save)(void);
+
 	/* Function to enable performance monitor counters for this
 	   platform, called once per cpu. */
 	void		(*enable_pmcs)(void);
@@ -169,9 +175,6 @@ struct machdep_calls {
 	/* A general init function, called by ppc_init in init/main.c.
 	   May be NULL. */
 	void		(*init)(void);
-
-	void		(*idle)(void);
-	void		(*power_save)(void);
 
 	void		(*heartbeat)(void);
 	unsigned long	heartbeat_reset;
@@ -242,8 +245,8 @@ struct machdep_calls {
 #endif /* CONFIG_KEXEC */
 };
 
-extern void default_idle(void);
-extern void native_idle(void);
+extern void power4_idle(void);
+extern void ppc6xx_idle(void);
 
 extern struct machdep_calls ppc_md;
 extern char cmd_line[COMMAND_LINE_SIZE];

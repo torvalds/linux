@@ -8,10 +8,9 @@ extra-$(CONFIG_40x)		:= head_4xx.o
 extra-$(CONFIG_44x)		:= head_44x.o
 extra-$(CONFIG_FSL_BOOKE)	:= head_fsl_booke.o
 extra-$(CONFIG_8xx)		:= head_8xx.o
-extra-$(CONFIG_6xx)		+= idle_6xx.o
 extra-y				+= vmlinux.lds
 
-obj-y				:= entry.o traps.o idle.o time.o misc.o \
+obj-y				:= entry.o traps.o time.o misc.o \
 					setup.o \
 					ppc_htab.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
@@ -35,7 +34,6 @@ endif
 # These are here while we do the architecture merge
 
 else
-obj-y				:= idle.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
 obj-$(CONFIG_MODULES)		+= module.o

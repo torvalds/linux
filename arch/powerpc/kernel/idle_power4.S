@@ -49,21 +49,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
 	cmpwi	0,r4,0
 	beqlr
 
-	/* Clear MSR:EE */
-	mfmsr	r7
-	li	r4,0
-	ori	r4,r4,MSR_EE
-	andc	r0,r7,r4
-	mtmsrd	r0
-
-	/* Check current_thread_info()->flags */
-	clrrdi	r4,r1,THREAD_SHIFT
-	ld	r4,TI_FLAGS(r4)
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	beq	1f
-	mtmsrd	r7	/* out of line this ? */
-	blr
-1:
 	/* Go to NAP now */
 BEGIN_FTR_SECTION
 	DSSALL

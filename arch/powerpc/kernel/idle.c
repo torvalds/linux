@@ -2,12 +2,16 @@
  * Idle daemon for PowerPC.  Idle daemon will handle any action
  * that needs to be taken when the system becomes idle.
  *
- * Originally Written by Cort Dougan (cort@cs.nmt.edu)
+ * Originally written by Cort Dougan (cort@cs.nmt.edu).
+ * Subsequent 32-bit hacking by Tom Rini, Armin Kuster,
+ * Paul Mackerras and others.
  *
  * iSeries supported added by Mike Corrigan <mikejc@us.ibm.com>
  *
  * Additional shared processor, SMT, and firmware support
  *    Copyright (c) 2003 Dave Engebretsen <engebret@us.ibm.com>
+ *
+ * 32-bit and 64-bit versions merged by Paul Mackerras <paulus@samba.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,18 +33,43 @@
 #include <asm/machdep.h>
 #include <asm/smp.h>
 
-extern void power4_idle(void);
+#ifdef CONFIG_HOTPLUG_CPU
+#define cpu_should_die()	(cpu_is_offline(smp_processor_id()) && \
+				 system_state == SYSTEM_RUNNING)
+#else
+#define cpu_should_die()	0
+#endif
 
-void default_idle(void)
+/*
+ * The body of the idle task.
+ */
+void cpu_idle(void)
 {
-	unsigned int cpu = smp_processor_id();
+	if (ppc_md.idle_loop)
+		ppc_md.idle_loop();	/* doesn't return */
+
 	set_thread_flag(TIF_POLLING_NRFLAG);
-
 	while (1) {
-		if (!need_resched()) {
-			while (!need_resched() && !cpu_is_offline(cpu)) {
-				ppc64_runlatch_off();
+		ppc64_runlatch_off();
 
+		while (!need_resched() && !cpu_should_die()) {
+			if (ppc_md.power_save) {
+				clear_thread_flag(TIF_POLLING_NRFLAG);
+				/*
+				 * smp_mb is so clearing of TIF_POLLING_NRFLAG
+				 * is ordered w.r.t. need_resched() test.
+				 */
+				smp_mb();
+				local_irq_disable();
+
+				/* check again after disabling irqs */
+				if (!need_resched() && !cpu_should_die())
+					ppc_md.power_save();
+
+				local_irq_enable();
+				set_thread_flag(TIF_POLLING_NRFLAG);
+
+			} else {
 				/*
 				 * Go into low thread priority and possibly
 				 * low power mode.
@@ -48,44 +77,16 @@ void default_idle(void)
 				HMT_low();
 				HMT_very_low();
 			}
-
-			HMT_medium();
 		}
 
+		HMT_medium();
 		ppc64_runlatch_on();
+		if (cpu_should_die())
+			cpu_die();
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
-		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
-			cpu_die();
 	}
-}
-
-void native_idle(void)
-{
-	while (1) {
-		ppc64_runlatch_off();
-
-		if (!need_resched())
-			power4_idle();
-
-		if (need_resched()) {
-			ppc64_runlatch_on();
-			preempt_enable_no_resched();
-			schedule();
-			preempt_disable();
-		}
-
-		if (cpu_is_offline(smp_processor_id()) &&
-		    system_state == SYSTEM_RUNNING)
-			cpu_die();
-	}
-}
-
-void cpu_idle(void)
-{
-	BUG_ON(NULL == ppc_md.idle_loop);
-	ppc_md.idle_loop();
 }
 
 int powersave_nap;
