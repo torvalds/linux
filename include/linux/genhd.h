@@ -78,9 +78,7 @@ struct hd_struct {
 	sector_t start_sect;
 	sector_t nr_sects;
 	struct kobject kobj;
-#ifdef CONFIG_SYSFS
 	struct kobject *holder_dir;
-#endif
 	unsigned ios[2], sectors[2];	/* READs and WRITEs */
 	int policy, partno;
 };
@@ -117,10 +115,8 @@ struct gendisk {
 	int number;			/* more of the same */
 	struct device *driverfs_dev;
 	struct kobject kobj;
-#ifdef CONFIG_SYSFS
 	struct kobject *holder_dir;
 	struct kobject *slave_dir;
-#endif
 
 	struct timer_rand_state *random;
 	int policy;
