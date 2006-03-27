@@ -786,13 +786,8 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec, struct auto_pin
 		return 0;
 
 	wid_caps = get_wcaps(codec, pin);
-	if (wid_caps & AC_WCAP_UNSOL_CAP) {
-		/* Enable unsolicited responses on the HP widget */
-		snd_hda_codec_write(codec, pin, 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				STAC_UNSOL_ENABLE);
+	if (wid_caps & AC_WCAP_UNSOL_CAP)
 		spec->hp_detect = 1;
-	}
 
 	nid = snd_hda_codec_read(codec, pin, 0, AC_VERB_GET_CONNECT_LIST, 0) & 0xff;
 	for (i = 0; i < cfg->line_outs; i++) {
@@ -915,13 +910,8 @@ static int stac9200_auto_create_hp_ctls(struct hda_codec *codec,
 		return 0;
 
 	wid_caps = get_wcaps(codec, pin);
-	if (wid_caps & AC_WCAP_UNSOL_CAP) {
-		/* Enable unsolicited responses on the HP widget */
-		snd_hda_codec_write(codec, pin, 0,
-				AC_VERB_SET_UNSOLICITED_ENABLE,
-				STAC_UNSOL_ENABLE);
+	if (wid_caps & AC_WCAP_UNSOL_CAP)
 		spec->hp_detect = 1;
-	}
 
 	return 0;
 }
@@ -963,6 +953,10 @@ static int stac92xx_init(struct hda_codec *codec)
 
 	/* set up pins */
 	if (spec->hp_detect) {
+		/* Enable unsolicited responses on the HP widget */
+		snd_hda_codec_write(codec, cfg->hp_pin, 0,
+				AC_VERB_SET_UNSOLICITED_ENABLE,
+				STAC_UNSOL_ENABLE);
 		/* fake event to set up pins */
 		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
 	} else {
