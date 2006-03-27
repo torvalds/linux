@@ -433,17 +433,22 @@ static void vgacon_set_cursor_size(int xpos, int from, int to)
 	cursor_size_lastto = to;
 
 	spin_lock_irqsave(&vga_lock, flags);
-	outb_p(0x0a, vga_video_port_reg);	/* Cursor start */
-	curs = inb_p(vga_video_port_val);
-	outb_p(0x0b, vga_video_port_reg);	/* Cursor end */
-	cure = inb_p(vga_video_port_val);
+	if (vga_video_type >= VIDEO_TYPE_VGAC) {
+		outb_p(VGA_CRTC_CURSOR_START, vga_video_port_reg);
+		curs = inb_p(vga_video_port_val);
+		outb_p(VGA_CRTC_CURSOR_END, vga_video_port_reg);
+		cure = inb_p(vga_video_port_val);
+	} else {
+		curs = 0;
+		cure = 0;
+	}
 
 	curs = (curs & 0xc0) | from;
 	cure = (cure & 0xe0) | to;
 
-	outb_p(0x0a, vga_video_port_reg);	/* Cursor start */
+	outb_p(VGA_CRTC_CURSOR_START, vga_video_port_reg);
 	outb_p(curs, vga_video_port_val);
-	outb_p(0x0b, vga_video_port_reg);	/* Cursor end */
+	outb_p(VGA_CRTC_CURSOR_END, vga_video_port_reg);
 	outb_p(cure, vga_video_port_val);
 	spin_unlock_irqrestore(&vga_lock, flags);
 }
@@ -455,7 +460,10 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 	switch (mode) {
 	case CM_ERASE:
 		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
-		vgacon_set_cursor_size(c->vc_x, 31, 30);
+	        if (vga_video_type >= VIDEO_TYPE_VGAC)
+			vgacon_set_cursor_size(c->vc_x, 31, 30);
+		else
+			vgacon_set_cursor_size(c->vc_x, 31, 31);
 		break;
 
 	case CM_MOVE:
@@ -493,7 +501,10 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 						10 ? 1 : 2));
 			break;
 		case CUR_NONE:
-			vgacon_set_cursor_size(c->vc_x, 31, 30);
+			if (vga_video_type >= VIDEO_TYPE_VGAC)
+				vgacon_set_cursor_size(c->vc_x, 31, 30);
+			else
+				vgacon_set_cursor_size(c->vc_x, 31, 31);
 			break;
 		default:
 			vgacon_set_cursor_size(c->vc_x, 1,
