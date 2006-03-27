@@ -723,11 +723,11 @@ static int bd_claim_by_kobject(struct block_device *bdev, void *holder,
 	if (!bo)
 		return -ENOMEM;
 
-	down(&bdev->bd_sem);
+	mutex_lock(&bdev->bd_mutex);
 	res = bd_claim(bdev, holder);
 	if (res || !add_bd_holder(bdev, bo))
 		free_bd_holder(bo);
-	up(&bdev->bd_sem);
+	mutex_unlock(&bdev->bd_mutex);
 
 	return res;
 }
@@ -748,11 +748,11 @@ static void bd_release_from_kobject(struct block_device *bdev,
 	if (!kobj)
 		return;
 
-	down(&bdev->bd_sem);
+	mutex_lock(&bdev->bd_mutex);
 	bd_release(bdev);
 	if ((bo = del_bd_holder(bdev, kobj)))
 		free_bd_holder(bo);
-	up(&bdev->bd_sem);
+	mutex_unlock(&bdev->bd_mutex);
 }
 
 /**
