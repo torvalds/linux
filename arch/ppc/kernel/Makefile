@@ -13,7 +13,7 @@ extra-y				+= vmlinux.lds
 obj-y				:= entry.o traps.o time.o misc.o \
 					setup.o \
 					ppc_htab.o
-obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
+obj-$(CONFIG_6xx)		+= cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
 obj-$(CONFIG_MODULES)		+= module.o ppc_ksyms.o
 obj-$(CONFIG_NOT_COHERENT_CACHE)	+= dma-mapping.o
@@ -34,7 +34,7 @@ endif
 # These are here while we do the architecture merge
 
 else
-obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
+obj-$(CONFIG_6xx)		+= cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
 obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_NOT_COHERENT_CACHE)	+= dma-mapping.o
