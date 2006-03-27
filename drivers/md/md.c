@@ -3575,6 +3575,7 @@ static int update_size(mddev_t *mddev, unsigned long size)
 	mdk_rdev_t * rdev;
 	int rv;
 	struct list_head *tmp;
+	int fit = (size == 0);
 
 	if (mddev->pers->resize == NULL)
 		return -EINVAL;
@@ -3592,7 +3593,6 @@ static int update_size(mddev_t *mddev, unsigned long size)
 		return -EBUSY;
 	ITERATE_RDEV(mddev,rdev,tmp) {
 		sector_t avail;
-		int fit = (size == 0);
 		if (rdev->sb_offset > rdev->data_offset)
 			avail = (rdev->sb_offset*2) - rdev->data_offset;
 		else
