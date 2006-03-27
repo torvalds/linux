@@ -41,14 +41,6 @@
 
 #define AUTOFS_SUPER_MAGIC 0x0187
 
-/*
- * If the daemon returns a negative response (AUTOFS_IOC_FAIL) then the
- * kernel will keep the negative response cached for up to the time given
- * here, although the time can be shorter if the kernel throws the dcache
- * entry away.  This probably should be settable from user space.
- */
-#define AUTOFS_NEGATIVE_TIMEOUT (60*HZ)	/* 1 minute */
-
 /* Unified info structure.  This is pointed to by both the dentry and
    inode structures.  Each file in the filesystem has an instance of this
    structure.  It holds a reference to the dentry, so dentries are never
