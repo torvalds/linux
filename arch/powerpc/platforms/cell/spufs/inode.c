@@ -442,7 +442,7 @@ static struct file_system_type spufs_type = {
 	.kill_sb = kill_litter_super,
 };
 
-static int spufs_init(void)
+static int __init spufs_init(void)
 {
 	int ret;
 	ret = -ENOMEM;
@@ -472,7 +472,7 @@ out:
 }
 module_init(spufs_init);
 
-static void spufs_exit(void)
+static void __exit spufs_exit(void)
 {
 	spu_sched_exit();
 	unregister_spu_syscalls(&spufs_calls);
