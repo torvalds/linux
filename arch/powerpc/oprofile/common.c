@@ -117,17 +117,10 @@ static int op_powerpc_create_files(struct super_block *sb, struct dentry *root)
 
 	oprofilefs_create_ulong(sb, root, "enable_kernel", &sys.enable_kernel);
 	oprofilefs_create_ulong(sb, root, "enable_user", &sys.enable_user);
-#ifdef CONFIG_PPC64
-	oprofilefs_create_ulong(sb, root, "backtrace_spinlocks",
-				&sys.backtrace_spinlocks);
-#endif
 
 	/* Default to tracing both kernel and user */
 	sys.enable_kernel = 1;
 	sys.enable_user = 1;
-#ifdef CONFIG_PPC64
-	sys.backtrace_spinlocks = 0;
-#endif
 
 	return 0;
 }

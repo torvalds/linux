@@ -35,9 +35,6 @@ struct op_system_config {
 #endif
 	unsigned long enable_kernel;
 	unsigned long enable_user;
-#ifdef CONFIG_PPC64
-	unsigned long backtrace_spinlocks;
-#endif
 };
 
 /* Per-arch configuration */
