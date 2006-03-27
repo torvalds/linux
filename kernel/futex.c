@@ -913,15 +913,15 @@ err_unlock:
  * Process a futex-list entry, check whether it's owned by the
  * dying task, and do notification if so:
  */
-int handle_futex_death(unsigned int *uaddr, struct task_struct *curr)
+int handle_futex_death(u32 __user *uaddr, struct task_struct *curr)
 {
-	unsigned int futex_val;
+	u32 uval;
 
-repeat:
-	if (get_user(futex_val, uaddr))
+retry:
+	if (get_user(uval, uaddr))
 		return -1;
 
-	if ((futex_val & FUTEX_TID_MASK) == curr->pid) {
+	if ((uval & FUTEX_TID_MASK) == curr->pid) {
 		/*
 		 * Ok, this dying thread is truly holding a futex
 		 * of interest. Set the OWNER_DIED bit atomically
@@ -932,12 +932,11 @@ repeat:
 		 * thread-death.) The rest of the cleanup is done in
 		 * userspace.
 		 */
-		if (futex_atomic_cmpxchg_inuser(uaddr, futex_val,
-					 futex_val | FUTEX_OWNER_DIED) !=
-								   futex_val)
-			goto repeat;
+		if (futex_atomic_cmpxchg_inatomic(uaddr, uval,
+					 uval | FUTEX_OWNER_DIED) != uval)
+			goto retry;
 
-		if (futex_val & FUTEX_WAITERS)
+		if (uval & FUTEX_WAITERS)
 			futex_wake((unsigned long)uaddr, 1);
 	}
 	return 0;
@@ -985,7 +984,6 @@ void exit_robust_list(struct task_struct *curr)
 			if (handle_futex_death((void *)entry + futex_offset,
 						curr))
 				return;
-
 		/*
 		 * Fetch the next entry in the list:
 		 */

@@ -100,7 +100,7 @@ long do_futex(unsigned long uaddr, int op, int val,
 		unsigned long timeout, unsigned long uaddr2, int val2,
 		int val3);
 
-extern int handle_futex_death(unsigned int *uaddr, struct task_struct *curr);
+extern int handle_futex_death(u32 __user *uaddr, struct task_struct *curr);
 
 #ifdef CONFIG_FUTEX
 extern void exit_robust_list(struct task_struct *curr);

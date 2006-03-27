@@ -142,8 +142,6 @@ On insertion:
     of the 'lock word', to the linked list starting at 'head', and
  4) clear the 'list_op_pending' word.
 
-	XXX I am particularly unsure of the following -pj XXX
-
 On removal:
  1) set the 'list_op_pending' word to the address of the 'lock word'
     to be removed,

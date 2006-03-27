@@ -213,6 +213,6 @@ robust-mutex testcases.
 All other architectures should build just fine too - but they wont have
 the new syscalls yet.
 
-Architectures need to implement the new futex_atomic_cmpxchg_inuser()
+Architectures need to implement the new futex_atomic_cmpxchg_inatomic()
 inline function before writing up the syscalls (that function returns
 -ENOSYS right now).
