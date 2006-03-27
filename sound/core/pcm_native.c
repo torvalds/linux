@@ -1170,7 +1170,7 @@ static int snd_pcm_resume(struct snd_pcm_substream *substream)
 	int res;
 
 	snd_power_lock(card);
-	if ((res = snd_power_wait(card, SNDRV_CTL_POWER_D0, substream->ffile)) >= 0)
+	if ((res = snd_power_wait(card, SNDRV_CTL_POWER_D0)) >= 0)
 		res = snd_pcm_action_lock_irq(&snd_pcm_action_resume, substream, 0);
 	snd_power_unlock(card);
 	return res;
@@ -1198,7 +1198,7 @@ static int snd_pcm_xrun(struct snd_pcm_substream *substream)
 
 	snd_power_lock(card);
 	if (runtime->status->state == SNDRV_PCM_STATE_SUSPENDED) {
-		result = snd_power_wait(card, SNDRV_CTL_POWER_D0, substream->ffile);
+		result = snd_power_wait(card, SNDRV_CTL_POWER_D0);
 		if (result < 0)
 			goto _unlock;
 	}
@@ -1319,7 +1319,7 @@ int snd_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_card *card = substream->pcm->card;
 
 	snd_power_lock(card);
-	if ((res = snd_power_wait(card, SNDRV_CTL_POWER_D0, substream->ffile)) >= 0)
+	if ((res = snd_power_wait(card, SNDRV_CTL_POWER_D0)) >= 0)
 		res = snd_pcm_action_nonatomic(&snd_pcm_action_prepare, substream, 0);
 	snd_power_unlock(card);
 	return res;
@@ -1410,7 +1410,7 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream)
 
 	snd_power_lock(card);
 	if (runtime->status->state == SNDRV_PCM_STATE_SUSPENDED) {
-		result = snd_power_wait(card, SNDRV_CTL_POWER_D0, substream->ffile);
+		result = snd_power_wait(card, SNDRV_CTL_POWER_D0);
 		if (result < 0) {
 			snd_power_unlock(card);
 			return result;
@@ -1533,7 +1533,7 @@ static int snd_pcm_drop(struct snd_pcm_substream *substream)
 
 	snd_power_lock(card);
 	if (runtime->status->state == SNDRV_PCM_STATE_SUSPENDED) {
-		result = snd_power_wait(card, SNDRV_CTL_POWER_D0, substream->ffile);
+		result = snd_power_wait(card, SNDRV_CTL_POWER_D0);
 		if (result < 0)
 			goto _unlock;
 	}
