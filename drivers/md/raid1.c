@@ -1402,6 +1402,9 @@ static void raid1d(mddev_t *mddev)
 			clear_bit(R1BIO_BarrierRetry, &r1_bio->state);
 			clear_bit(R1BIO_Barrier, &r1_bio->state);
 			for (i=0; i < conf->raid_disks; i++)
+				if (r1_bio->bios[i])
+					atomic_inc(&r1_bio->remaining);
+			for (i=0; i < conf->raid_disks; i++)
 				if (r1_bio->bios[i]) {
 					struct bio_vec *bvec;
 					int j;
