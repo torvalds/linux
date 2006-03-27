@@ -895,10 +895,9 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 			d->raid_disk = rdev2->raid_disk;
 		else
 			d->raid_disk = rdev2->desc_nr; /* compatibility */
-		if (test_bit(Faulty, &rdev2->flags)) {
+		if (test_bit(Faulty, &rdev2->flags))
 			d->state = (1<<MD_DISK_FAULTY);
-			failed++;
-		} else if (test_bit(In_sync, &rdev2->flags)) {
+		else if (test_bit(In_sync, &rdev2->flags)) {
 			d->state = (1<<MD_DISK_ACTIVE);
 			d->state |= (1<<MD_DISK_SYNC);
 			active++;
