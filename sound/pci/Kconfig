@@ -195,8 +195,9 @@ config SND_CS46XX
 	  will be called snd-cs46xx.
 
 config SND_CS46XX_NEW_DSP
-	bool "Cirrus Logic (Sound Fusion) New DSP support (EXPERIMENTAL)"
-	depends on SND_CS46XX && EXPERIMENTAL
+	bool "Cirrus Logic (Sound Fusion) New DSP support"
+	depends on SND_CS46XX
+        default y
 	help
 	  Say Y here to use a new DSP image for SPDIF and dual codecs.
 
