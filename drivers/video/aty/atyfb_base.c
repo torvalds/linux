@@ -2298,6 +2298,10 @@ static int __init aty_init(struct fb_info *info, const char *name)
 		case CLK_ATI18818_1:
 			par->pll_ops = &aty_pll_ati18818_1;
 			break;
+		case CLK_IBMRGB514:
+			par->pll_ops = &aty_pll_ibm514;
+			break;
+#if 0 /* dead code */
 		case CLK_STG1703:
 			par->pll_ops = &aty_pll_stg1703;
 			break;
@@ -2307,9 +2311,7 @@ static int __init aty_init(struct fb_info *info, const char *name)
 		case CLK_ATT20C408:
 			par->pll_ops = &aty_pll_att20c408;
 			break;
-		case CLK_IBMRGB514:
-			par->pll_ops = &aty_pll_ibm514;
-			break;
+#endif
 		default:
 			PRINTKI("aty_init: CLK type not implemented yet!");
 			par->pll_ops = &aty_pll_unsupported;
