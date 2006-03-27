@@ -197,6 +197,6 @@ rtc_rx5c348_init(int chipid)
 		srtc_24h = 1;
 
 	/* set the function pointers */
-	rtc_get_time = rtc_rx5c348_get_time;
-	rtc_set_time = rtc_rx5c348_set_time;
+	rtc_mips_get_time = rtc_rx5c348_get_time;
+	rtc_mips_set_time = rtc_rx5c348_set_time;
 }

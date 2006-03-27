@@ -175,8 +175,8 @@ void __init plat_setup(void)
 
 #ifdef CONFIG_DS1603
 	ds1603 = &ds_defs[mips_machtype];
-	rtc_get_time = ds1603_read;
-	rtc_set_time = ds1603_set;
+	rtc_mips_get_time = ds1603_read;
+	rtc_mips_set_time = ds1603_set;
 #endif
 
 #ifdef DYNAMIC_SERIAL_INIT

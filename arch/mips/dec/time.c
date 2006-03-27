@@ -193,8 +193,8 @@ static void dec_ioasic_hpt_init(unsigned int count)
 
 void __init dec_time_init(void)
 {
-	rtc_get_time = dec_rtc_get_time;
-	rtc_set_mmss = dec_rtc_set_mmss;
+	rtc_mips_get_time = dec_rtc_get_time;
+	rtc_mips_set_mmss = dec_rtc_set_mmss;
 
 	mips_timer_state = dec_timer_state;
 	mips_timer_ack = dec_timer_ack;
