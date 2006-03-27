@@ -410,6 +410,9 @@ struct block_device {
 	struct list_head	bd_inodes;
 	void *			bd_holder;
 	int			bd_holders;
+#ifdef CONFIG_SYSFS
+	struct list_head	bd_holder_list;
+#endif
 	struct block_device *	bd_contains;
 	unsigned		bd_block_size;
 	struct hd_struct *	bd_part;
@@ -1399,6 +1402,13 @@ extern int blkdev_get(struct block_device *, mode_t, unsigned);
 extern int blkdev_put(struct block_device *);
 extern int bd_claim(struct block_device *, void *);
 extern void bd_release(struct block_device *);
+#ifdef CONFIG_SYSFS
+extern int bd_claim_by_disk(struct block_device *, void *, struct gendisk *);
+extern void bd_release_from_disk(struct block_device *, struct gendisk *);
+#else
+#define bd_claim_by_disk(bdev, holder, disk)	bd_claim(bdev, holder)
+#define bd_release_from_disk(bdev, disk)	bd_release(bdev)
+#endif
 
 /* fs/char_dev.c */
 extern int alloc_chrdev_region(dev_t *, unsigned, unsigned, const char *);
