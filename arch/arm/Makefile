@@ -17,6 +17,11 @@ GZFLAGS		:=-9
 # Select a platform tht is kept up-to-date
 KBUILD_DEFCONFIG := versatile_defconfig
 
+# defines filename extension depending memory manement type.
+ifeq ($(CONFIG_MMU),)
+MMUEXT		:= -nommu
+endif
+
 ifeq ($(CONFIG_FRAME_POINTER),y)
 CFLAGS		+=-fno-omit-frame-pointer -mapcs -mno-sched-prolog
 endif
@@ -127,7 +132,7 @@ else
 MACHINE  :=
 endif
   
-export	TEXT_OFFSET GZFLAGS
+export	TEXT_OFFSET GZFLAGS MMUEXT
 
 # Do we have FASTFPE?
 FASTFPE		:=arch/arm/fastfpe

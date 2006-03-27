@@ -1,0 +1,27 @@
+#
+# Kconfig for uClinux(non-paged MM) depend configurations
+# Hyok S. Choi <hyok.choi@samsung.com>
+# 
+
+config SET_MEM_PARAM
+	bool "Set flash/sdram size and base addr"
+	help
+	 Say Y to manually set the base addresses and sizes.
+	 otherwise, the default values are assigned.
+
+config DRAM_BASE
+	hex '(S)DRAM Base Address' if SET_MEM_PARAM
+	default 0x00800000
+
+config DRAM_SIZE
+	hex '(S)DRAM SIZE' if SET_MEM_PARAM
+	default 0x00800000
+
+config FLASH_MEM_BASE
+	hex 'FLASH Base Address' if SET_MEM_PARAM
+	default 0x00400000
+
+config FLASH_SIZE
+	hex 'FLASH Size' if SET_MEM_PARAM
+	default 0x00400000
+
