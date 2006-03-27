@@ -207,7 +207,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		return -ENOMEM;
 
 	/* If this is a direct mount request create a dummy name */
-	if (IS_ROOT(dentry) && (sbi->type & AUTOFS_TYP_DIRECT))
+	if (IS_ROOT(dentry) && (sbi->type & AUTOFS_TYPE_DIRECT))
 		len = sprintf(name, "%p", dentry);
 	else {
 		len = autofs4_getpath(sbi, dentry, &name);
@@ -283,11 +283,11 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 				type = autofs_ptype_expire_multi;
 		} else {
 			if (notify == NFY_MOUNT)
-				type = (sbi->type & AUTOFS_TYP_DIRECT) ?
+				type = (sbi->type & AUTOFS_TYPE_DIRECT) ?
 					autofs_ptype_missing_direct :
 					 autofs_ptype_missing_indirect;
 			else
-				type = (sbi->type & AUTOFS_TYP_DIRECT) ?
+				type = (sbi->type & AUTOFS_TYPE_DIRECT) ?
 					autofs_ptype_expire_direct :
 					autofs_ptype_expire_indirect;
 		}

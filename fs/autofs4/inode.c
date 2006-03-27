@@ -178,9 +178,9 @@ static int autofs4_show_options(struct seq_file *m, struct vfsmount *mnt)
 	seq_printf(m, ",minproto=%d", sbi->min_proto);
 	seq_printf(m, ",maxproto=%d", sbi->max_proto);
 
-	if (sbi->type & AUTOFS_TYP_OFFSET)
+	if (sbi->type & AUTOFS_TYPE_OFFSET)
 		seq_printf(m, ",offset");
-	else if (sbi->type & AUTOFS_TYP_DIRECT)
+	else if (sbi->type & AUTOFS_TYPE_DIRECT)
 		seq_printf(m, ",direct");
 	else
 		seq_printf(m, ",indirect");
@@ -267,13 +267,13 @@ static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid,
 			*maxproto = option;
 			break;
 		case Opt_indirect:
-			*type = AUTOFS_TYP_INDIRECT;
+			*type = AUTOFS_TYPE_INDIRECT;
 			break;
 		case Opt_direct:
-			*type = AUTOFS_TYP_DIRECT;
+			*type = AUTOFS_TYPE_DIRECT;
 			break;
 		case Opt_offset:
-			*type = AUTOFS_TYP_DIRECT | AUTOFS_TYP_OFFSET;
+			*type = AUTOFS_TYPE_DIRECT | AUTOFS_TYPE_OFFSET;
 			break;
 		default:
 			return 1;
@@ -364,7 +364,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	}
 
 	root_inode->i_fop = &autofs4_root_operations;
-	root_inode->i_op = sbi->type & AUTOFS_TYP_DIRECT ?
+	root_inode->i_op = sbi->type & AUTOFS_TYPE_DIRECT ?
 			&autofs4_direct_root_inode_operations :
 			&autofs4_indirect_root_inode_operations;
 
