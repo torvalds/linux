@@ -605,7 +605,7 @@ static int sn_hwperf_op_cpu(struct sn_hwperf_op_info *op_info)
 	op_info->a->arg &= SN_HWPERF_ARG_OBJID_MASK;
 
 	if (cpu != SN_HWPERF_ARG_ANY_CPU) {
-		if (cpu >= num_online_cpus() || !cpu_online(cpu)) {
+		if (cpu >= NR_CPUS || !cpu_online(cpu)) {
 			r = -EINVAL;
 			goto out;
 		}
