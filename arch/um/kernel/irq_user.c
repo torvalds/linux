@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -18,53 +18,25 @@
 #include "sigio.h"
 #include "irq_user.h"
 #include "os.h"
+#include "misc_constants.h"
 
-struct irq_fd {
-	struct irq_fd *next;
-	void *id;
-	int fd;
-	int type;
-	int irq;
-	int pid;
-	int events;
-	int current_events;
-};
-
-static struct irq_fd *active_fds = NULL;
+struct irq_fd *active_fds = NULL;
 static struct irq_fd **last_irq_ptr = &active_fds;
-
-static struct pollfd *pollfds = NULL;
-static int pollfds_num = 0;
-static int pollfds_size = 0;
-
-extern int io_count, intr_count;
 
 extern void free_irqs(void);
 
 void sigio_handler(int sig, union uml_pt_regs *regs)
 {
 	struct irq_fd *irq_fd;
-	int i, n;
+	int n;
 
 	if(smp_sigio_handler()) return;
 	while(1){
-		n = poll(pollfds, pollfds_num, 0);
-		if(n < 0){
-			if(errno == EINTR) continue;
-			printk("sigio_handler : poll returned %d, "
-			       "errno = %d\n", n, errno);
-			break;
-		}
-		if(n == 0) break;
-
-		irq_fd = active_fds;
-		for(i = 0; i < pollfds_num; i++){
-			if(pollfds[i].revents != 0){
-				irq_fd->current_events = pollfds[i].revents;
-				pollfds[i].fd = -1;
-			}
-			irq_fd = irq_fd->next;
-		}
+		n = os_waiting_for_events(active_fds);
+		if (n <= 0) {
+			if(n == -EINTR) continue;
+			else break;
+ 		}
 
 		for(irq_fd = active_fds; irq_fd != NULL; irq_fd = irq_fd->next){
 			if(irq_fd->current_events != 0){
@@ -77,14 +49,9 @@ void sigio_handler(int sig, union uml_pt_regs *regs)
 	free_irqs();
 }
 
-int activate_ipi(int fd, int pid)
-{
-	return(os_set_fd_async(fd, pid));
-}
-
 static void maybe_sigio_broken(int fd, int type)
 {
-	if(isatty(fd)){
+	if(os_isatty(fd)){
 		if((type == IRQ_WRITE) && !pty_output_sigio){
 			write_sigio_workaround();
 			add_sigio_fd(fd, 0);
@@ -96,12 +63,13 @@ static void maybe_sigio_broken(int fd, int type)
 	}
 }
 
+
 int activate_fd(int irq, int fd, int type, void *dev_id)
 {
 	struct pollfd *tmp_pfd;
 	struct irq_fd *new_fd, *irq_fd;
 	unsigned long flags;
-	int pid, events, err, n, size;
+	int pid, events, err, n;
 
 	pid = os_getpid();
 	err = os_set_fd_async(fd, pid);
@@ -113,8 +81,8 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 	if(new_fd == NULL)
 		goto out;
 
-	if(type == IRQ_READ) events = POLLIN | POLLPRI;
-	else events = POLLOUT;
+	if(type == IRQ_READ) events = UM_POLLIN | UM_POLLPRI;
+	else events = UM_POLLOUT;
 	*new_fd = ((struct irq_fd) { .next  		= NULL,
 				     .id 		= dev_id,
 				     .fd 		= fd,
@@ -125,12 +93,12 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 				     .current_events 	= 0 } );
 
 	/* Critical section - locked by a spinlock because this stuff can
-	 * be changed from interrupt handlers.  The stuff above is done 
+	 * be changed from interrupt handlers.  The stuff above is done
 	 * outside the lock because it allocates memory.
 	 */
 
 	/* Actually, it only looks like it can be called from interrupt
-	 * context.  The culprit is reactivate_fd, which calls 
+	 * context.  The culprit is reactivate_fd, which calls
 	 * maybe_sigio_broken, which calls write_sigio_workaround,
 	 * which calls activate_fd.  However, write_sigio_workaround should
 	 * only be called once, at boot time.  That would make it clear that
@@ -147,40 +115,42 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 		}
 	}
 
-	n = pollfds_num;
-	if(n == pollfds_size){
-		while(1){
-			/* Here we have to drop the lock in order to call 
-			 * kmalloc, which might sleep.  If something else
-			 * came in and changed the pollfds array, we free
-			 * the buffer and try again.
-			 */
-			irq_unlock(flags);
-			size = (pollfds_num + 1) * sizeof(pollfds[0]);
-			tmp_pfd = um_kmalloc(size);
-			flags = irq_lock();
-			if(tmp_pfd == NULL)
-				goto out_unlock;
-			if(n == pollfds_size)
-				break;
-			kfree(tmp_pfd);
-		}
-		if(pollfds != NULL){
-			memcpy(tmp_pfd, pollfds,
-			       sizeof(pollfds[0]) * pollfds_size);
-			kfree(pollfds);
-		}
-		pollfds = tmp_pfd;
-		pollfds_size++;
-	}
-
-	if(type == IRQ_WRITE) 
+	/*-------------*/
+	if(type == IRQ_WRITE)
 		fd = -1;
 
-	pollfds[pollfds_num] = ((struct pollfd) { .fd 	= fd,
-						  .events 	= events,
-						  .revents 	= 0 });
-	pollfds_num++;
+	tmp_pfd = NULL;
+	n = 0;
+
+	while(1){
+		n = os_create_pollfd(fd, events, tmp_pfd, n);
+		if (n == 0)
+			break;
+
+		/* n > 0
+		 * It means we couldn't put new pollfd to current pollfds
+		 * and tmp_fds is NULL or too small for new pollfds array.
+		 * Needed size is equal to n as minimum.
+		 *
+		 * Here we have to drop the lock in order to call
+		 * kmalloc, which might sleep.
+		 * If something else came in and changed the pollfds array
+		 * so we will not be able to put new pollfd struct to pollfds
+		 * then we free the buffer tmp_fds and try again.
+		 */
+		irq_unlock(flags);
+		if (tmp_pfd != NULL) {
+			kfree(tmp_pfd);
+			tmp_pfd = NULL;
+		}
+
+		tmp_pfd = um_kmalloc(n);
+		if (tmp_pfd == NULL)
+			goto out_kfree;
+
+		flags = irq_lock();
+	}
+	/*-------------*/
 
 	*last_irq_ptr = new_fd;
 	last_irq_ptr = &new_fd->next;
@@ -196,6 +166,7 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 
  out_unlock:
 	irq_unlock(flags);
+ out_kfree:
 	kfree(new_fd);
  out:
 	return(err);
@@ -203,43 +174,10 @@ int activate_fd(int irq, int fd, int type, void *dev_id)
 
 static void free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg)
 {
-	struct irq_fd **prev;
 	unsigned long flags;
-	int i = 0;
 
 	flags = irq_lock();
-	prev = &active_fds;
-	while(*prev != NULL){
-		if((*test)(*prev, arg)){
-			struct irq_fd *old_fd = *prev;
-			if((pollfds[i].fd != -1) && 
-			   (pollfds[i].fd != (*prev)->fd)){
-				printk("free_irq_by_cb - mismatch between "
-				       "active_fds and pollfds, fd %d vs %d\n",
-				       (*prev)->fd, pollfds[i].fd);
-				goto out;
-			}
-
-			pollfds_num--;
-
-			/* This moves the *whole* array after pollfds[i] (though
-			 * it doesn't spot as such)! */
-
-			memmove(&pollfds[i], &pollfds[i + 1],
-			       (pollfds_num - i) * sizeof(pollfds[0]));
-
-			if(last_irq_ptr == &old_fd->next) 
-				last_irq_ptr = prev;
-			*prev = (*prev)->next;
-			if(old_fd->type == IRQ_WRITE) 
-				ignore_sigio_fd(old_fd->fd);
-			kfree(old_fd);
-			continue;
-		}
-		prev = &(*prev)->next;
-		i++;
-	}
- out:
+ 	os_free_irq_by_cb(test, arg, active_fds, &last_irq_ptr);
 	irq_unlock(flags);
 }
 
@@ -277,6 +215,7 @@ static struct irq_fd *find_irq_by_fd(int fd, int irqnum, int *index_out)
 {
 	struct irq_fd *irq;
 	int i = 0;
+	int fdi;
 
 	for(irq=active_fds; irq != NULL; irq = irq->next){
 		if((irq->fd == fd) && (irq->irq == irqnum)) break;
@@ -286,10 +225,11 @@ static struct irq_fd *find_irq_by_fd(int fd, int irqnum, int *index_out)
 		printk("find_irq_by_fd doesn't have descriptor %d\n", fd);
 		goto out;
 	}
-	if((pollfds[i].fd != -1) && (pollfds[i].fd != fd)){
+	fdi = os_get_pollfd(i);
+	if((fdi != -1) && (fdi != fd)){
 		printk("find_irq_by_fd - mismatch between active_fds and "
-		       "pollfds, fd %d vs %d, need %d\n", irq->fd, 
-		       pollfds[i].fd, fd);
+		       "pollfds, fd %d vs %d, need %d\n", irq->fd,
+		       fdi, fd);
 		irq = NULL;
 		goto out;
 	}
@@ -310,9 +250,7 @@ void reactivate_fd(int fd, int irqnum)
 		irq_unlock(flags);
 		return;
 	}
-
-	pollfds[i].fd = irq->fd;
-
+	os_set_pollfd(i, irq->fd);
 	irq_unlock(flags);
 
 	/* This calls activate_fd, so it has to be outside the critical
@@ -331,7 +269,7 @@ void deactivate_fd(int fd, int irqnum)
 	irq = find_irq_by_fd(fd, irqnum, &i);
 	if(irq == NULL)
 		goto out;
-	pollfds[i].fd = -1;
+	os_set_pollfd(i, -1);
  out:
 	irq_unlock(flags);
 }
@@ -347,19 +285,9 @@ int deactivate_all_fds(void)
 			return(err);
 	}
 	/* If there is a signal already queued, after unblocking ignore it */
-	set_handler(SIGIO, SIG_IGN, 0, -1);
+	os_set_ioignore();
 
 	return(0);
-}
-
-void forward_ipi(int fd, int pid)
-{
-	int err;
-
-	err = os_set_owner(fd, pid);
-	if(err < 0)
-		printk("forward_ipi: set_owner failed, fd = %d, me = %d, "
-		       "target = %d, err = %d\n", fd, os_getpid(), pid, -err);
 }
 
 void forward_interrupts(int pid)
@@ -382,22 +310,6 @@ void forward_interrupts(int pid)
 		irq->pid = pid;
 	}
 	irq_unlock(flags);
-}
-
-void init_irq_signals(int on_sigstack)
-{
-	__sighandler_t h;
-	int flags;
-
-	flags = on_sigstack ? SA_ONSTACK : 0;
-	if(timer_irq_inited) h = (__sighandler_t) alarm_handler;
-	else h = boot_timer_handler;
-
-	set_handler(SIGVTALRM, h, flags | SA_RESTART, 
-		    SIGUSR1, SIGIO, SIGWINCH, SIGALRM, -1);
-	set_handler(SIGIO, (__sighandler_t) sig_handler, flags | SA_RESTART,
-		    SIGUSR1, SIGIO, SIGWINCH, SIGALRM, SIGVTALRM, -1);
-	signal(SIGWINCH, SIG_IGN);
 }
 
 /*

@@ -12,6 +12,7 @@
 #include "sysdep/ptrace.h"
 #include "kern_util.h"
 #include "skas/mm_id.h"
+#include "irq_user.h"
 
 #define OS_TYPE_FILE 1 
 #define OS_TYPE_DIR 2 
@@ -198,6 +199,8 @@ extern void os_flush_stdout(void);
 /* tt.c
  * for tt mode only (will be deleted in future...)
  */
+extern void forward_ipi(int fd, int pid);
+extern void kill_child_dead(int pid);
 extern void stop(void);
 extern int wait_for_stop(int pid, int sig, int cont_type, void *relay);
 extern int protect_memory(unsigned long addr, unsigned long len,
@@ -293,5 +296,18 @@ extern void initial_thread_cb_skas(void (*proc)(void *),
 				 void *arg);
 extern void halt_skas(void);
 extern void reboot_skas(void);
+
+/* irq.c */
+extern int os_waiting_for_events(struct irq_fd *active_fds);
+extern int os_isatty(int fd);
+extern int os_create_pollfd(int fd, int events, void *tmp_pfd, int size_tmpfds);
+extern void os_free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg,
+		struct irq_fd *active_fds, struct irq_fd ***last_irq_ptr2);
+extern void os_free_irq_later(struct irq_fd *active_fds,
+		int irq, void *dev_id);
+extern int os_get_pollfd(int i);
+extern void os_set_pollfd(int i, int fd);
+extern void os_set_ioignore(void);
+extern void init_irq_signals(int on_sigstack);
 
 #endif
