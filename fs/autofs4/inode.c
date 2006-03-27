@@ -3,6 +3,7 @@
  * linux/fs/autofs/inode.c
  *
  *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
+ *  Copyright 2005-2006 Ian Kent <raven@themaw.net>
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
@@ -177,6 +178,13 @@ static int autofs4_show_options(struct seq_file *m, struct vfsmount *mnt)
 	seq_printf(m, ",minproto=%d", sbi->min_proto);
 	seq_printf(m, ",maxproto=%d", sbi->max_proto);
 
+	if (sbi->type & AUTOFS_TYP_OFFSET)
+		seq_printf(m, ",offset");
+	else if (sbi->type & AUTOFS_TYP_DIRECT)
+		seq_printf(m, ",direct");
+	else
+		seq_printf(m, ",indirect");
+
 	return 0;
 }
 
@@ -186,7 +194,8 @@ static struct super_operations autofs4_sops = {
 	.show_options	= autofs4_show_options,
 };
 
-enum {Opt_err, Opt_fd, Opt_uid, Opt_gid, Opt_pgrp, Opt_minproto, Opt_maxproto};
+enum {Opt_err, Opt_fd, Opt_uid, Opt_gid, Opt_pgrp, Opt_minproto, Opt_maxproto,
+	Opt_indirect, Opt_direct, Opt_offset};
 
 static match_table_t tokens = {
 	{Opt_fd, "fd=%u"},
@@ -195,11 +204,15 @@ static match_table_t tokens = {
 	{Opt_pgrp, "pgrp=%u"},
 	{Opt_minproto, "minproto=%u"},
 	{Opt_maxproto, "maxproto=%u"},
+	{Opt_indirect, "indirect"},
+	{Opt_direct, "direct"},
+	{Opt_offset, "offset"},
 	{Opt_err, NULL}
 };
 
 static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid,
-			 pid_t *pgrp, int *minproto, int *maxproto)
+			 pid_t *pgrp, unsigned int *type,
+			 int *minproto, int *maxproto)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -253,6 +266,15 @@ static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid,
 				return 1;
 			*maxproto = option;
 			break;
+		case Opt_indirect:
+			*type = AUTOFS_TYP_INDIRECT;
+			break;
+		case Opt_direct:
+			*type = AUTOFS_TYP_DIRECT;
+			break;
+		case Opt_offset:
+			*type = AUTOFS_TYP_DIRECT | AUTOFS_TYP_OFFSET;
+			break;
 		default:
 			return 1;
 		}
@@ -270,6 +292,11 @@ static struct autofs_info *autofs4_mkroot(struct autofs_sb_info *sbi)
 
 	return ino;
 }
+
+void autofs4_dentry_release(struct dentry *);
+static struct dentry_operations autofs4_sb_dentry_operations = {
+	.d_release      = autofs4_dentry_release,
+};
 
 int autofs4_fill_super(struct super_block *s, void *data, int silent)
 {
@@ -297,6 +324,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	sbi->sb = s;
 	sbi->version = 0;
 	sbi->sub_version = 0;
+	sbi->type = 0;
 	sbi->min_proto = 0;
 	sbi->max_proto = 0;
 	mutex_init(&sbi->wq_mutex);
@@ -315,26 +343,30 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	if (!ino)
 		goto fail_free;
 	root_inode = autofs4_get_inode(s, ino);
-	kfree(ino);
 	if (!root_inode)
-		goto fail_free;
+		goto fail_ino;
 
-	root_inode->i_op = &autofs4_root_inode_operations;
-	root_inode->i_fop = &autofs4_root_operations;
 	root = d_alloc_root(root_inode);
-	pipe = NULL;
-
 	if (!root)
 		goto fail_iput;
+	pipe = NULL;
+
+	root->d_op = &autofs4_sb_dentry_operations;
+	root->d_fsdata = ino;
 
 	/* Can this call block? */
 	if (parse_options(data, &pipefd,
 			  &root_inode->i_uid, &root_inode->i_gid,
-			  &sbi->oz_pgrp,
+			  &sbi->oz_pgrp, &sbi->type,
 			  &sbi->min_proto, &sbi->max_proto)) {
 		printk("autofs: called with bogus options\n");
 		goto fail_dput;
 	}
+
+	root_inode->i_fop = &autofs4_root_operations;
+	root_inode->i_op = sbi->type & AUTOFS_TYP_DIRECT ?
+			&autofs4_direct_root_inode_operations :
+			&autofs4_indirect_root_inode_operations;
 
 	/* Couldn't this be tested earlier? */
 	if (sbi->max_proto < AUTOFS_MIN_PROTO_VERSION ||
@@ -391,6 +423,8 @@ fail_dput:
 fail_iput:
 	printk("autofs: get root dentry failed\n");
 	iput(root_inode);
+fail_ino:
+	kfree(ino);
 fail_free:
 	kfree(sbi);
 fail_unlock:

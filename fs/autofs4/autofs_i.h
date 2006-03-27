@@ -3,6 +3,7 @@
  * linux/fs/autofs/autofs_i.h
  *
  *   Copyright 1997-1998 Transmeta Corporation - All Rights Reserved
+ *   Copyright 2005-2006 Ian Kent <raven@themaw.net>
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
@@ -84,6 +85,10 @@ struct autofs_wait_queue {
 
 #define AUTOFS_SBI_MAGIC 0x6d4a556d
 
+#define AUTOFS_TYP_INDIRECT     0x0001
+#define AUTOFS_TYP_DIRECT       0x0002
+#define AUTOFS_TYP_OFFSET       0x0004
+
 struct autofs_sb_info {
 	u32 magic;
 	struct dentry *root;
@@ -96,6 +101,7 @@ struct autofs_sb_info {
 	int min_proto;
 	int max_proto;
 	unsigned long exp_timeout;
+	unsigned int type;
 	int reghost_enabled;
 	int needs_reghost;
 	struct super_block *sb;
@@ -162,6 +168,8 @@ int autofs4_expire_multi(struct super_block *, struct vfsmount *,
 extern struct inode_operations autofs4_symlink_inode_operations;
 extern struct inode_operations autofs4_dir_inode_operations;
 extern struct inode_operations autofs4_root_inode_operations;
+extern struct inode_operations autofs4_indirect_root_inode_operations;
+extern struct inode_operations autofs4_direct_root_inode_operations;
 extern struct file_operations autofs4_dir_operations;
 extern struct file_operations autofs4_root_operations;
 

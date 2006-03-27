@@ -4,7 +4,7 @@
  *
  *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
  *  Copyright 1999-2000 Jeremy Fitzhardinge <jeremy@goop.org>
- *  Copyright 2001-2003 Ian Kent <raven@themaw.net>
+ *  Copyright 2001-2006 Ian Kent <raven@themaw.net>
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
@@ -30,6 +30,7 @@ static int autofs4_dir_close(struct inode *inode, struct file *file);
 static int autofs4_dir_readdir(struct file * filp, void * dirent, filldir_t filldir);
 static int autofs4_root_readdir(struct file * filp, void * dirent, filldir_t filldir);
 static struct dentry *autofs4_lookup(struct inode *,struct dentry *, struct nameidata *);
+static void *autofs4_follow_link(struct dentry *, struct nameidata *);
 
 struct file_operations autofs4_root_operations = {
 	.open		= dcache_dir_open,
@@ -46,12 +47,17 @@ struct file_operations autofs4_dir_operations = {
 	.readdir	= autofs4_dir_readdir,
 };
 
-struct inode_operations autofs4_root_inode_operations = {
+struct inode_operations autofs4_indirect_root_inode_operations = {
 	.lookup		= autofs4_lookup,
 	.unlink		= autofs4_dir_unlink,
 	.symlink	= autofs4_dir_symlink,
 	.mkdir		= autofs4_dir_mkdir,
 	.rmdir		= autofs4_dir_rmdir,
+};
+
+struct inode_operations autofs4_direct_root_inode_operations = {
+	.lookup		= autofs4_lookup,
+	.follow_link	= autofs4_follow_link,
 };
 
 struct inode_operations autofs4_dir_inode_operations = {
@@ -252,7 +258,7 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 		 */
 		status = d_invalidate(dentry);
 		if (status != -EBUSY)
-			return 0;
+			return -ENOENT;
 	}
 
 	DPRINTK("dentry=%p %.*s ino=%p",
@@ -271,17 +277,17 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 		DPRINTK("mount done status=%d", status);
 
 		if (status && dentry->d_inode)
-			return 0; /* Try to get the kernel to invalidate this dentry */
+			return status; /* Try to get the kernel to invalidate this dentry */
 
 		/* Turn this into a real negative dentry? */
 		if (status == -ENOENT) {
 			spin_lock(&dentry->d_lock);
 			dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
 			spin_unlock(&dentry->d_lock);
-			return 0;
+			return status;
 		} else if (status) {
 			/* Return a negative dentry, but leave it "pending" */
-			return 0;
+			return status;
 		}
 	/* Trigger mount for path component or follow link */
 	} else if (flags & (LOOKUP_CONTINUE | LOOKUP_DIRECTORY) ||
@@ -300,7 +306,7 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 			spin_lock(&dentry->d_lock);
 			dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
 			spin_unlock(&dentry->d_lock);
-			return 0;
+			return status;
 		}
 	}
 
@@ -311,7 +317,41 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags &= ~DCACHE_AUTOFS_PENDING;
 	spin_unlock(&dentry->d_lock);
-	return 1;
+	return status;
+}
+
+/* For autofs direct mounts the follow link triggers the mount */
+static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
+{
+	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
+	int oz_mode = autofs4_oz_mode(sbi);
+	unsigned int lookup_type;
+	int status;
+
+	DPRINTK("dentry=%p %.*s oz_mode=%d nd->flags=%d",
+		dentry, dentry->d_name.len, dentry->d_name.name, oz_mode,
+		nd->flags);
+
+	/* If it's our master or we shouldn't trigger a mount we're done */
+	lookup_type = nd->flags & (LOOKUP_CONTINUE | LOOKUP_DIRECTORY);
+	if (oz_mode || !lookup_type)
+		goto done;
+
+	status = try_to_fill_dentry(dentry, 0);
+	if (status)
+		goto out_error;
+
+	if (!autofs4_follow_mount(&nd->mnt, &nd->dentry)) {
+		status = -ENOENT;
+		goto out_error;
+	}
+
+done:
+	return NULL;
+
+out_error:
+	path_release(nd);
+	return ERR_PTR(status);
 }
 
 /*
@@ -326,13 +366,13 @@ static int autofs4_revalidate(struct dentry *dentry, struct nameidata *nd)
 	struct autofs_sb_info *sbi = autofs4_sbi(dir->i_sb);
 	int oz_mode = autofs4_oz_mode(sbi);
 	int flags = nd ? nd->flags : 0;
-	int status = 1;
+	int status = 0;
 
 	/* Pending dentry */
 	if (autofs4_ispending(dentry)) {
 		if (!oz_mode)
 			status = try_to_fill_dentry(dentry, flags);
-		return status;
+		return !status;
 	}
 
 	/* Negative dentry.. invalidate if "old" */
@@ -349,14 +389,14 @@ static int autofs4_revalidate(struct dentry *dentry, struct nameidata *nd)
 		spin_unlock(&dcache_lock);
 		if (!oz_mode)
 			status = try_to_fill_dentry(dentry, flags);
-		return status;
+		return !status;
 	}
 	spin_unlock(&dcache_lock);
 
 	return 1;
 }
 
-static void autofs4_dentry_release(struct dentry *de)
+void autofs4_dentry_release(struct dentry *de)
 {
 	struct autofs_info *inf;
 
