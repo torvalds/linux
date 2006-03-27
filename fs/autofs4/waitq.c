@@ -3,7 +3,7 @@
  * linux/fs/autofs/waitq.c
  *
  *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
- *  Copyright 2001-2003 Ian Kent <raven@themaw.net>
+ *  Copyright 2001-2006 Ian Kent <raven@themaw.net>
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
@@ -97,7 +97,10 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 
 	pkt.hdr.proto_version = sbi->version;
 	pkt.hdr.type = type;
-	if (type == autofs_ptype_missing) {
+	switch (type) {
+	/* Kernel protocol v4 missing and expire packets */
+	case autofs_ptype_missing:
+	{
 		struct autofs_packet_missing *mp = &pkt.missing;
 
 		pktsz = sizeof(*mp);
@@ -106,7 +109,10 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 		mp->len = wq->len;
 		memcpy(mp->name, wq->name, wq->len);
 		mp->name[wq->len] = '\0';
-	} else if (type == autofs_ptype_expire_multi) {
+		break;
+	}
+	case autofs_ptype_expire_multi:
+	{
 		struct autofs_packet_expire_multi *ep = &pkt.expire_multi;
 
 		pktsz = sizeof(*ep);
@@ -115,7 +121,34 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 		ep->len = wq->len;
 		memcpy(ep->name, wq->name, wq->len);
 		ep->name[wq->len] = '\0';
-	} else {
+		break;
+	}
+	/*
+	 * Kernel protocol v5 packet for handling indirect and direct
+	 * mount missing and expire requests
+	 */
+	case autofs_ptype_missing_indirect:
+	case autofs_ptype_expire_indirect:
+	case autofs_ptype_missing_direct:
+	case autofs_ptype_expire_direct:
+	{
+		struct autofs_v5_packet *packet = &pkt.v5_packet;
+
+		pktsz = sizeof(*packet);
+
+		packet->wait_queue_token = wq->wait_queue_token;
+		packet->len = wq->len;
+		memcpy(packet->name, wq->name, wq->len);
+		packet->name[wq->len] = '\0';
+		packet->dev = wq->dev;
+		packet->ino = wq->ino;
+		packet->uid = wq->uid;
+		packet->gid = wq->gid;
+		packet->pid = wq->pid;
+		packet->tgid = wq->tgid;
+		break;
+	}
+	default:
 		printk("autofs4_notify_daemon: bad type %d!\n", type);
 		return;
 	}
@@ -161,7 +194,9 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 {
 	struct autofs_wait_queue *wq;
 	char *name;
-	int len, status;
+	unsigned int len = 0;
+	unsigned int hash = 0;
+	int status;
 
 	/* In catatonic mode, we don't wait for nobody */
 	if (sbi->catatonic)
@@ -171,11 +206,17 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 	if (!name)
 		return -ENOMEM;
 
-	len = autofs4_getpath(sbi, dentry, &name);
-	if (!len) {
-		kfree(name);
-		return -ENOENT;
+	/* If this is a direct mount request create a dummy name */
+	if (IS_ROOT(dentry) && (sbi->type & AUTOFS_TYP_DIRECT))
+		len = sprintf(name, "%p", dentry);
+	else {
+		len = autofs4_getpath(sbi, dentry, &name);
+		if (!len) {
+			kfree(name);
+			return -ENOENT;
+		}
 	}
+	hash = full_name_hash(name, len);
 
 	if (mutex_lock_interruptible(&sbi->wq_mutex)) {
 		kfree(name);
@@ -211,9 +252,15 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 		wq->next = sbi->queues;
 		sbi->queues = wq;
 		init_waitqueue_head(&wq->queue);
-		wq->hash = dentry->d_name.hash;
+		wq->hash = hash;
 		wq->name = name;
 		wq->len = len;
+		wq->dev = autofs4_get_dev(sbi);
+		wq->ino = autofs4_get_ino(sbi);
+		wq->uid = current->uid;
+		wq->gid = current->gid;
+		wq->pid = current->pid;
+		wq->tgid = current->tgid;
 		wq->status = -EINTR; /* Status return if interrupted */
 		atomic_set(&wq->wait_ctr, 2);
 		atomic_set(&wq->notified, 1);
@@ -227,8 +274,23 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 	}
 
 	if (notify != NFY_NONE && atomic_dec_and_test(&wq->notified)) {
-		int type = (notify == NFY_MOUNT ?
-			autofs_ptype_missing : autofs_ptype_expire_multi);
+		int type;
+
+		if (sbi->version < 5) {
+			if (notify == NFY_MOUNT)
+				type = autofs_ptype_missing;
+			else
+				type = autofs_ptype_expire_multi;
+		} else {
+			if (notify == NFY_MOUNT)
+				type = (sbi->type & AUTOFS_TYP_DIRECT) ?
+					autofs_ptype_missing_direct :
+					 autofs_ptype_missing_indirect;
+			else
+				type = (sbi->type & AUTOFS_TYP_DIRECT) ?
+					autofs_ptype_expire_direct :
+					autofs_ptype_expire_indirect;
+		}
 
 		DPRINTK("new wait id = 0x%08lx, name = %.*s, nfy=%d\n",
 			(unsigned long) wq->wait_queue_token, wq->len, wq->name, notify);

@@ -77,6 +77,12 @@ struct autofs_wait_queue {
 	int hash;
 	int len;
 	char *name;
+	u32 dev;
+	u64 ino;
+	uid_t uid;
+	gid_t gid;
+	pid_t pid;
+	pid_t tgid;
 	/* This is for status reporting upon return */
 	int status;
 	atomic_t notified;
@@ -180,13 +186,6 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *, struct autofs_sb_info
 
 /* Queue management functions */
 
-enum autofs_notify
-{
-	NFY_NONE,
-	NFY_MOUNT,
-	NFY_EXPIRE
-};
-
 int autofs4_wait(struct autofs_sb_info *,struct dentry *, enum autofs_notify);
 int autofs4_wait_release(struct autofs_sb_info *,autofs_wqt_t,int);
 void autofs4_catatonic_mode(struct autofs_sb_info *);
@@ -202,6 +201,16 @@ static inline int autofs4_follow_mount(struct vfsmount **mnt, struct dentry **de
 		res = 1;
 	}
 	return res;
+}
+
+static inline u32 autofs4_get_dev(struct autofs_sb_info *sbi)
+{
+	return new_encode_dev(sbi->sb->s_dev);
+}
+
+static inline u64 autofs4_get_ino(struct autofs_sb_info *sbi)
+{
+	return sbi->sb->s_root->d_inode->i_ino;
 }
 
 static inline int simple_positive(struct dentry *dentry)
