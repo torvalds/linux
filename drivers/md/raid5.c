@@ -1768,6 +1768,14 @@ static int make_request(request_queue_t *q, struct bio * bi)
 		if (likely(conf->expand_progress == MaxSector))
 			disks = conf->raid_disks;
 		else {
+			/* spinlock is needed as expand_progress may be
+			 * 64bit on a 32bit platform, and so it might be
+			 * possible to see a half-updated value
+			 * Ofcourse expand_progress could change after
+			 * the lock is dropped, so once we get a reference
+			 * to the stripe that we think it is, we will have
+			 * to check again.
+			 */
 			spin_lock_irq(&conf->device_lock);
 			disks = conf->raid_disks;
 			if (logical_sector >= conf->expand_progress)
@@ -1791,7 +1799,12 @@ static int make_request(request_queue_t *q, struct bio * bi)
 		if (sh) {
 			if (unlikely(conf->expand_progress != MaxSector)) {
 				/* expansion might have moved on while waiting for a
-				 * stripe, so we much do the range check again.
+				 * stripe, so we must do the range check again.
+				 * Expansion could still move past after this
+				 * test, but as we are holding a reference to
+				 * 'sh', we know that if that happens,
+				 *  STRIPE_EXPANDING will get set and the expansion
+				 * won't proceed until we finish with the stripe.
 				 */
 				int must_retry = 0;
 				spin_lock_irq(&conf->device_lock);
