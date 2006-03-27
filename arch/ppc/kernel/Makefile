@@ -19,9 +19,6 @@ obj-$(CONFIG_PCI)		+= pci.o
 obj-$(CONFIG_RAPIDIO)		+= rio.o
 obj-$(CONFIG_KGDB)		+= ppc-stub.o
 obj-$(CONFIG_SMP)		+= smp.o smp-tbsync.o
-ifndef CONFIG_E200
-obj-$(CONFIG_FSL_BOOKE)		+= perfmon_fsl_booke.o
-endif
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
 
 ifndef CONFIG_MATH_EMULATION
@@ -33,7 +30,4 @@ endif
 else
 obj-$(CONFIG_NOT_COHERENT_CACHE)	+= dma-mapping.o
 obj-$(CONFIG_KGDB)		+= ppc-stub.o
-ifndef CONFIG_E200
-obj-$(CONFIG_FSL_BOOKE)		+= perfmon_fsl_booke.o
-endif
 endif
