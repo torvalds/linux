@@ -8,4 +8,4 @@ obj-$(CONFIG_RTC_CLASS)		+= rtc-core.o
 rtc-core-y			:= class.o interface.o
 
 obj-$(CONFIG_RTC_INTF_SYSFS)	+= rtc-sysfs.o
-
+obj-$(CONFIG_RTC_INTF_PROC)	+= rtc-proc.o
