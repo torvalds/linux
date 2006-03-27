@@ -5574,11 +5574,31 @@ static int cpu_to_cpu_group(int cpu)
 }
 #endif
 
+#ifdef CONFIG_SCHED_MC
+static DEFINE_PER_CPU(struct sched_domain, core_domains);
+static struct sched_group sched_group_core[NR_CPUS];
+#endif
+
+#if defined(CONFIG_SCHED_MC) && defined(CONFIG_SCHED_SMT)
+static int cpu_to_core_group(int cpu)
+{
+	return first_cpu(cpu_sibling_map[cpu]);
+}
+#elif defined(CONFIG_SCHED_MC)
+static int cpu_to_core_group(int cpu)
+{
+	return cpu;
+}
+#endif
+
 static DEFINE_PER_CPU(struct sched_domain, phys_domains);
 static struct sched_group sched_group_phys[NR_CPUS];
 static int cpu_to_phys_group(int cpu)
 {
-#ifdef CONFIG_SCHED_SMT
+#if defined(CONFIG_SCHED_MC)
+	cpumask_t mask = cpu_coregroup_map(cpu);
+	return first_cpu(mask);
+#elif defined(CONFIG_SCHED_SMT)
 	return first_cpu(cpu_sibling_map[cpu]);
 #else
 	return cpu;
@@ -5676,6 +5696,17 @@ void build_sched_domains(const cpumask_t *cpu_map)
 		sd->parent = p;
 		sd->groups = &sched_group_phys[group];
 
+#ifdef CONFIG_SCHED_MC
+		p = sd;
+		sd = &per_cpu(core_domains, i);
+		group = cpu_to_core_group(i);
+		*sd = SD_MC_INIT;
+		sd->span = cpu_coregroup_map(i);
+		cpus_and(sd->span, sd->span, *cpu_map);
+		sd->parent = p;
+		sd->groups = &sched_group_core[group];
+#endif
+
 #ifdef CONFIG_SCHED_SMT
 		p = sd;
 		sd = &per_cpu(cpu_domains, i);
@@ -5700,6 +5731,19 @@ void build_sched_domains(const cpumask_t *cpu_map)
 						&cpu_to_cpu_group);
 	}
 #endif
+
+#ifdef CONFIG_SCHED_MC
+	/* Set up multi-core groups */
+	for_each_cpu_mask(i, *cpu_map) {
+		cpumask_t this_core_map = cpu_coregroup_map(i);
+		cpus_and(this_core_map, this_core_map, *cpu_map);
+		if (i != first_cpu(this_core_map))
+			continue;
+		init_sched_build_groups(sched_group_core, this_core_map,
+					&cpu_to_core_group);
+	}
+#endif
+
 
 	/* Set up physical groups */
 	for (i = 0; i < MAX_NUMNODES; i++) {
@@ -5797,11 +5841,31 @@ void build_sched_domains(const cpumask_t *cpu_map)
 		power = SCHED_LOAD_SCALE;
 		sd->groups->cpu_power = power;
 #endif
+#ifdef CONFIG_SCHED_MC
+		sd = &per_cpu(core_domains, i);
+		power = SCHED_LOAD_SCALE + (cpus_weight(sd->groups->cpumask)-1)
+					    * SCHED_LOAD_SCALE / 10;
+		sd->groups->cpu_power = power;
 
+		sd = &per_cpu(phys_domains, i);
+
+ 		/*
+ 		 * This has to be < 2 * SCHED_LOAD_SCALE
+ 		 * Lets keep it SCHED_LOAD_SCALE, so that
+ 		 * while calculating NUMA group's cpu_power
+ 		 * we can simply do
+ 		 *  numa_group->cpu_power += phys_group->cpu_power;
+ 		 *
+ 		 * See "only add power once for each physical pkg"
+ 		 * comment below
+ 		 */
+ 		sd->groups->cpu_power = SCHED_LOAD_SCALE;
+#else
 		sd = &per_cpu(phys_domains, i);
 		power = SCHED_LOAD_SCALE + SCHED_LOAD_SCALE *
 				(cpus_weight(sd->groups->cpumask)-1) / 10;
 		sd->groups->cpu_power = power;
+#endif
 
 #ifdef CONFIG_NUMA
 		sd = &per_cpu(allnodes_domains, i);
@@ -5823,7 +5887,6 @@ void build_sched_domains(const cpumask_t *cpu_map)
 next_sg:
 		for_each_cpu_mask(j, sg->cpumask) {
 			struct sched_domain *sd;
-			int power;
 
 			sd = &per_cpu(phys_domains, j);
 			if (j != first_cpu(sd->groups->cpumask)) {
@@ -5833,10 +5896,8 @@ next_sg:
 				 */
 				continue;
 			}
-			power = SCHED_LOAD_SCALE + SCHED_LOAD_SCALE *
-				(cpus_weight(sd->groups->cpumask)-1) / 10;
 
-			sg->cpu_power += power;
+			sg->cpu_power += sd->groups->cpu_power;
 		}
 		sg = sg->next;
 		if (sg != sched_group_nodes[i])
@@ -5849,6 +5910,8 @@ next_sg:
 		struct sched_domain *sd;
 #ifdef CONFIG_SCHED_SMT
 		sd = &per_cpu(cpu_domains, i);
+#elif defined(CONFIG_SCHED_MC)
+		sd = &per_cpu(core_domains, i);
 #else
 		sd = &per_cpu(phys_domains, i);
 #endif

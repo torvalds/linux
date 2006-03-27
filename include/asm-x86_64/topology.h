@@ -68,4 +68,6 @@ extern int __node_distance(int, int);
 
 #include <asm-generic/topology.h>
 
+extern cpumask_t cpu_coregroup_map(int cpu);
+
 #endif

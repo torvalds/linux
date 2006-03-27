@@ -112,4 +112,6 @@ extern unsigned long node_remap_size[];
 
 #endif /* CONFIG_NUMA */
 
+extern cpumask_t cpu_coregroup_map(int cpu);
+
 #endif /* _ASM_I386_TOPOLOGY_H */

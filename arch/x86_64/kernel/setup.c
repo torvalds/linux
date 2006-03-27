@@ -962,7 +962,6 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 	cpuid(1, &eax, &ebx, &ecx, &edx);
 
-	c->apicid = phys_pkg_id(0);
 
 	if (!cpu_has(c, X86_FEATURE_HT) || cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		return;
@@ -1170,6 +1169,8 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		if (xlvl >= 0x80860001)
 			c->x86_capability[2] = cpuid_edx(0x80860001);
 	}
+
+	c->apicid = phys_pkg_id(0);
 
 	/*
 	 * Vendor-specific initialization.  In this section we
