@@ -157,8 +157,7 @@ static void autofs4_put_super(struct super_block *sb)
 		autofs4_catatonic_mode(sbi); /* Free wait queues, close pipe */
 
 	/* Clean up and release dangling references */
-	if (sbi)
-		autofs4_force_release(sbi);
+	autofs4_force_release(sbi);
 
 	kfree(sbi);
 
