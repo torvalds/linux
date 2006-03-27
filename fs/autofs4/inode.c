@@ -46,6 +46,7 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 	ino->size = 0;
 
 	ino->last_used = jiffies;
+	atomic_set(&ino->count, 0);
 
 	ino->sbi = sbi;
 
@@ -64,10 +65,19 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 
 void autofs4_free_ino(struct autofs_info *ino)
 {
+	struct autofs_info *p_ino;
+
 	if (ino->dentry) {
 		ino->dentry->d_fsdata = NULL;
-		if (ino->dentry->d_inode)
+		if (ino->dentry->d_inode) {
+			struct dentry *parent = ino->dentry->d_parent;
+			if (atomic_dec_and_test(&ino->count)) {
+				p_ino = autofs4_dentry_ino(parent);
+				if (p_ino && parent != ino->dentry)
+					atomic_dec(&p_ino->count);
+			}
 			dput(ino->dentry);
+		}
 		ino->dentry = NULL;
 	}
 	if (ino->free)

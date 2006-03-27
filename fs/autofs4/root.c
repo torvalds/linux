@@ -490,6 +490,7 @@ static int autofs4_dir_symlink(struct inode *dir,
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dir->i_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
+	struct autofs_info *p_ino;
 	struct inode *inode;
 	char *cp;
 
@@ -523,6 +524,10 @@ static int autofs4_dir_symlink(struct inode *dir,
 
 	dentry->d_fsdata = ino;
 	ino->dentry = dget(dentry);
+	atomic_inc(&ino->count);
+	p_ino = autofs4_dentry_ino(dentry->d_parent);
+	if (p_ino && dentry->d_parent != dentry)
+		atomic_inc(&p_ino->count);
 	ino->inode = inode;
 
 	dir->i_mtime = CURRENT_TIME;
@@ -549,11 +554,17 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dir->i_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
+	struct autofs_info *p_ino;
 	
 	/* This allows root to remove symlinks */
 	if ( !autofs4_oz_mode(sbi) && !capable(CAP_SYS_ADMIN) )
 		return -EACCES;
 
+	if (atomic_dec_and_test(&ino->count)) {
+		p_ino = autofs4_dentry_ino(dentry->d_parent);
+		if (p_ino && dentry->d_parent != dentry)
+			atomic_dec(&p_ino->count);
+	}
 	dput(ino->dentry);
 
 	dentry->d_inode->i_size = 0;
@@ -570,6 +581,7 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dir->i_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
+	struct autofs_info *p_ino;
 	
 	if (!autofs4_oz_mode(sbi))
 		return -EACCES;
@@ -584,8 +596,12 @@ static int autofs4_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dcache_lock);
 
+	if (atomic_dec_and_test(&ino->count)) {
+		p_ino = autofs4_dentry_ino(dentry->d_parent);
+		if (p_ino && dentry->d_parent != dentry)
+			atomic_dec(&p_ino->count);
+	}
 	dput(ino->dentry);
-
 	dentry->d_inode->i_size = 0;
 	dentry->d_inode->i_nlink = 0;
 
@@ -599,6 +615,7 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dir->i_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
+	struct autofs_info *p_ino;
 	struct inode *inode;
 
 	if ( !autofs4_oz_mode(sbi) )
@@ -621,6 +638,10 @@ static int autofs4_dir_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	dentry->d_fsdata = ino;
 	ino->dentry = dget(dentry);
+	atomic_inc(&ino->count);
+	p_ino = autofs4_dentry_ino(dentry->d_parent);
+	if (p_ino && dentry->d_parent != dentry)
+		atomic_inc(&p_ino->count);
 	ino->inode = inode;
 	dir->i_nlink++;
 	dir->i_mtime = CURRENT_TIME;

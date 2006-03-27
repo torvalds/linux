@@ -101,6 +101,7 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 			     unsigned long timeout,
 			     int do_now)
 {
+	struct autofs_info *ino;
 	struct dentry *p;
 
 	DPRINTK("top %p %.*s",
@@ -108,14 +109,6 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 
 	/* Negative dentry - give up */
 	if (!simple_positive(top))
-		return 1;
-
-	/* Timeout of a tree mount is determined by its top dentry */
-	if (!autofs4_can_expire(top, timeout, do_now))
-		return 1;
-
-	/* Is someone visiting anywhere in the tree ? */
-	if (may_umount_tree(mnt))
 		return 1;
 
 	spin_lock(&dcache_lock);
@@ -130,9 +123,27 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 		p = dget(p);
 		spin_unlock(&dcache_lock);
 
+		/*
+		 * Is someone visiting anywhere in the subtree ?
+		 * If there's no mount we need to check the usage
+		 * count for the autofs dentry.
+		 */
+		ino = autofs4_dentry_ino(p);
 		if (d_mountpoint(p)) {
-			/* First busy => tree busy */
 			if (autofs4_mount_busy(mnt, p)) {
+				dput(p);
+				return 1;
+			}
+		} else {
+			unsigned int ino_count = atomic_read(&ino->count);
+
+			/* allow for dget above and top is already dgot */
+			if (p == top)
+				ino_count += 2;
+			else
+				ino_count++;
+
+			if (atomic_read(&p->d_count) > ino_count) {
 				dput(p);
 				return 1;
 			}
@@ -141,6 +152,11 @@ static int autofs4_tree_busy(struct vfsmount *mnt,
 		spin_lock(&dcache_lock);
 	}
 	spin_unlock(&dcache_lock);
+
+	/* Timeout of a tree mount is ultimately determined by its top dentry */
+	if (!autofs4_can_expire(top, timeout, do_now))
+		return 1;
+
 	return 0;
 }
 

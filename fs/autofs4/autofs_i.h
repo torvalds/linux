@@ -55,6 +55,7 @@ struct autofs_info {
 
 	struct autofs_sb_info *sbi;
 	unsigned long last_used;
+	atomic_t count;
 
 	mode_t	mode;
 	size_t	size;
