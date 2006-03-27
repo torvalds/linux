@@ -2594,7 +2594,7 @@ static int do_md_run(mddev_t * mddev)
 	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
 
 	if (mddev->reshape_position != MaxSector &&
-	    pers->reshape == NULL) {
+	    pers->start_reshape == NULL) {
 		/* This personality cannot handle reshaping... */
 		mddev->pers = NULL;
 		module_put(pers->owner);
@@ -3556,14 +3556,16 @@ static int update_raid_disks(mddev_t *mddev, int raid_disks)
 {
 	int rv;
 	/* change the number of raid disks */
-	if (mddev->pers->reshape == NULL)
+	if (mddev->pers->check_reshape == NULL)
 		return -EINVAL;
 	if (raid_disks <= 0 ||
 	    raid_disks >= mddev->max_disks)
 		return -EINVAL;
-	if (mddev->sync_thread)
+	if (mddev->sync_thread || mddev->reshape_position != MaxSector)
 		return -EBUSY;
-	rv = mddev->pers->reshape(mddev, raid_disks);
+	mddev->delta_disks = raid_disks - mddev->raid_disks;
+
+	rv = mddev->pers->check_reshape(mddev);
 	return rv;
 }
 

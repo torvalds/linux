@@ -1976,7 +1976,7 @@ static int raid1_resize(mddev_t *mddev, sector_t sectors)
 	return 0;
 }
 
-static int raid1_reshape(mddev_t *mddev, int raid_disks)
+static int raid1_reshape(mddev_t *mddev)
 {
 	/* We need to:
 	 * 1/ resize the r1bio_pool
@@ -1993,9 +1993,21 @@ static int raid1_reshape(mddev_t *mddev, int raid_disks)
 	struct pool_info *newpoolinfo;
 	mirror_info_t *newmirrors;
 	conf_t *conf = mddev_to_conf(mddev);
-	int cnt;
+	int cnt, raid_disks;
 
 	int d, d2;
+
+	/* Cannot change chunk_size, layout, or level */
+	if (mddev->chunk_size != mddev->new_chunk ||
+	    mddev->layout != mddev->new_layout ||
+	    mddev->level != mddev->new_level) {
+		mddev->new_chunk = mddev->chunk_size;
+		mddev->new_layout = mddev->layout;
+		mddev->new_level = mddev->level;
+		return -EINVAL;
+	}
+
+	raid_disks = mddev->raid_disks + mddev->delta_disks;
 
 	if (raid_disks < conf->raid_disks) {
 		cnt=0;
@@ -2043,6 +2055,7 @@ static int raid1_reshape(mddev_t *mddev, int raid_disks)
 
 	mddev->degraded += (raid_disks - conf->raid_disks);
 	conf->raid_disks = mddev->raid_disks = raid_disks;
+	mddev->delta_disks = 0;
 
 	conf->last_used = 0; /* just make sure it is in-range */
 	lower_barrier(conf);
@@ -2084,7 +2097,7 @@ static struct mdk_personality raid1_personality =
 	.spare_active	= raid1_spare_active,
 	.sync_request	= sync_request,
 	.resize		= raid1_resize,
-	.reshape	= raid1_reshape,
+	.check_reshape	= raid1_reshape,
 	.quiesce	= raid1_quiesce,
 };
 

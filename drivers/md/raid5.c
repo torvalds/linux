@@ -2590,21 +2590,15 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 }
 
 #ifdef CONFIG_MD_RAID5_RESHAPE
-static int raid5_reshape(mddev_t *mddev, int raid_disks)
+static int raid5_check_reshape(mddev_t *mddev)
 {
 	raid5_conf_t *conf = mddev_to_conf(mddev);
 	int err;
-	mdk_rdev_t *rdev;
-	struct list_head *rtmp;
-	int spares = 0;
-	int added_devices = 0;
 
-	if (mddev->degraded ||
-	    test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
-		return -EBUSY;
-	if (conf->raid_disks > raid_disks)
-		return -EINVAL; /* Cannot shrink array yet */
-	if (conf->raid_disks == raid_disks)
+	if (mddev->delta_disks < 0 ||
+	    mddev->new_level != mddev->level)
+		return -EINVAL; /* Cannot shrink array or change level yet */
+	if (mddev->delta_disks == 0)
 		return 0; /* nothing to do */
 
 	/* Can only proceed if there are plenty of stripe_heads.
@@ -2615,30 +2609,48 @@ static int raid5_reshape(mddev_t *mddev, int raid_disks)
 	 * If the chunk size is greater, user-space should request more
 	 * stripe_heads first.
 	 */
-	if ((mddev->chunk_size / STRIPE_SIZE) * 4 > conf->max_nr_stripes) {
+	if ((mddev->chunk_size / STRIPE_SIZE) * 4 > conf->max_nr_stripes ||
+	    (mddev->new_chunk / STRIPE_SIZE) * 4 > conf->max_nr_stripes) {
 		printk(KERN_WARNING "raid5: reshape: not enough stripes.  Needed %lu\n",
 		       (mddev->chunk_size / STRIPE_SIZE)*4);
 		return -ENOSPC;
 	}
 
+	err = resize_stripes(conf, conf->raid_disks + mddev->delta_disks);
+	if (err)
+		return err;
+
+	/* looks like we might be able to manage this */
+	return 0;
+}
+
+static int raid5_start_reshape(mddev_t *mddev)
+{
+	raid5_conf_t *conf = mddev_to_conf(mddev);
+	mdk_rdev_t *rdev;
+	struct list_head *rtmp;
+	int spares = 0;
+	int added_devices = 0;
+
+	if (mddev->degraded ||
+	    test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+		return -EBUSY;
+
 	ITERATE_RDEV(mddev, rdev, rtmp)
 		if (rdev->raid_disk < 0 &&
 		    !test_bit(Faulty, &rdev->flags))
 			spares++;
-	if (conf->raid_disks + spares < raid_disks-1)
+
+	if (spares < mddev->delta_disks-1)
 		/* Not enough devices even to make a degraded array
 		 * of that size
 		 */
 		return -EINVAL;
 
-	err = resize_stripes(conf, raid_disks);
-	if (err)
-		return err;
-
 	atomic_set(&conf->reshape_stripes, 0);
 	spin_lock_irq(&conf->device_lock);
 	conf->previous_raid_disks = conf->raid_disks;
-	conf->raid_disks = raid_disks;
+	conf->raid_disks += mddev->delta_disks;
 	conf->expand_progress = 0;
 	conf->expand_lo = 0;
 	spin_unlock_irq(&conf->device_lock);
@@ -2660,12 +2672,8 @@ static int raid5_reshape(mddev_t *mddev, int raid_disks)
 				break;
 		}
 
-	mddev->degraded = (raid_disks - conf->previous_raid_disks) - added_devices;
-	mddev->new_chunk = mddev->chunk_size;
-	mddev->new_layout = mddev->layout;
-	mddev->new_level = mddev->level;
-	mddev->raid_disks = raid_disks;
-	mddev->delta_disks = raid_disks - conf->previous_raid_disks;
+	mddev->degraded = (conf->raid_disks - conf->previous_raid_disks) - added_devices;
+	mddev->raid_disks = conf->raid_disks;
 	mddev->reshape_position = 0;
 	mddev->sb_dirty = 1;
 
@@ -2679,7 +2687,6 @@ static int raid5_reshape(mddev_t *mddev, int raid_disks)
 		mddev->recovery = 0;
 		spin_lock_irq(&conf->device_lock);
 		mddev->raid_disks = conf->raid_disks = conf->previous_raid_disks;
-		mddev->delta_disks = 0;
 		conf->expand_progress = MaxSector;
 		spin_unlock_irq(&conf->device_lock);
 		return -EAGAIN;
@@ -2752,7 +2759,8 @@ static struct mdk_personality raid5_personality =
 	.sync_request	= sync_request,
 	.resize		= raid5_resize,
 #ifdef CONFIG_MD_RAID5_RESHAPE
-	.reshape	= raid5_reshape,
+	.check_reshape	= raid5_check_reshape,
+	.start_reshape  = raid5_start_reshape,
 #endif
 	.quiesce	= raid5_quiesce,
 };
