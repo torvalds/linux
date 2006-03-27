@@ -1297,20 +1297,13 @@ static struct i2c_driver maven_driver={
 	.detach_client	= maven_detach_client,
 };
 
-/* ************************** */
-
-static int matroxfb_maven_init(void) {
-	int err;
-
-	err = i2c_add_driver(&maven_driver);
-	if (err) {
-		printk(KERN_ERR "maven: Maven driver failed to register (%d).\n", err);
-		return err;
-	}
-	return 0;
+static int __init matroxfb_maven_init(void)
+{
+	return i2c_add_driver(&maven_driver);
 }
 
-static void matroxfb_maven_exit(void) {
+static void __exit matroxfb_maven_exit(void)
+{
 	i2c_del_driver(&maven_driver);
 }
 
