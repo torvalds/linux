@@ -1771,8 +1771,6 @@ static void __exit nvidiafb_remove(struct pci_dev *pd)
 	struct nvidia_par *par = info->par;
 
 	NVTRACE_ENTER();
-	if (!info)
-		return;
 
 	unregister_framebuffer(info);
 #ifdef CONFIG_MTRR
