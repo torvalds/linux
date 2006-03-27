@@ -102,13 +102,11 @@ int			exp_rootfh(struct auth_domain *,
 int			exp_pseudoroot(struct auth_domain *, struct svc_fh *fhp, struct cache_req *creq);
 int			nfserrno(int errno);
 
-extern void expkey_put(struct cache_head *item, struct cache_detail *cd);
-extern void svc_export_put(struct cache_head *item, struct cache_detail *cd);
 extern struct cache_detail svc_export_cache, svc_expkey_cache;
 
 static inline void exp_put(struct svc_export *exp)
 {
-	svc_export_put(&exp->h, &svc_export_cache);
+	cache_put(&exp->h, &svc_export_cache);
 }
 
 static inline void exp_get(struct svc_export *exp)

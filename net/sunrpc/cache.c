@@ -42,7 +42,7 @@ void cache_init(struct cache_head *h)
 	time_t now = get_seconds();
 	h->next = NULL;
 	h->flags = 0;
-	atomic_set(&h->refcnt, 1);
+	kref_init(&h->ref);
 	h->expiry_time = now + CACHE_NEW_EXPIRY;
 	h->last_refresh = now;
 }
@@ -81,7 +81,7 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 		if (detail->match(tmp, key)) {
 			cache_get(tmp);
 			write_unlock(&detail->hash_lock);
-			detail->cache_put(new, detail);
+			cache_put(new, detail);
 			return tmp;
 		}
 	}
@@ -145,7 +145,7 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	/* We need to insert a new entry */
 	tmp = detail->alloc();
 	if (!tmp) {
-		detail->cache_put(old, detail);
+		cache_put(old, detail);
 		return NULL;
 	}
 	cache_init(tmp);
@@ -165,7 +165,7 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	write_unlock(&detail->hash_lock);
 	cache_fresh_unlocked(tmp, detail, is_new);
 	cache_fresh_unlocked(old, detail, 0);
-	detail->cache_put(old, detail);
+	cache_put(old, detail);
 	return tmp;
 }
 EXPORT_SYMBOL(sunrpc_cache_update);
@@ -234,7 +234,7 @@ int cache_check(struct cache_detail *detail,
 		cache_defer_req(rqstp, h);
 
 	if (rv)
-		detail->cache_put(h, detail);
+		cache_put(h, detail);
 	return rv;
 }
 
@@ -431,7 +431,7 @@ static int cache_clean(void)
 			if (test_and_clear_bit(CACHE_PENDING, &ch->flags))
 				queue_loose(current_detail, ch);
 
-			if (atomic_read(&ch->refcnt) == 1)
+			if (atomic_read(&ch->ref.refcount) == 1)
 				break;
 		}
 		if (ch) {
@@ -446,7 +446,7 @@ static int cache_clean(void)
 			current_index ++;
 		spin_unlock(&cache_list_lock);
 		if (ch)
-			d->cache_put(ch, d);
+			cache_put(ch, d);
 	} else
 		spin_unlock(&cache_list_lock);
 
@@ -723,7 +723,7 @@ cache_read(struct file *filp, char __user *buf, size_t count, loff_t *ppos)
 		    !test_bit(CACHE_PENDING, &rq->item->flags)) {
 			list_del(&rq->q.list);
 			spin_unlock(&queue_lock);
-			cd->cache_put(rq->item, cd);
+			cache_put(rq->item, cd);
 			kfree(rq->buf);
 			kfree(rq);
 		} else
@@ -906,7 +906,7 @@ static void queue_loose(struct cache_detail *detail, struct cache_head *ch)
 				continue;
 			list_del(&cr->q.list);
 			spin_unlock(&queue_lock);
-			detail->cache_put(cr->item, detail);
+			cache_put(cr->item, detail);
 			kfree(cr->buf);
 			kfree(cr);
 			return;
@@ -1192,7 +1192,7 @@ static int c_show(struct seq_file *m, void *p)
 
 	ifdebug(CACHE)
 		seq_printf(m, "# expiry=%ld refcnt=%d flags=%lx\n",
-			   cp->expiry_time, atomic_read(&cp->refcnt), cp->flags);
+			   cp->expiry_time, atomic_read(&cp->ref.refcount), cp->flags);
 	cache_get(cp);
 	if (cache_check(cd, cp, NULL))
 		/* cache_check does a cache_put on failure */

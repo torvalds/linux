@@ -57,18 +57,17 @@ static int		exp_verify_string(char *cp, int max);
 #define	EXPKEY_HASHMASK		(EXPKEY_HASHMAX -1)
 static struct cache_head *expkey_table[EXPKEY_HASHMAX];
 
-void expkey_put(struct cache_head *item, struct cache_detail *cd)
+void expkey_put(struct kref *ref)
 {
-	if (cache_put(item, cd)) {
-		struct svc_expkey *key = container_of(item, struct svc_expkey, h);
-		if (test_bit(CACHE_VALID, &item->flags) &&
-		    !test_bit(CACHE_NEGATIVE, &item->flags)) {
-			dput(key->ek_dentry);
-			mntput(key->ek_mnt);
-		}
-		auth_domain_put(key->ek_client);
-		kfree(key);
+	struct svc_expkey *key = container_of(ref, struct svc_expkey, h.ref);
+
+	if (test_bit(CACHE_VALID, &key->h.flags) &&
+	    !test_bit(CACHE_NEGATIVE, &key->h.flags)) {
+		dput(key->ek_dentry);
+		mntput(key->ek_mnt);
 	}
+	auth_domain_put(key->ek_client);
+	kfree(key);
 }
 
 static void expkey_request(struct cache_detail *cd,
@@ -158,7 +157,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 		set_bit(CACHE_NEGATIVE, &key.h.flags);
 		ek = svc_expkey_update(&key, ek);
 		if (ek)
-			expkey_put(&ek->h, &svc_expkey_cache);
+			cache_put(&ek->h, &svc_expkey_cache);
 		else err = -ENOMEM;
 	} else {
 		struct nameidata nd;
@@ -172,7 +171,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 		
 		ek = svc_expkey_update(&key, ek);
 		if (ek)
-			expkey_put(&ek->h, &svc_expkey_cache);
+			cache_put(&ek->h, &svc_expkey_cache);
 		else
 			err = -ENOMEM;
 		path_release(&nd);
@@ -318,15 +317,13 @@ svc_expkey_update(struct svc_expkey *new, struct svc_expkey *old)
 
 static struct cache_head *export_table[EXPORT_HASHMAX];
 
-void svc_export_put(struct cache_head *item, struct cache_detail *cd)
+static void svc_export_put(struct kref *ref)
 {
-	if (cache_put(item, cd)) {
-		struct svc_export *exp = container_of(item, struct svc_export, h);
-		dput(exp->ex_dentry);
-		mntput(exp->ex_mnt);
-		auth_domain_put(exp->ex_client);
-		kfree(exp);
-	}
+	struct svc_export *exp = container_of(ref, struct svc_export, h.ref);
+	dput(exp->ex_dentry);
+	mntput(exp->ex_mnt);
+	auth_domain_put(exp->ex_client);
+	kfree(exp);
 }
 
 static void svc_export_request(struct cache_detail *cd,
@@ -633,7 +630,7 @@ static int exp_set_key(svc_client *clp, int fsid_type, u32 *fsidv,
 	if (ek)
 		ek = svc_expkey_update(&key,ek);
 	if (ek) {
-		expkey_put(&ek->h, &svc_expkey_cache);
+		cache_put(&ek->h, &svc_expkey_cache);
 		return 0;
 	}
 	return -ENOMEM;
@@ -762,7 +759,7 @@ static void exp_fsid_unhash(struct svc_export *exp)
 	ek = exp_get_fsid_key(exp->ex_client, exp->ex_fsid);
 	if (ek && !IS_ERR(ek)) {
 		ek->h.expiry_time = get_seconds()-1;
-		expkey_put(&ek->h, &svc_expkey_cache);
+		cache_put(&ek->h, &svc_expkey_cache);
 	}
 	svc_expkey_cache.nextcheck = get_seconds();
 }
@@ -800,7 +797,7 @@ static void exp_unhash(struct svc_export *exp)
 	ek = exp_get_key(exp->ex_client, inode->i_sb->s_dev, inode->i_ino);
 	if (ek && !IS_ERR(ek)) {
 		ek->h.expiry_time = get_seconds()-1;
-		expkey_put(&ek->h, &svc_expkey_cache);
+		cache_put(&ek->h, &svc_expkey_cache);
 	}
 	svc_expkey_cache.nextcheck = get_seconds();
 }
@@ -902,7 +899,7 @@ finish:
 	if (exp)
 		exp_put(exp);
 	if (fsid_key && !IS_ERR(fsid_key))
-		expkey_put(&fsid_key->h, &svc_expkey_cache);
+		cache_put(&fsid_key->h, &svc_expkey_cache);
 	if (clp)
 		auth_domain_put(clp);
 	path_release(&nd);
@@ -1030,7 +1027,7 @@ exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
 		return ERR_PTR(PTR_ERR(ek));
 
 	exp = exp_get_by_name(clp, ek->ek_mnt, ek->ek_dentry, reqp);
-	expkey_put(&ek->h, &svc_expkey_cache);
+	cache_put(&ek->h, &svc_expkey_cache);
 
 	if (!exp || IS_ERR(exp))
 		return ERR_PTR(PTR_ERR(exp));
@@ -1068,7 +1065,7 @@ exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 	else
 		rv = fh_compose(fhp, exp,
 				fsid_key->ek_dentry, NULL);
-	expkey_put(&fsid_key->h, &svc_expkey_cache);
+	cache_put(&fsid_key->h, &svc_expkey_cache);
 	return rv;
 }
 
@@ -1187,7 +1184,7 @@ static int e_show(struct seq_file *m, void *p)
 	cache_get(&exp->h);
 	if (cache_check(&svc_export_cache, &exp->h, NULL))
 		return 0;
-	if (cache_put(&exp->h, &svc_export_cache)) BUG();
+	cache_put(&exp->h, &svc_export_cache);
 	return svc_export_show(m, &svc_export_cache, cp);
 }
 

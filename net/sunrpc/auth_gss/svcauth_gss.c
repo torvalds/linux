@@ -89,13 +89,11 @@ static void rsi_free(struct rsi *rsii)
 	kfree(rsii->out_token.data);
 }
 
-static void rsi_put(struct cache_head *item, struct cache_detail *cd)
+static void rsi_put(struct kref *ref)
 {
-	struct rsi *rsii = container_of(item, struct rsi, h);
-	if (cache_put(item, cd)) {
-		rsi_free(rsii);
-		kfree(rsii);
-	}
+	struct rsi *rsii = container_of(ref, struct rsi, h.ref);
+	rsi_free(rsii);
+	kfree(rsii);
 }
 
 static inline int rsi_hash(struct rsi *item)
@@ -267,7 +265,7 @@ static int rsi_parse(struct cache_detail *cd,
 out:
 	rsi_free(&rsii);
 	if (rsip)
-		rsi_put(&rsip->h, &rsi_cache);
+		cache_put(&rsip->h, &rsi_cache);
 	else
 		status = -ENOMEM;
 	return status;
@@ -357,14 +355,12 @@ static void rsc_free(struct rsc *rsci)
 		put_group_info(rsci->cred.cr_group_info);
 }
 
-static void rsc_put(struct cache_head *item, struct cache_detail *cd)
+static void rsc_put(struct kref *ref)
 {
-	struct rsc *rsci = container_of(item, struct rsc, h);
+	struct rsc *rsci = container_of(ref, struct rsc, h.ref);
 
-	if (cache_put(item, cd)) {
-		rsc_free(rsci);
-		kfree(rsci);
-	}
+	rsc_free(rsci);
+	kfree(rsci);
 }
 
 static inline int
@@ -509,7 +505,7 @@ static int rsc_parse(struct cache_detail *cd,
 out:
 	rsc_free(&rsci);
 	if (rscp)
-		rsc_put(&rscp->h, &rsc_cache);
+		cache_put(&rscp->h, &rsc_cache);
 	else
 		status = -ENOMEM;
 	return status;
@@ -1076,7 +1072,7 @@ drop:
 	ret = SVC_DROP;
 out:
 	if (rsci)
-		rsc_put(&rsci->h, &rsc_cache);
+		cache_put(&rsci->h, &rsc_cache);
 	return ret;
 }
 
@@ -1168,7 +1164,7 @@ out_err:
 		put_group_info(rqstp->rq_cred.cr_group_info);
 	rqstp->rq_cred.cr_group_info = NULL;
 	if (gsd->rsci)
-		rsc_put(&gsd->rsci->h, &rsc_cache);
+		cache_put(&gsd->rsci->h, &rsc_cache);
 	gsd->rsci = NULL;
 
 	return stat;

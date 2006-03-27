@@ -96,12 +96,10 @@ ent_init(struct cache_head *cnew, struct cache_head *citm)
 }
 
 static void
-ent_put(struct cache_head *ch, struct cache_detail *cd)
+ent_put(struct kref *ref)
 {
-	if (cache_put(ch, cd)) {
-		struct ent *map = container_of(ch, struct ent, h);
-		kfree(map);
-	}
+	struct ent *map = container_of(ref, struct ent, h.ref);
+	kfree(map);
 }
 
 static struct cache_head *
@@ -270,7 +268,7 @@ idtoname_parse(struct cache_detail *cd, char *buf, int buflen)
 	if (res == NULL)
 		goto out;
 
-	ent_put(&res->h, &idtoname_cache);
+	cache_put(&res->h, &idtoname_cache);
 
 	error = 0;
 out:
@@ -433,7 +431,7 @@ nametoid_parse(struct cache_detail *cd, char *buf, int buflen)
 	if (res == NULL)
 		goto out;
 
-	ent_put(&res->h, &nametoid_cache);
+	cache_put(&res->h, &nametoid_cache);
 	error = 0;
 out:
 	kfree(buf1);
@@ -562,7 +560,7 @@ do_idmap_lookup_nowait(struct ent *(*lookup_fn)(struct ent *),
 		goto out_put;
 	return 0;
 out_put:
-	ent_put(&(*item)->h, detail);
+	cache_put(&(*item)->h, detail);
 out_err:
 	*item = NULL;
 	return ret;
@@ -613,7 +611,7 @@ idmap_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen
 	if (ret)
 		return ret;
 	*id = item->id;
-	ent_put(&item->h, &nametoid_cache);
+	cache_put(&item->h, &nametoid_cache);
 	return 0;
 }
 
@@ -635,7 +633,7 @@ idmap_id_to_name(struct svc_rqst *rqstp, int type, uid_t id, char *name)
 	ret = strlen(item->name);
 	BUG_ON(ret > IDMAP_NAMESZ);
 	memcpy(name, item->name, ret);
-	ent_put(&item->h, &idtoname_cache);
+	cache_put(&item->h, &idtoname_cache);
 	return ret;
 }
 

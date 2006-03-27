@@ -84,15 +84,15 @@ struct ip_map {
 };
 static struct cache_head	*ip_table[IP_HASHMAX];
 
-static void ip_map_put(struct cache_head *item, struct cache_detail *cd)
+static void ip_map_put(struct kref *kref)
 {
+	struct cache_head *item = container_of(kref, struct cache_head, ref);
 	struct ip_map *im = container_of(item, struct ip_map,h);
-	if (cache_put(item, cd)) {
-		if (test_bit(CACHE_VALID, &item->flags) &&
-		    !test_bit(CACHE_NEGATIVE, &item->flags))
-			auth_domain_put(&im->m_client->h);
-		kfree(im);
-	}
+
+	if (test_bit(CACHE_VALID, &item->flags) &&
+	    !test_bit(CACHE_NEGATIVE, &item->flags))
+		auth_domain_put(&im->m_client->h);
+	kfree(im);
 }
 
 #if IP_HASHBITS == 8
@@ -315,7 +315,7 @@ static int ip_map_update(struct ip_map *ipm, struct unix_domain *udom, time_t ex
 				 hash_ip((unsigned long)ipm->m_addr.s_addr));
 	if (!ch)
 		return -ENOMEM;
-	ip_map_put(ch, &ip_map_cache);
+	cache_put(ch, &ip_map_cache);
 	return 0;
 }
 
@@ -369,7 +369,7 @@ struct auth_domain *auth_unix_lookup(struct in_addr addr)
 		rv = &ipm->m_client->h;
 		kref_get(&rv->ref);
 	}
-	ip_map_put(&ipm->h, &ip_map_cache);
+	cache_put(&ipm->h, &ip_map_cache);
 	return rv;
 }
 
@@ -403,7 +403,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 		case 0:
 			rqstp->rq_client = &ipm->m_client->h;
 			kref_get(&rqstp->rq_client->ref);
-			ip_map_put(&ipm->h, &ip_map_cache);
+			cache_put(&ipm->h, &ip_map_cache);
 			break;
 	}
 	return SVC_OK;

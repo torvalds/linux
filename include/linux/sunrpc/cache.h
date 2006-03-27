@@ -50,7 +50,7 @@ struct cache_head {
 	time_t		last_refresh;   /* If CACHE_PENDING, this is when upcall 
 					 * was sent, else this is when update was received
 					 */
-	atomic_t 	refcnt;
+	struct kref	ref;
 	unsigned long	flags;
 };
 #define	CACHE_VALID	0	/* Entry contains valid data */
@@ -68,8 +68,7 @@ struct cache_detail {
 	atomic_t		inuse; /* active user-space update or lookup */
 
 	char			*name;
-	void			(*cache_put)(struct cache_head *,
-					     struct cache_detail*);
+	void			(*cache_put)(struct kref *);
 
 	void			(*cache_request)(struct cache_detail *cd,
 						 struct cache_head *h,
@@ -151,17 +150,17 @@ extern void cache_clean_deferred(void *owner);
 
 static inline struct cache_head  *cache_get(struct cache_head *h)
 {
-	atomic_inc(&h->refcnt);
+	kref_get(&h->ref);
 	return h;
 }
 
 
-static inline int cache_put(struct cache_head *h, struct cache_detail *cd)
+static inline void cache_put(struct cache_head *h, struct cache_detail *cd)
 {
-	if (atomic_read(&h->refcnt) <= 2 &&
+	if (atomic_read(&h->ref.refcount) <= 2 &&
 	    h->expiry_time < cd->nextcheck)
 		cd->nextcheck = h->expiry_time;
-	return atomic_dec_and_test(&h->refcnt);
+	kref_put(&h->ref, cd->cache_put);
 }
 
 extern void cache_init(struct cache_head *h);
