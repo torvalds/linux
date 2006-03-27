@@ -14,6 +14,7 @@
 #include <linux/device-mapper.h>
 #include <linux/list.h>
 #include <linux/blkdev.h>
+#include <linux/hdreg.h>
 
 #define DM_NAME "device-mapper"
 #define DMWARN(f, x...) printk(KERN_WARNING DM_NAME ": " f "\n" , ## x)
@@ -84,6 +85,12 @@ int dm_wait_event(struct mapped_device *md, int event_nr);
  */
 struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct mapped_device *md);
+
+/*
+ * Geometry functions.
+ */
+int dm_get_geometry(struct mapped_device *md, struct hd_geometry *geo);
+int dm_set_geometry(struct mapped_device *md, struct hd_geometry *geo);
 
 /*-----------------------------------------------------------------
  * Functions for manipulating a table.  Tables are also reference

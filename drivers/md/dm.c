@@ -17,6 +17,7 @@
 #include <linux/mempool.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
+#include <linux/hdreg.h>
 #include <linux/blktrace_api.h>
 
 static const char *_name = DM_NAME;
@@ -102,6 +103,9 @@ struct mapped_device {
 	 */
 	struct super_block *frozen_sb;
 	struct block_device *suspended_bdev;
+
+	/* forced geometry settings */
+	struct hd_geometry geometry;
 };
 
 #define MIN_IOS 256
@@ -227,6 +231,13 @@ static int dm_blk_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct mapped_device *md = bdev->bd_disk->private_data;
+
+	return dm_get_geometry(md, geo);
+}
+
 static inline struct dm_io *alloc_io(struct mapped_device *md)
 {
 	return mempool_alloc(md->io_pool, GFP_NOIO);
@@ -311,6 +322,33 @@ struct dm_table *dm_get_table(struct mapped_device *md)
 	read_unlock(&md->map_lock);
 
 	return t;
+}
+
+/*
+ * Get the geometry associated with a dm device
+ */
+int dm_get_geometry(struct mapped_device *md, struct hd_geometry *geo)
+{
+	*geo = md->geometry;
+
+	return 0;
+}
+
+/*
+ * Set the geometry of a device.
+ */
+int dm_set_geometry(struct mapped_device *md, struct hd_geometry *geo)
+{
+	sector_t sz = (sector_t)geo->cylinders * geo->heads * geo->sectors;
+
+	if (geo->start > sz) {
+		DMWARN("Start sector is beyond the geometry limits.");
+		return -EINVAL;
+	}
+
+	md->geometry = *geo;
+
+	return 0;
 }
 
 /*-----------------------------------------------------------------
@@ -906,6 +944,13 @@ static int __bind(struct mapped_device *md, struct dm_table *t)
 	sector_t size;
 
 	size = dm_table_get_size(t);
+
+	/*
+	 * Wipe any geometry if the size of the table changed.
+	 */
+	if (size != get_capacity(md->disk))
+		memset(&md->geometry, 0, sizeof(md->geometry));
+
 	__set_size(md, size);
 	if (size == 0)
 		return 0;
@@ -1261,6 +1306,7 @@ int dm_suspended(struct mapped_device *md)
 static struct block_device_operations dm_blk_dops = {
 	.open = dm_blk_open,
 	.release = dm_blk_close,
+	.getgeo = dm_blk_getgeo,
 	.owner = THIS_MODULE
 };
 
