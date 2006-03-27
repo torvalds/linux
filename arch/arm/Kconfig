@@ -8,6 +8,7 @@ mainmenu "Linux Kernel Configuration"
 config ARM
 	bool
 	default y
+	select RTC_LIB
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -838,6 +839,8 @@ source "sound/Kconfig"
 source "drivers/usb/Kconfig"
 
 source "drivers/mmc/Kconfig"
+
+source "drivers/rtc/Kconfig"
 
 endmenu
 
