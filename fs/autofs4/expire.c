@@ -16,7 +16,7 @@
 
 static unsigned long now;
 
-/* Check if a dentry can be expired return 1 if it can else return 0 */
+/* Check if a dentry can be expired */
 static inline int autofs4_can_expire(struct dentry *dentry,
 					unsigned long timeout, int do_now)
 {
@@ -41,14 +41,13 @@ static inline int autofs4_can_expire(struct dentry *dentry,
 		     attempts if expire fails the first time */
 		ino->last_used = now;
 	}
-
 	return 1;
 }
 
-/* Check a mount point for busyness return 1 if not busy, otherwise */
-static int autofs4_check_mount(struct vfsmount *mnt, struct dentry *dentry)
+/* Check a mount point for busyness */
+static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 {
-	int status = 0;
+	int status = 1;
 
 	DPRINTK("dentry %p %.*s",
 		dentry, (int)dentry->d_name.len, dentry->d_name.name);
@@ -65,7 +64,7 @@ static int autofs4_check_mount(struct vfsmount *mnt, struct dentry *dentry)
 
 	/* The big question */
 	if (may_umount_tree(mnt) == 0)
-		status = 1;
+		status = 0;
 done:
 	DPRINTK("returning = %d", status);
 	mntput(mnt);
@@ -75,30 +74,29 @@ done:
 
 /* Check a directory tree of mount points for busyness
  * The tree is not busy iff no mountpoints are busy
- * Return 1 if the tree is busy or 0 otherwise
  */
-static int autofs4_check_tree(struct vfsmount *mnt,
-	       		      struct dentry *top,
-			      unsigned long timeout,
-			      int do_now)
+static int autofs4_tree_busy(struct vfsmount *mnt,
+	       		     struct dentry *top,
+			     unsigned long timeout,
+			     int do_now)
 {
 	struct dentry *this_parent = top;
 	struct list_head *next;
 
-	DPRINTK("parent %p %.*s",
+	DPRINTK("top %p %.*s",
 		top, (int)top->d_name.len, top->d_name.name);
 
 	/* Negative dentry - give up */
 	if (!simple_positive(top))
-		return 0;
+		return 1;
 
 	/* Timeout of a tree mount is determined by its top dentry */
 	if (!autofs4_can_expire(top, timeout, do_now))
-		return 0;
+		return 1;
 
 	/* Is someone visiting anywhere in the tree ? */
 	if (may_umount_tree(mnt))
-		return 0;
+		return 1;
 
 	spin_lock(&dcache_lock);
 repeat:
@@ -126,9 +124,9 @@ resume:
 
 		if (d_mountpoint(dentry)) {
 			/* First busy => tree busy */
-			if (!autofs4_check_mount(mnt, dentry)) {
+			if (autofs4_mount_busy(mnt, dentry)) {
 				dput(dentry);
-				return 0;
+				return 1;
 			}
 		}
 
@@ -144,7 +142,7 @@ resume:
 	}
 	spin_unlock(&dcache_lock);
 
-	return 1;
+	return 0;
 }
 
 static struct dentry *autofs4_check_leaves(struct vfsmount *mnt,
@@ -188,7 +186,7 @@ resume:
 				goto cont;
 
 			/* Can we umount this guy */
-			if (autofs4_check_mount(mnt, dentry))
+			if (!autofs4_mount_busy(mnt, dentry))
 				return dentry;
 
 		}
@@ -241,7 +239,7 @@ static struct dentry *autofs4_expire(struct super_block *sb,
 		struct dentry *dentry = list_entry(next, struct dentry, d_u.d_child);
 
 		/* Negative dentry - give up */
-		if ( !simple_positive(dentry) ) {
+		if (!simple_positive(dentry)) {
 			next = next->next;
 			continue;
 		}
@@ -259,21 +257,21 @@ static struct dentry *autofs4_expire(struct super_block *sb,
 				goto next;
 
 			/* Can we umount this guy */
-			if (autofs4_check_mount(mnt, dentry)) {
+			if (!autofs4_mount_busy(mnt, dentry)) {
 				expired = dentry;
 				break;
 			}
 			goto next;
 		}
 
-		if ( simple_empty(dentry) )
+		if (simple_empty(dentry))
 			goto next;
 
 		/* Case 2: tree mount, expire iff entire tree is not busy */
 		if (!exp_leaves) {
 			/* Lock the tree as we must expire as a whole */
 			spin_lock(&sbi->fs_lock);
-			if (autofs4_check_tree(mnt, dentry, timeout, do_now)) {
+			if (!autofs4_tree_busy(mnt, dentry, timeout, do_now)) {
 				struct autofs_info *inf = autofs4_dentry_ino(dentry);
 
 				/* Set this flag early to catch sys_chdir and the like */
@@ -297,7 +295,7 @@ next:
 		next = next->next;
 	}
 
-	if ( expired ) {
+	if (expired) {
 		DPRINTK("returning %p %.*s",
 			expired, (int)expired->d_name.len, expired->d_name.name);
 		spin_lock(&dcache_lock);
@@ -352,16 +350,16 @@ int autofs4_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 		return -EFAULT;
 
 	if ((dentry = autofs4_expire(sb, mnt, sbi, do_now)) != NULL) {
-		struct autofs_info *de_info = autofs4_dentry_ino(dentry);
+		struct autofs_info *ino = autofs4_dentry_ino(dentry);
 
 		/* This is synchronous because it makes the daemon a
                    little easier */
-		de_info->flags |= AUTOFS_INF_EXPIRING;
+		ino->flags |= AUTOFS_INF_EXPIRING;
 		ret = autofs4_wait(sbi, dentry, NFY_EXPIRE);
-		de_info->flags &= ~AUTOFS_INF_EXPIRING;
+		ino->flags &= ~AUTOFS_INF_EXPIRING;
 		dput(dentry);
 	}
-		
+
 	return ret;
 }
 
