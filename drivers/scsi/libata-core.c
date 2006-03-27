@@ -2160,9 +2160,9 @@ static int sata_phy_resume(struct ata_port *ap)
  *	so makes reset sequence different from the original
  *	->phy_reset implementation and Jeff nervous.  :-P
  */
-extern void ata_std_probeinit(struct ata_port *ap)
+void ata_std_probeinit(struct ata_port *ap)
 {
-	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read) {
+	if ((ap->flags & ATA_FLAG_SATA) && ap->ops->scr_read) {
 		sata_phy_resume(ap);
 		if (sata_dev_present(ap))
 			ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
