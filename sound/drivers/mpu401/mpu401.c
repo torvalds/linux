@@ -59,7 +59,8 @@ module_param_array(irq, int, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for MPU-401 device.");
 
 static struct platform_device *platform_devices[SNDRV_CARDS];
-static int pnp_registered = 0;
+static int pnp_registered;
+static unsigned int snd_mpu401_devices;
 
 static int snd_mpu401_create(int dev, struct snd_card **rcard)
 {
@@ -197,6 +198,7 @@ static int __devinit snd_mpu401_pnp_probe(struct pnp_dev *pnp_dev,
 		}
 		snd_card_set_dev(card, &pnp_dev->dev);
 		pnp_set_drvdata(pnp_dev, card);
+		snd_mpu401_devices++;
 		++dev;
 		return 0;
 	}
@@ -234,12 +236,11 @@ static void __init_or_module snd_mpu401_unregister_all(void)
 
 static int __init alsa_card_mpu401_init(void)
 {
-	int i, err, devices;
+	int i, err;
 
 	if ((err = platform_driver_register(&snd_mpu401_driver)) < 0)
 		return err;
 
-	devices = 0;
 	for (i = 0; i < SNDRV_CARDS; i++) {
 		struct platform_device *device;
 		if (! enable[i])
@@ -255,14 +256,13 @@ static int __init alsa_card_mpu401_init(void)
 			goto errout;
 		}
 		platform_devices[i] = device;
-		devices++;
+		snd_mpu401_devices++;
 	}
-	if ((err = pnp_register_driver(&snd_mpu401_pnp_driver)) >= 0) {
+	err = pnp_register_driver(&snd_mpu401_pnp_driver);
+	if (!err)
 		pnp_registered = 1;
-		devices += err;
-	}
 
-	if (!devices) {
+	if (!snd_mpu401_devices) {
 #ifdef MODULE
 		printk(KERN_ERR "MPU-401 device not found or device busy\n");
 #endif
