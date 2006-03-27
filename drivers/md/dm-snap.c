@@ -49,6 +49,11 @@ struct pending_exception {
 	struct bio_list snapshot_bios;
 
 	/*
+	 * Short-term queue of pending exceptions prior to submission.
+	 */
+	struct list_head list;
+
+	/*
 	 * Other pending_exceptions that are processing this
 	 * chunk.  When this list is empty, we know we can
 	 * complete the origins.
@@ -930,8 +935,9 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 	int r = 1, first = 1;
 	struct dm_snapshot *snap;
 	struct exception *e;
-	struct pending_exception *pe, *last = NULL;
+	struct pending_exception *pe, *next_pe, *last = NULL;
 	chunk_t chunk;
+	LIST_HEAD(pe_queue);
 
 	/* Do all the snapshots on this origin */
 	list_for_each_entry (snap, snapshots, list) {
@@ -965,12 +971,19 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 				snap->valid = 0;
 
 			} else {
-				if (last)
+				if (first) {
+					bio_list_add(&pe->origin_bios, bio);
+					r = 0;
+					first = 0;
+				}
+				if (last && list_empty(&pe->siblings))
 					list_merge(&pe->siblings,
 						   &last->siblings);
-
+				if (!pe->started) {
+					pe->started = 1;
+					list_add_tail(&pe->list, &pe_queue);
+				}
 				last = pe;
-				r = 0;
 			}
 		}
 
@@ -980,24 +993,8 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 	/*
 	 * Now that we have a complete pe list we can start the copying.
 	 */
-	if (last) {
-		pe = last;
-		do {
-			down_write(&pe->snap->lock);
-			if (first)
-				bio_list_add(&pe->origin_bios, bio);
-			if (!pe->started) {
-				pe->started = 1;
-				up_write(&pe->snap->lock);
-				start_copy(pe);
-			} else
-				up_write(&pe->snap->lock);
-			first = 0;
-			pe = list_entry(pe->siblings.next,
-					struct pending_exception, siblings);
-
-		} while (pe != last);
-	}
+	list_for_each_entry_safe(pe, next_pe, &pe_queue, list)
+		start_copy(pe);
 
 	return r;
 }
