@@ -313,20 +313,143 @@ static int grow_stripes(raid5_conf_t *conf, int num)
 	kmem_cache_t *sc;
 	int devs = conf->raid_disks;
 
-	sprintf(conf->cache_name, "raid5/%s", mdname(conf->mddev));
-
-	sc = kmem_cache_create(conf->cache_name, 
+	sprintf(conf->cache_name[0], "raid5/%s", mdname(conf->mddev));
+	sprintf(conf->cache_name[1], "raid5/%s-alt", mdname(conf->mddev));
+	conf->active_name = 0;
+	sc = kmem_cache_create(conf->cache_name[conf->active_name],
 			       sizeof(struct stripe_head)+(devs-1)*sizeof(struct r5dev),
 			       0, 0, NULL, NULL);
 	if (!sc)
 		return 1;
 	conf->slab_cache = sc;
+	conf->pool_size = devs;
 	while (num--) {
 		if (!grow_one_stripe(conf))
 			return 1;
 	}
 	return 0;
 }
+static int resize_stripes(raid5_conf_t *conf, int newsize)
+{
+	/* Make all the stripes able to hold 'newsize' devices.
+	 * New slots in each stripe get 'page' set to a new page.
+	 *
+	 * This happens in stages:
+	 * 1/ create a new kmem_cache and allocate the required number of
+	 *    stripe_heads.
+	 * 2/ gather all the old stripe_heads and tranfer the pages across
+	 *    to the new stripe_heads.  This will have the side effect of
+	 *    freezing the array as once all stripe_heads have been collected,
+	 *    no IO will be possible.  Old stripe heads are freed once their
+	 *    pages have been transferred over, and the old kmem_cache is
+	 *    freed when all stripes are done.
+	 * 3/ reallocate conf->disks to be suitable bigger.  If this fails,
+	 *    we simple return a failre status - no need to clean anything up.
+	 * 4/ allocate new pages for the new slots in the new stripe_heads.
+	 *    If this fails, we don't bother trying the shrink the
+	 *    stripe_heads down again, we just leave them as they are.
+	 *    As each stripe_head is processed the new one is released into
+	 *    active service.
+	 *
+	 * Once step2 is started, we cannot afford to wait for a write,
+	 * so we use GFP_NOIO allocations.
+	 */
+	struct stripe_head *osh, *nsh;
+	LIST_HEAD(newstripes);
+	struct disk_info *ndisks;
+	int err = 0;
+	kmem_cache_t *sc;
+	int i;
+
+	if (newsize <= conf->pool_size)
+		return 0; /* never bother to shrink */
+
+	/* Step 1 */
+	sc = kmem_cache_create(conf->cache_name[1-conf->active_name],
+			       sizeof(struct stripe_head)+(newsize-1)*sizeof(struct r5dev),
+			       0, 0, NULL, NULL);
+	if (!sc)
+		return -ENOMEM;
+
+	for (i = conf->max_nr_stripes; i; i--) {
+		nsh = kmem_cache_alloc(sc, GFP_KERNEL);
+		if (!nsh)
+			break;
+
+		memset(nsh, 0, sizeof(*nsh) + (newsize-1)*sizeof(struct r5dev));
+
+		nsh->raid_conf = conf;
+		spin_lock_init(&nsh->lock);
+
+		list_add(&nsh->lru, &newstripes);
+	}
+	if (i) {
+		/* didn't get enough, give up */
+		while (!list_empty(&newstripes)) {
+			nsh = list_entry(newstripes.next, struct stripe_head, lru);
+			list_del(&nsh->lru);
+			kmem_cache_free(sc, nsh);
+		}
+		kmem_cache_destroy(sc);
+		return -ENOMEM;
+	}
+	/* Step 2 - Must use GFP_NOIO now.
+	 * OK, we have enough stripes, start collecting inactive
+	 * stripes and copying them over
+	 */
+	list_for_each_entry(nsh, &newstripes, lru) {
+		spin_lock_irq(&conf->device_lock);
+		wait_event_lock_irq(conf->wait_for_stripe,
+				    !list_empty(&conf->inactive_list),
+				    conf->device_lock,
+				    unplug_slaves(conf->mddev);
+			);
+		osh = get_free_stripe(conf);
+		spin_unlock_irq(&conf->device_lock);
+		atomic_set(&nsh->count, 1);
+		for(i=0; i<conf->pool_size; i++)
+			nsh->dev[i].page = osh->dev[i].page;
+		for( ; i<newsize; i++)
+			nsh->dev[i].page = NULL;
+		kmem_cache_free(conf->slab_cache, osh);
+	}
+	kmem_cache_destroy(conf->slab_cache);
+
+	/* Step 3.
+	 * At this point, we are holding all the stripes so the array
+	 * is completely stalled, so now is a good time to resize
+	 * conf->disks.
+	 */
+	ndisks = kzalloc(newsize * sizeof(struct disk_info), GFP_NOIO);
+	if (ndisks) {
+		for (i=0; i<conf->raid_disks; i++)
+			ndisks[i] = conf->disks[i];
+		kfree(conf->disks);
+		conf->disks = ndisks;
+	} else
+		err = -ENOMEM;
+
+	/* Step 4, return new stripes to service */
+	while(!list_empty(&newstripes)) {
+		nsh = list_entry(newstripes.next, struct stripe_head, lru);
+		list_del_init(&nsh->lru);
+		for (i=conf->raid_disks; i < newsize; i++)
+			if (nsh->dev[i].page == NULL) {
+				struct page *p = alloc_page(GFP_NOIO);
+				nsh->dev[i].page = p;
+				if (!p)
+					err = -ENOMEM;
+			}
+		release_stripe(nsh);
+	}
+	/* critical section pass, GFP_NOIO no longer needed */
+
+	conf->slab_cache = sc;
+	conf->active_name = 1-conf->active_name;
+	conf->pool_size = newsize;
+	return err;
+}
+
 
 static int drop_one_stripe(raid5_conf_t *conf)
 {
@@ -339,7 +462,7 @@ static int drop_one_stripe(raid5_conf_t *conf)
 		return 0;
 	if (atomic_read(&sh->count))
 		BUG();
-	shrink_buffers(sh, conf->raid_disks);
+	shrink_buffers(sh, conf->pool_size);
 	kmem_cache_free(conf->slab_cache, sh);
 	atomic_dec(&conf->active_stripes);
 	return 1;

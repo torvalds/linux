@@ -2775,7 +2775,6 @@ static void autorun_array(mddev_t *mddev)
  */
 static void autorun_devices(int part)
 {
-	struct list_head candidates;
 	struct list_head *tmp;
 	mdk_rdev_t *rdev0, *rdev;
 	mddev_t *mddev;
@@ -2784,6 +2783,7 @@ static void autorun_devices(int part)
 	printk(KERN_INFO "md: autorun ...\n");
 	while (!list_empty(&pending_raid_disks)) {
 		dev_t dev;
+		LIST_HEAD(candidates);
 		rdev0 = list_entry(pending_raid_disks.next,
 					 mdk_rdev_t, same_set);
 
