@@ -37,7 +37,7 @@
 static void cache_defer_req(struct cache_req *req, struct cache_head *item);
 static void cache_revisit_request(struct cache_head *item);
 
-void cache_init(struct cache_head *h)
+static void cache_init(struct cache_head *h)
 {
 	time_t now = get_seconds();
 	h->next = NULL;

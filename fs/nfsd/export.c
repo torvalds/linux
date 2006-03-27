@@ -57,7 +57,7 @@ static int		exp_verify_string(char *cp, int max);
 #define	EXPKEY_HASHMASK		(EXPKEY_HASHMAX -1)
 static struct cache_head *expkey_table[EXPKEY_HASHMAX];
 
-void expkey_put(struct kref *ref)
+static void expkey_put(struct kref *ref)
 {
 	struct svc_expkey *key = container_of(ref, struct svc_expkey, h.ref);
 
@@ -87,6 +87,8 @@ static void expkey_request(struct cache_detail *cd,
 
 static struct svc_expkey *svc_expkey_update(struct svc_expkey *new, struct svc_expkey *old);
 static struct svc_expkey *svc_expkey_lookup(struct svc_expkey *);
+static struct cache_detail svc_expkey_cache;
+
 static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 {
 	/* client fsidtype fsid [path] */
@@ -255,7 +257,7 @@ static struct cache_head *expkey_alloc(void)
 		return NULL;
 }
 
-struct cache_detail svc_expkey_cache = {
+static struct cache_detail svc_expkey_cache = {
 	.owner		= THIS_MODULE,
 	.hash_size	= EXPKEY_HASHMAX,
 	.hash_table	= expkey_table,
@@ -345,7 +347,8 @@ static void svc_export_request(struct cache_detail *cd,
 	(*bpp)[-1] = '\n';
 }
 
-struct svc_export *svc_export_update(struct svc_export *new, struct svc_export *old);
+static struct svc_export *svc_export_update(struct svc_export *new,
+					    struct svc_export *old);
 static struct svc_export *svc_export_lookup(struct svc_export *);
 
 static int check_export(struct inode *inode, int flags)
@@ -574,7 +577,7 @@ svc_export_lookup(struct svc_export *exp)
 		return NULL;
 }
 
-struct svc_export *
+static struct svc_export *
 svc_export_update(struct svc_export *new, struct svc_export *old)
 {
 	struct cache_head *ch;
@@ -593,7 +596,7 @@ svc_export_update(struct svc_export *new, struct svc_export *old)
 }
 
 
-struct svc_expkey *
+static struct svc_expkey *
 exp_find_key(svc_client *clp, int fsid_type, u32 *fsidv, struct cache_req *reqp)
 {
 	struct svc_expkey key, *ek;

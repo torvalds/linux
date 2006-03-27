@@ -86,9 +86,6 @@ void			nfsd_export_shutdown(void);
 void			nfsd_export_flush(void);
 void			exp_readlock(void);
 void			exp_readunlock(void);
-struct svc_expkey *	exp_find_key(struct auth_domain *clp, 
-				     int fsid_type, u32 *fsidv,
-				     struct cache_req *reqp);
 struct svc_export *	exp_get_by_name(struct auth_domain *clp,
 					struct vfsmount *mnt,
 					struct dentry *dentry,
@@ -102,7 +99,7 @@ int			exp_rootfh(struct auth_domain *,
 int			exp_pseudoroot(struct auth_domain *, struct svc_fh *fhp, struct cache_req *creq);
 int			nfserrno(int errno);
 
-extern struct cache_detail svc_export_cache, svc_expkey_cache;
+extern struct cache_detail svc_export_cache;
 
 static inline void exp_put(struct svc_export *exp)
 {
