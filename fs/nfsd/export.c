@@ -73,8 +73,10 @@ void expkey_put(struct cache_head *item, struct cache_detail *cd)
 	if (cache_put(item, cd)) {
 		struct svc_expkey *key = container_of(item, struct svc_expkey, h);
 		if (test_bit(CACHE_VALID, &item->flags) &&
-		    !test_bit(CACHE_NEGATIVE, &item->flags))
-			exp_put(key->ek_export);
+		    !test_bit(CACHE_NEGATIVE, &item->flags)) {
+			dput(key->ek_dentry);
+			mntput(key->ek_mnt);
+		}
 		auth_domain_put(key->ek_client);
 		kfree(key);
 	}
@@ -164,26 +166,18 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	} else {
 		struct nameidata nd;
 		struct svc_expkey *ek;
-		struct svc_export *exp;
 		err = path_lookup(buf, 0, &nd);
 		if (err)
 			goto out;
 
 		dprintk("Found the path %s\n", buf);
-		exp = exp_get_by_name(dom, nd.mnt, nd.dentry, NULL);
-
-		err = -ENOENT;
-		if (!exp)
-			goto out_nd;
-		key.ek_export = exp;
-		dprintk("And found export\n");
+		key.ek_mnt = nd.mnt;
+		key.ek_dentry = nd.dentry;
 		
 		ek = svc_expkey_lookup(&key, 1);
 		if (ek)
 			expkey_put(&ek->h, &svc_expkey_cache);
-		exp_put(exp);
 		err = 0;
-	out_nd:
 		path_release(&nd);
 	}
 	cache_flush();
@@ -214,7 +208,7 @@ static int expkey_show(struct seq_file *m,
 	if (test_bit(CACHE_VALID, &h->flags) && 
 	    !test_bit(CACHE_NEGATIVE, &h->flags)) {
 		seq_printf(m, " ");
-		seq_path(m, ek->ek_export->ex_mnt, ek->ek_export->ex_dentry, "\\ \t\n");
+		seq_path(m, ek->ek_mnt, ek->ek_dentry, "\\ \t\n");
 	}
 	seq_printf(m, "\n");
 	return 0;
@@ -252,8 +246,8 @@ static inline void svc_expkey_init(struct svc_expkey *new, struct svc_expkey *it
 
 static inline void svc_expkey_update(struct svc_expkey *new, struct svc_expkey *item)
 {
-	cache_get(&item->ek_export->h);
-	new->ek_export = item->ek_export;
+	new->ek_mnt = mntget(item->ek_mnt);
+	new->ek_dentry = dget(item->ek_dentry);
 }
 
 static DefineSimpleCacheLookup(svc_expkey,0) /* no inplace updates */
@@ -519,7 +513,8 @@ static int exp_set_key(svc_client *clp, int fsid_type, u32 *fsidv,
 	key.ek_client = clp;
 	key.ek_fsidtype = fsid_type;
 	memcpy(key.ek_fsid, fsidv, key_len(fsid_type));
-	key.ek_export = exp;
+	key.ek_mnt = exp->ex_mnt;
+	key.ek_dentry = exp->ex_dentry;
 	key.h.expiry_time = NEVER;
 	key.h.flags = 0;
 
@@ -741,8 +736,8 @@ exp_export(struct nfsctl_export *nxp)
 	if ((nxp->ex_flags & NFSEXP_FSID) &&
 	    (fsid_key = exp_get_fsid_key(clp, nxp->ex_dev)) &&
 	    !IS_ERR(fsid_key) &&
-	    fsid_key->ek_export &&
-	    fsid_key->ek_export != exp)
+	    fsid_key->ek_mnt &&
+	    (fsid_key->ek_mnt != nd.mnt || fsid_key->ek_dentry != nd.dentry) )
 		goto finish;
 
 	if (exp) {
@@ -912,6 +907,24 @@ out:
 	return err;
 }
 
+struct svc_export *
+exp_find(struct auth_domain *clp, int fsid_type, u32 *fsidv,
+	 struct cache_req *reqp)
+{
+	struct svc_export *exp;
+	struct svc_expkey *ek = exp_find_key(clp, fsid_type, fsidv, reqp);
+	if (!ek || IS_ERR(ek))
+		return ERR_PTR(PTR_ERR(ek));
+
+	exp = exp_get_by_name(clp, ek->ek_mnt, ek->ek_dentry, reqp);
+	expkey_put(&ek->h, &svc_expkey_cache);
+
+	if (!exp || IS_ERR(exp))
+		return ERR_PTR(PTR_ERR(exp));
+	return exp;
+}
+
+
 /*
  * Called when we need the filehandle for the root of the pseudofs,
  * for a given NFSv4 client.   The root is defined to be the
@@ -922,6 +935,7 @@ exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 	       struct cache_req *creq)
 {
 	struct svc_expkey *fsid_key;
+	struct svc_export *exp;
 	int rv;
 	u32 fsidv[2];
 
@@ -933,8 +947,14 @@ exp_pseudoroot(struct auth_domain *clp, struct svc_fh *fhp,
 	if (!fsid_key || IS_ERR(fsid_key))
 		return nfserr_perm;
 
-	rv = fh_compose(fhp, fsid_key->ek_export, 
-			  fsid_key->ek_export->ex_dentry, NULL);
+	exp = exp_get_by_name(clp, fsid_key->ek_mnt, fsid_key->ek_dentry, creq);
+	if (exp == NULL)
+		rv = nfserr_perm;
+	else if (IS_ERR(exp))
+		rv = nfserrno(PTR_ERR(exp));
+	else
+		rv = fh_compose(fhp, exp,
+				fsid_key->ek_dentry, NULL);
 	expkey_put(&fsid_key->h, &svc_expkey_cache);
 	return rv;
 }
