@@ -32,6 +32,7 @@
 #include <linux/cn_proc.h>
 #include <linux/mutex.h>
 #include <linux/futex.h>
+#include <linux/compat.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -855,6 +856,10 @@ fastcall NORET_TYPE void do_exit(long code)
 	}
 	if (unlikely(tsk->robust_list))
 		exit_robust_list(tsk);
+#ifdef CONFIG_COMPAT
+	if (unlikely(tsk->compat_robust_list))
+		compat_exit_robust_list(tsk);
+#endif
 	exit_mm(tsk);
 
 	exit_sem(tsk);

@@ -874,6 +874,9 @@ struct task_struct {
 	int cpuset_mem_spread_rotor;
 #endif
 	struct robust_list_head __user *robust_list;
+#ifdef CONFIG_COMPAT
+	struct compat_robust_list_head __user *compat_robust_list;
+#endif
 
 	atomic_t fs_excl;	/* holding fs exclusive resources */
 	struct rcu_head rcu;
