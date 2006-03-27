@@ -788,6 +788,7 @@ struct fsa_dev_info {
 	u64		size;
 	u32		type;
 	u32		config_waiting_on;
+	unsigned long	config_waiting_stamp;
 	u16		queue_depth;
 	u8		config_needed;
 	u8		valid;
