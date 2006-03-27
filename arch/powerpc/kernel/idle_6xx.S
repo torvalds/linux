@@ -144,7 +144,8 @@ BEGIN_FTR_SECTION
 	DSSALL
 	sync
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-	ori	r7,r7,MSR_EE /* Could be ommited (already set) */
+	mfmsr	r7
+	ori	r7,r7,MSR_EE
 	oris	r7,r7,MSR_POW@h
 	sync
 	isync
