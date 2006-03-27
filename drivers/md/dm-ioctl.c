@@ -244,9 +244,9 @@ static void __hash_remove(struct hash_cell *hc)
 		dm_table_put(table);
 	}
 
-	dm_put(hc->md);
 	if (hc->new_map)
 		dm_table_put(hc->new_map);
+	dm_put(hc->md);
 	free_cell(hc);
 }
 
@@ -985,33 +985,43 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	int r;
 	struct hash_cell *hc;
 	struct dm_table *t;
+	struct mapped_device *md;
 
-	r = dm_table_create(&t, get_mode(param), param->target_count);
+	md = find_device(param);
+	if (!md)
+		return -ENXIO;
+
+	r = dm_table_create(&t, get_mode(param), param->target_count, md);
 	if (r)
-		return r;
+		goto out;
 
 	r = populate_table(t, param, param_size);
 	if (r) {
 		dm_table_put(t);
-		return r;
+		goto out;
 	}
 
 	down_write(&_hash_lock);
-	hc = __find_device_hash_cell(param);
-	if (!hc) {
-		DMWARN("device doesn't appear to be in the dev hash table.");
-		up_write(&_hash_lock);
+	hc = dm_get_mdptr(md);
+	if (!hc || hc->md != md) {
+		DMWARN("device has been removed from the dev hash table.");
 		dm_table_put(t);
-		return -ENXIO;
+		up_write(&_hash_lock);
+		r = -ENXIO;
+		goto out;
 	}
 
 	if (hc->new_map)
 		dm_table_put(hc->new_map);
 	hc->new_map = t;
-	param->flags |= DM_INACTIVE_PRESENT_FLAG;
-
-	r = __dev_status(hc->md, param);
 	up_write(&_hash_lock);
+
+	param->flags |= DM_INACTIVE_PRESENT_FLAG;
+	r = __dev_status(md, param);
+
+out:
+	dm_put(md);
+
 	return r;
 }
 

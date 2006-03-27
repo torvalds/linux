@@ -1007,18 +1007,18 @@ void dm_get(struct mapped_device *md)
 
 void dm_put(struct mapped_device *md)
 {
-	struct dm_table *map = dm_get_table(md);
+	struct dm_table *map;
 
 	if (atomic_dec_and_test(&md->holders)) {
+		map = dm_get_table(md);
 		if (!dm_suspended(md)) {
 			dm_table_presuspend_targets(map);
 			dm_table_postsuspend_targets(map);
 		}
 		__unbind(md);
+		dm_table_put(map);
 		free_dev(md);
 	}
-
-	dm_table_put(map);
 }
 
 /*

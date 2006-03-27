@@ -89,7 +89,8 @@ int dm_suspended(struct mapped_device *md);
  * Functions for manipulating a table.  Tables are also reference
  * counted.
  *---------------------------------------------------------------*/
-int dm_table_create(struct dm_table **result, int mode, unsigned num_targets);
+int dm_table_create(struct dm_table **result, int mode,
+		    unsigned num_targets, struct mapped_device *md);
 
 void dm_table_get(struct dm_table *t);
 void dm_table_put(struct dm_table *t);
@@ -107,6 +108,7 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q);
 unsigned int dm_table_get_num_targets(struct dm_table *t);
 struct list_head *dm_table_get_devices(struct dm_table *t);
 int dm_table_get_mode(struct dm_table *t);
+struct mapped_device *dm_table_get_md(struct dm_table *t);
 void dm_table_presuspend_targets(struct dm_table *t);
 void dm_table_postsuspend_targets(struct dm_table *t);
 void dm_table_resume_targets(struct dm_table *t);
