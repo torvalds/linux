@@ -440,9 +440,9 @@ getclkMHz(struct imstt_par *par)
 static void
 setclkMHz(struct imstt_par *par, __u32 MHz)
 {
-	__u32 clk_m, clk_n, clk_p, x, stage, spilled;
+	__u32 clk_m, clk_n, x, stage, spilled;
 
-	clk_m = clk_n = clk_p = 0;
+	clk_m = clk_n = 0;
 	stage = spilled = 0;
 	for (;;) {
 		switch (stage) {
@@ -453,7 +453,7 @@ setclkMHz(struct imstt_par *par, __u32 MHz)
 				clk_n++;
 				break;
 		}
-		x = 20 * (clk_m + 1) / ((clk_n + 1) * (clk_p ? 2 * clk_p : 1));
+		x = 20 * (clk_m + 1) / (clk_n + 1);
 		if (x == MHz)
 			break;
 		if (x > MHz) {
@@ -466,7 +466,7 @@ setclkMHz(struct imstt_par *par, __u32 MHz)
 
 	par->init.pclk_m = clk_m;
 	par->init.pclk_n = clk_n;
-	par->init.pclk_p = clk_p;
+	par->init.pclk_p = 0;
 }
 
 static struct imstt_regvals *
