@@ -331,6 +331,8 @@ static int grow_stripes(raid5_conf_t *conf, int num)
 	}
 	return 0;
 }
+
+#ifdef CONFIG_MD_RAID5_RESHAPE
 static int resize_stripes(raid5_conf_t *conf, int newsize)
 {
 	/* Make all the stripes able to hold 'newsize' devices.
@@ -451,7 +453,7 @@ static int resize_stripes(raid5_conf_t *conf, int newsize)
 	conf->pool_size = newsize;
 	return err;
 }
-
+#endif
 
 static int drop_one_stripe(raid5_conf_t *conf)
 {
@@ -1033,6 +1035,8 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx, in
 	spin_unlock(&sh->lock);
 	return 0;
 }
+
+static void end_reshape(raid5_conf_t *conf);
 
 static int stripe_to_pdidx(sector_t stripe, raid5_conf_t *conf, int disks)
 {
@@ -1844,6 +1848,10 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	if (sector_nr >= max_sector) {
 		/* just being told to finish up .. nothing much to do */
 		unplug_slaves(mddev);
+		if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery)) {
+			end_reshape(conf);
+			return 0;
+		}
 
 		if (mddev->curr_resync < max_sector) /* aborted */
 			bitmap_end_sync(mddev->bitmap, mddev->curr_resync,
@@ -2464,6 +2472,116 @@ static int raid5_resize(mddev_t *mddev, sector_t sectors)
 	return 0;
 }
 
+#ifdef CONFIG_MD_RAID5_RESHAPE
+static int raid5_reshape(mddev_t *mddev, int raid_disks)
+{
+	raid5_conf_t *conf = mddev_to_conf(mddev);
+	int err;
+	mdk_rdev_t *rdev;
+	struct list_head *rtmp;
+	int spares = 0;
+	int added_devices = 0;
+
+	if (mddev->degraded ||
+	    test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+		return -EBUSY;
+	if (conf->raid_disks > raid_disks)
+		return -EINVAL; /* Cannot shrink array yet */
+	if (conf->raid_disks == raid_disks)
+		return 0; /* nothing to do */
+
+	/* Can only proceed if there are plenty of stripe_heads.
+	 * We need a minimum of one full stripe,, and for sensible progress
+	 * it is best to have about 4 times that.
+	 * If we require 4 times, then the default 256 4K stripe_heads will
+	 * allow for chunk sizes up to 256K, which is probably OK.
+	 * If the chunk size is greater, user-space should request more
+	 * stripe_heads first.
+	 */
+	if ((mddev->chunk_size / STRIPE_SIZE) * 4 > conf->max_nr_stripes) {
+		printk(KERN_WARNING "raid5: reshape: not enough stripes.  Needed %lu\n",
+		       (mddev->chunk_size / STRIPE_SIZE)*4);
+		return -ENOSPC;
+	}
+
+	ITERATE_RDEV(mddev, rdev, rtmp)
+		if (rdev->raid_disk < 0 &&
+		    !test_bit(Faulty, &rdev->flags))
+			spares++;
+	if (conf->raid_disks + spares < raid_disks-1)
+		/* Not enough devices even to make a degraded array
+		 * of that size
+		 */
+		return -EINVAL;
+
+	err = resize_stripes(conf, raid_disks);
+	if (err)
+		return err;
+
+	spin_lock_irq(&conf->device_lock);
+	conf->previous_raid_disks = conf->raid_disks;
+	mddev->raid_disks = conf->raid_disks = raid_disks;
+	conf->expand_progress = 0;
+	spin_unlock_irq(&conf->device_lock);
+
+	/* Add some new drives, as many as will fit.
+	 * We know there are enough to make the newly sized array work.
+	 */
+	ITERATE_RDEV(mddev, rdev, rtmp)
+		if (rdev->raid_disk < 0 &&
+		    !test_bit(Faulty, &rdev->flags)) {
+			if (raid5_add_disk(mddev, rdev)) {
+				char nm[20];
+				set_bit(In_sync, &rdev->flags);
+				conf->working_disks++;
+				added_devices++;
+				sprintf(nm, "rd%d", rdev->raid_disk);
+				sysfs_create_link(&mddev->kobj, &rdev->kobj, nm);
+			} else
+				break;
+		}
+
+	mddev->degraded = (raid_disks - conf->previous_raid_disks) - added_devices;
+	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+	clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
+	set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
+	set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
+	mddev->sync_thread = md_register_thread(md_do_sync, mddev,
+						"%s_reshape");
+	if (!mddev->sync_thread) {
+		mddev->recovery = 0;
+		spin_lock_irq(&conf->device_lock);
+		mddev->raid_disks = conf->raid_disks = conf->previous_raid_disks;
+		conf->expand_progress = MaxSector;
+		spin_unlock_irq(&conf->device_lock);
+		return -EAGAIN;
+	}
+	md_wakeup_thread(mddev->sync_thread);
+	md_new_event(mddev);
+	return 0;
+}
+#endif
+
+static void end_reshape(raid5_conf_t *conf)
+{
+	struct block_device *bdev;
+
+	conf->mddev->array_size = conf->mddev->size * (conf->mddev->raid_disks-1);
+	set_capacity(conf->mddev->gendisk, conf->mddev->array_size << 1);
+	conf->mddev->changed = 1;
+
+	bdev = bdget_disk(conf->mddev->gendisk, 0);
+	if (bdev) {
+		mutex_lock(&bdev->bd_inode->i_mutex);
+		i_size_write(bdev->bd_inode, conf->mddev->array_size << 10);
+		mutex_unlock(&bdev->bd_inode->i_mutex);
+		bdput(bdev);
+	}
+	spin_lock_irq(&conf->device_lock);
+	conf->expand_progress = MaxSector;
+	spin_unlock_irq(&conf->device_lock);
+}
+
 static void raid5_quiesce(mddev_t *mddev, int state)
 {
 	raid5_conf_t *conf = mddev_to_conf(mddev);
@@ -2502,6 +2620,9 @@ static struct mdk_personality raid5_personality =
 	.spare_active	= raid5_spare_active,
 	.sync_request	= sync_request,
 	.resize		= raid5_resize,
+#ifdef CONFIG_MD_RAID5_RESHAPE
+	.reshape	= raid5_reshape,
+#endif
 	.quiesce	= raid5_quiesce,
 };
 
