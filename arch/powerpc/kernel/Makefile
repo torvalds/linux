@@ -36,6 +36,8 @@ obj64-$(CONFIG_PPC_MULTIPLATFORM) += nvram_64.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_6xx)		+= idle_6xx.o l2cr_6xx.o cpu_setup_6xx.o
 obj-$(CONFIG_TAU)		+= tau_6xx.o
+obj32-$(CONFIG_SOFTWARE_SUSPEND) += swsusp_32.o
+obj32-$(CONFIG_MODULES)		+= module_32.o
 
 ifeq ($(CONFIG_PPC_MERGE),y)
 
@@ -78,6 +80,7 @@ smpobj-$(CONFIG_SMP)		+= smp.o
 
 endif
 
+obj-$(CONFIG_PPC32)		+= $(obj32-y)
 obj-$(CONFIG_PPC64)		+= $(obj64-y)
 
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
