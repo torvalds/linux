@@ -297,6 +297,30 @@ struct kobj_type ktype_part = {
 	.sysfs_ops	= &part_sysfs_ops,
 };
 
+#ifdef CONFIG_SYSFS
+static inline void partition_sysfs_add_subdir(struct hd_struct *p)
+{
+	struct kobject *k;
+
+	k = kobject_get(&p->kobj);
+	p->holder_dir = kobject_add_dir(k, "holders");
+	kobject_put(k);
+}
+
+static inline void disk_sysfs_add_subdirs(struct gendisk *disk)
+{
+	struct kobject *k;
+
+	k = kobject_get(&disk->kobj);
+	disk->holder_dir = kobject_add_dir(k, "holders");
+	disk->slave_dir = kobject_add_dir(k, "slaves");
+	kobject_put(k);
+}
+#else
+#define partition_sysfs_add_subdir(x)	do { } while (0)
+#define disk_sysfs_add_subdirs(x)	do { } while (0)
+#endif
+
 void delete_partition(struct gendisk *disk, int part)
 {
 	struct hd_struct *p = disk->part[part-1];
@@ -310,6 +334,10 @@ void delete_partition(struct gendisk *disk, int part)
 	p->ios[0] = p->ios[1] = 0;
 	p->sectors[0] = p->sectors[1] = 0;
 	devfs_remove("%s/part%d", disk->devfs_name, part);
+#ifdef CONFIG_SYSFS
+	if (p->holder_dir)
+		kobject_unregister(p->holder_dir);
+#endif
 	kobject_unregister(&p->kobj);
 }
 
@@ -337,6 +365,7 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len)
 	p->kobj.parent = &disk->kobj;
 	p->kobj.ktype = &ktype_part;
 	kobject_register(&p->kobj);
+	partition_sysfs_add_subdir(p);
 	disk->part[part-1] = p;
 }
 
@@ -383,6 +412,7 @@ void register_disk(struct gendisk *disk)
 	if ((err = kobject_add(&disk->kobj)))
 		return;
 	disk_sysfs_symlinks(disk);
+ 	disk_sysfs_add_subdirs(disk);
 	kobject_uevent(&disk->kobj, KOBJ_ADD);
 
 	/* No minors to use for partitions */
@@ -483,6 +513,12 @@ void del_gendisk(struct gendisk *disk)
 
 	devfs_remove_disk(disk);
 
+#ifdef CONFIG_SYSFS
+	if (disk->holder_dir)
+		kobject_unregister(disk->holder_dir);
+	if (disk->slave_dir)
+		kobject_unregister(disk->slave_dir);
+#endif
 	if (disk->driverfs_dev) {
 		char *disk_name = make_block_name(disk);
 		sysfs_remove_link(&disk->kobj, "device");
