@@ -3530,12 +3530,18 @@ static void bcm43xx_ieee80211_set_chan(struct net_device *net_dev,
 				       u8 channel)
 {
 	struct bcm43xx_private *bcm = bcm43xx_priv(net_dev);
+	struct bcm43xx_radioinfo *radio;
 	unsigned long flags;
 
 	bcm43xx_lock_mmio(bcm, flags);
-	bcm43xx_mac_suspend(bcm);
-	bcm43xx_radio_selectchannel(bcm, channel, 0);
-	bcm43xx_mac_enable(bcm);
+	if (bcm->initialized) {
+		bcm43xx_mac_suspend(bcm);
+		bcm43xx_radio_selectchannel(bcm, channel, 0);
+		bcm43xx_mac_enable(bcm);
+	} else {
+		radio = bcm43xx_current_radio(bcm);
+		radio->initial_channel = channel;
+	}
 	bcm43xx_unlock_mmio(bcm, flags);
 }
 
