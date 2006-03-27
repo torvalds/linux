@@ -1023,7 +1023,8 @@ static int __init aac_init(void)
 
 static void __exit aac_exit(void)
 {
-	unregister_chrdev(aac_cfg_major, "aac");
+	if (aac_cfg_major > -1)
+		unregister_chrdev(aac_cfg_major, "aac");
 	pci_unregister_driver(&aac_pci_driver);
 }
 
