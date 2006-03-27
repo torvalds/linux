@@ -129,7 +129,6 @@ core-y				+= arch/powerpc/kernel/ \
 				   arch/powerpc/lib/ \
 				   arch/powerpc/sysdev/ \
 				   arch/powerpc/platforms/
-core-$(CONFIG_PPC32)		+= arch/ppc/kernel/
 core-$(CONFIG_MATH_EMULATION)	+= arch/ppc/math-emu/
 core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 core-$(CONFIG_APUS)		+= arch/ppc/amiga/

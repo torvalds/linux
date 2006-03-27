@@ -1,8 +1,6 @@
 #
 # Makefile for the linux kernel.
 #
-ifneq ($(CONFIG_PPC_MERGE),y)
-
 extra-$(CONFIG_PPC_STD_MMU)	:= head.o
 extra-$(CONFIG_40x)		:= head_4xx.o
 extra-$(CONFIG_44x)		:= head_44x.o
@@ -23,11 +21,4 @@ obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
 
 ifndef CONFIG_MATH_EMULATION
 obj-$(CONFIG_8xx)		+= softemu8xx.o
-endif
-
-# These are here while we do the architecture merge
-
-else
-obj-$(CONFIG_NOT_COHERENT_CACHE)	+= dma-mapping.o
-obj-$(CONFIG_KGDB)		+= ppc-stub.o
 endif
