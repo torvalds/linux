@@ -161,6 +161,7 @@ extern int os_lock_file(int fd, int excl);
 /* start_up.c */
 extern void os_early_checks(void);
 extern int can_do_skas(void);
+extern void os_check_bugs(void);
 
 /* Make sure they are clear when running in TT mode. Required by
  * SEGV_MAYBE_FIXABLE */
