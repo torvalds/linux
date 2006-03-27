@@ -3159,7 +3159,7 @@ static int bond_slave_netdev_event(unsigned long event, struct net_device *slave
  * bond_netdev_event: handle netdev notifier chain events.
  *
  * This function receives events for the netdev chain.  The caller (an
- * ioctl handler calling notifier_call_chain) holds the necessary
+ * ioctl handler calling blocking_notifier_call_chain) holds the necessary
  * locks for us to safely manipulate the slave devices (RTNL lock,
  * dev_probe_lock).
  */

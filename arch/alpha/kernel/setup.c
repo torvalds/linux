@@ -43,7 +43,7 @@
 #include <asm/setup.h>
 #include <asm/io.h>
 
-extern struct notifier_block *panic_notifier_list;
+extern struct atomic_notifier_head panic_notifier_list;
 static int alpha_panic_event(struct notifier_block *, unsigned long, void *);
 static struct notifier_block alpha_panic_block = {
 	alpha_panic_event,
@@ -500,7 +500,8 @@ setup_arch(char **cmdline_p)
 	}
 
 	/* Register a call for panic conditions. */
-	notifier_chain_register(&panic_notifier_list, &alpha_panic_block);
+	atomic_notifier_chain_register(&panic_notifier_list,
+			&alpha_panic_block);
 
 #ifdef CONFIG_ALPHA_GENERIC
 	/* Assume that we've booted from SRM if we haven't booted from MILO.

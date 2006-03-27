@@ -77,7 +77,6 @@ extern int remove_memory_block(unsigned long, struct mem_section *, int);
 
 #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
 
-struct notifier_block;
 
 #endif /* CONFIG_MEMORY_HOTPLUG */
 

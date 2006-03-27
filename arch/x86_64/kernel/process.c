@@ -66,24 +66,17 @@ EXPORT_SYMBOL(boot_option_idle_override);
 void (*pm_idle)(void);
 static DEFINE_PER_CPU(unsigned int, cpu_idle_state);
 
-static struct notifier_block *idle_notifier;
-static DEFINE_SPINLOCK(idle_notifier_lock);
+static ATOMIC_NOTIFIER_HEAD(idle_notifier);
 
 void idle_notifier_register(struct notifier_block *n)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&idle_notifier_lock, flags);
-	notifier_chain_register(&idle_notifier, n);
-	spin_unlock_irqrestore(&idle_notifier_lock, flags);
+	atomic_notifier_chain_register(&idle_notifier, n);
 }
 EXPORT_SYMBOL_GPL(idle_notifier_register);
 
 void idle_notifier_unregister(struct notifier_block *n)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&idle_notifier_lock, flags);
-	notifier_chain_unregister(&idle_notifier, n);
-	spin_unlock_irqrestore(&idle_notifier_lock, flags);
+	atomic_notifier_chain_unregister(&idle_notifier, n);
 }
 EXPORT_SYMBOL(idle_notifier_unregister);
 
@@ -93,13 +86,13 @@ static DEFINE_PER_CPU(enum idle_state, idle_state) = CPU_NOT_IDLE;
 void enter_idle(void)
 {
 	__get_cpu_var(idle_state) = CPU_IDLE;
-	notifier_call_chain(&idle_notifier, IDLE_START, NULL);
+	atomic_notifier_call_chain(&idle_notifier, IDLE_START, NULL);
 }
 
 static void __exit_idle(void)
 {
 	__get_cpu_var(idle_state) = CPU_NOT_IDLE;
-	notifier_call_chain(&idle_notifier, IDLE_END, NULL);
+	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
 }
 
 /* Called from interrupts to signify idle end */

@@ -64,26 +64,17 @@ static DEFINE_SPINLOCK(modlist_lock);
 static DEFINE_MUTEX(module_mutex);
 static LIST_HEAD(modules);
 
-static DEFINE_MUTEX(notify_mutex);
-static struct notifier_block * module_notify_list;
+static BLOCKING_NOTIFIER_HEAD(module_notify_list);
 
 int register_module_notifier(struct notifier_block * nb)
 {
-	int err;
-	mutex_lock(&notify_mutex);
-	err = notifier_chain_register(&module_notify_list, nb);
-	mutex_unlock(&notify_mutex);
-	return err;
+	return blocking_notifier_chain_register(&module_notify_list, nb);
 }
 EXPORT_SYMBOL(register_module_notifier);
 
 int unregister_module_notifier(struct notifier_block * nb)
 {
-	int err;
-	mutex_lock(&notify_mutex);
-	err = notifier_chain_unregister(&module_notify_list, nb);
-	mutex_unlock(&notify_mutex);
-	return err;
+	return blocking_notifier_chain_unregister(&module_notify_list, nb);
 }
 EXPORT_SYMBOL(unregister_module_notifier);
 
@@ -1816,9 +1807,8 @@ sys_init_module(void __user *umod,
 	/* Drop lock so they can recurse */
 	mutex_unlock(&module_mutex);
 
-	mutex_lock(&notify_mutex);
-	notifier_call_chain(&module_notify_list, MODULE_STATE_COMING, mod);
-	mutex_unlock(&notify_mutex);
+	blocking_notifier_call_chain(&module_notify_list,
+			MODULE_STATE_COMING, mod);
 
 	/* Start the module */
 	if (mod->init != NULL)

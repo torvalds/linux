@@ -87,7 +87,7 @@ extern int cond_resched(void);
 		(__x < 0) ? -__x : __x;		\
 	})
 
-extern struct notifier_block *panic_notifier_list;
+extern struct atomic_notifier_head panic_notifier_list;
 extern long (*panic_blink)(long time);
 NORET_TYPE void panic(const char * fmt, ...)
 	__attribute__ ((NORET_AND format (printf, 1, 2)));

@@ -300,29 +300,30 @@ DECLARE_PER_CPU(struct nf_conntrack_ecache, nf_conntrack_ecache);
 
 #define CONNTRACK_ECACHE(x)	(__get_cpu_var(nf_conntrack_ecache).x)
 
-extern struct notifier_block *nf_conntrack_chain;
-extern struct notifier_block *nf_conntrack_expect_chain;
+extern struct atomic_notifier_head nf_conntrack_chain;
+extern struct atomic_notifier_head nf_conntrack_expect_chain;
 
 static inline int nf_conntrack_register_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_register(&nf_conntrack_chain, nb);
+	return atomic_notifier_chain_register(&nf_conntrack_chain, nb);
 }
 
 static inline int nf_conntrack_unregister_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_unregister(&nf_conntrack_chain, nb);
+	return atomic_notifier_chain_unregister(&nf_conntrack_chain, nb);
 }
 
 static inline int
 nf_conntrack_expect_register_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_register(&nf_conntrack_expect_chain, nb);
+	return atomic_notifier_chain_register(&nf_conntrack_expect_chain, nb);
 }
 
 static inline int
 nf_conntrack_expect_unregister_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_unregister(&nf_conntrack_expect_chain, nb);
+	return atomic_notifier_chain_unregister(&nf_conntrack_expect_chain,
+			nb);
 }
 
 extern void nf_ct_deliver_cached_events(const struct nf_conn *ct);
@@ -347,14 +348,14 @@ static inline void nf_conntrack_event(enum ip_conntrack_events event,
 				      struct nf_conn *ct)
 {
 	if (nf_ct_is_confirmed(ct) && !nf_ct_is_dying(ct))
-		notifier_call_chain(&nf_conntrack_chain, event, ct);
+		atomic_notifier_call_chain(&nf_conntrack_chain, event, ct);
 }
 
 static inline void
 nf_conntrack_expect_event(enum ip_conntrack_expect_events event,
 			  struct nf_conntrack_expect *exp)
 {
-	notifier_call_chain(&nf_conntrack_expect_chain, event, exp);
+	atomic_notifier_call_chain(&nf_conntrack_expect_chain, event, exp);
 }
 #else /* CONFIG_NF_CONNTRACK_EVENTS */
 static inline void nf_conntrack_event_cache(enum ip_conntrack_events event,

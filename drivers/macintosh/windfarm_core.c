@@ -52,7 +52,7 @@
 static LIST_HEAD(wf_controls);
 static LIST_HEAD(wf_sensors);
 static DEFINE_MUTEX(wf_lock);
-static struct notifier_block *wf_client_list;
+static BLOCKING_NOTIFIER_HEAD(wf_client_list);
 static int wf_client_count;
 static unsigned int wf_overtemp;
 static unsigned int wf_overtemp_counter;
@@ -68,7 +68,7 @@ static struct platform_device wf_platform_device = {
 
 static inline void wf_notify(int event, void *param)
 {
-	notifier_call_chain(&wf_client_list, event, param);
+	blocking_notifier_call_chain(&wf_client_list, event, param);
 }
 
 int wf_critical_overtemp(void)
@@ -398,7 +398,7 @@ int wf_register_client(struct notifier_block *nb)
 	struct wf_sensor *sr;
 
 	mutex_lock(&wf_lock);
-	rc = notifier_chain_register(&wf_client_list, nb);
+	rc = blocking_notifier_chain_register(&wf_client_list, nb);
 	if (rc != 0)
 		goto bail;
 	wf_client_count++;
@@ -417,7 +417,7 @@ EXPORT_SYMBOL_GPL(wf_register_client);
 int wf_unregister_client(struct notifier_block *nb)
 {
 	mutex_lock(&wf_lock);
-	notifier_chain_unregister(&wf_client_list, nb);
+	blocking_notifier_chain_unregister(&wf_client_list, nb);
 	wf_client_count++;
 	if (wf_client_count == 0)
 		wf_stop_thread();

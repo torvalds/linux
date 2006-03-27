@@ -165,7 +165,8 @@ void __init plat_setup(void)
 
 	/* Set up panic notifier */
 	for (i = 0; i < sizeof(lasat_panic_block) / sizeof(struct notifier_block); i++)
-		notifier_chain_register(&panic_notifier_list, &lasat_panic_block[i]);
+		atomic_notifier_chain_register(&panic_notifier_list,
+				&lasat_panic_block[i]);
 
 	lasat_reboot_setup();
 

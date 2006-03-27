@@ -477,7 +477,8 @@ static struct notifier_block panic_exit_notifier = {
 
 void __init setup_arch(char **cmdline_p)
 {
-	notifier_chain_register(&panic_notifier_list, &panic_exit_notifier);
+	atomic_notifier_chain_register(&panic_notifier_list,
+			&panic_exit_notifier);
 	paging_init();
         strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
  	*cmdline_p = command_line;
