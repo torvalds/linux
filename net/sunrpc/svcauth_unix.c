@@ -36,16 +36,16 @@ struct auth_domain *unix_domain_find(char *name)
 
 	rv = auth_domain_lookup(name, NULL);
 	while(1) {
-		if (rv != &new->h) {
-			if (new) auth_domain_put(&new->h);
+		if (rv) {
+			if (new && rv != &new->h)
+				auth_domain_put(&new->h);
+
+			if (rv->flavour != &svcauth_unix) {
+				auth_domain_put(rv);
+				return NULL;
+			}
 			return rv;
 		}
-		if (rv && rv->flavour != &svcauth_unix) {
-			auth_domain_put(rv);
-			return NULL;
-		}
-		if (rv)
-			return rv;
 
 		new = kmalloc(sizeof(*new), GFP_KERNEL);
 		if (new == NULL)
