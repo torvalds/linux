@@ -645,6 +645,8 @@ find_gss_auth_domain(struct gss_ctx *ctx, u32 svc)
 	return auth_domain_find(name);
 }
 
+static struct auth_ops svcauthops_gss;
+
 int
 svcauth_gss_register_pseudoflavor(u32 pseudoflavor, char * name)
 {
@@ -655,20 +657,18 @@ svcauth_gss_register_pseudoflavor(u32 pseudoflavor, char * name)
 	new = kmalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		goto out;
-	cache_init(&new->h.h);
+	kref_init(&new->h.ref);
 	new->h.name = kmalloc(strlen(name) + 1, GFP_KERNEL);
 	if (!new->h.name)
 		goto out_free_dom;
 	strcpy(new->h.name, name);
-	new->h.flavour = RPC_AUTH_GSS;
+	new->h.flavour = &svcauthops_gss;
 	new->pseudoflavor = pseudoflavor;
-	new->h.h.expiry_time = NEVER;
 
-	test = auth_domain_lookup(&new->h, 1);
-	if (test == &new->h) {
-		BUG_ON(atomic_dec_and_test(&new->h.h.refcnt));
-	} else { /* XXX Duplicate registration? */
+	test = auth_domain_lookup(name, &new->h);
+	if (test != &new->h) { /* XXX Duplicate registration? */
 		auth_domain_put(&new->h);
+		/* dangling ref-count... */
 		goto out;
 	}
 	return 0;

@@ -142,6 +142,7 @@ EXPORT_SYMBOL(nlm_debug);
 
 extern int register_rpc_pipefs(void);
 extern void unregister_rpc_pipefs(void);
+extern struct cache_detail ip_map_cache;
 
 static int __init
 init_sunrpc(void)
@@ -158,7 +159,6 @@ init_sunrpc(void)
 #ifdef CONFIG_PROC_FS
 	rpc_proc_init();
 #endif
-	cache_register(&auth_domain_cache);
 	cache_register(&ip_map_cache);
 out:
 	return err;
@@ -169,8 +169,6 @@ cleanup_sunrpc(void)
 {
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();
-	if (cache_unregister(&auth_domain_cache))
-		printk(KERN_ERR "sunrpc: failed to unregister auth_domain cache\n");
 	if (cache_unregister(&ip_map_cache))
 		printk(KERN_ERR "sunrpc: failed to unregister ip_map cache\n");
 #ifdef RPC_DEBUG

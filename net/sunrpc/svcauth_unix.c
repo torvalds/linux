@@ -27,41 +27,35 @@ struct unix_domain {
 	/* other stuff later */
 };
 
+extern struct auth_ops svcauth_unix;
+
 struct auth_domain *unix_domain_find(char *name)
 {
-	struct auth_domain *rv, ud;
-	struct unix_domain *new;
+	struct auth_domain *rv;
+	struct unix_domain *new = NULL;
 
-	ud.name = name;
-	
-	rv = auth_domain_lookup(&ud, 0);
+	rv = auth_domain_lookup(name, NULL);
+	while(1) {
+		if (rv != &new->h) {
+			if (new) auth_domain_put(&new->h);
+			return rv;
+		}
+		if (rv && rv->flavour != &svcauth_unix) {
+			auth_domain_put(rv);
+			return NULL;
+		}
+		if (rv)
+			return rv;
 
- foundit:
-	if (rv && rv->flavour != RPC_AUTH_UNIX) {
-		auth_domain_put(rv);
-		return NULL;
+		new = kmalloc(sizeof(*new), GFP_KERNEL);
+		if (new == NULL)
+			return NULL;
+		kref_init(&new->h.ref);
+		new->h.name = kstrdup(name, GFP_KERNEL);
+		new->h.flavour = &svcauth_unix;
+		new->addr_changes = 0;
+		rv = auth_domain_lookup(name, &new->h);
 	}
-	if (rv)
-		return rv;
-
-	new = kmalloc(sizeof(*new), GFP_KERNEL);
-	if (new == NULL)
-		return NULL;
-	cache_init(&new->h.h);
-	new->h.name = kstrdup(name, GFP_KERNEL);
-	new->h.flavour = RPC_AUTH_UNIX;
-	new->addr_changes = 0;
-	new->h.h.expiry_time = NEVER;
-
-	rv = auth_domain_lookup(&new->h, 2);
-	if (rv == &new->h) {
-		if (atomic_dec_and_test(&new->h.h.refcnt)) BUG();
-	} else {
-		auth_domain_put(&new->h);
-		goto foundit;
-	}
-
-	return rv;
 }
 
 static void svcauth_unix_domain_release(struct auth_domain *dom)
@@ -130,7 +124,7 @@ static inline void ip_map_init(struct ip_map *new, struct ip_map *item)
 }
 static inline void ip_map_update(struct ip_map *new, struct ip_map *item)
 {
-	cache_get(&item->m_client->h.h);
+	kref_get(&item->m_client->h.ref);
 	new->m_client = item->m_client;
 	new->m_add_change = item->m_add_change;
 }
@@ -272,7 +266,7 @@ int auth_unix_add_addr(struct in_addr addr, struct auth_domain *dom)
 	struct unix_domain *udom;
 	struct ip_map ip, *ipmp;
 
-	if (dom->flavour != RPC_AUTH_UNIX)
+	if (dom->flavour != &svcauth_unix)
 		return -EINVAL;
 	udom = container_of(dom, struct unix_domain, h);
 	strcpy(ip.m_class, "nfsd");
@@ -295,7 +289,7 @@ int auth_unix_forget_old(struct auth_domain *dom)
 {
 	struct unix_domain *udom;
 	
-	if (dom->flavour != RPC_AUTH_UNIX)
+	if (dom->flavour != &svcauth_unix)
 		return -EINVAL;
 	udom = container_of(dom, struct unix_domain, h);
 	udom->addr_changes++;
@@ -323,7 +317,7 @@ struct auth_domain *auth_unix_lookup(struct in_addr addr)
 		rv = NULL;
 	} else {
 		rv = &ipm->m_client->h;
-		cache_get(&rv->h);
+		kref_get(&rv->ref);
 	}
 	ip_map_put(&ipm->h, &ip_map_cache);
 	return rv;
@@ -332,7 +326,6 @@ struct auth_domain *auth_unix_lookup(struct in_addr addr)
 void svcauth_unix_purge(void)
 {
 	cache_purge(&ip_map_cache);
-	cache_purge(&auth_domain_cache);
 }
 
 static int
@@ -361,7 +354,7 @@ svcauth_unix_set_client(struct svc_rqst *rqstp)
 			return SVC_DENIED;
 		case 0:
 			rqstp->rq_client = &ipm->m_client->h;
-			cache_get(&rqstp->rq_client->h);
+			kref_get(&rqstp->rq_client->ref);
 			ip_map_put(&ipm->h, &ip_map_cache);
 			break;
 	}

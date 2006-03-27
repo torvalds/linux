@@ -242,7 +242,7 @@ static inline int svc_expkey_match (struct svc_expkey *a, struct svc_expkey *b)
 
 static inline void svc_expkey_init(struct svc_expkey *new, struct svc_expkey *item)
 {
-	cache_get(&item->ek_client->h);
+	kref_get(&item->ek_client->ref);
 	new->ek_client = item->ek_client;
 	new->ek_fsidtype = item->ek_fsidtype;
 	new->ek_fsid[0] = item->ek_fsid[0];
@@ -474,7 +474,7 @@ static inline int svc_export_match(struct svc_export *a, struct svc_export *b)
 }
 static inline void svc_export_init(struct svc_export *new, struct svc_export *item)
 {
-	cache_get(&item->ex_client->h);
+	kref_get(&item->ex_client->ref);
 	new->ex_client = item->ex_client;
 	new->ex_dentry = dget(item->ex_dentry);
 	new->ex_mnt = mntget(item->ex_mnt);
@@ -1129,7 +1129,6 @@ exp_delclient(struct nfsctl_client *ncp)
 	 */
 	if (dom) {
 		err = auth_unix_forget_old(dom);
-		dom->h.expiry_time = get_seconds();
 		auth_domain_put(dom);
 	}
 
