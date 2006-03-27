@@ -421,7 +421,7 @@ int linux_main(int argc, char **argv)
 #ifndef CONFIG_HIGHMEM
 		highmem = 0;
 		printf("CONFIG_HIGHMEM not enabled - physical memory shrunk "
-		       "to %lu bytes\n", physmem_size);
+		       "to %Lu bytes\n", physmem_size);
 #endif
 	}
 
@@ -433,8 +433,8 @@ int linux_main(int argc, char **argv)
 
 	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
 	if(init_maps(physmem_size, iomem_size, highmem)){
-		printf("Failed to allocate mem_map for %lu bytes of physical "
-		       "memory and %lu bytes of highmem\n", physmem_size,
+		printf("Failed to allocate mem_map for %Lu bytes of physical "
+		       "memory and %Lu bytes of highmem\n", physmem_size,
 		       highmem);
 		exit(1);
 	}
