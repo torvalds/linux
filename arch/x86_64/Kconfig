@@ -334,6 +334,10 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
 	depends on NUMA
 
+config OUT_OF_LINE_PFN_TO_PAGE
+	def_bool y
+	depends on DISCONTIGMEM
+
 config NR_CPUS
 	int "Maximum number of CPUs (2-256)"
 	range 2 255
