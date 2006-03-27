@@ -1,0 +1,6 @@
+#
+# RTC class/drivers configuration
+#
+
+config RTC_LIB
+	tristate
