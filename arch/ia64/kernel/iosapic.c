@@ -1063,10 +1063,7 @@ iosapic_check_gsi_range (unsigned int gsi_base, unsigned int ver)
 		base = iosapic_lists[index].gsi_base;
 		end  = base + iosapic_lists[index].num_rte - 1;
 
-		if (gsi_base < base && gsi_end < base)
-			continue;/* OK */
-
-		if (gsi_base > end && gsi_end > end)
+		if (gsi_end < base || end < gsi_base)
 			continue; /* OK */
 
 		return -EBUSY;
