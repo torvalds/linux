@@ -138,6 +138,14 @@
 #   define CPU_NAME cpu_xscale
 #  endif
 # endif
+# ifdef CONFIG_CPU_XSC3
+#  ifdef CPU_NAME
+#   undef  MULTI_CPU
+#   define MULTI_CPU
+#  else
+#   define CPU_NAME cpu_xsc3
+#  endif
+# endif
 # ifdef CONFIG_CPU_V6
 #  ifdef CPU_NAME
 #   undef  MULTI_CPU

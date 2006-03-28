@@ -12,22 +12,20 @@
 #define LSR 	0x14
 #define TEMPTY 	0x40
 
-static void putstr(const char *s)
+static inline void putc(int c)
 {
-	char c;
 	volatile unsigned char *p = (volatile unsigned char *)(IO_PHYS+0x20000);
 
-	while ( (c = *s++) != '\0') {
-		/* wait until transmit buffer is empty */
-		while((p[LSR] & TEMPTY) == 0x0);
-		/* write next character */
-		*p = c;
+	/* wait until transmit buffer is empty */
+	while((p[LSR] & TEMPTY) == 0x0)
+		barrier();
 
-		if(c == '\n') {
-			while((p[LSR] & TEMPTY) == 0x0);
-			*p = '\r';
-		}
-	}
+	/* write next character */
+	*p = c;
+}
+
+static inline void flush(void)
+{
 }
 
 /*
