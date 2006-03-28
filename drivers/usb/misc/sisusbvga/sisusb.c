@@ -37,6 +37,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
@@ -102,7 +103,7 @@ MODULE_PARM_DESC(last, "Number of last console to take over (1 - MAX_NR_CONSOLES
 
 static struct usb_driver sisusb_driver;
 
-DECLARE_MUTEX(disconnect_sem);
+DEFINE_MUTEX(disconnect_mutex);
 
 static void
 sisusb_free_buffers(struct sisusb_usb_data *sisusb)
@@ -2552,39 +2553,39 @@ sisusb_open(struct inode *inode, struct file *file)
 	struct usb_interface *interface;
 	int subminor = iminor(inode);
 
-	down(&disconnect_sem);
+	mutex_lock(&disconnect_mutex);
 
 	if (!(interface = usb_find_interface(&sisusb_driver, subminor))) {
 		printk(KERN_ERR "sisusb[%d]: Failed to find interface\n",
 				subminor);
-		up(&disconnect_sem);
+		mutex_unlock(&disconnect_mutex);
 		return -ENODEV;
 	}
 
 	if (!(sisusb = usb_get_intfdata(interface))) {
-		up(&disconnect_sem);
+		mutex_unlock(&disconnect_mutex);
 		return -ENODEV;
 	}
 
-	down(&sisusb->lock);
+	mutex_lock(&sisusb->lock);
 
 	if (!sisusb->present || !sisusb->ready) {
-		up(&sisusb->lock);
-		up(&disconnect_sem);
+		mutex_unlock(&sisusb->lock);
+		mutex_unlock(&disconnect_mutex);
 		return -ENODEV;
 	}
 
 	if (sisusb->isopen) {
-		up(&sisusb->lock);
-		up(&disconnect_sem);
+		mutex_unlock(&sisusb->lock);
+		mutex_unlock(&disconnect_mutex);
 		return -EBUSY;
 	}
 
 	if (!sisusb->devinit) {
 		if (sisusb->sisusb_dev->speed == USB_SPEED_HIGH) {
 			if (sisusb_init_gfxdevice(sisusb, 0)) {
-				up(&sisusb->lock);
-				up(&disconnect_sem);
+				mutex_unlock(&sisusb->lock);
+				mutex_unlock(&disconnect_mutex);
 				printk(KERN_ERR
 					"sisusbvga[%d]: Failed to initialize "
 					"device\n",
@@ -2592,8 +2593,8 @@ sisusb_open(struct inode *inode, struct file *file)
 				return -EIO;
 			}
 		} else {
-			up(&sisusb->lock);
-			up(&disconnect_sem);
+			mutex_unlock(&sisusb->lock);
+			mutex_unlock(&disconnect_mutex);
 			printk(KERN_ERR
 				"sisusbvga[%d]: Device not attached to "
 				"USB 2.0 hub\n",
@@ -2609,9 +2610,9 @@ sisusb_open(struct inode *inode, struct file *file)
 
 	file->private_data = sisusb;
 
-	up(&sisusb->lock);
+	mutex_unlock(&sisusb->lock);
 
-	up(&disconnect_sem);
+	mutex_unlock(&disconnect_mutex);
 
 	return 0;
 }
@@ -2642,14 +2643,14 @@ sisusb_release(struct inode *inode, struct file *file)
 	struct sisusb_usb_data *sisusb;
 	int myminor;
 
-	down(&disconnect_sem);
+	mutex_lock(&disconnect_mutex);
 
 	if (!(sisusb = (struct sisusb_usb_data *)file->private_data)) {
-		up(&disconnect_sem);
+		mutex_unlock(&disconnect_mutex);
 		return -ENODEV;
 	}
 
-	down(&sisusb->lock);
+	mutex_lock(&sisusb->lock);
 
 	if (sisusb->present) {
 		/* Wait for all URBs to finish if device still present */
@@ -2662,12 +2663,12 @@ sisusb_release(struct inode *inode, struct file *file)
 	sisusb->isopen = 0;
 	file->private_data = NULL;
 
-	up(&sisusb->lock);
+	mutex_unlock(&sisusb->lock);
 
 	/* decrement the usage count on our device */
 	kref_put(&sisusb->kref, sisusb_delete);
 
-	up(&disconnect_sem);
+	mutex_unlock(&disconnect_mutex);
 
 	return 0;
 }
@@ -2685,11 +2686,11 @@ sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 	if (!(sisusb = (struct sisusb_usb_data *)file->private_data))
 		return -ENODEV;
 
-	down(&sisusb->lock);
+	mutex_lock(&sisusb->lock);
 
 	/* Sanity check */
 	if (!sisusb->present || !sisusb->ready || !sisusb->sisusb_dev) {
-		up(&sisusb->lock);
+		mutex_unlock(&sisusb->lock);
 		return -ENODEV;
 	}
 
@@ -2784,7 +2785,7 @@ sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 		    (*ppos) <= SISUSB_PCI_PSEUDO_PCIBASE + 0x5c) {
 
 		if (count != 4) {
-			up(&sisusb->lock);
+			mutex_unlock(&sisusb->lock);
 			return -EINVAL;
 		}
 
@@ -2808,7 +2809,7 @@ sisusb_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 
 	(*ppos) += bytes_read;
 
-	up(&sisusb->lock);
+	mutex_unlock(&sisusb->lock);
 
 	return errno ? errno : bytes_read;
 }
@@ -2827,11 +2828,11 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 	if (!(sisusb = (struct sisusb_usb_data *)file->private_data))
 		return -ENODEV;
 
-	down(&sisusb->lock);
+	mutex_lock(&sisusb->lock);
 
 	/* Sanity check */
 	if (!sisusb->present || !sisusb->ready || !sisusb->sisusb_dev) {
-		up(&sisusb->lock);
+		mutex_unlock(&sisusb->lock);
 		return -ENODEV;
 	}
 
@@ -2930,7 +2931,7 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 		    (*ppos) <= SISUSB_PCI_PSEUDO_PCIBASE + SISUSB_PCI_PCONFSIZE) {
 
 		if (count != 4) {
-			up(&sisusb->lock);
+			mutex_unlock(&sisusb->lock);
 			return -EINVAL;
 		}
 
@@ -2956,7 +2957,7 @@ sisusb_write(struct file *file, const char __user *buffer, size_t count,
 
 	(*ppos) += bytes_written;
 
-	up(&sisusb->lock);
+	mutex_unlock(&sisusb->lock);
 
 	return errno ? errno : bytes_written;
 }
@@ -2970,11 +2971,11 @@ sisusb_lseek(struct file *file, loff_t offset, int orig)
 	if (!(sisusb = (struct sisusb_usb_data *)file->private_data))
 		return -ENODEV;
 
-	down(&sisusb->lock);
+	mutex_lock(&sisusb->lock);
 
 	/* Sanity check */
 	if (!sisusb->present || !sisusb->ready || !sisusb->sisusb_dev) {
-		up(&sisusb->lock);
+		mutex_unlock(&sisusb->lock);
 		return -ENODEV;
 	}
 
@@ -2994,7 +2995,7 @@ sisusb_lseek(struct file *file, loff_t offset, int orig)
 			ret = -EINVAL;
 	}
 
-	up(&sisusb->lock);
+	mutex_unlock(&sisusb->lock);
 	return ret;
 }
 
@@ -3136,7 +3137,7 @@ sisusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	if (!(sisusb = (struct sisusb_usb_data *)file->private_data))
 		return -ENODEV;
 
-	down(&sisusb->lock);
+	mutex_lock(&sisusb->lock);
 
 	/* Sanity check */
 	if (!sisusb->present || !sisusb->ready || !sisusb->sisusb_dev) {
@@ -3193,7 +3194,7 @@ sisusb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	}
 
 err_out:
-	up(&sisusb->lock);
+	mutex_unlock(&sisusb->lock);
 	return retval;
 }
 
@@ -3258,7 +3259,7 @@ static int sisusb_probe(struct usb_interface *intf,
 	}
 	kref_init(&sisusb->kref);
 
-	init_MUTEX(&(sisusb->lock));
+	mutex_init(&(sisusb->lock));
 
 	/* Register device */
 	if ((retval = usb_register_dev(intf, &usb_sisusb_class))) {
@@ -3429,9 +3430,9 @@ static void sisusb_disconnect(struct usb_interface *intf)
 	 * protect all other routines from the disconnect
 	 * case, not the other way round.
 	 */
-	down(&disconnect_sem);
+	mutex_lock(&disconnect_mutex);
 
-	down(&sisusb->lock);
+	mutex_lock(&sisusb->lock);
 
 	/* Wait for all URBs to complete and kill them in case (MUST do) */
 	if (!sisusb_wait_all_out_complete(sisusb))
@@ -3462,12 +3463,12 @@ static void sisusb_disconnect(struct usb_interface *intf)
 	sisusb->present = 0;
 	sisusb->ready = 0;
 
-	up(&sisusb->lock);
+	mutex_unlock(&sisusb->lock);
 
 	/* decrement our usage count */
 	kref_put(&sisusb->kref, sisusb_delete);
 
-	up(&disconnect_sem);
+	mutex_unlock(&disconnect_mutex);
 
 	printk(KERN_INFO "sisusbvga[%d]: Disconnected\n", minor);
 }
