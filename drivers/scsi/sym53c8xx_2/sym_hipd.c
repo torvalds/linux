@@ -648,6 +648,37 @@ static void sym_save_initial_setting (struct sym_hcb *np)
 }
 
 /*
+ *  Set SCSI BUS mode.
+ *  - LVD capable chips (895/895A/896/1010) report the current BUS mode
+ *    through the STEST4 IO register.
+ *  - For previous generation chips (825/825A/875), the user has to tell us
+ *    how to check against HVD, since a 100% safe algorithm is not possible.
+ */
+static void sym_set_bus_mode(struct sym_hcb *np, struct sym_nvram *nvram)
+{
+	if (np->scsi_mode)
+		return;
+
+	np->scsi_mode = SMODE_SE;
+	if (np->features & (FE_ULTRA2|FE_ULTRA3))
+		np->scsi_mode = (np->sv_stest4 & SMODE);
+	else if	(np->features & FE_DIFF) {
+		if (SYM_SETUP_SCSI_DIFF == 1) {
+			if (np->sv_scntl3) {
+				if (np->sv_stest2 & 0x20)
+					np->scsi_mode = SMODE_HVD;
+			} else if (nvram->type == SYM_SYMBIOS_NVRAM) {
+				if (!(INB(np, nc_gpreg) & 0x08))
+					np->scsi_mode = SMODE_HVD;
+			}
+		} else if (SYM_SETUP_SCSI_DIFF == 2)
+			np->scsi_mode = SMODE_HVD;
+	}
+	if (np->scsi_mode == SMODE_HVD)
+		np->rv_stest2 |= 0x20;
+}
+
+/*
  *  Prepare io register values used by sym_start_up() 
  *  according to selected and supported features.
  */
@@ -657,10 +688,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	u32	period;
 	int i;
 
-	/*
-	 *  Wide ?
-	 */
-	np->maxwide	= (np->features & FE_WIDE)? 1 : 0;
+	np->maxwide = (np->features & FE_WIDE) ? 1 : 0;
 
 	/*
 	 *  Guess the frequency of the chip's clock.
@@ -841,6 +869,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  Get parity checking, host ID and verbose mode from NVRAM
 	 */
 	np->myaddr = 255;
+	np->scsi_mode = 0;
 	sym_nvram_setup_host(shost, np, nvram);
 
 	/*
@@ -857,33 +886,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 */
 	sym_init_burst(np, burst_max);
 
-	/*
-	 *  Set SCSI BUS mode.
-	 *  - LVD capable chips (895/895A/896/1010) report the 
-	 *    current BUS mode through the STEST4 IO register.
-	 *  - For previous generation chips (825/825A/875), 
-	 *    user has to tell us how to check against HVD, 
-	 *    since a 100% safe algorithm is not possible.
-	 */
-	np->scsi_mode = SMODE_SE;
-	if (np->features & (FE_ULTRA2|FE_ULTRA3))
-		np->scsi_mode = (np->sv_stest4 & SMODE);
-	else if	(np->features & FE_DIFF) {
-		if (SYM_SETUP_SCSI_DIFF == 1) {
-			if (np->sv_scntl3) {
-				if (np->sv_stest2 & 0x20)
-					np->scsi_mode = SMODE_HVD;
-			}
-			else if (nvram->type == SYM_SYMBIOS_NVRAM) {
-				if (!(INB(np, nc_gpreg) & 0x08))
-					np->scsi_mode = SMODE_HVD;
-			}
-		}
-		else if	(SYM_SETUP_SCSI_DIFF == 2)
-			np->scsi_mode = SMODE_HVD;
-	}
-	if (np->scsi_mode == SMODE_HVD)
-		np->rv_stest2 |= 0x20;
+	sym_set_bus_mode(np, nvram);
 
 	/*
 	 *  Set LED support from SCRIPTS.
