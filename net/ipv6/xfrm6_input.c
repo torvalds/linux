@@ -28,9 +28,8 @@ static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
 		IP6_ECN_set_ce(inner_iph);
 }
 
-int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi)
+int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
 {
-	struct sk_buff *skb = *pskb;
 	int err;
 	u32 seq;
 	struct sec_decap_state xfrm_vec[XFRM_MAX_DEPTH];
@@ -159,5 +158,5 @@ EXPORT_SYMBOL(xfrm6_rcv_spi);
 
 int xfrm6_rcv(struct sk_buff **pskb)
 {
-	return xfrm6_rcv_spi(pskb, 0);
+	return xfrm6_rcv_spi(*pskb, 0);
 }

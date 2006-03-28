@@ -88,7 +88,7 @@ config INET6_IPCOMP
 	tristate "IPv6: IPComp transformation"
 	depends on IPV6
 	select XFRM
-	select INET6_TUNNEL
+	select INET6_XFRM_TUNNEL
 	select CRYPTO
 	select CRYPTO_DEFLATE
 	---help---
@@ -97,19 +97,18 @@ config INET6_IPCOMP
 
 	  If unsure, say Y.
 
+config INET6_XFRM_TUNNEL
+	tristate
+	select INET6_TUNNEL
+	default n
+
 config INET6_TUNNEL
-	tristate "IPv6: tunnel transformation"
-	depends on IPV6
-	select XFRM
-	---help---
-	  Support for generic IPv6-in-IPv6 tunnel transformation, which is
-	  required by the IPv6-in-IPv6 tunneling module as well as tunnel mode
-	  IPComp.
-	  
-	  If unsure, say Y.
+	tristate
+	default n
 
 config IPV6_TUNNEL
 	tristate "IPv6: IPv6-in-IPv6 tunnel"
+	select INET6_TUNNEL
 	depends on IPV6
 	---help---
 	  Support for IPv6-in-IPv6 tunnels described in RFC 2473.
