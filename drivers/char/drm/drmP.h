@@ -813,8 +813,6 @@ extern void drm_mem_init(void);
 extern int drm_mem_info(char *buf, char **start, off_t offset,
 			int request, int *eof, void *data);
 extern void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area);
-extern unsigned long drm_alloc_pages(int order, int area);
-extern void drm_free_pages(unsigned long address, int order, int area);
 extern void *drm_ioremap(unsigned long offset, unsigned long size,
 			 drm_device_t * dev);
 extern void *drm_ioremap_nocache(unsigned long offset, unsigned long size,
