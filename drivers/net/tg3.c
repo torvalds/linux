@@ -10531,6 +10531,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 {
 	struct net_device *dev = tp->dev;
 	u32 hi, lo, mac_offset;
+	int addr_ok = 0;
 
 #ifdef CONFIG_SPARC64
 	if (!tg3_get_macaddr_sparc(tp))
@@ -10560,29 +10561,34 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 		dev->dev_addr[3] = (lo >> 16) & 0xff;
 		dev->dev_addr[4] = (lo >>  8) & 0xff;
 		dev->dev_addr[5] = (lo >>  0) & 0xff;
-	}
-	/* Next, try NVRAM. */
-	else if (!(tp->tg3_flags & TG3_FLG2_SUN_570X) &&
-		 !tg3_nvram_read(tp, mac_offset + 0, &hi) &&
-		 !tg3_nvram_read(tp, mac_offset + 4, &lo)) {
-		dev->dev_addr[0] = ((hi >> 16) & 0xff);
-		dev->dev_addr[1] = ((hi >> 24) & 0xff);
-		dev->dev_addr[2] = ((lo >>  0) & 0xff);
-		dev->dev_addr[3] = ((lo >>  8) & 0xff);
-		dev->dev_addr[4] = ((lo >> 16) & 0xff);
-		dev->dev_addr[5] = ((lo >> 24) & 0xff);
-	}
-	/* Finally just fetch it out of the MAC control regs. */
-	else {
-		hi = tr32(MAC_ADDR_0_HIGH);
-		lo = tr32(MAC_ADDR_0_LOW);
 
-		dev->dev_addr[5] = lo & 0xff;
-		dev->dev_addr[4] = (lo >> 8) & 0xff;
-		dev->dev_addr[3] = (lo >> 16) & 0xff;
-		dev->dev_addr[2] = (lo >> 24) & 0xff;
-		dev->dev_addr[1] = hi & 0xff;
-		dev->dev_addr[0] = (hi >> 8) & 0xff;
+		/* Some old bootcode may report a 0 MAC address in SRAM */
+		addr_ok = is_valid_ether_addr(&dev->dev_addr[0]);
+	}
+	if (!addr_ok) {
+		/* Next, try NVRAM. */
+		if (!(tp->tg3_flags & TG3_FLG2_SUN_570X) &&
+		    !tg3_nvram_read(tp, mac_offset + 0, &hi) &&
+		    !tg3_nvram_read(tp, mac_offset + 4, &lo)) {
+			dev->dev_addr[0] = ((hi >> 16) & 0xff);
+			dev->dev_addr[1] = ((hi >> 24) & 0xff);
+			dev->dev_addr[2] = ((lo >>  0) & 0xff);
+			dev->dev_addr[3] = ((lo >>  8) & 0xff);
+			dev->dev_addr[4] = ((lo >> 16) & 0xff);
+			dev->dev_addr[5] = ((lo >> 24) & 0xff);
+		}
+		/* Finally just fetch it out of the MAC control regs. */
+		else {
+			hi = tr32(MAC_ADDR_0_HIGH);
+			lo = tr32(MAC_ADDR_0_LOW);
+
+			dev->dev_addr[5] = lo & 0xff;
+			dev->dev_addr[4] = (lo >> 8) & 0xff;
+			dev->dev_addr[3] = (lo >> 16) & 0xff;
+			dev->dev_addr[2] = (lo >> 24) & 0xff;
+			dev->dev_addr[1] = hi & 0xff;
+			dev->dev_addr[0] = (hi >> 8) & 0xff;
+		}
 	}
 
 	if (!is_valid_ether_addr(&dev->dev_addr[0])) {
