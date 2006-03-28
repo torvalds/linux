@@ -1190,19 +1190,19 @@ cfq_find_cfq_hash(struct cfq_data *cfqd, unsigned int key, unsigned short prio)
 	return __cfq_find_cfq_hash(cfqd, key, prio, hash_long(key, CFQ_QHASH_SHIFT));
 }
 
-static void cfq_free_io_context(struct cfq_io_context *cic)
+static void cfq_free_io_context(struct io_context *ioc)
 {
 	struct cfq_io_context *__cic;
-	struct list_head *entry, *next;
-	int freed = 1;
+	struct rb_node *n;
+	int freed = 0;
 
-	list_for_each_safe(entry, next, &cic->list) {
-		__cic = list_entry(entry, struct cfq_io_context, list);
+	while ((n = rb_first(&ioc->cic_root)) != NULL) {
+		__cic = rb_entry(n, struct cfq_io_context, rb_node);
+		rb_erase(&__cic->rb_node, &ioc->cic_root);
 		kmem_cache_free(cfq_ioc_pool, __cic);
 		freed++;
 	}
 
-	kmem_cache_free(cfq_ioc_pool, cic);
 	if (atomic_sub_and_test(freed, &ioc_count) && ioc_gone)
 		complete(ioc_gone);
 }
@@ -1210,8 +1210,7 @@ static void cfq_free_io_context(struct cfq_io_context *cic)
 static void cfq_trim(struct io_context *ioc)
 {
 	ioc->set_ioprio = NULL;
-	if (ioc->cic)
-		cfq_free_io_context(ioc->cic);
+	cfq_free_io_context(ioc);
 }
 
 /*
@@ -1250,26 +1249,26 @@ static void cfq_exit_single_io_context(struct cfq_io_context *cic)
 	spin_unlock(q->queue_lock);
 }
 
-static void cfq_exit_io_context(struct cfq_io_context *cic)
+static void cfq_exit_io_context(struct io_context *ioc)
 {
 	struct cfq_io_context *__cic;
-	struct list_head *entry;
 	unsigned long flags;
-
-	local_irq_save(flags);
+	struct rb_node *n;
 
 	/*
 	 * put the reference this task is holding to the various queues
 	 */
-	read_lock(&cfq_exit_lock);
-	list_for_each(entry, &cic->list) {
-		__cic = list_entry(entry, struct cfq_io_context, list);
+	read_lock_irqsave(&cfq_exit_lock, flags);
+
+	n = rb_first(&ioc->cic_root);
+	while (n != NULL) {
+		__cic = rb_entry(n, struct cfq_io_context, rb_node);
+
 		cfq_exit_single_io_context(__cic);
+		n = rb_next(n);
 	}
 
-	cfq_exit_single_io_context(cic);
-	read_unlock(&cfq_exit_lock);
-	local_irq_restore(flags);
+	read_unlock_irqrestore(&cfq_exit_lock, flags);
 }
 
 static struct cfq_io_context *
@@ -1278,10 +1277,10 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 	struct cfq_io_context *cic = kmem_cache_alloc(cfq_ioc_pool, gfp_mask);
 
 	if (cic) {
-		INIT_LIST_HEAD(&cic->list);
+		RB_CLEAR(&cic->rb_node);
+		cic->key = NULL;
 		cic->cfqq[ASYNC] = NULL;
 		cic->cfqq[SYNC] = NULL;
-		cic->key = NULL;
 		cic->last_end_request = jiffies;
 		cic->ttime_total = 0;
 		cic->ttime_samples = 0;
@@ -1373,15 +1372,17 @@ static inline void changed_ioprio(struct cfq_io_context *cic)
 static int cfq_ioc_set_ioprio(struct io_context *ioc, unsigned int ioprio)
 {
 	struct cfq_io_context *cic;
+	struct rb_node *n;
 
 	write_lock(&cfq_exit_lock);
 
-	cic = ioc->cic;
-
-	changed_ioprio(cic);
-
-	list_for_each_entry(cic, &cic->list, list)
+	n = rb_first(&ioc->cic_root);
+	while (n != NULL) {
+		cic = rb_entry(n, struct cfq_io_context, rb_node);
+ 
 		changed_ioprio(cic);
+		n = rb_next(n);
+	}
 
 	write_unlock(&cfq_exit_lock);
 
@@ -1445,14 +1446,67 @@ out:
 	return cfqq;
 }
 
+static struct cfq_io_context *
+cfq_cic_rb_lookup(struct cfq_data *cfqd, struct io_context *ioc)
+{
+	struct rb_node *n = ioc->cic_root.rb_node;
+	struct cfq_io_context *cic;
+	void *key = cfqd;
+
+	while (n) {
+		cic = rb_entry(n, struct cfq_io_context, rb_node);
+
+		if (key < cic->key)
+			n = n->rb_left;
+		else if (key > cic->key)
+			n = n->rb_right;
+		else
+			return cic;
+	}
+
+	return NULL;
+}
+
+static inline void
+cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
+	     struct cfq_io_context *cic)
+{
+	struct rb_node **p = &ioc->cic_root.rb_node;
+	struct rb_node *parent = NULL;
+	struct cfq_io_context *__cic;
+
+	read_lock(&cfq_exit_lock);
+
+	cic->ioc = ioc;
+	cic->key = cfqd;
+
+	ioc->set_ioprio = cfq_ioc_set_ioprio;
+
+	while (*p) {
+		parent = *p;
+		__cic = rb_entry(parent, struct cfq_io_context, rb_node);
+
+		if (cic->key < __cic->key)
+			p = &(*p)->rb_left;
+		else if (cic->key > __cic->key)
+			p = &(*p)->rb_right;
+		else
+			BUG();
+	}
+
+	rb_link_node(&cic->rb_node, parent, p);
+	rb_insert_color(&cic->rb_node, &ioc->cic_root);
+	list_add(&cic->queue_list, &cfqd->cic_list);
+	read_unlock(&cfq_exit_lock);
+}
+
 /*
  * Setup general io context and cfq io context. There can be several cfq
  * io contexts per general io context, if this process is doing io to more
- * than one device managed by cfq. Note that caller is holding a reference to
- * cfqq, so we don't need to worry about it disappearing
+ * than one device managed by cfq.
  */
 static struct cfq_io_context *
-cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
+cfq_get_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 {
 	struct io_context *ioc = NULL;
 	struct cfq_io_context *cic;
@@ -1463,88 +1517,15 @@ cfq_get_io_context(struct cfq_data *cfqd, pid_t pid, gfp_t gfp_mask)
 	if (!ioc)
 		return NULL;
 
-restart:
-	if ((cic = ioc->cic) == NULL) {
-		cic = cfq_alloc_io_context(cfqd, gfp_mask);
+	cic = cfq_cic_rb_lookup(cfqd, ioc);
+	if (cic)
+		goto out;
 
-		if (cic == NULL)
-			goto err;
+	cic = cfq_alloc_io_context(cfqd, gfp_mask);
+	if (cic == NULL)
+		goto err;
 
-		/*
-		 * manually increment generic io_context usage count, it
-		 * cannot go away since we are already holding one ref to it
-		 */
-		cic->ioc = ioc;
-		cic->key = cfqd;
-		read_lock(&cfq_exit_lock);
-		ioc->set_ioprio = cfq_ioc_set_ioprio;
-		ioc->cic = cic;
-		list_add(&cic->queue_list, &cfqd->cic_list);
-		read_unlock(&cfq_exit_lock);
-	} else {
-		struct cfq_io_context *__cic;
-
-		/*
-		 * the first cic on the list is actually the head itself
-		 */
-		if (cic->key == cfqd)
-			goto out;
-
-		if (unlikely(!cic->key)) {
-			read_lock(&cfq_exit_lock);
-			if (list_empty(&cic->list))
-				ioc->cic = NULL;
-			else
-				ioc->cic = list_entry(cic->list.next,
-						      struct cfq_io_context,
-						      list);
-			read_unlock(&cfq_exit_lock);
-			kmem_cache_free(cfq_ioc_pool, cic);
-			atomic_dec(&ioc_count);
-			goto restart;
-		}
-
-		/*
-		 * cic exists, check if we already are there. linear search
-		 * should be ok here, the list will usually not be more than
-		 * 1 or a few entries long
-		 */
-		list_for_each_entry(__cic, &cic->list, list) {
-			/*
-			 * this process is already holding a reference to
-			 * this queue, so no need to get one more
-			 */
-			if (__cic->key == cfqd) {
-				cic = __cic;
-				goto out;
-			}
-			if (unlikely(!__cic->key)) {
-				read_lock(&cfq_exit_lock);
-				list_del(&__cic->list);
-				read_unlock(&cfq_exit_lock);
-				kmem_cache_free(cfq_ioc_pool, __cic);
-				atomic_dec(&ioc_count);
-				goto restart;
-			}
-		}
-
-		/*
-		 * nope, process doesn't have a cic assoicated with this
-		 * cfqq yet. get a new one and add to list
-		 */
-		__cic = cfq_alloc_io_context(cfqd, gfp_mask);
-		if (__cic == NULL)
-			goto err;
-
-		__cic->ioc = ioc;
-		__cic->key = cfqd;
-		read_lock(&cfq_exit_lock);
-		list_add(&__cic->list, &cic->list);
-		list_add(&__cic->queue_list, &cfqd->cic_list);
-		read_unlock(&cfq_exit_lock);
-		cic = __cic;
-	}
-
+	cfq_cic_link(cfqd, ioc, cic);
 out:
 	return cic;
 err:
@@ -1965,7 +1946,7 @@ cfq_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
-	cic = cfq_get_io_context(cfqd, key, gfp_mask);
+	cic = cfq_get_io_context(cfqd, gfp_mask);
 
 	spin_lock_irqsave(q->queue_lock, flags);
 
@@ -2133,11 +2114,14 @@ static void cfq_exit_queue(elevator_t *e)
 	request_queue_t *q = cfqd->queue;
 
 	cfq_shutdown_timer_wq(cfqd);
+
 	write_lock(&cfq_exit_lock);
 	spin_lock_irq(q->queue_lock);
+
 	if (cfqd->active_queue)
 		__cfq_slice_expired(cfqd, cfqd->active_queue, 0);
-	while(!list_empty(&cfqd->cic_list)) {
+
+	while (!list_empty(&cfqd->cic_list)) {
 		struct cfq_io_context *cic = list_entry(cfqd->cic_list.next,
 							struct cfq_io_context,
 							queue_list);
@@ -2152,6 +2136,7 @@ static void cfq_exit_queue(elevator_t *e)
 		cic->key = NULL;
 		list_del_init(&cic->queue_list);
 	}
+
 	spin_unlock_irq(q->queue_lock);
 	write_unlock(&cfq_exit_lock);
 

@@ -3539,11 +3539,15 @@ void put_io_context(struct io_context *ioc)
 	BUG_ON(atomic_read(&ioc->refcount) == 0);
 
 	if (atomic_dec_and_test(&ioc->refcount)) {
+		struct cfq_io_context *cic;
+
 		rcu_read_lock();
 		if (ioc->aic && ioc->aic->dtor)
 			ioc->aic->dtor(ioc->aic);
-		if (ioc->cic && ioc->cic->dtor)
-			ioc->cic->dtor(ioc->cic);
+		if (ioc->cic_root.rb_node != NULL) {
+			cic = rb_entry(rb_first(&ioc->cic_root), struct cfq_io_context, rb_node);
+			cic->dtor(ioc);
+		}
 		rcu_read_unlock();
 
 		kmem_cache_free(iocontext_cachep, ioc);
@@ -3556,6 +3560,7 @@ void exit_io_context(void)
 {
 	unsigned long flags;
 	struct io_context *ioc;
+	struct cfq_io_context *cic;
 
 	local_irq_save(flags);
 	task_lock(current);
@@ -3567,9 +3572,11 @@ void exit_io_context(void)
 
 	if (ioc->aic && ioc->aic->exit)
 		ioc->aic->exit(ioc->aic);
-	if (ioc->cic && ioc->cic->exit)
-		ioc->cic->exit(ioc->cic);
-
+	if (ioc->cic_root.rb_node != NULL) {
+		cic = rb_entry(rb_first(&ioc->cic_root), struct cfq_io_context, rb_node);
+		cic->exit(ioc);
+	}
+ 
 	put_io_context(ioc);
 }
 
@@ -3598,7 +3605,7 @@ struct io_context *current_io_context(gfp_t gfp_flags)
 		ret->last_waited = jiffies; /* doesn't matter... */
 		ret->nr_batch_requests = 0; /* because this is 0 */
 		ret->aic = NULL;
-		ret->cic = NULL;
+		ret->cic_root.rb_node = NULL;
 		tsk->io_context = ret;
 	}
 
