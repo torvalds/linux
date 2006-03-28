@@ -641,23 +641,8 @@ static void __init set_system_time(void)
 		mon = MSTK_REG_MONTH(mregs);
 		year = MSTK_CVT_YEAR( MSTK_REG_YEAR(mregs) );
 	} else {
-		int i;
-
 		/* Dallas 12887 RTC chip. */
 
-		/* Stolen from arch/i386/kernel/time.c, see there for
-		 * credits and descriptive comments.
-		 */
-		for (i = 0; i < 1000000; i++) {
-			if (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP)
-				break;
-			udelay(10);
-		}
-		for (i = 0; i < 1000000; i++) {
-			if (!(CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP))
-				break;
-			udelay(10);
-		}
 		do {
 			sec  = CMOS_READ(RTC_SECONDS);
 			min  = CMOS_READ(RTC_MINUTES);
@@ -666,6 +651,7 @@ static void __init set_system_time(void)
 			mon  = CMOS_READ(RTC_MONTH);
 			year = CMOS_READ(RTC_YEAR);
 		} while (sec != CMOS_READ(RTC_SECONDS));
+
 		if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
 			BCD_TO_BIN(sec);
 			BCD_TO_BIN(min);
