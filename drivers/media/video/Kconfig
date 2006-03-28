@@ -343,14 +343,24 @@ config VIDEO_CS53L32A
 	  module will be called cs53l32a
 
 config VIDEO_WM8775
-	tristate "Wolfson Microelectronics WM8775 audio ADC"
+	tristate "Wolfson Microelectronics WM8775 audio ADC with input mixer"
 	depends on VIDEO_DEV && I2C && EXPERIMENTAL
 	---help---
-	  Support for the Wolfson Microelectronics WM8775
-	  high performance stereo A/D Converter.
+	  Support for the Wolfson Microelectronics WM8775 high
+	  performance stereo A/D Converter with a 4 channel input mixer.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called wm8775
+
+config VIDEO_WM8739
+	tristate "Wolfson Microelectronics WM8739 stereo audio ADC"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Wolfson Microelectronics WM8739
+	  stereo A/D Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wm8739
 
 source "drivers/media/video/cx25840/Kconfig"
 
