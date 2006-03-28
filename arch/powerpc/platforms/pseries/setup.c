@@ -455,8 +455,6 @@ out:
 
 static void pseries_shared_idle_sleep(void)
 {
-	unsigned int cpu = smp_processor_id();
-
 	/*
 	 * Indicate to the HV that we are idle. Now would be
 	 * a good time to find other work to dispatch.

@@ -860,7 +860,10 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 {
 	static int logical_cpuid = 0;
 	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	u32 *prop, *intserv;
+#ifdef CONFIG_ALTIVEC
+	u32 *prop;
+#endif
+	u32 *intserv;
 	int i, nthreads;
 	unsigned long len;
 	int found = 0;
