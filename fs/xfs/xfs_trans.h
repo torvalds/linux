@@ -354,7 +354,7 @@ typedef struct xfs_trans {
 	xfs_lsn_t		t_commit_lsn;	/* log seq num of end of
 						 * transaction. */
 	struct xfs_mount	*t_mountp;	/* ptr to fs mount struct */
-	struct xfs_dquot_acct   *t_dqinfo;	/* accting info for dquots */
+	struct xfs_dquot_acct   *t_dqinfo;	/* acctg info for dquots */
 	xfs_trans_callback_t	t_callback;	/* transaction callback */
 	void			*t_callarg;	/* callback arg */
 	unsigned int		t_flags;	/* misc flags */

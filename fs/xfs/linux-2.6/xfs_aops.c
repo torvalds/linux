@@ -372,7 +372,7 @@ static inline int bio_add_buffer(struct bio *bio, struct buffer_head *bh)
  * assumes that all buffers on the page are started at the same time.
  *
  * The fix is two passes across the ioend list - one to start writeback on the
- * bufferheads, and then the second one submit them for I/O.
+ * buffer_heads, and then submit them for I/O on the second pass.
  */
 STATIC void
 xfs_submit_ioend(
@@ -699,7 +699,7 @@ xfs_convert_page(
 
 	/*
 	 * page_dirty is initially a count of buffers on the page before
-	 * EOF and is decrememted as we move each into a cleanable state.
+	 * EOF and is decremented as we move each into a cleanable state.
 	 *
 	 * Derivation:
 	 *
@@ -842,7 +842,7 @@ xfs_cluster_write(
  * page if possible.
  * The bh->b_state's cannot know if any of the blocks or which block for
  * that matter are dirty due to mmap writes, and therefore bh uptodate is
- * only vaild if the page itself isn't completely uptodate.  Some layers
+ * only valid if the page itself isn't completely uptodate.  Some layers
  * may clear the page dirty flag prior to calling write page, under the
  * assumption the entire page will be written out; by not writing out the
  * whole page the page can be reused before all valid dirty data is
@@ -892,7 +892,7 @@ xfs_page_state_convert(
 
 	/*
 	 * page_dirty is initially a count of buffers on the page before
-	 * EOF and is decrememted as we move each into a cleanable state.
+	 * EOF and is decremented as we move each into a cleanable state.
 	 *
 	 * Derivation:
 	 *
@@ -1339,9 +1339,9 @@ xfs_end_io_direct(
 	/*
 	 * Non-NULL private data means we need to issue a transaction to
 	 * convert a range from unwritten to written extents.  This needs
-	 * to happen from process contect but aio+dio I/O completion
+	 * to happen from process context but aio+dio I/O completion
 	 * happens from irq context so we need to defer it to a workqueue.
-	 * This is not nessecary for synchronous direct I/O, but we do
+	 * This is not necessary for synchronous direct I/O, but we do
 	 * it anyway to keep the code uniform and simpler.
 	 *
 	 * The core direct I/O code might be changed to always call the
@@ -1358,7 +1358,7 @@ xfs_end_io_direct(
 	}
 
 	/*
-	 * blockdev_direct_IO can return an error even afer the I/O
+	 * blockdev_direct_IO can return an error even after the I/O
 	 * completion handler was called.  Thus we need to protect
 	 * against double-freeing.
 	 */

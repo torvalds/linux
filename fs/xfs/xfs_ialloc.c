@@ -1023,7 +1023,7 @@ xfs_difree(
 	rec.ir_freecount++;
 
 	/*
-	 * When an inode cluster is free, it becomes elgible for removal
+	 * When an inode cluster is free, it becomes eligible for removal
 	 */
 	if ((mp->m_flags & XFS_MOUNT_IDELETE) &&
 	    (rec.ir_freecount == XFS_IALLOC_INODES(mp))) {

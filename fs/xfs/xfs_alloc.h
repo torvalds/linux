@@ -68,7 +68,7 @@ typedef struct xfs_alloc_arg {
 	xfs_alloctype_t	otype;		/* original allocation type */
 	char		wasdel;		/* set if allocation was prev delayed */
 	char		wasfromfl;	/* set if allocation is from freelist */
-	char		isfl;		/* set if is freelist blocks - !actg */
+	char		isfl;		/* set if is freelist blocks - !acctg */
 	char		userdata;	/* set if this is user data */
 } xfs_alloc_arg_t;
 

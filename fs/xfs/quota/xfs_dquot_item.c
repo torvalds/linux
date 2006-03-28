@@ -221,7 +221,7 @@ xfs_qm_dqunpin_wait(
  * as possible.
  *
  * We must not be holding the AIL_LOCK at this point. Calling incore() to
- * search the buffercache can be a time consuming thing, and AIL_LOCK is a
+ * search the buffer cache can be a time consuming thing, and AIL_LOCK is a
  * spinlock.
  */
 STATIC void

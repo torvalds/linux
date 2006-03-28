@@ -31,7 +31,7 @@
 typedef __uint32_t	xfs_dqid_t;
 
 /*
- * Eventhough users may not have quota limits occupying all 64-bits,
+ * Even though users may not have quota limits occupying all 64-bits,
  * they may need 64-bit accounting. Hence, 64-bit quota-counters,
  * and quota-limits. This is a waste in the common case, but hey ...
  */
@@ -246,7 +246,7 @@ typedef struct xfs_qoff_logformat {
 #ifdef __KERNEL__
 /*
  * This check is done typically without holding the inode lock;
- * that may seem racey, but it is harmless in the context that it is used.
+ * that may seem racy, but it is harmless in the context that it is used.
  * The inode cannot go inactive as long a reference is kept, and
  * therefore if dquot(s) were attached, they'll stay consistent.
  * If, for example, the ownership of the inode changes while

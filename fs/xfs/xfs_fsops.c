@@ -477,7 +477,7 @@ xfs_fs_counts(
  *
  * xfs_reserve_blocks is called to set m_resblks
  * in the in-core mount table. The number of unused reserved blocks
- * is kept in m_resbls_avail.
+ * is kept in m_resblks_avail.
  *
  * Reserve the requested number of blocks if available. Otherwise return
  * as many as possible to satisfy the request. The actual number
