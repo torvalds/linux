@@ -1243,7 +1243,7 @@ static int __init init_scsi(void)
 	if (error)
 		goto cleanup_sysctl;
 
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(scsi_done_q, i));
 
 	printk(KERN_NOTICE "SCSI subsystem initialized\n");
