@@ -346,14 +346,16 @@ static int cfq_queue_empty(request_queue_t *q)
 /*
  * Lifted from AS - choose which of crq1 and crq2 that is best served now.
  * We choose the request that is closest to the head right now. Distance
- * behind the head are penalized and only allowed to a certain extent.
+ * behind the head is penalized and only allowed to a certain extent.
  */
 static struct cfq_rq *
 cfq_choose_req(struct cfq_data *cfqd, struct cfq_rq *crq1, struct cfq_rq *crq2)
 {
 	sector_t last, s1, s2, d1 = 0, d2 = 0;
-	int r1_wrap = 0, r2_wrap = 0;	/* requests are behind the disk head */
 	unsigned long back_max;
+#define CFQ_RQ1_WRAP	0x01 /* request 1 wraps */
+#define CFQ_RQ2_WRAP	0x02 /* request 2 wraps */
+	unsigned wrap = 0; /* bit mask: requests behind the disk head? */
 
 	if (crq1 == NULL || crq1 == crq2)
 		return crq2;
@@ -385,35 +387,47 @@ cfq_choose_req(struct cfq_data *cfqd, struct cfq_rq *crq1, struct cfq_rq *crq2)
 	else if (s1 + back_max >= last)
 		d1 = (last - s1) * cfqd->cfq_back_penalty;
 	else
-		r1_wrap = 1;
+		wrap |= CFQ_RQ1_WRAP;
 
 	if (s2 >= last)
 		d2 = s2 - last;
 	else if (s2 + back_max >= last)
 		d2 = (last - s2) * cfqd->cfq_back_penalty;
 	else
-		r2_wrap = 1;
+		wrap |= CFQ_RQ2_WRAP;
 
 	/* Found required data */
-	if (!r1_wrap && r2_wrap)
-		return crq1;
-	else if (!r2_wrap && r1_wrap)
-		return crq2;
-	else if (r1_wrap && r2_wrap) {
-		/* both behind the head */
-		if (s1 <= s2)
-			return crq1;
-		else
-			return crq2;
-	}
 
-	/* Both requests in front of the head */
-	if (d1 < d2)
+	/*
+	 * By doing switch() on the bit mask "wrap" we avoid having to
+	 * check two variables for all permutations: --> faster!
+	 */
+	switch (wrap) {
+	case 0: /* common case for CFQ: crq1 and crq2 not wrapped */
+		if (d1 < d2)
+			return crq1;
+		else if (d2 < d1)
+			return crq2;
+		else {
+			if (s1 >= s2)
+				return crq1;
+			else
+				return crq2;
+		}
+
+	case CFQ_RQ2_WRAP:
 		return crq1;
-	else if (d2 < d1)
+	case CFQ_RQ1_WRAP:
 		return crq2;
-	else {
-		if (s1 >= s2)
+	case (CFQ_RQ1_WRAP|CFQ_RQ2_WRAP): /* both crqs wrapped */
+	default:
+		/*
+		 * Since both rqs are wrapped,
+		 * start with the one that's further behind head
+		 * (--> only *one* back seek required),
+		 * since back seek takes more time than forward.
+		 */
+		if (s1 <= s2)
 			return crq1;
 		else
 			return crq2;
