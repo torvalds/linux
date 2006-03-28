@@ -31,7 +31,7 @@
 #define DEBUGP(fmt, a...)
 #endif
 
-static inline int dash2underscore(char c)
+static inline char dash2underscore(char c)
 {
 	if (c == '-')
 		return '_';
