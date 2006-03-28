@@ -9,6 +9,7 @@ obj-$(CONFIG_PXA27x) += pxa27x.o
 
 # Specific board support
 obj-$(CONFIG_ARCH_LUBBOCK) += lubbock.o
+obj-$(CONFIG_MACH_LOGICPD_PXA270) += lpd270.o
 obj-$(CONFIG_MACH_MAINSTONE) += mainstone.o
 obj-$(CONFIG_ARCH_PXA_IDP) += idp.o
 obj-$(CONFIG_PXA_SHARP_C7xx)	+= corgi.o corgi_ssp.o corgi_lcd.o sharpsl_pm.o corgi_pm.o
