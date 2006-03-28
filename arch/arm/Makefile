@@ -20,6 +20,11 @@ GZFLAGS		:=-9
 # Select a platform tht is kept up-to-date
 KBUILD_DEFCONFIG := versatile_defconfig
 
+# defines filename extension depending memory manement type.
+ifeq ($(CONFIG_MMU),)
+MMUEXT		:= -nommu
+endif
+
 ifeq ($(CONFIG_FRAME_POINTER),y)
 CFLAGS		+=-fno-omit-frame-pointer -mapcs -mno-sched-prolog
 endif
@@ -73,7 +78,7 @@ AFLAGS		+=$(CFLAGS_ABI) $(arch-y) $(tune-y) -msoft-float
 CHECKFLAGS	+= -D__arm__
 
 #Default value
-head-y		:= arch/arm/kernel/head.o arch/arm/kernel/init_task.o
+head-y		:= arch/arm/kernel/head$(MMUEXT).o arch/arm/kernel/init_task.o
 textofs-y	:= 0x00008000
 
  machine-$(CONFIG_ARCH_RPC)	   := rpc
@@ -133,7 +138,7 @@ else
 MACHINE  :=
 endif
   
-export	TEXT_OFFSET GZFLAGS
+export	TEXT_OFFSET GZFLAGS MMUEXT
 
 # Do we have FASTFPE?
 FASTFPE		:=arch/arm/fastfpe

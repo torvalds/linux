@@ -7,6 +7,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#define KERN_SIGRETURN_CODE	0xffff0500
+#define KERN_SIGRETURN_CODE	(CONFIG_VECTORS_BASE + 0x00000500)
 
 extern const unsigned long sigreturn_codes[7];
