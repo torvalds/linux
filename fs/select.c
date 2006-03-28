@@ -231,17 +231,18 @@ int do_select(int n, fd_set_bits *fds, s64 *timeout)
 			}
 
 			for (j = 0; j < __NFDBITS; ++j, ++i, bit <<= 1) {
+				int fput_needed;
 				if (i >= n)
 					break;
 				if (!(bit & all_bits))
 					continue;
-				file = fget(i);
+				file = fget_light(i, &fput_needed);
 				if (file) {
 					f_op = file->f_op;
 					mask = DEFAULT_POLLMASK;
 					if (f_op && f_op->poll)
 						mask = (*f_op->poll)(file, retval ? NULL : wait);
-					fput(file);
+					fput_light(file, fput_needed);
 					if ((mask & POLLIN_SET) && (in & bit)) {
 						res_in |= bit;
 						retval++;
@@ -557,14 +558,15 @@ static void do_pollfd(unsigned int num, struct pollfd * fdpage,
 		fdp = fdpage+i;
 		fd = fdp->fd;
 		if (fd >= 0) {
-			struct file * file = fget(fd);
+			int fput_needed;
+			struct file * file = fget_light(fd, &fput_needed);
 			mask = POLLNVAL;
 			if (file != NULL) {
 				mask = DEFAULT_POLLMASK;
 				if (file->f_op && file->f_op->poll)
 					mask = file->f_op->poll(file, *pwait);
 				mask &= fdp->events | POLLERR | POLLHUP;
-				fput(file);
+				fput_light(file, fput_needed);
 			}
 			if (mask) {
 				*pwait = NULL;
