@@ -1435,9 +1435,6 @@ out_fail:
 
 EXPORT_SYMBOL_GPL(fat_fill_super);
 
-int __init fat_cache_init(void);
-void fat_cache_destroy(void);
-
 static int __init init_fat_fs(void)
 {
 	int err;

@@ -420,6 +420,9 @@ extern int date_dos2unix(unsigned short time, unsigned short date);
 extern void fat_date_unix2dos(int unix_date, __le16 *time, __le16 *date);
 extern int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs);
 
+int fat_cache_init(void);
+void fat_cache_destroy(void);
+
 #endif /* __KERNEL__ */
 
 #endif
