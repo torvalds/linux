@@ -97,9 +97,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_log_le_rg);
 	INIT_LIST_HEAD(&sdp->sd_log_le_databuf);
 
-	INIT_LIST_HEAD(&sdp->sd_log_blks_list);
-	init_waitqueue_head(&sdp->sd_log_blks_wait);
-
+	mutex_init(&sdp->sd_log_reserve_mutex);
 	INIT_LIST_HEAD(&sdp->sd_ail1_list);
 	INIT_LIST_HEAD(&sdp->sd_ail2_list);
 

@@ -634,8 +634,7 @@ struct gfs2_sbd {
 	struct list_head sd_log_le_databuf;
 
 	unsigned int sd_log_blks_free;
-	struct list_head sd_log_blks_list;
-	wait_queue_head_t sd_log_blks_wait;
+	struct mutex sd_log_reserve_mutex;
 
 	uint64_t sd_log_sequence;
 	unsigned int sd_log_head;

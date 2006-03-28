@@ -19,6 +19,8 @@
 #include <linux/smp_lock.h>
 #include <linux/fs.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/ext2_fs.h>
+#include <linux/crc32.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
@@ -39,6 +41,7 @@
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
+#include "eaops.h"
 
 /* "bad" is for NFS support */
 struct filldir_bad_entry {
@@ -357,7 +360,8 @@ static int filldir_reg_func(void *opaque, const char *name, unsigned int length,
 
 static int readdir_reg(struct file *file, void *dirent, filldir_t filldir)
 {
-	struct gfs2_inode *dip = file->f_mapping->host->u.generic_ip;
+	struct inode *dir = file->f_mapping->host;
+	struct gfs2_inode *dip = dir->u.generic_ip;
 	struct filldir_reg fdr;
 	struct gfs2_holder d_gh;
 	uint64_t offset = file->f_pos;
@@ -375,7 +379,7 @@ static int readdir_reg(struct file *file, void *dirent, filldir_t filldir)
 		return error;
 	}
 
-	error = gfs2_dir_read(dip, &offset, &fdr, filldir_reg_func);
+	error = gfs2_dir_read(dir, &offset, &fdr, filldir_reg_func);
 
 	gfs2_glock_dq_uninit(&d_gh);
 
@@ -446,7 +450,8 @@ static int filldir_bad_func(void *opaque, const char *name, unsigned int length,
 
 static int readdir_bad(struct file *file, void *dirent, filldir_t filldir)
 {
-	struct gfs2_inode *dip = file->f_mapping->host->u.generic_ip;
+	struct inode *dir = file->f_mapping->host;
+	struct gfs2_inode *dip = dir->u.generic_ip;
 	struct gfs2_sbd *sdp = dip->i_sbd;
 	struct filldir_reg fdr;
 	unsigned int entries, size;
@@ -479,7 +484,7 @@ static int readdir_bad(struct file *file, void *dirent, filldir_t filldir)
 		goto out;
 	}
 
-	error = gfs2_dir_read(dip, &offset, fdb, filldir_bad_func);
+	error = gfs2_dir_read(dir, &offset, fdb, filldir_bad_func);
 
 	gfs2_glock_dq_uninit(&d_gh);
 
@@ -530,6 +535,210 @@ static int gfs2_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 	return error;
 }
+
+const struct gfs2_flag_eattr {
+	u32 flag;
+	u32 ext2;
+} gfs2_flag_eattrs[] = {
+	{
+		.flag = GFS2_DIF_IMMUTABLE,
+		.ext2 = EXT2_IMMUTABLE_FL,
+	}, {
+		.flag = GFS2_DIF_APPENDONLY,
+		.ext2 = EXT2_APPEND_FL,
+	}, {
+		.flag = GFS2_DIF_JDATA,
+		.ext2 = EXT2_JOURNAL_DATA_FL,
+	}, {
+		.flag = GFS2_DIF_EXHASH,
+		.ext2 = EXT2_INDEX_FL,
+	}, {
+		.flag = GFS2_DIF_EA_INDIRECT,
+	}, {
+		.flag = GFS2_DIF_DIRECTIO,
+	}, {
+		.flag = GFS2_DIF_NOATIME,
+		.ext2 = EXT2_NOATIME_FL,
+	}, {
+		.flag = GFS2_DIF_SYNC,
+		.ext2 = EXT2_SYNC_FL,
+	}, {
+		.flag = GFS2_DIF_SYSTEM,
+	}, {
+		.flag = GFS2_DIF_TRUNC_IN_PROG,
+	}, {
+		.flag = GFS2_DIF_INHERIT_JDATA,
+	}, {
+		.flag = GFS2_DIF_INHERIT_DIRECTIO,
+	}, {
+	},
+};
+
+static const struct gfs2_flag_eattr *get_by_ext2(u32 ext2)
+{
+	const struct gfs2_flag_eattr *p = gfs2_flag_eattrs;
+	for(; p->flag; p++) {
+		if (ext2 == p->ext2)
+			return p;
+	}
+	return NULL;
+}
+
+static const struct gfs2_flag_eattr *get_by_gfs2(u32 gfs2)
+{
+	const struct gfs2_flag_eattr *p = gfs2_flag_eattrs;
+	for(; p->flag; p++) {
+		if (gfs2 == p->flag)
+			return p;
+	}
+	return NULL;
+}
+
+static u32 gfs2_flags_to_ext2(u32 gfs2)
+{
+	const struct gfs2_flag_eattr *ea;
+	u32 ext2 = 0;
+	u32 mask = 1;
+
+	for(; mask != 0; mask <<=1) {
+		if (mask & gfs2) {
+			ea = get_by_gfs2(mask);
+			if (ea)
+				ext2 |= ea->ext2;
+		}
+	}
+	return ext2;
+}
+
+static int gfs2_flags_from_ext2(u32 *gfs2, u32 ext2)
+{
+	const struct gfs2_flag_eattr *ea;
+	u32 mask = 1;
+
+	for(; mask != 0; mask <<= 1) {
+		if (mask & ext2) {
+			ea = get_by_ext2(mask);
+			if (ea == NULL)
+				return -EINVAL;
+			*gfs2 |= ea->flag;
+		}
+	}
+	return 0;
+}
+
+static int get_ext2_flags(struct inode *inode, u32 __user *ptr)
+{
+	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct gfs2_holder gh;
+	int error;
+	u32 ext2;
+
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, GL_ATIME, &gh);
+	error = gfs2_glock_nq_m_atime(1, &gh);
+	if (error)
+		return error;
+
+	ext2 = gfs2_flags_to_ext2(ip->i_di.di_flags);
+	if (put_user(ext2, ptr))
+		error = -EFAULT;
+
+	gfs2_glock_dq_m(1, &gh);
+	gfs2_holder_uninit(&gh);
+	return error;
+}
+
+/* Flags that can be set by user space */
+#define GFS2_FLAGS_USER_SET (GFS2_DIF_JDATA|			\
+			     GFS2_DIF_DIRECTIO|			\
+			     GFS2_DIF_IMMUTABLE|		\
+			     GFS2_DIF_APPENDONLY|		\
+			     GFS2_DIF_NOATIME|			\
+			     GFS2_DIF_SYNC|			\
+			     GFS2_DIF_SYSTEM|			\
+			     GFS2_DIF_INHERIT_DIRECTIO|		\
+			     GFS2_DIF_INHERIT_JDATA)
+
+/**
+ * gfs2_set_flags - set flags on an inode
+ * @inode: The inode
+ * @flags: The flags to set
+ * @mask: Indicates which flags are valid
+ *
+ */
+static int gfs2_set_flags(struct inode *inode, u32 flags, u32 mask)
+{
+	struct gfs2_inode *ip = inode->u.generic_ip;
+	struct buffer_head *bh;
+	struct gfs2_holder gh;
+	int error;
+	u32 new_flags;
+
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+	if (error)
+		return error;
+
+	new_flags = (ip->i_di.di_flags & ~mask) | (flags & mask);
+	if ((new_flags ^ flags) == 0)
+		goto out;
+
+	error = -EINVAL;
+	if ((new_flags ^ flags) & ~GFS2_FLAGS_USER_SET)
+		goto out;
+
+	if (S_ISDIR(inode->i_mode)) {
+		if ((new_flags ^ flags) & (GFS2_DIF_JDATA | GFS2_DIF_DIRECTIO))
+			goto out;
+	} else if (S_ISREG(inode->i_mode)) {
+		if ((new_flags ^ flags) & (GFS2_DIF_INHERIT_DIRECTIO|
+					   GFS2_DIF_INHERIT_JDATA))
+			goto out;
+	} else
+		goto out;
+
+	error = -EPERM;
+	if (IS_IMMUTABLE(inode) && (new_flags & GFS2_DIF_IMMUTABLE))
+		goto out;
+	if (IS_APPEND(inode) && (new_flags & GFS2_DIF_APPENDONLY))
+		goto out;
+	error = gfs2_repermission(inode, MAY_WRITE, NULL);
+	if (error)
+		goto out;
+
+	error = gfs2_meta_inode_buffer(ip, &bh);
+	if (error)
+		goto out;
+	gfs2_trans_add_bh(ip->i_gl, bh, 1);
+	ip->i_di.di_flags = new_flags;
+	gfs2_dinode_out(&ip->i_di, bh->b_data);
+	brelse(bh);
+out:
+	gfs2_glock_dq_uninit(&gh);
+	return error;
+}
+
+static int set_ext2_flags(struct inode *inode, u32 __user *ptr)
+{
+	u32 ext2, gfs2;
+	if (get_user(ext2, ptr))
+		return -EFAULT;
+	if (gfs2_flags_from_ext2(&gfs2, ext2))
+		return -EINVAL;
+	return gfs2_set_flags(inode, gfs2, ~0);
+}
+
+int gfs2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
+	       unsigned long arg)
+{
+	switch(cmd) {
+	case EXT2_IOC_GETFLAGS:
+		return get_ext2_flags(inode, (u32 __user *)arg);
+	case EXT2_IOC_SETFLAGS:
+		return set_ext2_flags(inode, (u32 __user *)arg);
+	}
+	return -ENOTTY;
+}
+
 
 /**
  * gfs2_mmap -
@@ -832,6 +1041,7 @@ struct file_operations gfs2_file_fops = {
 	.write = generic_file_write,
 	.writev = generic_file_writev,
 	.aio_write = generic_file_aio_write,
+	.ioctl = gfs2_ioctl,
 	.mmap = gfs2_mmap,
 	.open = gfs2_open,
 	.release = gfs2_close,
@@ -843,6 +1053,7 @@ struct file_operations gfs2_file_fops = {
 
 struct file_operations gfs2_dir_fops = {
 	.readdir = gfs2_readdir,
+	.ioctl = gfs2_ioctl,
 	.open = gfs2_open,
 	.release = gfs2_close,
 	.fsync = gfs2_fsync,

@@ -13,6 +13,7 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/crc32.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
@@ -24,18 +25,13 @@
 #include "lops.h"
 #include "meta_io.h"
 #include "util.h"
+#include "dir.h"
 
 #define PULL 1
 
-static void do_lock_wait(struct gfs2_sbd *sdp, wait_queue_head_t *wq,
-			 atomic_t *a)
-{
-	wait_event(*wq, atomic_read(a) ? 0 : 1);
-}
-
 static void lock_for_trans(struct gfs2_sbd *sdp)
 {
-	do_lock_wait(sdp, &sdp->sd_log_trans_wq, &sdp->sd_log_flush_count);
+	wait_event(sdp->sd_log_trans_wq, atomic_read(&sdp->sd_log_flush_count) ? 0 : 1);
 	atomic_inc(&sdp->sd_log_trans_count);
 }
 
@@ -49,7 +45,7 @@ static void unlock_from_trans(struct gfs2_sbd *sdp)
 static void gfs2_lock_for_flush(struct gfs2_sbd *sdp)
 {
 	atomic_inc(&sdp->sd_log_flush_count);
-	do_lock_wait(sdp, &sdp->sd_log_flush_wq, &sdp->sd_log_trans_count);
+	wait_event(sdp->sd_log_flush_wq, atomic_read(&sdp->sd_log_trans_count) ? 0 : 1);
 }
 
 static void gfs2_unlock_from_flush(struct gfs2_sbd *sdp)
@@ -191,37 +187,19 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
 
 int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 {
-	LIST_HEAD(list);
 	unsigned int try = 0;
 
 	if (gfs2_assert_warn(sdp, blks) ||
 	    gfs2_assert_warn(sdp, blks <= sdp->sd_jdesc->jd_blocks))
 		return -EINVAL;
 
+	mutex_lock(&sdp->sd_log_reserve_mutex);
 	for (;;) {
 		gfs2_log_lock(sdp);
-		if (list_empty(&list)) {
-			list_add_tail(&list, &sdp->sd_log_blks_list);
-			while (sdp->sd_log_blks_list.next != &list) {
-				DECLARE_WAITQUEUE(__wait_chan, current);
-				set_current_state(TASK_UNINTERRUPTIBLE);
-				add_wait_queue(&sdp->sd_log_blks_wait,
-					       &__wait_chan);
-				gfs2_log_unlock(sdp);
-				schedule();
-				gfs2_log_lock(sdp);
-				remove_wait_queue(&sdp->sd_log_blks_wait,
-						  &__wait_chan);
-				set_current_state(TASK_RUNNING);
-			}
-		}
-		/* Never give away the last block so we can
-		   always pull the tail if we need to. */
 		if (sdp->sd_log_blks_free > blks) {
 			sdp->sd_log_blks_free -= blks;
-			list_del(&list);
 			gfs2_log_unlock(sdp);
-			wake_up(&sdp->sd_log_blks_wait);
+			mutex_unlock(&sdp->sd_log_reserve_mutex);
 			break;
 		}
 

@@ -28,11 +28,6 @@ kmem_cache_t *gfs2_glock_cachep __read_mostly;
 kmem_cache_t *gfs2_inode_cachep __read_mostly;
 kmem_cache_t *gfs2_bufdata_cachep __read_mostly;
 
-uint32_t gfs2_disk_hash(const char *data, int len)
-{
-	return crc32_le(0xFFFFFFFF, data, len) ^ 0xFFFFFFFF;
-}
-
 void gfs2_assert_i(struct gfs2_sbd *sdp)
 {
 	printk(KERN_EMERG "GFS2: fsid=%s: fatal assertion failed\n",

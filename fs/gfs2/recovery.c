@@ -13,6 +13,7 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/crc32.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
@@ -27,6 +28,7 @@
 #include "recovery.h"
 #include "super.h"
 #include "util.h"
+#include "dir.h"
 
 int gfs2_replay_read_block(struct gfs2_jdesc *jd, unsigned int blk,
 			   struct buffer_head **bh)

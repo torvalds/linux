@@ -18,6 +18,7 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/crc32.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
 
@@ -417,18 +418,16 @@ static int gfs2_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (!gfs2_assert_withdraw(sdp, !error)) {
 		struct gfs2_dinode *di = (struct gfs2_dinode *)dibh->b_data;
 		struct gfs2_dirent *dent = (struct gfs2_dirent *)(di+1);
-		struct qstr str = { .name = ".", .len = 1 };
-		str.hash = gfs2_disk_hash(str.name, str.len);
+		struct qstr str;
 
+		gfs2_str2qstr(&str, ".");
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_qstr2dirent(&str, GFS2_DIRENT_SIZE(str.len), dent);
 		dent->de_inum = di->di_num; /* already GFS2 endian */
 		dent->de_type = DT_DIR;
 		di->di_entries = cpu_to_be32(1);
 
-		str.name = "..";
-		str.len = 2;
-		str.hash = gfs2_disk_hash(str.name, str.len);
+		gfs2_str2qstr(&str, "..");
 		dent = (struct gfs2_dirent *)((char*)dent + GFS2_DIRENT_SIZE(1));
 		gfs2_qstr2dirent(&str, dibh->b_size - GFS2_DIRENT_SIZE(1) - sizeof(struct gfs2_dinode), dent);
 
@@ -772,9 +771,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 
 	if (dir_rename) {
 		struct qstr name;
-		name.len = 2;
-		name.name = "..";
-		name.hash = gfs2_disk_hash(name.name, name.len);
+		gfs2_str2qstr(&name, "..");
 
 		error = gfs2_change_nlink(ndip, +1);
 		if (error)

@@ -13,6 +13,7 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/crc32.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"

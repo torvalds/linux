@@ -13,6 +13,7 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/crc32.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
@@ -153,7 +154,7 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 	if (error)
 		return error;
 
-	error = gfs2_dir_read(dip, &offset, &gnfd, get_name_filldir);
+	error = gfs2_dir_read(dir, &offset, &gnfd, get_name_filldir);
 
 	gfs2_glock_dq_uninit(&gh);
 
@@ -165,12 +166,11 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 
 static struct dentry *gfs2_get_parent(struct dentry *child)
 {
-	struct qstr dotdot = { .name = "..", .len = 2 };
+	struct qstr dotdot;
 	struct inode *inode;
 	struct dentry *dentry;
 
-	dotdot.hash = gfs2_disk_hash(dotdot.name, dotdot.len);
-
+	gfs2_str2qstr(&dotdot, "..");
 	inode = gfs2_lookupi(child->d_inode, &dotdot, 1, NULL);
 
 	if (!inode)

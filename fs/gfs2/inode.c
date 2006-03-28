@@ -15,6 +15,7 @@
 #include <linux/posix_acl.h>
 #include <linux/sort.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/crc32.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
@@ -701,9 +702,7 @@ int gfs2_change_nlink(struct gfs2_inode *ip, int diff)
 struct inode *gfs2_lookup_simple(struct inode *dip, const char *name)
 {
 	struct qstr qstr;
-	qstr.name = name;
-	qstr.len = strlen(name);
-	qstr.hash = gfs2_disk_hash(qstr.name, qstr.len);
+	gfs2_str2qstr(&qstr, name);
 	return gfs2_lookupi(dip, &qstr, 1, NULL);
 }
 
@@ -1389,9 +1388,7 @@ int gfs2_rmdiri(struct gfs2_inode *dip, struct qstr *name,
 	if (error)
 		return error;
 
-	dotname.len = 1;
-	dotname.name = ".";
-	dotname.hash = gfs2_disk_hash(dotname.name, dotname.len);
+	gfs2_str2qstr(&dotname, ".");
 	error = gfs2_dir_del(ip, &dotname);
 	if (error)
 		return error;
@@ -1487,10 +1484,7 @@ int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
 	struct qstr dotdot;
 	int error = 0;
 
-	memset(&dotdot, 0, sizeof(struct qstr));
-	dotdot.name = "..";
-	dotdot.len = 2;
-	dotdot.hash = gfs2_disk_hash(dotdot.name, dotdot.len);
+	gfs2_str2qstr(&dotdot, "..");
 
 	igrab(dir);
 
