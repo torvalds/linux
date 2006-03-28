@@ -1030,25 +1030,13 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 
 	if (strstr(cmd_line, "mem=")) {
 		char *p, *q;
-		unsigned long maxmem = 0;
 
 		for (q = cmd_line; (p = strstr(q, "mem=")) != 0; ) {
 			q = p + 4;
 			if (p > cmd_line && p[-1] != ' ')
 				continue;
-			maxmem = simple_strtoul(q, &q, 0);
-			if (*q == 'k' || *q == 'K') {
-				maxmem <<= 10;
-				++q;
-			} else if (*q == 'm' || *q == 'M') {
-				maxmem <<= 20;
-				++q;
-			} else if (*q == 'g' || *q == 'G') {
-				maxmem <<= 30;
-				++q;
-			}
+			memory_limit = memparse(q, &q);
 		}
-		memory_limit = maxmem;
 	}
 
 	/* break now */
