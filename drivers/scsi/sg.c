@@ -1799,8 +1799,10 @@ sg_build_direct(Sg_request * srp, Sg_fd * sfp, int dxfer_len)
 	res = st_map_user_pages(schp->buffer, mx_sc_elems,
 				(unsigned long)hp->dxferp, dxfer_len, 
 				(SG_DXFER_TO_DEV == hp->dxfer_direction) ? 1 : 0);
-	if (res <= 0)
+	if (res <= 0) {
+		sg_remove_scat(schp);
 		return 1;
+	}
 	schp->k_use_sg = res;
 	schp->dio_in_use = 1;
 	hp->info |= SG_INFO_DIRECT_IO;
