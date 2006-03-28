@@ -704,13 +704,18 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	struct module *owner;
 	char *name;
 
-	if (dentry->d_parent == configfs_sb->s_root)
-		return -EPERM;
+	if (dentry->d_parent == configfs_sb->s_root) {
+		ret = -EPERM;
+		goto out;
+	}
 
 	sd = dentry->d_parent->d_fsdata;
-	if (!(sd->s_type & CONFIGFS_USET_DIR))
-		return -EPERM;
+	if (!(sd->s_type & CONFIGFS_USET_DIR)) {
+		ret = -EPERM;
+		goto out;
+	}
 
+	/* Get a working ref for the duration of this function */
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	type = parent_item->ci_type;
 	subsys = to_config_group(parent_item)->cg_subsys;
@@ -719,15 +724,16 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (!type || !type->ct_group_ops ||
 	    (!type->ct_group_ops->make_group &&
 	     !type->ct_group_ops->make_item)) {
-		config_item_put(parent_item);
-		return -EPERM;  /* What lack-of-mkdir returns */
+		ret = -EPERM;  /* Lack-of-mkdir returns -EPERM */
+		goto out_put;
 	}
 
 	name = kmalloc(dentry->d_name.len + 1, GFP_KERNEL);
 	if (!name) {
-		config_item_put(parent_item);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_put;
 	}
+
 	snprintf(name, dentry->d_name.len + 1, "%s", dentry->d_name.name);
 
 	down(&subsys->su_sem);
@@ -748,8 +754,8 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	kfree(name);
 	if (!item) {
-		config_item_put(parent_item);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_put;
 	}
 
 	ret = -EINVAL;
@@ -776,12 +782,19 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 				client_drop_item(parent_item, item);
 				up(&subsys->su_sem);
 
-				config_item_put(parent_item);
 				module_put(owner);
 			}
 		}
 	}
 
+out_put:
+	/*
+	 * link_obj()/link_group() took a reference from child->parent.
+	 * Drop our working ref
+	 */
+	config_item_put(parent_item);
+
+out:
 	return ret;
 }
 
@@ -801,6 +814,7 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sd->s_type & CONFIGFS_USET_DEFAULT)
 		return -EPERM;
 
+	/* Get a working ref until we have the child */
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	subsys = to_config_group(parent_item)->cg_subsys;
 	BUG_ON(!subsys);
@@ -817,6 +831,7 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 		return ret;
 	}
 
+	/* Get a working ref for the duration of this function */
 	item = configfs_get_config_item(dentry);
 
 	/* Drop reference from above, item already holds one. */
