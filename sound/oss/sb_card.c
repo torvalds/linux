@@ -348,10 +348,8 @@ static void __exit sb_exit(void)
 
 	sb_unregister_all();
 
-	if (smw_free) {
-		vfree(smw_free);
-		smw_free = NULL;
-	}
+	vfree(smw_free);
+	smw_free = NULL;
 }
 
 module_init(sb_init);
