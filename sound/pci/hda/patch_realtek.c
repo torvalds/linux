@@ -132,6 +132,7 @@ struct alc_spec {
 	hda_nid_t dig_in_nid;		/* digital-in NID; optional */
 
 	/* capture source */
+	unsigned int num_mux_defs;
 	const struct hda_input_mux *input_mux;
 	unsigned int cur_mux[3];
 
@@ -173,6 +174,7 @@ struct alc_config_preset {
 	hda_nid_t dig_in_nid;
 	unsigned int num_channel_mode;
 	const struct hda_channel_mode *channel_mode;
+	unsigned int num_mux_defs;
 	const struct hda_input_mux *input_mux;
 	void (*unsol_event)(struct hda_codec *, unsigned int);
 	void (*init_hook)(struct hda_codec *);
@@ -186,7 +188,10 @@ static int alc_mux_enum_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
-	return snd_hda_input_mux_info(spec->input_mux, uinfo);
+	unsigned int mux_idx = snd_ctl_get_ioffidx(kcontrol, &uinfo->id);
+	if (mux_idx >= spec->num_mux_defs)
+		mux_idx = 0;
+	return snd_hda_input_mux_info(&spec->input_mux[mux_idx], uinfo);
 }
 
 static int alc_mux_enum_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -204,7 +209,8 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
+	unsigned int mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
+	return snd_hda_input_mux_put(codec, &spec->input_mux[mux_idx], ucontrol,
 				     spec->adc_nids[adc_idx], &spec->cur_mux[adc_idx]);
 }
 
@@ -246,7 +252,8 @@ static int alc_ch_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_va
  * states other than HiZ (eg: PIN_VREFxx) and revert to HiZ if any of these
  * are requested.  Therefore order this list so that this behaviour will not
  * cause problems when mixer clients move through the enum sequentially.
- * NIDs 0x0f and 0x10 have been observed to have this behaviour.
+ * NIDs 0x0f and 0x10 have been observed to have this behaviour as of
+ * March 2006.
  */
 static char *alc_pin_mode_names[] = {
 	"Mic 50pc bias", "Mic 80pc bias",
@@ -256,19 +263,27 @@ static unsigned char alc_pin_mode_values[] = {
 	PIN_VREF50, PIN_VREF80, PIN_IN, PIN_OUT, PIN_HP,
 };
 /* The control can present all 5 options, or it can limit the options based
- * in the pin being assumed to be exclusively an input or an output pin.
+ * in the pin being assumed to be exclusively an input or an output pin.  In
+ * addition, "input" pins may or may not process the mic bias option
+ * depending on actual widget capability (NIDs 0x0f and 0x10 don't seem to
+ * accept requests for bias as of chip versions up to March 2006) and/or
+ * wiring in the computer.
  */
-#define ALC_PIN_DIR_IN    0x00
-#define ALC_PIN_DIR_OUT   0x01
-#define ALC_PIN_DIR_INOUT 0x02
+#define ALC_PIN_DIR_IN              0x00
+#define ALC_PIN_DIR_OUT             0x01
+#define ALC_PIN_DIR_INOUT           0x02
+#define ALC_PIN_DIR_IN_NOMICBIAS    0x03
+#define ALC_PIN_DIR_INOUT_NOMICBIAS 0x04
 
-/* Info about the pin modes supported by the three different pin directions. 
+/* Info about the pin modes supported by the different pin direction modes. 
  * For each direction the minimum and maximum values are given.
  */
-static signed char alc_pin_mode_dir_info[3][2] = {
+static signed char alc_pin_mode_dir_info[5][2] = {
 	{ 0, 2 },    /* ALC_PIN_DIR_IN */
 	{ 3, 4 },    /* ALC_PIN_DIR_OUT */
 	{ 0, 4 },    /* ALC_PIN_DIR_INOUT */
+	{ 2, 2 },    /* ALC_PIN_DIR_IN_NOMICBIAS */
+	{ 2, 4 },    /* ALC_PIN_DIR_INOUT_NOMICBIAS */
 };
 #define alc_pin_mode_min(_dir) (alc_pin_mode_dir_info[_dir][0])
 #define alc_pin_mode_max(_dir) (alc_pin_mode_dir_info[_dir][1])
@@ -330,9 +345,10 @@ static int alc_pin_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 		 * input modes.
 		 *
 		 * Dynamically switching the input/output buffers probably
-		 * reduces noise slightly, particularly on input.  However,
-		 * havingboth input and output buffers enabled
-		 * simultaneously doesn't seem to be problematic.
+		 * reduces noise slightly (particularly on input) so we'll
+		 * do it.  However, having both input and output buffers
+		 * enabled simultaneously doesn't seem to be problematic if
+		 * this turns out to be necessary in the future.
 		 */
 		if (val <= 2) {
 			snd_hda_codec_write(codec,nid,0,AC_VERB_SET_AMP_GAIN_MUTE,
@@ -484,6 +500,9 @@ static void setup_preset(struct alc_spec *spec, const struct alc_config_preset *
 	spec->multiout.dig_out_nid = preset->dig_out_nid;
 	spec->multiout.hp_nid = preset->hp_nid;
 	
+	spec->num_mux_defs = preset->num_mux_defs;
+	if (! spec->num_mux_defs)
+		spec->num_mux_defs = 1;
 	spec->input_mux = preset->input_mux;
 
 	spec->num_adc_nids = preset->num_adc_nids;
@@ -2686,6 +2705,7 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_init_verbs++] = alc880_volume_init_verbs;
 
+	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 
 	return 1;
@@ -2815,30 +2835,56 @@ static struct hda_input_mux alc260_capture_source = {
 };
 
 /* On Fujitsu S702x laptops capture only makes sense from Mic/LineIn jack,
- * headphone jack and the internal CD lines.
+ * headphone jack and the internal CD lines since these are the only pins at
+ * which audio can appear.  For flexibility, also allow the option of
+ * recording the mixer output on the second ADC (ADC0 doesn't have a
+ * connection to the mixer output).
  */
-static struct hda_input_mux alc260_fujitsu_capture_source = {
-	.num_items = 3,
-	.items = {
-		{ "Mic/Line", 0x0 },
-		{ "CD", 0x4 },
-		{ "Headphone", 0x2 },
+static struct hda_input_mux alc260_fujitsu_capture_sources[2] = {
+	{
+		.num_items = 3,
+		.items = {
+			{ "Mic/Line", 0x0 },
+			{ "CD", 0x4 },
+			{ "Headphone", 0x2 },
+		},
 	},
+	{
+		.num_items = 4,
+		.items = {
+			{ "Mic/Line", 0x0 },
+			{ "CD", 0x4 },
+			{ "Headphone", 0x2 },
+			{ "Mixer", 0x5 },
+		},
+	},
+
 };
 
-/* Acer TravelMate(/Extensa/Aspire) notebooks have similar configutation to
- * the Fujitsu S702x, but jacks are marked differently. We won't allow
- * retasking the Headphone jack, so it won't be available here.
+/* Acer TravelMate(/Extensa/Aspire) notebooks have similar configuration to
+ * the Fujitsu S702x, but jacks are marked differently.
  */
-static struct hda_input_mux alc260_acer_capture_source = {
-	.num_items = 3,
-	.items = {
-		{ "Mic", 0x0 },
-		{ "Line", 0x2 },
-		{ "CD", 0x4 },
+static struct hda_input_mux alc260_acer_capture_sources[2] = {
+	{
+		.num_items = 4,
+		.items = {
+			{ "Mic", 0x0 },
+			{ "Line", 0x2 },
+			{ "CD", 0x4 },
+			{ "Headphone", 0x5 },
+		},
+	},
+	{
+		.num_items = 5,
+		.items = {
+			{ "Mic", 0x0 },
+			{ "Line", 0x2 },
+			{ "CD", 0x4 },
+			{ "Headphone", 0x6 },
+			{ "Mixer", 0x5 },
+		},
 	},
 };
-
 /*
  * This is just place-holder, so there's something for alc_build_pcms to look
  * at when it calculates the maximum number of channels. ALC260 has no mixer
@@ -2899,6 +2945,9 @@ static struct snd_kcontrol_new alc260_hp_3013_mixer[] = {
 	{ } /* end */
 };
 
+/* Fujitsu S702x series laptops.  ALC260 pin usage: Mic/Line jack = 0x12, 
+ * HP jack = 0x14, CD audio =  0x16, internal speaker = 0x10.
+ */
 static struct snd_kcontrol_new alc260_fujitsu_mixer[] = {
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x08, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Headphone Playback Switch", 0x08, 2, HDA_INPUT),
@@ -2915,9 +2964,28 @@ static struct snd_kcontrol_new alc260_fujitsu_mixer[] = {
 	{ } /* end */
 };
 
+/* Mixer for Acer TravelMate(/Extensa/Aspire) notebooks.  Note that current
+ * versions of the ALC260 don't act on requests to enable mic bias from NID
+ * 0x0f (used to drive the headphone jack in these laptops).  The ALC260
+ * datasheet doesn't mention this restriction.  At this stage it's not clear
+ * whether this behaviour is intentional or is a hardware bug in chip
+ * revisions available in early 2006.  Therefore for now allow the
+ * "Headphone Jack Mode" control to span all choices, but if it turns out
+ * that the lack of mic bias for this NID is intentional we could change the
+ * mode from ALC_PIN_DIR_INOUT to ALC_PIN_DIR_INOUT_NOMICBIAS.
+ *
+ * In addition, Acer TravelMate(/Extensa/Aspire) notebooks in early 2006
+ * don't appear to make the mic bias available from the "line" jack, even
+ * though the NID used for this jack (0x14) can supply it.  The theory is
+ * that perhaps Acer have included blocking capacitors between the ALC260
+ * and the output jack.  If this turns out to be the case for all such
+ * models the "Line Jack Mode" mode could be changed from ALC_PIN_DIR_INOUT
+ * to ALC_PIN_DIR_INOUT_NOMICBIAS.
+ */
 static struct snd_kcontrol_new alc260_acer_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x08, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Master Playback Switch", 0x08, 2, HDA_INPUT),
+	ALC_PIN_MODE("Headphone Jack Mode", 0x0f, ALC_PIN_DIR_INOUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x07, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x07, 0x04, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x07, 0x0, HDA_INPUT),
@@ -3131,7 +3199,8 @@ static struct hda_verb alc260_hp_3013_init_verbs[] = {
 };
 
 /* Initialisation sequence for ALC260 as configured in Fujitsu S702x
- * laptops.
+ * laptops.  ALC260 pin usage: Mic/Line jack = 0x12, HP jack = 0x14, CD
+ * audio = 0x16, internal speaker = 0x10.
  */
 static struct hda_verb alc260_fujitsu_init_verbs[] = {
 	/* Disable all GPIOs */
@@ -3278,10 +3347,10 @@ static struct hda_verb alc260_acer_init_verbs[] = {
 	{0x04, AC_VERB_SET_CONNECT_SEL, 0x00},
 
 	/* Do similar with the second ADC: mute capture input amp and
-	 * set ADC connection to line (on line1 pin)
+	 * set ADC connection to mic to match ALSA's default state.
 	 */
 	{0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x05, AC_VERB_SET_CONNECT_SEL, 0x02},
+	{0x05, AC_VERB_SET_CONNECT_SEL, 0x00},
 
 	/* Mute all inputs to mixer widget (even unconnected ones) */
 	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)}, /* mic1 pin */
@@ -3306,26 +3375,35 @@ static hda_nid_t alc260_test_dac_nids[1] = {
 static hda_nid_t alc260_test_adc_nids[2] = {
 	0x04, 0x05,
 };
-/* This is a bit messy since the two input muxes in the ALC260 have slight
- * variations in their signal assignments.  The ideal way to deal with this
- * is to extend alc_spec.input_mux to allow a different input MUX for each
- * ADC.  For the purposes of the test model it's sufficient to just list
- * both options for affected signal indices.  The separate input mux
- * functionality only needs to be considered if a model comes along which
- * actually uses signals 0x5, 0x6 and 0x7 for something which makes sense to
- * record.
+/* For testing the ALC260, each input MUX needs its own definition since
+ * the signal assignments are different.  This assumes that the first ADC 
+ * is NID 0x04.
  */
-static struct hda_input_mux alc260_test_capture_source = {
-	.num_items = 8,
-	.items = {
-		{ "MIC1 pin", 0x0 },
-		{ "MIC2 pin", 0x1 },
-		{ "LINE1 pin", 0x2 },
-		{ "LINE2 pin", 0x3 },
-		{ "CD pin", 0x4 },
-		{ "LINE-OUT pin (cap1), Mixer (cap2)", 0x5 },
-		{ "HP-OUT pin (cap1), LINE-OUT pin (cap2)", 0x6 },
-		{ "HP-OUT pin (cap2 only)", 0x7 },
+static struct hda_input_mux alc260_test_capture_sources[2] = {
+	{
+		.num_items = 7,
+		.items = {
+			{ "MIC1 pin", 0x0 },
+			{ "MIC2 pin", 0x1 },
+			{ "LINE1 pin", 0x2 },
+			{ "LINE2 pin", 0x3 },
+			{ "CD pin", 0x4 },
+			{ "LINE-OUT pin", 0x5 },
+			{ "HP-OUT pin", 0x6 },
+		},
+        },
+	{
+		.num_items = 8,
+		.items = {
+			{ "MIC1 pin", 0x0 },
+			{ "MIC2 pin", 0x1 },
+			{ "LINE1 pin", 0x2 },
+			{ "LINE2 pin", 0x3 },
+			{ "CD pin", 0x4 },
+			{ "Mixer", 0x5 },
+			{ "LINE-OUT pin", 0x6 },
+			{ "HP-OUT pin", 0x7 },
+		},
         },
 };
 static struct snd_kcontrol_new alc260_test_mixer[] = {
@@ -3337,7 +3415,17 @@ static struct snd_kcontrol_new alc260_test_mixer[] = {
 	HDA_CODEC_VOLUME("LOUT1 Playback Volume", 0x08, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("LOUT1 Playback Switch", 0x08, 2, HDA_INPUT),
 
-	/* Modes for retasking pin widgets */
+	/* Modes for retasking pin widgets
+	 * Note: the ALC260 doesn't seem to act on requests to enable mic
+         * bias from NIDs 0x0f and 0x10.  The ALC260 datasheet doesn't
+         * mention this restriction.  At this stage it's not clear whether
+         * this behaviour is intentional or is a hardware bug in chip
+         * revisions available at least up until early 2006.  Therefore for
+         * now allow the "HP-OUT" and "LINE-OUT" Mode controls to span all
+         * choices, but if it turns out that the lack of mic bias for these
+         * NIDs is intentional we could change their modes from
+         * ALC_PIN_DIR_INOUT to ALC_PIN_DIR_INOUT_NOMICBIAS.
+	 */
 	ALC_PIN_MODE("HP-OUT pin mode", 0x10, ALC_PIN_DIR_INOUT),
 	ALC_PIN_MODE("LINE-OUT pin mode", 0x0f, ALC_PIN_DIR_INOUT),
 	ALC_PIN_MODE("LINE2 pin mode", 0x15, ALC_PIN_DIR_INOUT),
@@ -3699,6 +3787,7 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_init_verbs++] = alc260_volume_init_verbs;
 
+	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 
 	/* check whether NID 0x04 is valid */
@@ -3804,7 +3893,8 @@ static struct alc_config_preset alc260_presets[] = {
 		.adc_nids = alc260_dual_adc_nids,
 		.num_channel_mode = ARRAY_SIZE(alc260_modes),
 		.channel_mode = alc260_modes,
-		.input_mux = &alc260_fujitsu_capture_source,
+		.num_mux_defs = ARRAY_SIZE(alc260_fujitsu_capture_sources),
+		.input_mux = alc260_fujitsu_capture_sources,
 	},
 	[ALC260_ACER] = {
 		.mixers = { alc260_acer_mixer,
@@ -3816,7 +3906,8 @@ static struct alc_config_preset alc260_presets[] = {
 		.adc_nids = alc260_dual_adc_nids,
 		.num_channel_mode = ARRAY_SIZE(alc260_modes),
 		.channel_mode = alc260_modes,
-		.input_mux = &alc260_acer_capture_source,
+		.num_mux_defs = ARRAY_SIZE(alc260_acer_capture_sources),
+		.input_mux = alc260_acer_capture_sources,
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC260_TEST] = {
@@ -3829,7 +3920,8 @@ static struct alc_config_preset alc260_presets[] = {
 		.adc_nids = alc260_test_adc_nids,
 		.num_channel_mode = ARRAY_SIZE(alc260_modes),
 		.channel_mode = alc260_modes,
-		.input_mux = &alc260_test_capture_source,
+		.num_mux_defs = ARRAY_SIZE(alc260_test_capture_sources),
+		.input_mux = alc260_test_capture_sources,
 	},
 #endif
 };
@@ -3921,7 +4013,6 @@ static struct hda_input_mux alc882_capture_source = {
 		{ "CD", 0x4 },
 	},
 };
-
 #define alc882_mux_enum_info alc_mux_enum_info
 #define alc882_mux_enum_get alc_mux_enum_get
 
@@ -4823,6 +4914,7 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
 
 	spec->init_verbs[spec->num_init_verbs++] = alc262_volume_init_verbs;
+	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 
 	return 1;
@@ -5499,6 +5591,7 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_init_verbs++] = alc861_auto_init_verbs;
 
+	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 
 	spec->adc_nids = alc861_adc_nids;
