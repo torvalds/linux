@@ -856,14 +856,14 @@ static int devfsd_close(struct inode *inode, struct file *file);
 #ifdef CONFIG_DEVFS_DEBUG
 static ssize_t stat_read(struct file *file, char __user *buf, size_t len,
 			 loff_t * ppos);
-static struct file_operations stat_fops = {
+static const struct file_operations stat_fops = {
 	.open = nonseekable_open,
 	.read = stat_read,
 };
 #endif
 
 /*  Devfs daemon file operations  */
-static struct file_operations devfsd_fops = {
+static const struct file_operations devfsd_fops = {
 	.open = nonseekable_open,
 	.read = devfsd_read,
 	.ioctl = devfsd_ioctl,
@@ -1842,8 +1842,8 @@ static int try_modload(struct devfs_entry *parent, struct fs_info *fs_info,
 
 static struct inode_operations devfs_iops;
 static struct inode_operations devfs_dir_iops;
-static struct file_operations devfs_fops;
-static struct file_operations devfs_dir_fops;
+static const struct file_operations devfs_fops;
+static const struct file_operations devfs_dir_fops;
 static struct inode_operations devfs_symlink_iops;
 
 static int devfs_notify_change(struct dentry *dentry, struct iattr *iattr)
@@ -2061,11 +2061,11 @@ static int devfs_open(struct inode *inode, struct file *file)
 	return err;
 }				/*  End Function devfs_open  */
 
-static struct file_operations devfs_fops = {
+static const struct file_operations devfs_fops = {
 	.open = devfs_open,
 };
 
-static struct file_operations devfs_dir_fops = {
+static const struct file_operations devfs_dir_fops = {
 	.read = generic_read_dir,
 	.readdir = devfs_readdir,
 };

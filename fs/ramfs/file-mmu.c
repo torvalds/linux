@@ -32,7 +32,7 @@ struct address_space_operations ramfs_aops = {
 	.commit_write	= simple_commit_write
 };
 
-struct file_operations ramfs_file_operations = {
+const struct file_operations ramfs_file_operations = {
 	.read		= generic_file_read,
 	.write		= generic_file_write,
 	.mmap		= generic_file_mmap,

@@ -2017,7 +2017,7 @@ out:
 	return ret;
 }
 
-static struct file_operations ocfs2_dlm_debug_fops = {
+static const struct file_operations ocfs2_dlm_debug_fops = {
 	.open =		ocfs2_dlm_debug_open,
 	.release =	ocfs2_dlm_debug_release,
 	.read =		seq_read,

@@ -44,9 +44,9 @@ struct buffer_head;
 struct super_block;
 
 extern struct inode_operations udf_dir_inode_operations;
-extern struct file_operations udf_dir_operations;
+extern const struct file_operations udf_dir_operations;
 extern struct inode_operations udf_file_inode_operations;
-extern struct file_operations udf_file_operations;
+extern const struct file_operations udf_file_operations;
 extern struct address_space_operations udf_aops;
 extern struct address_space_operations udf_adinicb_aops;
 extern struct address_space_operations udf_symlink_aops;

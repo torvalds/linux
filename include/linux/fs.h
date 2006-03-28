@@ -1390,11 +1390,11 @@ extern void bd_set_size(struct block_device *, loff_t size);
 extern void bd_forget(struct inode *inode);
 extern void bdput(struct block_device *);
 extern struct block_device *open_by_devnum(dev_t, unsigned);
-extern struct file_operations def_blk_fops;
+extern const struct file_operations def_blk_fops;
 extern struct address_space_operations def_blk_aops;
-extern struct file_operations def_chr_fops;
-extern struct file_operations bad_sock_fops;
-extern struct file_operations def_fifo_fops;
+extern const struct file_operations def_chr_fops;
+extern const struct file_operations bad_sock_fops;
+extern const struct file_operations def_fifo_fops;
 extern int ioctl_by_bdev(struct block_device *, unsigned, unsigned long);
 extern int blkdev_ioctl(struct inode *, struct file *, unsigned, unsigned long);
 extern long compat_blkdev_ioctl(struct file *, unsigned, unsigned long);
@@ -1444,9 +1444,9 @@ extern void init_special_inode(struct inode *, umode_t, dev_t);
 extern void make_bad_inode(struct inode *);
 extern int is_bad_inode(struct inode *);
 
-extern struct file_operations read_fifo_fops;
-extern struct file_operations write_fifo_fops;
-extern struct file_operations rdwr_fifo_fops;
+extern const struct file_operations read_fifo_fops;
+extern const struct file_operations write_fifo_fops;
+extern const struct file_operations rdwr_fifo_fops;
 
 extern int fs_may_remount_ro(struct super_block *);
 
@@ -1688,7 +1688,7 @@ static inline ssize_t blockdev_direct_IO_own_locking(int rw, struct kiocb *iocb,
 				nr_segs, get_block, end_io, DIO_OWN_LOCKING);
 }
 
-extern struct file_operations generic_ro_fops;
+extern const struct file_operations generic_ro_fops;
 
 #define special_file(m) (S_ISCHR(m)||S_ISBLK(m)||S_ISFIFO(m)||S_ISSOCK(m))
 
@@ -1744,9 +1744,9 @@ extern int simple_commit_write(struct file *file, struct page *page,
 
 extern struct dentry *simple_lookup(struct inode *, struct dentry *, struct nameidata *);
 extern ssize_t generic_read_dir(struct file *, char __user *, size_t, loff_t *);
-extern struct file_operations simple_dir_operations;
+extern const struct file_operations simple_dir_operations;
 extern struct inode_operations simple_dir_inode_operations;
-struct tree_descr { char *name; struct file_operations *ops; int mode; };
+struct tree_descr { char *name; const struct file_operations *ops; int mode; };
 struct dentry *d_alloc_name(struct dentry *, const char *);
 extern int simple_fill_super(struct super_block *, int, struct tree_descr *);
 extern int simple_pin_fs(char *name, struct vfsmount **mount, int *count);

@@ -1087,7 +1087,7 @@ struct address_space_operations def_blk_aops = {
 	.direct_IO	= blkdev_direct_IO,
 };
 
-struct file_operations def_blk_fops = {
+const struct file_operations def_blk_fops = {
 	.open		= blkdev_open,
 	.release	= blkdev_close,
 	.llseek		= block_llseek,

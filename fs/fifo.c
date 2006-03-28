@@ -145,6 +145,6 @@ err_nocleanup:
  * is contain the open that then fills in the correct operations
  * depending on the access mode of the file...
  */
-struct file_operations def_fifo_fops = {
+const struct file_operations def_fifo_fops = {
 	.open		= fifo_open,	/* will set read or write pipe_fops */
 };

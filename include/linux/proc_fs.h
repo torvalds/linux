@@ -128,9 +128,9 @@ extern int proc_match(int, const char *,struct proc_dir_entry *);
 extern int proc_readdir(struct file *, void *, filldir_t);
 extern struct dentry *proc_lookup(struct inode *, struct dentry *, struct nameidata *);
 
-extern struct file_operations proc_kcore_operations;
-extern struct file_operations proc_kmsg_operations;
-extern struct file_operations ppc_htab_operations;
+extern const struct file_operations proc_kcore_operations;
+extern const struct file_operations proc_kmsg_operations;
+extern const struct file_operations ppc_htab_operations;
 
 /*
  * proc_tty.c

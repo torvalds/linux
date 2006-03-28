@@ -39,7 +39,7 @@ static int default_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations debugfs_file_operations = {
+const struct file_operations debugfs_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
 	.open =		default_open,
@@ -213,7 +213,7 @@ static ssize_t write_file_bool(struct file *file, const char __user *user_buf,
 	return count;
 }
 
-static struct file_operations fops_bool = {
+static const struct file_operations fops_bool = {
 	.read =		read_file_bool,
 	.write =	write_file_bool,
 	.open =		default_open,

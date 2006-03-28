@@ -17,7 +17,7 @@
 #include "hfs_fs.h"
 #include "btree.h"
 
-static struct file_operations hfs_file_operations;
+static const struct file_operations hfs_file_operations;
 static struct inode_operations hfs_file_inode_operations;
 
 /*================ Variable-like macros ================*/
@@ -601,7 +601,7 @@ int hfs_inode_setattr(struct dentry *dentry, struct iattr * attr)
 }
 
 
-static struct file_operations hfs_file_operations = {
+static const struct file_operations hfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_file_read,
 	.write		= generic_file_write,

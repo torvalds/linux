@@ -833,11 +833,11 @@ do {								\
  */
 
 /* dir.c */
-extern struct file_operations ext3_dir_operations;
+extern const struct file_operations ext3_dir_operations;
 
 /* file.c */
 extern struct inode_operations ext3_file_inode_operations;
-extern struct file_operations ext3_file_operations;
+extern const struct file_operations ext3_file_operations;
 
 /* namei.c */
 extern struct inode_operations ext3_dir_inode_operations;

@@ -32,7 +32,7 @@ static int autofs4_root_readdir(struct file * filp, void * dirent, filldir_t fil
 static struct dentry *autofs4_lookup(struct inode *,struct dentry *, struct nameidata *);
 static void *autofs4_follow_link(struct dentry *, struct nameidata *);
 
-struct file_operations autofs4_root_operations = {
+const struct file_operations autofs4_root_operations = {
 	.open		= dcache_dir_open,
 	.release	= dcache_dir_close,
 	.read		= generic_read_dir,
@@ -40,7 +40,7 @@ struct file_operations autofs4_root_operations = {
 	.ioctl		= autofs4_root_ioctl,
 };
 
-struct file_operations autofs4_dir_operations = {
+const struct file_operations autofs4_dir_operations = {
 	.open		= autofs4_dir_open,
 	.release	= autofs4_dir_close,
 	.read		= generic_read_dir,

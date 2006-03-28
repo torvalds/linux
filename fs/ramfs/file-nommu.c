@@ -33,7 +33,7 @@ struct address_space_operations ramfs_aops = {
 	.commit_write		= simple_commit_write
 };
 
-struct file_operations ramfs_file_operations = {
+const struct file_operations ramfs_file_operations = {
 	.mmap			= ramfs_nommu_mmap,
 	.get_unmapped_area	= ramfs_nommu_get_unmapped_area,
 	.read			= generic_file_read,

@@ -568,7 +568,7 @@ pipe_rdwr_open(struct inode *inode, struct file *filp)
  * The file_operations structs are not static because they
  * are also used in linux/fs/fifo.c to do operations on FIFOs.
  */
-struct file_operations read_fifo_fops = {
+const struct file_operations read_fifo_fops = {
 	.llseek		= no_llseek,
 	.read		= pipe_read,
 	.readv		= pipe_readv,
@@ -580,7 +580,7 @@ struct file_operations read_fifo_fops = {
 	.fasync		= pipe_read_fasync,
 };
 
-struct file_operations write_fifo_fops = {
+const struct file_operations write_fifo_fops = {
 	.llseek		= no_llseek,
 	.read		= bad_pipe_r,
 	.write		= pipe_write,
@@ -592,7 +592,7 @@ struct file_operations write_fifo_fops = {
 	.fasync		= pipe_write_fasync,
 };
 
-struct file_operations rdwr_fifo_fops = {
+const struct file_operations rdwr_fifo_fops = {
 	.llseek		= no_llseek,
 	.read		= pipe_read,
 	.readv		= pipe_readv,

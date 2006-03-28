@@ -334,7 +334,7 @@ extern int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
 		    unsigned long *mapped_blocks);
 
 /* fat/dir.c */
-extern struct file_operations fat_dir_operations;
+extern const struct file_operations fat_dir_operations;
 extern int fat_search_long(struct inode *inode, const unsigned char *name,
 			   int name_len, struct fat_slot_info *sinfo);
 extern int fat_dir_empty(struct inode *dir);
@@ -397,7 +397,7 @@ extern int fat_count_free_clusters(struct super_block *sb);
 /* fat/file.c */
 extern int fat_generic_ioctl(struct inode *inode, struct file *filp,
 			     unsigned int cmd, unsigned long arg);
-extern struct file_operations fat_file_operations;
+extern const struct file_operations fat_file_operations;
 extern struct inode_operations fat_file_inode_operations;
 extern int fat_notify_change(struct dentry * dentry, struct iattr * attr);
 extern void fat_truncate(struct inode *inode);
