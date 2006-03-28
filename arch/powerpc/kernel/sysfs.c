@@ -65,11 +65,11 @@ static int __init smt_setup(void)
 	unsigned int cpu;
 
 	if (!cpu_has_feature(CPU_FTR_SMT))
-		return 1;
+		return -ENODEV;
 
 	options = find_path_device("/options");
 	if (!options)
-		return 1;
+		return -ENODEV;
 
 	val = (unsigned int *)get_property(options, "ibm,smt-snooze-delay",
 					   NULL);
@@ -78,7 +78,7 @@ static int __init smt_setup(void)
 			per_cpu(smt_snooze_delay, cpu) = *val;
 	}
 
-	return 1;
+	return 0;
 }
 __initcall(smt_setup);
 
