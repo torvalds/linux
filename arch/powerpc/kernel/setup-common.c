@@ -431,7 +431,7 @@ void __init smp_setup_cpu_maps(void)
 	/*
 	 * Do the sibling map; assume only two threads per processor.
 	 */
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cpu_set(cpu, cpu_sibling_map[cpu]);
 		if (cpu_has_feature(CPU_FTR_SMT))
 			cpu_set(cpu ^ 0x1, cpu_sibling_map[cpu]);

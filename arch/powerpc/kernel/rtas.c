@@ -593,7 +593,7 @@ static void rtas_percpu_suspend_me(void *info)
 		data->waiting = 0;
 		data->args->args[data->args->nargs] =
 			rtas_call(ibm_suspend_me_token, 0, 1, NULL);
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			plpar_hcall_norets(H_PROD,i);
 	} else {
 		data->waiting = -EBUSY;
@@ -626,7 +626,7 @@ static int rtas_ibm_suspend_me(struct rtas_args *args)
 	/* Prod each CPU.  This won't hurt, and will wake
 	 * anyone we successfully put to sleep with H_Join
 	 */
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		plpar_hcall_norets(H_PROD, i);
 
 	return data.waiting;

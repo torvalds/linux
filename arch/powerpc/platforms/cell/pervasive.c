@@ -217,7 +217,7 @@ void __init cell_pervasive_init(void)
 	if (!cpu_has_feature(CPU_FTR_PAUSE_ZERO))
 		return;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		p = &cbe_pervasive[cpu];
 		ret = cbe_find_pmd_mmio(cpu, p);
 		if (ret)

@@ -474,7 +474,7 @@ static void __init irqstack_early_init(void)
 	 * interrupt stacks must be under 256MB, we cannot afford to take
 	 * SLB misses on them.
 	 */
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		softirq_ctx[i] = (struct thread_info *)
 			__va(lmb_alloc_base(THREAD_SIZE,
 					    THREAD_SIZE, 0x10000000));
@@ -507,7 +507,7 @@ static void __init emergency_stack_init(void)
 	 */
 	limit = min(0x10000000UL, lmb.rmo_size);
 
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		paca[i].emergency_sp =
 		__va(lmb_alloc_base(HW_PAGE_SIZE, 128, limit)) + HW_PAGE_SIZE;
 }
@@ -624,7 +624,7 @@ void __init setup_per_cpu_areas(void)
 		size = PERCPU_ENOUGH_ROOM;
 #endif
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		ptr = alloc_bootmem_node(NODE_DATA(cpu_to_node(i)), size);
 		if (!ptr)
 			panic("Cannot allocate cpu data for CPU %d\n", i);

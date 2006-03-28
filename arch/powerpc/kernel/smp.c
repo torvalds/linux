@@ -362,7 +362,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
  
 	smp_space_timers(max_cpus);
 
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		if (cpu != boot_cpuid)
 			smp_create_idle(cpu);
 }

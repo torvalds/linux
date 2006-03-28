@@ -541,7 +541,7 @@ nextnode:
 		ops = &pSeriesLP_ops;
 	else {
 #ifdef CONFIG_SMP
-		for_each_cpu(i) {
+		for_each_possible_cpu(i) {
 			int hard_id;
 
 			/* FIXME: Do this dynamically! --RR */

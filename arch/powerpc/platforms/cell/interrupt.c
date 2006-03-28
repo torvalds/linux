@@ -364,7 +364,7 @@ void iic_init_IRQ(void)
 		setup_iic_hardcoded();
 
 	irq_offset = 0;
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		iic = &per_cpu(iic, cpu);
 		if (iic->regs)
 			out_be64(&iic->regs->prio, 0xff);
