@@ -1119,6 +1119,8 @@ static int __init asus_hotk_check(void)
 	return result;
 }
 
+static int asus_hotk_found;
+
 static int __init asus_hotk_add(struct acpi_device *device)
 {
 	acpi_status status = AE_OK;
@@ -1180,6 +1182,8 @@ static int __init asus_hotk_add(struct acpi_device *device)
 		}
 	}
 
+	asus_hotk_found = 1;
+
       end:
 	if (result) {
 		kfree(hotk);
@@ -1226,7 +1230,19 @@ static int __init asus_acpi_init(void)
 	asus_proc_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&asus_hotk_driver);
-	if (result < 1) {
+	if (result < 0) {
+		remove_proc_entry(PROC_ASUS, acpi_root_dir);
+		return -ENODEV;
+	}
+
+	/*
+	 * This is a bit of a kludge.  We only want this module loaded
+	 * for ASUS systems, but there's currently no way to probe the
+	 * ACPI namespace for ASUS HIDs.  So we just return failure if
+	 * we didn't find one, which will cause the module to be
+	 * unloaded.
+	 */
+	if (!asus_hotk_found) {
 		acpi_bus_unregister_driver(&asus_hotk_driver);
 		remove_proc_entry(PROC_ASUS, acpi_root_dir);
 		return -ENODEV;
