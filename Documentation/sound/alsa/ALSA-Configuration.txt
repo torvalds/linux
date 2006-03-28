@@ -120,6 +120,34 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     enable  	- enable card
 		- Default: enabled, for PCI and ISA PnP cards
 
+  Module snd-adlib
+  ----------------
+
+    Module for AdLib FM cards.
+
+    port	- port # for OPL chip
+
+    This module supports multiple cards. It does not support autoprobe, so
+    the port must be specified. For actual AdLib FM cards it will be 0x388.
+    Note that this card does not have PCM support and no mixer; only FM
+    synthesis.
+
+    Make sure you have "sbiload" from the alsa-tools package available and,
+    after loading the module, find out the assigned ALSA sequencer port
+    number through "sbiload -l". Example output:
+
+      Port     Client name                       Port name
+      64:0     OPL2 FM synth                     OPL2 FM Port
+
+    Load the std.sb and drums.sb patches also supplied by sbiload:
+
+      sbiload -p 64:0 std.sb drums.sb
+
+    If you use this driver to drive an OPL3, you can use std.o3 and drums.o3
+    instead. To have the card produce sound, use aplaymidi from alsa-utils:
+
+      aplaymidi -p 64:0 foo.mid
+
   Module snd-ad1816a
   ------------------
 

@@ -11,6 +11,15 @@ config SND_CS4231_LIB
         tristate
         select SND_PCM
 
+config SND_ADLIB
+	tristate "AdLib FM card"
+	select SND_OPL3_LIB
+	help
+	  Say Y here to include support for AdLib FM cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-adlib.
+
 config SND_AD1816A
 	tristate "Analog Devices SoundPort AD1816A"
 	depends on SND && PNP && ISA
