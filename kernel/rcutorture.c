@@ -301,7 +301,7 @@ rcu_torture_printk(char *page)
 	long pipesummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	long batchsummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
 			pipesummary[i] += per_cpu(rcu_torture_count, cpu)[i];
 			batchsummary[i] += per_cpu(rcu_torture_batch, cpu)[i];
@@ -535,7 +535,7 @@ rcu_torture_init(void)
 	atomic_set(&n_rcu_torture_error, 0);
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
 		atomic_set(&rcu_torture_wcount[i], 0);
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
 			per_cpu(rcu_torture_count, cpu)[i] = 0;
 			per_cpu(rcu_torture_batch, cpu)[i] = 0;

@@ -3311,7 +3311,7 @@ void *__alloc_percpu(size_t size)
 	 * and we have no way of figuring out how to fix the array
 	 * that we have allocated then....
 	 */
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		int node = cpu_to_node(i);
 
 		if (node_online(node))
@@ -3398,7 +3398,7 @@ void free_percpu(const void *objp)
 	/*
 	 * We allocate for all cpus so we cannot use for online cpu here.
 	 */
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 	    kfree(p->ptrs[i]);
 	kfree(p);
 }
