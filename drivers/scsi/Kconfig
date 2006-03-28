@@ -1079,7 +1079,7 @@ config SCSI_SYM53C8XX_DMA_ADDRESSING_MODE
 	  memory using PCI DAC cycles.
 
 config SCSI_SYM53C8XX_DEFAULT_TAGS
-	int "default tagged command queue depth"
+	int "Default tagged command queue depth"
 	depends on SCSI_SYM53C8XX_2
 	default "16"
 	help
@@ -1090,7 +1090,7 @@ config SCSI_SYM53C8XX_DEFAULT_TAGS
 	  exceed CONFIG_SCSI_SYM53C8XX_MAX_TAGS.
 
 config SCSI_SYM53C8XX_MAX_TAGS
-	int "maximum number of queued commands"
+	int "Maximum number of queued commands"
 	depends on SCSI_SYM53C8XX_2
 	default "64"
 	help
@@ -1099,13 +1099,14 @@ config SCSI_SYM53C8XX_MAX_TAGS
 	  possible. The driver supports up to 256 queued commands per device.
 	  This value is used as a compiled-in hard limit.
 
-config SCSI_SYM53C8XX_IOMAPPED
-	bool "use port IO"
+config SCSI_SYM53C8XX_MMIO
+	bool "Use memory mapped IO"
 	depends on SCSI_SYM53C8XX_2
+	default y
 	help
-	  If you say Y here, the driver will use port IO to access
-	  the card.  This is significantly slower then using memory
-	  mapped IO.  Most people should answer N.
+	  Memory mapped IO is faster than Port IO.  Most people should
+	  answer Y here, but some machines may have problems.  If you have
+	  to answer N here, please report the problem to the maintainer.
 
 config SCSI_IPR
 	tristate "IBM Power Linux RAID adapter support"

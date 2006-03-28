@@ -973,8 +973,8 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
  *
  *  Has to be called with interrupts disabled.
  */
-#ifndef CONFIG_SCSI_SYM53C8XX_IOMAPPED
-static int sym_regtest (struct sym_hcb *np)
+#ifdef CONFIG_SCSI_SYM53C8XX_MMIO
+static int sym_regtest(struct sym_hcb *np)
 {
 	register volatile u32 data;
 	/*
@@ -992,20 +992,25 @@ static int sym_regtest (struct sym_hcb *np)
 #endif
 		printf ("CACHE TEST FAILED: reg dstat-sstat2 readback %x.\n",
 			(unsigned) data);
-		return (0x10);
+		return 0x10;
 	}
-	return (0);
+	return 0;
+}
+#else
+static inline int sym_regtest(struct sym_hcb *np)
+{
+	return 0;
 }
 #endif
 
-static int sym_snooptest (struct sym_hcb *np)
+static int sym_snooptest(struct sym_hcb *np)
 {
-	u32	sym_rd, sym_wr, sym_bk, host_rd, host_wr, pc, dstat;
-	int	i, err=0;
-#ifndef CONFIG_SCSI_SYM53C8XX_IOMAPPED
-	err |= sym_regtest (np);
-	if (err) return (err);
-#endif
+	u32 sym_rd, sym_wr, sym_bk, host_rd, host_wr, pc, dstat;
+	int i, err;
+
+	err = sym_regtest(np);
+	if (err)
+		return err;
 restart_test:
 	/*
 	 *  Enable Master Parity Checking as we intend 
@@ -1094,7 +1099,7 @@ restart_test:
 		err |= 4;
 	}
 
-	return (err);
+	return err;
 }
 
 /*

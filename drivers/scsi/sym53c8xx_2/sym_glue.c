@@ -1874,7 +1874,7 @@ sym_init_device(struct pci_dev *pdev, struct sym_device *device)
 	i = pci_get_base_address(pdev, 1, &device->mmio_base);
 	pci_get_base_address(pdev, i, &device->ram_base);
 
-#ifndef CONFIG_SCSI_SYM53C8XX_IOMAPPED
+#ifdef CONFIG_SCSI_SYM53C8XX_MMIO
 	if (device->mmio_base)
 		device->s.ioaddr = pci_iomap(pdev, 1,
 						pci_resource_len(pdev, 1));
