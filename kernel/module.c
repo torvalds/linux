@@ -127,7 +127,7 @@ extern const unsigned long __start___kcrctab_gpl_future[];
 #ifndef CONFIG_MODVERSIONS
 #define symversion(base, idx) NULL
 #else
-#define symversion(base, idx) ((base) ? ((base) + (idx)) : NULL)
+#define symversion(base, idx) ((base != NULL) ? ((base) + (idx)) : NULL)
 #endif
 
 /* lookup symbol in given range of kernel_symbols */
