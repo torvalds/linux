@@ -8399,8 +8399,11 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 		}
 		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
 			   MAC_MODE_LINK_POLARITY | MAC_MODE_PORT_MODE_GMII;
-		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)
+		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401) {
 			mac_mode &= ~MAC_MODE_LINK_POLARITY;
+			tg3_writephy(tp, MII_TG3_EXT_CTRL,
+				     MII_TG3_EXT_CTRL_LNK3_LED_MODE);
+		}
 		tw32(MAC_MODE, mac_mode);
 	}
 	else
