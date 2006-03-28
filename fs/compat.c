@@ -1639,15 +1639,6 @@ void compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
  * This is a virtual copy of sys_select from fs/select.c and probably
  * should be compared to it from time to time
  */
-static void *select_bits_alloc(int size)
-{
-	return kmalloc(6 * size, GFP_KERNEL);
-}
-
-static void select_bits_free(void *bits, int size)
-{
-	kfree(bits);
-}
 
 /*
  * We can actually return ERESTARTSYS instead of EINTR, but I'd
@@ -1686,7 +1677,7 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 	 */
 	ret = -ENOMEM;
 	size = FDS_BYTES(n);
-	bits = select_bits_alloc(size);
+	bits = kmalloc(6 * size, GFP_KERNEL);
 	if (!bits)
 		goto out_nofds;
 	fds.in      = (unsigned long *)  bits;
@@ -1720,7 +1711,7 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 	compat_set_fd_set(n, exp, fds.res_ex);
 
 out:
-	select_bits_free(bits, size);
+	kfree(bits);
 out_nofds:
 	return ret;
 }
