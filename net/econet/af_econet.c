@@ -693,6 +693,19 @@ static int econet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+static int econet_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	/*
+	 * All ioctls provided by econet are standard.  There is one gotcha, sockaddr_ec
+	 * differs between 32bit and 64bit.  Fortunately nobody in kernel uses portion
+	 * of sockaddr which differs between 32bit and 64bit, so we do not need special
+	 * handling.
+	 */
+	return -ENOIOCTLCMD;
+}
+#endif
+
 static struct net_proto_family econet_family_ops = {
 	.family =	PF_ECONET,
 	.create =	econet_create,
@@ -710,6 +723,9 @@ static const struct proto_ops SOCKOPS_WRAPPED(econet_ops) = {
 	.getname =	econet_getname, 
 	.poll =		datagram_poll,
 	.ioctl =	econet_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =	econet_compat_ioctl,
+#endif
 	.listen =	sock_no_listen,
 	.shutdown =	sock_no_shutdown,
 	.setsockopt =	sock_no_setsockopt,

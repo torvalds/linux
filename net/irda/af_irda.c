@@ -1830,6 +1830,19 @@ static int irda_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+/*
+ * Function irda_ioctl (sock, cmd, arg)
+ */
+static int irda_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	/*
+	 * All IRDA's ioctl are standard ones.
+	 */
+	return -ENOIOCTLCMD;
+}
+#endif
+
 /*
  * Function irda_setsockopt (sock, level, optname, optval, optlen)
  *
@@ -2476,6 +2489,9 @@ static const struct proto_ops SOCKOPS_WRAPPED(irda_stream_ops) = {
 	.getname =	irda_getname,
 	.poll =		irda_poll,
 	.ioctl =	irda_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =	irda_compat_ioctl,
+#endif
 	.listen =	irda_listen,
 	.shutdown =	irda_shutdown,
 	.setsockopt =	irda_setsockopt,
@@ -2497,6 +2513,9 @@ static const struct proto_ops SOCKOPS_WRAPPED(irda_seqpacket_ops) = {
 	.getname =	irda_getname,
 	.poll =		datagram_poll,
 	.ioctl =	irda_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =	irda_compat_ioctl,
+#endif
 	.listen =	irda_listen,
 	.shutdown =	irda_shutdown,
 	.setsockopt =	irda_setsockopt,
@@ -2518,6 +2537,9 @@ static const struct proto_ops SOCKOPS_WRAPPED(irda_dgram_ops) = {
 	.getname =	irda_getname,
 	.poll =		datagram_poll,
 	.ioctl =	irda_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =	irda_compat_ioctl,
+#endif
 	.listen =	irda_listen,
 	.shutdown =	irda_shutdown,
 	.setsockopt =	irda_setsockopt,
@@ -2540,6 +2562,9 @@ static const struct proto_ops SOCKOPS_WRAPPED(irda_ultra_ops) = {
 	.getname =	irda_getname,
 	.poll =		datagram_poll,
 	.ioctl =	irda_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =	irda_compat_ioctl,
+#endif
 	.listen =	sock_no_listen,
 	.shutdown =	irda_shutdown,
 	.setsockopt =	irda_setsockopt,
