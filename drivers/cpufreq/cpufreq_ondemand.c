@@ -84,6 +84,7 @@ struct dbs_tuners {
 static struct dbs_tuners dbs_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
+	.ignore_nice = 0,
 };
 
 static inline unsigned int get_cpu_idle_time(unsigned int cpu)
@@ -350,6 +351,9 @@ static void dbs_check_cpu(int cpu)
 	freq_next = (freq_next * policy->cur) /
 			(dbs_tuners_ins.up_threshold - 10);
 
+	if (freq_next < policy->min)
+		freq_next = policy->min;
+
 	if (freq_next <= ((policy->cur * 95) / 100))
 		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_L);
 }
@@ -395,8 +399,11 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			return -EINVAL;
 
 		if (policy->cpuinfo.transition_latency >
-				(TRANSITION_LATENCY_LIMIT * 1000))
+				(TRANSITION_LATENCY_LIMIT * 1000)) {
+			printk(KERN_WARNING "ondemand governor failed to load "
+			       "due to too long transition latency\n");
 			return -EINVAL;
+		}
 		if (this_dbs_info->enable) /* Already enabled */
 			break;
 
@@ -431,8 +438,6 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				def_sampling_rate = MIN_STAT_SAMPLING_RATE;
 
 			dbs_tuners_ins.sampling_rate = def_sampling_rate;
-			dbs_tuners_ins.ignore_nice = 0;
-
 			dbs_timer_init();
 		}
 
