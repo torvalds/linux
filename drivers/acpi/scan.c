@@ -441,10 +441,7 @@ acpi_eject_store(struct acpi_device *device, const char *buf, size_t count)
 	islockable = device->flags.lockable;
 	handle = device->handle;
 
-	if (type == ACPI_TYPE_PROCESSOR)
-		result = acpi_bus_trim(device, 0);
-	else
-		result = acpi_bus_trim(device, 1);
+	result = acpi_bus_trim(device, 1);
 
 	if (!result)
 		result = acpi_eject_operation(handle, islockable);
