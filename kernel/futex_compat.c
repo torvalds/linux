@@ -137,5 +137,6 @@ asmlinkage long compat_sys_futex(u32 __user *uaddr, int op, u32 val,
 	if (op >= FUTEX_REQUEUE)
 		val2 = (int) (unsigned long) utime;
 
-	return do_futex(uaddr, op, val, timeout, uaddr2, val2, val3);
+	return do_futex((unsigned long)uaddr, op, val, timeout,
+			(unsigned long)uaddr2, val2, val3);
 }
