@@ -2283,7 +2283,7 @@ static void set_rx_mode(struct net_device *net_dev)
 	int i, table_entries;
 	u32 rx_mode;
 
-	/* 635 Hash Table entires = 256(2^16) */
+	/* 635 Hash Table entries = 256(2^16) */
 	if((sis_priv->chipset_rev >= SIS635A_900_REV) ||
 			(sis_priv->chipset_rev == SIS900B_900_REV))
 		table_entries = 16;

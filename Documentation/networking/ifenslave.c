@@ -87,7 +87,7 @@
  *	   would fail and generate an error message in the system log.
  * 	 - For opt_c: slave should not be set to the master's setting
  *	   while it is running. It was already set during enslave. To
- *	   simplify things, it is now handeled separately.
+ *	   simplify things, it is now handled separately.
  *
  *    - 2003/12/01 - Shmulik Hen <shmulik.hen at intel dot com>
  *	 - Code cleanup and style changes

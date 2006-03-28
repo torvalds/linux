@@ -5996,7 +5996,7 @@ static void usc_set_async_mode( struct mgsl_struct *info )
 	 * <15..8>	?		RxFIFO IRQ Request Level
 	 *
 	 * Note: For async mode the receive FIFO level must be set
-	 * to 0 to aviod the situation where the FIFO contains fewer bytes
+	 * to 0 to avoid the situation where the FIFO contains fewer bytes
 	 * than the trigger level and no more data is expected.
 	 *
 	 * <7>		0		Exited Hunt IA (Interrupt Arm)

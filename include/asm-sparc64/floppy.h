@@ -738,7 +738,7 @@ static unsigned long __init sun_floppy_init(void)
 		if (!sun_floppy_types[0] && sun_floppy_types[1]) {
 			/*
 			 * Set the drive exchange bit in FCR on NS87303,
-			 * make shure other bits are sane before doing so.
+			 * make sure other bits are sane before doing so.
 			 */
 			ns87303_modify(config, FER, FER_EDM, 0);
 			ns87303_modify(config, ASC, ASC_DRV2_SEL, 0);

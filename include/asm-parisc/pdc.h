@@ -333,7 +333,7 @@ struct pdc_model {		/* for PDC_MODEL */
 	unsigned long curr_key;
 };
 
-/* Values for PDC_MODEL_CAPABILITES non-equivalent virtual aliasing support */
+/* Values for PDC_MODEL_CAPABILITIES non-equivalent virtual aliasing support */
 
 #define PDC_MODEL_IOPDIR_FDC            (1 << 2)        /* see sba_iommu.c */
 #define PDC_MODEL_NVA_MASK		(3 << 4)
