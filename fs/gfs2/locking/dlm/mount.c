@@ -60,7 +60,7 @@ static struct gdlm_ls *init_gdlm(lm_callback_t cb, lm_fsdata_t *fsdata,
 	return ls;
 }
 
-static int make_args(struct gdlm_ls *ls, char *data_arg)
+static int make_args(struct gdlm_ls *ls, char *data_arg, int *nodir)
 {
 	char data[256];
 	char *options, *x, *y;
@@ -101,6 +101,14 @@ static int make_args(struct gdlm_ls *ls, char *data_arg)
 			}
 			sscanf(y, "%u", &ls->id);
 
+		} else if (!strcmp(x, "nodir")) {
+			if (!y) {
+				log_error("need argument to nodir");
+				error = -EINVAL;
+				break;
+			}
+			sscanf(y, "%u", nodir);
+
 		} else {
 			log_error("unkonwn option: %s", x);
 			error = -EINVAL;
@@ -118,7 +126,7 @@ static int gdlm_mount(char *table_name, char *host_data,
 			struct kobject *fskobj)
 {
 	struct gdlm_ls *ls;
-	int error = -ENOMEM;
+	int error = -ENOMEM, nodir = 0;
 
 	if (min_lvb_size > GDLM_LVB_SIZE)
 		goto out;
@@ -127,12 +135,18 @@ static int gdlm_mount(char *table_name, char *host_data,
 	if (!ls)
 		goto out;
 
+	error = make_args(ls, host_data, &nodir);
+	if (error)
+		goto out;
+
 	error = gdlm_init_threads(ls);
 	if (error)
 		goto out_free;
 
 	error = dlm_new_lockspace(ls->fsname, strlen(ls->fsname),
-				  &ls->dlm_lockspace, 0, GDLM_LVB_SIZE);
+				  &ls->dlm_lockspace,
+				  nodir ? DLM_LSFL_NODIR : 0,
+				  GDLM_LVB_SIZE);
 	if (error) {
 		log_error("dlm_new_lockspace error %d", error);
 		goto out_thread;
@@ -142,10 +156,6 @@ static int gdlm_mount(char *table_name, char *host_data,
 	if (error)
 		goto out_dlm;
 
-	error = make_args(ls, host_data);
-	if (error)
-		goto out_sysfs;
-
 	lockstruct->ls_jid = ls->jid;
 	lockstruct->ls_first = ls->first;
 	lockstruct->ls_lockspace = ls;
@@ -154,8 +164,6 @@ static int gdlm_mount(char *table_name, char *host_data,
 	lockstruct->ls_lvb_size = GDLM_LVB_SIZE;
 	return 0;
 
- out_sysfs:
-	gdlm_kobject_release(ls);
  out_dlm:
 	dlm_release_lockspace(ls->dlm_lockspace, 2);
  out_thread:
