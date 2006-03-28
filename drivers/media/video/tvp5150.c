@@ -53,7 +53,7 @@ static struct v4l2_queryctrl tvp5150_qctrl[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step = 1,
-		.default_value = 0,
+		.default_value = 128,
 		.flags = 0,
 	}, {
 		.id = V4L2_CID_CONTRAST,
@@ -62,7 +62,7 @@ static struct v4l2_queryctrl tvp5150_qctrl[] = {
 		.minimum = 0,
 		.maximum = 255,
 		.step = 0x1,
-		.default_value = 0x10,
+		.default_value = 128,
 		.flags = 0,
 	}, {
 		 .id = V4L2_CID_SATURATION,
@@ -71,7 +71,7 @@ static struct v4l2_queryctrl tvp5150_qctrl[] = {
 		 .minimum = 0,
 		 .maximum = 255,
 		 .step = 0x1,
-		 .default_value = 0x10,
+		 .default_value = 128,
 		 .flags = 0,
 	}, {
 		.id = V4L2_CID_HUE,
@@ -80,7 +80,7 @@ static struct v4l2_queryctrl tvp5150_qctrl[] = {
 		.minimum = -128,
 		.maximum = 127,
 		.step = 0x1,
-		.default_value = 0x10,
+		.default_value = 0,
 		.flags = 0,
 	}
 };
