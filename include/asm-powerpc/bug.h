@@ -40,7 +40,7 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 	__asm__ __volatile__(						 \
 		"1:	twi 31,0,0\n"					 \
 		".section __bug_table,\"a\"\n"				 \
-		"\t"PPC_LONG"	1b,%0,%1,%2\n"			 \
+		"\t"PPC_LONG"	1b,%0,%1,%2\n"				 \
 		".previous"						 \
 		: : "i" (__LINE__), "i" (__FILE__), "i" (__FUNCTION__)); \
 } while (0)
@@ -53,14 +53,14 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 		__asm__ __volatile__(				\
 		"1:	"PPC_TLNEI"	%0,0\n"			\
 		".section __bug_table,\"a\"\n"			\
-		"\t"PPC_LONG"	1b,%1,%2,%3\n"		\
+		"\t"PPC_LONG"	1b,%1,%2,%3\n"			\
 		".previous"					\
 		: : "r" ((long)(x)), "i" (__LINE__),		\
 		    "i" (__FILE__), "i" (__FUNCTION__));	\
 	}							\
 } while (0)
 
-#define WARN() do {						\
+#define __WARN() do {						\
 	__asm__ __volatile__(					\
 		"1:	twi 31,0,0\n"				\
 		".section __bug_table,\"a\"\n"			\
@@ -73,12 +73,12 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 #define WARN_ON(x) do {						\
 	if (__builtin_constant_p(x)) {				\
 		if (x)						\
-			WARN();					\
+			__WARN();				\
 	} else {						\
 		__asm__ __volatile__(				\
 		"1:	"PPC_TLNEI"	%0,0\n"			\
 		".section __bug_table,\"a\"\n"			\
-		"\t"PPC_LONG"	1b,%1,%2,%3\n"		\
+		"\t"PPC_LONG"	1b,%1,%2,%3\n"			\
 		".previous"					\
 		: : "r" ((long)(x)),				\
 		    "i" (__LINE__ + BUG_WARNING_TRAP),		\
