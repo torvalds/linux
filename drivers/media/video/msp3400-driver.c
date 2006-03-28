@@ -279,7 +279,8 @@ void msp_set_scart(struct i2c_client *client, int in, int out)
 	msp_write_dsp(client, 0x13, state->acb);
 
 	/* Sets I2S speed 0 = 1.024 Mbps, 1 = 2.048 Mbps */
-	msp_write_dem(client, 0x40, state->i2s_mode);
+	if (state->has_i2s_conf)
+		msp_write_dem(client, 0x40, state->i2s_mode);
 }
 
 void msp_set_mute(struct i2c_client *client)
