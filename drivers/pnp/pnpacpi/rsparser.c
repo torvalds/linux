@@ -120,7 +120,7 @@ pnpacpi_parse_allocated_dmaresource(struct pnp_resource_table * res, u32 dma)
 
 static void
 pnpacpi_parse_allocated_ioresource(struct pnp_resource_table * res,
-	u32 io, u32 len)
+	u64 io, u64 len)
 {
 	int i = 0;
 	while (!(res->port_resource[i].flags & IORESOURCE_UNSET) &&
@@ -156,6 +156,27 @@ pnpacpi_parse_allocated_memresource(struct pnp_resource_table * res,
 	}
 }
 
+static void
+pnpacpi_parse_allocated_address_space(struct pnp_resource_table *res_table,
+	struct acpi_resource *res)
+{
+	struct acpi_resource_address64 addr, *p = &addr;
+	acpi_status status;
+
+	status = acpi_resource_to_address64(res, p);
+	if (!ACPI_SUCCESS(status)) {
+		pnp_warn("PnPACPI: failed to convert resource type %d",
+			res->type);
+		return;
+	}
+
+	if (p->resource_type == ACPI_MEMORY_RANGE)
+		pnpacpi_parse_allocated_memresource(res_table,
+				p->minimum, p->address_length);
+	else if (p->resource_type == ACPI_IO_RANGE)
+		pnpacpi_parse_allocated_ioresource(res_table,
+				p->minimum, p->address_length);
+}
 
 static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	void *data)
@@ -221,19 +242,9 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 				res->data.fixed_memory32.address_length);
 		break;
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
-		pnpacpi_parse_allocated_memresource(res_table,
-				res->data.address16.minimum,
-				res->data.address16.address_length);
-		break;
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
-		pnpacpi_parse_allocated_memresource(res_table,
-				res->data.address32.minimum,
-				res->data.address32.address_length);
-		break;
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		pnpacpi_parse_allocated_memresource(res_table,
-		res->data.address64.minimum,
-		res->data.address64.address_length);
+		pnpacpi_parse_allocated_address_space(res_table, res);
 		break;
 
 	case ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64:
