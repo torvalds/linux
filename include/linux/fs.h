@@ -496,7 +496,7 @@ struct inode {
 	struct mutex		i_mutex;
 	struct rw_semaphore	i_alloc_sem;
 	struct inode_operations	*i_op;
-	struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
+	const struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
 	struct super_block	*i_sb;
 	struct file_lock	*i_flock;
 	struct address_space	*i_mapping;
@@ -636,7 +636,7 @@ struct file {
 	} f_u;
 	struct dentry		*f_dentry;
 	struct vfsmount         *f_vfsmnt;
-	struct file_operations	*f_op;
+	const struct file_operations	*f_op;
 	atomic_t		f_count;
 	unsigned int 		f_flags;
 	mode_t			f_mode;
@@ -1414,7 +1414,7 @@ extern void bd_release_from_disk(struct block_device *, struct gendisk *);
 extern int alloc_chrdev_region(dev_t *, unsigned, unsigned, const char *);
 extern int register_chrdev_region(dev_t, unsigned, const char *);
 extern int register_chrdev(unsigned int, const char *,
-			   struct file_operations *);
+			   const struct file_operations *);
 extern int unregister_chrdev(unsigned int, const char *);
 extern void unregister_chrdev_region(dev_t, unsigned);
 extern int chrdev_open(struct inode *, struct file *);

@@ -58,7 +58,7 @@ struct proc_dir_entry {
 	gid_t gid;
 	loff_t size;
 	struct inode_operations * proc_iops;
-	struct file_operations * proc_fops;
+	const struct file_operations * proc_fops;
 	get_info_t *get_info;
 	struct module *owner;
 	struct proc_dir_entry *next, *parent, *subdir;
@@ -189,7 +189,7 @@ static inline struct proc_dir_entry *proc_net_create(const char *name,
 }
 
 static inline struct proc_dir_entry *proc_net_fops_create(const char *name,
-	mode_t mode, struct file_operations *fops)
+	mode_t mode, const struct file_operations *fops)
 {
 	struct proc_dir_entry *res = create_proc_entry(name, mode, proc_net);
 	if (res)

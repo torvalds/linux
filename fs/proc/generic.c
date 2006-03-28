@@ -560,7 +560,7 @@ static void proc_kill_inodes(struct proc_dir_entry *de)
 		struct file * filp = list_entry(p, struct file, f_u.fu_list);
 		struct dentry * dentry = filp->f_dentry;
 		struct inode * inode;
-		struct file_operations *fops;
+		const struct file_operations *fops;
 
 		if (dentry->d_op != &proc_dentry_operations)
 			continue;

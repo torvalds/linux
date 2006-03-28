@@ -223,7 +223,8 @@ int snd_card_disconnect(struct snd_card *card)
 	struct snd_monitor_file *mfile;
 	struct file *file;
 	struct snd_shutdown_f_ops *s_f_ops;
-	struct file_operations *f_ops, *old_f_ops;
+	struct file_operations *f_ops;
+	const struct file_operations *old_f_ops;
 	int err;
 
 	spin_lock(&card->files_lock);

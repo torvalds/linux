@@ -84,10 +84,10 @@ void oprofile_add_trace(unsigned long eip);
  * the specified file operations.
  */
 int oprofilefs_create_file(struct super_block * sb, struct dentry * root,
-	char const * name, struct file_operations * fops);
+	char const * name, const struct file_operations * fops);
 
 int oprofilefs_create_file_perm(struct super_block * sb, struct dentry * root,
-	char const * name, struct file_operations * fops, int perm);
+	char const * name, const struct file_operations * fops, int perm);
  
 /** Create a file for read/write access to an unsigned long. */
 int oprofilefs_create_ulong(struct super_block * sb, struct dentry * root,

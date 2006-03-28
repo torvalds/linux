@@ -225,7 +225,7 @@ EXPORT_SYMBOL(rpc_print_iostats);
  * Register/unregister RPC proc files
  */
 static inline struct proc_dir_entry *
-do_register(const char *name, void *data, struct file_operations *fops)
+do_register(const char *name, void *data, const struct file_operations *fops)
 {
 	struct proc_dir_entry *ent;
 
@@ -253,7 +253,7 @@ rpc_proc_unregister(const char *name)
 }
 
 struct proc_dir_entry *
-svc_proc_register(struct svc_stat *statp, struct file_operations *fops)
+svc_proc_register(struct svc_stat *statp, const struct file_operations *fops)
 {
 	return do_register(statp->program->pg_name, statp, fops);
 }

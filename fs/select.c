@@ -220,7 +220,7 @@ int do_select(int n, fd_set_bits *fds, s64 *timeout)
 		for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
 			unsigned long in, out, ex, all_bits, bit = 1, mask, j;
 			unsigned long res_in = 0, res_out = 0, res_ex = 0;
-			struct file_operations *f_op = NULL;
+			const struct file_operations *f_op = NULL;
 			struct file *file = NULL;
 
 			in = *inp++; out = *outp++; ex = *exp++;

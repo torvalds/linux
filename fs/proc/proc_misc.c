@@ -731,7 +731,7 @@ static struct file_operations proc_sysrq_trigger_operations = {
 
 struct proc_dir_entry *proc_root_kcore;
 
-void create_seq_entry(char *name, mode_t mode, struct file_operations *f)
+void create_seq_entry(char *name, mode_t mode, const struct file_operations *f)
 {
 	struct proc_dir_entry *entry;
 	entry = create_proc_entry(name, mode, NULL);

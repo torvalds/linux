@@ -395,7 +395,7 @@ enum {
  */
 struct rpc_filelist {
 	char *name;
-	struct file_operations *i_fop;
+	const struct file_operations *i_fop;
 	int mode;
 };
 

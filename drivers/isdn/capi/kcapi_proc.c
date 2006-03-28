@@ -233,7 +233,7 @@ static struct file_operations proc_applstats_ops = {
 };
 
 static void
-create_seq_entry(char *name, mode_t mode, struct file_operations *f)
+create_seq_entry(char *name, mode_t mode, const struct file_operations *f)
 {
 	struct proc_dir_entry *entry;
 	entry = create_proc_entry(name, mode, NULL);
