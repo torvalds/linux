@@ -358,9 +358,6 @@ struct extended_sigtable {
 	struct extended_signature sigs[0];
 };
 
-/* '6' because it used to be for P6 only (but now covers Pentium 4 as well) */
-#define MICROCODE_IOCFREE	_IO('6',0)
-
 
 #define ASM_NOP1 K8_NOP1
 #define ASM_NOP2 K8_NOP2
