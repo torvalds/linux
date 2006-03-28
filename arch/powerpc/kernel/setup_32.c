@@ -351,12 +351,6 @@ void __init setup_arch(char **cmdline_p)
 	do_init_bootmem();
 	if ( ppc_md.progress ) ppc_md.progress("setup_arch: bootmem", 0x3eab);
 
-#ifdef CONFIG_PPC_OCP
-	/* Initialize OCP device list */
-	ocp_early_init();
-	if ( ppc_md.progress ) ppc_md.progress("ocp: exit", 0x3eab);
-#endif
-
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
