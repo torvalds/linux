@@ -474,7 +474,7 @@ int __init ppc_init(void)
 	if ( ppc_md.progress ) ppc_md.progress("             ", 0xffff);
 
 	/* register CPU devices */
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		register_cpu(&cpu_devices[i], i, NULL);
 
 	/* call platform init */
