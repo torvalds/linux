@@ -230,3 +230,6 @@ static inline int __simple_empty(struct dentry *dentry)
 out:
 	return ret;
 }
+
+void autofs4_dentry_release(struct dentry *);
+
