@@ -475,8 +475,6 @@ static inline int sym_setup_cdb(struct sym_hcb *np, struct scsi_cmnd *cmd, struc
  */
 int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct sym_ccb *cp)
 {
-	struct sym_tcb *tp = &np->target[cp->target];
-	struct sym_lcb *lp = sym_lp(tp, cp->lun);
 	u32 lastp, goalp;
 	int dir;
 
@@ -557,7 +555,7 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 	/*
 	 *	activate this job.
 	 */
-	sym_start_next_ccbs(np, lp, 2);
+	sym_put_start_queue(np, cp);
 	return 0;
 
 out_abort:
@@ -871,15 +869,12 @@ static void sym_tune_dev_queuing(struct sym_tcb *tp, int lun, u_short reqtags)
 	if (reqtags > lp->s.scdev_depth)
 		reqtags = lp->s.scdev_depth;
 
-	lp->started_limit = reqtags ? reqtags : 2;
-	lp->started_max   = 1;
 	lp->s.reqtags     = reqtags;
 
 	if (reqtags != oldtags) {
 		dev_info(&tp->starget->dev,
 		         "tagged command queuing %s, command queue depth %d.\n",
-		          lp->s.reqtags ? "enabled" : "disabled",
- 		          lp->started_limit);
+		          lp->s.reqtags ? "enabled" : "disabled", reqtags);
 	}
 }
 

@@ -1469,7 +1469,7 @@ static int sym_prepare_nego(struct sym_hcb *np, struct sym_ccb *cp, u_char *msgp
 /*
  *  Insert a job into the start queue.
  */
-static void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp)
+void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp)
 {
 	u_short	qidx;
 
@@ -4602,7 +4602,8 @@ struct sym_ccb *sym_get_ccb (struct sym_hcb *np, struct scsi_cmnd *cmd, u_char t
 			 *  Debugging purpose.
 			 */
 #ifndef SYM_OPT_HANDLE_DEVICE_QUEUEING
-			assert(lp->busy_itl == 0);
+			if (lp->busy_itl != 0)
+				goto out_free;
 #endif
 			/*
 			 *  Allocate resources for tags if not yet.
@@ -4647,7 +4648,8 @@ struct sym_ccb *sym_get_ccb (struct sym_hcb *np, struct scsi_cmnd *cmd, u_char t
 			 *  Debugging purpose.
 			 */
 #ifndef SYM_OPT_HANDLE_DEVICE_QUEUEING
-			assert(lp->busy_itl == 0 && lp->busy_itlq == 0);
+			if (lp->busy_itl != 0 || lp->busy_itlq != 0)
+				goto out_free;
 #endif
 			/*
 			 *  Count this nexus for this LUN.
