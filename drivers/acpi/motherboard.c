@@ -123,41 +123,46 @@ static struct acpi_driver acpi_motherboard_driver2 = {
 		},
 };
 
+static void __init acpi_request_region (struct acpi_generic_address *addr,
+	unsigned int length, char *desc)
+{
+	if (!addr->address || !length)
+		return;
+
+	if (addr->address_space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+		request_region(addr->address, length, desc);
+	else if (addr->address_space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		request_mem_region(addr->address, length, desc);
+}
+
 static void __init acpi_reserve_resources(void)
 {
-	if (acpi_gbl_FADT->xpm1a_evt_blk.address && acpi_gbl_FADT->pm1_evt_len)
-		request_region(acpi_gbl_FADT->xpm1a_evt_blk.address,
+	acpi_request_region(&acpi_gbl_FADT->xpm1a_evt_blk,
 			       acpi_gbl_FADT->pm1_evt_len, "PM1a_EVT_BLK");
 
-	if (acpi_gbl_FADT->xpm1b_evt_blk.address && acpi_gbl_FADT->pm1_evt_len)
-		request_region(acpi_gbl_FADT->xpm1b_evt_blk.address,
+	acpi_request_region(&acpi_gbl_FADT->xpm1b_evt_blk,
 			       acpi_gbl_FADT->pm1_evt_len, "PM1b_EVT_BLK");
 
-	if (acpi_gbl_FADT->xpm1a_cnt_blk.address && acpi_gbl_FADT->pm1_cnt_len)
-		request_region(acpi_gbl_FADT->xpm1a_cnt_blk.address,
+	acpi_request_region(&acpi_gbl_FADT->xpm1a_cnt_blk,
 			       acpi_gbl_FADT->pm1_cnt_len, "PM1a_CNT_BLK");
 
-	if (acpi_gbl_FADT->xpm1b_cnt_blk.address && acpi_gbl_FADT->pm1_cnt_len)
-		request_region(acpi_gbl_FADT->xpm1b_cnt_blk.address,
+	acpi_request_region(&acpi_gbl_FADT->xpm1b_cnt_blk,
 			       acpi_gbl_FADT->pm1_cnt_len, "PM1b_CNT_BLK");
 
-	if (acpi_gbl_FADT->xpm_tmr_blk.address && acpi_gbl_FADT->pm_tm_len == 4)
-		request_region(acpi_gbl_FADT->xpm_tmr_blk.address, 4, "PM_TMR");
+	if (acpi_gbl_FADT->pm_tm_len == 4)
+		acpi_request_region(&acpi_gbl_FADT->xpm_tmr_blk, 4, "PM_TMR");
 
-	if (acpi_gbl_FADT->xpm2_cnt_blk.address && acpi_gbl_FADT->pm2_cnt_len)
-		request_region(acpi_gbl_FADT->xpm2_cnt_blk.address,
+	acpi_request_region(&acpi_gbl_FADT->xpm2_cnt_blk,
 			       acpi_gbl_FADT->pm2_cnt_len, "PM2_CNT_BLK");
 
 	/* Length of GPE blocks must be a non-negative multiple of 2 */
 
-	if (acpi_gbl_FADT->xgpe0_blk.address && acpi_gbl_FADT->gpe0_blk_len &&
-	    !(acpi_gbl_FADT->gpe0_blk_len & 0x1))
-		request_region(acpi_gbl_FADT->xgpe0_blk.address,
+	if (!(acpi_gbl_FADT->gpe0_blk_len & 0x1))
+		acpi_request_region(&acpi_gbl_FADT->xgpe0_blk,
 			       acpi_gbl_FADT->gpe0_blk_len, "GPE0_BLK");
 
-	if (acpi_gbl_FADT->xgpe1_blk.address && acpi_gbl_FADT->gpe1_blk_len &&
-	    !(acpi_gbl_FADT->gpe1_blk_len & 0x1))
-		request_region(acpi_gbl_FADT->xgpe1_blk.address,
+	if (!(acpi_gbl_FADT->gpe1_blk_len & 0x1))
+		acpi_request_region(&acpi_gbl_FADT->xgpe1_blk,
 			       acpi_gbl_FADT->gpe1_blk_len, "GPE1_BLK");
 }
 
