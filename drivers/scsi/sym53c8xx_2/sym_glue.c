@@ -712,7 +712,6 @@ static void sym53c8xx_timer(unsigned long npref)
  *  What we will do regarding the involved SCSI command.
  */
 #define SYM_EH_DO_IGNORE	0
-#define SYM_EH_DO_COMPLETE	1
 #define SYM_EH_DO_WAIT		2
 
 /*
@@ -764,25 +763,18 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 
 	dev_warn(&cmd->device->sdev_gendev, "%s operation started.\n", opname);
 
+	spin_lock_irq(cmd->device->host->host_lock);
 	/* This one is queued in some place -> to wait for completion */
 	FOR_EACH_QUEUED_ELEMENT(&np->busy_ccbq, qp) {
 		struct sym_ccb *cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		if (cp->cmd == cmd) {
 			to_do = SYM_EH_DO_WAIT;
-			goto prepare;
+			break;
 		}
 	}
 
-prepare:
-	/* Prepare stuff to either ignore, complete or wait for completion */
-	switch(to_do) {
-	default:
-	case SYM_EH_DO_IGNORE:
-		break;
-	case SYM_EH_DO_WAIT:
+	if (to_do == SYM_EH_DO_WAIT) {
 		init_completion(&ep->done);
-		/* fall through */
-	case SYM_EH_DO_COMPLETE:
 		ep->old_done = cmd->scsi_done;
 		cmd->scsi_done = sym_eh_done;
 		SYM_UCMD_PTR(cmd)->eh_wait = ep;
@@ -818,9 +810,6 @@ prepare:
 	}
 
 	ep->to_do = to_do;
-	/* Complete the command with locks held as required by the driver */
-	if (to_do == SYM_EH_DO_COMPLETE)
-		sym_xpt_done2(np, cmd, DID_ABORT);
 
 	/* Wait for completion with locks released, as required by kernel */
 	if (to_do == SYM_EH_DO_WAIT) {
@@ -836,6 +825,7 @@ prepare:
 		if (ep->timed_out)
 			sts = -2;
 	}
+	spin_unlock_irq(cmd->device->host->host_lock);
 	dev_warn(&cmd->device->sdev_gendev, "%s operation %s.\n", opname,
 			sts==0 ? "complete" :sts==-2 ? "timed-out" : "failed");
 	return sts ? SCSI_FAILED : SCSI_SUCCESS;
@@ -847,46 +837,22 @@ prepare:
  */
 static int sym53c8xx_eh_abort_handler(struct scsi_cmnd *cmd)
 {
-	int rc;
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	rc = sym_eh_handler(SYM_EH_ABORT, "ABORT", cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return rc;
+	return sym_eh_handler(SYM_EH_ABORT, "ABORT", cmd);
 }
 
 static int sym53c8xx_eh_device_reset_handler(struct scsi_cmnd *cmd)
 {
-	int rc;
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	rc = sym_eh_handler(SYM_EH_DEVICE_RESET, "DEVICE RESET", cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return rc;
+	return sym_eh_handler(SYM_EH_DEVICE_RESET, "DEVICE RESET", cmd);
 }
 
 static int sym53c8xx_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 {
-	int rc;
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	rc = sym_eh_handler(SYM_EH_BUS_RESET, "BUS RESET", cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return rc;
+	return sym_eh_handler(SYM_EH_BUS_RESET, "BUS RESET", cmd);
 }
 
 static int sym53c8xx_eh_host_reset_handler(struct scsi_cmnd *cmd)
 {
-	int rc;
-
-	spin_lock_irq(cmd->device->host->host_lock);
-	rc = sym_eh_handler(SYM_EH_HOST_RESET, "HOST RESET", cmd);
-	spin_unlock_irq(cmd->device->host->host_lock);
-
-	return rc;
+	return sym_eh_handler(SYM_EH_HOST_RESET, "HOST RESET", cmd);
 }
 
 /*
