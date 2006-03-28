@@ -557,7 +557,8 @@ void __init create_mapping(struct map_desc *md)
 	 *	supersections are only allocated for domain 0 regardless
 	 *	of the actual domain assignments in use.
 	 */
-	if (cpu_architecture() >= CPU_ARCH_ARMv6 && domain == 0) {
+	if ((cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())
+		&& domain == 0) {
 		/*
 		 * Align to supersection boundary if !high pages.
 		 * High pages have already been checked for proper
