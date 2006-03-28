@@ -134,45 +134,6 @@ static void sym2_setup_params(void)
 	}
 }
 
-/*
- * We used to try to deal with 64-bit BARs here, but don't any more.
- * There are many parts of this driver which would need to be modified
- * to handle a 64-bit base address, including scripts.  I'm uncomfortable
- * with making those changes when I have no way of testing it, so I'm
- * just going to disable it.
- *
- * Note that some machines (eg HP rx8620 and Superdome) have bus addresses
- * below 4GB and physical addresses above 4GB.  These will continue to work.
- */
-static int __devinit
-pci_get_base_address(struct pci_dev *pdev, int index, unsigned long *basep)
-{
-	u32 tmp;
-	unsigned long base;
-#define PCI_BAR_OFFSET(index) (PCI_BASE_ADDRESS_0 + (index<<2))
-
-	pci_read_config_dword(pdev, PCI_BAR_OFFSET(index++), &tmp);
-	base = tmp;
-	if ((tmp & 0x7) == PCI_BASE_ADDRESS_MEM_TYPE_64) {
-		pci_read_config_dword(pdev, PCI_BAR_OFFSET(index++), &tmp);
-		if (tmp > 0) {
-			dev_err(&pdev->dev,
-				"BAR %d is 64-bit, disabling\n", index - 1);
-			base = 0;
-		}
-	}
-
-	if ((base & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
-		base &= PCI_BASE_ADDRESS_IO_MASK;
-	} else {
-		base &= PCI_BASE_ADDRESS_MEM_MASK;
-	}
-
-	*basep = base;
-	return index;
-#undef PCI_BAR_OFFSET
-}
-
 static struct scsi_transport_template *sym2_transport_template = NULL;
 
 /*
@@ -1866,13 +1827,23 @@ static int __devinit sym_set_workarounds(struct sym_device *device)
 static void __devinit
 sym_init_device(struct pci_dev *pdev, struct sym_device *device)
 {
-	int i;
+	int i = 2;
+	struct pci_bus_region bus_addr;
 
 	device->host_id = SYM_SETUP_HOST_ID;
 	device->pdev = pdev;
 
-	i = pci_get_base_address(pdev, 1, &device->mmio_base);
-	pci_get_base_address(pdev, i, &device->ram_base);
+	pcibios_resource_to_bus(pdev, &bus_addr, &pdev->resource[1]);
+	device->mmio_base = bus_addr.start;
+
+	/*
+	 * If the BAR is 64-bit, resource 2 will be occupied by the
+	 * upper 32 bits
+	 */
+	if (!pdev->resource[i].flags)
+		i++;
+	pcibios_resource_to_bus(pdev, &bus_addr, &pdev->resource[i]);
+	device->ram_base = bus_addr.start;
 
 #ifdef CONFIG_SCSI_SYM53C8XX_MMIO
 	if (device->mmio_base)
