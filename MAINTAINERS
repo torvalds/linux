@@ -1885,6 +1885,7 @@ NETWORKING [GENERAL]
 P:	Networking Team
 M:	netdev@vger.kernel.org
 L:	netdev@vger.kernel.org
+W:	http://linux-net.osdl.org/
 S:	Maintained
 
 NETWORKING [IPv4/IPv6]
