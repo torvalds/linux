@@ -41,14 +41,15 @@
 
 static int ide_generic_all;		/* Set to claim all devices */
 
+#ifndef MODULE
 static int __init ide_generic_all_on(char *unused)
 {
 	ide_generic_all = 1;
 	printk(KERN_INFO "IDE generic will claim all unknown PCI IDE storage controllers.\n");
 	return 1;
 }
-
 __setup("all-generic-ide", ide_generic_all_on);
+#endif
 
 static void __devinit init_hwif_generic (ide_hwif_t *hwif)
 {
