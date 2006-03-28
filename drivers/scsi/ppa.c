@@ -18,6 +18,7 @@
 #include <linux/parport.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <asm/io.h>
 
 #include <scsi/scsi.h>
@@ -726,7 +727,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 				retv--;
 
 			if (retv) {
-				if ((jiffies - dev->jstart) > (1 * HZ)) {
+				if (time_after(jiffies, dev->jstart + (1 * HZ))) {
 					printk
 					    ("ppa: Parallel port cable is unplugged!!\n");
 					ppa_fail(dev, DID_BUS_BUSY);
