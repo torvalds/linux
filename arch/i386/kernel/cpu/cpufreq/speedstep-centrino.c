@@ -654,8 +654,12 @@ static int centrino_target (struct cpufreq_policy *policy,
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_HOTPLUG_CPU
 	/* cpufreq holds the hotplug lock, so we are safe from here on */
 	cpus_and(online_policy_cpus, cpu_online_map, policy->cpus);
+#else
+	online_policy_cpus = policy->cpus;
+#endif
 
 	saved_mask = current->cpus_allowed;
 	first_cpu = 1;
