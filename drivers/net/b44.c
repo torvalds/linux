@@ -1339,6 +1339,9 @@ static int b44_set_mac_addr(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	spin_lock_irq(&bp->lock);
@@ -1876,6 +1879,12 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 	bp->dev->dev_addr[3] = eeprom[80];
 	bp->dev->dev_addr[4] = eeprom[83];
 	bp->dev->dev_addr[5] = eeprom[82];
+
+	if (!is_valid_ether_addr(&bp->dev->dev_addr[0])){
+		printk(KERN_ERR PFX "Invalid MAC address found in EEPROM\n");
+		return -EINVAL;
+	}
+
 	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, bp->dev->addr_len);
 
 	bp->phy_addr = eeprom[90] & 0x1f;
