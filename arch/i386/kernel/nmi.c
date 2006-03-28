@@ -529,7 +529,8 @@ void nmi_watchdog_tick (struct pt_regs * regs)
 	 * always switch the stack NMI-atomically, it's safe to use
 	 * smp_processor_id().
 	 */
-	int sum, cpu = smp_processor_id();
+	unsigned int sum;
+	int cpu = smp_processor_id();
 
 	sum = per_cpu(irq_stat, cpu).apic_timer_irqs;
 
