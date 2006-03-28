@@ -116,6 +116,7 @@
 #include <linux/spinlock.h>
 #include <linux/smp_lock.h>
 #include <linux/gameport.h>
+#include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 
 
@@ -2535,7 +2536,7 @@ static int __devinit sv_probe(struct pci_dev *pcidev, const struct pci_device_id
 		return -ENODEV;
 	if (pcidev->irq == 0)
 		return -ENODEV;
-	if (pci_set_dma_mask(pcidev, 0x00ffffff)) {
+	if (pci_set_dma_mask(pcidev, DMA_24BIT_MASK)) {
 		printk(KERN_WARNING "sonicvibes: architecture does not support 24bit PCI busmaster DMA\n");
 		return -ENODEV;
 	}

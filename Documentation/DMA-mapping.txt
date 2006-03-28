@@ -199,6 +199,8 @@ address during PCI bus mastering you might do something like:
 		       "mydev: 24-bit DMA addressing not available.\n");
 		goto ignore_this_device;
 	}
+[Better use DMA_24BIT_MASK instead of 0x00ffffff.
+See linux/include/dma-mapping.h for reference.]
 
 When pci_set_dma_mask() is successful, and returns zero, the PCI layer
 saves away this mask you have provided.  The PCI layer will use this
