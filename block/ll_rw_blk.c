@@ -3545,7 +3545,9 @@ void put_io_context(struct io_context *ioc)
 		if (ioc->aic && ioc->aic->dtor)
 			ioc->aic->dtor(ioc->aic);
 		if (ioc->cic_root.rb_node != NULL) {
-			cic = rb_entry(rb_first(&ioc->cic_root), struct cfq_io_context, rb_node);
+			struct rb_node *n = rb_first(&ioc->cic_root);
+
+			cic = rb_entry(n, struct cfq_io_context, rb_node);
 			cic->dtor(ioc);
 		}
 		rcu_read_unlock();
