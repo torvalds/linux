@@ -22,20 +22,15 @@
 #define UART_STATUS (*(volatile unsigned long*) (UART2_PHYS + UART_R_STATUS))
 #define UART_DATA   (*(volatile unsigned long*) (UART2_PHYS + UART_R_DATA))
 
-static __inline__ void putc (char ch)
+static inline void putc(int ch)
 {
 	while (UART_STATUS & nTxRdy)
-		;
+		barrier();
 	UART_DATA = ch;
 }
 
-static void putstr (const char* sz)
+static inline void flush(void)
 {
-	for (; *sz; ++sz) {
-		putc (*sz);
-		if (*sz == '\n')
-			putc ('\r');
-	}
 }
 
 	/* NULL functions; we don't presently need them */

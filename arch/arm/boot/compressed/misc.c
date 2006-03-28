@@ -20,24 +20,32 @@ unsigned int __machine_arch_type;
 
 #include <linux/string.h>
 
-#include <asm/arch/uncompress.h>
-
 #ifdef STANDALONE_DEBUG
 #define putstr printf
-#endif
+#else
+
+static void putstr(const char *ptr);
+
+#include <linux/compiler.h>
+#include <asm/arch/uncompress.h>
 
 #ifdef CONFIG_DEBUG_ICEDCC
-#define putstr icedcc_putstr
-#define putc icedcc_putc
-
 extern void icedcc_putc(int ch);
+#define putc(ch)	icedcc_putc(ch)
+#define flush()	do { } while (0)
+#endif
 
-static void
-icedcc_putstr(const char *ptr)
+static void putstr(const char *ptr)
 {
-	for (; *ptr != '\0'; ptr++) {
-		icedcc_putc(*ptr);
+	char c;
+
+	while ((c = *ptr++) != '\0') {
+		if (c == '\n')
+			putc('\r');
+		putc(c);
 	}
+
+	flush();
 }
 
 #endif

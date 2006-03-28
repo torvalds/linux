@@ -36,7 +36,7 @@ static void __raw_writel(unsigned int value, unsigned int ptr)
 #define PHYS_UART1_FLAG		0x808c0018
 #define UART1_FLAG_TXFF		0x20
 
-static __inline__ void putc(char c)
+static inline void putc(int c)
 {
 	int i;
 
@@ -49,14 +49,8 @@ static __inline__ void putc(char c)
 	__raw_writeb(c, PHYS_UART1_DATA);
 }
 
-static void putstr(const char *s)
+static inline void flush(void)
 {
-	while (*s) {
-		putc(*s);
-		if (*s == '\n')
-			putc('\r');
-		s++;
-	}
 }
 
 

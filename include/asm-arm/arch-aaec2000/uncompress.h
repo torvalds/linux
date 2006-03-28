@@ -15,7 +15,7 @@
 
 #define UART(x)         (*(volatile unsigned long *)(serial_port + (x)))
 
-static void putstr( const char *s )
+static void putc(int c)
 {
 	unsigned long serial_port;
         do {
@@ -28,17 +28,16 @@ static void putstr( const char *s )
 		return;
 	} while (0);
 
-	for (; *s; s++) {
-		/* wait for space in the UART's transmitter */
-		while ((UART(UART_SR) & UART_SR_TxFF));
-		/* send the character out. */
-		UART(UART_DR) = *s;
-		/* if a LF, also do CR... */
-		if (*s == 10) {
-			while ((UART(UART_SR) & UART_SR_TxFF));
-			UART(UART_DR) = 13;
-		}
-	}
+	/* wait for space in the UART's transmitter */
+	while ((UART(UART_SR) & UART_SR_TxFF))
+		barrier();
+
+	/* send the character out. */
+	UART(UART_DR) = c;
+}
+
+static inline void flush(void)
+{
 }
 
 #define arch_decomp_setup()
