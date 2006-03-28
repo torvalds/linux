@@ -472,7 +472,7 @@ static int sym_getpciclock (struct sym_hcb *np)
  *  calculations more simple.
  */
 #define _5M 5000000
-static u32 div_10M[] = {2*_5M, 3*_5M, 4*_5M, 6*_5M, 8*_5M, 12*_5M, 16*_5M};
+static const u32 div_10M[] = {2*_5M, 3*_5M, 4*_5M, 6*_5M, 8*_5M, 12*_5M, 16*_5M};
 
 /*
  *  Get clock factor and sync divisor for a given 
