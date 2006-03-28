@@ -129,16 +129,18 @@ unsigned long chrp_get_rtc_time(void)
 		year = chrp_cmos_clock_read(RTC_YEAR);
 	} while (sec != chrp_cmos_clock_read(RTC_SECONDS));
 
-	if (!(chrp_cmos_clock_read(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD)
-	  {
-	    BCD_TO_BIN(sec);
-	    BCD_TO_BIN(min);
-	    BCD_TO_BIN(hour);
-	    BCD_TO_BIN(day);
-	    BCD_TO_BIN(mon);
-	    BCD_TO_BIN(year);
-	  }
-	if ((year += 1900) < 1970)
+	if (!(chrp_cmos_clock_read(RTC_CONTROL) & RTC_DM_BINARY)
+	    || RTC_ALWAYS_BCD) {
+		BCD_TO_BIN(sec);
+		BCD_TO_BIN(min);
+		BCD_TO_BIN(hour);
+		BCD_TO_BIN(day);
+		BCD_TO_BIN(mon);
+		BCD_TO_BIN(year);
+	}
+
+	year += 1900;
+	if (year < 1970)
 		year += 100;
 	return mktime(year, mon, day, hour, min, sec);
 }
