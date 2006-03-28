@@ -122,7 +122,7 @@ static void nmi_save_registers(void * dummy)
 static void free_msrs(void)
 {
 	int i;
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		kfree(cpu_msrs[i].counters);
 		cpu_msrs[i].counters = NULL;
 		kfree(cpu_msrs[i].controls);
