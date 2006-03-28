@@ -48,13 +48,9 @@ extern spinlock_t rtc_lock;
 unsigned long get_cmos_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
-	int i;
 
 	spin_lock(&rtc_lock);
  again:
-	for (i = 0 ; i < 1000000 ; i++)	/* may take up to 1 second... */
-		if (!(ctrl_inb(RTC_CTL) & RTC_BUSY))
-			break;
 	do {
 		sec  = (ctrl_inb(RTC_SEC1) & 0xf) + (ctrl_inb(RTC_SEC10) & 0x7) * 10;
 		min  = (ctrl_inb(RTC_MIN1) & 0xf) + (ctrl_inb(RTC_MIN10) & 0xf) * 10;
