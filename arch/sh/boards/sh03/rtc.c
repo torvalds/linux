@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/time.h>
+#include <linux/bcd.h>
 #include <asm/io.h>
 #include <linux/rtc.h>
 #include <linux/spinlock.h>
@@ -32,14 +33,6 @@
 #define RTC_CTL		(RTC_BASE + 15)
 #define RTC_BUSY	1
 #define RTC_STOP	2
-
-#ifndef BCD_TO_BIN
-#define BCD_TO_BIN(val) ((val)=((val)&15) + ((val)>>4)*10)
-#endif
-
-#ifndef BIN_TO_BCD
-#define BIN_TO_BCD(val)	((val)=(((val)/10)<<4) + (val)%10)
-#endif
 
 extern void (*rtc_get_time)(struct timespec *);
 extern int (*rtc_set_time)(const time_t);
