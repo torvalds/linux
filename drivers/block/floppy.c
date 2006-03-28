@@ -170,6 +170,7 @@ static int print_unex = 1;
 #include <linux/mm.h>
 #include <linux/bio.h>
 #include <linux/string.h>
+#include <linux/jiffies.h>
 #include <linux/fcntl.h>
 #include <linux/delay.h>
 #include <linux/mc146818rtc.h>	/* CMOS defines */
@@ -747,7 +748,7 @@ static int disk_change(int drive)
 {
 	int fdc = FDC(drive);
 #ifdef FLOPPY_SANITY_CHECK
-	if (jiffies - UDRS->select_date < UDP->select_delay)
+	if (time_before(jiffies, UDRS->select_date + UDP->select_delay))
 		DPRINT("WARNING disk change called early\n");
 	if (!(FDCS->dor & (0x10 << UNIT(drive))) ||
 	    (FDCS->dor & 3) != UNIT(drive) || fdc != FDC(drive)) {
@@ -1075,7 +1076,7 @@ static int fd_wait_for_completion(unsigned long delay, timeout_fn function)
 		return 1;
 	}
 
-	if ((signed)(jiffies - delay) < 0) {
+	if (time_before(jiffies, delay)) {
 		del_timer(&fd_timer);
 		fd_timer.function = function;
 		fd_timer.expires = delay;
@@ -1535,7 +1536,7 @@ static void setup_rw_floppy(void)
 		 * again just before spinup completion. Beware that
 		 * after scandrives, we must again wait for selection.
 		 */
-		if ((signed)(ready_date - jiffies) > DP->select_delay) {
+		if (time_after(ready_date, jiffies + DP->select_delay)) {
 			ready_date -= DP->select_delay;
 			function = (timeout_fn) floppy_start;
 		} else
@@ -3823,7 +3824,7 @@ static int check_floppy_change(struct gendisk *disk)
 	if (UTESTF(FD_DISK_CHANGED) || UTESTF(FD_VERIFY))
 		return 1;
 
-	if (UDP->checkfreq < (int)(jiffies - UDRS->last_checked)) {
+	if (time_after(jiffies, UDRS->last_checked + UDP->checkfreq)) {
 		if (floppy_grab_irq_and_dma()) {
 			return 1;
 		}
