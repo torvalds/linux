@@ -869,7 +869,7 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 
 	u32 layout_id = 0;
 
-	if (_machine != _MACH_Pmac)
+	if (!machine_is(powermac))
 		return -ENODEV;
 
 	chip->subframe = 0;

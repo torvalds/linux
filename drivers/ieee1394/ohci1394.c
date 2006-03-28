@@ -3526,7 +3526,7 @@ static void ohci1394_pci_remove(struct pci_dev *pdev)
 static int ohci1394_pci_resume (struct pci_dev *pdev)
 {
 #ifdef CONFIG_PPC_PMAC
-	if (_machine == _MACH_Pmac) {
+	if (machine_is(powermac)) {
 		struct device_node *of_node;
 
 		/* Re-enable 1394 */
@@ -3545,7 +3545,7 @@ static int ohci1394_pci_resume (struct pci_dev *pdev)
 static int ohci1394_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 #ifdef CONFIG_PPC_PMAC
-	if (_machine == _MACH_Pmac) {
+	if (machine_is(powermac)) {
 		struct device_node *of_node;
 
 		/* Disable 1394 */

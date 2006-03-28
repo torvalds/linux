@@ -372,23 +372,41 @@ static int pSeries_check_legacy_ioport(unsigned int baseport)
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-extern struct machdep_calls pSeries_md;
 
-static int __init pSeries_probe(int platform)
+static int __init pSeries_probe_hypertas(unsigned long node,
+					 const char *uname, int depth,
+					 void *data)
 {
-	if (platform != PLATFORM_PSERIES &&
-	    platform != PLATFORM_PSERIES_LPAR)
+	if (depth != 1 ||
+	    (strcmp(uname, "rtas") != 0 && strcmp(uname, "rtas@0") != 0))
+ 		return 0;
+
+	if (of_get_flat_dt_prop(node, "ibm,hypertas-functions", NULL) != NULL)
+ 		powerpc_firmware_features |= FW_FEATURE_LPAR;
+
+ 	return 1;
+}
+
+static int __init pSeries_probe(void)
+{
+ 	char *dtype = of_get_flat_dt_prop(of_get_flat_dt_root(),
+ 					  "device_type", NULL);
+ 	if (dtype == NULL)
+ 		return 0;
+ 	if (strcmp(dtype, "chrp"))
 		return 0;
 
-	/* if we have some ppc_md fixups for LPAR to do, do
-	 * it here ...
-	 */
+	DBG("pSeries detected, looking for LPAR capability...\n");
 
-	if (platform == PLATFORM_PSERIES_LPAR)
-		powerpc_firmware_features |= FW_FEATURE_LPAR;
+	/* Now try to figure out if we are running on LPAR */
+	of_scan_flat_dt(pSeries_probe_hypertas, NULL);
+
+	DBG("Machine is%s LPAR !\n",
+	    (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
 
 	return 1;
 }
+
 
 DECLARE_PER_CPU(unsigned long, smt_snooze_delay);
 
@@ -501,7 +519,8 @@ static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 }
 #endif
 
-struct machdep_calls __initdata pSeries_md = {
+define_machine(pseries) {
+	.name			= "pSeries",
 	.probe			= pSeries_probe,
 	.setup_arch		= pSeries_setup_arch,
 	.init_early		= pSeries_init_early,

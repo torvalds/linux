@@ -47,6 +47,7 @@ struct smp_ops_t {
 #endif
 
 struct machdep_calls {
+	char		*name;
 #ifdef CONFIG_PPC64
 	void            (*hpte_invalidate)(unsigned long slot,
 					   unsigned long va,
@@ -85,9 +86,9 @@ struct machdep_calls {
 	void		(*iommu_dev_setup)(struct pci_dev *dev);
 	void		(*iommu_bus_setup)(struct pci_bus *bus);
 	void		(*irq_bus_setup)(struct pci_bus *bus);
-#endif
+#endif /* CONFIG_PPC64 */
 
-	int		(*probe)(int platform);
+	int		(*probe)(void);
 	void		(*setup_arch)(void);
 	void		(*init_early)(void);
 	/* Optional, may be NULL. */
@@ -207,8 +208,6 @@ struct machdep_calls {
 	/* Called at then very end of pcibios_init() */
 	void (*pcibios_after_init)(void);
 
-	/* this is for modules, since _machine can be a define -- Cort */
-	int ppc_machine;
 #endif /* CONFIG_PPC32 */
 
 	/* Called to shutdown machine specific hardware not already controlled
@@ -244,7 +243,26 @@ struct machdep_calls {
 extern void power4_idle(void);
 extern void ppc6xx_idle(void);
 
+/*
+ * ppc_md contains a copy of the machine description structure for the
+ * current platform. machine_id contains the initial address where the
+ * description was found during boot.
+ */
 extern struct machdep_calls ppc_md;
+extern struct machdep_calls *machine_id;
+
+#define __machine_desc __attribute__ ((__section__ (".machine.desc")))
+
+#define define_machine(name) struct machdep_calls mach_##name __machine_desc =
+#define machine_is(name) \
+	({ \
+		extern struct machdep_calls mach_##name \
+			__attribute__((weak));		 \
+		machine_id == &mach_##name; \
+	})
+
+extern void probe_machine(void);
+
 extern char cmd_line[COMMAND_LINE_SIZE];
 
 #ifdef CONFIG_PPC_PMAC

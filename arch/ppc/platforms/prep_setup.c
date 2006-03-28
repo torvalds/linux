@@ -1067,15 +1067,13 @@ prep_map_io(void)
 static int __init
 prep_request_io(void)
 {
-	if (_machine == _MACH_prep) {
 #ifdef CONFIG_NVRAM
-		request_region(PREP_NVRAM_AS0, 0x8, "nvram");
+	request_region(PREP_NVRAM_AS0, 0x8, "nvram");
 #endif
-		request_region(0x00,0x20,"dma1");
-		request_region(0x40,0x20,"timer");
-		request_region(0x80,0x10,"dma page reg");
-		request_region(0xc0,0x20,"dma2");
-	}
+	request_region(0x00,0x20,"dma1");
+	request_region(0x40,0x20,"timer");
+	request_region(0x80,0x10,"dma page reg");
+	request_region(0xc0,0x20,"dma2");
 
 	return 0;
 }

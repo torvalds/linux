@@ -67,10 +67,6 @@ unsigned int DMA_MODE_WRITE;
 int have_of = 1;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
-extern void prep_init(void);
-extern void pmac_init(void);
-extern void chrp_init(void);
-
 dev_t boot_dev;
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
@@ -81,9 +77,6 @@ unsigned long SYSRQ_KEY = 0x54;
 #ifdef CONFIG_VGA_CONSOLE
 unsigned long vgacon_remap_base;
 #endif
-
-struct machdep_calls ppc_md;
-EXPORT_SYMBOL(ppc_md);
 
 /*
  * These are used in binfmt_elf.c to put aux entries on the stack
@@ -120,48 +113,6 @@ unsigned long __init early_init(unsigned long dt_ptr)
 	return KERNELBASE + offset;
 }
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-/*
- * The PPC_MULTIPLATFORM version of platform_init...
- */
-void __init platform_init(void)
-{
-	/* if we didn't get any bootinfo telling us what we are... */
-	if (_machine == 0) {
-		/* prep boot loader tells us if we're prep or not */
-		if ( *(unsigned long *)(KERNELBASE) == (0xdeadc0de) )
-			_machine = _MACH_prep;
-	}
-
-#ifdef CONFIG_PPC_PREP
-	/* not much more to do here, if prep */
-	if (_machine == _MACH_prep) {
-		prep_init();
-		return;
-	}
-#endif
-
-#ifdef CONFIG_ADB
-	if (strstr(cmd_line, "adb_sync")) {
-		extern int __adb_probe_sync;
-		__adb_probe_sync = 1;
-	}
-#endif /* CONFIG_ADB */
-
-	switch (_machine) {
-#ifdef CONFIG_PPC_PMAC
-	case _MACH_Pmac:
-		pmac_init();
-		break;
-#endif
-#ifdef CONFIG_PPC_CHRP
-	case _MACH_chrp:
-		chrp_init();
-		break;
-#endif
-	}
-}
-#endif
 
 /*
  * Find out what kind of machine we're on and save any data we need
@@ -187,8 +138,12 @@ void __init machine_init(unsigned long dt_ptr, unsigned long phys)
 		strlcpy(cmd_line, CONFIG_CMDLINE, sizeof(cmd_line));
 #endif /* CONFIG_CMDLINE */
 
-	/* Base init based on machine type */
+#ifdef CONFIG_PPC_MULTIPLATFORM
+	probe_machine();
+#else
+	/* Base init based on machine type. Obsoloete, please kill ! */
 	platform_init();
+#endif
 
 #ifdef CONFIG_6xx
 	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
@@ -359,7 +314,4 @@ void __init setup_arch(char **cmdline_p)
 	if ( ppc_md.progress ) ppc_md.progress("arch: exit", 0x3eab);
 
 	paging_init();
-
-	/* this is for modules since _machine can be a define -- Cort */
-	ppc_md.ppc_machine = _machine;
 }

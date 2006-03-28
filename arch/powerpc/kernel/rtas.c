@@ -25,6 +25,7 @@
 #include <asm/hvcall.h>
 #include <asm/semaphore.h>
 #include <asm/machdep.h>
+#include <asm/firmware.h>
 #include <asm/page.h>
 #include <asm/param.h>
 #include <asm/system.h>
@@ -768,7 +769,7 @@ void __init rtas_initialize(void)
 	 * the stop-self token if any
 	 */
 #ifdef CONFIG_PPC64
-	if (_machine == PLATFORM_PSERIES_LPAR) {
+	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR)) {
 		rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
 		ibm_suspend_me_token = rtas_token("ibm,suspend-me");
 	}

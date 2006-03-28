@@ -292,6 +292,10 @@ void __init chrp_setup_arch(void)
 
 	pci_create_OF_bus_map();
 
+#ifdef CONFIG_SMP
+	smp_ops = &chrp_smp_ops;
+#endif /* CONFIG_SMP */
+
 	/*
 	 * Print the banner, then scroll down so boot progress
 	 * can be printed.  -- Cort
@@ -506,8 +510,15 @@ chrp_init2(void)
 		ppc_md.progress("  Have fun!    ", 0x7777);
 }
 
-void __init chrp_init(void)
+static int __init chrp_probe(void)
 {
+ 	char *dtype = of_get_flat_dt_prop(of_get_flat_dt_root(),
+ 					  "device_type", NULL);
+ 	if (dtype == NULL)
+ 		return 0;
+ 	if (strcmp(dtype, "chrp"))
+		return 0;
+
 	ISA_DMA_THRESHOLD = ~0L;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;

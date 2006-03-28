@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
+#include <asm/firmware.h>
 
 static struct pci_bus *
 find_bus_among_children(struct pci_bus *bus,

@@ -42,6 +42,7 @@
 #include <asm/semaphore.h>
 #ifdef CONFIG_PPC
 #include <asm/prom.h>
+#include <asm/machdep.h>
 #endif
 
 
@@ -294,7 +295,7 @@ int __init adb_init(void)
 	int i;
 
 #ifdef CONFIG_PPC32
-	if ( (_machine != _MACH_chrp) && (_machine != _MACH_Pmac) )
+	if (!machine_is(chrp) && !machine_is(powermac))
 		return 0;
 #endif
 #ifdef CONFIG_MAC

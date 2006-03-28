@@ -383,14 +383,14 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 			/* Apple uses bits in there in a different way, let's
 			 * only keep the real sense bit on macs
 			 */
-			if (_machine == PLATFORM_POWERMAC)
+			if (machine_is(powermac))
 				sense &= 0x1;
 			np->intrs[intrcount].sense = map_mpic_senses[sense];
 		}
 
 #ifdef CONFIG_PPC64
 		/* We offset irq numbers for the u3 MPIC by 128 in PowerMac */
-		if (_machine == PLATFORM_POWERMAC && ic && ic->parent) {
+		if (machine_is(powermac) && ic && ic->parent) {
 			char *name = get_property(ic->parent, "name", NULL);
 			if (name && !strcmp(name, "u3"))
 				np->intrs[intrcount].line += 128;
@@ -570,6 +570,18 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 	return rc;
 }
 
+unsigned long __init of_get_flat_dt_root(void)
+{
+	unsigned long p = ((unsigned long)initial_boot_params) +
+		initial_boot_params->off_dt_struct;
+
+	while(*((u32 *)p) == OF_DT_NOP)
+		p += 4;
+	BUG_ON (*((u32 *)p) != OF_DT_BEGIN_NODE);
+	p += 4;
+	return _ALIGN(p + strlen((char *)p) + 1, 4);
+}
+
 /**
  * This  function can be used within scan_flattened_dt callback to get
  * access to properties
@@ -610,6 +622,25 @@ void* __init of_get_flat_dt_prop(unsigned long node, const char *name,
 		p += sz;
 		p = _ALIGN(p, 4);
 	} while(1);
+}
+
+int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
+{
+	const char* cp;
+	unsigned long cplen, l;
+
+	cp = of_get_flat_dt_prop(node, "compatible", &cplen);
+	if (cp == NULL)
+		return 0;
+	while (cplen > 0) {
+		if (strncasecmp(cp, compat, strlen(compat)) == 0)
+			return 1;
+		l = strlen(cp) + 1;
+		cp += l;
+		cplen -= l;
+	}
+
+	return 0;
 }
 
 static void *__init unflatten_dt_alloc(unsigned long *mem, unsigned long size,
@@ -686,7 +717,7 @@ static unsigned long __init unflatten_dt_node(unsigned long mem,
 #ifdef DEBUG
 				if ((strlen(p) + l + 1) != allocl) {
 					DBG("%s: p: %d, l: %d, a: %d\n",
-					    pathp, strlen(p), l, allocl);
+					    pathp, (int)strlen(p), l, allocl);
 				}
 #endif
 				p += strlen(p);
@@ -951,7 +982,6 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 static int __init early_init_dt_scan_chosen(unsigned long node,
 					    const char *uname, int depth, void *data)
 {
-	u32 *prop;
 	unsigned long *lprop;
 	unsigned long l;
 	char *p;
@@ -961,14 +991,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	if (depth != 1 ||
 	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
 		return 0;
-
-	/* get platform type */
-	prop = (u32 *)of_get_flat_dt_prop(node, "linux,platform", NULL);
-	if (prop == NULL)
-		return 0;
-#ifdef CONFIG_PPC_MULTIPLATFORM
-	_machine = *prop;
-#endif
 
 #ifdef CONFIG_PPC64
 	/* check if iommu is forced on or off */
@@ -996,15 +1018,15 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	 * set of RTAS infos now if available
 	 */
 	{
-		u64 *basep, *entryp;
+		u64 *basep, *entryp, *sizep;
 
 		basep = of_get_flat_dt_prop(node, "linux,rtas-base", NULL);
 		entryp = of_get_flat_dt_prop(node, "linux,rtas-entry", NULL);
-		prop = of_get_flat_dt_prop(node, "linux,rtas-size", NULL);
-		if (basep && entryp && prop) {
+		sizep = of_get_flat_dt_prop(node, "linux,rtas-size", NULL);
+		if (basep && entryp && sizep) {
 			rtas.base = *basep;
 			rtas.entry = *entryp;
-			rtas.size = *prop;
+			rtas.size = *sizep;
 		}
 	}
 #endif /* CONFIG_PPC_RTAS */
@@ -1775,7 +1797,7 @@ static int of_finish_dynamic_node(struct device_node *node)
 	/* We don't support that function on PowerMac, at least
 	 * not yet
 	 */
-	if (_machine == PLATFORM_POWERMAC)
+	if (machine_is(powermac))
 		return -ENODEV;
 
 	/* fix up new node's linux_phandle field */

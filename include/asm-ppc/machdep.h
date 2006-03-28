@@ -19,6 +19,18 @@ struct pci_dev;
 struct seq_file;
 struct file;
 
+/*
+ * This is for compatibility with ARCH=powerpc.
+ */
+#define machine_is(x)	__MACHINE_IS_##x
+#define __MACHINE_IS_powermac	0
+#define __MACHINE_IS_chrp	0
+#ifdef CONFIG_PPC_PREP
+#define __MACHINE_IS_prep	1
+#else
+#define __MACHINE_IS_prep	0
+#endif
+
 /* We export this macro for external modules like Alsa to know if
  * ppc_md.feature_call is implemented or not
  */

@@ -161,9 +161,7 @@ static void __init bootx_dt_add_prop(char *name, void *data, int size,
 static void __init bootx_add_chosen_props(unsigned long base,
 					  unsigned long *mem_end)
 {
-	u32 val = _MACH_Pmac;
-
-	bootx_dt_add_prop("linux,platform", &val, 4, mem_end);
+	u32 val;
 
 	if (bootx_info->kernelParamsOffset) {
 		char *args = (char *)((unsigned long)bootx_info) +

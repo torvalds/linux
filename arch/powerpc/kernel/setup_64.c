@@ -95,11 +95,6 @@ int dcache_bsize;
 int icache_bsize;
 int ucache_bsize;
 
-/* The main machine-dep calls structure
- */
-struct machdep_calls ppc_md;
-EXPORT_SYMBOL(ppc_md);
-
 #ifdef CONFIG_MAGIC_SYSRQ
 unsigned long SYSRQ_KEY;
 #endif /* CONFIG_MAGIC_SYSRQ */
@@ -160,32 +155,6 @@ early_param("smt-enabled", early_smt_enabled);
 #define check_smt_enabled()
 #endif /* CONFIG_SMP */
 
-extern struct machdep_calls pSeries_md;
-extern struct machdep_calls pmac_md;
-extern struct machdep_calls maple_md;
-extern struct machdep_calls cell_md;
-extern struct machdep_calls iseries_md;
-
-/* Ultimately, stuff them in an elf section like initcalls... */
-static struct machdep_calls __initdata *machines[] = {
-#ifdef CONFIG_PPC_PSERIES
-	&pSeries_md,
-#endif /* CONFIG_PPC_PSERIES */
-#ifdef CONFIG_PPC_PMAC
-	&pmac_md,
-#endif /* CONFIG_PPC_PMAC */
-#ifdef CONFIG_PPC_MAPLE
-	&maple_md,
-#endif /* CONFIG_PPC_MAPLE */
-#ifdef CONFIG_PPC_CELL
-	&cell_md,
-#endif
-#ifdef CONFIG_PPC_ISERIES
-	&iseries_md,
-#endif
-	NULL
-};
-
 /*
  * Early initialization entry point. This is called by head.S
  * with MMU translation disabled. We rely on the "feature" of
@@ -207,12 +176,10 @@ static struct machdep_calls __initdata *machines[] = {
 
 void __init early_setup(unsigned long dt_ptr)
 {
-	static struct machdep_calls **mach;
-
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 
-	DBG(" -> early_setup()\n");
+ 	DBG(" -> early_setup(), dt_ptr: 0x%lx\n", dt_ptr);
 
 	/*
 	 * Do early initializations using the flattened device
@@ -229,22 +196,8 @@ void __init early_setup(unsigned long dt_ptr)
 	get_paca()->stab_real = __pa((u64)&initial_stab);
 	get_paca()->stab_addr = (u64)&initial_stab;
 
-	/*
-	 * Iterate all ppc_md structures until we find the proper
-	 * one for the current machine type
-	 */
-	DBG("Probing machine type for platform %x...\n", _machine);
-
-	for (mach = machines; *mach; mach++) {
-		if ((*mach)->probe(_machine))
-			break;
-	}
-	/* What can we do if we didn't find ? */
-	if (*mach == NULL) {
-		DBG("No suitable machine found !\n");
-		for (;;);
-	}
-	ppc_md = **mach;
+	/* Probe the machine type */
+	probe_machine();
 
 #ifdef CONFIG_CRASH_DUMP
 	kdump_setup();
@@ -346,7 +299,7 @@ static void __init initialize_cache_info(void)
 			const char *dc, *ic;
 
 			/* Then read cache informations */
-			if (_machine == PLATFORM_POWERMAC) {
+			if (machine_is(powermac)) {
 				dc = "d-cache-block-size";
 				ic = "i-cache-block-size";
 			} else {
@@ -490,7 +443,6 @@ void __init setup_system(void)
 	printk("ppc64_pft_size                = 0x%lx\n", ppc64_pft_size);
 	printk("ppc64_interrupt_controller    = 0x%ld\n",
 	       ppc64_interrupt_controller);
-	printk("platform                      = 0x%x\n", _machine);
 	printk("physicalMemorySize            = 0x%lx\n", lmb_phys_mem_size());
 	printk("ppc64_caches.dcache_line_size = 0x%x\n",
 	       ppc64_caches.dline_size);
