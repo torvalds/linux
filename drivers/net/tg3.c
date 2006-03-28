@@ -3600,7 +3600,7 @@ static inline int tg3_40bit_overflow_test(struct tg3 *tp, dma_addr_t mapping,
 					  int len)
 {
 #if defined(CONFIG_HIGHMEM) && (BITS_PER_LONG == 64)
-	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
+	if (tp->tg3_flags & TG3_FLAG_40BIT_DMA_BUG)
 		return (((u64) mapping + len) > DMA_40BIT_MASK);
 	return 0;
 #else
