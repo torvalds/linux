@@ -84,9 +84,27 @@ static inline int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 }
 
 static inline int
-futex_atomic_cmpxchg_inuser(int __user *uaddr, int oldval, int newval)
+futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 {
-	return -ENOSYS;
+	__asm__ __volatile__(
+	"\n1:	lduwa	[%2] %%asi, %0\n"
+	"2:	casa	[%2] %%asi, %0, %1\n"
+	"3:\n"
+	"	.section .fixup,#alloc,#execinstr\n"
+	"	.align	4\n"
+	"4:	ba	3b\n"
+	"	 mov	%3, %0\n"
+	"	.previous\n"
+	"	.section __ex_table,\"a\"\n"
+	"	.align	4\n"
+	"	.word	1b, 4b\n"
+	"	.word	2b, 4b\n"
+	"	.previous\n"
+	: "=&r" (oldval)
+	: "r" (newval), "r" (uaddr), "i" (-EFAULT)
+	: "memory");
+
+	return oldval;
 }
 
 #endif /* !(_SPARC64_FUTEX_H) */
