@@ -6468,6 +6468,9 @@ static void tg3_timer(unsigned long __opaque)
 {
 	struct tg3 *tp = (struct tg3 *) __opaque;
 
+	if (tp->irq_sync)
+		goto restart_timer;
+
 	spin_lock(&tp->lock);
 
 	if (!(tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)) {
@@ -6558,6 +6561,7 @@ static void tg3_timer(unsigned long __opaque)
 
 	spin_unlock(&tp->lock);
 
+restart_timer:
 	tp->timer.expires = jiffies + tp->timer_offset;
 	add_timer(&tp->timer);
 }
