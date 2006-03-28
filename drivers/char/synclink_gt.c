@@ -1793,10 +1793,6 @@ static void rx_async(struct slgt_info *info)
 		DBGDATA(info, p, count, "rx");
 
 		for(i=0 ; i < count; i+=2, p+=2) {
-			if (tty && chars) {
-				tty_flip_buffer_push(tty);
-				chars = 0;
-			}
 			ch = *p;
 			icount->rx++;
 
