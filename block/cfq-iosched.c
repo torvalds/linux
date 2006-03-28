@@ -26,18 +26,12 @@ static const int cfq_back_penalty = 2;		/* penalty of a backwards seek */
 static const int cfq_slice_sync = HZ / 10;
 static int cfq_slice_async = HZ / 25;
 static const int cfq_slice_async_rq = 2;
-static int cfq_slice_idle = HZ / 100;
+static int cfq_slice_idle = HZ / 70;
 
 #define CFQ_IDLE_GRACE		(HZ / 10)
 #define CFQ_SLICE_SCALE		(5)
 
 #define CFQ_KEY_ASYNC		(0)
-#define CFQ_KEY_ANY		(0xffff)
-
-/*
- * disable queueing at the driver/hardware level
- */
-static const int cfq_max_depth = 2;
 
 static DEFINE_RWLOCK(cfq_exit_lock);
 
@@ -101,6 +95,8 @@ static struct completion *ioc_gone;
 
 #define cfq_cfqq_sync(cfqq)		\
 	(cfq_cfqq_class_sync(cfqq) || (cfqq)->on_dispatch[SYNC])
+
+#define sample_valid(samples)	((samples) > 80)
 
 /*
  * Per block device queue structure
@@ -170,7 +166,6 @@ struct cfq_data {
 	unsigned int cfq_slice[2];
 	unsigned int cfq_slice_async_rq;
 	unsigned int cfq_slice_idle;
-	unsigned int cfq_max_depth;
 
 	struct list_head cic_list;
 };
@@ -341,6 +336,14 @@ static int cfq_queue_empty(request_queue_t *q)
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 
 	return !cfqd->busy_queues;
+}
+
+static inline pid_t cfq_queue_pid(struct task_struct *task, int rw)
+{
+	if (rw == READ || process_sync(task))
+		return task->pid;
+
+	return CFQ_KEY_ASYNC;
 }
 
 /*
@@ -626,15 +629,20 @@ cfq_reposition_crq_rb(struct cfq_queue *cfqq, struct cfq_rq *crq)
 	cfq_add_crq_rb(crq);
 }
 
-static struct request *cfq_find_rq_rb(struct cfq_data *cfqd, sector_t sector)
-
+static struct request *
+cfq_find_rq_fmerge(struct cfq_data *cfqd, struct bio *bio)
 {
-	struct cfq_queue *cfqq = cfq_find_cfq_hash(cfqd, current->pid, CFQ_KEY_ANY);
+	struct task_struct *tsk = current;
+	pid_t key = cfq_queue_pid(tsk, bio_data_dir(bio));
+	struct cfq_queue *cfqq;
 	struct rb_node *n;
+	sector_t sector;
 
+	cfqq = cfq_find_cfq_hash(cfqd, key, tsk->ioprio);
 	if (!cfqq)
 		goto out;
 
+	sector = bio->bi_sector + bio_sectors(bio);
 	n = cfqq->sort_list.rb_node;
 	while (n) {
 		struct cfq_rq *crq = rb_entry_crq(n);
@@ -688,7 +696,7 @@ cfq_merge(request_queue_t *q, struct request **req, struct bio *bio)
 		goto out;
 	}
 
-	__rq = cfq_find_rq_rb(cfqd, bio->bi_sector + bio_sectors(bio));
+	__rq = cfq_find_rq_fmerge(cfqd, bio);
 	if (__rq && elv_rq_merge_ok(__rq, bio)) {
 		ret = ELEVATOR_FRONT_MERGE;
 		goto out;
@@ -891,6 +899,7 @@ static struct cfq_queue *cfq_set_active_queue(struct cfq_data *cfqd)
 static int cfq_arm_slice_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 
 {
+	struct cfq_io_context *cic;
 	unsigned long sl;
 
 	WARN_ON(!RB_EMPTY(&cfqq->sort_list));
@@ -906,13 +915,23 @@ static int cfq_arm_slice_timer(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	/*
 	 * task has exited, don't wait
 	 */
-	if (cfqd->active_cic && !cfqd->active_cic->ioc->task)
+	cic = cfqd->active_cic;
+	if (!cic || !cic->ioc->task)
 		return 0;
 
 	cfq_mark_cfqq_must_dispatch(cfqq);
 	cfq_mark_cfqq_wait_request(cfqq);
 
 	sl = min(cfqq->slice_end - 1, (unsigned long) cfqd->cfq_slice_idle);
+
+	/*
+	 * we don't want to idle for seeks, but we do want to allow
+	 * fair distribution of slice time for a process doing back-to-back
+	 * seeks. so allow a little bit of time for him to submit a new rq
+	 */
+	if (sample_valid(cic->seek_samples) && cic->seek_mean > 131072)
+		sl = 2;
+
 	mod_timer(&cfqd->idle_slice_timer, jiffies + sl);
 	return 1;
 }
@@ -1129,13 +1148,6 @@ cfq_dispatch_requests(request_queue_t *q, int force)
 	if (cfqq) {
 		int max_dispatch;
 
-		/*
-		 * if idle window is disabled, allow queue buildup
-		 */
-		if (!cfq_cfqq_idle_window(cfqq) &&
-		    cfqd->rq_in_driver >= cfqd->cfq_max_depth)
-			return 0;
-
 		cfq_clear_cfqq_must_dispatch(cfqq);
 		cfq_clear_cfqq_wait_request(cfqq);
 		del_timer(&cfqd->idle_slice_timer);
@@ -1185,13 +1197,13 @@ __cfq_find_cfq_hash(struct cfq_data *cfqd, unsigned int key, unsigned int prio,
 		    const int hashval)
 {
 	struct hlist_head *hash_list = &cfqd->cfq_hash[hashval];
-	struct hlist_node *entry, *next;
+	struct hlist_node *entry;
+	struct cfq_queue *__cfqq;
 
-	hlist_for_each_safe(entry, next, hash_list) {
-		struct cfq_queue *__cfqq = list_entry_qhash(entry);
+	hlist_for_each_entry(__cfqq, entry, hash_list, cfq_hash) {
 		const unsigned short __p = IOPRIO_PRIO_VALUE(__cfqq->org_ioprio_class, __cfqq->org_ioprio);
 
-		if (__cfqq->key == key && (__p == prio || prio == CFQ_KEY_ANY))
+		if (__cfqq->key == key && (__p == prio || !prio))
 			return __cfqq;
 	}
 
@@ -1572,7 +1584,33 @@ cfq_update_io_thinktime(struct cfq_data *cfqd, struct cfq_io_context *cic)
 	cic->ttime_mean = (cic->ttime_total + 128) / cic->ttime_samples;
 }
 
-#define sample_valid(samples)	((samples) > 80)
+static void
+cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_io_context *cic,
+		       struct cfq_rq *crq)
+{
+	sector_t sdist;
+	u64 total;
+
+	if (cic->last_request_pos < crq->request->sector)
+		sdist = crq->request->sector - cic->last_request_pos;
+	else
+		sdist = cic->last_request_pos - crq->request->sector;
+
+	/*
+	 * Don't allow the seek distance to get too large from the
+	 * odd fragment, pagein, etc
+	 */
+	if (cic->seek_samples <= 60) /* second&third seek */
+		sdist = min(sdist, (cic->seek_mean * 4) + 2*1024*1024);
+	else
+		sdist = min(sdist, (cic->seek_mean * 4)	+ 2*1024*64);
+
+	cic->seek_samples = (7*cic->seek_samples + 256) / 8;
+	cic->seek_total = (7*cic->seek_total + (u64)256*sdist) / 8;
+	total = cic->seek_total + (cic->seek_samples/2);
+	do_div(total, cic->seek_samples);
+	cic->seek_mean = (sector_t)total;
+}
 
 /*
  * Disable idle window if the process thinks too long or seeks so much that
@@ -1685,9 +1723,11 @@ cfq_crq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cic = crq->io_context;
 
 	cfq_update_io_thinktime(cfqd, cic);
+	cfq_update_io_seektime(cfqd, cic, crq);
 	cfq_update_idle_window(cfqd, cfqq, cic);
 
 	cic->last_queue = jiffies;
+	cic->last_request_pos = crq->request->sector + crq->request->nr_sectors;
 
 	if (cfqq == cfqd->active_queue) {
 		/*
@@ -1818,14 +1858,6 @@ static void cfq_prio_boost(struct cfq_queue *cfqq)
 	if ((ioprio_class != cfqq->ioprio_class || ioprio != cfqq->ioprio) &&
 	    cfq_cfqq_on_rr(cfqq))
 		cfq_resort_rr_list(cfqq, 0);
-}
-
-static inline pid_t cfq_queue_pid(struct task_struct *task, int rw)
-{
-	if (rw == READ || process_sync(task))
-		return task->pid;
-
-	return CFQ_KEY_ASYNC;
 }
 
 static inline int
@@ -2226,7 +2258,6 @@ static int cfq_init_queue(request_queue_t *q, elevator_t *e)
 	cfqd->cfq_slice[1] = cfq_slice_sync;
 	cfqd->cfq_slice_async_rq = cfq_slice_async_rq;
 	cfqd->cfq_slice_idle = cfq_slice_idle;
-	cfqd->cfq_max_depth = cfq_max_depth;
 
 	return 0;
 out_crqpool:
@@ -2309,7 +2340,6 @@ SHOW_FUNCTION(cfq_slice_idle_show, cfqd->cfq_slice_idle, 1);
 SHOW_FUNCTION(cfq_slice_sync_show, cfqd->cfq_slice[1], 1);
 SHOW_FUNCTION(cfq_slice_async_show, cfqd->cfq_slice[0], 1);
 SHOW_FUNCTION(cfq_slice_async_rq_show, cfqd->cfq_slice_async_rq, 0);
-SHOW_FUNCTION(cfq_max_depth_show, cfqd->cfq_max_depth, 0);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
@@ -2338,7 +2368,6 @@ STORE_FUNCTION(cfq_slice_idle_store, &cfqd->cfq_slice_idle, 0, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_sync_store, &cfqd->cfq_slice[1], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_async_store, &cfqd->cfq_slice[0], 1, UINT_MAX, 1);
 STORE_FUNCTION(cfq_slice_async_rq_store, &cfqd->cfq_slice_async_rq, 1, UINT_MAX, 0);
-STORE_FUNCTION(cfq_max_depth_store, &cfqd->cfq_max_depth, 1, UINT_MAX, 0);
 #undef STORE_FUNCTION
 
 #define CFQ_ATTR(name) \
@@ -2355,7 +2384,6 @@ static struct elv_fs_entry cfq_attrs[] = {
 	CFQ_ATTR(slice_async),
 	CFQ_ATTR(slice_async_rq),
 	CFQ_ATTR(slice_idle),
-	CFQ_ATTR(max_depth),
 	__ATTR_NULL
 };
 

@@ -63,10 +63,16 @@ struct cfq_io_context {
 	struct io_context *ioc;
 
 	unsigned long last_end_request;
-	unsigned long last_queue;
+	sector_t last_request_pos;
+ 	unsigned long last_queue;
+
 	unsigned long ttime_total;
 	unsigned long ttime_samples;
 	unsigned long ttime_mean;
+
+	unsigned int seek_samples;
+	u64 seek_total;
+	sector_t seek_mean;
 
 	struct list_head queue_list;
 
