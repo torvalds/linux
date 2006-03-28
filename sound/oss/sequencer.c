@@ -1671,14 +1671,7 @@ void sequencer_init(void)
 
 void sequencer_unload(void)
 {
-	if(queue)
-	{
-		vfree(queue);
-		queue=NULL;
-	}
-	if(iqueue)
-	{
-		vfree(iqueue);
-		iqueue=NULL;
-	}
+	vfree(queue);
+	vfree(iqueue);
+	queue = iqueue = NULL;
 }
