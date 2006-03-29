@@ -63,6 +63,33 @@ config SERIAL_8250_CONSOLE
 
 	  If unsure, say N.
 
+config SERIAL_8250_GSC
+	tristate
+	depends on SERIAL_8250 && GSC
+	default SERIAL_8250
+
+config SERIAL_8250_PCI
+	tristate "8250/16550 PCI device support" if EMBEDDED
+	depends on SERIAL_8250 && PCI
+	default SERIAL_8250
+	help
+	  This builds standard PCI serial support. You may be able to
+	  disable this feature if you only need legacy serial support.
+	  Saves about 9K.
+
+config SERIAL_8250_PNP
+	tristate "8250/16550 PNP device support" if EMBEDDED
+	depends on SERIAL_8250 && PNP
+	default SERIAL_8250
+	help
+	  This builds standard PNP serial support. You may be able to
+	  disable this feature if you only need legacy serial support.
+
+config SERIAL_8250_HP300
+	tristate
+	depends on SERIAL_8250 && HP300
+	default SERIAL_8250
+
 config SERIAL_8250_CS
 	tristate "8250/16550 PCMCIA device support"
 	depends on PCMCIA && SERIAL_8250
