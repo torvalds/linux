@@ -300,7 +300,7 @@ config VIDEO_OVCAMCHIP
 	  camera drivers.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ovcamchip
+	  module will be called ovcamchip.
 
 config VIDEO_M32R_AR
 	tristate "AR devices"
@@ -330,7 +330,7 @@ config VIDEO_MSP3400
 	  Support for the Micronas MSP34xx series of audio decoders.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called msp3400
+	  module will be called msp3400.
 
 config VIDEO_CS53L32A
 	tristate "Cirrus Logic CS53L32A audio ADC"
@@ -340,7 +340,7 @@ config VIDEO_CS53L32A
 	  stereo A/D converter.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called cs53l32a
+	  module will be called cs53l32a.
 
 config VIDEO_WM8775
 	tristate "Wolfson Microelectronics WM8775 audio ADC with input mixer"
@@ -350,7 +350,7 @@ config VIDEO_WM8775
 	  performance stereo A/D Converter with a 4 channel input mixer.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called wm8775
+	  module will be called wm8775.
 
 config VIDEO_WM8739
 	tristate "Wolfson Microelectronics WM8739 stereo audio ADC"
@@ -360,7 +360,7 @@ config VIDEO_WM8739
 	  stereo A/D Converter.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called wm8739
+	  module will be called wm8739.
 
 source "drivers/media/video/cx25840/Kconfig"
 
@@ -371,7 +371,7 @@ config VIDEO_SAA711X
 	  Support for the Philips SAA7113/4/5 video decoders.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called saa7115
+	  module will be called saa7115.
 
 config VIDEO_SAA7127
 	tristate "Philips SAA7127/9 digital video encoders"
@@ -380,7 +380,30 @@ config VIDEO_SAA7127
 	  Support for the Philips SAA7127/9 digital video encoders.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called saa7127
+	  module will be called saa7127.
+
+config VIDEO_UPD64031A
+	tristate "NEC Electronics uPD64031A Ghost Reduction"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the NEC Electronics uPD64031A Ghost Reduction
+	  video chip. It is most often found in NTSC TV cards made for
+	  Japan and is used to reduce the 'ghosting' effect that can
+	  be present in analog TV broadcasts.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called upd64031a.
+
+config VIDEO_UPD64083
+	tristate "NEC Electronics uPD64083 3-Dimensional Y/C separation"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Support for the NEC Electronics uPD64083 3-Dimensional Y/C
+	  separation video chip. It is used to improve the quality of
+	  the colors of a composite signal.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called upd64083.
 
 endmenu # encoder / decoder chips
 
