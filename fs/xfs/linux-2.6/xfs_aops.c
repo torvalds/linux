@@ -1223,10 +1223,9 @@ free_buffers:
 }
 
 STATIC int
-__xfs_get_block(
+__xfs_get_blocks(
 	struct inode		*inode,
 	sector_t		iblock,
-	unsigned long		blocks,
 	struct buffer_head	*bh_result,
 	int			create,
 	int			direct,
@@ -1236,22 +1235,17 @@ __xfs_get_block(
 	xfs_iomap_t		iomap;
 	xfs_off_t		offset;
 	ssize_t			size;
-	int			retpbbm = 1;
+	int			niomap = 1;
 	int			error;
 
 	offset = (xfs_off_t)iblock << inode->i_blkbits;
-	if (blocks)
-		size = (ssize_t) min_t(xfs_off_t, LONG_MAX,
-					(xfs_off_t)blocks << inode->i_blkbits);
-	else
-		size = 1 << inode->i_blkbits;
-
+	ASSERT(bh_result->b_size >= (1 << inode->i_blkbits));
+	size = bh_result->b_size;
 	VOP_BMAP(vp, offset, size,
-		create ? flags : BMAPI_READ, &iomap, &retpbbm, error);
+		create ? flags : BMAPI_READ, &iomap, &niomap, error);
 	if (error)
 		return -error;
-
-	if (retpbbm == 0)
+	if (niomap == 0)
 		return 0;
 
 	if (iomap.iomap_bn != IOMAP_DADDR_NULL) {
@@ -1271,12 +1265,16 @@ __xfs_get_block(
 		}
 	}
 
-	/* If this is a realtime file, data might be on a new device */
+	/*
+	 * If this is a realtime file, data may be on a different device.
+	 * to that pointed to from the buffer_head b_bdev currently.
+	 */
 	bh_result->b_bdev = iomap.iomap_target->bt_bdev;
 
-	/* If we previously allocated a block out beyond eof and
-	 * we are now coming back to use it then we will need to
-	 * flag it as new even if it has a disk address.
+	/*
+	 * If we previously allocated a block out beyond eof and we are
+	 * now coming back to use it then we will need to flag it as new
+	 * even if it has a disk address.
 	 */
 	if (create &&
 	    ((!buffer_mapped(bh_result) && !buffer_uptodate(bh_result)) ||
@@ -1292,26 +1290,24 @@ __xfs_get_block(
 		}
 	}
 
-	if (blocks) {
+	if (direct || size > (1 << inode->i_blkbits)) {
 		ASSERT(iomap.iomap_bsize - iomap.iomap_delta > 0);
 		offset = min_t(xfs_off_t,
-				iomap.iomap_bsize - iomap.iomap_delta,
-				(xfs_off_t)blocks << inode->i_blkbits);
-		bh_result->b_size = (u32) min_t(xfs_off_t, UINT_MAX, offset);
+				iomap.iomap_bsize - iomap.iomap_delta, size);
+		bh_result->b_size = (ssize_t)min_t(xfs_off_t, LONG_MAX, offset);
 	}
 
 	return 0;
 }
 
 int
-xfs_get_block(
+xfs_get_blocks(
 	struct inode		*inode,
 	sector_t		iblock,
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __xfs_get_block(inode, iblock,
-				bh_result->b_size >> inode->i_blkbits,
+	return __xfs_get_blocks(inode, iblock,
 				bh_result, create, 0, BMAPI_WRITE);
 }
 
@@ -1322,8 +1318,7 @@ xfs_get_blocks_direct(
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __xfs_get_block(inode, iblock,
-				bh_result->b_size >> inode->i_blkbits,
+	return __xfs_get_blocks(inode, iblock,
 				bh_result, create, 1, BMAPI_WRITE|BMAPI_DIRECT);
 }
 
@@ -1405,7 +1400,7 @@ xfs_vm_prepare_write(
 	unsigned int		from,
 	unsigned int		to)
 {
-	return block_prepare_write(page, from, to, xfs_get_block);
+	return block_prepare_write(page, from, to, xfs_get_blocks);
 }
 
 STATIC sector_t
@@ -1422,7 +1417,7 @@ xfs_vm_bmap(
 	VOP_RWLOCK(vp, VRWLOCK_READ);
 	VOP_FLUSH_PAGES(vp, (xfs_off_t)0, -1, 0, FI_REMAPF, error);
 	VOP_RWUNLOCK(vp, VRWLOCK_READ);
-	return generic_block_bmap(mapping, block, xfs_get_block);
+	return generic_block_bmap(mapping, block, xfs_get_blocks);
 }
 
 STATIC int
@@ -1430,7 +1425,7 @@ xfs_vm_readpage(
 	struct file		*unused,
 	struct page		*page)
 {
-	return mpage_readpage(page, xfs_get_block);
+	return mpage_readpage(page, xfs_get_blocks);
 }
 
 STATIC int
@@ -1440,7 +1435,7 @@ xfs_vm_readpages(
 	struct list_head	*pages,
 	unsigned		nr_pages)
 {
-	return mpage_readpages(mapping, pages, nr_pages, xfs_get_block);
+	return mpage_readpages(mapping, pages, nr_pages, xfs_get_blocks);
 }
 
 STATIC void
