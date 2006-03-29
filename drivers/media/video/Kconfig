@@ -316,6 +316,13 @@ config VIDEO_M32R_AR_M64278
 	  Say Y here to use the Renesas M64278E-800 camera module,
 	  which supports VGA(640x480 pixcels) size of images.
 
+#
+# Encoder / Decoder module configuration
+#
+
+menu "Encoders and Decoders"
+	depends on VIDEO_DEV
+
 config VIDEO_MSP3400
 	tristate "Micronas MSP34xx audio decoders"
 	depends on VIDEO_DEV && I2C
@@ -364,6 +371,8 @@ config VIDEO_SAA7127
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7127
+
+endmenu # encoder / decoder chips
 
 #
 # USB Multimedia device configuration
