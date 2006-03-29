@@ -114,10 +114,11 @@ static void __exit_signal(struct task_struct *tsk)
 	__unhash_process(tsk);
 
 	tsk->signal = NULL;
-	cleanup_sighand(tsk);
+	tsk->sighand = NULL;
 	spin_unlock(&sighand->siglock);
 	rcu_read_unlock();
 
+	__cleanup_sighand(sighand);
 	clear_tsk_thread_flag(tsk,TIF_SIGPENDING);
 	flush_sigqueue(&tsk->pending);
 	if (sig) {

@@ -803,12 +803,8 @@ static inline int copy_sighand(unsigned long clone_flags, struct task_struct * t
 	return 0;
 }
 
-void cleanup_sighand(struct task_struct *tsk)
+void __cleanup_sighand(struct sighand_struct *sighand)
 {
-	struct sighand_struct * sighand = tsk->sighand;
-
-	/* Ok, we're done with the signal handlers */
-	tsk->sighand = NULL;
 	if (atomic_dec_and_test(&sighand->count))
 		kmem_cache_free(sighand_cachep, sighand);
 }
@@ -1233,7 +1229,7 @@ bad_fork_cleanup_mm:
 bad_fork_cleanup_signal:
 	cleanup_signal(p);
 bad_fork_cleanup_sighand:
-	cleanup_sighand(p);
+	__cleanup_sighand(p->sighand);
 bad_fork_cleanup_fs:
 	exit_fs(p); /* blocking */
 bad_fork_cleanup_files:
