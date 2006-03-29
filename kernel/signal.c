@@ -1309,12 +1309,10 @@ void sigqueue_free(struct sigqueue *q)
 	__sigqueue_free(q);
 }
 
-int
-send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
+int send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 {
 	unsigned long flags;
 	int ret = 0;
-	struct sighand_struct *sh;
 
 	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
 
@@ -1328,39 +1326,9 @@ send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	 */
 	rcu_read_lock();
 
-	if (unlikely(p->flags & PF_EXITING)) {
+	if (!likely(lock_task_sighand(p, &flags))) {
 		ret = -1;
 		goto out_err;
-	}
-
-retry:
-	sh = rcu_dereference(p->sighand);
-
-	spin_lock_irqsave(&sh->siglock, flags);
-	if (p->sighand != sh) {
-		/* We raced with exec() in a multithreaded process... */
-		spin_unlock_irqrestore(&sh->siglock, flags);
-		goto retry;
-	}
-
-	/*
-	 * We do the check here again to handle the following scenario:
-	 *
-	 * CPU 0		CPU 1
-	 * send_sigqueue
-	 * check PF_EXITING
-	 * interrupt		exit code running
-	 *			__exit_signal
-	 *			lock sighand->siglock
-	 *			unlock sighand->siglock
-	 * lock sh->siglock
-	 * add(tsk->pending) 	flush_sigqueue(tsk->pending)
-	 *
-	 */
-
-	if (unlikely(p->flags & PF_EXITING)) {
-		ret = -1;
-		goto out;
 	}
 
 	if (unlikely(!list_empty(&q->list))) {
@@ -1368,8 +1336,7 @@ retry:
 		 * If an SI_TIMER entry is already queue just increment
 		 * the overrun count.
 		 */
-		if (q->info.si_code != SI_TIMER)
-			BUG();
+		BUG_ON(q->info.si_code != SI_TIMER);
 		q->info.si_overrun++;
 		goto out;
 	}
@@ -1385,7 +1352,7 @@ retry:
 		signal_wake_up(p, sig == SIGKILL);
 
 out:
-	spin_unlock_irqrestore(&sh->siglock, flags);
+	unlock_task_sighand(p, &flags);
 out_err:
 	rcu_read_unlock();
 
