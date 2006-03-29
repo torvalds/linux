@@ -441,6 +441,7 @@ extern void set_handler (unsigned long offset, void *addr, unsigned long len);
 extern void set_uncached_handler (unsigned long offset, void *addr, unsigned long len);
 extern void *set_vi_handler (int n, void *addr);
 extern void *set_except_vector(int n, void *addr);
+extern unsigned long ebase;
 extern void per_cpu_trap_init(void);
 
 extern NORET_TYPE void die(const char *, struct pt_regs *);
