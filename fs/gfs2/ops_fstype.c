@@ -88,8 +88,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	mutex_init(&sdp->sd_quota_mutex);
 
 	spin_lock_init(&sdp->sd_log_lock);
-	init_waitqueue_head(&sdp->sd_log_trans_wq);
-	init_waitqueue_head(&sdp->sd_log_flush_wq);
 
 	INIT_LIST_HEAD(&sdp->sd_log_le_gl);
 	INIT_LIST_HEAD(&sdp->sd_log_le_buf);
@@ -101,7 +99,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_ail1_list);
 	INIT_LIST_HEAD(&sdp->sd_ail2_list);
 
-	mutex_init(&sdp->sd_log_flush_lock);
+	init_rwsem(&sdp->sd_log_flush_lock);
 	INIT_LIST_HEAD(&sdp->sd_log_flush_list);
 
 	INIT_LIST_HEAD(&sdp->sd_revoke_list);

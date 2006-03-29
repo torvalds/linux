@@ -611,10 +611,6 @@ struct gfs2_sbd {
 	/* Log stuff */
 
 	spinlock_t sd_log_lock;
-	atomic_t sd_log_trans_count;
-	wait_queue_head_t sd_log_trans_wq;
-	atomic_t sd_log_flush_count;
-	wait_queue_head_t sd_log_flush_wq;
 
 	unsigned int sd_log_blks_reserved;
 	unsigned int sd_log_commited_buf;
@@ -643,7 +639,7 @@ struct gfs2_sbd {
 	int sd_log_idle;
 
 	unsigned long sd_log_flush_time;
-	struct mutex sd_log_flush_lock;
+	struct rw_semaphore sd_log_flush_lock;
 	struct list_head sd_log_flush_list;
 
 	unsigned int sd_log_flush_head;

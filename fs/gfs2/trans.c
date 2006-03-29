@@ -74,10 +74,10 @@ int gfs2_trans_begin_i(struct gfs2_sbd *sdp, unsigned int blocks,
 
 	return 0;
 
- fail_gunlock:
+fail_gunlock:
 	gfs2_glock_dq(&tr->tr_t_gh);
 
- fail_holder_uninit:
+fail_holder_uninit:
 	gfs2_holder_uninit(&tr->tr_t_gh);
 	kfree(tr);
 
