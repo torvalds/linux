@@ -555,9 +555,9 @@ static void reparent_thread(task_t *p, task_t *father, int traced)
 		 * anyway, so let go of it.
 		 */
 		p->ptrace = 0;
-		list_del_init(&p->sibling);
+		remove_parent(p);
 		p->parent = p->real_parent;
-		list_add_tail(&p->sibling, &p->parent->children);
+		add_parent(p);
 
 		/* If we'd notified the old parent about this child's death,
 		 * also notify the new parent.
