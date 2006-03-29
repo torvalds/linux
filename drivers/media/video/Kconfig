@@ -380,11 +380,6 @@ config USB_VICAM
 	---help---
 	  Say Y here if you have 3com homeconnect camera (vicam).
 
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" (under Multimedia Devices) to use this driver.
-	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called vicam.
 
@@ -396,12 +391,6 @@ config USB_DSBR
 	  computer's USB port. Note that the audio is not digital, and
 	  you must connect the line out connector to a sound card or a
 	  set of speakers.
-
-	  This driver uses the Video For Linux API.  You must enable
-	  (Y or M in config) Video For Linux (under Character Devices)
-	  to use this driver.  Information on this API and pointers to
-	  "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dsbr100.
@@ -415,9 +404,6 @@ config USB_ET61X251
 
 	  See <file:Documentation/usb/et61x251.txt> for more informations.
 
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" to use this driver.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called et61x251.
 
@@ -428,12 +414,6 @@ config USB_IBMCAM
 	  Say Y here if you want to connect a IBM "C-It" camera, also known as
 	  "Xirlink PC Camera" to your computer's USB port.  For more
 	  information, read <file:Documentation/usb/ibmcam.txt>.
-
-	  This driver uses the Video For Linux API.  You must enable
-	  (Y or M in config) Video For Linux (under Character Devices)
-	  to use this driver.  Information on this API and pointers to
-	  "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmcam.
@@ -449,12 +429,6 @@ config USB_KONICAWC
 	  Say Y here if you want support for webcams based on a Konica
 	  chipset. This is known to work with the Intel YC76 webcam.
 
-	  This driver uses the Video For Linux API.  You must enable
-	  (Y or M in config) Video For Linux (under Character Devices)
-	  to use this driver.  Information on this API and pointers to
-	  "v4l" programs may be found at
-	  <file:Documentation/video4linux/API.html>.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called konicawc.
 
@@ -466,11 +440,6 @@ config USB_OV511
 	  computer's USB port. See <file:Documentation/usb/ov511.txt> for more
 	  information and for a list of supported cameras.
 
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" (under Character Devices) to use this driver.
-	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov511.
 
@@ -481,11 +450,6 @@ config USB_SE401
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port. See <file:Documentation/usb/se401.txt> for more
 	  information and for a list of supported cameras.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" (under Multimedia Devices) to use this driver.
-	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called se401.
@@ -499,9 +463,6 @@ config USB_SN9C102
 
 	  See <file:Documentation/usb/sn9c102.txt> for more informations.
 
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" to use this driver.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called sn9c102.
 
@@ -514,17 +475,13 @@ config USB_STV680
 	  See <file:Documentation/usb/stv680.txt> for more information and for
 	  a list of supported cameras.
 
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" (under Multimedia Devices) to use this driver.
-	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called stv680.
 
 config USB_W9968CF
 	tristate "USB W996[87]CF JPEG Dual Mode Camera support"
-	depends on USB && VIDEO_DEV && I2C && VIDEO_OVCAMCHIP
+	depends on USB && VIDEO_DEV && I2C
+	select VIDEO_OVCAMCHIP
 	---help---
 	  Say Y here if you want support for cameras based on OV681 or
 	  Winbond W9967CF/W9968CF JPEG USB Dual Mode Camera Chips.
@@ -535,11 +492,6 @@ config USB_W9968CF
 	  Linux kernel for performance purposes.
 
 	  See <file:Documentation/usb/w9968cf.txt> for more informations.
-
-	  This driver uses the Video For Linux and the I2C APIs. It needs the
-	  OmniVision Camera Chip support as well. You must say Y or M to
-	  "Video For Linux", "I2C Support" and "OmniVision Camera Chip
-	  support" to use this driver.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w9968cf.
@@ -552,9 +504,6 @@ config USB_ZC0301
 	  Image Processor and Control Chip.
 
 	  See <file:Documentation/usb/zc0301.txt> for more informations.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" to use this driver.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called zc0301.
@@ -584,11 +533,6 @@ config USB_PWC
 	  installation instructions.
 
 	  The built-in microphone is enabled by selecting USB Audio support.
-
-	  This driver uses the Video For Linux API. You must say Y or M to
-	  "Video For Linux" (under Character Devices) to use this driver.
-	  Information on this API and pointers to "v4l" programs may be found
-	  at <file:Documentation/video4linux/API.html>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pwc.
