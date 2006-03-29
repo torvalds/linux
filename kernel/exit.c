@@ -51,7 +51,6 @@ static void __unhash_process(struct task_struct *p)
 {
 	nr_threads--;
 	detach_pid(p, PIDTYPE_PID);
-	detach_pid(p, PIDTYPE_TGID);
 	if (thread_group_leader(p)) {
 		detach_pid(p, PIDTYPE_PGID);
 		detach_pid(p, PIDTYPE_SID);
@@ -59,7 +58,7 @@ static void __unhash_process(struct task_struct *p)
 		list_del_init(&p->tasks);
 		__get_cpu_var(process_counts)--;
 	}
-
+	list_del_rcu(&p->thread_group);
 	remove_parent(p);
 }
 
@@ -963,13 +962,6 @@ asmlinkage long sys_exit(int error_code)
 {
 	do_exit((error_code&0xff)<<8);
 }
-
-task_t fastcall *next_thread(const task_t *p)
-{
-	return pid_task(p->pids[PIDTYPE_TGID].pid_list.next, PIDTYPE_TGID);
-}
-
-EXPORT_SYMBOL(next_thread);
 
 /*
  * Take down every thread in the group.  This is called by fatal signals

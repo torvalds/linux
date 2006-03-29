@@ -752,6 +752,7 @@ struct task_struct {
 
 	/* PID/PID hash table linkage. */
 	struct pid pids[PIDTYPE_MAX];
+	struct list_head thread_group;
 
 	struct completion *vfork_done;		/* for vfork() */
 	int __user *set_child_tid;		/* CLONE_CHILD_SETTID */
@@ -1192,13 +1193,17 @@ extern void wait_task_inactive(task_t * p);
 #define while_each_thread(g, t) \
 	while ((t = next_thread(t)) != g)
 
-extern task_t * FASTCALL(next_thread(const task_t *p));
-
 #define thread_group_leader(p)	(p->pid == p->tgid)
+
+static inline task_t *next_thread(task_t *p)
+{
+	return list_entry(rcu_dereference(p->thread_group.next),
+				task_t, thread_group);
+}
 
 static inline int thread_group_empty(task_t *p)
 {
-	return list_empty(&p->pids[PIDTYPE_TGID].pid_list);
+	return list_empty(&p->thread_group);
 }
 
 #define delay_group_leader(p) \

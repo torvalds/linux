@@ -1112,6 +1112,7 @@ static task_t *copy_process(unsigned long clone_flags,
 	 * We dont wake it up yet.
 	 */
 	p->group_leader = p;
+	INIT_LIST_HEAD(&p->thread_group);
 	INIT_LIST_HEAD(&p->ptrace_children);
 	INIT_LIST_HEAD(&p->ptrace_list);
 
@@ -1165,7 +1166,9 @@ static task_t *copy_process(unsigned long clone_flags,
 			retval = -EAGAIN;
 			goto bad_fork_cleanup_namespace;
 		}
+
 		p->group_leader = current->group_leader;
+		list_add_tail_rcu(&p->thread_group, &p->group_leader->thread_group);
 
 		if (current->signal->group_stop_count > 0) {
 			/*
@@ -1213,7 +1216,6 @@ static task_t *copy_process(unsigned long clone_flags,
 			list_add_tail(&p->tasks, &init_task.tasks);
 			__get_cpu_var(process_counts)++;
 		}
-		attach_pid(p, PIDTYPE_TGID, p->tgid);
 		attach_pid(p, PIDTYPE_PID, p->pid);
 		nr_threads++;
 	}
