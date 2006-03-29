@@ -135,11 +135,15 @@ ieee80211softmac_wx_set_rate(struct net_device *net_dev,
 	int err = -EINVAL;
 
 	if (in_rate == -1) {
-		/* automatic detect */
-		if (ieee->modulation & IEEE80211_OFDM_MODULATION)
-			in_rate = 54000000;
-		else
+		/* FIXME: We don't correctly handle backing down to lower
+		   rates, so 801.11g devices start off at 11M for now. People
+		   can manually change it if they really need to, but 11M is
+		   more reliable. Note similar logic in
+		   ieee80211softmac_wx_set_rate() */	 
+		if (ieee->modulation & IEEE80211_CCK_MODULATION)
 			in_rate = 11000000;
+		else
+			in_rate = 54000000;
 	}
 
 	switch (in_rate) {

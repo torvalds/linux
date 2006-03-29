@@ -1,0 +1,36 @@
+
+			BCM43xx Linux Driver Project
+			============================
+
+About this software
+-------------------
+
+The goal of this project is to develop a linux driver for Broadcom
+BCM43xx chips, based on the specification at 
+http://bcm-specs.sipsolutions.net/
+
+The project page is http://bcm43xx.berlios.de/
+
+
+Requirements
+------------
+
+1)	Linux Kernel 2.6.16 or later
+	http://www.kernel.org/
+
+	You may want to configure your kernel with:
+
+	CONFIG_DEBUG_FS (optional):
+		-> Kernel hacking
+		  -> Debug Filesystem
+
+2)	SoftMAC IEEE 802.11 Networking Stack extension and patched ieee80211
+	modules:
+	http://softmac.sipsolutions.net/
+
+3)	Firmware Files
+
+	Please try fwcutter. Fwcutter can extract the firmware from various 
+	binary driver files. It supports driver files from Windows, MacOS and 
+	Linux. You can get fwcutter from http://bcm43xx.berlios.de/.
+	Also, fwcutter comes with a README file for further instructions.
