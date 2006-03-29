@@ -3,7 +3,6 @@
 #define _IEEE1394_CORE_H
 
 #include <linux/slab.h>
-#include <linux/devfs_fs_kernel.h>
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
 #include "hosts.h"
