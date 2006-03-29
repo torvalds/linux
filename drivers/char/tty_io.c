@@ -1094,8 +1094,8 @@ static void do_tty_hangup(void *data)
 				p->signal->tty = NULL;
 			if (!p->signal->leader)
 				continue;
-			send_group_sig_info(SIGHUP, SEND_SIG_PRIV, p);
-			send_group_sig_info(SIGCONT, SEND_SIG_PRIV, p);
+			group_send_sig_info(SIGHUP, SEND_SIG_PRIV, p);
+			group_send_sig_info(SIGCONT, SEND_SIG_PRIV, p);
 			if (tty->pgrp > 0)
 				p->signal->tty_old_pgrp = tty->pgrp;
 		} while_each_task_pid(tty->session, PIDTYPE_SID, p);
