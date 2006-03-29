@@ -1181,7 +1181,7 @@ static task_t *copy_process(unsigned long clone_flags,
 	 */
 	p->ioprio = current->ioprio;
 
-	SET_LINKS(p);
+	add_parent(p);
 	if (unlikely(p->ptrace & PT_PTRACED))
 		__ptrace_link(p, current->parent);
 
@@ -1191,6 +1191,8 @@ static task_t *copy_process(unsigned long clone_flags,
 		p->signal->session = current->signal->session;
 		attach_pid(p, PIDTYPE_PGID, process_group(p));
 		attach_pid(p, PIDTYPE_SID, p->signal->session);
+
+		list_add_tail(&p->tasks, &init_task.tasks);
 		if (p->pid)
 			__get_cpu_var(process_counts)++;
 	}

@@ -1186,18 +1186,6 @@ extern void wait_task_inactive(task_t * p);
 #define remove_parent(p)	list_del_init(&(p)->sibling)
 #define add_parent(p)		list_add_tail(&(p)->sibling,&(p)->parent->children)
 
-#define REMOVE_LINKS(p) do {					\
-	if (thread_group_leader(p))				\
-		list_del_init(&(p)->tasks);			\
-	remove_parent(p);					\
-	} while (0)
-
-#define SET_LINKS(p) do {					\
-	if (thread_group_leader(p))				\
-		list_add_tail(&(p)->tasks,&init_task.tasks);	\
-	add_parent(p);						\
-	} while (0)
-
 #define next_task(p)	list_entry((p)->tasks.next, struct task_struct, tasks)
 #define prev_task(p)	list_entry((p)->tasks.prev, struct task_struct, tasks)
 

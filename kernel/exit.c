@@ -54,11 +54,13 @@ static void __unhash_process(struct task_struct *p)
 	if (thread_group_leader(p)) {
 		detach_pid(p, PIDTYPE_PGID);
 		detach_pid(p, PIDTYPE_SID);
+
+		list_del_init(&p->tasks);
 		if (p->pid)
 			__get_cpu_var(process_counts)--;
 	}
 
-	REMOVE_LINKS(p);
+	remove_parent(p);
 }
 
 void release_task(struct task_struct * p)
