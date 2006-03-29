@@ -684,7 +684,7 @@ int __devinit mthca_init_srq_table(struct mthca_dev *dev)
 	return err;
 }
 
-void __devexit mthca_cleanup_srq_table(struct mthca_dev *dev)
+void mthca_cleanup_srq_table(struct mthca_dev *dev)
 {
 	if (!(dev->mthca_flags & MTHCA_FLAG_SRQ))
 		return;
