@@ -1136,16 +1136,6 @@ static task_t *copy_process(unsigned long clone_flags,
 			!cpu_online(task_cpu(p))))
 		set_task_cpu(p, smp_processor_id());
 
-	/*
-	 * Check for pending SIGKILL! The new thread should not be allowed
-	 * to slip out of an OOM kill. (or normal SIGKILL.)
-	 */
-	if (sigismember(&current->pending.signal, SIGKILL)) {
-		write_unlock_irq(&tasklist_lock);
-		retval = -EINTR;
-		goto bad_fork_cleanup_namespace;
-	}
-
 	/* CLONE_PARENT re-uses the old parent */
 	if (clone_flags & (CLONE_PARENT|CLONE_THREAD))
 		p->real_parent = current->real_parent;
@@ -1154,6 +1144,23 @@ static task_t *copy_process(unsigned long clone_flags,
 	p->parent = p->real_parent;
 
 	spin_lock(&current->sighand->siglock);
+
+	/*
+	 * Process group and session signals need to be delivered to just the
+	 * parent before the fork or both the parent and the child after the
+	 * fork. Restart if a signal comes in before we add the new process to
+	 * it's process group.
+	 * A fatal signal pending means that current will exit, so the new
+	 * thread can't slip out of an OOM kill (or normal SIGKILL).
+ 	 */
+ 	recalc_sigpending();
+	if (signal_pending(current)) {
+		spin_unlock(&current->sighand->siglock);
+		write_unlock_irq(&tasklist_lock);
+		retval = -ERESTARTNOINTR;
+		goto bad_fork_cleanup_namespace;
+	}
+
 	if (clone_flags & CLONE_THREAD) {
 		/*
 		 * Important: if an exit-all has been started then
@@ -1169,16 +1176,6 @@ static task_t *copy_process(unsigned long clone_flags,
 
 		p->group_leader = current->group_leader;
 		list_add_tail_rcu(&p->thread_group, &p->group_leader->thread_group);
-
-		if (current->signal->group_stop_count > 0) {
-			/*
-			 * There is an all-stop in progress for the group.
-			 * We ourselves will stop as soon as we check signals.
-			 * Make the new thread part of that group stop too.
-			 */
-			current->signal->group_stop_count++;
-			set_tsk_thread_flag(p, TIF_SIGPENDING);
-		}
 
 		if (!cputime_eq(current->signal->it_virt_expires,
 				cputime_zero) ||
