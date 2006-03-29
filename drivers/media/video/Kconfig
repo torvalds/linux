@@ -395,17 +395,7 @@ config USB_DSBR
 	  To compile this driver as a module, choose M here: the
 	  module will be called dsbr100.
 
-config USB_ET61X251
-	tristate "USB ET61X[12]51 PC Camera Controller support"
-	depends on USB && VIDEO_DEV
-	---help---
-	  Say Y here if you want support for cameras based on Etoms ET61X151
-	  or ET61X251 PC Camera Controllers.
-
-	  See <file:Documentation/usb/et61x251.txt> for more informations.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called et61x251.
+source "drivers/media/video/et61x251/Kconfig"
 
 config USB_IBMCAM
 	tristate "USB IBM (Xirlink) C-it Camera support"

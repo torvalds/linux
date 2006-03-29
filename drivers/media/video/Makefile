@@ -65,7 +65,6 @@ obj-$(CONFIG_VIDEO_CX25840) += cx25840/
 obj-$(CONFIG_VIDEO_SAA711X) += saa7115.o
 obj-$(CONFIG_VIDEO_SAA7127) += saa7127.o
 
-et61x251-objs   := et61x251_core.o et61x251_tas5130d1b.o
 zc0301-objs     := zc0301_core.o zc0301_pas202bcb.o
 
 obj-$(CONFIG_USB_DABUSB)        += dabusb.o
