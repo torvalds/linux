@@ -749,9 +749,13 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 
 #ifdef CONFIG_IEEE1394_SBP2_PHYS_DMA
 		/* Handle data movement if physical dma is not
-		 * enabled/supportedon host controller */
-		hpsb_register_addrspace(&sbp2_highlevel, ud->ne->host, &sbp2_physdma_ops,
-					0x0ULL, 0xfffffffcULL);
+		 * enabled or not supported on host controller */
+		if (!hpsb_register_addrspace(&sbp2_highlevel, ud->ne->host,
+					     &sbp2_physdma_ops,
+					     0x0ULL, 0xfffffffcULL)) {
+			SBP2_ERR("failed to register lower 4GB address range");
+			goto failed_alloc;
+		}
 #endif
 	}
 
