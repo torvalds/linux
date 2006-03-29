@@ -139,6 +139,10 @@ static void user_ast(void *opaque)
 		return;
 	}
 
+	mlog_bug_on_msg(lockres->l_requested == LKM_IVMODE,
+			"Lockres %s, requested ivmode. flags 0x%x\n",
+			lockres->l_name, lockres->l_flags);
+
 	/* we're downconverting. */
 	if (lockres->l_requested < lockres->l_level) {
 		if (lockres->l_requested <=
