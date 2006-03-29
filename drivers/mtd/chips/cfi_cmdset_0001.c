@@ -1479,8 +1479,10 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	   [...], the device will not accept any more Write to Buffer commands".
 	   So we must check here and reset those bits if they're set. Otherwise
 	   we're just pissing in the wind */
-	if (chip->state != FL_STATUS)
+	if (chip->state != FL_STATUS) {
 		map_write(map, CMD(0x70), cmd_adr);
+		chip->state = FL_STATUS;
+	}
 	status = map_read(map, cmd_adr);
 	if (map_word_bitsset(map, status, CMD(0x30))) {
 		xip_enable(map, chip, cmd_adr);
