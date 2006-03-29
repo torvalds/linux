@@ -786,14 +786,6 @@ int unshare_files(void)
 
 EXPORT_SYMBOL(unshare_files);
 
-void sighand_free_cb(struct rcu_head *rhp)
-{
-	struct sighand_struct *sp;
-
-	sp = container_of(rhp, struct sighand_struct, rcu);
-	kmem_cache_free(sighand_cachep, sp);
-}
-
 static inline int copy_sighand(unsigned long clone_flags, struct task_struct * tsk)
 {
 	struct sighand_struct *sig;
@@ -806,7 +798,6 @@ static inline int copy_sighand(unsigned long clone_flags, struct task_struct * t
 	rcu_assign_pointer(tsk->sighand, sig);
 	if (!sig)
 		return -ENOMEM;
-	spin_lock_init(&sig->siglock);
 	atomic_set(&sig->count, 1);
 	memcpy(sig->action, current->sighand->action, sizeof(sig->action));
 	return 0;
@@ -1356,11 +1347,21 @@ long do_fork(unsigned long clone_flags,
 #define ARCH_MIN_MMSTRUCT_ALIGN 0
 #endif
 
+static void sighand_ctor(void *data, kmem_cache_t *cachep, unsigned long flags)
+{
+	struct sighand_struct *sighand = data;
+
+	if ((flags & (SLAB_CTOR_VERIFY | SLAB_CTOR_CONSTRUCTOR)) ==
+					SLAB_CTOR_CONSTRUCTOR)
+		spin_lock_init(&sighand->siglock);
+}
+
 void __init proc_caches_init(void)
 {
 	sighand_cachep = kmem_cache_create("sighand_cache",
 			sizeof(struct sighand_struct), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_DESTROY_BY_RCU,
+			sighand_ctor, NULL);
 	signal_cachep = kmem_cache_create("signal_cache",
 			sizeof(struct signal_struct), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);

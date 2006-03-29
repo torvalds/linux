@@ -330,7 +330,7 @@ void __exit_sighand(struct task_struct *tsk)
 	/* Ok, we're done with the signal handlers */
 	tsk->sighand = NULL;
 	if (atomic_dec_and_test(&sighand->count))
-		sighand_free(sighand);
+		kmem_cache_free(sighand_cachep, sighand);
 }
 
 void exit_sighand(struct task_struct *tsk)

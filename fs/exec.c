@@ -768,7 +768,6 @@ no_thread_group:
 		/*
 		 * Move our state over to newsighand and switch it in.
 		 */
-		spin_lock_init(&newsighand->siglock);
 		atomic_set(&newsighand->count, 1);
 		memcpy(newsighand->action, oldsighand->action,
 		       sizeof(newsighand->action));
@@ -785,7 +784,7 @@ no_thread_group:
 		write_unlock_irq(&tasklist_lock);
 
 		if (atomic_dec_and_test(&oldsighand->count))
-			sighand_free(oldsighand);
+			kmem_cache_free(sighand_cachep, oldsighand);
 	}
 
 	BUG_ON(!thread_group_leader(current));

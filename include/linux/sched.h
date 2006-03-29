@@ -355,15 +355,7 @@ struct sighand_struct {
 	atomic_t		count;
 	struct k_sigaction	action[_NSIG];
 	spinlock_t		siglock;
-	struct rcu_head		rcu;
 };
-
-extern void sighand_free_cb(struct rcu_head *rhp);
-
-static inline void sighand_free(struct sighand_struct *sp)
-{
-	call_rcu(&sp->rcu, sighand_free_cb);
-}
 
 /*
  * NOTE! "signal_struct" does not have it's own
