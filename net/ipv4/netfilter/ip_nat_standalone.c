@@ -425,17 +425,17 @@ static int init_or_cleanup(int init)
 	return ret;
 }
 
-static int __init init(void)
+static int __init ip_nat_standalone_init(void)
 {
 	return init_or_cleanup(1);
 }
 
-static void __exit fini(void)
+static void __exit ip_nat_standalone_fini(void)
 {
 	init_or_cleanup(0);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip_nat_standalone_init);
+module_exit(ip_nat_standalone_fini);
 
 MODULE_LICENSE("GPL");

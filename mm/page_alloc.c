@@ -49,7 +49,6 @@ nodemask_t node_online_map __read_mostly = { { [0] = 1UL } };
 EXPORT_SYMBOL(node_online_map);
 nodemask_t node_possible_map __read_mostly = NODE_MASK_ALL;
 EXPORT_SYMBOL(node_possible_map);
-struct pglist_data *pgdat_list __read_mostly;
 unsigned long totalram_pages __read_mostly;
 unsigned long totalhigh_pages __read_mostly;
 long nr_swap_pages;
@@ -1201,7 +1200,7 @@ unsigned int nr_free_highpages (void)
 	pg_data_t *pgdat;
 	unsigned int pages = 0;
 
-	for_each_pgdat(pgdat)
+	for_each_online_pgdat(pgdat)
 		pages += pgdat->node_zones[ZONE_HIGHMEM].free_pages;
 
 	return pages;
@@ -1343,7 +1342,7 @@ void get_zone_counts(unsigned long *active,
 	*active = 0;
 	*inactive = 0;
 	*free = 0;
-	for_each_pgdat(pgdat) {
+	for_each_online_pgdat(pgdat) {
 		unsigned long l, m, n;
 		__get_zone_counts(&l, &m, &n, pgdat);
 		*active += l;
@@ -2029,8 +2028,9 @@ static __meminit void zone_pcp_init(struct zone *zone)
 		setup_pageset(zone_pcp(zone,cpu), batch);
 #endif
 	}
-	printk(KERN_DEBUG "  %s zone: %lu pages, LIFO batch:%lu\n",
-		zone->name, zone->present_pages, batch);
+	if (zone->present_pages)
+		printk(KERN_DEBUG "  %s zone: %lu pages, LIFO batch:%lu\n",
+			zone->name, zone->present_pages, batch);
 }
 
 static __meminit void init_currently_empty_zone(struct zone *zone,
@@ -2041,7 +2041,6 @@ static __meminit void init_currently_empty_zone(struct zone *zone,
 	zone_wait_table_init(zone, size);
 	pgdat->nr_zones = zone_idx(zone) + 1;
 
-	zone->zone_mem_map = pfn_to_page(zone_start_pfn);
 	zone->zone_start_pfn = zone_start_pfn;
 
 	memmap_init(size, pgdat->node_id, zone_idx(zone), zone_start_pfn);
@@ -2169,8 +2168,9 @@ static void *frag_start(struct seq_file *m, loff_t *pos)
 {
 	pg_data_t *pgdat;
 	loff_t node = *pos;
-
-	for (pgdat = pgdat_list; pgdat && node; pgdat = pgdat->pgdat_next)
+	for (pgdat = first_online_pgdat();
+	     pgdat && node;
+	     pgdat = next_online_pgdat(pgdat))
 		--node;
 
 	return pgdat;
@@ -2181,7 +2181,7 @@ static void *frag_next(struct seq_file *m, void *arg, loff_t *pos)
 	pg_data_t *pgdat = (pg_data_t *)arg;
 
 	(*pos)++;
-	return pgdat->pgdat_next;
+	return next_online_pgdat(pgdat);
 }
 
 static void frag_stop(struct seq_file *m, void *arg)
@@ -2482,7 +2482,7 @@ static void setup_per_zone_lowmem_reserve(void)
 	struct pglist_data *pgdat;
 	int j, idx;
 
-	for_each_pgdat(pgdat) {
+	for_each_online_pgdat(pgdat) {
 		for (j = 0; j < MAX_NR_ZONES; j++) {
 			struct zone *zone = pgdat->node_zones + j;
 			unsigned long present_pages = zone->present_pages;
@@ -2701,8 +2701,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 		else
 			numentries <<= (PAGE_SHIFT - scale);
 	}
-	/* rounded up to nearest power of 2 in size */
-	numentries = 1UL << (long_log2(numentries) + 1);
+	numentries = roundup_pow_of_two(numentries);
 
 	/* limit allocation size to 1/16 total memory by default */
 	if (max == 0) {
@@ -2745,3 +2744,44 @@ void *__init alloc_large_system_hash(const char *tablename,
 
 	return table;
 }
+
+#ifdef CONFIG_OUT_OF_LINE_PFN_TO_PAGE
+/*
+ * pfn <-> page translation. out-of-line version.
+ * (see asm-generic/memory_model.h)
+ */
+#if defined(CONFIG_FLATMEM)
+struct page *pfn_to_page(unsigned long pfn)
+{
+	return mem_map + (pfn - ARCH_PFN_OFFSET);
+}
+unsigned long page_to_pfn(struct page *page)
+{
+	return (page - mem_map) + ARCH_PFN_OFFSET;
+}
+#elif defined(CONFIG_DISCONTIGMEM)
+struct page *pfn_to_page(unsigned long pfn)
+{
+	int nid = arch_pfn_to_nid(pfn);
+	return NODE_DATA(nid)->node_mem_map + arch_local_page_offset(pfn,nid);
+}
+unsigned long page_to_pfn(struct page *page)
+{
+	struct pglist_data *pgdat = NODE_DATA(page_to_nid(page));
+	return (page - pgdat->node_mem_map) + pgdat->node_start_pfn;
+}
+#elif defined(CONFIG_SPARSEMEM)
+struct page *pfn_to_page(unsigned long pfn)
+{
+	return __section_mem_map_addr(__pfn_to_section(pfn)) + pfn;
+}
+
+unsigned long page_to_pfn(struct page *page)
+{
+	long section_id = page_to_section(page);
+	return page - __section_mem_map_addr(__nr_to_section(section_id));
+}
+#endif /* CONFIG_FLATMEM/DISCONTIGMME/SPARSEMEM */
+EXPORT_SYMBOL(pfn_to_page);
+EXPORT_SYMBOL(page_to_pfn);
+#endif /* CONFIG_OUT_OF_LINE_PFN_TO_PAGE */

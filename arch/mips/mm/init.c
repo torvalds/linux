@@ -25,6 +25,7 @@
 #include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/proc_fs.h>
+#include <linux/pfn.h>
 
 #include <asm/bootinfo.h>
 #include <asm/cachectl.h>
@@ -176,9 +177,6 @@ void __init paging_init(void)
 
 	free_area_init(zones_size);
 }
-
-#define PFN_UP(x)	(((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
-#define PFN_DOWN(x)	((x) >> PAGE_SHIFT)
 
 static inline int page_is_ram(unsigned long pagenr)
 {

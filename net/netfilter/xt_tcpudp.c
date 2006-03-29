@@ -238,7 +238,7 @@ static struct xt_match udp6_matchstruct = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_tcpudp_init(void)
 {
 	int ret;
 	ret = xt_register_match(&tcp_matchstruct);
@@ -268,7 +268,7 @@ out_unreg_tcp:
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_tcpudp_fini(void)
 {
 	xt_unregister_match(&udp6_matchstruct);
 	xt_unregister_match(&udp_matchstruct);
@@ -276,5 +276,5 @@ static void __exit fini(void)
 	xt_unregister_match(&tcp_matchstruct);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_tcpudp_init);
+module_exit(xt_tcpudp_fini);

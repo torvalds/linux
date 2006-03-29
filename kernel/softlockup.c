@@ -118,6 +118,7 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			printk("watchdog for %i failed\n", hotcpu);
 			return NOTIFY_BAD;
 		}
+  		per_cpu(touch_timestamp, hotcpu) = jiffies;
   		per_cpu(watchdog_task, hotcpu) = p;
 		kthread_bind(p, hotcpu);
  		break;
@@ -151,5 +152,5 @@ __init void spawn_softlockup_task(void)
 	cpu_callback(&cpu_nfb, CPU_ONLINE, cpu);
 	register_cpu_notifier(&cpu_nfb);
 
-	notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 }

@@ -43,7 +43,6 @@ MODULE_AUTHOR("Holger Smolinski <Holger.Smolinski@de.ibm.com>");
 MODULE_DESCRIPTION("Linux on S/390 DASD device driver,"
 		   " Copyright 2000 IBM Corporation");
 MODULE_SUPPORTED_DEVICE("dasd");
-MODULE_PARM(dasd, "1-" __MODULE_STRING(256) "s");
 MODULE_LICENSE("GPL");
 
 /*
@@ -542,9 +541,8 @@ dasd_kmalloc_request(char *magic, int cplength, int datasize,
 	struct dasd_ccw_req *cqr;
 
 	/* Sanity checks */
-	if ( magic == NULL || datasize > PAGE_SIZE ||
-	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE)
-		BUG();
+	BUG_ON( magic == NULL || datasize > PAGE_SIZE ||
+	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
 
 	cqr = kzalloc(sizeof(struct dasd_ccw_req), GFP_ATOMIC);
 	if (cqr == NULL)
@@ -584,9 +582,8 @@ dasd_smalloc_request(char *magic, int cplength, int datasize,
 	int size;
 
 	/* Sanity checks */
-	if ( magic == NULL || datasize > PAGE_SIZE ||
-	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE)
-		BUG();
+	BUG_ON( magic == NULL || datasize > PAGE_SIZE ||
+	     (cplength*sizeof(struct ccw1)) > PAGE_SIZE);
 
 	size = (sizeof(struct dasd_ccw_req) + 7L) & -8L;
 	if (cplength > 0)

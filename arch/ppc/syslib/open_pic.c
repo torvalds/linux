@@ -216,7 +216,7 @@ static void openpic_safe_writefield(volatile u_int __iomem *addr, u_int mask,
 u_int openpic_read_IPI(volatile u_int __iomem * addr)
 {
          u_int val = 0;
-#if defined(OPENPIC_BIG_ENDIAN) || defined(CONFIG_POWER3)
+#if defined(OPENPIC_BIG_ENDIAN)
         val = in_be32(addr);
 #else
         val = in_le32(addr);

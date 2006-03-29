@@ -342,7 +342,7 @@ static int coda_psdev_release(struct inode * inode, struct file * file)
 }
 
 
-static struct file_operations coda_psdev_fops = {
+static const struct file_operations coda_psdev_fops = {
 	.owner		= THIS_MODULE,
 	.read		= coda_psdev_read,
 	.write		= coda_psdev_write,

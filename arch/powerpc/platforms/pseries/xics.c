@@ -500,7 +500,7 @@ nextnode:
 	     np;
 	     np = of_find_node_by_type(np, "cpu")) {
 		ireg = (uint *)get_property(np, "reg", &ilen);
-		if (ireg && ireg[0] == boot_cpuid_phys) {
+		if (ireg && ireg[0] == get_hard_smp_processor_id(boot_cpuid)) {
 			ireg = (uint *)get_property(np, "ibm,ppc-interrupt-gserver#s",
 						    &ilen);
 			i = ilen / sizeof(int);
@@ -541,7 +541,7 @@ nextnode:
 		ops = &pSeriesLP_ops;
 	else {
 #ifdef CONFIG_SMP
-		for_each_cpu(i) {
+		for_each_possible_cpu(i) {
 			int hard_id;
 
 			/* FIXME: Do this dynamically! --RR */

@@ -29,7 +29,7 @@ static DEFINE_SPINLOCK(pause_on_oops_lock);
 int panic_timeout;
 EXPORT_SYMBOL(panic_timeout);
 
-struct notifier_block *panic_notifier_list;
+ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
 
 EXPORT_SYMBOL(panic_notifier_list);
 
@@ -97,7 +97,7 @@ NORET_TYPE void panic(const char * fmt, ...)
 	smp_send_stop();
 #endif
 
-	notifier_call_chain(&panic_notifier_list, 0, buf);
+	atomic_notifier_call_chain(&panic_notifier_list, 0, buf);
 
 	if (!panic_blink)
 		panic_blink = no_blink;

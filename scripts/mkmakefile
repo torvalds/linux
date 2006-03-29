@@ -21,11 +21,13 @@ KERNELOUTPUT := $2
 
 MAKEFLAGS += --no-print-directory
 
+.PHONY: all \$(MAKECMDGOALS)
+
 all:
 	\$(MAKE) -C \$(KERNELSRC) O=\$(KERNELOUTPUT)
 
-%::
+Makefile:;
+
+\$(filter-out all Makefile,\$(MAKECMDGOALS)) %/:
 	\$(MAKE) -C \$(KERNELSRC) O=\$(KERNELOUTPUT) \$@
-
 EOF
-

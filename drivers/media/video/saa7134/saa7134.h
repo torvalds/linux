@@ -34,7 +34,6 @@
 #include <asm/io.h>
 
 #include <media/tuner.h>
-#include <media/audiochip.h>
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/video-buf.h>
@@ -579,7 +578,7 @@ void saa7134_buffer_finish(struct saa7134_dev *dev, struct saa7134_dmaqueue *q,
 			   unsigned int state);
 void saa7134_buffer_next(struct saa7134_dev *dev, struct saa7134_dmaqueue *q);
 void saa7134_buffer_timeout(unsigned long data);
-void saa7134_dma_free(struct saa7134_dev *dev,struct saa7134_buf *buf);
+void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf);
 
 int saa7134_set_dmabits(struct saa7134_dev *dev);
 

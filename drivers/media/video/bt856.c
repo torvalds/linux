@@ -1,4 +1,4 @@
-/* 
+/*
  * bt856 - BT856A Digital Video Encoder (Rockwell Part)
  *
  * Copyright (C) 1999 Mike Bernson <mike@mlb.org>
@@ -285,7 +285,7 @@ bt856_command (struct i2c_client *client,
 static unsigned short normal_i2c[] = { I2C_BT856 >> 1, I2C_CLIENT_END };
 
 static unsigned short ignore = I2C_CLIENT_END;
-                                                                                
+
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,

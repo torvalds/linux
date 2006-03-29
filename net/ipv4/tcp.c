@@ -257,6 +257,7 @@
 #include <linux/fs.h>
 #include <linux/random.h>
 #include <linux/bootmem.h>
+#include <linux/cache.h>
 
 #include <net/icmp.h>
 #include <net/tcp.h>
@@ -275,9 +276,9 @@ atomic_t tcp_orphan_count = ATOMIC_INIT(0);
 
 EXPORT_SYMBOL_GPL(tcp_orphan_count);
 
-int sysctl_tcp_mem[3];
-int sysctl_tcp_wmem[3] = { 4 * 1024, 16 * 1024, 128 * 1024 };
-int sysctl_tcp_rmem[3] = { 4 * 1024, 87380, 87380 * 2 };
+int sysctl_tcp_mem[3] __read_mostly;
+int sysctl_tcp_wmem[3] __read_mostly;
+int sysctl_tcp_rmem[3] __read_mostly;
 
 EXPORT_SYMBOL(sysctl_tcp_mem);
 EXPORT_SYMBOL(sysctl_tcp_rmem);
@@ -365,7 +366,7 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	if (sk->sk_shutdown == SHUTDOWN_MASK || sk->sk_state == TCP_CLOSE)
 		mask |= POLLHUP;
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= POLLIN | POLLRDNORM | POLLRDHUP;
 
 	/* Connected? */
 	if ((1 << sk->sk_state) & ~(TCPF_SYN_SENT | TCPF_SYN_RECV)) {
@@ -2081,7 +2082,8 @@ __setup("thash_entries=", set_thash_entries);
 void __init tcp_init(void)
 {
 	struct sk_buff *skb = NULL;
-	int order, i;
+	unsigned long limit;
+	int order, i, max_share;
 
 	if (sizeof(struct tcp_skb_cb) > sizeof(skb->cb))
 		__skb_cb_too_small_for_tcp(sizeof(struct tcp_skb_cb),
@@ -2155,12 +2157,16 @@ void __init tcp_init(void)
 	sysctl_tcp_mem[1] = 1024 << order;
 	sysctl_tcp_mem[2] = 1536 << order;
 
-	if (order < 3) {
-		sysctl_tcp_wmem[2] = 64 * 1024;
-		sysctl_tcp_rmem[0] = PAGE_SIZE;
-		sysctl_tcp_rmem[1] = 43689;
-		sysctl_tcp_rmem[2] = 2 * 43689;
-	}
+	limit = ((unsigned long)sysctl_tcp_mem[1]) << (PAGE_SHIFT - 7);
+	max_share = min(4UL*1024*1024, limit);
+
+	sysctl_tcp_wmem[0] = SK_STREAM_MEM_QUANTUM;
+	sysctl_tcp_wmem[1] = 16*1024;
+	sysctl_tcp_wmem[2] = max(64*1024, max_share);
+
+	sysctl_tcp_rmem[0] = SK_STREAM_MEM_QUANTUM;
+	sysctl_tcp_rmem[1] = 87380;
+	sysctl_tcp_rmem[2] = max(87380, max_share);
 
 	printk(KERN_INFO "TCP: Hash tables configured "
 	       "(established %d bind %d)\n",

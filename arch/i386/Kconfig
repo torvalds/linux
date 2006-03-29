@@ -37,6 +37,10 @@ config GENERIC_IOMAP
 	bool
 	default y
 
+config GENERIC_HWEIGHT
+	bool
+	default y
+
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
@@ -226,6 +230,15 @@ config SCHED_SMT
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
 	  cost of slightly increased overhead in some places. If unsure say
 	  N here.
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on SMP
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
 
 source "kernel/Kconfig.preempt"
 
@@ -737,7 +750,7 @@ config PHYSICAL_START
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
-	depends on SMP && HOTPLUG && EXPERIMENTAL && !X86_VOYAGER
+	depends on SMP && HOTPLUG && EXPERIMENTAL && !X86_VOYAGER && !X86_PC
 	---help---
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.

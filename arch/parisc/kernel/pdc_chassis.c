@@ -150,7 +150,8 @@ void __init parisc_pdc_chassis_init(void)
 
 		if (handle) {
 			/* initialize panic notifier chain */
-			notifier_chain_register(&panic_notifier_list, &pdc_chassis_panic_block);
+			atomic_notifier_chain_register(&panic_notifier_list,
+					&pdc_chassis_panic_block);
 
 			/* initialize reboot notifier chain */
 			register_reboot_notifier(&pdc_chassis_reboot_block);

@@ -118,8 +118,8 @@ extern struct buffer_head *qnx4_bread(struct inode *, int, int);
 
 extern struct inode_operations qnx4_file_inode_operations;
 extern struct inode_operations qnx4_dir_inode_operations;
-extern struct file_operations qnx4_file_operations;
-extern struct file_operations qnx4_dir_operations;
+extern const struct file_operations qnx4_file_operations;
+extern const struct file_operations qnx4_dir_operations;
 extern int qnx4_is_free(struct super_block *sb, long block);
 extern int qnx4_set_bitmap(struct super_block *sb, long block, int busy);
 extern int qnx4_create(struct inode *inode, struct dentry *dentry, int mode, struct nameidata *nd);

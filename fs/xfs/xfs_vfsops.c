@@ -880,10 +880,10 @@ xfs_statvfs(
  *		       determine if they should be flushed sync, async, or
  *		       delwri.
  *      SYNC_CLOSE   - This flag is passed when the system is being
- *		       unmounted.  We should sync and invalidate everthing.
+ *		       unmounted.  We should sync and invalidate everything.
  *      SYNC_FSDATA  - This indicates that the caller would like to make
  *		       sure the superblock is safe on disk.  We can ensure
- *		       this by simply makeing sure the log gets flushed
+ *		       this by simply making sure the log gets flushed
  *		       if SYNC_BDFLUSH is set, and by actually writing it
  *		       out otherwise.
  *
@@ -908,7 +908,7 @@ xfs_sync(
  *
  * This routine supports all of the flags defined for the generic VFS_SYNC
  * interface as explained above under xfs_sync.  In the interests of not
- * changing interfaces within the 6.5 family, additional internallly-
+ * changing interfaces within the 6.5 family, additional internally-
  * required functions are specified within a separate xflags parameter,
  * only available by calling this routine.
  *
@@ -1090,7 +1090,7 @@ xfs_sync_inodes(
 		 * If this is just vfs_sync() or pflushd() calling
 		 * then we can skip inodes for which it looks like
 		 * there is nothing to do.  Since we don't have the
-		 * inode locked this is racey, but these are periodic
+		 * inode locked this is racy, but these are periodic
 		 * calls so it doesn't matter.  For the others we want
 		 * to know for sure, so we at least try to lock them.
 		 */
@@ -1429,7 +1429,7 @@ xfs_sync_inodes(
  *
  * This routine supports all of the flags defined for the generic VFS_SYNC
  * interface as explained above under xfs_sync.  In the interests of not
- * changing interfaces within the 6.5 family, additional internallly-
+ * changing interfaces within the 6.5 family, additional internally-
  * required functions are specified within a separate xflags parameter,
  * only available by calling this routine.
  *

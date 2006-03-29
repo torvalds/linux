@@ -350,6 +350,13 @@ static void __init pmac_setup_arch(void)
 		smp_ops = &psurge_smp_ops;
 #endif
 #endif /* CONFIG_SMP */
+
+#ifdef CONFIG_ADB
+	if (strstr(cmd_line, "adb_sync")) {
+		extern int __adb_probe_sync;
+		__adb_probe_sync = 1;
+	}
+#endif /* CONFIG_ADB */
 }
 
 char *bootpath;
@@ -576,30 +583,6 @@ pmac_halt(void)
 	pmac_power_off();
 }
 
-#ifdef CONFIG_PPC32
-void __init pmac_init(void)
-{
-	/* isa_io_base gets set in pmac_pci_init */
-	isa_mem_base = PMAC_ISA_MEM_BASE;
-	pci_dram_offset = PMAC_PCI_DRAM_OFFSET;
-	ISA_DMA_THRESHOLD = ~0L;
-	DMA_MODE_READ = 1;
-	DMA_MODE_WRITE = 2;
-
-	ppc_md = pmac_md;
-
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-#ifdef CONFIG_BLK_DEV_IDE_PMAC
-        ppc_ide_md.ide_init_hwif	= pmac_ide_init_hwif_ports;
-        ppc_ide_md.default_io_base	= pmac_ide_get_base;
-#endif /* CONFIG_BLK_DEV_IDE_PMAC */
-#endif /* defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE) */
-
-	if (ppc_md.progress) ppc_md.progress("pmac_init(): exit", 0);
-
-}
-#endif
-
 /* 
  * Early initialization.
  */
@@ -646,6 +629,12 @@ static int __init pmac_declare_of_platform_devices(void)
 {
 	struct device_node *np;
 
+	if (machine_is(chrp))
+		return -1;
+
+	if (!machine_is(powermac))
+		return 0;
+
 	np = of_find_node_by_name(NULL, "valkyrie");
 	if (np)
 		of_platform_device_create(np, "valkyrie", NULL);
@@ -666,12 +655,15 @@ device_initcall(pmac_declare_of_platform_devices);
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-static int __init pmac_probe(int platform)
+static int __init pmac_probe(void)
 {
-#ifdef CONFIG_PPC64
-	if (platform != PLATFORM_POWERMAC)
+	unsigned long root = of_get_flat_dt_root();
+
+	if (!of_flat_dt_is_compatible(root, "Power Macintosh") &&
+	    !of_flat_dt_is_compatible(root, "MacRISC"))
 		return 0;
 
+#ifdef CONFIG_PPC64
 	/*
 	 * On U3, the DART (iommu) must be allocated now since it
 	 * has an impact on htab_initialize (due to the large page it
@@ -680,6 +672,23 @@ static int __init pmac_probe(int platform)
 	 */
 	alloc_dart_table();
 #endif
+
+#ifdef CONFIG_PPC32
+	/* isa_io_base gets set in pmac_pci_init */
+	isa_mem_base = PMAC_ISA_MEM_BASE;
+	pci_dram_offset = PMAC_PCI_DRAM_OFFSET;
+	ISA_DMA_THRESHOLD = ~0L;
+	DMA_MODE_READ = 1;
+	DMA_MODE_WRITE = 2;
+
+#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
+#ifdef CONFIG_BLK_DEV_IDE_PMAC
+        ppc_ide_md.ide_init_hwif	= pmac_ide_init_hwif_ports;
+        ppc_ide_md.default_io_base	= pmac_ide_get_base;
+#endif /* CONFIG_BLK_DEV_IDE_PMAC */
+#endif /* defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE) */
+
+#endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PMAC_SMU
 	/*
@@ -709,10 +718,8 @@ static int pmac_pci_probe_mode(struct pci_bus *bus)
 }
 #endif
 
-struct machdep_calls __initdata pmac_md = {
-#if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC64)
-	.cpu_die		= generic_mach_cpu_die,
-#endif
+define_machine(powermac) {
+	.name			= "PowerMac",
 	.probe			= pmac_probe,
 	.setup_arch		= pmac_setup_arch,
 	.init_early		= pmac_init_early,
@@ -733,7 +740,7 @@ struct machdep_calls __initdata pmac_md = {
 	.progress		= udbg_progress,
 #ifdef CONFIG_PPC64
 	.pci_probe_mode		= pmac_pci_probe_mode,
-	.idle_loop		= native_idle,
+	.power_save		= power4_idle,
 	.enable_pmcs		= power4_enable_pmcs,
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,
@@ -745,5 +752,8 @@ struct machdep_calls __initdata pmac_md = {
 	.pcibios_enable_device_hook = pmac_pci_enable_device_hook,
 	.pcibios_after_init	= pmac_pcibios_after_init,
 	.phys_mem_access_prot	= pci_phys_mem_access_prot,
+#endif
+#if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC64)
+	.cpu_die		= generic_mach_cpu_die,
 #endif
 };

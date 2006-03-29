@@ -81,15 +81,15 @@ static struct ipt_target ipt_tos_reg = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_tos_init(void)
 {
 	return ipt_register_target(&ipt_tos_reg);
 }
 
-static void __exit fini(void)
+static void __exit ipt_tos_fini(void)
 {
 	ipt_unregister_target(&ipt_tos_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_tos_init);
+module_exit(ipt_tos_fini);

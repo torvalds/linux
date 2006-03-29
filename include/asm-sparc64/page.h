@@ -111,6 +111,8 @@ typedef unsigned long pgprot_t;
 				 (_AC(0x0000000070000000,UL)) : \
 				 (_AC(0xfffff80000000000,UL) + (1UL << 32UL)))
 
+#include <asm-generic/memory_model.h>
+
 #endif /* !(__ASSEMBLY__) */
 
 /* to align the pointer to the (next) page boundary */

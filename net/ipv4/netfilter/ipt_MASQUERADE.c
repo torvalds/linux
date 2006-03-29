@@ -175,7 +175,7 @@ static struct ipt_target masquerade = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_masquerade_init(void)
 {
 	int ret;
 
@@ -191,12 +191,12 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit ipt_masquerade_fini(void)
 {
 	ipt_unregister_target(&masquerade);
 	unregister_netdevice_notifier(&masq_dev_notifier);
 	unregister_inetaddr_notifier(&masq_inet_notifier);	
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_masquerade_init);
+module_exit(ipt_masquerade_fini);

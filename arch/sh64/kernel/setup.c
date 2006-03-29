@@ -48,6 +48,7 @@
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
 #include <linux/initrd.h>
+#include <linux/pfn.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>

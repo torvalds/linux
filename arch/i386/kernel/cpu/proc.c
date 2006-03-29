@@ -45,7 +45,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 		/* Intel-defined (#2) */
-		"pni", NULL, NULL, "monitor", "ds_cpl", "vmx", NULL, "est",
+		"pni", NULL, NULL, "monitor", "ds_cpl", "vmx", "smx", "est",
 		"tm2", NULL, "cid", NULL, NULL, "cx16", "xtpr", NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,

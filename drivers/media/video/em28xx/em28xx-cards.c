@@ -28,10 +28,10 @@
 #include <linux/i2c.h>
 #include <linux/usb.h>
 #include <media/tuner.h>
-#include <media/audiochip.h>
+#include <media/msp3400.h>
 #include <media/tveeprom.h>
+#include <media/audiochip.h>
 #include <media/v4l2-common.h>
-#include "msp3400.h"
 
 #include "em28xx.h"
 
@@ -147,11 +147,12 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 0,
-			.amux     = 6,
+			.amux     = MSP_INPUT_DEFAULT,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 2,
-			.amux     = 1,
+			.amux     = MSP_INPUT(MSP_IN_SCART_1, MSP_IN_TUNER_1,
+					MSP_DSP_OUT_SCART, MSP_DSP_OUT_SCART),
 		}},
 	},
 	[EM2820_BOARD_MSI_VOX_USB_2] = {

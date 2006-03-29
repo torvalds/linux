@@ -3,6 +3,7 @@
  * linux/fs/autofs/inode.c
  *
  *  Copyright 1997-1998 Transmeta Corporation -- All Rights Reserved
+ *  Copyright 2005-2006 Ian Kent <raven@themaw.net>
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
@@ -13,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/seq_file.h>
 #include <linux/pagemap.h>
 #include <linux/parser.h>
 #include <linux/bitops.h>
@@ -46,6 +48,7 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 	ino->size = 0;
 
 	ino->last_used = jiffies;
+	atomic_set(&ino->count, 0);
 
 	ino->sbi = sbi;
 
@@ -64,10 +67,19 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 
 void autofs4_free_ino(struct autofs_info *ino)
 {
+	struct autofs_info *p_ino;
+
 	if (ino->dentry) {
 		ino->dentry->d_fsdata = NULL;
-		if (ino->dentry->d_inode)
+		if (ino->dentry->d_inode) {
+			struct dentry *parent = ino->dentry->d_parent;
+			if (atomic_dec_and_test(&ino->count)) {
+				p_ino = autofs4_dentry_ino(parent);
+				if (p_ino && parent != ino->dentry)
+					atomic_dec(&p_ino->count);
+			}
 			dput(ino->dentry);
+		}
 		ino->dentry = NULL;
 	}
 	if (ino->free)
@@ -145,20 +157,44 @@ static void autofs4_put_super(struct super_block *sb)
 		autofs4_catatonic_mode(sbi); /* Free wait queues, close pipe */
 
 	/* Clean up and release dangling references */
-	if (sbi)
-		autofs4_force_release(sbi);
+	autofs4_force_release(sbi);
 
 	kfree(sbi);
 
 	DPRINTK("shutting down");
 }
 
+static int autofs4_show_options(struct seq_file *m, struct vfsmount *mnt)
+{
+	struct autofs_sb_info *sbi = autofs4_sbi(mnt->mnt_sb);
+
+	if (!sbi)
+		return 0;
+
+	seq_printf(m, ",fd=%d", sbi->pipefd);
+	seq_printf(m, ",pgrp=%d", sbi->oz_pgrp);
+	seq_printf(m, ",timeout=%lu", sbi->exp_timeout/HZ);
+	seq_printf(m, ",minproto=%d", sbi->min_proto);
+	seq_printf(m, ",maxproto=%d", sbi->max_proto);
+
+	if (sbi->type & AUTOFS_TYPE_OFFSET)
+		seq_printf(m, ",offset");
+	else if (sbi->type & AUTOFS_TYPE_DIRECT)
+		seq_printf(m, ",direct");
+	else
+		seq_printf(m, ",indirect");
+
+	return 0;
+}
+
 static struct super_operations autofs4_sops = {
 	.put_super	= autofs4_put_super,
 	.statfs		= simple_statfs,
+	.show_options	= autofs4_show_options,
 };
 
-enum {Opt_err, Opt_fd, Opt_uid, Opt_gid, Opt_pgrp, Opt_minproto, Opt_maxproto};
+enum {Opt_err, Opt_fd, Opt_uid, Opt_gid, Opt_pgrp, Opt_minproto, Opt_maxproto,
+	Opt_indirect, Opt_direct, Opt_offset};
 
 static match_table_t tokens = {
 	{Opt_fd, "fd=%u"},
@@ -167,11 +203,15 @@ static match_table_t tokens = {
 	{Opt_pgrp, "pgrp=%u"},
 	{Opt_minproto, "minproto=%u"},
 	{Opt_maxproto, "maxproto=%u"},
+	{Opt_indirect, "indirect"},
+	{Opt_direct, "direct"},
+	{Opt_offset, "offset"},
 	{Opt_err, NULL}
 };
 
 static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid,
-			 pid_t *pgrp, int *minproto, int *maxproto)
+			 pid_t *pgrp, unsigned int *type,
+			 int *minproto, int *maxproto)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -225,6 +265,15 @@ static int parse_options(char *options, int *pipefd, uid_t *uid, gid_t *gid,
 				return 1;
 			*maxproto = option;
 			break;
+		case Opt_indirect:
+			*type = AUTOFS_TYPE_INDIRECT;
+			break;
+		case Opt_direct:
+			*type = AUTOFS_TYPE_DIRECT;
+			break;
+		case Opt_offset:
+			*type = AUTOFS_TYPE_DIRECT | AUTOFS_TYPE_OFFSET;
+			break;
 		default:
 			return 1;
 		}
@@ -243,6 +292,10 @@ static struct autofs_info *autofs4_mkroot(struct autofs_sb_info *sbi)
 	return ino;
 }
 
+static struct dentry_operations autofs4_sb_dentry_operations = {
+	.d_release      = autofs4_dentry_release,
+};
+
 int autofs4_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct inode * root_inode;
@@ -251,7 +304,6 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	int pipefd;
 	struct autofs_sb_info *sbi;
 	struct autofs_info *ino;
-	int minproto, maxproto;
 
 	sbi = (struct autofs_sb_info *) kmalloc(sizeof(*sbi), GFP_KERNEL);
 	if ( !sbi )
@@ -263,12 +315,16 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	s->s_fs_info = sbi;
 	sbi->magic = AUTOFS_SBI_MAGIC;
 	sbi->root = NULL;
+	sbi->pipefd = -1;
 	sbi->catatonic = 0;
 	sbi->exp_timeout = 0;
 	sbi->oz_pgrp = process_group(current);
 	sbi->sb = s;
 	sbi->version = 0;
 	sbi->sub_version = 0;
+	sbi->type = 0;
+	sbi->min_proto = 0;
+	sbi->max_proto = 0;
 	mutex_init(&sbi->wq_mutex);
 	spin_lock_init(&sbi->fs_lock);
 	sbi->queues = NULL;
@@ -285,38 +341,46 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	if (!ino)
 		goto fail_free;
 	root_inode = autofs4_get_inode(s, ino);
-	kfree(ino);
 	if (!root_inode)
-		goto fail_free;
+		goto fail_ino;
 
-	root_inode->i_op = &autofs4_root_inode_operations;
-	root_inode->i_fop = &autofs4_root_operations;
 	root = d_alloc_root(root_inode);
-	pipe = NULL;
-
 	if (!root)
 		goto fail_iput;
+	pipe = NULL;
+
+	root->d_op = &autofs4_sb_dentry_operations;
+	root->d_fsdata = ino;
 
 	/* Can this call block? */
 	if (parse_options(data, &pipefd,
 			  &root_inode->i_uid, &root_inode->i_gid,
-			  &sbi->oz_pgrp,
-			  &minproto, &maxproto)) {
+			  &sbi->oz_pgrp, &sbi->type,
+			  &sbi->min_proto, &sbi->max_proto)) {
 		printk("autofs: called with bogus options\n");
 		goto fail_dput;
 	}
 
+	root_inode->i_fop = &autofs4_root_operations;
+	root_inode->i_op = sbi->type & AUTOFS_TYPE_DIRECT ?
+			&autofs4_direct_root_inode_operations :
+			&autofs4_indirect_root_inode_operations;
+
 	/* Couldn't this be tested earlier? */
-	if (maxproto < AUTOFS_MIN_PROTO_VERSION ||
-	    minproto > AUTOFS_MAX_PROTO_VERSION) {
+	if (sbi->max_proto < AUTOFS_MIN_PROTO_VERSION ||
+	    sbi->min_proto > AUTOFS_MAX_PROTO_VERSION) {
 		printk("autofs: kernel does not match daemon version "
 		       "daemon (%d, %d) kernel (%d, %d)\n",
-			minproto, maxproto,
+			sbi->min_proto, sbi->max_proto,
 			AUTOFS_MIN_PROTO_VERSION, AUTOFS_MAX_PROTO_VERSION);
 		goto fail_dput;
 	}
 
-	sbi->version = maxproto > AUTOFS_MAX_PROTO_VERSION ? AUTOFS_MAX_PROTO_VERSION : maxproto;
+	/* Establish highest kernel protocol version */
+	if (sbi->max_proto > AUTOFS_MAX_PROTO_VERSION)
+		sbi->version = AUTOFS_MAX_PROTO_VERSION;
+	else
+		sbi->version = sbi->max_proto;
 	sbi->sub_version = AUTOFS_PROTO_SUBVERSION;
 
 	DPRINTK("pipe fd = %d, pgrp = %u", pipefd, sbi->oz_pgrp);
@@ -329,6 +393,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	if ( !pipe->f_op || !pipe->f_op->write )
 		goto fail_fput;
 	sbi->pipe = pipe;
+	sbi->pipefd = pipefd;
 
 	/*
 	 * Take a reference to the root dentry so we get a chance to
@@ -356,6 +421,8 @@ fail_dput:
 fail_iput:
 	printk("autofs: get root dentry failed\n");
 	iput(root_inode);
+fail_ino:
+	kfree(ino);
 fail_free:
 	kfree(sbi);
 fail_unlock:

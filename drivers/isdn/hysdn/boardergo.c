@@ -38,8 +38,8 @@ ergo_interrupt(int intno, void *dev_id, struct pt_regs *regs)
 {
 	hysdn_card *card = dev_id;	/* parameter from irq */
 	tErgDpram *dpr;
-	ulong flags;
-	uchar volatile b;
+	unsigned long flags;
+	unsigned char volatile b;
 
 	if (!card)
 		return IRQ_NONE;		/* error -> spurious interrupt */
@@ -77,7 +77,7 @@ ergo_irq_bh(hysdn_card * card)
 {
 	tErgDpram *dpr;
 	int again;
-	ulong flags;
+	unsigned long flags;
 
 	if (card->state != CARD_STATE_RUN)
 		return;		/* invalid call */
@@ -131,8 +131,8 @@ ergo_irq_bh(hysdn_card * card)
 static void
 ergo_stopcard(hysdn_card * card)
 {
-	ulong flags;
-	uchar val;
+	unsigned long flags;
+	unsigned char val;
 
 	hysdn_net_release(card);	/* first release the net device if existing */
 #ifdef CONFIG_HYSDN_CAPI
@@ -157,7 +157,7 @@ ergo_stopcard(hysdn_card * card)
 static void
 ergo_set_errlog_state(hysdn_card * card, int on)
 {
-	ulong flags;
+	unsigned long flags;
 
 	if (card->state != CARD_STATE_RUN) {
 		card->err_log_state = ERRLOG_STATE_OFF;		/* must be off */
@@ -217,9 +217,10 @@ ergo_testram(hysdn_card * card)
 /* Negative return values are interpreted as errors.                         */
 /*****************************************************************************/
 static int
-ergo_writebootimg(struct HYSDN_CARD *card, uchar * buf, ulong offs)
+ergo_writebootimg(struct HYSDN_CARD *card, unsigned char *buf,
+			unsigned long offs)
 {
-	uchar *dst;
+	unsigned char *dst;
 	tErgDpram *dpram;
 	int cnt = (BOOT_IMG_SIZE >> 2);		/* number of words to move and swap (byte order!) */
 	
@@ -264,14 +265,14 @@ ergo_writebootimg(struct HYSDN_CARD *card, uchar * buf, ulong offs)
 /* case of errors a negative error value is returned.                           */
 /********************************************************************************/
 static int
-ergo_writebootseq(struct HYSDN_CARD *card, uchar * buf, int len)
+ergo_writebootseq(struct HYSDN_CARD *card, unsigned char *buf, int len)
 {
 	tDpramBootSpooler *sp = (tDpramBootSpooler *) card->dpram;
-	uchar *dst;
-	uchar buflen;
+	unsigned char *dst;
+	unsigned char buflen;
 	int nr_write;
-	uchar tmp_rdptr;
-	uchar wr_mirror;
+	unsigned char tmp_rdptr;
+	unsigned char wr_mirror;
 	int i;
 
 	if (card->debug_flags & LOG_POF_CARD)
@@ -330,7 +331,7 @@ ergo_waitpofready(struct HYSDN_CARD *card)
 {
 	tErgDpram *dpr = card->dpram;	/* pointer to DPRAM structure */
 	int timecnt = 10000 / 50;	/* timeout is 10 secs max. */
-	ulong flags;
+	unsigned long flags;
 	int msg_size;
 	int i;
 
@@ -345,7 +346,7 @@ ergo_waitpofready(struct HYSDN_CARD *card)
 			if ((dpr->ToPcChannel != CHAN_SYSTEM) ||
 			    (dpr->ToPcSize < MIN_RDY_MSG_SIZE) ||
 			    (dpr->ToPcSize > MAX_RDY_MSG_SIZE) ||
-			    ((*(ulong *) dpr->ToPcBuf) != RDY_MAGIC))
+			    ((*(unsigned long *) dpr->ToPcBuf) != RDY_MAGIC))
 				break;	/* an error occurred */
 
 			/* Check for additional data delivered during SysReady */

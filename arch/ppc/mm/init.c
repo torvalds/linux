@@ -412,14 +412,6 @@ void __init mem_init(void)
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
 
-#ifdef CONFIG_PPC_OF
-	/* mark the RTAS pages as reserved */
-	if ( rtas_data )
-		for (addr = (ulong)__va(rtas_data);
-		     addr < PAGE_ALIGN((ulong)__va(rtas_data)+rtas_size) ;
-		     addr += PAGE_SIZE)
-			SetPageReserved(virt_to_page(addr));
-#endif
 	for (addr = PAGE_OFFSET; addr < (unsigned long)high_memory;
 	     addr += PAGE_SIZE) {
 		if (!PageReserved(virt_to_page(addr)))
@@ -494,11 +486,6 @@ set_phys_avail(unsigned long total_memory)
 				  initrd_end - initrd_start, 1);
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
-#ifdef CONFIG_PPC_OF
-	/* remove the RTAS pages from the available memory */
-	if (rtas_data)
-		mem_pieces_remove(&phys_avail, rtas_data, rtas_size, 1);
-#endif
 }
 
 /* Mark some memory as reserved by removing it from phys_avail. */

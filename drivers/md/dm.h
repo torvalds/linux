@@ -14,6 +14,7 @@
 #include <linux/device-mapper.h>
 #include <linux/list.h>
 #include <linux/blkdev.h>
+#include <linux/hdreg.h>
 
 #define DM_NAME "device-mapper"
 #define DMWARN(f, x...) printk(KERN_WARNING DM_NAME ": " f "\n" , ## x)
@@ -22,16 +23,6 @@
 
 #define DMEMIT(x...) sz += ((sz >= maxlen) ? \
 			  0 : scnprintf(result + sz, maxlen - sz, x))
-
-/*
- * FIXME: I think this should be with the definition of sector_t
- * in types.h.
- */
-#ifdef CONFIG_LBD
-#define SECTOR_FORMAT "%llu"
-#else
-#define SECTOR_FORMAT "%lu"
-#endif
 
 #define SECTOR_SHIFT 9
 
@@ -57,7 +48,7 @@ struct mapped_device;
 int dm_create(struct mapped_device **md);
 int dm_create_with_minor(unsigned int minor, struct mapped_device **md);
 void dm_set_mdptr(struct mapped_device *md, void *ptr);
-void *dm_get_mdptr(dev_t dev);
+void *dm_get_mdptr(struct mapped_device *md);
 struct mapped_device *dm_get_md(dev_t dev);
 
 /*
@@ -95,11 +86,18 @@ int dm_wait_event(struct mapped_device *md, int event_nr);
 struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct mapped_device *md);
 
+/*
+ * Geometry functions.
+ */
+int dm_get_geometry(struct mapped_device *md, struct hd_geometry *geo);
+int dm_set_geometry(struct mapped_device *md, struct hd_geometry *geo);
+
 /*-----------------------------------------------------------------
  * Functions for manipulating a table.  Tables are also reference
  * counted.
  *---------------------------------------------------------------*/
-int dm_table_create(struct dm_table **result, int mode, unsigned num_targets);
+int dm_table_create(struct dm_table **result, int mode,
+		    unsigned num_targets, struct mapped_device *md);
 
 void dm_table_get(struct dm_table *t);
 void dm_table_put(struct dm_table *t);
@@ -117,6 +115,7 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q);
 unsigned int dm_table_get_num_targets(struct dm_table *t);
 struct list_head *dm_table_get_devices(struct dm_table *t);
 int dm_table_get_mode(struct dm_table *t);
+struct mapped_device *dm_table_get_md(struct dm_table *t);
 void dm_table_presuspend_targets(struct dm_table *t);
 void dm_table_postsuspend_targets(struct dm_table *t);
 void dm_table_resume_targets(struct dm_table *t);

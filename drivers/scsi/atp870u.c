@@ -28,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/blkdev.h>
+#include <linux/dma-mapping.h>
 #include <asm/system.h>
 #include <asm/io.h>
 
@@ -2631,7 +2632,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pci_enable_device(pdev))
 		return -EIO;
 
-        if (!pci_set_dma_mask(pdev, 0xFFFFFFFFUL)) {
+        if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
                 printk(KERN_INFO "atp870u: use 32bit DMA mask.\n");
         } else {
                 printk(KERN_ERR "atp870u: DMA mask required but not available.\n");

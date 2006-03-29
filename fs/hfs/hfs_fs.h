@@ -169,7 +169,7 @@ extern int hfs_cat_move(u32, struct inode *, struct qstr *,
 extern void hfs_cat_build_key(struct super_block *, btree_key *, u32, struct qstr *);
 
 /* dir.c */
-extern struct file_operations hfs_dir_operations;
+extern const struct file_operations hfs_dir_operations;
 extern struct inode_operations hfs_dir_inode_operations;
 
 /* extent.c */

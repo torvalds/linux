@@ -123,7 +123,7 @@ static void netlink_destroy_callback(struct netlink_callback *cb);
 static DEFINE_RWLOCK(nl_table_lock);
 static atomic_t nl_table_users = ATOMIC_INIT(0);
 
-static struct notifier_block *netlink_chain;
+static ATOMIC_NOTIFIER_HEAD(netlink_chain);
 
 static u32 netlink_group_mask(u32 group)
 {
@@ -469,7 +469,8 @@ static int netlink_release(struct socket *sock)
 						.protocol = sk->sk_protocol,
 						.pid = nlk->pid,
 					  };
-		notifier_call_chain(&netlink_chain, NETLINK_URELEASE, &n);
+		atomic_notifier_call_chain(&netlink_chain,
+				NETLINK_URELEASE, &n);
 	}	
 
 	if (nlk->module)
@@ -1695,12 +1696,12 @@ static struct file_operations netlink_seq_fops = {
 
 int netlink_register_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_register(&netlink_chain, nb);
+	return atomic_notifier_chain_register(&netlink_chain, nb);
 }
 
 int netlink_unregister_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_unregister(&netlink_chain, nb);
+	return atomic_notifier_chain_unregister(&netlink_chain, nb);
 }
                 
 static const struct proto_ops netlink_ops = {

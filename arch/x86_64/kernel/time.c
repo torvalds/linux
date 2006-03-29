@@ -88,7 +88,8 @@ static inline unsigned int do_gettimeoffset_tsc(void)
 	unsigned long t;
 	unsigned long x;
 	t = get_cycles_sync();
-	if (t < vxtime.last_tsc) t = vxtime.last_tsc; /* hack */
+	if (t < vxtime.last_tsc) 
+		t = vxtime.last_tsc; /* hack */
 	x = ((t - vxtime.last_tsc) * vxtime.tsc_quot) >> 32;
 	return x;
 }
@@ -178,8 +179,9 @@ unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-	/* Assume the lock function has either no stack frame or only a single word.
-	   This checks if the address on the stack looks like a kernel text address.
+	/* Assume the lock function has either no stack frame or only a single 
+	   word.  This checks if the address on the stack looks like a kernel 
+	   text address.
 	   There is a small window for false hits, but in that case the tick
 	   is just accounted to the spinlock function.
 	   Better would be to write these functions in assembler again
@@ -242,17 +244,10 @@ static void set_rtc_mmss(unsigned long nowtime)
 		real_minutes += 30;		/* correct for half hour time zone */
 	real_minutes %= 60;
 
-#if 0
-	/* AMD 8111 is a really bad time keeper and hits this regularly. 
-	   It probably was an attempt to avoid screwing up DST, but ignore
-	   that for now. */	   
 	if (abs(real_minutes - cmos_minutes) >= 30) {
 		printk(KERN_WARNING "time.c: can't update CMOS clock "
 		       "from %d to %d\n", cmos_minutes, real_minutes);
-	} else
-#endif
-
-	{
+	} else {
 		BIN_TO_BCD(real_seconds);
 		BIN_TO_BCD(real_minutes);
 		CMOS_WRITE(real_seconds, RTC_SECONDS);
@@ -293,8 +288,7 @@ unsigned long long monotonic_clock(void)
 			this_offset = hpet_readl(HPET_COUNTER);
 		} while (read_seqretry(&xtime_lock, seq));
 		offset = (this_offset - last_offset);
-		offset *=(NSEC_PER_SEC/HZ)/hpet_tick;
-		return base + offset;
+		offset *= (NSEC_PER_SEC/HZ) / hpet_tick;
 	} else {
 		do {
 			seq = read_seqbegin(&xtime_lock);
@@ -303,50 +297,46 @@ unsigned long long monotonic_clock(void)
 			base = monotonic_base;
 		} while (read_seqretry(&xtime_lock, seq));
 		this_offset = get_cycles_sync();
-		offset = (this_offset - last_offset)*1000/cpu_khz; 
-		return base + offset;
+		offset = (this_offset - last_offset)*1000 / cpu_khz; 
 	}
+	return base + offset;
 }
 EXPORT_SYMBOL(monotonic_clock);
 
 static noinline void handle_lost_ticks(int lost, struct pt_regs *regs)
 {
-    static long lost_count;
-    static int warned;
+	static long lost_count;
+	static int warned;
+	if (report_lost_ticks) {
+		printk(KERN_WARNING "time.c: Lost %d timer tick(s)! ", lost);
+		print_symbol("rip %s)\n", regs->rip);
+	}
 
-    if (report_lost_ticks) {
-	    printk(KERN_WARNING "time.c: Lost %d timer "
-		   "tick(s)! ", lost);
-	    print_symbol("rip %s)\n", regs->rip);
-    }
-
-    if (lost_count == 1000 && !warned) {
-	    printk(KERN_WARNING
-		   "warning: many lost ticks.\n"
-		   KERN_WARNING "Your time source seems to be instable or "
+	if (lost_count == 1000 && !warned) {
+		printk(KERN_WARNING "warning: many lost ticks.\n"
+		       KERN_WARNING "Your time source seems to be instable or "
 		   		"some driver is hogging interupts\n");
-	    print_symbol("rip %s\n", regs->rip);
-	    if (vxtime.mode == VXTIME_TSC && vxtime.hpet_address) {
-		    printk(KERN_WARNING "Falling back to HPET\n");
-		    if (hpet_use_timer)
-		    	vxtime.last = hpet_readl(HPET_T0_CMP) - hpet_tick;
-		    else
-		    	vxtime.last = hpet_readl(HPET_COUNTER);
-		    vxtime.mode = VXTIME_HPET;
-		    do_gettimeoffset = do_gettimeoffset_hpet;
-	    }
-	    /* else should fall back to PIT, but code missing. */
-	    warned = 1;
-    } else
-	    lost_count++;
+		print_symbol("rip %s\n", regs->rip);
+		if (vxtime.mode == VXTIME_TSC && vxtime.hpet_address) {
+			printk(KERN_WARNING "Falling back to HPET\n");
+			if (hpet_use_timer)
+				vxtime.last = hpet_readl(HPET_T0_CMP) - 
+							hpet_tick;
+			else
+				vxtime.last = hpet_readl(HPET_COUNTER);
+			vxtime.mode = VXTIME_HPET;
+			do_gettimeoffset = do_gettimeoffset_hpet;
+		}
+		/* else should fall back to PIT, but code missing. */
+		warned = 1;
+	} else
+		lost_count++;
 
 #ifdef CONFIG_CPU_FREQ
-    /* In some cases the CPU can change frequency without us noticing
-       (like going into thermal throttle)
-       Give cpufreq a change to catch up. */
-    if ((lost_count+1) % 25 == 0) {
-	    cpufreq_delayed_get();
-    }
+	/* In some cases the CPU can change frequency without us noticing
+	   Give cpufreq a change to catch up. */
+	if ((lost_count+1) % 25 == 0)
+		cpufreq_delayed_get();
 #endif
 }
 
@@ -354,7 +344,7 @@ void main_timer_handler(struct pt_regs *regs)
 {
 	static unsigned long rtc_update = 0;
 	unsigned long tsc;
-	int delay, offset = 0, lost = 0;
+	int delay = 0, offset = 0, lost = 0;
 
 /*
  * Here we are in the timer irq handler. We have irqs locally disabled (so we
@@ -375,7 +365,7 @@ void main_timer_handler(struct pt_regs *regs)
 		 */
 		offset = hpet_readl(HPET_T0_CMP) - hpet_tick;
 		delay = hpet_readl(HPET_COUNTER) - offset;
-	} else {
+	} else if (!pmtmr_ioport) {
 		spin_lock(&i8253_lock);
 		outb_p(0x00, 0x43);
 		delay = inb_p(0x40);
@@ -514,43 +504,32 @@ unsigned long long sched_clock(void)
 
 static unsigned long get_cmos_time(void)
 {
-	unsigned int timeout = 1000000, year, mon, day, hour, min, sec;
-	unsigned char uip = 0, this = 0;
+	unsigned int year, mon, day, hour, min, sec;
 	unsigned long flags;
-
-/*
- * The Linux interpretation of the CMOS clock register contents: When the
- * Update-In-Progress (UIP) flag goes from 1 to 0, the RTC registers show the
- * second which has precisely just started. Waiting for this can take up to 1
- * second, we timeout approximately after 2.4 seconds on a machine with
- * standard 8.3 MHz ISA bus.
- */
+	unsigned extyear = 0;
 
 	spin_lock_irqsave(&rtc_lock, flags);
 
-	while (timeout && (!uip || this)) {
-		uip |= this;
-		this = CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP;
-		timeout--;
-	}
-
-	/*
-	 * Here we are safe to assume the registers won't change for a whole
-	 * second, so we just go ahead and read them.
- 	 */
-	sec = CMOS_READ(RTC_SECONDS);
-	min = CMOS_READ(RTC_MINUTES);
-	hour = CMOS_READ(RTC_HOURS);
-	day = CMOS_READ(RTC_DAY_OF_MONTH);
-	mon = CMOS_READ(RTC_MONTH);
-	year = CMOS_READ(RTC_YEAR);
+	do {
+		sec = CMOS_READ(RTC_SECONDS);
+		min = CMOS_READ(RTC_MINUTES);
+		hour = CMOS_READ(RTC_HOURS);
+		day = CMOS_READ(RTC_DAY_OF_MONTH);
+		mon = CMOS_READ(RTC_MONTH);
+		year = CMOS_READ(RTC_YEAR);
+#ifdef CONFIG_ACPI
+		if (acpi_fadt.revision >= FADT2_REVISION_ID &&
+					acpi_fadt.century)
+			extyear = CMOS_READ(acpi_fadt.century);
+#endif
+	} while (sec != CMOS_READ(RTC_SECONDS));
 
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	/*
 	 * We know that x86-64 always uses BCD format, no need to check the
 	 * config register.
- 	*/
+ 	 */
 
 	BCD_TO_BIN(sec);
 	BCD_TO_BIN(min);
@@ -559,11 +538,17 @@ static unsigned long get_cmos_time(void)
 	BCD_TO_BIN(mon);
 	BCD_TO_BIN(year);
 
-	/*
-	 * x86-64 systems only exists since 2002.
-	 * This will work up to Dec 31, 2100
-	 */
-	year += 2000;
+	if (extyear) {
+		BCD_TO_BIN(extyear);
+		year += extyear;
+		printk(KERN_INFO "Extended CMOS year: %d\n", extyear);
+	} else { 
+		/*
+		 * x86-64 systems only exists since 2002.
+		 * This will work up to Dec 31, 2100
+	 	 */
+		year += 2000;
+	}
 
 	return mktime(year, mon, day, hour, min, sec);
 }
@@ -606,7 +591,8 @@ static void cpufreq_delayed_get(void)
 		cpufreq_delayed_issched = 1;
 		if (!warned) {
 			warned = 1;
-			printk(KERN_DEBUG "Losing some ticks... checking if CPU frequency changed.\n");
+			printk(KERN_DEBUG 
+	"Losing some ticks... checking if CPU frequency changed.\n");
 		}
 		schedule_work(&cpufreq_delayed_get_work);
 	}
@@ -629,9 +615,9 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	lpj = &dummy;
 	if (!(freq->flags & CPUFREQ_CONST_LOOPS))
 #ifdef CONFIG_SMP
-	lpj = &cpu_data[freq->cpu].loops_per_jiffy;
+		lpj = &cpu_data[freq->cpu].loops_per_jiffy;
 #else
-	lpj = &boot_cpu_data.loops_per_jiffy;
+		lpj = &boot_cpu_data.loops_per_jiffy;
 #endif
 
 	if (!ref_freq) {
@@ -768,9 +754,8 @@ static __init int late_hpet_init(void)
 		int			i;
 
 		hpet = (struct hpet *) fix_to_virt(FIX_HPET_BASE);
-
-		for (i = 2, timer = &hpet->hpet_timers[2]; i < ntimer;
-		     timer++, i++)
+		timer = &hpet->hpet_timers[2];
+		for (i = 2; i < ntimer; timer++, i++)
 			hd.hd_irq[i] = (timer->hpet_config &
 					Tn_INT_ROUTE_CNF_MASK) >>
 				Tn_INT_ROUTE_CNF_SHIFT;
@@ -927,8 +912,7 @@ void __init time_init(void)
 	                        -xtime.tv_sec, -xtime.tv_nsec);
 
 	if (!hpet_init())
-                vxtime_hz = (1000000000000000L + hpet_period / 2) /
-			hpet_period;
+                vxtime_hz = (1000000000000000L + hpet_period / 2) / hpet_period;
 	else
 		vxtime.hpet_address = 0;
 

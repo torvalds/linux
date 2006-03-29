@@ -1,4 +1,4 @@
-/* 
+/*
  *  adv7175 - adv7175a video encoder driver version 0.0.3
  *
  * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
@@ -233,7 +233,7 @@ adv7175_command (struct i2c_client *client,
 				    sizeof(init_common));
 		adv7175_write(client, 0x07, TR0MODE | TR0RST);
 		adv7175_write(client, 0x07, TR0MODE);
-	        break;
+		break;
 
 	case ENCODER_GET_CAPABILITIES:
 	{
@@ -399,7 +399,7 @@ static unsigned short normal_i2c[] =
 };
 
 static unsigned short ignore = I2C_CLIENT_END;
-                                                                                
+
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,

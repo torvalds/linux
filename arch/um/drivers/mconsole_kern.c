@@ -762,7 +762,8 @@ static struct notifier_block panic_exit_notifier = {
 
 static int add_notifier(void)
 {
-	notifier_chain_register(&panic_notifier_list, &panic_exit_notifier);
+	atomic_notifier_chain_register(&panic_notifier_list,
+			&panic_exit_notifier);
 	return(0);
 }
 

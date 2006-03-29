@@ -13,7 +13,7 @@
 
 #include <asm/cpu/addrspace.h>
 
-/* Memory segments (32bit Priviledged mode addresses)  */
+/* Memory segments (32bit Privileged mode addresses)  */
 #define P0SEG		0x00000000
 #define P1SEG		0x80000000
 #define P2SEG		0xa0000000

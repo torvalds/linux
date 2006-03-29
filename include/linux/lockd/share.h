@@ -25,6 +25,6 @@ u32	nlmsvc_share_file(struct nlm_host *, struct nlm_file *,
 					       struct nlm_args *);
 u32	nlmsvc_unshare_file(struct nlm_host *, struct nlm_file *,
 					       struct nlm_args *);
-int	nlmsvc_traverse_shares(struct nlm_host *, struct nlm_file *, int);
+void	nlmsvc_traverse_shares(struct nlm_host *, struct nlm_file *, int);
 
 #endif /* LINUX_LOCKD_SHARE_H */

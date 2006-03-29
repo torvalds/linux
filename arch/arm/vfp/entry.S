@@ -18,6 +18,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/asm-offsets.h>
+#include <asm/assembler.h>
 #include <asm/vfpmacros.h>
 
 	.globl	do_vfp

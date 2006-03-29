@@ -13,20 +13,30 @@
 
 #if KERNEL_ELFCLASS == ELFCLASS32
 
-#define Elf_Ehdr    Elf32_Ehdr 
-#define Elf_Shdr    Elf32_Shdr 
+#define Elf_Ehdr    Elf32_Ehdr
+#define Elf_Shdr    Elf32_Shdr
 #define Elf_Sym     Elf32_Sym
+#define Elf_Addr    Elf32_Addr
+#define Elf_Section Elf32_Section
 #define ELF_ST_BIND ELF32_ST_BIND
 #define ELF_ST_TYPE ELF32_ST_TYPE
 
+#define Elf_Rela    Elf32_Rela
+#define ELF_R_SYM   ELF32_R_SYM
+#define ELF_R_TYPE  ELF32_R_TYPE
 #else
 
-#define Elf_Ehdr    Elf64_Ehdr 
-#define Elf_Shdr    Elf64_Shdr 
+#define Elf_Ehdr    Elf64_Ehdr
+#define Elf_Shdr    Elf64_Shdr
 #define Elf_Sym     Elf64_Sym
+#define Elf_Addr    Elf64_Addr
+#define Elf_Section Elf64_Section
 #define ELF_ST_BIND ELF64_ST_BIND
 #define ELF_ST_TYPE ELF64_ST_TYPE
 
+#define Elf_Rela    Elf64_Rela
+#define ELF_R_SYM   ELF64_R_SYM
+#define ELF_R_TYPE  ELF64_R_TYPE
 #endif
 
 #if KERNEL_ELFDATA != HOST_ELFDATA
@@ -91,17 +101,22 @@ struct elf_info {
 	unsigned int modinfo_len;
 };
 
+/* file2alias.c */
 void handle_moddevtable(struct module *mod, struct elf_info *info,
 			Elf_Sym *sym, const char *symname);
-
 void add_moddevtable(struct buffer *buf, struct module *mod);
 
+/* sumversion.c */
 void maybe_frob_rcs_version(const char *modfilename,
 			    char *version,
 			    void *modinfo,
 			    unsigned long modinfo_offset);
 void get_src_version(const char *modname, char sum[], unsigned sumlen);
 
+/* from modpost.c */
 void *grab_file(const char *filename, unsigned long *size);
 char* get_next_line(unsigned long *pos, void *file, unsigned long size);
 void release_file(void *file, unsigned long size);
+
+void fatal(const char *fmt, ...);
+void warn(const char *fmt, ...);

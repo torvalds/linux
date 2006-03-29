@@ -1487,7 +1487,7 @@ static struct nf_sockopt_ops ebt_sockopts =
 	.get		= do_ebt_get_ctl,
 };
 
-static int __init init(void)
+static int __init ebtables_init(void)
 {
 	int ret;
 
@@ -1501,7 +1501,7 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ebtables_fini(void)
 {
 	nf_unregister_sockopt(&ebt_sockopts);
 	printk(KERN_NOTICE "Ebtables v2.0 unregistered\n");
@@ -1516,6 +1516,6 @@ EXPORT_SYMBOL(ebt_unregister_watcher);
 EXPORT_SYMBOL(ebt_register_target);
 EXPORT_SYMBOL(ebt_unregister_target);
 EXPORT_SYMBOL(ebt_do_table);
-module_init(init);
-module_exit(fini);
+module_init(ebtables_init);
+module_exit(ebtables_fini);
 MODULE_LICENSE("GPL");

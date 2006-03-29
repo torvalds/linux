@@ -74,12 +74,6 @@ _GLOBAL(hash_page_sync)
  */
 	.text
 _GLOBAL(hash_page)
-#ifdef CONFIG_PPC64BRIDGE
-	mfmsr	r0
-	clrldi	r0,r0,1		/* make sure it's in 32-bit mode */
-	MTMSRD(r0)
-	isync
-#endif
 	tophys(r7,0)			/* gets -KERNELBASE into r7 */
 #ifdef CONFIG_SMP
 	addis	r8,r7,mmu_hash_lock@h
@@ -303,7 +297,6 @@ Hash_base = 0xc0180000
 Hash_bits = 12				/* e.g. 256kB hash table */
 Hash_msk = (((1 << Hash_bits) - 1) * 64)
 
-#ifndef CONFIG_PPC64BRIDGE
 /* defines for the PTE format for 32-bit PPCs */
 #define PTE_SIZE	8
 #define PTEG_SIZE	64
@@ -316,21 +309,6 @@ Hash_msk = (((1 << Hash_bits) - 1) * 64)
 #define TST_V(r)	rlwinm. r,r,0,0,0
 #define SET_V(r)	oris r,r,PTE_V@h
 #define CLR_V(r,t)	rlwinm r,r,0,1,31
-
-#else
-/* defines for the PTE format for 64-bit PPCs */
-#define PTE_SIZE	16
-#define PTEG_SIZE	128
-#define LG_PTEG_SIZE	7
-#define LDPTEu		ldu
-#define STPTE		std
-#define CMPPTE		cmpd
-#define PTE_H		2
-#define PTE_V		1
-#define TST_V(r)	andi. r,r,PTE_V
-#define SET_V(r)	ori r,r,PTE_V
-#define CLR_V(r,t)	li t,PTE_V; andc r,r,t
-#endif /* CONFIG_PPC64BRIDGE */
 
 #define HASH_LEFT	31-(LG_PTEG_SIZE+Hash_bits-1)
 #define HASH_RIGHT	31-LG_PTEG_SIZE
@@ -349,14 +327,8 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_NEED_COHERENT)
 
 	/* Construct the high word of the PPC-style PTE (r5) */
-#ifndef CONFIG_PPC64BRIDGE
 	rlwinm	r5,r3,7,1,24		/* put VSID in 0x7fffff80 bits */
 	rlwimi	r5,r4,10,26,31		/* put in API (abbrev page index) */
-#else /* CONFIG_PPC64BRIDGE */
-	clrlwi	r3,r3,8			/* reduce vsid to 24 bits */
-	sldi	r5,r3,12		/* shift vsid into position */
-	rlwimi	r5,r4,16,20,24		/* put in API (abbrev page index) */
-#endif /* CONFIG_PPC64BRIDGE */
 	SET_V(r5)			/* set V (valid) bit */
 
 	/* Get the address of the primary PTE group in the hash table (r3) */
@@ -540,14 +512,8 @@ _GLOBAL(flush_hash_pages)
 	add	r3,r3,r0		/* note code below trims to 24 bits */
 
 	/* Construct the high word of the PPC-style PTE (r11) */
-#ifndef CONFIG_PPC64BRIDGE
 	rlwinm	r11,r3,7,1,24		/* put VSID in 0x7fffff80 bits */
 	rlwimi	r11,r4,10,26,31		/* put in API (abbrev page index) */
-#else /* CONFIG_PPC64BRIDGE */
-	clrlwi	r3,r3,8			/* reduce vsid to 24 bits */
-	sldi	r11,r3,12		/* shift vsid into position */
-	rlwimi	r11,r4,16,20,24		/* put in API (abbrev page index) */
-#endif /* CONFIG_PPC64BRIDGE */
 	SET_V(r11)			/* set V (valid) bit */
 
 #ifdef CONFIG_SMP

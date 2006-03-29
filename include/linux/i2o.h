@@ -950,9 +950,7 @@ static inline int i2o_pool_alloc(struct i2o_pool *pool, const char *name,
 	if (!pool->slab)
 		goto free_name;
 
-	pool->mempool =
-	    mempool_create(min_nr, mempool_alloc_slab, mempool_free_slab,
-			   pool->slab);
+	pool->mempool = mempool_create_slab_pool(min_nr, pool->slab);
 	if (!pool->mempool)
 		goto free_slab;
 

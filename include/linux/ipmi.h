@@ -36,6 +36,7 @@
 
 #include <linux/ipmi_msgdefs.h>
 #include <linux/compiler.h>
+#include <linux/device.h>
 
 /*
  * This file describes an interface to an IPMI driver.  You have to
@@ -397,7 +398,7 @@ struct ipmi_smi_watcher
 	   the watcher list.  So you can add and remove users from the
 	   IPMI interface, send messages, etc., but you cannot add
 	   or remove SMI watchers or SMI interfaces. */
-	void (*new_smi)(int if_num);
+	void (*new_smi)(int if_num, struct device *dev);
 	void (*smi_gone)(int if_num);
 };
 

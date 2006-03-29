@@ -1519,7 +1519,7 @@ struct inode_operations jfs_dir_inode_operations = {
 #endif
 };
 
-struct file_operations jfs_dir_operations = {
+const struct file_operations jfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= jfs_readdir,
 	.fsync		= jfs_fsync,

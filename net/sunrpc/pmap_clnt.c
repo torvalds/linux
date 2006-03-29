@@ -82,6 +82,7 @@ rpc_getport(struct rpc_task *task, struct rpc_clnt *clnt)
 	rpc_call_setup(child, &msg, 0);
 
 	/* ... and run the child task */
+	task->tk_xprt->stat.bind_count++;
 	rpc_run_child(task, child, pmap_getport_done);
 	return;
 
@@ -103,6 +104,11 @@ rpc_getport_external(struct sockaddr_in *sin, __u32 prog, __u32 vers, int prot)
 		.pm_prot	= prot,
 		.pm_port	= 0
 	};
+	struct rpc_message msg = {
+		.rpc_proc	= &pmap_procedures[PMAP_GETPORT],
+		.rpc_argp	= &map,
+		.rpc_resp	= &map.pm_port,
+	};
 	struct rpc_clnt	*pmap_clnt;
 	char		hostname[32];
 	int		status;
@@ -116,7 +122,7 @@ rpc_getport_external(struct sockaddr_in *sin, __u32 prog, __u32 vers, int prot)
 		return PTR_ERR(pmap_clnt);
 
 	/* Setup the call info struct */
-	status = rpc_call(pmap_clnt, PMAP_GETPORT, &map, &map.pm_port, 0);
+	status = rpc_call_sync(pmap_clnt, &msg, 0);
 
 	if (status >= 0) {
 		if (map.pm_port != 0)
@@ -161,16 +167,27 @@ pmap_getport_done(struct rpc_task *task)
 int
 rpc_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 {
-	struct sockaddr_in	sin;
-	struct rpc_portmap	map;
+	struct sockaddr_in	sin = {
+		.sin_family	= AF_INET,
+		.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
+	};
+	struct rpc_portmap	map = {
+		.pm_prog	= prog,
+		.pm_vers	= vers,
+		.pm_prot	= prot,
+		.pm_port	= port,
+	};
+	struct rpc_message msg = {
+		.rpc_proc	= &pmap_procedures[port ? PMAP_SET : PMAP_UNSET],
+		.rpc_argp	= &map,
+		.rpc_resp	= okay,
+	};
 	struct rpc_clnt		*pmap_clnt;
 	int error = 0;
 
 	dprintk("RPC: registering (%d, %d, %d, %d) with portmapper.\n",
 			prog, vers, prot, port);
 
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	pmap_clnt = pmap_create("localhost", &sin, IPPROTO_UDP, 1);
 	if (IS_ERR(pmap_clnt)) {
 		error = PTR_ERR(pmap_clnt);
@@ -178,13 +195,7 @@ rpc_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
 		return error;
 	}
 
-	map.pm_prog = prog;
-	map.pm_vers = vers;
-	map.pm_prot = prot;
-	map.pm_port = port;
-
-	error = rpc_call(pmap_clnt, port? PMAP_SET : PMAP_UNSET,
-					&map, okay, 0);
+	error = rpc_call_sync(pmap_clnt, &msg, 0);
 
 	if (error < 0) {
 		printk(KERN_WARNING
@@ -260,6 +271,8 @@ static struct rpc_procinfo	pmap_procedures[] = {
 	  .p_decode		= (kxdrproc_t) xdr_decode_bool,
 	  .p_bufsiz		= 4,
 	  .p_count		= 1,
+	  .p_statidx		= PMAP_SET,
+	  .p_name		= "SET",
 	},
 [PMAP_UNSET] = {
 	  .p_proc		= PMAP_UNSET,
@@ -267,6 +280,8 @@ static struct rpc_procinfo	pmap_procedures[] = {
 	  .p_decode		= (kxdrproc_t) xdr_decode_bool,
 	  .p_bufsiz		= 4,
 	  .p_count		= 1,
+	  .p_statidx		= PMAP_UNSET,
+	  .p_name		= "UNSET",
 	},
 [PMAP_GETPORT] = {
 	  .p_proc		= PMAP_GETPORT,
@@ -274,6 +289,8 @@ static struct rpc_procinfo	pmap_procedures[] = {
 	  .p_decode		= (kxdrproc_t) xdr_decode_port,
 	  .p_bufsiz		= 4,
 	  .p_count		= 1,
+	  .p_statidx		= PMAP_GETPORT,
+	  .p_name		= "GETPORT",
 	},
 };
 

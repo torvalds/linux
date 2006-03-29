@@ -171,7 +171,7 @@ static struct ipt_match multiport_match_v1 = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_multiport_init(void)
 {
 	int err;
 
@@ -185,11 +185,11 @@ static int __init init(void)
 	return err;
 }
 
-static void __exit fini(void)
+static void __exit ipt_multiport_fini(void)
 {
 	ipt_unregister_match(&multiport_match);
 	ipt_unregister_match(&multiport_match_v1);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_multiport_init);
+module_exit(ipt_multiport_fini);

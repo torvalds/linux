@@ -65,7 +65,8 @@ static int midiin_add_buffer(struct emu10k1_mididevice *midi_dev, struct midi_hd
 
 	init_midi_hdr(midihdr);
 
-	if ((midihdr->data = (u8 *) kmalloc(MIDIIN_BUFLEN, GFP_KERNEL)) == NULL) {
+	midihdr->data = kmalloc(MIDIIN_BUFLEN, GFP_KERNEL);
+	if (!midihdr->data) {
 		ERROR();
 		kfree(midihdr);
 		return -1;
@@ -334,7 +335,8 @@ static ssize_t emu10k1_midi_write(struct file *file, const char __user *buffer, 
 	midihdr->bytesrecorded = 0;
 	midihdr->flags = 0;
 
-	if ((midihdr->data = (u8 *) kmalloc(count, GFP_KERNEL)) == NULL) {
+	midihdr->data = kmalloc(count, GFP_KERNEL);
+	if (!midihdr->data) {
 		ERROR();
 		kfree(midihdr);
 		return -EINVAL;
@@ -545,7 +547,8 @@ int emu10k1_seq_midi_out(int dev, unsigned char midi_byte)
 	midihdr->bytesrecorded = 0;
 	midihdr->flags = 0;
 
-	if ((midihdr->data = (u8 *) kmalloc(1, GFP_KERNEL)) == NULL) {
+	midihdr->data = kmalloc(1, GFP_KERNEL);
+	if (!midihdr->data) {
 		ERROR();
 		kfree(midihdr);
 		return -EINVAL;

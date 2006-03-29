@@ -206,7 +206,7 @@ free_initmem (void)
 	       (__init_end - __init_begin) >> 10);
 }
 
-void
+void __init
 free_initrd_mem (unsigned long start, unsigned long end)
 {
 	struct page *page;
@@ -261,7 +261,7 @@ free_initrd_mem (unsigned long start, unsigned long end)
 /*
  * This installs a clean page in the kernel's page table.
  */
-struct page *
+static struct page * __init
 put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 {
 	pgd_t *pgd;
@@ -294,7 +294,7 @@ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 	return page;
 }
 
-static void
+static void __init
 setup_gate (void)
 {
 	struct page *page;
@@ -411,7 +411,7 @@ ia64_mmu_init (void *my_cpu_data)
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 
-int
+int __init
 create_mem_map_page_table (u64 start, u64 end, void *arg)
 {
 	unsigned long address, start_page, end_page;
@@ -519,7 +519,7 @@ ia64_pfn_valid (unsigned long pfn)
 }
 EXPORT_SYMBOL(ia64_pfn_valid);
 
-int
+int __init
 find_largest_hole (u64 start, u64 end, void *arg)
 {
 	u64 *max_gap = arg;
@@ -535,7 +535,7 @@ find_largest_hole (u64 start, u64 end, void *arg)
 }
 #endif /* CONFIG_VIRTUAL_MEM_MAP */
 
-static int
+static int __init
 count_reserved_pages (u64 start, u64 end, void *arg)
 {
 	unsigned long num_reserved = 0;
@@ -556,7 +556,7 @@ count_reserved_pages (u64 start, u64 end, void *arg)
  * purposes.
  */
 
-static int nolwsys;
+static int nolwsys __initdata;
 
 static int __init
 nolwsys_setup (char *s)
@@ -567,7 +567,7 @@ nolwsys_setup (char *s)
 
 __setup("nolwsys", nolwsys_setup);
 
-void
+void __init
 mem_init (void)
 {
 	long reserved_pages, codesize, datasize, initsize;
@@ -600,7 +600,7 @@ mem_init (void)
 	kclist_add(&kcore_vmem, (void *)VMALLOC_START, VMALLOC_END-VMALLOC_START);
 	kclist_add(&kcore_kernel, _stext, _end - _stext);
 
-	for_each_pgdat(pgdat)
+	for_each_online_pgdat(pgdat)
 		if (pgdat->bdata->node_bootmem_map)
 			totalram_pages += free_all_bootmem_node(pgdat);
 

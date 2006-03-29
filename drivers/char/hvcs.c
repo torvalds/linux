@@ -439,7 +439,6 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 	char buf[HVCS_BUFF_LEN] __ALIGNED__;
 	unsigned long flags;
 	int got = 0;
-	int i;
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
 

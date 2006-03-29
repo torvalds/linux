@@ -1677,7 +1677,7 @@ MODULE_DEVICE_TABLE(pci, pmac_ide_pci_match);
 void __init
 pmac_ide_probe(void)
 {
-	if (_machine != _MACH_Pmac)
+	if (!machine_is(powermac))
 		return;
 
 #ifdef CONFIG_BLK_DEV_IDE_PMAC_ATA100FIRST

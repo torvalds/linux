@@ -27,7 +27,6 @@
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
-#include <media/audiochip.h>
 #include <media/video-buf.h>
 #include <media/video-buf-dvb.h>
 
@@ -485,7 +484,7 @@ extern int
 cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 		  u32 reg, u32 mask, u32 value);
 extern void
-cx88_free_buffer(struct pci_dev *pci, struct cx88_buffer *buf);
+cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf);
 
 extern void cx88_risc_disasm(struct cx88_core *core,
 			     struct btcx_riscmem *risc);
@@ -577,8 +576,8 @@ void cx88_ir_irq(struct cx88_core *core);
 /* ----------------------------------------------------------- */
 /* cx88-mpeg.c                                                 */
 
-int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf,
-			enum v4l2_field field);
+int cx8802_buf_prepare(struct videobuf_queue *q,struct cx8802_dev *dev,
+			struct cx88_buffer *buf, enum v4l2_field field);
 void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf);
 void cx8802_cancel_buffers(struct cx8802_dev *dev);
 

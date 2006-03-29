@@ -213,13 +213,13 @@ int cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 }
 
 void
-cx88_free_buffer(struct pci_dev *pci, struct cx88_buffer *buf)
+cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
 {
 	BUG_ON(in_interrupt());
 	videobuf_waiton(&buf->vb,0,0);
-	videobuf_dma_pci_unmap(pci, &buf->vb.dma);
+	videobuf_dma_unmap(q, &buf->vb.dma);
 	videobuf_dma_free(&buf->vb.dma);
-	btcx_riscmem_free(pci, &buf->risc);
+	btcx_riscmem_free((struct pci_dev *)q->dev, &buf->risc);
 	buf->vb.state = STATE_NEEDS_INIT;
 }
 

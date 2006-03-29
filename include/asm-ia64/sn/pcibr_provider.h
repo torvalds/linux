@@ -144,4 +144,5 @@ extern int sal_pcibr_slot_enable(struct pcibus_info *soft, int device,
 				 void *resp);
 extern int sal_pcibr_slot_disable(struct pcibus_info *soft, int device,
 				  int action, void *resp);
+extern u16 sn_ioboard_to_pci_bus(struct pci_bus *pci_bus);
 #endif

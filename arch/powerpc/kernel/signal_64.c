@@ -33,6 +33,7 @@
 #include <asm/pgtable.h>
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
+#include <asm/syscalls.h>
 #include <asm/vdso.h>
 
 #define DEBUG_SIG 0
@@ -211,7 +212,7 @@ static inline void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs 
         /* Default to using normal stack */
         newsp = regs->gpr[1];
 
-	if (ka->sa.sa_flags & SA_ONSTACK) {
+	if ((ka->sa.sa_flags & SA_ONSTACK) && current->sas_ss_size) {
 		if (! on_sig_stack(regs->gpr[1]))
 			newsp = (current->sas_ss_sp + current->sas_ss_size);
 	}

@@ -45,6 +45,7 @@ volatile int __cpu_logical_map[NR_CPUS];
 
 cpumask_t cpu_online_map = CPU_MASK_NONE;
 cpumask_t phys_cpu_present_map = CPU_MASK_NONE;
+cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 
 /* The only guaranteed locking primitive available on all Sparc
  * processors is 'ldstub [%reg + immediate], %dest_reg' which atomically
@@ -56,11 +57,6 @@ cpumask_t phys_cpu_present_map = CPU_MASK_NONE;
 
 /* Used to make bitops atomic */
 unsigned char bitops_spinlock = 0;
-
-volatile unsigned long ipi_count;
-
-volatile int smp_process_available=0;
-volatile int smp_commenced = 0;
 
 void __init smp_store_cpu_info(int id)
 {
@@ -79,6 +75,22 @@ void __init smp_store_cpu_info(int id)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
+	extern void smp4m_smp_done(void);
+	unsigned long bogosum = 0;
+	int cpu, num;
+
+	for (cpu = 0, num = 0; cpu < NR_CPUS; cpu++)
+		if (cpu_online(cpu)) {
+			num++;
+			bogosum += cpu_data(cpu).udelay_val;
+		}
+
+	printk("Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
+		num, bogosum/(500000/HZ),
+		(bogosum/(5000/HZ))%100);
+
+	BUG_ON(sparc_cpu_model != sun4m);
+	smp4m_smp_done();
 }
 
 void cpu_panic(void)
@@ -88,17 +100,6 @@ void cpu_panic(void)
 }
 
 struct linux_prom_registers smp_penguin_ctable __initdata = { 0 };
-
-void __init smp_boot_cpus(void)
-{
-	extern void smp4m_boot_cpus(void);
-	extern void smp4d_boot_cpus(void);
-	
-	if (sparc_cpu_model == sun4m)
-		smp4m_boot_cpus();
-	else
-		smp4d_boot_cpus();
-}
 
 void smp_send_reschedule(int cpu)
 {
@@ -252,20 +253,61 @@ int setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
-void __init smp_prepare_cpus(unsigned int maxcpus)
+void __init smp_prepare_cpus(unsigned int max_cpus)
 {
+	extern void smp4m_boot_cpus(void);
+	int i, cpuid, ncpus, extra;
+
+	BUG_ON(sparc_cpu_model != sun4m);
+	printk("Entering SMP Mode...\n");
+
+	ncpus = 1;
+	extra = 0;
+	for (i = 0; !cpu_find_by_instance(i, NULL, &cpuid); i++) {
+		if (cpuid == boot_cpu_id)
+			continue;
+		if (cpuid < NR_CPUS && ncpus++ < max_cpus)
+			cpu_set(cpuid, phys_cpu_present_map);
+		else
+			extra++;
+	}
+	if (max_cpus >= NR_CPUS && extra)
+		printk("Warning: NR_CPUS is too low to start all cpus\n");
+
+	smp_store_cpu_info(boot_cpu_id);
+
+	smp4m_boot_cpus();
 }
 
 void __devinit smp_prepare_boot_cpu(void)
 {
-	current_thread_info()->cpu = hard_smp_processor_id();
-	cpu_set(smp_processor_id(), cpu_online_map);
-	cpu_set(smp_processor_id(), phys_cpu_present_map);
+	int cpuid = hard_smp_processor_id();
+
+	if (cpuid >= NR_CPUS) {
+		prom_printf("Serious problem, boot cpu id >= NR_CPUS\n");
+		prom_halt();
+	}
+	if (cpuid != 0)
+		printk("boot cpu id != 0, this could work but is untested\n");
+
+	current_thread_info()->cpu = cpuid;
+	cpu_set(cpuid, cpu_online_map);
+	cpu_set(cpuid, phys_cpu_present_map);
 }
 
 int __devinit __cpu_up(unsigned int cpu)
 {
-	panic("smp doesn't work\n");
+	extern int smp4m_boot_one_cpu(int);
+	int ret;
+
+	ret = smp4m_boot_one_cpu(cpu);
+
+	if (!ret) {
+		cpu_set(cpu, smp_commenced_mask);
+		while (!cpu_online(cpu))
+			mb();
+	}
+	return ret;
 }
 
 void smp_bogo(struct seq_file *m)

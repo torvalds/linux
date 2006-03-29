@@ -1581,7 +1581,7 @@ restart:
 
 static struct inode *
 gadgetfs_create_file (struct super_block *sb, char const *name,
-		void *data, struct file_operations *fops,
+		void *data, const struct file_operations *fops,
 		struct dentry **dentry_p);
 
 static int activate_ep_files (struct dev_data *dev)
@@ -1955,7 +1955,7 @@ module_param (default_perm, uint, 0644);
 
 static struct inode *
 gadgetfs_make_inode (struct super_block *sb,
-		void *data, struct file_operations *fops,
+		void *data, const struct file_operations *fops,
 		int mode)
 {
 	struct inode *inode = new_inode (sb);
@@ -1979,7 +1979,7 @@ gadgetfs_make_inode (struct super_block *sb,
  */
 static struct inode *
 gadgetfs_create_file (struct super_block *sb, char const *name,
-		void *data, struct file_operations *fops,
+		void *data, const struct file_operations *fops,
 		struct dentry **dentry_p)
 {
 	struct dentry	*dentry;

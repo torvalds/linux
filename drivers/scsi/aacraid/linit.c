@@ -45,6 +45,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/dma-mapping.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
@@ -806,8 +807,8 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 * to driver communication memory to be allocated below 2gig
 	 */
 	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT) 
-		if (pci_set_dma_mask(pdev, 0x7FFFFFFFULL) ||
-				pci_set_consistent_dma_mask(pdev, 0x7FFFFFFFULL))
+		if (pci_set_dma_mask(pdev, DMA_31BIT_MASK) ||
+				pci_set_consistent_dma_mask(pdev, DMA_31BIT_MASK))
 			goto out;
 	
 	pci_set_master(pdev);

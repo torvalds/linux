@@ -2,17 +2,9 @@
 # Makefile for the linux kernel.
 #
 
-# Extra CFLAGS so we don't have to do relative includes
-CFLAGS_chrp_setup.o	+= -Iarch/$(ARCH)/mm
-
 obj-$(CONFIG_APUS)		+= apus_setup.o
 ifeq ($(CONFIG_APUS),y)
 obj-$(CONFIG_PCI)		+= apus_pci.o
-endif
-obj-$(CONFIG_PPC_CHRP)		+= chrp_setup.o chrp_time.o chrp_pci.o \
-					chrp_pegasos_eth.o
-ifeq ($(CONFIG_PPC_CHRP),y)
-obj-$(CONFIG_NVRAM)		+= chrp_nvram.o
 endif
 obj-$(CONFIG_PPC_PREP)		+= prep_pci.o prep_setup.o
 obj-$(CONFIG_PREP_RESIDUAL)	+= residual.o
@@ -40,7 +32,3 @@ obj-$(CONFIG_EV64360)		+= ev64360.o
 obj-$(CONFIG_MPC86XADS)		+= mpc866ads_setup.o
 obj-$(CONFIG_MPC885ADS)		+= mpc885ads_setup.o
 obj-$(CONFIG_ADS8272)		+= mpc8272ads_setup.o
-
-ifeq ($(CONFIG_SMP),y)
-obj-$(CONFIG_PPC_CHRP)		+= chrp_smp.o
-endif

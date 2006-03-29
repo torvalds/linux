@@ -89,7 +89,7 @@ Modules
   Although modularisation is supported (and required for the FP emulator),
   each module on an ARM2/ARM250/ARM3 machine when is loaded will take
   memory up to the next 32k boundary due to the size of the pages.
-  Therefore, modularisation on these machines really worth it?
+  Therefore, is modularisation on these machines really worth it?
 
   However, ARM6 and up machines allow modules to take multiples of 4k, and
   as such Acorn RiscPCs and other architectures using these processors can

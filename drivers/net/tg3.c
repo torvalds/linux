@@ -69,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.54"
-#define DRV_MODULE_RELDATE	"Mar 23, 2006"
+#define DRV_MODULE_VERSION	"3.55"
+#define DRV_MODULE_RELDATE	"Mar 27, 2006"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -497,21 +497,20 @@ static void tg3_write_mem(struct tg3 *tp, u32 off, u32 val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->indirect_lock, flags);
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
+	if (tp->write32 != tg3_write_indirect_reg32) {
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
+		tw32_f(TG3PCI_MEM_WIN_DATA, val);
 
-	/* Always leave this as zero. */
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+		/* Always leave this as zero. */
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	} else {
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
+
+		/* Always leave this as zero. */
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	}
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
-}
-
-static void tg3_write_mem_fast(struct tg3 *tp, u32 off, u32 val)
-{
-	/* If no workaround is needed, write to mem space directly */
-	if (tp->write32 != tg3_write_indirect_reg32)
-		tw32(NIC_SRAM_WIN_BASE + off, val);
-	else
-		tg3_write_mem(tp, off, val);
 }
 
 static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
@@ -519,11 +518,19 @@ static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->indirect_lock, flags);
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
-	pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
+	if (tp->write32 != tg3_write_indirect_reg32) {
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, off);
+		*val = tr32(TG3PCI_MEM_WIN_DATA);
 
-	/* Always leave this as zero. */
-	pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+		/* Always leave this as zero. */
+		tw32_f(TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	} else {
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, off);
+		pci_read_config_dword(tp->pdev, TG3PCI_MEM_WIN_DATA, val);
+
+		/* Always leave this as zero. */
+		pci_write_config_dword(tp->pdev, TG3PCI_MEM_WIN_BASE_ADDR, 0);
+	}
 	spin_unlock_irqrestore(&tp->indirect_lock, flags);
 }
 
@@ -1367,11 +1374,11 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 		}
 	}
 
+	tg3_write_sig_post_reset(tp, RESET_KIND_SHUTDOWN);
+
 	/* Finally, set the new power state. */
 	pci_write_config_word(tp->pdev, pm + PCI_PM_CTRL, power_control);
 	udelay(100);	/* Delay after power state change */
-
-	tg3_write_sig_post_reset(tp, RESET_KIND_SHUTDOWN);
 
 	return 0;
 }
@@ -3600,7 +3607,7 @@ static inline int tg3_40bit_overflow_test(struct tg3 *tp, dma_addr_t mapping,
 					  int len)
 {
 #if defined(CONFIG_HIGHMEM) && (BITS_PER_LONG == 64)
-	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
+	if (tp->tg3_flags & TG3_FLAG_40BIT_DMA_BUG)
 		return (((u64) mapping + len) > DMA_40BIT_MASK);
 	return 0;
 #else
@@ -6461,6 +6468,9 @@ static void tg3_timer(unsigned long __opaque)
 {
 	struct tg3 *tp = (struct tg3 *) __opaque;
 
+	if (tp->irq_sync)
+		goto restart_timer;
+
 	spin_lock(&tp->lock);
 
 	if (!(tp->tg3_flags & TG3_FLAG_TAGGED_STATUS)) {
@@ -6537,11 +6547,11 @@ static void tg3_timer(unsigned long __opaque)
 		if (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) {
 			u32 val;
 
-			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_MBOX,
-					   FWCMD_NICDRV_ALIVE2);
-			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
+			tg3_write_mem(tp, NIC_SRAM_FW_CMD_MBOX,
+				      FWCMD_NICDRV_ALIVE2);
+			tg3_write_mem(tp, NIC_SRAM_FW_CMD_LEN_MBOX, 4);
 			/* 5 seconds timeout */
-			tg3_write_mem_fast(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
+			tg3_write_mem(tp, NIC_SRAM_FW_CMD_DATA_MBOX, 5);
 			val = tr32(GRC_RX_CPU_EVENT);
 			val |= (1 << 14);
 			tw32(GRC_RX_CPU_EVENT, val);
@@ -6551,6 +6561,7 @@ static void tg3_timer(unsigned long __opaque)
 
 	spin_unlock(&tp->lock);
 
+restart_timer:
 	tp->timer.expires = jiffies + tp->timer_offset;
 	add_timer(&tp->timer);
 }
@@ -8399,8 +8410,11 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 		}
 		mac_mode = (tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK) |
 			   MAC_MODE_LINK_POLARITY | MAC_MODE_PORT_MODE_GMII;
-		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)
+		if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401) {
 			mac_mode &= ~MAC_MODE_LINK_POLARITY;
+			tg3_writephy(tp, MII_TG3_EXT_CTRL,
+				     MII_TG3_EXT_CTRL_LNK3_LED_MODE);
+		}
 		tw32(MAC_MODE, mac_mode);
 	}
 	else
@@ -10531,6 +10545,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 {
 	struct net_device *dev = tp->dev;
 	u32 hi, lo, mac_offset;
+	int addr_ok = 0;
 
 #ifdef CONFIG_SPARC64
 	if (!tg3_get_macaddr_sparc(tp))
@@ -10560,29 +10575,34 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 		dev->dev_addr[3] = (lo >> 16) & 0xff;
 		dev->dev_addr[4] = (lo >>  8) & 0xff;
 		dev->dev_addr[5] = (lo >>  0) & 0xff;
-	}
-	/* Next, try NVRAM. */
-	else if (!(tp->tg3_flags & TG3_FLG2_SUN_570X) &&
-		 !tg3_nvram_read(tp, mac_offset + 0, &hi) &&
-		 !tg3_nvram_read(tp, mac_offset + 4, &lo)) {
-		dev->dev_addr[0] = ((hi >> 16) & 0xff);
-		dev->dev_addr[1] = ((hi >> 24) & 0xff);
-		dev->dev_addr[2] = ((lo >>  0) & 0xff);
-		dev->dev_addr[3] = ((lo >>  8) & 0xff);
-		dev->dev_addr[4] = ((lo >> 16) & 0xff);
-		dev->dev_addr[5] = ((lo >> 24) & 0xff);
-	}
-	/* Finally just fetch it out of the MAC control regs. */
-	else {
-		hi = tr32(MAC_ADDR_0_HIGH);
-		lo = tr32(MAC_ADDR_0_LOW);
 
-		dev->dev_addr[5] = lo & 0xff;
-		dev->dev_addr[4] = (lo >> 8) & 0xff;
-		dev->dev_addr[3] = (lo >> 16) & 0xff;
-		dev->dev_addr[2] = (lo >> 24) & 0xff;
-		dev->dev_addr[1] = hi & 0xff;
-		dev->dev_addr[0] = (hi >> 8) & 0xff;
+		/* Some old bootcode may report a 0 MAC address in SRAM */
+		addr_ok = is_valid_ether_addr(&dev->dev_addr[0]);
+	}
+	if (!addr_ok) {
+		/* Next, try NVRAM. */
+		if (!(tp->tg3_flags & TG3_FLG2_SUN_570X) &&
+		    !tg3_nvram_read(tp, mac_offset + 0, &hi) &&
+		    !tg3_nvram_read(tp, mac_offset + 4, &lo)) {
+			dev->dev_addr[0] = ((hi >> 16) & 0xff);
+			dev->dev_addr[1] = ((hi >> 24) & 0xff);
+			dev->dev_addr[2] = ((lo >>  0) & 0xff);
+			dev->dev_addr[3] = ((lo >>  8) & 0xff);
+			dev->dev_addr[4] = ((lo >> 16) & 0xff);
+			dev->dev_addr[5] = ((lo >> 24) & 0xff);
+		}
+		/* Finally just fetch it out of the MAC control regs. */
+		else {
+			hi = tr32(MAC_ADDR_0_HIGH);
+			lo = tr32(MAC_ADDR_0_LOW);
+
+			dev->dev_addr[5] = lo & 0xff;
+			dev->dev_addr[4] = (lo >> 8) & 0xff;
+			dev->dev_addr[3] = (lo >> 16) & 0xff;
+			dev->dev_addr[2] = (lo >> 24) & 0xff;
+			dev->dev_addr[1] = hi & 0xff;
+			dev->dev_addr[0] = (hi >> 8) & 0xff;
+		}
 	}
 
 	if (!is_valid_ether_addr(&dev->dev_addr[0])) {

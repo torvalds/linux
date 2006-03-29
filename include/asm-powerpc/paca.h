@@ -105,5 +105,7 @@ struct paca_struct {
 
 extern struct paca_struct paca[];
 
+void setup_boot_paca(void);
+
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PACA_H */

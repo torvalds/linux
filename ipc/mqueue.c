@@ -25,6 +25,8 @@
 #include <linux/netlink.h>
 #include <linux/syscalls.h>
 #include <linux/signal.h>
+#include <linux/mutex.h>
+
 #include <net/sock.h>
 #include "util.h"
 
@@ -760,7 +762,7 @@ out_unlock:
  * The receiver accepts the message and returns without grabbing the queue
  * spinlock. Therefore an intermediate STATE_PENDING state and memory barriers
  * are necessary. The same algorithm is used for sysv semaphores, see
- * ipc/sem.c fore more details.
+ * ipc/sem.c for more details.
  *
  * The same algorithm is used for senders.
  */

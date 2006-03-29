@@ -741,7 +741,7 @@ static int fat_dir_ioctl(struct inode * inode, struct file * filp,
 	return ret;
 }
 
-struct file_operations fat_dir_operations = {
+const struct file_operations fat_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= fat_readdir,
 	.ioctl		= fat_dir_ioctl,

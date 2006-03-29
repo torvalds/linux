@@ -132,7 +132,7 @@ SYSCALL(sys_clone_glue,sys_clone_glue,sys32_clone_glue)		/* 120 */
 SYSCALL(sys_setdomainname,sys_setdomainname,sys32_setdomainname_wrapper)
 SYSCALL(sys_newuname,s390x_newuname,sys32_newuname_wrapper)
 NI_SYSCALL							/* modify_ldt for i386 */
-SYSCALL(sys_adjtimex,sys_adjtimex,sys32_adjtimex_wrapper)
+SYSCALL(sys_adjtimex,sys_adjtimex,compat_sys_adjtimex_wrapper)
 SYSCALL(sys_mprotect,sys_mprotect,sys32_mprotect_wrapper)	/* 125 */
 SYSCALL(sys_sigprocmask,sys_sigprocmask,compat_sys_sigprocmask_wrapper)
 NI_SYSCALL							/* old "create module" */

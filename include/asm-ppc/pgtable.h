@@ -837,7 +837,8 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
  */
 #define pgtable_cache_init()	do { } while (0)
 
-extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep);
+extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep,
+		      pmd_t **pmdp);
 
 #include <asm-generic/pgtable.h>
 

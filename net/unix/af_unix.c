@@ -1878,6 +1878,8 @@ static unsigned int unix_poll(struct file * file, struct socket *sock, poll_tabl
 		mask |= POLLERR;
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
 		mask |= POLLHUP;
+	if (sk->sk_shutdown & RCV_SHUTDOWN)
+		mask |= POLLRDHUP;
 
 	/* readable? */
 	if (!skb_queue_empty(&sk->sk_receive_queue) ||

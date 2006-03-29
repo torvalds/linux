@@ -15,6 +15,7 @@
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
 #include <linux/types.h>
+#include <linux/mutex.h>
 
 #include <asm/sn/addrs.h>
 #include <asm/sn/l1.h>
@@ -81,7 +82,7 @@ static struct hotplug_slot_ops sn_hotplug_slot_ops = {
 	.get_power_status       = get_power_status,
 };
 
-static DECLARE_MUTEX(sn_hotplug_sem);
+static DEFINE_MUTEX(sn_hotplug_mutex);
 
 static ssize_t path_show (struct hotplug_slot *bss_hotplug_slot,
 	       		  char *buf)
@@ -346,7 +347,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 	int rc;
 
 	/* Serialize the Linux PCI infrastructure */
-	down(&sn_hotplug_sem);
+	mutex_lock(&sn_hotplug_mutex);
 
 	/*
 	 * Power-on and initialize the slot in the SN
@@ -354,7 +355,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 	 */
 	rc = sn_slot_enable(bss_hotplug_slot, slot->device_num);
 	if (rc) {
-		up(&sn_hotplug_sem);
+		mutex_unlock(&sn_hotplug_mutex);
 		return rc;
 	}
 
@@ -362,7 +363,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 				  PCI_DEVFN(slot->device_num + 1, 0));
 	if (!num_funcs) {
 		dev_dbg(slot->pci_bus->self, "no device in slot\n");
-		up(&sn_hotplug_sem);
+		mutex_unlock(&sn_hotplug_mutex);
 		return -ENODEV;
 	}
 
@@ -402,7 +403,7 @@ static int enable_slot(struct hotplug_slot *bss_hotplug_slot)
 	if (new_ppb)
 		pci_bus_add_devices(new_bus);
 
-	up(&sn_hotplug_sem);
+	mutex_unlock(&sn_hotplug_mutex);
 
 	if (rc == 0)
 		dev_dbg(slot->pci_bus->self,
@@ -422,7 +423,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 	int rc;
 
 	/* Acquire update access to the bus */
-	down(&sn_hotplug_sem);
+	mutex_lock(&sn_hotplug_mutex);
 
 	/* is it okay to bring this slot down? */
 	rc = sn_slot_disable(bss_hotplug_slot, slot->device_num,
@@ -450,7 +451,7 @@ static int disable_slot(struct hotplug_slot *bss_hotplug_slot)
 			     PCI_REQ_SLOT_DISABLE);
  leaving:
 	/* Release the bus lock */
-	up(&sn_hotplug_sem);
+	mutex_unlock(&sn_hotplug_mutex);
 
 	return rc;
 }
@@ -462,9 +463,9 @@ static inline int get_power_status(struct hotplug_slot *bss_hotplug_slot,
 	struct pcibus_info *pcibus_info;
 
 	pcibus_info = SN_PCIBUS_BUSSOFT_INFO(slot->pci_bus);
-	down(&sn_hotplug_sem);
+	mutex_lock(&sn_hotplug_mutex);
 	*value = pcibus_info->pbi_enabled_devices & (1 << slot->device_num);
-	up(&sn_hotplug_sem);
+	mutex_unlock(&sn_hotplug_mutex);
 	return 0;
 }
 

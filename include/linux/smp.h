@@ -82,7 +82,11 @@ void smp_prepare_boot_cpu(void);
  */
 #define raw_smp_processor_id()			0
 #define hard_smp_processor_id()			0
-#define smp_call_function(func,info,retry,wait)	({ 0; })
+static inline int up_smp_call_function(void)
+{
+	return 0;
+}
+#define smp_call_function(func,info,retry,wait)	(up_smp_call_function())
 #define on_each_cpu(func,info,retry,wait)	\
 	({					\
 		local_irq_disable();		\

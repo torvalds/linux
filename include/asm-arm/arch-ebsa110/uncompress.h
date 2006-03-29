@@ -8,33 +8,34 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/serial_reg.h>
+
+#define SERIAL_BASE	((unsigned char *)0xfe000be0)
+
 /*
  * This does not append a newline
  */
-static void putstr(const char *s)
+static inline void putc(int c)
 {
-	unsigned long tmp1, tmp2;
-	__asm__ __volatile__(
-	"ldrb	%0, [%2], #1\n"
-"	teq	%0, #0\n"
-"	beq	3f\n"
-"1:	strb	%0, [%3]\n"
-"2:	ldrb	%1, [%3, #0x14]\n"
-"	and	%1, %1, #0x60\n"
-"	teq	%1, #0x60\n"
-"	bne	2b\n"
-"	teq	%0, #'\n'\n"
-"	moveq	%0, #'\r'\n"
-"	beq	1b\n"
-"	ldrb	%0, [%2], #1\n"
-"	teq	%0, #0\n"
-"	bne	1b\n"
-"3:	ldrb	%1, [%3, #0x14]\n"
-"	and	%1, %1, #0x60\n"
-"	teq	%1, #0x60\n"
-"	bne	3b"
-	: "=&r" (tmp1), "=&r" (tmp2)
-	: "r" (s), "r" (0xf0000be0) : "cc");
+	unsigned char v, *base = SERIAL_BASE;
+
+	do {
+		v = base[UART_LSR << 2];
+		barrier();
+	} while (!(v & UART_LSR_THRE));
+
+	base[UART_TX << 2] = c;
+}
+
+static inline void flush(void)
+{
+	unsigned char v, *base = SERIAL_BASE;
+
+	do {
+		v = base[UART_LSR << 2];
+		barrier();
+	} while ((v & (UART_LSR_TEMT|UART_LSR_THRE)) !=
+		 (UART_LSR_TEMT|UART_LSR_THRE));
 }
 
 /*

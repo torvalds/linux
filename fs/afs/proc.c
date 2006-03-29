@@ -37,7 +37,7 @@ static struct seq_operations afs_proc_cells_ops = {
 	.show	= afs_proc_cells_show,
 };
 
-static struct file_operations afs_proc_cells_fops = {
+static const struct file_operations afs_proc_cells_fops = {
 	.open		= afs_proc_cells_open,
 	.read		= seq_read,
 	.write		= afs_proc_cells_write,
@@ -53,7 +53,7 @@ static ssize_t afs_proc_rootcell_write(struct file *file,
 				       const char __user *buf,
 				       size_t size, loff_t *_pos);
 
-static struct file_operations afs_proc_rootcell_fops = {
+static const struct file_operations afs_proc_rootcell_fops = {
 	.open		= afs_proc_rootcell_open,
 	.read		= afs_proc_rootcell_read,
 	.write		= afs_proc_rootcell_write,
@@ -77,7 +77,7 @@ static struct seq_operations afs_proc_cell_volumes_ops = {
 	.show	= afs_proc_cell_volumes_show,
 };
 
-static struct file_operations afs_proc_cell_volumes_fops = {
+static const struct file_operations afs_proc_cell_volumes_fops = {
 	.open		= afs_proc_cell_volumes_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -101,7 +101,7 @@ static struct seq_operations afs_proc_cell_vlservers_ops = {
 	.show	= afs_proc_cell_vlservers_show,
 };
 
-static struct file_operations afs_proc_cell_vlservers_fops = {
+static const struct file_operations afs_proc_cell_vlservers_fops = {
 	.open		= afs_proc_cell_vlservers_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -124,7 +124,7 @@ static struct seq_operations afs_proc_cell_servers_ops = {
 	.show	= afs_proc_cell_servers_show,
 };
 
-static struct file_operations afs_proc_cell_servers_fops = {
+static const struct file_operations afs_proc_cell_servers_fops = {
 	.open		= afs_proc_cell_servers_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

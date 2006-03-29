@@ -19,6 +19,7 @@
 #include <linux/nodemask.h>
 #include <linux/swap.h>
 #include <linux/bootmem.h>
+#include <linux/pfn.h>
 #include <asm/page.h>
 #include <asm/sections.h>
 
@@ -27,8 +28,6 @@
 #include <asm/sn/klconfig.h>
 #include <asm/sn/sn_private.h>
 
-
-#define PFN_UP(x)		(((x) + PAGE_SIZE-1) >> PAGE_SHIFT)
 
 #define SLOT_PFNSHIFT           (SLOT_SHIFT - PAGE_SHIFT)
 #define PFN_NASIDSHFT           (NASID_SHFT - PAGE_SHIFT)

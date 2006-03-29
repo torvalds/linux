@@ -139,7 +139,7 @@ saa7110_read (struct i2c_client *client)
 
 static int
 saa7110_selmux (struct i2c_client *client,
-	        int                chan)
+		int                chan)
 {
 	static const unsigned char modes[9][8] = {
 		/* mode 0 */
@@ -457,7 +457,7 @@ static unsigned short normal_i2c[] = {
 };
 
 static unsigned short ignore = I2C_CLIENT_END;
-                                                                                
+
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,

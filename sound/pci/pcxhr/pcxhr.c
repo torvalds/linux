@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
+#include <linux/dma-mapping.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>

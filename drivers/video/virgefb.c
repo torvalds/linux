@@ -616,8 +616,7 @@ static struct {
 #endif
 };
 
-#define arraysize(x)	(sizeof(x)/sizeof(*(x)))
-#define NUM_TOTAL_MODES	arraysize(virgefb_predefined)
+#define NUM_TOTAL_MODES	ARRAY_SIZE(virgefb_predefined)
 
 /*
  *    Default to 800x600 for video=virge8:, virge16: or virge32:

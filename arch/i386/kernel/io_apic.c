@@ -381,7 +381,7 @@ static void do_irq_balance(void)
 	unsigned long imbalance = 0;
 	cpumask_t allowed_mask, target_cpu_mask, tmp;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		int package_index;
 		CPU_IRQ(i) = 0;
 		if (!cpu_online(i))
@@ -632,7 +632,7 @@ static int __init balanced_irq_init(void)
 	else 
 		printk(KERN_ERR "balanced_irq_init: failed to spawn balanced_irq");
 failed:
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		kfree(irq_cpu_data[i].irq_delta);
 		irq_cpu_data[i].irq_delta = NULL;
 		kfree(irq_cpu_data[i].last_irq);

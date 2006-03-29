@@ -88,7 +88,7 @@ nlmsvc_unshare_file(struct nlm_host *host, struct nlm_file *file,
  * Traverse all shares for a given file (and host).
  * NLM_ACT_CHECK is handled by nlmsvc_inspect_file.
  */
-int
+void
 nlmsvc_traverse_shares(struct nlm_host *host, struct nlm_file *file, int action)
 {
 	struct nlm_share	*share, **shpp;
@@ -106,6 +106,4 @@ nlmsvc_traverse_shares(struct nlm_host *host, struct nlm_file *file, int action)
 		}
 		shpp = &share->s_next;
 	}
-
-	return 0;
 }

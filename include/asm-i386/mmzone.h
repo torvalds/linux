@@ -70,8 +70,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 #endif
 }
 
-#define node_localnr(pfn, nid)		((pfn) - node_data[nid]->node_start_pfn)
-
 /*
  * Following are macros that each numa implmentation must define.
  */
@@ -85,21 +83,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 
 /* XXX: FIXME -- wli */
 #define kern_addr_valid(kaddr)	(0)
-
-#define pfn_to_page(pfn)						\
-({									\
-	unsigned long __pfn = pfn;					\
-	int __node  = pfn_to_nid(__pfn);				\
-	&NODE_DATA(__node)->node_mem_map[node_localnr(__pfn,__node)];	\
-})
-
-#define page_to_pfn(pg)							\
-({									\
-	struct page *__page = pg;					\
-	struct zone *__zone = page_zone(__page);			\
-	(unsigned long)(__page - __zone->zone_mem_map)			\
-		+ __zone->zone_start_pfn;				\
-})
 
 #ifdef CONFIG_X86_NUMAQ            /* we have contiguous memory on NUMA-Q */
 #define pfn_valid(pfn)          ((pfn) < num_physpages)

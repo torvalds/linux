@@ -57,6 +57,7 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
 #include <linux/reboot.h>
 #include <linux/spinlock.h>
 #include <linux/smp_lock.h>
+#include <linux/dma-mapping.h>
 
 #include <linux/timer.h>
 #include <linux/string.h>
@@ -906,8 +907,8 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	}
 
 	pci_set_master(pDev);
-	if (pci_set_dma_mask(pDev, 0xffffffffffffffffULL) &&
-	    pci_set_dma_mask(pDev, 0xffffffffULL))
+	if (pci_set_dma_mask(pDev, DMA_64BIT_MASK) &&
+	    pci_set_dma_mask(pDev, DMA_32BIT_MASK))
 		return -EINVAL;
 
 	base_addr0_phys = pci_resource_start(pDev,0);

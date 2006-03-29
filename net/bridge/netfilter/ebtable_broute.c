@@ -62,7 +62,7 @@ static int ebt_broute(struct sk_buff **pskb)
 	return 0; /* bridge it */
 }
 
-static int __init init(void)
+static int __init ebtable_broute_init(void)
 {
 	int ret;
 
@@ -74,13 +74,13 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit ebtable_broute_fini(void)
 {
 	br_should_route_hook = NULL;
 	synchronize_net();
 	ebt_unregister_table(&broute_table);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebtable_broute_init);
+module_exit(ebtable_broute_fini);
 MODULE_LICENSE("GPL");

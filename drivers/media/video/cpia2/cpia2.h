@@ -381,7 +381,7 @@ struct cpia2_fh {
 
 struct camera_data {
 	/* locks */
-	struct semaphore busy_lock;	/* guard against SMP multithreading */
+	struct mutex busy_lock;	/* guard against SMP multithreading */
 	struct v4l2_prio_state prio;
 
 	/* camera status */

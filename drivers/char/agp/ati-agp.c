@@ -74,7 +74,7 @@ static int ati_create_page_map(ati_page_map *page_map)
 	/*CACHE_FLUSH();*/
 	global_cache_flush();
 
-	for(i = 0; i < PAGE_SIZE / sizeof(unsigned long); i++) {
+	for (i = 0; i < PAGE_SIZE / sizeof(unsigned long); i++) {
 		writel(agp_bridge->scratch_page, page_map->remapped+i);
 		readl(page_map->remapped+i);	/* PCI Posting. */
 	}
@@ -99,7 +99,7 @@ static void ati_free_gatt_pages(void)
 	ati_page_map *entry;
 
 	tables = ati_generic_private.gatt_pages;
-	for(i = 0; i < ati_generic_private.num_tables; i++) {
+	for (i = 0; i < ati_generic_private.num_tables; i++) {
 		entry = tables[i];
 		if (entry != NULL) {
 			if (entry->real != NULL)
@@ -387,7 +387,7 @@ static int ati_create_gatt_table(struct agp_bridge_data *bridge)
 	agp_bridge->gart_bus_addr = addr;
 
 	/* Calculate the agp offset */
-	for(i = 0; i < value->num_entries / 1024; i++, addr += 0x00400000) {
+	for (i = 0; i < value->num_entries / 1024; i++, addr += 0x00400000) {
 		writel(virt_to_gart(ati_generic_private.gatt_pages[i]->real) | 1,
 			page_dir.remapped+GET_PAGE_DIR_OFF(addr));
 		readl(page_dir.remapped+GET_PAGE_DIR_OFF(addr));	/* PCI Posting. */
@@ -464,6 +464,10 @@ static struct agp_device_ids ati_agp_device_ids[] __devinitdata =
 	},
 	{
 		.device_id	= PCI_DEVICE_ID_ATI_RS300_200,
+		.chipset_name	= "IGP9100/M",
+	},
+	{
+		.device_id	= PCI_DEVICE_ID_ATI_RS350_200,
 		.chipset_name	= "IGP9100/M",
 	},
 	{ }, /* dummy final entry, always present */

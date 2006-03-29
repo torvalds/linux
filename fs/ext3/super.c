@@ -1678,12 +1678,6 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	}
 
 	if (test_opt(sb, NOBH)) {
-		if (sb->s_blocksize_bits != PAGE_CACHE_SHIFT) {
-			printk(KERN_WARNING "EXT3-fs: Ignoring nobh option "
-				"since filesystem blocksize doesn't match "
-				"pagesize\n");
-			clear_opt(sbi->s_mount_opt, NOBH);
-		}
 		if (!(test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_WRITEBACK_DATA)) {
 			printk(KERN_WARNING "EXT3-fs: Ignoring nobh option - "
 				"its supported only with writeback mode\n");

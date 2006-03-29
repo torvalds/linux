@@ -31,7 +31,7 @@ static int cpufreq_governor_powersave(struct cpufreq_policy *policy,
 	}
 	return 0;
 }
-                                                            
+
 static struct cpufreq_governor cpufreq_gov_powersave = {
 	.name		= "powersave",
 	.governor	= cpufreq_governor_powersave,

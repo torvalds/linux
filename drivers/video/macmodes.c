@@ -380,7 +380,7 @@ int __init mac_find_mode(struct fb_var_screeninfo *var, struct fb_info *info,
     if (mode_option && !strncmp(mode_option, "mac", 3)) {
 	mode_option += 3;
 	db = mac_modedb;
-	dbsize = sizeof(mac_modedb)/sizeof(*mac_modedb);
+	dbsize = ARRAY_SIZE(mac_modedb);
     }
     return fb_find_mode(var, info, mode_option, db, dbsize,
 			&mac_modedb[DEFAULT_MODEDB_INDEX], default_bpp);

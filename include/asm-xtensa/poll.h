@@ -27,6 +27,7 @@
 
 #define POLLMSG		0x0400
 #define POLLREMOVE	0x0800
+#define POLLRDHUP       0x2000
 
 struct pollfd {
 	int fd;

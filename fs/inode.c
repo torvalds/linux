@@ -56,8 +56,8 @@
 #define I_HASHBITS	i_hash_shift
 #define I_HASHMASK	i_hash_mask
 
-static unsigned int i_hash_mask;
-static unsigned int i_hash_shift;
+static unsigned int i_hash_mask __read_mostly;
+static unsigned int i_hash_shift __read_mostly;
 
 /*
  * Each inode can be on two separate lists. One is
@@ -73,7 +73,7 @@ static unsigned int i_hash_shift;
 
 LIST_HEAD(inode_in_use);
 LIST_HEAD(inode_unused);
-static struct hlist_head *inode_hashtable;
+static struct hlist_head *inode_hashtable __read_mostly;
 
 /*
  * A simple spinlock to protect the list manipulations.
@@ -91,20 +91,20 @@ DEFINE_SPINLOCK(inode_lock);
  * from its final dispose_list, the struct super_block they refer to
  * (for inode->i_sb->s_op) may already have been freed and reused.
  */
-DEFINE_MUTEX(iprune_mutex);
+static DEFINE_MUTEX(iprune_mutex);
 
 /*
  * Statistics gathering..
  */
 struct inodes_stat_t inodes_stat;
 
-static kmem_cache_t * inode_cachep;
+static kmem_cache_t * inode_cachep __read_mostly;
 
 static struct inode *alloc_inode(struct super_block *sb)
 {
 	static struct address_space_operations empty_aops;
 	static struct inode_operations empty_iops;
-	static struct file_operations empty_fops;
+	static const struct file_operations empty_fops;
 	struct inode *inode;
 
 	if (sb->s_op->alloc_inode)

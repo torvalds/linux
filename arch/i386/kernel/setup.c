@@ -46,6 +46,7 @@
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 #include <linux/dmi.h>
+#include <linux/pfn.h>
 
 #include <video/edid.h>
 
@@ -1058,10 +1059,10 @@ static int __init
 free_available_memory(unsigned long start, unsigned long end, void *arg)
 {
 	/* check max_low_pfn */
-	if (start >= ((max_low_pfn + 1) << PAGE_SHIFT))
+	if (start >= (max_low_pfn << PAGE_SHIFT))
 		return 0;
-	if (end >= ((max_low_pfn + 1) << PAGE_SHIFT))
-		end = (max_low_pfn + 1) << PAGE_SHIFT;
+	if (end >= (max_low_pfn << PAGE_SHIFT))
+		end = max_low_pfn << PAGE_SHIFT;
 	if (start < end)
 		free_bootmem(start, end - start);
 
@@ -1286,8 +1287,6 @@ legacy_init_iomem_resources(struct resource *code_resource, struct resource *dat
 	probe_roms();
 	for (i = 0; i < e820.nr_map; i++) {
 		struct resource *res;
-		if (e820.map[i].addr + e820.map[i].size > 0x100000000ULL)
-			continue;
 		res = kzalloc(sizeof(struct resource), GFP_ATOMIC);
 		switch (e820.map[i].type) {
 		case E820_RAM:	res->name = "System RAM"; break;

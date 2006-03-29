@@ -272,7 +272,7 @@ xfs_bulkstat(
 	size_t			statstruct_size, /* sizeof struct filling */
 	char			__user *ubuffer, /* buffer with inode stats */
 	int			flags,	/* defined in xfs_itable.h */
-	int			*done)	/* 1 if there're more stats to get */
+	int			*done)	/* 1 if there are more stats to get */
 {
 	xfs_agblock_t		agbno=0;/* allocation group block number */
 	xfs_buf_t		*agbp;	/* agi header buffer */
@@ -676,7 +676,7 @@ xfs_bulkstat_single(
 	xfs_mount_t		*mp,	/* mount point for filesystem */
 	xfs_ino_t		*lastinop, /* inode to return */
 	char			__user *buffer, /* buffer with inode stats */
-	int			*done)	/* 1 if there're more stats to get */
+	int			*done)	/* 1 if there are more stats to get */
 {
 	int			count;	/* count value for bulkstat call */
 	int			error;	/* return value */

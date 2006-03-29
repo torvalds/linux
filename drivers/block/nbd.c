@@ -639,10 +639,7 @@ static int __init nbd_init(void)
 	int err = -ENOMEM;
 	int i;
 
-	if (sizeof(struct nbd_request) != 28) {
-		printk(KERN_CRIT "nbd: sizeof nbd_request needs to be 28 in order to work!\n" );
-		return -EIO;
-	}
+	BUILD_BUG_ON(sizeof(struct nbd_request) != 28);
 
 	if (nbds_max > MAX_NBD) {
 		printk(KERN_CRIT "nbd: cannot allocate more than %u nbds; %u requested.\n", MAX_NBD,

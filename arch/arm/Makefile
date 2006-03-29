@@ -1,6 +1,9 @@
 #
 # arch/arm/Makefile
 #
+# This file is included by the global makefile so that you can add your own
+# architecture-specific flags and dependencies.
+#
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
 # for more details.
@@ -54,6 +57,7 @@ tune-$(CONFIG_CPU_ARM926T)	:=-mtune=arm9tdmi
 tune-$(CONFIG_CPU_SA110)	:=-mtune=strongarm110
 tune-$(CONFIG_CPU_SA1100)	:=-mtune=strongarm1100
 tune-$(CONFIG_CPU_XSCALE)	:=$(call cc-option,-mtune=xscale,-mtune=strongarm110) -Wa,-mcpu=xscale
+tune-$(CONFIG_CPU_XSC3)		:=$(call cc-option,-mtune=xscale,-mtune=strongarm110) -Wa,-mcpu=xscale
 tune-$(CONFIG_CPU_V6)		:=$(call cc-option,-mtune=arm1136j-s,-mtune=strongarm)
 
 ifeq ($(CONFIG_AEABI),y)
@@ -94,6 +98,7 @@ endif
  machine-$(CONFIG_ARCH_IOP3XX)	   := iop3xx
  machine-$(CONFIG_ARCH_IXP4XX)	   := ixp4xx
  machine-$(CONFIG_ARCH_IXP2000)    := ixp2000
+ machine-$(CONFIG_ARCH_IXP23XX)    := ixp23xx
  machine-$(CONFIG_ARCH_OMAP1)	   := omap1
  machine-$(CONFIG_ARCH_OMAP2)	   := omap2
   incdir-$(CONFIG_ARCH_OMAP)	   := omap
@@ -177,7 +182,7 @@ endif
 
 archprepare: maketools
 
-.PHONY: maketools FORCE
+PHONY += maketools FORCE
 maketools: include/linux/version.h include/asm-arm/.arch FORCE
 	$(Q)$(MAKE) $(build)=arch/arm/tools include/asm-arm/mach-types.h
 

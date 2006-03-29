@@ -124,7 +124,7 @@ static int dsp_rec_start(struct saa7134_dev *dev)
 	unsigned long flags;
 
 	/* prepare buffer */
-	if (0 != (err = videobuf_dma_pci_map(dev->pci,&dev->dmasound.dma)))
+	if (0 != (err = videobuf_pci_dma_map(dev->pci,&dev->dmasound.dma)))
 		return err;
 	if (0 != (err = saa7134_pgtable_alloc(dev->pci,&dev->dmasound.pt)))
 		goto fail1;
@@ -213,7 +213,7 @@ static int dsp_rec_start(struct saa7134_dev *dev)
  fail2:
 	saa7134_pgtable_free(dev->pci,&dev->dmasound.pt);
  fail1:
-	videobuf_dma_pci_unmap(dev->pci,&dev->dmasound.dma);
+	videobuf_pci_dma_unmap(dev->pci,&dev->dmasound.dma);
 	return err;
 }
 
@@ -231,7 +231,7 @@ static int dsp_rec_stop(struct saa7134_dev *dev)
 
 	/* unlock buffer */
 	saa7134_pgtable_free(dev->pci,&dev->dmasound.pt);
-	videobuf_dma_pci_unmap(dev->pci,&dev->dmasound.dma);
+	videobuf_pci_dma_unmap(dev->pci,&dev->dmasound.dma);
 	return 0;
 }
 

@@ -106,11 +106,11 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 	return sum & 0xFF;
 }
 
-static void __init MP_processor_info (struct mpc_config_processor *m)
+static void __cpuinit MP_processor_info (struct mpc_config_processor *m)
 {
 	int cpu;
 	unsigned char ver;
-	static int found_bsp=0;
+	cpumask_t tmp_map;
 
 	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
 		disabled_cpus++;
@@ -133,8 +133,10 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 		return;
 	}
 
-	cpu = num_processors++;
-	
+	num_processors++;
+	cpus_complement(tmp_map, cpu_present_map);
+	cpu = first_cpu(tmp_map);
+
 #if MAX_APICS < 255	
 	if ((int)m->mpc_apicid > MAX_APICS) {
 		printk(KERN_ERR "Processor #%d INVALID. (Max ID: %d).\n",
@@ -160,12 +162,7 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
  		 * entry is BSP, and so on.
  		 */
 		cpu = 0;
-
- 		bios_cpu_apicid[0] = m->mpc_apicid;
- 		x86_cpu_to_apicid[0] = m->mpc_apicid;
- 		found_bsp = 1;
- 	} else
-		cpu = num_processors - found_bsp;
+ 	}
 	bios_cpu_apicid[cpu] = m->mpc_apicid;
 	x86_cpu_to_apicid[cpu] = m->mpc_apicid;
 
@@ -691,7 +688,7 @@ void __init mp_register_lapic_address (
 }
 
 
-void __init mp_register_lapic (
+void __cpuinit mp_register_lapic (
 	u8			id, 
 	u8			enabled)
 {

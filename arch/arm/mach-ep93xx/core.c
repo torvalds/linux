@@ -30,7 +30,9 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/delay.h>
+#include <linux/termios.h>
 #include <linux/amba/bus.h>
+#include <linux/amba/serial.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -360,6 +362,68 @@ void __init ep93xx_init_irq(void)
 /*************************************************************************
  * EP93xx peripheral handling
  *************************************************************************/
+#define EP93XX_UART_MCR_OFFSET		(0x0100)
+
+static void ep93xx_uart_set_mctrl(struct amba_device *dev,
+				  void __iomem *base, unsigned int mctrl)
+{
+	unsigned int mcr;
+
+	mcr = 0;
+	if (!(mctrl & TIOCM_RTS))
+		mcr |= 2;
+	if (!(mctrl & TIOCM_DTR))
+		mcr |= 1;
+
+	__raw_writel(mcr, base + EP93XX_UART_MCR_OFFSET);
+}
+
+static struct amba_pl010_data ep93xx_uart_data = {
+	.set_mctrl	= ep93xx_uart_set_mctrl,
+};
+
+static struct amba_device uart1_device = {
+	.dev		= {
+		.bus_id		= "apb:uart1",
+		.platform_data	= &ep93xx_uart_data,
+	},
+	.res		= {
+		.start	= EP93XX_UART1_PHYS_BASE,
+		.end	= EP93XX_UART1_PHYS_BASE + 0x0fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= { IRQ_EP93XX_UART1, NO_IRQ },
+	.periphid	= 0x00041010,
+};
+
+static struct amba_device uart2_device = {
+	.dev		= {
+		.bus_id		= "apb:uart2",
+		.platform_data	= &ep93xx_uart_data,
+	},
+	.res		= {
+		.start	= EP93XX_UART2_PHYS_BASE,
+		.end	= EP93XX_UART2_PHYS_BASE + 0x0fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= { IRQ_EP93XX_UART2, NO_IRQ },
+	.periphid	= 0x00041010,
+};
+
+static struct amba_device uart3_device = {
+	.dev		= {
+		.bus_id		= "apb:uart3",
+		.platform_data	= &ep93xx_uart_data,
+	},
+	.res		= {
+		.start	= EP93XX_UART3_PHYS_BASE,
+		.end	= EP93XX_UART3_PHYS_BASE + 0x0fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	.irq		= { IRQ_EP93XX_UART3, NO_IRQ },
+	.periphid	= 0x00041010,
+};
+
 void __init ep93xx_init_devices(void)
 {
 	unsigned int v;
@@ -371,4 +435,8 @@ void __init ep93xx_init_devices(void)
 	v &= ~EP93XX_SYSCON_DEVICE_CONFIG_CRUNCH_ENABLE;
 	__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
 	__raw_writel(v, EP93XX_SYSCON_DEVICE_CONFIG);
+
+	amba_device_register(&uart1_device, &iomem_resource);
+	amba_device_register(&uart2_device, &iomem_resource);
+	amba_device_register(&uart3_device, &iomem_resource);
 }

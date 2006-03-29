@@ -46,14 +46,16 @@ extern volatile int smp_processors_ready;
 extern int smp_num_cpus;
 static int smp_highest_cpu;
 extern volatile unsigned long cpu_callin_map[NR_CPUS];
-extern struct cpuinfo_sparc cpu_data[NR_CPUS];
+extern cpuinfo_sparc cpu_data[NR_CPUS];
 extern unsigned char boot_cpu_id;
 extern int smp_activated;
 extern volatile int __cpu_number_map[NR_CPUS];
 extern volatile int __cpu_logical_map[NR_CPUS];
 extern volatile unsigned long ipi_count;
 extern volatile int smp_process_available;
-extern volatile int smp_commenced;
+
+extern cpumask_t smp_commenced_mask;
+
 extern int __smp4d_processor_id(void);
 
 /* #define SMP_DEBUG */
@@ -136,7 +138,7 @@ void __init smp4d_callin(void)
 	
 	local_irq_enable();	/* We don't allow PIL 14 yet */
 	
-	while(!smp_commenced)
+	while (!cpu_isset(cpuid, smp_commenced_mask))
 		barrier();
 
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);

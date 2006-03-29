@@ -154,8 +154,8 @@ static void start_adc(struct cs4297a_state *s);
 #if CSDEBUG
 static unsigned long cs_debuglevel = 4;	// levels range from 1-9
 static unsigned long cs_debugmask = CS_INIT /*| CS_IOCTL*/;
-MODULE_PARM(cs_debuglevel, "i");
-MODULE_PARM(cs_debugmask, "i");
+module_param(cs_debuglevel, int, 0);
+module_param(cs_debugmask, int, 0);
 #endif
 #define CS_TRUE 	1
 #define CS_FALSE 	0

@@ -13,6 +13,7 @@
 #include <linux/numa.h>
 #include <linux/init.h>
 #include <linux/seqlock.h>
+#include <linux/nodemask.h>
 #include <asm/atomic.h>
 
 /* Free memory management - zoned buddy allocator.  */
@@ -225,7 +226,6 @@ struct zone {
 	 * Discontig memory support fields.
 	 */
 	struct pglist_data	*zone_pgdat;
-	struct page		*zone_mem_map;
 	/* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
 	unsigned long		zone_start_pfn;
 
@@ -307,7 +307,6 @@ typedef struct pglist_data {
 	unsigned long node_spanned_pages; /* total size of physical page
 					     range, including holes */
 	int node_id;
-	struct pglist_data *pgdat_next;
 	wait_queue_head_t kswapd_wait;
 	struct task_struct *kswapd;
 	int kswapd_max_order;
@@ -323,8 +322,6 @@ typedef struct pglist_data {
 #define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
 
 #include <linux/memory_hotplug.h>
-
-extern struct pglist_data *pgdat_list;
 
 void __get_zone_counts(unsigned long *active, unsigned long *inactive,
 			unsigned long *free, struct pglist_data *pgdat);
@@ -349,57 +346,6 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
  * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_NORMAL zone, etc.
  */
 #define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
-
-/**
- * for_each_pgdat - helper macro to iterate over all nodes
- * @pgdat - pointer to a pg_data_t variable
- *
- * Meant to help with common loops of the form
- * pgdat = pgdat_list;
- * while(pgdat) {
- * 	...
- * 	pgdat = pgdat->pgdat_next;
- * }
- */
-#define for_each_pgdat(pgdat) \
-	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->pgdat_next)
-
-/*
- * next_zone - helper magic for for_each_zone()
- * Thanks to William Lee Irwin III for this piece of ingenuity.
- */
-static inline struct zone *next_zone(struct zone *zone)
-{
-	pg_data_t *pgdat = zone->zone_pgdat;
-
-	if (zone < pgdat->node_zones + MAX_NR_ZONES - 1)
-		zone++;
-	else if (pgdat->pgdat_next) {
-		pgdat = pgdat->pgdat_next;
-		zone = pgdat->node_zones;
-	} else
-		zone = NULL;
-
-	return zone;
-}
-
-/**
- * for_each_zone - helper macro to iterate over all memory zones
- * @zone - pointer to struct zone variable
- *
- * The user only needs to declare the zone variable, for_each_zone
- * fills it in. This basically means for_each_zone() is an
- * easier to read version of this piece of code:
- *
- * for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next)
- * 	for (i = 0; i < MAX_NR_ZONES; ++i) {
- * 		struct zone * z = pgdat->node_zones + i;
- * 		...
- * 	}
- * }
- */
-#define for_each_zone(zone) \
-	for (zone = pgdat_list->node_zones; zone; zone = next_zone(zone))
 
 static inline int populated_zone(struct zone *zone)
 {
@@ -471,6 +417,30 @@ extern struct pglist_data contig_page_data;
 #include <asm/mmzone.h>
 
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
+
+extern struct pglist_data *first_online_pgdat(void);
+extern struct pglist_data *next_online_pgdat(struct pglist_data *pgdat);
+extern struct zone *next_zone(struct zone *zone);
+
+/**
+ * for_each_pgdat - helper macro to iterate over all nodes
+ * @pgdat - pointer to a pg_data_t variable
+ */
+#define for_each_online_pgdat(pgdat)			\
+	for (pgdat = first_online_pgdat();		\
+	     pgdat;					\
+	     pgdat = next_online_pgdat(pgdat))
+/**
+ * for_each_zone - helper macro to iterate over all memory zones
+ * @zone - pointer to struct zone variable
+ *
+ * The user only needs to declare the zone variable, for_each_zone
+ * fills it in.
+ */
+#define for_each_zone(zone)			        \
+	for (zone = (first_online_pgdat())->node_zones; \
+	     zone;					\
+	     zone = next_zone(zone))
 
 #ifdef CONFIG_SPARSEMEM
 #include <asm/sparsemem.h>
@@ -601,17 +571,6 @@ static inline struct mem_section *__pfn_to_section(unsigned long pfn)
 {
 	return __nr_to_section(pfn_to_section_nr(pfn));
 }
-
-#define pfn_to_page(pfn) 						\
-({ 									\
-	unsigned long __pfn = (pfn);					\
-	__section_mem_map_addr(__pfn_to_section(__pfn)) + __pfn;	\
-})
-#define page_to_pfn(page)						\
-({									\
-	page - __section_mem_map_addr(__nr_to_section(			\
-		page_to_section(page)));				\
-})
 
 static inline int pfn_valid(unsigned long pfn)
 {

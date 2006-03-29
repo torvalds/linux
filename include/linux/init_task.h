@@ -62,6 +62,8 @@
 	.posix_timers	 = LIST_HEAD_INIT(sig.posix_timers),		\
 	.cpu_timers	= INIT_CPU_TIMERS(sig.cpu_timers),		\
 	.rlim		= INIT_RLIMITS,					\
+	.pgrp		= 1,						\
+	.session	= 1,						\
 }
 
 #define INIT_SIGHAND(sighand) {						\

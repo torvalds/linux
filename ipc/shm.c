@@ -30,6 +30,7 @@
 #include <linux/capability.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 
@@ -109,7 +110,7 @@ static void shm_open (struct vm_area_struct *shmd)
  *
  * @shp: struct to free
  *
- * It has to be called with shp and shm_ids.sem locked,
+ * It has to be called with shp and shm_ids.mutex locked,
  * but returns with shp unlocked and freed.
  */
 static void shm_destroy (struct shmid_kernel *shp)
@@ -139,7 +140,7 @@ static void shm_close (struct vm_area_struct *shmd)
 	int id = file->f_dentry->d_inode->i_ino;
 	struct shmid_kernel *shp;
 
-	down (&shm_ids.sem);
+	mutex_lock(&shm_ids.mutex);
 	/* remove from the list of attaches of the shm segment */
 	if(!(shp = shm_lock(id)))
 		BUG();
@@ -151,7 +152,7 @@ static void shm_close (struct vm_area_struct *shmd)
 		shm_destroy (shp);
 	else
 		shm_unlock(shp);
-	up (&shm_ids.sem);
+	mutex_unlock(&shm_ids.mutex);
 }
 
 static int shm_mmap(struct file * file, struct vm_area_struct * vma)
@@ -270,7 +271,7 @@ asmlinkage long sys_shmget (key_t key, size_t size, int shmflg)
 	struct shmid_kernel *shp;
 	int err, id = 0;
 
-	down(&shm_ids.sem);
+	mutex_lock(&shm_ids.mutex);
 	if (key == IPC_PRIVATE) {
 		err = newseg(key, shmflg, size);
 	} else if ((id = ipc_findkey(&shm_ids, key)) == -1) {
@@ -296,7 +297,7 @@ asmlinkage long sys_shmget (key_t key, size_t size, int shmflg)
 		}
 		shm_unlock(shp);
 	}
-	up(&shm_ids.sem);
+	mutex_unlock(&shm_ids.mutex);
 
 	return err;
 }
@@ -467,14 +468,14 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 			return err;
 
 		memset(&shm_info,0,sizeof(shm_info));
-		down(&shm_ids.sem);
+		mutex_lock(&shm_ids.mutex);
 		shm_info.used_ids = shm_ids.in_use;
 		shm_get_stat (&shm_info.shm_rss, &shm_info.shm_swp);
 		shm_info.shm_tot = shm_tot;
 		shm_info.swap_attempts = 0;
 		shm_info.swap_successes = 0;
 		err = shm_ids.max_id;
-		up(&shm_ids.sem);
+		mutex_unlock(&shm_ids.mutex);
 		if(copy_to_user (buf, &shm_info, sizeof(shm_info))) {
 			err = -EFAULT;
 			goto out;
@@ -583,7 +584,7 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 		 *	Instead we set a destroyed flag, and then blow
 		 *	the name away when the usage hits zero.
 		 */
-		down(&shm_ids.sem);
+		mutex_lock(&shm_ids.mutex);
 		shp = shm_lock(shmid);
 		err = -EINVAL;
 		if (shp == NULL) 
@@ -610,7 +611,7 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 			shm_unlock(shp);
 		} else
 			shm_destroy (shp);
-		up(&shm_ids.sem);
+		mutex_unlock(&shm_ids.mutex);
 		goto out;
 	}
 
@@ -620,13 +621,14 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 			err = -EFAULT;
 			goto out;
 		}
-		if ((err = audit_ipc_perms(0, setbuf.uid, setbuf.gid, setbuf.mode)))
-			return err;
-		down(&shm_ids.sem);
+		mutex_lock(&shm_ids.mutex);
 		shp = shm_lock(shmid);
 		err=-EINVAL;
 		if(shp==NULL)
 			goto out_up;
+		if ((err = audit_ipc_perms(0, setbuf.uid, setbuf.gid,
+					setbuf.mode, &(shp->shm_perm))))
+			goto out_unlock_up;
 		err = shm_checkid(shp,shmid);
 		if(err)
 			goto out_unlock_up;
@@ -658,7 +660,7 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 out_unlock_up:
 	shm_unlock(shp);
 out_up:
-	up(&shm_ids.sem);
+	mutex_unlock(&shm_ids.mutex);
 	goto out;
 out_unlock:
 	shm_unlock(shp);
@@ -771,7 +773,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr)
 invalid:
 	up_write(&current->mm->mmap_sem);
 
-	down (&shm_ids.sem);
+	mutex_lock(&shm_ids.mutex);
 	if(!(shp = shm_lock(shmid)))
 		BUG();
 	shp->shm_nattch--;
@@ -780,7 +782,7 @@ invalid:
 		shm_destroy (shp);
 	else
 		shm_unlock(shp);
-	up (&shm_ids.sem);
+	mutex_unlock(&shm_ids.mutex);
 
 	*raddr = (unsigned long) user_addr;
 	err = 0;

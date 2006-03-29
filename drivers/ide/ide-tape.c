@@ -433,6 +433,7 @@
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
+#include <linux/jiffies.h>
 #include <linux/major.h>
 #include <linux/devfs_fs_kernel.h>
 #include <linux/errno.h>
@@ -2336,7 +2337,7 @@ static ide_startstop_t idetape_rw_callback (ide_drive_t *drive)
 	}
 	if (time_after(jiffies, tape->insert_time))
 		tape->insert_speed = tape->insert_size / 1024 * HZ / (jiffies - tape->insert_time);
-	if (jiffies - tape->avg_time >= HZ) {
+	if (time_after_eq(jiffies, tape->avg_time + HZ)) {
 		tape->avg_speed = tape->avg_size * HZ / (jiffies - tape->avg_time) / 1024;
 		tape->avg_size = 0;
 		tape->avg_time = jiffies;
@@ -2497,7 +2498,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 			} else {
 				return ide_do_reset(drive);
 			}
-		} else if (jiffies - tape->dsc_polling_start > IDETAPE_DSC_MA_THRESHOLD)
+		} else if (time_after(jiffies, tape->dsc_polling_start + IDETAPE_DSC_MA_THRESHOLD))
 			tape->dsc_polling_frequency = IDETAPE_DSC_MA_SLOW;
 		idetape_postpone_request(drive);
 		return ide_stopped;

@@ -31,14 +31,9 @@
 
 static mempool_t *page_pool, *isa_page_pool;
 
-static void *page_pool_alloc_isa(gfp_t gfp_mask, void *data)
+static void *mempool_alloc_pages_isa(gfp_t gfp_mask, void *data)
 {
-	return alloc_page(gfp_mask | GFP_DMA);
-}
-
-static void page_pool_free(void *page, void *data)
-{
-	__free_page(page);
+	return mempool_alloc_pages(gfp_mask | GFP_DMA, data);
 }
 
 /*
@@ -50,11 +45,6 @@ static void page_pool_free(void *page, void *data)
  *  n means that there are (n-1) current users of it.
  */
 #ifdef CONFIG_HIGHMEM
-
-static void *page_pool_alloc(gfp_t gfp_mask, void *data)
-{
-	return alloc_page(gfp_mask);
-}
 
 static int pkmap_count[LAST_PKMAP];
 static unsigned int last_pkmap_nr;
@@ -229,7 +219,7 @@ static __init int init_emergency_pool(void)
 	if (!i.totalhigh)
 		return 0;
 
-	page_pool = mempool_create(POOL_SIZE, page_pool_alloc, page_pool_free, NULL);
+	page_pool = mempool_create_page_pool(POOL_SIZE, 0);
 	if (!page_pool)
 		BUG();
 	printk("highmem bounce pool size: %d pages\n", POOL_SIZE);
@@ -272,7 +262,8 @@ int init_emergency_isa_pool(void)
 	if (isa_page_pool)
 		return 0;
 
-	isa_page_pool = mempool_create(ISA_POOL_SIZE, page_pool_alloc_isa, page_pool_free, NULL);
+	isa_page_pool = mempool_create(ISA_POOL_SIZE, mempool_alloc_pages_isa,
+				       mempool_free_pages, (void *) 0);
 	if (!isa_page_pool)
 		BUG();
 
@@ -337,7 +328,7 @@ static void bounce_end_io(struct bio *bio, mempool_t *pool, int err)
 	bio_put(bio);
 }
 
-static int bounce_end_io_write(struct bio *bio, unsigned int bytes_done,int err)
+static int bounce_end_io_write(struct bio *bio, unsigned int bytes_done, int err)
 {
 	if (bio->bi_size)
 		return 1;
@@ -384,7 +375,7 @@ static int bounce_end_io_read_isa(struct bio *bio, unsigned int bytes_done, int 
 }
 
 static void __blk_queue_bounce(request_queue_t *q, struct bio **bio_orig,
-			mempool_t *pool)
+			       mempool_t *pool)
 {
 	struct page *page;
 	struct bio *bio = NULL;

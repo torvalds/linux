@@ -354,7 +354,7 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
-int tty_insert_flip_string(struct tty_struct *tty, unsigned char *chars, size_t size)
+int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars, size_t size)
 {
 	int copied = 0;
 	do {
@@ -378,7 +378,7 @@ int tty_insert_flip_string(struct tty_struct *tty, unsigned char *chars, size_t 
 
 EXPORT_SYMBOL_GPL(tty_insert_flip_string);
 
-int tty_insert_flip_string_flags(struct tty_struct *tty, unsigned char *chars, char *flags, size_t size)
+int tty_insert_flip_string_flags(struct tty_struct *tty, const unsigned char *chars, const char *flags, size_t size)
 {
 	int copied = 0;
 	do {
@@ -543,14 +543,12 @@ void tty_ldisc_put(int disc)
 	struct tty_ldisc *ld;
 	unsigned long flags;
 	
-	if (disc < N_TTY || disc >= NR_LDISCS)
-		BUG();
+	BUG_ON(disc < N_TTY || disc >= NR_LDISCS);
 		
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
 	ld = &tty_ldiscs[disc];
-	if(ld->refcount == 0)
-		BUG();
-	ld->refcount --;
+	BUG_ON(ld->refcount == 0);
+	ld->refcount--;
 	module_put(ld->owner);
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 }
@@ -645,8 +643,7 @@ void tty_ldisc_deref(struct tty_ldisc *ld)
 {
 	unsigned long flags;
 
-	if(ld == NULL)
-		BUG();
+	BUG_ON(ld == NULL);
 		
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
 	if(ld->refcount == 0)
@@ -1097,8 +1094,8 @@ static void do_tty_hangup(void *data)
 				p->signal->tty = NULL;
 			if (!p->signal->leader)
 				continue;
-			send_group_sig_info(SIGHUP, SEND_SIG_PRIV, p);
-			send_group_sig_info(SIGCONT, SEND_SIG_PRIV, p);
+			group_send_sig_info(SIGHUP, SEND_SIG_PRIV, p);
+			group_send_sig_info(SIGCONT, SEND_SIG_PRIV, p);
 			if (tty->pgrp > 0)
 				p->signal->tty_old_pgrp = tty->pgrp;
 		} while_each_task_pid(tty->session, PIDTYPE_SID, p);
@@ -2675,7 +2672,7 @@ static void __do_SAK(void *arg)
 	tty_hangup(tty);
 #else
 	struct tty_struct *tty = arg;
-	struct task_struct *p;
+	struct task_struct *g, *p;
 	int session;
 	int		i;
 	struct file	*filp;
@@ -2696,8 +2693,18 @@ static void __do_SAK(void *arg)
 		tty->driver->flush_buffer(tty);
 	
 	read_lock(&tasklist_lock);
+	/* Kill the entire session */
 	do_each_task_pid(session, PIDTYPE_SID, p) {
-		if (p->signal->tty == tty || session > 0) {
+		printk(KERN_NOTICE "SAK: killed process %d"
+			" (%s): p->signal->session==tty->session\n",
+			p->pid, p->comm);
+		send_sig(SIGKILL, p, 1);
+	} while_each_task_pid(session, PIDTYPE_SID, p);
+	/* Now kill any processes that happen to have the
+	 * tty open.
+	 */
+	do_each_thread(g, p) {
+		if (p->signal->tty == tty) {
 			printk(KERN_NOTICE "SAK: killed process %d"
 			    " (%s): p->signal->session==tty->session\n",
 			    p->pid, p->comm);
@@ -2724,7 +2731,7 @@ static void __do_SAK(void *arg)
 			rcu_read_unlock();
 		}
 		task_unlock(p);
-	} while_each_task_pid(session, PIDTYPE_SID, p);
+	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
 #endif
 }

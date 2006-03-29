@@ -323,10 +323,10 @@ struct hlist_head __kprobes *kretprobe_inst_table_head(struct task_struct *tsk)
 }
 
 /*
- * This function is called from exit_thread or flush_thread when task tk's
- * stack is being recycled so that we can recycle any function-return probe
- * instances associated with this task. These left over instances represent
- * probed functions that have been called but will never return.
+ * This function is called from finish_task_switch when task tk becomes dead,
+ * so that we can recycle any function-return probe instances associated
+ * with this task. These left over instances represent probed functions
+ * that have been called but will never return.
  */
 void __kprobes kprobe_flush_task(struct task_struct *tk)
 {
@@ -336,7 +336,7 @@ void __kprobes kprobe_flush_task(struct task_struct *tk)
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&kretprobe_lock, flags);
-        head = kretprobe_inst_table_head(current);
+        head = kretprobe_inst_table_head(tk);
         hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
                 if (ri->task == tk)
                         recycle_rp_inst(ri);

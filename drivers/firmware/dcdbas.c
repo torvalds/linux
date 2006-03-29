@@ -484,26 +484,15 @@ static void dcdbas_host_control(void)
 static int dcdbas_reboot_notify(struct notifier_block *nb, unsigned long code,
 				void *unused)
 {
-	static unsigned int notify_cnt = 0;
-
 	switch (code) {
 	case SYS_DOWN:
 	case SYS_HALT:
 	case SYS_POWER_OFF:
 		if (host_control_on_shutdown) {
 			/* firmware is going to perform host control action */
-			if (++notify_cnt == 2) {
-				printk(KERN_WARNING
-				       "Please wait for shutdown "
-				       "action to complete...\n");
-				dcdbas_host_control();
-			}
-			/*
-			 * register again and initiate the host control
-			 * action on the second notification to allow
-			 * everyone that registered to be notified
-			 */
-			register_reboot_notifier(nb);
+			printk(KERN_WARNING "Please wait for shutdown "
+			       "action to complete...\n");
+			dcdbas_host_control();
 		}
 		break;
 	}
@@ -514,7 +503,7 @@ static int dcdbas_reboot_notify(struct notifier_block *nb, unsigned long code,
 static struct notifier_block dcdbas_reboot_nb = {
 	.notifier_call = dcdbas_reboot_notify,
 	.next = NULL,
-	.priority = 0
+	.priority = INT_MIN
 };
 
 static DCDBAS_BIN_ATTR_RW(smi_data);

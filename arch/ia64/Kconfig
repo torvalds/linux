@@ -34,11 +34,19 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config GENERIC_FIND_NEXT_BIT
+	bool
+	default y
+
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
 config TIME_INTERPOLATION
+	bool
+	default y
+
+config DMI
 	bool
 	default y
 
@@ -251,6 +259,15 @@ config NR_CPUS
 	  only use 2 CPUs on a >2 CPU system.  Setting this to a value larger
 	  than 64 will cause the use of a CPU mask array, causing a small
 	  performance hit.
+
+config IA64_NR_NODES
+	int "Maximum number of NODEs (256-1024)" if (IA64_SGI_SN2 || IA64_GENERIC)
+	range 256 1024
+	depends on IA64_SGI_SN2 || IA64_GENERIC
+	default "256"
+	help
+	  This option specifies the maximum number of nodes in your SSI system.
+	  If in doubt, use the default.
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"

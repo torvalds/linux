@@ -77,14 +77,6 @@ config SERIAL_8250_CS
 
 	  If unsure, say N.
 
-config SERIAL_8250_ACPI
-	bool "8250/16550 device discovery via ACPI namespace"
-	default y if IA64
-	depends on ACPI && SERIAL_8250
-	---help---
-	  If you wish to enable serial port discovery via the ACPI
-	  namespace, say Y here.  If unsure, say N.
-
 config SERIAL_8250_NR_UARTS
 	int "Maximum number of 8250/16550 serial ports"
 	depends on SERIAL_8250
@@ -628,22 +620,6 @@ config SERIAL_SH_SCI_CONSOLE
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
 
-config SERIAL_AU1X00
-	bool "Enable Au1x00 UART Support"
-	depends on MIPS && SOC_AU1X00
-	select SERIAL_CORE
-	help
-	  If you have an Alchemy AU1X00 processor (MIPS based) and you want
-	  to use serial ports, say Y.  Otherwise, say N.
-
-config SERIAL_AU1X00_CONSOLE
-	bool "Enable Au1x00 serial console"
-	depends on SERIAL_AU1X00
-	select SERIAL_CORE_CONSOLE
-	help
-	  If you have an Alchemy AU1X00 processor (MIPS based) and you want
-	  to use a console on a serial port, say Y.  Otherwise, say N.
-
 config SERIAL_CORE
 	tristate
 
@@ -827,6 +803,7 @@ config SERIAL_ICOM
 	tristate "IBM Multiport Serial Adapter"
 	depends on PCI && (PPC_ISERIES || PPC_PSERIES)
 	select SERIAL_CORE
+	select FW_LOADER
 	help
 	  This driver is for a family of multiport serial adapters
 	  including 2 port RVX, 2 port internal modem, 4 port internal

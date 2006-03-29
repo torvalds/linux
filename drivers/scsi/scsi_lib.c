@@ -1787,9 +1787,8 @@ int __init scsi_init_queue(void)
 					sgp->name);
 		}
 
-		sgp->pool = mempool_create(SG_MEMPOOL_SIZE,
-				mempool_alloc_slab, mempool_free_slab,
-				sgp->slab);
+		sgp->pool = mempool_create_slab_pool(SG_MEMPOOL_SIZE,
+						     sgp->slab);
 		if (!sgp->pool) {
 			printk(KERN_ERR "SCSI: can't init sg mempool %s\n",
 					sgp->name);

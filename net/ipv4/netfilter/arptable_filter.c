@@ -179,7 +179,7 @@ static struct nf_hook_ops arpt_ops[] = {
 	},
 };
 
-static int __init init(void)
+static int __init arptable_filter_init(void)
 {
 	int ret, i;
 
@@ -201,7 +201,7 @@ cleanup_hooks:
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit arptable_filter_fini(void)
 {
 	unsigned int i;
 
@@ -211,5 +211,5 @@ static void __exit fini(void)
 	arpt_unregister_table(&packet_filter);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(arptable_filter_init);
+module_exit(arptable_filter_fini);

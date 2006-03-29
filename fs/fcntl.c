@@ -412,7 +412,7 @@ out:
 
 /* Table to convert sigio signal codes into poll band bitmaps */
 
-static long band_table[NSIGPOLL] = {
+static const long band_table[NSIGPOLL] = {
 	POLLIN | POLLRDNORM,			/* POLL_IN */
 	POLLOUT | POLLWRNORM | POLLWRBAND,	/* POLL_OUT */
 	POLLIN | POLLRDNORM | POLLMSG,		/* POLL_MSG */
@@ -531,7 +531,7 @@ int send_sigurg(struct fown_struct *fown)
 }
 
 static DEFINE_RWLOCK(fasync_lock);
-static kmem_cache_t *fasync_cache;
+static kmem_cache_t *fasync_cache __read_mostly;
 
 /*
  * fasync_helper() is used by some character device drivers (mainly mice)

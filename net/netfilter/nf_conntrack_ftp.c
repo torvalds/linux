@@ -624,7 +624,7 @@ static struct nf_conntrack_helper ftp[MAX_PORTS][2];
 static char ftp_names[MAX_PORTS][2][sizeof("ftp-65535")];
 
 /* don't make this __exit, since it's called from __init ! */
-static void fini(void)
+static void nf_conntrack_ftp_fini(void)
 {
 	int i, j;
 	for (i = 0; i < ports_c; i++) {
@@ -642,7 +642,7 @@ static void fini(void)
 	kfree(ftp_buffer);
 }
 
-static int __init init(void)
+static int __init nf_conntrack_ftp_init(void)
 {
 	int i, j = -1, ret = 0;
 	char *tmpname;
@@ -683,7 +683,7 @@ static int __init init(void)
 				printk("nf_ct_ftp: failed to register helper "
 				       " for pf: %d port: %d\n",
 					ftp[i][j].tuple.src.l3num, ports[i]);
-				fini();
+				nf_conntrack_ftp_fini();
 				return ret;
 			}
 		}
@@ -692,5 +692,5 @@ static int __init init(void)
 	return 0;
 }
 
-module_init(init);
-module_exit(fini);
+module_init(nf_conntrack_ftp_init);
+module_exit(nf_conntrack_ftp_fini);

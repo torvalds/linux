@@ -294,7 +294,7 @@ xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 	xfs_trans_ihold(args.trans, dp);
 
 	/*
-	 * If the attribute list is non-existant or a shortform list,
+	 * If the attribute list is non-existent or a shortform list,
 	 * upgrade it to a single-leaf-block attribute list.
 	 */
 	if ((dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) ||
@@ -1584,7 +1584,7 @@ out:
  * Fill in the disk block numbers in the state structure for the buffers
  * that are attached to the state structure.
  * This is done so that we can quickly reattach ourselves to those buffers
- * after some set of transaction commit's has released these buffers.
+ * after some set of transaction commits have released these buffers.
  */
 STATIC int
 xfs_attr_fillstate(xfs_da_state_t *state)
@@ -1631,7 +1631,7 @@ xfs_attr_fillstate(xfs_da_state_t *state)
 /*
  * Reattach the buffers to the state structure based on the disk block
  * numbers stored in the state structure.
- * This is done after some set of transaction commit's has released those
+ * This is done after some set of transaction commits have released those
  * buffers from our grip.
  */
 STATIC int

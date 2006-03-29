@@ -97,15 +97,15 @@ static struct ipt_match esp_match = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_esp_init(void)
 {
 	return ipt_register_match(&esp_match);
 }
 
-static void __exit cleanup(void)
+static void __exit ipt_esp_fini(void)
 {
 	ipt_unregister_match(&esp_match);
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init(ipt_esp_init);
+module_exit(ipt_esp_fini);

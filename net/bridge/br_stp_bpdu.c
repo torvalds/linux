@@ -19,6 +19,7 @@
 #include <linux/llc.h>
 #include <net/llc.h>
 #include <net/llc_pdu.h>
+#include <asm/unaligned.h>
 
 #include "br_private.h"
 #include "br_private_stp.h"
@@ -59,12 +60,12 @@ static inline void br_set_ticks(unsigned char *dest, int j)
 {
 	unsigned long ticks = (STP_HZ * j)/ HZ;
 
-	*((__be16 *) dest) = htons(ticks);
+	put_unaligned(htons(ticks), (__be16 *)dest);
 }
 
 static inline int br_get_ticks(const unsigned char *src)
 {
-	unsigned long ticks = ntohs(*(__be16 *)src);
+	unsigned long ticks = ntohs(get_unaligned((__be16 *)src));
 
 	return (ticks * HZ + STP_HZ - 1) / STP_HZ;
 }

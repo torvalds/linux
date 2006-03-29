@@ -195,7 +195,7 @@ void show_mem(void)
 	printk("Mem-info:\n");
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
-	for_each_pgdat(pgdat) {
+	for_each_online_pgdat(pgdat) {
 		unsigned long flags;
 		pgdat_resize_lock(pgdat, &flags);
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
@@ -342,7 +342,7 @@ void __init mem_init(void)
 #ifdef CONFIG_NEED_MULTIPLE_NODES
         for_each_online_node(nid) {
 		if (NODE_DATA(nid)->node_spanned_pages != 0) {
-			printk("freeing bootmem node %x\n", nid);
+			printk("freeing bootmem node %d\n", nid);
 			totalram_pages +=
 				free_all_bootmem_node(NODE_DATA(nid));
 		}
@@ -351,7 +351,7 @@ void __init mem_init(void)
 	max_mapnr = max_pfn;
 	totalram_pages += free_all_bootmem();
 #endif
-	for_each_pgdat(pgdat) {
+	for_each_online_pgdat(pgdat) {
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
 			if (!pfn_valid(pgdat->node_start_pfn + i))
 				continue;

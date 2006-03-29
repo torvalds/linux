@@ -100,7 +100,7 @@ struct inode_operations jfs_file_inode_operations = {
 #endif
 };
 
-struct file_operations jfs_file_operations = {
+const struct file_operations jfs_file_operations = {
 	.open		= jfs_open,
 	.llseek		= generic_file_llseek,
 	.write		= generic_file_write,

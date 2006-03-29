@@ -5,21 +5,20 @@
 
 struct pt_regs;
 
-struct die_args { 
+struct die_args {
 	struct pt_regs *regs;
 	const char *str;
-	long err; 
+	long err;
 	int trapnr;
 	int signr;
-}; 
+};
 
-/* Note - you should never unregister because that can race with NMIs.
-   If you really want to do it first unregister - then synchronize_sched - then free.
-  */
-int register_die_notifier(struct notifier_block *nb);
-extern struct notifier_block *die_chain;
+extern int register_die_notifier(struct notifier_block *);
+extern int unregister_die_notifier(struct notifier_block *);
+extern struct atomic_notifier_head die_chain;
+
 /* Grossly misnamed. */
-enum die_val { 
+enum die_val {
 	DIE_OOPS = 1,
 	DIE_INT3,
 	DIE_DEBUG,
@@ -33,8 +32,8 @@ enum die_val {
 	DIE_CALL,
 	DIE_NMI_IPI,
 	DIE_PAGE_FAULT,
-}; 
-	
+};
+
 static inline int notify_die(enum die_val val, const char *str,
 			struct pt_regs *regs, long err, int trap, int sig)
 {
@@ -45,7 +44,7 @@ static inline int notify_die(enum die_val val, const char *str,
 		.trapnr = trap,
 		.signr = sig
 	};
-	return notifier_call_chain(&die_chain, val, &args); 
+	return atomic_notifier_call_chain(&die_chain, val, &args);
 } 
 
 extern int printk_address(unsigned long address);

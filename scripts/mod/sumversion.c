@@ -316,8 +316,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 
 	file = grab_file(cmd, &flen);
 	if (!file) {
-		fprintf(stderr, "Warning: could not find %s for %s\n",
-			cmd, objfile);
+		warn("could not find %s for %s\n", cmd, objfile);
 		goto out;
 	}
 
@@ -355,9 +354,8 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 		/* Check if this file is in same dir as objfile */
 		if ((strstr(line, dir)+strlen(dir)-1) == strrchr(line, '/')) {
 			if (!parse_file(line, md)) {
-				fprintf(stderr,
-					"Warning: could not open %s: %s\n",
-					line, strerror(errno));
+				warn("could not open %s: %s\n",
+				     line, strerror(errno));
 				goto out_file;
 			}
 
@@ -383,8 +381,11 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen)
 	struct md4_ctx md;
 	char *sources, *end, *fname;
 	const char *basename;
-	char filelist[strlen(getenv("MODVERDIR")) + strlen("/") +
-		      strlen(modname) - strlen(".o") + strlen(".mod") + 1 ];
+	char filelist[PATH_MAX + 1];
+	char *modverdir = getenv("MODVERDIR");
+
+	if (!modverdir)
+		modverdir = ".";
 
 	/* Source files for module are in .tmp_versions/modname.mod,
 	   after the first line. */
@@ -392,28 +393,25 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen)
 		basename = strrchr(modname, '/') + 1;
 	else
 		basename = modname;
-	sprintf(filelist, "%s/%.*s.mod", getenv("MODVERDIR"),
+	sprintf(filelist, "%s/%.*s.mod", modverdir,
 		(int) strlen(basename) - 2, basename);
 
 	file = grab_file(filelist, &len);
 	if (!file) {
-		fprintf(stderr, "Warning: could not find versions for %s\n",
-			filelist);
+		warn("could not find versions for %s\n", filelist);
 		return;
 	}
 
 	sources = strchr(file, '\n');
 	if (!sources) {
-		fprintf(stderr, "Warning: malformed versions file for %s\n",
-			modname);
+		warn("malformed versions file for %s\n", modname);
 		goto release;
 	}
 
 	sources++;
 	end = strchr(sources, '\n');
 	if (!end) {
-		fprintf(stderr, "Warning: bad ending versions file for %s\n",
-			modname);
+		warn("bad ending versions file for %s\n", modname);
 		goto release;
 	}
 	*end = '\0';
@@ -438,19 +436,19 @@ static void write_version(const char *filename, const char *sum,
 
 	fd = open(filename, O_RDWR);
 	if (fd < 0) {
-		fprintf(stderr, "Warning: changing sum in %s failed: %s\n",
+		warn("changing sum in %s failed: %s\n",
 			filename, strerror(errno));
 		return;
 	}
 
 	if (lseek(fd, offset, SEEK_SET) == (off_t)-1) {
-		fprintf(stderr, "Warning: changing sum in %s:%lu failed: %s\n",
+		warn("changing sum in %s:%lu failed: %s\n",
 			filename, offset, strerror(errno));
 		goto out;
 	}
 
 	if (write(fd, sum, strlen(sum)+1) != strlen(sum)+1) {
-		fprintf(stderr, "Warning: writing sum in %s failed: %s\n",
+		warn("writing sum in %s failed: %s\n",
 			filename, strerror(errno));
 		goto out;
 	}

@@ -56,7 +56,7 @@ void minix_free_block(struct inode * inode, int block)
 	unsigned int bit,zone;
 
 	if (block < sbi->s_firstdatazone || block >= sbi->s_nzones) {
-		printk("trying to free block not in datazone\n");
+		printk("Trying to free block not in datazone\n");
 		return;
 	}
 	zone = block - sbi->s_firstdatazone + 1;
@@ -124,7 +124,7 @@ minix_V1_raw_inode(struct super_block *sb, ino_t ino, struct buffer_head **bh)
 		 ino / MINIX_INODES_PER_BLOCK;
 	*bh = sb_bread(sb, block);
 	if (!*bh) {
-		printk("unable to read i-node block\n");
+		printk("Unable to read inode block\n");
 		return NULL;
 	}
 	p = (void *)(*bh)->b_data;
@@ -149,7 +149,7 @@ minix_V2_raw_inode(struct super_block *sb, ino_t ino, struct buffer_head **bh)
 		 ino / MINIX2_INODES_PER_BLOCK;
 	*bh = sb_bread(sb, block);
 	if (!*bh) {
-		printk("unable to read i-node block\n");
+		printk("Unable to read inode block\n");
 		return NULL;
 	}
 	p = (void *)(*bh)->b_data;
@@ -204,7 +204,7 @@ void minix_free_inode(struct inode * inode)
 	bh = sbi->s_imap[ino >> 13];
 	lock_kernel();
 	if (!minix_test_and_clear_bit(ino & 8191, bh->b_data))
-		printk("minix_free_inode: bit %lu already cleared.\n", ino);
+		printk("minix_free_inode: bit %lu already cleared\n", ino);
 	unlock_kernel();
 	mark_buffer_dirty(bh);
  out:
@@ -238,7 +238,7 @@ struct inode * minix_new_inode(const struct inode * dir, int * error)
 		return NULL;
 	}
 	if (minix_test_and_set_bit(j,bh->b_data)) {	/* shouldn't happen */
-		printk("new_inode: bit already set");
+		printk("new_inode: bit already set\n");
 		unlock_kernel();
 		iput(inode);
 		return NULL;

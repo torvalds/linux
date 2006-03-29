@@ -33,6 +33,7 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
+#include <asm/firmware.h>
 #include <asm/vdso.h>
 #include <asm/vdso_datapage.h>
 
@@ -667,7 +668,13 @@ void __init vdso_init(void)
 	vdso_data->version.major = SYSTEMCFG_MAJOR;
 	vdso_data->version.minor = SYSTEMCFG_MINOR;
 	vdso_data->processor = mfspr(SPRN_PVR);
-	vdso_data->platform = _machine;
+	/*
+	 * Fake the old platform number for pSeries and iSeries and add
+	 * in LPAR bit if necessary
+	 */
+	vdso_data->platform = machine_is(iseries) ? 0x200 : 0x100;
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		vdso_data->platform |= 1;
 	vdso_data->physicalMemorySize = lmb_phys_mem_size();
 	vdso_data->dcache_size = ppc64_caches.dsize;
 	vdso_data->dcache_line_size = ppc64_caches.dline_size;

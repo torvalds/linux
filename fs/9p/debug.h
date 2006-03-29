@@ -5,9 +5,8 @@
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2
+ *  as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -30,6 +29,7 @@
 #define DEBUG_MUX		(1<<5)
 #define DEBUG_TRANS		(1<<6)
 #define DEBUG_SLABS	      	(1<<7)
+#define DEBUG_FCALL		(1<<8)
 
 #define DEBUG_DUMP_PKT		0
 

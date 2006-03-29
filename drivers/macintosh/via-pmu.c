@@ -187,7 +187,7 @@ extern int disable_kernel_backlight;
 
 int __fake_sleep;
 int asleep;
-struct notifier_block *sleep_notifier_list;
+BLOCKING_NOTIFIER_HEAD(sleep_notifier_list);
 
 #ifdef CONFIG_ADB
 static int adb_dev_map = 0;

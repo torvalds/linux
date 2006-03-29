@@ -64,26 +64,17 @@ static DEFINE_SPINLOCK(modlist_lock);
 static DEFINE_MUTEX(module_mutex);
 static LIST_HEAD(modules);
 
-static DEFINE_MUTEX(notify_mutex);
-static struct notifier_block * module_notify_list;
+static BLOCKING_NOTIFIER_HEAD(module_notify_list);
 
 int register_module_notifier(struct notifier_block * nb)
 {
-	int err;
-	mutex_lock(&notify_mutex);
-	err = notifier_chain_register(&module_notify_list, nb);
-	mutex_unlock(&notify_mutex);
-	return err;
+	return blocking_notifier_chain_register(&module_notify_list, nb);
 }
 EXPORT_SYMBOL(register_module_notifier);
 
 int unregister_module_notifier(struct notifier_block * nb)
 {
-	int err;
-	mutex_lock(&notify_mutex);
-	err = notifier_chain_unregister(&module_notify_list, nb);
-	mutex_unlock(&notify_mutex);
-	return err;
+	return blocking_notifier_chain_unregister(&module_notify_list, nb);
 }
 EXPORT_SYMBOL(unregister_module_notifier);
 
@@ -136,7 +127,7 @@ extern const unsigned long __start___kcrctab_gpl_future[];
 #ifndef CONFIG_MODVERSIONS
 #define symversion(base, idx) NULL
 #else
-#define symversion(base, idx) ((base) ? ((base) + (idx)) : NULL)
+#define symversion(base, idx) ((base != NULL) ? ((base) + (idx)) : NULL)
 #endif
 
 /* lookup symbol in given range of kernel_symbols */
@@ -231,24 +222,6 @@ static unsigned long __find_symbol(const char *name,
 	}
 	DEBUGP("Failed to find symbol %s\n", name);
  	return 0;
-}
-
-/* Find a symbol in this elf symbol table */
-static unsigned long find_local_symbol(Elf_Shdr *sechdrs,
-				       unsigned int symindex,
-				       const char *strtab,
-				       const char *name)
-{
-	unsigned int i;
-	Elf_Sym *sym = (void *)sechdrs[symindex].sh_addr;
-
-	/* Search (defined) internal symbols first. */
-	for (i = 1; i < sechdrs[symindex].sh_size/sizeof(*sym); i++) {
-		if (sym[i].st_shndx != SHN_UNDEF
-		    && strcmp(name, strtab + sym[i].st_name) == 0)
-			return sym[i].st_value;
-	}
-	return 0;
 }
 
 /* Search for module by name: must hold module_mutex. */
@@ -784,139 +757,6 @@ static struct module_attribute *modinfo_attrs[] = {
 #endif
 	NULL,
 };
-
-#ifdef CONFIG_OBSOLETE_MODPARM
-/* Bounds checking done below */
-static int obsparm_copy_string(const char *val, struct kernel_param *kp)
-{
-	strcpy(kp->arg, val);
-	return 0;
-}
-
-static int set_obsolete(const char *val, struct kernel_param *kp)
-{
-	unsigned int min, max;
-	unsigned int size, maxsize;
-	int dummy;
-	char *endp;
-	const char *p;
-	struct obsolete_modparm *obsparm = kp->arg;
-
-	if (!val) {
-		printk(KERN_ERR "Parameter %s needs an argument\n", kp->name);
-		return -EINVAL;
-	}
-
-	/* type is: [min[-max]]{b,h,i,l,s} */
-	p = obsparm->type;
-	min = simple_strtol(p, &endp, 10);
-	if (endp == obsparm->type)
-		min = max = 1;
-	else if (*endp == '-') {
-		p = endp+1;
-		max = simple_strtol(p, &endp, 10);
-	} else
-		max = min;
-	switch (*endp) {
-	case 'b':
-		return param_array(kp->name, val, min, max, obsparm->addr,
-				   1, param_set_byte, &dummy);
-	case 'h':
-		return param_array(kp->name, val, min, max, obsparm->addr,
-				   sizeof(short), param_set_short, &dummy);
-	case 'i':
-		return param_array(kp->name, val, min, max, obsparm->addr,
-				   sizeof(int), param_set_int, &dummy);
-	case 'l':
-		return param_array(kp->name, val, min, max, obsparm->addr,
-				   sizeof(long), param_set_long, &dummy);
-	case 's':
-		return param_array(kp->name, val, min, max, obsparm->addr,
-				   sizeof(char *), param_set_charp, &dummy);
-
-	case 'c':
-		/* Undocumented: 1-5c50 means 1-5 strings of up to 49 chars,
-		   and the decl is "char xxx[5][50];" */
-		p = endp+1;
-		maxsize = simple_strtol(p, &endp, 10);
-		/* We check lengths here (yes, this is a hack). */
-		p = val;
-		while (p[size = strcspn(p, ",")]) {
-			if (size >= maxsize) 
-				goto oversize;
-			p += size+1;
-		}
-		if (size >= maxsize) 
-			goto oversize;
-		return param_array(kp->name, val, min, max, obsparm->addr,
-				   maxsize, obsparm_copy_string, &dummy);
-	}
-	printk(KERN_ERR "Unknown obsolete parameter type %s\n", obsparm->type);
-	return -EINVAL;
- oversize:
-	printk(KERN_ERR
-	       "Parameter %s doesn't fit in %u chars.\n", kp->name, maxsize);
-	return -EINVAL;
-}
-
-static int obsolete_params(const char *name,
-			   char *args,
-			   struct obsolete_modparm obsparm[],
-			   unsigned int num,
-			   Elf_Shdr *sechdrs,
-			   unsigned int symindex,
-			   const char *strtab)
-{
-	struct kernel_param *kp;
-	unsigned int i;
-	int ret;
-
-	kp = kmalloc(sizeof(kp[0]) * num, GFP_KERNEL);
-	if (!kp)
-		return -ENOMEM;
-
-	for (i = 0; i < num; i++) {
-		char sym_name[128 + sizeof(MODULE_SYMBOL_PREFIX)];
-
-		snprintf(sym_name, sizeof(sym_name), "%s%s",
-			 MODULE_SYMBOL_PREFIX, obsparm[i].name);
-
-		kp[i].name = obsparm[i].name;
-		kp[i].perm = 000;
-		kp[i].set = set_obsolete;
-		kp[i].get = NULL;
-		obsparm[i].addr
-			= (void *)find_local_symbol(sechdrs, symindex, strtab,
-						    sym_name);
-		if (!obsparm[i].addr) {
-			printk("%s: falsely claims to have parameter %s\n",
-			       name, obsparm[i].name);
-			ret = -EINVAL;
-			goto out;
-		}
-		kp[i].arg = &obsparm[i];
-	}
-
-	ret = parse_args(name, args, kp, num, NULL);
- out:
-	kfree(kp);
-	return ret;
-}
-#else
-static int obsolete_params(const char *name,
-			   char *args,
-			   struct obsolete_modparm obsparm[],
-			   unsigned int num,
-			   Elf_Shdr *sechdrs,
-			   unsigned int symindex,
-			   const char *strtab)
-{
-	if (num != 0)
-		printk(KERN_WARNING "%s: Ignoring obsolete parameters\n",
-		       name);
-	return 0;
-}
-#endif /* CONFIG_OBSOLETE_MODPARM */
 
 static const char vermagic[] = VERMAGIC_STRING;
 
@@ -1874,27 +1714,17 @@ static struct module *load_module(void __user *umod,
 	set_fs(old_fs);
 
 	mod->args = args;
-	if (obsparmindex) {
-		err = obsolete_params(mod->name, mod->args,
-				      (struct obsolete_modparm *)
-				      sechdrs[obsparmindex].sh_addr,
-				      sechdrs[obsparmindex].sh_size
-				      / sizeof(struct obsolete_modparm),
-				      sechdrs, symindex,
-				      (char *)sechdrs[strindex].sh_addr);
-		if (setupindex)
-			printk(KERN_WARNING "%s: Ignoring new-style "
-			       "parameters in presence of obsolete ones\n",
-			       mod->name);
-	} else {
-		/* Size of section 0 is 0, so this works well if no params */
-		err = parse_args(mod->name, mod->args,
-				 (struct kernel_param *)
-				 sechdrs[setupindex].sh_addr,
-				 sechdrs[setupindex].sh_size
-				 / sizeof(struct kernel_param),
-				 NULL);
-	}
+	if (obsparmindex)
+		printk(KERN_WARNING "%s: Ignoring obsolete parameters\n",
+		       mod->name);
+
+	/* Size of section 0 is 0, so this works well if no params */
+	err = parse_args(mod->name, mod->args,
+			 (struct kernel_param *)
+			 sechdrs[setupindex].sh_addr,
+			 sechdrs[setupindex].sh_size
+			 / sizeof(struct kernel_param),
+			 NULL);
 	if (err < 0)
 		goto arch_cleanup;
 
@@ -1977,9 +1807,8 @@ sys_init_module(void __user *umod,
 	/* Drop lock so they can recurse */
 	mutex_unlock(&module_mutex);
 
-	mutex_lock(&notify_mutex);
-	notifier_call_chain(&module_notify_list, MODULE_STATE_COMING, mod);
-	mutex_unlock(&notify_mutex);
+	blocking_notifier_call_chain(&module_notify_list,
+			MODULE_STATE_COMING, mod);
 
 	/* Start the module */
 	if (mod->init != NULL)

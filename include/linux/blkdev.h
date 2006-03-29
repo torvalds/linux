@@ -55,25 +55,29 @@ struct as_io_context {
 
 struct cfq_queue;
 struct cfq_io_context {
-	/*
-	 * circular list of cfq_io_contexts belonging to a process io context
-	 */
-	struct list_head list;
-	struct cfq_queue *cfqq[2];
+	struct rb_node rb_node;
 	void *key;
+
+	struct cfq_queue *cfqq[2];
 
 	struct io_context *ioc;
 
 	unsigned long last_end_request;
-	unsigned long last_queue;
+	sector_t last_request_pos;
+ 	unsigned long last_queue;
+
 	unsigned long ttime_total;
 	unsigned long ttime_samples;
 	unsigned long ttime_mean;
 
+	unsigned int seek_samples;
+	u64 seek_total;
+	sector_t seek_mean;
+
 	struct list_head queue_list;
 
-	void (*dtor)(struct cfq_io_context *);
-	void (*exit)(struct cfq_io_context *);
+	void (*dtor)(struct io_context *); /* destructor */
+	void (*exit)(struct io_context *); /* called on task exit */
 };
 
 /*
@@ -94,7 +98,7 @@ struct io_context {
 	int nr_batch_requests;     /* Number of requests left in the batch */
 
 	struct as_io_context *aic;
-	struct cfq_io_context *cic;
+	struct rb_root cic_root;
 };
 
 void put_io_context(struct io_context *ioc);

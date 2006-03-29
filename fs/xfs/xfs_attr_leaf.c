@@ -524,7 +524,7 @@ xfs_attr_shortform_compare(const void *a, const void *b)
 
 /*
  * Copy out entries of shortform attribute lists for attr_list().
- * Shortform atrtribute lists are not stored in hashval sorted order.
+ * Shortform attribute lists are not stored in hashval sorted order.
  * If the output buffer is not large enough to hold them all, then we
  * we have to calculate each entries' hashvalue and sort them before
  * we can begin returning them to the user.
@@ -1541,7 +1541,7 @@ xfs_attr_leaf_toosmall(xfs_da_state_t *state, int *action)
 	/*
 	 * Check for the degenerate case of the block being empty.
 	 * If the block is empty, we'll simply delete it, no need to
-	 * coalesce it with a sibling block.  We choose (aribtrarily)
+	 * coalesce it with a sibling block.  We choose (arbitrarily)
 	 * to merge with the forward block unless it is NULL.
 	 */
 	if (count == 0) {

@@ -137,7 +137,7 @@ static int snd_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode);
 	struct snd_minor *mptr = NULL;
-	struct file_operations *old_fops;
+	const struct file_operations *old_fops;
 	int err = 0;
 
 	if (minor >= ARRAY_SIZE(snd_minors))
@@ -240,7 +240,7 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
  * Retrurns zero if successful, or a negative error code on failure.
  */
 int snd_register_device(int type, struct snd_card *card, int dev,
-			struct file_operations *f_ops, void *private_data,
+			const struct file_operations *f_ops, void *private_data,
 			const char *name)
 {
 	int minor;

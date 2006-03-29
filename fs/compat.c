@@ -1476,10 +1476,9 @@ int compat_do_execve(char * filename,
 	int i;
 
 	retval = -ENOMEM;
-	bprm = kmalloc(sizeof(*bprm), GFP_KERNEL);
+	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
 	if (!bprm)
 		goto out_ret;
-	memset(bprm, 0, sizeof(*bprm));
 
 	file = open_exec(filename);
 	retval = PTR_ERR(file);
@@ -1640,15 +1639,6 @@ void compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
  * This is a virtual copy of sys_select from fs/select.c and probably
  * should be compared to it from time to time
  */
-static void *select_bits_alloc(int size)
-{
-	return kmalloc(6 * size, GFP_KERNEL);
-}
-
-static void select_bits_free(void *bits, int size)
-{
-	kfree(bits);
-}
 
 /*
  * We can actually return ERESTARTSYS instead of EINTR, but I'd
@@ -1687,7 +1677,7 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 	 */
 	ret = -ENOMEM;
 	size = FDS_BYTES(n);
-	bits = select_bits_alloc(size);
+	bits = kmalloc(6 * size, GFP_KERNEL);
 	if (!bits)
 		goto out_nofds;
 	fds.in      = (unsigned long *)  bits;
@@ -1721,7 +1711,7 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 	compat_set_fd_set(n, exp, fds.res_ex);
 
 out:
-	select_bits_free(bits, size);
+	kfree(bits);
 out_nofds:
 	return ret;
 }
@@ -2170,8 +2160,11 @@ asmlinkage long compat_sys_nfsservctl(int cmd, struct compat_nfsctl_arg __user *
 
 	default:
 		err = -EINVAL;
-		goto done;
+		break;
 	}
+
+	if (err)
+		goto done;
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);

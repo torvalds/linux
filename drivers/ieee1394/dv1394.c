@@ -73,7 +73,7 @@
   - fix all XXX showstoppers
   - disable IR/IT DMA interrupts on shutdown
   - flush pci writes to the card by issuing a read
-  - devfs and character device dispatching (* needs testing with Linux 2.2.x)
+  - character device dispatching
   - switch over to the new kernel DMA API (pci_map_*()) (* needs testing on platforms with IOMMU!)
   - keep all video_cards in a list (for open() via chardev), set file->private_data = video
   - dv1394_poll should indicate POLLIN when receiving buffers are available
@@ -1096,7 +1096,6 @@ static int do_dv1394_init_default(struct video_card *video)
 
 	init.api_version = DV1394_API_VERSION;
 	init.n_frames = DV1394_MAX_FRAMES / 4;
-	/* the following are now set via devfs */
 	init.channel = video->channel;
 	init.format = video->pal_or_ntsc;
 	init.cip_n = video->cip_n;
@@ -1791,8 +1790,6 @@ static int dv1394_open(struct inode *inode, struct file *file)
 {
 	struct video_card *video = NULL;
 
-	/* if the device was opened through devfs, then file->private_data
-	   has already been set to video by devfs */
 	if (file->private_data) {
 		video = (struct video_card*) file->private_data;
 
@@ -2211,7 +2208,7 @@ static int dv1394_init(struct ti_ohci *ohci, enum pal_or_ntsc format, enum modes
 	video = kzalloc(sizeof(*video), GFP_KERNEL);
 	if (!video) {
 		printk(KERN_ERR "dv1394: cannot allocate video_card\n");
-		goto err;
+		return -1;
 	}
 
 	video->ohci = ohci;
@@ -2266,37 +2263,14 @@ static int dv1394_init(struct ti_ohci *ohci, enum pal_or_ntsc format, enum modes
 	list_add_tail(&video->list, &dv1394_cards);
 	spin_unlock_irqrestore(&dv1394_cards_lock, flags);
 
-	if (devfs_mk_cdev(MKDEV(IEEE1394_MAJOR,
-				IEEE1394_MINOR_BLOCK_DV1394*16 + video->id),
-			S_IFCHR|S_IRUGO|S_IWUGO,
-			 "ieee1394/dv/host%d/%s/%s",
-			 (video->id>>2),
-			 (video->pal_or_ntsc == DV1394_NTSC ? "NTSC" : "PAL"),
-			 (video->mode == MODE_RECEIVE ? "in" : "out")) < 0)
-			goto err_free;
-
 	debug_printk("dv1394: dv1394_init() OK on ID %d\n", video->id);
-
 	return 0;
-
- err_free:
-	kfree(video);
- err:
-	return -1;
 }
 
 static void dv1394_un_init(struct video_card *video)
 {
-	char buf[32];
-
 	/* obviously nobody has the driver open at this point */
 	do_dv1394_shutdown(video, 1);
-	snprintf(buf, sizeof(buf), "dv/host%d/%s/%s", (video->id >> 2),
-		(video->pal_or_ntsc == DV1394_NTSC ? "NTSC" : "PAL"),
-		(video->mode == MODE_RECEIVE ? "in" : "out")
-		);
-
-	devfs_remove("ieee1394/%s", buf);
 	kfree(video);
 }
 
@@ -2333,9 +2307,6 @@ static void dv1394_remove_host (struct hpsb_host *host)
 
 	class_device_destroy(hpsb_protocol_class,
 		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)));
-	devfs_remove("ieee1394/dv/host%d/NTSC", id);
-	devfs_remove("ieee1394/dv/host%d/PAL", id);
-	devfs_remove("ieee1394/dv/host%d", id);
 }
 
 static void dv1394_add_host (struct hpsb_host *host)
@@ -2352,9 +2323,6 @@ static void dv1394_add_host (struct hpsb_host *host)
 	class_device_create(hpsb_protocol_class, NULL, MKDEV(
 		IEEE1394_MAJOR,	IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)), 
 		NULL, "dv1394-%d", id);
-	devfs_mk_dir("ieee1394/dv/host%d", id);
-	devfs_mk_dir("ieee1394/dv/host%d/NTSC", id);
-	devfs_mk_dir("ieee1394/dv/host%d/PAL", id);
 
 	dv1394_init(ohci, DV1394_NTSC, MODE_RECEIVE);
 	dv1394_init(ohci, DV1394_NTSC, MODE_TRANSMIT);
@@ -2611,10 +2579,8 @@ MODULE_LICENSE("GPL");
 static void __exit dv1394_exit_module(void)
 {
 	hpsb_unregister_protocol(&dv1394_driver);
-
 	hpsb_unregister_highlevel(&dv1394_highlevel);
 	cdev_del(&dv1394_cdev);
-	devfs_remove("ieee1394/dv");
 }
 
 static int __init dv1394_init_module(void)
@@ -2630,15 +2596,12 @@ static int __init dv1394_init_module(void)
 		return ret;
 	}
 
-	devfs_mk_dir("ieee1394/dv");
-
 	hpsb_register_highlevel(&dv1394_highlevel);
 
 	ret = hpsb_register_protocol(&dv1394_driver);
 	if (ret) {
 		printk(KERN_ERR "dv1394: failed to register protocol\n");
 		hpsb_unregister_highlevel(&dv1394_highlevel);
-		devfs_remove("ieee1394/dv");
 		cdev_del(&dv1394_cdev);
 		return ret;
 	}

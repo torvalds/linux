@@ -64,6 +64,7 @@ extern kmem_cache_t *kmem_cache_create(const char *, size_t, size_t, unsigned lo
 extern int kmem_cache_destroy(kmem_cache_t *);
 extern int kmem_cache_shrink(kmem_cache_t *);
 extern void *kmem_cache_alloc(kmem_cache_t *, gfp_t);
+extern void *kmem_cache_zalloc(struct kmem_cache *, gfp_t);
 extern void kmem_cache_free(kmem_cache_t *, void *);
 extern unsigned int kmem_cache_size(kmem_cache_t *);
 extern const char *kmem_cache_name(kmem_cache_t *);
@@ -77,11 +78,12 @@ struct cache_sizes {
 };
 extern struct cache_sizes malloc_sizes[];
 
-#ifndef CONFIG_DEBUG_SLAB
 extern void *__kmalloc(size_t, gfp_t);
+#ifndef CONFIG_DEBUG_SLAB
+#define ____kmalloc(size, flags) __kmalloc(size, flags)
 #else
 extern void *__kmalloc_track_caller(size_t, gfp_t, void*);
-#define __kmalloc(size, flags) \
+#define ____kmalloc(size, flags) \
     __kmalloc_track_caller(size, flags, __builtin_return_address(0))
 #endif
 
@@ -108,7 +110,30 @@ found:
 	return __kmalloc(size, flags);
 }
 
-extern void *kzalloc(size_t, gfp_t);
+extern void *__kzalloc(size_t, gfp_t);
+
+static inline void *kzalloc(size_t size, gfp_t flags)
+{
+	if (__builtin_constant_p(size)) {
+		int i = 0;
+#define CACHE(x) \
+		if (size <= x) \
+			goto found; \
+		else \
+			i++;
+#include "kmalloc_sizes.h"
+#undef CACHE
+		{
+			extern void __you_cannot_kzalloc_that_much(void);
+			__you_cannot_kzalloc_that_much();
+		}
+found:
+		return kmem_cache_zalloc((flags & GFP_DMA) ?
+			malloc_sizes[i].cs_dmacachep :
+			malloc_sizes[i].cs_cachep, flags);
+	}
+	return __kzalloc(size, flags);
+}
 
 /**
  * kcalloc - allocate memory for an array. The memory is set to zero.
@@ -155,17 +180,18 @@ struct kmem_cache *kmem_cache_create(const char *c, size_t, size_t,
 	void (*)(void *, struct kmem_cache *, unsigned long));
 int kmem_cache_destroy(struct kmem_cache *c);
 void *kmem_cache_alloc(struct kmem_cache *c, gfp_t flags);
+void *kmem_cache_zalloc(struct kmem_cache *, gfp_t);
 void kmem_cache_free(struct kmem_cache *c, void *b);
 const char *kmem_cache_name(struct kmem_cache *);
 void *kmalloc(size_t size, gfp_t flags);
-void *kzalloc(size_t size, gfp_t flags);
+void *__kzalloc(size_t size, gfp_t flags);
 void kfree(const void *m);
 unsigned int ksize(const void *m);
 unsigned int kmem_cache_size(struct kmem_cache *c);
 
 static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 {
-	return kzalloc(n * size, flags);
+	return __kzalloc(n * size, flags);
 }
 
 #define kmem_cache_shrink(d) (0)
@@ -173,6 +199,8 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 #define kmem_ptr_validate(a, b) (0)
 #define kmem_cache_alloc_node(c, f, n) kmem_cache_alloc(c, f)
 #define kmalloc_node(s, f, n) kmalloc(s, f)
+#define kzalloc(s, f) __kzalloc(s, f)
+#define ____kmalloc kmalloc
 
 #endif /* CONFIG_SLOB */
 
@@ -182,7 +210,6 @@ extern kmem_cache_t	*names_cachep;
 extern kmem_cache_t	*files_cachep;
 extern kmem_cache_t	*filp_cachep;
 extern kmem_cache_t	*fs_cachep;
-extern kmem_cache_t	*signal_cachep;
 extern kmem_cache_t	*sighand_cachep;
 extern kmem_cache_t	*bio_cachep;
 

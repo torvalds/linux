@@ -19,7 +19,7 @@
  * We have mostly NULL's here: the current defaults are ok for
  * the qnx4 filesystem.
  */
-struct file_operations qnx4_file_operations =
+const struct file_operations qnx4_file_operations =
 {
 	.llseek		= generic_file_llseek,
 	.read		= generic_file_read,

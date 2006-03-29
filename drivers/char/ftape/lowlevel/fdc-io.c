@@ -607,7 +607,7 @@ void fdc_reset(void)
 
 	fdc_mode = fdc_idle;
 
-	/*  maybe the cli()/sti() pair is not necessary, BUT:
+	/*  maybe the spin_lock_irq* pair is not necessary, BUT:
 	 *  the following line MUST be here. Otherwise fdc_interrupt_wait()
 	 *  won't wait. Note that fdc_reset() is called from 
 	 *  ftape_dumb_stop() when the fdc is busy transferring data. In this

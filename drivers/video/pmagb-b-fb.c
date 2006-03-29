@@ -228,7 +228,7 @@ static void __init pmagbbfb_osc_setup(struct fb_info *info)
 
 	freq1 = (par->osc0 * count1 + count0 / 2) / count0;
 	par->osc1 = freq1;
-	for (i = 0; i < sizeof(pmagbbfb_freqs) / sizeof(*pmagbbfb_freqs); i++)
+	for (i = 0; i < ARRAY_SIZE(pmagbbfb_freqs); i++)
 		if (freq1 >= pmagbbfb_freqs[i] -
 			     (pmagbbfb_freqs[i] + 128) / 256 &&
 		    freq1 <= pmagbbfb_freqs[i] +

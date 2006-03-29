@@ -23,6 +23,7 @@
 #include <linux/initrd.h>
 #include <linux/bootmem.h>
 #include <linux/blkdev.h>
+#include <linux/pfn.h>
 
 #include <asm/segment.h>
 #include <asm/mach-types.h>
@@ -100,12 +101,6 @@ struct node_info {
 	unsigned int end;
 	int bootmap_pages;
 };
-
-#define PFN_DOWN(x)	((x) >> PAGE_SHIFT)
-#define PFN_UP(x)	(PAGE_ALIGN(x) >> PAGE_SHIFT)
-#define PFN_SIZE(x)	((x) >> PAGE_SHIFT)
-#define PFN_RANGE(s,e)	PFN_SIZE(PAGE_ALIGN((unsigned long)(e)) - \
-				(((unsigned long)(s)) & PAGE_MASK))
 
 /*
  * FIXME: We really want to avoid allocating the bootmap bitmap

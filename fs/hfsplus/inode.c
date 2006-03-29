@@ -93,17 +93,6 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 	return res ? try_to_free_buffers(page) : 0;
 }
 
-static int hfsplus_get_blocks(struct inode *inode, sector_t iblock, unsigned long max_blocks,
-			      struct buffer_head *bh_result, int create)
-{
-	int ret;
-
-	ret = hfsplus_get_block(inode, iblock, bh_result, create);
-	if (!ret)
-		bh_result->b_size = (1 << inode->i_blkbits);
-	return ret;
-}
-
 static ssize_t hfsplus_direct_IO(int rw, struct kiocb *iocb,
 		const struct iovec *iov, loff_t offset, unsigned long nr_segs)
 {
@@ -111,7 +100,7 @@ static ssize_t hfsplus_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode = file->f_dentry->d_inode->i_mapping->host;
 
 	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				  offset, nr_segs, hfsplus_get_blocks, NULL);
+				  offset, nr_segs, hfsplus_get_block, NULL);
 }
 
 static int hfsplus_writepages(struct address_space *mapping,
@@ -291,7 +280,7 @@ static struct inode_operations hfsplus_file_inode_operations = {
 	.listxattr	= hfsplus_listxattr,
 };
 
-static struct file_operations hfsplus_file_operations = {
+static const struct file_operations hfsplus_file_operations = {
 	.llseek 	= generic_file_llseek,
 	.read		= generic_file_read,
 	.write		= generic_file_write,

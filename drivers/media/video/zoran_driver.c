@@ -94,7 +94,7 @@
 				V4L2_CAP_VIDEO_CAPTURE |\
 				V4L2_CAP_VIDEO_OUTPUT |\
 				V4L2_CAP_VIDEO_OVERLAY \
-                              )
+			      )
 #endif
 
 #include <asm/byteorder.h>
@@ -165,7 +165,7 @@ const struct zoran_format zoran_formats[] = {
 #endif
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE |
-		         ZORAN_FORMAT_OVERLAY,
+			 ZORAN_FORMAT_OVERLAY,
 	}, {
 		.name = "Hardware-encoded Motion-JPEG",
 		.palette = -1,
@@ -670,7 +670,7 @@ jpg_fbuffer_free (struct file *file)
 								       j]))));
 				free_page((unsigned long)
 					  bus_to_virt
-					          (le32_to_cpu
+						  (le32_to_cpu
 						   (fh->jpg_buffers.
 						      buffer[i].
 						      frag_tab[2 * j])));
@@ -1871,7 +1871,7 @@ zoran_v4l2_buffer_status (struct file        *file,
 
 static int
 zoran_set_norm (struct zoran *zr,
-	        int           norm) /* VIDEO_MODE_* */
+		int           norm) /* VIDEO_MODE_* */
 {
 	int norm_encoder, on;
 
@@ -2006,9 +2006,9 @@ zoran_set_input (struct zoran *zr,
 
 static int
 zoran_do_ioctl (struct inode *inode,
-	        struct file  *file,
-	        unsigned int  cmd,
-	        void         *arg)
+		struct file  *file,
+		unsigned int  cmd,
+		void         *arg)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
@@ -2095,7 +2095,7 @@ zoran_do_ioctl (struct inode *inode,
 		break;
 
 		/* RJ: the documentation at http://roadrunner.swansea.linux.org.uk/v4lapi.shtml says:
-		 * 
+		 *
 		 * * "The VIDIOCSCHAN ioctl takes an integer argument and switches the capture to this input."
 		 * *                                 ^^^^^^^
 		 * * The famos BTTV driver has it implemented with a struct video_channel argument

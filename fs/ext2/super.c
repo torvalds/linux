@@ -211,8 +211,6 @@ static int ext2_show_options(struct seq_file *seq, struct vfsmount *vfs)
 
 	if (sbi->s_mount_opt & EXT2_MOUNT_GRPID)
 		seq_puts(seq, ",grpid");
-	else
-		seq_puts(seq, ",nogrpid");
 
 #if defined(CONFIG_QUOTA)
 	if (sbi->s_mount_opt & EXT2_MOUNT_USRQUOTA)

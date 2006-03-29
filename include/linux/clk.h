@@ -8,8 +8,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef ASMARM_CLOCK_H
-#define ASMARM_CLOCK_H
+#ifndef __LINUX_CLK_H
+#define __LINUX_CLK_H
 
 struct device;
 

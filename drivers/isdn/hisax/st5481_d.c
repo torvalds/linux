@@ -596,9 +596,7 @@ void st5481_d_l2l1(struct hisax_if *hisax_d_if, int pr, void *arg)
 		break;
 	case PH_DATA | REQUEST:
 		DBG(2, "PH_DATA REQUEST len %d", skb->len);
-		if (adapter->d_out.tx_skb)
-			BUG();
-
+		BUG_ON(adapter->d_out.tx_skb);
 		adapter->d_out.tx_skb = skb;
 		FsmEvent(&adapter->d_out.fsm, EV_DOUT_START_XMIT, NULL);
 		break;

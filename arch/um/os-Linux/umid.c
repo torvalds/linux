@@ -143,8 +143,10 @@ static int not_dead_yet(char *dir)
 		goto out_close;
 	}
 
-	if((kill(p, 0) == 0) || (errno != ESRCH))
+	if((kill(p, 0) == 0) || (errno != ESRCH)){
+		printk("umid \"%s\" is already in use by pid %d\n", umid, p);
 		return 1;
+	}
 
 	err = actually_do_remove(dir);
 	if(err)
@@ -234,33 +236,44 @@ int __init make_umid(void)
 	err = mkdir(tmp, 0777);
 	if(err < 0){
 		err = -errno;
-		if(errno != EEXIST)
+		if(err != -EEXIST)
 			goto err;
 
-		if(not_dead_yet(tmp) < 0)
+		/* 1   -> this umid is already in use
+		 * < 0 -> we couldn't remove the umid directory
+		 * In either case, we can't use this umid, so return -EEXIST.
+		 */
+		if(not_dead_yet(tmp) != 0)
 			goto err;
 
 		err = mkdir(tmp, 0777);
 	}
-	if(err < 0){
-		printk("Failed to create '%s' - err = %d\n", umid, err);
-		goto err_rmdir;
+	if(err){
+		err = -errno;
+		printk("Failed to create '%s' - err = %d\n", umid, -errno);
+		goto err;
 	}
 
 	umid_setup = 1;
 
 	create_pid_file();
 
-	return 0;
-
- err_rmdir:
-	rmdir(tmp);
+	err = 0;
  err:
 	return err;
 }
 
 static int __init make_umid_init(void)
 {
+	if(!make_umid())
+		return 0;
+
+	/* If initializing with the given umid failed, then try again with
+	 * a random one.
+	 */
+	printk("Failed to initialize umid \"%s\", trying with a random umid\n",
+	       umid);
+	*umid = '\0';
 	make_umid();
 
 	return 0;

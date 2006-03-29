@@ -102,7 +102,7 @@ static struct usb_driver option_driver = {
 	.no_dynamic_id = 	1,
 };
 
-/* The card has three separate interfaces, wich the serial driver
+/* The card has three separate interfaces, which the serial driver
  * recognizes separately, thus num_port=1.
  */
 static struct usb_serial_driver option_3port_device = {

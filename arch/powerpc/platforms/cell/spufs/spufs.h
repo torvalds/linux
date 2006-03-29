@@ -43,7 +43,11 @@ struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
 	struct spu_state csa;		  /* SPU context save area. */
 	spinlock_t mmio_lock;		  /* protects mmio access */
-	struct address_space *local_store;/* local store backing store */
+	struct address_space *local_store; /* local store mapping.  */
+	struct address_space *mfc;	   /* 'mfc' area mappings. */
+	struct address_space *cntl; 	   /* 'control' area mappings. */
+	struct address_space *signal1; 	   /* 'signal1' area mappings. */
+	struct address_space *signal2; 	   /* 'signal2' area mappings. */
 
 	enum { SPU_STATE_RUNNABLE, SPU_STATE_SAVED } state;
 	struct rw_semaphore state_sema;
@@ -55,12 +59,26 @@ struct spu_context {
 	wait_queue_head_t ibox_wq;
 	wait_queue_head_t wbox_wq;
 	wait_queue_head_t stop_wq;
+	wait_queue_head_t mfc_wq;
 	struct fasync_struct *ibox_fasync;
 	struct fasync_struct *wbox_fasync;
+	struct fasync_struct *mfc_fasync;
+	u32 tagwait;
 	struct spu_context_ops *ops;
 	struct work_struct reap_work;
 	u64 flags;
 };
+
+struct mfc_dma_command {
+	int32_t pad;	/* reserved */
+	uint32_t lsa;	/* local storage address */
+	uint64_t ea;	/* effective address */
+	uint16_t size;	/* transfer size */
+	uint16_t tag;	/* command tag */
+	uint16_t class;	/* class ID */
+	uint16_t cmd;	/* command opcode */
+};
+
 
 /* SPU context query/set operations. */
 struct spu_context_ops {
@@ -84,6 +102,11 @@ struct spu_context_ops {
 	char*(*get_ls) (struct spu_context * ctx);
 	void (*runcntl_write) (struct spu_context * ctx, u32 data);
 	void (*runcntl_stop) (struct spu_context * ctx);
+	int (*set_mfc_query)(struct spu_context * ctx, u32 mask, u32 mode);
+	u32 (*read_mfc_tagstatus)(struct spu_context * ctx);
+	u32 (*get_mfc_free_elements)(struct spu_context *ctx);
+	int (*send_mfc_command)(struct spu_context *ctx,
+					struct mfc_dma_command *cmd);
 };
 
 extern struct spu_context_ops spu_hw_ops;
@@ -106,7 +129,7 @@ long spufs_create_thread(struct nameidata *nd,
 extern struct file_operations spufs_context_fops;
 
 /* context management */
-struct spu_context * alloc_spu_context(struct address_space *local_store);
+struct spu_context * alloc_spu_context(void);
 void destroy_spu_context(struct kref *kref);
 struct spu_context * get_spu_context(struct spu_context *ctx);
 int put_spu_context(struct spu_context *ctx);
@@ -159,5 +182,6 @@ size_t spu_ibox_read(struct spu_context *ctx, u32 *data);
 void spufs_ibox_callback(struct spu *spu);
 void spufs_wbox_callback(struct spu *spu);
 void spufs_stop_callback(struct spu *spu);
+void spufs_mfc_callback(struct spu *spu);
 
 #endif

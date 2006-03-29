@@ -138,8 +138,8 @@ config SPLIT_PTLOCK_CPUS
 #
 config MIGRATION
 	bool "Page migration"
-	def_bool y if NUMA || SPARSEMEM || DISCONTIGMEM
-	depends on SWAP
+	def_bool y if NUMA
+	depends on SWAP && NUMA
 	help
 	  Allows the migration of the physical location of pages of processes
 	  while the virtual addresses are not changed. This is useful for

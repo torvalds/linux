@@ -40,21 +40,22 @@
 
 #ifdef CONFIG_X86_POWERNOW_K8_ACPI
 #include <linux/acpi.h>
+#include <linux/mutex.h>
 #include <acpi/processor.h>
 #endif
 
 #define PFX "powernow-k8: "
 #define BFX PFX "BIOS error: "
-#define VERSION "version 1.60.0"
+#define VERSION "version 1.60.1"
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
-static DECLARE_MUTEX(fidvid_sem);
+static DEFINE_MUTEX(fidvid_mutex);
 
 static struct powernow_k8_data *powernow_data[NR_CPUS];
 
 #ifndef CONFIG_SMP
-static cpumask_t cpu_core_map[1];
+static cpumask_t cpu_core_map[1] = { CPU_MASK_ALL };
 #endif
 
 /* Return a frequency in MHz, given an input fid */
@@ -83,11 +84,10 @@ static u32 find_millivolts_from_vid(struct powernow_k8_data *data, u32 vid)
  */
 static u32 convert_fid_to_vco_fid(u32 fid)
 {
-	if (fid < HI_FID_TABLE_BOTTOM) {
+	if (fid < HI_FID_TABLE_BOTTOM)
 		return 8 + (2 * fid);
-	} else {
+	else
 		return fid;
-	}
 }
 
 /*
@@ -177,7 +177,7 @@ static int write_new_fid(struct powernow_k8_data *data, u32 fid)
 		if (i++ > 100) {
 			printk(KERN_ERR PFX "internal error - pending bit very stuck - no further pstate changes possible\n");
 			return 1;
-		}			
+		}
 	} while (query_current_values_with_pending_wait(data));
 
 	count_off_irt(data);
@@ -474,8 +474,10 @@ static int check_supported_cpu(unsigned int cpu)
 		goto out;
 
 	eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
+	if ((eax & CPUID_XFAM) != CPUID_XFAM_K8)
+		goto out;
+
 	if (((eax & CPUID_USE_XFAM_XMOD) != CPUID_USE_XFAM_XMOD) ||
-	    ((eax & CPUID_XFAM) != CPUID_XFAM_K8) ||
 	    ((eax & CPUID_XMOD) > CPUID_XMOD_REV_G)) {
 		printk(KERN_INFO PFX "Processor cpuid %x not supported\n", eax);
 		goto out;
@@ -780,9 +782,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 		/* verify only 1 entry from the lo frequency table */
 		if (fid < HI_FID_TABLE_BOTTOM) {
 			if (cntlofreq) {
-				/* if both entries are the same, ignore this
-				 * one... 
-				 */
+				/* if both entries are the same, ignore this one ... */
 				if ((powernow_table[i].frequency != powernow_table[cntlofreq].frequency) ||
 				    (powernow_table[i].index != powernow_table[cntlofreq].index)) {
 					printk(KERN_ERR PFX "Too many lo freq table entries\n");
@@ -854,7 +854,7 @@ static int transition_frequency(struct powernow_k8_data *data, unsigned int inde
 	dprintk("cpu %d transition to index %u\n", smp_processor_id(), index);
 
 	/* fid are the lower 8 bits of the index we stored into
-	 * the cpufreq frequency table in find_psb_table, vid are 
+	 * the cpufreq frequency table in find_psb_table, vid are
 	 * the upper 8 bits.
 	 */
 
@@ -909,7 +909,6 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	u32 checkvid = data->currvid;
 	unsigned int newstate;
 	int ret = -EIO;
-	int i;
 
 	/* only run on specific CPU from here on */
 	oldmask = current->cpus_allowed;
@@ -945,23 +944,17 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	if (cpufreq_frequency_table_target(pol, data->powernow_table, targfreq, relation, &newstate))
 		goto err_out;
 
-	down(&fidvid_sem);
+	mutex_lock(&fidvid_mutex);
 
 	powernow_k8_acpi_pst_values(data, newstate);
 
 	if (transition_frequency(data, newstate)) {
 		printk(KERN_ERR PFX "transition frequency failed\n");
 		ret = 1;
-		up(&fidvid_sem);
+		mutex_unlock(&fidvid_mutex);
 		goto err_out;
 	}
-
-	/* Update all the fid/vids of our siblings */
-	for_each_cpu_mask(i, cpu_core_map[pol->cpu]) {
-		powernow_data[i]->currvid = data->currvid;
-		powernow_data[i]->currfid = data->currfid;
-	}	
-	up(&fidvid_sem);
+	mutex_unlock(&fidvid_mutex);
 
 	pol->cur = find_khz_freq_from_fid(data->currfid);
 	ret = 0;
@@ -1048,7 +1041,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	pol->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	pol->cpus = cpu_core_map[pol->cpu];
 
-	/* Take a crude guess here. 
+	/* Take a crude guess here.
 	 * That guess was in microseconds, so multiply with 1000 */
 	pol->cpuinfo.transition_latency = (((data->rvo + 8) * data->vstable * VST_UNITS_20US)
 	    + (3 * (1 << data->irt) * 10)) * 1000;
@@ -1070,9 +1063,8 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	printk("cpu_init done, current fid 0x%x, vid 0x%x\n",
 	       data->currfid, data->currvid);
 
-	for_each_cpu_mask(i, cpu_core_map[pol->cpu]) {
+	for_each_cpu_mask(i, cpu_core_map[pol->cpu])
 		powernow_data[i] = data;
-	}
 
 	return 0;
 
@@ -1103,9 +1095,14 @@ static int __devexit powernowk8_cpu_exit (struct cpufreq_policy *pol)
 
 static unsigned int powernowk8_get (unsigned int cpu)
 {
-	struct powernow_k8_data *data = powernow_data[cpu];
+	struct powernow_k8_data *data;
 	cpumask_t oldmask = current->cpus_allowed;
 	unsigned int khz = 0;
+
+	data = powernow_data[first_cpu(cpu_core_map[cpu])];
+
+	if (!data)
+		return -EINVAL;
 
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
 	if (smp_processor_id() != cpu) {

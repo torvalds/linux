@@ -413,12 +413,12 @@ good_area:
 #ifdef CONFIG_HUGETLB_PAGE
 	mm_rss -= (mm->context.huge_pte_count * (HPAGE_SIZE / PAGE_SIZE));
 #endif
-	if (unlikely(mm_rss >=
+	if (unlikely(mm_rss >
 		     mm->context.tsb_block[MM_TSB_BASE].tsb_rss_limit))
 		tsb_grow(mm, MM_TSB_BASE, mm_rss);
 #ifdef CONFIG_HUGETLB_PAGE
 	mm_rss = mm->context.huge_pte_count;
-	if (unlikely(mm_rss >=
+	if (unlikely(mm_rss >
 		     mm->context.tsb_block[MM_TSB_HUGE].tsb_rss_limit))
 		tsb_grow(mm, MM_TSB_HUGE, mm_rss);
 #endif

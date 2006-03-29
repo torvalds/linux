@@ -90,8 +90,8 @@ static int nf_conntrack_vmalloc;
 static unsigned int nf_conntrack_next_id;
 static unsigned int nf_conntrack_expect_next_id;
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-struct notifier_block *nf_conntrack_chain;
-struct notifier_block *nf_conntrack_expect_chain;
+ATOMIC_NOTIFIER_HEAD(nf_conntrack_chain);
+ATOMIC_NOTIFIER_HEAD(nf_conntrack_expect_chain);
 
 DEFINE_PER_CPU(struct nf_conntrack_ecache, nf_conntrack_ecache);
 
@@ -103,7 +103,7 @@ __nf_ct_deliver_cached_events(struct nf_conntrack_ecache *ecache)
 	DEBUGP("ecache: delivering events for %p\n", ecache->ct);
 	if (nf_ct_is_confirmed(ecache->ct) && !nf_ct_is_dying(ecache->ct)
 	    && ecache->events)
-		notifier_call_chain(&nf_conntrack_chain, ecache->events,
+		atomic_notifier_call_chain(&nf_conntrack_chain, ecache->events,
 				    ecache->ct);
 
 	ecache->events = 0;

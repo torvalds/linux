@@ -8564,11 +8564,9 @@ SiS_ChrontelDoSomething3(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 static void
 SiS_ChrontelDoSomething2(struct SiS_Private *SiS_Pr)
 {
-     unsigned short temp,tempcl,tempch;
+     unsigned short temp;
 
      SiS_LongDelay(SiS_Pr, 1);
-     tempcl = 3;
-     tempch = 0;
 
      do {
        temp = SiS_GetCH701x(SiS_Pr,0x66);
@@ -8582,13 +8580,6 @@ SiS_ChrontelDoSomething2(struct SiS_Private *SiS_Pr)
 
        SiS_SetCH701xForLCD(SiS_Pr);
 
-       if(tempcl == 0) {
-           if(tempch == 3) break;
-	   SiS_ChrontelResetDB(SiS_Pr);
-	   tempcl = 3;
-	   tempch++;
-       }
-       tempcl--;
        temp = SiS_GetCH701x(SiS_Pr,0x76);
        temp &= 0xfb;  /* Reset PLL */
        SiS_SetCH701x(SiS_Pr,0x76,temp);

@@ -154,12 +154,12 @@ extern void ext2_write_super (struct super_block *);
  */
 
 /* dir.c */
-extern struct file_operations ext2_dir_operations;
+extern const struct file_operations ext2_dir_operations;
 
 /* file.c */
 extern struct inode_operations ext2_file_inode_operations;
-extern struct file_operations ext2_file_operations;
-extern struct file_operations ext2_xip_file_operations;
+extern const struct file_operations ext2_file_operations;
+extern const struct file_operations ext2_xip_file_operations;
 
 /* inode.c */
 extern struct address_space_operations ext2_aops;

@@ -467,6 +467,8 @@ struct platform_device akitaioexp_device = {
 	.id		= -1,
 };
 
+EXPORT_SYMBOL_GPL(akitaioexp_device);
+
 static void __init akita_init(void)
 {
 	spitz_ficp_platform_data.transceiver_mode = akita_irda_transceiver_mode;

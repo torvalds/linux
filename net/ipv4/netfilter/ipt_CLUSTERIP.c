@@ -770,15 +770,15 @@ cleanup_none:
 	return -EINVAL;
 }
 
-static int __init init(void)
+static int __init ipt_clusterip_init(void)
 {
 	return init_or_cleanup(0);
 }
 
-static void __exit fini(void)
+static void __exit ipt_clusterip_fini(void)
 {
 	init_or_cleanup(1);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_clusterip_init);
+module_exit(ipt_clusterip_fini);

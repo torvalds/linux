@@ -1012,7 +1012,7 @@ static void __exit mkiss_exit_driver(void)
 
 MODULE_AUTHOR("Ralf Baechle DL5RB <ralf@linux-mips.org>");
 MODULE_DESCRIPTION("KISS driver for AX.25 over TTYs");
-MODULE_PARM(crc_force, "i");
+module_param(crc_force, int, 0);
 MODULE_PARM_DESC(crc_force, "crc [0 = auto | 1 = none | 2 = flexnet | 3 = smack]");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_AX25);

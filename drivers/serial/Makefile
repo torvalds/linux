@@ -5,7 +5,6 @@
 #
 
 serial-8250-y :=
-serial-8250-$(CONFIG_SERIAL_8250_ACPI) += 8250_acpi.o
 serial-8250-$(CONFIG_PNP) += 8250_pnp.o
 serial-8250-$(CONFIG_GSC) += 8250_gsc.o
 serial-8250-$(CONFIG_PCI) += 8250_pci.o
@@ -42,7 +41,6 @@ obj-$(CONFIG_SERIAL_COLDFIRE) += mcfserial.o
 obj-$(CONFIG_V850E_UART) += v850e_uart.o
 obj-$(CONFIG_SERIAL_PMACZILOG) += pmac_zilog.o
 obj-$(CONFIG_SERIAL_LH7A40X) += serial_lh7a40x.o
-obj-$(CONFIG_SERIAL_AU1X00) += au1x00_uart.o
 obj-$(CONFIG_SERIAL_DZ) += dz.o
 obj-$(CONFIG_SERIAL_SH_SCI) += sh-sci.o
 obj-$(CONFIG_SERIAL_SGI_L1_CONSOLE) += sn_console.o

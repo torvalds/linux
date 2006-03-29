@@ -8,9 +8,8 @@
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2
+ *  as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -39,7 +38,8 @@ struct v9fs_fcall *v9fs_create_tflush(u16 oldtag);
 struct v9fs_fcall *v9fs_create_twalk(u32 fid, u32 newfid, u16 nwname,
 	char **wnames);
 struct v9fs_fcall *v9fs_create_topen(u32 fid, u8 mode);
-struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode);
+struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode,
+	char *extension, int extended);
 struct v9fs_fcall *v9fs_create_tread(u32 fid, u64 offset, u32 count);
 struct v9fs_fcall *v9fs_create_twrite(u32 fid, u64 offset, u32 count,
 	const char __user *data);

@@ -21,7 +21,6 @@
 #include <linux/times.h>
 #include <linux/utsname.h>
 #include <linux/time.h>
-#include <linux/timex.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/sem.h>
@@ -564,63 +563,6 @@ asmlinkage int sys32_sendfile64(int out_fd, int in_fd, compat_loff_t __user *off
 		return -EFAULT;
 		
 	return ret;
-}
-
-
-struct timex32 {
-	unsigned int modes;	/* mode selector */
-	int offset;		/* time offset (usec) */
-	int freq;		/* frequency offset (scaled ppm) */
-	int maxerror;		/* maximum error (usec) */
-	int esterror;		/* estimated error (usec) */
-	int status;		/* clock command/status */
-	int constant;		/* pll time constant */
-	int precision;		/* clock precision (usec) (read only) */
-	int tolerance;		/* clock frequency tolerance (ppm)
-				 * (read only)
-				 */
-	struct compat_timeval time;	/* (read only) */
-	int tick;		/* (modified) usecs between clock ticks */
-
-	int ppsfreq;           /* pps frequency (scaled ppm) (ro) */
-	int jitter;            /* pps jitter (us) (ro) */
-	int shift;              /* interval duration (s) (shift) (ro) */
-	int stabil;            /* pps stability (scaled ppm) (ro) */
-	int jitcnt;            /* jitter limit exceeded (ro) */
-	int calcnt;            /* calibration intervals (ro) */
-	int errcnt;            /* calibration errors (ro) */
-	int stbcnt;            /* stability limit exceeded (ro) */
-
-	int  :32; int  :32; int  :32; int  :32;
-	int  :32; int  :32; int  :32; int  :32;
-	int  :32; int  :32; int  :32; int  :32;
-};
-
-asmlinkage long sys32_adjtimex(struct timex32 __user *txc_p32)
-{
-	struct timex txc;
-	struct timex32 t32;
-	int ret;
-	extern int do_adjtimex(struct timex *txc);
-
-	if(copy_from_user(&t32, txc_p32, sizeof(struct timex32)))
-		return -EFAULT;
-#undef CP
-#define CP(x) txc.x = t32.x
-	CP(modes); CP(offset); CP(freq); CP(maxerror); CP(esterror);
-	CP(status); CP(constant); CP(precision); CP(tolerance);
-	CP(time.tv_sec); CP(time.tv_usec); CP(tick); CP(ppsfreq); CP(jitter);
-	CP(shift); CP(stabil); CP(jitcnt); CP(calcnt); CP(errcnt);
-	CP(stbcnt);
-	ret = do_adjtimex(&txc);
-#undef CP
-#define CP(x) t32.x = txc.x
-	CP(modes); CP(offset); CP(freq); CP(maxerror); CP(esterror);
-	CP(status); CP(constant); CP(precision); CP(tolerance);
-	CP(time.tv_sec); CP(time.tv_usec); CP(tick); CP(ppsfreq); CP(jitter);
-	CP(shift); CP(stabil); CP(jitcnt); CP(calcnt); CP(errcnt);
-	CP(stbcnt);
-	return copy_to_user(txc_p32, &t32, sizeof(struct timex32)) ? -EFAULT : ret;
 }
 
 

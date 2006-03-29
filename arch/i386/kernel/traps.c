@@ -92,21 +92,20 @@ asmlinkage void spurious_interrupt_bug(void);
 asmlinkage void machine_check(void);
 
 static int kstack_depth_to_print = 24;
-struct notifier_block *i386die_chain;
-static DEFINE_SPINLOCK(die_notifier_lock);
+ATOMIC_NOTIFIER_HEAD(i386die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
 {
-	int err = 0;
-	unsigned long flags;
-
 	vmalloc_sync_all();
-	spin_lock_irqsave(&die_notifier_lock, flags);
-	err = notifier_chain_register(&i386die_chain, nb);
-	spin_unlock_irqrestore(&die_notifier_lock, flags);
-	return err;
+	return atomic_notifier_chain_register(&i386die_chain, nb);
 }
 EXPORT_SYMBOL(register_die_notifier);
+
+int unregister_die_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&i386die_chain, nb);
+}
+EXPORT_SYMBOL(unregister_die_notifier);
 
 static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 {
@@ -386,14 +385,21 @@ void die(const char * str, struct pt_regs * regs, long err)
 #endif
 		if (nl)
 			printk("\n");
-	notify_die(DIE_OOPS, (char *)str, regs, err, 255, SIGSEGV);
-		show_registers(regs);
+		if (notify_die(DIE_OOPS, str, regs, err,
+					current->thread.trap_no, SIGSEGV) !=
+				NOTIFY_STOP)
+			show_registers(regs);
+		else
+			regs = NULL;
   	} else
 		printk(KERN_EMERG "Recursive die() failure, output suppressed\n");
 
 	bust_spinlocks(0);
 	die.lock_owner = -1;
 	spin_unlock_irqrestore(&die.lock, flags);
+
+	if (!regs)
+		return;
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
@@ -623,7 +629,7 @@ static DEFINE_SPINLOCK(nmi_print_lock);
 
 void die_nmi (struct pt_regs *regs, const char *msg)
 {
-	if (notify_die(DIE_NMIWATCHDOG, msg, regs, 0, 0, SIGINT) ==
+	if (notify_die(DIE_NMIWATCHDOG, msg, regs, 0, 2, SIGINT) ==
 	    NOTIFY_STOP)
 		return;
 
@@ -662,7 +668,7 @@ static void default_do_nmi(struct pt_regs * regs)
 		reason = get_nmi_reason();
  
 	if (!(reason & 0xc0)) {
-		if (notify_die(DIE_NMI_IPI, "nmi_ipi", regs, reason, 0, SIGINT)
+		if (notify_die(DIE_NMI_IPI, "nmi_ipi", regs, reason, 2, SIGINT)
 							== NOTIFY_STOP)
 			return;
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -678,7 +684,7 @@ static void default_do_nmi(struct pt_regs * regs)
 		unknown_nmi_error(reason, regs);
 		return;
 	}
-	if (notify_die(DIE_NMI, "nmi", regs, reason, 0, SIGINT) == NOTIFY_STOP)
+	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
 		return;
 	if (reason & 0x80)
 		mem_parity_error(reason, regs);

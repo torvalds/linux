@@ -55,6 +55,7 @@
 #include <linux/gameport.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -1517,8 +1518,8 @@ static int __devinit snd_es1938_create(struct snd_card *card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
         /* check, if we can restrict PCI DMA transfers to 24 bits */
-	if (pci_set_dma_mask(pci, 0x00ffffff) < 0 ||
-	    pci_set_consistent_dma_mask(pci, 0x00ffffff) < 0) {
+	if (pci_set_dma_mask(pci, DMA_24BIT_MASK) < 0 ||
+	    pci_set_consistent_dma_mask(pci, DMA_24BIT_MASK) < 0) {
 		snd_printk(KERN_ERR "architecture does not support 24bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
                 return -ENXIO;

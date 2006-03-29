@@ -70,6 +70,22 @@ config FB_MACMODES
        depends on FB
        default n
 
+config FB_FIRMWARE_EDID
+       bool "Enable firmware EDID"
+       depends on FB
+       default y
+       ---help---
+         This enables access to the EDID transferred from the firmware.
+	 On the i386, this is from the Video BIOS. Enable this if DDC/I2C
+	 transfers do not work for your driver and if you are using
+	 nvidiafb, i810fb or savagefb.
+
+	 In general, choosing Y for this option is safe.  If you
+	 experience extremely long delays while booting before you get
+	 something on your display, try setting this to N.  Matrox cards in
+	 combination with certain motherboards and monitors are known to
+	 suffer from this problem.
+
 config FB_MODE_HELPERS
         bool "Enable Video Mode Handling Helpers"
         depends on FB
@@ -1201,6 +1217,17 @@ config FB_PM3
 config FB_AU1100
 	bool "Au1100 LCD Driver"
 	depends on (FB = y) && EXPERIMENTAL && PCI && MIPS && MIPS_PB1100=y
+
+config FB_AU1200
+	bool "Au1200 LCD Driver"
+	depends on FB && MIPS && SOC_AU1200
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the framebuffer driver for the AMD Au1200 SOC.  It can drive
+	  various panels and CRTs by passing in kernel cmd line option
+	  au1200fb:panel=<name>.
 
 source "drivers/video/geode/Kconfig"
 

@@ -16,12 +16,13 @@ config VIDEO_CX88
 	  module will be called cx8800
 
 config VIDEO_CX88_ALSA
-	tristate "ALSA DMA audio support"
+	tristate "Conexant 2388x DMA audio support"
 	depends on VIDEO_CX88 && SND && EXPERIMENTAL
 	select SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio on
-	  Conexant 2388x based TV cards.
+	  Conexant 2388x based TV cards using ALSA.
+
 	  It only works with boards with function 01 enabled.
 	  To check if your board supports, use lspci -n.
 	  If supported, you should see 1471:8801 or 1471:8811

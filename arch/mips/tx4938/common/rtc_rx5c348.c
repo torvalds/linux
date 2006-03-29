@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/rtc.h>
 #include <linux/time.h>
+#include <linux/bcd.h>
 #include <asm/time.h>
 #include <asm/tx4938/spi.h>
 
@@ -76,17 +77,6 @@ spi_rtc_io(unsigned char *inbuf, unsigned char *outbuf, unsigned int count)
 	return txx9_spi_io(srtc_chipid, &srtc_dev_desc,
 			   inbufs, incounts, outbufs, outcounts, 0);
 }
-
-/*
- * Conversion between binary and BCD.
- */
-#ifndef BCD_TO_BIN
-#define BCD_TO_BIN(val) ((val)=((val)&15) + ((val)>>4)*10)
-#endif
-
-#ifndef BIN_TO_BCD
-#define BIN_TO_BCD(val) ((val)=(((val)/10)<<4) + (val)%10)
-#endif
 
 /* RTC-dependent code for time.c */
 
@@ -197,6 +187,6 @@ rtc_rx5c348_init(int chipid)
 		srtc_24h = 1;
 
 	/* set the function pointers */
-	rtc_get_time = rtc_rx5c348_get_time;
-	rtc_set_time = rtc_rx5c348_set_time;
+	rtc_mips_get_time = rtc_rx5c348_get_time;
+	rtc_mips_set_time = rtc_rx5c348_set_time;
 }

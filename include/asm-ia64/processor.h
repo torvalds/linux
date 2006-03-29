@@ -181,7 +181,6 @@ DECLARE_PER_CPU(struct cpuinfo_ia64, cpu_info);
 #define local_cpu_data		(&__ia64_per_cpu_var(cpu_info))
 #define cpu_data(cpu)		(&per_cpu(cpu_info, cpu))
 
-extern void identify_cpu (struct cpuinfo_ia64 *);
 extern void print_cpu_info (struct cpuinfo_ia64 *);
 
 typedef struct {

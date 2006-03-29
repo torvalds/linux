@@ -1,15 +1,20 @@
 /*
  *
  * generic helper functions for video4linux capture buffers, to handle
- * memory management and PCI DMA.  Right now bttv + saa7134 use it.
+ * memory management and PCI DMA.
+ * Right now, bttv, saa7134, saa7146 and cx88 use it.
  *
  * The functions expect the hardware being able to scatter gatter
  * (i.e. the buffers are not linear in physical memory, but fragmented
  * into PAGE_SIZE chunks).  They also assume the driver does not need
- * to touch the video data (thus it is probably not useful for USB as
- * data often must be uncompressed by the drivers).
+ * to touch the video data.
+ *
+ * device specific map/unmap/sync stuff now are mapped as file operations
+ * to allow its usage by USB and virtual devices.
  *
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
+ * (c) 2006 Mauro Carvalho Chehab, <mchehab@infradead.org>
+ * (c) 2006 Ted Walther and John Sokol
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +43,9 @@ struct scatterlist* videobuf_vmalloc_to_sg(unsigned char *virt, int nr_pages);
 struct scatterlist* videobuf_pages_to_sg(struct page **pages, int nr_pages,
 					 int offset);
 
+struct videobuf_buffer;
+struct videobuf_queue;
+
 /* --------------------------------------------------------------------- */
 
 /*
@@ -49,7 +57,7 @@ struct scatterlist* videobuf_pages_to_sg(struct page **pages, int nr_pages,
  *	pointer + length.  The kernel version just wants the size and
  *	does memory allocation too using vmalloc_32().
  *
- * videobuf_dma_pci_*()
+ * videobuf_dma_*()
  *	see Documentation/DMA-mapping.txt, these functions to
  *	basically the same.  The map function does also build a
  *	scatterlist for the buffer (and unmap frees it ...)
@@ -86,11 +94,17 @@ int videobuf_dma_init_kernel(struct videobuf_dmabuf *dma, int direction,
 			     int nr_pages);
 int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
 			      dma_addr_t addr, int nr_pages);
-int videobuf_dma_pci_map(struct pci_dev *dev, struct videobuf_dmabuf *dma);
-int videobuf_dma_pci_sync(struct pci_dev *dev,
-			  struct videobuf_dmabuf *dma);
-int videobuf_dma_pci_unmap(struct pci_dev *dev, struct videobuf_dmabuf *dma);
 int videobuf_dma_free(struct videobuf_dmabuf *dma);
+
+int videobuf_dma_map(struct videobuf_queue* q,struct videobuf_dmabuf *dma);
+int videobuf_dma_sync(struct videobuf_queue* q,struct videobuf_dmabuf *dma);
+int videobuf_dma_unmap(struct videobuf_queue* q,struct videobuf_dmabuf *dma);
+
+	/*FIXME: these variants are used only on *-alsa code, where videobuf is
+	 * used without queue
+	 */
+int videobuf_pci_dma_map(struct pci_dev *pci,struct videobuf_dmabuf *dma);
+int videobuf_pci_dma_unmap(struct pci_dev *pci,struct videobuf_dmabuf *dma);
 
 /* --------------------------------------------------------------------- */
 
@@ -114,9 +128,6 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma);
  * videobuf_dma_init_user function listed above.
  *
  */
-
-struct videobuf_buffer;
-struct videobuf_queue;
 
 struct videobuf_mapping {
 	unsigned int count;
@@ -164,6 +175,10 @@ struct videobuf_buffer {
 	struct timeval          ts;
 };
 
+typedef int (vb_map_sg_t)(void *dev,struct scatterlist *sglist,int nr_pages,
+					int direction);
+
+
 struct videobuf_queue_ops {
 	int (*buf_setup)(struct videobuf_queue *q,
 			 unsigned int *count, unsigned int *size);
@@ -174,12 +189,20 @@ struct videobuf_queue_ops {
 			  struct videobuf_buffer *vb);
 	void (*buf_release)(struct videobuf_queue *q,
 			    struct videobuf_buffer *vb);
+
+	/* Helper operations - device dependent.
+	 * If null, videobuf_init defaults all to PCI handling
+	 */
+
+	vb_map_sg_t	*vb_map_sg;
+	vb_map_sg_t	*vb_dma_sync_sg;
+	vb_map_sg_t	*vb_unmap_sg;
 };
 
 struct videobuf_queue {
 	struct mutex               lock;
 	spinlock_t                 *irqlock;
-	struct pci_dev             *pci;
+	void			   *dev; /* on pci, points to struct pci_dev */
 
 	enum v4l2_buf_type         type;
 	unsigned int               inputs; /* for V4L2_BUF_FLAG_INPUT */
@@ -204,12 +227,15 @@ struct videobuf_queue {
 
 void* videobuf_alloc(unsigned int size);
 int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr);
-int videobuf_iolock(struct pci_dev *pci, struct videobuf_buffer *vb,
-		    struct v4l2_framebuffer *fbuf);
+int videobuf_iolock(struct videobuf_queue* q, struct videobuf_buffer *vb,
+		struct v4l2_framebuffer *fbuf);
+
+/* Maps fops to PCI stuff */
+void videobuf_queue_pci(struct videobuf_queue* q);
 
 void videobuf_queue_init(struct videobuf_queue *q,
 			 struct videobuf_queue_ops *ops,
-			 struct pci_dev *pci,
+			 void *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,

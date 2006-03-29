@@ -228,7 +228,7 @@ static void agp_backend_cleanup(struct agp_bridge_data *bridge)
 struct agp_bridge_data *agp_alloc_bridge(void)
 {
 	struct agp_bridge_data *bridge;
-	
+
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
 		return NULL;

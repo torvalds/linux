@@ -421,7 +421,7 @@ int linux_main(int argc, char **argv)
 #ifndef CONFIG_HIGHMEM
 		highmem = 0;
 		printf("CONFIG_HIGHMEM not enabled - physical memory shrunk "
-		       "to %lu bytes\n", physmem_size);
+		       "to %Lu bytes\n", physmem_size);
 #endif
 	}
 
@@ -433,8 +433,8 @@ int linux_main(int argc, char **argv)
 
 	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
 	if(init_maps(physmem_size, iomem_size, highmem)){
-		printf("Failed to allocate mem_map for %lu bytes of physical "
-		       "memory and %lu bytes of highmem\n", physmem_size,
+		printf("Failed to allocate mem_map for %Lu bytes of physical "
+		       "memory and %Lu bytes of highmem\n", physmem_size,
 		       highmem);
 		exit(1);
 	}
@@ -477,7 +477,8 @@ static struct notifier_block panic_exit_notifier = {
 
 void __init setup_arch(char **cmdline_p)
 {
-	notifier_chain_register(&panic_notifier_list, &panic_exit_notifier);
+	atomic_notifier_chain_register(&panic_notifier_list,
+			&panic_exit_notifier);
 	paging_init();
         strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
  	*cmdline_p = command_line;
@@ -487,8 +488,7 @@ void __init setup_arch(char **cmdline_p)
 void __init check_bugs(void)
 {
 	arch_check_bugs();
-	check_sigio();
-	check_devanon();
+ 	os_check_bugs();
 }
 
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)

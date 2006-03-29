@@ -209,7 +209,6 @@ extern struct dqstats dqstats;
 #define DQ_FAKE_B	3	/* no limits only usage */
 #define DQ_READ_B	4	/* dquot was read into memory */
 #define DQ_ACTIVE_B	5	/* dquot is active (dquot_release not called) */
-#define DQ_WAITFREE_B	6	/* dquot being waited (by invalidate_dquots) */
 
 struct dquot {
 	struct hlist_node dq_hash;	/* Hash list in memory */

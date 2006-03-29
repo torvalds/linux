@@ -37,7 +37,7 @@ static int debug = 0;		/* insmod parameter */
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 #define dprintk(args...) \
-            do { if (debug) { printk("%s: %s()[%d]: ", KBUILD_MODNAME, __FUNCTION__, __LINE__); printk(args); } } while (0)
+	    do { if (debug) { printk("%s: %s()[%d]: ", KBUILD_MODNAME, __FUNCTION__, __LINE__); printk(args); } } while (0)
 
 #define TEA6415C_NUM_INPUTS	8
 #define TEA6415C_NUM_OUTPUTS	6

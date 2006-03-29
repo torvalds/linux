@@ -119,8 +119,8 @@ void ocfs2_metadata_cache_purge(struct inode *inode)
 	tree = !(oi->ip_flags & OCFS2_INODE_CACHE_INLINE);
 	to_purge = ci->ci_num_cached;
 
-	mlog(0, "Purge %u %s items from Inode %"MLFu64"\n", to_purge,
-	     tree ? "array" : "tree", oi->ip_blkno);
+	mlog(0, "Purge %u %s items from Inode %llu\n", to_purge,
+	     tree ? "array" : "tree", (unsigned long long)oi->ip_blkno);
 
 	/* If we're a tree, save off the root so that we can safely
 	 * initialize the cache. We do the work to free tree members
@@ -136,8 +136,8 @@ void ocfs2_metadata_cache_purge(struct inode *inode)
 	 * easily detect counting errors. Unfortunately, this is only
 	 * meaningful for trees. */
 	if (tree && purged != to_purge)
-		mlog(ML_ERROR, "Inode %"MLFu64", count = %u, purged = %u\n",
-		     oi->ip_blkno, to_purge, purged);
+		mlog(ML_ERROR, "Inode %llu, count = %u, purged = %u\n",
+		     (unsigned long long)oi->ip_blkno, to_purge, purged);
 }
 
 /* Returns the index in the cache array, -1 if not found.
@@ -186,8 +186,9 @@ static int ocfs2_buffer_cached(struct ocfs2_inode_info *oi,
 
 	spin_lock(&oi->ip_lock);
 
-	mlog(0, "Inode %"MLFu64", query block %llu (inline = %u)\n",
-	     oi->ip_blkno, (unsigned long long) bh->b_blocknr,
+	mlog(0, "Inode %llu, query block %llu (inline = %u)\n",
+	     (unsigned long long)oi->ip_blkno,
+	     (unsigned long long) bh->b_blocknr,
 	     !!(oi->ip_flags & OCFS2_INODE_CACHE_INLINE));
 
 	if (oi->ip_flags & OCFS2_INODE_CACHE_INLINE)
@@ -293,12 +294,12 @@ static void ocfs2_expand_cache(struct ocfs2_inode_info *oi,
 	struct ocfs2_caching_info *ci = &oi->ip_metadata_cache;
 
 	mlog_bug_on_msg(ci->ci_num_cached != OCFS2_INODE_MAX_CACHE_ARRAY,
-			"Inode %"MLFu64", num cached = %u, should be %u\n",
-			oi->ip_blkno, ci->ci_num_cached,
+			"Inode %llu, num cached = %u, should be %u\n",
+			(unsigned long long)oi->ip_blkno, ci->ci_num_cached,
 			OCFS2_INODE_MAX_CACHE_ARRAY);
 	mlog_bug_on_msg(!(oi->ip_flags & OCFS2_INODE_CACHE_INLINE),
-			"Inode %"MLFu64" not marked as inline anymore!\n",
-			oi->ip_blkno);
+			"Inode %llu not marked as inline anymore!\n",
+			(unsigned long long)oi->ip_blkno);
 	assert_spin_locked(&oi->ip_lock);
 
 	/* Be careful to initialize the tree members *first* because
@@ -316,8 +317,8 @@ static void ocfs2_expand_cache(struct ocfs2_inode_info *oi,
 		tree[i] = NULL;
 	}
 
-	mlog(0, "Expanded %"MLFu64" to a tree cache: flags 0x%x, num = %u\n",
-	     oi->ip_blkno, oi->ip_flags, ci->ci_num_cached);
+	mlog(0, "Expanded %llu to a tree cache: flags 0x%x, num = %u\n",
+	     (unsigned long long)oi->ip_blkno, oi->ip_flags, ci->ci_num_cached);
 }
 
 /* Slow path function - memory allocation is necessary. See the
@@ -332,8 +333,9 @@ static void __ocfs2_set_buffer_uptodate(struct ocfs2_inode_info *oi,
 	struct ocfs2_meta_cache_item *tree[OCFS2_INODE_MAX_CACHE_ARRAY] =
 		{ NULL, };
 
-	mlog(0, "Inode %"MLFu64", block %llu, expand = %d\n",
-	     oi->ip_blkno, (unsigned long long) block, expand_tree);
+	mlog(0, "Inode %llu, block %llu, expand = %d\n",
+	     (unsigned long long)oi->ip_blkno,
+	     (unsigned long long)block, expand_tree);
 
 	new = kmem_cache_alloc(ocfs2_uptodate_cachep, GFP_KERNEL);
 	if (!new) {
@@ -414,8 +416,9 @@ void ocfs2_set_buffer_uptodate(struct inode *inode,
 	if (ocfs2_buffer_cached(oi, bh))
 		return;
 
-	mlog(0, "Inode %"MLFu64", inserting block %llu\n", oi->ip_blkno,
-	     (unsigned long long) bh->b_blocknr);
+	mlog(0, "Inode %llu, inserting block %llu\n",
+	     (unsigned long long)oi->ip_blkno,
+	     (unsigned long long)bh->b_blocknr);
 
 	/* No need to recheck under spinlock - insertion is guarded by
 	 * ip_io_mutex */
@@ -504,8 +507,9 @@ void ocfs2_remove_from_cache(struct inode *inode,
 	struct ocfs2_caching_info *ci = &oi->ip_metadata_cache;
 
 	spin_lock(&oi->ip_lock);
-	mlog(0, "Inode %"MLFu64", remove %llu, items = %u, array = %u\n",
-	     oi->ip_blkno, (unsigned long long) block, ci->ci_num_cached,
+	mlog(0, "Inode %llu, remove %llu, items = %u, array = %u\n",
+	     (unsigned long long)oi->ip_blkno,
+	     (unsigned long long) block, ci->ci_num_cached,
 	     oi->ip_flags & OCFS2_INODE_CACHE_INLINE);
 
 	if (oi->ip_flags & OCFS2_INODE_CACHE_INLINE) {

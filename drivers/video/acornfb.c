@@ -1308,7 +1308,7 @@ static int __init acornfb_probe(struct platform_device *dev)
 	/*
 	 * Try to select a suitable default mode
 	 */
-	for (i = 0; i < sizeof(modedb) / sizeof(*modedb); i++) {
+	for (i = 0; i < ARRAY_SIZE(modedb); i++) {
 		unsigned long hs;
 
 		hs = modedb[i].refresh *
@@ -1380,7 +1380,7 @@ static int __init acornfb_probe(struct platform_device *dev)
 	 */
 	free_unused_pages(PAGE_OFFSET + size, PAGE_OFFSET + MAX_SIZE);
 #endif
-	
+
 	fb_info.fix.smem_len = size;
 	current_par.palette_size   = VIDC_PALETTE_SIZE;
 
@@ -1391,7 +1391,7 @@ static int __init acornfb_probe(struct platform_device *dev)
 	 */
 	do {
 		rc = fb_find_mode(&fb_info.var, &fb_info, NULL, modedb,
-				 sizeof(modedb) / sizeof(*modedb),
+				 ARRAY_SIZE(modedb),
 				 &acornfb_default_mode, DEFAULT_BPP);
 		/*
 		 * If we found an exact match, all ok.
@@ -1408,7 +1408,7 @@ static int __init acornfb_probe(struct platform_device *dev)
 			break;
 
 		rc = fb_find_mode(&fb_info.var, &fb_info, NULL, modedb,
-				 sizeof(modedb) / sizeof(*modedb),
+				 ARRAY_SIZE(modedb),
 				 &acornfb_default_mode, DEFAULT_BPP);
 		if (rc)
 			break;

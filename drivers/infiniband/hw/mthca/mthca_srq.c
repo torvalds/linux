@@ -205,6 +205,10 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	ds = max(64UL,
 		 roundup_pow_of_two(sizeof (struct mthca_next_seg) +
 				    srq->max_gs * sizeof (struct mthca_data_seg)));
+
+	if (ds > dev->limits.max_desc_sz)
+		return -EINVAL;
+
 	srq->wqe_shift = long_log2(ds);
 
 	srq->srqn = mthca_alloc(&dev->srq_table.alloc);
@@ -354,6 +358,8 @@ int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		return -EINVAL;
 
 	if (attr_mask & IB_SRQ_LIMIT) {
+		if (attr->srq_limit > srq->max)
+			return -EINVAL;
 		ret = mthca_ARM_SRQ(dev, srq->srqn, attr->srq_limit, &status);
 		if (ret)
 			return ret;

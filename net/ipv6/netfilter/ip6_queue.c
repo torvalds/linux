@@ -713,13 +713,13 @@ cleanup_netlink_notifier:
 	return status;
 }
 
-static int __init init(void)
+static int __init ip6_queue_init(void)
 {
 	
 	return init_or_cleanup(1);
 }
 
-static void __exit fini(void)
+static void __exit ip6_queue_fini(void)
 {
 	init_or_cleanup(0);
 }
@@ -727,5 +727,5 @@ static void __exit fini(void)
 MODULE_DESCRIPTION("IPv6 packet queue handler");
 MODULE_LICENSE("GPL");
 
-module_init(init);
-module_exit(fini);
+module_init(ip6_queue_init);
+module_exit(ip6_queue_fini);

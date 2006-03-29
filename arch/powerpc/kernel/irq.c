@@ -379,7 +379,7 @@ void irq_ctx_init(void)
 	struct thread_info *tp;
 	int i;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		memset((void *)softirq_ctx[i], 0, THREAD_SIZE);
 		tp = softirq_ctx[i];
 		tp->cpu = i;

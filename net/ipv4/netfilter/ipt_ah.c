@@ -96,15 +96,15 @@ static struct ipt_match ah_match = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_ah_init(void)
 {
 	return ipt_register_match(&ah_match);
 }
 
-static void __exit cleanup(void)
+static void __exit ipt_ah_fini(void)
 {
 	ipt_unregister_match(&ah_match);
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init(ipt_ah_init);
+module_exit(ipt_ah_fini);

@@ -283,7 +283,7 @@ static int ncp_release(struct inode *inode, struct file *file) {
 	return 0;
 }
 
-struct file_operations ncp_file_operations =
+const struct file_operations ncp_file_operations =
 {
 	.llseek		= remote_llseek,
 	.read		= ncp_file_read,

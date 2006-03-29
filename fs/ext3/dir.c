@@ -39,7 +39,7 @@ static int ext3_dx_readdir(struct file * filp,
 static int ext3_release_dir (struct inode * inode,
 				struct file * filp);
 
-struct file_operations ext3_dir_operations = {
+const struct file_operations ext3_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= ext3_readdir,		/* we take BKL. needed?*/
@@ -131,8 +131,9 @@ static int ext3_readdir(struct file * filp,
 		struct buffer_head *bh = NULL;
 
 		map_bh.b_state = 0;
-		err = ext3_get_block_handle(NULL, inode, blk, &map_bh, 0, 0);
-		if (!err) {
+		err = ext3_get_blocks_handle(NULL, inode, blk, 1,
+						&map_bh, 0, 0);
+		if (err > 0) {
 			page_cache_readahead(sb->s_bdev->bd_inode->i_mapping,
 				&filp->f_ra,
 				filp,

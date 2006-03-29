@@ -207,7 +207,7 @@
 	/* struct sockaddr... */
 	ENTRY_SAME(recvfrom)
 	/* struct timex contains longs */
-	ENTRY_DIFF(adjtimex)
+	ENTRY_COMP(adjtimex)
 	ENTRY_SAME(mprotect)		/* 125 */
 	/* old_sigset_t forced to 32 bits.  Beware glibc sigset_t */
 	ENTRY_COMP(sigprocmask)

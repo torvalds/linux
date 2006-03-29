@@ -61,6 +61,16 @@ void oprofile_arch_exit(void);
  */
 void oprofile_add_sample(struct pt_regs * const regs, unsigned long event);
 
+/**
+ * Add an extended sample.  Use this when the PC is not from the regs, and
+ * we cannot determine if we're in kernel mode from the regs.
+ *
+ * This function does perform a backtrace.
+ *
+ */
+void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
+				unsigned long event, int is_kernel);
+
 /* Use this instead when the PC value is not from the regs. Doesn't
  * backtrace. */
 void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event);
@@ -74,10 +84,10 @@ void oprofile_add_trace(unsigned long eip);
  * the specified file operations.
  */
 int oprofilefs_create_file(struct super_block * sb, struct dentry * root,
-	char const * name, struct file_operations * fops);
+	char const * name, const struct file_operations * fops);
 
 int oprofilefs_create_file_perm(struct super_block * sb, struct dentry * root,
-	char const * name, struct file_operations * fops, int perm);
+	char const * name, const struct file_operations * fops, int perm);
  
 /** Create a file for read/write access to an unsigned long. */
 int oprofilefs_create_ulong(struct super_block * sb, struct dentry * root,

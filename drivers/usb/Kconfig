@@ -87,8 +87,6 @@ source "drivers/usb/input/Kconfig"
 
 source "drivers/usb/image/Kconfig"
 
-source "drivers/usb/media/Kconfig"
-
 source "drivers/usb/net/Kconfig"
 
 source "drivers/usb/mon/Kconfig"

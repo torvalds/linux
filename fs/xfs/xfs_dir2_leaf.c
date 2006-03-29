@@ -515,7 +515,7 @@ xfs_dir2_leaf_addname(
 			ASSERT(be32_to_cpu(leaf->ents[highstale].address) ==
 			       XFS_DIR2_NULL_DATAPTR);
 			/*
-			 * Copy entries down to copver the stale entry
+			 * Copy entries down to cover the stale entry
 			 * and make room for the new entry.
 			 */
 			if (highstale - index > 0)

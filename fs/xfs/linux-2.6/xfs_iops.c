@@ -708,7 +708,7 @@ STATIC void
 xfs_vn_truncate(
 	struct inode	*inode)
 {
-	block_truncate_page(inode->i_mapping, inode->i_size, xfs_get_block);
+	block_truncate_page(inode->i_mapping, inode->i_size, xfs_get_blocks);
 }
 
 STATIC int

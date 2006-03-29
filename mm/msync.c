@@ -126,7 +126,7 @@ static unsigned long msync_page_range(struct vm_area_struct *vma,
  * write out the dirty pages and wait on the writeout and check the result.
  * Or the application may run fadvise(FADV_DONTNEED) against the fd to start
  * async writeout immediately.
- * So my _not_ starting I/O in MS_ASYNC we provide complete flexibility to
+ * So by _not_ starting I/O in MS_ASYNC we provide complete flexibility to
  * applications.
  */
 static int msync_interval(struct vm_area_struct *vma, unsigned long addr,

@@ -33,9 +33,11 @@
 #include <linux/mm.h>
 #include <linux/suspend.h>
 #include <linux/pagemap.h>
+#include <linux/kthread.h>
+#include <linux/proc_fs.h>
+
 #include <asm/uaccess.h>
 #include <asm/page.h>
-#include <linux/proc_fs.h>
 
 EXPORT_SYMBOL(journal_start);
 EXPORT_SYMBOL(journal_restart);
@@ -111,18 +113,15 @@ static void commit_timeout(unsigned long __data)
 
 static int kjournald(void *arg)
 {
-	journal_t *journal = (journal_t *) arg;
+	journal_t *journal = arg;
 	transaction_t *transaction;
-	struct timer_list timer;
 
-	daemonize("kjournald");
-
-	/* Set up an interval timer which can be used to trigger a
-           commit wakeup after the commit interval expires */
-	init_timer(&timer);
-	timer.data = (unsigned long) current;
-	timer.function = commit_timeout;
-	journal->j_commit_timer = &timer;
+	/*
+	 * Set up an interval timer which can be used to trigger a commit wakeup
+	 * after the commit interval expires
+	 */
+	setup_timer(&journal->j_commit_timer, commit_timeout,
+			(unsigned long)current);
 
 	/* Record that the journal thread is running */
 	journal->j_task = current;
@@ -146,7 +145,7 @@ loop:
 	if (journal->j_commit_sequence != journal->j_commit_request) {
 		jbd_debug(1, "OK, requests differ\n");
 		spin_unlock(&journal->j_state_lock);
-		del_timer_sync(journal->j_commit_timer);
+		del_timer_sync(&journal->j_commit_timer);
 		journal_commit_transaction(journal);
 		spin_lock(&journal->j_state_lock);
 		goto loop;
@@ -203,7 +202,7 @@ loop:
 
 end_loop:
 	spin_unlock(&journal->j_state_lock);
-	del_timer_sync(journal->j_commit_timer);
+	del_timer_sync(&journal->j_commit_timer);
 	journal->j_task = NULL;
 	wake_up(&journal->j_wait_done_commit);
 	jbd_debug(1, "Journal thread exiting.\n");
@@ -212,7 +211,7 @@ end_loop:
 
 static void journal_start_thread(journal_t *journal)
 {
-	kernel_thread(kjournald, journal, CLONE_VM|CLONE_FS|CLONE_FILES);
+	kthread_run(kjournald, journal, "kjournald");
 	wait_event(journal->j_wait_done_commit, journal->j_task != 0);
 }
 

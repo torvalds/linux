@@ -2294,7 +2294,7 @@ static int ntfs_file_fsync(struct file *filp, struct dentry *dentry,
 
 #endif /* NTFS_RW */
 
-struct file_operations ntfs_file_ops = {
+const struct file_operations ntfs_file_ops = {
 	.llseek		= generic_file_llseek,	 /* Seek inside file. */
 	.read		= generic_file_read,	 /* Read from file. */
 	.aio_read	= generic_file_aio_read, /* Async read from file. */
@@ -2337,6 +2337,6 @@ struct inode_operations ntfs_file_inode_ops = {
 #endif /* NTFS_RW */
 };
 
-struct file_operations ntfs_empty_file_ops = {};
+const struct file_operations ntfs_empty_file_ops = {};
 
 struct inode_operations ntfs_empty_inode_ops = {};

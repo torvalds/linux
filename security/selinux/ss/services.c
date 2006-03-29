@@ -1759,19 +1759,22 @@ int security_set_bools(int len, int *values)
 		goto out;
 	}
 
-	printk(KERN_INFO "security: committed booleans { ");
 	for (i = 0; i < len; i++) {
+		if (!!values[i] != policydb.bool_val_to_struct[i]->state) {
+			audit_log(current->audit_context, GFP_ATOMIC,
+				AUDIT_MAC_CONFIG_CHANGE,
+				"bool=%s val=%d old_val=%d auid=%u",
+				policydb.p_bool_val_to_name[i],
+				!!values[i],
+				policydb.bool_val_to_struct[i]->state,
+				audit_get_loginuid(current->audit_context));
+		}
 		if (values[i]) {
 			policydb.bool_val_to_struct[i]->state = 1;
 		} else {
 			policydb.bool_val_to_struct[i]->state = 0;
 		}
-		if (i != 0)
-			printk(", ");
-		printk("%s:%d", policydb.p_bool_val_to_name[i],
-		       policydb.bool_val_to_struct[i]->state);
 	}
-	printk(" }\n");
 
 	for (cur = policydb.cond_list; cur != NULL; cur = cur->next) {
 		rc = evaluate_cond_node(&policydb, cur);

@@ -76,6 +76,8 @@ edd_mbr_sig_read:
 	popw	%es
 	popw	%bx
 	jc	edd_mbr_sig_done		# on failure, we're done.
+	cmpb	$0, %ah		# some BIOSes do not set CF
+	jne	edd_mbr_sig_done		# on failure, we're done.
 	movl	(EDDBUF+EDD_MBR_SIG_OFFSET), %eax # read sig out of the MBR
 	movl	%eax, (%bx)			# store success
 	incb	(EDD_MBR_SIG_NR_BUF)		# note that we stored something

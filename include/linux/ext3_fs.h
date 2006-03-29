@@ -36,7 +36,8 @@ struct statfs;
  * Define EXT3_RESERVATION to reserve data blocks for expanding files
  */
 #define EXT3_DEFAULT_RESERVE_BLOCKS     8
-#define EXT3_MAX_RESERVE_BLOCKS         1024
+/*max window size: 1024(direct blocks) + 3([t,d]indirect blocks) */
+#define EXT3_MAX_RESERVE_BLOCKS         1027
 #define EXT3_RESERVE_WINDOW_NOT_ALLOCATED 0
 /*
  * Always enable hashed directories
@@ -732,6 +733,8 @@ struct dir_private_info {
 extern int ext3_bg_has_super(struct super_block *sb, int group);
 extern unsigned long ext3_bg_num_gdb(struct super_block *sb, int group);
 extern int ext3_new_block (handle_t *, struct inode *, unsigned long, int *);
+extern int ext3_new_blocks (handle_t *, struct inode *, unsigned long,
+			unsigned long *, int *);
 extern void ext3_free_blocks (handle_t *, struct inode *, unsigned long,
 			      unsigned long);
 extern void ext3_free_blocks_sb (handle_t *, struct super_block *,
@@ -775,9 +778,9 @@ extern unsigned long ext3_count_free (struct buffer_head *, unsigned);
 int ext3_forget(handle_t *, int, struct inode *, struct buffer_head *, int);
 struct buffer_head * ext3_getblk (handle_t *, struct inode *, long, int, int *);
 struct buffer_head * ext3_bread (handle_t *, struct inode *, int, int, int *);
-int ext3_get_block_handle(handle_t *handle, struct inode *inode,
-	sector_t iblock, struct buffer_head *bh_result, int create,
-	int extend_disksize);
+int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,
+	sector_t iblock, unsigned long maxblocks, struct buffer_head *bh_result,
+	int create, int extend_disksize);
 
 extern void ext3_read_inode (struct inode *);
 extern int  ext3_write_inode (struct inode *, int);
@@ -830,11 +833,11 @@ do {								\
  */
 
 /* dir.c */
-extern struct file_operations ext3_dir_operations;
+extern const struct file_operations ext3_dir_operations;
 
 /* file.c */
 extern struct inode_operations ext3_file_inode_operations;
-extern struct file_operations ext3_file_operations;
+extern const struct file_operations ext3_file_operations;
 
 /* namei.c */
 extern struct inode_operations ext3_dir_inode_operations;

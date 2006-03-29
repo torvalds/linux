@@ -367,12 +367,17 @@ running once the system is up.
 		tty<n>	Use the virtual console device <n>.
 
 		ttyS<n>[,options]
+		ttyUSB0[,options]
 			Use the specified serial port.  The options are of
-			the form "bbbbpn", where "bbbb" is the baud rate,
-			"p" is parity ("n", "o", or "e"), and "n" is bits.
-			Default is "9600n8".
+			the form "bbbbpnf", where "bbbb" is the baud rate,
+			"p" is parity ("n", "o", or "e"), "n" is number of
+			bits, and "f" is flow control ("r" for RTS or
+			omit it).  Default is "9600n8".
 
-			See also Documentation/serial-console.txt.
+			See Documentation/serial-console.txt for more
+			information.  See
+			Documentation/networking/netconsole.txt for an
+			alternative.
 
 		uart,io,<addr>[,options]
 		uart,mmio,<addr>[,options]

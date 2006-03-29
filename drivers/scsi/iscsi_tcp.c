@@ -3200,8 +3200,8 @@ iscsi_r2tpool_alloc(struct iscsi_session *session)
 		 * Data-Out PDU's within R2T-sequence can be quite big;
 		 * using mempool
 		 */
-		ctask->datapool = mempool_create(ISCSI_DTASK_DEFAULT_MAX,
-			 mempool_alloc_slab, mempool_free_slab, taskcache);
+		ctask->datapool = mempool_create_slab_pool(ISCSI_DTASK_DEFAULT_MAX,
+							   taskcache);
 		if (ctask->datapool == NULL) {
 			kfifo_free(ctask->r2tqueue);
 			iscsi_pool_free(&ctask->r2tpool, (void**)ctask->r2ts);

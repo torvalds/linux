@@ -2204,7 +2204,7 @@ static int __devinit snd_audiodrive_probe(struct snd_card *card, int dev)
 	return snd_card_register(card);
 }
 
-static int __init snd_es18xx_nonpnp_probe1(int dev, struct platform_device *devptr)
+static int __devinit snd_es18xx_nonpnp_probe1(int dev, struct platform_device *devptr)
 {
 	struct snd_card *card;
 	int err;
@@ -2221,7 +2221,7 @@ static int __init snd_es18xx_nonpnp_probe1(int dev, struct platform_device *devp
 	return 0;
 }
 
-static int __init snd_es18xx_nonpnp_probe(struct platform_device *pdev)
+static int __devinit snd_es18xx_nonpnp_probe(struct platform_device *pdev)
 {
 	int dev = pdev->id;
 	int err;
@@ -2297,6 +2297,8 @@ static struct platform_driver snd_es18xx_nonpnp_driver = {
 
 
 #ifdef CONFIG_PNP
+static unsigned int __devinitdata es18xx_pnp_devices;
+
 static int __devinit snd_audiodrive_pnp_detect(struct pnp_card_link *pcard,
 					       const struct pnp_card_device_id *pid)
 {
@@ -2327,6 +2329,7 @@ static int __devinit snd_audiodrive_pnp_detect(struct pnp_card_link *pcard,
 
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
+	es18xx_pnp_devices++;
 	return 0;
 }
 
@@ -2397,10 +2400,10 @@ static int __init alsa_card_es18xx_init(void)
 	}
 
 #ifdef CONFIG_PNP
-	i = pnp_register_card_driver(&es18xx_pnpc_driver);
-	if (i >= 0) {
+	err = pnp_register_card_driver(&es18xx_pnpc_driver);
+	if (!err) {
 		pnp_registered = 1;
-		cards += i;
+		cards += es18xx_pnp_devices;
 	}
 #endif
 

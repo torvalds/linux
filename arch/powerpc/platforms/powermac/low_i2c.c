@@ -1457,6 +1457,9 @@ int __init pmac_i2c_init(void)
 		return 0;
 	i2c_inited = 1;
 
+	if (!machine_is(powermac))
+		return 0;
+
 	/* Probe keywest-i2c busses */
 	kw_i2c_probe();
 

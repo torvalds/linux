@@ -82,13 +82,11 @@ enum {
 /* This is used to identify firmware features which are available
  * to the kernel.
  */
-extern unsigned long	ppc64_firmware_features;
+extern unsigned long	powerpc_firmware_features;
 
-static inline unsigned long firmware_has_feature(unsigned long feature)
-{
-	return (FW_FEATURE_ALWAYS & feature) ||
-		(FW_FEATURE_POSSIBLE & ppc64_firmware_features & feature);
-}
+#define firmware_has_feature(feature)					\
+	((FW_FEATURE_ALWAYS & (feature)) ||				\
+		(FW_FEATURE_POSSIBLE & powerpc_firmware_features & (feature)))
 
 extern void system_reset_fwnmi(void);
 extern void machine_check_fwnmi(void);

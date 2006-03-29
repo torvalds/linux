@@ -350,7 +350,7 @@ unsigned int dccp_poll(struct file *file, struct socket *sock,
 	if (sk->sk_shutdown == SHUTDOWN_MASK || sk->sk_state == DCCP_CLOSED)
 		mask |= POLLHUP;
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= POLLIN | POLLRDNORM | POLLRDHUP;
 
 	/* Connected? */
 	if ((1 << sk->sk_state) & ~(DCCPF_REQUESTING | DCCPF_RESPOND)) {

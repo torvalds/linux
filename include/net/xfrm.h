@@ -864,13 +864,19 @@ struct xfrm_algo_desc {
 /* XFRM tunnel handlers.  */
 struct xfrm_tunnel {
 	int (*handler)(struct sk_buff *skb);
-	void (*err_handler)(struct sk_buff *skb, __u32 info);
+	int (*err_handler)(struct sk_buff *skb, __u32 info);
+
+	struct xfrm_tunnel *next;
+	int priority;
 };
 
 struct xfrm6_tunnel {
-	int (*handler)(struct sk_buff **pskb);
-	void (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
-			    int type, int code, int offset, __u32 info);
+	int (*handler)(struct sk_buff *skb);
+	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			   int type, int code, int offset, __u32 info);
+
+	struct xfrm6_tunnel *next;
+	int priority;
 };
 
 extern void xfrm_init(void);
@@ -906,7 +912,7 @@ extern int xfrm4_rcv(struct sk_buff *skb);
 extern int xfrm4_output(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler);
-extern int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi);
+extern int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi);
 extern int xfrm6_rcv(struct sk_buff **pskb);
 extern int xfrm6_tunnel_register(struct xfrm6_tunnel *handler);
 extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler);

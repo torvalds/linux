@@ -218,12 +218,12 @@ static int cm206_base = CM206_BASE;
 static int cm206_irq = CM206_IRQ;
 #ifdef MODULE
 static int cm206[2] = { 0, 0 };	/* for compatible `insmod' parameter passing */
+module_param_array(cm206, int, NULL, 0);	/* base,irq or irq,base */
 #endif
 
-MODULE_PARM(cm206_base, "i");	/* base */
-MODULE_PARM(cm206_irq, "i");	/* irq */
-MODULE_PARM(cm206, "1-2i");	/* base,irq or irq,base */
-MODULE_PARM(auto_probe, "i");	/* auto probe base and irq */
+module_param(cm206_base, int, 0);	/* base */
+module_param(cm206_irq, int, 0);	/* irq */
+module_param(auto_probe, bool, 0);	/* auto probe base and irq */
 MODULE_LICENSE("GPL");
 
 #define POLLOOP 100		/* milliseconds */

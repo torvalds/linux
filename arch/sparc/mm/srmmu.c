@@ -1302,7 +1302,12 @@ void __init srmmu_paging_init(void)
 
 	flush_cache_all();
 	srmmu_set_ctable_ptr((unsigned long)srmmu_ctx_table_phys);
+#ifdef CONFIG_SMP
+	/* Stop from hanging here... */
+	local_flush_tlb_all();
+#else
 	flush_tlb_all();
+#endif
 	poke_srmmu();
 
 #ifdef CONFIG_SUN_IO
@@ -1419,6 +1424,7 @@ static void __init init_vac_layout(void)
 				max_size = vac_cache_size;
 			if(vac_line_size < min_line_size)
 				min_line_size = vac_line_size;
+			//FIXME: cpus not contiguous!!
 			cpu++;
 			if (cpu >= NR_CPUS || !cpu_online(cpu))
 				break;

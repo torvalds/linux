@@ -2017,13 +2017,12 @@ static unsigned int ata_bus_softreset(struct ata_port *ap,
 	 */
 	msleep(150);
 
-
 	/* Before we perform post reset processing we want to see if
-	   the bus shows 0xFF because the odd clown forgets the D7 pulldown
-	   resistor */
-
+	 * the bus shows 0xFF because the odd clown forgets the D7
+	 * pulldown resistor.
+	 */
 	if (ata_check_status(ap) == 0xFF)
-		return 1;	/* Positive is failure for some reason */
+		return AC_ERR_OTHER;
 
 	ata_bus_post_reset(ap, devmask);
 
@@ -2642,6 +2641,10 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
  *	dev->*_mask.  This function is responsible for applying all
  *	known limits including host controller limits, device
  *	blacklist, etc...
+ *
+ *	FIXME: The current implementation limits all transfer modes to
+ *	the fastest of the lowested device on the port.  This is not
+ *	required on most controllers.
  *
  *	LOCKING:
  *	None.

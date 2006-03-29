@@ -9,6 +9,9 @@
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
  */
+
+#undef DEBUG
+
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -41,6 +44,7 @@
 #include <asm/time.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
+#include <asm/firmware.h>
 #include <asm/btext.h>
 #include <asm/nvram.h>
 #include <asm/setup.h>
@@ -56,8 +60,6 @@
 
 #include "setup.h"
 
-#undef DEBUG
-
 #ifdef DEBUG
 #include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
@@ -65,10 +67,12 @@
 #define DBG(fmt...)
 #endif
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-int _machine = 0;
-EXPORT_SYMBOL(_machine);
-#endif
+/* The main machine-dep calls structure
+ */
+struct machdep_calls ppc_md;
+EXPORT_SYMBOL(ppc_md);
+struct machdep_calls *machine_id;
+EXPORT_SYMBOL(machine_id);
 
 unsigned long klimit = (unsigned long) _end;
 
@@ -168,7 +172,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			   bogosum/(500000/HZ), bogosum/(5000/HZ) % 100);
 #endif /* CONFIG_SMP && CONFIG_PPC32 */
 		seq_printf(m, "timebase\t: %lu\n", ppc_tb_freq);
-
+		if (ppc_md.name)
+			seq_printf(m, "platform\t: %s\n", ppc_md.name);
 		if (ppc_md.show_cpuinfo != NULL)
 			ppc_md.show_cpuinfo(m);
 
@@ -352,12 +357,13 @@ void __init check_for_initrd(void)
  * must be called before using this.
  *
  * While we're here, we may as well set the "physical" cpu ids in the paca.
+ *
+ * NOTE: This must match the parsing done in early_init_dt_scan_cpus.
  */
 void __init smp_setup_cpu_maps(void)
 {
 	struct device_node *dn = NULL;
 	int cpu = 0;
-	int swap_cpuid = 0;
 
 	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < NR_CPUS) {
 		int *intserv;
@@ -376,22 +382,9 @@ void __init smp_setup_cpu_maps(void)
 		for (j = 0; j < nthreads && cpu < NR_CPUS; j++) {
 			cpu_set(cpu, cpu_present_map);
 			set_hard_smp_processor_id(cpu, intserv[j]);
-
-			if (intserv[j] == boot_cpuid_phys)
-				swap_cpuid = cpu;
 			cpu_set(cpu, cpu_possible_map);
 			cpu++;
 		}
-	}
-
-	/* Swap CPU id 0 with boot_cpuid_phys, so we can always assume that
-	 * boot cpu is logical 0.
-	 */
-	if (boot_cpuid_phys != get_hard_smp_processor_id(0)) {
-		u32 tmp;
-		tmp = get_hard_smp_processor_id(0);
-		set_hard_smp_processor_id(0, boot_cpuid_phys);
-		set_hard_smp_processor_id(swap_cpuid, tmp);
 	}
 
 #ifdef CONFIG_PPC64
@@ -399,7 +392,7 @@ void __init smp_setup_cpu_maps(void)
 	 * On pSeries LPAR, we need to know how many cpus
 	 * could possibly be added to this partition.
 	 */
-	if (_machine == PLATFORM_PSERIES_LPAR &&
+	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR) &&
 	    (dn = of_find_node_by_path("/rtas"))) {
 		int num_addr_cell, num_size_cell, maxcpus;
 		unsigned int *ireg;
@@ -438,7 +431,7 @@ void __init smp_setup_cpu_maps(void)
 	/*
 	 * Do the sibling map; assume only two threads per processor.
 	 */
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cpu_set(cpu, cpu_sibling_map[cpu]);
 		if (cpu_has_feature(CPU_FTR_SMT))
 			cpu_set(cpu ^ 0x1, cpu_sibling_map[cpu]);
@@ -468,3 +461,34 @@ static int __init early_xmon(char *p)
 }
 early_param("xmon", early_xmon);
 #endif
+
+void probe_machine(void)
+{
+	extern struct machdep_calls __machine_desc_start;
+	extern struct machdep_calls __machine_desc_end;
+
+	/*
+	 * Iterate all ppc_md structures until we find the proper
+	 * one for the current machine type
+	 */
+	DBG("Probing machine type ...\n");
+
+	for (machine_id = &__machine_desc_start;
+	     machine_id < &__machine_desc_end;
+	     machine_id++) {
+		DBG("  %s ...", machine_id->name);
+		memcpy(&ppc_md, machine_id, sizeof(struct machdep_calls));
+		if (ppc_md.probe()) {
+			DBG(" match !\n");
+			break;
+		}
+		DBG("\n");
+	}
+	/* What can we do if we didn't find ? */
+	if (machine_id >= &__machine_desc_end) {
+		DBG("No suitable machine found !\n");
+		for (;;);
+	}
+
+	printk(KERN_INFO "Using %s machine description\n", ppc_md.name);
+}

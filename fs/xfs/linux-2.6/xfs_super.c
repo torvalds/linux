@@ -375,9 +375,8 @@ xfs_init_zones(void)
 	if (!xfs_ioend_zone)
 		goto out_destroy_vnode_zone;
 
-	xfs_ioend_pool = mempool_create(4 * MAX_BUF_PER_PAGE,
-					mempool_alloc_slab, mempool_free_slab,
-					xfs_ioend_zone);
+	xfs_ioend_pool = mempool_create_slab_pool(4 * MAX_BUF_PER_PAGE,
+						  xfs_ioend_zone);
 	if (!xfs_ioend_pool)
 		goto out_free_ioend_zone;
 	return 0;

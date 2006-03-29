@@ -256,7 +256,8 @@ config ACPI_CUSTOM_DSDT_FILE
 	depends on ACPI_CUSTOM_DSDT
 	default ""
 	help
-	  Enter the full path name to the file wich includes the AmlCode declaration.
+	  Enter the full path name to the file which includes the AmlCode
+	  declaration.
 
 config ACPI_BLACKLIST_YEAR
 	int "Disable ACPI for systems before Jan 1st this year" if X86_32

@@ -641,7 +641,7 @@ static int sunsu_startup(struct uart_port *port)
 
 	/*
 	 * Clear the FIFO buffers and disable them.
-	 * (they will be reeanbled in set_termios())
+	 * (they will be reenabled in set_termios())
 	 */
 	if (uart_config[up->port.type].flags & UART_CLEAR_FIFO) {
 		serial_outp(up, UART_FCR, UART_FCR_ENABLE_FIFO);

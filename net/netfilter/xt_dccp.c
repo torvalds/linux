@@ -164,7 +164,7 @@ static struct xt_match dccp6_match =
 };
 
 
-static int __init init(void)
+static int __init xt_dccp_init(void)
 {
 	int ret;
 
@@ -191,12 +191,12 @@ out_kfree:
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_dccp_fini(void)
 {
 	xt_unregister_match(&dccp6_match);
 	xt_unregister_match(&dccp_match);
 	kfree(dccp_optbuf);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_dccp_init);
+module_exit(xt_dccp_fini);

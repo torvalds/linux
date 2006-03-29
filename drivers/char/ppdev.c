@@ -65,10 +65,11 @@
 #include <linux/parport.h>
 #include <linux/ctype.h>
 #include <linux/poll.h>
-#include <asm/uaccess.h>
+#include <linux/major.h>
 #include <linux/ppdev.h>
 #include <linux/smp_lock.h>
 #include <linux/device.h>
+#include <asm/uaccess.h>
 
 #define PP_VERSION "ppdev: user-space parallel port driver"
 #define CHRDEV "ppdev"

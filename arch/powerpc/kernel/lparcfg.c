@@ -56,7 +56,7 @@ static unsigned long get_purr(void)
 	unsigned long sum_purr = 0;
 	int cpu;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		sum_purr += lppaca[cpu].emulated_time_base;
 
 #ifdef PURR_DEBUG
@@ -222,7 +222,7 @@ static unsigned long get_purr(void)
 	int cpu;
 	struct cpu_usage *cu;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		cu = &per_cpu(cpu_usage_array, cpu);
 		sum_purr += cu->current_tb;
 	}

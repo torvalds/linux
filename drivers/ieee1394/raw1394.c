@@ -41,7 +41,7 @@
 #include <linux/cdev.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
-#include <linux/devfs_fs_kernel.h>
+#include <linux/compat.h>
 
 #include "csr1212.h"
 #include "ieee1394.h"
@@ -406,6 +406,65 @@ static void fcp_request(struct hpsb_host *host, int nodeid, int direction,
 	    queue_complete_req(req);
 }
 
+#ifdef CONFIG_COMPAT
+struct compat_raw1394_req {
+        __u32 type;
+        __s32 error;
+        __u32 misc;
+
+        __u32 generation;
+        __u32 length;
+
+        __u64 address;
+
+        __u64 tag;
+
+        __u64 sendb;
+        __u64 recvb;
+}  __attribute__((packed));
+
+static const char __user *raw1394_compat_write(const char __user *buf)
+{
+	struct compat_raw1394_req __user *cr = (typeof(cr)) buf; 
+	struct raw1394_request __user *r;
+	r = compat_alloc_user_space(sizeof(struct raw1394_request));
+
+#define C(x) __copy_in_user(&r->x, &cr->x, sizeof(r->x))
+
+	if (copy_in_user(r, cr, sizeof(struct compat_raw1394_req)) ||
+		C(address) ||
+		C(tag) ||
+		C(sendb) ||
+		C(recvb))
+		return ERR_PTR(-EFAULT);
+	return (const char __user *)r;
+}
+#undef C
+
+#define P(x) __put_user(r->x, &cr->x)
+
+static int 
+raw1394_compat_read(const char __user *buf, struct raw1394_request *r)
+{
+	struct compat_raw1394_req __user *cr = (typeof(cr)) r; 
+	if (!access_ok(VERIFY_WRITE,cr,sizeof(struct compat_raw1394_req)) ||
+	    P(type) ||
+	    P(error) ||
+	    P(misc) ||
+	    P(generation) ||
+	    P(length) ||
+	    P(address) ||
+	    P(tag) ||
+	    P(sendb) ||
+	    P(recvb))
+		return -EFAULT;
+	return sizeof(struct compat_raw1394_req);
+}
+#undef P
+
+#endif
+
+
 static ssize_t raw1394_read(struct file *file, char __user * buffer,
 			    size_t count, loff_t * offset_is_ignored)
 {
@@ -415,6 +474,11 @@ static ssize_t raw1394_read(struct file *file, char __user * buffer,
 	struct pending_request *req;
 	ssize_t ret;
 
+#ifdef CONFIG_COMPAT
+	if (count == sizeof(struct compat_raw1394_req)) {
+		/* ok */
+	} else
+#endif
 	if (count != sizeof(struct raw1394_request)) {
 		return -EINVAL;
 	}
@@ -446,12 +510,22 @@ static ssize_t raw1394_read(struct file *file, char __user * buffer,
 			req->req.error = RAW1394_ERROR_MEMFAULT;
 		}
 	}
-	if (copy_to_user(buffer, &req->req, sizeof(req->req))) {
-		ret = -EFAULT;
-		goto out;
-	}
 
-	ret = (ssize_t) sizeof(struct raw1394_request);
+#ifdef CONFIG_COMPAT
+	if (count == sizeof(struct compat_raw1394_req) && 
+   		sizeof(struct compat_raw1394_req) != 
+			sizeof(struct raw1394_request)) { 
+		ret = raw1394_compat_read(buffer, &req->req);
+
+	} else	
+#endif
+	{
+		if (copy_to_user(buffer, &req->req, sizeof(req->req))) {
+			ret = -EFAULT;
+			goto out;
+		}		
+		ret = (ssize_t) sizeof(struct raw1394_request);
+	}
       out:
 	free_pending_request(req);
 	return ret;
@@ -2274,6 +2348,7 @@ static int state_connected(struct file_info *fi, struct pending_request *req)
 	return handle_async_request(fi, req, node);
 }
 
+
 static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 			     size_t count, loff_t * offset_is_ignored)
 {
@@ -2281,6 +2356,15 @@ static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 	struct pending_request *req;
 	ssize_t retval = 0;
 
+#ifdef CONFIG_COMPAT
+	if (count == sizeof(struct compat_raw1394_req) && 
+   		sizeof(struct compat_raw1394_req) != 
+			sizeof(struct raw1394_request)) { 
+		buffer = raw1394_compat_write(buffer);
+		if (IS_ERR(buffer))
+			return PTR_ERR(buffer);
+	} else
+#endif
 	if (count != sizeof(struct raw1394_request)) {
 		return -EINVAL;
 	}
@@ -2893,6 +2977,7 @@ static struct file_operations raw1394_fops = {
 	.write = raw1394_write,
 	.mmap = raw1394_mmap,
 	.ioctl = raw1394_ioctl,
+	// .compat_ioctl = ... someone needs to do this
 	.poll = raw1394_poll,
 	.open = raw1394_open,
 	.release = raw1394_release,
@@ -2912,9 +2997,6 @@ static int __init init_raw1394(void)
 		ret = -EFAULT;
 		goto out_unreg;
 	}
-
-	devfs_mk_cdev(MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16),
-		      S_IFCHR | S_IRUSR | S_IWUSR, RAW1394_DEVICE_NAME);
 
 	cdev_init(&raw1394_cdev, &raw1394_fops);
 	raw1394_cdev.owner = THIS_MODULE;
@@ -2937,7 +3019,6 @@ static int __init init_raw1394(void)
 	goto out;
 
       out_dev:
-	devfs_remove(RAW1394_DEVICE_NAME);
 	class_device_destroy(hpsb_protocol_class,
 			     MKDEV(IEEE1394_MAJOR,
 				   IEEE1394_MINOR_BLOCK_RAW1394 * 16));
@@ -2953,7 +3034,6 @@ static void __exit cleanup_raw1394(void)
 			     MKDEV(IEEE1394_MAJOR,
 				   IEEE1394_MINOR_BLOCK_RAW1394 * 16));
 	cdev_del(&raw1394_cdev);
-	devfs_remove(RAW1394_DEVICE_NAME);
 	hpsb_unregister_highlevel(&raw1394_highlevel);
 	hpsb_unregister_protocol(&raw1394_driver);
 }

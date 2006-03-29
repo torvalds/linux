@@ -100,7 +100,7 @@
 
 /* Boot options */
 static int      vra = 0;	// 0 = no VRA, 1 = use VRA if codec supports it
-MODULE_PARM(vra, "i");
+module_param(vra, bool, 0);
 MODULE_PARM_DESC(vra, "if 1 use VRA if codec supports it");
 
 

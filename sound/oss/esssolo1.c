@@ -2348,7 +2348,7 @@ static int __devinit solo1_probe(struct pci_dev *pcidev, const struct pci_device
 	/* Recording requires 24-bit DMA, so attempt to set dma mask
 	 * to 24 bits first, then 32 bits (playback only) if that fails.
 	 */
-	if (pci_set_dma_mask(pcidev, 0x00ffffff) &&
+	if (pci_set_dma_mask(pcidev, DMA_24BIT_MASK) &&
 	    pci_set_dma_mask(pcidev, DMA_32BIT_MASK)) {
 		printk(KERN_WARNING "solo1: architecture does not support 24bit or 32bit PCI busmaster DMA\n");
 		return -ENODEV;
