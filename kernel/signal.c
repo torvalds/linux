@@ -1682,8 +1682,7 @@ out:
  * Returns nonzero if we've actually stopped and released the siglock.
  * Returns zero if we didn't stop and still hold the siglock.
  */
-static int
-do_signal_stop(int signr)
+static int do_signal_stop(int signr)
 {
 	struct signal_struct *sig = current->signal;
 	struct sighand_struct *sighand = current->sighand;
@@ -1703,7 +1702,6 @@ do_signal_stop(int signr)
 		set_current_state(TASK_STOPPED);
 		if (stop_count == 0)
 			sig->flags = SIGNAL_STOP_STOPPED;
-		spin_unlock_irq(&sighand->siglock);
 	}
 	else if (thread_group_empty(current)) {
 		/*
@@ -1712,71 +1710,38 @@ do_signal_stop(int signr)
 		current->exit_code = current->signal->group_exit_code = signr;
 		set_current_state(TASK_STOPPED);
 		sig->flags = SIGNAL_STOP_STOPPED;
-		spin_unlock_irq(&sighand->siglock);
 	}
 	else {
 		/*
+		 * (sig->group_stop_count == 0)
 		 * There is no group stop already in progress.
-		 * We must initiate one now, but that requires
-		 * dropping siglock to get both the tasklist lock
-		 * and siglock again in the proper order.  Note that
-		 * this allows an intervening SIGCONT to be posted.
-		 * We need to check for that and bail out if necessary.
+		 * We must initiate one now.
 		 */
 		struct task_struct *t;
 
-		spin_unlock_irq(&sighand->siglock);
-
-		/* signals can be posted during this window */
-
-		read_lock(&tasklist_lock);
-		spin_lock_irq(&sighand->siglock);
-
-		if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED)) {
-			/*
-			 * Another stop or continue happened while we
-			 * didn't have the lock.  We can just swallow this
-			 * signal now.  If we raced with a SIGCONT, that
-			 * should have just cleared it now.  If we raced
-			 * with another processor delivering a stop signal,
-			 * then the SIGCONT that wakes us up should clear it.
-			 */
-			read_unlock(&tasklist_lock);
-			return 0;
-		}
-
-		if (sig->group_stop_count == 0) {
-			sig->group_exit_code = signr;
-			stop_count = 0;
-			for (t = next_thread(current); t != current;
-			     t = next_thread(t))
-				/*
-				 * Setting state to TASK_STOPPED for a group
-				 * stop is always done with the siglock held,
-				 * so this check has no races.
-				 */
-				if (!t->exit_state &&
-				    !(t->state & (TASK_STOPPED|TASK_TRACED))) {
-					stop_count++;
-					signal_wake_up(t, 0);
-				}
-			sig->group_stop_count = stop_count;
-		}
-		else {
-			/* A race with another thread while unlocked.  */
-			signr = sig->group_exit_code;
-			stop_count = --sig->group_stop_count;
-		}
-
 		current->exit_code = signr;
+		sig->group_exit_code = signr;
+
+		stop_count = 0;
+		for (t = next_thread(current); t != current; t = next_thread(t))
+			/*
+			 * Setting state to TASK_STOPPED for a group
+			 * stop is always done with the siglock held,
+			 * so this check has no races.
+			 */
+			if (!t->exit_state &&
+			    !(t->state & (TASK_STOPPED|TASK_TRACED))) {
+				stop_count++;
+				signal_wake_up(t, 0);
+			}
+		sig->group_stop_count = stop_count;
+
 		set_current_state(TASK_STOPPED);
 		if (stop_count == 0)
 			sig->flags = SIGNAL_STOP_STOPPED;
-
-		spin_unlock_irq(&sighand->siglock);
-		read_unlock(&tasklist_lock);
 	}
 
+	spin_unlock_irq(&sighand->siglock);
 	finish_stop(stop_count);
 	return 1;
 }
