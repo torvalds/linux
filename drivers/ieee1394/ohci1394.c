@@ -3262,8 +3262,8 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	 * fail to report the right length.  Anyway, the ohci spec
 	 * clearly says it's 2kb, so this shouldn't be a problem. */
 	ohci_base = pci_resource_start(dev, 0);
-	if (pci_resource_len(dev, 0) != OHCI1394_REGISTER_SIZE)
-		PRINT(KERN_WARNING, "Unexpected PCI resource length of %lx!",
+	if (pci_resource_len(dev, 0) < OHCI1394_REGISTER_SIZE)
+		PRINT(KERN_WARNING, "PCI resource length of %lx too small!",
 		      pci_resource_len(dev, 0));
 
 	/* Seems PCMCIA handles this internally. Not sure why. Seems
