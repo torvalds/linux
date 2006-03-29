@@ -388,6 +388,7 @@
 #include <linux/proc_fs.h>
 #include <linux/time.h>
 #include <linux/timer.h>
+#include <linux/dma-mapping.h>
 #ifdef GDTH_RTC
 #include <linux/mc146818rtc.h>
 #endif
@@ -671,7 +672,7 @@ static struct file_operations gdth_fops = {
 static struct notifier_block gdth_notifier = {
     gdth_halt, NULL, 0
 };
-
+static int notifier_disabled = 0;
 
 static void gdth_delay(int milliseconds)
 {
@@ -4527,15 +4528,15 @@ static int __init gdth_detect(struct scsi_host_template *shtp)
             if (!(ha->cache_feat & ha->raw_feat & ha->screen_feat &GDT_64BIT)||
                 /* 64-bit DMA only supported from FW >= x.43 */
                 (!ha->dma64_support)) {
-                if (pci_set_dma_mask(pcistr[ctr].pdev, 0xffffffff)) {
+                if (pci_set_dma_mask(pcistr[ctr].pdev, DMA_32BIT_MASK)) {
                     printk(KERN_WARNING "GDT-PCI %d: Unable to set 32-bit DMA\n", hanum);
                     err = TRUE;
                 }
             } else {
                 shp->max_cmd_len = 16;
-                if (!pci_set_dma_mask(pcistr[ctr].pdev, 0xffffffffffffffffULL)) {
+                if (!pci_set_dma_mask(pcistr[ctr].pdev, DMA_64BIT_MASK)) {
                     printk("GDT-PCI %d: 64-bit DMA enabled\n", hanum);
-                } else if (pci_set_dma_mask(pcistr[ctr].pdev, 0xffffffff)) {
+                } else if (pci_set_dma_mask(pcistr[ctr].pdev, DMA_32BIT_MASK)) {
                     printk(KERN_WARNING "GDT-PCI %d: Unable to set 64/32-bit DMA\n", hanum);
                     err = TRUE;
                 }
@@ -4595,12 +4596,12 @@ static int __init gdth_detect(struct scsi_host_template *shtp)
         add_timer(&gdth_timer);
 #endif
         major = register_chrdev(0,"gdth",&gdth_fops);
+        notifier_disabled = 0;
         register_reboot_notifier(&gdth_notifier);
     }
     gdth_polling = FALSE;
     return gdth_ctr_vcount;
 }
-
 
 static int gdth_release(struct Scsi_Host *shp)
 {
@@ -5632,10 +5633,14 @@ static int gdth_halt(struct notifier_block *nb, ulong event, void *buf)
     char            cmnd[MAX_COMMAND_SIZE];   
 #endif
 
+    if (notifier_disabled)
+    	return NOTIFY_OK;
+
     TRACE2(("gdth_halt() event %d\n",(int)event));
     if (event != SYS_RESTART && event != SYS_HALT && event != SYS_POWER_OFF)
         return NOTIFY_DONE;
 
+    notifier_disabled = 1;
     printk("GDT-HA: Flushing all host drives .. ");
     for (hanum = 0; hanum < gdth_ctr_count; ++hanum) {
         gdth_flush(hanum);
@@ -5679,7 +5684,6 @@ static int gdth_halt(struct notifier_block *nb, ulong event, void *buf)
 #ifdef GDTH_STATISTICS
     del_timer(&gdth_timer);
 #endif
-    unregister_reboot_notifier(&gdth_notifier);
     return NOTIFY_OK;
 }
 

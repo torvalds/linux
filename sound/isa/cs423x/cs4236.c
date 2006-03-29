@@ -133,6 +133,7 @@ static int pnpc_registered;
 static int pnp_registered;
 #endif
 #endif /* CONFIG_PNP */
+static unsigned int snd_cs423x_devices;
 
 struct snd_card_cs4236 {
 	struct snd_cs4231 *chip;
@@ -564,7 +565,7 @@ static int __init snd_cs423x_nonpnp_probe(struct platform_device *pdev)
 		snd_card_free(card);
 		return err;
 	}
-	
+
 	platform_set_drvdata(pdev, card);
 	return 0;
 }
@@ -650,6 +651,7 @@ static int __devinit snd_cs4232_pnpbios_detect(struct pnp_dev *pdev,
 	}
 	pnp_set_drvdata(pdev, card);
 	dev++;
+	snd_cs423x_devices++;
 	return 0;
 }
 
@@ -713,6 +715,7 @@ static int __devinit snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
 	}
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
+	snd_cs423x_devices++;
 	return 0;
 }
 
@@ -721,7 +724,7 @@ static void __devexit snd_cs423x_pnpc_remove(struct pnp_card_link * pcard)
 	snd_card_free(pnp_get_card_drvdata(pcard));
 	pnp_set_card_drvdata(pcard, NULL);
 }
-                        
+
 #ifdef CONFIG_PM
 static int snd_cs423x_pnpc_suspend(struct pnp_card_link *pcard, pm_message_t state)
 {
@@ -766,7 +769,7 @@ static void __init_or_module snd_cs423x_unregister_all(void)
 
 static int __init alsa_card_cs423x_init(void)
 {
-	int i, err, cards = 0;
+	int i, err;
 
 	if ((err = platform_driver_register(&cs423x_nonpnp_driver)) < 0)
 		return err;
@@ -782,24 +785,20 @@ static int __init alsa_card_cs423x_init(void)
 			goto errout;
 		}
 		platform_devices[i] = device;
-		cards++;
+		snd_cs423x_devices++;
 	}
 #ifdef CONFIG_PNP
 #ifdef CS4232
-	i = pnp_register_driver(&cs4232_pnp_driver);
-	if (i >= 0) {
+	err = pnp_register_driver(&cs4232_pnp_driver);
+	if (!err)
 		pnp_registered = 1;
-		cards += i;
-	}
 #endif
-	i = pnp_register_card_driver(&cs423x_pnpc_driver);
-	if (i >= 0) {
+	err = pnp_register_card_driver(&cs423x_pnpc_driver);
+	if (!err)
 		pnpc_registered = 1;
-		cards += i;
-	}
 #endif /* CONFIG_PNP */
 
-	if (!cards) {
+	if (!snd_cs423x_devices) {
 #ifdef MODULE
 		printk(KERN_ERR IDENT " soundcard not found or device busy\n");
 #endif

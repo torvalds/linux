@@ -459,26 +459,9 @@ static ssize_t microcode_write (struct file *file, const char __user *buf, size_
 	return ret;
 }
 
-static int microcode_ioctl (struct inode *inode, struct file *file, 
-		unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-		/* 
-		 *  XXX: will be removed after microcode_ctl 
-		 *  is updated to ignore failure of this ioctl()
-		 */
-		case MICROCODE_IOCFREE:
-			return 0;
-		default:
-			return -EINVAL;
-	}
-	return -EINVAL;
-}
-
 static struct file_operations microcode_fops = {
 	.owner		= THIS_MODULE,
 	.write		= microcode_write,
-	.ioctl		= microcode_ioctl,
 	.open		= microcode_open,
 };
 

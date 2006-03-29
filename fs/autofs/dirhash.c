@@ -92,7 +92,7 @@ struct autofs_dir_ent *autofs_expire(struct super_block *sb,
 			;
 		dput(dentry);
 
-		if ( may_umount(mnt) == 0 ) {
+		if ( may_umount(mnt) ) {
 			mntput(mnt);
 			DPRINTK(("autofs: signaling expire on %s\n", ent->name));
 			return ent; /* Expirable! */

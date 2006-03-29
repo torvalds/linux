@@ -76,9 +76,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #ifndef CONFIG_DISCONTIGMEM
 #define PFN_BASE		(CONFIG_MEMORY_START >> PAGE_SHIFT)
-#define pfn_to_page(pfn)	(mem_map + ((pfn) - PFN_BASE))
-#define page_to_pfn(page)	\
-	((unsigned long)((page) - mem_map) + PFN_BASE)
+#define ARCH_PFN_OFFSET		PFN_BASE
 #define pfn_valid(pfn)		(((pfn) - PFN_BASE) < max_mapnr)
 #endif  /* !CONFIG_DISCONTIGMEM */
 
@@ -92,6 +90,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #endif /* __KERNEL__ */
 
+#include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
 #endif /* _ASM_M32R_PAGE_H */

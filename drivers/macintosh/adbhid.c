@@ -1214,7 +1214,8 @@ static int __init adbhid_init(void)
 
 	adbhid_probe();
 
-	notifier_chain_register(&adb_client_list, &adbhid_adb_notifier);
+	blocking_notifier_chain_register(&adb_client_list,
+			&adbhid_adb_notifier);
 
 	return 0;
 }

@@ -314,10 +314,11 @@ time_init(void)
 	if (!est_cycle_freq)
 		est_cycle_freq = validate_cc_value(calibrate_cc_with_pit());
 
-	cc1 = rpcc_after_update_in_progress();
+	cc1 = rpcc();
 
 	/* Calibrate CPU clock -- attempt #2.  */
 	if (!est_cycle_freq) {
+		cc1 = rpcc_after_update_in_progress();
 		cc2 = rpcc_after_update_in_progress();
 		est_cycle_freq = validate_cc_value(cc2 - cc1);
 		cc1 = cc2;

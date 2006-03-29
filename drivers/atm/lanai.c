@@ -1972,7 +1972,7 @@ static int __devinit lanai_pci_start(struct lanai_dev *lanai)
 		    "(itf %d): No suitable DMA available.\n", lanai->number);
 		return -EBUSY;
 	}
-	if (pci_set_consistent_dma_mask(pci, 0xFFFFFFFF) != 0) {
+	if (pci_set_consistent_dma_mask(pci, DMA_32BIT_MASK) != 0) {
 		printk(KERN_WARNING DEV_LABEL
 		    "(itf %d): No suitable DMA available.\n", lanai->number);
 		return -EBUSY;

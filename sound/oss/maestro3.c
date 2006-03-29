@@ -2582,15 +2582,9 @@ static int alloc_dsp_suspendmem(struct m3_card *card)
 
     return 0;
 }
-static void free_dsp_suspendmem(struct m3_card *card)
-{
-   if(card->suspend_mem)
-       vfree(card->suspend_mem);
-}
 
 #else
 #define alloc_dsp_suspendmem(args...) 0
-#define free_dsp_suspendmem(args...) 
 #endif
 
 /*
@@ -2717,7 +2711,7 @@ out:
     if(ret) {
         if(card->iobase)
             release_region(pci_resource_start(pci_dev, 0), pci_resource_len(pci_dev, 0));
-        free_dsp_suspendmem(card);
+        vfree(card->suspend_mem);
         if(card->ac97) {
             unregister_sound_mixer(card->ac97->dev_mixer);
             kfree(card->ac97);
@@ -2760,7 +2754,7 @@ static void m3_remove(struct pci_dev *pci_dev)
         }
 
         release_region(card->iobase, 256);
-        free_dsp_suspendmem(card);
+        vfree(card->suspend_mem);
         kfree(card);
     }
     devs = NULL;

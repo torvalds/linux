@@ -404,7 +404,7 @@ static void usX2Y_usbpcm_subs_startup(struct snd_usX2Y_substream *subs)
 	struct usX2Ydev * usX2Y = subs->usX2Y;
 	usX2Y->prepare_subs = subs;
 	subs->urb[0]->start_frame = -1;
-	smp_wmb();	// Make shure above modifications are seen by i_usX2Y_subs_startup()
+	smp_wmb();	// Make sure above modifications are seen by i_usX2Y_subs_startup()
 	usX2Y_urbs_set_complete(usX2Y, i_usX2Y_usbpcm_subs_startup);
 }
 

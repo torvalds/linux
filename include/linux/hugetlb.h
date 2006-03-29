@@ -154,7 +154,7 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-extern struct file_operations hugetlbfs_file_operations;
+extern const struct file_operations hugetlbfs_file_operations;
 extern struct vm_operations_struct hugetlb_vm_ops;
 struct file *hugetlb_zero_setup(size_t);
 int hugetlb_extend_reservation(struct hugetlbfs_inode_info *info,

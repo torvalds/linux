@@ -2073,8 +2073,6 @@ static void __exit rivafb_remove(struct pci_dev *pd)
 	struct riva_par *par = info->par;
 	
 	NVTRACE_ENTER();
-	if (!info)
-		return;
 
 #ifdef CONFIG_FB_RIVA_I2C
 	riva_delete_i2c_busses(par);

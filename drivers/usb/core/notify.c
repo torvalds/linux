@@ -16,57 +16,7 @@
 #include <linux/mutex.h>
 #include "usb.h"
 
-
-static struct notifier_block *usb_notifier_list;
-static DEFINE_MUTEX(usb_notifier_lock);
-
-static void usb_notifier_chain_register(struct notifier_block **list,
-					struct notifier_block *n)
-{
-	mutex_lock(&usb_notifier_lock);
-	while (*list) {
-		if (n->priority > (*list)->priority)
-			break;
-		list = &((*list)->next);
-	}
-	n->next = *list;
-	*list = n;
-	mutex_unlock(&usb_notifier_lock);
-}
-
-static void usb_notifier_chain_unregister(struct notifier_block **nl,
-				   struct notifier_block *n)
-{
-	mutex_lock(&usb_notifier_lock);
-	while ((*nl)!=NULL) {
-		if ((*nl)==n) {
-			*nl = n->next;
-			goto exit;
-		}
-		nl=&((*nl)->next);
-	}
-exit:
-	mutex_unlock(&usb_notifier_lock);
-}
-
-static int usb_notifier_call_chain(struct notifier_block **n,
-				   unsigned long val, void *v)
-{
-	int ret=NOTIFY_DONE;
-	struct notifier_block *nb = *n;
-
-	mutex_lock(&usb_notifier_lock);
-	while (nb) {
-		ret = nb->notifier_call(nb,val,v);
-		if (ret&NOTIFY_STOP_MASK) {
-			goto exit;
-		}
-		nb = nb->next;
-	}
-exit:
-	mutex_unlock(&usb_notifier_lock);
-	return ret;
-}
+static BLOCKING_NOTIFIER_HEAD(usb_notifier_list);
 
 /**
  * usb_register_notify - register a notifier callback whenever a usb change happens
@@ -76,7 +26,7 @@ exit:
  */
 void usb_register_notify(struct notifier_block *nb)
 {
-	usb_notifier_chain_register(&usb_notifier_list, nb);
+	blocking_notifier_chain_register(&usb_notifier_list, nb);
 }
 EXPORT_SYMBOL_GPL(usb_register_notify);
 
@@ -89,27 +39,28 @@ EXPORT_SYMBOL_GPL(usb_register_notify);
  */
 void usb_unregister_notify(struct notifier_block *nb)
 {
-	usb_notifier_chain_unregister(&usb_notifier_list, nb);
+	blocking_notifier_chain_unregister(&usb_notifier_list, nb);
 }
 EXPORT_SYMBOL_GPL(usb_unregister_notify);
 
 
 void usb_notify_add_device(struct usb_device *udev)
 {
-	usb_notifier_call_chain(&usb_notifier_list, USB_DEVICE_ADD, udev);
+	blocking_notifier_call_chain(&usb_notifier_list, USB_DEVICE_ADD, udev);
 }
 
 void usb_notify_remove_device(struct usb_device *udev)
 {
-	usb_notifier_call_chain(&usb_notifier_list, USB_DEVICE_REMOVE, udev);
+	blocking_notifier_call_chain(&usb_notifier_list,
+			USB_DEVICE_REMOVE, udev);
 }
 
 void usb_notify_add_bus(struct usb_bus *ubus)
 {
-	usb_notifier_call_chain(&usb_notifier_list, USB_BUS_ADD, ubus);
+	blocking_notifier_call_chain(&usb_notifier_list, USB_BUS_ADD, ubus);
 }
 
 void usb_notify_remove_bus(struct usb_bus *ubus)
 {
-	usb_notifier_call_chain(&usb_notifier_list, USB_BUS_REMOVE, ubus);
+	blocking_notifier_call_chain(&usb_notifier_list, USB_BUS_REMOVE, ubus);
 }

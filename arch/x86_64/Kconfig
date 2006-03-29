@@ -250,6 +250,15 @@ config SCHED_SMT
 	  cost of slightly increased overhead in some places. If unsure say
 	  N here.
 
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on SMP
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
 source "kernel/Kconfig.preempt"
 
 config NUMA
@@ -324,6 +333,10 @@ source "mm/Kconfig"
 config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
 	depends on NUMA
+
+config OUT_OF_LINE_PFN_TO_PAGE
+	def_bool y
+	depends on DISCONTIGMEM
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-256)"

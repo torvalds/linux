@@ -147,6 +147,24 @@ typedef struct compat_sigevent {
 	} _sigev_un;
 } compat_sigevent_t;
 
+struct compat_robust_list {
+	compat_uptr_t			next;
+};
+
+struct compat_robust_list_head {
+	struct compat_robust_list	list;
+	compat_long_t			futex_offset;
+	compat_uptr_t			list_op_pending;
+};
+
+extern void compat_exit_robust_list(struct task_struct *curr);
+
+asmlinkage long
+compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
+			   compat_size_t len);
+asmlinkage long
+compat_sys_get_robust_list(int pid, compat_uptr_t *head_ptr,
+			   compat_size_t __user *len_ptr);
 
 long compat_sys_semctl(int first, int second, int third, void __user *uptr);
 long compat_sys_msgsnd(int first, int second, int third, void __user *uptr);

@@ -463,7 +463,7 @@ static struct address_space_operations romfs_aops = {
 	.readpage = romfs_readpage
 };
 
-static struct file_operations romfs_dir_operations = {
+static const struct file_operations romfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= romfs_readdir,
 };

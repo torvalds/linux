@@ -11,6 +11,15 @@
 #include <linux/mm.h>
 #include <asm/uaccess.h>
 
+/* ~832 bytes of stack space used max in sys_select/sys_poll before allocating
+   additional memory. */
+#define MAX_STACK_ALLOC 832
+#define FRONTEND_STACK_ALLOC	256
+#define SELECT_STACK_ALLOC	FRONTEND_STACK_ALLOC
+#define POLL_STACK_ALLOC	FRONTEND_STACK_ALLOC
+#define WQUEUES_STACK_ALLOC	(MAX_STACK_ALLOC - FRONTEND_STACK_ALLOC)
+#define N_INLINE_POLL_ENTRIES	(WQUEUES_STACK_ALLOC / sizeof(struct poll_table_entry))
+
 struct poll_table_struct;
 
 /* 
@@ -33,6 +42,12 @@ static inline void init_poll_funcptr(poll_table *pt, poll_queue_proc qproc)
 	pt->qproc = qproc;
 }
 
+struct poll_table_entry {
+	struct file * filp;
+	wait_queue_t wait;
+	wait_queue_head_t * wait_address;
+};
+
 /*
  * Structures and helpers for sys_poll/sys_poll
  */
@@ -40,6 +55,8 @@ struct poll_wqueues {
 	poll_table pt;
 	struct poll_table_page * table;
 	int error;
+	int inline_index;
+	struct poll_table_entry inline_entries[N_INLINE_POLL_ENTRIES];
 };
 
 extern void poll_initwait(struct poll_wqueues *pwq);

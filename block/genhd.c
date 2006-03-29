@@ -454,8 +454,8 @@ static ssize_t disk_stats_read(struct gendisk * disk, char *page)
 	disk_round_stats(disk);
 	preempt_enable();
 	return sprintf(page,
-		"%8u %8u %8llu %8u "
-		"%8u %8u %8llu %8u "
+		"%8lu %8lu %8llu %8u "
+		"%8lu %8lu %8llu %8u "
 		"%8u %8u %8u"
 		"\n",
 		disk_stat_read(disk, ios[READ]),
@@ -649,7 +649,7 @@ static int diskstats_show(struct seq_file *s, void *v)
 	preempt_disable();
 	disk_round_stats(gp);
 	preempt_enable();
-	seq_printf(s, "%4d %4d %s %u %u %llu %u %u %u %llu %u %u %u %u\n",
+	seq_printf(s, "%4d %4d %s %lu %lu %llu %u %lu %lu %llu %u %u %u %u\n",
 		gp->major, n + gp->first_minor, disk_name(gp, n, buf),
 		disk_stat_read(gp, ios[0]), disk_stat_read(gp, merges[0]),
 		(unsigned long long)disk_stat_read(gp, sectors[0]),

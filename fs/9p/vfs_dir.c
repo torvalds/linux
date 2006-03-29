@@ -204,7 +204,7 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-struct file_operations v9fs_dir_operations = {
+const struct file_operations v9fs_dir_operations = {
 	.read = generic_read_dir,
 	.readdir = v9fs_dir_readdir,
 	.open = v9fs_file_open,

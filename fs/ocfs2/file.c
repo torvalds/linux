@@ -1176,7 +1176,7 @@ struct inode_operations ocfs2_special_file_iops = {
 	.getattr	= ocfs2_getattr,
 };
 
-struct file_operations ocfs2_fops = {
+const struct file_operations ocfs2_fops = {
 	.read		= do_sync_read,
 	.write		= do_sync_write,
 	.sendfile	= generic_file_sendfile,
@@ -1188,7 +1188,7 @@ struct file_operations ocfs2_fops = {
 	.aio_write	= ocfs2_file_aio_write,
 };
 
-struct file_operations ocfs2_dops = {
+const struct file_operations ocfs2_dops = {
 	.read		= generic_read_dir,
 	.readdir	= ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,

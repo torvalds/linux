@@ -1158,7 +1158,8 @@ static int __init ipmi_wdog_init(void)
 	}
 
 	register_reboot_notifier(&wdog_reboot_notifier);
-	notifier_chain_register(&panic_notifier_list, &wdog_panic_notifier);
+	atomic_notifier_chain_register(&panic_notifier_list,
+			&wdog_panic_notifier);
 
 	printk(KERN_INFO PFX "driver initialized\n");
 
@@ -1176,7 +1177,8 @@ static __exit void ipmi_unregister_watchdog(void)
 		release_nmi(&ipmi_nmi_handler);
 #endif
 
-	notifier_chain_unregister(&panic_notifier_list, &wdog_panic_notifier);
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+			&wdog_panic_notifier);
 	unregister_reboot_notifier(&wdog_reboot_notifier);
 
 	if (! watchdog_user)

@@ -920,7 +920,7 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static struct file_operations inotify_fops = {
+static const struct file_operations inotify_fops = {
 	.poll           = inotify_poll,
 	.read           = inotify_read,
 	.release        = inotify_release,

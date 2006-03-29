@@ -86,7 +86,7 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 
 	if (dvbdev && dvbdev->fops) {
 		int err = 0;
-		struct file_operations *old_fops;
+		const struct file_operations *old_fops;
 
 		file->private_data = dvbdev;
 		old_fops = file->f_op;

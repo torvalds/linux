@@ -506,7 +506,7 @@ fh_put(struct svc_fh *fhp)
 		nfsd_nr_put++;
 	}
 	if (exp) {
-		svc_export_put(&exp->h, &svc_export_cache);
+		cache_put(&exp->h, &svc_export_cache);
 		fhp->fh_export = NULL;
 	}
 	return;

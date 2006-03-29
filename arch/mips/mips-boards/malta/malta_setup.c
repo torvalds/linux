@@ -225,5 +225,5 @@ void __init plat_setup(void)
 
 	board_time_init = mips_time_init;
 	board_timer_setup = mips_timer_setup;
-	rtc_get_time = mips_rtc_get_time;
+	rtc_mips_get_time = mips_rtc_get_time;
 }

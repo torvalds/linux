@@ -377,21 +377,6 @@ EXPORT_SYMBOL(node_data);
  * Should do that.
  */
 
-/* Requires pfn_valid(pfn) to be true */
-struct page *pfn_to_page(unsigned long pfn)
-{
-	int nid = phys_to_nid(((unsigned long)(pfn)) << PAGE_SHIFT);
-	return (pfn - node_start_pfn(nid)) + NODE_DATA(nid)->node_mem_map;
-}
-EXPORT_SYMBOL(pfn_to_page);
-
-unsigned long page_to_pfn(struct page *page)
-{
-	return (long)(((page) - page_zone(page)->zone_mem_map) +
-		      page_zone(page)->zone_start_pfn);
-}
-EXPORT_SYMBOL(page_to_pfn);
-
 int pfn_valid(unsigned long pfn)
 {
 	unsigned nid;

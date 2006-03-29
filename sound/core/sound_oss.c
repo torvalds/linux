@@ -95,7 +95,7 @@ static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
 }
 
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
-			    struct file_operations *f_ops, void *private_data,
+			    const struct file_operations *f_ops, void *private_data,
 			    const char *name)
 {
 	int minor = snd_oss_kernel_minor(type, card, dev);

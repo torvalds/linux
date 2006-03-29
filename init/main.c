@@ -341,7 +341,7 @@ static void __init setup_per_cpu_areas(void)
 #endif
 	ptr = alloc_bootmem(size * nr_possible_cpus);
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		__per_cpu_offset[i] = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
 		ptr += size;

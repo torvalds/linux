@@ -115,6 +115,9 @@ pnp_unregister_protocol
 pnp_register_driver
 - adds a PnP driver to the Plug and Play Layer
 - this includes driver model integration
+- returns zero for success or a negative error number for failure; count
+  calls to the .add() method if you need to know how many devices bind to
+  the driver
 
 pnp_unregister_driver
 - removes a PnP driver from the Plug and Play Layer

@@ -106,17 +106,25 @@ extern int ia64_pfn_valid (unsigned long pfn);
 # define ia64_pfn_valid(pfn) 1
 #endif
 
+#ifdef CONFIG_VIRTUAL_MEM_MAP
+extern struct page *vmem_map;
+#ifdef CONFIG_DISCONTIGMEM
+# define page_to_pfn(page)	((unsigned long) (page - vmem_map))
+# define pfn_to_page(pfn)	(vmem_map + (pfn))
+#endif
+#endif
+
+#if defined(CONFIG_FLATMEM) || defined(CONFIG_SPARSEMEM)
+/* FLATMEM always configures mem_map (mem_map = vmem_map if necessary) */
+#include <asm-generic/memory_model.h>
+#endif
+
 #ifdef CONFIG_FLATMEM
 # define pfn_valid(pfn)		(((pfn) < max_mapnr) && ia64_pfn_valid(pfn))
-# define page_to_pfn(page)	((unsigned long) (page - mem_map))
-# define pfn_to_page(pfn)	(mem_map + (pfn))
 #elif defined(CONFIG_DISCONTIGMEM)
-extern struct page *vmem_map;
 extern unsigned long min_low_pfn;
 extern unsigned long max_low_pfn;
 # define pfn_valid(pfn)		(((pfn) >= min_low_pfn) && ((pfn) < max_low_pfn) && ia64_pfn_valid(pfn))
-# define page_to_pfn(page)	((unsigned long) (page - vmem_map))
-# define pfn_to_page(pfn)	(vmem_map + (pfn))
 #endif
 
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)

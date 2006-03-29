@@ -45,9 +45,10 @@ struct svc_rqst;		/* forward decl */
  * of ip addresses to the given client.
  */
 struct auth_domain {
-	struct	cache_head	h;
+	struct kref		ref;
+	struct hlist_node	hash;
 	char			*name;
-	int			flavour;
+	struct auth_ops		*flavour;
 };
 
 /*
@@ -86,6 +87,9 @@ struct auth_domain {
  *
  * domain_release()
  *   This call releases a domain.
+ * set_client()
+ *   Givens a pending request (struct svc_rqst), finds and assigns
+ *   an appropriate 'auth_domain' as the client.
  */
 struct auth_ops {
 	char *	name;
@@ -117,7 +121,7 @@ extern void	svc_auth_unregister(rpc_authflavor_t flavor);
 extern struct auth_domain *unix_domain_find(char *name);
 extern void auth_domain_put(struct auth_domain *item);
 extern int auth_unix_add_addr(struct in_addr addr, struct auth_domain *dom);
-extern struct auth_domain *auth_domain_lookup(struct auth_domain *item, int set);
+extern struct auth_domain *auth_domain_lookup(char *name, struct auth_domain *new);
 extern struct auth_domain *auth_domain_find(char *name);
 extern struct auth_domain *auth_unix_lookup(struct in_addr addr);
 extern int auth_unix_forget_old(struct auth_domain *dom);
@@ -159,8 +163,6 @@ static inline unsigned long hash_mem(char *buf, int length, int bits)
 	} while (len);
 	return hash >> (BITS_PER_LONG - bits);
 }
-
-extern struct cache_detail auth_domain_cache, ip_map_cache;
 
 #endif /* __KERNEL__ */
 

@@ -266,7 +266,7 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	return total;
 }
 
-struct file_operations v9fs_file_operations = {
+const struct file_operations v9fs_file_operations = {
 	.llseek = generic_file_llseek,
 	.read = v9fs_file_read,
 	.write = v9fs_file_write,

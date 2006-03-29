@@ -43,8 +43,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 /* On CRIS the PFN numbers doesn't start at 0 so we have to compensate */
 /* for that before indexing into the page table starting at mem_map    */
-#define pfn_to_page(pfn)	(mem_map + ((pfn) - (PAGE_OFFSET >> PAGE_SHIFT)))
-#define page_to_pfn(page)	((unsigned long)((page) - mem_map) + (PAGE_OFFSET >> PAGE_SHIFT))
+#define ARCH_PFN_OFFSET		(PAGE_OFFSET >> PAGE_SHIFT)
 #define pfn_valid(pfn)		(((pfn) - (PAGE_OFFSET >> PAGE_SHIFT)) < max_mapnr)
 
 /* to index into the page map. our pages all start at physical addr PAGE_OFFSET so
@@ -77,6 +76,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #endif /* __KERNEL__ */
 
+#include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
 #endif /* _CRIS_PAGE_H */

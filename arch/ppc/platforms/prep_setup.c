@@ -736,7 +736,7 @@ ibm_statusled_progress(char *s, unsigned short hex)
 		hex = 0xfff;
 		if (!notifier_installed) {
 			++notifier_installed;
-			notifier_chain_register(&panic_notifier_list,
+			atomic_notifier_chain_register(&panic_notifier_list,
 						&ibm_statusled_block);
 		}
 	}

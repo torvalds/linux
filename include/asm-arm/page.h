@@ -40,6 +40,7 @@
  *	  v4wb		- ARMv4 with writeback cache, without minicache
  *	  v4_mc		- ARMv4 with minicache
  *	  xscale	- Xscale
+ *	  xsc3		- XScalev3
  */
 #undef _USER
 #undef MULTI_USER
@@ -81,6 +82,14 @@
 #  define MULTI_USER 1
 # else
 #  define _USER xscale_mc
+# endif
+#endif
+
+#ifdef CONFIG_CPU_XSC3
+# ifdef _USER
+#  define MULTI_USER 1
+# else
+#  define _USER xsc3_mc
 # endif
 #endif
 

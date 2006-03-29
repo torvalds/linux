@@ -20,6 +20,7 @@
 #include <asm/mmsegment.h>
 #include <asm/percpu.h>
 #include <linux/personality.h>
+#include <linux/cpumask.h>
 
 #define TF_MASK		0x00000100
 #define IF_MASK		0x00000200
@@ -65,6 +66,9 @@ struct cpuinfo_x86 {
         __u32   x86_power; 	
 	__u32   extended_cpuid_level;	/* Max extended CPUID function supported */
 	unsigned long loops_per_jiffy;
+#ifdef CONFIG_SMP
+	cpumask_t llc_shared_map;	/* cpus sharing the last level cache */
+#endif
 	__u8	apicid;
 	__u8	booted_cores;	/* number of cores as seen by OS */
 } ____cacheline_aligned;
@@ -353,9 +357,6 @@ struct extended_sigtable {
 	unsigned int reserved[3];
 	struct extended_signature sigs[0];
 };
-
-/* '6' because it used to be for P6 only (but now covers Pentium 4 as well) */
-#define MICROCODE_IOCFREE	_IO('6',0)
 
 
 #define ASM_NOP1 K8_NOP1

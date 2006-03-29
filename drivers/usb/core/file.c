@@ -24,15 +24,15 @@
 #include "usb.h"
 
 #define MAX_USB_MINORS	256
-static struct file_operations *usb_minors[MAX_USB_MINORS];
+static const struct file_operations *usb_minors[MAX_USB_MINORS];
 static DEFINE_SPINLOCK(minor_lock);
 
 static int usb_open(struct inode * inode, struct file * file)
 {
 	int minor = iminor(inode);
-	struct file_operations *c;
+	const struct file_operations *c;
 	int err = -ENODEV;
-	struct file_operations *old_fops, *new_fops = NULL;
+	const struct file_operations *old_fops, *new_fops = NULL;
 
 	spin_lock (&minor_lock);
 	c = usb_minors[minor];

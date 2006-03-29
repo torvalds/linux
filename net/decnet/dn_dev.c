@@ -68,7 +68,7 @@ __le16 decnet_address = 0;
 
 static DEFINE_RWLOCK(dndev_lock);
 static struct net_device *decnet_default_device;
-static struct notifier_block *dnaddr_chain;
+static BLOCKING_NOTIFIER_HEAD(dnaddr_chain);
 
 static struct dn_dev *dn_dev_create(struct net_device *dev, int *err);
 static void dn_dev_delete(struct net_device *dev);
@@ -446,7 +446,7 @@ static void dn_dev_del_ifa(struct dn_dev *dn_db, struct dn_ifaddr **ifap, int de
 	}
 
 	rtmsg_ifa(RTM_DELADDR, ifa1);
-	notifier_call_chain(&dnaddr_chain, NETDEV_DOWN, ifa1);
+	blocking_notifier_call_chain(&dnaddr_chain, NETDEV_DOWN, ifa1);
 	if (destroy) {
 		dn_dev_free_ifa(ifa1);
 
@@ -481,7 +481,7 @@ static int dn_dev_insert_ifa(struct dn_dev *dn_db, struct dn_ifaddr *ifa)
 	dn_db->ifa_list = ifa;
 
 	rtmsg_ifa(RTM_NEWADDR, ifa);
-	notifier_call_chain(&dnaddr_chain, NETDEV_UP, ifa);
+	blocking_notifier_call_chain(&dnaddr_chain, NETDEV_UP, ifa);
 
 	return 0;
 }
@@ -1285,12 +1285,12 @@ void dn_dev_devices_on(void)
 
 int register_dnaddr_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_register(&dnaddr_chain, nb);
+	return blocking_notifier_chain_register(&dnaddr_chain, nb);
 }
 
 int unregister_dnaddr_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_unregister(&dnaddr_chain, nb);
+	return blocking_notifier_chain_unregister(&dnaddr_chain, nb);
 }
 
 #ifdef CONFIG_PROC_FS

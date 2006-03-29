@@ -20,6 +20,7 @@
 #include <linux/root_dev.h>
 #include <linux/utsname.h>
 #include <linux/cpu.h>
+#include <linux/pfn.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/sections.h>
@@ -274,10 +275,6 @@ void __init setup_arch(char **cmdline_p)
 	data_resource.end = (unsigned long)virt_to_phys(_edata)-1;
 
 	sh_mv_setup(cmdline_p);
-
-#define PFN_UP(x)	(((x) + PAGE_SIZE-1) >> PAGE_SHIFT)
-#define PFN_DOWN(x)	((x) >> PAGE_SHIFT)
-#define PFN_PHYS(x)	((x) << PAGE_SHIFT)
 
 	/*
 	 * Find the highest page frame number we have available

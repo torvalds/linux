@@ -237,10 +237,10 @@ struct smi_info
 
 static int try_smi_init(struct smi_info *smi);
 
-static struct notifier_block *xaction_notifier_list;
+static ATOMIC_NOTIFIER_HEAD(xaction_notifier_list);
 static int register_xaction_notifier(struct notifier_block * nb)
 {
-	return notifier_chain_register(&xaction_notifier_list, nb);
+	return atomic_notifier_chain_register(&xaction_notifier_list, nb);
 }
 
 static void si_restart_short_timer(struct smi_info *smi_info);
@@ -302,7 +302,8 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 		do_gettimeofday(&t);
 		printk("**Start2: %d.%9.9d\n", t.tv_sec, t.tv_usec);
 #endif
-		err = notifier_call_chain(&xaction_notifier_list, 0, smi_info);
+		err = atomic_notifier_call_chain(&xaction_notifier_list,
+				0, smi_info);
 		if (err & NOTIFY_STOP_MASK) {
 			rv = SI_SM_CALL_WITHOUT_DELAY;
 			goto out;

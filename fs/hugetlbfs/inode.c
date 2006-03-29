@@ -35,7 +35,7 @@
 
 static struct super_operations hugetlbfs_ops;
 static struct address_space_operations hugetlbfs_aops;
-struct file_operations hugetlbfs_file_operations;
+const struct file_operations hugetlbfs_file_operations;
 static struct inode_operations hugetlbfs_dir_inode_operations;
 static struct inode_operations hugetlbfs_inode_operations;
 
@@ -566,7 +566,7 @@ static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
 		inode_init_once(&ei->vfs_inode);
 }
 
-struct file_operations hugetlbfs_file_operations = {
+const struct file_operations hugetlbfs_file_operations = {
 	.mmap			= hugetlbfs_file_mmap,
 	.fsync			= simple_sync_file,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,

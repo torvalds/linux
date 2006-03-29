@@ -29,23 +29,18 @@
 #define UARTSR          PHYS(0x14)      /* Status reg */
 
 
-static __inline__ void putc(char c)
+static inline void putc(int c)
 {
 	int j = 0x1000;
 
-	while (--j && !(*UARTSR & UART_LSR_THRE)); 
+	while (--j && !(*UARTSR & UART_LSR_THRE))
+		barrier();
+
 	*UARTDR = c;
 }
 
-static void putstr(const char *s)
+static inline void flush(void)
 {
-	while (*s)
-	{
-		putc(*s);
-		if (*s == '\n')
-			putc('\r');
-		s++;
-	}
 }
 
 #define arch_decomp_setup()

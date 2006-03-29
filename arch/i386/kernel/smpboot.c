@@ -72,6 +72,9 @@ int phys_proc_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
 /* Core ID of each logical CPU */
 int cpu_core_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
 
+/* Last level cache ID of each logical CPU */
+int cpu_llc_id[NR_CPUS] __cpuinitdata = {[0 ... NR_CPUS-1] = BAD_APICID};
+
 /* representing HT siblings of each logical CPU */
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_sibling_map);
@@ -440,6 +443,18 @@ static void __devinit smp_callin(void)
 
 static int cpucount;
 
+/* maps the cpu to the sched domain representing multi-core */
+cpumask_t cpu_coregroup_map(int cpu)
+{
+	struct cpuinfo_x86 *c = cpu_data + cpu;
+	/*
+	 * For perf, we return last level cache shared map.
+	 * TBD: when power saving sched policy is added, we will return
+	 *      cpu_core_map when power saving policy is enabled
+	 */
+	return c->llc_shared_map;
+}
+
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
 
@@ -459,11 +474,15 @@ set_cpu_sibling_map(int cpu)
 				cpu_set(cpu, cpu_sibling_map[i]);
 				cpu_set(i, cpu_core_map[cpu]);
 				cpu_set(cpu, cpu_core_map[i]);
+				cpu_set(i, c[cpu].llc_shared_map);
+				cpu_set(cpu, c[i].llc_shared_map);
 			}
 		}
 	} else {
 		cpu_set(cpu, cpu_sibling_map[cpu]);
 	}
+
+	cpu_set(cpu, c[cpu].llc_shared_map);
 
 	if (current_cpu_data.x86_max_cores == 1) {
 		cpu_core_map[cpu] = cpu_sibling_map[cpu];
@@ -472,6 +491,11 @@ set_cpu_sibling_map(int cpu)
 	}
 
 	for_each_cpu_mask(i, cpu_sibling_setup_map) {
+		if (cpu_llc_id[cpu] != BAD_APICID &&
+		    cpu_llc_id[cpu] == cpu_llc_id[i]) {
+			cpu_set(i, c[cpu].llc_shared_map);
+			cpu_set(cpu, c[i].llc_shared_map);
+		}
 		if (phys_proc_id[cpu] == phys_proc_id[i]) {
 			cpu_set(i, cpu_core_map[cpu]);
 			cpu_set(cpu, cpu_core_map[i]);

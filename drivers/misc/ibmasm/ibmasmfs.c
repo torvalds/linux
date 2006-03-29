@@ -101,7 +101,7 @@ static struct super_operations ibmasmfs_s_ops = {
 	.drop_inode	= generic_delete_inode,
 };
 
-static struct file_operations *ibmasmfs_dir_ops = &simple_dir_operations;
+static const struct file_operations *ibmasmfs_dir_ops = &simple_dir_operations;
 
 static struct file_system_type ibmasmfs_type = {
 	.owner          = THIS_MODULE,

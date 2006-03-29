@@ -32,7 +32,7 @@ static struct dentry *afs_mntpt_lookup(struct inode *dir,
 static int afs_mntpt_open(struct inode *inode, struct file *file);
 static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd);
 
-struct file_operations afs_mntpt_file_operations = {
+const struct file_operations afs_mntpt_file_operations = {
 	.open		= afs_mntpt_open,
 };
 

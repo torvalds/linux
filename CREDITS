@@ -1127,8 +1127,10 @@ S: Carnegie, Pennsylvania 15106-4304
 S: USA
 
 N: Philip Gladstone
-E: philip@raptor.com
+E: philip@gladstonefamily.net
 D: Kernel / timekeeping stuff
+S: Carlisle, MA 01741
+S: USA
   
 N: Jan-Benedict Glaw
 E: jbglaw@lug-owl.de
@@ -3741,10 +3743,11 @@ D: Mylex DAC960 PCI RAID driver
 D: Miscellaneous kernel fixes
 
 N: Alessandro Zummo
-E: azummo@ita.flashnet.it
-W: http://freepage.logicom.it/azummo/
+E: a.zummo@towertech.it
 D: CMI8330 support is sb_card.c
 D: ISAPnP fixes in sb_card.c
+D: ZyXEL omni.net lcd plus driver
+D: RTC subsystem
 S: Italy
 
 N: Marc Zyngier

@@ -104,7 +104,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 {
 	static struct address_space_operations empty_aops;
 	static struct inode_operations empty_iops;
-	static struct file_operations empty_fops;
+	static const struct file_operations empty_fops;
 	struct inode *inode;
 
 	if (sb->s_op->alloc_inode)

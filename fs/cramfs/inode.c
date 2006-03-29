@@ -29,7 +29,7 @@
 
 static struct super_operations cramfs_ops;
 static struct inode_operations cramfs_dir_inode_operations;
-static struct file_operations cramfs_directory_operations;
+static const struct file_operations cramfs_directory_operations;
 static struct address_space_operations cramfs_aops;
 
 static DEFINE_MUTEX(read_mutex);
@@ -512,7 +512,7 @@ static struct address_space_operations cramfs_aops = {
 /*
  * A directory can only readdir
  */
-static struct file_operations cramfs_directory_operations = {
+static const struct file_operations cramfs_directory_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= cramfs_readdir,

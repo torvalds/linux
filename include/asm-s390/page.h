@@ -181,8 +181,6 @@ page_get_storage_key(unsigned long addr)
 #define PAGE_OFFSET             0x0UL
 #define __pa(x)                 (unsigned long)(x)
 #define __va(x)                 (void *)(unsigned long)(x)
-#define pfn_to_page(pfn)	(mem_map + (pfn))
-#define page_to_pfn(page)	((unsigned long)((page) - mem_map))
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
@@ -193,6 +191,7 @@ page_get_storage_key(unsigned long addr)
 
 #endif /* __KERNEL__ */
 
+#include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
 #endif /* _S390_PAGE_H */

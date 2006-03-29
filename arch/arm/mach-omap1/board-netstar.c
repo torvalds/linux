@@ -141,7 +141,7 @@ static int __init netstar_late_init(void)
 	/* TODO: Setup front panel switch here */
 
 	/* Setup panic notifier */
-	notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 
 	return 0;
 }

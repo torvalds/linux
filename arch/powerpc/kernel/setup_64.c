@@ -537,7 +537,8 @@ void __init setup_arch(char **cmdline_p)
 	panic_timeout = 180;
 
 	if (ppc_md.panic)
-		notifier_chain_register(&panic_notifier_list, &ppc64_panic_block);
+		atomic_notifier_chain_register(&panic_notifier_list,
+				&ppc64_panic_block);
 
 	init_mm.start_code = PAGE_OFFSET;
 	init_mm.end_code = (unsigned long) _etext;

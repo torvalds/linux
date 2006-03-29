@@ -250,7 +250,7 @@ int alloc_chrdev_region(dev_t *dev, unsigned baseminor, unsigned count,
 }
 
 int register_chrdev(unsigned int major, const char *name,
-		    struct file_operations *fops)
+		    const struct file_operations *fops)
 {
 	struct char_device_struct *cd;
 	struct cdev *cdev;
@@ -406,7 +406,7 @@ static void cdev_purge(struct cdev *cdev)
  * is contain the open that then fills in the correct operations
  * depending on the special file...
  */
-struct file_operations def_chr_fops = {
+const struct file_operations def_chr_fops = {
 	.open = chrdev_open,
 };
 
@@ -473,7 +473,7 @@ struct cdev *cdev_alloc(void)
 	return p;
 }
 
-void cdev_init(struct cdev *cdev, struct file_operations *fops)
+void cdev_init(struct cdev *cdev, const struct file_operations *fops)
 {
 	memset(cdev, 0, sizeof *cdev);
 	INIT_LIST_HEAD(&cdev->list);

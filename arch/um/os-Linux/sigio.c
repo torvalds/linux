@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -20,128 +20,7 @@
 #include "sigio.h"
 #include "os.h"
 
-/* Changed during early boot */
-int pty_output_sigio = 0;
-int pty_close_sigio = 0;
-
-/* Used as a flag during SIGIO testing early in boot */
-static volatile int got_sigio = 0;
-
-void __init handler(int sig)
-{
-	got_sigio = 1;
-}
-
-struct openpty_arg {
-	int master;
-	int slave;
-	int err;
-};
-
-static void openpty_cb(void *arg)
-{
-	struct openpty_arg *info = arg;
-
-	info->err = 0;
-	if(openpty(&info->master, &info->slave, NULL, NULL, NULL))
-		info->err = -errno;
-}
-
-void __init check_one_sigio(void (*proc)(int, int))
-{
-	struct sigaction old, new;
-	struct openpty_arg pty = { .master = -1, .slave = -1 };
-	int master, slave, err;
-
-	initial_thread_cb(openpty_cb, &pty);
-	if(pty.err){
-		printk("openpty failed, errno = %d\n", -pty.err);
-		return;
-	}
-
-	master = pty.master;
-	slave = pty.slave;
-
-	if((master == -1) || (slave == -1)){
-		printk("openpty failed to allocate a pty\n");
-		return;
-	}
-
-	/* Not now, but complain so we now where we failed. */
-	err = raw(master);
-	if (err < 0)
-		panic("check_sigio : __raw failed, errno = %d\n", -err);
-
-	err = os_sigio_async(master, slave);
-	if(err < 0)
-		panic("tty_fds : sigio_async failed, err = %d\n", -err);
-
-	if(sigaction(SIGIO, NULL, &old) < 0)
-		panic("check_sigio : sigaction 1 failed, errno = %d\n", errno);
-	new = old;
-	new.sa_handler = handler;
-	if(sigaction(SIGIO, &new, NULL) < 0)
-		panic("check_sigio : sigaction 2 failed, errno = %d\n", errno);
-
-	got_sigio = 0;
-	(*proc)(master, slave);
-		
-	os_close_file(master);
-	os_close_file(slave);
-
-	if(sigaction(SIGIO, &old, NULL) < 0)
-		panic("check_sigio : sigaction 3 failed, errno = %d\n", errno);
-}
-
-static void tty_output(int master, int slave)
-{
-	int n;
-	char buf[512];
-
-	printk("Checking that host ptys support output SIGIO...");
-
-	memset(buf, 0, sizeof(buf));
-
-	while(os_write_file(master, buf, sizeof(buf)) > 0) ;
-	if(errno != EAGAIN)
-		panic("check_sigio : write failed, errno = %d\n", errno);
-	while(((n = os_read_file(slave, buf, sizeof(buf))) > 0) && !got_sigio) ;
-
-	if (got_sigio) {
-		printk("Yes\n");
-		pty_output_sigio = 1;
-	} else if (n == -EAGAIN) {
-		printk("No, enabling workaround\n");
-	} else {
-		panic("check_sigio : read failed, err = %d\n", n);
-	}
-}
-
-static void tty_close(int master, int slave)
-{
-	printk("Checking that host ptys support SIGIO on close...");
-
-	os_close_file(slave);
-	if(got_sigio){
-		printk("Yes\n");
-		pty_close_sigio = 1;
-	}
-	else printk("No, enabling workaround\n");
-}
-
-void __init check_sigio(void)
-{
-	if((os_access("/dev/ptmx", OS_ACC_R_OK) < 0) &&
-	   (os_access("/dev/ptyp0", OS_ACC_R_OK) < 0)){
-		printk("No pseudo-terminals available - skipping pty SIGIO "
-		       "check\n");
-		return;
-	}
-	check_one_sigio(tty_output);
-	check_one_sigio(tty_close);
-}
-
-/* Protected by sigio_lock(), also used by sigio_cleanup, which is an 
+/* Protected by sigio_lock(), also used by sigio_cleanup, which is an
  * exitcall.
  */
 static int write_sigio_pid = -1;
@@ -150,8 +29,10 @@ static int write_sigio_pid = -1;
  * the descriptors closed after it is killed.  So, it can't see them change.
  * On the UML side, they are changed under the sigio_lock.
  */
-static int write_sigio_fds[2] = { -1, -1 };
-static int sigio_private[2] = { -1, -1 };
+#define SIGIO_FDS_INIT {-1, -1}
+
+static int write_sigio_fds[2] = SIGIO_FDS_INIT;
+static int sigio_private[2] = SIGIO_FDS_INIT;
 
 struct pollfds {
 	struct pollfd *poll;
@@ -264,13 +145,13 @@ static void update_thread(void)
 	return;
  fail:
 	/* Critical section start */
-	if(write_sigio_pid != -1) 
+	if(write_sigio_pid != -1)
 		os_kill_process(write_sigio_pid, 1);
 	write_sigio_pid = -1;
-	os_close_file(sigio_private[0]);
-	os_close_file(sigio_private[1]);
-	os_close_file(write_sigio_fds[0]);
-	os_close_file(write_sigio_fds[1]);
+	close(sigio_private[0]);
+	close(sigio_private[1]);
+	close(write_sigio_fds[0]);
+	close(write_sigio_fds[1]);
 	/* Critical section end */
 	set_signals(flags);
 }
@@ -281,13 +162,13 @@ int add_sigio_fd(int fd, int read)
 
 	sigio_lock();
 	for(i = 0; i < current_poll.used; i++){
-		if(current_poll.poll[i].fd == fd) 
+		if(current_poll.poll[i].fd == fd)
 			goto out;
 	}
 
 	n = current_poll.used + 1;
 	err = need_poll(n);
-	if(err) 
+	if(err)
 		goto out;
 
 	for(i = 0; i < current_poll.used; i++)
@@ -316,7 +197,7 @@ int ignore_sigio_fd(int fd)
 	}
 	if(i == current_poll.used)
 		goto out;
-	
+
 	err = need_poll(current_poll.used - 1);
 	if(err)
 		goto out;
@@ -337,7 +218,7 @@ int ignore_sigio_fd(int fd)
 	return(err);
 }
 
-static struct pollfd* setup_initial_poll(int fd)
+static struct pollfd *setup_initial_poll(int fd)
 {
 	struct pollfd *p;
 
@@ -377,7 +258,7 @@ void write_sigio_workaround(void)
 	}
 	err = os_pipe(l_sigio_private, 1, 1);
 	if(err < 0){
-		printk("write_sigio_workaround - os_pipe 1 failed, "
+		printk("write_sigio_workaround - os_pipe 2 failed, "
 		       "err = %d\n", -err);
 		goto out_close1;
 	}
@@ -391,7 +272,17 @@ void write_sigio_workaround(void)
 	/* Did we race? Don't try to optimize this, please, it's not so likely
 	 * to happen, and no more than once at the boot. */
 	if(write_sigio_pid != -1)
-		goto out_unlock;
+		goto out_free;
+
+	current_poll = ((struct pollfds) { .poll 	= p,
+					   .used 	= 1,
+					   .size 	= 1 });
+
+	if (write_sigio_irq(l_write_sigio_fds[0]))
+		goto out_clear_poll;
+
+	memcpy(write_sigio_fds, l_write_sigio_fds, sizeof(l_write_sigio_fds));
+	memcpy(sigio_private, l_sigio_private, sizeof(l_sigio_private));
 
 	write_sigio_pid = run_helper_thread(write_sigio_thread, NULL,
 					    CLONE_FILES | CLONE_VM, &stack, 0);
@@ -399,68 +290,34 @@ void write_sigio_workaround(void)
 	if (write_sigio_pid < 0)
 		goto out_clear;
 
-	if (write_sigio_irq(l_write_sigio_fds[0]))
-		goto out_kill;
-
-	/* Success, finally. */
-	memcpy(write_sigio_fds, l_write_sigio_fds, sizeof(l_write_sigio_fds));
-	memcpy(sigio_private, l_sigio_private, sizeof(l_sigio_private));
-
-	current_poll = ((struct pollfds) { .poll 	= p,
-					   .used 	= 1,
-					   .size 	= 1 });
-
 	sigio_unlock();
 	return;
 
- out_kill:
-	l_write_sigio_pid = write_sigio_pid;
+out_clear:
 	write_sigio_pid = -1;
-	sigio_unlock();
-	/* Going to call waitpid, avoid holding the lock. */
-	os_kill_process(l_write_sigio_pid, 1);
-	goto out_free;
-
- out_clear:
-	write_sigio_pid = -1;
- out_unlock:
-	sigio_unlock();
- out_free:
+	write_sigio_fds[0] = -1;
+	write_sigio_fds[1] = -1;
+	sigio_private[0] = -1;
+	sigio_private[1] = -1;
+out_clear_poll:
+	current_poll = ((struct pollfds) { .poll	= NULL,
+					   .size	= 0,
+					   .used	= 0 });
+out_free:
 	kfree(p);
- out_close2:
-	os_close_file(l_sigio_private[0]);
-	os_close_file(l_sigio_private[1]);
- out_close1:
-	os_close_file(l_write_sigio_fds[0]);
-	os_close_file(l_write_sigio_fds[1]);
-	return;
+	sigio_unlock();
+out_close2:
+	close(l_sigio_private[0]);
+	close(l_sigio_private[1]);
+out_close1:
+	close(l_write_sigio_fds[0]);
+	close(l_write_sigio_fds[1]);
 }
 
-int read_sigio_fd(int fd)
+void sigio_cleanup(void)
 {
-	int n;
-	char c;
-
-	n = os_read_file(fd, &c, sizeof(c));
-	if(n != sizeof(c)){
-		if(n < 0) {
-			printk("read_sigio_fd - read failed, err = %d\n", -n);
-			return(n);
-		}
-		else {
-			printk("read_sigio_fd - short read, bytes = %d\n", n);
-			return(-EIO);
-		}
-	}
-	return(n);
-}
-
-static void sigio_cleanup(void)
-{
-	if (write_sigio_pid != -1) {
+	if(write_sigio_pid != -1){
 		os_kill_process(write_sigio_pid, 1);
 		write_sigio_pid = -1;
 	}
 }
-
-__uml_exitcall(sigio_cleanup);

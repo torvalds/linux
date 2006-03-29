@@ -75,7 +75,7 @@ struct video_device
 	int minor;
 
 	/* device ops + callbacks */
-	struct file_operations *fops;
+	const struct file_operations *fops;
 	void (*release)(struct video_device *vfd);
 
 

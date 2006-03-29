@@ -1,5 +1,5 @@
 
-Export cpu topology info by sysfs. Items (attributes) are similar
+Export cpu topology info via sysfs. Items (attributes) are similar
 to /proc/cpuinfo.
 
 1) /sys/devices/system/cpu/cpuX/topology/physical_package_id:
@@ -12,7 +12,7 @@ represent the thread siblings to cpu X in the same core;
 represent the thread siblings to cpu X in the same physical package;
 
 To implement it in an architecture-neutral way, a new source file,
-driver/base/topology.c, is to export the 5 attributes.
+drivers/base/topology.c, is to export the 4 attributes.
 
 If one architecture wants to support this feature, it just needs to
 implement 4 defines, typically in file include/asm-XXX/topology.h.

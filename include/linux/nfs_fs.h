@@ -324,7 +324,7 @@ extern struct inode_operations nfs_file_inode_operations;
 #ifdef CONFIG_NFS_V3
 extern struct inode_operations nfs3_file_inode_operations;
 #endif /* CONFIG_NFS_V3 */
-extern struct file_operations nfs_file_operations;
+extern const struct file_operations nfs_file_operations;
 extern struct address_space_operations nfs_file_aops;
 
 static inline struct rpc_cred *nfs_file_cred(struct file *file)
@@ -371,7 +371,7 @@ extern struct inode_operations nfs_dir_inode_operations;
 #ifdef CONFIG_NFS_V3
 extern struct inode_operations nfs3_dir_inode_operations;
 #endif /* CONFIG_NFS_V3 */
-extern struct file_operations nfs_dir_operations;
+extern const struct file_operations nfs_dir_operations;
 extern struct dentry_operations nfs_dentry_operations;
 
 extern int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fh, struct nfs_fattr *fattr);

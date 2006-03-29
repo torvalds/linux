@@ -227,8 +227,8 @@ void momenco_time_init(void)
 	printk("momenco_time_init cpu_clock=%d\n", cpu_clock);
 	board_timer_setup = momenco_timer_setup;
 
-	rtc_get_time = m48t37y_get_time;
-	rtc_set_time = m48t37y_set_time;
+	rtc_mips_get_time = m48t37y_get_time;
+	rtc_mips_set_time = m48t37y_set_time;
 }
 
 void __init plat_setup(void)

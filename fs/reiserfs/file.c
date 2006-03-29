@@ -1566,7 +1566,7 @@ static ssize_t reiserfs_aio_write(struct kiocb *iocb, const char __user * buf,
 	return generic_file_aio_write(iocb, buf, count, pos);
 }
 
-struct file_operations reiserfs_file_operations = {
+const struct file_operations reiserfs_file_operations = {
 	.read = generic_file_read,
 	.write = reiserfs_file_write,
 	.ioctl = reiserfs_ioctl,

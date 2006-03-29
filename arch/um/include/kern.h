@@ -29,7 +29,7 @@ extern int getuid(void);
 extern int getgid(void);
 extern int pause(void);
 extern int write(int, const void *, int);
-extern int exit(int);
+extern void exit(int);
 extern int close(int);
 extern int read(unsigned int, char *, int);
 extern int pipe(int *);

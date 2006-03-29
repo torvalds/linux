@@ -534,7 +534,7 @@ static int show_stat(struct seq_file *p, void *v)
 	if (wall_to_monotonic.tv_nsec)
 		--jif;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		int j;
 
 		user = cputime64_add(user, kstat_cpu(i).cpustat.user);
@@ -731,7 +731,7 @@ static struct file_operations proc_sysrq_trigger_operations = {
 
 struct proc_dir_entry *proc_root_kcore;
 
-void create_seq_entry(char *name, mode_t mode, struct file_operations *f)
+void create_seq_entry(char *name, mode_t mode, const struct file_operations *f)
 {
 	struct proc_dir_entry *entry;
 	entry = create_proc_entry(name, mode, NULL);
