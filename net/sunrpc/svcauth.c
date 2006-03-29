@@ -106,112 +106,56 @@ svc_auth_unregister(rpc_authflavor_t flavor)
 EXPORT_SYMBOL(svc_auth_unregister);
 
 /**************************************************
- * cache for domain name to auth_domain
- * Entries are only added by flavours which will normally
- * have a structure that 'inherits' from auth_domain.
- * e.g. when an IP -> domainname is given to  auth_unix,
- * and the domain name doesn't exist, it will create a
- * auth_unix_domain and add it to this hash table.
- * If it finds the name does exist, but isn't AUTH_UNIX,
- * it will complain.
+ * 'auth_domains' are stored in a hash table indexed by name.
+ * When the last reference to an 'auth_domain' is dropped,
+ * the object is unhashed and freed.
+ * If auth_domain_lookup fails to find an entry, it will return
+ * it's second argument 'new'.  If this is non-null, it will
+ * have been atomically linked into the table.
  */
 
-/*
- * Auth auth_domain cache is somewhat different to other caches,
- * largely because the entries are possibly of different types:
- * each auth flavour has it's own type.
- * One consequence of this that DefineCacheLookup cannot
- * allocate a new structure as it cannot know the size.
- * Notice that the "INIT" code fragment is quite different
- * from other caches.  When auth_domain_lookup might be
- * creating a new domain, the new domain is passed in
- * complete and it is used as-is rather than being copied into
- * another structure.
- */
 #define	DN_HASHBITS	6
 #define	DN_HASHMAX	(1<<DN_HASHBITS)
 #define	DN_HASHMASK	(DN_HASHMAX-1)
 
-static struct cache_head	*auth_domain_table[DN_HASHMAX];
-
-static void auth_domain_drop(struct cache_head *item, struct cache_detail *cd)
-{
-	struct auth_domain *dom = container_of(item, struct auth_domain, h);
-	if (cache_put(item,cd))
-		authtab[dom->flavour]->domain_release(dom);
-}
-
-
-struct cache_detail auth_domain_cache = {
-	.owner		= THIS_MODULE,
-	.hash_size	= DN_HASHMAX,
-	.hash_table	= auth_domain_table,
-	.name		= "auth.domain",
-	.cache_put	= auth_domain_drop,
-};
+static struct hlist_head	auth_domain_table[DN_HASHMAX];
+static spinlock_t	auth_domain_lock = SPIN_LOCK_UNLOCKED;
 
 void auth_domain_put(struct auth_domain *dom)
 {
-	auth_domain_drop(&dom->h, &auth_domain_cache);
-}
-
-static inline int auth_domain_hash(struct auth_domain *item)
-{
-	return hash_str(item->name, DN_HASHBITS);
-}
-static inline int auth_domain_match(struct auth_domain *tmp, struct auth_domain *item)
-{
-	return strcmp(tmp->name, item->name) == 0;
+	if (atomic_dec_and_lock(&dom->ref.refcount, &auth_domain_lock)) {
+		hlist_del(&dom->hash);
+		dom->flavour->domain_release(dom);
+	}
 }
 
 struct auth_domain *
-auth_domain_lookup(struct auth_domain *item, int set)
+auth_domain_lookup(char *name, struct auth_domain *new)
 {
-	struct auth_domain *tmp = NULL;
-	struct cache_head **hp, **head;
-	head = &auth_domain_cache.hash_table[auth_domain_hash(item)];
+	struct auth_domain *hp;
+	struct hlist_head *head;
+	struct hlist_node *np;
 
-	if (set)
-		write_lock(&auth_domain_cache.hash_lock);
-	else
-		read_lock(&auth_domain_cache.hash_lock);
-	for (hp=head; *hp != NULL; hp = &tmp->h.next) {
-		tmp = container_of(*hp, struct auth_domain, h);
-		if (!auth_domain_match(tmp, item))
-			continue;
-		if (!set) {
-			cache_get(&tmp->h);
-			goto out_noset;
+	head = &auth_domain_table[hash_str(name, DN_HASHBITS)];
+
+	spin_lock(&auth_domain_lock);
+
+	hlist_for_each_entry(hp, np, head, hash) {
+		if (strcmp(hp->name, name)==0) {
+			kref_get(&hp->ref);
+			spin_unlock(&auth_domain_lock);
+			return hp;
 		}
-		*hp = tmp->h.next;
-		tmp->h.next = NULL;
-		auth_domain_drop(&tmp->h, &auth_domain_cache);
-		goto out_set;
 	}
-	/* Didn't find anything */
-	if (!set)
-		goto out_nada;
-	auth_domain_cache.entries++;
-out_set:
-	item->h.next = *head;
-	*head = &item->h;
-	cache_get(&item->h);
-	write_unlock(&auth_domain_cache.hash_lock);
-	cache_fresh(&auth_domain_cache, &item->h, item->h.expiry_time);
-	cache_get(&item->h);
-	return item;
-out_nada:
-	tmp = NULL;
-out_noset:
-	read_unlock(&auth_domain_cache.hash_lock);
-	return tmp;
+	if (new) {
+		hlist_add_head(&new->hash, head);
+		kref_get(&new->ref);
+	}
+	spin_unlock(&auth_domain_lock);
+	return new;
 }
 
 struct auth_domain *auth_domain_find(char *name)
 {
-	struct auth_domain *rv, ad;
-
-	ad.name = name;
-	rv = auth_domain_lookup(&ad, 0);
-	return rv;
+	return auth_domain_lookup(name, NULL);
 }

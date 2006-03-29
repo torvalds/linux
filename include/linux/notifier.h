@@ -10,25 +10,107 @@
 #ifndef _LINUX_NOTIFIER_H
 #define _LINUX_NOTIFIER_H
 #include <linux/errno.h>
+#include <linux/mutex.h>
+#include <linux/rwsem.h>
 
-struct notifier_block
-{
-	int (*notifier_call)(struct notifier_block *self, unsigned long, void *);
+/*
+ * Notifier chains are of three types:
+ *
+ *	Atomic notifier chains: Chain callbacks run in interrupt/atomic
+ *		context. Callouts are not allowed to block.
+ *	Blocking notifier chains: Chain callbacks run in process context.
+ *		Callouts are allowed to block.
+ *	Raw notifier chains: There are no restrictions on callbacks,
+ *		registration, or unregistration.  All locking and protection
+ *		must be provided by the caller.
+ *
+ * atomic_notifier_chain_register() may be called from an atomic context,
+ * but blocking_notifier_chain_register() must be called from a process
+ * context.  Ditto for the corresponding _unregister() routines.
+ *
+ * atomic_notifier_chain_unregister() and blocking_notifier_chain_unregister()
+ * _must not_ be called from within the call chain.
+ */
+
+struct notifier_block {
+	int (*notifier_call)(struct notifier_block *, unsigned long, void *);
 	struct notifier_block *next;
 	int priority;
 };
 
+struct atomic_notifier_head {
+	spinlock_t lock;
+	struct notifier_block *head;
+};
+
+struct blocking_notifier_head {
+	struct rw_semaphore rwsem;
+	struct notifier_block *head;
+};
+
+struct raw_notifier_head {
+	struct notifier_block *head;
+};
+
+#define ATOMIC_INIT_NOTIFIER_HEAD(name) do {	\
+		spin_lock_init(&(name)->lock);	\
+		(name)->head = NULL;		\
+	} while (0)
+#define BLOCKING_INIT_NOTIFIER_HEAD(name) do {	\
+		init_rwsem(&(name)->rwsem);	\
+		(name)->head = NULL;		\
+	} while (0)
+#define RAW_INIT_NOTIFIER_HEAD(name) do {	\
+		(name)->head = NULL;		\
+	} while (0)
+
+#define ATOMIC_NOTIFIER_INIT(name) {				\
+		.lock = SPIN_LOCK_UNLOCKED,			\
+		.head = NULL }
+#define BLOCKING_NOTIFIER_INIT(name) {				\
+		.rwsem = __RWSEM_INITIALIZER((name).rwsem),	\
+		.head = NULL }
+#define RAW_NOTIFIER_INIT(name)	{				\
+		.head = NULL }
+
+#define ATOMIC_NOTIFIER_HEAD(name)				\
+	struct atomic_notifier_head name =			\
+		ATOMIC_NOTIFIER_INIT(name)
+#define BLOCKING_NOTIFIER_HEAD(name)				\
+	struct blocking_notifier_head name =			\
+		BLOCKING_NOTIFIER_INIT(name)
+#define RAW_NOTIFIER_HEAD(name)					\
+	struct raw_notifier_head name =				\
+		RAW_NOTIFIER_INIT(name)
 
 #ifdef __KERNEL__
 
-extern int notifier_chain_register(struct notifier_block **list, struct notifier_block *n);
-extern int notifier_chain_unregister(struct notifier_block **nl, struct notifier_block *n);
-extern int notifier_call_chain(struct notifier_block **n, unsigned long val, void *v);
+extern int atomic_notifier_chain_register(struct atomic_notifier_head *,
+		struct notifier_block *);
+extern int blocking_notifier_chain_register(struct blocking_notifier_head *,
+		struct notifier_block *);
+extern int raw_notifier_chain_register(struct raw_notifier_head *,
+		struct notifier_block *);
+
+extern int atomic_notifier_chain_unregister(struct atomic_notifier_head *,
+		struct notifier_block *);
+extern int blocking_notifier_chain_unregister(struct blocking_notifier_head *,
+		struct notifier_block *);
+extern int raw_notifier_chain_unregister(struct raw_notifier_head *,
+		struct notifier_block *);
+
+extern int atomic_notifier_call_chain(struct atomic_notifier_head *,
+		unsigned long val, void *v);
+extern int blocking_notifier_call_chain(struct blocking_notifier_head *,
+		unsigned long val, void *v);
+extern int raw_notifier_call_chain(struct raw_notifier_head *,
+		unsigned long val, void *v);
 
 #define NOTIFY_DONE		0x0000		/* Don't care */
 #define NOTIFY_OK		0x0001		/* Suits me */
 #define NOTIFY_STOP_MASK	0x8000		/* Don't call further */
-#define NOTIFY_BAD		(NOTIFY_STOP_MASK|0x0002)	/* Bad/Veto action	*/
+#define NOTIFY_BAD		(NOTIFY_STOP_MASK|0x0002)
+						/* Bad/Veto action */
 /*
  * Clean way to return from the notifier and stop further calls.
  */

@@ -60,13 +60,13 @@ extern struct kmem_cache *ntfs_index_ctx_cache;
 extern struct address_space_operations ntfs_aops;
 extern struct address_space_operations ntfs_mst_aops;
 
-extern struct  file_operations ntfs_file_ops;
+extern const struct  file_operations ntfs_file_ops;
 extern struct inode_operations ntfs_file_inode_ops;
 
-extern struct  file_operations ntfs_dir_ops;
+extern const struct  file_operations ntfs_dir_ops;
 extern struct inode_operations ntfs_dir_inode_ops;
 
-extern struct  file_operations ntfs_empty_file_ops;
+extern const struct  file_operations ntfs_empty_file_ops;
 extern struct inode_operations ntfs_empty_inode_ops;
 
 extern struct export_operations ntfs_export_ops;

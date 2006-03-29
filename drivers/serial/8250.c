@@ -1528,7 +1528,7 @@ static int serial8250_startup(struct uart_port *port)
 
 	/*
 	 * Clear the FIFO buffers and disable them.
-	 * (they will be reeanbled in set_termios())
+	 * (they will be reenabled in set_termios())
 	 */
 	serial8250_clear_fifos(up);
 

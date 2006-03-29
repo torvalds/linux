@@ -1095,9 +1095,14 @@ static int __devexit powernowk8_cpu_exit (struct cpufreq_policy *pol)
 
 static unsigned int powernowk8_get (unsigned int cpu)
 {
-	struct powernow_k8_data *data = powernow_data[cpu];
+	struct powernow_k8_data *data;
 	cpumask_t oldmask = current->cpus_allowed;
 	unsigned int khz = 0;
+
+	data = powernow_data[first_cpu(cpu_core_map[cpu])];
+
+	if (!data)
+		return -EINVAL;
 
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
 	if (smp_processor_id() != cpu) {

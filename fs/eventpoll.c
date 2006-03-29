@@ -290,7 +290,7 @@ static kmem_cache_t *pwq_cache __read_mostly;
 static struct vfsmount *eventpoll_mnt __read_mostly;
 
 /* File callbacks that implement the eventpoll file behaviour */
-static struct file_operations eventpoll_fops = {
+static const struct file_operations eventpoll_fops = {
 	.release	= ep_eventpoll_close,
 	.poll		= ep_eventpoll_poll
 };

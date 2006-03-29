@@ -1,32 +1,25 @@
 /*
- *  x1205.c - An i2c driver for the Xicor X1205 RTC
- *  Copyright 2004 Karen Spearel
- *  Copyright 2005 Alessandro Zummo
+ * An i2c driver for the Xicor/Intersil X1205 RTC
+ * Copyright 2004 Karen Spearel
+ * Copyright 2005 Alessandro Zummo
  *
- *  please send all reports to:
- *	kas11 at tampabay dot rr dot com
- *      a dot zummo at towertech dot it
+ * please send all reports to:
+ * 	Karen Spearel <kas111 at gmail dot com>
+ *	Alessandro Zummo <a.zummo@towertech.it>
  *
- *  based on the other drivers in this same directory.
+ * based on a lot of other RTC drivers.
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/string.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
-#include <linux/list.h>
+#include <linux/delay.h>
 
-#include <linux/x1205.h>
-
-#define DRV_VERSION "0.9.9"
+#define DRV_VERSION "1.0.6"
 
 /* Addresses to scan: none. This chip is located at
  * 0x6f and uses a two bytes register addressing.
@@ -40,8 +33,6 @@ static unsigned short normal_i2c[] = { I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD;
-I2C_CLIENT_MODULE_PARM(hctosys,
-	"Set the system time from the hardware clock upon initialization");
 
 /* offsets into CCR area */
 
@@ -101,69 +92,15 @@ I2C_CLIENT_MODULE_PARM(hctosys,
 static int x1205_attach(struct i2c_adapter *adapter);
 static int x1205_detach(struct i2c_client *client);
 static int x1205_probe(struct i2c_adapter *adapter, int address, int kind);
-static int x1205_command(struct i2c_client *client, unsigned int cmd,
-	void *arg);
 
 static struct i2c_driver x1205_driver = {
-	.driver = {
+	.driver		= {
 		.name	= "x1205",
 	},
+	.id		= I2C_DRIVERID_X1205,
 	.attach_adapter = &x1205_attach,
 	.detach_client	= &x1205_detach,
 };
-
-struct x1205_data {
-	struct i2c_client client;
-	struct list_head list;
-	unsigned int epoch;
-};
-
-static const unsigned char days_in_mo[] =
-	{ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-
-static LIST_HEAD(x1205_clients);
-
-/* Workaround until the I2C subsytem will allow to send
- * commands to a specific client. This function will send the command
- * to the first client.
- */
-int x1205_do_command(unsigned int cmd, void *arg)
-{
-	struct list_head *walk;
-	struct list_head *tmp;
-	struct x1205_data *data;
-
-	list_for_each_safe(walk, tmp, &x1205_clients) {
-		data = list_entry(walk, struct x1205_data, list);
-		return x1205_command(&data->client, cmd, arg);
-	}
-
-	return -ENODEV;
-}
-
-#define is_leap(year) \
-	((year) % 4 == 0 && ((year) % 100 != 0 || (year) % 400 == 0))
-
-/* make sure the rtc_time values are in bounds */
-static int x1205_validate_tm(struct rtc_time *tm)
-{
-	int year = tm->tm_year + 1900;
-
-	if ((tm->tm_year < 70) || (tm->tm_year > 255))
-		return -EINVAL;
-
-	if ((tm->tm_mon > 11) || (tm->tm_mday == 0))
-		return -EINVAL;
-
-	if (tm->tm_mday > days_in_mo[tm->tm_mon]
-		+ ((tm->tm_mon == 1) && is_leap(year)))
-		return -EINVAL;
-
-	if ((tm->tm_hour >= 24) || (tm->tm_min >= 60) || (tm->tm_sec >= 60))
-		return -EINVAL;
-
-	return 0;
-}
 
 /*
  * In the routines that deal directly with the x1205 hardware, we use
@@ -171,37 +108,19 @@ static int x1205_validate_tm(struct rtc_time *tm)
  * Epoch is initialized as 2000. Time is set to UTC.
  */
 static int x1205_get_datetime(struct i2c_client *client, struct rtc_time *tm,
-				u8 reg_base)
+				unsigned char reg_base)
 {
 	unsigned char dt_addr[2] = { 0, reg_base };
-	static unsigned char sr_addr[2] = { 0, X1205_REG_SR };
 
-	unsigned char buf[8], sr;
+	unsigned char buf[8];
 
 	struct i2c_msg msgs[] = {
-		{ client->addr, 0, 2, sr_addr },	/* setup read ptr */
-		{ client->addr, I2C_M_RD, 1, &sr }, 	/* read status */
 		{ client->addr, 0, 2, dt_addr },	/* setup read ptr */
 		{ client->addr, I2C_M_RD, 8, buf },	/* read date */
 	};
 
-	struct x1205_data *data = i2c_get_clientdata(client);
-
-	/* read status register */
-	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
-		dev_err(&client->dev, "%s: read error\n", __FUNCTION__);
-		return -EIO;
-	}
-
-	/* check for battery failure */
-	if (sr & X1205_SR_RTCF) {
-		dev_warn(&client->dev,
-			"Clock had a power failure, you must set the date.\n");
-		return -EINVAL;
-	}
-
 	/* read date registers */
-	if ((i2c_transfer(client->adapter, &msgs[2], 2)) != 2) {
+	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
 		dev_err(&client->dev, "%s: read error\n", __FUNCTION__);
 		return -EIO;
 	}
@@ -217,9 +136,9 @@ static int x1205_get_datetime(struct i2c_client *client, struct rtc_time *tm,
 	tm->tm_min = BCD2BIN(buf[CCR_MIN]);
 	tm->tm_hour = BCD2BIN(buf[CCR_HOUR] & 0x3F); /* hr is 0-23 */
 	tm->tm_mday = BCD2BIN(buf[CCR_MDAY]);
-	tm->tm_mon = BCD2BIN(buf[CCR_MONTH]);
-	data->epoch = BCD2BIN(buf[CCR_Y2K]) * 100;
-	tm->tm_year = BCD2BIN(buf[CCR_YEAR]) + data->epoch - 1900;
+	tm->tm_mon = BCD2BIN(buf[CCR_MONTH]) - 1; /* mon is 0-11 */
+	tm->tm_year = BCD2BIN(buf[CCR_YEAR])
+			+ (BCD2BIN(buf[CCR_Y2K]) * 100) - 1900;
 	tm->tm_wday = buf[CCR_WDAY];
 
 	dev_dbg(&client->dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
@@ -231,11 +150,28 @@ static int x1205_get_datetime(struct i2c_client *client, struct rtc_time *tm,
 	return 0;
 }
 
+static int x1205_get_status(struct i2c_client *client, unsigned char *sr)
+{
+	static unsigned char sr_addr[2] = { 0, X1205_REG_SR };
+
+	struct i2c_msg msgs[] = {
+		{ client->addr, 0, 2, sr_addr },	/* setup read ptr */
+		{ client->addr, I2C_M_RD, 1, sr },	/* read status */
+	};
+
+	/* read status register */
+	if ((i2c_transfer(client->adapter, &msgs[0], 2)) != 2) {
+		dev_err(&client->dev, "%s: read error\n", __FUNCTION__);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 				int datetoo, u8 reg_base)
 {
-	int i, err, xfer;
-
+	int i, xfer;
 	unsigned char buf[8];
 
 	static const unsigned char wel[3] = { 0, X1205_REG_SR,
@@ -246,17 +182,10 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 
 	static const unsigned char diswe[3] = { 0, X1205_REG_SR, 0 };
 
-	struct x1205_data *data = i2c_get_clientdata(client);
-
-	/* check if all values in the tm struct are correct */
-	if ((err = x1205_validate_tm(tm)) < 0)
-		return err;
-
-	dev_dbg(&client->dev, "%s: secs=%d, mins=%d, hours=%d, "
-		"mday=%d, mon=%d, year=%d, wday=%d\n",
+	dev_dbg(&client->dev,
+		"%s: secs=%d, mins=%d, hours=%d\n",
 		__FUNCTION__,
-		tm->tm_sec, tm->tm_min, tm->tm_hour,
-		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
+		tm->tm_sec, tm->tm_min, tm->tm_hour);
 
 	buf[CCR_SEC] = BIN2BCD(tm->tm_sec);
 	buf[CCR_MIN] = BIN2BCD(tm->tm_min);
@@ -266,26 +195,29 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 
 	/* should we also set the date? */
 	if (datetoo) {
+		dev_dbg(&client->dev,
+			"%s: mday=%d, mon=%d, year=%d, wday=%d\n",
+			__FUNCTION__,
+			tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
+
 		buf[CCR_MDAY] = BIN2BCD(tm->tm_mday);
 
-		/* month, 0 - 11 */
-		buf[CCR_MONTH] = BIN2BCD(tm->tm_mon);
+		/* month, 1 - 12 */
+		buf[CCR_MONTH] = BIN2BCD(tm->tm_mon + 1);
 
-		/* year, since 1900 */
-		buf[CCR_YEAR] = BIN2BCD(tm->tm_year + 1900 - data->epoch);
+		/* year, since the rtc epoch*/
+		buf[CCR_YEAR] = BIN2BCD(tm->tm_year % 100);
 		buf[CCR_WDAY] = tm->tm_wday & 0x07;
-		buf[CCR_Y2K] = BIN2BCD(data->epoch / 100);
+		buf[CCR_Y2K] = BIN2BCD(tm->tm_year / 100);
 	}
 
 	/* this sequence is required to unlock the chip */
-	xfer = i2c_master_send(client, wel, 3);
-	if (xfer != 3) {
+	if ((xfer = i2c_master_send(client, wel, 3)) != 3) {
 		dev_err(&client->dev, "%s: wel - %d\n", __FUNCTION__, xfer);
 		return -EIO;
 	}
 
-	xfer = i2c_master_send(client, rwel, 3);
-	if (xfer != 3) {
+	if ((xfer = i2c_master_send(client, rwel, 3)) != 3) {
 		dev_err(&client->dev, "%s: rwel - %d\n", __FUNCTION__, xfer);
 		return -EIO;
 	}
@@ -305,13 +237,26 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 	};
 
 	/* disable further writes */
-	xfer = i2c_master_send(client, diswe, 3);
-	if (xfer != 3) {
+	if ((xfer = i2c_master_send(client, diswe, 3)) != 3) {
 		dev_err(&client->dev, "%s: diswe - %d\n", __FUNCTION__, xfer);
 		return -EIO;
 	}
 
 	return 0;
+}
+
+static int x1205_fix_osc(struct i2c_client *client)
+{
+	int err;
+	struct rtc_time tm;
+
+	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
+
+	if ((err = x1205_set_datetime(client, &tm, 0, X1205_CCR_BASE)) < 0)
+		dev_err(&client->dev,
+			"unable to restart the oscillator\n");
+
+	return err;
 }
 
 static int x1205_get_dtrim(struct i2c_client *client, int *trim)
@@ -380,60 +325,9 @@ static int x1205_get_atrim(struct i2c_client *client, int *trim)
 	return 0;
 }
 
-static int x1205_hctosys(struct i2c_client *client)
-{
-	int err;
-
-	struct rtc_time tm;
-	struct timespec tv;
-
-	err = x1205_command(client, X1205_CMD_GETDATETIME, &tm);
-
-	if (err) {
-		dev_err(&client->dev,
-			"Unable to set the system clock\n");
-		return err;
-	}
-
-	/* IMPORTANT: the RTC only stores whole seconds. It is arbitrary
-	 * whether it stores the most close value or the value with partial
-	 * seconds truncated. However, it is important that we use it to store
-	 * the truncated value. This is because otherwise it is necessary,
-	 * in an rtc sync function, to read both xtime.tv_sec and
-	 * xtime.tv_nsec. On some processors (i.e. ARM), an atomic read
-	 * of >32bits is not possible. So storing the most close value would
-	 * slow down the sync API. So here we have the truncated value and
-	 * the best guess is to add 0.5s.
-	 */
-
-	tv.tv_nsec = NSEC_PER_SEC >> 1;
-
-	/* WARNING: this is not the C library 'mktime' call, it is a built in
-	 * inline function from include/linux/time.h.  It expects (requires)
-	 * the month to be in the range 1-12
-	 */
-
-	tv.tv_sec  = mktime(tm.tm_year + 1900, tm.tm_mon + 1,
-				tm.tm_mday, tm.tm_hour,
-				tm.tm_min, tm.tm_sec);
-
-	do_settimeofday(&tv);
-
-	dev_info(&client->dev,
-		"setting the system clock to %d-%d-%d %d:%d:%d\n",
-		tm.tm_year + 1900, tm.tm_mon + 1,
-		tm.tm_mday, tm.tm_hour, tm.tm_min,
-		tm.tm_sec);
-
-	return 0;
-}
-
 struct x1205_limit
 {
-	unsigned char reg;
-	unsigned char mask;
-	unsigned char min;
-	unsigned char max;
+	unsigned char reg, mask, min, max;
 };
 
 static int x1205_validate_client(struct i2c_client *client)
@@ -477,11 +371,10 @@ static int x1205_validate_client(struct i2c_client *client)
 			{ client->addr, I2C_M_RD, 1, &buf },
 		};
 
-		xfer = i2c_transfer(client->adapter, msgs, 2);
-		if (xfer != 2) {
+		if ((xfer = i2c_transfer(client->adapter, msgs, 2)) != 2) {
 			dev_err(&client->adapter->dev,
 				"%s: could not read register %x\n",
-				__FUNCTION__, addr[1]);
+				__FUNCTION__, probe_zero_pattern[i]);
 
 			return -EIO;
 		}
@@ -489,7 +382,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		if ((buf & probe_zero_pattern[i+1]) != 0) {
 			dev_err(&client->adapter->dev,
 				"%s: register=%02x, zero pattern=%d, value=%x\n",
-				__FUNCTION__, addr[1], i, buf);
+				__FUNCTION__, probe_zero_pattern[i], i, buf);
 
 			return -ENODEV;
 		}
@@ -506,12 +399,10 @@ static int x1205_validate_client(struct i2c_client *client)
 			{ client->addr, I2C_M_RD, 1, &reg },
 		};
 
-		xfer = i2c_transfer(client->adapter, msgs, 2);
-
-		if (xfer != 2) {
+		if ((xfer = i2c_transfer(client->adapter, msgs, 2)) != 2) {
 			dev_err(&client->adapter->dev,
 				"%s: could not read register %x\n",
-				__FUNCTION__, addr[1]);
+				__FUNCTION__, probe_limits_pattern[i].reg);
 
 			return -EIO;
 		}
@@ -522,7 +413,8 @@ static int x1205_validate_client(struct i2c_client *client)
 			value < probe_limits_pattern[i].min) {
 			dev_dbg(&client->adapter->dev,
 				"%s: register=%x, lim pattern=%d, value=%d\n",
-				__FUNCTION__, addr[1], i, value);
+				__FUNCTION__, probe_limits_pattern[i].reg,
+				i, value);
 
 			return -ENODEV;
 		}
@@ -531,37 +423,89 @@ static int x1205_validate_client(struct i2c_client *client)
 	return 0;
 }
 
+static int x1205_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+{
+	return x1205_get_datetime(to_i2c_client(dev),
+		&alrm->time, X1205_ALM0_BASE);
+}
+
+static int x1205_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+{
+	return x1205_set_datetime(to_i2c_client(dev),
+		&alrm->time, 1, X1205_ALM0_BASE);
+}
+
+static int x1205_rtc_read_time(struct device *dev, struct rtc_time *tm)
+{
+	return x1205_get_datetime(to_i2c_client(dev),
+		tm, X1205_CCR_BASE);
+}
+
+static int x1205_rtc_set_time(struct device *dev, struct rtc_time *tm)
+{
+	return x1205_set_datetime(to_i2c_client(dev),
+		tm, 1, X1205_CCR_BASE);
+}
+
+static int x1205_rtc_proc(struct device *dev, struct seq_file *seq)
+{
+	int err, dtrim, atrim;
+
+	seq_printf(seq, "24hr\t\t: yes\n");
+
+	if ((err = x1205_get_dtrim(to_i2c_client(dev), &dtrim)) == 0)
+		seq_printf(seq, "digital_trim\t: %d ppm\n", dtrim);
+
+	if ((err = x1205_get_atrim(to_i2c_client(dev), &atrim)) == 0)
+		seq_printf(seq, "analog_trim\t: %d.%02d pF\n",
+			atrim / 1000, atrim % 1000);
+	return 0;
+}
+
+static struct rtc_class_ops x1205_rtc_ops = {
+	.proc		= x1205_rtc_proc,
+	.read_time	= x1205_rtc_read_time,
+	.set_time	= x1205_rtc_set_time,
+	.read_alarm	= x1205_rtc_read_alarm,
+	.set_alarm	= x1205_rtc_set_alarm,
+};
+
+static ssize_t x1205_sysfs_show_atrim(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int atrim;
+
+	if (x1205_get_atrim(to_i2c_client(dev), &atrim) == 0)
+		return sprintf(buf, "%d.%02d pF\n",
+			atrim / 1000, atrim % 1000);
+	return 0;
+}
+static DEVICE_ATTR(atrim, S_IRUGO, x1205_sysfs_show_atrim, NULL);
+
+static ssize_t x1205_sysfs_show_dtrim(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int dtrim;
+
+	if (x1205_get_dtrim(to_i2c_client(dev), &dtrim) == 0)
+		return sprintf(buf, "%d ppm\n", dtrim);
+
+	return 0;
+}
+static DEVICE_ATTR(dtrim, S_IRUGO, x1205_sysfs_show_dtrim, NULL);
+
 static int x1205_attach(struct i2c_adapter *adapter)
 {
 	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
-
 	return i2c_probe(adapter, &addr_data, x1205_probe);
-}
-
-int x1205_direct_attach(int adapter_id,
-	struct i2c_client_address_data *address_data)
-{
-	int err;
-	struct i2c_adapter *adapter = i2c_get_adapter(adapter_id);
-
-	if (adapter) {
-		err = i2c_probe(adapter,
-			address_data, x1205_probe);
-
-		i2c_put_adapter(adapter);
-
-		return err;
-	}
-
-	return -ENODEV;
 }
 
 static int x1205_probe(struct i2c_adapter *adapter, int address, int kind)
 {
-	struct i2c_client *client;
-	struct x1205_data *data;
-
 	int err = 0;
+	unsigned char sr;
+	struct i2c_client *client;
+	struct rtc_device *rtc;
 
 	dev_dbg(&adapter->dev, "%s\n", __FUNCTION__);
 
@@ -570,22 +514,17 @@ static int x1205_probe(struct i2c_adapter *adapter, int address, int kind)
 		goto exit;
 	}
 
-	if (!(data = kzalloc(sizeof(struct x1205_data), GFP_KERNEL))) {
+	if (!(client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
 
-	/* Initialize our structures */
-	data->epoch = 2000;
-
-	client = &data->client;
+	/* I2C client */
 	client->addr = address;
 	client->driver = &x1205_driver;
 	client->adapter	= adapter;
 
-	strlcpy(client->name, "x1205", I2C_NAME_SIZE);
-
-	i2c_set_clientdata(client, data);
+	strlcpy(client->name, x1205_driver.driver.name, I2C_NAME_SIZE);
 
 	/* Verify the chip is really an X1205 */
 	if (kind < 0) {
@@ -599,18 +538,43 @@ static int x1205_probe(struct i2c_adapter *adapter, int address, int kind)
 	if ((err = i2c_attach_client(client)))
 		goto exit_kfree;
 
-	list_add(&data->list, &x1205_clients);
-
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
-	/* If requested, set the system time */
-	if (hctosys)
-		x1205_hctosys(client);
+	rtc = rtc_device_register(x1205_driver.driver.name, &client->dev,
+				&x1205_rtc_ops, THIS_MODULE);
+
+	if (IS_ERR(rtc)) {
+		err = PTR_ERR(rtc);
+		dev_err(&client->dev,
+			"unable to register the class device\n");
+		goto exit_detach;
+	}
+
+	i2c_set_clientdata(client, rtc);
+
+	/* Check for power failures and eventualy enable the osc */
+	if ((err = x1205_get_status(client, &sr)) == 0) {
+		if (sr & X1205_SR_RTCF) {
+			dev_err(&client->dev,
+				"power failure detected, "
+				"please set the clock\n");
+			udelay(50);
+			x1205_fix_osc(client);
+		}
+	}
+	else
+		dev_err(&client->dev, "couldn't read status\n");
+
+	device_create_file(&client->dev, &dev_attr_atrim);
+	device_create_file(&client->dev, &dev_attr_dtrim);
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(client);
+
 exit_kfree:
-	kfree(data);
+	kfree(client);
 
 exit:
 	return err;
@@ -619,59 +583,19 @@ exit:
 static int x1205_detach(struct i2c_client *client)
 {
 	int err;
-	struct x1205_data *data = i2c_get_clientdata(client);
+	struct rtc_device *rtc = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev, "%s\n", __FUNCTION__);
+
+ 	if (rtc)
+		rtc_device_unregister(rtc);
 
 	if ((err = i2c_detach_client(client)))
 		return err;
 
-	list_del(&data->list);
-
-	kfree(data);
+	kfree(client);
 
 	return 0;
-}
-
-static int x1205_command(struct i2c_client *client, unsigned int cmd,
-	void *param)
-{
-	if (param == NULL)
-		return -EINVAL;
-
-	if (!capable(CAP_SYS_TIME))
-		return -EACCES;
-
-	dev_dbg(&client->dev, "%s: cmd=%d\n", __FUNCTION__, cmd);
-
-	switch (cmd) {
-	case X1205_CMD_GETDATETIME:
-		return x1205_get_datetime(client, param, X1205_CCR_BASE);
-
-	case X1205_CMD_SETTIME:
-		return x1205_set_datetime(client, param, 0,
-				X1205_CCR_BASE);
-
-	case X1205_CMD_SETDATETIME:
-		return x1205_set_datetime(client, param, 1,
-				X1205_CCR_BASE);
-
-	case X1205_CMD_GETALARM:
-		return x1205_get_datetime(client, param, X1205_ALM0_BASE);
-
-	case X1205_CMD_SETALARM:
-		return x1205_set_datetime(client, param, 1,
-				X1205_ALM0_BASE);
-
-	case X1205_CMD_GETDTRIM:
-		return x1205_get_dtrim(client, param);
-
-	case X1205_CMD_GETATRIM:
-		return x1205_get_atrim(client, param);
-
-	default:
-		return -EINVAL;
-	}
 }
 
 static int __init x1205_init(void)
@@ -685,14 +609,11 @@ static void __exit x1205_exit(void)
 }
 
 MODULE_AUTHOR(
-	"Karen Spearel <kas11@tampabay.rr.com>, "
+	"Karen Spearel <kas111 at gmail dot com>, "
 	"Alessandro Zummo <a.zummo@towertech.it>");
-MODULE_DESCRIPTION("Xicor X1205 RTC driver");
+MODULE_DESCRIPTION("Xicor/Intersil X1205 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-EXPORT_SYMBOL_GPL(x1205_do_command);
-EXPORT_SYMBOL_GPL(x1205_direct_attach);
 
 module_init(x1205_init);
 module_exit(x1205_exit);

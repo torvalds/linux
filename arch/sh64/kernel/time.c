@@ -30,6 +30,7 @@
 #include <linux/profile.h>
 #include <linux/smp.h>
 #include <linux/module.h>
+#include <linux/bcd.h>
 
 #include <asm/registers.h>	 /* required by inline __asm__ stmt. */
 
@@ -104,14 +105,6 @@
 #define RMONAR  	rtc_base+0x34
 #define RCR1    	rtc_base+0x38
 #define RCR2    	rtc_base+0x3c
-
-#ifndef BCD_TO_BIN
-#define BCD_TO_BIN(val) ((val)=((val)&15) + ((val)>>4)*10)
-#endif
-
-#ifndef BIN_TO_BCD
-#define BIN_TO_BCD(val) ((val)=(((val)/10)<<4) + (val)%10)
-#endif
 
 #define TICK_SIZE (tick_nsec / 1000)
 

@@ -40,7 +40,7 @@ struct die_args {
 
 extern int register_die_notifier(struct notifier_block *);
 extern int unregister_die_notifier(struct notifier_block *);
-extern struct notifier_block *ia64die_chain;
+extern struct atomic_notifier_head ia64die_chain;
 
 enum die_val {
 	DIE_BREAK = 1,
@@ -81,7 +81,7 @@ static inline int notify_die(enum die_val val, char *str, struct pt_regs *regs,
 		.signr  = sig
 	};
 
-	return notifier_call_chain(&ia64die_chain, val, &args);
+	return atomic_notifier_call_chain(&ia64die_chain, val, &args);
 }
 
 #endif

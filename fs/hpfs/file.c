@@ -119,7 +119,7 @@ static ssize_t hpfs_file_write(struct file *file, const char __user *buf,
 	return retval;
 }
 
-struct file_operations hpfs_file_ops =
+const struct file_operations hpfs_file_ops =
 {
 	.llseek		= generic_file_llseek,
 	.read		= generic_file_read,

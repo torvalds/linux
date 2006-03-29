@@ -97,7 +97,7 @@ static int video_open(struct inode *inode, struct file *file)
 	unsigned int minor = iminor(inode);
 	int err = 0;
 	struct video_device *vfl;
-	struct file_operations *old_fops;
+	const struct file_operations *old_fops;
 
 	if(minor>=VIDEO_NUM_DEVICES)
 		return -ENODEV;

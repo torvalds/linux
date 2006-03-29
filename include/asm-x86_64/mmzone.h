@@ -44,12 +44,8 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 #define pfn_to_nid(pfn) phys_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
 #define kvaddr_to_nid(kaddr)	phys_to_nid(__pa(kaddr))
 
-extern struct page *pfn_to_page(unsigned long pfn);
-extern unsigned long page_to_pfn(struct page *page);
 extern int pfn_valid(unsigned long pfn);
 #endif
 
-#define local_mapnr(kvaddr) \
-	( (__pa(kvaddr) >> PAGE_SHIFT) - node_start_pfn(kvaddr_to_nid(kvaddr)) )
 #endif
 #endif

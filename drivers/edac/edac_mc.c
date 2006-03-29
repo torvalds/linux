@@ -2044,7 +2044,7 @@ static int __init edac_mc_init(void)
 	 */
 	clear_pci_parity_errors();
 
-	/* Create the MC sysfs entires */
+	/* Create the MC sysfs entries */
 	if (edac_sysfs_memctrl_setup()) {
 		edac_printk(KERN_ERR, EDAC_MC,
 			"Error initializing sysfs code\n");

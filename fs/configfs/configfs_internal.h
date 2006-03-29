@@ -72,9 +72,9 @@ extern void configfs_release_fs(void);
 
 extern struct rw_semaphore configfs_rename_sem;
 extern struct super_block * configfs_sb;
-extern struct file_operations configfs_dir_operations;
-extern struct file_operations configfs_file_operations;
-extern struct file_operations bin_fops;
+extern const struct file_operations configfs_dir_operations;
+extern const struct file_operations configfs_file_operations;
+extern const struct file_operations bin_fops;
 extern struct inode_operations configfs_dir_inode_operations;
 extern struct inode_operations configfs_symlink_inode_operations;
 

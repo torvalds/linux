@@ -17,6 +17,7 @@
 #include <linux/poll.h>
 #include <linux/mc146818rtc.h>	/* For struct rtc_time and ioctls, etc */
 #include <linux/smp_lock.h>
+#include <linux/bcd.h>
 #include <asm/mvme16xhw.h>
 
 #include <asm/io.h>
@@ -30,9 +31,6 @@
  *	an ioctl, make sure you don't conflict with SPARC's RTC
  *	ioctls.
  */
-
-#define BCD2BIN(val) (((val)&15) + ((val)>>4)*10)
-#define BIN2BCD(val) ((((val)/10)<<4) + (val)%10)
 
 static const unsigned char days_in_mo[] =
 {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};

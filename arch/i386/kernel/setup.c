@@ -46,6 +46,7 @@
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 #include <linux/dmi.h>
+#include <linux/pfn.h>
 
 #include <video/edid.h>
 

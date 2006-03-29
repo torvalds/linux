@@ -52,7 +52,7 @@ static int ppc_htab_open(struct inode *inode, struct file *file)
 	return single_open(file, ppc_htab_show, NULL);
 }
 
-struct file_operations ppc_htab_operations = {
+const struct file_operations ppc_htab_operations = {
 	.open		= ppc_htab_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

@@ -11,6 +11,7 @@
 #include <linux/gfp.h>
 #include <linux/page-flags.h>
 #include <linux/mm.h>
+#include <linux/jiffies.h>
 #include "agp.h"
 
 /* NVIDIA registers */
@@ -256,7 +257,7 @@ static void nvidia_tlbflush(struct agp_memory *mem)
 		do {
 			pci_read_config_dword(nvidia_private.dev_1,
 					NVIDIA_1_WBC, &wbc_reg);
-			if ((signed)(end - jiffies) <= 0) {
+			if (time_before_eq(end, jiffies)) {
 				printk(KERN_ERR PFX
 				    "TLB flush took more than 3 seconds.\n");
 			}

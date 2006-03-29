@@ -434,7 +434,7 @@ static int __devinit correct_chipset(struct atyfb_par *par)
 	const char *name;
 	int i;
 
-	for (i = sizeof(aty_chips) / sizeof(*aty_chips) - 1; i >= 0; i--)
+	for (i = ARRAY_SIZE(aty_chips) - 1; i >= 0; i--)
 		if (par->pci_id == aty_chips[i].pci_id)
 			break;
 
@@ -2168,10 +2168,10 @@ static void __init aty_calc_mem_refresh(struct atyfb_par *par, int xclk)
 
 	if (IS_XL(par->pci_id) || IS_MOBILITY(par->pci_id)) {
 		refresh_tbl = ragexl_tbl;
-		size = sizeof(ragexl_tbl)/sizeof(int);
+		size = ARRAY_SIZE(ragexl_tbl);
 	} else {
 		refresh_tbl = ragepro_tbl;
-		size = sizeof(ragepro_tbl)/sizeof(int);
+		size = ARRAY_SIZE(ragepro_tbl);
 	}
 
 	for (i=0; i < size; i++) {
@@ -2298,6 +2298,10 @@ static int __init aty_init(struct fb_info *info, const char *name)
 		case CLK_ATI18818_1:
 			par->pll_ops = &aty_pll_ati18818_1;
 			break;
+		case CLK_IBMRGB514:
+			par->pll_ops = &aty_pll_ibm514;
+			break;
+#if 0 /* dead code */
 		case CLK_STG1703:
 			par->pll_ops = &aty_pll_stg1703;
 			break;
@@ -2307,9 +2311,7 @@ static int __init aty_init(struct fb_info *info, const char *name)
 		case CLK_ATT20C408:
 			par->pll_ops = &aty_pll_att20c408;
 			break;
-		case CLK_IBMRGB514:
-			par->pll_ops = &aty_pll_ibm514;
-			break;
+#endif
 		default:
 			PRINTKI("aty_init: CLK type not implemented yet!");
 			par->pll_ops = &aty_pll_unsupported;
@@ -3397,7 +3399,7 @@ static int __devinit atyfb_pci_probe(struct pci_dev *pdev, const struct pci_devi
 	struct atyfb_par *par;
 	int i, rc = -ENOMEM;
 
-	for (i = sizeof(aty_chips) / sizeof(*aty_chips) - 1; i >= 0; i--)
+	for (i = ARRAY_SIZE(aty_chips); i >= 0; i--)
 		if (pdev->device == aty_chips[i].pci_id)
 			break;
 

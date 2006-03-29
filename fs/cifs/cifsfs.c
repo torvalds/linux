@@ -583,7 +583,7 @@ struct inode_operations cifs_symlink_inode_ops = {
 #endif 
 };
 
-struct file_operations cifs_file_ops = {
+const struct file_operations cifs_file_ops = {
 	.read = do_sync_read,
 	.write = do_sync_write,
 	.readv = generic_file_readv,
@@ -607,7 +607,7 @@ struct file_operations cifs_file_ops = {
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
-struct file_operations cifs_file_direct_ops = {
+const struct file_operations cifs_file_direct_ops = {
 	/* no mmap, no aio, no readv - 
 	   BB reevaluate whether they can be done with directio, no cache */
 	.read = cifs_user_read,
@@ -626,7 +626,7 @@ struct file_operations cifs_file_direct_ops = {
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
-struct file_operations cifs_file_nobrl_ops = {
+const struct file_operations cifs_file_nobrl_ops = {
 	.read = do_sync_read,
 	.write = do_sync_write,
 	.readv = generic_file_readv,
@@ -649,7 +649,7 @@ struct file_operations cifs_file_nobrl_ops = {
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
-struct file_operations cifs_file_direct_nobrl_ops = {
+const struct file_operations cifs_file_direct_nobrl_ops = {
 	/* no mmap, no aio, no readv - 
 	   BB reevaluate whether they can be done with directio, no cache */
 	.read = cifs_user_read,
@@ -668,7 +668,7 @@ struct file_operations cifs_file_direct_nobrl_ops = {
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
 
-struct file_operations cifs_dir_ops = {
+const struct file_operations cifs_dir_ops = {
 	.readdir = cifs_readdir,
 	.release = cifs_closedir,
 	.read    = generic_read_dir,

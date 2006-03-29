@@ -39,8 +39,7 @@
  *
  * This does not append a newline
  */
-static void
-putstr(const char *s)
+static void putc(int c)
 {
 	unsigned long serial_port;
 
@@ -54,20 +53,14 @@ putstr(const char *s)
 		return;
 	} while(0);
 
-	while (*s) {
-		while ( !(UART(USR2) & USR2_TXFE) )
-			barrier();
+	while (!(UART(USR2) & USR2_TXFE))
+		barrier();
 
-		UART(TXR) = *s;
+	UART(TXR) = c;
+}
 
-		if (*s == '\n') {
-			while ( !(UART(USR2) & USR2_TXFE) )
-				barrier();
-
-			UART(TXR) = '\r';
-		}
-		s++;
-	}
+static inline void flush(void)
+{
 }
 
 /*

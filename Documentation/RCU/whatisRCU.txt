@@ -605,7 +605,7 @@ are the same as those shown in the preceding section, so they are omitted.
 	{
 		int cpu;
 
-		for_each_cpu(cpu)
+		for_each_possible_cpu(cpu)
 			run_on(cpu);
 	}
 

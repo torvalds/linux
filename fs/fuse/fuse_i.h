@@ -346,7 +346,7 @@ static inline u64 get_node_id(struct inode *inode)
 }
 
 /** Device operations */
-extern struct file_operations fuse_dev_operations;
+extern const struct file_operations fuse_dev_operations;
 
 /**
  * This is the single global spinlock which protects FUSE's structures

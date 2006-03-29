@@ -16,13 +16,9 @@ struct die_args {
 	int signr;
 };
 
-/*
-   Note - you should never unregister because that can race with NMIs.
-   If you really want to do it first unregister - then synchronize_sched -
-   then free.
- */
-int register_die_notifier(struct notifier_block *nb);
-extern struct notifier_block *powerpc_die_chain;
+extern int register_die_notifier(struct notifier_block *);
+extern int unregister_die_notifier(struct notifier_block *);
+extern struct atomic_notifier_head powerpc_die_chain;
 
 /* Grossly misnamed. */
 enum die_val {
@@ -37,7 +33,7 @@ enum die_val {
 static inline int notify_die(enum die_val val,char *str,struct pt_regs *regs,long err,int trap, int sig)
 {
 	struct die_args args = { .regs=regs, .str=str, .err=err, .trapnr=trap,.signr=sig };
-	return notifier_call_chain(&powerpc_die_chain, val, &args);
+	return atomic_notifier_call_chain(&powerpc_die_chain, val, &args);
 }
 
 #endif /* __KERNEL__ */

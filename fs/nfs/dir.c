@@ -54,7 +54,7 @@ static int nfs_rename(struct inode *, struct dentry *,
 static int nfs_fsync_dir(struct file *, struct dentry *, int);
 static loff_t nfs_llseek_dir(struct file *, loff_t, int);
 
-struct file_operations nfs_dir_operations = {
+const struct file_operations nfs_dir_operations = {
 	.llseek		= nfs_llseek_dir,
 	.read		= generic_read_dir,
 	.readdir	= nfs_readdir,

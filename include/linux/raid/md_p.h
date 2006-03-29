@@ -102,6 +102,18 @@ typedef struct mdp_device_descriptor_s {
 #define MD_SB_ERRORS		1
 
 #define	MD_SB_BITMAP_PRESENT	8 /* bitmap may be present nearby */
+
+/*
+ * Notes:
+ * - if an array is being reshaped (restriped) in order to change the
+ *   the number of active devices in the array, 'raid_disks' will be
+ *   the larger of the old and new numbers.  'delta_disks' will
+ *   be the "new - old".  So if +ve, raid_disks is the new value, and
+ *   "raid_disks-delta_disks" is the old.  If -ve, raid_disks is the
+ *   old value and "raid_disks+delta_disks" is the new (smaller) value.
+ */
+
+
 typedef struct mdp_superblock_s {
 	/*
 	 * Constant generic information
@@ -146,7 +158,13 @@ typedef struct mdp_superblock_s {
 	__u32 cp_events_hi;	/* 10 high-order of checkpoint update count   */
 #endif
 	__u32 recovery_cp;	/* 11 recovery checkpoint sector count	      */
-	__u32 gstate_sreserved[MD_SB_GENERIC_STATE_WORDS - 12];
+	/* There are only valid for minor_version > 90 */
+	__u64 reshape_position;	/* 12,13 next address in array-space for reshape */
+	__u32 new_level;	/* 14 new level we are reshaping to	      */
+	__u32 delta_disks;	/* 15 change in number of raid_disks	      */
+	__u32 new_layout;	/* 16 new layout			      */
+	__u32 new_chunk;	/* 17 new chunk size (bytes)		      */
+	__u32 gstate_sreserved[MD_SB_GENERIC_STATE_WORDS - 18];
 
 	/*
 	 * Personality information
@@ -207,7 +225,14 @@ struct mdp_superblock_1 {
 				 * NOTE: signed, so bitmap can be before superblock
 				 * only meaningful of feature_map[0] is set.
 				 */
-	__u8	pad1[128-100];	/* set to 0 when written */
+
+	/* These are only valid with feature bit '4' */
+	__u64	reshape_position;	/* next address in array-space for reshape */
+	__u32	new_level;	/* new level we are reshaping to		*/
+	__u32	delta_disks;	/* change in number of raid_disks		*/
+	__u32	new_layout;	/* new layout					*/
+	__u32	new_chunk;	/* new chunk size (bytes)			*/
+	__u8	pad1[128-124];	/* set to 0 when written */
 
 	/* constant this-device information - 64 bytes */
 	__u64	data_offset;	/* sector start of data, often 0 */
@@ -240,8 +265,9 @@ struct mdp_superblock_1 {
 
 /* feature_map bits */
 #define MD_FEATURE_BITMAP_OFFSET	1
+#define	MD_FEATURE_RESHAPE_ACTIVE	4
 
-#define	MD_FEATURE_ALL			1
+#define	MD_FEATURE_ALL			5
 
 #endif 
 

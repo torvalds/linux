@@ -899,7 +899,7 @@ static const struct {
 	unsigned int		minor;
 	char			*name;
 	umode_t			mode;
-	struct file_operations	*fops;
+	const struct file_operations	*fops;
 } devlist[] = { /* list of minor devices */
 	{1, "mem",     S_IRUSR | S_IWUSR | S_IRGRP, &mem_fops},
 	{2, "kmem",    S_IRUSR | S_IWUSR | S_IRGRP, &kmem_fops},

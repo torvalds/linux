@@ -58,7 +58,7 @@ struct proc_dir_entry {
 	gid_t gid;
 	loff_t size;
 	struct inode_operations * proc_iops;
-	struct file_operations * proc_fops;
+	const struct file_operations * proc_fops;
 	get_info_t *get_info;
 	struct module *owner;
 	struct proc_dir_entry *next, *parent, *subdir;
@@ -128,9 +128,9 @@ extern int proc_match(int, const char *,struct proc_dir_entry *);
 extern int proc_readdir(struct file *, void *, filldir_t);
 extern struct dentry *proc_lookup(struct inode *, struct dentry *, struct nameidata *);
 
-extern struct file_operations proc_kcore_operations;
-extern struct file_operations proc_kmsg_operations;
-extern struct file_operations ppc_htab_operations;
+extern const struct file_operations proc_kcore_operations;
+extern const struct file_operations proc_kmsg_operations;
+extern const struct file_operations ppc_htab_operations;
 
 /*
  * proc_tty.c
@@ -189,7 +189,7 @@ static inline struct proc_dir_entry *proc_net_create(const char *name,
 }
 
 static inline struct proc_dir_entry *proc_net_fops_create(const char *name,
-	mode_t mode, struct file_operations *fops)
+	mode_t mode, const struct file_operations *fops)
 {
 	struct proc_dir_entry *res = create_proc_entry(name, mode, proc_net);
 	if (res)

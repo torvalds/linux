@@ -3744,7 +3744,7 @@ static int ipmi_init_msghandler(void)
 	ipmi_timer.expires = jiffies + IPMI_TIMEOUT_JIFFIES;
 	add_timer(&ipmi_timer);
 
-	notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 
 	initialized = 1;
 
@@ -3764,7 +3764,7 @@ static __exit void cleanup_ipmi(void)
 	if (!initialized)
 		return;
 
-	notifier_chain_unregister(&panic_notifier_list, &panic_block);
+	atomic_notifier_chain_unregister(&panic_notifier_list, &panic_block);
 
 	/* This can't be called if any interfaces exist, so no worry about
 	   shutting down the interfaces. */

@@ -229,8 +229,8 @@ void momenco_time_init(void)
 	mips_hpt_frequency = cpu_clock / 2;
 	board_timer_setup = momenco_timer_setup;
 
-	rtc_get_time = m48t37y_get_time;
-	rtc_set_time = m48t37y_set_time;
+	rtc_mips_get_time = m48t37y_get_time;
+	rtc_mips_set_time = m48t37y_set_time;
 }
 
 static struct resource mv_pci_io_mem0_resource = {

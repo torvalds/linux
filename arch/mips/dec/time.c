@@ -36,41 +36,13 @@
 #include <asm/dec/ioasic_addrs.h>
 #include <asm/dec/machtype.h>
 
-
-/*
- * Returns true if a clock update is in progress
- */
-static inline unsigned char dec_rtc_is_updating(void)
-{
-	unsigned char uip;
-	unsigned long flags;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	uip = (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	return uip;
-}
-
 static unsigned long dec_rtc_get_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec, real_year;
-	int i;
 	unsigned long flags;
 
-	/* The Linux interpretation of the DS1287 clock register contents:
-	 * When the Update-In-Progress (UIP) flag goes from 1 to 0, the
-	 * RTC registers show the second which has precisely just started.
-	 * Let's hope other operating systems interpret the RTC the same way.
-	 */
-	/* read RTC exactly on falling edge of update flag */
-	for (i = 0; i < 1000000; i++)	/* may take up to 1 second... */
-		if (dec_rtc_is_updating())
-			break;
-	for (i = 0; i < 1000000; i++)	/* must try at least 2.228 ms */
-		if (!dec_rtc_is_updating())
-			break;
 	spin_lock_irqsave(&rtc_lock, flags);
-	/* Isn't this overkill?  UIP above should guarantee consistency */
+
 	do {
 		sec = CMOS_READ(RTC_SECONDS);
 		min = CMOS_READ(RTC_MINUTES);
@@ -78,7 +50,16 @@ static unsigned long dec_rtc_get_time(void)
 		day = CMOS_READ(RTC_DAY_OF_MONTH);
 		mon = CMOS_READ(RTC_MONTH);
 		year = CMOS_READ(RTC_YEAR);
+		/*
+		 * The PROM will reset the year to either '72 or '73.
+		 * Therefore we store the real year separately, in one
+		 * of unused BBU RAM locations.
+		 */
+		real_year = CMOS_READ(RTC_DEC_YEAR);
 	} while (sec != CMOS_READ(RTC_SECONDS));
+
+	spin_unlock_irqrestore(&rtc_lock, flags);
+
 	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
 		sec = BCD2BIN(sec);
 		min = BCD2BIN(min);
@@ -87,13 +68,7 @@ static unsigned long dec_rtc_get_time(void)
 		mon = BCD2BIN(mon);
 		year = BCD2BIN(year);
 	}
-	/*
-	 * The PROM will reset the year to either '72 or '73.
-	 * Therefore we store the real year separately, in one
-	 * of unused BBU RAM locations.
-	 */
-	real_year = CMOS_READ(RTC_DEC_YEAR);
-	spin_unlock_irqrestore(&rtc_lock, flags);
+
 	year += real_year - 72 + 2000;
 
 	return mktime(year, mon, day, hour, min, sec);
@@ -193,8 +168,8 @@ static void dec_ioasic_hpt_init(unsigned int count)
 
 void __init dec_time_init(void)
 {
-	rtc_get_time = dec_rtc_get_time;
-	rtc_set_mmss = dec_rtc_set_mmss;
+	rtc_mips_get_time = dec_rtc_get_time;
+	rtc_mips_set_mmss = dec_rtc_set_mmss;
 
 	mips_timer_state = dec_timer_state;
 	mips_timer_ack = dec_timer_ack;

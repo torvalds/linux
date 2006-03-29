@@ -1,0 +1,165 @@
+\#
+# RTC class/drivers configuration
+#
+
+menu "Real Time Clock"
+
+config RTC_LIB
+	tristate
+
+config RTC_CLASS
+	tristate "RTC class"
+	depends on EXPERIMENTAL
+	default n
+	select RTC_LIB
+	help
+	  Generic RTC class support. If you say yes here, you will
+ 	  be allowed to plug one or more RTCs to your system. You will
+	  probably want to enable one of more of the interfaces below.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-class.
+
+config RTC_HCTOSYS
+	bool "Set system time from RTC on startup"
+	depends on RTC_CLASS = y
+	default y
+	help
+	  If you say yes here, the system time will be set using
+	  the value read from the specified RTC device. This is useful
+	  in order to avoid unnecessary fschk runs.
+
+config RTC_HCTOSYS_DEVICE
+	string "The RTC to read the time from"
+	depends on RTC_HCTOSYS = y
+	default "rtc0"
+	help
+	  The RTC device that will be used as the source for
+	  the system time, usually rtc0.
+
+comment "RTC interfaces"
+	depends on RTC_CLASS
+
+config RTC_INTF_SYSFS
+	tristate "sysfs"
+	depends on RTC_CLASS && SYSFS
+	default RTC_CLASS
+	help
+	  Say yes here if you want to use your RTC using the sysfs
+	  interface, /sys/class/rtc/rtcX .
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-sysfs.
+
+config RTC_INTF_PROC
+	tristate "proc"
+	depends on RTC_CLASS && PROC_FS
+	default RTC_CLASS
+	help
+	  Say yes here if you want to use your RTC using the proc
+	  interface, /proc/driver/rtc .
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-proc.
+
+config RTC_INTF_DEV
+	tristate "dev"
+	depends on RTC_CLASS
+	default RTC_CLASS
+	help
+	  Say yes here if you want to use your RTC using the dev
+	  interface, /dev/rtc .
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-dev.
+
+comment "RTC drivers"
+	depends on RTC_CLASS
+
+config RTC_DRV_X1205
+	tristate "Xicor/Intersil X1205"
+	depends on RTC_CLASS && I2C
+	help
+	  If you say yes here you get support for the
+	  Xicor/Intersil X1205 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-x1205.
+
+config RTC_DRV_DS1672
+	tristate "Dallas/Maxim DS1672"
+	depends on RTC_CLASS && I2C
+	help
+	  If you say yes here you get support for the
+	  Dallas/Maxim DS1672 timekeeping chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1672.
+
+config RTC_DRV_PCF8563
+	tristate "Philips PCF8563/Epson RTC8564"
+	depends on RTC_CLASS && I2C
+	help
+	  If you say yes here you get support for the
+	  Philips PCF8563 RTC chip. The Epson RTC8564
+	  should work as well.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-pcf8563.
+
+config RTC_DRV_RS5C372
+	tristate "Ricoh RS5C372A/B"
+	depends on RTC_CLASS && I2C
+	help
+	  If you say yes here you get support for the
+	  Ricoh RS5C372A and RS5C372B RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rs5c372.
+
+config RTC_DRV_M48T86
+	tristate "ST M48T86/Dallas DS12887"
+	depends on RTC_CLASS
+	help
+	  If you say Y here you will get support for the
+	  ST M48T86 and Dallas DS12887 RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-m48t86.
+
+config RTC_DRV_EP93XX
+	tristate "Cirrus Logic EP93XX"
+	depends on RTC_CLASS && ARCH_EP93XX
+	help
+	  If you say yes here you get support for the
+	  RTC embedded in the Cirrus Logic EP93XX processors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ep93xx.
+
+config RTC_DRV_SA1100
+	tristate "SA11x0/PXA2xx"
+	depends on RTC_CLASS && (ARCH_SA1100 || ARCH_PXA)
+	help
+	  If you say Y here you will get access to the real time clock
+	  built into your SA11x0 or PXA2xx CPU.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-sa1100.
+
+config RTC_DRV_TEST
+	tristate "Test driver/device"
+	depends on RTC_CLASS
+	help
+	  If you say yes here you get support for the
+	  RTC test driver. It's a software RTC which can be
+	  used to test the RTC subsystem APIs. It gets
+	  the time from the system clock.
+	  You want this driver only if you are doing development
+	  on the RTC subsystem. Please read the source code
+	  for further details.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-test.
+
+endmenu

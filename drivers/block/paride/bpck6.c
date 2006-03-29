@@ -224,10 +224,9 @@ static void bpck6_log_adapter( PIA *pi, char * scratch, int verbose )
 
 static int bpck6_init_proto(PIA *pi)
 {
-	Interface *p = kmalloc(sizeof(Interface), GFP_KERNEL);
+	Interface *p = kzalloc(sizeof(Interface), GFP_KERNEL);
 
 	if (p) {
-		memset(p, 0, sizeof(Interface));
 		pi->private = (unsigned long)p;
 		return 0;
 	}

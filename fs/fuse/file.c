@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 
-static struct file_operations fuse_direct_io_file_operations;
+static const struct file_operations fuse_direct_io_file_operations;
 
 static int fuse_send_open(struct inode *inode, struct file *file, int isdir,
 			  struct fuse_open_out *outargp)
@@ -611,7 +611,7 @@ static int fuse_set_page_dirty(struct page *page)
 	return 0;
 }
 
-static struct file_operations fuse_file_operations = {
+static const struct file_operations fuse_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_file_read,
 	.write		= generic_file_write,
@@ -623,7 +623,7 @@ static struct file_operations fuse_file_operations = {
 	.sendfile	= generic_file_sendfile,
 };
 
-static struct file_operations fuse_direct_io_file_operations = {
+static const struct file_operations fuse_direct_io_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= fuse_direct_read,
 	.write		= fuse_direct_write,

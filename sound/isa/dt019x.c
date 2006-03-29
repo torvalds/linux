@@ -272,6 +272,8 @@ static int __devinit snd_card_dt019x_probe(int dev, struct pnp_card_link *pcard,
 	return 0;
 }
 
+static unsigned int __devinitdata dt019x_devices;
+
 static int __devinit snd_dt019x_pnp_probe(struct pnp_card_link *card,
 					  const struct pnp_card_device_id *pid)
 {
@@ -285,6 +287,7 @@ static int __devinit snd_dt019x_pnp_probe(struct pnp_card_link *card,
 		if (res < 0)
 			return res;
 		dev++;
+		dt019x_devices++;
 		return 0;
 	}
 	return -ENODEV;
@@ -336,10 +339,13 @@ static struct pnp_card_driver dt019x_pnpc_driver = {
 
 static int __init alsa_card_dt019x_init(void)
 {
-	int cards = 0;
+	int err;
 
-	cards = pnp_register_card_driver(&dt019x_pnpc_driver);
-	if (cards <= 0) {
+	err = pnp_register_card_driver(&dt019x_pnpc_driver);
+	if (err)
+		return err;
+
+	if (!dt019x_devices) {
 		pnp_unregister_card_driver(&dt019x_pnpc_driver);
 #ifdef MODULE
 		snd_printk(KERN_ERR "no DT-019X / ALS-007 based soundcards found\n");

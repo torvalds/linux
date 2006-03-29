@@ -280,7 +280,7 @@ static struct inode_operations hfsplus_file_inode_operations = {
 	.listxattr	= hfsplus_listxattr,
 };
 
-static struct file_operations hfsplus_file_operations = {
+static const struct file_operations hfsplus_file_operations = {
 	.llseek 	= generic_file_llseek,
 	.read		= generic_file_read,
 	.write		= generic_file_write,

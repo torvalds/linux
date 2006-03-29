@@ -1,5 +1,5 @@
-/* 
- * Copyright (C) 2002 Jeff Dike (jdike@karaya.com) and 
+/*
+ * Copyright (C) 2002 Jeff Dike (jdike@karaya.com) and
  * geoffrey hing <ghing@net.ohio-state.edu>
  * Licensed under the GPL
  */
@@ -58,7 +58,7 @@ int open_tty_log(void *tty, void *current_tty)
 		return(tty_log_fd);
 	}
 
-	sprintf(buf, "%s/%0u-%0u", tty_log_dir, (unsigned int) tv.tv_sec, 
+	sprintf(buf, "%s/%0u-%0u", tty_log_dir, (unsigned int) tv.tv_sec,
  		(unsigned int) tv.tv_usec);
 
 	fd = os_open_file(buf, of_append(of_create(of_rdwr(OPENFLAGS()))),
@@ -216,15 +216,3 @@ __uml_setup("tty_log_fd=", set_tty_log_fd,
 "    tty data will be written.  Preconfigure the descriptor with something\n"
 "    like '10>tty_log tty_log_fd=10'.\n\n"
 );
-
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

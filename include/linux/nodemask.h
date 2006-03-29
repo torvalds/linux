@@ -350,11 +350,15 @@ extern nodemask_t node_possible_map;
 #define num_possible_nodes()	nodes_weight(node_possible_map)
 #define node_online(node)	node_isset((node), node_online_map)
 #define node_possible(node)	node_isset((node), node_possible_map)
+#define first_online_node	first_node(node_online_map)
+#define next_online_node(nid)	next_node((nid), node_online_map)
 #else
 #define num_online_nodes()	1
 #define num_possible_nodes()	1
 #define node_online(node)	((node) == 0)
 #define node_possible(node)	((node) == 0)
+#define first_online_node	0
+#define next_online_node(nid)	(MAX_NUMNODES)
 #endif
 
 #define any_online_node(mask)			\

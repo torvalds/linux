@@ -21,6 +21,7 @@ enum dma_data_direction {
 #define DMA_30BIT_MASK	0x000000003fffffffULL
 #define DMA_29BIT_MASK	0x000000001fffffffULL
 #define DMA_28BIT_MASK	0x000000000fffffffULL
+#define DMA_24BIT_MASK 0x0000000000ffffffULL
 
 #include <asm/dma-mapping.h>
 

@@ -159,8 +159,8 @@ rtc_ds1742_init(unsigned long base)
 	db_assert((rtc_base & 0xe0000000) == KSEG1);
 
 	/* set the function pointers */
-	rtc_get_time = rtc_ds1742_get_time;
-	rtc_set_time = rtc_ds1742_set_time;
+	rtc_mips_get_time = rtc_ds1742_get_time;
+	rtc_mips_set_time = rtc_ds1742_set_time;
 
 	/* clear oscillator stop bit */
 	CMOS_WRITE(RTC_READ, RTC_CONTROL);

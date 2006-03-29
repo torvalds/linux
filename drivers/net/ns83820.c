@@ -1828,10 +1828,10 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	int using_dac = 0;
 
 	/* See if we can set the dma mask early on; failure is fatal. */
-	if (sizeof(dma_addr_t) == 8 && 
-	 	!pci_set_dma_mask(pci_dev, 0xffffffffffffffffULL)) {
+	if (sizeof(dma_addr_t) == 8 &&
+	 	!pci_set_dma_mask(pci_dev, DMA_64BIT_MASK)) {
 		using_dac = 1;
-	} else if (!pci_set_dma_mask(pci_dev, 0xffffffff)) {
+	} else if (!pci_set_dma_mask(pci_dev, DMA_32BIT_MASK)) {
 		using_dac = 0;
 	} else {
 		printk(KERN_WARNING "ns83820.c: pci_set_dma_mask failed!\n");

@@ -228,6 +228,9 @@ static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 
 	t->id.proto = IPPROTO_IPV6;
 	t->id.spi = xfrm6_tunnel_alloc_spi((xfrm_address_t *)&x->props.saddr);
+	if (!t->id.spi)
+		goto error;
+
 	memcpy(t->id.daddr.a6, x->id.daddr.a6, sizeof(struct in6_addr));
 	memcpy(&t->sel, &x->sel, sizeof(t->sel));
 	t->props.family = AF_INET6;
@@ -243,7 +246,9 @@ out:
 	return t;
 
 error:
+	t->km.state = XFRM_STATE_DEAD;
 	xfrm_state_put(t);
+	t = NULL;
 	goto out;
 }
 

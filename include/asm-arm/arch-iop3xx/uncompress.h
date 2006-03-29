@@ -19,23 +19,15 @@ static volatile UTYPE uart_base;
 
 #define TX_DONE (UART_LSR_TEMT|UART_LSR_THRE)
 
-static __inline__ void putc(char c)
+static inline void putc(char c)
 {
-	while ((uart_base[UART_LSR] & TX_DONE) != TX_DONE);
+	while ((uart_base[UART_LSR] & TX_DONE) != TX_DONE)
+		barrier();
 	*uart_base = c;
 }
 
-/*
- * This does not append a newline
- */
-static void putstr(const char *s)
+static inline void flush(void)
 {
-	while (*s) {
-		putc(*s);
-		if (*s == '\n')
-			putc('\r');
-		s++;
-	}
 }
 
 static __inline__ void __arch_decomp_setup(unsigned long arch_id)

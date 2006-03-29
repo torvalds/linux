@@ -1725,9 +1725,9 @@ static int __init aty128_init(struct pci_dev *pdev, const struct pci_device_id *
 	strcpy(video_card, "Rage128 XX ");
 	video_card[8] = ent->device >> 8;
 	video_card[9] = ent->device & 0xFF;
-	    
+
 	/* range check to make sure */
-	if (ent->driver_data < (sizeof(r128_family)/sizeof(char *)))
+	if (ent->driver_data < ARRAY_SIZE(r128_family))
 	    strncat(video_card, r128_family[ent->driver_data], sizeof(video_card));
 
 	printk(KERN_INFO "aty128fb: %s [chip rev 0x%x] ", video_card, chip_rev);

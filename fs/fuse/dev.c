@@ -922,7 +922,7 @@ static int fuse_dev_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-struct file_operations fuse_dev_operations = {
+const struct file_operations fuse_dev_operations = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.read		= fuse_dev_read,

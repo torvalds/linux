@@ -512,7 +512,7 @@ long percpu_counter_sum(struct percpu_counter *fbc)
 
 	spin_lock(&fbc->lock);
 	ret = fbc->count;
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		long *pcount = per_cpu_ptr(fbc->counters, cpu);
 		ret += *pcount;
 	}

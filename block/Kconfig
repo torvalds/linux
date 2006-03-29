@@ -13,6 +13,7 @@ config LBD
 
 config BLK_DEV_IO_TRACE
 	bool "Support for tracing block io actions"
+	depends on SYSFS
 	select RELAY
 	select DEBUG_FS
 	help

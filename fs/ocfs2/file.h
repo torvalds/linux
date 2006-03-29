@@ -26,8 +26,8 @@
 #ifndef OCFS2_FILE_H
 #define OCFS2_FILE_H
 
-extern struct file_operations ocfs2_fops;
-extern struct file_operations ocfs2_dops;
+extern const struct file_operations ocfs2_fops;
+extern const struct file_operations ocfs2_dops;
 extern struct inode_operations ocfs2_file_iops;
 extern struct inode_operations ocfs2_special_file_iops;
 struct ocfs2_alloc_context;

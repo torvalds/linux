@@ -17,7 +17,6 @@
 #include <linux/time.h>
 #include <linux/signal.h>
 #include <linux/sched.h>	/* for MAX_SCHEDULE_TIMEOUT */
-#include <linux/futex.h>	/* for FUTEX_WAIT */
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/security.h>
@@ -238,28 +237,6 @@ asmlinkage long compat_sys_sigprocmask(int how, compat_old_sigset_t __user *set,
 			ret = put_user(s, oset);
 	return ret;
 }
-
-#ifdef CONFIG_FUTEX
-asmlinkage long compat_sys_futex(u32 __user *uaddr, int op, int val,
-		struct compat_timespec __user *utime, u32 __user *uaddr2,
-		int val3)
-{
-	struct timespec t;
-	unsigned long timeout = MAX_SCHEDULE_TIMEOUT;
-	int val2 = 0;
-
-	if ((op == FUTEX_WAIT) && utime) {
-		if (get_compat_timespec(&t, utime))
-			return -EFAULT;
-		timeout = timespec_to_jiffies(&t) + 1;
-	}
-	if (op >= FUTEX_REQUEUE)
-		val2 = (int) (unsigned long) utime;
-
-	return do_futex((unsigned long)uaddr, op, val, timeout,
-			(unsigned long)uaddr2, val2, val3);
-}
-#endif
 
 asmlinkage long compat_sys_setrlimit(unsigned int resource,
 		struct compat_rlimit __user *rlim)

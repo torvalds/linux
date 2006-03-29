@@ -39,7 +39,7 @@ static int ext3_dx_readdir(struct file * filp,
 static int ext3_release_dir (struct inode * inode,
 				struct file * filp);
 
-struct file_operations ext3_dir_operations = {
+const struct file_operations ext3_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= ext3_readdir,		/* we take BKL. needed?*/

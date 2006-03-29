@@ -504,42 +504,25 @@ unsigned long long sched_clock(void)
 
 static unsigned long get_cmos_time(void)
 {
-	unsigned int timeout = 1000000, year, mon, day, hour, min, sec;
-	unsigned char uip = 0, this = 0;
+	unsigned int year, mon, day, hour, min, sec;
 	unsigned long flags;
 	unsigned extyear = 0;
 
-/*
- * The Linux interpretation of the CMOS clock register contents: When the
- * Update-In-Progress (UIP) flag goes from 1 to 0, the RTC registers show the
- * second which has precisely just started. Waiting for this can take up to 1
- * second, we timeout approximately after 2.4 seconds on a machine with
- * standard 8.3 MHz ISA bus.
- */
-
 	spin_lock_irqsave(&rtc_lock, flags);
 
-	while (timeout && (!uip || this)) {
-		uip |= this;
-		this = CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP;
-		timeout--;
-	}
-
-	/*
-	 * Here we are safe to assume the registers won't change for a whole
-	 * second, so we just go ahead and read them.
- 	 */
-	sec = CMOS_READ(RTC_SECONDS);
-	min = CMOS_READ(RTC_MINUTES);
-	hour = CMOS_READ(RTC_HOURS);
-	day = CMOS_READ(RTC_DAY_OF_MONTH);
-	mon = CMOS_READ(RTC_MONTH);
-	year = CMOS_READ(RTC_YEAR);
-
+	do {
+		sec = CMOS_READ(RTC_SECONDS);
+		min = CMOS_READ(RTC_MINUTES);
+		hour = CMOS_READ(RTC_HOURS);
+		day = CMOS_READ(RTC_DAY_OF_MONTH);
+		mon = CMOS_READ(RTC_MONTH);
+		year = CMOS_READ(RTC_YEAR);
 #ifdef CONFIG_ACPI
-	if (acpi_fadt.revision >= FADT2_REVISION_ID && acpi_fadt.century)
-		extyear = CMOS_READ(acpi_fadt.century);
+		if (acpi_fadt.revision >= FADT2_REVISION_ID &&
+					acpi_fadt.century)
+			extyear = CMOS_READ(acpi_fadt.century);
 #endif
+	} while (sec != CMOS_READ(RTC_SECONDS));
 
 	spin_unlock_irqrestore(&rtc_lock, flags);
 

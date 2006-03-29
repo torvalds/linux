@@ -183,6 +183,10 @@ static const struct fb_videomode modedb[] = {
 	NULL, 75, 1600, 1200, 4938, 304, 64, 46, 1, 192, 3,
 	FB_SYNC_HOR_HIGH_ACT|FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
     }, {
+	/* 1680x1050 @ 60 Hz, 65.191 kHz hsync */
+	NULL, 60, 1680, 1050, 6848, 280, 104, 30, 3, 176, 6,
+	FB_SYNC_HOR_HIGH_ACT|FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
+    }, {
 	/* 1600x1200 @ 85 Hz, 105.77 kHz hsync */
 	NULL, 85, 1600, 1200, 4545, 272, 16, 37, 4, 192, 3,
 	FB_SYNC_HOR_HIGH_ACT|FB_SYNC_VERT_HIGH_ACT, FB_VMODE_NONINTERLACED
@@ -496,7 +500,7 @@ int fb_find_mode(struct fb_var_screeninfo *var,
     /* Set up defaults */
     if (!db) {
 	db = modedb;
-	dbsize = sizeof(modedb)/sizeof(*modedb);
+	dbsize = ARRAY_SIZE(modedb);
     }
     if (!default_mode)
 	default_mode = &modedb[DEFAULT_MODEDB_INDEX];

@@ -53,7 +53,7 @@
 struct sound_unit
 {
 	int unit_minor;
-	struct file_operations *unit_fops;
+	const struct file_operations *unit_fops;
 	struct sound_unit *next;
 	char name[32];
 };
@@ -73,7 +73,7 @@ EXPORT_SYMBOL(sound_class);
  *	join into it. Called with the lock asserted
  */
 
-static int __sound_insert_unit(struct sound_unit * s, struct sound_unit **list, struct file_operations *fops, int index, int low, int top)
+static int __sound_insert_unit(struct sound_unit * s, struct sound_unit **list, const struct file_operations *fops, int index, int low, int top)
 {
 	int n=low;
 
@@ -153,7 +153,7 @@ static DEFINE_SPINLOCK(sound_loader_lock);
  *	list. Acquires locks as needed
  */
 
-static int sound_insert_unit(struct sound_unit **list, struct file_operations *fops, int index, int low, int top, const char *name, umode_t mode, struct device *dev)
+static int sound_insert_unit(struct sound_unit **list, const struct file_operations *fops, int index, int low, int top, const char *name, umode_t mode, struct device *dev)
 {
 	struct sound_unit *s = kmalloc(sizeof(*s), GFP_KERNEL);
 	int r;
@@ -237,7 +237,7 @@ static struct sound_unit *chains[SOUND_STEP];
  *	a negative error code is returned.
  */
  
-int register_sound_special_device(struct file_operations *fops, int unit,
+int register_sound_special_device(const struct file_operations *fops, int unit,
 				  struct device *dev)
 {
 	const int chain = unit % SOUND_STEP;
@@ -301,7 +301,7 @@ int register_sound_special_device(struct file_operations *fops, int unit,
  
 EXPORT_SYMBOL(register_sound_special_device);
 
-int register_sound_special(struct file_operations *fops, int unit)
+int register_sound_special(const struct file_operations *fops, int unit)
 {
 	return register_sound_special_device(fops, unit, NULL);
 }
@@ -318,7 +318,7 @@ EXPORT_SYMBOL(register_sound_special);
  *	number is returned, on failure a negative error code is returned.
  */
 
-int register_sound_mixer(struct file_operations *fops, int dev)
+int register_sound_mixer(const struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[0], fops, dev, 0, 128,
 				 "mixer", S_IRUSR | S_IWUSR, NULL);
@@ -336,7 +336,7 @@ EXPORT_SYMBOL(register_sound_mixer);
  *	number is returned, on failure a negative error code is returned.
  */
 
-int register_sound_midi(struct file_operations *fops, int dev)
+int register_sound_midi(const struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[2], fops, dev, 2, 130,
 				 "midi", S_IRUSR | S_IWUSR, NULL);
@@ -362,7 +362,7 @@ EXPORT_SYMBOL(register_sound_midi);
  *	and will always allocate them as a matching pair - eg dsp3/audio3
  */
 
-int register_sound_dsp(struct file_operations *fops, int dev)
+int register_sound_dsp(const struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[3], fops, dev, 3, 131,
 				 "dsp", S_IWUSR | S_IRUSR, NULL);
@@ -381,7 +381,7 @@ EXPORT_SYMBOL(register_sound_dsp);
  */
 
 
-int register_sound_synth(struct file_operations *fops, int dev)
+int register_sound_synth(const struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[9], fops, dev, 9, 137,
 				 "synth", S_IRUSR | S_IWUSR, NULL);
@@ -501,7 +501,7 @@ int soundcore_open(struct inode *inode, struct file *file)
 	int chain;
 	int unit = iminor(inode);
 	struct sound_unit *s;
-	struct file_operations *new_fops = NULL;
+	const struct file_operations *new_fops = NULL;
 
 	chain=unit&0x0F;
 	if(chain==4 || chain==5)	/* dsp/audio/dsp16 */
@@ -540,7 +540,7 @@ int soundcore_open(struct inode *inode, struct file *file)
 		 * switching ->f_op in the first place.
 		 */
 		int err = 0;
-		struct file_operations *old_fops = file->f_op;
+		const struct file_operations *old_fops = file->f_op;
 		file->f_op = new_fops;
 		spin_unlock(&sound_loader_lock);
 		if(file->f_op->open)

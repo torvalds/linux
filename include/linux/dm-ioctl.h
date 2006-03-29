@@ -80,6 +80,16 @@
  *
  * DM_TARGET_MSG:
  * Pass a message string to the target at a specific offset of a device.
+ *
+ * DM_DEV_SET_GEOMETRY:
+ * Set the geometry of a device by passing in a string in this format:
+ *
+ * "cylinders heads sectors_per_track start_sector"
+ *
+ * Beware that CHS geometry is nearly obsolete and only provided
+ * for compatibility with dm devices that can be booted by a PC
+ * BIOS.  See struct hd_geometry for range limits.  Also note that
+ * the geometry is erased if the device size changes.
  */
 
 /*
@@ -218,6 +228,7 @@ enum {
 	/* Added later */
 	DM_LIST_VERSIONS_CMD,
 	DM_TARGET_MSG_CMD,
+	DM_DEV_SET_GEOMETRY_CMD
 };
 
 /*
@@ -247,6 +258,7 @@ typedef char ioctl_struct[308];
 #define DM_TABLE_STATUS_32  _IOWR(DM_IOCTL, DM_TABLE_STATUS_CMD, ioctl_struct)
 #define DM_LIST_VERSIONS_32 _IOWR(DM_IOCTL, DM_LIST_VERSIONS_CMD, ioctl_struct)
 #define DM_TARGET_MSG_32    _IOWR(DM_IOCTL, DM_TARGET_MSG_CMD, ioctl_struct)
+#define DM_DEV_SET_GEOMETRY_32	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, ioctl_struct)
 #endif
 
 #define DM_IOCTL 0xfd
@@ -270,11 +282,12 @@ typedef char ioctl_struct[308];
 #define DM_LIST_VERSIONS _IOWR(DM_IOCTL, DM_LIST_VERSIONS_CMD, struct dm_ioctl)
 
 #define DM_TARGET_MSG	 _IOWR(DM_IOCTL, DM_TARGET_MSG_CMD, struct dm_ioctl)
+#define DM_DEV_SET_GEOMETRY	_IOWR(DM_IOCTL, DM_DEV_SET_GEOMETRY_CMD, struct dm_ioctl)
 
 #define DM_VERSION_MAJOR	4
-#define DM_VERSION_MINOR	5
+#define DM_VERSION_MINOR	6
 #define DM_VERSION_PATCHLEVEL	0
-#define DM_VERSION_EXTRA	"-ioctl (2005-10-04)"
+#define DM_VERSION_EXTRA	"-ioctl (2006-02-17)"
 
 /* Status bits */
 #define DM_READONLY_FLAG	(1 << 0) /* In/Out */

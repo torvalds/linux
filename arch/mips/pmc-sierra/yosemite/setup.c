@@ -198,8 +198,8 @@ static void __init py_rtc_setup(void)
 	if (!m48t37_base)
 		printk(KERN_ERR "Mapping the RTC failed\n");
 
-	rtc_get_time = m48t37y_get_time;
-	rtc_set_time = m48t37y_set_time;
+	rtc_mips_get_time = m48t37y_get_time;
+	rtc_mips_set_time = m48t37y_set_time;
 
 	write_seqlock(&xtime_lock);
 	xtime.tv_sec = m48t37y_get_time();
