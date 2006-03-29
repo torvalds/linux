@@ -68,13 +68,12 @@ void release_task(struct task_struct * p)
 	task_t *leader;
 	struct dentry *proc_dentry;
 
-repeat: 
+repeat:
 	atomic_dec(&p->user->processes);
 	spin_lock(&p->proc_lock);
 	proc_dentry = proc_pid_unhash(p);
 	write_lock_irq(&tasklist_lock);
-	if (unlikely(p->ptrace))
-		__ptrace_unlink(p);
+	ptrace_unlink(p);
 	BUG_ON(!list_empty(&p->ptrace_list) || !list_empty(&p->ptrace_children));
 	__exit_signal(p);
 	/*
