@@ -755,6 +755,12 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 #endif
 	}
 
+	/* Prevent unloading of the 1394 host */
+	if (!try_module_get(hi->host->driver->owner)) {
+		SBP2_ERR("failed to get a reference on 1394 host driver");
+		goto failed_alloc;
+	}
+
 	scsi_id->hi = hi;
 
 	list_add_tail(&scsi_id->scsi_list, &hi->scsi_ids);
@@ -1014,6 +1020,9 @@ static void sbp2_remove_device(struct scsi_id_instance_data *scsi_id)
 			scsi_id->status_fifo_addr);
 
 	scsi_id->ud->device.driver_data = NULL;
+
+	if (hi)
+		module_put(hi->host->driver->owner);
 
 	SBP2_DEBUG("SBP-2 device removed, SCSI ID = %d", scsi_id->ud->id);
 
