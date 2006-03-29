@@ -685,7 +685,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 		if (!cpu_online(j))
 			continue;
 
-		dprintk("CPU already managed, adding link\n");
+		dprintk("CPU %u already managed, adding link\n", j);
 		cpufreq_cpu_get(cpu);
 		cpu_sys_dev = get_cpu_sysdev(j);
 		sysfs_create_link(&cpu_sys_dev->kobj, &policy->kobj,
