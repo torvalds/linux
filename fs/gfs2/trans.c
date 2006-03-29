@@ -13,6 +13,7 @@
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
+#include <linux/kallsyms.h>
 #include <asm/semaphore.h>
 
 #include "gfs2.h"
@@ -25,24 +26,20 @@
 #include "trans.h"
 #include "util.h"
 
-int gfs2_trans_begin_i(struct gfs2_sbd *sdp, unsigned int blocks,
-		       unsigned int revokes, char *file, unsigned int line)
+int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
+		     unsigned int revokes)
 {
 	struct gfs2_trans *tr;
 	int error;
 
-	if (gfs2_assert_warn(sdp, !current->journal_info) ||
-	    gfs2_assert_warn(sdp, blocks || revokes)) {
-		fs_warn(sdp, "(%s, %u)\n", file, line);
-		return -EINVAL;
-	}
+	BUG_ON(current->journal_info);
+	BUG_ON(blocks == 0 && revokes == 0);
 
 	tr = kzalloc(sizeof(struct gfs2_trans), GFP_NOFS);
 	if (!tr)
 		return -ENOMEM;
 
-	tr->tr_file = file;
-	tr->tr_line = line;
+	tr->tr_ip = (unsigned long)__builtin_return_address(0);
 	tr->tr_blocks = blocks;
 	tr->tr_revokes = revokes;
 	tr->tr_reserved = 1;
@@ -104,16 +101,15 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		return;
 	}
 
-	if (gfs2_assert_withdraw(sdp, tr->tr_num_buf <= tr->tr_blocks))
-		fs_err(sdp, "tr_num_buf = %u, tr_blocks = %u "
-		       "tr_file = %s, tr_line = %u\n",
-		       tr->tr_num_buf, tr->tr_blocks,
-		       tr->tr_file, tr->tr_line);
+	if (gfs2_assert_withdraw(sdp, tr->tr_num_buf <= tr->tr_blocks)) {
+		fs_err(sdp, "tr_num_buf = %u, tr_blocks = %u ",
+		       tr->tr_num_buf, tr->tr_blocks);
+		print_symbol(KERN_WARNING "GFS2: Transaction created at: %s\n", tr->tr_ip);
+	}
 	if (gfs2_assert_withdraw(sdp, tr->tr_num_revoke <= tr->tr_revokes))
-		fs_err(sdp, "tr_num_revoke = %u, tr_revokes = %u "
-		       "tr_file = %s, tr_line = %u\n",
-		       tr->tr_num_revoke, tr->tr_revokes,
-		       tr->tr_file, tr->tr_line);
+		fs_err(sdp, "tr_num_revoke = %u, tr_revokes = %u ",
+		       tr->tr_num_revoke, tr->tr_revokes);
+		print_symbol(KERN_WARNING "GFS2: Transaction created at: %s\n", tr->tr_ip);
 
 	gfs2_log_commit(sdp, tr);
 

@@ -21,12 +21,8 @@
 #define RES_STATFS	1
 #define RES_QUOTA	2
 
-#define gfs2_trans_begin(sdp, blocks, revokes) \
-gfs2_trans_begin_i((sdp), (blocks), (revokes), __FILE__, __LINE__)
-
-int gfs2_trans_begin_i(struct gfs2_sbd *sdp,
-		      unsigned int blocks, unsigned int revokes,
-		      char *file, unsigned int line);
+int gfs2_trans_begin(struct gfs2_sbd *sdp,
+		      unsigned int blocks, unsigned int revokes);
 
 void gfs2_trans_end(struct gfs2_sbd *sdp);
 

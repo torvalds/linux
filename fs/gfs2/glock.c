@@ -16,6 +16,7 @@
 #include <linux/sort.h>
 #include <linux/jhash.h>
 #include <linux/kref.h>
+#include <linux/kallsyms.h>
 #include <linux/gfs2_ondisk.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -357,6 +358,7 @@ void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, int flags,
 {
 	INIT_LIST_HEAD(&gh->gh_list);
 	gh->gh_gl = gl;
+	gh->gh_ip = (unsigned long)__builtin_return_address(0);
 	gh->gh_owner = (flags & GL_NEVER_RECURSE) ? NULL : current;
 	gh->gh_state = state;
 	gh->gh_flags = flags;
@@ -388,6 +390,7 @@ void gfs2_holder_reinit(unsigned int state, int flags, struct gfs2_holder *gh)
 		gh->gh_flags |= GL_LOCAL_EXCL;
 
 	gh->gh_iflags &= 1 << HIF_ALLOCED;
+	gh->gh_ip = (unsigned long)__builtin_return_address(0);
 }
 
 /**
@@ -400,6 +403,7 @@ void gfs2_holder_uninit(struct gfs2_holder *gh)
 {
 	gfs2_glock_put(gh->gh_gl);
 	gh->gh_gl = NULL;
+	gh->gh_ip = 0;
 }
 
 /**
@@ -427,7 +431,7 @@ struct gfs2_holder *gfs2_holder_get(struct gfs2_glock *gl, unsigned int state,
 
 	gfs2_holder_init(gl, state, flags, gh);
 	set_bit(HIF_ALLOCED, &gh->gh_iflags);
-
+	gh->gh_ip = (unsigned long)__builtin_return_address(0);
 	return gh;
 }
 
@@ -1238,6 +1242,9 @@ static int recurse_check(struct gfs2_holder *existing, struct gfs2_holder *new,
 	return 0;
 
  fail:
+	print_symbol(KERN_WARNING "GFS2: Existing holder from %s\n",
+		     existing->gh_ip);
+	print_symbol(KERN_WARNING "GFS2: New holder from %s\n", new->gh_ip);
 	set_bit(HIF_ABORTED, &new->gh_iflags);
 	return -EINVAL;
 }
@@ -1541,30 +1548,6 @@ int gfs2_glock_be_greedy(struct gfs2_glock *gl, unsigned int time)
 	schedule_delayed_work(&gr->gr_work, time);
 
 	return 0;
-}
-
-/**
- * gfs2_glock_nq_init - intialize a holder and enqueue it on a glock
- * @gl: the glock
- * @state: the state we're requesting
- * @flags: the modifier flags
- * @gh: the holder structure
- *
- * Returns: 0, GLR_*, or errno
- */
-
-int gfs2_glock_nq_init(struct gfs2_glock *gl, unsigned int state, int flags,
-		       struct gfs2_holder *gh)
-{
-	int error;
-
-	gfs2_holder_init(gl, state, flags, gh);
-
-	error = gfs2_glock_nq(gh);
-	if (error)
-		gfs2_holder_uninit(gh);
-
-	return error;
 }
 
 /**
@@ -2334,6 +2317,7 @@ static int dump_holder(char *str, struct gfs2_holder *gh)
 		if (test_bit(x, &gh->gh_iflags))
 			printk(" %u", x);
 	printk(" \n");
+	print_symbol(KERN_INFO "    initialized at: %s\n", gh->gh_ip);
 
 	error = 0;
 

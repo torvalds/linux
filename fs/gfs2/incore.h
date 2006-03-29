@@ -161,6 +161,7 @@ struct gfs2_holder {
 	int gh_error;
 	unsigned long gh_iflags;
 	struct completion gh_wait;
+	unsigned long gh_ip;
 };
 
 enum {
@@ -353,8 +354,7 @@ struct gfs2_log_buf {
 };
 
 struct gfs2_trans {
-	char *tr_file;
-	unsigned int tr_line;
+	unsigned long tr_ip;
 
 	unsigned int tr_blocks;
 	unsigned int tr_revokes;

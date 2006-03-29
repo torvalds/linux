@@ -106,8 +106,6 @@ void gfs2_glock_force_drop(struct gfs2_glock *gl);
 
 int gfs2_glock_be_greedy(struct gfs2_glock *gl, unsigned int time);
 
-int gfs2_glock_nq_init(struct gfs2_glock *gl, unsigned int state, int flags,
-		       struct gfs2_holder *gh);
 void gfs2_glock_dq_uninit(struct gfs2_holder *gh);
 int gfs2_glock_nq_num(struct gfs2_sbd *sdp,
 		      uint64_t number, struct gfs2_glock_operations *glops,
@@ -120,6 +118,31 @@ void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_prefetch_num(struct gfs2_sbd *sdp, uint64_t number,
 			     struct gfs2_glock_operations *glops,
 			     unsigned int state, int flags);
+
+/**
+ * gfs2_glock_nq_init - intialize a holder and enqueue it on a glock
+ * @gl: the glock
+ * @state: the state we're requesting
+ * @flags: the modifier flags
+ * @gh: the holder structure
+ *
+ * Returns: 0, GLR_*, or errno
+ */
+
+static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
+				     unsigned int state, int flags,
+				     struct gfs2_holder *gh)
+{
+	int error;
+
+	gfs2_holder_init(gl, state, flags, gh);
+
+	error = gfs2_glock_nq(gh);
+	if (error)
+		gfs2_holder_uninit(gh);
+
+	return error;
+}
 
 /*  Lock Value Block functions  */
 
