@@ -39,15 +39,15 @@ static struct ipt_match tos_match = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_multiport_init(void)
 {
 	return ipt_register_match(&tos_match);
 }
 
-static void __exit fini(void)
+static void __exit ipt_multiport_fini(void)
 {
 	ipt_unregister_match(&tos_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_multiport_init);
+module_exit(ipt_multiport_fini);

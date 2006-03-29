@@ -55,16 +55,16 @@ static struct ipt_match ttl_match = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_ttl_init(void)
 {
 	return ipt_register_match(&ttl_match);
 }
 
-static void __exit fini(void)
+static void __exit ipt_ttl_fini(void)
 {
 	ipt_unregister_match(&ttl_match);
 
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_ttl_init);
+module_exit(ipt_ttl_fini);

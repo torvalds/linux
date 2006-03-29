@@ -1364,7 +1364,7 @@ static struct ipt_match icmp_matchstruct = {
 	.checkentry	= icmp_checkentry,
 };
 
-static int __init init(void)
+static int __init ip_tables_init(void)
 {
 	int ret;
 
@@ -1386,7 +1386,7 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ip_tables_fini(void)
 {
 	nf_unregister_sockopt(&ipt_sockopts);
 
@@ -1400,5 +1400,5 @@ static void __exit fini(void)
 EXPORT_SYMBOL(ipt_register_table);
 EXPORT_SYMBOL(ipt_unregister_table);
 EXPORT_SYMBOL(ipt_do_table);
-module_init(init);
-module_exit(fini);
+module_init(ip_tables_init);
+module_exit(ip_tables_fini);

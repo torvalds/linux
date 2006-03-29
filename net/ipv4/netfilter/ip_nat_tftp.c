@@ -53,19 +53,19 @@ static unsigned int help(struct sk_buff **pskb,
 	return NF_ACCEPT;
 }
 
-static void __exit fini(void)
+static void __exit ip_nat_tftp_fini(void)
 {
 	ip_nat_tftp_hook = NULL;
 	/* Make sure noone calls it, meanwhile. */
 	synchronize_net();
 }
 
-static int __init init(void)
+static int __init ip_nat_tftp_init(void)
 {
 	BUG_ON(ip_nat_tftp_hook);
 	ip_nat_tftp_hook = help;
 	return 0;
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip_nat_tftp_init);
+module_exit(ip_nat_tftp_fini);

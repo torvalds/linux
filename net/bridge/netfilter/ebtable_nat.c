@@ -98,7 +98,7 @@ static struct nf_hook_ops ebt_ops_nat[] = {
 	},
 };
 
-static int __init init(void)
+static int __init ebtable_nat_init(void)
 {
 	int i, ret, j;
 
@@ -116,7 +116,7 @@ cleanup:
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit ebtable_nat_fini(void)
 {
 	int i;
 
@@ -125,6 +125,6 @@ static void __exit fini(void)
 	ebt_unregister_table(&frame_nat);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebtable_nat_init);
+module_exit(ebtable_nat_fini);
 MODULE_LICENSE("GPL");

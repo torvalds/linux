@@ -52,7 +52,7 @@ static struct xt_target notrack6_reg = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_notrack_init(void)
 {
 	int ret;
 
@@ -67,11 +67,11 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_notrack_fini(void)
 {
 	xt_unregister_target(&notrack6_reg);
 	xt_unregister_target(&notrack_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_notrack_init);
+module_exit(xt_notrack_fini);

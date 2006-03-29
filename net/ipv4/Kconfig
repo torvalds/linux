@@ -235,6 +235,7 @@ config IP_PNP_RARP
 #   bool '    IP: ARP support' CONFIG_IP_PNP_ARP		
 config NET_IPIP
 	tristate "IP: tunneling"
+	select INET_TUNNEL
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -395,7 +396,7 @@ config INET_ESP
 config INET_IPCOMP
 	tristate "IP: IPComp transformation"
 	select XFRM
-	select INET_TUNNEL
+	select INET_XFRM_TUNNEL
 	select CRYPTO
 	select CRYPTO_DEFLATE
 	---help---
@@ -404,14 +405,14 @@ config INET_IPCOMP
 	  
 	  If unsure, say Y.
 
+config INET_XFRM_TUNNEL
+	tristate
+	select INET_TUNNEL
+	default n
+
 config INET_TUNNEL
-	tristate "IP: tunnel transformation"
-	select XFRM
-	---help---
-	  Support for generic IP tunnel transformation, which is required by
-	  the IP tunneling module as well as tunnel mode IPComp.
-	  
-	  If unsure, say Y.
+	tristate
+	default n
 
 config INET_DIAG
 	tristate "INET: socket monitoring interface"

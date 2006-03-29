@@ -370,7 +370,7 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 extern int __init ip_nat_proto_gre_init(void);
 extern void __exit ip_nat_proto_gre_fini(void);
 
-static int __init init(void)
+static int __init ip_nat_helper_pptp_init(void)
 {
 	int ret;
 
@@ -396,7 +396,7 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ip_nat_helper_pptp_fini(void)
 {
 	DEBUGP("cleanup_module\n" );
 
@@ -412,5 +412,5 @@ static void __exit fini(void)
 	printk("ip_nat_pptp version %s unloaded\n", IP_NAT_PPTP_VERSION);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip_nat_helper_pptp_init);
+module_exit(ip_nat_helper_pptp_fini);

@@ -89,7 +89,7 @@ static struct arpt_target arpt_mangle_reg = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init arpt_mangle_init(void)
 {
 	if (arpt_register_target(&arpt_mangle_reg))
 		return -EINVAL;
@@ -97,10 +97,10 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit arpt_mangle_fini(void)
 {
 	arpt_unregister_target(&arpt_mangle_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(arpt_mangle_init);
+module_exit(arpt_mangle_fini);

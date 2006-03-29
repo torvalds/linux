@@ -70,15 +70,15 @@ static struct ip6t_match eui64_match = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ip6t_eui64_init(void)
 {
 	return ip6t_register_match(&eui64_match);
 }
 
-static void __exit fini(void)
+static void __exit ip6t_eui64_fini(void)
 {
 	ip6t_unregister_match(&eui64_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip6t_eui64_init);
+module_exit(ip6t_eui64_fini);

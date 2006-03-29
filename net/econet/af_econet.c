@@ -42,6 +42,7 @@
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 #include <linux/bitops.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -49,6 +50,7 @@
 static const struct proto_ops econet_ops;
 static struct hlist_head econet_sklist;
 static DEFINE_RWLOCK(econet_lock);
+static DEFINE_MUTEX(econet_mutex);
 
 /* Since there are only 256 possible network numbers (or fewer, depends
    how you count) it makes sense to use a simple lookup table. */
@@ -124,6 +126,8 @@ static int econet_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	msg->msg_namelen = sizeof(struct sockaddr_ec);
 
+	mutex_lock(&econet_mutex);
+
 	/*
 	 *	Call the generic datagram receiver. This handles all sorts
 	 *	of horrible races and re-entrancy so we can forget about it
@@ -174,6 +178,7 @@ static int econet_recvmsg(struct kiocb *iocb, struct socket *sock,
 out_free:
 	skb_free_datagram(sk, skb);
 out:
+	mutex_unlock(&econet_mutex);
 	return err;
 }
 
@@ -184,8 +189,8 @@ out:
 static int econet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
 	struct sockaddr_ec *sec = (struct sockaddr_ec *)uaddr;
-	struct sock *sk=sock->sk;
-	struct econet_sock *eo = ec_sk(sk);
+	struct sock *sk;
+	struct econet_sock *eo;
 	
 	/*
 	 *	Check legality
@@ -195,10 +200,17 @@ static int econet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len
 	    sec->sec_family != AF_ECONET)
 		return -EINVAL;
 	
+	mutex_lock(&econet_mutex);
+
+	sk = sock->sk;
+	eo = ec_sk(sk);
+
 	eo->cb	    = sec->cb;
 	eo->port    = sec->port;
 	eo->station = sec->addr.station;
 	eo->net	    = sec->addr.net;
+
+	mutex_unlock(&econet_mutex);
 
 	return 0;
 }
@@ -284,6 +296,8 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	 *	Get and verify the address. 
 	 */
 	 
+	mutex_lock(&econet_mutex);
+
 	if (saddr == NULL) {
 		struct econet_sock *eo = ec_sk(sk);
 
@@ -292,8 +306,10 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		port	     = eo->port;
 		cb	     = eo->cb;
 	} else {
-		if (msg->msg_namelen < sizeof(struct sockaddr_ec)) 
+		if (msg->msg_namelen < sizeof(struct sockaddr_ec)) {
+			mutex_unlock(&econet_mutex);
 			return -EINVAL;
+		}
 		addr.station = saddr->addr.station;
 		addr.net = saddr->addr.net;
 		port = saddr->port;
@@ -304,19 +320,21 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	dev = net2dev_map[addr.net];
 
 	/* If not directly reachable, use some default */
-	if (dev == NULL)
-	{
+	if (dev == NULL) {
 		dev = net2dev_map[0];
 		/* No interfaces at all? */
-		if (dev == NULL)
+		if (dev == NULL) {
+			mutex_unlock(&econet_mutex);
 			return -ENETDOWN;
+		}
 	}
 
-	if (len + 15 > dev->mtu)
+	if (len + 15 > dev->mtu) {
+		mutex_unlock(&econet_mutex);
 		return -EMSGSIZE;
+	}
 
-	if (dev->type == ARPHRD_ECONET)
-	{
+	if (dev->type == ARPHRD_ECONET) {
 		/* Real hardware Econet.  We're not worthy etc. */
 #ifdef CONFIG_ECONET_NATIVE
 		unsigned short proto = 0;
@@ -374,6 +392,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		
 		dev_queue_xmit(skb);
 		dev_put(dev);
+		mutex_unlock(&econet_mutex);
 		return(len);
 
 	out_free:
@@ -384,14 +403,18 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 #else
 		err = -EPROTOTYPE;
 #endif
+		mutex_unlock(&econet_mutex);
+
 		return err;
 	}
 
 #ifdef CONFIG_ECONET_AUNUDP
 	/* AUN virtual Econet. */
 
-	if (udpsock == NULL)
+	if (udpsock == NULL) {
+		mutex_unlock(&econet_mutex);
 		return -ENETDOWN;		/* No socket - can't send */
+	}
 	
 	/* Make up a UDP datagram and hand it off to some higher intellect. */
 
@@ -438,8 +461,10 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		void __user *base = msg->msg_iov[i].iov_base;
 		size_t len = msg->msg_iov[i].iov_len;
 		/* Check it now since we switch to KERNEL_DS later. */
-		if (!access_ok(VERIFY_READ, base, len))
+		if (!access_ok(VERIFY_READ, base, len)) {
+			mutex_unlock(&econet_mutex);
 			return -EFAULT;
+		}
 		iov[i+1].iov_base = base;
 		iov[i+1].iov_len = len;
 		size += len;
@@ -447,8 +472,11 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	/* Get a skbuff (no data, just holds our cb information) */
 	if ((skb = sock_alloc_send_skb(sk, 0, 
-			     msg->msg_flags & MSG_DONTWAIT, &err)) == NULL)
+				       msg->msg_flags & MSG_DONTWAIT,
+				       &err)) == NULL) {
+		mutex_unlock(&econet_mutex);
 		return err;
+	}
 
 	eb = (struct ec_cb *)&skb->cb;
 
@@ -475,6 +503,8 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 #else
 	err = -EPROTOTYPE;
 #endif
+	mutex_unlock(&econet_mutex);
+
 	return err;
 }
 
@@ -485,17 +515,24 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 static int econet_getname(struct socket *sock, struct sockaddr *uaddr,
 			  int *uaddr_len, int peer)
 {
-	struct sock *sk = sock->sk;
-	struct econet_sock *eo = ec_sk(sk);
+	struct sock *sk;
+	struct econet_sock *eo;
 	struct sockaddr_ec *sec = (struct sockaddr_ec *)uaddr;
 
 	if (peer)
 		return -EOPNOTSUPP;
 
+	mutex_lock(&econet_mutex);
+
+	sk = sock->sk;
+	eo = ec_sk(sk);
+
 	sec->sec_family	  = AF_ECONET;
 	sec->port	  = eo->port;
 	sec->addr.station = eo->station;
 	sec->addr.net	  = eo->net;
+
+	mutex_unlock(&econet_mutex);
 
 	*uaddr_len = sizeof(*sec);
 	return 0;
@@ -522,10 +559,13 @@ static void econet_destroy_timer(unsigned long data)
 
 static int econet_release(struct socket *sock)
 {
-	struct sock *sk = sock->sk;
+	struct sock *sk;
 
+	mutex_lock(&econet_mutex);
+
+	sk = sock->sk;
 	if (!sk)
-		return 0;
+		goto out_unlock;
 
 	econet_remove_socket(&econet_sklist, sk);
 
@@ -549,10 +589,14 @@ static int econet_release(struct socket *sock)
 		sk->sk_timer.expires  = jiffies + HZ;
 		sk->sk_timer.function = econet_destroy_timer;
 		add_timer(&sk->sk_timer);
-		return 0;
+
+		goto out_unlock;
 	}
 
 	sk_free(sk);
+
+out_unlock:
+	mutex_unlock(&econet_mutex);
 	return 0;
 }
 
@@ -608,6 +652,7 @@ static int ec_dev_ioctl(struct socket *sock, unsigned int cmd, void __user *arg)
 	struct ec_device *edev;
 	struct net_device *dev;
 	struct sockaddr_ec *sec;
+	int err;
 
 	/*
 	 *	Fetch the caller's info block into kernel space
@@ -621,38 +666,35 @@ static int ec_dev_ioctl(struct socket *sock, unsigned int cmd, void __user *arg)
 
 	sec = (struct sockaddr_ec *)&ifr.ifr_addr;
 
-	switch (cmd)
-	{
+	mutex_lock(&econet_mutex);
+
+	err = 0;
+	switch (cmd) {
 	case SIOCSIFADDR:
 		edev = dev->ec_ptr;
-		if (edev == NULL)
-		{
+		if (edev == NULL) {
 			/* Magic up a new one. */
 			edev = kmalloc(sizeof(struct ec_device), GFP_KERNEL);
 			if (edev == NULL) {
-				printk("af_ec: memory squeeze.\n");
-				dev_put(dev);
-				return -ENOMEM;
+				err = -ENOMEM;
+				break;
 			}
 			memset(edev, 0, sizeof(struct ec_device));
 			dev->ec_ptr = edev;
-		}
-		else
+		} else
 			net2dev_map[edev->net] = NULL;
 		edev->station = sec->addr.station;
 		edev->net = sec->addr.net;
 		net2dev_map[sec->addr.net] = dev;
 		if (!net2dev_map[0])
 			net2dev_map[0] = dev;
-		dev_put(dev);
-		return 0;
+		break;
 
 	case SIOCGIFADDR:
 		edev = dev->ec_ptr;
-		if (edev == NULL)
-		{
-			dev_put(dev);
-			return -ENODEV;
+		if (edev == NULL) {
+			err = -ENODEV;
+			break;
 		}
 		memset(sec, 0, sizeof(struct sockaddr_ec));
 		sec->addr.station = edev->station;
@@ -660,12 +702,19 @@ static int ec_dev_ioctl(struct socket *sock, unsigned int cmd, void __user *arg)
 		sec->sec_family = AF_ECONET;
 		dev_put(dev);
 		if (copy_to_user(arg, &ifr, sizeof(struct ifreq)))
-			return -EFAULT;
-		return 0;
+			err = -EFAULT;
+		break;
+
+	default:
+		err = -EINVAL;
+		break;
 	}
 
+	mutex_unlock(&econet_mutex);
+
 	dev_put(dev);
-	return -EINVAL;
+
+	return err;
 }
 
 /*
@@ -699,7 +748,7 @@ static struct net_proto_family econet_family_ops = {
 	.owner	=	THIS_MODULE,
 };
 
-static const struct proto_ops SOCKOPS_WRAPPED(econet_ops) = {
+static const struct proto_ops econet_ops = {
 	.family =	PF_ECONET,
 	.owner =	THIS_MODULE,
 	.release =	econet_release,
@@ -719,9 +768,6 @@ static const struct proto_ops SOCKOPS_WRAPPED(econet_ops) = {
 	.mmap =		sock_no_mmap,
 	.sendpage =	sock_no_sendpage,
 };
-
-#include <linux/smp_lock.h>
-SOCKOPS_WRAP(econet, PF_ECONET);
 
 #if defined(CONFIG_ECONET_AUNUDP) || defined(CONFIG_ECONET_NATIVE)
 /*

@@ -213,16 +213,16 @@ static struct ebt_match filter_among = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ebt_among_init(void)
 {
 	return ebt_register_match(&filter_among);
 }
 
-static void __exit fini(void)
+static void __exit ebt_among_fini(void)
 {
 	ebt_unregister_match(&filter_among);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebt_among_init);
+module_exit(ebt_among_fini);
 MODULE_LICENSE("GPL");

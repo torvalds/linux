@@ -103,7 +103,7 @@ static int tftp_help(struct sk_buff **pskb,
 static struct ip_conntrack_helper tftp[MAX_PORTS];
 static char tftp_names[MAX_PORTS][sizeof("tftp-65535")];
 
-static void fini(void)
+static void ip_conntrack_tftp_fini(void)
 {
 	int i;
 
@@ -114,7 +114,7 @@ static void fini(void)
 	} 
 }
 
-static int __init init(void)
+static int __init ip_conntrack_tftp_init(void)
 {
 	int i, ret;
 	char *tmpname;
@@ -148,12 +148,12 @@ static int __init init(void)
 		if (ret) {
 			printk("ERROR registering helper for port %d\n",
 				ports[i]);
-			fini();
+			ip_conntrack_tftp_fini();
 			return(ret);
 		}
 	}
 	return(0);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip_conntrack_tftp_init);
+module_exit(ip_conntrack_tftp_fini);

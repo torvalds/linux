@@ -145,7 +145,7 @@ static struct xt_target ip6t_mark_reg_v0 = {
 	.revision	= 0,
 };
 
-static int __init init(void)
+static int __init xt_mark_init(void)
 {
 	int err;
 
@@ -166,12 +166,12 @@ static int __init init(void)
 	return err;
 }
 
-static void __exit fini(void)
+static void __exit xt_mark_fini(void)
 {
 	xt_unregister_target(&ipt_mark_reg_v0);
 	xt_unregister_target(&ipt_mark_reg_v1);
 	xt_unregister_target(&ip6t_mark_reg_v0);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_mark_init);
+module_exit(xt_mark_fini);

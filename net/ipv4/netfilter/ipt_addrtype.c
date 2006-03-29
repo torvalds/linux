@@ -51,15 +51,15 @@ static struct ipt_match addrtype_match = {
 	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init ipt_addrtype_init(void)
 {
 	return ipt_register_match(&addrtype_match);
 }
 
-static void __exit fini(void)
+static void __exit ipt_addrtype_fini(void)
 {
 	ipt_unregister_match(&addrtype_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_addrtype_init);
+module_exit(ipt_addrtype_fini);

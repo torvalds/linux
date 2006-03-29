@@ -160,7 +160,7 @@ static struct xt_match connbytes6_match = {
 	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init xt_connbytes_init(void)
 {
 	int ret;
 	ret = xt_register_match(&connbytes_match);
@@ -173,11 +173,11 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_connbytes_fini(void)
 {
 	xt_unregister_match(&connbytes_match);
 	xt_unregister_match(&connbytes6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_connbytes_init);
+module_exit(xt_connbytes_fini);
