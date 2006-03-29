@@ -1372,6 +1372,8 @@ void hid_close(struct hid_device *hid)
 		usb_kill_urb(hid->urbin);
 }
 
+#define USB_VENDOR_ID_PANJIT		0x134c
+
 /*
  * Initialize all reports
  */
@@ -1700,6 +1702,11 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_APPLE, 0x0216, HID_QUIRK_POWERBOOK_HAS_FN },
 	{ USB_VENDOR_ID_APPLE, 0x030A, HID_QUIRK_POWERBOOK_HAS_FN },
 	{ USB_VENDOR_ID_APPLE, 0x030B, HID_QUIRK_POWERBOOK_HAS_FN },
+
+	{ USB_VENDOR_ID_PANJIT, 0x0001, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_PANJIT, 0x0002, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_PANJIT, 0x0003, HID_QUIRK_IGNORE },
+	{ USB_VENDOR_ID_PANJIT, 0x0004, HID_QUIRK_IGNORE },
 
 	{ 0, 0 }
 };
