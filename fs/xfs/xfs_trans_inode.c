@@ -272,7 +272,7 @@ xfs_trans_log_inode(
 	 * This is to coordinate with the xfs_iflush() and xfs_iflush_done()
 	 * routines in the eventual clearing of the ilf_fields bits.
 	 * See the big comment in xfs_iflush() for an explanation of
-	 * this coorination mechanism.
+	 * this coordination mechanism.
 	 */
 	flags |= ip->i_itemp->ili_last_fields;
 	ip->i_itemp->ili_format.ilf_fields |= flags;

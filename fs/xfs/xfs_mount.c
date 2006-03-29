@@ -393,7 +393,7 @@ xfs_initialize_perag(
 				break;
 			}
 
-			/* This ag is prefered for inodes */
+			/* This ag is preferred for inodes */
 			pag = &mp->m_perag[index];
 			pag->pagi_inodeok = 1;
 			if (index < max_metadata)
@@ -1728,7 +1728,7 @@ xfs_mount_log_sbunit(
  * We cannot use the hotcpu_register() function because it does
  * not allow notifier instances. We need a notifier per filesystem
  * as we need to be able to identify the filesystem to balance
- * the counters out. This is acheived by having a notifier block
+ * the counters out. This is achieved by having a notifier block
  * embedded in the xfs_mount_t and doing pointer magic to get the
  * mount pointer from the notifier block address.
  */

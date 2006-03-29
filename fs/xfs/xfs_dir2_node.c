@@ -830,7 +830,7 @@ xfs_dir2_leafn_rebalance(
 		state->inleaf = 1;
 		blk2->index = 0;
 		cmn_err(CE_ALERT,
-			"xfs_dir2_leafn_rebalance: picked the wrong leaf? reverting orignal leaf: "
+			"xfs_dir2_leafn_rebalance: picked the wrong leaf? reverting original leaf: "
 			"blk1->index %d\n",
 			blk1->index);
 	}

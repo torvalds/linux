@@ -533,7 +533,7 @@ xfs_dir2_block_getdents(
 
 	/*
 	 * Reached the end of the block.
-	 * Set the offset to a nonexistent block 1 and return.
+	 * Set the offset to a non-existent block 1 and return.
 	 */
 	*eofp = 1;
 

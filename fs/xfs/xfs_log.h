@@ -27,7 +27,7 @@
 
 #ifdef __KERNEL__
 /*
- * By comparing each compnent, we don't have to worry about extra
+ * By comparing each component, we don't have to worry about extra
  * endian issues in treating two 32 bit numbers as one 64 bit number
  */
 static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)

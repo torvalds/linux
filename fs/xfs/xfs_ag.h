@@ -179,7 +179,7 @@ typedef struct xfs_perag
 {
 	char		pagf_init;	/* this agf's entry is initialized */
 	char		pagi_init;	/* this agi's entry is initialized */
-	char		pagf_metadata;	/* the agf is prefered to be metadata */
+	char		pagf_metadata;	/* the agf is preferred to be metadata */
 	char		pagi_inodeok;	/* The agi is ok for inodes */
 	__uint8_t	pagf_levels[XFS_BTNUM_AGF];
 					/* # of levels in bno & cnt btree */

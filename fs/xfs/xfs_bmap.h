@@ -362,14 +362,6 @@ xfs_bmbt_rec_t *
 xfs_bmap_search_multi_extents(struct xfs_ifork *, xfs_fileoff_t, int *,
 			xfs_extnum_t *, xfs_bmbt_irec_t *, xfs_bmbt_irec_t *);
 
-/*
- * Search an extent list for the extent which includes block
- * bno.
- */
-xfs_bmbt_rec_t *xfs_bmap_do_search_extents(xfs_bmbt_rec_t *,
-			xfs_extnum_t, xfs_extnum_t, xfs_fileoff_t, int *,
-			xfs_extnum_t *, xfs_bmbt_irec_t *, xfs_bmbt_irec_t *);
-
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_BMAP_H__ */

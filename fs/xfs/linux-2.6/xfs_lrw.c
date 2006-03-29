@@ -681,7 +681,7 @@ start:
 		eventsent = 1;
 
 		/*
-		 * The iolock was dropped and reaquired in XFS_SEND_DATA
+		 * The iolock was dropped and reacquired in XFS_SEND_DATA
 		 * so we have to recheck the size when appending.
 		 * We will only "goto start;" once, since having sent the
 		 * event prevents another call to XFS_SEND_DATA, which is
