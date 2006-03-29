@@ -2672,7 +2672,7 @@ static void __do_SAK(void *arg)
 	tty_hangup(tty);
 #else
 	struct tty_struct *tty = arg;
-	struct task_struct *p;
+	struct task_struct *g, *p;
 	int session;
 	int		i;
 	struct file	*filp;
@@ -2693,8 +2693,18 @@ static void __do_SAK(void *arg)
 		tty->driver->flush_buffer(tty);
 	
 	read_lock(&tasklist_lock);
+	/* Kill the entire session */
 	do_each_task_pid(session, PIDTYPE_SID, p) {
-		if (p->signal->tty == tty || session > 0) {
+		printk(KERN_NOTICE "SAK: killed process %d"
+			" (%s): p->signal->session==tty->session\n",
+			p->pid, p->comm);
+		send_sig(SIGKILL, p, 1);
+	} while_each_task_pid(session, PIDTYPE_SID, p);
+	/* Now kill any processes that happen to have the
+	 * tty open.
+	 */
+	do_each_thread(g, p) {
+		if (p->signal->tty == tty) {
 			printk(KERN_NOTICE "SAK: killed process %d"
 			    " (%s): p->signal->session==tty->session\n",
 			    p->pid, p->comm);
@@ -2721,7 +2731,7 @@ static void __do_SAK(void *arg)
 			rcu_read_unlock();
 		}
 		task_unlock(p);
-	} while_each_task_pid(session, PIDTYPE_SID, p);
+	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
 #endif
 }
