@@ -310,9 +310,7 @@ static void flush_sigqueue(struct sigpending *queue)
 /*
  * Flush all pending signals for a task.
  */
-
-void
-flush_signals(struct task_struct *t)
+void flush_signals(struct task_struct *t)
 {
 	unsigned long flags;
 
@@ -321,19 +319,6 @@ flush_signals(struct task_struct *t)
 	flush_sigqueue(&t->pending);
 	flush_sigqueue(&t->signal->shared_pending);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
-}
-
-/*
- * This function expects the tasklist_lock write-locked.
- */
-void __exit_sighand(struct task_struct *tsk)
-{
-	struct sighand_struct * sighand = tsk->sighand;
-
-	/* Ok, we're done with the signal handlers */
-	tsk->sighand = NULL;
-	if (atomic_dec_and_test(&sighand->count))
-		kmem_cache_free(sighand_cachep, sighand);
 }
 
 /*
@@ -386,7 +371,7 @@ void __exit_signal(struct task_struct *tsk)
 	}
 
 	tsk->signal = NULL;
-	__exit_sighand(tsk);
+	cleanup_sighand(tsk);
 	spin_unlock(&sighand->siglock);
 	rcu_read_unlock();
 
