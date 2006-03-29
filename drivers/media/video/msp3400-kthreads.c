@@ -228,6 +228,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 	char *modestr = (state->audmode >= 0 && state->audmode < 5) ?
 		strmode[state->audmode] : "unknown";
 	int src = 0;	/* channel source: FM/AM, nicam or SCART */
+	int audmode = state->audmode;
 
 	if (state->opmode == OPMODE_AUTOSELECT) {
 		/* this method would break everything, let's make sure
@@ -239,11 +240,22 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 		return;
 	}
 
+	/* If no second language is available, switch to the first language */
+	if ((audmode == V4L2_TUNER_MODE_LANG2 ||
+	     audmode == V4L2_TUNER_MODE_LANG1_LANG2) &&
+	    !(state->rxsubchans & V4L2_TUNER_SUB_LANG2))
+		audmode = V4L2_TUNER_MODE_LANG1;
+	/* switch to stereo for stereo transmission, otherwise
+	   keep first language */
+	if (audmode == V4L2_TUNER_MODE_LANG1 &&
+	    (state->rxsubchans & V4L2_TUNER_SUB_STEREO))
+		audmode = V4L2_TUNER_MODE_STEREO;
+
 	/* switch demodulator */
 	switch (state->mode) {
 	case MSP_MODE_FM_TERRA:
 		v4l_dbg(1, msp_debug, client, "FM set_audmode: %s\n", modestr);
-		switch (state->audmode) {
+		switch (audmode) {
 		case V4L2_TUNER_MODE_STEREO:
 			msp_write_dsp(client, 0x000e, 0x3001);
 			break;
@@ -257,7 +269,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 		break;
 	case MSP_MODE_FM_SAT:
 		v4l_dbg(1, msp_debug, client, "SAT set_audmode: %s\n", modestr);
-		switch (state->audmode) {
+		switch (audmode) {
 		case V4L2_TUNER_MODE_MONO:
 			msp3400c_set_carrier(client, MSP_CARRIER(6.5), MSP_CARRIER(6.5));
 			break;
@@ -296,7 +308,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 	}
 
 	/* switch audio */
-	switch (state->audmode) {
+	switch (audmode) {
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1_LANG2:
 		src |= 0x0020;
@@ -314,10 +326,6 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 			src = 0x0030;
 		break;
 	case V4L2_TUNER_MODE_LANG1:
-		/* switch to stereo for stereo transmission, otherwise
-		   keep first language */
-		if (state->rxsubchans & V4L2_TUNER_SUB_STEREO)
-			src |= 0x0020;
 		break;
 	case V4L2_TUNER_MODE_LANG2:
 		src |= 0x0010;
@@ -612,9 +620,9 @@ int msp3400c_thread(void *data)
 		if (msp_sleep(state, 1000))
 			goto restart;
 		while (state->watch_stereo) {
+			watch_stereo(client);
 			if (msp_sleep(state, 5000))
 				goto restart;
-			watch_stereo(client);
 		}
 	}
 	v4l_dbg(1, msp_debug, client, "thread: exit\n");
