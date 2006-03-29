@@ -719,15 +719,15 @@ cleanup_nothing:
 	
 }
 
-static int __init init(void)
+static int __init ipt_hashlimit_init(void)
 {
 	return init_or_fini(0);
 }
 
-static void __exit fini(void)
+static void __exit ipt_hashlimit_fini(void)
 {
 	init_or_fini(1);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_hashlimit_init);
+module_exit(ipt_hashlimit_fini);

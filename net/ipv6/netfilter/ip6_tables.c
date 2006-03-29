@@ -1406,7 +1406,7 @@ static struct ip6t_match icmp6_matchstruct = {
 	.family		= AF_INET6,
 };
 
-static int __init init(void)
+static int __init ip6_tables_init(void)
 {
 	int ret;
 
@@ -1429,7 +1429,7 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ip6_tables_fini(void)
 {
 	nf_unregister_sockopt(&ip6t_sockopts);
 	xt_unregister_match(&icmp6_matchstruct);
@@ -1517,5 +1517,5 @@ EXPORT_SYMBOL(ip6t_do_table);
 EXPORT_SYMBOL(ip6t_ext_hdr);
 EXPORT_SYMBOL(ipv6_find_hdr);
 
-module_init(init);
-module_exit(fini);
+module_init(ip6_tables_init);
+module_exit(ip6_tables_fini);

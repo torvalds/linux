@@ -180,16 +180,16 @@ static struct ebt_match filter_stp =
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ebt_stp_init(void)
 {
 	return ebt_register_match(&filter_stp);
 }
 
-static void __exit fini(void)
+static void __exit ebt_stp_fini(void)
 {
 	ebt_unregister_match(&filter_stp);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebt_stp_init);
+module_exit(ebt_stp_fini);
 MODULE_LICENSE("GPL");

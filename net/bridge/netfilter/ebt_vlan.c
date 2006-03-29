@@ -178,7 +178,7 @@ static struct ebt_match filter_vlan = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ebt_vlan_init(void)
 {
 	DEBUG_MSG("ebtables 802.1Q extension module v"
 		  MODULE_VERS "\n");
@@ -186,10 +186,10 @@ static int __init init(void)
 	return ebt_register_match(&filter_vlan);
 }
 
-static void __exit fini(void)
+static void __exit ebt_vlan_fini(void)
 {
 	ebt_unregister_match(&filter_vlan);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebt_vlan_init);
+module_exit(ebt_vlan_fini);

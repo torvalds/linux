@@ -167,15 +167,15 @@ static struct nf_queue_rerouter ip_reroute = {
 	.reroute	= queue_reroute,
 };
 
-static int init(void)
+static int ipv4_netfilter_init(void)
 {
 	return nf_register_queue_rerouter(PF_INET, &ip_reroute);
 }
 
-static void fini(void)
+static void ipv4_netfilter_fini(void)
 {
 	nf_unregister_queue_rerouter(PF_INET);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipv4_netfilter_init);
+module_exit(ipv4_netfilter_fini);

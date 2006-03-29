@@ -313,15 +313,15 @@ static struct ipt_target ipt_reject_reg = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_reject_init(void)
 {
 	return ipt_register_target(&ipt_reject_reg);
 }
 
-static void __exit fini(void)
+static void __exit ipt_reject_fini(void)
 {
 	ipt_unregister_target(&ipt_reject_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_reject_init);
+module_exit(ipt_reject_fini);

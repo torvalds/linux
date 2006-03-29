@@ -374,7 +374,7 @@ static struct nf_logger ipt_ulog_logger = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_ulog_init(void)
 {
 	int i;
 
@@ -407,7 +407,7 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ipt_ulog_fini(void)
 {
 	ulog_buff_t *ub;
 	int i;
@@ -435,5 +435,5 @@ static void __exit fini(void)
 
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_ulog_init);
+module_exit(ipt_ulog_fini);

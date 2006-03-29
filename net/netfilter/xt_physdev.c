@@ -134,7 +134,7 @@ static struct xt_match physdev6_match = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_physdev_init(void)
 {
 	int ret;
 
@@ -149,11 +149,11 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_physdev_fini(void)
 {
 	xt_unregister_match(&physdev_match);
 	xt_unregister_match(&physdev6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_physdev_init);
+module_exit(xt_physdev_fini);

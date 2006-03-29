@@ -98,15 +98,15 @@ static struct ipt_target target_module = {
     	.me 		= THIS_MODULE 
 };
 
-static int __init init(void)
+static int __init ipt_netmap_init(void)
 {
 	return ipt_register_target(&target_module);
 }
 
-static void __exit fini(void)
+static void __exit ipt_netmap_fini(void)
 {
 	ipt_unregister_target(&target_module);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_netmap_init);
+module_exit(ipt_netmap_fini);

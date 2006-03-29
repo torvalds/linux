@@ -89,7 +89,7 @@ static struct xt_match state6_match = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_state_init(void)
 {
 	int ret;
 
@@ -106,11 +106,11 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_state_fini(void)
 {
 	xt_unregister_match(&state_match);
 	xt_unregister_match(&state6_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_state_init);
+module_exit(xt_state_fini);

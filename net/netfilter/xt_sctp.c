@@ -200,7 +200,7 @@ static struct xt_match sctp6_match = {
 	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init xt_sctp_init(void)
 {
 	int ret;
 	ret = xt_register_match(&sctp_match);
@@ -214,11 +214,11 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_sctp_fini(void)
 {
 	xt_unregister_match(&sctp6_match);
 	xt_unregister_match(&sctp_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_sctp_init);
+module_exit(xt_sctp_fini);
