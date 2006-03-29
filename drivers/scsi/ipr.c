@@ -1333,8 +1333,8 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 		return;
 
 	if (ipr_is_device(&hostrcb->hcam.u.error.failing_dev_res_addr)) {
-		ipr_res_err(ioa_cfg, hostrcb->hcam.u.error.failing_dev_res_addr,
-			    "%s\n", ipr_error_table[error_index].error);
+		ipr_ra_err(ioa_cfg, hostrcb->hcam.u.error.failing_dev_res_addr,
+			   "%s\n", ipr_error_table[error_index].error);
 	} else {
 		dev_err(&ioa_cfg->pdev->dev, "%s\n",
 			ipr_error_table[error_index].error);
@@ -3332,7 +3332,7 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 	cmd_pkt->request_type = IPR_RQTYPE_IOACMD;
 	cmd_pkt->cdb[0] = IPR_RESET_DEVICE;
 
-	ipr_sdev_err(scsi_cmd->device, "Resetting device\n");
+	scmd_printk(KERN_ERR, scsi_cmd, "Resetting device\n");
 	ipr_send_blocking_cmd(ipr_cmd, ipr_timeout, IPR_DEVICE_RESET_TIMEOUT);
 
 	ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
@@ -3417,7 +3417,7 @@ static void ipr_abort_timeout(struct ipr_cmnd *ipr_cmd)
 		return;
 	}
 
-	ipr_sdev_err(ipr_cmd->u.sdev, "Abort timed out. Resetting bus\n");
+	sdev_printk(KERN_ERR, ipr_cmd->u.sdev, "Abort timed out. Resetting bus.\n");
 	reset_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
 	ipr_cmd->sibling = reset_cmd;
 	reset_cmd->sibling = ipr_cmd;
@@ -3481,7 +3481,8 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
 	cmd_pkt->cdb[0] = IPR_CANCEL_ALL_REQUESTS;
 	ipr_cmd->u.sdev = scsi_cmd->device;
 
-	ipr_sdev_err(scsi_cmd->device, "Aborting command: %02X\n", scsi_cmd->cmnd[0]);
+	scmd_printk(KERN_ERR, scsi_cmd, "Aborting command: %02X\n",
+		    scsi_cmd->cmnd[0]);
 	ipr_send_blocking_cmd(ipr_cmd, ipr_abort_timeout, IPR_CANCEL_ALL_TIMEOUT);
 	ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
 
@@ -3792,8 +3793,8 @@ static void ipr_erp_done(struct ipr_cmnd *ipr_cmd)
 
 	if (IPR_IOASC_SENSE_KEY(ioasc) > 0) {
 		scsi_cmd->result |= (DID_ERROR << 16);
-		ipr_sdev_err(scsi_cmd->device,
-			     "Request Sense failed with IOASC: 0x%08X\n", ioasc);
+		scmd_printk(KERN_ERR, scsi_cmd,
+			    "Request Sense failed with IOASC: 0x%08X\n", ioasc);
 	} else {
 		memcpy(scsi_cmd->sense_buffer, ipr_cmd->sense_buffer,
 		       SCSI_SENSE_BUFFERSIZE);
