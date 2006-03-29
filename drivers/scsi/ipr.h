@@ -133,6 +133,7 @@
 #define IPR_MAX_SCSI_RATE(width) ((320 * 10) / ((width) / 8))
 
 #define IPR_IOA_RES_HANDLE				0xffffffff
+#define IPR_INVALID_RES_HANDLE			0
 #define IPR_IOA_RES_ADDR				0x00ffffff
 
 /*

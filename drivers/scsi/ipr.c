@@ -869,8 +869,8 @@ static void ipr_handle_config_change(struct ipr_ioa_cfg *ioa_cfg,
 
 	if (hostrcb->hcam.notify_type == IPR_HOST_RCB_NOTIF_TYPE_REM_ENTRY) {
 		if (res->sdev) {
-			res->sdev->hostdata = NULL;
 			res->del_from_ml = 1;
+			res->cfgte.res_handle = IPR_INVALID_RES_HANDLE;
 			if (ioa_cfg->allow_ml_add_del)
 				schedule_work(&ioa_cfg->work_q);
 		} else
@@ -2107,7 +2107,6 @@ restart:
 				did_work = 1;
 				sdev = res->sdev;
 				if (!scsi_device_get(sdev)) {
-					res->sdev = NULL;
 					list_move_tail(&res->queue, &ioa_cfg->free_res_q);
 					spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 					scsi_remove_device(sdev);
@@ -2124,6 +2123,7 @@ restart:
 			bus = res->cfgte.res_addr.bus;
 			target = res->cfgte.res_addr.target;
 			lun = res->cfgte.res_addr.lun;
+			res->add_to_ml = 0;
 			spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 			scsi_add_device(ioa_cfg->host, bus, target, lun);
 			spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
@@ -4980,7 +4980,7 @@ static int ipr_init_res_table(struct ipr_cmnd *ipr_cmd)
 	list_for_each_entry_safe(res, temp, &old_res, queue) {
 		if (res->sdev) {
 			res->del_from_ml = 1;
-			res->sdev->hostdata = NULL;
+			res->cfgte.res_handle = IPR_INVALID_RES_HANDLE;
 			list_move_tail(&res->queue, &ioa_cfg->used_res_q);
 		} else {
 			list_move_tail(&res->queue, &ioa_cfg->free_res_q);
