@@ -112,6 +112,8 @@ static void __exit_signal(struct task_struct *tsk)
 		sig = NULL; /* Marker for below. */
 	}
 
+	__unhash_process(tsk);
+
 	tsk->signal = NULL;
 	cleanup_sighand(tsk);
 	spin_unlock(&sighand->siglock);
@@ -139,8 +141,6 @@ repeat:
 	ptrace_unlink(p);
 	BUG_ON(!list_empty(&p->ptrace_list) || !list_empty(&p->ptrace_children));
 	__exit_signal(p);
-
-	__unhash_process(p);
 
 	/*
 	 * If we are the last non-leader member of the thread
