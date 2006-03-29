@@ -58,7 +58,7 @@ MODULE_PARM_DESC(disable_nodemgr, "Disable nodemgr functionality.");
 
 /* Disable Isochronous Resource Manager functionality */
 int hpsb_disable_irm = 0;
-module_param_named(disable_irm, hpsb_disable_irm, bool, 0);
+module_param_named(disable_irm, hpsb_disable_irm, bool, 0444);
 MODULE_PARM_DESC(disable_irm,
 		 "Disable Isochronous Resource Manager functionality.");
 
