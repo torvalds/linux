@@ -147,6 +147,9 @@ static kmem_cache_t *sigqueue_cachep;
 #define sig_kernel_stop(sig) \
 		(((sig) < SIGRTMIN)  && T(sig, SIG_KERNEL_STOP_MASK))
 
+#define sig_needs_tasklist(sig) \
+		(((sig) < SIGRTMIN)  && T(sig, SIG_KERNEL_STOP_MASK | M(SIGCONT)))
+
 #define sig_user_defined(t, signr) \
 	(((t)->sighand->action[(signr)-1].sa.sa_handler != SIG_DFL) &&	\
 	 ((t)->sighand->action[(signr)-1].sa.sa_handler != SIG_IGN))
@@ -1199,7 +1202,7 @@ kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 	struct task_struct *p;
 
 	rcu_read_lock();
-	if (unlikely(sig_kernel_stop(sig) || sig == SIGCONT)) {
+	if (unlikely(sig_needs_tasklist(sig))) {
 		read_lock(&tasklist_lock);
 		acquired_tasklist_lock = 1;
 	}
