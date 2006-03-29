@@ -73,6 +73,9 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	if (dma_mask == 0)
 		dma_mask = 0xffffffff;
 
+	/* Don't invoke OOM killer */
+	gfp |= __GFP_NORETRY;
+
 	/* Kludge to make it bug-to-bug compatible with i386. i386
 	   uses the normal dma_mask for alloc_coherent. */
 	dma_mask &= *dev->dma_mask;

@@ -7,9 +7,8 @@
  *  Copyright (C) 2004-2005 by Latchesar Ionkov <lucho@ionkov.net>
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2
+ *  as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -70,7 +69,7 @@ struct v9fs_mux_data {
 	int msize;
 	unsigned char *extended;
 	struct v9fs_transport *trans;
-	struct v9fs_idpool tidpool;
+	struct v9fs_idpool tagpool;
 	int err;
 	wait_queue_head_t equeue;
 	struct list_head req_list;
@@ -280,8 +279,8 @@ struct v9fs_mux_data *v9fs_mux_init(struct v9fs_transport *trans, int msize,
 	m->msize = msize;
 	m->extended = extended;
 	m->trans = trans;
-	idr_init(&m->tidpool.pool);
-	init_MUTEX(&m->tidpool.lock);
+	idr_init(&m->tagpool.pool);
+	init_MUTEX(&m->tagpool.lock);
 	m->err = 0;
 	init_waitqueue_head(&m->equeue);
 	INIT_LIST_HEAD(&m->req_list);
@@ -635,6 +634,14 @@ static void v9fs_read_work(void *a)
 			goto error;
 		}
 
+		if ((v9fs_debug_level&DEBUG_FCALL) == DEBUG_FCALL) {
+			char buf[150];
+
+			v9fs_printfcall(buf, sizeof(buf), m->rcall,
+				*m->extended);
+			printk(KERN_NOTICE ">>> %p %s\n", m, buf);
+		}
+
 		rcall = m->rcall;
 		rbuf = m->rbuf;
 		if (m->rpos > n) {
@@ -739,6 +746,13 @@ static struct v9fs_req *v9fs_send_request(struct v9fs_mux_data *m,
 		return ERR_PTR(-ENOMEM);
 
 	v9fs_set_tag(tc, n);
+
+	if ((v9fs_debug_level&DEBUG_FCALL) == DEBUG_FCALL) {
+		char buf[150];
+
+		v9fs_printfcall(buf, sizeof(buf), tc, *m->extended);
+		printk(KERN_NOTICE "<<< %p %s\n", m, buf);
+	}
 
 	req->tag = n;
 	req->tcall = tc;
@@ -965,7 +979,7 @@ static u16 v9fs_mux_get_tag(struct v9fs_mux_data *m)
 {
 	int tag;
 
-	tag = v9fs_get_idpool(&m->tidpool);
+	tag = v9fs_get_idpool(&m->tagpool);
 	if (tag < 0)
 		return V9FS_NOTAG;
 	else
@@ -974,6 +988,6 @@ static u16 v9fs_mux_get_tag(struct v9fs_mux_data *m)
 
 static void v9fs_mux_put_tag(struct v9fs_mux_data *m, u16 tag)
 {
-	if (tag != V9FS_NOTAG && v9fs_check_idpool(tag, &m->tidpool))
-		v9fs_put_idpool(tag, &m->tidpool);
+	if (tag != V9FS_NOTAG && v9fs_check_idpool(tag, &m->tagpool))
+		v9fs_put_idpool(tag, &m->tagpool);
 }

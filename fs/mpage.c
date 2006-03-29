@@ -163,9 +163,19 @@ map_buffer_to_page(struct page *page, struct buffer_head *bh, int page_block)
 	} while (page_bh != head);
 }
 
+/*
+ * This is the worker routine which does all the work of mapping the disk
+ * blocks and constructs largest possible bios, submits them for IO if the
+ * blocks are not contiguous on the disk.
+ *
+ * We pass a buffer_head back and forth and use its buffer_mapped() flag to
+ * represent the validity of its disk mapping and to decide when to do the next
+ * get_block() call.
+ */
 static struct bio *
 do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
-			sector_t *last_block_in_bio, get_block_t get_block)
+		sector_t *last_block_in_bio, struct buffer_head *map_bh,
+		unsigned long *first_logical_block, get_block_t get_block)
 {
 	struct inode *inode = page->mapping->host;
 	const unsigned blkbits = inode->i_blkbits;
@@ -173,33 +183,72 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
 	const unsigned blocksize = 1 << blkbits;
 	sector_t block_in_file;
 	sector_t last_block;
+	sector_t last_block_in_file;
 	sector_t blocks[MAX_BUF_PER_PAGE];
 	unsigned page_block;
 	unsigned first_hole = blocks_per_page;
 	struct block_device *bdev = NULL;
-	struct buffer_head bh;
 	int length;
 	int fully_mapped = 1;
+	unsigned nblocks;
+	unsigned relative_block;
 
 	if (page_has_buffers(page))
 		goto confused;
 
 	block_in_file = (sector_t)page->index << (PAGE_CACHE_SHIFT - blkbits);
-	last_block = (i_size_read(inode) + blocksize - 1) >> blkbits;
+	last_block = block_in_file + nr_pages * blocks_per_page;
+	last_block_in_file = (i_size_read(inode) + blocksize - 1) >> blkbits;
+	if (last_block > last_block_in_file)
+		last_block = last_block_in_file;
+	page_block = 0;
 
-	bh.b_page = page;
-	for (page_block = 0; page_block < blocks_per_page;
-				page_block++, block_in_file++) {
-		bh.b_state = 0;
+	/*
+	 * Map blocks using the result from the previous get_blocks call first.
+	 */
+	nblocks = map_bh->b_size >> blkbits;
+	if (buffer_mapped(map_bh) && block_in_file > *first_logical_block &&
+			block_in_file < (*first_logical_block + nblocks)) {
+		unsigned map_offset = block_in_file - *first_logical_block;
+		unsigned last = nblocks - map_offset;
+
+		for (relative_block = 0; ; relative_block++) {
+			if (relative_block == last) {
+				clear_buffer_mapped(map_bh);
+				break;
+			}
+			if (page_block == blocks_per_page)
+				break;
+			blocks[page_block] = map_bh->b_blocknr + map_offset +
+						relative_block;
+			page_block++;
+			block_in_file++;
+		}
+		bdev = map_bh->b_bdev;
+	}
+
+	/*
+	 * Then do more get_blocks calls until we are done with this page.
+	 */
+	map_bh->b_page = page;
+	while (page_block < blocks_per_page) {
+		map_bh->b_state = 0;
+		map_bh->b_size = 0;
+
 		if (block_in_file < last_block) {
-			if (get_block(inode, block_in_file, &bh, 0))
+			map_bh->b_size = (last_block-block_in_file) << blkbits;
+			if (get_block(inode, block_in_file, map_bh, 0))
 				goto confused;
+			*first_logical_block = block_in_file;
 		}
 
-		if (!buffer_mapped(&bh)) {
+		if (!buffer_mapped(map_bh)) {
 			fully_mapped = 0;
 			if (first_hole == blocks_per_page)
 				first_hole = page_block;
+			page_block++;
+			block_in_file++;
+			clear_buffer_mapped(map_bh);
 			continue;
 		}
 
@@ -209,8 +258,8 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
 		 * we just collected from get_block into the page's buffers
 		 * so readpage doesn't have to repeat the get_block call
 		 */
-		if (buffer_uptodate(&bh)) {
-			map_buffer_to_page(page, &bh, page_block);
+		if (buffer_uptodate(map_bh)) {
+			map_buffer_to_page(page, map_bh, page_block);
 			goto confused;
 		}
 	
@@ -218,10 +267,20 @@ do_mpage_readpage(struct bio *bio, struct page *page, unsigned nr_pages,
 			goto confused;		/* hole -> non-hole */
 
 		/* Contiguous blocks? */
-		if (page_block && blocks[page_block-1] != bh.b_blocknr-1)
+		if (page_block && blocks[page_block-1] != map_bh->b_blocknr-1)
 			goto confused;
-		blocks[page_block] = bh.b_blocknr;
-		bdev = bh.b_bdev;
+		nblocks = map_bh->b_size >> blkbits;
+		for (relative_block = 0; ; relative_block++) {
+			if (relative_block == nblocks) {
+				clear_buffer_mapped(map_bh);
+				break;
+			} else if (page_block == blocks_per_page)
+				break;
+			blocks[page_block] = map_bh->b_blocknr+relative_block;
+			page_block++;
+			block_in_file++;
+		}
+		bdev = map_bh->b_bdev;
 	}
 
 	if (first_hole != blocks_per_page) {
@@ -260,7 +319,7 @@ alloc_new:
 		goto alloc_new;
 	}
 
-	if (buffer_boundary(&bh) || (first_hole != blocks_per_page))
+	if (buffer_boundary(map_bh) || (first_hole != blocks_per_page))
 		bio = mpage_bio_submit(READ, bio);
 	else
 		*last_block_in_bio = blocks[blocks_per_page - 1];
@@ -331,7 +390,10 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 	unsigned page_idx;
 	sector_t last_block_in_bio = 0;
 	struct pagevec lru_pvec;
+	struct buffer_head map_bh;
+	unsigned long first_logical_block = 0;
 
+	clear_buffer_mapped(&map_bh);
 	pagevec_init(&lru_pvec, 0);
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
 		struct page *page = list_entry(pages->prev, struct page, lru);
@@ -342,7 +404,9 @@ mpage_readpages(struct address_space *mapping, struct list_head *pages,
 					page->index, GFP_KERNEL)) {
 			bio = do_mpage_readpage(bio, page,
 					nr_pages - page_idx,
-					&last_block_in_bio, get_block);
+					&last_block_in_bio, &map_bh,
+					&first_logical_block,
+					get_block);
 			if (!pagevec_add(&lru_pvec, page))
 				__pagevec_lru_add(&lru_pvec);
 		} else {
@@ -364,9 +428,12 @@ int mpage_readpage(struct page *page, get_block_t get_block)
 {
 	struct bio *bio = NULL;
 	sector_t last_block_in_bio = 0;
+	struct buffer_head map_bh;
+	unsigned long first_logical_block = 0;
 
-	bio = do_mpage_readpage(bio, page, 1,
-			&last_block_in_bio, get_block);
+	clear_buffer_mapped(&map_bh);
+	bio = do_mpage_readpage(bio, page, 1, &last_block_in_bio,
+			&map_bh, &first_logical_block, get_block);
 	if (bio)
 		mpage_bio_submit(READ, bio);
 	return 0;
@@ -472,6 +539,7 @@ __mpage_writepage(struct bio *bio, struct page *page, get_block_t get_block,
 	for (page_block = 0; page_block < blocks_per_page; ) {
 
 		map_bh.b_state = 0;
+		map_bh.b_size = 1 << blkbits;
 		if (get_block(inode, block_in_file, &map_bh, 1))
 			goto confused;
 		if (buffer_new(&map_bh))

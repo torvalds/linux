@@ -16,6 +16,7 @@
 #include <linux/config.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 #include <asm/debug.h>
 #include <asm/uaccess.h>
@@ -69,6 +70,8 @@ int dasd_autodetect = 0;	/* is true, when autodetection is active */
  * strings when running as a module.
  */
 static char *dasd[256];
+module_param_array(dasd, charp, NULL, 0);
+
 /*
  * Single spinlock to protect devmap structures and lists.
  */
@@ -434,8 +437,7 @@ dasd_forget_ranges(void)
 	spin_lock(&dasd_devmap_lock);
 	for (i = 0; i < 256; i++) {
 		list_for_each_entry_safe(devmap, n, &dasd_hashlists[i], list) {
-			if (devmap->device != NULL)
-				BUG();
+			BUG_ON(devmap->device != NULL);
 			list_del(&devmap->list);
 			kfree(devmap);
 		}
@@ -544,8 +546,7 @@ dasd_delete_device(struct dasd_device *device)
 
 	/* First remove device pointer from devmap. */
 	devmap = dasd_find_busid(device->cdev->dev.bus_id);
-	if (IS_ERR(devmap))
-		BUG();
+	BUG_ON(IS_ERR(devmap));
 	spin_lock(&dasd_devmap_lock);
 	if (devmap->device != device) {
 		spin_unlock(&dasd_devmap_lock);

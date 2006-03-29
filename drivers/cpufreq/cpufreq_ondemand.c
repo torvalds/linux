@@ -38,17 +38,17 @@
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 
-/* 
- * The polling frequency of this governor depends on the capability of 
+/*
+ * The polling frequency of this governor depends on the capability of
  * the processor. Default polling frequency is 1000 times the transition
- * latency of the processor. The governor will work on any processor with 
- * transition latency <= 10mS, using appropriate sampling 
+ * latency of the processor. The governor will work on any processor with
+ * transition latency <= 10mS, using appropriate sampling
  * rate.
  * For CPUs with transition latency > 10mS (mostly drivers with CPUFREQ_ETERNAL)
  * this governor will not work.
  * All times here are in uS.
  */
-static unsigned int 				def_sampling_rate;
+static unsigned int def_sampling_rate;
 #define MIN_SAMPLING_RATE_RATIO			(2)
 /* for correct statistics, we need at least 10 ticks between each measure */
 #define MIN_STAT_SAMPLING_RATE			(MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10))
@@ -62,28 +62,29 @@ static unsigned int 				def_sampling_rate;
 static void do_dbs_timer(void *data);
 
 struct cpu_dbs_info_s {
-	struct cpufreq_policy 	*cur_policy;
-	unsigned int 		prev_cpu_idle_up;
-	unsigned int 		prev_cpu_idle_down;
-	unsigned int 		enable;
+	struct cpufreq_policy *cur_policy;
+	unsigned int prev_cpu_idle_up;
+	unsigned int prev_cpu_idle_down;
+	unsigned int enable;
 };
 static DEFINE_PER_CPU(struct cpu_dbs_info_s, cpu_dbs_info);
 
 static unsigned int dbs_enable;	/* number of CPUs using this policy */
 
-static DEFINE_MUTEX 	(dbs_mutex);
+static DEFINE_MUTEX (dbs_mutex);
 static DECLARE_WORK	(dbs_work, do_dbs_timer, NULL);
 
 struct dbs_tuners {
-	unsigned int 		sampling_rate;
-	unsigned int		sampling_down_factor;
-	unsigned int		up_threshold;
-	unsigned int		ignore_nice;
+	unsigned int sampling_rate;
+	unsigned int sampling_down_factor;
+	unsigned int up_threshold;
+	unsigned int ignore_nice;
 };
 
 static struct dbs_tuners dbs_tuners_ins = {
-	.up_threshold 		= DEF_FREQUENCY_UP_THRESHOLD,
-	.sampling_down_factor 	= DEF_SAMPLING_DOWN_FACTOR,
+	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
+	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
+	.ignore_nice = 0,
 };
 
 static inline unsigned int get_cpu_idle_time(unsigned int cpu)
@@ -106,8 +107,8 @@ static ssize_t show_sampling_rate_min(struct cpufreq_policy *policy, char *buf)
 	return sprintf (buf, "%u\n", MIN_SAMPLING_RATE);
 }
 
-#define define_one_ro(_name) 					\
-static struct freq_attr _name =  				\
+#define define_one_ro(_name)		\
+static struct freq_attr _name =		\
 __ATTR(_name, 0444, show_##_name, NULL)
 
 define_one_ro(sampling_rate_max);
@@ -125,7 +126,7 @@ show_one(sampling_down_factor, sampling_down_factor);
 show_one(up_threshold, up_threshold);
 show_one(ignore_nice_load, ignore_nice);
 
-static ssize_t store_sampling_down_factor(struct cpufreq_policy *unused, 
+static ssize_t store_sampling_down_factor(struct cpufreq_policy *unused,
 		const char *buf, size_t count)
 {
 	unsigned int input;
@@ -144,7 +145,7 @@ static ssize_t store_sampling_down_factor(struct cpufreq_policy *unused,
 	return count;
 }
 
-static ssize_t store_sampling_rate(struct cpufreq_policy *unused, 
+static ssize_t store_sampling_rate(struct cpufreq_policy *unused,
 		const char *buf, size_t count)
 {
 	unsigned int input;
@@ -163,7 +164,7 @@ static ssize_t store_sampling_rate(struct cpufreq_policy *unused,
 	return count;
 }
 
-static ssize_t store_up_threshold(struct cpufreq_policy *unused, 
+static ssize_t store_up_threshold(struct cpufreq_policy *unused,
 		const char *buf, size_t count)
 {
 	unsigned int input;
@@ -171,7 +172,7 @@ static ssize_t store_up_threshold(struct cpufreq_policy *unused,
 	ret = sscanf (buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
-	if (ret != 1 || input > MAX_FREQUENCY_UP_THRESHOLD || 
+	if (ret != 1 || input > MAX_FREQUENCY_UP_THRESHOLD ||
 			input < MIN_FREQUENCY_UP_THRESHOLD) {
 		mutex_unlock(&dbs_mutex);
 		return -EINVAL;
@@ -190,14 +191,14 @@ static ssize_t store_ignore_nice_load(struct cpufreq_policy *policy,
 	int ret;
 
 	unsigned int j;
-	
+
 	ret = sscanf (buf, "%u", &input);
 	if ( ret != 1 )
 		return -EINVAL;
 
 	if ( input > 1 )
 		input = 1;
-	
+
 	mutex_lock(&dbs_mutex);
 	if ( input == dbs_tuners_ins.ignore_nice ) { /* nothing to do */
 		mutex_unlock(&dbs_mutex);
@@ -259,16 +260,16 @@ static void dbs_check_cpu(int cpu)
 		return;
 
 	policy = this_dbs_info->cur_policy;
-	/* 
+	/*
 	 * Every sampling_rate, we check, if current idle time is less
 	 * than 20% (default), then we try to increase frequency
 	 * Every sampling_rate*sampling_down_factor, we look for a the lowest
 	 * frequency which can sustain the load while keeping idle time over
 	 * 30%. If such a frequency exist, we try to decrease to this frequency.
 	 *
-	 * Any frequency increase takes it to the maximum frequency. 
-	 * Frequency reduction happens at minimum steps of 
-	 * 5% (default) of current frequency 
+	 * Any frequency increase takes it to the maximum frequency.
+	 * Frequency reduction happens at minimum steps of
+	 * 5% (default) of current frequency
 	 */
 
 	/* Check for frequency increase */
@@ -298,14 +299,14 @@ static void dbs_check_cpu(int cpu)
 			struct cpu_dbs_info_s *j_dbs_info;
 
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
-			j_dbs_info->prev_cpu_idle_down = 
+			j_dbs_info->prev_cpu_idle_down =
 					j_dbs_info->prev_cpu_idle_up;
 		}
 		/* if we are already at full speed then break out early */
 		if (policy->cur == policy->max)
 			return;
-		
-		__cpufreq_driver_target(policy, policy->max, 
+
+		__cpufreq_driver_target(policy, policy->max,
 			CPUFREQ_RELATION_H);
 		return;
 	}
@@ -347,23 +348,26 @@ static void dbs_check_cpu(int cpu)
 	 * policy. To be safe, we focus 10 points under the threshold.
 	 */
 	freq_next = ((total_ticks - idle_ticks) * 100) / total_ticks;
-	freq_next = (freq_next * policy->cur) / 
+	freq_next = (freq_next * policy->cur) /
 			(dbs_tuners_ins.up_threshold - 10);
+
+	if (freq_next < policy->min)
+		freq_next = policy->min;
 
 	if (freq_next <= ((policy->cur * 95) / 100))
 		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_L);
 }
 
 static void do_dbs_timer(void *data)
-{ 
+{
 	int i;
 	mutex_lock(&dbs_mutex);
 	for_each_online_cpu(i)
 		dbs_check_cpu(i);
-	schedule_delayed_work(&dbs_work, 
+	schedule_delayed_work(&dbs_work,
 			usecs_to_jiffies(dbs_tuners_ins.sampling_rate));
 	mutex_unlock(&dbs_mutex);
-} 
+}
 
 static inline void dbs_timer_init(void)
 {
@@ -390,22 +394,25 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 	switch (event) {
 	case CPUFREQ_GOV_START:
-		if ((!cpu_online(cpu)) || 
+		if ((!cpu_online(cpu)) ||
 		    (!policy->cur))
 			return -EINVAL;
 
 		if (policy->cpuinfo.transition_latency >
-				(TRANSITION_LATENCY_LIMIT * 1000))
+				(TRANSITION_LATENCY_LIMIT * 1000)) {
+			printk(KERN_WARNING "ondemand governor failed to load "
+			       "due to too long transition latency\n");
 			return -EINVAL;
+		}
 		if (this_dbs_info->enable) /* Already enabled */
 			break;
-		 
+
 		mutex_lock(&dbs_mutex);
 		for_each_cpu_mask(j, policy->cpus) {
 			struct cpu_dbs_info_s *j_dbs_info;
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
 			j_dbs_info->cur_policy = policy;
-		
+
 			j_dbs_info->prev_cpu_idle_up = get_cpu_idle_time(j);
 			j_dbs_info->prev_cpu_idle_down
 				= j_dbs_info->prev_cpu_idle_up;
@@ -431,11 +438,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				def_sampling_rate = MIN_STAT_SAMPLING_RATE;
 
 			dbs_tuners_ins.sampling_rate = def_sampling_rate;
-			dbs_tuners_ins.ignore_nice = 0;
-
 			dbs_timer_init();
 		}
-		
+
 		mutex_unlock(&dbs_mutex);
 		break;
 
@@ -448,9 +453,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		 * Stop the timerschedule work, when this governor
 		 * is used for first time
 		 */
-		if (dbs_enable == 0) 
+		if (dbs_enable == 0)
 			dbs_timer_exit();
-		
+
 		mutex_unlock(&dbs_mutex);
 
 		break;
@@ -460,11 +465,11 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		if (policy->max < this_dbs_info->cur_policy->cur)
 			__cpufreq_driver_target(
 					this_dbs_info->cur_policy,
-				       	policy->max, CPUFREQ_RELATION_H);
+					policy->max, CPUFREQ_RELATION_H);
 		else if (policy->min > this_dbs_info->cur_policy->cur)
 			__cpufreq_driver_target(
 					this_dbs_info->cur_policy,
-				       	policy->min, CPUFREQ_RELATION_L);
+					policy->min, CPUFREQ_RELATION_L);
 		mutex_unlock(&dbs_mutex);
 		break;
 	}

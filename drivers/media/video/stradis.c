@@ -1,4 +1,4 @@
-/* 
+/*
  * stradis.c - stradis 4:2:2 mpeg decoder driver
  *
  * Stradis 4:2:2 MPEG-2 Decoder Driver
@@ -1191,9 +1191,9 @@ static void saa7146_set_winsize(struct saa7146 *saa)
 }
 
 /* clip_draw_rectangle(cm,x,y,w,h) -- handle clipping an area
- * bitmap is fixed width, 128 bytes (1024 pixels represented) 
- * arranged most-sigificant-bit-left in 32-bit words 
- * based on saa7146 clipping hardware, it swaps bytes if LE 
+ * bitmap is fixed width, 128 bytes (1024 pixels represented)
+ * arranged most-sigificant-bit-left in 32-bit words
+ * based on saa7146 clipping hardware, it swaps bytes if LE
  * much of this makes up for egcs brain damage -- so if you
  * are wondering "why did he do this?" it is because the C
  * was adjusted to generate the optimal asm output without
@@ -1259,7 +1259,7 @@ static void make_clip_tab(struct saa7146 *saa, struct video_clip *cr, int ncr)
 			clip_draw_rectangle(clipmap, cr[i].x, cr[i].y,
 				cr[i].width, cr[i].height);
 	}
-	/* clip against viewing window AND screen 
+	/* clip against viewing window AND screen
 	   so we do not have to rely on the user program
 	 */
 	clip_draw_rectangle(clipmap, (saa->win.x + width > saa->win.swidth) ?

@@ -74,19 +74,19 @@ EXPORT_SYMBOL(__debugger_dabr_match);
 EXPORT_SYMBOL(__debugger_fault_handler);
 #endif
 
-struct notifier_block *powerpc_die_chain;
-static DEFINE_SPINLOCK(die_notifier_lock);
+ATOMIC_NOTIFIER_HEAD(powerpc_die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
 {
-	int err = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&die_notifier_lock, flags);
-	err = notifier_chain_register(&powerpc_die_chain, nb);
-	spin_unlock_irqrestore(&die_notifier_lock, flags);
-	return err;
+	return atomic_notifier_chain_register(&powerpc_die_chain, nb);
 }
+EXPORT_SYMBOL(register_die_notifier);
+
+int unregister_die_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&powerpc_die_chain, nb);
+}
+EXPORT_SYMBOL(unregister_die_notifier);
 
 /*
  * Trap & Exception support
@@ -97,7 +97,6 @@ static DEFINE_SPINLOCK(die_lock);
 int die(const char *str, struct pt_regs *regs, long err)
 {
 	static int die_counter, crash_dump_start = 0;
-	int nl = 0;
 
 	if (debugger(regs))
 		return 1;
@@ -106,7 +105,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (_machine == _MACH_Pmac) {
+	if (machine_is(powermac)) {
 		set_backlight_enable(1);
 		set_backlight_level(BACKLIGHT_MAX);
 	}
@@ -114,46 +113,18 @@ int die(const char *str, struct pt_regs *regs, long err)
 	printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
 #ifdef CONFIG_PREEMPT
 	printk("PREEMPT ");
-	nl = 1;
 #endif
 #ifdef CONFIG_SMP
 	printk("SMP NR_CPUS=%d ", NR_CPUS);
-	nl = 1;
 #endif
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	printk("DEBUG_PAGEALLOC ");
-	nl = 1;
 #endif
 #ifdef CONFIG_NUMA
 	printk("NUMA ");
-	nl = 1;
 #endif
-#ifdef CONFIG_PPC64
-	switch (_machine) {
-	case PLATFORM_PSERIES:
-		printk("PSERIES ");
-		nl = 1;
-		break;
-	case PLATFORM_PSERIES_LPAR:
-		printk("PSERIES LPAR ");
-		nl = 1;
-		break;
-	case PLATFORM_ISERIES_LPAR:
-		printk("ISERIES LPAR ");
-		nl = 1;
-		break;
-	case PLATFORM_POWERMAC:
-		printk("POWERMAC ");
-		nl = 1;
-		break;
-	case PLATFORM_CELL:
-		printk("CELL ");
-		nl = 1;
-		break;
-	}
-#endif
-	if (nl)
-		printk("\n");
+	printk("%s\n", ppc_md.name ? "" : ppc_md.name);
+
 	print_modules();
 	show_regs(regs);
 	bust_spinlocks(0);

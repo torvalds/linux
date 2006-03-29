@@ -30,24 +30,22 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/init.h>
 
-#include "bttv.h"
-#include <media/audiochip.h>
+
+#include <media/i2c-addr.h>
 
 static int debug; /* insmod parameter */
 module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_LICENSE("GPL");
 
-
 /* Addresses to scan */
 static unsigned short normal_i2c[] =  {
-    I2C_TDA9875 >> 1,
+    I2C_ADDR_TDA9875 >> 1,
     I2C_CLIENT_END
 };
 I2C_CLIENT_INSMOD;
 
 /* This is a superset of the TDA9875 */
 struct tda9875 {
-	int mode;
 	int rvol, lvol;
 	int bass, treble;
 	struct i2c_client c;
@@ -197,7 +195,6 @@ static void do_tda9875_init(struct i2c_client *client)
 
 	tda9875_write(client, TDA9875_MUT, 0xcc );   /* General mute  */
 
-	t->mode=AUDIO_UNMUTE;
 	t->lvol=t->rvol =0;  	/* 0dB */
 	t->bass=0; 			/* 0dB */
 	t->treble=0;  		/* 0dB */

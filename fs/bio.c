@@ -30,7 +30,7 @@
 
 #define BIO_POOL_SIZE 256
 
-static kmem_cache_t *bio_slab;
+static kmem_cache_t *bio_slab __read_mostly;
 
 #define BIOVEC_NR_POOLS 6
 
@@ -39,7 +39,7 @@ static kmem_cache_t *bio_slab;
  * basically we just need to survive
  */
 #define BIO_SPLIT_ENTRIES 8	
-mempool_t *bio_split_pool;
+mempool_t *bio_split_pool __read_mostly;
 
 struct biovec_slab {
 	int nr_vecs;
@@ -636,11 +636,9 @@ static struct bio *__bio_map_user_iov(request_queue_t *q,
 		return ERR_PTR(-ENOMEM);
 
 	ret = -ENOMEM;
-	pages = kmalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
+	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		goto out;
-
-	memset(pages, 0, nr_pages * sizeof(struct page *));
 
 	for (i = 0; i < iov_count; i++) {
 		unsigned long uaddr = (unsigned long)iov[i].iov_base;
@@ -1127,16 +1125,6 @@ struct bio_pair *bio_split(struct bio *bi, mempool_t *pool, int first_sectors)
 	return bp;
 }
 
-static void *bio_pair_alloc(gfp_t gfp_flags, void *data)
-{
-	return kmalloc(sizeof(struct bio_pair), gfp_flags);
-}
-
-static void bio_pair_free(void *bp, void *data)
-{
-	kfree(bp);
-}
-
 
 /*
  * create memory pools for biovec's in a bio_set.
@@ -1153,8 +1141,7 @@ static int biovec_create_pools(struct bio_set *bs, int pool_entries, int scale)
 		if (i >= scale)
 			pool_entries >>= 1;
 
-		*bvp = mempool_create(pool_entries, mempool_alloc_slab,
-					mempool_free_slab, bp->slab);
+		*bvp = mempool_create_slab_pool(pool_entries, bp->slab);
 		if (!*bvp)
 			return -ENOMEM;
 	}
@@ -1186,15 +1173,12 @@ void bioset_free(struct bio_set *bs)
 
 struct bio_set *bioset_create(int bio_pool_size, int bvec_pool_size, int scale)
 {
-	struct bio_set *bs = kmalloc(sizeof(*bs), GFP_KERNEL);
+	struct bio_set *bs = kzalloc(sizeof(*bs), GFP_KERNEL);
 
 	if (!bs)
 		return NULL;
 
-	memset(bs, 0, sizeof(*bs));
-	bs->bio_pool = mempool_create(bio_pool_size, mempool_alloc_slab,
-			mempool_free_slab, bio_slab);
-
+	bs->bio_pool = mempool_create_slab_pool(bio_pool_size, bio_slab);
 	if (!bs->bio_pool)
 		goto bad;
 
@@ -1257,8 +1241,8 @@ static int __init init_bio(void)
 	if (!fs_bio_set)
 		panic("bio: can't allocate bios\n");
 
-	bio_split_pool = mempool_create(BIO_SPLIT_ENTRIES,
-				bio_pair_alloc, bio_pair_free, NULL);
+	bio_split_pool = mempool_create_kmalloc_pool(BIO_SPLIT_ENTRIES,
+						     sizeof(struct bio_pair));
 	if (!bio_split_pool)
 		panic("bio: can't create split pool\n");
 

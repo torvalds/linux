@@ -258,7 +258,8 @@ jfs_get_blocks(struct inode *ip, sector_t lblock, unsigned long max_blocks,
 static int jfs_get_block(struct inode *ip, sector_t lblock,
 			 struct buffer_head *bh_result, int create)
 {
-	return jfs_get_blocks(ip, lblock, 1, bh_result, create);
+	return jfs_get_blocks(ip, lblock, bh_result->b_size >> ip->i_blkbits,
+			bh_result, create);
 }
 
 static int jfs_writepage(struct page *page, struct writeback_control *wbc)
@@ -301,7 +302,7 @@ static ssize_t jfs_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode = file->f_mapping->host;
 
 	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				offset, nr_segs, jfs_get_blocks, NULL);
+				offset, nr_segs, jfs_get_block, NULL);
 }
 
 struct address_space_operations jfs_aops = {

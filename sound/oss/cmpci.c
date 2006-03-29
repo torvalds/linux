@@ -1713,7 +1713,7 @@ static int mixer_ioctl(struct cm_state *s, unsigned int cmd, unsigned long arg)
 	case SOUND_MIXER_RECSRC: /* Arg contains a bit for each recording source */
 		if (get_user(val, p))
 			return -EFAULT;
-		i = generic_hweight32(val);
+		i = hweight32(val);
 		for (j = i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 			if (!(val & (1 << i)))
 				continue;

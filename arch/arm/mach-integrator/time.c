@@ -40,13 +40,13 @@ static int integrator_set_rtc(void)
 	return 1;
 }
 
-static int rtc_read_alarm(struct rtc_wkalrm *alrm)
+static int integrator_rtc_read_alarm(struct rtc_wkalrm *alrm)
 {
 	rtc_time_to_tm(readl(rtc_base + RTC_MR), &alrm->time);
 	return 0;
 }
 
-static inline int rtc_set_alarm(struct rtc_wkalrm *alrm)
+static inline int integrator_rtc_set_alarm(struct rtc_wkalrm *alrm)
 {
 	unsigned long time;
 	int ret;
@@ -62,7 +62,7 @@ static inline int rtc_set_alarm(struct rtc_wkalrm *alrm)
 	return ret;
 }
 
-static int rtc_read_time(struct rtc_time *tm)
+static int integrator_rtc_read_time(struct rtc_time *tm)
 {
 	rtc_time_to_tm(readl(rtc_base + RTC_DR), tm);
 	return 0;
@@ -76,7 +76,7 @@ static int rtc_read_time(struct rtc_time *tm)
  * edge of the 1Hz clock, we must write the time one second
  * in advance.
  */
-static inline int rtc_set_time(struct rtc_time *tm)
+static inline int integrator_rtc_set_time(struct rtc_time *tm)
 {
 	unsigned long time;
 	int ret;
@@ -90,10 +90,10 @@ static inline int rtc_set_time(struct rtc_time *tm)
 
 static struct rtc_ops rtc_ops = {
 	.owner		= THIS_MODULE,
-	.read_time	= rtc_read_time,
-	.set_time	= rtc_set_time,
-	.read_alarm	= rtc_read_alarm,
-	.set_alarm	= rtc_set_alarm,
+	.read_time	= integrator_rtc_read_time,
+	.set_time	= integrator_rtc_set_time,
+	.read_alarm	= integrator_rtc_read_alarm,
+	.set_alarm	= integrator_rtc_set_alarm,
 };
 
 static irqreturn_t arm_rtc_interrupt(int irq, void *dev_id,

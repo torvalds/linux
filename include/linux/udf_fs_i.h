@@ -15,27 +15,6 @@
 
 #ifdef __KERNEL__
 
-#ifndef _ECMA_167_H
-typedef struct
-{
-	__u32			logicalBlockNum;
-	__u16			partitionReferenceNum;
-} __attribute__ ((packed)) lb_addr;
-
-typedef struct
-{
-	__u32			extLength;
-	__u32			extPosition;
-} __attribute__ ((packed)) short_ad;
-
-typedef struct
-{
-	__u32			extLength;
-	lb_addr			extLocation;
-	__u8			impUse[6];
-} __attribute__ ((packed)) long_ad;
-#endif
-
 struct udf_inode_info
 {
 	struct timespec		i_crtime;

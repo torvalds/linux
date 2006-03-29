@@ -264,6 +264,8 @@ static int vmalloc_fault(unsigned long address)
 		return -1;
 	if (pgd_none(*pgd))
 		set_pgd(pgd, *pgd_ref);
+	else
+		BUG_ON(pgd_page(*pgd) != pgd_page(*pgd_ref));
 
 	/* Below here mismatches are bugs because these lower tables
 	   are shared */
@@ -312,21 +314,13 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	unsigned long flags;
 	siginfo_t info;
 
-	/* get the address */
-	__asm__("movq %%cr2,%0":"=r" (address));
-	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
-					SIGSEGV) == NOTIFY_STOP)
-		return;
-
-	if (likely(regs->eflags & X86_EFLAGS_IF))
-		local_irq_enable();
-
-	if (unlikely(page_fault_trace))
-		printk("pagefault rip:%lx rsp:%lx cs:%lu ss:%lu address %lx error %lx\n",
-		       regs->rip,regs->rsp,regs->cs,regs->ss,address,error_code); 
-
 	tsk = current;
 	mm = tsk->mm;
+	prefetchw(&mm->mmap_sem);
+
+	/* get the address */
+	__asm__("movq %%cr2,%0":"=r" (address));
+
 	info.si_code = SEGV_MAPERR;
 
 
@@ -351,16 +345,29 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 		 */
 		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
 		      ((address >= VMALLOC_START && address < VMALLOC_END))) {
-			if (vmalloc_fault(address) < 0)
-				goto bad_area_nosemaphore;
-			return;
+			if (vmalloc_fault(address) >= 0)
+				return;
 		}
+		if (notify_die(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
+						SIGSEGV) == NOTIFY_STOP)
+			return;
 		/*
 		 * Don't take the mm semaphore here. If we fixup a prefetch
 		 * fault we could otherwise deadlock.
 		 */
 		goto bad_area_nosemaphore;
 	}
+
+	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
+					SIGSEGV) == NOTIFY_STOP)
+		return;
+
+	if (likely(regs->eflags & X86_EFLAGS_IF))
+		local_irq_enable();
+
+	if (unlikely(page_fault_trace))
+		printk("pagefault rip:%lx rsp:%lx cs:%lu ss:%lu address %lx error %lx\n",
+		       regs->rip,regs->rsp,regs->cs,regs->ss,address,error_code); 
 
 	if (unlikely(error_code & PF_RSVD))
 		pgtable_bad(address, regs, error_code);
@@ -569,6 +576,48 @@ do_sigbus:
 	info.si_addr = (void __user *)address;
 	force_sig_info(SIGBUS, &info, tsk);
 	return;
+}
+
+DEFINE_SPINLOCK(pgd_lock);
+struct page *pgd_list;
+
+void vmalloc_sync_all(void)
+{
+	/* Note that races in the updates of insync and start aren't 
+	   problematic:
+	   insync can only get set bits added, and updates to start are only
+	   improving performance (without affecting correctness if undone). */
+	static DECLARE_BITMAP(insync, PTRS_PER_PGD);
+	static unsigned long start = VMALLOC_START & PGDIR_MASK;
+	unsigned long address;
+
+	for (address = start; address <= VMALLOC_END; address += PGDIR_SIZE) {
+		if (!test_bit(pgd_index(address), insync)) {
+			const pgd_t *pgd_ref = pgd_offset_k(address);
+			struct page *page;
+
+			if (pgd_none(*pgd_ref))
+				continue;
+			spin_lock(&pgd_lock);
+			for (page = pgd_list; page;
+			     page = (struct page *)page->index) {
+				pgd_t *pgd;
+				pgd = (pgd_t *)page_address(page) + pgd_index(address);
+				if (pgd_none(*pgd))
+					set_pgd(pgd, *pgd_ref);
+				else
+					BUG_ON(pgd_page(*pgd) != pgd_page(*pgd_ref));
+			}
+			spin_unlock(&pgd_lock);
+			set_bit(pgd_index(address), insync);
+		}
+		if (address == start)
+			start = address + PGDIR_SIZE;
+	}
+	/* Check that there is no need to do the same for the modules area. */
+	BUILD_BUG_ON(!(MODULES_VADDR > __START_KERNEL));
+	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) == 
+				(__START_KERNEL & PGDIR_MASK)));
 }
 
 static int __init enable_pagefaulttrace(char *str)

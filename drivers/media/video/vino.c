@@ -1555,12 +1555,12 @@ static void vino_update_line_size(struct vino_channel_settings *vcs)
 	unsigned int w = vcs->clipping.right - vcs->clipping.left;
 	unsigned int d = vcs->decimation;
 	unsigned int bpp = vino_data_formats[vcs->data_format].bpp;
-        unsigned int lsize;
+	unsigned int lsize;
 
 	dprintk("update_line_size(): before: w = %d, d = %d, "
 		"line_size = %d\n", w, d, vcs->line_size);
 
-        /* line size must be multiple of 8 bytes */
+	/* line size must be multiple of 8 bytes */
 	lsize = (bpp * (w / d)) & ~7;
 	w = (lsize / bpp) * d;
 

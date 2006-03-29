@@ -47,8 +47,6 @@
 #include <asm/proto.h>
 #include <asm/nmi.h>
 
-extern struct gate_struct idt_table[256]; 
-
 asmlinkage void divide_error(void);
 asmlinkage void debug(void);
 asmlinkage void nmi(void);
@@ -71,18 +69,20 @@ asmlinkage void alignment_check(void);
 asmlinkage void machine_check(void);
 asmlinkage void spurious_interrupt_bug(void);
 
-struct notifier_block *die_chain;
-static DEFINE_SPINLOCK(die_notifier_lock);
+ATOMIC_NOTIFIER_HEAD(die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
 {
-	int err = 0;
-	unsigned long flags;
-	spin_lock_irqsave(&die_notifier_lock, flags);
-	err = notifier_chain_register(&die_chain, nb);
-	spin_unlock_irqrestore(&die_notifier_lock, flags);
-	return err;
+	vmalloc_sync_all();
+	return atomic_notifier_chain_register(&die_chain, nb);
 }
+EXPORT_SYMBOL(register_die_notifier);
+
+int unregister_die_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&die_chain, nb);
+}
+EXPORT_SYMBOL(unregister_die_notifier);
 
 static inline void conditional_sti(struct pt_regs *regs)
 {
@@ -122,7 +122,7 @@ int printk_address(unsigned long address)
 	if (!modname) 
 		modname = delim = ""; 		
         return printk("<%016lx>{%s%s%s%s%+ld}",
-		      address,delim,modname,delim,symname,offset); 
+		      address, delim, modname, delim, symname, offset); 
 } 
 #else
 int printk_address(unsigned long address)
@@ -334,13 +334,12 @@ void show_registers(struct pt_regs *regs)
 		show_stack(NULL, (unsigned long*)rsp);
 
 		printk("\nCode: ");
-		if(regs->rip < PAGE_OFFSET)
+		if (regs->rip < PAGE_OFFSET)
 			goto bad;
 
-		for(i=0;i<20;i++)
-		{
+		for (i=0; i<20; i++) {
 			unsigned char c;
-			if(__get_user(c, &((unsigned char*)regs->rip)[i])) {
+			if (__get_user(c, &((unsigned char*)regs->rip)[i])) {
 bad:
 				printk(" Bad RIP value.");
 				break;
@@ -479,7 +478,7 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 			printk(KERN_INFO
 			       "%s[%d] trap %s rip:%lx rsp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid, str,
-			       regs->rip,regs->rsp,error_code); 
+			       regs->rip, regs->rsp, error_code); 
 
 		if (info)
 			force_sig_info(signr, info, tsk);
@@ -493,9 +492,9 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 	{	     
 		const struct exception_table_entry *fixup;
 		fixup = search_exception_tables(regs->rip);
-		if (fixup) {
+		if (fixup)
 			regs->rip = fixup->fixup;
-		} else	
+		else	
 			die(str, regs, error_code);
 		return;
 	}
@@ -568,7 +567,7 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 			printk(KERN_INFO
 		       "%s[%d] general protection rip:%lx rsp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid,
-			       regs->rip,regs->rsp,error_code); 
+			       regs->rip, regs->rsp, error_code); 
 
 		force_sig(SIGSEGV, tsk);
 		return;

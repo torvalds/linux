@@ -74,7 +74,6 @@ extern int lock_cpu_hotplug_interruptible(void);
 	register_cpu_notifier(&fn##_nb);			\
 }
 int cpu_down(unsigned int cpu);
-extern int __attribute__((weak)) smp_prepare_cpu(int cpu);
 #define cpu_is_offline(cpu) unlikely(!cpu_online(cpu))
 #else
 #define lock_cpu_hotplug()	do { } while (0)

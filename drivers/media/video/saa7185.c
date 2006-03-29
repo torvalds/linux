@@ -1,4 +1,4 @@
-/* 
+/*
  * saa7185 - Philips SAA7185B video encoder driver version 0.0.3
  *
  * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
@@ -377,7 +377,7 @@ saa7185_command (struct i2c_client *client,
 static unsigned short normal_i2c[] = { I2C_SAA7185 >> 1, I2C_CLIENT_END };
 
 static unsigned short ignore = I2C_CLIENT_END;
-                                                                                
+
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,

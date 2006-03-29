@@ -458,24 +458,33 @@ efi_init (void)
 	printk(KERN_INFO "EFI v%u.%.02u by %s:",
 	       efi.systab->hdr.revision >> 16, efi.systab->hdr.revision & 0xffff, vendor);
 
+	efi.mps        = EFI_INVALID_TABLE_ADDR;
+	efi.acpi       = EFI_INVALID_TABLE_ADDR;
+	efi.acpi20     = EFI_INVALID_TABLE_ADDR;
+	efi.smbios     = EFI_INVALID_TABLE_ADDR;
+	efi.sal_systab = EFI_INVALID_TABLE_ADDR;
+	efi.boot_info  = EFI_INVALID_TABLE_ADDR;
+	efi.hcdp       = EFI_INVALID_TABLE_ADDR;
+	efi.uga        = EFI_INVALID_TABLE_ADDR;
+
 	for (i = 0; i < (int) efi.systab->nr_tables; i++) {
 		if (efi_guidcmp(config_tables[i].guid, MPS_TABLE_GUID) == 0) {
-			efi.mps = __va(config_tables[i].table);
+			efi.mps = config_tables[i].table;
 			printk(" MPS=0x%lx", config_tables[i].table);
 		} else if (efi_guidcmp(config_tables[i].guid, ACPI_20_TABLE_GUID) == 0) {
-			efi.acpi20 = __va(config_tables[i].table);
+			efi.acpi20 = config_tables[i].table;
 			printk(" ACPI 2.0=0x%lx", config_tables[i].table);
 		} else if (efi_guidcmp(config_tables[i].guid, ACPI_TABLE_GUID) == 0) {
-			efi.acpi = __va(config_tables[i].table);
+			efi.acpi = config_tables[i].table;
 			printk(" ACPI=0x%lx", config_tables[i].table);
 		} else if (efi_guidcmp(config_tables[i].guid, SMBIOS_TABLE_GUID) == 0) {
-			efi.smbios = __va(config_tables[i].table);
+			efi.smbios = config_tables[i].table;
 			printk(" SMBIOS=0x%lx", config_tables[i].table);
 		} else if (efi_guidcmp(config_tables[i].guid, SAL_SYSTEM_TABLE_GUID) == 0) {
-			efi.sal_systab = __va(config_tables[i].table);
+			efi.sal_systab = config_tables[i].table;
 			printk(" SALsystab=0x%lx", config_tables[i].table);
 		} else if (efi_guidcmp(config_tables[i].guid, HCDP_TABLE_GUID) == 0) {
-			efi.hcdp = __va(config_tables[i].table);
+			efi.hcdp = config_tables[i].table;
 			printk(" HCDP=0x%lx", config_tables[i].table);
 		}
 	}
@@ -677,27 +686,34 @@ EXPORT_SYMBOL(efi_mem_attributes);
 /*
  * Determines whether the memory at phys_addr supports the desired
  * attribute (WB, UC, etc).  If this returns 1, the caller can safely
- * access *size bytes at phys_addr with the specified attribute.
+ * access size bytes at phys_addr with the specified attribute.
  */
-static int
-efi_mem_attribute_range (unsigned long phys_addr, unsigned long *size, u64 attr)
+int
+efi_mem_attribute_range (unsigned long phys_addr, unsigned long size, u64 attr)
 {
+	unsigned long end = phys_addr + size;
 	efi_memory_desc_t *md = efi_memory_descriptor(phys_addr);
-	unsigned long md_end;
 
-	if (!md || (md->attribute & attr) != attr)
+	/*
+	 * Some firmware doesn't report MMIO regions in the EFI memory
+	 * map.  The Intel BigSur (a.k.a. HP i2000) has this problem.
+	 * On those platforms, we have to assume UC is valid everywhere.
+	 */
+	if (!md || (md->attribute & attr) != attr) {
+		if (attr == EFI_MEMORY_UC && !efi_memmap_has_mmio())
+			return 1;
 		return 0;
+	}
 
 	do {
-		md_end = efi_md_end(md);
-		if (phys_addr + *size <= md_end)
+		unsigned long md_end = efi_md_end(md);
+
+		if (end <= md_end)
 			return 1;
 
 		md = efi_memory_descriptor(md_end);
-		if (!md || (md->attribute & attr) != attr) {
-			*size = md_end - phys_addr;
-			return 1;
-		}
+		if (!md || (md->attribute & attr) != attr)
+			return 0;
 	} while (md);
 	return 0;
 }
@@ -708,7 +724,7 @@ efi_mem_attribute_range (unsigned long phys_addr, unsigned long *size, u64 attr)
  * control access size.
  */
 int
-valid_phys_addr_range (unsigned long phys_addr, unsigned long *size)
+valid_phys_addr_range (unsigned long phys_addr, unsigned long size)
 {
 	return efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_WB);
 }
@@ -723,20 +739,12 @@ valid_phys_addr_range (unsigned long phys_addr, unsigned long *size)
  * because that doesn't appear in the boot-time EFI memory map.
  */
 int
-valid_mmap_phys_addr_range (unsigned long phys_addr, unsigned long *size)
+valid_mmap_phys_addr_range (unsigned long phys_addr, unsigned long size)
 {
 	if (efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_WB))
 		return 1;
 
 	if (efi_mem_attribute_range(phys_addr, size, EFI_MEMORY_UC))
-		return 1;
-
-	/*
-	 * Some firmware doesn't report MMIO regions in the EFI memory map.
-	 * The Intel BigSur (a.k.a. HP i2000) has this problem.  In this
-	 * case, we can't use the EFI memory map to validate mmap requests.
-	 */
-	if (!efi_memmap_has_mmio())
 		return 1;
 
 	return 0;

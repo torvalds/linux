@@ -23,36 +23,36 @@
 
 /* following DPRAM layout copied from OS2-driver boarderg.h */
 typedef struct ErgDpram_tag {
-/*0000 */ uchar ToHyBuf[ERG_TO_HY_BUF_SIZE];
-/*0E00 */ uchar ToPcBuf[ERG_TO_PC_BUF_SIZE];
+/*0000 */ unsigned char ToHyBuf[ERG_TO_HY_BUF_SIZE];
+/*0E00 */ unsigned char ToPcBuf[ERG_TO_PC_BUF_SIZE];
 
-	/*1C00 */ uchar bSoftUart[SIZE_RSV_SOFT_UART];
+	/*1C00 */ unsigned char bSoftUart[SIZE_RSV_SOFT_UART];
 	/* size 0x1B0 */
 
-	/*1DB0 *//* tErrLogEntry */ uchar volatile ErrLogMsg[64];
+	/*1DB0 *//* tErrLogEntry */ unsigned char volatile ErrLogMsg[64];
 	/* size 64 bytes */
-	/*1DB0  ulong ulErrType;               */
-	/*1DB4  ulong ulErrSubtype;            */
-	/*1DB8  ulong ucTextSize;              */
-	/*1DB9  ulong ucText[ERRLOG_TEXT_SIZE]; *//* ASCIIZ of len ucTextSize-1 */
+	/*1DB0  unsigned long ulErrType;               */
+	/*1DB4  unsigned long ulErrSubtype;            */
+	/*1DB8  unsigned long ucTextSize;              */
+	/*1DB9  unsigned long ucText[ERRLOG_TEXT_SIZE]; *//* ASCIIZ of len ucTextSize-1 */
 	/*1DF0 */
 
-/*1DF0 */ word volatile ToHyChannel;
-/*1DF2 */ word volatile ToHySize;
-	/*1DF4 */ uchar volatile ToHyFlag;
+/*1DF0 */ unsigned short volatile ToHyChannel;
+/*1DF2 */ unsigned short volatile ToHySize;
+	/*1DF4 */ unsigned char volatile ToHyFlag;
 	/* !=0: msg for Hy waiting */
-	/*1DF5 */ uchar volatile ToPcFlag;
+	/*1DF5 */ unsigned char volatile ToPcFlag;
 	/* !=0: msg for PC waiting */
-/*1DF6 */ word volatile ToPcChannel;
-/*1DF8 */ word volatile ToPcSize;
-	/*1DFA */ uchar bRes1DBA[0x1E00 - 0x1DFA];
+/*1DF6 */ unsigned short volatile ToPcChannel;
+/*1DF8 */ unsigned short volatile ToPcSize;
+	/*1DFA */ unsigned char bRes1DBA[0x1E00 - 0x1DFA];
 	/* 6 bytes */
 
-/*1E00 */ uchar bRestOfEntryTbl[0x1F00 - 0x1E00];
-/*1F00 */ ulong TrapTable[62];
-	/*1FF8 */ uchar bRes1FF8[0x1FFB - 0x1FF8];
+/*1E00 */ unsigned char bRestOfEntryTbl[0x1F00 - 0x1E00];
+/*1F00 */ unsigned long TrapTable[62];
+	/*1FF8 */ unsigned char bRes1FF8[0x1FFB - 0x1FF8];
 	/* low part of reset vetor */
-/*1FFB */ uchar ToPcIntMetro;
+/*1FFB */ unsigned char ToPcIntMetro;
 	/* notes:
 	 * - metro has 32-bit boot ram - accessing
 	 *   ToPcInt and ToHyInt would be the same;
@@ -65,16 +65,16 @@ typedef struct ErgDpram_tag {
 	 *   so E1 side should NOT change this byte
 	 *   when writing!
 	 */
-/*1FFC */ uchar volatile ToHyNoDpramErrLog;
+/*1FFC */ unsigned char volatile ToHyNoDpramErrLog;
 	/* note: ToHyNoDpramErrLog is used to inform
 	 *       boot loader, not to use DPRAM based
 	 *       ErrLog; when DOS driver is rewritten
 	 *       this becomes obsolete
 	 */
-/*1FFD */ uchar bRes1FFD;
-	/*1FFE */ uchar ToPcInt;
+/*1FFD */ unsigned char bRes1FFD;
+	/*1FFE */ unsigned char ToPcInt;
 	/* E1_intclear; on CHAMP2: E1_intset   */
-	/*1FFF */ uchar ToHyInt;
+	/*1FFF */ unsigned char ToHyInt;
 	/* E1_intset;   on CHAMP2: E1_intclear */
 } tErgDpram;
 

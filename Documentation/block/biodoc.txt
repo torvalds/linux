@@ -132,8 +132,18 @@ Some new queue property settings:
 		limit. No highmem default.
 
 	blk_queue_max_sectors(q, max_sectors)
-		Maximum size request you can handle in units of 512 byte
-		sectors. 255 default.
+		Sets two variables that limit the size of the request.
+
+		- The request queue's max_sectors, which is a soft size in
+		in units of 512 byte sectors, and could be dynamically varied
+		by the core kernel.
+
+		- The request queue's max_hw_sectors, which is a hard limit
+		and reflects the maximum size request a driver can handle
+		in units of 512 byte sectors.
+
+		The default for both max_sectors and max_hw_sectors is
+		255. The upper limit of max_sectors is 1024.
 
 	blk_queue_max_phys_segments(q, max_segments)
 		Maximum physical segments you can handle in a request. 128

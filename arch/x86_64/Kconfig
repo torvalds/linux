@@ -45,6 +45,10 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
+config GENERIC_HWEIGHT
+	bool
+	default y
+
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
@@ -246,6 +250,15 @@ config SCHED_SMT
 	  cost of slightly increased overhead in some places. If unsure say
 	  N here.
 
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on SMP
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
 source "kernel/Kconfig.preempt"
 
 config NUMA
@@ -321,9 +334,13 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
 	depends on NUMA
 
+config OUT_OF_LINE_PFN_TO_PAGE
+	def_bool y
+	depends on DISCONTIGMEM
+
 config NR_CPUS
 	int "Maximum number of CPUs (2-256)"
-	range 2 256
+	range 2 255
 	depends on SMP
 	default "8"
 	help
@@ -364,13 +381,15 @@ config GART_IOMMU
 	select SWIOTLB
 	depends on PCI
 	help
-	  Support the IOMMU. Needed to run systems with more than 3GB of memory
-	  properly with 32-bit PCI devices that do not support DAC (Double Address
-	  Cycle). The IOMMU can be turned off at runtime with the iommu=off parameter.
-	  Normally the kernel will take the right choice by itself.
-	  This option includes a driver for the AMD Opteron/Athlon64 northbridge IOMMU
-	  and a software emulation used on other systems.
-	  If unsure, say Y.
+	  Support for hardware IOMMU in AMD's Opteron/Athlon64 Processors
+	  and for the bounce buffering software IOMMU.
+	  Needed to run systems with more than 3GB of memory properly with
+	  32-bit PCI devices that do not support DAC (Double Address Cycle).
+	  The IOMMU can be turned off at runtime with the iommu=off parameter.
+  	  Normally the kernel will take the right choice by itself.
+  	  This option includes a driver for the AMD Opteron/Athlon64 IOMMU
+  	  northbridge and a software emulation used on other systems without
+	  hardware IOMMU.  If unsure, say Y.
 
 # need this always enabled with GART_IOMMU for the VIA workaround
 config SWIOTLB
@@ -429,10 +448,10 @@ config CRASH_DUMP
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
 	default "0x1000000" if CRASH_DUMP
-	default "0x100000"
+	default "0x200000"
 	help
 	  This gives the physical address where the kernel is loaded. Normally
-	  for regular kernels this value is 0x100000 (1MB). But in the case
+	  for regular kernels this value is 0x200000 (2MB). But in the case
 	  of kexec on panic the fail safe kernel needs to run at a different
 	  address than the panic-ed kernel. This option is used to set the load
 	  address for kernels used to capture crash dump on being kexec'ed
@@ -463,6 +482,14 @@ config SECCOMP
 	  If unsure, say Y. Only embedded should say N here.
 
 source kernel/Kconfig.hz
+
+config REORDER
+	bool "Function reordering"
+	default n
+	help
+         This option enables the toolchain to reorder functions for a more 
+         optimal TLB usage. If you have pretty much any version of binutils, 
+	 this can increase your kernel build time by roughly one minute.
 
 endmenu
 
@@ -511,16 +538,6 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
 	depends on PCI && ACPI
-
-config UNORDERED_IO
-       bool "Unordered IO mapping access"
-       depends on EXPERIMENTAL
-       help
-         Use unordered stores to access IO memory mappings in device drivers.
-	 Still very experimental. When a driver works on IA64/ppc64/pa-risc it should
-	 work with this option, but it makes the drivers behave differently
-	 from i386. Requires that the driver writer used memory barriers
-	 properly.
 
 source "drivers/pci/pcie/Kconfig"
 

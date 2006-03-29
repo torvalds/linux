@@ -34,6 +34,8 @@
 #define L1_BRICKTYPE_IA		0x6b            /* k */
 #define L1_BRICKTYPE_ATHENA	0x2b            /* + */
 #define L1_BRICKTYPE_DAYTONA	0x7a            /* z */
+#define L1_BRICKTYPE_1932	0x2c		/* . */
+#define L1_BRICKTYPE_191010	0x2e		/* , */
 
 /* board type response codes */
 #define L1_BOARDTYPE_IP69       0x0100          /* CA */
@@ -45,6 +47,5 @@
 #define L1_BOARDTYPE_ABACUS     0x0700          /* AB */
 #define L1_BOARDTYPE_DAYTONA    0x0800          /* AD */
 #define L1_BOARDTYPE_INVAL      (-1)            /* invalid brick type */
-
 
 #endif /* _ASM_IA64_SN_L1_H */

@@ -294,6 +294,16 @@ void *kmem_cache_alloc(struct kmem_cache *c, gfp_t flags)
 }
 EXPORT_SYMBOL(kmem_cache_alloc);
 
+void *kmem_cache_zalloc(struct kmem_cache *c, gfp_t flags)
+{
+	void *ret = kmem_cache_alloc(c, flags);
+	if (ret)
+		memset(ret, 0, c->size);
+
+	return ret;
+}
+EXPORT_SYMBOL(kmem_cache_zalloc);
+
 void kmem_cache_free(struct kmem_cache *c, void *b)
 {
 	if (c->dtor)

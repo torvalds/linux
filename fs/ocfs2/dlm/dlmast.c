@@ -307,8 +307,11 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data)
 
 	if (past->type != DLM_AST &&
 	    past->type != DLM_BAST) {
-		mlog(ML_ERROR, "Unknown ast type! %d, cookie=%"MLFu64", "
-		     "name=%.*s\n", past->type, cookie, locklen, name);
+		mlog(ML_ERROR, "Unknown ast type! %d, cookie=%u:%llu"
+		     "name=%.*s\n", past->type, 
+		     dlm_get_lock_cookie_node(cookie),
+		     dlm_get_lock_cookie_seq(cookie),
+		     locklen, name);
 		ret = DLM_IVLOCKID;
 		goto leave;
 	}
@@ -316,9 +319,11 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data)
 	res = dlm_lookup_lockres(dlm, name, locklen);
 	if (!res) {
 		mlog(ML_ERROR, "got %sast for unknown lockres! "
-			       "cookie=%"MLFu64", name=%.*s, namelen=%u\n",
+			       "cookie=%u:%llu, name=%.*s, namelen=%u\n",
 		     past->type == DLM_AST ? "" : "b",
-		     cookie, locklen, name, locklen);
+		     dlm_get_lock_cookie_node(cookie),
+		     dlm_get_lock_cookie_seq(cookie),
+		     locklen, name, locklen);
 		ret = DLM_IVLOCKID;
 		goto leave;
 	}
@@ -360,9 +365,12 @@ int dlm_proxy_ast_handler(struct o2net_msg *msg, u32 len, void *data)
 			goto do_ast;
 	}
 
-	mlog(ML_ERROR, "got %sast for unknown lock!  cookie=%"MLFu64", "
-		       "name=%.*s, namelen=%u\n",
-             past->type == DLM_AST ? "" : "b", cookie, locklen, name, locklen);
+	mlog(ML_ERROR, "got %sast for unknown lock!  cookie=%u:%llu, "
+		       "name=%.*s, namelen=%u\n", 
+		       past->type == DLM_AST ? "" : "b", 
+		       dlm_get_lock_cookie_node(cookie),
+		       dlm_get_lock_cookie_seq(cookie),
+		       locklen, name, locklen);
 
 	ret = DLM_NORMAL;
 unlock_out:

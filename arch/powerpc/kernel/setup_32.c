@@ -53,9 +53,6 @@
 extern void platform_init(void);
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
-extern void ppc6xx_idle(void);
-extern void power4_idle(void);
-
 boot_infos_t *boot_infos;
 struct ide_machdep_calls ppc_ide_md;
 
@@ -70,10 +67,6 @@ unsigned int DMA_MODE_WRITE;
 int have_of = 1;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
-extern void prep_init(void);
-extern void pmac_init(void);
-extern void chrp_init(void);
-
 dev_t boot_dev;
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
@@ -84,9 +77,6 @@ unsigned long SYSRQ_KEY = 0x54;
 #ifdef CONFIG_VGA_CONSOLE
 unsigned long vgacon_remap_base;
 #endif
-
-struct machdep_calls ppc_md;
-EXPORT_SYMBOL(ppc_md);
 
 /*
  * These are used in binfmt_elf.c to put aux entries on the stack
@@ -111,7 +101,7 @@ unsigned long __init early_init(unsigned long dt_ptr)
 
 	/* First zero the BSS -- use memset_io, some platforms don't have
 	 * caches on yet */
-	memset_io(PTRRELOC(&__bss_start), 0, _end - __bss_start);
+	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0, _end - __bss_start);
 
 	/*
 	 * Identify the CPU type and fix up code sections
@@ -123,48 +113,6 @@ unsigned long __init early_init(unsigned long dt_ptr)
 	return KERNELBASE + offset;
 }
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-/*
- * The PPC_MULTIPLATFORM version of platform_init...
- */
-void __init platform_init(void)
-{
-	/* if we didn't get any bootinfo telling us what we are... */
-	if (_machine == 0) {
-		/* prep boot loader tells us if we're prep or not */
-		if ( *(unsigned long *)(KERNELBASE) == (0xdeadc0de) )
-			_machine = _MACH_prep;
-	}
-
-#ifdef CONFIG_PPC_PREP
-	/* not much more to do here, if prep */
-	if (_machine == _MACH_prep) {
-		prep_init();
-		return;
-	}
-#endif
-
-#ifdef CONFIG_ADB
-	if (strstr(cmd_line, "adb_sync")) {
-		extern int __adb_probe_sync;
-		__adb_probe_sync = 1;
-	}
-#endif /* CONFIG_ADB */
-
-	switch (_machine) {
-#ifdef CONFIG_PPC_PMAC
-	case _MACH_Pmac:
-		pmac_init();
-		break;
-#endif
-#ifdef CONFIG_PPC_CHRP
-	case _MACH_chrp:
-		chrp_init();
-		break;
-#endif
-	}
-}
-#endif
 
 /*
  * Find out what kind of machine we're on and save any data we need
@@ -190,11 +138,17 @@ void __init machine_init(unsigned long dt_ptr, unsigned long phys)
 		strlcpy(cmd_line, CONFIG_CMDLINE, sizeof(cmd_line));
 #endif /* CONFIG_CMDLINE */
 
-	/* Base init based on machine type */
+#ifdef CONFIG_PPC_MULTIPLATFORM
+	probe_machine();
+#else
+	/* Base init based on machine type. Obsoloete, please kill ! */
 	platform_init();
+#endif
 
 #ifdef CONFIG_6xx
-	ppc_md.power_save = ppc6xx_idle;
+	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
+	    cpu_has_feature(CPU_FTR_CAN_NAP))
+		ppc_md.power_save = ppc6xx_idle;
 #endif
 
 	if (ppc_md.progress)
@@ -272,7 +226,7 @@ int __init ppc_init(void)
 	if ( ppc_md.progress ) ppc_md.progress("             ", 0xffff);
 
 	/* register CPU devices */
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		register_cpu(&cpu_devices[i], i, NULL);
 
 	/* call platform init */
@@ -352,12 +306,6 @@ void __init setup_arch(char **cmdline_p)
 	do_init_bootmem();
 	if ( ppc_md.progress ) ppc_md.progress("setup_arch: bootmem", 0x3eab);
 
-#ifdef CONFIG_PPC_OCP
-	/* Initialize OCP device list */
-	ocp_early_init();
-	if ( ppc_md.progress ) ppc_md.progress("ocp: exit", 0x3eab);
-#endif
-
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
@@ -366,7 +314,4 @@ void __init setup_arch(char **cmdline_p)
 	if ( ppc_md.progress ) ppc_md.progress("arch: exit", 0x3eab);
 
 	paging_init();
-
-	/* this is for modules since _machine can be a define -- Cort */
-	ppc_md.ppc_machine = _machine;
 }

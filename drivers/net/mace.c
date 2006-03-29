@@ -1042,7 +1042,7 @@ static void __exit mace_cleanup(void)
 
 MODULE_AUTHOR("Paul Mackerras");
 MODULE_DESCRIPTION("PowerMac MACE driver.");
-MODULE_PARM(port_aaui, "i");
+module_param(port_aaui, int, 0);
 MODULE_PARM_DESC(port_aaui, "MACE uses AAUI port (0-1)");
 MODULE_LICENSE("GPL");
 

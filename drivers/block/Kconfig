@@ -383,8 +383,9 @@ config BLK_DEV_RAM
 	  thus say N here.
 
 config BLK_DEV_RAM_COUNT
-	int "Default number of RAM disks" if BLK_DEV_RAM
+	int "Default number of RAM disks"
 	default "16"
+	depends on BLK_DEV_RAM
 	help
 	  The default value is 16 RAM disks. Change this if you know what
 	  are doing. If you boot from a filesystem that needs to be extracted
@@ -400,14 +401,16 @@ config BLK_DEV_RAM_SIZE
 	  8192.
 
 config BLK_DEV_INITRD
-	bool "Initial RAM disk (initrd) support"
-	depends on BLK_DEV_RAM=y
+	bool "Initial RAM filesystem and RAM disk (initramfs/initrd) support"
 	help
-	  The initial RAM disk is a RAM disk that is loaded by the boot loader
-	  (loadlin or lilo) and that is mounted as root before the normal boot
-	  procedure. It is typically used to load modules needed to mount the
-	  "real" root file system, etc. See <file:Documentation/initrd.txt>
-	  for details.
+	  The initial RAM filesystem is a ramfs which is loaded by the
+	  boot loader (loadlin or lilo) and that is mounted as root
+	  before the normal boot procedure. It is typically used to
+	  load modules needed to mount the "real" root file system,
+	  etc. See <file:Documentation/initrd.txt> for details.
+
+	  If RAM disk support (BLK_DEV_RAM) is also included, this
+	  also enables initial RAM disk (initrd) support.
 
 
 config CDROM_PKTCDVD

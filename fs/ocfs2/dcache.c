@@ -64,15 +64,16 @@ static int ocfs2_dentry_revalidate(struct dentry *dentry,
 		/* did we or someone else delete this inode? */
 		if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_DELETED) {
 			spin_unlock(&OCFS2_I(inode)->ip_lock);
-			mlog(0, "inode (%"MLFu64") deleted, returning false\n",
-			     OCFS2_I(inode)->ip_blkno);
+			mlog(0, "inode (%llu) deleted, returning false\n",
+			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 			goto bail;
 		}
 		spin_unlock(&OCFS2_I(inode)->ip_lock);
 
 		if (!inode->i_nlink) {
-			mlog(0, "Inode %"MLFu64" orphaned, returning false "
-			     "dir = %d\n", OCFS2_I(inode)->ip_blkno,
+			mlog(0, "Inode %llu orphaned, returning false "
+			     "dir = %d\n",
+			     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 			     S_ISDIR(inode->i_mode));
 			goto bail;
 		}

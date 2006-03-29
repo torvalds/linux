@@ -15,7 +15,7 @@ extern unsigned long ramfs_nommu_get_unmapped_area(struct file *file,
 extern int ramfs_nommu_mmap(struct file *file, struct vm_area_struct *vma);
 #endif
 
-extern struct file_operations ramfs_file_operations;
+extern const struct file_operations ramfs_file_operations;
 extern struct vm_operations_struct generic_file_vm_ops;
 
 #endif

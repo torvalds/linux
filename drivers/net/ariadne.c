@@ -864,7 +864,7 @@ static void __devexit ariadne_remove_one(struct zorro_dev *z)
 
 static int __init ariadne_init_module(void)
 {
-    return zorro_module_init(&ariadne_driver);
+    return zorro_register_driver(&ariadne_driver);
 }
 
 static void __exit ariadne_cleanup_module(void)

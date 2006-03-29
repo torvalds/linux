@@ -83,8 +83,7 @@ void dm_put_hw_handler(struct hw_handler_type *hwht)
 	if (--hwhi->use == 0)
 		module_put(hwhi->hwht.module);
 
-	if (hwhi->use < 0)
-		BUG();
+	BUG_ON(hwhi->use < 0);
 
       out:
 	up_read(&_hwh_lock);

@@ -33,7 +33,7 @@ cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 struct x8664_pda *_cpu_pda[NR_CPUS] __read_mostly;
 struct x8664_pda boot_cpu_pda[NR_CPUS] __cacheline_aligned;
 
-struct desc_ptr idt_descr = { 256 * 16, (unsigned long) idt_table }; 
+struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 
 char boot_cpu_stack[IRQSTACKSIZE] __attribute__((section(".bss.page_aligned")));
 
@@ -59,7 +59,7 @@ int __init nonx_setup(char *str)
 } 
 __setup("noexec=", nonx_setup);	/* parsed early actually */
 
-int force_personality32 = READ_IMPLIES_EXEC;
+int force_personality32 = 0; 
 
 /* noexec32=on|off
 Control non executable heap for 32bit processes.
@@ -248,7 +248,7 @@ void __cpuinit cpu_init (void)
 		switch (v + 1) {
 #if DEBUG_STKSZ > EXCEPTION_STKSZ
 		case DEBUG_STACK:
-			cpu_pda[cpu].debugstack = (unsigned long)estacks;
+			cpu_pda(cpu)->debugstack = (unsigned long)estacks;
 			estacks += DEBUG_STKSZ;
 			break;
 #endif
@@ -281,12 +281,12 @@ void __cpuinit cpu_init (void)
 	 * Clear all 6 debug registers:
 	 */
 
-	set_debug(0UL, 0);
-	set_debug(0UL, 1);
-	set_debug(0UL, 2);
-	set_debug(0UL, 3);
-	set_debug(0UL, 6);
-	set_debug(0UL, 7);
+	set_debugreg(0UL, 0);
+	set_debugreg(0UL, 1);
+	set_debugreg(0UL, 2);
+	set_debugreg(0UL, 3);
+	set_debugreg(0UL, 6);
+	set_debugreg(0UL, 7);
 
 	fpu_init(); 
 }

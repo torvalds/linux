@@ -143,8 +143,8 @@ int ocfs2_load_local_alloc(struct ocfs2_super *osb)
 
 	if (!(le32_to_cpu(alloc->i_flags) &
 	    (OCFS2_LOCAL_ALLOC_FL|OCFS2_BITMAP_FL))) {
-		mlog(ML_ERROR, "Invalid local alloc inode, %"MLFu64"\n",
-		     OCFS2_I(inode)->ip_blkno);
+		mlog(ML_ERROR, "Invalid local alloc inode, %llu\n",
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 		status = -EINVAL;
 		goto bail;
 	}
@@ -493,9 +493,9 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 
 	if (le32_to_cpu(alloc->id1.bitmap1.i_used) !=
 	    ocfs2_local_alloc_count_bits(alloc)) {
-		ocfs2_error(osb->sb, "local alloc inode %"MLFu64" says it has "
+		ocfs2_error(osb->sb, "local alloc inode %llu says it has "
 			    "%u free bits, but a count shows %u",
-			    le64_to_cpu(alloc->i_blkno),
+			    (unsigned long long)le64_to_cpu(alloc->i_blkno),
 			    le32_to_cpu(alloc->id1.bitmap1.i_used),
 			    ocfs2_local_alloc_count_bits(alloc));
 		status = -EIO;
@@ -753,10 +753,11 @@ static int ocfs2_sync_local_to_main(struct ocfs2_super *osb,
 				ocfs2_clusters_to_blocks(osb->sb,
 							 start - count);
 
-			mlog(0, "freeing %u bits starting at local "
-			     "alloc bit %u (la_start_blk = %"MLFu64", "
-			     "blkno = %"MLFu64")\n", count, start - count,
-			     la_start_blk, blkno);
+			mlog(0, "freeing %u bits starting at local alloc bit "
+			     "%u (la_start_blk = %llu, blkno = %llu)\n",
+			     count, start - count,
+			     (unsigned long long)la_start_blk,
+			     (unsigned long long)blkno);
 
 			status = ocfs2_free_clusters(handle, main_bm_inode,
 						     main_bm_bh, blkno, count);

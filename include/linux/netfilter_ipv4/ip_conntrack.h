@@ -308,29 +308,30 @@ DECLARE_PER_CPU(struct ip_conntrack_ecache, ip_conntrack_ecache);
 
 #define CONNTRACK_ECACHE(x)	(__get_cpu_var(ip_conntrack_ecache).x)
  
-extern struct notifier_block *ip_conntrack_chain;
-extern struct notifier_block *ip_conntrack_expect_chain;
+extern struct atomic_notifier_head ip_conntrack_chain;
+extern struct atomic_notifier_head ip_conntrack_expect_chain;
 
 static inline int ip_conntrack_register_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_register(&ip_conntrack_chain, nb);
+	return atomic_notifier_chain_register(&ip_conntrack_chain, nb);
 }
 
 static inline int ip_conntrack_unregister_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_unregister(&ip_conntrack_chain, nb);
+	return atomic_notifier_chain_unregister(&ip_conntrack_chain, nb);
 }
 
 static inline int 
 ip_conntrack_expect_register_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_register(&ip_conntrack_expect_chain, nb);
+	return atomic_notifier_chain_register(&ip_conntrack_expect_chain, nb);
 }
 
 static inline int
 ip_conntrack_expect_unregister_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_unregister(&ip_conntrack_expect_chain, nb);
+	return atomic_notifier_chain_unregister(&ip_conntrack_expect_chain,
+			nb);
 }
 
 extern void ip_ct_deliver_cached_events(const struct ip_conntrack *ct);
@@ -355,14 +356,14 @@ static inline void ip_conntrack_event(enum ip_conntrack_events event,
 				      struct ip_conntrack *ct)
 {
 	if (is_confirmed(ct) && !is_dying(ct))
-		notifier_call_chain(&ip_conntrack_chain, event, ct);
+		atomic_notifier_call_chain(&ip_conntrack_chain, event, ct);
 }
 
 static inline void 
 ip_conntrack_expect_event(enum ip_conntrack_expect_events event,
 			  struct ip_conntrack_expect *exp)
 {
-	notifier_call_chain(&ip_conntrack_expect_chain, event, exp);
+	atomic_notifier_call_chain(&ip_conntrack_expect_chain, event, exp);
 }
 #else /* CONFIG_IP_NF_CONNTRACK_EVENTS */
 static inline void ip_conntrack_event_cache(enum ip_conntrack_events event, 

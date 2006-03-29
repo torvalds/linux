@@ -19,7 +19,7 @@ config DEBUG_STACK_USAGE
 	  This option will slow down process creation somewhat.
 
 config DEBUG_PAGEALLOC
-	bool "Page alloc debugging"
+	bool "Debug page memory allocations"
 	depends on DEBUG_KERNEL && BROKEN
 	help
 	  Unmap pages from the kernel linear mapping after free_pages().

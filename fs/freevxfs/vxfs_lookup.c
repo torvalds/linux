@@ -56,7 +56,7 @@ struct inode_operations vxfs_dir_inode_ops = {
 	.lookup =		vxfs_lookup,
 };
 
-struct file_operations vxfs_dir_operations = {
+const struct file_operations vxfs_dir_operations = {
 	.readdir =		vxfs_readdir,
 };
 

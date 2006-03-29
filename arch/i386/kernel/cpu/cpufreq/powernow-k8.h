@@ -63,7 +63,7 @@ struct powernow_k8_data {
 #define MSR_C_LO_VID_SHIFT        8
 
 /* Field definitions within the FID VID High Control MSR : */
-#define MSR_C_HI_STP_GNT_TO 	  0x000fffff
+#define MSR_C_HI_STP_GNT_TO	  0x000fffff
 
 /* Field definitions within the FID VID Low Status MSR : */
 #define MSR_S_LO_CHANGE_PENDING   0x80000000   /* cleared when completed */
@@ -123,7 +123,7 @@ struct powernow_k8_data {
  * Most values of interest are enocoded in a single field of the _PSS
  * entries: the "control" value.
  */
-                                                                                                    
+
 #define IRT_SHIFT      30
 #define RVO_SHIFT      28
 #define EXT_TYPE_SHIFT 27
@@ -182,10 +182,6 @@ static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid);
 
 static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned int index);
 
-#ifndef for_each_cpu_mask
-#define for_each_cpu_mask(i,mask) for (i=0;i<1;i++)
-#endif
-                                                                                
 #ifdef CONFIG_SMP
 static inline void define_siblings(int cpu, cpumask_t cpu_sharedcore_mask[])
 {

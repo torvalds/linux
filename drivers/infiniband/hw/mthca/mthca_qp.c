@@ -483,13 +483,20 @@ out:
 	return err;
 }
 
-static void mthca_path_set(struct ib_ah_attr *ah, struct mthca_qp_path *path)
+static int mthca_path_set(struct mthca_dev *dev, struct ib_ah_attr *ah,
+			  struct mthca_qp_path *path)
 {
 	path->g_mylmc     = ah->src_path_bits & 0x7f;
 	path->rlid        = cpu_to_be16(ah->dlid);
 	path->static_rate = !!ah->static_rate;
 
 	if (ah->ah_flags & IB_AH_GRH) {
+		if (ah->grh.sgid_index >= dev->limits.gid_table_len) {
+			mthca_dbg(dev, "sgid_index (%u) too large. max is %d\n",
+				  ah->grh.sgid_index, dev->limits.gid_table_len-1);
+			return -1;
+		}
+
 		path->g_mylmc   |= 1 << 7;
 		path->mgid_index = ah->grh.sgid_index;
 		path->hop_limit  = ah->grh.hop_limit;
@@ -500,6 +507,8 @@ static void mthca_path_set(struct ib_ah_attr *ah, struct mthca_qp_path *path)
 		memcpy(path->rgid, ah->grh.dgid.raw, 16);
 	} else
 		path->sl_tclass_flowlabel = cpu_to_be32(ah->sl << 28);
+
+	return 0;
 }
 
 int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
@@ -592,8 +601,14 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 
 	if (qp->transport == MLX || qp->transport == UD)
 		qp_context->mtu_msgmax = (IB_MTU_2048 << 5) | 11;
-	else if (attr_mask & IB_QP_PATH_MTU)
+	else if (attr_mask & IB_QP_PATH_MTU) {
+		if (attr->path_mtu < IB_MTU_256 || attr->path_mtu > IB_MTU_2048) {
+			mthca_dbg(dev, "path MTU (%u) is invalid\n",
+				  attr->path_mtu);
+			return -EINVAL;
+		}
 		qp_context->mtu_msgmax = (attr->path_mtu << 5) | 31;
+	}
 
 	if (mthca_is_memfree(dev)) {
 		if (qp->rq.max)
@@ -642,7 +657,9 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	if (attr_mask & IB_QP_AV) {
-		mthca_path_set(&attr->ah_attr, &qp_context->pri_path);
+		if (mthca_path_set(dev, &attr->ah_attr, &qp_context->pri_path))
+			return -EINVAL;
+
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_PRIMARY_ADDR_PATH);
 	}
 
@@ -664,7 +681,9 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 			return -EINVAL;
 		}
 
-		mthca_path_set(&attr->alt_ah_attr, &qp_context->alt_path);
+		if (mthca_path_set(dev, &attr->alt_ah_attr, &qp_context->alt_path))
+			return -EINVAL;
+
 		qp_context->alt_path.port_pkey |= cpu_to_be32(attr->alt_pkey_index |
 							      attr->alt_port_num << 24);
 		qp_context->alt_path.ackto = attr->alt_timeout << 3;
@@ -758,21 +777,20 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 
 	err = mthca_MODIFY_QP(dev, cur_state, new_state, qp->qpn, 0,
 			      mailbox, sqd_event, &status);
+	if (err)
+		goto out;
 	if (status) {
 		mthca_warn(dev, "modify QP %d->%d returned status %02x.\n",
 			   cur_state, new_state, status);
 		err = -EINVAL;
+		goto out;
 	}
 
-	if (!err) {
-		qp->state = new_state;
-		if (attr_mask & IB_QP_ACCESS_FLAGS)
-			qp->atomic_rd_en = attr->qp_access_flags;
-		if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
-			qp->resp_depth = attr->max_dest_rd_atomic;
-	}
-
-	mthca_free_mailbox(dev, mailbox);
+	qp->state = new_state;
+	if (attr_mask & IB_QP_ACCESS_FLAGS)
+		qp->atomic_rd_en = attr->qp_access_flags;
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
+		qp->resp_depth = attr->max_dest_rd_atomic;
 
 	if (is_sqp(dev, qp))
 		store_attrs(to_msqp(qp), attr, attr_mask);
@@ -797,7 +815,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	 * If we moved a kernel QP to RESET, clean up all old CQ
 	 * entries and reinitialize the QP.
 	 */
-	if (!err && new_state == IB_QPS_RESET && !qp->ibqp.uobject) {
+	if (new_state == IB_QPS_RESET && !qp->ibqp.uobject) {
 		mthca_cq_clean(dev, to_mcq(qp->ibqp.send_cq)->cqn, qp->qpn,
 			       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 		if (qp->ibqp.send_cq != qp->ibqp.recv_cq)
@@ -816,6 +834,8 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		}
 	}
 
+out:
+	mthca_free_mailbox(dev, mailbox);
 	return err;
 }
 
@@ -1177,16 +1197,16 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 {
 	int err;
 
-	err = mthca_set_qp_size(dev, cap, pd, qp);
-	if (err)
-		return err;
-
 	switch (type) {
 	case IB_QPT_RC: qp->transport = RC; break;
 	case IB_QPT_UC: qp->transport = UC; break;
 	case IB_QPT_UD: qp->transport = UD; break;
 	default: return -EINVAL;
 	}
+
+	err = mthca_set_qp_size(dev, cap, pd, qp);
+	if (err)
+		return err;
 
 	qp->qpn = mthca_alloc(&dev->qp_table.alloc);
 	if (qp->qpn == -1)
@@ -1220,6 +1240,7 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 	u32 mqpn = qpn * 2 + dev->qp_table.sqp_start + port - 1;
 	int err;
 
+	sqp->qp.transport = MLX;
 	err = mthca_set_qp_size(dev, cap, pd, &sqp->qp);
 	if (err)
 		return err;
@@ -1980,8 +2001,8 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		wmb();
 		((struct mthca_next_seg *) prev_wqe)->ee_nds =
 			cpu_to_be32(MTHCA_NEXT_DBD | size |
-                                    ((wr->send_flags & IB_SEND_FENCE) ?
-                                    MTHCA_NEXT_FENCE : 0));
+				    ((wr->send_flags & IB_SEND_FENCE) ?
+				     MTHCA_NEXT_FENCE : 0));
 
 		if (!size0) {
 			size0 = size;

@@ -31,7 +31,7 @@
  * The behavior chain is ordered based on the 'position' number which
  * lives in the first field of the ops vector (higher numbers first).
  *
- * Attemps to insert duplicate ops result in an EINVAL return code.
+ * Attempts to insert duplicate ops result in an EINVAL return code.
  * Otherwise, return 0 to indicate success.
  */
 int
@@ -84,7 +84,7 @@ bhv_insert(bhv_head_t *bhp, bhv_desc_t *bdp)
 
 /*
  * Remove a behavior descriptor from a position in a behavior chain;
- * the postition is guaranteed not to be the first position.
+ * the position is guaranteed not to be the first position.
  * Should only be called by the bhv_remove() macro.
  */
 void

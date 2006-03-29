@@ -52,10 +52,10 @@
 struct cpia_camera_ops
 {
 	/* open sets privdata to point to structure for this camera.
-         * Returns negative value on error, otherwise 0.
+	 * Returns negative value on error, otherwise 0.
 	 */
 	int (*open)(void *privdata);
-	
+
 	/* Registers callback function cb to be called with cbdata
 	 * when an image is ready.  If cb is NULL, only single image grabs
 	 * should be used.  cb should immediately call streamRead to read
@@ -63,8 +63,8 @@ struct cpia_camera_ops
 	 * otherwise 0.
 	 */
 	int (*registerCallback)(void *privdata, void (*cb)(void *cbdata),
-	                        void *cbdata);
-	
+				void *cbdata);
+
 	/* transferCmd sends commands to the camera.  command MUST point to
 	 * an  8 byte buffer in kernel space. data can be NULL if no extra
 	 * data is needed.  The size of the data is given by the last 2
@@ -77,30 +77,30 @@ struct cpia_camera_ops
 	 * Returns negative value on error, otherwise 0.
 	 */
 	int (*streamStart)(void *privdata);
-	
+
 	/* streamStop terminates stream capture mode.
 	 * Returns negative value on error, otherwise 0.
 	 */
 	int (*streamStop)(void *privdata);
-        
+
 	/* streamRead reads a frame from the camera.  buffer points to a
-         * buffer large enough to hold a complete frame in kernel space.
-         * noblock indicates if this should be a non blocking read.
+	 * buffer large enough to hold a complete frame in kernel space.
+	 * noblock indicates if this should be a non blocking read.
 	 * Returns the number of bytes read, or negative value on error.
-         */
+	 */
 	int (*streamRead)(void *privdata, u8 *buffer, int noblock);
-	
+
 	/* close disables the device until open() is called again.
 	 * Returns negative value on error, otherwise 0.
 	 */
 	int (*close)(void *privdata);
-	
+
 	/* If wait_for_stream_ready is non-zero, wait until the streamState
 	 * is STREAM_READY before calling streamRead.
 	 */
 	int wait_for_stream_ready;
 
-	/* 
+	/*
 	 * Used to maintain lowlevel module usage counts
 	 */
 	struct module *owner;
@@ -215,14 +215,14 @@ struct cam_params {
 		u8 videoSize;		/* CIF/QCIF */
 		u8 subSample;
 		u8 yuvOrder;
- 	} format;
-        struct {                        /* Intel QX3 specific data */
-                u8 qx3_detected;        /* a QX3 is present */
-                u8 toplight;            /* top light lit , R/W */
-                u8 bottomlight;         /* bottom light lit, R/W */
-                u8 button;              /* snapshot button pressed (R/O) */
-                u8 cradled;             /* microscope is in cradle (R/O) */
-        } qx3;
+	} format;
+	struct {                        /* Intel QX3 specific data */
+		u8 qx3_detected;        /* a QX3 is present */
+		u8 toplight;            /* top light lit , R/W */
+		u8 bottomlight;         /* bottom light lit, R/W */
+		u8 button;              /* snapshot button pressed (R/O) */
+		u8 cradled;             /* microscope is in cradle (R/O) */
+	} qx3;
 	struct {
 		u8 colStart;		/* skip first 8*colStart pixels */
 		u8 colEnd;		/* finish at 8*colEnd pixels */
@@ -247,13 +247,13 @@ enum v4l_camstates {
 struct cam_data {
 	struct list_head cam_data_list;
 
-        struct mutex busy_lock;     /* guard against SMP multithreading */
+	struct mutex busy_lock;     /* guard against SMP multithreading */
 	struct cpia_camera_ops *ops;	/* lowlevel driver operations */
 	void *lowlevel_data;		/* private data for lowlevel driver */
 	u8 *raw_image;			/* buffer for raw image data */
 	struct cpia_frame decompressed_frame;
-                                        /* buffer to hold decompressed frame */
-	int image_size;		        /* sizeof last decompressed image */
+					/* buffer to hold decompressed frame */
+	int image_size;			/* sizeof last decompressed image */
 	int open_count;			/* # of process that have camera open */
 
 				/* camera status */
@@ -265,7 +265,7 @@ struct cam_data {
 	struct mutex param_lock;	/* params lock for this camera */
 	struct cam_params params;	/* camera settings */
 	struct proc_dir_entry *proc_entry;	/* /proc/cpia/videoX */
-	
+
 					/* v4l */
 	int video_size;			/* VIDEO_SIZE_ */
 	volatile enum v4l_camstates camstate;	/* v4l layer status */
@@ -277,7 +277,7 @@ struct cam_data {
 				/* mmap interface */
 	int curframe;			/* the current frame to grab into */
 	u8 *frame_buf;			/* frame buffer data */
-        struct cpia_frame frame[FRAME_NUM];
+	struct cpia_frame frame[FRAME_NUM];
 				/* FRAME_NUM-buffering, so we need a array */
 
 	int first_frame;
@@ -424,7 +424,7 @@ void cpia_unregister_camera(struct cam_data *cam);
 #define DEB_BYTE(p)\
   DBG("%1d %1d %1d %1d %1d %1d %1d %1d \n",\
       (p)&0x80?1:0, (p)&0x40?1:0, (p)&0x20?1:0, (p)&0x10?1:0,\
-        (p)&0x08?1:0, (p)&0x04?1:0, (p)&0x02?1:0, (p)&0x01?1:0);
+	(p)&0x08?1:0, (p)&0x04?1:0, (p)&0x02?1:0, (p)&0x01?1:0);
 
 #endif /* __KERNEL__ */
 

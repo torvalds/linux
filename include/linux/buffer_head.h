@@ -46,25 +46,28 @@ struct address_space;
 typedef void (bh_end_io_t)(struct buffer_head *bh, int uptodate);
 
 /*
- * Keep related fields in common cachelines.  The most commonly accessed
- * field (b_state) goes at the start so the compiler does not generate
- * indexed addressing for it.
+ * Historically, a buffer_head was used to map a single block
+ * within a page, and of course as the unit of I/O through the
+ * filesystem and block layers.  Nowadays the basic I/O unit
+ * is the bio, and buffer_heads are used for extracting block
+ * mappings (via a get_block_t call), for tracking state within
+ * a page (via a page_mapping) and for wrapping bio submission
+ * for backward compatibility reasons (e.g. submit_bh).
  */
 struct buffer_head {
-	/* First cache line: */
 	unsigned long b_state;		/* buffer state bitmap (see above) */
 	struct buffer_head *b_this_page;/* circular list of page's buffers */
 	struct page *b_page;		/* the page this bh is mapped to */
-	atomic_t b_count;		/* users using this block */
-	u32 b_size;			/* block size */
 
-	sector_t b_blocknr;		/* block number */
-	char *b_data;			/* pointer to data block */
+	sector_t b_blocknr;		/* start block number */
+	size_t b_size;			/* size of mapping */
+	char *b_data;			/* pointer to data within the page */
 
 	struct block_device *b_bdev;
 	bh_end_io_t *b_end_io;		/* I/O completion */
  	void *b_private;		/* reserved for b_end_io */
 	struct list_head b_assoc_buffers; /* associated with another mapping */
+	atomic_t b_count;		/* users using this buffer_head */
 };
 
 /*
@@ -189,8 +192,8 @@ extern int buffer_heads_over_limit;
  * address_spaces.
  */
 int try_to_release_page(struct page * page, gfp_t gfp_mask);
-int block_invalidatepage(struct page *page, unsigned long offset);
-int do_invalidatepage(struct page *page, unsigned long offset);
+void block_invalidatepage(struct page *page, unsigned long offset);
+void do_invalidatepage(struct page *page, unsigned long offset);
 int block_write_full_page(struct page *page, get_block_t *get_block,
 				struct writeback_control *wbc);
 int block_read_full_page(struct page*, get_block_t*);
@@ -200,7 +203,7 @@ int cont_prepare_write(struct page*, unsigned, unsigned, get_block_t*,
 int generic_cont_expand(struct inode *inode, loff_t size);
 int generic_cont_expand_simple(struct inode *inode, loff_t size);
 int block_commit_write(struct page *page, unsigned from, unsigned to);
-int block_sync_page(struct page *);
+void block_sync_page(struct page *);
 sector_t generic_block_bmap(struct address_space *, sector_t, get_block_t *);
 int generic_commit_write(struct file *, struct page *, unsigned, unsigned);
 int block_truncate_page(struct address_space *, loff_t, get_block_t *);
@@ -277,6 +280,7 @@ map_bh(struct buffer_head *bh, struct super_block *sb, sector_t block)
 	set_buffer_mapped(bh);
 	bh->b_bdev = sb->s_bdev;
 	bh->b_blocknr = block;
+	bh->b_size = sb->s_blocksize;
 }
 
 /*

@@ -65,15 +65,6 @@ config SENSORS_PCF8591
 	  This driver can also be built as a module.  If so, the module
 	  will be called pcf8591.
 
-config SENSORS_RTC8564
-	tristate "Epson 8564 RTC chip"
-	depends on I2C && EXPERIMENTAL
-	help
-	  If you say yes here you get support for the Epson 8564 RTC chip.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called i2c-rtc8564.
-
 config ISP1301_OMAP
 	tristate "Philips ISP1301 with OMAP OTG"
 	depends on I2C && ARCH_OMAP_OTG
@@ -125,14 +116,5 @@ config SENSORS_MAX6875
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max6875.
-
-config RTC_X1205_I2C
-	tristate "Xicor X1205 RTC chip"
-	depends on I2C && EXPERIMENTAL
-	help
-	  If you say yes here you get support for the Xicor X1205 RTC chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called x1205.
 
 endmenu

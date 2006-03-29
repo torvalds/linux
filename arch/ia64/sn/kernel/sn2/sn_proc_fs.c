@@ -93,19 +93,22 @@ static int coherence_id_open(struct inode *inode, struct file *file)
 static struct proc_dir_entry
 *sn_procfs_create_entry(const char *name, struct proc_dir_entry *parent,
 			int (*openfunc)(struct inode *, struct file *),
-			int (*releasefunc)(struct inode *, struct file *))
+	int (*releasefunc)(struct inode *, struct file *),
+	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *))
 {
 	struct proc_dir_entry *e = create_proc_entry(name, 0444, parent);
 
 	if (e) {
-		e->proc_fops = (struct file_operations *)kmalloc(
-			sizeof(struct file_operations), GFP_KERNEL);
-		if (e->proc_fops) {
-			memset(e->proc_fops, 0, sizeof(struct file_operations));
-			e->proc_fops->open = openfunc;
-			e->proc_fops->read = seq_read;
-			e->proc_fops->llseek = seq_lseek;
-			e->proc_fops->release = releasefunc;
+		struct file_operations *f;
+
+		f = kzalloc(sizeof(*f), GFP_KERNEL);
+		if (f) {
+			f->open = openfunc;
+			f->read = seq_read;
+			f->llseek = seq_lseek;
+			f->release = releasefunc;
+			f->write = write;
+			e->proc_fops = f;
 		}
 	}
 
@@ -119,31 +122,29 @@ extern int sn_topology_release(struct inode *, struct file *);
 void register_sn_procfs(void)
 {
 	static struct proc_dir_entry *sgi_proc_dir = NULL;
-	struct proc_dir_entry *e;
 
 	BUG_ON(sgi_proc_dir != NULL);
 	if (!(sgi_proc_dir = proc_mkdir("sgi_sn", NULL)))
 		return;
 
 	sn_procfs_create_entry("partition_id", sgi_proc_dir,
-			       partition_id_open, single_release);
+		partition_id_open, single_release, NULL);
 
 	sn_procfs_create_entry("system_serial_number", sgi_proc_dir,
-			       system_serial_number_open, single_release);
+		system_serial_number_open, single_release, NULL);
 
 	sn_procfs_create_entry("licenseID", sgi_proc_dir, 
-			       licenseID_open, single_release);
+		licenseID_open, single_release, NULL);
 
-	e = sn_procfs_create_entry("sn_force_interrupt", sgi_proc_dir, 
-				   sn_force_interrupt_open, single_release);
-	if (e) 
-		e->proc_fops->write = sn_force_interrupt_write_proc;
+	sn_procfs_create_entry("sn_force_interrupt", sgi_proc_dir,
+		sn_force_interrupt_open, single_release,
+		sn_force_interrupt_write_proc);
 
 	sn_procfs_create_entry("coherence_id", sgi_proc_dir, 
-			       coherence_id_open, single_release);
+		coherence_id_open, single_release, NULL);
 	
 	sn_procfs_create_entry("sn_topology", sgi_proc_dir,
-			       sn_topology_open, sn_topology_release);
+		sn_topology_open, sn_topology_release, NULL);
 }
 
 #endif /* CONFIG_PROC_FS */

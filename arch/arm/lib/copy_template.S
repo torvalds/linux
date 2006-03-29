@@ -236,7 +236,7 @@
 
 
 /*
- * Abort preanble and completion macros.
+ * Abort preamble and completion macros.
  * If a fixup handler is required then those macros must surround it.
  * It is assumed that the fixup code will handle the private part of
  * the exit macro.

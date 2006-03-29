@@ -54,7 +54,7 @@ unsigned char cpu_leds[32];
 unsigned char sbus_tid[32];
 #endif
 
-extern struct irqaction *irq_action[];
+static struct irqaction *irq_action[NR_IRQS];
 extern spinlock_t irq_action_lock;
 
 struct sbus_action {

@@ -558,7 +558,7 @@ static loff_t hppfs_llseek(struct file *file, loff_t off, int where)
 	return(default_llseek(file, off, where));
 }
 
-static struct file_operations hppfs_file_fops = {
+static const struct file_operations hppfs_file_fops = {
 	.owner		= NULL,
 	.llseek		= hppfs_llseek,
 	.read		= hppfs_read,
@@ -609,7 +609,7 @@ static int hppfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	return(0);
 }
 
-static struct file_operations hppfs_dir_fops = {
+static const struct file_operations hppfs_dir_fops = {
 	.owner		= NULL,
 	.readdir	= hppfs_readdir,
 	.open		= hppfs_dir_open,

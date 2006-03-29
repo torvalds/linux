@@ -45,7 +45,8 @@ struct rpc_clnt {
 	char *			cl_server;	/* server machine name */
 	char *			cl_protname;	/* protocol name */
 	struct rpc_auth *	cl_auth;	/* authenticator */
-	struct rpc_stat *	cl_stats;	/* statistics */
+	struct rpc_stat *	cl_stats;	/* per-program statistics */
+	struct rpc_iostats *	cl_metrics;	/* per-client statistics */
 
 	unsigned int		cl_softrtry : 1,/* soft timeouts */
 				cl_intr     : 1,/* interruptible */
@@ -59,6 +60,7 @@ struct rpc_clnt {
 	int			cl_nodelen;	/* nodename length */
 	char 			cl_nodename[UNX_MAXNODENAME];
 	char			cl_pathname[30];/* Path in rpc_pipe_fs */
+	struct vfsmount *	cl_vfsmnt;
 	struct dentry *		cl_dentry;	/* inode */
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
@@ -100,6 +102,8 @@ struct rpc_procinfo {
 	unsigned int		p_bufsiz;	/* req. buffer size */
 	unsigned int		p_count;	/* call count */
 	unsigned int		p_timer;	/* Which RTT timer to use */
+	u32			p_statidx;	/* Which procedure to account */
+	char *			p_name;		/* name of procedure */
 };
 
 #define RPC_CONGESTED(clnt)	(RPCXPRT_CONGESTED((clnt)->cl_xprt))
@@ -136,20 +140,6 @@ void		rpc_setbufsize(struct rpc_clnt *, unsigned int, unsigned int);
 size_t		rpc_max_payload(struct rpc_clnt *);
 void		rpc_force_rebind(struct rpc_clnt *);
 int		rpc_ping(struct rpc_clnt *clnt, int flags);
-
-static __inline__
-int rpc_call(struct rpc_clnt *clnt, u32 proc, void *argp, void *resp, int flags)
-{
-	struct rpc_message msg = {
-		.rpc_proc	= &clnt->cl_procinfo[proc],
-		.rpc_argp	= argp,
-		.rpc_resp	= resp,
-		.rpc_cred	= NULL
-	};
-	return rpc_call_sync(clnt, &msg, flags);
-}
-		
-extern void rpciod_wake_up(void);
 
 /*
  * Helper function for NFSroot support

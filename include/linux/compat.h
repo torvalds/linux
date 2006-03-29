@@ -45,6 +45,32 @@ struct compat_tms {
 	compat_clock_t		tms_cstime;
 };
 
+struct compat_timex {
+	compat_uint_t modes;
+	compat_long_t offset;
+	compat_long_t freq;
+	compat_long_t maxerror;
+	compat_long_t esterror;
+	compat_int_t status;
+	compat_long_t constant;
+	compat_long_t precision;
+	compat_long_t tolerance;
+	struct compat_timeval time;
+	compat_long_t tick;
+	compat_long_t ppsfreq;
+	compat_long_t jitter;
+	compat_int_t shift;
+	compat_long_t stabil;
+	compat_long_t jitcnt;
+	compat_long_t calcnt;
+	compat_long_t errcnt;
+	compat_long_t stbcnt;
+
+	compat_int_t :32; compat_int_t :32; compat_int_t :32; compat_int_t :32;
+	compat_int_t :32; compat_int_t :32; compat_int_t :32; compat_int_t :32;
+	compat_int_t :32; compat_int_t :32; compat_int_t :32; compat_int_t :32;
+};
+
 #define _COMPAT_NSIG_WORDS	(_COMPAT_NSIG / _COMPAT_NSIG_BPW)
 
 typedef struct {
@@ -121,6 +147,24 @@ typedef struct compat_sigevent {
 	} _sigev_un;
 } compat_sigevent_t;
 
+struct compat_robust_list {
+	compat_uptr_t			next;
+};
+
+struct compat_robust_list_head {
+	struct compat_robust_list	list;
+	compat_long_t			futex_offset;
+	compat_uptr_t			list_op_pending;
+};
+
+extern void compat_exit_robust_list(struct task_struct *curr);
+
+asmlinkage long
+compat_sys_set_robust_list(struct compat_robust_list_head __user *head,
+			   compat_size_t len);
+asmlinkage long
+compat_sys_get_robust_list(int pid, compat_uptr_t *head_ptr,
+			   compat_size_t __user *len_ptr);
 
 long compat_sys_semctl(int first, int second, int third, void __user *uptr);
 long compat_sys_msgsnd(int first, int second, int third, void __user *uptr);
@@ -180,6 +224,8 @@ static inline int compat_timespec_compare(struct compat_timespec *lhs,
 		return 1;
 	return lhs->tv_nsec - rhs->tv_nsec;
 }
+
+asmlinkage long compat_sys_adjtimex(struct compat_timex __user *utp);
 
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */

@@ -234,7 +234,7 @@ static int __initdata ezrat_eblcr[32] = {
 
 /*
  * VIA C3 Nehemiah */
- 
+
 static int __initdata nehemiah_a_clock_ratio[32] = {
 	100, /* 0000 -> 10.0x */
 	160, /* 0001 -> 16.0x */
@@ -446,7 +446,7 @@ static int __initdata nehemiah_c_eblcr[32] = {
 	  /* end of table  */
 };
 
-/* 
+/*
  * Voltage scales. Div/Mod by 1000 to get actual voltage.
  * Which scale to use depends on the VRM type in use.
  */

@@ -782,7 +782,8 @@ isdn_ppp_read(int min, struct file *file, char __user *buf, int count)
 	is->first = b;
 
 	spin_unlock_irqrestore(&is->buflock, flags);
-	copy_to_user(buf, save_buf, count);
+	if (copy_to_user(buf, save_buf, count))
+		count = -EFAULT;
 	kfree(save_buf);
 
 	return count;
@@ -973,8 +974,7 @@ void isdn_ppp_receive(isdn_net_dev * net_dev, isdn_net_local * lp, struct sk_buf
 	int slot;
 	int proto;
 
-	if (net_dev->local->master)
-		BUG(); // we're called with the master device always
+	BUG_ON(net_dev->local->master); // we're called with the master device always
 
 	slot = lp->ppp_slot;
 	if (slot < 0 || slot >= ISDN_MAX_CHANNELS) {
@@ -2526,8 +2526,7 @@ static struct sk_buff *isdn_ppp_decompress(struct sk_buff *skb,struct ippp_struc
 		printk(KERN_DEBUG "ippp: no decompressor defined!\n");
 		return skb;
 	}
-	if (!stat) // if we have a compressor, stat has been set as well
-		BUG();
+	BUG_ON(!stat); // if we have a compressor, stat has been set as well
 
 	if((master && *proto == PPP_COMP) || (!master && *proto == PPP_COMPFRAG) ) {
 		// compressed packets are compressed by their protocol type

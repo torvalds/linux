@@ -8,6 +8,7 @@ mainmenu "Linux Kernel Configuration"
 config ARM
 	bool
 	default y
+	select RTC_LIB
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -52,6 +53,10 @@ config RWSEM_GENERIC_SPINLOCK
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
+
+config GENERIC_HWEIGHT
+	bool
+	default y
 
 config GENERIC_CALIBRATE_DELAY
 	bool
@@ -147,6 +152,12 @@ config ARCH_IXP2000
 	select PCI
 	help
 	  Support for Intel's IXP2400/2800 (XScale) family of processors.
+
+config ARCH_IXP23XX
+ 	bool "IXP23XX-based"
+ 	select PCI
+	help
+	  Support for Intel's IXP23xx (XScale) family of processors.
 
 config ARCH_L7200
 	bool "LinkUp-L7200"
@@ -268,6 +279,8 @@ source "arch/arm/mach-iop3xx/Kconfig"
 source "arch/arm/mach-ixp4xx/Kconfig"
 
 source "arch/arm/mach-ixp2000/Kconfig"
+
+source "arch/arm/mach-ixp23xx/Kconfig"
 
 source "arch/arm/mach-pxa/Kconfig"
 
@@ -787,7 +800,8 @@ source "drivers/acorn/block/Kconfig"
 
 if PCMCIA || ARCH_CLPS7500 || ARCH_IOP3XX || ARCH_IXP4XX \
 	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \
-	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE
+	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE \
+	|| ARCH_IXP23XX
 source "drivers/ide/Kconfig"
 endif
 
@@ -834,6 +848,8 @@ source "sound/Kconfig"
 source "drivers/usb/Kconfig"
 
 source "drivers/mmc/Kconfig"
+
+source "drivers/rtc/Kconfig"
 
 endmenu
 

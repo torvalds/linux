@@ -22,7 +22,7 @@ static int return_EIO(void)
 
 #define EIO_ERROR ((void *) (return_EIO))
 
-static struct file_operations bad_file_ops =
+static const struct file_operations bad_file_ops =
 {
 	.llseek		= EIO_ERROR,
 	.aio_read	= EIO_ERROR,

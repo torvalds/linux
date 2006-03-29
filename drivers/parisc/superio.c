@@ -157,8 +157,8 @@ superio_init(struct pci_dev *pcidev)
         if (sio->suckyio_irq_enabled)                                       
 		return;
 
-	if (!pdev) BUG();
-	if (!sio->usb_pdev) BUG();
+	BUG_ON(!pdev);
+	BUG_ON(!sio->usb_pdev);
 
 	/* use the IRQ iosapic found for USB INT D... */
 	pdev->irq = sio->usb_pdev->irq;
@@ -474,8 +474,7 @@ superio_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		dev->subsystem_vendor, dev->subsystem_device,
 		dev->class);
 
-	if (!sio->suckyio_irq_enabled)
-		BUG(); /* Enabled by PCI_FIXUP_FINAL */
+	BUG_ON(!sio->suckyio_irq_enabled);	/* Enabled by PCI_FIXUP_FINAL */
 
 	if (dev->device == PCI_DEVICE_ID_NS_87560_LIO) {	/* Function 1 */
 		superio_parport_init();

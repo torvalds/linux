@@ -766,7 +766,7 @@ extern void ip_ct_proto_gre_fini(void);
 extern int __init ip_ct_proto_gre_init(void);
 
 /* ip_conntrack_pptp initialization */
-static int __init init(void)
+static int __init ip_conntrack_helper_pptp_init(void)
 {
 	int retcode;
  
@@ -786,15 +786,15 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ip_conntrack_helper_pptp_fini(void)
 {
 	ip_conntrack_helper_unregister(&pptp);
 	ip_ct_proto_gre_fini();
 	printk("ip_conntrack_pptp version %s unloaded\n", IP_CT_PPTP_VERSION);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip_conntrack_helper_pptp_init);
+module_exit(ip_conntrack_helper_pptp_fini);
 
 EXPORT_SYMBOL(ip_nat_pptp_hook_outbound);
 EXPORT_SYMBOL(ip_nat_pptp_hook_inbound);

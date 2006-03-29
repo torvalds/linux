@@ -360,7 +360,7 @@ uses of RCU may be found in listRCU.txt, arrayRCU.txt, and NMI-RCU.txt.
 		struct foo *new_fp;
 		struct foo *old_fp;
 
-		new_fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+		new_fp = kmalloc(sizeof(*new_fp), GFP_KERNEL);
 		spin_lock(&foo_mutex);
 		old_fp = gbl_foo;
 		*new_fp = *old_fp;
@@ -461,7 +461,7 @@ The foo_update_a() function might then be written as follows:
 		struct foo *new_fp;
 		struct foo *old_fp;
 
-		new_fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+		new_fp = kmalloc(sizeof(*new_fp), GFP_KERNEL);
 		spin_lock(&foo_mutex);
 		old_fp = gbl_foo;
 		*new_fp = *old_fp;
@@ -605,7 +605,7 @@ are the same as those shown in the preceding section, so they are omitted.
 	{
 		int cpu;
 
-		for_each_cpu(cpu)
+		for_each_possible_cpu(cpu)
 			run_on(cpu);
 	}
 

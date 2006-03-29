@@ -27,6 +27,7 @@
 #include <asm/prom.h>
 #include <asm/nvram.h>
 #include <asm/atomic.h>
+#include <asm/machdep.h>
 
 #if 0
 #define DEBUG(A...)	printk(KERN_ERR A)
@@ -481,7 +482,7 @@ static int __init rtas_init(void)
 {
 	struct proc_dir_entry *entry;
 
-	if (!platform_is_pseries())
+	if (!machine_is(pseries))
 		return 0;
 
 	/* No RTAS */

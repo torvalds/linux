@@ -34,8 +34,7 @@
 #include <asm/mpc52xx.h>
 #include <asm/ppc_sys.h>
 #include <asm/machdep.h>
-
-#include <syslib/mpc52xx_pci.h>
+#include <asm/pci-bridge.h>
 
 
 extern int powersave_nap;
@@ -68,43 +67,52 @@ lite5200_show_cpuinfo(struct seq_file *m)
 }
 
 #ifdef CONFIG_PCI
+#ifdef CONFIG_LITE5200B
+static int
+lite5200_map_irq(struct pci_dev *dev, unsigned char idsel,
+		    unsigned char pin)
+{
+	static char pci_irq_table[][4] =
+	/*
+	 *      PCI IDSEL/INTPIN->INTLINE
+	 *        A             B             C             D
+	 */
+	{
+		{MPC52xx_IRQ0, MPC52xx_IRQ1, MPC52xx_IRQ2, MPC52xx_IRQ3},
+		{MPC52xx_IRQ1, MPC52xx_IRQ2, MPC52xx_IRQ3, MPC52xx_IRQ0},
+	};
+
+	const long min_idsel = 24, max_idsel = 25, irqs_per_slot = 4;
+	return PCI_IRQ_TABLE_LOOKUP;
+}
+#else /* Original Lite */
 static int
 lite5200_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 {
 	return (pin == 1) && (idsel==24) ? MPC52xx_IRQ0 : -1;
 }
 #endif
+#endif
 
 static void __init
 lite5200_setup_cpu(void)
 {
-	struct mpc52xx_cdm  __iomem *cdm;
 	struct mpc52xx_gpio __iomem *gpio;
 	struct mpc52xx_intr __iomem *intr;
-	struct mpc52xx_xlb  __iomem *xlb;
 
 	u32 port_config;
 	u32 intr_ctrl;
 
 	/* Map zones */
-	cdm  = ioremap(MPC52xx_PA(MPC52xx_CDM_OFFSET), MPC52xx_CDM_SIZE);
 	gpio = ioremap(MPC52xx_PA(MPC52xx_GPIO_OFFSET), MPC52xx_GPIO_SIZE);
-	xlb  = ioremap(MPC52xx_PA(MPC52xx_XLB_OFFSET), MPC52xx_XLB_SIZE);
 	intr = ioremap(MPC52xx_PA(MPC52xx_INTR_OFFSET), MPC52xx_INTR_SIZE);
 
-	if (!cdm || !gpio || !xlb || !intr) {
-		printk("lite5200.c: Error while mapping CDM/GPIO/XLB/INTR during"
-				"lite5200_setup_cpu\n");
+	if (!gpio || !intr) {
+		printk(KERN_ERR __FILE__ ": "
+			"Error while mapping GPIO/INTR during "
+			"lite5200_setup_cpu\n");
 		goto unmap_regs;
 	}
-
-	/* Use internal 48 Mhz */
-	out_8(&cdm->ext_48mhz_en, 0x00);
-	out_8(&cdm->fd_enable, 0x01);
-	if (in_be32(&cdm->rstcfg) & 0x40)	/* Assumes 33Mhz clock */
-		out_be16(&cdm->fd_counters, 0x0001);
-	else
-		out_be16(&cdm->fd_counters, 0x5555);
 
 	/* Get port mux config */
 	port_config = in_be32(&gpio->port_config);
@@ -116,29 +124,29 @@ lite5200_setup_cpu(void)
 	port_config &= ~0x00007000;	/* Differential mode - USB1 only */
 	port_config |=  0x00001000;
 
+	/* ATA CS is on csb_4/5 */
+	port_config &= ~0x03000000;
+	port_config |=  0x01000000;
+
 	/* Commit port config */
 	out_be32(&gpio->port_config, port_config);
 
-	/* Configure the XLB Arbiter */
-	out_be32(&xlb->master_pri_enable, 0xff);
-	out_be32(&xlb->master_priority, 0x11111111);
-
-	/* Enable ram snooping for 1GB window */
-	out_be32(&xlb->config, in_be32(&xlb->config) | MPC52xx_XLB_CFG_SNOOP);
-	out_be32(&xlb->snoop_window, MPC52xx_PCI_TARGET_MEM | 0x1d);
-
-	/* IRQ[0-3] setup : IRQ0     - Level Active Low  */
-	/*                  IRQ[1-3] - Level Active High */
+	/* IRQ[0-3] setup */
 	intr_ctrl = in_be32(&intr->ctrl);
 	intr_ctrl &= ~0x00ff0000;
-	intr_ctrl |=  0x00c00000;
+#ifdef CONFIG_LITE5200B
+	/* IRQ[0-3] Level Active Low */
+	intr_ctrl |=  0x00ff0000;
+#else
+	/* IRQ0 Level Active Low
+	 * IRQ[1-3] Level Active High */
+ 	intr_ctrl |=  0x00c00000;
+#endif
 	out_be32(&intr->ctrl, intr_ctrl);
 
 	/* Unmap reg zone */
 unmap_regs:
-	if (cdm)  iounmap(cdm);
 	if (gpio) iounmap(gpio);
-	if (xlb)  iounmap(xlb);
 	if (intr) iounmap(intr);
 }
 
@@ -146,7 +154,8 @@ static void __init
 lite5200_setup_arch(void)
 {
 	/* CPU & Port mux setup */
-	lite5200_setup_cpu();
+	mpc52xx_setup_cpu();	/* Generic */
+	lite5200_setup_cpu();	/* Platform specific */
 
 #ifdef CONFIG_PCI
 	/* PCI Bridge setup */

@@ -196,8 +196,6 @@
 
 
 #define DRV_NAME	"3c59x"
-#define DRV_VERSION	"LK1.1.19"
-#define DRV_RELDATE	"10 Nov 2002"
 
 
 
@@ -275,10 +273,8 @@ static char version[] __devinitdata =
 DRV_NAME ": Donald Becker and others. www.scyld.com/network/vortex.html\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
-MODULE_DESCRIPTION("3Com 3c59x/3c9xx ethernet driver "
-					DRV_VERSION " " DRV_RELDATE);
+MODULE_DESCRIPTION("3Com 3c59x/3c9xx ethernet driver ");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);
 
 
 /* Operational parameter that usually are not changed. */
@@ -904,7 +900,6 @@ static void acpi_set_WOL(struct net_device *dev);
 static struct ethtool_ops vortex_ethtool_ops;
 static void set_8021q_mode(struct net_device *dev, int enable);
 
-
 /* This driver uses 'options' to pass the media type, full-duplex flag, etc. */
 /* Option count limit only -- unlimited interfaces are supported. */
 #define MAX_UNITS 8
@@ -918,8 +913,6 @@ static int global_options = -1;
 static int global_full_duplex = -1;
 static int global_enable_wol = -1;
 static int global_use_mmio = -1;
-
-/* #define dev_alloc_skb dev_alloc_skb_debug */
 
 /* Variables to work-around the Compaq PCI BIOS32 problem. */
 static int compaq_ioaddr, compaq_irq, compaq_device_id = 0x5900;
@@ -976,7 +969,7 @@ static void poll_vortex(struct net_device *dev)
 
 #ifdef CONFIG_PM
 
-static int vortex_suspend (struct pci_dev *pdev, pm_message_t state)
+static int vortex_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 
@@ -994,7 +987,7 @@ static int vortex_suspend (struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int vortex_resume (struct pci_dev *pdev)
+static int vortex_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct vortex_private *vp = netdev_priv(dev);
@@ -1027,8 +1020,8 @@ static struct eisa_device_id vortex_eisa_ids[] = {
 	{ "" }
 };
 
-static int vortex_eisa_probe (struct device *device);
-static int vortex_eisa_remove (struct device *device);
+static int vortex_eisa_probe(struct device *device);
+static int vortex_eisa_remove(struct device *device);
 
 static struct eisa_driver vortex_eisa_driver = {
 	.id_table = vortex_eisa_ids,
@@ -1039,12 +1032,12 @@ static struct eisa_driver vortex_eisa_driver = {
 	}
 };
 
-static int vortex_eisa_probe (struct device *device)
+static int vortex_eisa_probe(struct device *device)
 {
 	void __iomem *ioaddr;
 	struct eisa_device *edev;
 
-	edev = to_eisa_device (device);
+	edev = to_eisa_device(device);
 
 	if (!request_region(edev->base_addr, VORTEX_TOTAL_SIZE, DRV_NAME))
 		return -EBUSY;
@@ -1053,7 +1046,7 @@ static int vortex_eisa_probe (struct device *device)
 
 	if (vortex_probe1(device, ioaddr, ioread16(ioaddr + 0xC88) >> 12,
 					  edev->id.driver_data, vortex_cards_found)) {
-		release_region (edev->base_addr, VORTEX_TOTAL_SIZE);
+		release_region(edev->base_addr, VORTEX_TOTAL_SIZE);
 		return -ENODEV;
 	}
 
@@ -1062,15 +1055,15 @@ static int vortex_eisa_probe (struct device *device)
 	return 0;
 }
 
-static int vortex_eisa_remove (struct device *device)
+static int vortex_eisa_remove(struct device *device)
 {
 	struct eisa_device *edev;
 	struct net_device *dev;
 	struct vortex_private *vp;
 	void __iomem *ioaddr;
 
-	edev = to_eisa_device (device);
-	dev = eisa_get_drvdata (edev);
+	edev = to_eisa_device(device);
+	dev = eisa_get_drvdata(edev);
 
 	if (!dev) {
 		printk("vortex_eisa_remove called for Compaq device!\n");
@@ -1080,30 +1073,34 @@ static int vortex_eisa_remove (struct device *device)
 	vp = netdev_priv(dev);
 	ioaddr = vp->ioaddr;
 	
-	unregister_netdev (dev);
-	iowrite16 (TotalReset|0x14, ioaddr + EL3_CMD);
-	release_region (dev->base_addr, VORTEX_TOTAL_SIZE);
+	unregister_netdev(dev);
+	iowrite16(TotalReset|0x14, ioaddr + EL3_CMD);
+	release_region(dev->base_addr, VORTEX_TOTAL_SIZE);
 
-	free_netdev (dev);
+	free_netdev(dev);
 	return 0;
 }
 #endif
 
 /* returns count found (>= 0), or negative on error */
-static int __init vortex_eisa_init (void)
+static int __init vortex_eisa_init(void)
 {
 	int eisa_found = 0;
 	int orig_cards_found = vortex_cards_found;
 
 #ifdef CONFIG_EISA
-	if (eisa_driver_register (&vortex_eisa_driver) >= 0) {
-			/* Because of the way EISA bus is probed, we cannot assume
-			 * any device have been found when we exit from
-			 * eisa_driver_register (the bus root driver may not be
-			 * initialized yet). So we blindly assume something was
-			 * found, and let the sysfs magic happend... */
-			
-			eisa_found = 1;
+	int err;
+
+	err = eisa_driver_register (&vortex_eisa_driver);
+	if (!err) {
+		/*
+		 * Because of the way EISA bus is probed, we cannot assume
+		 * any device have been found when we exit from
+		 * eisa_driver_register (the bus root driver may not be
+		 * initialized yet). So we blindly assume something was
+		 * found, and let the sysfs magic happend...
+		 */
+		eisa_found = 1;
 	}
 #endif
 	
@@ -1117,7 +1114,7 @@ static int __init vortex_eisa_init (void)
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit vortex_init_one (struct pci_dev *pdev,
+static int __devinit vortex_init_one(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
 	int rc, unit, pci_bar;
@@ -1125,7 +1122,7 @@ static int __devinit vortex_init_one (struct pci_dev *pdev,
 	void __iomem *ioaddr;
 
 	/* wake up and enable device */		
-	rc = pci_enable_device (pdev);
+	rc = pci_enable_device(pdev);
 	if (rc < 0)
 		goto out;
 
@@ -1147,7 +1144,7 @@ static int __devinit vortex_init_one (struct pci_dev *pdev,
 	rc = vortex_probe1(&pdev->dev, ioaddr, pdev->irq,
 			   ent->driver_data, unit);
 	if (rc < 0) {
-		pci_disable_device (pdev);
+		pci_disable_device(pdev);
 		goto out;
 	}
 
@@ -1232,7 +1229,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	if (print_info)
 		printk (KERN_INFO "See Documentation/networking/vortex.txt\n");
 
-	printk(KERN_INFO "%s: 3Com %s %s at %p. Vers " DRV_VERSION "\n",
+	printk(KERN_INFO "%s: 3Com %s %s at %p.\n",
 	       print_name,
 	       pdev ? "PCI" : "EISA",
 	       vci->name,
@@ -1262,7 +1259,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 
 		/* enable bus-mastering if necessary */		
 		if (vci->flags & PCI_USES_MASTER)
-			pci_set_master (pdev);
+			pci_set_master(pdev);
 
 		if (vci->drv_flags & IS_VORTEX) {
 			u8 pci_latency;
@@ -1306,7 +1303,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	if (pdev)
 		pci_set_drvdata(pdev, dev);
 	if (edev)
-		eisa_set_drvdata (edev, dev);
+		eisa_set_drvdata(edev, dev);
 
 	vp->media_override = 7;
 	if (option >= 0) {
@@ -1331,7 +1328,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 			vp->enable_wol = 1;
 	}
 
-	vp->force_fd = vp->full_duplex;
+	vp->mii.force_media = vp->full_duplex;
 	vp->options = option;
 	/* Read the station address from the EEPROM. */
 	EL3WINDOW(0);
@@ -1621,6 +1618,46 @@ issue_and_wait(struct net_device *dev, int cmd)
 }
 
 static void
+vortex_set_duplex(struct net_device *dev)
+{
+	struct vortex_private *vp = netdev_priv(dev);
+	void __iomem *ioaddr = vp->ioaddr;
+
+	printk(KERN_INFO "%s:  setting %s-duplex.\n",
+		dev->name, (vp->full_duplex) ? "full" : "half");
+
+	EL3WINDOW(3);
+	/* Set the full-duplex bit. */
+	iowrite16(((vp->info1 & 0x8000) || vp->full_duplex ? 0x20 : 0) |
+		 	(vp->large_frames ? 0x40 : 0) |
+			((vp->full_duplex && vp->flow_ctrl && vp->partner_flow_ctrl) ?
+					0x100 : 0),
+			ioaddr + Wn3_MAC_Ctrl);
+
+	issue_and_wait(dev, TxReset);
+	/*
+	 * Don't reset the PHY - that upsets autonegotiation during DHCP operations.
+	 */
+	issue_and_wait(dev, RxReset|0x04);
+}
+
+static void vortex_check_media(struct net_device *dev, unsigned int init)
+{
+	struct vortex_private *vp = netdev_priv(dev);
+	unsigned int ok_to_print = 0;
+
+	if (vortex_debug > 3)
+		ok_to_print = 1;
+
+	if (mii_check_media(&vp->mii, ok_to_print, init)) {
+		vp->full_duplex = vp->mii.full_duplex;
+		vortex_set_duplex(dev);
+	} else if (init) {
+		vortex_set_duplex(dev);
+	}
+}
+
+static void
 vortex_up(struct net_device *dev)
 {
 	struct vortex_private *vp = netdev_priv(dev);
@@ -1680,53 +1717,20 @@ vortex_up(struct net_device *dev)
 		printk(KERN_DEBUG "%s: Initial media type %s.\n",
 			   dev->name, media_tbl[dev->if_port].name);
 
-	vp->full_duplex = vp->force_fd;
+	vp->full_duplex = vp->mii.force_media;
 	config = BFINS(config, dev->if_port, 20, 4);
 	if (vortex_debug > 6)
 		printk(KERN_DEBUG "vortex_up(): writing 0x%x to InternalConfig\n", config);
 	iowrite32(config, ioaddr + Wn3_Config);
 
+	netif_carrier_off(dev);
 	if (dev->if_port == XCVR_MII || dev->if_port == XCVR_NWAY) {
-		int mii_reg1, mii_reg5;
 		EL3WINDOW(4);
-		/* Read BMSR (reg1) only to clear old status. */
-		mii_reg1 = mdio_read(dev, vp->phys[0], MII_BMSR);
-		mii_reg5 = mdio_read(dev, vp->phys[0], MII_LPA);
-		if (mii_reg5 == 0xffff  ||  mii_reg5 == 0x0000) {
-			netif_carrier_off(dev); /* No MII device or no link partner report */
-		} else {
-			mii_reg5 &= vp->advertising;
-			if ((mii_reg5 & 0x0100) != 0	/* 100baseTx-FD */
-				 || (mii_reg5 & 0x00C0) == 0x0040) /* 10T-FD, but not 100-HD */
-			vp->full_duplex = 1;
-			netif_carrier_on(dev);
-		}
-		vp->partner_flow_ctrl = ((mii_reg5 & 0x0400) != 0);
-		if (vortex_debug > 1)
-			printk(KERN_INFO "%s: MII #%d status %4.4x, link partner capability %4.4x,"
-				   " info1 %04x, setting %s-duplex.\n",
-					dev->name, vp->phys[0],
-					mii_reg1, mii_reg5,
-					vp->info1, ((vp->info1 & 0x8000) || vp->full_duplex) ? "full" : "half");
-		EL3WINDOW(3);
+		vortex_check_media(dev, 1);
 	}
+	else
+		vortex_set_duplex(dev);
 
-	/* Set the full-duplex bit. */
-	iowrite16(	((vp->info1 & 0x8000) || vp->full_duplex ? 0x20 : 0) |
-		 	(vp->large_frames ? 0x40 : 0) |
-			((vp->full_duplex && vp->flow_ctrl && vp->partner_flow_ctrl) ? 0x100 : 0),
-			ioaddr + Wn3_MAC_Ctrl);
-
-	if (vortex_debug > 1) {
-		printk(KERN_DEBUG "%s: vortex_up() InternalConfig %8.8x.\n",
-			dev->name, config);
-	}
-
-	issue_and_wait(dev, TxReset);
-	/*
-	 * Don't reset the PHY - that upsets autonegotiation during DHCP operations.
-	 */
-	issue_and_wait(dev, RxReset|0x04);
 
 	iowrite16(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
 
@@ -1801,7 +1805,6 @@ vortex_up(struct net_device *dev)
 	set_8021q_mode(dev, 1);
 	iowrite16(StatsEnable, ioaddr + EL3_CMD); /* Turn on statistics. */
 
-//	issue_and_wait(dev, SetTxStart|0x07ff);
 	iowrite16(RxEnable, ioaddr + EL3_CMD); /* Enable the receiver. */
 	iowrite16(TxEnable, ioaddr + EL3_CMD); /* Enable transmitter. */
 	/* Allow status bits to be seen. */
@@ -1888,7 +1891,7 @@ vortex_timer(unsigned long data)
 	void __iomem *ioaddr = vp->ioaddr;
 	int next_tick = 60*HZ;
 	int ok = 0;
-	int media_status, mii_status, old_window;
+	int media_status, old_window;
 
 	if (vortex_debug > 2) {
 		printk(KERN_DEBUG "%s: Media selection timer tick happened, %s.\n",
@@ -1896,8 +1899,6 @@ vortex_timer(unsigned long data)
 		printk(KERN_DEBUG "dev->watchdog_timeo=%d\n", dev->watchdog_timeo);
 	}
 
-	if (vp->medialock)
-		goto leave_media_alone;
 	disable_irq(dev->irq);
 	old_window = ioread16(ioaddr + EL3_CMD) >> 13;
 	EL3WINDOW(4);
@@ -1920,44 +1921,9 @@ vortex_timer(unsigned long data)
 		break;
 	case XCVR_MII: case XCVR_NWAY:
 		{
-			spin_lock_bh(&vp->lock);
-			mii_status = mdio_read(dev, vp->phys[0], MII_BMSR);
-			if (!(mii_status & BMSR_LSTATUS)) {
-				/* Re-read to get actual link status */
-				mii_status = mdio_read(dev, vp->phys[0], MII_BMSR);
-			}
 			ok = 1;
-			if (vortex_debug > 2)
-				printk(KERN_DEBUG "%s: MII transceiver has status %4.4x.\n",
-					dev->name, mii_status);
-			if (mii_status & BMSR_LSTATUS) {
-				int mii_reg5 = mdio_read(dev, vp->phys[0], MII_LPA);
-				if (! vp->force_fd  &&  mii_reg5 != 0xffff) {
-					int duplex;
-
-					mii_reg5 &= vp->advertising;
-					duplex = (mii_reg5&0x0100) || (mii_reg5 & 0x01C0) == 0x0040;
-					if (vp->full_duplex != duplex) {
-						vp->full_duplex = duplex;
-						printk(KERN_INFO "%s: Setting %s-duplex based on MII "
-							"#%d link partner capability of %4.4x.\n",
-							dev->name, vp->full_duplex ? "full" : "half",
-							vp->phys[0], mii_reg5);
-						/* Set the full-duplex bit. */
-						EL3WINDOW(3);
-						iowrite16(	(vp->full_duplex ? 0x20 : 0) |
-								(vp->large_frames ? 0x40 : 0) |
-								((vp->full_duplex && vp->flow_ctrl && vp->partner_flow_ctrl) ? 0x100 : 0),
-								ioaddr + Wn3_MAC_Ctrl);
-						if (vortex_debug > 1)
-							printk(KERN_DEBUG "Setting duplex in Wn3_MAC_Ctrl\n");
-						/* AKPM: bug: should reset Tx and Rx after setting Duplex.  Page 180 */
-					}
-				}
-				netif_carrier_on(dev);
-			} else {
-				netif_carrier_off(dev);
-			}
+			spin_lock_bh(&vp->lock);
+			vortex_check_media(dev, 0);
 			spin_unlock_bh(&vp->lock);
 		}
 		break;
@@ -1967,7 +1933,14 @@ vortex_timer(unsigned long data)
 				 dev->name, media_tbl[dev->if_port].name, media_status);
 		ok = 1;
 	}
-	if ( ! ok) {
+
+	if (!netif_carrier_ok(dev))
+		next_tick = 5*HZ;
+
+	if (vp->medialock)
+		goto leave_media_alone;
+
+	if (!ok) {
 		unsigned int config;
 
 		do {
@@ -2000,14 +1973,14 @@ vortex_timer(unsigned long data)
 			printk(KERN_DEBUG "wrote 0x%08x to Wn3_Config\n", config);
 		/* AKPM: FIXME: Should reset Rx & Tx here.  P60 of 3c90xc.pdf */
 	}
-	EL3WINDOW(old_window);
-	enable_irq(dev->irq);
 
 leave_media_alone:
 	if (vortex_debug > 2)
 	  printk(KERN_DEBUG "%s: Media selection timer finished, %s.\n",
 			 dev->name, media_tbl[dev->if_port].name);
 
+	EL3WINDOW(old_window);
+	enable_irq(dev->irq);
 	mod_timer(&vp->timer, RUN_AT(next_tick));
 	if (vp->deferred)
 		iowrite16(FakeIntr, ioaddr + EL3_CMD);
@@ -2202,7 +2175,7 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (vp->bus_master) {
 		/* Set the bus-master controller to transfer the packet. */
 		int len = (skb->len + 3) & ~3;
-		iowrite32(	vp->tx_skb_dma = pci_map_single(VORTEX_PCI(vp), skb->data, len, PCI_DMA_TODEVICE),
+		iowrite32(vp->tx_skb_dma = pci_map_single(VORTEX_PCI(vp), skb->data, len, PCI_DMA_TODEVICE),
 				ioaddr + Wn7_MasterAddr);
 		iowrite16(len, ioaddr + Wn7_MasterLen);
 		vp->tx_skb = skb;
@@ -2979,20 +2952,6 @@ static int vortex_nway_reset(struct net_device *dev)
 	return rc;
 }
 
-static u32 vortex_get_link(struct net_device *dev)
-{
-	struct vortex_private *vp = netdev_priv(dev);
-	void __iomem *ioaddr = vp->ioaddr;
-	unsigned long flags;
-	int rc;
-
-	spin_lock_irqsave(&vp->lock, flags);
-	EL3WINDOW(4);
-	rc = mii_link_ok(&vp->mii);
-	spin_unlock_irqrestore(&vp->lock, flags);
-	return rc;
-}
-
 static int vortex_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct vortex_private *vp = netdev_priv(dev);
@@ -3073,7 +3032,6 @@ static void vortex_get_drvinfo(struct net_device *dev,
 	struct vortex_private *vp = netdev_priv(dev);
 
 	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
 	if (VORTEX_PCI(vp)) {
 		strcpy(info->bus_info, pci_name(VORTEX_PCI(vp)));
 	} else {
@@ -3094,9 +3052,9 @@ static struct ethtool_ops vortex_ethtool_ops = {
 	.get_stats_count        = vortex_get_stats_count,
 	.get_settings           = vortex_get_settings,
 	.set_settings           = vortex_set_settings,
-	.get_link               = vortex_get_link,
+	.get_link               = ethtool_op_get_link,
 	.nway_reset             = vortex_nway_reset,
-	.get_perm_addr			= ethtool_op_get_perm_addr,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 #ifdef CONFIG_PCI
@@ -3297,7 +3255,7 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 	}
 	return;
 }
-
+
 /* ACPI: Advanced Configuration and Power Interface. */
 /* Set Wake-On-LAN mode and put the board into D3 (power-down) state. */
 static void acpi_set_WOL(struct net_device *dev)
@@ -3321,7 +3279,7 @@ static void acpi_set_WOL(struct net_device *dev)
 }
 
 
-static void __devexit vortex_remove_one (struct pci_dev *pdev)
+static void __devexit vortex_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct vortex_private *vp;
@@ -3377,7 +3335,7 @@ static int vortex_have_pci;
 static int vortex_have_eisa;
 
 
-static int __init vortex_init (void)
+static int __init vortex_init(void)
 {
 	int pci_rc, eisa_rc;
 
@@ -3393,14 +3351,14 @@ static int __init vortex_init (void)
 }
 
 
-static void __exit vortex_eisa_cleanup (void)
+static void __exit vortex_eisa_cleanup(void)
 {
 	struct vortex_private *vp;
 	void __iomem *ioaddr;
 
 #ifdef CONFIG_EISA
 	/* Take care of the EISA devices */
-	eisa_driver_unregister (&vortex_eisa_driver);
+	eisa_driver_unregister(&vortex_eisa_driver);
 #endif
 	
 	if (compaq_net_device) {
@@ -3408,33 +3366,24 @@ static void __exit vortex_eisa_cleanup (void)
 		ioaddr = ioport_map(compaq_net_device->base_addr,
 		                    VORTEX_TOTAL_SIZE);
 
-		unregister_netdev (compaq_net_device);
-		iowrite16 (TotalReset, ioaddr + EL3_CMD);
+		unregister_netdev(compaq_net_device);
+		iowrite16(TotalReset, ioaddr + EL3_CMD);
 		release_region(compaq_net_device->base_addr,
 		               VORTEX_TOTAL_SIZE);
 
-		free_netdev (compaq_net_device);
+		free_netdev(compaq_net_device);
 	}
 }
 
 
-static void __exit vortex_cleanup (void)
+static void __exit vortex_cleanup(void)
 {
 	if (vortex_have_pci)
-		pci_unregister_driver (&vortex_driver);
+		pci_unregister_driver(&vortex_driver);
 	if (vortex_have_eisa)
-		vortex_eisa_cleanup ();
+		vortex_eisa_cleanup();
 }
 
 
 module_init(vortex_init);
 module_exit(vortex_cleanup);
-
-
-/*
- * Local variables:
- *  c-indent-level: 4
- *  c-basic-offset: 4
- *  tab-width: 4
- * End:
- */

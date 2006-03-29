@@ -29,7 +29,6 @@
 #endif
 
 extern int boot_cpuid;
-extern int boot_cpuid_phys;
 
 extern void cpu_die(void);
 
@@ -99,6 +98,7 @@ extern void smp_release_cpus(void);
 #else
 /* 32-bit */
 #ifndef CONFIG_SMP
+extern int boot_cpuid_phys;
 #define get_hard_smp_processor_id(cpu) 	boot_cpuid_phys
 #define set_hard_smp_processor_id(cpu, phys)
 #endif

@@ -25,9 +25,6 @@ struct rtc_ops {
 	int		(*proc)(char *buf);
 };
 
-void rtc_time_to_tm(unsigned long, struct rtc_time *);
-int rtc_tm_to_time(struct rtc_time *, unsigned long *);
-int rtc_valid_tm(struct rtc_time *);
 void rtc_next_alarm_time(struct rtc_time *, struct rtc_time *, struct rtc_time *);
 void rtc_update(unsigned long, unsigned long);
 int register_rtc(struct rtc_ops *);

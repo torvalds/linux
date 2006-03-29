@@ -88,7 +88,7 @@ parameters.  for a copy email: twoller@crystal.cirrus.com
 
 MODULE_PARMS definitions
 ------------------------
-MODULE_PARM(defaultorder, "i");
+module_param(defaultorder, ulong, 0);
 defaultorder=N
 where N is a value from 1 to 12
 The buffer order determines the size of the dma buffer for the driver.
@@ -98,18 +98,18 @@ to not underrun the dma buffer as easily.  As default, use 32k (order=3)
 rather than 64k as some of the games work more responsively.
 (2^N) * PAGE_SIZE = allocated buffer size
 
-MODULE_PARM(cs_debuglevel, "i");
-MODULE_PARM(cs_debugmask, "i");
+module_param(cs_debuglevel, ulong, 0644);
+module_param(cs_debugmask, ulong, 0644);
 cs_debuglevel=N
 cs_debugmask=0xMMMMMMMM
 where N is a value from 0 (no debug printfs), to 9 (maximum)
 0xMMMMMMMM is a debug mask corresponding to the CS_xxx bits (see driver source).
 
-MODULE_PARM(hercules_egpio_disable, "i");
+module_param(hercules_egpio_disable, ulong, 0);
 hercules_egpio_disable=N
 where N is a 0 (enable egpio), or a 1 (disable egpio support)
 
-MODULE_PARM(initdelay, "i");
+module_param(initdelay, ulong, 0);
 initdelay=N
 This value is used to determine the millescond delay during the initialization
 code prior to powering up the PLL.  On laptops this value can be used to
@@ -118,19 +118,19 @@ system is booted under battery power then the mdelay()/udelay() functions fail t
 properly delay the required time.  Also, if the system is booted under AC power
 and then the power removed, the mdelay()/udelay() functions will not delay properly.
  
-MODULE_PARM(powerdown, "i");
+module_param(powerdown, ulong, 0);
 powerdown=N
 where N is 0 (disable any powerdown of the internal blocks) or 1 (enable powerdown)
 
 
-MODULE_PARM(external_amp, "i");
+module_param(external_amp, bool, 0);
 external_amp=1
 if N is set to 1, then force enabling the EAPD support in the primary AC97 codec.
 override the detection logic and force the external amp bit in the AC97 0x26 register
 to be reset (0).  EAPD should be 0 for powerup, and 1 for powerdown.  The VTB Santa Cruz
 card has inverted logic, so there is a special function for these cards.
 
-MODULE_PARM(thinkpad, "i");
+module_param(thinkpad, bool, 0);
 thinkpad=1
 if N is set to 1, then force enabling the clkrun functionality.
 Currently, when the part is being used, then clkrun is disabled for the entire system,

@@ -188,7 +188,7 @@ static struct nf_logger ebt_log_logger = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ebt_log_init(void)
 {
 	int ret;
 
@@ -205,12 +205,12 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ebt_log_fini(void)
 {
 	nf_log_unregister_logger(&ebt_log_logger);
 	ebt_unregister_watcher(&log);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ebt_log_init);
+module_exit(ebt_log_fini);
 MODULE_LICENSE("GPL");

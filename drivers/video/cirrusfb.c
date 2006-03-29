@@ -60,8 +60,8 @@
 #include <asm/amigahw.h>
 #endif
 #ifdef CONFIG_PPC_PREP
-#include <asm/processor.h>
-#define isPReP (_machine == _MACH_prep)
+#include <asm/machdep.h>
+#define isPReP (machine_is(prep))
 #else
 #define isPReP 0
 #endif
@@ -2622,7 +2622,7 @@ static int __init cirrusfb_init(void)
 #endif
 
 #ifdef CONFIG_ZORRO
-	error |= zorro_module_init(&cirrusfb_zorro_driver);
+	error |= zorro_register_driver(&cirrusfb_zorro_driver);
 #endif
 #ifdef CONFIG_PCI
 	error |= pci_register_driver(&cirrusfb_pci_driver);

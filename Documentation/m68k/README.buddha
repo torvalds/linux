@@ -29,7 +29,7 @@ address is written to $4a, then the whole Byte is written to
 $48, while it doesn't matter how often you're writing to $4a
 as  long as $48 is not touched.  After $48 has been written,
 the  whole card disappears from $e8 and is mapped to the new
-address just written.  Make shure $4a is written before $48,
+address just written.  Make sure $4a is written before $48,
 otherwise your chance is only 1:16 to find the board :-).
 
 The local memory-map is even active when mapped to $e8:

@@ -121,14 +121,14 @@ void __init plat_setup(void)
 
 	if (xicor_probe()) {
 		printk("swarm setup: Xicor 1241 RTC detected.\n");
-		rtc_get_time = xicor_get_time;
-		rtc_set_time = xicor_set_time;
+		rtc_mips_get_time = xicor_get_time;
+		rtc_mips_set_time = xicor_set_time;
 	}
 
 	if (m41t81_probe()) {
 		printk("swarm setup: M41T81 RTC detected.\n");
-		rtc_get_time = m41t81_get_time;
-		rtc_set_time = m41t81_set_time;
+		rtc_mips_get_time = m41t81_get_time;
+		rtc_mips_set_time = m41t81_set_time;
 	}
 
 	printk("This kernel optimized for "

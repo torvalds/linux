@@ -82,15 +82,15 @@ static struct ipt_target ipt_dscp_reg = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_dscp_init(void)
 {
 	return ipt_register_target(&ipt_dscp_reg);
 }
 
-static void __exit fini(void)
+static void __exit ipt_dscp_fini(void)
 {
 	ipt_unregister_target(&ipt_dscp_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_dscp_init);
+module_exit(ipt_dscp_fini);

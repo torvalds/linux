@@ -22,7 +22,9 @@ static ssize_t aoedisk_show_state(struct gendisk * disk, char *page)
 	return snprintf(page, PAGE_SIZE,
 			"%s%s\n",
 			(d->flags & DEVFL_UP) ? "up" : "down",
-			(d->flags & DEVFL_CLOSEWAIT) ? ",closewait" : "");
+			(d->flags & DEVFL_PAUSE) ? ",paused" :
+			(d->nopen && !(d->flags & DEVFL_UP)) ? ",closewait" : "");
+	/* I'd rather see nopen exported so we can ditch closewait */
 }
 static ssize_t aoedisk_show_mac(struct gendisk * disk, char *page)
 {
@@ -107,8 +109,7 @@ aoeblk_release(struct inode *inode, struct file *filp)
 
 	spin_lock_irqsave(&d->lock, flags);
 
-	if (--d->nopen == 0 && (d->flags & DEVFL_CLOSEWAIT)) {
-		d->flags &= ~DEVFL_CLOSEWAIT;
+	if (--d->nopen == 0) {
 		spin_unlock_irqrestore(&d->lock, flags);
 		aoecmd_cfg(d->aoemajor, d->aoeminor);
 		return 0;
@@ -158,14 +159,14 @@ aoeblk_make_request(request_queue_t *q, struct bio *bio)
 	}
 
 	list_add_tail(&buf->bufs, &d->bufq);
-	aoecmd_work(d);
 
+	aoecmd_work(d);
 	sl = d->sendq_hd;
 	d->sendq_hd = d->sendq_tl = NULL;
 
 	spin_unlock_irqrestore(&d->lock, flags);
-
 	aoenet_xmit(sl);
+
 	return 0;
 }
 
@@ -205,20 +206,18 @@ aoeblk_gdalloc(void *vp)
 		printk(KERN_ERR "aoe: aoeblk_gdalloc: cannot allocate disk "
 			"structure for %ld.%ld\n", d->aoemajor, d->aoeminor);
 		spin_lock_irqsave(&d->lock, flags);
-		d->flags &= ~DEVFL_WORKON;
+		d->flags &= ~DEVFL_GDALLOC;
 		spin_unlock_irqrestore(&d->lock, flags);
 		return;
 	}
 
-	d->bufpool = mempool_create(MIN_BUFS,
-				    mempool_alloc_slab, mempool_free_slab,
-				    buf_pool_cache);
+	d->bufpool = mempool_create_slab_pool(MIN_BUFS, buf_pool_cache);
 	if (d->bufpool == NULL) {
 		printk(KERN_ERR "aoe: aoeblk_gdalloc: cannot allocate bufpool "
 			"for %ld.%ld\n", d->aoemajor, d->aoeminor);
 		put_disk(gd);
 		spin_lock_irqsave(&d->lock, flags);
-		d->flags &= ~DEVFL_WORKON;
+		d->flags &= ~DEVFL_GDALLOC;
 		spin_unlock_irqrestore(&d->lock, flags);
 		return;
 	}
@@ -235,18 +234,13 @@ aoeblk_gdalloc(void *vp)
 
 	gd->queue = &d->blkq;
 	d->gd = gd;
-	d->flags &= ~DEVFL_WORKON;
+	d->flags &= ~DEVFL_GDALLOC;
 	d->flags |= DEVFL_UP;
 
 	spin_unlock_irqrestore(&d->lock, flags);
 
 	add_disk(gd);
 	aoedisk_add_sysfs(d);
-	
-	printk(KERN_INFO "aoe: %012llx e%lu.%lu v%04x has %llu "
-		"sectors\n", (unsigned long long)mac_addr(d->addr),
-		d->aoemajor, d->aoeminor,
-		d->fw_ver, (long long)d->ssize);
 }
 
 void

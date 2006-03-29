@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <asm/irq.h>
 
 #ifdef	CONFIG_ARM
 #include <asm/mach-types.h>

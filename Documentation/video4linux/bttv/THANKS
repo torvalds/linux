@@ -1,6 +1,6 @@
 Many thanks to:
 
-- Markus Schroeder <schroedm@uni-duesseldorf.de> for information on the Bt848 
+- Markus Schroeder <schroedm@uni-duesseldorf.de> for information on the Bt848
   and tuner programming and his control program xtvc.
 
 - Martin Buck <martin-2.buck@student.uni-ulm.de> for his great Videotext
@@ -16,7 +16,7 @@ Many thanks to:
 - MIRO for providing a free PCTV card and detailed information about the
   components on their cards. (E.g. how the tuner type is detected)
   Without their card I could not have debugged the NTSC mode.
-	
+
 - Hauppauge for telling how the sound input is selected and what components
   they do and will use on their radio cards.
   Also many thanks for faxing me the FM1216 data sheet.

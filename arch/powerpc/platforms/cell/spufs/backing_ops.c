@@ -285,6 +285,49 @@ static void spu_backing_runcntl_stop(struct spu_context *ctx)
 	spu_backing_runcntl_write(ctx, SPU_RUNCNTL_STOP);
 }
 
+static int spu_backing_set_mfc_query(struct spu_context * ctx, u32 mask,
+					u32 mode)
+{
+	struct spu_problem_collapsed *prob = &ctx->csa.prob;
+	int ret;
+
+	spin_lock(&ctx->csa.register_lock);
+	ret = -EAGAIN;
+	if (prob->dma_querytype_RW)
+		goto out;
+	ret = 0;
+	/* FIXME: what are the side-effects of this? */
+	prob->dma_querymask_RW = mask;
+	prob->dma_querytype_RW = mode;
+out:
+	spin_unlock(&ctx->csa.register_lock);
+
+	return ret;
+}
+
+static u32 spu_backing_read_mfc_tagstatus(struct spu_context * ctx)
+{
+	return ctx->csa.prob.dma_tagstatus_R;
+}
+
+static u32 spu_backing_get_mfc_free_elements(struct spu_context *ctx)
+{
+	return ctx->csa.prob.dma_qstatus_R;
+}
+
+static int spu_backing_send_mfc_command(struct spu_context *ctx,
+					struct mfc_dma_command *cmd)
+{
+	int ret;
+
+	spin_lock(&ctx->csa.register_lock);
+	ret = -EAGAIN;
+	/* FIXME: set up priv2->puq */
+	spin_unlock(&ctx->csa.register_lock);
+
+	return ret;
+}
+
 struct spu_context_ops spu_backing_ops = {
 	.mbox_read = spu_backing_mbox_read,
 	.mbox_stat_read = spu_backing_mbox_stat_read,
@@ -305,4 +348,8 @@ struct spu_context_ops spu_backing_ops = {
 	.get_ls = spu_backing_get_ls,
 	.runcntl_write = spu_backing_runcntl_write,
 	.runcntl_stop = spu_backing_runcntl_stop,
+	.set_mfc_query = spu_backing_set_mfc_query,
+	.read_mfc_tagstatus = spu_backing_read_mfc_tagstatus,
+	.get_mfc_free_elements = spu_backing_get_mfc_free_elements,
+	.send_mfc_command = spu_backing_send_mfc_command,
 };

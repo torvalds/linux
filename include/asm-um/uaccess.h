@@ -41,16 +41,16 @@
 
 #define __get_user(x, ptr) \
 ({ \
-        const __typeof__(ptr) __private_ptr = ptr; \
-        __typeof__(*(__private_ptr)) __private_val; \
-        int __private_ret = -EFAULT; \
-        (x) = (__typeof__(*(__private_ptr)))0; \
-	if (__copy_from_user(&__private_val, (__private_ptr), \
-	    sizeof(*(__private_ptr))) == 0) {\
-        	(x) = (__typeof__(*(__private_ptr))) __private_val; \
-		__private_ret = 0; \
-	} \
-        __private_ret; \
+	const __typeof__(ptr) __private_ptr = ptr;	\
+	__typeof__(x) __private_val;			\
+	int __private_ret = -EFAULT;			\
+	(x) = (__typeof__(*(__private_ptr)))0;				\
+	if (__copy_from_user((void *) &__private_val, (__private_ptr),	\
+			     sizeof(*(__private_ptr))) == 0) {		\
+		(x) = (__typeof__(*(__private_ptr))) __private_val;	\
+		__private_ret = 0;					\
+	}								\
+	__private_ret;							\
 }) 
 
 #define get_user(x, ptr) \
@@ -89,14 +89,3 @@ struct exception_table_entry
 };
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

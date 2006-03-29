@@ -49,6 +49,7 @@
 #include <asm/pci-bridge.h>
 #endif
 #ifdef CONFIG_PMAC_BACKLIGHT
+#include <asm/machdep.h>
 #include <asm/backlight.h>
 #endif
 
@@ -1247,7 +1248,7 @@ static int rivafb_blank(int blank, struct fb_info *info)
 	CRTCout(par, 0x1a, vesa);
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if ( par->FlatPanel && _machine == _MACH_Pmac) {
+	if ( par->FlatPanel && machine_is(powermac)) {
 		set_backlight_enable(!blank);
 	}
 #endif
@@ -2037,9 +2038,9 @@ static int __devinit rivafb_probe(struct pci_dev *pd,
 		info->fix.smem_len / (1024 * 1024),
 		info->fix.smem_start);
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (default_par->FlatPanel && _machine == _MACH_Pmac)
-	register_backlight_controller(&riva_backlight_controller,
-						default_par, "mnca");
+	if (default_par->FlatPanel && machine_is(powermac))
+		register_backlight_controller(&riva_backlight_controller,
+					      default_par, "mnca");
 #endif
 	NVTRACE_LEAVE();
 	return 0;
@@ -2072,8 +2073,6 @@ static void __exit rivafb_remove(struct pci_dev *pd)
 	struct riva_par *par = info->par;
 	
 	NVTRACE_ENTER();
-	if (!info)
-		return;
 
 #ifdef CONFIG_FB_RIVA_I2C
 	riva_delete_i2c_busses(par);

@@ -112,6 +112,7 @@ static const struct {
 
 	{ "SiS5596",	PCI_DEVICE_ID_SI_5596,	ATA_16   },
 	{ "SiS5571",	PCI_DEVICE_ID_SI_5571,	ATA_16   },
+	{ "SiS5517",	PCI_DEVICE_ID_SI_5517,	ATA_16   },
 	{ "SiS551x",	PCI_DEVICE_ID_SI_5511,	ATA_16   },
 };
 
@@ -524,6 +525,7 @@ static void config_art_rwp_pio (ide_drive_t *drive, u8 pio)
 			case 3:		test1 = 0x30|0x03; break;
 			case 2:		test1 = 0x40|0x04; break;
 			case 1:		test1 = 0x60|0x07; break;
+			case 0:		test1 = 0x00; break;
 			default:	break;
 		}
 		pci_write_config_byte(dev, drive_pci, test1);

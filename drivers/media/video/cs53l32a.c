@@ -59,25 +59,25 @@ static int cs53l32a_read(struct i2c_client *client, u8 reg)
 static int cs53l32a_command(struct i2c_client *client, unsigned int cmd,
 			    void *arg)
 {
-	struct v4l2_audio *input = arg;
+	struct v4l2_routing *route = arg;
 	struct v4l2_control *ctrl = arg;
 
 	switch (cmd) {
-	case VIDIOC_S_AUDIO:
+	case VIDIOC_INT_G_AUDIO_ROUTING:
+		route->input = (cs53l32a_read(client, 0x01) >> 4) & 3;
+		route->output = 0;
+		break;
+
+	case VIDIOC_INT_S_AUDIO_ROUTING:
 		/* There are 2 physical inputs, but the second input can be
 		   placed in two modes, the first mode bypasses the PGA (gain),
 		   the second goes through the PGA. Hence there are three
 		   possible inputs to choose from. */
-		if (input->index > 2) {
-			v4l_err(client, "Invalid input %d.\n", input->index);
+		if (route->input > 2) {
+			v4l_err(client, "Invalid input %d.\n", route->input);
 			return -EINVAL;
 		}
-		cs53l32a_write(client, 0x01, 0x01 + (input->index << 4));
-		break;
-
-	case VIDIOC_G_AUDIO:
-		memset(input, 0, sizeof(*input));
-		input->index = (cs53l32a_read(client, 0x01) >> 4) & 3;
+		cs53l32a_write(client, 0x01, 0x01 + (route->input << 4));
 		break;
 
 	case VIDIOC_G_CTRL:

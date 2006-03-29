@@ -179,8 +179,7 @@ static struct multipath *alloc_multipath(void)
 		m->queue_io = 1;
 		INIT_WORK(&m->process_queued_ios, process_queued_ios, m);
 		INIT_WORK(&m->trigger_event, trigger_event, m);
-		m->mpio_pool = mempool_create(MIN_IOS, mempool_alloc_slab,
-					      mempool_free_slab, _mpio_cache);
+		m->mpio_pool = mempool_create_slab_pool(MIN_IOS, _mpio_cache);
 		if (!m->mpio_pool) {
 			kfree(m);
 			return NULL;

@@ -8,6 +8,7 @@
 #include <asm/ptrace.h>
 #include <asm/user.h>
 #include <asm/processor.h>
+#include <asm/compat.h>
 
 /* x86-64 relocation types */
 #define R_X86_64_NONE		0	/* No reloc */
@@ -156,6 +157,9 @@ extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);
 
 #define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs) dump_task_regs(tsk, elf_regs)
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs) dump_task_fpu(tsk, elf_fpregs)
+
+/* 1GB for 64bit, 8MB for 32bit */
+#define STACK_RND_MASK (is_compat_task() ? 0x7ff : 0x3fffff)
 
 #endif
 

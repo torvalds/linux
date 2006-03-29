@@ -83,7 +83,8 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	struct super_block * sb = inode->i_sb;
 	int have_disk_lock = 0;
 
-	mlog_entry("dirino=%"MLFu64"\n", OCFS2_I(inode)->ip_blkno);
+	mlog_entry("dirino=%llu\n",
+		   (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 	stored = 0;
 	bh = NULL;
@@ -104,9 +105,9 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 		blk = (filp->f_pos) >> sb->s_blocksize_bits;
 		bh = ocfs2_bread(inode, blk, &err, 0);
 		if (!bh) {
-			mlog(ML_ERROR, "directory #%"MLFu64" contains a hole "
-				       "at offset %lld\n",
-			     OCFS2_I(inode)->ip_blkno,
+			mlog(ML_ERROR,
+			     "directory #%llu contains a hole at offset %lld\n",
+			     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 			     filp->f_pos);
 			filp->f_pos += sb->s_blocksize - offset;
 			continue;
@@ -214,9 +215,9 @@ int ocfs2_find_files_on_disk(const char *name,
 	int status = -ENOENT;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	mlog_entry("(osb=%p, parent=%"MLFu64", name='%.*s', blkno=%p, "
-		   "inode=%p)\n",
-		   osb, OCFS2_I(inode)->ip_blkno, namelen, name, blkno, inode);
+	mlog_entry("(osb=%p, parent=%llu, name='%.*s', blkno=%p, inode=%p)\n",
+		   osb, (unsigned long long)OCFS2_I(inode)->ip_blkno,
+		   namelen, name, blkno, inode);
 
 	*dirent_bh = ocfs2_find_entry(name, namelen, inode, dirent);
 	if (!*dirent_bh || !*dirent) {
@@ -255,8 +256,8 @@ int ocfs2_check_dir_for_entry(struct inode *dir,
 	struct buffer_head *dirent_bh = NULL;
 	struct ocfs2_dir_entry *dirent = NULL;
 
-	mlog_entry("dir %"MLFu64", name '%.*s'\n", OCFS2_I(dir)->ip_blkno,
-		   namelen, name);
+	mlog_entry("dir %llu, name '%.*s'\n",
+		   (unsigned long long)OCFS2_I(dir)->ip_blkno, namelen, name);
 
 	ret = -EEXIST;
 	dirent_bh = ocfs2_find_entry(name, namelen, dir, &dirent);
@@ -287,9 +288,8 @@ int ocfs2_empty_dir(struct inode *inode)
 	if ((i_size_read(inode) <
 	     (OCFS2_DIR_REC_LEN(1) + OCFS2_DIR_REC_LEN(2))) ||
 	    !(bh = ocfs2_bread(inode, 0, &err, 0))) {
-	    	mlog(ML_ERROR, "bad directory (dir #%"MLFu64") - "
-			       "no data block\n",
-		     OCFS2_I(inode)->ip_blkno);
+	    	mlog(ML_ERROR, "bad directory (dir #%llu) - no data block\n",
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 		return 1;
 	}
 
@@ -300,9 +300,8 @@ int ocfs2_empty_dir(struct inode *inode)
 			!le64_to_cpu(de1->inode) ||
 			strcmp(".", de->name) ||
 			strcmp("..", de1->name)) {
-	    	mlog(ML_ERROR, "bad directory (dir #%"MLFu64") - "
-			       "no `.' or `..'\n",
-		     OCFS2_I(inode)->ip_blkno);
+	    	mlog(ML_ERROR, "bad directory (dir #%llu) - no `.' or `..'\n",
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 		brelse(bh);
 		return 1;
 	}
@@ -314,9 +313,8 @@ int ocfs2_empty_dir(struct inode *inode)
 			bh = ocfs2_bread(inode,
 					 offset >> sb->s_blocksize_bits, &err, 0);
 			if (!bh) {
-				mlog(ML_ERROR, "directory #%"MLFu64" contains "
-					       "a hole at offset %lu\n",
-				     OCFS2_I(inode)->ip_blkno, offset);
+				mlog(ML_ERROR, "dir %llu has a hole at %lu\n",
+				     (unsigned long long)OCFS2_I(inode)->ip_blkno, offset);
 				offset += sb->s_blocksize;
 				continue;
 			}
@@ -406,8 +404,8 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	mlog_entry_void();
 
 	dir_i_size = i_size_read(dir);
-	mlog(0, "extending dir %"MLFu64" (i_size = %lld)\n",
-	     OCFS2_I(dir)->ip_blkno, dir_i_size);
+	mlog(0, "extending dir %llu (i_size = %lld)\n",
+	     (unsigned long long)OCFS2_I(dir)->ip_blkno, dir_i_size);
 
 	handle = ocfs2_alloc_handle(osb);
 	if (handle == NULL) {
@@ -531,8 +529,8 @@ int ocfs2_prepare_dir_for_insert(struct ocfs2_super *osb,
 
 	mlog_entry_void();
 
-	mlog(0, "getting ready to insert namelen %d into dir %"MLFu64"\n",
-	     namelen, OCFS2_I(dir)->ip_blkno);
+	mlog(0, "getting ready to insert namelen %d into dir %llu\n",
+	     namelen, (unsigned long long)OCFS2_I(dir)->ip_blkno);
 
 	BUG_ON(!S_ISDIR(dir->i_mode));
 	fe = (struct ocfs2_dinode *) parent_fe_bh->b_data;

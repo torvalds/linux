@@ -86,7 +86,7 @@ static unsigned pmtimer_wait_tick(void)
 	for (a = b = inl(pmtmr_ioport) & ACPI_PM_MASK;
 	     a == b;
 	     b = inl(pmtmr_ioport) & ACPI_PM_MASK)
-		;
+		cpu_relax();
 	return b;
 }
 
@@ -97,6 +97,7 @@ void pmtimer_wait(unsigned us)
 	a = pmtimer_wait_tick();
 	do {
 		b = inl(pmtmr_ioport);
+		cpu_relax();
 	} while (cyc2us(b - a) < us);
 }
 

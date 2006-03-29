@@ -483,7 +483,7 @@ static struct nf_logger ip6t_logger = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ip6t_log_init(void)
 {
 	if (ip6t_register_target(&ip6t_log_reg))
 		return -EINVAL;
@@ -497,11 +497,11 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ip6t_log_fini(void)
 {
 	nf_log_unregister_logger(&ip6t_logger);
 	ip6t_unregister_target(&ip6t_log_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip6t_log_init);
+module_exit(ip6t_log_fini);

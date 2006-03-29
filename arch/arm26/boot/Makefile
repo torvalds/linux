@@ -1,6 +1,9 @@
 #
 # arch/arm26/boot/Makefile
 #
+# This file is included by the global makefile so that you can add your own
+# architecture-specific flags and dependencies.
+#
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
 # for more details.
@@ -60,7 +63,7 @@ $(obj)/xipImage: vmlinux FORCE
 	@echo '  Kernel: $@ is ready'
 endif
 
-.PHONY: initrd
+PHONY += initrd
 initrd:
 	@test "$(INITRD_PHYS)" != "" || \
 	(echo This machine does not support INITRD; exit -1)

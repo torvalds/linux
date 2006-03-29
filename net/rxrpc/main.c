@@ -79,8 +79,8 @@ static int __init rxrpc_initialise(void)
  error_sysctl:
 #ifdef CONFIG_SYSCTL
 	rxrpc_sysctl_cleanup();
-#endif
  error_proc:
+#endif
 #ifdef CONFIG_PROC_FS
 	rxrpc_proc_cleanup();
 #endif

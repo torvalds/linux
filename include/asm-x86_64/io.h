@@ -135,6 +135,9 @@ static inline void __iomem * ioremap (unsigned long offset, unsigned long size)
 	return __ioremap(offset, size, 0);
 }
 
+extern void *early_ioremap(unsigned long addr, unsigned long size);
+extern void early_iounmap(void *addr, unsigned long size);
+
 /*
  * This one maps high address device memory and turns off caching for that area.
  * it's useful if some control registers are in such an area and write combining
@@ -142,11 +145,6 @@ static inline void __iomem * ioremap (unsigned long offset, unsigned long size)
  */
 extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
 extern void iounmap(volatile void __iomem *addr);
-
-/* Use normal IO mappings for DMI */
-#define dmi_ioremap ioremap
-#define dmi_iounmap(x,l) iounmap(x)
-#define dmi_alloc(l) kmalloc(l, GFP_ATOMIC)
 
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
@@ -202,23 +200,6 @@ static inline __u64 __readq(const volatile void __iomem *addr)
 
 #define mmiowb()
 
-#ifdef CONFIG_UNORDERED_IO
-static inline void __writel(__u32 val, volatile void __iomem *addr)
-{
-	volatile __u32 __iomem *target = addr;
-	asm volatile("movnti %1,%0"
-		     : "=m" (*target)
-		     : "r" (val) : "memory");
-}
-
-static inline void __writeq(__u64 val, volatile void __iomem *addr)
-{
-	volatile __u64 __iomem *target = addr;
-	asm volatile("movnti %1,%0"
-		     : "=m" (*target)
-		     : "r" (val) : "memory");
-}
-#else
 static inline void __writel(__u32 b, volatile void __iomem *addr)
 {
 	*(__force volatile __u32 *)addr = b;
@@ -227,7 +208,6 @@ static inline void __writeq(__u64 b, volatile void __iomem *addr)
 {
 	*(__force volatile __u64 *)addr = b;
 }
-#endif
 static inline void __writeb(__u8 b, volatile void __iomem *addr)
 {
 	*(__force volatile __u8 *)addr = b;

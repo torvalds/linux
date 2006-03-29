@@ -1,4 +1,4 @@
-/* 
+/*
  * zr36057.h - zr36057 register offsets
  *
  * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
@@ -27,14 +27,14 @@
 #define ZR36057_VFEHCR          0x000	/* Video Front End, Horizontal Configuration Register */
 #define ZR36057_VFEHCR_HSPol            (1<<30)
 #define ZR36057_VFEHCR_HStart           10
-#define ZR36057_VFEHCR_HEnd	        0
-#define ZR36057_VFEHCR_Hmask	        0x3ff
+#define ZR36057_VFEHCR_HEnd		0
+#define ZR36057_VFEHCR_Hmask		0x3ff
 
 #define ZR36057_VFEVCR          0x004	/* Video Front End, Vertical Configuration Register */
 #define ZR36057_VFEVCR_VSPol            (1<<30)
 #define ZR36057_VFEVCR_VStart           10
-#define ZR36057_VFEVCR_VEnd	        0
-#define ZR36057_VFEVCR_Vmask	        0x3ff
+#define ZR36057_VFEVCR_VEnd		0
+#define ZR36057_VFEVCR_Vmask		0x3ff
 
 #define ZR36057_VFESPFR         0x008	/* Video Front End, Scaler and Pixel Format Register */
 #define ZR36057_VFESPFR_ExtFl           (1<<26)

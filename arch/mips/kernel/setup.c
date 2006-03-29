@@ -34,6 +34,7 @@
 #include <linux/highmem.h>
 #include <linux/console.h>
 #include <linux/mmzone.h>
+#include <linux/pfn.h>
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
@@ -256,10 +257,6 @@ static inline int parse_rd_cmdline(unsigned long* rd_start, unsigned long* rd_en
 	}
 	return 0;
 }
-
-#define PFN_UP(x)	(((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
-#define PFN_DOWN(x)	((x) >> PAGE_SHIFT)
-#define PFN_PHYS(x)	((x) << PAGE_SHIFT)
 
 #define MAXMEM		HIGHMEM_START
 #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
@@ -492,10 +489,6 @@ static inline void resource_init(void)
 		request_resource(res, &data_resource);
 	}
 }
-
-#undef PFN_UP
-#undef PFN_DOWN
-#undef PFN_PHYS
 
 #undef MAXMEM
 #undef MAXMEM_PFN

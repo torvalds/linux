@@ -175,11 +175,6 @@ EXPORT_SYMBOL(set_bit);
 EXPORT_SYMBOL(clear_bit);
 EXPORT_SYMBOL(change_bit);
 
-/* Bit searching */
-EXPORT_SYMBOL(find_next_bit);
-EXPORT_SYMBOL(find_next_zero_bit);
-EXPORT_SYMBOL(find_next_zero_le_bit);
-
 EXPORT_SYMBOL(ivector_table);
 EXPORT_SYMBOL(enable_irq);
 EXPORT_SYMBOL(disable_irq);
@@ -279,18 +274,9 @@ EXPORT_SYMBOL(__prom_getsibling);
 
 /* sparc library symbols */
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(__strlen_user);
 EXPORT_SYMBOL(__strnlen_user);
-EXPORT_SYMBOL(strcpy);
-EXPORT_SYMBOL(strncpy);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strpbrk);
-EXPORT_SYMBOL(strstr);
 
 #ifdef CONFIG_SOLARIS_EMUL_MODULE
 EXPORT_SYMBOL(linux_sparc_syscall);
@@ -324,7 +310,6 @@ EXPORT_SYMBOL(__memscan_zero);
 EXPORT_SYMBOL(__memscan_generic);
 EXPORT_SYMBOL(__memcmp);
 EXPORT_SYMBOL(__memset);
-EXPORT_SYMBOL(memchr);
 
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_nocheck);

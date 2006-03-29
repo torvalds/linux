@@ -117,7 +117,7 @@ enum ne2k_pci_chipsets {
 };
 
 
-static const struct {
+static struct {
 	char *name;
 	int flags;
 } pci_clone_list[] __devinitdata = {

@@ -98,12 +98,12 @@ config AGP_SWORKS
 	tristate "Serverworks LE/HE chipset support"
 	depends on AGP && X86_32
 	help
-	  Say Y here to support the Serverworks AGP card.  See 
+	  Say Y here to support the Serverworks AGP card.  See
 	  <http://www.serverworks.com/> for product descriptions and images.
 
 config AGP_VIA
 	tristate "VIA chipset support"
-	depends on AGP && X86_32
+	depends on AGP
 	help
 	  This option gives you AGP support for the GLX component of
 	  X on VIA MVP3/Apollo Pro chipsets.

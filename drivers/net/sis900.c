@@ -1693,7 +1693,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance, struct pt_regs 
  *
  *	Process receive interrupt events, 
  *	put buffer to higher layer and refill buffer pool
- *	Note: This fucntion is called by interrupt handler, 
+ *	Note: This function is called by interrupt handler,
  *	don't do "too much" work here
  */
 
@@ -1840,7 +1840,7 @@ static int sis900_rx(struct net_device *net_dev)
  *
  *	Check for error condition and free socket buffer etc 
  *	schedule for more transmission as needed
- *	Note: This fucntion is called by interrupt handler, 
+ *	Note: This function is called by interrupt handler,
  *	don't do "too much" work here
  */
 
@@ -2283,7 +2283,7 @@ static void set_rx_mode(struct net_device *net_dev)
 	int i, table_entries;
 	u32 rx_mode;
 
-	/* 635 Hash Table entires = 256(2^16) */
+	/* 635 Hash Table entries = 256(2^16) */
 	if((sis_priv->chipset_rev >= SIS635A_900_REV) ||
 			(sis_priv->chipset_rev == SIS900B_900_REV))
 		table_entries = 16;

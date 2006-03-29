@@ -37,6 +37,7 @@
 #include <linux/writeback.h>		/* for the emergency remount stuff */
 #include <linux/idr.h>
 #include <linux/kobject.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 
@@ -55,11 +56,10 @@ DEFINE_SPINLOCK(sb_lock);
  */
 static struct super_block *alloc_super(void)
 {
-	struct super_block *s = kmalloc(sizeof(struct super_block),  GFP_USER);
+	struct super_block *s = kzalloc(sizeof(struct super_block),  GFP_USER);
 	static struct super_operations default_op;
 
 	if (s) {
-		memset(s, 0, sizeof(struct super_block));
 		if (security_sb_alloc(s)) {
 			kfree(s);
 			s = NULL;
@@ -381,9 +381,9 @@ restart:
 void sync_filesystems(int wait)
 {
 	struct super_block *sb;
-	static DECLARE_MUTEX(mutex);
+	static DEFINE_MUTEX(mutex);
 
-	down(&mutex);		/* Could be down_interruptible */
+	mutex_lock(&mutex);		/* Could be down_interruptible */
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (!sb->s_op->sync_fs)
@@ -412,7 +412,7 @@ restart:
 			goto restart;
 	}
 	spin_unlock(&sb_lock);
-	up(&mutex);
+	mutex_unlock(&mutex);
 }
 
 /**

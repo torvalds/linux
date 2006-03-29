@@ -61,7 +61,7 @@ static struct xt_target arpt_NFQ_reg = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init xt_nfqueue_init(void)
 {
 	int ret;
 	ret = xt_register_target(&ipt_NFQ_reg);
@@ -83,12 +83,12 @@ out_ip:
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit xt_nfqueue_fini(void)
 {
 	xt_unregister_target(&arpt_NFQ_reg);
 	xt_unregister_target(&ip6t_NFQ_reg);
 	xt_unregister_target(&ipt_NFQ_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_nfqueue_init);
+module_exit(xt_nfqueue_fini);

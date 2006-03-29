@@ -11,7 +11,7 @@
  *     linux-2.4.5-rmk1
  *
  * This software has been developed while working on the LART
- * computing board (http://www.lart.tudelft.nl/), which is
+ * computing board (http://www.lartmaker.nl/), which is
  * sponsored by the Mobile Multi-media Communications
  * (http://www.mmc.tudelft.nl/) and Ubiquitous Communications 
  * (http://www.ubicom.tudelft.nl/) projects.

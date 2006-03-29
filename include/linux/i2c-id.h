@@ -108,6 +108,10 @@
 #define I2C_DRIVERID_UPD64083	78	/* upd64083 video processor	*/
 #define I2C_DRIVERID_UPD64031A	79	/* upd64031a video processor	*/
 #define I2C_DRIVERID_SAA717X	80	/* saa717x video encoder	*/
+#define I2C_DRIVERID_DS1672	81	/* Dallas/Maxim DS1672 RTC	*/
+#define I2C_DRIVERID_X1205	82	/* Xicor/Intersil X1205 RTC	*/
+#define I2C_DRIVERID_PCF8563	83	/* Philips PCF8563 RTC		*/
+#define I2C_DRIVERID_RS5C372	84	/* Ricoh RS5C372 RTC		*/
 
 #define I2C_DRIVERID_I2CDEV	900
 #define I2C_DRIVERID_ARP        902    /* SMBus ARP Client              */
@@ -184,6 +188,7 @@
 #define I2C_HW_B_SAVAGE		0x01001d /* savage framebuffer driver */
 #define I2C_HW_B_RADEON		0x01001e /* radeon framebuffer driver */
 #define I2C_HW_B_EM28XX		0x01001f /* em28xx video capture cards */
+#define I2C_HW_B_CX2341X	0x010020 /* Conexant CX2341X MPEG encoder cards */
 
 /* --- PCF 8584 based algorithms					*/
 #define I2C_HW_P_LP		0x020000 /* Parallel port interface */

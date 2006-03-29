@@ -2058,7 +2058,7 @@ static void __init parse_options (char *line)
 	}
 }
 
-int init_module (void)
+int __init init_module (void)
 {
 	parse_options(options);
 	return ide_init();

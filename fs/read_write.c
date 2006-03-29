@@ -19,7 +19,7 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
-struct file_operations generic_ro_fops = {
+const struct file_operations generic_ro_fops = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_file_read,
 	.mmap		= generic_file_readonly_mmap,
@@ -470,7 +470,7 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	 * verify all the pointers
 	 */
 	ret = -EINVAL;
-	if ((nr_segs > UIO_MAXIOV) || (nr_segs <= 0))
+	if (nr_segs > UIO_MAXIOV)
 		goto out;
 	if (!file->f_op)
 		goto out;

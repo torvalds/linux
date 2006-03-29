@@ -728,8 +728,7 @@ void elv_unregister_queue(struct request_queue *q)
 int elv_register(struct elevator_type *e)
 {
 	spin_lock_irq(&elv_list_lock);
-	if (elevator_find(e->elevator_name))
-		BUG();
+	BUG_ON(elevator_find(e->elevator_name));
 	list_add_tail(&e->list, &elv_list);
 	spin_unlock_irq(&elv_list_lock);
 

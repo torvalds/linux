@@ -202,24 +202,6 @@ asmlinkage long sys_settimeofday(struct timeval __user *tv,
 	return do_sys_settimeofday(tv ? &new_ts : NULL, tz ? &new_tz : NULL);
 }
 
-long pps_offset;		/* pps time offset (us) */
-long pps_jitter = MAXTIME;	/* time dispersion (jitter) (us) */
-
-long pps_freq;			/* frequency offset (scaled ppm) */
-long pps_stabil = MAXFREQ;	/* frequency dispersion (scaled ppm) */
-
-long pps_valid = PPS_VALID;	/* pps signal watchdog counter */
-
-int pps_shift = PPS_SHIFT;	/* interval duration (s) (shift) */
-
-long pps_jitcnt;		/* jitter limit exceeded */
-long pps_calcnt;		/* calibration intervals */
-long pps_errcnt;		/* calibration errors */
-long pps_stbcnt;		/* stability limit exceeded */
-
-/* hook for a loadable hardpps kernel module */
-void (*hardpps_ptr)(struct timeval *);
-
 /* we call this to notify the arch when the clock is being
  * controlled.  If no such arch routine, do nothing.
  */
@@ -279,7 +261,7 @@ int do_adjtimex(struct timex *txc)
 		    result = -EINVAL;
 		    goto leave;
 		}
-		time_freq = txc->freq - pps_freq;
+		time_freq = txc->freq;
 	    }
 
 	    if (txc->modes & ADJ_MAXERROR) {
@@ -312,10 +294,8 @@ int do_adjtimex(struct timex *txc)
 		    if ((time_next_adjust = txc->offset) == 0)
 			 time_adjust = 0;
 		}
-		else if ( time_status & (STA_PLL | STA_PPSTIME) ) {
-		    ltemp = (time_status & (STA_PPSTIME | STA_PPSSIGNAL)) ==
-		            (STA_PPSTIME | STA_PPSSIGNAL) ?
-		            pps_offset : txc->offset;
+		else if (time_status & STA_PLL) {
+		    ltemp = txc->offset;
 
 		    /*
 		     * Scale the phase adjustment and
@@ -356,23 +336,14 @@ int do_adjtimex(struct timex *txc)
 		    }
 		    time_freq = min(time_freq, time_tolerance);
 		    time_freq = max(time_freq, -time_tolerance);
-		} /* STA_PLL || STA_PPSTIME */
+		} /* STA_PLL */
 	    } /* txc->modes & ADJ_OFFSET */
 	    if (txc->modes & ADJ_TICK) {
 		tick_usec = txc->tick;
 		tick_nsec = TICK_USEC_TO_NSEC(tick_usec);
 	    }
 	} /* txc->modes */
-leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0
-	    || ((time_status & (STA_PPSFREQ|STA_PPSTIME)) != 0
-		&& (time_status & STA_PPSSIGNAL) == 0)
-	    /* p. 24, (b) */
-	    || ((time_status & (STA_PPSTIME|STA_PPSJITTER))
-		== (STA_PPSTIME|STA_PPSJITTER))
-	    /* p. 24, (c) */
-	    || ((time_status & STA_PPSFREQ) != 0
-		&& (time_status & (STA_PPSWANDER|STA_PPSERROR)) != 0))
-	    /* p. 24, (d) */
+leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0)
 		result = TIME_ERROR;
 	
 	if ((txc->modes & ADJ_OFFSET_SINGLESHOT) == ADJ_OFFSET_SINGLESHOT)
@@ -380,7 +351,7 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0
 	else {
 	    txc->offset = shift_right(time_offset, SHIFT_UPDATE);
 	}
-	txc->freq	   = time_freq + pps_freq;
+	txc->freq	   = time_freq;
 	txc->maxerror	   = time_maxerror;
 	txc->esterror	   = time_esterror;
 	txc->status	   = time_status;
@@ -388,14 +359,16 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0
 	txc->precision	   = time_precision;
 	txc->tolerance	   = time_tolerance;
 	txc->tick	   = tick_usec;
-	txc->ppsfreq	   = pps_freq;
-	txc->jitter	   = pps_jitter >> PPS_AVG;
-	txc->shift	   = pps_shift;
-	txc->stabil	   = pps_stabil;
-	txc->jitcnt	   = pps_jitcnt;
-	txc->calcnt	   = pps_calcnt;
-	txc->errcnt	   = pps_errcnt;
-	txc->stbcnt	   = pps_stbcnt;
+
+	/* PPS is not implemented, so these are zero */
+	txc->ppsfreq	   = 0;
+	txc->jitter	   = 0;
+	txc->shift	   = 0;
+	txc->stabil	   = 0;
+	txc->jitcnt	   = 0;
+	txc->calcnt	   = 0;
+	txc->errcnt	   = 0;
+	txc->stbcnt	   = 0;
 	write_sequnlock_irq(&xtime_lock);
 	do_gettimeofday(&txc->time);
 	notify_arch_cmos_timer();
@@ -637,7 +610,7 @@ void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec)
  *
  * Returns the timespec representation of the nsec parameter.
  */
-struct timespec ns_to_timespec(const nsec_t nsec)
+struct timespec ns_to_timespec(const s64 nsec)
 {
 	struct timespec ts;
 
@@ -657,7 +630,7 @@ struct timespec ns_to_timespec(const nsec_t nsec)
  *
  * Returns the timeval representation of the nsec parameter.
  */
-struct timeval ns_to_timeval(const nsec_t nsec)
+struct timeval ns_to_timeval(const s64 nsec)
 {
 	struct timespec ts = ns_to_timespec(nsec);
 	struct timeval tv;

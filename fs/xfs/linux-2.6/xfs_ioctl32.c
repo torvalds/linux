@@ -72,7 +72,7 @@ xfs_ioctl32_flock(
 	    copy_in_user(&p->l_pid,	&p32->l_pid,	sizeof(u32)) ||
 	    copy_in_user(&p->l_pad,	&p32->l_pad,	4*sizeof(u32)))
 		return -EFAULT;
-	
+
 	return (unsigned long)p;
 }
 
@@ -107,11 +107,15 @@ xfs_ioctl32_bulkstat(
 #endif
 
 STATIC long
-xfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
+xfs_compat_ioctl(
+	int		mode,
+	struct file	*file,
+	unsigned	cmd,
+	unsigned long	arg)
 {
+	struct inode	*inode = file->f_dentry->d_inode;
+	vnode_t		*vp = vn_from_inode(inode);
 	int		error;
-	struct		inode *inode = f->f_dentry->d_inode;
-	vnode_t		*vp = vn_to_inode(inode);
 
 	switch (cmd) {
 	case XFS_IOC_DIOINFO:
@@ -189,7 +193,7 @@ xfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 		return -ENOIOCTLCMD;
 	}
 
-	VOP_IOCTL(vp, inode, f, mode, cmd, (void __user *)arg, error);
+	VOP_IOCTL(vp, inode, file, mode, cmd, (void __user *)arg, error);
 	VMODIFY(vp);
 
 	return error;
@@ -197,18 +201,18 @@ xfs_compat_ioctl(int mode, struct file *f, unsigned cmd, unsigned long arg)
 
 long
 xfs_file_compat_ioctl(
-	struct file		*f,
+	struct file		*file,
 	unsigned		cmd,
 	unsigned long		arg)
 {
-	return xfs_compat_ioctl(0, f, cmd, arg);
+	return xfs_compat_ioctl(0, file, cmd, arg);
 }
 
 long
 xfs_file_compat_invis_ioctl(
-	struct file		*f,
+	struct file		*file,
 	unsigned		cmd,
 	unsigned long		arg)
 {
-	return xfs_compat_ioctl(IO_INVIS, f, cmd, arg);
+	return xfs_compat_ioctl(IO_INVIS, file, cmd, arg);
 }

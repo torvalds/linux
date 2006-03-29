@@ -42,7 +42,6 @@
 #include <linux/poll.h>
 #include <linux/smp_lock.h>
 #include <linux/delay.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
@@ -1322,9 +1321,6 @@ static void video1394_add_host (struct hpsb_host *host)
 	class_device_create(hpsb_protocol_class, NULL, MKDEV(
 		IEEE1394_MAJOR,	minor), 
 		NULL, "%s-%d", VIDEO1394_DRIVER_NAME, ohci->host->id);
-	devfs_mk_cdev(MKDEV(IEEE1394_MAJOR, minor),
-		       S_IFCHR | S_IRUSR | S_IWUSR,
-		       "%s/%d", VIDEO1394_DRIVER_NAME, ohci->host->id);
 }
 
 
@@ -1332,12 +1328,9 @@ static void video1394_remove_host (struct hpsb_host *host)
 {
 	struct ti_ohci *ohci = hpsb_get_hostinfo(&video1394_highlevel, host);
 
-	if (ohci) {
+	if (ohci)
 		class_device_destroy(hpsb_protocol_class, MKDEV(IEEE1394_MAJOR,
 			IEEE1394_MINOR_BLOCK_VIDEO1394 * 16 + ohci->host->id));
-		devfs_remove("%s/%d", VIDEO1394_DRIVER_NAME, ohci->host->id);
-	}
-	
 	return;
 }
 
@@ -1478,12 +1471,8 @@ static long video1394_compat_ioctl(struct file *f, unsigned cmd, unsigned long a
 static void __exit video1394_exit_module (void)
 {
 	hpsb_unregister_protocol(&video1394_driver);
-
 	hpsb_unregister_highlevel(&video1394_highlevel);
-
-	devfs_remove(VIDEO1394_DRIVER_NAME);
 	cdev_del(&video1394_cdev);
-
 	PRINT_G(KERN_INFO, "Removed " VIDEO1394_DRIVER_NAME " module");
 }
 
@@ -1500,15 +1489,12 @@ static int __init video1394_init_module (void)
 		return ret;
         }
 
-	devfs_mk_dir(VIDEO1394_DRIVER_NAME);
-
 	hpsb_register_highlevel(&video1394_highlevel);
 
 	ret = hpsb_register_protocol(&video1394_driver);
 	if (ret) {
 		PRINT_G(KERN_ERR, "video1394: failed to register protocol");
 		hpsb_unregister_highlevel(&video1394_highlevel);
-		devfs_remove(VIDEO1394_DRIVER_NAME);
 		cdev_del(&video1394_cdev);
 		return ret;
 	}

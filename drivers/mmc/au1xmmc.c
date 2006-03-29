@@ -87,7 +87,7 @@ struct au1xmmc_host *au1xmmc_hosts[AU1XMMC_CONTROLLER_COUNT];
 static int dma = 1;
 
 #ifdef MODULE
-MODULE_PARM(dma, "i");
+module_param(dma, bool, 0);
 MODULE_PARM_DESC(dma, "Use DMA engine for data transfers (0 = disabled)");
 #endif
 

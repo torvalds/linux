@@ -131,9 +131,10 @@ blkdev_get_block(struct inode *inode, sector_t iblock,
 
 static int
 blkdev_get_blocks(struct inode *inode, sector_t iblock,
-		unsigned long max_blocks, struct buffer_head *bh, int create)
+		struct buffer_head *bh, int create)
 {
 	sector_t end_block = max_block(I_BDEV(inode));
+	unsigned long max_blocks = bh->b_size >> inode->i_blkbits;
 
 	if ((iblock + max_blocks) > end_block) {
 		max_blocks = end_block - iblock;
@@ -234,7 +235,7 @@ static int block_fsync(struct file *filp, struct dentry *dentry, int datasync)
  */
 
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(bdev_lock);
-static kmem_cache_t * bdev_cachep;
+static kmem_cache_t * bdev_cachep __read_mostly;
 
 static struct inode *bdev_alloc_inode(struct super_block *sb)
 {
@@ -265,6 +266,9 @@ static void init_once(void * foo, kmem_cache_t * cachep, unsigned long flags)
 		mutex_init(&bdev->bd_mount_mutex);
 		INIT_LIST_HEAD(&bdev->bd_inodes);
 		INIT_LIST_HEAD(&bdev->bd_list);
+#ifdef CONFIG_SYSFS
+		INIT_LIST_HEAD(&bdev->bd_holder_list);
+#endif
 		inode_init_once(&ei->vfs_inode);
 	}
 }
@@ -308,7 +312,7 @@ static struct file_system_type bd_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-static struct vfsmount *bd_mnt;
+static struct vfsmount *bd_mnt __read_mostly;
 struct super_block *blockdev_superblock;
 
 void __init bdev_cache_init(void)
@@ -488,6 +492,300 @@ void bd_release(struct block_device *bdev)
 }
 
 EXPORT_SYMBOL(bd_release);
+
+#ifdef CONFIG_SYSFS
+/*
+ * Functions for bd_claim_by_kobject / bd_release_from_kobject
+ *
+ *     If a kobject is passed to bd_claim_by_kobject()
+ *     and the kobject has a parent directory,
+ *     following symlinks are created:
+ *        o from the kobject to the claimed bdev
+ *        o from "holders" directory of the bdev to the parent of the kobject
+ *     bd_release_from_kobject() removes these symlinks.
+ *
+ *     Example:
+ *        If /dev/dm-0 maps to /dev/sda, kobject corresponding to
+ *        /sys/block/dm-0/slaves is passed to bd_claim_by_kobject(), then:
+ *           /sys/block/dm-0/slaves/sda --> /sys/block/sda
+ *           /sys/block/sda/holders/dm-0 --> /sys/block/dm-0
+ */
+
+static struct kobject *bdev_get_kobj(struct block_device *bdev)
+{
+	if (bdev->bd_contains != bdev)
+		return kobject_get(&bdev->bd_part->kobj);
+	else
+		return kobject_get(&bdev->bd_disk->kobj);
+}
+
+static struct kobject *bdev_get_holder(struct block_device *bdev)
+{
+	if (bdev->bd_contains != bdev)
+		return kobject_get(bdev->bd_part->holder_dir);
+	else
+		return kobject_get(bdev->bd_disk->holder_dir);
+}
+
+static void add_symlink(struct kobject *from, struct kobject *to)
+{
+	if (!from || !to)
+		return;
+	sysfs_create_link(from, to, kobject_name(to));
+}
+
+static void del_symlink(struct kobject *from, struct kobject *to)
+{
+	if (!from || !to)
+		return;
+	sysfs_remove_link(from, kobject_name(to));
+}
+
+/*
+ * 'struct bd_holder' contains pointers to kobjects symlinked by
+ * bd_claim_by_kobject.
+ * It's connected to bd_holder_list which is protected by bdev->bd_sem.
+ */
+struct bd_holder {
+	struct list_head list;	/* chain of holders of the bdev */
+	int count;		/* references from the holder */
+	struct kobject *sdir;	/* holder object, e.g. "/block/dm-0/slaves" */
+	struct kobject *hdev;	/* e.g. "/block/dm-0" */
+	struct kobject *hdir;	/* e.g. "/block/sda/holders" */
+	struct kobject *sdev;	/* e.g. "/block/sda" */
+};
+
+/*
+ * Get references of related kobjects at once.
+ * Returns 1 on success. 0 on failure.
+ *
+ * Should call bd_holder_release_dirs() after successful use.
+ */
+static int bd_holder_grab_dirs(struct block_device *bdev,
+			struct bd_holder *bo)
+{
+	if (!bdev || !bo)
+		return 0;
+
+	bo->sdir = kobject_get(bo->sdir);
+	if (!bo->sdir)
+		return 0;
+
+	bo->hdev = kobject_get(bo->sdir->parent);
+	if (!bo->hdev)
+		goto fail_put_sdir;
+
+	bo->sdev = bdev_get_kobj(bdev);
+	if (!bo->sdev)
+		goto fail_put_hdev;
+
+	bo->hdir = bdev_get_holder(bdev);
+	if (!bo->hdir)
+		goto fail_put_sdev;
+
+	return 1;
+
+fail_put_sdev:
+	kobject_put(bo->sdev);
+fail_put_hdev:
+	kobject_put(bo->hdev);
+fail_put_sdir:
+	kobject_put(bo->sdir);
+
+	return 0;
+}
+
+/* Put references of related kobjects at once. */
+static void bd_holder_release_dirs(struct bd_holder *bo)
+{
+	kobject_put(bo->hdir);
+	kobject_put(bo->sdev);
+	kobject_put(bo->hdev);
+	kobject_put(bo->sdir);
+}
+
+static struct bd_holder *alloc_bd_holder(struct kobject *kobj)
+{
+	struct bd_holder *bo;
+
+	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
+	if (!bo)
+		return NULL;
+
+	bo->count = 1;
+	bo->sdir = kobj;
+
+	return bo;
+}
+
+static void free_bd_holder(struct bd_holder *bo)
+{
+	kfree(bo);
+}
+
+/**
+ * add_bd_holder - create sysfs symlinks for bd_claim() relationship
+ *
+ * @bdev:	block device to be bd_claimed
+ * @bo:		preallocated and initialized by alloc_bd_holder()
+ *
+ * If there is no matching entry with @bo in @bdev->bd_holder_list,
+ * add @bo to the list, create symlinks.
+ *
+ * Returns 1 if @bo was added to the list.
+ * Returns 0 if @bo wasn't used by any reason and should be freed.
+ */
+static int add_bd_holder(struct block_device *bdev, struct bd_holder *bo)
+{
+	struct bd_holder *tmp;
+
+	if (!bo)
+		return 0;
+
+	list_for_each_entry(tmp, &bdev->bd_holder_list, list) {
+		if (tmp->sdir == bo->sdir) {
+			tmp->count++;
+			return 0;
+		}
+	}
+
+	if (!bd_holder_grab_dirs(bdev, bo))
+		return 0;
+
+	add_symlink(bo->sdir, bo->sdev);
+	add_symlink(bo->hdir, bo->hdev);
+	list_add_tail(&bo->list, &bdev->bd_holder_list);
+	return 1;
+}
+
+/**
+ * del_bd_holder - delete sysfs symlinks for bd_claim() relationship
+ *
+ * @bdev:	block device to be bd_claimed
+ * @kobj:	holder's kobject
+ *
+ * If there is matching entry with @kobj in @bdev->bd_holder_list
+ * and no other bd_claim() from the same kobject,
+ * remove the struct bd_holder from the list, delete symlinks for it.
+ *
+ * Returns a pointer to the struct bd_holder when it's removed from the list
+ * and ready to be freed.
+ * Returns NULL if matching claim isn't found or there is other bd_claim()
+ * by the same kobject.
+ */
+static struct bd_holder *del_bd_holder(struct block_device *bdev,
+					struct kobject *kobj)
+{
+	struct bd_holder *bo;
+
+	list_for_each_entry(bo, &bdev->bd_holder_list, list) {
+		if (bo->sdir == kobj) {
+			bo->count--;
+			BUG_ON(bo->count < 0);
+			if (!bo->count) {
+				list_del(&bo->list);
+				del_symlink(bo->sdir, bo->sdev);
+				del_symlink(bo->hdir, bo->hdev);
+				bd_holder_release_dirs(bo);
+				return bo;
+			}
+			break;
+		}
+	}
+
+	return NULL;
+}
+
+/**
+ * bd_claim_by_kobject - bd_claim() with additional kobject signature
+ *
+ * @bdev:	block device to be claimed
+ * @holder:	holder's signature
+ * @kobj:	holder's kobject
+ *
+ * Do bd_claim() and if it succeeds, create sysfs symlinks between
+ * the bdev and the holder's kobject.
+ * Use bd_release_from_kobject() when relesing the claimed bdev.
+ *
+ * Returns 0 on success. (same as bd_claim())
+ * Returns errno on failure.
+ */
+static int bd_claim_by_kobject(struct block_device *bdev, void *holder,
+				struct kobject *kobj)
+{
+	int res;
+	struct bd_holder *bo;
+
+	if (!kobj)
+		return -EINVAL;
+
+	bo = alloc_bd_holder(kobj);
+	if (!bo)
+		return -ENOMEM;
+
+	mutex_lock(&bdev->bd_mutex);
+	res = bd_claim(bdev, holder);
+	if (res || !add_bd_holder(bdev, bo))
+		free_bd_holder(bo);
+	mutex_unlock(&bdev->bd_mutex);
+
+	return res;
+}
+
+/**
+ * bd_release_from_kobject - bd_release() with additional kobject signature
+ *
+ * @bdev:	block device to be released
+ * @kobj:	holder's kobject
+ *
+ * Do bd_release() and remove sysfs symlinks created by bd_claim_by_kobject().
+ */
+static void bd_release_from_kobject(struct block_device *bdev,
+					struct kobject *kobj)
+{
+	struct bd_holder *bo;
+
+	if (!kobj)
+		return;
+
+	mutex_lock(&bdev->bd_mutex);
+	bd_release(bdev);
+	if ((bo = del_bd_holder(bdev, kobj)))
+		free_bd_holder(bo);
+	mutex_unlock(&bdev->bd_mutex);
+}
+
+/**
+ * bd_claim_by_disk - wrapper function for bd_claim_by_kobject()
+ *
+ * @bdev:	block device to be claimed
+ * @holder:	holder's signature
+ * @disk:	holder's gendisk
+ *
+ * Call bd_claim_by_kobject() with getting @disk->slave_dir.
+ */
+int bd_claim_by_disk(struct block_device *bdev, void *holder,
+			struct gendisk *disk)
+{
+	return bd_claim_by_kobject(bdev, holder, kobject_get(disk->slave_dir));
+}
+EXPORT_SYMBOL_GPL(bd_claim_by_disk);
+
+/**
+ * bd_release_from_disk - wrapper function for bd_release_from_kobject()
+ *
+ * @bdev:	block device to be claimed
+ * @disk:	holder's gendisk
+ *
+ * Call bd_release_from_kobject() and put @disk->slave_dir.
+ */
+void bd_release_from_disk(struct block_device *bdev, struct gendisk *disk)
+{
+	bd_release_from_kobject(bdev, disk->slave_dir);
+	kobject_put(disk->slave_dir);
+}
+EXPORT_SYMBOL_GPL(bd_release_from_disk);
+#endif
 
 /*
  * Tries to open block device by device number.  Use it ONLY if you
@@ -789,7 +1087,7 @@ struct address_space_operations def_blk_aops = {
 	.direct_IO	= blkdev_direct_IO,
 };
 
-struct file_operations def_blk_fops = {
+const struct file_operations def_blk_fops = {
 	.open		= blkdev_open,
 	.release	= blkdev_close,
 	.llseek		= block_llseek,

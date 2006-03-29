@@ -142,7 +142,7 @@ void __init config_bvme6000(void)
     /* Now do the PIT configuration */
 
     pit->pgcr	= 0x00;	/* Unidirectional 8 bit, no handshake for now */
-    pit->psrr	= 0x18;	/* PIACK and PIRQ fucntions enabled */
+    pit->psrr	= 0x18;	/* PIACK and PIRQ functions enabled */
     pit->pacr	= 0x00;	/* Sub Mode 00, H2 i/p, no DMA */
     pit->padr	= 0x00;	/* Just to be tidy! */
     pit->paddr	= 0x00;	/* All inputs for now (safest) */

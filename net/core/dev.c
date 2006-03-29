@@ -114,6 +114,7 @@
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 #include <asm/current.h>
+#include <linux/audit.h>
 
 /*
  *	The list of packet types we will receive (as opposed to discard)
@@ -192,7 +193,7 @@ static inline struct hlist_head *dev_index_hash(int ifindex)
  *	Our notifier list
  */
 
-static struct notifier_block *netdev_chain;
+static BLOCKING_NOTIFIER_HEAD(netdev_chain);
 
 /*
  *	Device drivers call our routines to queue packets here. We empty the
@@ -735,7 +736,8 @@ int dev_change_name(struct net_device *dev, char *newname)
 	if (!err) {
 		hlist_del(&dev->name_hlist);
 		hlist_add_head(&dev->name_hlist, dev_name_hash(dev->name));
-		notifier_call_chain(&netdev_chain, NETDEV_CHANGENAME, dev);
+		blocking_notifier_call_chain(&netdev_chain,
+				NETDEV_CHANGENAME, dev);
 	}
 
 	return err;
@@ -749,7 +751,7 @@ int dev_change_name(struct net_device *dev, char *newname)
  */
 void netdev_features_change(struct net_device *dev)
 {
-	notifier_call_chain(&netdev_chain, NETDEV_FEAT_CHANGE, dev);
+	blocking_notifier_call_chain(&netdev_chain, NETDEV_FEAT_CHANGE, dev);
 }
 EXPORT_SYMBOL(netdev_features_change);
 
@@ -764,7 +766,8 @@ EXPORT_SYMBOL(netdev_features_change);
 void netdev_state_change(struct net_device *dev)
 {
 	if (dev->flags & IFF_UP) {
-		notifier_call_chain(&netdev_chain, NETDEV_CHANGE, dev);
+		blocking_notifier_call_chain(&netdev_chain,
+				NETDEV_CHANGE, dev);
 		rtmsg_ifinfo(RTM_NEWLINK, dev, 0);
 	}
 }
@@ -861,7 +864,7 @@ int dev_open(struct net_device *dev)
 		/*
 		 *	... and announce new interface.
 		 */
-		notifier_call_chain(&netdev_chain, NETDEV_UP, dev);
+		blocking_notifier_call_chain(&netdev_chain, NETDEV_UP, dev);
 	}
 	return ret;
 }
@@ -884,7 +887,7 @@ int dev_close(struct net_device *dev)
 	 *	Tell people we are going down, so that they can
 	 *	prepare to death, when device is still operating.
 	 */
-	notifier_call_chain(&netdev_chain, NETDEV_GOING_DOWN, dev);
+	blocking_notifier_call_chain(&netdev_chain, NETDEV_GOING_DOWN, dev);
 
 	dev_deactivate(dev);
 
@@ -921,7 +924,7 @@ int dev_close(struct net_device *dev)
 	/*
 	 * Tell people we are down
 	 */
-	notifier_call_chain(&netdev_chain, NETDEV_DOWN, dev);
+	blocking_notifier_call_chain(&netdev_chain, NETDEV_DOWN, dev);
 
 	return 0;
 }
@@ -952,7 +955,7 @@ int register_netdevice_notifier(struct notifier_block *nb)
 	int err;
 
 	rtnl_lock();
-	err = notifier_chain_register(&netdev_chain, nb);
+	err = blocking_notifier_chain_register(&netdev_chain, nb);
 	if (!err) {
 		for (dev = dev_base; dev; dev = dev->next) {
 			nb->notifier_call(nb, NETDEV_REGISTER, dev);
@@ -977,7 +980,12 @@ int register_netdevice_notifier(struct notifier_block *nb)
 
 int unregister_netdevice_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_unregister(&netdev_chain, nb);
+	int err;
+
+	rtnl_lock();
+	err = blocking_notifier_chain_unregister(&netdev_chain, nb);
+	rtnl_unlock();
+	return err;
 }
 
 /**
@@ -986,12 +994,12 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
  *      @v:   pointer passed unmodified to notifier function
  *
  *	Call all network notifier blocks.  Parameters and return value
- *	are as for notifier_call_chain().
+ *	are as for blocking_notifier_call_chain().
  */
 
 int call_netdevice_notifiers(unsigned long val, void *v)
 {
-	return notifier_call_chain(&netdev_chain, val, v);
+	return blocking_notifier_call_chain(&netdev_chain, val, v);
 }
 
 /* When > 0 there are consumers of rx skb time stamps */
@@ -2142,6 +2150,12 @@ void dev_set_promiscuity(struct net_device *dev, int inc)
 		printk(KERN_INFO "device %s %s promiscuous mode\n",
 		       dev->name, (dev->flags & IFF_PROMISC) ? "entered" :
 		       					       "left");
+		audit_log(current->audit_context, GFP_ATOMIC,
+			AUDIT_ANOM_PROMISCUOUS,
+			"dev=%s prom=%d old_prom=%d auid=%u",
+			dev->name, (dev->flags & IFF_PROMISC),
+			(old_flags & IFF_PROMISC),
+			audit_get_loginuid(current->audit_context)); 
 	}
 }
 
@@ -2230,7 +2244,8 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 	if (dev->flags & IFF_UP &&
 	    ((old_flags ^ dev->flags) &~ (IFF_UP | IFF_PROMISC | IFF_ALLMULTI |
 					  IFF_VOLATILE)))
-		notifier_call_chain(&netdev_chain, NETDEV_CHANGE, dev);
+		blocking_notifier_call_chain(&netdev_chain,
+				NETDEV_CHANGE, dev);
 
 	if ((flags ^ dev->gflags) & IFF_PROMISC) {
 		int inc = (flags & IFF_PROMISC) ? +1 : -1;
@@ -2274,8 +2289,8 @@ int dev_set_mtu(struct net_device *dev, int new_mtu)
 	else
 		dev->mtu = new_mtu;
 	if (!err && dev->flags & IFF_UP)
-		notifier_call_chain(&netdev_chain,
-				    NETDEV_CHANGEMTU, dev);
+		blocking_notifier_call_chain(&netdev_chain,
+				NETDEV_CHANGEMTU, dev);
 	return err;
 }
 
@@ -2291,7 +2306,8 @@ int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa)
 		return -ENODEV;
 	err = dev->set_mac_address(dev, sa);
 	if (!err)
-		notifier_call_chain(&netdev_chain, NETDEV_CHANGEADDR, dev);
+		blocking_notifier_call_chain(&netdev_chain,
+				NETDEV_CHANGEADDR, dev);
 	return err;
 }
 
@@ -2347,7 +2363,7 @@ static int dev_ifsioc(struct ifreq *ifr, unsigned int cmd)
 				return -EINVAL;
 			memcpy(dev->broadcast, ifr->ifr_hwaddr.sa_data,
 			       min(sizeof ifr->ifr_hwaddr.sa_data, (size_t) dev->addr_len));
-			notifier_call_chain(&netdev_chain,
+			blocking_notifier_call_chain(&netdev_chain,
 					    NETDEV_CHANGEADDR, dev);
 			return 0;
 
@@ -2801,7 +2817,7 @@ int register_netdevice(struct net_device *dev)
 	write_unlock_bh(&dev_base_lock);
 
 	/* Notify protocols, that a new device appeared. */
-	notifier_call_chain(&netdev_chain, NETDEV_REGISTER, dev);
+	blocking_notifier_call_chain(&netdev_chain, NETDEV_REGISTER, dev);
 
 	/* Finish registration after unlock */
 	net_set_todo(dev);
@@ -2880,7 +2896,7 @@ static void netdev_wait_allrefs(struct net_device *dev)
 			rtnl_lock();
 
 			/* Rebroadcast unregister notification */
-			notifier_call_chain(&netdev_chain,
+			blocking_notifier_call_chain(&netdev_chain,
 					    NETDEV_UNREGISTER, dev);
 
 			if (test_bit(__LINK_STATE_LINKWATCH_PENDING,
@@ -3136,7 +3152,7 @@ int unregister_netdevice(struct net_device *dev)
 	/* Notify protocols, that we are about to destroy
 	   this device. They should clean all the things.
 	*/
-	notifier_call_chain(&netdev_chain, NETDEV_UNREGISTER, dev);
+	blocking_notifier_call_chain(&netdev_chain, NETDEV_UNREGISTER, dev);
 	
 	/*
 	 *	Flush the multicast chain

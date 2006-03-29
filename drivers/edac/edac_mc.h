@@ -15,10 +15,8 @@
  *
  */
 
-
 #ifndef _EDAC_MC_H_
 #define _EDAC_MC_H_
-
 
 #include <linux/config.h>
 #include <linux/kernel.h>
@@ -33,7 +31,6 @@
 #include <linux/completion.h>
 #include <linux/kobject.h>
 
-
 #define EDAC_MC_LABEL_LEN	31
 #define MC_PROC_NAME_MAX_LEN 7
 
@@ -43,31 +40,53 @@
 #define PAGES_TO_MiB( pages )	( ( pages ) << ( PAGE_SHIFT - 20 ) )
 #endif
 
+#define edac_printk(level, prefix, fmt, arg...) \
+	printk(level "EDAC " prefix ": " fmt, ##arg)
+
+#define edac_mc_printk(mci, level, fmt, arg...) \
+	printk(level "EDAC MC%d: " fmt, mci->mc_idx, ##arg)
+
+#define edac_mc_chipset_printk(mci, level, prefix, fmt, arg...) \
+	printk(level "EDAC " prefix " MC%d: " fmt, mci->mc_idx, ##arg)
+
+/* prefixes for edac_printk() and edac_mc_printk() */
+#define EDAC_MC "MC"
+#define EDAC_PCI "PCI"
+#define EDAC_DEBUG "DEBUG"
+
 #ifdef CONFIG_EDAC_DEBUG
 extern int edac_debug_level;
-#define edac_debug_printk(level, fmt, args...) \
-do { if (level <= edac_debug_level) printk(KERN_DEBUG fmt, ##args); } while(0)
+
+#define edac_debug_printk(level, fmt, arg...)                            \
+	do {                                                             \
+		if (level <= edac_debug_level)                           \
+			edac_printk(KERN_DEBUG, EDAC_DEBUG, fmt, ##arg); \
+	} while(0)
+
 #define debugf0( ... ) edac_debug_printk(0, __VA_ARGS__ )
 #define debugf1( ... ) edac_debug_printk(1, __VA_ARGS__ )
 #define debugf2( ... ) edac_debug_printk(2, __VA_ARGS__ )
 #define debugf3( ... ) edac_debug_printk(3, __VA_ARGS__ )
 #define debugf4( ... ) edac_debug_printk(4, __VA_ARGS__ )
-#else				/* !CONFIG_EDAC_DEBUG */
+
+#else  /* !CONFIG_EDAC_DEBUG */
+
 #define debugf0( ... )
 #define debugf1( ... )
 #define debugf2( ... )
 #define debugf3( ... )
 #define debugf4( ... )
-#endif				/* !CONFIG_EDAC_DEBUG */
 
+#endif  /* !CONFIG_EDAC_DEBUG */
 
-#define bs_xstr(s) bs_str(s)
-#define bs_str(s) #s
-#define BS_MOD_STR bs_xstr(KBUILD_BASENAME)
+#define edac_xstr(s) edac_str(s)
+#define edac_str(s) #s
+#define EDAC_MOD_STR edac_xstr(KBUILD_BASENAME)
 
 #define BIT(x) (1 << (x))
 
-#define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, PCI_DEVICE_ID_ ## vend ## _ ## dev
+#define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
+	PCI_DEVICE_ID_ ## vend ## _ ## dev
 
 /* memory devices */
 enum dev_type {
@@ -117,7 +136,6 @@ enum mem_type {
 #define MEM_FLAG_RDDR		BIT(MEM_RDDR)
 #define MEM_FLAG_RMBS		BIT(MEM_RMBS)
 
-
 /* chipset Error Detection and Correction capabilities and mode */
 enum edac_type {
 	EDAC_UNKNOWN = 0,	/* Unknown if ECC is available */
@@ -142,7 +160,6 @@ enum edac_type {
 #define EDAC_FLAG_S8ECD8ED	BIT(EDAC_S8ECD8ED)
 #define EDAC_FLAG_S16ECD16ED	BIT(EDAC_S16ECD16ED)
 
-
 /* scrubbing capabilities */
 enum scrub_type {
 	SCRUB_UNKNOWN = 0,	/* Unknown if scrubber is available */
@@ -165,11 +182,6 @@ enum scrub_type {
 #define SCRUB_FLAG_HW_SRC	BIT(SCRUB_HW_SRC_CORR)
 #define SCRUB_FLAG_HW_PROG_SRC	BIT(SCRUB_HW_PROG_SRC_CORR)
 #define SCRUB_FLAG_HW_TUN	BIT(SCRUB_HW_TUNABLE)
-
-enum mci_sysfs_status {
-	MCI_SYSFS_INACTIVE = 0,	/* sysfs entries NOT registered */
-	MCI_SYSFS_ACTIVE	/* sysfs entries ARE registered */
-};
 
 /* FIXME - should have notify capabilities: NMI, LOG, PROC, etc */
 
@@ -255,20 +267,19 @@ enum mci_sysfs_status {
  * PS - I enjoyed writing all that about as much as you enjoyed reading it.
  */
 
-
 struct channel_info {
 	int chan_idx;		/* channel index */
 	u32 ce_count;		/* Correctable Errors for this CHANNEL */
-	char label[EDAC_MC_LABEL_LEN + 1];	/* DIMM label on motherboard */
+	char label[EDAC_MC_LABEL_LEN + 1];  /* DIMM label on motherboard */
 	struct csrow_info *csrow;	/* the parent */
 };
-
 
 struct csrow_info {
 	unsigned long first_page;	/* first page number in dimm */
 	unsigned long last_page;	/* last page number in dimm */
 	unsigned long page_mask;	/* used for interleaving -
-					   0UL for non intlv */
+					 * 0UL for non intlv
+					 */
 	u32 nr_pages;		/* number of pages in csrow */
 	u32 grain;		/* granularity of reported error in bytes */
 	int csrow_idx;		/* the chip-select row */
@@ -280,28 +291,27 @@ struct csrow_info {
 	struct mem_ctl_info *mci;	/* the parent */
 
 	struct kobject kobj;	/* sysfs kobject for this csrow */
+	struct completion kobj_complete;
 
 	/* FIXME the number of CHANNELs might need to become dynamic */
 	u32 nr_channels;
 	struct channel_info *channels;
 };
 
-
 struct mem_ctl_info {
 	struct list_head link;  /* for global list of mem_ctl_info structs */
 	unsigned long mtype_cap;	/* memory types supported by mc */
 	unsigned long edac_ctl_cap;	/* Mem controller EDAC capabilities */
 	unsigned long edac_cap;	/* configuration capabilities - this is
-				   closely related to edac_ctl_cap.  The
-				   difference is that the controller
-				   may be capable of s4ecd4ed which would
-				   be listed in edac_ctl_cap, but if
-				   channels aren't capable of s4ecd4ed then the
-				   edac_cap would not have that capability. */
+				 * closely related to edac_ctl_cap.  The
+				 * difference is that the controller may be
+				 * capable of s4ecd4ed which would be listed
+				 * in edac_ctl_cap, but if channels aren't
+				 * capable of s4ecd4ed then the edac_cap would
+				 * not have that capability.
+				 */
 	unsigned long scrub_cap;	/* chipset scrub capabilities */
 	enum scrub_type scrub_mode;	/* current scrub mode */
-
-	enum mci_sysfs_status sysfs_active;	/* status of sysfs */
 
 	/* pointer to edac checking routine */
 	void (*edac_check) (struct mem_ctl_info * mci);
@@ -311,7 +321,7 @@ struct mem_ctl_info {
 	 */
 	/* FIXME - why not send the phys page to begin with? */
 	unsigned long (*ctl_page_to_phys) (struct mem_ctl_info * mci,
-					   unsigned long page);
+					unsigned long page);
 	int mc_idx;
 	int nr_csrows;
 	struct csrow_info *csrows;
@@ -340,72 +350,69 @@ struct mem_ctl_info {
 
 	/* edac sysfs device control */
 	struct kobject edac_mci_kobj;
+	struct completion kobj_complete;
 };
 
-
-
 /* write all or some bits in a byte-register*/
-static inline void pci_write_bits8(struct pci_dev *pdev, int offset,
-				   u8 value, u8 mask)
+static inline void pci_write_bits8(struct pci_dev *pdev, int offset, u8 value,
+		u8 mask)
 {
 	if (mask != 0xff) {
 		u8 buf;
+
 		pci_read_config_byte(pdev, offset, &buf);
 		value &= mask;
 		buf &= ~mask;
 		value |= buf;
 	}
+
 	pci_write_config_byte(pdev, offset, value);
 }
 
-
 /* write all or some bits in a word-register*/
 static inline void pci_write_bits16(struct pci_dev *pdev, int offset,
-				    u16 value, u16 mask)
+		u16 value, u16 mask)
 {
 	if (mask != 0xffff) {
 		u16 buf;
+
 		pci_read_config_word(pdev, offset, &buf);
 		value &= mask;
 		buf &= ~mask;
 		value |= buf;
 	}
+
 	pci_write_config_word(pdev, offset, value);
 }
 
-
 /* write all or some bits in a dword-register*/
 static inline void pci_write_bits32(struct pci_dev *pdev, int offset,
-				    u32 value, u32 mask)
+		u32 value, u32 mask)
 {
 	if (mask != 0xffff) {
 		u32 buf;
+
 		pci_read_config_dword(pdev, offset, &buf);
 		value &= mask;
 		buf &= ~mask;
 		value |= buf;
 	}
+
 	pci_write_config_dword(pdev, offset, value);
 }
-
 
 #ifdef CONFIG_EDAC_DEBUG
 void edac_mc_dump_channel(struct channel_info *chan);
 void edac_mc_dump_mci(struct mem_ctl_info *mci);
 void edac_mc_dump_csrow(struct csrow_info *csrow);
-#endif				/* CONFIG_EDAC_DEBUG */
+#endif  /* CONFIG_EDAC_DEBUG */
 
 extern int edac_mc_add_mc(struct mem_ctl_info *mci);
-extern int edac_mc_del_mc(struct mem_ctl_info *mci);
-
+extern struct mem_ctl_info * edac_mc_del_mc(struct pci_dev *pdev);
 extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
-					   unsigned long page);
-
-extern struct mem_ctl_info *edac_mc_find_mci_by_pdev(struct pci_dev
-							  *pdev);
-
-extern void edac_mc_scrub_block(unsigned long page,
-				     unsigned long offset, u32 size);
+					unsigned long page);
+extern void edac_mc_scrub_block(unsigned long page, unsigned long offset,
+		u32 size);
 
 /*
  * The no info errors are used when error overflows are reported.
@@ -418,31 +425,25 @@ extern void edac_mc_scrub_block(unsigned long page,
  * statement clutter and extra function arguments.
  */
 extern void edac_mc_handle_ce(struct mem_ctl_info *mci,
-				   unsigned long page_frame_number,
-				   unsigned long offset_in_page,
-				   unsigned long syndrome,
-				   int row, int channel, const char *msg);
-
+		unsigned long page_frame_number, unsigned long offset_in_page,
+		unsigned long syndrome, int row, int channel,
+		const char *msg);
 extern void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci,
-					   const char *msg);
-
+		const char *msg);
 extern void edac_mc_handle_ue(struct mem_ctl_info *mci,
-				   unsigned long page_frame_number,
-				   unsigned long offset_in_page,
-				   int row, const char *msg);
-
+		unsigned long page_frame_number, unsigned long offset_in_page,
+		int row, const char *msg);
 extern void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci,
-					   const char *msg);
+		const char *msg);
 
 /*
  * This kmalloc's and initializes all the structures.
  * Can't be used if all structures don't have the same lifetime.
  */
-extern struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt,
-		unsigned nr_csrows, unsigned nr_chans);
+extern struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
+		unsigned nr_chans);
 
 /* Free an mc previously allocated by edac_mc_alloc() */
 extern void edac_mc_free(struct mem_ctl_info *mci);
-
 
 #endif				/* _EDAC_MC_H_ */

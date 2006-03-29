@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2003-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (C) 2003-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -323,9 +323,12 @@ static unsigned int Num_of_ioc4_cards;
 #define IOC4_FIFO_CHARS	255
 
 /* Device name we're using */
-#define DEVICE_NAME	"ttyIOC"
-#define DEVICE_MAJOR 204
-#define DEVICE_MINOR 50
+#define DEVICE_NAME_RS232  "ttyIOC"
+#define DEVICE_NAME_RS422  "ttyAIOC"
+#define DEVICE_MAJOR	   204
+#define DEVICE_MINOR_RS232 50
+#define DEVICE_MINOR_RS422 84
+
 
 /* register offsets */
 #define IOC4_SERIAL_OFFSET	0x300
@@ -341,10 +344,8 @@ static unsigned int Num_of_ioc4_cards;
 #define MAX_BAUD_SUPPORTED	115200
 
 /* protocol types supported */
-enum sio_proto {
-	PROTO_RS232,
-	PROTO_RS422
-};
+#define PROTO_RS232	3
+#define PROTO_RS422	7
 
 /* Notification types */
 #define N_DATA_READY	0x01
@@ -395,11 +396,17 @@ enum sio_proto {
 /*
  * This is the entry saved by the driver - one per card
  */
+
+#define UART_PORT_MIN		0
+#define UART_PORT_RS232		UART_PORT_MIN
+#define UART_PORT_RS422		1
+#define UART_PORT_COUNT		2	/* one for each mode */
+
 struct ioc4_control {
 	int ic_irq;
 	struct {
-		/* uart ports are allocated here */
-		struct uart_port icp_uart_port;
+		/* uart ports are allocated here - 1 for rs232, 1 for rs422 */
+		struct uart_port icp_uart_port[UART_PORT_COUNT];
 		/* Handy reference material */
 		struct ioc4_port *icp_port;
 	} ic_port[IOC4_NUM_SERIAL_PORTS];
@@ -443,7 +450,9 @@ struct ioc4_soft {
 
 /* Local port info for each IOC4 serial ports */
 struct ioc4_port {
-	struct uart_port *ip_port;
+	struct uart_port *ip_port;	/* current active port ptr */
+	/* Ptrs for all ports */
+	struct uart_port *ip_all_ports[UART_PORT_COUNT];
 	/* Back ptrs for this port */
 	struct ioc4_control *ip_control;
 	struct pci_dev *ip_pdev;
@@ -502,6 +511,9 @@ struct ioc4_port {
 #define DCD_ON		0x02
 #define LOWAT_WRITTEN	0x04
 #define READ_ABORTED	0x08
+#define PORT_ACTIVE	0x10
+#define PORT_INACTIVE	0	/* This is the value when "off" */
+
 
 /* Since each port has different register offsets and bitmasks
  * for everything, we'll store those that we need in tables so we
@@ -623,6 +635,23 @@ struct ring_buffer {
 static void receive_chars(struct uart_port *);
 static void handle_intr(void *arg, uint32_t sio_ir);
 
+/*
+ * port_is_active - determines if this port is currently active
+ * @port: ptr to soft struct for this port
+ * @uart_port: uart port to test for
+ */
+static inline int port_is_active(struct ioc4_port *port,
+		struct uart_port *uart_port)
+{
+	if (port) {
+		if ((port->ip_flags & PORT_ACTIVE)
+					&& (port->ip_port == uart_port))
+			return 1;
+	}
+	return 0;
+}
+
+
 /**
  * write_ireg - write the interrupt regs
  * @ioc4_soft: ptr to soft struct for this port
@@ -708,19 +737,33 @@ static int set_baud(struct ioc4_port *port, int baud)
 /**
  * get_ioc4_port - given a uart port, return the control structure
  * @port: uart port
+ * @set: set this port as current
  */
-static struct ioc4_port *get_ioc4_port(struct uart_port *the_port)
+static struct ioc4_port *get_ioc4_port(struct uart_port *the_port, int set)
 {
 	struct ioc4_driver_data *idd = dev_get_drvdata(the_port->dev);
 	struct ioc4_control *control = idd->idd_serial_data;
-	int ii;
+	struct ioc4_port *port;
+	int port_num, port_type;
 
 	if (control) {
-		for ( ii = 0; ii < IOC4_NUM_SERIAL_PORTS; ii++ ) {
-			if (!control->ic_port[ii].icp_port)
+		for ( port_num = 0; port_num < IOC4_NUM_SERIAL_PORTS;
+							port_num++ ) {
+			port = control->ic_port[port_num].icp_port;
+			if (!port)
 				continue;
-			if (the_port == control->ic_port[ii].icp_port->ip_port)
-				return control->ic_port[ii].icp_port;
+			for (port_type = UART_PORT_MIN;
+						port_type < UART_PORT_COUNT;
+						port_type++) {
+				if (the_port == port->ip_all_ports
+							[port_type]) {
+					/* set local copy */
+					if (set) {
+						port->ip_port = the_port;
+					}
+					return port;
+				}
+			}
 		}
 	}
 	return NULL;
@@ -946,6 +989,7 @@ intr_connect(struct ioc4_soft *soft, int type,
  * @arg: handler arg
  * @regs: registers
  */
+
 static irqreturn_t ioc4_intr(int irq, void *arg, struct pt_regs *regs)
 {
 	struct ioc4_soft *soft;
@@ -953,7 +997,7 @@ static irqreturn_t ioc4_intr(int irq, void *arg, struct pt_regs *regs)
 	int xx, num_intrs = 0;
 	int intr_type;
 	int handled = 0;
-	struct ioc4_intr_info *ii;
+	struct ioc4_intr_info *intr_info;
 
 	soft = arg;
 	for (intr_type = 0; intr_type < IOC4_NUM_INTR_TYPES; intr_type++) {
@@ -966,13 +1010,13 @@ static irqreturn_t ioc4_intr(int irq, void *arg, struct pt_regs *regs)
 		 * which interrupt bits are set.
 		 */
 		for (xx = 0; xx < num_intrs; xx++) {
-			ii = &soft->is_intr_type[intr_type].is_intr_info[xx];
-			if ((this_mir = this_ir & ii->sd_bits)) {
+			intr_info = &soft->is_intr_type[intr_type].is_intr_info[xx];
+			if ((this_mir = this_ir & intr_info->sd_bits)) {
 				/* Disable owned interrupts, call handler */
 				handled++;
-				write_ireg(soft, ii->sd_bits, IOC4_W_IEC,
+				write_ireg(soft, intr_info->sd_bits, IOC4_W_IEC,
 								intr_type);
-				ii->sd_intr(ii->sd_info, this_mir);
+				intr_info->sd_intr(intr_info->sd_info, this_mir);
 				this_ir &= ~this_mir;
 			}
 		}
@@ -980,7 +1024,6 @@ static irqreturn_t ioc4_intr(int irq, void *arg, struct pt_regs *regs)
 #ifdef DEBUG_INTERRUPTS
 	{
 		struct ioc4_misc_regs __iomem *mem = soft->is_ioc4_misc_addr;
-		spinlock_t *lp = &soft->is_ir_lock;
 		unsigned long flag;
 
 		spin_lock_irqsave(&soft->is_ir_lock, flag);
@@ -1177,7 +1220,7 @@ static inline int local_open(struct ioc4_port *port)
 {
 	int spiniter = 0;
 
-	port->ip_flags = 0;
+	port->ip_flags = PORT_ACTIVE;
 
 	/* Pause the DMA interface if necessary */
 	if (port->ip_sscr & IOC4_SSCR_DMA_EN) {
@@ -1187,6 +1230,7 @@ static inline int local_open(struct ioc4_port *port)
 				& IOC4_SSCR_PAUSE_STATE) == 0) {
 			spiniter++;
 			if (spiniter > MAXITER) {
+				port->ip_flags = PORT_INACTIVE;
 				return -1;
 			}
 		}
@@ -1506,14 +1550,13 @@ static int set_notification(struct ioc4_port *port, int mask, int set_on)
 /**
  * set_mcr - set the master control reg
  * @the_port: port to use
- * @set: set ?
  * @mask1: mcr mask
  * @mask2: shadow mask
  */
-static inline int set_mcr(struct uart_port *the_port, int set,
+static inline int set_mcr(struct uart_port *the_port,
 		int mask1, int mask2)
 {
-	struct ioc4_port *port = get_ioc4_port(the_port);
+	struct ioc4_port *port = get_ioc4_port(the_port, 0);
 	uint32_t shadow;
 	int spiniter = 0;
 	char mcr;
@@ -1536,13 +1579,9 @@ static inline int set_mcr(struct uart_port *the_port, int set,
 	mcr = (shadow & 0xff000000) >> 24;
 
 	/* Set new value */
-	if (set) {
-		mcr |= mask1;
-		shadow |= mask2;
-	} else {
-		mcr &= ~mask1;
-		shadow &= ~mask2;
-	}
+	mcr |= mask1;
+	shadow |= mask2;
+
 	writeb(mcr, &port->ip_uart_regs->i4u_mcr);
 	writel(shadow, &port->ip_serial_regs->shadow);
 
@@ -1558,7 +1597,7 @@ static inline int set_mcr(struct uart_port *the_port, int set,
  * @port: port to use
  * @proto: protocol to use
  */
-static int ioc4_set_proto(struct ioc4_port *port, enum sio_proto proto)
+static int ioc4_set_proto(struct ioc4_port *port, int proto)
 {
 	struct hooks *hooks = port->ip_hooks;
 
@@ -1589,7 +1628,7 @@ static void transmit_chars(struct uart_port *the_port)
 	int result;
 	char *start;
 	struct tty_struct *tty;
-	struct ioc4_port *port = get_ioc4_port(the_port);
+	struct ioc4_port *port = get_ioc4_port(the_port, 0);
 	struct uart_info *info;
 
 	if (!the_port)
@@ -1645,7 +1684,7 @@ static void
 ioc4_change_speed(struct uart_port *the_port,
 		  struct termios *new_termios, struct termios *old_termios)
 {
-	struct ioc4_port *port = get_ioc4_port(the_port);
+	struct ioc4_port *port = get_ioc4_port(the_port, 0);
 	int baud, bits;
 	unsigned cflag;
 	int new_parity = 0, new_parity_enable = 0, new_stop = 0, new_data = 8;
@@ -1752,13 +1791,16 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 	if (!the_port)
 		return -1;
 
-	port = get_ioc4_port(the_port);
+	port = get_ioc4_port(the_port, 0);
 	if (!port)
 		return -1;
 
 	info = the_port->info;
 
 	local_open(port);
+
+	/* set the protocol - mapbase has the port type */
+	ioc4_set_proto(port, the_port->mapbase);
 
 	/* set the speed of the serial port */
 	ioc4_change_speed(the_port, info->tty->termios, (struct termios *)0);
@@ -1768,17 +1810,17 @@ static inline int ic4_startup_local(struct uart_port *the_port)
 
 /*
  * ioc4_cb_output_lowat - called when the output low water mark is hit
- * @port: port to output
+ * @the_port: port to output
  */
-static void ioc4_cb_output_lowat(struct ioc4_port *port)
+static void ioc4_cb_output_lowat(struct uart_port *the_port)
 {
 	unsigned long pflags;
 
 	/* ip_lock is set on the call here */
-	if (port->ip_port) {
-		spin_lock_irqsave(&port->ip_port->lock, pflags);
-		transmit_chars(port->ip_port);
-		spin_unlock_irqrestore(&port->ip_port->lock, pflags);
+	if (the_port) {
+		spin_lock_irqsave(&the_port->lock, pflags);
+		transmit_chars(the_port);
+		spin_unlock_irqrestore(&the_port->lock, pflags);
 	}
 }
 
@@ -1923,7 +1965,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 					&port->ip_mem->sio_ir.raw);
 
 			if (port->ip_notify & N_OUTPUT_LOWAT)
-				ioc4_cb_output_lowat(port);
+				ioc4_cb_output_lowat(port->ip_port);
 		}
 
 		/* Handle tx_mt.  Must come after tx_explicit.  */
@@ -1936,7 +1978,7 @@ static void handle_intr(void *arg, uint32_t sio_ir)
 			 * So send the notification now.
 			 */
 			if (port->ip_notify & N_OUTPUT_LOWAT) {
-				ioc4_cb_output_lowat(port);
+				ioc4_cb_output_lowat(port->ip_port);
 
 				/* We need to reload the sio_ir since the lowat
 				 * call may have caused another write to occur,
@@ -2023,7 +2065,7 @@ static inline int do_read(struct uart_port *the_port, unsigned char *buf,
 				int len)
 {
 	int prod_ptr, cons_ptr, total;
-	struct ioc4_port *port = get_ioc4_port(the_port);
+	struct ioc4_port *port = get_ioc4_port(the_port, 0);
 	struct ring *inring;
 	struct ring_entry *entry;
 	struct hooks *hooks = port->ip_hooks;
@@ -2335,17 +2377,27 @@ static void receive_chars(struct uart_port *the_port)
  */
 static const char *ic4_type(struct uart_port *the_port)
 {
-	return "SGI IOC4 Serial";
+	if (the_port->mapbase == PROTO_RS232)
+		return "SGI IOC4 Serial [rs232]";
+	else
+		return "SGI IOC4 Serial [rs422]";
 }
 
 /**
- * ic4_tx_empty - Is the transmitter empty?  We pretend we're always empty
- * @port: Port to operate on (we ignore since we always return 1)
+ * ic4_tx_empty - Is the transmitter empty?
+ * @port: Port to operate on
  *
  */
 static unsigned int ic4_tx_empty(struct uart_port *the_port)
 {
-	return 1;
+	struct ioc4_port *port = get_ioc4_port(the_port, 0);
+	unsigned int ret = 0;
+
+	if (port_is_active(port, the_port)) {
+		if (readl(&port->ip_serial_regs->shadow) & IOC4_SHADOW_TEMT)
+			ret = TIOCSER_TEMT;
+	}
+	return ret;
 }
 
 /**
@@ -2355,6 +2407,10 @@ static unsigned int ic4_tx_empty(struct uart_port *the_port)
  */
 static void ic4_stop_tx(struct uart_port *the_port)
 {
+	struct ioc4_port *port = get_ioc4_port(the_port, 0);
+
+	if (port_is_active(port, the_port))
+		set_notification(port, N_OUTPUT_LOWAT, 0);
 }
 
 /**
@@ -2377,11 +2433,12 @@ static void ic4_shutdown(struct uart_port *the_port)
 	struct ioc4_port *port;
 	struct uart_info *info;
 
-	port = get_ioc4_port(the_port);
+	port = get_ioc4_port(the_port, 0);
 	if (!port)
 		return;
 
 	info = the_port->info;
+	port->ip_port = NULL;
 
 	wake_up_interruptible(&info->delta_msr_wait);
 
@@ -2390,6 +2447,7 @@ static void ic4_shutdown(struct uart_port *the_port)
 
 	spin_lock_irqsave(&the_port->lock, port_flags);
 	set_notification(port, N_ALL, 0);
+	port->ip_flags = PORT_INACTIVE;
 	spin_unlock_irqrestore(&the_port->lock, port_flags);
 }
 
@@ -2402,6 +2460,11 @@ static void ic4_shutdown(struct uart_port *the_port)
 static void ic4_set_mctrl(struct uart_port *the_port, unsigned int mctrl)
 {
 	unsigned char mcr = 0;
+	struct ioc4_port *port;
+
+	port = get_ioc4_port(the_port, 0);
+	if (!port_is_active(port, the_port))
+		return;
 
 	if (mctrl & TIOCM_RTS)
 		mcr |= UART_MCR_RTS;
@@ -2414,7 +2477,7 @@ static void ic4_set_mctrl(struct uart_port *the_port, unsigned int mctrl)
 	if (mctrl & TIOCM_LOOP)
 		mcr |= UART_MCR_LOOP;
 
-	set_mcr(the_port, 1, mcr, IOC4_SHADOW_DTR);
+	set_mcr(the_port, mcr, IOC4_SHADOW_DTR);
 }
 
 /**
@@ -2424,11 +2487,11 @@ static void ic4_set_mctrl(struct uart_port *the_port, unsigned int mctrl)
  */
 static unsigned int ic4_get_mctrl(struct uart_port *the_port)
 {
-	struct ioc4_port *port = get_ioc4_port(the_port);
+	struct ioc4_port *port = get_ioc4_port(the_port, 0);
 	uint32_t shadow;
 	unsigned int ret = 0;
 
-	if (!port)
+	if (!port_is_active(port, the_port))
 		return 0;
 
 	shadow = readl(&port->ip_serial_regs->shadow);
@@ -2448,9 +2511,9 @@ static unsigned int ic4_get_mctrl(struct uart_port *the_port)
  */
 static void ic4_start_tx(struct uart_port *the_port)
 {
-	struct ioc4_port *port = get_ioc4_port(the_port);
+	struct ioc4_port *port = get_ioc4_port(the_port, 0);
 
-	if (port) {
+	if (port_is_active(port, the_port)) {
 		set_notification(port, N_OUTPUT_LOWAT, 1);
 		enable_intrs(port, port->ip_hooks->intr_tx_mt);
 	}
@@ -2467,7 +2530,7 @@ static void ic4_break_ctl(struct uart_port *the_port, int break_state)
 }
 
 /**
- * ic4_startup - Start up the serial port - always return 0 (We're always on)
+ * ic4_startup - Start up the serial port
  * @port: Port to operate on
  *
  */
@@ -2479,17 +2542,16 @@ static int ic4_startup(struct uart_port *the_port)
 	struct uart_info *info;
 	unsigned long port_flags;
 
-	if (!the_port) {
+	if (!the_port)
 		return -ENODEV;
-	}
-	port = get_ioc4_port(the_port);
-	if (!port) {
+	port = get_ioc4_port(the_port, 1);
+	if (!port)
 		return -ENODEV;
-	}
 	info = the_port->info;
 
 	control = port->ip_control;
 	if (!control) {
+		port->ip_port = NULL;
 		return -ENODEV;
 	}
 
@@ -2551,28 +2613,104 @@ static struct uart_ops ioc4_ops = {
  * Boot-time initialization code
  */
 
-static struct uart_driver ioc4_uart = {
+static struct uart_driver ioc4_uart_rs232 = {
 	.owner		= THIS_MODULE,
-	.driver_name	= "ioc4_serial",
-	.dev_name	= DEVICE_NAME,
+	.driver_name	= "ioc4_serial_rs232",
+	.dev_name	= DEVICE_NAME_RS232,
 	.major		= DEVICE_MAJOR,
-	.minor		= DEVICE_MINOR,
+	.minor		= DEVICE_MINOR_RS232,
 	.nr		= IOC4_NUM_CARDS * IOC4_NUM_SERIAL_PORTS,
 };
 
+static struct uart_driver ioc4_uart_rs422 = {
+	.owner		= THIS_MODULE,
+	.driver_name	= "ioc4_serial_rs422",
+	.dev_name	= DEVICE_NAME_RS422,
+	.major		= DEVICE_MAJOR,
+	.minor		= DEVICE_MINOR_RS422,
+	.nr		= IOC4_NUM_CARDS * IOC4_NUM_SERIAL_PORTS,
+};
+
+
 /**
- * ioc4_serial_core_attach - register with serial core
+ * ioc4_serial_remove_one - detach function
+ *
+ * @idd: IOC4 master module data for this IOC4
+ */
+
+static int ioc4_serial_remove_one(struct ioc4_driver_data *idd)
+{
+	int port_num, port_type;
+	struct ioc4_control *control;
+	struct uart_port *the_port;
+	struct ioc4_port *port;
+	struct ioc4_soft *soft;
+
+	control = idd->idd_serial_data;
+
+	for (port_num = 0; port_num < IOC4_NUM_SERIAL_PORTS; port_num++) {
+		for (port_type = UART_PORT_MIN;
+					port_type < UART_PORT_COUNT;
+					port_type++) {
+			the_port = &control->ic_port[port_num].icp_uart_port
+							[port_type];
+			if (the_port) {
+				switch (port_type) {
+				case UART_PORT_RS422:
+					uart_remove_one_port(&ioc4_uart_rs422,
+							the_port);
+					break;
+				default:
+				case UART_PORT_RS232:
+					uart_remove_one_port(&ioc4_uart_rs232,
+							the_port);
+					break;
+				}
+			}
+		}
+		port = control->ic_port[port_num].icp_port;
+		/* we allocate in pairs */
+		if (!(port_num & 1) && port) {
+			pci_free_consistent(port->ip_pdev,
+					TOTAL_RING_BUF_SIZE,
+					port->ip_cpu_ringbuf,
+					port->ip_dma_ringbuf);
+			kfree(port);
+		}
+	}
+	soft = control->ic_soft;
+	if (soft) {
+		free_irq(control->ic_irq, soft);
+		if (soft->is_ioc4_serial_addr) {
+			release_region((unsigned long)
+			     soft->is_ioc4_serial_addr,
+				sizeof(struct ioc4_serial));
+		}
+		kfree(soft);
+	}
+	kfree(control);
+	idd->idd_serial_data = NULL;
+
+	return 0;
+}
+
+
+/**
+ * ioc4_serial_core_attach_rs232 - register with serial core
  *		This is done during pci probing
  * @pdev: handle for this card
  */
 static inline int
-ioc4_serial_core_attach(struct pci_dev *pdev)
+ioc4_serial_core_attach(struct pci_dev *pdev, int port_type)
 {
 	struct ioc4_port *port;
 	struct uart_port *the_port;
 	struct ioc4_driver_data *idd = pci_get_drvdata(pdev);
 	struct ioc4_control *control = idd->idd_serial_data;
-	int ii;
+	int port_num;
+	int port_type_idx;
+	struct uart_driver *u_driver;
+
 
 	DPRINT_CONFIG(("%s: attach pdev 0x%p - control 0x%p\n",
 			__FUNCTION__, pdev, (void *)control));
@@ -2580,28 +2718,36 @@ ioc4_serial_core_attach(struct pci_dev *pdev)
 	if (!control)
 		return -ENODEV;
 
-	/* once around for each port on this card */
-	for (ii = 0; ii < IOC4_NUM_SERIAL_PORTS; ii++) {
-		the_port = &control->ic_port[ii].icp_uart_port;
-		port = control->ic_port[ii].icp_port;
-		port->ip_port = the_port;
+	port_type_idx = (port_type == PROTO_RS232) ? UART_PORT_RS232
+						: UART_PORT_RS422;
 
-		DPRINT_CONFIG(("%s: attach the_port 0x%p / port 0x%p\n",
+	u_driver = (port_type == PROTO_RS232)	? &ioc4_uart_rs232
+						: &ioc4_uart_rs422;
+
+	/* once around for each port on this card */
+	for (port_num = 0; port_num < IOC4_NUM_SERIAL_PORTS; port_num++) {
+		the_port = &control->ic_port[port_num].icp_uart_port
+							[port_type_idx];
+		port = control->ic_port[port_num].icp_port;
+		port->ip_all_ports[port_type_idx] = the_port;
+
+		DPRINT_CONFIG(("%s: attach the_port 0x%p / port 0x%p : type %s\n",
 				__FUNCTION__, (void *)the_port,
-				(void *)port));
+				(void *)port,
+				port_type == PROTO_RS232 ? "rs232" : "rs422"));
 
 		/* membase, iobase and mapbase just need to be non-0 */
 		the_port->membase = (unsigned char __iomem *)1;
-		the_port->iobase = (pdev->bus->number << 16) |  ii;
-		the_port->line = (Num_of_ioc4_cards << 2) | ii;
-		the_port->mapbase = 1;
+		the_port->iobase = (pdev->bus->number << 16) |  port_num;
+		the_port->line = (Num_of_ioc4_cards << 2) | port_num;
+		the_port->mapbase = port_type;
 		the_port->type = PORT_16550A;
 		the_port->fifosize = IOC4_FIFO_CHARS;
 		the_port->ops = &ioc4_ops;
 		the_port->irq = control->ic_irq;
 		the_port->dev = &pdev->dev;
 		spin_lock_init(&the_port->lock);
-		if (uart_add_one_port(&ioc4_uart, the_port) < 0) {
+		if (uart_add_one_port(u_driver, the_port) < 0) {
 			printk(KERN_WARNING
 		           "%s: unable to add port %d bus %d\n",
 			       __FUNCTION__, the_port->line, pdev->bus->number);
@@ -2610,8 +2756,6 @@ ioc4_serial_core_attach(struct pci_dev *pdev)
 			    ("IOC4 serial port %d irq = %d, bus %d\n",
 			       the_port->line, the_port->irq, pdev->bus->number));
 		}
-		/* all ports are rs232 for now */
-		ioc4_set_proto(port, PROTO_RS232);
 	}
 	return 0;
 }
@@ -2631,7 +2775,8 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 	int ret = 0;
 
 
-	DPRINT_CONFIG(("%s (0x%p, 0x%p)\n", __FUNCTION__, idd->idd_pdev, idd->idd_pci_id));
+	DPRINT_CONFIG(("%s (0x%p, 0x%p)\n", __FUNCTION__, idd->idd_pdev,
+							idd->idd_pci_id));
 
 	/* request serial registers */
 	tmp_addr1 = idd->idd_bar0 + IOC4_SERIAL_OFFSET;
@@ -2653,11 +2798,11 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 		goto out2;
 	}
 	DPRINT_CONFIG(("%s : mem 0x%p, serial 0x%p\n",
-				__FUNCTION__, (void *)idd->idd_misc_regs, (void *)serial));
+				__FUNCTION__, (void *)idd->idd_misc_regs,
+				(void *)serial));
 
 	/* Get memory for the new card */
-	control = kmalloc(sizeof(struct ioc4_control) * IOC4_NUM_SERIAL_PORTS,
-						GFP_KERNEL);
+	control = kmalloc(sizeof(struct ioc4_control), GFP_KERNEL);
 
 	if (!control) {
 		printk(KERN_WARNING "ioc4_attach_one"
@@ -2702,7 +2847,7 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 
 	/* Hook up interrupt handler */
 	if (!request_irq(idd->idd_pdev->irq, ioc4_intr, SA_SHIRQ,
-				"sgi-ioc4serial", (void *)soft)) {
+				"sgi-ioc4serial", soft)) {
 		control->ic_irq = idd->idd_pdev->irq;
 	} else {
 		printk(KERN_WARNING
@@ -2713,16 +2858,21 @@ ioc4_serial_attach_one(struct ioc4_driver_data *idd)
 	if (ret)
 		goto out4;
 
-	/* register port with the serial core */
+	/* register port with the serial core - 1 rs232, 1 rs422 */
 
-	if ((ret = ioc4_serial_core_attach(idd->idd_pdev)))
+	if ((ret = ioc4_serial_core_attach(idd->idd_pdev, PROTO_RS232)))
 		goto out4;
+
+	if ((ret = ioc4_serial_core_attach(idd->idd_pdev, PROTO_RS422)))
+		goto out5;
 
 	Num_of_ioc4_cards++;
 
 	return ret;
 
 	/* error exits that give back resources */
+out5:
+	ioc4_serial_remove_one(idd);
 out4:
 	kfree(soft);
 out3:
@@ -2734,52 +2884,6 @@ out1:
 	return ret;
 }
 
-
-/**
- * ioc4_serial_remove_one - detach function
- *
- * @idd: IOC4 master module data for this IOC4
- */
-
-int ioc4_serial_remove_one(struct ioc4_driver_data *idd)
-{
-	int ii;
-	struct ioc4_control *control;
-	struct uart_port *the_port;
-	struct ioc4_port *port;
-	struct ioc4_soft *soft;
-
-	control = idd->idd_serial_data;
-
-	for (ii = 0; ii < IOC4_NUM_SERIAL_PORTS; ii++) {
-		the_port = &control->ic_port[ii].icp_uart_port;
-		if (the_port) {
-			uart_remove_one_port(&ioc4_uart, the_port);
-		}
-		port = control->ic_port[ii].icp_port;
-		if (!(ii & 1) && port) {
-			pci_free_consistent(port->ip_pdev,
-					TOTAL_RING_BUF_SIZE,
-					(void *)port->ip_cpu_ringbuf,
-					port->ip_dma_ringbuf);
-			kfree(port);
-		}
-	}
-	soft = control->ic_soft;
-	if (soft) {
-		free_irq(control->ic_irq, (void *)soft);
-		if (soft->is_ioc4_serial_addr) {
-			release_region((unsigned long)
-			     soft->is_ioc4_serial_addr,
-				sizeof(struct ioc4_serial));
-		}
-		kfree(soft);
-	}
-	kfree(control);
-	idd->idd_serial_data = NULL;
-
-	return 0;
-}
 
 static struct ioc4_submodule ioc4_serial_submodule = {
 	.is_name = "IOC4_serial",
@@ -2796,9 +2900,15 @@ int ioc4_serial_init(void)
 	int ret;
 
 	/* register with serial core */
-	if ((ret = uart_register_driver(&ioc4_uart)) < 0) {
+	if ((ret = uart_register_driver(&ioc4_uart_rs232)) < 0) {
 		printk(KERN_WARNING
-			"%s: Couldn't register IOC4 serial driver\n",
+			"%s: Couldn't register rs232 IOC4 serial driver\n",
+			__FUNCTION__);
+		return ret;
+	}
+	if ((ret = uart_register_driver(&ioc4_uart_rs422)) < 0) {
+		printk(KERN_WARNING
+			"%s: Couldn't register rs422 IOC4 serial driver\n",
 			__FUNCTION__);
 		return ret;
 	}
@@ -2810,7 +2920,8 @@ int ioc4_serial_init(void)
 static void __devexit ioc4_serial_exit(void)
 {
 	ioc4_unregister_submodule(&ioc4_serial_submodule);
-	uart_unregister_driver(&ioc4_uart);
+	uart_unregister_driver(&ioc4_uart_rs232);
+	uart_unregister_driver(&ioc4_uart_rs422);
 }
 
 module_init(ioc4_serial_init);

@@ -72,7 +72,7 @@ void show_mem(void)
 	show_free_areas();
 	printk(KERN_INFO "Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 
-	for_each_pgdat(pgdat) {
+	for_each_online_pgdat(pgdat) {
                for (i = 0; i < pgdat->node_spanned_pages; ++i) {
 			page = pfn_to_page(pgdat->node_start_pfn + i);
 			total++;
@@ -94,7 +94,7 @@ void show_mem(void)
 
 int after_bootmem;
 
-static void *spp_getpage(void)
+static __init void *spp_getpage(void)
 { 
 	void *ptr;
 	if (after_bootmem)
@@ -108,7 +108,7 @@ static void *spp_getpage(void)
 	return ptr;
 } 
 
-static void set_pte_phys(unsigned long vaddr,
+static __init void set_pte_phys(unsigned long vaddr,
 			 unsigned long phys, pgprot_t prot)
 {
 	pgd_t *pgd;
@@ -157,7 +157,8 @@ static void set_pte_phys(unsigned long vaddr,
 }
 
 /* NOTE: this is meant to be run only at boot */
-void __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
+void __init 
+__set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 {
 	unsigned long address = __fix_to_virt(idx);
 
@@ -224,6 +225,33 @@ static __meminit void unmap_low_page(int i)
 	set_pmd(ti->pmd, __pmd(0));
 	ti->allocated = 0; 
 } 
+
+/* Must run before zap_low_mappings */
+__init void *early_ioremap(unsigned long addr, unsigned long size)
+{
+	unsigned long map = round_down(addr, LARGE_PAGE_SIZE); 
+
+	/* actually usually some more */
+	if (size >= LARGE_PAGE_SIZE) { 
+		printk("SMBIOS area too long %lu\n", size);
+		return NULL;
+	}
+	set_pmd(temp_mappings[0].pmd,  __pmd(map | _KERNPG_TABLE | _PAGE_PSE));
+	map += LARGE_PAGE_SIZE;
+	set_pmd(temp_mappings[1].pmd,  __pmd(map | _KERNPG_TABLE | _PAGE_PSE));
+	__flush_tlb();
+	return temp_mappings[0].address + (addr & (LARGE_PAGE_SIZE-1));
+}
+
+/* To avoid virtual aliases later */
+__init void early_iounmap(void *addr, unsigned long size)
+{
+	if ((void *)round_down((unsigned long)addr, LARGE_PAGE_SIZE) != temp_mappings[0].address)
+		printk("early_iounmap: bad address %p\n", addr);
+	set_pmd(temp_mappings[0].pmd, __pmd(0));
+	set_pmd(temp_mappings[1].pmd, __pmd(0));
+	__flush_tlb();
+}
 
 static void __meminit
 phys_pmd_init(pmd_t *pmd, unsigned long address, unsigned long end)
@@ -344,7 +372,7 @@ void __meminit init_memory_mapping(unsigned long start, unsigned long end)
 		pud_t *pud;
 
 		if (after_bootmem)
-			pud = pud_offset_k(pgd, __PAGE_OFFSET);
+			pud = pud_offset_k(pgd, start & PGDIR_MASK);
 		else
 			pud = alloc_low_page(&map, &pud_phys);
 

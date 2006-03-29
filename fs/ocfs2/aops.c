@@ -74,8 +74,8 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 	fe = (struct ocfs2_dinode *) bh->b_data;
 
 	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		mlog(ML_ERROR, "Invalid dinode #%"MLFu64": signature = %.*s\n",
-		     fe->i_blkno, 7, fe->i_signature);
+		mlog(ML_ERROR, "Invalid dinode #%llu: signature = %.*s\n",
+		     (unsigned long long)fe->i_blkno, 7, fe->i_signature);
 		goto bail;
 	}
 
@@ -162,8 +162,8 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 					  NULL);
 	if (err) {
 		mlog(ML_ERROR, "Error %d from get_blocks(0x%p, %llu, 1, "
-		     "%"MLFu64", NULL)\n", err, inode,
-		     (unsigned long long)iblock, p_blkno);
+		     "%llu, NULL)\n", err, inode, (unsigned long long)iblock,
+		     (unsigned long long)p_blkno);
 		goto bail;
 	}
 
@@ -171,13 +171,15 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 
 	if (bh_result->b_blocknr == 0) {
 		err = -EIO;
-		mlog(ML_ERROR, "iblock = %llu p_blkno = %"MLFu64" "
-		     "blkno=(%"MLFu64")\n", (unsigned long long)iblock,
-		     p_blkno, OCFS2_I(inode)->ip_blkno);
+		mlog(ML_ERROR, "iblock = %llu p_blkno = %llu blkno=(%llu)\n",
+		     (unsigned long long)iblock,
+		     (unsigned long long)p_blkno,
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 	}
 
 	past_eof = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
-	mlog(0, "Inode %lu, past_eof = %"MLFu64"\n", inode->i_ino, past_eof);
+	mlog(0, "Inode %lu, past_eof = %llu\n", inode->i_ino,
+	     (unsigned long long)past_eof);
 
 	if (create && (iblock >= past_eof))
 		set_buffer_new(bh_result);
@@ -538,7 +540,6 @@ bail:
  * 					fs_count, map_bh, dio->rw == WRITE);
  */
 static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
-				     unsigned long max_blocks,
 				     struct buffer_head *bh_result, int create)
 {
 	int ret;
@@ -546,6 +547,7 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	u64 p_blkno;
 	int contig_blocks;
 	unsigned char blocksize_bits;
+	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
 
 	if (!inode || !bh_result) {
 		mlog(ML_ERROR, "inode or bh_result is null\n");

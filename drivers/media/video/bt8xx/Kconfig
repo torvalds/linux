@@ -1,0 +1,25 @@
+config VIDEO_BT848
+	tristate "BT848 Video For Linux"
+	depends on VIDEO_DEV && PCI && I2C
+	select I2C_ALGOBIT
+	select FW_LOADER
+	select VIDEO_BTCX
+	select VIDEO_BUF
+	select VIDEO_IR
+	select VIDEO_TUNER
+	select VIDEO_TVEEPROM
+	select VIDEO_MSP3400
+	---help---
+	  Support for BT848 based frame grabber/overlay boards. This includes
+	  the Miro, Hauppauge and STB boards. Please read the material in
+	  <file:Documentation/video4linux/bttv/> for more information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bttv.
+
+config VIDEO_BT848_DVB
+	bool "DVB/ATSC Support for bt878 based TV cards"
+	depends on VIDEO_BT848 && DVB_CORE
+	select DVB_BT8XX
+	---help---
+	  This adds support for DVB/ATSC cards based on the BT878 chip.

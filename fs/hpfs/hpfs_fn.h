@@ -240,7 +240,7 @@ void hpfs_set_dentry_operations(struct dentry *);
 /* dir.c */
 
 struct dentry *hpfs_lookup(struct inode *, struct dentry *, struct nameidata *);
-extern struct file_operations hpfs_dir_ops;
+extern const struct file_operations hpfs_dir_ops;
 
 /* dnode.c */
 
@@ -266,7 +266,7 @@ void hpfs_set_ea(struct inode *, struct fnode *, char *, char *, int);
 /* file.c */
 
 int hpfs_file_fsync(struct file *, struct dentry *, int);
-extern struct file_operations hpfs_file_ops;
+extern const struct file_operations hpfs_file_ops;
 extern struct inode_operations hpfs_file_iops;
 extern struct address_space_operations hpfs_aops;
 

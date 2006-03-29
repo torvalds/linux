@@ -85,7 +85,7 @@ static struct fb_cmap default_16_colors = {
  *	Allocates memory for a colormap @cmap.  @len is the
  *	number of entries in the palette.
  *
- *	Returns -1 errno on error, or zero on success.
+ *	Returns negative errno on error, or zero on success.
  *
  */
 
@@ -116,7 +116,7 @@ int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp)
 
 fail:
     fb_dealloc_cmap(cmap);
-    return -1;
+    return -ENOMEM;
 }
 
 /**

@@ -37,6 +37,10 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config GENERIC_HWEIGHT
+	bool
+	default y
+
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
@@ -487,7 +491,7 @@ config PPC601_SYNC_FIX
 	  If in doubt, say Y here.
 
 config TAU
-	bool "Thermal Management Support"
+	bool "On-chip CPU temperature sensor support"
 	depends on 6xx
 	help
 	  G3 and G4 processors have an on-chip temperature sensor called the
@@ -496,7 +500,7 @@ config TAU
 	  on-die temperature in /proc/cpuinfo if the cpu supports it.
 
 	  Unfortunately, on some chip revisions, this sensor is very inaccurate
-	  and in some cases, does not work at all, so don't assume the cpu
+	  and in many cases, does not work at all, so don't assume the cpu
 	  temp is actually what /proc/cpuinfo says it is.
 
 config TAU_INT

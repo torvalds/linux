@@ -52,12 +52,13 @@ static struct notifier_block panic_notifier = { panic_happened, NULL, 1 };
 
 void ibmasm_register_panic_notifier(void)
 {
-	notifier_chain_register(&panic_notifier_list, &panic_notifier);
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_notifier);
 }
 
 void ibmasm_unregister_panic_notifier(void)
 {
-	notifier_chain_unregister(&panic_notifier_list, &panic_notifier);
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+			&panic_notifier);
 }
 
 

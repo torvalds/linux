@@ -1968,9 +1968,9 @@ static int i2s_fmt[NR_DEVICE];
 
 static unsigned int devindex;
 
-MODULE_PARM(spdif, "1-" __MODULE_STRING(NR_DEVICE) "i");
+module_param_array(spdif, int, NULL, 0);
 MODULE_PARM_DESC(spdif, "if 1 the S/PDIF digital output is enabled");
-MODULE_PARM(i2s_fmt, "1-" __MODULE_STRING(NR_DEVICE) "i");
+module_param_array(i2s_fmt, int, NULL, 0);
 MODULE_PARM_DESC(i2s_fmt, "the format of I2S");
 
 MODULE_AUTHOR("Monta Vista Software, stevel@mvista.com");

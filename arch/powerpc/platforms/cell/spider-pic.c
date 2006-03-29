@@ -84,10 +84,11 @@ static void __iomem *spider_get_irq_config(int irq)
 
 static void spider_enable_irq(unsigned int irq)
 {
+	int nodeid = (irq / IIC_NODE_STRIDE) * 0x10;
 	void __iomem *cfg = spider_get_irq_config(irq);
 	irq = spider_get_nr(irq);
 
-	out_be32(cfg, in_be32(cfg) | 0x3107000eu);
+	out_be32(cfg, (in_be32(cfg) & ~0xf0)| 0x3107000eu | nodeid);
 	out_be32(cfg + 4, in_be32(cfg + 4) | 0x00020000u | irq);
 }
 
@@ -131,61 +132,108 @@ static struct hw_interrupt_type spider_pic = {
 	.end = spider_end_irq,
 };
 
-
-int spider_get_irq(unsigned long int_pending)
+int spider_get_irq(int node)
 {
-	void __iomem *regs = spider_get_pic(int_pending);
 	unsigned long cs;
-	int irq;
+	void __iomem *regs = spider_pics[node];
 
-	cs = in_be32(regs + TIR_CS);
+	cs = in_be32(regs + TIR_CS) >> 24;
 
-	irq = cs >> 24;
-	if (irq != 63)
-		return irq;
-
-	return -1;
+	if (cs == 63)
+		return -1;
+	else
+		return cs;
 }
- 
-void spider_init_IRQ(void)
+
+/* hardcoded part to be compatible with older firmware */
+
+void spider_init_IRQ_hardcoded(void)
 {
 	int node;
-	struct device_node *dn;
-	unsigned int *property;
 	long spiderpic;
+	long pics[] = { 0x24000008000, 0x34000008000 };
 	int n;
 
-/* FIXME: detect multiple PICs as soon as the device tree has them */
-	for (node = 0; node < 1; node++) {
-		dn = of_find_node_by_path("/");
-		n = prom_n_addr_cells(dn);
-		property = (unsigned int *) get_property(dn,
-				"platform-spider-pic", NULL);
+	pr_debug("%s(%d): Using hardcoded defaults\n", __FUNCTION__, __LINE__);
 
-		if (!property)
-			continue;
-		for (spiderpic = 0; n > 0; --n)
-			spiderpic = (spiderpic << 32) + *property++;
+	for (node = 0; node < num_present_cpus()/2; node++) {
+		spiderpic = pics[node];
 		printk(KERN_DEBUG "SPIDER addr: %lx\n", spiderpic);
-		spider_pics[node] = __ioremap(spiderpic, 0x800, _PAGE_NO_CACHE);
+		spider_pics[node] = ioremap(spiderpic, 0x800);
 		for (n = 0; n < IIC_NUM_EXT; n++) {
 			int irq = n + IIC_EXT_OFFSET + node * IIC_NODE_STRIDE;
 			get_irq_desc(irq)->handler = &spider_pic;
+		}
 
  		/* do not mask any interrupts because of level */
  		out_be32(spider_pics[node] + TIR_MSK, 0x0);
- 		
+
  		/* disable edge detection clear */
  		/* out_be32(spider_pics[node] + TIR_EDC, 0x0); */
- 		
+
  		/* enable interrupt packets to be output */
  		out_be32(spider_pics[node] + TIR_PIEN,
 			in_be32(spider_pics[node] + TIR_PIEN) | 0x1);
- 		
+
  		/* Enable the interrupt detection enable bit. Do this last! */
  		out_be32(spider_pics[node] + TIR_DEN,
-			in_be32(spider_pics[node] +TIR_DEN) | 0x1);
+			in_be32(spider_pics[node] + TIR_DEN) | 0x1);
+	}
+}
 
+void spider_init_IRQ(void)
+{
+	long spider_reg;
+	struct device_node *dn;
+	char *compatible;
+	int n, node = 0;
+
+	for (dn = NULL; (dn = of_find_node_by_name(dn, "interrupt-controller"));) {
+		compatible = (char *)get_property(dn, "compatible", NULL);
+
+		if (!compatible)
+			continue;
+
+		if (strstr(compatible, "CBEA,platform-spider-pic"))
+			spider_reg = *(long *)get_property(dn,"reg", NULL);
+		else if (strstr(compatible, "sti,platform-spider-pic")) {
+			spider_init_IRQ_hardcoded();
+			return;
+		} else
+			continue;
+
+		if (!spider_reg)
+			printk("interrupt controller does not have reg property !\n");
+
+		n = prom_n_addr_cells(dn);
+
+		if ( n != 2)
+			printk("reg property with invalid number of elements \n");
+
+		spider_pics[node] = ioremap(spider_reg, 0x800);
+
+		printk("SPIDER addr: %lx with %i addr_cells mapped to %p\n",
+		       spider_reg, n, spider_pics[node]);
+
+		for (n = 0; n < IIC_NUM_EXT; n++) {
+			int irq = n + IIC_EXT_OFFSET + node * IIC_NODE_STRIDE;
+			get_irq_desc(irq)->handler = &spider_pic;
 		}
+
+		/* do not mask any interrupts because of level */
+		out_be32(spider_pics[node] + TIR_MSK, 0x0);
+
+		/* disable edge detection clear */
+		/* out_be32(spider_pics[node] + TIR_EDC, 0x0); */
+
+		/* enable interrupt packets to be output */
+		out_be32(spider_pics[node] + TIR_PIEN,
+			in_be32(spider_pics[node] + TIR_PIEN) | 0x1);
+
+		/* Enable the interrupt detection enable bit. Do this last! */
+		out_be32(spider_pics[node] + TIR_DEN,
+			in_be32(spider_pics[node] + TIR_DEN) | 0x1);
+
+		node++;
 	}
 }

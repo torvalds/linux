@@ -255,17 +255,17 @@ static struct ip6t_target ip6t_reject_reg = {
 	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init ip6t_reject_init(void)
 {
 	if (ip6t_register_target(&ip6t_reject_reg))
 		return -EINVAL;
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ip6t_reject_fini(void)
 {
 	ip6t_unregister_target(&ip6t_reject_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip6t_reject_init);
+module_exit(ip6t_reject_fini);

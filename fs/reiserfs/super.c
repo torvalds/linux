@@ -685,14 +685,14 @@ static const arg_desc_t logging_mode[] = {
 	 (1 << REISERFS_DATA_ORDERED | 1 << REISERFS_DATA_WRITEBACK)},
 	{"writeback", 1 << REISERFS_DATA_WRITEBACK,
 	 (1 << REISERFS_DATA_ORDERED | 1 << REISERFS_DATA_LOG)},
-	{NULL, 0}
+	{.value = NULL}
 };
 
 /* possible values for -o barrier= */
 static const arg_desc_t barrier_mode[] = {
 	{"none", 1 << REISERFS_BARRIER_NONE, 1 << REISERFS_BARRIER_FLUSH},
 	{"flush", 1 << REISERFS_BARRIER_FLUSH, 1 << REISERFS_BARRIER_NONE},
-	{NULL, 0}
+	{.value = NULL}
 };
 
 /* possible values for "-o block-allocator=" and bits which are to be set in
@@ -890,7 +890,7 @@ static int reiserfs_parse_options(struct super_block *s, char *options,	/* strin
 		{"acl",.setmask = 1 << REISERFS_UNSUPPORTED_OPT},
 		{"noacl",.clrmask = 1 << REISERFS_UNSUPPORTED_OPT},
 #endif
-		{"nolog",},	/* This is unsupported */
+		{.option_name = "nolog"},
 		{"replayonly",.setmask = 1 << REPLAYONLY},
 		{"block-allocator",.arg_required = 'a',.values = balloc},
 		{"data",.arg_required = 'd',.values = logging_mode},
@@ -908,7 +908,7 @@ static int reiserfs_parse_options(struct super_block *s, char *options,	/* strin
 		{"grpjquota",.arg_required =
 		 'g' | (1 << REISERFS_OPT_ALLOWEMPTY),.values = NULL},
 		{"jqfmt",.arg_required = 'f',.values = NULL},
-		{NULL,}
+		{.option_name = NULL}
 	};
 
 	*blocks = 0;

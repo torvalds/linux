@@ -199,7 +199,7 @@ void pnic2_lnk_change(struct net_device *dev, int csr5)
 	               /* negotiation ended successfully */
 
 	               /* get the link partners reply and mask out all but
-                        * bits 24-21 which show the partners capabilites
+                        * bits 24-21 which show the partners capabilities
                         * and match those to what we advertised
                         *
                         * then begin to interpret the results of the negotiation.

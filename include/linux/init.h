@@ -69,6 +69,10 @@ extern initcall_t __security_initcall_start[], __security_initcall_end[];
 
 /* Defined in init/main.c */
 extern char saved_command_line[];
+
+/* used by init/main.c */
+extern void setup_arch(char **);
+
 #endif
   
 #ifndef MODULE

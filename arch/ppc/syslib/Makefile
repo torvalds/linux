@@ -38,8 +38,6 @@ endif
 obj-$(CONFIG_8xx)		+= m8xx_setup.o ppc8xx_pic.o $(wdt-mpc8xx-y) \
 				   ppc_sys.o mpc8xx_devices.o mpc8xx_sys.o
 obj-$(CONFIG_PCI_QSPAN)		+= qspan_pci.o
-obj-$(CONFIG_PPC_OF)		+= prom_init.o prom.o
-obj-$(CONFIG_PPC_CHRP)		+= open_pic.o
 obj-$(CONFIG_PPC_PREP)		+= open_pic.o todc_time.o
 obj-$(CONFIG_BAMBOO)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_CPCI690)		+= todc_time.o pci_auto.o

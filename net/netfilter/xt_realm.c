@@ -49,15 +49,15 @@ static struct xt_match realm_match = {
 	.me		= THIS_MODULE
 };
 
-static int __init init(void)
+static int __init xt_realm_init(void)
 {
 	return xt_register_match(&realm_match);
 }
 
-static void __exit fini(void)
+static void __exit xt_realm_fini(void)
 {
 	xt_unregister_match(&realm_match);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(xt_realm_init);
+module_exit(xt_realm_fini);

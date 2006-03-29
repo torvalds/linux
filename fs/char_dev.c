@@ -146,11 +146,9 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 	int ret = 0;
 	int i;
 
-	cd = kmalloc(sizeof(struct char_device_struct), GFP_KERNEL);
+	cd = kzalloc(sizeof(struct char_device_struct), GFP_KERNEL);
 	if (cd == NULL)
 		return ERR_PTR(-ENOMEM);
-
-	memset(cd, 0, sizeof(struct char_device_struct));
 
 	mutex_lock(&chrdevs_lock);
 
@@ -252,7 +250,7 @@ int alloc_chrdev_region(dev_t *dev, unsigned baseminor, unsigned count,
 }
 
 int register_chrdev(unsigned int major, const char *name,
-		    struct file_operations *fops)
+		    const struct file_operations *fops)
 {
 	struct char_device_struct *cd;
 	struct cdev *cdev;
@@ -408,7 +406,7 @@ static void cdev_purge(struct cdev *cdev)
  * is contain the open that then fills in the correct operations
  * depending on the special file...
  */
-struct file_operations def_chr_fops = {
+const struct file_operations def_chr_fops = {
 	.open = chrdev_open,
 };
 
@@ -466,9 +464,8 @@ static struct kobj_type ktype_cdev_dynamic = {
 
 struct cdev *cdev_alloc(void)
 {
-	struct cdev *p = kmalloc(sizeof(struct cdev), GFP_KERNEL);
+	struct cdev *p = kzalloc(sizeof(struct cdev), GFP_KERNEL);
 	if (p) {
-		memset(p, 0, sizeof(struct cdev));
 		p->kobj.ktype = &ktype_cdev_dynamic;
 		INIT_LIST_HEAD(&p->list);
 		kobject_init(&p->kobj);
@@ -476,7 +473,7 @@ struct cdev *cdev_alloc(void)
 	return p;
 }
 
-void cdev_init(struct cdev *cdev, struct file_operations *fops)
+void cdev_init(struct cdev *cdev, const struct file_operations *fops)
 {
 	memset(cdev, 0, sizeof *cdev);
 	INIT_LIST_HEAD(&cdev->list);

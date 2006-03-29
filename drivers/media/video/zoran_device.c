@@ -4,7 +4,7 @@
  * Media Labs LML33/LML33R10.
  *
  * This part handles device access (PCI/I2C/codec/...)
- * 
+ *
  * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
  *
  * Currently maintained by:
@@ -492,7 +492,7 @@ zr36057_set_vfe (struct zoran              *zr,
 	/* (Ronald) don't write this if overlay_mask = NULL */
 	if (zr->overlay_mask) {
 		/* Write overlay clipping mask data, but don't enable overlay clipping */
-		/* RJ: since this makes only sense on the screen, we use 
+		/* RJ: since this makes only sense on the screen, we use
 		 * zr->overlay_settings.width instead of video_width */
 
 		mask_line_size = (BUZ_MAX_WIDTH + 31) / 32;
@@ -819,12 +819,12 @@ zr36057_set_jpg (struct zoran          *zr,
 	if (zr->card.vfe_pol.hsync_pol)
 		btor(ZR36057_VFEHCR_HSPol, ZR36057_VFEHCR);
 	else
-		btand(~ZR36057_VFEHCR_HSPol, ZR36057_VFEHCR);		
+		btand(~ZR36057_VFEHCR_HSPol, ZR36057_VFEHCR);
 	reg = ((tvn->HSyncStart) << ZR36057_HSP_HsyncStart) |
 	      (tvn->Wt << ZR36057_HSP_LineTot);
 	btwrite(reg, ZR36057_HSP);
 	reg = ((zr->jpg_settings.img_x +
-	        tvn->HStart + 4) << ZR36057_FHAP_NAX) |
+		tvn->HStart + 4) << ZR36057_FHAP_NAX) |
 	      (zr->jpg_settings.img_width << ZR36057_FHAP_PAX);
 	btwrite(reg, ZR36057_FHAP);
 
@@ -1272,15 +1272,15 @@ error_handler (struct zoran *zr,
 	if (zr->JPEG_error != 1) {
 		/*
 		 * First entry: error just happened during normal operation
-		 * 
+		 *
 		 * In BUZ_MODE_MOTION_COMPRESS:
-		 * 
+		 *
 		 * Possible glitch in TV signal. In this case we should
 		 * stop the codec and wait for good quality signal before
 		 * restarting it to avoid further problems
-		 * 
+		 *
 		 * In BUZ_MODE_MOTION_DECOMPRESS:
-		 * 
+		 *
 		 * Bad JPEG frame: we have to mark it as processed (codec crashed
 		 * and was not able to do it itself), and to remove it from queue.
 		 */

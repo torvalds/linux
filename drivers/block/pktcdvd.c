@@ -230,16 +230,6 @@ static int pkt_grow_pktlist(struct pktcdvd_device *pd, int nr_packets)
 	return 1;
 }
 
-static void *pkt_rb_alloc(gfp_t gfp_mask, void *data)
-{
-	return kmalloc(sizeof(struct pkt_rb_node), gfp_mask);
-}
-
-static void pkt_rb_free(void *ptr, void *data)
-{
-	kfree(ptr);
-}
-
 static inline struct pkt_rb_node *pkt_rbtree_next(struct pkt_rb_node *node)
 {
 	struct rb_node *n = rb_next(&node->rb_node);
@@ -2073,16 +2063,6 @@ static int pkt_close(struct inode *inode, struct file *file)
 }
 
 
-static void *psd_pool_alloc(gfp_t gfp_mask, void *data)
-{
-	return kmalloc(sizeof(struct packet_stacked_data), gfp_mask);
-}
-
-static void psd_pool_free(void *ptr, void *data)
-{
-	kfree(ptr);
-}
-
 static int pkt_end_io_read_cloned(struct bio *bio, unsigned int bytes_done, int err)
 {
 	struct packet_stacked_data *psd = bio->bi_private;
@@ -2475,7 +2455,8 @@ static int pkt_setup_dev(struct pkt_ctrl_command *ctrl_cmd)
 	if (!pd)
 		return ret;
 
-	pd->rb_pool = mempool_create(PKT_RB_POOL_SIZE, pkt_rb_alloc, pkt_rb_free, NULL);
+	pd->rb_pool = mempool_create_kmalloc_pool(PKT_RB_POOL_SIZE,
+						  sizeof(struct pkt_rb_node));
 	if (!pd->rb_pool)
 		goto out_mem;
 
@@ -2639,7 +2620,8 @@ static int __init pkt_init(void)
 {
 	int ret;
 
-	psd_pool = mempool_create(PSD_POOL_SIZE, psd_pool_alloc, psd_pool_free, NULL);
+	psd_pool = mempool_create_kmalloc_pool(PSD_POOL_SIZE,
+					sizeof(struct packet_stacked_data));
 	if (!psd_pool)
 		return -ENOMEM;
 

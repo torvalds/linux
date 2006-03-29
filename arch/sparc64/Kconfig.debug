@@ -24,7 +24,7 @@ config DEBUG_BOOTMEM
 	bool "Debug BOOTMEM initialization"
 
 config DEBUG_PAGEALLOC
-	bool "Page alloc debugging"
+	bool "Debug page memory allocations"
 	depends on DEBUG_KERNEL && !SOFTWARE_SUSPEND
 	help
 	  Unmap pages from the kernel linear mapping after free_pages().

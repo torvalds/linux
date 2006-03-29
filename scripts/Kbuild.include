@@ -44,6 +44,43 @@ define filechk
 	fi
 endef
 
+######
+# gcc support functions
+# See documentation in Documentation/kbuild/makefiles.txt
+
+# as-option
+# Usage: cflags-y += $(call as-option, -Wa$(comma)-isa=foo,)
+
+as-option = $(shell if $(CC) $(CFLAGS) $(1) -Wa,-Z -c -o /dev/null \
+	     -xassembler /dev/null > /dev/null 2>&1; then echo "$(1)"; \
+	     else echo "$(2)"; fi ;)
+
+# cc-option
+# Usage: cflags-y += $(call cc-option, -march=winchip-c6, -march=i586)
+
+cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
+             > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
+
+# cc-option-yn
+# Usage: flag := $(call cc-option-yn, -march=winchip-c6)
+cc-option-yn = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
+                > /dev/null 2>&1; then echo "y"; else echo "n"; fi;)
+
+# cc-option-align
+# Prefix align with either -falign or -malign
+cc-option-align = $(subst -functions=0,,\
+	$(call cc-option,-falign-functions=0,-malign-functions=0))
+
+# cc-version
+# Usage gcc-ver := $(call cc-version, $(CC))
+cc-version = $(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-version.sh \
+              $(if $(1), $(1), $(CC)))
+
+# cc-ifversion
+# Usage:  EXTRA_CFLAGS += $(call cc-ifversion, -lt, 0402, -O1)
+cc-ifversion = $(shell if [ $(call cc-version, $(CC)) $(1) $(2) ]; then \
+                       echo $(3); fi;)
+
 ###
 # Shorthand for $(Q)$(MAKE) -f scripts/Makefile.build obj=
 # Usage:
@@ -51,8 +88,7 @@ endef
 build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
 
 # If quiet is set, only print short version of command
-cmd = @$(if $($(quiet)cmd_$(1)),\
-      echo '  $(call escsq,$($(quiet)cmd_$(1)))' &&) $(cmd_$(1))
+cmd = @$(echo-cmd) $(cmd_$(1))
 
 # Add $(obj)/ for paths that is not absolute
 objectify = $(foreach o,$(1),$(if $(filter /%,$(o)),$(o),$(obj)/$(o)))
@@ -75,30 +111,33 @@ endif
 echo-cmd = $(if $($(quiet)cmd_$(1)), \
 	echo '  $(call escsq,$($(quiet)cmd_$(1)))';)
 
+make-cmd = $(subst \#,\\\#,$(subst $$,$$$$,$(call escsq,$(cmd_$(1)))))
+
 # function to only execute the passed command if necessary
 # >'< substitution is for echo to work, >$< substitution to preserve $ when reloading .cmd file
 # note: when using inline perl scripts [perl -e '...$$t=1;...'] in $(cmd_xxx) double $$ your perl vars
-# 
-if_changed = $(if $(strip $? $(call arg-check, $(cmd_$(1)), $(cmd_$@)) ), \
+#
+if_changed = $(if $(strip $(filter-out $(PHONY),$?)          \
+		$(call arg-check, $(cmd_$(1)), $(cmd_$@)) ), \
 	@set -e; \
-	$(echo-cmd) \
-	$(cmd_$(1)); \
-	echo 'cmd_$@ := $(subst $$,$$$$,$(call escsq,$(cmd_$(1))))' > $(@D)/.$(@F).cmd)
+	$(echo-cmd) $(cmd_$(1)); \
+	echo 'cmd_$@ := $(make-cmd)' > $(@D)/.$(@F).cmd)
 
 # execute the command and also postprocess generated .d dependencies
 # file
-if_changed_dep = $(if $(strip $? $(filter-out FORCE $(wildcard $^),$^)\
-	$(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),                  \
+if_changed_dep = $(if $(strip $(filter-out $(PHONY),$?)  \
+		$(filter-out FORCE $(wildcard $^),$^)    \
+	$(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),     \
 	@set -e; \
-	$(echo-cmd) \
-	$(cmd_$(1)); \
-	scripts/basic/fixdep $(depfile) $@ '$(subst $$,$$$$,$(call escsq,$(cmd_$(1))))' > $(@D)/.$(@F).tmp; \
+	$(echo-cmd) $(cmd_$(1)); \
+	scripts/basic/fixdep $(depfile) $@ '$(make-cmd)' > $(@D)/.$(@F).tmp; \
 	rm -f $(depfile); \
 	mv -f $(@D)/.$(@F).tmp $(@D)/.$(@F).cmd)
 
 # Usage: $(call if_changed_rule,foo)
 # will check if $(cmd_foo) changed, or any of the prequisites changed,
 # and if so will execute $(rule_foo)
-if_changed_rule = $(if $(strip $? $(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),\
+if_changed_rule = $(if $(strip $(filter-out $(PHONY),$?)            \
+			$(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),\
 			@set -e; \
 			$(rule_$(1)))

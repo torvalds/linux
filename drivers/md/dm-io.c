@@ -32,16 +32,6 @@ struct io {
 static unsigned _num_ios;
 static mempool_t *_io_pool;
 
-static void *alloc_io(gfp_t gfp_mask, void *pool_data)
-{
-	return kmalloc(sizeof(struct io), gfp_mask);
-}
-
-static void free_io(void *element, void *pool_data)
-{
-	kfree(element);
-}
-
 static unsigned int pages_to_ios(unsigned int pages)
 {
 	return 4 * pages;	/* too many ? */
@@ -65,7 +55,8 @@ static int resize_pool(unsigned int new_ios)
 
 	} else {
 		/* create new pool */
-		_io_pool = mempool_create(new_ios, alloc_io, free_io, NULL);
+		_io_pool = mempool_create_kmalloc_pool(new_ios,
+						       sizeof(struct io));
 		if (!_io_pool)
 			return -ENOMEM;
 

@@ -912,7 +912,7 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 	/*
 	 * Check if this process has the right to modify the specified
 	 * process. The right exists if the process has administrative
-	 * capabilities, superuser priviledges or the same
+	 * capabilities, superuser privileges or the same
 	 * userid as the target process.
 	 */
 	if ((current->euid != task->suid) && (current->euid != task->uid) &&

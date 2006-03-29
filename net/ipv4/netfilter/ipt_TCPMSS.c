@@ -243,15 +243,15 @@ static struct ipt_target ipt_tcpmss_reg = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_tcpmss_init(void)
 {
 	return ipt_register_target(&ipt_tcpmss_reg);
 }
 
-static void __exit fini(void)
+static void __exit ipt_tcpmss_fini(void)
 {
 	ipt_unregister_target(&ipt_tcpmss_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_tcpmss_init);
+module_exit(ipt_tcpmss_fini);

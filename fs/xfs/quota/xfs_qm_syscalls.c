@@ -912,7 +912,7 @@ xfs_qm_export_dquot(
 
 	/*
 	 * Internally, we don't reset all the timers when quota enforcement
-	 * gets turned off. No need to confuse the userlevel code,
+	 * gets turned off. No need to confuse the user level code,
 	 * so return zeroes in that case.
 	 */
 	if (! XFS_IS_QUOTA_ENFORCED(mp)) {

@@ -1067,7 +1067,7 @@ static int radeon_setcolreg (unsigned regno, unsigned red, unsigned green,
 
 
 	if (regno > 255)
-		return 1;
+		return -EINVAL;
 
 	red >>= 8;
 	green >>= 8;
@@ -1086,9 +1086,9 @@ static int radeon_setcolreg (unsigned regno, unsigned red, unsigned green,
 			pindex = regno * 8;
 
 			if (rinfo->depth == 16 && regno > 63)
-				return 1;
+				return -EINVAL;
 			if (rinfo->depth == 15 && regno > 31)
-				return 1;
+				return -EINVAL;
 
 			/* For 565, the green component is mixed one order
 			 * below

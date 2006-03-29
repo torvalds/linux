@@ -124,6 +124,11 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	 * compressed together */
 	s->len = strlen(str) + 1;
 	s->sym = malloc(s->len + 1);
+	if (!s->sym) {
+		fprintf(stderr, "kallsyms failure: "
+			"unable to allocate required amount of memory\n");
+		exit(EXIT_FAILURE);
+	}
 	strcpy((char *)s->sym + 1, str);
 	s->sym[0] = stype;
 
@@ -272,7 +277,12 @@ static void write_src(void)
 
 	/* table of offset markers, that give the offset in the compressed stream
 	 * every 256 symbols */
-	markers = (unsigned int *) malloc(sizeof(unsigned int) * ((table_cnt + 255) / 256));
+	markers = malloc(sizeof(unsigned int) * ((table_cnt + 255) / 256));
+	if (!markers) {
+		fprintf(stderr, "kallsyms failure: "
+			"unable to allocate required memory\n");
+		exit(EXIT_FAILURE);
+	}
 
 	output_label("kallsyms_names");
 	off = 0;

@@ -500,17 +500,22 @@ out:
 #define INTERPRETER_AOUT 1
 #define INTERPRETER_ELF 2
 
+#ifndef STACK_RND_MASK
+#define STACK_RND_MASK 0x7ff		/* with 4K pages 8MB of VA */
+#endif
 
 static unsigned long randomize_stack_top(unsigned long stack_top)
 {
 	unsigned int random_variable = 0;
 
-	if (current->flags & PF_RANDOMIZE)
-		random_variable = get_random_int() % (8*1024*1024);
+	if (current->flags & PF_RANDOMIZE) {
+		random_variable = get_random_int() & STACK_RND_MASK;
+		random_variable <<= PAGE_SHIFT;
+	}
 #ifdef CONFIG_STACK_GROWSUP
-	return PAGE_ALIGN(stack_top + random_variable);
+	return PAGE_ALIGN(stack_top) + random_variable;
 #else
-	return PAGE_ALIGN(stack_top - random_variable);
+	return PAGE_ALIGN(stack_top) - random_variable;
 #endif
 }
 
@@ -1334,7 +1339,7 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 
 	i = p->state ? ffz(~p->state) + 1 : 0;
 	psinfo->pr_state = i;
-	psinfo->pr_sname = (i < 0 || i > 5) ? '.' : "RSDTZW"[i];
+	psinfo->pr_sname = (i > 5) ? '.' : "RSDTZW"[i];
 	psinfo->pr_zomb = psinfo->pr_sname == 'Z';
 	psinfo->pr_nice = task_nice(p);
 	psinfo->pr_flag = p->flags;
@@ -1465,12 +1470,11 @@ static int elf_core_dump(long signr, struct pt_regs * regs, struct file * file)
 		read_lock(&tasklist_lock);
 		do_each_thread(g,p)
 			if (current->mm == p->mm && current != p) {
-				tmp = kmalloc(sizeof(*tmp), GFP_ATOMIC);
+				tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
 				if (!tmp) {
 					read_unlock(&tasklist_lock);
 					goto cleanup;
 				}
-				memset(tmp, 0, sizeof(*tmp));
 				INIT_LIST_HEAD(&tmp->list);
 				tmp->thread = p;
 				list_add(&tmp->list, &thread_list);

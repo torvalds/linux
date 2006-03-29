@@ -885,6 +885,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 			set_audio_standard_BTSC(core, 1, EN_BTSC_FORCE_SAP);
 			break;
 		case V4L2_TUNER_MODE_STEREO:
+		case V4L2_TUNER_MODE_LANG1_LANG2:
 			set_audio_standard_BTSC(core, 0, EN_BTSC_FORCE_STEREO);
 			break;
 		}
@@ -905,6 +906,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 							 EN_NICAM_FORCE_MONO2);
 				break;
 			case V4L2_TUNER_MODE_STEREO:
+			case V4L2_TUNER_MODE_LANG1_LANG2:
 				set_audio_standard_NICAM(core,
 							 EN_NICAM_FORCE_STEREO);
 				break;
@@ -926,6 +928,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 							      EN_A2_FORCE_MONO2);
 					break;
 				case V4L2_TUNER_MODE_STEREO:
+				case V4L2_TUNER_MODE_LANG1_LANG2:
 					set_audio_standard_A2(core,
 							      EN_A2_FORCE_STEREO);
 					break;

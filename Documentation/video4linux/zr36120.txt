@@ -2,7 +2,7 @@ Driver for Trust Computer Products Framegrabber, version 0.6.1
 ------ --- ----- -------- -------- ------------  ------- - - -
 
 - ZORAN ------------------------------------------------------
- Author: Pauline Middelink <middelin@polyware.nl> 
+ Author: Pauline Middelink <middelin@polyware.nl>
    Date: 18 September 1999
 Version: 0.6.1
 
@@ -115,7 +115,7 @@ After making/checking the devices do:
 <n> is the cardtype of the card you have. The cardnumber can
 be found in the source of zr36120. Look for tvcards. If your
 card is not there, please try if any other card gives some
-response, and mail me if you got a working tvcard addition. 
+response, and mail me if you got a working tvcard addition.
 
 PS. <TVCard editors behold!)
     Dont forget to set video_input to the number of inputs

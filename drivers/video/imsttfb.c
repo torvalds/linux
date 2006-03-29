@@ -440,9 +440,9 @@ getclkMHz(struct imstt_par *par)
 static void
 setclkMHz(struct imstt_par *par, __u32 MHz)
 {
-	__u32 clk_m, clk_n, clk_p, x, stage, spilled;
+	__u32 clk_m, clk_n, x, stage, spilled;
 
-	clk_m = clk_n = clk_p = 0;
+	clk_m = clk_n = 0;
 	stage = spilled = 0;
 	for (;;) {
 		switch (stage) {
@@ -453,7 +453,7 @@ setclkMHz(struct imstt_par *par, __u32 MHz)
 				clk_n++;
 				break;
 		}
-		x = 20 * (clk_m + 1) / ((clk_n + 1) * (clk_p ? 2 * clk_p : 1));
+		x = 20 * (clk_m + 1) / (clk_n + 1);
 		if (x == MHz)
 			break;
 		if (x > MHz) {
@@ -466,7 +466,7 @@ setclkMHz(struct imstt_par *par, __u32 MHz)
 
 	par->init.pclk_m = clk_m;
 	par->init.pclk_n = clk_n;
-	par->init.pclk_p = clk_p;
+	par->init.pclk_p = 0;
 }
 
 static struct imstt_regvals *
@@ -1372,18 +1372,24 @@ init_imstt(struct fb_info *info)
 	write_reg_le32(par->dc_regs, STGCTL, tmp & ~0x1);
 	write_reg_le32(par->dc_regs, SSR, 0);
 
-	/* set default values for DAC registers */ 
+	/* set default values for DAC registers */
 	if (par->ramdac == IBM) {
-		par->cmap_regs[PPMASK] = 0xff;	eieio();
-		par->cmap_regs[PIDXHI] = 0;	eieio();
-		for (i = 0; i < sizeof(ibm_initregs) / sizeof(*ibm_initregs); i++) {
-			par->cmap_regs[PIDXLO] = ibm_initregs[i].addr;	eieio();
-			par->cmap_regs[PIDXDATA] = ibm_initregs[i].value;	eieio();
+		par->cmap_regs[PPMASK] = 0xff;
+		eieio();
+		par->cmap_regs[PIDXHI] = 0;
+		eieio();
+		for (i = 0; i < ARRAY_SIZE(ibm_initregs); i++) {
+			par->cmap_regs[PIDXLO] = ibm_initregs[i].addr;
+			eieio();
+			par->cmap_regs[PIDXDATA] = ibm_initregs[i].value;
+			eieio();
 		}
 	} else {
-		for (i = 0; i < sizeof(tvp_initregs) / sizeof(*tvp_initregs); i++) {
-			par->cmap_regs[TVPADDRW] = tvp_initregs[i].addr;	eieio();
-			par->cmap_regs[TVPIDATA] = tvp_initregs[i].value;	eieio();
+		for (i = 0; i < ARRAY_SIZE(tvp_initregs); i++) {
+			par->cmap_regs[TVPADDRW] = tvp_initregs[i].addr;
+			eieio();
+			par->cmap_regs[TVPIDATA] = tvp_initregs[i].value;
+			eieio();
 		}
 	}
 

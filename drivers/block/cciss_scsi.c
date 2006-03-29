@@ -1027,12 +1027,11 @@ cciss_update_non_disk_devices(int cntl_num, int hostno)
 	int i;
 
 	c = (ctlr_info_t *) hba[cntl_num];	
-	ld_buff = kmalloc(reportlunsize, GFP_KERNEL);
+	ld_buff = kzalloc(reportlunsize, GFP_KERNEL);
 	if (ld_buff == NULL) {
 		printk(KERN_ERR "cciss: out of memory\n");
 		return;
 	}
-	memset(ld_buff, 0, reportlunsize);
 	inq_buff = kmalloc(OBDR_TAPE_INQ_SIZE, GFP_KERNEL);
         if (inq_buff == NULL) {
                 printk(KERN_ERR "cciss: out of memory\n");
@@ -1316,7 +1315,7 @@ cciss_scsi_queue_command (struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd 
 
 	cp->Request.Timeout = 0;
 	memset(cp->Request.CDB, 0, sizeof(cp->Request.CDB));
-	if (cmd->cmd_len > sizeof(cp->Request.CDB)) BUG();
+	BUG_ON(cmd->cmd_len > sizeof(cp->Request.CDB));
 	cp->Request.CDBLen = cmd->cmd_len;
 	memcpy(cp->Request.CDB, cmd->cmnd, cmd->cmd_len);
 	cp->Request.Type.Type = TYPE_CMD;

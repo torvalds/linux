@@ -132,6 +132,14 @@ struct mddev_s
 
 	char				uuid[16];
 
+	/* If the array is being reshaped, we need to record the
+	 * new shape and an indication of where we are up to.
+	 * This is written to the superblock.
+	 * If reshape_position is MaxSector, then no reshape is happening (yet).
+	 */
+	sector_t			reshape_position;
+	int				delta_disks, new_level, new_layout, new_chunk;
+
 	struct mdk_thread_s		*thread;	/* management thread */
 	struct mdk_thread_s		*sync_thread;	/* doing resync or reconstruct */
 	sector_t			curr_resync;	/* blocks scheduled */
@@ -143,6 +151,10 @@ struct mddev_s
 	sector_t			resync_mismatches; /* count of sectors where
 							    * parity/replica mismatch found
 							    */
+
+	/* allow user-space to request suspension of IO to regions of the array */
+	sector_t			suspend_lo;
+	sector_t			suspend_hi;
 	/* if zero, use the system-wide default */
 	int				sync_speed_min;
 	int				sync_speed_max;
@@ -157,6 +169,9 @@ struct mddev_s
 	 * DONE:     thread is done and is waiting to be reaped
 	 * REQUEST:  user-space has requested a sync (used with SYNC)
 	 * CHECK:    user-space request for for check-only, no repair
+	 * RESHAPE:  A reshape is happening
+	 *
+	 * If neither SYNC or RESHAPE are set, then it is a recovery.
 	 */
 #define	MD_RECOVERY_RUNNING	0
 #define	MD_RECOVERY_SYNC	1
@@ -166,10 +181,11 @@ struct mddev_s
 #define	MD_RECOVERY_NEEDED	5
 #define	MD_RECOVERY_REQUESTED	6
 #define	MD_RECOVERY_CHECK	7
+#define MD_RECOVERY_RESHAPE	8
 	unsigned long			recovery;
 
 	int				in_sync;	/* know to not need resync */
-	struct semaphore		reconfig_sem;
+	struct mutex			reconfig_mutex;
 	atomic_t			active;
 
 	int				changed;	/* true if we might need to reread partition info */
@@ -249,7 +265,8 @@ struct mdk_personality
 	int (*spare_active) (mddev_t *mddev);
 	sector_t (*sync_request)(mddev_t *mddev, sector_t sector_nr, int *skipped, int go_faster);
 	int (*resize) (mddev_t *mddev, sector_t sectors);
-	int (*reshape) (mddev_t *mddev, int raid_disks);
+	int (*check_reshape) (mddev_t *mddev);
+	int (*start_reshape) (mddev_t *mddev);
 	int (*reconfig) (mddev_t *mddev, int layout, int chunk_size);
 	/* quiesce moves between quiescence states
 	 * 0 - fully active

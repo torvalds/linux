@@ -32,6 +32,7 @@
 #include <asm/system.h>
 
 #include "delegation.h"
+#include "iostat.h"
 
 #define NFSDBG_FACILITY		NFSDBG_FILE
 
@@ -48,7 +49,7 @@ static int nfs_check_flags(int flags);
 static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl);
 static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl);
 
-struct file_operations nfs_file_operations = {
+const struct file_operations nfs_file_operations = {
 	.llseek		= nfs_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
@@ -102,18 +103,15 @@ static int nfs_check_flags(int flags)
 static int
 nfs_file_open(struct inode *inode, struct file *filp)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
-	int (*open)(struct inode *, struct file *);
 	int res;
 
 	res = nfs_check_flags(filp->f_flags);
 	if (res)
 		return res;
 
+	nfs_inc_stats(inode, NFSIOS_VFSOPEN);
 	lock_kernel();
-	/* Do NFSv4 open() call */
-	if ((open = server->rpc_ops->file_open) != NULL)
-		res = open(inode, filp);
+	res = NFS_SERVER(inode)->rpc_ops->file_open(inode, filp);
 	unlock_kernel();
 	return res;
 }
@@ -124,6 +122,7 @@ nfs_file_release(struct inode *inode, struct file *filp)
 	/* Ensure that dirty pages are flushed out with the right creds */
 	if (filp->f_mode & FMODE_WRITE)
 		filemap_fdatawrite(filp->f_mapping);
+	nfs_inc_stats(inode, NFSIOS_VFSRELEASE);
 	return NFS_PROTO(inode)->file_release(inode, filp);
 }
 
@@ -199,6 +198,7 @@ nfs_file_flush(struct file *file)
 
 	if ((file->f_mode & FMODE_WRITE) == 0)
 		return 0;
+	nfs_inc_stats(inode, NFSIOS_VFSFLUSH);
 	lock_kernel();
 	/* Ensure that data+attribute caches are up to date after close() */
 	status = nfs_wb_all(inode);
@@ -229,6 +229,7 @@ nfs_file_read(struct kiocb *iocb, char __user * buf, size_t count, loff_t pos)
 		(unsigned long) count, (unsigned long) pos);
 
 	result = nfs_revalidate_file(inode, iocb->ki_filp);
+	nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, count);
 	if (!result)
 		result = generic_file_aio_read(iocb, buf, count, pos);
 	return result;
@@ -282,6 +283,7 @@ nfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 
 	dfprintk(VFS, "nfs: fsync(%s/%ld)\n", inode->i_sb->s_id, inode->i_ino);
 
+	nfs_inc_stats(inode, NFSIOS_VFSFSYNC);
 	lock_kernel();
 	status = nfs_wb_all(inode);
 	if (!status) {
@@ -316,6 +318,16 @@ static int nfs_commit_write(struct file *file, struct page *page, unsigned offse
 	return status;
 }
 
+static void nfs_invalidate_page(struct page *page, unsigned long offset)
+{
+	/* FIXME: we really should cancel any unstarted writes on this page */
+}
+
+static int nfs_release_page(struct page *page, gfp_t gfp)
+{
+	return !nfs_wb_page(page->mapping->host, page);
+}
+
 struct address_space_operations nfs_file_aops = {
 	.readpage = nfs_readpage,
 	.readpages = nfs_readpages,
@@ -324,6 +336,8 @@ struct address_space_operations nfs_file_aops = {
 	.writepages = nfs_writepages,
 	.prepare_write = nfs_prepare_write,
 	.commit_write = nfs_commit_write,
+	.invalidatepage = nfs_invalidate_page,
+	.releasepage = nfs_release_page,
 #ifdef CONFIG_NFS_DIRECTIO
 	.direct_IO = nfs_direct_IO,
 #endif
@@ -365,6 +379,7 @@ nfs_file_write(struct kiocb *iocb, const char __user *buf, size_t count, loff_t 
 	if (!count)
 		goto out;
 
+	nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, count);
 	result = generic_file_aio_write(iocb, buf, count, pos);
 out:
 	return result;
@@ -376,15 +391,17 @@ out_swapfile:
 
 static int do_getlk(struct file *filp, int cmd, struct file_lock *fl)
 {
-	struct file_lock *cfl;
+	struct file_lock cfl;
 	struct inode *inode = filp->f_mapping->host;
 	int status = 0;
 
 	lock_kernel();
 	/* Try local locking first */
-	cfl = posix_test_lock(filp, fl);
-	if (cfl != NULL) {
-		locks_copy_lock(fl, cfl);
+	if (posix_test_lock(filp, fl, &cfl)) {
+		fl->fl_start = cfl.fl_start;
+		fl->fl_end = cfl.fl_end;
+		fl->fl_type = cfl.fl_type;
+		fl->fl_pid = cfl.fl_pid;
 		goto out;
 	}
 
@@ -425,10 +442,8 @@ static int do_vfs_lock(struct file *file, struct file_lock *fl)
 static int do_unlk(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct inode *inode = filp->f_mapping->host;
-	sigset_t oldset;
 	int status;
 
-	rpc_clnt_sigmask(NFS_CLIENT(inode), &oldset);
 	/*
 	 * Flush all pending writes before doing anything
 	 * with locks..
@@ -446,17 +461,14 @@ static int do_unlk(struct file *filp, int cmd, struct file_lock *fl)
 	else
 		status = do_vfs_lock(filp, fl);
 	unlock_kernel();
-	rpc_clnt_sigunmask(NFS_CLIENT(inode), &oldset);
 	return status;
 }
 
 static int do_setlk(struct file *filp, int cmd, struct file_lock *fl)
 {
 	struct inode *inode = filp->f_mapping->host;
-	sigset_t oldset;
 	int status;
 
-	rpc_clnt_sigmask(NFS_CLIENT(inode), &oldset);
 	/*
 	 * Flush all pending writes before doing anything
 	 * with locks..
@@ -489,7 +501,6 @@ static int do_setlk(struct file *filp, int cmd, struct file_lock *fl)
 	nfs_sync_mapping(filp->f_mapping);
 	nfs_zap_caches(inode);
 out:
-	rpc_clnt_sigunmask(NFS_CLIENT(inode), &oldset);
 	return status;
 }
 
@@ -504,9 +515,7 @@ static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 			inode->i_sb->s_id, inode->i_ino,
 			fl->fl_type, fl->fl_flags,
 			(long long)fl->fl_start, (long long)fl->fl_end);
-
-	if (!inode)
-		return -EINVAL;
+	nfs_inc_stats(inode, NFSIOS_VFSLOCK);
 
 	/* No mandatory locks over NFS */
 	if ((inode->i_mode & (S_ISGID | S_IXGRP)) == S_ISGID &&
@@ -530,9 +539,6 @@ static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl)
 	dprintk("NFS: nfs_flock(f=%s/%ld, t=%x, fl=%x)\n",
 			inode->i_sb->s_id, inode->i_ino,
 			fl->fl_type, fl->fl_flags);
-
-	if (!inode)
-		return -EINVAL;
 
 	/*
 	 * No BSD flocks over NFS allowed.

@@ -248,27 +248,6 @@ typedef struct lithium {
 } lithium_t;
 
 /*
- * li_create initializes the lithium_t structure and sets up vm mappings
- * to access the registers.
- * Returns 0 on success, -errno on failure.
- */
-
-static int __init li_create(lithium_t *lith, unsigned long baseaddr)
-{
-	static void li_destroy(lithium_t *);
-
-	spin_lock_init(&lith->lock);
-	lith->page0 = ioremap_nocache(baseaddr + LI_PAGE0_OFFSET, PAGE_SIZE);
-	lith->page1 = ioremap_nocache(baseaddr + LI_PAGE1_OFFSET, PAGE_SIZE);
-	lith->page2 = ioremap_nocache(baseaddr + LI_PAGE2_OFFSET, PAGE_SIZE);
-	if (!lith->page0 || !lith->page1 || !lith->page2) {
-		li_destroy(lith);
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-/*
  * li_destroy destroys the lithium_t structure and vm mappings.
  */
 
@@ -286,6 +265,25 @@ static void li_destroy(lithium_t *lith)
 		iounmap(lith->page2);
 		lith->page2 = NULL;
 	}
+}
+
+/*
+ * li_create initializes the lithium_t structure and sets up vm mappings
+ * to access the registers.
+ * Returns 0 on success, -errno on failure.
+ */
+
+static int __init li_create(lithium_t *lith, unsigned long baseaddr)
+{
+	spin_lock_init(&lith->lock);
+	lith->page0 = ioremap_nocache(baseaddr + LI_PAGE0_OFFSET, PAGE_SIZE);
+	lith->page1 = ioremap_nocache(baseaddr + LI_PAGE1_OFFSET, PAGE_SIZE);
+	lith->page2 = ioremap_nocache(baseaddr + LI_PAGE2_OFFSET, PAGE_SIZE);
+	if (!lith->page0 || !lith->page1 || !lith->page2) {
+		li_destroy(lith);
+		return -ENOMEM;
+	}
+	return 0;
 }
 
 /*

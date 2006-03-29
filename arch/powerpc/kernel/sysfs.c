@@ -65,20 +65,20 @@ static int __init smt_setup(void)
 	unsigned int cpu;
 
 	if (!cpu_has_feature(CPU_FTR_SMT))
-		return 1;
+		return -ENODEV;
 
 	options = find_path_device("/options");
 	if (!options)
-		return 1;
+		return -ENODEV;
 
 	val = (unsigned int *)get_property(options, "ibm,smt-snooze-delay",
 					   NULL);
 	if (!smt_snooze_cmdline && val) {
-		for_each_cpu(cpu)
+		for_each_possible_cpu(cpu)
 			per_cpu(smt_snooze_delay, cpu) = *val;
 	}
 
-	return 1;
+	return 0;
 }
 __initcall(smt_setup);
 
@@ -93,7 +93,7 @@ static int __init setup_smt_snooze_delay(char *str)
 	smt_snooze_cmdline = 1;
 
 	if (get_option(&str, &snooze)) {
-		for_each_cpu(cpu)
+		for_each_possible_cpu(cpu)
 			per_cpu(smt_snooze_delay, cpu) = snooze;
 	}
 
@@ -347,7 +347,7 @@ static int __init topology_init(void)
 
 	register_cpu_notifier(&sysfs_cpu_nb);
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct cpu *c = &per_cpu(cpu_devices, cpu);
 
 #ifdef CONFIG_NUMA

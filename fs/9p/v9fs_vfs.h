@@ -5,9 +5,8 @@
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ *  it under the terms of the GNU General Public License version 2
+ *  as published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -40,8 +39,8 @@
 
 extern struct file_system_type v9fs_fs_type;
 extern struct address_space_operations v9fs_addr_operations;
-extern struct file_operations v9fs_file_operations;
-extern struct file_operations v9fs_dir_operations;
+extern const struct file_operations v9fs_file_operations;
+extern const struct file_operations v9fs_dir_operations;
 extern struct dentry_operations v9fs_dentry_operations;
 
 struct inode *v9fs_get_inode(struct super_block *sb, int mode);

@@ -303,7 +303,7 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2,"Freeing buffer\n");
-	videobuf_dma_pci_unmap(chip->pci, &chip->dma_risc);
+	videobuf_pci_dma_unmap(chip->pci, &chip->dma_risc);
 	videobuf_dma_free(&chip->dma_risc);
 	btcx_riscmem_free(chip->pci,&chip->buf->risc);
 	kfree(chip->buf);
@@ -429,7 +429,7 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	videobuf_dma_init_kernel(&buf->vb.dma,PCI_DMA_FROMDEVICE,
 			(PAGE_ALIGN(buf->vb.size) >> PAGE_SHIFT));
 
-	videobuf_dma_pci_map(chip->pci,&buf->vb.dma);
+	videobuf_pci_dma_map(chip->pci,&buf->vb.dma);
 
 
 	cx88_risc_databuffer(chip->pci, &buf->risc,

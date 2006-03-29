@@ -395,12 +395,16 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 			return NULL;
 	}
 
-#ifdef CONFIG_DEBUG_VM
+	/*
+	 * Add some anal sanity checks for now. Eventually,
+	 * we should just do "return pfn_to_page(pfn)", but
+	 * in the meantime we check that we get a valid pfn,
+	 * and that the resulting page looks ok.
+	 */
 	if (unlikely(!pfn_valid(pfn))) {
 		print_bad_pte(vma, pte, addr);
 		return NULL;
 	}
-#endif
 
 	/*
 	 * NOTE! We still have PageReserved() pages in the page 
@@ -1067,6 +1071,8 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			}
 			if (pages) {
 				pages[i] = page;
+
+				flush_anon_page(page, start);
 				flush_dcache_page(page);
 			}
 			if (vmas)
@@ -2348,10 +2354,8 @@ int make_pages_present(unsigned long addr, unsigned long end)
 	if (!vma)
 		return -1;
 	write = (vma->vm_flags & VM_WRITE) != 0;
-	if (addr >= end)
-		BUG();
-	if (end > vma->vm_end)
-		BUG();
+	BUG_ON(addr >= end);
+	BUG_ON(end > vma->vm_end);
 	len = (end+PAGE_SIZE-1)/PAGE_SIZE-addr/PAGE_SIZE;
 	ret = get_user_pages(current, current->mm, addr,
 			len, write, 0, NULL, NULL);

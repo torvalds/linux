@@ -204,7 +204,8 @@
 typedef unsigned int kmem_bufctl_t;
 #define BUFCTL_END	(((kmem_bufctl_t)(~0U))-0)
 #define BUFCTL_FREE	(((kmem_bufctl_t)(~0U))-1)
-#define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-2)
+#define	BUFCTL_ACTIVE	(((kmem_bufctl_t)(~0U))-2)
+#define	SLAB_LIMIT	(((kmem_bufctl_t)(~0U))-3)
 
 /* Max number of objs-per-slab for caches which use off-slab slabs.
  * Needed to avoid a possible looping condition in cache_grow().
@@ -897,6 +898,30 @@ static struct array_cache *alloc_arraycache(int node, int entries,
 	return nc;
 }
 
+/*
+ * Transfer objects in one arraycache to another.
+ * Locking must be handled by the caller.
+ *
+ * Return the number of entries transferred.
+ */
+static int transfer_objects(struct array_cache *to,
+		struct array_cache *from, unsigned int max)
+{
+	/* Figure out how many entries to transfer */
+	int nr = min(min(from->avail, max), to->limit - to->avail);
+
+	if (!nr)
+		return 0;
+
+	memcpy(to->entry + to->avail, from->entry + from->avail -nr,
+			sizeof(void *) *nr);
+
+	from->avail -= nr;
+	to->avail += nr;
+	to->touched = 1;
+	return nr;
+}
+
 #ifdef CONFIG_NUMA
 static void *__cache_alloc_node(struct kmem_cache *, gfp_t, int);
 static void *alternate_node_alloc(struct kmem_cache *, gfp_t);
@@ -946,6 +971,13 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
 
 	if (ac->avail) {
 		spin_lock(&rl3->list_lock);
+		/*
+		 * Stuff objects into the remote nodes shared array first.
+		 * That way we could avoid the overhead of putting the objects
+		 * into the free lists and getting them back later.
+		 */
+		transfer_objects(rl3->shared, ac, ac->limit);
+
 		free_block(cachep, ac->entry, ac->avail, node);
 		ac->avail = 0;
 		spin_unlock(&rl3->list_lock);
@@ -961,8 +993,8 @@ static void reap_alien(struct kmem_cache *cachep, struct kmem_list3 *l3)
 
 	if (l3->alien) {
 		struct array_cache *ac = l3->alien[node];
-		if (ac && ac->avail) {
-			spin_lock_irq(&ac->lock);
+
+		if (ac && ac->avail && spin_trylock_irq(&ac->lock)) {
 			__drain_alien_cache(cachep, ac, node);
 			spin_unlock_irq(&ac->lock);
 		}
@@ -1989,10 +2021,9 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	align = ralign;
 
 	/* Get cache's description obj. */
-	cachep = kmem_cache_alloc(&cache_cache, SLAB_KERNEL);
+	cachep = kmem_cache_zalloc(&cache_cache, SLAB_KERNEL);
 	if (!cachep)
 		goto oops;
-	memset(cachep, 0, sizeof(struct kmem_cache));
 
 #if DEBUG
 	cachep->obj_size = size;
@@ -2399,7 +2430,7 @@ static void slab_put_obj(struct kmem_cache *cachep, struct slab *slabp,
 	/* Verify that the slab belongs to the intended node */
 	WARN_ON(slabp->nodeid != nodeid);
 
-	if (slab_bufctl(slabp)[objnr] != BUFCTL_FREE) {
+	if (slab_bufctl(slabp)[objnr] + 1 <= SLAB_LIMIT + 1) {
 		printk(KERN_ERR "slab: double free detected in cache "
 				"'%s', objp %p\n", cachep->name, objp);
 		BUG();
@@ -2605,6 +2636,9 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 		 */
 		cachep->dtor(objp + obj_offset(cachep), cachep, 0);
 	}
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+	slab_bufctl(slabp)[objnr] = BUFCTL_FREE;
+#endif
 	if (cachep->flags & SLAB_POISON) {
 #ifdef CONFIG_DEBUG_PAGEALLOC
 		if ((cachep->buffer_size % PAGE_SIZE)==0 && OFF_SLAB(cachep)) {
@@ -2677,20 +2711,10 @@ retry:
 	BUG_ON(ac->avail > 0 || !l3);
 	spin_lock(&l3->list_lock);
 
-	if (l3->shared) {
-		struct array_cache *shared_array = l3->shared;
-		if (shared_array->avail) {
-			if (batchcount > shared_array->avail)
-				batchcount = shared_array->avail;
-			shared_array->avail -= batchcount;
-			ac->avail = batchcount;
-			memcpy(ac->entry,
-			       &(shared_array->entry[shared_array->avail]),
-			       sizeof(void *) * batchcount);
-			shared_array->touched = 1;
-			goto alloc_done;
-		}
-	}
+	/* See if we can refill from the shared array */
+	if (l3->shared && transfer_objects(ac, l3->shared, batchcount))
+		goto alloc_done;
+
 	while (batchcount > 0) {
 		struct list_head *entry;
 		struct slab *slabp;
@@ -2788,6 +2812,16 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 		*dbg_redzone1(cachep, objp) = RED_ACTIVE;
 		*dbg_redzone2(cachep, objp) = RED_ACTIVE;
 	}
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+	{
+		struct slab *slabp;
+		unsigned objnr;
+
+		slabp = page_get_slab(virt_to_page(objp));
+		objnr = (unsigned)(objp - slabp->s_mem) / cachep->buffer_size;
+		slab_bufctl(slabp)[objnr] = BUFCTL_ACTIVE;
+	}
+#endif
 	objp += obj_offset(cachep);
 	if (cachep->ctor && cachep->flags & SLAB_POISON) {
 		unsigned long ctor_flags = SLAB_CTOR_CONSTRUCTOR;
@@ -3094,6 +3128,23 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 EXPORT_SYMBOL(kmem_cache_alloc);
 
 /**
+ * kmem_cache_alloc - Allocate an object. The memory is set to zero.
+ * @cache: The cache to allocate from.
+ * @flags: See kmalloc().
+ *
+ * Allocate an object from this cache and set the allocated memory to zero.
+ * The flags are only relevant if the cache has no available objects.
+ */
+void *kmem_cache_zalloc(struct kmem_cache *cache, gfp_t flags)
+{
+	void *ret = __cache_alloc(cache, flags, __builtin_return_address(0));
+	if (ret)
+		memset(ret, 0, obj_size(cache));
+	return ret;
+}
+EXPORT_SYMBOL(kmem_cache_zalloc);
+
+/**
  * kmem_ptr_validate - check if an untrusted pointer might
  *	be a slab entry.
  * @cachep: the cache we're checking against
@@ -3220,22 +3271,23 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 	return __cache_alloc(cachep, flags, caller);
 }
 
-#ifndef CONFIG_DEBUG_SLAB
 
 void *__kmalloc(size_t size, gfp_t flags)
 {
+#ifndef CONFIG_DEBUG_SLAB
 	return __do_kmalloc(size, flags, NULL);
+#else
+	return __do_kmalloc(size, flags, __builtin_return_address(0));
+#endif
 }
 EXPORT_SYMBOL(__kmalloc);
 
-#else
-
+#ifdef CONFIG_DEBUG_SLAB
 void *__kmalloc_track_caller(size_t size, gfp_t flags, void *caller)
 {
 	return __do_kmalloc(size, flags, caller);
 }
 EXPORT_SYMBOL(__kmalloc_track_caller);
-
 #endif
 
 #ifdef CONFIG_SMP
@@ -3259,7 +3311,7 @@ void *__alloc_percpu(size_t size)
 	 * and we have no way of figuring out how to fix the array
 	 * that we have allocated then....
 	 */
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		int node = cpu_to_node(i);
 
 		if (node_online(node))
@@ -3346,7 +3398,7 @@ void free_percpu(const void *objp)
 	/*
 	 * We allocate for all cpus so we cannot use for online cpu here.
 	 */
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 	    kfree(p->ptrs[i]);
 	kfree(p);
 }
@@ -3366,63 +3418,86 @@ const char *kmem_cache_name(struct kmem_cache *cachep)
 EXPORT_SYMBOL_GPL(kmem_cache_name);
 
 /*
- * This initializes kmem_list3 for all nodes.
+ * This initializes kmem_list3 or resizes varioius caches for all nodes.
  */
 static int alloc_kmemlist(struct kmem_cache *cachep)
 {
 	int node;
 	struct kmem_list3 *l3;
-	int err = 0;
+	struct array_cache *new_shared;
+	struct array_cache **new_alien;
 
 	for_each_online_node(node) {
-		struct array_cache *nc = NULL, *new;
-		struct array_cache **new_alien = NULL;
-#ifdef CONFIG_NUMA
+
 		new_alien = alloc_alien_cache(node, cachep->limit);
 		if (!new_alien)
 			goto fail;
-#endif
-		new = alloc_arraycache(node, cachep->shared*cachep->batchcount,
+
+		new_shared = alloc_arraycache(node,
+				cachep->shared*cachep->batchcount,
 					0xbaadf00d);
-		if (!new)
+		if (!new_shared) {
+			free_alien_cache(new_alien);
 			goto fail;
+		}
+
 		l3 = cachep->nodelists[node];
 		if (l3) {
+			struct array_cache *shared = l3->shared;
+
 			spin_lock_irq(&l3->list_lock);
 
-			nc = cachep->nodelists[node]->shared;
-			if (nc)
-				free_block(cachep, nc->entry, nc->avail, node);
+			if (shared)
+				free_block(cachep, shared->entry,
+						shared->avail, node);
 
-			l3->shared = new;
-			if (!cachep->nodelists[node]->alien) {
+			l3->shared = new_shared;
+			if (!l3->alien) {
 				l3->alien = new_alien;
 				new_alien = NULL;
 			}
 			l3->free_limit = (1 + nr_cpus_node(node)) *
 					cachep->batchcount + cachep->num;
 			spin_unlock_irq(&l3->list_lock);
-			kfree(nc);
+			kfree(shared);
 			free_alien_cache(new_alien);
 			continue;
 		}
 		l3 = kmalloc_node(sizeof(struct kmem_list3), GFP_KERNEL, node);
-		if (!l3)
+		if (!l3) {
+			free_alien_cache(new_alien);
+			kfree(new_shared);
 			goto fail;
+		}
 
 		kmem_list3_init(l3);
 		l3->next_reap = jiffies + REAPTIMEOUT_LIST3 +
 				((unsigned long)cachep) % REAPTIMEOUT_LIST3;
-		l3->shared = new;
+		l3->shared = new_shared;
 		l3->alien = new_alien;
 		l3->free_limit = (1 + nr_cpus_node(node)) *
 					cachep->batchcount + cachep->num;
 		cachep->nodelists[node] = l3;
 	}
-	return err;
+	return 0;
+
 fail:
-	err = -ENOMEM;
-	return err;
+	if (!cachep->next.next) {
+		/* Cache is not active yet. Roll back what we did */
+		node--;
+		while (node >= 0) {
+			if (cachep->nodelists[node]) {
+				l3 = cachep->nodelists[node];
+
+				kfree(l3->shared);
+				free_alien_cache(l3->alien);
+				kfree(l3);
+				cachep->nodelists[node] = NULL;
+			}
+			node--;
+		}
+	}
+	return -ENOMEM;
 }
 
 struct ccupdate_struct {
@@ -3899,6 +3974,159 @@ ssize_t slabinfo_write(struct file *file, const char __user * buffer,
 		res = count;
 	return res;
 }
+
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+
+static void *leaks_start(struct seq_file *m, loff_t *pos)
+{
+	loff_t n = *pos;
+	struct list_head *p;
+
+	mutex_lock(&cache_chain_mutex);
+	p = cache_chain.next;
+	while (n--) {
+		p = p->next;
+		if (p == &cache_chain)
+			return NULL;
+	}
+	return list_entry(p, struct kmem_cache, next);
+}
+
+static inline int add_caller(unsigned long *n, unsigned long v)
+{
+	unsigned long *p;
+	int l;
+	if (!v)
+		return 1;
+	l = n[1];
+	p = n + 2;
+	while (l) {
+		int i = l/2;
+		unsigned long *q = p + 2 * i;
+		if (*q == v) {
+			q[1]++;
+			return 1;
+		}
+		if (*q > v) {
+			l = i;
+		} else {
+			p = q + 2;
+			l -= i + 1;
+		}
+	}
+	if (++n[1] == n[0])
+		return 0;
+	memmove(p + 2, p, n[1] * 2 * sizeof(unsigned long) - ((void *)p - (void *)n));
+	p[0] = v;
+	p[1] = 1;
+	return 1;
+}
+
+static void handle_slab(unsigned long *n, struct kmem_cache *c, struct slab *s)
+{
+	void *p;
+	int i;
+	if (n[0] == n[1])
+		return;
+	for (i = 0, p = s->s_mem; i < c->num; i++, p += c->buffer_size) {
+		if (slab_bufctl(s)[i] != BUFCTL_ACTIVE)
+			continue;
+		if (!add_caller(n, (unsigned long)*dbg_userword(c, p)))
+			return;
+	}
+}
+
+static void show_symbol(struct seq_file *m, unsigned long address)
+{
+#ifdef CONFIG_KALLSYMS
+	char *modname;
+	const char *name;
+	unsigned long offset, size;
+	char namebuf[KSYM_NAME_LEN+1];
+
+	name = kallsyms_lookup(address, &size, &offset, &modname, namebuf);
+
+	if (name) {
+		seq_printf(m, "%s+%#lx/%#lx", name, offset, size);
+		if (modname)
+			seq_printf(m, " [%s]", modname);
+		return;
+	}
+#endif
+	seq_printf(m, "%p", (void *)address);
+}
+
+static int leaks_show(struct seq_file *m, void *p)
+{
+	struct kmem_cache *cachep = p;
+	struct list_head *q;
+	struct slab *slabp;
+	struct kmem_list3 *l3;
+	const char *name;
+	unsigned long *n = m->private;
+	int node;
+	int i;
+
+	if (!(cachep->flags & SLAB_STORE_USER))
+		return 0;
+	if (!(cachep->flags & SLAB_RED_ZONE))
+		return 0;
+
+	/* OK, we can do it */
+
+	n[1] = 0;
+
+	for_each_online_node(node) {
+		l3 = cachep->nodelists[node];
+		if (!l3)
+			continue;
+
+		check_irq_on();
+		spin_lock_irq(&l3->list_lock);
+
+		list_for_each(q, &l3->slabs_full) {
+			slabp = list_entry(q, struct slab, list);
+			handle_slab(n, cachep, slabp);
+		}
+		list_for_each(q, &l3->slabs_partial) {
+			slabp = list_entry(q, struct slab, list);
+			handle_slab(n, cachep, slabp);
+		}
+		spin_unlock_irq(&l3->list_lock);
+	}
+	name = cachep->name;
+	if (n[0] == n[1]) {
+		/* Increase the buffer size */
+		mutex_unlock(&cache_chain_mutex);
+		m->private = kzalloc(n[0] * 4 * sizeof(unsigned long), GFP_KERNEL);
+		if (!m->private) {
+			/* Too bad, we are really out */
+			m->private = n;
+			mutex_lock(&cache_chain_mutex);
+			return -ENOMEM;
+		}
+		*(unsigned long *)m->private = n[0] * 2;
+		kfree(n);
+		mutex_lock(&cache_chain_mutex);
+		/* Now make sure this entry will be retried */
+		m->count = m->size;
+		return 0;
+	}
+	for (i = 0; i < n[1]; i++) {
+		seq_printf(m, "%s: %lu ", name, n[2*i+3]);
+		show_symbol(m, n[2*i+2]);
+		seq_putc(m, '\n');
+	}
+	return 0;
+}
+
+struct seq_operations slabstats_op = {
+	.start = leaks_start,
+	.next = s_next,
+	.stop = s_stop,
+	.show = leaks_show,
+};
+#endif
 #endif
 
 /**

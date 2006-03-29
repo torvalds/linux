@@ -195,9 +195,13 @@ static void __init cell_init_early(void)
 }
 
 
-static int __init cell_probe(int platform)
+static int __init cell_probe(void)
 {
-	if (platform != PLATFORM_CELL)
+	/* XXX This is temporary, the Cell maintainer will come up with
+	 * more appropriate detection logic
+	 */
+	unsigned long root = of_get_flat_dt_root();
+	if (!of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
 		return 0;
 
 	return 1;
@@ -212,7 +216,8 @@ static int cell_check_legacy_ioport(unsigned int baseport)
 	return -ENODEV;
 }
 
-struct machdep_calls __initdata cell_md = {
+define_machine(cell) {
+	.name			= "Cell",
 	.probe			= cell_probe,
 	.setup_arch		= cell_setup_arch,
 	.init_early		= cell_init_early,

@@ -603,7 +603,7 @@ repeat:
 			/* move to end of parent's list to avoid starvation */
 			write_lock_irq(&tasklist_lock);
 			remove_parent(p);
-			add_parent(p, p->parent);
+			add_parent(p);
 			write_unlock_irq(&tasklist_lock);
 			retval = ru ? getrusage(p, RUSAGE_BOTH, ru) : 0;
 			if (retval)
@@ -643,7 +643,7 @@ repeat:
 				write_lock_irq(&tasklist_lock);
 				remove_parent(p);
 				p->parent = p->real_parent;
-				add_parent(p, p->parent);
+				add_parent(p);
 				do_notify_parent(p, SIGCHLD);
 				write_unlock_irq(&tasklist_lock);
 			} else

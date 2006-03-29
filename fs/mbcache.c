@@ -311,7 +311,7 @@ fail:
 /*
  * mb_cache_shrink()
  *
- * Removes all cache entires of a device from the cache. All cache entries
+ * Removes all cache entries of a device from the cache. All cache entries
  * currently in use cannot be freed, and thus remain in the cache. All others
  * are freed.
  *

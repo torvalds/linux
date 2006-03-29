@@ -29,12 +29,14 @@ CHECKFLAGS      += -D__x86_64__ -m64
 
 cflags-$(CONFIG_MK8) += $(call cc-option,-march=k8)
 cflags-$(CONFIG_MPSC) += $(call cc-option,-march=nocona)
+cflags-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mtune=generic)
 CFLAGS += $(cflags-y)
 
 CFLAGS += -m64
 CFLAGS += -mno-red-zone
 CFLAGS += -mcmodel=kernel
 CFLAGS += -pipe
+cflags-$(CONFIG_REORDER) += -ffunction-sections
 # this makes reading assembly source easier, but produces worse code
 # actually it makes the kernel smaller too.
 CFLAGS += -fno-reorder-blocks	
@@ -67,8 +69,8 @@ drivers-$(CONFIG_OPROFILE)		+= arch/x86_64/oprofile/
 
 boot := arch/x86_64/boot
 
-.PHONY: bzImage bzlilo install archmrproper \
-	fdimage fdimage144 fdimage288 archclean
+PHONY += bzImage bzlilo install archmrproper \
+	 fdimage fdimage144 fdimage288 isoimage archclean
 
 #Default target when executing "make"
 all: bzImage
@@ -85,7 +87,7 @@ bzlilo: vmlinux
 bzdisk: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) zdisk
 
-fdimage fdimage144 fdimage288: vmlinux
+fdimage fdimage144 fdimage288 isoimage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@
 
 install:
@@ -97,11 +99,16 @@ archclean:
 define archhelp
   echo  '* bzImage	- Compressed kernel image (arch/$(ARCH)/boot/bzImage)'
   echo  '  install	- Install kernel using'
-  echo  '                  (your) ~/bin/installkernel or'
-  echo  '                  (distribution) /sbin/installkernel or'
-  echo  '        	  install to $$(INSTALL_PATH) and run lilo'
+  echo  '		   (your) ~/bin/installkernel or'
+  echo  '		   (distribution) /sbin/installkernel or'
+  echo  '		   install to $$(INSTALL_PATH) and run lilo'
+  echo  '  bzdisk       - Create a boot floppy in /dev/fd0'
+  echo  '  fdimage      - Create a boot floppy image'
+  echo  '  isoimage     - Create a boot CD-ROM image'
 endef
 
-CLEAN_FILES += arch/$(ARCH)/boot/fdimage arch/$(ARCH)/boot/mtools.conf
+CLEAN_FILES += arch/$(ARCH)/boot/fdimage \
+	       arch/$(ARCH)/boot/image.iso \
+	       arch/$(ARCH)/boot/mtools.conf
 
 

@@ -1026,7 +1026,7 @@ static void twa_free_request_id(TW_Device_Extension *tw_dev, int request_id)
 	tw_dev->free_tail = (tw_dev->free_tail + 1) % TW_Q_LENGTH;
 } /* End twa_free_request_id() */
 
-/* This function will get parameter table entires from the firmware */
+/* This function will get parameter table entries from the firmware */
 static void *twa_get_param(TW_Device_Extension *tw_dev, int request_id, int table_id, int parameter_id, int parameter_size_bytes)
 {
 	TW_Command_Full *full_command_packet;

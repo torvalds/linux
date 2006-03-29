@@ -132,7 +132,7 @@ static int __init init_ras_IRQ(void)
 		of_node_put(np);
 	}
 
-	return 1;
+	return 0;
 }
 __initcall(init_ras_IRQ);
 

@@ -13,6 +13,7 @@ config LBD
 
 config BLK_DEV_IO_TRACE
 	bool "Support for tracing block io actions"
+	depends on SYSFS
 	select RELAY
 	select DEBUG_FS
 	help
@@ -22,5 +23,14 @@ config BLK_DEV_IO_TRACE
 	  support tools needed), fetch the blktrace app from:
 
 	  git://brick.kernel.dk/data/git/blktrace.git
+
+config LSF
+	bool "Support for Large Single Files"
+	depends on X86 || (MIPS && 32BIT) || PPC32 || ARCH_S390_31 || SUPERH || UML
+	default n
+	help
+	  When CONFIG_LBD is disabled, say Y here if you want to
+	  handle large file(bigger than 2TB), otherwise say N.
+	  When CONFIG_LBD is enabled, Y is set automatically.
 
 source block/Kconfig.iosched

@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 - 2003 Jeff Dike (jdike@addtoit.com)
  * Licensed under the GPL
  */
@@ -12,13 +12,16 @@
 #include "sigio.h"
 #include "irq_user.h"
 #include "irq_kern.h"
+#include "os.h"
 
 /* Protected by sigio_lock() called from write_sigio_workaround */
 static int sigio_irq_fd = -1;
 
 static irqreturn_t sigio_interrupt(int irq, void *data, struct pt_regs *unused)
 {
-	read_sigio_fd(sigio_irq_fd);
+	char c;
+
+	os_read_file(sigio_irq_fd, &c, sizeof(c));
 	reactivate_fd(sigio_irq_fd, SIGIO_WRITE_IRQ);
 	return(IRQ_HANDLED);
 }
@@ -50,6 +53,9 @@ void sigio_unlock(void)
 {
 	spin_unlock(&sigio_spinlock);
 }
+
+extern void sigio_cleanup(void);
+__uml_exitcall(sigio_cleanup);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

@@ -9,6 +9,7 @@
 #define H_Closed	2	/* Resource closed */
 #define H_Constrained	4	/* Resource request constrained to max allowed */
 #define H_InProgress   14	/* Kind of like busy */
+#define H_Pending      17	/* returned from H_POLL_PENDING */
 #define H_Continue     18	/* Returned from H_Join on success */
 #define H_LongBusyStartRange   9900  /* Start of long busy range */
 #define H_LongBusyOrder1msec   9900  /* Long busy, hint that 1msec is a good time to retry */

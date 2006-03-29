@@ -123,17 +123,6 @@ enum v4l2_chip_ident {
 /* v4l device was opened in Radio mode, to be replaced by VIDIOC_INT_S_TUNER_MODE */
 #define AUDC_SET_RADIO        _IO('d',88)
 
-/* select from TV,radio,extern,MUTE, to be replaced with VIDIOC_INT_S_AUDIO_ROUTING */
-#define AUDC_SET_INPUT        _IOW('d',89,int)
-
-/* msp3400 ioctl: will be removed in the near future, to be replaced by
-   VIDIOC_INT_S_AUDIO_ROUTING. */
-struct msp_matrix {
-  int input;
-  int output;
-};
-#define MSP_SET_MATRIX     _IOW('m',17,struct msp_matrix)
-
 /* tuner ioctls */
 
 /* Sets tuner type and its I2C addr */
@@ -209,10 +198,10 @@ struct v4l2_routing {
 };
 
 /* These internal commands should be used to define the inputs and outputs
-   of an audio/video chip. They will replace AUDC_SET_INPUT.
-   The v4l2 API commands VIDIOC_S/G_INPUT, VIDIOC_S/G_OUTPUT,
-   VIDIOC_S/G_AUDIO and VIDIOC_S/G_AUDOUT are meant to be used by the
-   user. Internally these commands should be used to switch inputs/outputs
+   of an audio/video chip. They will replace the v4l2 API commands
+   VIDIOC_S/G_INPUT, VIDIOC_S/G_OUTPUT, VIDIOC_S/G_AUDIO and VIDIOC_S/G_AUDOUT
+   that are meant to be used by the user.
+   The internal commands should be used to switch inputs/outputs
    because only the driver knows how to map a 'Television' input to the precise
    input/output routing of an A/D converter, or a DSP, or a video digitizer.
    These four commands should only be sent directly to an i2c device, they

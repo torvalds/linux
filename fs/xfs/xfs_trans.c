@@ -490,7 +490,7 @@ xfs_trans_mod_sb(
 	case XFS_TRANS_SB_RES_FREXTENTS:
 		/*
 		 * The allocation has already been applied to the
-		 * in-core superblocks's counter.  This should only
+		 * in-core superblock's counter.  This should only
 		 * be applied to the on-disk superblock.
 		 */
 		ASSERT(delta < 0);
@@ -611,7 +611,7 @@ xfs_trans_apply_sb_deltas(
 
 	if (whole)
 		/*
-		 * Log the whole thing, the fields are discontiguous.
+		 * Log the whole thing, the fields are noncontiguous.
 		 */
 		xfs_trans_log_buf(tp, bp, 0, sizeof(xfs_sb_t) - 1);
 	else
@@ -669,7 +669,7 @@ xfs_trans_unreserve_and_mod_sb(
 	/*
 	 * Apply any superblock modifications to the in-core version.
 	 * The t_res_fdblocks_delta and t_res_frextents_delta fields are
-	 * explicity NOT applied to the in-core superblock.
+	 * explicitly NOT applied to the in-core superblock.
 	 * The idea is that that has already been done.
 	 */
 	if (tp->t_flags & XFS_TRANS_SB_DIRTY) {

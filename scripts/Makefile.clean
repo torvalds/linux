@@ -4,7 +4,7 @@
 
 src := $(obj)
 
-.PHONY: __clean
+PHONY := __clean
 __clean:
 
 # Shorthand for $(Q)$(MAKE) scripts/Makefile.clean obj=dir
@@ -87,10 +87,16 @@ endif
 # Descending
 # ---------------------------------------------------------------------------
 
-.PHONY: $(subdir-ymn)
+PHONY += $(subdir-ymn)
 $(subdir-ymn):
 	$(Q)$(MAKE) $(clean)=$@
 
 # If quiet is set, only print short version of command
 
 cmd = @$(if $($(quiet)cmd_$(1)),echo '  $($(quiet)cmd_$(1))' &&) $(cmd_$(1))
+
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable se we can use it in if_changed and friends.
+
+.PHONY: $(PHONY)

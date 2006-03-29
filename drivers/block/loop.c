@@ -839,7 +839,9 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 
 	set_blocksize(bdev, lo_blocksize);
 
-	kernel_thread(loop_thread, lo, CLONE_KERNEL);
+	error = kernel_thread(loop_thread, lo, CLONE_KERNEL);
+	if (error < 0)
+		goto out_putf;
 	wait_for_completion(&lo->lo_done);
 	return 0;
 

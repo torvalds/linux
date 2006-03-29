@@ -1,4 +1,4 @@
-/* 
+/*
  * saa7114 - Philips SAA7114H video decoder driver version 0.0.1
  *
  * Copyright (C) 2002 Maxim Yevtyushkin <max@linuxmedialabs.com>
@@ -300,7 +300,7 @@ static const unsigned char init[] = {
 	0x55, 0xff,
 	0x56, 0xff,
 	0x57, 0xff,
-	0x58, 0x40,		// framing code 
+	0x58, 0x40,		// framing code
 	0x59, 0x47,		// horizontal offset
 	0x5a, 0x06,		// vertical offset
 	0x5b, 0x83,		// field offset
@@ -345,7 +345,7 @@ static const unsigned char init[] = {
 	0x82, 0x00,
 	0x83, 0x00,
 	0x84, 0xc5,
-	0x85, 0x0d,		// hsync and vsync ? 
+	0x85, 0x0d,		// hsync and vsync ?
 	0x86, 0x40,
 	0x87, 0x01,
 	0x88, 0x00,
@@ -434,7 +434,7 @@ static const unsigned char init[] = {
 	0xd9, 0x04,
 	0xda, 0x00,		// horizontal luminance phase offset
 	0xdb, 0x00,
-	0xdc, 0x00,		// horizontal chrominance scaling increment 
+	0xdc, 0x00,		// horizontal chrominance scaling increment
 	0xdd, 0x02,
 	0xde, 0x00,		// horizontal chrominance phase offset
 	0xdf, 0x00,
@@ -754,7 +754,7 @@ saa7114_command (struct i2c_client *client,
 			saa7114_write(client, 0x87,
 				      decoder->reg[REG_ADDR(0x87)]);
 			saa7114_write(client, 0x88, 0xd8);	// sw reset scaler
-			saa7114_write(client, 0x88, 0xf8);	// sw reset scaler release            
+			saa7114_write(client, 0x88, 0xf8);	// sw reset scaler release
 			saa7114_write(client, 0x80, 0x36);
 
 		}
@@ -813,7 +813,7 @@ static unsigned short normal_i2c[] =
     { I2C_SAA7114 >> 1, I2C_SAA7114A >> 1, I2C_CLIENT_END };
 
 static unsigned short ignore = I2C_CLIENT_END;
-                                                                                
+
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,

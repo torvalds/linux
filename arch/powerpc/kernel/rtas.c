@@ -25,6 +25,7 @@
 #include <asm/hvcall.h>
 #include <asm/semaphore.h>
 #include <asm/machdep.h>
+#include <asm/firmware.h>
 #include <asm/page.h>
 #include <asm/param.h>
 #include <asm/system.h>
@@ -32,6 +33,7 @@
 #include <asm/uaccess.h>
 #include <asm/lmb.h>
 #include <asm/udbg.h>
+#include <asm/syscalls.h>
 
 struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
@@ -591,7 +593,7 @@ static void rtas_percpu_suspend_me(void *info)
 		data->waiting = 0;
 		data->args->args[data->args->nargs] =
 			rtas_call(ibm_suspend_me_token, 0, 1, NULL);
-		for_each_cpu(i)
+		for_each_possible_cpu(i)
 			plpar_hcall_norets(H_PROD,i);
 	} else {
 		data->waiting = -EBUSY;
@@ -624,7 +626,7 @@ static int rtas_ibm_suspend_me(struct rtas_args *args)
 	/* Prod each CPU.  This won't hurt, and will wake
 	 * anyone we successfully put to sleep with H_Join
 	 */
-	for_each_cpu(i)
+	for_each_possible_cpu(i)
 		plpar_hcall_norets(H_PROD, i);
 
 	return data.waiting;
@@ -767,7 +769,7 @@ void __init rtas_initialize(void)
 	 * the stop-self token if any
 	 */
 #ifdef CONFIG_PPC64
-	if (_machine == PLATFORM_PSERIES_LPAR) {
+	if (machine_is(pseries) && firmware_has_feature(FW_FEATURE_LPAR)) {
 		rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
 		ibm_suspend_me_token = rtas_token("ibm,suspend-me");
 	}

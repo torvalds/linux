@@ -1,4 +1,4 @@
-/* 
+/*
     zr36120.h - Zoran 36120/36125 based framegrabbers
 
     Copyright (C) 1998-1999 Pauline Middelink (middelin@polyware.nl)
@@ -89,7 +89,7 @@ struct vidinfo {
 	ulong*	overlay;	/* kernel addr of overlay mask		*/
 };
 
-struct zoran 
+struct zoran
 {
 	struct video_device video_dev;
 #define CARD_DEBUG	KERN_DEBUG "%s(%lu): "
@@ -106,7 +106,7 @@ struct zoran
 	uint		norm;		/* 0=PAL, 1=NTSC, 2=SECAM	*/
 	uint		tuner_freq;	/* Current freq in kHz		*/
 	struct video_picture picture;	/* Current picture params	*/
-  
+
 	/* videocard details */
 	uint		swidth;		/* screen width			*/
 	uint		sheight;	/* screen height		*/

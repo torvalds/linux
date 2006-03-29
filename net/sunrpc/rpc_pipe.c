@@ -91,7 +91,8 @@ rpc_queue_upcall(struct inode *inode, struct rpc_pipe_msg *msg)
 		res = 0;
 	} else if (rpci->flags & RPC_PIPE_WAIT_FOR_OPEN) {
 		if (list_empty(&rpci->pipe))
-			schedule_delayed_work(&rpci->queue_timeout,
+			queue_delayed_work(rpciod_workqueue,
+					&rpci->queue_timeout,
 					RPC_UPCALL_TIMEOUT);
 		list_add_tail(&msg->list, &rpci->pipe);
 		rpci->pipelen += msg->len;
@@ -132,7 +133,7 @@ rpc_close_pipes(struct inode *inode)
 		if (ops->release_pipe)
 			ops->release_pipe(inode);
 		cancel_delayed_work(&rpci->queue_timeout);
-		flush_scheduled_work();
+		flush_workqueue(rpciod_workqueue);
 	}
 	rpc_inode_setowner(inode, NULL);
 	mutex_unlock(&inode->i_mutex);
@@ -394,7 +395,7 @@ enum {
  */
 struct rpc_filelist {
 	char *name;
-	struct file_operations *i_fop;
+	const struct file_operations *i_fop;
 	int mode;
 };
 
@@ -434,14 +435,17 @@ static struct rpc_filelist authfiles[] = {
 	},
 };
 
-static int
-rpc_get_mount(void)
+struct vfsmount *rpc_get_mount(void)
 {
-	return simple_pin_fs("rpc_pipefs", &rpc_mount, &rpc_mount_count);
+	int err;
+
+	err = simple_pin_fs("rpc_pipefs", &rpc_mount, &rpc_mount_count);
+	if (err != 0)
+		return ERR_PTR(err);
+	return rpc_mount;
 }
 
-static void
-rpc_put_mount(void)
+void rpc_put_mount(void)
 {
 	simple_release_fs(&rpc_mount, &rpc_mount_count);
 }
@@ -451,12 +455,13 @@ rpc_lookup_parent(char *path, struct nameidata *nd)
 {
 	if (path[0] == '\0')
 		return -ENOENT;
-	if (rpc_get_mount()) {
+	nd->mnt = rpc_get_mount();
+	if (IS_ERR(nd->mnt)) {
 		printk(KERN_WARNING "%s: %s failed to mount "
 			       "pseudofilesystem \n", __FILE__, __FUNCTION__);
-		return -ENODEV;
+		return PTR_ERR(nd->mnt);
 	}
-	nd->mnt = mntget(rpc_mount);
+	mntget(nd->mnt);
 	nd->dentry = dget(rpc_mount->mnt_root);
 	nd->last_type = LAST_ROOT;
 	nd->flags = LOOKUP_PARENT;
@@ -593,7 +598,6 @@ __rpc_mkdir(struct inode *dir, struct dentry *dentry)
 	d_instantiate(dentry, inode);
 	dir->i_nlink++;
 	inode_dir_notify(dir, DN_CREATE);
-	rpc_get_mount();
 	return 0;
 out_err:
 	printk(KERN_WARNING "%s: %s failed to allocate inode for dentry %s\n",
@@ -614,7 +618,6 @@ __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!error) {
 		inode_dir_notify(dir, DN_DELETE);
 		d_drop(dentry);
-		rpc_put_mount();
 	}
 	return 0;
 }
@@ -668,7 +671,7 @@ rpc_mkdir(char *path, struct rpc_clnt *rpc_client)
 out:
 	mutex_unlock(&dir->i_mutex);
 	rpc_release_path(&nd);
-	return dentry;
+	return dget(dentry);
 err_depopulate:
 	rpc_depopulate(dentry);
 	__rpc_rmdir(dir, dentry);
@@ -732,7 +735,7 @@ rpc_mkpipe(char *path, void *private, struct rpc_pipe_ops *ops, int flags)
 out:
 	mutex_unlock(&dir->i_mutex);
 	rpc_release_path(&nd);
-	return dentry;
+	return dget(dentry);
 err_dput:
 	dput(dentry);
 	dentry = ERR_PTR(-ENOMEM);

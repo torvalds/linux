@@ -177,7 +177,7 @@ static int i596_debug = (DEB_SERIOUS|DEB_PROBE);
 MODULE_AUTHOR("Richard Hirst");
 MODULE_DESCRIPTION("i82596 driver");
 MODULE_LICENSE("GPL");
-MODULE_PARM(i596_debug, "i");
+module_param(i596_debug, int, 0);
 MODULE_PARM_DESC(i596_debug, "lasi_82596 debug mask");
 
 /* Copy frames shorter than rx_copybreak, otherwise pass on up in
@@ -1520,9 +1520,9 @@ static void set_multicast_list(struct net_device *dev)
 	}
 }
 
-MODULE_PARM(debug, "i");
-MODULE_PARM_DESC(debug, "lasi_82596 debug mask");
 static int debug = -1;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "lasi_82596 debug mask");
 
 static int num_drivers;
 static struct net_device *netdevs[MAX_DRIVERS];

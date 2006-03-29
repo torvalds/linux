@@ -7,23 +7,20 @@ extra-y := vmlinux.lds
 clean-files :=
 
 obj-y = config.o exec_kern.o exitcode.o \
-	init_task.o irq.o irq_user.o ksyms.o mem.o physmem.o \
-	process_kern.o ptrace.o reboot.o resource.o sigio_user.o sigio_kern.o \
+	init_task.o irq.o ksyms.o mem.o physmem.o \
+	process_kern.o ptrace.o reboot.o resource.o sigio_kern.o \
 	signal_kern.o smp.o syscall_kern.o sysrq.o \
 	time_kern.o tlb.o trap_kern.o uaccess.o um_arch.o umid.o
 
 obj-$(CONFIG_BLK_DEV_INITRD) += initrd.o
 obj-$(CONFIG_GPROF)	+= gprof_syms.o
 obj-$(CONFIG_GCOV)	+= gmon_syms.o
-obj-$(CONFIG_TTY_LOG)	+= tty_log.o
 obj-$(CONFIG_SYSCALL_DEBUG) += syscall.o
 
 obj-$(CONFIG_MODE_TT) += tt/
 obj-$(CONFIG_MODE_SKAS) += skas/
 
-user-objs-$(CONFIG_TTY_LOG) += tty_log.o
-
-USER_OBJS := $(user-objs-y) config.o tty_log.o
+USER_OBJS := config.o
 
 include arch/um/scripts/Makefile.rules
 

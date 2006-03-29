@@ -49,11 +49,26 @@ struct pending_exception {
 	struct bio_list snapshot_bios;
 
 	/*
-	 * Other pending_exceptions that are processing this
-	 * chunk.  When this list is empty, we know we can
-	 * complete the origins.
+	 * Short-term queue of pending exceptions prior to submission.
 	 */
-	struct list_head siblings;
+	struct list_head list;
+
+	/*
+	 * The primary pending_exception is the one that holds
+	 * the sibling_count and the list of origin_bios for a
+	 * group of pending_exceptions.  It is always last to get freed.
+	 * These fields get set up when writing to the origin.
+	 */
+	struct pending_exception *primary_pe;
+
+	/*
+	 * Number of pending_exceptions processing this chunk.
+	 * When this drops to zero we must complete the origin bios.
+	 * If incrementing or decrementing this, hold pe->snap->lock for
+	 * the sibling concerned and not pe->primary_pe->snap->lock unless
+	 * they are the same.
+	 */
+	atomic_t sibling_count;
 
 	/* Pointer back to snapshot context */
 	struct dm_snapshot *snap;
@@ -377,6 +392,8 @@ static void read_snapshot_metadata(struct dm_snapshot *s)
 		down_write(&s->lock);
 		s->valid = 0;
 		up_write(&s->lock);
+
+		dm_table_event(s->table);
 	}
 }
 
@@ -542,7 +559,11 @@ static void snapshot_dtr(struct dm_target *ti)
 {
 	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
 
+	/* Prevent further origin writes from using this snapshot. */
+	/* After this returns there can be no new kcopyd jobs. */
 	unregister_snapshot(s);
+
+	kcopyd_client_destroy(s->kcopyd_client);
 
 	exit_exception_table(&s->pending, pending_cache);
 	exit_exception_table(&s->complete, exception_cache);
@@ -552,7 +573,7 @@ static void snapshot_dtr(struct dm_target *ti)
 
 	dm_put_device(ti, s->origin);
 	dm_put_device(ti, s->cow);
-	kcopyd_client_destroy(s->kcopyd_client);
+
 	kfree(s);
 }
 
@@ -586,78 +607,117 @@ static void error_bios(struct bio *bio)
 	}
 }
 
+static inline void error_snapshot_bios(struct pending_exception *pe)
+{
+	error_bios(bio_list_get(&pe->snapshot_bios));
+}
+
 static struct bio *__flush_bios(struct pending_exception *pe)
 {
-	struct pending_exception *sibling;
-
-	if (list_empty(&pe->siblings))
-		return bio_list_get(&pe->origin_bios);
-
-	sibling = list_entry(pe->siblings.next,
-			     struct pending_exception, siblings);
-
-	list_del(&pe->siblings);
-
-	/* This is fine as long as kcopyd is single-threaded. If kcopyd
-	 * becomes multi-threaded, we'll need some locking here.
+	/*
+	 * If this pe is involved in a write to the origin and
+	 * it is the last sibling to complete then release
+	 * the bios for the original write to the origin.
 	 */
-	bio_list_merge(&sibling->origin_bios, &pe->origin_bios);
+
+	if (pe->primary_pe &&
+	    atomic_dec_and_test(&pe->primary_pe->sibling_count))
+		return bio_list_get(&pe->primary_pe->origin_bios);
 
 	return NULL;
+}
+
+static void __invalidate_snapshot(struct dm_snapshot *s,
+				struct pending_exception *pe, int err)
+{
+	if (!s->valid)
+		return;
+
+	if (err == -EIO)
+		DMERR("Invalidating snapshot: Error reading/writing.");
+	else if (err == -ENOMEM)
+		DMERR("Invalidating snapshot: Unable to allocate exception.");
+
+	if (pe)
+		remove_exception(&pe->e);
+
+	if (s->store.drop_snapshot)
+		s->store.drop_snapshot(&s->store);
+
+	s->valid = 0;
+
+	dm_table_event(s->table);
 }
 
 static void pending_complete(struct pending_exception *pe, int success)
 {
 	struct exception *e;
+	struct pending_exception *primary_pe;
 	struct dm_snapshot *s = pe->snap;
 	struct bio *flush = NULL;
 
-	if (success) {
-		e = alloc_exception();
-		if (!e) {
-			DMWARN("Unable to allocate exception.");
-			down_write(&s->lock);
-			s->store.drop_snapshot(&s->store);
-			s->valid = 0;
-			flush = __flush_bios(pe);
-			up_write(&s->lock);
-
-			error_bios(bio_list_get(&pe->snapshot_bios));
-			goto out;
-		}
-		*e = pe->e;
-
-		/*
-		 * Add a proper exception, and remove the
-		 * in-flight exception from the list.
-		 */
-		down_write(&s->lock);
-		insert_exception(&s->complete, e);
-		remove_exception(&pe->e);
-		flush = __flush_bios(pe);
-
-		/* Submit any pending write bios */
-		up_write(&s->lock);
-
-		flush_bios(bio_list_get(&pe->snapshot_bios));
-	} else {
+	if (!success) {
 		/* Read/write error - snapshot is unusable */
 		down_write(&s->lock);
-		if (s->valid)
-			DMERR("Error reading/writing snapshot");
-		s->store.drop_snapshot(&s->store);
-		s->valid = 0;
-		remove_exception(&pe->e);
+		__invalidate_snapshot(s, pe, -EIO);
 		flush = __flush_bios(pe);
 		up_write(&s->lock);
 
-		error_bios(bio_list_get(&pe->snapshot_bios));
-
-		dm_table_event(s->table);
+		error_snapshot_bios(pe);
+		goto out;
 	}
 
+	e = alloc_exception();
+	if (!e) {
+		down_write(&s->lock);
+		__invalidate_snapshot(s, pe, -ENOMEM);
+		flush = __flush_bios(pe);
+		up_write(&s->lock);
+
+		error_snapshot_bios(pe);
+		goto out;
+	}
+	*e = pe->e;
+
+	/*
+	 * Add a proper exception, and remove the
+	 * in-flight exception from the list.
+	 */
+	down_write(&s->lock);
+	if (!s->valid) {
+		flush = __flush_bios(pe);
+		up_write(&s->lock);
+
+		free_exception(e);
+
+		error_snapshot_bios(pe);
+		goto out;
+	}
+
+	insert_exception(&s->complete, e);
+	remove_exception(&pe->e);
+	flush = __flush_bios(pe);
+
+	up_write(&s->lock);
+
+	/* Submit any pending write bios */
+	flush_bios(bio_list_get(&pe->snapshot_bios));
+
  out:
-	free_pending_exception(pe);
+	primary_pe = pe->primary_pe;
+
+	/*
+	 * Free the pe if it's not linked to an origin write or if
+	 * it's not itself a primary pe.
+	 */
+	if (!primary_pe || primary_pe != pe)
+		free_pending_exception(pe);
+
+	/*
+	 * Free the primary pe if nothing references it.
+	 */
+	if (primary_pe && !atomic_read(&primary_pe->sibling_count))
+		free_pending_exception(primary_pe);
 
 	if (flush)
 		flush_bios(flush);
@@ -734,38 +794,45 @@ __find_pending_exception(struct dm_snapshot *s, struct bio *bio)
 	if (e) {
 		/* cast the exception to a pending exception */
 		pe = container_of(e, struct pending_exception, e);
-
-	} else {
-		/*
-		 * Create a new pending exception, we don't want
-		 * to hold the lock while we do this.
-		 */
-		up_write(&s->lock);
-		pe = alloc_pending_exception();
-		down_write(&s->lock);
-
-		e = lookup_exception(&s->pending, chunk);
-		if (e) {
-			free_pending_exception(pe);
-			pe = container_of(e, struct pending_exception, e);
-		} else {
-			pe->e.old_chunk = chunk;
-			bio_list_init(&pe->origin_bios);
-			bio_list_init(&pe->snapshot_bios);
-			INIT_LIST_HEAD(&pe->siblings);
-			pe->snap = s;
-			pe->started = 0;
-
-			if (s->store.prepare_exception(&s->store, &pe->e)) {
-				free_pending_exception(pe);
-				s->valid = 0;
-				return NULL;
-			}
-
-			insert_exception(&s->pending, &pe->e);
-		}
+		goto out;
 	}
 
+	/*
+	 * Create a new pending exception, we don't want
+	 * to hold the lock while we do this.
+	 */
+	up_write(&s->lock);
+	pe = alloc_pending_exception();
+	down_write(&s->lock);
+
+	if (!s->valid) {
+		free_pending_exception(pe);
+		return NULL;
+	}
+
+	e = lookup_exception(&s->pending, chunk);
+	if (e) {
+		free_pending_exception(pe);
+		pe = container_of(e, struct pending_exception, e);
+		goto out;
+	}
+
+	pe->e.old_chunk = chunk;
+	bio_list_init(&pe->origin_bios);
+	bio_list_init(&pe->snapshot_bios);
+	pe->primary_pe = NULL;
+	atomic_set(&pe->sibling_count, 1);
+	pe->snap = s;
+	pe->started = 0;
+
+	if (s->store.prepare_exception(&s->store, &pe->e)) {
+		free_pending_exception(pe);
+		return NULL;
+	}
+
+	insert_exception(&s->pending, &pe->e);
+
+ out:
 	return pe;
 }
 
@@ -782,13 +849,15 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 {
 	struct exception *e;
 	struct dm_snapshot *s = (struct dm_snapshot *) ti->private;
+	int copy_needed = 0;
 	int r = 1;
 	chunk_t chunk;
-	struct pending_exception *pe;
+	struct pending_exception *pe = NULL;
 
 	chunk = sector_to_chunk(s, bio->bi_sector);
 
 	/* Full snapshots are not usable */
+	/* To get here the table must be live so s->active is always set. */
 	if (!s->valid)
 		return -EIO;
 
@@ -806,36 +875,41 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 		 * to copy an exception */
 		down_write(&s->lock);
 
+		if (!s->valid) {
+			r = -EIO;
+			goto out_unlock;
+		}
+
 		/* If the block is already remapped - use that, else remap it */
 		e = lookup_exception(&s->complete, chunk);
 		if (e) {
 			remap_exception(s, e, bio);
-			up_write(&s->lock);
-
-		} else {
-			pe = __find_pending_exception(s, bio);
-
-			if (!pe) {
-				if (s->store.drop_snapshot)
-					s->store.drop_snapshot(&s->store);
-				s->valid = 0;
-				r = -EIO;
-				up_write(&s->lock);
-			} else {
-				remap_exception(s, &pe->e, bio);
-				bio_list_add(&pe->snapshot_bios, bio);
-
-				if (!pe->started) {
-					/* this is protected by snap->lock */
-					pe->started = 1;
-					up_write(&s->lock);
-					start_copy(pe);
-				} else
-					up_write(&s->lock);
-				r = 0;
-			}
+			goto out_unlock;
 		}
 
+		pe = __find_pending_exception(s, bio);
+		if (!pe) {
+			__invalidate_snapshot(s, pe, -ENOMEM);
+			r = -EIO;
+			goto out_unlock;
+		}
+
+		remap_exception(s, &pe->e, bio);
+		bio_list_add(&pe->snapshot_bios, bio);
+
+		if (!pe->started) {
+			/* this is protected by snap->lock */
+			pe->started = 1;
+			copy_needed = 1;
+		}
+
+		r = 0;
+
+ out_unlock:
+		up_write(&s->lock);
+
+		if (copy_needed)
+			start_copy(pe);
 	} else {
 		/*
 		 * FIXME: this read path scares me because we
@@ -846,6 +920,11 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 
 		/* Do reads */
 		down_read(&s->lock);
+
+		if (!s->valid) {
+			up_read(&s->lock);
+			return -EIO;
+		}
 
 		/* See if it it has been remapped */
 		e = lookup_exception(&s->complete, chunk);
@@ -884,9 +963,9 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 				snap->store.fraction_full(&snap->store,
 							  &numerator,
 							  &denominator);
-				snprintf(result, maxlen,
-					 SECTOR_FORMAT "/" SECTOR_FORMAT,
-					 numerator, denominator);
+				snprintf(result, maxlen, "%llu/%llu",
+					(unsigned long long)numerator,
+					(unsigned long long)denominator);
 			}
 			else
 				snprintf(result, maxlen, "Unknown");
@@ -899,9 +978,10 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 		 * to make private copies if the output is to
 		 * make sense.
 		 */
-		snprintf(result, maxlen, "%s %s %c " SECTOR_FORMAT,
+		snprintf(result, maxlen, "%s %s %c %llu",
 			 snap->origin->name, snap->cow->name,
-			 snap->type, snap->chunk_size);
+			 snap->type,
+			 (unsigned long long)snap->chunk_size);
 		break;
 	}
 
@@ -911,40 +991,27 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 /*-----------------------------------------------------------------
  * Origin methods
  *---------------------------------------------------------------*/
-static void list_merge(struct list_head *l1, struct list_head *l2)
-{
-	struct list_head *l1_n, *l2_p;
-
-	l1_n = l1->next;
-	l2_p = l2->prev;
-
-	l1->next = l2;
-	l2->prev = l1;
-
-	l2_p->next = l1_n;
-	l1_n->prev = l2_p;
-}
-
 static int __origin_write(struct list_head *snapshots, struct bio *bio)
 {
-	int r = 1, first = 1;
+	int r = 1, first = 0;
 	struct dm_snapshot *snap;
 	struct exception *e;
-	struct pending_exception *pe, *last = NULL;
+	struct pending_exception *pe, *next_pe, *primary_pe = NULL;
 	chunk_t chunk;
+	LIST_HEAD(pe_queue);
 
 	/* Do all the snapshots on this origin */
 	list_for_each_entry (snap, snapshots, list) {
 
+		down_write(&snap->lock);
+
 		/* Only deal with valid and active snapshots */
 		if (!snap->valid || !snap->active)
-			continue;
+			goto next_snapshot;
 
 		/* Nothing to do if writing beyond end of snapshot */
 		if (bio->bi_sector >= dm_table_get_size(snap->table))
-			continue;
-
-		down_write(&snap->lock);
+			goto next_snapshot;
 
 		/*
 		 * Remember, different snapshots can have
@@ -956,49 +1023,75 @@ static int __origin_write(struct list_head *snapshots, struct bio *bio)
 		 * Check exception table to see if block
 		 * is already remapped in this snapshot
 		 * and trigger an exception if not.
+		 *
+		 * sibling_count is initialised to 1 so pending_complete()
+		 * won't destroy the primary_pe while we're inside this loop.
 		 */
 		e = lookup_exception(&snap->complete, chunk);
-		if (!e) {
-			pe = __find_pending_exception(snap, bio);
-			if (!pe) {
-				snap->store.drop_snapshot(&snap->store);
-				snap->valid = 0;
+		if (e)
+			goto next_snapshot;
 
-			} else {
-				if (last)
-					list_merge(&pe->siblings,
-						   &last->siblings);
-
-				last = pe;
-				r = 0;
-			}
+		pe = __find_pending_exception(snap, bio);
+		if (!pe) {
+			__invalidate_snapshot(snap, pe, ENOMEM);
+			goto next_snapshot;
 		}
 
+		if (!primary_pe) {
+			/*
+			 * Either every pe here has same
+			 * primary_pe or none has one yet.
+			 */
+			if (pe->primary_pe)
+				primary_pe = pe->primary_pe;
+			else {
+				primary_pe = pe;
+				first = 1;
+			}
+
+			bio_list_add(&primary_pe->origin_bios, bio);
+
+			r = 0;
+		}
+
+		if (!pe->primary_pe) {
+			atomic_inc(&primary_pe->sibling_count);
+			pe->primary_pe = primary_pe;
+		}
+
+		if (!pe->started) {
+			pe->started = 1;
+			list_add_tail(&pe->list, &pe_queue);
+		}
+
+ next_snapshot:
 		up_write(&snap->lock);
+	}
+
+	if (!primary_pe)
+		goto out;
+
+	/*
+	 * If this is the first time we're processing this chunk and
+	 * sibling_count is now 1 it means all the pending exceptions
+	 * got completed while we were in the loop above, so it falls to
+	 * us here to remove the primary_pe and submit any origin_bios.
+	 */
+
+	if (first && atomic_dec_and_test(&primary_pe->sibling_count)) {
+		flush_bios(bio_list_get(&primary_pe->origin_bios));
+		free_pending_exception(primary_pe);
+		/* If we got here, pe_queue is necessarily empty. */
+		goto out;
 	}
 
 	/*
 	 * Now that we have a complete pe list we can start the copying.
 	 */
-	if (last) {
-		pe = last;
-		do {
-			down_write(&pe->snap->lock);
-			if (first)
-				bio_list_add(&pe->origin_bios, bio);
-			if (!pe->started) {
-				pe->started = 1;
-				up_write(&pe->snap->lock);
-				start_copy(pe);
-			} else
-				up_write(&pe->snap->lock);
-			first = 0;
-			pe = list_entry(pe->siblings.next,
-					struct pending_exception, siblings);
+	list_for_each_entry_safe(pe, next_pe, &pe_queue, list)
+		start_copy(pe);
 
-		} while (pe != last);
-	}
-
+ out:
 	return r;
 }
 
@@ -1174,8 +1267,7 @@ static int __init dm_snapshot_init(void)
 		goto bad4;
 	}
 
-	pending_pool = mempool_create(128, mempool_alloc_slab,
-				      mempool_free_slab, pending_cache);
+	pending_pool = mempool_create_slab_pool(128, pending_cache);
 	if (!pending_pool) {
 		DMERR("Couldn't create pending pool.");
 		r = -ENOMEM;

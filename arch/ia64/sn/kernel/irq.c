@@ -350,9 +350,6 @@ static void force_interrupt(int irq)
 static void sn_check_intr(int irq, struct sn_irq_info *sn_irq_info)
 {
 	u64 regval;
-	int irr_reg_num;
-	int irr_bit;
-	u64 irr_reg;
 	struct pcidev_info *pcidev_info;
 	struct pcibus_info *pcibus_info;
 
@@ -373,23 +370,7 @@ static void sn_check_intr(int irq, struct sn_irq_info *sn_irq_info)
 	    pdi_pcibus_info;
 	regval = pcireg_intr_status_get(pcibus_info);
 
-	irr_reg_num = irq_to_vector(irq) / 64;
-	irr_bit = irq_to_vector(irq) % 64;
-	switch (irr_reg_num) {
-	case 0:
-		irr_reg = ia64_getreg(_IA64_REG_CR_IRR0);
-		break;
-	case 1:
-		irr_reg = ia64_getreg(_IA64_REG_CR_IRR1);
-		break;
-	case 2:
-		irr_reg = ia64_getreg(_IA64_REG_CR_IRR2);
-		break;
-	case 3:
-		irr_reg = ia64_getreg(_IA64_REG_CR_IRR3);
-		break;
-	}
-	if (!test_bit(irr_bit, &irr_reg)) {
+	if (!ia64_get_irr(irq_to_vector(irq))) {
 		if (!test_bit(irq, pda->sn_in_service_ivecs)) {
 			regval &= 0xff;
 			if (sn_irq_info->irq_int_bit & regval &

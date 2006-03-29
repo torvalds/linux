@@ -21,7 +21,6 @@
 
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
-#include <media/audiochip.h>
 
 #define UNSET (-1U)
 

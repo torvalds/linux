@@ -147,6 +147,18 @@ M:	p_gortmaker@yahoo.com
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+9P FILE SYSTEM
+P:      Eric Van Hensbergen
+M:      ericvh@gmail.com
+P:      Ron Minnich
+M:      rminnich@lanl.gov
+P:      Latchesar Ionkov
+M:      lucho@ionkov.net
+L:      v9fs-developer@lists.sourceforge.net
+W:      http://v9fs.sf.net
+T:      git kernel.org:/pub/scm/linux/kernel/ericvh/v9fs.git
+S:      Maintained
+
 A2232 SERIAL BOARD DRIVER
 P:	Enver Haase
 M:	ehaase@inf.fu-berlin.de
@@ -870,13 +882,34 @@ W:	http://ebtables.sourceforge.net/
 S:	Maintained
 
 EDAC-CORE
-P:      Doug Thompson
-M:      norsk5@xmission.com, dthompson@linuxnetworx.com
-P:      Dave Peterson
-M:      dsp@llnl.gov, dave_peterson@pobox.com
-L:      bluesmoke-devel@lists.sourceforge.net
-W:      bluesmoke.sourceforge.net
-S:      Maintained
+P:	Doug Thompson
+M:	norsk5@xmission.com, dthompson@linuxnetworx.com
+P:	Dave Peterson
+M:	dsp@llnl.gov, dave_peterson@pobox.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+
+EDAC-E752X
+P:	Dave Peterson
+M:	dsp@llnl.gov, dave_peterson@pobox.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+
+EDAC-E7XXX
+P:	Dave Peterson
+M:	dsp@llnl.gov, dave_peterson@pobox.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
+
+EDAC-R82600
+P:	Tim Small
+M:	tim@buttersideup.com
+L:	bluesmoke-devel@lists.sourceforge.net
+W:	bluesmoke.sourceforge.net
+S:	Maintained
 
 EEPRO100 NETWORK DRIVER
 P:	Andrey V. Savochkin
@@ -1025,6 +1058,15 @@ GENERIC HDLC DRIVER, N2, C101, PCI200SYN and WANXL DRIVERS
 P:	Krzysztof Halasa
 M:	khc@pm.waw.pl
 W:	http://www.kernel.org/pub/linux/utils/net/hdlc/
+S:	Maintained
+
+GIGASET ISDN DRIVERS
+P:	Hansjoerg Lipp
+M:	hjlipp@web.de
+P:	Tilman Schmidt
+M:	tilman@imap.cc
+L:	gigaset307x-common@lists.sourceforge.net
+W:	http://gigaset307x.sourceforge.net/
 S:	Maintained
 
 HARDWARE MONITORING
@@ -1843,6 +1885,7 @@ NETWORKING [GENERAL]
 P:	Networking Team
 M:	netdev@vger.kernel.org
 L:	netdev@vger.kernel.org
+W:	http://linux-net.osdl.org/
 S:	Maintained
 
 NETWORKING [IPv4/IPv6]
@@ -2013,12 +2056,6 @@ L:	parisc-linux@parisc-linux.org
 W:	http://www.parisc-linux.org/
 S:	Maintained
 
-PERSONALITY HANDLING
-P:	Christoph Hellwig
-M:	hch@infradead.org
-L:	linux-abi-devel@lists.sourceforge.net
-S:	Maintained
-
 PCI ERROR RECOVERY
 P:	Linas Vepstas
 M:	linas@austin.ibm.com
@@ -2067,6 +2104,12 @@ PCNET32 NETWORK DRIVER
 P:	Thomas Bogendörfer
 M:	tsbogend@alpha.franken.de
 L:	netdev@vger.kernel.org
+S:	Maintained
+
+PERSONALITY HANDLING
+P:	Christoph Hellwig
+M:	hch@infradead.org
+L:	linux-abi-devel@lists.sourceforge.net
 S:	Maintained
 
 PHRAM MTD DRIVER
@@ -2191,6 +2234,12 @@ M:	p_gortmaker@yahoo.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+REAL TIME CLOCK (RTC) SUBSYSTEM
+P:	Alessandro Zummo
+M:	a.zummo@towertech.it
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 REISERFS FILE SYSTEM
 P:	Hans Reiser
 M:	reiserfs-dev@namesys.com
@@ -2211,13 +2260,6 @@ S:	Maintained
 
 RISCOM8 DRIVER
 S:	Orphan
-
-RTLINUX  REALTIME  LINUX
-P:	Victor Yodaiken
-M:	yodaiken@fsmlabs.com
-L:	rtl@rtlinux.org
-W:	www.rtlinux.org
-S:	Maintained
 
 S3 SAVAGE FRAMEBUFFER DRIVER
 P:      Antonino Daplas
@@ -2531,7 +2573,6 @@ S:	Unsupported ?
 STRADIS MPEG-2 DECODER DRIVER
 P:	Nathan Laredo
 M:	laredo@gnu.org
-W:	http://mpeg.openprojects.net/
 W:	http://www.stradis.com/
 S:	Maintained
 
@@ -2650,7 +2691,7 @@ S:	Maintained
 
 TUN/TAP driver
 P:	Maxim Krasnyansky
-M:	maxk@qualcomm.com, max_mk@yahoo.com
+M:	maxk@qualcomm.com
 L:	vtun@office.satix.net
 W:	http://vtun.sourceforge.net/tun
 S:	Maintained
@@ -2978,18 +3019,6 @@ M:	miquel@df.uba.ar
 L:	rio500-users@lists.sourceforge.net
 W:	http://rio500.sourceforge.net
 S:	Maintained
-
-V9FS FILE SYSTEM
-P:      Eric Van Hensbergen
-M:      ericvh@gmail.com
-P:      Ron Minnich
-M:      rminnich@lanl.gov
-P:      Latchesar Ionkov
-M:      lucho@ionkov.net
-L:      v9fs-developer@lists.sourceforge.net
-W:      http://v9fs.sf.net
-T:      git kernel.org:/pub/scm/linux/kernel/ericvh/v9fs-devel.git
-S:      Maintained
 
 VIDEO FOR LINUX
 P:	Mauro Carvalho Chehab

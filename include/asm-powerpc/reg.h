@@ -622,6 +622,10 @@ extern void ppc64_runlatch_off(void);
 extern unsigned long scom970_read(unsigned int address);
 extern void scom970_write(unsigned int address, unsigned long value);
 
+#else
+#define ppc64_runlatch_on()
+#define ppc64_runlatch_off()
+
 #endif /* CONFIG_PPC64 */
 
 #define __get_SP()	({unsigned long sp; \

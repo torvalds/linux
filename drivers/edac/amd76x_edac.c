@@ -12,25 +12,26 @@
  *
  */
 
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
-
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-
 #include <linux/slab.h>
-
 #include "edac_mc.h"
 
+#define amd76x_printk(level, fmt, arg...) \
+	edac_printk(level, "amd76x", fmt, ##arg)
+
+#define amd76x_mc_printk(mci, level, fmt, arg...) \
+	edac_mc_chipset_printk(mci, level, "amd76x", fmt, ##arg)
 
 #define AMD76X_NR_CSROWS 8
 #define AMD76X_NR_CHANS  1
 #define AMD76X_NR_DIMMS  4
 
-
 /* AMD 76x register addresses - device 0 function 0 - PCI bridge */
+
 #define AMD76X_ECC_MODE_STATUS	0x48	/* Mode and status of ECC (32b)
 					 *
 					 * 31:16 reserved
@@ -42,6 +43,7 @@
 					 *  7:4  UE cs row
 					 *  3:0  CE cs row
 					 */
+
 #define AMD76X_DRAM_MODE_STATUS	0x58	/* DRAM Mode and status (32b)
 					 *
 					 * 31:26 clock disable 5 - 0
@@ -56,6 +58,7 @@
 					 * 15:8  reserved
 					 *  7:0  x4 mode enable 7 - 0
 					 */
+
 #define AMD76X_MEM_BASE_ADDR	0xC0	/* Memory base address (8 x 32b)
 					 *
 					 * 31:23 chip-select base
@@ -66,28 +69,27 @@
 					 *  0    chip-select enable
 					 */
 
-
 struct amd76x_error_info {
 	u32 ecc_mode_status;
 };
-
 
 enum amd76x_chips {
 	AMD761 = 0,
 	AMD762
 };
 
-
 struct amd76x_dev_info {
 	const char *ctl_name;
 };
 
-
 static const struct amd76x_dev_info amd76x_devs[] = {
-	[AMD761] = {.ctl_name = "AMD761"},
-	[AMD762] = {.ctl_name = "AMD762"},
+	[AMD761] = {
+		.ctl_name = "AMD761"
+	},
+	[AMD762] = {
+		.ctl_name = "AMD762"
+	},
 };
-
 
 /**
  *	amd76x_get_error_info	-	fetch error information
@@ -97,22 +99,20 @@ static const struct amd76x_dev_info amd76x_devs[] = {
  *	Fetch and store the AMD76x ECC status. Clear pending status
  *	on the chip so that further errors will be reported
  */
-
-static void amd76x_get_error_info (struct mem_ctl_info *mci,
-				   struct amd76x_error_info *info)
+static void amd76x_get_error_info(struct mem_ctl_info *mci,
+		struct amd76x_error_info *info)
 {
 	pci_read_config_dword(mci->pdev, AMD76X_ECC_MODE_STATUS,
 				&info->ecc_mode_status);
 
 	if (info->ecc_mode_status & BIT(8))
 		pci_write_bits32(mci->pdev, AMD76X_ECC_MODE_STATUS,
-				   (u32) BIT(8), (u32) BIT(8));
+				(u32) BIT(8), (u32) BIT(8));
 
 	if (info->ecc_mode_status & BIT(9))
 		pci_write_bits32(mci->pdev, AMD76X_ECC_MODE_STATUS,
-				   (u32) BIT(9), (u32) BIT(9));
+				(u32) BIT(9), (u32) BIT(9));
 }
-
 
 /**
  *	amd76x_process_error_info	-	Error check
@@ -124,8 +124,7 @@ static void amd76x_get_error_info (struct mem_ctl_info *mci,
  *	A return of 1 indicates an error. Also if handle_errors is true
  *	then attempt to handle and clean up after the error
  */
-
-static int amd76x_process_error_info (struct mem_ctl_info *mci,
+static int amd76x_process_error_info(struct mem_ctl_info *mci,
 		struct amd76x_error_info *info, int handle_errors)
 {
 	int error_found;
@@ -141,9 +140,8 @@ static int amd76x_process_error_info (struct mem_ctl_info *mci,
 
 		if (handle_errors) {
 			row = (info->ecc_mode_status >> 4) & 0xf;
-			edac_mc_handle_ue(mci,
-			    mci->csrows[row].first_page, 0, row,
-			    mci->ctl_name);
+			edac_mc_handle_ue(mci, mci->csrows[row].first_page, 0,
+				row, mci->ctl_name);
 		}
 	}
 
@@ -155,11 +153,11 @@ static int amd76x_process_error_info (struct mem_ctl_info *mci,
 
 		if (handle_errors) {
 			row = info->ecc_mode_status & 0xf;
-			edac_mc_handle_ce(mci,
-			    mci->csrows[row].first_page, 0, 0, row, 0,
-			    mci->ctl_name);
+			edac_mc_handle_ce(mci, mci->csrows[row].first_page, 0,
+				0, row, 0, mci->ctl_name);
 		}
 	}
+
 	return error_found;
 }
 
@@ -170,15 +168,13 @@ static int amd76x_process_error_info (struct mem_ctl_info *mci,
  *	Called by the poll handlers this function reads the status
  *	from the controller and checks for errors.
  */
-
 static void amd76x_check(struct mem_ctl_info *mci)
 {
 	struct amd76x_error_info info;
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 	amd76x_get_error_info(mci, &info);
 	amd76x_process_error_info(mci, &info, 1);
 }
-
 
 /**
  *	amd76x_probe1	-	Perform set up for detected device
@@ -189,7 +185,6 @@ static void amd76x_check(struct mem_ctl_info *mci)
  *	controller status reporting. We configure and set up the
  *	memory controller reporting and claim the device.
  */
-
 static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	int rc = -ENODEV;
@@ -203,12 +198,11 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	};
 	u32 ems;
 	u32 ems_mode;
+	struct amd76x_error_info discard;
 
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
-
+	debugf0("%s()\n", __func__);
 	pci_read_config_dword(pdev, AMD76X_ECC_MODE_STATUS, &ems);
 	ems_mode = (ems >> 10) & 0x3;
-
 	mci = edac_mc_alloc(0, AMD76X_NR_CSROWS, AMD76X_NR_CHANS);
 
 	if (mci == NULL) {
@@ -216,16 +210,13 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail;
 	}
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
-
-	mci->pdev = pci_dev_get(pdev);
+	debugf0("%s(): mci = %p\n", __func__, mci);
+	mci->pdev = pdev;
 	mci->mtype_cap = MEM_FLAG_RDDR;
-
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->edac_cap = ems_mode ?
-	    (EDAC_FLAG_EC | EDAC_FLAG_SECDED) : EDAC_FLAG_NONE;
-
-	mci->mod_name = BS_MOD_STR;
+			(EDAC_FLAG_EC | EDAC_FLAG_SECDED) : EDAC_FLAG_NONE;
+	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = "$Revision: 1.4.2.5 $";
 	mci->ctl_name = amd76x_devs[dev_idx].ctl_name;
 	mci->edac_check = amd76x_check;
@@ -240,18 +231,15 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 
 		/* find the DRAM Chip Select Base address and mask */
 		pci_read_config_dword(mci->pdev,
-				      AMD76X_MEM_BASE_ADDR + (index * 4),
-				      &mba);
+				AMD76X_MEM_BASE_ADDR + (index * 4), &mba);
 
 		if (!(mba & BIT(0)))
 			continue;
 
 		mba_base = mba & 0xff800000UL;
 		mba_mask = ((mba & 0xff80) << 16) | 0x7fffffUL;
-
 		pci_read_config_dword(mci->pdev, AMD76X_DRAM_MODE_STATUS,
-				      &dms);
-
+				&dms);
 		csrow->first_page = mba_base >> PAGE_SHIFT;
 		csrow->nr_pages = (mba_mask + 1) >> PAGE_SHIFT;
 		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
@@ -262,39 +250,32 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 		csrow->edac_mode = ems_modes[ems_mode];
 	}
 
-	/* clear counters */
-	pci_write_bits32(mci->pdev, AMD76X_ECC_MODE_STATUS, (u32) (0x3 << 8),
-			 (u32) (0x3 << 8));
+	amd76x_get_error_info(mci, &discard);  /* clear counters */
 
 	if (edac_mc_add_mc(mci)) {
-		debugf3("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
 		goto fail;
 	}
 
 	/* get this far and it's successful */
-	debugf3("MC: " __FILE__ ": %s(): success\n", __func__);
+	debugf3("%s(): success\n", __func__);
 	return 0;
 
 fail:
-	if (mci) {
-		if(mci->pdev)
-			pci_dev_put(mci->pdev);
+	if (mci != NULL)
 		edac_mc_free(mci);
-	}
 	return rc;
 }
 
 /* returns count (>= 0), or negative on error */
 static int __devinit amd76x_init_one(struct pci_dev *pdev,
-				     const struct pci_device_id *ent)
+		const struct pci_device_id *ent)
 {
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	/* don't need to call pci_device_enable() */
 	return amd76x_probe1(pdev, ent->driver_data);
 }
-
 
 /**
  *	amd76x_remove_one	-	driver shutdown
@@ -304,35 +285,36 @@ static int __devinit amd76x_init_one(struct pci_dev *pdev,
  *	structure for the device then delete the mci and free the
  *	resources.
  */
-
 static void __devexit amd76x_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
-	if ((mci = edac_mc_find_mci_by_pdev(pdev)) == NULL)
+	if ((mci = edac_mc_del_mc(pdev)) == NULL)
 		return;
-	if (edac_mc_del_mc(mci))
-		return;
-	pci_dev_put(mci->pdev);
+
 	edac_mc_free(mci);
 }
 
-
 static const struct pci_device_id amd76x_pci_tbl[] __devinitdata = {
-	{PCI_VEND_DEV(AMD, FE_GATE_700C), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 AMD762},
-	{PCI_VEND_DEV(AMD, FE_GATE_700E), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 AMD761},
-	{0,}			/* 0 terminated list. */
+	{
+		PCI_VEND_DEV(AMD, FE_GATE_700C), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		AMD762
+	},
+	{
+		PCI_VEND_DEV(AMD, FE_GATE_700E), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		AMD761
+	},
+	{
+		0,
+	}	/* 0 terminated list. */
 };
 
 MODULE_DEVICE_TABLE(pci, amd76x_pci_tbl);
 
-
 static struct pci_driver amd76x_driver = {
-	.name = BS_MOD_STR,
+	.name = EDAC_MOD_STR,
 	.probe = amd76x_init_one,
 	.remove = __devexit_p(amd76x_remove_one),
 	.id_table = amd76x_pci_tbl,

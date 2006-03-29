@@ -110,11 +110,6 @@ config SERIAL_TEXT_DEBUG
 	depends on 4xx || LOPEC || MV64X60 || PPLUS || PRPMC800 || \
 		PPC_GEN550 || PPC_MPC52xx
 
-config PPC_OCP
-	bool
-	depends on IBM_OCP || XILINX_OCP
-	default y
-
 choice
 	prompt "Early debugging (dangerous)"
 	bool

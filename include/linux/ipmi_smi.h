@@ -37,6 +37,9 @@
 #include <linux/ipmi_msgdefs.h>
 #include <linux/proc_fs.h>
 #include <linux/module.h>
+#include <linux/device.h>
+#include <linux/platform_device.h>
+#include <linux/ipmi_smi.h>
 
 /* This files describes the interface for IPMI system management interface
    drivers to bind into the IPMI message handler. */
@@ -113,12 +116,52 @@ struct ipmi_smi_handlers
 	void (*dec_usecount)(void *send_info);
 };
 
+struct ipmi_device_id {
+	unsigned char device_id;
+	unsigned char device_revision;
+	unsigned char firmware_revision_1;
+	unsigned char firmware_revision_2;
+	unsigned char ipmi_version;
+	unsigned char additional_device_support;
+	unsigned int  manufacturer_id;
+	unsigned int  product_id;
+	unsigned char aux_firmware_revision[4];
+	unsigned int  aux_firmware_revision_set : 1;
+};
+
+#define ipmi_version_major(v) ((v)->ipmi_version & 0xf)
+#define ipmi_version_minor(v) ((v)->ipmi_version >> 4)
+
+/* Take a pointer to a raw data buffer and a length and extract device
+   id information from it.  The first byte of data must point to the
+   byte from the get device id response after the completion code.
+   The caller is responsible for making sure the length is at least
+   11 and the command completed without error. */
+static inline void ipmi_demangle_device_id(unsigned char *data,
+					   unsigned int  data_len,
+					   struct ipmi_device_id *id)
+{
+	id->device_id = data[0];
+	id->device_revision = data[1];
+	id->firmware_revision_1 = data[2];
+	id->firmware_revision_2 = data[3];
+	id->ipmi_version = data[4];
+	id->additional_device_support = data[5];
+	id->manufacturer_id = data[6] | (data[7] << 8) | (data[8] << 16);
+	id->product_id = data[9] | (data[10] << 8);
+	if (data_len >= 15) {
+		memcpy(id->aux_firmware_revision, data+11, 4);
+		id->aux_firmware_revision_set = 1;
+	} else
+		id->aux_firmware_revision_set = 0;
+}
+
 /* Add a low-level interface to the IPMI driver.  Note that if the
    interface doesn't know its slave address, it should pass in zero. */
 int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		      void                     *send_info,
-		      unsigned char            version_major,
-		      unsigned char            version_minor,
+		      struct ipmi_device_id    *device_id,
+		      struct device            *dev,
 		      unsigned char            slave_addr,
 		      ipmi_smi_t               *intf);
 

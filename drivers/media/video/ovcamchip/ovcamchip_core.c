@@ -266,17 +266,17 @@ static int ovcamchip_detect(struct i2c_client *c)
 		PDEBUG(3, "Testing for 0V6xx0");
 		c->addr = OV6xx0_SID;
 		if (init_camchip(c) < 0) {
- 			return -ENODEV;
+			return -ENODEV;
 		} else {
 			if (ov6xx0_detect(c) < 0) {
 				PERROR("Failed to init OV6xx0");
- 				return -EIO;
+				return -EIO;
 			}
 		}
 	} else {
 		if (ov7xx0_detect(c) < 0) {
 			PERROR("Failed to init OV7xx0");
- 			return -EIO;
+			return -EIO;
 		}
 	}
 

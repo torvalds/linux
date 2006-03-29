@@ -365,43 +365,6 @@ config SHMEM
 	  option replaces shmem and tmpfs with the much simpler ramfs code,
 	  which may be appropriate on small systems without swap.
 
-config CC_ALIGN_FUNCTIONS
-	int "Function alignment" if EMBEDDED
-	default 0
-	help
-	  Align the start of functions to the next power-of-two greater than n,
-	  skipping up to n bytes.  For instance, 32 aligns functions
-	  to the next 32-byte boundary, but 24 would align to the next
-	  32-byte boundary only if this can be done by skipping 23 bytes or less.
-	  Zero means use compiler's default.
-
-config CC_ALIGN_LABELS
-	int "Label alignment" if EMBEDDED
-	default 0
-	help
-	  Align all branch targets to a power-of-two boundary, skipping
-	  up to n bytes like ALIGN_FUNCTIONS.  This option can easily
-	  make code slower, because it must insert dummy operations for
-	  when the branch target is reached in the usual flow of the code.
-	  Zero means use compiler's default.
-
-config CC_ALIGN_LOOPS
-	int "Loop alignment" if EMBEDDED
-	default 0
-	help
-	  Align loops to a power-of-two boundary, skipping up to n bytes.
-	  Zero means use compiler's default.
-
-config CC_ALIGN_JUMPS
-	int "Jump alignment" if EMBEDDED
-	default 0
-	help
-	  Align branch targets to a power-of-two boundary, for branch
-	  targets where the targets can only be reached by jumping,
-	  skipping up to n bytes like ALIGN_FUNCTIONS.  In this case,
-	  no dummy operations need be executed.
-	  Zero means use compiler's default.
-
 config SLAB
 	default y
 	bool "Use full SLAB allocator" if EMBEDDED
@@ -469,15 +432,6 @@ config MODULE_FORCE_UNLOAD
 	  without waiting for anyone to stop using it (using the -f option to
 	  rmmod).  This is mainly for kernel developers and desperate users.
 	  If unsure, say N.
-
-config OBSOLETE_MODPARM
-	bool
-	default y
-	depends on MODULES
-	help
-	  You need this option to use module parameters on modules which
-	  have not been converted to the new module parameter system yet.
-	  If unsure, say Y.
 
 config MODVERSIONS
 	bool "Module versioning support"

@@ -38,17 +38,16 @@
 #include <asm/ioctls.h>
 
 static atomic_t inotify_cookie;
-static atomic_t inotify_watches;
 
-static kmem_cache_t *watch_cachep;
-static kmem_cache_t *event_cachep;
+static kmem_cache_t *watch_cachep __read_mostly;
+static kmem_cache_t *event_cachep __read_mostly;
 
-static struct vfsmount *inotify_mnt;
+static struct vfsmount *inotify_mnt __read_mostly;
 
 /* these are configurable via /proc/sys/fs/inotify/ */
-int inotify_max_user_instances;
-int inotify_max_user_watches;
-int inotify_max_queued_events;
+int inotify_max_user_instances __read_mostly;
+int inotify_max_user_watches __read_mostly;
+int inotify_max_queued_events __read_mostly;
 
 /*
  * Lock ordering:
@@ -381,6 +380,48 @@ static int find_inode(const char __user *dirname, struct nameidata *nd,
 }
 
 /*
+ * inotify_inode_watched - returns nonzero if there are watches on this inode
+ * and zero otherwise.  We call this lockless, we do not care if we race.
+ */
+static inline int inotify_inode_watched(struct inode *inode)
+{
+	return !list_empty(&inode->inotify_watches);
+}
+
+/*
+ * Get child dentry flag into synch with parent inode.
+ * Flag should always be clear for negative dentrys.
+ */
+static void set_dentry_child_flags(struct inode *inode, int watched)
+{
+	struct dentry *alias;
+
+	spin_lock(&dcache_lock);
+	list_for_each_entry(alias, &inode->i_dentry, d_alias) {
+		struct dentry *child;
+
+		list_for_each_entry(child, &alias->d_subdirs, d_u.d_child) {
+			if (!child->d_inode) {
+				WARN_ON(child->d_flags & DCACHE_INOTIFY_PARENT_WATCHED);
+				continue;
+			}
+			spin_lock(&child->d_lock);
+			if (watched) {
+				WARN_ON(child->d_flags &
+						DCACHE_INOTIFY_PARENT_WATCHED);
+				child->d_flags |= DCACHE_INOTIFY_PARENT_WATCHED;
+			} else {
+				WARN_ON(!(child->d_flags &
+					DCACHE_INOTIFY_PARENT_WATCHED));
+				child->d_flags&=~DCACHE_INOTIFY_PARENT_WATCHED;
+			}
+			spin_unlock(&child->d_lock);
+		}
+	}
+	spin_unlock(&dcache_lock);
+}
+
+/*
  * create_watch - creates a watch on the given device.
  *
  * Callers must hold dev->mutex.  Calls inotify_dev_get_wd() so may sleep.
@@ -426,7 +467,6 @@ static struct inotify_watch *create_watch(struct inotify_device *dev,
 	get_inotify_watch(watch);
 
 	atomic_inc(&dev->user->inotify_watches);
-	atomic_inc(&inotify_watches);
 
 	return watch;
 }
@@ -458,8 +498,10 @@ static void remove_watch_no_event(struct inotify_watch *watch,
 	list_del(&watch->i_list);
 	list_del(&watch->d_list);
 
+	if (!inotify_inode_watched(watch->inode))
+		set_dentry_child_flags(watch->inode, 0);
+
 	atomic_dec(&dev->user->inotify_watches);
-	atomic_dec(&inotify_watches);
 	idr_remove(&dev->idr, watch->wd);
 	put_inotify_watch(watch);
 }
@@ -481,16 +523,39 @@ static void remove_watch(struct inotify_watch *watch,struct inotify_device *dev)
 	remove_watch_no_event(watch, dev);
 }
 
+/* Kernel API */
+
 /*
- * inotify_inode_watched - returns nonzero if there are watches on this inode
- * and zero otherwise.  We call this lockless, we do not care if we race.
+ * inotify_d_instantiate - instantiate dcache entry for inode
  */
-static inline int inotify_inode_watched(struct inode *inode)
+void inotify_d_instantiate(struct dentry *entry, struct inode *inode)
 {
-	return !list_empty(&inode->inotify_watches);
+	struct dentry *parent;
+
+	if (!inode)
+		return;
+
+	WARN_ON(entry->d_flags & DCACHE_INOTIFY_PARENT_WATCHED);
+	spin_lock(&entry->d_lock);
+	parent = entry->d_parent;
+	if (inotify_inode_watched(parent->d_inode))
+		entry->d_flags |= DCACHE_INOTIFY_PARENT_WATCHED;
+	spin_unlock(&entry->d_lock);
 }
 
-/* Kernel API */
+/*
+ * inotify_d_move - dcache entry has been moved
+ */
+void inotify_d_move(struct dentry *entry)
+{
+	struct dentry *parent;
+
+	parent = entry->d_parent;
+	if (inotify_inode_watched(parent->d_inode))
+		entry->d_flags |= DCACHE_INOTIFY_PARENT_WATCHED;
+	else
+		entry->d_flags &= ~DCACHE_INOTIFY_PARENT_WATCHED;
+}
 
 /**
  * inotify_inode_queue_event - queue an event to all watches on this inode
@@ -538,7 +603,7 @@ void inotify_dentry_parent_queue_event(struct dentry *dentry, u32 mask,
 	struct dentry *parent;
 	struct inode *inode;
 
-	if (!atomic_read (&inotify_watches))
+	if (!(dentry->d_flags & DCACHE_INOTIFY_PARENT_WATCHED))
 		return;
 
 	spin_lock(&dentry->d_lock);
@@ -855,7 +920,7 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static struct file_operations inotify_fops = {
+static const struct file_operations inotify_fops = {
 	.poll           = inotify_poll,
 	.read           = inotify_read,
 	.release        = inotify_release,
@@ -993,6 +1058,9 @@ asmlinkage long sys_inotify_add_watch(int fd, const char __user *path, u32 mask)
 		goto out;
 	}
 
+	if (!inotify_inode_watched(inode))
+		set_dentry_child_flags(inode, 1);
+
 	/* Add the watch to the device's and the inode's list */
 	list_add(&watch->d_list, &dev->watches);
 	list_add(&watch->i_list, &inode->inotify_watches);
@@ -1065,7 +1133,6 @@ static int __init inotify_setup(void)
 	inotify_max_user_watches = 8192;
 
 	atomic_set(&inotify_cookie, 0);
-	atomic_set(&inotify_watches, 0);
 
 	watch_cachep = kmem_cache_create("inotify_watch_cache",
 					 sizeof(struct inotify_watch),

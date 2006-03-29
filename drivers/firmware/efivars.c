@@ -568,20 +568,20 @@ systab_read(struct subsystem *entry, char *buf)
 	if (!entry || !buf)
 		return -EINVAL;
 
-	if (efi.mps)
-		str += sprintf(str, "MPS=0x%lx\n", __pa(efi.mps));
-	if (efi.acpi20)
-		str += sprintf(str, "ACPI20=0x%lx\n", __pa(efi.acpi20));
-	if (efi.acpi)
-		str += sprintf(str, "ACPI=0x%lx\n", __pa(efi.acpi));
-	if (efi.smbios)
-		str += sprintf(str, "SMBIOS=0x%lx\n", __pa(efi.smbios));
-	if (efi.hcdp)
-		str += sprintf(str, "HCDP=0x%lx\n", __pa(efi.hcdp));
-	if (efi.boot_info)
-		str += sprintf(str, "BOOTINFO=0x%lx\n", __pa(efi.boot_info));
-	if (efi.uga)
-		str += sprintf(str, "UGA=0x%lx\n", __pa(efi.uga));
+	if (efi.mps != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "MPS=0x%lx\n", efi.mps);
+	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "ACPI20=0x%lx\n", efi.acpi20);
+	if (efi.acpi != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "ACPI=0x%lx\n", efi.acpi);
+	if (efi.smbios != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "SMBIOS=0x%lx\n", efi.smbios);
+	if (efi.hcdp != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "HCDP=0x%lx\n", efi.hcdp);
+	if (efi.boot_info != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "BOOTINFO=0x%lx\n", efi.boot_info);
+	if (efi.uga != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "UGA=0x%lx\n", efi.uga);
 
 	return str - buf;
 }

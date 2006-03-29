@@ -112,15 +112,15 @@ static struct ipt_target redirect_reg = {
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_redirect_init(void)
 {
 	return ipt_register_target(&redirect_reg);
 }
 
-static void __exit fini(void)
+static void __exit ipt_redirect_fini(void)
 {
 	ipt_unregister_target(&redirect_reg);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_redirect_init);
+module_exit(ipt_redirect_fini);

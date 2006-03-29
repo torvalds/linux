@@ -296,7 +296,7 @@ done:
 
 #ifdef CONFIG_PPC_PMAC
 		/* Disable ASIC clocks for USB */
-		if (_machine == _MACH_Pmac) {
+		if (machine_is(powermac)) {
 			struct device_node	*of_node;
 
 			of_node = pci_device_to_OF_node (dev);
@@ -331,7 +331,7 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 
 #ifdef CONFIG_PPC_PMAC
 	/* Reenable ASIC clocks for USB */
-	if (_machine == _MACH_Pmac) {
+	if (machine_is(powermac)) {
 		struct device_node *of_node;
 
 		of_node = pci_device_to_OF_node (dev);

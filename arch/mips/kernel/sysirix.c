@@ -645,27 +645,7 @@ static inline void getitimer_real(struct itimerval *value)
 
 asmlinkage unsigned int irix_alarm(unsigned int seconds)
 {
-	struct itimerval it_new, it_old;
-	unsigned int oldalarm;
-
-	if (!seconds) {
-		getitimer_real(&it_old);
-		del_timer(&current->real_timer);
-	} else {
-		it_new.it_interval.tv_sec = it_new.it_interval.tv_usec = 0;
-		it_new.it_value.tv_sec = seconds;
-		it_new.it_value.tv_usec = 0;
-		do_setitimer(ITIMER_REAL, &it_new, &it_old);
-	}
-	oldalarm = it_old.it_value.tv_sec;
-	/*
-	 * ehhh.. We can't return 0 if we have an alarm pending ...
-	 * And we'd better return too much than too little anyway
-	 */
-	if (it_old.it_value.tv_usec)
-		oldalarm++;
-
-	return oldalarm;
+	return alarm_setitimer(seconds);
 }
 
 asmlinkage int irix_pause(void)

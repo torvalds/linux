@@ -3126,9 +3126,9 @@ parport_pc_find_isa_ports (int autoirq, int autodma)
  * autoirq is PARPORT_IRQ_NONE, PARPORT_IRQ_AUTO, or PARPORT_IRQ_PROBEONLY
  * autodma is PARPORT_DMA_NONE or PARPORT_DMA_AUTO
  */
-static int __init parport_pc_find_ports (int autoirq, int autodma)
+static void __init parport_pc_find_ports (int autoirq, int autodma)
 {
-	int count = 0, r;
+	int count = 0, err;
 
 #ifdef CONFIG_PARPORT_PC_SUPERIO
 	detect_and_report_winbond ();
@@ -3140,23 +3140,17 @@ static int __init parport_pc_find_ports (int autoirq, int autodma)
 
 	/* PnP ports, skip detection if SuperIO already found them */
 	if (!count) {
-		r = pnp_register_driver (&parport_pc_pnp_driver);
-		if (r >= 0) {
+		err = pnp_register_driver (&parport_pc_pnp_driver);
+		if (!err)
 			pnp_registered_parport = 1;
-			count += r;
-		}
 	}
 
 	/* ISA ports and whatever (see asm/parport.h). */
-	count += parport_pc_find_nonpci_ports (autoirq, autodma);
+	parport_pc_find_nonpci_ports (autoirq, autodma);
 
-	r = pci_register_driver (&parport_pc_pci_driver);
-	if (r)
-		return r;
-	pci_registered_parport = 1;
-	count += 1;
-
-	return count;
+	err = pci_register_driver (&parport_pc_pci_driver);
+	if (!err)
+		pci_registered_parport = 1;
 }
 
 /*
@@ -3381,8 +3375,6 @@ __setup("parport_init_mode=",parport_init_mode_setup);
 
 static int __init parport_pc_init(void)
 {
-	int count = 0;
-
 	if (parse_parport_params())
 		return -EINVAL;
 
@@ -3395,12 +3387,11 @@ static int __init parport_pc_init(void)
 				break;
 			if ((io_hi[i]) == PARPORT_IOHI_AUTO)
 			       io_hi[i] = 0x400 + io[i];
-			if (parport_pc_probe_port(io[i], io_hi[i],
-						  irqval[i], dmaval[i], NULL))
-				count++;
+			parport_pc_probe_port(io[i], io_hi[i],
+						  irqval[i], dmaval[i], NULL);
 		}
 	} else
-		count += parport_pc_find_ports (irqval[0], dmaval[0]);
+		parport_pc_find_ports (irqval[0], dmaval[0]);
 
 	return 0;
 }

@@ -3,7 +3,6 @@
 #define _IEEE1394_CORE_H
 
 #include <linux/slab.h>
-#include <linux/devfs_fs_kernel.h>
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
 #include "hosts.h"
@@ -202,14 +201,12 @@ void hpsb_packet_received(struct hpsb_host *host, quadlet_t *data, size_t size,
 #define IEEE1394_MINOR_BLOCK_RAW1394	   0
 #define IEEE1394_MINOR_BLOCK_VIDEO1394	   1
 #define IEEE1394_MINOR_BLOCK_DV1394	   2
-#define IEEE1394_MINOR_BLOCK_AMDTP	   3
 #define IEEE1394_MINOR_BLOCK_EXPERIMENTAL 15
 
 #define IEEE1394_CORE_DEV	  MKDEV(IEEE1394_MAJOR, 0)
 #define IEEE1394_RAW1394_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16)
 #define IEEE1394_VIDEO1394_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_VIDEO1394 * 16)
 #define IEEE1394_DV1394_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16)
-#define IEEE1394_AMDTP_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_AMDTP * 16)
 #define IEEE1394_EXPERIMENTAL_DEV MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_EXPERIMENTAL * 16)
 
 /* return the index (within a minor number block) of a file */

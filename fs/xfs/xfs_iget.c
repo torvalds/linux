@@ -509,7 +509,7 @@ retry:
 		} else {
 			/*
 			 * If the inode is not fully constructed due to
-			 * filehandle mistmatches wait for the inode to go
+			 * filehandle mismatches wait for the inode to go
 			 * away and try again.
 			 *
 			 * iget_locked will call __wait_on_freeing_inode

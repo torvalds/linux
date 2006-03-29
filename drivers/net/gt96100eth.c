@@ -114,8 +114,8 @@ static int max_interrupt_work = 32;
 
 static char mac0[18] = "00.02.03.04.05.06";
 static char mac1[18] = "00.01.02.03.04.05";
-MODULE_PARM(mac0, "c18");
-MODULE_PARM(mac1, "c18");
+module_param_string(mac0, mac0, 18, 0);
+module_param_string(mac1, mac0, 18, 0);
 MODULE_PARM_DESC(mac0, "MAC address for GT96100 ethernet port 0");
 MODULE_PARM_DESC(mac1, "MAC address for GT96100 ethernet port 1");
 

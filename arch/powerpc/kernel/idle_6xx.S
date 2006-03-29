@@ -87,19 +87,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 	cmpwi	0,r3,0
 	beqlr
 
-	/* Clear MSR:EE */
-	mfmsr	r7
-	rlwinm	r0,r7,0,17,15
-	mtmsr	r0
-
-	/* Check current_thread_info()->flags */
-	rlwinm	r4,r1,0,0,18
-	lwz	r4,TI_FLAGS(r4)
-	andi.	r0,r4,_TIF_NEED_RESCHED
-	beq	1f
-	mtmsr	r7	/* out of line this ? */
-	blr
-1:	
 	/* Some pre-nap cleanups needed on some CPUs */
 	andis.	r0,r3,HID0_NAP@h
 	beq	2f
@@ -157,7 +144,8 @@ BEGIN_FTR_SECTION
 	DSSALL
 	sync
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-	ori	r7,r7,MSR_EE /* Could be ommited (already set) */
+	mfmsr	r7
+	ori	r7,r7,MSR_EE
 	oris	r7,r7,MSR_POW@h
 	sync
 	isync
@@ -220,8 +208,6 @@ _GLOBAL(nap_save_msscr0)
 _GLOBAL(nap_save_hid1)
 	.space	4*NR_CPUS
 
-_GLOBAL(powersave_nap)
-	.long	0
 _GLOBAL(powersave_lowspeed)
 	.long	0
 

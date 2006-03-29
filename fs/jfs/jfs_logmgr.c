@@ -69,6 +69,7 @@
 #include <linux/bio.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
@@ -165,7 +166,7 @@ do {						\
  */
 static LIST_HEAD(jfs_external_logs);
 static struct jfs_log *dummy_log = NULL;
-static DECLARE_MUTEX(jfs_log_sem);
+static DEFINE_MUTEX(jfs_log_mutex);
 
 /*
  * forward references
@@ -1085,20 +1086,20 @@ int lmLogOpen(struct super_block *sb)
 	if (sbi->mntflag & JFS_INLINELOG)
 		return open_inline_log(sb);
 
-	down(&jfs_log_sem);
+	mutex_lock(&jfs_log_mutex);
 	list_for_each_entry(log, &jfs_external_logs, journal_list) {
 		if (log->bdev->bd_dev == sbi->logdev) {
 			if (memcmp(log->uuid, sbi->loguuid,
 				   sizeof(log->uuid))) {
 				jfs_warn("wrong uuid on JFS journal\n");
-				up(&jfs_log_sem);
+				mutex_unlock(&jfs_log_mutex);
 				return -EINVAL;
 			}
 			/*
 			 * add file system to log active file system list
 			 */
 			if ((rc = lmLogFileSystem(log, sbi, 1))) {
-				up(&jfs_log_sem);
+				mutex_unlock(&jfs_log_mutex);
 				return rc;
 			}
 			goto journal_found;
@@ -1106,7 +1107,7 @@ int lmLogOpen(struct super_block *sb)
 	}
 
 	if (!(log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL))) {
-		up(&jfs_log_sem);
+		mutex_unlock(&jfs_log_mutex);
 		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&log->sb_list);
@@ -1151,7 +1152,7 @@ journal_found:
 	sbi->log = log;
 	LOG_UNLOCK(log);
 
-	up(&jfs_log_sem);
+	mutex_unlock(&jfs_log_mutex);
 	return 0;
 
 	/*
@@ -1168,7 +1169,7 @@ journal_found:
 	blkdev_put(bdev);
 
       free:		/* free log descriptor */
-	up(&jfs_log_sem);
+	mutex_unlock(&jfs_log_mutex);
 	kfree(log);
 
 	jfs_warn("lmLogOpen: exit(%d)", rc);
@@ -1212,11 +1213,11 @@ static int open_dummy_log(struct super_block *sb)
 {
 	int rc;
 
-	down(&jfs_log_sem);
+	mutex_lock(&jfs_log_mutex);
 	if (!dummy_log) {
 		dummy_log = kzalloc(sizeof(struct jfs_log), GFP_KERNEL);
 		if (!dummy_log) {
-			up(&jfs_log_sem);
+			mutex_unlock(&jfs_log_mutex);
 			return -ENOMEM;
 		}
 		INIT_LIST_HEAD(&dummy_log->sb_list);
@@ -1229,7 +1230,7 @@ static int open_dummy_log(struct super_block *sb)
 		if (rc) {
 			kfree(dummy_log);
 			dummy_log = NULL;
-			up(&jfs_log_sem);
+			mutex_unlock(&jfs_log_mutex);
 			return rc;
 		}
 	}
@@ -1238,7 +1239,7 @@ static int open_dummy_log(struct super_block *sb)
 	list_add(&JFS_SBI(sb)->log_list, &dummy_log->sb_list);
 	JFS_SBI(sb)->log = dummy_log;
 	LOG_UNLOCK(dummy_log);
-	up(&jfs_log_sem);
+	mutex_unlock(&jfs_log_mutex);
 
 	return 0;
 }
@@ -1466,7 +1467,7 @@ int lmLogClose(struct super_block *sb)
 
 	jfs_info("lmLogClose: log:0x%p", log);
 
-	down(&jfs_log_sem);
+	mutex_lock(&jfs_log_mutex);
 	LOG_LOCK(log);
 	list_del(&sbi->log_list);
 	LOG_UNLOCK(log);
@@ -1516,7 +1517,7 @@ int lmLogClose(struct super_block *sb)
 	kfree(log);
 
       out:
-	up(&jfs_log_sem);
+	mutex_unlock(&jfs_log_mutex);
 	jfs_info("lmLogClose: exit(%d)", rc);
 	return rc;
 }

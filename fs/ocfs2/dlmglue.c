@@ -231,9 +231,9 @@ static void ocfs2_build_lock_name(enum ocfs2_lock_type type,
 
 	BUG_ON(type >= OCFS2_NUM_LOCK_TYPES);
 
-	len = snprintf(name, OCFS2_LOCK_ID_MAX_LEN, "%c%s%016"MLFx64"%08x",
-		       ocfs2_lock_type_char(type), OCFS2_LOCK_ID_PAD, blkno,
-		       generation);
+	len = snprintf(name, OCFS2_LOCK_ID_MAX_LEN, "%c%s%016llx%08x",
+		       ocfs2_lock_type_char(type), OCFS2_LOCK_ID_PAD,
+		       (long long)blkno, generation);
 
 	BUG_ON(len != (OCFS2_LOCK_ID_MAX_LEN - 1));
 
@@ -533,8 +533,8 @@ static void ocfs2_inode_ast_func(void *opaque)
 
 	inode = ocfs2_lock_res_inode(lockres);
 
-	mlog(0, "AST fired for inode %"MLFu64", l_action = %u, type = %s\n",
-	     OCFS2_I(inode)->ip_blkno, lockres->l_action,
+	mlog(0, "AST fired for inode %llu, l_action = %u, type = %s\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno, lockres->l_action,
 	     ocfs2_lock_type_string(lockres->l_type));
 
 	BUG_ON(!ocfs2_is_inode_lock(lockres));
@@ -544,8 +544,8 @@ static void ocfs2_inode_ast_func(void *opaque)
 	lksb = &(lockres->l_lksb);
 	if (lksb->status != DLM_NORMAL) {
 		mlog(ML_ERROR, "ocfs2_inode_ast_func: lksb status value of %u "
-		     "on inode %"MLFu64"\n", lksb->status,
-		     OCFS2_I(inode)->ip_blkno);
+		     "on inode %llu\n", lksb->status,
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 		spin_unlock_irqrestore(&lockres->l_lock, flags);
 		mlog_exit_void();
 		return;
@@ -646,10 +646,9 @@ static void ocfs2_inode_bast_func(void *opaque, int level)
 	inode = ocfs2_lock_res_inode(lockres);
 	osb = OCFS2_SB(inode->i_sb);
 
-	mlog(0, "BAST fired for inode %"MLFu64", blocking = %d, level = %d "
-	     "type = %s\n", OCFS2_I(inode)->ip_blkno, level,
-	     lockres->l_level,
-	     ocfs2_lock_type_string(lockres->l_type));
+	mlog(0, "BAST fired for inode %llu, blocking %d, level %d type %s\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno, level,
+	     lockres->l_level, ocfs2_lock_type_string(lockres->l_type));
 
 	ocfs2_generic_bast_func(osb, lockres, level);
 
@@ -1104,7 +1103,7 @@ int ocfs2_create_new_inode_locks(struct inode *inode)
 
 	mlog_entry_void();
 
-	mlog(0, "Inode %"MLFu64"\n", OCFS2_I(inode)->ip_blkno);
+	mlog(0, "Inode %llu\n", (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 	/* NOTE: That we don't increment any of the holder counts, nor
 	 * do we add anything to a journal handle. Since this is
@@ -1149,8 +1148,8 @@ int ocfs2_rw_lock(struct inode *inode, int write)
 
 	mlog_entry_void();
 
-	mlog(0, "inode %"MLFu64" take %s RW lock\n",
-	     OCFS2_I(inode)->ip_blkno,
+	mlog(0, "inode %llu take %s RW lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
 
 	lockres = &OCFS2_I(inode)->ip_rw_lockres;
@@ -1173,8 +1172,8 @@ void ocfs2_rw_unlock(struct inode *inode, int write)
 
 	mlog_entry_void();
 
-	mlog(0, "inode %"MLFu64" drop %s RW lock\n",
-	     OCFS2_I(inode)->ip_blkno,
+	mlog(0, "inode %llu drop %s RW lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
 
 	ocfs2_cluster_unlock(OCFS2_SB(inode->i_sb), lockres, level);
@@ -1193,8 +1192,8 @@ int ocfs2_data_lock_full(struct inode *inode,
 
 	mlog_entry_void();
 
-	mlog(0, "inode %"MLFu64" take %s DATA lock\n",
-	     OCFS2_I(inode)->ip_blkno,
+	mlog(0, "inode %llu take %s DATA lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
 
 	/* We'll allow faking a readonly data lock for
@@ -1278,8 +1277,8 @@ void ocfs2_data_unlock(struct inode *inode,
 
 	mlog_entry_void();
 
-	mlog(0, "inode %"MLFu64" drop %s DATA lock\n",
-	     OCFS2_I(inode)->ip_blkno,
+	mlog(0, "inode %llu drop %s DATA lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
 
 	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)))
@@ -1462,9 +1461,9 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 
 	spin_lock(&oi->ip_lock);
 	if (oi->ip_flags & OCFS2_INODE_DELETED) {
-		mlog(0, "Orphaned inode %"MLFu64" was deleted while we "
+		mlog(0, "Orphaned inode %llu was deleted while we "
 		     "were waiting on a lock. ip_flags = 0x%x\n",
-		     oi->ip_blkno, oi->ip_flags);
+		     (unsigned long long)oi->ip_blkno, oi->ip_flags);
 		spin_unlock(&oi->ip_lock);
 		status = -ENOENT;
 		goto bail;
@@ -1485,8 +1484,8 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 	ocfs2_extent_map_trunc(inode, 0);
 
 	if (ocfs2_meta_lvb_is_trustable(lockres)) {
-		mlog(0, "Trusting LVB on inode %"MLFu64"\n",
-		     oi->ip_blkno);
+		mlog(0, "Trusting LVB on inode %llu\n",
+		     (unsigned long long)oi->ip_blkno);
 		ocfs2_refresh_inode_from_lvb(inode);
 	} else {
 		/* Boo, we have to go to disk. */
@@ -1514,15 +1513,16 @@ static int ocfs2_meta_lock_update(struct inode *inode,
 		}
 		mlog_bug_on_msg(inode->i_generation !=
 				le32_to_cpu(fe->i_generation),
-				"Invalid dinode %"MLFu64" disk generation: %u "
+				"Invalid dinode %llu disk generation: %u "
 				"inode->i_generation: %u\n",
-				oi->ip_blkno, le32_to_cpu(fe->i_generation),
+				(unsigned long long)oi->ip_blkno,
+				le32_to_cpu(fe->i_generation),
 				inode->i_generation);
 		mlog_bug_on_msg(le64_to_cpu(fe->i_dtime) ||
 				!(fe->i_flags & cpu_to_le32(OCFS2_VALID_FL)),
-				"Stale dinode %"MLFu64" dtime: %"MLFu64" "
-				"flags: 0x%x\n", oi->ip_blkno,
-				le64_to_cpu(fe->i_dtime),
+				"Stale dinode %llu dtime: %llu flags: 0x%x\n",
+				(unsigned long long)oi->ip_blkno,
+				(unsigned long long)le64_to_cpu(fe->i_dtime),
 				le32_to_cpu(fe->i_flags));
 
 		ocfs2_refresh_inode(inode, fe);
@@ -1581,8 +1581,8 @@ int ocfs2_meta_lock_full(struct inode *inode,
 
 	mlog_entry_void();
 
-	mlog(0, "inode %"MLFu64", take %s META lock\n",
-	     OCFS2_I(inode)->ip_blkno,
+	mlog(0, "inode %llu, take %s META lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     ex ? "EXMODE" : "PRMODE");
 
 	status = 0;
@@ -1716,8 +1716,8 @@ void ocfs2_meta_unlock(struct inode *inode,
 
 	mlog_entry_void();
 
-	mlog(0, "inode %"MLFu64" drop %s META lock\n",
-	     OCFS2_I(inode)->ip_blkno,
+	mlog(0, "inode %llu drop %s META lock\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     ex ? "EXMODE" : "PRMODE");
 
 	if (!ocfs2_is_hard_readonly(OCFS2_SB(inode->i_sb)))
@@ -2017,7 +2017,7 @@ out:
 	return ret;
 }
 
-static struct file_operations ocfs2_dlm_debug_fops = {
+static const struct file_operations ocfs2_dlm_debug_fops = {
 	.open =		ocfs2_dlm_debug_open,
 	.release =	ocfs2_dlm_debug_release,
 	.read =		seq_read,
@@ -2686,8 +2686,8 @@ static void ocfs2_data_convert_worker(struct ocfs2_lock_res *lockres,
 	mapping = inode->i_mapping;
 
 	if (filemap_fdatawrite(mapping)) {
-		mlog(ML_ERROR, "Could not sync inode %"MLFu64" for downconvert!",
-		     OCFS2_I(inode)->ip_blkno);
+		mlog(ML_ERROR, "Could not sync inode %llu for downconvert!",
+		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 	}
 	sync_mapping_buffers(mapping);
 	if (blocking == LKM_EXMODE) {
@@ -2717,7 +2717,8 @@ int ocfs2_unblock_data(struct ocfs2_lock_res *lockres,
 	inode = ocfs2_lock_res_inode(lockres);
 	osb = OCFS2_SB(inode->i_sb);
 
-	mlog(0, "unblock inode %"MLFu64"\n", OCFS2_I(inode)->ip_blkno);
+	mlog(0, "unblock inode %llu\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 	status = ocfs2_generic_unblock_lock(osb,
 					    lockres,
@@ -2726,8 +2727,8 @@ int ocfs2_unblock_data(struct ocfs2_lock_res *lockres,
 	if (status < 0)
 		mlog_errno(status);
 
-	mlog(0, "inode %"MLFu64", requeue = %d\n",
-	     OCFS2_I(inode)->ip_blkno, *requeue);
+	mlog(0, "inode %llu, requeue = %d\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno, *requeue);
 
 	mlog_exit(status);
 	return status;
@@ -2767,14 +2768,15 @@ int ocfs2_unblock_meta(struct ocfs2_lock_res *lockres,
 
        	inode = ocfs2_lock_res_inode(lockres);
 
-	mlog(0, "unblock inode %"MLFu64"\n", OCFS2_I(inode)->ip_blkno);
+	mlog(0, "unblock inode %llu\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
 	status = ocfs2_do_unblock_meta(inode, requeue);
 	if (status < 0)
 		mlog_errno(status);
 
-	mlog(0, "inode %"MLFu64", requeue = %d\n",
-	     OCFS2_I(inode)->ip_blkno, *requeue);
+	mlog(0, "inode %llu, requeue = %d\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno, *requeue);
 
 	mlog_exit(status);
 	return status;
@@ -2893,12 +2895,13 @@ void ocfs2_dump_meta_lvb_info(u64 level,
 	     lockres->l_name, function, line);
 	mlog(level, "version: %u, clusters: %u\n",
 	     be32_to_cpu(lvb->lvb_version), be32_to_cpu(lvb->lvb_iclusters));
-	mlog(level, "size: %"MLFu64", uid %u, gid %u, mode 0x%x\n",
-	     be64_to_cpu(lvb->lvb_isize), be32_to_cpu(lvb->lvb_iuid),
-	     be32_to_cpu(lvb->lvb_igid), be16_to_cpu(lvb->lvb_imode));
-	mlog(level, "nlink %u, atime_packed 0x%"MLFx64", "
-	     "ctime_packed 0x%"MLFx64", mtime_packed 0x%"MLFx64"\n",
-	     be16_to_cpu(lvb->lvb_inlink), be64_to_cpu(lvb->lvb_iatime_packed),
-	     be64_to_cpu(lvb->lvb_ictime_packed),
-	     be64_to_cpu(lvb->lvb_imtime_packed));
+	mlog(level, "size: %llu, uid %u, gid %u, mode 0x%x\n",
+	     (unsigned long long)be64_to_cpu(lvb->lvb_isize),
+	     be32_to_cpu(lvb->lvb_iuid), be32_to_cpu(lvb->lvb_igid),
+	     be16_to_cpu(lvb->lvb_imode));
+	mlog(level, "nlink %u, atime_packed 0x%llx, ctime_packed 0x%llx, "
+	     "mtime_packed 0x%llx\n", be16_to_cpu(lvb->lvb_inlink),
+	     (long long)be64_to_cpu(lvb->lvb_iatime_packed),
+	     (long long)be64_to_cpu(lvb->lvb_ictime_packed),
+	     (long long)be64_to_cpu(lvb->lvb_imtime_packed));
 }

@@ -204,10 +204,14 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 	p = &desc->action;
 	if ((old = *p) != NULL) {
 		/* Can't share interrupts unless both agree to */
-		if (!(old->flags & new->flags & SA_SHIRQ)) {
-			spin_unlock_irqrestore(&desc->lock,flags);
-			return -EBUSY;
-		}
+		if (!(old->flags & new->flags & SA_SHIRQ))
+			goto mismatch;
+
+#if defined(ARCH_HAS_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
+		/* All handlers must agree on per-cpuness */
+		if ((old->flags & IRQ_PER_CPU) != (new->flags & IRQ_PER_CPU))
+			goto mismatch;
+#endif
 
 		/* add new interrupt at end of irq queue */
 		do {
@@ -218,7 +222,10 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 	}
 
 	*p = new;
-
+#if defined(ARCH_HAS_IRQ_PER_CPU) && defined(SA_PERCPU_IRQ)
+	if (new->flags & SA_PERCPU_IRQ)
+		desc->status |= IRQ_PER_CPU;
+#endif
 	if (!shared) {
 		desc->depth = 0;
 		desc->status &= ~(IRQ_DISABLED | IRQ_AUTODETECT |
@@ -236,6 +243,12 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 	register_handler_proc(irq, new);
 
 	return 0;
+
+mismatch:
+	spin_unlock_irqrestore(&desc->lock, flags);
+	printk(KERN_ERR "%s: irq handler mismatch\n", __FUNCTION__);
+	dump_stack();
+	return -EBUSY;
 }
 
 /**
@@ -258,6 +271,7 @@ void free_irq(unsigned int irq, void *dev_id)
 	struct irqaction **p;
 	unsigned long flags;
 
+	WARN_ON(in_interrupt());
 	if (irq >= NR_IRQS)
 		return;
 

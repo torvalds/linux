@@ -31,3 +31,11 @@ config ARM_ETHERH
 	help
 	  If you have an Acorn system with one of these network cards, you
 	  should say Y to this option if you wish to use it with Linux.
+
+config ARM_AT91_ETHER
+	tristate "AT91RM9200 Ethernet support"
+	depends on NET_ETHERNET && ARM && ARCH_AT91RM9200
+	select MII
+	help
+	  If you wish to compile a kernel for the AT91RM9200 and enable
+	  ethernet support, then you should always answer Y to this.

@@ -113,8 +113,7 @@ void hugetlb_free_pgd_range(struct mmu_gather **tlb,
 			unsigned long floor, unsigned long ceiling)
 {
 	/*
-	 * This is called only when is_hugepage_only_range(addr,),
-	 * and it follows that is_hugepage_only_range(end,) also.
+	 * This is called to free hugetlb page tables.
 	 *
 	 * The offset of these addresses from the base of the hugetlb
 	 * region must be scaled down by HPAGE_SIZE/PAGE_SIZE so that
@@ -126,9 +125,9 @@ void hugetlb_free_pgd_range(struct mmu_gather **tlb,
 
 	addr = htlbpage_to_page(addr);
 	end  = htlbpage_to_page(end);
-	if (is_hugepage_only_range(tlb->mm, floor, HPAGE_SIZE))
+	if (REGION_NUMBER(floor) == RGN_HPAGE)
 		floor = htlbpage_to_page(floor);
-	if (is_hugepage_only_range(tlb->mm, ceiling, HPAGE_SIZE))
+	if (REGION_NUMBER(ceiling) == RGN_HPAGE)
 		ceiling = htlbpage_to_page(ceiling);
 
 	free_pgd_range(tlb, addr, end, floor, ceiling);
