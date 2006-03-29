@@ -146,8 +146,7 @@ static kmem_cache_t *sigqueue_cachep;
 #define sig_kernel_stop(sig) \
 		(((sig) < SIGRTMIN)  && T(sig, SIG_KERNEL_STOP_MASK))
 
-#define sig_needs_tasklist(sig) \
-		(((sig) < SIGRTMIN)  && T(sig, SIG_KERNEL_STOP_MASK | M(SIGCONT)))
+#define sig_needs_tasklist(sig)	((sig) == SIGCONT)
 
 #define sig_user_defined(t, signr) \
 	(((t)->sighand->action[(signr)-1].sa.sa_handler != SIG_DFL) &&	\
