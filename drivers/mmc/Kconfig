@@ -60,6 +60,17 @@ config MMC_SDHCI
 
 	  If unsure, say N.
 
+config MMC_OMAP
+	tristate "TI OMAP Multimedia Card Interface support"
+	depends on ARCH_OMAP && MMC
+	select TPS65010 if MACH_OMAP_H2
+	help
+	  This selects the TI OMAP Multimedia card Interface.
+	  If you have an OMAP board with a Multimedia Card slot,
+	  say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_WBSD
 	tristate "Winbond W83L51xD SD/MMC Card Interface support"
 	depends on MMC && ISA_DMA_API
