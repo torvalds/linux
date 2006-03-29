@@ -204,7 +204,7 @@ static int dccp_feat_reconcile(struct sock *sk, struct dccp_opt_pend *opt,
 	if (rc) {
 		kfree(opt->dccpop_sc->dccpoc_val);
 		kfree(opt->dccpop_sc);
-		opt->dccpop_sc = 0;
+		opt->dccpop_sc = NULL;
 		return rc;
 	}
 
@@ -322,7 +322,7 @@ static void dccp_feat_empty_confirm(struct dccp_minisock *dmsk,
 	opt->dccpop_type = type == DCCPO_CHANGE_L ? DCCPO_CONFIRM_R :
 						    DCCPO_CONFIRM_L;
 	opt->dccpop_feat = feature;
-	opt->dccpop_val	 = 0;
+	opt->dccpop_val	 = NULL;
 	opt->dccpop_len	 = 0;
 
 	/* change feature */
@@ -523,7 +523,7 @@ int dccp_feat_clone(struct sock *oldsk, struct sock *newsk)
 		 * once...
 		 */
 		/* the master socket no longer needs to worry about confirms */
-		opt->dccpop_sc = 0; /* it's not a memleak---new socket has it */
+		opt->dccpop_sc = NULL; /* it's not a memleak---new socket has it */
 
 		/* reset state for a new socket */
 		opt->dccpop_conf = 0;
