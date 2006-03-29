@@ -25,7 +25,7 @@ config VIDEO_CX88_ALSA
 
 	  It only works with boards with function 01 enabled.
 	  To check if your board supports, use lspci -n.
-	  If supported, you should see 1471:8801 or 1471:8811
+	  If supported, you should see 14f1:8801 or 14f1:8811
 	  PCI device.
 
 	  To compile this driver as a module, choose M here: the
