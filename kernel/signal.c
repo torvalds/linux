@@ -1685,8 +1685,7 @@ out:
 static int do_signal_stop(int signr)
 {
 	struct signal_struct *sig = current->signal;
-	struct sighand_struct *sighand = current->sighand;
-	int stop_count = -1;
+	int stop_count;
 
 	if (!likely(sig->flags & SIGNAL_STOP_DEQUEUED))
 		return 0;
@@ -1696,30 +1695,14 @@ static int do_signal_stop(int signr)
 		 * There is a group stop in progress.  We don't need to
 		 * start another one.
 		 */
-		signr = sig->group_exit_code;
 		stop_count = --sig->group_stop_count;
-		current->exit_code = signr;
-		set_current_state(TASK_STOPPED);
-		if (stop_count == 0)
-			sig->flags = SIGNAL_STOP_STOPPED;
-	}
-	else if (thread_group_empty(current)) {
+	} else {
 		/*
-		 * Lock must be held through transition to stopped state.
-		 */
-		current->exit_code = current->signal->group_exit_code = signr;
-		set_current_state(TASK_STOPPED);
-		sig->flags = SIGNAL_STOP_STOPPED;
-	}
-	else {
-		/*
-		 * (sig->group_stop_count == 0)
 		 * There is no group stop already in progress.
 		 * We must initiate one now.
 		 */
 		struct task_struct *t;
 
-		current->exit_code = signr;
 		sig->group_exit_code = signr;
 
 		stop_count = 0;
@@ -1735,13 +1718,14 @@ static int do_signal_stop(int signr)
 				signal_wake_up(t, 0);
 			}
 		sig->group_stop_count = stop_count;
-
-		set_current_state(TASK_STOPPED);
-		if (stop_count == 0)
-			sig->flags = SIGNAL_STOP_STOPPED;
 	}
 
-	spin_unlock_irq(&sighand->siglock);
+	if (stop_count == 0)
+		sig->flags = SIGNAL_STOP_STOPPED;
+	current->exit_code = sig->group_exit_code;
+	__set_current_state(TASK_STOPPED);
+
+	spin_unlock_irq(&current->sighand->siglock);
 	finish_stop(stop_count);
 	return 1;
 }
