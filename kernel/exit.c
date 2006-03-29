@@ -238,10 +238,10 @@ static void reparent_to_init(void)
 
 	ptrace_unlink(current);
 	/* Reparent to init */
-	REMOVE_LINKS(current);
+	remove_parent(current);
 	current->parent = child_reaper;
 	current->real_parent = child_reaper;
-	SET_LINKS(current);
+	add_parent(current);
 
 	/* Set the exit signal to SIGCHLD so we signal init on exit */
 	current->exit_signal = SIGCHLD;
