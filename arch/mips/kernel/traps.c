@@ -987,7 +987,7 @@ int mips_srs_max(void)
 	return shadow_registers.sr_supported;
 }
 
-int mips_srs_alloc (void)
+int mips_srs_alloc(void)
 {
 	struct shadow_registers *sr = &shadow_registers;
 	unsigned long flags;
@@ -1096,7 +1096,7 @@ static void *set_vi_srs_handler(int n, void *addr, int srs)
 
 void *set_vi_handler (int n, void *addr)
 {
-	return set_vi_srs_handler (n, addr, 0);
+	return set_vi_srs_handler(n, addr, 0);
 }
 #endif
 
@@ -1277,7 +1277,7 @@ void __init trap_init(void)
 	if (cpu_has_veic || cpu_has_vint) {
 		int nvec = cpu_has_veic ? 64 : 8;
 		for (i = 0; i < nvec; i++)
-			set_vi_handler (i, NULL);
+			set_vi_handler(i, NULL);
 	}
 	else if (cpu_has_divec)
 		set_handler(0x200, &except_vec4, 0x8);
