@@ -985,7 +985,6 @@ do_group_exit(int exit_code)
 	else if (!thread_group_empty(current)) {
 		struct signal_struct *const sig = current->signal;
 		struct sighand_struct *const sighand = current->sighand;
-		read_lock(&tasklist_lock);
 		spin_lock_irq(&sighand->siglock);
 		if (sig->flags & SIGNAL_GROUP_EXIT)
 			/* Another thread got here before we took the lock.  */
@@ -995,7 +994,6 @@ do_group_exit(int exit_code)
 			zap_other_threads(current);
 		}
 		spin_unlock_irq(&sighand->siglock);
-		read_unlock(&tasklist_lock);
 	}
 
 	do_exit(exit_code);
