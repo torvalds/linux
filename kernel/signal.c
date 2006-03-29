@@ -1657,7 +1657,7 @@ finish_stop(int stop_count)
 	 * a group stop in progress and we are the last to stop,
 	 * report to the parent.  When ptraced, every thread reports itself.
 	 */
-	if (stop_count < 0 || (current->ptrace & PT_PTRACED))
+	if (current->ptrace & PT_PTRACED)
 		to_self = 1;
 	else if (stop_count == 0)
 		to_self = 0;
