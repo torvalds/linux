@@ -218,36 +218,6 @@ task_t *find_task_by_pid_type(int type, int nr)
 EXPORT_SYMBOL(find_task_by_pid_type);
 
 /*
- * This function switches the PIDs if a non-leader thread calls
- * sys_execve() - this must be done without releasing the PID.
- * (which a detach_pid() would eventually do.)
- */
-void switch_exec_pids(task_t *leader, task_t *thread)
-{
-	__detach_pid(leader, PIDTYPE_PID);
-	__detach_pid(leader, PIDTYPE_TGID);
-	__detach_pid(leader, PIDTYPE_PGID);
-	__detach_pid(leader, PIDTYPE_SID);
-
-	__detach_pid(thread, PIDTYPE_PID);
-	__detach_pid(thread, PIDTYPE_TGID);
-
-	leader->pid = leader->tgid = thread->pid;
-	thread->pid = thread->tgid;
-
-	attach_pid(thread, PIDTYPE_PID, thread->pid);
-	attach_pid(thread, PIDTYPE_TGID, thread->tgid);
-	attach_pid(thread, PIDTYPE_PGID, thread->signal->pgrp);
-	attach_pid(thread, PIDTYPE_SID, thread->signal->session);
-	list_add_tail(&thread->tasks, &init_task.tasks);
-
-	attach_pid(leader, PIDTYPE_PID, leader->pid);
-	attach_pid(leader, PIDTYPE_TGID, leader->tgid);
-	attach_pid(leader, PIDTYPE_PGID, leader->signal->pgrp);
-	attach_pid(leader, PIDTYPE_SID, leader->signal->session);
-}
-
-/*
  * The pid hash table is scaled according to the amount of memory in the
  * machine.  From a minimum of 16 slots up to 4096 slots at one gigabyte or
  * more.

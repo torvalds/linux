@@ -708,7 +708,17 @@ static int de_thread(struct task_struct *tsk)
 		remove_parent(current);
 		remove_parent(leader);
 
-		switch_exec_pids(leader, current);
+
+		/* Become a process group leader with the old leader's pid.
+		 * Note: The old leader also uses thispid until release_task
+		 *       is called.  Odd but simple and correct.
+		 */
+		detach_pid(current, PIDTYPE_PID);
+		current->pid = leader->pid;
+		attach_pid(current, PIDTYPE_PID,  current->pid);
+		attach_pid(current, PIDTYPE_PGID, current->signal->pgrp);
+		attach_pid(current, PIDTYPE_SID,  current->signal->session);
+		list_add_tail(&current->tasks, &init_task.tasks);
 
 		current->parent = current->real_parent = leader->real_parent;
 		leader->parent = leader->real_parent = child_reaper;
@@ -722,8 +732,6 @@ static int de_thread(struct task_struct *tsk)
 			__ptrace_link(current, parent);
 		}
 
-		list_del(&current->tasks);
-		list_add_tail(&current->tasks, &init_task.tasks);
 		current->exit_signal = SIGCHLD;
 
 		BUG_ON(leader->exit_state != EXIT_ZOMBIE);
