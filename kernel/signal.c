@@ -341,24 +341,20 @@ void __exit_sighand(struct task_struct *tsk)
  */
 void __exit_signal(struct task_struct *tsk)
 {
-	struct signal_struct * sig = tsk->signal;
-	struct sighand_struct * sighand;
+	struct signal_struct *sig = tsk->signal;
+	struct sighand_struct *sighand;
 
-	if (!sig)
-		BUG();
-	if (!atomic_read(&sig->count))
-		BUG();
+	BUG_ON(!sig);
+	BUG_ON(!atomic_read(&sig->count));
+
 	rcu_read_lock();
 	sighand = rcu_dereference(tsk->sighand);
 	spin_lock(&sighand->siglock);
+
 	posix_cpu_timers_exit(tsk);
-	if (atomic_dec_and_test(&sig->count)) {
+	if (atomic_dec_and_test(&sig->count))
 		posix_cpu_timers_exit_group(tsk);
-		tsk->signal = NULL;
-		__exit_sighand(tsk);
-		spin_unlock(&sighand->siglock);
-		flush_sigqueue(&sig->shared_pending);
-	} else {
+	else {
 		/*
 		 * If there is any task waiting for the group exit
 		 * then notify it:
@@ -369,7 +365,6 @@ void __exit_signal(struct task_struct *tsk)
 		}
 		if (tsk == sig->curr_target)
 			sig->curr_target = next_thread(tsk);
-		tsk->signal = NULL;
 		/*
 		 * Accumulate here the counters for all threads but the
 		 * group leader as they die, so they can be added into
@@ -387,14 +382,18 @@ void __exit_signal(struct task_struct *tsk)
 		sig->nvcsw += tsk->nvcsw;
 		sig->nivcsw += tsk->nivcsw;
 		sig->sched_time += tsk->sched_time;
-		__exit_sighand(tsk);
-		spin_unlock(&sighand->siglock);
-		sig = NULL;	/* Marker for below.  */
+		sig = NULL; /* Marker for below. */
 	}
+
+	tsk->signal = NULL;
+	__exit_sighand(tsk);
+	spin_unlock(&sighand->siglock);
 	rcu_read_unlock();
+
 	clear_tsk_thread_flag(tsk,TIF_SIGPENDING);
 	flush_sigqueue(&tsk->pending);
 	if (sig) {
+		flush_sigqueue(&sig->shared_pending);
 		__cleanup_signal(sig);
 	}
 }
