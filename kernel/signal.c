@@ -22,7 +22,6 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/ptrace.h>
-#include <linux/posix-timers.h>
 #include <linux/signal.h>
 #include <linux/audit.h>
 #include <linux/capability.h>
@@ -295,7 +294,7 @@ static void __sigqueue_free(struct sigqueue *q)
 	kmem_cache_free(sigqueue_cachep, q);
 }
 
-static void flush_sigqueue(struct sigpending *queue)
+void flush_sigqueue(struct sigpending *queue)
 {
 	struct sigqueue *q;
 
@@ -319,68 +318,6 @@ void flush_signals(struct task_struct *t)
 	flush_sigqueue(&t->pending);
 	flush_sigqueue(&t->signal->shared_pending);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
-}
-
-/*
- * This function expects the tasklist_lock write-locked.
- */
-void __exit_signal(struct task_struct *tsk)
-{
-	struct signal_struct *sig = tsk->signal;
-	struct sighand_struct *sighand;
-
-	BUG_ON(!sig);
-	BUG_ON(!atomic_read(&sig->count));
-
-	rcu_read_lock();
-	sighand = rcu_dereference(tsk->sighand);
-	spin_lock(&sighand->siglock);
-
-	posix_cpu_timers_exit(tsk);
-	if (atomic_dec_and_test(&sig->count))
-		posix_cpu_timers_exit_group(tsk);
-	else {
-		/*
-		 * If there is any task waiting for the group exit
-		 * then notify it:
-		 */
-		if (sig->group_exit_task && atomic_read(&sig->count) == sig->notify_count) {
-			wake_up_process(sig->group_exit_task);
-			sig->group_exit_task = NULL;
-		}
-		if (tsk == sig->curr_target)
-			sig->curr_target = next_thread(tsk);
-		/*
-		 * Accumulate here the counters for all threads but the
-		 * group leader as they die, so they can be added into
-		 * the process-wide totals when those are taken.
-		 * The group leader stays around as a zombie as long
-		 * as there are other threads.  When it gets reaped,
-		 * the exit.c code will add its counts into these totals.
-		 * We won't ever get here for the group leader, since it
-		 * will have been the last reference on the signal_struct.
-		 */
-		sig->utime = cputime_add(sig->utime, tsk->utime);
-		sig->stime = cputime_add(sig->stime, tsk->stime);
-		sig->min_flt += tsk->min_flt;
-		sig->maj_flt += tsk->maj_flt;
-		sig->nvcsw += tsk->nvcsw;
-		sig->nivcsw += tsk->nivcsw;
-		sig->sched_time += tsk->sched_time;
-		sig = NULL; /* Marker for below. */
-	}
-
-	tsk->signal = NULL;
-	cleanup_sighand(tsk);
-	spin_unlock(&sighand->siglock);
-	rcu_read_unlock();
-
-	clear_tsk_thread_flag(tsk,TIF_SIGPENDING);
-	flush_sigqueue(&tsk->pending);
-	if (sig) {
-		flush_sigqueue(&sig->shared_pending);
-		__cleanup_signal(sig);
-	}
 }
 
 /*
