@@ -1046,7 +1046,7 @@ static int snd_cs4281_put_volume(struct snd_kcontrol *kcontrol,
 		snd_cs4281_pokeBA0(chip, regL, volL);
 		change = 1;
 	}
-	if (ucontrol->value.integer.value[0] != volL) {
+	if (ucontrol->value.integer.value[1] != volR) {
 		volR = CS_VOL_MASK - (ucontrol->value.integer.value[1] & CS_VOL_MASK);
 		snd_cs4281_pokeBA0(chip, regR, volR);
 		change = 1;
