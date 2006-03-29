@@ -301,7 +301,7 @@ void handle_eeh_events (struct eeh_event *event)
 	}
 	
 	if (frozen_pdn->eeh_freeze_count > EEH_MAX_ALLOWED_FREEZES)
-		goto hard_fail;
+		goto excess_failures;
 
 	/* If the reset state is a '5' and the time to reset is 0 (infinity)
 	 * or is more then 15 seconds, then mark this as a permanent failure.
@@ -356,7 +356,7 @@ void handle_eeh_events (struct eeh_event *event)
 
 	return;
 	
-hard_fail:
+excess_failures:
 	/*
 	 * About 90% of all real-life EEH failures in the field
 	 * are due to poorly seated PCI cards. Only 10% or so are
@@ -367,7 +367,15 @@ hard_fail:
 	   "and has been permanently disabled.  Please try reseating\n"
 	   "this device or replacing it.\n",
 		drv_str, pci_str, frozen_pdn->eeh_freeze_count);
+	goto perm_error;
 
+hard_fail:
+	printk(KERN_ERR
+	   "EEH: Unable to recover from failure of PCI device %s - %s\n"
+	   "Please try reseating this device or replacing it.\n",
+		drv_str, pci_str);
+
+perm_error:
 	eeh_slot_error_detail(frozen_pdn, 2 /* Permanent Error */);
 
 	/* Notify all devices that they're about to go down. */
