@@ -2410,7 +2410,7 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 	 */
 	switch (scsi_status) {
 	case SBP2_SCSI_STATUS_GOOD:
-		SCpnt->result = DID_OK;
+		SCpnt->result = DID_OK << 16;
 		break;
 
 	case SBP2_SCSI_STATUS_BUSY:
@@ -2420,7 +2420,7 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 
 	case SBP2_SCSI_STATUS_CHECK_CONDITION:
 		SBP2_DEBUG("SBP2_SCSI_STATUS_CHECK_CONDITION");
-		SCpnt->result = CHECK_CONDITION << 1;
+		SCpnt->result = CHECK_CONDITION << 1 | DID_OK << 16;
 
 		/*
 		 * Debug stuff
@@ -2454,7 +2454,7 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 	/*
 	 * Take care of any sbp2 response data mucking here (RBC stuff, etc.)
 	 */
-	if (SCpnt->result == DID_OK) {
+	if (SCpnt->result == DID_OK << 16) {
 		sbp2_check_sbp2_response(scsi_id, SCpnt);
 	}
 
@@ -2472,6 +2472,8 @@ static void sbp2scsi_complete_command(struct scsi_id_instance_data *scsi_id,
 	 * If a unit attention occurs, return busy status so it gets
 	 * retried... it could have happened because of a 1394 bus reset
 	 * or hot-plug...
+	 * XXX  DID_BUS_BUSY is actually a bad idea because it will defy
+	 * the scsi layer's retry logic.
 	 */
 #if 0
 	if ((scsi_status == SBP2_SCSI_STATUS_CHECK_CONDITION) &&
