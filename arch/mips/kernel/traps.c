@@ -976,8 +976,6 @@ void mips_srs_init(void)
 #ifdef CONFIG_CPU_MIPSR2_SRS
 	shadow_registers.sr_supported = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
 	printk ("%d MIPSR2 register sets available\n", shadow_registers.sr_supported);
-#else
-	shadow_registers.sr_supported = 1;
 #endif
 	shadow_registers.sr_allocated = 1;	/* Set 0 used by kernel */
 	spin_lock_init(&shadow_registers.sr_lock);
