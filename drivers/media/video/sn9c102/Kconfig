@@ -1,0 +1,11 @@
+config USB_SN9C102
+	tristate "USB SN9C10x PC Camera Controller support"
+	depends on USB && VIDEO_DEV
+	---help---
+	  Say Y here if you want support for cameras based on SONiX SN9C101,
+	  SN9C102 or SN9C103 PC Camera Controllers.
+
+	  See <file:Documentation/usb/sn9c102.txt> for more informations.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sn9c102.
