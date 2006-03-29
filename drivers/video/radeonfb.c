@@ -1596,7 +1596,7 @@ static int radeonfb_blank (int blank, struct fb_info *info)
 		return 0;
 		
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (rinfo->dviDisp_type == MT_LCD && _machine == _MACH_Pmac) {
+	if (rinfo->dviDisp_type == MT_LCD && machine_is(powermac)) {
 		set_backlight_enable(!blank);
 		return 0;
 	}

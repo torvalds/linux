@@ -60,8 +60,8 @@
 #include <asm/amigahw.h>
 #endif
 #ifdef CONFIG_PPC_PREP
-#include <asm/processor.h>
-#define isPReP (_machine == _MACH_prep)
+#include <asm/machdep.h>
+#define isPReP (machine_is(prep))
 #else
 #define isPReP 0
 #endif

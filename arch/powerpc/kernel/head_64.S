@@ -1544,7 +1544,11 @@ _STATIC(__boot_from_prom)
 	mr	r28,r6
 	mr	r27,r7
 
-	/* Align the stack to 16-byte boundary for broken yaboot */
+	/*
+	 * Align the stack to 16-byte boundary
+	 * Depending on the size and layout of the ELF sections in the initial
+	 * boot binary, the stack pointer will be unalignet on PowerMac
+	 */
 	rldicr	r1,r1,0,59
 
 	/* Make sure we are running in 64 bits mode */
@@ -1847,21 +1851,6 @@ _STATIC(start_here_multiplatform)
 	bl	.__save_cpu_setup
 	sync
 
-	/* Setup a valid physical PACA pointer in SPRG3 for early_setup
-	 * note that boot_cpuid can always be 0 nowadays since there is
-	 * nowhere it can be initialized differently before we reach this
-	 * code
-	 */
-	LOAD_REG_IMMEDIATE(r27, boot_cpuid)
-	add	r27,r27,r26
-	lwz	r27,0(r27)
-
-	LOAD_REG_IMMEDIATE(r24, paca) 	/* Get base vaddr of paca array	 */
-	mulli	r13,r27,PACA_SIZE	/* Calculate vaddr of right paca */
-	add	r13,r13,r24		/* for this processor.		 */
-	add	r13,r13,r26		/* convert to physical addr	 */
-	mtspr	SPRN_SPRG3,r13
-	
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/
 
@@ -1929,6 +1918,17 @@ _STATIC(start_here_common)
 
 	/* Not reached */
 	BUG_OPCODE
+
+/* Put the paca pointer into r13 and SPRG3 */
+_GLOBAL(setup_boot_paca)
+	LOAD_REG_IMMEDIATE(r3, boot_cpuid)
+	lwz	r3,0(r3)
+	LOAD_REG_IMMEDIATE(r4, paca) 	/* Get base vaddr of paca array	 */
+	mulli	r3,r3,PACA_SIZE		/* Calculate vaddr of right paca */
+	add	r13,r3,r4		/* for this processor.		 */
+	mtspr	SPRN_SPRG3,r13
+
+	blr
 
 /*
  * We put a few things here that have to be page-aligned.

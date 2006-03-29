@@ -1748,7 +1748,7 @@ static int mesh_host_reset(struct scsi_cmnd *cmd)
 
 static void set_mesh_power(struct mesh_state *ms, int state)
 {
-	if (_machine != _MACH_Pmac)
+	if (!machine_is(powermac))
 		return;
 	if (state) {
 		pmac_call_feature(PMAC_FTR_MESH_ENABLE, macio_get_of_node(ms->mdev), 0, 1);

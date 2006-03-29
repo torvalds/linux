@@ -239,7 +239,7 @@ void stabs_alloc(void)
 	if (cpu_has_feature(CPU_FTR_SLB))
 		return;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		unsigned long newstab;
 
 		if (cpu == 0)

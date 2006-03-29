@@ -56,14 +56,11 @@ struct lppaca lppaca[] = {
  * processors.  The processor VPD array needs one entry per physical
  * processor (not thread).
  */
-#define PACA_INIT_COMMON(number, start, asrr, asrv)			    \
+#define PACA_INIT_COMMON(number)					    \
 	.lppaca_ptr = &lppaca[number],					    \
 	.lock_token = 0x8000,						    \
 	.paca_index = (number),		/* Paca Index */		    \
 	.kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL,		    \
-	.stab_real = (asrr), 		/* Real pointer to segment table */ \
-	.stab_addr = (asrv),		/* Virt pointer to segment table */ \
-	.cpu_start = (start),		/* Processor start */		    \
 	.hw_cpu_id = 0xffff,
 
 #ifdef CONFIG_PPC_ISERIES
@@ -72,30 +69,20 @@ struct lppaca lppaca[] = {
 
 #define PACA_INIT(number)						    \
 {									    \
-	PACA_INIT_COMMON(number, 0, 0, 0)				    \
-	PACA_INIT_ISERIES(number)					    \
-}
-
-#define BOOTCPU_PACA_INIT(number)					    \
-{									    \
-	PACA_INIT_COMMON(number, 1, 0, (u64)&initial_stab)		    \
+	PACA_INIT_COMMON(number)					    \
 	PACA_INIT_ISERIES(number)					    \
 }
 
 #else
 #define PACA_INIT(number)						    \
 {									    \
-	PACA_INIT_COMMON(number, 0, 0, 0)				    \
+	PACA_INIT_COMMON(number)					    \
 }
 
-#define BOOTCPU_PACA_INIT(number)					    \
-{									    \
-	PACA_INIT_COMMON(number, 1, STAB0_PHYS_ADDR, (u64)&initial_stab)    \
-}
 #endif
 
 struct paca_struct paca[] = {
-	BOOTCPU_PACA_INIT(0),
+	PACA_INIT(0),
 #if NR_CPUS > 1
 	PACA_INIT(  1), PACA_INIT(  2), PACA_INIT(  3),
 #if NR_CPUS > 4

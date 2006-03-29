@@ -675,18 +675,20 @@ static void iseries_dedicated_idle(void)
 void __init iSeries_init_IRQ(void) { }
 #endif
 
-static int __init iseries_probe(int platform)
+static int __init iseries_probe(void)
 {
-	if (PLATFORM_ISERIES_LPAR != platform)
+	unsigned long root = of_get_flat_dt_root();
+	if (!of_flat_dt_is_compatible(root, "IBM,iSeries"))
 		return 0;
 
-	ppc64_firmware_features |= FW_FEATURE_ISERIES;
-	ppc64_firmware_features |= FW_FEATURE_LPAR;
+	powerpc_firmware_features |= FW_FEATURE_ISERIES;
+	powerpc_firmware_features |= FW_FEATURE_LPAR;
 
 	return 1;
 }
 
-struct machdep_calls __initdata iseries_md = {
+define_machine(iseries) {
+	.name		= "iSeries",
 	.setup_arch	= iSeries_setup_arch,
 	.show_cpuinfo	= iSeries_show_cpuinfo,
 	.init_IRQ	= iSeries_init_IRQ,
@@ -930,7 +932,6 @@ void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 
 	/* /chosen */
 	dt_start_node(dt, "chosen");
-	dt_prop_u32(dt, "linux,platform", PLATFORM_ISERIES_LPAR);
 	dt_prop_str(dt, "bootargs", cmd_line);
 	if (cmd_mem_limit)
 		dt_prop_u64(dt, "linux,memory-limit", cmd_mem_limit);

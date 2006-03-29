@@ -2951,7 +2951,7 @@ static void *pmac_early_vresume_data;
 
 void pmac_set_early_video_resume(void (*proc)(void *data), void *data)
 {
-	if (_machine != _MACH_Pmac)
+	if (!machine_is(powermac))
 		return;
 	preempt_disable();
 	pmac_early_vresume_proc = proc;

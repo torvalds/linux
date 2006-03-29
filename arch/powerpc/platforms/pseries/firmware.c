@@ -91,7 +91,7 @@ void __init fw_feature_init(void)
 				continue;
 
 			/* we have a match */
-			ppc64_firmware_features |=
+			powerpc_firmware_features |=
 				firmware_features_table[i].val;
 			break;
 		}

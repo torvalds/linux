@@ -261,7 +261,7 @@ void snapshot_timebases(void)
 
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		spin_lock_init(&per_cpu(cpu_purr_data, cpu).lock);
 	on_each_cpu(snapshot_tb_and_purr, NULL, 0, 1);
 }
@@ -751,7 +751,7 @@ void __init smp_space_timers(unsigned int max_cpus)
 	 * systems works better if the two threads' timebase interrupts
 	 * are staggered by half a jiffy with respect to each other.
 	 */
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		if (i == boot_cpuid)
 			continue;
 		if (i == (boot_cpuid ^ 1))

@@ -58,7 +58,7 @@ static struct sysrq_key_op sysrq_xmon_op =
 void
 xmon_map_scc(void)
 {
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#ifdef CONFIG_PPC_PREP
 	volatile unsigned char *base;
 
 #elif defined(CONFIG_GEMINI)

@@ -305,7 +305,7 @@ extern void pmac_feature_init(void);
 extern void pmac_set_early_video_resume(void (*proc)(void *data), void *data);
 extern void pmac_call_early_video_resume(void);
 
-#define PMAC_FTR_DEF(x) ((_MACH_Pmac << 16) | (x))
+#define PMAC_FTR_DEF(x) ((0x6660000) | (x))
 
 /* The AGP driver registers itself here */
 extern void pmac_register_agp_pm(struct pci_dev *bridge,

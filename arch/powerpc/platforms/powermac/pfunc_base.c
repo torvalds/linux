@@ -336,6 +336,8 @@ int __init pmac_pfunc_base_install(void)
 		return 0;
 	pfbase_inited = 1;
 
+	if (!machine_is(powermac))
+		return 0;
 
 	DBG("Installing base platform functions...\n");
 

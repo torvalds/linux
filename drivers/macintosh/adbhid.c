@@ -1206,8 +1206,8 @@ init_ms_a3(int id)
 static int __init adbhid_init(void)
 {
 #ifndef CONFIG_MAC
-	if ( (_machine != _MACH_chrp) && (_machine != _MACH_Pmac) )
-	    return 0;
+	if (!machine_is(chrp) && !machine_is(powermac))
+		return 0;
 #endif
 
 	led_request.complete = 1;

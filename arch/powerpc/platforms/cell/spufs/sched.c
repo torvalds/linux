@@ -180,6 +180,7 @@ static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 	spu->ibox_callback = spufs_ibox_callback;
 	spu->wbox_callback = spufs_wbox_callback;
 	spu->stop_callback = spufs_stop_callback;
+	spu->mfc_callback = spufs_mfc_callback;
 	mb();
 	spu_unmap_mappings(ctx);
 	spu_restore(&ctx->csa, spu);
@@ -197,6 +198,7 @@ static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu->ibox_callback = NULL;
 	spu->wbox_callback = NULL;
 	spu->stop_callback = NULL;
+	spu->mfc_callback = NULL;
 	spu->mm = NULL;
 	spu->pid = 0;
 	spu->prio = MAX_PRIO;

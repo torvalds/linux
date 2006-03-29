@@ -20,6 +20,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#undef DEBUG
+
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 #include <linux/module.h>
@@ -39,8 +41,10 @@ static int
 spufs_mem_open(struct inode *inode, struct file *file)
 {
 	struct spufs_inode_info *i = SPUFS_I(inode);
-	file->private_data = i->i_ctx;
-	file->f_mapping = i->i_ctx->local_store;
+	struct spu_context *ctx = i->i_ctx;
+	file->private_data = ctx;
+	file->f_mapping = inode->i_mapping;
+	ctx->local_store = inode->i_mapping;
 	return 0;
 }
 
@@ -84,7 +88,7 @@ spufs_mem_write(struct file *file, const char __user *buffer,
 	return ret;
 }
 
-#ifdef CONFIG_SPARSEMEM
+#ifdef CONFIG_SPUFS_MMAP
 static struct page *
 spufs_mem_mmap_nopage(struct vm_area_struct *vma,
 		      unsigned long address, int *type)
@@ -136,8 +140,110 @@ static struct file_operations spufs_mem_fops = {
 	.read    = spufs_mem_read,
 	.write   = spufs_mem_write,
 	.llseek  = generic_file_llseek,
-#ifdef CONFIG_SPARSEMEM
+#ifdef CONFIG_SPUFS_MMAP
 	.mmap    = spufs_mem_mmap,
+#endif
+};
+
+#ifdef CONFIG_SPUFS_MMAP
+static struct page *spufs_ps_nopage(struct vm_area_struct *vma,
+				    unsigned long address,
+				    int *type, unsigned long ps_offs)
+{
+	struct page *page = NOPAGE_SIGBUS;
+	int fault_type = VM_FAULT_SIGBUS;
+	struct spu_context *ctx = vma->vm_file->private_data;
+	unsigned long offset = address - vma->vm_start;
+	unsigned long area;
+	int ret;
+
+	offset += vma->vm_pgoff << PAGE_SHIFT;
+	if (offset >= 0x4000)
+		goto out;
+
+	ret = spu_acquire_runnable(ctx);
+	if (ret)
+		goto out;
+
+	area = ctx->spu->problem_phys + ps_offs;
+	page = pfn_to_page((area + offset) >> PAGE_SHIFT);
+	fault_type = VM_FAULT_MINOR;
+	page_cache_get(page);
+
+	spu_release(ctx);
+
+      out:
+	if (type)
+		*type = fault_type;
+
+	return page;
+}
+
+static struct page *spufs_cntl_mmap_nopage(struct vm_area_struct *vma,
+					   unsigned long address, int *type)
+{
+	return spufs_ps_nopage(vma, address, type, 0x4000);
+}
+
+static struct vm_operations_struct spufs_cntl_mmap_vmops = {
+	.nopage = spufs_cntl_mmap_nopage,
+};
+
+/*
+ * mmap support for problem state control area [0x4000 - 0x4fff].
+ * Mapping this area requires that the application have CAP_SYS_RAWIO,
+ * as these registers require special care when read/writing.
+ */
+static int spufs_cntl_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
+
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+				     | _PAGE_NO_CACHE);
+
+	vma->vm_ops = &spufs_cntl_mmap_vmops;
+	return 0;
+}
+#endif
+
+static int spufs_cntl_open(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	file->private_data = ctx;
+	file->f_mapping = inode->i_mapping;
+	ctx->cntl = inode->i_mapping;
+	return 0;
+}
+
+static ssize_t
+spufs_cntl_read(struct file *file, char __user *buffer,
+		size_t size, loff_t *pos)
+{
+	/* FIXME: read from spu status */
+	return -EINVAL;
+}
+
+static ssize_t
+spufs_cntl_write(struct file *file, const char __user *buffer,
+		 size_t size, loff_t *pos)
+{
+	/* FIXME: write to runctl bit */
+	return -EINVAL;
+}
+
+static struct file_operations spufs_cntl_fops = {
+	.open = spufs_cntl_open,
+	.read = spufs_cntl_read,
+	.write = spufs_cntl_write,
+#ifdef CONFIG_SPUFS_MMAP
+	.mmap = spufs_cntl_mmap,
 #endif
 };
 
@@ -501,6 +607,16 @@ static struct file_operations spufs_wbox_stat_fops = {
 	.read	= spufs_wbox_stat_read,
 };
 
+static int spufs_signal1_open(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+	file->private_data = ctx;
+	file->f_mapping = inode->i_mapping;
+	ctx->signal1 = inode->i_mapping;
+	return nonseekable_open(inode, file);
+}
+
 static ssize_t spufs_signal1_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
 {
@@ -541,11 +657,49 @@ static ssize_t spufs_signal1_write(struct file *file, const char __user *buf,
 	return 4;
 }
 
+#ifdef CONFIG_SPUFS_MMAP
+static struct page *spufs_signal1_mmap_nopage(struct vm_area_struct *vma,
+					      unsigned long address, int *type)
+{
+	return spufs_ps_nopage(vma, address, type, 0x14000);
+}
+
+static struct vm_operations_struct spufs_signal1_mmap_vmops = {
+	.nopage = spufs_signal1_mmap_nopage,
+};
+
+static int spufs_signal1_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+				     | _PAGE_NO_CACHE);
+
+	vma->vm_ops = &spufs_signal1_mmap_vmops;
+	return 0;
+}
+#endif
+
 static struct file_operations spufs_signal1_fops = {
-	.open = spufs_pipe_open,
+	.open = spufs_signal1_open,
 	.read = spufs_signal1_read,
 	.write = spufs_signal1_write,
+#ifdef CONFIG_SPUFS_MMAP
+	.mmap = spufs_signal1_mmap,
+#endif
 };
+
+static int spufs_signal2_open(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+	file->private_data = ctx;
+	file->f_mapping = inode->i_mapping;
+	ctx->signal2 = inode->i_mapping;
+	return nonseekable_open(inode, file);
+}
 
 static ssize_t spufs_signal2_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
@@ -589,10 +743,39 @@ static ssize_t spufs_signal2_write(struct file *file, const char __user *buf,
 	return 4;
 }
 
+#ifdef CONFIG_SPUFS_MMAP
+static struct page *spufs_signal2_mmap_nopage(struct vm_area_struct *vma,
+					      unsigned long address, int *type)
+{
+	return spufs_ps_nopage(vma, address, type, 0x1c000);
+}
+
+static struct vm_operations_struct spufs_signal2_mmap_vmops = {
+	.nopage = spufs_signal2_mmap_nopage,
+};
+
+static int spufs_signal2_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	/* FIXME: */
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+				     | _PAGE_NO_CACHE);
+
+	vma->vm_ops = &spufs_signal2_mmap_vmops;
+	return 0;
+}
+#endif
+
 static struct file_operations spufs_signal2_fops = {
-	.open = spufs_pipe_open,
+	.open = spufs_signal2_open,
 	.read = spufs_signal2_read,
 	.write = spufs_signal2_write,
+#ifdef CONFIG_SPUFS_MMAP
+	.mmap = spufs_signal2_mmap,
+#endif
 };
 
 static void spufs_signal1_type_set(void *data, u64 val)
@@ -640,6 +823,332 @@ static u64 spufs_signal2_type_get(void *data)
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_signal2_type, spufs_signal2_type_get,
 					spufs_signal2_type_set, "%llu");
+
+#ifdef CONFIG_SPUFS_MMAP
+static struct page *spufs_mfc_mmap_nopage(struct vm_area_struct *vma,
+					   unsigned long address, int *type)
+{
+	return spufs_ps_nopage(vma, address, type, 0x3000);
+}
+
+static struct vm_operations_struct spufs_mfc_mmap_vmops = {
+	.nopage = spufs_mfc_mmap_nopage,
+};
+
+/*
+ * mmap support for problem state MFC DMA area [0x0000 - 0x0fff].
+ * Mapping this area requires that the application have CAP_SYS_RAWIO,
+ * as these registers require special care when read/writing.
+ */
+static int spufs_mfc_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (!(vma->vm_flags & VM_SHARED))
+		return -EINVAL;
+
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
+
+	vma->vm_flags |= VM_RESERVED;
+	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
+				     | _PAGE_NO_CACHE);
+
+	vma->vm_ops = &spufs_mfc_mmap_vmops;
+	return 0;
+}
+#endif
+
+static int spufs_mfc_open(struct inode *inode, struct file *file)
+{
+	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spu_context *ctx = i->i_ctx;
+
+	/* we don't want to deal with DMA into other processes */
+	if (ctx->owner != current->mm)
+		return -EINVAL;
+
+	if (atomic_read(&inode->i_count) != 1)
+		return -EBUSY;
+
+	file->private_data = ctx;
+	return nonseekable_open(inode, file);
+}
+
+/* interrupt-level mfc callback function. */
+void spufs_mfc_callback(struct spu *spu)
+{
+	struct spu_context *ctx = spu->ctx;
+
+	wake_up_all(&ctx->mfc_wq);
+
+	pr_debug("%s %s\n", __FUNCTION__, spu->name);
+	if (ctx->mfc_fasync) {
+		u32 free_elements, tagstatus;
+		unsigned int mask;
+
+		/* no need for spu_acquire in interrupt context */
+		free_elements = ctx->ops->get_mfc_free_elements(ctx);
+		tagstatus = ctx->ops->read_mfc_tagstatus(ctx);
+
+		mask = 0;
+		if (free_elements & 0xffff)
+			mask |= POLLOUT;
+		if (tagstatus & ctx->tagwait)
+			mask |= POLLIN;
+
+		kill_fasync(&ctx->mfc_fasync, SIGIO, mask);
+	}
+}
+
+static int spufs_read_mfc_tagstatus(struct spu_context *ctx, u32 *status)
+{
+	/* See if there is one tag group is complete */
+	/* FIXME we need locking around tagwait */
+	*status = ctx->ops->read_mfc_tagstatus(ctx) & ctx->tagwait;
+	ctx->tagwait &= ~*status;
+	if (*status)
+		return 1;
+
+	/* enable interrupt waiting for any tag group,
+	   may silently fail if interrupts are already enabled */
+	ctx->ops->set_mfc_query(ctx, ctx->tagwait, 1);
+	return 0;
+}
+
+static ssize_t spufs_mfc_read(struct file *file, char __user *buffer,
+			size_t size, loff_t *pos)
+{
+	struct spu_context *ctx = file->private_data;
+	int ret = -EINVAL;
+	u32 status;
+
+	if (size != 4)
+		goto out;
+
+	spu_acquire(ctx);
+	if (file->f_flags & O_NONBLOCK) {
+		status = ctx->ops->read_mfc_tagstatus(ctx);
+		if (!(status & ctx->tagwait))
+			ret = -EAGAIN;
+		else
+			ctx->tagwait &= ~status;
+	} else {
+		ret = spufs_wait(ctx->mfc_wq,
+			   spufs_read_mfc_tagstatus(ctx, &status));
+	}
+	spu_release(ctx);
+
+	if (ret)
+		goto out;
+
+	ret = 4;
+	if (copy_to_user(buffer, &status, 4))
+		ret = -EFAULT;
+
+out:
+	return ret;
+}
+
+static int spufs_check_valid_dma(struct mfc_dma_command *cmd)
+{
+	pr_debug("queueing DMA %x %lx %x %x %x\n", cmd->lsa,
+		 cmd->ea, cmd->size, cmd->tag, cmd->cmd);
+
+	switch (cmd->cmd) {
+	case MFC_PUT_CMD:
+	case MFC_PUTF_CMD:
+	case MFC_PUTB_CMD:
+	case MFC_GET_CMD:
+	case MFC_GETF_CMD:
+	case MFC_GETB_CMD:
+		break;
+	default:
+		pr_debug("invalid DMA opcode %x\n", cmd->cmd);
+		return -EIO;
+	}
+
+	if ((cmd->lsa & 0xf) != (cmd->ea &0xf)) {
+		pr_debug("invalid DMA alignment, ea %lx lsa %x\n",
+				cmd->ea, cmd->lsa);
+		return -EIO;
+	}
+
+	switch (cmd->size & 0xf) {
+	case 1:
+		break;
+	case 2:
+		if (cmd->lsa & 1)
+			goto error;
+		break;
+	case 4:
+		if (cmd->lsa & 3)
+			goto error;
+		break;
+	case 8:
+		if (cmd->lsa & 7)
+			goto error;
+		break;
+	case 0:
+		if (cmd->lsa & 15)
+			goto error;
+		break;
+	error:
+	default:
+		pr_debug("invalid DMA alignment %x for size %x\n",
+			cmd->lsa & 0xf, cmd->size);
+		return -EIO;
+	}
+
+	if (cmd->size > 16 * 1024) {
+		pr_debug("invalid DMA size %x\n", cmd->size);
+		return -EIO;
+	}
+
+	if (cmd->tag & 0xfff0) {
+		/* we reserve the higher tag numbers for kernel use */
+		pr_debug("invalid DMA tag\n");
+		return -EIO;
+	}
+
+	if (cmd->class) {
+		/* not supported in this version */
+		pr_debug("invalid DMA class\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int spu_send_mfc_command(struct spu_context *ctx,
+				struct mfc_dma_command cmd,
+				int *error)
+{
+	*error = ctx->ops->send_mfc_command(ctx, &cmd);
+	if (*error == -EAGAIN) {
+		/* wait for any tag group to complete
+		   so we have space for the new command */
+		ctx->ops->set_mfc_query(ctx, ctx->tagwait, 1);
+		/* try again, because the queue might be
+		   empty again */
+		*error = ctx->ops->send_mfc_command(ctx, &cmd);
+		if (*error == -EAGAIN)
+			return 0;
+	}
+	return 1;
+}
+
+static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
+			size_t size, loff_t *pos)
+{
+	struct spu_context *ctx = file->private_data;
+	struct mfc_dma_command cmd;
+	int ret = -EINVAL;
+
+	if (size != sizeof cmd)
+		goto out;
+
+	ret = -EFAULT;
+	if (copy_from_user(&cmd, buffer, sizeof cmd))
+		goto out;
+
+	ret = spufs_check_valid_dma(&cmd);
+	if (ret)
+		goto out;
+
+	spu_acquire_runnable(ctx);
+	if (file->f_flags & O_NONBLOCK) {
+		ret = ctx->ops->send_mfc_command(ctx, &cmd);
+	} else {
+		int status;
+		ret = spufs_wait(ctx->mfc_wq,
+				 spu_send_mfc_command(ctx, cmd, &status));
+		if (status)
+			ret = status;
+	}
+	spu_release(ctx);
+
+	if (ret)
+		goto out;
+
+	ctx->tagwait |= 1 << cmd.tag;
+
+out:
+	return ret;
+}
+
+static unsigned int spufs_mfc_poll(struct file *file,poll_table *wait)
+{
+	struct spu_context *ctx = file->private_data;
+	u32 free_elements, tagstatus;
+	unsigned int mask;
+
+	spu_acquire(ctx);
+	ctx->ops->set_mfc_query(ctx, ctx->tagwait, 2);
+	free_elements = ctx->ops->get_mfc_free_elements(ctx);
+	tagstatus = ctx->ops->read_mfc_tagstatus(ctx);
+	spu_release(ctx);
+
+	poll_wait(file, &ctx->mfc_wq, wait);
+
+	mask = 0;
+	if (free_elements & 0xffff)
+		mask |= POLLOUT | POLLWRNORM;
+	if (tagstatus & ctx->tagwait)
+		mask |= POLLIN | POLLRDNORM;
+
+	pr_debug("%s: free %d tagstatus %d tagwait %d\n", __FUNCTION__,
+		free_elements, tagstatus, ctx->tagwait);
+
+	return mask;
+}
+
+static int spufs_mfc_flush(struct file *file)
+{
+	struct spu_context *ctx = file->private_data;
+	int ret;
+
+	spu_acquire(ctx);
+#if 0
+/* this currently hangs */
+	ret = spufs_wait(ctx->mfc_wq,
+			 ctx->ops->set_mfc_query(ctx, ctx->tagwait, 2));
+	if (ret)
+		goto out;
+	ret = spufs_wait(ctx->mfc_wq,
+			 ctx->ops->read_mfc_tagstatus(ctx) == ctx->tagwait);
+out:
+#else
+	ret = 0;
+#endif
+	spu_release(ctx);
+
+	return ret;
+}
+
+static int spufs_mfc_fsync(struct file *file, struct dentry *dentry,
+			   int datasync)
+{
+	return spufs_mfc_flush(file);
+}
+
+static int spufs_mfc_fasync(int fd, struct file *file, int on)
+{
+	struct spu_context *ctx = file->private_data;
+
+	return fasync_helper(fd, file, on, &ctx->mfc_fasync);
+}
+
+static struct file_operations spufs_mfc_fops = {
+	.open	 = spufs_mfc_open,
+	.read	 = spufs_mfc_read,
+	.write	 = spufs_mfc_write,
+	.poll	 = spufs_mfc_poll,
+	.flush	 = spufs_mfc_flush,
+	.fsync	 = spufs_mfc_fsync,
+	.fasync	 = spufs_mfc_fasync,
+#ifdef CONFIG_SPUFS_MMAP
+	.mmap	 = spufs_mfc_mmap,
+#endif
+};
 
 static void spufs_npc_set(void *data, u64 val)
 {
@@ -783,6 +1292,8 @@ struct tree_descr spufs_dir_contents[] = {
 	{ "signal2", &spufs_signal2_fops, 0666, },
 	{ "signal1_type", &spufs_signal1_type, 0666, },
 	{ "signal2_type", &spufs_signal2_type, 0666, },
+	{ "mfc", &spufs_mfc_fops, 0666, },
+	{ "cntl", &spufs_cntl_fops,  0666, },
 	{ "npc", &spufs_npc_ops, 0666, },
 	{ "fpcr", &spufs_fpcr_fops, 0666, },
 	{ "decr", &spufs_decr_ops, 0666, },

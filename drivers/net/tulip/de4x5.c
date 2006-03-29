@@ -4160,7 +4160,7 @@ get_hw_addr(struct net_device *dev)
     ** If the address starts with 00 a0, we have to bit-reverse
     ** each byte of the address.
     */
-    if ( (_machine & _MACH_Pmac) &&
+    if ( machine_is(powermac) &&
 	 (dev->dev_addr[0] == 0) &&
 	 (dev->dev_addr[1] == 0xa0) )
     {

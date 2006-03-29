@@ -135,10 +135,10 @@ transfer_to_handler:
 	mfspr	r11,SPRN_HID0
 	mtcr	r11
 BEGIN_FTR_SECTION
-	bt-	8,power_save_6xx_restore	/* Check DOZE */
+	bt-	8,4f			/* Check DOZE */
 END_FTR_SECTION_IFSET(CPU_FTR_CAN_DOZE)
 BEGIN_FTR_SECTION
-	bt-	9,power_save_6xx_restore	/* Check NAP */
+	bt-	9,4f			/* Check NAP */
 END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 #endif /* CONFIG_6xx */
 	.globl transfer_to_handler_cont
@@ -156,6 +156,10 @@ transfer_to_handler_cont:
 	mtlr	r9
 	SYNC
 	RFI				/* jump to handler, enable MMU */
+
+#ifdef CONFIG_6xx
+4:	b	power_save_6xx_restore
+#endif
 
 /*
  * On kernel stack overflow, load up an initial stack pointer
@@ -926,55 +930,3 @@ END_FTR_SECTION_IFSET(CPU_FTR_601)
 	b	4b
 
 	.comm	ee_restarts,4
-
-/*
- * PROM code for specific machines follows.  Put it
- * here so it's easy to add arch-specific sections later.
- * -- Cort
- */
-#ifdef CONFIG_PPC_OF
-/*
- * On CHRP, the Run-Time Abstraction Services (RTAS) have to be
- * called with the MMU off.
- */
-_GLOBAL(enter_rtas)
-	stwu	r1,-INT_FRAME_SIZE(r1)
-	mflr	r0
-	stw	r0,INT_FRAME_SIZE+4(r1)
-	lis	r4,rtas_data@ha
-	lwz	r4,rtas_data@l(r4)
-	lis	r6,1f@ha	/* physical return address for rtas */
-	addi	r6,r6,1f@l
-	tophys(r6,r6)
-	tophys(r7,r1)
-	lis	r8,rtas_entry@ha
-	lwz	r8,rtas_entry@l(r8)
-	mfmsr	r9
-	stw	r9,8(r1)
-	LOAD_MSR_KERNEL(r0,MSR_KERNEL)
-	SYNC			/* disable interrupts so SRR0/1 */
-	MTMSRD(r0)		/* don't get trashed */
-	li	r9,MSR_KERNEL & ~(MSR_IR|MSR_DR)
-	mtlr	r6
-	CLR_TOP32(r7)
-	mtspr	SPRN_SPRG2,r7
-	mtspr	SPRN_SRR0,r8
-	mtspr	SPRN_SRR1,r9
-	RFI
-1:	tophys(r9,r1)
-	lwz	r8,INT_FRAME_SIZE+4(r9)	/* get return address */
-	lwz	r9,8(r9)	/* original msr value */
-	FIX_SRR1(r9,r0)
-	addi	r1,r1,INT_FRAME_SIZE
-	li	r0,0
-	mtspr	SPRN_SPRG2,r0
-	mtspr	SPRN_SRR0,r8
-	mtspr	SPRN_SRR1,r9
-	RFI			/* return to caller */
-
-	.globl	machine_check_in_rtas
-machine_check_in_rtas:
-	twi	31,0,0
-	/* XXX load up BATs and panic */
-
-#endif /* CONFIG_PPC_OF */

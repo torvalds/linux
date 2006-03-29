@@ -78,6 +78,7 @@ int global_phb_number;		/* Global phb counter */
 
 /* Cached ISA bridge dev. */
 struct pci_dev *ppc64_isabridge_dev = NULL;
+EXPORT_SYMBOL_GPL(ppc64_isabridge_dev);
 
 static void fixup_broken_pcnet32(struct pci_dev* dev)
 {

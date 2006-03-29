@@ -241,7 +241,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		inode->i_gid = dir->i_gid;
 		inode->i_mode &= S_ISGID;
 	}
-	ctx = alloc_spu_context(inode->i_mapping);
+	ctx = alloc_spu_context();
 	SPUFS_I(inode)->i_ctx = ctx;
 	if (!ctx)
 		goto out_iput;
@@ -442,7 +442,7 @@ static struct file_system_type spufs_type = {
 	.kill_sb = kill_litter_super,
 };
 
-static int spufs_init(void)
+static int __init spufs_init(void)
 {
 	int ret;
 	ret = -ENOMEM;
@@ -472,7 +472,7 @@ out:
 }
 module_init(spufs_init);
 
-static void spufs_exit(void)
+static void __exit spufs_exit(void)
 {
 	spu_sched_exit();
 	unregister_spu_syscalls(&spufs_calls);

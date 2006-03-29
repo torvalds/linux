@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 
+#include <asm/machdep.h>
 #include <asm/vdso_datapage.h>
 #include <asm/rtas.h>
 #include <asm/uaccess.h>
@@ -51,7 +52,7 @@ static int __init proc_ppc64_create(void)
 	if (!root)
 		return 1;
 
-	if (!(platform_is_pseries() || _machine == PLATFORM_CELL))
+	if (!machine_is(pseries) && !machine_is(cell))
 		return 0;
 
 	if (!proc_mkdir("rtas", root))

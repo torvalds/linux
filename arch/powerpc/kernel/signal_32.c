@@ -42,6 +42,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
+#include <asm/syscalls.h>
 #include <asm/sigcontext.h>
 #include <asm/vdso.h>
 #ifdef CONFIG_PPC64
