@@ -23,3 +23,7 @@ obj-$(CONFIG_MMC_AU1X)		+= au1xmmc.o
 obj-$(CONFIG_MMC_OMAP)		+= omap.o
 
 mmc_core-y := mmc.o mmc_queue.o mmc_sysfs.o
+
+ifeq ($(CONFIG_MMC_DEBUG),y)
+EXTRA_CFLAGS += -DDEBUG
+endif

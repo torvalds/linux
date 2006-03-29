@@ -27,12 +27,6 @@
 
 #include "mmc.h"
 
-#ifdef CONFIG_MMC_DEBUG
-#define DBG(x...)	printk(KERN_DEBUG x)
-#else
-#define DBG(x...)	do { } while (0)
-#endif
-
 #define CMD_RETRIES	3
 
 /*
@@ -77,8 +71,9 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 {
 	struct mmc_command *cmd = mrq->cmd;
 	int err = mrq->cmd->error;
-	DBG("MMC: req done (%02x): %d: %08x %08x %08x %08x\n", cmd->opcode,
-	    err, cmd->resp[0], cmd->resp[1], cmd->resp[2], cmd->resp[3]);
+	pr_debug("MMC: req done (%02x): %d: %08x %08x %08x %08x\n",
+		 cmd->opcode, err, cmd->resp[0], cmd->resp[1],
+		 cmd->resp[2], cmd->resp[3]);
 
 	if (err && cmd->retries) {
 		cmd->retries--;
@@ -102,8 +97,8 @@ EXPORT_SYMBOL(mmc_request_done);
 void
 mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 {
-	DBG("MMC: starting cmd %02x arg %08x flags %08x\n",
-	    mrq->cmd->opcode, mrq->cmd->arg, mrq->cmd->flags);
+	pr_debug("MMC: starting cmd %02x arg %08x flags %08x\n",
+		 mrq->cmd->opcode, mrq->cmd->arg, mrq->cmd->flags);
 
 	WARN_ON(host->card_busy == NULL);
 
@@ -976,8 +971,8 @@ static unsigned int mmc_calculate_clock(struct mmc_host *host)
 		if (!mmc_card_dead(card) && max_dtr > card->csd.max_dtr)
 			max_dtr = card->csd.max_dtr;
 
-	DBG("MMC: selected %d.%03dMHz transfer rate\n",
-	    max_dtr / 1000000, (max_dtr / 1000) % 1000);
+	pr_debug("MMC: selected %d.%03dMHz transfer rate\n",
+		 max_dtr / 1000000, (max_dtr / 1000) % 1000);
 
 	return max_dtr;
 }

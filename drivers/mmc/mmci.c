@@ -33,12 +33,8 @@
 
 #define DRIVER_NAME "mmci-pl18x"
 
-#ifdef CONFIG_MMC_DEBUG
 #define DBG(host,fmt,args...)	\
 	pr_debug("%s: %s: " fmt, mmc_hostname(host->mmc), __func__ , args)
-#else
-#define DBG(host,fmt,args...)	do { } while (0)
-#endif
 
 static unsigned int fmax = 515633;
 

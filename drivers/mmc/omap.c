@@ -12,11 +12,6 @@
  */
 
 #include <linux/config.h>
-
-#ifdef CONFIG_MMC_DEBUG
-#define DEBUG	/* for dev_dbg(), pr_debug(), etc */
-#endif
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
