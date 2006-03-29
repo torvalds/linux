@@ -299,10 +299,7 @@ int ixpdev_init(int __nds_count, struct net_device **__nds,
 	int i;
 	int err;
 
-	if (RX_BUF_COUNT > 192 || TX_BUF_COUNT > 192) {
-		static void __too_many_rx_or_tx_buffers(void);
-		__too_many_rx_or_tx_buffers();
-	}
+	BUILD_BUG_ON(RX_BUF_COUNT > 192 || TX_BUF_COUNT > 192);
 
 	printk(KERN_INFO "IXP2000 MSF ethernet driver %s\n", DRV_MODULE_VERSION);
 
