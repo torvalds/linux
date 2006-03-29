@@ -185,9 +185,11 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 
 	return (void __iomem *) (offset + (char *)addr);
 }
+EXPORT_SYMBOL(__ioremap);
 
 void iounmap(void __iomem *addr)
 {
 	if (addr > high_memory)
 		return vfree((void *) (PAGE_MASK & (unsigned long __force) addr));
 }
+EXPORT_SYMBOL(iounmap);
