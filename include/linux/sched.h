@@ -1225,6 +1225,15 @@ static inline void task_unlock(struct task_struct *p)
 	spin_unlock(&p->alloc_lock);
 }
 
+extern struct sighand_struct *lock_task_sighand(struct task_struct *tsk,
+							unsigned long *flags);
+
+static inline void unlock_task_sighand(struct task_struct *tsk,
+						unsigned long *flags)
+{
+	spin_unlock_irqrestore(&tsk->sighand->siglock, *flags);
+}
+
 #ifndef __HAVE_THREAD_FUNCTIONS
 
 #define task_thread_info(task) (task)->thread_info

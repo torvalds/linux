@@ -1120,27 +1120,37 @@ void zap_other_threads(struct task_struct *p)
 /*
  * Must be called under rcu_read_lock() or with tasklist_lock read-held.
  */
+struct sighand_struct *lock_task_sighand(struct task_struct *tsk, unsigned long *flags)
+{
+	struct sighand_struct *sighand;
+
+	for (;;) {
+		sighand = rcu_dereference(tsk->sighand);
+		if (unlikely(sighand == NULL))
+			break;
+
+		spin_lock_irqsave(&sighand->siglock, *flags);
+		if (likely(sighand == tsk->sighand))
+			break;
+		spin_unlock_irqrestore(&sighand->siglock, *flags);
+	}
+
+	return sighand;
+}
+
 int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 {
 	unsigned long flags;
-	struct sighand_struct *sp;
 	int ret;
 
-retry:
 	ret = check_kill_permission(sig, info, p);
-	if (!ret && sig && (sp = rcu_dereference(p->sighand))) {
-		spin_lock_irqsave(&sp->siglock, flags);
-		if (p->sighand != sp) {
-			spin_unlock_irqrestore(&sp->siglock, flags);
-			goto retry;
+
+	if (!ret && sig) {
+		ret = -ESRCH;
+		if (lock_task_sighand(p, &flags)) {
+			ret = __group_send_sig_info(sig, info, p);
+			unlock_task_sighand(p, &flags);
 		}
-		if ((atomic_read(&sp->count) == 0) ||
-				(atomic_read(&p->usage) == 0)) {
-			spin_unlock_irqrestore(&sp->siglock, flags);
-			return -ESRCH;
-		}
-		ret = __group_send_sig_info(sig, info, p);
-		spin_unlock_irqrestore(&sp->siglock, flags);
 	}
 
 	return ret;
