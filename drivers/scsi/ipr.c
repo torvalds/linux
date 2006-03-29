@@ -3281,6 +3281,44 @@ static int ipr_eh_host_reset(struct scsi_cmnd * cmd)
 }
 
 /**
+ * ipr_device_reset - Reset the device
+ * @ioa_cfg:	ioa config struct
+ * @res:		resource entry struct
+ *
+ * This function issues a device reset to the affected device.
+ * If the device is a SCSI device, a LUN reset will be sent
+ * to the device first. If that does not work, a target reset
+ * will be sent.
+ *
+ * Return value:
+ *	0 on success / non-zero on failure
+ **/
+static int ipr_device_reset(struct ipr_ioa_cfg *ioa_cfg,
+			    struct ipr_resource_entry *res)
+{
+	struct ipr_cmnd *ipr_cmd;
+	struct ipr_ioarcb *ioarcb;
+	struct ipr_cmd_pkt *cmd_pkt;
+	u32 ioasc;
+
+	ENTER;
+	ipr_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
+	ioarcb = &ipr_cmd->ioarcb;
+	cmd_pkt = &ioarcb->cmd_pkt;
+
+	ioarcb->res_handle = res->cfgte.res_handle;
+	cmd_pkt->request_type = IPR_RQTYPE_IOACMD;
+	cmd_pkt->cdb[0] = IPR_RESET_DEVICE;
+
+	ipr_send_blocking_cmd(ipr_cmd, ipr_timeout, IPR_DEVICE_RESET_TIMEOUT);
+	ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
+	list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
+
+	LEAVE;
+	return (IPR_IOASC_SENSE_KEY(ioasc) ? -EIO : 0);
+}
+
+/**
  * ipr_eh_dev_reset - Reset the device
  * @scsi_cmd:	scsi command struct
  *
@@ -3296,8 +3334,7 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 	struct ipr_cmnd *ipr_cmd;
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct ipr_resource_entry *res;
-	struct ipr_cmd_pkt *cmd_pkt;
-	u32 ioasc;
+	int rc;
 
 	ENTER;
 	ioa_cfg = (struct ipr_ioa_cfg *) scsi_cmd->device->host->hostdata;
@@ -3324,25 +3361,12 @@ static int __ipr_eh_dev_reset(struct scsi_cmnd * scsi_cmd)
 	}
 
 	res->resetting_device = 1;
-
-	ipr_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
-
-	ipr_cmd->ioarcb.res_handle = res->cfgte.res_handle;
-	cmd_pkt = &ipr_cmd->ioarcb.cmd_pkt;
-	cmd_pkt->request_type = IPR_RQTYPE_IOACMD;
-	cmd_pkt->cdb[0] = IPR_RESET_DEVICE;
-
 	scmd_printk(KERN_ERR, scsi_cmd, "Resetting device\n");
-	ipr_send_blocking_cmd(ipr_cmd, ipr_timeout, IPR_DEVICE_RESET_TIMEOUT);
-
-	ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
-
+	rc = ipr_device_reset(ioa_cfg, res);
 	res->resetting_device = 0;
 
-	list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
-
 	LEAVE;
-	return (IPR_IOASC_SENSE_KEY(ioasc) ? FAILED : SUCCESS);
+	return (rc ? FAILED : SUCCESS);
 }
 
 static int ipr_eh_dev_reset(struct scsi_cmnd * cmd)
