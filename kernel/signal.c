@@ -395,21 +395,8 @@ void __exit_signal(struct task_struct *tsk)
 	clear_tsk_thread_flag(tsk,TIF_SIGPENDING);
 	flush_sigqueue(&tsk->pending);
 	if (sig) {
-		/*
-		 * We are cleaning up the signal_struct here.
-		 */
-		exit_thread_group_keys(sig);
-		kmem_cache_free(signal_cachep, sig);
+		__cleanup_signal(sig);
 	}
-}
-
-void exit_signal(struct task_struct *tsk)
-{
-	atomic_dec(&tsk->signal->live);
-
-	write_lock_irq(&tasklist_lock);
-	__exit_signal(tsk);
-	write_unlock_irq(&tasklist_lock);
 }
 
 /*

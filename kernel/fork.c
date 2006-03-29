@@ -84,7 +84,7 @@ static kmem_cache_t *task_struct_cachep;
 #endif
 
 /* SLAB cache for signal_struct structures (tsk->signal) */
-kmem_cache_t *signal_cachep;
+static kmem_cache_t *signal_cachep;
 
 /* SLAB cache for sighand_struct structures (tsk->sighand) */
 kmem_cache_t *sighand_cachep;
@@ -872,6 +872,22 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 	return 0;
 }
 
+void __cleanup_signal(struct signal_struct *sig)
+{
+	exit_thread_group_keys(sig);
+	kmem_cache_free(signal_cachep, sig);
+}
+
+static inline void cleanup_signal(struct task_struct *tsk)
+{
+	struct signal_struct *sig = tsk->signal;
+
+	atomic_dec(&sig->live);
+
+	if (atomic_dec_and_test(&sig->count))
+		__cleanup_signal(sig);
+}
+
 static inline void copy_flags(unsigned long clone_flags, struct task_struct *p)
 {
 	unsigned long new_flags = p->flags;
@@ -1206,10 +1222,9 @@ bad_fork_cleanup_mm:
 	if (p->mm)
 		mmput(p->mm);
 bad_fork_cleanup_signal:
-	exit_signal(p);
+	cleanup_signal(p);
 bad_fork_cleanup_sighand:
-	if (p->sighand)
-		__exit_sighand(p);
+	__exit_sighand(p);
 bad_fork_cleanup_fs:
 	exit_fs(p); /* blocking */
 bad_fork_cleanup_files:
