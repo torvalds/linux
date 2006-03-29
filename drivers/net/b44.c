@@ -2033,6 +2033,11 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 
 	pci_save_state(bp->pdev);
 
+	/* Chip reset provides power to the b44 MAC & PCI cores, which 
+	 * is necessary for MAC register access.
+	 */ 
+	b44_chip_reset(bp);
+
 	printk(KERN_INFO "%s: Broadcom 4400 10/100BaseT Ethernet ", dev->name);
 	for (i = 0; i < 6; i++)
 		printk("%2.2x%c", dev->dev_addr[i],
