@@ -1990,7 +1990,7 @@ relock:
 			continue;
 
 		/* Init gets no signals it doesn't want.  */
-		if (current->pid == 1)
+		if (current == child_reaper)
 			continue;
 
 		if (sig_kernel_stop(signr)) {

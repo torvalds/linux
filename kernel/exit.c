@@ -807,7 +807,7 @@ fastcall NORET_TYPE void do_exit(long code)
 		panic("Aiee, killing interrupt handler!");
 	if (unlikely(!tsk->pid))
 		panic("Attempted to kill the idle task!");
-	if (unlikely(tsk->pid == 1))
+	if (unlikely(tsk == child_reaper))
 		panic("Attempted to kill init!");
 
 	if (unlikely(current->ptrace & PT_TRACE_EXIT)) {

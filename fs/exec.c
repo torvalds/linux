@@ -660,12 +660,23 @@ static int de_thread(struct task_struct *tsk)
 		struct dentry *proc_dentry1, *proc_dentry2;
 		unsigned long ptrace;
 
+		leader = current->group_leader;
+		/*
+		 * If our leader is the child_reaper become
+		 * the child_reaper and resend SIGKILL signal.
+		 */
+		if (unlikely(leader == child_reaper)) {
+			write_lock(&tasklist_lock);
+			child_reaper = current;
+			zap_other_threads(current);
+			write_unlock(&tasklist_lock);
+		}
+
 		/*
 		 * Wait for the thread group leader to be a zombie.
 		 * It should already be zombie at this point, most
 		 * of the time.
 		 */
-		leader = current->group_leader;
 		while (leader->exit_state != EXIT_ZOMBIE)
 			yield();
 
