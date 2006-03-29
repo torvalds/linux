@@ -268,12 +268,25 @@ static void user_dlm_unblock_lock(void *opaque)
 
 	spin_lock(&lockres->l_lock);
 
-	BUG_ON(!(lockres->l_flags & USER_LOCK_BLOCKED));
-	BUG_ON(!(lockres->l_flags & USER_LOCK_QUEUED));
+	mlog_bug_on_msg(!(lockres->l_flags & USER_LOCK_QUEUED),
+			"Lockres %s, flags 0x%x\n",
+			lockres->l_name, lockres->l_flags);
 
-	/* notice that we don't clear USER_LOCK_BLOCKED here. That's
-	 * for user_ast to do. */
+	/* notice that we don't clear USER_LOCK_BLOCKED here. If it's
+	 * set, we want user_ast clear it. */
 	lockres->l_flags &= ~USER_LOCK_QUEUED;
+
+	/* It's valid to get here and no longer be blocked - if we get
+	 * several basts in a row, we might be queued by the first
+	 * one, the unblock thread might run and clear the queued
+	 * flag, and finally we might get another bast which re-queues
+	 * us before our ast for the downconvert is called. */
+	if (!(lockres->l_flags & USER_LOCK_BLOCKED)) {
+		mlog(0, "Lockres %s, flags 0x%x: queued but not blocking\n",
+			lockres->l_name, lockres->l_flags);
+		spin_unlock(&lockres->l_lock);
+		goto drop_ref;
+	}
 
 	if (lockres->l_flags & USER_LOCK_IN_TEARDOWN) {
 		mlog(0, "lock is in teardown so we do nothing\n");
