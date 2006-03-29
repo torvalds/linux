@@ -591,9 +591,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 }
 
 /* forward decl */
-static void do_notify_parent_cldstop(struct task_struct *tsk,
-				     int to_self,
-				     int why);
+static void do_notify_parent_cldstop(struct task_struct *tsk, int why);
 
 /*
  * Handle magic process-wide effects of stop/continue signals.
@@ -643,7 +641,7 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 			p->signal->group_stop_count = 0;
 			p->signal->flags = SIGNAL_STOP_CONTINUED;
 			spin_unlock(&p->sighand->siglock);
-			do_notify_parent_cldstop(p, (p->ptrace & PT_PTRACED), CLD_STOPPED);
+			do_notify_parent_cldstop(p, CLD_STOPPED);
 			spin_lock(&p->sighand->siglock);
 		}
 		rm_from_queue(SIG_KERNEL_STOP_MASK, &p->signal->shared_pending);
@@ -684,7 +682,7 @@ static void handle_stop_signal(int sig, struct task_struct *p)
 			p->signal->flags = SIGNAL_STOP_CONTINUED;
 			p->signal->group_exit_code = 0;
 			spin_unlock(&p->sighand->siglock);
-			do_notify_parent_cldstop(p, (p->ptrace & PT_PTRACED), CLD_CONTINUED);
+			do_notify_parent_cldstop(p, CLD_CONTINUED);
 			spin_lock(&p->sighand->siglock);
 		} else {
 			/*
@@ -1519,14 +1517,14 @@ void do_notify_parent(struct task_struct *tsk, int sig)
 	spin_unlock_irqrestore(&psig->siglock, flags);
 }
 
-static void do_notify_parent_cldstop(struct task_struct *tsk, int to_self, int why)
+static void do_notify_parent_cldstop(struct task_struct *tsk, int why)
 {
 	struct siginfo info;
 	unsigned long flags;
 	struct task_struct *parent;
 	struct sighand_struct *sighand;
 
-	if (to_self)
+	if (tsk->ptrace & PT_PTRACED)
 		parent = tsk->parent;
 	else {
 		tsk = tsk->group_leader;
@@ -1601,7 +1599,7 @@ static void ptrace_stop(int exit_code, int nostop_code, siginfo_t *info)
 		   !(current->ptrace & PT_ATTACHED)) &&
 	    (likely(current->parent->signal != current->signal) ||
 	     !unlikely(current->signal->flags & SIGNAL_GROUP_EXIT))) {
-		do_notify_parent_cldstop(current, 1, CLD_TRAPPED);
+		do_notify_parent_cldstop(current, CLD_TRAPPED);
 		read_unlock(&tasklist_lock);
 		schedule();
 	} else {
@@ -1650,25 +1648,17 @@ void ptrace_notify(int exit_code)
 static void
 finish_stop(int stop_count)
 {
-	int to_self;
-
 	/*
 	 * If there are no other threads in the group, or if there is
 	 * a group stop in progress and we are the last to stop,
 	 * report to the parent.  When ptraced, every thread reports itself.
 	 */
-	if (current->ptrace & PT_PTRACED)
-		to_self = 1;
-	else if (stop_count == 0)
-		to_self = 0;
-	else
-		goto out;
+	if (stop_count == 0 || (current->ptrace & PT_PTRACED)) {
+		read_lock(&tasklist_lock);
+		do_notify_parent_cldstop(current, CLD_STOPPED);
+		read_unlock(&tasklist_lock);
+	}
 
-	read_lock(&tasklist_lock);
-	do_notify_parent_cldstop(current, to_self, CLD_STOPPED);
-	read_unlock(&tasklist_lock);
-
-out:
 	schedule();
 	/*
 	 * Now we don't run again until continued.
