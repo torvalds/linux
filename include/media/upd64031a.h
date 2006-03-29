@@ -38,4 +38,3 @@
 #define UPD64031A_VERTICAL_EXTERNAL (1 << 5)
 
 #endif
-

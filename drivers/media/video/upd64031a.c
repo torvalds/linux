@@ -284,4 +284,3 @@ static void __exit upd64031a_exit_module(void)
 
 module_init(upd64031a_init_module);
 module_exit(upd64031a_exit_module);
-

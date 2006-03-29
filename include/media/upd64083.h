@@ -56,4 +56,3 @@
 #define UPD64083_EXT_Y_ADC     (1 << 2)
 
 #endif
-
