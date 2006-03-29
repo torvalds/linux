@@ -1281,7 +1281,7 @@ bail_ref:
 
 	/* move to end of parent's list to avoid starvation */
 	remove_parent(p);
-	add_parent(p, p->parent);
+	add_parent(p);
 
 	write_unlock_irq(&tasklist_lock);
 

@@ -725,8 +725,8 @@ static int de_thread(struct task_struct *tsk)
 		current->group_leader = current;
 		leader->group_leader = leader;
 
-		add_parent(current, current->parent);
-		add_parent(leader, leader->parent);
+		add_parent(current);
+		add_parent(leader);
 		if (ptrace) {
 			current->ptrace = ptrace;
 			__ptrace_link(current, parent);
