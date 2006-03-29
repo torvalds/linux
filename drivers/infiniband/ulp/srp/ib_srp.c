@@ -607,10 +607,10 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
 	 */
 	if (likely(scmnd->use_sg)) {
 		nents = scmnd->use_sg;
-		scat  = (struct scatterlist *) scmnd->request_buffer;
+		scat  = scmnd->request_buffer;
 	} else {
 		nents = 1;
-		scat  = (struct scatterlist *) scmnd->request_buffer;
+		scat  = &req->fake_sg;
 	}
 
 	dma_unmap_sg(target->srp_host->dev->dma_device, scat, nents,
