@@ -695,9 +695,8 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	policy->governor = NULL; /* to assure that the starting sequence is
 				  * run in cpufreq_set_policy */
 	mutex_unlock(&policy->lock);
-	
+
 	/* set default policy */
-	
 	ret = cpufreq_set_policy(&new_policy);
 	if (ret) {
 		dprintk("setting policy failed\n");
@@ -707,7 +706,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	module_put(cpufreq_driver->owner);
 	dprintk("initialization complete\n");
 	cpufreq_debug_enable_ratelimit();
-	
+
 	return 0;
 
 
