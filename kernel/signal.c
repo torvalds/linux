@@ -2301,8 +2301,7 @@ sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo)
 	return kill_proc_info(sig, &info, pid);
 }
 
-int
-do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
+int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 {
 	struct k_sigaction *k;
 	sigset_t mask;
@@ -2328,6 +2327,7 @@ do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 	if (act) {
 		sigdelsetmask(&act->sa.sa_mask,
 			      sigmask(SIGKILL) | sigmask(SIGSTOP));
+		*k = *act;
 		/*
 		 * POSIX 3.3.1.3:
 		 *  "Setting a signal action to SIG_IGN for a signal that is
@@ -2340,19 +2340,8 @@ do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 		 *   be discarded, whether or not it is blocked"
 		 */
 		if (act->sa.sa_handler == SIG_IGN ||
-		    (act->sa.sa_handler == SIG_DFL &&
-		     sig_kernel_ignore(sig))) {
-			/*
-			 * This is a fairly rare case, so we only take the
-			 * tasklist_lock once we're sure we'll need it.
-			 * Now we must do this little unlock and relock
-			 * dance to maintain the lock hierarchy.
-			 */
+		   (act->sa.sa_handler == SIG_DFL && sig_kernel_ignore(sig))) {
 			struct task_struct *t = current;
-			spin_unlock_irq(&t->sighand->siglock);
-			read_lock(&tasklist_lock);
-			spin_lock_irq(&t->sighand->siglock);
-			*k = *act;
 			sigemptyset(&mask);
 			sigaddset(&mask, sig);
 			rm_from_queue_full(&mask, &t->signal->shared_pending);
@@ -2361,12 +2350,7 @@ do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 				recalc_sigpending_tsk(t);
 				t = next_thread(t);
 			} while (t != current);
-			spin_unlock_irq(&current->sighand->siglock);
-			read_unlock(&tasklist_lock);
-			return 0;
 		}
-
-		*k = *act;
 	}
 
 	spin_unlock_irq(&current->sighand->siglock);
