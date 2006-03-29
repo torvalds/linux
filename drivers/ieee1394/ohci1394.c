@@ -572,6 +572,7 @@ static void ohci_initialize(struct ti_ohci *ohci)
 		  OHCI1394_reqTxComplete |
 		  OHCI1394_isochRx |
 		  OHCI1394_isochTx |
+		  OHCI1394_postedWriteErr |
 		  OHCI1394_cycleInconsistent);
 
 	/* Enable link */
@@ -2374,7 +2375,10 @@ static irqreturn_t ohci_irq_handler(int irq, void *dev_id,
 
 		event &= ~OHCI1394_unrecoverableError;
 	}
-
+	if (event & OHCI1394_postedWriteErr) {
+		PRINT(KERN_ERR, "physical posted write error");
+		/* no recovery strategy yet, had to involve protocol drivers */
+	}
 	if (event & OHCI1394_cycleInconsistent) {
 		/* We subscribe to the cycleInconsistent event only to
 		 * clear the corresponding event bit... otherwise,
@@ -2382,7 +2386,6 @@ static irqreturn_t ohci_irq_handler(int irq, void *dev_id,
 		DBGMSG("OHCI1394_cycleInconsistent");
 		event &= ~OHCI1394_cycleInconsistent;
 	}
-
 	if (event & OHCI1394_busReset) {
 		/* The busReset event bit can't be cleared during the
 		 * selfID phase, so we disable busReset interrupts, to
@@ -2426,7 +2429,6 @@ static irqreturn_t ohci_irq_handler(int irq, void *dev_id,
 		}
 		event &= ~OHCI1394_busReset;
 	}
-
 	if (event & OHCI1394_reqTxComplete) {
 		struct dma_trm_ctx *d = &ohci->at_req_context;
 		DBGMSG("Got reqTxComplete interrupt "
