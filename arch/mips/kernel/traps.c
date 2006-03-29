@@ -1019,7 +1019,7 @@ void mips_srs_free (int set)
 	spin_unlock_irqrestore(&sr->sr_lock, flags);
 }
 
-void *set_vi_srs_handler (int n, void *addr, int srs)
+static void *set_vi_srs_handler(int n, void *addr, int srs)
 {
 	unsigned long handler;
 	unsigned long old_handler = vi_handlers[n];
