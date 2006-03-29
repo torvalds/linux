@@ -1618,14 +1618,59 @@ static int is_data_mad(struct ib_mad_agent_private *mad_agent_priv,
 		(rmpp_mad->rmpp_hdr.rmpp_type == IB_MGMT_RMPP_TYPE_DATA);
 }
 
+static inline int rcv_has_same_class(struct ib_mad_send_wr_private *wr,
+				     struct ib_mad_recv_wc *rwc)
+{
+	return ((struct ib_mad *)(wr->send_buf.mad))->mad_hdr.mgmt_class ==
+		rwc->recv_buf.mad->mad_hdr.mgmt_class;
+}
+
+static inline int rcv_has_same_gid(struct ib_mad_send_wr_private *wr,
+				   struct ib_mad_recv_wc *rwc )
+{
+	struct ib_ah_attr attr;
+	u8 send_resp, rcv_resp;
+
+	send_resp = ((struct ib_mad *)(wr->send_buf.mad))->
+		     mad_hdr.method & IB_MGMT_METHOD_RESP;
+	rcv_resp = rwc->recv_buf.mad->mad_hdr.method & IB_MGMT_METHOD_RESP;
+
+	if (!send_resp && rcv_resp)
+		/* is request/response. GID/LIDs are both local (same). */
+		return 1;
+
+	if (send_resp == rcv_resp)
+		/* both requests, or both responses. GIDs different */
+		return 0;
+
+	if (ib_query_ah(wr->send_buf.ah, &attr))
+		/* Assume not equal, to avoid false positives. */
+		return 0;
+
+	if (!(attr.ah_flags & IB_AH_GRH) && !(rwc->wc->wc_flags & IB_WC_GRH))
+		return attr.dlid == rwc->wc->slid;
+	else if ((attr.ah_flags & IB_AH_GRH) &&
+		 (rwc->wc->wc_flags & IB_WC_GRH))
+		return memcmp(attr.grh.dgid.raw,
+			      rwc->recv_buf.grh->sgid.raw, 16) == 0;
+	else
+		/* one has GID, other does not.  Assume different */
+		return 0;
+}
 struct ib_mad_send_wr_private*
-ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv, __be64 tid)
+ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv,
+		 struct ib_mad_recv_wc *mad_recv_wc)
 {
 	struct ib_mad_send_wr_private *mad_send_wr;
+	struct ib_mad *mad;
+
+	mad = (struct ib_mad *)mad_recv_wc->recv_buf.mad;
 
 	list_for_each_entry(mad_send_wr, &mad_agent_priv->wait_list,
 			    agent_list) {
-		if (mad_send_wr->tid == tid)
+		if ((mad_send_wr->tid == mad->mad_hdr.tid) &&
+		    rcv_has_same_class(mad_send_wr, mad_recv_wc) &&
+		    rcv_has_same_gid(mad_send_wr, mad_recv_wc))
 			return mad_send_wr;
 	}
 
@@ -1636,7 +1681,10 @@ ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv, __be64 tid)
 	list_for_each_entry(mad_send_wr, &mad_agent_priv->send_list,
 			    agent_list) {
 		if (is_data_mad(mad_agent_priv, mad_send_wr->send_buf.mad) &&
-		    mad_send_wr->tid == tid && mad_send_wr->timeout) {
+		    mad_send_wr->tid == mad->mad_hdr.tid &&
+		    mad_send_wr->timeout &&
+		    rcv_has_same_class(mad_send_wr, mad_recv_wc) &&
+		    rcv_has_same_gid(mad_send_wr, mad_recv_wc)) {
 			/* Verify request has not been canceled */
 			return (mad_send_wr->status == IB_WC_SUCCESS) ?
 				mad_send_wr : NULL;
@@ -1661,7 +1709,6 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 	struct ib_mad_send_wr_private *mad_send_wr;
 	struct ib_mad_send_wc mad_send_wc;
 	unsigned long flags;
-	__be64 tid;
 
 	INIT_LIST_HEAD(&mad_recv_wc->rmpp_list);
 	list_add(&mad_recv_wc->recv_buf.list, &mad_recv_wc->rmpp_list);
@@ -1677,9 +1724,8 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 
 	/* Complete corresponding request */
 	if (response_mad(mad_recv_wc->recv_buf.mad)) {
-		tid = mad_recv_wc->recv_buf.mad->mad_hdr.tid;
 		spin_lock_irqsave(&mad_agent_priv->lock, flags);
-		mad_send_wr = ib_find_send_mad(mad_agent_priv, tid);
+		mad_send_wr = ib_find_send_mad(mad_agent_priv, mad_recv_wc);
 		if (!mad_send_wr) {
 			spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 			ib_free_recv_mad(mad_recv_wc);

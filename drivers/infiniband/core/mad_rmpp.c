@@ -562,15 +562,15 @@ static int send_next_seg(struct ib_mad_send_wr_private *mad_send_wr)
 	return ib_send_mad(mad_send_wr);
 }
 
-static void abort_send(struct ib_mad_agent_private *agent, __be64 tid,
-		       u8 rmpp_status)
+static void abort_send(struct ib_mad_agent_private *agent,
+		       struct ib_mad_recv_wc *mad_recv_wc, u8 rmpp_status)
 {
 	struct ib_mad_send_wr_private *mad_send_wr;
 	struct ib_mad_send_wc wc;
 	unsigned long flags;
 
 	spin_lock_irqsave(&agent->lock, flags);
-	mad_send_wr = ib_find_send_mad(agent, tid);
+	mad_send_wr = ib_find_send_mad(agent, mad_recv_wc);
 	if (!mad_send_wr)
 		goto out;	/* Unmatched send */
 
@@ -612,8 +612,7 @@ static void process_rmpp_ack(struct ib_mad_agent_private *agent,
 
 	rmpp_mad = (struct ib_rmpp_mad *)mad_recv_wc->recv_buf.mad;
 	if (rmpp_mad->rmpp_hdr.rmpp_status) {
-		abort_send(agent, rmpp_mad->mad_hdr.tid,
-			   IB_MGMT_RMPP_STATUS_BAD_STATUS);
+		abort_send(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_BAD_STATUS);
 		nack_recv(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_BAD_STATUS);
 		return;
 	}
@@ -621,14 +620,13 @@ static void process_rmpp_ack(struct ib_mad_agent_private *agent,
 	seg_num = be32_to_cpu(rmpp_mad->rmpp_hdr.seg_num);
 	newwin = be32_to_cpu(rmpp_mad->rmpp_hdr.paylen_newwin);
 	if (newwin < seg_num) {
-		abort_send(agent, rmpp_mad->mad_hdr.tid,
-			   IB_MGMT_RMPP_STATUS_W2S);
+		abort_send(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_W2S);
 		nack_recv(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_W2S);
 		return;
 	}
 
 	spin_lock_irqsave(&agent->lock, flags);
-	mad_send_wr = ib_find_send_mad(agent, rmpp_mad->mad_hdr.tid);
+	mad_send_wr = ib_find_send_mad(agent, mad_recv_wc);
 	if (!mad_send_wr)
 		goto out;	/* Unmatched ACK */
 
@@ -639,8 +637,7 @@ static void process_rmpp_ack(struct ib_mad_agent_private *agent,
 	if (seg_num > mad_send_wr->send_buf.seg_count ||
 	    seg_num > mad_send_wr->newwin) {
 		spin_unlock_irqrestore(&agent->lock, flags);
-		abort_send(agent, rmpp_mad->mad_hdr.tid,
-			   IB_MGMT_RMPP_STATUS_S2B);
+		abort_send(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_S2B);
 		nack_recv(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_S2B);
 		return;
 	}
@@ -728,12 +725,10 @@ static void process_rmpp_stop(struct ib_mad_agent_private *agent,
 	rmpp_mad = (struct ib_rmpp_mad *)mad_recv_wc->recv_buf.mad;
 
 	if (rmpp_mad->rmpp_hdr.rmpp_status != IB_MGMT_RMPP_STATUS_RESX) {
-		abort_send(agent, rmpp_mad->mad_hdr.tid,
-			   IB_MGMT_RMPP_STATUS_BAD_STATUS);
+		abort_send(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_BAD_STATUS);
 		nack_recv(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_BAD_STATUS);
 	} else
-		abort_send(agent, rmpp_mad->mad_hdr.tid,
-			   rmpp_mad->rmpp_hdr.rmpp_status);
+		abort_send(agent, mad_recv_wc, rmpp_mad->rmpp_hdr.rmpp_status);
 }
 
 static void process_rmpp_abort(struct ib_mad_agent_private *agent,
@@ -745,12 +740,10 @@ static void process_rmpp_abort(struct ib_mad_agent_private *agent,
 
 	if (rmpp_mad->rmpp_hdr.rmpp_status < IB_MGMT_RMPP_STATUS_ABORT_MIN ||
 	    rmpp_mad->rmpp_hdr.rmpp_status > IB_MGMT_RMPP_STATUS_ABORT_MAX) {
-		abort_send(agent, rmpp_mad->mad_hdr.tid,
-			   IB_MGMT_RMPP_STATUS_BAD_STATUS);
+		abort_send(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_BAD_STATUS);
 		nack_recv(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_BAD_STATUS);
 	} else
-		abort_send(agent, rmpp_mad->mad_hdr.tid,
-			   rmpp_mad->rmpp_hdr.rmpp_status);
+		abort_send(agent, mad_recv_wc, rmpp_mad->rmpp_hdr.rmpp_status);
 }
 
 struct ib_mad_recv_wc *
@@ -764,8 +757,7 @@ ib_process_rmpp_recv_wc(struct ib_mad_agent_private *agent,
 		return mad_recv_wc;
 
 	if (rmpp_mad->rmpp_hdr.rmpp_version != IB_MGMT_RMPP_VERSION) {
-		abort_send(agent, rmpp_mad->mad_hdr.tid,
-			   IB_MGMT_RMPP_STATUS_UNV);
+		abort_send(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_UNV);
 		nack_recv(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_UNV);
 		goto out;
 	}
@@ -783,8 +775,7 @@ ib_process_rmpp_recv_wc(struct ib_mad_agent_private *agent,
 		process_rmpp_abort(agent, mad_recv_wc);
 		break;
 	default:
-		abort_send(agent, rmpp_mad->mad_hdr.tid,
-			   IB_MGMT_RMPP_STATUS_BADT);
+		abort_send(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_BADT);
 		nack_recv(agent, mad_recv_wc, IB_MGMT_RMPP_STATUS_BADT);
 		break;
 	}
