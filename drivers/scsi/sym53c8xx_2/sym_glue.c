@@ -140,11 +140,11 @@ static struct scsi_transport_template *sym2_transport_template = NULL;
  *  Driver private area in the SCSI command structure.
  */
 struct sym_ucmd {		/* Override the SCSI pointer structure */
-	struct completion done;
-	void (*old_done)(struct scsi_cmnd *);
-	dma_addr_t data_mapping;
-	int to_do;
-	u_char data_mapped; /* corresponds to data_mapping above */
+	dma_addr_t	data_mapping;
+	unsigned char	data_mapped;
+	unsigned char	to_do;			/* For error handling */
+	void (*old_done)(struct scsi_cmnd *);	/* For error handling */
+	struct completion *eh_done;		/* For error handling */
 };
 
 #define SYM_UCMD_PTR(cmd)  ((struct sym_ucmd *)(&(cmd)->SCp))
@@ -713,7 +713,7 @@ static void sym_eh_done(struct scsi_cmnd *cmd)
 	cmd->scsi_done = ucmd->old_done;
 
 	if (ucmd->to_do == SYM_EH_DO_WAIT)
-		complete(&ucmd->done);
+		complete(ucmd->eh_done);
 }
 
 /*
@@ -728,6 +728,7 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	SYM_QUEHEAD *qp;
 	int to_do = SYM_EH_DO_IGNORE;
 	int sts = -1;
+	struct completion eh_done;
 
 	dev_warn(&cmd->device->sdev_gendev, "%s operation started.\n", opname);
 
@@ -742,8 +743,10 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	}
 
 	if (to_do == SYM_EH_DO_WAIT) {
-		init_completion(&ucmd->done);
+		init_completion(&eh_done);
 		ucmd->old_done = cmd->scsi_done;
+		ucmd->eh_done = &eh_done;
+		wmb();
 		cmd->scsi_done = sym_eh_done;
 	}
 
@@ -779,8 +782,9 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	spin_unlock_irq(host->host_lock);
 
 	if (to_do == SYM_EH_DO_WAIT) {
-		if (!wait_for_completion_timeout(&ucmd->done, 5*HZ)) {
+		if (!wait_for_completion_timeout(&eh_done, 5*HZ)) {
 			ucmd->to_do = SYM_EH_DO_IGNORE;
+			wmb();
 			sts = -2;
 		}
 	}
