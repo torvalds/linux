@@ -1151,7 +1151,6 @@ extern void exit_thread(void);
 extern void exit_files(struct task_struct *);
 extern void exit_signal(struct task_struct *);
 extern void __exit_signal(struct task_struct *);
-extern void exit_sighand(struct task_struct *);
 extern void __exit_sighand(struct task_struct *);
 extern void exit_itimers(struct signal_struct *);
 

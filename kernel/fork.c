@@ -1208,7 +1208,8 @@ bad_fork_cleanup_mm:
 bad_fork_cleanup_signal:
 	exit_signal(p);
 bad_fork_cleanup_sighand:
-	exit_sighand(p);
+	if (p->sighand)
+		__exit_sighand(p);
 bad_fork_cleanup_fs:
 	exit_fs(p); /* blocking */
 bad_fork_cleanup_files:

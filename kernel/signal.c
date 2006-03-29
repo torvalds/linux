@@ -336,20 +336,6 @@ void __exit_sighand(struct task_struct *tsk)
 		kmem_cache_free(sighand_cachep, sighand);
 }
 
-void exit_sighand(struct task_struct *tsk)
-{
-	write_lock_irq(&tasklist_lock);
-	rcu_read_lock();
-	if (tsk->sighand != NULL) {
-		struct sighand_struct *sighand = rcu_dereference(tsk->sighand);
-		spin_lock(&sighand->siglock);
-		__exit_sighand(tsk);
-		spin_unlock(&sighand->siglock);
-	}
-	rcu_read_unlock();
-	write_unlock_irq(&tasklist_lock);
-}
-
 /*
  * This function expects the tasklist_lock write-locked.
  */
