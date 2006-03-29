@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Intel Inc. All rights reserved.
- * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
+ * Copyright (c) 2005-2006 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -100,17 +100,6 @@ void ib_cancel_rmpp_recvs(struct ib_mad_agent_private *agent)
 	}
 }
 
-static int data_offset(u8 mgmt_class)
-{
-	if (mgmt_class == IB_MGMT_CLASS_SUBN_ADM)
-		return IB_MGMT_SA_HDR;
-	else if ((mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START) &&
-		 (mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END))
-		return IB_MGMT_VENDOR_HDR;
-	else
-		return IB_MGMT_RMPP_HDR;
-}
-
 static void format_ack(struct ib_mad_send_buf *msg,
 		       struct ib_rmpp_mad *data,
 		       struct mad_rmpp_recv *rmpp_recv)
@@ -137,7 +126,7 @@ static void ack_recv(struct mad_rmpp_recv *rmpp_recv,
 	struct ib_mad_send_buf *msg;
 	int ret, hdr_len;
 
-	hdr_len = data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
+	hdr_len = ib_get_mad_data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
 	msg = ib_create_send_mad(&rmpp_recv->agent->agent, recv_wc->wc->src_qp,
 				 recv_wc->wc->pkey_index, 1, hdr_len,
 				 0, GFP_KERNEL);
@@ -163,7 +152,7 @@ static struct ib_mad_send_buf *alloc_response_msg(struct ib_mad_agent *agent,
 	if (IS_ERR(ah))
 		return (void *) ah;
 
-	hdr_len = data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
+	hdr_len = ib_get_mad_data_offset(recv_wc->recv_buf.mad->mad_hdr.mgmt_class);
 	msg = ib_create_send_mad(agent, recv_wc->wc->src_qp,
 				 recv_wc->wc->pkey_index, 1,
 				 hdr_len, 0, GFP_KERNEL);
@@ -408,7 +397,7 @@ static inline int get_mad_len(struct mad_rmpp_recv *rmpp_recv)
 
 	rmpp_mad = (struct ib_rmpp_mad *)rmpp_recv->cur_seg_buf->mad;
 
-	hdr_size = data_offset(rmpp_mad->mad_hdr.mgmt_class);
+	hdr_size = ib_get_mad_data_offset(rmpp_mad->mad_hdr.mgmt_class);
 	data_size = sizeof(struct ib_rmpp_mad) - hdr_size;
 	pad = IB_MGMT_RMPP_DATA - be32_to_cpu(rmpp_mad->rmpp_hdr.paylen_newwin);
 	if (pad > IB_MGMT_RMPP_DATA || pad < 0)

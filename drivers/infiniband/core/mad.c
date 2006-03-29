@@ -227,6 +227,14 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 			if (!is_vendor_oui(mad_reg_req->oui))
 				goto error1;
 		}
+		/* Make sure class supplied is consistent with RMPP */
+		if (ib_is_mad_class_rmpp(mad_reg_req->mgmt_class)) {
+			if (!rmpp_version)
+				goto error1;
+		} else {
+			if (rmpp_version)
+				goto error1;
+		}
 		/* Make sure class supplied is consistent with QP type */
 		if (qp_type == IB_QPT_SMI) {
 			if ((mad_reg_req->mgmt_class !=
@@ -890,6 +898,35 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 }
 EXPORT_SYMBOL(ib_create_send_mad);
 
+int ib_get_mad_data_offset(u8 mgmt_class)
+{
+	if (mgmt_class == IB_MGMT_CLASS_SUBN_ADM)
+		return IB_MGMT_SA_HDR;
+	else if ((mgmt_class == IB_MGMT_CLASS_DEVICE_MGMT) ||
+		 (mgmt_class == IB_MGMT_CLASS_DEVICE_ADM) ||
+		 (mgmt_class == IB_MGMT_CLASS_BIS))
+		return IB_MGMT_DEVICE_HDR;
+	else if ((mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START) &&
+		 (mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END))
+		return IB_MGMT_VENDOR_HDR;
+	else
+		return IB_MGMT_MAD_HDR;
+}
+EXPORT_SYMBOL(ib_get_mad_data_offset);
+
+int ib_is_mad_class_rmpp(u8 mgmt_class)
+{
+	if ((mgmt_class == IB_MGMT_CLASS_SUBN_ADM) ||
+	    (mgmt_class == IB_MGMT_CLASS_DEVICE_MGMT) ||
+	    (mgmt_class == IB_MGMT_CLASS_DEVICE_ADM) ||
+	    (mgmt_class == IB_MGMT_CLASS_BIS) ||
+	    ((mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START) &&
+	     (mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END)))
+		return 1;
+	return 0;
+}
+EXPORT_SYMBOL(ib_is_mad_class_rmpp);
+
 void *ib_get_rmpp_segment(struct ib_mad_send_buf *send_buf, int seg_num)
 {
 	struct ib_mad_send_wr_private *mad_send_wr;
@@ -1020,6 +1057,13 @@ int ib_post_send_mad(struct ib_mad_send_buf *send_buf,
 		     !send_buf->mad_agent->recv_handler)) {
 			ret = -EINVAL;
 			goto error;
+		}
+
+		if (!ib_is_mad_class_rmpp(((struct ib_mad_hdr *) send_buf->mad)->mgmt_class)) {
+			if (mad_agent_priv->agent.rmpp_version) {
+				ret = -EINVAL;
+				goto error;
+			}
 		}
 
 		/*
@@ -2454,11 +2498,11 @@ static int ib_mad_post_receive_mads(struct ib_mad_qp_info *qp_info,
 			}
 		}
 		sg_list.addr = dma_map_single(qp_info->port_priv->
-						device->dma_device,
-					&mad_priv->grh,
-					sizeof *mad_priv -
-						sizeof mad_priv->header,
-					DMA_FROM_DEVICE);
+					      	device->dma_device,
+					      &mad_priv->grh,
+					      sizeof *mad_priv -
+					      	sizeof mad_priv->header,
+					      DMA_FROM_DEVICE);
 		pci_unmap_addr_set(&mad_priv->header, mapping, sg_list.addr);
 		recv_wr.wr_id = (unsigned long)&mad_priv->header.mad_list;
 		mad_priv->header.mad_list.mad_queue = recv_queue;
