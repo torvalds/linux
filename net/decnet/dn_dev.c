@@ -620,7 +620,7 @@ int dn_dev_set_default(struct net_device *dev, int force)
 	}
 	write_unlock(&dndev_lock);
 	if (old)
-		dev_put(dev);
+		dev_put(old);
 	return rv;
 }
 
