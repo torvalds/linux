@@ -1181,25 +1181,26 @@ static task_t *copy_process(unsigned long clone_flags,
 	 */
 	p->ioprio = current->ioprio;
 
-	add_parent(p);
-	if (unlikely(p->ptrace & PT_PTRACED))
-		__ptrace_link(p, current->parent);
+	if (likely(p->pid)) {
+		add_parent(p);
+		if (unlikely(p->ptrace & PT_PTRACED))
+			__ptrace_link(p, current->parent);
 
-	if (thread_group_leader(p)) {
-		p->signal->tty = current->signal->tty;
-		p->signal->pgrp = process_group(current);
-		p->signal->session = current->signal->session;
-		attach_pid(p, PIDTYPE_PGID, process_group(p));
-		attach_pid(p, PIDTYPE_SID, p->signal->session);
+		if (thread_group_leader(p)) {
+			p->signal->tty = current->signal->tty;
+			p->signal->pgrp = process_group(current);
+			p->signal->session = current->signal->session;
+			attach_pid(p, PIDTYPE_PGID, process_group(p));
+			attach_pid(p, PIDTYPE_SID, p->signal->session);
 
-		list_add_tail(&p->tasks, &init_task.tasks);
-		if (p->pid)
+			list_add_tail(&p->tasks, &init_task.tasks);
 			__get_cpu_var(process_counts)++;
+		}
+		attach_pid(p, PIDTYPE_TGID, p->tgid);
+		attach_pid(p, PIDTYPE_PID, p->pid);
+		nr_threads++;
 	}
-	attach_pid(p, PIDTYPE_TGID, p->tgid);
-	attach_pid(p, PIDTYPE_PID, p->pid);
 
-	nr_threads++;
 	total_forks++;
 	spin_unlock(&current->sighand->siglock);
 	write_unlock_irq(&tasklist_lock);
@@ -1263,7 +1264,7 @@ task_t * __devinit fork_idle(int cpu)
 	if (!task)
 		return ERR_PTR(-ENOMEM);
 	init_idle(task, cpu);
-	unhash_process(task);
+
 	return task;
 }
 

@@ -143,7 +143,6 @@ void smp_prepare_cpus(unsigned int maxcpus)
 		idle = idle_thread(cpu);
 
 		init_idle(idle, cpu);
-		unhash_process(idle);
 
 		waittime = 200000000;
 		while (waittime-- && !cpu_isset(cpu, cpu_callin_map))

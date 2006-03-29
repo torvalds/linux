@@ -56,8 +56,7 @@ static void __unhash_process(struct task_struct *p)
 		detach_pid(p, PIDTYPE_SID);
 
 		list_del_init(&p->tasks);
-		if (p->pid)
-			__get_cpu_var(process_counts)--;
+		__get_cpu_var(process_counts)--;
 	}
 
 	remove_parent(p);
@@ -116,21 +115,6 @@ repeat:
 	p = leader;
 	if (unlikely(zap_leader))
 		goto repeat;
-}
-
-/* we are using it only for SMP init */
-
-void unhash_process(struct task_struct *p)
-{
-	struct dentry *proc_dentry;
-
-	spin_lock(&p->proc_lock);
-	proc_dentry = proc_pid_unhash(p);
-	write_lock_irq(&tasklist_lock);
-	__unhash_process(p);
-	write_unlock_irq(&tasklist_lock);
-	spin_unlock(&p->proc_lock);
-	proc_pid_flush(proc_dentry);
 }
 
 /*

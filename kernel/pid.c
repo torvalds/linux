@@ -247,16 +247,8 @@ void __init pidhash_init(void)
 
 void __init pidmap_init(void)
 {
-	int i;
-
 	pidmap_array->page = (void *)get_zeroed_page(GFP_KERNEL);
+	/* Reserve PID 0. We never call free_pidmap(0) */
 	set_bit(0, pidmap_array->page);
 	atomic_dec(&pidmap_array->nr_free);
-
-	/*
-	 * Allocate PID 0, and hash it via all PID types:
-	 */
-
-	for (i = 0; i < PIDTYPE_MAX; i++)
-		attach_pid(current, i, 0);
 }
