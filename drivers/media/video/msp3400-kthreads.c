@@ -1036,7 +1036,7 @@ static void msp34xxg_set_audmode(struct i2c_client *client)
 
 	if (state->std == 0x20) {
 	       if ((state->rxsubchans & V4L2_TUNER_SUB_SAP) &&
-		   (state->audmode == V4L2_TUNER_MODE_STEREO ||
+		   (state->audmode == V4L2_TUNER_MODE_LANG1_LANG2 ||
 		    state->audmode == V4L2_TUNER_MODE_LANG2)) {
 			msp_write_dem(client, 0x20, 0x21);
 	       } else {
