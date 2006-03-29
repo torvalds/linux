@@ -41,7 +41,6 @@
 #include <linux/cdev.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/compat.h>
 
 #include "csr1212.h"
@@ -2999,9 +2998,6 @@ static int __init init_raw1394(void)
 		goto out_unreg;
 	}
 
-	devfs_mk_cdev(MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16),
-		      S_IFCHR | S_IRUSR | S_IWUSR, RAW1394_DEVICE_NAME);
-
 	cdev_init(&raw1394_cdev, &raw1394_fops);
 	raw1394_cdev.owner = THIS_MODULE;
 	kobject_set_name(&raw1394_cdev.kobj, RAW1394_DEVICE_NAME);
@@ -3023,7 +3019,6 @@ static int __init init_raw1394(void)
 	goto out;
 
       out_dev:
-	devfs_remove(RAW1394_DEVICE_NAME);
 	class_device_destroy(hpsb_protocol_class,
 			     MKDEV(IEEE1394_MAJOR,
 				   IEEE1394_MINOR_BLOCK_RAW1394 * 16));
@@ -3039,7 +3034,6 @@ static void __exit cleanup_raw1394(void)
 			     MKDEV(IEEE1394_MAJOR,
 				   IEEE1394_MINOR_BLOCK_RAW1394 * 16));
 	cdev_del(&raw1394_cdev);
-	devfs_remove(RAW1394_DEVICE_NAME);
 	hpsb_unregister_highlevel(&raw1394_highlevel);
 	hpsb_unregister_protocol(&raw1394_driver);
 }
