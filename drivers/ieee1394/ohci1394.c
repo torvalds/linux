@@ -544,12 +544,19 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	/* Initialize IR Legacy DMA channel mask */
 	ohci->ir_legacy_channels = 0;
 
-	/*
-	 * Accept AT requests from all nodes. This probably
-	 * will have to be controlled from the subsystem
-	 * on a per node basis.
-	 */
-	reg_write(ohci,OHCI1394_AsReqFilterHiSet, 0x80000000);
+	/* Accept AR requests from all nodes */
+	reg_write(ohci, OHCI1394_AsReqFilterHiSet, 0x80000000);
+
+	/* Set the address range of the physical response unit.
+	 * Most controllers do not implement it as a writable register though.
+	 * They will keep a hardwired offset of 0x00010000 and show 0x0 as
+	 * register content.
+	 * To actually enable physical responses is the job of our interrupt
+	 * handler which programs the physical request filter. */
+	reg_write(ohci, OHCI1394_PhyUpperBound, 0xffff0000);
+
+	DBGMSG("physUpperBoundOffset=%08x",
+	       reg_read(ohci, OHCI1394_PhyUpperBound));
 
 	/* Specify AT retries */
 	reg_write(ohci, OHCI1394_ATRetries,
@@ -2516,26 +2523,20 @@ static irqreturn_t ohci_irq_handler(int irq, void *dev_id,
 			reg_write(ohci, OHCI1394_IntMaskSet, OHCI1394_busReset);
 			spin_unlock_irqrestore(&ohci->event_lock, flags);
 
-			/* Accept Physical requests from all nodes. */
-			reg_write(ohci,OHCI1394_AsReqFilterHiSet, 0xffffffff);
-			reg_write(ohci,OHCI1394_AsReqFilterLoSet, 0xffffffff);
-
 			/* Turn on phys dma reception.
 			 *
 			 * TODO: Enable some sort of filtering management.
 			 */
 			if (phys_dma) {
-				reg_write(ohci,OHCI1394_PhyReqFilterHiSet, 0xffffffff);
-				reg_write(ohci,OHCI1394_PhyReqFilterLoSet, 0xffffffff);
-				reg_write(ohci,OHCI1394_PhyUpperBound, 0xffff0000);
-			} else {
-				reg_write(ohci,OHCI1394_PhyReqFilterHiSet, 0x00000000);
-				reg_write(ohci,OHCI1394_PhyReqFilterLoSet, 0x00000000);
+				reg_write(ohci, OHCI1394_PhyReqFilterHiSet,
+					  0xffffffff);
+				reg_write(ohci, OHCI1394_PhyReqFilterLoSet,
+					  0xffffffff);
 			}
 
 			DBGMSG("PhyReqFilter=%08x%08x",
-			       reg_read(ohci,OHCI1394_PhyReqFilterHiSet),
-			       reg_read(ohci,OHCI1394_PhyReqFilterLoSet));
+			       reg_read(ohci, OHCI1394_PhyReqFilterHiSet),
+			       reg_read(ohci, OHCI1394_PhyReqFilterLoSet));
 
 			hpsb_selfid_complete(host, phyid, isroot);
 		} else
