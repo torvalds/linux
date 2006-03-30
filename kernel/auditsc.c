@@ -536,13 +536,13 @@ error_path:
 	return;
 }
 
-static void audit_log_task_info(struct audit_buffer *ab, gfp_t gfp_mask)
+static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk, gfp_t gfp_mask)
 {
-	char name[sizeof(current->comm)];
-	struct mm_struct *mm = current->mm;
+	char name[sizeof(tsk->comm)];
+	struct mm_struct *mm = tsk->mm;
 	struct vm_area_struct *vma;
 
-	get_task_comm(name, current);
+	get_task_comm(name, tsk);
 	audit_log_format(ab, " comm=");
 	audit_log_untrustedstring(ab, name);
 
@@ -551,7 +551,7 @@ static void audit_log_task_info(struct audit_buffer *ab, gfp_t gfp_mask)
 
 	/*
 	 * this is brittle; all callers that pass GFP_ATOMIC will have
-	 * NULL current->mm and we won't get here.
+	 * NULL tsk->mm and we won't get here.
 	 */
 	down_read(&mm->mmap_sem);
 	vma = mm->mmap;
@@ -569,7 +569,7 @@ static void audit_log_task_info(struct audit_buffer *ab, gfp_t gfp_mask)
 	audit_log_task_context(ab, gfp_mask);
 }
 
-static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
+static void audit_log_exit(struct audit_context *context, struct task_struct *tsk, gfp_t gfp_mask)
 {
 	int i;
 	struct audit_buffer *ab;
@@ -587,8 +587,8 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 		audit_log_format(ab, " success=%s exit=%ld", 
 				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
 				 context->return_code);
-	if (current->signal->tty && current->signal->tty->name)
-		tty = current->signal->tty->name;
+	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
+		tty = tsk->signal->tty->name;
 	else
 		tty = "(none)";
 	audit_log_format(ab,
@@ -720,7 +720,7 @@ void audit_free(struct task_struct *tsk)
 	 * We use GFP_ATOMIC here because we might be doing this 
 	 * in the context of the idle thread */
 	if (context->in_syscall && context->auditable)
-		audit_log_exit(context, GFP_ATOMIC);
+		audit_log_exit(context, tsk, GFP_ATOMIC);
 
 	audit_free_context(context);
 }
@@ -839,7 +839,7 @@ void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
 		goto out;
 
 	if (context->in_syscall && context->auditable)
-		audit_log_exit(context, GFP_KERNEL);
+		audit_log_exit(context, tsk, GFP_KERNEL);
 
 	context->in_syscall = 0;
 	context->auditable  = 0;
