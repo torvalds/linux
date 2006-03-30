@@ -237,9 +237,13 @@ static void user_unlock_ast(void *opaque, enum dlm_status status)
 		mlog(ML_ERROR, "Dlm returns status %d\n", status);
 
 	spin_lock(&lockres->l_lock);
-	if (lockres->l_flags & USER_LOCK_IN_TEARDOWN)
+	/* The teardown flag gets set early during the unlock process,
+	 * so test the cancel flag to make sure that this ast isn't
+	 * for a concurrent cancel. */
+	if (lockres->l_flags & USER_LOCK_IN_TEARDOWN
+	    && !(lockres->l_flags & USER_LOCK_IN_CANCEL)) {
 		lockres->l_level = LKM_IVMODE;
-	else if (status == DLM_CANCELGRANT) {
+	} else if (status == DLM_CANCELGRANT) {
 		mlog(0, "Lock %s, cancel fails, flags 0x%x\n",
 		     lockres->l_name, lockres->l_flags);
 		/* We tried to cancel a convert request, but it was
@@ -608,6 +612,14 @@ int user_dlm_destroy_lock(struct user_lock_res *lockres)
 	mlog(0, "asked to destroy %s\n", lockres->l_name);
 
 	spin_lock(&lockres->l_lock);
+	if (lockres->l_flags & USER_LOCK_IN_TEARDOWN) {
+		mlog(0, "Lock is already torn down\n");
+		spin_unlock(&lockres->l_lock);
+		return 0;
+	}
+
+	lockres->l_flags |= USER_LOCK_IN_TEARDOWN;
+
 	while (lockres->l_flags & USER_LOCK_BUSY) {
 		spin_unlock(&lockres->l_lock);
 
@@ -633,7 +645,6 @@ int user_dlm_destroy_lock(struct user_lock_res *lockres)
 
 	lockres->l_flags &= ~USER_LOCK_ATTACHED;
 	lockres->l_flags |= USER_LOCK_BUSY;
-	lockres->l_flags |= USER_LOCK_IN_TEARDOWN;
 	spin_unlock(&lockres->l_lock);
 
 	mlog(0, "unlocking lockres %s\n", lockres->l_name);
