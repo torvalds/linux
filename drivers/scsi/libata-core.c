@@ -62,7 +62,9 @@
 #include "libata.h"
 
 static unsigned int ata_dev_init_params(struct ata_port *ap,
-					struct ata_device *dev);
+					struct ata_device *dev,
+					u16 heads,
+					u16 sectors);
 static void ata_set_mode(struct ata_port *ap);
 static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
 					 struct ata_device *dev);
@@ -1140,7 +1142,7 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 	swap_buf_le16(id, ATA_ID_WORDS);
 
 	/* sanity check */
-	if ((class == ATA_DEV_ATA) != ata_id_is_ata(id)) {
+	if ((class == ATA_DEV_ATA) != (ata_id_is_ata(id) | ata_id_is_cfa(id))) {
 		rc = -EINVAL;
 		reason = "device reports illegal type";
 		goto err_out;
@@ -1156,7 +1158,7 @@ static int ata_dev_read_id(struct ata_port *ap, struct ata_device *dev,
 		 * Some drives were very specific about that exact sequence.
 		 */
 		if (ata_id_major_version(id) < 4 || !ata_id_has_lba(id)) {
-			err_mask = ata_dev_init_params(ap, dev);
+			err_mask = ata_dev_init_params(ap, dev, id[3], id[6]);
 			if (err_mask) {
 				rc = -EIO;
 				reason = "INIT_DEV_PARAMS failed";
@@ -1418,7 +1420,11 @@ static int ata_bus_probe(struct ata_port *ap)
 	if (!found)
 		goto err_out_disable;
 
-	ata_set_mode(ap);
+	if (ap->ops->set_mode)
+		ap->ops->set_mode(ap);
+	else
+		ata_set_mode(ap);
+
 	if (ap->flags & ATA_FLAG_PORT_DISABLED)
 		goto err_out_disable;
 
@@ -1823,7 +1829,7 @@ static void ata_host_set_dma(struct ata_port *ap)
  */
 static void ata_set_mode(struct ata_port *ap)
 {
-	int i, rc;
+	int i, rc, used_dma = 0;
 
 	/* step 1: calculate xfer_mask */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
@@ -1841,6 +1847,9 @@ static void ata_set_mode(struct ata_port *ap)
 		dma_mask = ata_pack_xfermask(0, dev->mwdma_mask, dev->udma_mask);
 		dev->pio_mode = ata_xfer_mask2mode(pio_mask);
 		dev->dma_mode = ata_xfer_mask2mode(dma_mask);
+
+		if (dev->dma_mode)
+			used_dma = 1;
 	}
 
 	/* step 2: always set host PIO timings */
@@ -1862,6 +1871,17 @@ static void ata_set_mode(struct ata_port *ap)
 			goto err_out;
 	}
 
+	/*
+	 *	Record simplex status. If we selected DMA then the other
+	 *	host channels are not permitted to do so.
+	 */
+
+	if (used_dma && (ap->host_set->flags & ATA_HOST_SIMPLEX))
+		ap->host_set->simplex_claimed = 1;
+
+	/*
+	 *	Chip specific finalisation
+	 */
 	if (ap->ops->post_set_mode)
 		ap->ops->post_set_mode(ap);
 
@@ -2151,9 +2171,9 @@ static int sata_phy_resume(struct ata_port *ap)
  *	so makes reset sequence different from the original
  *	->phy_reset implementation and Jeff nervous.  :-P
  */
-extern void ata_std_probeinit(struct ata_port *ap)
+void ata_std_probeinit(struct ata_port *ap)
 {
-	if (ap->flags & ATA_FLAG_SATA && ap->ops->scr_read) {
+	if ((ap->flags & ATA_FLAG_SATA) && ap->ops->scr_read) {
 		sata_phy_resume(ap);
 		if (sata_dev_present(ap))
 			ata_busy_sleep(ap, ATA_TMOUT_BOOT_QUICK, ATA_TMOUT_BOOT);
@@ -2651,13 +2671,14 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
  */
 static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 {
+	struct ata_host_set *hs = ap->host_set;
 	unsigned long xfer_mask;
 	int i;
 
 	xfer_mask = ata_pack_xfermask(ap->pio_mask, ap->mwdma_mask,
 				      ap->udma_mask);
 
-	/* use port-wide xfermask for now */
+	/* FIXME: Use port-wide xfermask for now */
 	for (i = 0; i < ATA_MAX_DEVICES; i++) {
 		struct ata_device *d = &ap->device[i];
 		if (!ata_dev_present(d))
@@ -2667,11 +2688,22 @@ static void ata_dev_xfermask(struct ata_port *ap, struct ata_device *dev)
 		xfer_mask &= ata_id_xfermask(d->id);
 		if (ata_dma_blacklisted(d))
 			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
+		/* Apply cable rule here. Don't apply it early because when
+		   we handle hot plug the cable type can itself change */
+		if (ap->cbl == ATA_CBL_PATA40)
+			xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
 	}
 
 	if (ata_dma_blacklisted(dev))
 		printk(KERN_WARNING "ata%u: dev %u is on DMA blacklist, "
 		       "disabling DMA\n", ap->id, dev->devno);
+
+	if (hs->flags & ATA_HOST_SIMPLEX) {
+		if (hs->simplex_claimed)
+			xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
+	}
+	if (ap->ops->mode_filter)
+		xfer_mask = ap->ops->mode_filter(ap, dev, xfer_mask);
 
 	ata_unpack_xfermask(xfer_mask, &dev->pio_mask, &dev->mwdma_mask,
 			    &dev->udma_mask);
@@ -2727,16 +2759,16 @@ static unsigned int ata_dev_set_xfermode(struct ata_port *ap,
  */
 
 static unsigned int ata_dev_init_params(struct ata_port *ap,
-					struct ata_device *dev)
+					struct ata_device *dev,
+					u16 heads,
+					u16 sectors)
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
-	u16 sectors = dev->id[6];
-	u16 heads   = dev->id[3];
 
 	/* Number of sectors per track 1-255. Number of heads 1-16 */
 	if (sectors < 1 || sectors > 255 || heads < 1 || heads > 16)
-		return 0;
+		return AC_ERR_INVALID;
 
 	/* set up init dev params taskfile */
 	DPRINTK("init dev params \n");
@@ -4678,6 +4710,7 @@ int ata_device_add(const struct ata_probe_ent *ent)
 	host_set->mmio_base = ent->mmio_base;
 	host_set->private_data = ent->private_data;
 	host_set->ops = ent->port_ops;
+	host_set->flags = ent->host_set_flags;
 
 	/* register each port bound to this device */
 	for (i = 0; i < ent->n_ports; i++) {

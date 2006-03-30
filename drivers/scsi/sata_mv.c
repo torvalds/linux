@@ -1010,7 +1010,7 @@ static void mv_fill_sg(struct ata_queued_cmd *qc)
 
 			pp->sg_tbl[i].addr = cpu_to_le32(addr & 0xffffffff);
 			pp->sg_tbl[i].addr_hi = cpu_to_le32((addr >> 16) >> 16);
-			pp->sg_tbl[i].flags_size = cpu_to_le32(len);
+			pp->sg_tbl[i].flags_size = cpu_to_le32(len & 0xffff);
 
 			sg_len -= len;
 			addr += len;
@@ -1350,7 +1350,6 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 {
 	void __iomem *mmio = host_set->mmio_base;
 	void __iomem *hc_mmio = mv_hc_base(mmio, hc);
-	struct ata_port *ap;
 	struct ata_queued_cmd *qc;
 	u32 hc_irq_cause;
 	int shift, port, port0, hard_port, handled;
@@ -1373,21 +1372,29 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 
 	for (port = port0; port < port0 + MV_PORTS_PER_HC; port++) {
 		u8 ata_status = 0;
-		ap = host_set->ports[port];
+		struct ata_port *ap = host_set->ports[port];
+		struct mv_port_priv *pp = ap->private_data;
+
 		hard_port = port & MV_PORT_MASK;	/* range 0-3 */
 		handled = 0;	/* ensure ata_status is set if handled++ */
 
-		if ((CRPB_DMA_DONE << hard_port) & hc_irq_cause) {
-			/* new CRPB on the queue; just one at a time until NCQ
-			 */
-			ata_status = mv_get_crpb_status(ap);
-			handled++;
-		} else if ((DEV_IRQ << hard_port) & hc_irq_cause) {
-			/* received ATA IRQ; read the status reg to clear INTRQ
-			 */
-			ata_status = readb((void __iomem *)
+		/* Note that DEV_IRQ might happen spuriously during EDMA,
+		 * and should be ignored in such cases.  We could mask it,
+		 * but it's pretty rare and may not be worth the overhead.
+		 */ 
+		if (pp->pp_flags & MV_PP_FLAG_EDMA_EN) {
+			/* EDMA: check for response queue interrupt */
+			if ((CRPB_DMA_DONE << hard_port) & hc_irq_cause) {
+				ata_status = mv_get_crpb_status(ap);
+				handled = 1;
+			}
+		} else {
+			/* PIO: check for device (drive) interrupt */
+			if ((DEV_IRQ << hard_port) & hc_irq_cause) {
+				ata_status = readb((void __iomem *)
 					   ap->ioaddr.status_addr);
-			handled++;
+				handled = 1;
+			}
 		}
 
 		if (ap && (ap->flags & ATA_FLAG_PORT_DISABLED))
@@ -1402,12 +1409,12 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 		if ((PORT0_ERR << shift) & relevant) {
 			mv_err_intr(ap);
 			err_mask |= AC_ERR_OTHER;
-			handled++;
+			handled = 1;
 		}
 
-		if (handled && ap) {
+		if (handled) {
 			qc = ata_qc_from_tag(ap, ap->active_tag);
-			if (NULL != qc) {
+			if (qc && (qc->flags & ATA_QCFLAG_ACTIVE)) {
 				VPRINTK("port %u IRQ found for qc, "
 					"ata_status 0x%x\n", port,ata_status);
 				/* mark qc status appropriately */
