@@ -134,14 +134,22 @@ static  __inline__ int __raw_write_trylock(raw_rwlock_t *rw)
 	return 1;
 }
 
-static __inline__ int __raw_is_read_locked(raw_rwlock_t *rw)
+/*
+ * read_can_lock - would read_trylock() succeed?
+ * @lock: the rwlock in question.
+ */
+static __inline__ int __raw_read_can_lock(raw_rwlock_t *rw)
 {
-	return rw->counter > 0;
+	return rw->counter >= 0;
 }
 
-static __inline__ int __raw_is_write_locked(raw_rwlock_t *rw)
+/*
+ * write_can_lock - would write_trylock() succeed?
+ * @lock: the rwlock in question.
+ */
+static __inline__ int __raw_write_can_lock(raw_rwlock_t *rw)
 {
-	return rw->counter < 0;
+	return !rw->counter;
 }
 
 #endif /* __ASM_SPINLOCK_H */

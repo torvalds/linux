@@ -48,7 +48,7 @@ extern void flush_user_icache_range_asm(unsigned long, unsigned long);
 extern void flush_kernel_icache_range_asm(unsigned long, unsigned long);
 extern void flush_user_dcache_range_asm(unsigned long, unsigned long);
 extern void flush_kernel_dcache_range_asm(unsigned long, unsigned long);
-extern void flush_kernel_dcache_page(void *);
+extern void flush_kernel_dcache_page_asm(void *);
 extern void flush_kernel_icache_page(void *);
 extern void disable_sr_hashing(void);   /* turns off space register hashing */
 extern void disable_sr_hashing_asm(int); /* low level support for above */
