@@ -87,6 +87,7 @@ static int volume = 255;
 static int budgetpatch;
 static int wss_cfg_4_3 = 0x4008;
 static int wss_cfg_16_9 = 0x0007;
+static int tv_standard;
 
 module_param_named(debug, av7110_debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (bitmask, default 0)");
@@ -109,6 +110,8 @@ module_param(wss_cfg_4_3, int, 0444);
 MODULE_PARM_DESC(wss_cfg_4_3, "WSS 4:3 - default 0x4008 - bit 15: disable, 14: burst mode, 13..0: wss data");
 module_param(wss_cfg_16_9, int, 0444);
 MODULE_PARM_DESC(wss_cfg_16_9, "WSS 16:9 - default 0x0007 - bit 15: disable, 14: burst mode, 13..0: wss data");
+module_param(tv_standard, int, 0444);
+MODULE_PARM_DESC(tv_standard, "TV standard: 0 PAL (default), 1 NTSC");
 
 static void restart_feeds(struct av7110 *av7110);
 
@@ -2542,6 +2545,9 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 	/* default OSD window */
 	av7110->osdwin = 1;
 	mutex_init(&av7110->osd_mutex);
+
+	/* TV standard */
+	av7110->vidmode = tv_standard == 1 ? VIDEO_MODE_NTSC : VIDEO_MODE_PAL;
 
 	/* ARM "watchdog" */
 	init_waitqueue_head(&av7110->arm_wait);
