@@ -233,23 +233,38 @@ static void user_unlock_ast(void *opaque, enum dlm_status status)
 
 	mlog(0, "UNLOCK AST called on lock %s\n", lockres->l_name);
 
-	if (status != DLM_NORMAL)
+	if (status != DLM_NORMAL && status != DLM_CANCELGRANT)
 		mlog(ML_ERROR, "Dlm returns status %d\n", status);
 
 	spin_lock(&lockres->l_lock);
 	if (lockres->l_flags & USER_LOCK_IN_TEARDOWN)
 		lockres->l_level = LKM_IVMODE;
-	else {
+	else if (status == DLM_CANCELGRANT) {
+		mlog(0, "Lock %s, cancel fails, flags 0x%x\n",
+		     lockres->l_name, lockres->l_flags);
+		/* We tried to cancel a convert request, but it was
+		 * already granted. Don't clear the busy flag - the
+		 * ast should've done this already. */
+		BUG_ON(!(lockres->l_flags & USER_LOCK_IN_CANCEL));
+		lockres->l_flags &= ~USER_LOCK_IN_CANCEL;
+		goto out_noclear;
+	} else {
+		BUG_ON(!(lockres->l_flags & USER_LOCK_IN_CANCEL));
+		/* Cancel succeeded, we want to re-queue */
+		mlog(0, "Lock %s, cancel succeeds, flags 0x%x\n",
+		     lockres->l_name, lockres->l_flags);
 		lockres->l_requested = LKM_IVMODE; /* cancel an
 						    * upconvert
 						    * request. */
 		lockres->l_flags &= ~USER_LOCK_IN_CANCEL;
 		/* we want the unblock thread to look at it again
 		 * now. */
-		__user_dlm_queue_lockres(lockres);
+		if (lockres->l_flags & USER_LOCK_BLOCKED)
+			__user_dlm_queue_lockres(lockres);
 	}
 
 	lockres->l_flags &= ~USER_LOCK_BUSY;
+out_noclear:
 	spin_unlock(&lockres->l_lock);
 
 	wake_up(&lockres->l_event);
@@ -299,7 +314,9 @@ static void user_dlm_unblock_lock(void *opaque)
 	}
 
 	if (lockres->l_flags & USER_LOCK_BUSY) {
-		mlog(0, "BUSY flag detected...\n");
+		mlog(0, "Cancel lock %s, flags 0x%x\n",
+		     lockres->l_name, lockres->l_flags);
+
 		if (lockres->l_flags & USER_LOCK_IN_CANCEL) {
 			spin_unlock(&lockres->l_lock);
 			goto drop_ref;
@@ -313,14 +330,7 @@ static void user_dlm_unblock_lock(void *opaque)
 				   LKM_CANCEL,
 				   user_unlock_ast,
 				   lockres);
-		if (status == DLM_CANCELGRANT) {
-			/* If we got this, then the ast was fired
-			 * before we could cancel. We cleanup our
-			 * state, and restart the function. */
-			spin_lock(&lockres->l_lock);
-			lockres->l_flags &= ~USER_LOCK_IN_CANCEL;
-			spin_unlock(&lockres->l_lock);
-		} else if (status != DLM_NORMAL)
+		if (status != DLM_NORMAL)
 			user_log_dlm_error("dlmunlock", status, lockres);
 		goto drop_ref;
 	}
