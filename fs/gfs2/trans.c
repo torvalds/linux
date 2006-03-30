@@ -106,10 +106,11 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		       tr->tr_num_buf, tr->tr_blocks);
 		print_symbol(KERN_WARNING "GFS2: Transaction created at: %s\n", tr->tr_ip);
 	}
-	if (gfs2_assert_withdraw(sdp, tr->tr_num_revoke <= tr->tr_revokes))
+	if (gfs2_assert_withdraw(sdp, tr->tr_num_revoke <= tr->tr_revokes)) {
 		fs_err(sdp, "tr_num_revoke = %u, tr_revokes = %u ",
 		       tr->tr_num_revoke, tr->tr_revokes);
 		print_symbol(KERN_WARNING "GFS2: Transaction created at: %s\n", tr->tr_ip);
+	}
 
 	gfs2_log_commit(sdp, tr);
 
