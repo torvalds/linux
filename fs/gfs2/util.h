@@ -107,12 +107,11 @@ static inline int gfs2_metatype_check_i(struct gfs2_sbd *sdp,
 {
 	struct gfs2_meta_header *mh = (struct gfs2_meta_header *)bh->b_data;
 	uint32_t magic = mh->mh_magic;
-	uint16_t t = mh->mh_type;
+	uint16_t t = be32_to_cpu(mh->mh_type);
 	magic = be32_to_cpu(magic);
 	if (unlikely(magic != GFS2_MAGIC))
 		return gfs2_meta_check_ii(sdp, bh, "magic number", function,
 					  file, line);
-	t = be16_to_cpu(t);
         if (unlikely(t != type))
 		return gfs2_metatype_check_ii(sdp, bh, type, t, function,
 					      file, line);
@@ -127,8 +126,8 @@ static inline void gfs2_metatype_set(struct buffer_head *bh, uint16_t type,
 {
 	struct gfs2_meta_header *mh;
 	mh = (struct gfs2_meta_header *)bh->b_data;
-	mh->mh_type = cpu_to_be16(type);
-	mh->mh_format = cpu_to_be16(format);
+	mh->mh_type = cpu_to_be32(type);
+	mh->mh_format = cpu_to_be32(format);
 }
 
 

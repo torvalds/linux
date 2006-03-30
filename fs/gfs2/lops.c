@@ -133,8 +133,8 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 		ld = (struct gfs2_log_descriptor *)bh->b_data;
 		ptr = (__be64 *)(bh->b_data + offset);
 		ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
-		ld->ld_header.mh_type = cpu_to_be16(GFS2_METATYPE_LD);
-		ld->ld_header.mh_format = cpu_to_be16(GFS2_FORMAT_LD);
+		ld->ld_header.mh_type = cpu_to_be32(GFS2_METATYPE_LD);
+		ld->ld_header.mh_format = cpu_to_be32(GFS2_FORMAT_LD);
 		ld->ld_type = cpu_to_be32(GFS2_LOG_DESC_METADATA);
 		ld->ld_length = cpu_to_be32(num + 1);
 		ld->ld_data1 = cpu_to_be32(num);
@@ -291,8 +291,8 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	bh = gfs2_log_get_buf(sdp);
 	ld = (struct gfs2_log_descriptor *)bh->b_data;
 	ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
-	ld->ld_header.mh_type = cpu_to_be16(GFS2_METATYPE_LD);
-	ld->ld_header.mh_format = cpu_to_be16(GFS2_FORMAT_LD);
+	ld->ld_header.mh_type = cpu_to_be32(GFS2_METATYPE_LD);
+	ld->ld_header.mh_format = cpu_to_be32(GFS2_FORMAT_LD);
 	ld->ld_type = cpu_to_be32(GFS2_LOG_DESC_REVOKE);
 	ld->ld_length = cpu_to_be32(gfs2_struct2blk(sdp, sdp->sd_log_num_revoke,
 						    sizeof(uint64_t)));
@@ -313,8 +313,8 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 			bh = gfs2_log_get_buf(sdp);
 			mh = (struct gfs2_meta_header *)bh->b_data;
 			mh->mh_magic = cpu_to_be32(GFS2_MAGIC);
-			mh->mh_type = cpu_to_be16(GFS2_METATYPE_LB);
-			mh->mh_format = cpu_to_be16(GFS2_FORMAT_LB);
+			mh->mh_type = cpu_to_be32(GFS2_METATYPE_LB);
+			mh->mh_format = cpu_to_be32(GFS2_FORMAT_LB);
 			offset = sizeof(struct gfs2_meta_header);
 		}
 
@@ -576,9 +576,9 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 					ld->ld_header.mh_magic =
 						cpu_to_be32(GFS2_MAGIC);
 					ld->ld_header.mh_type =
-						cpu_to_be16(GFS2_METATYPE_LD);
+						cpu_to_be32(GFS2_METATYPE_LD);
 					ld->ld_header.mh_format =
-						cpu_to_be16(GFS2_FORMAT_LD);
+						cpu_to_be32(GFS2_FORMAT_LD);
 					ld->ld_type =
 						cpu_to_be32(GFS2_LOG_DESC_JDATA);
 					ld->ld_length = cpu_to_be32(num + 1);

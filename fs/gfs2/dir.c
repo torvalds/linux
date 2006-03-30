@@ -462,7 +462,7 @@ static int gfs2_dirent_offset(const void *buf)
 
 	BUG_ON(buf == NULL);
 
-	switch(be16_to_cpu(h->mh_type)) {
+	switch(be32_to_cpu(h->mh_type)) {
 	case GFS2_METATYPE_LF:
 		offset = sizeof(struct gfs2_leaf);
 		break;
@@ -475,7 +475,7 @@ static int gfs2_dirent_offset(const void *buf)
 	return offset;
 wrong_type:
 	printk(KERN_WARNING "gfs2_scan_dirent: wrong block type %u\n",
-	       be16_to_cpu(h->mh_type));
+	       be32_to_cpu(h->mh_type));
 	return -1;
 }
 
@@ -548,7 +548,7 @@ static int dirent_first(struct gfs2_inode *dip, struct buffer_head *bh,
 {
 	struct gfs2_meta_header *h = (struct gfs2_meta_header *)bh->b_data;
 
-	if (be16_to_cpu(h->mh_type) == GFS2_METATYPE_LF) {
+	if (be32_to_cpu(h->mh_type) == GFS2_METATYPE_LF) {
 		if (gfs2_meta_check(dip->i_sbd, bh))
 			return -EIO;
 		*dent = (struct gfs2_dirent *)(bh->b_data +

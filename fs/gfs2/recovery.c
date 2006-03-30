@@ -324,7 +324,7 @@ static int foreach_descriptor(struct gfs2_jdesc *jd, unsigned int start,
 		ld = (struct gfs2_log_descriptor *)bh->b_data;
 		length = be32_to_cpu(ld->ld_length);
 
-		if (be16_to_cpu(ld->ld_header.mh_type) == GFS2_METATYPE_LH) {
+		if (be32_to_cpu(ld->ld_header.mh_type) == GFS2_METATYPE_LH) {
 			struct gfs2_log_header lh;
 			error = get_log_header(jd, start, &lh);
 			if (!error) {
@@ -400,7 +400,7 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header *head)
 	memset(lh, 0, sizeof(struct gfs2_log_header));
 	lh->lh_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
 	lh->lh_header.mh_type = cpu_to_be16(GFS2_METATYPE_LH);
-	lh->lh_header.mh_format = cpu_to_be16(GFS2_FORMAT_LH);
+	lh->lh_header.mh_format = cpu_to_be32(GFS2_FORMAT_LH);
 	lh->lh_sequence = cpu_to_be64(head->lh_sequence + 1);
 	lh->lh_flags = cpu_to_be32(GFS2_LOG_HEAD_UNMOUNT);
 	lh->lh_blkno = cpu_to_be32(lblock);

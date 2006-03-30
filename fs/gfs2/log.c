@@ -377,8 +377,8 @@ static void log_write_header(struct gfs2_sbd *sdp, uint32_t flags, int pull)
 	lh = (struct gfs2_log_header *)bh->b_data;
 	memset(lh, 0, sizeof(struct gfs2_log_header));
 	lh->lh_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
-	lh->lh_header.mh_type = cpu_to_be16(GFS2_METATYPE_LH);
-	lh->lh_header.mh_format = cpu_to_be16(GFS2_FORMAT_LH);
+	lh->lh_header.mh_type = cpu_to_be32(GFS2_METATYPE_LH);
+	lh->lh_header.mh_format = cpu_to_be32(GFS2_FORMAT_LH);
 	lh->lh_sequence = be64_to_cpu(sdp->sd_log_sequence++);
 	lh->lh_flags = be32_to_cpu(flags);
 	lh->lh_tail = be32_to_cpu(tail);
