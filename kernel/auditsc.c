@@ -736,10 +736,11 @@ void audit_free(struct task_struct *tsk)
  * will only be written if another part of the kernel requests that it
  * be written).
  */
-void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
+void audit_syscall_entry(int arch, int major,
 			 unsigned long a1, unsigned long a2,
 			 unsigned long a3, unsigned long a4)
 {
+	struct task_struct *tsk = current;
 	struct audit_context *context = tsk->audit_context;
 	enum audit_state     state;
 
@@ -817,11 +818,10 @@ void audit_syscall_entry(struct task_struct *tsk, int arch, int major,
  * message), then write out the syscall information.  In call cases,
  * free the names stored from getname().
  */
-void audit_syscall_exit(struct task_struct *tsk, int valid, long return_code)
+void audit_syscall_exit(int valid, long return_code)
 {
+	struct task_struct *tsk = current;
 	struct audit_context *context;
-
-	/* tsk == current */
 
 	get_task_struct(tsk);
 	task_lock(tsk);

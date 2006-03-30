@@ -287,10 +287,10 @@ struct netlink_skb_parms;
 				/* Public API */
 extern int  audit_alloc(struct task_struct *task);
 extern void audit_free(struct task_struct *task);
-extern void audit_syscall_entry(struct task_struct *task, int arch,
+extern void audit_syscall_entry(int arch,
 				int major, unsigned long a0, unsigned long a1,
 				unsigned long a2, unsigned long a3);
-extern void audit_syscall_exit(struct task_struct *task, int failed, long return_code);
+extern void audit_syscall_exit(int failed, long return_code);
 extern void audit_getname(const char *name);
 extern void audit_putname(const char *name);
 extern void __audit_inode(const char *name, const struct inode *inode, unsigned flags);
@@ -323,8 +323,8 @@ extern int audit_set_macxattr(const char *name);
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
-#define audit_syscall_entry(t,ta,a,b,c,d,e) do { ; } while (0)
-#define audit_syscall_exit(t,f,r) do { ; } while (0)
+#define audit_syscall_entry(ta,a,b,c,d,e) do { ; } while (0)
+#define audit_syscall_exit(f,r) do { ; } while (0)
 #define audit_getname(n) do { ; } while (0)
 #define audit_putname(n) do { ; } while (0)
 #define __audit_inode(n,i,f) do { ; } while (0)
