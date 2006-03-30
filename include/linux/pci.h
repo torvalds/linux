@@ -97,7 +97,7 @@ enum pci_channel_state {
 
 typedef unsigned short __bitwise pci_bus_flags_t;
 enum pci_bus_flags {
-	PCI_BUS_FLAGS_NO_MSI = (pci_bus_flags_t) 1,
+	PCI_BUS_FLAGS_NO_MSI = (__force pci_bus_flags_t) 1,
 };
 
 struct pci_cap_saved_state {
