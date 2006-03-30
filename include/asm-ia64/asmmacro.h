@@ -38,6 +38,10 @@ name:
 
 /*
  * Helper macros for accessing user memory.
+ *
+ * When adding any new .section/.previous entries here, make sure to
+ * also add it to the DISCARD section in arch/ia64/kernel/gate.lds.S or
+ * unpleasant things will happen.
  */
 
 	.section "__ex_table", "a"		// declare section & section attributes
