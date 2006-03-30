@@ -1023,14 +1023,12 @@ audio_input(struct bttv *btv, int input)
 static void
 i2c_vidiocschan(struct bttv *btv)
 {
-	struct video_channel c;
+	v4l2_std_id std = bttv_tvnorms[btv->tvnorm].v4l2_id;
 
-	memset(&c,0,sizeof(c));
-	c.norm    = btv->tvnorm;
-	c.channel = btv->input;
-	bttv_call_i2c_clients(btv,VIDIOCSCHAN,&c);
+	bttv_call_i2c_clients(btv, VIDIOC_S_INPUT, &btv->input);
+	bttv_call_i2c_clients(btv, VIDIOC_S_STD, &std);
 	if (btv->c.type == BTTV_BOARD_VOODOOTV_FM)
-		bttv_tda9880_setnorm(btv,c.norm);
+		bttv_tda9880_setnorm(btv,btv->tvnorm);
 }
 
 static int
@@ -1184,11 +1182,27 @@ static int get_control(struct bttv *btv, struct v4l2_control *c)
 			break;
 	if (i == BTTV_CTLS)
 		return -EINVAL;
-	if (i >= 4 && i <= 8) {
+	if (btv->audio_hook && i >= 4 && i <= 8) {
 		memset(&va,0,sizeof(va));
-		bttv_call_i2c_clients(btv, VIDIOCGAUDIO, &va);
-		if (btv->audio_hook)
-			btv->audio_hook(btv,&va,0);
+		btv->audio_hook(btv,&va,0);
+		switch (c->id) {
+		case V4L2_CID_AUDIO_MUTE:
+			c->value = (VIDEO_AUDIO_MUTE & va.flags) ? 1 : 0;
+			break;
+		case V4L2_CID_AUDIO_VOLUME:
+			c->value = va.volume;
+			break;
+		case V4L2_CID_AUDIO_BALANCE:
+			c->value = va.balance;
+			break;
+		case V4L2_CID_AUDIO_BASS:
+			c->value = va.bass;
+			break;
+		case V4L2_CID_AUDIO_TREBLE:
+			c->value = va.treble;
+			break;
+		}
+		return 0;
 	}
 	switch (c->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -1205,19 +1219,11 @@ static int get_control(struct bttv *btv, struct v4l2_control *c)
 		break;
 
 	case V4L2_CID_AUDIO_MUTE:
-		c->value = (VIDEO_AUDIO_MUTE & va.flags) ? 1 : 0;
-		break;
 	case V4L2_CID_AUDIO_VOLUME:
-		c->value = va.volume;
-		break;
 	case V4L2_CID_AUDIO_BALANCE:
-		c->value = va.balance;
-		break;
 	case V4L2_CID_AUDIO_BASS:
-		c->value = va.bass;
-		break;
 	case V4L2_CID_AUDIO_TREBLE:
-		c->value = va.treble;
+		bttv_call_i2c_clients(btv,VIDIOC_G_CTRL,c);
 		break;
 
 	case V4L2_CID_PRIVATE_CHROMA_AGC:
@@ -1269,11 +1275,35 @@ static int set_control(struct bttv *btv, struct v4l2_control *c)
 			break;
 	if (i == BTTV_CTLS)
 		return -EINVAL;
-	if (i >= 4 && i <= 8) {
+	if (btv->audio_hook && i >= 4 && i <= 8) {
 		memset(&va,0,sizeof(va));
-		bttv_call_i2c_clients(btv, VIDIOCGAUDIO, &va);
-		if (btv->audio_hook)
-			btv->audio_hook(btv,&va,0);
+		btv->audio_hook(btv,&va,0);
+		switch (c->id) {
+		case V4L2_CID_AUDIO_MUTE:
+			if (c->value) {
+				va.flags |= VIDEO_AUDIO_MUTE;
+				audio_mute(btv, 1);
+			} else {
+				va.flags &= ~VIDEO_AUDIO_MUTE;
+				audio_mute(btv, 0);
+			}
+			break;
+
+		case V4L2_CID_AUDIO_VOLUME:
+			va.volume = c->value;
+			break;
+		case V4L2_CID_AUDIO_BALANCE:
+			va.balance = c->value;
+			break;
+		case V4L2_CID_AUDIO_BASS:
+			va.bass = c->value;
+			break;
+		case V4L2_CID_AUDIO_TREBLE:
+			va.treble = c->value;
+			break;
+		}
+		btv->audio_hook(btv,&va,1);
+		return 0;
 	}
 	switch (c->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -1289,26 +1319,13 @@ static int set_control(struct bttv *btv, struct v4l2_control *c)
 		bt848_sat(btv,c->value);
 		break;
 	case V4L2_CID_AUDIO_MUTE:
-		if (c->value) {
-			va.flags |= VIDEO_AUDIO_MUTE;
-			audio_mute(btv, 1);
-		} else {
-			va.flags &= ~VIDEO_AUDIO_MUTE;
-			audio_mute(btv, 0);
-		}
-		break;
-
+		audio_mute(btv, c->value);
+		/* fall through */
 	case V4L2_CID_AUDIO_VOLUME:
-		va.volume = c->value;
-		break;
 	case V4L2_CID_AUDIO_BALANCE:
-		va.balance = c->value;
-		break;
 	case V4L2_CID_AUDIO_BASS:
-		va.bass = c->value;
-		break;
 	case V4L2_CID_AUDIO_TREBLE:
-		va.treble = c->value;
+		bttv_call_i2c_clients(btv,VIDIOC_S_CTRL,c);
 		break;
 
 	case V4L2_CID_PRIVATE_CHROMA_AGC:
@@ -1363,11 +1380,6 @@ static int set_control(struct bttv *btv, struct v4l2_control *c)
 		break;
 	default:
 		return -EINVAL;
-	}
-	if (i >= 4 && i <= 8) {
-		bttv_call_i2c_clients(btv, VIDIOCSAUDIO, &va);
-		if (btv->audio_hook)
-			btv->audio_hook(btv,&va,1);
 	}
 	return 0;
 }
@@ -1827,33 +1839,26 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 			return -EINVAL;
 		mutex_lock(&btv->lock);
 		memset(t,0,sizeof(*t));
-		strcpy(t->name, "Television");
-		t->type       = V4L2_TUNER_ANALOG_TV;
-		t->capability = V4L2_TUNER_CAP_NORM;
 		t->rxsubchans = V4L2_TUNER_SUB_MONO;
+		bttv_call_i2c_clients(btv, VIDIOC_G_TUNER, t);
+		strcpy(t->name, "Television");
+		t->capability = V4L2_TUNER_CAP_NORM;
+		t->type       = V4L2_TUNER_ANALOG_TV;
 		if (btread(BT848_DSTATUS)&BT848_DSTATUS_HLOC)
 			t->signal = 0xffff;
-		{
-			struct video_tuner tuner;
 
-			memset(&tuner, 0, sizeof (tuner));
-			tuner.rangehigh = 0xffffffffUL;
-			bttv_call_i2c_clients(btv, VIDIOCGTUNER, &tuner);
-			t->rangelow = tuner.rangelow;
-			t->rangehigh = tuner.rangehigh;
-		}
-		{
+		if (btv->audio_hook) {
 			/* Hmmm ... */
 			struct video_audio va;
 			memset(&va, 0, sizeof(struct video_audio));
-			bttv_call_i2c_clients(btv, VIDIOCGAUDIO, &va);
-			if (btv->audio_hook)
-				btv->audio_hook(btv,&va,0);
+			btv->audio_hook(btv,&va,0);
+			t->audmode    = V4L2_TUNER_MODE_MONO;
+			t->rxsubchans = V4L2_TUNER_SUB_MONO;
 			if(va.mode & VIDEO_SOUND_STEREO) {
-				t->audmode     = V4L2_TUNER_MODE_STEREO;
-				t->rxsubchans |= V4L2_TUNER_SUB_STEREO;
+				t->audmode    = V4L2_TUNER_MODE_STEREO;
+				t->rxsubchans = V4L2_TUNER_SUB_STEREO;
 			}
-			if(va.mode & VIDEO_SOUND_LANG1) {
+			if(va.mode & VIDEO_SOUND_LANG2) {
 				t->audmode    = V4L2_TUNER_MODE_LANG1;
 				t->rxsubchans = V4L2_TUNER_SUB_LANG1
 					| V4L2_TUNER_SUB_LANG2;
@@ -1872,10 +1877,10 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		if (0 != t->index)
 			return -EINVAL;
 		mutex_lock(&btv->lock);
-		{
+		bttv_call_i2c_clients(btv, VIDIOC_S_TUNER, t);
+		if (btv->audio_hook) {
 			struct video_audio va;
 			memset(&va, 0, sizeof(struct video_audio));
-			bttv_call_i2c_clients(btv, VIDIOCGAUDIO, &va);
 			if (t->audmode == V4L2_TUNER_MODE_MONO)
 				va.mode = VIDEO_SOUND_MONO;
 			else if (t->audmode == V4L2_TUNER_MODE_STEREO ||
@@ -1885,9 +1890,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 				va.mode = VIDEO_SOUND_LANG1;
 			else if (t->audmode == V4L2_TUNER_MODE_LANG2)
 				va.mode = VIDEO_SOUND_LANG2;
-			bttv_call_i2c_clients(btv, VIDIOCSAUDIO, &va);
-			if (btv->audio_hook)
-				btv->audio_hook(btv,&va,1);
+			btv->audio_hook(btv,&va,1);
 		}
 		mutex_unlock(&btv->lock);
 		return 0;
@@ -1912,7 +1915,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 			return -EINVAL;
 		mutex_lock(&btv->lock);
 		btv->freq = f->frequency;
-		bttv_call_i2c_clients(btv,VIDIOCSFREQ,&btv->freq);
+		bttv_call_i2c_clients(btv,VIDIOC_S_FREQUENCY,f);
 		if (btv->has_matchbox && btv->radio_user)
 			tea5757_set_freq(btv,btv->freq);
 		mutex_unlock(&btv->lock);
@@ -1920,7 +1923,9 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 	}
 	case VIDIOC_LOG_STATUS:
 	{
+		printk(KERN_INFO "bttv%d: =================  START STATUS CARD #%d  =================\n", btv->c.nr, btv->c.nr);
 		bttv_call_i2c_clients(btv, VIDIOC_LOG_STATUS, NULL);
+		printk(KERN_INFO "bttv%d: ==================  END STATUS CARD #%d  ==================\n", btv->c.nr, btv->c.nr);
 		return 0;
 	}
 
@@ -2870,12 +2875,10 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			return 0;
 		}
 		*c = bttv_ctls[i];
-		if (i >= 4 && i <= 8) {
+		if (btv->audio_hook && i >= 4 && i <= 8) {
 			struct video_audio va;
 			memset(&va,0,sizeof(va));
-			bttv_call_i2c_clients(btv, VIDIOCGAUDIO, &va);
-			if (btv->audio_hook)
-				btv->audio_hook(btv,&va,0);
+			btv->audio_hook(btv,&va,0);
 			switch (bttv_ctls[i].id) {
 			case V4L2_CID_AUDIO_VOLUME:
 				if (!(va.flags & VIDEO_AUDIO_VOLUME))

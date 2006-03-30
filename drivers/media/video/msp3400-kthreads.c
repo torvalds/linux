@@ -170,7 +170,7 @@ static void msp_set_source(struct i2c_client *client, u16 src)
 	msp_write_dsp(client, 0x000a, src);
 	msp_write_dsp(client, 0x000b, src);
 	msp_write_dsp(client, 0x000c, src);
-	if (state->has_scart23_in_scart2_out)
+	if (state->has_scart2_out)
 		msp_write_dsp(client, 0x0041, src);
 }
 
@@ -240,15 +240,22 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 		return;
 	}
 
-	/* If no second language is available, switch to the first language */
-	if ((audmode == V4L2_TUNER_MODE_LANG2 ||
-	     audmode == V4L2_TUNER_MODE_LANG1_LANG2) &&
-	    !(state->rxsubchans & V4L2_TUNER_SUB_LANG2))
-		audmode = V4L2_TUNER_MODE_LANG1;
-	/* switch to stereo for stereo transmission, otherwise
-	   keep first language */
-	if (audmode == V4L2_TUNER_MODE_LANG1 &&
-	    (state->rxsubchans & V4L2_TUNER_SUB_STEREO))
+	/* Note: for the C and D revs no NTSC stereo + SAP is possible as
+	   the hardware does not support SAP. So the rxsubchans combination
+	   of STEREO | LANG2 does not occur. */
+
+	/* switch to mono if only mono is available */
+	if (state->rxsubchans == V4L2_TUNER_SUB_MONO)
+		audmode = V4L2_TUNER_MODE_MONO;
+	/* if bilingual */
+	else if (state->rxsubchans & V4L2_TUNER_SUB_LANG2) {
+		/* and mono or stereo, then fallback to lang1 */
+		if (audmode == V4L2_TUNER_MODE_MONO ||
+		    audmode == V4L2_TUNER_MODE_STEREO)
+			audmode = V4L2_TUNER_MODE_LANG1;
+	}
+	/* if stereo, and audmode is not mono, then switch to stereo */
+	else if (audmode != V4L2_TUNER_MODE_MONO)
 		audmode = V4L2_TUNER_MODE_STEREO;
 
 	/* switch demodulator */
@@ -308,6 +315,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 	}
 
 	/* switch audio */
+	v4l_dbg(1, msp_debug, client, "set audmode %d\n", audmode);
 	switch (audmode) {
 	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1_LANG2:
@@ -476,8 +484,9 @@ int msp3400c_thread(void *data)
 			continue;
 		}
 
-		/* mute */
-		msp_set_mute(client);
+		/* put into sane state (and mute) */
+		msp_reset(client);
+
 		msp3400c_set_mode(client, MSP_MODE_AM_DETECT);
 		val1 = val2 = 0;
 		max1 = max2 = -1;
@@ -560,7 +569,6 @@ int msp3400c_thread(void *data)
 				/* B/G NICAM */
 				state->second = msp3400c_carrier_detect_55[max2].cdo;
 				msp3400c_set_mode(client, MSP_MODE_FM_NICAM1);
-				msp3400c_set_carrier(client, state->second, state->main);
 				state->nicam_on = 1;
 				state->watch_stereo = 1;
 			} else {
@@ -571,7 +579,6 @@ int msp3400c_thread(void *data)
 			/* PAL I NICAM */
 			state->second = MSP_CARRIER(6.552);
 			msp3400c_set_mode(client, MSP_MODE_FM_NICAM2);
-			msp3400c_set_carrier(client, state->second, state->main);
 			state->nicam_on = 1;
 			state->watch_stereo = 1;
 			break;
@@ -585,13 +592,11 @@ int msp3400c_thread(void *data)
 				/* L NICAM or AM-mono */
 				state->second = msp3400c_carrier_detect_65[max2].cdo;
 				msp3400c_set_mode(client, MSP_MODE_AM_NICAM);
-				msp3400c_set_carrier(client, state->second, state->main);
 				state->watch_stereo = 1;
 			} else if (max2 == 0 && state->has_nicam) {
 				/* D/K NICAM */
 				state->second = msp3400c_carrier_detect_65[max2].cdo;
 				msp3400c_set_mode(client, MSP_MODE_FM_NICAM1);
-				msp3400c_set_carrier(client, state->second, state->main);
 				state->nicam_on = 1;
 				state->watch_stereo = 1;
 			} else {
@@ -603,13 +608,15 @@ int msp3400c_thread(void *data)
 		no_second:
 			state->second = msp3400c_carrier_detect_main[max1].cdo;
 			msp3400c_set_mode(client, MSP_MODE_FM_TERRA);
-			msp3400c_set_carrier(client, state->second, state->main);
 			state->rxsubchans = V4L2_TUNER_SUB_MONO;
 			break;
 		}
+		msp3400c_set_carrier(client, state->second, state->main);
 
-		/* unmute */
+		/* unmute, restore misc registers */
 		msp_set_audio(client);
+
+		msp_write_dsp(client, 0x13, state->acb);
 		msp3400c_set_audmode(client);
 
 		if (msp_debug)
@@ -617,12 +624,12 @@ int msp3400c_thread(void *data)
 
 		/* monitor tv audio mode, the first time don't wait
 		   so long to get a quick stereo/bilingual result */
-		if (msp_sleep(state, 1000))
-			goto restart;
+		count = 20;
 		while (state->watch_stereo) {
 			watch_stereo(client);
-			if (msp_sleep(state, 5000))
+			if (msp_sleep(state, count ? 200 : 5000))
 				goto restart;
+			if (count) count--;
 		}
 	}
 	v4l_dbg(1, msp_debug, client, "thread: exit\n");
@@ -634,7 +641,7 @@ int msp3410d_thread(void *data)
 {
 	struct i2c_client *client = data;
 	struct msp_state *state = i2c_get_clientdata(client);
-	int val, i, std;
+	int val, i, std, count;
 
 	v4l_dbg(1, msp_debug, client, "msp3410 daemon started\n");
 
@@ -775,12 +782,12 @@ int msp3410d_thread(void *data)
 
 		/* monitor tv audio mode, the first time don't wait
 		   so long to get a quick stereo/bilingual result */
-		if (msp_sleep(state, 1000))
-			goto restart;
+		count = 20;
 		while (state->watch_stereo) {
 			watch_stereo(client);
-			if (msp_sleep(state, 5000))
+			if (msp_sleep(state, count ? 200 : 5000))
 				goto restart;
+			if (count) count--;
 		}
 	}
 	v4l_dbg(1, msp_debug, client, "thread: exit\n");
@@ -837,19 +844,19 @@ static void msp34xxg_set_source(struct i2c_client *client, u16 reg, int in)
 		source = 0; /* mono only */
 		matrix = 0x30;
 		break;
-	case V4L2_TUNER_MODE_LANG1:
-		source = 3; /* stereo or A */
-		matrix = 0x00;
-		break;
 	case V4L2_TUNER_MODE_LANG2:
 		source = 4; /* stereo or B */
 		matrix = 0x10;
 		break;
-	case V4L2_TUNER_MODE_STEREO:
 	case V4L2_TUNER_MODE_LANG1_LANG2:
-	default:
 		source = 1; /* stereo or A|B */
 		matrix = 0x20;
+		break;
+	case V4L2_TUNER_MODE_STEREO:
+	case V4L2_TUNER_MODE_LANG1:
+	default:
+		source = 3; /* stereo or A */
+		matrix = 0x00;
 		break;
 	}
 
@@ -877,7 +884,7 @@ static void msp34xxg_set_sources(struct i2c_client *client)
 	msp34xxg_set_source(client, 0x000c, (in >> 4) & 0xf);
 	msp34xxg_set_source(client, 0x0009, (in >> 8) & 0xf);
 	msp34xxg_set_source(client, 0x000a, (in >> 12) & 0xf);
-	if (state->has_scart23_in_scart2_out)
+	if (state->has_scart2_out)
 		msp34xxg_set_source(client, 0x0041, (in >> 16) & 0xf);
 	msp34xxg_set_source(client, 0x000b, (in >> 20) & 0xf);
 }
