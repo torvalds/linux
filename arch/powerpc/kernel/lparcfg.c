@@ -149,17 +149,17 @@ static void log_plpar_hcall_return(unsigned long rc, char *tag)
 	if (rc == 0)		/* success, return */
 		return;
 /* check for null tag ? */
-	if (rc == H_Hardware)
+	if (rc == H_HARDWARE)
 		printk(KERN_INFO
 		       "plpar-hcall (%s) failed with hardware fault\n", tag);
-	else if (rc == H_Function)
+	else if (rc == H_FUNCTION)
 		printk(KERN_INFO
 		       "plpar-hcall (%s) failed; function not allowed\n", tag);
-	else if (rc == H_Authority)
+	else if (rc == H_AUTHORITY)
 		printk(KERN_INFO
-		       "plpar-hcall (%s) failed; not authorized to this function\n",
-		       tag);
-	else if (rc == H_Parameter)
+		       "plpar-hcall (%s) failed; not authorized to this"
+		       " function\n", tag);
+	else if (rc == H_PARAMETER)
 		printk(KERN_INFO "plpar-hcall (%s) failed; Bad parameter(s)\n",
 		       tag);
 	else
@@ -209,7 +209,7 @@ static void h_pic(unsigned long *pool_idle_time, unsigned long *num_procs)
 	unsigned long dummy;
 	rc = plpar_hcall(H_PIC, 0, 0, 0, 0, pool_idle_time, num_procs, &dummy);
 
-	if (rc != H_Authority)
+	if (rc != H_AUTHORITY)
 		log_plpar_hcall_return(rc, "H_PIC");
 }
 
@@ -529,13 +529,13 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 	retval = plpar_hcall_norets(H_SET_PPP, *new_entitled_ptr,
 				    *new_weight_ptr);
 
-	if (retval == H_Success || retval == H_Constrained) {
+	if (retval == H_SUCCESS || retval == H_CONSTRAINED) {
 		retval = count;
-	} else if (retval == H_Busy) {
+	} else if (retval == H_BUSY) {
 		retval = -EBUSY;
-	} else if (retval == H_Hardware) {
+	} else if (retval == H_HARDWARE) {
 		retval = -EIO;
-	} else if (retval == H_Parameter) {
+	} else if (retval == H_PARAMETER) {
 		retval = -EINVAL;
 	} else {
 		printk(KERN_WARNING "%s: received unknown hv return code %ld",
