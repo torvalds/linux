@@ -21,6 +21,7 @@
 #include <linux/pagemap.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/mm_inline.h>
+#include <linux/swap.h>
 
 /*
  * Passed to the actors
@@ -32,11 +33,37 @@ struct splice_desc {
 	loff_t pos;			/* file position */
 };
 
+static int page_cache_pipe_buf_steal(struct pipe_inode_info *info,
+				     struct pipe_buffer *buf)
+{
+	struct page *page = buf->page;
+
+	WARN_ON(!PageLocked(page));
+	WARN_ON(!PageUptodate(page));
+
+	if (!remove_mapping(page_mapping(page), page))
+		return 1;
+
+	if (PageLRU(page)) {
+		struct zone *zone = page_zone(page);
+
+		spin_lock_irq(&zone->lru_lock);
+		BUG_ON(!PageLRU(page));
+		__ClearPageLRU(page);
+		del_page_from_lru(zone, page);
+		spin_unlock_irq(&zone->lru_lock);
+	}
+
+	buf->stolen = 1;
+	return 0;
+}
+
 static void page_cache_pipe_buf_release(struct pipe_inode_info *info,
 					struct pipe_buffer *buf)
 {
 	page_cache_release(buf->page);
 	buf->page = NULL;
+	buf->stolen = 0;
 }
 
 static void *page_cache_pipe_buf_map(struct file *file,
@@ -63,7 +90,8 @@ static void *page_cache_pipe_buf_map(struct file *file,
 static void page_cache_pipe_buf_unmap(struct pipe_inode_info *info,
 				      struct pipe_buffer *buf)
 {
-	unlock_page(buf->page);
+	if (!buf->stolen)
+		unlock_page(buf->page);
 	kunmap(buf->page);
 }
 
@@ -72,6 +100,7 @@ static struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.map = page_cache_pipe_buf_map,
 	.unmap = page_cache_pipe_buf_unmap,
 	.release = page_cache_pipe_buf_release,
+	.steal = page_cache_pipe_buf_steal,
 };
 
 static ssize_t move_to_pipe(struct inode *inode, struct page **pages,
@@ -336,8 +365,8 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	struct address_space *mapping = file->f_mapping;
 	unsigned int offset;
 	struct page *page;
-	char *src, *dst;
 	pgoff_t index;
+	char *src;
 	int ret;
 
 	/*
@@ -350,40 +379,54 @@ static int pipe_to_file(struct pipe_inode_info *info, struct pipe_buffer *buf,
 	index = sd->pos >> PAGE_CACHE_SHIFT;
 	offset = sd->pos & ~PAGE_CACHE_MASK;
 
-find_page:
-	ret = -ENOMEM;
-	page = find_or_create_page(mapping, index, mapping_gfp_mask(mapping));
-	if (!page)
-		goto out;
-
 	/*
-	 * If the page is uptodate, it is also locked. If it isn't
-	 * uptodate, we can mark it uptodate if we are filling the
-	 * full page. Otherwise we need to read it in first...
+	 * reuse buf page, if SPLICE_F_MOVE is set
 	 */
-	if (!PageUptodate(page)) {
-		if (sd->len < PAGE_CACHE_SIZE) {
-			ret = mapping->a_ops->readpage(file, page);
-			if (unlikely(ret))
-				goto out;
+	if (sd->flags & SPLICE_F_MOVE) {
+		if (buf->ops->steal(info, buf))
+			goto find_page;
 
-			lock_page(page);
+		page = buf->page;
+		if (add_to_page_cache_lru(page, mapping, index,
+						mapping_gfp_mask(mapping)))
+			goto find_page;
+	} else {
+find_page:
+		ret = -ENOMEM;
+		page = find_or_create_page(mapping, index,
+						mapping_gfp_mask(mapping));
+		if (!page)
+			goto out;
 
-			if (!PageUptodate(page)) {
-				/*
-				 * page got invalidated, repeat
-				 */
-				if (!page->mapping) {
-					unlock_page(page);
-					page_cache_release(page);
-					goto find_page;
+		/*
+		 * If the page is uptodate, it is also locked. If it isn't
+		 * uptodate, we can mark it uptodate if we are filling the
+		 * full page. Otherwise we need to read it in first...
+		 */
+		if (!PageUptodate(page)) {
+			if (sd->len < PAGE_CACHE_SIZE) {
+				ret = mapping->a_ops->readpage(file, page);
+				if (unlikely(ret))
+					goto out;
+
+				lock_page(page);
+
+				if (!PageUptodate(page)) {
+					/*
+					 * page got invalidated, repeat
+					 */
+					if (!page->mapping) {
+						unlock_page(page);
+						page_cache_release(page);
+						goto find_page;
+					}
+					ret = -EIO;
+					goto out;
 				}
-				ret = -EIO;
-				goto out;
+			} else {
+				WARN_ON(!PageLocked(page));
+				SetPageUptodate(page);
 			}
-		} else {
-			WARN_ON(!PageLocked(page));
-			SetPageUptodate(page);
 		}
 	}
 
@@ -391,10 +434,13 @@ find_page:
 	if (ret)
 		goto out;
 
-	dst = kmap_atomic(page, KM_USER0);
-	memcpy(dst + offset, src + buf->offset, sd->len);
-	flush_dcache_page(page);
-	kunmap_atomic(dst, KM_USER0);
+	if (!buf->stolen) {
+		char *dst = kmap_atomic(page, KM_USER0);
+
+		memcpy(dst + offset, src + buf->offset, sd->len);
+		flush_dcache_page(page);
+		kunmap_atomic(dst, KM_USER0);
+	}
 
 	ret = mapping->a_ops->commit_write(file, page, 0, sd->len);
 	if (ret < 0)
@@ -405,7 +451,8 @@ find_page:
 out:
 	if (ret < 0)
 		unlock_page(page);
-	page_cache_release(page);
+	if (!buf->stolen)
+		page_cache_release(page);
 	buf->ops->unmap(info, buf);
 	return ret;
 }

@@ -121,11 +121,19 @@ static void anon_pipe_buf_unmap(struct pipe_inode_info *info, struct pipe_buffer
 	kunmap(buf->page);
 }
 
+static int anon_pipe_buf_steal(struct pipe_inode_info *info,
+			       struct pipe_buffer *buf)
+{
+	buf->stolen = 1;
+	return 0;
+}
+
 static struct pipe_buf_operations anon_pipe_buf_ops = {
 	.can_merge = 1,
 	.map = anon_pipe_buf_map,
 	.unmap = anon_pipe_buf_unmap,
 	.release = anon_pipe_buf_release,
+	.steal = anon_pipe_buf_steal,
 };
 
 static ssize_t
