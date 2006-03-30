@@ -2123,7 +2123,7 @@ static int frontend_init(struct av7110 *av7110)
 							read_pwm(av7110));
 				break;
 			case 0x0003:
-				/* Haupauge DVB-C 2.1 VES1820/ALPS TDBE2 */
+				/* Hauppauge DVB-C 2.1 VES1820/ALPS TDBE2 */
 				av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap,
 							read_pwm(av7110));
 				break;
