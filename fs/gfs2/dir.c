@@ -940,10 +940,15 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	/*  Get the old leaf block  */
 	error = get_leaf(dip, leaf_no, &obh);
 	if (error)
-		goto fail;
+		return error;
+
+	oleaf = (struct gfs2_leaf *)obh->b_data;
+	if (dip->i_di.di_depth == be16_to_cpu(oleaf->lf_depth)) {
+		brelse(obh);
+		return 1; /* can't split */
+	}
 
 	gfs2_trans_add_bh(dip->i_gl, obh, 1);
-	oleaf = (struct gfs2_leaf *)obh->b_data;
 
 	nleaf = new_leaf(inode, &nbh, be16_to_cpu(oleaf->lf_depth) + 1);
 	if (!nleaf) {
@@ -956,6 +961,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	len = 1 << (dip->i_di.di_depth - be16_to_cpu(oleaf->lf_depth));
 	half_len = len >> 1;
 	if (!half_len) {
+		printk(KERN_WARNING "di_depth %u lf_depth %u index %u\n", dip->i_di.di_depth, be16_to_cpu(oleaf->lf_depth), index);
 		gfs2_consist_inode(dip);
 		error = -EIO;
 		goto fail_brelse;
@@ -1038,13 +1044,11 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 
 	return error;
 
- fail_lpfree:
+fail_lpfree:
 	kfree(lp);
 
- fail_brelse:
+fail_brelse:
 	brelse(obh);
-
- fail:
 	brelse(nbh);
 	return error;
 }
@@ -1570,16 +1574,17 @@ int gfs2_dir_add(struct inode *inode, const struct qstr *name,
 		error = dir_split_leaf(inode, name);
 		if (error == 0)
 			continue;
-		if (error != -ENOSPC)
+		if (error < 0)
 			break;
 		if (ip->i_di.di_depth < GFS2_DIR_MAX_DEPTH) {
 			error = dir_double_exhash(ip);
 			if (error)
 				break;
 			error = dir_split_leaf(inode, name);
-			if (error)
+			if (error < 0)
 				break;
-			continue;
+			if (error == 0)
+				continue;
 		}
 		error = dir_new_leaf(inode, name);
 		if (!error)
